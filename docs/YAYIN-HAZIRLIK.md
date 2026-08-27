@@ -10,11 +10,16 @@
 > BL-026 ölçümle **🟡'ye indirildi**; BL-027/BL-037 sınıf taramasıyla **21 vakaya
 > genişledi** ve **[Faz 119](arsiv/fazlar/119-HATA-METNI-SIZINTISI.md) ile kapandı** (26 vaka
 > kapatıldı — sınıf taraması 5 ek vaka daha buldu; `SafeErrorText` + mimari
-> cırcır kapısı)  
-> **Geçici karar:** ❌ Yayınlanmamalı — açık 🔴: BL-041 (Faz 120'ye devredildi).
-> Yayın türü `preview` (UR-001), paket kapsamı tam entegrasyon seti (UR-002/BL-002)
-> sabit. Kalan iş: BL-041'in Faz 120'de kapatılması + §7/§8'deki public API
-> freeze ve NuGet.org operasyon kararları — bkz. §4.
+> cırcır kapısı); BL-041 **[Faz 120](120-JOB-SOZLESMESI-AT-LEAST-ONCE.md) ile
+> kapandı** (`IJobHandler` sözleşmesi at-least-once'ı yazıyor, `JobHandlerContract`
+> üç yerleşik handler + bir dış sample tarafından koşuyor, `JobLeaseExpiryTests`
+> davranışı ölçüyor)  
+> **Geçici karar:** ❌ Yayınlanmamalı — dört preview-blocker kusur sınıfının
+> **tamamı kapandı** (açık 🔴 kalmadı), ama §7/§8'deki public API freeze
+> taraması (UR-003) ve NuGet.org operasyon kararları (OP-001..009) henüz
+> verilmedi; bu nihai "yayınlanabilir" kararı `nuget-danismani`'nin ayrı bir
+> turda vermesini bekler. Yayın türü `preview` (UR-001), paket kapsamı tam
+> entegrasyon seti (UR-002/BL-002) sabit — bkz. §4.
 
 ## 1. Yayın hedefi ve kapsamı
 
@@ -76,21 +81,23 @@ değerlendirilecektir.
 **❌ Yayınlanmamalı — şu an.** Yayın türü (`preview`, UR-001) ve paket kapsamı
 (tam entegrasyon seti, UR-002) kullanıcı tarafından sabitlendi. 22 sütunlu seam
 matrisi 11/11 kümede tamamlandı (§15) ve **4 bağımsız 🔴 preview-blocker kusur
-sınıfı** açık:
+sınıfının tamamı kapandı**:
 
 | # | Kusur sınıfı | Kayıtlar | Durum (2026-08-27, `kusur-giderme` sonrası) |
 |---|---|---|---|
 | 1 | BYOK credential case-sensitivity | BL-006 | ✅ **KAPANDI.** Düşen testle yeniden üretildi → normalizasyon + 3 migration + contract case'leri → yeşil. K-639. Sınıf taraması: 4 aday temiz, `provider` tek outlier |
 | 2 | Drain/yeni-run yarışı | BL-026 | ⬇️ **🟡'ye indirildi.** Pencere var ama iş kaybı yok: Kestrel request draining (HTTP) ve `WaitForRunningJobsAsync` (job) boşluğu kapatıyor; drain zaten varsayılan **kapalı**. Ölçülmüş repro üretilemedi |
 | 3 | Ham exception → kalıcı/dışa açık durum | BL-027, BL-037 | ✅ **KAPANDI (Faz 119).** Sınıf taraması bilinen 2 vakanın üstüne 19 vaka daha bulmuştu (§16); uygulama sırasında **5 ek vaka** daha bulundu (`EgressAddressValidator`, `ConversationBranchService`, `RetentionJobHandler`, `RetentionExecutor`, `ModelRunJudge`) — toplam **26 vaka** kapatıldı. `SafeErrorText` (K-640) + `RawExceptionTextSiteTests` mimari cırcır kapısı 22. sızıntıyı otomatik yakalar |
-| 4 | `IJobHandler` sözleşmesi at-least-once'ı söylemiyor | BL-041 | 🔴 **AÇIK, ÇERÇEVE DARALTILDI, PLANLANDI.** `IIdempotencyStore` iddiası ölçümle çürüdü (o tip HTTP `Idempotency-Key` içindir); gerçek kusur yalnız sözleşme boşluğu. → **[Faz 120](120-JOB-SOZLESMESI-AT-LEAST-ONCE.md)** |
+| 4 | `IJobHandler` sözleşmesi at-least-once'ı söylemiyor | BL-041 | ✅ **KAPANDI (Faz 120).** `ExecuteAsync` ve `JobContext.Items`'ın XML dokümanı at-least-once'ı, süzülmemiş `Items`'ı ve handler sorumluluğunu açıkça yazıyor. `JobHandlerContract` (üç yerleşik handler + `AgentPrism.Samples.CustomJobHandler` dış sample'ı) kuralı kilitliyor; `JobLeaseExpiryTests` lease süresi dolunca gerçekten yeniden kiralandığını ve item listesinin süzülmeden geri geldiğini ölçüyor |
 
 Bunların **hepsi** `kusur-giderme`'ye devredilmeden (ve kusur sınıfı taraması
-tamamlanmadan) preview yayınlanamaz. Üç sınıf kapandı (BL-006, BL-026 🟡'ye
-indirildi, BL-027/BL-037 Faz 119); **tek açık 🔴 BL-041** kaldı (Faz 120). O
-kapandıktan sonra geri kalan 35× 🟡 ve 17× 🟢 bulgu **1.0 blocker'ı değil**,
-ilk preview'ı engellemez — release notes'a ve sonraki iterasyon planına girer
-(bkz. §6 tam liste).
+tamamlanmadan) preview yayınlanamazdı. **Dördü de kapandı** (BL-006, BL-026
+🟡'ye indirildi, BL-027/BL-037 Faz 119, BL-041 Faz 120); açık 🔴 kalmadı.
+Geri kalan 35× 🟡 ve 17× 🟢 bulgu **1.0 blocker'ı değil**, ilk preview'ı
+engellemez — release notes'a ve sonraki iterasyon planına girer (bkz. §6 tam
+liste). Nihai "yayınlanabilir" kararı yine de verilmedi: §7'deki public API
+freeze taraması (UR-003) ve §8'deki NuGet.org operasyon kararları (OP-001..009)
+açık — bu ikisi bir sonraki `nuget-danismani` turunun konusudur.
 
 Paket artifact'i (dry-run, exact sürüm, 20 paket, 160 sample testi, Native AOT
 smoke) teknik olarak yeşildir — bu yalnız **başlangıç** kanıtıdır, seam
@@ -176,7 +183,7 @@ doğrulama kapısıdır.
 | BL-038 | Açık | Workflow resume'un side-effecting adımları tekrar çalıştırabileceği (at-least-once semantics) yalnız `AddWorkflowFunction<T>()`'ın XML dokümanında anlatılıyor — `AgentPrism.Abstractions`'daki `IWorkflowRunner`/`IWorkflowCheckpointStore` (paketin asıl public sözleşme yüzeyi) bundan hiç bahsetmiyor; davranış doğru ve kasıtlı, yalnız yanlış dosyada dokümante | 🟡 1.0 blocker | `AgentPrismWorkflowFunctionExtensions.cs:66-77` vs. `IWorkflowRunner.cs`, `IWorkflowCheckpointStore.cs` | `nuget-danismani` → doküman senkronu | Idempotency notu `IWorkflowCheckpointStore`'un XML dokümanına da eklenir |
 | BL-039 | Açık | `IWorkflowRunner`/`IWorkflowFunctionCatalog` için contract test yok (store'ların aksine); 4 arayüzün hiçbiri için dış `Custom*` sample yok (`CustomTool`/`CustomModelProvider`/`CustomRunJudge`/`CustomAgentSource`'un aksine); iki kod-tanımlı workflow aynı adı paylaşırsa ham `.NET ArgumentException` fırlıyor (`WorkflowCatalog.cs:41-44`) — `WorkflowFunctionRegistry`'nin aynı durumda verdiği net `AgentPrismException`'la tutarsız; DI lifetime/thread-safety 4 arayüzün hiçbirinde dokümante değil | 🟡 1.0 blocker | Küme G raporu | `nuget-danismani` → faz zinciri | Contract sınıfları + sample eklenir; duplicate-name hatası `AgentPrismException`'a çevrilir |
 | BL-040 | Bilgi | Küme G cila bulguları (🟢, toplu): `IWorkflowFunctionCatalog`'un cache semantiği (executor identity stability) yalnız kayıt call site'ındaki `//` yorumunda anlatılıyor, arayüz dokümanında değil; workflow/function adları için ad-şekli doğrulaması dokümante/zorlanmış değil (yalnız non-empty kontrolü var) | 🟢 Doküman/cila | Küme G raporu | `nuget-danismani` → doküman senkronu | Docs-site'a eklenir |
-| BL-041 | **ÇERÇEVE DÜZELTİLDİ → Faz 120'ye devredildi** | Denetim bunu "`IIdempotencyStore` amacına rağmen job loop'unda kullanılmıyor" diye kaydetmişti. **Ölçüldü, çerçeve yanlıştı:** `IIdempotencyStore`'un kendi XML dokümanı (`IIdempotencyStore.cs:6-14`) onu açıkça **HTTP `Idempotency-Key` başlığı** mekanizması olarak tanımlıyor ("exactly as the HTTP `Idempotency-Key` standard prescribes"); tüketicileri `IdempotencyFilter` ve `InboundTriggerDispatcher`. Job loop'unda tekrar koruması **zaten var** (`JobItemStatus.Pending` kontrolü, üç yerleşik handler'da da koşuyor). Job loop'una bu store'u bağlamak gereksiz ikinci bir mekanizma olurdu. **Geriye kalan gerçek kusur tek ve dar:** `IJobHandler`'ın sözleşmesi at-least-once'ı söylemiyor | 🔴 Preview blocker (dar kapsamıyla) | `IJobHandler.cs` (`<remarks>` yalnız retry'den söz eder, `Items`'ın süzülmemiş geleceğinden değil); `AgentBatchJobHandler.cs:35-39` · `WorkflowJobHandler.cs:41-46` · `EvalJobHandler.cs:150-155` (kural yalnız bu yorumlarda yaşıyor); `grep -c IdempotencyStore JobWorkerBackgroundService.cs` = 0 | **[Faz 120](120-JOB-SOZLESMESI-AT-LEAST-ONCE.md)** | Sözleşme XML'e yazılır + `JobHandlerContract` (üç yerleşik + bir dış sample türetir) + `JobLeaseExpiryTests` davranışın gerçekten var olduğunu ölçer (doküman runtime'dan güçlü garanti vermesin) |
+| BL-041 | **KAPANDI (Faz 120)** | Denetim bunu "`IIdempotencyStore` amacına rağmen job loop'unda kullanılmıyor" diye kaydetmişti. **Ölçüldü, çerçeve yanlıştı:** `IIdempotencyStore`'un kendi XML dokümanı (`IIdempotencyStore.cs:6-14`) onu açıkça **HTTP `Idempotency-Key` başlığı** mekanizması olarak tanımlıyor ("exactly as the HTTP `Idempotency-Key` standard prescribes"); tüketicileri `IdempotencyFilter` ve `InboundTriggerDispatcher`. Job loop'unda tekrar koruması **zaten vardı** (`JobItemStatus.Pending` kontrolü, üç yerleşik handler'da da koşuyor). Job loop'una bu store'u bağlamak gereksiz ikinci bir mekanizma olurdu. **Geriye kalan gerçek kusur tek ve dardı:** `IJobHandler`'ın sözleşmesi at-least-once'ı söylemiyordu | ~~🔴~~ ✅ Kapandı | `IJobHandler.cs` (artık `ExecuteAsync`'in `<remarks>`'i at-least-once'ı ve `JobContext.Items`'ın süzülmemiş geleceğini açıkça söylüyor) | **[Faz 120](120-JOB-SOZLESMESI-AT-LEAST-ONCE.md)** | Sözleşme XML'e yazıldı + `JobHandlerContract` (`AgentPrism.Testing.Contracts.Scheduling`, üç yerleşik handler + `AgentPrism.Samples.CustomJobHandler` dış sample'ı türetiyor) + `JobLeaseExpiryTests` (`InMemoryJobStore` üzerinde: abandoned lease süresi dolunca gerçekten yeniden kiralanıyor ve `ListItemsAsync` daha önce `Completed` işaretlenen item'ı süzmeden geri veriyor) davranışın gerçekten var olduğunu ölçüyor |
 | BL-042 | Açık | `ISingletonLeaseStore`'un lease-sahibi donduğunda (`GC` duraklaması, thread starvation, ağ bölünmesi) oluşan sınırlı split-brain penceresi ne arayüz dokümanında ne `SingletonGuard.cs`'de belirtiliyor — "eventually correct, strictly exclusive değil" garantisi dokümante değil | 🟡 1.0 blocker | `SingletonGuard.cs:99`; `SqlSingletonLeaseStore.cs:61-79` | `nuget-danismani` → doküman senkronu | Garanti seviyesi arayüz dokümanına eklenir |
 | BL-043 | Açık | Webhook teslimatı at-least-once (aynı `delivery.Id` her retry'da `X-AgentPrism-Delivery` header'ıyla gönderiliyor, alıcı-taraflı dedup bekleniyor) ama bu `IWebhookStore`/`IWebhookPublisher`'ın XML dokümanında hiç belirtilmiyor — yalnız `WebhookDeliveryJobHandler.cs:299`'da görülebiliyor | 🟡 1.0 blocker | `WebhookDeliveryJobHandler.cs:299` | `nuget-danismani` → doküman senkronu | At-least-once garantisi ve dedup header'ı arayüz dokümanına eklenir |
 | BL-044 | Açık | Kümede hiç `ActivitySource`/`Meter` yok (`Scheduling`, `Webhooks`, `Coordination`, `Idempotency`, `Triggers` içinde grep boş) — yalnız hata yollarında `ILogger` uyarısı var; job backlog, webhook teslim başarısızlık oranı, lease çekişmesi gibi operasyonel sinyaller `IRunStore`/`AgentPrismMetrics` seviyesine kıyasla eksik | 🟡 1.0 blocker | Küme H raporu | `nuget-danismani` → faz zinciri | Operasyonel metric'ler eklenir |
@@ -223,7 +230,7 @@ doğrulama kapısıdır.
 | RK-007 | Açık | `ITenantProviderBindingStore` case-sensitivity tutarsızlığı (BL-006) BYOK credential'ının sessizce global setup credential'ına düşmesine yol açabilir — kiracı izolasyonu ihlali | Yüksek | Orta (Postgres/SQLite dağıtımlarında + admin yazım farkı) / yüksek (yanlış kiracının credential'ı kullanılmaz ama yanlış tenant'ın isteği yanlış/paylaşılan credential ile gider) | BL-006 düzeltmesi: canonical case normalizasyonu veya üç katmanda tutarlı ordinal-ignore-case + regresyon testi | `nuget-danismani` → `kusur-giderme` |
 | RK-008 | Açık | Drain/yeni-run yarışı (BL-026) `ApplicationStopping` ile aynı ana denk gelen bir run'ın yarıda kesilmesine yol açabilir — zero-downtime deploy varsayımı kırılır | Orta | Düşük (dar pencere) / orta (tek run kaybı, veri bozulması değil ama tutarsız durum) | Register'ı erken taşımak veya reservation adımı; eşzamanlılık testiyle kilitleme | `nuget-danismani` → `kusur-giderme` |
 | RK-009 | Açık | Ham exception mesajı sızıntısı **bir sınıf** olarak doğrulandı — `IRunStore.RunError.Message` (BL-027) ve `WorkflowRunner.ToRunError`/`RunEvent.Text` (BL-037) aynı desenin iki bağımsız örneği; `HATA-S3-006`'nın kapattığı sınıfın tekrarı; `secret`/PII sızıntı riski (K-059 ruhuna aykırı) | Yüksek | Orta (provider SDK exception'ları request detayı taşıyabilir) / yüksek (persisted run/workflow kaydı, admin API/UI üzerinden okunabilir) | Her iki yol da `ContentGuardPipeline`'dan geçirilir; sınıf taraması çalıştırma yolundaki (run, workflow, job, webhook) tüm exception→persist noktalarını tek seferde tarar | `nuget-danismani` → `kusur-giderme` (BL-027 + BL-037 birlikte) |
-| RK-010 | Açık | `IIdempotencyStore` var olma amacına rağmen job dispatch loop'unda kullanılmıyor (BL-041) — dokümante edilen `IJobHandler` örneğini izleyen bir tüketici crash/retry'de side effect'i iki kez çalıştırabilir | Yüksek | Orta (lease kaybı/retry production'da olağan) / yüksek (dokümante edilen doğrudan örnek yanlış) | `IJobHandler.cs` dokümanına at-least-once uyarısı; dispatch loop'un `IIdempotencyStore`'u kullanması değerlendirilir | `nuget-danismani` → `kusur-giderme` |
+| RK-010 | **Kapandı (Faz 120)** | `IJobHandler`'ın sözleşmesi at-least-once'ı söylemiyordu (BL-041) — dokümante edilen örneği izleyen bir tüketici crash/retry'de side effect'i iki kez çalıştırabilirdi | ~~Yüksek~~ | Orta (lease kaybı/retry production'da olağan) / yüksek (dokümante edilen doğrudan örnek yanlış) | `IJobHandler.cs`'nin XML dokümanına at-least-once uyarısı ve süzülmemiş `Items` notu eklendi; `JobHandlerContract` kuralı kilitliyor, `JobLeaseExpiryTests` davranışı ölçüyor. `IIdempotencyStore`'u job loop'una bağlamak değerlendirilmedi — BL-041'in kapanış notunun gerekçesiyle gereksiz ikinci bir mekanizma olurdu | `nuget-danismani` → `kusur-giderme` → [Faz 120](120-JOB-SOZLESMESI-AT-LEAST-ONCE.md) |
 
 ## 10. Yayın checklist'i
 
@@ -302,6 +309,7 @@ doğrulama kapısıdır.
 | KG-012 | 2026-08-27 | Tamamlandı | Küme H ölçüldü: 1× 🔴 (BL-041 — `IIdempotencyStore` job loop'unda kullanılmıyor) + 4× 🟡 + 2× 🟢 | Bağımsız ölçüm | 8/11 küme tamam; I, J, K sırada; toplam açık 🔴 sayısı 5 |
 | KG-013 | 2026-08-27 | Tamamlandı | Küme K elle ölçüldü (ajan gerekmedi, yalnız 2 arayüz) — 0× 🔴, 0× 🟡, bulgu yok | Doğrudan kaynak okuması | 9/11 küme tamam; I, J sırada (arka planda çalışıyor) |
 | KG-014 | 2026-08-27 | Tamamlandı | Küme J ve I ölçüldü — ikisi de 0× 🔴 (Küme J 3× 🟡 + 1× 🟢; Küme I 4× 🟡 + 1× 🟢). **11/11 küme tamam.** Toplam: 5 blocker kaydı / 4 bağımsız 🔴 kusur sınıfı (BL-027+BL-037 tek sınıf), 35× 🟡, 17× 🟢 | Bağımsız ölçüm; BL-003 (seam matrisi) artık kapalı | Nihai yayın kararı verilebilir — bkz. §4 |
+| KG-015 | 2026-08-27 | Tamamlandı | BL-041 [Faz 120](120-JOB-SOZLESMESI-AT-LEAST-ONCE.md) ile kapandı — `IJobHandler.ExecuteAsync`/`JobContext.Items`'ın XML dokümanı at-least-once'ı ve süzülmemiş item listesini açıkça yazıyor; `JobHandlerContract` (üç yerleşik handler + `AgentPrism.Samples.CustomJobHandler` dış sample'ı) kuralı kilitliyor; `JobLeaseExpiryTests` lease-expiry davranışının gerçekten var olduğunu `InMemoryJobStore` üzerinde ölçüyor. **4/4 preview-blocker kusur sınıfı artık kapalı; açık 🔴 kalmadı** | Faz uygulaması + kendi kendini doğrulayan regresyon kanıtı (bir yerleşik handler'ın skip-kontrolü geçici olarak bozulup contract'ın gerçekten kırmızı verdiği doğrulandı, sonra geri alındı) | Nihai "yayınlanabilir" kararı hâlâ §7 (UR-003 public API freeze) ve §8 (OP-001..009 NuGet.org operasyonu) açık kararlarını bekliyor — bir sonraki `nuget-danismani` turunun konusu |
 
 ## 12. Ertelenen işler ve gerekçeleri
 
@@ -313,30 +321,33 @@ doğrulama kapısıdır.
 
 ## 13. Sonraki adım
 
-Seam matrisi tamamlandı (§15) ve 4 kusur sınıfı ele alındı. **Güncel durum:**
+Seam matrisi tamamlandı (§15) ve 4 kusur sınıfının **tamamı** ele alındı.
+**Güncel durum:**
 
 | Kusur sınıfı | Durum |
 |---|---|
 | BL-006 BYOK case-sensitivity | ✅ Kapandı (K-639) — migration'lar `scripts/applied-migrations.json` manifest'ine Faz 119 kapanışında kaydedildi (kayıt eksikliği `kapi.py tarama`'yı kırıyordu, bu fazda düzeltildi) |
 | BL-026 drain yarışı | ⬇️ 🟡'ye indi — ölçülmüş repro yok, iş kaybı üretmiyor |
 | BL-027 + BL-037 exception sızıntısı | ✅ Kapandı ([Faz 119](arsiv/fazlar/119-HATA-METNI-SIZINTISI.md), K-640) — 26 vaka kapatıldı, mimari cırcır kapısı eklendi |
-| BL-041 job sözleşmesi | 📋 [Faz 120](120-JOB-SOZLESMESI-AT-LEAST-ONCE.md) planlandı |
+| BL-041 job sözleşmesi | ✅ Kapandı ([Faz 120](120-JOB-SOZLESMESI-AT-LEAST-ONCE.md)) — `IJobHandler` sözleşmesi at-least-once'ı yazıyor, `JobHandlerContract` + `JobLeaseExpiryTests` kilitliyor |
 
-Kalan iş:
+Kalan iş — artık kusur değil, karar:
 
-1. **Faz 120'yi uygula** — preview'ı engelleyen tek kalan büyük kalem.
-2. 35× 🟡 bulguyu önceliklendir — `IRunJudge`/`IRunStore` desenini (kayıt
+1. 35× 🟡 bulguyu önceliklendir — `IRunJudge`/`IRunStore` desenini (kayıt
    üçlüsü + contract test + dış sample) referans alarak kalan seam'lere
    uygulamak tek bir sistemik iş olarak ele alınabilir (bkz. §15 özet notu).
-3. Public API freeze taraması (4.1 mercek, UR-003) — 676 unshipped tip için
+2. Public API freeze taraması (4.1 mercek, UR-003) — 676 unshipped tip için
    tut/kaldır/internal kararı, seam matrisinin ürettiği kanıt üzerinden.
-4. §8'deki NuGet.org operasyon kararları (owner modeli, 2FA, credential,
+3. §8'deki NuGet.org operasyon kararları (owner modeli, 2FA, credential,
    trusted publishing) — bunlar ürün kararı değil, kullanıcının kendi hesap/
    organizasyon tercihi.
-5. Doküman drift taraması (Adım 6) ve `tuketici-dokuman-senkronu`'na devir.
+4. Doküman drift taraması (Adım 6) ve `tuketici-dokuman-senkronu`'na devir.
+5. Nihai "yayınlanabilir mi" kararı — açık 🔴 kalmadığı için bir sonraki
+   `nuget-danismani` turu §7/§8 üzerinden bu kararı verebilir.
 
-Kusur sınıfları kapanıp yeniden ölçüldükten sonra bu dosyanın §4'ü ✅ veya
-⚠️ olarak güncellenir.
+Dördüncü kusur sınıfı da kapandığı için bu dosyanın §4'ü güncellendi; genel
+"❌ Yayınlanmamalı" durumu artık kusurdan değil, yukarıdaki açık kararlardan
+kaynaklanıyor.
 
 ## 14. Yayın sonrası ilk 72 saat planı
 

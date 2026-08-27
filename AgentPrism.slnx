@@ -37,6 +37,8 @@
     <Project Path="samples/AgentPrism.Samples.CustomTool.Tests/AgentPrism.Samples.CustomTool.Tests.csproj" />
     <Project Path="samples/AgentPrism.Samples.CustomAgentSource/AgentPrism.Samples.CustomAgentSource.csproj" />
     <Project Path="samples/AgentPrism.Samples.CustomAgentSource.Tests/AgentPrism.Samples.CustomAgentSource.Tests.csproj" />
+    <Project Path="samples/AgentPrism.Samples.CustomJobHandler/AgentPrism.Samples.CustomJobHandler.csproj" />
+    <Project Path="samples/AgentPrism.Samples.CustomJobHandler.Tests/AgentPrism.Samples.CustomJobHandler.Tests.csproj" />
     <Project Path="samples/AgentPrism.Samples.ExtensionAotSmoke/AgentPrism.Samples.ExtensionAotSmoke.csproj" />
   </Folder>
 

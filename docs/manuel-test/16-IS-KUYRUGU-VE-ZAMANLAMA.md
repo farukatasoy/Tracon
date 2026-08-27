@@ -1,6 +1,6 @@
 # 16 — İş Kuyruğu, Zamanlama, Tek Yürütücü Seçimi ve Dayanıklı Çalıştırma (`JOB`)
 
-> **Alan kodu:** `JOB` · **Faz:** 17, 42, 46, 66
+> **Alan kodu:** `JOB` · **Faz:** 17, 42, 46, 66, 120
 > **Kaynak:** `src/AgentPrism.Abstractions/Scheduling/` (tümü) ·
 > `src/AgentPrism.Abstractions/Coordination/` (tümü — `ISingletonLeaseStore`,
 > `SingletonExecutionOptions`) ·
@@ -2160,3 +2160,56 @@ echo
 - Yeni tetikleyici listede görünür; `Resolved` rozeti gerçek durumu
   yansıtır; **Accept URL** alanı gerçek kabul adresini gösterir ve
   hiçbir yerde `secret` değeri görünmez.
+
+---
+
+### MT-JOB-103 — Worker öldürülünce yalnız kalan öge'ler yeniden işlenir
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 120 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- Kısa `LeaseDuration` (ör. 10 saniye) ile yapılandırılmış bir worker süreci.
+
+**Adımlar**
+1. En az 3 öge'li bir `AgentBatch` job'ı kuyruğa al (`PUT /api/schedules/{name}`
+   + `POST .../trigger`, veya doğrudan job endpoint'i).
+2. Job `Leased`/`Running` durumuna geçtiğinde, ilk öge işlendikten hemen sonra
+   worker sürecini öldür (`kill -9`).
+3. `LeaseDuration` süresi dolana kadar bekle.
+4. Aynı veya farklı bir worker sürecini başlat.
+5. `GET /api/jobs/{id}` ile job'ı izle; tamamlanmasını bekle.
+
+**Beklenen sonuç**
+- İkinci koşumda **yalnız Pending kalan öge'ler** işlenir; ilk öge'nin yan
+  etkisi (ör. gönderilen e-posta, çalıştırılan agent) **tekrarlanmaz**.
+- Job sonunda `doneItems` toplam öge sayısına eşittir; `Attempt` alanı 1'den
+  büyüktür (yeniden kiralandığını gösterir).
+
+---
+
+### MT-JOB-104 — Dokümanı izleyen dış bir `IJobHandler` sözleşme testini geçer
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 120 |
+| **İlgili karar** | — |
+
+**Girilecek veri**
+```bash
+dotnet test samples/AgentPrism.Samples.CustomJobHandler.Tests/AgentPrism.Samples.CustomJobHandler.Tests.csproj -c Release
+```
+
+**Beklenen sonuç**
+- `NightlyReportJobHandlerContractTests`'in üç case'i de geçer: zaten
+  `Completed` bir öge yeniden işlenmez, retry'de yalnız `Pending` öge'ler
+  işlenir, iptal öge'ler arasında gözlenir.
+- Proje `PackageReference` ile `AgentPrism`/`AgentPrism.Testing.Contracts.Xunit`
+  paketlerini kullanır — `ProjectReference` değil; gerçek bir dış tüketicinin
+  göreceği yüzeyi kanıtlar.

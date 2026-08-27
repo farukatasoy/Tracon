@@ -557,7 +557,16 @@ def closing_commands(base: str, *, site: bool = True, performance: bool = True) 
         Command(("dotnet", "build", "AgentPrism.slnx", "-c", "Release")),
         full_solution_test_command(),
         Command(("dotnet", "pack", "AgentPrism.slnx", "-c", "Release", "--no-build")),
-        Command(("dotnet", "format", "AgentPrism.slnx", "--verify-no-changes", "--no-restore")),
+        # 🚨 NOT --no-restore: measured (2026-08-27) that dotnet format's
+        # restore-less MSBuildWorkspace load intermittently fails to resolve
+        # PackageReference types for every samples/*.Tests project (a
+        # floating-version, local-feed consumer of AgentPrism.* packages)
+        # specifically right after the full solution test run above -
+        # reproduced 3 times through this exact command chain, never in
+        # isolation. A plain restore immediately before format is a few
+        # seconds when nothing changed ("all projects are up-to-date") and
+        # reliably avoids the false failure.
+        Command(("dotnet", "format", "AgentPrism.slnx", "--verify-no-changes")),
     ]
     # Path-triggered (116.4): a fifth ALWAYS-ON gate would run BenchmarkDotNet
     # on every phase closing, even when nothing near the three hot paths

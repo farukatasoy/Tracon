@@ -132,6 +132,6 @@ bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 | [117](arsiv/fazlar/117-MCP-TASKS-UZANTISI.md) | MCP Tasks Uzantısı | ✅ Tamamlandı |
 | [118](arsiv/fazlar/118-YARGIC-BASINA-CHECKPOINT.md) | Yargıç Başına Checkpoint | ✅ Tamamlandı |
 | [119](arsiv/fazlar/119-HATA-METNI-SIZINTISI.md) | Hata Metni Sızıntısının Kapatılması | ✅ Tamamlandı |
-| [120](120-JOB-SOZLESMESI-AT-LEAST-ONCE.md) | `IJobHandler` Sözleşmesi: At-Least-Once Yazılı Hale Gelir | 📋 Planlandı |
+| [120](120-JOB-SOZLESMESI-AT-LEAST-ONCE.md) | `IJobHandler` Sözleşmesi: At-Least-Once Yazılı Hale Gelir | ✅ Tamamlandı |
 
 Seçilmemiş adaylar: [`ADAYLAR.md`](ADAYLAR.md). Fazların hangi dalgada, hangi gerekçeyle sıralandığı (Faz 8–56, kapandı): [`arsiv/IKINCI-FAZ-YOL-HARITASI.md`](arsiv/IKINCI-FAZ-YOL-HARITASI.md) · [`arsiv/UCUNCU-FAZ-YOL-HARITASI.md`](arsiv/UCUNCU-FAZ-YOL-HARITASI.md).
