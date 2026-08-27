@@ -150,6 +150,11 @@ separately.
 to the executor ids in the run events, which is how the console colours nodes live as
 the workflow progresses. The response also carries MAF's generated Mermaid text.
 
+A workflow run's `error` follows the [same redaction rule as an agent
+run](/concepts/runs/#the-error-message-is-safe-to-display-not-safe-to-debug-from): a
+node failure from your own code keeps its message, a failure from a provider,
+library, or transport carries only its exception type and a correlation id.
+
 ## Checkpoints
 
 A workflow writes checkpoints as it goes, controlled by

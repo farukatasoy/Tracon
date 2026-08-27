@@ -598,9 +598,13 @@ internal static class RunEndpoints
             // catches the error and marks the row Failed); the only remaining
             // work here is translating the error into a status code the
             // client can understand.
+            var correlationId = SafeErrorText.NewCorrelationId();
+            loggerFactory.CreateLogger("AgentPrism.RunEndpoints")
+                .LogError(ex, "Run replay {RunId} failed. (ref: {CorrelationId})", newRunId, correlationId);
+
             return Results.Problem(
                 title: "Replay failed",
-                detail: ex.Message,
+                detail: SafeErrorText.ForPersistence(ex, correlationId),
                 statusCode: StatusCodes.Status502BadGateway);
         }
     }

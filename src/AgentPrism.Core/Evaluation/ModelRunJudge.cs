@@ -153,7 +153,7 @@ internal sealed class ModelRunJudge(
                 cost.Currency ?? "unknown");
         }
 
-        var (score, reason) = ParseJudgment(response.Text);
+        var (score, reason) = ParseJudgment(response.Text, loggerFactory.CreateLogger<ModelRunJudge>());
 
         return new RunJudgment { Score = score, Reason = reason };
     }
@@ -221,7 +221,7 @@ internal sealed class ModelRunJudge(
     /// no score. It does not silently write <c>0</c>, which would confuse no
     /// measurement with a zero measurement.
     /// </remarks>
-    private static (int? Score, string? Reason) ParseJudgment(string text)
+    private static (int? Score, string? Reason) ParseJudgment(string text, ILogger logger)
     {
         if (string.IsNullOrWhiteSpace(text))
         {
@@ -252,7 +252,14 @@ internal sealed class ModelRunJudge(
         }
         catch (JsonException exception)
         {
-            return (null, $"The judge response could not be parsed: {exception.Message}");
+            var correlationId = SafeErrorText.NewCorrelationId();
+
+            if (logger.IsEnabled(LogLevel.Warning))
+            {
+                logger.LogWarning(exception, "The judge response could not be parsed. (ref: {CorrelationId})", correlationId);
+            }
+
+            return (null, $"The judge response could not be parsed: {SafeErrorText.ForPersistence(exception, correlationId)}");
         }
     }
 

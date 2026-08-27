@@ -293,7 +293,13 @@ public static class EgressAddressValidator
                 // than 255 characters: Dns rejects it before it reaches the
                 // network. Letting it escape would turn a rejected target into
                 // an unhandled exception inside a connection callback.
-                return new EgressAddressVerdict(false, $"The target could not be resolved: {exception.Message}", null);
+                //
+                // 🚨 The OS-level SocketException/ArgumentException message is foreign
+                // text (Phase 119, BL-027/BL-037): this reason reaches webhook_deliveries.error
+                // (via WebhookDeliveryJobHandler) as well as admin-facing validation responses,
+                // and this shared validator has no logger to pair a correlation id with. Only
+                // the exception's type name is kept.
+                return new EgressAddressVerdict(false, $"The target could not be resolved ({exception.GetType().Name}).", null);
             }
         }
 

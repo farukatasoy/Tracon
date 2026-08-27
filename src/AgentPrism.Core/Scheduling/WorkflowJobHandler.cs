@@ -73,18 +73,21 @@ internal sealed class WorkflowJobHandler(
             }
             catch (Exception exception) when (exception is not OperationCanceledException)
             {
+                var correlationId = SafeErrorText.NewCorrelationId();
+
                 if (logger is not null && logger.IsEnabled(LogLevel.Warning))
                 {
                     logger.LogWarning(
                         exception,
-                        "Batch job item failed: job={JobId} sequence={Seq} workflow={WorkflowName}",
+                        "Batch job item failed: job={JobId} sequence={Seq} workflow={WorkflowName} (ref: {CorrelationId})",
                         context.Job.Id,
                         item.Seq,
-                        context.Job.TargetName);
+                        context.Job.TargetName,
+                        correlationId);
                 }
 
                 failed = true;
-                error = exception.Message;
+                error = SafeErrorText.ForPersistence(exception, correlationId);
             }
 
             await context.ReportItemAsync(

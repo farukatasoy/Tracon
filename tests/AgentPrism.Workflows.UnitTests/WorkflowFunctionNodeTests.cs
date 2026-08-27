@@ -156,7 +156,7 @@ public sealed class WorkflowFunctionNodeTests
     }
 
     [Fact]
-    public async Task A_function_node_that_throws_fails_the_run_with_the_real_error()
+    public async Task A_function_node_that_throws_fails_the_run_without_leaking_the_raw_message()
     {
         var host = new WorkflowTestHost("one");
 
@@ -183,7 +183,11 @@ public sealed class WorkflowFunctionNodeTests
 
         root.Status.ShouldBe(RunStatus.Failed);
         root.Error.ShouldNotBeNull();
-        root.Error!.Message.ShouldContain("function node blew up", Case.Sensitive);
+
+        // Phase 119 (BL-027/BL-037): a foreign exception's own message never reaches a
+        // persistent field; only its type name and a correlation id do.
+        root.Error!.Message.ShouldContain(nameof(InvalidOperationException), Case.Sensitive);
+        root.Error.Message.ShouldNotContain("function node blew up", Case.Sensitive);
 
         events.ShouldContain(runEvent => runEvent.Type == RunEventType.RunFailed);
     }

@@ -287,7 +287,10 @@ public sealed partial class RunRecordingAgent : DelegatingAIAgent
         }
         catch (Exception ex)
         {
-            await CompleteAsync(scope, RunStatus.Failed, null, ToRunError(ex), CancellationToken.None)
+            var correlationId = SafeErrorText.NewCorrelationId();
+            _logger.LogError(ex, "Run {RunId} failed. (ref: {CorrelationId})", scope.Writer.RunId, correlationId);
+
+            await CompleteAsync(scope, RunStatus.Failed, null, ToRunError(ex, correlationId), CancellationToken.None)
                 .ConfigureAwait(false);
             throw;
         }
@@ -397,7 +400,10 @@ public sealed partial class RunRecordingAgent : DelegatingAIAgent
                 catch (Exception ex)
                 {
                     completedByCatch = true;
-                    await CompleteAsync(scope, RunStatus.Failed, null, ToRunError(ex), CancellationToken.None)
+                    var correlationId = SafeErrorText.NewCorrelationId();
+                    _logger.LogError(ex, "Run {RunId} failed. (ref: {CorrelationId})", scope.Writer.RunId, correlationId);
+
+                    await CompleteAsync(scope, RunStatus.Failed, null, ToRunError(ex, correlationId), CancellationToken.None)
                         .ConfigureAwait(false);
                     throw;
                 }

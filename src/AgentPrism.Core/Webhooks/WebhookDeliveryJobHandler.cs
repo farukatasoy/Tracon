@@ -322,9 +322,21 @@ internal sealed class WebhookDeliveryJobHandler(
                 return new DeliveryOutcome(true, statusCode, null);
             }
 
+            // The remote target's own response body is entirely third-party controlled and
+            // is never persisted (119.3's open question #3): the status code is enough to
+            // diagnose a delivery failure.
             var body = await ReadCappedAsync(response, options.MaxResponseBytes, cancellationToken).ConfigureAwait(false);
 
-            return new DeliveryOutcome(false, statusCode, $"HTTP {statusCode}: {body}");
+            if (logger is not null && logger.IsEnabled(LogLevel.Warning))
+            {
+                logger.LogWarning(
+                    "Webhook delivery to {DeliveryId} failed with HTTP {StatusCode}. Body: {Body}",
+                    delivery.Id,
+                    statusCode,
+                    body);
+            }
+
+            return new DeliveryOutcome(false, statusCode, $"HTTP {statusCode}");
         }
         catch (TaskCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
@@ -332,7 +344,14 @@ internal sealed class WebhookDeliveryJobHandler(
         }
         catch (HttpRequestException exception)
         {
-            return new DeliveryOutcome(false, null, exception.Message);
+            var correlationId = SafeErrorText.NewCorrelationId();
+
+            if (logger is not null && logger.IsEnabled(LogLevel.Warning))
+            {
+                logger.LogWarning(exception, "Webhook delivery to {DeliveryId} failed. (ref: {CorrelationId})", delivery.Id, correlationId);
+            }
+
+            return new DeliveryOutcome(false, null, SafeErrorText.ForPersistence(exception, correlationId));
         }
         catch (AgentPrismException exception)
         {

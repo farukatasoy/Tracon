@@ -8,12 +8,13 @@
 > **Çalışma modu:** `nuget-danismani` — Yayın kararı  
 > **Hedef durumu:** Seam matrisi **11/11 küme tamam**; BL-006 **kapandı**;
 > BL-026 ölçümle **🟡'ye indirildi**; BL-027/BL-037 sınıf taramasıyla **21 vakaya
-> genişledi** ve faza devredildi  
-> **Geçici karar:** ❌ Yayınlanmamalı — açık 🔴: BL-027+BL-037 sınıfı (21 vaka,
-> §16) ve BL-041. Yayın türü `preview` (UR-001), paket kapsamı tam entegrasyon
-> seti (UR-002/BL-002) sabit. Kalan iş: exception-sızıntısı sınıfının fazla
-> kapatılması + §7/§8'deki public API freeze ve NuGet.org operasyon kararları —
-> bkz. §4.
+> genişledi** ve **[Faz 119](119-HATA-METNI-SIZINTISI.md) ile kapandı** (26 vaka
+> kapatıldı — sınıf taraması 5 ek vaka daha buldu; `SafeErrorText` + mimari
+> cırcır kapısı)  
+> **Geçici karar:** ❌ Yayınlanmamalı — açık 🔴: BL-041 (Faz 120'ye devredildi).
+> Yayın türü `preview` (UR-001), paket kapsamı tam entegrasyon seti (UR-002/BL-002)
+> sabit. Kalan iş: BL-041'in Faz 120'de kapatılması + §7/§8'deki public API
+> freeze ve NuGet.org operasyon kararları — bkz. §4.
 
 ## 1. Yayın hedefi ve kapsamı
 
@@ -81,17 +82,19 @@ sınıfı** açık:
 |---|---|---|---|
 | 1 | BYOK credential case-sensitivity | BL-006 | ✅ **KAPANDI.** Düşen testle yeniden üretildi → normalizasyon + 3 migration + contract case'leri → yeşil. K-639. Sınıf taraması: 4 aday temiz, `provider` tek outlier |
 | 2 | Drain/yeni-run yarışı | BL-026 | ⬇️ **🟡'ye indirildi.** Pencere var ama iş kaybı yok: Kestrel request draining (HTTP) ve `WaitForRunningJobsAsync` (job) boşluğu kapatıyor; drain zaten varsayılan **kapalı**. Ölçülmüş repro üretilemedi |
-| 3 | Ham exception → kalıcı/dışa açık durum | BL-027, BL-037 | 🔴 **AÇIK, BÜYÜDÜ, PLANLANDI.** Sınıf taraması bilinen 2 vakanın üstüne **19 vaka** daha buldu (§16) — 12 kalıcılaştıran, 8 dışa açık. → **[Faz 119](119-HATA-METNI-SIZINTISI.md)** |
+| 3 | Ham exception → kalıcı/dışa açık durum | BL-027, BL-037 | ✅ **KAPANDI (Faz 119).** Sınıf taraması bilinen 2 vakanın üstüne 19 vaka daha bulmuştu (§16); uygulama sırasında **5 ek vaka** daha bulundu (`EgressAddressValidator`, `ConversationBranchService`, `RetentionJobHandler`, `RetentionExecutor`, `ModelRunJudge`) — toplam **26 vaka** kapatıldı. `SafeErrorText` (K-640) + `RawExceptionTextSiteTests` mimari cırcır kapısı 22. sızıntıyı otomatik yakalar |
 | 4 | `IJobHandler` sözleşmesi at-least-once'ı söylemiyor | BL-041 | 🔴 **AÇIK, ÇERÇEVE DARALTILDI, PLANLANDI.** `IIdempotencyStore` iddiası ölçümle çürüdü (o tip HTTP `Idempotency-Key` içindir); gerçek kusur yalnız sözleşme boşluğu. → **[Faz 120](120-JOB-SOZLESMESI-AT-LEAST-ONCE.md)** |
 
 Bunların **hepsi** `kusur-giderme`'ye devredilmeden (ve kusur sınıfı taraması
-tamamlanmadan) preview yayınlanamaz. Bu dördü kapandıktan sonra geri kalan
-35× 🟡 ve 17× 🟢 bulgu **1.0 blocker'ı değil**, ilk preview'ı engellemez —
-release notes'a ve sonraki iterasyon planına girer (bkz. §6 tam liste).
+tamamlanmadan) preview yayınlanamaz. Üç sınıf kapandı (BL-006, BL-026 🟡'ye
+indirildi, BL-027/BL-037 Faz 119); **tek açık 🔴 BL-041** kaldı (Faz 120). O
+kapandıktan sonra geri kalan 35× 🟡 ve 17× 🟢 bulgu **1.0 blocker'ı değil**,
+ilk preview'ı engellemez — release notes'a ve sonraki iterasyon planına girer
+(bkz. §6 tam liste).
 
 Paket artifact'i (dry-run, exact sürüm, 20 paket, 160 sample testi, Native AOT
 smoke) teknik olarak yeşildir — bu yalnız **başlangıç** kanıtıdır, seam
-matrisinin bulduğu 4 kusur sınıfını geçersiz kılmaz.
+matrisinin bulduğu kusur sınıflarını geçersiz kılmaz.
 
 **Geçici en küçük güvenli yayın kapsamı:** `1.0.0-preview.1`, tam 20 paket
 (UR-002 kararı) — kusur sınıfları kapandıktan ve §7/§8'deki kalan kararlar
@@ -158,9 +161,9 @@ doğrulama kapısıdır.
 | BL-022 | Açık | `IMcpOAuthCoordinator` — kümenin en yüksek kiracı-izolasyon/CSRF riskli sınıfı — hiçbir testte referans edilmiyor; `McpTenantServerKey`'in kendisi önceki bir string-interpolation sızıntısını kapatmak için özel yazılmış, yani bu alan daha önce kusur üretmiş | 🟡 1.0 blocker | `tests/` altında `McpOAuthAuthorizationCoordinator`/`IMcpOAuthCoordinator` referansı yok; `McpTenantServerKey.cs:1-13` | `nuget-danismani` → faz zinciri | State/tenant binding'i kilitleyen bir contract/regresyon testi eklenir |
 | BL-023 | Açık | `IMcpPromptClient`/`IMcpResourceClient`/`IMcpServerStore` için reusable contract test yok; MCP client/host'u `PackageReference` ile (yalnız `ProjectReference` değil) koşan dış bir sample yok — paketlenmiş tüketici davranışı 1.0 öncesi doğrulanmamış | 🟡 1.0 blocker | Küme F raporu | `nuget-danismani` → faz zinciri | Contract sınıfları eklenir; `samples/` içinde en az biri `PackageReference`'a geçirilir |
 | BL-024 | Açık | Küme F'nin 6 arayüzünün hiçbirinin XML dokümanı DI lifetime'ı (`singleton`) açıkça belirtmiyor — üçüncü taraf implementasyon bunu kaynağı okuyarak öğrenmek zorunda | 🟡 1.0 blocker | Küme F raporu | `nuget-danismani` → doküman senkronu | Her 6 arayüzün XML dokümanına lifetime notu eklenir |
-| BL-025 | Bilgi | Küme F cila bulguları (🟢, toplu): `IMcpServerStore` ad-şekli doğrulaması abstraction'da değil bağlantı katmanında (yalnız log uyarısı, sessiz başarısızlık); `CatalogToolCallHandler` MCP-host tarafında kendi run hatasının ham `ex.Message`'ını dış çağırana döndürüyor (uzak/saldırgan MCP sunucusundan gelen veri değil, AgentPrism'in kendi hatası); MCP'ye özel `span`/tag yok, genel MAF OpenTelemetry enstrümantasyonuna biniyor | 🟢 Doküman/cila | Küme F raporu | `nuget-danismani` → doküman senkronu | Docs-site'a eklenir; `CatalogToolCallHandler` mesajı gözden geçirilir |
+| BL-025 | Bilgi (kısmen kapandı) | Küme F cila bulguları (🟢, toplu): `IMcpServerStore` ad-şekli doğrulaması abstraction'da değil bağlantı katmanında (yalnız log uyarısı, sessiz başarısızlık); ~~`CatalogToolCallHandler` MCP-host tarafında kendi run hatasının ham `ex.Message`'ını dış çağırana döndürüyor~~ **Faz 119'da kapandı** (BL-027/BL-037 sınıf taramasının bulduğu 21 vakadan biri, `SafeErrorText` uygulandı); MCP'ye özel `span`/tag yok, genel MAF OpenTelemetry enstrümantasyonuna biniyor | 🟢 Doküman/cila | Küme F raporu | `nuget-danismani` → doküman senkronu | Docs-site'a eklenir |
 | BL-026 | **SEVİYE DÜŞÜRÜLDÜ** (2026-08-27, `kusur-giderme` Adım 2/7) | **Drain/yeni-run yarışı**: `DrainGate.Check` (`AgentEndpoints.cs:193`) ile `IRunCancellationRegistry.Register` (`RunRecordingAgent.cs:214-218`) arasında bir pencere var ve `AgentPrismDrainService.StopAsync` bu pencerede `ActiveCount==0` görüp erken dönebilir. **Ancak iş kaybı OLUŞMUYOR** — iki bağımsız mekanizma bu boşluğu zaten kapatıyor | ~~🔴~~ → 🟡 1.0 blocker (muhasebe hassasiyeti, iş kaybı değil) | **Ölçüldü:** (1) HTTP yolu — `AgentPrismDrainService` DI'ye **son** kaydedildiği için `StopAsync`'i **ilk** koşar; `GenericWebHostService` ise **son** durur, yani Kestrel'in kendi request draining'i o isteği tamamlanana kadar bekletir. (2) Job yolu — `JobWorkerBackgroundService.ExecuteAsync`'in `finally` bloğu `WaitForRunningJobsAsync()` çağırır (satır 82, 181-187) ve leased her işi bekler. (3) `AgentPrismDrainOptions.Enabled` **varsayılan `false`** (`AgentPrismDrainOptions.cs:18`) — yarış yalnız drain'i açıkça açan kurulumu ilgilendirir | `faz-planlama` (blocker değil) | Denetimin "süreç başlamak üzere olan run'ı yarıda keser" iddiası yeniden üretilemedi. Kalan gerçek kusur: drain servisi reklam ettiği garantiyi **kendi başına** sağlamıyor, iki yedek mekanizmaya bel bağlıyor ve bu dokümante değil. Ölçülmüş bir iş-kaybı repro'su üretilmeden 🔴 sayılmaz |
-| BL-027 | Açık | **`IRunStore`'a ham exception mesajı sızıyor**: `RunRecordingAgent.Completion.cs:282` `RunError.Message = exception.Message`'ı `ContentGuardPipeline`'dan geçirmeden yazıyor. Kardeş yol `IRunInputStore` aynı sınıf bir kusur için (`HATA-S3-006`) daha önce düzeltilmiş ve guard'dan geçiriliyor — düzeltme run-error yoluna uygulanmamış | 🔴 Preview blocker | `src/AgentPrism.Core/.../RunRecordingAgent.Completion.cs:282`; kıyasla `RunRecordingAgent.Persistence.cs:36-41` (`HATA-S3-006` düzeltmesi) | `nuget-danismani` → **`faz-planlama`** (sınıf taraması kusuru faz boyutuna çıkardı) | **SINIF TARAMASI YAPILDI (2026-08-27) — bilinen iki vakanın ÜSTÜNE 19 vaka daha bulundu.** Bkz. §16. Tek tek düzeltilecek iki satır değil, sistemik bir iş: `ContentGuardPipeline`'ın `src/` içinde yalnız **iki** tüketicisi var (`ContentGuardingChatClient` ve `HATA-S3-006` düzeltmesi); persist/emit eden diğer her yol guard'sız |
+| BL-027 | **KAPANDI (Faz 119)** | **`IRunStore`'a ham exception mesajı sızıyor**: `RunRecordingAgent.Completion.cs:282` `RunError.Message = exception.Message`'ı `ContentGuardPipeline`'dan geçirmeden yazıyor. Kardeş yol `IRunInputStore` aynı sınıf bir kusur için (`HATA-S3-006`) daha önce düzeltilmiş ve guard'dan geçiriliyor — düzeltme run-error yoluna uygulanmamış | ~~🔴~~ ✅ Kapandı | `src/AgentPrism.Core/.../RunRecordingAgent.Completion.cs:282`; kıyasla `RunRecordingAgent.Persistence.cs:36-41` (`HATA-S3-006` düzeltmesi) | `nuget-danismani` → **`faz-planlama`** → **[Faz 119](119-HATA-METNI-SIZINTISI.md)** | **SINIF TARAMASI YAPILDI (2026-08-27) — bilinen iki vakanın ÜSTÜNE 19 vaka daha bulundu, uygulama sırasında 5 ek vaka daha (26 toplam).** Bkz. §16. `ContentGuardPipeline` genişletilmedi (opt-in, varsayılan boş); onun yerine yeni paylaşılan `SafeErrorText` (K-640) her 26 sitede uygulandı, mimari cırcır kapısı (`RawExceptionTextSiteTests`) 22. sızıntıyı otomatik yakalar |
 | BL-028 | Açık | Cancellation tamamen cooperative (`RunCancellationRegistry.TryCancel` yalnız `CancellationTokenSource.Cancel()` çağırıyor) ama `IRunCancellationRegistry`'nin arayüz dokümanı bu sınırı belirtmiyor — tüketici `TryCancel`'ın işi/faturalamayı gerçekten durdurduğunu varsayabilir | 🟡 1.0 blocker | `src/AgentPrism.Core/.../RunCancellationRegistry.cs:27-51`; `IRunCancellationRegistry.cs` | `nuget-danismani` → doküman senkronu | XML doküman cooperative-only sınırını açıkça belirtir |
 | BL-029 | Açık | Tenant-mode dokümantasyonu Küme A içinde tutarsız — yalnız `IRunStore` EXPECTED/AMBIENT/tenant-independent tablosu taşıyor; `ITraceStore.GetTraceByRunAsync` fiilen ambient-tenant (`SqlTraceStore.cs:85`) ama arayüz dokümanında hiç tenant notu yok; `IRunScoreStore`/`IRunInputStore` yalnız parametre bazlı, adlandırılmış mod yok | 🟡 1.0 blocker | Küme A raporu | `nuget-danismani` → doküman senkronu | `IRunStore`'un tenant-mode tablo deseni diğer 9 arayüze de uygulanır |
 | BL-030 | Açık | `IRunEventSink`, `IRunAttributionContext`, `IRunCancellationRegistry`, `IRunErrorClassifier`, `IRunPricingResolver`, `IAgentPrismDrainState` için reusable contract test yok (yalnız 4 storage arayüzünde var); 8/10 arayüz için dış sample yok (yalnız `IRunStore`/`IRunScoreStore` için `FileRunStore` var) | 🟡 1.0 blocker | Küme A raporu | `nuget-danismani` → faz zinciri | En azından `IRunCancellationRegistry` (root/child, tenant-mismatch) için contract sınıfı eklenir |
@@ -169,7 +172,7 @@ doğrulama kapısıdır.
 | BL-034 | Açık | `IAgentDecorator` için hiç builder registration API'si yok (`IAgentSource`/`IRunJudge`/`IModelProvider`'ın aksine) — consumer ham `services.TryAddEnumerable(ServiceDescriptor.Singleton<IAgentDecorator, T>())` çağırmak zorunda; ayrıca `IAgentDecorator.Order`'ın XML dokümanı kendi kendiyle çelişiyor ("lower value wraps inside, higher value wraps outside" gerçek davranışın — düşük=dıştan, yüksek=içten — tam tersini söylüyor), güvenlik-ilişkili bir decorator yanlış katmana yerleştirilebilir | 🟡 1.0 blocker | `IAgentDecorator.cs:6-8,20-22`; doğrulama: `RunRecordingAgentDecorator.cs:114` (Order=0/dıştan), `ToolApprovalAgentDecorator.cs:38` (Order=20/içten) | `nuget-danismani` → doküman senkronu + faz zinciri | `Order` dokümanı düzeltilir; dedicated `AddAgentDecorator<T>()` eklenir |
 | BL-035 | Açık | `IAgentDefinitionStore` ambient `ITenantContext` kullanırken `IAgentSkillStore`/`ISkillScriptGrantStore` explicit `tenantId` parametresi kullanıyor — aynı kümede tutarsız tenant-parametre şekli (bug değil, her ikisi de doğru filtreleniyor, ama üçüncü taraf implementer'ın arayüz başına ayrı öğrenmesi gerekiyor) | 🟡 1.0 blocker | Küme D raporu | `nuget-danismani` → doküman senkronu | XML dokümanda desen farkı ve gerekçesi açıklanır |
 | BL-036 | Bilgi | Küme D cila bulguları (🟢, toplu): decorator sıralama mantığı (`OrderByDescending(d => d.Order)`) 4 yerde ayrı ayrı tekrarlanıyor (`CompositeAgentCatalog.cs:40`, `RunContinuationJobHandler.cs:55`, `RunReplayService.cs:77`) — var olan `AgentDecoratorPipeline.Apply` yalnız 2 yerde kullanılıyor, şu an tutarlı ama bakım riski; `IAgentDecorator`/`IAgentCatalog` için contract test veya dış sample yok | 🟢 Doküman/cila | Küme D raporu | `nuget-danismani` → doküman senkronu / iç refactor | Docs-site'a eklenir; refactor isteğe bağlı |
-| BL-037 | Açık | **`WorkflowRunner.ToRunError`'a ham exception mesajı sızıyor** — BL-027 ile birebir aynı kusur sınıfı, farklı yol: `unwrapped.Message` hiçbir guard'dan geçirilmeden `RunEvent.Text`'e yazılıyor ve persist ediliyor | 🔴 Preview blocker (sınıf tekrarı — BL-027) | `src/AgentPrism.Workflows/Internal/WorkflowRunner.cs:1179-1198` | `nuget-danismani` → `kusur-giderme` (BL-027 ile BİRLİKTE, tek sınıf taraması) | Her iki yol da `ContentGuardPipeline`'dan geçirilir; sınıf taraması çalıştırma yolundaki (run, workflow, job, webhook) tüm exception→persist noktalarını tarar |
+| BL-037 | **KAPANDI (Faz 119)** | **`WorkflowRunner.ToRunError`'a ham exception mesajı sızıyor** — BL-027 ile birebir aynı kusur sınıfı, farklı yol: `unwrapped.Message` hiçbir guard'dan geçirilmeden `RunEvent.Text`'e yazılıyor ve persist ediliyor | ~~🔴~~ ✅ Kapandı (BL-027 ile birlikte) | `src/AgentPrism.Workflows/Internal/WorkflowRunner.cs:1179-1198` | `nuget-danismani` → **[Faz 119](119-HATA-METNI-SIZINTISI.md)** (BL-027 ile BİRLİKTE, tek sınıf taraması) | `ToRunError` artık `SafeErrorText.ForPersistence` + korelasyon kimlikli `ILogger` çağrısı kullanıyor; `WorkflowJobHandler`'ın kendi ayrı `exception.Message` yolu da aynı turda kapatıldı |
 | BL-038 | Açık | Workflow resume'un side-effecting adımları tekrar çalıştırabileceği (at-least-once semantics) yalnız `AddWorkflowFunction<T>()`'ın XML dokümanında anlatılıyor — `AgentPrism.Abstractions`'daki `IWorkflowRunner`/`IWorkflowCheckpointStore` (paketin asıl public sözleşme yüzeyi) bundan hiç bahsetmiyor; davranış doğru ve kasıtlı, yalnız yanlış dosyada dokümante | 🟡 1.0 blocker | `AgentPrismWorkflowFunctionExtensions.cs:66-77` vs. `IWorkflowRunner.cs`, `IWorkflowCheckpointStore.cs` | `nuget-danismani` → doküman senkronu | Idempotency notu `IWorkflowCheckpointStore`'un XML dokümanına da eklenir |
 | BL-039 | Açık | `IWorkflowRunner`/`IWorkflowFunctionCatalog` için contract test yok (store'ların aksine); 4 arayüzün hiçbiri için dış `Custom*` sample yok (`CustomTool`/`CustomModelProvider`/`CustomRunJudge`/`CustomAgentSource`'un aksine); iki kod-tanımlı workflow aynı adı paylaşırsa ham `.NET ArgumentException` fırlıyor (`WorkflowCatalog.cs:41-44`) — `WorkflowFunctionRegistry`'nin aynı durumda verdiği net `AgentPrismException`'la tutarsız; DI lifetime/thread-safety 4 arayüzün hiçbirinde dokümante değil | 🟡 1.0 blocker | Küme G raporu | `nuget-danismani` → faz zinciri | Contract sınıfları + sample eklenir; duplicate-name hatası `AgentPrismException`'a çevrilir |
 | BL-040 | Bilgi | Küme G cila bulguları (🟢, toplu): `IWorkflowFunctionCatalog`'un cache semantiği (executor identity stability) yalnız kayıt call site'ındaki `//` yorumunda anlatılıyor, arayüz dokümanında değil; workflow/function adları için ad-şekli doğrulaması dokümante/zorlanmış değil (yalnız non-empty kontrolü var) | 🟢 Doküman/cila | Küme G raporu | `nuget-danismani` → doküman senkronu | Docs-site'a eklenir |
@@ -314,16 +317,15 @@ Seam matrisi tamamlandı (§15) ve 4 kusur sınıfı ele alındı. **Güncel dur
 
 | Kusur sınıfı | Durum |
 |---|---|
-| BL-006 BYOK case-sensitivity | ✅ Kapandı (K-639) — kalan tek iş: migration'lar commit edilip `scripts/applied-migrations.json` manifest'ine kaydedilmeli (kapı bunu doğru şekilde zorluyor) |
+| BL-006 BYOK case-sensitivity | ✅ Kapandı (K-639) — migration'lar `scripts/applied-migrations.json` manifest'ine Faz 119 kapanışında kaydedildi (kayıt eksikliği `kapi.py tarama`'yı kırıyordu, bu fazda düzeltildi) |
 | BL-026 drain yarışı | ⬇️ 🟡'ye indi — ölçülmüş repro yok, iş kaybı üretmiyor |
-| BL-027 + BL-037 exception sızıntısı | 📋 [Faz 119](119-HATA-METNI-SIZINTISI.md) planlandı |
+| BL-027 + BL-037 exception sızıntısı | ✅ Kapandı ([Faz 119](119-HATA-METNI-SIZINTISI.md), K-640) — 26 vaka kapatıldı, mimari cırcır kapısı eklendi |
 | BL-041 job sözleşmesi | 📋 [Faz 120](120-JOB-SOZLESMESI-AT-LEAST-ONCE.md) planlandı |
 
 Kalan iş:
 
-1. **Faz 119'u uygula** — preview'ı engelleyen tek büyük kalem.
-2. **Faz 120'yi uygula** (119'dan sonra; aynı dosyaya dokunuyor).
-3. 35× 🟡 bulguyu önceliklendir — `IRunJudge`/`IRunStore` desenini (kayıt
+1. **Faz 120'yi uygula** — preview'ı engelleyen tek kalan büyük kalem.
+2. 35× 🟡 bulguyu önceliklendir — `IRunJudge`/`IRunStore` desenini (kayıt
    üçlüsü + contract test + dış sample) referans alarak kalan seam'lere
    uygulamak tek bir sistemik iş olarak ele alınabilir (bkz. §15 özet notu).
 3. Public API freeze taraması (4.1 mercek, UR-003) — 676 unshipped tip için
@@ -608,6 +610,13 @@ alınarak kalan arayüzlere uygulanabilir.
 
 ## 16. Sınıf taraması: ham exception → kalıcı/dışa açık durum (BL-027 · BL-037)
 
+> **✅ Kapandı — [Faz 119](119-HATA-METNI-SIZINTISI.md), K-640 (2026-08-27).**
+> Aşağıdaki 21 vaka artık `AgentPrism.SafeErrorText` üzerinden geçiyor; uygulama
+> sırasında 5 ek vaka daha bulundu ve kapatıldı (`EgressAddressValidator`,
+> `ConversationBranchService`, `RetentionJobHandler`, `RetentionExecutor`,
+> `ModelRunJudge`) — toplam 26. Bu bölüm artık **tarihsel kanıt kaydı**dır,
+> güncel durum için Faz 119 dokümanına bakın.
+
 `kusur-giderme` Adım 5 uygulandı. Denetim iki vaka bildirmişti; tarama **19 vaka
 daha** buldu. Kusur artık "iki satırı guard'dan geçir" değil, **sistemik bir
 kapsam sorunudur**: `ContentGuardPipeline`'ın `src/` içinde yalnız iki tüketicisi
@@ -667,7 +676,7 @@ guard taşır (`IsSensitive("error.message")` + `RecordSensitiveData`).
 2. `RunRecordingAgent.Notifications.cs:138` — ham provider metninin kutudan çıktığı tek yol.
 3. `WebhookDeliveryJobHandler.cs:327` — uzaktan kontrol edilen gövdenin kalıcılaştığı yer.
 
-### Yargı gerektiren, ölçülmesi gereken 5 kalem
+### Yargı gerektiren, ölçülmesi gereken 5 kalem — Faz 119 kapanış kararı
 
 `RetentionJobHandler.cs:35` · `RetentionExecutor.cs:202` (Npgsql mesajı SQL metni
 taşıyabilir) · `WorkflowRunner.cs:890` ← `WorkflowResponseFactory.cs:106`
@@ -675,3 +684,29 @@ taşıyabilir) · `WorkflowRunner.cs:890` ← `WorkflowResponseFactory.cs:106`
 `run_scores.comment` (model çıktısı kaynaklı) · `WorkflowEndpoints.cs:636` ve
 `VoiceConversationDriver.cs:554` (dar filtre; yalnız `HttpRequestException` kolu
 host:port sızdırır).
+
+**Sonuç (2026-08-27):**
+
+| Kalem | Karar | Gerekçe |
+|---|---|---|
+| `RetentionJobHandler.cs:35` | Düzeltildi | `SafeErrorText` + yeni opsiyonel `ILogger<RetentionJobHandler>` |
+| `RetentionExecutor.cs:202` | Düzeltildi | `SafeErrorText` + mevcut `ILogger<RetentionExecutor>` |
+| `ModelRunJudge.cs:255` | Düzeltildi | `ParseJudgment` artık `ILogger` alıyor; `SafeErrorText` uygulanıyor |
+| `WorkflowEndpoints.cs:636` + `VoiceConversationDriver.cs:554` | Düzeltildi | `AgentPrismException` kolu korunur, `HttpRequestException`/`InvalidOperationException` kolu `SafeErrorText`'e yönlendirildi |
+| `WorkflowRunner.cs:890` ← `WorkflowResponseFactory.cs:106` | **Kapsam dışı bırakıldı (gerekçeyle)** | `WorkflowRunner.cs:890`'daki `catch (AgentPrismException exception)` zaten kural #1'i sağlıyor (mesaj bizim). Asıl soru `WorkflowResponseFactory.cs:106`'nın kendi `AgentPrismException`'ının mesajına bir iç `JsonException.Message` gömmesi — ama bu, workflow'u DEVAM ETTİRMEK için cevap gönderen AYNI çağrının KENDİ gönderdiği bozuk JSON'ı açıklıyor (self-referential doğrulama geri bildirimi, `OpenAIResponsesEndpoints.HandleAsync`'in istek gövdesi ayrıştırma hatasıyla aynı desen — bkz. `raw-exception-text-baseline.txt`). Host/credential/altyapı detayı taşımaz |
+
+Ayrıca sınıf taraması bu 21+5 kalemin ÜSTÜNE **5 vaka daha** buldu (uygulama
+sırasında, mimari cırcır kapısı + elle inceleme ile): `EgressAddressValidator.cs:290`
+(DNS/argüman hatası — düzeltildi, yalnız tip adı tutulur; paylaşılan statik
+sınıfa `ILogger` eklemek üç çağıran yüzeyi ölçüsüz büyütür, bu yüzden korelasyon
+kimliği YOK — SocketException/ArgumentException mesajı zaten yalnız çağıranın
+KENDİ verdiği host adını anlatır, `secret`/host:port taşımaz), `ConversationBranchService.cs:146`
+(düzeltildi, yeni opsiyonel `ILogger<ConversationBranchService>`),
+`RetentionJobHandler.cs`, `RetentionExecutor.cs`, `ModelRunJudge.cs` (üçü de
+yukarıda). Toplam kapatılan vaka: **26**.
+
+**Mimari cırcır kapısının bilinen kapsam sınırı:** `RawExceptionTextSiteTests`
+yalnız `catch (Exception` (isimsiz/genel) şeklini tarar; `catch (HttpRequestException`
+gibi isimli bloklar kapsam dışıdır — bu fazda ELLE incelendi ve gerekliyse
+düzeltildi, ama gelecekte isimli bir catch'te YENİ bir sızıntı açılırsa kapı
+onu YAKALAMAZ. Kabul edilen bir sınır (K-640); genişletme ayrı bir kalem.

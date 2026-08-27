@@ -199,7 +199,14 @@ public sealed class RetentionExecutor(
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
-            error = exception.Message;
+            var correlationId = SafeErrorText.NewCorrelationId();
+
+            if (logger is not null && logger.IsEnabled(LogLevel.Error))
+            {
+                logger.LogError(exception, "Retention run {RunId} failed. (ref: {CorrelationId})", run.Id, correlationId);
+            }
+
+            error = SafeErrorText.ForPersistence(exception, correlationId);
 
             throw;
         }

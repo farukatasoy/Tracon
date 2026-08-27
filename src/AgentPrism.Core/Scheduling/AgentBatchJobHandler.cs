@@ -64,14 +64,17 @@ internal sealed class AgentBatchJobHandler(
             }
             catch (Exception exception) when (exception is not OperationCanceledException)
             {
+                var correlationId = SafeErrorText.NewCorrelationId();
+
                 if (logger is not null && logger.IsEnabled(LogLevel.Warning))
                 {
                     logger.LogWarning(
                         exception,
-                        "Batch job item failed: job={JobId} sequence={Seq} agent={AgentName}",
+                        "Batch job item failed: job={JobId} sequence={Seq} agent={AgentName} (ref: {CorrelationId})",
                         context.Job.Id,
                         item.Seq,
-                        context.Job.TargetName);
+                        context.Job.TargetName,
+                        correlationId);
                 }
 
                 await context.ReportItemAsync(
@@ -81,7 +84,7 @@ internal sealed class AgentBatchJobHandler(
                         Seq = item.Seq,
                         Status = JobItemStatus.Failed,
                         RunId = runId,
-                        Error = exception.Message,
+                        Error = SafeErrorText.ForPersistence(exception, correlationId),
                     },
                     cancellationToken).ConfigureAwait(false);
             }

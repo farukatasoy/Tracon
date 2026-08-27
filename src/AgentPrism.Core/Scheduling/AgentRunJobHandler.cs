@@ -251,6 +251,13 @@ internal sealed class AgentRunJobHandler(
         Exception exception,
         CancellationToken cancellationToken)
     {
+        var correlationId = SafeErrorText.NewCorrelationId();
+
+        if (logger is not null && logger.IsEnabled(LogLevel.Error))
+        {
+            logger.LogError(exception, "Queued run {RunId} failed. (ref: {CorrelationId})", runId, correlationId);
+        }
+
         try
         {
             await runStore.CompleteRunAsync(
@@ -262,7 +269,7 @@ internal sealed class AgentRunJobHandler(
                     Error = new RunError
                     {
                         Type = exception.GetType().Name,
-                        Message = exception.Message,
+                        Message = SafeErrorText.ForPersistence(exception, correlationId),
                     },
 
                     // The job's own tenant; the party that enqueued it wrote it (K-355).

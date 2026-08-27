@@ -84,6 +84,9 @@ public sealed class ImageEndpointTests
     [Fact]
     public async Task Endpoint_translates_a_provider_failure_to_bad_gateway()
     {
+        // The raw provider message ("provider rejected the request") is a foreign
+        // exception's own text and must never reach the client (Phase 119, BL-037):
+        // the response carries only the exception's type name and a correlation id.
         var generator = new StubImageGenerator { Exception = new InvalidOperationException("provider rejected the request") };
         await using var host = await StartWithImagesAsync(generator);
 
@@ -91,7 +94,10 @@ public sealed class ImageEndpointTests
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadGateway);
         var body = await AgentPrismTestHost.ReadJsonAsync(response);
-        body.GetProperty("detail").GetString().ShouldBe("provider rejected the request");
+        var detail = body.GetProperty("detail").GetString();
+        detail.ShouldNotBeNull();
+        detail.ShouldContain("InvalidOperationException");
+        detail.ShouldNotContain("provider rejected the request");
     }
 
     [Fact]

@@ -6,6 +6,8 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.AI;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace AgentPrism;
@@ -164,9 +166,15 @@ internal static class ImageEndpoints
             // different concrete exception. Letting one escape would turn a
             // provider failure into an unhandled 500 instead of the documented
             // operator-facing 502.
+            var correlationId = SafeErrorText.NewCorrelationId();
+
+            httpContext.RequestServices.GetRequiredService<ILoggerFactory>()
+                .CreateLogger("AgentPrism.ImageEndpoints")
+                .LogError(exception, "Image generation failed. (ref: {CorrelationId})", correlationId);
+
             return TypedResults.Problem(
                 title: "Image could not be generated",
-                detail: exception.Message,
+                detail: SafeErrorText.ForPersistence(exception, correlationId),
                 statusCode: StatusCodes.Status502BadGateway);
         }
     }

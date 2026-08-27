@@ -550,8 +550,11 @@ internal sealed class VoiceConversationDriver
             }
             catch (Exception exception) when (exception is AgentPrismException or HttpRequestException or InvalidOperationException)
             {
-                driver._logger.LogError(exception, "The voice turn failed.");
-                await SendAsync(Error(exception.Message)).ConfigureAwait(false);
+                // HttpRequestException and InvalidOperationException are foreign here (the
+                // former can carry a host:port); only AgentPrismException's own message is ours.
+                var correlationId = SafeErrorText.NewCorrelationId();
+                driver._logger.LogError(exception, "The voice turn failed. (ref: {CorrelationId})", correlationId);
+                await SendAsync(Error(SafeErrorText.ForPersistence(exception, correlationId))).ConfigureAwait(false);
             }
 
             if (cancelled)

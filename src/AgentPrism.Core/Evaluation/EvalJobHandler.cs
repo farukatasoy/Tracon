@@ -341,6 +341,13 @@ internal sealed class EvalJobHandler(
             {
                 allRepetitionsPassed = false;
 
+                var correlationId = SafeErrorText.NewCorrelationId();
+
+                if (logger is not null && logger.IsEnabled(LogLevel.Warning))
+                {
+                    logger.LogWarning(exception, "Eval case {CaseId} failed. (ref: {CorrelationId})", evalCase.Id, correlationId);
+                }
+
                 await evalStore.RecordCaseResultAsync(
                     new EvalCaseResult
                     {
@@ -348,7 +355,7 @@ internal sealed class EvalJobHandler(
                         CaseId = evalCase.Id,
                         RunId = runId,
                         Passed = false,
-                        FailureReason = exception.Message,
+                        FailureReason = SafeErrorText.ForPersistence(exception, correlationId),
                     },
                     cancellationToken).ConfigureAwait(false);
 

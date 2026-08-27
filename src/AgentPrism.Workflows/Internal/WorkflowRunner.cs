@@ -516,7 +516,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
             status = RunStatus.Failed;
-            error = ToRunError(exception);
+            error = ToRunError(exception, execution.RunId);
         }
 
         if (workflow is not null)
@@ -622,7 +622,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         }
         catch (Exception exception)
         {
-            startupFailure = PumpedEvent.FromFailure(ToRunError(exception));
+            startupFailure = PumpedEvent.FromFailure(ToRunError(exception, execution.RunId));
         }
 
         // 🚨 `yield return` cannot appear inside a `catch` block (CS1631).
@@ -711,7 +711,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
                         }
                         catch (Exception exception)
                         {
-                            stepFailure = PumpedEvent.FromFailure(ToRunError(exception));
+                            stepFailure = PumpedEvent.FromFailure(ToRunError(exception, execution.RunId));
                         }
 
                         if (stepFailure is { } failed)
@@ -797,7 +797,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
                         // looked green in the list but had no result.
                         if (workflowEvent is WorkflowErrorEvent graphError)
                         {
-                            yield return PumpedEvent.FromFailure(ToRunError(graphError));
+                            yield return PumpedEvent.FromFailure(ToRunError(graphError, execution.RunId));
                         }
                     }
                 }
@@ -1181,7 +1181,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
     /// direct code error (for example a genuine `AggregateException` with
     /// multiple inner exceptions) is left as is.
     /// </remarks>
-    private static RunError ToRunError(Exception exception)
+    private RunError ToRunError(Exception exception, Guid runId)
     {
         var unwrapped = exception switch
         {
@@ -1190,17 +1190,20 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
             _ => exception,
         };
 
+        var correlationId = SafeErrorText.NewCorrelationId();
+        _logger.LogError(unwrapped, "Workflow run {RunId} failed. (ref: {CorrelationId})", runId, correlationId);
+
         return new RunError
         {
             Type = unwrapped.GetType().FullName ?? unwrapped.GetType().Name,
-            Message = unwrapped.Message,
+            Message = SafeErrorText.ForPersistence(unwrapped, correlationId),
         };
     }
 
     /// <summary>Converts a graph-level error into a run error.</summary>
-    private static RunError ToRunError(WorkflowErrorEvent failure)
+    private RunError ToRunError(WorkflowErrorEvent failure, Guid runId)
         => failure.Exception is { } exception
-            ? ToRunError(exception)
+            ? ToRunError(exception, runId)
             : new RunError
             {
                 Type = nameof(WorkflowErrorEvent),

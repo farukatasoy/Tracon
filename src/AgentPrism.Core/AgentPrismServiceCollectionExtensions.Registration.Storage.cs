@@ -300,7 +300,9 @@ public static partial class AgentPrismServiceCollectionExtensions
             provider.GetService<Microsoft.Extensions.Logging.ILogger<RetentionExecutor>>()));
 
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IJobHandler, RetentionJobHandler>(
-            static provider => new RetentionJobHandler(provider.GetRequiredService<RetentionExecutor>())));
+            static provider => new RetentionJobHandler(
+                provider.GetRequiredService<RetentionExecutor>(),
+                provider.GetService<Microsoft.Extensions.Logging.ILogger<RetentionJobHandler>>())));
 
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IHostedService, JobWorkerBackgroundService>());

@@ -1,4 +1,5 @@
 using Microsoft.Agents.AI;
+using Microsoft.Extensions.Logging;
 
 namespace AgentPrism;
 
@@ -30,6 +31,7 @@ internal sealed class ConversationBranchService
     private readonly ITenantContext _tenantContext;
     private readonly TimeProvider _timeProvider;
     private readonly IConversationBranchStore? _branchStore;
+    private readonly ILogger<ConversationBranchService>? _logger;
 
     /// <summary>Creates a new branching service.</summary>
     /// <param name="sessions">The session store.</param>
@@ -43,13 +45,15 @@ internal sealed class ConversationBranchService
     /// given sequence number.
     /// </param>
     /// <param name="timeProvider">The time source. The system clock is used if not given.</param>
+    /// <param name="logger">Records the full detail of a session restore failure, paired with the correlation id in <see cref="SessionBranchOutcome.Detail"/>.</param>
     /// <exception cref="ArgumentNullException">One of the required dependencies is <see langword="null"/>.</exception>
     public ConversationBranchService(
         ISessionStore sessions,
         IAgentCatalog catalog,
         ITenantContext tenantContext,
         IConversationBranchStore? branchStore = null,
-        TimeProvider? timeProvider = null)
+        TimeProvider? timeProvider = null,
+        ILogger<ConversationBranchService>? logger = null)
     {
         ArgumentNullException.ThrowIfNull(sessions);
         ArgumentNullException.ThrowIfNull(catalog);
@@ -60,6 +64,7 @@ internal sealed class ConversationBranchService
         _tenantContext = tenantContext;
         _branchStore = branchStore;
         _timeProvider = timeProvider ?? TimeProvider.System;
+        _logger = logger;
     }
 
     /// <summary>
@@ -145,9 +150,21 @@ internal sealed class ConversationBranchService
         }
         catch (Exception ex) when (ex is System.Text.Json.JsonException or InvalidOperationException or NotSupportedException or ArgumentException)
         {
+            // 🚨 ex.Message describes AgentPrism's OWN previously-stored session state
+            // failing to deserialize, not a provider secret - but it is still foreign text
+            // (Phase 119, BL-027/BL-037) and this outcome's Detail reaches the HTTP response
+            // verbatim (SessionEndpoints), so only the type name and a correlation id go out.
+            var correlationId = SafeErrorText.NewCorrelationId();
+
+            if (_logger is not null && _logger.IsEnabled(LogLevel.Warning))
+            {
+                _logger.LogWarning(ex, "Session {SessionId} could not be restored for branching. (ref: {CorrelationId})", sessionId, correlationId);
+            }
+
             return SessionBranchOutcome.Failed(
                 SessionBranchStatus.AgentNotFound,
-                $"Session '{sessionId}' could not be restored with agent '{record.AgentName}': {ex.Message}");
+                $"Session '{sessionId}' could not be restored with agent '{record.AgentName}': " +
+                SafeErrorText.ForPersistence(ex, correlationId));
         }
 
         if (!session.StateBag.TryGetValue<ChatHistoryState>(

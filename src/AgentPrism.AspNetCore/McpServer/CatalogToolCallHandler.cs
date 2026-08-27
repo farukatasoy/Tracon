@@ -2,6 +2,7 @@ using System.Text.Json;
 using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
@@ -103,7 +104,13 @@ internal static class CatalogToolCallHandler
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            return Error($"'{agentName}' could not be run: {ex.Message}");
+            var correlationId = SafeErrorText.NewCorrelationId();
+
+            services.GetRequiredService<ILoggerFactory>()
+                .CreateLogger("AgentPrism.McpServer")
+                .LogError(ex, "MCP tool call for agent '{AgentName}' failed. (ref: {CorrelationId})", agentName, correlationId);
+
+            return Error($"'{agentName}' could not be run: {SafeErrorText.ForPersistence(ex, correlationId)}");
         }
 
         // Defense layer: the startup check (ExternalSurfaceGuard) already
