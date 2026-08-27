@@ -2,11 +2,17 @@ namespace AgentPrism;
 
 /// <summary>The control-plane store for retention policies and run history.</summary>
 /// <remarks>
+/// <para>
 /// The data plane (actual delete/count/archive-read) goes through
 /// <see cref="IRetentionStore"/>. This split matches the
 /// <c>IJobStore</c>/<c>IJobScheduleStore</c> split in the job queue: the
 /// control plane is always registered (in-memory or SQL), while the data
 /// plane is meaningful only when a SQL provider is enabled.
+/// </para>
+/// <para>
+/// <strong>DI lifetime — singleton.</strong> Registered as a singleton with
+/// <c>TryAdd</c>; a consumer's own registration wins.
+/// </para>
 /// </remarks>
 public interface IRetentionPolicyStore
 {

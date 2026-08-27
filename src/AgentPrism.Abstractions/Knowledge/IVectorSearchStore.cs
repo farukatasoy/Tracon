@@ -18,6 +18,13 @@ namespace AgentPrism;
 /// expression tree breaks the AOT stance, and <c>AgentPrism.PostgreSql</c> is
 /// AOT-compatible.
 /// </para>
+/// <para>
+/// <strong>DI lifetime — singleton, optional.</strong> No default
+/// implementation is registered; <c>AgentPrism.PostgreSql</c> registers one
+/// with <c>TryAdd</c> when <c>EnableVectorSearch = true</c>. A consumer's
+/// own registration must be a singleton — a scoped registration would be a
+/// captive dependency.
+/// </para>
 /// </remarks>
 public interface IVectorSearchStore
 {

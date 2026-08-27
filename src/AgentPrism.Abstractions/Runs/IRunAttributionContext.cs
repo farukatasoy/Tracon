@@ -30,6 +30,13 @@ namespace AgentPrism;
 /// dependency on it, and a scoped registration would be a captive dependency.
 /// Resolve per-request state through <c>IHttpContextAccessor</c>.
 /// </para>
+/// <para>
+/// <strong>Tenant behavior — TENANT-INDEPENDENT.</strong> This interface
+/// carries no tenant parameter and applies no tenant filtering of its own:
+/// attribution (who spent this, what job was it for) is a per-request
+/// identity concern, orthogonal to <see cref="ITenantContext"/>'s
+/// data-tenancy concern. It answers "which user", never "which tenant".
+/// </para>
 /// </remarks>
 public interface IRunAttributionContext
 {

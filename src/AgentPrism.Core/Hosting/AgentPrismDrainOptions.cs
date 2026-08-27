@@ -15,6 +15,13 @@ public sealed class AgentPrismDrainOptions
     /// behavior (the process stops immediately, in-flight runs are cut off)
     /// does not change unless a setup opts in.
     /// </summary>
+    /// <remarks>
+    /// Turning this on does not, by itself, close the register/accept race
+    /// window a new run can land in right as shutdown begins (BL-026) — see
+    /// <see cref="IAgentPrismDrainState"/>'s remarks for the two backup
+    /// mechanisms (Kestrel request draining, the job worker's own
+    /// <c>WaitForRunningJobsAsync</c>) that actually carry that guarantee.
+    /// </remarks>
     public bool Enabled { get; set; }
 
     /// <summary>

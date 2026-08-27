@@ -1,6 +1,18 @@
 namespace AgentPrism;
 
 /// <summary>The store for webhook subscriptions and delivery history.</summary>
+/// <remarks>
+/// <strong>Delivery guarantee — AT-LEAST-ONCE.</strong> A row created by
+/// <see cref="CreateDeliveryAsync"/> can be attempted more than once: the
+/// delivery job (an <c>IJobHandler</c>, itself at-least-once — see
+/// <c>IJobHandler.ExecuteAsync</c>'s own remarks) retries a failed HTTP POST
+/// against the SAME <see cref="WebhookDelivery.Id"/>, and each attempt is
+/// recorded with its own <see cref="RecordDeliveryResultAsync"/> call rather
+/// than overwriting the last one. This store neither deduplicates nor
+/// collapses those attempts — it is <c>IWebhookPublisher</c>'s and the
+/// recipient's job to do so; see <see cref="IWebhookPublisher"/>'s remarks
+/// for the header a recipient uses to recognize a retry.
+/// </remarks>
 public interface IWebhookStore
 {
     /// <summary>Lists a tenant's subscriptions.</summary>
@@ -115,6 +127,16 @@ public interface IWebhookStore
 /// <para>
 /// The observability rule applies here too: if publishing fails, the run
 /// <strong>continues</strong>, the error is only logged.
+/// </para>
+/// <para>
+/// <strong>Delivery guarantee — AT-LEAST-ONCE.</strong> Each subscriber may
+/// receive the SAME event more than once: the delivery job retries a failed
+/// HTTP POST against the same <see cref="WebhookDelivery.Id"/> (see
+/// <see cref="IWebhookStore"/>'s remarks). Every attempt — the original and
+/// every retry — carries the SAME delivery id in the
+/// <c>X-AgentPrism-Delivery</c> header; a recipient that wants exactly-once
+/// processing MUST deduplicate on that header's value itself. AgentPrism
+/// does not deduplicate on the recipient's behalf.
 /// </para>
 /// </remarks>
 public interface IWebhookPublisher

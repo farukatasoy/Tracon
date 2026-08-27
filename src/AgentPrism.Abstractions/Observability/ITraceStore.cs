@@ -14,6 +14,16 @@ namespace AgentPrism;
 /// database at high volume; the sampling decision belongs to the caller
 /// (<c>AgentPrismObservabilityOptions</c>), not the store.
 /// </para>
+/// <para>
+/// <strong>Tenant behavior is not uniform across this interface's methods.</strong>
+/// <see cref="WriteSpansAsync"/> is EXPECTED tenant: it reads
+/// <see cref="TraceSpanBatch.TenantId"/>, never the ambient tenant, for the
+/// same reason <see cref="IRunStore.AppendEventAsync"/> does — the writing
+/// thread may not belong to the trace's own tenant.
+/// <see cref="GetTraceByRunAsync"/> is AMBIENT tenant: it takes no explicit
+/// tenant parameter and filters by the current <c>ITenantContext</c>
+/// internally.
+/// </para>
 /// </remarks>
 public interface ITraceStore
 {

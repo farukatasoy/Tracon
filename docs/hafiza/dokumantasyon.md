@@ -265,3 +265,15 @@ tablosuna satır ekle (K-642).
 YEŞİL geçti — aynı özetin ilerisindeki ikinci bir "lower" kontrolü kurtarıyordu.
 Metin kapısı **bağlı tek ifade** aramalıdır, parça parça değil; ve her vakada
 ayrı ayrı kırmızı verdiğini ölç.
+
+## 🚨 Bir arayüzün "kendi dokümanı" başlığıyla sınırlı değildir (Faz 121, K-643)
+
+`SeamContractDocumentationTests` ilk sürümü yalnız `public interface I...`
+satırının HEMEN ÜSTÜNDEKİ `<summary>`/`<remarks>` bloğunu okuyordu. Bu,
+`IJobHandler`'ı (K-641'in referans örneği) yanlışlıkla "delivery guarantee
+belgesiz" işaretledi — çünkü "at-least-once" cümlesi arayüz başlığında değil,
+`ExecuteAsync`'in KENDİ `<remarks>`'inde duruyor. Bir metin kapısı "arayüzün
+kendi XML dokümanı" derken, arayüzün İÇİNDEKİ her üyenin doküman bloğunu da
+kapsamalı — yalnız başlığı değil. Düzeltme: tarama artık başlık doc'u +
+gövdedeki her `///` satırını birleştirip arıyor (`InterfaceDocSurface`).
+Regresyon testi: `A_dimension_answered_on_a_MEMBERs_doc_counts_as_answered`.

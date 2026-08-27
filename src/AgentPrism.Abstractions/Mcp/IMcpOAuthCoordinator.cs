@@ -72,6 +72,15 @@ public sealed record McpOAuthCompleteResult
 /// successful flow, the access and refresh tokens are kept only in memory,
 /// bounded by the process lifetime.
 /// </para>
+/// <para>
+/// <strong>DI lifetime — singleton.</strong> Registered as a singleton with
+/// <c>TryAdd</c>; a consumer's own registration wins. This is required, not
+/// incidental: the in-memory tokens and pending-flow state (matched by
+/// <c>state</c> between <see cref="StartAsync"/> and <see cref="CompleteAsync"/>)
+/// must survive across the two separate HTTP requests of one OAuth round trip,
+/// which a scoped registration could not guarantee. An implementation must be
+/// safe under concurrent flows from unrelated tenants.
+/// </para>
 /// </remarks>
 public interface IMcpOAuthCoordinator
 {

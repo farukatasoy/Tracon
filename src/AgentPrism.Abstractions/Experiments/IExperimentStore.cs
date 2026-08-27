@@ -1,6 +1,10 @@
 namespace AgentPrism;
 
 /// <summary>Defines the store for A/B experiments.</summary>
+/// <remarks>
+/// <strong>DI lifetime — singleton.</strong> Registered as a singleton with
+/// <c>TryAdd</c>; a consumer's own registration wins.
+/// </remarks>
 public interface IExperimentStore
 {
     /// <summary>Lists all experiments for a tenant by name.</summary>

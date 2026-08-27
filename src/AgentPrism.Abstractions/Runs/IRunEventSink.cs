@@ -23,6 +23,13 @@ namespace AgentPrism;
 /// Events from every tenant pass through the same sink instance; use
 /// <c>RunEvent.TenantId</c> to tell them apart.
 /// </para>
+/// <para>
+/// <strong>Tenant behavior — EXPECTED tenant.</strong> The tenant is carried
+/// by <see cref="RunEvent.TenantId"/> on the event itself, the same way
+/// <see cref="IRunStore.AppendEventAsync"/> reads it — never from the
+/// ambient tenant, since the writing thread may not belong to the event's
+/// own tenant.
+/// </para>
 /// </remarks>
 public interface IRunEventSink
 {
