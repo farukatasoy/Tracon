@@ -254,6 +254,15 @@ internal sealed class JobWorkerBackgroundService(
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
+            var correlationId = SafeErrorText.NewCorrelationId();
+
+            if (logger is not null && logger.IsEnabled(LogLevel.Error))
+            {
+                logger.LogError(exception, "Job {JobId} failed. (ref: {CorrelationId})", job.Id, correlationId);
+            }
+
+            var safeMessage = SafeErrorText.ForPersistence(exception, correlationId);
+
             // The job may carry its own attempt limit (webhook delivery uses a
             // different ladder than the global setting); if not, the global setting.
             var maxAttempts = job.MaxAttempts ?? options.MaxAttempts;
@@ -266,7 +275,7 @@ internal sealed class JobWorkerBackgroundService(
                         JobId = job.Id,
                         Status = JobStatus.Failed,
                         CompletedAt = _clock.GetUtcNow(),
-                        ErrorMessage = exception.Message,
+                        ErrorMessage = safeMessage,
                     },
                     stoppingToken).ConfigureAwait(false);
             }
@@ -277,7 +286,7 @@ internal sealed class JobWorkerBackgroundService(
                 var retryAfter = (exception as JobRetryException)?.RetryAfter;
 
                 await jobStore
-                    .ReleaseForRetryAsync(job.Id, exception.Message, retryAfter, stoppingToken)
+                    .ReleaseForRetryAsync(job.Id, safeMessage, retryAfter, stoppingToken)
                     .ConfigureAwait(false);
             }
         }

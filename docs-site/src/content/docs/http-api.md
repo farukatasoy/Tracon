@@ -108,6 +108,13 @@ shows server text as it is.
 up", which is a different problem from a wrong address, and the API says so rather
 than answering `404`.
 
+**A `502`'s `detail` is deliberately shallow** — it never carries the failing
+provider's own error text, only its exception type and a correlation id you can
+match against your server's log. The same rule applies to a streaming run's `error`
+frame and to MCP tool-call errors. See
+[errors are classified](/concepts/runs/#the-error-message-is-safe-to-display-not-safe-to-debug-from)
+for why.
+
 ## The groups
 
 Pick one from the sidebar. Each operation shows every declared media type, parameters,

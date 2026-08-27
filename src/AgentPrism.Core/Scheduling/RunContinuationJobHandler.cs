@@ -186,6 +186,13 @@ internal sealed class RunContinuationJobHandler(
         Exception exception,
         CancellationToken cancellationToken)
     {
+        var correlationId = SafeErrorText.NewCorrelationId();
+
+        if (logger is not null && logger.IsEnabled(LogLevel.Error))
+        {
+            logger.LogError(exception, "Continuation run {RunId} failed. (ref: {CorrelationId})", runId, correlationId);
+        }
+
         try
         {
             await runStore.CompleteRunAsync(
@@ -197,7 +204,7 @@ internal sealed class RunContinuationJobHandler(
                     Error = new RunError
                     {
                         Type = exception.GetType().Name,
-                        Message = exception.Message,
+                        Message = SafeErrorText.ForPersistence(exception, correlationId),
                     },
                     TenantId = tenantId,
                 },

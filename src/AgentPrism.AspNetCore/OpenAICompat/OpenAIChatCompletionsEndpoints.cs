@@ -6,6 +6,8 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.AI;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 namespace AgentPrism;
 
@@ -160,7 +162,16 @@ internal static class OpenAIChatCompletionsEndpoints
             // provider SDK exceptions slip through uncaught and leak into
             // ASP.NET Core's generic handler, producing a bare 500. Nothing goes
             // uncaught here.
-            return OpenAICompatSupport.Error(StatusCodes.Status502BadGateway, ex.Message, type: "upstream_error");
+            var correlationId = SafeErrorText.NewCorrelationId();
+
+            httpContext.RequestServices.GetRequiredService<ILoggerFactory>()
+                .CreateLogger("AgentPrism.OpenAICompat")
+                .LogError(ex, "Chat Completions run for agent '{AgentName}' failed. (ref: {CorrelationId})", agentName, correlationId);
+
+            return OpenAICompatSupport.Error(
+                StatusCodes.Status502BadGateway,
+                SafeErrorText.ForPersistence(ex, correlationId),
+                type: "upstream_error");
         }
     }
 
@@ -314,8 +325,14 @@ internal static class OpenAIChatCompletionsEndpoints
                 // exception filter would let real provider SDK exceptions slip
                 // through and close the connection WITHOUT producing an 'error'
                 // frame. Here EVERY exception turns into a frame.
+                var correlationId = SafeErrorText.NewCorrelationId();
+
+                httpContext.RequestServices.GetRequiredService<ILoggerFactory>()
+                    .CreateLogger("AgentPrism.OpenAICompat")
+                    .LogError(ex, "Streaming Chat Completions run for agent '{AgentName}' failed. (ref: {CorrelationId})", model, correlationId);
+
                 var payload = JsonSerializer.Serialize(
-                    new ChatStreamError(new ChatStreamErrorBody(ex.Message, "upstream_error")),
+                    new ChatStreamError(new ChatStreamErrorBody(SafeErrorText.ForPersistence(ex, correlationId), "upstream_error")),
                     OpenAICompatSupport.JsonOptions);
 
                 await writer.WriteRawAsync($"data: {payload}\n\n", CancellationToken.None).ConfigureAwait(false);

@@ -329,7 +329,8 @@ public static partial class AgentPrismServiceCollectionExtensions
             provider.GetRequiredService<IAgentCatalog>(),
             provider.GetRequiredService<ITenantContext>(),
             provider.GetService<IConversationBranchStore>(),
-            provider.GetService<TimeProvider>()));
+            provider.GetService<TimeProvider>(),
+            provider.GetService<Microsoft.Extensions.Logging.ILogger<ConversationBranchService>>()));
 
         // Replay (Phase 47). Uses NOT the catalog but the definition store and
         // the compiler: model binding and tool modes require recompiling the
