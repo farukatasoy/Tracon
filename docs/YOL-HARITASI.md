@@ -129,7 +129,7 @@ bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 | [114](arsiv/fazlar/114-CALISTIRMA-ICI-BUTCE-TAVANI.md) | Çalıştırma-İçi Bütçe Tavanı | ✅ Tamamlandı |
 | [115](arsiv/fazlar/115-EVALIN-BASSIZ-KOSUCUSU.md) | Eval'in Başsız Koşucusu | ✅ Tamamlandı |
 | [116](arsiv/fazlar/116-PERFORMANS-TAHSIS-KAPISI.md) | Performans Tahsis Kapısı | ✅ Tamamlandı |
-| [117](117-MCP-TASKS-UZANTISI.md) | MCP Tasks Uzantısı | ✅ Tamamlandı |
+| [117](arsiv/fazlar/117-MCP-TASKS-UZANTISI.md) | MCP Tasks Uzantısı | ✅ Tamamlandı |
 | [118](118-YARGIC-BASINA-CHECKPOINT.md) | Yargıç Başına Checkpoint | 📋 Planlandı |
 
 Seçilmemiş adaylar: [`ADAYLAR.md`](ADAYLAR.md). Fazların hangi dalgada, hangi gerekçeyle sıralandığı (Faz 8–56, kapandı): [`arsiv/IKINCI-FAZ-YOL-HARITASI.md`](arsiv/IKINCI-FAZ-YOL-HARITASI.md) · [`arsiv/UCUNCU-FAZ-YOL-HARITASI.md`](arsiv/UCUNCU-FAZ-YOL-HARITASI.md).
