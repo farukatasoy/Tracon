@@ -1,8 +1,8 @@
 # Faz 121 — Seam Sözleşme Dokümanı ve Küçülen Taban Çizgisi
 
 > **Durum:** ✅ Tamamlandı (2026-08-28)
-> **Kaynak:** [YAYIN-HAZIRLIK.md](YAYIN-HAZIRLIK.md) §13 kulvar 3 — BL-024 · BL-026 · BL-028 · BL-029 · BL-035 · BL-038 · BL-042 · BL-043 · BL-046 · BL-048 · BL-050
-> **Önkoşul:** Yok. [Faz 120](arsiv/fazlar/120-JOB-SOZLESMESI-AT-LEAST-ONCE.md) aynı işin tek arayüzde yapılmış hâlidir; deseni oradan al
+> **Kaynak:** [YAYIN-HAZIRLIK.md](../../YAYIN-HAZIRLIK.md) §13 kulvar 3 — BL-024 · BL-026 · BL-028 · BL-029 · BL-035 · BL-038 · BL-042 · BL-043 · BL-046 · BL-048 · BL-050
+> **Önkoşul:** Yok. [Faz 120](120-JOB-SOZLESMESI-AT-LEAST-ONCE.md) aynı işin tek arayüzde yapılmış hâlidir; deseni oradan al
 > **Paketler:** `AgentPrism.Abstractions` (birincil), `AgentPrism.Workflows`, `AgentPrism.Core` (yalnız yorum/karşılaştırma)
 > **Yeni paket:** Yok · **Migration:** Yok
 > **Public API:** Büyümüyor — bu faz yalnız XML dokümanı yazar. `PublicAPI.Unshipped.txt` dosyaları **değişmemelidir**; değişirse imza kaymıştır ve bu bir hatadır
@@ -25,7 +25,7 @@
    test tiyatrosu tuzağı), **K-641** (`IJobHandler` at-least-once sözleşmesi — bu
    fazın **referans örneği**), **K-640** (`SafeErrorText`; mimari cırcır kapısı
    deseni), **K-059** (`secret` veritabanına da yazılmaz), **K-228** (dil sınırı)
-3. [`arsiv/fazlar/120-JOB-SOZLESMESI-AT-LEAST-ONCE.md`](arsiv/fazlar/120-JOB-SOZLESMESI-AT-LEAST-ONCE.md)
+3. [`arsiv/fazlar/120-JOB-SOZLESMESI-AT-LEAST-ONCE.md`](120-JOB-SOZLESMESI-AT-LEAST-ONCE.md)
    — yalnız devir notu:
    ```bash
    awk '/## Sonraki Faza Devir Notu/,0' docs/arsiv/fazlar/120-JOB-SOZLESMESI-AT-LEAST-ONCE.md
@@ -34,13 +34,13 @@
    XML'e yazdı, contract ile kilitledi, davranışı ayrı bir testle ölçtü. Bu faz
    o deseni 76 arayüze yayar.
 4. Alan hafızası (bu faz iki alana dokunuyor):
-   [`hafiza/dokumantasyon.md`](hafiza/dokumantasyon.md) — **sondaki "Sayısal
+   [`hafiza/dokumantasyon.md`](../../hafiza/dokumantasyon.md) — **sondaki "Sayısal
    sıralama knob'unun YÖNÜ" notu zorunludur**; metin kapısının test tiyatrosuna
    dönüşme tuzağını anlatır ·
-   [`hafiza/cekirdek-calistirma.md`](hafiza/cekirdek-calistirma.md) (yalnız
+   [`hafiza/cekirdek-calistirma.md`](../../hafiza/cekirdek-calistirma.md) (yalnız
    `IRunStore`/`RunRecording` sözleşmesine dokunurken)
 5. Gerektiğinde, tamamı değil ilgili bölümü:
-   [`MIMARI-GUVENLIK.md`](MIMARI-GUVENLIK.md) — kiracı modu ve denetim izi bölümü
+   [`MIMARI-GUVENLIK.md`](../../MIMARI-GUVENLIK.md) — kiracı modu ve denetim izi bölümü
    (tenant-mode boyutu oradan türetilir)
 
 ---
@@ -69,12 +69,12 @@ kural diğerine taşınamıyor.
 | `grep -c "^public interface I" src/AgentPrism.Abstractions` | **76 public extension arayüzü**, 69 dosyada |
 | Aynı küme, `singleton\|thread-safe` taraması | Yalnız **12** dosya DI lifetime veya thread-safety belgeliyor |
 | Aynı küme, `AMBIENT\|EXPECTED` taraması | Yalnız **5** dosya kiracı modu tablosu taşıyor |
-| [`Abstractions/Runs/IRunCancellationRegistry.cs`](../src/AgentPrism.Abstractions/Runs/IRunCancellationRegistry.cs) | `cooperative` / `best-effort` geçmiyor (0 eşleşme). `TryCancel` yalnız `CancellationTokenSource.Cancel()` çağırır; tüketici işin gerçekten durduğunu varsayabilir |
-| [`Abstractions/Coordination/ISingletonLeaseStore.cs`](../src/AgentPrism.Abstractions/Coordination/ISingletonLeaseStore.cs) | `split-brain` / `exclusive` / `eventually` geçmiyor (0 eşleşme) |
+| [`Abstractions/Runs/IRunCancellationRegistry.cs`](../../../src/AgentPrism.Abstractions/Runs/IRunCancellationRegistry.cs) | `cooperative` / `best-effort` geçmiyor (0 eşleşme). `TryCancel` yalnız `CancellationTokenSource.Cancel()` çağırır; tüketici işin gerçekten durduğunu varsayabilir |
+| [`Abstractions/Coordination/ISingletonLeaseStore.cs`](../../../src/AgentPrism.Abstractions/Coordination/ISingletonLeaseStore.cs) | `split-brain` / `exclusive` / `eventually` geçmiyor (0 eşleşme) |
 | `IWebhookStore` · `IWebhookPublisher` | İkisinde de `at-least-once` geçmiyor (0 eşleşme); garanti yalnız `WebhookDeliveryJobHandler.cs:299`'da görülüyor |
-| [`Workflows/AgentPrismWorkflowFunctionExtensions.cs:74-76`](../src/AgentPrism.Workflows/AgentPrismWorkflowFunctionExtensions.cs) | Tekrar çalıştırma uyarısı ("must therefore tolerate being called more than once") **kayıt uzantısında** duruyor; `IWorkflowRunner`/`IWorkflowCheckpointStore` sözleşme yüzeyinde yok |
-| [`Abstractions/Audit/AuditQuery.cs:6`](../src/AgentPrism.Abstractions/Audit/AuditQuery.cs) | `TenantId == null` → "çağıranın kiracısı" semantiği yalnız **DTO yorumunda**; `IAuditLog` arayüzü bunu sözleşme olarak dayatmıyor |
-| [`Abstractions/Audit/IAuditActorResolver.cs`](../src/AgentPrism.Abstractions/Audit/IAuditActorResolver.cs) | 8 satır XML dokümanı var, `asynclocal`/`ambient`/`singleton` **hiç** geçmiyor |
+| [`Workflows/AgentPrismWorkflowFunctionExtensions.cs:74-76`](../../../src/AgentPrism.Workflows/AgentPrismWorkflowFunctionExtensions.cs) | Tekrar çalıştırma uyarısı ("must therefore tolerate being called more than once") **kayıt uzantısında** duruyor; `IWorkflowRunner`/`IWorkflowCheckpointStore` sözleşme yüzeyinde yok |
+| [`Abstractions/Audit/AuditQuery.cs:6`](../../../src/AgentPrism.Abstractions/Audit/AuditQuery.cs) | `TenantId == null` → "çağıranın kiracısı" semantiği yalnız **DTO yorumunda**; `IAuditLog` arayüzü bunu sözleşme olarak dayatmıyor |
+| [`Abstractions/Audit/IAuditActorResolver.cs`](../../../src/AgentPrism.Abstractions/Audit/IAuditActorResolver.cs) | 8 satır XML dokümanı var, `asynclocal`/`ambient`/`singleton` **hiç** geçmiyor |
 | `IAgentDefinitionStore` vs `IAgentSkillStore` · `ISkillScriptGrantStore` | Birincide açık `tenantId` parametresi **0**, diğer ikisinde **3'er** — aynı kümede iki farklı kiracı şekli, gerekçesi yazılı değil |
 | `Abstractions/Mcp/` — 6 arayüz | Hiçbiri DI lifetime belirtmiyor. `IMcpOAuthCoordinator`'daki tek `lifetime` eşleşmesi `bounded by the process lifetime` ifadesidir, DI lifetime değil |
 
