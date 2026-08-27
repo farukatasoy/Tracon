@@ -1,0 +1,197 @@
+using System.Net.Http.Json;
+using System.Text.Json;
+using AgentPrism.AspNetCore.FunctionalTests.Infrastructure;
+using ModelContextProtocol;
+using ModelContextProtocol.Extensions.Tasks;
+using ModelContextProtocol.Protocol;
+
+namespace AgentPrism.AspNetCore.FunctionalTests;
+
+/// <summary>
+/// Phase 117: <see cref="RunBackedMcpTaskStore"/>'s same-instance cache is a fast
+/// path, not the source of truth — a poll landing on a DIFFERENT instance must
+/// still resolve correctly straight from the shared database. Two real, separate
+/// <see cref="AgentPrismTestHost"/>s sharing one SQLite file (not two in-memory
+/// hosts, which would each get their own isolated store) exercise this: task
+/// creation and completion happen on host A, every poll happens on host B, whose
+/// <see cref="RunBackedMcpTaskStore"/> was never told anything by A — its
+/// same-instance cache is empty by construction, so every read here is forced
+/// through <see cref="McpTaskStatusMapping"/>'s reconstruction path. This is also
+/// the automated proof for the phase's "a task is visible from a second instance"
+/// DoD line.
+/// </summary>
+public sealed class McpTaskCrossInstanceTests
+{
+    [Fact]
+    public async Task Second_instance_reconstructs_a_completed_task_from_the_shared_database()
+    {
+        var databasePath = SqliteFile();
+
+        try
+        {
+            await using var hostA = await StartAsync(databasePath);
+            await using var clientA = await McpTaskTestClient.ConnectAsync(hostA.Client, "/agentprism/mcp");
+
+            var outcome = await clientA.CallToolAsTaskAsync(
+                new CallToolRequestParams { Name = "agentprism_kod-agent", Arguments = Arguments("hello from host A") });
+
+            var taskId = outcome.TaskCreated!.TaskId;
+
+            // Host A's own cache resolves this once it settles -- proves the
+            // task actually completes before we move to a store that has
+            // never seen it.
+            await Poll(() => clientA.GetTaskAsync(taskId), r => r is CompletedTaskResult);
+
+            await using var hostB = await StartAsync(databasePath);
+            await using var clientB = await McpTaskTestClient.ConnectAsync(hostB.Client, "/agentprism/mcp");
+
+            var final = await Poll(() => clientB.GetTaskAsync(taskId), r => r is CompletedTaskResult);
+
+            var completed = final.ShouldBeOfType<CompletedTaskResult>();
+            var result = JsonSerializer.Deserialize<CallToolResult>(completed.Result, McpJsonUtilities.DefaultOptions)!;
+            result.Content[0].ShouldBeOfType<TextContentBlock>().Text.ShouldContain("hello from host A", Case.Sensitive);
+        }
+        finally
+        {
+            DeleteSqliteFile(databasePath);
+        }
+    }
+
+    [Fact]
+    public async Task Second_instance_reconstructs_an_approval_rejection_generically_not_with_todays_exact_wording()
+    {
+        // The counterpart to McpTasksEndpointTests's cache-hit K-103 assertion:
+        // this is the fallback path (§ McpTaskStatusMapping), which cannot
+        // recover the exact tool name from IRunStore alone -- a documented,
+        // deliberate difference from the same-instance wording, not a bug.
+        const string ApprovalModel = "cross-instance-approval-model";
+        var databasePath = SqliteFile();
+
+        try
+        {
+            await using var hostA = await AgentPrismTestHost.StartAsync(
+                configureAgentPrism: builder =>
+                {
+                    builder
+                        .UseSqlite($"Data Source={databasePath}")
+                        .AddTool(
+                            (Func<string, string>)(orderId => $"canceled: {orderId}"),
+                            name: "cancel_order",
+                            description: "Cancels an order.",
+                            configure: options => options.RequiresApproval = true)
+                        .AddModelProvider(new AgentPrism.Testing.FakeModelProvider("routing")
+                            .ForModel(ApprovalModel, cfg => cfg.CallsTool("cancel_order", new { orderId = "123" })))
+                        .UseMcpServer(o =>
+                        {
+                            o.ExposedAgents.Add("db-agent");
+                            o.EnableTasks = true;
+                        });
+                },
+                configureAfterMap: app => app.MapAgentPrismMcpServer());
+
+            var createResponse = await hostA.Client.PostAsJsonAsync(
+                new Uri("/agentprism/api/agents", UriKind.Relative),
+                TestData.Request() with { Model = new ModelBinding { Provider = "routing", Model = ApprovalModel } });
+            createResponse.EnsureSuccessStatusCode();
+
+            var updateResponse = await hostA.Client.PutAsJsonAsync(
+                new Uri("/agentprism/api/agents/db-agent", UriKind.Relative),
+                TestData.Request() with
+                {
+                    Model = new ModelBinding { Provider = "routing", Model = ApprovalModel },
+                    ToolNames = ["cancel_order"],
+                });
+            updateResponse.EnsureSuccessStatusCode();
+
+            await using var clientA = await McpTaskTestClient.ConnectAsync(hostA.Client, "/agentprism/mcp");
+
+            var outcome = await clientA.CallToolAsTaskAsync(
+                new CallToolRequestParams { Name = "agentprism_db-agent", Arguments = Arguments("cancel my order") });
+
+            var taskId = outcome.TaskCreated!.TaskId;
+
+            await Poll(() => clientA.GetTaskAsync(taskId), r => r is CompletedTaskResult);
+
+            // Host B never registers the approval-requiring tool or the
+            // agent at all -- it only needs to READ the run the shared
+            // database already has. Its own catalog is irrelevant to
+            // tasks/get, which never re-resolves the agent.
+            await using var hostB = await AgentPrismTestHost.StartAsync(
+                configureAgentPrism: builder => builder
+                    .UseSqlite($"Data Source={databasePath}")
+                    .UseMcpServer(o =>
+                    {
+                        o.ExposedAgents.Add("db-agent");
+                        o.EnableTasks = true;
+                    }),
+                configureAfterMap: app => app.MapAgentPrismMcpServer());
+
+            await using var clientB = await McpTaskTestClient.ConnectAsync(hostB.Client, "/agentprism/mcp");
+
+            var final = await Poll(() => clientB.GetTaskAsync(taskId), r => r is CompletedTaskResult);
+
+            final.ShouldNotBeOfType<InputRequiredTaskResult>();
+
+            var completed = final.ShouldBeOfType<CompletedTaskResult>();
+            var result = JsonSerializer.Deserialize<CallToolResult>(completed.Result, McpJsonUtilities.DefaultOptions)!;
+            var text = result.Content[0].ShouldBeOfType<TextContentBlock>().Text;
+
+            text.ShouldContain("requires user approval", Case.Sensitive);
+            // The generic fallback wording, not the cache-hit wording: no
+            // tool name, because IRunStore alone cannot recover it.
+            text.ShouldNotContain("'cancel_order'", Case.Sensitive);
+        }
+        finally
+        {
+            DeleteSqliteFile(databasePath);
+        }
+    }
+
+    private static string SqliteFile()
+        => Path.Combine(Path.GetTempPath(), $"agentprism-mcp-task-cross-instance-{Guid.NewGuid():N}.db");
+
+    private static void DeleteSqliteFile(string databasePath)
+    {
+        foreach (var suffix in new[] { string.Empty, "-wal", "-shm", ".agentprism-migration-lock" })
+        {
+            File.Delete(databasePath + suffix);
+        }
+    }
+
+    private static Task<AgentPrismTestHost> StartAsync(string databasePath)
+        => AgentPrismTestHost.StartAsync(
+            configureAgentPrism: builder => builder
+                .UseSqlite($"Data Source={databasePath}")
+                .AddAgent(TestData.Definition())
+                .UseMcpServer(o =>
+                {
+                    o.ExposedAgents.Add("kod-agent");
+                    o.EnableTasks = true;
+                }),
+            configureAfterMap: app => app.MapAgentPrismMcpServer());
+
+    private static Dictionary<string, JsonElement> Arguments(string message)
+        => new(StringComparer.Ordinal) { ["message"] = JsonSerializer.SerializeToElement(message) };
+
+    private static async Task<T> Poll<T>(Func<ValueTask<T>> read, Func<T, bool> isDone)
+    {
+        var deadline = DateTime.UtcNow.AddSeconds(15);
+
+        while (true)
+        {
+            var value = await read();
+
+            if (isDone(value))
+            {
+                return value;
+            }
+
+            if (DateTime.UtcNow > deadline)
+            {
+                throw new TimeoutException("Timed out waiting for the task to reach the expected state.");
+            }
+
+            await Task.Delay(50);
+        }
+    }
+}

@@ -73,6 +73,11 @@ public static class AgentPrismMcpServerExtensions
         ExternalSurfaceGuard.EnsureRemoteAccessNotCombined(
             endpointOptions.AllowRemoteAccess, "MCP", services.GetRequiredService<IApiKeyStore>());
 
+        // Phase 117: the task store was built empty at UseMcpServer() time
+        // (before Build()) and needs the real, built provider now — same
+        // deferred-attachment pattern as ExternalAgentProxy for A2A.
+        services.GetRequiredService<RunBackedMcpTaskStore>().AttachServices(services);
+
         var approvalGuardFilter = new McpApprovalGuardFilter(
             services.GetRequiredService<SchemaReadyGate>(),
             services.GetRequiredService<IAgentCatalog>(),

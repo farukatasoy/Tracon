@@ -94,7 +94,13 @@ AgentPrism.AgentPrismMcpServerOptions.Budget.get -> AgentPrism.AgentRunBudget!
 AgentPrism.AgentPrismMcpServerOptions.Budget.set -> void
 AgentPrism.AgentPrismMcpServerOptions.ExposeAllAgents.get -> bool
 AgentPrism.AgentPrismMcpServerOptions.ExposeAllAgents.set -> void
+AgentPrism.AgentPrismMcpServerOptions.EnableTasks.get -> bool
+AgentPrism.AgentPrismMcpServerOptions.EnableTasks.set -> void
 AgentPrism.AgentPrismMcpServerOptions.ExposedAgents.get -> System.Collections.Generic.IList<string!>!
+AgentPrism.AgentPrismMcpServerOptions.TaskPollInterval.get -> System.TimeSpan
+AgentPrism.AgentPrismMcpServerOptions.TaskPollInterval.set -> void
+AgentPrism.AgentPrismMcpServerOptions.TaskTimeToLive.get -> System.TimeSpan
+AgentPrism.AgentPrismMcpServerOptions.TaskTimeToLive.set -> void
 AgentPrism.AgentPrismMcpServerOptions.ToolNamePrefix.get -> string!
 AgentPrism.AgentPrismMcpServerOptions.ToolNamePrefix.set -> void
 AgentPrism.AgentPrismMetaResponse

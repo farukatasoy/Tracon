@@ -62,6 +62,8 @@
   -->
   <ItemGroup Label="Model Context Protocol - server">
     <PackageReference Include="ModelContextProtocol.AspNetCore" />
+    <!-- Phase 117: MCP Tasks extension. Net new transitive weight: zero (Directory.Packages.props). -->
+    <PackageReference Include="ModelContextProtocol.Extensions.Tasks" />
   </ItemGroup>
 
 </Project>

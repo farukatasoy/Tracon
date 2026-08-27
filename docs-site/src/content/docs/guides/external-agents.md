@@ -123,6 +123,33 @@ until the catalog is queryable, checks the selected agents, and prevents MCP req
 from running if an approval boundary would be crossed. An external protocol caller
 cannot act as the missing human.
 
+### Long-running calls as MCP tasks
+
+By default, a `tools/call` for a published agent holds the connection open until the
+agent finishes. Set `EnableTasks` to serve long-running calls as MCP tasks instead: a
+task-aware client gets an immediate task id back, closes the connection, and polls
+`tasks/get` for the result — useful when an agent's response can take longer than a
+client is willing to keep a connection open.
+
+```csharp
+.UseMcpServer(options =>
+{
+    options.ExposedAgents.Add("support");
+    options.EnableTasks = true;
+    options.TaskTimeToLive = TimeSpan.FromHours(2);
+    options.TaskPollInterval = TimeSpan.FromSeconds(5);
+});
+```
+
+`EnableTasks` is `false` by default: a client that never asks for the tasks
+capability keeps getting today's immediate response either way. The task id is the
+same id the run itself uses, so a task also shows up as an ordinary run in the
+management API and cost reports. An agent that ends up needing approval never
+surfaces as a task waiting on input — it is reported as a completed task carrying
+the same rejection message the synchronous path returns, for the same reason an
+approval-required tool cannot be exposed in the first place: an external protocol
+caller cannot act as the missing human.
+
 ## Publish agents through A2A
 
 A2A exposes a distinct identity and agent card for each selected agent:

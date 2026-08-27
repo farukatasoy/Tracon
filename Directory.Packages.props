@@ -181,6 +181,15 @@
       10.0.10 + Hosting.Abstractions 10.0.10 ceker. Yabanci bagimlilik yok.
     -->
     <PackageVersion Include="ModelContextProtocol.AspNetCore" Version="2.2.0" />
+    <!--
+      Faz 117: MCP Tasks uzantisi (2026-07-28 spec). Yalnizca
+      AgentPrism.AspNetCore icine girer. Olculdu (2026-08-26, gercek restore,
+      net10.0, temiz proje): + ModelContextProtocol.AspNetCore -> 13 paket,
+      + bu paket -> 14 paket. Net yeni gecisli paket SIFIR - on iki gecisli
+      paketin tumu zaten .AspNetCore uzerinden grafikte. AgentPrism.Mcp
+      (istemci) bu paketi hic gormez, K-057 bozulmaz.
+    -->
+    <PackageVersion Include="ModelContextProtocol.Extensions.Tasks" Version="2.2.0" />
   </ItemGroup>
 
   <ItemGroup Label="Gozlemlenebilirlik">
