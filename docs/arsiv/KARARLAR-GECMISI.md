@@ -4127,3 +4127,197 @@ K1 ihlali en pahalı hatadır; "doğrulayıcı başlangıçta bildirir" ilkesiyl
 
 Bu repoda "senkronizasyon kopyası" BEŞ kez yaşandı ve her seferinde iki kopya sessizce ayrıştı; taşıma tek kaynağı korur. `AgentPrism.Mcp` zaten `AgentPrism.Core`'a bağımlıdır, yön DOĞRUDUR (`DependencyDirectionTests`).
 
+## Faz 90 damıtmasında taşınan gerekçeler
+
+### K-597
+
+Kapanmış 91 faz dokümanının **%62'si plandı** ve kapanışta ölüyordu — `Planlanan Public API` (4.114 satır) `Gerçekleşen` muadili tarafından geçersiz kılınıyor, `Bu Faza Başlarken` (2.088) bir oturum talimatı, `NN.x` iş kalemleri (12.285) planın gövdesi ve sonucu koddadır. `faz-damit` bunları düşürür; `Plandan Sapmalar`, `Bu Fazda Verilen Kararlar`, `Denetim Bulguları`, `Sonraki Faza Devir Notu` ve DoD **aynen** kalır. Sonuç: 3.040.663 → 1.200.025 B (−%61), medyan kayıt 12.584 B, faz başına arşiv büyümesi ~41 KB → ~9 KB.
+
+### K-598
+
+Git geçmişine güvenmek ancak bir kapı onu her koşumda doğruluyorsa meşrudur — `filter-branch`, agresif `gc` veya sığ klon SHA'yı geçersizleyebilir. `fetch-depth: 0` MinVer yüzünden zaten zorunludur (`ci.yml:35`) ve beklenmedik bir sigortadır. Ölçüldü: `git log -1 --format=%H -- <yol>` 91/91 faz dokümanı için tam metni aynı yolda verdi (00–59 taşıması dahil). İkincil çıpa `docs/damitma-oncesi-2026-08` etiketidir; eğik çizgili ad bilinçlidir — MinVer'in SemVer ayrıştırıcısına takılmaz, sürüm ölçüldü ve `0.0.0-preview.0.310` değişmedi.
+
+### K-599
+
+`HARIC`i kaldırmak arşivlemenin sayacı düşürmesini engeller ve tek çıkışı **silmek** yapar; `AGENTS.md` bunu yasaklar. Bunun yerine `DIZIN_BUTCESI` anahtarı üçlüye çıkarıldı ve `docs/arsiv` (3.020.000), `kosumlar` (620.000), `kesif` (260.000) kendi sınırlarını aldı; `docs/**` 5.000.000 → 3.030.000'e **düşürüldü**. Damıtma bunu ödenebilir kıldı. 🚨 `_dizin_boyutu` ve `_commit_boyutu` HARIC'i koşulsuz düşüyordu — `docs/arsiv` kendini düşürüp **0** ölçüyordu; üçlü anahtar olmasa üç yeni bütçe sessizce anlamsız olurdu.
+
+### K-601
+
+`SingletonGuard` bu 96'nın içindeydi; K-285'in engeli (Mcp, Core'un `internal`'ını göremiyordu) Faz 88'de `InternalsVisibleTo("AgentPrism.Mcp")` eklenince zaten kalkmıştı. Üç yeni `InternalsVisibleTo` satırı (Core → PostgreSql/SqlServer/Sqlite, `Auditing*` store'ları ve `InMemoryRunStore` için) dışında paket sınırı değişmedi. `PublicSurfaceBaselineTests` yüzeyin yeniden büyümesini kilitler.
+
+### K-602
+
+Preview hattında yüzey küçültme kırıcı değişiklik sayılmaz. Ölçüldü (2026-08-24): `dotnet pack` 19 paket üretiyor; ön sürüm üçüncü taraf bağımlılığı yalnız `AgentPrism.AspNetCore` beyan ediyor (K-008 tutuyor). Hat, MAF'ın `Hosting` paketleri GA olana kadar sürer.
+
+### K-603
+
+Dolum, sonraki her yüzey küçültmesinde `RS0017` sürtünmesi ve bilinçli bir "kırıcı değişiklik" kaydı üretirdi — verilmemiş bir sözün bedeli. K-421'in bugünkü değeri (faz başına `Unshipped` diff'i) aynen sürer; yalnız dolum zamanı değişti. Bu karar Faz 7'nin özgün DoD satırını (`tüm PublicAPI.Shipped.txt dolu`) ve K-421'in "Faz 7 geldiğinde tek seferlik taşınır" notunu bilinçli olarak geçersiz kılar.
+
+### K-604
+
+`release-dryrun` işi (`python3 scripts/kapi.py yayin --kuru`) ağa hiçbir şey yazmadan kendi `dotnet pack` çıktısını beş sözleşmeye karşı doğrular: paket kimlik kümesi, tek sürüm hattı, `icon.png`, metaveri (`README`, lisans, `repository`+`commit`, `.snupkg`, XML doküman) ve K-008 ön sürüm sınırı.
+
+### K-605
+
+Bağımlılığı yalnız `AgentPrism.Abstractions` (+ `Microsoft.Agents.AI` GA, `AgentFileStoreContract` için) — `AgentPrism.Core` **inmez**, ölçüldü (`dotnet list package --include-transitive`). Paket adı framework'ü açıkça taşır: `xunit.v3` değil `xunit.v3.extensibility.core` alır (düz `xunit.v3`'ün `buildTransitive` özellikleri `<OutputType>Exe</OutputType>` dayatır ve kütüphane projesini kırar) — bir NUnit/MSTest tüketicisi bu paketi kullanamaz, ad bunu söylüyor.
+
+### K-606
+
+Tip sıfır bağımlılık taşır (yalnız `System.Security.Cryptography`/`System.Text`), taşıma `AgentPrism` ad alanını korur (çağrı yeri değişikliği sıfır) ve her iki paketin `PublicAPI.Shipped.txt`'i bugün boş (K-603) — taşıma maliyeti düşük.
+
+### K-607
+
+Sessizce yutmak (B seçeneği) olay akışında görünmez bir boşluk bırakır ve "append-only" sözleşmesini bulanıklaştırır. SQL tarafında `run_events(run_id, seq)` birincil anahtar ihlali `SqlDialect.IsUniqueViolation` ile yakalanıp `AgentPrismException`'a çevrilir (daha önce ham sürücü istisnası sızıyordu); bellek içi store aynı kuralı `AppendEventAsync` içinde elle uygular. Sözleşme testiyle dört sağlayıcıda da doğrulandı.
+
+### K-608
+
+PostgreSQL/SQLite `INSERT … ON CONFLICT … RETURNING user_id, labels`, SQL Server iki dallı upsert'in HER İKİ dalına da `OUTPUT inserted.user_id, inserted.labels` eklendi (tek dala eklemek sessiz bir sağlayıcı farkı üretirdi — Riskler tablosunda önceden işaretliydi). `DbHelpers.ReadSingleAsync` bu iki sonuç kümesini zaten doğru sırayla okuyordu (Faz 65'in SQL Server upsert deseni). Sözleşme testi dört sağlayıcıda da geri dönen `RunRecord.UserId`/`Labels`'ı doğrular.
+
+### K-609
+
+(Boru hattının tepesi elle dispose edilirse zincir ham istemciye iner — ama eden yoktur.) Alternatif (AgentPrism'in dispose etmesi) REDDEDİLDİ: istemciler credential başına cache'lenip paylaşılır, dispose etmek hâlâ o istemciyi kullanan başka bir derlenmiş agent'ın altından nesneyi çekerdi. Sözleşme `IModelProvider` XML dokümanına ve `guides/model-providers` sayfasına yazıldı; `ModelProviderContract` dispose edilmeyen bir istemciden sonra sağlayıcının çalışmaya devam ettiğini doğrular.
+
+### K-610
+
+Sağlayıcı ailesi eklenince dört depolama kapsam testi (bellek içi + üç SQL) birden kırıldı: kendilerine ait olmayan sözleşmeleri türetmedikleri için. Kapsamlı bir aşırı yükleme EKLEYİP kapsamsızı bırakmak tuzağı bırakmak olurdu — bir depolama tüketicisi, AgentPrism sağlayıcı sözleşmesi yayınladı diye kırılabilirdi. Tip `…Contracts.Storage`'dan nötr `…Contracts` ad alanına taşındı (iki aileye birden hizmet ediyor). Aile adları `StorageContracts`/`ProviderContracts` sabitleridir (yazım hatası derleme hatası); hiçbir sözleşme tipiyle eşleşmeyen bir kapsam `ArgumentException` verir — sessizce hiçbir şeyi kontrol etmeyen yeşil bir kapı üretmez. Her iki paketin `PublicAPI.Shipped.txt`'i boş olduğu için taşıma maliyeti sıfırdır (K-603).
+
+### K-611
+
+ÖLÇÜLDÜ: `Assert.Skip` `xunit.v3.assert` paketindedir ve o paket sözleşme paketinin çözülmüş grafiğinde YOKTUR (eklemek yeni bir paket bağımlılığı olurdu); xunit v3'ün `[Fact(SkipUnless = …)]` alternatifi ise **public static** bir özellik ister ve bizim koşulumuz örnek düzeyinde sanal bir üyeye bağlıdır. Sonuç: `ModelProviderCredentialContract` ve `ModelProviderSettingsContract` ayrı sınıflardır; türetmek niyet beyanıdır. Yan fayda, atlamadan daha iyidir: sessizce geçen senaryo kalmaz ve `ContractCoverage` muafiyeti hangi davranışın sunulmadığını BELGELER.
+
+### K-612
+
+`kapi.py tarama`, her migration'ın baytını `scripts/applied-migrations.json` içindeki sabit Git kaynak commit'inden okur; F-151 dosyaları uygulanmış ilk commit'lerine, diğerleri Faz 99 taban commit'ine bağlanır. Manifestte checksum değiştirmek artık dosya değişikliğini onaylayamaz.
+
+### K-613
+
+O optional parametreyi kaldırmak preview olsa da mevcut tüketiciyi kaynak düzeyinde kırar. Ayrı isim, setup credential ile BYOK ayrımını açık tutar; her iki yol tenant egress policy'sini uygular.
+
+### K-614
+
+Bunun yerine `ToolRegistry` (ve `McpToolRegistry`) `IVerifiedToolRegistry` marker interface'ini uygular; `ToolRegistrationValidationService` startup'ta çözülen `IToolRegistry`'nin marker'ı taşıyıp taşımadığına bakar. Taşımıyorsa ve `AgentPrismToolOptions.AllowUnverifiedToolRegistry` (varsayılan `false`) kapalıysa `AgentPrismException` ile durur — çünkü `Replace` dört wrapper'ı (`Authorizing`/`Timeout`/`ApprovalRequired`/`Truncating`) sessizce kaybettirir. Bayrak açıkken tek bir `LogWarning` dört wrapper'ı adıyla sayar.
+
+### K-615
+
+ÖLÇÜLDÜ: Roslyn kaynak üreteçleri birbirlerinin ürettiği kaynağı AYNI derleme geçişinde göremez; gerçek tüketici build'i bu yaklaşımı `CS0534` ile kırdı. Yeni tasarım AOT-safe kalır (context yine derleme zamanı üretilir, reflection yok) ve rehber + sample bunu çalışır biçimde kanıtlar. Bu, `FunctionResultContent.Result`'ın kalıcı yazılan biçimini de değiştirir: tip adı yerine gerçek serialize JSON — content guard bypass'ı ve `MaxOutputBytes` ihlali aynı düzeltmeyle kapanır.
+
+### K-616
+
+Sözleşme suite'i bu yüzden `IToolRegistry`'yi test etmez — `AgentPrismToolRegistration` + tool gövdesi semantiğini test eder. Authorization/approval registry seviyesi davranışlardır ve `tests/AgentPrism.Core.UnitTests/Tools/` içindeki mevcut fonksiyonel testlerde kalır; sözleşme paketine Core bağımlılığı eklemek K-605'in kurduğu bağımlılık sınırını (yalnız `AgentPrism.Abstractions`) bozardı.
+
+### K-617
+
+Bu, `ContentGuardPipeline`'ın kendi XML sözüyle ("content that cannot be inspected is not let through") ve planın Açık Soru 1/seçenek A kararıyla ("koşulsuz değiştir") doğrudan çelişiyordu. Aynı buggy desen `ContentGuardingChatClient`'ın iki çıktı-maskeleme metodunda da tekrarlanmıştı (şu an ulaşılabilir değil — model çıktısı `FunctionResultContent` taşımıyor — ama aynı kod yolu). Düzeltme üç çağrı sitesini tek paylaşılan `ContentGuardMessageMasker.RewriteContentAsync`'e topladı; normalize edilemeyen sonuç artık koşulsuz değiştiriliyor ve `ContentGuardPipeline.RecordUninspectableToolResultAsync` bir `ContentMasked` olayı yazıyor (yalnız gerçek karar yolunda, `PreviewAsync`'te değil).
+
+### K-618
+
+= null)` mandatory/optional çelişkisi üretiyordu: base interface nullable credential alıyor ("her provider destekler" izlenimi) ama `ModelProviderCredentialContract` bunu opt-in davranış diye belgeliyordu; registry credential'ı capability kontrolü olmadan doğrudan `CreateChatClient`'a veriyordu — desteklemeyen bir provider'a tenant key'i sessizce yok sayarak setup key ile çağrılıyordu. İki interface'e bölmek capability'yi tip sisteminde ifade eder: `is ITenantCredentialModelProvider` kontrolü derleme zamanı doğrulanabilir, nullable parametreye güvenmez. Dört built-in provider + `FakeModelProvider` + BYOK sample yeni interface'i uygular; `ModelProviderCredentialContract.Provider_declares_the_tenant_credential_capability` bunu contract seviyesinde zorunlu kılar.
+
+### K-619
+
+"unrecognized provider setting") "bilinmeyen tip, foreign say" kuralıyla generic `upstream_error`'a maskeliyordu — iki mevcut fonksiyonel test (`MultiProviderTests.Unrecognized_provider_setting_...`, `Azure_provider_states_...`) bunu yakaladı. Base `AgentPrismException`'ı doğrudan güvenilir saymak (geniş allowlist) reddedildi: tip public ve constructible, üçüncü taraf bir provider `new AgentPrismException("secret: ...")` ile maskelemeyi bilerek atlatabilirdi (plan 103.2.2'nin yasakladığı tam senaryo). Çözüm: `AgentPrism.Abstractions`'da internal `ProviderSettingsValidationException` (yalnız `AgentPrism.Core`'a `InternalsVisibleTo` ile görünür, başka hiçbir derleme onu inşa edemez) — `ModelProviderSettings.Validate` bunu atar, `ProviderFailureNormalizer.IsKnownSafe` yalnız bu tipi ekler. Yeni PUBLIC exception eklenmedi (plan yasağı korundu).
+
+### K-620
+
+`AddRunJudge` öncesi custom judge guide'ı ham `services.AddSingleton<IRunJudge, T>()` kullanmak zorundaydı; `AddAgentSource`'un üç overload'lu deseni (generic `TryAddEnumerable`, instance/factory `AddSingleton`, tekrar registration idempotent) burada da uygulandı — `AgentPrismBuilderRunJudgeTests` singleton/duplicate davranışını `AddAgentSource`'unkiyle aynı ölçer. `PublicAPI.Shipped.txt` K-603 gereği boş olduğundan kaldırma maliyeti sıfırdır.
+
+### K-621
+
+`OnlineEvalJobHandler.JudgeOneAsync` artık body'yi `Task.WhenAny(body, Task.Delay(timeout))` ile bekler; timeout kazanırsa `judge_timeout` retryable failure döner ve body arkada devam etmesine izin verilir. Geç tamamlanan `Task` ayrı bir gözlemci ile tüketilir (başarı sessizce yutulur, hata uygun seviyede loglanır) — `TaskScheduler.UnobservedTaskException` üretilmez. Host/caller cancellation (`OperationCanceledException`) timeout'tan ayrı kalır ve `judge_timeout`'a çevrilmez. Deterministic test `TaskCompletionSource` gate'i ile late success VE late fault'u ayrı vakalarda kanıtlar; `Task.Delay(5s)` gibi wall-clock flaky test kullanılmadı.
+
+### K-622
+
+Bağlarken ölçülen üç gerçek hata düzeltildi: (1) repo merkezi `ArtifactsPath` kullanır (`artifacts/obj/<Proje>/project.assets.json`), script yanlışlıkla proje yanındaki `obj/`'a bakıyordu; (2) Native AOT publish somut bir RID ister, `--use-current-runtime` izole cache'e runtime pack'i güvenilir çekmiyordu — `dotnet --info`'dan RID okunup `-r` ile açıkça verildi; (3) AOT projesi için AYRI `dotnet restore` + `dotnet publish --no-restore`, ILCompiler'ın native paketini izole cache'e eklemiyordu (`PrivateSdkAssemblies` hatası) — gerçek bir tüketicinin yaptığı gibi restore+publish tek komutta birleştirildi. `python3 scripts/kapi.py yayin --kuru --surum <sürüm>` artık uçtan uca yeşildir: 20 paket + npm dry-run + beş sample + izole-cache Native AOT smoke.
+
+### K-623
+
+Üç gerekçe: (1) Yalıtımın zaten bir KAPISI var — `TenantCoverageTests` (Faz 41) paylaşılan store katmanının her public metodunu ya kiracı sözleşmesiyle test edilmiş ya `[TenantAgnostic]` ile gerekçeli muaf olmaya zorlar, bayat girdi de hatadır; RLS ikinci bir hat kurar ama bu kapıyı güçlendirmez. (2) SQLite'ta RLS **yoktur**; PostgreSQL ve SQL Server'a eklemek üç sağlayıcının davranışını ayrıştırır ve `RunStoreContract`'ın "davranış sözleşmesi sağlayıcıdan bağımsızdır" iddiasını kırar. (3) Doğrulama zemini eksik: gerçek `mssql/server` yerelde hâlâ koşturulamıyor (K-186, K-317), SQL Server security policy'lerini yalnız `azure-sql-edge` üzerinde kanıtlamak bir güvenlik sınırı için yeterli kanıt değildir. Karar bir SAVUNMA DERİNLİĞİ reddi değil, bir sıralama kararıdır: RLS bağlantı başına kiracı bağlama disiplini ister (`SET LOCAL`), bu da bugünkü havuzlanmış bağlantı modelini değiştirir. Beyan tarafı bu fazda kapatıldı: `MIMARI-GUVENLIK.md` §Çok kiracılılık ve `concepts/governance.md` yalıtımın hangi katmanda durduğunu açıkça söyler.
+
+### K-624
+
+`ToolRegistrationValidationService`'in "fırlat + opt-out" deseni burada uygulanmadı: orada bozulan şey bir güvenlik sarmalayıcısıdır, burada ise bilinçli olabilecek bir kurulum tercihidir; fırlatmak meşru bir demo/test kurulumunu ilk çalıştırmada düşürür ve K1 (sıfır sürpriz) ihlalidir. Susturma seçeneği de eklenmedi — tek bir kalkış satırı için public yüzey büyütmek Faz 96'nın küçültme yönüne terstir. `AgentPrismDiagnosticsReport`'a alan EKLENMEDİ: tip public ve alanları `required`, yayından sonra yeni `required` alan eklemek kırıcıdır ve rapor store'un adını (`PersistenceProvider`) zaten taşır — eksik olan yalnız "bu Production" yargısıydı, onu da log satırı veriyor. Yargının kendisi `StorePersistence` içinde TEK kaynaktır; `/api/meta` ve uyarı aynı metodu okur (K-483'ün elle tekrarlanan ifade kusur sınıfı).
+
+### K-625
+
+Kayıt kaldırıldı; data source artık yalnız `SqlStoreContext` üzerinden taşınır ve `SqlStoreContext.OwnsDataSource` sahipliği taşır — dış data source AgentPrism tarafından ASLA dispose edilmez (`ExternalDataSourceTests`, üç sağlayıcıda gerçek sunucuya karşı kanıtlandı). PostgreSQL'de `DataSource` yalnız `NpgsqlDataSource` tipini kabul eder (runtime tip kontrolü; public imzada Npgsql tipi yok) — pgvector deposu zaten bu somut tipi ister ve tek üretim kalitesinde uygulama budur. Ölçüm ayrıca `embedding.md`'nin "aynı connection string iki tarafı tek Npgsql havuzunda buluşturur" iddiasının YANLIŞ olduğunu kanıtladı (`ConnectionPoolSharingTests`: 5+5 eşzamanlı bağlantı, ölçülen backend sayısı tam 10 — havuz Npgsql'de connection string'e değil `NpgsqlDataSource` ÖRNEĞİNE aittir); doküman düzeltildi. `PublicAPI.Shipped.txt` K-603 gereği preview hattı boyunca boş olduğundan kaldırma maliyeti sıfırdır.
+
+### K-626
+
+`total_cost` `SqlQueriesBase.CostAddends` ile aynı üç terimi toplar ve K-483'ün null-koruyan kuralını taşır (tüm terimler `NULL` ise toplam `NULL`, sıfır değil); bir terim eklenip görünüme yansıtılmazsa `ReadViewCostTermTests` (veritabanı açmadan, gömülü SQL metni üzerinden) build zamanında kırılır — aynı sınıf hatasının bir daha elle kaçırılmaması. `status_name` görünümde üretilir (tüketici elle eşlemez); `RunStatus`'un sayısal değerleri stabil olduğu için hand-written `CASE` güvenlidir. Görünüm `tenant_id`'yi filtresiz taşır — bu bilinçli bir tasarımdır, güvenlik sınırı yalnız `ITenantContext`/sorgu katmanındadır (K-623) ve uyarı `reference/read-views.md`'de yazılıdır. Kapanışta iki test-altyapısı kusuru bulundu ve düzeltildi: `SqliteTestContext.DisposeAsync()` ve SQL Server `DropSchemaAsync()` yalnız tabloları siliyordu — sarkan bir `runs_v1` görünümü SQLite'ta bir SONRAKİ ilgisiz `ALTER TABLE RENAME` migration'ını, SQL Server'da ise şema silmeyi düşürüyordu; ikisi de görünüm-önce-tablo sırasıyla düzeltildi (`docs/hafiza/sqlite.md`).
+
+### K-627
+
+Sınıf taraması on dört üyenin tamamını taradı: üreticisi sıfır olan **tek** üye buydu, yani kusur bir sınıf değil tek vaka. Beyan yine de tüm sevk edilen yüzeye ulaşıyordu — OpenAPI belgesi, TypeScript şeması, generated C# istemcisi ve **iki dil dosyası** (`en`/`tr`) hiç gerçekleşmeyen bir durumu ilan ediyordu; bu Faz 104'ün beyan doğruluğu kapsamıdır. İki düzeltme yönü tartıldı: (A) üyeyi kaldır, (B) üyeyi ürettir. **B reddedildi** çünkü `ChildAgentInvoker`'ın metin döndürme davranışı bilinçli bir tasarımdır ve onu terminal hataya çevirmek mevcut çağıranları sessizce değiştirirdi. **A seçildi**: `PublicAPI.Shipped.txt` preview hattı boyunca boş olduğu için (K-603) kaldırma maliyeti bugün sıfırdır, 1.0 sonrası aynı silme kırıcı olurdu. Değer `9` yeniden numaralandırılmadı ve **boş bırakıldı**: kayıtlı run'lar ve eski istemciler eski anlamı taşımaya devam eder, `9`'u yeniden kullanmak onlara ikinci ve çelişkili bir anlam verirdi. `RunErrorClassContractTests` hem üye kümesini hem `9`'un tanımsız kalmasını sabitler; artık üreticisiz bir üye eklemek sessizce geçemez. Kaldırma sonrası üç üretilmiş yüzey yeniden üretildi (OpenAPI snapshot, `openapi-typescript` şeması, NSwag istemcisi) ve `@agentprism/client` `dist`'i yeniden derlendi — frontend tipleri o pakete bağlı olduğu için bu adım atlanırsa `tsc` kırmızı kalır.
+
+### K-628
+
+Aday metni "kaydı tekrar oynat **veya** reddet" diye iki seçenek sunuyordu; ölçüm oynatma seçeneğini bugünkü kayıtla **imkânsız** buldu (sonuç hiçbir yerde saklanmıyor) — yalnız ret sözleşmesi kuruldu. `NoTools` da reddedilir: o modda hiçbir tool bağlanmasa bile istemci tool'u agent'ın davranışının **belirleyici** parçasıysa sonuç kaynak run'la kıyaslanamaz; tek kural ("varsa reddet") iki kuraldan ("hangi modda ne olur" tablosu) daha ucuz açıklanır. Mekanizma `ApprovalRequired`'ın (K-315/K-435, Faz 47) birebir aynadaki eşidir — `FindApprovalTool`'un yanına `FindClientTool` eklendi, `ToolDescriptor.RunsOnClient` zaten vardı (`ToolRegistry.cs:166`, `registration.Function is not AIFunction`), yeni bir tespit mekanizması yazılmadı. Kontrol İKİ hazırlık koluna da (kalıcı tanım VE katalog/kod agent'ı) eklendi — Faz 47'de yalnız birinci kol kapatılıp katalog kolu delikte kalmıştı (HATA-S4-014), aynı hata burada fonksiyonel testle (`ReplayClientToolEndpointTests`, katalog kolu ayrı case) tekrar önlendi. `ReplayToolMode`'a dördüncü üye AÇILMADI (K-585 zaten kapattı) — yeni bilgi `RunReplayOutcome.ClientToolNotReplayable`'a girdi, HTTP karşılığı `409` (`ApprovalRequired` ile aynı desen). MCP kaynaklı declaration-only tool'un yanlışlıkla `RunsOnClient=true` alması riski ölçüldü ve **doğrulanmadı**: `McpTenantTools.cs:74` yorumunun iddia ettiği gibi MCP tool'u her zaman gerçek bir `AIFunction`'dır (`McpClientTool : AIFunction`), `is not AIFunction` dalı yalnız yanlış yapılandırılmış doğrudan bir kayıtta tetiklenir — `McpTenantToolsTests.An_mcp_tool_is_never_marked_RunsOnClient` bunu şimdi kilitler.
+
+### K-629
+
+`bool` değil üç durumlu seçildi: yerleşik kural "tanımadığı hata retry OLMAZ" kapalı-küme garantisi taşıyor (`FallbackChatClient.cs`'in kendi XML sözü); `bool` bir tüketici sınıflandırıcısını HER exception için taraf seçmeye zorlar ve bu garantiyi kayıt anında sessizce kırar — `Unknown` yerleşiğe düşmeyi sağlar. `DefaultRunErrorClassifier` kalıtım değil KOMPOZİSYON için public yapıldı (repo `sealed` tercih eder, K3); sıfır bağımlılık taşıdığı için `new()` ile DI'sız kurulabilir. `ErrorFingerprint`'in kendisi değil ince bir `RunErrorFingerprint` facade'ı açıldı (`ErrorFingerprint` `partial` ve `GeneratedRegex` taşıyor — iç detayını sözleşmeye çevirmek yerine tek bir giriş noktası açmak ucuzdur). Kapanışta ayrıca ölçüldü: `WorkflowNodeRetry` (`AgentPrismWorkflowFunctionExtensions.cs:118`) `IRunErrorClassifier`'ı AYNI DI singleton'ından okuyor — tüketicinin kaydı workflow retry'ını da otomatik kapsar, kod değişikliği gerekmedi. `PublicAPI.Shipped.txt` preview hattı boyunca boş olduğundan (K-603) yüzey büyütme maliyeti bugün sıfırdır.
+
+### K-630
+
+İki yön tartıldı: (A) `9`'u yeniden kullan, (B) mevcut `QuotaExceeded`'i genişlet. **A reddedildi**: K-627 `9`'u kalıcı emekli ilan etmişti — kayıtlı run'lar ve eski istemciler o değeri hâlâ eski (hiç üretilmemiş `BudgetExceeded`) anlamıyla taşıyor; yeniden kullanmak onlara ikinci ve çelişkili bir anlam verirdi. **B seçildi**: kullanıcının gördüğü olgu zaten aynıdır — bir harcama tavanı doldu; mevcut istemciler, `RunErrorStatistics` panelleri ve arıza kümeleme kodu değişmeden çalışır, OpenAPI/TypeScript/NSwag/`dist` üretim zinciri hiç koşmaz. Eşleme regex ile DEĞİL, `DefaultRunErrorClassifier.StableIdentities` sözlüğüne tipli bir kimlik (`AgentPrismRunBudgetExceededException.RunBudgetExceededErrorType`) eklenerek yapıldı — `ToolTimeout`/`ContentFiltered` ile aynı desen; bugünkü `QuotaPattern()` mesajda "quota" kelimesi arayan regex'e güvenmek Faz 113'ün düzelttiği kırılganlığın aynısı olurdu. `DefaultRunErrorClassifierTests` mesajında kasıtlı olarak "quota"/"kota" GEÇMEYEN bir örnekle bu eşlemenin regex'e değil kimliğe dayandığını kanıtlar.
+
+### K-631
+
+Planın taslak imzası ("kurucuya sona iki isteğe bağlı parametre eklenir: `IRunPricingResolver?`, `TimeProvider?`") bu döngüyü öngörmüyordu; `faz-uygulama`'nın "planın yapısal iddiasını kabul etmeden ölç" kuralı gereği kod yazılmadan önce ölçüldü ve plan bu noktada düzeltildi. Çözüm: kurucu `IServiceProvider? services` alır (aynı desen `AgentDefinitionCompiler._services`'te zaten vardı), `BuildPipeline` her çağrıldığında (agent DERLEME anında, DI konteyneri tamamen kurulduktan ÇOK SONRA) `_services?.GetService<IRunPricingResolver>()` ile geç çözer — o anda `ModelProviderRegistry` singleton'ı zaten önbelleğe alınmış olduğundan döngü kırılır.
+
+### K-632
+
+milyon token başı $0.15 = token başı $0.00000015) sıfıra yuvarlardı, dokuz basamak (nano-birim) `long`'un taşma sınırının (~9,2 milyar para birimi) çok altında kalarak bunu önler — tip bugün TAMAMEN kilitsizdir (`AgentRunBudget`'ın kendi XML sözü) ve tek bir alan için kilit koymak o tasarım kararını bozardı. **Açık Soru 1** (çifte sayım): kod okunarak ölçüldü — sıkıştırma (context compaction) özetleme çağrısı da (`ResolveSummarizationChatClient` → `CreateChatClient(definition, binding)` → `_models.CreateChatClient(binding)`) ana agent turlarıyla AYNI `ModelProviderRegistry.BuildPipeline` boru hattından geçer, yani `RunBudgetChatClient` HER gerçek model çağrısını (ana turlar + sıkıştırma) zaten görüyor. Bu, planın B seçeneğinin ("dekoratör kaydeder, `Completion` yalnız GÖRMEDİĞİNİ ekler") öngördüğünden daha güçlü bir sonuçtur: dekoratörün GÖRMEDİĞİ hiçbir şey kalmıyor, bu yüzden `Completion.cs`'in eski satırı "eksik parçayı ekleyen" değil TAMAMEN gereksiz hale geliyor — bırakılsaydı her ağacın harcamasını iki katına çıkarırdı. `RunBudgetAccountingTests` (gerçek çok-turlu tool döngüsü, `ModelProviderRegistry`+`FakeChatClient` üzerinden) bunu `ConsumedTokens`'ın gerçek toplamla TAM eşleştiğini ölçerek kanıtlar.
+
+### K-633
+
+Düzeltme ZORUNLU olarak tip DEĞİŞTİRİYOR: `EvalCaseResult.Scores` vb. artık gerçek `System.Text.Json.JsonElement`, `ChatMessage.Role` artık `string` (`Microsoft.Extensions.AI.ChatRole` DEĞİL — `AgentPrism.Client` o pakete bilerek bağımlı değildir, `ChatRole`'ün kendi `[JsonConverter]`'ı zaten düz string üretiyor). Bu, klasik anlamda geriye dönük UYUMLU bir düzeltme değildir (tip imzası değişti) ama eski tip zaten İŞLEVSİZDİ (her deserialize denemesi `JsonException` fırlatıyordu) — bu yüzden yeni K-* kaydı gerektiren "kalıcı bir mimari tercih" değil, bir KUSUR DÜZELTMESİdir; kayıt yalnız iz bırakmak için açıldı. `scripts/nswag_postprocess_client_test.py` regresyonu, `docs/hafiza/paketleme-ve-dagitim.md` tuzağı taşır.
+
+### K-634
+
+Bu yüzden kapı yalnız tahsisi karşılaştırır ve toleransı **sıfırdır**: aynı kodun iki koşumu birebir aynı baytı verdiği `bench/AgentPrism.Benchmarks` üzerinde doğrulandı (üç benchmark, tekrarlanan koşum). Beşinci bağımsız bir kapı ilan etmek `AGENTS.md`'nin "dördü de sıfır uyarı vermelidir" cümlesini değiştirirdi ve her faz kapanışına BenchmarkDotNet koşumu eklerdi; bunun yerine `scripts/kapi.py performans` normal bir alt komut olarak kalır, `kapi.py kapanis` bunu yalnız `RunEventWriter.cs`/`CompiledAgentCache.cs`/`SqlRunStore.cs`/`bench/` değiştiğinde çağırır (`performance_gate_triggered`, `--taban` aralığına göre). Taban çizgisi `bench/baseline.json`'da tutulur; azalan tahsis kırmızı DEĞİLDİR ama uyarı üretir (taban çizgisi bayatladı) — `kapi.py performans --guncelle` ile güncellenir.
+
+### K-635
+
+Asıl fark sayı değil yöndür: K-212'nin kaygısı tüketicinin bağımlılık grafiğinin kirlenmesiydi; bu paket `IsPackable=false` bir ölçüm projesindedir ve hiçbir sevk edilen paket ona referans vermez — 22 paket tüketiciye HİÇ ulaşmaz, yük yalnız geliştirme/CI tarafındadır. `Microsoft.Extensions.*`'ın çözümlenen sürümü ölçüldü: repo'nun sabitlediği `10.0.11`'de kaldı (`6.0.0`'a düşmedi) — `dotnet list package --include-transitive` ile doğrulandı. `NU1903` (bilinen CVE) restore'u kırmadı.
+
+### K-636
+
+Uzantının çektiği on iki geçişli paketin tamamı (`ModelContextProtocol`, `.Core`, `Microsoft.Extensions.*` ailesi) `.AspNetCore` üzerinden zaten grafikteydi. K-057'nin istemci/sunucu ayrımı bozulmadı: `DependencyDirectionTests.Mcp_client_package_does_not_depend_on_server_packages` bu paketi de yasak listesine aldı ve `AgentPrism.Mcp`'nin `.csproj`'unda görünmediğini doğrular.
+
+### K-637
+
+Çözüm: `.WithTasks(...)`'tan ÖNCE kayıtlı kendi `CallToolWithAlternateFilters` girdimiz `RunId`+`AgentName`+`TenantId`'yi orijinal istekte üretip `AsyncLocal` ile aşağı akıtır (filtreler kayıt sırasına göre çalışır); bu yönde AsyncLocal'ın güvenilir aktığı gerçek `Task.Delay` ile zorlanan askıya alma dahil ölçüldü. İKİ ayrı kiracı sınırı kusuru fonksiyonel testle bulundu, statik incelemeyle DEĞİL: (1) SDK'nın arka plan `Task.Run`'ı hiçbir `HttpContext` taşımaz, `ITenantContext` sessizce varsayılan kiracıya düşerdi — `CatalogToolCallHandler.HandleAsync` artık `AmbientTenantScope.Begin(...)` ile sarmalanır (mevcut `JobWorkerBackgroundService` deseninin aynısı). (2) SDK'nın `tasks/cancel`'ı, hangi kiracının çağırdığına BAKMADAN, YALNIZ taskId ile anahtarlanan paylaşılan bir `CancellationTokenSource` sözlüğünü koşulsuz iptal eder — AgentPrism'in bu sözlüğe erişimi yoktur, kapatılamaz. Kabul edilen sınır: bir kiracı BAŞKA kiracının task id'sini bilerek onu iptal EDEBİLİR (SDK'nin kendi kusuru), ama ASLA okuyamaz — okuma tarafı (`GetTaskAsync`) hâlâ yalnız çağıranın kendi ambient kiracısını kullanır, bu izolasyonun tek gerçek sınırıdır. `RunBackedMcpTaskStore` `CreateTaskAsync`'te öğrendiği gerçek sahip kiracıyı ayrı bir haritada saklar; orphan-temizlik yazımları (`SetCancelledAsync`/`SetFailedAsync`) çağıranın ambient'ine değil BU haritaya güvenir — SDK'nın kendi post-cancellation catch'i, bizim tenant scope'umuz zaten dispose olmuşken çalıştığı için bu ayrım zorunludur. `McpTaskTenantIsolationTests` (fonksiyonel, dört senaryo) ve gerçek `samples/AgentPrism.Api` koşumu (PostgreSQL + gerçek model çağrısı) ikisini birden kanıtlar.
+
+### K-638
+
+Ölçüldü: `OnlineEvalJobHandler.JudgeOneAsync` zaten yargıç BAŞINA `scoreStore.UpsertAsync` çağırıyordu ve satır `Author = "judge:{ad}"` taşıyordu — checkpoint için gereken bilgi ZATEN veride duruyordu, eksik olan yalnız döngünün retry'de bu satırı OKUMASIYDI. Çözüm `JudgeRunAsync`'e `skipAlreadyScored` parametresi ekledi (yalnız `context.Job.Attempt > 1` iken `true`); döngüden ÖNCE `run_scores` okunur, `judge:` önekiyle eşleşen yargıçlar atlanır. K-621'in modeli DEĞİŞMEDİ: timeout'a düşen bir yargıç satır bırakmaz, bu yüzden retry'de HÂLÂ yeniden koşar — bu fazın kazancı yalnız BAŞARILI yargıçları kapsar. Okuma hatası atlamayı kapatır (tüm yargıçlar koşar), elle `POST /judge` ucu hiç etkilenmez. Aday metninin "kalıcı model ve üç SQL sağlayıcı migration'ı gerekir" maliyet iddiası bu ölçümle çürüdü — `PublicAPI.*.txt` ve migration dizini değişmedi.
+
+### K-639
+
+Yönetici `"OpenAI"` kaydedip agent tanımı `"openai"` dediğinde PostgreSQL/SQLite'ta arama ıskalıyor, ıskalama `null` dönüyor ve `ResolveTenantCredentialAsync` bunu "BYOK yok" sayıp **global setup credential'ına düşüyordu** — kiracının anahtarı hiç kullanılmadan, hata üretmeden, yanlış tarafa fatura yazarak. Bu, aynı metodun 330-332. satırındaki "sessizce global anahtara düşmemelidir" korumasının kapatmadığı ikinci daldı. Karşılaştırıcıyı `LOWER(...)` yüklemine çevirmek REDDEDİLDİ: indeksi kullanılamaz kılar ve birincil anahtarı üç motorda ayrışık bırakır (PostgreSQL/SQLite `"OpenAI"`+`"openai"` satırlarının ikisini birden kabul ederdi, SQL Server varsayılan CI collation'da reddederdi). Değer normalleştirilince düz `=` üç motorda da aynı davranır, indeks korunur, PK yinelemeyi her yerde reddeder. Kural üçüncü tarafın da uygulaması zorunlu olduğu için public'tir; `TenantProviderBindingStoreContract`'ın üç yeni case-mismatch case'i dört implementasyonun hepsinde koşar. Mevcut satırlar üç migration ile katlanır (PostgreSQL 0038, SQLite/SQL Server 0025); SQL Server'da `COLLATE Latin1_General_BIN2` taşıyıcıdır — CI collation altında `provider_name <> LOWER(provider_name)` her zaman false döner ve UPDATE sessizce sıfır satır günceller.
+
+### K-640
+
+`SafeErrorText.ForPersistence(exception, correlationId)` `AgentPrismException`'ın kendi mesajını korur (zaten sözleşmenin parçası, `ErrorType` stabil koddur), yabancı exception'ı `"{TypeName} failed. (ref: {correlationId})"` biçimine indirger; tam detay aynı korelasyon kimliğiyle `ILogger`'a gider. Kural üçüncü tarafın kendi `IJobHandler`/`IRunEventSink` uygulamasında da tekrar edebileceği için public yapıldı (Açık Soru #1, seçenek A) — `PublicAPI.Shipped.txt` boşken maliyeti sıfırdı. 22. sızıntı yerini otomatik yakalamak için `RawExceptionTextSiteTests` mimari cırcır kapısı eklendi (`tests/AgentPrism.Core.UnitTests/Architecture/`); tarama yalnız `catch (Exception` şeklini hedefler, adı geçen (`catch (HttpRequestException` gibi) bloklar bilinçli kapsam dışıdır — bu sınıfın YENİ bir örneği çoğunlukla catch-all bloklardan doğar, isimli bloklar fazın kendisinde tek tek incelendi. Tarama, taramanın kendisi yeni bir kapsam-daraltıcı istismar yolu olmadıkça yeniden açılmaz.
+
+### K-641
+
+Job loop'unda tekrar koruması zaten vardı (`JobItemStatus.Pending` kontrolü, üç yerleşik handler'ın hepsinde) ama bu davranış yalnız üç handler'ın kod yorumunda yaşıyordu, arayüz sözleşmesinde değil. `ExecuteAsync`'in `<remarks>`'i artık lease-expiry/exception-retry'nin aynı job'ı SAME unfiltered `Items` listesiyle yeniden çağırabileceğini ve handler'ın `Status != Pending` item'ları atlamaktan sorumlu olduğunu açıkça söylüyor. `JobHandlerContract` üç yerleşik handler + `AgentPrism.Samples.CustomJobHandler` (PackageReference, dış tüketici) tarafından türetiliyor; kuralın gerçekten kırmızı verdiği regresyon testiyle doğrulandı (bir handler'ın skip-kontrolü geçici bozulup contract'ın yakaladığı ölçüldü). `JobLeaseExpiryTests` iddia edilen davranışın (`InMemoryJobStore` sınırında) gerçekten var olduğunu ölçer — doküman runtime'dan güçlü bir garanti vermez.
+
+### K-642
+
+Arayüz kendi kendisiyle de çelişiyordu: hemen ardındaki örnek cümle ("Run recording uses 0, which makes it the outermost decorator") DOĞRUydu. Mekanizmayı dokümana çevirmek (seçenek B) REDDEDİLDİ: davranışsal kırıcı değişiklik olurdu, üç sevk edilen `Order` değerinin de çevrilmesini gerektirirdi ve çevrilmezse `RunRecording` içe düşüp tool-approval'ın reddettiği run hiç kaydedilmezdi. Kararı ölçüm verdi — yeni yazılan iki davranış testi mevcut mekanizmayla YEŞİL geçti, el yazısı `docs-site/concepts/runs.md` diyagramı da ("order 0 — outermost") zaten doğruydu; repo'da yalnız o tek cümle yanlıştı. **Sınıf taraması 2 vaka daha buldu:** `IAgentSource.Priority` yönü hiç söylemiyordu ("the source with priority wins") ve `IAgentCatalog.ListAsync` "the source with the higher priority wins" diyerek `AgentSourcePriority.Database = 100`'ün yanında YÜKSEK SAYI gibi okunuyordu; ikisi de düzeltildi. Bu sınıfın kapısı davranış testi OLAMAZ — priority davranışı `CompositeAgentCatalogTests` ile yıllardır test ediliyordu ve public cümle yine de belirsizdi; kapı kaynak METNİNİ okur. İlk yazılan kapı test tiyatrosu çıktı (aranan iki parça bağlı değildi, kasıtlı bozma YEŞİL geçti); bağlı tek ifadeye çevrildi ve üç vakanın üçünde de ayrı ayrı kırmızı verdiği ölçüldü.
+
+### K-643
+
+Dördüncü boyutun (neyin garanti EDİLMEDİĞİ) sabit bir kelime dağarcığı yoktur — açık uçlu, arayüze özgü metindir — bu yüzden onu da aynı genel taramaya zorlamak ya taramayı anlamsızca gevşetir ya da her yeni arayüz için False Positive üretir; bunun yerine zaten kanıtlanmış `OrderingContractDocumentationTests` deseni (K-642) yeniden kullanıldı. Taban çizgisi 78 arayüzü (`AgentPrism.Abstractions` 76 + `IAgentPrismBuilder` + `IAgentPrismUiProvider`) tarar; bu fazda 46 boyut-satırı (40 arayüz) kapatıldı, 174 satır borç olarak kalır. Kapı üç ayrı regresyon testiyle doğrulandı: boş/dolu arayüz ayrımı, üye-seviyesi doküman tanıma, ve K-642'nin aynı "parçalı ifade" tuzağının (`"ambient"`+`"tenant"` ayrı ayrı değil, `"ambient tenant"` bitişik) burada da geçerli olduğu.
+
+### K-644
+
+Bu, DTO yorumunun vaat ettiği "çağıranın tenant'ı" davranışının hiçbir implementasyonda GERÇEKTEN var olmadığı, sadece dokümante edilmiş bir NİYET olduğu anlamına geliyordu — tam olarak bu fazın kapatmak istediği kusur sınıfı ("doküman runtime'dan güçlü garanti verir"). Düzeltme `SqlRunStore`'un zaten üç yıldır kullandığı established deseni (`ITenantContext` singleton-safe constructor enjeksiyonu, `??` fallback) birebir kopyaladı — yeni bir desen icat edilmedi. `AuditLogContract`'a (public, `AgentPrism.Testing.Contracts.Xunit`) 3 yeni `[Fact]` eklendi (ambient fallback bulur + sızdırmaz, ambient değiştiğinde takip eder, `VerifyChainAsync` de aynı kurala uyar); dördü de (`InMemory`, `PostgreSQL`, `SqlServer`, `Sqlite`) ayrı ayrı yeşil koşuldu. Bu, fazın kendi "Public API büyümez" planından BİLİNÇLİ bir sapmadır — `PublicAPI.Unshipped.txt` yalnız `AgentPrism.Testing.Contracts.Xunit`'te 3 satır büyüdü (imza değişmedi, yalnız ek); `AgentPrism.Abstractions`/`AgentPrism.Core` sıfır kaldı.
+
+### K-645
+
+Kalan 60 arayüz TEKİL seam ve hepsi `TryAdd*` ile kayıtlı — düz `Add*`/`Replace` kaydı **0** ölçüldü — yani "`AddAgentPrism()`'den önce kaydeden tüketici kazanır" sözleşmesi zaten evrensel olarak çalışıyor. 60 arayüze simetri için dedicated metot eklemek `nuget-danismani` Adım 4.1'in yasağını ("her problemi yeni bir arayüzle çözme") ihlal ederdi ve gerçek kusuru çözmezdi — kusur API eksikliği değil, `IAgentPrismBuilder.Services`'in kendi XML `<example>`'ının kendi kuralıyla çelişmesiydi (örnek tüketici kaydını `AddAgentPrism()`'DEN SONRA gösteriyordu). Düzeltme: örnek önce-kaydeden hâle getirildi, tekil/çoklu seam farkını (önce/sonra kaydın her ikisinde de sonucu) anlatan bir sözleşme tablosu hem XML dokümana hem `docs-site/guides/write-your-own-agent-decorator.md`'ye eklendi, `OrderingContractDocumentationTests`'e K-642 deseniyle (örneğin KENDİ kod metnine bağlı, parçalanamayan bir ifade) yeni bir satır eklendi ve kasıtlı bozmayla kırmızı verdiği ölçüldü. Asıl gerçek kod kusuru — 5 çoklu seam'in tek istisnası `IAgentDecorator`'ın hiç kayıt API'si olmaması — ayrıca `AddAgentDecorator` üçlüsüyle (generic/instance/factory, `IAgentSource`/`IRunJudge` ile aynı desen) kapatıldı; `IContentGuard` ve `IModelProvider`'ın eksik overload'ları da tamamlandı.
+
