@@ -2,7 +2,7 @@
 
 > **Durum:** 📋 Planlandı (2026-08-27)
 > **Kaynak:** [YAYIN-HAZIRLIK.md](YAYIN-HAZIRLIK.md) — BL-041 (yayın denetimi bulgusu, aday listesinden değil)
-> **Önkoşul:** Yok — [Faz 119](119-HATA-METNI-SIZINTISI.md) ile aynı dosyaya (`JobWorkerBackgroundService.cs`) dokunur; **119 önce kapanırsa çakışma olmaz**
+> **Önkoşul:** Yok — [Faz 119](arsiv/fazlar/119-HATA-METNI-SIZINTISI.md) ile aynı dosyaya (`JobWorkerBackgroundService.cs`) dokunur; **119 önce kapanırsa çakışma olmaz**
 > **Paketler:** `AgentPrism.Abstractions`, `.Testing.Contracts.Xunit`
 > **Yeni paket:** Yok · **Migration:** Yok
 > **Public API:** Büyüyor — yalnız `Testing.Contracts.Xunit` içinde yeni contract sınıfı
@@ -22,7 +22,7 @@
    ```
    **K-138** (zamanlama benzersizlik kısıtı — job tekrarının bugün zaten
    kapatılmış olan **ayrı** bir yüzü; bu fazla karıştırılmamalı)
-3. [`119-HATA-METNI-SIZINTISI.md`](119-HATA-METNI-SIZINTISI.md) — yalnız devir notu
+3. [`119-HATA-METNI-SIZINTISI.md`](arsiv/fazlar/119-HATA-METNI-SIZINTISI.md) — yalnız devir notu
    (aynı dosyaya dokunur)
 4. Alan hafızası: bu faz **kod davranışı değiştirmez**, sözleşme yazar — alan
    hafızası okuması gerekmiyor
