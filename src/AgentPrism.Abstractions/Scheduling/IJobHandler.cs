@@ -21,9 +21,29 @@ public interface IJobHandler
     /// <param name="cancellationToken">The cancellation token (triggered when the worker shuts down).</param>
     /// <returns>The completion task.</returns>
     /// <remarks>
-    /// If the handler throws, the job is retried with
-    /// <see cref="IJobStore.ReleaseForRetryAsync"/> (if the attempt limit is
-    /// not exceeded) or marked as <see cref="JobStatus.Failed"/>.
+    /// <para>
+    /// <strong>Execution is at-least-once, not exactly-once.</strong> The
+    /// same job — the same <see cref="JobContext.Job"/>, with the SAME
+    /// unfiltered <see cref="JobContext.Items"/> list — can reach
+    /// <see cref="ExecuteAsync"/> more than once: if the handler throws, the
+    /// job is retried with <see cref="IJobStore.ReleaseForRetryAsync"/> (if
+    /// the attempt limit is not exceeded) or marked as
+    /// <see cref="JobStatus.Failed"/>; if the process crashes or the lease
+    /// simply expires before the handler returns, another worker (or the
+    /// same one) re-leases the SAME job and calls <see cref="ExecuteAsync"/>
+    /// again from scratch. Neither case resets item progress.
+    /// </para>
+    /// <para>
+    /// Because of this, a handler with side effects (sending an email,
+    /// charging a payment, calling an external API) MUST be idempotent, or
+    /// MUST check <see cref="JobItemRecord.Status"/> itself and skip any item
+    /// that is not <see cref="JobItemStatus.Pending"/> — see
+    /// <see cref="JobContext.Items"/>. The three handlers AgentPrism ships
+    /// (<see cref="JobKind.AgentBatch"/>, <see cref="JobKind.Workflow"/>,
+    /// <see cref="JobKind.Eval"/>) all do the latter, and the reusable
+    /// <c>JobHandlerContract</c> in <c>AgentPrism.Testing.Contracts.Xunit</c>
+    /// asserts it.
+    /// </para>
     /// </remarks>
     ValueTask ExecuteAsync(JobContext context, CancellationToken cancellationToken = default);
 }
@@ -41,7 +61,15 @@ public sealed class JobContext
     /// <summary>The record of the job being executed.</summary>
     public required JobRecord Job { get; init; }
 
-    /// <summary>The job's items, by sequence number.</summary>
+    /// <summary>
+    /// The job's items, by sequence number. Carries EVERY item, regardless of
+    /// <see cref="JobItemRecord.Status"/> — NOT filtered down to
+    /// <see cref="JobItemStatus.Pending"/> ones. On a retry (see
+    /// <see cref="IJobHandler.ExecuteAsync"/>'s remarks), items already
+    /// <see cref="JobItemStatus.Completed"/> or <see cref="JobItemStatus.Failed"/>
+    /// from an earlier attempt are present here too; the handler is
+    /// responsible for skipping them.
+    /// </summary>
     public required IReadOnlyList<JobItemRecord> Items { get; init; }
 
     /// <summary>

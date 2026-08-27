@@ -268,6 +268,10 @@ The queue provides exclusive leases, not exactly-once side effects. A process ca
 fail after an external call succeeds but before its item is committed. A lease can
 then expire and another worker can see that item again. Tool calls and custom job
 side effects must therefore use their own idempotency key or transactional boundary.
+A retried job's item list is unfiltered — it carries every item, including ones an
+earlier attempt already completed — so a custom `IJobHandler` must skip any item
+whose status is no longer `Pending`; see
+[Write your own job handler](/guides/write-your-own-job-handler/).
 
 - A handler exception is retried until the job's attempt limit is reached.
 - `JobRetryException.RetryAfter` asks the queue to delay the next attempt. Other
@@ -305,6 +309,6 @@ idempotent.
 
 ## Read next
 
-- [Inbound triggers](/guides/inbound-triggers/) — let an external system queue a run over a signed HTTP request, instead of `Prefer: respond-async`
+- [Write your own job handler](/guides/write-your-own-job-handler/) — the `IJobHandler` at-least-once contract, and the reusable test suite that verifies it
 - [Reliable runs](/guides/reliability/) — what happens to a queued run when a worker dies mid-flight
 - [Production deployment](/guides/production/) — where the worker process lives and how many of them you run

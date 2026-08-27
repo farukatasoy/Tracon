@@ -724,3 +724,16 @@ abstract AgentPrism.Testing.Contracts.Tools.CustomToolContract.ExpectedResultTex
 AgentPrism.Testing.Contracts.Tools.RepeatableToolContract
 AgentPrism.Testing.Contracts.Tools.RepeatableToolContract.RepeatableToolContract() -> void
 AgentPrism.Testing.Contracts.Tools.RepeatableToolContract.Registration_is_marked_safe_to_repeat() -> void
+const AgentPrism.Testing.Contracts.ContractCoverage.SchedulingContracts = "AgentPrism.Testing.Contracts.Scheduling" -> string!
+AgentPrism.Testing.Contracts.Scheduling.JobHandlerContract
+AgentPrism.Testing.Contracts.Scheduling.JobHandlerContract.JobHandlerContract() -> void
+AgentPrism.Testing.Contracts.Scheduling.JobHandlerContract.Cancellation_is_observed_between_items() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.Scheduling.JobHandlerContract.Completed_items_are_not_processed_again() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.Scheduling.JobHandlerContract.DisposeAsync() -> System.Threading.Tasks.ValueTask
+AgentPrism.Testing.Contracts.Scheduling.JobHandlerContract.Handler.get -> AgentPrism.IJobHandler!
+AgentPrism.Testing.Contracts.Scheduling.JobHandlerContract.InitializeAsync() -> System.Threading.Tasks.ValueTask
+AgentPrism.Testing.Contracts.Scheduling.JobHandlerContract.JobId.get -> System.Guid
+AgentPrism.Testing.Contracts.Scheduling.JobHandlerContract.Only_pending_items_are_processed_on_a_retry() -> System.Threading.Tasks.Task!
+abstract AgentPrism.Testing.Contracts.Scheduling.JobHandlerContract.CreateHandlerAsync() -> System.Threading.Tasks.ValueTask<AgentPrism.IJobHandler!>
+abstract AgentPrism.Testing.Contracts.Scheduling.JobHandlerContract.CreateItem(int sequence, AgentPrism.JobItemStatus status) -> AgentPrism.JobItemRecord!
+virtual AgentPrism.Testing.Contracts.Scheduling.JobHandlerContract.CreateJob(System.Collections.Generic.IReadOnlyList<AgentPrism.JobItemRecord!>! items) -> AgentPrism.JobRecord!
