@@ -9,8 +9,9 @@ namespace AgentPrism;
 public interface IAgentCatalog
 {
     /// <summary>
-    /// Lists the agents from every source. On a name clash the source with the higher
-    /// priority wins, and the lower-priority one is not added to the list.
+    /// Lists the agents from every source. On a name clash the source with the
+    /// <em>lower</em> <see cref="IAgentSource.Priority"/> value wins - it ranks higher,
+    /// because a lower value is tried first - and the other one is not added to the list.
     /// </summary>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>Agent summaries ordered by name.</returns>

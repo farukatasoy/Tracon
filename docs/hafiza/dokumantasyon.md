@@ -237,3 +237,31 @@ kural kaynakta zorlanir). Faz 99'da `IModelProvider`'in yeni `<remarks>`'ina
 konan tek bir 🚨 kapiyi kirmiziya dondurdu. Implementation yorumu (`//`) kapsam
 DISINDADIR — maintainer icin "K-320 bu konumu olctu" yazmak serbesttir, ayni
 cumle `<summary>` icinde degildir.
+
+## 🚨 Sayısal sıralama knob'unun YÖNÜ dokümanda ters yazılır
+
+`IAgentDecorator.Order`'ın `<summary>`'si yıllarca gerçek davranışın tersini
+söyledi ("a lower value wraps *inside*", oysa düşük değer **dışta** sarar).
+Üç şey bunu görünmez yaptı:
+
+- **Davranış testi bir cümleyi göremez.** `Priority`'nin davranışı
+  `CompositeAgentCatalogTests` ile zaten test ediliyordu; public cümlesi yine
+  de belirsizdi. Bu sınıfın kapısı kaynak **metnini** okumak zorundadır.
+- **Arayüz kendi kendisiyle çelişiyordu.** Yanlış kuraldan hemen sonraki örnek
+  cümle ("Run recording uses 0, which makes it the outermost") doğruydu; el
+  yazısı `docs-site/concepts/runs.md` diyagramı da doğruydu. Tek bir cümle
+  yanlıştı ve çevresindeki her şey doğru olduğu için kimse şüphelenmedi.
+- **"Higher priority" İKİ anlama gelir.** `IAgentCatalog.ListAsync` "the source
+  with the higher priority wins" diyordu; `AgentSourcePriority.Database = 100`
+  yanında bu **yüksek sayı** gibi okunur, oysa düşük sayı kazanır. Sıralama
+  dokümanında "higher/lower priority" yazma — **"lower value"** yaz.
+
+Kapı: `OrderingContractDocumentationTests` (`tests/AgentPrism.Core.UnitTests/
+Architecture/`). Yeni bir sayısal sıralama/öncelik yüzeyi eklersen `Contracts()`
+tablosuna satır ekle (K-642).
+
+**Kapıyı yazarken tuzak:** ilk sürümü test tiyatrosuydu. `"lower"` ve
+`"value wins"` ayrı ayrı arandığı için, kasıtlı bozma (`lower` → `higher`)
+YEŞİL geçti — aynı özetin ilerisindeki ikinci bir "lower" kontrolü kurtarıyordu.
+Metin kapısı **bağlı tek ifade** aramalıdır, parça parça değil; ve her vakada
+ayrı ayrı kırmızı verdiğini ölç.

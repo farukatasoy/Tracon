@@ -14,12 +14,13 @@
 > kapandı** (`IJobHandler` sözleşmesi at-least-once'ı yazıyor, `JobHandlerContract`
 > üç yerleşik handler + bir dış sample tarafından koşuyor, `JobLeaseExpiryTests`
 > davranışı ölçüyor)  
-> **Geçici karar:** ❌ Yayınlanmamalı — dört preview-blocker kusur sınıfının
-> **tamamı kapandı** (açık 🔴 kalmadı), ama §7/§8'deki public API freeze
-> taraması (UR-003) ve NuGet.org operasyon kararları (OP-001..009) henüz
-> verilmedi; bu nihai "yayınlanabilir" kararı `nuget-danismani`'nin ayrı bir
-> turda vermesini bekler. Yayın türü `preview` (UR-001), paket kapsamı tam
-> entegrasyon seti (UR-002/BL-002) sabit — bkz. §4.
+> **Geçici karar:** ❌ Yayınlanmamalı — teknik sebeple değil, **kullanıcı
+> kararıyla**. Açık 🔴 yoktur ve UR-003 bu turda 🟡'ye indirildi (GA kapısına
+> taşındı, KG-016), yani `preview.1` yolu teknik olarak açıktı. Kullanıcı
+> sıradaki iş olarak **35× 🟡 sistemik hattı** seçti; yayın o hat kapanana
+> kadar beklemeye alındı. Yayın türü `preview` (UR-001), paket kapsamı tam
+> entegrasyon seti (UR-002/BL-002) ve owner modeli kişisel hesap (OP-001)
+> sabit — bkz. §4 ve §13.
 
 ## 1. Yayın hedefi ve kapsamı
 
@@ -103,10 +104,20 @@ Paket artifact'i (dry-run, exact sürüm, 20 paket, 160 sample testi, Native AOT
 smoke) teknik olarak yeşildir — bu yalnız **başlangıç** kanıtıdır, seam
 matrisinin bulduğu kusur sınıflarını geçersiz kılmaz.
 
+**UR-003 bu turda 🟡'ye indirildi (KG-016).** 680 tiplik public yüzeyin
+freeze taraması bir preview blocker'ı **değildir**, GA blocker'ıdır. Üç kanıt
+aynı yöne bakıyor: (1) sevk edilen tüketici sözleşmesi bunu zaten yazıyor —
+`docs-site/src/content/docs/reference/versioning.md:11-13`, *"a narrowing or a
+reshaped type is not treated as a breaking change until the family reaches
+`1.0.0`"*; (2) **K-603** (kullanıcı kararı) `Shipped.txt`'i preview hattı
+boyunca boş tutar ve dolumu GA'ya erteler; (3) **K-602** (kullanıcı kararı) tek
+sürüm hattını tam olarak "preview hattında yüzey küçültme kırıcı değişiklik
+sayılmaz" gerekçesiyle seçti. Adım 7 filtresinde 3., 4., 6. ve 7. soruları
+geçemiyor. Tarama, `Unshipped → Shipped` dolumuyla **aynı** GA turuna taşındı.
+
 **Geçici en küçük güvenli yayın kapsamı:** `1.0.0-preview.1`, tam 20 paket
-(UR-002 kararı) — kusur sınıfları kapandıktan ve §7/§8'deki kalan kararlar
-(public API freeze taraması, NuGet.org operasyon kararları) verildikten sonra
-kesinleşir.
+(UR-002 kararı). Teknik ön koşullar açık; yayın kullanıcı kararıyla 35× 🟡
+sistemik hattın arkasına alındı (§13).
 
 ## 5. Ölçülen kanıtlar
 
@@ -175,8 +186,8 @@ doğrulama kapısıdır.
 | BL-029 | Açık | Tenant-mode dokümantasyonu Küme A içinde tutarsız — yalnız `IRunStore` EXPECTED/AMBIENT/tenant-independent tablosu taşıyor; `ITraceStore.GetTraceByRunAsync` fiilen ambient-tenant (`SqlTraceStore.cs:85`) ama arayüz dokümanında hiç tenant notu yok; `IRunScoreStore`/`IRunInputStore` yalnız parametre bazlı, adlandırılmış mod yok | 🟡 1.0 blocker | Küme A raporu | `nuget-danismani` → doküman senkronu | `IRunStore`'un tenant-mode tablo deseni diğer 9 arayüze de uygulanır |
 | BL-030 | Açık | `IRunEventSink`, `IRunAttributionContext`, `IRunCancellationRegistry`, `IRunErrorClassifier`, `IRunPricingResolver`, `IAgentPrismDrainState` için reusable contract test yok (yalnız 4 storage arayüzünde var); 8/10 arayüz için dış sample yok (yalnız `IRunStore`/`IRunScoreStore` için `FileRunStore` var) | 🟡 1.0 blocker | Küme A raporu | `nuget-danismani` → faz zinciri | En azından `IRunCancellationRegistry` (root/child, tenant-mismatch) için contract sınıfı eklenir |
 | BL-031 | Bilgi | Küme A cila bulguları (🟢, toplu): `ITraceStore`'un yüksek-kardinalite tag'lerinin (run id, tenant id) kasıtlı olduğu dokümante değil (`IRunAttributionContext.Labels`'ın kardinalite uyarısıyla tezat); `IRunPricingResolver`/`IRunErrorClassifier` "cache yok" tasarım kararı dokümante değil | 🟢 Doküman/cila | Küme A raporu | `nuget-danismani` → doküman senkronu | Docs-site'a eklenir |
-| BL-033 | Açık | Decorator exception'ları source exception'larının aksine normalize edilmiyor — `CompositeAgentCatalog.cs:142-145,216-219` `decorator.Decorate(...)`'ı try/catch olmadan çağırıyor, oysa aynı metotta iki satır üstteki source çağrısı `HandleSourceFailure` ile sarılı. Üçüncü taraf bir `IAgentDecorator` (veya `ToolApprovalAgentDecorator`) fırlatırsa ham exception `AgentEndpoints.cs:774`'ün yalnız `AgentPrismException` yakalayan catch'ini atlayabilir — ASP.NET Core varsayılan handler'ına sızıp sızmadığı doğrulanmadı | 🟡 1.0 blocker | `src/AgentPrism.Core/.../CompositeAgentCatalog.cs:142-145,216-219`; `src/AgentPrism.AspNetCore/Endpoints/AgentEndpoints.cs:774` | `nuget-danismani` → derinleştirme, sonra `kusur-giderme` | Global exception handler davranışı ölçülür; gerekiyorsa decorator çağrısı da normalize edilir |
-| BL-034 | Açık | `IAgentDecorator` için hiç builder registration API'si yok (`IAgentSource`/`IRunJudge`/`IModelProvider`'ın aksine) — consumer ham `services.TryAddEnumerable(ServiceDescriptor.Singleton<IAgentDecorator, T>())` çağırmak zorunda; ayrıca `IAgentDecorator.Order`'ın XML dokümanı kendi kendiyle çelişiyor ("lower value wraps inside, higher value wraps outside" gerçek davranışın — düşük=dıştan, yüksek=içten — tam tersini söylüyor), güvenlik-ilişkili bir decorator yanlış katmana yerleştirilebilir | 🟡 1.0 blocker | `IAgentDecorator.cs:6-8,20-22`; doğrulama: `RunRecordingAgentDecorator.cs:114` (Order=0/dıştan), `ToolApprovalAgentDecorator.cs:38` (Order=20/içten) | `nuget-danismani` → doküman senkronu + faz zinciri | `Order` dokümanı düzeltilir; dedicated `AddAgentDecorator<T>()` eklenir |
+| BL-033 | Açık | Decorator exception'ları source exception'larının aksine normalize edilmiyor — `CompositeAgentCatalog.cs:142-145,216-219` `decorator.Decorate(...)`'ı try/catch olmadan çağırıyor, oysa aynı metotta iki satır üstteki source çağrısı `HandleSourceFailure` ile sarılı. Üçüncü taraf bir `IAgentDecorator` (veya `ToolApprovalAgentDecorator`) fırlatırsa ham exception `AgentEndpoints.cs:774`'ün yalnız `AgentPrismException` yakalayan catch'ini atlayabilir — ASP.NET Core varsayılan handler'ına sızıp sızmadığı **ölçüldü (2026-08-27): sızmıyor** — `grep -rn "UseExceptionHandler|IExceptionHandler|AddProblemDetails" src --include="*.cs"` yalnız `JsonBindingProblemMiddleware.cs:16`'daki yorumu buluyor, yani AgentPrism global handler **kaydetmez** ve Production'da ASP.NET Core varsayılanı gövdesiz `500` döner; ham mesaj HTTP'ye çıkmaz. **Kalan gerçek kusur dar ve tutarlılıktır:** üçüncü taraf decorator hatası `AgentPrismException`'a normalize edilmediği için kardeş `source` yolunun ürettiği sınıflandırılmış hata yerine çıplak `500` verir | 🟡 1.0 blocker (leak değil, tutarlılık) | `src/AgentPrism.Core/.../CompositeAgentCatalog.cs:142-145,216-219`; `src/AgentPrism.AspNetCore/Endpoints/AgentEndpoints.cs:774` | `nuget-danismani` → derinleştirme, sonra `kusur-giderme` | Global exception handler davranışı ölçülür; gerekiyorsa decorator çağrısı da normalize edilir |
+| BL-034 | **KISMEN KAPANDI (2026-08-27, `kusur-giderme`)** | `IAgentDecorator` için hiç builder registration API'si yok (`IAgentSource`/`IRunJudge`/`IModelProvider`'ın aksine) — consumer ham `services.TryAddEnumerable(...)` çağırmak zorunda; ~~ayrıca `IAgentDecorator.Order`'ın XML dokümanı kendi kendiyle çelişiyor~~ **doküman kusuru KAPANDI** | 🟡 1.0 blocker (kalan: registration API'si — kulvar 2) | **Ölçüldü ve karar verildi (K-642):** sayısal yön DEĞİŞMEDİ, yanlış olan cümleydi. Yeni yazılan iki davranış testi (`AgentDecoratorOrderingTests`) mevcut mekanizmayla yeşil geçti; el yazısı `docs-site/concepts/runs.md` diyagramı da zaten doğruydu. **Sınıf taraması 2 vaka daha buldu** — `IAgentSource.Priority` yönü hiç söylemiyordu, `IAgentCatalog.ListAsync` "higher priority" diyerek yüksek sayı gibi okunuyordu; ikisi de düzeltildi. Kapı: `OrderingContractDocumentationTests` (üç vakada da ayrı ayrı kırmızı verdiği ölçüldü) | `nuget-danismani` → `kusur-giderme` (doküman ✅) → faz zinciri (registration API'si) | Doküman kısmı tamamlandı; dedicated `AddAgentDecorator<T>()` kulvar 2 kapsamında kalır |
 | BL-035 | Açık | `IAgentDefinitionStore` ambient `ITenantContext` kullanırken `IAgentSkillStore`/`ISkillScriptGrantStore` explicit `tenantId` parametresi kullanıyor — aynı kümede tutarsız tenant-parametre şekli (bug değil, her ikisi de doğru filtreleniyor, ama üçüncü taraf implementer'ın arayüz başına ayrı öğrenmesi gerekiyor) | 🟡 1.0 blocker | Küme D raporu | `nuget-danismani` → doküman senkronu | XML dokümanda desen farkı ve gerekçesi açıklanır |
 | BL-036 | Bilgi | Küme D cila bulguları (🟢, toplu): decorator sıralama mantığı (`OrderByDescending(d => d.Order)`) 4 yerde ayrı ayrı tekrarlanıyor (`CompositeAgentCatalog.cs:40`, `RunContinuationJobHandler.cs:55`, `RunReplayService.cs:77`) — var olan `AgentDecoratorPipeline.Apply` yalnız 2 yerde kullanılıyor, şu an tutarlı ama bakım riski; `IAgentDecorator`/`IAgentCatalog` için contract test veya dış sample yok | 🟢 Doküman/cila | Küme D raporu | `nuget-danismani` → doküman senkronu / iç refactor | Docs-site'a eklenir; refactor isteğe bağlı |
 | BL-037 | **KAPANDI (Faz 119)** | **`WorkflowRunner.ToRunError`'a ham exception mesajı sızıyor** — BL-027 ile birebir aynı kusur sınıfı, farklı yol: `unwrapped.Message` hiçbir guard'dan geçirilmeden `RunEvent.Text`'e yazılıyor ve persist ediliyor | ~~🔴~~ ✅ Kapandı (BL-027 ile birlikte) | `src/AgentPrism.Workflows/Internal/WorkflowRunner.cs:1179-1198` | `nuget-danismani` → **[Faz 119](arsiv/fazlar/119-HATA-METNI-SIZINTISI.md)** (BL-027 ile BİRLİKTE, tek sınıf taraması) | `ToRunError` artık `SafeErrorText.ForPersistence` + korelasyon kimlikli `ILogger` çağrısı kullanıyor; `WorkflowJobHandler`'ın kendi ayrı `exception.Message` yolu da aynı turda kapatıldı |
@@ -201,21 +212,22 @@ doğrulama kapısıdır.
 |---|---|---|---|---|---|---|---|---|---|---|---|
 | UR-001 | Yayın türü | Tamamlandı | İlk dış yayın preview, rc veya stable mı olmalı? | KN-005 ve pre-release Hosting bağımlılıkları | `preview` / `rc` / `stable 1.0` | `preview` | Shipped baseline boş (0 giriş, 676 unshipped tip) ve `AgentPrism.AspNetCore` pre-release MAF bağımlılığı taşıyor — stable/RC taahhüdü bugün karşılanamaz; preview SemVer'de kırıcı değişikliğe izin verir | Yüksek | `nuget-danismani` | Kullanıcı kararı | 2026-08-27 |
 | UR-002 | İlk hedef tüketici | Tamamlandı | Ürün anlatısı ve en küçük paket kapsamı hangi birincil persona için optimize edilmeli? | Repo bir control plane, provider, storage, transport, UI ve extension paketleri taşıyor | Yalnız çekirdek / tam entegrasyon seti / çekirdek + kanıtlanmış alt küme | Tam entegrasyon seti (20 paketin tamamı) | Kullanıcı, dry-run'da zaten kanıtlanmış tam kapsamı (20 paket, 160 sample testi, AOT smoke yeşil) korumayı seçti | Yüksek — audit yükü en geniş seçenek düzeyinde | `nuget-danismani` | Kullanıcı kararı | 2026-08-27 |
-| UR-003 | Public API freeze | İnceleniyor | Preview öncesinde hangi yüzey korunmalı veya küçültülmeli? | 676 unshipped tip, 0 shipped giriş | Tut / değiştir / kaldır / internal / capability / ertele | — | Seam matrisi olmadan karar verilemez | Yüksek | `nuget-danismani`; aksiyon gerekirse faz zinciri | Artifact consumer contract'ı | — |
+| UR-003 | Public API freeze | **Tamamlandı — GA'ya ertelendi** | Preview öncesinde hangi yüzey korunmalı veya küçültülmeli? | Ölçüldü 2026-08-27: 17 `PublicAPI.Shipped.txt` **0** satır, unshipped **8417** satır / **680** tip | Preview'dan önce tara / **GA turuna ertele** | **GA turuna ertelendi; seviye 🔴 → 🟡** | Sevk edilen `versioning.md:11-13` preview hattında yüzey daralmasının kırıcı sayılmadığını zaten söylüyor; K-603 `Shipped` dolumunu GA'ya erteledi; K-602 tek sürüm hattını bu gerekçeyle seçti. Faz 96 aynı erişilebilirlik ölçütünü koşup 96 tipi `internal` yapmıştı (K-601) — ikinci turun verimi düşük | Orta — GA'da yüzey büyükse daraltma pahalılaşır; azaltım: tarama `Unshipped → Shipped` dolumuyla aynı turda koşar | `nuget-danismani` (GA turu) | GA kapısında `Shipped.txt` dolumu | 2026-08-27 |
 
 ## 8. Operasyonel yayın kararları
 
 | Kimlik | Konu | Durum | Mevcut kanıt | Karar |
 |---|---|---|---|---|
-| OP-001 | NuGet owner modeli | Karar gerekli | Repo kanıtı yok | — |
+| OP-001 | NuGet owner modeli | **Tamamlandı** | Repo kanıtı yok | **Kişisel hesap (`farukatasoy`)** — kullanıcı kararı 2026-08-27. Kabul edilen risk: sahiplik devri paket başına elle yapılır, tek bakımcı riski kalıcıdır (bkz. RK-012) |
 | OP-002 | 2FA | Doğrulama gerekli | Repo kanıtı yok | — |
-| OP-003 | Package ID sahipliği/uygunluğu | Doğrulama gerekli | 20 yerel kimlik var; NuGet.org durumu ölçülmedi | — |
-| OP-004 | Publishing authentication | Karar gerekli | CI, süre ve scope'u repo dışında olan `NUGET_API_KEY` kullanıyor | — |
-| OP-005 | Trusted publishing | İnceleniyor | CI'da yok; güncel resmi uygunluk araştırılmadı | — |
-| OP-006 | Tag ve GitHub release | Karar gerekli | Her `v*` tag'i gerçek NuGet ve npm publish tetikler | — |
-| OP-007 | Release notes | Aksiyon gerekli | İlk release note artifact'i ölçülmedi | — |
+| OP-003 | Package ID sahipliği/uygunluğu | **Ölçüldü — 20/20 müsait** | 2026-08-27, salt-okunur `registration5-semver1` GET × 20: hepsi `404`. npm `@agentprism/client` de `404`. **`agentprism` npm scope'u YOK** (`/-/org/agentprism` → `404`) | Kimlik çakışması yok. `AgentPrism.*` ID prefix reservation başvurusu ayrı bir kalem — karar verilmedi |
+| OP-004 | Publishing authentication | **Kullanıcı erteledi** (2026-08-27) | CI, süre ve scope'u repo dışında olan `NUGET_API_KEY` kullanıyor ([`ci.yml:303-306`](../.github/workflows/ci.yml#L303-L306)) | — RK-004 açık kalır |
+| OP-005 | Trusted publishing | **Kullanıcı erteledi** (2026-08-27) | CI'da `id-token` izni yok (`permissions: contents: read`, `ci.yml:11-12`); güncel resmi uygunluk **hâlâ araştırılmadı** | — |
+| OP-006 | Tag ve GitHub release | Karar gerekli | Her `v*` tag'i gerçek NuGet ve npm publish tetikler. **Ölçüldü 2026-08-27: CI hiç GitHub release ÜRETMİYOR** — `gh release` / `action-gh-release` workflow'da geçmiyor | — |
+| OP-007 | Release notes | Aksiyon gerekli | **Ölçüldü 2026-08-27: hiçbir artifact yok** — `CHANGELOG.md` yok, `PackageReleaseNotes` hiçbir `Directory.Build.props`'ta tanımlı değil, `docs-site`'ta changelog sayfası yok. 20 paket sayfası boş release-notes alanıyla çıkar | — |
 | OP-008 | Deprecation/yank/hotfix | Karar gerekli | Repo politikası henüz bu ledger'a doğrulanmadı | — |
-| OP-009 | Dependency/vulnerability takibi | İnceleniyor | Dependabot NuGet yapılandırması mevcut | — |
+| OP-009 | Dependency/vulnerability takibi | İnceleniyor | Dependabot NuGet yapılandırması mevcut (`.github/dependabot.yml`, haftalık) | — |
+| OP-010 | npm/NuGet asimetrik kısmi yayın | **Kullanıcı erteledi** (2026-08-27) | Aynı `v*` tag'i `nuget-publish` ([`ci.yml:284`](../.github/workflows/ci.yml#L284)) ve `npm-publish` ([`ci.yml:319`](../.github/workflows/ci.yml#L319)) işlerini **paralel** tetikler (farklı `needs`). `agentprism` npm scope'u bugün yok; `NPM_TOKEN` durumu repo dışında. Scope hazır değilse 20 NuGet paketi **kalıcı** yayınlanır, npm işi kırılır — ve sevk edilen doküman `npm install @agentprism/client` diyor (`docs-site/src/content/docs/packages.md:70`, `guides/typescript-client.md:25`) | — Tag'den önce çözülmelidir; bkz. RK-011 |
 
 ## 9. Risk kaydı
 
@@ -231,6 +243,8 @@ doğrulama kapısıdır.
 | RK-008 | Açık | Drain/yeni-run yarışı (BL-026) `ApplicationStopping` ile aynı ana denk gelen bir run'ın yarıda kesilmesine yol açabilir — zero-downtime deploy varsayımı kırılır | Orta | Düşük (dar pencere) / orta (tek run kaybı, veri bozulması değil ama tutarsız durum) | Register'ı erken taşımak veya reservation adımı; eşzamanlılık testiyle kilitleme | `nuget-danismani` → `kusur-giderme` |
 | RK-009 | Açık | Ham exception mesajı sızıntısı **bir sınıf** olarak doğrulandı — `IRunStore.RunError.Message` (BL-027) ve `WorkflowRunner.ToRunError`/`RunEvent.Text` (BL-037) aynı desenin iki bağımsız örneği; `HATA-S3-006`'nın kapattığı sınıfın tekrarı; `secret`/PII sızıntı riski (K-059 ruhuna aykırı) | Yüksek | Orta (provider SDK exception'ları request detayı taşıyabilir) / yüksek (persisted run/workflow kaydı, admin API/UI üzerinden okunabilir) | Her iki yol da `ContentGuardPipeline`'dan geçirilir; sınıf taraması çalıştırma yolundaki (run, workflow, job, webhook) tüm exception→persist noktalarını tek seferde tarar | `nuget-danismani` → `kusur-giderme` (BL-027 + BL-037 birlikte) |
 | RK-010 | **Kapandı (Faz 120)** | `IJobHandler`'ın sözleşmesi at-least-once'ı söylemiyordu (BL-041) — dokümante edilen örneği izleyen bir tüketici crash/retry'de side effect'i iki kez çalıştırabilirdi | ~~Yüksek~~ | Orta (lease kaybı/retry production'da olağan) / yüksek (dokümante edilen doğrudan örnek yanlış) | `IJobHandler.cs`'nin XML dokümanına at-least-once uyarısı ve süzülmemiş `Items` notu eklendi; `JobHandlerContract` kuralı kilitliyor, `JobLeaseExpiryTests` davranışı ölçüyor. `IIdempotencyStore`'u job loop'una bağlamak değerlendirilmedi — BL-041'in kapanış notunun gerekçesiyle gereksiz ikinci bir mekanizma olurdu | `nuget-danismani` → `kusur-giderme` → [Faz 120](arsiv/fazlar/120-JOB-SOZLESMESI-AT-LEAST-ONCE.md) |
+| RK-011 | **Açık** | Asimetrik kısmi yayın: aynı `v*` tag'i NuGet ve npm işlerini paralel tetikler; `agentprism` npm scope'u yok. npm kırılırsa 20 NuGet paketi kalıcı olarak yayınlanmış olur ve sevk edilen doküman var olmayan bir npm paketini tarif eder (OP-010) | Yüksek | Yüksek (scope bugün yok) / yüksek (NuGet'te geri dönüş yok, düzeltme yalnız yeni sürümle) | Tag'den ÖNCE scope + `NPM_TOKEN` hazırlanır, ya da `npm-publish` işi devre dışı bırakılıp docs-site'ın üç sayfası aynı turda düzeltilir | Yayın operasyonu — **kullanıcı kararı ertelendi** |
+| RK-012 | **Kabul edildi** | Kişisel owner modeli (OP-001): 20 paketin sahipliği tek hesaba bağlıdır; devir paket başına elle yapılır ve hesap kaybı 20 kimliği birden etkiler | Orta | Düşük / yüksek | Kullanıcı bilinçli olarak kabul etti (2026-08-27). Azaltım: 2FA (OP-002) ve gerekirse sonradan organization'a devir | Yayın operasyonu |
 
 ## 10. Yayın checklist'i
 
@@ -310,6 +324,7 @@ doğrulama kapısıdır.
 | KG-013 | 2026-08-27 | Tamamlandı | Küme K elle ölçüldü (ajan gerekmedi, yalnız 2 arayüz) — 0× 🔴, 0× 🟡, bulgu yok | Doğrudan kaynak okuması | 9/11 küme tamam; I, J sırada (arka planda çalışıyor) |
 | KG-014 | 2026-08-27 | Tamamlandı | Küme J ve I ölçüldü — ikisi de 0× 🔴 (Küme J 3× 🟡 + 1× 🟢; Küme I 4× 🟡 + 1× 🟢). **11/11 küme tamam.** Toplam: 5 blocker kaydı / 4 bağımsız 🔴 kusur sınıfı (BL-027+BL-037 tek sınıf), 35× 🟡, 17× 🟢 | Bağımsız ölçüm; BL-003 (seam matrisi) artık kapalı | Nihai yayın kararı verilebilir — bkz. §4 |
 | KG-015 | 2026-08-27 | Tamamlandı | BL-041 [Faz 120](arsiv/fazlar/120-JOB-SOZLESMESI-AT-LEAST-ONCE.md) ile kapandı — `IJobHandler.ExecuteAsync`/`JobContext.Items`'ın XML dokümanı at-least-once'ı ve süzülmemiş item listesini açıkça yazıyor; `JobHandlerContract` (üç yerleşik handler + `AgentPrism.Samples.CustomJobHandler` dış sample'ı) kuralı kilitliyor; `JobLeaseExpiryTests` lease-expiry davranışının gerçekten var olduğunu `InMemoryJobStore` üzerinde ölçüyor. **4/4 preview-blocker kusur sınıfı artık kapalı; açık 🔴 kalmadı** | Faz uygulaması + kendi kendini doğrulayan regresyon kanıtı (bir yerleşik handler'ın skip-kontrolü geçici olarak bozulup contract'ın gerçekten kırmızı verdiği doğrulandı, sonra geri alındı) | Nihai "yayınlanabilir" kararı hâlâ §7 (UR-003 public API freeze) ve §8 (OP-001..009 NuGet.org operasyonu) açık kararlarını bekliyor — bir sonraki `nuget-danismani` turunun konusu |
+| KG-016 | 2026-08-27 | Tamamlandı | **UR-003 (public API freeze) 🔴'dan 🟡'ye indirildi ve GA turuna ertelendi**; **OP-001 kişisel hesap olarak sabitlendi**; OP-004/OP-005/OP-010 kullanıcı tarafından ertelendi; **sıradaki iş 35× 🟡 sistemik hat seçildi** (yayın onun arkasına alındı) | UR-003 için üç bağımsız kanıt aynı yöne bakıyor: sevk edilen `versioning.md:11-13`, K-603 ve K-602 — üçü de preview hattında yüzey daralmasını kırıcı saymıyor; Adım 7 filtresinin 3/4/6/7. sorularını geçemiyor. OP-001, OP-004, OP-005, OP-010 ve iş sıralaması kullanıcı kararıdır 👤 | Bu turda ölçülenler: 20/20 NuGet ID müsait (OP-003), release notes artifact'i yok (OP-007), CI GitHub release üretmiyor (OP-006), BL-033 HTTP sızıntısı yeniden üretilemedi (🟡'de kaldı, iddiası daraltıldı), OP-010/RK-011 yeni kaydedildi |
 
 ## 12. Ertelenen işler ve gerekçeleri
 
@@ -321,33 +336,67 @@ doğrulama kapısıdır.
 
 ## 13. Sonraki adım
 
-Seam matrisi tamamlandı (§15) ve 4 kusur sınıfının **tamamı** ele alındı.
-**Güncel durum:**
+**Seçim yapıldı (2026-08-27, KG-016): sıradaki iş 35× 🟡 sistemik hattır.**
+Yayın teknik olarak açıktı — açık 🔴 yok, UR-003 GA'ya ertelendi — ama kullanıcı
+`preview.1`'i bu hattın arkasına aldı.
 
-| Kusur sınıfı | Durum |
-|---|---|
-| BL-006 BYOK case-sensitivity | ✅ Kapandı (K-639) — migration'lar `scripts/applied-migrations.json` manifest'ine Faz 119 kapanışında kaydedildi (kayıt eksikliği `kapi.py tarama`'yı kırıyordu, bu fazda düzeltildi) |
-| BL-026 drain yarışı | ⬇️ 🟡'ye indi — ölçülmüş repro yok, iş kaybı üretmiyor |
-| BL-027 + BL-037 exception sızıntısı | ✅ Kapandı ([Faz 119](arsiv/fazlar/119-HATA-METNI-SIZINTISI.md), K-640) — 26 vaka kapatıldı, mimari cırcır kapısı eklendi |
-| BL-041 job sözleşmesi | ✅ Kapandı ([Faz 120](arsiv/fazlar/120-JOB-SOZLESMESI-AT-LEAST-ONCE.md)) — `IJobHandler` sözleşmesi at-least-once'ı yazıyor, `JobHandlerContract` + `JobLeaseExpiryTests` kilitliyor |
+### Hattın tek cümlelik tanımı
 
-Kalan iş — artık kusur değil, karar:
+25 blocker kaydı bağımsız 25 iş değildir. Hepsi **aynı** boşluğun örnekleridir:
+AgentPrism'in extension seam'leri için **tek bir sözleşme standardı** yoktur.
+Repo'da o standardın iki referans örneği zaten var — `IRunJudge` (kayıt üçlüsü +
+contract test + startup validation) ve `IRunStore` (tenant-mode tablosu taşıyan
+XML dokümanı). İş, bu iki deseni kalan seam'lere yaymaktır.
 
-1. 35× 🟡 bulguyu önceliklendir — `IRunJudge`/`IRunStore` desenini (kayıt
-   üçlüsü + contract test + dış sample) referans alarak kalan seam'lere
-   uygulamak tek bir sistemik iş olarak ele alınabilir (bkz. §15 özet notu).
-2. Public API freeze taraması (4.1 mercek, UR-003) — 676 unshipped tip için
-   tut/kaldır/internal kararı, seam matrisinin ürettiği kanıt üzerinden.
-3. §8'deki NuGet.org operasyon kararları (owner modeli, 2FA, credential,
-   trusted publishing) — bunlar ürün kararı değil, kullanıcının kendi hesap/
-   organizasyon tercihi.
-4. Doküman drift taraması (Adım 6) ve `tuketici-dokuman-senkronu`'na devir.
-5. Nihai "yayınlanabilir mi" kararı — açık 🔴 kalmadığı için bir sonraki
-   `nuget-danismani` turu §7/§8 üzerinden bu kararı verebilir.
+### Altı kulvar (kapsam)
 
-Dördüncü kusur sınıfı da kapandığı için bu dosyanın §4'ü güncellendi; genel
-"❌ Yayınlanmamalı" durumu artık kusurdan değil, yukarıdaki açık kararlardan
-kaynaklanıyor.
+| # | Kulvar | Kayıtlar | Ölçülen kapsam |
+|---|---|---|---|
+| 1 | **Reusable contract testi yok** — üçüncü tarafın koşabileceği suite | BL-007, BL-015, BL-017, BL-022, BL-023, BL-030, BL-039, BL-048, BL-050 | **26 arayüz** + shipped 4 provider adaptörünün mevcut `ModelProviderContract`'ı türetmemesi |
+| 2 | **Kayıt (registration) API'si yok veya eksik** | BL-008, BL-019, BL-034, BL-050 (+🟢 BL-016) | **~19 arayüz** ham `services.Replace(...)`/`TryAddEnumerable(...)` gerektiriyor ve bu desen hiçbir yerde dokümante değil |
+| 3 | **XML sözleşme boşlukları** — davranış doğru, keşfedilebilir değil | BL-024, BL-028, BL-029, BL-035, BL-038, BL-042, BL-043, BL-046, BL-048, BL-050, BL-026 | DI lifetime, tenant-mode, thread-safety, `Stream` sahipliği, at-least-once ve cooperative-cancellation sınırları |
+| 4 | **Dış sample yok** (`PackageReference` ile koşan tüketici) | BL-016, BL-019, BL-023, BL-030, BL-036, BL-039, BL-045, BL-048 | Bugün beş sample var; Küme B, F, G, H ve I'nın hiçbirinde yok |
+| 5 | **Operasyonel gözlemlenebilirlik** | BL-044, BL-047 | `Scheduling`, `Webhooks`, `Coordination`, `Idempotency`, `Triggers` içinde hiç `ActivitySource`/`Meter` yok; audit-write-failure sayacı yok |
+| 6 | **Kod düzeltmesi (doküman değil)** | BL-018, BL-033, BL-039, BL-051 | Decorator hatasının normalize edilmemesi; duplicate workflow adında ham `ArgumentException`; guard/retention kayıtsızken başlangıç uyarısı yok |
+
+### Sıralama gerekçesi
+
+**Kulvar 3 önce gelmelidir** ve tek başına en yüksek kaldıraçlıdır: iki gerçek
+hata içerir, ölçüldü —
+
+- **`IAgentDecorator.Order`'ın XML dokümanı gerçek davranışın TERSİNİ söylüyor**
+  (BL-034). Doğrulandı: `RunRecordingAgentDecorator.cs:114` `Order=0` ile
+  **dıştan**, `ToolApprovalAgentDecorator.cs:38` `Order=20` ile **içten** sarıyor;
+  doküman bunun tersini yazıyor. Güvenlikle ilişkili bir decorator'ı yanlış
+  katmana koyduran tek kalem budur — sözleşme kusuru olarak diğer 34'ün önündedir.
+- **`IAuditLog`/`AuditQuery.TenantId=null`** kiracı sınırını yalnız DTO yorumunda
+  taşıyor (BL-046); bugün hiçbir shipped yol tetiklemiyor ama üçüncü taraf
+  implementasyon tüm kiracıların kaydını dönebilir.
+
+Sonra **kulvar 2 → kulvar 1 → kulvar 4** birlikte yürür: kayıt API'si olmayan bir
+seam'in contract testi de sample'ı da yazılamaz, çünkü tüketicinin yazacağı kod
+henüz yoktur. Kulvar 5 ve 6 bağımsızdır, paralel gidebilir.
+
+### Bu hat kapandıktan sonra yayın için kalanlar
+
+Aşağıdakiler bu hattın parçası **değildir**; `preview.1` tag'inden önce ayrıca
+kapanmalıdır:
+
+1. **OP-007 release notes hattı** — ölçüldü: hiçbir artifact yok (`CHANGELOG.md`
+   yok, `PackageReleaseNotes` tanımsız, changelog sayfası yok) ve CI **GitHub
+   release üretmiyor** (OP-006).
+2. **OP-010 / RK-011** — npm scope'u tag'den önce hazırlanmalı, yoksa asimetrik
+   kısmi yayın oluşur. Kullanıcı kararı ertelendi.
+3. **OP-002, OP-004, OP-005, OP-008** — kullanıcının kendi hesap/organizasyon
+   tercihleri. OP-004/OP-005 ertelendiği sürece RK-004 açık kalır.
+4. **Doküman drift taraması** (Adım 6) → `tuketici-dokuman-senkronu`.
+
+### GA turuna ertelenenler
+
+- **UR-003 public API freeze taraması** — 680 tip, `Unshipped → Shipped`
+  dolumuyla aynı turda (KG-016).
+- **RK-005** — K-602'nin "19 paket" ifadesi güncel 20 ile drift gösteriyor;
+  `docs-site` doğru sayıyı yazıyor, düzeltme yalnız karar defteri metnindedir.
 
 ## 14. Yayın sonrası ilk 72 saat planı
 
