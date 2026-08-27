@@ -222,6 +222,11 @@ written. And because sessions, runs, and conversations are real rows now, a data
 subject's content can be found and erased by identity, not just aged out — see
 [Data subject rights](/concepts/governance/#data-subject-rights).
 
+Both endpoints accept an optional `tenantId` filter; leaving it out never means
+"every tenant" — it resolves to the caller's own ambient tenant. A custom
+`IAuditLog` implementation must apply this same fallback (see
+[Write your own store](/guides/write-your-own-store/)).
+
 Durable rows are also what
 [content protection](/getting-started/security/#at-rest-content-protection) encrypts.
 
