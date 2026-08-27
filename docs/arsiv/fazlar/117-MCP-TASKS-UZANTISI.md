@@ -1,7 +1,7 @@
 # Faz 117 — MCP Tasks Uzantısı
 
 > **Durum:** ✅ Tamamlandı (2026-08-27)
-> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-167** (yalnız **Tasks dilimi**; MRTR ve elicitation bu fazda **değil** — § 117.7)
+> **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-167** (yalnız **Tasks dilimi**; MRTR ve elicitation bu fazda **değil** — § 117.7)
 > **Önkoşul:** Faz 50 (dışa açılan agent yüzeyi) ve Faz 46 (dayanıklı çalıştırma, `JobKind.AgentRun`) — ikisi de arşivde
 > **Paketler:** `AgentPrism.AspNetCore` (yalnız `McpServer/`)
 > **Yeni paket:** `ModelContextProtocol.Extensions.Tasks` 2.2.0 — **net yeni geçişli paket: 0** (ölçüldü, § 117.5) · **Migration:** **Yok** (§ 117.3)
@@ -28,10 +28,10 @@
    🚨 bu fazın **en büyük riski**, § 117.4), **K-178** (yeni tablo üç migration
    demektir — bu faz tabloyu **almıyor**), **K-212** (geçişli ağırlık sayılır).
 3. Alan hafızası (bu faz iki alana dokunuyor):
-   [`hafiza/mcp-a2a-sunucu.md`](hafiza/mcp-a2a-sunucu.md) (bu fazın ana alanı) ·
-   [`hafiza/cekirdek-calistirma.md`](hafiza/cekirdek-calistirma.md) (run durumları, kuyruklu run)
+   [`hafiza/mcp-a2a-sunucu.md`](../../hafiza/mcp-a2a-sunucu.md) (bu fazın ana alanı) ·
+   [`hafiza/cekirdek-calistirma.md`](../../hafiza/cekirdek-calistirma.md) (run durumları, kuyruklu run)
 4. Gerektiğinde, tamamı değil ilgili bölümü:
-   [`MIMARI-GUVENLIK.md`](MIMARI-GUVENLIK.md) — dışa açılan yüzey bölümü
+   [`MIMARI-GUVENLIK.md`](../../MIMARI-GUVENLIK.md) — dışa açılan yüzey bölümü
 
 ---
 
@@ -52,10 +52,10 @@ modeline** oturtur: MCP task kimliği, AgentPrism'in run kimliğidir.
 
 | Kanıt | Gözlem |
 |---|---|
-| [`CatalogToolCallHandler.cs:79-84`](../src/AgentPrism.AspNetCore/McpServer/CatalogToolCallHandler.cs) | `await agent.RunAsync(...)` — run **satır içi ve senkron**; MCP bağlantısı run boyunca açık kalır |
+| [`CatalogToolCallHandler.cs:79-84`](../../../src/AgentPrism.AspNetCore/McpServer/CatalogToolCallHandler.cs) | `await agent.RunAsync(...)` — run **satır içi ve senkron**; MCP bağlantısı run boyunca açık kalır |
 | `grep -rn "Stateless\|MRTR\|Tasks\|Elicit" src/AgentPrism.AspNetCore/McpServer src/AgentPrism.Mcp` | **Sıfır isabet** — 2026-07-28'in hiçbir yeni yüzeyi yok |
-| [`AgentPrismMcpServerBuilderExtensions.cs:59-62`](../src/AgentPrism.AspNetCore/McpServer/AgentPrismMcpServerBuilderExtensions.cs) | `AddMcpServer().WithHttpTransport().WithListToolsHandler(...).WithCallToolHandler(...)` — `.WithTasks(...)` yok |
-| [`Directory.Packages.props:173,183`](../Directory.Packages.props) | SDK **2.2.0**'a sabit — uzantı paketi **aynı sürüm hattında** |
+| [`AgentPrismMcpServerBuilderExtensions.cs:59-62`](../../../src/AgentPrism.AspNetCore/McpServer/AgentPrismMcpServerBuilderExtensions.cs) | `AddMcpServer().WithHttpTransport().WithListToolsHandler(...).WithCallToolHandler(...)` — `.WithTasks(...)` yok |
+| [`Directory.Packages.props:173,183`](../../../Directory.Packages.props) | SDK **2.2.0**'a sabit — uzantı paketi **aynı sürüm hattında** |
 
 > Kanıtlar 2026-08-26 tarihinde doğrulandı.
 
@@ -156,7 +156,7 @@ Bugün onay sınırı **iki** yerde zorlanıyor:
 
 1. Başlangıçta: `ExternalSurfaceGuard` onay isteyen tool taşıyan agent'ı
    yüzeye çıkarmaz.
-2. Çalışma anında: [`CatalogToolCallHandler.cs:96-103`](../src/AgentPrism.AspNetCore/McpServer/CatalogToolCallHandler.cs)
+2. Çalışma anında: [`CatalogToolCallHandler.cs:96-103`](../../../src/AgentPrism.AspNetCore/McpServer/CatalogToolCallHandler.cs)
    run bittikten **sonra** `ChildRunApproval.Describe(response.Messages)`
    ile bakar ve hata döner. Kodun kendi yorumu bunu *"defense layer"* diye
    adlandırıyor: tanım run'dan **sonra** güncellenip onaylı bir tool
@@ -280,7 +280,7 @@ tests/AgentPrism.AspNetCore.FunctionalTests/
 
 > Mutlu yoldan değil, **ne bozulabilir**den türetilir. Seviyeyi plan seçer.
 > Sınır geçen davranış (DI · HTTP · kiracı · akış · depo · paket) birim
-> testiyle kanıtlanamaz — [`.agents/ortak/test-seviyeleri.md`](../.agents/ortak/test-seviyeleri.md).
+> testiyle kanıtlanamaz — [`.agents/ortak/test-seviyeleri.md`](../../../.agents/ortak/test-seviyeleri.md).
 
 | Ne bozulabilir | Seviye | Test sınıfı |
 |---|---|---|
