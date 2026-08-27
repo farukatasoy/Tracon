@@ -1508,3 +1508,120 @@ curl -s http://localhost:5099/agentprism/api/meta | grep -o '"runStore":"[A-Za-z
   `"persistent":true` döner. Kalıcı bir kurulum uyarı görmez.
 
 ---
+
+### MT-DIAG-055 — `Production` + kayıtsız `IContentGuard` başlangıçta TAM BİR uyarı düşürür — Faz 122
+
+`SilentGapWarningService`, `NonPersistentStorageWarningService`'in aynı üç
+kuralını (yalnız Production · asla fırlatma · yalnız kayıtlara bak) iki farklı
+boşluğa uygular. Bu case birincisi: içerik denetimi.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 122 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- `samples/AgentPrism.Api/Program.cs`'teki `.AddPatternContentGuard(...)`
+  çağrısını (üç satırlık `options => { ... }` bloğuyla birlikte) GEÇİCİ olarak
+  yorum satırına al — örnek uygulama varsayılan olarak bir guard kaydeder,
+  bu case'in ölçtüğü tam da o kaydın YOKLUĞUdur.
+
+**Adımlar**
+1. Değiştirilmiş örnek uygulamayı `Production` ortamında başlat.
+2. Kalkış log'unda uyarıyı say.
+3. `Program.cs`'i geri al (`git checkout -- samples/AgentPrism.Api/Program.cs`), yeniden derle.
+
+**Girilecek veri**
+```bash
+ASPNETCORE_ENVIRONMENT=Production \
+dotnet run --project samples/AgentPrism.Api --no-launch-profile --urls http://localhost:5099 \
+  > /tmp/faz122-guard-prod.log 2>&1 &
+sleep 14
+grep -ci "no IContentGuard registered" /tmp/faz122-guard-prod.log     # beklenen: 1
+grep -B1 "no IContentGuard registered" /tmp/faz122-guard-prod.log | head -1
+pkill -f AgentPrism.Api
+git checkout -- samples/AgentPrism.Api/Program.cs
+```
+
+**Beklenen sonuç**
+- Uyarı **tam bir kez** düşer; satır `warn:` seviyesindedir ve kaynağı
+  `AgentPrism.SilentGapWarningService`'tir.
+- Mesaj `AddPatternContentGuard()` ve `AddContentGuard<T>()`'i adlandırır.
+- Uygulama ayağa kalkar; uyarı bir hata değildir.
+
+---
+
+### MT-DIAG-056 — Aynı kurulum `Development`'ta SESSİZDİR — Faz 122
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Düşük |
+| **İlgili faz** | Faz 122 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- MT-DIAG-055'in `Program.cs` değişikliği (guard çağrısı yorumda) yeniden
+  uygulanır — bu kez geri ALINMADAN önce bu case de koşulur.
+
+**Adımlar**
+1. **Aynı** (guard'sız) kurulumla, yalnız ortamı değiştirerek başlat.
+
+**Girilecek veri**
+```bash
+ASPNETCORE_ENVIRONMENT=Development \
+dotnet run --project samples/AgentPrism.Api --no-launch-profile --urls http://localhost:5099 \
+  > /tmp/faz122-guard-dev.log 2>&1 &
+sleep 14
+grep -c "Application started" /tmp/faz122-guard-dev.log               # beklenen: 1
+grep -ci "no IContentGuard registered" /tmp/faz122-guard-dev.log      # beklenen: 0
+pkill -f AgentPrism.Api
+git checkout -- samples/AgentPrism.Api/Program.cs
+```
+
+**Beklenen sonuç**
+- Uygulama kalkar ve **hiç uyarı düşmez** — tek değişken ortamdır.
+
+---
+
+### MT-DIAG-057 — `Production` + `Retention:Enabled=false` (varsayılan) başlangıçta TAM BİR uyarı düşürür — Faz 122
+
+Örnek uygulama `appsettings.json`'da retention'ı hiç açmaz — bu case KOD
+DEĞİŞİKLİĞİ gerektirmez, sadece varsayılan kurulumu Production'da başlatır.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 122 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- Örnek uygulama değiştirilmemiş hâliyle derlendi.
+
+**Adımlar**
+1. Örnek uygulamayı `Production` ortamında, varsayılan yapılandırmayla başlat.
+2. Kalkış log'unda uyarıyı say.
+
+**Girilecek veri**
+```bash
+ASPNETCORE_ENVIRONMENT=Production \
+dotnet run --project samples/AgentPrism.Api --no-launch-profile --urls http://localhost:5099 \
+  > /tmp/faz122-retention-prod.log 2>&1 &
+sleep 14
+grep -ci "data retention disabled" /tmp/faz122-retention-prod.log     # beklenen: 1
+grep -B1 "data retention disabled" /tmp/faz122-retention-prod.log | head -1
+pkill -f AgentPrism.Api
+```
+
+**Beklenen sonuç**
+- Uyarı **tam bir kez** düşer; satır `warn:` seviyesindedir ve kaynağı
+  `AgentPrism.SilentGapWarningService`'tir.
+- Mesaj `AgentPrism:Retention:Enabled` anahtarını ve `IRetentionPolicyStore`
+  üzerinden elle politika kaydetme seçeneğini adlandırır.
+- MT-DIAG-055'in uyarısıyla **aynı** log turunda birlikte görünebilir —
+  ikisi de bağımsız kontroller, biri diğerini bastırmaz.
+
+---

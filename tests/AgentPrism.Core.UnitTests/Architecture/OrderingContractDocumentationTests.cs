@@ -77,6 +77,19 @@ public sealed class OrderingContractDocumentationTests
             "ValueTask<IReadOnlyList<AgentDescriptor>> ListAsync",
             ["lower value wins"]
         },
+        {
+            // BL-008 (phase 122): the example used to register AFTER
+            // AddAgentPrism(), contradicting the "registered before wins"
+            // prose right above it - K-642's exact defect shape, on a
+            // different contract. The phrase is bonded to the example's OWN
+            // code text, not to the prose, because the prose was already
+            // correct: only the example regressed, and a phrase describing
+            // the rule in words would stay green even if the example's call
+            // order flipped back.
+            Path.Combine("AgentPrism.Core", "IAgentPrismBuilder.cs"),
+            "IServiceCollection Services { get; }",
+            ["addsingleton(new ordergateway()); builder.addagentprism();"]
+        },
     };
 
     [Theory]

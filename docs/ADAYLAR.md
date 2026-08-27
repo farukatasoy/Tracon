@@ -198,6 +198,37 @@ Bu aday o case'leri silmeyi değil, otomatikleştirilebilir kısmı ayırmayı �
 
 
 
+### F-170 · Store audit kapsamının tamamlanması
+
+**Sorun:** `IAgentSkillStore`'un hiçbir `Auditing*` decorator'ı yok — skill
+kaydı ve silme denetim izine hiç yazmıyor. Kardeşleri (`IAgentDefinitionStore`,
+`ISkillScriptGrantStore`) yazıyor. Faz 121'in bağımsız denetimi buldu ve 🟢
+olarak devretti.
+
+**Kapsam:** Hangi store'ların audit decorator'ı olduğunu ve olması gerektiğini
+ölçmek, boşlukları kapatmak. Tek vaka değil sınıf: `Auditing*` deseninin
+kapsadığı ve kapsamadığı store'lar bir tabloya çıkarılır.
+
+**Değer:** Denetim izi eksiksiz olmayan bir kayıt, compliance için denetim izi
+olmamasıyla aynı yerdedir — kısmi kapsam yanlış güven verir.
+
+**Mercek:** 3, 6.
+
+**Hazırlık:** Faz 121 denetim bulgusu #2. Ölçülmedi — hangi store'ların
+decorator taşıdığı sayılmalı.
+
+**Maliyet:** Orta; runtime davranış eklentisi, doküman işi değil.
+
+**Risk:** Audit yazımının kendisi bir hata yolu üretir — `AuditRecorder`'ın
+mevcut "audit yazamazsa akış durmaz" sözleşmesi korunmalıdır.
+
+**Bağımlılık:** Yok.
+
+**Ekosistem:** 2026-08-28 — iç kalite kaydı; dış ekosistem iddiası yok.
+
+**Karşı görüş:** Kapsam bilinçli olabilir — skill kaydı düşük riskli sayılmış
+olabilir. Aday, önce **ölçmeyi** öneriyor; boşluk kasıtlıysa gerekçesi yazılır.
+
 ## Aday Olmayan Açık Kayıtlar
 
 Bu kalemler faz sıralamasına girmez. Tam kanıt, geçmiş ve sonraki adım keşif

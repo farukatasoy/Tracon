@@ -130,6 +130,29 @@ internal sealed class AgentPrismBuilder : IAgentPrismBuilder
         return this;
     }
 
+    public IAgentPrismBuilder AddAgentDecorator<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TDecorator>()
+        where TDecorator : class, IAgentDecorator
+    {
+        Services.TryAddEnumerable(ServiceDescriptor.Singleton<IAgentDecorator, TDecorator>());
+        return this;
+    }
+
+    public IAgentPrismBuilder AddAgentDecorator(IAgentDecorator decorator)
+    {
+        ArgumentNullException.ThrowIfNull(decorator);
+
+        Services.AddSingleton(decorator);
+        return this;
+    }
+
+    public IAgentPrismBuilder AddAgentDecorator(Func<IServiceProvider, IAgentDecorator> factory)
+    {
+        ArgumentNullException.ThrowIfNull(factory);
+
+        Services.AddSingleton(factory);
+        return this;
+    }
+
     public IAgentPrismBuilder AddRunJudge<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TJudge>()
         where TJudge : class, IRunJudge
     {
@@ -150,6 +173,13 @@ internal sealed class AgentPrismBuilder : IAgentPrismBuilder
         ArgumentNullException.ThrowIfNull(factory);
 
         Services.AddSingleton(factory);
+        return this;
+    }
+
+    public IAgentPrismBuilder AddModelProvider<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TProvider>()
+        where TProvider : class, IModelProvider
+    {
+        Services.TryAddEnumerable(ServiceDescriptor.Singleton<IModelProvider, TProvider>());
         return this;
     }
 

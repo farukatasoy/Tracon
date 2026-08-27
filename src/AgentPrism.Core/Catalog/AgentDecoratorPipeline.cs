@@ -1,3 +1,4 @@
+using System.Runtime.ExceptionServices;
 using Microsoft.Agents.AI;
 
 namespace AgentPrism;
@@ -21,6 +22,7 @@ public static class AgentDecoratorPipeline
     /// <param name="decorators">The registered decorators.</param>
     /// <returns>The decorated agent.</returns>
     /// <exception cref="ArgumentNullException">A parameter is <see langword="null"/>.</exception>
+    /// <exception cref="AgentPrismAgentSourceException">A decorator threw while decorating the agent.</exception>
     public static AIAgent Apply(AIAgent agent, AgentDescriptor descriptor, IEnumerable<IAgentDecorator> decorators)
     {
         ArgumentNullException.ThrowIfNull(agent);
@@ -29,9 +31,44 @@ public static class AgentDecoratorPipeline
 
         foreach (var decorator in decorators.OrderByDescending(static decorator => decorator.Order))
         {
-            agent = decorator.Decorate(agent, descriptor);
+            try
+            {
+                agent = decorator.Decorate(agent, descriptor);
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception exception)
+            {
+                throw Wrap(descriptor, exception);
+            }
         }
 
         return agent;
+    }
+
+    /// <summary>
+    /// Normalizes a decorator failure into the same exception shape
+    /// <see cref="CompositeAgentCatalog"/> uses for a source failure - a
+    /// packaged consumer reads one contract for "the catalog could not
+    /// resolve this agent because of an extension", not two.
+    /// </summary>
+    private static AgentPrismAgentSourceException Wrap(AgentDescriptor descriptor, Exception exception)
+    {
+        if (exception is AgentPrismException)
+        {
+            // Already a safe, normalized error (see the identical rationale on
+            // CompositeAgentCatalog.HandleSourceFailure) - re-wrapping it would
+            // both lose its specific type and misreport it as a decorator
+            // failure it is not.
+            ExceptionDispatchInfo.Capture(exception).Throw();
+        }
+
+        return new AgentPrismAgentSourceException(
+            descriptor.SourceName,
+            AgentPrismAgentSourceException.SourceFailedErrorType,
+            $"Agent source '{descriptor.SourceName}' failed during decorate ({AgentPrismAgentSourceException.SourceFailedErrorType}).",
+            exception);
     }
 }

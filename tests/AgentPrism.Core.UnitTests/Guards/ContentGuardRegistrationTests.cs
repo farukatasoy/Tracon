@@ -117,6 +117,50 @@ public sealed class ContentGuardRegistrationTests
     }
 
     [Fact]
+    public void A_configured_guard_instance_can_be_registered()
+    {
+        var guard = new AllowAllGuard();
+
+        using var provider = Build(services => services
+            .AddAgentPrism()
+            .AddContentGuard(guard));
+
+        provider.GetServices<IContentGuard>().ShouldHaveSingleItem().ShouldBeSameAs(guard);
+    }
+
+    [Fact]
+    public void Multiple_configured_guard_instances_are_all_preserved()
+    {
+        var first = new AllowAllGuard();
+        var second = new AllowAllGuard();
+
+        using var provider = Build(services => services
+            .AddAgentPrism()
+            .AddContentGuard(first)
+            .AddContentGuard(second));
+
+        provider.GetServices<IContentGuard>().OfType<AllowAllGuard>().ShouldBe([first, second]);
+    }
+
+    [Fact]
+    public void A_guard_factory_runs_once_and_preserves_multiple_configurations()
+    {
+        var calls = 0;
+
+        using var provider = Build(services => services
+            .AddAgentPrism()
+            .AddContentGuard(_ =>
+            {
+                calls++;
+                return new AllowAllGuard();
+            })
+            .AddContentGuard(_ => new AllowAllGuard()));
+
+        provider.GetServices<IContentGuard>().OfType<AllowAllGuard>().Count().ShouldBe(2);
+        calls.ShouldBe(1);
+    }
+
+    [Fact]
     public void The_built_in_guard_and_a_custom_guard_can_be_registered_together()
     {
         using var provider = Build(services => services

@@ -141,7 +141,18 @@ internal sealed class CompositeAgentCatalog : IAgentCatalog
 
             foreach (var decorator in _decorators)
             {
-                agent = decorator.Decorate(agent, descriptor);
+                try
+                {
+                    agent = decorator.Decorate(agent, descriptor);
+                }
+                catch (OperationCanceledException)
+                {
+                    throw;
+                }
+                catch (Exception exception)
+                {
+                    throw HandleSourceFailure(source, "decorate", exception);
+                }
             }
 
             return agent;
@@ -215,7 +226,18 @@ internal sealed class CompositeAgentCatalog : IAgentCatalog
 
             foreach (var decorator in _decorators)
             {
-                agent = decorator.Decorate(agent, descriptor);
+                try
+                {
+                    agent = decorator.Decorate(agent, descriptor);
+                }
+                catch (OperationCanceledException)
+                {
+                    throw;
+                }
+                catch (Exception exception)
+                {
+                    throw HandleSourceFailure(source, "decorate", exception);
+                }
             }
 
             return agent;
