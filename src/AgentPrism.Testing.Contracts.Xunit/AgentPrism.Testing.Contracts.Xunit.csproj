@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <Description>Behavior contract suite for AgentPrism store interfaces (IRunStore and 32 others), as xunit.v3 test base classes. A third-party implementation derives one class per interface and inherits the same scenarios the four shipped providers run.</Description>
+    <Description>Behavior contract suites for AgentPrism extension points, as xunit.v3 test base classes: store interfaces (IRunStore and 30 others), IModelProvider, IRunJudge, IAgentSource, IJobHandler, and code-defined custom tools. A third-party implementation derives one class per interface and inherits the same scenarios the shipped implementations run.</Description>
     <PackageTags>$(CommonPackageTags);testing;contracts;xunit</PackageTags>
     <!--
       Every abstract class, protected member and TestData factory carries a

@@ -1,7 +1,8 @@
 # AgentPrism.Testing.Contracts.Xunit
 
 Behavior contract suites for AgentPrism's extension points — the store
-interfaces (`IRunStore` and 32 others) and `IModelProvider` — packaged as
+interfaces (`IRunStore` and 30 others), `IModelProvider`, `IRunJudge`,
+`IAgentSource`, `IJobHandler`, and code-defined custom tools — packaged as
 xunit.v3 test base classes.
 
 AgentPrism ships four store implementations (in-memory, PostgreSQL, SQL
@@ -52,7 +53,7 @@ your own exception; it does not fail to compile.
 
 One abstract class per `AgentPrism.Abstractions` store interface:
 `RunStoreContract`, `SessionStoreContract`, `AgentDefinitionStoreContract`,
-`ExperimentStoreContract`, and 29 more. Every one derives from
+`ExperimentStoreContract`, and 27 more. Every one derives from
 `TenantIsolationContract<TStore>`, which supplies the shared lifecycle
 plumbing (`InitializeAsync`/`DisposeAsync`) and the two-directional tenant
 check every store must pass: a tenant reads its own records, and never
@@ -124,6 +125,40 @@ Derive `VersionedAgentSourceContract` only when the source implements
 `IVersionedAgentSource`. Derive `TenantAwareAgentSourceContract` only when it changes
 its list for the ambient tenant.
 
+### Custom tools — `AgentPrism.Testing.Contracts.Tools`
+
+Derive `CustomToolContract` for a code-defined tool registration. It checks the
+registration's declared shape against what the tool actually returns when the
+runtime invokes it. Derive `RepeatableToolContract` instead — it extends
+`CustomToolContract` — only when the tool sets
+`AgentPrismToolRegistration.SafeToRepeat`, because that flag is a promise the
+runtime acts on and the extra scenarios are what hold you to it.
+
+### Job handlers — `AgentPrism.Testing.Contracts.Scheduling`
+
+Derive `JobHandlerContract` for an `IJobHandler`. Job delivery is
+**at-least-once**: a lease can expire and hand the same items to your handler
+again. The contract holds you to the two behaviors this requires — a
+handler must not reprocess an item it already reported, and it must observe
+cancellation between items.
+
+```csharp
+using AgentPrism.Testing.Contracts.Scheduling;
+
+public sealed class NightlyReportHandlerTests : JobHandlerContract
+{
+    protected override ValueTask<IJobHandler> CreateHandlerAsync()
+        => new(new NightlyReportHandler());
+
+    protected override JobItemRecord CreateItem(int sequence, JobItemStatus status)
+        => new()
+        {
+            Id = Guid.NewGuid(), JobId = JobId, Seq = sequence,
+            Input = $"customer-{sequence}", Status = status,
+        };
+}
+```
+
 ### Checking you derived them all
 
 `ContractCoverage` reports contract classes your test assembly has no derived
@@ -139,10 +174,11 @@ public void Every_provider_contract_has_a_derived_test()
         Assembly.GetExecutingAssembly(), ContractCoverage.ProviderContracts).ShouldBeEmpty();
 ```
 
-Pass `ContractCoverage.StorageContracts` for stores. A contract you
-deliberately do not implement goes in the `except` argument, where a name
-that matches nothing is itself reported — a stale exemption must not pass
-quietly.
+One constant per family: `ContractCoverage.StorageContracts`,
+`ProviderContracts`, `JudgeContracts`, `AgentSourceContracts`,
+`ToolContracts`, and `SchedulingContracts`. A contract you deliberately do
+not implement goes in the `except` argument, where a name that matches
+nothing is itself reported — a stale exemption must not pass quietly.
 
 ## See also
 

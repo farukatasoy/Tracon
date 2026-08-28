@@ -229,6 +229,55 @@ mevcut "audit yazamazsa akış durmaz" sözleşmesi korunmalıdır.
 **Karşı görüş:** Kapsam bilinçli olabilir — skill kaydı düşük riskli sayılmış
 olabilir. Aday, önce **ölçmeyi** öneriyor; boşluk kasıtlıysa gerekçesi yazılır.
 
+### F-171 · Sevk edilen metindeki ölçülmüş sayılar için kapı
+
+**Sorun:** Sevk edilen metin, koddan **elle kopyalanmış** ölçüm sayıları taşıyor
+ve hiçbir kapı onları doğrulamıyor. `preview.1` öncesi drift taraması (2026-08-28)
+**altı** bayat sayı buldu ve üçü birbiriyle çelişiyordu:
+
+| İddia | Sevk edilen değer(ler) | Ölçülen gerçek |
+|---|---|---|
+| Konsol ekranı | 27 (×2), 28 (×3) | **30** (`app.tsx` `*Screen` importları) |
+| Konsol rotası | 33, 36 | **36** (`app.tsx` `pattern:` sayısı) |
+| JS bundle gzip | 180.2 KB, 165.8 KB, 169.4 KB | **175.9 KB** (`npm run build`) |
+| İstemci operasyonu | 161 (×2) | **162** (`agentprism.json`) |
+| Store contract'ı | "32 others" / "29 more" | **31** (32 dosya − ortak taban) |
+| Kök README paket tablosu | 19 satır | **20** paket |
+
+Hepsi K-483'ün sınıfı: elle tekrarlanan bir ölçüm, terim değişince sessizce
+yanlışa döner. Beş yüzey (kök README, üç paket README'si, iki site sayfası)
+birbirinden habersiz kopya taşıyordu.
+
+**Kapsam:** Bu sayıları koddan türeten bir kapı. En küçük hâli
+`check-content.mjs`'e bir kontrol eklemektir: sevk edilen metindeki işaretli
+sayıları (`app.tsx`, `agentprism.json`, `postbuild.mjs` çıktısı, packable
+`.csproj` kümesi, `Contracts/` envanteri) yeniden hesaplayıp karşılaştırır.
+Alternatif: sayıyı metinden **çıkarmak** — kapı yazmak yerine iddiayı
+kaldırmak da geçerli bir çözümdür ve ölçülmelidir.
+
+**Değer:** Bu tarama elle koştuğu için bulundu. Bir sonraki fazın eklediği ekran
+veya operasyon aynı altı yüzeyi sessizce bayatlatır; NuGet'e basılan README
+geri alınamaz.
+
+**Mercek:** 6.
+
+**Hazırlık:** Yukarıdaki tablo ölçüldü ve düzeltmeler uygulandı (drift taraması,
+2026-08-28). Kapı yazılmadı — bu aday odur.
+
+**Maliyet:** Düşük-orta; tek bir kontrol dosyası, mevcut `check-content.mjs`
+deseninde.
+
+**Risk:** Fazla katı bir kapı, meşru yuvarlanmış ifadeyi ("about 30 screens")
+kızartabilir. Kontrol yalnız **işaretli** sayıya bakmalı, her rakama değil.
+
+**Bağımlılık:** Yok.
+
+**Ekosistem:** 2026-08-28 — iç kalite kaydı; dış ekosistem iddiası yok.
+
+**Karşı görüş:** Altı sayının hepsi düzeltildi ve bazıları (bundle boyutu) her
+build'de değişir — belki doğru cevap sayıyı sevk edilen metinden tamamen
+çıkarmaktır. Aday bu ikilemi kapsamına dahil ediyor.
+
 ## Aday Olmayan Açık Kayıtlar
 
 Bu kalemler faz sıralamasına girmez. Tam kanıt, geçmiş ve sonraki adım keşif
