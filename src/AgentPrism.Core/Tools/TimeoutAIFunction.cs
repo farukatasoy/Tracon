@@ -82,13 +82,16 @@ public sealed class TimeoutAIFunction : DelegatingAIFunction
             {
                 if (t.IsFaulted)
                 {
-                    logger.LogWarning(
-                        t.Exception,
-                        "Tool '{ToolName}' faulted after its {TimeoutSeconds}s timeout had already been reported to the model.",
-                        toolName,
-                        timeout.TotalSeconds);
+                    if (logger.IsEnabled(LogLevel.Warning))
+                    {
+                        logger.LogWarning(
+                            t.Exception,
+                            "Tool '{ToolName}' faulted after its {TimeoutSeconds}s timeout had already been reported to the model.",
+                            toolName,
+                            timeout.TotalSeconds);
+                    }
                 }
-                else
+                else if (logger.IsEnabled(LogLevel.Information))
                 {
                     logger.LogInformation(
                         "Tool '{ToolName}' finished after its {TimeoutSeconds}s timeout had already been reported to the model.",

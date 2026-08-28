@@ -181,7 +181,13 @@ internal sealed class OnlineEvalJobHandler(
             if (alreadyScored.TryGetValue(judge.Name, out var existing))
             {
                 scores.Add(existing);
-                logger?.LogDebug("Judge '{Judge}' already scored run {RunId} in an earlier attempt; skipping.", judge.Name, run.Id);
+                if (logger?.IsEnabled(LogLevel.Debug) is true)
+                {
+                    logger.LogDebug(
+                        "Judge '{Judge}' already scored run {RunId} in an earlier attempt; skipping.",
+                        judge.Name,
+                        run.Id);
+                }
                 continue;
             }
 
@@ -374,9 +380,9 @@ internal sealed class OnlineEvalJobHandler(
                         judge.Name,
                         context.RunId);
                 }
-                else
+                else if (logger?.IsEnabled(LogLevel.Debug) is true)
                 {
-                    logger?.LogDebug(
+                    logger.LogDebug(
                         "Judge '{Judge}' finished after its timeout was reported for run {RunId}.",
                         judge.Name,
                         context.RunId);

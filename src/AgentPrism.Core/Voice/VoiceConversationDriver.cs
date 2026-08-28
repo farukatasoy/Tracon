@@ -337,9 +337,12 @@ internal sealed class VoiceConversationDriver
             // 🚨 Safety net: the VAD of the client never fired. The utterance closes
             // on its own; without this the buffer fills, the audio that follows is
             // dropped silently and the conversation is never answered.
-            driver._logger.LogInformation(
-                "The voice utterance reached the limit and closed on its own ({Bytes} bytes).",
-                _buffer.Length);
+            if (driver._logger.IsEnabled(LogLevel.Information))
+            {
+                driver._logger.LogInformation(
+                    "The voice utterance reached the limit and closed on its own ({Bytes} bytes).",
+                    _buffer.Length);
+            }
 
             Commit();
         }
