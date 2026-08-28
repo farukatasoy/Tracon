@@ -1,14 +1,14 @@
 # Faz 123 — Yayın Kritik Yolu: Kapı Kapsamı, Adaptör Sözleşmesi ve Sürüm Notları
 
 > **Durum:** ✅ Tamamlandı (2026-08-28)
-> **Kaynak:** [YAYIN-HAZIRLIK.md](YAYIN-HAZIRLIK.md) — **BL-052**, **BL-015**, **OP-007** (KG-019, yol B)
-> **Önkoşul:** Yok — [Faz 122](arsiv/fazlar/122-KAYIT-API-SI-VE-SESSIZ-BOSLUKLAR.md) kapandı, çalışma ağacı temiz
+> **Kaynak:** [YAYIN-HAZIRLIK.md](../../YAYIN-HAZIRLIK.md) — **BL-052**, **BL-015**, **OP-007** (KG-019, yol B)
+> **Önkoşul:** Yok — [Faz 122](122-KAYIT-API-SI-VE-SESSIZ-BOSLUKLAR.md) kapandı, çalışma ağacı temiz
 > **Paketler:** Kod paketi değişmiyor. Dokunulan: `src/Directory.Build.props`, `src/AgentPrism.Core`, `src/AgentPrism.{Anthropic,Azure,Google,OpenAI}`, `scripts/`, `.github/workflows/ci.yml`, `tests/AgentPrism.{Anthropic,Azure,Google,OpenAI}.UnitTests`
 > **Yeni paket:** Yok · **Migration:** Yok
 > **Public API:** Planın "büyümüyor" iddiası K-646'nın kusur düzeltmesiyle geçersiz kaldı — bkz. Gerçekleşen Public API. `AgentPrism.Core`'a bir tip eklendi (`TenantChatClientCacheKey`), `PublicAPI.Shipped.txt` toplamı hâlâ **0** satırdır (K-603)
-> **Tüketici yüzeyi:** site: [`reference/versioning.md`](../docs-site/src/content/docs/reference/versioning.md) (yalnız bağlantı eklenir; ayna sayfa **yok**)
+> **Tüketici yüzeyi:** site: [`reference/versioning.md`](../../../docs-site/src/content/docs/reference/versioning.md) (yalnız bağlantı eklenir; ayna sayfa **yok**)
 > · sevk edilen: **yeni** kök `CHANGELOG.md` (İngilizce) + her `.nuspec`'e giren `PackageReleaseNotes`
-> **Manuel test alanı:** [`docs/manuel-test/01-KURULUM-VE-PAKETLEME.md`](manuel-test/01-KURULUM-VE-PAKETLEME.md)
+> **Manuel test alanı:** [`docs/manuel-test/01-KURULUM-VE-PAKETLEME.md`](../../manuel-test/01-KURULUM-VE-PAKETLEME.md)
 
 ---
 
@@ -25,18 +25,18 @@
    **K-604** (yayın işleri `release-dryrun` kapısına bağlandı), **K-622** (kapı
    *beş* sample'a bağlandı — 🚨 bu fazın düzelttiği ifade), **K-007** (yeni
    bağımlılık gerekçesi), **K-603** (`PublicAPI.Shipped.txt` boştur)
-3. [Faz 122](arsiv/fazlar/122-KAYIT-API-SI-VE-SESSIZ-BOSLUKLAR.md) — yalnız devir notu:
+3. [Faz 122](122-KAYIT-API-SI-VE-SESSIZ-BOSLUKLAR.md) — yalnız devir notu:
    ```bash
    awk '/## Sonraki Faza Devir Notu/,0' docs/arsiv/fazlar/122-KAYIT-API-SI-VE-SESSIZ-BOSLUKLAR.md
    ```
    Kulvar 2'nin nerede kapandığını ve hangi kalemlerin bilinçli olarak dışarıda
    bırakıldığını söyler.
 4. Alan hafızası (bu faz iki alana dokunuyor):
-   [`hafiza/build-ve-analyzer.md`](hafiza/build-ve-analyzer.md) (pack, MinVer,
-   metaveri kapısı) · [`hafiza/dokumantasyon.md`](hafiza/dokumantasyon.md)
+   [`hafiza/build-ve-analyzer.md`](../../hafiza/build-ve-analyzer.md) (pack, MinVer,
+   metaveri kapısı) · [`hafiza/dokumantasyon.md`](../../hafiza/dokumantasyon.md)
    (`docs/` ↔ `docs-site/` sınırı, dil sınırı)
 5. Gerektiğinde, tamamı değil ilgili bölümü:
-   [`.agents/ortak/kapilar.md`](../.agents/ortak/kapilar.md) (kapı yüzeyi)
+   [`.agents/ortak/kapilar.md`](../../../.agents/ortak/kapilar.md) (kapı yüzeyi)
 
 ---
 
@@ -58,17 +58,17 @@ dosyayı (`kapi.py`, `ci.yml`, `Directory.Build.props`) üç kez açmak olurdu.
 
 | Kanıt | Gözlem |
 |---|---|
-| [`scripts/release_extension_samples.py:12-18`](../scripts/release_extension_samples.py) | `SAMPLE_TEST_PROJECTS` elle yazılmış **beşli** tuple; `AgentPrism.Samples.CustomJobHandler.Tests` içinde **yok** |
-| [`scripts/release_extension_samples.py:35`](../scripts/release_extension_samples.py) | Aynı dosyadaki `validate_sample_contract` `samples.glob("AgentPrism.Samples.*/*.csproj")` kullanır — **şekil** doğrulaması altı sample'ı da kapsar. Yani sample doğrulanır ama koşulmaz |
-| [`samples/Directory.Build.props:15`](../samples/Directory.Build.props) | `AgentPrismSamplePackageVersion` varsayılanı `*-*` — **floating**. Kapı dışında koşan sample exact sürüm kanıtı üretmez |
+| [`scripts/release_extension_samples.py:12-18`](../../../scripts/release_extension_samples.py) | `SAMPLE_TEST_PROJECTS` elle yazılmış **beşli** tuple; `AgentPrism.Samples.CustomJobHandler.Tests` içinde **yok** |
+| [`scripts/release_extension_samples.py:35`](../../../scripts/release_extension_samples.py) | Aynı dosyadaki `validate_sample_contract` `samples.glob("AgentPrism.Samples.*/*.csproj")` kullanır — **şekil** doğrulaması altı sample'ı da kapsar. Yani sample doğrulanır ama koşulmaz |
+| [`samples/Directory.Build.props:15`](../../../samples/Directory.Build.props) | `AgentPrismSamplePackageVersion` varsayılanı `*-*` — **floating**. Kapı dışında koşan sample exact sürüm kanıtı üretmez |
 | `kapi.py yayin --kuru` çıktısı (KN-018) | Kapının kendi başarı satırı: `✅ Beş exact-version packed sample ve Native AOT smoke` |
 | `tests/AgentPrism.{Anthropic,Azure,Google,OpenAI}.UnitTests/*.csproj` | Hiçbiri `AgentPrism.Testing.Contracts.Xunit`'e referans vermiyor |
 | `tests/AgentPrism.{Anthropic,Azure,Google}.UnitTests/*ModelProviderCredentialTests.cs` | Üçünde elle yazılmış ayrı credential testi var — paylaşılan sözleşme yerine dört paralel suite |
-| [`ModelProviderContract.cs`](../src/AgentPrism.Testing.Contracts.Xunit/Contracts/Providers/ModelProviderContract.cs) XML dokümanı | "runs with no network access and no API key" — türetmek `secret` veya ağ gerektirmez |
+| [`ModelProviderContract.cs`](../../../src/AgentPrism.Testing.Contracts.Xunit/Contracts/Providers/ModelProviderContract.cs) XML dokümanı | "runs with no network access and no API key" — türetmek `secret` veya ağ gerektirmez |
 | `ls CHANGELOG.md` | Dosya **yok** |
 | `grep -rn "PackageReleaseNotes" src/ scripts/` | **0** sonuç — ne tanımlı ne de kapı tarafından denetleniyor |
 | `grep -rln "gh release create\|action-gh-release" .github/` | **0** sonuç — CI GitHub release üretmiyor (OP-006) |
-| [`src/Directory.Build.props:66-69`](../src/Directory.Build.props) | MinVer `v` önekli tag'den sürüm türetir; `MinVerAutoIncrement=minor` |
+| [`src/Directory.Build.props:66-69`](../../../src/Directory.Build.props) | MinVer `v` önekli tag'den sürüm türetir; `MinVerAutoIncrement=minor` |
 
 > Kanıtlar 2026-08-28 tarihinde doğrulandı.
 
@@ -247,7 +247,7 @@ tests/AgentPrism.OpenAI.UnitTests/
 
 > Mutlu yoldan değil, **ne bozulabilir**den türetilir. Seviyeyi plan seçer.
 > Sınır geçen davranış (DI · HTTP · kiracı · akış · depo · paket) birim
-> testiyle kanıtlanamaz — [`.agents/ortak/test-seviyeleri.md`](../.agents/ortak/test-seviyeleri.md).
+> testiyle kanıtlanamaz — [`.agents/ortak/test-seviyeleri.md`](../../../.agents/ortak/test-seviyeleri.md).
 
 | Ne bozulabilir | Seviye | Test |
 |---|---|---|
@@ -276,7 +276,7 @@ bağlı kalmaz.
 
 ## Manuel Kabul Case'leri
 
-> Kapanışta [`docs/manuel-test/01-KURULUM-VE-PAKETLEME.md`](manuel-test/01-KURULUM-VE-PAKETLEME.md)
+> Kapanışta [`docs/manuel-test/01-KURULUM-VE-PAKETLEME.md`](../../manuel-test/01-KURULUM-VE-PAKETLEME.md)
 > içine eklenecek case'lerin taslağı.
 
 | # | Ön koşul | Adımlar | Beklenen sonuç |
