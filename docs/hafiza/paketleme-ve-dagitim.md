@@ -162,3 +162,13 @@
   cakisma tespiti: `python3 -c "import json; s=json.load(open('docs/openapi/agentprism.json'))['components']['schemas']; print([k for k,v in s.items() if v=={}])"`
   — cikan her ad `COLLIDING_ANY_TYPES`'a eklenir. `scripts/nswag_postprocess_client_test.py`
   regresyonu kapatir.
+
+- **🚨 `$(Version)` iceren bir MSBuild ozelligi duz bir `<PropertyGroup>`'ta
+  HER ZAMAN bos okunur** (2026-08-28, olculdu: `PackageReleaseNotes` ureten
+  URL her paket icin `.../blob/v/CHANGELOG.md` cikti). Sebep `IsAotCompatible`
+  tuzaginin AYNI SINIFI, farkli ekseni: `<Project>`'in DOGRUDAN cocugu olan
+  her `<PropertyGroup>` **evaluation phase**'de, TUM target'lardan ONCE
+  degerlendirilir; MinVer `$(Version)`'i kendi TARGET'inde (**execution
+  phase**) hesaplar. Cozum: ozelligi `BeforeTargets="GenerateNuspec"` bir
+  `<Target>`'in ICINDEKI `<PropertyGroup>`'a tasi — o zaman `$(Version)` zaten
+  dolu. Kanit: `src/Directory.Build.props`.

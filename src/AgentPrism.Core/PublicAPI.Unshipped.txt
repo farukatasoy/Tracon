@@ -810,6 +810,8 @@ AgentPrism.SkillScriptExecutionResult.Truncated.init -> void
 AgentPrism.SkillScriptNaming
 AgentPrism.SkillScriptSupport
 AgentPrism.SkillScriptSupport.SkillScriptSupport(AgentPrism.SandboxedSkillScriptRunner! runner, Microsoft.Extensions.Options.IOptions<AgentPrism.AgentPrismOptions!>! options, Microsoft.Extensions.Logging.ILoggerFactory? loggerFactory = null) -> void
+AgentPrism.TenantChatClientCacheKey
+static AgentPrism.TenantChatClientCacheKey.For(AgentPrism.ModelProviderCredential! credential, AgentPrism.ModelBinding! binding) -> string!
 AgentPrism.TenantProviderCredentialResolver
 AgentPrism.TenantProviderCredentialResolver.Resolve(AgentPrism.TenantProviderBinding! binding) -> AgentPrism.ModelProviderCredential?
 AgentPrism.TenantProviderCredentialResolver.TenantProviderCredentialResolver(Microsoft.Extensions.Configuration.IConfiguration? configuration, Microsoft.Extensions.Options.IOptionsMonitor<AgentPrism.AgentPrismTenantProviderOptions!>! options) -> void

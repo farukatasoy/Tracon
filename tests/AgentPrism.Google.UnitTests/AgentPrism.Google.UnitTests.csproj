@@ -2,6 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="../../src/AgentPrism.Google/AgentPrism.Google.csproj" />
+    <ProjectReference Include="../../src/AgentPrism.Testing.Contracts.Xunit/AgentPrism.Testing.Contracts.Xunit.csproj" />
   </ItemGroup>
 
   <ItemGroup>

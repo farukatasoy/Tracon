@@ -2579,3 +2579,230 @@ grep -n -A2 "^  publish:\|^  npm-publish:\|^  release-dryrun:" .github/workflows
 - `publish` ve `npm-publish` işlerinin `needs:` satırı `release-dryrun`'ı içerir.
 - Satır elle çıkarıldığında iş grafiği `publish`'i `pack` bittiği an başlatır — prova
   artık yolun üzerinde değildir; bu gözlem geri alma kararını doğrular.
+
+---
+
+### MT-PKG-101 — Yayın provası altı sample'ı da sayar
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 123 |
+| **İlgili karar** | K-622 |
+
+`kapi.py yayin` artık `AgentPrism.Samples.CustomJobHandler.Tests`'i de koşar
+(BL-052) — beş değil altı sample, artı Native AOT smoke.
+
+**Ön koşul**
+- Temiz ağaç.
+
+**Adımlar**
+1. Yayın provasını zorlanmış bir sürümle koş.
+2. Başarı satırının sample sayısını oku.
+
+**Girilecek veri**
+```bash
+MSBUILDDISABLENODEREUSE=1 python3 scripts/kapi.py yayin --kuru --surum 1.0.0-preview.1
+```
+
+**Beklenen sonuç**
+- Çıkış `0`.
+- Son satır: `✅ 6 exact-version packed sample ve Native AOT smoke: 1.0.0-preview.1`.
+
+---
+
+### MT-PKG-102 — `CHANGELOG.md` bölümü eksikken kapı fail-closed döner
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 123 |
+| **İlgili karar** | — |
+
+Zorlanan sürüm için `CHANGELOG.md`'de `## [<sürüm>]` başlığı yoksa kapı
+sıfır olmayan çıkış verir — notsuz bir `v*` etiketi NuGet.org'a gidemez.
+
+**Ön koşul**
+- `CHANGELOG.md`'deki `## [1.0.0-preview.1] - 2026-08-28` satırı geçici olarak
+  başka bir sürüm numarasına değiştirilir (ör. `1.0.0-preview.9999`).
+
+**Adımlar**
+1. Başlığı geçici değiştir.
+2. Yayın provasını aynı sürümle koş.
+3. Başlığı geri al.
+
+**Girilecek veri**
+```bash
+cp CHANGELOG.md /tmp/CHANGELOG.md.bak
+sed -i '' 's/## \[1\.0\.0-preview\.1\] - 2026-08-28/## [1.0.0-preview.9999] - 2026-08-28/' CHANGELOG.md
+MSBUILDDISABLENODEREUSE=1 python3 scripts/kapi.py yayin --kuru --surum 1.0.0-preview.1
+cp /tmp/CHANGELOG.md.bak CHANGELOG.md
+```
+
+**Beklenen sonuç**
+- Sıfır olmayan çıkış.
+- Son satır: `❌ CHANGELOG.md içinde '## [1.0.0-preview.1]' bölümü yok veya boş`.
+- Başlık geri alındıktan sonra aynı komut tekrar `0` döner.
+
+---
+
+### MT-PKG-103 — Envanterden sarkan yeni bir sample kapıyı kırar
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 123 |
+| **İlgili karar** | K-622 |
+
+`samples/AgentPrism.Samples.*.Tests` envanteri `SAMPLE_TEST_PROJECTS` ∪
+`SAMPLE_TEST_EXCLUSIONS` ile tam eşleşmezse kapı adı vererek kırılır —
+Faz 120'nin sessizce dışarıda kalan sample'ının tekrarı imkânsız kılınır.
+
+**Ön koşul**
+- Boş bir `samples/AgentPrism.Samples.Deneme.Tests/` dizini, içinde tek bir
+  `.csproj` dosyası, geçici olarak açılır.
+
+**Adımlar**
+1. Sahte proje dizinini oluştur.
+2. Envanter kapısını tek başına çalıştır (tam prova beklemeden).
+3. Dizini sil.
+
+**Girilecek veri**
+```bash
+mkdir -p samples/AgentPrism.Samples.Deneme.Tests
+echo '<Project Sdk="Microsoft.NET.Sdk" />' > samples/AgentPrism.Samples.Deneme.Tests/AgentPrism.Samples.Deneme.Tests.csproj
+python3 -c "
+import sys, pathlib
+sys.path.insert(0, 'scripts')
+import release_extension_samples as res
+print(res.validate_sample_inventory(pathlib.Path('.')))
+"
+rm -rf samples/AgentPrism.Samples.Deneme.Tests
+```
+
+**Beklenen sonuç**
+- Liste boş değildir; tek satırı `AgentPrism.Samples.Deneme.Tests`'i adlandırır
+  ve `SAMPLE_TEST_PROJECTS`/`SAMPLE_TEST_EXCLUSIONS`'a girmediğini söyler.
+- Dizin silindikten sonra liste tekrar boştur.
+
+---
+
+### MT-PKG-104 — `PackageReleaseNotes` çözümlenmiş sürümü taşır, ham `$(Version)` değil
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 123 |
+| **İlgili karar** | — |
+
+`$(Version)` MinVer'in kendi hedefinden gelir ve `src/Directory.Build.props`
+içindeki düz bir `<PropertyGroup>` onu HENÜZ boşken okur; `PackageReleaseNotes`
+bu yüzden `BeforeTargets="GenerateNuspec"` bir hedefin İÇİNDE atanır.
+
+**Ön koşul**
+- MT-PKG-101 koşuldu (paketler `artifacts/package/release/` içinde).
+
+**Adımlar**
+1. `AgentPrism.Core` paketinin `.nuspec`'inden `releaseNotes` alanını oku.
+
+**Girilecek veri**
+```bash
+unzip -p artifacts/package/release/AgentPrism.Core.1.0.0-preview.1.nupkg '*.nuspec' | grep releaseNotes
+```
+
+**Beklenen sonuç**
+- `https://github.com/farukatasoy/AgentPrism/blob/v1.0.0-preview.1/CHANGELOG.md`.
+- `v$(Version)` veya `v/CHANGELOG.md` (boş sürüm) **görünmez**.
+
+---
+
+### MT-PKG-105 — 20/20 paket `releaseNotes` alanını taşır
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 123 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- MT-PKG-101 koşuldu.
+
+**Adımlar**
+1. Her `.nupkg`'in `.nuspec`'inde `<releaseNotes>` alanını ara.
+
+**Girilecek veri**
+```bash
+for f in artifacts/package/release/*.nupkg; do
+  unzip -p "$f" '*.nuspec' | grep -q '<releaseNotes>' || echo "EKSIK: $f"
+done
+```
+
+**Beklenen sonuç**
+- Hiçbir satır basılmaz (20/20 paket alanı taşır).
+
+---
+
+### MT-PKG-106 — Dört adaptörün model-sağlayıcı sözleşmesi `secret` ve ağ olmadan geçer
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 123 |
+| **İlgili karar** | K-646 |
+
+`AgentPrism.{Anthropic,Azure,Google,OpenAI}.UnitTests` artık
+`ModelProviderContract` + `ModelProviderCredentialContract`'ı türetir (Anthropic
+ve Google ayrıca `ModelProviderSettingsContract`'ı). Sözleşme bir kusur buldu
+(BYOK sarmalayıcısı önbelleğe alınmıyordu, K-646) ve dördünde de düzeltildi.
+
+**Ön koşul**
+- `secret` yok, ağ erişimi gerekmez.
+
+**Adımlar**
+1. Dört adaptör test projesini ayrı ayrı koş.
+
+**Girilecek veri**
+```bash
+for p in Anthropic Azure Google OpenAI; do
+  MSBUILDDISABLENODEREUSE=1 dotnet build tests/AgentPrism.$p.UnitTests -c Release
+  ./artifacts/bin/AgentPrism.$p.UnitTests/release/AgentPrism.$p.UnitTests
+done
+```
+
+**Beklenen sonuç**
+- Dördü de `Test run summary: Passed!`; `Skip` **yok**.
+- `Concurrent_resolution_of_one_credential_stays_stable` dahil her sözleşme case'i geçer.
+
+---
+
+### MT-PKG-107 — Site sürüm sayfası `CHANGELOG.md`'ye bağlanır
+
+| | |
+|---|---|
+| **İzlek** | 👤 |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 123 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- `docs-site` bağımlılıkları kurulu.
+
+**Adımlar**
+1. Siteyi derle.
+2. `/reference/versioning/` sayfasını tarayıcıda aç.
+3. "Release notes" bölümündeki bağlantıyı tıkla.
+
+**Girilecek veri**
+```bash
+cd docs-site && npm run build && npm run preview
+```
+
+**Beklenen sonuç**
+- Sayfada "Release notes" başlığı ve kök `CHANGELOG.md`'ye giden bir bağlantı görünür.
+- Bağlantı GitHub'da `CHANGELOG.md`'yi açar (repo public olduğunda; private iken 404 kabul edilir — kapı URL'in şeklini doğrular, erişilebilirliğini değil).
