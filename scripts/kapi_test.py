@@ -39,7 +39,12 @@ class KapiTestleri(unittest.TestCase):
 
         self.assertIn("--filter-class", command.args)
         self.assertNotIn("--filter", command.args)
-        self.assertTrue(command.args[0].endswith("/AgentPrism.Core.UnitTests/release/AgentPrism.Core.UnitTests"))
+        # Ayraçla DEĞİL parçayla karşılaştırılır: Windows'ta `pathlib` ters eğik
+        # çizgi üretir, `endswith("/...")` orada HER ZAMAN False döner ve kapı
+        # yalnız `windows-latest` ayağında kırmızı olur (üretim kodu doğruydu).
+        parts = pathlib.PurePath(command.args[0]).parts[-3:]
+        self.assertEqual(
+            parts, ("AgentPrism.Core.UnitTests", "release", "AgentPrism.Core.UnitTests"))
 
     def test_sync_taramasi_dosya_ve_dizin_kopyasini_bulur(self):
         with tempfile.TemporaryDirectory() as directory:
