@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib.util
+import xml.etree.ElementTree as ElementTree
 import pathlib
 import sys
 import tempfile
@@ -172,6 +173,18 @@ class ReleaseExtensionSamplesTestleri(unittest.TestCase):
 
         self.assertIn('environment["NUGET_PACKAGES"] = str(package_cache)', source)
         self.assertNotIn(".nuget/packages", source)
+
+    def test_ana_solution_packed_consumer_samplelarini_icermez(self):
+        solution = ElementTree.parse(ROOT / "AgentPrism.slnx")
+        projects = {node.attrib["Path"] for node in solution.iter("Project")}
+
+        packed_consumers = {
+            str(path.relative_to(ROOT)).replace("\\", "/")
+            for path in (ROOT / "samples").glob("AgentPrism.Samples.*/*.csproj")
+        }
+
+        self.assertTrue(packed_consumers)
+        self.assertEqual(projects & packed_consumers, set())
 
 
 if __name__ == "__main__":

@@ -172,3 +172,9 @@
   phase**) hesaplar. Cozum: ozelligi `BeforeTargets="GenerateNuspec"` bir
   `<Target>`'in ICINDEKI `<PropertyGroup>`'a tasi — o zaman `$(Version)` zaten
   dolu. Kanit: `src/Directory.Build.props`.
+
+- **🚨 Packed-consumer sample projelerini `AgentPrism.slnx`'e ekleme.** Bu
+  projeler `artifacts/package/release` local feed'inden exact paket tuketir;
+  temiz CI runner'inda feed `pack` oncesi yoktur ve solution restore `NU1301`
+  ile kirilir. Sample'lari `scripts/release_extension_samples.py` dogrudan
+  `.csproj` ile kosar. `release_extension_samples_test.py` bu siniri zorlar.
