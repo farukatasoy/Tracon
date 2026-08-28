@@ -1,0 +1,2 @@
+# Keep formatter output identical on macOS, Linux, and Windows runners.
+* text=auto eol=lf
