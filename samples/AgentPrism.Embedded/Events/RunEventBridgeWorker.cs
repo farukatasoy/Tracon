@@ -18,7 +18,14 @@ internal sealed class RunEventBridgeWorker(
         await foreach (var runEvent in sink.Reader.ReadAllAsync(stoppingToken).ConfigureAwait(false))
         {
             state.RecordReceived();
-            logger.LogDebug("Bridged {EventType} event for run {RunId} (seq {Sequence}).", runEvent.Type, runEvent.RunId, runEvent.Sequence);
+            if (logger.IsEnabled(LogLevel.Debug))
+            {
+                logger.LogDebug(
+                    "Bridged {EventType} event for run {RunId} (seq {Sequence}).",
+                    runEvent.Type,
+                    runEvent.RunId,
+                    runEvent.Sequence);
+            }
 
             // Stands in for a real publish call to an external bus (network I/O
             // has latency the local echo model does not). Without this delay the

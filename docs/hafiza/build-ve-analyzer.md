@@ -102,6 +102,10 @@
   susturma. Cagriyi ayni seviyenin `logger.IsEnabled(LogLevel.X)` guard'i
   icine al; nullable logger icin `logger?.IsEnabled(...) is true` kullan.
   Ayni tani her target framework icin tekrarlandigi icin 5 vaka 15 hata gorunur.
+- **`CA1875` için `Regex.Matches(...).Count` kullanma.** Yalnız eşleşme sayısı
+  gerekiyorsa `Regex.Count(...)` kullan; `MatchCollection` üretme. Analyzer
+  sürümü veya işletim sistemi farkı nedeniyle yerel incremental build tanıyı
+  göstermese bile temiz CI build'i gösterebilir.
 - **AOT kacis merdiveni** (AGENTS.md'den, Faz 77): `reflection` yerine sirayla dene —
   (1) elle yaz; (2) `source generator`; (3) kacinilmazsa `[RequiresUnreferencedCode]` +
   `[RequiresDynamicCode]` isaretle; uyariyi **bastirma**, cagirana ilet.
