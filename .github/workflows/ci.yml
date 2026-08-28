@@ -17,6 +17,16 @@ env:
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
   NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
   CI: true
+  # Python betikleri Türkçe yazar. Windows runner'ında hem `sys.stdout` hem de
+  # `subprocess(text=True)` çözümlemesi varsayılan olarak **cp1252**'dir ve
+  # `ş`/`ğ`/`İ` o kod sayfasında YOKTUR: ilk `print` `UnicodeEncodeError`
+  # fırlatır, kapı kırmızı olur ama sebep dokümanla ilgisizdir. UTF-8 modu
+  # ikisini birden çevirir (ölçüldü: `getpreferredencoding` de `utf-8` olur),
+  # bu yüzden `PYTHONIOENCODING`'den geniştir. İş düzeyinde durur çünkü
+  # `unittest` koşumu da Türkçe docstring yazar -- betik içi bir düzeltme o
+  # adımı kapsayamazdı. Doğrulama: `PYTHONIOENCODING=cp1252` ile aynı komutlar
+  # Linux'ta da patlar (16 test hatası).
+  PYTHONUTF8: 1
 
 jobs:
   build:
