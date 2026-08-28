@@ -25,7 +25,7 @@ the UI under the same prefix; the prefix is written in one place.
 
 ## Screens
 
-27 screens behind 33 routes. Grouped by the area they manage:
+30 screens behind 36 routes. Grouped by the area they manage:
 
 | Area | Screens |
 |-------|--------|
@@ -39,6 +39,7 @@ the UI under the same prefix; the prefix is written in one place.
 | Evals | Suite list, suite detail, eval run detail |
 | Experiments | Experiment list, A/B variant comparison |
 | Approvals | Pending tool approvals, approve and reject |
+| Triggers | Inbound trigger list, trigger editor |
 | Observability | Dashboard, audit trail, diagnostics |
 | Catalog | Tools and their JSON schemas, providers and models, MCP servers |
 | Settings | Version, prefix, auth method, active stores, theme |
@@ -53,7 +54,7 @@ the UI under the same prefix; the prefix is written in one place.
 - The UI shell is exempt from the bearer token layer; the loopback restriction and
   authorization policy apply instead: a browser cannot add an
   `Authorization` header to a script request
-- JavaScript budget: 250 KB gzip (build gate). Current size 165.8 KB
+- JavaScript budget: 250 KB gzip (build gate). Current size 175.9 KB
 
 ## Links
 

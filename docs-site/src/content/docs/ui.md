@@ -300,7 +300,7 @@ for the full walkthrough, including how the widget runs a client-side tool.
 - The token is kept in `sessionStorage` and is gone when the tab closes; theme and
   language live in `localStorage`
 - The JavaScript budget is 250 KB gzip and is enforced by the build. Current size:
-  169.4 KB
+  175.9 KB
 
 ### Editor boundaries
 

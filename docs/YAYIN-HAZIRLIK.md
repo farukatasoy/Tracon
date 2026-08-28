@@ -28,8 +28,11 @@
 > sözleşme gerçek bir BYOK-cache kusuru buldu, K-646 ile dördünde de düzeltildi),
 > **OP-007** (`CHANGELOG.md` + sürüme çapalı `PackageReleaseNotes` + fail-closed
 > kapı) ve **OP-006** (`github-release` CI işi, aynı ayrıştırıcıyı OP-007 ile
-> paylaşır). `preview.1` tag'inden önce kalan: doküman drift taraması ve
-> OP-002/004/005 hesap kararları (kullanıcı ertelemesi, repo-dışı). Yayın
+> paylaşır). **Doküman drift taraması
+> [KG-022](#11-karar-günlüğü) ile kapandı** — 12 bayat iddia düzeltildi, dört
+> kapının dördü de yeşil. `preview.1` tag'inden önce kalan **yalnız hesap
+> kararları**: RK-011/OP-010'un A yarısı (npm scope + `NPM_TOKEN`) ve
+> OP-002/004/005/008 — dördü de repo-dışı kullanıcı işidir. Yayın
 > türü `preview` (UR-001), paket kapsamı tam entegrasyon seti (UR-002/BL-002)
 > ve owner modeli kişisel hesap (OP-001) sabit — bkz. §4 ve §13.
 
@@ -243,7 +246,7 @@ doğrulama kapısıdır.
 | OP-007 | Release notes | **Tamamlandı (2026-08-28, Faz 123)** | Ölçüldü 2026-08-27: hiçbir artifact yoktu — `CHANGELOG.md` yok, `PackageReleaseNotes` hiçbir `Directory.Build.props`'ta tanımlı değil, `docs-site`'ta changelog sayfası yok. 20 paket sayfası boş release-notes alanıyla çıkıyordu | Kök `CHANGELOG.md` eklendi (Keep a Changelog); `src/Directory.Build.props` her pakete sürüme çapalı `PackageReleaseNotes` URL'i veriyor (`BeforeTargets="GenerateNuspec"` bir hedef içinde atanır — ölçüldü: düz bir `PropertyGroup`'ta `$(Version)` MinVer'in kendi hedefinden ÖNCE boş okunuyordu); `kapi.py yayin` zorlanan sürüm için CHANGELOG'da `[<sürüm>]` bölümünü fail-closed arıyor; `docs-site/reference/versioning.md` köke bağlanıyor (ayna sayfa yok). Kanıt: 20/20 `.nuspec` çözümlenmiş URL taşıyor |
 | OP-008 | Deprecation/yank/hotfix | Karar gerekli | Repo politikası henüz bu ledger'a doğrulanmadı | — |
 | OP-009 | Dependency/vulnerability takibi | İnceleniyor | Dependabot NuGet yapılandırması mevcut (`.github/dependabot.yml`, haftalık) | — |
-| OP-010 | npm/NuGet asimetrik kısmi yayın | **Kullanıcı erteledi** (2026-08-27) | Aynı `v*` tag'i `nuget-publish` ([`ci.yml:284`](../.github/workflows/ci.yml#L284)) ve `npm-publish` ([`ci.yml:319`](../.github/workflows/ci.yml#L319)) işlerini **paralel** tetikler (farklı `needs`). `agentprism` npm scope'u bugün yok; `NPM_TOKEN` durumu repo dışında. Scope hazır değilse 20 NuGet paketi **kalıcı** yayınlanır, npm işi kırılır — ve sevk edilen doküman `npm install @agentprism/client` diyor (`docs-site/src/content/docs/packages.md:70`, `guides/typescript-client.md:25`) | — Tag'den önce çözülmelidir; bkz. RK-011 |
+| OP-010 | npm/NuGet asimetrik kısmi yayın | **Kullanıcı erteledi** (2026-08-27) | Aynı `v*` tag'i `nuget-publish` ([`ci.yml:284`](../.github/workflows/ci.yml#L284)) ve `npm-publish` ([`ci.yml:319`](../.github/workflows/ci.yml#L319)) işlerini **paralel** tetikler (farklı `needs`). `agentprism` npm scope'u bugün yok; `NPM_TOKEN` durumu repo dışında. Scope hazır değilse 20 NuGet paketi **kalıcı** yayınlanır, npm işi kırılır — ve sevk edilen doküman `npm install @agentprism/client` diyor (`docs-site/src/content/docs/packages.md:70`, `guides/typescript-client.md:25`) | **Kısmen kapandı (2026-08-28, KG-021) — yol A + C.** **C uygulandı:** `publish` işi artık `needs: [pack, release-dryrun, npm-publish]` ([`ci.yml:293`](../.github/workflows/ci.yml#L293)) — geri dönüşü olmayan kanal (NuGet) EN SON basar; npm kırılırsa 20 paket hiç yayınlanmaz. Zincir kırılmaz: `npm-publish` var olan sürümü atlar, aynı etiket yeniden itilebilir. **A kullanıcıdadır:** `agentprism` npm scope'u + `NPM_TOKEN` tag'den önce hazırlanmalı |
 
 ## 9. Risk kaydı
 
@@ -253,13 +256,13 @@ doğrulama kapısıdır.
 | RK-002 | İnceleniyor | 20 paketlik ilk yayın, gereksiz public yüzeyi ve support yükünü aynı anda kalıcılaştırabilir | Yüksek | Orta / yüksek | Paket stratejisi ve public API freeze audit | `nuget-danismani` |
 | RK-003 | İnceleniyor | Shipped baseline boşken preview tüketicileri kırıcı değişiklik yaşayabilir | Orta | Yüksek / orta | Açık preview compatibility politikası ve release notes | `nuget-danismani` + doküman senkronu |
 | RK-004 | İnceleniyor | `NUGET_API_KEY` scope/süre/owner belirsizliği yayın veya supply-chain riski üretir | Yüksek | Bilinmiyor / yüksek | En az yetki, kısa süre, environment protection; resmi yöntem araştırması | Yayın operasyonu |
-| RK-005 | İnceleniyor | K-602'nin “19 paket” sayısı güncel 20 paketle drift gösteriyor | Orta | Kesin / düşük-orta | Artifact kümesini doğrula; kalıcı karardaki sayısal ifadeyi gerekiyorsa drift üretmeyecek biçimde güncelle | Karar defteri kuralları |
+| RK-005 | **Kapandı (2026-08-28)** | K-602'nin “19 paket” sayısı güncel 20 paketle drift gösteriyordu | ~~Orta~~ | Kesin / düşük-orta | Sayı **güncellenmedi, kaldırıldı** — kararın özü sayıya bağlı değil (“paketlenen projelerin hepsi `1.0.0-preview.N` olarak çıkar”). `KARARLAR.md` ve `KARARLAR-INDEKS.md` düzeltildi; 20→21 olduğunda tekrar drift etmez. K-129 ve K-542'deki “19” tarihsel anlatıdır, canlı iddia değil — dokunulmadı | Karar defteri kuralları |
 | RK-006 | İnceleniyor | Meta paketin boş symbol package'i ve CLI'ın 28 MB paketi kapıdan geçiyor, fakat kapı içerik uygunluğunu yargılamıyor | Orta | Kesin / bilinmiyor | Resmi NuGet symbol davranışı ve package content audit | `nuget-danismani` |
 | RK-007 | Açık | `ITenantProviderBindingStore` case-sensitivity tutarsızlığı (BL-006) BYOK credential'ının sessizce global setup credential'ına düşmesine yol açabilir — kiracı izolasyonu ihlali | Yüksek | Orta (Postgres/SQLite dağıtımlarında + admin yazım farkı) / yüksek (yanlış kiracının credential'ı kullanılmaz ama yanlış tenant'ın isteği yanlış/paylaşılan credential ile gider) | BL-006 düzeltmesi: canonical case normalizasyonu veya üç katmanda tutarlı ordinal-ignore-case + regresyon testi | `nuget-danismani` → `kusur-giderme` |
 | RK-008 | Açık | Drain/yeni-run yarışı (BL-026) `ApplicationStopping` ile aynı ana denk gelen bir run'ın yarıda kesilmesine yol açabilir — zero-downtime deploy varsayımı kırılır | Orta | Düşük (dar pencere) / orta (tek run kaybı, veri bozulması değil ama tutarsız durum) | Register'ı erken taşımak veya reservation adımı; eşzamanlılık testiyle kilitleme | `nuget-danismani` → `kusur-giderme` |
 | RK-009 | Açık | Ham exception mesajı sızıntısı **bir sınıf** olarak doğrulandı — `IRunStore.RunError.Message` (BL-027) ve `WorkflowRunner.ToRunError`/`RunEvent.Text` (BL-037) aynı desenin iki bağımsız örneği; `HATA-S3-006`'nın kapattığı sınıfın tekrarı; `secret`/PII sızıntı riski (K-059 ruhuna aykırı) | Yüksek | Orta (provider SDK exception'ları request detayı taşıyabilir) / yüksek (persisted run/workflow kaydı, admin API/UI üzerinden okunabilir) | Her iki yol da `ContentGuardPipeline`'dan geçirilir; sınıf taraması çalıştırma yolundaki (run, workflow, job, webhook) tüm exception→persist noktalarını tek seferde tarar | `nuget-danismani` → `kusur-giderme` (BL-027 + BL-037 birlikte) |
 | RK-010 | **Kapandı (Faz 120)** | `IJobHandler`'ın sözleşmesi at-least-once'ı söylemiyordu (BL-041) — dokümante edilen örneği izleyen bir tüketici crash/retry'de side effect'i iki kez çalıştırabilirdi | ~~Yüksek~~ | Orta (lease kaybı/retry production'da olağan) / yüksek (dokümante edilen doğrudan örnek yanlış) | `IJobHandler.cs`'nin XML dokümanına at-least-once uyarısı ve süzülmemiş `Items` notu eklendi; `JobHandlerContract` kuralı kilitliyor, `JobLeaseExpiryTests` davranışı ölçüyor. `IIdempotencyStore`'u job loop'una bağlamak değerlendirilmedi — BL-041'in kapanış notunun gerekçesiyle gereksiz ikinci bir mekanizma olurdu | `nuget-danismani` → `kusur-giderme` → [Faz 120](arsiv/fazlar/120-JOB-SOZLESMESI-AT-LEAST-ONCE.md) |
-| RK-011 | **Açık** | Asimetrik kısmi yayın: aynı `v*` tag'i NuGet ve npm işlerini paralel tetikler; `agentprism` npm scope'u yok. npm kırılırsa 20 NuGet paketi kalıcı olarak yayınlanmış olur ve sevk edilen doküman var olmayan bir npm paketini tarif eder (OP-010) | Yüksek | Yüksek (scope bugün yok) / yüksek (NuGet'te geri dönüş yok, düzeltme yalnız yeni sürümle) | Tag'den ÖNCE scope + `NPM_TOKEN` hazırlanır, ya da `npm-publish` işi devre dışı bırakılıp docs-site'ın üç sayfası aynı turda düzeltilir | Yayın operasyonu — **kullanıcı kararı ertelendi** |
+| RK-011 | **🟡'ye indi (KG-021)** | Asimetrik kısmi yayın: aynı `v*` tag'i NuGet ve npm işlerini paralel tetikler; `agentprism` npm scope'u yok. npm kırılırsa 20 NuGet paketi kalıcı olarak yayınlanmış olur ve sevk edilen doküman var olmayan bir npm paketini tarif eder (OP-010) | Yüksek | Yüksek (scope bugün yok) / yüksek (NuGet'te geri dönüş yok, düzeltme yalnız yeni sürümle) | **C uygulandı (2026-08-28):** `publish` `npm-publish`'e bağlandı — asimetrik KALICI yayın artık yapısal olarak imkânsız, npm kırılırsa NuGet hiç basmaz ve tag güvenle yeniden itilebilir. Kalan risk yalnız "tag başarısız olur, yayın olmaz" — geri dönüşü olan bir hata modu. **A kullanıcıdadır:** scope + `NPM_TOKEN` tag'den önce hazırlanır | Yayın operasyonu — C tamam, A kullanıcıda |
 | RK-012 | **Kabul edildi** | Kişisel owner modeli (OP-001): 20 paketin sahipliği tek hesaba bağlıdır; devir paket başına elle yapılır ve hesap kaybı 20 kimliği birden etkiler | Orta | Düşük / yüksek | Kullanıcı bilinçli olarak kabul etti (2026-08-27). Azaltım: 2FA (OP-002) ve gerekirse sonradan organization'a devir | Yayın operasyonu |
 
 ## 10. Yayın checklist'i
@@ -272,7 +275,7 @@ doğrulama kapısıdır.
 - [x] Exact sürümlü temiz pack başarılı.
 - [x] Üretilen paket kimlik kümesi beklenen kümeyle aynı.
 - [ ] Yerel feed ve izole `NUGET_PACKAGES` ile external consumer restore/build başarılı.
-- [x] Mevcut beş packed extension sample'ın contract testleri başarılı.
+- [x] Mevcut **altı** packed extension sample'ın contract testleri başarılı (Faz 123, BL-052).
 - [ ] Gerçek runtime `run` başarılı.
 - [x] Mevcut extension Native AOT smoke publish ve run başarılı.
 - [x] Kapının beklediği her TFM assembly ve XML documentation dosyası artifact içinde mevcut.
@@ -298,12 +301,12 @@ doğrulama kapısıdır.
 
 ### Dokümantasyon
 
-- [ ] XML documentation ile runtime davranışı hizalı.
-- [ ] Package README ile root README hizalı.
-- [ ] `docs-site/`, extension sample'ları ve API reference hizalı.
-- [ ] Compatibility ve versioning belgeleri yayın politikasını doğru anlatıyor.
-- [ ] Package description ve tags güncel.
-- [ ] Release notes hazır ve artifact kümesini doğru anlatıyor.
+- [x] XML documentation ile runtime davranışı hizalı (KG-022; `CapabilityExampleTests` + `SeamContractDocumentationTests`).
+- [x] Package README ile root README hizalı (KG-022 — kök README'ye eksik 20. paket eklendi).
+- [x] `docs-site/`, extension sample'ları ve API reference hizalı (KG-022; `npm run check` yeşil).
+- [x] Compatibility ve versioning belgeleri yayın politikasını doğru anlatıyor (KG-022 — 20 paket, tek sürüm hattı, CHANGELOG bağlantısı; AOT iddiaları **güvenli yönde**: hiçbir paket `.csproj` `false` derken doküman `Yes` demiyor).
+- [x] Package description ve tags güncel (KG-022 — iki `Description` düzeltildi).
+- [x] Release notes hazır ve artifact kümesini doğru anlatıyor (OP-007 + KG-022 — CHANGELOG'un ekran sayısı düzeltildi).
 
 ### NuGet.org ve yayın operasyonu
 
@@ -346,7 +349,7 @@ doğrulama kapısıdır.
 | KG-019 | 2026-08-28 | Tamamlandı | **Yol B seçildi: iş 35× 🟡 hattından yayın kritik yoluna döndü.** KG-016'nın "yayını hattın arkasına al" kararı revize edildi. Kalan üç kulvar (1 contract testi, 4 dış sample, 5 gözlemlenebilirlik) `preview.1` → GA hattına taşındı 👤 | Üç kulvar da ölçümle açık doğrulandı, ama üçü de 🟡'dir ve `PublicAPI.Shipped.txt` boştur (K-603) — preview hattında yüzey hâlâ ucuzdur. Kulvar 1'in kalan boşluğu spesifikasyon değil doğrulamadır; hangi seam'in gerçekten genişletildiğini bilmeden 26 suite yazmak YAGNI ihlalidir. Preview geri bildirimi bu sırayı ucuza belirler | Yayın kritik yolu: (1) kapının taze koşumu, (2) BL-052 sample kapsam boşluğu, (3) BL-015, (4) OP-007 release notes hattı, (5) doküman drift taraması, (6) ledger düzeltmeleri |
 
 | KG-020 | 2026-08-28 | Tamamlandı | **Yayın kritik yolunun üç kalemi tek faza bağlandı: [Faz 123](arsiv/fazlar/123-YAYIN-KRITIK-YOLU.md)** — BL-052 (kapı kapsamı), BL-015 (adaptör sözleşmesi), OP-007 (sürüm notu hattı). Üç ürün kararı alındı 👤: `PackageReleaseNotes` **sürüme çapalı URL** taşır (20 paket tek sürüm hattından çıktığı için gömülü metin 20 kez tekrarlanırdı); kapı CHANGELOG'da `[<sürüm>]` bölümü yoksa **fail-closed** kırmızı döner; `docs-site` **yalnız bağlantı** verir, ayna sayfa açılmaz. CHANGELOG biçimi **Keep a Changelog** | Üç kalem tek fazdadır çünkü üçü de aynı altyapıya dokunur — `v*` tag'inde ne üretildiğini ve neyin doğrulandığını belirleyen hat (`kapi.py`, `ci.yml`, `Directory.Build.props`). Ayrı fazlar aynı üç dosyayı üç kez açardı | **`faz-planlama` Adım 1 kök nedeni buldu:** BL-052 tek satırlık bir unutma değil — `release_extension_samples.py` iki liste taşıyor. `validate_sample_contract` `glob` ile altı sample'ı da **şekil** olarak doğruluyor, ama koşum listesi `SAMPLE_TEST_PROJECTS` elle yazılmış beşli bir tuple. K-622 "beş sample" ifadesini karar defterine dondurmuş; Faz 120 altıncıyı ekledi, tuple güncellenmedi. Bu yüzden faz tek satır eklemekle yetinmez, envanter ≠ liste durumunu yakalayan bir kapı da yazar |
-
+| KG-021 | 2026-08-28 | Tamamlandı | **RK-011/OP-010 için yol A + C seçildi 👤.** **C uygulandı:** `ci.yml`'de `publish` işi `npm-publish`'e bağlandı (`needs: [pack, release-dryrun, npm-publish]`); npm kanalı kırılırsa NuGet **hiç** basmaz. **A kullanıcıdadır:** `agentprism` npm scope'u + `NPM_TOKEN` tag'den önce hazırlanır | Ölçüldü 2026-08-28: iki iş `if:` koşulu aynı, `needs:` farklıydı ve **paralel** koşuyordu ([`ci.yml:284`/`:319`, değişiklik öncesi](../.github/workflows/ci.yml)); `agentprism` npm scope'u yok (OP-003, `404`) ve sevk edilen doküman **10 satırda** `@agentprism/client` diyor. NuGet'te geri dönüş yoktur, npm'in kısıtlı bir unpublish penceresi vardır — bu yüzden ucuz kanal ÖNCE basar. Sıralama zinciri kırmaz: `npm-publish` var olan sürümü atlar (`npm view` kontrolü), yani aynı etiket yeniden itilebilir | YAML çözümlendi, 7 iş, döngü yok; `publish -> [pack, release-dryrun, npm-publish]`, `github-release -> [publish, npm-publish]`. `docs/manuel-test/01-KURULUM-VE-PAKETLEME.md:2579` kabul ölçütü (`needs:` satırı `release-dryrun` içerir) hâlâ geçer || KG-022 | 2026-08-28 | Tamamlandı | **Doküman drift taraması koşuldu (`tuketici-dokuman-senkronu`, tam kapsam) ve kapandı.** 12 bayat iddia düzeltildi; hiçbiri makine kapısı tarafından yakalanmıyordu. RK-005 aynı turda kapatıldı | **Ölçülen yer gerçeği:** konsol **30 ekran / 36 rota** (`app.tsx`: 30 `*Screen` importu, 36 `pattern:`) — sevk edilen metin 27 (×2) ve 28 (×3) diyordu, rota 33 ve 36 diyordu · JS bundle **175,9 KB gzip** (`npm run build`) — üç yüzey 180,2 / 165,8 / 169,4 diyordu · istemci **162 operasyon** (`agentprism.json` + üretilen `AgentPrismApiClient.g.cs`) — kök README 161 diyordu (×2) · store contract'ı **31** (`Contracts/` kökünde 32 dosya, biri ortak taban `TenantIsolationContract`) — README ve paket `Description`'ı “32 others”/“29 more” diyordu · kök README paket tablosu **19 satır** taşıyordu, 20 paket var (`AgentPrism.Testing.Contracts.Xunit` eksikti) · `AgentPrism.UI` README'sinde **Triggers alanı hiç yoktu** (site sayfası kapsıyordu) · `Contracts.Xunit` README'si ve `Description`'ı **altı contract ailesinin ikisini** anlatıyordu (Tools ve Scheduling eksik) — CHANGELOG ise altısını da vaat ediyor · `packages.md` `IJobHandler`'ı atlıyordu · `AgentPrism.Client`'ın `Description`'ı sevk edilen metinde **iç repo yolu** taşıyordu (`docs/openapi/agentprism.json`; repo özel, tüketicinin elinde yok) → yayınlanan adrese çevrildi · kök README'nin “4408 tests, 16 projects” satırı: 16→**20** ölçüldü, test sayısı **ölçülemedi** (tam Release koşumu MEMORY.md'nin boru-hattı tuzağına takıldı, %0,6 CPU'da asıldı) ve **uydurulmak yerine kaldırıldı** | **Dört kapı da yeşil:** (1) `ShippedDocumentationSelfContainmentTests`+`CapabilityExampleTests`+`SourceLanguageTests` 6/6, `LocalReferenceTests` 10/10; (2) `build-agent-map.mjs --check` — **önce kızardı**, paket `Description`'ı haritayı besliyor, yeniden üretildi; (3) `npm run check` — 1044 sayfa, 151 442 bağlantı, ağırlık tavanı; (4) `--site-denetle` — `paket-tanimi`/`paket-readme` **gerçek boşluk buldu** (`packages.md`'de `IJobHandler` eksikti, düzeltildi); `buildtransitive` ve `cekirdek-kavram` gerekçelendi: ikisini de **üretilen** `AgentPrism.AgentMap.md` tetikledi, diff yalnız revizyon hash'i + bir paket açıklaması satırıdır — tüketicinin gördüğü MSBuild yüzeyi de çekirdek kavram da değişmedi. **Kalıcı kapı yazılmadı; [F-171](ADAYLAR.md) olarak kaydedildi** — 12 kalemin altısı elle kopyalanmış ölçüm sayısıydı (K-483 sınıfı) |
 
 ## 12. Ertelenen işler ve gerekçeleri
 
@@ -425,8 +428,10 @@ kapanmalıdır:
    BL-015 ile birlikte: biçim Keep a Changelog, `PackageReleaseNotes` sürüme
    çapalı URL, kapı `[<sürüm>]` bölümü yoksa **fail-closed**, site yalnız
    bağlantı verir (üçü de kullanıcı kararı, KG-020).
-2. **OP-010 / RK-011** — npm scope'u tag'den önce hazırlanmalı, yoksa asimetrik
-   kısmi yayın oluşur. Kullanıcı kararı ertelendi.
+2. **OP-010 / RK-011** — **yol A + C seçildi (KG-021).** C uygulandı:
+   `publish` artık `npm-publish`'e bağlıdır, asimetrik **kalıcı** yayın yapısal
+   olarak imkânsızdır. A kullanıcıdadır: `agentprism` npm scope'u ve `NPM_TOKEN`
+   tag'den önce hazırlanmalıdır, yoksa tag başarısız olur (yayın olmaz).
 3. **OP-002, OP-004, OP-005, OP-008** — kullanıcının kendi hesap/organizasyon
    tercihleri. OP-004/OP-005 ertelendiği sürece RK-004 açık kalır.
 4. **Doküman drift taraması** (Adım 6) → `tuketici-dokuman-senkronu`.
