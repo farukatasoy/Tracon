@@ -19,8 +19,9 @@ namespace AgentPrism.Generators.UnitTests.Examples;
 /// <para>
 /// A handful of blocks name a type that exists only to illustrate an extension
 /// point (<c>OnPremiseModelProvider</c>, <c>OrderTools</c>, <c>IOrderGateway</c>,
-/// <c>NightlyReportJobHandler</c>, <c>GitAgentSource</c>, <c>ResponseQualityJudge</c>): "a
-/// provider/tool/service/handler/source/judge you wrote yourself". Those get a
+/// <c>NightlyReportJobHandler</c>, <c>GitAgentSource</c>, <c>ResponseQualityJudge</c>,
+/// <c>AuditingAgentDecorator</c>): "a
+/// provider/tool/service/handler/source/judge/decorator you wrote yourself". Those get a
 /// minimal stub here for the same reason - a real consumer would have written
 /// one, and the doc text stays untouched.
 /// </para>
@@ -130,6 +131,14 @@ internal static class ExamplePrelude
             public string Name => "response-quality";
 
             public ValueTask<RunJudgment> JudgeAsync(RunJudgeContext context, CancellationToken cancellationToken = default) => default;
+        }
+
+        // Stands in for "your own agent decorator", named in two <example> blocks.
+        internal sealed class AuditingAgentDecorator(IAuditLog auditLog) : IAgentDecorator
+        {
+            public int Order => 5;
+
+            public AIAgent Decorate(AIAgent agent, AgentDescriptor descriptor) => agent;
         }
         """;
 
