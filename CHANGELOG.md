@@ -18,7 +18,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   bring-your-own-key (BYOK) support and per-tenant egress policy.
 - Persistence backends for PostgreSQL, SQL Server, and SQLite, each with
   embedded migrations; the runtime (`AgentPrism.Core`) needs no database.
-- An embedded React console — 28 screens across 36 routes (Dashboard,
+- An embedded React console — 30 screens across 36 routes (Dashboard,
   Agents, Skills, Playground, Sessions, Runs, Workflows, Jobs, Evals,
   Experiments, Approvals, Tools, Models, MCP, Triggers, Audit, Diagnostics,
   Settings) — with zero JavaScript dependency in the consuming project.

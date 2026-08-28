@@ -41,11 +41,11 @@ Two lines: a working agent, durable sessions, and a control plane at
 
 Dashboard, Agents, Skills, Playground, Sessions, Runs, Workflows, Jobs, Evals,
 Experiments, Approvals, Tools, Models, MCP, Triggers, Audit, Diagnostics, Settings —
-**28 screens across 36 routes**, lists and editors included.
+**30 screens across 36 routes**, lists and editors included.
 
 Written in React 19 and TypeScript, built with Vite, and embedded in the assembly
 **Brotli-compressed**. No JavaScript dependency appears in the consuming project and no
-`node_modules` folder is needed. The JavaScript budget is **180.2 KB gzip** (gate: 250 KB).
+`node_modules` folder is needed. The JavaScript budget is **175.9 KB gzip** (gate: 250 KB).
 
 The console runs under any prefix (`/agentprism`, `/panel`, …) and learns the prefix at
 run time. Light and dark themes; the default follows the operating system.
@@ -181,12 +181,13 @@ AgentPrism fills that gap. It does not replace DevUI — it continues where DevU
 | `AgentPrism.Mcp` | Tool discovery from remote MCP servers — HTTP only, approval by default |
 | `AgentPrism.Workflows` | Workflow execution — five patterns, checkpoints, resume, human-in-the-loop |
 | `AgentPrism.AspNetCore` | HTTP layer — management API, OpenAI-compatible endpoints, multi-tenancy |
-| `AgentPrism.UI` | Embedded React console — 28 screens across 36 routes, zero JavaScript dependencies |
+| `AgentPrism.UI` | Embedded React console — 30 screens across 36 routes, zero JavaScript dependencies |
 | `AgentPrism.Templates` | The `dotnet new agentprism-api` template — not in the meta package |
 | `AgentPrism.Testing` | `FakeModelProvider`, `AgentPrismTestHost`, `RunAssertions`; test-framework neutral, not in the meta package |
-| `AgentPrism.Client` | Typed management client generated from the OpenAPI document — 161 operations, zero AgentPrism dependency, zero NuGet dependency beyond DI abstractions. Not in the meta package |
+| `AgentPrism.Testing.Contracts.Xunit` | The behavior-contract suites the shipped implementations run — derive from them to verify your own `IRunStore`, `IModelProvider`, `IRunJudge`, `IAgentSource`, `IJobHandler`, or custom tool. Not in the meta package |
+| `AgentPrism.Client` | Typed management client generated from the OpenAPI document — 162 operations, zero AgentPrism dependency, zero NuGet dependency beyond DI abstractions. Not in the meta package |
 | `AgentPrism.Cli` | The `agentprism` global tool (`dotnet tool install -g AgentPrism.Cli`) — `migrate`, `migrate status`, `health`. Not a library; not in the meta package |
-| [`@agentprism/client`](https://www.npmjs.com/package/@agentprism/client) | **npm, not NuGet** — the same 161 operations as `AgentPrism.Client`, generated from the same OpenAPI document with `openapi-typescript` + `openapi-fetch`. `npm install @agentprism/client` |
+| [`@agentprism/client`](https://www.npmjs.com/package/@agentprism/client) | **npm, not NuGet** — the same 162 operations as `AgentPrism.Client`, generated from the same OpenAPI document with `openapi-typescript` + `openapi-fetch`. `npm install @agentprism/client` |
 
 **Target frameworks:** `net8.0`, `net9.0`, `net10.0` · **License:** MIT
 
@@ -324,7 +325,7 @@ depends on GA packages only.
 
 ```bash
 dotnet build  AgentPrism.slnx -c Release              # 0 warnings expected
-dotnet test   AgentPrism.slnx -c Release --no-build   # 4408 tests, 16 projects
+dotnet test   AgentPrism.slnx -c Release --no-build   # 20 test projects
 dotnet pack   AgentPrism.slnx -c Release --no-build
 dotnet format AgentPrism.slnx --verify-no-changes
 ```

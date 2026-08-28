@@ -45,7 +45,7 @@ dotnet new agentprism-api -o MyAgents
 | `AgentPrism.AspNetCore` | The HTTP API — 143 operations, layered access control |
 | `AgentPrism.Workflows` | Multi-agent workflows, checkpoints, human-in-the-loop |
 | `AgentPrism.Mcp` | Tools from remote MCP servers |
-| `AgentPrism.UI` | The embedded management console — 27 screens, no `node_modules` |
+| `AgentPrism.UI` | The embedded management console — 30 screens, no `node_modules` |
 
 ## Install pieces instead
 
