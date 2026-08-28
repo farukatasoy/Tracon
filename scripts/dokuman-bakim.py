@@ -887,8 +887,11 @@ def kirik_baglantilar(kok: pathlib.Path = ROOT) -> list[str]:
     bulunan: list[str] = []
     slug_harita = _site_slug_haritasi(kok)
     for dp, dns, fns in os.walk(kok):
+        # CI, NUGET_PACKAGES'i repo icindeki `.nuget/packages` dizinine alir.
+        # Dependency README'leri urun dokumani degildir ve paketlerin sevk
+        # etmedigi goreli dosyalara baglanti verebilir.
         dns[:] = [d for d in dns if d not in
-                  {".git", "node_modules", "artifacts", "bin", "obj", "dist", ".vs"}]
+                  {".git", ".nuget", "node_modules", "artifacts", "bin", "obj", "dist", ".vs"}]
         for fn_ in fns:
             if not (fn_.endswith(".md") or fn_.endswith(".mdx")):
                 continue

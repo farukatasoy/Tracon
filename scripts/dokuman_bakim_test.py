@@ -199,6 +199,18 @@ class KirikBaglantilarTestleri(unittest.TestCase):
             kirik = dokuman_bakim.kirik_baglantilar(tmp)
             self.assertEqual(kirik, [])
 
+    def test_repo_icindeki_nuget_cache_dokumanlari_taranmaz(self):
+        with tempfile.TemporaryDirectory() as t:
+            tmp = pathlib.Path(t)
+            self._kok_kur(tmp)
+            paket = tmp / ".nuget" / "packages" / "dependency" / "1.0.0"
+            paket.mkdir(parents=True)
+            (paket / "README.md").write_text("[paketlenmemis](SECURITY.md)\n")
+
+            kirik = dokuman_bakim.kirik_baglantilar(tmp)
+
+            self.assertEqual(kirik, [])
+
 
 class DenetleKirikBaglantiTestleri(unittest.TestCase):
     """`denetle()` kırık bağlantı sayısını çıkış koduna katmalı — bağımsız
