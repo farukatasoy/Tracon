@@ -20,7 +20,7 @@
 
 import { createHash } from 'node:crypto';
 import { readFileSync, readdirSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
-import { dirname, join, relative, resolve } from 'node:path';
+import { basename, dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { siteUrl } from '../site.config.mjs';
@@ -249,10 +249,15 @@ function readPackages() {
         44,
       );
 
-      return { name: path.split('/').at(-1).replace(/\.csproj$/, ''), job };
+      return { name: packageName(path), job };
     })
     .filter((entry) => entry !== null)
     .sort((left, right) => left.name.localeCompare(right.name, 'en'));
+}
+
+/** Extracts a package ID with the path rules of the current operating system. */
+export function packageName(projectPath, basenamePath = basename) {
+  return basenamePath(projectPath).replace(/\.csproj$/, '');
 }
 
 function renderMap({ lead, sections }, packages, fullTextKilobytes) {

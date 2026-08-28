@@ -44,6 +44,15 @@ DEĞİŞTİRMEZ. Bütçe aşımında gerçek kaynak ya 2. sütun kod parçaları
 `node docs-site/scripts/build-agent-map.mjs --check`'in verdiği GERÇEK sayıyla
 iterasyon yap, sütun metnini gözle kısaltıp tahmin etme.
 
+## 🚨 Agent map package adı path separator'a bağlanamaz
+
+`projectPath.split('/')` macOS/Linux'ta package adını verdi, Windows'ta ise tam
+`D:\\a\\...\\AgentPrism.Core.csproj` yolunu verdi. Haritadaki her package satırı
+büyüdü; `AgentPrism.AgentMap.md` ve onu içeren `llms.txt` aynı anda hem bayat
+hem budget üstünde göründü. Path bileşenini `node:path` `basename()` ile çıkar.
+`build-agent-map.test.mjs`, `win32.basename` ile bu sınırı macOS'ta da doğrular;
+test `npm run check:content` kapısının parçasıdır.
+
 ## 🚨 DocFX assembly metadata girdisine `artifacts/bin` referansı ekleme (Faz 98 · onarım 2026-08-26)
 
 `docfx metadata --logLevel verbose` kök nedeni gösterdi. `src`, API üretilecek
