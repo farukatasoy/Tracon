@@ -70,6 +70,33 @@
   </PropertyGroup>
 
   <!--
+    🚨 Measured, not guessed: a <PropertyGroup> that is a direct child of
+    <Project> is evaluated once, up front, before ANY target runs - including
+    MinVer's own target, which is what actually computes $(Version). Writing
+    <PackageReleaseNotes>...v$(Version).../PackageReleaseNotes> in a plain
+    PropertyGroup here captured $(Version) EMPTY every time, producing
+    ".../blob/v/CHANGELOG.md" in every packed .nuspec. A <PropertyGroup>
+    nested INSIDE a <Target>, by contrast, evaluates when that target RUNS
+    (execution phase), by which point MinVer has already set $(Version) - the
+    same props-vs-targets ordering the AOT compatibility note above describes,
+    but here evaluation-phase-vs-execution-phase rather than props-vs-csproj.
+    BeforeTargets="GenerateNuspec" is the last point `dotnet pack` accepts a
+    property change before the .nuspec is written.
+  -->
+  <Target Name="AgentPrismSetPackageReleaseNotes" BeforeTargets="GenerateNuspec">
+    <PropertyGroup>
+      <!--
+        Anchored to the version tag, not embedded release-note text: 20
+        packages share one version stream, so inlining the same text 20 times
+        would drift. Before the matching `v$(Version)` tag exists, this URL
+        404s - accepted, the metadata gate validates the URL's SHAPE, not its
+        reachability (K-604 keeps the gate network-free).
+      -->
+      <PackageReleaseNotes>https://github.com/farukatasoy/AgentPrism/blob/v$(Version)/CHANGELOG.md</PackageReleaseNotes>
+    </PropertyGroup>
+  </Target>
+
+  <!--
     🚨 <None Update=...> is a silent no-op in a cross-targeted project: the
     SDK's default None glob applies only in the INNER (TFM-specific) builds,
     while `dotnet pack` collects package files in the OUTER cross-targeting

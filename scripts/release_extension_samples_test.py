@@ -118,6 +118,53 @@ class ReleaseExtensionSamplesTestleri(unittest.TestCase):
 
         self.assertEqual(result, 1)
 
+    def test_envanterden_sarkan_yeni_sample_yakalanir(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            _write_clean_tree(root)
+            # A new sample test project directory exists but was never added
+            # to SAMPLE_TEST_PROJECTS or SAMPLE_TEST_EXCLUSIONS — the exact
+            # drift that let CustomJobHandler.Tests go unrun for three phases.
+            stray = root / "samples" / "AgentPrism.Samples.Deneme.Tests"
+            stray.mkdir(parents=True)
+            (stray / "AgentPrism.Samples.Deneme.Tests.csproj").write_text(
+                '<Project Sdk="Microsoft.NET.Sdk" />', encoding="utf-8")
+
+            errors = release_extension_samples.validate_sample_inventory(root)
+
+        self.assertTrue(any("AgentPrism.Samples.Deneme.Tests" in error for error in errors))
+
+    def test_var_olmayan_sample_listede_kalirsa_yakalanir(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            _write_clean_tree(root)
+            missing = release_extension_samples.SAMPLE_TEST_PROJECTS[0]
+            import shutil
+            shutil.rmtree(root / "samples" / missing)
+
+            errors = release_extension_samples.validate_sample_inventory(root)
+
+        self.assertTrue(any(missing in error for error in errors))
+
+    def test_gerekcesiz_disleme_yakalanir(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            _write_clean_tree(root)
+            extra = root / "samples" / "AgentPrism.Samples.Muaf.Tests"
+            extra.mkdir(parents=True)
+            (extra / "AgentPrism.Samples.Muaf.Tests.csproj").write_text(
+                '<Project Sdk="Microsoft.NET.Sdk" />', encoding="utf-8")
+
+            original = dict(release_extension_samples.SAMPLE_TEST_EXCLUSIONS)
+            release_extension_samples.SAMPLE_TEST_EXCLUSIONS["AgentPrism.Samples.Muaf.Tests"] = "   "
+            try:
+                errors = release_extension_samples.validate_sample_inventory(root)
+            finally:
+                release_extension_samples.SAMPLE_TEST_EXCLUSIONS.clear()
+                release_extension_samples.SAMPLE_TEST_EXCLUSIONS.update(original)
+
+        self.assertTrue(any("has no reason" in error for error in errors))
+
     def test_kuresel_nuget_cache_kullanilmaz(self):
         # The isolation contract itself: `verify` must set NUGET_PACKAGES to a
         # fresh temp directory, never the developer's global cache.
