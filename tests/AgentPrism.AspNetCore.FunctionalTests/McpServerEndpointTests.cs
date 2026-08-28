@@ -125,29 +125,19 @@ public sealed class McpServerEndpointTests
         // Map* never touches the DB at all. `:memory:` is NOT used: without a
         // shared cache, each new connection opens its own isolated empty
         // database, which does not mimic the real "empty file" scenario.
-        var databasePath = Path.Combine(Path.GetTempPath(), $"agentprism-mcp-empty-db-{Guid.NewGuid():N}.db");
+        using var database = new TempSqliteDatabase("mcp-empty-db");
 
-        try
-        {
-            await using var host = await AgentPrismTestHost.StartAsync(
-                configureAgentPrism: builder => builder
-                    .UseSqlite($"Data Source={databasePath}")
-                    .AddAgent(TestData.Definition())
-                    .UseMcpServer(o => o.ExposedAgents.Add("kod-agent")),
-                configureAfterMap: app => app.MapAgentPrismMcpServer());
+        await using var host = await AgentPrismTestHost.StartAsync(
+            configureAgentPrism: builder => builder
+                .UseSqlite(database.ConnectionString)
+                .AddAgent(TestData.Definition())
+                .UseMcpServer(o => o.ExposedAgents.Add("kod-agent")),
+            configureAfterMap: app => app.MapAgentPrismMcpServer());
 
-            var (response, body) = await McpTestClient.SendAsync(host.Client, "/agentprism/mcp", "tools/list");
+        var (response, body) = await McpTestClient.SendAsync(host.Client, "/agentprism/mcp", "tools/list");
 
-            response.StatusCode.ShouldBe(HttpStatusCode.OK);
-            Tools(body!.Value).GetArrayLength().ShouldBe(1);
-        }
-        finally
-        {
-            foreach (var suffix in new[] { string.Empty, "-wal", "-shm", ".agentprism-migration-lock" })
-            {
-                File.Delete(databasePath + suffix);
-            }
-        }
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        Tools(body!.Value).GetArrayLength().ShouldBe(1);
     }
 
     [Fact]

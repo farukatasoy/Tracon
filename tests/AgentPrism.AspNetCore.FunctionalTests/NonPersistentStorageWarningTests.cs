@@ -50,20 +50,13 @@ public sealed class NonPersistentStorageWarningTests
     {
         // A file database, not `:memory:`: without a shared cache every connection
         // would open its own empty database (see A2AEndpointTests).
-        var databasePath = Path.Combine(Path.GetTempPath(), $"agentprism-persist-warn-{Guid.NewGuid():N}.db");
+        using var database = new TempSqliteDatabase("persist-warn");
 
-        try
-        {
-            await using var host = await AgentPrismTestHost.StartAsync(
-                configureAgentPrism: builder => builder.UseSqlite($"Data Source={databasePath}"),
-                environment: Environments.Production);
+        await using var host = await AgentPrismTestHost.StartAsync(
+            configureAgentPrism: builder => builder.UseSqlite(database.ConnectionString),
+            environment: Environments.Production);
 
-            host.Logs.AllText.ShouldNotContain(WarningFragment);
-        }
-        finally
-        {
-            File.Delete(databasePath);
-        }
+        host.Logs.AllText.ShouldNotContain(WarningFragment);
     }
 
     [Fact]

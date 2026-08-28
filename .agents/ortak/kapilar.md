@@ -59,8 +59,8 @@ yol açar). Ayrıntı: `docs/hafiza/test-altyapisi.md`.
 ## CI'ın Windows ayağı
 
 Kapılar iki işletim sisteminde koşar ve ubuntu ayağı **platform varsayımlarını
-gizler**. Bir kapı yalnız `windows-latest`'te kırmızıysa önce şu üçüne bak;
-üçü de 2026-08-28'de arka arkaya çıktı, hiçbiri ubuntu'da görünmüyordu.
+gizler**. Bir kapı yalnız `windows-latest`'te kırmızıysa önce şu altısına bak;
+altısı da 2026-08-28'de arka arkaya çıktı, hiçbiri ubuntu'da görünmüyordu.
 
 - **Python çıktısı.** `scripts/*.py` Türkçe yazar; Windows'ta hem `sys.stdout`
   hem `subprocess(text=True)` varsayılan olarak **cp1252**'dir ve `ş`/`ğ`/`İ` o
@@ -72,6 +72,19 @@ gizler**. Bir kapı yalnız `windows-latest`'te kırmızıysa önce şu üçüne
 - **Yol ayracı iddiası.** `pathlib` Windows'ta `\` üretir; testte
   `endswith("/a/b")` orada **her zaman** False döner. Ayraç yerine parça
   karşılaştır: `PurePath(yol).parts[-3:]`.
+- **Satır sonu.** `System.Text.Json`'ın girintili yazıcısı satır sonunu
+  `Environment.NewLine`'dan alır; Windows'ta CRLF üretir ve LF olarak commit
+  edilmiş bir snapshot ile **her satırı** farklı çıkar. Diske karşı
+  karşılaştırılan metni `ReplaceLineEndings("\n")` ile sabitle.
+- **Regex `$` ve CRLF.** Çok satırlı modda .NET `$`'ı `\n`'den ÖNCE
+  demirler; alt sürecin CRLF çıktısında son karakterle demir arasında `\r`
+  kalır ve ekranda apaçık duran satır eşleşmez. Süreç çıktısına karşı yazılan
+  desende `\r?$` kullan (ölçüldü: yalın `$` CRLF'te `False`, LF'te `True`).
+- **SQLite dosyası silinemez.** `Microsoft.Data.Sqlite` bağlantıyı havuzlar;
+  host `dispose` olsa da dosya tanıtıcısı açık kalır. POSIX açık dosyayı siler,
+  Windows "being used by another process" der. Silmeden önce
+  `SqliteConnection.ClearAllPools()` çağır — testlerde bunu
+  `TempSqliteDatabase` yapar, elle kopyalama.
 - **`npx` bir `.cmd`'dir.** Node'un `execFileSync`'i onu çözemez (`ENOENT`) ve
   shell'siz spawn edemez. Kurulu bir CLI'yi `npx` ile değil, `package.json`'ın
   `bin` alanından çözüp `process.execPath` ile çağır (örnek:

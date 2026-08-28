@@ -25,36 +25,29 @@ public sealed class McpTaskCrossInstanceTests
     [Fact]
     public async Task Second_instance_reconstructs_a_completed_task_from_the_shared_database()
     {
-        var databasePath = SqliteFile();
+        using var database = new TempSqliteDatabase("mcp-task-cross-instance");
 
-        try
-        {
-            await using var hostA = await StartAsync(databasePath);
-            await using var clientA = await McpTaskTestClient.ConnectAsync(hostA.Client, "/agentprism/mcp");
+        await using var hostA = await StartAsync(database.ConnectionString);
+        await using var clientA = await McpTaskTestClient.ConnectAsync(hostA.Client, "/agentprism/mcp");
 
-            var outcome = await clientA.CallToolAsTaskAsync(
-                new CallToolRequestParams { Name = "agentprism_kod-agent", Arguments = Arguments("hello from host A") });
+        var outcome = await clientA.CallToolAsTaskAsync(
+            new CallToolRequestParams { Name = "agentprism_kod-agent", Arguments = Arguments("hello from host A") });
 
-            var taskId = outcome.TaskCreated!.TaskId;
+        var taskId = outcome.TaskCreated!.TaskId;
 
-            // Host A's own cache resolves this once it settles -- proves the
-            // task actually completes before we move to a store that has
-            // never seen it.
-            await Poll(() => clientA.GetTaskAsync(taskId), r => r is CompletedTaskResult);
+        // Host A's own cache resolves this once it settles -- proves the
+        // task actually completes before we move to a store that has
+        // never seen it.
+        await Poll(() => clientA.GetTaskAsync(taskId), r => r is CompletedTaskResult);
 
-            await using var hostB = await StartAsync(databasePath);
-            await using var clientB = await McpTaskTestClient.ConnectAsync(hostB.Client, "/agentprism/mcp");
+        await using var hostB = await StartAsync(database.ConnectionString);
+        await using var clientB = await McpTaskTestClient.ConnectAsync(hostB.Client, "/agentprism/mcp");
 
-            var final = await Poll(() => clientB.GetTaskAsync(taskId), r => r is CompletedTaskResult);
+        var final = await Poll(() => clientB.GetTaskAsync(taskId), r => r is CompletedTaskResult);
 
-            var completed = final.ShouldBeOfType<CompletedTaskResult>();
-            var result = JsonSerializer.Deserialize<CallToolResult>(completed.Result, McpJsonUtilities.DefaultOptions)!;
-            result.Content[0].ShouldBeOfType<TextContentBlock>().Text.ShouldContain("hello from host A", Case.Sensitive);
-        }
-        finally
-        {
-            DeleteSqliteFile(databasePath);
-        }
+        var completed = final.ShouldBeOfType<CompletedTaskResult>();
+        var result = JsonSerializer.Deserialize<CallToolResult>(completed.Result, McpJsonUtilities.DefaultOptions)!;
+        result.Content[0].ShouldBeOfType<TextContentBlock>().Text.ShouldContain("hello from host A", Case.Sensitive);
     }
 
     [Fact]
@@ -65,103 +58,85 @@ public sealed class McpTaskCrossInstanceTests
         // recover the exact tool name from IRunStore alone -- a documented,
         // deliberate difference from the same-instance wording, not a bug.
         const string ApprovalModel = "cross-instance-approval-model";
-        var databasePath = SqliteFile();
+        using var database = new TempSqliteDatabase("mcp-task-cross-instance");
 
-        try
-        {
-            await using var hostA = await AgentPrismTestHost.StartAsync(
-                configureAgentPrism: builder =>
-                {
-                    builder
-                        .UseSqlite($"Data Source={databasePath}")
-                        .AddTool(
-                            (Func<string, string>)(orderId => $"canceled: {orderId}"),
-                            name: "cancel_order",
-                            description: "Cancels an order.",
-                            configure: options => options.RequiresApproval = true)
-                        .AddModelProvider(new AgentPrism.Testing.FakeModelProvider("routing")
-                            .ForModel(ApprovalModel, cfg => cfg.CallsTool("cancel_order", new { orderId = "123" })))
-                        .UseMcpServer(o =>
-                        {
-                            o.ExposedAgents.Add("db-agent");
-                            o.EnableTasks = true;
-                        });
-                },
-                configureAfterMap: app => app.MapAgentPrismMcpServer());
-
-            var createResponse = await hostA.Client.PostAsJsonAsync(
-                new Uri("/agentprism/api/agents", UriKind.Relative),
-                TestData.Request() with { Model = new ModelBinding { Provider = "routing", Model = ApprovalModel } });
-            createResponse.EnsureSuccessStatusCode();
-
-            var updateResponse = await hostA.Client.PutAsJsonAsync(
-                new Uri("/agentprism/api/agents/db-agent", UriKind.Relative),
-                TestData.Request() with
-                {
-                    Model = new ModelBinding { Provider = "routing", Model = ApprovalModel },
-                    ToolNames = ["cancel_order"],
-                });
-            updateResponse.EnsureSuccessStatusCode();
-
-            await using var clientA = await McpTaskTestClient.ConnectAsync(hostA.Client, "/agentprism/mcp");
-
-            var outcome = await clientA.CallToolAsTaskAsync(
-                new CallToolRequestParams { Name = "agentprism_db-agent", Arguments = Arguments("cancel my order") });
-
-            var taskId = outcome.TaskCreated!.TaskId;
-
-            await Poll(() => clientA.GetTaskAsync(taskId), r => r is CompletedTaskResult);
-
-            // Host B never registers the approval-requiring tool or the
-            // agent at all -- it only needs to READ the run the shared
-            // database already has. Its own catalog is irrelevant to
-            // tasks/get, which never re-resolves the agent.
-            await using var hostB = await AgentPrismTestHost.StartAsync(
-                configureAgentPrism: builder => builder
-                    .UseSqlite($"Data Source={databasePath}")
+        await using var hostA = await AgentPrismTestHost.StartAsync(
+            configureAgentPrism: builder =>
+            {
+                builder
+                    .UseSqlite(database.ConnectionString)
+                    .AddTool(
+                        (Func<string, string>)(orderId => $"canceled: {orderId}"),
+                        name: "cancel_order",
+                        description: "Cancels an order.",
+                        configure: options => options.RequiresApproval = true)
+                    .AddModelProvider(new AgentPrism.Testing.FakeModelProvider("routing")
+                        .ForModel(ApprovalModel, cfg => cfg.CallsTool("cancel_order", new { orderId = "123" })))
                     .UseMcpServer(o =>
                     {
                         o.ExposedAgents.Add("db-agent");
                         o.EnableTasks = true;
-                    }),
-                configureAfterMap: app => app.MapAgentPrismMcpServer());
+                    });
+            },
+            configureAfterMap: app => app.MapAgentPrismMcpServer());
 
-            await using var clientB = await McpTaskTestClient.ConnectAsync(hostB.Client, "/agentprism/mcp");
+        var createResponse = await hostA.Client.PostAsJsonAsync(
+            new Uri("/agentprism/api/agents", UriKind.Relative),
+            TestData.Request() with { Model = new ModelBinding { Provider = "routing", Model = ApprovalModel } });
+        createResponse.EnsureSuccessStatusCode();
 
-            var final = await Poll(() => clientB.GetTaskAsync(taskId), r => r is CompletedTaskResult);
+        var updateResponse = await hostA.Client.PutAsJsonAsync(
+            new Uri("/agentprism/api/agents/db-agent", UriKind.Relative),
+            TestData.Request() with
+            {
+                Model = new ModelBinding { Provider = "routing", Model = ApprovalModel },
+                ToolNames = ["cancel_order"],
+            });
+        updateResponse.EnsureSuccessStatusCode();
 
-            final.ShouldNotBeOfType<InputRequiredTaskResult>();
+        await using var clientA = await McpTaskTestClient.ConnectAsync(hostA.Client, "/agentprism/mcp");
 
-            var completed = final.ShouldBeOfType<CompletedTaskResult>();
-            var result = JsonSerializer.Deserialize<CallToolResult>(completed.Result, McpJsonUtilities.DefaultOptions)!;
-            var text = result.Content[0].ShouldBeOfType<TextContentBlock>().Text;
+        var outcome = await clientA.CallToolAsTaskAsync(
+            new CallToolRequestParams { Name = "agentprism_db-agent", Arguments = Arguments("cancel my order") });
 
-            text.ShouldContain("requires user approval", Case.Sensitive);
-            // The generic fallback wording, not the cache-hit wording: no
-            // tool name, because IRunStore alone cannot recover it.
-            text.ShouldNotContain("'cancel_order'", Case.Sensitive);
-        }
-        finally
-        {
-            DeleteSqliteFile(databasePath);
-        }
+        var taskId = outcome.TaskCreated!.TaskId;
+
+        await Poll(() => clientA.GetTaskAsync(taskId), r => r is CompletedTaskResult);
+
+        // Host B never registers the approval-requiring tool or the
+        // agent at all -- it only needs to READ the run the shared
+        // database already has. Its own catalog is irrelevant to
+        // tasks/get, which never re-resolves the agent.
+        await using var hostB = await AgentPrismTestHost.StartAsync(
+            configureAgentPrism: builder => builder
+                .UseSqlite(database.ConnectionString)
+                .UseMcpServer(o =>
+                {
+                    o.ExposedAgents.Add("db-agent");
+                    o.EnableTasks = true;
+                }),
+            configureAfterMap: app => app.MapAgentPrismMcpServer());
+
+        await using var clientB = await McpTaskTestClient.ConnectAsync(hostB.Client, "/agentprism/mcp");
+
+        var final = await Poll(() => clientB.GetTaskAsync(taskId), r => r is CompletedTaskResult);
+
+        final.ShouldNotBeOfType<InputRequiredTaskResult>();
+
+        var completed = final.ShouldBeOfType<CompletedTaskResult>();
+        var result = JsonSerializer.Deserialize<CallToolResult>(completed.Result, McpJsonUtilities.DefaultOptions)!;
+        var text = result.Content[0].ShouldBeOfType<TextContentBlock>().Text;
+
+        text.ShouldContain("requires user approval", Case.Sensitive);
+        // The generic fallback wording, not the cache-hit wording: no
+        // tool name, because IRunStore alone cannot recover it.
+        text.ShouldNotContain("'cancel_order'", Case.Sensitive);
     }
 
-    private static string SqliteFile()
-        => Path.Combine(Path.GetTempPath(), $"agentprism-mcp-task-cross-instance-{Guid.NewGuid():N}.db");
-
-    private static void DeleteSqliteFile(string databasePath)
-    {
-        foreach (var suffix in new[] { string.Empty, "-wal", "-shm", ".agentprism-migration-lock" })
-        {
-            File.Delete(databasePath + suffix);
-        }
-    }
-
-    private static Task<AgentPrismTestHost> StartAsync(string databasePath)
+    private static Task<AgentPrismTestHost> StartAsync(string connectionString)
         => AgentPrismTestHost.StartAsync(
             configureAgentPrism: builder => builder
-                .UseSqlite($"Data Source={databasePath}")
+                .UseSqlite(connectionString)
                 .AddAgent(TestData.Definition())
                 .UseMcpServer(o =>
                 {

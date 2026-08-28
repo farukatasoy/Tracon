@@ -1,3 +1,5 @@
+using Microsoft.Data.Sqlite;
+
 namespace AgentPrism.Sqlite.IntegrationTests.Infrastructure;
 
 /// <summary>
@@ -36,6 +38,11 @@ public sealed class SqliteFixture : IAsyncLifetime
     /// </remarks>
     public ValueTask DisposeAsync()
     {
+        // Microsoft.Data.Sqlite pools connections, so the file handle outlives
+        // the last store. POSIX deletes an open file happily; Windows refuses
+        // with "being used by another process" (measured, 2026-08-28).
+        SqliteConnection.ClearAllPools();
+
         var directory = Path.GetDirectoryName(_databasePath)!;
         var fileName = Path.GetFileName(_databasePath);
 
