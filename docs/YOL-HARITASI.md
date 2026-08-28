@@ -8,7 +8,7 @@
 Bir fazın durumu yanlış görünüyorsa **o fazın dokümanını** düzelt;
 bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 
-## Fazlar (123 kalem)
+## Fazlar (124 kalem)
 
 | Faz | Konu | Durum |
 |-----|------|-------|
@@ -135,5 +135,6 @@ bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 | [120](arsiv/fazlar/120-JOB-SOZLESMESI-AT-LEAST-ONCE.md) | `IJobHandler` Sözleşmesi: At-Least-Once Yazılı Hale Gelir | ✅ Tamamlandı |
 | [121](arsiv/fazlar/121-SEAM-SOZLESME-DOKUMANI.md) | Seam Sözleşme Dokümanı ve Küçülen Taban Çizgisi | ✅ Tamamlandı |
 | [122](arsiv/fazlar/122-KAYIT-API-SI-VE-SESSIZ-BOSLUKLAR.md) | Kayıt API'si ve Sessiz Boşluklar | ✅ Tamamlandı |
+| [123](123-YAYIN-KRITIK-YOLU.md) | Yayın Kritik Yolu: Kapı Kapsamı, Adaptör Sözleşmesi ve Sürüm Notları | 📋 Planlandı |
 
 Seçilmemiş adaylar: [`ADAYLAR.md`](ADAYLAR.md). Fazların hangi dalgada, hangi gerekçeyle sıralandığı (Faz 8–56, kapandı): [`arsiv/IKINCI-FAZ-YOL-HARITASI.md`](arsiv/IKINCI-FAZ-YOL-HARITASI.md) · [`arsiv/UCUNCU-FAZ-YOL-HARITASI.md`](arsiv/UCUNCU-FAZ-YOL-HARITASI.md).
