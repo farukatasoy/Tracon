@@ -53,6 +53,12 @@ hem budget üstünde göründü. Path bileşenini `node:path` `basename()` ile �
 `build-agent-map.test.mjs`, `win32.basename` ile bu sınırı macOS'ta da doğrular;
 test `npm run check:content` kapısının parçasıdır.
 
+Aynı sınır `relative()` çıktıları için de geçerlidir. Windows bu çıktıda `\\`,
+POSIX sistemler `/` üretir. Sidebar slug'ı, exemption anahtarı veya üretilen kimlik
+olacak her relative path önce `/` biçimine çevrilmelidir. `path-utils.mjs` bu
+kuralı merkezileştirir; `path-utils.test.mjs` Windows girdisini her platformda
+doğrular.
+
 ## 🚨 DocFX assembly metadata girdisine `artifacts/bin` referansı ekleme (Faz 98 · onarım 2026-08-26)
 
 `docfx metadata --logLevel verbose` kök nedeni gösterdi. `src`, API üretilecek

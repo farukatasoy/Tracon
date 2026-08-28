@@ -75,7 +75,7 @@ public abstract class JobScheduleStoreContract : TenantIsolationContract<IJobSch
     [Fact]
     public async Task ListDueAsync_returns_only_enabled_and_due_schedules()
     {
-        var now = DateTimeOffset.UtcNow;
+        var now = PrecisionSafeUtcNow();
 
         await Store.SaveAsync(TestData.Schedule(name: "due") with { NextRunAt = now.AddMinutes(-1) });
         await Store.SaveAsync(TestData.Schedule(name: "not-due") with { NextRunAt = now.AddMinutes(5) });
@@ -90,7 +90,7 @@ public abstract class JobScheduleStoreContract : TenantIsolationContract<IJobSch
     [Fact]
     public async Task TryClaimNextRunAsync_fails_when_the_expected_value_does_not_match()
     {
-        var now = DateTimeOffset.UtcNow;
+        var now = PrecisionSafeUtcNow();
         var saved = await Store.SaveAsync(TestData.Schedule() with { NextRunAt = now });
 
         var claimed = await Store.TryClaimNextRunAsync(saved.Id, now.AddMinutes(-1), now.AddHours(1), now);
@@ -102,7 +102,7 @@ public abstract class JobScheduleStoreContract : TenantIsolationContract<IJobSch
     [Fact]
     public async Task TryClaimNextRunAsync_a_second_claim_prevents_the_conflict()
     {
-        var now = DateTimeOffset.UtcNow;
+        var now = PrecisionSafeUtcNow();
         var saved = await Store.SaveAsync(TestData.Schedule() with { NextRunAt = now });
 
         var first = await Store.TryClaimNextRunAsync(saved.Id, now, now.AddDays(1), now);
@@ -111,4 +111,7 @@ public abstract class JobScheduleStoreContract : TenantIsolationContract<IJobSch
         first.ShouldBeTrue();
         second.ShouldBeFalse();
     }
+
+    private static DateTimeOffset PrecisionSafeUtcNow()
+        => DateTimeOffset.FromUnixTimeMilliseconds(DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
 }

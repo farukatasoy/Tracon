@@ -109,17 +109,17 @@ public sealed class TemplateAgentsFileTests(TemplateFixture fixture)
 
         // One solution, one build: two projects that both opt in race for the
         // same destination, and the target must stay correct under that race.
-        var solution = await ProcessRunner.RunAsync("dotnet", "new sln -n Both", directory.Path, BuildTimeout);
+        var solution = await ProcessRunner.RunAsync("dotnet", "new sln -n Both --format slnx", directory.Path, BuildTimeout);
         solution.ExitCode.ShouldBe(0, solution.Combined);
 
         var added = await ProcessRunner.RunAsync(
             "dotnet",
-            "sln Both.sln add src/First/First.csproj src/Second/Second.csproj",
+            "sln Both.slnx add src/First/First.csproj src/Second/Second.csproj",
             directory.Path,
             BuildTimeout);
         added.ExitCode.ShouldBe(0, added.Combined);
 
-        var build = await ProcessRunner.RunAsync("dotnet", "build Both.sln -c Release", directory.Path, BuildTimeout);
+        var build = await ProcessRunner.RunAsync("dotnet", "build Both.slnx -c Release", directory.Path, BuildTimeout);
 
         build.ExitCode.ShouldBe(0, build.Combined);
 
@@ -295,17 +295,17 @@ public sealed class TemplateAgentsFileTests(TemplateFixture fixture)
         await CreateConsumerAsync(directory.Path, writeAgentsFile: true, CleanProgram, subdirectory: "src/First", projectName: "First");
         await CreateConsumerAsync(directory.Path, writeAgentsFile: true, CleanProgram, subdirectory: "src/Second", projectName: "Second");
 
-        var solution = await ProcessRunner.RunAsync("dotnet", "new sln -n Both", directory.Path, BuildTimeout);
+        var solution = await ProcessRunner.RunAsync("dotnet", "new sln -n Both --format slnx", directory.Path, BuildTimeout);
         solution.ExitCode.ShouldBe(0, solution.Combined);
 
         var added = await ProcessRunner.RunAsync(
             "dotnet",
-            "sln Both.sln add src/First/First.csproj src/Second/Second.csproj",
+            "sln Both.slnx add src/First/First.csproj src/Second/Second.csproj",
             directory.Path,
             BuildTimeout);
         added.ExitCode.ShouldBe(0, added.Combined);
 
-        var build = await ProcessRunner.RunAsync("dotnet", "build Both.sln -c Release", directory.Path, BuildTimeout);
+        var build = await ProcessRunner.RunAsync("dotnet", "build Both.slnx -c Release", directory.Path, BuildTimeout);
 
         build.ExitCode.ShouldBe(0, build.Combined);
         build.Combined.ShouldContain("First.csproj", customMessage: build.Combined);
