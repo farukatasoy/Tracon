@@ -334,7 +334,10 @@ internal sealed class CompositeAgentCatalog : IAgentCatalog
     private void RecordSourceFailure(IAgentSource source, string operation, Exception exception, LogLevel level)
     {
         _metrics?.RecordAgentSourceFailure(source.Name, operation);
-        _logger.Log(level, exception, "Agent source '{SourceName}' failed during {Operation}.", source.Name, operation);
+        if (_logger.IsEnabled(level))
+        {
+            _logger.Log(level, exception, "Agent source '{SourceName}' failed during {Operation}.", source.Name, operation);
+        }
     }
 
     private List<AgentDescriptor>? FreezeAndValidate(IAgentSource source, IReadOnlyList<AgentDescriptor> descriptors)

@@ -91,6 +91,12 @@
   kosmaz, cikti bos gelir.
 - **🚨 Tek `$` işaretli raw interpolated string'de `{{` KAÇIŞ DEĞİLDİR** (2026-08-19, Faz 68): `$"""..."""` içinde tek `{` bir interpolasyon deliği açar; SQL'e literal süslü parantez yazmak (`ISNULL(labels, N'{}')`, `COALESCE(labels, '{}')`) `CS9006`/`CS1733` verir. `$$"""` + `{{` ile çözmek yerine deseni değiştir: `labels IS NOT NULL AND EXISTS (...)` guard'ı hem brace istemez hem NULL davranışını AÇIK yazar. `OPENJSON`/`json_each`'in NULL girdideki davranışına güvenmemek de ayrıca doğrudur.
 - **🚨 `dotnet build` yesilken `dotnet format` 276 `IDE0055` verebilir** (Faz 11 bu yuzden eksik kapandi): kaynak ureteci build'in analyzer gecisinde taniyi gizleyebilir. Kural `AGENTS.md`'dedir (dort kapinin dordu de kosulur); buradaki kanit MEMORY.md'den Faz 77'de tasindi.
+- **🚨 `CA1873`, logging argumani olarak verilen property erisimini de pahali
+  sayabilir** (2026-08-28, Ubuntu CI): `_buffer.Length`, `judge.Name` ve
+  `timeout.TotalSeconds` gibi erisimler bes cagrida build'i kirdi. Mesaji
+  susturma. Cagriyi ayni seviyenin `logger.IsEnabled(LogLevel.X)` guard'i
+  icine al; nullable logger icin `logger?.IsEnabled(...) is true` kullan.
+  Ayni tani her target framework icin tekrarlandigi icin 5 vaka 15 hata gorunur.
 - **AOT kacis merdiveni** (AGENTS.md'den, Faz 77): `reflection` yerine sirayla dene —
   (1) elle yaz; (2) `source generator`; (3) kacinilmazsa `[RequiresUnreferencedCode]` +
   `[RequiresDynamicCode]` isaretle; uyariyi **bastirma**, cagirana ilet.
