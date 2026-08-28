@@ -56,6 +56,17 @@ yerel test varsayılanı ve sahte anahtar değerleri vardır). Testlerde sahte
 elle koşuyorsan da eklemen gerekir (öksüz MSBuild düğümleri asılı kalmaya
 yol açar). Ayrıntı: `docs/hafiza/test-altyapisi.md`.
 
+## CI'ın Windows ayağı — Python çıktısı
+
+Kapılar iki işletim sisteminde koşar. `scripts/*.py` Türkçe yazar; Windows'ta
+hem `sys.stdout` hem `subprocess(text=True)` varsayılan olarak **cp1252**'dir ve
+`ş`/`ğ`/`İ` o kod sayfasında yoktur — ilk `print` `UnicodeEncodeError` fırlatır.
+`ci.yml` bunu iş düzeyinde `PYTHONUTF8: 1` ile kapatır: UTF-8 modu ikisini
+birden çevirir ve `unittest` koşumunu da kapsar (Türkçe docstring yazar; betik
+içi bir düzeltme o adımı kapsayamazdı). Yeni bir workflow yazarsan bu değişkeni
+ekle. Yerelde doğrula: `PYTHONIOENCODING=cp1252 python3 scripts/<betik>.py`
+patlamalı, varsayılanla geçmelidir.
+
 ## MTP filtresi — `dotnet test --filter` YAZMA
 
 MTP'de `--filter` diye bir seçenek **yoktur**; sessizce yutulur ve paketin
