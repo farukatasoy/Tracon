@@ -296,17 +296,17 @@ public sealed class LocalReferenceTests(TemplateFixture fixture)
             sdk: "Microsoft.NET.Sdk",
             program: "// The HTTP layer is not referenced here.\n");
 
-        var solution = await ProcessRunner.RunAsync("dotnet", "new sln -n Both", directory.Path, BuildTimeout);
+        var solution = await ProcessRunner.RunAsync("dotnet", "new sln -n Both --format slnx", directory.Path, BuildTimeout);
         solution.ExitCode.ShouldBe(0, solution.Combined);
 
         var added = await ProcessRunner.RunAsync(
             "dotnet",
-            "sln Both.sln add src/Web/Web.csproj src/Worker/Worker.csproj",
+            "sln Both.slnx add src/Web/Web.csproj src/Worker/Worker.csproj",
             directory.Path,
             BuildTimeout);
         added.ExitCode.ShouldBe(0, added.Combined);
 
-        var build = await ProcessRunner.RunAsync("dotnet", "build Both.sln -c Release", directory.Path, BuildTimeout);
+        var build = await ProcessRunner.RunAsync("dotnet", "build Both.slnx -c Release", directory.Path, BuildTimeout);
         build.ExitCode.ShouldBe(0, build.Combined);
 
         var webFile = Path.Combine(web, LocalReferenceFileName);
@@ -330,7 +330,7 @@ public sealed class LocalReferenceTests(TemplateFixture fixture)
         // Neither answer moves once written: no project writes the other's file.
         var stamps = new[] { File.GetLastWriteTimeUtc(webFile), File.GetLastWriteTimeUtc(workerFile) };
 
-        var second = await ProcessRunner.RunAsync("dotnet", "build Both.sln -c Release -t:Rebuild", directory.Path, BuildTimeout);
+        var second = await ProcessRunner.RunAsync("dotnet", "build Both.slnx -c Release -t:Rebuild", directory.Path, BuildTimeout);
         second.ExitCode.ShouldBe(0, second.Combined);
 
         File.GetLastWriteTimeUtc(webFile).ShouldBe(stamps[0]);

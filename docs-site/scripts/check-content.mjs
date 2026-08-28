@@ -7,11 +7,12 @@
 // guides.
 
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
-import { basename, extname, join, relative, resolve, sep } from 'node:path';
+import { basename, extname, join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { build as buildAgentMap, outputs as agentMapOutputs, verifyBudget } from './build-agent-map.mjs';
 import { formerHosts, repositoryIsPublic, repositoryUrl, site, siteUrl } from '../site.config.mjs';
 import { hasInternalHistory } from './internal-history.mjs';
+import { portableRelative as relative } from './path-utils.mjs';
 import { sidebar, sectionImages } from '../src/sidebar.mjs';
 
 /** Every slug the sidebar reaches, at any depth. */
