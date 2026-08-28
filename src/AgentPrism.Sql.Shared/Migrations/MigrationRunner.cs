@@ -265,7 +265,7 @@ public sealed class MigrationRunner : ISqlPersistenceDiagnostics, IMigrationAppl
 
         LogOrphanedRelocatedMigrations(applied);
 
-        if (count > 0)
+        if (count > 0 && _logger.IsEnabled(LogLevel.Information))
         {
             _logger.LogInformation(
                 "AgentPrism applied {Count} migration(s). Schema: {Schema}.",
@@ -284,6 +284,11 @@ public sealed class MigrationRunner : ISqlPersistenceDiagnostics, IMigrationAppl
     /// </summary>
     private void LogOrphanedRelocatedMigrations(IReadOnlyDictionary<MigrationKey, AppliedMigration> applied)
     {
+        if (!_logger.IsEnabled(LogLevel.Information))
+        {
+            return;
+        }
+
         foreach (var (id, setName) in _context.Dialect.RelocatedCoreMigrationSets)
         {
             if (!applied.ContainsKey(new MigrationKey(CoreSetName, id)))

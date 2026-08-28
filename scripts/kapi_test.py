@@ -19,6 +19,11 @@ spec.loader.exec_module(kapi)
 
 
 class KapiTestleri(unittest.TestCase):
+    def test_git_tum_metin_dosyalarini_lf_olarak_checkout_eder(self):
+        attributes = (ROOT / ".gitattributes").read_text(encoding="utf-8")
+
+        self.assertIn("* text=auto eol=lf", attributes.splitlines())
+
     def test_first_failure_stops_pahali_kapilari(self):
         commands = [kapi.Command(("first",)), kapi.Command(("second",))]
         runner = mock.Mock(side_effect=[mock.Mock(returncode=1), mock.Mock(returncode=0)])
