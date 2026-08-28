@@ -505,13 +505,9 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
 
         try
         {
-            workflow = await _catalog.ResolveAsync(execution.WorkflowName, linked.Token).ConfigureAwait(false);
-
-            if (workflow is null)
-            {
-                throw new AgentPrismException(
+            workflow = await _catalog.ResolveAsync(execution.WorkflowName, linked.Token).ConfigureAwait(false)
+                ?? throw new AgentPrismException(
                     $"There is no workflow named '{execution.WorkflowName}'.");
-            }
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
