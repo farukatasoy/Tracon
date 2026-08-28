@@ -91,6 +91,11 @@
   kosmaz, cikti bos gelir.
 - **🚨 Tek `$` işaretli raw interpolated string'de `{{` KAÇIŞ DEĞİLDİR** (2026-08-19, Faz 68): `$"""..."""` içinde tek `{` bir interpolasyon deliği açar; SQL'e literal süslü parantez yazmak (`ISNULL(labels, N'{}')`, `COALESCE(labels, '{}')`) `CS9006`/`CS1733` verir. `$$"""` + `{{` ile çözmek yerine deseni değiştir: `labels IS NOT NULL AND EXISTS (...)` guard'ı hem brace istemez hem NULL davranışını AÇIK yazar. `OPENJSON`/`json_each`'in NULL girdideki davranışına güvenmemek de ayrıca doğrudur.
 - **🚨 `dotnet build` yesilken `dotnet format` 276 `IDE0055` verebilir** (Faz 11 bu yuzden eksik kapandi): kaynak ureteci build'in analyzer gecisinde taniyi gizleyebilir. Kural `AGENTS.md`'dedir (dort kapinin dordu de kosulur); buradaki kanit MEMORY.md'den Faz 77'de tasindi.
+- **🚨 `.editorconfig` içindeki `end_of_line = lf`, Git checkout davranışını
+  yönetmez** (2026-08-28, Windows CI): `.gitattributes` yoksa Windows runner
+  C# dosyalarını `CRLF` olarak çıkarabilir ve `dotnet format` her satırı
+  `WHITESPACE` hatası sayar. Root `.gitattributes` içindeki
+  `* text=auto eol=lf` sözleşmesini kaldırma veya daraltma.
 - **🚨 `CA1873`, logging argumani olarak verilen property erisimini de pahali
   sayabilir** (2026-08-28, Ubuntu CI): `_buffer.Length`, `judge.Name` ve
   `timeout.TotalSeconds` gibi erisimler bes cagrida build'i kirdi. Mesaji
