@@ -20,8 +20,13 @@ namespace AgentPrism.Package.Tests;
 /// </remarks>
 public sealed class ConsumerRunTests(TemplateFixture fixture)
 {
+    // '\r?$', not a bare '$': in multiline mode .NET anchors '$' BEFORE the
+    // '\n', so on Windows the carriage return of the consumer process's CRLF
+    // output sits between the last digit and the anchor and the match fails on
+    // a line that is plainly there (measured on the windows-latest CI leg; the
+    // failure message printed the very line it could not match).
     private static readonly Regex OkLine = new(
-        @"^OK run=(?<id>\S+) events=(?<events>\d+) tools=(?<tools>\d+)$",
+        @"^OK run=(?<id>\S+) events=(?<events>\d+) tools=(?<tools>\d+)\r?$",
         RegexOptions.Multiline,
         TimeSpan.FromSeconds(1));
 

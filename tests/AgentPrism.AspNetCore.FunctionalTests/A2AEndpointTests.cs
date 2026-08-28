@@ -131,31 +131,21 @@ public sealed class A2AEndpointTests
         // (the remaining read for the agent card also falls back gracefully on a
         // DB error). `:memory:` is NOT USED: without a shared cache, each new
         // connection opens its own isolated, empty database.
-        var databasePath = Path.Combine(Path.GetTempPath(), $"agentprism-a2a-empty-db-{Guid.NewGuid():N}.db");
+        using var database = new TempSqliteDatabase("a2a-empty-db");
 
-        try
-        {
-            await using var host = await AgentPrismTestHost.StartAsync(
-                configureAgentPrism: builder => builder
-                    .UseSqlite($"Data Source={databasePath}")
-                    .AddAgent(TestData.Definition())
-                    .UseA2A(o => o.ExposedAgents.Add("kod-agent")),
-                configureAfterMap: app => app.MapAgentPrismA2A());
+        await using var host = await AgentPrismTestHost.StartAsync(
+            configureAgentPrism: builder => builder
+                .UseSqlite(database.ConnectionString)
+                .AddAgent(TestData.Definition())
+                .UseA2A(o => o.ExposedAgents.Add("kod-agent")),
+            configureAfterMap: app => app.MapAgentPrismA2A());
 
-            using var response = await host.Client.GetAsync(
-                new Uri("/agentprism/a2a/kod-agent/.well-known/agent-card.json", UriKind.Relative));
-            var body = await AgentPrismTestHost.ReadJsonAsync(response);
+        using var response = await host.Client.GetAsync(
+            new Uri("/agentprism/a2a/kod-agent/.well-known/agent-card.json", UriKind.Relative));
+        var body = await AgentPrismTestHost.ReadJsonAsync(response);
 
-            response.StatusCode.ShouldBe(HttpStatusCode.OK);
-            body.GetProperty("name").GetString().ShouldBe("kod-agent");
-        }
-        finally
-        {
-            foreach (var suffix in new[] { string.Empty, "-wal", "-shm", ".agentprism-migration-lock" })
-            {
-                File.Delete(databasePath + suffix);
-            }
-        }
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        body.GetProperty("name").GetString().ShouldBe("kod-agent");
     }
 
     [Fact]
