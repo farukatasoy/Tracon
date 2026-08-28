@@ -126,6 +126,17 @@ Düzeltmelerden sonra dört kapı yeniden koşuldu: `dotnet build` (0 uyarı),
 yok), 3.3 (test seviyeleri doğru), 3.5 (imza-gövde kayması yok), 3.6 (plan
 dışı public API yok), 3.7 (repo kuralları), 3.8 (ürün yüzeyi).
 
+🚨 **Bağımsız denetimin kendi build+test koşumu YALNIZ üç projeyi kapsıyordu**
+(`Core.UnitTests`, `Workflows.UnitTests`, `AspNetCore.FunctionalTests`) — tam
+`python3 scripts/kapi.py kapanis` ilk gerçek koşumunda `AgentPrism.Generators.
+UnitTests` kırmızı verdi: `IAgentPrismBuilder.cs`'in yeni `<example>`'ı
+(`AuditingAgentDecorator`) `tests/AgentPrism.Generators.UnitTests/Examples/
+ExamplePrelude.cs`'e stub olarak eklenmemişti (kardeş `GitAgentSource`/
+`ResponseQualityJudge` deseni). Düzeltildi, 194/194 yeşil. **Ders:** bir
+XML `<example>`'a yeni bir illüstratif tip adı (gerçekte var olmayan bir
+sınıf) eklerken `ExamplePrelude.cs`'e stub eklemek gerekir — yalnız hedef
+paketin kendi test projesini koşmak bunu YAKALAMAZ, tam çözüm koşumu gerekir.
+
 ## Sonraki Faza Devir Notu
 
 - **`docs/KARARLAR.md` bütçesi bu fazın K-645 kaydıyla aşıldı** (391.720 B /

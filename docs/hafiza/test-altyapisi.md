@@ -176,3 +176,13 @@ tekrarlanmalı — ve `.editorconfig`'in `[tests/**/*.cs]` bölümü (CA1707 alt
   regresyon testleri de tek-satır örnek kullandığı için bunu yakalamadı —
   gerçek `src/` ağacında REFRESH koşup çıkan siteleri tek tek okumak asıl
   yakalayan adımdı.
+- **🚨 Yeni bir XML `<example>`'a illüstratif bir tip adı eklemek `AgentPrism.
+  Generators.UnitTests`'i kırar, hedef paketin kendi test projesini DEĞİL**
+  (Faz 122): `tests/AgentPrism.Generators.UnitTests/Examples/ExampleCompilationTests`
+  her `<example>` bloğunu gerçekten DERLER; `ExamplePrelude.cs` "sen yazmış
+  gibi davran" tipleri (`GitAgentSource`, `ResponseQualityJudge`, vb.) stub
+  olarak tanımlar. Yeni bir örnek yeni bir illüstratif ad kullanıyorsa
+  (`AuditingAgentDecorator` gibi) o ada `ExamplePrelude.cs`'e bir stub eklenmeli
+  — eklenmezse `CS0246` yalnız TAM çözüm koşumunda (`dotnet test AgentPrism.slnx`
+  veya `kapi.py kapanis`) görünür, `Core.UnitTests` gibi hedef paketin kendi
+  testini koşmak bunu YAKALAMAZ.
