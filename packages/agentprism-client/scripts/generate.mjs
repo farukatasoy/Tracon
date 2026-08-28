@@ -12,13 +12,30 @@
 // against the committed file — one definition of "how the schema is generated".
 
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const packageRoot = resolve(here, '..');
+
+// The installed CLI is invoked through this interpreter, NOT through 'npx': on
+// Windows 'npx' is 'npx.cmd', which execFileSync cannot resolve (ENOENT) and
+// cannot spawn without a shell — the Windows CI leg failed here while Linux
+// passed. Resolving the bin entry also pins the generator to the version in
+// package.json instead of whatever npx would fetch. The entry comes from the
+// package's own 'bin' field rather than a resolved subpath: its exports map
+// rewrites './*.js' to './*.mjs', so resolving 'bin/cli.js' asks for a file
+// that does not exist (measured).
+const openApiTypeScriptManifest = createRequire(import.meta.url).resolve(
+  'openapi-typescript/package.json',
+);
+const openApiTypeScriptCli = resolve(
+  dirname(openApiTypeScriptManifest),
+  JSON.parse(readFileSync(openApiTypeScriptManifest, 'utf8')).bin['openapi-typescript'],
+);
 
 export const documentPath = resolve(packageRoot, '..', '..', 'docs', 'openapi', 'agentprism.json');
 
@@ -28,14 +45,16 @@ export function generateSchema(outputPath) {
   const strippedPath = join(workDir, 'agentprism.stripped.json');
 
   try {
-    execFileSync('node', [join(here, 'strip-prefix.mjs'), documentPath, strippedPath], {
-      stdio: 'inherit',
-    });
+    execFileSync(
+      process.execPath,
+      [join(here, 'strip-prefix.mjs'), documentPath, strippedPath],
+      { stdio: 'inherit' },
+    );
 
     execFileSync(
-      'npx',
+      process.execPath,
       [
-        'openapi-typescript',
+        openApiTypeScriptCli,
         strippedPath,
         '-o',
         outputPath,

@@ -56,16 +56,27 @@ yerel test varsayılanı ve sahte anahtar değerleri vardır). Testlerde sahte
 elle koşuyorsan da eklemen gerekir (öksüz MSBuild düğümleri asılı kalmaya
 yol açar). Ayrıntı: `docs/hafiza/test-altyapisi.md`.
 
-## CI'ın Windows ayağı — Python çıktısı
+## CI'ın Windows ayağı
 
-Kapılar iki işletim sisteminde koşar. `scripts/*.py` Türkçe yazar; Windows'ta
-hem `sys.stdout` hem `subprocess(text=True)` varsayılan olarak **cp1252**'dir ve
-`ş`/`ğ`/`İ` o kod sayfasında yoktur — ilk `print` `UnicodeEncodeError` fırlatır.
-`ci.yml` bunu iş düzeyinde `PYTHONUTF8: 1` ile kapatır: UTF-8 modu ikisini
-birden çevirir ve `unittest` koşumunu da kapsar (Türkçe docstring yazar; betik
-içi bir düzeltme o adımı kapsayamazdı). Yeni bir workflow yazarsan bu değişkeni
-ekle. Yerelde doğrula: `PYTHONIOENCODING=cp1252 python3 scripts/<betik>.py`
-patlamalı, varsayılanla geçmelidir.
+Kapılar iki işletim sisteminde koşar ve ubuntu ayağı **platform varsayımlarını
+gizler**. Bir kapı yalnız `windows-latest`'te kırmızıysa önce şu üçüne bak;
+üçü de 2026-08-28'de arka arkaya çıktı, hiçbiri ubuntu'da görünmüyordu.
+
+- **Python çıktısı.** `scripts/*.py` Türkçe yazar; Windows'ta hem `sys.stdout`
+  hem `subprocess(text=True)` varsayılan olarak **cp1252**'dir ve `ş`/`ğ`/`İ` o
+  kod sayfasında yoktur — ilk `print` `UnicodeEncodeError` fırlatır. `ci.yml` iş
+  düzeyinde `PYTHONUTF8: 1` taşır (UTF-8 modu ikisini birden çevirir ve `unittest`
+  koşumunu da kapsar; betik içi bir düzeltme o adımı kapsayamazdı). Yeni bir
+  workflow yazarsan değişkeni ekle. Yerelde: `LC_ALL=C python3 -X utf8=0 ...`
+  patlamalı, `LC_ALL=C PYTHONUTF8=1 python3 ...` geçmelidir.
+- **Yol ayracı iddiası.** `pathlib` Windows'ta `\` üretir; testte
+  `endswith("/a/b")` orada **her zaman** False döner. Ayraç yerine parça
+  karşılaştır: `PurePath(yol).parts[-3:]`.
+- **`npx` bir `.cmd`'dir.** Node'un `execFileSync`'i onu çözemez (`ENOENT`) ve
+  shell'siz spawn edemez. Kurulu bir CLI'yi `npx` ile değil, `package.json`'ın
+  `bin` alanından çözüp `process.execPath` ile çağır (örnek:
+  `packages/agentprism-client/scripts/generate.mjs`). `dotnet` gibi gerçek bir
+  `.exe` sorun değildir.
 
 ## MTP filtresi — `dotnet test --filter` YAZMA
 
