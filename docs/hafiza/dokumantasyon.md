@@ -234,3 +234,11 @@ Regresyon testi: `A_dimension_answered_on_a_MEMBERs_doc_counts_as_answered`.
 kaldığı sürece dosya adını düz metinle (`` `CHANGELOG.md` ``) anlat, GitHub
 URL'i yazma; repo açıldığında `repositoryIsPublic=true` olur ve gerçek
 bağlantı eklenebilir.
+
+## 🚨 Repo-geneli doküman taraması dependency cache'ini dışlamalıdır
+
+CI `NUGET_PACKAGES` değerini repo içindeki `.nuget/packages` dizinine koyar.
+Repo-geneli `*.md` taraması bu ağacı dışlamazsa dependency README'lerini ürün
+dokümanı sanır; paket içinde sevk edilmeyen göreli hedefler sahte kırık link
+üretir. `kirik_baglantilar()` `.nuget` ağacını atlar ve regression testi CI
+dizin yapısını geçici ağaçta yeniden kurar.
