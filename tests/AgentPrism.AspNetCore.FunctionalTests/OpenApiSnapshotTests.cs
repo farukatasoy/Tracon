@@ -73,7 +73,12 @@ public sealed class OpenApiSnapshotTests
 
         var document = await AgentPrismTestHost.ReadJsonAsync(response);
 
-        return JsonSerializer.Serialize(document, WriteOptions) + Environment.NewLine;
+        // LF, NOT Environment.NewLine: the committed file is LF on every platform
+        // ('.gitattributes' pins '* text=auto eol=lf'), and System.Text.Json's
+        // indented writer defaults its line break to Environment.NewLine -- on
+        // Windows that made EVERY line differ (4278 differences, measured on the
+        // windows-latest CI leg) for a document that had not changed at all.
+        return JsonSerializer.Serialize(document, WriteOptions).ReplaceLineEndings("\n") + "\n";
     }
 
     private static string RepositoryRoot { get; } = FindRepositoryRoot();
