@@ -79,7 +79,7 @@ internal static class ExampleExtractor
 
         foreach (var file in SourceFiles(repositoryRoot))
         {
-            count += Regex.Matches(File.ReadAllText(file), "<example>", RegexOptions.None, TimeSpan.FromSeconds(5)).Count;
+            count += Regex.Count(File.ReadAllText(file), "<example>", RegexOptions.None, TimeSpan.FromSeconds(5));
         }
 
         return count;
