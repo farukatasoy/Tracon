@@ -15,13 +15,54 @@ SAMPLE_TEST_PROJECTS = (
     "AgentPrism.Samples.CustomRunJudge.Tests",
     "AgentPrism.Samples.CustomAgentSource.Tests",
     "AgentPrism.Samples.CustomTool.Tests",
+    "AgentPrism.Samples.CustomJobHandler.Tests",
 )
+
+# Deliberate, justified exclusions from SAMPLE_TEST_PROJECTS: a sample test
+# project directory that exists but is not run by this gate, with the reason
+# WHY. Empty by default - a project that lands here without a reason string
+# fails validate_sample_inventory just as loudly as one that is missing
+# entirely (Faz 123, BL-052: a bare tuple update let a real sample - added in
+# Faz 120 - go unrun for three phases because nothing compared the tuple
+# against the samples/ directory it claims to enumerate).
+SAMPLE_TEST_EXCLUSIONS: dict[str, str] = {}
+
 AOT_PROJECT = "AgentPrism.Samples.ExtensionAotSmoke"
+
+
+def validate_sample_inventory(root: pathlib.Path) -> list[str]:
+    """The samples/AgentPrism.Samples.*.Tests directory inventory must match
+    SAMPLE_TEST_PROJECTS union SAMPLE_TEST_EXCLUSIONS exactly - neither a new
+    sample missing from both, nor a stale tuple/exclusion entry naming a
+    project that no longer exists."""
+    errors: list[str] = []
+    samples = root / "samples"
+
+    inventory = {
+        path.parent.name
+        for path in samples.glob("AgentPrism.Samples.*.Tests/*.csproj")
+    }
+    accounted = set(SAMPLE_TEST_PROJECTS) | set(SAMPLE_TEST_EXCLUSIONS)
+
+    for name in sorted(inventory - accounted):
+        errors.append(
+            f"samples/{name} is not in SAMPLE_TEST_PROJECTS and has no "
+            "SAMPLE_TEST_EXCLUSIONS entry (scripts/release_extension_samples.py)"
+        )
+
+    for name in sorted(accounted - inventory):
+        errors.append(f"SAMPLE_TEST_PROJECTS/SAMPLE_TEST_EXCLUSIONS names a project that does not exist: {name}")
+
+    for name, reason in SAMPLE_TEST_EXCLUSIONS.items():
+        if not reason or not reason.strip():
+            errors.append(f"SAMPLE_TEST_EXCLUSIONS['{name}'] has no reason")
+
+    return errors
 
 
 def validate_sample_contract(root: pathlib.Path, version: str) -> list[str]:
     """Return deterministic release-consumer configuration violations."""
-    errors: list[str] = []
+    errors: list[str] = validate_sample_inventory(root)
     samples = root / "samples"
 
     if not version or "*" in version:
@@ -156,5 +197,5 @@ def verify(root: pathlib.Path, release_dir: pathlib.Path, version: str) -> int:
         if _run([str(executable)], root=root, environment=environment):
             return 1
 
-    print(f"✅ Beş exact-version packed sample ve Native AOT smoke: {version}")
+    print(f"✅ {len(SAMPLE_TEST_PROJECTS)} exact-version packed sample ve Native AOT smoke: {version}")
     return 0

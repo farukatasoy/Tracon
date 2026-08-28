@@ -83,7 +83,12 @@ def _faz_no(p: pathlib.Path) -> int:
 # tutuldu -- butce BUYUTULMEDI, bolunme derinlestirildi. Yeni kural: butcenin
 # EN AZ %15'i bos kalmali (58.0'in tum sicak yol dosyalarina koydugu hedef);
 # esik bu orani saglayacak sekilde secilir, dosya butceye DAYANDIGINDA degil.
-ARSIV_ESIK = 114
+# Faz 122 (2026-08-28): esik 115 -> 114, "%0 bos" durumu ("herhangi bir yeni
+# kayit tasirir" diye devir notuna yazildi). Faz 123: tam da o tasirma oldu --
+# K-646 eklenince dosya 25_116 B'ye (butceyi ASTI) cikti. Esik 114 -> 88
+# indirildi (%17 bos, 58.0'in %15 hedefinin biraz USTUNDE - K-646 boyutundaki
+# birkac kararlik bir tampon icin).
+ARSIV_ESIK = 88
 
 BASLANGIC_BUTCESI = {
     "AGENTS.md": 12_000,

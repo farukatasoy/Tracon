@@ -31,6 +31,7 @@ NPM_CLIENT_PACKAGE_DIR = ROOT / "packages" / "agentprism-client"
 RELEASE_VERSION_PATTERN = re.compile(r"^1\.0\.0-preview\.\d+$")
 PRERELEASE_DEPENDENCY_PATTERN = re.compile(r'id="(?P<id>[^"]+)" version="[^"]*-[^"]*"')
 REPOSITORY_COMMIT_PATTERN = re.compile(r'<repository[^>]+commit="[0-9a-f]{7,}"[^>]*/>')
+RELEASE_NOTES_PATTERN = re.compile(r"<releaseNotes>(?P<url>[^<]*)</releaseNotes>")
 K008_EXEMPT_PACKAGE = "AgentPrism.AspNetCore"
 APPLIED_MIGRATION_MANIFEST = pathlib.PurePath("scripts", "applied-migrations.json")
 GIT_COMMIT = re.compile(r"^[0-9a-f]{7,40}$")
@@ -740,6 +741,21 @@ def release_rehearsal(
             f"⚠️ Sürüm '1.0.0-preview.N' desenine uymuyor: '{resolved_version}' "
             "(etiketlenmemiş bir koşumda beklenir; --surum ile zorlanmadıysa bu bir hata değildir)"
         )
+    else:
+        # Yalnız GERÇEK bir sürüm şeklinde çözümlenen koşumda zorlanır - ya
+        # `--surum` ile insan tarafından yerel bir provada, ya da gerçek bir
+        # `v*` etiketiyle. Etiketlenmemiş her rutin CI koşumu yukarıdaki dalı
+        # alır ve bu kapıyı hiç görmez (docs/123-YAYIN-KRITIK-YOLU.md, 123.3).
+        sys.path.insert(0, str(ROOT / "scripts"))
+        import changelog
+
+        changelog_path = root / "CHANGELOG.md"
+        if not changelog_path.exists():
+            print("❌ CHANGELOG.md bulunamadı")
+            return 1
+        if not changelog.has_section(changelog_path.read_text(encoding="utf-8"), resolved_version):
+            print(f"❌ CHANGELOG.md içinde '## [{resolved_version}]' bölümü yok veya boş")
+            return 1
 
     # İki yönlü karşılaştırma: yalnız EKSİK paket değil, beklenmeyen (fazla) bir
     # paket de yakalanmalı - ör. bir test projesinin yanlışlıkla packable hâle
@@ -770,6 +786,14 @@ def release_rehearsal(
             errors.append(f"{project_id}: MIT license expression eksik")
         if not REPOSITORY_COMMIT_PATTERN.search(nuspec):
             errors.append(f"{project_id}: repository/commit metaverisi eksik")
+
+        release_notes_match = RELEASE_NOTES_PATTERN.search(nuspec)
+        if release_notes_match is None:
+            errors.append(f"{project_id}: releaseNotes eksik")
+        elif "$(Version)" in release_notes_match.group("url"):
+            errors.append(f"{project_id}: releaseNotes ham $(Version) taşıyor - çözümlenmemiş")
+        elif resolved_version not in release_notes_match.group("url"):
+            errors.append(f"{project_id}: releaseNotes çözümlenen sürümü ('{resolved_version}') taşımıyor")
 
         snupkg_exists = nupkg.with_suffix(".snupkg").exists()
         if profile == "content":
@@ -807,9 +831,10 @@ def release_rehearsal(
     if npm_result:
         return npm_result
 
-    # Beş extension sample'ı ve AOT smoke, tek exact-version bu koşumun
-    # ürettiği paketlere karşı izole bir NUGET_PACKAGES cache'iyle çalışır
-    # (Faz 103, §103.8). `dotnet pack`/npm gibi ağa hiçbir şey yazmaz.
+    # Envanterdeki her extension sample'ı ve AOT smoke, tek exact-version bu
+    # koşumun ürettiği paketlere karşı izole bir NUGET_PACKAGES cache'iyle
+    # çalışır (Faz 103, §103.8; envanter kapısı Faz 123, §123.1). `dotnet
+    # pack`/npm gibi ağa hiçbir şey yazmaz.
     sys.path.insert(0, str(ROOT / "scripts"))
     import release_extension_samples
 

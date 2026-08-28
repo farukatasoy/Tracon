@@ -224,3 +224,13 @@ kendi XML dokümanı" derken, arayüzün İÇİNDEKİ her üyenin doküman bloğ
 kapsamalı — yalnız başlığı değil. Düzeltme: tarama artık başlık doc'u +
 gövdedeki her `///` satırını birleştirip arıyor (`InterfaceDocSurface`).
 Regresyon testi: `A_dimension_answered_on_a_MEMBERs_doc_counts_as_answered`.
+
+## 🚨 Site içeriği repo private iken kendi GitHub URL'ine bağlanamaz (Faz 123)
+
+`check-content.mjs` `repositoryIsPublic=false` (`site.config.mjs`) iken
+`repositoryUrl` metnini (link veya düz metin, ikisi de) her sayfada reddeder
+— okuyucuya bugün `404` dönerdi. Elle yazılan bir sayfa `CHANGELOG.md`'ye
+"bağlantı ekle" gibi bir plan kararını uygularken bunu yakaladı. Repo private
+kaldığı sürece dosya adını düz metinle (`` `CHANGELOG.md` ``) anlat, GitHub
+URL'i yazma; repo açıldığında `repositoryIsPublic=true` olur ve gerçek
+bağlantı eklenebilir.

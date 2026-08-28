@@ -10621,6 +10621,13 @@ a stable subset and a preview subset. The public surface carries no compatibilit
 promise for as long as that line stays pre-1.0 - a narrowing or a reshaped type is
 not treated as a breaking change until the family reaches `1.0.0`.
 
+## Release notes
+
+Every published version has a dated entry in the repository's root
+`CHANGELOG.md`, grouped as Added, Changed, Deprecated, Removed, Fixed, and
+Security. Each package's `PackageReleaseNotes` metadata links to the entry
+for the exact version you installed.
+
 ## Which version do these docs describe?
 
 This site is built from the repository's `main` branch. The .NET reference is generated

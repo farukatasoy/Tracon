@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging;
 
@@ -33,6 +34,10 @@ internal sealed class GoogleModelProvider : ITenantCredentialModelProvider, IMod
     // trade-off ProviderCredentialClientCache documents.
     private readonly EgressSocketGuard? _egressGuard;
     private readonly ProviderCredentialClientCache<GoogleChatClientFactory> _credentialFactories = new();
+
+    // The chat client produced for a tenant credential must stay stable across
+    // calls, the same as the setup-time client below (see TenantChatClientCacheKey).
+    private readonly ConcurrentDictionary<string, IChatClient> _tenantChatClients = new(StringComparer.Ordinal);
 
     /// <summary>Creates a new provider.</summary>
     /// <param name="name">Provider name. Matches <see cref="ModelBinding.Provider"/> in agent definitions.</param>
@@ -100,11 +105,15 @@ internal sealed class GoogleModelProvider : ITenantCredentialModelProvider, IMod
             LogUnknownModel(binding.Model);
         }
 
-        var factory = credential is null
-            ? _chatClientFactory
-            : _credentialFactories.GetOrAdd(credential, BuildCredentialFactory);
+        if (credential is null)
+        {
+            return _chatClientFactory.CreateChatClient(binding);
+        }
 
-        return factory.CreateChatClient(binding);
+        var factory = _credentialFactories.GetOrAdd(credential, BuildCredentialFactory);
+        var cacheKey = TenantChatClientCacheKey.For(credential, binding);
+
+        return _tenantChatClients.GetOrAdd(cacheKey, _ => factory.CreateChatClient(binding));
     }
 
     /// <summary>Builds a per-tenant client factory from a resolved credential (BYOK).</summary>

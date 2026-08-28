@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging;
 
@@ -37,6 +38,10 @@ internal sealed class OpenAIModelProvider : ITenantCredentialModelProvider, IMod
     // already uses for named OpenAI-compatible providers.
     private readonly EgressSocketGuard? _egressGuard;
     private readonly ProviderCredentialClientCache<OpenAIChatClientFactory> _credentialFactories = new();
+
+    // The chat client produced for a tenant credential must stay stable across
+    // calls, the same as the setup-time client below (see TenantChatClientCacheKey).
+    private readonly ConcurrentDictionary<string, IChatClient> _tenantChatClients = new(StringComparer.Ordinal);
 
     /// <summary>Initializes a new provider.</summary>
     /// <param name="name">
@@ -124,11 +129,15 @@ internal sealed class OpenAIModelProvider : ITenantCredentialModelProvider, IMod
             LogUnknownModel(binding.Model);
         }
 
-        var factory = credential is null
-            ? _chatClientFactory
-            : _credentialFactories.GetOrAdd(credential, BuildCredentialFactory);
+        if (credential is null)
+        {
+            return _chatClientFactory.CreateChatClient(binding, ApiSurface);
+        }
 
-        return factory.CreateChatClient(binding, ApiSurface);
+        var factory = _credentialFactories.GetOrAdd(credential, BuildCredentialFactory);
+        var cacheKey = TenantChatClientCacheKey.For(credential, binding);
+
+        return _tenantChatClients.GetOrAdd(cacheKey, _ => factory.CreateChatClient(binding, ApiSurface));
     }
 
     /// <summary>Builds a per-tenant client factory from a resolved credential (BYOK).</summary>
