@@ -1,6 +1,6 @@
 # 27 — Model Yedek Zinciri ve Ön Uçuş Denetimi (`MYU`)
 
-> **Alan kodu:** `MYU` · **Faz:** 62 tam kapsam · 81 (§ yanıt önbelleği ve eşzamanlı tool çağrısı) · 113 (§ `IProviderRetryClassifier` genişleme noktası)
+> **Alan kodu:** `MYU` · **Faz:** 62 tam kapsam · 81 (§ yanıt önbelleği ve eşzamanlı tool çağrısı) · 113 (§ `IProviderRetryClassifier` genişleme noktası) · 124 (§ yedeklemenin tool defteri)
 >
 > **Kaynak:**
 > `src/AgentPrism.Abstractions/Agents/ModelBinding.cs` (`Fallbacks`, `ResponseCache`,
@@ -654,6 +654,50 @@ curl -s -X POST "$APU/api/agents/validate" -H "$APB" -H 'content-type: applicati
   `"The model provider request failed."`); yedek bağ HİÇ denenmez — yerleşik
   kuralın "bağlantı hatası retry'a girer" kararı tüketicinin `DoNotRetry`
   kararıyla geçersiz kılınır.
+
+---
+
+### MT-MYU-017 — 👤 Yedeğe geçerken tamamlanmış bir tool çağrısı tekrar ÇALIŞMAZ
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 124 |
+| **İlgili karar** | K-1 |
+
+**Ön koşul** — bu case gerçek bir `openai` ile **elle** yeniden üretilemez:
+zincirin, bir tool zaten çalıştıktan **sonra ve tam o turda** kesintiye
+uğraması gerekir — gerçek bir sağlayıcının tam o anda çökmesi zorlanamaz
+(`http://localhost:1/v1` gibi baştan ölü bir bağlantı bunu SAĞLAMAZ: o
+kurulumda birincil hiçbir zaman bir tool çağırmaz, kesinti ilk çağrıda olur).
+
+**Bu iddianın otomatikleştirilmiş kanıtı ayrıdır.** Aynı MT-MYU-014'ün
+eşzamanlı tool çağrısı için yaptığı gerekçe burada da geçerlidir:
+`tests/AgentPrism.AspNetCore.FunctionalTests/FallbackToolSideEffectTests.cs`
+sahte bir sağlayıcı çifti kullanır (biri tool'u çağırıp SONRA düşer, öbürü
+AYNI tool çağrısını tekrar sorar) ve gerçek `[AgentPrismTool]` gövdesinin
+kaç kez çalıştığını sayar — bu, her koşumda **garantili** ve deterministik
+tekrarlanır; gerçek bir LLM'in aynı turda aynı tool'u tekrar sorup
+sormayacağı zorlanamaz. El ile koşulacak tek şey, bu üç testin
+(`A_side_effecting_tool_runs_once_even_though_the_fallback_asks_for_it_again`,
+`Falling_back_once_does_not_leave_the_compiled_agents_options_permanently_wrapped`,
+`Two_concurrent_tool_calls_both_answered_correctly_when_the_fallback_repeats_them`)
+GERÇEKTEN geçtiğini doğrulamaktır:
+
+```bash
+./artifacts/bin/AgentPrism.AspNetCore.FunctionalTests/release/AgentPrism.AspNetCore.FunctionalTests \
+  --filter-method "*FallbackToolSideEffect*"
+```
+
+**Beklenen sonuç**
+- Üç testin üçü de yeşildir. İlki tool gövdesinin **bir kez** çalıştığını ve
+  `ModelFallbackUsed` olayının gerçekten üretildiğini kanıtlar (yedeğin
+  hiç tetiklenmediği bir sahte-pozitiften ayırmak için); ikincisi önbelleklenmiş
+  (`CompiledAgentCache`) agent'ın aynı sunucuda yapılan sonraki, yedeksiz bir
+  çalıştırmada kalıcı olarak sarmalanmadığını; üçüncüsü `AllowConcurrentToolCalls`
+  açıkken iki eşzamanlı çağrının defterini bozmadan ikisinin de doğru
+  cevaplandığını doğrular.
 
 ---
 

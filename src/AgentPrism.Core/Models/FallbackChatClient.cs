@@ -29,8 +29,15 @@ namespace AgentPrism;
 /// <para>
 /// <strong>Because the loop is behind this client, not in front of it, a
 /// fallback restarts the agent's tool-call turn from scratch</strong> on the
-/// fallback provider. This is deliberate: switching providers mid-tool-loop
-/// would leave a half-finished conversation state that no provider can resume.
+/// fallback provider — the conversation state itself is not carried over;
+/// switching providers mid-tool-loop would leave a half-finished conversation
+/// state that no provider can resume. A tool call that already completed on
+/// an earlier link is not repeated, though: <see cref="GetResponseAsync"/>
+/// shares one turn-local <see cref="RecordedToolPlayback"/> ledger across
+/// every link it tries — whichever link the model asks the same question on
+/// again is answered from the ledger instead of running the tool's body a
+/// second time. Only the non-streaming path does this; see the remarks on
+/// <see cref="GetStreamingResponseAsync"/> for why.
 /// </para>
 /// <para>
 /// A fallback link carries only <see cref="ModelFallback.Provider"/> and
@@ -104,6 +111,18 @@ internal sealed class FallbackChatClient : DelegatingChatClient
     }
 
     /// <inheritdoc />
+    /// <remarks>
+    /// Builds ONE <see cref="RecordedToolPlayback"/> ledger for the whole
+    /// turn: a tool call that completes on one link is recorded into it, and
+    /// the next link to ask the same question is answered from there instead
+    /// of running the tool's body again — the same mechanism
+    /// <see cref="RunContinuationJobHandler"/> uses for a crash-interrupted
+    /// run, borrowed here for a provider-interrupted one. The ledger is a
+    /// local variable, not <see cref="AsyncLocal{T}"/>: it is threaded
+    /// through explicitly via <see cref="ChatOptions.Tools"/> at each link,
+    /// the same way <see cref="OptionsForLink"/> already threads the link's
+    /// own <see cref="ChatOptions.ModelId"/>.
+    /// </remarks>
     public override async Task<ChatResponse> GetResponseAsync(
         IEnumerable<ChatMessage> messages,
         ChatOptions? options = null,
@@ -113,12 +132,19 @@ internal sealed class FallbackChatClient : DelegatingChatClient
         Exception? firstFailure = null;
         var firstFailureReason = FallbackSkipReason.None;
 
+        // Empty at link 0; RunLive so a call with no match runs for real
+        // (recordLiveCalls writes it back) instead of being treated as a
+        // replay mismatch.
+        var toolLedger = new RecordedToolPlayback([], ToolPlaybackMismatchPolicy.RunLive, recordLiveCalls: true);
+
         for (var index = 0; index <= _fallbacks.Count; index++)
         {
             var client = index == 0
                 ? _primaryClient
                 : await ResolveFallbackClientAsync(index - 1, cancellationToken).ConfigureAwait(false);
-            var callOptions = index == 0 ? options : OptionsForLink(options, _fallbacks[index - 1].Model);
+            var callOptions = index == 0
+                ? OptionsForLink(options, modelId: null, toolLedger)
+                : OptionsForLink(options, _fallbacks[index - 1].Model, toolLedger);
 
             // Set by the exception filter below, read by the catch body that
             // follows it. The filter is the only place the failure is
@@ -176,6 +202,15 @@ internal sealed class FallbackChatClient : DelegatingChatClient
     }
 
     /// <inheritdoc />
+    /// <remarks>
+    /// <strong>Carries no tool ledger</strong>: a stream can only fall back
+    /// before its first chunk (<c>sawUpdate</c> below), and at that point the
+    /// model has not produced any content yet, let alone a tool call — there
+    /// is nothing a ledger could ever have recorded. Adding one here would be
+    /// pure overhead on every streaming call. <see cref="OptionsForLink"/> is
+    /// still used for its <see cref="ChatOptions.ModelId"/> behavior, with no
+    /// ledger passed.
+    /// </remarks>
     public override async IAsyncEnumerable<ChatResponseUpdate> GetStreamingResponseAsync(
         IEnumerable<ChatMessage> messages,
         ChatOptions? options = null,
@@ -190,7 +225,7 @@ internal sealed class FallbackChatClient : DelegatingChatClient
             var client = index == 0
                 ? _primaryClient
                 : await ResolveFallbackClientAsync(index - 1, cancellationToken).ConfigureAwait(false);
-            var callOptions = index == 0 ? options : OptionsForLink(options, _fallbacks[index - 1].Model);
+            var callOptions = index == 0 ? options : OptionsForLink(options, _fallbacks[index - 1].Model, toolLedger: null);
             var sawUpdate = false;
 
             // See GetResponseAsync: the filter classifies once, the catch
@@ -349,22 +384,65 @@ internal sealed class FallbackChatClient : DelegatingChatClient
     }
 
     /// <summary>
-    /// Builds the <see cref="ChatOptions"/> a fallback link is called with.
+    /// Builds the <see cref="ChatOptions"/> a link is called with.
     /// </summary>
+    /// <param name="options">The caller's original options. Never mutated.</param>
+    /// <param name="modelId">
+    /// The model name to force, or <see langword="null"/> to leave
+    /// <see cref="ChatOptions.ModelId"/> exactly as the caller set it (link 0,
+    /// the primary).
+    /// </param>
+    /// <param name="toolLedger">
+    /// The turn's shared tool ledger, or <see langword="null"/> on the
+    /// streaming path, which never wraps tools (see
+    /// <see cref="GetStreamingResponseAsync"/>).
+    /// </param>
     /// <remarks>
+    /// <para>
     /// A fallback link's <see cref="ModelFallback.Model"/> can legitimately
     /// differ from the primary's — that is the entire point of naming it
     /// separately. Forwarding the primary's <see cref="ChatOptions.ModelId"/>
     /// unchanged would send the wrong model name to a provider that has no
-    /// idea what "the primary's model" means. <see cref="ChatOptions.Clone"/>
-    /// keeps every other option (tools, instructions, reasoning, ...) intact;
-    /// the original instance is never mutated, so the primary's own next call
-    /// (if this client instance is reused) is unaffected.
+    /// idea what "the primary's model" means.
+    /// </para>
+    /// <para>
+    /// <strong>The caller's <see cref="ChatOptions"/> and its
+    /// <see cref="ChatOptions.Tools"/> list are never mutated in place</strong>:
+    /// <see cref="ChatOptions.Clone"/> already returns an independent
+    /// <see cref="ChatOptions.Tools"/> list, not a shared reference to the
+    /// original, and every other option (instructions, reasoning, ...) is
+    /// kept intact by it. Only link 0 with no work to do (no forced model, no
+    /// tools to wrap) skips cloning entirely and reuses the caller's instance
+    /// as-is. This matters because the caller's options can be a cached,
+    /// reused object (<c>CompiledAgentCache</c>): a fallback attempt must
+    /// never leave that object permanently wrapped for the agent's next,
+    /// unrelated run.
+    /// </para>
     /// </remarks>
-    private static ChatOptions? OptionsForLink(ChatOptions? options, string modelId)
+    private static ChatOptions? OptionsForLink(ChatOptions? options, string? modelId, RecordedToolPlayback? toolLedger)
     {
+        var toolsToWrap = toolLedger is not null ? options?.Tools : null;
+
+        if (modelId is null && toolsToWrap is not { Count: > 0 })
+        {
+            return options;
+        }
+
         var linkOptions = options?.Clone() ?? new ChatOptions();
-        linkOptions.ModelId = modelId;
+
+        if (modelId is not null)
+        {
+            linkOptions.ModelId = modelId;
+        }
+
+        if (toolsToWrap is { Count: > 0 })
+        {
+            // Only AIFunction carries a body to gate; a client-side tool
+            // declaration (AddClientTool) has none and is passed through
+            // unchanged.
+            linkOptions.Tools = [.. toolsToWrap.Select(tool => tool is AIFunction function ? (AITool)toolLedger!.Wrap(function) : tool)];
+        }
+
         return linkOptions;
     }
 

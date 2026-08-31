@@ -126,6 +126,11 @@ timelines that are easy to conflate:
   tools) tells AgentPrism whether resuming a run that was cut off mid-call may repeat
   that call. It says nothing about the in-turn retries above.
 
+The one case that does **not** repeat a completed call is a provider fallback: if a call
+already finished before the primary provider failed, the fallback model asking the same
+question again is answered from that result instead of running the tool's body a second
+time — see [Fall back to a secondary provider](/guides/reliability/#fall-back-to-a-secondary-provider).
+
 ### Result representation and persistence
 
 Whatever a tool returns, AgentPrism turns it into one **canonical text form** before
