@@ -13,8 +13,10 @@ namespace AgentPrism;
 /// <strong>DI lifetime — singleton.</strong> Registered as a singleton with
 /// <c>TryAdd</c>; a consumer's own registration wins. An implementation must
 /// be safe under concurrent calls and must not capture or depend on a
-/// scoped service. <see cref="TryCreateAsync"/> specifically must be
-/// GENUINELY atomic, not check-then-create — see that member's own remarks.
+/// scoped service. <see cref="TryCreateAsync"/> and
+/// <see cref="TryUpdateAsync"/> specifically must be GENUINELY atomic, not
+/// check-then-act — see those members' own remarks. Between them they cover
+/// the whole lifetime of a session: the first write and every later one.
 /// </para>
 /// </remarks>
 public interface ISessionStore
@@ -60,6 +62,64 @@ public interface ISessionStore
         }
 
         await SaveAsync(record, cancellationToken).ConfigureAwait(false);
+        return true;
+    }
+
+    /// <summary>
+    /// Replaces an EXISTING session record, but only if it has not changed
+    /// since it was read.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The sibling of <see cref="TryCreateAsync"/>, and the reason both
+    /// exist: <see cref="TryCreateAsync"/> makes the FIRST write of a session
+    /// safe against a concurrent first write; this method makes EVERY LATER
+    /// write safe against a concurrent later write. <see cref="SaveAsync"/>
+    /// overwrites unconditionally and cannot answer either question.
+    /// </para>
+    /// <para>
+    /// The write succeeds only when the stored record's
+    /// <see cref="SessionRecord.Version"/> still equals
+    /// <paramref name="expectedVersion"/> — the value the caller read. On
+    /// success the stored version is incremented; the caller's own
+    /// <paramref name="record"/> is not mutated.
+    /// </para>
+    /// <para>
+    /// The default implementation is NOT ATOMIC (read-then-write). It exists
+    /// only so a store written before this member keep compiling; the real
+    /// stores (<c>SqlSessionStore</c>, <c>InMemorySessionStore</c>) override
+    /// it with a genuinely atomic compare-and-swap. Without atomicity two
+    /// concurrent turns on the SAME EXISTING session both report success and
+    /// the loser's turn is silently overwritten — the defect this member was
+    /// added to close.
+    /// </para>
+    /// </remarks>
+    /// <param name="record">The new state of the session.</param>
+    /// <param name="expectedVersion">
+    /// The <see cref="SessionRecord.Version"/> the caller read. A record read
+    /// through <see cref="GetAsync"/> or <see cref="QueryAsync"/> carries it.
+    /// </param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>
+    /// <see langword="true"/> if the record was replaced;
+    /// <see langword="false"/> if it no longer exists or another writer
+    /// changed it first.
+    /// </returns>
+    async ValueTask<bool> TryUpdateAsync(
+        SessionRecord record,
+        long expectedVersion,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(record);
+
+        var stored = await GetAsync(record.Id, cancellationToken).ConfigureAwait(false);
+
+        if (stored is null || stored.Version != expectedVersion)
+        {
+            return false;
+        }
+
+        await SaveAsync(record with { Version = expectedVersion + 1 }, cancellationToken).ConfigureAwait(false);
         return true;
     }
 
@@ -138,6 +198,26 @@ public sealed record SessionRecord
 
     /// <summary>The tenant identifier.</summary>
     public string? TenantId { get; init; }
+
+    /// <summary>
+    /// The record's write generation, used for optimistic concurrency.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A record read from a store carries the stored value; a record built to
+    /// be written carries whatever the caller sets, and stores ignore it on
+    /// <see cref="ISessionStore.SaveAsync"/> and
+    /// <see cref="ISessionStore.TryCreateAsync"/> — only
+    /// <see cref="ISessionStore.TryUpdateAsync"/> reads it, through its own
+    /// <c>expectedVersion</c> parameter.
+    /// </para>
+    /// <para>
+    /// The first stored version is 1. A row written before this field existed
+    /// reads back as 1 as well, so a session that survives the upgrade takes
+    /// part in concurrency control from its next write onward.
+    /// </para>
+    /// </remarks>
+    public long Version { get; init; }
 }
 
 /// <summary>A filter for querying the session list.</summary>

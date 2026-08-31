@@ -224,6 +224,20 @@ internal static class OpenAIResponsesEndpoints
         {
             throw;
         }
+        catch (AgentPrismSessionConflictException ex)
+        {
+            // 🚨 The sibling of AgentEndpoints' own 409 branch. Two concurrent
+            // turns on the same conversation are a CLIENT-side race; a 502
+            // would say "upstream is broken" and send the caller looking at
+            // the model provider. The same reasoning HATA-004 wrote down for
+            // the /api/agents path applies here unchanged, and this path had
+            // been missed — exactly the sibling-path class the comment below
+            // records for a different fix.
+            return OpenAICompatSupport.Error(
+                StatusCodes.Status409Conflict,
+                ex.Message,
+                type: AgentPrismSessionConflictException.SessionConflictErrorType);
+        }
         catch (Exception ex)
         {
             // 🚨 HATA-S2-003/HATA-S3-005: K-296's fix covered only the streaming

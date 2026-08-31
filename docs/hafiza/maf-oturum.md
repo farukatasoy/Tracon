@@ -16,6 +16,8 @@
 - **`AgentSessionStateBag`, `SerializeSessionAsync` çıktısına dahildir** (2026-08-02): oturuma yazılan her şey (kimlik damgası, konuşma kimliği) oturumla birlikte kalıcılaşır. Doğrulandı: `/sessions` çıktısında `stateBag` altında görünüyor.
 - **`StateBag.SetValue`/`TryGetValue` AOT tanısı üretmiyor** (2026-08-02): kaynak üreteciyle kurulmuş `JsonSerializerOptions` geçildiğinde `IL2026` çıkmıyor. `AgentPrismCoreJsonContext` bunun için var.
 
+- **🚨 Bir yarışı İLK yazım için kapatmak, SONRAKİ yazımları kapatmaz** (2026-08-31, K-648): HATA-004 `TryCreateAsync` ile ilk kaydı atomik yaptı; sonraki her kayıt koşulsuz `SaveAsync`'ten geçmeye devam etti ve var olan bir oturumda **eşzamanlı iki tur da sessizce başarılı** oldu, biri üzerine yazıldı. Çözüm `TryUpdateAsync` + `sessions.version`. İki tuzak: (1) `AuditingSessionStore` yeni üyeyi **iletmezse** arayüzün atomik olmayan varsayılan gövdesini miras alır ve düzeltmeyi sessizce iptal eder — kendi yorumu bu tuzağı `TryCreateAsync` için zaten anlatıyordu; (2) koşulsuz `SaveAsync` sürümü **ilerletmeli**, gelen kayıttan almamalı, yoksa eski sürümü elinde tutan bir yazar hâlâ eşleşir. Bir "yarış kapatıldı" cümlesi okuduğunda sor: **hangi yazım için?**
+
 ## `ChatHistoryProvider`
 
 - **`ChatHistoryProvider` örneği tüm oturumlarda paylaşılır** (2026-08-01): oturuma özgü hiçbir durum alan olarak tutulamaz. Veritabanı anahtarı `ProviderSessionState<T>` ile `AgentSession` içinde saklanır. MAF dokümanının açık uyarısı.

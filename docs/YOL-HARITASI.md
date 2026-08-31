@@ -8,7 +8,7 @@
 Bir fazın durumu yanlış görünüyorsa **o fazın dokümanını** düzelt;
 bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 
-## Fazlar (124 kalem)
+## Fazlar (129 kalem)
 
 | Faz | Konu | Durum |
 |-----|------|-------|
@@ -136,5 +136,10 @@ bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 | [121](arsiv/fazlar/121-SEAM-SOZLESME-DOKUMANI.md) | Seam Sözleşme Dokümanı ve Küçülen Taban Çizgisi | ✅ Tamamlandı |
 | [122](arsiv/fazlar/122-KAYIT-API-SI-VE-SESSIZ-BOSLUKLAR.md) | Kayıt API'si ve Sessiz Boşluklar | ✅ Tamamlandı |
 | [123](arsiv/fazlar/123-YAYIN-KRITIK-YOLU.md) | Yayın Kritik Yolu: Kapı Kapsamı, Adaptör Sözleşmesi ve Sürüm Notları | ✅ Tamamlandı |
+| [124](124-YEDEKLEMENIN-TOOL-DEFTERI.md) | Yedeklemenin Tool Defteri | 📋 Planlandı |
+| [125](125-URETILEN-TOOL-SEMASININ-IFADE-GUCU.md) | Üretilen Tool Şemasının İfade Gücü | 📋 Planlandı |
+| [126](126-KALICI-PAYLOAD-SURUM-SOZLESMESI.md) | Kalıcı Payload Sürüm Sözleşmesi | 📋 Planlandı |
+| [127](127-TOOL-KAYIT-YUZEYI.md) | Tool Kayıt Yüzeyi: Tek Kompozisyon, Argüman Kapısı ve Kapsamlı Tool | 📋 Planlandı |
+| [128](128-RUN-AGACI-SURE-BUTCESI.md) | Run Ağacı Süre Bütçesi | 📋 Planlandı |
 
 Seçilmemiş adaylar: [`ADAYLAR.md`](ADAYLAR.md). Fazların hangi dalgada, hangi gerekçeyle sıralandığı (Faz 8–56, kapandı): [`arsiv/IKINCI-FAZ-YOL-HARITASI.md`](arsiv/IKINCI-FAZ-YOL-HARITASI.md) · [`arsiv/UCUNCU-FAZ-YOL-HARITASI.md`](arsiv/UCUNCU-FAZ-YOL-HARITASI.md).

@@ -74,7 +74,8 @@ public sealed class TenantCoverageTests
              "GetToolUsageAsync", "GetStatisticsAsync", "GetTimeSeriesAsync", "GetExperimentResultsAsync",
              "AppendEventAsync", "CompleteRunAsync", "UpdateRunCostAsync", "RecordToolInvocationAsync"],
         ["SqlSessionStore"] =
-            ["SaveAsync", "GetAsync", "DeleteAsync", "QueryAsync", "TryCreateAsync", "GetOwnerTenantIdAsync"],
+            ["SaveAsync", "GetAsync", "DeleteAsync", "QueryAsync", "TryCreateAsync", "TryUpdateAsync",
+             "GetOwnerTenantIdAsync"],
         ["SqlSkillScriptGrantStore"] = ["ListAsync", "FindActiveAsync", "GrantAsync", "RevokeAsync"],
         ["SqlTraceStore"] = ["WriteSpansAsync", "GetTraceByRunAsync"],
         ["SqlVoiceSessionStore"] = ["SaveAsync", "QueryAsync"],

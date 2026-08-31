@@ -1,3 +1,4 @@
+using System.Text.Json;
 using AgentPrism.Core.UnitTests.Fakes;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -79,6 +80,87 @@ public sealed class FallbackRecordingTests
 
         pricingResolver.LastProvider.ShouldBe("primary");
         pricingResolver.LastModel.ShouldBe("primary-model");
+    }
+
+    [Fact]
+    public async Task Fallback_event_payload_carries_the_reason_the_primary_was_skipped()
+    {
+        // RunEventType.ModelFallbackUsed documents that the payload carries
+        // "the reason the primary was skipped". An operator reading only the
+        // run record has no other place to learn WHY the model changed.
+        var store = new InMemoryRunStore(tenantContext: new FixedTenantContext());
+
+        var agent = CreateAgent(
+            store,
+            new SpyPricingResolver(),
+            primaryClient: new FakeChatClient(_ => throw new AgentPrismProviderUnavailableException("circuit open")),
+            fallbackClient: new FakeChatClient(_ => new ChatResponse(new ChatMessage(ChatRole.Assistant, "fallback answer"))));
+
+        await agent.RunAsync("hello");
+
+        var payload = await ReadFallbackPayloadAsync(store);
+
+        using var document = JsonDocument.Parse(payload);
+
+        document.RootElement.TryGetProperty("reason", out var reason).ShouldBeTrue();
+        reason.GetString().ShouldBe("provider_unavailable");
+    }
+
+    [Fact]
+    public async Task Fallback_reason_classifies_a_rate_limited_primary()
+    {
+        var store = new InMemoryRunStore(tenantContext: new FixedTenantContext());
+
+        var agent = CreateAgent(
+            store,
+            new SpyPricingResolver(),
+            primaryClient: new FakeChatClient(_ => throw new InvalidOperationException("HTTP 429 rate limit exceeded")),
+            fallbackClient: new FakeChatClient(_ => new ChatResponse(new ChatMessage(ChatRole.Assistant, "fallback answer"))));
+
+        await agent.RunAsync("hello");
+
+        using var document = JsonDocument.Parse(await ReadFallbackPayloadAsync(store));
+
+        document.RootElement.GetProperty("reason").GetString().ShouldBe("rate_limited");
+    }
+
+    [Fact]
+    public async Task Fallback_reason_does_not_carry_the_provider_error_text()
+    {
+        // 🚨 The reason is a CLASSIFIED value, never the provider's own
+        // message: a provider message can quote the request or the response
+        // body, and a run event is permanent.
+        const string ProviderText = "quota for account acme-42 exhausted";
+
+        var store = new InMemoryRunStore(tenantContext: new FixedTenantContext());
+
+        var agent = CreateAgent(
+            store,
+            new SpyPricingResolver(),
+            primaryClient: new FakeChatClient(_ => throw new InvalidOperationException($"HTTP 503 {ProviderText}")),
+            fallbackClient: new FakeChatClient(_ => new ChatResponse(new ChatMessage(ChatRole.Assistant, "fallback answer"))));
+
+        await agent.RunAsync("hello");
+
+        (await ReadFallbackPayloadAsync(store)).ShouldNotContain(ProviderText, Case.Sensitive);
+    }
+
+    private static async Task<string> ReadFallbackPayloadAsync(InMemoryRunStore store)
+    {
+        var run = (await store.QueryRunsAsync(new RunQuery())).ShouldHaveSingleItem();
+
+        var events = new List<RunEvent>();
+
+        await foreach (var runEvent in store.ReadEventsAsync(run.Id))
+        {
+            events.Add(runEvent);
+        }
+
+        var fallback = events
+            .Where(static runEvent => runEvent.Type == RunEventType.ModelFallbackUsed)
+            .ShouldHaveSingleItem();
+
+        return fallback.Payload.ShouldNotBeNull();
     }
 
     private static RunRecordingAgent CreateAgent(

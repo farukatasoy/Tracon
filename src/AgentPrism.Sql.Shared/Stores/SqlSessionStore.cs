@@ -112,6 +112,33 @@ internal sealed class SqlSessionStore : ISessionStore
     }
 
     /// <inheritdoc />
+    /// <remarks>
+    /// One conditional <c>UPDATE</c>: the <c>version</c> predicate and the
+    /// <c>version + 1</c> assignment live in the SAME statement, so the check
+    /// and the write cannot be interleaved. Zero affected rows means the row
+    /// is gone, belongs to another tenant, or another writer advanced it
+    /// first — all three are the same answer to the caller.
+    /// </remarks>
+    public async ValueTask<bool> TryUpdateAsync(
+        SessionRecord record,
+        long expectedVersion,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(record);
+
+        var command = CreateCommand(_sql.UpdateSessionIfVersionMatches);
+        DbHelpers.Add(command, "id", record.Id);
+        DbHelpers.Add(command, "tenant_id", record.TenantId ?? _tenantContext.TenantId);
+        DbHelpers.Add(command, "agent_name", record.AgentName);
+        Dialect.AddJson(command, "state", ProtectedValue.Write(_context, ProtectedColumn.SessionState, record.State.GetRawText()));
+        DbHelpers.Add(command, "schema_version", CurrentSchemaVersion);
+        Dialect.AddTimestamp(command, "updated_at", record.UpdatedAt);
+        DbHelpers.Add(command, "expected_version", expectedVersion);
+
+        return await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false) > 0;
+    }
+
+    /// <inheritdoc />
     public async ValueTask<SessionRecord?> GetAsync(string sessionId, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(sessionId);
@@ -130,6 +157,7 @@ internal sealed class SqlSessionStore : ISessionStore
                 CreatedAt = DbHelpers.GetTimestamp(reader, 3),
                 UpdatedAt = DbHelpers.GetTimestamp(reader, 4),
                 TenantId = reader.GetString(5),
+                Version = reader.GetInt64(6),
             },
             cancellationToken).ConfigureAwait(false);
     }
@@ -192,6 +220,7 @@ internal sealed class SqlSessionStore : ISessionStore
                     CreatedAt = DbHelpers.GetTimestamp(reader, 4),
                     UpdatedAt = DbHelpers.GetTimestamp(reader, 5),
                     TenantId = reader.GetString(6),
+                    Version = reader.GetInt64(7),
                 };
             },
             cancellationToken).ConfigureAwait(false);

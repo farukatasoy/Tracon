@@ -204,6 +204,157 @@ public abstract class SessionStoreContract : TenantIsolationContract<ISessionSto
     }
 
     [Fact]
+    public async Task TryCreateAsync_stamps_the_first_version()
+    {
+        (await Store.TryCreateAsync(TestData.Session("versioned"))).ShouldBeTrue();
+
+        var loaded = await Store.GetAsync("versioned");
+
+        loaded.ShouldNotBeNull();
+        loaded.Version.ShouldBe(1, "the first stored generation is 1, so a caller has something to compare against");
+    }
+
+    [Fact]
+    public async Task TryUpdateAsync_replaces_the_record_and_advances_the_version()
+    {
+        await Store.TryCreateAsync(TestData.Session("update-me") with { State = TestData.State("""{"turn":1}""") });
+
+        var loaded = (await Store.GetAsync("update-me")).ShouldNotBeNull();
+
+        (await Store.TryUpdateAsync(
+            TestData.Session("update-me") with { State = TestData.State("""{"turn":2}""") },
+            loaded.Version)).ShouldBeTrue();
+
+        var updated = (await Store.GetAsync("update-me")).ShouldNotBeNull();
+
+        updated.State.GetProperty("turn").GetInt32().ShouldBe(2);
+        updated.Version.ShouldBe(loaded.Version + 1);
+    }
+
+    [Fact]
+    public async Task TryUpdateAsync_refuses_a_stale_version_and_leaves_the_record_alone()
+    {
+        await Store.TryCreateAsync(TestData.Session("stale") with { State = TestData.State("""{"turn":1}""") });
+
+        var stale = (await Store.GetAsync("stale")).ShouldNotBeNull();
+
+        // Somebody else writes first.
+        await Store.TryUpdateAsync(
+            TestData.Session("stale") with { State = TestData.State("""{"turn":2}""") },
+            stale.Version);
+
+        (await Store.TryUpdateAsync(
+            TestData.Session("stale") with { State = TestData.State("""{"turn":99}""") },
+            stale.Version)).ShouldBeFalse();
+
+        var loaded = (await Store.GetAsync("stale")).ShouldNotBeNull();
+        loaded.State.GetProperty("turn").GetInt32().ShouldBe(2, "the stale write must not land");
+    }
+
+    [Fact]
+    public async Task TryUpdateAsync_returns_false_for_an_id_that_does_not_exist()
+        => (await Store.TryUpdateAsync(TestData.Session("never-created"), expectedVersion: 1)).ShouldBeFalse();
+
+    [Fact]
+    public async Task TryUpdateAsync_only_one_concurrent_call_from_the_same_version_wins()
+    {
+        // 🚨 The sibling of TryCreateAsync_only_one_concurrent_call_with_the_same_id_wins,
+        // and the half that stayed open after HATA-004: the FIRST write was
+        // made atomic, every later write was not. Two concurrent turns on an
+        // EXISTING session both reported success and one was silently
+        // overwritten. Of N concurrent updates from the same generation,
+        // exactly one must win.
+        const int Concurrency = 8;
+
+        await Store.TryCreateAsync(TestData.Session("update-race"));
+
+        var version = (await Store.GetAsync("update-race")).ShouldNotBeNull().Version;
+
+        var attempts = Enumerable.Range(0, Concurrency)
+            .Select(i => Store.TryUpdateAsync(
+                    TestData.Session("update-race") with { State = TestData.State($$"""{"turn":{{i}}}""") },
+                    version)
+                .AsTask());
+
+        var results = await Task.WhenAll(attempts);
+
+        results.Count(static won => won).ShouldBe(1);
+        (await Store.GetAsync("update-race")).ShouldNotBeNull().Version.ShouldBe(version + 1);
+    }
+
+    [Fact]
+    public async Task SaveAsync_advances_the_version_so_a_stale_update_cannot_match_it()
+    {
+        // SaveAsync does not check the caller's generation. If it let the
+        // caller's value land, a holder of the OLD version could still match
+        // and overwrite what SaveAsync just wrote.
+        await Store.TryCreateAsync(TestData.Session("unconditional"));
+
+        var before = (await Store.GetAsync("unconditional")).ShouldNotBeNull().Version;
+
+        await Store.SaveAsync(TestData.Session("unconditional") with { State = TestData.State("""{"turn":2}""") });
+
+        (await Store.GetAsync("unconditional")).ShouldNotBeNull().Version.ShouldBeGreaterThan(before);
+
+        (await Store.TryUpdateAsync(
+            TestData.Session("unconditional") with { State = TestData.State("""{"turn":99}""") },
+            before)).ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task TryUpdateAsync_cannot_reach_another_tenants_record()
+    {
+        // The key is (tenant_id, id), so the same id lives independently in
+        // two tenants. A conditional update must be filtered by tenant like
+        // every other read and write; without that filter, one tenant could
+        // overwrite another tenant's session by guessing its generation —
+        // which for a fresh record is simply 1.
+        (await Store.TryCreateAsync(
+            TestData.Session("shared-update-id") with { State = TestData.State("""{"owner":"a"}"""), TenantId = TenantA }))
+            .ShouldBeTrue();
+
+        (await Store.TryUpdateAsync(
+            TestData.Session("shared-update-id") with
+            {
+                State = TestData.State("""{"owner":"b"}"""),
+                TenantId = TenantB,
+            },
+            expectedVersion: 1)).ShouldBeFalse();
+
+        AmbientTenant.TenantId = TenantA;
+
+        var loaded = (await Store.GetAsync("shared-update-id")).ShouldNotBeNull();
+        loaded.State.GetProperty("owner").GetString().ShouldBe("a");
+    }
+
+    [Fact]
+    public async Task TryUpdateAsync_writes_the_records_own_tenant_not_the_ambient_one()
+    {
+        // The same rule TryCreateAsync and SaveAsync follow: a record that
+        // carries its own tenant wins over the ambient one, because a
+        // scheduled job legitimately writes on behalf of a tenant that is not
+        // ambient on the calling thread.
+        (await Store.TryCreateAsync(
+            TestData.Session("job-owned") with { State = TestData.State("""{"turn":1}"""), TenantId = TenantB }))
+            .ShouldBeTrue();
+
+        AmbientTenant.TenantId = TenantA;
+
+        (await Store.TryUpdateAsync(
+            TestData.Session("job-owned") with
+            {
+                State = TestData.State("""{"turn":2}"""),
+                TenantId = TenantB,
+            },
+            expectedVersion: 1)).ShouldBeTrue();
+
+        AmbientTenant.TenantId = TenantB;
+
+        (await Store.GetAsync("job-owned")).ShouldNotBeNull()
+            .State.GetProperty("turn").GetInt32().ShouldBe(2);
+    }
+
+    [Fact]
     public async Task GetOwnerTenantIdAsync_returns_null_for_a_never_used_id()
     {
         AmbientTenant.TenantId = TenantA;

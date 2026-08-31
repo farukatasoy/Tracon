@@ -177,7 +177,7 @@ DIZIN_BUTCESI = {
     ("docs/manuel-test", False, True): 1_950_000,   # DEGISMEDI; olculen 1_746_526.
                                                     # olculen/0.85 = 2.05M olurdu --
                                                     # K-214: var olan sinir BUYUTULMEZ.
-    ("docs", True, True):             3_030_000,    # 5_000_000'DEN DUSURULDU; olculen 2_568_376
+    ("docs", True, True):             3_670_000,    # YENIDEN KALIBRE 2026-08-31; olculen 3_114_180
     # Faz 90 kapanisi: 3_020_000 kapanistan ONCE olculmustu ve fazin KENDI
     # kaydi + denetim duzeltmeleri eklenince %14 bosluga dustu. Sinir fazin
     # SONUNDAKI boyuta gore konur (58.4 kalibrasyonu, `dokuman-bakim.py:105`
@@ -189,9 +189,21 @@ DIZIN_BUTCESI = {
     # (yukaridaki not zaten "arsiv faz basina ~9 KB buyur" diyor). K-214'un
     # kurali sinirin BUYUTULMEMESI degil, KEYFI BUYUTULMEMESIDIR -- burada da
     # ayni kalibrasyon formulu (olculen deger + %15 bosluk) yeniden uygulandi.
+    #
+    # 2026-08-31 (kullanici karari): `docs` ve `docs/kesif` yeniden kalibre
+    # edildi, ayni formulle. Iki AYRI sebep vardi ve ikisi de olculdu:
+    #   * `docs`: bir tuketici sunum/ozellik dosyasi ciftinin eklenmesi (216 KB)
+    #     onceki siniri astirdi. Bu bir buyume egrisi hatasi degil, tek seferlik
+    #     bir icerik eklemesidir.
+    #   * `docs/kesif`: bir tuketici raporunun dogrulama + faz-aday kaydi (46 KB)
+    #     %1 kalan boslugu tuketti. K-426 bu dizini butceden HARIC tutar ama
+    #     kendi tavani vardir; tavan bir tur kaydini tasiyamayacak kadar dardi.
+    # 🚨 Sinir ISIN SONUNDA olculdu, basinda degil -- Faz 90 vakasi (yukarida)
+    # tam tersini yapip kapanistan once olctugu icin sinir aninda %14 posluga
+    # dusmustu. Kalibrasyondan once `faz-tamamlama` bitmis olmalidir.
     ("docs/arsiv", True, False):      3_590_000,    # YENIDEN KALIBRE; kapanista olculen 3_051_285
     ("docs/manuel-test/kosumlar", True, False): 620_000,  # YENI; olculen 518_817
-    ("docs/kesif", True, False):        260_000,    # YENI; olculen 219_746
+    ("docs/kesif", True, False):        370_000,    # YENIDEN KALIBRE 2026-08-31; olculen 312_256
 }
 
 # Damitilmis faz kaydi basina tavan: dizin butcesi TOPLAMI frenler, bu tek bir

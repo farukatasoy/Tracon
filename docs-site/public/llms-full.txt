@@ -1529,7 +1529,11 @@ sequenceDiagram
 
     Caller->>Agent: RunAsync(message, session)
     Caller->>Manager: SaveSessionAsync(agent, session)
-    Manager->>Store: SaveAsync(record)
+    alt first save of this session
+        Manager->>Store: TryCreateAsync(record)
+    else every later save
+        Manager->>Store: TryUpdateAsync(record, versionRead)
+    end
 ```
 
 The caller drives it. AgentPrism does not decide when a conversation starts or ends.
@@ -1537,6 +1541,32 @@ The caller drives it. AgentPrism does not decide when a conversation starts or e
 The identity stamp matters: the session id is written into the session's own state
 bag, so it survives serialization. A restored session knows which session it is, which
 is how the recording layer can put the right session id on a run without being told.
+
+## Two turns at once
+
+Neither save is unconditional, and both refuse rather than overwrite.
+
+| Situation | What the store is asked | If another writer got there first |
+|---|---|---|
+| First save of a new session | `TryCreateAsync` | `AgentPrismSessionConflictException` |
+| Every later save of that session | `TryUpdateAsync(record, versionRead)` | `AgentPrismSessionConflictException` |
+
+`SessionRecord.Version` is the record's write generation. A save replaces the exact
+generation it read; if another turn advanced it meanwhile, the write is refused and
+the caller is told. The alternative — overwriting — loses a turn that the run record
+already reports as successful, with nothing anywhere saying so.
+
+Over HTTP that surfaces as `409 Conflict` on both `/api/agents/{name}/run` (a
+problem document whose `errorType` is `session_conflict`) and the OpenAI-compatible
+`/v1/responses` (an error envelope whose `error.type` is the same value). **Retry the
+turn**; the conflict means the conversation moved on, not that anything is broken. On
+a streaming request the response headers are already sent, so the same condition
+arrives as an `error` event in the stream instead of a status code.
+
+Saving a session under a **different** id than it was read from — what
+`/v1/responses` does when it chains with `previous_response_id` — writes a new record
+rather than replacing the source one, so no generation applies and the write is
+unconditional.
 
 ## Reading a conversation back
 

@@ -130,7 +130,8 @@ public enum RunEventType
 
     /// <summary>
     /// An <see cref="IContentGuard"/> masked content. <c>Text</c> carries the guard
-    /// name, the rule name and the direction; <c>Payload</c> carries the match count.
+    /// name, the rule name and the direction; <c>Payload</c> carries the same four
+    /// facts as JSON (<c>guard</c>, <c>rule</c>, <c>direction</c>, <c>action</c>).
     /// </summary>
     /// <remarks>
     /// Neither <c>Text</c> nor <c>Payload</c> carries the <strong>masked
@@ -143,7 +144,9 @@ public enum RunEventType
 
     /// <summary>
     /// An <see cref="IContentGuard"/> blocked content. <c>Text</c> carries the guard
-    /// name, the rule name and the direction.
+    /// name, the rule name and the direction; <c>Payload</c> carries the same four
+    /// facts as JSON (<c>guard</c>, <c>rule</c>, <c>direction</c>, <c>action</c>) —
+    /// the same shape <see cref="ContentMasked"/> writes.
     /// </summary>
     /// <remarks>
     /// The payload <strong>does not carry the blocked content</strong>. After the

@@ -165,18 +165,24 @@ internal sealed class PostgresQueries : SqlQueriesBase
 
         // --- Sessions ---
 
+        // 🚨 `version` ADVANCES here; it is never taken from the incoming
+        // row. This statement does not check the caller's generation, so
+        // letting the caller's (possibly stale) value land would let a later
+        // conditional update match a generation that no longer describes the
+        // stored state.
         UpsertSession = $"""
-            INSERT INTO {Schema}.sessions (id, tenant_id, agent_name, state, schema_version, created_at, updated_at)
-            VALUES (@id, @tenant_id, @agent_name, @state, @schema_version, @created_at, @updated_at)
+            INSERT INTO {Schema}.sessions (id, tenant_id, agent_name, state, schema_version, created_at, updated_at, version)
+            VALUES (@id, @tenant_id, @agent_name, @state, @schema_version, @created_at, @updated_at, 1)
             ON CONFLICT (tenant_id, id) DO UPDATE
                 SET agent_name     = EXCLUDED.agent_name,
                     state          = EXCLUDED.state,
                     schema_version = EXCLUDED.schema_version,
-                    updated_at     = EXCLUDED.updated_at;
+                    updated_at     = EXCLUDED.updated_at,
+                    version        = {Schema}.sessions.version + 1;
             """;
 
         SelectSessions = $"""
-            SELECT id, agent_name, state, schema_version, created_at, updated_at, tenant_id
+            SELECT id, agent_name, state, schema_version, created_at, updated_at, tenant_id, version
             FROM {Schema}.sessions
             WHERE tenant_id = @tenant_id
               AND (@agent_name IS NULL OR agent_name = @agent_name)

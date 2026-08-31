@@ -128,6 +128,23 @@ cagirir.
 - **"failed: 0" ama toplam sayi dusmusse kosum eksiktir.**
   `grep -cE "Test run summary:"` ile proje sayisini da say — beklenen **16**.
 
+## 🚨 `HttpListener`'ı iki kez kapatmak BAŞKA testin portunu çalar
+
+`Stop()` ve `Close()` ikisi de uç nokta yöneticisinin prefix-kaldırma yolundan
+geçer ve o yol **çıkarken portu bağlayabilir** — gözlenen yığın
+`Close → RemoveListener → RemovePrefixInternal → GetEPListener` ile
+`Address already in use` verdi. İkisini birden çağırmak, o anda boş port
+arayan her testle yarışır.
+
+Kusurun okunması zordur: hata **`Dispose` içinde**, testin kendi iddiaları
+geçtikten sonra düşer ve **tek başına koşan test hep yeşildir**. Kırılganlık
+gibi görünür; değildir. Ölçüm: tam projede 2/2 düştü, izole 2/2 geçti,
+düzeltmeden sonra tam projede 3/3 geçti.
+
+Kural: bir dinleyiciyi **tam olarak bir kez** yık. Sınıf taraması (2026-08-31):
+`HttpListener` ve "port 0'ı rezerve et, bırak, sonra bağlan" deseni depoda
+**tek dosyadadır** (`ImageAttachmentWriterTests`); başka vaka yok.
+
 ## Kapanış kapısı taban ölçümleri
 
 Faz 91 taban/sonrası wall-clock ve proje-başına sonuç tabloları
