@@ -111,6 +111,7 @@ internal sealed class FallbackChatClient : DelegatingChatClient
     {
         var buffer = messages as IReadOnlyList<ChatMessage> ?? [.. messages];
         Exception? firstFailure = null;
+        var firstFailureReason = FallbackSkipReason.None;
 
         for (var index = 0; index <= _fallbacks.Count; index++)
         {
@@ -119,13 +120,19 @@ internal sealed class FallbackChatClient : DelegatingChatClient
                 : await ResolveFallbackClientAsync(index - 1, cancellationToken).ConfigureAwait(false);
             var callOptions = index == 0 ? options : OptionsForLink(options, _fallbacks[index - 1].Model);
 
+            // Set by the exception filter below, read by the catch body that
+            // follows it. The filter is the only place the failure is
+            // classified, so a consumer-supplied IProviderRetryClassifier is
+            // still called exactly ONCE per failed link.
+            var reason = FallbackSkipReason.None;
+
             try
             {
                 var response = await client.GetResponseAsync(buffer, callOptions, cancellationToken).ConfigureAwait(false);
 
                 if (index > 0)
                 {
-                    await RecordFallbackUsedAsync(_fallbacks[index - 1], cancellationToken).ConfigureAwait(false);
+                    await RecordFallbackUsedAsync(_fallbacks[index - 1], firstFailureReason, cancellationToken).ConfigureAwait(false);
                 }
 
                 return response;
@@ -138,13 +145,22 @@ internal sealed class FallbackChatClient : DelegatingChatClient
             // never masked by trying the next link — whichever link produced
             // it, from K1's "zero surprise": hiding a configuration error
             // behind a provider switch costs more than the switch saves.
-            catch (Exception ex) when (!IsRetryable(ex))
+            catch (Exception ex) when ((reason = ClassifyFailure(ex)) == FallbackSkipReason.None)
             {
                 throw;
             }
             catch (Exception ex)
             {
                 firstFailure ??= ex;
+
+                // The reason recorded on the event is the FIRST link's, for
+                // the same reason ChainExhausted reports the first failure:
+                // "why did we leave the primary" is the operator's question,
+                // not "why did link three also fail".
+                if (firstFailureReason == FallbackSkipReason.None)
+                {
+                    firstFailureReason = reason;
+                }
 
                 // No link is left to try: report the FIRST failure, not this
                 // one — the root cause across a chain of transient failures
@@ -167,6 +183,7 @@ internal sealed class FallbackChatClient : DelegatingChatClient
     {
         var buffer = messages as IReadOnlyList<ChatMessage> ?? [.. messages];
         Exception? firstFailure = null;
+        var firstFailureReason = FallbackSkipReason.None;
 
         for (var index = 0; index <= _fallbacks.Count; index++)
         {
@@ -175,6 +192,10 @@ internal sealed class FallbackChatClient : DelegatingChatClient
                 : await ResolveFallbackClientAsync(index - 1, cancellationToken).ConfigureAwait(false);
             var callOptions = index == 0 ? options : OptionsForLink(options, _fallbacks[index - 1].Model);
             var sawUpdate = false;
+
+            // See GetResponseAsync: the filter classifies once, the catch
+            // body reads what it stored.
+            var reason = FallbackSkipReason.None;
 
             // 🚨 A stream cannot be retried past its first frame: once a chunk
             // reached the caller, falling back would either duplicate it or
@@ -208,13 +229,18 @@ internal sealed class FallbackChatClient : DelegatingChatClient
                     // is not one this client retries: propagate as-is. See
                     // GetResponseAsync for why a non-retryable failure is
                     // never masked.
-                    catch (Exception ex) when (sawUpdate || !IsRetryable(ex))
+                    catch (Exception ex) when (sawUpdate || (reason = ClassifyFailure(ex)) == FallbackSkipReason.None)
                     {
                         throw;
                     }
                     catch (Exception ex)
                     {
                         firstFailure ??= ex;
+
+                        if (firstFailureReason == FallbackSkipReason.None)
+                        {
+                            firstFailureReason = reason;
+                        }
 
                         if (index == _fallbacks.Count)
                         {
@@ -230,7 +256,7 @@ internal sealed class FallbackChatClient : DelegatingChatClient
 
                         if (index > 0)
                         {
-                            await RecordFallbackUsedAsync(_fallbacks[index - 1], cancellationToken).ConfigureAwait(false);
+                            await RecordFallbackUsedAsync(_fallbacks[index - 1], firstFailureReason, cancellationToken).ConfigureAwait(false);
                         }
                     }
 
@@ -264,11 +290,29 @@ internal sealed class FallbackChatClient : DelegatingChatClient
     /// the built-in rules — an extension point must not
     /// break the model-call path it decorates.
     /// </remarks>
-    private bool IsRetryable(Exception exception)
+    /// <summary>
+    /// Decides whether <paramref name="exception"/> makes this link worth
+    /// skipping, and names why.
+    /// </summary>
+    /// <returns>
+    /// <see cref="FallbackSkipReason.None"/> when the failure does not fall
+    /// back; otherwise the classified reason, which is recorded on the
+    /// <see cref="RunEventType.ModelFallbackUsed"/> event.
+    /// </returns>
+    /// <remarks>
+    /// The retry DECISION is unchanged: a cancellation never falls back, a
+    /// registered <see cref="IProviderRetryClassifier"/> still wins over the
+    /// built-in rules, and a classifier that throws still defers to them.
+    /// The built-in rules are consulted for the REASON even when the
+    /// consumer's classifier already said <see cref="ProviderRetryDecision.Retry"/>,
+    /// so the recorded event names something more specific than "a consumer
+    /// rule said so" whenever it can.
+    /// </remarks>
+    private FallbackSkipReason ClassifyFailure(Exception exception)
     {
         if (FallbackRetryClassifier.IsCancellation(exception))
         {
-            return false;
+            return FallbackSkipReason.None;
         }
 
         if (_retryClassifier is not null)
@@ -277,9 +321,18 @@ internal sealed class FallbackChatClient : DelegatingChatClient
             {
                 var decision = _retryClassifier.Classify(exception);
 
-                if (decision != ProviderRetryDecision.Unknown)
+                if (decision == ProviderRetryDecision.DoNotRetry)
                 {
-                    return decision == ProviderRetryDecision.Retry;
+                    return FallbackSkipReason.None;
+                }
+
+                if (decision == ProviderRetryDecision.Retry)
+                {
+                    var classified = FallbackRetryClassifier.Classify(exception);
+
+                    return classified == FallbackSkipReason.None
+                        ? FallbackSkipReason.Classifier
+                        : classified;
                 }
             }
             catch (Exception classifierException)
@@ -292,7 +345,7 @@ internal sealed class FallbackChatClient : DelegatingChatClient
             }
         }
 
-        return FallbackRetryClassifier.IsRetryable(exception);
+        return FallbackRetryClassifier.Classify(exception);
     }
 
     /// <summary>
@@ -335,7 +388,10 @@ internal sealed class FallbackChatClient : DelegatingChatClient
         return client;
     }
 
-    private async ValueTask RecordFallbackUsedAsync(ModelFallback usedLink, CancellationToken cancellationToken)
+    private async ValueTask RecordFallbackUsedAsync(
+        ModelFallback usedLink,
+        FallbackSkipReason reason,
+        CancellationToken cancellationToken)
     {
         AgentPrismRunContext.Current?.FallbackAttribution?.Record(usedLink.Provider, usedLink.Model);
 
@@ -351,6 +407,7 @@ internal sealed class FallbackChatClient : DelegatingChatClient
                 PrimaryModel = _primaryBinding.Model,
                 FallbackProvider = usedLink.Provider,
                 FallbackModel = usedLink.Model,
+                Reason = reason.ToWireValue(),
             },
             AgentPrismCoreJsonContext.Default.ModelFallbackUsedEventPayload);
 
@@ -395,6 +452,68 @@ internal sealed record ModelFallbackUsedEventPayload
 
     /// <summary>Gets the fallback model that answered instead.</summary>
     public required string FallbackModel { get; init; }
+
+    /// <summary>
+    /// Gets the classified reason the primary link was skipped
+    /// (<see cref="FallbackSkipReason"/>'s wire value).
+    /// </summary>
+    /// <remarks>
+    /// Never the provider's own message: a provider message can quote the
+    /// request or the response body, and a run event is permanent.
+    /// </remarks>
+    public required string Reason { get; init; }
+}
+
+/// <summary>Why a model link was skipped in favor of the next fallback link.</summary>
+/// <remarks>
+/// A CLOSED SET. The wire values are written into the
+/// <see cref="RunEventType.ModelFallbackUsed"/> event payload and read by
+/// operators and consumer dashboards, so an existing value never changes
+/// meaning and never disappears; a new cause gets a NEW value.
+/// </remarks>
+internal enum FallbackSkipReason
+{
+    /// <summary>The failure does not fall back; the link's error propagates.</summary>
+    None = 0,
+
+    /// <summary>The circuit breaker already reported the provider as down.</summary>
+    ProviderUnavailable = 1,
+
+    /// <summary>The provider reported a rate limit.</summary>
+    RateLimited = 2,
+
+    /// <summary>The provider answered with a retryable HTTP status.</summary>
+    HttpError = 3,
+
+    /// <summary>The call never reached the provider (connection, DNS, stream reset).</summary>
+    TransportError = 4,
+
+    /// <summary>
+    /// A consumer-registered <see cref="IProviderRetryClassifier"/> decided to
+    /// retry a failure the built-in rules do not recognize.
+    /// </summary>
+    Classifier = 5,
+}
+
+/// <summary>Maps <see cref="FallbackSkipReason"/> to its stable wire value.</summary>
+internal static class FallbackSkipReasonExtensions
+{
+    /// <summary>Gets the wire value written into the run event payload.</summary>
+    /// <param name="reason">The reason to write.</param>
+    /// <returns>The stable, lower-case wire value.</returns>
+    public static string ToWireValue(this FallbackSkipReason reason) => reason switch
+    {
+        FallbackSkipReason.ProviderUnavailable => "provider_unavailable",
+        FallbackSkipReason.RateLimited => "rate_limited",
+        FallbackSkipReason.HttpError => "http_error",
+        FallbackSkipReason.TransportError => "transport_error",
+        FallbackSkipReason.Classifier => "classifier",
+
+        // Unreachable through FallbackChatClient (an event is only written
+        // once a link was actually skipped), but a total switch keeps the
+        // payload's contract "always a value" true if that ever changes.
+        _ => "unknown",
+    };
 }
 
 /// <summary>
@@ -433,12 +552,37 @@ internal sealed record ModelFallbackUsedEventPayload
 /// </remarks>
 internal static partial class FallbackRetryClassifier
 {
-    /// <summary>Determines whether <paramref name="exception"/> should try the next fallback link.</summary>
+    /// <summary>
+    /// Determines whether <paramref name="exception"/> should try the next
+    /// fallback link.
+    /// </summary>
+    /// <remarks>
+    /// Derived from <see cref="Classify"/> rather than repeating its rules.
+    /// The two answers must never disagree: the decision "do we fall back"
+    /// and the recorded reason "why did we fall back" come from a single
+    /// expression, so a rule added to one cannot go missing from the other.
+    /// </remarks>
     public static bool IsRetryable(Exception exception)
+        => Classify(exception) != FallbackSkipReason.None;
+
+    /// <summary>
+    /// Classifies why <paramref name="exception"/> makes the current link
+    /// worth skipping, or <see cref="FallbackSkipReason.None"/> when it does
+    /// not.
+    /// </summary>
+    /// <remarks>
+    /// The returned value is written into the
+    /// <see cref="RunEventType.ModelFallbackUsed"/> event payload. It is a
+    /// CLOSED SET, never the provider's own message: a provider message can
+    /// quote the request or the response body, and a run event is permanent
+    /// (the same rule <c>ProviderFailureNormalizer</c> applies at the outer
+    /// model-call boundary).
+    /// </remarks>
+    public static FallbackSkipReason Classify(Exception exception)
     {
         if (IsCancellation(exception))
         {
-            return false;
+            return FallbackSkipReason.None;
         }
 
         foreach (var candidate in Flatten(exception))
@@ -447,7 +591,7 @@ internal static partial class FallbackRetryClassifier
             {
                 // The circuit breaker reports the provider as already down —
                 // exactly the case this chain exists to route around.
-                return true;
+                return FallbackSkipReason.ProviderUnavailable;
             }
 
             // Never retryable even when otherwise recognized as an HTTP
@@ -458,15 +602,20 @@ internal static partial class FallbackRetryClassifier
             // still wins.
             if (AuthenticationStatusPattern().IsMatch(candidate.Message))
             {
-                return false;
+                return FallbackSkipReason.None;
             }
         }
 
         foreach (var candidate in Flatten(exception))
         {
-            if (RateLimitPattern().IsMatch(candidate.Message) || RetryableHttpStatusPattern().IsMatch(candidate.Message))
+            if (RateLimitPattern().IsMatch(candidate.Message))
             {
-                return true;
+                return FallbackSkipReason.RateLimited;
+            }
+
+            if (RetryableHttpStatusPattern().IsMatch(candidate.Message))
+            {
+                return FallbackSkipReason.HttpError;
             }
         }
 
@@ -481,11 +630,11 @@ internal static partial class FallbackRetryClassifier
         {
             if (TransportExceptionTypePattern().IsMatch(candidate.GetType().FullName ?? string.Empty))
             {
-                return true;
+                return FallbackSkipReason.TransportError;
             }
         }
 
-        return false;
+        return FallbackSkipReason.None;
     }
 
     /// <summary>

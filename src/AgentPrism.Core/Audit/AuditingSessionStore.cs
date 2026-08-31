@@ -73,6 +73,20 @@ internal sealed class AuditingSessionStore : ISessionStore, IAuditDecorated
         => _inner.TryCreateAsync(record, cancellationToken);
 
     /// <inheritdoc />
+    /// <remarks>
+    /// The <strong>same pitfall</strong> as <see cref="TryCreateAsync"/>, for the other half
+    /// of a session's lifetime. Omitting this delegation would fall back to
+    /// the interface's default read-then-write body and silently undo the
+    /// inner store's atomic compare-and-swap — the exact defect
+    /// <c>TryUpdateAsync</c> was added to close.
+    /// </remarks>
+    public ValueTask<bool> TryUpdateAsync(
+        SessionRecord record,
+        long expectedVersion,
+        CancellationToken cancellationToken = default)
+        => _inner.TryUpdateAsync(record, expectedVersion, cancellationToken);
+
+    /// <inheritdoc />
     public ValueTask<IReadOnlyList<SessionRecord>> QueryAsync(
         SessionQuery query,
         CancellationToken cancellationToken = default)

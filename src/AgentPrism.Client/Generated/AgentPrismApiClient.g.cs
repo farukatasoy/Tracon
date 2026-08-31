@@ -22090,6 +22090,13 @@ namespace AgentPrism.Client.Generated
         [System.Text.Json.Serialization.JsonPropertyName("tenantId")]
         public string? TenantId { get; set; } = default!;
 
+        /// <summary>
+        /// The record's write generation, used for optimistic concurrency.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("version")]
+        public long Version { get; set; } = default!;
+
     }
 
     /// <summary>

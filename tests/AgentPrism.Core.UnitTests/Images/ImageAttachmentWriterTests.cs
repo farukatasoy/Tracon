@@ -279,11 +279,36 @@ public sealed class ImageAttachmentWriterTests
             return new ImageServer(listener, request, uri);
         }
 
+        /// <remarks>
+        /// 🚨 Tears the listener down EXACTLY ONCE. <c>Stop()</c> and
+        /// <c>Close()</c> both walk the endpoint manager's prefix-removal
+        /// path, and that path can BIND the port on its way out — the
+        /// observed stack was
+        /// <c>Close → RemoveListener → RemovePrefixInternal → GetEPListener</c>
+        /// throwing "Address already in use". Calling both therefore races
+        /// every other test that is picking a free port at that moment, and
+        /// fails in Dispose, long after the test's own assertions passed.
+        /// The failure only shows up under the full project, never for the
+        /// test alone, so it reads as flakiness rather than as this.
+        /// </remarks>
         public async ValueTask DisposeAsync()
         {
-            _listener.Stop();
-            await _request.ConfigureAwait(false);
             _listener.Close();
+
+            try
+            {
+                await _request.ConfigureAwait(false);
+            }
+            catch (HttpListenerException)
+            {
+                // The expected end of the accept loop when a test never
+                // issued its request: closing the listener aborts the
+                // pending GetContextAsync. Not swallowing a real failure —
+                // the request task carries no assertion of its own.
+            }
+            catch (ObjectDisposedException)
+            {
+            }
         }
     }
 }

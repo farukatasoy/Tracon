@@ -6206,6 +6206,11 @@ export interface components {
             updatedAt: string;
             /** @description The tenant identifier. */
             tenantId?: null | string;
+            /**
+             * Format: int64
+             * @description The record's write generation, used for optimistic concurrency.
+             */
+            version?: number | string;
         };
         /** @description The record carrying permission to execute a skill script. */
         SkillScriptGrant: {

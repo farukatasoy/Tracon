@@ -45,8 +45,17 @@ internal sealed class InMemorySessionStore : ISessionStore
         _sessions.AddOrUpdate(
             (tenantId, record.Id),
             static (_, incoming) => incoming,
-            static (_, existing, incoming) => incoming with { CreatedAt = existing.CreatedAt },
-            record with { TenantId = tenantId });
+            // 🚨 The version ADVANCES on an unconditional overwrite instead of
+            // being taken from `incoming`. SaveAsync does not check the
+            // caller's version, so letting the caller's (possibly stale)
+            // value land would let a later TryUpdateAsync match a generation
+            // that no longer describes the stored state.
+            static (_, existing, incoming) => incoming with
+            {
+                CreatedAt = existing.CreatedAt,
+                Version = existing.Version + 1,
+            },
+            record with { TenantId = tenantId, Version = 1 });
 
         return default;
     }
@@ -63,7 +72,41 @@ internal sealed class InMemorySessionStore : ISessionStore
 
         var tenantId = record.TenantId ?? _tenantContext.TenantId;
 
-        return new ValueTask<bool>(_sessions.TryAdd((tenantId, record.Id), record with { TenantId = tenantId }));
+        return new ValueTask<bool>(
+            _sessions.TryAdd((tenantId, record.Id), record with { TenantId = tenantId, Version = 1 }));
+    }
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// <see cref="ConcurrentDictionary{TKey, TValue}.TryUpdate"/> compares the
+    /// CURRENT value by reference before swapping, so the check and the write
+    /// are one atomic step. A read-then-write pair here would carry exactly
+    /// the defect this member exists to close.
+    /// </remarks>
+    public ValueTask<bool> TryUpdateAsync(
+        SessionRecord record,
+        long expectedVersion,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(record);
+
+        var tenantId = record.TenantId ?? _tenantContext.TenantId;
+        var key = (tenantId, record.Id);
+
+        if (!_sessions.TryGetValue(key, out var existing) || existing.Version != expectedVersion)
+        {
+            return new ValueTask<bool>(false);
+        }
+
+        // CreatedAt belongs to the first write, the same rule SaveAsync applies.
+        var updated = record with
+        {
+            TenantId = tenantId,
+            CreatedAt = existing.CreatedAt,
+            Version = expectedVersion + 1,
+        };
+
+        return new ValueTask<bool>(_sessions.TryUpdate(key, updated, existing));
     }
 
     /// <inheritdoc />
