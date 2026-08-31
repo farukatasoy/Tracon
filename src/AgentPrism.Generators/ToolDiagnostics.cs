@@ -35,7 +35,7 @@ internal static class ToolDiagnostics
     public static readonly DiagnosticDescriptor UnsupportedParameterType = new(
         "APG0003",
         "Unsupported parameter type",
-        "Parameter '{1}' (type '{2}') of method '{0}' is not supported by the generator. Supported types: primitive types, string, Guid, DateTime(Offset), enum, arrays/IReadOnlyList<T> of these, and CancellationToken. For another type, register manually with 'AddTool(AIFunctionFactory.Create(...))'.",
+        "Parameter '{1}' (type '{2}') of method '{0}' is not supported by the generator. Supported types: primitive types, string, Guid, DateTime(Offset), enum, arrays/IReadOnlyList<T> of these, and CancellationToken. The generator also never expresses a nested object, or a minimum, maximum, length, or pattern constraint, on any parameter. For another type, or a constrained schema, register manually with 'AddTool(AIFunctionFactory.Create(...))'.",
         Category,
         DiagnosticSeverity.Error,
         isEnabledByDefault: true,
@@ -83,6 +83,15 @@ internal static class ToolDiagnostics
         "Tool method '{0}' returns complex type '{1}'. Set AgentPrismTool.JsonSerializerContext to a JsonSerializerContext that declares [JsonSerializable(typeof({1}))].",
         Category,
         DiagnosticSeverity.Error,
+        isEnabledByDefault: true,
+        helpLinkUri: HelpLink);
+
+    public static readonly DiagnosticDescriptor MissingParameterDescription = new(
+        "APG0009",
+        "Tool parameter description missing",
+        "Parameter '{1}' of tool '{0}' has no description. The model has only the parameter name to go on; add [Description].",
+        Category,
+        DiagnosticSeverity.Warning,
         isEnabledByDefault: true,
         helpLinkUri: HelpLink);
 }

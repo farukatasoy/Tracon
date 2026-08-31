@@ -7,6 +7,7 @@ public sealed class GeneratedOutputTests
     public void A_registration_is_generated_for_a_marked_static_method()
     {
         const string Source = """
+            using System.ComponentModel;
             using AgentPrism;
 
             namespace MyApp;
@@ -14,7 +15,7 @@ public sealed class GeneratedOutputTests
             internal static class OrderTools
             {
                 [AgentPrismTool("get_order_status", "Returns the status of an order.")]
-                public static string GetOrderStatus(string orderId) => orderId;
+                public static string GetOrderStatus([Description("The order number.")] string orderId) => orderId;
             }
             """;
 
@@ -78,6 +79,7 @@ public sealed class GeneratedOutputTests
     public void Effect_permission_and_timeout_carry_into_the_generated_registration()
     {
         const string Source = """
+            using System.ComponentModel;
             using AgentPrism;
 
             namespace MyApp;
@@ -93,7 +95,7 @@ public sealed class GeneratedOutputTests
                     TimeoutSeconds = 5,
                     SafeToRepeat = true,
                     MaxOutputBytes = 768)]
-                public static void CancelOrder(string orderId) { }
+                public static void CancelOrder([Description("The order number.")] string orderId) { }
             }
             """;
 
@@ -115,6 +117,7 @@ public sealed class GeneratedOutputTests
     {
         const string Source = """
             using AgentPrism;
+            using System.ComponentModel;
             using System.Text.Json.Serialization;
 
             namespace MyApp;
@@ -130,7 +133,7 @@ public sealed class GeneratedOutputTests
                     "get_order",
                     "Gets an order.",
                     JsonSerializerContext = typeof(ToolJsonContext))]
-                public static OrderResult GetOrder(string id) => new(id);
+                public static OrderResult GetOrder([Description("The order number.")] string id) => new(id);
             }
             """;
 
@@ -303,6 +306,7 @@ public sealed class GeneratedOutputTests
     public void An_async_Task_returning_method_is_generated_with_await()
     {
         const string Source = """
+            using System.ComponentModel;
             using System.Threading.Tasks;
             using AgentPrism;
 
@@ -311,7 +315,7 @@ public sealed class GeneratedOutputTests
             internal static class Tools
             {
                 [AgentPrismTool("get", "Gets.")]
-                public static async Task<string> GetAsync(string id)
+                public static async Task<string> GetAsync([Description("The order number.")] string id)
                 {
                     await Task.Yield();
                     return id;
@@ -332,6 +336,7 @@ public sealed class GeneratedOutputTests
     public void Both_tools_are_generated_when_they_live_in_two_different_classes()
     {
         const string Source = """
+            using System.ComponentModel;
             using AgentPrism;
 
             namespace MyApp;
@@ -339,13 +344,13 @@ public sealed class GeneratedOutputTests
             internal static class OrderTools
             {
                 [AgentPrismTool("get_order", "Returns an order.")]
-                public static string GetOrder(string id) => id;
+                public static string GetOrder([Description("The order number.")] string id) => id;
             }
 
             internal static class UserTools
             {
                 [AgentPrismTool("get_user", "Returns a user.")]
-                public static string GetUser(string id) => id;
+                public static string GetUser([Description("The user number.")] string id) => id;
             }
             """;
 

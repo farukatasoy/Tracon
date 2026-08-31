@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using AgentPrism;
 
 namespace AgentPrism.Starter;
@@ -19,6 +20,6 @@ internal static class OrderTools
     /// <param name="orderId">The order number.</param>
     /// <returns>The shipping status text.</returns>
     [AgentPrismTool("get_order_status", "Returns the shipping status of an order.")]
-    public static string GetOrderStatus(string orderId)
+    public static string GetOrderStatus([Description("The order number.")] string orderId)
         => $"Order {orderId} has shipped. Estimated delivery: 2 days.";
 }

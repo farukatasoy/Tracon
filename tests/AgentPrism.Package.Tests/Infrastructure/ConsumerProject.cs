@@ -45,6 +45,7 @@ internal static class ConsumerProject
             """);
 
         await File.WriteAllTextAsync(Path.Combine(directory, "OrderTools.cs"), """
+            using System.ComponentModel;
             using AgentPrism;
 
             namespace Consumer;
@@ -53,12 +54,14 @@ internal static class ConsumerProject
             /// The tool this smoke test exercises. Marked with [AgentPrismTool] and
             /// registered at build time by the source generator through
             /// AddGeneratedTools() - this compiling at all proves the analyzer DLL
-            /// travels inside the packed .nupkg's analyzers/dotnet/cs/ folder.
+            /// travels inside the packed .nupkg's analyzers/dotnet/cs/ folder. The
+            /// parameter's [Description] proves the same for 125.1: it reaches the
+            /// schema from a real PackageReference consumer, not just a ProjectReference.
             /// </summary>
             internal static class OrderTools
             {
                 [AgentPrismTool("order_status", "Returns the shipping status of an order.")]
-                public static string OrderStatus(string orderId) => $"{orderId} shipped";
+                public static string OrderStatus([Description("The order number.")] string orderId) => $"{orderId} shipped";
             }
             """);
 

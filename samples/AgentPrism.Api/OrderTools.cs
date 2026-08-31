@@ -1,3 +1,5 @@
+using System.ComponentModel;
+
 namespace AgentPrism.Api;
 
 /// <summary>
@@ -16,14 +18,14 @@ internal static class OrderTools
     /// <param name="orderId">The order number.</param>
     /// <returns>The shipping status text.</returns>
     [AgentPrismTool("get_order_status", "Returns the shipping status of an order.")]
-    public static string GetOrderStatus(string orderId)
+    public static string GetOrderStatus([Description("The order number.")] string orderId)
         => $"Order {orderId} has shipped. Estimated delivery: 2 days.";
 
     /// <summary>Lists a customer's recent orders.</summary>
     /// <param name="customerId">The customer number.</param>
     /// <returns>The order list text.</returns>
     [AgentPrismTool("list_recent_orders", "Lists a customer's recent orders.")]
-    public static string ListRecentOrders(string customerId)
+    public static string ListRecentOrders([Description("The customer number.")] string customerId)
         => $"Recent orders for customer {customerId}: ORD-1001, ORD-1002.";
 
     /// <summary>Cancels an order.</summary>
@@ -42,7 +44,7 @@ internal static class OrderTools
         RequiresApproval = true,
         Effect = ToolEffect.Destructive,
         RequiredPermission = "orders.cancel")]
-    public static string CancelOrder(string orderId)
+    public static string CancelOrder([Description("The order number.")] string orderId)
         => $"Order {orderId} has been canceled.";
 
     /// <summary>
@@ -55,7 +57,7 @@ internal static class OrderTools
     /// <param name="reportId">The report number.</param>
     /// <returns>The report text — never actually reached at the default timeout.</returns>
     [AgentPrismTool("get_slow_report", "Fetches a report that is slow to generate.", TimeoutSeconds = 1)]
-    public static async Task<string> GetSlowReport(string reportId)
+    public static async Task<string> GetSlowReport([Description("The report number.")] string reportId)
     {
         await Task.Delay(TimeSpan.FromSeconds(5));
         return $"Report {reportId} is ready.";

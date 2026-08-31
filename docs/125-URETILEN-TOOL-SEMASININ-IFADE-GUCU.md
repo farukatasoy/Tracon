@@ -1,6 +1,6 @@
 # Faz 125 — Üretilen Tool Şemasının İfade Gücü
 
-> **Durum:** 📋 Planlandı (2026-08-31)
+> **Durum:** ✅ Tamamlandı (2026-09-01)
 > **Kaynak:** [kesif/2026-08-31-tuketici-raporu-faz-adaylari.md](kesif/2026-08-31-tuketici-raporu-faz-adaylari.md) · **T-1**, **T-2**
 > **Önkoşul:** [Faz 52](arsiv/fazlar/52-KAYNAK-URETECI.md) (kaynak üreteci ve derleme anı doğrulama) — arşivde; yalnız grep'le okunur
 > **Paketler:** `AgentPrism.Generators`
@@ -103,6 +103,25 @@ ve yaprağı `BuildLeafSchemaNode` kuruyor. Açıklamayı yaprağa yazmak onu
 ayrım `SourceWriter` içinde tek satırlık bir hatadır ve testle sabitlenir.
 
 `CancellationToken` şemaya hiç girmiyor; açıklaması da girmez.
+
+### Gerçek çıktı — `samples/AgentPrism.Api`, 2026-09-01
+
+`dotnet run` ile ayağa kaldırılan örnek uygulamaya karşı `GET /agentprism/api/tools`
+çağrıldı (`curl -s http://localhost:5080/agentprism/api/tools -H "Authorization:
+Bearer manuel-test-token-2026"`). Modelin gördüğü gerçek şema (`get_order_status`,
+kısaltılmış):
+
+```json
+{
+  "name": "get_order_status",
+  "description": "Returns the shipping status of an order.",
+  "jsonSchema": "{\"type\":\"object\",\"properties\":{\"orderId\":{\"description\":\"The order number.\",\"type\":\"string\"}},\"required\":[\"orderId\"],\"additionalProperties\":false}"
+}
+```
+
+`cancel_order`, `list_recent_orders`, `get_slow_report` — `samples/AgentPrism.Api/OrderTools.cs`
+içindeki kaynak-üretilen dört tool'un tamamı — aynı şekilde kendi parametrelerinde
+`description` taşıdı. Manuel kabul case'i: `MT-TEST-087`.
 
 ## 125.2 — Eksik açıklama uyarısı (APG0009)
 
@@ -232,7 +251,7 @@ testte · **başka kiracı** → üreteç kiracı sınırı görmez, gerekçe bu
 
 | # | Soru | Seçenekler | Öneri |
 |---|---|---|---|
-| 1 | MEAI'ın `AIFunctionFactory.Create` yolu gerçekten `[Description]` okuyor mu? | Ölçüm sorusu | `maf-api-kesfi` ile **ilk iş** ölç. Okumuyorsa 125.1'in 2. gerekçesi düşer; karar değişmez ama rehber cümlesi değişir |
+| 1 | MEAI'ın `AIFunctionFactory.Create` yolu gerçekten `[Description]` okuyor mu? | Ölçüm sorusu | **Ölçüldü — EVET.** Küçük bir probe projesiyle (`Microsoft.Extensions.AI.Abstractions` 10.9.0) doğrulandı: `AIFunctionFactory.Create(delegate, name, description)` parametre üzerindeki `[Description]`'ı okuyup şemaya `"description"` olarak yazıyor. 125.1'in 2. gerekçesi doğrulandı; rehbere ve `troubleshooting.md`'ye yazıldı |
 | 2 | APG0009 varsayılan seviyesi `Warning` mi `Info` mu? | A: Warning (APG0006 ile simetrik) · B: Info | **A** — APG0006 zaten tool düzeyinde uyarı; parametre düzeyinde daha yumuşak olması tutarsız olurdu |
 | 3 | `enum` parametrelerinde üye başına açıklama (`enum` + `description` dizisi) yazılmalı mı? | A: Hayır · B: Evet | **A** — JSON Schema'da üye başına açıklama standart değildir; sağlayıcılar arasında davranış farklıdır. İstenirse ayrı kalem |
 
@@ -240,24 +259,24 @@ testte · **başka kiracı** → üreteç kiracı sınırı görmez, gerekçe bu
 
 ## Bitiş Ölçütleri (DoD)
 
-- [ ] `[Description]` taşıyan bir parametre üretilen şemada `description` alanı taşır — anlık görüntü testi
-- [ ] Dizi parametresinde açıklama **dizi düğümünde**, `items` içinde değil
-- [ ] Açıklamasız parametre APG0009 **uyarısı** üretir; derleme başarılıdır
-- [ ] APG0003 metni ifade edilemeyenleri adıyla sayar ve kaçış yolunu gösterir
-- [ ] `guides/write-your-own-tool.md` üretecin sınırını ilan eder
-- [ ] Açıklama değişince üreteç yeni şema üretir (artımlı önbellek testi)
-- [ ] Dört doğrulama kapısı sıfır uyarı verir
-- [ ] `samples/AgentPrism.Api` ile gerçek `run` yapıldı; modelin gördüğü şema çıktısı belgeye yazıldı
-- [ ] `secret` taraması boş döndü
-- [ ] Manuel kabul case'leri `docs/manuel-test/24-TEST-PAKETI-VE-SABLON.md` içine eklendi
-- [ ] `faz-denetim` koşuldu; 🔴 bulgu kalmadı
-- [ ] `docs-site/` güncellendi; `npm run build` + `check-links.mjs` temiz
+- [x] `[Description]` taşıyan bir parametre üretilen şemada `description` alanı taşır — anlık görüntü testi (`ToolSchemaDescriptionTests.A_Description_attribute_on_a_scalar_parameter_reaches_the_schema`)
+- [x] Dizi parametresinde açıklama **dizi düğümünde**, `items` içinde değil (`An_array_parameters_description_is_written_on_the_array_node_not_inside_items`)
+- [x] Açıklamasız parametre APG0009 **uyarısı** üretir; derleme başarılıdır (`DiagnosticTests.APG0009_warns_when_a_parameter_description_is_missing_but_does_not_block_generation`)
+- [x] APG0003 metni ifade edilemeyenleri adıyla sayar ve kaçış yolunu gösterir (`DiagnosticTests.APG0003_message_names_what_the_generator_can_never_express_125_3`)
+- [x] `guides/write-your-own-tool.md` üretecin sınırını ilan eder
+- [x] Açıklama değişince üreteç yeni şema üretir (`Changing_only_the_description_produces_a_fresh_schema_not_a_stale_cached_one`)
+- [x] Dört doğrulama kapısı sıfır uyarı verir (`dotnet build`/`test`/`pack`/`format --verify-no-changes`, 2026-09-01)
+- [x] `samples/AgentPrism.Api` ile gerçek `run` yapıldı; modelin gördüğü şema çıktısı belgeye yazıldı (§125.1 "Gerçek çıktı")
+- [x] `secret` taraması boş döndü (`python3 scripts/kapi.py tarama` → `✅ temiz`)
+- [x] Manuel kabul case'leri `docs/manuel-test/24-TEST-PAKETI-VE-SABLON.md` içine eklendi (MT-TEST-087/088/089)
+- [x] `faz-denetim` koşuldu; 🔴 bulgu kalmadı (bkz. Denetim Bulguları)
+- [x] `docs-site/` güncellendi; `npm run check` (`check:content`+`build`+`check:links`+`check:weight`) temiz
 
 ### Doğrulama komutları
 
 ```bash
 # Üretilen şemayı gerçekten gör
-curl -s http://localhost:5081/agentprism/api/tools | python3 -m json.tool
+curl -s http://localhost:5080/agentprism/api/tools -H "Authorization: Bearer manuel-test-token-2026" | python3 -m json.tool
 
 # Üreteç testleri
 dotnet build AgentPrism.slnx -c Release
@@ -283,24 +302,125 @@ dotnet build AgentPrism.slnx -c Release
 
 ## Plandan Sapmalar
 
-> Kapanışta doldurulur.
+- **`ToolRegistrationGenerator.cs` planın dosya listesinde yoktu, ama değişmek
+  zorunda kaldı.** Plan `DescriptorsById` adlı bir dispatch tablosunun varlığını
+  bilmiyordu: `ToolCandidate.Create` bir `DiagnosticInfo` üretse bile,
+  `ToolRegistrationGenerator.ReportDiagnostic` id'yi bu **private** sözlükte
+  bulamazsa sessizce `return` eder — ne derleme hatası, ne test kırılması, ne
+  log çıkışı. APG0009 önce `ToolDiagnostics.cs`'e eklendi ve **hiç
+  raporlanmadı**; yalnız tanıyı bizzat arayan bir test (`ToolSchemaDescriptionTests`)
+  bunu yakaladı. Aynı kusur sınıfının bir daha yaşanmaması için
+  `DiagnosticIntegrityTests.Every_DiagnosticInfo_routed_tool_diagnostic_is_wired_into_the_generators_dispatch_table`
+  eklendi — reflection ile private tabloyu okuyup her `AgentPrism.Tools` tanısının
+  (doğrudan raporlanan `DuplicateName`/`NoToolsFound` hariç) orada olduğunu
+  doğrular. Not: `docs/hafiza/analyzer-yazimi.md`.
+- **`node.Substring(1)`, plandaki `node[1..]` değil.** `AgentPrism.Generators`
+  `netstandard2.0`'ı hedefliyor; bu TFM'de `System.Range`/`System.Index` yok,
+  dizin aralığı operatörü `CS0518` veriyor. Aynı sınıftan bir tuzak zaten
+  `IsExternalInit` için biliniyordu (Faz 52); bu faz onu dizin aralığı
+  operatörüne genişletti. Not: `docs/hafiza/analyzer-yazimi.md`.
+- **Örnek/şablon/paket-testi dosyaları planda yoktu, dogfooding için değişti.**
+  `samples/AgentPrism.Api/OrderTools.cs`, `samples/AgentPrism.Samples.CustomTool/OrderPreviewTools.cs`,
+  `src/AgentPrism.Templates/content/AgentPrism.Starter/Tools/OrderTools.cs`,
+  `tests/AgentPrism.Package.Tests/Infrastructure/ConsumerProject.cs` —
+  APG0009 devreye girince bu dosyalardaki parametreler uyarı üretmeye başladı;
+  ana repo `TreatWarningsAsErrors=true` taşıdığından `samples/AgentPrism.Api`
+  için bu gerçek bir **derleme hatasıydı**. Dördüne de `[Description]` eklendi;
+  ayrıca beş mevcut üreteç testi (`GeneratedOutputTests`, `IncrementalityTests`)
+  aynı sebeple güncellendi.
+- **APG0003 mesajı ve `troubleshooting.md`, `AIFunctionFactory.Create`'in
+  `JsonSerializerOptions` alan overload'unu (kaynak-üretilmiş `JsonSerializerContext`
+  ile AOT-güvenli) örnekliyor** — plan yalnız "register manually with
+  `AddTool(AIFunctionFactory.Create(...))`" diyordu, hangi overload'ın nesne
+  parametresini AOT-güvenli işlediğini söylemiyordu. Bir probe projesiyle
+  ölçülüp (`AIFunctionFactory.Create(Delegate, string, string, JsonSerializerOptions)`)
+  doğrulandı; `guides/write-your-own-tool.md` ve `troubleshooting.md`'ye
+  çalışan bir örnek olarak yazıldı.
 
 ## Bu Fazda Verilen Kararlar
 
-> Kapanışta doldurulur.
+Bu fazda public API/uyumluluk sözleşmesi, güvenlik veya kiracı sınırı, kalıcı
+veri/migration ya da geri dönüşü pahalı bir sistem kararı **verilmedi** —
+yalnız yerel implementation tercihleri (yukarıdaki sapmalar). `docs/KARARLAR.md`'ye
+yeni bir `K-*` kaydı açılmadı.
 
 ## Gerçekleşen Public API
 
-> Kapanışta doldurulur.
+Plandaki gibi: **büyümedi.** `AgentPrism.Generators`'ın internal modeli
+(`ParameterModel`) planla birebir aynı şekilde `Description` alanı kazandı.
 
 ## Dosya Listesi (gerçekleşen)
 
-> Kapanışta doldurulur.
+```
+src/AgentPrism.Generators/
+├── ParameterModel.cs                     (değişti — Description alanı)
+├── ParameterTypeValidator.cs             (değişti — [Description] okuma)
+├── SourceWriter.cs                       (değişti — şemaya description yazma, JsonEscape control-char güvenli hale geldi)
+├── ToolCandidate.cs                      (değişti — APG0009 tanısı)
+├── ToolDiagnostics.cs                    (değişti — APG0009 + APG0003 metni)
+├── ToolRegistrationGenerator.cs          (değişti — planda YOKTU; DescriptorsById dispatch tablosu)
+└── AnalyzerReleases.Unshipped.md         (değişti — APG0009 satırı)
+
+tests/AgentPrism.Generators.UnitTests/
+├── ToolSchemaDescriptionTests.cs         (yeni — 10 test)
+├── DiagnosticTests.cs                    (değişti — APG0009 + APG0003 mesaj testi)
+├── DiagnosticIntegrityTests.cs           (değişti — dispatch tablosu regresyon testi)
+├── GeneratedOutputTests.cs               (değişti — mevcut fixture'lara [Description])
+└── IncrementalityTests.cs                (değişti — aynı sebep)
+
+docs-site/src/content/docs/guides/write-your-own-tool.md   (değişti)
+docs-site/src/content/docs/troubleshooting.md               (değişti — APG0003 genişledi, APG0009 bölümü yeni)
+docs-site/public/llms.txt, llms-full.txt                    (üretildi — build-agent-map.mjs)
+
+samples/AgentPrism.Api/OrderTools.cs                                          (değişti — planda yoktu, dogfooding)
+samples/AgentPrism.Samples.CustomTool/OrderPreviewTools.cs                    (değişti — planda yoktu, dogfooding)
+src/AgentPrism.Templates/content/AgentPrism.Starter/Tools/OrderTools.cs       (değişti — planda yoktu, dogfooding)
+tests/AgentPrism.Package.Tests/Infrastructure/ConsumerProject.cs              (değişti — planda yoktu, paketlenmiş consumer'da da kanıt)
+
+docs/manuel-test/24-TEST-PAKETI-VE-SABLON.md   (değişti — MT-TEST-087/088/089)
+docs/hafiza/analyzer-yazimi.md                 (değişti — iki yeni tuzak)
+docs/hafiza/dokumantasyon.md                   (değişti — ağırlık bütçesi gözlemi)
+```
 
 ## Denetim Bulguları
 
-> Kapanışta doldurulur.
+Bağımsız denetim (taze bağlamlı `general-purpose` agent), taban `9621eeb`,
+2026-09-01. Tam rapor bu oturumun geçmişinde; özet:
+
+| # | Seviye | Bulgu | Sonuç |
+|---|---|---|---|
+| 1 | 🟡 | Hata-modu tablosu "çok uzun açıklama testte" diyordu ama böyle bir test yoktu | **Düzeltildi** — `A_very_long_description_round_trips_through_the_generated_schema` eklendi (209 → 210 test) |
+| 2 | 🟢 | `troubleshooting.md` bu fazda büyüyünce `check:weight` tavanının **%96**'sına ulaştı | **Devredildi** — `docs/hafiza/dokumantasyon.md`'ye gözlem notu (kapı bugün yeşil, ölçülmeden büyütülmedi; yeni içerik eklerken kontrol edilmeli) |
+
+🔴 bulgu **yok**. Denetçinin bağımsız doğruladığı: `dotnet build`/`test`
+(Generators, 208/208), `dotnet format --verify-no-changes`, `build-agent-map.mjs --check`,
+`npm run check`, `secret` taraması, imza-gövde takibi (`ParameterModel.Description`
+üç üretim + iki tüketim noktası, kayma yok), `DescriptorsById` düzeltmesinin
+kalıcılığı. Ayrıca doğrulandı: `AgentPrism.Ui.E2ETests`'teki tek düşen test
+(`Playground_voice_mode_opens_microphone_and_shows_transcript`, paralel koşumda
+30s timeout) bu fazın dokunmadığı dosyalarda — izole koşumda geçti, önceden var
+olan kırılganlık, bu fazın kapsamı dışı.
 
 ## Sonraki Faza Devir Notu
 
-> Kapanışta doldurulur.
+- **Faz 126 (Kalıcı Payload Sürüm Sözleşmesi)** bu fazın dokunduğu hiçbir
+  dosyaya bağımlı değil; bağımsız başlanabilir.
+- **`[Description]` artık iki tool yazma yolunda da (kaynak üreteci VE
+  `AIFunctionFactory.Create`) okunuyor** — ölçüldü (Açık Soru 1). Gelecekte
+  ikisinden biri değişirse (MEAI sürüm yükseltmesi) `maf-api-kesfi` ile
+  yeniden ölçülmeli; `docs/hafiza/analyzer-yazimi.md`'ye not düşülmedi çünkü
+  bu bir üretici-tüketici sözleşmesi değil, MEAI'ın kendi davranışı.
+- 🚨 **Yeni bir `APG*` tanısı eklerken `ToolDiagnostics.cs`'e eklemek
+  YETMEZ.** `ToolRegistrationGenerator.cs`'deki private `DescriptorsById`
+  sözlüğüne de eklenmeli, yoksa tanı sessizce hiç raporlanmaz —
+  `DiagnosticIntegrityTests.Every_DiagnosticInfo_routed_tool_diagnostic_is_wired_into_the_generators_dispatch_table`
+  bunu şimdi yakalıyor, ama tanının **kendisi** neden raporlanmadığını
+  söylemez, yalnız "eksik" der. Kaçırma riski hâlâ var.
+- **`troubleshooting.md` ağırlık bütçesinin %96'sında** (bkz. Denetim
+  Bulguları #2). Bu sayfaya yeni bir bölüm eklemeden önce `npm run check:weight`
+  çıktısını kontrol et.
+- Faz 127 (Tool Kayıt Yüzeyi) `[Description]`'ın yaşadığı aynı üreteç
+  boru hattına dokunacak (`ParameterModel`, `SourceWriter`) — bu fazda eklenen
+  `Description` alanının artımlı önbellek eşitliğine **otomatik** girdiği
+  (positional record) bilgisi hâlâ geçerli, ama yeni bir alan eklerken yine
+  aynı önbellek testi deseni tekrarlanmalı (`Changing_only_the_description_produces_a_fresh_schema_not_a_stale_cached_one`).

@@ -8,6 +8,7 @@ path. Tool instances are singletons and can run concurrently for different tenan
 runs. Keep no mutable run state in fields.
 
 ```csharp
+using System.ComponentModel;
 using System.Text.Json.Serialization;
 
 [JsonSerializable(typeof(OrderReceipt))]
@@ -28,10 +29,35 @@ public static class OrderTools
         MaxOutputBytes = 4096,
         JsonSerializerContext = typeof(OrderToolJsonContext))]
     public static Task<OrderReceipt> SubmitOrderAsync(
-        string orderId,
+        [Description("The identifier of the order to submit.")] string orderId,
         CancellationToken cancellationToken)
         => Task.FromResult(new OrderReceipt(orderId, "submitted"));
 }
+```
+
+`[Description]` (`System.ComponentModel.DescriptionAttribute`) reaches the generated
+JSON Schema as the parameter's `description` — the strongest signal the model has for
+filling in that argument correctly. A parameter without one still compiles; the
+generator reports it as a warning (`APG0009`).
+
+**What the generator can express:** a parameter's scalar type (primitive types,
+`string`, `Guid`, `DateTime`/`DateTimeOffset`, `enum`), an array of these,
+`description`, and whether it is required. **What it cannot express, on any
+parameter:** a nested object, or a `minimum`, `maximum`, length, or `pattern`
+constraint. For a nested object parameter, register the tool by hand instead:
+
+```csharp
+public sealed record OrderFilter(string Status, int MinAmount);
+
+[JsonSerializable(typeof(OrderFilter))]
+internal partial class OrderFilterJsonContext : JsonSerializerContext;
+
+agentPrism.Services.AddSingleton<AgentPrismToolRegistration>(provider =>
+    new(AIFunctionFactory.Create(
+        (OrderFilter filter) => SearchOrders(filter),
+        "search_orders",
+        "Searches orders matching a filter.",
+        OrderFilterJsonContext.Default.Options)));
 ```
 
 The source generator preserves all this metadata. For a complex result, declare its

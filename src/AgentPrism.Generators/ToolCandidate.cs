@@ -108,6 +108,11 @@ internal sealed record ToolCandidate(SourceLocation Location, EquatableArray<Dia
                 continue;
             }
 
+            if (model.Shape != ParameterShape.CancellationToken && string.IsNullOrWhiteSpace(model.Description))
+            {
+                diagnostics.Add(DiagnosticInfo.Create(ToolDiagnostics.MissingParameterDescription.Id, location, toolName, parameter.Name));
+            }
+
             parameters.Add(model);
         }
 

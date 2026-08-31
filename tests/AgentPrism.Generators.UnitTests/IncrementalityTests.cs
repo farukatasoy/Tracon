@@ -12,6 +12,7 @@ public sealed class IncrementalityTests
     public void Tool_candidate_step_does_not_rerun_on_an_unrelated_change()
     {
         const string First = """
+            using System.ComponentModel;
             using AgentPrism;
 
             namespace MyApp;
@@ -19,7 +20,7 @@ public sealed class IncrementalityTests
             internal static class Tools
             {
                 [AgentPrismTool("get_order_status", "Returns the status of an order.")]
-                public static string GetOrderStatus(string orderId) => orderId;
+                public static string GetOrderStatus([Description("The order number.")] string orderId) => orderId;
             }
 
             internal static class Unrelated
@@ -34,6 +35,7 @@ public sealed class IncrementalityTests
         // generator's purposes, since ForAttributeWithMetadataName only tracks
         // the marked node).
         const string Second = """
+            using System.ComponentModel;
             using AgentPrism;
 
             namespace MyApp;
@@ -41,7 +43,7 @@ public sealed class IncrementalityTests
             internal static class Tools
             {
                 [AgentPrismTool("get_order_status", "Returns the status of an order.")]
-                public static string GetOrderStatus(string orderId) => orderId;
+                public static string GetOrderStatus([Description("The order number.")] string orderId) => orderId;
             }
 
             internal static class Unrelated
