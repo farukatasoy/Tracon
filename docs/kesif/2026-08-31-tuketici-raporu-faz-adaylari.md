@@ -21,7 +21,7 @@ Rapor 15 gap iddia etti. Ölçüm sonrası:
 
 | Kanal | Sayı | Nereye |
 |---|---:|---|
-| **Kusur** (davranış zaten yanlış) | 3 | §1 — **K-2 ve K-3 kapandı**; K-1 [Faz 124](../124-YEDEKLEMENIN-TOOL-DEFTERI.md) oldu |
+| **Kusur** (davranış zaten yanlış) | 3 | §1 — **K-2 ve K-3 kapandı**; K-1 [Faz 124](../arsiv/fazlar/124-YEDEKLEMENIN-TOOL-DEFTERI.md) oldu |
 | **Plana dönüşen aday** | 6 | §2 — Faz 125 · 126 · 127 · 128 |
 | **Ölçümle reddedilen aday** | 1 | §2, T-6 kalanı — sağlayıcı istek kimliği beş sağlayıcıya özel kod ister |
 | **Doküman işi** (yetenek var, anlatı yok) | 2 | §3 — ilk dokunan fazın doküman senkronuna eklenir |
@@ -31,7 +31,7 @@ Rapor 15 gap iddia etti. Ölçüm sonrası:
 
 | Faz | Konu | Kaynak kalem |
 |---|---|---|
-| [124](../124-YEDEKLEMENIN-TOOL-DEFTERI.md) | Yedeklemenin Tool Defteri | K-1 |
+| [124](../arsiv/fazlar/124-YEDEKLEMENIN-TOOL-DEFTERI.md) | Yedeklemenin Tool Defteri | K-1 |
 | [125](../125-URETILEN-TOOL-SEMASININ-IFADE-GUCU.md) | Üretilen Tool Şemasının İfade Gücü | T-1 · T-2 |
 | [126](../126-KALICI-PAYLOAD-SURUM-SOZLESMESI.md) | Kalıcı Payload Sürüm Sözleşmesi | T-5 |
 | [127](../127-TOOL-KAYIT-YUZEYI.md) | Tool Kayıt Yüzeyi | T-4 · T-3 |
@@ -59,7 +59,7 @@ için **sınıf taraması** şarttır.
 > `R-1` (yedekleme) ve `R-2` (oturum) diye adlandırır — o dosyada `K-*`
 > etiketi yoktur. Buradaki `K-3` orada §5'tir.
 
-### K-1 · 📋 [Faz 124](../124-YEDEKLEMENIN-TOOL-DEFTERI.md) · Sağlayıcı yedeklemesi yan etkili tool'u yeniden çalıştırabilir
+### K-1 · 📋 [Faz 124](../arsiv/fazlar/124-YEDEKLEMENIN-TOOL-DEFTERI.md) · Sağlayıcı yedeklemesi yan etkili tool'u yeniden çalıştırabilir
 
 **Karar (2026-08-31): (b).** Yedeğe geçilirken tamamlanmış tool çağrıları
 **kayıtlı sonuçlarından cevaplanır**, yeniden çalıştırılmaz — kesinti devamı
@@ -86,7 +86,7 @@ güvendedir.
 replay) Faz 124 § 124.3'te tablo hâlinde duruyor; beşi plan anında ölçüldü,
 workflow düğüm retry'ı **açık uçlu** bırakıldı ve gerekçesi yazıldı.
 
-Kapsam, tasarım, hata modları ve DoD: [Faz 124](../124-YEDEKLEMENIN-TOOL-DEFTERI.md).
+Kapsam, tasarım, hata modları ve DoD: [Faz 124](../arsiv/fazlar/124-YEDEKLEMENIN-TOOL-DEFTERI.md).
 
 ### K-2 · ✅ KAPANDI (2026-08-31) · Var olan bir oturumun kaydında son yazan kazanır
 
@@ -276,7 +276,7 @@ sonra.
 
 | # | Kalem | Varış | Durum |
 |---|---|---|---|
-| 1 | **K-1** yedeklemenin yan etkisi | [Faz 124](../124-YEDEKLEMENIN-TOOL-DEFTERI.md) | 📋 Planlandı |
+| 1 | **K-1** yedeklemenin yan etkisi | [Faz 124](../arsiv/fazlar/124-YEDEKLEMENIN-TOOL-DEFTERI.md) | 📋 Planlandı |
 | ~~2~~ | ~~**K-2** oturum son-yazan-kazanır~~ | — | ✅ Kapandı — K-648 |
 | 3 | **T-1** parametre açıklaması | [Faz 125](../125-URETILEN-TOOL-SEMASININ-IFADE-GUCU.md) | 📋 Planlandı |
 | 9 | **T-2** üreteç sınırının ilanı | [Faz 125](../125-URETILEN-TOOL-SEMASININ-IFADE-GUCU.md) | 📋 Planlandı — T-1 ile aynı üreteci paylaştığı için birleşti |

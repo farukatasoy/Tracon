@@ -1,8 +1,8 @@
 # Faz 124 — Yedeklemenin Tool Defteri
 
 > **Durum:** ✅ Tamamlandı (2026-08-31)
-> **Kaynak:** [kesif/2026-08-31-tuketici-raporu-faz-adaylari.md](kesif/2026-08-31-tuketici-raporu-faz-adaylari.md) · **K-1** (kusur kanalından faz kanalına geçti)
-> **Önkoşul:** [Faz 62](arsiv/fazlar/62-MODEL-YEDEK-ZINCIRI-VE-ON-UCUS-DENETIMI.md) (yedek zinciri) ve [Faz 87](arsiv/fazlar/87-KESILEN-ISIN-DEVAMI.md) (kesinti devamı, `RecordedToolPlayback`) — ikisi de arşivde; yalnız aşağıdaki grep'lerle okunur
+> **Kaynak:** [kesif/2026-08-31-tuketici-raporu-faz-adaylari.md](../../kesif/2026-08-31-tuketici-raporu-faz-adaylari.md) · **K-1** (kusur kanalından faz kanalına geçti)
+> **Önkoşul:** [Faz 62](62-MODEL-YEDEK-ZINCIRI-VE-ON-UCUS-DENETIMI.md) (yedek zinciri) ve [Faz 87](87-KESILEN-ISIN-DEVAMI.md) (kesinti devamı, `RecordedToolPlayback`) — ikisi de arşivde; yalnız aşağıdaki grep'lerle okunur
 > **Paketler:** `AgentPrism.Core` (`Models/FallbackChatClient.cs`, `Replay/RecordedToolPlayback.cs`)
 > **Yeni paket:** Yok · **Migration:** Yok — defter turun ömrü kadar yaşar, hiçbir yere yazılmaz
 > **Public API:** Büyümüyor. Dokunulan iki tip de `internal`. Bu, fazın en ucuz tarafıdır: `wc -l src/*/PublicAPI.Shipped.txt` toplamı **17** satır (K-603) ve bu faz o sayıya bir satır bile eklemez
@@ -23,10 +23,10 @@
    ```
    **K-583** (kesinti devamı `Replay` ve `ApprovalResume` ile karıştırılmaz — bu faz o üçüne **dördüncü** bir işlem eklemez, var olan mekanizmayı ödünç alır) · **K-315** (replay sözleşmesi) · **K-320** (model boru hattının tamamını `ModelProviderRegistry` kurar) · **K-483** (elle tekrarlanan ifade sessiz kusur sınıfı üretir — bu fazın kaçınması gereken tam desen)
 3. Alan hafızası (bu faz iki alana dokunuyor):
-   [`hafiza/model-boru-hatti.md`](hafiza/model-boru-hatti.md) (halka sırası — yanlış halka konumu derlenir, testten geçer, yalnız gerçek senaryoda çöker) ·
-   [`hafiza/cekirdek-calistirma.md`](hafiza/cekirdek-calistirma.md) (tool döngüsü ve `AgentPrismRunContext`)
+   [`hafiza/model-boru-hatti.md`](../../hafiza/model-boru-hatti.md) (halka sırası — yanlış halka konumu derlenir, testten geçer, yalnız gerçek senaryoda çöker) ·
+   [`hafiza/cekirdek-calistirma.md`](../../hafiza/cekirdek-calistirma.md) (tool döngüsü ve `AgentPrismRunContext`)
 4. Gerektiğinde, tamamı değil ilgili bölümü:
-   [`MIMARI.md`](MIMARI.md) — çalıştırma yolu bölümü
+   [`MIMARI.md`](../../MIMARI.md) — çalıştırma yolu bölümü
 
 ---
 
@@ -48,12 +48,12 @@ yedeklemeye taşır.
 
 | Kanıt | Gözlem |
 |---|---|
-| [`FallbackChatClient.cs:31-35`](../src/AgentPrism.Core/Models/FallbackChatClient.cs) | Kendi dokümanı sonucu yazıyor: *"a fallback **restarts the agent's tool-call turn from scratch**"* |
-| [`FallbackChatClient.cs:115-171`](../src/AgentPrism.Core/Models/FallbackChatClient.cs) | Akışsız döngüde `SafeToRepeat`, `ToolEffect` veya herhangi bir tool defteri **yok**; `client.GetResponseAsync` bütün turu baştan koşar |
-| [`ModelProviderRegistry.cs:448-452`, `:536`](../src/AgentPrism.Core/Models/ModelProviderRegistry.cs) | `UseFunctionInvocation()` boru hattının **içinde**, `FallbackChatClient` onun **dışında** — yani tool döngüsü gerçekten bu istemcinin altındadır |
-| [`FallbackChatClient.cs:200-206`, `:234`](../src/AgentPrism.Core/Models/FallbackChatClient.cs) | 🚨 **Akışlı yol bugün zaten kapalı:** `sawUpdate` ilk kareden sonra yedeğe geçişi engelliyor. Tool döngüsü akışta çağrı içeriğini kareye çevirdiği için tool koştuysa `sawUpdate` çoktan `true`'dur |
-| [`RecordedToolPlayback.cs:24-62`, `:160-200`](../src/AgentPrism.Core/Replay/RecordedToolPlayback.cs) | Kardeş mekanizma hazır: `(ad, argüman)` ile eşleştirir, `RunLive` politikasında eşleşmeyeni canlı koşar |
-| [`RunReconciliationService.cs:232`](../src/AgentPrism.Core/Recording/RunReconciliationService.cs) | Kesinti devamı ayrıca yıkıcı/dış etkili tool taşıyan run'ı **hiç** devam ettirmez |
+| [`FallbackChatClient.cs:31-35`](../../../src/AgentPrism.Core/Models/FallbackChatClient.cs) | Kendi dokümanı sonucu yazıyor: *"a fallback **restarts the agent's tool-call turn from scratch**"* |
+| [`FallbackChatClient.cs:115-171`](../../../src/AgentPrism.Core/Models/FallbackChatClient.cs) | Akışsız döngüde `SafeToRepeat`, `ToolEffect` veya herhangi bir tool defteri **yok**; `client.GetResponseAsync` bütün turu baştan koşar |
+| [`ModelProviderRegistry.cs:448-452`, `:536`](../../../src/AgentPrism.Core/Models/ModelProviderRegistry.cs) | `UseFunctionInvocation()` boru hattının **içinde**, `FallbackChatClient` onun **dışında** — yani tool döngüsü gerçekten bu istemcinin altındadır |
+| [`FallbackChatClient.cs:200-206`, `:234`](../../../src/AgentPrism.Core/Models/FallbackChatClient.cs) | 🚨 **Akışlı yol bugün zaten kapalı:** `sawUpdate` ilk kareden sonra yedeğe geçişi engelliyor. Tool döngüsü akışta çağrı içeriğini kareye çevirdiği için tool koştuysa `sawUpdate` çoktan `true`'dur |
+| [`RecordedToolPlayback.cs:24-62`, `:160-200`](../../../src/AgentPrism.Core/Replay/RecordedToolPlayback.cs) | Kardeş mekanizma hazır: `(ad, argüman)` ile eşleştirir, `RunLive` politikasında eşleşmeyeni canlı koşar |
+| [`RunReconciliationService.cs:232`](../../../src/AgentPrism.Core/Recording/RunReconciliationService.cs) | Kesinti devamı ayrıca yıkıcı/dış etkili tool taşıyan run'ı **hiç** devam ettirmez |
 
 > Kanıtlar 2026-08-31 tarihinde `8105c00` üzerinde doğrulandı.
 
