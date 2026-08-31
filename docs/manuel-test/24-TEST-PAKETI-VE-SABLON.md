@@ -2578,4 +2578,112 @@ python3 -m unittest scripts.kapi_test -v
 - Manifestte checksum değeri değiştirilse bile migration dosyasını değiştirmek
   kabul edilmez; birim testleri bu bypass denemesini kırmızıya çevirir.
 
+### MT-TEST-087 — `[Description]` taşıyan bir tool parametresi üretilen şemada `description` alanı taşır (Faz 125)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 125 |
+
+**Ön koşul**
+- `AgentPrism:Ui:AuthToken` `user-secrets`'ta `manuel-test-token-2026` olarak tanımlı (bkz. `07-HTTP-YONETIM-API.md` §Koşmadan önce).
+
+**Adımlar**
+1. `samples/AgentPrism.Api`'yi çalıştır.
+2. `/agentprism/api/tools` ucunu çağır.
+
+**Girilecek veri**
+```bash
+cd samples/AgentPrism.Api && dotnet run -c Release &
+sleep 5
+curl -s http://localhost:5080/agentprism/api/tools \
+  -H "Authorization: Bearer manuel-test-token-2026" | python3 -m json.tool
+```
+
+**Beklenen sonuç**
+- `get_order_status` tool'unun `jsonSchema` alanı
+  `"orderId":{"description":"The order number.","type":"string"}` taşır.
+- `cancel_order`, `list_recent_orders`, `get_slow_report` tool'larının her biri
+  aynı şekilde kendi parametresinde bir `description` taşır — dördü de
+  `[AgentPrismTool]` + `AddGeneratedTools()` (kaynak üreteci) yoluyla kayıtlıdır.
+
+### MT-TEST-088 — Açıklaması olmayan bir tool parametresi APG0009 uyarısı üretir; derleme başarılı biter (Faz 125)
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 125 |
+
+Bir tüketicinin kendi projesinde (bu repo'nun **dışında**) koşulur — bu repo'nun
+kendi `Directory.Build.props`'u `TreatWarningsAsErrors` açar, o yüzden burada
+aynı senaryo bir HATA'ya döner; şablon projesi bu bayrağı açmaz.
+
+**Ön koşul**
+- Şablon kurulu (MT-TEST-001).
+
+**Adımlar**
+1. En yalın birleşimle bir proje üret (MT-TEST-002).
+2. `Tools/OrderTools.cs` içindeki `orderId` parametresinden `[Description(...)]`'i sil.
+3. Projeyi derle.
+
+**Girilecek veri**
+```bash
+TMP=$(mktemp -d)
+dotnet new agentprism-api -n ApgDeneme -o "$TMP/apg" \
+  --persistence memory --provider openai --ui false --AgentPrismVersion "$SURUM"
+
+# Tools/OrderTools.cs içinde:
+#   public static string GetOrderStatus([Description("The order number.")] string orderId)
+# -> [Description(...)] öbeğini elle sil, yalnız "string orderId" kalsın.
+
+dotnet build "$TMP/apg" -c Release
+```
+
+**Beklenen sonuç**
+- Çıktıda `warning APG0009: Parameter 'orderId' of tool 'get_order_status' has no
+  description. The model has only the parameter name to go on; add [Description].`
+  görünür.
+- `dotnet build` **`0 Error(s)`** ile biter — uyarı derlemeyi kırmaz.
+
+### MT-TEST-089 — Nesne parametreli bir tool metodu APG0003 hatası üretir; mesaj iç içe nesnenin ifade edilemediğini ve kaçış yolunu adıyla söyler (Faz 125)
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 125 |
+
+**Ön koşul**
+- Şablon kurulu (MT-TEST-001).
+
+**Adımlar**
+1. En yalın birleşimle bir proje üret (MT-TEST-002).
+2. `Tools/OrderTools.cs`'e nesne parametreli, `[AgentPrismTool]` işaretli yeni bir metot ekle.
+3. Projeyi derle.
+
+**Girilecek veri**
+```bash
+TMP=$(mktemp -d)
+dotnet new agentprism-api -n ApgDeneme2 -o "$TMP/apg2" \
+  --persistence memory --provider openai --ui false --AgentPrismVersion "$SURUM"
+
+# Tools/OrderTools.cs içine ekle:
+#   public sealed record OrderFilter(string Status, int MinAmount);
+#
+#   [AgentPrismTool("search_orders", "Searches orders.")]
+#   public static string SearchOrders(OrderFilter filter) => filter.Status;
+
+dotnet build "$TMP/apg2" -c Release
+```
+
+**Beklenen sonuç**
+- Çıktıda `error APG0003: ... is not supported by the generator. Supported
+  types: ... The generator also never expresses a nested object, or a
+  minimum, maximum, length, or pattern constraint, on any parameter. For
+  another type, or a constrained schema, register manually with
+  'AddTool(AIFunctionFactory.Create(...))'.` görünür.
+- `dotnet build` hata ile biter (`0` çıkış kodu **değil**).
+
 ---

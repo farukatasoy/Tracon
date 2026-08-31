@@ -55,4 +55,5 @@ internal sealed record ParameterModel(
     LeafType? Leaf,
     bool IsRequired,
     string? DefaultValueLiteral,
-    bool IsConcreteArray = false);
+    bool IsConcreteArray = false,
+    string? Description = null);

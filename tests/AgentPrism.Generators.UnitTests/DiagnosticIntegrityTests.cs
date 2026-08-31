@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using System.Globalization;
 using System.Reflection;
 using System.Text.RegularExpressions;
@@ -109,6 +110,41 @@ public sealed class DiagnosticIntegrityTests
         missing.ShouldBeEmpty(
             $"{id} names an API that no PublicAPI.*.txt declares: {string.Join(", ", missing)}. " +
             "Rename it in the message, or add it to ExternalApis when AgentPrism does not own it.");
+    }
+
+    /// <summary>
+    /// A <see cref="DiagnosticDescriptor"/> defined in <see cref="ToolDiagnostics"/> but
+    /// never added to <see cref="ToolRegistrationGenerator"/>'s private dispatch table is
+    /// silently DROPPED - <c>ReportDiagnostic</c> returns without reporting for an unknown
+    /// id. Measured while adding APG0009 (phase 125): the diagnostic compiled, its message
+    /// was correct, and it never appeared in any build output - only a test that checked
+    /// FOR the diagnostic caught it. This closes the defect class instead of one instance.
+    /// </summary>
+    [Fact]
+    public void Every_DiagnosticInfo_routed_tool_diagnostic_is_wired_into_the_generators_dispatch_table()
+    {
+        var dispatchTable = (ImmutableDictionary<string, DiagnosticDescriptor>)typeof(ToolRegistrationGenerator)
+            .GetField("DescriptorsById", BindingFlags.NonPublic | BindingFlags.Static)!
+            .GetValue(null)!;
+
+        // DuplicateName and NoToolsFound are reported directly via context.ReportDiagnostic
+        // inside ToolRegistrationGenerator, never through DiagnosticInfo/ReportDiagnostic -
+        // they are the only two Tools-category diagnostics NOT expected in this table.
+        var directlyReported = new HashSet<string>(StringComparer.Ordinal)
+        {
+            ToolDiagnostics.DuplicateName.Id,
+            ToolDiagnostics.NoToolsFound.Id,
+        };
+
+        var missing = Descriptors()
+            .Where(descriptor => string.Equals(descriptor.Category, "AgentPrism.Tools", StringComparison.Ordinal))
+            .Where(descriptor => !directlyReported.Contains(descriptor.Id))
+            .Where(descriptor => !dispatchTable.ContainsKey(descriptor.Id))
+            .Select(descriptor => descriptor.Id)
+            .ToList();
+
+        missing.ShouldBeEmpty(
+            $"{string.Join(", ", missing)} is defined but never reported - ToolRegistrationGenerator.ReportDiagnostic silently drops an unknown id.");
     }
 
     [Fact]

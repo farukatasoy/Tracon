@@ -537,7 +537,7 @@ source-generated path, or accept and document that the application is not AOT-sa
 
 | Ids | Category | What it reports |
 |---|---|---|
-| `APG0001`–`APG0008` | `AgentPrism.Tools` | A method marked `[AgentPrismTool]` cannot be generated. Errors: fix the method. |
+| `APG0001`–`APG0009` | `AgentPrism.Tools` | A method marked `[AgentPrismTool]` cannot be generated, or a parameter has no description. Errors: fix the method. `APG0009` is a warning. |
 | `APG0101`, `APG0102` | `AgentPrism.Usage` | A registration this compilation never makes. The application fails at run time. |
 | `APG0201` | `AgentPrism.Usage` | A definition carries a literal secret instead of the name of a configuration key. |
 | `APG0301`, `APG0302` | `AgentPrism.Usage` | Code written by hand for behaviour the package already ships. |
@@ -567,6 +567,13 @@ arrays or `IReadOnlyList<T>` of these, and `CancellationToken`. A parameter of a
 other type — a custom class, a dictionary, a tuple — has no schema mapping and is
 reported instead of silently ignored.
 
+**The generator's expression boundary, stated once:** it can express a parameter's
+scalar type, array shape, `description`, and whether it is required. It can never
+express a nested object, or a `minimum`, `maximum`, length, or `pattern` constraint
+— on any parameter, supported type or not. There is no partial path: a parameter
+either gets an exact schema within that boundary, or it needs the escape route
+below.
+
 Change the parameter to a supported type, or register the tool by hand instead of
 through `[AgentPrismTool]`:
 
@@ -576,7 +583,23 @@ builder.AddAgentPrism()
 ```
 
 `AIFunctionFactory.Create` builds the schema itself and accepts a wider range of
-parameter shapes.
+parameter shapes, including a nested object — reflection maps its properties at run
+time instead of at compile time. For an AOT-safe version of the same call, give it a
+source-generated `JsonSerializerOptions` instead of relying on reflection:
+
+```csharp
+public sealed record OrderFilter(string Status, int MinAmount);
+
+[JsonSerializable(typeof(OrderFilter))]
+internal partial class OrderFilterJsonContext : JsonSerializerContext;
+
+builder.AddAgentPrism()
+       .AddTool(AIFunctionFactory.Create(
+           (OrderFilter filter) => SearchOrders(filter),
+           "search_orders",
+           "Searches orders matching a filter.",
+           OrderFilterJsonContext.Default.Options));
+```
 
 ### A generic method is marked as a tool (APG0004)
 
@@ -629,6 +652,25 @@ Generated tools must be static. Microsoft Agent Framework invokes an
 on constructor dependencies. Make the generated method static, or create the
 object during registration and expose a hand-built `AIFunction` that creates a
 scope for each invocation.
+
+### A tool parameter has no description (APG0009)
+
+The model fills in a tool call's arguments from the JSON Schema the generator
+produces; a parameter's `description` is the strongest signal it has for which
+argument to put where and what value belongs in it — stronger than the parameter
+name, which a model reads but was never written for this purpose. `System.ComponentModel.DescriptionAttribute`
+reaches the schema:
+
+```csharp
+[AgentPrismTool("submit_order", "Submits an order to the fulfillment system.")]
+public static Task<OrderReceipt> SubmitOrderAsync(
+    [Description("The identifier of the order to submit.")] string orderId,
+    CancellationToken cancellationToken)
+```
+
+This is a warning, not an error — existing code keeps compiling. `AIFunctionFactory.Create`
+reads the same attribute, so a tool written either way teaches the model the same
+way. `CancellationToken` never needs one: it never reaches the schema.
 
 ### APG0101 or APG0102 fires although the registration exists
 

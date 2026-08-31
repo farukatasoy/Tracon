@@ -14,6 +14,7 @@ internal static class ParameterTypeValidator
     private const string GuidMetadataName = "System.Guid";
     private const string DateTimeMetadataName = "System.DateTime";
     private const string DateTimeOffsetMetadataName = "System.DateTimeOffset";
+    private const string DescriptionAttributeMetadataName = "System.ComponentModel.DescriptionAttribute";
 
     /// <summary>
     /// Classifies a parameter. When <paramref name="parameter"/> is
@@ -33,17 +34,48 @@ internal static class ParameterTypeValidator
         var defaultLiteral = parameter.HasExplicitDefaultValue
             ? RenderDefaultValueLiteral(parameter.ExplicitDefaultValue, type)
             : null;
+        var description = ReadDescription(parameter);
 
         if (TryGetArrayElementType(type, out var elementType, out var isConcreteArray))
         {
             var elementLeaf = TryCreateLeaf(elementType);
             return elementLeaf is null
                 ? null
-                : new ParameterModel(parameter.Name, ParameterShape.Array, elementLeaf, isRequired, defaultLiteral, isConcreteArray);
+                : new ParameterModel(parameter.Name, ParameterShape.Array, elementLeaf, isRequired, defaultLiteral, isConcreteArray, description);
         }
 
         var leaf = TryCreateLeaf(type);
-        return leaf is null ? null : new ParameterModel(parameter.Name, ParameterShape.Scalar, leaf, isRequired, defaultLiteral);
+        return leaf is null ? null : new ParameterModel(parameter.Name, ParameterShape.Scalar, leaf, isRequired, defaultLiteral, IsConcreteArray: false, Description: description);
+    }
+
+    /// <summary>
+    /// Reads <see cref="System.ComponentModel.DescriptionAttribute"/> from the parameter.
+    /// AgentPrism ships no attribute of its own for this (125.1): the BCL attribute is
+    /// also read by <c>Microsoft.Extensions.AI.AIFunctionFactory.Create</c>, so both
+    /// tool-writing paths teach a consumer the same rule.
+    /// </summary>
+    private static string? ReadDescription(IParameterSymbol parameter)
+    {
+        foreach (var attribute in parameter.GetAttributes())
+        {
+            if (attribute.AttributeClass is not { } attributeClass)
+            {
+                continue;
+            }
+
+            var metadataName = $"{attributeClass.ContainingNamespace}.{attributeClass.Name}";
+
+            if (!string.Equals(metadataName, DescriptionAttributeMetadataName, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            return attribute.ConstructorArguments.Length > 0 && attribute.ConstructorArguments[0].Value is string description
+                ? (string.IsNullOrWhiteSpace(description) ? null : description)
+                : null;
+        }
+
+        return null;
     }
 
     private static LeafType? TryCreateLeaf(ITypeSymbol type)

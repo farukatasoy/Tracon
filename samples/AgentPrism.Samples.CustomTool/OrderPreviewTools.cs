@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Text.Json.Serialization;
 
 namespace AgentPrism.Samples.CustomTool;
@@ -11,7 +12,7 @@ public static class OrderPreviewTools
         "Returns a structured order preview.",
         MaxOutputBytes = 768,
         JsonSerializerContext = typeof(OrderPreviewJsonContext))]
-    public static OrderPreview PreviewOrder(string orderId)
+    public static OrderPreview PreviewOrder([Description("The order number.")] string orderId)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(orderId);
         return new OrderPreview(orderId, "ready");

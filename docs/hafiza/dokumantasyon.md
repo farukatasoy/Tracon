@@ -93,6 +93,17 @@ muafiyet listesi), `site.css` token ciftlerinin WCAG kontrasti, bolum basina
 `og:image`, ve elle yazilan sayfalarda ic gelistirme referansi. Sayfa agirligi
 ayri bir betiktedir (`check-weight.mjs`) cunku `dist/` uzerinden olculur.
 
+## Agirlik butcesine yakin sayfa (Faz 125, denetimde gozlemlendi)
+
+`troubleshooting.md` (`check:weight` tavani 57 000 B gzip) bu fazda ~46 satir
+eklenince 49 365 B'tan 54 706 B'a cikti — tavanin **%96'si**. Kapi bugun yesil
+ve bu fazda hicbir sey olcumsuz buyumedi (yalnizca 🟢 gozlem, 🔴/🟡 degil), ama
+sayfaya eklenecek **bir sonraki** icerik `check:weight`'i kirabilir. Yeni bir
+APG tanisi veya troubleshooting bolumu eklerken once `npm run check:weight`
+ciktisindaki en agir sayfayi kontrol et; troubleshooting.md zaten en agir
+sayfaysa (`Heaviest: troubleshooting/index.html`), yeni icerigi ayri bir
+sayfaya (ornek: `guides/`) tasimayi degerlendir.
+
 ## 🚨 `check-content.mjs` TEMIZ bir checkout'ta kosar — statik import onu kirar
 
 Kapi derlemeden **once** kosar, yani `src/generated/*-sidebar.json` ve
