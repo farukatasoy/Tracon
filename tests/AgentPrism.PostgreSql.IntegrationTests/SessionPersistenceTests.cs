@@ -135,6 +135,68 @@ public sealed class SessionPersistenceTests(PostgresFixture fixture)
     }
 
     [Fact]
+    public async Task Two_concurrent_later_turns_on_the_same_existing_session_do_not_silently_lose_a_message()
+    {
+        // 🚨 The sibling of the HATA-004 case above, and the half that stayed
+        // open: TryCreateAsync closed the race for the FIRST save only. Every
+        // save after it went through the unconditional SaveAsync, so two
+        // concurrent LATER turns on an EXISTING session both "succeeded" and
+        // the loser's turn was silently overwritten.
+        //
+        // Accepted behavior is the same as the first-turn case: at most one
+        // fails, and the one that fails must be an EXPLICIT conflict — never
+        // two silent successes with one turn missing.
+        await using var context = await PostgresTestContext.CreateAsync(fixture);
+
+        const string SessionId = "concurrent-later-turn";
+
+        // Establish the session first, so both racing turns are SUBSEQUENT
+        // saves rather than first ones.
+        await using (var seed = BuildProvider(context))
+        {
+            var agent = await ResolveAsync(seed, "support");
+            var manager = seed.GetRequiredService<AgentSessionManager>();
+
+            var session = await manager.GetOrCreateSessionAsync(agent, SessionId);
+            await agent.RunAsync("opening turn", session);
+            await manager.SaveSessionAsync(agent, session);
+        }
+
+        await using var first = BuildProvider(context);
+        await using var second = BuildProvider(context);
+
+        static async Task<Exception?> TryRunLaterTurnAsync(ServiceProvider provider, string message)
+        {
+            try
+            {
+                var agent = await ResolveAsync(provider, "support");
+                var manager = provider.GetRequiredService<AgentSessionManager>();
+
+                var session = await manager.GetOrCreateSessionAsync(agent, SessionId);
+                await agent.RunAsync(message, session);
+                await manager.SaveSessionAsync(agent, session);
+                return null;
+            }
+            catch (Exception ex)
+            {
+                return ex;
+            }
+        }
+
+        var outcomes = await Task.WhenAll(
+            TryRunLaterTurnAsync(first, "first later request"),
+            TryRunLaterTurnAsync(second, "second later request"));
+
+        outcomes.Count(static ex => ex is null).ShouldBeGreaterThanOrEqualTo(1, "Both requests failed.");
+        outcomes.Where(static ex => ex is not null).ShouldAllBe(static ex => ex is AgentPrismSessionConflictException);
+
+        // The decisive assertion: exactly one of the two turns may be the
+        // stored outcome, and the OTHER one must have been told. Two silent
+        // successes are what this test exists to forbid.
+        outcomes.Count(static ex => ex is null).ShouldBe(1);
+    }
+
+    [Fact]
     public async Task Run_record_carries_the_real_session_id()
     {
         await using var context = await PostgresTestContext.CreateAsync(fixture);

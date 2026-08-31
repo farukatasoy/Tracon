@@ -262,21 +262,24 @@ internal sealed class SqlServerQueries : SqlQueriesBase
 
         // --- Sessions ---
 
+        // See PostgresQueries: `version` advances, it is never taken from
+        // the incoming row.
         UpsertSession = $"""
             UPDATE {Schema}.sessions WITH (UPDLOCK, SERIALIZABLE)
                SET agent_name     = @agent_name,
                    state          = @state,
                    schema_version = @schema_version,
-                   updated_at     = @updated_at
+                   updated_at     = @updated_at,
+                   version        = version + 1
              WHERE id = @id AND tenant_id = @tenant_id;
 
             IF @@ROWCOUNT = 0
-            INSERT INTO {Schema}.sessions (id, tenant_id, agent_name, state, schema_version, created_at, updated_at)
-            VALUES (@id, @tenant_id, @agent_name, @state, @schema_version, @created_at, @updated_at);
+            INSERT INTO {Schema}.sessions (id, tenant_id, agent_name, state, schema_version, created_at, updated_at, version)
+            VALUES (@id, @tenant_id, @agent_name, @state, @schema_version, @created_at, @updated_at, 1);
             """;
 
         SelectSessions = $"""
-            SELECT id, agent_name, state, schema_version, created_at, updated_at, tenant_id
+            SELECT id, agent_name, state, schema_version, created_at, updated_at, tenant_id, version
             FROM {Schema}.sessions
             WHERE tenant_id = @tenant_id
               AND (@agent_name IS NULL OR agent_name = @agent_name)

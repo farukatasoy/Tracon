@@ -14441,6 +14441,15 @@
               "string"
             ],
             "description": "The tenant identifier."
+          },
+          "version": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "The record\u0027s write generation, used for optimistic concurrency.",
+            "format": "int64"
           }
         },
         "description": "A stored session."

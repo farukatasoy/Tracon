@@ -524,6 +524,15 @@ internal abstract class SqlQueriesBase
     public string SelectSession { get; protected set; } = string.Empty;
 
     /// <summary>
+    /// Gets the query that replaces a session row only when its stored
+    /// <c>version</c> still matches the caller's. The sibling of
+    /// <see cref="InsertSession"/>: that one makes the FIRST write safe
+    /// against a concurrent writer, this one makes every LATER write safe.
+    /// <see cref="UpsertSession"/> is unconditional and does neither.
+    /// </summary>
+    public string UpdateSessionIfVersionMatches { get; protected set; } = string.Empty;
+
+    /// <summary>
     /// Gets the query that reads the tenant owning a session identifier, WITHOUT
     /// applying the tenant filter.
     /// the cross-tenant ownership check cannot use
@@ -1027,14 +1036,30 @@ internal abstract class SqlQueriesBase
             """;
 
         InsertSession = $"""
-            INSERT INTO {Table("sessions")} (id, tenant_id, agent_name, state, schema_version, created_at, updated_at)
-            VALUES (@id, @tenant_id, @agent_name, @state, @schema_version, @created_at, @updated_at);
+            INSERT INTO {Table("sessions")} (id, tenant_id, agent_name, state, schema_version, created_at, updated_at, version)
+            VALUES (@id, @tenant_id, @agent_name, @state, @schema_version, @created_at, @updated_at, 1);
             """;
 
+        // `version` is appended LAST so every existing ordinal keeps its index.
         SelectSession = $"""
-            SELECT agent_name, state, schema_version, created_at, updated_at, tenant_id
+            SELECT agent_name, state, schema_version, created_at, updated_at, tenant_id, version
             FROM {Table("sessions")}
             WHERE id = @id AND tenant_id = @tenant_id;
+            """;
+
+        // Optimistic concurrency for every write after the first one. Plain
+        // ANSI SQL, so no dialect needs its own copy: the predicate carries
+        // the expected generation and the SET advances it in the SAME
+        // statement, which is what makes the check and the write one atomic
+        // step. Zero affected rows means another writer got there first.
+        UpdateSessionIfVersionMatches = $"""
+            UPDATE {Table("sessions")}
+               SET agent_name     = @agent_name,
+                   state          = @state,
+                   schema_version = @schema_version,
+                   updated_at     = @updated_at,
+                   version        = version + 1
+             WHERE id = @id AND tenant_id = @tenant_id AND version = @expected_version;
             """;
 
         SelectSessionOwner = $"SELECT tenant_id FROM {Table("sessions")} WHERE id = @id;";

@@ -52,6 +52,30 @@ public sealed class AgentSessionManager
     /// </remarks>
     private readonly ConditionalWeakTable<AgentSession, object> _newlyOpenedSessions = new();
 
+    /// <summary>
+    /// The record each restored session was read from: which identity, and at
+    /// which store generation.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The sibling of <see cref="_newlyOpenedSessions"/> and carried the same
+    /// way, for the same reason: a save has to know what it is replacing.
+    /// The entry is mutable so a successful save can advance the generation in
+    /// place — a second save within the same request replaces what the FIRST
+    /// save wrote, not what the request originally read.
+    /// </para>
+    /// <para>
+    /// The <strong>identity</strong> is part of the entry, not just the generation. A session
+    /// can be saved under a DIFFERENT id than it was read from: the
+    /// OpenAI-compatible Responses endpoint restores from
+    /// <c>previous_response_id</c> and saves under the new response id, and
+    /// <c>AgentPrismAgentSessionStore</c> re-stamps the identity right before
+    /// saving. Comparing the source record's generation against a different
+    /// record would reject a perfectly good write.
+    /// </para>
+    /// </remarks>
+    private readonly ConditionalWeakTable<AgentSession, RestoredRecord> _restoredVersions = new();
+
     private static readonly object NewSessionMarker = new();
 
     /// <summary>Creates a new session manager.</summary>
@@ -123,6 +147,11 @@ public sealed class AgentSessionManager
             }
         }
 
+        if (record is not null)
+        {
+            _restoredVersions.AddOrUpdate(session, new RestoredRecord(sessionId, record.Version));
+        }
+
         AgentSessionIdentity.SetId(session, sessionId);
         return session;
     }
@@ -155,9 +184,16 @@ public sealed class AgentSessionManager
     /// <see cref="GetOrCreateSessionAsync"/>) always attempts an atomic write
     /// with <see cref="ISessionStore.TryCreateAsync"/>; if it loses, it does
     /// NOT SILENTLY OVERWRITE, and instead throws an explicit
-    /// <see cref="AgentPrismSessionConflictException"/>. Subsequent saves (and
-    /// EVERY save of a session that was already found existing) continue,
-    /// unchanged, to use the unconditional <see cref="ISessionStore.SaveAsync"/>.
+    /// <see cref="AgentPrismSessionConflictException"/>.
+    /// </para>
+    /// <para>
+    /// EVERY LATER save of that same record is guarded the same way, through
+    /// <see cref="ISessionStore.TryUpdateAsync"/>: closing the race for the
+    /// first write only left the more common case open — two concurrent turns
+    /// on an EXISTING session both reported success and the loser's turn was
+    /// silently overwritten. A save that targets a DIFFERENT identity than the
+    /// session was read from is a new record, not a replacement, and is still
+    /// written unconditionally.
     /// </para>
     /// </remarks>
     public async ValueTask<string> SaveSessionAsync(
@@ -202,13 +238,52 @@ public sealed class AgentSessionManager
             }
 
             _newlyOpenedSessions.Remove(session);
+
+            // The first write lands at generation 1; a second save within this
+            // same request must replace THAT, not re-create.
+            _restoredVersions.AddOrUpdate(session, new RestoredRecord(sessionId, 1));
+        }
+        else if (_restoredVersions.TryGetValue(session, out var restored) &&
+                 string.Equals(restored.SessionId, sessionId, StringComparison.Ordinal))
+        {
+            if (!await _store.TryUpdateAsync(record, restored.Version, cancellationToken).ConfigureAwait(false))
+            {
+                throw new AgentPrismSessionConflictException(
+                    $"Session '{sessionId}' was changed by another request while this turn was running. " +
+                    "Retry again shortly.")
+                {
+                    SessionId = sessionId,
+                };
+            }
+
+            restored.Version++;
         }
         else
         {
+            // No generation applies to this write, so an unconditional one is
+            // the only honest option — inventing a comparison here would
+            // reject a good write. Two ways to land here, both legitimate:
+            // the session was never opened by THIS manager (a caller stamped
+            // an identity by hand), or it is deliberately being saved under a
+            // DIFFERENT identity than it was read from (the Responses
+            // endpoint's previous_response_id chaining), which writes a new
+            // record rather than replacing the source one.
             await _store.SaveAsync(record, cancellationToken).ConfigureAwait(false);
         }
 
         return sessionId;
+    }
+
+    /// <summary>The record a restored session was read from.</summary>
+    /// <param name="sessionId">The identity the state was read under.</param>
+    /// <param name="version">The store generation at that moment.</param>
+    private sealed class RestoredRecord(string sessionId, long version)
+    {
+        /// <summary>The identity the state was read under.</summary>
+        public string SessionId { get; } = sessionId;
+
+        /// <summary>The generation this session's next write must replace.</summary>
+        public long Version { get; set; } = version;
     }
 
     /// <summary>Deletes the session.</summary>
