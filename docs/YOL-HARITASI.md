@@ -136,7 +136,7 @@ bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 | [121](arsiv/fazlar/121-SEAM-SOZLESME-DOKUMANI.md) | Seam Sözleşme Dokümanı ve Küçülen Taban Çizgisi | ✅ Tamamlandı |
 | [122](arsiv/fazlar/122-KAYIT-API-SI-VE-SESSIZ-BOSLUKLAR.md) | Kayıt API'si ve Sessiz Boşluklar | ✅ Tamamlandı |
 | [123](arsiv/fazlar/123-YAYIN-KRITIK-YOLU.md) | Yayın Kritik Yolu: Kapı Kapsamı, Adaptör Sözleşmesi ve Sürüm Notları | ✅ Tamamlandı |
-| [124](124-YEDEKLEMENIN-TOOL-DEFTERI.md) | Yedeklemenin Tool Defteri | 📋 Planlandı |
+| [124](arsiv/fazlar/124-YEDEKLEMENIN-TOOL-DEFTERI.md) | Yedeklemenin Tool Defteri | 📋 Planlandı |
 | [125](125-URETILEN-TOOL-SEMASININ-IFADE-GUCU.md) | Üretilen Tool Şemasının İfade Gücü | 📋 Planlandı |
 | [126](126-KALICI-PAYLOAD-SURUM-SOZLESMESI.md) | Kalıcı Payload Sürüm Sözleşmesi | 📋 Planlandı |
 | [127](127-TOOL-KAYIT-YUZEYI.md) | Tool Kayıt Yüzeyi: Tek Kompozisyon, Argüman Kapısı ve Kapsamlı Tool | 📋 Planlandı |
