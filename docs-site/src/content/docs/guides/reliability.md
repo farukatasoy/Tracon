@@ -137,8 +137,19 @@ than whichever link happened to fail last — and its message names every
 provider that was tried.
 
 Because the fallback client wraps the whole tool-call loop, switching providers
-mid-turn restarts that turn from scratch on the fallback provider. A half-finished
-tool conversation cannot be resumed by a different model.
+mid-turn restarts that turn from scratch on the fallback provider — the
+conversation state itself is not carried over. A tool call that already
+completed on an earlier link is not run a second time, though: every link in
+the chain shares one ledger for the turn, so if the fallback model asks the
+same question again, it gets the already-computed answer instead of running
+the tool's body a second time. This matters for a tool with a real side effect
+(charging a payment, sending a webhook, deleting a record) — without it, a
+provider outage that happens right after such a tool call would silently run
+it twice. A read-only tool call is answered from the ledger the same way; the
+rule does not special-case tool effects, only whether the exact same call was
+already made in this turn. This only applies to a non-streaming run: a
+streaming response can only fall back before its first chunk, at which point
+no tool has been called yet.
 
 | Setting | Default | Effect |
 |---|---:|---|

@@ -109,6 +109,19 @@
 - **AOT kacis merdiveni** (AGENTS.md'den, Faz 77): `reflection` yerine sirayla dene —
   (1) elle yaz; (2) `source generator`; (3) kacinilmazsa `[RequiresUnreferencedCode]` +
   `[RequiresDynamicCode]` isaretle; uyariyi **bastirma**, cagirana ilet.
+- **🚨 `git diff`/`git show --stat` bir `.cs` dosyasını "Bin X -> Y bytes" gösterirse
+  önce GÖMÜLÜ BİR NUL BAYTI ara, gerçek binary asset sanma** (2026-08-31, Faz 124,
+  bağımsız denetimde bulundu): iki dosyada (`RecordedToolPlayback.cs`'nin
+  `CreateKey` ayırıcısı, `AgentPrismResponseCachingChatClient.cs`'nin tool-adı
+  birleştirme ayırıcısı) `' '`/`','` yazılmak istenen tek bir karakter, sonraki bir
+  düzenleme turunda gerçek `U+0000` baytına dönüşmüştü — kod `cat`/`grep`/Read
+  çıktısında **görünür bir boşluk gibi** kalıyordu (görünmez karakter, `cat` onu
+  göstermez — bkz. `docs/hafiza/aspnetcore-json.md` veya `MEMORY.md`'deki
+  `U+001F` vakası). Doğrulama: `python3 -c "print(open(p,'rb').read().count(b'\x00'))"`.
+  Bu, davranışı BOZMAZ (okuma ve yazma yolu aynı ayırıcıyı taşıdığı için
+  eşleşme tutarlı kalır) ama dosyayı git için KALICI OLARAK binary yapar —
+  gelecekteki HER değişiklik o dosyada satır bazlı diff/code review'u kaybeder.
+  Şüpheli her "Bin" dosyasını commit etmeden önce bu komutla tara.
 
 ## Bagimlilik surumleri (K-543, K-544)
 
