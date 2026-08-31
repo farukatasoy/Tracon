@@ -16,7 +16,7 @@
   <PropertyGroup>
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
     <!-- Tum MAF GA paketleri ayni surumde ilerler. -->
-    <MicrosoftAgentsAIVersion>1.18.0</MicrosoftAgentsAIVersion>
+    <MicrosoftAgentsAIVersion>1.19.0</MicrosoftAgentsAIVersion>
     <!--
       MEAI 10.9.0 Microsoft.Extensions.* >= 10.0.11 ister; 10.0.10'da kalmak
       NU1605 (paket dusurme) verir ve TreatWarningsAsErrors altinda restore'u
