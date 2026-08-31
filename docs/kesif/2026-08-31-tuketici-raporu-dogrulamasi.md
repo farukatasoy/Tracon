@@ -185,7 +185,7 @@ yazacaksınız (`AIFunctionFactory.Create` yolu — nesne parametresi kabul eder
 ya da 23 handler'ın imzalarını düzleştireceksiniz. Bu karar Faz 3'ün
 kapsamını doğrudan değiştirir.
 
-İki kalem doğurdu; ikisi de [Faz 125](../125-URETILEN-TOOL-SEMASININ-IFADE-GUCU.md)'te
+İki kalem doğurdu; ikisi de [Faz 125](../arsiv/fazlar/125-URETILEN-TOOL-SEMASININ-IFADE-GUCU.md)'te
 planlandı: parametre açıklaması ve ifade sınırının ilanı.
 
 ### Y-5 · "Prompt caching → yalnız Claude için yüksek" — **DAR**

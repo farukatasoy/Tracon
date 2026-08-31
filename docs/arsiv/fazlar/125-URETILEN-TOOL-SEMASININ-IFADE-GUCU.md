@@ -1,8 +1,8 @@
 # Faz 125 — Üretilen Tool Şemasının İfade Gücü
 
 > **Durum:** ✅ Tamamlandı (2026-09-01)
-> **Kaynak:** [kesif/2026-08-31-tuketici-raporu-faz-adaylari.md](kesif/2026-08-31-tuketici-raporu-faz-adaylari.md) · **T-1**, **T-2**
-> **Önkoşul:** [Faz 52](arsiv/fazlar/52-KAYNAK-URETECI.md) (kaynak üreteci ve derleme anı doğrulama) — arşivde; yalnız grep'le okunur
+> **Kaynak:** [kesif/2026-08-31-tuketici-raporu-faz-adaylari.md](../../kesif/2026-08-31-tuketici-raporu-faz-adaylari.md) · **T-1**, **T-2**
+> **Önkoşul:** [Faz 52](52-KAYNAK-URETECI.md) (kaynak üreteci ve derleme anı doğrulama) — arşivde; yalnız grep'le okunur
 > **Paketler:** `AgentPrism.Generators`
 > **Yeni paket:** Yok · **Migration:** Yok
 > **Public API:** Büyümüyor. Açıklama `System.ComponentModel.DescriptionAttribute`'tan okunur — AgentPrism yeni bir attribute **sevk etmez**
@@ -22,8 +22,8 @@
    ```
    **K-347** (`ToolMethodScanner` örnek metotları tarama anında reddeder — bu faz o kararı **açmaz**) · **K-218** (tool bağımlılıkları kurulum anında alınır)
 3. Alan hafızası:
-   [`hafiza/analyzer-yazimi.md`](hafiza/analyzer-yazimi.md) (üreteç ve tanı yazımının tuzakları) ·
-   [`hafiza/build-ve-analyzer.md`](hafiza/build-ve-analyzer.md) (AOT ve analyzer kaçış merdiveni)
+   [`hafiza/analyzer-yazimi.md`](../../hafiza/analyzer-yazimi.md) (üreteç ve tanı yazımının tuzakları) ·
+   [`hafiza/build-ve-analyzer.md`](../../hafiza/build-ve-analyzer.md) (AOT ve analyzer kaçış merdiveni)
 4. Gerektiğinde: `src/AgentPrism.Generators/AnalyzerReleases.Unshipped.md` — yeni kural buraya **eklenmezse derleme kırılır**
 
 ---
@@ -47,13 +47,13 @@ edilemeyen bir şeyi (iç içe nesne şeması) test etmeyi planladı.
 
 | Kanıt | Gözlem |
 |---|---|
-| [`SourceWriter.cs:212-241`](../src/AgentPrism.Generators/SourceWriter.cs) | `BuildSchema` yalnız `properties`, `required` ve `additionalProperties:false` yazıyor |
-| [`SourceWriter.cs:252-264`](../src/AgentPrism.Generators/SourceWriter.cs) | `BuildLeafSchemaNode` yedi yaprak biçimi üretiyor; hiçbirinde `description` yok |
-| [`ParameterModel.cs:44-51`](../src/AgentPrism.Generators/ParameterModel.cs) | `ParameterModel` kaydında `Description` **alanı yok** — açıklama üretecin modeline hiç girmiyor |
-| [`ToolCandidate.cs:186-232`](../src/AgentPrism.Generators/ToolCandidate.cs) | `ReadAttribute` yalnız **tool düzeyinde** açıklama okuyor |
-| [`ToolDiagnostics.cs:36-42`](../src/AgentPrism.Generators/ToolDiagnostics.cs) | APG0003 desteklenen tipleri sayıyor ama `minimum`/`maximum`/`pattern`/iç içe nesnenin **hiç** ifade edilemediğini söylemiyor |
-| [`ToolDiagnostics.cs:62-69`](../src/AgentPrism.Generators/ToolDiagnostics.cs) | Tool düzeyinde açıklama eksikliği zaten **uyarı** (APG0006); parametre düzeyinde karşılığı yok |
-| [`guides/write-your-own-tool.md:6`](../docs-site/src/content/docs/guides/write-your-own-tool.md) | Üreteç yolu *"the AOT-safe path"* diye öneriliyor; sınırı yazılmıyor |
+| [`SourceWriter.cs:212-241`](../../../src/AgentPrism.Generators/SourceWriter.cs) | `BuildSchema` yalnız `properties`, `required` ve `additionalProperties:false` yazıyor |
+| [`SourceWriter.cs:252-264`](../../../src/AgentPrism.Generators/SourceWriter.cs) | `BuildLeafSchemaNode` yedi yaprak biçimi üretiyor; hiçbirinde `description` yok |
+| [`ParameterModel.cs:44-51`](../../../src/AgentPrism.Generators/ParameterModel.cs) | `ParameterModel` kaydında `Description` **alanı yok** — açıklama üretecin modeline hiç girmiyor |
+| [`ToolCandidate.cs:186-232`](../../../src/AgentPrism.Generators/ToolCandidate.cs) | `ReadAttribute` yalnız **tool düzeyinde** açıklama okuyor |
+| [`ToolDiagnostics.cs:36-42`](../../../src/AgentPrism.Generators/ToolDiagnostics.cs) | APG0003 desteklenen tipleri sayıyor ama `minimum`/`maximum`/`pattern`/iç içe nesnenin **hiç** ifade edilemediğini söylemiyor |
+| [`ToolDiagnostics.cs:62-69`](../../../src/AgentPrism.Generators/ToolDiagnostics.cs) | Tool düzeyinde açıklama eksikliği zaten **uyarı** (APG0006); parametre düzeyinde karşılığı yok |
+| [`guides/write-your-own-tool.md:6`](../../../docs-site/src/content/docs/guides/write-your-own-tool.md) | Üreteç yolu *"the AOT-safe path"* diye öneriliyor; sınırı yazılmıyor |
 
 > Kanıtlar 2026-08-31 tarihinde `8105c00` üzerinde doğrulandı.
 
