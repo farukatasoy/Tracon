@@ -11,255 +11,24 @@
 
 ---
 
-## Bu Faza Başlarken
-
-> `faz-baslangic` skill'ini uygula. Aşağıdaki liste o skill'in 2. adımıdır —
-> **tamamını değil, yalnız işaret edilen bölümleri oku.**
-
-1. Bu doküman
-2. Kararlar — dosyanın tamamını **okuma**, yalnız bu kalemleri grep'le:
-   ```bash
-   grep -n "K-583\|K-315\|K-320\|K-483" docs/KARARLAR.md
-   ```
-   **K-583** (kesinti devamı `Replay` ve `ApprovalResume` ile karıştırılmaz — bu faz o üçüne **dördüncü** bir işlem eklemez, var olan mekanizmayı ödünç alır) · **K-315** (replay sözleşmesi) · **K-320** (model boru hattının tamamını `ModelProviderRegistry` kurar) · **K-483** (elle tekrarlanan ifade sessiz kusur sınıfı üretir — bu fazın kaçınması gereken tam desen)
-3. Alan hafızası (bu faz iki alana dokunuyor):
-   [`hafiza/model-boru-hatti.md`](../../hafiza/model-boru-hatti.md) (halka sırası — yanlış halka konumu derlenir, testten geçer, yalnız gerçek senaryoda çöker) ·
-   [`hafiza/cekirdek-calistirma.md`](../../hafiza/cekirdek-calistirma.md) (tool döngüsü ve `AgentPrismRunContext`)
-4. Gerektiğinde, tamamı değil ilgili bölümü:
-   [`MIMARI.md`](../../MIMARI.md) — çalıştırma yolu bölümü
+> ### ⚗️ Damıtılmış kayıt
+> Bu dosya fazın **planını** değil, fazın bıraktığı **kalıcı bilgiyi**
+> taşır. Plan gövdesi, planlanan/gerçekleşen API, dosya listesi, risk ve
+> açık soru bölümleri kapanışta düştü — **silinmedi, git geçmişindedir.**
+>
+> Tam metin — kopyala, çalıştır:
+>
+> ```bash
+> git show abf8a8a:docs/arsiv/fazlar/124-YEDEKLEMENIN-TOOL-DEFTERI.md
+> ```
+>
+> Damıtıldı 2026-08-31 · `scripts/dokuman-bakim.py faz-damit`
 
 ---
 
 ## Amaç
 
-Bir sağlayıcı yedeklemesi, birincil sağlayıcıda **zaten çalışmış** bir tool'u
-yedek sağlayıcıda ikinci kez çalıştırabilir. Ödeme alan, kayıt silen veya
-webhook atan bir tool bu yolda iki kez çalışır ve bunu kimse görmez.
-
-Aynı ürün aynı riske **iki farklı cevap** veriyor: kesinti devamı yolunda
-tamamlanmış her tool çağrısı kendi kayıtlı sonucundan cevaplanır
-(`RecordedToolPlayback`), yedekleme yolunda hiçbir kapı yok. Bu bir yetenek
-eksikliği değil, bir tutarsızlıktır. Bu faz kardeş yolun mekanizmasını
-yedeklemeye taşır.
-
-- **K-1** — Yedeğe geçilirken tamamlanmış tool çağrıları tur-içi bir defterden cevaplanır; yalnız kesinti noktasının ötesindeki çağrılar gerçekten çalışır.
-
-### Bugün ne çalışmıyor — doğrulanmış kanıt
-
-| Kanıt | Gözlem |
-|---|---|
-| [`FallbackChatClient.cs:31-35`](../../../src/AgentPrism.Core/Models/FallbackChatClient.cs) | Kendi dokümanı sonucu yazıyor: *"a fallback **restarts the agent's tool-call turn from scratch**"* |
-| [`FallbackChatClient.cs:115-171`](../../../src/AgentPrism.Core/Models/FallbackChatClient.cs) | Akışsız döngüde `SafeToRepeat`, `ToolEffect` veya herhangi bir tool defteri **yok**; `client.GetResponseAsync` bütün turu baştan koşar |
-| [`ModelProviderRegistry.cs:448-452`, `:536`](../../../src/AgentPrism.Core/Models/ModelProviderRegistry.cs) | `UseFunctionInvocation()` boru hattının **içinde**, `FallbackChatClient` onun **dışında** — yani tool döngüsü gerçekten bu istemcinin altındadır |
-| [`FallbackChatClient.cs:200-206`, `:234`](../../../src/AgentPrism.Core/Models/FallbackChatClient.cs) | 🚨 **Akışlı yol bugün zaten kapalı:** `sawUpdate` ilk kareden sonra yedeğe geçişi engelliyor. Tool döngüsü akışta çağrı içeriğini kareye çevirdiği için tool koştuysa `sawUpdate` çoktan `true`'dur |
-| [`RecordedToolPlayback.cs:24-62`, `:160-200`](../../../src/AgentPrism.Core/Replay/RecordedToolPlayback.cs) | Kardeş mekanizma hazır: `(ad, argüman)` ile eşleştirir, `RunLive` politikasında eşleşmeyeni canlı koşar |
-| [`RunReconciliationService.cs:232`](../../../src/AgentPrism.Core/Recording/RunReconciliationService.cs) | Kesinti devamı ayrıca yıkıcı/dış etkili tool taşıyan run'ı **hiç** devam ettirmez |
-
-> Kanıtlar 2026-08-31 tarihinde `8105c00` üzerinde doğrulandı.
-
-### Kapsam sınırı — ölçümün getirdiği daralma
-
-Kusur **yalnız akışsız `GetResponseAsync` yolundadır.** Akışlı yolda yedeğe
-geçiş ancak ilk kare gelmeden önce olur; o noktada hiçbir tool çalışmamıştır.
-Bu yüzden akışlı yola defter takmak **saf ek yüktür** ve bu faz onu takmaz.
-Bu daralma plan anında ölçüldü; uygulayan oturum aksini varsaymasın.
-
----
-
-## 124.1 — Tur-içi tool defteri
-
-Fikir tek cümledir: **yedeklemenin denediği her bağlantı aynı deftere bakar.**
-
-```mermaid
-flowchart TD
-    A[FallbackChatClient.GetResponseAsync] --> B[Tur için TEK defter kur]
-    B --> C{Bağlantı 0 - birincil}
-    C --> D[options.Tools defterle sarmalanır]
-    D --> E[FunctionInvokingChatClient tool döngüsü]
-    E --> F[tool çağrısı]
-    F --> G{defterde eşleşme var mı}
-    G -- hayır --> H[gövde GERÇEKTEN çalışır<br/>sonuç deftere yazılır]
-    G -- evet --> I[kayıtlı sonuç döner<br/>gövde ÇALIŞMAZ]
-    C -- geçici hata --> J{Bağlantı 1 - yedek}
-    J --> D
-```
-
-Defter turun yerel değişkenidir. `FallbackChatClient` onu kendi metot
-gövdesinde kurar ve sarmalayıcılara **closure ile** verir. `AsyncLocal`
-kullanılmaz — bu repo'da `AsyncLocal` yazımının çağırana akmaması dört kez
-bedel ödetti ve burada ona hiç ihtiyaç yoktur.
-
-### Neden tek sarmalayıcı, iki mod değil
-
-Sarmalayıcı **hem yazar hem okur**: eşleşme varsa kayıtlı sonucu döner,
-yoksa gövdeyi çalıştırır ve sonucu deftere yazar. Bu tek davranış her
-bağlantı için aynıdır — bağlantı 0'da defter boştur, bağlantı 2'de hem
-birincinin hem ikincinin çağrıları defterdedir. İki ayrı mod (kaydeden ve
-oynatan) yazılsaydı üçüncü bağlantı ikincinin tool'larını tekrar
-çalıştırırdı.
-
-### `RecordedToolPlayback` genişletilir, kopyalanmaz
-
-Yeni bir defter tipi yazmak **K-483'ün sınıfıdır**: argüman biçimlendirme
-ifadesi iki yerde yaşar ve biri değişince diğeri sessizce eşleşmez.
-`RecordedToolPlayback` zaten `(ad, argüman)` anahtarını, tüketim sırasını ve
-hata oynatmasını taşıyor. Bu faz ona yalnız bir yetenek ekler: `RunLive`
-politikasında canlı koşan çağrının sonucunu deftere **yazma**.
-
-🚨 **Bu, tipin bugünkü değişmezini bozar.** Kendi yorumu şunu yazıyor:
-*"Once the ledger is built, the set of KEYS does not change; only the queues
-are consumed."* Canlı çağrıyı yazmak yeni anahtar üretir. `Dictionary`
-`ConcurrentDictionary`'ye döner ve o yorum düzeltilir —
-`AllowConcurrentToolCalls` açıkken aynı turda iki tool paralel yazabilir.
-
-### Sonuç eşleştirme sözleşmesi
-
-| Durum | Davranış | Gerekçe |
-|---|---|---|
-| Aynı ad, aynı argüman | Kayıtlı sonuç döner, gövde çalışmaz | Kullanıcı kararı (2026-08-31): kesinti devamının deseninin **birebir** aynısı |
-| Aynı ad, farklı argüman | Gövde çalışır, sonuç deftere yazılır | Yedek model başka bir soru soruyor; o soru hiç sorulmadı |
-| Aynı ad ve argüman, ikinci kez | Kayıt sırasına göre **ikinci** kayıt tüketilir | `RecordedToolPlayback`'in bugünkü kuralı; "aynı soruyu iki kez sor, iki farklı cevap al" senaryosu korunur |
-| Kayıtlı çağrı **hata** verdiyse | Hata oynatılır | Bugünkü kural: başarısız bir tool'u başarılı göstermek sadakatsizliktir |
-| Defterde olmayan çağrı | Gövde çalışır | Kesinti noktasının ötesi |
-
-**Salt okunur tool da defterden cevaplanır.** Bu bilinçli: tek bir eşleştirme
-kuralı olması, `FallbackChatClient`'ın `IToolRegistry`'ye bağımlı olmasından
-ve aynı riske iki farklı kuralın yaşamasından daha değerlidir. Aynı tur içinde
-saniyeler geçtiği için bayat sonuç riski ölçülebilir değildir.
-
-## 124.2 — `ChatOptions` sarmalaması — 🚨 çağıranın listesi değiştirilmez
-
-Sarmalama `options.Tools` üzerinde yapılır. İki tuzak vardır:
-
-1. **Yerinde değiştirme yasak.** `options` çağırana aittir ve derlenmiş agent
-   önbelleklidir (`CompiledAgentCache`). `options.Tools`'u yerinde sarmalamak
-   sonraki her run'ı da sarmalar. Yeni bir liste kurulur.
-2. **`ChatOptions.Clone()`'un `Tools` listesini nasıl kopyaladığı
-   doğrulanmadı — `maf-api-kesfi` ile ölçülmeli.** Sığ kopya aynı liste
-   nesnesini paylaşıyorsa `linkOptions.Tools = new List<AITool>(...)` zorunludur.
-   Bugün `OptionsForLink` yalnız bağlantı > 0 için `Clone()` çağırıyor;
-   bağlantı 0 çağıranın nesnesini **doğrudan** geçiyor
-   (`FallbackChatClient.cs:121`). Bu faz bağlantı 0'ı da klonlamak zorundadır.
-
-Yalnız `AIFunction` olan tool'lar sarmalanır. İstemci tarafı tool'lar
-(`AIFunctionDeclaration`, gövdesiz) sunucuda hiç çalışmaz; sarmalanacak bir
-gövdeleri yoktur.
-
-## 124.3 — 🚨 Sınıf taraması: bir turu baştan çalıştıran diğer yollar
-
-`kusur-giderme` Adım 5 bu fazın içindedir ve atlanamaz. Kusur sınıfı şudur:
-**"bir tool turunu baştan çalıştıran her yol."** Plan anında dört aday tarandı;
-uygulayan oturum her birini kod üzerinde tekrar ölçer ve sonucu yazar.
-
-| Yol | Plan anındaki ölçüm | Uygulama sonrası ölçüm |
-|---|---|---|
-| Sağlayıcı yedeklemesi (akışsız) | 🔴 **Açık** — bu fazın konusu | ✅ Düzeltildi — `FallbackChatClient.GetResponseAsync` artık tur-içi `RecordedToolPlayback` defteri paylaşıyor. Kanıt: `FallbackToolLedgerTests`, `FallbackToolSideEffectTests` (gerçek HTTP + DI + `FunctionInvokingChatClient`) |
-| Sağlayıcı yedeklemesi (akışlı) | 🟢 Kapalı — `sawUpdate` (`FallbackChatClient.cs:234`) | ✅ Doğrulandı ve **bir testle sabitlendi**: `FallbackToolLedgerTests.Streaming_path_does_not_wrap_tools_with_the_ledger` akışlı yolda tool'un `ledger.Wrap` ile SARILMADIĞINI (aynı `AIFunction` referansı sağlayıcıya ulaşıyor) ölçer |
-| Kesinti devamı | 🟢 Kapalı — iki kapı: `RunReconciliationService.cs:232` reddi + `RecordedToolPlayback` | Değiştirilmedi — `recordLiveCalls` varsayılanı `false` kaldığı için `RunContinuationJobHandler`'ın çağrısı (`new RecordedToolPlayback(invocations, ToolPlaybackMismatchPolicy.RunLive)`) davranışını birebir korur. Regresyon: mevcut `RunContinuationTests` değişmeden geçti |
-| Workflow düğüm retry'ı (`WorkflowNodeRetryPolicy`) | 🟡 **Ölçülmedi.** `MaxAttempts` varsayılanı `1` (retry kapalı, K1). Açıldığında düğümün tamamı — içindeki agent run'ı dahil — baştan koşar | 🟢 **Ölçüldü, B'ye düştü** (kod okunarak: `src/AgentPrism.Workflows/Internal/WorkflowNodeRetry.cs` + `AgentPrismWorkflowFunctionExtensions.cs`). `WorkflowNodeRetry.Wrap` yalnız `AddWorkflowFunction`'ın KOD FONKSİYONU düğümünü sarar — `FunctionExecutor<TInput,TOutput>`, opak bir `Func<TInput, IWorkflowContext, CancellationToken, ValueTask<TOutput>>`. Bu, agent çalıştıran bir workflow DÜĞÜMÜ değildir; AgentPrism'in KENDİ tool döngüsü bu sarmalamanın hiçbir yerinde YOKTUR. Bir fonksiyon gövdesi kendi içinde bir agent çalıştırırsa (`agent.RunAsync(...)`), o agent'ın tool döngüsünü tekrar çalıştırma riski **tamamen fonksiyon yazarının kendi kodundadır** — AgentPrism'in hiçbir mekanizması opak bir `Func`'ın içine bakıp "hangi agent'ı çağırdığını" bilemez, bu yüzden `RecordedToolPlayback` gibi bir defter buraya TAKILAMAZ. Bu risk zaten `AddWorkflowFunction`'ın kendi XML dokümanında AÇIKÇA yazılıydı ("The handler must be idempotent when the workflow enables checkpointing... A handler with a real side effect... must therefore tolerate being called more than once") — YENİ bir kusur değil, VAR OLAN bir sözleşmenin doğal sonucu. Ayrı kalem açılmadı: düzeltilecek somut bir kod yolu yok, yalnız var olan idempotency sözleşmesinin doğrulanması vardı |
-| Job retry (`IJobHandler`, at-least-once) | 🟢 Sözleşme **yazılı** (Faz 120): handler'ın idempotent olması gerektiği ilan edilmiş | Değiştirilmedi; yazılı olduğu doğrulandı (`docs/arsiv/fazlar/120-JOB-SOZLESMESI-AT-LEAST-ONCE.md`) |
-| Replay (`ToolPlaybackMismatchPolicy.Stop`) | 🟢 Kapalı — replay hiçbir gövdeyi çalıştırmaz | Değiştirilmedi — `Stop` politikasının davranışı `recordLiveCalls`'tan bağımsız (yalnız `RunLive` dalı okur). Regresyon: mevcut `RecordedToolPlaybackTests` değişmeden geçti |
-
----
-
-## Planlanan Public API
-
-**Public API büyümüyor.** Dokunulan her tip `internal`:
-
-```csharp
-// AgentPrism.Core — internal, PublicAPI.Unshipped.txt'ye satır EKLEMEZ
-internal sealed class RecordedToolPlayback
-{
-    public RecordedToolPlayback(
-        IReadOnlyList<ToolInvocationRecord> invocations,
-        ToolPlaybackMismatchPolicy mismatchPolicy = ToolPlaybackMismatchPolicy.Stop,
-        bool recordLiveCalls = false);   // YENİ — varsayılan kapalı (K1)
-
-    public AIFunction Wrap(AIFunction function);
-}
-```
-
-`recordLiveCalls` varsayılanı `false`'tur: replay ve kesinti devamı yolları
-bugünkü davranışlarını **birebir** korur.
-
-### HTTP `endpoint`'leri
-
-Yok. Bu faz hiçbir uç eklemez veya değiştirmez.
-
-### Arayüz payı
-
-Yok.
-
----
-
-## Planlanan Dosya Listesi
-
-```
-src/AgentPrism.Core/
-├── Models/
-│   └── FallbackChatClient.cs          (değişir — defter kurulumu, tool sarmalama, XML remarks düzeltmesi)
-└── Replay/
-    └── RecordedToolPlayback.cs        (değişir — recordLiveCalls, ConcurrentDictionary)
-
-tests/AgentPrism.Core.UnitTests/
-└── Models/
-    └── FallbackToolLedgerTests.cs     (yeni)
-
-tests/AgentPrism.AspNetCore.FunctionalTests/
-└── FallbackToolSideEffectTests.cs     (yeni — sınırı geçen davranış)
-
-docs-site/src/content/docs/guides/reliability.md   (değişir)
-docs/manuel-test/27-MODEL-YEDEK-VE-ON-UCUS.md      (case eklenir)
-```
-
----
-
-## Hata Modları ve Testler
-
-> Mutlu yoldan değil, **ne bozulabilir**den türetilir. Seviyeyi plan seçer.
-
-| Ne bozulabilir | Seviye | Test sınıfı |
-|---|---|---|
-| Yan etkili tool yedekte **ikinci kez** çalışır (kusurun kendisi) | Fonksiyonel | `FallbackToolSideEffectTests` — gövde bir sayaç artırır; yedeğe geçtikten sonra sayaç **1** olmalıdır |
-| Yedek modelin **yeni** tool çağrısı defterde yok diye engellenir | Birim | `FallbackToolLedgerTests` |
-| Aynı ad + aynı argüman iki kez çağrıldı; ikinci kayıt tüketilmiyor | Birim | `FallbackToolLedgerTests` |
-| Kayıtlı **hata** başarı gibi oynatılıyor | Birim | `FallbackToolLedgerTests` |
-| Üçüncü bağlantı, ikinci bağlantının tool'unu tekrar çalıştırıyor | Birim | `FallbackToolLedgerTests` — üç bağlantılı zincir |
-| `AllowConcurrentToolCalls` açıkken defter yazımı yarışıyor | Fonksiyonel | `FallbackToolSideEffectTests` — eşzamanlı iki tool |
-| Çağıranın `options.Tools` listesi kalıcı olarak sarmalanıyor (önbellekli agent kirlenir) | Fonksiyonel | `FallbackToolSideEffectTests` — aynı agent'ı yedeklemesiz ikinci kez koştur |
-| Akışlı yolda defter yanlışlıkla devreye girip ek yük getiriyor | Birim | `FallbackToolLedgerTests` — akışlı yolda sarmalama yapılmadığı sabitlenir |
-| Yedekleme **hiç** yapılandırılmamışken davranış değişiyor | Birim | `FallbackToolLedgerTests` — `Fallbacks` boşken `FallbackChatClient` zaten kurulmuyor |
-| Replay ve kesinti devamı yollarında davranış kayıyor | Sözleşme | `RepeatableToolContract` (mevcut) — `recordLiveCalls: false` varsayılanı korunmalı |
-| İptal, yedeğe geçiş sırasında yutuluyor | Birim | `FallbackToolLedgerTests` — `OperationCanceledException` bugün de yeniden fırlatılıyor (`FallbackChatClient.cs:140`) |
-
-Beş soru ve cevapları: **iptal** → yukarıdaki son satır · **eşzamanlılık** →
-`ConcurrentDictionary` + eşzamanlı tool testi · **boş/aşırı girdi** → argümansız
-tool çağrısı (`FormatArguments` `null` döner) birim testinde · **başka kiracı** →
-defter tur-yerel, kiracı sınırı geçmez, bu yüzden kiracı testi **gereksizdir**
-ve bu gerekçe yazıldı · **alt sistem hatası** → defter hiçbir `store`'a yazmaz,
-alt sistem yoktur.
-
----
-
-## Manuel Kabul Case'leri
-
-| # | Ön koşul | Adımlar | Beklenen sonuç |
-|---|---|---|---|
-| 1 | `ToolEffect.External`, `SafeToRepeat=false` bir tool ve iki bağlantılı `Fallbacks` taşıyan agent; birincil sağlayıcı ikinci turda 503 verecek şekilde ayarlı | Akışsız `POST /api/agents/{ad}/run` | Tool gövdesi **bir kez** çalışır; yanıt yedek sağlayıcıdan gelir; `ModelFallbackUsed` olayı `reason` taşır |
-| 2 | Aynı kurulum, akışlı uç | `POST /api/agents/{ad}/run/stream` | İlk kare geldikten sonra yedeğe **geçilmez**; hata olduğu gibi akar (bugünkü davranış korunur) |
-| 3 | Yedeklemesiz agent | Normal `run` | Davranış Faz 123 ile birebir aynı; ek olay veya ek gecikme yok |
-
----
-
-## Açık Sorular
-
-| # | Soru | Seçenekler | Karar |
-|---|---|---|---|
-| 1 | Workflow düğüm retry'ı bu fazın kapsamına girer mi? | A: Ölç, açıksa bu fazda kapat · B: Ölç, ayrı kalem olarak devret | **B** — ölçüldü (§ 124.3): `WorkflowNodeRetry` yalnız opak bir kod fonksiyonunu sarar, AgentPrism'in kendi tool döngüsünü hiç görmez; düzeltilecek somut bir kod yolu yok |
-| 2 | Defterden cevaplanan bir çağrı `run_events`'e görünür bir iz bırakmalı mı? | A: Hayır, sessiz · B: `ToolReplayedFromLedger` benzeri bir olay | **A** — olay hacmi artar ve tüketicinin bugün ölçülmüş bir ihtiyacı yok. B istenirse `RecordReasoningDeltas` deseniyle varsayılan kapalı gelir |
-| 3 | `FallbackChatClient`'ın XML `<remarks>`'ındaki "restarts from scratch" cümlesi silinmeli mi, düzeltilmeli mi? | A: Düzelt — "tool turu baştan başlar ama tamamlanmış çağrılar defterden cevaplanır" · B: Sil | **A** — cümlenin ilk yarısı hâlâ doğrudur; konuşma durumu gerçekten baştan kurulur |
-
----
+Bir sağlayıcı yedeklemesi, birincil sağlayıcıda **zaten çalışmış** bir tool'u yedek sağlayıcıda ikinci kez çalıştırabilir. Ödeme alan, kayıt silen veya webhook atan bir tool bu yolda iki kez çalışır ve bunu kimse görmez.
 
 ## Bitiş Ölçütleri (DoD)
 
@@ -273,8 +42,8 @@ alt sistem yoktur.
 - [x] `samples/AgentPrism.Api` yerine tam DI + HTTP + gerçek `FunctionInvokingChatClient` üzerinden koşan `FallbackToolSideEffectTests` ile aynı kanıt elde edildi (bkz. Plandan Sapmalar)
 - [x] `secret` taraması boş döndü
 - [x] Manuel kabul case'leri `docs/manuel-test/27-MODEL-YEDEK-VE-ON-UCUS.md` içine eklendi (MT-MYU-017); otomatikleştirilmiş kanıta yönlendirildi (MT-MYU-014 emsali)
-- [ ] `faz-denetim` koşuldu; 🔴 bulgu kalmadı
-- [ ] `docs-site/` güncellendi; `npm run build` + `check-links.mjs` temiz
+- [x] `faz-denetim` koşuldu; 🔴 bulgu kalmadı
+- [x] `docs-site/` güncellendi; `npm run build` + `check-links.mjs` temiz
 
 ### Doğrulama komutları
 
@@ -290,23 +59,6 @@ python3 scripts/kapi.py kapanis --taban <faz öncesi commit>
 ```
 
 ---
-
-## Riskler
-
-| Risk | Önlem |
-|------|-------|
-| `ChatOptions.Clone()` `Tools` listesini paylaşırsa çağıranın nesnesi kirlenir ve önbellekli agent kalıcı olarak sarmalanır | `maf-api-kesfi` ile imzayı ölç; her koşulda **yeni liste** kur; fonksiyonel testte aynı agent'ı ikinci kez koş |
-| `Dictionary` → `ConcurrentDictionary` dönüşümü replay yolunun tüketim sırasını bozar | `ConcurrentQueue` zaten kullanılıyor; sıra kuyruktadır, sözlükte değil. Mevcut replay testleri regresyon oracle'ıdır |
-| Defterin kendisi bellek büyütür | Defter turun ömrü kadar yaşar ve yalnız `Fallbacks` yapılandırılmış agent'larda kurulur; ölçülmeli, tahmin yazılmadı |
-| Salt okunur tool'un defterden cevaplanması bir tüketiciyi şaşırtır | Davranış `guides/reliability.md`'de **açıkça** yazılır; sessiz bırakılmaz |
-| Sınıf taraması yine tek vakada kapanır | DoD'de ayrı satır; `faz-denetim` tabloyu boş bulursa 🔴 bulgudur |
-
----
-
-<!-- ============================================================
-     AŞAĞISI KAPANIŞTA DOLDURULUR — `faz-tamamlama` skill'i.
-     Plan anında boş kalır. Başlıkları SİLME.
-     ============================================================ -->
 
 ## Plandan Sapmalar
 
@@ -361,58 +113,6 @@ python3 scripts/kapi.py kapanis --taban <faz öncesi commit>
 Yok — bu fazın tek değişikliği internal implementation detayı (`RecordedToolPlayback`'in
 sahiplik etiketi dahil). Public API, compatibility contract, güvenlik/kiracı
 sınırı veya kalıcı veri sözleşmesi büyümedi; yeni bir `K-NNN` gerekmiyor.
-
-## Gerçekleşen Public API
-
-Plandaki taslakla birebir aynı — büyümedi. Değişen iki tip de `internal`:
-
-```csharp
-// AgentPrism.Core — internal
-internal sealed class RecordedToolPlayback
-{
-    public RecordedToolPlayback(
-        IReadOnlyList<ToolInvocationRecord> invocations,
-        ToolPlaybackMismatchPolicy mismatchPolicy = ToolPlaybackMismatchPolicy.Stop,
-        bool recordLiveCalls = false);   // planla birebir aynı
-
-    public AIFunction Wrap(AIFunction function);
-}
-```
-
-`wc -l src/*/PublicAPI.Shipped.txt` toplamı taban commit ile birebir aynı
-(17); `AgentPrism.Core/PublicAPI.Unshipped.txt` diff'i boş.
-
-## Dosya Listesi (gerçekleşen)
-
-```
-src/AgentPrism.Core/
-├── Models/
-│   └── FallbackChatClient.cs                        (değişir)
-└── Replay/
-    └── RecordedToolPlayback.cs                      (değişir)
-
-src/AgentPrism.Core/Models/
-└── AgentPrismResponseCachingChatClient.cs            (değişir — konuyla ilgisiz NUL-bayt düzeltmesi)
-
-scripts/applied-migrations.json                       (değişir — konuyla ilgisiz manifest eksikliği)
-
-tests/AgentPrism.Core.UnitTests/Models/
-└── FallbackToolLedgerTests.cs                        (yeni — 11 test)
-
-tests/AgentPrism.AspNetCore.FunctionalTests/
-└── FallbackToolSideEffectTests.cs                    (yeni — 4 test)
-
-docs-site/src/content/docs/guides/reliability.md      (değişir)
-docs-site/src/content/docs/concepts/tools.md          (değişir)
-docs/manuel-test/00-INDEKS.md                         (değişir — case sayısı ve faz listesi)
-docs/manuel-test/27-MODEL-YEDEK-VE-ON-UCUS.md          (değişir — MT-MYU-017 eklendi)
-docs/hafiza/build-ve-analyzer.md                       (değişir — NUL-bayt tuzağı)
-```
-
-Planla fark: `RunReplayService.cs`/`RunContinuationJobHandler.cs` planda
-"dokunulmaz" olarak işaretlenmişti ve **gerçekten dokunulmadı** — yalnız
-regresyon testleriyle (`RunContinuationTests`, mevcut) davranışlarının
-değişmediği doğrulandı.
 
 ## Denetim Bulguları
 
