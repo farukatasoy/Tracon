@@ -246,9 +246,16 @@ internal static class SourceWriter
     {
         var leafNode = BuildLeafSchemaNode(parameter.Leaf!);
 
-        return parameter.Shape == ParameterShape.Array
+        var node = parameter.Shape == ParameterShape.Array
             ? $"{{\"type\":\"array\",\"items\":{leafNode}}}"
             : leafNode;
+
+        // The description belongs on the PARAMETER node, not the array element leaf -
+        // writing it into the leaf would nest it under "items", where the model does not
+        // read it as the parameter's own description (125.1).
+        return parameter.Description is { Length: > 0 } description
+            ? $"{{\"description\":\"{JsonEscape(description)}\",{node.Substring(1)}"
+            : node;
     }
 
     private static string BuildLeafSchemaNode(LeafType leaf) => leaf.Kind switch
@@ -263,7 +270,51 @@ internal static class SourceWriter
         _ => throw new InvalidOperationException($"Unexpected leaf type: {leaf.Kind}"),
     };
 
-    private static string JsonEscape(string value) => value.Replace("\\", "\\\\").Replace("\"", "\\\"");
+    /// <summary>
+    /// Escapes a value for embedding inside the JSON text this class builds by hand.
+    /// Tool/parameter/enum names never carry control characters, but a free-text
+    /// <c>[Description]</c> can (125.1) - an unescaped literal newline inside a JSON
+    /// string is invalid per RFC 8259 and <c>JsonDocument.Parse</c> throws on it.
+    /// </summary>
+    private static string JsonEscape(string value)
+    {
+        var sb = new StringBuilder(value.Length);
+
+        foreach (var c in value)
+        {
+            switch (c)
+            {
+                case '\\':
+                    sb.Append("\\\\");
+                    break;
+                case '"':
+                    sb.Append("\\\"");
+                    break;
+                case '\n':
+                    sb.Append("\\n");
+                    break;
+                case '\r':
+                    sb.Append("\\r");
+                    break;
+                case '\t':
+                    sb.Append("\\t");
+                    break;
+                default:
+                    if (c < ' ')
+                    {
+                        sb.Append("\\u").Append(((int)c).ToString("x4", System.Globalization.CultureInfo.InvariantCulture));
+                    }
+                    else
+                    {
+                        sb.Append(c);
+                    }
+
+                    break;
+            }
+        }
+
+        return sb.ToString();
+    }
 
     private static string ToStringLiteral(string value)
     {

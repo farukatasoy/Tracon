@@ -2,7 +2,7 @@ using System.Globalization;
 
 namespace AgentPrism.Generators.UnitTests;
 
-/// <summary>Verifies each of the APG0001-APG0008 diagnostics individually.</summary>
+/// <summary>Verifies each of the APG0001-APG0009 diagnostics individually.</summary>
 public sealed class DiagnosticTests
 {
     [Fact]
@@ -74,6 +74,30 @@ public sealed class DiagnosticTests
         var diagnostics = result.DiagnosticsWithId("APG0003");
         diagnostics.Count.ShouldBe(1);
         diagnostics[0].GetMessage(CultureInfo.InvariantCulture).ShouldContain("ComplexType");
+    }
+
+    [Fact]
+    public void APG0003_message_names_what_the_generator_can_never_express_125_3()
+    {
+        const string Source = """
+            using AgentPrism;
+
+            namespace MyApp;
+
+            internal sealed class ComplexType { public string? Name { get; set; } }
+
+            internal static class Tools
+            {
+                [AgentPrismTool("create", "Creates.")]
+                public static void Create(ComplexType data) { }
+            }
+            """;
+
+        var result = GeneratorTestHelper.Run(Source);
+
+        var message = result.DiagnosticsWithId("APG0003").Single().GetMessage(CultureInfo.InvariantCulture);
+        message.ShouldContain("nested object");
+        message.ShouldContain("constraint");
     }
 
     [Fact]
@@ -205,6 +229,33 @@ public sealed class DiagnosticTests
         var diagnostics = result.DiagnosticsWithId("APG0007");
         diagnostics.Count.ShouldBe(1);
         diagnostics[0].GetMessage(CultureInfo.InvariantCulture).ShouldContain("K-218");
+    }
+
+    [Fact]
+    public void APG0009_warns_when_a_parameter_description_is_missing_but_does_not_block_generation()
+    {
+        const string Source = """
+            using AgentPrism;
+
+            namespace MyApp;
+
+            internal static class Tools
+            {
+                [AgentPrismTool("search", "Searches.")]
+                public static string Search(string query) => query;
+            }
+            """;
+
+        var result = GeneratorTestHelper.Run(Source);
+
+        var diagnostics = result.DiagnosticsWithId("APG0009");
+        diagnostics.Count.ShouldBe(1);
+        diagnostics[0].Severity.ShouldBe(Microsoft.CodeAnalysis.DiagnosticSeverity.Warning);
+        diagnostics[0].GetMessage(CultureInfo.InvariantCulture).ShouldContain("query");
+        diagnostics[0].GetMessage(CultureInfo.InvariantCulture).ShouldContain("search");
+
+        // The warning does NOT block generation - the wrapper file is still created.
+        result.GeneratedFiles().Count.ShouldBe(2);
     }
 
     [Fact]
