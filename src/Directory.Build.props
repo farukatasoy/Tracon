@@ -56,7 +56,7 @@
       previous PUBLISHED version is deliberately not set here - AgentPrism has
       not shipped yet, so there is no previous version to compare against; a
       future phase adds PackageValidationBaselineVersion after the first
-      release. Rationale: docs/97-SURUM-POLITIKASI-VE-YAYIN-PROVASI.md, 97.4.
+      release. Rationale: docs/arsiv/fazlar/97-SURUM-POLITIKASI-VE-YAYIN-PROVASI.md, 97.4.
     -->
     <EnablePackageValidation>true</EnablePackageValidation>
     <!-- Shared tags; projects use $(CommonPackageTags) inside PackageTags. -->

@@ -1,9 +1,10 @@
 # Tüketici Uygulanabilirlik Raporunun Doğrulanması
 
-> **Kimden:** AgentPrism geliştirme tarafı · **Tarih:** 2026-08-31
+> **Kimden:** AgentPrism geliştirme tarafı · **Tarih:** 2026-08-31 · **Güncellendi:** 2026-09-01
 > **Neye yanıt:** `agentprism-uygulanabilirlik-analizi-2026-08-31.md`
 > (ProdigyEnabler Backend · "AgentPrism merkezli dönüşüm önerilir")
 > **Ölçüm tabanı:** `8105c00` · her iddia kaynak kodda yeniden ölçüldü
+> **§8 tabanı:** bugünkü `main` — raporunuz sonucunda sevk edilen iş oradadır
 
 ---
 
@@ -14,18 +15,24 @@ domain orchestration ProdigyEnabler") bizim kendi mimari duruşumuzla birebir
 örtüşür. Bu doküman o kararı tartışmaz; **ölçümle çürüyen 11 iddiayı** (§2) ve
 **raporun kaçırdığı 3 riski** (§3) sayar.
 
-Raporunuz bizde de iş çıkardı. Üç kusur bulundu; **ikisi düzeltildi ve sevk
-edilecek**, biri planlandı:
+Raporunuz bizde de iş çıkardı. Üç kusur bulundu; **üçü de düzeltildi ve sevk
+edildi**:
 
 | Bulgu | Durum |
 |---|---|
 | Oturumun ikinci ve sonraki kayıtlarında son-yazan-kazanır (§3, R-2) | ✅ Düzeltildi — her kayıt artık eşzamanlılık denetiminden geçiyor |
 | Olay dokümanının payload'da olmayan alan vaat etmesi (§5) | ✅ Düzeltildi — iki vaka + kalıcı kapı |
-| Sağlayıcı yedeklemesinin tool turunu baştan çalıştırması (§3, R-1) | 📋 Planlandı; **kapsamı daraldı — akışlı yollarınız bugün güvende, §3'e bakın** |
+| Sağlayıcı yedeklemesinin tool turunu baştan çalıştırması (§3, R-1) | ✅ Düzeltildi (2026-08-31) — **§3'teki geçici azaltmayı artık uygulamanıza gerek yok** |
 
-Ayrıca raporunuzun doğru çıkan beş iddiası **plana dönüştü** (§8). Gap
-listenizden düşürmeyin, ama "AgentPrism'de yok" yerine "AgentPrism'de
-planlandı" diye okuyun — ikisi farklı bir ADR üretir.
+Ayrıca raporunuzun doğru çıkan beş iddiası **sevk edildi** (§8): üretilen tool
+şemasında parametre açıklaması, kalıcı payload sürüm sözleşmesi, argüman
+doğrulama halkası, kapsamlı tool kaydı ve run ağacı süre bütçesi. Gap
+listenizin beş satırı artık "AgentPrism'de yok" değil, **"AgentPrism'de var"**
+— ADR'nizi buna göre yazın.
+
+**İkisi sizin tarafınızda iş çıkarabilir** ve §8'de ayrıntısı var: yeni bir
+üreteç uyarısı (APG0009) `TreatWarningsAsErrors` taşıyan bir derlemeyi
+kırabilir, ve `AgentPrismAgentGraphOptions.CreateBudget()` imzası kırıldı.
 
 Sizin tarafınızda en çok işe yarayacak üç cümle:
 
@@ -36,9 +43,10 @@ Sizin tarafınızda en çok işe yarayacak üç cümle:
    gerekmiyor.** `IAgentCatalog.ResolveAsync` + `AmbientTenantScope` +
    `AmbientRunAttributionScope` bugün yeterlidir; AgentPrism kuyruğu tek satır
    yapılandırma ile kapanır (`Scheduling:RunWorker = false`).
-3. **Tool şeması iddianız ters yönde.** Üreteç `description` alanını **hiç**
-   yazmıyor; sizin `BackendToolRegistry` yazıyor. Bu eksende AgentPrism
-   bugün **daha zayıftır** — ve bu bizim tarafımızda bir faz adayı oldu.
+3. **Tool şeması iddianız ters yöndeydi — ve kapatıldı.** Ölçüm sırasında
+   üreteç `description` alanını **hiç** yazmıyordu; sizin `BackendToolRegistry`
+   yazıyordu. O eksende AgentPrism daha zayıftı. Faz 125 bunu kapattı (§8);
+   üstüne parametre açıklaması olmayan tool'lar için bir uyarı da geldi.
 
 Raporun "Doğrulanamadı" etiketli yedi kaleminin **üçü aslında dokümante
 edilmiştir** (§4). O üçü için prototip koşmanıza gerek yok; bütçenizi §4'ün
@@ -352,34 +360,39 @@ Akışlı yolda yedeğe geçiş **ancak ilk kare gelmeden önce** olur; o noktad
 hiçbir tool çalışmamıştır. Tool döngüsü akışta çağrı içeriğini kareye
 çevirdiği için, bir tool koştuysa `sawUpdate` çoktan `true`'dur.
 
-**Sizin için bugünkü azaltma — güncellendi:**
+### ✅ Düzeltildi (2026-08-31) — azaltmaya artık gerek yok
 
-- **Akışlı `run` yollarınız** (`ChatMessageProcessor` → `ChatResponseStreamer`)
-  bu riski **taşımıyor**. Orada `Fallbacks`'ı kapatmanıza gerek yok.
-- **Akışsız yollarınız** — `QAGenerationJob`, `AssessmentGenerationJob`,
-  `ConvAIEvaluationJob`, `ArticleContentValidator` ve tool taşıyan her akışsız
-  çağrı — risk altındadır. Yan etkili tool taşıyan bu tanımlarda
-  `ModelBinding.Fallbacks` listesini düzeltme sevk edilene kadar **boş
-  bırakın**.
-- Risk tablonuza giren satır bu yüzden "yedekleme yan etkili tool'u tekrar
-  çalıştırır" değil, **"akışsız yedekleme yan etkili tool'u tekrar
-  çalıştırır"** olmalıdır. Faz 1'iniz (`QAGenerationJob`) tam olarak bu
-  sınıftadır.
+Yedeğe geçilirken tamamlanmış tool çağrıları **tur-içi bir defterden**
+cevaplanıyor: `(ad, argüman)` çifti eşleşen her tamamlanmış çağrı kayıtlı
+sonucundan döner, eşleşmeyen çağrı canlı koşar. Kesinti devamı yolunun
+`RecordedToolPlayback` deseninin aynısı; ayrı bir mekanizma yazılmadı.
 
-**Bizim tarafımızdaki karar:** bu, kesinti devamı yolunun deseniyle
-kapatılacak — yedeklemeye geçilirken **tamamlanmış tool çağrıları kayıtlı
-sonuçlarından cevaplanır**, yeniden çalıştırılmaz. Aynı riske aynı cevabı
-vermek, ucuz olanı seçmekten önemliydi.
+**Yapmanız gerekenler:**
 
-Bir ayrıntı sizi ilgilendirir: defterden cevaplanan çağrılar **yalnız yıkıcı
-olanlarla sınırlı değildir.** `(ad, argüman)` çifti eşleşen **her** tamamlanmış
-çağrı kayıtlı sonucundan cevaplanır; eşleşmeyen çağrı canlı koşar. Yani yedek
-model aynı soruyu sorarsa aynı cevabı alır, yeni bir soru sorarsa tool gerçekten
-çalışır. Tek eşleştirme kuralı olması, aynı riske ürünün iki farklı kuralı
-olmasından değerliydi.
+- `ModelBinding.Fallbacks` listesini yan etkili tool taşıyan tanımlarda
+  **boş bırakmanıza gerek kalmadı.** Geçici azaltmayı kaldırabilirsiniz.
+- Risk tablonuza satır eklemeye de gerek yok. Eklediyseniz kapatın ve
+  gerekçesine bu düzeltmeyi yazın.
+- Davranış farkını bilin: yedek model **aynı soruyu** sorarsa aynı cevabı
+  alır (tool gövdesi çalışmaz), **yeni bir soru** sorarsa tool gerçekten
+  çalışır. Salt okunur tool'lar da bu kurala tabidir — tek eşleştirme kuralı
+  olması, aynı riske ürünün iki farklı kuralı olmasından değerliydi.
 
-Bu rapordaki diğer düzeltmelerle aynı sürüme yetişmeyebilir; yukarıdaki
-azaltmayı şimdilik uygulayın.
+**🚨 Bir ayrıntı sizi doğrudan ilgilendiriyor.** Uygulama sırasında bağımsız
+denetim, ilk tasarımda bir yan etki buldu ve düzeltildi: yalnız
+`(ad, argüman)` ile eşleştirmek, **hiç yedeğe geçilmeden**, tek bir
+bağlantının kendi tool döngüsünde aynı tool'u aynı argümanla iki kez
+çağırmasını da tekilleştiriyordu. Sevk edilen sürümde her sarmalayıcı yazdığı
+kayda kendi kimliğini damgalar ve kendi yazdığını asla geri okumaz.
+
+Sizin için pratik sonucu: **bir agent aynı turda aynı tool'u aynı argümanla
+iki kez çağırırsa gövde gerçekten iki kez çalışır.** Yedekleme defteri bunu
+değiştirmez ve değiştirmemelidir.
+
+**Sınıf taraması da kapandı.** "Bir tool turunu baştan çalıştıran" altı yol
+tarandı: akışlı yedekleme, kesinti devamı, job retry ve replay zaten
+kapalıydı; **workflow düğüm retry'ının bir agent run'ı taşımadığı ölçüldü.**
+Yani bu sınıfta açık kalan başka bir yol yok.
 
 ### R-2 · Aynı oturumun ikinci ve sonraki kayıtlarında **son yazan kazanır**
 
@@ -532,12 +545,12 @@ dönüşenler kardeş dokümandadır.
 
 | Rapordaki kalem | Ölçüm |
 |---|---|
-| Yerel JSON Schema tool argümanı doğrulaması yok | Doğru. Üretilen sarmalayıcı **tip binding + required** yapar (`AgentPrismGeneratedToolArguments.cs`); `enum` dışında hiçbir schema keyword'ü yerel doğrulanmaz. **→ Planlandı:** değiştirilebilir bir `IToolArgumentsValidator` halkası, varsayılanı no-op; MCP tool'larını da kapsar |
+| Yerel JSON Schema tool argümanı doğrulaması yok | Doğru. Üretilen sarmalayıcı **tip binding + required** yapar (`AgentPrismGeneratedToolArguments.cs`); `enum` dışında hiçbir schema keyword'ü yerel doğrulanmaz. **→ ✅ Sevk edildi:** `IToolArgumentsValidator` (`AgentPrism.Abstractions`, `TryAddSingleton`, varsayılan no-op); halka kod, üretilmiş **ve MCP** tool'larının hepsini kapsar |
 | Yanıtın yerel şema doğrulaması yok | Doğru ve yazılı (§4) |
-| Kalıcı session/checkpoint payload'ının sürümler arası uyum sözü yok | Doğru. `reference/versioning.md` yükseltme adımı olarak *"read the source diff"* der; `WorkflowCheckpointState` ve `SessionRecord` payload'ında sürüm damgası **yoktur**. **→ Planlandı:** yazılı uyumluluk politikası + kardeş sütunda şema damgası + yükseltme fixture kapısı |
+| Kalıcı session/checkpoint payload'ının sürümler arası uyum sözü yok | Doğru. `reference/versioning.md` yükseltme adımı olarak *"read the source diff"* der; `WorkflowCheckpointState` ve `SessionRecord` payload'ında sürüm damgası **yoktur**. **→ ✅ Sevk edildi:** `reference/versioning.md` § *Persisted session and checkpoint state* + `StateSchemaVersion`/`StateMafVersion` + fixture kapısı. **Ölçüm bir öncülü düzeltti:** `sessions` zaten damgalıydı (`schema_version`, `0001_initial.sql`'den beri); gerçekte eksik olan MAF sürümüydü |
 | Tarihsel/effective-dated fiyat yok | Doğru. `IRunPricingResolver.Resolve(provider, model, usage)` zamandan bağımsız saf bir fonksiyondur; `PricingSource` yalnız `Catalog`/`Configuration`/`Unknown` ayrımı yapar. `EffectiveFrom/To`, para birimi sürümü ve uygulanmış fiyat anlık görüntüsü yok |
-| Bütün run ağacı için süre bütçesi (`MaxDuration`) yok | Doğru. `AgentRunBudget` token/cost/run sayısı/derinlik taşır; **süre taşımaz**. **→ Planlandı:** `MaxDuration` + türetilen son tarih; kesme mevcut desene uyar — iki model turu arasında |
-| Varsayılan tool yetkilendirmesi allow-all | Doğru ve bilinçli (`AllowAllToolAuthorizationHandler`, `TryAdd` — "no-surprises" kuralı). Sizin tarafınızda startup'ta fail-fast koymanız doğru bir karardır. **→ Doküman işi:** kurulum teşhisindeki görünürlüğü ölçülecek |
+| Bütün run ağacı için süre bütçesi (`MaxDuration`) yok | Doğru. `AgentRunBudget` token/cost/run sayısı/derinlik taşır; **süre taşımaz**. **→ ✅ Sevk edildi:** `AgentRunBudget.MaxDuration` + `Deadline` ve `AgentPrismAgentGraphOptions.MaxDuration`; kesme iki model turu arasındadır |
+| Varsayılan tool yetkilendirmesi allow-all | Doğru ve bilinçli (`AllowAllToolAuthorizationHandler`, `TryAdd` — "no-surprises" kuralı). Sizin tarafınızda startup'ta fail-fast koymanız doğru bir karardır. **→ ✅ Doküman senkronu yapıldı** (Faz 127): tool kaydını anlatan üç sayfa güncellendi |
 | Sağlayıcı deneme ayrıntısı (gecikme, retry indeksi, sağlayıcı istek kimliği) kayıtlı değil | **Yarısı doğruydu, yarısı düzeltildi.** Yedeklemenin **sebebi** artık payload'da (§5). Kalan yarısı **reddedildi**: sağlayıcı istek kimliği bir exception'ın içinde jenerik olarak yoktur; onu çıkarmak beş sağlayıcı paketinde ayrı SDK'ya özel kod ister. Somut bir olay analizi gösterirseniz gecikme ve retry indeksi o kimlik olmadan planlanır |
 | MCP stdio yok | Doğru ve **bilinçli**: *"Local process (stdio) transport is deliberately not supported."* (`McpConnection.cs:184`). Bir güvenlik sınırıdır; talep bu eksende yargılanır |
 | AgentPrism domain state, ABP UoW, Hangfire orchestration, SignalR kontratı ve billing domain'i devralmaz | Doğru. Bu bizim de yazılı duruşumuzdur |
@@ -550,25 +563,29 @@ dönüşenler kardeş dokümandadır.
 Sırayla, ADR yazmadan önce:
 
 1. **Yayımlanmış `1.0.0-preview.N` ailesine geçin** (§1). Yerel derleme numarası
-   üzerinde uyumluluk kararı yazılamaz.
+   üzerinde uyumluluk kararı yazılamaz. Bu rapordaki her düzeltme ve §8'deki
+   her yeni yüzey `.486`'dan **sonra** geldi; eski derlemede hiçbiri yoktur.
 2. **Gap listenizden iki kalemi düşürün:** run olayı imleci (Y-1) ve
-   queue-nötr dış job API'si (Y-2). İkisi de bugün mevcuttur.
-3. **Gap listenize bir kalem ekleyin:** üretilen tool şemasında parametre
-   açıklaması yok (Y-4). Faz 3'ünüzün kapsamını bu değiştirir. Bizde de
-   öncelikli bir kalem oldu ve planlandı (§8).
-4. **Risk tablonuza bir satır ekleyin, ama dar yazın:** *akışsız* yedeklemenin
-   tool turunu baştan çalıştırması (R-1). Akışlı yollarınız bu riski
-   taşımıyor; azaltmayı yalnız akışsız çağrılara uygulayın. R-2 (oturumun
-   ikinci kaydında son-yazan-kazanır) **düzeltildi**; onun yerine Faz 4
-   tasarımınızda çakışma yanıtını (409) ele almanız gerekiyor.
-5. **Prototip listenizden üç kalemi düşürün** (§4) ve kalan üçüne yoğunlaşın.
-   §5'teki düzeltmeden sonra "sağlayıcı denemesi ayrıntısı" gap'iniz de
-   yarıya indi — sebep artık olay hattında.
+   queue-nötr dış job API'si (Y-2). İkisi de zaten mevcuttu.
+3. **Gap listenizden beş kalem daha düşürün** — §8'de sevk edildiler:
+   parametre açıklaması, kalıcı payload sürüm sözleşmesi, argüman doğrulama
+   halkası, `AddScopedTool` ve `MaxDuration`.
+4. **Risk tablonuzdan bir satır düşürün:** yedeklemenin tool turunu baştan
+   çalıştırması (R-1) **düzeltildi**; geçici azaltmayı (yan etkili tool
+   taşıyan tanımlarda `Fallbacks`'ı boş bırakmak) kaldırın. R-2 de
+   düzeltildi; onun yerine Faz 4 tasarımınızda çakışma yanıtını (409) ele
+   almanız gerekiyor.
+5. **Prototip listenizden üç kalemi düşürün** (§4). Kalan üçten ikisi de
+   artık gereksiz: kalıcı payload sürüm yükseltmesi (§17.1) politikaya
+   bağlandı, tool argümanı doğrulaması (§17.2) bir seam'e dönüştü. Ham
+   sağlayıcı istek/yanıt kaydı (§17.7) prototip listenizde **haklı olarak**
+   duruyor — o kalem bizde reddedildi (§6).
 6. **Faz 6'nızın kabul kriterine** sink'in tamponlanması şartını koyun (§3, R-3).
-7. **Faz 1'inizi (`QAGenerationJob`) hâlâ ilk dilim tutun** — ama o dilim
-   akışsızdır, yani R-1'in tam sınıfındadır. Yan etkili tool taşıyorsa o
-   tanımda `Fallbacks`'ı boş bırakın; taşımıyorsa yedeklemeyi açık
-   bırakabilirsiniz.
+   Bu değişmedi.
+7. **Faz 3'ünüzü yeniden ölçün.** Tool şeması eksenindeki iki kararınız da
+   artık farklı bir zeminde: parametre açıklaması var, ifade sınırı yazılı,
+   ve argüman doğrulaması için sarmalayacak bir seam var. §8'in ilk üç satırı
+   doğrudan o fazın kapsamını değiştirir.
 
 ### Bu raporun sonucunda değişen AgentPrism davranışı
 
@@ -577,34 +594,64 @@ Sırayla, ADR yazmadan önce:
 | `ModelFallbackUsed` payload'ı artık `reason` taşıyor (kapalı küme) | §11 "Provider call attempt ayrıntısı" gap'i yarıya indi |
 | `ContentMasked`/`ContentBlocked` payload dokümanı gerçeğe hizalandı | Guard olaylarını ayrıştıran her kod |
 | `RunEventPayloadContractTests` kapısı eklendi | Bundan sonraki payload sözleşmelerinin doğruluğu |
-| Oturumun **her** kaydı eşzamanlılık denetiminden geçiyor (`TryUpdateAsync` + `sessions.version`, üç SQL sağlayıcıda migration) | §15.2 prototip listenizden "session concurrent turn conflict" düşüyor; Faz 4 çakışma yanıtını ele almalı |
+| Oturumun **her** kaydı eşzamanlılık denetiminden geçiyor (`TryUpdateAsync` + `sessions.version`) | §15.2 prototip listenizden "session concurrent turn conflict" düşüyor; Faz 4 çakışma yanıtını ele almalı |
 | Oturum çakışması OpenAI-uyumlu akışsız uçta 502 yerine 409 | Bu ucu kullanıyorsanız hata sınıflandırmanız |
+| Yedeklemede tur-içi tool defteri | R-1'in azaltması kalkıyor |
 
 ---
 
-## 8. Raporunuz sonucunda planlanan AgentPrism işi
+## 8. Raporunuz sonucunda sevk edilen iş
 
-Bunlar **henüz sevk edilmedi.** Planlandılar; her biri kendi dokümanına,
-kabul ölçütlerine ve hata modu tablosuna sahip. ADR'nizde "yok" yerine
-"planlandı" diye okuyun — ikisi farklı bir geçiş planı üretir.
+Beş faz planlandı, uygulandı ve kapandı (2026-08-31 – 2026-09-01). Aşağıdaki
+her imza koddan okundu, plandan değil.
 
-| Ne | Sizin raporunuzdaki karşılığı | Sizi nerede etkiler |
+### 8.1 Sizin gap listenizi kapatanlar
+
+| Ne | Sevk edilen yüzey | Sizin raporunuzdaki karşılığı |
 |---|---|---|
-| Yedeklemede tur-içi tool defteri | §16 risk tablosu; §11 timeout/idempotency | Akışsız yollarınızda yan etkili tool + `Fallbacks` birlikte kullanılabilir hâle gelir. Bugünkü azaltma o zaman kalkar |
-| Üretilen tool şemasında parametre açıklaması | Y-4 · B10 | Faz 3'ünüzde 23 handler'ın şema paritesi. Bugün `BackendToolRegistry`'niz önde; bu kapandığında eşitlenir |
-| Üreteç şemasının ifade sınırının ilanı | Faz 3 test planınızdaki *"nested schema"* case'i | O case'i **planlamayın**: üreteç iç içe nesneyi ifade edemez ve bu artık rehberde yazılı olacak. Nesne parametresi için `AIFunctionFactory.Create` yolu |
-| Kalıcı payload sürüm sözleşmesi (söz + damga + prova) | §17.1 "kritik doğrulanamayan" | Prototip listenizde **haklı olarak** duruyordu. Sevk edildiğinde o prototipi koşmanız gerekmez; politikayı okursunuz |
-| `IToolArgumentsValidator` halkası | §11 "Kritik" gap | Kendi DataAnnotations doğrulayıcınızı **bir kez** bağlarsınız. 🚨 Ölçüm bir şeyi netleştirdi: bu halka MCP tool'larını da kapsayacak — bugün onları sarmalayabileceğiniz bir yer yok |
-| `AddScopedTool` | §8.1 · §11 "Yüksek" gap | 23 handler'ın her biri için sekiz satırlık `IServiceScopeFactory` kalıbı yerine tek satır. **Not:** talebinizdeki `AddScopedTool<THandler>()` imzası reddedildi (yansıma/AOT); şekli `AddTool` ile aynı olacak |
-| `AgentRunBudget.MaxDuration` | §11 "Yüksek" gap | Toplam süre bütçesi. Kesme **iki model turu arasındadır** — sert bir zaman aşımı değildir; uzun bir tool o tur içinde kesilmez |
+| Üretilen tool şemasında parametre açıklaması | `System.ComponentModel.DescriptionAttribute` okunur; şemaya `description` yazılır. **AgentPrism yeni bir attribute sevk etmedi** | Y-4 · B10 |
+| Üreteç şemasının ifade sınırının ilanı | `guides/write-your-own-tool.md` + APG0003 metni + `troubleshooting.md`; nesne parametresi için çalışan AOT-güvenli kaçış örneği | Faz 3 test planınızdaki *"nested schema"* case'i |
+| Kalıcı payload sürüm sözleşmesi | `reference/versioning.md` § *Persisted session and checkpoint state* — katman katman söz; `SessionRecord.StateSchemaVersion` (`int`) · `WorkflowCheckpointRecord.StateSchemaVersion` (`int?`) · her ikisinde `StateMafVersion` (`string?`) | §17.1 "kritik doğrulanamayan" |
+| Argüman doğrulama halkası | `IToolArgumentsValidator.ValidateAsync(ToolDescriptor, AIFunctionArguments, CancellationToken)` → `ToolArgumentsValidationResult` (`Valid` / `Invalid(reason)`); `ValidatingAIFunction` sarmalayıcısı | §11 "Kritik" gap |
+| Kapsamlı tool kaydı | `IAgentPrismBuilder.AddScopedTool(AIFunction)` ve `AddScopedTool(AIFunction, Action<ToolRegistrationOptions>)` | §8.1 · §11 "Yüksek" gap |
+| Run ağacı süre bütçesi | `AgentRunBudget.MaxDuration` (`TimeSpan?`) + `Deadline` (`DateTimeOffset?`); `AgentPrismAgentGraphOptions.MaxDuration` (`TimeSpan`, varsayılan sıfır = sınırsız) | §11 "Yüksek" gap |
 
-**Planlanmayan ve neden:** sağlayıcı denemesi ayrıntısının kalan yarısı
-(gecikme, retry indeksi, sağlayıcı istek kimliği) reddedildi — gerekçe §6
-tablosunda. ABP entegrasyon paketi, `RunStructuredAsync<T>`, effective-dated
-fiyat, outbox kancası, SQL tabanlı dağıtık iptal ve `UseMcpStdio` için
-duruşumuz değişmedi; gerekçeleri §2 ve §4'tedir.
+### 8.2 🚨 Sizin tarafınızda iş çıkarabilecek üç şey
 
-Sürüm numaralarını AgentPrism tarafı ayrıca bildirecek.
+**1. Yeni üreteç uyarısı APG0009 — derlemenizi kırabilir.**
+`[AgentPrismTool]` taşıyan bir metodun `[Description]`'sız her parametresi
+artık **uyarı** üretiyor. Bizim kendi `samples/AgentPrism.Api`'miz
+`TreatWarningsAsErrors=true` taşıdığı için **derleme hatası** verdi ve dört
+dosyaya `[Description]` eklendi. Sizde `[AgentPrismTool]` kullanan kod
+varsa aynı şey olacaktır. Ya açıklamaları ekleyin (tavsiyemiz — modelin
+argüman seçimini en çok etkileyen alan budur) ya da o kuralı bastırın.
 
-Sorularınız için: bu dokümandaki her `dosya:satır` referansı `8105c00`
-üzerinde doğrulanabilir.
+**2. `AgentPrismAgentGraphOptions.CreateBudget()` imzası kırıldı** →
+`CreateBudget(TimeProvider timeProvider)`. `Deadline`'ın tek bir saat
+üzerinden bir kez hesaplanması bunu zorunlu kıldı. Bu metodu çağırıyorsanız
+çağrı yerinizi güncelleyin. Pre-1.0 `Unshipped` yüzeyde olduğu için
+uyumluluk sözü kapsamında değildi.
+
+**3. Reddedilen argüman `ToolFailed` üretir, `ToolSucceeded` değil.**
+Bilinçli bir asimetri: `AuthorizingAIFunction` bir reddi normal bir sonuç
+olarak **döner**, `ValidatingAIFunction` ise `AgentPrismException`
+**fırlatır** ve MAF'ın kendi dönüşümü onu `ToolFailed`'a çevirir. Hata
+sınıflandırmanızda yetkilendirme reddi ile argüman reddini ayrı ayrı ele alın.
+
+Ayrıca `sessions` tablosunun `schema_version` sütunu **`state_schema_version`
+olarak yeniden adlandırıldı** (veri korunarak) ve iki tabloya
+`state_maf_version` eklendi — üç SQL sağlayıcısında migration. `.486`'dan
+yükseliyorsanız bu migration'lar deploy adımınıza girer.
+
+### 8.3 Sevk edilmeyen ve nedeni
+
+Sağlayıcı denemesi ayrıntısının kalan yarısı (gecikme, retry indeksi,
+sağlayıcı istek kimliği) **reddedildi** — gerekçe §6 tablosunda. ABP
+entegrasyon paketi, `RunStructuredAsync<T>`, effective-dated fiyat, outbox
+kancası, SQL tabanlı dağıtık iptal ve `UseMcpStdio` için duruşumuz değişmedi;
+gerekçeleri §2 ve §4'tedir.
+
+Sürüm numarasını AgentPrism tarafı ayrıca bildirecek.
+
+Sorularınız için: §2–§6'daki her `dosya:satır` referansı `8105c00` üzerinde,
+§8'deki her imza bugünkü `main` üzerinde doğrulanabilir.

@@ -164,7 +164,7 @@ plan `AgentRunResponse` demişti, gerçek tip `AgentResponse` çıktı.
 Şablon: [`resources/faz-plani-sablonu.md`](resources/faz-plani-sablonu.md).
 
 Dosya adı: `docs/NN-BUYUK-HARFLI-AD.md` — Türkçe, tire ile ayrılmış, kısa.
-Örnek: `docs/31-CALISTIRMA-IPTALI-VE-UZLASTIRMA.md`.
+Örnek: `docs/NN-CALISTIRMA-IPTALI.md`.
 
 Şablonun iki tür bölümü vardır ve **karıştırılmaz**:
 

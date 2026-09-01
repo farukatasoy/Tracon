@@ -12,8 +12,8 @@ APG0004 | AgentPrism.Tools | Error | A generic method cannot be a tool. See docs
 APG0005 | AgentPrism.Tools | Error | No marked tool method. See docs/arsiv/fazlar/52-KAYNAK-URETECI.md
 APG0006 | AgentPrism.Tools | Warning | Tool description missing. See docs/arsiv/fazlar/52-KAYNAK-URETECI.md
 APG0007 | AgentPrism.Tools | Error | An instance method cannot be a tool. See docs/arsiv/fazlar/52-KAYNAK-URETECI.md
-APG0008 | AgentPrism.Tools | Error | A complex tool result needs a source-generated JSON context. See docs/102-TOOL-SOZLESMESI-VE-SONUC-SINIRI.md
-APG0009 | AgentPrism.Tools | Warning | A tool parameter has no description. See docs/125-URETILEN-TOOL-SEMASININ-IFADE-GUCU.md
+APG0008 | AgentPrism.Tools | Error | A complex tool result needs a source-generated JSON context. See docs/arsiv/fazlar/102-TOOL-SOZLESMESI-VE-SONUC-SINIRI.md
+APG0009 | AgentPrism.Tools | Warning | A tool parameter has no description. See docs/arsiv/fazlar/125-URETILEN-TOOL-SEMASININ-IFADE-GUCU.md
 APG0101 | AgentPrism.Usage | Warning | AgentPrism is mapped but not registered. See docs/arsiv/fazlar/73-TUKETICI-AGENT-DESTEGI.md
 APG0102 | AgentPrism.Usage | Warning | The bound model provider is not registered. See docs/arsiv/fazlar/73-TUKETICI-AGENT-DESTEGI.md
 APG0201 | AgentPrism.Usage | Warning | A secret is written into a definition. See docs/arsiv/fazlar/73-TUKETICI-AGENT-DESTEGI.md
@@ -21,5 +21,5 @@ APG0301 | AgentPrism.Usage | Warning | A retry loop is written by hand around a 
 APG0302 | AgentPrism.Usage | Warning | An agent is wrapped by hand. See docs/arsiv/fazlar/73-TUKETICI-AGENT-DESTEGI.md
 APG0401 | AgentPrism.Usage | Warning | The agent map file is stale. See docs/arsiv/fazlar/73-TUKETICI-AGENT-DESTEGI.md
 APG0402 | AgentPrism.Usage | Warning | The agent instructions never point at the local reference file. See docs/arsiv/fazlar/78-YETENEK-HARITASI-ERISIMI.md
-APG0501 | AgentPrism.Usage | Warning | An ambient write is not repeated inside an async iterator's loop. See docs/93-KUSUR-SINIFI-KAPILARI.md
-APG0502 | AgentPrism.Usage | Warning | An ambient scope is opened and never restored. See docs/93-KUSUR-SINIFI-KAPILARI.md
+APG0501 | AgentPrism.Usage | Warning | An ambient write is not repeated inside an async iterator's loop. See docs/arsiv/fazlar/93-KUSUR-SINIFI-KAPILARI.md
+APG0502 | AgentPrism.Usage | Warning | An ambient scope is opened and never restored. See docs/arsiv/fazlar/93-KUSUR-SINIFI-KAPILARI.md

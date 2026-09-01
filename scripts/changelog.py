@@ -3,7 +3,7 @@
 
 Shared by `kapi.py` (the release-notes gate) and the `github-release` CI job
 (the release body) so the two never grow two different parsers for the same
-`## [<version>] - <date>` heading (docs/123-YAYIN-KRITIK-YOLU.md, 123.3).
+`## [<version>] - <date>` heading (docs/arsiv/fazlar/123-YAYIN-KRITIK-YOLU.md, 123.3).
 """
 from __future__ import annotations
 

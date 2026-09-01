@@ -7,11 +7,15 @@
 > **Bu dosya `ADAYLAR.md` değildir** ve artık bir **tur kaydıdır**: hangi
 > kalemin nereye gittiğini ve hangi iddianın ölçümde çürüdüğünü taşır.
 >
-> **Tur kapandı (2026-08-31).** Yedi açık kalemin hepsi yargılandı: iki kusur
-> kapandı, **beş faz planlandı** (124–128), bir kalem (T-6 kalanı) ölçümle
-> reddedildi. Plana dönüşen kalemlerin **gövdeleri fazlara taşındı**; burada
-> yalnız işaretçi ve o kalemin yargısı durur — aynı kapsamı iki yerde tutmak
-> kayma üretir.
+> **Tur kapandı ve sevk edildi (2026-09-01).** Yedi açık kalemin hepsi
+> yargılandı: iki kusur kapandı, **beş faz planlandı, uygulandı ve arşivlendi**
+> (124–128), bir kalem (T-6 kalanı) ölçümle reddedildi. Plana dönüşen
+> kalemlerin **gövdeleri fazlara taşındı**; burada yalnız işaretçi ve o kalemin
+> yargısı durur — aynı kapsamı iki yerde tutmak kayma üretir.
+>
+> Fazların **damıtılmış** kayıtları `docs/arsiv/fazlar/` altındadır; plan
+> gövdeleri git geçmişindedir. Sapmalar ve devir notları oradadır, burada
+> tekrarlanmaz.
 
 ---
 
@@ -22,20 +26,20 @@ Rapor 15 gap iddia etti. Ölçüm sonrası:
 | Kanal | Sayı | Nereye |
 |---|---:|---|
 | **Kusur** (davranış zaten yanlış) | 3 | §1 — **K-2 ve K-3 kapandı**; K-1 [Faz 124](../arsiv/fazlar/124-YEDEKLEMENIN-TOOL-DEFTERI.md) oldu |
-| **Plana dönüşen aday** | 6 | §2 — Faz 125 · 126 · 127 · 128 |
+| **Plana dönüşen ve sevk edilen aday** | 6 | §2 — Faz 125 · 126 · 127 · 128, hepsi ✅ |
 | **Ölçümle reddedilen aday** | 1 | §2, T-6 kalanı — sağlayıcı istek kimliği beş sağlayıcıya özel kod ister |
 | **Doküman işi** (yetenek var, anlatı yok) | 2 | §3 — ilk dokunan fazın doküman senkronuna eklenir |
 | **Reddedilen** (bugün çözülü ya da bilinçli sınır) | 6 | §4 |
 
-### Bu turda planlanan fazlar
+### Bu turda sevk edilen fazlar
 
-| Faz | Konu | Kaynak kalem |
-|---|---|---|
-| [124](../arsiv/fazlar/124-YEDEKLEMENIN-TOOL-DEFTERI.md) | Yedeklemenin Tool Defteri | K-1 |
-| [125](../arsiv/fazlar/125-URETILEN-TOOL-SEMASININ-IFADE-GUCU.md) | Üretilen Tool Şemasının İfade Gücü | T-1 · T-2 |
-| [126](../arsiv/fazlar/126-KALICI-PAYLOAD-SURUM-SOZLESMESI.md) | Kalıcı Payload Sürüm Sözleşmesi | T-5 |
-| [127](../arsiv/fazlar/127-TOOL-KAYIT-YUZEYI.md) | Tool Kayıt Yüzeyi | T-4 · T-3 |
-| [128](../arsiv/fazlar/128-RUN-AGACI-SURE-BUTCESI.md) | Run Ağacı Süre Bütçesi | T-7 |
+| Faz | Konu | Kaynak kalem | Durum |
+|---|---|---|---|
+| [124](../arsiv/fazlar/124-YEDEKLEMENIN-TOOL-DEFTERI.md) | Yedeklemenin Tool Defteri | K-1 | ✅ 2026-08-31 |
+| [125](../arsiv/fazlar/125-URETILEN-TOOL-SEMASININ-IFADE-GUCU.md) | Üretilen Tool Şemasının İfade Gücü | T-1 · T-2 | ✅ 2026-09-01 |
+| [126](../arsiv/fazlar/126-KALICI-PAYLOAD-SURUM-SOZLESMESI.md) | Kalıcı Payload Sürüm Sözleşmesi | T-5 | ✅ 2026-09-01 |
+| [127](../arsiv/fazlar/127-TOOL-KAYIT-YUZEYI.md) | Tool Kayıt Yüzeyi | T-4 · T-3 | ✅ 2026-09-01 |
+| [128](../arsiv/fazlar/128-RUN-AGACI-SURE-BUTCESI.md) | Run Ağacı Süre Bütçesi | T-7 | ✅ 2026-09-01 |
 
 En yüksek üç değer, raporun kendi "en yüksek üç" listesiyle **örtüşmüyor**.
 Rapor `IToolArgumentsValidator`, ABP paketi ve queue-nötr run API'sini
@@ -46,6 +50,12 @@ yan etkisi)** ve **T-5 (kalıcı payload sürüm sözleşmesi)**.
 **Kullanıcı kararları (2026-08-31):** K-1 için en kaliteli seçenek — (b) kayıtlı
 sonuçtan cevaplama — seçildi. K-2 bir kapsam kararı değil, gözden kaçma.
 T-1, T-3'ün önündedir.
+
+**Karar defteri kaydı (2026-09-01):** beş fazdan yalnız biri `K-*` açtı —
+**K-649** (kalıcı payload sürüm sözleşmesi). Diğer dördü public API'yi büyütse
+de kalıcı bir kural ya da geri dönüşü pahalı bir sistem kararı üretmedi ve
+gerekçeleri kendi faz kayıtlarına yazıldı. Bu, `AGENTS.md`'nin karar defteri
+eşiğinin doğru uygulandığının ölçüsüdür.
 
 ---
 
@@ -59,7 +69,7 @@ için **sınıf taraması** şarttır.
 > `R-1` (yedekleme) ve `R-2` (oturum) diye adlandırır — o dosyada `K-*`
 > etiketi yoktur. Buradaki `K-3` orada §5'tir.
 
-### K-1 · 📋 [Faz 124](../arsiv/fazlar/124-YEDEKLEMENIN-TOOL-DEFTERI.md) · Sağlayıcı yedeklemesi yan etkili tool'u yeniden çalıştırabilir
+### K-1 · ✅ SEVK EDİLDİ (2026-08-31) · [Faz 124](../arsiv/fazlar/124-YEDEKLEMENIN-TOOL-DEFTERI.md) · Sağlayıcı yedeklemesi yan etkili tool'u yeniden çalıştırabilir
 
 **Karar (2026-08-31): (b).** Yedeğe geçilirken tamamlanmış tool çağrıları
 **kayıtlı sonuçlarından cevaplanır**, yeniden çalıştırılmaz — kesinti devamı
@@ -86,7 +96,25 @@ güvendedir.
 replay) Faz 124 § 124.3'te tablo hâlinde duruyor; beşi plan anında ölçüldü,
 workflow düğüm retry'ı **açık uçlu** bırakıldı ve gerekçesi yazıldı.
 
-Kapsam, tasarım, hata modları ve DoD: [Faz 124](../arsiv/fazlar/124-YEDEKLEMENIN-TOOL-DEFTERI.md).
+**Sınıf taraması kapandı.** Altı yolun hepsi ölçüldü. Kritik sonuç:
+**workflow düğüm retry'ı bir agent run'ı taşımıyor** — planın açık uçlu
+bıraktığı tek satır böyle kapandı. Yeniden açılma koşulu Faz 124'ün devir
+notunda yazılı: `AddWorkflowFunction` agent sarmalayacak şekilde genişlerse
+tarama yeniden koşulur.
+
+**🚨 Uygulamada bir tuzak çıktı — planda yoktu, bağımsız denetim buldu.**
+Yalnız `(ad, argüman)` ile eşleştirmek, **tek bir bağlantının kendi tool
+döngüsünde** aynı tool'u aynı argümanla iki kez çağırmasını da yanlışlıkla
+tekilleştiriyordu: hiç yedeğe geçilmeden ikinci çağrı gövdeyi çalıştırmadan
+ilkinin sonucunu alıyordu. Düzeltme: her sarmalayıcı örneği yazdığı kayda
+kendi kimliğini damgalar (`LedgerEntry.Owner`) ve bir kaydı yalnız **farklı**
+bir sahibe aitse eşleştirir — bir bağlantı kendi yazdığını asla geri okumaz.
+
+Ders genelleştirilebilir ve devir notuna girdi: bir defter "aynı anahtarı
+ikinci kez görürsen öncekinden cevapla" diyorsa, önce **"hangi çağıran kendi
+yazdığını geri okuyabilir"** sorusu sorulmalıdır.
+
+Tam kayıt: [Faz 124](../arsiv/fazlar/124-YEDEKLEMENIN-TOOL-DEFTERI.md).
 
 ### K-2 · ✅ KAPANDI (2026-08-31) · Var olan bir oturumun kaydında son yazan kazanır
 
@@ -187,9 +215,10 @@ insan koyar.
 ## 2. Adayların yargısı ve varış yeri
 
 Yedi adayın hepsi 2026-08-31'de `faz-planlama` Adım 1'den geçti: her kod kanıtı
-`8105c00` üzerinde **yeniden ölçüldü**. Altısı plana dönüştü, biri reddedildi.
-Kapsam, tasarım ve DoD artık **faz dokümanlarındadır**; aşağıda yalnız o
-kalemin yargısı durur.
+`8105c00` üzerinde **yeniden ölçüldü**. Altısı plana dönüştü ve **2026-09-01'de
+sevk edildi**, biri reddedildi. Kapsam, tasarım, sapmalar ve DoD artık
+**arşivlenmiş faz kayıtlarındadır**; aşağıda yalnız o kalemin yargısı ve
+sevkiyatın planı nerede yalanladığı durur.
 
 | Kalem | Varış | Yargı |
 |---|---|---|
@@ -200,6 +229,24 @@ kalemin yargısı durur.
 | **T-5** payload sürüm sözleşmesi | [Faz 126](../arsiv/fazlar/126-KALICI-PAYLOAD-SURUM-SOZLESMESI.md) | Kanıt ayakta. Kullanıcı kararı: **üçü de** — söz, damga, prova. Damga payload'ın **içine** yazılmaz: checkpoint gövdesinde `$type` ayırıcısı ilk özellik olmak zorunda. Kardeş sütun kullanılır |
 | **T-6** sağlayıcı denemesi ayrıntısı | ❌ **Reddedildi** | Aşağıda |
 | **T-7** `MaxDuration` | [Faz 128](../arsiv/fazlar/128-RUN-AGACI-SURE-BUTCESI.md) | **Karşı görüş ölçüldü ve çürüdü.** Süre maliyetin vekili değildir: her turda küçük bir model çağrısı yapan ama her tool'u 90 saniye bekleyen bir run token/maliyet tavanını hiç zorlamaz. Dahası kuyruğa alınmış run'da hiçbir dış zaman sınırı yok — `JobWorkerBackgroundService.cs:227` kirayı sürekli **yeniliyor** |
+
+### Sevkiyatın planı yalanladığı üç yer
+
+Bunlar `faz-uygulama`'nın "planın yapısal iddiasını ölçmeden kabul etme"
+kuralının bu turdaki karşılığıdır. Üçü de plan doğru olsaydı sessiz bir kusura
+dönüşecekti.
+
+| Faz | Plan ne diyordu | Ölçüm ne buldu |
+|---|---|---|
+| **126** | "`sessions` payload'ında sürüm damgası **yok**" | 🚨 **Yanlış öncül.** `sessions.schema_version` `0001_initial.sql`'den beri vardı ve her satır damgalıydı. Plan kanıt tablosunu çıkarırken `SqlSessionStore.cs`'i hiç grep'lememişti. Sonuç: sessions için migration bir **rename**, `workflow_checkpoints` için bir **add**; `SessionRecord.StateSchemaVersion` `int` (nullable **değil**), checkpoint'inki `int?` |
+| **125** | APG0009'u `ToolDiagnostics.cs`'e eklemek yeter | Üretecin **private** bir `DescriptorsById` dispatch tablosu var; orada olmayan tanı **sessizce düşer** — ne hata, ne test kırılması, ne log. Tanı eklendi ve hiç raporlanmadı; yalnız tanıyı bizzat arayan test yakaladı. Kapı: `DiagnosticIntegrityTests` |
+| **124** | `(ad, argüman)` eşleştirmesi yeter | Aynı bağlantının kendi içindeki tekrarlı çağrısını da tekilleştiriyordu; sahiplik damgası gerekti (yukarıda) |
+
+Dördüncü bir sapma kod dışıdır ama kaydedilmeye değer: **128'in kuyruklu
+fonksiyonel testinde sahte `TimeProvider` host'un tamamına uygulanınca
+`JobWorkerBackgroundService`'in poll döngüsü sonsuza kadar dondu** (test 30
+saniyede zaman aşımına uğradı, run hiç `Queued`'dan çıkmadı). Çözüm gerçek saat
++ kısa gerçek süreler oldu; tuzak `docs/hafiza/test-kosum-tuzaklari.md`'ye yazıldı.
 
 ### T-6'nın kalanı neden reddedildi
 
@@ -269,36 +316,35 @@ Aday olmayacak kalemler ve nedenleri. Bir kalem ileride yeniden açılırsa
 
 ---
 
-## 5. Sıra — kapandı
+## 5. Sıra — kapandı ve sevk edildi
 
-Ön sıralama bir plana dönüştü. Faz numaraları sırayı **taşır**: 124 önce, 128
-sonra.
+Ön sıralama plana, plan koda dönüştü. Faz numaraları sırayı taşıdı: 124 önce,
+128 sonra; hepsi 2026-08-31 ile 2026-09-01 arasında kapandı.
 
 | # | Kalem | Varış | Durum |
 |---|---|---|---|
-| 1 | **K-1** yedeklemenin yan etkisi | [Faz 124](../arsiv/fazlar/124-YEDEKLEMENIN-TOOL-DEFTERI.md) | 📋 Planlandı |
+| 1 | **K-1** yedeklemenin yan etkisi | [Faz 124](../arsiv/fazlar/124-YEDEKLEMENIN-TOOL-DEFTERI.md) | ✅ Sevk edildi |
 | ~~2~~ | ~~**K-2** oturum son-yazan-kazanır~~ | — | ✅ Kapandı — K-648 |
-| 3 | **T-1** parametre açıklaması | [Faz 125](../arsiv/fazlar/125-URETILEN-TOOL-SEMASININ-IFADE-GUCU.md) | 📋 Planlandı |
-| 9 | **T-2** üreteç sınırının ilanı | [Faz 125](../arsiv/fazlar/125-URETILEN-TOOL-SEMASININ-IFADE-GUCU.md) | 📋 Planlandı — T-1 ile aynı üreteci paylaştığı için birleşti |
-| 4 | **T-5** payload sürüm sözleşmesi | [Faz 126](../arsiv/fazlar/126-KALICI-PAYLOAD-SURUM-SOZLESMESI.md) | 📋 Planlandı |
-| 5 | **T-4** `AddScopedTool` | [Faz 127](../arsiv/fazlar/127-TOOL-KAYIT-YUZEYI.md) | 📋 Planlandı |
-| 6 | **T-3** argüman doğrulama seam'i | [Faz 127](../arsiv/fazlar/127-TOOL-KAYIT-YUZEYI.md) | 📋 Planlandı — T-4 ile aynı kayıt zincirini paylaştığı için birleşti |
+| 3 | **T-1** parametre açıklaması | [Faz 125](../arsiv/fazlar/125-URETILEN-TOOL-SEMASININ-IFADE-GUCU.md) | ✅ Sevk edildi |
+| 9 | **T-2** üreteç sınırının ilanı | [Faz 125](../arsiv/fazlar/125-URETILEN-TOOL-SEMASININ-IFADE-GUCU.md) | ✅ Sevk edildi — T-1 ile birleşti |
+| 4 | **T-5** payload sürüm sözleşmesi | [Faz 126](../arsiv/fazlar/126-KALICI-PAYLOAD-SURUM-SOZLESMESI.md) | ✅ Sevk edildi — K-649 |
+| 5 | **T-4** `AddScopedTool` | [Faz 127](../arsiv/fazlar/127-TOOL-KAYIT-YUZEYI.md) | ✅ Sevk edildi |
+| 6 | **T-3** argüman doğrulama seam'i | [Faz 127](../arsiv/fazlar/127-TOOL-KAYIT-YUZEYI.md) | ✅ Sevk edildi — T-4 ile birleşti |
 | ~~7~~ | ~~**K-3**~~ | — | ✅ Kapandı — iki vaka + kapı |
-| 8 | **T-7** `MaxDuration` | [Faz 128](../arsiv/fazlar/128-RUN-AGACI-SURE-BUTCESI.md) | 📋 Planlandı |
+| 8 | **T-7** `MaxDuration` | [Faz 128](../arsiv/fazlar/128-RUN-AGACI-SURE-BUTCESI.md) | ✅ Sevk edildi |
 | — | **T-6** kalanı | — | ❌ Reddedildi (§2) |
-| — | **D-1 · D-2** | — | Faz değil; ilk dokunan fazın doküman senkronuna eklenir. D-1 Faz 127'ye, D-2 Faz 127'ye doğal düşer |
+| — | **D-1 · D-2** | Faz 127 doküman senkronu | ✅ Kapandı |
 
-### Sıralamayı değiştiren tek ölçüm
+### Birleştirme kararı doğru çıktı
 
-Faz 127, T-3 ve T-4'ün **öncesine** bir yapısal iş koydu: sarmalayıcı zinciri
-bugün **iki yerde** elle yazılı (`ToolRegistry.cs:110-135` ve
-`McpTenantTools.cs:70-90`) ve kodun kendi yorumu bunu itiraf ediyor. Bu
-birleştirilmeden bir doğrulama halkası eklemek, halkayı iki yere birden
-eklemek — ve birini unutunca MCP tool'larının onu hiç görmemesi — demektir.
-Bu, K-483'ün sınıfının üçüncü tekrarı olurdu.
+İki birleştirme de (`T-1+T-2`, `T-4+T-3`) "aynı altyapıyı paylaşıyorlar"
+gerekçesiyle yapılmıştı. Sevkiyat bunu doğruladı: Faz 127'nin **ilk** işi olan
+tek kompozisyon noktası olmasaydı, doğrulama halkası iki yere birden
+eklenecek ve birini unutmak MCP tool'larının o halkayı hiç görmemesi
+demek olacaktı — K-483'ün sınıfının üçüncü tekrarı.
 
-### Bir sonraki adım
+### Turun kapanışı
 
-Fazlar sırayla `faz-baslangic` → `faz-uygulama` → `faz-denetim` →
-`faz-tamamlama` zinciriyle, **ayrı oturumlarda** uygulanır. Her fazın
-"Bu Faza Başlarken" listesi o oturumun okuma kümesidir.
+Bu tur kapandı. Tüketiciye giden cevap ve sevk edilen yüzeyin listesi
+[doğrulama raporunun §8'indedir](2026-08-31-tuketici-raporu-dogrulamasi.md).
+`ADAYLAR.md`'de sıralanabilir aday yok; yeni bir tur `aday-kesfi` ile açılır.

@@ -31,7 +31,7 @@ export function AccessGate({ children }: { children: (meta: Meta) => ReactNode }
   // the last success (TanStack Query's `QueryObserverRefetchErrorResult`), so
   // polling alone is enough to close this gap. The FIRST paint of a fully
   // cold load (server down before any JS runs) is a separate, browser-level
-  // failure this cannot reach — see `docs/UCUNCU-FAZ-ADAYLARI.md`.
+  // failure this cannot reach — see `docs/ADAYLAR.md`.
   const meta = useQuery({
     queryKey: ['meta'],
     queryFn: () => unwrap(client.GET('/api/meta')) as Promise<Meta>,

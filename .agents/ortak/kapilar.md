@@ -9,7 +9,7 @@ Dördü de sıfır uyarı vermelidir. Bir tanesi kırmızıysa iş **bitmemişti
 
 ```bash
 python3 scripts/kapi.py ic-dongu                 # build + etkilenen test projeleri (hızlı iç döngü)
-python3 scripts/kapi.py tarama                    # yalnız sync kopyası + secret (saniyeler)
+python3 scripts/kapi.py tarama                    # sync kopyası · secret · migration bütünlüğü · bayat doküman referansı (saniyeler)
 python3 scripts/kapi.py kapanis --taban <faz öncesi commit>   # tamamı, ucuzdan pahalıya, tek özet
 python3 scripts/kapi.py test --proje <Proje> --sinif "*Ad*"   # MTP filtresi, doğru biçimde
 ```
