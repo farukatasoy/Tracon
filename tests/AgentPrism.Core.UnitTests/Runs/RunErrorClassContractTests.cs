@@ -40,6 +40,7 @@ public sealed class RunErrorClassContractTests
         ("ContentBlocked", 11),
         ("Infrastructure", 12),
         ("ToolTimeout", 13),
+        ("StructuredResponseInvalid", 14),
     ];
 
     [Fact]

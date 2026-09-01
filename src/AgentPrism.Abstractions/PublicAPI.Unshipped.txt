@@ -4918,3 +4918,52 @@ static AgentPrism.ToolArgumentsValidationResult.Invalid(string! reason) -> Agent
 static AgentPrism.ToolArgumentsValidationResult.Valid.get -> AgentPrism.ToolArgumentsValidationResult!
 static AgentPrism.ToolArgumentsValidationResult.operator !=(AgentPrism.ToolArgumentsValidationResult? left, AgentPrism.ToolArgumentsValidationResult? right) -> bool
 static AgentPrism.ToolArgumentsValidationResult.operator ==(AgentPrism.ToolArgumentsValidationResult? left, AgentPrism.ToolArgumentsValidationResult? right) -> bool
+AgentPrism.AgentPrismStructuredResponseException
+AgentPrism.AgentPrismStructuredResponseException.AgentPrismStructuredResponseException() -> void
+AgentPrism.AgentPrismStructuredResponseException.AgentPrismStructuredResponseException(string! message) -> void
+AgentPrism.AgentPrismStructuredResponseException.AgentPrismStructuredResponseException(string! message, System.Exception! innerException) -> void
+AgentPrism.IStructuredResponseValidator
+AgentPrism.IStructuredResponseValidator.ValidateAsync(AgentPrism.StructuredResponseValidationContext! context, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<AgentPrism.StructuredResponseValidationResult!>
+AgentPrism.RunErrorClass.StructuredResponseInvalid = 14 -> AgentPrism.RunErrorClass
+AgentPrism.RunEventType.StructuredResponseRejected = 27 -> AgentPrism.RunEventType
+AgentPrism.StructuredResponseValidationContext
+AgentPrism.StructuredResponseValidationContext.<Clone>$() -> AgentPrism.StructuredResponseValidationContext!
+AgentPrism.StructuredResponseValidationContext.AgentName.get -> string!
+AgentPrism.StructuredResponseValidationContext.AgentName.init -> void
+AgentPrism.StructuredResponseValidationContext.Equals(AgentPrism.StructuredResponseValidationContext? other) -> bool
+AgentPrism.StructuredResponseValidationContext.Kind.get -> AgentPrism.AgentResponseFormatKind
+AgentPrism.StructuredResponseValidationContext.Kind.init -> void
+AgentPrism.StructuredResponseValidationContext.Model.get -> string?
+AgentPrism.StructuredResponseValidationContext.Model.init -> void
+AgentPrism.StructuredResponseValidationContext.Provider.get -> string?
+AgentPrism.StructuredResponseValidationContext.Provider.init -> void
+AgentPrism.StructuredResponseValidationContext.ResponseText.get -> string!
+AgentPrism.StructuredResponseValidationContext.ResponseText.init -> void
+AgentPrism.StructuredResponseValidationContext.RunId.get -> System.Guid
+AgentPrism.StructuredResponseValidationContext.RunId.init -> void
+AgentPrism.StructuredResponseValidationContext.Schema.get -> System.Text.Json.JsonElement?
+AgentPrism.StructuredResponseValidationContext.Schema.init -> void
+AgentPrism.StructuredResponseValidationContext.SchemaName.get -> string?
+AgentPrism.StructuredResponseValidationContext.SchemaName.init -> void
+AgentPrism.StructuredResponseValidationContext.SessionId.get -> string?
+AgentPrism.StructuredResponseValidationContext.SessionId.init -> void
+AgentPrism.StructuredResponseValidationContext.StructuredResponseValidationContext() -> void
+AgentPrism.StructuredResponseValidationResult
+AgentPrism.StructuredResponseValidationResult.<Clone>$() -> AgentPrism.StructuredResponseValidationResult!
+AgentPrism.StructuredResponseValidationResult.Equals(AgentPrism.StructuredResponseValidationResult? other) -> bool
+AgentPrism.StructuredResponseValidationResult.IsValid.get -> bool
+AgentPrism.StructuredResponseValidationResult.Reason.get -> string?
+const AgentPrism.AgentPrismStructuredResponseException.StructuredResponseInvalidErrorType = "structured_response_invalid" -> string!
+override AgentPrism.AgentPrismStructuredResponseException.ErrorType.get -> string!
+override AgentPrism.StructuredResponseValidationContext.Equals(object? obj) -> bool
+override AgentPrism.StructuredResponseValidationContext.GetHashCode() -> int
+override AgentPrism.StructuredResponseValidationContext.ToString() -> string!
+override AgentPrism.StructuredResponseValidationResult.Equals(object? obj) -> bool
+override AgentPrism.StructuredResponseValidationResult.GetHashCode() -> int
+override AgentPrism.StructuredResponseValidationResult.ToString() -> string!
+static AgentPrism.StructuredResponseValidationContext.operator !=(AgentPrism.StructuredResponseValidationContext? left, AgentPrism.StructuredResponseValidationContext? right) -> bool
+static AgentPrism.StructuredResponseValidationContext.operator ==(AgentPrism.StructuredResponseValidationContext? left, AgentPrism.StructuredResponseValidationContext? right) -> bool
+static AgentPrism.StructuredResponseValidationResult.Invalid(string! reason) -> AgentPrism.StructuredResponseValidationResult!
+static AgentPrism.StructuredResponseValidationResult.Valid.get -> AgentPrism.StructuredResponseValidationResult!
+static AgentPrism.StructuredResponseValidationResult.operator !=(AgentPrism.StructuredResponseValidationResult? left, AgentPrism.StructuredResponseValidationResult? right) -> bool
+static AgentPrism.StructuredResponseValidationResult.operator ==(AgentPrism.StructuredResponseValidationResult? left, AgentPrism.StructuredResponseValidationResult? right) -> bool

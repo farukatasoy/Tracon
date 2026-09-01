@@ -1294,3 +1294,8 @@ AgentPrism.IAgentPrismBuilder.AddScopedTool(Microsoft.Extensions.AI.AIFunction! 
 AgentPrism.IAgentPrismBuilder.AddScopedTool(Microsoft.Extensions.AI.AIFunction! tool, System.Action<AgentPrism.ToolRegistrationOptions!>! configure) -> AgentPrism.IAgentPrismBuilder!
 AgentPrism.ValidatingAIFunction
 AgentPrism.ValidatingAIFunction.ValidatingAIFunction(Microsoft.Extensions.AI.AIFunction! innerFunction, AgentPrism.ToolDescriptor! descriptor, AgentPrism.IToolArgumentsValidator! validator, Microsoft.Extensions.Logging.ILogger<AgentPrism.ValidatingAIFunction!>! logger) -> void
+AgentPrism.AgentPrismStructuredResponseOptions
+AgentPrism.AgentPrismStructuredResponseOptions.AgentPrismStructuredResponseOptions() -> void
+AgentPrism.AgentPrismStructuredResponseOptions.Enabled.get -> bool
+AgentPrism.AgentPrismStructuredResponseOptions.Enabled.set -> void
+const AgentPrism.AgentPrismStructuredResponseOptions.SectionName = "AgentPrism:StructuredResponse" -> string!

@@ -65,6 +65,8 @@ const EVENT_STYLE: Record<RunEventType, { label: string; hue: string }> = {
   // Phase 89. Amber, same "needs attention" hue as ModelFallbackUsed: a tool
   // that keeps getting truncated is a sign its own output bound is missing.
   ToolOutputTruncated: { label: 'tool.output-truncated', hue: 'var(--ap-amber)' },
+  // Phase 131. Danger hue: the run is ending Failed, same as ContentBlocked/RunFailed.
+  StructuredResponseRejected: { label: 'structured-response.rejected', hue: 'var(--ap-danger)' },
 };
 
 /**

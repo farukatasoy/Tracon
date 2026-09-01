@@ -326,6 +326,20 @@ public static partial class AgentPrismServiceCollectionExtensions
         }
     }
 
+    /// <summary>Binds the <c>AgentPrism:StructuredResponse</c> section.</summary>
+    private static void BindStructuredResponse(IConfigurationSection section, AgentPrismStructuredResponseOptions options)
+    {
+        if (!section.Exists())
+        {
+            return;
+        }
+
+        if (TryReadBool(section, nameof(AgentPrismStructuredResponseOptions.Enabled), out var enabled))
+        {
+            options.Enabled = enabled;
+        }
+    }
+
     /// <summary>Binds the <c>AgentPrism:Canary</c> section.</summary>
     private static void BindCanary(IConfigurationSection section, CanaryOptions options)
     {

@@ -465,6 +465,23 @@ agentPrism
         Model = model,
     })
 
+    // Structured response validation (Phase 131). AgentPrism:StructuredResponse:Enabled
+    // is on below, so a response that is not a valid JSON document fails the run
+    // with RunErrorClass.StructuredResponseInvalid instead of closing successfully.
+    .AddAgent(new AgentDefinition
+    {
+        Name = "order-summary",
+        DisplayName = "Order Summary (structured output demo)",
+        Description = "Summarizes an order as a JSON document.",
+        Instructions = "Reply with ONLY a JSON object of the shape " +
+                       "{\"orderId\": string, \"summary\": string}. No prose, no markdown fences.",
+        Model = model with
+        {
+            ResponseFormat = new AgentResponseFormat { Kind = AgentResponseFormatKind.Json },
+        },
+        ToolNames = ["get_order_status"],
+    })
+
     // Response caching and concurrent tool calls (Phase 81, F-45/F-134). The
     // SECOND identical run never reaches the model (usage is zero, no 'chat'
     // span) but the cached FunctionCallContent still runs get_order_status

@@ -66,8 +66,10 @@ public sealed class AgentDecoratorOrderingTests
             + "rejects is never recorded");
 
         innermost.ShouldBe(
-            nameof(ToolApprovalAgentDecorator),
-            "the approval gate has to sit closest to the agent, where the tool calls happen");
+            nameof(StructuredResponseValidatingAgentDecorator),
+            "structured response validation (docs/131, Order 30) has to sit closest to the compiled agent, "
+            + "so a rejection is captured by every outer decorator (telemetry, run recording) exactly like "
+            + "any other run-ending error");
     }
 
     private static AgentDescriptor Descriptor() => new()

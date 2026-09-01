@@ -58,6 +58,7 @@ dotnet user-secrets set "AgentPrism:PostgreSql:ConnectionString" "<value>"
 | `AgentPrism:RunReconciliation` | `RunReconciliationOptions` | `AddAgentPrism()` |
 | `AgentPrism:Scheduling` | `AgentPrismSchedulingOptions` | `AddAgentPrism()`; `UseScheduling()` can override from code |
 | `AgentPrism:SingletonExecution` | `SingletonExecutionOptions` | `AddAgentPrism()` |
+| `AgentPrism:StructuredResponse` | `AgentPrismStructuredResponseOptions` | `AddAgentPrism()` |
 | `AgentPrism:TenantProviders` | `AgentPrismTenantProviderOptions` | `AddAgentPrism()` |
 | `AgentPrism:Webhooks` | `AgentPrismWebhookOptions` | `AddAgentPrism()` |
 | `AgentPrism:Egress` | `AgentPrismEgressOptions` | `AddAgentPrism()` |
@@ -197,6 +198,16 @@ replace the application's OpenTelemetry exporter.
 Disable tool payloads when they can contain personal or regulated data. Replay needs
 recorded run input. A store failure is logged and never blocks the agent response, so
 recording is best-effort during a storage outage.
+
+### Structured response validation
+
+| Key | Default |
+|---|---:|
+| `StructuredResponse:Enabled` | `false` |
+
+Off by default: a response is never inspected after the model returns it. Applies only
+to an agent whose `ResponseFormat.Kind` is `Json` or `JsonSchema`. See
+[Validate the response](/guides/structured-output/#validate-the-response).
 
 ### Pricing
 

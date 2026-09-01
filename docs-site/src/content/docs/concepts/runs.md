@@ -232,10 +232,10 @@ so what you read a week later is what actually happened.
 ## Errors are classified
 
 A failed run carries an error class, not just a message: a provider outage, a content
-filter, a blocked guard decision, a quota, a timeout. Two of them are deliberately
-distinct — `ContentFiltered` means the *provider's* filter cut the response, while
-`ContentBlocked` means *your* guard refused it. The operator response differs: one is
-a provider setting, the other is your policy.
+filter, a blocked guard decision, a quota, a timeout, a rejected structured response.
+Two of them are deliberately distinct — `ContentFiltered` means the *provider's*
+filter cut the response, while `ContentBlocked` means *your* guard refused it. The
+operator response differs: one is a provider setting, the other is your policy.
 
 `GET /api/stats` aggregates the classes, so a rise in one bucket is visible before
 anyone reports it.

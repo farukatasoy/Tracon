@@ -29,4 +29,7 @@ namespace AgentPrism;
 
 // Phase 62: the ModelFallbackUsed run-event payload.
 [JsonSerializable(typeof(ModelFallbackUsedEventPayload))]
+
+// Phase 131: the StructuredResponseRejected run-event payload.
+[JsonSerializable(typeof(StructuredResponseRejectedEventPayload))]
 internal sealed partial class AgentPrismCoreJsonContext : JsonSerializerContext;

@@ -32,7 +32,8 @@ export type RunEventType =
   | 'ContentBlocked'
   | 'ModelFallbackUsed'
   | 'ReasoningDelta'
-  | 'ToolOutputTruncated';
+  | 'ToolOutputTruncated'
+  | 'StructuredResponseRejected';
 
 export interface RunEvent {
   runId: string;
