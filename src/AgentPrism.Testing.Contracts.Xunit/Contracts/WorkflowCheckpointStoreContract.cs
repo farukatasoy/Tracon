@@ -189,6 +189,38 @@ public abstract class WorkflowCheckpointStoreContract : TenantIsolationContract<
     public async Task Nonexistent_checkpoint_returns_null()
         => (await Store.ReadAsync("tenant-a", "s-1", "missing")).ShouldBeNull();
 
+    [Fact]
+    public async Task StateSchemaVersion_and_StateMafVersion_round_trip_through_listing_metadata()
+    {
+        // Phase 126: these are metadata fields carried through verbatim, the
+        // same as ParentCheckpointId or RunId — the store does not compute or
+        // validate them. Only listing metadata carries them (State is
+        // omitted there); Store.ReadAsync's contract is JsonElement only.
+        await Store.CreateAsync(Record("tenant-a", "s-1", "c-1") with
+        {
+            StateSchemaVersion = 2,
+            StateMafVersion = "1.2.3",
+        });
+
+        var listed = (await Store.ListAsync("tenant-a", "s-1")).ShouldHaveSingleItem();
+
+        listed.StateSchemaVersion.ShouldBe(2);
+        listed.StateMafVersion.ShouldBe("1.2.3");
+    }
+
+    [Fact]
+    public async Task A_checkpoint_written_without_version_stamps_lists_back_null()
+    {
+        // Simulates a row written before these columns existed: nothing sets
+        // them, so both must round-trip as null.
+        await Store.CreateAsync(Record("tenant-a", "s-1", "c-1"));
+
+        var listed = (await Store.ListAsync("tenant-a", "s-1")).ShouldHaveSingleItem();
+
+        listed.StateSchemaVersion.ShouldBeNull();
+        listed.StateMafVersion.ShouldBeNull();
+    }
+
     private static WorkflowCheckpointRecord Record(string tenantId, string sessionId, string checkpointId)
         => new()
         {

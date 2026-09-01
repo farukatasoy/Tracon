@@ -63,6 +63,36 @@ public abstract class SessionStoreContract : TenantIsolationContract<ISessionSto
     }
 
     [Fact]
+    public async Task StateSchemaVersion_and_StateMafVersion_round_trip()
+    {
+        // Phase 126: the store carries these two fields through verbatim; it
+        // does not compute or validate them (AgentSessionManager does).
+        await Store.SaveAsync(TestData.Session("stamped") with
+        {
+            StateSchemaVersion = 2,
+            StateMafVersion = "1.2.3",
+        });
+
+        var loaded = (await Store.GetAsync("stamped")).ShouldNotBeNull();
+
+        loaded.StateSchemaVersion.ShouldBe(2);
+        loaded.StateMafVersion.ShouldBe("1.2.3");
+    }
+
+    [Fact]
+    public async Task A_session_saved_without_StateMafVersion_reads_back_null()
+    {
+        // Simulates a row written before this field existed: nothing sets
+        // StateMafVersion, so it must round-trip as null, not as an empty
+        // string or a default placeholder.
+        await Store.SaveAsync(TestData.Session("unstamped"));
+
+        var loaded = (await Store.GetAsync("unstamped")).ShouldNotBeNull();
+
+        loaded.StateMafVersion.ShouldBeNull();
+    }
+
+    [Fact]
     public async Task Saving_with_the_same_id_overwrites_the_record_and_keeps_the_creation_time()
     {
         var created = DateTimeOffset.UtcNow.AddHours(-1);

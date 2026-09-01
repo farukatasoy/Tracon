@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using System.Text.Json;
 using Microsoft.Agents.AI.Workflows;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging;
@@ -368,6 +369,24 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
             : throw new AgentPrismException(
                 $"Run '{runId}' has no checkpoint. " +
                 "A run started while checkpoint writing was disabled cannot be resumed.");
+    }
+
+    /// <summary>
+    /// Looks up a single checkpoint's metadata (state omitted) for the
+    /// diagnostic message built when resuming from it fails. Used only on
+    /// the failure path — a successful resume never pays for this lookup.
+    /// </summary>
+    private async ValueTask<WorkflowCheckpointRecord?> FindCheckpointMetadataAsync(
+        string sessionId,
+        string checkpointId,
+        CancellationToken cancellationToken)
+    {
+        var checkpoints = await _checkpointStore
+            .ListAsync(_tenantContext.TenantId, sessionId, cancellationToken)
+            .ConfigureAwait(false);
+
+        return checkpoints.FirstOrDefault(
+            candidate => string.Equals(candidate.CheckpointId, checkpointId, StringComparison.Ordinal));
     }
 
     private async IAsyncEnumerable<RunEvent> ExecuteAsync(
@@ -916,6 +935,23 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
                     "'AgentPrism:Workflows:EnableCheckpointing' must be enabled to resume from a checkpoint.");
             }
 
+            // Fetched once and reused below: the proactive generation check
+            // needs it before attempting resume, and the failure message
+            // (if resume still fails for another reason) needs the same
+            // record - fetching it twice would waste a query on the common,
+            // successful path AND on the failure path.
+            var recorded = await FindCheckpointMetadataAsync(execution.SessionId, checkpointId, cancellationToken)
+                .ConfigureAwait(false);
+
+            if (recorded?.StateSchemaVersion > AgentPrismCheckpointStore.CurrentStateSchemaVersion)
+            {
+                throw new AgentPrismException(
+                    $"Workflow '{execution.WorkflowName}' cannot be resumed from checkpoint '{checkpointId}': " +
+                    $"it was written with AgentPrism schema generation {recorded.StateSchemaVersion}; " +
+                    $"this AgentPrism version can read up to generation {AgentPrismCheckpointStore.CurrentStateSchemaVersion}. " +
+                    "Update the AgentPrism packages.");
+            }
+
             try
             {
                 run = await InProcessExecution.ResumeStreamingAsync(
@@ -936,6 +972,22 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
                     "If the workflow definition changed, start a new run. " +
                     "If the application restarted, old checkpoints cannot be used - " +
                     "executor ids are generated in process memory.",
+                    exception);
+            }
+            catch (Exception exception) when (exception is JsonException or InvalidOperationException or NotSupportedException or ArgumentException)
+            {
+                // Unlike the InvalidDataException case above (a known cause:
+                // executor ids changed), this is the checkpoint STATE itself
+                // failing to deserialize - the same class of failure
+                // AgentSessionManager reports for sessions. The message
+                // reports what was RECORDED, not a guess.
+                var recordedMafVersion = recorded?.StateMafVersion ?? "unknown (written before version stamping existed)";
+
+                throw new AgentPrismException(
+                    $"Workflow '{execution.WorkflowName}' cannot be resumed from checkpoint '{checkpointId}': " +
+                    "its state could not be read. It was written with Microsoft Agent Framework " +
+                    $"{recordedMafVersion}; this process is running {AgentPrismCheckpointStore.CurrentMafVersion}. " +
+                    "If the Microsoft Agent Framework version changed, start a new run instead of resuming.",
                     exception);
             }
         }

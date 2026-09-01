@@ -187,7 +187,7 @@ yazılırsa aynı satır güncellenir, tekrar kaydı oluşmaz.
 | `agent_definition_versions` | Değişmez versiyon geçmişi, geri alma için |
 | `agent_skills` | Tenant-yalıtımlı markdown skill tanımı ve frontmatter |
 | `agent_skill_resources` | Skill kaynağı; skill silinince cascade ile silinir |
-| `sessions` | Serileştirilmiş `AgentSession` (**`json`**) + agent adı + `schema_version`. Anahtar **`(tenant_id, id)`** — kimlik çağırandan gelir ve yalnız kiracı içinde benzersizdir (K-278) |
+| `sessions` | Serileştirilmiş `AgentSession` (**`json`**) + agent adı + `state_schema_version` (hep dolu) + `state_maf_version` (NULL = Faz 126 öncesi satır, K-649). Anahtar **`(tenant_id, id)`** — kimlik çağırandan gelir ve yalnız kiracı içinde benzersizdir (K-278) |
 | `conversations` | Konuşma başlığı; `PostgresChatHistoryProvider` yazar |
 | `conversation_items` | Konuşma mesajları, sıralı (**`json`**) |
 | `responses` | **Boş.** `/v1/responses` ve `/v1/conversations` durumu `sessions` tablosunda tutulur (K-036, K-043); ayrı bir yanıt kaydı yazılmadı |
@@ -199,7 +199,7 @@ yazılırsa aynı satır güncellenir, tekrar kaydı oluşmaz.
 | `attachments` | Yüklenen ek ustverisi + ikili içerik (`bytea`); `session_id` FK **değil** (K-112) |
 | `agent_files` | Kalıcı `AgentFileStore`: agent başına yol→metin çifti |
 | `workflows` | Arayüzden tanımlanan workflow grafı (`jsonb`); sürüm **geçmişi yok** (K-126) |
-| `workflow_checkpoints` | Yürütme kontrol noktaları — durum **`json`**, `jsonb` değil (K-121) |
+| `workflow_checkpoints` | Yürütme kontrol noktaları — durum **`json`**, `jsonb` değil (K-121); `state_schema_version`/`state_maf_version` NULL = Faz 126 öncesi satır (K-649) |
 | `job_schedules` | Zamanlama tanımı: cron, saat dilimi, yük, etkin/pasif |
 | `jobs` | Kuyruktaki iş: durum, kira, deneme sayısı, ilerleme sayaçları |
 | `job_items` | Toplu işin tek girdisi ve ürettiği `run_id` |

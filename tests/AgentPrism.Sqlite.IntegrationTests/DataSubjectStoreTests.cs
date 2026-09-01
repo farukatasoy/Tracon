@@ -136,7 +136,7 @@ public sealed class DataSubjectStoreTests(SqliteFixture fixture)
         var now = DateTimeOffset.UtcNow.ToString("O", CultureInfo.InvariantCulture);
 
         await context.ExecuteAsync($"""
-            INSERT INTO {context.TablePrefix}sessions (id, tenant_id, agent_name, state, schema_version, created_at, updated_at)
+            INSERT INTO {context.TablePrefix}sessions (id, tenant_id, agent_name, state, state_schema_version, created_at, updated_at)
             VALUES ('{id}', '{tenantId}', 'support', {EmptyJsonState}, 1, '{now}', '{now}');
             """);
     }

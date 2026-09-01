@@ -171,18 +171,19 @@ internal sealed class PostgresQueries : SqlQueriesBase
         // conditional update match a generation that no longer describes the
         // stored state.
         UpsertSession = $"""
-            INSERT INTO {Schema}.sessions (id, tenant_id, agent_name, state, schema_version, created_at, updated_at, version)
-            VALUES (@id, @tenant_id, @agent_name, @state, @schema_version, @created_at, @updated_at, 1)
+            INSERT INTO {Schema}.sessions (id, tenant_id, agent_name, state, state_schema_version, created_at, updated_at, version, state_maf_version)
+            VALUES (@id, @tenant_id, @agent_name, @state, @state_schema_version, @created_at, @updated_at, 1, @state_maf_version)
             ON CONFLICT (tenant_id, id) DO UPDATE
-                SET agent_name     = EXCLUDED.agent_name,
-                    state          = EXCLUDED.state,
-                    schema_version = EXCLUDED.schema_version,
-                    updated_at     = EXCLUDED.updated_at,
-                    version        = {Schema}.sessions.version + 1;
+                SET agent_name           = EXCLUDED.agent_name,
+                    state                = EXCLUDED.state,
+                    state_schema_version = EXCLUDED.state_schema_version,
+                    state_maf_version    = EXCLUDED.state_maf_version,
+                    updated_at           = EXCLUDED.updated_at,
+                    version              = {Schema}.sessions.version + 1;
             """;
 
         SelectSessions = $"""
-            SELECT id, agent_name, state, schema_version, created_at, updated_at, tenant_id, version
+            SELECT id, agent_name, state, state_schema_version, created_at, updated_at, tenant_id, version, state_maf_version
             FROM {Schema}.sessions
             WHERE tenant_id = @tenant_id
               AND (@agent_name IS NULL OR agent_name = @agent_name)

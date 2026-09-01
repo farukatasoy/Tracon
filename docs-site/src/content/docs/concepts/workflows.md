@@ -176,6 +176,12 @@ Turning off `EnableCheckpointing` does not silently disable resumption: a workfl
 that stops to wait for a human answer fails outright instead of hanging with no way
 to resume.
 
+A checkpoint's state is the Microsoft Agent Framework's own serialized graph;
+AgentPrism does not interpret it and makes no promise that a checkpoint written
+by one Microsoft Agent Framework version can be resumed by a different one. See
+[Versions and upgrades](/reference/versioning/#persisted-session-and-checkpoint-state)
+for the compatibility policy.
+
 ## Asking a human
 
 A workflow can stop and wait for input:

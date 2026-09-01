@@ -83,6 +83,18 @@ PostgreSQL knowledge search also needs an
 the PostgreSQL column type. Changing the embedding dimension is a schema migration,
 not a live configuration change.
 
+## Persisted payload compatibility
+
+| Payload | Owner | Compatible across a Microsoft Agent Framework version bump? |
+|---|---|---|
+| `SessionRecord` envelope (id, tenant, timestamps, `Version`, `StateSchemaVersion`, `StateMafVersion`) | AgentPrism | Yes — a minor AgentPrism version only adds envelope fields |
+| `SessionRecord.State` | Microsoft Agent Framework | No promise |
+| `WorkflowCheckpointRecord` envelope | AgentPrism | Yes |
+| `WorkflowCheckpointRecord.State` | Microsoft Agent Framework | No promise |
+
+See [Versions and upgrades](/reference/versioning/#persisted-session-and-checkpoint-state)
+for what happens when a body cannot be read after an upgrade.
+
 ## Model providers
 
 Built-in catalogs start empty. A catalog drives selection, health display, and cost

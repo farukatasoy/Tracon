@@ -14442,6 +14442,22 @@
             ],
             "description": "The tenant identifier."
           },
+          "stateSchemaVersion": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "The AgentPrism schema generation that wrote \u0060State\u0060.",
+            "format": "int32"
+          },
+          "stateMafVersion": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The Microsoft Agent Framework package version that produced\n\u0060State\u0060."
+          },
           "version": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
@@ -16314,6 +16330,23 @@
           "state": {
             "description": "Gets the opaque run state.",
             "$ref": "#/components/schemas/JsonElement"
+          },
+          "stateSchemaVersion": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "description": "Gets the AgentPrism schema generation that wrote \u0060State\u0060.",
+            "format": "int32"
+          },
+          "stateMafVersion": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Gets the Microsoft Agent Framework package version that produced\n\u0060State\u0060."
           }
         },
         "description": "Represents a single checkpoint of a workflow run."

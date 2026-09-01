@@ -22091,6 +22091,21 @@ namespace AgentPrism.Client.Generated
         public string? TenantId { get; set; } = default!;
 
         /// <summary>
+        /// The AgentPrism schema generation that wrote `State`.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("stateSchemaVersion")]
+        public int StateSchemaVersion { get; set; } = default!;
+
+        /// <summary>
+        /// The Microsoft Agent Framework package version that produced
+        /// <br/>`State`.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("stateMafVersion")]
+        public string? StateMafVersion { get; set; } = default!;
+
+        /// <summary>
         /// The record's write generation, used for optimistic concurrency.
         /// </summary>
 
@@ -24030,6 +24045,21 @@ namespace AgentPrism.Client.Generated
 
         [System.Text.Json.Serialization.JsonPropertyName("state")]
         public System.Text.Json.JsonElement State { get; set; } = default!;
+
+        /// <summary>
+        /// Gets the AgentPrism schema generation that wrote `State`.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("stateSchemaVersion")]
+        public int? StateSchemaVersion { get; set; } = default!;
+
+        /// <summary>
+        /// Gets the Microsoft Agent Framework package version that produced
+        /// <br/>`State`.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("stateMafVersion")]
+        public string? StateMafVersion { get; set; } = default!;
 
     }
 

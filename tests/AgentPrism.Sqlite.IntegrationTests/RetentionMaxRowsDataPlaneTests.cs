@@ -99,7 +99,7 @@ public sealed class RetentionMaxRowsDataPlaneTests(SqliteFixture fixture) : IAsy
         const string emptyJsonState = "'{}'";
 
         await _context.ExecuteAsync($"""
-            INSERT INTO {_context.TablePrefix}sessions (id, tenant_id, agent_name, state, schema_version, created_at, updated_at)
+            INSERT INTO {_context.TablePrefix}sessions (id, tenant_id, agent_name, state, state_schema_version, created_at, updated_at)
             VALUES ('{sessionId}', 'test', 'support', {emptyJsonState}, 1, '{Iso(DateTimeOffset.UtcNow)}', '{Iso(DateTimeOffset.UtcNow)}');
             """);
 

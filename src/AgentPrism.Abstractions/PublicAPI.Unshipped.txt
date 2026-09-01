@@ -2871,6 +2871,10 @@ AgentPrism.SessionRecord.Id.init -> void
 AgentPrism.SessionRecord.SessionRecord() -> void
 AgentPrism.SessionRecord.State.get -> System.Text.Json.JsonElement
 AgentPrism.SessionRecord.State.init -> void
+AgentPrism.SessionRecord.StateMafVersion.get -> string?
+AgentPrism.SessionRecord.StateMafVersion.init -> void
+AgentPrism.SessionRecord.StateSchemaVersion.get -> int
+AgentPrism.SessionRecord.StateSchemaVersion.init -> void
 AgentPrism.SessionRecord.TenantId.get -> string?
 AgentPrism.SessionRecord.TenantId.init -> void
 AgentPrism.SessionRecord.UpdatedAt.get -> System.DateTimeOffset
@@ -3666,6 +3670,10 @@ AgentPrism.WorkflowCheckpointRecord.SessionId.get -> string!
 AgentPrism.WorkflowCheckpointRecord.SessionId.init -> void
 AgentPrism.WorkflowCheckpointRecord.State.get -> System.Text.Json.JsonElement
 AgentPrism.WorkflowCheckpointRecord.State.init -> void
+AgentPrism.WorkflowCheckpointRecord.StateMafVersion.get -> string?
+AgentPrism.WorkflowCheckpointRecord.StateMafVersion.init -> void
+AgentPrism.WorkflowCheckpointRecord.StateSchemaVersion.get -> int?
+AgentPrism.WorkflowCheckpointRecord.StateSchemaVersion.init -> void
 AgentPrism.WorkflowCheckpointRecord.TenantId.get -> string!
 AgentPrism.WorkflowCheckpointRecord.TenantId.init -> void
 AgentPrism.WorkflowCheckpointRecord.WorkflowCheckpointRecord() -> void
