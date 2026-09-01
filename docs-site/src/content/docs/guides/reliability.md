@@ -329,17 +329,24 @@ Every root run creates a budget shared by its child-agent tree:
 | `AgentGraph.MaxTotalTokens` | `200,000` | Zero or negative removes the token limit |
 | `AgentGraph.MaxTotalCost` | none | Zero, negative, or unset removes the cost limit |
 | `AgentGraph.MaxTotalRuns` | `25` | Counts child runs only; zero or negative removes the count limit |
+| `AgentGraph.MaxDuration` | none | Zero, negative, or unset removes the wall-clock limit |
 
 `MaxDepth` and `MaxTotalRuns` only stop a *new* child run from starting — a run
 already in progress finishes even if the tree is over either limit.
-`MaxTotalTokens` and `MaxTotalCost` are enforced differently: the check runs
-between two model turns, inside the tool-call loop, so a tree that has already
-spent past its limit is cut off before its *next* model call — mid-run, not
-only at the next child call. The run ends `Failed` with `error_class:
-QuotaExceeded` and a message naming which limit was hit and which setting
-raises it. A cost limit falls back to the token limit for a model whose price
-is undefined (`PricingSource.Unknown`) — the cost cannot be measured, so it
-cannot be enforced.
+`MaxTotalTokens`, `MaxTotalCost`, and `MaxDuration` are enforced differently:
+the check runs between two model turns, inside the tool-call loop, so a tree
+that has already spent past its limit is cut off before its *next* model
+call — mid-run, not only at the next child call. The run ends `Failed` with
+`error_class: QuotaExceeded` and a message naming which limit was hit and
+which setting raises it. A cost limit falls back to the token limit for a
+model whose price is undefined (`PricingSource.Unknown`) — the cost cannot be
+measured, so it cannot be enforced.
+
+`MaxDuration` is not a hard timeout: a tool call already running when the
+deadline passes is never interrupted, only the *next* model call after it is
+refused. It applies the same way to a queued (`Prefer: respond-async`) run,
+whose lease is otherwise renewed for as long as the run keeps going — before
+`MaxDuration`, nothing capped a queued run's wall-clock time.
 
 Because several branches of a tree can be mid-turn at the same time, the check
 is not perfectly precise: two concurrent turns can each pass the check before

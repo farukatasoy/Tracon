@@ -155,6 +155,12 @@ run](/concepts/runs/#the-error-message-is-safe-to-display-not-safe-to-debug-from
 node failure from your own code keeps its message, a failure from a provider,
 library, or transport carries only its exception type and a correlation id.
 
+A workflow's root run shares the same call-tree budget every agent run does
+(`AgentGraph.MaxTotalTokens`/`MaxTotalCost`/`MaxDuration` — see [Reliable
+runs](/guides/reliability/#bound-multi-agent-trees)): every agent node the
+workflow invokes spends against the same tree, so a workflow with a long chain
+of agent steps is bounded the same way a single agent's own tool loop is.
+
 ## Checkpoints
 
 A workflow writes checkpoints as it goes, controlled by

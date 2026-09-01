@@ -60,6 +60,23 @@ public sealed class ChildAgentInvokerTests
     }
 
     [Fact]
+    public async Task New_child_run_does_not_start_once_the_deadline_has_passed()
+    {
+        // 128.2: TryReserveRun (child-run start) also checks the deadline —
+        // no new child run starts in a tree whose time has run out. A
+        // negative MaxDuration constructs an already-passed Deadline
+        // deterministically, with no fake clock needed.
+        var (invoker, store) = CreateInvoker();
+        var budget = new AgentRunBudget(TimeSpan.FromMinutes(-1)) { MaxDepth = 3 };
+
+        SetScope(depth: 0, budget: budget);
+        var response = await invoker.RunAsync("run");
+
+        response.Text.ShouldContain("time budget is exhausted", Case.Sensitive);
+        (await store.QueryRunsAsync(new RunQuery { OnlyRootRuns = false })).ShouldBeEmpty();
+    }
+
+    [Fact]
     public async Task Call_is_rejected_when_tenant_changes()
     {
         // The child call runs on a different thread. If the tenant context is

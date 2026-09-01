@@ -100,7 +100,7 @@ public sealed partial class RunRecordingAgent
             // `RunStartInfo.SessionId` (that is, runs.session_id) DOES NOT USE this fallback
             // and keeps its meaning.
             SessionId = sessionId ?? prismOptions?.SessionId,
-            Budget = prismOptions?.Budget ?? (depth == 0 ? _graphOptions.CreateBudget() : null),
+            Budget = prismOptions?.Budget ?? (depth == 0 ? _graphOptions.CreateBudget(_timeProvider) : null),
             Writer = writer,
             ExtraUsage = new CompactionUsageAccumulator(),
             ToolUsage = new ToolUsageAccumulator(),

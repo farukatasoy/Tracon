@@ -36,8 +36,8 @@ public enum RunErrorClass
     RateLimited = 3,
 
     /// <summary>
-    /// An AgentPrism quota was exhausted, or a run tree's token/cost budget ran
-    /// out mid-run (<see cref="AgentPrismRunBudgetExceededException"/>).
+    /// An AgentPrism quota was exhausted, or a run tree's token, cost, or time
+    /// budget ran out mid-run (<see cref="AgentPrismRunBudgetExceededException"/>).
     /// </summary>
     QuotaExceeded = 4,
 
