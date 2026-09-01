@@ -11,6 +11,9 @@
     "src/AgentPrism.Sqlite/Migrations/0026_session_version.sql": "20c973212a1b5c4b9d0f5a7fc29f063b514519be",
     "src/AgentPrism.PostgreSql/Migrations/0040_persisted_payload_version.sql": "d117b246855dade908d89d0783a68bba046da3c7",
     "src/AgentPrism.SqlServer/Migrations/0027_persisted_payload_version.sql": "d117b246855dade908d89d0783a68bba046da3c7",
-    "src/AgentPrism.Sqlite/Migrations/0027_persisted_payload_version.sql": "d117b246855dade908d89d0783a68bba046da3c7"
+    "src/AgentPrism.Sqlite/Migrations/0027_persisted_payload_version.sql": "d117b246855dade908d89d0783a68bba046da3c7",
+    "src/AgentPrism.PostgreSql/Migrations/0041_job_lanes.sql": "ca3ee6af9d0238c42930fa86b7b235351f9bd869",
+    "src/AgentPrism.SqlServer/Migrations/0028_job_lanes.sql": "ca3ee6af9d0238c42930fa86b7b235351f9bd869",
+    "src/AgentPrism.Sqlite/Migrations/0028_job_lanes.sql": "ca3ee6af9d0238c42930fa86b7b235351f9bd869"
   }
 }
