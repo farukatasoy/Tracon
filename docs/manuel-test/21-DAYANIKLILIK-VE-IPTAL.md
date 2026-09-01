@@ -1645,3 +1645,124 @@ curl -s -o /dev/null -w "%{http_code}\n" -X POST "$APU/api/agents/support/run" \
   sonra ölmez.
 
 ---
+
+### MT-RES-069 — Faz 126 öncesi yazılmış oturum, migration sonrası okunmaya devam eder
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 126 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+```bash
+# Faz 126'nın migration'ı (NNNN_persisted_payload_version) UYGULANMAMIŞ bir
+# veritabanı: eski schema_version sütunu hâlâ mevcut, state_maf_version yok.
+```
+
+**Adımlar**
+1. Migration öncesi bir oturum kaydı yaz (normal bir `run` ile, ya da doğrudan
+   `INSERT INTO sessions (..., schema_version, ...)`).
+2. Migration'ı koş (`dotnet agentprism migrate` veya otomatik uygula).
+3. `psql`/`sqlcmd`/`sqlite3` ile o oturum satırını sorgula.
+4. Aynı oturuma yeni bir `run` gönder (`GET /api/sessions/{id}` değil,
+   gerçek bir konuşma turu).
+
+**Beklenen sonuç**
+- Adım 3: `schema_version` sütunu `state_schema_version` adına taşınmış,
+  değeri DEĞİŞMEMİŞ (`1`); yeni `state_maf_version` sütunu bu satırda
+  `NULL`.
+- Adım 4: oturum normal şekilde açılır ve tur çalışır — migration verideki
+  tek bir baytı bile değiştirmedi, yalnız zarfı damgaladı.
+
+---
+
+### MT-RES-070 — Faz 126 sonrası yazılmış oturum, iki damgayı da taşır
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 126 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+```bash
+# Faz 126'nın migration'ı UYGULANMIŞ bir veritabanı.
+```
+
+**Adımlar**
+1. `POST /api/agents/{name}/run` ile yeni bir oturum aç ve bir tur çalıştır.
+2. Oturum satırını sorgula (`SELECT id, state_schema_version, state_maf_version FROM sessions ...`).
+
+**Beklenen sonuç**
+- `state_schema_version` bugünkü AgentPrism şema neslini taşır (`1`).
+- `state_maf_version`, `Directory.Packages.props`'taki
+  `MicrosoftAgentsAIVersion` ile eşleşen bir sürüm dizesi taşır — `NULL`
+  değil.
+
+---
+
+### MT-RES-071 — Tanınmayan şema nesli: tanımlı hata, oturum silinmez
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 126 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+```bash
+# Var olan bir oturumun state_schema_version'ını elle GELECEKTEKİ bir
+# değere ayarla:
+psql -c "UPDATE agentprism.sessions SET state_schema_version = 999999 WHERE id = '<id>';"
+```
+
+**Adımlar**
+1. O oturuma yeni bir tur gönder (`POST /api/agents/{name}/run` ile aynı
+   `sessionId`).
+2. Yanıtın hata gövdesini oku.
+3. Oturum satırının hâlâ var olduğunu doğrula.
+
+**Beklenen sonuç**
+- Adım 2: hata mesajı **ölçülmüş** iki sayıyı adıyla söyler — kayıtlı nesil
+  (`999999`) ve bu derlemenin anladığı nesil (`1`). "may have become
+  unreadable" gibi tahmine dayalı bir ifade YOKTUR.
+- Adım 3: satır silinmedi, sessizce sıfırlanmadı — aynı `state_schema_version`
+  ile hâlâ orada.
+
+---
+
+### MT-RES-072 — 👤 insan gerekir — Yükseltme provası: fixture kapısı bugünkü MAF'a karşı koşar
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 126 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+```bash
+# Yerel klonda Directory.Packages.props içindeki MicrosoftAgentsAIVersion
+# bir sonraki gerçek MAF sürümüne yükseltilmiş (bu case yalnız GERÇEK bir
+# MAF sürüm yükseltmesi elde varken anlamlıdır; günlük geliştirmede atlanır).
+```
+
+**Adımlar**
+1. `dotnet restore` ile yeni MAF sürümünü çek.
+2. `./artifacts/bin/AgentPrism.Core.UnitTests/release/AgentPrism.Core.UnitTests --filter-method "*PersistedPayloadUpgrade*"` koştur.
+3. `./artifacts/bin/AgentPrism.Workflows.UnitTests/release/AgentPrism.Workflows.UnitTests --filter-method "*PersistedPayloadUpgrade*"` koştur.
+
+**Beklenen sonuç**
+- Testler ya YEŞİLDİR (yeni MAF sürümü eski fixture'ları hâlâ okuyabiliyor),
+  ya da KIRMIZIDIR ve hata mesajı hangi MAF sürümünün hangi fixture'ı
+  okuyamadığını AÇIKÇA söyler — "bir fixture bozuldu" değil, "MAF X → Y
+  yükseltmesi üretimdeki oturumları/checkpoint'leri okunamaz yapıyor" biçiminde.
+- Kırmızı çıkarsa fixture YENİDEN ÜRETİLMEZ (bkz.
+  `tests/AgentPrism.Core.UnitTests/Fixtures/README.md`); karar
+  `nuget-danismani` kanalına gider.
+
+---

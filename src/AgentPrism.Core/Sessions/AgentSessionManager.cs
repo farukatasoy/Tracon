@@ -1,3 +1,4 @@
+using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
 using Microsoft.Agents.AI;
@@ -27,6 +28,24 @@ namespace AgentPrism;
 /// </remarks>
 public sealed class AgentSessionManager
 {
+    /// <summary>
+    /// The AgentPrism schema generation this build writes and can read.
+    /// </summary>
+    /// <remarks>
+    /// Advances only when AgentPrism changes how it structures the stored
+    /// row, never when the Microsoft Agent Framework version changes.
+    /// Not public: a consumer never needs to compare against it directly —
+    /// <see cref="SessionRecord.StateSchemaVersion"/> already tells them
+    /// what generation their own row was written with.
+    /// </remarks>
+    internal const int CurrentStateSchemaVersion = 1;
+
+    /// <summary>
+    /// The running process's Microsoft Agent Framework package version,
+    /// stamped onto every session this process saves.
+    /// </summary>
+    private static readonly string CurrentMafVersion = ReadMafVersion();
+
     private readonly ISessionStore _store;
     private readonly ITenantContext _tenantContext;
     private readonly TimeProvider _timeProvider;
@@ -131,6 +150,14 @@ public sealed class AgentSessionManager
         }
         else
         {
+            if (record.StateSchemaVersion > CurrentStateSchemaVersion)
+            {
+                throw new AgentPrismException(
+                    $"Session '{sessionId}' was written with AgentPrism schema generation {record.StateSchemaVersion}; " +
+                    $"this AgentPrism version can read up to generation {CurrentStateSchemaVersion}. " +
+                    "Update the AgentPrism packages.");
+            }
+
             try
             {
                 session = await agent
@@ -139,10 +166,14 @@ public sealed class AgentSessionManager
             }
             catch (Exception ex) when (ex is JsonException or InvalidOperationException or NotSupportedException or ArgumentException)
             {
+                var recordedMafVersion = record.StateMafVersion ?? "unknown (written before version stamping existed)";
+
                 throw new AgentPrismException(
                     $"Session '{sessionId}' could not be restored. The stored state belongs to agent " +
                     $"'{record.AgentName}' and cannot be read by agent '{agent.Name ?? agent.Id}'. " +
-                    "If the Microsoft Agent Framework version changed, older sessions may have become unreadable.",
+                    $"It was written with Microsoft Agent Framework {recordedMafVersion}; this process is " +
+                    $"running {CurrentMafVersion}. If the Microsoft Agent Framework version changed, open a new " +
+                    "session instead, or clear old sessions before upgrading.",
                     ex);
             }
         }
@@ -220,6 +251,8 @@ public sealed class AgentSessionManager
             Id = sessionId,
             AgentName = agent.Name ?? agent.Id,
             State = state,
+            StateSchemaVersion = CurrentStateSchemaVersion,
+            StateMafVersion = CurrentMafVersion,
             CreatedAt = now,
             UpdatedAt = now,
             TenantId = _tenantContext.TenantId,
@@ -272,6 +305,26 @@ public sealed class AgentSessionManager
         }
 
         return sessionId;
+    }
+
+    /// <summary>
+    /// Reads the informational version off the Microsoft Agent Framework
+    /// assembly that produces <c>SerializeSessionAsync</c> output.
+    /// </summary>
+    /// <remarks>Same technique as <c>MetaEndpoints.ReadVersion</c> uses for AgentPrism's own version.</remarks>
+    private static string ReadMafVersion()
+    {
+        var informational = typeof(AIAgent).Assembly
+            .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
+
+        if (string.IsNullOrEmpty(informational))
+        {
+            return typeof(AIAgent).Assembly.GetName().Version?.ToString() ?? "unknown";
+        }
+
+        var plus = informational.IndexOf('+', StringComparison.Ordinal);
+
+        return plus < 0 ? informational : informational[..plus];
     }
 
     /// <summary>The record a restored session was read from.</summary>

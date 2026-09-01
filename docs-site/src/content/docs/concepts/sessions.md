@@ -75,6 +75,17 @@ Saving a session under a **different** id than it was read from — what
 rather than replacing the source one, so no generation applies and the write is
 unconditional.
 
+## Persisted payload compatibility
+
+`SessionRecord.State` is the Microsoft Agent Framework's own serialized
+format; AgentPrism does not interpret it. `SessionRecord.StateSchemaVersion`
+(AgentPrism's own envelope generation) and `StateMafVersion` (the Microsoft
+Agent Framework package version that wrote `State`) are stamped on every
+save so that a failed restore can report exactly what was recorded instead
+of guessing. See [Versions and upgrades](/reference/versioning/#persisted-session-and-checkpoint-state)
+for the full compatibility policy and what to do when a session cannot be
+restored after an upgrade.
+
 ## Reading a conversation back
 
 `GET /api/sessions/{sessionId}` returns metadata plus `messages` — but `messages` is

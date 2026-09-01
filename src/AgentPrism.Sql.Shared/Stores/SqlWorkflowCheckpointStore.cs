@@ -53,6 +53,8 @@ internal sealed class SqlWorkflowCheckpointStore : IWorkflowCheckpointStore
         Dialect.AddText(command, "parent_id", record.ParentCheckpointId);
         Dialect.AddUuid(command, "run_id", record.RunId);
         Dialect.AddJson(command, "state", record.State.GetRawText());
+        Dialect.AddInt32(command, "state_schema_version", record.StateSchemaVersion);
+        Dialect.AddText(command, "state_maf_version", record.StateMafVersion);
         Dialect.AddTimestamp(command, "created_at", record.CreatedAt);
 
         await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false);
@@ -156,6 +158,8 @@ internal sealed class SqlWorkflowCheckpointStore : IWorkflowCheckpointStore
             ParentCheckpointId = DbHelpers.GetNullableString(reader, 4),
             RunId = reader.IsDBNull(5) ? null : reader.GetGuid(5),
             CreatedAt = DbHelpers.GetTimestamp(reader, 6),
+            StateSchemaVersion = reader.IsDBNull(7) ? null : reader.GetInt32(7),
+            StateMafVersion = DbHelpers.GetNullableString(reader, 8),
             State = WorkflowCheckpointState.Omitted,
         };
 }

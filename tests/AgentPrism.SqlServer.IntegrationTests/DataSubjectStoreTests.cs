@@ -132,7 +132,7 @@ public sealed class DataSubjectStoreTests(SqlServerFixture fixture)
 
     private static async Task SeedSessionAsync(SqlServerTestContext context, string id, string tenantId)
         => await context.ExecuteAsync($"""
-            INSERT INTO {context.SchemaName}.sessions (id, tenant_id, agent_name, state, schema_version, created_at, updated_at)
+            INSERT INTO {context.SchemaName}.sessions (id, tenant_id, agent_name, state, state_schema_version, created_at, updated_at)
             VALUES ('{id}', '{tenantId}', 'support', {EmptyJsonState}, 1, SYSDATETIMEOFFSET(), SYSDATETIMEOFFSET());
             """);
 

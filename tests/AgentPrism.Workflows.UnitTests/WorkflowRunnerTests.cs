@@ -1,3 +1,5 @@
+using System.Globalization;
+using System.Text.Json;
 using AgentPrism.Workflows.UnitTests.Fakes;
 
 namespace AgentPrism.Workflows.UnitTests;
@@ -153,6 +155,124 @@ public sealed class WorkflowRunnerTests
         workflowRuns.Count.ShouldBe(2);
         workflowRuns.ShouldAllBe(run => run.WorkflowName == "chain");
         workflowRuns.Select(run => run.SessionId).Distinct(StringComparer.Ordinal).Count().ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task Resuming_with_a_future_schema_generation_is_a_defined_error_and_the_checkpoint_survives()
+    {
+        // Phase 126: unlike the InvalidDataException case below (executor
+        // ids changed - a DIFFERENT, already-handled cause), this simulates
+        // a checkpoint written by a NEWER AgentPrism generation than this
+        // build understands. Corrupting only the metadata (not the state
+        // body itself) keeps the executor ids intact, so this exercises the
+        // proactive StateSchemaVersion check specifically, not the
+        // InvalidDataException branch.
+        var host = new WorkflowTestHost("writer", "editor");
+
+        await host.SaveAsync(new WorkflowDefinition
+        {
+            Name = "chain",
+            Kind = WorkflowKind.Sequential,
+            AgentNames = ["writer", "editor"],
+        });
+
+        var runner = host.CreateRunner();
+        await Collect(runner, "chain", "hello");
+
+        var first = (await host.RunStore.QueryRunsAsync(new RunQuery { OnlyRootRuns = false, Take = 100 }))
+            .Single(run => run.Kind == RunKind.Workflow);
+
+        var original = (await host.CheckpointStore.ListByRunAsync(host.TenantContext.TenantId, first.Id))[^1];
+        var state = (await host.CheckpointStore.ReadAsync(
+            host.TenantContext.TenantId, original.SessionId, original.CheckpointId)).ShouldNotBeNull();
+
+        await host.CheckpointStore.DeleteAsync(host.TenantContext.TenantId, original.SessionId);
+        await host.CheckpointStore.CreateAsync(original with { State = state, StateSchemaVersion = int.MaxValue });
+
+        // A resume-time failure inside StartAsync is caught by PumpAsync and
+        // turned into a RunFailed event, NOT thrown from ResumeStreamingAsync
+        // (async iterator: try/catch cannot surround a yield return).
+        var resumed = new List<RunEvent>();
+
+        await foreach (var runEvent in runner.ResumeStreamingAsync(new WorkflowResumeRequest { RunId = first.Id }))
+        {
+            resumed.Add(runEvent);
+        }
+
+        resumed[^1].Type.ShouldBe(RunEventType.RunFailed);
+
+        var resumedRun = (await host.RunStore.QueryRunsAsync(new RunQuery { OnlyRootRuns = false, Take = 100 }))
+            .Where(run => run.Kind == RunKind.Workflow)
+            .OrderByDescending(run => run.StartedAt)
+            .First();
+
+        resumedRun.Error!.Message.ShouldContain(int.MaxValue.ToString(CultureInfo.InvariantCulture));
+        resumedRun.Error!.Message.ShouldContain(AgentPrismCheckpointStore.CurrentStateSchemaVersion.ToString(CultureInfo.InvariantCulture));
+
+        (await host.CheckpointStore.ReadAsync(host.TenantContext.TenantId, original.SessionId, original.CheckpointId))
+            .ShouldNotBeNull("an unreadable checkpoint is never silently deleted or reset");
+    }
+
+    [Fact]
+    public async Task Resuming_a_checkpoint_with_unreadable_state_reports_the_recorded_MAF_version()
+    {
+        // Corrupts the STATE body itself (not just metadata) with valid but
+        // structurally meaningless JSON, written under the checkpoint's OWN
+        // recorded StateMafVersion (from the real write above) so the
+        // message assertion below is checking a REAL recorded value, not a
+        // guess.
+        var host = new WorkflowTestHost("writer", "editor");
+
+        await host.SaveAsync(new WorkflowDefinition
+        {
+            Name = "chain",
+            Kind = WorkflowKind.Sequential,
+            AgentNames = ["writer", "editor"],
+        });
+
+        var runner = host.CreateRunner();
+        await Collect(runner, "chain", "hello");
+
+        var first = (await host.RunStore.QueryRunsAsync(new RunQuery { OnlyRootRuns = false, Take = 100 }))
+            .Single(run => run.Kind == RunKind.Workflow);
+
+        var original = (await host.CheckpointStore.ListByRunAsync(host.TenantContext.TenantId, first.Id))[^1];
+        original.StateMafVersion.ShouldNotBeNull("the real write above must have stamped it");
+
+        await host.CheckpointStore.DeleteAsync(host.TenantContext.TenantId, original.SessionId);
+        await host.CheckpointStore.CreateAsync(original with
+        {
+            State = JsonDocument.Parse("""{"totally":"not a checkpoint"}""").RootElement.Clone(),
+        });
+
+        // See the sibling test above: a resume-time failure surfaces as a
+        // RunFailed event, not a thrown exception.
+        var resumed = new List<RunEvent>();
+
+        await foreach (var runEvent in runner.ResumeStreamingAsync(new WorkflowResumeRequest { RunId = first.Id }))
+        {
+            resumed.Add(runEvent);
+        }
+
+        resumed[^1].Type.ShouldBe(RunEventType.RunFailed);
+
+        var resumedRun = (await host.RunStore.QueryRunsAsync(new RunQuery { OnlyRootRuns = false, Take = 100 }))
+            .Where(run => run.Kind == RunKind.Workflow)
+            .OrderByDescending(run => run.StartedAt)
+            .First();
+
+        // Whichever branch actually fires (executor-id mismatch or state
+        // deserialization failure), the message must not be silent about
+        // the cause: either names the recorded MAF version, or names the
+        // known executor-id cause.
+        var message = resumedRun.Error!.Message;
+
+        (message.Contains(original.StateMafVersion, StringComparison.Ordinal)
+            || message.Contains("executor ids are generated in process memory", StringComparison.Ordinal))
+            .ShouldBeTrue(message);
+
+        (await host.CheckpointStore.ReadAsync(host.TenantContext.TenantId, original.SessionId, original.CheckpointId))
+            .ShouldNotBeNull("an unreadable checkpoint is never silently deleted or reset");
     }
 
     [Fact]

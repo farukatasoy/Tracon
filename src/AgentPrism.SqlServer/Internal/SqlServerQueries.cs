@@ -266,20 +266,21 @@ internal sealed class SqlServerQueries : SqlQueriesBase
         // the incoming row.
         UpsertSession = $"""
             UPDATE {Schema}.sessions WITH (UPDLOCK, SERIALIZABLE)
-               SET agent_name     = @agent_name,
-                   state          = @state,
-                   schema_version = @schema_version,
-                   updated_at     = @updated_at,
-                   version        = version + 1
+               SET agent_name           = @agent_name,
+                   state                = @state,
+                   state_schema_version = @state_schema_version,
+                   state_maf_version    = @state_maf_version,
+                   updated_at           = @updated_at,
+                   version              = version + 1
              WHERE id = @id AND tenant_id = @tenant_id;
 
             IF @@ROWCOUNT = 0
-            INSERT INTO {Schema}.sessions (id, tenant_id, agent_name, state, schema_version, created_at, updated_at, version)
-            VALUES (@id, @tenant_id, @agent_name, @state, @schema_version, @created_at, @updated_at, 1);
+            INSERT INTO {Schema}.sessions (id, tenant_id, agent_name, state, state_schema_version, created_at, updated_at, version, state_maf_version)
+            VALUES (@id, @tenant_id, @agent_name, @state, @state_schema_version, @created_at, @updated_at, 1, @state_maf_version);
             """;
 
         SelectSessions = $"""
-            SELECT id, agent_name, state, schema_version, created_at, updated_at, tenant_id, version
+            SELECT id, agent_name, state, state_schema_version, created_at, updated_at, tenant_id, version, state_maf_version
             FROM {Schema}.sessions
             WHERE tenant_id = @tenant_id
               AND (@agent_name IS NULL OR agent_name = @agent_name)

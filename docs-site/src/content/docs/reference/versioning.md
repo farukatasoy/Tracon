@@ -87,10 +87,56 @@ NuGet package above — there is no separate npm version scheme. `@agentprism/cl
 1.0.0-preview.N` and `AgentPrism.Client 1.0.0-preview.N` always describe the
 identical OpenAPI document.
 
+## Persisted session and checkpoint state
+
+An upgrade can leave sessions and workflow checkpoints in storage from before
+the upgrade. This is the compatibility promise for that stored payload,
+split by who owns each layer:
+
+| Layer | Owner | Promise |
+|---|---|---|
+| Record envelope (id, tenant, timestamps, generation, schema version) | AgentPrism | A minor version only *adds* envelope fields; it never removes one. An envelope written by an older AgentPrism version is still readable |
+| Session state body (`SessionRecord.State`) | Microsoft Agent Framework | **No promise.** A Microsoft Agent Framework minor version bump can make an older body unreadable |
+| Checkpoint state body (`WorkflowCheckpointRecord.State`) | Microsoft Agent Framework | Same as the session body — no promise |
+
+`SessionRecord.StateSchemaVersion` (always stamped, never `null`) and
+`WorkflowCheckpointRecord.StateSchemaVersion` (`null` on a row written before
+this field existed) record AgentPrism's own envelope generation.
+`StateMafVersion` on both records (`null` on an older row) records the
+Microsoft Agent Framework package version that wrote the body — this is what
+lets a failure message name the exact recorded and running versions instead
+of guessing.
+
+**What happens when a body cannot be read:**
+
+```mermaid
+flowchart LR
+    accTitle: Persisted payload restore decision
+    accDescr: Restoring a session or checkpoint checks the recorded schema generation first, then attempts to deserialize the Microsoft Agent Framework body; either failure produces a defined error naming the recorded and current versions, and the row is never deleted or reset.
+    A[Restore a session<br/>or checkpoint] --> B{Recorded schema<br/>generation}
+    B -- newer than<br/>this build understands --> C[Defined error:<br/>recorded vs. current generation]
+    B -- understood --> D[Attempt to deserialize<br/>the Microsoft Agent<br/>Framework body]
+    D -- succeeds --> E[Restored normally]
+    D -- fails --> F[Defined error:<br/>recorded vs. current<br/>Microsoft Agent Framework version]
+    C --> G[Row is NOT deleted<br/>or silently reset]
+    F --> G
+```
+
+- The error names both compared facts: the recorded generation or Microsoft
+  Agent Framework version, and the one this build runs. It never says a row
+  "may have become unreadable" without saying why.
+- The row is **never deleted or silently reset**. A silently reset session
+  loses conversation history with nothing telling the caller it happened.
+- You have two ways forward: open a new session or workflow run under a new
+  identity, or clear old sessions and checkpoints before the upgrade if you
+  do not need them to survive it.
+
 ## Upgrade safely
 
 1. Create a branch and update all AgentPrism packages together.
-2. Read the source diff for public API, configuration, and migration changes.
+2. Read the source diff for public API, configuration, and migration
+   changes — and whether the Microsoft Agent Framework version moved, which
+   affects persisted session and checkpoint bodies (above).
 3. Build with warnings as errors and run the full test suite.
 4. Start a disposable environment against a copy of production-shaped data.
 5. Inspect `/api/meta`, health checks, provider health, and migration diagnostics.
