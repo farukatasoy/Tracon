@@ -4887,3 +4887,17 @@ virtual AgentPrism.AgentPrismException.ErrorType.get -> string!
 ~override AgentPrism.ConversationBranch.ToString() -> string
 ~override AgentPrism.McpRefreshOutcome.Equals(object obj) -> bool
 ~override AgentPrism.McpRefreshOutcome.ToString() -> string
+AgentPrism.IToolArgumentsValidator
+AgentPrism.IToolArgumentsValidator.ValidateAsync(AgentPrism.ToolDescriptor! tool, Microsoft.Extensions.AI.AIFunctionArguments! arguments, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<AgentPrism.ToolArgumentsValidationResult!>
+AgentPrism.ToolArgumentsValidationResult
+AgentPrism.ToolArgumentsValidationResult.<Clone>$() -> AgentPrism.ToolArgumentsValidationResult!
+AgentPrism.ToolArgumentsValidationResult.Equals(AgentPrism.ToolArgumentsValidationResult? other) -> bool
+AgentPrism.ToolArgumentsValidationResult.IsValid.get -> bool
+AgentPrism.ToolArgumentsValidationResult.Reason.get -> string?
+override AgentPrism.ToolArgumentsValidationResult.Equals(object? obj) -> bool
+override AgentPrism.ToolArgumentsValidationResult.GetHashCode() -> int
+override AgentPrism.ToolArgumentsValidationResult.ToString() -> string!
+static AgentPrism.ToolArgumentsValidationResult.Invalid(string! reason) -> AgentPrism.ToolArgumentsValidationResult!
+static AgentPrism.ToolArgumentsValidationResult.Valid.get -> AgentPrism.ToolArgumentsValidationResult!
+static AgentPrism.ToolArgumentsValidationResult.operator !=(AgentPrism.ToolArgumentsValidationResult? left, AgentPrism.ToolArgumentsValidationResult? right) -> bool
+static AgentPrism.ToolArgumentsValidationResult.operator ==(AgentPrism.ToolArgumentsValidationResult? left, AgentPrism.ToolArgumentsValidationResult? right) -> bool

@@ -40,6 +40,7 @@ internal sealed class McpToolCatalog : IAsyncDisposable
     private readonly ILogger<McpToolCatalog> _logger;
     private readonly McpOAuthTokenCacheRegistry _tokenCaches;
     private readonly IToolAuthorizationHandler _authorizationHandler;
+    private readonly IToolArgumentsValidator _validator;
     private readonly IRunAttributionContext? _attribution;
     private readonly EgressSocketGuard? _egressGuard;
     private readonly string _allowedConfigurationPrefix;
@@ -65,6 +66,7 @@ internal sealed class McpToolCatalog : IAsyncDisposable
         ILoggerFactory loggerFactory,
         McpOAuthTokenCacheRegistry tokenCaches,
         IToolAuthorizationHandler authorizationHandler,
+        IToolArgumentsValidator validator,
         IRunAttributionContext? attribution,
         EgressSocketGuard? egressGuard = null,
         IOptions<AgentPrismMcpSecurityOptions>? securityOptions = null)
@@ -77,6 +79,7 @@ internal sealed class McpToolCatalog : IAsyncDisposable
         ArgumentNullException.ThrowIfNull(loggerFactory);
         ArgumentNullException.ThrowIfNull(tokenCaches);
         ArgumentNullException.ThrowIfNull(authorizationHandler);
+        ArgumentNullException.ThrowIfNull(validator);
 
         _servers = servers;
         _tenants = tenants;
@@ -87,6 +90,7 @@ internal sealed class McpToolCatalog : IAsyncDisposable
         _logger = loggerFactory.CreateLogger<McpToolCatalog>();
         _tokenCaches = tokenCaches;
         _authorizationHandler = authorizationHandler;
+        _validator = validator;
         _attribution = attribution;
         _egressGuard = egressGuard;
         _allowedConfigurationPrefix = (securityOptions?.Value ?? new AgentPrismMcpSecurityOptions())
@@ -162,10 +166,12 @@ internal sealed class McpToolCatalog : IAsyncDisposable
                         registrations,
                         _logger,
                         _authorizationHandler,
+                        _validator,
                         _coreOptions.Value.Tools.DefaultTimeout,
                         _attribution,
                         _loggerFactory.CreateLogger<AuthorizingAIFunction>(),
                         _loggerFactory.CreateLogger<TimeoutAIFunction>(),
+                        _loggerFactory.CreateLogger<ValidatingAIFunction>(),
                         _coreOptions.Value.Tools.DefaultMaxOutputBytes);
                     total += registrations.Count;
                 }

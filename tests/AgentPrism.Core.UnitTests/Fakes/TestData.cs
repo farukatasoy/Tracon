@@ -33,10 +33,12 @@ internal static class TestData
         => new(
             tools.Select(static tool => new AgentPrismToolRegistration(tool)),
             new AllowAllToolAuthorizationHandler(),
+            NoOpToolArgumentsValidator.Instance,
             DefaultOptionsMonitor(),
             attribution: null,
             NullLogger<AuthorizingAIFunction>.Instance,
-            NullLogger<TimeoutAIFunction>.Instance);
+            NullLogger<TimeoutAIFunction>.Instance,
+            NullLogger<ValidatingAIFunction>.Instance);
 
     /// <summary>An <see cref="IOptionsMonitor{TOptions}"/> carrying default <see cref="AgentPrismOptions"/>.</summary>
     public static IOptionsMonitor<AgentPrismOptions> DefaultOptionsMonitor()

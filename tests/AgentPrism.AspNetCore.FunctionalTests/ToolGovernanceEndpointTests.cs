@@ -66,6 +66,73 @@ public sealed class ToolGovernanceEndpointTests
             => ValueTask.FromResult(ToolAuthorizationResult.Deny(reason));
     }
 
+    private sealed class RejectingValidator(string reason) : IToolArgumentsValidator
+    {
+        public ValueTask<ToolArgumentsValidationResult> ValidateAsync(
+            ToolDescriptor tool, Microsoft.Extensions.AI.AIFunctionArguments arguments, CancellationToken cancellationToken = default)
+            => ValueTask.FromResult(ToolArgumentsValidationResult.Invalid(reason));
+    }
+
+    [Fact]
+    public async Task Rejected_arguments_complete_the_run_and_are_recorded_as_ToolFailed()
+    {
+        // docs/127, 127.2: unlike an authorization denial (recorded as an
+        // ordinary successful result), a rejected call is recorded as
+        // ToolFailed - the same conversion TimeoutAIFunction's thrown
+        // exception already produces.
+        await using var host = await AgentPrismTestHost.StartAsync(
+            builder => builder
+                .AddModelProvider(new FakeModelProvider("gov-model")
+                    .CallsTool("cancel_order", new { orderId = "ORD-8" })
+                    .EchoesLastToolResult())
+                .AddTool(
+                    (Func<string, string>)(orderId => $"{orderId} canceled."),
+                    name: "cancel_order")
+                .AddAgent(new AgentDefinition
+                {
+                    Name = AgentName,
+                    Instructions = "Give a short answer.",
+                    Model = new ModelBinding { Provider = "gov-model", Model = "gov-1" },
+                    ToolNames = ["cancel_order"],
+                }),
+            configureServices: static services =>
+            {
+                services.AddSingleton<IToolArgumentsValidator>(new RejectingValidator("The order id is not recognized."));
+                services.UseScheduling(o => o.PollInterval = TimeSpan.FromMilliseconds(20));
+            });
+
+        using var accepted = await PostQueuedAsync(host, new AgentRunRequest { Message = "cancel the order", SessionId = "s-rejected" });
+        var runId = (await AgentPrismTestHost.ReadJsonAsync(accepted)).GetProperty("runId").GetGuid();
+
+        // The rejection does NOT fail the run: the model receives the reason
+        // as its tool result and finishes its turn, same as a denial.
+        (await WaitForStatusAsync(host, runId, "Completed")).ShouldBe("Completed");
+
+        var invocations = await host.Client.GetFromJsonAsync<List<ToolInvocationRecord>>(
+            new Uri($"/agentprism/api/runs/{runId}/tools", UriKind.Relative));
+
+        var record = invocations.ShouldNotBeNull().ShouldHaveSingleItem();
+
+        record.Succeeded.ShouldBeFalse();
+        record.Error.ShouldBe("The order id is not recognized.");
+
+        var runs = host.Services.GetRequiredService<IRunStore>();
+        var events = new List<RunEvent>();
+
+        await foreach (var runEvent in runs.ReadEventsAsync(runId))
+        {
+            events.Add(runEvent);
+        }
+
+        var toolFailed = events.Where(static item => item.Type == RunEventType.ToolFailed).ShouldHaveSingleItem();
+
+        // 🚨 Security axis: the rejected call's TEXT must never carry the
+        // argument value - only the validator's own safe reason.
+        toolFailed.Text.ShouldBe("The order id is not recognized.");
+        toolFailed.Text.ShouldNotBeNull();
+        toolFailed.Text.ShouldNotContain("ORD-8");
+    }
+
     [Fact]
     public async Task Denied_call_completes_the_run_and_marks_the_record_denied()
     {
