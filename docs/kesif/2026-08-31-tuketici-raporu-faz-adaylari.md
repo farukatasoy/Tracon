@@ -35,7 +35,7 @@ Rapor 15 gap iddia etti. Ölçüm sonrası:
 | [125](../arsiv/fazlar/125-URETILEN-TOOL-SEMASININ-IFADE-GUCU.md) | Üretilen Tool Şemasının İfade Gücü | T-1 · T-2 |
 | [126](../arsiv/fazlar/126-KALICI-PAYLOAD-SURUM-SOZLESMESI.md) | Kalıcı Payload Sürüm Sözleşmesi | T-5 |
 | [127](../arsiv/fazlar/127-TOOL-KAYIT-YUZEYI.md) | Tool Kayıt Yüzeyi | T-4 · T-3 |
-| [128](../128-RUN-AGACI-SURE-BUTCESI.md) | Run Ağacı Süre Bütçesi | T-7 |
+| [128](../arsiv/fazlar/128-RUN-AGACI-SURE-BUTCESI.md) | Run Ağacı Süre Bütçesi | T-7 |
 
 En yüksek üç değer, raporun kendi "en yüksek üç" listesiyle **örtüşmüyor**.
 Rapor `IToolArgumentsValidator`, ABP paketi ve queue-nötr run API'sini
@@ -199,7 +199,7 @@ kalemin yargısı durur.
 | **T-4** `AddScopedTool` | [Faz 127](../arsiv/fazlar/127-TOOL-KAYIT-YUZEYI.md) | Kanıt ayakta. **Aday metnindeki `AddScopedTool<THandler>()` imzası reddedildi**: handler'ın tool metodunu bulmak yansıma ister (AOT) ve K-347'yi yeniden açardı. Yerine `AddTool` ile aynı şekle sahip `AddScopedTool(AIFunction, …)` planlandı |
 | **T-5** payload sürüm sözleşmesi | [Faz 126](../arsiv/fazlar/126-KALICI-PAYLOAD-SURUM-SOZLESMESI.md) | Kanıt ayakta. Kullanıcı kararı: **üçü de** — söz, damga, prova. Damga payload'ın **içine** yazılmaz: checkpoint gövdesinde `$type` ayırıcısı ilk özellik olmak zorunda. Kardeş sütun kullanılır |
 | **T-6** sağlayıcı denemesi ayrıntısı | ❌ **Reddedildi** | Aşağıda |
-| **T-7** `MaxDuration` | [Faz 128](../128-RUN-AGACI-SURE-BUTCESI.md) | **Karşı görüş ölçüldü ve çürüdü.** Süre maliyetin vekili değildir: her turda küçük bir model çağrısı yapan ama her tool'u 90 saniye bekleyen bir run token/maliyet tavanını hiç zorlamaz. Dahası kuyruğa alınmış run'da hiçbir dış zaman sınırı yok — `JobWorkerBackgroundService.cs:227` kirayı sürekli **yeniliyor** |
+| **T-7** `MaxDuration` | [Faz 128](../arsiv/fazlar/128-RUN-AGACI-SURE-BUTCESI.md) | **Karşı görüş ölçüldü ve çürüdü.** Süre maliyetin vekili değildir: her turda küçük bir model çağrısı yapan ama her tool'u 90 saniye bekleyen bir run token/maliyet tavanını hiç zorlamaz. Dahası kuyruğa alınmış run'da hiçbir dış zaman sınırı yok — `JobWorkerBackgroundService.cs:227` kirayı sürekli **yeniliyor** |
 
 ### T-6'nın kalanı neden reddedildi
 
@@ -284,7 +284,7 @@ sonra.
 | 5 | **T-4** `AddScopedTool` | [Faz 127](../arsiv/fazlar/127-TOOL-KAYIT-YUZEYI.md) | 📋 Planlandı |
 | 6 | **T-3** argüman doğrulama seam'i | [Faz 127](../arsiv/fazlar/127-TOOL-KAYIT-YUZEYI.md) | 📋 Planlandı — T-4 ile aynı kayıt zincirini paylaştığı için birleşti |
 | ~~7~~ | ~~**K-3**~~ | — | ✅ Kapandı — iki vaka + kapı |
-| 8 | **T-7** `MaxDuration` | [Faz 128](../128-RUN-AGACI-SURE-BUTCESI.md) | 📋 Planlandı |
+| 8 | **T-7** `MaxDuration` | [Faz 128](../arsiv/fazlar/128-RUN-AGACI-SURE-BUTCESI.md) | 📋 Planlandı |
 | — | **T-6** kalanı | — | ❌ Reddedildi (§2) |
 | — | **D-1 · D-2** | — | Faz değil; ilk dokunan fazın doküman senkronuna eklenir. D-1 Faz 127'ye, D-2 Faz 127'ye doğal düşer |
 
