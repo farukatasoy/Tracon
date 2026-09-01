@@ -844,7 +844,7 @@ def _site_slug_haritasi(kok: pathlib.Path) -> dict[str, pathlib.Path]:
 # Faz 90: `LINK` ham metni tarar ve KOD BLOGUNU ayirt etmez. Bir dokuman bir
 # markdown ORNEGI gosterdiginde (damitilmis faz kaydinin sablonu gibi) ornekteki
 # `](...)` gercek bir baglanti sanilir ve kapi kalici yanlis pozitif uretir --
-# olculdu: `docs/90-DOKUMAN-DAMITMA-POLITIKASI.md -> ../../ADAYLAR.md`. Var olan
+# olculdu: `docs/arsiv/fazlar/90-DOKUMAN-DAMITMA-POLITIKASI.md -> ../../ADAYLAR.md`. Var olan
 # `"sablonu.md" in rel` istisnasi ayni sinifin dosya bazli, kaba cozumuydu;
 # bu islev sorunu kaynaginda kapatir ve istisnayi gereksizlestirmez (sablon
 # dosyalari fence DISINDA da yer tutucu tasir).
@@ -1618,6 +1618,49 @@ def _gelen_baglantilari_cevir(kok: pathlib.Path, eski: str, yeni: str) -> int:
     return n
 
 
+# Kok agaclar: `docs/` DISINDA bir faz dokumanina yol yazan her yer. `_gelen_
+# baglantilari_cevir` yalniz `*.md` dosyalarini ve yalniz `](...)` sozdizimini
+# gorur; olculdu (2026-09-01): bu iki sinir birlikte 43 bayat referans biriktirdi
+# -- `.sql`/`.cs`/`.yml`/`.props`/`.py`/`.tsx` hic taranmiyordu VE `.md` icindeki
+# duz metin yol ("See docs/NN-AD.md") eslesmiyordu.
+_DUZ_REFERANS_KOKLERI = ("src", "tests", "samples", "bench", "scripts", "docs-site", ".agents", ".github")
+_DUZ_REFERANS_HARIC = {".git", "node_modules", "obj", "bin", "artifacts", "dist", ".astro", ".vite", "wwwroot", "TestResults"}
+# Uygulanmis migration BAYT DONMUSTUR (`kapi.py migration_integrity_violations`):
+# yorumunu bile degistirmek kapiyi kirmizi yapar. Referansi onarilamaz; sevk
+# edildigi ANIN dogru kaydi olarak kalir.
+_DUZ_REFERANS_DONMUS = re.compile(r"(^|/)Migrations[A-Za-z]*/")
+
+
+def _duz_yol_referanslarini_cevir(kok: pathlib.Path, eski: str, yeni: str) -> tuple[int, list[str]]:
+    """`docs/` disindaki DUZ METIN yol referanslarini cevirir.
+
+    Doner: (guncellenen dosya sayisi, onarilamayan referanslar).
+    """
+    desen = re.compile(r"(?<![\w/-])" + re.escape(eski))
+    n = 0
+    donmus: list[str] = []
+    for kok_ad in _DUZ_REFERANS_KOKLERI:
+        taban = kok / kok_ad
+        if not taban.exists():
+            continue
+        for f in sorted(taban.rglob("*")):
+            if not f.is_file() or _DUZ_REFERANS_HARIC & set(f.parts):
+                continue
+            try:
+                metin = f.read_text(encoding="utf-8")
+            except (UnicodeDecodeError, OSError):
+                continue
+            if not desen.search(metin):
+                continue
+            r = f.relative_to(kok).as_posix()
+            if _DUZ_REFERANS_DONMUS.search(r):
+                donmus.append(r)
+                continue
+            f.write_text(desen.sub(yeni, metin), encoding="utf-8")
+            n += 1
+    return n, donmus
+
+
 def komut_faz_arsivle(a: argparse.Namespace) -> int:
     """`docs/NN-*.md` -> `docs/arsiv/fazlar/NN-*.md`, bağlantılarıyla birlikte."""
     onek = f"{int(a.faz):02d}-"
@@ -1646,6 +1689,7 @@ def komut_faz_arsivle(a: argparse.Namespace) -> int:
                              posixpath.dirname(eski), posixpath.dirname(yeni)),
         encoding="utf-8")
     dokunulan = _gelen_baglantilari_cevir(ROOT, eski, yeni)
+    duz, donmus = _duz_yol_referanslarini_cevir(ROOT, eski, yeni)
 
     sonra = kirik_baglantilar()
     if len(sonra) > once:
@@ -1655,7 +1699,12 @@ def komut_faz_arsivle(a: argparse.Namespace) -> int:
         for b in sonra[:5]:
             print(f"  {b}")
         return 1
-    print(f"✅ {eski} → {yeni}  ·  {dokunulan} dosyada gelen bağlantı güncellendi")
+    print(f"✅ {eski} → {yeni}  ·  {dokunulan} dosyada gelen bağlantı, "
+          f"{duz} dosyada düz yol referansı güncellendi")
+    if donmus:
+        print("   ⚠️  Donmuş migration içindeki referans ONARILAMAZ (bayt donmuş):")
+        for r in donmus:
+            print(f"      {r}")
     print("   `python3 scripts/dokuman-bakim.py` ile YOL-HARITASI'nı yeniden üret.")
     return 0
 

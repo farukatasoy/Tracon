@@ -43,6 +43,23 @@ SCAN_EXCLUDED_DIRS = {
     "obj", "bin", "TestResults", "manuel-test", "arsiv", "manuel-test-kosumu",
 }
 SYNC_NAME = re.compile(r".+ 2(?:\..+)?$")
+
+# A markdown reference into the `docs/` tree, written OUTSIDE it. The negative lookbehind
+# keeps `docs-site/src/content/docs/...` out: that is a SITE path, not a path in
+# the `docs/` tree, and without the guard this gate produces dozens of false
+# positives and gets switched off.
+DOC_REFERENCE = re.compile(r"(?<![\w/-])docs/[A-Za-z0-9._/\-]+\.md")
+DOC_REFERENCE_ROOTS = ("src", "tests", "samples", "bench", "scripts", "docs-site", ".agents", ".github")
+# Metavariable filenames: an illustrative path in a template or in the archiving
+# script's own comments. These never resolve and are not a defect.
+DOC_REFERENCE_PLACEHOLDER = re.compile(r"(^|[-/])(NN|X|Y)([-.]|$)")
+# A migration that already ran against a customer database is BYTE-FROZEN:
+# `migration_integrity_violations` rejects any change to it, a comment included,
+# and its own docstring says updating the manifest cannot approve one. A stale
+# reference inside such a file therefore cannot be repaired — measured, not
+# assumed. The gate must not demand the impossible, so those directories are
+# exempt; the comment stays true of the moment the migration shipped.
+DOC_REFERENCE_FROZEN_DIR = re.compile(r"(^|[\\/])Migrations[A-Za-z]*[\\/]")
 SECRET_PATTERN = re.compile(
     r"sk-[a-z]+-[A-Za-z0-9_-]{24,}|AVNS_[A-Za-z0-9]{12,}|(Password|pwd)=[^ \";']{6,}"
 )
@@ -168,12 +185,45 @@ def find_secrets(root: pathlib.Path = ROOT) -> list[str]:
     return found
 
 
+def find_stale_doc_references(root: pathlib.Path = ROOT) -> list[str]:
+    """Return `path:line:reference` records for `docs/` targets that do not exist.
+
+    Archiving a phase moves `docs/NN-AD.md` to `docs/arsiv/fazlar/NN-AD.md`.
+    `faz-arsivle` rewrites the links inside `docs/`; every reference OUTSIDE that
+    tree — a migration comment, an analyzer release note that SHIPS in the
+    package, a CI workflow — was left pointing at a path that no longer exists.
+    """
+    found: list[str] = []
+    for relative_root in DOC_REFERENCE_ROOTS:
+        base = root / relative_root
+        if not base.exists():
+            continue
+        for path in _walk_files(base, excluded_dirs=SCAN_EXCLUDED_DIRS - {"arsiv"}):
+            relative = path.relative_to(root)
+            if DOC_REFERENCE_FROZEN_DIR.search(str(relative)):
+                continue
+            try:
+                lines = path.read_text(encoding="utf-8").splitlines()
+            except (OSError, UnicodeDecodeError):
+                continue
+            for line_number, line in enumerate(lines, 1):
+                for reference in DOC_REFERENCE.findall(line):
+                    name = pathlib.PurePosixPath(reference).stem
+                    if DOC_REFERENCE_PLACEHOLDER.search(name):
+                        continue
+                    if (root / reference).exists():
+                        continue
+                    found.append(f"{relative}:{line_number}:{reference}")
+    return sorted(found)
+
+
 def scan(root: pathlib.Path = ROOT) -> int:
-    """Run the synchronization-copy, secret, and migration-integrity scans."""
+    """Run the synchronization-copy, secret, migration-integrity and doc-reference scans."""
     copies = find_sync_copies(root)
     secrets = find_secrets(root)
     migrations = migration_integrity_violations(root)
-    if not copies and not secrets and not migrations:
+    stale_docs = find_stale_doc_references(root)
+    if not copies and not secrets and not migrations and not stale_docs:
         print("Tarama: ✅ temiz")
         return 0
 
@@ -191,6 +241,12 @@ def scan(root: pathlib.Path = ROOT) -> int:
         print("Tarama: ❌ uygulanmış migration değişikliği")
         for violation in migrations:
             print(f"  {violation}")
+    if stale_docs:
+        print("Tarama: ❌ bayat doküman referansı (arşivlenen faz)")
+        for reference in stale_docs[:20]:
+            print(f"  {reference}")
+        if len(stale_docs) > 20:
+            print(f"  … +{len(stale_docs) - 20}")
     return 1
 
 
@@ -296,7 +352,7 @@ def frontend_changed(paths: Iterable[str]) -> bool:
 
 
 # -----------------------------------------------------------------------------
-# `performans` - allocation gate (docs/116-PERFORMANS-TAHSIS-KAPISI.md)
+# `performans` - allocation gate (docs/arsiv/fazlar/116-PERFORMANS-TAHSIS-KAPISI.md)
 #
 # The gate compares ALLOCATED BYTES, never wall-clock duration: on a shared CI
 # runner, allocation is deterministic (same code -> same byte count) while
@@ -587,7 +643,7 @@ def test_command(project: str, patterns: Sequence[str]) -> Command:
 
 
 # -----------------------------------------------------------------------------
-# `yayin` - release rehearsal (docs/97-SURUM-POLITIKASI-VE-YAYIN-PROVASI.md, 97.2)
+# `yayin` - release rehearsal (docs/arsiv/fazlar/97-SURUM-POLITIKASI-VE-YAYIN-PROVASI.md, 97.2)
 #
 # Writes nothing to a network. It packs the solution (forcing a version via the
 # MinVerVersionOverride environment variable when --surum is given - no git tag
@@ -745,7 +801,7 @@ def release_rehearsal(
         # Yalnız GERÇEK bir sürüm şeklinde çözümlenen koşumda zorlanır - ya
         # `--surum` ile insan tarafından yerel bir provada, ya da gerçek bir
         # `v*` etiketiyle. Etiketlenmemiş her rutin CI koşumu yukarıdaki dalı
-        # alır ve bu kapıyı hiç görmez (docs/123-YAYIN-KRITIK-YOLU.md, 123.3).
+        # alır ve bu kapıyı hiç görmez (docs/arsiv/fazlar/123-YAYIN-KRITIK-YOLU.md, 123.3).
         sys.path.insert(0, str(ROOT / "scripts"))
         import changelog
 

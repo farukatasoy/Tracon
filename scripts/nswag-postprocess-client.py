@@ -41,7 +41,7 @@ of the real one. MEASURED (2026-08-26): discovered via JsonElement, whose 16
 affected properties throw JsonException on any wire value that is not a JSON
 object (an array, e.g. EvalCaseResult.Scores) - a pre-existing, previously
 undetected defect found while adding the eval CLI command (EvalCommandTests,
-docs/115-EVALIN-BASSIZ-KOSUCUSU.md). CLASS SWEEP found a second instance:
+docs/arsiv/fazlar/115-EVALIN-BASSIZ-KOSUCUSU.md). CLASS SWEEP found a second instance:
 ChatRole (ChatMessage.Role) has the identical empty-schema shape for the
 identical reason (its own [JsonConverter(typeof(ChatRole.Converter))]).
 Renaming a colliding schema would only rename the collision, not fix it: a

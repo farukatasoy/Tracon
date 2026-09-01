@@ -185,6 +185,19 @@ kullanmış. Kural: `faz-arsivle` koştuktan sonra `dokuman-bakim.py --denetle`
 çıktısındaki **Kırık bağlantı** satırını oku; sıfır değilse elle düzelt.
 Aynı ağaçtaki kardeş faza verilen bağlantılar en riskli olanlardır.
 
+**Aynı sınıf ÜÇÜNCÜ kez tekrarladı (2026-09-01) — artık kapı var.** Onarım iki
+eksende kördü: yalnız `*.md` dosyalarını tarıyor **ve** yalnız `](...)`
+sözdizimini eşleştiriyordu. İkisi birlikte 43 bayat referans biriktirdi:
+`.sql`/`.cs`/`.yml`/`.props`/`.py`/`.tsx` hiç taranmıyordu, `.md` içindeki
+**düz metin** yol (`See docs/NN-AD.md` — analyzer sürüm notu, pakete **sevk
+edilen** bir dosya) eşleşmiyordu. Onarım `_duz_yol_referanslarini_cevir` ile
+genişletildi; kapı `kapi.py tarama` → *bayat doküman referansı*.
+
+🚨 **Uygulanmış migration'daki referans ONARILAMAZ** — bayt donmuştur
+(`migration_integrity_violations`), yorumunu değiştirmek bile kapıyı kırar
+(ölçüldü). Kapı `Migrations*/` dizinlerini dışlar, arşivleme onları uyarı
+olarak listeler: bir yorum sevk edildiği **anın** doğru kaydıdır.
+
 ## Sevk edilen XML dokumani kendi kapisina takilir (Faz 99)
 
 `ShippedDocumentationSelfContainmentTests` yalniz `docs/` yollarini ve faz/karar

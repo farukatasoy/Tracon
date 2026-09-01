@@ -9,7 +9,7 @@ namespace AgentPrism.Cli.FunctionalTests;
 
 /// <summary>
 /// <c>agentprism eval</c> against a real, listening AgentPrism host
-/// (docs/115-EVALIN-BASSIZ-KOSUCUSU.md): triggers a suite through
+/// (docs/arsiv/fazlar/115-EVALIN-BASSIZ-KOSUCUSU.md): triggers a suite through
 /// <c>AgentPrism.Client</c>, polls it to completion through the background job
 /// worker, and applies the CLI's own threshold gate.
 /// </summary>
