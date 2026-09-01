@@ -1,13 +1,13 @@
 # Faz 131 — Yapısal Yanıt Doğrulama Seam'i
 
 > **Durum:** ✅ Tamamlandı (2026-09-01)
-> **Kaynak:** [kesif/2026-09-01-tuketici-feature-talepleri.md](kesif/2026-09-01-tuketici-feature-talepleri.md) — **F-174**
+> **Kaynak:** [kesif/2026-09-01-tuketici-feature-talepleri.md](../../kesif/2026-09-01-tuketici-feature-talepleri.md) — **F-174**
 > **Önkoşul:** Yok
 > **Paketler:** `AgentPrism.Abstractions`, `.Core`, `.AspNetCore` (yalnız `RunEventType` yüzeyi), `.UI` (olay etiketi)
 > **Yeni paket:** Yok · **Migration:** Yok — yeni `RunEventType` ve `RunErrorClass` değerleri mevcut `smallint` sütunlarına yazılır
 > **Public API:** büyüyor — yeni arayüz, options, olay ve hata sınıfı. `wc -l src/*/PublicAPI.Shipped.txt` → her dosya 1 satır; shipped giriş sıfır olduğu için bugün eklemek ucuz
 > **Tüketici yüzeyi:** `docs-site/`: `guides/structured-output.md`, `concepts/runs.md` (olay listesi), `capabilities.md`, `reference/configuration.md` · sevk edilen: `IStructuredResponseValidator` XML `<example>`'ı, `en.ts`/`tr.ts` olay etiketi
-> **Manuel test alanı:** [`docs/manuel-test/22-GUARDRAIL-VE-YAPISAL-CIKTI.md`](manuel-test/22-GUARDRAIL-VE-YAPISAL-CIKTI.md)
+> **Manuel test alanı:** [`docs/manuel-test/22-GUARDRAIL-VE-YAPISAL-CIKTI.md`](../../manuel-test/22-GUARDRAIL-VE-YAPISAL-CIKTI.md)
 
 ---
 
@@ -22,18 +22,18 @@
    ```
    **K-603** (`RunErrorClass`'ın 9 numarası emekli bir boşluktur, yeniden
    kullanılamaz), **K-232** (sunucu yanıtları çevrilmez).
-3. [Faz 127](arsiv/fazlar/127-TOOL-KAYIT-YUZEYI.md) — yalnız devir notu:
+3. [Faz 127](127-TOOL-KAYIT-YUZEYI.md) — yalnız devir notu:
    ```bash
    awk '/## Sonraki Faza Devir Notu/,0' docs/arsiv/fazlar/127-TOOL-KAYIT-YUZEYI.md
    ```
    `IToolArgumentsValidator`'ı o faz sevk etti. Bu faz **aynı seam biçimini**
    yanıt tarafında tekrarlar; iki arayüz birbirine benzemek zorundadır.
 4. Alan hafızası (bu faz iki alana dokunuyor):
-   [`hafiza/cekirdek-calistirma.md`](hafiza/cekirdek-calistirma.md) (decorator
+   [`hafiza/cekirdek-calistirma.md`](../../hafiza/cekirdek-calistirma.md) (decorator
    sırası, `AsyncLocal` tuzağı, akışlı yol),
-   [`hafiza/model-boru-hatti.md`](hafiza/model-boru-hatti.md) (`IChatClient`
+   [`hafiza/model-boru-hatti.md`](../../hafiza/model-boru-hatti.md) (`IChatClient`
    halkalarının sırası ve neden bu faz oraya girmiyor).
-5. Gerektiğinde: [`MIMARI.md`](MIMARI.md) — çalıştırma yolu bölümü.
+5. Gerektiğinde: [`MIMARI.md`](../../MIMARI.md) — çalıştırma yolu bölümü.
 
 ---
 
@@ -79,16 +79,16 @@ kullanır; iki yerde iki farklı politika tutarsız bir ürün anlatısı olur.
 
 | Kanıt | Gözlem |
 |---|---|
-| [`AgentDefinitionCompiler.ChatOptions.cs:108`](../src/AgentPrism.Core/Compilation/AgentDefinitionCompiler.ChatOptions.cs) | `options.ResponseFormat = BuildResponseFormat(definition)` — kısıt sağlayıcıya gider |
-| [`AgentDefinitionCompiler.ChatOptions.cs:138-191`](../src/AgentPrism.Core/Compilation/AgentDefinitionCompiler.ChatOptions.cs) | `BuildResponseFormat` yalnız `ChatResponseFormat` üretir; dönen yanıtla ilgili **hiçbir kod yok** |
-| [`ResponseFormat.cs`](../src/AgentPrism.Abstractions/Agents/ResponseFormat.cs) | `AgentResponseFormat.Schema`'nın "içeriği doğrulanmaz" olduğu XML'de yazılı |
-| [`AgentDescriptor.cs:32`](../src/AgentPrism.Abstractions/Agents/AgentDescriptor.cs) | `public ModelBinding? Model { get; init; }` — **decorator şemaya buradan ulaşır**; ayrı bir taşıma yolu gerekmez |
-| [`AgentDecoratorPipeline.cs`](../src/AgentPrism.Core/Catalog/AgentDecoratorPipeline.cs) | `decorators.OrderByDescending(d => d.Order)` — **büyük `Order` önce uygulanır**, yani en içte kalır |
+| [`AgentDefinitionCompiler.ChatOptions.cs:108`](../../../src/AgentPrism.Core/Compilation/AgentDefinitionCompiler.ChatOptions.cs) | `options.ResponseFormat = BuildResponseFormat(definition)` — kısıt sağlayıcıya gider |
+| [`AgentDefinitionCompiler.ChatOptions.cs:138-191`](../../../src/AgentPrism.Core/Compilation/AgentDefinitionCompiler.ChatOptions.cs) | `BuildResponseFormat` yalnız `ChatResponseFormat` üretir; dönen yanıtla ilgili **hiçbir kod yok** |
+| [`ResponseFormat.cs`](../../../src/AgentPrism.Abstractions/Agents/ResponseFormat.cs) | `AgentResponseFormat.Schema`'nın "içeriği doğrulanmaz" olduğu XML'de yazılı |
+| [`AgentDescriptor.cs:32`](../../../src/AgentPrism.Abstractions/Agents/AgentDescriptor.cs) | `public ModelBinding? Model { get; init; }` — **decorator şemaya buradan ulaşır**; ayrı bir taşıma yolu gerekmez |
+| [`AgentDecoratorPipeline.cs`](../../../src/AgentPrism.Core/Catalog/AgentDecoratorPipeline.cs) | `decorators.OrderByDescending(d => d.Order)` — **büyük `Order` önce uygulanır**, yani en içte kalır |
 | `RunRecordingAgentDecorator.cs:114` · `OpenTelemetryAgentDecorator.cs:37` · `ToolApprovalAgentDecorator.cs:38` | `Order` değerleri sırasıyla **0 · 10 · 20**. En dıştaki kayıt (`0`) `run` kaydıdır |
-| [`RunEventType.cs`](../src/AgentPrism.Abstractions/Runs/RunEventType.cs) | En büyük değer **26** (`ToolOutputTruncated`) |
-| [`RunErrorClass.cs`](../src/AgentPrism.Abstractions/Runs/RunErrorClass.cs) | En büyük değer **13** (`ToolTimeout`). 🚨 **9 emekli bir boşluktur** ve yeniden kullanılamaz (K-603); `RunErrorClassContractTests` bunu sabitler |
-| [`IToolArgumentsValidator.cs`](../src/AgentPrism.Abstractions/Tools/IToolArgumentsValidator.cs) | Sevk edilmiş pozisyon: *"AgentPrism does not ship a built-in JSON Schema validator — validation stays inside the consumer's own trust boundary."* Ayrıca fail-closed davranışı burada tanımlı |
-| [`SafeErrorText.cs`](../src/AgentPrism.Abstractions/Diagnostics/SafeErrorText.cs) | Kalıcı hata metnini güvenli hâle getiren yardımcı **zaten var**; bu faz onu kullanır, yenisini yazmaz |
+| [`RunEventType.cs`](../../../src/AgentPrism.Abstractions/Runs/RunEventType.cs) | En büyük değer **26** (`ToolOutputTruncated`) |
+| [`RunErrorClass.cs`](../../../src/AgentPrism.Abstractions/Runs/RunErrorClass.cs) | En büyük değer **13** (`ToolTimeout`). 🚨 **9 emekli bir boşluktur** ve yeniden kullanılamaz (K-603); `RunErrorClassContractTests` bunu sabitler |
+| [`IToolArgumentsValidator.cs`](../../../src/AgentPrism.Abstractions/Tools/IToolArgumentsValidator.cs) | Sevk edilmiş pozisyon: *"AgentPrism does not ship a built-in JSON Schema validator — validation stays inside the consumer's own trust boundary."* Ayrıca fail-closed davranışı burada tanımlı |
+| [`SafeErrorText.cs`](../../../src/AgentPrism.Abstractions/Diagnostics/SafeErrorText.cs) | Kalıcı hata metnini güvenli hâle getiren yardımcı **zaten var**; bu faz onu kullanır, yenisini yazmaz |
 
 > Kanıtlar 2026-09-01 tarihinde doğrulandı.
 
@@ -281,7 +281,7 @@ docs-site/src/content/docs/guides/structured-output.md · concepts/runs.md · ca
 ## Hata Modları ve Testler
 
 > Doğrulama DI · akış · `run` kaydı sınırlarını geçer. Birim testi bunu
-> kanıtlamaz — [`.agents/ortak/test-seviyeleri.md`](../.agents/ortak/test-seviyeleri.md).
+> kanıtlamaz — [`.agents/ortak/test-seviyeleri.md`](../../../.agents/ortak/test-seviyeleri.md).
 
 | Ne bozulabilir | Seviye | Test sınıfı |
 |---|---|---|
