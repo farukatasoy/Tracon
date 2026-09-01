@@ -923,6 +923,17 @@ internal static class AgentEndpoints
                 statusCode: StatusCodes.Status400BadRequest);
         }
 
+        var lane = request.Lane ?? JobLanes.Default;
+
+        if (!JobLanes.IsValidName(lane))
+        {
+            return Results.Problem(
+                title: "Invalid lane",
+                detail: $"'{lane}' is not a valid lane name. A lane name must be 1-64 characters: lowercase " +
+                        "ASCII letters, digits, '.', '_', or '-', starting with a letter or digit.",
+                statusCode: StatusCodes.Status400BadRequest);
+        }
+
         Microsoft.Agents.AI.AIAgent? agent;
 
         try
@@ -986,6 +997,7 @@ internal static class AgentEndpoints
                 Id = runId,
                 TenantId = tenantContext.TenantId,
                 Kind = JobKind.AgentRun,
+                Lane = lane,
                 TargetName = name,
                 Status = JobStatus.Pending,
                 Payload = BuildQueuedRunPayload(runId, request.Message, request.SessionId),

@@ -53,6 +53,46 @@ internal sealed class AgentPrismSchedulingOptionsValidator : IValidateOptions<Ag
                 $"must be at least 1. Actual value: {options.MaxItemsPerJob}.");
         }
 
+        if (options.Lanes is { } lanes)
+        {
+            foreach (var lane in lanes)
+            {
+                if (!JobLanes.IsValidName(lane))
+                {
+                    (failures ??= []).Add(
+                        $"{nameof(AgentPrismSchedulingOptions)}.{nameof(AgentPrismSchedulingOptions.Lanes)} " +
+                        $"contains '{lane}', which is not a valid lane name.");
+                }
+            }
+        }
+
+        foreach (var (lane, max) in options.MaxConcurrentJobsPerLane)
+        {
+            if (!JobLanes.IsValidName(lane))
+            {
+                (failures ??= []).Add(
+                    $"{nameof(AgentPrismSchedulingOptions)}.{nameof(AgentPrismSchedulingOptions.MaxConcurrentJobsPerLane)} " +
+                    $"contains '{lane}', which is not a valid lane name.");
+            }
+
+            if (max < 1)
+            {
+                (failures ??= []).Add(
+                    $"{nameof(AgentPrismSchedulingOptions)}.{nameof(AgentPrismSchedulingOptions.MaxConcurrentJobsPerLane)}" +
+                    $"['{lane}'] must be at least 1. Actual value: {max}.");
+            }
+        }
+
+        foreach (var lane in options.LaneByKind.Values)
+        {
+            if (!JobLanes.IsValidName(lane))
+            {
+                (failures ??= []).Add(
+                    $"{nameof(AgentPrismSchedulingOptions)}.{nameof(AgentPrismSchedulingOptions.LaneByKind)} " +
+                    $"contains '{lane}', which is not a valid lane name.");
+            }
+        }
+
         return failures is null
             ? ValidateOptionsResult.Success
             : ValidateOptionsResult.Fail(failures);

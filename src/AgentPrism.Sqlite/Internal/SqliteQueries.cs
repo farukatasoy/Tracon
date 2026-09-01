@@ -1069,7 +1069,7 @@ internal sealed class SqliteQueries : SqlQueriesBase
         UpsertJobSchedule = $"""
             INSERT INTO {Schema}job_schedules ({ScheduleColumns})
             VALUES (@id, @tenant_id, @name, @kind, @target_name, @cron, @time_zone, @payload, @enabled,
-                    @next_run_at, @last_run_at, @created_by, @created_at, @updated_at)
+                    @next_run_at, @last_run_at, @created_by, @created_at, @updated_at, @lane)
             ON CONFLICT (tenant_id, name) DO UPDATE
                 SET kind        = excluded.kind,
                     target_name = excluded.target_name,
@@ -1079,7 +1079,8 @@ internal sealed class SqliteQueries : SqlQueriesBase
                     enabled     = excluded.enabled,
                     next_run_at = excluded.next_run_at,
                     last_run_at = excluded.last_run_at,
-                    updated_at  = excluded.updated_at
+                    updated_at  = excluded.updated_at,
+                    lane        = excluded.lane
             RETURNING id, created_by, created_at;
             """;
 
@@ -1123,8 +1124,9 @@ internal sealed class SqliteQueries : SqlQueriesBase
                    started_at = COALESCE(started_at, @now)
              WHERE id = (
                    SELECT id FROM {Schema}jobs
-                    WHERE (status = 0 AND scheduled_for <= @now)
-                       OR (status IN (1, 2) AND lease_until < @now)
+                    WHERE ((status = 0 AND scheduled_for <= @now)
+                       OR (status IN (1, 2) AND lease_until < @now))
+                      AND (@lanes IS NULL OR EXISTS (SELECT 1 FROM json_each(@lanes) WHERE value = lane))
                     ORDER BY scheduled_for
                     LIMIT 1)
             RETURNING {JobColumns};
@@ -1137,6 +1139,7 @@ internal sealed class SqliteQueries : SqlQueriesBase
               AND (@kind        IS NULL OR kind        = @kind)
               AND (@status      IS NULL OR status      = @status)
               AND (@schedule_id IS NULL OR schedule_id = @schedule_id)
+              AND (@lane        IS NULL OR lane         = @lane)
             ORDER BY created_at DESC
             LIMIT @take OFFSET @skip;
             """;

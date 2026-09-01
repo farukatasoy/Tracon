@@ -1,6 +1,6 @@
 # 16 — İş Kuyruğu, Zamanlama, Tek Yürütücü Seçimi ve Dayanıklı Çalıştırma (`JOB`)
 
-> **Alan kodu:** `JOB` · **Faz:** 17, 42, 46, 66, 120
+> **Alan kodu:** `JOB` · **Faz:** 17, 42, 46, 66, 120, 129
 > **Kaynak:** `src/AgentPrism.Abstractions/Scheduling/` (tümü) ·
 > `src/AgentPrism.Abstractions/Coordination/` (tümü — `ISingletonLeaseStore`,
 > `SingletonExecutionOptions`) ·
@@ -31,7 +31,11 @@
 > `src/AgentPrism.PostgreSql/Migrations/0033_inbound_triggers.sql` ·
 > `src/AgentPrism.AspNetCore/Endpoints/TriggerEndpoints.cs` ·
 > `src/AgentPrism.AspNetCore/Contracts/TriggerContracts.cs` ·
-> `src/AgentPrism.UI/frontend/src/screens/triggers.tsx` (Faz 66).
+> `src/AgentPrism.UI/frontend/src/screens/triggers.tsx` (Faz 66) ·
+> `src/AgentPrism.Abstractions/Scheduling/JobLanes.cs` ·
+> `src/AgentPrism.PostgreSql/Migrations/0041_job_lanes.sql`,
+> `src/AgentPrism.SqlServer/Migrations/0028_job_lanes.sql`,
+> `src/AgentPrism.Sqlite/Migrations/0028_job_lanes.sql` (Faz 129).
 >
 > Ortam kurulumu, fixture verisi ve reset yordamı [`00-INDEKS.md`](00-INDEKS.md)'dedir.
 
@@ -2213,3 +2217,202 @@ dotnet test samples/AgentPrism.Samples.CustomJobHandler.Tests/AgentPrism.Samples
 - Proje `PackageReference` ile `AgentPrism`/`AgentPrism.Testing.Contracts.Xunit`
   paketlerini kullanır — `ProjectReference` değil; gerçek bir dış tüketicinin
   göreceği yüzeyi kanıtlar.
+
+# 9 — Lane'ler (Faz 129)
+
+> Bir job bir `lane` taşır (varsayılan `"default"`). Worker yalnız seçtiği
+> `lane`'lere abone olur; bir `lane` kendi eşzamanlılık bütçesini alabilir.
+> Aşağıdaki case'ler `docs/129-IS-KUYRUGU-LANELERI.md`'nin plan taslağındaki
+> `POST /api/agents/{name}/batch` referansını **düzeltir** — böyle bir uç
+> yoktur; kuyruklu tek çalıştırma gerçek uçtan (`POST
+> /api/agents/{name}/run`, `Prefer: respond-async`) geçer.
+
+### MT-JOB-110 — Ayar yapılmayan kurulumda her job `default` `lane`'inde çalışır
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 129 |
+| **İlgili karar** | K1 |
+
+**Ön koşul**
+- `AgentPrism:Scheduling:Lanes`/`MaxConcurrentJobsPerLane`/`LaneByKind` HİÇ
+  ayarlanmamış (varsayılan kurulum).
+
+**Adımlar**
+1. `ozet-toplu`'yu tetikle (§2'deki gibi).
+
+**Girilecek veri**
+```bash
+curl -s "$APU/api/jobs/<job-id>" -H "$APB" | python3 -c "import json,sys; print(json.load(sys.stdin)['job']['lane'])"
+```
+
+**Beklenen sonuç**
+- `"default"`. Davranış Faz 128 ile birebir aynıdır — hiçbir `lane` filtresi
+  uygulanmaz, işçi her `lane`'den kiralar.
+
+---
+
+### MT-JOB-111 — `Lanes: ["media"]` olan worker `default` `lane`'inden kiralayamaz
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 129 |
+| **İlgili karar** | — |
+
+**Adımlar**
+1. `dotnet user-secrets set "AgentPrism:Scheduling:Lanes:0" "media"`,
+   yeniden başlat.
+2. `ozet-toplu`'yu tetikle (`lane` alanı yok → `default`).
+3. 30 saniye bekle.
+4. `dotnet user-secrets remove "AgentPrism:Scheduling:Lanes:0"`, yeniden
+   başlat — iş bu kez normal tamamlanır.
+
+**Girilecek veri**
+```bash
+curl -s "$APU/api/jobs/<job-id>" -H "$APB" | python3 -c "import json,sys; print(json.load(sys.stdin)['job']['status'])"
+curl -s "$APU/api/jobs?lane=default" -H "$APB" | python3 -c "import json,sys; print(len(json.load(sys.stdin)))"
+```
+
+**Beklenen sonuç**
+- Adım 3 sonrası: `status: "Pending"` — worker yalnız `media`'ya abone,
+  `default` işini hiç kiralamaz.
+- `GET /api/jobs?lane=default` işi listede gösterir — iş kayıp değildir,
+  yalnız kimse dinlemiyordur.
+
+---
+
+### MT-JOB-112 — `MaxConcurrentJobsPerLane` dolu bir `lane`, `default`'u aç bırakır
+
+Sınır durumu — head-of-line blocking'in çözüldüğünün kanıtı.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 129 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- İki zamanlama: biri `lane: "media"` taşıyan ve UZUN süren bir agent'a
+  hedefli (ör. çok adımlı bir workflow), biri `lane` alanı boş (`default`)
+  ve KISA süren `ozetleyici`'ye hedefli.
+
+**Adımlar**
+1. `dotnet user-secrets set "AgentPrism:Scheduling:MaxConcurrentJobsPerLane:media" "1"`,
+   yeniden başlat.
+2. `media` zamanlamasını İKİ kez tetikle (iki iş, `media` `lane`'inde).
+3. Hemen ardından `default` zamanlamasını tetikle.
+4. Ayarı kaldır, yeniden başlat.
+
+**Girilecek veri**
+```bash
+curl -s "$APU/api/jobs/<default-job-id>" -H "$APB" | python3 -c "import json,sys; print(json.load(sys.stdin)['job']['status'])"
+```
+
+**Beklenen sonuç**
+- `default` işi, `media`'nın iki (uzun) işi hâlâ sürerken `Completed` olur —
+  `media`'nın dolu olması `default`'u BEKLETMEZ.
+
+---
+
+### MT-JOB-113 — Kuyruklu tek çalıştırmada geçersiz `lane` → `400`
+
+Negatif senaryo. `Prefer: respond-async` yolu — plandaki (var olmayan)
+`POST .../batch` DEĞİL.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 129 |
+| **İlgili karar** | — |
+
+**Girilecek veri**
+```bash
+curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/agents/ozetleyici/run" -H "$APB" \
+     -H 'Prefer: respond-async' -H "content-type: application/json" \
+     -d '{"message":"test","lane":"Media"}'
+```
+
+**Beklenen sonuç**
+- `HTTP: 400`, `detail` küçük harf kuralını söyler (`'Media' is not a valid
+  lane name...`). İş kuyruğa hiç yazılmaz.
+
+---
+
+### MT-JOB-114 — Kuyruklu tek çalıştırma istenen `lane`'i taşır
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 129 |
+| **İlgili karar** | — |
+
+**Girilecek veri**
+```bash
+curl -s -X POST "$APU/api/agents/ozetleyici/run" -H "$APB" \
+     -H 'Prefer: respond-async' -H "content-type: application/json" \
+     -d '{"message":"test","lane":"media"}' | python3 -c "import json,sys; print(json.load(sys.stdin)['runId'])"
+curl -s "$APU/api/jobs/<run-id>" -H "$APB" | python3 -c "import json,sys; print(json.load(sys.stdin)['job']['lane'])"
+```
+
+**Beklenen sonuç**
+- `"media"`. `lane` alanı boş bırakılırsa `"default"` (veya
+  `LaneByKind[AgentRun]` ayarlıysa onun eşlediği değer).
+
+---
+
+### MT-JOB-115 — `retry` `lane`'i korur; geçersiz `lane`'li zamanlama `400` alır
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 129 |
+| **İlgili karar** | — |
+
+**Adımlar**
+1. `lane: "Media"` (büyük harf) ile bir zamanlama kaydetmeyi dene.
+2. `lane: "media"` ile kaydet, var olmayan bir agent hedefle (MT-JOB-026
+   deseni), tetikle.
+3. `attempt` ilerlerken (§2'nin retry merdiveni) her denemede `lane`'i oku.
+
+**Girilecek veri**
+```bash
+curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/schedules/buyuk-harf-lane" -H "$APB" \
+     -H "content-type: application/json" -d '{
+  "kind":"AgentBatch","targetName":"ozetleyici","timeZone":"UTC","lane":"Media","payload":[]
+}'
+```
+
+**Beklenen sonuç**
+- Adım 1: `HTTP: 400`.
+- Adım 3: `job.lane` her denemede `"media"` — `ReleaseForRetryAsync`
+  `lane`'i değiştirmez.
+
+---
+
+### MT-JOB-116 — Jobs ekranı: `lane` sütunu ve süzgeci
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Düşük |
+| **İlgili faz** | Faz 129 |
+| **İlgili karar** | — |
+
+**Adımlar**
+1. Jobs ekranını aç. Schedules ve Recent jobs tablolarındaki `Lane`
+   sütununa bak.
+2. "Recent jobs" panelindeki `Filter by lane…` kutusuna `media` yaz.
+
+**Beklenen sonuç**
+- Her iki tabloda da `Lane` sütunu değeri gösterir (varsayılan işlerde
+  `default`).
+- Süzgeç yazıldıktan sonra yalnız o `lane`'deki işler kalır; kutu
+  boşaltılınca liste eski hâline döner.

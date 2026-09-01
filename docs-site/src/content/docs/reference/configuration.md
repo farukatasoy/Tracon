@@ -300,6 +300,9 @@ registers more than one image provider or a custom keyed generator.
 | `Scheduling:LeaseDuration` | 5 minutes |
 | `Scheduling:MaxAttempts` | `3` |
 | `Scheduling:MaxItemsPerJob` | `1000` |
+| `Scheduling:Lanes` | `null`; leases from every lane |
+| `Scheduling:MaxConcurrentJobsPerLane` | empty; a lane not listed shares `MaxConcurrentJobs` |
+| `Scheduling:LaneByKind` | empty; maps a job kind to a lane when the caller left it unset |
 | `AsyncRun:Enabled` | `true` |
 | `AsyncRun:MaxAttempts` | `1` |
 | `SingletonExecution:Enabled` | `false` |

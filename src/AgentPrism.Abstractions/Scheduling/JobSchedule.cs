@@ -23,6 +23,13 @@ public sealed record JobSchedule
     /// <summary>The kind of job this schedule produces.</summary>
     public required JobKind Kind { get; init; }
 
+    /// <summary>
+    /// The lane the jobs this schedule produces run in. See
+    /// <see cref="JobLanes"/>. Both a cron-dispatched run and a manual
+    /// <c>POST .../trigger</c> inherit this value.
+    /// </summary>
+    public string Lane { get; init; } = JobLanes.Default;
+
     /// <summary>The agent or workflow name to run.</summary>
     public required string TargetName { get; init; }
 

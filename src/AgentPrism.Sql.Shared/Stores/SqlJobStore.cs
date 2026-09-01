@@ -1,5 +1,6 @@
 using System.Data.Common;
 using System.Text.Json;
+using Microsoft.Extensions.Options;
 
 namespace AgentPrism;
 
@@ -16,16 +17,21 @@ internal sealed class SqlJobStore : IJobStore
 {
     private readonly SqlStoreContext _context;
     private readonly SqlQueriesBase _sql;
+    private readonly IOptionsMonitor<AgentPrismSchedulingOptions>? _schedulingOptions;
 
     /// <summary>Creates a new job store.</summary>
     /// <param name="context">The store context.</param>
+    /// <param name="schedulingOptions">
+    /// The source for <c>LaneByKind</c>. <see langword="null"/> disables lane-by-kind resolution.
+    /// </param>
     /// <exception cref="ArgumentNullException">One of the dependencies is <see langword="null"/>.</exception>
-    public SqlJobStore(SqlStoreContext context)
+    public SqlJobStore(SqlStoreContext context, IOptionsMonitor<AgentPrismSchedulingOptions>? schedulingOptions = null)
     {
         ArgumentNullException.ThrowIfNull(context);
 
         _context = context;
         _sql = context.Sql;
+        _schedulingOptions = schedulingOptions;
     }
 
     /// <summary>The gateway for provider-specific behavior.</summary>
@@ -39,6 +45,8 @@ internal sealed class SqlJobStore : IJobStore
     {
         ArgumentNullException.ThrowIfNull(job);
         ArgumentNullException.ThrowIfNull(items);
+
+        var lane = JobLanes.Resolve(job.Lane, job.Kind, _schedulingOptions?.CurrentValue.LaneByKind);
 
         var connection = await _context.DataSource.OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
 
@@ -59,6 +67,7 @@ internal sealed class SqlJobStore : IJobStore
                 Dialect.AddTimestamp(insertJob, "scheduled_for", job.ScheduledFor);
                 Dialect.AddTimestamp(insertJob, "created_at", job.CreatedAt);
                 Dialect.AddInt16(insertJob, "max_attempts", job.MaxAttempts is { } maxAttempts ? (short)maxAttempts : null);
+                DbHelpers.Add(insertJob, "lane", lane);
                 await DbHelpers.ExecuteAsync(insertJob, cancellationToken).ConfigureAwait(false);
 
                 if (items.Count > 0)
@@ -83,6 +92,7 @@ internal sealed class SqlJobStore : IJobStore
 
         return job with
         {
+            Lane = lane,
             Status = JobStatus.Pending,
             TotalItems = items.Count,
             DoneItems = 0,
@@ -102,6 +112,7 @@ internal sealed class SqlJobStore : IJobStore
     public async ValueTask<JobRecord?> LeaseAsync(
         string owner,
         TimeSpan leaseDuration,
+        IReadOnlyList<string>? lanes,
         CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(owner);
@@ -112,6 +123,7 @@ internal sealed class SqlJobStore : IJobStore
         DbHelpers.Add(command, "owner", owner);
         Dialect.AddTimestamp(command, "lease_until", (now + leaseDuration));
         Dialect.AddTimestamp(command, "now", now);
+        Dialect.AddTextArray(command, "lanes", lanes is { Count: > 0 } ? lanes : null);
 
         return await DbHelpers.ReadSingleAsync(command, ReadJob, cancellationToken).ConfigureAwait(false);
     }
@@ -230,6 +242,7 @@ internal sealed class SqlJobStore : IJobStore
         Dialect.AddInt16(command, "kind", (short?)query.Kind);
         Dialect.AddInt16(command, "status", (short?)query.Status);
         AddNullableUuid(command, "schedule_id", query.ScheduleId);
+        AddNullableText(command, "lane", query.Lane);
         DbHelpers.Add(command, "skip", Math.Max(query.Skip, 0));
         DbHelpers.Add(command, "take", Math.Max(query.Take, 0));
 
@@ -290,6 +303,7 @@ internal sealed class SqlJobStore : IJobStore
             ErrorMessage = DbHelpers.GetNullableString(reader, 16),
             CreatedAt = DbHelpers.GetTimestamp(reader, 17),
             MaxAttempts = reader.IsDBNull(18) ? null : reader.GetInt16(18),
+            Lane = reader.GetString(19),
         };
 
     private static JobItemRecord ReadJobItem(DbDataReader reader)

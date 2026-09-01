@@ -9,6 +9,9 @@ public sealed record JobQuery
     /// <summary>Fetches only jobs of this kind.</summary>
     public JobKind? Kind { get; init; }
 
+    /// <summary>Fetches only jobs in this lane. See <see cref="JobLanes"/>.</summary>
+    public string? Lane { get; init; }
+
     /// <summary>Fetches only jobs in this status.</summary>
     public JobStatus? Status { get; init; }
 

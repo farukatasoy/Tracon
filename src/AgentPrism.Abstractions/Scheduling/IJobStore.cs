@@ -39,11 +39,17 @@ public interface IJobStore
     /// </summary>
     /// <param name="owner">The leasing worker's identifier.</param>
     /// <param name="leaseDuration">The lease's validity duration.</param>
+    /// <param name="lanes">
+    /// Restricts leasing to these lanes (see <see cref="JobLanes"/>).
+    /// <see langword="null"/> or empty applies no filter — a job from any
+    /// lane may be leased, the same behavior as before lanes existed.
+    /// </param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>The leased job; <see langword="null"/> if none exists.</returns>
     ValueTask<JobRecord?> LeaseAsync(
         string owner,
         TimeSpan leaseDuration,
+        IReadOnlyList<string>? lanes,
         CancellationToken cancellationToken = default);
 
     /// <summary>Extends an in-progress job's lease. Does not change the job's status.</summary>

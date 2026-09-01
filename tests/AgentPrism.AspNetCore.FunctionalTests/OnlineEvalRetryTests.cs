@@ -100,7 +100,7 @@ public sealed class OnlineEvalRetryTests
     private static async Task RunOneAttemptAsync(IJobStore jobStore, OnlineEvalJobHandler handler, Guid jobId)
     {
         var owner = $"test-worker-{Guid.NewGuid():N}";
-        var leased = await jobStore.LeaseAsync(owner, TimeSpan.FromMinutes(5));
+        var leased = await jobStore.LeaseAsync(owner, TimeSpan.FromMinutes(5), lanes: null);
         leased.ShouldNotBeNull();
         leased!.Id.ShouldBe(jobId);
 
