@@ -22,14 +22,16 @@ namespace AgentPrism;
 /// with an incomplete context and would also corrupt the root run.
 /// </para>
 /// <para>
-/// The token and cost dimensions are enforced differently, by a decorator
-/// installed inside the tool-call loop (<c>RunBudgetChatClient</c>, internal
-/// to <c>AgentPrism.Core</c>): once <see cref="IsExhausted"/> is
+/// The token, cost, and duration dimensions are enforced the same way, by a
+/// decorator installed inside the tool-call loop (<c>RunBudgetChatClient</c>,
+/// internal to <c>AgentPrism.Core</c>): once <see cref="IsExhausted"/> is
 /// <see langword="true"/>, that decorator refuses the tree's <strong>next</strong>
 /// model call, so a long-running tool loop is cut off mid-run rather than
 /// only at its next child call. The cutoff always lands between two model
 /// turns, never inside one — the decorator only ever refuses a call it has
-/// not yet made.
+/// not yet made. A tool that itself runs long is <strong>not</strong> interrupted;
+/// the cutoff waits for that tool call to finish and only then refuses the
+/// model call that would follow it.
 /// </para>
 /// </remarks>
 public sealed class AgentRunBudget
@@ -43,9 +45,43 @@ public sealed class AgentRunBudget
     // currency units before overflow.
     private const decimal CostScale = 1_000_000_000m;
 
+    private readonly TimeProvider _timeProvider;
+
     private long _consumedTokens;
     private long _consumedCostNanoUnits;
     private int _startedRuns;
+
+    /// <summary>Creates a new run budget.</summary>
+    /// <param name="maxDuration">
+    /// The wall-clock time the whole tree may take, taken at face value: unlike
+    /// the four <see langword="init"/> dimensions below, <see langword="null"/>
+    /// is the only value that means "no limit" — <see cref="TimeSpan.Zero"/> or
+    /// a negative value produces a <see cref="Deadline"/> that has already
+    /// passed, the same way a raw <c>MaxTotalTokens = 0</c> reads as
+    /// "exhausted from the start" rather than "unlimited". The "zero/negative
+    /// means unlimited" convention is applied one layer up, in
+    /// <c>AgentPrismAgentGraphOptions.CreateBudget</c> (<c>AgentPrism.Core</c>).
+    /// </param>
+    /// <param name="timeProvider">
+    /// The time source <see cref="Deadline"/> is computed from and every later
+    /// expiry check reads. Defaults to <see cref="TimeProvider.System"/>.
+    /// </param>
+    public AgentRunBudget(TimeSpan? maxDuration = null, TimeProvider? timeProvider = null)
+    {
+        _timeProvider = timeProvider ?? TimeProvider.System;
+        MaxDuration = maxDuration;
+
+        if (maxDuration is { } duration)
+        {
+            var now = _timeProvider.GetUtcNow();
+
+            // A caller-supplied TimeSpan.MaxValue (or anything close to it) would
+            // overflow DateTimeOffset's year-9999 ceiling; clamped rather than
+            // thrown, since an absurd duration should behave as "practically
+            // unlimited", not crash run creation.
+            Deadline = duration <= DateTimeOffset.MaxValue - now ? now + duration : DateTimeOffset.MaxValue;
+        }
+    }
 
     /// <summary>
     /// The maximum tokens spendable across the tree. If <see langword="null"/>,
@@ -77,6 +113,19 @@ public sealed class AgentRunBudget
     /// </summary>
     public int MaxDepth { get; init; } = 3;
 
+    /// <summary>
+    /// The wall-clock time the whole tree may take, counted from when this
+    /// budget was constructed. If <see langword="null"/>, there is no time limit.
+    /// </summary>
+    public TimeSpan? MaxDuration { get; }
+
+    /// <summary>
+    /// The instant the tree's time budget runs out. Computed once, when this
+    /// budget was constructed; every run in the tree shares the same value.
+    /// <see langword="null"/> when <see cref="MaxDuration"/> is <see langword="null"/>.
+    /// </summary>
+    public DateTimeOffset? Deadline { get; }
+
     /// <summary>The tokens spent across the tree so far.</summary>
     public long ConsumedTokens => Interlocked.Read(ref _consumedTokens);
 
@@ -94,21 +143,25 @@ public sealed class AgentRunBudget
     public bool IsCostBudgetExhausted
         => MaxTotalCost is { } max && ConsumedCost >= max;
 
+    /// <summary>Whether the tree's <see cref="Deadline"/> has passed.</summary>
+    public bool IsDurationBudgetExhausted
+        => Deadline is { } deadline && _timeProvider.GetUtcNow() >= deadline;
+
     /// <summary>
-    /// Whether the tree has spent past its token or cost limit. Does
+    /// Whether the tree has spent past its token, cost, or time limit. Does
     /// <strong>not</strong> reflect <see cref="MaxTotalRuns"/>: the run-count
     /// limit only blocks starting a <em>new</em> child run
     /// (<see cref="TryReserveRun"/>), it says nothing about whether the
     /// current run may keep calling its model.
     /// </summary>
-    public bool IsExhausted => IsTokenBudgetExhausted || IsCostBudgetExhausted;
+    public bool IsExhausted => IsTokenBudgetExhausted || IsCostBudgetExhausted || IsDurationBudgetExhausted;
 
     /// <summary>
     /// Reserves budget room for a new child run.
     /// </summary>
     /// <returns>
     /// <see langword="true"/> if room was reserved; <see langword="false"/> if
-    /// the token, cost, or count limit has been exceeded.
+    /// the token, cost, time, or count limit has been exceeded.
     /// </returns>
     /// <remarks>
     /// The counter increments only when room is reserved. If a failed attempt
@@ -184,8 +237,8 @@ public sealed class AgentRunBudget
         => $"{DescribeExceededLimit()} A new child run cannot be started.";
 
     /// <summary>
-    /// Produces a user-facing text describing the token or cost limit that cut
-    /// a model call short mid-run.
+    /// Produces a user-facing text describing the token, cost, or time limit
+    /// that cut a model call short mid-run.
     /// </summary>
     /// <remarks>
     /// Only called once <see cref="IsExhausted"/> is <see langword="true"/>;
@@ -206,6 +259,15 @@ public sealed class AgentRunBudget
         {
             return $"The run tree's cost budget is exhausted ({ConsumedCost:0.000000}/{MaxTotalCost:0.000000}). " +
                    "Raise AgentPrism:AgentGraph:MaxTotalCost to allow more.";
+        }
+
+        if (IsDurationBudgetExhausted)
+        {
+            var elapsed = _timeProvider.GetUtcNow() - (Deadline!.Value - MaxDuration!.Value);
+
+            return $"The run tree's time budget is exhausted ({elapsed}/{MaxDuration}). " +
+                   "Raise AgentPrism:AgentGraph:MaxDuration to allow more. This is a cutoff between " +
+                   "model turns, not a hard timeout: a tool call already in progress is not interrupted.";
         }
 
         return $"The run tree's child-run limit is reached ({StartedRuns}/{MaxTotalRuns}). " +

@@ -254,7 +254,7 @@ possible by design.
 :::
 
 This is a *different* budget from the one every root run's call tree carries
-(`AgentGraph.MaxTotalTokens`/`MaxTotalCost`, see [Reliable
+(`AgentGraph.MaxTotalTokens`/`MaxTotalCost`/`MaxDuration`, see [Reliable
 runs](/guides/reliability/#bound-multi-agent-trees)): a quota is scoped to a tenant
 or agent over a day or month and never interrupts a run in progress; the call-tree
 budget is scoped to one run's tree and is checked between model turns, so it *does*

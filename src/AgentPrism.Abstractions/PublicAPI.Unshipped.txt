@@ -313,16 +313,19 @@ AgentPrism.AgentResponseFormatKind.Json = 1 -> AgentPrism.AgentResponseFormatKin
 AgentPrism.AgentResponseFormatKind.JsonSchema = 2 -> AgentPrism.AgentResponseFormatKind
 AgentPrism.AgentResponseFormatKind.Text = 0 -> AgentPrism.AgentResponseFormatKind
 AgentPrism.AgentRunBudget
-AgentPrism.AgentRunBudget.AgentRunBudget() -> void
+AgentPrism.AgentRunBudget.AgentRunBudget(System.TimeSpan? maxDuration = null, System.TimeProvider? timeProvider = null) -> void
 AgentPrism.AgentRunBudget.ConsumedCost.get -> decimal
 AgentPrism.AgentRunBudget.ConsumedTokens.get -> long
+AgentPrism.AgentRunBudget.Deadline.get -> System.DateTimeOffset?
 AgentPrism.AgentRunBudget.DescribeExhaustion() -> string!
 AgentPrism.AgentRunBudget.DescribeModelCallExhaustion() -> string!
 AgentPrism.AgentRunBudget.IsCostBudgetExhausted.get -> bool
+AgentPrism.AgentRunBudget.IsDurationBudgetExhausted.get -> bool
 AgentPrism.AgentRunBudget.IsExhausted.get -> bool
 AgentPrism.AgentRunBudget.IsTokenBudgetExhausted.get -> bool
 AgentPrism.AgentRunBudget.MaxDepth.get -> int
 AgentPrism.AgentRunBudget.MaxDepth.init -> void
+AgentPrism.AgentRunBudget.MaxDuration.get -> System.TimeSpan?
 AgentPrism.AgentRunBudget.MaxTotalCost.get -> decimal?
 AgentPrism.AgentRunBudget.MaxTotalCost.init -> void
 AgentPrism.AgentRunBudget.MaxTotalRuns.get -> int?

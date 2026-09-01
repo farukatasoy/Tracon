@@ -173,16 +173,41 @@ public sealed class AgentPrismAgentGraphOptions
     /// </summary>
     public int MaxTotalRuns { get; set; } = 25;
 
+    /// <summary>
+    /// Gets or sets the wall-clock time the whole tree may take, counted from
+    /// the root run's start. Zero or a negative value removes the limit.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Unlike the other three dimensions, this has no non-zero default: an
+    /// eval run and a chat turn do not run on the same time scale, so there is
+    /// no one duration every installation should be silently held to.
+    /// </para>
+    /// <para>
+    /// The cutoff always lands between two model turns; a tool call already in
+    /// progress when the deadline passes is <strong>not</strong> interrupted
+    /// and runs to completion. See <see cref="AgentRunBudget"/>.
+    /// </para>
+    /// </remarks>
+    public TimeSpan MaxDuration { get; set; }
+
     /// <summary>Creates a tree budget from these options.</summary>
+    /// <param name="timeProvider">
+    /// The time source <see cref="AgentRunBudget.Deadline"/> is computed from.
+    /// </param>
     /// <returns>The budget that the root run shares through its tree.</returns>
-    public AgentRunBudget CreateBudget()
-        => new()
+    public AgentRunBudget CreateBudget(TimeProvider timeProvider)
+    {
+        ArgumentNullException.ThrowIfNull(timeProvider);
+
+        return new(MaxDuration > TimeSpan.Zero ? MaxDuration : null, timeProvider)
         {
             MaxDepth = Math.Max(MaxDepth, 0),
             MaxTotalTokens = MaxTotalTokens > 0 ? MaxTotalTokens : null,
             MaxTotalCost = MaxTotalCost > 0 ? MaxTotalCost : null,
             MaxTotalRuns = MaxTotalRuns > 0 ? MaxTotalRuns : null,
         };
+    }
 }
 
 /// <summary>Defines limits for skill content and agent attachment.</summary>

@@ -109,7 +109,7 @@ public sealed class AgentRunBudgetCostTests
     [Fact]
     public void Zero_or_negative_MaxTotalCost_removes_the_limit()
     {
-        var budget = new AgentPrismAgentGraphOptions { MaxTotalCost = 0m }.CreateBudget();
+        var budget = new AgentPrismAgentGraphOptions { MaxTotalCost = 0m }.CreateBudget(TimeProvider.System);
 
         budget.MaxTotalCost.ShouldBeNull();
     }
@@ -117,7 +117,7 @@ public sealed class AgentRunBudgetCostTests
     [Fact]
     public void Positive_MaxTotalCost_carries_through()
     {
-        var budget = new AgentPrismAgentGraphOptions { MaxTotalCost = 12.5m }.CreateBudget();
+        var budget = new AgentPrismAgentGraphOptions { MaxTotalCost = 12.5m }.CreateBudget(TimeProvider.System);
 
         budget.MaxTotalCost.ShouldBe(12.5m);
     }

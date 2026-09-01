@@ -285,6 +285,14 @@ public static partial class AgentPrismServiceCollectionExtensions
         {
             options.MaxTotalRuns = maxRuns;
         }
+
+        if (TimeSpan.TryParse(
+                section[nameof(AgentPrismAgentGraphOptions.MaxDuration)],
+                CultureInfo.InvariantCulture,
+                out var maxDuration))
+        {
+            options.MaxDuration = maxDuration;
+        }
     }
 
     private static void BindAttachments(IConfigurationSection section, AgentPrismAttachmentOptions options)

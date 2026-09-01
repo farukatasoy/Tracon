@@ -1,6 +1,6 @@
 # 23 — Saklama, Arşiv, Kota ve Çalıştırma-İçi Bütçe (`RET`)
 
-> **Alan kodu:** `RET` · **Faz:** 21 (yalnız kota dilimi), 25, 36, 114
+> **Alan kodu:** `RET` · **Faz:** 21 (yalnız kota dilimi), 25, 36, 114, 128
 > **Kaynak:** `src/AgentPrism.Abstractions/Retention/` (tümü) ·
 > `src/AgentPrism.Core/Retention/` (tümü) ·
 > `src/AgentPrism.Sql.Shared/Internal/RetentionTargetRegistry.cs` ·
@@ -12,7 +12,9 @@
 > `src/AgentPrism.Core/Recording/RunRecordingAgent.cs`
 > (`RecordQuotaAsync`, kök-çalıştırma kapısı) ·
 > `src/AgentPrism.Abstractions/Runs/AgentRunBudget.cs` ·
-> `src/AgentPrism.Core/Models/RunBudgetChatClient.cs` (Faz 114).
+> `src/AgentPrism.Core/Models/RunBudgetChatClient.cs` (Faz 114) ·
+> `src/AgentPrism.Core/AgentPrismOptions.cs`
+> (`AgentPrismAgentGraphOptions.MaxDuration`, Faz 128).
 >
 > 🚨 **Faz 21'in yalnız KOTA dilimi bu dosyanındır.** Hız sınırı
 > (`AgentPrismRateLimitFilter`) ve webhook/olay yayını (`WebhookEndpoints`,
@@ -24,6 +26,13 @@
 > kesmez (MT-RET-032). Faz 114'ün ağaç bütçesi (`AgentGraph.MaxTotalTokens`/
 > `MaxTotalCost`) tek bir çalıştırma ağacına özeldir ve model turları
 > ARASINDA denetlenir — devam eden bir tool döngüsünü ortasında keser.
+>
+> 🚨 **§6 (Faz 128) `§5`'in BEŞİNCİ boyutudur, ayrı bir mekanizma değil.**
+> `AgentGraph.MaxDuration` aynı `AgentRunBudget` nesnesine, aynı kesme
+> noktasına (`RunBudgetChatClient.ThrowIfExhausted`) ve aynı hata sınıfına
+> (`QuotaExceeded`, K-630) oturur — yalnız kesen boyut süredir, token/maliyet
+> değil. Kuyruğa alınmış (dayanıklı) `run`'da bugüne kadar HİÇBİR zaman
+> sınırı yoktu; §6'nın kanıtladığı asıl yenilik budur (T-7).
 >
 > Ortam kurulumu, fixture verisi ve reset yordamı [`00-INDEKS.md`](00-INDEKS.md)'dedir.
 
@@ -1499,3 +1508,216 @@ curl -s "$APU/api/runs/$RUN_ID" -H "$APB" | jq '{status, errorClass: .error.clas
 **Beklenen sonuç**
 - `status: "Failed"`, `errorClass: "QuotaExceeded"` — arka plan yolu
   senkron yolla **aynı** kesme davranışını üretir; 👤 arayüzde hata görünür.
+
+---
+
+# 6 — Run ağacı süre bütçesi (Faz 128)
+
+`AgentGraph.MaxDuration`, ağaç bütçesinin **beşinci** boyutudur (bkz. dosya
+başındaki 🚨 not). MT-RET-050..055'in aynen tekrarıdır — yalnız düşürülen
+tavan token değil süredir, ve §5'te yalnız senkron yol ölçülmüşken burada
+kuyruklu (dayanıklı) yol da ayrıca ölçülür, çünkü T-7'nin asıl gerekçesi
+budur: bugüne kadar kuyruğa alınmış bir `run`'ı zamanla sınırlayan **hiçbir
+şey** yoktu.
+
+**Ön koşul (tüm case'ler için ortak)**
+- Örnek uygulama, düşürülmüş bir tavanla başlatılır. `1` milisaniyelik bir
+  tavan seçilir çünkü gerçek bir OpenAI ağ turu her zaman bundan uzun
+  sürer — bu yüzden İLK model turu her zaman biter, kesme İKİNCİ turda olur:
+  ```bash
+  export AgentPrism__AgentGraph__MaxDuration="00:00:00.001"
+  cd samples/AgentPrism.Api && dotnet run
+  ```
+
+### MT-RET-060 — Düşük süre tavanı, bir tool döngülü `run`'ı KESER
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 128 |
+| **İlgili karar** | K-630 |
+
+**Ölçüldü (2026-09-01, gerçek OpenAI çağrısı, `samples/AgentPrism.Api`,
+`export AgentPrism__AgentGraph__MaxDuration="00:00:00.001"`).**
+
+**Adımlar**
+1. `support` agent'ına bir sipariş sorusu sor (tool çağrısını tetikler).
+2. `POST` `502` döner; `run` kaydını `GET /api/runs`'tan oku.
+
+**Girilecek veri**
+```bash
+curl -s -X POST "$APU/api/agents/support/run" \
+  -H "$APB" -H "content-type: application/json" -H "Idempotency-Key: $(uuidgen)" \
+  -d '{"message":"Where is my order 42?"}' | jq '{status, detail}'
+
+RUN_ID=$(curl -s "$APU/api/runs?agentName=support" -H "$APB" | jq -r '.[0].id')
+curl -s "$APU/api/runs/$RUN_ID" -H "$APB" | jq '{status, errorClass: .error.class, errorType: .error.type, errorMessage: .error.message}'
+```
+
+**Beklenen sonuç (2026-09-01'de bu adımlarla ölçüldü)**
+- `POST` yanıtı `502` — `title: "Agent run failed"`.
+- `status: "Failed"`.
+- `errorType: "run_budget_exceeded"` — Faz 114'ün aynı istisnası, yeni bir
+  tip AÇILMADI.
+- `errorClass: "QuotaExceeded"` — token/maliyet kesmesiyle **aynı** sınıf
+  (K-630); mesaj hangi boyutun dolduğunu ayırt eder.
+- `errorMessage` hangi tavanın (`süre`) dolduğunu, hangi ayarın
+  (`AgentPrism:AgentGraph:MaxDuration`) yükseltileceğini VE tavanın sert bir
+  zaman aşımı olmadığını adıyla yazar — ölçülen tam metin: *"The run tree's
+  time budget is exhausted (00:00:00.0932770/00:00:00.0010000). Raise
+  AgentPrism:AgentGraph:MaxDuration to allow more. This is a cutoff between
+  model turns, not a hard timeout: a tool call already in progress is not
+  interrupted. No further model calls can be made in this run tree."*
+- Elapsed süre (`0.093...`) tavandan (`0.001`) büyüktür ama **sıfıra
+  yakındır** — kesme gerçekten İKİNCİ model turunda oldu, ilk turun
+  ortasında değil (tool gerçekten çağrıldı, sipariş sorgusu sonuçlandı).
+
+---
+
+### MT-RET-061 — Kesilen `run` istemciye YARIM bir tool sonucu veya model mesajı SIZDIRMAZ
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 128 |
+| **İlgili karar** | — |
+
+**Ölçüldü (2026-09-01, gerçek OpenAI çağrısı).** MT-RET-051'in aynı ölçümü
+— aynı sebeple (bkz. MT-RET-051'in notu, Microsoft Agent Framework kısmi
+ilerlemeyi geri döndürmez): olay akışı yalnız `RunStarted` → `RunFailed`
+taşır.
+
+**Ön koşul**
+- MT-RET-060 çalıştırılmış, aynı `RUN_ID` elde tutuluyor.
+
+**Adımlar**
+1. Kesilen `run`'ın olay akışını oku.
+
+**Girilecek veri**
+```bash
+curl -s --max-time 5 "$APU/api/runs/$RUN_ID/events" -H "$APB"
+```
+
+**Beklenen sonuç (2026-09-01'de ölçüldü)**
+- Akış tam olarak iki olay taşır: `event: run.started` ardından
+  `event: run.failed` (`eventCount: 2`).
+- `run.failed`'in `data.text` alanı MT-RET-060'taki tam hata metnini taşır.
+- Aralarında **hiçbir** `run.tool_invoking`/`run.tool_invoked`/
+  `run.message_delta` olayı yoktur.
+
+---
+
+### MT-RET-062 — Hiçbir tavan tanımlı değilken davranış AYNIDIR (gerileme yok)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 128 |
+| **İlgili karar** | — |
+
+**Ölçüldü (2026-09-01, gerçek OpenAI çağrısı).**
+
+**Ön koşul**
+- Örnek uygulama, tavan **olmadan** yeniden başlatılır:
+  ```bash
+  unset AgentPrism__AgentGraph__MaxDuration
+  cd samples/AgentPrism.Api && dotnet run
+  ```
+
+**Adımlar**
+1. Aynı sipariş sorusunu sor.
+
+**Girilecek veri**
+```bash
+RUN_ID=$(curl -s -X POST "$APU/api/agents/support/run" \
+  -H "$APB" -H "content-type: application/json" -H "Idempotency-Key: $(uuidgen)" \
+  -d '{"message":"Where is my order 42?"}' | jq -r '.runId')
+
+curl -s "$APU/api/runs/$RUN_ID" -H "$APB" | jq '{status, errorClass: .error.class}'
+```
+
+**Beklenen sonuç (2026-09-01'de ölçüldü)**
+- `status: "Completed"`, `errorClass: null` — varsayılan (boş) `MaxDuration`
+  bu kısa `run`'ı hiç zorlamaz; MT-RET-060'ın kesmesi yalnız DÜŞÜRÜLMÜŞ
+  tavanın sonucudur.
+
+---
+
+### MT-RET-063 — `202 Accepted` ile arka planda koşan (kuyruklu/dayanıklı) `run` da aynı şekilde kesilir
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 128 |
+| **İlgili karar** | K-630 |
+
+Bu case, T-7'nin **asıl** gerekçesidir: `JobWorkerBackgroundService` kuyruklu
+işi koşarken kirayı sürekli yeniler, HTTP isteğinin doğal bir zaman aşımı
+orada yoktur — `AgentGraph.MaxDuration`'dan önce kuyruklu bir `run`'ı zamanla
+sınırlayan **hiçbir şey** yoktu.
+
+**Ölçüldü (2026-09-01, gerçek OpenAI çağrısı, düşük tavanla — MT-RET-060'ın
+ortamı).**
+
+**Ön koşul**
+- MT-RET-060'taki gibi düşük süre tavanıyla (`00:00:00.001`) başlatılmış
+  örnek uygulama.
+
+**Adımlar**
+1. `Prefer: respond-async` başlığıyla aynı sorguyu gönder (dayanıklı
+   çalıştırma, Faz 46).
+2. Kayıt tamamlanana kadar `run` kaydını poll et.
+
+**Girilecek veri**
+```bash
+RUN_ID=$(curl -s -X POST "$APU/api/agents/support/run" \
+  -H "$APB" -H "content-type: application/json" -H "Idempotency-Key: $(uuidgen)" \
+  -H "Prefer: respond-async" \
+  -d '{"message":"Where is my order 42?"}' | jq -r '.id // .runId')
+
+sleep 2
+curl -s "$APU/api/runs/$RUN_ID" -H "$APB" | jq '{status, errorClass: .error.class, errorType: .error.type}'
+```
+
+**Beklenen sonuç (2026-09-01'de ölçüldü, 1 saniye içinde tamamlandı)**
+- `status: "Failed"`, `errorClass: "QuotaExceeded"`,
+  `errorType: "run_budget_exceeded"` — arka plan yolu senkron yolla
+  (MT-RET-060) **aynı** kesme davranışını üretir; kira yenilense de `run`
+  kesilir.
+
+---
+
+### MT-RET-064 — İptal, süre tavanından ÖNCE gelirse hata sınıfı `Canceled` KALIR
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 128 |
+| **İlgili karar** | — |
+
+Sınır senaryosu — MT-RET-032'nin (kota × devam eden çalıştırma) aynı
+gerekçesiyle **elle güvenilir biçimde tetiklenemez**: senaryo, bir tool
+GERÇEKTEN çalışırken (ve son tarih ÇOKTAN geçmişken) `POST
+/api/runs/{id}/cancel`'ın tam o anda çağrılmasını gerektirir — zamanlaması
+elle koşumda tesadüfe kalır. Güvence, otomatik fonksiyonel teste
+bırakılmıştır:
+`tests/AgentPrism.AspNetCore.FunctionalTests/RunDeadlineTests.cs` →
+`Cancelling_a_run_while_the_deadline_has_already_passed_still_classifies_as_Canceled`
+— bir `TaskCompletionSource` ile tool'un GERÇEKTEN çalıştığı an
+belirlenip tam o anda `cancel` ucu çağrılır, ardından çalıştırmanın
+`Canceled` (asla `QuotaExceeded` değil) bittiği doğrulanır.
+
+**Not (davranışın kod-okuması):** `RunBudgetChatClient.ThrowIfExhausted`
+son tarih kontrolünü senkron yapar ve `cancellationToken`'a hiç bakmaz —
+kesme her zaman bir SONRAKİ model çağrısından önce, cancellation ise devam
+eden bir tool çağrısının kendi `await`'inden fırlar. İkisi aynı ana denk
+gelirse (`run` zaten iptal edilmeye çalışılıyorken son tarih de dolmuşsa),
+hangisinin önce fırlayacağı çalışma zamanının hangi noktada olduğuna
+bağlıdır — otomatik test bunu, tool'un cancellation'ı GÖZLEMLEYECEĞİ
+noktayı sabitleyerek (bir `TaskCompletionSource.WaitAsync(cancellationToken)`
+ile) deterministik hâle getirir.

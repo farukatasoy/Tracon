@@ -84,11 +84,13 @@ public sealed class AgentRunBudgetTests
     [Fact]
     public void Budget_built_from_settings_carries_the_defaults()
     {
-        var budget = new AgentPrismAgentGraphOptions().CreateBudget();
+        var budget = new AgentPrismAgentGraphOptions().CreateBudget(TimeProvider.System);
 
         budget.MaxDepth.ShouldBe(3);
         budget.MaxTotalTokens.ShouldBe(200_000);
         budget.MaxTotalRuns.ShouldBe(25);
+        budget.MaxDuration.ShouldBeNull();
+        budget.Deadline.ShouldBeNull();
     }
 
     [Fact]
@@ -98,9 +100,12 @@ public sealed class AgentRunBudgetTests
         {
             MaxTotalTokens = 0,
             MaxTotalRuns = 0,
-        }.CreateBudget();
+            MaxDuration = TimeSpan.Zero,
+        }.CreateBudget(TimeProvider.System);
 
         budget.MaxTotalTokens.ShouldBeNull();
         budget.MaxTotalRuns.ShouldBeNull();
+        budget.MaxDuration.ShouldBeNull();
+        budget.Deadline.ShouldBeNull();
     }
 }

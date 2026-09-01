@@ -145,6 +145,20 @@ Kural: bir dinleyiciyi **tam olarak bir kez** yık. Sınıf taraması (2026-08-3
 `HttpListener` ve "port 0'ı rezerve et, bırak, sonra bağlan" deseni depoda
 **tek dosyadadır** (`ImageAttachmentWriterTests`); başka vaka yok.
 
+## 🚨 Bir global sahte `TimeProvider` kaydı arka plan servisini de dondurur (Faz 128)
+
+`AgentPrismTestHost.StartAsync`'te `services.AddSingleton<TimeProvider>(fakeClock)`
+yalnız test edilen KODU değil, **host'un kendi arka plan servislerini** de
+etkiler — `JobWorkerBackgroundService`'in poll/kira-yenileme döngüsü AYNI
+`TimeProvider`'ı okur. Elle ilerleyen bir sahte saat (`ManualTimeProvider`,
+yalnız `Advance()` çağrılınca ilerler) o döngüyü **sonsuza kadar dondurur** —
+ölçüldü: `UseScheduling` ile kuyruğa alınan bir `run` 30 saniye boyunca
+`Queued`'dan hiç çıkmadı, test zaman aşımına uğradı. Senkron (job worker'sız)
+bir senaryo sahte saatle sorunsuz çalışır; kuyruklu/arka-plan bir senaryoyu
+test ederken ya **gerçek saat + kısa gerçek süre** kullan (örnek: kısa bir
+`MaxDuration` + `Task.Delay` ile gerçekten geciken bir tool), ya da yalnız
+SENKRON yolu sahte saatle test et. Vaka: `RunDeadlineTests.Deadline_is_enforced_on_the_queued_durable_run_path_too`.
+
 ## Kapanış kapısı taban ölçümleri
 
 Faz 91 taban/sonrası wall-clock ve proje-başına sonuç tabloları
