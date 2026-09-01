@@ -82,7 +82,7 @@ decisions can be overridden or composed with your own rules — see
 
 | Capability | Registration or source | What is enforced |
 |---|---|---|
-| Generated tools | `[AgentPrismTool]` and `AddGeneratedTools()` | Compile-time discovery without reflection or dynamic code |
+| Generated tools | `[AgentPrismTool]` and `AddGeneratedTools()` | Compile-time discovery without reflection or dynamic code; `minimum`/`maximum`/length/`pattern` constraints from standard `DataAnnotations` attributes reach the schema |
 | Direct tools | `AddTool(AIFunction, configure)` | Exact tool instance and its approval, effect, permission, timeout, repeatability, and output policy |
 | Delegate tools | `AddTool(delegate)` | Convenient reflection path; trimming and dynamic-code warnings reach the caller |
 | Scanned tools | `AddToolsFrom<T>()` or `AddToolsFrom(Type)` | Only attributed methods become tools; this path uses reflection |

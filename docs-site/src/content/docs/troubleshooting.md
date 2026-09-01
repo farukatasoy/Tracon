@@ -537,7 +537,7 @@ source-generated path, or accept and document that the application is not AOT-sa
 
 | Ids | Category | What it reports |
 |---|---|---|
-| `APG0001`–`APG0009` | `AgentPrism.Tools` | A method marked `[AgentPrismTool]` cannot be generated, or a parameter has no description. Errors: fix the method. `APG0009` is a warning. |
+| `APG0001`–`APG0010` | `AgentPrism.Tools` | A method marked `[AgentPrismTool]` cannot be generated, a parameter has no description, or a constraint attribute does not apply. Errors: fix the method. `APG0009` and `APG0010` are warnings. |
 | `APG0101`, `APG0102` | `AgentPrism.Usage` | A registration this compilation never makes. The application fails at run time. |
 | `APG0201` | `AgentPrism.Usage` | A definition carries a literal secret instead of the name of a configuration key. |
 | `APG0301`, `APG0302` | `AgentPrism.Usage` | Code written by hand for behaviour the package already ships. |
@@ -568,11 +568,14 @@ other type — a custom class, a dictionary, a tuple — has no schema mapping a
 reported instead of silently ignored.
 
 **The generator's expression boundary, stated once:** it can express a parameter's
-scalar type, array shape, `description`, and whether it is required. It can never
-express a nested object, or a `minimum`, `maximum`, length, or `pattern` constraint
-— on any parameter, supported type or not. There is no partial path: a parameter
-either gets an exact schema within that boundary, or it needs the escape route
-below.
+scalar type, array shape, `description`, whether it is required, and a `minimum`,
+`maximum`, length, or `pattern` constraint from a standard `System.ComponentModel.
+DataAnnotations` attribute (`RangeAttribute`, `MinLengthAttribute`, `MaxLengthAttribute`,
+`StringLengthAttribute`, `RegularExpressionAttribute` — see [Write your own
+tool](/guides/write-your-own-tool/)). It can never express a **nested object** — on
+any parameter, supported type or not. There is no partial path for a nested object:
+a parameter either gets an exact schema within that boundary, or it needs the escape
+route below.
 
 Change the parameter to a supported type, or register the tool by hand instead of
 through `[AgentPrismTool]`:
@@ -671,6 +674,29 @@ public static Task<OrderReceipt> SubmitOrderAsync(
 This is a warning, not an error — existing code keeps compiling. `AIFunctionFactory.Create`
 reads the same attribute, so a tool written either way teaches the model the same
 way. `CancellationToken` never needs one: it never reaches the schema.
+
+### A parameter constraint does not apply (APG0010)
+
+A `System.ComponentModel.DataAnnotations` constraint attribute was found on a
+parameter whose type or shape it does not support — `[Range]` on a `string`, a
+length constraint on a `bool`, or `[Range(typeof(decimal), "0", "1")]` (the
+`Type`-based overload never gives the generator a compile-time constant). The
+constraint is silently left out of the generated schema instead of producing a
+wrong one:
+
+```csharp
+// APG0010: [Range] does not apply to string.
+public static void SetCode([Range(1, 10)] string code) { }
+```
+
+This is a warning, not an error — existing code keeps compiling, minus the one
+constraint. Remove the attribute, or register the tool by hand instead of through
+`[AgentPrismTool]`:
+
+```csharp
+builder.AddAgentPrism()
+       .AddTool(AIFunctionFactory.Create(MyMethod));
+```
 
 ### APG0101 or APG0102 fires although the registration exists
 
