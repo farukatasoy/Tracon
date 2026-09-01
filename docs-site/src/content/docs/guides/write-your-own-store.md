@@ -111,6 +111,12 @@ sessions, agent definitions, jobs, evals, experiments, webhooks, and more. Each 
 the same shape: derive the matching `*Contract` class, supply a store instance, run
 `dotnet test`.
 
+`IJobStore`'s contract (`JobStoreContract`) also verifies lane behavior: `LeaseAsync`
+takes an optional list of lanes and must only return a job from one of them, `null` or
+an empty list applies no filter, and a retried job keeps its lane. See
+[Background work](/guides/background-work/) for what a lane is and how a job's lane is
+chosen.
+
 ## Read next
 
 - [Persistence](/getting-started/persistence/) — the three shipped providers, for

@@ -193,6 +193,8 @@ AgentPrism.AgentRunRequest.Culture.get -> string?
 AgentPrism.AgentRunRequest.Culture.init -> void
 AgentPrism.AgentRunRequest.SessionId.get -> string?
 AgentPrism.AgentRunRequest.SessionId.init -> void
+AgentPrism.AgentRunRequest.Lane.get -> string?
+AgentPrism.AgentRunRequest.Lane.init -> void
 AgentPrism.AgentSkillRequest
 AgentPrism.AgentSkillRequest.<Clone>$() -> AgentPrism.AgentSkillRequest!
 AgentPrism.AgentSkillRequest.AgentSkillRequest() -> void
@@ -342,6 +344,8 @@ AgentPrism.JobScheduleSaveRequest.Equals(AgentPrism.JobScheduleSaveRequest? othe
 AgentPrism.JobScheduleSaveRequest.JobScheduleSaveRequest() -> void
 AgentPrism.JobScheduleSaveRequest.Kind.get -> AgentPrism.JobKind
 AgentPrism.JobScheduleSaveRequest.Kind.init -> void
+AgentPrism.JobScheduleSaveRequest.Lane.get -> string?
+AgentPrism.JobScheduleSaveRequest.Lane.init -> void
 AgentPrism.JobScheduleSaveRequest.Payload.get -> System.Text.Json.JsonElement
 AgentPrism.JobScheduleSaveRequest.Payload.init -> void
 AgentPrism.JobScheduleSaveRequest.TargetName.get -> string!

@@ -20,6 +20,13 @@ public sealed record JobRecord
     /// <summary>The job's kind.</summary>
     public required JobKind Kind { get; init; }
 
+    /// <summary>
+    /// The lane this job runs in. See <see cref="JobLanes"/>. A worker only
+    /// leases jobs from the lanes it subscribes to
+    /// (<c>AgentPrismSchedulingOptions.Lanes</c>).
+    /// </summary>
+    public string Lane { get; init; } = JobLanes.Default;
+
     /// <summary>The agent or workflow name to run.</summary>
     public required string TargetName { get; init; }
 

@@ -156,7 +156,7 @@ Useful operations are:
 | List schedules | `GET /api/schedules` |
 | Read, replace, or delete one schedule | `GET`, `PUT`, or `DELETE /api/schedules/{name}` |
 | Trigger now | `POST /api/schedules/{name}/trigger` |
-| List jobs | `GET /api/jobs?kind=&status=&scheduleId=&skip=&take=` |
+| List jobs | `GET /api/jobs?kind=&status=&lane=&scheduleId=&skip=&take=` |
 | Inspect one job and its items | `GET /api/jobs/{id}` |
 | Request cancellation | `POST /api/jobs/{id}/cancel` |
 
@@ -182,6 +182,49 @@ two can execute up to eight jobs at once. SQL leasing prevents two processes fro
 owning the same job at the same time, and schedule claiming prevents duplicate
 calendar dispatch. PostgreSQL uses a non-blocking row-lock strategy for competing
 workers.
+
+## Lanes
+
+Every job runs in a lane — a plain text tag, `"default"` unless something else is
+set. A worker leases jobs from every lane by default, so a single long batch and a
+fast approval resume compete for the same concurrency slots. Give a lane its own
+budget, or scope a worker to specific lanes, to stop one kind of work from blocking
+another:
+
+```csharp
+builder.Services.UseScheduling(options =>
+{
+    // This process only leases "default" and "media" work.
+    options.Lanes = ["default", "media"];
+
+    // "media" gets its own concurrency budget, separate from MaxConcurrentJobs.
+    options.MaxConcurrentJobsPerLane["media"] = 1;
+
+    // A Retention job queued without an explicit lane is routed to "housekeeping".
+    options.LaneByKind[JobKind.Retention] = "housekeeping";
+});
+```
+
+A lane name is 1-64 characters: lowercase ASCII letters, digits, `.`, `_`, or `-`,
+starting with a letter or digit. An invalid name is rejected where it is set —
+`PUT /api/schedules/{name}` and a queued run's `lane` field both return `400`.
+
+Set a job's lane explicitly, or let it inherit one:
+
+- A queued agent run (`Prefer: respond-async`) accepts an optional `lane` field
+  next to `message`.
+- A schedule accepts an optional `lane` field; every job it produces — on its
+  cron, or from a manual trigger — inherits that value.
+- Any other job (evaluation, retention, webhook delivery, and so on) uses
+  `Scheduling.LaneByKind` if the operator configured one for its kind, otherwise
+  `"default"`.
+
+`Scheduling.Lanes` left `null` (the default) means the worker leases from every
+lane — the same behavior as before lanes existed. Once `MaxConcurrentJobsPerLane`
+has an entry and `Lanes` is still `null`, the worker's effective coverage narrows
+to `"default"` plus the lanes listed there; a job queued under some other, unlisted
+lane is simply never leased by that worker. It still exists — filter
+`GET /api/jobs?lane=` or check the lane column on the Jobs screen to find it.
 
 ## Singleton services and orphaned-run recovery
 
@@ -247,6 +290,9 @@ real cross-instance election.
 | `Scheduling.LeaseDuration` | 5 minutes | Must be positive; renewal starts halfway through the lease |
 | `Scheduling.MaxAttempts` | `3` | Must be at least `1`; jobs can override it |
 | `Scheduling.MaxItemsPerJob` | `1,000` | Must be at least `1` |
+| `Scheduling.Lanes` | `null` | `null` leases from every lane; a list scopes the worker to only those lanes |
+| `Scheduling.MaxConcurrentJobsPerLane` | empty | Per-lane concurrency; a lane not listed shares `MaxConcurrentJobs` |
+| `Scheduling.LaneByKind` | empty | Maps a job kind to a lane when the caller left it unset |
 | `AsyncRun.Enabled` | `true` | A queued run request returns `501` when disabled |
 | `AsyncRun.MaxAttempts` | `1` | Controls queued agent-run retries |
 | Job list page | 50 records | `skip` defaults to `0`; `take` defaults to `50` |
@@ -306,6 +352,7 @@ idempotent.
 | Cancellation takes time | It is a request, not a forced thread abort; pass the cancellation token through every long-running handler operation |
 | A run stays `Running` forever after a crash | Enable `RunReconciliation`; confirm a SQL store is registered and `OrphanThreshold` is not longer than an acceptable outage window |
 | Two instances both act as the singleton service | Confirm `SingletonExecution.Enabled` and that all instances share the same SQL store; the in-memory lease store cannot coordinate across processes |
+| A job never leaves `Pending` even though a worker is running | Check its lane against `Scheduling.Lanes` and `MaxConcurrentJobsPerLane`; a worker only leases the lanes it is scoped to |
 
 ## Read next
 

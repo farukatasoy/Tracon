@@ -54,7 +54,7 @@ public abstract class JobStoreContract : TenantIsolationContract<IJobStore>
     {
         await Store.EnqueueAsync(TestData.Job(scheduledFor: DateTimeOffset.UtcNow.AddMinutes(5)), ["a"]);
 
-        (await Store.LeaseAsync(Owner(), TimeSpan.FromMinutes(5))).ShouldBeNull();
+        (await LeaseAsync(Owner(), TimeSpan.FromMinutes(5))).ShouldBeNull();
     }
 
     [Fact]
@@ -63,7 +63,7 @@ public abstract class JobStoreContract : TenantIsolationContract<IJobStore>
         var job = await Store.EnqueueAsync(TestData.Job(), ["a"]);
         var owner = Owner();
 
-        var leased = await Store.LeaseAsync(owner, TimeSpan.FromMinutes(5));
+        var leased = await LeaseAsync(owner, TimeSpan.FromMinutes(5));
 
         leased.ShouldNotBeNull();
         leased.Id.ShouldBe(job.Id);
@@ -76,9 +76,9 @@ public abstract class JobStoreContract : TenantIsolationContract<IJobStore>
     public async Task Leased_job_is_not_given_to_another_worker_before_expiry()
     {
         await Store.EnqueueAsync(TestData.Job(), ["a"]);
-        await Store.LeaseAsync(Owner(), TimeSpan.FromMinutes(5));
+        await LeaseAsync(Owner(), TimeSpan.FromMinutes(5));
 
-        (await Store.LeaseAsync(Owner(), TimeSpan.FromMinutes(5))).ShouldBeNull();
+        (await LeaseAsync(Owner(), TimeSpan.FromMinutes(5))).ShouldBeNull();
     }
 
     [Fact]
@@ -86,10 +86,10 @@ public abstract class JobStoreContract : TenantIsolationContract<IJobStore>
     {
         var job = await Store.EnqueueAsync(TestData.Job(), ["a"]);
 
-        await Store.LeaseAsync(Owner(), TimeSpan.FromMilliseconds(20));
+        await LeaseAsync(Owner(), TimeSpan.FromMilliseconds(20));
         await Task.Delay(TimeSpan.FromMilliseconds(200));
 
-        var reclaimed = await Store.LeaseAsync(Owner(), TimeSpan.FromMinutes(5));
+        var reclaimed = await LeaseAsync(Owner(), TimeSpan.FromMinutes(5));
 
         reclaimed.ShouldNotBeNull();
         reclaimed.Id.ShouldBe(job.Id);
@@ -101,7 +101,7 @@ public abstract class JobStoreContract : TenantIsolationContract<IJobStore>
     {
         var job = await Store.EnqueueAsync(TestData.Job(), ["a"]);
         var owner = Owner();
-        await Store.LeaseAsync(owner, TimeSpan.FromMinutes(5));
+        await LeaseAsync(owner, TimeSpan.FromMinutes(5));
 
         (await Store.MarkRunningAsync(job.Id, Owner())).ShouldBeFalse();
         (await Store.MarkRunningAsync(job.Id, owner)).ShouldBeTrue();
@@ -145,7 +145,7 @@ public abstract class JobStoreContract : TenantIsolationContract<IJobStore>
     public async Task CompleteAsync_releases_the_lease()
     {
         var job = await Store.EnqueueAsync(TestData.Job(), ["a"]);
-        await Store.LeaseAsync(Owner(), TimeSpan.FromMinutes(5));
+        await LeaseAsync(Owner(), TimeSpan.FromMinutes(5));
 
         await Store.CompleteAsync(new JobCompletion
         {
@@ -165,7 +165,7 @@ public abstract class JobStoreContract : TenantIsolationContract<IJobStore>
     public async Task ReleaseForRetryAsync_returns_to_pending_without_resetting_the_attempt()
     {
         var job = await Store.EnqueueAsync(TestData.Job(), ["a"]);
-        await Store.LeaseAsync(Owner(), TimeSpan.FromMinutes(5));
+        await LeaseAsync(Owner(), TimeSpan.FromMinutes(5));
 
         await Store.ReleaseForRetryAsync(job.Id, "temporary error");
 
@@ -174,7 +174,7 @@ public abstract class JobStoreContract : TenantIsolationContract<IJobStore>
         current.Attempt.ShouldBe(1);
         current.ErrorMessage.ShouldBe("temporary error");
 
-        (await Store.LeaseAsync(Owner(), TimeSpan.FromMinutes(5))).ShouldNotBeNull();
+        (await LeaseAsync(Owner(), TimeSpan.FromMinutes(5))).ShouldNotBeNull();
     }
 
     [Theory]
@@ -223,6 +223,90 @@ public abstract class JobStoreContract : TenantIsolationContract<IJobStore>
         results.ShouldHaveSingleItem();
         results[0].TenantId.ShouldBe("tenant-a");
     }
+
+    [Fact]
+    public async Task Enqueued_job_defaults_to_the_default_lane()
+    {
+        var job = await Store.EnqueueAsync(TestData.Job(), ["a"]);
+
+        job.Lane.ShouldBe(JobLanes.Default);
+    }
+
+    [Fact]
+    public async Task Lease_with_a_lane_filter_only_returns_a_job_in_that_lane()
+    {
+        await Store.EnqueueAsync(TestData.Job() with { Lane = "default" }, ["a"]);
+        var mediaJob = await Store.EnqueueAsync(TestData.Job() with { Lane = "media" }, ["a"]);
+
+        var leased = await Store.LeaseAsync(Owner(), TimeSpan.FromMinutes(5), ["media"]);
+
+        leased.ShouldNotBeNull();
+        leased.Id.ShouldBe(mediaJob.Id);
+        leased.Lane.ShouldBe("media");
+    }
+
+    [Fact]
+    public async Task Lease_with_a_lane_filter_never_returns_a_job_from_an_unlisted_lane()
+    {
+        await Store.EnqueueAsync(TestData.Job() with { Lane = "default" }, ["a"]);
+
+        (await Store.LeaseAsync(Owner(), TimeSpan.FromMinutes(5), ["media"])).ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task Lease_with_null_lanes_applies_no_filter()
+    {
+        await Store.EnqueueAsync(TestData.Job() with { Lane = "media" }, ["a"]);
+
+        (await Store.LeaseAsync(Owner(), TimeSpan.FromMinutes(5), lanes: null)).ShouldNotBeNull();
+    }
+
+    [Fact]
+    public async Task Lease_with_an_empty_lanes_list_applies_no_filter()
+    {
+        await Store.EnqueueAsync(TestData.Job() with { Lane = "media" }, ["a"]);
+
+        (await Store.LeaseAsync(Owner(), TimeSpan.FromMinutes(5), lanes: [])).ShouldNotBeNull();
+    }
+
+    [Fact]
+    public async Task Retry_preserves_the_jobs_lane()
+    {
+        var job = await Store.EnqueueAsync(TestData.Job() with { Lane = "media" }, ["a"]);
+        await LeaseAsync(Owner(), TimeSpan.FromMinutes(5));
+
+        await Store.ReleaseForRetryAsync(job.Id, "temporary error");
+
+        var current = await Store.GetAsync(job.TenantId, job.Id);
+        current!.Lane.ShouldBe("media");
+    }
+
+    [Fact]
+    public async Task QueryAsync_lane_filter_does_not_leak_another_tenants_job()
+    {
+        await Store.EnqueueAsync(TestData.Job(tenantId: "tenant-a") with { Lane = "media" }, ["a"]);
+        var ownJob = await Store.EnqueueAsync(TestData.Job(tenantId: "tenant-b") with { Lane = "media" }, ["a"]);
+
+        var results = await Store.QueryAsync(new JobQuery { TenantId = "tenant-b", Lane = "media" });
+
+        results.ShouldHaveSingleItem();
+        results[0].Id.ShouldBe(ownJob.Id);
+    }
+
+    [Fact]
+    public async Task QueryAsync_filters_by_lane()
+    {
+        await Store.EnqueueAsync(TestData.Job() with { Lane = "default" }, ["a"]);
+        var mediaJob = await Store.EnqueueAsync(TestData.Job() with { Lane = "media" }, ["a"]);
+
+        var results = await Store.QueryAsync(new JobQuery { Lane = "media" });
+
+        results.ShouldHaveSingleItem();
+        results[0].Id.ShouldBe(mediaJob.Id);
+    }
+
+    private ValueTask<JobRecord?> LeaseAsync(string owner, TimeSpan leaseDuration, IReadOnlyList<string>? lanes = null)
+        => Store.LeaseAsync(owner, leaseDuration, lanes);
 
     private static string Owner() => $"worker-{Guid.NewGuid():N}";
 }

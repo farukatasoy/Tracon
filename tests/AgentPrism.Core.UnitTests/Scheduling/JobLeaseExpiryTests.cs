@@ -34,7 +34,7 @@ public sealed class JobLeaseExpiryTests
 
         var leaseDuration = TimeSpan.FromMinutes(5);
 
-        var firstLease = await store.LeaseAsync("worker-crashed", leaseDuration);
+        var firstLease = await store.LeaseAsync("worker-crashed", leaseDuration, lanes: null);
         firstLease.ShouldNotBeNull();
         await store.MarkRunningAsync(job.Id, "worker-crashed");
 
@@ -52,7 +52,7 @@ public sealed class JobLeaseExpiryTests
 
         clock.Advance(leaseDuration + TimeSpan.FromSeconds(1));
 
-        var secondLease = await store.LeaseAsync("worker-recovered", leaseDuration);
+        var secondLease = await store.LeaseAsync("worker-recovered", leaseDuration, lanes: null);
 
         secondLease.ShouldNotBeNull("the lease must actually expire and free the job for a new attempt");
         secondLease!.Id.ShouldBe(job.Id);
