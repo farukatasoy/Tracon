@@ -191,7 +191,7 @@ on the caller instead of the server. See
 [Client-side tools and the embeddable widget](/guides/client-side-tools/).
 A destructive tool carries a red badge, one that sends data outside the process an
 orange one, and a tool with a declared permission or a non-default timeout shows both
-next to it — see [Tools: authorization and timeout](/concepts/tools/#authorization-and-timeout).
+next to it — see [Tools: authorization and timeout](/concepts/tools/#authorization-validation-and-timeout).
 
 ### Skills
 

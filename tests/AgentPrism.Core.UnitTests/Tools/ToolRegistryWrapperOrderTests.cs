@@ -27,10 +27,12 @@ public sealed class ToolRegistryWrapperOrderTests
         var registry = new ToolRegistry(
             [registration],
             new DenyingHandler("This account cannot cancel orders."),
+            NoOpToolArgumentsValidator.Instance,
             TestData.DefaultOptionsMonitor(),
             attribution: null,
             NullLogger<AuthorizingAIFunction>.Instance,
-            NullLogger<TimeoutAIFunction>.Instance);
+            NullLogger<TimeoutAIFunction>.Instance,
+            NullLogger<ValidatingAIFunction>.Instance);
 
         registry.TryGet("cancel_order", out var tool).ShouldBeTrue();
 
@@ -63,10 +65,12 @@ public sealed class ToolRegistryWrapperOrderTests
         var registry = new ToolRegistry(
             [registration],
             new AllowAllToolAuthorizationHandler(),
+            NoOpToolArgumentsValidator.Instance,
             TestData.DefaultOptionsMonitor(),
             attribution: null,
             NullLogger<AuthorizingAIFunction>.Instance,
-            NullLogger<TimeoutAIFunction>.Instance);
+            NullLogger<TimeoutAIFunction>.Instance,
+            NullLogger<ValidatingAIFunction>.Instance);
 
         registry.TryGet("dangerous_tool", out var tool).ShouldBeTrue();
 
@@ -84,10 +88,12 @@ public sealed class ToolRegistryWrapperOrderTests
         var registry = new ToolRegistry(
             [registration],
             new AllowAllToolAuthorizationHandler(),
+            NoOpToolArgumentsValidator.Instance,
             TestData.DefaultOptionsMonitor(),
             attribution: null,
             NullLogger<AuthorizingAIFunction>.Instance,
-            NullLogger<TimeoutAIFunction>.Instance);
+            NullLogger<TimeoutAIFunction>.Instance,
+            NullLogger<ValidatingAIFunction>.Instance);
 
         registry.TryGet("big_report", out var tool).ShouldBeTrue();
 
@@ -104,10 +110,12 @@ public sealed class ToolRegistryWrapperOrderTests
         var registry = new ToolRegistry(
             [registration],
             new AllowAllToolAuthorizationHandler(),
+            NoOpToolArgumentsValidator.Instance,
             TestData.DefaultOptionsMonitor(),
             attribution: null,
             NullLogger<AuthorizingAIFunction>.Instance,
-            NullLogger<TimeoutAIFunction>.Instance);
+            NullLogger<TimeoutAIFunction>.Instance,
+            NullLogger<ValidatingAIFunction>.Instance);
 
         registry.TryGet("big_report", out var tool).ShouldBeTrue();
 
@@ -130,10 +138,12 @@ public sealed class ToolRegistryWrapperOrderTests
         var registry = new ToolRegistry(
             [registration],
             new AllowAllToolAuthorizationHandler(),
+            NoOpToolArgumentsValidator.Instance,
             services.BuildServiceProvider().GetRequiredService<IOptionsMonitor<AgentPrismOptions>>(),
             attribution: null,
             NullLogger<AuthorizingAIFunction>.Instance,
-            NullLogger<TimeoutAIFunction>.Instance);
+            NullLogger<TimeoutAIFunction>.Instance,
+            NullLogger<ValidatingAIFunction>.Instance);
 
         registry.TryGet("big_report", out var tool).ShouldBeTrue();
 
@@ -156,10 +166,12 @@ public sealed class ToolRegistryWrapperOrderTests
         var registry = new ToolRegistry(
             [registration],
             new AllowAllToolAuthorizationHandler(),
+            NoOpToolArgumentsValidator.Instance,
             services.BuildServiceProvider().GetRequiredService<IOptionsMonitor<AgentPrismOptions>>(),
             attribution: null,
             NullLogger<AuthorizingAIFunction>.Instance,
-            NullLogger<TimeoutAIFunction>.Instance);
+            NullLogger<TimeoutAIFunction>.Instance,
+            NullLogger<ValidatingAIFunction>.Instance);
 
         registry.TryGet("big_report", out var tool).ShouldBeTrue();
 
@@ -184,10 +196,12 @@ public sealed class ToolRegistryWrapperOrderTests
         var registry = new ToolRegistry(
             [registration],
             new AllowAllToolAuthorizationHandler(),
+            NoOpToolArgumentsValidator.Instance,
             TestData.DefaultOptionsMonitor(),
             attribution: null,
             NullLogger<AuthorizingAIFunction>.Instance,
-            NullLogger<TimeoutAIFunction>.Instance);
+            NullLogger<TimeoutAIFunction>.Instance,
+            NullLogger<ValidatingAIFunction>.Instance);
 
         registry.TryGet("dangerous_tool", out var tool).ShouldBeTrue();
 

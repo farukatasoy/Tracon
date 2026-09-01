@@ -41,6 +41,7 @@ public sealed class McpToolCatalogReachabilityTests
             NullLoggerFactory.Instance,
             new McpOAuthTokenCacheRegistry(),
             new AllowAllToolAuthorizationHandler(),
+            NoOpToolArgumentsValidator.Instance,
             attribution: null);
 
         var outcome = await catalog.RefreshAsync();
@@ -61,6 +62,7 @@ public sealed class McpToolCatalogReachabilityTests
             NullLoggerFactory.Instance,
             new McpOAuthTokenCacheRegistry(),
             new AllowAllToolAuthorizationHandler(),
+            NoOpToolArgumentsValidator.Instance,
             attribution: null);
 
         var outcome = await catalog.RefreshAsync();

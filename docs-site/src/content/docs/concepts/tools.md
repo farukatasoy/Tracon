@@ -56,7 +56,10 @@ own, separate dynamic model instead of sharing the code registry's snapshot guar
 Every tool instance is a **singleton**, shared by every tenant, every run, and every
 thread that happens to call it. Keep no per-call state in an instance field — read
 [the empty service provider rule](/getting-started/tools/#the-rule-that-trips-people-up)
-for the related mistake of resolving a scoped dependency the same way.
+for the related mistake of resolving a scoped dependency the same way. When a
+dependency genuinely has to be fresh per call, register the tool with `AddScopedTool`
+instead of `AddTool` — see
+[scoped dependencies](/guides/write-your-own-tool/#scoped-dependencies).
 
 Because a tool is shared, the same tool can already run **concurrently across
 different runs** today, whether or not `AllowConcurrentToolCalls` is set —
@@ -64,10 +67,12 @@ that setting only governs whether one run's own turn calls its several tools
 one after another or at the same time. A tool body that keeps no mutable
 instance state handles both cases for free.
 
-### Authorization and timeout
+### Authorization, validation, and timeout
 
-Two more wrappers apply next to approval, in a fixed order: **authorization** (outermost),
-**timeout**, then **approval** (innermost), then the real method.
+Three more wrappers apply next to approval, in a fixed order: **authorization**
+(outermost), **validation**, **timeout**, then **approval** (innermost), then the real
+method. The same order applies whether the tool is code-defined or MCP-sourced — one
+composition point builds both.
 
 Authorization asks a different question than approval. Approval asks "is this call okay
 this time" and stops to wait for a person. Authorization asks "can this caller call this
@@ -91,6 +96,14 @@ services.AddSingleton<IToolAuthorizationHandler, MyAuthorizationHandler>();
 A denied call does not fail the run: the model receives the reason text as an ordinary
 tool result and continues its turn — the same way a search that finds nothing is not an
 error. If your handler throws, the call is denied (fail-closed), never allowed.
+
+Validation asks a narrower question, right after authorization: "are these specific
+arguments acceptable". Binding already rejects a type mismatch or a missing `required`
+field; register `IToolArgumentsValidator` for anything binding does not catch — an
+extra field the schema does not declare, for example. Unlike a denial, a **rejected**
+call is recorded as `ToolFailed`, not as an ordinary result — see
+[argument validation](/guides/write-your-own-tool/#argument-validation) for the full
+mechanism, including the fail-closed behavior on a throwing validator.
 
 `[AgentPrismTool]` also carries an effect class and a per-tool timeout:
 

@@ -61,7 +61,7 @@ ham istemciye `ChatOptions.ResponseFormat` alanı iletilir.
 | `ProblemDetails` zarfının genel sözleşmesi | `07-HTTP-YONETIM-API.md` (zaten üretildi) |
 | Devre kesicinin sağlayıcı hatalarında AÇILMASI (genel davranış) | `05-SAGLAYICI-OPENAI.md` / `06-SAGLAYICI-DIGER.md` (zaten üretildi) — bu dosya yalnız guard'ın onu **tetikleMEdiğini** sınar |
 | Azure AI Content Safety adaptörü | Kapsam dışı — henüz yok (48.6, aday kalem F-87+) |
-| Tool **argümanı** denetimi (çağrıdan önce) | Kapsam dışı — F-61, henüz yok |
+| Tool **argümanı** denetimi (çağrıdan önce) | Bu dosya, §9 (`IToolArgumentsValidator`, Faz 127) — MCP tarafı `18-MCP-VE-A2A.md` |
 | `/v1/chat/completions`, `/v1/responses` uçlarındaki aynı SSE `error` boşluğu | `08-OPENAI-UYUMLU-UCLAR.md` (zaten üretildi, `MT-COMPAT-028`) |
 | Playground'da SSE `error` çerçevesinin sessiz yutulması | `10-ARAYUZ-AGENT-PLAYGROUND.md` (zaten üretildi, `MT-UIAG-043`) |
 
@@ -1694,3 +1694,72 @@ curl -s -X POST "$APU/api/agents/$AGENT/run" -H "$APB" -H "content-type: applica
   yürütüp yürütmediği — ayrı, model-bağımlı bir gözlemdir; bu case yalnız
   AgentPrism'in sınırı doğru kaçırdığını kanıtlar, modelin buna uyacağını
   garanti ETMEZ.)
+
+---
+
+# 9 — Tool argüman doğrulama (`IToolArgumentsValidator`, Faz 127)
+
+Argüman bağlama zaten tip uyuşmazlığını, eksik `required` alanı ve geçersiz
+`enum` değerini reddeder; `IToolArgumentsValidator` bağlamanın **yakalamadığı**
+şeyler için (ör. şemada olmayan fazladan bir alan) eklenen, isteğe bağlı bir
+halkadır. Halka Authorizing'in hemen içinde, Timeout'un dışında çalışır —
+sırayı `ToolWrapperChainTests`
+(`tests/AgentPrism.Core.UnitTests/Tools/ToolWrapperChainTests.cs`) doğrudan
+ölçer. 🚨 Bir yetkilendirme reddi (`IToolAuthorizationHandler`) modele
+**başarılı** bir sonuç olarak döner; bir argüman reddi ise `ToolFailed`
+olayına yazılır — ikisi kayıt düzeyinde farklı sınıflardır.
+
+### MT-GUARD-080 — Fazladan alan içeren çağrı reddedilir; `ToolFailed` yazılır
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 127 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- Örnek uygulamaya (`samples/AgentPrism.Api/Program.cs`), her çağrıyı
+  reddeden basit bir `IToolArgumentsValidator` geçici olarak eklenir:
+  ```csharp
+  services.AddSingleton<IToolArgumentsValidator, DemoRejectingValidator>();
+  ```
+
+**Adımlar**
+1. Reddeden doğrulayıcı kayıtlıyken bir tool çağrısı tetikleyen istem gönder.
+2. Çalıştırma olaylarını ve `run`'ın durumunu oku.
+
+**Beklenen sonuç**
+- `run` yine `Completed` olarak biter (argüman reddi run'ı düşürmez).
+- Modelin gördüğü tool sonucu doğrulayıcının verdiği güvenli metindir;
+  argümanın gerçek değeri metinde **geçmez**.
+- `GET /api/runs/{id}/events` çıktısında bir `ToolFailed` olayı vardır;
+  `text` alanı doğrulayıcının reddet sebebidir.
+
+> **Otomatik karşılığı:** `Rejected_arguments_complete_the_run_and_are_recorded_as_ToolFailed`
+> (`tests/AgentPrism.AspNetCore.FunctionalTests/ToolGovernanceEndpointTests.cs`)
+> gerçek `FunctionInvokingChatClient` döngüsü ve gerçek host üzerinden aynı
+> senaryoyu kanıtlar (sahte model sağlayıcısıyla — gerçek OpenAI anahtarı bu
+> ortamda yoktu, bkz. fazın "Plandan Sapmalar" bölümü). ⬜ Bu case gerçek bir
+> sağlayıcı anahtarıyla henüz elle koşulmadı.
+
+---
+
+### MT-GUARD-081 — Doğrulayıcı kayıtlı değilken davranış Faz 126 ile birebir aynıdır
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 127 |
+| **İlgili karar** | K1 |
+
+**Adımlar**
+1. Hiçbir `IToolArgumentsValidator` kayıtlı değilken normal bir tool
+   çağrısı tetikle.
+
+**Beklenen sonuç**
+- Davranış önceki faza göre değişmez; ek gecikme veya ek olay yoktur.
+- `ValidatingAIFunction` halkası hiç kurulmaz —
+  `ToolWrapperChainTests.No_registered_validator_means_no_validating_layer_is_installed`
+  bunu birim seviyesinde doğrudan ölçer.

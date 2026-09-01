@@ -88,11 +88,13 @@ decisions can be overridden or composed with your own rules — see
 |---|---|---|
 | Generated tools | `[AgentPrismTool]` and `AddGeneratedTools()` | Compile-time discovery without reflection or dynamic code |
 | Direct tools | `AddTool(AIFunction, configure)` | Exact tool instance and its approval, effect, permission, timeout, repeatability, and output policy |
-| Delegate tools | `AddTool(delegate, ...)` | Convenient reflection path; trimming and dynamic-code warnings reach the caller |
+| Delegate tools | `AddTool(delegate)` | Convenient reflection path; trimming and dynamic-code warnings reach the caller |
 | Scanned tools | `AddToolsFrom<T>()` or `AddToolsFrom(Type)` | Only attributed methods become tools; this path uses reflection |
+| Scoped tools | `AddScopedTool` | Every call gets its own DI scope, closed when the call ends |
+| Argument validation | `IToolArgumentsValidator` | Runs before every call, code-defined or MCP; a rejection skips the real body |
 | Tool approval | `RequiresApproval`, the registration flag, or `AddToolApprovalPolicy()` | A sensitive call cannot execute until a person or standing rule decides it |
-| Tool output size limit | `AgentPrismToolRegistration.MaxOutputBytes` or `AgentPrismOptions.Tools.DefaultMaxOutputBytes` | A result over the byte limit is trimmed into a JSON envelope before the model sees it; unlimited by default |
-| Client-side tools | `AddClientTool(name, description, jsonSchema)` | The declaration lives in code like every other tool; the server never runs the body. The model's call comes back to the caller, which answers it with `AgentRunRequest.ToolResults`. An agent carrying one cannot be replayed in any tool mode — its call was never recorded, so no mode can answer it |
+| Tool output size limit | `MaxOutputBytes` (per tool) or `Tools.DefaultMaxOutputBytes` (installation-wide) | A result over the byte limit is trimmed into a JSON envelope before the model sees it; unlimited by default |
+| Client-side tools | `AddClientTool(...)` | The declaration lives in code like every other tool; the server never runs the body. The model's call comes back to the caller, which answers it with `AgentRunRequest.ToolResults`. An agent carrying one cannot be replayed in any tool mode — its call was never recorded, so no mode can answer it |
 | Custom content guards | `AddContentGuard<TGuard>()` | Multiple guards run; the strictest result wins |
 | Pattern guard | `AddPatternContentGuard()` | Denied terms can block; selected PII patterns can mask input or output |
 | Skills | `AddSkill()` or database/file skill sources | Markdown instructions and resources are bounded and validated |
@@ -915,7 +917,7 @@ this time" and stops to wait for a person; authorization asks "can this caller c
 tool at all" and answers instantly from `IToolAuthorizationHandler` — your own policy,
 checked before approval and before the call's timeout even starts. A denied call does not
 fail the run: the model gets the reason as an ordinary tool result and continues its
-turn. See [Tools, skills, and MCP](/concepts/tools/#authorization-and-timeout)
+turn. See [Tools, skills, and MCP](/concepts/tools/#authorization-validation-and-timeout)
 for the interface and an example.
 
 ## Quotas and rate limits
@@ -1706,7 +1708,10 @@ own, separate dynamic model instead of sharing the code registry's snapshot guar
 Every tool instance is a **singleton**, shared by every tenant, every run, and every
 thread that happens to call it. Keep no per-call state in an instance field — read
 [the empty service provider rule](/getting-started/tools/#the-rule-that-trips-people-up)
-for the related mistake of resolving a scoped dependency the same way.
+for the related mistake of resolving a scoped dependency the same way. When a
+dependency genuinely has to be fresh per call, register the tool with `AddScopedTool`
+instead of `AddTool` — see
+[scoped dependencies](/guides/write-your-own-tool/#scoped-dependencies).
 
 Because a tool is shared, the same tool can already run **concurrently across
 different runs** today, whether or not `AllowConcurrentToolCalls` is set —
@@ -1714,10 +1719,12 @@ that setting only governs whether one run's own turn calls its several tools
 one after another or at the same time. A tool body that keeps no mutable
 instance state handles both cases for free.
 
-### Authorization and timeout
+### Authorization, validation, and timeout
 
-Two more wrappers apply next to approval, in a fixed order: **authorization** (outermost),
-**timeout**, then **approval** (innermost), then the real method.
+Three more wrappers apply next to approval, in a fixed order: **authorization**
+(outermost), **validation**, **timeout**, then **approval** (innermost), then the real
+method. The same order applies whether the tool is code-defined or MCP-sourced — one
+composition point builds both.
 
 Authorization asks a different question than approval. Approval asks "is this call okay
 this time" and stops to wait for a person. Authorization asks "can this caller call this
@@ -1741,6 +1748,14 @@ services.AddSingleton<IToolAuthorizationHandler, MyAuthorizationHandler>();
 A denied call does not fail the run: the model receives the reason text as an ordinary
 tool result and continues its turn — the same way a search that finds nothing is not an
 error. If your handler throws, the call is denied (fail-closed), never allowed.
+
+Validation asks a narrower question, right after authorization: "are these specific
+arguments acceptable". Binding already rejects a type mismatch or a missing `required`
+field; register `IToolArgumentsValidator` for anything binding does not catch — an
+extra field the schema does not declare, for example. Unlike a denial, a **rejected**
+call is recorded as `ToolFailed`, not as an ordinary result — see
+[argument validation](/guides/write-your-own-tool/#argument-validation) for the full
+mechanism, including the fail-closed behavior on a throwing validator.
 
 `[AgentPrismTool]` also carries an effect class and a per-tool timeout:
 
@@ -2925,7 +2940,7 @@ delete what you no longer need.
 - [ ] `AgentPrism:Egress:AllowPrivateNetworkTargets` is on only if your MCP servers or
       provider endpoints really are on the internal network
 - [ ] `IToolAuthorizationHandler` is implemented for any tool that should not be callable
-      by every caller — see [Tools: authorization and timeout](/concepts/tools/#authorization-and-timeout)
+      by every caller — see [Tools: authorization and timeout](/concepts/tools/#authorization-validation-and-timeout)
 
 ## Read next
 
@@ -3027,6 +3042,24 @@ instance has to come from somewhere, and MAF cannot supply it. AgentPrism reject
 instance method there too, but at scan time, when `AddToolsFrom<T>()` runs at startup,
 not on the first call.
 :::
+
+Taking a dependency at registration only works for a **singleton**. When the
+dependency has to be fresh per call — a repository, a `DbContext` — use
+`AddScopedTool` instead of `AddTool`:
+
+```csharp
+agentPrism.AddScopedTool(AIFunctionFactory.Create(
+    (string orderId, AIFunctionArguments arguments) =>
+        arguments.Services!.GetRequiredService<IOrderRepository>().Find(orderId).Status,
+    "get_order_status",
+    "Returns the shipping status of an order."));
+```
+
+`AddScopedTool` opens a real dependency-injection scope for every call and exposes
+it through `AIFunctionArguments.Services` — the empty-provider trap above does not
+apply to a tool registered this way. See
+[Write your own tool](/guides/write-your-own-tool/#scoped-dependencies) for the
+full mechanism.
 
 ## Tools that need a human
 
@@ -4377,7 +4410,7 @@ full contract, including why the value is never read from the run request body.
 ### 3 — Tool authorization
 
 Decides whether a caller may invoke a specific tool at all, separately from
-approval — see [Tools](/concepts/tools/#authorization-and-timeout) for the binding
+approval — see [Tools](/concepts/tools/#authorization-validation-and-timeout) for the binding
 pattern and how authorization and approval order relative to each other.
 
 ### 4 — Run event bridge
@@ -9000,30 +9033,13 @@ model inspect the same data. Return `AIContent` only for the existing attachment
 contract; attachments are not inline output and are not subject to `MaxOutputBytes`.
 
 Do not resolve dependencies from `AIFunctionArguments.Services`: MAF supplies an empty
-provider. Resolve singleton dependencies when you register an `AIFunction`. For scoped
-work, inject `IServiceScopeFactory` into that registration and create a scope inside the
-invocation.
+provider. Resolve a singleton dependency when you register an `AIFunction`, as shown
+above.
 
 ```csharp
-agentPrism.Services.AddSingleton<AgentPrismToolRegistration>(provider =>
-{
-    var scopes = provider.GetRequiredService<IServiceScopeFactory>();
-    var function = AIFunctionFactory.Create(async (string orderId) =>
-    {
-        using var scope = scopes.CreateScope();
-        return await scope.ServiceProvider.GetRequiredService<IOrderWriter>()
-            .SubmitAsync(orderId);
-    }, "submit_order", "Submits an order.");
-
-    return new AgentPrismToolRegistration(
-        function,
-        requiresApproval: true,
-        effect: ToolEffect.External,
-        requiredPermission: "orders.submit",
-        timeout: TimeSpan.FromSeconds(30),
-        safeToRepeat: true,
-        maxOutputBytes: 4096);
-});
+var repository = provider.GetRequiredService<IOrderRepository>();
+agentPrism.AddTool(AIFunctionFactory.Create(
+    (string orderId) => repository.Find(orderId), "get_order", "Fetches an order."));
 ```
 
 `ToolRegistrationOptions` contains `RequiresApproval`, `Effect`,
@@ -9038,6 +9054,95 @@ Timeout is not a forced abort: the model stops waiting, but a tool body can stil
 started an external side effect. Make external calls idempotent. AgentPrism records and
 streams controlled error text, but arguments and successful results can be persisted;
 never return a secret.
+
+## Call pipeline order
+
+Every registration — code-defined or MCP-sourced — passes through the same layers, in
+the same fixed order, before your method body ever runs:
+
+```mermaid
+flowchart LR
+    accTitle: Tool call pipeline order
+    accDescr: A tool call passes through authorization, argument validation, timeout, approval, and output truncation, in that fixed order, before the real method body runs.
+    A["Authorization<br/>(can this caller call it at all)"] --> B["Argument validation<br/>(are these arguments acceptable)"]
+    B --> C["Timeout<br/>(bounds the call)"]
+    C --> D["Approval<br/>(does a person need to say yes)"]
+    D --> E["Output truncation"]
+    E --> F["your method body"]
+```
+
+Authorization runs first: asking a person to approve, waiting out a timeout, or
+validating arguments for a call the caller could never make at all is backwards.
+Argument validation runs next, still before the timeout and the approval wait — a
+malformed call should not consume a timeout budget or wait on a human decision. The
+scope `AddScopedTool` opens (below) surrounds only the innermost box, `your method
+body`: nothing outside it ever resolves a scoped dependency.
+
+## Scoped dependencies
+
+A singleton dependency is resolved once, at registration. When the dependency has to
+be fresh **per call** — a repository, a `DbContext` — use `AddScopedTool` instead of
+`AddTool`. Its shape is identical; the difference is one word, and the word means
+exactly this: every call opens its own dependency-injection scope, exposes it through
+`AIFunctionArguments.Services`, and closes it as soon as the call ends.
+
+```csharp
+agentPrism.AddScopedTool(
+    AIFunctionFactory.Create(
+        async (string orderId, AIFunctionArguments arguments) =>
+        {
+            var writer = arguments.Services!.GetRequiredService<IOrderWriter>();
+            return await writer.SubmitAsync(orderId);
+        },
+        "submit_order",
+        "Submits an order."),
+    options =>
+    {
+        options.RequiresApproval = true;
+        options.Effect = ToolEffect.External;
+        options.RequiredPermission = "orders.submit";
+        options.Timeout = TimeSpan.FromSeconds(30);
+        options.SafeToRepeat = true;
+        options.MaxOutputBytes = 4096;
+    });
+```
+
+`AIFunctionArguments.Services` is real inside a tool registered this way — the empty
+provider MAF otherwise supplies is only ever seen by a plain `AddTool`/`AddToolsFrom`
+registration. Two concurrent calls to the same scoped tool never share a scope. An
+instance method marked `[AgentPrismTool]` still cannot be a tool (the source generator
+rejects it at scan time) — the rejection message points here.
+
+## Argument validation
+
+Binding a call's JSON arguments already rejects a type mismatch, a missing `required`
+field, or an invalid `enum` value, but it never rejects an extra field the schema does
+not declare. Register `IToolArgumentsValidator` to add your own check, applied
+uniformly before every server-side call — a code-defined tool and an MCP-sourced tool
+share the same gate:
+
+```csharp
+public sealed class NoExtraFieldsValidator : IToolArgumentsValidator
+{
+    public ValueTask<ToolArgumentsValidationResult> ValidateAsync(
+        ToolDescriptor tool, AIFunctionArguments arguments, CancellationToken cancellationToken = default)
+        => arguments.Count > ExpectedFieldCount(tool)
+            ? new(ToolArgumentsValidationResult.Invalid("Unexpected argument field."))
+            : new(ToolArgumentsValidationResult.Valid);
+}
+
+services.AddSingleton<IToolArgumentsValidator, NoExtraFieldsValidator>();
+```
+
+There is no built-in JSON Schema validator — validation stays inside your own trust
+boundary, the same stance [structured output](/guides/structured-output/) takes on the
+response side. Nothing is registered by default, so an application that never adds a
+validator keeps today's behavior exactly. A rejected call is recorded as `ToolFailed`,
+never runs the real body, and the model receives your `Invalid` reason as its result —
+never write an argument's actual value into that reason; a run event is persistent and
+an argument can carry a secret. If your validator throws, the call is rejected
+(fail-closed), the same way a throwing `IToolAuthorizationHandler` denies instead of
+crashing the run.
 
 ## Prove the registration
 
@@ -11919,7 +12024,7 @@ on the caller instead of the server. See
 [Client-side tools and the embeddable widget](/guides/client-side-tools/).
 A destructive tool carries a red badge, one that sends data outside the process an
 orange one, and a tool with a declared permission or a non-default timeout shows both
-next to it — see [Tools: authorization and timeout](/concepts/tools/#authorization-and-timeout).
+next to it — see [Tools: authorization and timeout](/concepts/tools/#authorization-validation-and-timeout).
 
 ### Skills
 

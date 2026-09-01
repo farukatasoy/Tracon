@@ -97,6 +97,24 @@ instance method there too, but at scan time, when `AddToolsFrom<T>()` runs at st
 not on the first call.
 :::
 
+Taking a dependency at registration only works for a **singleton**. When the
+dependency has to be fresh per call — a repository, a `DbContext` — use
+`AddScopedTool` instead of `AddTool`:
+
+```csharp
+agentPrism.AddScopedTool(AIFunctionFactory.Create(
+    (string orderId, AIFunctionArguments arguments) =>
+        arguments.Services!.GetRequiredService<IOrderRepository>().Find(orderId).Status,
+    "get_order_status",
+    "Returns the shipping status of an order."));
+```
+
+`AddScopedTool` opens a real dependency-injection scope for every call and exposes
+it through `AIFunctionArguments.Services` — the empty-provider trap above does not
+apply to a tool registered this way. See
+[Write your own tool](/guides/write-your-own-tool/#scoped-dependencies) for the
+full mechanism.
+
 ## Tools that need a human
 
 Some tools should not run unattended:

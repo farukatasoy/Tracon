@@ -82,6 +82,47 @@ public interface IAgentPrismBuilder
     /// <returns>The chain, for further configuration.</returns>
     IAgentPrismBuilder AddTool(AIFunction tool);
 
+    /// <summary>Registers a tool that runs inside its own dependency-injection scope on every call.</summary>
+    /// <param name="tool">The tool to register.</param>
+    /// <param name="configure">Configures the tool metadata.</param>
+    /// <returns>The chain, for further configuration.</returns>
+    /// <remarks>
+    /// <para>
+    /// Identical in shape to <see cref="AddTool(AIFunction, Action{ToolRegistrationOptions})"/> —
+    /// the one difference is the word "scoped", and its meaning is exactly
+    /// this: every call opens a fresh <see cref="IServiceScope"/>, exposes it
+    /// through <see cref="AIFunctionArguments.Services"/>, and closes it as
+    /// soon as the call finishes. Microsoft Agent Framework otherwise passes
+    /// an empty provider there — a dependency resolved from
+    /// <c>AIFunctionArguments.Services</c> without this method throws or
+    /// returns nothing, it is never silently wrong.
+    /// </para>
+    /// <para>
+    /// Use this for a tool that needs a repository, a <c>DbContext</c>, or
+    /// any other per-call dependency. Two concurrent calls never share a
+    /// scope.
+    /// </para>
+    /// <example>
+    /// <code>
+    /// builder.AddAgentPrism()
+    ///        .AddScopedTool(AIFunctionFactory.Create(
+    ///            async (string orderId, AIFunctionArguments arguments) =>
+    ///            {
+    ///                var orders = arguments.Services!.GetRequiredService&lt;IOrderRepository&gt;();
+    ///                return await orders.GetAsync(orderId);
+    ///            },
+    ///            "get_order"),
+    ///            options => options.RequiredPermission = "orders.read");
+    /// </code>
+    /// </example>
+    /// </remarks>
+    IAgentPrismBuilder AddScopedTool(AIFunction tool, Action<ToolRegistrationOptions> configure);
+
+    /// <summary>Registers a tool that runs inside its own dependency-injection scope on every call, with default metadata.</summary>
+    /// <param name="tool">The tool to register.</param>
+    /// <returns>The chain, for further configuration.</returns>
+    IAgentPrismBuilder AddScopedTool(AIFunction tool);
+
     /// <summary>Builds and registers a tool from a method.</summary>
     /// <param name="method">The method to expose as a tool.</param>
     /// <param name="name">The tool name.</param>

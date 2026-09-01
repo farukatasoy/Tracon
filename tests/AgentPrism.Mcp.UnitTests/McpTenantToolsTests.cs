@@ -24,10 +24,12 @@ public sealed class McpTenantToolsTests
             [registration],
             NullLogger.Instance,
             new AllowAllToolAuthorizationHandler(),
+            NoOpToolArgumentsValidator.Instance,
             TimeSpan.FromSeconds(30),
             attribution: null,
             NullLogger<AuthorizingAIFunction>.Instance,
-            NullLogger<TimeoutAIFunction>.Instance);
+            NullLogger<TimeoutAIFunction>.Instance,
+            NullLogger<ValidatingAIFunction>.Instance);
 
         tools.Descriptors.ShouldHaveSingleItem().Effect.ShouldBe(ToolEffect.External);
     }
@@ -49,10 +51,12 @@ public sealed class McpTenantToolsTests
             [registration],
             NullLogger.Instance,
             new AllowAllToolAuthorizationHandler(),
+            NoOpToolArgumentsValidator.Instance,
             TimeSpan.FromSeconds(30),
             attribution: null,
             NullLogger<AuthorizingAIFunction>.Instance,
-            NullLogger<TimeoutAIFunction>.Instance);
+            NullLogger<TimeoutAIFunction>.Instance,
+            NullLogger<ValidatingAIFunction>.Instance);
 
         tools.Descriptors.ShouldHaveSingleItem().RunsOnClient.ShouldBeFalse();
     }
@@ -69,10 +73,12 @@ public sealed class McpTenantToolsTests
             [registration],
             NullLogger.Instance,
             new AllowAllToolAuthorizationHandler(),
+            NoOpToolArgumentsValidator.Instance,
             TimeSpan.FromSeconds(30),
             attribution: null,
             NullLogger<AuthorizingAIFunction>.Instance,
-            NullLogger<TimeoutAIFunction>.Instance);
+            NullLogger<TimeoutAIFunction>.Instance,
+            NullLogger<ValidatingAIFunction>.Instance);
 
         tools.Descriptors.ShouldHaveSingleItem().Effect.ShouldBe(ToolEffect.Write);
     }
@@ -90,10 +96,12 @@ public sealed class McpTenantToolsTests
             [registration],
             NullLogger.Instance,
             new DenyingHandler("Not authorized for remote tools."),
+            NoOpToolArgumentsValidator.Instance,
             TimeSpan.FromSeconds(30),
             attribution: null,
             NullLogger<AuthorizingAIFunction>.Instance,
-            NullLogger<TimeoutAIFunction>.Instance);
+            NullLogger<TimeoutAIFunction>.Instance,
+            NullLogger<ValidatingAIFunction>.Instance);
 
         tools.TryGet("remote_tool", out var tool).ShouldBeTrue();
 
@@ -118,10 +126,12 @@ public sealed class McpTenantToolsTests
             [registration],
             NullLogger.Instance,
             new AllowAllToolAuthorizationHandler(),
+            NoOpToolArgumentsValidator.Instance,
             TimeSpan.FromSeconds(30),
             attribution: null,
             NullLogger<AuthorizingAIFunction>.Instance,
-            NullLogger<TimeoutAIFunction>.Instance);
+            NullLogger<TimeoutAIFunction>.Instance,
+            NullLogger<ValidatingAIFunction>.Instance);
 
         tools.TryGet("remote_report", out var tool).ShouldBeTrue();
 
@@ -141,10 +151,12 @@ public sealed class McpTenantToolsTests
             [registration],
             NullLogger.Instance,
             new AllowAllToolAuthorizationHandler(),
+            NoOpToolArgumentsValidator.Instance,
             TimeSpan.FromSeconds(30),
             attribution: null,
             NullLogger<AuthorizingAIFunction>.Instance,
             NullLogger<TimeoutAIFunction>.Instance,
+            NullLogger<ValidatingAIFunction>.Instance,
             defaultMaxOutputBytes: 100);
 
         tools.TryGet("remote_report", out var tool).ShouldBeTrue();
@@ -165,10 +177,12 @@ public sealed class McpTenantToolsTests
             [registration],
             NullLogger.Instance,
             new AllowAllToolAuthorizationHandler(),
+            NoOpToolArgumentsValidator.Instance,
             TimeSpan.FromSeconds(30),
             attribution: null,
             NullLogger<AuthorizingAIFunction>.Instance,
-            NullLogger<TimeoutAIFunction>.Instance);
+            NullLogger<TimeoutAIFunction>.Instance,
+            NullLogger<ValidatingAIFunction>.Instance);
 
         tools.TryGet("remote_report", out var tool).ShouldBeTrue();
 

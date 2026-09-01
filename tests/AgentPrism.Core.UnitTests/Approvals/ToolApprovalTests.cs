@@ -27,10 +27,12 @@ public sealed class ToolApprovalTests
                 new AgentPrismToolRegistration(Function("dangerous_tool"), requiresApproval: true),
             ],
             new AllowAllToolAuthorizationHandler(),
+            NoOpToolArgumentsValidator.Instance,
             TestData.DefaultOptionsMonitor(),
             attribution: null,
             NullLogger<AuthorizingAIFunction>.Instance,
-            NullLogger<TimeoutAIFunction>.Instance);
+            NullLogger<TimeoutAIFunction>.Instance,
+            NullLogger<ValidatingAIFunction>.Instance);
 
         withApproval.TryGet("safe_tool", out var safe).ShouldBeTrue();
         safe.ShouldBeOfType<AuthorizingAIFunction>();
@@ -55,10 +57,12 @@ public sealed class ToolApprovalTests
                 new AgentPrismToolRegistration(Function("dangerous_tool"), requiresApproval: true),
             ],
             new AllowAllToolAuthorizationHandler(),
+            NoOpToolArgumentsValidator.Instance,
             TestData.DefaultOptionsMonitor(),
             attribution: null,
             NullLogger<AuthorizingAIFunction>.Instance,
-            NullLogger<TimeoutAIFunction>.Instance);
+            NullLogger<TimeoutAIFunction>.Instance,
+            NullLogger<ValidatingAIFunction>.Instance);
 
         registry.TryGet("dangerous_tool", out var tool).ShouldBeTrue();
 
@@ -77,10 +81,12 @@ public sealed class ToolApprovalTests
                 new AgentPrismToolRegistration(Function("remote_tool"), requiresApproval: true, source: "github"),
             ],
             new AllowAllToolAuthorizationHandler(),
+            NoOpToolArgumentsValidator.Instance,
             TestData.DefaultOptionsMonitor(),
             attribution: null,
             NullLogger<AuthorizingAIFunction>.Instance,
-            NullLogger<TimeoutAIFunction>.Instance);
+            NullLogger<TimeoutAIFunction>.Instance,
+            NullLogger<ValidatingAIFunction>.Instance);
 
         var descriptor = registry.List().ShouldHaveSingleItem();
 

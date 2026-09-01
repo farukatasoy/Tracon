@@ -34,10 +34,12 @@ internal sealed class McpTenantTools
     /// <param name="registrations">The discovered tool registrations.</param>
     /// <param name="logger">The logger name collisions are reported to.</param>
     /// <param name="authorizationHandler">The authorization policy applied before every call.</param>
+    /// <param name="validator">The argument validation policy applied before every call.</param>
     /// <param name="defaultTimeout">The timeout applied when a tool's own registration sets none.</param>
     /// <param name="attribution">The run attribution context, or <see langword="null"/> when none is registered.</param>
     /// <param name="authorizingLogger">The logger passed to every <see cref="AuthorizingAIFunction"/> instance.</param>
     /// <param name="timeoutLogger">The logger passed to every <see cref="TimeoutAIFunction"/> instance.</param>
+    /// <param name="validatingLogger">The logger passed to every <see cref="ValidatingAIFunction"/> instance.</param>
     /// <param name="defaultMaxOutputBytes">
     /// The output byte limit applied when a tool's own registration sets
     /// none, or <see langword="null"/> for unlimited.
@@ -54,10 +56,12 @@ internal sealed class McpTenantTools
         IReadOnlyList<AgentPrismToolRegistration> registrations,
         ILogger logger,
         IToolAuthorizationHandler authorizationHandler,
+        IToolArgumentsValidator validator,
         TimeSpan defaultTimeout,
         IRunAttributionContext? attribution,
         ILogger<AuthorizingAIFunction> authorizingLogger,
         ILogger<TimeoutAIFunction> timeoutLogger,
+        ILogger<ValidatingAIFunction> validatingLogger,
         int? defaultMaxOutputBytes = null)
     {
         var tools = new Dictionary<string, AIFunctionDeclaration>(registrations.Count, StringComparer.Ordinal);
@@ -67,65 +71,25 @@ internal sealed class McpTenantTools
         {
             var name = registration.Function.Name;
 
-            // Wrapping happens here. For tools registered in code, ToolRegistry
-            // does the same job; MCP tools do not go through that registry, so
-            // the wrapping is repeated on this path (docs/69, section 69.1;
-            // docs/89, section 89.3 for the ordering rationale). MCP tools are
-            // always real AIFunctions (McpClientTool : AIFunction); the guard
-            // below only ever fires for a misconfigured direct
+            // Wrapping goes through ToolWrapperChain.Compose — the same
+            // composition point ToolRegistry uses (docs/127, 127.1). MCP
+            // tools do not go through that registry, so this call site is
+            // still separate, but the wrapper CHAIN itself is no longer
+            // built by hand here: a layer added to Compose reaches this path
+            // automatically. MCP tools are always real AIFunctions
+            // (McpClientTool : AIFunction); Compose's approval-without-body
+            // guard only ever fires for a misconfigured direct
             // AgentPrismToolRegistration registration, same as in ToolRegistry.
             //
             // An MCP tool's definition lives on a remote server the moment it is
             // read; it never carries its own effect classification, so it
-            // defaults to External — the most cautious class, not Read.
+            // defaults to External — the most cautious class, not Read. This
+            // promotion is the one difference from ToolRegistry's own effect
+            // handling, and it is a CALL-SITE decision made before Compose is
+            // ever invoked (docs/127, 127.1).
             var effect = registration.Effect == ToolEffect.Read ? ToolEffect.External : registration.Effect;
 
-            AIFunctionDeclaration function;
-
-            if (registration.Function is AIFunction invocable)
-            {
-                var effectiveMaxOutputBytes = registration.MaxOutputBytes ?? defaultMaxOutputBytes;
-
-                AIFunction wrapped = new TruncatingAIFunction(
-                    invocable,
-                    effectiveMaxOutputBytes ?? int.MaxValue);
-
-                wrapped = registration.RequiresApproval
-                    ? new ApprovalRequiredAIFunction(wrapped)
-                    : wrapped;
-
-                wrapped = new TimeoutAIFunction(wrapped, registration.Timeout ?? defaultTimeout, timeoutLogger);
-
-                function = new AuthorizingAIFunction(
-                    wrapped,
-                    authorizationHandler,
-                    effect,
-                    registration.RequiredPermission,
-                    attribution,
-                    authorizingLogger);
-            }
-            else if (registration.RequiresApproval)
-            {
-                throw new AgentPrismException(
-                    $"Tool '{name}' cannot require approval: it runs on the client and has no " +
-                    "server-side body to defer. Approval and client-side tools are separate mechanisms.");
-            }
-            else
-            {
-                function = registration.Function;
-            }
-
-            if (!tools.TryAdd(name, function))
-            {
-                logger.LogWarning(
-                    "MCP tool name '{ToolName}' was produced more than once; the second registration was skipped. " +
-                    "Choose server names that are distinguishable from one another.",
-                    name);
-
-                continue;
-            }
-
-            descriptors.Add(new ToolDescriptor
+            var descriptor = new ToolDescriptor
             {
                 Name = name,
                 Description = registration.Function.Description,
@@ -139,7 +103,31 @@ internal sealed class McpTenantTools
                 RequiredPermission = registration.RequiredPermission,
                 Timeout = registration.Timeout,
                 MaxOutputBytes = registration.MaxOutputBytes,
-            });
+            };
+
+            var function = ToolWrapperChain.Compose(
+                registration,
+                descriptor,
+                authorizationHandler,
+                validator,
+                defaultTimeout,
+                defaultMaxOutputBytes,
+                attribution,
+                authorizingLogger,
+                timeoutLogger,
+                validatingLogger);
+
+            if (!tools.TryAdd(name, function))
+            {
+                logger.LogWarning(
+                    "MCP tool name '{ToolName}' was produced more than once; the second registration was skipped. " +
+                    "Choose server names that are distinguishable from one another.",
+                    name);
+
+                continue;
+            }
+
+            descriptors.Add(descriptor);
         }
 
         descriptors.Sort(static (left, right) => string.CompareOrdinal(left.Name, right.Name));

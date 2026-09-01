@@ -47,10 +47,12 @@ public sealed class ToolRegistrationTests
         var withApproval = new ToolRegistry(
             [new AgentPrismToolRegistration(TestData.Tool("delete"), requiresApproval: true)],
             new AllowAllToolAuthorizationHandler(),
+            NoOpToolArgumentsValidator.Instance,
             TestData.DefaultOptionsMonitor(),
             attribution: null,
             Microsoft.Extensions.Logging.Abstractions.NullLogger<AuthorizingAIFunction>.Instance,
-            Microsoft.Extensions.Logging.Abstractions.NullLogger<TimeoutAIFunction>.Instance);
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<TimeoutAIFunction>.Instance,
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<ValidatingAIFunction>.Instance);
 
         withApproval.List().ShouldHaveSingleItem().RequiresApproval.ShouldBeTrue();
     }
@@ -120,10 +122,12 @@ public sealed class ToolRegistrationTests
             () => new ToolRegistry(
                 [new AgentPrismToolRegistration(declaration, requiresApproval: true)],
                 new AllowAllToolAuthorizationHandler(),
+                NoOpToolArgumentsValidator.Instance,
                 TestData.DefaultOptionsMonitor(),
                 attribution: null,
                 Microsoft.Extensions.Logging.Abstractions.NullLogger<AuthorizingAIFunction>.Instance,
-                Microsoft.Extensions.Logging.Abstractions.NullLogger<TimeoutAIFunction>.Instance));
+                Microsoft.Extensions.Logging.Abstractions.NullLogger<TimeoutAIFunction>.Instance,
+                Microsoft.Extensions.Logging.Abstractions.NullLogger<ValidatingAIFunction>.Instance));
 
         exception.Message.ShouldContain("read_page_title");
         exception.Message.ShouldContain("client");
@@ -223,6 +227,11 @@ public sealed class ToolRegistrationTests
         exception.Message.ShouldContain(nameof(SampleClassWithMethod));
         exception.Message.ShouldContain("Greet");
         exception.Message.ShouldContain("K-218");
+
+        // K-347 does NOT reopen (the instance method is still
+        // rejected) - the rejection text now also names AddScopedTool, the
+        // API a caller reaches for when the dependency must be resolved per call.
+        exception.Message.ShouldContain("AddScopedTool");
     }
 
     private static IToolRegistry BuildRegistry(Action<IAgentPrismBuilder> configure)

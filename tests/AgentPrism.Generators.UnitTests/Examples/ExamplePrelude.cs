@@ -19,9 +19,9 @@ namespace AgentPrism.Generators.UnitTests.Examples;
 /// <para>
 /// A handful of blocks name a type that exists only to illustrate an extension
 /// point (<c>OnPremiseModelProvider</c>, <c>OrderTools</c>, <c>IOrderGateway</c>,
-/// <c>NightlyReportJobHandler</c>, <c>GitAgentSource</c>, <c>ResponseQualityJudge</c>,
-/// <c>AuditingAgentDecorator</c>): "a
-/// provider/tool/service/handler/source/judge/decorator you wrote yourself". Those get a
+/// <c>IOrderRepository</c>, <c>NightlyReportJobHandler</c>, <c>GitAgentSource</c>,
+/// <c>ResponseQualityJudge</c>, <c>AuditingAgentDecorator</c>): "a
+/// provider/tool/service/repository/handler/source/judge/decorator you wrote yourself". Those get a
 /// minimal stub here for the same reason - a real consumer would have written
 /// one, and the doc text stays untouched.
 /// </para>
@@ -95,6 +95,12 @@ internal static class ExamplePrelude
         internal interface IOrderGateway;
 
         internal sealed class OrderGateway : IOrderGateway;
+
+        // Stands in for "your own scoped repository", named in one <example> only.
+        internal interface IOrderRepository
+        {
+            Task<string> GetAsync(string orderId);
+        }
 
         // Stands in for "your own scheduled job", named in one <example> only.
         internal sealed class NightlyReportJobHandler : IJobHandler

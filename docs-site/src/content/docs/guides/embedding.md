@@ -92,7 +92,7 @@ full contract, including why the value is never read from the run request body.
 ### 3 — Tool authorization
 
 Decides whether a caller may invoke a specific tool at all, separately from
-approval — see [Tools](/concepts/tools/#authorization-and-timeout) for the binding
+approval — see [Tools](/concepts/tools/#authorization-validation-and-timeout) for the binding
 pattern and how authorization and approval order relative to each other.
 
 ### 4 — Run event bridge

@@ -63,6 +63,7 @@ public sealed class McpDiscoverySingletonTests
             NullLoggerFactory.Instance,
             new McpOAuthTokenCacheRegistry(),
             new AllowAllToolAuthorizationHandler(),
+            NoOpToolArgumentsValidator.Instance,
             attribution: null);
 
         // No SQL persistence provider is registered: the gate is open by

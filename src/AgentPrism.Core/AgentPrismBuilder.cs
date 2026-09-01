@@ -50,6 +50,35 @@ internal sealed class AgentPrismBuilder : IAgentPrismBuilder
         return AddTool(tool, static _ => { });
     }
 
+    public IAgentPrismBuilder AddScopedTool(AIFunction tool, Action<ToolRegistrationOptions> configure)
+    {
+        ArgumentNullException.ThrowIfNull(tool);
+        ArgumentNullException.ThrowIfNull(configure);
+
+        var options = new ToolRegistrationOptions();
+        configure(options);
+
+        // The scope factory can only be resolved from the FINAL provider, so
+        // the registration itself is built lazily through a factory, unlike
+        // AddTool's eager instance registration.
+        Services.AddSingleton<AgentPrismToolRegistration>(provider => new AgentPrismToolRegistration(
+            new ScopedAIFunction(tool, provider.GetRequiredService<IServiceScopeFactory>()),
+            options.RequiresApproval,
+            options.Source,
+            options.Effect,
+            options.RequiredPermission,
+            options.Timeout,
+            options.SafeToRepeat,
+            options.MaxOutputBytes));
+        return this;
+    }
+
+    public IAgentPrismBuilder AddScopedTool(AIFunction tool)
+    {
+        ArgumentNullException.ThrowIfNull(tool);
+        return AddScopedTool(tool, static _ => { });
+    }
+
     [RequiresUnreferencedCode("Creating a tool from a method uses reflection; method metadata can be removed from trimmed applications.")]
     [RequiresDynamicCode("Creating a tool from a method can require run-time code generation.")]
     public IAgentPrismBuilder AddTool(
