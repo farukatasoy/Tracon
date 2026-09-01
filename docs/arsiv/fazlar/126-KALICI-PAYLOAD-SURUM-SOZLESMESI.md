@@ -1,8 +1,8 @@
 # Faz 126 — Kalıcı Payload Sürüm Sözleşmesi
 
 > **Durum:** ✅ Tamamlandı (2026-09-01)
-> **Kaynak:** [kesif/2026-08-31-tuketici-raporu-faz-adaylari.md](kesif/2026-08-31-tuketici-raporu-faz-adaylari.md) · **T-5**
-> **Önkoşul:** [Faz 97](arsiv/fazlar/97-SURUM-POLITIKASI-VE-YAYIN-PROVASI.md) (sürüm politikası ve yayın provası) — arşivde; yalnız grep'le okunur
+> **Kaynak:** [kesif/2026-08-31-tuketici-raporu-faz-adaylari.md](../../kesif/2026-08-31-tuketici-raporu-faz-adaylari.md) · **T-5**
+> **Önkoşul:** [Faz 97](97-SURUM-POLITIKASI-VE-YAYIN-PROVASI.md) (sürüm politikası ve yayın provası) — arşivde; yalnız grep'le okunur
 > **Paketler:** `AgentPrism.Abstractions` (`Sessions/`, `Workflows/`), `AgentPrism.Core`, `AgentPrism.PostgreSql`, `.SqlServer`, `.Sqlite`, `AgentPrism.Sql.Shared`
 > **Yeni paket:** Yok · **Migration:** **Gerekli — üç set** (PostgreSQL + SqlServer + Sqlite). Numaralar uygulama anında alınır (K-178)
 > **Public API:** Büyüyor — iki kayıt tipine birer alan. Faz 7'den önce ucuz: `wc -l src/*/PublicAPI.Shipped.txt` toplamı **17** satır ve her dosya yalnız başlık taşıyor (K-603). Aynı alanı `1.0.0` sonrası eklemek **kırıcıdır**
@@ -22,10 +22,10 @@
    ```
    **K-178** (migration numaraları sağlayıcı başına bağımsızdır) · **K-603** (`PublicAPI.Shipped.txt` preview boyunca boş kalır) · **K-648** (`sessions.version` ile eşzamanlılık — bu fazın ekleyeceği sütun **o değildir**, ayrı bir sütundur)
 3. Alan hafızası (bu faz üç alana dokunuyor):
-   [`hafiza/maf-oturum.md`](hafiza/maf-oturum.md) (oturum durumunun MAF tarafı) ·
-   [`hafiza/sql-saglayicilari.md`](hafiza/sql-saglayicilari.md) (üç sağlayıcı, üç migration) ·
-   [`hafiza/workflows.md`](hafiza/workflows.md) (checkpoint payload'ının `$type` kısıtı)
-4. Gerektiğinde: [`MIMARI.md`](MIMARI.md) — veri modeli bölümü
+   [`hafiza/maf-oturum.md`](../../hafiza/maf-oturum.md) (oturum durumunun MAF tarafı) ·
+   [`hafiza/sql-saglayicilari.md`](../../hafiza/sql-saglayicilari.md) (üç sağlayıcı, üç migration) ·
+   [`hafiza/workflows.md`](../../hafiza/workflows.md) (checkpoint payload'ının `$type` kısıtı)
+4. Gerektiğinde: [`MIMARI.md`](../../MIMARI.md) — veri modeli bölümü
 
 ---
 
@@ -48,11 +48,11 @@ bir **prova**.
 
 | Kanıt | Gözlem |
 |---|---|
-| [`AgentSessionManager.cs:136-146`](../src/AgentPrism.Core/Sessions/AgentSessionManager.cs) | Okunamayan durum `AgentPrismException` fırlatıyor ve sebebi **tahmin ediyor**: *"older sessions may have become unreadable"* |
-| [`ISessionStore.cs:187-191`](../src/AgentPrism.Abstractions/Sessions/ISessionStore.cs) | `SessionRecord.State` *"treated as opaque"* — sürüm damgası yok |
-| [`WorkflowCheckpointRecord.cs:8-16`](../src/AgentPrism.Abstractions/Workflows/WorkflowCheckpointRecord.cs) | `State` opak ve **`$type` ayırıcısı ilk özellik olmak zorunda**; bu yüzden `json` sütununda saklanıyor, `jsonb` değil |
-| [`WorkflowCheckpointState.cs:17-27`](../src/AgentPrism.Abstractions/Workflows/WorkflowCheckpointState.cs) | Tipin tamamı iki üye: `Omitted` ve `IsOmitted`. Sürüm kavramı yok |
-| [`reference/versioning.md:93`](../docs-site/src/content/docs/reference/versioning.md) | Yükseltme adımı: *"Read the source diff for public API, configuration, and migration changes."* Kalıcı payload geçmiyor |
+| [`AgentSessionManager.cs:136-146`](../../../src/AgentPrism.Core/Sessions/AgentSessionManager.cs) | Okunamayan durum `AgentPrismException` fırlatıyor ve sebebi **tahmin ediyor**: *"older sessions may have become unreadable"* |
+| [`ISessionStore.cs:187-191`](../../../src/AgentPrism.Abstractions/Sessions/ISessionStore.cs) | `SessionRecord.State` *"treated as opaque"* — sürüm damgası yok |
+| [`WorkflowCheckpointRecord.cs:8-16`](../../../src/AgentPrism.Abstractions/Workflows/WorkflowCheckpointRecord.cs) | `State` opak ve **`$type` ayırıcısı ilk özellik olmak zorunda**; bu yüzden `json` sütununda saklanıyor, `jsonb` değil |
+| [`WorkflowCheckpointState.cs:17-27`](../../../src/AgentPrism.Abstractions/Workflows/WorkflowCheckpointState.cs) | Tipin tamamı iki üye: `Omitted` ve `IsOmitted`. Sürüm kavramı yok |
+| [`reference/versioning.md:93`](../../../docs-site/src/content/docs/reference/versioning.md) | Yükseltme adımı: *"Read the source diff for public API, configuration, and migration changes."* Kalıcı payload geçmiyor |
 
 > Kanıtlar 2026-08-31 tarihinde `8105c00` üzerinde doğrulandı.
 
