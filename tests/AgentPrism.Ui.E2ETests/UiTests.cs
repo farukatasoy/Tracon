@@ -1114,7 +1114,7 @@ public sealed class UiTests(BrowserFixture browsers)
         await session.Page.GetByPlaceholder("summarizer").FillAsync("support");
         // Phase 129: the lane field. Left blank on a fresh row, "default" is
         // shown; here it is set so the column's actual value can be asserted.
-        await session.Page.GetByPlaceholder("default").FillAsync("media");
+        await session.Page.GetByPlaceholder("default", new() { Exact = true }).FillAsync("media");
         await session.Page.Locator("textarea").FillAsync("[\"hello\"]");
 
         await session.Page.GetByRole(AriaRole.Button, new() { Name = "Save" }).ClickAsync();

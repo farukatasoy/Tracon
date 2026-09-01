@@ -2,7 +2,7 @@ using System.Globalization;
 
 namespace AgentPrism.Generators.UnitTests;
 
-/// <summary>Verifies each of the APG0001-APG0009 diagnostics individually.</summary>
+/// <summary>Verifies each of the APG0001-APG0010 diagnostics individually.</summary>
 public sealed class DiagnosticTests
 {
     [Fact]
@@ -76,8 +76,14 @@ public sealed class DiagnosticTests
         diagnostics[0].GetMessage(CultureInfo.InvariantCulture).ShouldContain("ComplexType");
     }
 
+    /// <summary>
+    /// 130 narrowed APG0003's boundary: the generator now expresses a constraint
+    /// (<c>minimum</c>/<c>maximum</c>/length/<c>pattern</c>) from a standard
+    /// DataAnnotations attribute, so the message must stop claiming it never does. A
+    /// nested object is still never expressed, so that half of the boundary stays.
+    /// </summary>
     [Fact]
-    public void APG0003_message_names_what_the_generator_can_never_express_125_3()
+    public void APG0003_message_names_the_nested_object_boundary_but_no_longer_claims_no_constraint_130()
     {
         const string Source = """
             using AgentPrism;
@@ -97,7 +103,7 @@ public sealed class DiagnosticTests
 
         var message = result.DiagnosticsWithId("APG0003").Single().GetMessage(CultureInfo.InvariantCulture);
         message.ShouldContain("nested object");
-        message.ShouldContain("constraint");
+        message.ShouldNotContain("constraint");
     }
 
     [Fact]

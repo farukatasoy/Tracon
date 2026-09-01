@@ -14,6 +14,7 @@ APG0006 | AgentPrism.Tools | Warning | Tool description missing. See docs/arsiv/
 APG0007 | AgentPrism.Tools | Error | An instance method cannot be a tool. See docs/arsiv/fazlar/52-KAYNAK-URETECI.md
 APG0008 | AgentPrism.Tools | Error | A complex tool result needs a source-generated JSON context. See docs/arsiv/fazlar/102-TOOL-SOZLESMESI-VE-SONUC-SINIRI.md
 APG0009 | AgentPrism.Tools | Warning | A tool parameter has no description. See docs/arsiv/fazlar/125-URETILEN-TOOL-SEMASININ-IFADE-GUCU.md
+APG0010 | AgentPrism.Tools | Warning | A parameter constraint attribute does not apply to its type or shape. See docs/130-URETILEN-SEMANIN-KISITLARI.md
 APG0101 | AgentPrism.Usage | Warning | AgentPrism is mapped but not registered. See docs/arsiv/fazlar/73-TUKETICI-AGENT-DESTEGI.md
 APG0102 | AgentPrism.Usage | Warning | The bound model provider is not registered. See docs/arsiv/fazlar/73-TUKETICI-AGENT-DESTEGI.md
 APG0201 | AgentPrism.Usage | Warning | A secret is written into a definition. See docs/arsiv/fazlar/73-TUKETICI-AGENT-DESTEGI.md

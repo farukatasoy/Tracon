@@ -142,7 +142,7 @@ bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 | [127](arsiv/fazlar/127-TOOL-KAYIT-YUZEYI.md) | Tool Kayıt Yüzeyi: Tek Kompozisyon, Argüman Kapısı ve Kapsamlı Tool | ✅ Tamamlandı |
 | [128](arsiv/fazlar/128-RUN-AGACI-SURE-BUTCESI.md) | Run Ağacı Süre Bütçesi | ✅ Tamamlandı |
 | [129](arsiv/fazlar/129-IS-KUYRUGU-LANELERI.md) | İş Kuyruğu `lane`'leri | ✅ Tamamlandı |
-| [130](130-URETILEN-SEMANIN-KISITLARI.md) | Üretilen Şemanın Kısıtları | 📋 Planlandı |
+| [130](130-URETILEN-SEMANIN-KISITLARI.md) | Üretilen Şemanın Kısıtları | ✅ Tamamlandı |
 | [131](131-YAPISAL-YANIT-DOGRULAMA-SEAMI.md) | Yapısal Yanıt Doğrulama Seam'i | 📋 Planlandı |
 | [132](132-UYGULANAN-FIYAT-SNAPSHOTU.md) | Uygulanan Fiyat Snapshot'ı ve Sağlayıcı Kimliği | 📋 Planlandı |
 

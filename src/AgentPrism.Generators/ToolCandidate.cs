@@ -94,7 +94,12 @@ internal sealed record ToolCandidate(SourceLocation Location, EquatableArray<Dia
 
         foreach (var parameter in method.Parameters)
         {
-            var model = ParameterTypeValidator.TryCreate(parameter);
+            var model = ParameterTypeValidator.TryCreate(parameter, out var unsupportedConstraintAttributes);
+
+            foreach (var attributeName in unsupportedConstraintAttributes)
+            {
+                diagnostics.Add(DiagnosticInfo.Create(ToolDiagnostics.UnsupportedConstraint.Id, location, toolName, parameter.Name, attributeName));
+            }
 
             if (model is null)
             {

@@ -40,11 +40,45 @@ JSON Schema as the parameter's `description` — the strongest signal the model 
 filling in that argument correctly. A parameter without one still compiles; the
 generator reports it as a warning (`APG0009`).
 
+A standard `System.ComponentModel.DataAnnotations` attribute reaches the schema as a
+constraint the model sees before it ever calls the tool:
+
+```csharp
+[AgentPrismTool("search_orders_by_text", "Searches orders by free text.")]
+public static string[] SearchOrdersByText(
+    [Description("The search text.")] [MinLength(1)] [MaxLength(200)] string query,
+    [Description("The maximum number of results.")] [Range(1, 100)] int limit = 20,
+    [Description("Order codes to match, each 3 letters and 4 digits.")]
+    [RegularExpression(@"^[A-Z]{3}-\d{4}$")]
+    string[] orderCodes)
+    => Array.Empty<string>();
+```
+
+| Attribute | Applies to | Schema key(s) |
+|---|---|---|
+| `[Range(min, max)]` | `int`/`double`/other numeric types (scalar or array element) | `minimum`, `maximum` |
+| `[MinLength(n)]` / `[MaxLength(n)]` | `string` | `minLength` / `maxLength` |
+| `[MinLength(n)]` / `[MaxLength(n)]` | an array | `minItems` / `maxItems` — the array's own length, never its elements' |
+| `[StringLength(max, MinimumLength = min)]` | `string` | `minLength` + `maxLength` |
+| `[RegularExpression(pattern)]` | `string` | `pattern`, copied as-is — .NET regex syntax is not translated to ECMA-262 |
+
+When two attributes set the same key (`[MinLength(2)]` together with
+`[StringLength(10, MinimumLength = 3)]`), the narrower bound wins. A constraint
+attribute that does not apply to its parameter's type or shape — `[Range]` on a
+`string`, a length constraint on a `bool`, `[Range(typeof(decimal), "0", "1")]` (its
+`Type`-based overload gives no compile-time constant) — is left out of the schema and
+reported as a warning (`APG0010`); it never blocks generation.
+
+The schema is the only place this constraint is enforced. Binding rejects a type
+mismatch or a missing required field, but nothing else checks `minimum`/`maxLength`/
+`pattern` at run time — a validator that wants to enforce them reads
+`tool.JsonSchema` inside `IToolArgumentsValidator` (below).
+
 **What the generator can express:** a parameter's scalar type (primitive types,
 `string`, `Guid`, `DateTime`/`DateTimeOffset`, `enum`), an array of these,
-`description`, and whether it is required. **What it cannot express, on any
-parameter:** a nested object, or a `minimum`, `maximum`, length, or `pattern`
-constraint. For a nested object parameter, register the tool by hand instead:
+`description`, whether it is required, and the constraints above. **What it cannot
+express, on any parameter:** a nested object. For a nested object parameter, register
+the tool by hand instead:
 
 ```csharp
 public sealed record OrderFilter(string Status, int MinAmount);

@@ -15,18 +15,30 @@ internal static class ParameterTypeValidator
     private const string DateTimeMetadataName = "System.DateTime";
     private const string DateTimeOffsetMetadataName = "System.DateTimeOffset";
     private const string DescriptionAttributeMetadataName = "System.ComponentModel.DescriptionAttribute";
+    private const string RangeAttributeMetadataName = "System.ComponentModel.DataAnnotations.RangeAttribute";
+    private const string MinLengthAttributeMetadataName = "System.ComponentModel.DataAnnotations.MinLengthAttribute";
+    private const string MaxLengthAttributeMetadataName = "System.ComponentModel.DataAnnotations.MaxLengthAttribute";
+    private const string StringLengthAttributeMetadataName = "System.ComponentModel.DataAnnotations.StringLengthAttribute";
+    private const string RegularExpressionAttributeMetadataName = "System.ComponentModel.DataAnnotations.RegularExpressionAttribute";
 
     /// <summary>
     /// Classifies a parameter. When <paramref name="parameter"/> is
     /// <c>System.Threading.CancellationToken</c>, returns
     /// <see cref="ParameterShape.CancellationToken"/> and excludes it from the JSON schema.
     /// </summary>
-    public static ParameterModel? TryCreate(IParameterSymbol parameter)
+    /// <param name="unsupportedConstraintAttributes">
+    /// Constraint attributes (130.2) present on <paramref name="parameter"/> that do not
+    /// apply to its resolved type or shape - reported as APG0010 by the caller. A
+    /// constraint attribute never blocks generation, so this is populated independently of
+    /// the return value, including when the return value is <see langword="null"/>.
+    /// </param>
+    public static ParameterModel? TryCreate(IParameterSymbol parameter, out EquatableArray<string> unsupportedConstraintAttributes)
     {
         var type = parameter.Type;
 
         if (string.Equals(GetMetadataName(type), CancellationTokenMetadataName, StringComparison.Ordinal))
         {
+            unsupportedConstraintAttributes = EquatableArray<string>.Empty;
             return new ParameterModel(parameter.Name, ParameterShape.CancellationToken, Leaf: null, IsRequired: true, DefaultValueLiteral: null);
         }
 
@@ -39,14 +51,255 @@ internal static class ParameterTypeValidator
         if (TryGetArrayElementType(type, out var elementType, out var isConcreteArray))
         {
             var elementLeaf = TryCreateLeaf(elementType);
-            return elementLeaf is null
-                ? null
-                : new ParameterModel(parameter.Name, ParameterShape.Array, elementLeaf, isRequired, defaultLiteral, isConcreteArray, description);
+
+            if (elementLeaf is null)
+            {
+                unsupportedConstraintAttributes = EquatableArray<string>.Empty;
+                return null;
+            }
+
+            var arrayConstraints = ReadConstraints(parameter, ParameterShape.Array, elementLeaf.Kind, out unsupportedConstraintAttributes);
+            return new ParameterModel(parameter.Name, ParameterShape.Array, elementLeaf, isRequired, defaultLiteral, isConcreteArray, description, arrayConstraints);
         }
 
         var leaf = TryCreateLeaf(type);
-        return leaf is null ? null : new ParameterModel(parameter.Name, ParameterShape.Scalar, leaf, isRequired, defaultLiteral, IsConcreteArray: false, Description: description);
+
+        if (leaf is null)
+        {
+            unsupportedConstraintAttributes = EquatableArray<string>.Empty;
+            return null;
+        }
+
+        var constraints = ReadConstraints(parameter, ParameterShape.Scalar, leaf.Kind, out unsupportedConstraintAttributes);
+        return new ParameterModel(parameter.Name, ParameterShape.Scalar, leaf, isRequired, defaultLiteral, IsConcreteArray: false, Description: description, Constraints: constraints);
     }
+
+    /// <summary>
+    /// Reads JSON Schema constraints (130.1) from standard
+    /// <c>System.ComponentModel.DataAnnotations</c> attributes. An attribute that does not
+    /// apply to <paramref name="shape"/>/<paramref name="leafKind"/> contributes nothing to
+    /// the returned <see cref="ParameterConstraints"/> and is instead named in
+    /// <paramref name="unsupportedAttributes"/> for the caller to report as APG0010 -
+    /// this never blocks generation.
+    /// </summary>
+    /// <remarks>
+    /// A length constraint on an array parameter (<see cref="MinLengthAttribute"/>/
+    /// <see cref="MaxLengthAttribute"/>) targets the array itself
+    /// (<c>minItems</c>/<c>maxItems</c>), never its element - "at least two tags", not
+    /// "each tag at least two characters" (130.3). A range constraint targets the leaf
+    /// value regardless of shape, because its meaning does not change between a scalar and
+    /// an array element the way a length constraint's does.
+    /// </remarks>
+    private static ParameterConstraints ReadConstraints(
+        IParameterSymbol parameter,
+        ParameterShape shape,
+        LeafTypeKind leafKind,
+        out EquatableArray<string> unsupportedAttributes)
+    {
+        string? minimum = null;
+        string? maximum = null;
+        int? minLength = null;
+        int? maxLength = null;
+        int? minItems = null;
+        int? maxItems = null;
+        string? pattern = null;
+        var unsupported = System.Collections.Immutable.ImmutableArray.CreateBuilder<string>();
+
+        foreach (var attribute in parameter.GetAttributes())
+        {
+            if (attribute.AttributeClass is not { } attributeClass)
+            {
+                continue;
+            }
+
+            var metadataName = $"{attributeClass.ContainingNamespace}.{attributeClass.Name}";
+
+            switch (metadataName)
+            {
+                case RangeAttributeMetadataName:
+                    if (leafKind is LeafTypeKind.Integer or LeafTypeKind.Number && TryReadRange(attribute, out var rangeMinimum, out var rangeMaximum))
+                    {
+                        minimum = rangeMinimum;
+                        maximum = rangeMaximum;
+                    }
+                    else
+                    {
+                        unsupported.Add("[Range]");
+                    }
+
+                    break;
+
+                case MinLengthAttributeMetadataName:
+                    // JSON Schema requires minLength/minItems to be a non-negative integer
+                    // (draft 2020-12, "nonNegativeInteger"); a negative constant is not a
+                    // missing-constructor-argument case like MaxLengthAttribute() below, but
+                    // it is equally unrenderable, so it is reported the same way (APG0010)
+                    // instead of being written into an otherwise-invalid schema.
+                    if (!TryReadSingleIntArgument(attribute, out var minLengthValue) || minLengthValue < 0)
+                    {
+                        unsupported.Add("[MinLength]");
+                    }
+                    else if (shape == ParameterShape.Array)
+                    {
+                        minItems = MergeNarrowerMinimum(minItems, minLengthValue);
+                    }
+                    else if (leafKind == LeafTypeKind.String)
+                    {
+                        minLength = MergeNarrowerMinimum(minLength, minLengthValue);
+                    }
+                    else
+                    {
+                        unsupported.Add("[MinLength]");
+                    }
+
+                    break;
+
+                case MaxLengthAttributeMetadataName:
+                    // TryReadSingleIntArgument also fails for MaxLengthAttribute's
+                    // parameterless constructor (MaxLengthAttribute(), a valid C# usage
+                    // meaning "use the store's own maximum") - it carries no length value
+                    // for the generator to render, so it is reported rather than silently
+                    // producing no schema effect.
+                    if (!TryReadSingleIntArgument(attribute, out var maxLengthValue) || maxLengthValue < 0)
+                    {
+                        unsupported.Add("[MaxLength]");
+                    }
+                    else if (shape == ParameterShape.Array)
+                    {
+                        maxItems = MergeNarrowerMaximum(maxItems, maxLengthValue);
+                    }
+                    else if (leafKind == LeafTypeKind.String)
+                    {
+                        maxLength = MergeNarrowerMaximum(maxLength, maxLengthValue);
+                    }
+                    else
+                    {
+                        unsupported.Add("[MaxLength]");
+                    }
+
+                    break;
+
+                case StringLengthAttributeMetadataName:
+                    {
+                        var hasMaxLength = attribute.ConstructorArguments.Length > 0 &&
+                            attribute.ConstructorArguments[0].Value is int rawMaxLength &&
+                            rawMaxLength >= 0;
+                        var stringMaxLength = hasMaxLength ? (int)attribute.ConstructorArguments[0].Value! : 0;
+
+                        int? stringMinLength = null;
+                        var hasInvalidMinimumLength = false;
+
+                        foreach (var named in attribute.NamedArguments)
+                        {
+                            if (!string.Equals(named.Key, "MinimumLength", StringComparison.Ordinal))
+                            {
+                                continue;
+                            }
+
+                            if (named.Value.Value is int namedMinLength && namedMinLength >= 0)
+                            {
+                                stringMinLength = namedMinLength;
+                            }
+                            else
+                            {
+                                hasInvalidMinimumLength = true;
+                            }
+                        }
+
+                        if (shape == ParameterShape.Scalar && leafKind == LeafTypeKind.String && hasMaxLength && !hasInvalidMinimumLength)
+                        {
+                            maxLength = MergeNarrowerMaximum(maxLength, stringMaxLength);
+
+                            if (stringMinLength is { } validMinLength)
+                            {
+                                minLength = MergeNarrowerMinimum(minLength, validMinLength);
+                            }
+                        }
+                        else
+                        {
+                            unsupported.Add("[StringLength]");
+                        }
+
+                        break;
+                    }
+
+                case RegularExpressionAttributeMetadataName:
+                    if (shape == ParameterShape.Scalar && leafKind == LeafTypeKind.String &&
+                        attribute.ConstructorArguments.Length > 0 && attribute.ConstructorArguments[0].Value is string patternValue)
+                    {
+                        pattern = patternValue;
+                    }
+                    else
+                    {
+                        unsupported.Add("[RegularExpression]");
+                    }
+
+                    break;
+            }
+        }
+
+        unsupportedAttributes = unsupported.ToImmutable();
+
+        return new ParameterConstraints(minimum, maximum, minLength, maxLength, minItems, maxItems, pattern);
+    }
+
+    /// <summary>
+    /// Reads <see cref="System.ComponentModel.DataAnnotations.RangeAttribute"/>'s numeric
+    /// bounds. Returns <see langword="false"/> for its <c>Range(Type, string, string)</c>
+    /// overload: that form's bounds are not a compile-time numeric constant, so the
+    /// generator cannot render them (130.2).
+    /// </summary>
+    private static bool TryReadRange(AttributeData attribute, out string? minimum, out string? maximum)
+    {
+        minimum = null;
+        maximum = null;
+
+        var ctorArgs = attribute.ConstructorArguments;
+
+        if (ctorArgs.Length != 2)
+        {
+            return false;
+        }
+
+        if (ctorArgs[0].Value is int minInt && ctorArgs[1].Value is int maxInt)
+        {
+            minimum = minInt.ToString(CultureInfo.InvariantCulture);
+            maximum = maxInt.ToString(CultureInfo.InvariantCulture);
+            return true;
+        }
+
+        if (ctorArgs[0].Value is double minDouble && ctorArgs[1].Value is double maxDouble)
+        {
+            minimum = minDouble.ToString("R", CultureInfo.InvariantCulture);
+            maximum = maxDouble.ToString("R", CultureInfo.InvariantCulture);
+            return true;
+        }
+
+        return false;
+    }
+
+    private static bool TryReadSingleIntArgument(AttributeData attribute, out int value)
+    {
+        if (attribute.ConstructorArguments.Length > 0 && attribute.ConstructorArguments[0].Value is int argument)
+        {
+            value = argument;
+            return true;
+        }
+
+        value = 0;
+        return false;
+    }
+
+    /// <summary>
+    /// Resolves two candidate values for the same "minimum" key (example: <c>[MinLength(2)]</c>
+    /// and <c>[StringLength(10, MinimumLength = 3)]</c> on the same parameter) - the NARROWER
+    /// bound wins, which for a minimum is the larger value (130.1). This is the single place
+    /// that rule is applied.
+    /// </summary>
+    private static int MergeNarrowerMinimum(int? existing, int candidate) => existing is null ? candidate : Math.Max(existing.Value, candidate);
+
+    /// <summary>The maximum counterpart of <see cref="MergeNarrowerMinimum"/> - the smaller value wins.</summary>
+    private static int MergeNarrowerMaximum(int? existing, int candidate) => existing is null ? candidate : Math.Min(existing.Value, candidate);
 
     /// <summary>
     /// Reads <see cref="System.ComponentModel.DescriptionAttribute"/> from the parameter.

@@ -1,6 +1,6 @@
 # 02 — Çekirdek ve Katalog (`CORE`)
 
-> **Alan kodu:** `CORE` · **Faz:** 1, 3, 72, 101, 106
+> **Alan kodu:** `CORE` · **Faz:** 1, 3, 72, 101, 106, 127, 130
 > **Kaynak:** `src/AgentPrism.Abstractions` · `src/AgentPrism.Core`
 > (`Compilation/` · `Catalog/` · `Tools/` · `Sessions/` · `AgentPrismOptions*`)
 >
@@ -2953,3 +2953,161 @@ anında reddedilir. Bu case yalnız ret metninin güncellendiğini doğrular.
 - Hata metni `AddScopedTool`'u adıyla anar (yalnız "static yap" değil, kalıcı
   bir bağımlılığın per-call çözülmesi gerekiyorsa hangi API'nin kullanılacağını
   söyler).
+
+---
+
+### MT-CORE-109 — `[Range]` üretilen şemaya `minimum`/`maximum` yazar (Faz 130)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 130 |
+
+**Ön koşul**
+- `[AgentPrismTool]` işaretli bir metotta `[Range(1, 100)] int count` parametresi.
+
+**Adımlar**
+1. `dotnet build samples/AgentPrism.Api -p:EmitCompilerGeneratedFiles=true`.
+2. Üretilen wrapper dosyasındaki JSON şemayı oku.
+
+**Beklenen sonuç**
+- `"count"` düğümü `"minimum":1,"maximum":100` taşır.
+- Derleme sıfır uyarıyla biter.
+
+> **Otomatik karşılığı:** `ToolSchemaConstraintTests.A_Range_attribute_on_an_integer_parameter_produces_minimum_and_maximum`
+> (`tests/AgentPrism.Generators.UnitTests/ToolSchemaConstraintTests.cs`).
+
+---
+
+### MT-CORE-110 — `[MinLength]` bir `string` parametresinde `minLength`, bir dizi parametresinde `minItems` yazar (Faz 130)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 130 |
+
+Dizi kısıtı diziye uygulanır, elemana değil — bu case'in tek amacı bu ayrımı
+kanıtlamaktır (130.3).
+
+**Ön koşul**
+- `[AgentPrismTool]` işaretli bir metotta `[MinLength(3)] string name` VE
+  `[MinLength(2)] string[] tags` parametreleri.
+
+**Adımlar**
+1. `dotnet build samples/AgentPrism.Api -p:EmitCompilerGeneratedFiles=true`.
+2. Üretilen şemada `name` ve `tags` düğümlerini oku.
+
+**Beklenen sonuç**
+- `name` düğümü `"minLength":3` taşır.
+- `tags` düğümü `"minItems":2` taşır — `items` düğümünde `minLength` **yoktur**.
+
+> **Otomatik karşılığı:**
+> `ToolSchemaConstraintTests.A_MinLength_attribute_on_a_string_parameter_produces_minLength`
+> ve `...An_array_parameter_produces_minItems_not_minLength`.
+
+---
+
+### MT-CORE-111 — Uyumsuz kısıt `APG0010` üretir, derleme başarılı kalır (Faz 130)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 130 |
+
+**Ön koşul**
+- `[AgentPrismTool]` işaretli bir metotta `[Range(1, 10)] string s` parametresi
+  (tipe uymayan kısıt).
+
+**Adımlar**
+1. `dotnet build samples/AgentPrism.Api`.
+
+**Beklenen sonuç**
+- Derleme `APG0010` UYARISI verir, **hata vermez** — build başarılı biter.
+- Üretilen şemada `s` düğümünde `minimum`/`maximum` **yoktur**.
+
+> **Otomatik karşılığı:**
+> `ToolDiagnosticTests.A_Range_attribute_on_a_string_parameter_is_reported_and_omitted_from_the_schema`.
+
+---
+
+### MT-CORE-112 — Kısıtlı bir tool ile gerçek `run` başarıyla biter (Faz 130)
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 130 |
+
+Bu case üretilen şemanın **paket** sınırını gerçekten geçtiğini kanıtlar —
+birim testi yalnız şema **metnini** kanıtlar, `analyzers/dotnet/cs/` içindeki
+DLL'in gerçekten paketlenip bir `PackageReference` tüketicisine ulaştığını
+değil. `samples/AgentPrism.Api` bunu KANITLAYAMAZ: o proje `AgentPrism`'e
+`ProjectReference` ile bağlıdır (`ConsumerRunTests`'in kendi belgesi, K-166
+emsali) — bu yüzden case, `samples/AgentPrism.Api` yerine yerel NuGet feed
+izleğini (İzlek A) kullanan `AgentPrism.Package.Tests`'e taşındı (plandan
+sapma, faz dokümanına not edildi).
+
+**Adımlar**
+1. `dotnet test tests/AgentPrism.Package.Tests --filter-method "*Constrained*"`.
+
+**Beklenen sonuç**
+- `run` `Completed` durumunda biter; tool hatası veya sızıntı görünmez.
+- Üretilen şemada `"minimum":1,"maximum":10` gerçekten paketlenmiş DLL'den
+  çıkar (dış tüketici projesinin stdout'unda görünür).
+
+> **Otomatik karşılığı:**
+> `ConstrainedToolPackageTests.Package_consumer_gets_the_constrained_schema_and_the_run_completes`
+> (`tests/AgentPrism.Package.Tests/ConstrainedToolPackageTests.cs`) —
+> `ConsumerRunTests`'in aynı deseni (paketle → yerel feed → dış tüketici
+> projesi yaz → derle → çalıştır), kısıtlı bir parametreyle.
+
+---
+
+### MT-CORE-113 — `tr-TR` yerelinde ondalık ayırıcı `.` kalır (Faz 130)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 130 |
+
+**Ön koşul**
+- `[AgentPrismTool]` işaretli bir metotta `[Range(1.5, 2.5)] double ratio`
+  parametresi.
+
+**Adımlar**
+1. `LANG=tr_TR.UTF-8 dotnet build tests/AgentPrism.Generators.UnitTests`.
+2. `dotnet build samples/AgentPrism.Api -p:EmitCompilerGeneratedFiles=true`
+   ile üretilen şemayı oku.
+
+**Beklenen sonuç**
+- `"minimum":1.5,"maximum":2.5` — `1,5` **değil**.
+- Derleme sıfır uyarıyla biter.
+
+> **Otomatik karşılığı:**
+> `ToolSchemaConstraintTests.A_decimal_Range_keeps_the_invariant_decimal_separator_under_a_comma_decimal_culture`
+> (`CultureInfo.CurrentCulture` `tr-TR`'ye çevrilerek koşulur).
+
+---
+
+### MT-CORE-114 — Aynı girdi iki derlemede bit düzeyinde aynı şema üretir (Faz 130)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Düşük |
+| **İlgili faz** | Faz 130 |
+
+**Adımlar**
+1. `samples/AgentPrism.Api`'yi temiz derle (`obj`/`bin` temizlenmiş).
+2. Üretilen wrapper dosyasını kopyala.
+3. Tekrar temiz derle, aynı dosyayı tekrar kopyala.
+
+**Beklenen sonuç**
+- İki kopya bayt bayt aynıdır (`diff` boş döner).
+
+> **Otomatik karşılığı:**
+> `ToolSchemaDeterminismTests.The_same_source_produces_byte_identical_wrapper_text_across_two_independent_runs`.
