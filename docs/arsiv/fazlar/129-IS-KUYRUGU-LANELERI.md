@@ -1,13 +1,13 @@
 # Faz 129 — İş Kuyruğu `lane`'leri
 
 > **Durum:** ✅ Tamamlandı (2026-09-01)
-> **Kaynak:** [kesif/2026-09-01-tuketici-feature-talepleri.md](kesif/2026-09-01-tuketici-feature-talepleri.md) — **F-172**
+> **Kaynak:** [kesif/2026-09-01-tuketici-feature-talepleri.md](../../kesif/2026-09-01-tuketici-feature-talepleri.md) — **F-172**
 > **Önkoşul:** Yok
 > **Paketler:** `AgentPrism.Abstractions`, `.Core`, `.Sql.Shared`, `.PostgreSql`, `.SqlServer`, `.Sqlite`, `.AspNetCore`, `.UI`, `.Testing.Contracts.Xunit`
 > **Yeni paket:** Yok · **Migration:** gerekli — üç set (PostgreSQL · SqlServer · Sqlite); numara uygulama anında alınır
 > **Public API:** büyüyor **ve bir imza kırıyor** (`IJobStore.LeaseAsync`). `wc -l src/*/PublicAPI.Shipped.txt` → her dosya 1 satır; shipped giriş **sıfır**, yani bugün kırmak bedava, Faz 7'den sonra bir sürüm kararı
 > **Tüketici yüzeyi:** `docs-site/`: `guides/background-work.md`, `guides/write-your-own-store.md`, `reference/configuration.md`, `ui.md` (+ jobs ekran görüntüsü); `http-api/` ve `api/` **üretilir** — oradaki iş XML dokümanı ve `.Produces` üstverisidir · sevk edilen: `IJobStore`/`JobRecord` XML dokümanı, `capabilities.md` satırı
-> **Manuel test alanı:** [`docs/manuel-test/16-IS-KUYRUGU-VE-ZAMANLAMA.md`](manuel-test/16-IS-KUYRUGU-VE-ZAMANLAMA.md)
+> **Manuel test alanı:** [`docs/manuel-test/16-IS-KUYRUGU-VE-ZAMANLAMA.md`](../../manuel-test/16-IS-KUYRUGU-VE-ZAMANLAMA.md)
 
 ---
 
@@ -23,19 +23,19 @@
    ```
    **K-178** (migration numaraları sağlayıcı başına bağımsızdır), **K-421**
    (`EnablePublicApiTracking` açıktır), **K-413** (`YOL-HARITASI.md` üretilir).
-3. [Faz 120](arsiv/fazlar/120-JOB-SOZLESMESI-AT-LEAST-ONCE.md) — yalnız devir notu:
+3. [Faz 120](120-JOB-SOZLESMESI-AT-LEAST-ONCE.md) — yalnız devir notu:
    ```bash
    awk '/## Sonraki Faza Devir Notu/,0' docs/arsiv/fazlar/120-JOB-SOZLESMESI-AT-LEAST-ONCE.md
    ```
    `IJobHandler`'ın at-least-once sözleşmesini ve `JobHandlerContract`'ı o faz
    yazdı. Bu faz aynı sözleşmeyi **bozmadan** lease sorgusunu daraltır.
 4. Alan hafızası (bu faz üç alana dokunuyor):
-   [`hafiza/sql-saglayicilari.md`](hafiza/sql-saglayicilari.md) (üç lehçede
-   elle yazılmış sorgu), [`hafiza/postgresql.md`](hafiza/postgresql.md)
+   [`hafiza/sql-saglayicilari.md`](../../hafiza/sql-saglayicilari.md) (üç lehçede
+   elle yazılmış sorgu), [`hafiza/postgresql.md`](../../hafiza/postgresql.md)
    (index ve `FOR UPDATE SKIP LOCKED`),
-   [`hafiza/frontend.md`](hafiza/frontend.md) (jobs ekranı ve sözlük).
+   [`hafiza/frontend.md`](../../hafiza/frontend.md) (jobs ekranı ve sözlük).
 5. Gerektiğinde, tamamı değil ilgili bölümü:
-   [`MIMARI.md`](MIMARI.md) — zamanlama ve iş kuyruğu bölümü.
+   [`MIMARI.md`](../../MIMARI.md) — zamanlama ve iş kuyruğu bölümü.
 
 ---
 
@@ -65,15 +65,15 @@ seçtiği `lane`'lere abone olur. Her `lane` kendi eşzamanlılık bütçesini a
 
 | Kanıt | Gözlem |
 |---|---|
-| [`JobRecord.cs`](../src/AgentPrism.Abstractions/Scheduling/JobRecord.cs) | `Lane` alanı yok; `grep -c Lane` → **0** |
-| [`IJobStore.cs:44`](../src/AgentPrism.Abstractions/Scheduling/IJobStore.cs) | `LeaseAsync(owner, leaseDuration, ct)` — `lane` filtresi almaz. `lease`'e tek giriş budur |
-| [`AgentPrismSchedulingOptions.cs`](../src/AgentPrism.Abstractions/Scheduling/AgentPrismSchedulingOptions.cs) | `MaxConcurrentJobs`, `PollInterval`, `LeaseDuration`, `MaxAttempts`, `MaxItemsPerJob` — hepsi **global** |
-| [`JobWorkerBackgroundService.cs:64`](../src/AgentPrism.Core/Scheduling/JobWorkerBackgroundService.cs) | Tek `SemaphoreSlim(Math.Max(1, options.MaxConcurrentJobs))`; tüm iş türleri aynı slotları yarışır |
-| [`JobWorkerBackgroundService.cs:118`](../src/AgentPrism.Core/Scheduling/JobWorkerBackgroundService.cs) | `jobStore.LeaseAsync(_ownerId, options.LeaseDuration, stoppingToken)` — hangi iş geldiyse alır |
-| [`JobKind.cs`](../src/AgentPrism.Abstractions/Scheduling/JobKind.cs) | **Dokuz** değer: `AgentBatch`, `Workflow`, `Eval`, `WebhookDelivery`, `Retention`, `AgentRun`, `OnlineEval`, `ApprovalResume`, `RunContinuation` — hepsi aynı kuyrukta |
-| [`0008_scheduling.sql:49`](../src/AgentPrism.PostgreSql/Migrations/0008_scheduling.sql) | `jobs_claim_idx ON jobs (status, scheduled_for) WHERE status IN (0,1)` — `lane` sütunu yok |
+| [`JobRecord.cs`](../../../src/AgentPrism.Abstractions/Scheduling/JobRecord.cs) | `Lane` alanı yok; `grep -c Lane` → **0** |
+| [`IJobStore.cs:44`](../../../src/AgentPrism.Abstractions/Scheduling/IJobStore.cs) | `LeaseAsync(owner, leaseDuration, ct)` — `lane` filtresi almaz. `lease`'e tek giriş budur |
+| [`AgentPrismSchedulingOptions.cs`](../../../src/AgentPrism.Abstractions/Scheduling/AgentPrismSchedulingOptions.cs) | `MaxConcurrentJobs`, `PollInterval`, `LeaseDuration`, `MaxAttempts`, `MaxItemsPerJob` — hepsi **global** |
+| [`JobWorkerBackgroundService.cs:64`](../../../src/AgentPrism.Core/Scheduling/JobWorkerBackgroundService.cs) | Tek `SemaphoreSlim(Math.Max(1, options.MaxConcurrentJobs))`; tüm iş türleri aynı slotları yarışır |
+| [`JobWorkerBackgroundService.cs:118`](../../../src/AgentPrism.Core/Scheduling/JobWorkerBackgroundService.cs) | `jobStore.LeaseAsync(_ownerId, options.LeaseDuration, stoppingToken)` — hangi iş geldiyse alır |
+| [`JobKind.cs`](../../../src/AgentPrism.Abstractions/Scheduling/JobKind.cs) | **Dokuz** değer: `AgentBatch`, `Workflow`, `Eval`, `WebhookDelivery`, `Retention`, `AgentRun`, `OnlineEval`, `ApprovalResume`, `RunContinuation` — hepsi aynı kuyrukta |
+| [`0008_scheduling.sql:49`](../../../src/AgentPrism.PostgreSql/Migrations/0008_scheduling.sql) | `jobs_claim_idx ON jobs (status, scheduled_for) WHERE status IN (0,1)` — `lane` sütunu yok |
 | `PostgresQueries.cs:1105` · `SqlServerQueries.cs:1268` · `SqliteQueries.cs:1120` | `LeaseJob` sorgusu **üç kez elle** yazılmış; her biri kendi kilitleme lehçesini kullanır |
-| [`AgentPrismMetrics.cs`](../src/AgentPrism.Core/Diagnostics/AgentPrismMetrics.cs) | Sayaçlar: run, run duration, token, tool, tool duration, run cost, judge cost, judge score, model cache, agent source. **Job veya kuyruk metriği yok** |
+| [`AgentPrismMetrics.cs`](../../../src/AgentPrism.Core/Diagnostics/AgentPrismMetrics.cs) | Sayaçlar: run, run duration, token, tool, tool duration, run cost, judge cost, judge score, model cache, agent source. **Job veya kuyruk metriği yok** |
 | `Registration.Storage.cs:307` | Worker `TryAddEnumerable(Singleton<IHostedService, JobWorkerBackgroundService>)` ile kayıtlı. `TryAddEnumerable` **implementation tipine göre** tekilleştirir; "her `lane` için ayrı worker kaydı" bu şekille çalışmaz |
 | `grep -rn "new JobRecord" src/` | **On** üretim çağrı yeri (+ `TestData.cs`). `lane` eklenirken her gövde tek tek izlenmelidir |
 
