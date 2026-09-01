@@ -29,6 +29,7 @@ const EMPTY_FORM = {
   name: '',
   kind: 'AgentBatch' as JobKind,
   targetName: '',
+  lane: '',
   cron: '',
   timeZone: 'UTC',
   payload: '[]',
@@ -95,6 +96,7 @@ function toForm(schedule: JobSchedule): ScheduleForm {
     name: schedule.name,
     kind: schedule.kind,
     targetName: schedule.targetName,
+    lane: schedule.lane === 'default' ? '' : schedule.lane,
     cron: schedule.cron ?? '',
     timeZone: schedule.timeZone,
     payload: JSON.stringify(schedule.payload ?? [], null, 2),
@@ -116,16 +118,19 @@ export function JobsScreen({ meta }: { meta: Meta }): ReactNode {
   const [showForm, setShowForm] = useState(false);
   const [payloadError, setPayloadError] = useState<string | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
+  const [laneFilter, setLaneFilter] = useState('');
 
   const schedules = useQuery({
     queryKey: ['schedules'],
     queryFn: () => unwrap(apiClient.GET('/api/schedules')) as Promise<JobSchedule[]>,
   });
   const jobs = useQuery({
-    queryKey: ['jobs'],
+    queryKey: ['jobs', laneFilter],
     queryFn: () =>
       unwrap(
-        apiClient.GET('/api/jobs', { params: { query: { take: 50 } } }),
+        apiClient.GET('/api/jobs', {
+          params: { query: { take: 50, lane: laneFilter.length > 0 ? laneFilter : undefined } },
+        }),
       ) as Promise<JobRecord[]>,
     // A running job's counters move on their own; the list should follow.
     refetchInterval: 5_000,
@@ -144,6 +149,7 @@ export function JobsScreen({ meta }: { meta: Meta }): ReactNode {
           body: {
             kind: form.kind,
             targetName: form.targetName,
+            lane: form.lane.length > 0 ? form.lane : null,
             cron: form.cron.length > 0 ? form.cron : null,
             timeZone: form.timeZone,
             payload,
@@ -282,6 +288,15 @@ export function JobsScreen({ meta }: { meta: Meta }): ReactNode {
               />
             </Field>
 
+            <Field label={t('jobs.lane')} hint={t('jobs.laneHint')}>
+              <TextInput
+                value={form.lane}
+                pattern="[a-z0-9][a-z0-9._-]{0,63}"
+                placeholder="default"
+                onChange={(event) => setForm({ ...form, lane: event.target.value })}
+              />
+            </Field>
+
             <label className="flex items-end gap-2 pb-1.5 text-[13px]">
               <input
                 type="checkbox"
@@ -342,6 +357,7 @@ export function JobsScreen({ meta }: { meta: Meta }): ReactNode {
                   <Th>{t('common.name')}</Th>
                   <Th>{t('workflowEditor.kind')}</Th>
                   <Th>{t('jobs.target')}</Th>
+                  <Th>{t('jobs.lane')}</Th>
                   <Th>{t('jobs.cron')}</Th>
                   <Th>{t('jobs.nextRun')}</Th>
                   <Th>{t('jobs.lastRun')}</Th>
@@ -359,6 +375,9 @@ export function JobsScreen({ meta }: { meta: Meta }): ReactNode {
                       <Badge tone="accent">{schedule.kind}</Badge>
                     </Td>
                     <Td className="text-muted">{schedule.targetName}</Td>
+                    <Td>
+                      <Mono className="text-[11px] text-muted">{schedule.lane}</Mono>
+                    </Td>
                     <Td>
                       {schedule.cron != null && schedule.cron.length > 0 ? (
                         <Mono className="text-[11px]">{schedule.cron}</Mono>
@@ -413,7 +432,19 @@ export function JobsScreen({ meta }: { meta: Meta }): ReactNode {
           ))}
       </Panel>
 
-      <Panel title={t('jobs.recent')}>
+      <Panel
+        title={t('jobs.recent')}
+        actions={
+          <div className="w-40">
+            <TextInput
+              value={laneFilter}
+              placeholder={t('jobs.laneFilterPlaceholder')}
+              aria-label={t('jobs.laneFilter')}
+              onChange={(event) => setLaneFilter(event.target.value)}
+            />
+          </div>
+        }
+      >
         {jobs.isPending && <Loading />}
         {jobs.isError && (
           <div className="p-4">
@@ -431,6 +462,7 @@ export function JobsScreen({ meta }: { meta: Meta }): ReactNode {
                   <Th>{t('jobs.job')}</Th>
                   <Th>{t('workflowEditor.kind')}</Th>
                   <Th>{t('jobs.target')}</Th>
+                  <Th>{t('jobs.lane')}</Th>
                   <Th>{t('common.status')}</Th>
                   <Th>{t('jobs.progress')}</Th>
                   <Th>{t('jobs.scheduledFor')}</Th>
@@ -449,6 +481,9 @@ export function JobsScreen({ meta }: { meta: Meta }): ReactNode {
                       <Badge tone="accent">{job.kind}</Badge>
                     </Td>
                     <Td className="text-muted">{job.targetName}</Td>
+                    <Td>
+                      <Mono className="text-[11px] text-muted">{job.lane}</Mono>
+                    </Td>
                     <Td>
                       <JobStatusBadge status={job.status} />
                     </Td>

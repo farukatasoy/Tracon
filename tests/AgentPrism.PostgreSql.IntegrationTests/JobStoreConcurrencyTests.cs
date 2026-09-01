@@ -55,11 +55,39 @@ public sealed class JobStoreConcurrencyTests(PostgresFixture fixture)
         all.ToHashSet().SetEquals(expectedIds).ShouldBeTrue();
     }
 
+    [Fact]
+    public async Task A_worker_scoped_to_one_lane_never_leases_another_lanes_job_under_race()
+    {
+        var schemaName = PostgresTestContext.NewSchemaName();
+
+        await using var seed = PostgresTestContext.Create(fixture, schemaName);
+        await seed.Migrations.ApplyAsync();
+
+        for (var i = 0; i < JobCount; i++)
+        {
+            await seed.Jobs.EnqueueAsync(TestData.Job() with { Lane = i % 2 == 0 ? "media" : "default" }, ["input"]);
+        }
+
+        await using var workerA = PostgresTestContext.Create(fixture, schemaName);
+        await using var workerB = PostgresTestContext.Create(fixture, schemaName);
+
+        var leasedByA = new ConcurrentBag<JobRecord>();
+        var leasedByB = new ConcurrentBag<JobRecord>();
+
+        await Task.WhenAll(
+            LeaseAllAsync(workerA.Jobs, "worker-a", leasedByA, ["media"]),
+            LeaseAllAsync(workerB.Jobs, "worker-b", leasedByB, ["default"]));
+
+        (leasedByA.Count + leasedByB.Count).ShouldBe(JobCount);
+        leasedByA.ShouldAllBe(static job => job.Lane == "media");
+        leasedByB.ShouldAllBe(static job => job.Lane == "default");
+    }
+
     private static async Task LeaseAllAsync(SqlJobStore store, string owner, ConcurrentBag<Guid> leased)
     {
         while (true)
         {
-            var job = await store.LeaseAsync(owner, TimeSpan.FromMinutes(5));
+            var job = await store.LeaseAsync(owner, TimeSpan.FromMinutes(5), lanes: null);
 
             if (job is null)
             {
@@ -67,6 +95,25 @@ public sealed class JobStoreConcurrencyTests(PostgresFixture fixture)
             }
 
             leased.Add(job.Id);
+        }
+    }
+
+    private static async Task LeaseAllAsync(
+        SqlJobStore store,
+        string owner,
+        ConcurrentBag<JobRecord> leased,
+        IReadOnlyList<string> lanes)
+    {
+        while (true)
+        {
+            var job = await store.LeaseAsync(owner, TimeSpan.FromMinutes(5), lanes);
+
+            if (job is null)
+            {
+                return;
+            }
+
+            leased.Add(job);
         }
     }
 }

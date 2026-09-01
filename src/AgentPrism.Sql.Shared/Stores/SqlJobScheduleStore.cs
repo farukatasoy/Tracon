@@ -61,6 +61,14 @@ internal sealed class SqlJobScheduleStore : IJobScheduleStore
     {
         ArgumentNullException.ThrowIfNull(schedule);
 
+        if (!JobLanes.IsValidName(schedule.Lane))
+        {
+            throw new ArgumentException(
+                $"'{schedule.Lane}' is not a valid lane name. A lane name must be 1-64 characters: lowercase " +
+                "ASCII letters, digits, '.', '_', or '-', starting with a letter or digit.",
+                nameof(schedule));
+        }
+
         var id = schedule.Id == Guid.Empty ? AgentPrismId.NewId() : schedule.Id;
 
         var command = CreateCommand(_sql.UpsertJobSchedule);
@@ -78,6 +86,7 @@ internal sealed class SqlJobScheduleStore : IJobScheduleStore
         AddNullableText(command, "created_by", schedule.CreatedBy);
         Dialect.AddTimestamp(command, "created_at", schedule.CreatedAt);
         Dialect.AddTimestamp(command, "updated_at", schedule.UpdatedAt);
+        DbHelpers.Add(command, "lane", schedule.Lane);
 
         var written = await DbHelpers.ReadSingleAsync(
                 command,
@@ -158,6 +167,7 @@ internal sealed class SqlJobScheduleStore : IJobScheduleStore
             CreatedBy = DbHelpers.GetNullableString(reader, 11),
             CreatedAt = DbHelpers.GetTimestamp(reader, 12),
             UpdatedAt = DbHelpers.GetTimestamp(reader, 13),
+            Lane = reader.GetString(14),
         };
 
     /// <summary>

@@ -40,6 +40,14 @@ internal sealed class InMemoryJobScheduleStore : IJobScheduleStore
     {
         ArgumentNullException.ThrowIfNull(schedule);
 
+        if (!JobLanes.IsValidName(schedule.Lane))
+        {
+            throw new ArgumentException(
+                $"'{schedule.Lane}' is not a valid lane name. A lane name must be 1-64 characters: lowercase " +
+                "ASCII letters, digits, '.', '_', or '-', starting with a letter or digit.",
+                nameof(schedule));
+        }
+
         lock (_schedules)
         {
             var existing = Find(schedule.TenantId, schedule.Name);

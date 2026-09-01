@@ -4632,7 +4632,7 @@ namespace AgentPrism.Client.Generated
         /// Creates or updates a schedule.
         /// </summary>
         /// <remarks>
-        /// The cron expression and time zone are validated here; the next run time is computed at save time. The payload cannot exceed the MaxItemsPerJob limit.
+        /// The cron expression, time zone, and lane are validated here; the next run time is computed at save time. The payload cannot exceed the MaxItemsPerJob limit. 'lane' defaults to 'default' and every job this schedule produces — cron-dispatched or manually triggered — inherits it.
         /// </remarks>
         /// <returns>OK</returns>
         /// <exception cref="AgentPrismApiException">A server side error occurred.</exception>
@@ -4878,14 +4878,14 @@ namespace AgentPrism.Client.Generated
 
         /// <param name="cancellationToken">A cancellation token that can be used by other objects or threads to receive notice of cancellation.</param>
         /// <summary>
-        /// Lists jobs, filtered by kind, status, or schedule.
+        /// Lists jobs, filtered by kind, status, lane, or schedule.
         /// </summary>
         /// <remarks>
-        /// Every queued unit of work shares this queue — scheduled runs, retention cleanups, webhook deliveries, and queued agent runs — so filter by 'kind' to narrow it. 'scheduleId' returns the executions of one schedule. Job items are not included here; read them from the single-job endpoint. Paging is offset based, with 'skip' defaulting to 0 and 'take' to 50.
+        /// Every queued unit of work shares this queue — scheduled runs, retention cleanups, webhook deliveries, and queued agent runs — so filter by 'kind' to narrow it. 'scheduleId' returns the executions of one schedule. 'lane' returns only the jobs queued under that lane — the way to see whether a lane nobody's worker subscribes to is quietly piling up. Job items are not included here; read them from the single-job endpoint. Paging is offset based, with 'skip' defaulting to 0 and 'take' to 50.
         /// </remarks>
         /// <returns>OK</returns>
         /// <exception cref="AgentPrismApiException">A server side error occurred.</exception>
-        public virtual async System.Threading.Tasks.Task<System.Collections.Generic.ICollection<JobRecord>> AgentPrismListJobsAsync(JobKind? kind = null, JobStatus? status = null, System.Guid? scheduleId = null, int? skip = null, int? take = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken))
+        public virtual async System.Threading.Tasks.Task<System.Collections.Generic.ICollection<JobRecord>> AgentPrismListJobsAsync(JobKind? kind = null, JobStatus? status = null, System.Guid? scheduleId = null, string? lane = null, int? skip = null, int? take = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken))
         {
             var client_ = _httpClient;
             var disposeClient_ = false;
@@ -4912,6 +4912,10 @@ namespace AgentPrism.Client.Generated
                     if (scheduleId != null)
                     {
                         urlBuilder_.Append(System.Uri.EscapeDataString("scheduleId")).Append('=').Append(System.Uri.EscapeDataString(ConvertToString(scheduleId, System.Globalization.CultureInfo.InvariantCulture))).Append('&');
+                    }
+                    if (lane != null)
+                    {
+                        urlBuilder_.Append(System.Uri.EscapeDataString("lane")).Append('=').Append(System.Uri.EscapeDataString(ConvertToString(lane, System.Globalization.CultureInfo.InvariantCulture))).Append('&');
                     }
                     if (skip != null)
                     {
@@ -15010,6 +15014,17 @@ namespace AgentPrism.Client.Generated
         public string? SessionId { get; set; } = default!;
 
         /// <summary>
+        /// The lane a queued run (`Prefer: respond-async`) is queued under.
+        /// <br/>See `JobLanes`. Ignored for a synchronous run — nothing is
+        /// <br/>queued. Left empty, the run uses `JobLanes.Default` (or whatever
+        /// <br/>`AgentPrismSchedulingOptions.LaneByKind` maps
+        /// <br/>`JobKind.AgentRun` to).
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("lane")]
+        public string? Lane { get; set; } = default!;
+
+        /// <summary>
         /// The culture to resolve the agent's instructions with (see
         /// <br/>`AgentDefinition.InstructionsByCulture`). `null` uses the
         /// <br/>agent's default instructions.
@@ -18431,6 +18446,15 @@ namespace AgentPrism.Client.Generated
         public JobKind Kind { get; set; } = default!;
 
         /// <summary>
+        /// The lane this job runs in. See JobLanes. A worker only
+        /// <br/>leases jobs from the lanes it subscribes to
+        /// <br/>(`AgentPrismSchedulingOptions.Lanes`).
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("lane")]
+        public string Lane { get; set; } = default!;
+
+        /// <summary>
         /// The agent or workflow name to run.
         /// </summary>
 
@@ -18473,7 +18497,7 @@ namespace AgentPrism.Client.Generated
         public int FailedItems { get; set; } = default!;
 
         /// <summary>
-        /// The number of lease attempts. Increments on every ValueTask&amp;lt;JobRecord?&amp;gt; IJobStore.LeaseAsync(string owner, TimeSpan leaseDuration, CancellationToken cancellationToken = default(CancellationToken)) call.
+        /// The number of lease attempts. Increments on every ValueTask&amp;lt;JobRecord?&amp;gt; IJobStore.LeaseAsync(string owner, TimeSpan leaseDuration, IReadOnlyList&amp;lt;string&amp;gt;? lanes, CancellationToken cancellationToken = default(CancellationToken)) call.
         /// </summary>
 
         [System.Text.Json.Serialization.JsonPropertyName("attempt")]
@@ -18571,6 +18595,15 @@ namespace AgentPrism.Client.Generated
 
         [System.Text.Json.Serialization.JsonPropertyName("kind")]
         public JobKind Kind { get; set; } = default!;
+
+        /// <summary>
+        /// The lane the jobs this schedule produces run in. See
+        /// <br/>JobLanes. Both a cron-dispatched run and a manual
+        /// <br/>`POST .../trigger` inherit this value.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("lane")]
+        public string Lane { get; set; } = default!;
 
         /// <summary>
         /// The agent or workflow name to run.
@@ -18679,6 +18712,16 @@ namespace AgentPrism.Client.Generated
 
         [System.Text.Json.Serialization.JsonPropertyName("timeZone")]
         public string TimeZone { get; set; } = default!;
+
+        /// <summary>
+        /// The lane the jobs this schedule produces run in. See
+        /// <br/>`JobLanes`. Left empty, the jobs run in `JobLanes.Default`
+        /// <br/>(or whatever `AgentPrismSchedulingOptions.LaneByKind` maps
+        /// <br/>JobKind JobScheduleSaveRequest.Kind to).
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("lane")]
+        public string? Lane { get; set; } = default!;
 
         /// <summary>
         /// Input set or parameters.

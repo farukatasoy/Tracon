@@ -24,6 +24,14 @@ public sealed record JobScheduleSaveRequest
     /// <summary>Time zone the <c>Cron</c> expression is interpreted in.</summary>
     public string TimeZone { get; init; } = "UTC";
 
+    /// <summary>
+    /// The lane the jobs this schedule produces run in. See
+    /// <c>JobLanes</c>. Left empty, the jobs run in <c>JobLanes.Default</c>
+    /// (or whatever <c>AgentPrismSchedulingOptions.LaneByKind</c> maps
+    /// <see cref="Kind"/> to).
+    /// </summary>
+    public string? Lane { get; init; }
+
     /// <summary>Input set or parameters.</summary>
     public JsonElement Payload { get; init; }
 

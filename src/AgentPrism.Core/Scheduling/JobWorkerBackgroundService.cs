@@ -61,7 +61,7 @@ internal sealed class JobWorkerBackgroundService(
         }
 
         using var timer = new PeriodicTimer(options.PollInterval);
-        using var slots = new SemaphoreSlim(Math.Max(1, options.MaxConcurrentJobs));
+        using var slots = new WorkerSlots(options.MaxConcurrentJobs);
 
         try
         {
@@ -83,7 +83,7 @@ internal sealed class JobWorkerBackgroundService(
         }
     }
 
-    private async Task TickAsync(SemaphoreSlim slots, CancellationToken stoppingToken)
+    private async Task TickAsync(WorkerSlots slots, CancellationToken stoppingToken)
     {
         // 🚨 Phase 87: while the process is draining, no NEW work starts --
         // neither a schedule-dispatched job nor a leased one. Jobs already
@@ -109,17 +109,76 @@ internal sealed class JobWorkerBackgroundService(
 
         var options = optionsMonitor.CurrentValue;
 
-        while (await slots.WaitAsync(0, stoppingToken).ConfigureAwait(false))
+        // A lane listed in MaxConcurrentJobsPerLane gets its OWN lease pass,
+        // scoped to exactly that lane, so a full lane never blocks another
+        // lane's slot (129.4's starvation guarantee) and never gets leased
+        // beyond its own budget by the shared pass below.
+        foreach (var (lane, max) in options.MaxConcurrentJobsPerLane)
+        {
+            if (options.Lanes is { } subscribed && !subscribed.Contains(lane, StringComparer.Ordinal))
+            {
+                continue;
+            }
+
+            var semaphore = slots.ForLane(lane, max);
+            await LeaseLoopAsync(semaphore, [lane], options.LeaseDuration, stoppingToken).ConfigureAwait(false);
+        }
+
+        var sharedLanes = ComputeSharedLanes(options);
+
+        // A non-null, empty list means every subscribed lane already has its
+        // own dedicated pass above; there is nothing left for the shared pool.
+        if (sharedLanes is null || sharedLanes.Length > 0)
+        {
+            await LeaseLoopAsync(slots.Shared, sharedLanes, options.LeaseDuration, stoppingToken).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>
+    /// Computes the lane filter for the shared-pool lease pass — every
+    /// subscribed lane MINUS the ones already covered by their own dedicated
+    /// pass in <see cref="TickAsync"/>.
+    /// </summary>
+    /// <remarks>
+    /// If <see cref="AgentPrismSchedulingOptions.Lanes"/> is <see langword="null"/>
+    /// (unrestricted) and no per-lane budget is configured, this returns
+    /// <see langword="null"/> too — the exact pre-lane behavior. Once a
+    /// per-lane budget exists, an unrestricted worker's shared pass narrows to
+    /// <see cref="JobLanes.Default"/>: a plain include-list filter (the only
+    /// kind <c>IJobStore.LeaseAsync</c> supports) cannot express "every lane
+    /// except these", so an open-ended subscription combined with a per-lane
+    /// budget stops covering an arbitrary third lane nobody budgeted for. See
+    /// the XML remarks on <see cref="AgentPrismSchedulingOptions.MaxConcurrentJobsPerLane"/>.
+    /// </remarks>
+    private static string[]? ComputeSharedLanes(AgentPrismSchedulingOptions options)
+    {
+        var named = options.MaxConcurrentJobsPerLane;
+
+        if (options.Lanes is { } subscribed)
+        {
+            return subscribed.Where(lane => !named.ContainsKey(lane)).ToArray();
+        }
+
+        return named.Count == 0 ? null : [JobLanes.Default];
+    }
+
+    private async Task LeaseLoopAsync(
+        SemaphoreSlim semaphore,
+        IReadOnlyList<string>? lanes,
+        TimeSpan leaseDuration,
+        CancellationToken stoppingToken)
+    {
+        while (await semaphore.WaitAsync(0, stoppingToken).ConfigureAwait(false))
         {
             JobRecord? job;
 
             try
             {
-                job = await jobStore.LeaseAsync(_ownerId, options.LeaseDuration, stoppingToken).ConfigureAwait(false);
+                job = await jobStore.LeaseAsync(_ownerId, leaseDuration, lanes, stoppingToken).ConfigureAwait(false);
             }
             catch (Exception exception) when (exception is not OperationCanceledException)
             {
-                slots.Release();
+                semaphore.Release();
 
                 if (logger is not null && logger.IsEnabled(LogLevel.Warning))
                 {
@@ -131,7 +190,7 @@ internal sealed class JobWorkerBackgroundService(
 
             if (job is null)
             {
-                slots.Release();
+                semaphore.Release();
                 break;
             }
 
@@ -139,7 +198,7 @@ internal sealed class JobWorkerBackgroundService(
 
             if (!_runningJobs.TryAdd(job.Id, completion.Task))
             {
-                slots.Release();
+                semaphore.Release();
 
                 if (logger is not null && logger.IsEnabled(LogLevel.Warning))
                 {
@@ -149,13 +208,13 @@ internal sealed class JobWorkerBackgroundService(
                 continue;
             }
 
-            _ = RunJobAsync(job, slots, completion, stoppingToken);
+            _ = RunJobAsync(job, semaphore, completion, stoppingToken);
         }
     }
 
     private async Task RunJobAsync(
         JobRecord job,
-        SemaphoreSlim slots,
+        SemaphoreSlim semaphore,
         TaskCompletionSource completion,
         CancellationToken stoppingToken)
     {
@@ -172,7 +231,7 @@ internal sealed class JobWorkerBackgroundService(
         }
         finally
         {
-            slots.Release();
+            semaphore.Release();
             _runningJobs.TryRemove(job.Id, out _);
             completion.TrySetResult();
         }
@@ -340,6 +399,7 @@ internal sealed class JobWorkerBackgroundService(
                     TenantId = schedule.TenantId,
                     ScheduleId = schedule.Id,
                     Kind = schedule.Kind,
+                    Lane = schedule.Lane,
                     TargetName = schedule.TargetName,
                     Status = JobStatus.Pending,
                     Payload = schedule.Payload,
@@ -397,6 +457,35 @@ internal sealed class JobWorkerBackgroundService(
         {
             cts.Cancel();
             cts.Dispose();
+        }
+    }
+
+    /// <summary>
+    /// Holds the shared concurrency semaphore plus one dedicated semaphore per
+    /// lane listed in <see cref="AgentPrismSchedulingOptions.MaxConcurrentJobsPerLane"/>.
+    /// </summary>
+    /// <remarks>
+    /// A dedicated semaphore's size is fixed at the value seen the first time
+    /// its lane is requested — the same "fixed for this ExecuteAsync run"
+    /// characteristic <see cref="Shared"/> already had before lanes existed.
+    /// </remarks>
+    private sealed class WorkerSlots(int maxConcurrentJobs) : IDisposable
+    {
+        private readonly ConcurrentDictionary<string, SemaphoreSlim> _perLane = new(StringComparer.Ordinal);
+
+        public SemaphoreSlim Shared { get; } = new(Math.Max(1, maxConcurrentJobs));
+
+        public SemaphoreSlim ForLane(string lane, int max)
+            => _perLane.GetOrAdd(lane, static (_, m) => new SemaphoreSlim(Math.Max(1, m)), max);
+
+        public void Dispose()
+        {
+            Shared.Dispose();
+
+            foreach (var semaphore in _perLane.Values)
+            {
+                semaphore.Dispose();
+            }
         }
     }
 }

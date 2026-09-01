@@ -53,7 +53,7 @@ export function JobDetailScreen({ id, meta }: { id: string; meta: Meta }): React
     <>
       <PageHeader
         title={t('jobs.jobTitle', { id: shortId(job.id, 13, 6) })}
-        description={`${job.kind} · ${job.targetName}`}
+        description={`${job.kind} · ${job.targetName} · ${job.lane}`}
         actions={
           meta.roles.canOperate &&
           cancellable && (

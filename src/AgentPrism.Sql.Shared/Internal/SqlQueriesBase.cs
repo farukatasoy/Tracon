@@ -890,7 +890,7 @@ internal abstract class SqlQueriesBase
 
     protected const string ScheduleColumns = """
             id, tenant_id, name, kind, target_name, cron, time_zone, payload, enabled,
-            next_run_at, last_run_at, created_by, created_at, updated_at
+            next_run_at, last_run_at, created_by, created_at, updated_at, lane
             """;
 
     protected const string InboundTriggerColumns = """
@@ -901,7 +901,7 @@ internal abstract class SqlQueriesBase
     protected const string JobColumns = """
             id, tenant_id, schedule_id, kind, target_name, status, payload, total_items, done_items,
             failed_items, attempt, lease_owner, lease_until, scheduled_for, started_at, completed_at,
-            error_message, created_at, max_attempts
+            error_message, created_at, max_attempts, lane
             """;
 
     protected const string SuiteColumns = """
@@ -1370,9 +1370,9 @@ internal abstract class SqlQueriesBase
         InsertJob = $"""
             INSERT INTO {Table("jobs")}
                 (id, tenant_id, schedule_id, kind, target_name, status, payload, total_items,
-                 done_items, failed_items, attempt, scheduled_for, created_at, max_attempts)
+                 done_items, failed_items, attempt, scheduled_for, created_at, max_attempts, lane)
             VALUES (@id, @tenant_id, @schedule_id, @kind, @target_name, 0, @payload, @total_items,
-                    0, 0, 0, @scheduled_for, @created_at, @max_attempts);
+                    0, 0, 0, @scheduled_for, @created_at, @max_attempts, @lane);
             """;
 
         RenewJobLease = $"""

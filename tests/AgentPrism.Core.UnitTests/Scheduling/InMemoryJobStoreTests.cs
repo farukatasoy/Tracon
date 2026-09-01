@@ -31,7 +31,7 @@ public sealed class InMemoryJobStoreTests
             NewJob() with { ScheduledFor = clock.GetUtcNow() + TimeSpan.FromMinutes(5) },
             ["a"]);
 
-        (await store.LeaseAsync("worker-1", TimeSpan.FromMinutes(5))).ShouldBeNull();
+        (await store.LeaseAsync("worker-1", TimeSpan.FromMinutes(5), lanes: null)).ShouldBeNull();
     }
 
     [Fact]
@@ -40,7 +40,7 @@ public sealed class InMemoryJobStoreTests
         var store = new InMemoryJobStore();
         var job = await store.EnqueueAsync(NewJob(), ["a"]);
 
-        var leased = await store.LeaseAsync("worker-1", TimeSpan.FromMinutes(5));
+        var leased = await store.LeaseAsync("worker-1", TimeSpan.FromMinutes(5), lanes: null);
 
         leased.ShouldNotBeNull();
         leased.Id.ShouldBe(job.Id);
@@ -55,9 +55,9 @@ public sealed class InMemoryJobStoreTests
         var store = new InMemoryJobStore();
         await store.EnqueueAsync(NewJob(), ["a"]);
 
-        await store.LeaseAsync("worker-1", TimeSpan.FromMinutes(5));
+        await store.LeaseAsync("worker-1", TimeSpan.FromMinutes(5), lanes: null);
 
-        (await store.LeaseAsync("worker-2", TimeSpan.FromMinutes(5))).ShouldBeNull();
+        (await store.LeaseAsync("worker-2", TimeSpan.FromMinutes(5), lanes: null)).ShouldBeNull();
     }
 
     [Fact]
@@ -67,10 +67,10 @@ public sealed class InMemoryJobStoreTests
         var store = new InMemoryJobStore(clock);
         var job = await store.EnqueueAsync(NewJob() with { ScheduledFor = clock.GetUtcNow() }, ["a"]);
 
-        await store.LeaseAsync("worker-1", TimeSpan.FromMinutes(5));
+        await store.LeaseAsync("worker-1", TimeSpan.FromMinutes(5), lanes: null);
         clock.Advance(TimeSpan.FromMinutes(6));
 
-        var reclaimed = await store.LeaseAsync("worker-2", TimeSpan.FromMinutes(5));
+        var reclaimed = await store.LeaseAsync("worker-2", TimeSpan.FromMinutes(5), lanes: null);
 
         reclaimed.ShouldNotBeNull();
         reclaimed.Id.ShouldBe(job.Id);
@@ -83,7 +83,7 @@ public sealed class InMemoryJobStoreTests
     {
         var store = new InMemoryJobStore();
         var job = await store.EnqueueAsync(NewJob(), ["a"]);
-        await store.LeaseAsync("worker-1", TimeSpan.FromMinutes(5));
+        await store.LeaseAsync("worker-1", TimeSpan.FromMinutes(5), lanes: null);
 
         (await store.MarkRunningAsync(job.Id, "wrong-worker")).ShouldBeFalse();
         (await store.MarkRunningAsync(job.Id, "worker-1")).ShouldBeTrue();
@@ -131,7 +131,7 @@ public sealed class InMemoryJobStoreTests
         var clock = new ManualTimeProvider();
         var store = new InMemoryJobStore(clock);
         var job = await store.EnqueueAsync(NewJob(), ["a"]);
-        await store.LeaseAsync("worker-1", TimeSpan.FromMinutes(5));
+        await store.LeaseAsync("worker-1", TimeSpan.FromMinutes(5), lanes: null);
 
         await store.CompleteAsync(new JobCompletion
         {
@@ -151,7 +151,7 @@ public sealed class InMemoryJobStoreTests
     {
         var store = new InMemoryJobStore();
         var job = await store.EnqueueAsync(NewJob(), ["a"]);
-        await store.LeaseAsync("worker-1", TimeSpan.FromMinutes(5));
+        await store.LeaseAsync("worker-1", TimeSpan.FromMinutes(5), lanes: null);
 
         await store.ReleaseForRetryAsync(job.Id, "temporary error");
 
@@ -160,7 +160,7 @@ public sealed class InMemoryJobStoreTests
         current.Attempt.ShouldBe(1); // LeaseAsync already incremented it; unchanged here.
         current.ErrorMessage.ShouldBe("temporary error");
 
-        (await store.LeaseAsync("worker-2", TimeSpan.FromMinutes(5))).ShouldNotBeNull();
+        (await store.LeaseAsync("worker-2", TimeSpan.FromMinutes(5), lanes: null)).ShouldNotBeNull();
     }
 
     [Theory]
@@ -186,7 +186,7 @@ public sealed class InMemoryJobStoreTests
         }
         else if (status is JobStatus.Leased or JobStatus.Running)
         {
-            await store.LeaseAsync("worker-1", TimeSpan.FromMinutes(5));
+            await store.LeaseAsync("worker-1", TimeSpan.FromMinutes(5), lanes: null);
 
             if (status == JobStatus.Running)
             {

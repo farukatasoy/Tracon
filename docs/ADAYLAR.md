@@ -32,6 +32,18 @@
 > Kuyrukta iki kalem var ve ikisi de bugün faz değildir: F-95 ölçüm bekler,
 > F-165 tek faza sığmaz. Yeni aday üretmek için `aday-kesfi` koşulur.
 >
+>
+> **Ek (2026-09-01, tüketici turu):** Dış bir tüketici raporu koda karşı
+> ölçüldü ([`kesif/2026-09-01-tuketici-feature-talepleri.md`](kesif/2026-09-01-tuketici-feature-talepleri.md)).
+> Dört kalem **doğrudan plana** dönüştü — bu dosyada hiç sıralanmadılar, çünkü
+> kanıtları raporla birlikte geldi ve aynı turda doğrulandı:
+> **F-172** → [Faz 129](129-IS-KUYRUGU-LANELERI.md) · **F-173** →
+> [Faz 130](130-URETILEN-SEMANIN-KISITLARI.md) · **F-174** →
+> [Faz 131](131-YAPISAL-YANIT-DOGRULAMA-SEAMI.md) · **F-175** →
+> [Faz 132](132-UYGULANAN-FIYAT-SNAPSHOTU.md). Aynı turdan **dört kalem**
+> § *Bekleyen Kalemler*'e girdi (F-176 · F-177 · F-178 · F-179); hepsi bir
+> fazın tamamlanmasını bekler.
+>
 > Faz durumu yalnız üretilen [`YOL-HARITASI.md`](YOL-HARITASI.md)'dedir.
 > Bir kusur bu dosyaya geri girmez; `kusur-giderme` kanalına gider. Kapatılmış
 > kararın yeniden açılması kullanıcı kararıdır. Ölçüm bekleyen iddia, kanıt
@@ -123,6 +135,10 @@ dönüşebilmeleri için burada duruyor.
 |---|---|---|
 | **F-95** | İmzası doğrulanmadı; ayrıca **experimental** bir MAF sözleşmesine 1.0 öncesi public yüzey bağlamak K-008'in ön sürüm sınırının tersidir | `maf-api-kesfi` imzayı doğrular **ve** F-141 ile karşılaştırma yapılır. Tercihen 1.0 sonrası |
 | **F-165** | 1.650 case tek faza sığmaz; bağımsız faz olarak planlanırsa kuyruğu bitmez | Bağımsız faz olarak **hiç** planlanmaz. Her fazın dokunduğu alanın manuel ailesi o fazda otomatikleştirilir |
+| **F-176** | Nested object şeması K-615 ile uzlaştırılmadan tasarlanamaz | [Faz 130](130-URETILEN-SEMANIN-KISITLARI.md) kapanır **ve** generator'ın `JsonSerializerContext` sözleşmesi için bir tasarım kararı verilir |
+| **F-177** | Bounded repair `run` içinde ikinci bir model çağrısı açar; doğrulama seam'i olmadan tanımsızdır | [Faz 131](131-YAPISAL-YANIT-DOGRULAMA-SEAMI.md) kapanır ve seam gerçek kullanımda ölçülür |
+| **F-178** | Job/kuyruk metrik ailesi bugün **hiç yok**; `lane` kimliği olmadan etiketlenemez | [Faz 129](129-IS-KUYRUGU-LANELERI.md) kapanır |
+| **F-179** | Ön koşulu yok: `run` satırı sağlayıcıyı saklamıyor, kayan latency penceresi ölçülmüyor | [Faz 132](132-UYGULANAN-FIYAT-SNAPSHOTU.md) kapanır **ve** F-178 attempt süresini ölçmeye başlar **ve** gerçek üretim trafiği oluşur |
 
 
 
@@ -299,3 +315,101 @@ Reddedilmiş mimari işler için tek kaynak
 kararını değiştirmeden yeniden aday olmaz. **F-95 bu listede değildir** — onu
 bekleten şey bir tasarım kararı değil, MAF'ta kancanın bulunmamasıydı; MAF
 1.19.0 o kancayı gönderdiği için 2026-08-26'da adaylığa döndü.
+
+
+### F-176 · AOT güvenli nested object tool şeması
+
+**Sorun:** Generator nested object ve object array ifade edemez. Gerçek business
+tool'ları (rubric, dimensions, sahne girdisi) bu yüzden JSON taşıyan düz
+`string` alanlara dönüyor; model hata oranı artıyor.
+
+**Kapsam:** Record/property tabanlı nesne parametresi, nested object array, açık
+derinlik sınırı, cycle için derleme anı diagnostic'i ve AOT için açık
+`JsonSerializerContext`. Sınırsız `reflection` graph taraması **yapılmaz**.
+Manuel `AIFunction` kaçış yolu korunur.
+
+**Değer:** Complex tool'lar string tabanlı protokole dönmez; `IToolArgumentsValidator`
+tek şemadan bütün kuralları uygulayabilir.
+
+**Mercek:** 4, 5.
+
+**Hazırlık:** Faz 130 scalar kısıtları sevk eder; şema üretim yolu o zaman hazır olur.
+
+**Maliyet:** Ölçülmedi. K-615 ile uzlaştırma zorunludur: generator kendi
+`JsonSerializerContext`'ini kullanmaz, tool sahibi verir, vermezse `APG0008`.
+
+**Risk:** AOT metadata eksikliği yalnız paketlenmiş tüketicide görülür.
+
+
+
+### F-177 · Sınırlı (bounded) yapısal yanıt onarımı
+
+**Sorun:** Geçersiz yapısal yanıtta `run` bugün yalnız başarısız olabilir.
+Tüketici aynı onarım turunu kendi kodunda yazarsa maliyet ana `run` kanıtından
+kopar.
+
+**Kapsam:** Geçersiz yanıt için sınırlı sayıda onarım turu; aynı bütçe, deadline
+ve iptal kapsamında; token ve maliyet kaydı ana `run` ağacına bağlı.
+
+**Değer:** Onarım maliyeti ve nedeni tek yerde görünür.
+
+**Mercek:** 2, 7, 8.
+
+**Hazırlık:** Faz 131 seam'i ve olayı sevk eder.
+
+**Maliyet:** Ölçülmedi. `AgentRunBudget`, `FallbackChatClient`'ın tur içi tool
+defteri ve cost attribution ile kesişir.
+
+**Risk:** 🚨 Onarım döngüsünün model boru hattındaki **konumu** yanlış seçilirse
+derlenir, testten geçer, yalnız gerçek senaryoda çöker (K-320 sınıfı).
+
+
+
+### F-178 · Job/kuyruk metrikleri ve model deneme telemetrisi
+
+**Sorun:** `AgentPrismMetrics` run, token, cost, tool, judge, model cache ve
+agent source sayıyor. **Hiç job metriği yok**: kuyruk derinliği, `lease`
+sayısı, job süresi ölçülmüyor. Aynı şekilde yedek zincirinde hangi linkte ne
+kadar süre harcandığı ölçülmüyor.
+
+**Kapsam:** `lane` etiketli job sayaç ve histogramları; model deneme başına
+süre, deneme indeksi ve sonuç kategorisi taşıyan bir olay veya `span`. Prompt
+ve yanıt içeriği telemetriye **girmez**; etiket kardinalitesi sınırlanır.
+
+**Değer:** Kimsenin dinlemediği bir `lane`'de biriken iş görünür olur;
+SLO ihlalinin ne kadarının başarısız denemeden geldiği ölçülebilir.
+
+**Mercek:** 2, 7.
+
+**Hazırlık:** Faz 129 `lane` kimliğini sevk eder. `FallbackChatClient` döngü
+indeksini zaten tutuyor ve `ModelFallbackUsed`'ı zaten yazıyor.
+
+**Maliyet:** Ölçülmedi. Yeni tablo ve migration gerekmez.
+
+**Risk:** Etiket kardinalitesi kontrolsüz büyürse metrik altyapısını boğar.
+
+
+
+### F-179 · Çalışma anı model yönlendirme policy'si
+
+**Sorun:** Model seçimi bugün statik binding ve hata sonrası yedek zinciriyle
+sınırlı. Çağrı **öncesi** maliyet, gecikme ve capability'ye göre seçim yapılamaz;
+yapılsa bile seçimin nedeni `run` kanıtına girmez.
+
+**Kapsam:** Aday binding kümesinden seçim yapan opt-in bir policy seam'i ve
+seçim kararının `run` kanıtına yazılması (seçilen binding, kararlı reason code,
+değerlendirilen adaylar, policy adı).
+
+**Değer:** Yönlendirme kararı ile `run` kanıtı aynı yerde durur.
+
+**Mercek:** 2, 7, 8.
+
+**Hazırlık:** 🚨 **Ön koşulları eksik.** `RunRecord` sağlayıcı saklamıyor
+(Faz 132 kapatır); kayan latency penceresi yok (F-178 kapatır);
+`ModelProviderHealthCache` yalnız sağlık durumu verir.
+
+**Maliyet:** Ölçülmedi.
+
+**Risk:** Ölçüm olmadan "en ucuzu seç" kararı yanlış olur. Tüketici de
+"önce doğru telemetry, sonra dinamik policy" diyor.
+

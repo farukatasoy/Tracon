@@ -226,6 +226,15 @@ public sealed record AgentRunRequest
     public string? SessionId { get; init; }
 
     /// <summary>
+    /// The lane a queued run (<c>Prefer: respond-async</c>) is queued under.
+    /// See <c>JobLanes</c>. Ignored for a synchronous run — nothing is
+    /// queued. Left empty, the run uses <c>JobLanes.Default</c> (or whatever
+    /// <c>AgentPrismSchedulingOptions.LaneByKind</c> maps
+    /// <c>JobKind.AgentRun</c> to).
+    /// </summary>
+    public string? Lane { get; init; }
+
+    /// <summary>
     /// The culture to resolve the agent's instructions with (see
     /// <c>AgentDefinition.InstructionsByCulture</c>). <see langword="null"/> uses the
     /// agent's default instructions.

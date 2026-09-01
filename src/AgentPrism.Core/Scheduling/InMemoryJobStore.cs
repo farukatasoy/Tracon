@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using Microsoft.Extensions.Options;
 
 namespace AgentPrism;
 
@@ -22,12 +23,17 @@ internal sealed class InMemoryJobStore : IJobStore
     private readonly ConcurrentDictionary<Guid, JobRecord> _jobs = new();
     private readonly ConcurrentDictionary<Guid, List<JobItemRecord>> _items = new();
     private readonly TimeProvider _clock;
+    private readonly IOptionsMonitor<AgentPrismSchedulingOptions>? _schedulingOptions;
 
     /// <summary>Initializes a new in-memory job store.</summary>
     /// <param name="timeProvider">The time provider. Uses <see cref="TimeProvider.System"/> when omitted.</param>
-    public InMemoryJobStore(TimeProvider? timeProvider = null)
+    /// <param name="schedulingOptions">
+    /// The source for <c>LaneByKind</c>. <see langword="null"/> disables lane-by-kind resolution.
+    /// </param>
+    public InMemoryJobStore(TimeProvider? timeProvider = null, IOptionsMonitor<AgentPrismSchedulingOptions>? schedulingOptions = null)
     {
         _clock = timeProvider ?? TimeProvider.System;
+        _schedulingOptions = schedulingOptions;
     }
 
     /// <inheritdoc />
@@ -39,8 +45,11 @@ internal sealed class InMemoryJobStore : IJobStore
         ArgumentNullException.ThrowIfNull(job);
         ArgumentNullException.ThrowIfNull(items);
 
+        var lane = JobLanes.Resolve(job.Lane, job.Kind, _schedulingOptions?.CurrentValue.LaneByKind);
+
         var record = job with
         {
+            Lane = lane,
             Status = JobStatus.Pending,
             TotalItems = items.Count,
             DoneItems = 0,
@@ -77,6 +86,7 @@ internal sealed class InMemoryJobStore : IJobStore
     public ValueTask<JobRecord?> LeaseAsync(
         string owner,
         TimeSpan leaseDuration,
+        IReadOnlyList<string>? lanes,
         CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(owner);
@@ -90,6 +100,11 @@ internal sealed class InMemoryJobStore : IJobStore
             foreach (var job in _jobs.Values)
             {
                 if (job.ScheduledFor > now)
+                {
+                    continue;
+                }
+
+                if (lanes is { Count: > 0 } && !lanes.Contains(job.Lane, StringComparer.Ordinal))
                 {
                     continue;
                 }
@@ -281,6 +296,11 @@ internal sealed class InMemoryJobStore : IJobStore
             }
 
             if (query.Kind is { } kind && job.Kind != kind)
+            {
+                continue;
+            }
+
+            if (query.Lane is { } lane && !string.Equals(job.Lane, lane, StringComparison.Ordinal))
             {
                 continue;
             }

@@ -1209,7 +1209,8 @@ internal sealed class SqlServerQueries : SqlQueriesBase
                    enabled     = @enabled,
                    next_run_at = @next_run_at,
                    last_run_at = @last_run_at,
-                   updated_at  = @updated_at
+                   updated_at  = @updated_at,
+                   lane        = @lane
              OUTPUT inserted.id, inserted.created_by, inserted.created_at
              WHERE tenant_id = @tenant_id AND name = @name;
 
@@ -1217,7 +1218,7 @@ internal sealed class SqlServerQueries : SqlQueriesBase
             INSERT INTO {Schema}.job_schedules ({ScheduleColumns})
             OUTPUT inserted.id, inserted.created_by, inserted.created_at
             VALUES (@id, @tenant_id, @name, @kind, @target_name, @cron, @time_zone, @payload, @enabled,
-                    @next_run_at, @last_run_at, @created_by, @created_at, @updated_at);
+                    @next_run_at, @last_run_at, @created_by, @created_at, @updated_at, @lane);
             """;
 
         // Not scoped by tenant: this query belongs to the worker, not to an
@@ -1269,8 +1270,9 @@ internal sealed class SqlServerQueries : SqlQueriesBase
             WITH next_job AS (
                 SELECT TOP (1) *
                 FROM {Schema}.jobs WITH (UPDLOCK, READPAST, ROWLOCK)
-                WHERE (status = 0 AND scheduled_for <= @now)
-                   OR (status IN (1, 2) AND lease_until < @now)
+                WHERE ((status = 0 AND scheduled_for <= @now)
+                   OR (status IN (1, 2) AND lease_until < @now))
+                  AND (@lanes IS NULL OR EXISTS (SELECT 1 FROM OPENJSON(@lanes) WHERE value = lane))
                 ORDER BY scheduled_for
             )
             UPDATE next_job
@@ -1284,7 +1286,7 @@ internal sealed class SqlServerQueries : SqlQueriesBase
                     inserted.done_items, inserted.failed_items, inserted.attempt, inserted.lease_owner,
                     inserted.lease_until, inserted.scheduled_for, inserted.started_at,
                     inserted.completed_at, inserted.error_message, inserted.created_at,
-                    inserted.max_attempts;
+                    inserted.max_attempts, inserted.lane;
             """;
 
         SelectJobs = $"""
@@ -1292,6 +1294,7 @@ internal sealed class SqlServerQueries : SqlQueriesBase
             FROM {Schema}.jobs
             WHERE (@tenant_id   IS NULL OR tenant_id   = @tenant_id)
               AND (@kind        IS NULL OR kind        = @kind)
+              AND (@lane        IS NULL OR lane         = @lane)
               AND (@status      IS NULL OR status      = @status)
               AND (@schedule_id IS NULL OR schedule_id = @schedule_id)
               {TakeGuard}

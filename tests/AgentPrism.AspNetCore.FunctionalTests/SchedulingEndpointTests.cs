@@ -88,6 +88,54 @@ public sealed class SchedulingEndpointTests
     }
 
     [Fact]
+    public async Task Invalid_lane_is_rejected()
+    {
+        await using var host = await AgentPrismTestHost.StartAsync();
+
+        using var response = await host.Client.PutAsJsonAsync(
+            new Uri("/agentprism/api/schedules/gece-raporu", UriKind.Relative),
+            Request() with { Lane = "Media" });
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    public async Task Trigger_inherits_the_schedules_lane()
+    {
+        await using var host = await AgentPrismTestHost.StartAsync();
+
+        await host.Client.PutAsJsonAsync(
+            new Uri("/agentprism/api/schedules/gece-raporu", UriKind.Relative),
+            Request() with { Lane = "media" });
+
+        using var triggered = await host.Client.PostAsJsonAsync(
+            new Uri("/agentprism/api/schedules/gece-raporu/trigger", UriKind.Relative),
+            new { });
+
+        (await AgentPrismTestHost.ReadJsonAsync(triggered)).GetProperty("lane").GetString().ShouldBe("media");
+    }
+
+    [Fact]
+    public async Task Jobs_are_filtered_by_lane()
+    {
+        await using var host = await AgentPrismTestHost.StartAsync();
+
+        await host.Client.PutAsJsonAsync(new Uri("/agentprism/api/schedules/a", UriKind.Relative), Request());
+        await host.Client.PutAsJsonAsync(
+            new Uri("/agentprism/api/schedules/b", UriKind.Relative),
+            Request() with { Lane = "media" });
+
+        await host.Client.PostAsJsonAsync(new Uri("/agentprism/api/schedules/a/trigger", UriKind.Relative), new { });
+        await host.Client.PostAsJsonAsync(new Uri("/agentprism/api/schedules/b/trigger", UriKind.Relative), new { });
+
+        using var filtered = await host.Client.GetAsync(new Uri("/agentprism/api/jobs?lane=media", UriKind.Relative));
+
+        var jobs = await AgentPrismTestHost.ReadJsonAsync(filtered);
+        jobs.GetArrayLength().ShouldBe(1);
+        jobs[0].GetProperty("lane").GetString().ShouldBe("media");
+    }
+
+    [Fact]
     public async Task Nonexistent_schedule_returns_404()
     {
         await using var host = await AgentPrismTestHost.StartAsync();

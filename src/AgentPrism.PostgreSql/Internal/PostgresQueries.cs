@@ -1046,9 +1046,9 @@ internal sealed class PostgresQueries : SqlQueriesBase
         UpsertJobSchedule = $"""
             INSERT INTO {Schema}.job_schedules
                 (id, tenant_id, name, kind, target_name, cron, time_zone, payload, enabled,
-                 next_run_at, last_run_at, created_by, created_at, updated_at)
+                 next_run_at, last_run_at, created_by, created_at, updated_at, lane)
             VALUES (@id, @tenant_id, @name, @kind, @target_name, @cron, @time_zone, @payload, @enabled,
-                    @next_run_at, @last_run_at, @created_by, @created_at, @updated_at)
+                    @next_run_at, @last_run_at, @created_by, @created_at, @updated_at, @lane)
             ON CONFLICT (tenant_id, name) DO UPDATE
                 SET kind        = EXCLUDED.kind,
                     target_name = EXCLUDED.target_name,
@@ -1058,7 +1058,8 @@ internal sealed class PostgresQueries : SqlQueriesBase
                     enabled     = EXCLUDED.enabled,
                     next_run_at = EXCLUDED.next_run_at,
                     last_run_at = EXCLUDED.last_run_at,
-                    updated_at  = EXCLUDED.updated_at
+                    updated_at  = EXCLUDED.updated_at,
+                    lane        = EXCLUDED.lane
             RETURNING id, created_by, created_at;
             """;
 
@@ -1108,8 +1109,9 @@ internal sealed class PostgresQueries : SqlQueriesBase
                    started_at = COALESCE(started_at, @now)
              WHERE id = (
                    SELECT id FROM {Schema}.jobs
-                    WHERE (status = 0 AND scheduled_for <= @now)
-                       OR (status IN (1, 2) AND lease_until < @now)
+                    WHERE ((status = 0 AND scheduled_for <= @now)
+                       OR (status IN (1, 2) AND lease_until < @now))
+                      AND (@lanes IS NULL OR lane = ANY(@lanes))
                     ORDER BY scheduled_for
                     FOR UPDATE SKIP LOCKED
                     LIMIT 1)
@@ -1123,6 +1125,7 @@ internal sealed class PostgresQueries : SqlQueriesBase
               AND (@kind        IS NULL OR kind        = @kind)
               AND (@status      IS NULL OR status      = @status)
               AND (@schedule_id IS NULL OR schedule_id = @schedule_id)
+              AND (@lane        IS NULL OR lane         = @lane)
             ORDER BY created_at DESC
             OFFSET @skip LIMIT @take;
             """;

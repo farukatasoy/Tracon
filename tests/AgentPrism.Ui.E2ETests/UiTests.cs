@@ -1112,11 +1112,18 @@ public sealed class UiTests(BrowserFixture browsers)
 
         await session.Page.GetByPlaceholder("nightly-report").FillAsync("e2e-batch-job");
         await session.Page.GetByPlaceholder("summarizer").FillAsync("support");
+        // Phase 129: the lane field. Left blank on a fresh row, "default" is
+        // shown; here it is set so the column's actual value can be asserted.
+        await session.Page.GetByPlaceholder("default").FillAsync("media");
         await session.Page.Locator("textarea").FillAsync("[\"hello\"]");
 
         await session.Page.GetByRole(AriaRole.Button, new() { Name = "Save" }).ClickAsync();
 
         await session.Page.GetByText("e2e-batch-job").WaitForAsync();
+
+        // The schedule row's lane column shows the value just saved.
+        await session.Page.Locator("table").First.Locator("tbody tr", new() { HasText = "e2e-batch-job" })
+            .GetByText("media", new() { Exact = true }).WaitForAsync();
 
         await session.Page.GetByRole(AriaRole.Button, new() { Name = "Trigger" }).ClickAsync();
 
@@ -1124,6 +1131,11 @@ public sealed class UiTests(BrowserFixture browsers)
         // completion badge appears in the "Recent jobs" panel.
         await session.Page.GetByText("completed", new() { Exact = true }).First
             .WaitForAsync(new() { Timeout = 15_000 });
+
+        // The triggered job's own row also carries the schedule's lane
+        // (129.1: a cron/trigger-dispatched job inherits it from the schedule).
+        await session.Page.Locator("table").Last.Locator("tbody tr").First
+            .GetByText("media", new() { Exact = true }).WaitForAsync();
 
         // Navigate to the job detail: the item input and run link appear.
         // "Recent jobs" is the SECOND table on the page (Schedules comes

@@ -135,6 +135,10 @@ Schedules live on the same screen. A schedule is a cron expression plus the payl
 run; leaving the expression empty makes it manual-only, which is the honest way to
 park one. Triggering a schedule by hand queues exactly the job the timer would have.
 
+Every job and schedule shows its lane — a plain text tag that keeps unrelated kinds
+of work from blocking each other in the same queue. Filter the job list by lane to
+find work a worker is not currently scoped to pick up.
+
 The queue only drains in a process that opted in with `UseScheduling()`. A queue that
 never moves is almost always an API process with no worker behind it — see
 [Jobs, schedules, and queues](/guides/background-work/).

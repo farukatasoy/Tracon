@@ -2229,7 +2229,7 @@
           "Scheduling"
         ],
         "summary": "Creates or updates a schedule.",
-        "description": "The cron expression and time zone are validated here; the next run time is computed at save time. The payload cannot exceed the MaxItemsPerJob limit.",
+        "description": "The cron expression, time zone, and lane are validated here; the next run time is computed at save time. The payload cannot exceed the MaxItemsPerJob limit. \u0027lane\u0027 defaults to \u0027default\u0027 and every job this schedule produces \u2014 cron-dispatched or manually triggered \u2014 inherits it.",
         "operationId": "AgentPrismSaveSchedule",
         "parameters": [
           {
@@ -2337,8 +2337,8 @@
           "AgentPrism",
           "Scheduling"
         ],
-        "summary": "Lists jobs, filtered by kind, status, or schedule.",
-        "description": "Every queued unit of work shares this queue \u2014 scheduled runs, retention cleanups, webhook deliveries, and queued agent runs \u2014 so filter by \u0027kind\u0027 to narrow it. \u0027scheduleId\u0027 returns the executions of one schedule. Job items are not included here; read them from the single-job endpoint. Paging is offset based, with \u0027skip\u0027 defaulting to 0 and \u0027take\u0027 to 50.",
+        "summary": "Lists jobs, filtered by kind, status, lane, or schedule.",
+        "description": "Every queued unit of work shares this queue \u2014 scheduled runs, retention cleanups, webhook deliveries, and queued agent runs \u2014 so filter by \u0027kind\u0027 to narrow it. \u0027scheduleId\u0027 returns the executions of one schedule. \u0027lane\u0027 returns only the jobs queued under that lane \u2014 the way to see whether a lane nobody\u0027s worker subscribes to is quietly piling up. Job items are not included here; read them from the single-job endpoint. Paging is offset based, with \u0027skip\u0027 defaulting to 0 and \u0027take\u0027 to 50.",
         "operationId": "AgentPrismListJobs",
         "parameters": [
           {
@@ -2361,6 +2361,13 @@
             "schema": {
               "type": "string",
               "format": "uuid"
+            }
+          },
+          {
+            "name": "lane",
+            "in": "query",
+            "schema": {
+              "type": "string"
             }
           },
           {
@@ -7243,6 +7250,13 @@
             ],
             "description": "Session identifier. If not given, the run is sessionless and no history\nis carried."
           },
+          "lane": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The lane a queued run (\u0060Prefer: respond-async\u0060) is queued under.\nSee \u0060JobLanes\u0060. Ignored for a synchronous run \u2014 nothing is\nqueued. Left empty, the run uses \u0060JobLanes.Default\u0060 (or whatever\n\u0060AgentPrismSchedulingOptions.LaneByKind\u0060 maps\n\u0060JobKind.AgentRun\u0060 to)."
+          },
           "culture": {
             "type": [
               "null",
@@ -10950,6 +10964,10 @@
             "description": "The job\u0027s kind.",
             "$ref": "#/components/schemas/JobKind"
           },
+          "lane": {
+            "type": "string",
+            "description": "The lane this job runs in. See JobLanes. A worker only\nleases jobs from the lanes it subscribes to\n(\u0060AgentPrismSchedulingOptions.Lanes\u0060)."
+          },
           "targetName": {
             "type": "string",
             "description": "The agent or workflow name to run."
@@ -10995,7 +11013,7 @@
               "integer",
               "string"
             ],
-            "description": "The number of lease attempts. Increments on every ValueTask\u0026lt;JobRecord?\u0026gt; IJobStore.LeaseAsync(string owner, TimeSpan leaseDuration, CancellationToken cancellationToken = default(CancellationToken)) call.",
+            "description": "The number of lease attempts. Increments on every ValueTask\u0026lt;JobRecord?\u0026gt; IJobStore.LeaseAsync(string owner, TimeSpan leaseDuration, IReadOnlyList\u0026lt;string\u0026gt;? lanes, CancellationToken cancellationToken = default(CancellationToken)) call.",
             "format": "int32"
           },
           "maxAttempts": {
@@ -11087,6 +11105,10 @@
             "description": "The kind of job this schedule produces.",
             "$ref": "#/components/schemas/JobKind"
           },
+          "lane": {
+            "type": "string",
+            "description": "The lane the jobs this schedule produces run in. See\nJobLanes. Both a cron-dispatched run and a manual\n\u0060POST .../trigger\u0060 inherit this value."
+          },
           "targetName": {
             "type": "string",
             "description": "The agent or workflow name to run."
@@ -11171,6 +11193,13 @@
           "timeZone": {
             "type": "string",
             "description": "Time zone the \u0060Cron\u0060 expression is interpreted in."
+          },
+          "lane": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The lane the jobs this schedule produces run in. See\n\u0060JobLanes\u0060. Left empty, the jobs run in \u0060JobLanes.Default\u0060\n(or whatever \u0060AgentPrismSchedulingOptions.LaneByKind\u0060 maps\nJobKind JobScheduleSaveRequest.Kind to)."
           },
           "payload": {
             "description": "Input set or parameters.",

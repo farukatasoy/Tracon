@@ -57,6 +57,105 @@ public sealed class JobWorkerBackgroundServiceTests
     }
 
     [Fact]
+    public async Task A_full_lane_does_not_block_the_default_lanes_job()
+    {
+        var jobs = new InMemoryJobStore();
+        var handler = new LaneAwareHandler(blockedLane: "media");
+        var now = DateTimeOffset.UtcNow;
+
+        // Two jobs in "media" (both block forever, once leased) plus one in
+        // "default" (completes immediately). With MaxConcurrentJobsPerLane
+        // capping "media" at 1, the second media job never even gets a slot --
+        // but the default job must complete regardless, proving the lanes
+        // do not share a single queue position (129.4's starvation guarantee).
+        await EnqueueAsync(jobs, "media", now);
+        await EnqueueAsync(jobs, "media", now);
+        var defaultJobId = await EnqueueAsync(jobs, "default", now);
+
+        var options = new AgentPrismSchedulingOptions { MaxConcurrentJobs = 2, PollInterval = TimeSpan.FromMilliseconds(5) };
+        options.MaxConcurrentJobsPerLane["media"] = 1;
+
+        using var worker = new JobWorkerBackgroundService(
+            jobs,
+            new InMemoryJobScheduleStore(),
+            [handler],
+            new StaticOptionsMonitor<AgentPrismSchedulingOptions>(options),
+            new SchemaReadyGate([]),
+            new NotDraining(),
+            logger: NullLogger<JobWorkerBackgroundService>.Instance);
+
+        await worker.StartAsync(TestContext.Current.CancellationToken);
+        await handler.MediaStarted.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+
+        JobRecord? defaultJob = null;
+
+        for (var attempt = 0; attempt < 100 && defaultJob?.Status is not JobStatus.Completed; attempt++)
+        {
+            await Task.Delay(TimeSpan.FromMilliseconds(20), TestContext.Current.CancellationToken);
+            defaultJob = await jobs.GetAsync("tenant-a", defaultJobId, TestContext.Current.CancellationToken);
+        }
+
+        defaultJob.ShouldNotBeNull();
+        defaultJob!.Status.ShouldBe(JobStatus.Completed, "the default lane must not wait behind a full 'media' lane");
+
+        handler.ReleaseMedia();
+        await worker.StopAsync(TestContext.Current.CancellationToken);
+    }
+
+    [Fact]
+    public async Task A_worker_scoped_to_one_lane_never_leases_another_lane()
+    {
+        var jobs = new InMemoryJobStore();
+        var handler = new LaneAwareHandler(blockedLane: null);
+        var now = DateTimeOffset.UtcNow;
+
+        var defaultJobId = await EnqueueAsync(jobs, "default", now);
+
+        using var worker = new JobWorkerBackgroundService(
+            jobs,
+            new InMemoryJobScheduleStore(),
+            [handler],
+            new StaticOptionsMonitor<AgentPrismSchedulingOptions>(new AgentPrismSchedulingOptions
+            {
+                MaxConcurrentJobs = 1,
+                PollInterval = TimeSpan.FromMilliseconds(5),
+                Lanes = ["media"],
+            }),
+            new SchemaReadyGate([]),
+            new NotDraining(),
+            logger: NullLogger<JobWorkerBackgroundService>.Instance);
+
+        await worker.StartAsync(TestContext.Current.CancellationToken);
+        await Task.Delay(TimeSpan.FromMilliseconds(200), TestContext.Current.CancellationToken);
+        await worker.StopAsync(TestContext.Current.CancellationToken);
+
+        var current = await jobs.GetAsync("tenant-a", defaultJobId, TestContext.Current.CancellationToken);
+        current!.Status.ShouldBe(JobStatus.Pending, "a worker scoped to 'media' must never lease a 'default' job");
+    }
+
+    private static async Task<Guid> EnqueueAsync(InMemoryJobStore jobs, string lane, DateTimeOffset now)
+    {
+        var id = Guid.NewGuid();
+
+        await jobs.EnqueueAsync(
+            new JobRecord
+            {
+                Id = id,
+                TenantId = "tenant-a",
+                Kind = JobKind.AgentBatch,
+                Lane = lane,
+                TargetName = "lane-aware-handler",
+                Status = JobStatus.Pending,
+                ScheduledFor = now,
+                CreatedAt = now,
+            },
+            [],
+            TestContext.Current.CancellationToken);
+
+        return id;
+    }
+
+    [Fact]
     public async Task A_throwing_handlers_own_message_never_reaches_jobs_error_message()
     {
         const string ProviderSecret = "https://internal-provider.local:8443/v1?key=sk-abc123";
@@ -192,5 +291,33 @@ public sealed class JobWorkerBackgroundServiceTests
     private sealed class NotDraining : IAgentPrismDrainState
     {
         public bool IsDraining => false;
+    }
+
+    /// <summary>
+    /// Blocks forever for a job in <see cref="_blockedLane"/> (until released);
+    /// completes immediately for every other lane.
+    /// </summary>
+    private sealed class LaneAwareHandler(string? blockedLane) : IJobHandler
+    {
+        private readonly string? _blockedLane = blockedLane;
+        private readonly TaskCompletionSource _mediaStarted = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private readonly TaskCompletionSource _releaseMedia = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public JobKind Kind => JobKind.AgentBatch;
+
+        public Task MediaStarted => _mediaStarted.Task;
+
+        public void ReleaseMedia() => _releaseMedia.TrySetResult();
+
+        public async ValueTask ExecuteAsync(JobContext context, CancellationToken cancellationToken = default)
+        {
+            if (!string.Equals(context.Job.Lane, _blockedLane, StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            _mediaStarted.TrySetResult();
+            await _releaseMedia.Task.ConfigureAwait(false);
+        }
     }
 }

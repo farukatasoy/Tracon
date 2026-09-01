@@ -826,7 +826,7 @@ export interface paths {
         get: operations["AgentPrismGetSchedule"];
         /**
          * Creates or updates a schedule.
-         * @description The cron expression and time zone are validated here; the next run time is computed at save time. The payload cannot exceed the MaxItemsPerJob limit.
+         * @description The cron expression, time zone, and lane are validated here; the next run time is computed at save time. The payload cannot exceed the MaxItemsPerJob limit. 'lane' defaults to 'default' and every job this schedule produces — cron-dispatched or manually triggered — inherits it.
          */
         put: operations["AgentPrismSaveSchedule"];
         post?: never;
@@ -868,8 +868,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Lists jobs, filtered by kind, status, or schedule.
-         * @description Every queued unit of work shares this queue — scheduled runs, retention cleanups, webhook deliveries, and queued agent runs — so filter by 'kind' to narrow it. 'scheduleId' returns the executions of one schedule. Job items are not included here; read them from the single-job endpoint. Paging is offset based, with 'skip' defaulting to 0 and 'take' to 50.
+         * Lists jobs, filtered by kind, status, lane, or schedule.
+         * @description Every queued unit of work shares this queue — scheduled runs, retention cleanups, webhook deliveries, and queued agent runs — so filter by 'kind' to narrow it. 'scheduleId' returns the executions of one schedule. 'lane' returns only the jobs queued under that lane — the way to see whether a lane nobody's worker subscribes to is quietly piling up. Job items are not included here; read them from the single-job endpoint. Paging is offset based, with 'skip' defaulting to 0 and 'take' to 50.
          */
         get: operations["AgentPrismListJobs"];
         put?: never;
@@ -3003,6 +3003,14 @@ export interface components {
              */
             sessionId?: null | string;
             /**
+             * @description The lane a queued run (`Prefer: respond-async`) is queued under.
+             *     See `JobLanes`. Ignored for a synchronous run — nothing is
+             *     queued. Left empty, the run uses `JobLanes.Default` (or whatever
+             *     `AgentPrismSchedulingOptions.LaneByKind` maps
+             *     `JobKind.AgentRun` to).
+             */
+            lane?: null | string;
+            /**
              * @description The culture to resolve the agent's instructions with (see
              *     `AgentDefinition.InstructionsByCulture`). `null` uses the
              *     agent's default instructions.
@@ -4441,6 +4449,12 @@ export interface components {
             scheduleId?: null | string;
             /** @description The job's kind. */
             kind: components["schemas"]["JobKind"];
+            /**
+             * @description The lane this job runs in. See JobLanes. A worker only
+             *     leases jobs from the lanes it subscribes to
+             *     (`AgentPrismSchedulingOptions.Lanes`).
+             */
+            lane?: string;
             /** @description The agent or workflow name to run. */
             targetName: string;
             /** @description The job's current status. */
@@ -4464,7 +4478,7 @@ export interface components {
             failedItems?: number | string;
             /**
              * Format: int32
-             * @description The number of lease attempts. Increments on every ValueTask&lt;JobRecord?&gt; IJobStore.LeaseAsync(string owner, TimeSpan leaseDuration, CancellationToken cancellationToken = default(CancellationToken)) call.
+             * @description The number of lease attempts. Increments on every ValueTask&lt;JobRecord?&gt; IJobStore.LeaseAsync(string owner, TimeSpan leaseDuration, IReadOnlyList&lt;string&gt;? lanes, CancellationToken cancellationToken = default(CancellationToken)) call.
              */
             attempt?: number | string;
             /**
@@ -4516,6 +4530,12 @@ export interface components {
             name: string;
             /** @description The kind of job this schedule produces. */
             kind: components["schemas"]["JobKind"];
+            /**
+             * @description The lane the jobs this schedule produces run in. See
+             *     JobLanes. Both a cron-dispatched run and a manual
+             *     `POST .../trigger` inherit this value.
+             */
+            lane?: string;
             /** @description The agent or workflow name to run. */
             targetName: string;
             /**
@@ -4565,6 +4585,13 @@ export interface components {
             cron?: null | string;
             /** @description Time zone the `Cron` expression is interpreted in. */
             timeZone?: string;
+            /**
+             * @description The lane the jobs this schedule produces run in. See
+             *     `JobLanes`. Left empty, the jobs run in `JobLanes.Default`
+             *     (or whatever `AgentPrismSchedulingOptions.LaneByKind` maps
+             *     JobKind JobScheduleSaveRequest.Kind to).
+             */
+            lane?: null | string;
             /** @description Input set or parameters. */
             payload?: components["schemas"]["JsonElement"];
             /** @description Whether the schedule is enabled. */
@@ -9159,6 +9186,7 @@ export interface operations {
                 kind?: components["schemas"]["JobKind"];
                 status?: components["schemas"]["JobStatus"];
                 scheduleId?: string;
+                lane?: string;
                 skip?: number | string;
                 take?: number | string;
             };

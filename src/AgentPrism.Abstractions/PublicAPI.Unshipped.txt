@@ -234,12 +234,16 @@ AgentPrism.AgentPrismSchedulingOptions
 AgentPrism.AgentPrismSchedulingOptions.AgentPrismSchedulingOptions() -> void
 AgentPrism.AgentPrismSchedulingOptions.Enabled.get -> bool
 AgentPrism.AgentPrismSchedulingOptions.Enabled.set -> void
+AgentPrism.AgentPrismSchedulingOptions.Lanes.get -> System.Collections.Generic.IReadOnlyList<string!>?
+AgentPrism.AgentPrismSchedulingOptions.Lanes.set -> void
+AgentPrism.AgentPrismSchedulingOptions.LaneByKind.get -> System.Collections.Generic.IDictionary<AgentPrism.JobKind, string!>!
 AgentPrism.AgentPrismSchedulingOptions.LeaseDuration.get -> System.TimeSpan
 AgentPrism.AgentPrismSchedulingOptions.LeaseDuration.set -> void
 AgentPrism.AgentPrismSchedulingOptions.MaxAttempts.get -> int
 AgentPrism.AgentPrismSchedulingOptions.MaxAttempts.set -> void
 AgentPrism.AgentPrismSchedulingOptions.MaxConcurrentJobs.get -> int
 AgentPrism.AgentPrismSchedulingOptions.MaxConcurrentJobs.set -> void
+AgentPrism.AgentPrismSchedulingOptions.MaxConcurrentJobsPerLane.get -> System.Collections.Generic.IDictionary<string!, int>!
 AgentPrism.AgentPrismSchedulingOptions.MaxItemsPerJob.get -> int
 AgentPrism.AgentPrismSchedulingOptions.MaxItemsPerJob.set -> void
 AgentPrism.AgentPrismSchedulingOptions.PollInterval.get -> System.TimeSpan
@@ -1205,7 +1209,7 @@ AgentPrism.IJobStore.CancelAsync(string! tenantId, System.Guid jobId, System.Thr
 AgentPrism.IJobStore.CompleteAsync(AgentPrism.JobCompletion! completion, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
 AgentPrism.IJobStore.EnqueueAsync(AgentPrism.JobRecord! job, System.Collections.Generic.IReadOnlyList<string!>! items, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<AgentPrism.JobRecord!>
 AgentPrism.IJobStore.GetAsync(string! tenantId, System.Guid jobId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<AgentPrism.JobRecord?>
-AgentPrism.IJobStore.LeaseAsync(string! owner, System.TimeSpan leaseDuration, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<AgentPrism.JobRecord?>
+AgentPrism.IJobStore.LeaseAsync(string! owner, System.TimeSpan leaseDuration, System.Collections.Generic.IReadOnlyList<string!>? lanes, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<AgentPrism.JobRecord?>
 AgentPrism.IJobStore.ListItemsAsync(System.Guid jobId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<AgentPrism.JobItemRecord!>!>
 AgentPrism.IJobStore.MarkRunningAsync(System.Guid jobId, string! owner, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<bool>
 AgentPrism.IJobStore.QueryAsync(AgentPrism.JobQuery! query, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<AgentPrism.JobRecord!>!>
@@ -1583,6 +1587,10 @@ AgentPrism.JobKind.Retention = 4 -> AgentPrism.JobKind
 AgentPrism.JobKind.RunContinuation = 8 -> AgentPrism.JobKind
 AgentPrism.JobKind.WebhookDelivery = 3 -> AgentPrism.JobKind
 AgentPrism.JobKind.Workflow = 1 -> AgentPrism.JobKind
+AgentPrism.JobLanes
+const AgentPrism.JobLanes.Default = "default" -> string!
+static AgentPrism.JobLanes.IsValidName(string? name) -> bool
+static AgentPrism.JobLanes.Resolve(string! lane, AgentPrism.JobKind kind, System.Collections.Generic.IDictionary<AgentPrism.JobKind, string!>? laneByKind) -> string!
 AgentPrism.JobPayload
 AgentPrism.JobQuery
 AgentPrism.JobQuery.<Clone>$() -> AgentPrism.JobQuery!
@@ -1590,6 +1598,8 @@ AgentPrism.JobQuery.Equals(AgentPrism.JobQuery? other) -> bool
 AgentPrism.JobQuery.JobQuery() -> void
 AgentPrism.JobQuery.Kind.get -> AgentPrism.JobKind?
 AgentPrism.JobQuery.Kind.init -> void
+AgentPrism.JobQuery.Lane.get -> string?
+AgentPrism.JobQuery.Lane.init -> void
 AgentPrism.JobQuery.ScheduleId.get -> System.Guid?
 AgentPrism.JobQuery.ScheduleId.init -> void
 AgentPrism.JobQuery.Skip.get -> int
@@ -1620,6 +1630,8 @@ AgentPrism.JobRecord.Id.init -> void
 AgentPrism.JobRecord.JobRecord() -> void
 AgentPrism.JobRecord.Kind.get -> AgentPrism.JobKind
 AgentPrism.JobRecord.Kind.init -> void
+AgentPrism.JobRecord.Lane.get -> string!
+AgentPrism.JobRecord.Lane.init -> void
 AgentPrism.JobRecord.LeaseOwner.get -> string?
 AgentPrism.JobRecord.LeaseOwner.init -> void
 AgentPrism.JobRecord.LeaseUntil.get -> System.DateTimeOffset?
@@ -1664,6 +1676,8 @@ AgentPrism.JobSchedule.Id.init -> void
 AgentPrism.JobSchedule.JobSchedule() -> void
 AgentPrism.JobSchedule.Kind.get -> AgentPrism.JobKind
 AgentPrism.JobSchedule.Kind.init -> void
+AgentPrism.JobSchedule.Lane.get -> string!
+AgentPrism.JobSchedule.Lane.init -> void
 AgentPrism.JobSchedule.LastRunAt.get -> System.DateTimeOffset?
 AgentPrism.JobSchedule.LastRunAt.init -> void
 AgentPrism.JobSchedule.Name.get -> string!

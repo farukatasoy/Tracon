@@ -175,6 +175,50 @@ public sealed class AsyncRunTests
     }
 
     [Fact]
+    public async Task Invalid_lane_is_rejected_with_400()
+    {
+        await using var host = await AgentPrismTestHost.StartAsync(
+            static builder => builder.AddAgent(TestData.Definition()),
+            configureServices: static services => services.UseScheduling(o => o.RunWorker = false));
+
+        using var response = await PostAsyncAsync(host, new AgentRunRequest { Message = "hello", Lane = "Media" });
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    public async Task Queued_run_carries_the_requested_lane()
+    {
+        await using var host = await AgentPrismTestHost.StartAsync(
+            static builder => builder.AddAgent(TestData.Definition()),
+            configureServices: static services => services.UseScheduling(o => o.RunWorker = false));
+
+        using var accepted = await PostAsyncAsync(host, new AgentRunRequest { Message = "hello", Lane = "media" });
+        var runId = (await AgentPrismTestHost.ReadJsonAsync(accepted)).GetProperty("runId").GetGuid();
+
+        using var job = await host.Client.GetAsync(new Uri($"/agentprism/api/jobs/{runId}", UriKind.Relative));
+
+        (await AgentPrismTestHost.ReadJsonAsync(job)).GetProperty("job").GetProperty("lane").GetString()
+            .ShouldBe("media");
+    }
+
+    [Fact]
+    public async Task Queued_run_without_a_lane_defaults_to_default()
+    {
+        await using var host = await AgentPrismTestHost.StartAsync(
+            static builder => builder.AddAgent(TestData.Definition()),
+            configureServices: static services => services.UseScheduling(o => o.RunWorker = false));
+
+        using var accepted = await PostAsyncAsync(host, new AgentRunRequest { Message = "hello" });
+        var runId = (await AgentPrismTestHost.ReadJsonAsync(accepted)).GetProperty("runId").GetGuid();
+
+        using var job = await host.Client.GetAsync(new Uri($"/agentprism/api/jobs/{runId}", UriKind.Relative));
+
+        (await AgentPrismTestHost.ReadJsonAsync(job)).GetProperty("job").GetProperty("lane").GetString()
+            .ShouldBe("default");
+    }
+
+    [Fact]
     public async Task Queued_run_can_be_canceled()
     {
         await using var host = await AgentPrismTestHost.StartAsync(

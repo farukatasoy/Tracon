@@ -57,8 +57,10 @@ internal static class SchedulingEndpoints
             .WithSummary("Creates or updates a schedule.")
             .Accepts<JobScheduleSaveRequest>("application/json")
             .WithDescription(
-                "The cron expression and time zone are validated here; the next run " +
-                "time is computed at save time. The payload cannot exceed the MaxItemsPerJob limit.");
+                "The cron expression, time zone, and lane are validated here; the next run " +
+                "time is computed at save time. The payload cannot exceed the MaxItemsPerJob limit. " +
+                "'lane' defaults to 'default' and every job this schedule produces — cron-dispatched " +
+                "or manually triggered — inherits it.");
 
         builder.MapDelete("/api/schedules/{name}", DeleteScheduleAsync)
             .RequireRole(roles.Admin)
@@ -92,13 +94,15 @@ internal static class SchedulingEndpoints
             .RequireApiKeyScope(ApiKeyScope.RunsRead)
             .WithName("AgentPrismListJobs")
             .WithTags("AgentPrism", "Scheduling")
-            .WithSummary("Lists jobs, filtered by kind, status, or schedule.")
+            .WithSummary("Lists jobs, filtered by kind, status, lane, or schedule.")
             .WithDescription(
                 "Every queued unit of work shares this queue — scheduled runs, retention " +
                 "cleanups, webhook deliveries, and queued agent runs — so filter by 'kind' to " +
-                "narrow it. 'scheduleId' returns the executions of one schedule. Job items are " +
-                "not included here; read them from the single-job endpoint. Paging is offset " +
-                "based, with 'skip' defaulting to 0 and 'take' to 50.");
+                "narrow it. 'scheduleId' returns the executions of one schedule. 'lane' returns " +
+                "only the jobs queued under that lane — the way to see whether a lane nobody's " +
+                "worker subscribes to is quietly piling up. Job items are not included here; read " +
+                "them from the single-job endpoint. Paging is offset based, with 'skip' defaulting " +
+                "to 0 and 'take' to 50.");
 
         builder.MapGet("/api/jobs/{id:guid}", GetJobAsync)
             .RequireRole(roles.Reader)
@@ -169,6 +173,15 @@ internal static class SchedulingEndpoints
             return InvalidSchedule("'targetName' is required.");
         }
 
+        var lane = request.Lane ?? JobLanes.Default;
+
+        if (!JobLanes.IsValidName(lane))
+        {
+            return InvalidSchedule(
+                $"'{lane}' is not a valid lane name. A lane name must be 1-64 characters: lowercase " +
+                "ASCII letters, digits, '.', '_', or '-', starting with a letter or digit.");
+        }
+
         TimeZoneInfo timeZone;
 
         try
@@ -209,6 +222,7 @@ internal static class SchedulingEndpoints
             TenantId = tenants.TenantId,
             Name = name,
             Kind = request.Kind,
+            Lane = lane,
             TargetName = request.TargetName,
             Cron = request.Cron,
             TimeZone = request.TimeZone,
@@ -281,6 +295,7 @@ internal static class SchedulingEndpoints
                 TenantId = tenants.TenantId,
                 ScheduleId = schedule.Id,
                 Kind = schedule.Kind,
+                Lane = schedule.Lane,
                 TargetName = schedule.TargetName,
                 Status = JobStatus.Pending,
                 Payload = payload,
@@ -299,6 +314,7 @@ internal static class SchedulingEndpoints
         [FromQuery] JobKind? kind,
         [FromQuery] JobStatus? status,
         [FromQuery] Guid? scheduleId,
+        [FromQuery] string? lane,
         [FromQuery] int? skip,
         [FromQuery] int? take,
         CancellationToken cancellationToken)
@@ -310,6 +326,7 @@ internal static class SchedulingEndpoints
                 Kind = kind,
                 Status = status,
                 ScheduleId = scheduleId,
+                Lane = lane,
                 Skip = skip ?? 0,
                 Take = take ?? 50,
             },
