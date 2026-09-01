@@ -2607,6 +2607,12 @@ replays instead of repeating, and orphan reconciliation itself only has a stale
 `Running` row to find because that row, and every tool call it already made, outlived
 the process that opened it.
 
+Session and workflow checkpoint rows carry a version stamp of their own, separate
+from the schema migrations above: AgentPrism's envelope around the row, and the
+Microsoft Agent Framework version that wrote the opaque state inside it. See
+[Versions and upgrades](/reference/versioning/#persisted-session-and-checkpoint-state)
+for what that stamp promises and what happens when an old row can no longer be read.
+
 ## Keeping it from growing forever
 
 A recorded run is data, and recorded runs accumulate. Retention policies set an age
