@@ -244,10 +244,14 @@ internal static class SourceWriter
 
     private static string BuildSchemaNode(ParameterModel parameter)
     {
-        var leafNode = BuildLeafSchemaNode(parameter.Leaf!);
+        var leafNode = BuildLeafSchemaNode(parameter.Leaf!, parameter.Constraints);
 
+        // A length constraint on an array targets the array itself (minItems/maxItems),
+        // never its element leaf - "at least two tags", not "each tag at least two
+        // characters" (130.3). It is appended to the array node, after "items" closes,
+        // never inside it.
         var node = parameter.Shape == ParameterShape.Array
-            ? $"{{\"type\":\"array\",\"items\":{leafNode}}}"
+            ? AppendConstraintSuffix($"{{\"type\":\"array\",\"items\":{leafNode}}}", "minItems", parameter.Constraints?.MinItems, "maxItems", parameter.Constraints?.MaxItems)
             : leafNode;
 
         // The description belongs on the PARAMETER node, not the array element leaf -
@@ -258,17 +262,87 @@ internal static class SourceWriter
             : node;
     }
 
-    private static string BuildLeafSchemaNode(LeafType leaf) => leaf.Kind switch
+    /// <summary>
+    /// Builds a leaf (or array element) schema node: its type keyword, then - in the
+    /// fixed order <c>minimum</c>, <c>maximum</c>, <c>minLength</c>, <c>maxLength</c>,
+    /// <c>pattern</c> (130.3) - whichever JSON Schema constraints <paramref name="constraints"/>
+    /// carries. <c>minItems</c>/<c>maxItems</c> are not leaf constraints; see
+    /// <see cref="BuildSchemaNode"/>.
+    /// </summary>
+    private static string BuildLeafSchemaNode(LeafType leaf, ParameterConstraints? constraints)
     {
-        LeafTypeKind.Boolean => "{\"type\":\"boolean\"}",
-        LeafTypeKind.Integer => "{\"type\":\"integer\"}",
-        LeafTypeKind.Number => "{\"type\":\"number\"}",
-        LeafTypeKind.String => "{\"type\":\"string\"}",
-        LeafTypeKind.Guid => "{\"type\":\"string\",\"format\":\"uuid\"}",
-        LeafTypeKind.DateTime or LeafTypeKind.DateTimeOffset => "{\"type\":\"string\",\"format\":\"date-time\"}",
-        LeafTypeKind.Enum => "{\"type\":\"string\",\"enum\":[" + string.Join(",", leaf.EnumMemberNames.Select(n => $"\"{JsonEscape(n)}\"")) + "]}",
-        _ => throw new InvalidOperationException($"Unexpected leaf type: {leaf.Kind}"),
-    };
+        var typeNode = leaf.Kind switch
+        {
+            LeafTypeKind.Boolean => "{\"type\":\"boolean\"}",
+            LeafTypeKind.Integer => "{\"type\":\"integer\"}",
+            LeafTypeKind.Number => "{\"type\":\"number\"}",
+            LeafTypeKind.String => "{\"type\":\"string\"}",
+            LeafTypeKind.Guid => "{\"type\":\"string\",\"format\":\"uuid\"}",
+            LeafTypeKind.DateTime or LeafTypeKind.DateTimeOffset => "{\"type\":\"string\",\"format\":\"date-time\"}",
+            LeafTypeKind.Enum => "{\"type\":\"string\",\"enum\":[" + string.Join(",", leaf.EnumMemberNames.Select(n => $"\"{JsonEscape(n)}\"")) + "]}",
+            _ => throw new InvalidOperationException($"Unexpected leaf type: {leaf.Kind}"),
+        };
+
+        if (constraints is null || constraints.IsEmpty)
+        {
+            return typeNode;
+        }
+
+        var sb = new StringBuilder(typeNode, 0, typeNode.Length - 1, typeNode.Length + 64);
+
+        if (constraints.Minimum is { } minimum)
+        {
+            sb.Append(",\"minimum\":").Append(minimum);
+        }
+
+        if (constraints.Maximum is { } maximum)
+        {
+            sb.Append(",\"maximum\":").Append(maximum);
+        }
+
+        if (constraints.MinLength is { } minLength)
+        {
+            sb.Append(",\"minLength\":").Append(minLength.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        }
+
+        if (constraints.MaxLength is { } maxLength)
+        {
+            sb.Append(",\"maxLength\":").Append(maxLength.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        }
+
+        if (constraints.Pattern is { } pattern)
+        {
+            sb.Append(",\"pattern\":\"").Append(JsonEscape(pattern)).Append('"');
+        }
+
+        return sb.Append('}').ToString();
+    }
+
+    /// <summary>
+    /// Appends up to two optional integer constraints (<c>minItems</c>/<c>maxItems</c>) to
+    /// an already-complete JSON object literal, before its closing brace.
+    /// </summary>
+    private static string AppendConstraintSuffix(string node, string firstKey, int? firstValue, string secondKey, int? secondValue)
+    {
+        if (firstValue is null && secondValue is null)
+        {
+            return node;
+        }
+
+        var sb = new StringBuilder(node, 0, node.Length - 1, node.Length + 48);
+
+        if (firstValue is { } first)
+        {
+            sb.Append(",\"").Append(firstKey).Append("\":").Append(first.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        }
+
+        if (secondValue is { } second)
+        {
+            sb.Append(",\"").Append(secondKey).Append("\":").Append(second.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        }
+
+        return sb.Append('}').ToString();
+    }
 
     /// <summary>
     /// Escapes a value for embedding inside the JSON text this class builds by hand.

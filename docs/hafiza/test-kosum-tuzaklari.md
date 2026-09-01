@@ -99,6 +99,21 @@ supheli bir derlemeden HEMEN sonra calistirmadan once bu adimi atlama.
   GORUNUR. 2026-08-08'de yasandi: 16 projeden yalniz 9'u kostu. Tam paketi
   **dosyaya yaz**, sonra dosyayi filtrele.
 
+- **🚨 `| tail -200` erken KESMEZ ama alfabetik olarak ONCE gelen projelerin
+  sonucunu GORUNMEZ kilar** (2026-09-01, Faz 130). `AgentPrism.slnx`'teki
+  projeler alfabetik kosar; `AgentPrism.Core.UnitTests` ve
+  `AgentPrism.Sql.Shared.UnitTests` `Ui.E2ETests`/`Voice.UnitTests`'ten CIDDI
+  ONCE biter. `dotnet test AgentPrism.slnx ... | tail -200` komple kosumu
+  BEKLER (SIGPIPE yok, yukaridaki tuzaktan farkli) ama yalniz SON 200 satiri
+  saklar — erken projelerdeki gercek KIRMIZI satirlar sessizce disaridadir,
+  koşum "temiz" GORUNUR. Faz 130'da tam bu sekilde iki bagimsiz kusur
+  (`PlaywrightLocatorTests`, `SqlTextSnapshotTests` — ikisi de Faz 129'un
+  kapanisinda atlanmis bayat taban cizgisi) ilk `tail -200`'lu kosumda
+  gorulmedi, ikinci kosumda (tam log DOSYAYA yazilinca) ortaya cikti. **Kural**:
+  `kapi.py kapanis` gibi uzun bir kapiyi HER ZAMAN tam log dosyasina yaz
+  (`> log.txt 2>&1`), `tail`'i yalniz o dosyayi SONRADAN okurken kullan —
+  komutun kendisine asla `| tail` ekleme.
+
 - **🚨 Tüketici testleri GLOBAL NuGet önbelleğine takılır — değişiklik görünmez olur** (2026-08-19, Faz 73): MinVer sürümü git yüksekliğinden türediği için iki commit arasındaki her `dotnet pack` **aynı** sürüm dizesini üretir (`0.0.0-preview.0.271`). NuGet bir sürümü global paket klasörüne BİR KEZ açar ve sonra hep onu kullanır; yeniden paketlenen `.nupkg` hiç açılmaz. Belirti: kodda yaptığın değişiklik `TemplateFixture` tabanlı testlerde **hiç görünmez** ve teşhis yanlış yere gider (Faz 73'te bir analyzer değişikliği üç koşum boyunca yok sanıldı). Çözüm fixture'a girdi: `TemplateFixture.ClearGlobalPackageCache` paketlenen sürümün `~/.nuget/packages/agentprism*/<sürüm>` dizinlerini siler. **Depo dışında elle bir tüketici denerken aynı dizini sen de sil.**
 
 ## 🚨 Paralel test SINIFLARI migration deadlock'u uretir (Faz 76)
