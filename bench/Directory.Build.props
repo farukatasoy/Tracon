@@ -10,7 +10,7 @@
     makes `dotnet test` try to run every project under tests/ - a BenchmarkDotNet
     project is not a test project and has no [Fact]s for it to find. That same
     file also force-adds xunit.v3/NSubstitute/Shouldly to every project under
-    tests/, none of which this project wants. Rationale: docs/116-PERFORMANS-TAHSIS-KAPISI.md, 116.3.
+    tests/, none of which this project wants. Rationale: docs/arsiv/fazlar/116-PERFORMANS-TAHSIS-KAPISI.md, 116.3.
   -->
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>

@@ -121,7 +121,7 @@ for (const [value, label] of [
 // compatibility.md's own package table must track packageCount independently of
 // the landing page - Phase 96 dropped 98 types from the surface but left this
 // table's heading and row count at a stale "17", two packages short, until this
-// check existed (docs/97-SURUM-POLITIKASI-VE-YAYIN-PROVASI.md, 97.5).
+// check existed (docs/arsiv/fazlar/97-SURUM-POLITIKASI-VE-YAYIN-PROVASI.md, 97.5).
 const compatibility = readFileSync(join(docsRoot, 'reference/compatibility.md'), 'utf8');
 const packagesHeading = compatibility.match(/^## The (\d+) packages$/m);
 const packagesSection = compatibility.split(/^## /m).find((section) => /^The \d+ packages\b/.test(section)) ?? '';

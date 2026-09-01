@@ -68,6 +68,55 @@ class KapiTestleri(unittest.TestCase):
         self.assertEqual(len(found), 1)
         self.assertIn("sample.txt:1", found[0])
 
+    def test_bayat_dokuman_referansi_bulunur(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            (root / "docs").mkdir()
+            (root / "docs" / "VAR.md").write_text("", encoding="utf-8")
+            (root / "src").mkdir()
+            # Parcali yazilir: bu dosya `scripts/` altindadir ve kapinin KENDI
+            # taramasina girer; duz yazilan bir fixture yolu kapiyi kendi test
+            # kaynagi uzerinde kirmizi yapardi (`find_secrets` testindeki ayni
+            # sebep, ayni yontem).
+            missing = "docs/" + "YOK.md"
+            present = "docs/" + "VAR.md"
+            (root / "src" / "Thing.cs").write_text(
+                f"// Bkz. {missing} ve {present}\n", encoding="utf-8")
+
+            found = kapi.find_stale_doc_references(root)
+
+        self.assertEqual(len(found), 1)
+        self.assertIn(missing, found[0])
+
+    def test_site_yolu_bayat_referans_sayilmaz(self):
+        # `docs-site/src/content/docs/...` bir SITE yoludur, `docs/` agacina ait
+        # degildir. Ayrilmazsa kapi 40+ yanlis pozitif uretir ve kapatilir.
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            (root / "src").mkdir()
+            (root / "src" / "Thing.cs").write_text(
+                "/// <c>docs-site/src/content/docs/capabilities.md</c>\n", encoding="utf-8")
+
+            self.assertEqual(kapi.find_stale_doc_references(root), [])
+
+    def test_yer_tutucu_referansi_bayat_sayilmaz(self):
+        # Arsivleme scripti ve faz sablonu ornek yol yazar; bunlar hicbir zaman
+        # var olmaz ve bir kusur degildir.
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            (root / "scripts").mkdir()
+            (root / "scripts" / "ornek.py").write_text(
+                "# docs/X.md -> docs/arsiv/Y.md; sablon: docs/NN-BUYUK-HARFLI-AD.md\n",
+                encoding="utf-8")
+
+            self.assertEqual(kapi.find_stale_doc_references(root), [])
+
+    def test_arsivlenen_faz_referansi_repoda_kalmaz(self):
+        # SINIF KAPISI: bu repoda gercek olan tarama. Bir faz arsivlendiginde
+        # `docs/NN-AD.md` -> `docs/arsiv/fazlar/NN-AD.md` olur; `docs/` disindaki
+        # referanslar bugune kadar guncellenmiyordu (43 bayat referans olculdu).
+        self.assertEqual(kapi.find_stale_doc_references(), [])
+
     def test_harita_eksigi_tam_test_kosumuna_duser(self):
         projects, full = kapi.affected_test_projects(["src/Unknown.Package/Thing.cs"])
 

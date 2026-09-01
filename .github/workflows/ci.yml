@@ -236,7 +236,7 @@ jobs:
           if-no-files-found: error
 
   # ---------------------------------------------------------------------------
-  # Yayın provası (docs/97-SURUM-POLITIKASI-VE-YAYIN-PROVASI.md, 97.2)
+  # Yayın provası (docs/arsiv/fazlar/97-SURUM-POLITIKASI-VE-YAYIN-PROVASI.md, 97.2)
   #
   # `pack` isinden BAGIMSIZ calisir - kendi `dotnet pack`'ini kosar (kapi.py'nin
   # `yayin` komutunun kendisi bunu yapar, K-008 sinirini ve paket icerik
@@ -405,7 +405,7 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
   # ---------------------------------------------------------------------------
-  # GitHub release (docs/123-YAYIN-KRITIK-YOLU.md, 123.3)
+  # GitHub release (docs/arsiv/fazlar/123-YAYIN-KRITIK-YOLU.md, 123.3)
   #
   # `publish` VE `npm-publish`'ten SONRA kosar: paket yayini bu ise bagli
   # KALMAZ, yalniz release sayfasi eksik kalir GitHub API erisilemezse (OP-007
