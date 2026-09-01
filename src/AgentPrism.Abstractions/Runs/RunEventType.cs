@@ -203,4 +203,17 @@ public enum RunEventType
     /// into <c>run_events</c> would undo that.
     /// </remarks>
     ToolOutputTruncated = 26,
+
+    /// <summary>
+    /// The response failed structured output validation and the run is
+    /// ending as <see cref="RunStatus.Failed"/>. <c>Text</c> carries the
+    /// safe rejection reason; <c>Payload</c> carries the same reason plus
+    /// <c>kind</c>, <c>schemaName</c>, <c>provider</c> and <c>model</c> as
+    /// JSON, subject to <c>AgentPrismRunRecordingOptions.RecordToolPayloads</c>.
+    /// </summary>
+    /// <remarks>
+    /// Neither field carries the model's raw response text — see
+    /// <see cref="IStructuredResponseValidator"/>.
+    /// </remarks>
+    StructuredResponseRejected = 27,
 }

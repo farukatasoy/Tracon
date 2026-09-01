@@ -5,7 +5,8 @@ description: Ask models for plain text, JSON, or JSON Schema output, validate de
 
 Structured output changes the format requested from the model. It does not turn a
 model response into a trusted .NET object, and it does not add server-side schema
-validation after the response arrives.
+validation after the response arrives — an opt-in seam can check well-formedness and
+your own rules before the run closes; see [Validate the response](#validate-the-response).
 
 ## Mental model: constrain, then verify
 
@@ -154,6 +155,68 @@ provider and model decide whether `Json` or `JsonSchema` is supported and which 
 Schema features they accept. Test the exact provider, model, and API surface you use.
 :::
 
+## Validate the response
+
+`AgentPrism:StructuredResponse:Enabled` (default `false`) turns on a check that runs
+after the model answers and before the run closes, for any agent whose
+`ResponseFormat.Kind` is `Json` or `JsonSchema`:
+
+```json
+{
+  "AgentPrism": {
+    "StructuredResponse": {
+      "Enabled": true
+    }
+  }
+}
+```
+
+With it on, AgentPrism first checks well-formedness itself: the response must be
+non-empty and parse as JSON. That check alone catches the two failure modes every
+consumer would otherwise check by hand — an empty response and a response cut off
+mid-document. Register `IStructuredResponseValidator` to add your own rule on top —
+schema conformance, an allowed value range, a required field the schema does not
+express:
+
+```csharp
+public sealed class ScoreRangeValidator : IStructuredResponseValidator
+{
+    public ValueTask<StructuredResponseValidationResult> ValidateAsync(
+        StructuredResponseValidationContext context, CancellationToken cancellationToken = default)
+    {
+        using var document = JsonDocument.Parse(context.ResponseText);
+
+        return document.RootElement.TryGetProperty("score", out var score) &&
+               score.GetInt32() is >= 0 and <= 100
+            ? new(StructuredResponseValidationResult.Valid)
+            : new(StructuredResponseValidationResult.Invalid("'score' must be between 0 and 100."));
+    }
+}
+
+services.AddSingleton<IStructuredResponseValidator, ScoreRangeValidator>();
+```
+
+There is no built-in JSON Schema validator — validation stays inside your own trust
+boundary, the same stance [argument validation](/guides/write-your-own-tool/#argument-validation)
+takes on the tool-call side. Nothing is registered by default, so an installation that
+turns the flag on but registers no validator only gets the well-formedness check. If
+your validator throws, the response is rejected (fail-closed) — a gate that fails open
+on an exception is not a gate.
+
+A rejected response closes the run as `Failed` with `runs.error_class`
+`StructuredResponseInvalid` and writes a `StructuredResponseRejected` run event
+carrying the safe reason, the requested `kind`, `schemaName`, `provider`, and `model` —
+never the response text itself. Your `Invalid(reason)` string reaches that same event
+and the run's error message, so it must not carry the response text either; a run
+event is persistent.
+
+:::caution[Streaming cannot un-send content]
+On a streamed run the response reaches the client as it arrives; validation only runs
+after the last update. A rejected streamed response still closes the run as `Failed`
+and still writes the event, but the client already received the invalid content — an
+agent that uses structured output as a gate should not stream.
+:::
+
 ## Design schemas for reliable extraction
 
 Keep the schema small and explicit. Mark required fields. Use
@@ -184,6 +247,8 @@ payload against your schema.
 | Returned payload validation | Not performed |
 | Capability check | Enforced only when the selected model exists in the configured catalog |
 | Streaming | The structured document can still arrive in multiple text updates |
+| `AgentPrism:StructuredResponse:Enabled` | `false`; the response is never inspected after the model returns it |
+| `IStructuredResponseValidator` | No-op by default (always valid); register your own to enforce a rule |
 
 For a streamed run, assemble the complete response before parsing JSON. Individual
 SSE text events are fragments, not standalone JSON documents.
@@ -218,6 +283,8 @@ and still reject a fenced payload at the application boundary.
 - [`AgentResponseFormat` API](/api/agentprism.agentresponseformat/)
 - [`AgentResponseFormatKind` API](/api/agentprism.agentresponseformatkind/)
 - [`ModelBinding` API](/api/agentprism.modelbinding/)
+- [`IStructuredResponseValidator` API](/api/agentprism.istructuredresponsevalidator/)
+- [`AgentPrismStructuredResponseOptions` reference](/reference/configuration/#structured-response-validation)
 
 ## Read next
 

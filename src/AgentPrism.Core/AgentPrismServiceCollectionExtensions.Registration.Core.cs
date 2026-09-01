@@ -38,6 +38,12 @@ public static partial class AgentPrismServiceCollectionExtensions
         // consumer never registers their own validator.
         services.TryAddSingleton<IToolArgumentsValidator>(NoOpToolArgumentsValidator.Instance);
 
+        // Structured response validation (phase 131): valid by default.
+        // Registered as the specific shared instance for the same reason as
+        // IToolArgumentsValidator above; a consumer's own registration wins
+        // through TryAddSingleton.
+        services.TryAddSingleton<IStructuredResponseValidator>(NoOpStructuredResponseValidator.Instance);
+
         // Registries.
         // The image tool is conditional: registering its provider package alone
         // must not expose a paid tool. ToolRegistry.Create reads the final option
@@ -433,6 +439,7 @@ public static partial class AgentPrismServiceCollectionExtensions
 
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IAgentDecorator, OpenTelemetryAgentDecorator>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IAgentDecorator, ToolApprovalAgentDecorator>());
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IAgentDecorator, StructuredResponseValidatingAgentDecorator>());
 
         services.TryAddSingleton<IAgentCatalog>(static provider => new CompositeAgentCatalog(
             provider.GetServices<IAgentSource>(),

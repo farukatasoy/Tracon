@@ -209,6 +209,7 @@ export const enRuns = {
   "dashboard.errorClass.ContentBlocked": 'Content blocked by policy',
   "dashboard.errorClass.ToolTimeout": 'Tool timed out',
   "dashboard.errorClass.Infrastructure": 'Infrastructure error',
+  "dashboard.errorClass.StructuredResponseInvalid": 'Structured response invalid',
   "transcript.reasoning": 'Reasoning',
   "transcript.approved": 'approved',
   "transcript.rejected": 'rejected',

@@ -153,6 +153,12 @@ public static partial class AgentPrismServiceCollectionExtensions
         // no runtime effect until both the option and an IImageGenerator are present.
         services.AddOptions<AgentPrismImageOptions>().ValidateOnStart();
 
+        // Structured response validation (Phase 131). Same rationale: carries
+        // its own section, requires no separate Use...() call. Enabled=false
+        // (K1) - a single flag has no invalid state, so no IValidateOptions
+        // is registered for it.
+        services.AddOptions<AgentPrismStructuredResponseOptions>().ValidateOnStart();
+
         if (configurationSection is not null)
         {
             services.Configure<AgentPrismQuotaOptions>(
@@ -191,6 +197,8 @@ public static partial class AgentPrismServiceCollectionExtensions
                 options => BindDrain(configurationSection.GetSection("Drain"), options));
             services.Configure<AgentPrismImageOptions>(
                 options => BindImages(configurationSection.GetSection("Images"), options));
+            services.Configure<AgentPrismStructuredResponseOptions>(
+                options => BindStructuredResponse(configurationSection.GetSection("StructuredResponse"), options));
 
             var contentGuardSection = configurationSection.GetSection("ContentGuard");
 

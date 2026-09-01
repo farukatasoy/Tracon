@@ -13059,6 +13059,7 @@
           "ContentBlocked",
           "Infrastructure",
           "ToolTimeout",
+          "StructuredResponseInvalid",
           null
         ]
       },
