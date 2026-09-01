@@ -38,7 +38,7 @@
 > Dört kalem **doğrudan plana** dönüştü — bu dosyada hiç sıralanmadılar, çünkü
 > kanıtları raporla birlikte geldi ve aynı turda doğrulandı:
 > **F-172** → [Faz 129](arsiv/fazlar/129-IS-KUYRUGU-LANELERI.md) · **F-173** →
-> [Faz 130](130-URETILEN-SEMANIN-KISITLARI.md) · **F-174** →
+> [Faz 130](arsiv/fazlar/130-URETILEN-SEMANIN-KISITLARI.md) · **F-174** →
 > [Faz 131](131-YAPISAL-YANIT-DOGRULAMA-SEAMI.md) · **F-175** →
 > [Faz 132](132-UYGULANAN-FIYAT-SNAPSHOTU.md). Aynı turdan **dört kalem**
 > § *Bekleyen Kalemler*'e girdi (F-176 · F-177 · F-178 · F-179); hepsi bir
@@ -135,7 +135,7 @@ dönüşebilmeleri için burada duruyor.
 |---|---|---|
 | **F-95** | İmzası doğrulanmadı; ayrıca **experimental** bir MAF sözleşmesine 1.0 öncesi public yüzey bağlamak K-008'in ön sürüm sınırının tersidir | `maf-api-kesfi` imzayı doğrular **ve** F-141 ile karşılaştırma yapılır. Tercihen 1.0 sonrası |
 | **F-165** | 1.650 case tek faza sığmaz; bağımsız faz olarak planlanırsa kuyruğu bitmez | Bağımsız faz olarak **hiç** planlanmaz. Her fazın dokunduğu alanın manuel ailesi o fazda otomatikleştirilir |
-| **F-176** | Nested object şeması K-615 ile uzlaştırılmadan tasarlanamaz | [Faz 130](130-URETILEN-SEMANIN-KISITLARI.md) kapanır **ve** generator'ın `JsonSerializerContext` sözleşmesi için bir tasarım kararı verilir |
+| **F-176** | Nested object şeması K-615 ile uzlaştırılmadan tasarlanamaz | [Faz 130](arsiv/fazlar/130-URETILEN-SEMANIN-KISITLARI.md) kapanır **ve** generator'ın `JsonSerializerContext` sözleşmesi için bir tasarım kararı verilir |
 | **F-177** | Bounded repair `run` içinde ikinci bir model çağrısı açar; doğrulama seam'i olmadan tanımsızdır | [Faz 131](131-YAPISAL-YANIT-DOGRULAMA-SEAMI.md) kapanır ve seam gerçek kullanımda ölçülür |
 | **F-178** | Job/kuyruk metrik ailesi bugün **hiç yok**; `lane` kimliği olmadan etiketlenemez | [Faz 129](arsiv/fazlar/129-IS-KUYRUGU-LANELERI.md) kapanır |
 | **F-179** | Ön koşulu yok: `run` satırı sağlayıcıyı saklamıyor, kayan latency penceresi ölçülmüyor | [Faz 132](132-UYGULANAN-FIYAT-SNAPSHOTU.md) kapanır **ve** F-178 attempt süresini ölçmeye başlar **ve** gerçek üretim trafiği oluşur |
