@@ -1,13 +1,13 @@
 # Faz 130 — Üretilen Şemanın Kısıtları
 
 > **Durum:** ✅ Tamamlandı (2026-09-01)
-> **Kaynak:** [kesif/2026-09-01-tuketici-feature-talepleri.md](kesif/2026-09-01-tuketici-feature-talepleri.md) — **F-173**
+> **Kaynak:** [kesif/2026-09-01-tuketici-feature-talepleri.md](../../kesif/2026-09-01-tuketici-feature-talepleri.md) — **F-173**
 > **Önkoşul:** Yok
 > **Paketler:** `AgentPrism.Generators` (tek paket)
 > **Yeni paket:** Yok · **Migration:** Yok
 > **Public API:** büyümüyor — üretilen şema metni değişir, C# yüzeyi değişmez. Yeni bir analyzer diagnostic kodu eklenir (`APG0010`)
 > **Tüketici yüzeyi:** `docs-site/`: `guides/write-your-own-tool.md`, `concepts/tools.md`, `capabilities.md` (diagnostic bağlantısının hedef bölümü) · sevk edilen: `APG0003` metni, yeni `APG0010` metni, `AnalyzerReleases.Unshipped.md`
-> **Manuel test alanı:** [`docs/manuel-test/02-CEKIRDEK-VE-KATALOG.md`](manuel-test/02-CEKIRDEK-VE-KATALOG.md)
+> **Manuel test alanı:** [`docs/manuel-test/02-CEKIRDEK-VE-KATALOG.md`](../../manuel-test/02-CEKIRDEK-VE-KATALOG.md)
 
 ---
 
@@ -24,15 +24,15 @@
    **K-615** (generator kendi `JsonSerializerContext`'ini kullanmaz; tool sahibi
    verir, vermezse `APG0008`), **L27** (`ValidateDataAnnotations()` kullanılmadı
    — `reflection` ve `IL2026` yüzünden).
-3. [Faz 125](arsiv/fazlar/125-URETILEN-TOOL-SEMASININ-IFADE-GUCU.md) — yalnız devir notu:
+3. [Faz 125](125-URETILEN-TOOL-SEMASININ-IFADE-GUCU.md) — yalnız devir notu:
    ```bash
    awk '/## Sonraki Faza Devir Notu/,0' docs/arsiv/fazlar/125-URETILEN-TOOL-SEMASININ-IFADE-GUCU.md
    ```
    Bugünkü şema yüzeyini o faz kurdu; bu faz onun bıraktığı sınırı genişletir.
 4. Alan hafızası (bu faz bir alana dokunuyor):
-   [`hafiza/analyzer-yazimi.md`](hafiza/analyzer-yazimi.md) (incremental
+   [`hafiza/analyzer-yazimi.md`](../../hafiza/analyzer-yazimi.md) (incremental
    generator, değer eşitliği ve diagnostic yazımı tuzakları).
-5. Gerektiğinde: [`hafiza/build-ve-analyzer.md`](hafiza/build-ve-analyzer.md).
+5. Gerektiğinde: [`hafiza/build-ve-analyzer.md`](../../hafiza/build-ve-analyzer.md).
 
 ---
 
@@ -81,11 +81,11 @@ runtime doğrulama hakkındaydı; bu faz şema üretimi hakkındadır.
 
 | Kanıt | Gözlem |
 |---|---|
-| [`SourceWriter.cs:261-269`](../src/AgentPrism.Generators/SourceWriter.cs) | `BuildLeafSchemaNode` yalnız `type` (+ `uuid`/`date-time` `format`'ı ve `enum` listesi) üretir. Kısıt anahtarı hiç yok |
-| [`SourceWriter.cs:242`](../src/AgentPrism.Generators/SourceWriter.cs) | Kök şema `{"type":"object","properties":…,"required":…,"additionalProperties":false}` — `properties` düğümü kısıt taşımaz |
-| [`ToolDiagnostics.cs:38`](../src/AgentPrism.Generators/ToolDiagnostics.cs) | `APG0003` metni bu boşluğu tüketiciye **sevk edilmiş metinde** itiraf ediyor: "The generator also never expresses a nested object, or a minimum, maximum, length, or pattern constraint, on any parameter." |
-| [`ParameterModel.cs`](../src/AgentPrism.Generators/ParameterModel.cs) | `ParameterModel(Name, Shape, Leaf, IsRequired, DefaultValueLiteral, IsConcreteArray, Description)` — kısıt alanı yok |
-| [`ParameterTypeValidator.cs`](../src/AgentPrism.Generators/ParameterTypeValidator.cs) | `ReadDescription` yalnız `System.ComponentModel.DescriptionAttribute` okuyor; başka attribute okunmuyor |
+| [`SourceWriter.cs:261-269`](../../../src/AgentPrism.Generators/SourceWriter.cs) | `BuildLeafSchemaNode` yalnız `type` (+ `uuid`/`date-time` `format`'ı ve `enum` listesi) üretir. Kısıt anahtarı hiç yok |
+| [`SourceWriter.cs:242`](../../../src/AgentPrism.Generators/SourceWriter.cs) | Kök şema `{"type":"object","properties":…,"required":…,"additionalProperties":false}` — `properties` düğümü kısıt taşımaz |
+| [`ToolDiagnostics.cs:38`](../../../src/AgentPrism.Generators/ToolDiagnostics.cs) | `APG0003` metni bu boşluğu tüketiciye **sevk edilmiş metinde** itiraf ediyor: "The generator also never expresses a nested object, or a minimum, maximum, length, or pattern constraint, on any parameter." |
+| [`ParameterModel.cs`](../../../src/AgentPrism.Generators/ParameterModel.cs) | `ParameterModel(Name, Shape, Leaf, IsRequired, DefaultValueLiteral, IsConcreteArray, Description)` — kısıt alanı yok |
+| [`ParameterTypeValidator.cs`](../../../src/AgentPrism.Generators/ParameterTypeValidator.cs) | `ReadDescription` yalnız `System.ComponentModel.DescriptionAttribute` okuyor; başka attribute okunmuyor |
 | `grep -n "APG000" ToolDiagnostics.cs` | Kullanılan kodlar `APG0001`–`APG0009`. İlk boş kod **`APG0010`** |
 | `grep -i "schema" Directory.Packages.props` | JSON Schema doğrulayıcı paketi **yok**; bu faz da eklemez |
 
