@@ -6207,6 +6207,16 @@ export interface components {
             /** @description The tenant identifier. */
             tenantId?: null | string;
             /**
+             * Format: int32
+             * @description The AgentPrism schema generation that wrote `State`.
+             */
+            stateSchemaVersion?: number | string;
+            /**
+             * @description The Microsoft Agent Framework package version that produced
+             *     `State`.
+             */
+            stateMafVersion?: null | string;
+            /**
              * Format: int64
              * @description The record's write generation, used for optimistic concurrency.
              */
@@ -7074,6 +7084,16 @@ export interface components {
             createdAt: string;
             /** @description Gets the opaque run state. */
             state: components["schemas"]["JsonElement"];
+            /**
+             * Format: int32
+             * @description Gets the AgentPrism schema generation that wrote `State`.
+             */
+            stateSchemaVersion?: null | number | string;
+            /**
+             * @description Gets the Microsoft Agent Framework package version that produced
+             *     `State`.
+             */
+            stateMafVersion?: null | string;
         };
         /**
          * @description Represents the full definition of a workflow, whether defined through the

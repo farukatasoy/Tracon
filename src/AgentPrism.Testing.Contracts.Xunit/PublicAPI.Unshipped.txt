@@ -406,6 +406,7 @@ AgentPrism.Testing.Contracts.Storage.RunStoreContract.Tree_usage_sums_the_breakd
 AgentPrism.Testing.Contracts.Storage.RunStoreContract.UpdateRunCostAsync_does_not_update_with_the_wrong_expected_tenant() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.RunStoreContract.Workflow_run_lives_in_the_same_table() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.SessionStoreContract
+AgentPrism.Testing.Contracts.Storage.SessionStoreContract.A_session_saved_without_StateMafVersion_reads_back_null() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.SessionStoreContract.Delete_removes_the_record() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.SessionStoreContract.GetOwnerTenantIdAsync_returns_null_for_a_never_used_id() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.SessionStoreContract.GetOwnerTenantIdAsync_returns_the_real_owner_independent_of_the_ambient_tenant() -> System.Threading.Tasks.Task!
@@ -417,6 +418,7 @@ AgentPrism.Testing.Contracts.Storage.SessionStoreContract.SaveAsync_advances_the
 AgentPrism.Testing.Contracts.Storage.SessionStoreContract.Saving_with_the_same_id_overwrites_the_record_and_keeps_the_creation_time() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.SessionStoreContract.SessionStoreContract() -> void
 AgentPrism.Testing.Contracts.Storage.SessionStoreContract.Session_state_round_trips_without_corruption() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.Storage.SessionStoreContract.StateSchemaVersion_and_StateMafVersion_round_trip() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.SessionStoreContract.TryCreateAsync_only_one_concurrent_call_with_the_same_id_wins() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.SessionStoreContract.TryCreateAsync_returns_false_and_does_not_overwrite_for_an_existing_id() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.SessionStoreContract.TryCreateAsync_returns_true_and_saves_for_a_new_id() -> System.Threading.Tasks.Task!
@@ -536,6 +538,7 @@ AgentPrism.Testing.Contracts.Storage.WebhookStoreContract.Successful_delivery_re
 AgentPrism.Testing.Contracts.Storage.WebhookStoreContract.Successful_delivery_result_is_recorded() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.WebhookStoreContract.WebhookStoreContract() -> void
 AgentPrism.Testing.Contracts.Storage.WorkflowCheckpointStoreContract
+AgentPrism.Testing.Contracts.Storage.WorkflowCheckpointStoreContract.A_checkpoint_written_without_version_stamps_lists_back_null() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.WorkflowCheckpointStoreContract.Another_tenants_checkpoint_is_NOT_FOUND() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.WorkflowCheckpointStoreContract.Delete_clears_the_entire_session() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.WorkflowCheckpointStoreContract.Listing_by_run_filters_correctly() -> System.Threading.Tasks.Task!
@@ -543,6 +546,7 @@ AgentPrism.Testing.Contracts.Storage.WorkflowCheckpointStoreContract.Listing_doe
 AgentPrism.Testing.Contracts.Storage.WorkflowCheckpointStoreContract.Listing_preserves_creation_order() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.WorkflowCheckpointStoreContract.Nonexistent_checkpoint_returns_null() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.WorkflowCheckpointStoreContract.Polymorphic_payload_is_read_back_with_KEY_ORDER_PRESERVED() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.Storage.WorkflowCheckpointStoreContract.StateSchemaVersion_and_StateMafVersion_round_trip_through_listing_metadata() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.WorkflowCheckpointStoreContract.WorkflowCheckpointStoreContract() -> void
 AgentPrism.Testing.Contracts.Storage.WorkflowCheckpointStoreContract.Written_checkpoint_is_read_back() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.WorkflowDefinitionStoreContract

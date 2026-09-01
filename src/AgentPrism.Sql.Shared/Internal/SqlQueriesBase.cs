@@ -1036,13 +1036,15 @@ internal abstract class SqlQueriesBase
             """;
 
         InsertSession = $"""
-            INSERT INTO {Table("sessions")} (id, tenant_id, agent_name, state, schema_version, created_at, updated_at, version)
-            VALUES (@id, @tenant_id, @agent_name, @state, @schema_version, @created_at, @updated_at, 1);
+            INSERT INTO {Table("sessions")} (id, tenant_id, agent_name, state, state_schema_version, created_at, updated_at, version, state_maf_version)
+            VALUES (@id, @tenant_id, @agent_name, @state, @state_schema_version, @created_at, @updated_at, 1, @state_maf_version);
             """;
 
-        // `version` is appended LAST so every existing ordinal keeps its index.
+        // `version` and `state_maf_version` are appended LAST so every
+        // existing ordinal keeps its index (same rule as the `version`
+        // column itself, decision K-648).
         SelectSession = $"""
-            SELECT agent_name, state, schema_version, created_at, updated_at, tenant_id, version
+            SELECT agent_name, state, state_schema_version, created_at, updated_at, tenant_id, version, state_maf_version
             FROM {Table("sessions")}
             WHERE id = @id AND tenant_id = @tenant_id;
             """;
@@ -1054,11 +1056,12 @@ internal abstract class SqlQueriesBase
         // step. Zero affected rows means another writer got there first.
         UpdateSessionIfVersionMatches = $"""
             UPDATE {Table("sessions")}
-               SET agent_name     = @agent_name,
-                   state          = @state,
-                   schema_version = @schema_version,
-                   updated_at     = @updated_at,
-                   version        = version + 1
+               SET agent_name           = @agent_name,
+                   state                = @state,
+                   state_schema_version = @state_schema_version,
+                   state_maf_version    = @state_maf_version,
+                   updated_at           = @updated_at,
+                   version              = version + 1
              WHERE id = @id AND tenant_id = @tenant_id AND version = @expected_version;
             """;
 
@@ -1287,8 +1290,8 @@ internal abstract class SqlQueriesBase
         // silently skipped, so there is NO ON CONFLICT clause.
         InsertWorkflowCheckpoint = $"""
             INSERT INTO {Table("workflow_checkpoints")}
-                (id, tenant_id, session_id, checkpoint_id, parent_id, run_id, state, created_at)
-            VALUES (@id, @tenant_id, @session_id, @checkpoint_id, @parent_id, @run_id, @state, @created_at);
+                (id, tenant_id, session_id, checkpoint_id, parent_id, run_id, state, state_schema_version, state_maf_version, created_at)
+            VALUES (@id, @tenant_id, @session_id, @checkpoint_id, @parent_id, @run_id, @state, @state_schema_version, @state_maf_version, @created_at);
             """;
 
         SelectWorkflowCheckpoint = $"""
@@ -1301,14 +1304,14 @@ internal abstract class SqlQueriesBase
         // metadata, and carrying kilobytes of opaque JSON next to every row
         // would make the UI's checkpoint list unopenable.
         SelectWorkflowCheckpoints = $"""
-            SELECT id, tenant_id, session_id, checkpoint_id, parent_id, run_id, created_at
+            SELECT id, tenant_id, session_id, checkpoint_id, parent_id, run_id, created_at, state_schema_version, state_maf_version
             FROM {Table("workflow_checkpoints")}
             WHERE tenant_id = @tenant_id AND session_id = @session_id
             ORDER BY created_at, checkpoint_id;
             """;
 
         SelectWorkflowCheckpointsByRun = $"""
-            SELECT id, tenant_id, session_id, checkpoint_id, parent_id, run_id, created_at
+            SELECT id, tenant_id, session_id, checkpoint_id, parent_id, run_id, created_at, state_schema_version, state_maf_version
             FROM {Table("workflow_checkpoints")}
             WHERE tenant_id = @tenant_id AND run_id = @run_id
             ORDER BY created_at, checkpoint_id;

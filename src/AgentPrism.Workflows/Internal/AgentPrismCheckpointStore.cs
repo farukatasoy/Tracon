@@ -1,3 +1,4 @@
+using System.Reflection;
 using System.Text.Json;
 using Microsoft.Agents.AI.Workflows;
 using Microsoft.Agents.AI.Workflows.Checkpointing;
@@ -28,6 +29,21 @@ namespace AgentPrism;
 /// </remarks>
 internal sealed class AgentPrismCheckpointStore : ICheckpointStore<JsonElement>
 {
+    /// <summary>
+    /// The AgentPrism schema generation this build writes and can read.
+    /// </summary>
+    /// <remarks>
+    /// Advances only when AgentPrism changes how it structures the stored
+    /// row, never when the Microsoft Agent Framework version changes.
+    /// </remarks>
+    internal const int CurrentStateSchemaVersion = 1;
+
+    /// <summary>
+    /// The running process's Microsoft Agent Framework Workflows package
+    /// version, stamped onto every checkpoint this process writes.
+    /// </summary>
+    internal static readonly string CurrentMafVersion = ReadMafVersion();
+
     private readonly IWorkflowCheckpointStore _store;
     private readonly ITenantContext _tenantContext;
 
@@ -64,10 +80,32 @@ internal sealed class AgentPrismCheckpointStore : ICheckpointStore<JsonElement>
                 RunId = scope?.RunId,
                 CreatedAt = DateTimeOffset.UtcNow,
                 State = value,
+                StateSchemaVersion = CurrentStateSchemaVersion,
+                StateMafVersion = CurrentMafVersion,
             },
             CancellationToken.None).ConfigureAwait(false);
 
         return new CheckpointInfo(sessionId, checkpointId);
+    }
+
+    /// <summary>
+    /// Reads the informational version off the Microsoft Agent Framework
+    /// Workflows assembly that produces checkpoint state.
+    /// </summary>
+    /// <remarks>Same technique as <c>AgentSessionManager.ReadMafVersion</c> uses for the session-serializing assembly.</remarks>
+    private static string ReadMafVersion()
+    {
+        var informational = typeof(CheckpointInfo).Assembly
+            .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
+
+        if (string.IsNullOrEmpty(informational))
+        {
+            return typeof(CheckpointInfo).Assembly.GetName().Version?.ToString() ?? "unknown";
+        }
+
+        var plus = informational.IndexOf('+', StringComparison.Ordinal);
+
+        return plus < 0 ? informational : informational[..plus];
     }
 
     /// <inheritdoc />

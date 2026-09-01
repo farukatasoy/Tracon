@@ -51,4 +51,25 @@ public sealed record WorkflowCheckpointRecord
 
     /// <summary>Gets the opaque run state.</summary>
     public required JsonElement State { get; init; }
+
+    /// <summary>Gets the AgentPrism schema generation that wrote <c>State</c>.</summary>
+    /// <remarks>
+    /// <see langword="null"/> means the row was written before this field
+    /// existed — unlike <c>SessionRecord.StateSchemaVersion</c>,
+    /// checkpoints had no envelope stamp before this field was added.
+    /// </remarks>
+    public int? StateSchemaVersion { get; init; }
+
+    /// <summary>
+    /// Gets the Microsoft Agent Framework package version that produced
+    /// <c>State</c>.
+    /// </summary>
+    /// <remarks>
+    /// <see langword="null"/> means the row was written before this field
+    /// existed. AgentPrism does not promise that a checkpoint written by one
+    /// Microsoft Agent Framework version can be resumed by a different one;
+    /// this value lets a failed resume report exactly which version wrote
+    /// the state instead of guessing.
+    /// </remarks>
+    public string? StateMafVersion { get; init; }
 }

@@ -228,18 +228,19 @@ internal sealed class SqliteQueries : SqlQueriesBase
         // See PostgresQueries: `version` advances, it is never taken from
         // the incoming row.
         UpsertSession = $"""
-            INSERT INTO {Schema}sessions (id, tenant_id, agent_name, state, schema_version, created_at, updated_at, version)
-            VALUES (@id, @tenant_id, @agent_name, @state, @schema_version, @created_at, @updated_at, 1)
+            INSERT INTO {Schema}sessions (id, tenant_id, agent_name, state, state_schema_version, created_at, updated_at, version, state_maf_version)
+            VALUES (@id, @tenant_id, @agent_name, @state, @state_schema_version, @created_at, @updated_at, 1, @state_maf_version)
             ON CONFLICT (tenant_id, id) DO UPDATE
-                SET agent_name     = excluded.agent_name,
-                    state          = excluded.state,
-                    schema_version = excluded.schema_version,
-                    updated_at     = excluded.updated_at,
-                    version        = version + 1;
+                SET agent_name           = excluded.agent_name,
+                    state                = excluded.state,
+                    state_schema_version = excluded.state_schema_version,
+                    state_maf_version    = excluded.state_maf_version,
+                    updated_at           = excluded.updated_at,
+                    version              = version + 1;
             """;
 
         SelectSessions = $"""
-            SELECT id, agent_name, state, schema_version, created_at, updated_at, tenant_id, version
+            SELECT id, agent_name, state, state_schema_version, created_at, updated_at, tenant_id, version, state_maf_version
             FROM {Schema}sessions
             WHERE tenant_id = @tenant_id
               AND (@agent_name IS NULL OR agent_name = @agent_name)

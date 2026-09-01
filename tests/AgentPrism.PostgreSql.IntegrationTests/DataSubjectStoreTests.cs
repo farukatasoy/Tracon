@@ -142,7 +142,7 @@ public sealed class DataSubjectStoreTests(PostgresFixture fixture) : IAsyncLifet
         const string emptyJsonState = "'{}'";
 
         await _context.ExecuteAsync($"""
-            INSERT INTO {_context.SchemaName}.sessions (id, tenant_id, agent_name, state, schema_version, created_at, updated_at)
+            INSERT INTO {_context.SchemaName}.sessions (id, tenant_id, agent_name, state, state_schema_version, created_at, updated_at)
             VALUES ('{id}', '{tenantId}', 'support', {emptyJsonState}, 1, now(), now());
             """);
     }

@@ -199,6 +199,36 @@ public sealed record SessionRecord
     /// <summary>The tenant identifier.</summary>
     public string? TenantId { get; init; }
 
+    /// <summary>The AgentPrism schema generation that wrote <c>State</c>.</summary>
+    /// <remarks>
+    /// <para>
+    /// Every row carries a value; AgentPrism has stamped this generation on
+    /// every session since the very first release, so there is no
+    /// "unstamped" era for this field the way there is for
+    /// <c>StateMafVersion</c>. It advances only when AgentPrism
+    /// changes how it structures the stored row, never when the Microsoft
+    /// Agent Framework version changes.
+    /// </para>
+    /// <para>
+    /// A record built to be saved does not need to set this — the store
+    /// stamps the current generation regardless of what the caller provides.
+    /// </para>
+    /// </remarks>
+    public int StateSchemaVersion { get; init; } = 1;
+
+    /// <summary>
+    /// The Microsoft Agent Framework package version that produced
+    /// <c>State</c>.
+    /// </summary>
+    /// <remarks>
+    /// <see langword="null"/> means the row was written before this field
+    /// existed. AgentPrism does not promise that a session written by one
+    /// Microsoft Agent Framework version can be restored by a different one;
+    /// this value lets a failed restore report exactly which version wrote
+    /// the state instead of guessing.
+    /// </remarks>
+    public string? StateMafVersion { get; init; }
+
     /// <summary>
     /// The record's write generation, used for optimistic concurrency.
     /// </summary>
