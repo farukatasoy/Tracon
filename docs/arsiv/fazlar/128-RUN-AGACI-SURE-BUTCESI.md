@@ -1,8 +1,8 @@
 # Faz 128 — Run Ağacı Süre Bütçesi
 
 > **Durum:** ✅ Tamamlandı (2026-09-01)
-> **Kaynak:** [kesif/2026-08-31-tuketici-raporu-faz-adaylari.md](kesif/2026-08-31-tuketici-raporu-faz-adaylari.md) · **T-7**
-> **Önkoşul:** [Faz 114](arsiv/fazlar/114-CALISTIRMA-ICI-BUTCE-TAVANI.md) (çalıştırma-içi bütçe tavanı, `RunBudgetChatClient`) — arşivde; **damıtılmış**, tam metin `git show 3fbdc7d:docs/arsiv/fazlar/114-CALISTIRMA-ICI-BUTCE-TAVANI.md`
+> **Kaynak:** [kesif/2026-08-31-tuketici-raporu-faz-adaylari.md](../../kesif/2026-08-31-tuketici-raporu-faz-adaylari.md) · **T-7**
+> **Önkoşul:** [Faz 114](114-CALISTIRMA-ICI-BUTCE-TAVANI.md) (çalıştırma-içi bütçe tavanı, `RunBudgetChatClient`) — arşivde; **damıtılmış**, tam metin `git show 3fbdc7d:docs/arsiv/fazlar/114-CALISTIRMA-ICI-BUTCE-TAVANI.md`
 > **Paketler:** `AgentPrism.Abstractions` (`Runs/AgentRunBudget.cs`), `AgentPrism.Core` (`Models/RunBudgetChatClient.cs`, `AgentPrismOptions.cs`)
 > **Yeni paket:** Yok · **Migration:** Yok — tavan yapılandırmadan gelir
 > **Public API:** Büyüyor — mevcut iki tipe birer alan. Faz 7'den önce ucuz: `wc -l src/*/PublicAPI.Shipped.txt` toplamı **17** satır (K-603)
@@ -22,9 +22,9 @@
    ```
    **K-630** (çalıştırma-içi bütçe kesmesi yeni bir `RunErrorClass` üyesi **açmadan** `QuotaExceeded`'a eşlenir — 🚨 bu faz de aynı eşlemeyi kullanır) · **K-627** (`RunErrorClass` değeri `9` kalıcı olarak emekli) · **K-603**
 3. Alan hafızası:
-   [`hafiza/olcum-kota-ve-secenekler.md`](hafiza/olcum-kota-ve-secenekler.md) (bütçe ve kota tuzakları; K-483'ün vakası burada) ·
-   [`hafiza/model-boru-hatti.md`](hafiza/model-boru-hatti.md) (halka konumu)
-4. Gerektiğinde: [`MIMARI-GUVENLIK.md`](MIMARI-GUVENLIK.md) — kota ve bütçe bölümü
+   [`hafiza/olcum-kota-ve-secenekler.md`](../../hafiza/olcum-kota-ve-secenekler.md) (bütçe ve kota tuzakları; K-483'ün vakası burada) ·
+   [`hafiza/model-boru-hatti.md`](../../hafiza/model-boru-hatti.md) (halka konumu)
+4. Gerektiğinde: [`MIMARI-GUVENLIK.md`](../../MIMARI-GUVENLIK.md) — kota ve bütçe bölümü
 
 ---
 
@@ -62,11 +62,11 @@ yoktur.
 
 | Kanıt | Gözlem |
 |---|---|
-| [`AgentRunBudget.cs:36-80`](../src/AgentPrism.Abstractions/Runs/AgentRunBudget.cs) | Dört boyut: `MaxTotalTokens`, `MaxTotalCost`, `MaxTotalRuns`, `MaxDepth`. Süre **yok** |
-| [`AgentPrismOptions.cs:141-178`](../src/AgentPrism.Core/AgentPrismOptions.cs) | `AgentPrismAgentGraphOptions` aynı dört boyutu taşıyor |
-| [`RunBudgetChatClient.cs:83-97`](../src/AgentPrism.Core/Models/RunBudgetChatClient.cs) | Kesme noktası **hazır**: `ThrowIfExhausted` her gerçek model çağrısından önce koşuyor |
-| [`TimeoutAIFunction.cs:23-28`](../src/AgentPrism.Core/Tools/TimeoutAIFunction.cs) | Tool timeout yalnız **tek çağrıyı** sınırlar ve gövdeyi zorla durduramaz — dokümante edilmiş sınır |
-| [`JobWorkerBackgroundService.cs:227`](../src/AgentPrism.Core/Scheduling/JobWorkerBackgroundService.cs) | Kuyruktaki iş koşarken kira **yenilenir**; süre üst sınırı yoktur |
+| [`AgentRunBudget.cs:36-80`](../../../src/AgentPrism.Abstractions/Runs/AgentRunBudget.cs) | Dört boyut: `MaxTotalTokens`, `MaxTotalCost`, `MaxTotalRuns`, `MaxDepth`. Süre **yok** |
+| [`AgentPrismOptions.cs:141-178`](../../../src/AgentPrism.Core/AgentPrismOptions.cs) | `AgentPrismAgentGraphOptions` aynı dört boyutu taşıyor |
+| [`RunBudgetChatClient.cs:83-97`](../../../src/AgentPrism.Core/Models/RunBudgetChatClient.cs) | Kesme noktası **hazır**: `ThrowIfExhausted` her gerçek model çağrısından önce koşuyor |
+| [`TimeoutAIFunction.cs:23-28`](../../../src/AgentPrism.Core/Tools/TimeoutAIFunction.cs) | Tool timeout yalnız **tek çağrıyı** sınırlar ve gövdeyi zorla durduramaz — dokümante edilmiş sınır |
+| [`JobWorkerBackgroundService.cs:227`](../../../src/AgentPrism.Core/Scheduling/JobWorkerBackgroundService.cs) | Kuyruktaki iş koşarken kira **yenilenir**; süre üst sınırı yoktur |
 
 > Kanıtlar 2026-08-31 tarihinde `8105c00` üzerinde doğrulandı.
 
