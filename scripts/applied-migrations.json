@@ -8,6 +8,9 @@
     "src/AgentPrism.Sqlite/Migrations/0025_provider_name_case.sql": "6e82c213378e0a5e2e8deef0f5a6fec24d1e1063",
     "src/AgentPrism.PostgreSql/Migrations/0039_session_version.sql": "20c973212a1b5c4b9d0f5a7fc29f063b514519be",
     "src/AgentPrism.SqlServer/Migrations/0026_session_version.sql": "20c973212a1b5c4b9d0f5a7fc29f063b514519be",
-    "src/AgentPrism.Sqlite/Migrations/0026_session_version.sql": "20c973212a1b5c4b9d0f5a7fc29f063b514519be"
+    "src/AgentPrism.Sqlite/Migrations/0026_session_version.sql": "20c973212a1b5c4b9d0f5a7fc29f063b514519be",
+    "src/AgentPrism.PostgreSql/Migrations/0040_persisted_payload_version.sql": "d117b246855dade908d89d0783a68bba046da3c7",
+    "src/AgentPrism.SqlServer/Migrations/0027_persisted_payload_version.sql": "d117b246855dade908d89d0783a68bba046da3c7",
+    "src/AgentPrism.Sqlite/Migrations/0027_persisted_payload_version.sql": "d117b246855dade908d89d0783a68bba046da3c7"
   }
 }
