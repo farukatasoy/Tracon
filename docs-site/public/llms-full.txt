@@ -46,7 +46,7 @@ workflow, MCP, voice, and external protocol packages add their own explicit call
 | Definition validation | Checks providers, tools, skills, callable agents, cycles, and policy before save | Compiler and `POST /api/agents/validate` | Validation does not call a model |
 | Model binding | Provider, model, temperature, output limit, `top_p`, reasoning effort, and provider-specific settings | `AgentDefinition.Model` | Credentials stay in provider configuration, never in the definition |
 | Structured output | Explicit text, JSON, or JSON Schema responses | `ModelBinding.ResponseFormat` | Provider support is validated or translated by that provider |
-| Agent graph | One agent can call registered agents as tools | `CallableAgentNames` | Shared limits bound call depth, total child runs, and total token/cost spend — the token and cost limits cut a run off mid-run, between model turns |
+| Agent graph | One agent can call registered agents as tools | `CallableAgentNames` | Shared limits bound call depth, total child runs, total token/cost spend, and wall-clock time — the token, cost, and time limits cut a run off mid-run, between model turns |
 | Harness mode | Context and iteration limits plus optional todo, file-memory, web-search, skill, and mode providers | `AgentDefinition.Harness` | The harness extends the agent; it does not replace MAF types |
 | Context compaction | Trigger-based truncation or summarization with preserved turns and an optional utility model | `AgentDefinition.Compaction` and `AgentPrism:UtilityModel` | Compaction is per definition and can be disabled by harness settings |
 | Working memory | Todo state, file memory, text search, and vector search tools | `AgentDefinition.Memory` | Vector search also needs PostgreSQL and an embedding generator |
@@ -939,7 +939,7 @@ possible by design.
 :::
 
 This is a *different* budget from the one every root run's call tree carries
-(`AgentGraph.MaxTotalTokens`/`MaxTotalCost`, see [Reliable
+(`AgentGraph.MaxTotalTokens`/`MaxTotalCost`/`MaxDuration`, see [Reliable
 runs](/guides/reliability/#bound-multi-agent-trees)): a quota is scoped to a tenant
 or agent over a day or month and never interrupts a run in progress; the call-tree
 budget is scoped to one run's tree and is checked between model turns, so it *does*
@@ -2139,6 +2139,12 @@ A workflow run's `error` follows the [same redaction rule as an agent
 run](/concepts/runs/#the-error-message-is-safe-to-display-not-safe-to-debug-from): a
 node failure from your own code keeps its message, a failure from a provider,
 library, or transport carries only its exception type and a correlation id.
+
+A workflow's root run shares the same call-tree budget every agent run does
+(`AgentGraph.MaxTotalTokens`/`MaxTotalCost`/`MaxDuration` — see [Reliable
+runs](/guides/reliability/#bound-multi-agent-trees)): every agent node the
+workflow invokes spends against the same tree, so a workflow with a long chain
+of agent steps is bounded the same way a single agent's own tool loop is.
 
 ## Checkpoints
 
@@ -6921,6 +6927,7 @@ one, the export and erasure endpoints return `409` rather than a silent no-op.
 | Skill script execution | Off | Leave off unless the host is isolated and the threat model permits OS processes |
 | Private network egress | Refused | Allow only if MCP servers or provider endpoints really are on the internal network |
 | Agent-graph token budget | On, 200,000 tokens shared per call tree | Raise it for a tree with genuinely long tool loops, or set a `AgentGraph.MaxTotalCost` cap alongside it |
+| Agent-graph time budget | Off | Set `AgentGraph.MaxDuration` where a queued run's lease renewal is otherwise the only thing keeping it going |
 
 ## Upgrading: outbound targets and configuration keys
 
@@ -7374,17 +7381,24 @@ Every root run creates a budget shared by its child-agent tree:
 | `AgentGraph.MaxTotalTokens` | `200,000` | Zero or negative removes the token limit |
 | `AgentGraph.MaxTotalCost` | none | Zero, negative, or unset removes the cost limit |
 | `AgentGraph.MaxTotalRuns` | `25` | Counts child runs only; zero or negative removes the count limit |
+| `AgentGraph.MaxDuration` | none | Zero, negative, or unset removes the wall-clock limit |
 
 `MaxDepth` and `MaxTotalRuns` only stop a *new* child run from starting — a run
 already in progress finishes even if the tree is over either limit.
-`MaxTotalTokens` and `MaxTotalCost` are enforced differently: the check runs
-between two model turns, inside the tool-call loop, so a tree that has already
-spent past its limit is cut off before its *next* model call — mid-run, not
-only at the next child call. The run ends `Failed` with `error_class:
-QuotaExceeded` and a message naming which limit was hit and which setting
-raises it. A cost limit falls back to the token limit for a model whose price
-is undefined (`PricingSource.Unknown`) — the cost cannot be measured, so it
-cannot be enforced.
+`MaxTotalTokens`, `MaxTotalCost`, and `MaxDuration` are enforced differently:
+the check runs between two model turns, inside the tool-call loop, so a tree
+that has already spent past its limit is cut off before its *next* model
+call — mid-run, not only at the next child call. The run ends `Failed` with
+`error_class: QuotaExceeded` and a message naming which limit was hit and
+which setting raises it. A cost limit falls back to the token limit for a
+model whose price is undefined (`PricingSource.Unknown`) — the cost cannot be
+measured, so it cannot be enforced.
+
+`MaxDuration` is not a hard timeout: a tool call already running when the
+deadline passes is never interrupted, only the *next* model call after it is
+refused. It applies the same way to a queued (`Prefer: respond-async`) run,
+whose lease is otherwise renewed for as long as the run keeps going — before
+`MaxDuration`, nothing capped a queued run's wall-clock time.
 
 Because several branches of a tree can be mid-turn at the same time, the check
 is not perfectly precise: two concurrent turns can each pass the check before

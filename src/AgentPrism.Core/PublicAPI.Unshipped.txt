@@ -25,9 +25,11 @@ AgentPrism.AgentDefinitionCompiler.CompileAsync(AgentPrism.AgentDefinition! defi
 AgentPrism.AgentDefinitionCompiler.UsesTenantProviderOverrideAsync(AgentPrism.ModelBinding! binding, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<bool>
 AgentPrism.AgentPrismAgentGraphOptions
 AgentPrism.AgentPrismAgentGraphOptions.AgentPrismAgentGraphOptions() -> void
-AgentPrism.AgentPrismAgentGraphOptions.CreateBudget() -> AgentPrism.AgentRunBudget!
+AgentPrism.AgentPrismAgentGraphOptions.CreateBudget(System.TimeProvider! timeProvider) -> AgentPrism.AgentRunBudget!
 AgentPrism.AgentPrismAgentGraphOptions.MaxDepth.get -> int
 AgentPrism.AgentPrismAgentGraphOptions.MaxDepth.set -> void
+AgentPrism.AgentPrismAgentGraphOptions.MaxDuration.get -> System.TimeSpan
+AgentPrism.AgentPrismAgentGraphOptions.MaxDuration.set -> void
 AgentPrism.AgentPrismAgentGraphOptions.MaxTotalCost.get -> decimal
 AgentPrism.AgentPrismAgentGraphOptions.MaxTotalCost.set -> void
 AgentPrism.AgentPrismAgentGraphOptions.MaxTotalRuns.get -> int
