@@ -1654,3 +1654,45 @@ Onay gerektiren bir tool kodda kayıtlı; agent önce bu tool OLMADAN dışa aç
 **Beklenen sonuç**
 - Task hâlâ okunur, doğru terminal durumu ve sonucu taşır. `TaskTimeToLive` yalnız istemciye tavsiyedir; run kaydının ömrünü saklama politikası (Faz 25) yönetir, MCP ikinci bir silme takvimi AÇMAZ (Açık Soru 2, Seçenek A).
 - Not: `RunBackedMcpTaskStore`'un KENDİ bellek-içi önbelleği TTL'den sonra opportunistic olarak tahliye edilir (30 sn'de bir taranan bir sweep) — bu, yalnız aynı-örnek hızlı yolu etkiler, yukarıdaki davranışı DEĞİŞTİRMEZ (yeniden inşa yoluna düşer).
+
+---
+
+### MT-MCP-068 — Kayıtlı `IToolArgumentsValidator` MCP tool'unu da görür (Faz 127)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 127 |
+| **İlgili karar** | — |
+
+Kod tool'unun karşılığı `22-GUARDRAIL-VE-YAPISAL-CIKTI.md` §9, MT-GUARD-080'dedir.
+Bu case aynı doğrulama halkasının **MCP tarafını** kapatır — halka
+`ToolWrapperChain.Compose` üzerinden tek noktadan kurulur (docs/127, 127.1);
+öncesinde MCP tool'ları için hiçbir argüman denetimi yoktu (yalnız bağlamanın
+yan etkisi vardı).
+
+**Ön koşul**
+- Bir MCP sunucusundan discover edilmiş en az bir tool kayıtlı (bkz. §5).
+- Her çağrıyı reddeden bir `IToolArgumentsValidator` DI'a eklenmiş.
+
+**Adımlar**
+1. Reddeden doğrulayıcı kayıtlıyken MCP tool'unu bir agent üzerinden çağır.
+2. Çalıştırma olaylarını oku.
+
+**Beklenen sonuç**
+- Kod tool'u ile BİREBİR aynı davranış: `run` `Completed` biter, modelin
+  gördüğü sonuç doğrulayıcının güvenli metnidir, argüman değeri hiçbir
+  yere yazılmaz, bir `ToolFailed` olayı vardır.
+- 🚨 Bu case atlanırsa ve `ToolWrapperChain.Compose` yerine MCP tarafı kendi
+  elle yazılmış bir zincire geri dönerse, MCP tool'ları argüman kapısını
+  sessizce kaybeder — kod tool'unun case'i (MT-GUARD-080) bu boşluğu
+  KANITLAMAZ.
+
+> **Otomatik karşılığı:** `ToolWrapperChainTests.A_code_defined_registration_and_an_mcp_style_registration_produce_the_same_wrapper_layers`
+> ve `A_real_validator_installs_the_validating_layer_between_timeout_and_authorizing`
+> (`tests/AgentPrism.Core.UnitTests/Tools/ToolWrapperChainTests.cs`) iki çağrı
+> yolunun aynı zinciri kurduğunu birim seviyesinde doğrudan ölçer. ⬜ Gerçek
+> bir MCP sunucusuna karşı elle koşulmadı — `18-MCP-VE-A2A.md`'nin genelinde
+> §5'in kendi notu geçerlidir: repo'da dokümante edilmiş bir yerel MCP
+> sunucusu yoktur, tester kendi sunucusunu getirir.

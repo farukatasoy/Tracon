@@ -139,7 +139,7 @@ bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 | [124](arsiv/fazlar/124-YEDEKLEMENIN-TOOL-DEFTERI.md) | Yedeklemenin Tool Defteri | ✅ Tamamlandı |
 | [125](arsiv/fazlar/125-URETILEN-TOOL-SEMASININ-IFADE-GUCU.md) | Üretilen Tool Şemasının İfade Gücü | ✅ Tamamlandı |
 | [126](arsiv/fazlar/126-KALICI-PAYLOAD-SURUM-SOZLESMESI.md) | Kalıcı Payload Sürüm Sözleşmesi | ✅ Tamamlandı |
-| [127](127-TOOL-KAYIT-YUZEYI.md) | Tool Kayıt Yüzeyi: Tek Kompozisyon, Argüman Kapısı ve Kapsamlı Tool | 📋 Planlandı |
+| [127](127-TOOL-KAYIT-YUZEYI.md) | Tool Kayıt Yüzeyi: Tek Kompozisyon, Argüman Kapısı ve Kapsamlı Tool | ✅ Tamamlandı |
 | [128](128-RUN-AGACI-SURE-BUTCESI.md) | Run Ağacı Süre Bütçesi | 📋 Planlandı |
 
 Seçilmemiş adaylar: [`ADAYLAR.md`](ADAYLAR.md). Fazların hangi dalgada, hangi gerekçeyle sıralandığı (Faz 8–56, kapandı): [`arsiv/IKINCI-FAZ-YOL-HARITASI.md`](arsiv/IKINCI-FAZ-YOL-HARITASI.md) · [`arsiv/UCUNCU-FAZ-YOL-HARITASI.md`](arsiv/UCUNCU-FAZ-YOL-HARITASI.md).

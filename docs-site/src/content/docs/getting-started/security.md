@@ -270,7 +270,7 @@ delete what you no longer need.
 - [ ] `AgentPrism:Egress:AllowPrivateNetworkTargets` is on only if your MCP servers or
       provider endpoints really are on the internal network
 - [ ] `IToolAuthorizationHandler` is implemented for any tool that should not be callable
-      by every caller — see [Tools: authorization and timeout](/concepts/tools/#authorization-and-timeout)
+      by every caller — see [Tools: authorization and timeout](/concepts/tools/#authorization-validation-and-timeout)
 
 ## Read next
 

@@ -47,20 +47,24 @@ internal sealed class ToolRegistry : IToolRegistry, IVerifiedToolRegistry
         return new ToolRegistry(
             registrations,
             provider.GetRequiredService<IToolAuthorizationHandler>(),
+            provider.GetRequiredService<IToolArgumentsValidator>(),
             provider.GetRequiredService<IOptionsMonitor<AgentPrismOptions>>(),
             provider.GetService<IRunAttributionContext>(),
             provider.GetRequiredService<ILogger<AuthorizingAIFunction>>(),
-            provider.GetRequiredService<ILogger<TimeoutAIFunction>>());
+            provider.GetRequiredService<ILogger<TimeoutAIFunction>>(),
+            provider.GetRequiredService<ILogger<ValidatingAIFunction>>());
     }
 #pragma warning restore MEAI001
 
     /// <summary>Initializes a new registry from registrations.</summary>
     /// <param name="registrations">The tool registrations.</param>
     /// <param name="authorizationHandler">The authorization policy applied before every server-side call.</param>
+    /// <param name="validator">The argument validation policy applied before every server-side call.</param>
     /// <param name="optionsMonitor">Supplies the installation's default tool timeout.</param>
     /// <param name="attribution">The run attribution context, or <see langword="null"/> when none is registered.</param>
     /// <param name="authorizingLogger">The logger passed to every <see cref="AuthorizingAIFunction"/> instance.</param>
     /// <param name="timeoutLogger">The logger passed to every <see cref="TimeoutAIFunction"/> instance.</param>
+    /// <param name="validatingLogger">The logger passed to every <see cref="ValidatingAIFunction"/> instance.</param>
     /// <exception cref="ArgumentNullException"><paramref name="registrations"/> is <see langword="null"/>.</exception>
     /// <exception cref="AgentPrismException">
     /// The same name is registered more than once, or a client-side tool
@@ -70,16 +74,20 @@ internal sealed class ToolRegistry : IToolRegistry, IVerifiedToolRegistry
     public ToolRegistry(
         IEnumerable<AgentPrismToolRegistration> registrations,
         IToolAuthorizationHandler authorizationHandler,
+        IToolArgumentsValidator validator,
         IOptionsMonitor<AgentPrismOptions> optionsMonitor,
         IRunAttributionContext? attribution,
         ILogger<AuthorizingAIFunction> authorizingLogger,
-        ILogger<TimeoutAIFunction> timeoutLogger)
+        ILogger<TimeoutAIFunction> timeoutLogger,
+        ILogger<ValidatingAIFunction> validatingLogger)
     {
         ArgumentNullException.ThrowIfNull(registrations);
         ArgumentNullException.ThrowIfNull(authorizationHandler);
+        ArgumentNullException.ThrowIfNull(validator);
         ArgumentNullException.ThrowIfNull(optionsMonitor);
         ArgumentNullException.ThrowIfNull(authorizingLogger);
         ArgumentNullException.ThrowIfNull(timeoutLogger);
+        ArgumentNullException.ThrowIfNull(validatingLogger);
 
         _tools = new Dictionary<string, AIFunctionDeclaration>(StringComparer.Ordinal);
         _descriptors = [];
@@ -91,70 +99,12 @@ internal sealed class ToolRegistry : IToolRegistry, IVerifiedToolRegistry
         {
             var name = registration.Function.Name;
 
-            // Every wrapper is applied here, not in the compiler. The registry is
-            // the only place that enforces the "an agent can only refer to a registered
-            // tool" rule. Enforcing wrapping here prevents another code path from bypassing it.
-            //
-            // Composition order (docs/arsiv/fazlar/69-TOOL-YETKILENDIRMESI-VE-TIMEOUT.md, 69.1;
-            // docs/arsiv/fazlar/89-TOOL-CIKTISI-BOYUT-SINIRI.md, 89.3):
-            // Authorizing (outermost) -> Timeout -> ApprovalRequired -> Truncating (innermost) -> real function.
-            // Authorization runs before anything else: asking for approval or waiting
-            // out a timeout for a call the caller could never make is backwards.
-            // Timeout sits OUTSIDE approval: ApprovalRequiredAIFunction never blocks on
-            // the human decision within one call (K-368 — the decision resumes as a NEW
-            // run), so this ordering only ever bounds the tool's own execution.
-            // Truncating sits directly around the real function, INSIDE approval: it
-            // must see only the tool's own output, never the pending-approval signal
-            // ApprovalRequiredAIFunction produces instead of running the body.
-            AIFunctionDeclaration function;
-
-            if (registration.Function is AIFunction invocable)
-            {
-                var effectiveMaxOutputBytes = registration.MaxOutputBytes ?? defaultMaxOutputBytes;
-
-                // This wrapper also canonicalizes every inline result and
-                // fails closed for a raw CLR object without generated type
-                // information. It is therefore present even when no explicit
-                // output budget is configured; int.MaxValue means no practical
-                // trimming limit while retaining the canonicalization boundary.
-                AIFunction wrapped = new TruncatingAIFunction(
-                    invocable,
-                    effectiveMaxOutputBytes ?? int.MaxValue);
-
-                wrapped = registration.RequiresApproval
-                    ? new ApprovalRequiredAIFunction(wrapped)
-                    : wrapped;
-
-                wrapped = new TimeoutAIFunction(wrapped, registration.Timeout ?? defaultTimeout, timeoutLogger);
-
-                function = new AuthorizingAIFunction(
-                    wrapped,
-                    authorizationHandler,
-                    registration.Effect,
-                    registration.RequiredPermission,
-                    attribution,
-                    authorizingLogger);
-            }
-            else if (registration.RequiresApproval)
-            {
-                throw new AgentPrismException(
-                    $"Tool '{name}' cannot require approval: it runs on the client and has no " +
-                    "server-side body to defer. Approval and client-side tools are separate mechanisms.");
-            }
-            else
-            {
-                // Declaration-only (client-side) tool: the server never invokes it,
-                // so there is no execution to authorize or bound with a timeout.
-                function = registration.Function;
-            }
-
-            if (!_tools.TryAdd(name, function))
-            {
-                throw new AgentPrismException(
-                    $"More than one tool is registered with name '{name}'. Tool names must be unique.");
-            }
-
-            _descriptors.Add(new ToolDescriptor
+            // The registry is the only place that enforces the "an agent can
+            // only refer to a registered tool" rule; every wrapper comes from
+            // ToolWrapperChain.Compose, the single composition point shared
+            // with the MCP tenant tool set (docs/127, 127.1) — a call site
+            // building its own chain by hand could silently miss a layer.
+            var descriptor = new ToolDescriptor
             {
                 Name = name,
                 Description = registration.Function.Description,
@@ -169,7 +119,27 @@ internal sealed class ToolRegistry : IToolRegistry, IVerifiedToolRegistry
                 Timeout = registration.Timeout,
                 SafeToRepeat = registration.SafeToRepeat,
                 MaxOutputBytes = registration.MaxOutputBytes,
-            });
+            };
+
+            var function = ToolWrapperChain.Compose(
+                registration,
+                descriptor,
+                authorizationHandler,
+                validator,
+                defaultTimeout,
+                defaultMaxOutputBytes,
+                attribution,
+                authorizingLogger,
+                timeoutLogger,
+                validatingLogger);
+
+            if (!_tools.TryAdd(name, function))
+            {
+                throw new AgentPrismException(
+                    $"More than one tool is registered with name '{name}'. Tool names must be unique.");
+            }
+
+            _descriptors.Add(descriptor);
         }
 
         _descriptors.Sort(static (left, right) => string.CompareOrdinal(left.Name, right.Name));

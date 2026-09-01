@@ -32,6 +32,12 @@ public static partial class AgentPrismServiceCollectionExtensions
         // A consumer replaces this registration to enforce its own policy.
         services.TryAddSingleton<IToolAuthorizationHandler, AllowAllToolAuthorizationHandler>();
 
+        // Tool argument validation (phase 127): valid by default. Registered as
+        // the specific shared instance so ToolWrapperChain.Compose can recognize
+        // it by reference and skip installing ValidatingAIFunction when a
+        // consumer never registers their own validator.
+        services.TryAddSingleton<IToolArgumentsValidator>(NoOpToolArgumentsValidator.Instance);
+
         // Registries.
         // The image tool is conditional: registering its provider package alone
         // must not expose a paid tool. ToolRegistry.Create reads the final option

@@ -2891,3 +2891,65 @@ curl -s -H 'X-Host-Tenant: acme' http://localhost:5082/agentprism/api/stats
 > yutmadığını `InMemoryRunStoreStructureTests`
 > (`tests/AgentPrism.Core.UnitTests/Storage/InMemoryRunStoreStructureTests.cs`)
 > doğrular.
+
+---
+
+### MT-CORE-107 — `AddScopedTool` ile kaydedilmiş bir tool her çağrıda taze DI kapsamı alır (Faz 127)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 127 |
+| **İlgili karar** | K-218 |
+
+`AddScopedTool`, MAF'ın `AIFunctionArguments.Services` için boş sağlayıcı
+geçirdiği K-218 kısıtını, çağrı başına açılan gerçek bir DI kapsamıyla kapatır.
+
+**Ön koşul**
+- `samples/AgentPrism.Api` çalışıyor; örnek uygulamaya `AddScopedTool` ile
+  kayıtlı, `IServiceScopeFactory`'den çözülen (ör. `DbContext` benzeri) bir
+  tool eklenmiş olmalı, ya da `dotnet test` ile
+  `ScopedToolLifetimeTests` fonksiyonel testi elle izlenir.
+
+**Adımlar**
+1. Aynı agent'a art arda iki mesaj gönder; her mesaj `AddScopedTool` ile
+   kayıtlı tool'u çağırsın.
+2. Tool gövdesinin `AIFunctionArguments.Services`'ten çözdüğü örneğin
+   kimliğini (ör. bir `Guid`) çıktıya yaz.
+
+**Beklenen sonuç**
+- İki çağrı FARKLI kimlikler görür — kapsam çağrı başınadır, paylaşılmaz.
+- Her iki `run` da `Completed` durumunda biter; tool hatası veya sızıntı
+  görünmez.
+
+> **Otomatik karşılığı:** `ScopedToolLifetimeTests`
+> (`tests/AgentPrism.AspNetCore.FunctionalTests/ScopedToolLifetimeTests.cs`) —
+> gerçek host üzerinden art arda ve eşzamanlı çağrıların ayrı kapsam aldığını
+> ve kapsamın çağrı bitince kapandığını kanıtlar. Wrapper'ın kendi mekaniği
+> (`ScopedToolTests`, `tests/AgentPrism.Core.UnitTests/Tools/ScopedToolTests.cs`)
+> birim seviyesinde ayrıca koşar.
+
+---
+
+### MT-CORE-108 — Örnek metot tool taraması, `AddScopedTool`'u adıyla önerir (Faz 127)
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 127 |
+| **İlgili karar** | K-347 |
+
+K-347 kapanmadı: `[AgentPrismTool]` işaretli bir örnek metot yine tarama
+anında reddedilir. Bu case yalnız ret metninin güncellendiğini doğrular.
+
+**Adımlar**
+1. `[AgentPrismTool]` ile işaretli, `static` olmayan bir örnek metoda sahip
+   bir tipi `AddToolsFrom<T>()` ile kaydetmeyi dene.
+
+**Beklenen sonuç**
+- Başlangıç `AgentPrismException` ile durur.
+- Hata metni `AddScopedTool`'u adıyla anar (yalnız "static yap" değil, kalıcı
+  bir bağımlılığın per-call çözülmesi gerekiyorsa hangi API'nin kullanılacağını
+  söyler).

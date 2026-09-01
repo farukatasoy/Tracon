@@ -232,7 +232,7 @@ this time" and stops to wait for a person; authorization asks "can this caller c
 tool at all" and answers instantly from `IToolAuthorizationHandler` — your own policy,
 checked before approval and before the call's timeout even starts. A denied call does not
 fail the run: the model gets the reason as an ordinary tool result and continues its
-turn. See [Tools, skills, and MCP](/concepts/tools/#authorization-and-timeout)
+turn. See [Tools, skills, and MCP](/concepts/tools/#authorization-validation-and-timeout)
 for the interface and an example.
 
 ## Quotas and rate limits

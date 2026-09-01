@@ -116,6 +116,7 @@ public sealed class ServiceRegistrationSnapshotTests
         "AgentPrism.ITenantContext | Singleton | AgentPrism.SingleTenantContext",
         "AgentPrism.IRunAttributionContext | Singleton | AgentPrism.DefaultRunAttributionContext",
         "AgentPrism.IToolAuthorizationHandler | Singleton | AgentPrism.AllowAllToolAuthorizationHandler",
+        "AgentPrism.IToolArgumentsValidator | Singleton | Instance:AgentPrism.NoOpToolArgumentsValidator",
         "AgentPrism.IToolRegistry | Singleton | Factory",
         "AgentPrism.ModelProviderCircuitBreaker | Singleton | Factory",
         "AgentPrism.ProviderConcurrencyLimiter | Singleton | Factory",

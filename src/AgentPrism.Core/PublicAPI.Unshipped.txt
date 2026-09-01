@@ -1288,3 +1288,7 @@ static AgentPrism.TextTrimming.Trim(string! text, int maxBytes) -> (string! Text
 AgentPrism.TruncatingAIFunction
 AgentPrism.TruncatingAIFunction.TruncatingAIFunction(Microsoft.Extensions.AI.AIFunction! innerFunction, int maxOutputBytes) -> void
 static readonly AgentPrism.TruncatingAIFunction.MinimumEnvelopeBytes -> int
+AgentPrism.IAgentPrismBuilder.AddScopedTool(Microsoft.Extensions.AI.AIFunction! tool) -> AgentPrism.IAgentPrismBuilder!
+AgentPrism.IAgentPrismBuilder.AddScopedTool(Microsoft.Extensions.AI.AIFunction! tool, System.Action<AgentPrism.ToolRegistrationOptions!>! configure) -> AgentPrism.IAgentPrismBuilder!
+AgentPrism.ValidatingAIFunction
+AgentPrism.ValidatingAIFunction.ValidatingAIFunction(Microsoft.Extensions.AI.AIFunction! innerFunction, AgentPrism.ToolDescriptor! descriptor, AgentPrism.IToolArgumentsValidator! validator, Microsoft.Extensions.Logging.ILogger<AgentPrism.ValidatingAIFunction!>! logger) -> void
