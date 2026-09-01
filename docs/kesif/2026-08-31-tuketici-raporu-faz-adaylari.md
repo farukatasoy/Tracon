@@ -34,7 +34,7 @@ Rapor 15 gap iddia etti. Ölçüm sonrası:
 | [124](../arsiv/fazlar/124-YEDEKLEMENIN-TOOL-DEFTERI.md) | Yedeklemenin Tool Defteri | K-1 |
 | [125](../arsiv/fazlar/125-URETILEN-TOOL-SEMASININ-IFADE-GUCU.md) | Üretilen Tool Şemasının İfade Gücü | T-1 · T-2 |
 | [126](../arsiv/fazlar/126-KALICI-PAYLOAD-SURUM-SOZLESMESI.md) | Kalıcı Payload Sürüm Sözleşmesi | T-5 |
-| [127](../127-TOOL-KAYIT-YUZEYI.md) | Tool Kayıt Yüzeyi | T-4 · T-3 |
+| [127](../arsiv/fazlar/127-TOOL-KAYIT-YUZEYI.md) | Tool Kayıt Yüzeyi | T-4 · T-3 |
 | [128](../128-RUN-AGACI-SURE-BUTCESI.md) | Run Ağacı Süre Bütçesi | T-7 |
 
 En yüksek üç değer, raporun kendi "en yüksek üç" listesiyle **örtüşmüyor**.
@@ -195,8 +195,8 @@ kalemin yargısı durur.
 |---|---|---|
 | **T-1** parametre açıklaması | [Faz 125](../arsiv/fazlar/125-URETILEN-TOOL-SEMASININ-IFADE-GUCU.md) | Kanıt ayakta: `ParameterModel` kaydında `Description` **alanı yok**, `BuildLeafSchemaNode` yedi yaprak biçiminin hiçbirine açıklama yazmıyor. Açıklama `System.ComponentModel.DescriptionAttribute`'tan okunur; XML `<param>` yolu **reddedildi** (`GenerateDocumentationFile` kapalıysa alan sessizce düşer) |
 | **T-2** üreteç sınırının ilanı | [Faz 125](../arsiv/fazlar/125-URETILEN-TOOL-SEMASININ-IFADE-GUCU.md) | Kullanıcı kararı: **yalnız (a) ilan**. `[Range]`/`[StringLength]`'i şemaya yazmak, Faz 127'nin argüman kapısı sevk edilene kadar zorlanmayan bir kısıt ilan etmek olurdu — yanlış güven penceresi açar |
-| **T-3** argüman doğrulama seam'i | [Faz 127](../127-TOOL-KAYIT-YUZEYI.md) | **Karşı görüş ölçüldü ve yarı çürüdü.** "Kompozisyonla zaten var" iddiası kod tool'ları için doğru, **MCP tool'ları için yanlış**: onlar `McpToolCatalog`'tan gelir ve tüketicinin sarmalayacağı bir yer yoktur. Kalem ayakta |
-| **T-4** `AddScopedTool` | [Faz 127](../127-TOOL-KAYIT-YUZEYI.md) | Kanıt ayakta. **Aday metnindeki `AddScopedTool<THandler>()` imzası reddedildi**: handler'ın tool metodunu bulmak yansıma ister (AOT) ve K-347'yi yeniden açardı. Yerine `AddTool` ile aynı şekle sahip `AddScopedTool(AIFunction, …)` planlandı |
+| **T-3** argüman doğrulama seam'i | [Faz 127](../arsiv/fazlar/127-TOOL-KAYIT-YUZEYI.md) | **Karşı görüş ölçüldü ve yarı çürüdü.** "Kompozisyonla zaten var" iddiası kod tool'ları için doğru, **MCP tool'ları için yanlış**: onlar `McpToolCatalog`'tan gelir ve tüketicinin sarmalayacağı bir yer yoktur. Kalem ayakta |
+| **T-4** `AddScopedTool` | [Faz 127](../arsiv/fazlar/127-TOOL-KAYIT-YUZEYI.md) | Kanıt ayakta. **Aday metnindeki `AddScopedTool<THandler>()` imzası reddedildi**: handler'ın tool metodunu bulmak yansıma ister (AOT) ve K-347'yi yeniden açardı. Yerine `AddTool` ile aynı şekle sahip `AddScopedTool(AIFunction, …)` planlandı |
 | **T-5** payload sürüm sözleşmesi | [Faz 126](../arsiv/fazlar/126-KALICI-PAYLOAD-SURUM-SOZLESMESI.md) | Kanıt ayakta. Kullanıcı kararı: **üçü de** — söz, damga, prova. Damga payload'ın **içine** yazılmaz: checkpoint gövdesinde `$type` ayırıcısı ilk özellik olmak zorunda. Kardeş sütun kullanılır |
 | **T-6** sağlayıcı denemesi ayrıntısı | ❌ **Reddedildi** | Aşağıda |
 | **T-7** `MaxDuration` | [Faz 128](../128-RUN-AGACI-SURE-BUTCESI.md) | **Karşı görüş ölçüldü ve çürüdü.** Süre maliyetin vekili değildir: her turda küçük bir model çağrısı yapan ama her tool'u 90 saniye bekleyen bir run token/maliyet tavanını hiç zorlamaz. Dahası kuyruğa alınmış run'da hiçbir dış zaman sınırı yok — `JobWorkerBackgroundService.cs:227` kirayı sürekli **yeniliyor** |
@@ -281,8 +281,8 @@ sonra.
 | 3 | **T-1** parametre açıklaması | [Faz 125](../arsiv/fazlar/125-URETILEN-TOOL-SEMASININ-IFADE-GUCU.md) | 📋 Planlandı |
 | 9 | **T-2** üreteç sınırının ilanı | [Faz 125](../arsiv/fazlar/125-URETILEN-TOOL-SEMASININ-IFADE-GUCU.md) | 📋 Planlandı — T-1 ile aynı üreteci paylaştığı için birleşti |
 | 4 | **T-5** payload sürüm sözleşmesi | [Faz 126](../arsiv/fazlar/126-KALICI-PAYLOAD-SURUM-SOZLESMESI.md) | 📋 Planlandı |
-| 5 | **T-4** `AddScopedTool` | [Faz 127](../127-TOOL-KAYIT-YUZEYI.md) | 📋 Planlandı |
-| 6 | **T-3** argüman doğrulama seam'i | [Faz 127](../127-TOOL-KAYIT-YUZEYI.md) | 📋 Planlandı — T-4 ile aynı kayıt zincirini paylaştığı için birleşti |
+| 5 | **T-4** `AddScopedTool` | [Faz 127](../arsiv/fazlar/127-TOOL-KAYIT-YUZEYI.md) | 📋 Planlandı |
+| 6 | **T-3** argüman doğrulama seam'i | [Faz 127](../arsiv/fazlar/127-TOOL-KAYIT-YUZEYI.md) | 📋 Planlandı — T-4 ile aynı kayıt zincirini paylaştığı için birleşti |
 | ~~7~~ | ~~**K-3**~~ | — | ✅ Kapandı — iki vaka + kapı |
 | 8 | **T-7** `MaxDuration` | [Faz 128](../128-RUN-AGACI-SURE-BUTCESI.md) | 📋 Planlandı |
 | — | **T-6** kalanı | — | ❌ Reddedildi (§2) |

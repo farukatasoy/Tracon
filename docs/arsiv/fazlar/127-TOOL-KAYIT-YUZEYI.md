@@ -1,8 +1,8 @@
 # Faz 127 — Tool Kayıt Yüzeyi: Tek Kompozisyon, Argüman Kapısı ve Kapsamlı Tool
 
 > **Durum:** ✅ Tamamlandı (2026-09-01)
-> **Kaynak:** [kesif/2026-08-31-tuketici-raporu-faz-adaylari.md](kesif/2026-08-31-tuketici-raporu-faz-adaylari.md) · **T-4**, **T-3**
-> **Önkoşul:** [Faz 69](arsiv/fazlar/69-TOOL-YETKILENDIRMESI-VE-TIMEOUT.md) (sarmalayıcı zinciri ve sırası) ve [Faz 89](arsiv/fazlar/89-TOOL-CIKTISI-BOYUT-SINIRI.md) (`TruncatingAIFunction`) — ikisi de arşivde
+> **Kaynak:** [kesif/2026-08-31-tuketici-raporu-faz-adaylari.md](../../kesif/2026-08-31-tuketici-raporu-faz-adaylari.md) · **T-4**, **T-3**
+> **Önkoşul:** [Faz 69](69-TOOL-YETKILENDIRMESI-VE-TIMEOUT.md) (sarmalayıcı zinciri ve sırası) ve [Faz 89](89-TOOL-CIKTISI-BOYUT-SINIRI.md) (`TruncatingAIFunction`) — ikisi de arşivde
 > **Paketler:** `AgentPrism.Abstractions` (yeni arayüz), `AgentPrism.Core` (`Tools/`), `AgentPrism.Mcp` (`Internal/McpTenantTools.cs`)
 > **Yeni paket:** Yok · **Migration:** Yok
 > **Public API:** Büyüyor — bir arayüz (`IToolArgumentsValidator`), bir sonuç tipi (`ToolArgumentsValidationResult`), iki builder metodu (`AddScopedTool` aşırı yüklemeleri) ve **bir sarmalayıcı tip** (`ValidatingAIFunction`, `AuthorizingAIFunction`/`TimeoutAIFunction`/`TruncatingAIFunction` ile aynı public-wrapper deseninde — kapanışta eklendi, denetim bulgusu). Faz 7'den önce ucuz: `wc -l src/*/PublicAPI.Shipped.txt` toplamı **17** satır (K-603)
@@ -22,9 +22,9 @@
    ```
    **K-218** (tool bağımlılıkları kurulum anında alınır; `AIFunctionArguments.Services` boştur — bu fazın kapatacağı tuzak) · **K-347** (`ToolMethodScanner` örnek metotları tarama anında reddeder — 🚨 bu faz o kararı **açmaz**) · **K-368** (onay kararı YENİ bir run'dır) · **K-483** (elle tekrarlanan ifade sessiz kusur sınıfı üretir — bu fazın birinci işi)
 3. Alan hafızası (bu faz iki alana dokunuyor):
-   [`hafiza/cekirdek-calistirma.md`](hafiza/cekirdek-calistirma.md) (K-218'in dört vakası) ·
-   [`hafiza/mcp-a2a-sunucu.md`](hafiza/mcp-a2a-sunucu.md) (MCP tool kataloğu ve kiracı yalıtımı)
-4. Gerektiğinde: [`MAF-GENISLEME-NOKTALARI.md`](MAF-GENISLEME-NOKTALARI.md) — `AIFunction` sarmalama
+   [`hafiza/cekirdek-calistirma.md`](../../hafiza/cekirdek-calistirma.md) (K-218'in dört vakası) ·
+   [`hafiza/mcp-a2a-sunucu.md`](../../hafiza/mcp-a2a-sunucu.md) (MCP tool kataloğu ve kiracı yalıtımı)
+4. Gerektiğinde: [`MAF-GENISLEME-NOKTALARI.md`](../../MAF-GENISLEME-NOKTALARI.md) — `AIFunction` sarmalama
 
 ---
 
@@ -47,14 +47,14 @@ API ile kapatan `AddScopedTool`'dur.
 
 | Kanıt | Gözlem |
 |---|---|
-| [`ToolRegistry.cs:110-135`](../src/AgentPrism.Core/Tools/ToolRegistry.cs) | Sarmalayıcı zinciri burada elle kuruluyor: `Truncating → Approval → Timeout → Authorizing` |
-| [`McpTenantTools.cs:70-90`](../src/AgentPrism.Mcp/Internal/McpTenantTools.cs) | 🚨 **Aynı zincir ikinci kez elle kuruluyor.** Kodun kendi yorumu: *"MCP tools do not go through that registry, so the wrapping is repeated on this path"* |
-| [`ToolRegistry.cs:110-135`](../src/AgentPrism.Core/Tools/ToolRegistry.cs) · [`McpTenantTools.cs:70-90`](../src/AgentPrism.Mcp/Internal/McpTenantTools.cs) | Zincirde bir **doğrulama halkası yok**; argüman kontrolü yalnız bağlamanın yan etkisidir |
-| [`AgentPrismGeneratedToolArguments.cs:33-60`](../src/AgentPrism.Abstractions/Tools/AgentPrismGeneratedToolArguments.cs) | `GetRequired`/`GetOptional` **ada göre** okur; şemada olmayan fazladan alanları görmez (`additionalProperties:false` şemada yazar, yerel uygulanmaz) |
-| [`AgentPrismBuilder.cs:28-83`](../src/AgentPrism.Core/AgentPrismBuilder.cs) | Her tool kaydı `Services.AddSingleton` — kapsamlı bağımlılık için hiçbir yol yok |
-| [`ToolMethodScanner.cs:95-103`](../src/AgentPrism.Core/Tools/ToolMethodScanner.cs) | Örnek metot **tarama anında** reddediliyor; reddin metni MAF'ın boş sağlayıcısını gerekçe gösteriyor (K-347) |
-| [`guides/write-your-own-tool.md:44-67`](../docs-site/src/content/docs/guides/write-your-own-tool.md) | Kapsamlı iş için reçete **var**, ergonomi yok: sekiz satırlık `IServiceScopeFactory` kalıbı |
-| [`McpToolRegistry.cs:24-77`](../src/AgentPrism.Mcp/McpToolRegistry.cs) | MCP kayıt defteri kod defterini **sarmalıyor**; MCP tool'ları `ToolRegistry`'nin gövdesinden hiç geçmiyor |
+| [`ToolRegistry.cs:110-135`](../../../src/AgentPrism.Core/Tools/ToolRegistry.cs) | Sarmalayıcı zinciri burada elle kuruluyor: `Truncating → Approval → Timeout → Authorizing` |
+| [`McpTenantTools.cs:70-90`](../../../src/AgentPrism.Mcp/Internal/McpTenantTools.cs) | 🚨 **Aynı zincir ikinci kez elle kuruluyor.** Kodun kendi yorumu: *"MCP tools do not go through that registry, so the wrapping is repeated on this path"* |
+| [`ToolRegistry.cs:110-135`](../../../src/AgentPrism.Core/Tools/ToolRegistry.cs) · [`McpTenantTools.cs:70-90`](../../../src/AgentPrism.Mcp/Internal/McpTenantTools.cs) | Zincirde bir **doğrulama halkası yok**; argüman kontrolü yalnız bağlamanın yan etkisidir |
+| [`AgentPrismGeneratedToolArguments.cs:33-60`](../../../src/AgentPrism.Abstractions/Tools/AgentPrismGeneratedToolArguments.cs) | `GetRequired`/`GetOptional` **ada göre** okur; şemada olmayan fazladan alanları görmez (`additionalProperties:false` şemada yazar, yerel uygulanmaz) |
+| [`AgentPrismBuilder.cs:28-83`](../../../src/AgentPrism.Core/AgentPrismBuilder.cs) | Her tool kaydı `Services.AddSingleton` — kapsamlı bağımlılık için hiçbir yol yok |
+| [`ToolMethodScanner.cs:95-103`](../../../src/AgentPrism.Core/Tools/ToolMethodScanner.cs) | Örnek metot **tarama anında** reddediliyor; reddin metni MAF'ın boş sağlayıcısını gerekçe gösteriyor (K-347) |
+| [`guides/write-your-own-tool.md:44-67`](../../../docs-site/src/content/docs/guides/write-your-own-tool.md) | Kapsamlı iş için reçete **var**, ergonomi yok: sekiz satırlık `IServiceScopeFactory` kalıbı |
+| [`McpToolRegistry.cs:24-77`](../../../src/AgentPrism.Mcp/McpToolRegistry.cs) | MCP kayıt defteri kod defterini **sarmalıyor**; MCP tool'ları `ToolRegistry`'nin gövdesinden hiç geçmiyor |
 
 > Kanıtlar 2026-08-31 tarihinde `8105c00` üzerinde doğrulandı.
 

@@ -123,7 +123,7 @@ tuzaktır; sizin `ChatResponseStreamer` yolunuz tam olarak bu şekle sahiptir.
 Geriye kalan **gerçek** eksik: bu deseni gösteren bir **örnek proje yok**
 (`samples/` altında dış kuyruk entegrasyonu yoktur). Bu bir doküman
 eksikliğidir, bir yetenek boşluğu değil. Doküman işi olarak kaydedildi ve
-[Faz 127](../127-TOOL-KAYIT-YUZEYI.md)'nin doküman senkronuna bağlandı.
+[Faz 127](../arsiv/fazlar/127-TOOL-KAYIT-YUZEYI.md)'nin doküman senkronuna bağlandı.
 
 ### Y-3 · "Captive scoped tool bağımlılığı — kabul edilmez" — **YANLIŞ ÇERÇEVE**
 
@@ -151,7 +151,7 @@ tool başına tekrarlanacak bir iş değildir.
 
 Kalan eksik: `AddScopedTool<THandler>()` gibi tek satırlık bir kolaylık. Bu bir
 ergonomi boşluğudur — sizin kendi tablonuzdaki "Orta" doğrudur, "Kabul
-edilmez" değil. **Planlandı:** [Faz 127](../127-TOOL-KAYIT-YUZEYI.md), `AddScopedTool`.
+edilmez" değil. **Planlandı:** [Faz 127](../arsiv/fazlar/127-TOOL-KAYIT-YUZEYI.md), `AddScopedTool`.
 
 ### Y-4 · "B10 — üretilen şema mevcut şemadan güçlüdür" — **TERS YÖNDE YANLIŞ**
 
@@ -305,7 +305,7 @@ Saydığınız dört ihtiyacın dördü de bugün açık bir genişleme noktası
 
 Bu bir "Yüksek" yetenek boşluğu değil, bir **paketleme kolaylığı** talebidir.
 Ayrı bir NuGet paketi bizim tarafımızda en pahalı değişiklik türüdür; reçetesi
-doküman kanalında ele alındı ([Faz 127](../127-TOOL-KAYIT-YUZEYI.md) doküman senkronu).
+doküman kanalında ele alındı ([Faz 127](../arsiv/fazlar/127-TOOL-KAYIT-YUZEYI.md) doküman senkronu).
 
 ---
 
