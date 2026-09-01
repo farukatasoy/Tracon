@@ -1,16 +1,20 @@
 # 22 — Guardrail ve Yapılandırılmış Çıktı (`GUARD`)
 
-> **Alan kodu:** `GUARD` · **Faz:** 38, 48
+> **Alan kodu:** `GUARD` · **Faz:** 38, 48, 131
 > **Kaynak:** `src/AgentPrism.Abstractions/Agents/ResponseFormat.cs` ·
 > `Agents/ModelBinding.cs` (`ResponseFormat` alanı) ·
 > `Models/ModelDescriptor.cs` (`SupportsStructuredOutput` alanı) ·
 > `src/AgentPrism.Abstractions/Guards/` (tümü: `IContentGuard`, `ContentGuardContext`,
 > `ContentGuardResult`) · `AgentPrismException.cs`
-> (`AgentPrismContentBlockedException`) · `Runs/RunEventType.cs` (`ContentMasked`/`ContentBlocked`) ·
-> `Runs/RunErrorClass.cs` (`ContentBlocked`) ·
+> (`AgentPrismContentBlockedException`, `AgentPrismStructuredResponseException`) ·
+> `Runs/RunEventType.cs` (`ContentMasked`/`ContentBlocked`/`StructuredResponseRejected`) ·
+> `Runs/RunErrorClass.cs` (`ContentBlocked`, `StructuredResponseInvalid`) ·
 > `src/AgentPrism.Core/Guards/` (tümü) ·
 > `src/AgentPrism.Core/Compilation/AgentDefinitionCompiler.cs`
 > (`BuildResponseFormat`/`CheckStructuredOutputCapability`/`FindModelDescriptor`) ·
+> `src/AgentPrism.Core/Compilation/StructuredResponseValidatingAgent.cs`,
+> `StructuredResponseValidatingAgentDecorator.cs` (Faz 131) ·
+> `src/AgentPrism.Abstractions/Agents/IStructuredResponseValidator.cs` (Faz 131) ·
 > `src/AgentPrism.Core/Models/ModelProviderRegistry.cs` (boru hattı sırası) ·
 > `src/AgentPrism.AspNetCore/Endpoints/AgentEndpoints.cs`
 > (`content_blocked` → `422`/SSE `error`) ·
@@ -1763,3 +1767,243 @@ olayına yazılır — ikisi kayıt düzeyinde farklı sınıflardır.
 - `ValidatingAIFunction` halkası hiç kurulmaz —
   `ToolWrapperChainTests.No_registered_validator_means_no_validating_layer_is_installed`
   bunu birim seviyesinde doğrudan ölçer.
+
+---
+
+# 10 — Yapısal yanıt doğrulama seam'i (`IStructuredResponseValidator`, Faz 131)
+
+`StructuredResponseValidatingAgentDecorator` (`Order=30`, en içteki decorator)
+`AgentPrismStructuredResponseOptions.Enabled` açıkken ve agent `Json`/`JsonSchema`
+kipini istemişken çalışır. Önce AgentPrism'in kendi iyi biçimlilik denetimi
+(boş değil + `JsonDocument.Parse` geçiyor), sonra — geçerse — tüketicinin kendi
+`IStructuredResponseValidator`'ı çağrılır. §1'den ayrı: §1 sağlayıcıya giden
+**kısıtı** sınar, bu bölüm dönen yanıtın **denetimini** sınar.
+
+🚨 **Gerçek bir sağlayıcının `response_format=json_object`/structured-output
+modu söz dizimsel olarak GEÇERSİZ JSON üretmez** — OpenAI bunu API sınırında
+garanti eder. Bu yüzden "geçersiz yanıt" case'leri (2, 4, 5) gerçek bir
+sağlayıcı anahtarıyla tetiklenemez; scriptlenebilir sahte bir sağlayıcı
+gerekir. Bu ortamda gerçek OpenAI anahtarı vardı (`dotnet user-secrets list`),
+o yüzden case 1/3/5'in **geçerli yanıt** kolu `order-summary` demo agent'ıyla
+(`samples/AgentPrism.Api/Program.cs`, `AgentPrism:StructuredResponse:Enabled:
+true` — `appsettings.json`) gerçek bir `gpt-5.4-mini` çağrısıyla koşuldu;
+sonuç fazın DoD tablosuna yazıldı.
+
+### MT-GUARD-090 — Ayar kapalıyken davranış Faz 130 ile birebir aynıdır
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 131 |
+| **İlgili karar** | K1 |
+
+**Adımlar**
+1. `AgentPrism:StructuredResponse:Enabled` **hiç ayarlanmamışken** (veya
+   açıkça `false`) `JsonSchema`/`Json` kipli bir agent'ı geçersiz metin
+   üretecek bir istemle çalıştır.
+
+**Beklenen sonuç**
+- `run` normal `Completed` olarak kapanır — yanıt geçersiz JSON olsa bile.
+- `StructuredResponseRejected` olayı **hiç yazılmaz**.
+
+> **Otomatik karşılığı:** `Disabled_by_default_a_malformed_response_does_not_fail_the_run`
+> (`tests/AgentPrism.AspNetCore.FunctionalTests/StructuredResponseEndpointTests.cs`)
+> gerçek host + gerçek `RunRecordingAgent` zinciriyle aynı senaryoyu kanıtlar
+> (scriptlenebilir sahte sağlayıcıyla — yukarıdaki 🚨 notu). ⬜ Gerçek bir
+> sağlayıcı anahtarıyla bu ayarın **kapalı** hâli elle koşulmadı; bu ortamda
+> örnek uygulama `Enabled: true` ile çalıştırıldı (bkz. bölüm başı).
+
+---
+
+### MT-GUARD-091 — Ayar açıkken geçersiz yanıt `run`'ı `Failed` kapatır
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 131 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- `AgentPrism:StructuredResponse:Enabled: true`.
+- Model **geçersiz JSON** üretecek şekilde script'lenmiş (yukarıdaki 🚨 notu —
+  gerçek bir sağlayıcıyla üretilemez).
+
+**Adımlar**
+1. Agent'ı çalıştır; `run` kaydını ve olay dizisini oku.
+
+**Beklenen sonuç**
+- `run.status` `Failed`; `run.error.type` `"structured_response_invalid"`;
+  `run.error.class` `StructuredResponseInvalid`.
+- `GET /api/runs/{id}/events` çıktısında bir `StructuredResponseRejected`
+  olayı vardır; `payload` alanı `kind`, `schemaName`, `reason`, `provider`,
+  `model` taşır — **ham model yanıtını taşımaz**.
+
+> **Otomatik karşılığı:**
+> `Enabled_a_malformed_response_fails_the_run_with_the_structured_response_error_class`
+> (`StructuredResponseEndpointTests.cs`) gerçek host + gerçek `RunRecordingAgent`
+> zinciriyle bu senaryoyu kanıtlar. ⬜ Gerçek bir sağlayıcıyla elle koşulmadı
+> (🚨 notu — teknik olarak imkânsız, `response_format` sözdizimsel geçerliliği
+> API sınırında garanti eder).
+
+---
+
+### MT-GUARD-092 — Ayar açıkken geçerli yanıt hiçbir olay üretmez
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 131 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- Örnek uygulama gerçek bir OpenAI anahtarıyla çalışıyor
+  (`AgentPrism:StructuredResponse:Enabled: true`, `order-summary` agent'ı).
+
+**Girilecek veri**
+```bash
+curl -s -X POST "$APU/api/agents/order-summary/run" \
+  -H "$APB" -H "content-type: application/json" -H "Idempotency-Key: $(uuidgen)" \
+  -d '{"message":"Give me a summary for order ORD-1."}' | jq '.response.text'
+```
+
+**Gerçek sonuç (bu ortamda koşuldu, 2026-09-01)**
+```
+{"orderId":"ORD-1","summary":"Order ORD-1 has shipped and is estimated to be delivered in 2 days."}
+```
+`GET /api/runs/{id}` → `{"status":"Completed","error":null}`.
+`GET /api/runs/{id}/events` olay türleri: `run.started, tool.invoking,
+tool.invoked, message.delta, message.completed, run.completed` —
+`StructuredResponseRejected` **yok**.
+
+**Beklenen sonuç**
+- `run.status` `Completed`, `run.error` `null`.
+- Olay dizisinde `StructuredResponseRejected` yoktur.
+
+---
+
+### MT-GUARD-093 — Doğrulayıcı istisna atarsa yanıt geçersiz sayılır (fail-closed)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 131 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- Örnek uygulamaya, her zaman istisna atan bir `IStructuredResponseValidator`
+  geçici olarak eklenir (`ToolGovernanceEndpointTests`'in `DemoRejectingValidator`
+  deseninin eşleniği).
+
+**Adımlar**
+1. `AgentPrism:StructuredResponse:Enabled: true` iken, geçerli JSON üreten
+   bir agent'ı çalıştır.
+
+**Beklenen sonuç**
+- `run.status` `Failed`; `run.error.class` `StructuredResponseInvalid` —
+  yanıt sözdizimsel olarak geçerli JSON olsa bile, doğrulayıcının kendi
+  istisnası yanıtı **geçersiz** sayar.
+
+> **Otomatik karşılığı:** `A_throwing_consumer_validator_rejects_fail_closed`
+> (`StructuredResponseEndpointTests.cs`) ve
+> `A_throwing_validator_rejects_fail_closed_instead_of_propagating`
+> (`tests/AgentPrism.Core.UnitTests/Compilation/StructuredResponseValidatingAgentTests.cs`)
+> aynı kuralı sırasıyla HTTP ve birim seviyesinde kanıtlar. ⬜ Elle koşulmadı.
+
+---
+
+### MT-GUARD-094 — Akışlı `run`'da içerik akar, doğrulama akış bitince çalışır
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 131 |
+| **İlgili karar** | §131.5 |
+
+Akış doğası gereği geri alınamaz: geçersiz içerik istemciye zaten gitmiş olur,
+`run` **sonradan** `Failed` kapanır.
+
+**Girilecek veri (geçerli yanıt kolu — bu ortamda koşuldu)**
+```bash
+curl -s -N -X POST "$APU/api/agents/order-summary/run" \
+  -H "$APB" -H "content-type: application/json" \
+  -d '{"message":"Give me a summary for order ORD-3."}'
+```
+
+**Gerçek sonuç (2026-09-01)**
+- `event: run` → bir dizi `event: update` (JSON parçaları akar) → `event: done`.
+- `event: error` **görünmedi**; `GET /api/runs/{id}` → `status: "Completed"`.
+
+**Beklenen sonuç (geçersiz yanıt kolu)**
+- İçerik `update` çerçeveleriyle akar (kesilmez).
+- Akış `event: done` yerine `event: error` ile biter, `data` alanı
+  `AgentPrismStructuredResponseException` tipini taşır.
+- `GET /api/runs/{id}` `status: "Failed"`, `error.class:
+  "StructuredResponseInvalid"` döner; olay dizisinde `StructuredResponseRejected` vardır.
+
+> **Otomatik karşılığı (geçersiz kol):**
+> `Streaming_branch_still_closes_the_run_as_failed_after_the_content_already_streamed`
+> (`StructuredResponseEndpointTests.cs`). ⬜ Geçersiz kol gerçek sağlayıcıyla
+> elle koşulmadı (🚨 notu).
+
+---
+
+### MT-GUARD-095 — Arayüz: olay ve hata sınıfı iki dilde doğru görünür 👤 insan gerekir
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 131 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- MT-GUARD-091 (veya eşdeğeri) bir kez koşturuldu; en az bir
+  `StructuredResponseInvalid` run'ı vardır.
+
+**Adımlar**
+1. Tarayıcıda run detay ekranını aç (`http://localhost:5080/agentprism/runs/{id}`).
+2. Olay zaman çizelgesinde `StructuredResponseRejected` satırını bul.
+3. Arayüz dilini `tr`'ye çevir, hata sınıfı etiketini tekrar oku.
+
+**Beklenen sonuç**
+- Olay satırı görünür (teknik etiket `structured-response.rejected`,
+  `EVENT_STYLE` haritası — bu etiket `en.ts`/`tr.ts`'ten **gelmez**, TSX'te
+  sabit bir dizgidir, her iki dilde aynı görünür; bu bilinçli bir tasarımdır).
+- Dashboard'daki hata dağılımı kartında (varsa) hata sınıfı satırı İngilizce'de
+  "Structured response invalid", Türkçe'de "Yapısal yanıt geçersiz" okunur
+  (`dashboard.errorClass.StructuredResponseInvalid`).
+
+---
+
+### MT-GUARD-096 — Ham model yanıtı hata metninde ve olay yükünde geçmez
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 131 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- MT-GUARD-091 gibi bir case, içinde tanınabilir bir dizgi (örn. bir sır gibi
+  görünen bir metin) taşıyan geçersiz bir yanıtla koşturulur.
+
+**Adımlar**
+1. `run.error.message`'ı oku.
+2. `StructuredResponseRejected` olayının `text`/`payload` alanlarını oku.
+
+**Beklenen sonuç**
+- İkisi de yalnız güvenli, sabit bir sebep metni taşır ("The response is not
+  valid JSON." gibi) — modelin ürettiği ham metin **hiçbirinde** geçmez.
+
+> **Otomatik karşılığı:**
+> `The_raw_response_text_never_reaches_the_run_error_message_or_the_rejection_events_own_fields`
+> (`StructuredResponseEndpointTests.cs`) ve
+> `Rejection_writes_a_StructuredResponseRejected_event_on_the_ambient_run_scope`
+> (`StructuredResponseValidatingAgentTests.cs`) aynı iddiayı HTTP ve birim
+> seviyesinde kanıtlar. ⬜ Elle koşulmadı.

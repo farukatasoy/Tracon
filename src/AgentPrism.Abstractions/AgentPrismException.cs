@@ -399,3 +399,52 @@ public sealed class AgentPrismExternalCallException : AgentPrismException
     /// <inheritdoc />
     public override string ErrorType => ExternalCallRejectedErrorType;
 }
+
+/// <summary>
+/// Thrown when a run's response fails structured output validation.
+/// </summary>
+/// <remarks>
+/// <para>
+/// Thrown by the innermost <see cref="IAgentDecorator"/> in the compiled agent's
+/// wrapper chain (<c>Order = 30</c>) — closest to the model call, so telemetry
+/// and run recording (the outer decorators) both see it exactly like any other
+/// run-ending error.
+/// </para>
+/// <para>
+/// The message is either AgentPrism's own well-formedness reason (the response
+/// was empty or not valid JSON) or the reason an
+/// <see cref="IStructuredResponseValidator"/> returned through
+/// <see cref="StructuredResponseValidationResult.Invalid(string)"/>. Neither
+/// source ever carries the model's raw response text.
+/// </para>
+/// </remarks>
+public sealed class AgentPrismStructuredResponseException : AgentPrismException
+{
+    /// <summary>
+    /// The stable value written to <see cref="AgentPrismException.ErrorType"/>.
+    /// </summary>
+    public const string StructuredResponseInvalidErrorType = "structured_response_invalid";
+
+    /// <summary>Creates a new error.</summary>
+    public AgentPrismStructuredResponseException()
+    {
+    }
+
+    /// <summary>Creates a new error.</summary>
+    /// <param name="message">The error message. Must not carry the response text.</param>
+    public AgentPrismStructuredResponseException(string message)
+        : base(message)
+    {
+    }
+
+    /// <summary>Creates a new error.</summary>
+    /// <param name="message">The error message. Must not carry the response text.</param>
+    /// <param name="innerException">The underlying error.</param>
+    public AgentPrismStructuredResponseException(string message, Exception innerException)
+        : base(message, innerException)
+    {
+    }
+
+    /// <inheritdoc />
+    public override string ErrorType => StructuredResponseInvalidErrorType;
+}

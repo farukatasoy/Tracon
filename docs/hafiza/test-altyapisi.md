@@ -188,3 +188,9 @@ tekrarlanmalı — ve `.editorconfig`'in `[tests/**/*.cs]` bölümü (CA1707 alt
   — eklenmezse `CS0246` yalnız TAM çözüm koşumunda (`dotnet test AgentPrism.slnx`
   veya `kapi.py kapanis`) görünür, `Core.UnitTests` gibi hedef paketin kendi
   testini koşmak bunu YAKALAMAZ.
+- **`FakeModelProvider.EchoesUserMessage()` ham mesajı DEĞİL, `"Echo: {mesaj}"`
+  önekli metni döner** (2026-09-01, Faz 131). Geçerli JSON test etmek isteyen
+  bir test bu yüzden echo modunu kullanamaz — `"Echo: {...}"` sözdizimsel olarak
+  geçersiz JSON'dur. `RespondsWith(sabitMetin)` ile sabit bir yanıt kuyruklamak
+  gerekir (bkz. `AgentPrismTestHost.StartAsync`'in `agentPrism.AddModelProvider(
+  new FakeModelProvider("...").RespondsWith(...))` deseni).

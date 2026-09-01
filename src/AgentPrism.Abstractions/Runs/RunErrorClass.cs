@@ -112,4 +112,10 @@ public enum RunErrorClass
     /// identity is classified.
     /// </remarks>
     ToolTimeout = 13,
+
+    /// <summary>
+    /// The response failed structured output validation
+    /// (<see cref="AgentPrismStructuredResponseException"/>).
+    /// </summary>
+    StructuredResponseInvalid = 14,
 }

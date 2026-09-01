@@ -143,7 +143,7 @@ bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 | [128](arsiv/fazlar/128-RUN-AGACI-SURE-BUTCESI.md) | Run Ağacı Süre Bütçesi | ✅ Tamamlandı |
 | [129](arsiv/fazlar/129-IS-KUYRUGU-LANELERI.md) | İş Kuyruğu `lane`'leri | ✅ Tamamlandı |
 | [130](arsiv/fazlar/130-URETILEN-SEMANIN-KISITLARI.md) | Üretilen Şemanın Kısıtları | ✅ Tamamlandı |
-| [131](131-YAPISAL-YANIT-DOGRULAMA-SEAMI.md) | Yapısal Yanıt Doğrulama Seam'i | 📋 Planlandı |
+| [131](131-YAPISAL-YANIT-DOGRULAMA-SEAMI.md) | Yapısal Yanıt Doğrulama Seam'i | ✅ Tamamlandı |
 | [132](132-UYGULANAN-FIYAT-SNAPSHOTU.md) | Uygulanan Fiyat Snapshot'ı ve Sağlayıcı Kimliği | 📋 Planlandı |
 
 Seçilmemiş adaylar: [`ADAYLAR.md`](ADAYLAR.md). Fazların hangi dalgada, hangi gerekçeyle sıralandığı (Faz 8–56, kapandı): [`arsiv/IKINCI-FAZ-YOL-HARITASI.md`](arsiv/IKINCI-FAZ-YOL-HARITASI.md) · [`arsiv/UCUNCU-FAZ-YOL-HARITASI.md`](arsiv/UCUNCU-FAZ-YOL-HARITASI.md).
