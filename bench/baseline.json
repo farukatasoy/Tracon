@@ -1,17 +1,17 @@
 {
-  "measuredAt": "2026-08-26T22:16:36Z",
+  "measuredAt": "2026-09-02T02:02:28Z",
   "benchmarks": {
     "AgentPrism.Benchmarks.CompiledAgentCacheBenchmarks.CacheHit": {
       "allocatedBytes": 24,
-      "meanNanoseconds": 25.623531120164053
+      "meanNanoseconds": 24.85428442634069
     },
     "AgentPrism.Benchmarks.RunEventWriterBenchmarks.AppendEvent": {
       "allocatedBytes": 104,
-      "meanNanoseconds": 41.988898566790986
+      "meanNanoseconds": 41.573795701776234
     },
     "AgentPrism.Benchmarks.RunStoreQueryBenchmarks.QueryRuns": {
-      "allocatedBytes": 44336,
-      "meanNanoseconds": 629858.3666015625
+      "allocatedBytes": 44832,
+      "meanNanoseconds": 654146.4413411458
     }
   }
 }
