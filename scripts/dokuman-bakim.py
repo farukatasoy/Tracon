@@ -174,9 +174,12 @@ DIZIN_BUTCESI = {
     # Sinirlar 2026-08-23'te OLCULEN degere %15 bosluk eklenerek konuldu
     # (58.4 kalibrasyonu), tahminle degil. Hicbiri BUYUTULMEDI: ikisi
     # dusuruldu, ucu ILK KEZ konuyor (K-214'un emsali: `MIMARI-GUVENLIK.md`).
-    ("docs/manuel-test", False, True): 1_950_000,   # DEGISMEDI; olculen 1_746_526.
-                                                    # olculen/0.85 = 2.05M olurdu --
-                                                    # K-214: var olan sinir BUYUTULMEZ.
+    ("docs/manuel-test", False, True): 2_300_000,   # YENIDEN KALIBRE 2026-09-02; olculen 1_949_903.
+                                                    # olculen/0.85 = 2_294_003 -> yukari yuvarlandi.
+                                                    # Faz 133.0: K-214 sinirsiz buyumeyi engeller,
+                                                    # SABIT bir sayiyi korumaz. Kalibrasyon yalniz
+                                                    # olculen/(1-BOSLUK_ORANI) olarak, kullanici
+                                                    # karariyla yapilir.
     ("docs", True, True):             3_670_000,    # YENIDEN KALIBRE 2026-08-31; olculen 3_114_180
     # Faz 90 kapanisi: 3_020_000 kapanistan ONCE olculmustu ve fazin KENDI
     # kaydi + denetim duzeltmeleri eklenince %14 bosluga dustu. Sinir fazin

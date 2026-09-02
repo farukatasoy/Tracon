@@ -2416,3 +2416,144 @@ curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/schedules/buyuk-harf-lane" 
   `default`).
 - Süzgeç yazıldıktan sonra yalnız o `lane`'deki işler kalır; kutu
   boşaltılınca liste eski hâline döner.
+
+---
+
+### MT-JOB-117 — Job sayacı ve süre histogramı ayar olmadan yazılır
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 133 |
+| **İlgili karar** | — |
+
+**Ön koşul:** `Observability` altında hiçbir ayar yok (varsayılan kurulum).
+OTel konsol exporter'ı `AgentPrismDiagnostics.MeterName` metre'sini dinliyor.
+
+**Adımlar**
+1. İki `AgentBatch` işi kuyruğa at ve bitmelerini bekle.
+2. OTel çıktısını süz:
+   ```bash
+   grep -E "agentprism\.job\.(executions|duration|queue\.depth)" <otel-log>
+   ```
+
+**Beklenen sonuç**
+- `agentprism.job.executions` toplam **2** sayar; her ölçüm
+  `agentprism.job.lane`, `agentprism.job.kind`, `agentprism.job.status`
+  ve `agentprism.tenant.id` etiketlerini taşır.
+- `agentprism.job.duration` saniye biriminde iki ölçüm taşır; `tenant`
+  etiketi **yoktur**.
+- `agentprism.job.queue.depth` çıktıda **hiç yoktur** — gauge varsayılan
+  kapalıdır ve veritabanına gitmez.
+
+---
+
+### MT-JOB-118 — Kuyruk derinliği gauge'ı açıldığında `lane` × `status` raporlar
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 133 |
+| **İlgili karar** | — |
+
+**Ön koşul:** `AgentPrism__Observability__EnableJobQueueDepthGauge=true`.
+İşçi kapalı (`Scheduling:RunWorker=false`) — işler kuyrukta beklesin.
+
+**Adımlar**
+1. `default` lane'ine üç iş at, çalıştırma.
+2. Metrikleri bir kez scrape et.
+3. **Aynı 30 sn içinde** ikinci kez scrape et ve veritabanı sorgu logunu izle.
+4. `JobQueueDepthRefreshInterval` (30 sn) geçtikten sonra tekrar scrape et.
+
+**Beklenen sonuç**
+- Adım 2: `agentprism.job.queue.depth` `lane=default`, `status=Pending`
+  etiketleriyle **3** gösterir. `agentprism.tenant.id` etiketi **yoktur**.
+- Adım 3: `jobs` tablosuna **ikinci sorgu gitmez** (önbellek).
+- Adım 4: tam bir sorgu daha gider.
+
+---
+
+### MT-JOB-119 — `retry` bırakması sayaca girmez, yalnız nihai durum sayılır
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 133 |
+| **İlgili karar** | — |
+
+**Ön koşul:** `Scheduling:MaxAttempts=3`, sürekli hata veren bir handler
+(var olmayan bir agent hedefleyen `AgentBatch` işi, MT-JOB-026 deseni).
+
+**Adımlar**
+1. İşi at ve üç denemenin de bitmesini bekle.
+2. `agentprism.job.executions` ölçümlerini say.
+3. `agentprism.job.duration` ölçümlerini say.
+
+**Beklenen sonuç**
+- Sayaç **1** artar, 3 değil; etiketi `status=Failed`.
+- Histogram **tek** ölçüm taşır ve o ölçüm **son denemenin** süresidir,
+  işin toplam ömrü değil.
+- `/api/jobs` üzerinde işin `attempt` alanı **3**'tür — denemeler gerçekten
+  yapıldı, yalnız sayılmadı.
+
+---
+
+### MT-JOB-120 — `lane` kardinalite muhafızı `other`'a düşürür
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 133 |
+| **İlgili karar** | — |
+
+**Ön koşul:** `AgentPrism__Observability__MaxJobLaneCardinality=2`.
+🚨 **Taze süreç gerekir.** Kardinalite kümesi süreç ömrü boyunca yalnız büyür;
+daha önce bir `default` işi koşulduysa bütçenin biri zaten harcanmıştır ve
+beklenen sıra tutmaz. Uygulamayı bu case için yeniden başlat.
+
+**Adımlar**
+1. `alpha`, `beta` ve `gamma` lane'lerine birer iş at, bitmelerini bekle.
+2. `agentprism.job.executions` ölçümlerinin `agentprism.job.lane`
+   etiketlerini oku.
+3. `alpha` lane'ine bir iş daha at.
+
+**Beklenen sonuç**
+- Adım 2: etiketler sırayla `alpha`, `beta`, **`other`**.
+- Adım 3: `alpha` **adını korur** — küme yalnız büyür, küçülmez. Süreç
+  yeniden başlatılana kadar bu eşleme sabittir.
+- `EnableJobQueueDepthGauge` de açıksa `agentprism.job.queue.depth`
+  **aynı** eşlemeyi kullanır: `gamma` orada da `other`'dır. İki enstrüman tek
+  bir kümeyi paylaşır.
+
+---
+
+### MT-JOB-121 — Derinlik sorgusu `jobs_claim_idx` kullanır
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 133 |
+| **İlgili karar** | — |
+
+**Ön koşul:** PostgreSQL. `jobs` tablosunda çoğu **terminal** olan çok
+sayıda satır (ör. 60 000 satır, 3 000'i açık).
+
+**Adımlar**
+```sql
+EXPLAIN (ANALYZE, BUFFERS)
+SELECT lane, status, CAST(COUNT(*) AS bigint)
+FROM agentprism.jobs
+WHERE status IN (0, 1, 2)
+GROUP BY lane, status;
+```
+
+**Beklenen sonuç**
+- Plan `Bitmap Index Scan on jobs_claim_idx` içerir; `Seq Scan on jobs`
+  **içermez**.
+- Taranan satır sayısı **açık iş** sayısı kadardır (3 000), tablonun
+  tamamı kadar değil — maliyet kuyruk geçmişiyle büyümez.

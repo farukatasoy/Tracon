@@ -394,4 +394,39 @@ internal sealed class InMemoryJobStore : IJobStore
 
         return default;
     }
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// Deliberately tenant-agnostic, like <see cref="LeaseAsync"/>: queue depth
+    /// is an operator signal about the worker pool, which leases across every
+    /// tenant. (The <c>TenantAgnostic</c> marker itself lives in the SQL linked
+    /// source and is not reachable from this assembly; the SQL implementation
+    /// carries it.)
+    /// </remarks>
+    public ValueTask<IReadOnlyList<JobQueueDepth>> GetQueueDepthAsync(CancellationToken cancellationToken = default)
+    {
+        var counts = new Dictionary<(string Lane, JobStatus Status), long>();
+
+        foreach (var job in _jobs.Values)
+        {
+            // Only the OPEN statuses. Terminal ones are counted by the
+            // agentprism.job.executions counter as each job finishes.
+            if (job.Status is not (JobStatus.Pending or JobStatus.Leased or JobStatus.Running))
+            {
+                continue;
+            }
+
+            var key = (job.Lane, job.Status);
+            counts[key] = counts.TryGetValue(key, out var current) ? current + 1 : 1;
+        }
+
+        var depths = new List<JobQueueDepth>(counts.Count);
+
+        foreach (var ((lane, status), count) in counts)
+        {
+            depths.Add(new JobQueueDepth { Lane = lane, Status = status, Count = count });
+        }
+
+        return new ValueTask<IReadOnlyList<JobQueueDepth>>(depths);
+    }
 }

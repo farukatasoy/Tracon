@@ -1209,6 +1209,7 @@ AgentPrism.IJobStore.CancelAsync(string! tenantId, System.Guid jobId, System.Thr
 AgentPrism.IJobStore.CompleteAsync(AgentPrism.JobCompletion! completion, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
 AgentPrism.IJobStore.EnqueueAsync(AgentPrism.JobRecord! job, System.Collections.Generic.IReadOnlyList<string!>! items, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<AgentPrism.JobRecord!>
 AgentPrism.IJobStore.GetAsync(string! tenantId, System.Guid jobId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<AgentPrism.JobRecord?>
+AgentPrism.IJobStore.GetQueueDepthAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<AgentPrism.JobQueueDepth!>!>
 AgentPrism.IJobStore.LeaseAsync(string! owner, System.TimeSpan leaseDuration, System.Collections.Generic.IReadOnlyList<string!>? lanes, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<AgentPrism.JobRecord?>
 AgentPrism.IJobStore.ListItemsAsync(System.Guid jobId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<AgentPrism.JobItemRecord!>!>
 AgentPrism.IJobStore.MarkRunningAsync(System.Guid jobId, string! owner, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<bool>
@@ -1610,6 +1611,16 @@ AgentPrism.JobQuery.Take.get -> int
 AgentPrism.JobQuery.Take.init -> void
 AgentPrism.JobQuery.TenantId.get -> string?
 AgentPrism.JobQuery.TenantId.init -> void
+AgentPrism.JobQueueDepth
+AgentPrism.JobQueueDepth.<Clone>$() -> AgentPrism.JobQueueDepth!
+AgentPrism.JobQueueDepth.Count.get -> long
+AgentPrism.JobQueueDepth.Count.init -> void
+AgentPrism.JobQueueDepth.Equals(AgentPrism.JobQueueDepth? other) -> bool
+AgentPrism.JobQueueDepth.JobQueueDepth() -> void
+AgentPrism.JobQueueDepth.Lane.get -> string!
+AgentPrism.JobQueueDepth.Lane.init -> void
+AgentPrism.JobQueueDepth.Status.get -> AgentPrism.JobStatus
+AgentPrism.JobQueueDepth.Status.init -> void
 AgentPrism.JobRecord
 AgentPrism.JobRecord.<Clone>$() -> AgentPrism.JobRecord!
 AgentPrism.JobRecord.Attempt.get -> int
@@ -4143,8 +4154,11 @@ override AgentPrism.JobItemResult.ToString() -> string!
 override AgentPrism.JobQuery.Equals(object? obj) -> bool
 override AgentPrism.JobQuery.GetHashCode() -> int
 override AgentPrism.JobQuery.ToString() -> string!
+override AgentPrism.JobQueueDepth.Equals(object? obj) -> bool
 override AgentPrism.JobRecord.Equals(object? obj) -> bool
+override AgentPrism.JobQueueDepth.GetHashCode() -> int
 override AgentPrism.JobRecord.GetHashCode() -> int
+override AgentPrism.JobQueueDepth.ToString() -> string!
 override AgentPrism.JobRecord.ToString() -> string!
 override AgentPrism.JobRetryException.ErrorType.get -> string!
 override AgentPrism.JobSchedule.Equals(object? obj) -> bool
@@ -4633,7 +4647,9 @@ static AgentPrism.JobItemResult.operator ==(AgentPrism.JobItemResult? left, Agen
 static AgentPrism.JobPayload.ExtractItems(System.Text.Json.JsonElement payload) -> System.Collections.Generic.IReadOnlyList<string!>!
 static AgentPrism.JobQuery.operator !=(AgentPrism.JobQuery? left, AgentPrism.JobQuery? right) -> bool
 static AgentPrism.JobQuery.operator ==(AgentPrism.JobQuery? left, AgentPrism.JobQuery? right) -> bool
+static AgentPrism.JobQueueDepth.operator !=(AgentPrism.JobQueueDepth? left, AgentPrism.JobQueueDepth? right) -> bool
 static AgentPrism.JobRecord.operator !=(AgentPrism.JobRecord? left, AgentPrism.JobRecord? right) -> bool
+static AgentPrism.JobQueueDepth.operator ==(AgentPrism.JobQueueDepth? left, AgentPrism.JobQueueDepth? right) -> bool
 static AgentPrism.JobRecord.operator ==(AgentPrism.JobRecord? left, AgentPrism.JobRecord? right) -> bool
 static AgentPrism.JobSchedule.operator !=(AgentPrism.JobSchedule? left, AgentPrism.JobSchedule? right) -> bool
 static AgentPrism.JobSchedule.operator ==(AgentPrism.JobSchedule? left, AgentPrism.JobSchedule? right) -> bool

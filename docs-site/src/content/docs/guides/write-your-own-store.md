@@ -117,6 +117,19 @@ an empty list applies no filter, and a retried job keeps its lane. See
 [Background work](/guides/background-work/) for what a lane is and how a job's lane is
 chosen.
 
+`IJobStore` carries one aggregate method alongside the record-level ones.
+`GetQueueDepthAsync` counts outstanding jobs grouped by lane and status, the way
+`IRunStore.GetStatisticsAsync` sits on the run store rather than in an interface of
+its own. Three rules the contract checks, and that a custom store has to honor:
+
+- Count **only** the open statuses — `Pending`, `Leased`, and `Running`. A terminal
+  job is counted by `agentprism.job.executions` when it finishes, so scanning for it
+  here would tie the query's cost to the queue's whole history.
+- Omit a lane/status pair with no open jobs rather than reporting it as zero.
+- Take **no tenant argument and apply no tenant filter**. Like `LeaseAsync`, this is
+  a question about the worker pool, which leases across every tenant. The shipped SQL
+  stores answer it from the same partial index that backs leasing.
+
 ## Read next
 
 - [Persistence](/getting-started/persistence/) — the three shipped providers, for

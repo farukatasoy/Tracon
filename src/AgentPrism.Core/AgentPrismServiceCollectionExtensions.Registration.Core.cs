@@ -309,7 +309,8 @@ public static partial class AgentPrismServiceCollectionExtensions
         // registered; otherwise it creates its own Meter - the consumer is not
         // forced to call AddMetrics().
         services.TryAddSingleton(static provider => new AgentPrismMetrics(
-            provider.GetService<System.Diagnostics.Metrics.IMeterFactory>()));
+            provider.GetService<System.Diagnostics.Metrics.IMeterFactory>(),
+            provider.GetService<IOptionsMonitor<AgentPrismOptions>>()));
 
         // The span collector registers the ActivityListener in its
         // constructor; this is why resolving it once at the start is enough.

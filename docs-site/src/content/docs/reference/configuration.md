@@ -181,9 +181,18 @@ on the model binding, not a global setting. See
 | `Observability:IncludeAgentVersionTag` | `true` |
 | `Observability:EnableQuotaUsageGauge` | `false` |
 | `Observability:QuotaUsageRefreshInterval` | 30 seconds |
+| `Observability:EnableJobQueueDepthGauge` | `false` |
+| `Observability:JobQueueDepthRefreshInterval` | 30 seconds |
+| `Observability:MaxJobLaneCardinality` | `64` |
 
 These settings control AgentPrism span creation and its own trace store. They do not
 replace the application's OpenTelemetry exporter.
+
+Both gauges are off by default because each one reads the database on a scrape;
+the matching refresh interval caches those reads.
+`MaxJobLaneCardinality` bounds how many distinct job lanes get a metric series of
+their own before the rest are folded into a single `other` series — see
+[observability](/guides/observability/#what-the-job-metrics-count).
 
 ### Run recording
 

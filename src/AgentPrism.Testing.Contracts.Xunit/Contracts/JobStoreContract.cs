@@ -305,6 +305,116 @@ public abstract class JobStoreContract : TenantIsolationContract<IJobStore>
         results[0].Id.ShouldBe(mediaJob.Id);
     }
 
+    [Fact]
+    public async Task Queue_depth_is_empty_when_no_job_is_open()
+        => (await Store.GetQueueDepthAsync()).ShouldBeEmpty();
+
+    [Fact]
+    public async Task Queue_depth_groups_pending_jobs_by_lane()
+    {
+        await Store.EnqueueAsync(TestData.Job() with { Lane = "default" }, ["a"]);
+        await Store.EnqueueAsync(TestData.Job() with { Lane = "default" }, ["a"]);
+        await Store.EnqueueAsync(TestData.Job() with { Lane = "media" }, ["a"]);
+
+        var depth = await Store.GetQueueDepthAsync();
+
+        Count(depth, "default", JobStatus.Pending).ShouldBe(2);
+        Count(depth, "media", JobStatus.Pending).ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task Queue_depth_separates_the_open_statuses()
+    {
+        await Store.EnqueueAsync(TestData.Job(), ["a"]);
+        await Store.EnqueueAsync(TestData.Job(), ["a"]);
+        await Store.EnqueueAsync(TestData.Job(), ["a"]);
+
+        // Lease twice: the first leased job is moved on to Running, so all
+        // three open statuses are represented at once.
+        var owner = Owner();
+        var first = await LeaseAsync(owner, TimeSpan.FromMinutes(5));
+        first.ShouldNotBeNull();
+        await Store.MarkRunningAsync(first.Id, owner);
+        await LeaseAsync(Owner(), TimeSpan.FromMinutes(5));
+
+        var depth = await Store.GetQueueDepthAsync();
+
+        Count(depth, JobLanes.Default, JobStatus.Pending).ShouldBe(1);
+        Count(depth, JobLanes.Default, JobStatus.Leased).ShouldBe(1);
+        Count(depth, JobLanes.Default, JobStatus.Running).ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task Queue_depth_never_counts_a_terminal_status()
+    {
+        var completed = await Store.EnqueueAsync(TestData.Job(), ["a"]);
+        var cancelled = await Store.EnqueueAsync(TestData.Job(), ["a"]);
+        await Store.EnqueueAsync(TestData.Job(), ["a"]);
+
+        await Store.CompleteAsync(new JobCompletion
+        {
+            JobId = completed.Id,
+            Status = JobStatus.Completed,
+            CompletedAt = DateTimeOffset.UtcNow,
+        });
+
+        await Store.CancelAsync(cancelled.TenantId, cancelled.Id);
+
+        var depth = await Store.GetQueueDepthAsync();
+
+        depth.ShouldAllBe(static row =>
+            row.Status == JobStatus.Pending || row.Status == JobStatus.Leased || row.Status == JobStatus.Running);
+        depth.Sum(static row => row.Count).ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task Queue_depth_counts_every_tenants_jobs_together()
+    {
+        await Store.EnqueueAsync(TestData.Job(tenantId: "tenant-a"), ["a"]);
+        await Store.EnqueueAsync(TestData.Job(tenantId: "tenant-b"), ["a"]);
+
+        var depth = await Store.GetQueueDepthAsync();
+
+        // Queue depth is an operator signal about the worker pool, which leases
+        // across every tenant; it is deliberately NOT filtered or tagged by tenant.
+        Count(depth, JobLanes.Default, JobStatus.Pending).ShouldBe(2);
+    }
+
+    [Fact]
+    public async Task Queue_depth_drops_a_lane_once_its_last_job_finishes()
+    {
+        var job = await Store.EnqueueAsync(TestData.Job() with { Lane = "media" }, ["a"]);
+
+        await Store.CompleteAsync(new JobCompletion
+        {
+            JobId = job.Id,
+            Status = JobStatus.Completed,
+            CompletedAt = DateTimeOffset.UtcNow,
+        });
+
+        // A pair with no open jobs is omitted, not reported as zero.
+        (await Store.GetQueueDepthAsync()).ShouldNotContain(static row => row.Lane == "media");
+    }
+
+    [Fact]
+    public async Task Queue_depth_counts_a_job_released_for_retry_as_pending_again()
+    {
+        var job = await Store.EnqueueAsync(TestData.Job(), ["a"]);
+        await LeaseAsync(Owner(), TimeSpan.FromMinutes(5));
+
+        await Store.ReleaseForRetryAsync(job.Id, "temporary error");
+
+        var depth = await Store.GetQueueDepthAsync();
+
+        Count(depth, JobLanes.Default, JobStatus.Pending).ShouldBe(1);
+        Count(depth, JobLanes.Default, JobStatus.Leased).ShouldBe(0);
+    }
+
+    private static long Count(IReadOnlyList<JobQueueDepth> depth, string lane, JobStatus status)
+        => depth
+            .Where(row => string.Equals(row.Lane, lane, StringComparison.Ordinal) && row.Status == status)
+            .Sum(static row => row.Count);
+
     private ValueTask<JobRecord?> LeaseAsync(string owner, TimeSpan leaseDuration, IReadOnlyList<string>? lanes = null)
         => Store.LeaseAsync(owner, leaseDuration, lanes);
 

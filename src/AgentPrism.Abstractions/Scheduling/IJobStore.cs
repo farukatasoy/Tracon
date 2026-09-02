@@ -150,4 +150,36 @@ public interface IJobStore
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>The completion task.</returns>
     ValueTask ReportItemAsync(JobItemResult item, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Counts the jobs still outstanding, grouped by lane and status.
+    /// </summary>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>
+    /// One record per lane/status pair that has at least one open job. A pair
+    /// with no open jobs is omitted rather than reported as zero.
+    /// </returns>
+    /// <remarks>
+    /// <para>
+    /// Only the open statuses are counted — <see cref="JobStatus.Pending"/>,
+    /// <see cref="JobStatus.Leased"/>, and <see cref="JobStatus.Running"/>. The
+    /// terminal ones are already counted by the
+    /// <c>agentprism.job.executions</c> counter as each job finishes; counting
+    /// them here would make the query's cost grow with the queue's whole
+    /// history instead of with the work that is actually outstanding.
+    /// </para>
+    /// <para>
+    /// This is an aggregate query, deliberately placed on this interface rather
+    /// than split into a separate one — the same layout
+    /// <see cref="IRunStore.GetStatisticsAsync"/> already uses. It takes
+    /// <strong>no tenant argument</strong>: queue depth is an operator signal
+    /// about the worker pool, which leases across every tenant
+    /// (<see cref="LeaseAsync"/>), so there is no tenant boundary to apply here.
+    /// </para>
+    /// <para>
+    /// The SQL implementations answer this from the <c>jobs_claim_idx</c>
+    /// index, whose partial condition covers exactly these three statuses.
+    /// </para>
+    /// </remarks>
+    ValueTask<IReadOnlyList<JobQueueDepth>> GetQueueDepthAsync(CancellationToken cancellationToken = default);
 }
