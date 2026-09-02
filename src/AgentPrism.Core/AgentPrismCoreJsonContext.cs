@@ -32,4 +32,7 @@ namespace AgentPrism;
 
 // Phase 131: the StructuredResponseRejected run-event payload.
 [JsonSerializable(typeof(StructuredResponseRejectedEventPayload))]
+
+// Phase 134: the StructuredResponseRepairAttempted run-event payload.
+[JsonSerializable(typeof(StructuredResponseRepairAttemptedEventPayload))]
 internal sealed partial class AgentPrismCoreJsonContext : JsonSerializerContext;

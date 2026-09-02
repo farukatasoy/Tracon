@@ -319,6 +319,34 @@ sahte ses sağlayıcısının ilk parçayı üretme süresi mi, WebSocket
 el sıkışması mı, yoksa tarayıcı başlatma yarışı mı. Ölçüm olmadan zaman aşımı
 büyütülmez.
 
+### F-181 · `RunCostMetricEndToEndTests`'in `MeterListener` yalıtımı kırılgan
+
+**Sorun:** `tests/AgentPrism.AspNetCore.FunctionalTests/RunCostMetricEndToEndTests.cs`
+process-wide bir `MeterListener` kurup `agentprism.run.cost` adlı ölçümün
+**ilk** ölçeğini `.ShouldHaveSingleItem()` ile bekliyor. Aynı process'te
+paralel çalışan **başka bir test** de gerçek bir fiyatlandırılmış `run`
+tamamlarsa (aynı isimli ölçüm), bu test o ölçümü yakalar ve yanlış değerle
+düşer ya da fazladan öge yüzünden `.ShouldHaveSingleItem()` patlar.
+
+**Bulundu (2026-09-02, Faz 134 denetimi):** `tests/AgentPrism.AspNetCore.FunctionalTests/JobMetricEndToEndTests.cs`
+aynı desenle (`agentprism.job.executions`, process-wide `MeterListener`)
+gerçekten çöktü — Faz 134'ün eklediği yeni bir kuyruklu `run` testi eşzamanlı
+çalışırken "default" lane'li bir ölçüm sızdı. Kök sebep düzeltildi (bkz. Faz
+134'ün "Denetim Bulguları" bölümü: ölçüm artık tags üzerinden bu testin KENDİ
+lane değeriyle süzülüyor). `RunCostMetricEndToEndTests.cs` **henüz hiçbir
+şeyle çakışmadı** (bugün hiçbir eşzamanlı test aynı isimli maliyet ölçümü
+üretmiyor) — bu yüzden 🔴 değil, gözlemlenmiş bir **gizil kırılganlık**.
+
+**Sınıf:** Aynı desenin tekrarı: process-wide `MeterListener` + "ilk ölçümü
+al" varsayımı, meşru paralel test yürütmesiyle çakışıyor. Repoda bu deseni
+kullanan başka test dosyası varsa (`grep -rn "MeterListener" tests/`) hepsi
+aynı riski taşır.
+
+**Sonraki adım:** `JobMetricEndToEndTests`'in düzeltmesindeki deseni
+(ölçümün kendi ayırt edici etiketiyle süzme) `RunCostMetricEndToEndTests`'e
+ve varsa kardeşlerine uygula — `AgentName`/`ModelId` zaten benzersiz bir
+ayırt edici olabilir.
+
 ## Aday Olmayan Açık Kayıtlar
 
 Bu kalemler faz sıralamasına girmez. Tam kanıt, geçmiş ve sonraki adım keşif

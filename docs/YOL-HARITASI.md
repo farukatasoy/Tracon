@@ -146,7 +146,7 @@ bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 | [131](arsiv/fazlar/131-YAPISAL-YANIT-DOGRULAMA-SEAMI.md) | Yapısal Yanıt Doğrulama Seam'i | ✅ Tamamlandı |
 | [132](arsiv/fazlar/132-UYGULANAN-FIYAT-SNAPSHOTU.md) | Uygulanan Fiyat Snapshot'ı ve Sağlayıcı Kimliği | ✅ Tamamlandı |
 | [133](arsiv/fazlar/133-IS-KUYRUGU-METRIKLERI.md) | İş Kuyruğu Metrikleri | ✅ Tamamlandı |
-| [134](134-SINIRLI-YANIT-ONARIMI.md) | Sınırlı Yapısal Yanıt Onarımı | 📋 Planlandı |
+| [134](134-SINIRLI-YANIT-ONARIMI.md) | Sınırlı Yapısal Yanıt Onarımı | ✅ Tamamlandı |
 | [135](135-URETILEN-SEMANIN-NESNE-GRAFI.md) | Üretilen Şemanın Nesne Grafı | 📋 Planlandı |
 
 Seçilmemiş adaylar: [`ADAYLAR.md`](ADAYLAR.md). Fazların hangi dalgada, hangi gerekçeyle sıralandığı (Faz 8–56, kapandı): [`arsiv/IKINCI-FAZ-YOL-HARITASI.md`](arsiv/IKINCI-FAZ-YOL-HARITASI.md) · [`arsiv/UCUNCU-FAZ-YOL-HARITASI.md`](arsiv/UCUNCU-FAZ-YOL-HARITASI.md).
