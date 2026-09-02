@@ -21,15 +21,15 @@
 - **🚨 `JobRecord.Payload` atanmazsa `/api/jobs` TUM listeyi 500 ile dondurur** (Faz 21): `JsonElement` bir struct'tir; atanmazsa `default` olur (`ValueKind = Undefined`) ve serilestirme cokertir — etki tek isle sinirli degil, **liste ucunun tamami** cokar. 1231 test yakalamadi. **Kural**: yeni bir `JobRecord` ureten her kod yolu `Payload` atamalidir. Vaka: [`arsiv/HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
 - **🚨 Disaridan iptal, `RunRecordingAgent`'in KENDI `CancellationTokenSource`'una guvenir, gelen `cancellationToken`'a DEGIL** (Faz 32): gelen token'in KENDISI iptal edilemez — `CreateLinkedTokenSource(cancellationToken)` ile kendi kaynagi kurulur, deftere O yazilir. Aksi halde defterin `Cancel()`'i hicbir seyi etkilemezdi. `WorkflowRunner.ExecuteAsync` ayni deseni tekrarlar.
 - **Dogrulanamayan workflow iptal tuzagi** (2026-08-06, Faz 32, terk edildi) — `docs/arsiv/FAZ-GECMISI.md`, "Faz 32".
-- **`ITenantStore` kaydi zorunlu DEGILDIR; kayitsiz kiracinin verisi `ListAsync()` taramasinda GORUNMEZ** (Faz 35, K-257): `IQuotaStore`'da "tum kiracilar" yoktur, `QuotaUsageObserver` yalniz KAYITLI kiracilari tarar (`QuotaEnforcer` etkilenmez). Capraz kiraci rapor/gosterge yazarken bu bosluğu hesaba kat. Ayrinti: [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
-- **🚨 `RunEventType.MessageCompleted` YALNIZ akissiz yolda yazilir** (Faz 39): akisli yol (HTTP `/api/agents/{name}/run`, SSE) yalniz `MessageDelta` uretir. **Dogru okuma**: `MessageCompleted` varsa onu kullan, yoksa `MessageDelta` parcalarini birlestir — ikisini birden TOPLAMA, akissiz yolda mukerrer sayar. Vaka: [`arsiv/HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
+- **`ITenantStore` kaydi zorunlu DEGILDIR; kayitsiz kiracinin verisi `ListAsync()` taramasinda GORUNMEZ** (Faz 35, K-257): `QuotaUsageObserver` yalniz KAYITLI kiracilari tarar. Ayrinti: [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
+- **🚨 `RunEventType.MessageCompleted` YALNIZ akissiz yolda yazilir** (Faz 39): akisli yol yalniz `MessageDelta` uretir — ikisini birden TOPLAMA, akissiz yolda mukerrer sayar. Vaka: [`arsiv/HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
 - **🚨 Resmi saglayici SDK'lari `HttpRequestException` FIRLATMAZ** (2026-08-07, Faz 44, K-296): gercek bir OpenAI 404'unde SDK `System.ClientModel.ClientResultException` firlatir; birim testleri gecen ilk taslak hatayi `Unknown`'a dusurdu. Desen `ClientResultException`/`RequestFailedException`/`ApiException` + mesajdaki `HTTP 4xx/5xx`'i kapsar. Yeni saglayicida gercek istisna adini OLC, tahmin etme. Vaka: [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
 - **🚨 `ISessionStore.SaveAsync` YALNIZ basari yolunda cagrilir** (Faz 45, K-300): `catch` bloklari onu cagirmaz; oturum uzerinden girdi metni okuyan tasarim basarisiz calistirmalarda bosa cikar. Girdi metni `RunStarted.Text`'ten okunur — HER zaman dolu tek kaynak. Olcum: [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
 - **Cok turluluk icin tam sohbet gecmisi okumaya gerek yoktur** (2026-08-07, Faz 45, K-301): "Bu `sessionId`'de ONCE baslamis baska bir calistirma var mi" sorusu `IRunStore.QueryRunsAsync(new RunQuery { SessionId = ..., OnlyRootRuns = false })` ile cevaplanir; `ISessionStore`/`IAgentCatalog`/`ChatHistoryProvider` zincirine gerek kalmaz.
 - **🚨 Yeni ARA `RunStatus` üç yeri kırar** (2026-08-07, Faz 46, K-304): `StartRunAsync` aynı `RunId`'de 2. çağrıda PK çakışır (→UPSERT); SSE/iptal defteri yalnız `Running` bilir.
 - **Oksuz calistirma uzlastirmasi `heartbeat_at`'i toplu okur — calistirma basina degil TUR basina bir sorgu** (Faz 54, K-362): sicak yol (`RunEventWriter`) hic degismedi. Ayrinti: [`arsiv/HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md), `docs/arsiv/fazlar/54-OKSUZ-CALISTIRMA-UZLASTIRMASI.md`.
 - **🚨 Bucket araligi `Variants`'in fiziksel sirasina bagliysa, bir kolun agirligini degistirmek DIGER kollarin araligini kaydirir ve var olan atamalari bozar** (Faz 56, K-374): degisken agirlikli kolun araligi konumdan bagimsiz sabit bir uca ankorlanmali.
-- **🚨 Skill script: korumasiz `StandardInput.Close()` ve JSON'a cevrilmemis denetim `after`'i ikisi de SESSIZCE coker** (Faz 65 oncesi, Aile W): `Close()`'un ic flush'i `Pipe is broken` firlatir (kendi `catch(IOException)`'ina alinir); `jsonb`'ye JSON'a cevrilmeden yazilan red nedeni Postgres `22P02` verir ve HER iz kaybolur. Sahte `IAuditLog` YAKALAMAZ. Vaka: [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
+- **🚨 Skill script: korumasiz `StandardInput.Close()` ve JSON'a cevrilmemis denetim `after`'i SESSIZCE coker** (Faz 65 oncesi, Aile W): sahte `IAuditLog` YAKALAMAZ. Vaka: [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
 - **🚨 Tool sarmalama sirasi Authorizing → Timeout → ApprovalRequired → gercek fonksiyon; ret istisna firlatmaz, fail-closed** (2026-08-19, K-487/K-488): `ToolAuthorizationAccumulator` (`ToolUsageAccumulator` deseni) `ToolInvocationRecord.AuthorizationDenied`'i isaretler — K-490.
 - **🚨 Bellek ici store ile SQL store'un AYNI sorguya farkli yanit vermesi sozlesme testinden kacabilir — test o sorguyu hic sormuyorsa** (2026-08-19, Faz 68): bir alani "her yerde" ekledigini dusundugunde, o alani OKUYAN her depo metodunun sozlesme testinde bir iddiasi var mi diye bak. Vaka: [`arsiv/HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
 - **🚨 Ambient bir baglami bir kayit yolunda DOGRUDAN okuma — tuketicinin uygulamasi firlatabilir ve dogrulanmamis deger dondurebilir** (2026-08-19, Faz 68): garantiler `RunAttributionReader.Read(...)`'e cikarildi; her kayit yolu onu kullanir. Vaka: [`arsiv/HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
@@ -93,18 +93,9 @@ yolda da koşar; bir genişleme noktası yola göre sessizce farklı davranmamal
   olduğunu KANITLAMAZ — ikisi ayrı ayrı denetlenir. Düzeltme:
   `SafeErrorText.ForPersistence(exception, correlationId)`; `ToRunError` artık
   `static` değil, `_logger.LogError` çağırabilmek için instance metot.
-- **🚨 `RunRecordingAgent`'ın `catch (Exception)` dalı `usage`'ı DAİMA `null`
-  geçirir — bir `run`'ın gerçek harcaması yalnız `scope.ExtraUsage` (yan kanal)
-  üzerinden `run.Usage`'a ulaşabilir** (2026-09-02, Faz 134, ölçüldü).
-  `CompleteAsync` içindeki `usage = MergeUsage(usage, scope.ExtraUsage?.ToRunUsage())`
-  satırı `MergeUsage(null, extra)` için `extra`'yı OLDUĞU GİBİ döndürür — yani
-  bir istisnayla biten `run`'ın TEK usage kaynağı `ExtraUsage`'dır. Faz 134
-  bunu bilerek kullandı (bkz. `StructuredResponseValidatingAgent`'ın onarım
-  döngüsü: her reddedilen/atılan `AgentResponse`'ın kullanımı `ExtraUsage`'a
-  eklenir, dönen SONUNCUSU hariç) ve bunun yan etkisi olarak Faz 131'den beri
-  var olan bir eksiği de kapattı: `MaxRepairAttempts` sıfır olsa bile, reddedilen
-  TEK denemenin token'ı artık `run.Usage`'da GÖRÜNÜR — önceden sessizce `null`
-  oluyordu. **Kural:** bir çalıştırma yolunun (tool, side-channel model çağrısı,
-  onarım turu) usage'ının `run.Usage`'a yansımasını istiyorsan `scope.ExtraUsage?.Add(...)`
-  kullan; normal `AgentResponse.Usage`'a güvenme — o yalnız BAŞARIYLA DÖNEN
-  son yanıt için işler, bir istisnayla biten hiçbir yol için değil.
+- **🚨 İstisnayla biten `run`'ın TEK usage kaynağı `scope.ExtraUsage`'dır**
+  (2026-09-02, Faz 134): `catch (Exception)` `usage`'ı DAİMA `null` geçirir.
+  Faz 134'ün onarım döngüsü `scope.ExtraUsage?.Add(...)` ile bunu kullandı ve
+  bir Faz 131 eksiğini kapattı: reddedilen bir denemenin token'ı artık
+  `run.Usage`'da görünür (önceden sessiz `null`). `AgentResponse.Usage`'a
+  güvenme — yalnız SON dönen yanıt için işler.

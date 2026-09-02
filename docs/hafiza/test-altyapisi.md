@@ -195,17 +195,9 @@ tekrarlanmalı — ve `.editorconfig`'in `[tests/**/*.cs]` bölümü (CA1707 alt
   gerekir (bkz. `AgentPrismTestHost.StartAsync`'in `agentPrism.AddModelProvider(
   new FakeModelProvider("...").RespondsWith(...))` deseni).
 - **🚨 `MeterListener` process-wide'dır; "bu isimli İLK ölçüm benimdir"
-  varsayan bir test koleksiyonu, aynı isimli enstrümanı yayınlayan BAŞKA bir
-  paralel test tarafından kirletilebilir** (2026-09-02, Faz 134, gerçekten
-  çöktü — worktree ile taban commit'te izole edilip 1/1 yeşil, çalışma
-  ağacında (yeni bir eşzamanlı kuyruklu-`run` testiyle) 3/3 tekrarda kırık
-  ölçüldü). `AgentPrismMetrics`, `AddSingleton`'lı her `AgentPrismTestHost`
-  için `new Meter(AgentPrismDiagnostics.MeterName)` kurar — AYNI isim, FARKLI
-  instance; .NET'in `MeterListener.InstrumentPublished` süzgeci yalnız İSİM
-  karşılaştırır, instance'ı ayırt etmez. `JobMetricEndToEndTests.cs`
-  (`agentprism.job.executions`) bunu yaşadı; `RunCostMetricEndToEndTests.cs`
-  (`agentprism.run.cost`) AYNI deseni taşıyor, henüz tetiklenmedi (F-181,
-  `docs/ADAYLAR.md`). **Kural:** `MeterListener` kuran her yeni fonksiyonel
-  test, beklediği ölçümü kendi etiketleriyle (lane, agent adı, model adı —
-  testin kendi kontrol ettiği, gerçekten ayırt edici bir alan) süzmelidir;
-  `WaitForAsync(isim)` yerine `WaitForAsync(isim, etiket => ...)` deseni.
+  varsayımı BAŞKA bir paralel testin ölçümüyle kirlenir** (2026-09-02, Faz 134,
+  gerçekten çöktü: taban commit'te izole 1/1 yeşil, yeni eşzamanlı bir testle
+  3/3 kırık). Her test host `new Meter(AgentPrismDiagnostics.MeterName)` kurar
+  — AYNI isim, FARKLI instance; süzgeç yalnız İSİM bakar. `JobMetricEndToEndTests.cs`
+  düzeltildi; `RunCostMetricEndToEndTests.cs` aynı deseni taşır (F-181).
+  **Kural:** `WaitForAsync(isim)` değil `WaitForAsync(isim, etiket => ...)`.
