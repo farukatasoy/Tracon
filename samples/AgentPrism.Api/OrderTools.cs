@@ -68,7 +68,7 @@ internal static class OrderTools
     /// <param name="address">The delivery address.</param>
     /// <returns>The shipping estimate text.</returns>
     /// <remarks>
-    /// Demo tool for F-176 (docs/135-URETILEN-SEMANIN-NESNE-GRAFI.md): its one
+    /// Demo tool for F-176 (docs/arsiv/fazlar/135-URETILEN-SEMANIN-NESNE-GRAFI.md): its one
     /// parameter is a supported OBJECT type (135.1), not a scalar — the
     /// generator produces a nested JSON Schema node for <see cref="ShippingAddress"/>
     /// and binds it through <see cref="ShippingAddressJsonContext"/>
