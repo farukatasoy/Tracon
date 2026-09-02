@@ -332,7 +332,21 @@ commit edilebilir bir tampon üretememesi. `UiTests.cs:259` (`voice-meter`,
 `:270`. Bu, el sıkışmasının tamamlandığını ve sorunun **commit sonrası
 sunucu turunda** olduğunu söylüyor — bir sonraki repro turu oraya bakmalı.
 
-**Üç ardışık tam-paket koşumunda tekrarlanmadı:** Faz 134 · Faz 135 · ve
+**🚨 TEKRARLADI (2026-09-03, K-658 kapanış kapısı) — teşhis doğrulandı.**
+`Timeout 30000ms exceeded ... waiting for GetByTestId("voice-transcript") to be
+visible`, `UiTests.cs:270`. E2E 56/57. Kritik olan **hangi adımın düşmediği**:
+`:259` (`voice-meter`, 20 sn) ve `:266` (`voice-commit`, 20 sn) geçti, yani
+WebSocket el sıkışması tamamlandı, `ready` geldi, VAD commit edilebilir bir
+tampon üretti ve düğme tıklandı. Düşen yalnız commit **sonrası** sunucu turu.
+Bu, 2026-09-02'de bu kayda yazılan hipotezi doğruluyor: kayıp olay commit
+sonrasındadır, el sıkışmasında değil. Kanıt:
+`tests/AgentPrism.Ui.E2ETests/artifacts/repro/2026-09-03-kapanis/` (izlenmiyor).
+
+**Sonraki adım daraldı:** commit'ten sonra sunucunun transcript üretimine kadar
+olan yolu ölç — `voice-commit` tıklaması sunucuya ulaştı mı, ulaştıysa yanıt
+neden gelmedi. Zaman aşımını büyütmek hâlâ yasak.
+
+**Önceki üç koşumda tekrarlanmamıştı:** Faz 134 · Faz 135 · ve
 2026-09-02'nin F-181 kapanış kapısı (`dotnet test AgentPrism.slnx -c Release
 --no-build -maxcpucount:1`, E2E **57/57** yeşil, 506 sn). Kusur gerçek ama
 seyrek; bir sonraki düşüşte **koşumun kendi TRX'i saklanmalıdır** — asıl eksik
