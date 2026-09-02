@@ -45,7 +45,7 @@
 > fazın tamamlanmasını bekliyordu. **Ek (2026-09-02):** Faz 129-132 kapandı ve
 > üçü plana dönüştü — **F-178'in job/kuyruk metrikleri yarısı** →
 > [Faz 133](arsiv/fazlar/133-IS-KUYRUGU-METRIKLERI.md) · **F-177** →
-> [Faz 134](134-SINIRLI-YANIT-ONARIMI.md) · **F-176** →
+> [Faz 134](arsiv/fazlar/134-SINIRLI-YANIT-ONARIMI.md) · **F-176** →
 > [Faz 135](135-URETILEN-SEMANIN-NESNE-GRAFI.md). Kuyrukta **F-178'in kalan
 > yarısı** (model deneme telemetrisi) ve **F-179** (dinamik routing) kaldı;
 > ikisi de gerçek üretim trafiği/olayı bekliyor.
