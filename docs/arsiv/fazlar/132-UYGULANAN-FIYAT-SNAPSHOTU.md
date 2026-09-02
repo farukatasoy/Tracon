@@ -1,13 +1,13 @@
 # Faz 132 — Uygulanan Fiyat Snapshot'ı ve Sağlayıcı Kimliği
 
 > **Durum:** ✅ Tamamlandı (2026-09-02)
-> **Kaynak:** [kesif/2026-09-01-tuketici-feature-talepleri.md](kesif/2026-09-01-tuketici-feature-talepleri.md) — **F-175**
+> **Kaynak:** [kesif/2026-09-01-tuketici-feature-talepleri.md](../../kesif/2026-09-01-tuketici-feature-talepleri.md) — **F-175**
 > **Önkoşul:** Yok
 > **Paketler:** `AgentPrism.Abstractions`, `.Core`, `.Sql.Shared`, `.PostgreSql`, `.SqlServer`, `.Sqlite`, `.AspNetCore`, `.UI`
 > **Yeni paket:** Yok · **Migration:** gerekli — üç set (`runs` tablosuna dört sütun) + üç `MigrationsViews` güncellemesi; numara uygulama anında alınır
 > **Public API:** büyüyor (`RunCost` alanları, `RunRecord.ModelProvider`) **ve bir uç davranışı daralıyor**. `wc -l src/*/PublicAPI.Shipped.txt` → her dosya 1 satır; shipped giriş sıfır, bugün eklemek ucuz
 > **Tüketici yüzeyi:** `docs-site/`: `guides/observability.md`, `reference/read-views.md`, `concepts/runs.md`, `http-api.md` · sevk edilen: `RunCost` ve `IRunPricingResolver` XML dokümanı, `runs_v1` sütun tablosu
-> **Manuel test alanı:** [`docs/manuel-test/12-GOZLEMLENEBILIRLIK-MALIYET.md`](manuel-test/12-GOZLEMLENEBILIRLIK-MALIYET.md)
+> **Manuel test alanı:** [`docs/manuel-test/12-GOZLEMLENEBILIRLIK-MALIYET.md`](../../manuel-test/12-GOZLEMLENEBILIRLIK-MALIYET.md)
 
 ---
 
@@ -23,18 +23,18 @@
    **K-483** (elle tekrarlanan toplama ifadesi kusur SINIFI üretir; `RunCost`
    `Total()` taşır), **K-178** (migration numaraları sağlayıcı başına
    bağımsızdır), **K-631** (fiyat çözümleyici boru hattı kurulumunda geç çözülür).
-3. [Faz 111](arsiv/fazlar/111-OKUMA-SOZLESMESI-GORUNUMLERI.md) — yalnız devir notu:
+3. [Faz 111](111-OKUMA-SOZLESMESI-GORUNUMLERI.md) — yalnız devir notu:
    ```bash
    awk '/## Sonraki Faza Devir Notu/,0' docs/arsiv/fazlar/111-OKUMA-SOZLESMESI-GORUNUMLERI.md
    ```
    `runs_v1` yayınlanmış bir okuma sözleşmesidir. **Sütun eklemek serbesttir**;
    sütun kaybetmek veya daraltmak yeni bir görünüm gerektirir.
 4. Alan hafızası (bu faz üç alana dokunuyor):
-   [`hafiza/olcum-kota-ve-secenekler.md`](hafiza/olcum-kota-ve-secenekler.md)
-   (K-483'ün vakası), [`hafiza/sql-saglayicilari.md`](hafiza/sql-saglayicilari.md)
+   [`hafiza/olcum-kota-ve-secenekler.md`](../../hafiza/olcum-kota-ve-secenekler.md)
+   (K-483'ün vakası), [`hafiza/sql-saglayicilari.md`](../../hafiza/sql-saglayicilari.md)
    (üç lehçede elle yazılmış sorgu ve görünüm),
-   [`hafiza/frontend.md`](hafiza/frontend.md) (maliyet ekranları ve sözlük).
-5. Gerektiğinde: [`MIMARI.md`](MIMARI.md) — veri modeli bölümü.
+   [`hafiza/frontend.md`](../../hafiza/frontend.md) (maliyet ekranları ve sözlük).
+5. Gerektiğinde: [`MIMARI.md`](../../MIMARI.md) — veri modeli bölümü.
 
 ---
 
@@ -78,17 +78,17 @@ dönüştürmez.
 
 | Kanıt | Gözlem |
 |---|---|
-| [`RunSupportTypes.cs:88-91`](../src/AgentPrism.Abstractions/Runs/RunSupportTypes.cs) | `RunCost`'un XML'i "price snapshot … a later change to the price list does not change past values" diyor |
-| [`RunCostRecalculationService.cs:7-13`](../src/AgentPrism.Core/Recording/RunCostRecalculationService.cs) | Aynı repoda: *"Every call is a **full** recalculation — there is no 'only unknown ones' filter"* ve *"the provider is not stored on historical rows, resolution is done by model name alone"* |
-| [`CatalogEndpoints.cs:193`](../src/AgentPrism.AspNetCore/Endpoints/CatalogEndpoints.cs) | `POST /api/stats/recalculate-costs` sevk edilmiş bir uçtur |
-| [`IRunStore.cs:276`](../src/AgentPrism.Abstractions/Runs/IRunStore.cs) | `UpdateRunCostAsync` — "Used only by the maintenance endpoint" |
-| [`RunRecord.cs`](../src/AgentPrism.Abstractions/Runs/RunRecord.cs) | Alanlar arasında `ModelId` var, **sağlayıcı alanı yok** |
-| [`RunRecordingAgent.Completion.cs:80`](../src/AgentPrism.Core/Recording/RunRecordingAgent.Completion.cs) | 🚨 `var modelProvider = fallbackUsed?.Provider ?? _modelProvider;` — gerçekten cevap veren sağlayıcı **burada biliniyor** |
-| [`RunRecordingAgent.Completion.cs:86`](../src/AgentPrism.Core/Recording/RunRecordingAgent.Completion.cs) | `_pricingResolver?.Resolve(modelProvider, modelId, usage)` — sağlayıcı fiyatlamaya giriyor, ama `CompleteAsync` çağrısında **yazılmıyor** |
-| [`0011_run_costs.sql`](../src/AgentPrism.PostgreSql/Migrations/0011_run_costs.sql) | `runs` tablosunda `input_cost`, `output_cost`, `cost_currency`, `pricing_source`; birim fiyat sütunu yok |
-| [`0034_run_attribution.sql:40`](../src/AgentPrism.PostgreSql/Migrations/0034_run_attribution.sql) | `cached_input_cost` sonradan eklendi; sağlayıcı sütunu yine yok |
-| [`0001_read_views.sql:5`](../src/AgentPrism.PostgreSql/MigrationsViews/0001_read_views.sql) | Kural yazılı: *"Adding a column is free"* — `runs_v1` büyüyebilir |
-| [`ModelDescriptor.cs`](../src/AgentPrism.Abstractions/Models/ModelDescriptor.cs) | Fiyat alanları **milyon token başına**: `InputCostPerMillionTokens`, `OutputCostPerMillionTokens`, `CachedInputCostPerMillionTokens` |
+| [`RunSupportTypes.cs:88-91`](../../../src/AgentPrism.Abstractions/Runs/RunSupportTypes.cs) | `RunCost`'un XML'i "price snapshot … a later change to the price list does not change past values" diyor |
+| [`RunCostRecalculationService.cs:7-13`](../../../src/AgentPrism.Core/Recording/RunCostRecalculationService.cs) | Aynı repoda: *"Every call is a **full** recalculation — there is no 'only unknown ones' filter"* ve *"the provider is not stored on historical rows, resolution is done by model name alone"* |
+| [`CatalogEndpoints.cs:193`](../../../src/AgentPrism.AspNetCore/Endpoints/CatalogEndpoints.cs) | `POST /api/stats/recalculate-costs` sevk edilmiş bir uçtur |
+| [`IRunStore.cs:276`](../../../src/AgentPrism.Abstractions/Runs/IRunStore.cs) | `UpdateRunCostAsync` — "Used only by the maintenance endpoint" |
+| [`RunRecord.cs`](../../../src/AgentPrism.Abstractions/Runs/RunRecord.cs) | Alanlar arasında `ModelId` var, **sağlayıcı alanı yok** |
+| [`RunRecordingAgent.Completion.cs:80`](../../../src/AgentPrism.Core/Recording/RunRecordingAgent.Completion.cs) | 🚨 `var modelProvider = fallbackUsed?.Provider ?? _modelProvider;` — gerçekten cevap veren sağlayıcı **burada biliniyor** |
+| [`RunRecordingAgent.Completion.cs:86`](../../../src/AgentPrism.Core/Recording/RunRecordingAgent.Completion.cs) | `_pricingResolver?.Resolve(modelProvider, modelId, usage)` — sağlayıcı fiyatlamaya giriyor, ama `CompleteAsync` çağrısında **yazılmıyor** |
+| [`0011_run_costs.sql`](../../../src/AgentPrism.PostgreSql/Migrations/0011_run_costs.sql) | `runs` tablosunda `input_cost`, `output_cost`, `cost_currency`, `pricing_source`; birim fiyat sütunu yok |
+| [`0034_run_attribution.sql:40`](../../../src/AgentPrism.PostgreSql/Migrations/0034_run_attribution.sql) | `cached_input_cost` sonradan eklendi; sağlayıcı sütunu yine yok |
+| [`0001_read_views.sql:5`](../../../src/AgentPrism.PostgreSql/MigrationsViews/0001_read_views.sql) | Kural yazılı: *"Adding a column is free"* — `runs_v1` büyüyebilir |
+| [`ModelDescriptor.cs`](../../../src/AgentPrism.Abstractions/Models/ModelDescriptor.cs) | Fiyat alanları **milyon token başına**: `InputCostPerMillionTokens`, `OutputCostPerMillionTokens`, `CachedInputCostPerMillionTokens` |
 
 > Kanıtlar 2026-09-01 tarihinde doğrulandı.
 
