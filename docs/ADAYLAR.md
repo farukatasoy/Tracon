@@ -44,7 +44,7 @@
 > § *Bekleyen Kalemler*'e girdi (F-176 · F-177 · F-178 · F-179); hepsi bir
 > fazın tamamlanmasını bekliyordu. **Ek (2026-09-02):** Faz 129-132 kapandı ve
 > üçü plana dönüştü — **F-178'in job/kuyruk metrikleri yarısı** →
-> [Faz 133](133-IS-KUYRUGU-METRIKLERI.md) · **F-177** →
+> [Faz 133](arsiv/fazlar/133-IS-KUYRUGU-METRIKLERI.md) · **F-177** →
 > [Faz 134](134-SINIRLI-YANIT-ONARIMI.md) · **F-176** →
 > [Faz 135](135-URETILEN-SEMANIN-NESNE-GRAFI.md). Kuyrukta **F-178'in kalan
 > yarısı** (model deneme telemetrisi) ve **F-179** (dinamik routing) kaldı;
@@ -141,7 +141,7 @@ dönüşebilmeleri için burada duruyor.
 |---|---|---|
 | **F-95** | İmzası doğrulanmadı; ayrıca **experimental** bir MAF sözleşmesine 1.0 öncesi public yüzey bağlamak K-008'in ön sürüm sınırının tersidir | `maf-api-kesfi` imzayı doğrular **ve** F-141 ile karşılaştırma yapılır. Tercihen 1.0 sonrası |
 | **F-165** | 1.650 case tek faza sığmaz; bağımsız faz olarak planlanırsa kuyruğu bitmez | Bağımsız faz olarak **hiç** planlanmaz. Her fazın dokunduğu alanın manuel ailesi o fazda otomatikleştirilir |
-| **F-178** | Job/kuyruk metrikleri yarısı [Faz 133](133-IS-KUYRUGU-METRIKLERI.md)'e gitti. Kalan yarı (model deneme telemetrisi) tüketicinin kendi ölçütüne göre bekler | Gerçek bir üretim fallback gecikmesi olayı ölçülür |
+| **F-178** | Job/kuyruk metrikleri yarısı [Faz 133](arsiv/fazlar/133-IS-KUYRUGU-METRIKLERI.md)'e gitti. Kalan yarı (model deneme telemetrisi) tüketicinin kendi ölçütüne göre bekler | Gerçek bir üretim fallback gecikmesi olayı ölçülür |
 | **F-179** | Ön koşulu yok: `run` satırı sağlayıcıyı saklamıyor, kayan latency penceresi ölçülmüyor | [Faz 132](arsiv/fazlar/132-UYGULANAN-FIYAT-SNAPSHOTU.md) kapanır **ve** F-178 attempt süresini ölçmeye başlar **ve** gerçek üretim trafiği oluşur |
 
 
@@ -324,7 +324,7 @@ bekleten şey bir tasarım kararı değil, MAF'ta kancanın bulunmamasıydı; MA
 ### F-178 · Model deneme (attempt) telemetrisi
 
 > **Yarısı plana dönüştü.** Job/kuyruk metrikleri
-> [Faz 133](133-IS-KUYRUGU-METRIKLERI.md)'e gitti. Aşağıdaki gövde yalnız
+> [Faz 133](arsiv/fazlar/133-IS-KUYRUGU-METRIKLERI.md)'e gitti. Aşağıdaki gövde yalnız
 > **kalan yarıyı** anlatır.
 
 **Sorun:** Yedek zincirinde hangi linkte ne kadar süre harcandığı ölçülmüyor.

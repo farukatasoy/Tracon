@@ -1,13 +1,13 @@
 # Faz 133 — İş Kuyruğu Metrikleri
 
 > **Durum:** ✅ Tamamlandı (2026-09-02)
-> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) — **F-178** (job/kuyruk metrikleri yarısı; model deneme telemetrisi yarısı adaylıkta kalır)
-> **Önkoşul:** [Faz 129](arsiv/fazlar/129-IS-KUYRUGU-LANELERI.md) — `lane` kimliği olmadan metrik etiketlenemez
+> **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) — **F-178** (job/kuyruk metrikleri yarısı; model deneme telemetrisi yarısı adaylıkta kalır)
+> **Önkoşul:** [Faz 129](129-IS-KUYRUGU-LANELERI.md) — `lane` kimliği olmadan metrik etiketlenemez
 > **Paketler:** `AgentPrism.Abstractions`, `.Core`, `.Sql.Shared`, `.PostgreSql`, `.SqlServer`, `.Sqlite`, `.Testing.Contracts.Xunit`
 > **Yeni paket:** Yok · **Migration:** **Yok** — ölçüldü: derinlik sorgusu Faz 129'un `jobs_claim_idx (lane, status, scheduled_for) WHERE status IN (0,1,2)` index'i tarafından zaten kapsanıyor
 > **Public API:** büyüyor — `IJobStore`'a bir aggregate metot, iki options alanı, bir `record`. `wc -l src/*/PublicAPI.Shipped.txt` → her dosya 1 satır; shipped giriş **sıfır**, bugün eklemek hâlâ ucuz
 > **Tüketici yüzeyi:** `docs-site/`: `guides/observability.md` (metrik **ve** etiket tabloları), `guides/background-work.md`, `reference/configuration.md`, `guides/write-your-own-store.md` (yeni store metodu) · sevk edilen: `IJobStore` XML dokümanı, `AgentPrismDiagnostics` sabitleri
-> **Manuel test alanı:** [`docs/manuel-test/16-IS-KUYRUGU-VE-ZAMANLAMA.md`](manuel-test/16-IS-KUYRUGU-VE-ZAMANLAMA.md) — 🚨 **Önce 133.0'ı uygula**, bütçe 97 bayt boş
+> **Manuel test alanı:** [`docs/manuel-test/16-IS-KUYRUGU-VE-ZAMANLAMA.md`](../../manuel-test/16-IS-KUYRUGU-VE-ZAMANLAMA.md) — 🚨 **Önce 133.0'ı uygula**, bütçe 97 bayt boş
 
 ---
 
@@ -24,19 +24,19 @@
    **K-151** (`agentprism.run.cost` ağaç toplamını içermez — sayaç kapsamı
    kuralı), **K-214** (manuel test bütçesi büyütülmez), **K-178** (migration
    numaraları sağlayıcı başına bağımsızdır).
-3. [Faz 129](arsiv/fazlar/129-IS-KUYRUGU-LANELERI.md) — yalnız devir notu:
+3. [Faz 129](129-IS-KUYRUGU-LANELERI.md) — yalnız devir notu:
    ```bash
    awk '/## Sonraki Faza Devir Notu/,0' docs/arsiv/fazlar/129-IS-KUYRUGU-LANELERI.md
    ```
    `lane` sözleşmesini, `MaxConcurrentJobsPerLane` ile `Lanes`'in etkileşimini
    (Sapma 4) ve index'in kısmi koşulundaki düzeltmeyi (Sapma 6) o faz yazdı.
 4. Alan hafızası (bu faz iki alana dokunuyor):
-   [`hafiza/olcum-kota-ve-secenekler.md`](hafiza/olcum-kota-ve-secenekler.md)
+   [`hafiza/olcum-kota-ve-secenekler.md`](../../hafiza/olcum-kota-ve-secenekler.md)
    (`QuotaUsageObserver`'ın gauge deseni ve seçenek tuzakları),
-   [`hafiza/sql-saglayicilari.md`](hafiza/sql-saglayicilari.md) (üç lehçede
+   [`hafiza/sql-saglayicilari.md`](../../hafiza/sql-saglayicilari.md) (üç lehçede
    elle yazılan sorgu).
 5. Gerektiğinde, tamamı değil ilgili bölümü:
-   [`MIMARI.md`](MIMARI.md) — gözlemlenebilirlik bölümü.
+   [`MIMARI.md`](../../MIMARI.md) — gözlemlenebilirlik bölümü.
 
 ---
 
@@ -70,17 +70,17 @@ Faz 129'un devir notu bunu açıkça bırakmıştı: *"Kimsenin dinlemediği bir
 
 | Kanıt | Gözlem |
 |---|---|
-| [`AgentPrismMetrics.cs:45-93`](../src/AgentPrism.Core/Diagnostics/AgentPrismMetrics.cs) | On enstrüman: `Runs`, `RunDuration`, `Tokens`, `ToolInvocations`, `ToolDuration`, `RunCost`, `JudgeCost`, `JudgeScore`, `ModelCacheLookups`, `AgentSourceFailures`. `grep -i job` → **sıfır eşleşme** |
-| [`AgentPrismDiagnostics.cs:40-73`](../src/AgentPrism.Core/Diagnostics/AgentPrismDiagnostics.cs) | Ölçüm adı sabitleri arasında job veya kuyruk adı yok |
-| [`IJobStore.cs`](../src/AgentPrism.Abstractions/Scheduling/IJobStore.cs) | On bir metot; **hiçbiri aggregate değil**. `QueryAsync` kayıt döndürür, `JobQuery.Take` varsayılanı 50'dir — derinlik sayımı için kullanılamaz |
-| [`IRunStore.cs:179`](../src/AgentPrism.Abstractions/Runs/IRunStore.cs) · `:251` | **Precedent:** `GetStatisticsAsync` ve `GetTimeSeriesAsync` aggregate metotları `IRunStore`'un **üstünde** yaşıyor. Job tarafında karşılığı yok |
-| [`AgentPrismOptions.cs:487`](../src/AgentPrism.Core/AgentPrismOptions.cs) | **Precedent:** `EnableQuotaUsageGauge` *varsayılan kapalıdır* — gerekçesi XML'de: *"the gauge reads the database … must be explicitly requested"* — ve `QuotaUsageRefreshInterval` ile önbelleklenir |
-| [`QuotaUsageObserver.cs:103-112`](../src/AgentPrism.Core/Quotas/QuotaUsageObserver.cs) | **Precedent:** `CreateObservableGauge` + `IHostedService`'i yalnız *"container'ın nesneyi ERKEN kurması için"* uygulayan desen |
-| [`JobWorkerBackgroundService.cs:26-34`](../src/AgentPrism.Core/Scheduling/JobWorkerBackgroundService.cs) | Primary constructor; `TimeProvider?` ve `ILogger?` **isteğe bağlı** parametreler. `AgentPrismMetrics?` aynı desenle eklenir |
+| [`AgentPrismMetrics.cs:45-93`](../../../src/AgentPrism.Core/Diagnostics/AgentPrismMetrics.cs) | On enstrüman: `Runs`, `RunDuration`, `Tokens`, `ToolInvocations`, `ToolDuration`, `RunCost`, `JudgeCost`, `JudgeScore`, `ModelCacheLookups`, `AgentSourceFailures`. `grep -i job` → **sıfır eşleşme** |
+| [`AgentPrismDiagnostics.cs:40-73`](../../../src/AgentPrism.Core/Diagnostics/AgentPrismDiagnostics.cs) | Ölçüm adı sabitleri arasında job veya kuyruk adı yok |
+| [`IJobStore.cs`](../../../src/AgentPrism.Abstractions/Scheduling/IJobStore.cs) | On bir metot; **hiçbiri aggregate değil**. `QueryAsync` kayıt döndürür, `JobQuery.Take` varsayılanı 50'dir — derinlik sayımı için kullanılamaz |
+| [`IRunStore.cs:179`](../../../src/AgentPrism.Abstractions/Runs/IRunStore.cs) · `:251` | **Precedent:** `GetStatisticsAsync` ve `GetTimeSeriesAsync` aggregate metotları `IRunStore`'un **üstünde** yaşıyor. Job tarafında karşılığı yok |
+| [`AgentPrismOptions.cs:487`](../../../src/AgentPrism.Core/AgentPrismOptions.cs) | **Precedent:** `EnableQuotaUsageGauge` *varsayılan kapalıdır* — gerekçesi XML'de: *"the gauge reads the database … must be explicitly requested"* — ve `QuotaUsageRefreshInterval` ile önbelleklenir |
+| [`QuotaUsageObserver.cs:103-112`](../../../src/AgentPrism.Core/Quotas/QuotaUsageObserver.cs) | **Precedent:** `CreateObservableGauge` + `IHostedService`'i yalnız *"container'ın nesneyi ERKEN kurması için"* uygulayan desen |
+| [`JobWorkerBackgroundService.cs:26-34`](../../../src/AgentPrism.Core/Scheduling/JobWorkerBackgroundService.cs) | Primary constructor; `TimeProvider?` ve `ILogger?` **isteğe bağlı** parametreler. `AgentPrismMetrics?` aynı desenle eklenir |
 | `Registration.Core.cs:311` | `services.TryAddSingleton(… new AgentPrismMetrics(…))` — metrikler **her zaman** kayıtlıdır, koşullu değil |
-| [`0041_job_lanes.sql:44`](../src/AgentPrism.PostgreSql/Migrations/0041_job_lanes.sql) | `jobs_claim_idx ON jobs (lane, status, scheduled_for) WHERE status IN (0, 1, 2)` — 🚨 **derinlik sorgusunun tam olarak ihtiyaç duyduğu index budur**; yeni migration gerekmez |
-| [`JobStatus.cs`](../src/AgentPrism.Abstractions/Scheduling/JobStatus.cs) | `Pending=0`, `Leased=1`, `Running=2`, `Completed=3`, `Failed=4`, `Cancelled=5` |
-| [`JobLanes.cs`](../src/AgentPrism.Abstractions/Scheduling/JobLanes.cs) | `lane` adı **tüketicinin seçtiği** serbest bir dizedir; biçim sınırlı, **sayı sınırsızdır** — kardinalite riski buradan doğar |
+| [`0041_job_lanes.sql:44`](../../../src/AgentPrism.PostgreSql/Migrations/0041_job_lanes.sql) | `jobs_claim_idx ON jobs (lane, status, scheduled_for) WHERE status IN (0, 1, 2)` — 🚨 **derinlik sorgusunun tam olarak ihtiyaç duyduğu index budur**; yeni migration gerekmez |
+| [`JobStatus.cs`](../../../src/AgentPrism.Abstractions/Scheduling/JobStatus.cs) | `Pending=0`, `Leased=1`, `Running=2`, `Completed=3`, `Failed=4`, `Cancelled=5` |
+| [`JobLanes.cs`](../../../src/AgentPrism.Abstractions/Scheduling/JobLanes.cs) | `lane` adı **tüketicinin seçtiği** serbest bir dizedir; biçim sınırlı, **sayı sınırsızdır** — kardinalite riski buradan doğar |
 | `observability.md:63-74` · `:84-94` | Site iki tablo taşıyor (metrik adları, etiketler); ikisi de büyüyecek |
 
 > Kanıtlar 2026-09-02 tarihinde doğrulandı.
@@ -323,7 +323,7 @@ enjekte ettiği, fonksiyonel testle kanıtlanır.
 ## Hata Modları ve Testler
 
 > Metrik DI · depo · paket sınırlarını geçer. Birim testi bunu kanıtlamaz —
-> [`.agents/ortak/test-seviyeleri.md`](../.agents/ortak/test-seviyeleri.md).
+> [`.agents/ortak/test-seviyeleri.md`](../../../.agents/ortak/test-seviyeleri.md).
 
 | Ne bozulabilir | Seviye | Test sınıfı |
 |---|---|---|
@@ -496,7 +496,7 @@ her iki saati, geri giderken **yalnız duvar saatini** oynatır.
 **8. Bir alan hafızası dosyası bölündü.** 6'daki not `sql-saglayicilari.md`'yi
 15 990/16 000 B'den taşırdı. K-214 merdiveni bu aşımda büyütmeyi değil bölmeyi
 zorunlu kılar: migration konusu (`MigrationRunner`, `__migrations` defteri,
-geçici çakışma) [`hafiza/sql-migration.md`](hafiza/sql-migration.md)'ye
+geçici çakışma) [`hafiza/sql-migration.md`](../../hafiza/sql-migration.md)'ye
 taşındı — `sqlite.md`'nin Faz 36'daki emsali. İçerik silinmedi.
 
 ## Bu Fazda Verilen Kararlar
