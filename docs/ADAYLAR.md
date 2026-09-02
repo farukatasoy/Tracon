@@ -298,6 +298,27 @@ kızartabilir. Kontrol yalnız **işaretli** sayıya bakmalı, her rakama değil
 build'de değişir — belki doğru cevap sayıyı sevk edilen metinden tamamen
 çıkarmaktır. Aday bu ikilemi kapsamına dahil ediyor.
 
+### F-180 · Tam paket koşumunda E2E zaman aşımı yalıtımı
+
+**Sorun:** `AgentPrism.Ui.E2ETests.UiTests.Playground_voice_mode_opens_microphone_and_shows_transcript`
+**yalnız** tam çözüm koşumunda (`dotnet test AgentPrism.slnx -c Release
+--no-build -maxcpucount:1`) düşüyor: Playwright'ın `voice-transcript`
+test id'sini beklerken 30 sn'lik varsayılan zaman aşımına takılıyor.
+
+**Ölçüldü (2026-09-02, Faz 133 kapanışı):** izole koşumda **3/3 yeşil**; tüm
+E2E paketi tek başına **57/57 yeşil**. Yalnız makineyi onlarca paketle
+paylaşırken düşüyor. Faz 133 arayüze, ses yoluna veya playground'a
+**dokunmadı** — kusur o fazın ürünü değil.
+
+**Sınıf:** `kusur-giderme` Adım 2'nin *"tek başına geçip pakette düşen test bir
+yalıtım veya kilit çakışmasıdır"* kalemi. Sessiz bırakılmaz; testi uzatmak
+(zaman aşımını büyütmek) semptomu susturur, sebebi değil.
+
+**Sonraki adım:** ses akışının hangi adımının yük altında geciktiğini ölç —
+sahte ses sağlayıcısının ilk parçayı üretme süresi mi, WebSocket
+el sıkışması mı, yoksa tarayıcı başlatma yarışı mı. Ölçüm olmadan zaman aşımı
+büyütülmez.
+
 ## Aday Olmayan Açık Kayıtlar
 
 Bu kalemler faz sıralamasına girmez. Tam kanıt, geçmiş ve sonraki adım keşif
