@@ -332,8 +332,10 @@ eder, maliyet `Unknown` kalır (gözlemlenebilirlik işlevi bozmaz).
 - [x] `samples/AgentPrism.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı — aşağıda
 - [x] `secret` taraması boş döndü — `python3 scripts/kapi.py tarama` temiz
 - [x] Manuel kabul case'leri `docs/manuel-test/12-GOZLEMLENEBILIRLIK-MALIYET.md` içine eklendi; otomatikleştirilebilenler koşuldu —
-      MT-OBS-059..064 eklendi; 059/060/062 örnek uygulamada `curl` ile koşuldu (aşağıda), 061/063 fiyat
-      yeniden yapılandırma/yedek zinciri gerektirir (👤), 064 arayüz gözlemi (👤)
+      MT-OBS-059 eklendi (`modelProvider`/birim fiyat/snapshot/`runsSkipped`
+      hepsi tek case'te birleşti — bütçe zorladı, bkz. Plandan Sapmalar);
+      örnek uygulamada `curl` ile eşdeğer davranış doğrulandı (aşağıda), arayüz
+      adımı 👤
 - [x] `faz-denetim` koşuldu; 🔴 bulgu kalmadı — bkz. Denetim Bulguları
 - [x] `docs-site/` güncellendi; `npm run check` (dört alt kapı) temiz — bkz. Denetim Bulguları öncesi not
 - [x] `en.ts` ve `tr.ts` eksiksiz; bundle payı ölçüldü ve yazıldı —
@@ -386,6 +388,12 @@ psql -c "SELECT model_provider, input_price_per_mtok FROM agentprism.runs_v1 LIM
   hem yeni alanları görüp uyuşmazlık bildirdi). Filtre `p.Name.EndsWith("Cost")`
   ile daraltıldı — testin K-483 koruması aynen kalır, yalnız rate alanları
   artık taranmıyor.
+- **Altı ayrı manuel kabul case'i taslağı (MT-OBS-059..064) tek bir case'e
+  (MT-OBS-059) birleştirildi.** `docs/manuel-test/*.md`'nin toplam bütçesi
+  (1 950 000 B, K-214 gereği büyütülemez) altı ayrı case'in tablo/başlık
+  yüküyle aşıldı (`dokuman-bakim.py` AŞTI dedi). İçerik silinmedi — aynı
+  iddiaların hepsi (provider, birim fiyat, snapshot değişmezliği,
+  `runsSkipped`, arayüz) tek case'in adım/beklenen-sonuç listesine taşındı.
 - **K-517'nin `<summary>` içinde `<see cref>` yasağı ilk yazımda ihlal
   edildi.** Dört yeni alanın `<summary>`'si komşu üyeye `<see cref>` ile
   atıfta bulunuyordu; bu OpenAPI belgesine ham CLR imzası olarak sızıyordu
@@ -537,7 +545,7 @@ tests/AgentPrism.Sql.Shared.UnitTests/
 ├── ReadViewColumnSetTests.cs        (+4 sütun)
 └── Baselines/sql-text-baseline.{postgres,sqlite,sqlserver}.txt   (yenilendi)
 
-docs/manuel-test/{00-INDEKS.md, 12-GOZLEMLENEBILIRLIK-MALIYET.md}   (MT-OBS-059..064)
+docs/manuel-test/{00-INDEKS.md, 12-GOZLEMLENEBILIRLIK-MALIYET.md}   (MT-OBS-059)
 docs/KARARLAR.md   (K-650)
 ```
 
@@ -612,10 +620,13 @@ argüman kayması dahil, bkz. Plandan Sapmalar), 3.6 plan dışı public API yok
   bırakıldı). Gerçek katalog/yapılandırma fiyatlama yolunu örnek uygulamada
   elle doğrulamak gerekirse `dotnet user-secrets set` kullan (manuel test
   case'lerinin hepsi zaten bu yolu kullanıyor), ortam değişkenini değil.
-- **`docs/manuel-test/*.md` toplam bütçesi (1 950 000 B) dar** — bu faz
-  eklerken bir kez aşıldı, kısaltılarak düzeltildi. Yeni case eklerken
-  `python3 scripts/dokuman-bakim.py` erken koş; aşarsa önce mevcut metni
-  kısalt, bütçeyi büyütme.
+- **🚨 `docs/manuel-test/*.md` toplam bütçesi (1 950 000 B, K-214) artık
+  neredeyse dolu (%0 boşluk).** Bu faz eklerken birkaç kez aşıldı, sonunda
+  altı case tek case'e sıkıştırılarak ~97 B boşlukla geçti. **Bir sonraki
+  faz bu dosyaya YENİ case eklerse muhtemelen aşacak** — `python3
+  scripts/dokuman-bakim.py` en baştan koş; aşarsa kısalt (K-214 büyütmeyi
+  yasaklıyor) ya da kullanıcıya bu sınırı yeniden kalibre etmeyi (58.4
+  formülü: ölçülen + %15) sor.
 - `RunCost`/`RunRecord`'a yeni bir alan daha eklenirse aynı dört-sağlayıcı
   zinciri (Abstractions → Core resolver/recording → üç SQL sorgu dosyası →
   üç migration → üç read-view → `RunOrdinals`/`RunColumnOrder` → frontend
