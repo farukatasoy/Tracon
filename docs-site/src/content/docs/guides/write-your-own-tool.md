@@ -76,9 +76,50 @@ mismatch or a missing required field, but nothing else checks `minimum`/`maxLeng
 
 **What the generator can express:** a parameter's scalar type (primitive types,
 `string`, `Guid`, `DateTime`/`DateTimeOffset`, `enum`), an array of these,
-`description`, whether it is required, and the constraints above. **What it cannot
-express, on any parameter:** a nested object. For a nested object parameter, register
-the tool by hand instead:
+`description`, whether it is required, the constraints above, and a supported
+**object** — a public record or class with a single public constructor, up to 3
+nested object levels deep:
+
+```csharp
+public sealed record Criterion([Description("The criterion's name.")] string Name, [Description("The weight, 1-5.")] [Range(1, 5)] int Weight);
+public sealed record Rubric([Description("The rubric's title.")] string Title, [Description("Its scoring criteria.")] IReadOnlyList<Criterion> Criteria);
+
+// Every type the parameter's graph reaches needs its own [JsonSerializable] on
+// the SAME context - Rubric nests Criterion, so both are declared here.
+[JsonSerializable(typeof(Rubric))]
+[JsonSerializable(typeof(Criterion))]
+internal partial class ScoringJsonContext : JsonSerializerContext;
+
+[AgentPrismTool("score_submission", "Scores a submission against a rubric.", JsonSerializerContext = typeof(ScoringJsonContext))]
+public static string ScoreSubmission([Description("The rubric to score against.")] Rubric rubric)
+    => $"Scored against '{rubric.Title}'.";
+```
+
+Binding deserializes the whole object in one call through this same context — never
+through reflection — so every type in the graph must be declared on it or the build
+fails with `APG0011`, naming the type that is missing. A graph deeper than 3 nested
+object levels, or one that reaches itself again through its own members, fails to
+build with `APG0012` instead of risking a schema the model's own error rate rises
+against once it gets this deep.
+
+🚨 **Put the attribute directly on the parameter, never with an explicit
+`[property: ...]` target.** `[Description]`/`[Range]`/etc. on a positional record's
+parameter (`Rubric(... int Weight)`) reach the generator only when the attribute has
+no explicit target — `[property: Description(...)]` moves it to the generated
+property instead, which the generator never reads, and the member silently loses its
+description or constraint instead of failing to build.
+
+🚨 **Do not give the context a non-default naming policy.** Binding deserializes the
+whole object through `JsonSerializerContext.Default`, so a
+`[JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase)]`
+on the context changes what JSON KEY binding expects (`camelCase`) while the schema
+still advertises the member's declared name (`PascalCase`, unchanged) — a model that
+sends exactly what the schema shows leaves the member silently unset instead of
+throwing. Leave the context's naming policy at its default until the schema side
+picks one too.
+
+For any other type — a `Dictionary<,>`, a tuple, a type with more than one public
+constructor — register the tool by hand instead:
 
 ```csharp
 public sealed record OrderFilter(string Status, int MinAmount);

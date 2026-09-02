@@ -35,7 +35,7 @@ internal static class ToolDiagnostics
     public static readonly DiagnosticDescriptor UnsupportedParameterType = new(
         "APG0003",
         "Unsupported parameter type",
-        "Parameter '{1}' (type '{2}') of method '{0}' is not supported by the generator. Supported types: primitive types, string, Guid, DateTime(Offset), enum, arrays/IReadOnlyList<T> of these, and CancellationToken. The generator also never expresses a nested object on any parameter. For another type, or a nested schema, register manually with 'AddTool(AIFunctionFactory.Create(...))'.",
+        "Parameter '{1}' (type '{2}') of method '{0}' is not supported by the generator. Supported types: primitive types, string, Guid, DateTime(Offset), enum, arrays/IReadOnlyList<T> of these, CancellationToken, and a supported object - a public record or class with a single public constructor, up to 3 nested object levels deep (see APG0011, APG0012). For another type, register manually with 'AddTool(AIFunctionFactory.Create(...))'.",
         Category,
         DiagnosticSeverity.Error,
         isEnabledByDefault: true,
@@ -101,6 +101,24 @@ internal static class ToolDiagnostics
         "Parameter '{1}' of tool '{0}' has a {2} attribute that does not apply to its type or shape, so it is not included in the generated schema. Remove it, or register the tool manually with 'AddTool(AIFunctionFactory.Create(...))'.",
         Category,
         DiagnosticSeverity.Warning,
+        isEnabledByDefault: true,
+        helpLinkUri: HelpLink);
+
+    public static readonly DiagnosticDescriptor MissingJsonSerializableParameter = new(
+        "APG0011",
+        "Object parameter type missing from the JSON context",
+        "Method '{0}' has an object parameter that references type '{1}', which is not declared with [JsonSerializable(typeof({1}))] on the JsonSerializerContext that AgentPrismTool.JsonSerializerContext points to. Add it there, or register the tool manually with 'AddTool(AIFunctionFactory.Create(...))'.",
+        Category,
+        DiagnosticSeverity.Error,
+        isEnabledByDefault: true,
+        helpLinkUri: HelpLink);
+
+    public static readonly DiagnosticDescriptor UnsupportedObjectGraph = new(
+        "APG0012",
+        "Unsupported object parameter graph",
+        "Parameter '{1}' of method '{0}' has an object graph that is either deeper than 3 nested levels or contains a cycle: {2}. Flatten the type, break the cycle, or register the tool manually with 'AddTool(AIFunctionFactory.Create(...))'.",
+        Category,
+        DiagnosticSeverity.Error,
         isEnabledByDefault: true,
         helpLinkUri: HelpLink);
 }

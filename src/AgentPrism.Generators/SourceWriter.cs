@@ -52,7 +52,7 @@ internal static class SourceWriter
             }
 
             var variableName = "@" + parameter.Name;
-            sb.Append("        var ").Append(variableName).Append(" = ").Append(WriteBinding(parameter)).Append(";\n");
+            sb.Append("        var ").Append(variableName).Append(" = ").Append(WriteBinding(parameter, model.JsonSerializerContextTypeDisplay)).Append(";\n");
             callArguments.Add(variableName);
         }
 
@@ -143,13 +143,15 @@ internal static class SourceWriter
             ? $"global::System.Text.Json.JsonSerializer.SerializeToElement({value}, {model.JsonSerializerContextTypeDisplay}.Default.GetTypeInfo(typeof({resultType}))!)"
             : $"(object?){value}";
 
-    private static string WriteBinding(ParameterModel parameter)
+    private static string WriteBinding(ParameterModel parameter, string? jsonSerializerContextTypeDisplay)
     {
         var nameLiteral = ToStringLiteral(parameter.Name);
 
-        if (parameter.Shape == ParameterShape.Array)
+        if (parameter.Shape is ParameterShape.Array or ParameterShape.ObjectArray)
         {
-            var elementConverter = WriteElementConverter(parameter.Leaf!);
+            var elementConverter = parameter.Shape == ParameterShape.Array
+                ? WriteElementConverter(parameter.Leaf!)
+                : WriteObjectConverter(parameter.Object!, jsonSerializerContextTypeDisplay!);
             var required = parameter.IsRequired ? "true" : "false";
             var defaultValue = parameter.IsRequired ? "null" : (parameter.DefaultValueLiteral ?? "null");
 
@@ -162,11 +164,30 @@ internal static class SourceWriter
                 : getArrayCall;
         }
 
-        var converter = WriteElementConverter(parameter.Leaf!);
+        var converter = parameter.Shape == ParameterShape.Object
+            ? WriteObjectConverter(parameter.Object!, jsonSerializerContextTypeDisplay!)
+            : WriteElementConverter(parameter.Leaf!);
 
         return parameter.IsRequired
             ? $"global::AgentPrism.AgentPrismGeneratedToolArguments.GetRequired(arguments, {nameLiteral}, static e => {converter})"
             : $"global::AgentPrism.AgentPrismGeneratedToolArguments.GetOptional(arguments, {nameLiteral}, static e => {converter}, {parameter.DefaultValueLiteral ?? "default"})";
+    }
+
+    /// <summary>
+    /// Deserializes one object-shaped argument through the tool owner's own
+    /// <c>JsonSerializerContext</c> - the generator never emits its own context, so
+    /// binding always reaches for the one <c>AgentPrismTool.JsonSerializerContext</c>
+    /// names. <paramref name="jsonSerializerContextTypeDisplay"/> is never
+    /// <see langword="null"/> here: APG0011 already blocks generation for any
+    /// object-shaped parameter whose tool has no context declaring every type in its graph.
+    /// </summary>
+    private static string WriteObjectConverter(ObjectType objectType, string jsonSerializerContextTypeDisplay)
+    {
+        var inner = $"({objectType.ClrTypeDisplay})global::System.Text.Json.JsonSerializer.Deserialize(e, {jsonSerializerContextTypeDisplay}.Default.GetTypeInfo(typeof({objectType.ClrTypeDisplay}))!)!";
+
+        return objectType.IsNullable
+            ? $"e.ValueKind == global::System.Text.Json.JsonValueKind.Null ? ({objectType.ClrTypeDisplay}?)null : ({inner})"
+            : inner;
     }
 
     private static string WriteElementConverter(LeafType leaf)
@@ -244,20 +265,85 @@ internal static class SourceWriter
 
     private static string BuildSchemaNode(ParameterModel parameter)
     {
-        var leafNode = BuildLeafSchemaNode(parameter.Leaf!, parameter.Constraints);
+        string node;
 
-        // A length constraint on an array targets the array itself (minItems/maxItems),
-        // never its element leaf - "at least two tags", not "each tag at least two
-        // characters" (130.3). It is appended to the array node, after "items" closes,
-        // never inside it.
-        var node = parameter.Shape == ParameterShape.Array
-            ? AppendConstraintSuffix($"{{\"type\":\"array\",\"items\":{leafNode}}}", "minItems", parameter.Constraints?.MinItems, "maxItems", parameter.Constraints?.MaxItems)
-            : leafNode;
+        if (parameter.Shape is ParameterShape.Object or ParameterShape.ObjectArray)
+        {
+            var objectNode = BuildObjectSchema(parameter.Object!);
+            node = parameter.Shape == ParameterShape.ObjectArray
+                ? $"{{\"type\":\"array\",\"items\":{objectNode}}}"
+                : objectNode;
+        }
+        else
+        {
+            var leafNode = BuildLeafSchemaNode(parameter.Leaf!, parameter.Constraints);
+
+            // A length constraint on an array targets the array itself (minItems/maxItems),
+            // never its element leaf - "at least two tags", not "each tag at least two
+            // characters" (130.3). It is appended to the array node, after "items" closes,
+            // never inside it.
+            node = parameter.Shape == ParameterShape.Array
+                ? AppendConstraintSuffix($"{{\"type\":\"array\",\"items\":{leafNode}}}", "minItems", parameter.Constraints?.MinItems, "maxItems", parameter.Constraints?.MaxItems)
+                : leafNode;
+        }
 
         // The description belongs on the PARAMETER node, not the array element leaf -
         // writing it into the leaf would nest it under "items", where the model does not
         // read it as the parameter's own description (125.1).
         return parameter.Description is { Length: > 0 } description
+            ? $"{{\"description\":\"{JsonEscape(description)}\",{node.Substring(1)}"
+            : node;
+    }
+
+    /// <summary>
+    /// Builds a nested object's schema node - <c>{"type":"object","properties":{...},
+    /// "required":[...],"additionalProperties":false}</c> - the SAME shape the root schema
+    /// uses (135.2): one writer function for both, so the root and a nested object can never
+    /// silently drift into two different contracts.
+    /// </summary>
+    private static string BuildObjectSchema(ObjectType objectType)
+    {
+        var properties = new StringBuilder();
+        var required = new List<string>();
+        var first = true;
+
+        foreach (var member in objectType.Members)
+        {
+            if (!first)
+            {
+                properties.Append(',');
+            }
+
+            first = false;
+
+            properties.Append('"').Append(JsonEscape(member.JsonName)).Append("\":").Append(BuildMemberSchemaNode(member));
+
+            if (member.IsRequired)
+            {
+                required.Add(member.JsonName);
+            }
+        }
+
+        var requiredJson = string.Join(",", required.ConvertAll(name => $"\"{JsonEscape(name)}\""));
+
+        return $"{{\"type\":\"object\",\"properties\":{{{properties}}},\"required\":[{requiredJson}],\"additionalProperties\":false}}";
+    }
+
+    /// <summary>An object member's schema node - the same constraint and description handling applies here exactly as it does at the top level.</summary>
+    private static string BuildMemberSchemaNode(ObjectMember member)
+    {
+        var node = member.Shape switch
+        {
+            ParameterShape.Scalar => BuildLeafSchemaNode(member.Leaf!, member.Constraints),
+            ParameterShape.Array => AppendConstraintSuffix(
+                $"{{\"type\":\"array\",\"items\":{BuildLeafSchemaNode(member.Leaf!, member.Constraints)}}}",
+                "minItems", member.Constraints?.MinItems, "maxItems", member.Constraints?.MaxItems),
+            ParameterShape.Object => BuildObjectSchema(member.Object!),
+            ParameterShape.ObjectArray => $"{{\"type\":\"array\",\"items\":{BuildObjectSchema(member.Object!)}}}",
+            _ => throw new InvalidOperationException($"Unexpected member shape: {member.Shape}"),
+        };
+
+        return member.Description is { Length: > 0 } description
             ? $"{{\"description\":\"{JsonEscape(description)}\",{node.Substring(1)}"
             : node;
     }

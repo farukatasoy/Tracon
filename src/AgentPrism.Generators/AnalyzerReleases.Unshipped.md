@@ -15,6 +15,8 @@ APG0007 | AgentPrism.Tools | Error | An instance method cannot be a tool. See do
 APG0008 | AgentPrism.Tools | Error | A complex tool result needs a source-generated JSON context. See docs/arsiv/fazlar/102-TOOL-SOZLESMESI-VE-SONUC-SINIRI.md
 APG0009 | AgentPrism.Tools | Warning | A tool parameter has no description. See docs/arsiv/fazlar/125-URETILEN-TOOL-SEMASININ-IFADE-GUCU.md
 APG0010 | AgentPrism.Tools | Warning | A parameter constraint attribute does not apply to its type or shape. See docs/arsiv/fazlar/130-URETILEN-SEMANIN-KISITLARI.md
+APG0011 | AgentPrism.Tools | Error | An object parameter references a type missing from the tool's JsonSerializerContext. See docs/135-URETILEN-SEMANIN-NESNE-GRAFI.md
+APG0012 | AgentPrism.Tools | Error | An object parameter's graph is too deep or contains a cycle. See docs/135-URETILEN-SEMANIN-NESNE-GRAFI.md
 APG0101 | AgentPrism.Usage | Warning | AgentPrism is mapped but not registered. See docs/arsiv/fazlar/73-TUKETICI-AGENT-DESTEGI.md
 APG0102 | AgentPrism.Usage | Warning | The bound model provider is not registered. See docs/arsiv/fazlar/73-TUKETICI-AGENT-DESTEGI.md
 APG0201 | AgentPrism.Usage | Warning | A secret is written into a definition. See docs/arsiv/fazlar/73-TUKETICI-AGENT-DESTEGI.md

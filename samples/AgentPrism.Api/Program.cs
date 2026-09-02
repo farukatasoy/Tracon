@@ -393,13 +393,16 @@ agentPrism
         Description = "Answers order and shipping questions.",
         Instructions = "You are a support assistant. Answer briefly and clearly. " +
                        "Always use a tool for order questions. Use read_shopping_cart " +
-                       "when asked about the customer's current cart.",
+                       "when asked about the customer's current cart. Use " +
+                       "estimate_shipping_cost when asked for a shipping estimate.",
         Model = model,
         // cancel_order requires approval: when the model tries to call it, the
         // run pauses and an approval card appears in the UI. read_shopping_cart
         // is a client-side tool (Phase 61): the server never runs it, and the
         // model's call comes back to the caller as a pending FunctionCallContent.
-        ToolNames = ["get_order_status", "list_recent_orders", "cancel_order", "read_shopping_cart"],
+        // estimate_shipping_cost (F-176, 135.1) takes an OBJECT parameter -
+        // the model sends a nested JSON argument, not a scalar.
+        ToolNames = ["get_order_status", "list_recent_orders", "cancel_order", "read_shopping_cart", "estimate_shipping_cost"],
     })
 
     // A harness-configured agent: context compaction and todo tracking are on.

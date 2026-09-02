@@ -76,7 +76,7 @@ internal sealed record ToolCandidate(SourceLocation Location, EquatableArray<Dia
             blocking = true;
         }
 
-        var (explicitName, description, requiresApproval, effect, requiredPermission, timeoutSeconds, safeToRepeat, maxOutputBytes, jsonSerializerContextTypeDisplay) = ReadAttribute(attribute);
+        var (explicitName, description, requiresApproval, effect, requiredPermission, timeoutSeconds, safeToRepeat, maxOutputBytes, jsonSerializerContextTypeDisplay, jsonSerializerContextType) = ReadAttribute(attribute);
         var toolName = explicitName ?? method.Name;
 
         if (!ToolNameValidator.IsValid(toolName))
@@ -91,14 +91,22 @@ internal sealed record ToolCandidate(SourceLocation Location, EquatableArray<Dia
         }
 
         var parameters = ImmutableArray.CreateBuilder<ParameterModel>();
+        var referencedObjectTypes = new List<ITypeSymbol>();
 
         foreach (var parameter in method.Parameters)
         {
-            var model = ParameterTypeValidator.TryCreate(parameter, out var unsupportedConstraintAttributes);
+            var model = ParameterTypeValidator.TryCreate(parameter, out var unsupportedConstraintAttributes, out var parameterReferencedTypes, out var graphError);
 
             foreach (var attributeName in unsupportedConstraintAttributes)
             {
                 diagnostics.Add(DiagnosticInfo.Create(ToolDiagnostics.UnsupportedConstraint.Id, location, toolName, parameter.Name, attributeName));
+            }
+
+            if (graphError is not null)
+            {
+                diagnostics.Add(DiagnosticInfo.Create(ToolDiagnostics.UnsupportedObjectGraph.Id, location, display, parameter.Name, graphError.PathText));
+                blocking = true;
+                continue;
             }
 
             if (model is null)
@@ -113,12 +121,33 @@ internal sealed record ToolCandidate(SourceLocation Location, EquatableArray<Dia
                 continue;
             }
 
+            foreach (var referencedType in parameterReferencedTypes)
+            {
+                AddReferencedType(referencedObjectTypes, referencedType);
+            }
+
             if (model.Shape != ParameterShape.CancellationToken && string.IsNullOrWhiteSpace(model.Description))
             {
                 diagnostics.Add(DiagnosticInfo.Create(ToolDiagnostics.MissingParameterDescription.Id, location, toolName, parameter.Name));
             }
 
             parameters.Add(model);
+        }
+
+        if (referencedObjectTypes.Count > 0)
+        {
+            var declaredTypes = jsonSerializerContextType is not null
+                ? CollectDeclaredJsonSerializableTypes(jsonSerializerContextType)
+                : new HashSet<ITypeSymbol>(SymbolEqualityComparer.Default);
+
+            foreach (var objectType in referencedObjectTypes.OrderBy(t => t.ToDisplayString(), StringComparer.Ordinal))
+            {
+                if (!declaredTypes.Contains(objectType))
+                {
+                    diagnostics.Add(DiagnosticInfo.Create(ToolDiagnostics.MissingJsonSerializableParameter.Id, location, display, objectType.ToDisplayString()));
+                    blocking = true;
+                }
+            }
         }
 
         var serializedResultType = SerializedResultTypeDisplay(method.ReturnType);
@@ -194,7 +223,7 @@ internal sealed record ToolCandidate(SourceLocation Location, EquatableArray<Dia
         return hash;
     }
 
-    private static (string? Name, string? Description, bool RequiresApproval, int Effect, string? RequiredPermission, int TimeoutSeconds, bool SafeToRepeat, int MaxOutputBytes, string? JsonSerializerContextTypeDisplay) ReadAttribute(AttributeData attribute)
+    private static (string? Name, string? Description, bool RequiresApproval, int Effect, string? RequiredPermission, int TimeoutSeconds, bool SafeToRepeat, int MaxOutputBytes, string? JsonSerializerContextTypeDisplay, ITypeSymbol? JsonSerializerContextType) ReadAttribute(AttributeData attribute)
     {
         string? name = null;
         string? description = null;
@@ -218,6 +247,7 @@ internal sealed record ToolCandidate(SourceLocation Location, EquatableArray<Dia
         var safeToRepeat = false;
         var maxOutputBytes = 0;
         string? jsonSerializerContextTypeDisplay = null;
+        ITypeSymbol? jsonSerializerContextType = null;
 
         foreach (var named in attribute.NamedArguments)
         {
@@ -246,11 +276,62 @@ internal sealed record ToolCandidate(SourceLocation Location, EquatableArray<Dia
                     break;
                 case "JsonSerializerContext" when named.Value.Value is ITypeSymbol type:
                     jsonSerializerContextTypeDisplay = type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+                    jsonSerializerContextType = type;
                     break;
             }
         }
 
-        return (name, description, requiresApproval, effect, requiredPermission, timeoutSeconds, safeToRepeat, maxOutputBytes, jsonSerializerContextTypeDisplay);
+        return (name, description, requiresApproval, effect, requiredPermission, timeoutSeconds, safeToRepeat, maxOutputBytes, jsonSerializerContextTypeDisplay, jsonSerializerContextType);
+    }
+
+    /// <summary>Adds <paramref name="type"/> to <paramref name="referencedTypes"/> unless an equal symbol is already present.</summary>
+    private static void AddReferencedType(List<ITypeSymbol> referencedTypes, ITypeSymbol type)
+    {
+        foreach (var existing in referencedTypes)
+        {
+            if (SymbolEqualityComparer.Default.Equals(existing, type))
+            {
+                return;
+            }
+        }
+
+        referencedTypes.Add(type);
+    }
+
+    /// <summary>
+    /// Reads every type <paramref name="contextType"/> declares with
+    /// <c>[JsonSerializable(typeof(...))]</c> - a rule APG0011 enforces: a nested object
+    /// type must be declared in the SAME context the tool owner points
+    /// <c>AgentPrismTool.JsonSerializerContext</c> at, or the generator cannot bind it
+    /// without reflection.
+    /// </summary>
+    private static HashSet<ITypeSymbol> CollectDeclaredJsonSerializableTypes(ITypeSymbol contextType)
+    {
+        const string JsonSerializableAttributeMetadataName = "System.Text.Json.Serialization.JsonSerializableAttribute";
+
+        var declared = new HashSet<ITypeSymbol>(SymbolEqualityComparer.Default);
+
+        foreach (var attribute in contextType.GetAttributes())
+        {
+            if (attribute.AttributeClass is not { } attributeClass)
+            {
+                continue;
+            }
+
+            var metadataName = $"{attributeClass.ContainingNamespace}.{attributeClass.Name}";
+
+            if (!string.Equals(metadataName, JsonSerializableAttributeMetadataName, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            if (attribute.ConstructorArguments.Length > 0 && attribute.ConstructorArguments[0].Value is ITypeSymbol declaredType)
+            {
+                declared.Add(declaredType);
+            }
+        }
+
+        return declared;
     }
 
     private static ReturnKind ClassifyReturn(ITypeSymbol returnType)
