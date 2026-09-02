@@ -252,6 +252,84 @@ public sealed class ToolDiagnosticTests
         result.DiagnosticsWithId("APG0010").Count.ShouldBe(1);
     }
 
+    /// <summary>None of the five DataAnnotations constraints has a meaning for an object parameter - present, it is reported the same as any other unrenderable case (never silently ignored).</summary>
+    [Fact]
+    public void A_Range_attribute_on_an_object_parameter_is_reported()
+    {
+        const string Source = """
+            using System.ComponentModel;
+            using System.ComponentModel.DataAnnotations;
+            using System.Text.Json.Serialization;
+            using AgentPrism;
+
+            namespace MyApp;
+
+            public sealed record Rubric(string Name, int Weight);
+
+            [JsonSerializable(typeof(Rubric))]
+            internal partial class ToolJsonContext : JsonSerializerContext;
+
+            internal static class Tools
+            {
+                [AgentPrismTool("score", "Scores a rubric.", JsonSerializerContext = typeof(ToolJsonContext))]
+                public static void Score([Description("The rubric.")] [Range(1, 5)] Rubric rubric) { }
+            }
+            """;
+
+        var result = GeneratorTestHelper.Run(Source);
+
+        var diagnostics = result.DiagnosticsWithId("APG0010");
+        diagnostics.Count.ShouldBe(1);
+        diagnostics[0].GetMessage(CultureInfo.InvariantCulture).ShouldContain("Range");
+
+        var wrapper = result.SingleWrapperFile();
+        wrapper.ShouldNotContain("minimum");
+        wrapper.ShouldNotContain("maximum");
+    }
+
+    /// <summary>
+    /// 135.2: a constraint attribute that does not apply to its type/shape is reported
+    /// the same way whether it sits on a top-level parameter or on a member anywhere in
+    /// an object parameter's graph - the walk that builds the object model must surface
+    /// what it finds, not only record it.
+    /// </summary>
+    [Fact]
+    public void A_Range_attribute_on_a_string_object_member_is_reported_and_omitted_from_the_schema()
+    {
+        const string Source = """
+            using System.ComponentModel;
+            using System.ComponentModel.DataAnnotations;
+            using System.Text.Json.Serialization;
+            using AgentPrism;
+
+            namespace MyApp;
+
+            public sealed record Rubric(string Name, [Range(1, 5)] string Category);
+
+            [JsonSerializable(typeof(Rubric))]
+            internal partial class ToolJsonContext : JsonSerializerContext;
+
+            internal static class Tools
+            {
+                [AgentPrismTool("score", "Scores a rubric.", JsonSerializerContext = typeof(ToolJsonContext))]
+                public static void Score([Description("The rubric.")] Rubric rubric) { }
+            }
+            """;
+
+        var result = GeneratorTestHelper.Run(Source);
+
+        var diagnostics = result.DiagnosticsWithId("APG0010");
+        diagnostics.Count.ShouldBe(1);
+        diagnostics[0].Severity.ShouldBe(Microsoft.CodeAnalysis.DiagnosticSeverity.Warning);
+        diagnostics[0].GetMessage(CultureInfo.InvariantCulture).ShouldContain("Range");
+        diagnostics[0].GetMessage(CultureInfo.InvariantCulture).ShouldContain("Category");
+
+        // A warning does not block generation.
+        var wrapper = result.SingleWrapperFile();
+        wrapper.ShouldNotContain("minimum");
+        wrapper.ShouldNotContain("maximum");
+    }
+
     [Fact]
     public void A_supported_constraint_produces_no_APG0010()
     {

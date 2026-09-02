@@ -1,6 +1,6 @@
 # 02 — Çekirdek ve Katalog (`CORE`)
 
-> **Alan kodu:** `CORE` · **Faz:** 1, 3, 72, 101, 106, 127, 130
+> **Alan kodu:** `CORE` · **Faz:** 1, 3, 72, 101, 106, 127, 130, 135
 > **Kaynak:** `src/AgentPrism.Abstractions` · `src/AgentPrism.Core`
 > (`Compilation/` · `Catalog/` · `Tools/` · `Sessions/` · `AgentPrismOptions*`)
 >
@@ -3111,3 +3111,228 @@ sapma, faz dokümanına not edildi).
 
 > **Otomatik karşılığı:**
 > `ToolSchemaDeterminismTests.The_same_source_produces_byte_identical_wrapper_text_across_two_independent_runs`.
+
+---
+
+### MT-CORE-115 — Nesne parametresi nested JSON Schema düğümü üretir (Faz 135)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 135 |
+
+**Ön koşul**
+- `record Rubric(string Name, int Weight)` parametreli bir tool; attribute'lar
+  positional parametrenin ÜZERİNE doğrudan konur (`[property: ...]` DEĞİL —
+  aksi hâlde generator onları okumaz).
+- Tool'un context'i `[JsonSerializable(typeof(Rubric))]` bildiriyor.
+
+**Adımlar**
+1. `dotnet build samples/AgentPrism.Api -p:EmitCompilerGeneratedFiles=true`.
+2. Üretilen wrapper dosyasındaki JSON şemayı oku.
+
+**Beklenen sonuç**
+- Parametre düğümü `"type":"object","properties":{...},"required":[...],
+  "additionalProperties":false` taşır.
+- Derleme sıfır uyarıyla biter.
+
+> **Otomatik karşılığı:** `ToolSchemaObjectTests.An_object_parameter_produces_a_nested_object_schema_node`
+> (`tests/AgentPrism.Generators.UnitTests/ToolSchemaObjectTests.cs`).
+
+---
+
+### MT-CORE-116 — Nesne dizisi parametresi `items` düğümünde nesne üretir (Faz 135)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 135 |
+
+**Ön koşul**
+- `IReadOnlyList<Rubric>` parametreli bir tool.
+
+**Adımlar**
+1. `dotnet build samples/AgentPrism.Api -p:EmitCompilerGeneratedFiles=true`.
+2. Üretilen şemayı oku.
+
+**Beklenen sonuç**
+- Parametre düğümü `"type":"array"` taşır; `items` alt düğümü nesnenin tam
+  şemasıdır (`properties`/`required`/`additionalProperties:false`).
+
+> **Otomatik karşılığı:** `ToolSchemaObjectTests.An_object_array_parameter_produces_an_array_of_object_schema_nodes`.
+
+---
+
+### MT-CORE-117 — Nesne üyesindeki `[Range]` üye düğümüne `minimum`/`maximum` yazar (Faz 135)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 135 |
+
+Faz 130'un kısıt yazımı üye seviyesinde de aynen çalışır (135.2) — bu case
+yalnız bunu kanıtlar, yeni bir kısıt türü eklemez.
+
+**Ön koşul**
+- `record Rubric(string Name, [Range(1, 5)] int Weight)` parametreli bir tool.
+
+**Adımlar**
+1. `dotnet build samples/AgentPrism.Api -p:EmitCompilerGeneratedFiles=true`.
+2. Üretilen şemada `rubric.properties.Weight` düğümünü oku.
+
+**Beklenen sonuç**
+- `Weight` düğümü `"minimum":1,"maximum":5` taşır.
+
+> **Otomatik karşılığı:** `ToolSchemaObjectTests.A_Range_attribute_on_an_object_member_produces_minimum_and_maximum_on_the_member_node`.
+
+---
+
+### MT-CORE-118 — Context'te bildirilmeyen nesne tipi `APG0011` ile derlemeyi durdurur (Faz 135)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 135 |
+
+K-615'in kapsamı bu fazda büyüdü: context artık yalnız complex SONUÇ tipini
+değil, nesne PARAMETRESİNİN grafındaki her tipi de bildirmek zorunda —
+bildirmezse derleme durur, sessizce reflection'a düşmez.
+
+**Ön koşul**
+- `record Outer(Inner Nested)` / `record Inner(string X)`; tool'un context'i
+  `Outer`'ı bildiriyor, `Inner`'ı bildirmiyor.
+
+**Adımlar**
+1. `dotnet build samples/AgentPrism.Api`.
+
+**Beklenen sonuç**
+- Derleme `APG0011` HATASI verir (uyarı değil) — build **başarısız** biter.
+- Hata metni eksik tipin adını (`Inner`) taşır.
+- Context hiçbir tip bildirmiyorsa (tamamen eksikse), graftaki HER tip için
+  ayrı bir `APG0011` üretilir — tüketici hepsini tek derlemede görür.
+
+> **Otomatik karşılığı:**
+> `ToolObjectGraphTests.A_JsonSerializerContext_missing_only_a_nested_type_reports_APG0011_for_that_type_alone`
+> ve `...An_object_parameter_with_no_JsonSerializerContext_reports_APG0011_for_every_type_in_its_graph`.
+
+---
+
+### MT-CORE-119 — 3'ü aşan nesne derinliği `APG0012` ile derlemeyi durdurur (Faz 135)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 135 |
+
+**Ön koşul**
+- Beş seviyeli bir `record` zinciri (`Level0`→`Level1`→…→`Level4`); kök 0,
+  `Level4` derinlik 4 (limit 3'ü aşıyor).
+
+**Adımlar**
+1. `dotnet build samples/AgentPrism.Api`.
+
+**Beklenen sonuç**
+- Derleme `APG0012` HATASI verir; hata metni yolu gösterir
+  (`Level0 → Level1 → Level2 → Level3 → Level4`).
+- Generator **asılmaz**, derleme normal sürede biter.
+
+> **Otomatik karşılığı:** `ToolObjectGraphTests.A_graph_four_levels_deep_produces_APG0012_and_blocks_generation`.
+
+---
+
+### MT-CORE-120 — Bir cycle `APG0012` üretir, generator asılmaz (Faz 135)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 135 |
+
+**Ön koşul**
+- `record NodeA(NodeB Next)` / `record NodeB(NodeA Next)` — `A → B → A`.
+
+**Adımlar**
+1. `dotnet build samples/AgentPrism.Api`.
+
+**Beklenen sonuç**
+- Derleme makul sürede (saniyeler) biter — asılı KALMAZ.
+- `APG0012` hatası yolu `NodeA → NodeB → NodeA` olarak gösterir.
+
+> **Otomatik karşılığı:**
+> `ToolObjectGraphTests.A_cycle_produces_APG0012_naming_the_cyclic_path_and_the_generator_returns_promptly`
+> (10 saniyelik bir üst sınırla `Task.WaitAsync` koşulur).
+
+---
+
+### MT-CORE-121 — Nesne parametreli bir tool gerçek `run`'da modelden nesne argümanı alır (Faz 135)
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 135 |
+
+Bu case'in koşumu belgeye yazılmıştır — 2026-09-02, gerçek OpenAI çağrısı
+(`support` agent'ı, `gpt-5.4-mini`). `samples/AgentPrism.Api/OrderTools.cs`
+içindeki `estimate_shipping_cost` tool'u (parametre: `ShippingAddress` — public
+record, tek public kurucu) `support` agent'ının tool listesine eklendi.
+
+**Ön koşul**
+- `samples/AgentPrism.Api` çalışıyor (`http://localhost:5080`), OpenAI `ApiKey`
+  `dotnet user-secrets` ile tanımlı.
+- `support` agent'ının `ToolNames`'i `estimate_shipping_cost`'u içeriyor.
+
+**Adımlar**
+```bash
+curl -s -N -X POST "$APU/api/agents/support/run" -H "$APB" \
+  -H "Content-Type: application/json" \
+  -d '{"message":"I need a shipping estimate for an order going to 42 Rose Ave, Springfield, postal code 62704."}'
+```
+
+**Beklenen sonuç**
+- SSE akışında bir `functionCall` olayı görünür:
+  `"name":"estimate_shipping_cost"`, `"arguments":{"address":{"Street":"42
+  Rose Ave","City":"Springfield","PostalCode":"62704"}}` — model **nesne**
+  argümanı gönderiyor, düz `string` değil.
+- Aynı akışta bir `functionResult` olayı görünür:
+  `"result":"Estimated shipping to Springfield, 62704: $12.50 (3-5 business
+  days)."` — tool gövdesi tipli `ShippingAddress` nesnesini aldı, `Deserialize`
+  reflection'a düşmedi.
+- Run `finishReason":"stop"` ile biter; hata yok.
+
+**Gerçekleşen sonuç (2026-09-02, gerçek koşum):** Yukarıdaki tam olarak
+gözlendi — `functionCall`/`functionResult` çiftleri stdout'ta doğrulandı.
+
+---
+
+### MT-CORE-122 — Nesne parametreli tool, paketlenmiş dış tüketicide `PublishAot` altında uyarısız derlenir ve çalışır (Faz 135)
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 135 |
+
+`samples/AgentPrism.Api` bunu KANITLAYAMAZ (o proje `AgentPrism`'e
+`ProjectReference` ile bağlıdır, MT-CORE-112'nin kendi notu) — case
+`AgentPrism.Package.Tests`'e taşındı.
+
+**Adımlar**
+1. `dotnet test tests/AgentPrism.Package.Tests --filter-method "*An_object_parameter_tool_publishes_under_Native_AOT*"`.
+
+**Beklenen sonuç**
+- Dış tüketici projesi (`PackageReference`, `PublishAot=true`) uyarısız
+  yayımlanır — `IL2026`/`IL3050` sıfır.
+- Yayımlanan, trim'lenmiş yürütülebilir dosya çalıştırılınca nesne
+  argümanını (`JsonElement` → `Rubric`) `JsonSerializer.Deserialize(JsonElement,
+  JsonTypeInfo)` ile reflection'sız çözer ve doğru sonucu üretir.
+
+> **Otomatik karşılığı:**
+> `ObjectToolAotPackageTests.An_object_parameter_tool_publishes_under_Native_AOT_without_a_trim_warning_and_runs`
+> (`tests/AgentPrism.Package.Tests/ObjectToolAotPackageTests.cs`) — koşuldu,
+> 2026-09-02, `osx-arm64`, 31 saniyede geçti.

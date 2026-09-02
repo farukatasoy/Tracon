@@ -7,7 +7,7 @@ namespace AgentPrism.Generators;
 /// <summary>
 /// Scans methods marked with <c>[AgentPrismTool]</c> at compile time and emits
 /// reflection-free <c>AIFunction</c> wrappers and compile-time diagnostics
-/// (APG0001-APG0010).
+/// (APG0001-APG0012).
 /// </summary>
 /// <remarks>The generated registrations are validated at build time.</remarks>
 [Generator(LanguageNames.CSharp)]
@@ -27,6 +27,8 @@ public sealed class ToolRegistrationGenerator : IIncrementalGenerator
         ToolDiagnostics.MissingJsonSerializerContext,
         ToolDiagnostics.MissingParameterDescription,
         ToolDiagnostics.UnsupportedConstraint,
+        ToolDiagnostics.MissingJsonSerializableParameter,
+        ToolDiagnostics.UnsupportedObjectGraph,
     }.ToImmutableDictionary(d => d.Id, StringComparer.Ordinal);
 
     /// <inheritdoc />

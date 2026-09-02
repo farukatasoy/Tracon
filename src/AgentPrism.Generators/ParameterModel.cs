@@ -9,6 +9,12 @@ internal enum ParameterShape
     /// <summary>An array or list whose elements convert to the same leaf type.</summary>
     Array,
 
+    /// <summary>A supported object type (135.1), deserialized through a tool-owned <c>JsonSerializerContext</c>.</summary>
+    Object,
+
+    /// <summary>An array or list whose elements are a supported object type.</summary>
+    ObjectArray,
+
     /// <summary><see cref="System.Threading.CancellationToken"/>, omitted from the schema.</summary>
     CancellationToken,
 }
@@ -72,12 +78,48 @@ internal sealed record ParameterConstraints(
         Pattern is null;
 }
 
+/// <summary>
+/// One member of a supported object type's single public constructor (135.1). Mirrors
+/// <see cref="ParameterModel"/>'s shape fields, minus the pieces that only make sense for a
+/// tool's own top-level parameter (binding hints such as <c>IsConcreteArray</c> and
+/// <c>DefaultValueLiteral</c>): a member is never bound on its own, only as part of the
+/// object it belongs to - <c>System.Text.Json</c> deserializes the whole object in one call
+/// through the tool owner's <c>JsonSerializerContext</c> (135.5).
+/// </summary>
+/// <param name="JsonName">
+/// The JSON key this member is read from. Equal to <paramref name="Name"/> today - the
+/// generator does not rename a member to <c>camelCase</c>: undecided without measurement,
+/// so the member's declared name is kept verbatim, matching the existing top-level
+/// parameter convention.
+/// </param>
+internal sealed record ObjectMember(
+    string Name,
+    string JsonName,
+    ParameterShape Shape,
+    LeafType? Leaf,
+    ObjectType? Object,
+    bool IsRequired,
+    string? Description,
+    ParameterConstraints? Constraints);
+
+/// <summary>
+/// A supported object-shaped parameter or member type (135.1): a public, non-generic
+/// record or class with a single public, parameterized constructor. Carries no Roslyn
+/// symbol - only <see langword="string"/> and value-equality fields, so it participates
+/// correctly in the incremental generator's cache (135.3).
+/// </summary>
+internal sealed record ObjectType(
+    string ClrTypeDisplay,
+    bool IsNullable,
+    EquatableArray<ObjectMember> Members);
+
 /// <summary>The generator model for one method parameter.</summary>
 /// <param name="IsConcreteArray">
-/// For <see cref="ParameterShape.Array"/>, identifies whether the C# parameter type
-/// is a bare array, <c>T[]</c>, or an interface such as <c>IReadOnlyList&lt;T&gt;</c>.
-/// The run-time helper, <c>AgentPrismGeneratedToolArguments.GetArray</c>, always
-/// returns <c>IReadOnlyList&lt;T&gt;</c>. When the target is <c>T[]</c>, <c>SourceWriter</c>
+/// For <see cref="ParameterShape.Array"/> and <see cref="ParameterShape.ObjectArray"/>,
+/// identifies whether the C# parameter type is a bare array, <c>T[]</c>, or an interface
+/// such as <c>IReadOnlyList&lt;T&gt;</c>. The run-time helper,
+/// <c>AgentPrismGeneratedToolArguments.GetArray</c>, always returns
+/// <c>IReadOnlyList&lt;T&gt;</c>. When the target is <c>T[]</c>, <c>SourceWriter</c>
 /// uses this field to add <c>.ToArray()</c>; otherwise, compilation fails with CS1503.
 /// </param>
 /// <param name="Constraints">
@@ -85,6 +127,11 @@ internal sealed record ParameterConstraints(
 /// <see cref="ParameterConstraints.MaxItems"/> belong on the array node; every other
 /// field belongs on the leaf node, which is also the array's <c>items</c> node when
 /// <paramref name="Shape"/> is <see cref="ParameterShape.Array"/>.
+/// </param>
+/// <param name="Object">
+/// Populated when <paramref name="Shape"/> is <see cref="ParameterShape.Object"/> (the
+/// parameter's own type) or <see cref="ParameterShape.ObjectArray"/> (the array's element
+/// type) - 135.1.
 /// </param>
 internal sealed record ParameterModel(
     string Name,
@@ -94,4 +141,5 @@ internal sealed record ParameterModel(
     string? DefaultValueLiteral,
     bool IsConcreteArray = false,
     string? Description = null,
-    ParameterConstraints? Constraints = null);
+    ParameterConstraints? Constraints = null,
+    ObjectType? Object = null);

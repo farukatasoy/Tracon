@@ -1,8 +1,26 @@
+using System.Collections.Immutable;
 using System.Globalization;
 using System.Text;
 using Microsoft.CodeAnalysis;
 
 namespace AgentPrism.Generators;
+
+/// <summary>The kind of failure found while walking a parameter's object graph (135.1).</summary>
+internal enum ObjectGraphErrorKind
+{
+    /// <summary>The graph is more than 3 nested object levels deep.</summary>
+    DepthExceeded,
+
+    /// <summary>A type appears again among its own ancestors.</summary>
+    Cycle,
+}
+
+/// <summary>
+/// A depth or cycle failure found while walking a parameter's object graph - reported by
+/// the caller as APG0012. Never stored on a cached model; it only lives for the duration
+/// of one <see cref="ParameterTypeValidator.TryCreate"/> call.
+/// </summary>
+internal sealed record ObjectGraphError(ObjectGraphErrorKind Kind, string PathText);
 
 /// <summary>
 /// Converts a method parameter to <see cref="ParameterModel"/>. Returns
@@ -10,6 +28,14 @@ namespace AgentPrism.Generators;
 /// </summary>
 internal static class ParameterTypeValidator
 {
+    /// <summary>
+    /// 135.1: the root parameter is depth 0; its own object members are depth 1. A graph
+    /// deeper than this is rejected (APG0012) instead of silently generated - the model's
+    /// error rate rises with schema depth, and a graph this deep is usually a sign the tool
+    /// is doing too much.
+    /// </summary>
+    private const int MaxObjectDepth = 3;
+
     private const string CancellationTokenMetadataName = "System.Threading.CancellationToken";
     private const string GuidMetadataName = "System.Guid";
     private const string DateTimeMetadataName = "System.DateTime";
@@ -27,18 +53,36 @@ internal static class ParameterTypeValidator
     /// <see cref="ParameterShape.CancellationToken"/> and excludes it from the JSON schema.
     /// </summary>
     /// <param name="unsupportedConstraintAttributes">
-    /// Constraint attributes (130.2) present on <paramref name="parameter"/> that do not
-    /// apply to its resolved type or shape - reported as APG0010 by the caller. A
-    /// constraint attribute never blocks generation, so this is populated independently of
-    /// the return value, including when the return value is <see langword="null"/>.
+    /// Constraint attributes (130.2) present on <paramref name="parameter"/>, or anywhere in
+    /// its object graph (135.2), that do not apply to their resolved type or shape - reported
+    /// as APG0010 by the caller. A constraint attribute never blocks generation, so this is
+    /// populated independently of the return value, including when the return value is
+    /// <see langword="null"/>.
     /// </param>
-    public static ParameterModel? TryCreate(IParameterSymbol parameter, out EquatableArray<string> unsupportedConstraintAttributes)
+    /// <param name="referencedObjectTypes">
+    /// Every distinct object type (135.1) found in this parameter's graph, including the
+    /// parameter's own type when it is itself an object. The caller cross-checks each one
+    /// against the tool's <c>JsonSerializerContext</c> and reports APG0011 for any that is
+    /// not declared with <c>[JsonSerializable]</c> - empty for a parameter with no object
+    /// anywhere in its shape.
+    /// </param>
+    /// <param name="graphError">
+    /// Set when the object graph is deeper than <see cref="MaxObjectDepth"/> or contains a
+    /// cycle - the caller reports APG0012 and treats the parameter as unsupported.
+    /// </param>
+    public static ParameterModel? TryCreate(
+        IParameterSymbol parameter,
+        out EquatableArray<string> unsupportedConstraintAttributes,
+        out ImmutableArray<ITypeSymbol> referencedObjectTypes,
+        out ObjectGraphError? graphError)
     {
         var type = parameter.Type;
 
         if (string.Equals(GetMetadataName(type), CancellationTokenMetadataName, StringComparison.Ordinal))
         {
             unsupportedConstraintAttributes = EquatableArray<string>.Empty;
+            referencedObjectTypes = ImmutableArray<ITypeSymbol>.Empty;
+            graphError = null;
             return new ParameterModel(parameter.Name, ParameterShape.CancellationToken, Leaf: null, IsRequired: true, DefaultValueLiteral: null);
         }
 
@@ -46,32 +90,355 @@ internal static class ParameterTypeValidator
         var defaultLiteral = parameter.HasExplicitDefaultValue
             ? RenderDefaultValueLiteral(parameter.ExplicitDefaultValue, type)
             : null;
-        var description = ReadDescription(parameter);
+        var description = ReadDescription(parameter.GetAttributes());
 
         if (TryGetArrayElementType(type, out var elementType, out var isConcreteArray))
         {
             var elementLeaf = TryCreateLeaf(elementType);
 
-            if (elementLeaf is null)
+            if (elementLeaf is not null)
             {
-                unsupportedConstraintAttributes = EquatableArray<string>.Empty;
+                var arrayConstraints = ReadConstraints(parameter.GetAttributes(), ParameterShape.Array, elementLeaf.Kind, out unsupportedConstraintAttributes);
+                referencedObjectTypes = ImmutableArray<ITypeSymbol>.Empty;
+                graphError = null;
+                return new ParameterModel(parameter.Name, ParameterShape.Array, elementLeaf, isRequired, defaultLiteral, isConcreteArray, description, arrayConstraints);
+            }
+
+            var state = new ObjectGraphState();
+            var elementObject = TryCreateObjectType(elementType, depth: 0, state);
+            unsupportedConstraintAttributes = CombineUnsupportedConstraintAttributes(parameter, state);
+            referencedObjectTypes = state.ToReferencedTypes();
+            graphError = state.Error;
+
+            if (state.Error is not null || elementObject is null)
+            {
                 return null;
             }
 
-            var arrayConstraints = ReadConstraints(parameter, ParameterShape.Array, elementLeaf.Kind, out unsupportedConstraintAttributes);
-            return new ParameterModel(parameter.Name, ParameterShape.Array, elementLeaf, isRequired, defaultLiteral, isConcreteArray, description, arrayConstraints);
+            return new ParameterModel(parameter.Name, ParameterShape.ObjectArray, Leaf: null, isRequired, defaultLiteral, isConcreteArray, description, Constraints: null, Object: elementObject);
         }
 
         var leaf = TryCreateLeaf(type);
 
-        if (leaf is null)
+        if (leaf is not null)
         {
-            unsupportedConstraintAttributes = EquatableArray<string>.Empty;
+            var constraints = ReadConstraints(parameter.GetAttributes(), ParameterShape.Scalar, leaf.Kind, out unsupportedConstraintAttributes);
+            referencedObjectTypes = ImmutableArray<ITypeSymbol>.Empty;
+            graphError = null;
+            return new ParameterModel(parameter.Name, ParameterShape.Scalar, leaf, isRequired, defaultLiteral, IsConcreteArray: false, Description: description, Constraints: constraints);
+        }
+
+        var rootState = new ObjectGraphState();
+        var objectType = TryCreateObjectType(type, depth: 0, rootState);
+        unsupportedConstraintAttributes = CombineUnsupportedConstraintAttributes(parameter, rootState);
+        referencedObjectTypes = rootState.ToReferencedTypes();
+        graphError = rootState.Error;
+
+        if (rootState.Error is not null || objectType is null)
+        {
             return null;
         }
 
-        var constraints = ReadConstraints(parameter, ParameterShape.Scalar, leaf.Kind, out unsupportedConstraintAttributes);
-        return new ParameterModel(parameter.Name, ParameterShape.Scalar, leaf, isRequired, defaultLiteral, IsConcreteArray: false, Description: description, Constraints: constraints);
+        return new ParameterModel(parameter.Name, ParameterShape.Object, Leaf: null, isRequired, defaultLiteral, IsConcreteArray: false, Description: description, Constraints: null, Object: objectType);
+    }
+
+    /// <summary>Mutable, per-call state threaded through <see cref="TryCreateObjectType"/>/<see cref="TryCreateMember"/>.</summary>
+    private sealed class ObjectGraphState
+    {
+        /// <summary>Ancestor types currently being walked - a repeat here is a cycle.</summary>
+        public List<ITypeSymbol> Path { get; } = [];
+
+        /// <summary>Every distinct object type seen so far, in first-seen order.</summary>
+        public List<ITypeSymbol> ReferencedTypes { get; } = [];
+
+        /// <summary>
+        /// Every unsupported constraint attribute found on a MEMBER (never the root
+        /// parameter itself - the caller reads the root's own directly), paired with the
+        /// member's name so the reported diagnostic can name it.
+        /// </summary>
+        public List<(string MemberName, string AttributeName)> UnsupportedConstraintAttributes { get; } = [];
+
+        public ObjectGraphError? Error { get; set; }
+
+        public void AddReferenced(ITypeSymbol type)
+        {
+            foreach (var existing in ReferencedTypes)
+            {
+                if (SymbolEqualityComparer.Default.Equals(existing, type))
+                {
+                    return;
+                }
+            }
+
+            ReferencedTypes.Add(type);
+        }
+
+        public ImmutableArray<ITypeSymbol> ToReferencedTypes() => ImmutableArray.CreateRange(ReferencedTypes);
+
+        /// <summary>Renders each entry as <c>[Attribute] (on member 'Name')</c> for the shared APG0010 message template.</summary>
+        public IEnumerable<string> RenderUnsupportedConstraintAttributes()
+            => UnsupportedConstraintAttributes.Select(entry => $"{entry.AttributeName} (on member '{entry.MemberName}')");
+    }
+
+    /// <summary>
+    /// Walks <paramref name="type"/> as a supported object type (135.1), recording every
+    /// nested object it reaches into <paramref name="state"/>. Returns <see langword="null"/>
+    /// both when <paramref name="type"/> is not a supported object shape (the caller reports
+    /// APG0003) and when <see cref="ObjectGraphState.Error"/> is set (the caller reports
+    /// APG0012) - the two are distinguished by whether <see cref="ObjectGraphState.Error"/>
+    /// is populated.
+    /// </summary>
+    private static ObjectType? TryCreateObjectType(ITypeSymbol type, int depth, ObjectGraphState state)
+    {
+        for (var i = 0; i < state.Path.Count; i++)
+        {
+            if (SymbolEqualityComparer.Default.Equals(state.Path[i], type))
+            {
+                state.Error = new ObjectGraphError(ObjectGraphErrorKind.Cycle, PathText(state.Path, i, type));
+                return null;
+            }
+        }
+
+        if (depth > MaxObjectDepth)
+        {
+            state.Error = new ObjectGraphError(ObjectGraphErrorKind.DepthExceeded, PathText(state.Path, 0, type));
+            return null;
+        }
+
+        if (!TryGetSinglePublicParameterizedConstructor(type, out var constructor))
+        {
+            return null;
+        }
+
+        state.AddReferenced(type);
+        state.Path.Add(type);
+
+        var members = ImmutableArray.CreateBuilder<ObjectMember>();
+        var failed = false;
+
+        foreach (var memberParameter in constructor.Parameters)
+        {
+            var member = TryCreateMember(memberParameter, depth + 1, state);
+
+            if (state.Error is not null || member is null)
+            {
+                failed = true;
+                break;
+            }
+
+            members.Add(member);
+        }
+
+        state.Path.RemoveAt(state.Path.Count - 1);
+
+        if (failed)
+        {
+            return null;
+        }
+
+        var isNullable = type.NullableAnnotation == NullableAnnotation.Annotated;
+
+        return new ObjectType(GetFullyQualifiedName(type), isNullable, members.ToImmutable());
+    }
+
+    /// <summary>
+    /// Classifies one object member from its source constructor parameter (135.1: the
+    /// single public constructor's parameters ARE the object's members - a positional
+    /// record's primary constructor naturally supplies these). Mirrors the top-level
+    /// scalar/array/object classification in <see cref="TryCreate"/>, minus the fields
+    /// that only apply to a tool's own top-level parameter (135.1's <c>ObjectMember</c>
+    /// carries no binding hint - a member is never bound on its own).
+    /// </summary>
+    private static ObjectMember? TryCreateMember(IParameterSymbol parameter, int depth, ObjectGraphState state)
+    {
+        var type = parameter.Type;
+        var isRequired = !parameter.HasExplicitDefaultValue;
+        var description = ReadDescription(parameter.GetAttributes());
+
+        if (TryGetArrayElementType(type, out var elementType, out _))
+        {
+            var elementLeaf = TryCreateLeaf(elementType);
+
+            if (elementLeaf is not null)
+            {
+                var constraints = ReadConstraints(parameter.GetAttributes(), ParameterShape.Array, elementLeaf.Kind, out var unsupported);
+                foreach (var attributeName in unsupported)
+                {
+                    state.UnsupportedConstraintAttributes.Add((parameter.Name, attributeName));
+                }
+
+                return new ObjectMember(parameter.Name, parameter.Name, ParameterShape.Array, elementLeaf, Object: null, isRequired, description, constraints);
+            }
+
+            var elementObject = TryCreateObjectType(elementType, depth, state);
+
+            if (state.Error is not null || elementObject is null)
+            {
+                return null;
+            }
+
+            foreach (var attributeName in ReadUnsupportedConstraintsForObjectShape(parameter.GetAttributes()))
+            {
+                state.UnsupportedConstraintAttributes.Add((parameter.Name, attributeName));
+            }
+
+            return new ObjectMember(parameter.Name, parameter.Name, ParameterShape.ObjectArray, Leaf: null, elementObject, isRequired, description, Constraints: null);
+        }
+
+        var leaf = TryCreateLeaf(type);
+
+        if (leaf is not null)
+        {
+            var scalarConstraints = ReadConstraints(parameter.GetAttributes(), ParameterShape.Scalar, leaf.Kind, out var unsupportedScalar);
+
+            foreach (var attributeName in unsupportedScalar)
+            {
+                state.UnsupportedConstraintAttributes.Add((parameter.Name, attributeName));
+            }
+
+            return new ObjectMember(parameter.Name, parameter.Name, ParameterShape.Scalar, leaf, Object: null, isRequired, description, scalarConstraints);
+        }
+
+        var objectType = TryCreateObjectType(type, depth, state);
+
+        if (state.Error is not null || objectType is null)
+        {
+            return null;
+        }
+
+        foreach (var attributeName in ReadUnsupportedConstraintsForObjectShape(parameter.GetAttributes()))
+        {
+            state.UnsupportedConstraintAttributes.Add((parameter.Name, attributeName));
+        }
+
+        return new ObjectMember(parameter.Name, parameter.Name, ParameterShape.Object, Leaf: null, objectType, isRequired, description, Constraints: null);
+    }
+
+    /// <summary>
+    /// A supported object type (135.1): public, non-generic, a reference type (<c>record</c>
+    /// or <c>class</c> - never a <c>struct</c>/<c>record struct</c>), with EXACTLY ONE public
+    /// constructor and at least one parameter. A positional record's compiler-generated copy
+    /// constructor is <see langword="protected"/>, so it never competes with the primary
+    /// constructor here.
+    /// </summary>
+    /// <remarks>
+    /// 135.1 also documents a second shape - a parameterless constructor plus public
+    /// <c>init</c>/<c>set</c> properties - for a type built through an object initializer
+    /// instead of a positional record. This phase does not implement it: every measured need
+    /// (and every manual acceptance case) is the positional-record shape, and the property
+    /// path has no reliable, unmeasured signal for which properties are required versus
+    /// optional (a constructor parameter has <see cref="IParameterSymbol.HasExplicitDefaultValue"/>;
+    /// a property has nothing equivalent). Recorded as a scope reduction, not a silent gap.
+    /// </remarks>
+    private static bool TryGetSinglePublicParameterizedConstructor(ITypeSymbol type, out IMethodSymbol constructor)
+    {
+        constructor = null!;
+
+        if (type is not INamedTypeSymbol
+            {
+                TypeKind: TypeKind.Class,
+                IsAbstract: false,
+                IsStatic: false,
+                IsGenericType: false,
+                DeclaredAccessibility: Accessibility.Public,
+            } named)
+        {
+            return false;
+        }
+
+        IMethodSymbol? candidate = null;
+        var publicConstructorCount = 0;
+
+        foreach (var ctor in named.Constructors)
+        {
+            if (ctor.DeclaredAccessibility != Accessibility.Public || ctor.IsStatic)
+            {
+                continue;
+            }
+
+            publicConstructorCount++;
+            candidate = ctor;
+        }
+
+        if (publicConstructorCount != 1 || candidate is not { Parameters.Length: > 0 })
+        {
+            return false;
+        }
+
+        constructor = candidate;
+        return true;
+    }
+
+    /// <summary>Renders an ancestor chain as <c>A → B → A</c> for an APG0012 message.</summary>
+    private static string PathText(List<ITypeSymbol> path, int fromIndex, ITypeSymbol closingType)
+    {
+        var names = new List<string>();
+
+        for (var i = fromIndex; i < path.Count; i++)
+        {
+            names.Add(path[i].Name);
+        }
+
+        names.Add(closingType.Name);
+
+        return string.Join(" → ", names);
+    }
+
+    /// <summary>
+    /// Every <see cref="System.ComponentModel.DataAnnotations"/> constraint attribute this
+    /// validator knows applies only to a scalar or scalar array (130.2) - none of them has a
+    /// meaning for an object or object array. Reports each one found as unsupported (APG0010)
+    /// instead of silently ignoring it, matching 130's "never silently produce a wrong schema"
+    /// rule for every other unrenderable case.
+    /// </summary>
+    /// <summary>
+    /// Combines the root object/object-array parameter's OWN unsupported constraint
+    /// attributes with every one found on a member anywhere in its graph
+    /// (<see cref="ObjectGraphState.UnsupportedConstraintAttributes"/>) into the single
+    /// list the caller reports as APG0010. Without this, a mismatched constraint on a
+    /// nested member (<c>[Range]</c> on an object member's <c>string</c>) is recorded
+    /// during the walk but never reaches the caller - <see cref="TryCreateMember"/>
+    /// populates <see cref="ObjectGraphState"/>, not the method's own <see langword="out"/>
+    /// parameter.
+    /// </summary>
+    private static EquatableArray<string> CombineUnsupportedConstraintAttributes(IParameterSymbol parameter, ObjectGraphState state)
+    {
+        var combined = new List<string>(ReadUnsupportedConstraintsForObjectShape(parameter.GetAttributes()));
+        combined.AddRange(state.RenderUnsupportedConstraintAttributes());
+
+        return combined.Count == 0 ? EquatableArray<string>.Empty : ImmutableArray.CreateRange(combined);
+    }
+
+    private static EquatableArray<string> ReadUnsupportedConstraintsForObjectShape(IEnumerable<AttributeData> attributes)
+    {
+        var unsupported = ImmutableArray.CreateBuilder<string>();
+
+        foreach (var attribute in attributes)
+        {
+            if (attribute.AttributeClass is not { } attributeClass)
+            {
+                continue;
+            }
+
+            var metadataName = $"{attributeClass.ContainingNamespace}.{attributeClass.Name}";
+
+            var displayName = metadataName switch
+            {
+                RangeAttributeMetadataName => "[Range]",
+                MinLengthAttributeMetadataName => "[MinLength]",
+                MaxLengthAttributeMetadataName => "[MaxLength]",
+                StringLengthAttributeMetadataName => "[StringLength]",
+                RegularExpressionAttributeMetadataName => "[RegularExpression]",
+                _ => null,
+            };
+
+            if (displayName is not null)
+            {
+                unsupported.Add(displayName);
+            }
+        }
+
+        return unsupported.Count == 0 ? EquatableArray<string>.Empty : unsupported.ToImmutable();
     }
 
     /// <summary>
@@ -91,7 +458,7 @@ internal static class ParameterTypeValidator
     /// an array element the way a length constraint's does.
     /// </remarks>
     private static ParameterConstraints ReadConstraints(
-        IParameterSymbol parameter,
+        IEnumerable<AttributeData> attributes,
         ParameterShape shape,
         LeafTypeKind leafKind,
         out EquatableArray<string> unsupportedAttributes)
@@ -103,9 +470,9 @@ internal static class ParameterTypeValidator
         int? minItems = null;
         int? maxItems = null;
         string? pattern = null;
-        var unsupported = System.Collections.Immutable.ImmutableArray.CreateBuilder<string>();
+        var unsupported = ImmutableArray.CreateBuilder<string>();
 
-        foreach (var attribute in parameter.GetAttributes())
+        foreach (var attribute in attributes)
         {
             if (attribute.AttributeClass is not { } attributeClass)
             {
@@ -238,7 +605,7 @@ internal static class ParameterTypeValidator
             }
         }
 
-        unsupportedAttributes = unsupported.ToImmutable();
+        unsupportedAttributes = unsupported.Count == 0 ? EquatableArray<string>.Empty : unsupported.ToImmutable();
 
         return new ParameterConstraints(minimum, maximum, minLength, maxLength, minItems, maxItems, pattern);
     }
@@ -307,9 +674,9 @@ internal static class ParameterTypeValidator
     /// also read by <c>Microsoft.Extensions.AI.AIFunctionFactory.Create</c>, so both
     /// tool-writing paths teach a consumer the same rule.
     /// </summary>
-    private static string? ReadDescription(IParameterSymbol parameter)
+    private static string? ReadDescription(IEnumerable<AttributeData> attributes)
     {
-        foreach (var attribute in parameter.GetAttributes())
+        foreach (var attribute in attributes)
         {
             if (attribute.AttributeClass is not { } attributeClass)
             {
@@ -350,7 +717,7 @@ internal static class ParameterTypeValidator
                 .Select(f => f.Name)
                 .ToArray();
 
-            return LeafType.Enum(GetFullyQualifiedName(effectiveType), isNullable, System.Collections.Immutable.ImmutableArray.Create(memberNames));
+            return LeafType.Enum(GetFullyQualifiedName(effectiveType), isNullable, ImmutableArray.Create(memberNames));
         }
 
         var kind = effectiveType.SpecialType switch

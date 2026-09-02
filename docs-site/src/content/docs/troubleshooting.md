@@ -537,7 +537,7 @@ source-generated path, or accept and document that the application is not AOT-sa
 
 | Ids | Category | What it reports |
 |---|---|---|
-| `APG0001`–`APG0010` | `AgentPrism.Tools` | A method marked `[AgentPrismTool]` cannot be generated, a parameter has no description, or a constraint attribute does not apply. Errors: fix the method. `APG0009` and `APG0010` are warnings. |
+| `APG0001`–`APG0012` | `AgentPrism.Tools` | A method marked `[AgentPrismTool]` cannot be generated, a parameter has no description, or a constraint attribute does not apply. Errors: fix the method. `APG0009` and `APG0010` are warnings. |
 | `APG0101`, `APG0102` | `AgentPrism.Usage` | A registration this compilation never makes. The application fails at run time. |
 | `APG0201` | `AgentPrism.Usage` | A definition carries a literal secret instead of the name of a configuration key. |
 | `APG0301`, `APG0302` | `AgentPrism.Usage` | Code written by hand for behaviour the package already ships. |
@@ -563,19 +563,23 @@ or give an explicit name to `[AgentPrismTool("valid-name")]`.
 
 The generator produces a JSON Schema for each parameter from its .NET type, and it
 recognizes primitive types, `string`, `Guid`, `DateTime`/`DateTimeOffset`, `enum`,
-arrays or `IReadOnlyList<T>` of these, and `CancellationToken`. A parameter of any
-other type — a custom class, a dictionary, a tuple — has no schema mapping and is
-reported instead of silently ignored.
+arrays or `IReadOnlyList<T>` of these, `CancellationToken`, and a supported **object**
+(a public record or class with a single public constructor — see [Write your own
+tool](/guides/write-your-own-tool/)), up to 3 nested object levels deep. A parameter
+of any other type — a `Dictionary<,>`, a tuple, a type with more than one public
+constructor, an object graph deeper than 3 levels or containing a cycle (`APG0012`) —
+has no schema mapping and is reported instead of silently ignored.
 
 **The generator's expression boundary, stated once:** it can express a parameter's
-scalar type, array shape, `description`, whether it is required, and a `minimum`,
-`maximum`, length, or `pattern` constraint from a standard `System.ComponentModel.
-DataAnnotations` attribute (`RangeAttribute`, `MinLengthAttribute`, `MaxLengthAttribute`,
-`StringLengthAttribute`, `RegularExpressionAttribute` — see [Write your own
-tool](/guides/write-your-own-tool/)). It can never express a **nested object** — on
-any parameter, supported type or not. There is no partial path for a nested object:
-a parameter either gets an exact schema within that boundary, or it needs the escape
-route below.
+scalar type, array shape, object shape (and arrays of objects), `description`,
+whether it is required, and a `minimum`, `maximum`, length, or `pattern` constraint
+from a standard `System.ComponentModel.DataAnnotations` attribute (`RangeAttribute`,
+`MinLengthAttribute`, `MaxLengthAttribute`, `StringLengthAttribute`,
+`RegularExpressionAttribute`). An object parameter's own type, and every nested
+object type in its graph, must be declared with `[JsonSerializable]` on the
+`JsonSerializerContext` the tool points at (`APG0011`) — the generator never emits
+its own context. There is no partial path beyond this boundary: a parameter
+either gets an exact schema within it, or it needs the escape route below.
 
 Change the parameter to a supported type, or register the tool by hand instead of
 through `[AgentPrismTool]`:
@@ -692,6 +696,50 @@ public static void SetCode([Range(1, 10)] string code) { }
 This is a warning, not an error — existing code keeps compiling, minus the one
 constraint. Remove the attribute, or register the tool by hand instead of through
 `[AgentPrismTool]`:
+
+```csharp
+builder.AddAgentPrism()
+       .AddTool(AIFunctionFactory.Create(MyMethod));
+```
+
+### An object parameter references a type missing from the JSON context (APG0011)
+
+A tool has an object parameter (or a parameter whose type contains a nested
+object), and the type in the message is not declared with `[JsonSerializable]`
+on the `JsonSerializerContext` that `AgentPrismTool.JsonSerializerContext` points
+at. The generator never emits its own context for a nested type — the same rule
+`APG0008` enforces for a complex result: binding a nested object requires its
+metadata, and that metadata comes only from a context the tool owner wrote.
+
+Declare every type in the object graph — the parameter's own type and any type it
+nests — with its own `[JsonSerializable]`:
+
+```csharp
+public sealed record Criterion(string Name, int Weight);
+public sealed record Rubric(string Title, IReadOnlyList<Criterion> Criteria);
+
+// APG0011 until BOTH types are declared - Rubric nests Criterion.
+[JsonSerializable(typeof(Rubric))]
+[JsonSerializable(typeof(Criterion))]
+internal partial class ToolJsonContext : JsonSerializerContext;
+
+[AgentPrismTool("score_submission", "Scores a submission against a rubric.", JsonSerializerContext = typeof(ToolJsonContext))]
+public static string ScoreSubmission(Rubric rubric) => "scored";
+```
+
+Every distinct missing type is reported once, in the same compilation, so a
+consumer can add them all rather than discovering them one build at a time.
+
+### An object parameter's graph is too deep or cyclic (APG0012)
+
+A supported object parameter (`APG0003`) nests another object more than 3 levels
+deep, or a type reaches itself again through its own members — the message names
+the path (`A → B → A`). Both are rejected at compile time instead of risking a
+generator that recurses forever, or a schema the model's own error rate rises
+against once it gets this deep.
+
+Flatten the type so it needs fewer nested levels, break the cycle, or register
+the tool by hand instead of through `[AgentPrismTool]`:
 
 ```csharp
 builder.AddAgentPrism()

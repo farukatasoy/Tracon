@@ -99,11 +99,13 @@ error. If your handler throws, the call is denied (fail-closed), never allowed.
 
 Validation asks a narrower question, right after authorization: "are these specific
 arguments acceptable". Binding already rejects a type mismatch or a missing `required`
-field; register `IToolArgumentsValidator` for anything binding does not catch — an
-extra field the schema does not declare, for example, or a generated `minimum`/
-`maximum`/length/`pattern` constraint (see [Write your own
-tool](/guides/write-your-own-tool/)), which the schema carries but binding never
-enforces on its own; a validator that wants to enforce one reads `tool.JsonSchema`.
+field — including a required member of a generated tool's **object** parameter
+(a public record or class with a single public constructor, see [Write your own
+tool](/guides/write-your-own-tool/)) — and register `IToolArgumentsValidator` for
+anything binding does not catch: an extra field the schema does not declare, for
+example, or a generated `minimum`/`maximum`/length/`pattern` constraint, which the
+schema carries but binding never enforces on its own; a validator that wants to
+enforce one reads `tool.JsonSchema`.
 Unlike a denial, a **rejected** call is recorded as `ToolFailed`, not as an ordinary
 result — see [argument validation](/guides/write-your-own-tool/#argument-validation)
 for the full mechanism, including the fail-closed behavior on a throwing validator.

@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Text.Json.Serialization;
 
 namespace AgentPrism.Api;
 
@@ -62,4 +63,35 @@ internal static class OrderTools
         await Task.Delay(TimeSpan.FromSeconds(5));
         return $"Report {reportId} is ready.";
     }
+
+    /// <summary>Estimates the shipping cost for a delivery address.</summary>
+    /// <param name="address">The delivery address.</param>
+    /// <returns>The shipping estimate text.</returns>
+    /// <remarks>
+    /// Demo tool for F-176 (docs/135-URETILEN-SEMANIN-NESNE-GRAFI.md): its one
+    /// parameter is a supported OBJECT type (135.1), not a scalar — the
+    /// generator produces a nested JSON Schema node for <see cref="ShippingAddress"/>
+    /// and binds it through <see cref="ShippingAddressJsonContext"/>
+    /// (135.5), never through reflection.
+    /// </remarks>
+    [AgentPrismTool(
+        "estimate_shipping_cost",
+        "Estimates the shipping cost for a delivery address.",
+        JsonSerializerContext = typeof(ShippingAddressJsonContext))]
+    public static string EstimateShippingCost([Description("The delivery address.")] ShippingAddress address)
+        => $"Estimated shipping to {address.City}, {address.PostalCode}: $12.50 (3-5 business days).";
 }
+
+/// <summary>
+/// A supported object parameter (135.1): a public record with a single public
+/// constructor. Every attribute below is applied directly to the positional
+/// parameter — never with an explicit <c>[property: ...]</c> target, which the
+/// generator does not read.
+/// </summary>
+public sealed record ShippingAddress(
+    [Description("The street address.")] string Street,
+    [Description("The city.")] string City,
+    [Description("The postal code.")] string PostalCode);
+
+[JsonSerializable(typeof(ShippingAddress))]
+internal sealed partial class ShippingAddressJsonContext : JsonSerializerContext;
