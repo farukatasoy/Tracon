@@ -182,6 +182,15 @@ argüman kayması dahil, bkz. Plandan Sapmalar), 3.6 plan dışı public API yok
 3.7 repo kuralları, üç SQL sağlayıcısının `InsertRun`/`UpdateRunCompletion`/
 `UpdateRunCost`/`SelectRun`/ordinal/migration/read-view tutarlılığı.
 
+## Performans Tavanı Güncellemesi
+
+`kapi.py performans` (Faz 116, sıfır toleranslı tahsis kapısı) `RunStoreQueryBenchmarks.QueryRuns`'ta
++496 B (44 336 → 44 832 B/op) artış buldu — dört yeni sütunun (`model_provider`
++ üç `decimal?` birim fiyat) her `SelectRuns` sayfasında okunmasının doğal,
+beklenen bedeli. `python3 scripts/kapi.py performans --guncelle` ile
+`bench/baseline.json` bilinçli olarak yükseltildi; diğer iki ölçüt
+(`CacheHit`, `AppendEvent`) değişmedi.
+
 ## Sonraki Faza Devir Notu
 
 - **🚨 Bir `record` özelliğinin `<summary>`'sine komşu bir üyeye `<see cref>`
