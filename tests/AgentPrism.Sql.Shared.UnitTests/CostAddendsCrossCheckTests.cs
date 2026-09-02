@@ -16,6 +16,14 @@ namespace AgentPrism.SqlProviders.Tests;
 /// reverse. This test makes that drift a build failure by comparing the two
 /// sets, not by asserting a hard-coded count on either side.
 /// </remarks>
+/// <remarks>
+/// Phase 132 (F-175) added applied-unit-price fields to <see cref="RunCost"/>
+/// (<c>*PricePerMillionTokens</c>) that are also <c>decimal?</c> but are rates,
+/// not amounts, and are deliberately never summed by <see cref="RunCost.Total"/>.
+/// The property filter below narrows to names ending in <c>Cost</c> so the
+/// cross-check still catches a real addend drift without treating every
+/// <c>decimal?</c> property as one.
+/// </remarks>
 public sealed class CostAddendsCrossCheckTests
 {
     [Fact]
@@ -27,7 +35,7 @@ public sealed class CostAddendsCrossCheckTests
 
         var runCostTerms = typeof(RunCost)
             .GetProperties(BindingFlags.Public | BindingFlags.Instance)
-            .Where(p => p.PropertyType == typeof(decimal?))
+            .Where(p => p.PropertyType == typeof(decimal?) && p.Name.EndsWith("Cost", StringComparison.Ordinal))
             .Select(p => ToSnakeCase(p.Name))
             .OrderBy(n => n, StringComparer.Ordinal)
             .ToArray();

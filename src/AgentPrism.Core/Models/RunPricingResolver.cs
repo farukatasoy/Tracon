@@ -195,12 +195,15 @@ internal sealed class RunPricingResolver : IRunPricingResolver
         return new RunCost
         {
             InputCost = inputRate is { } inputRateValue ? inputRateValue * fullPriceInputTokens / 1_000_000m : null,
+            InputPricePerMillionTokens = inputRate,
             OutputCost = outputRate is { } outputRateValue ? outputRateValue * (usage.OutputTokens ?? 0) / 1_000_000m : null,
+            OutputPricePerMillionTokens = outputRate,
 
             // Reasoning tokens are already inside OutputTokens and are charged at
             // the output rate; providers do not bill them separately today, and an
             // unmeasured distinction is not worth a wider price schema (K-032).
             CachedInputCost = cachedRate is { } cachedRateValue ? cachedRateValue * cachedTokens / 1_000_000m : null,
+            CachedInputPricePerMillionTokens = cachedRate,
             Currency = currency,
             Source = source,
         };

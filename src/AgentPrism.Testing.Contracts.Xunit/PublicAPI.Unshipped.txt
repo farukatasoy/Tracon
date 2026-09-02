@@ -334,6 +334,7 @@ AgentPrism.Testing.Contracts.Storage.RunStoreContract.A_run_that_reports_only_a_
 AgentPrism.Testing.Contracts.Storage.RunStoreContract.A_run_without_attribution_reads_back_as_null_not_as_an_empty_map() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.RunStoreContract.A_second_start_without_attribution_does_not_erase_the_first_one() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.RunStoreContract.AppendEventAsync_does_not_write_with_the_wrong_expected_tenant() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.Storage.RunStoreContract.Applied_unit_prices_round_trip_and_do_not_enter_the_total() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.RunStoreContract.Attribution_round_trips() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.RunStoreContract.ClaimOrphanedRunsAsync_does_not_touch_a_Running_row_within_the_threshold() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.RunStoreContract.ClaimOrphanedRunsAsync_marks_a_stale_Running_row_as_Failed() -> System.Threading.Tasks.Task!
@@ -341,7 +342,9 @@ AgentPrism.Testing.Contracts.Storage.RunStoreContract.ClaimOrphanedRunsAsync_nev
 AgentPrism.Testing.Contracts.Storage.RunStoreContract.ClaimOrphanedRunsAsync_reports_ContinuedFromRunId_on_the_claimed_record() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.RunStoreContract.CompleteRunAsync_does_not_close_with_the_wrong_expected_tenant() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.RunStoreContract.Completion_leaves_the_model_id_unchanged_when_no_override_is_given() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.Storage.RunStoreContract.Completion_leaves_the_model_provider_unchanged_when_no_override_is_given() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.RunStoreContract.Completion_overrides_the_model_id_when_a_fallback_answered() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.Storage.RunStoreContract.Completion_overrides_the_model_provider_when_a_fallback_answered() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.RunStoreContract.Completion_stores_error_class_and_fingerprint() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.RunStoreContract.Completion_updates_the_summary() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.RunStoreContract.ContinuedFromRunId_round_trips() -> System.Threading.Tasks.Task!
@@ -411,6 +414,7 @@ AgentPrism.Testing.Contracts.Storage.RunStoreContract.Tree_query_returns_the_roo
 AgentPrism.Testing.Contracts.Storage.RunStoreContract.Tree_total_combines_tokens_of_root_and_descendants() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.RunStoreContract.Tree_total_stays_null_when_no_tokens_are_reported() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.RunStoreContract.Tree_usage_sums_the_breakdown_across_child_runs() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.Storage.RunStoreContract.Unit_prices_stay_null_when_the_model_price_is_unknown() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.RunStoreContract.UpdateRunCostAsync_does_not_update_with_the_wrong_expected_tenant() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.RunStoreContract.Workflow_run_lives_in_the_same_table() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.SessionStoreContract

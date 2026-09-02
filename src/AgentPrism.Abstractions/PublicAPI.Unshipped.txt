@@ -2254,6 +2254,8 @@ AgentPrism.RunCompletion.EventCount.get -> long
 AgentPrism.RunCompletion.EventCount.init -> void
 AgentPrism.RunCompletion.ModelId.get -> string?
 AgentPrism.RunCompletion.ModelId.init -> void
+AgentPrism.RunCompletion.ModelProvider.get -> string?
+AgentPrism.RunCompletion.ModelProvider.init -> void
 AgentPrism.RunCompletion.RunCompletion() -> void
 AgentPrism.RunCompletion.RunId.get -> System.Guid
 AgentPrism.RunCompletion.RunId.init -> void
@@ -2267,13 +2269,19 @@ AgentPrism.RunCost
 AgentPrism.RunCost.<Clone>$() -> AgentPrism.RunCost!
 AgentPrism.RunCost.CachedInputCost.get -> decimal?
 AgentPrism.RunCost.CachedInputCost.init -> void
+AgentPrism.RunCost.CachedInputPricePerMillionTokens.get -> decimal?
+AgentPrism.RunCost.CachedInputPricePerMillionTokens.init -> void
 AgentPrism.RunCost.Currency.get -> string?
 AgentPrism.RunCost.Currency.init -> void
 AgentPrism.RunCost.Equals(AgentPrism.RunCost? other) -> bool
 AgentPrism.RunCost.InputCost.get -> decimal?
 AgentPrism.RunCost.InputCost.init -> void
+AgentPrism.RunCost.InputPricePerMillionTokens.get -> decimal?
+AgentPrism.RunCost.InputPricePerMillionTokens.init -> void
 AgentPrism.RunCost.OutputCost.get -> decimal?
 AgentPrism.RunCost.OutputCost.init -> void
+AgentPrism.RunCost.OutputPricePerMillionTokens.get -> decimal?
+AgentPrism.RunCost.OutputPricePerMillionTokens.init -> void
 AgentPrism.RunCost.RunCost() -> void
 AgentPrism.RunCost.Source.get -> AgentPrism.PricingSource
 AgentPrism.RunCost.Source.init -> void
@@ -2284,6 +2292,8 @@ AgentPrism.RunCostRecalculationResult.Equals(AgentPrism.RunCostRecalculationResu
 AgentPrism.RunCostRecalculationResult.RunCostRecalculationResult() -> void
 AgentPrism.RunCostRecalculationResult.RunsConsidered.get -> long
 AgentPrism.RunCostRecalculationResult.RunsConsidered.init -> void
+AgentPrism.RunCostRecalculationResult.RunsSkipped.get -> long
+AgentPrism.RunCostRecalculationResult.RunsSkipped.init -> void
 AgentPrism.RunCostRecalculationResult.RunsStillUnknown.get -> long
 AgentPrism.RunCostRecalculationResult.RunsStillUnknown.init -> void
 AgentPrism.RunCostRecalculationResult.RunsUpdated.get -> long
@@ -2548,6 +2558,8 @@ AgentPrism.RunRecord.Labels.get -> System.Collections.Generic.IReadOnlyDictionar
 AgentPrism.RunRecord.Labels.init -> void
 AgentPrism.RunRecord.ModelId.get -> string?
 AgentPrism.RunRecord.ModelId.init -> void
+AgentPrism.RunRecord.ModelProvider.get -> string?
+AgentPrism.RunRecord.ModelProvider.init -> void
 AgentPrism.RunRecord.ParentRunId.get -> System.Guid?
 AgentPrism.RunRecord.ParentRunId.init -> void
 AgentPrism.RunRecord.ReplayOfRunId.get -> System.Guid?
@@ -2634,6 +2646,8 @@ AgentPrism.RunStartInfo.Labels.get -> System.Collections.Generic.IReadOnlyDictio
 AgentPrism.RunStartInfo.Labels.init -> void
 AgentPrism.RunStartInfo.ModelId.get -> string?
 AgentPrism.RunStartInfo.ModelId.init -> void
+AgentPrism.RunStartInfo.ModelProvider.get -> string?
+AgentPrism.RunStartInfo.ModelProvider.init -> void
 AgentPrism.RunStartInfo.ParentRunId.get -> System.Guid?
 AgentPrism.RunStartInfo.ParentRunId.init -> void
 AgentPrism.RunStartInfo.ReplayOfRunId.get -> System.Guid?

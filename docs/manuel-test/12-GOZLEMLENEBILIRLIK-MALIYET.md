@@ -5,7 +5,9 @@
 > 68 (çalıştırma kimliği + token kırılımı ve cache fiyatı),
 > 88 (görsel üretim ölçümü), 89 (tool çıktısı boyut sınırı),
 > 113 (§ `IRunErrorClassifier` kompozisyonu ve `RunErrorFingerprint`),
-> 119 (§ ham hata metni sızıntısının kapatılması — `SafeErrorText`)
+> 119 (§ ham hata metni sızıntısının kapatılması — `SafeErrorText`),
+> 132 (§ uygulanan fiyat snapshot'ı — birim fiyatlar, `runs.model_provider`,
+> yeniden hesaplamanın `Unknown`'a daralması)
 > **Kaynak:** `src/AgentPrism.UI/frontend/src/screens/dashboard.tsx` (tüm dosya) ·
 > `components/charts.tsx` (`TimeSeriesChart`/`ModelBreakdownChart`/
 > `StatusDistributionChart`) · `components/waterfall.tsx` (iz/span görselleştirme,
@@ -1706,5 +1708,117 @@ kök/çocuk span hiyerarşisini bozmadığını kanıtlar.
   ve `AGENTPRISM_RAW_EXCEPTION_TEXT_REFRESH=1` ile nasıl kapatılacağını söyler.
   Gerçek çıktı: `"+ src/AgentPrism.Core/__RatchetProbeTemp.cs:Probe: new raw-exception-text
   site, not in the baseline"`. Dosya silinip yeniden koşulduğunda yeşile döndü.
+
+---
+
+### MT-OBS-059 — `modelProvider` doludur; yedek model cevap verince yedeğin sağlayıcısını yazar
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 132 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- `support` (`openai/gpt-5.4-mini`) ile bir çalıştırma yapılmış.
+- `MT-MYU-002`'nin (`27-MODEL-YEDEK-VE-ON-UCUS.md`) `birincil-kirik` agent'ıyla
+  da bir çalıştırma yapılmış (birincilin devresi açık, gerçek `openai` yedeği devrede).
+
+**Adımlar**
+1. Her iki `runId` için `curl -s ".../api/runs/<runId>" -H "Authorization: Bearer manuel-test-token-2026" | python3 -m json.tool | grep -i "modelId\|modelProvider"`
+
+**Beklenen sonuç**
+- `support`: `modelId "gpt-5.4-mini"`, `modelProvider "openai"`.
+- `birincil-kirik`: `modelProvider` birincilin (`flaky`) DEĞİL, yedeğin
+  sağlayıcısıdır (`openai`) — `modelId`'nin zaten doğruladığı "gerçekte ne
+  çalıştı" kuralı sağlayıcı için de geçerlidir (`MT-MYU-002`'nin ikizi).
+- Bu fazdan önce yazılmış bir `run` satırında `modelProvider` `null` kalır;
+  geriye dönük doldurulmaz.
+
+---
+
+### MT-OBS-060 — Uygulanan birim fiyatlar `run` yanıtında taşınır, toplam maliyete GİRMEZ
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 132 |
+| **İlgili karar** | K-483 |
+
+**Ön koşul**
+- `MT-OBS-003`'ün fiyatlandırması etkin (`openai:gpt-5.4-mini` Input `0.15`,
+  Output `0.60`).
+
+**Adımlar**
+1. `playground/support` aç, `Merhaba` gönder, tamamlansın.
+2. `curl -s ".../api/runs/<runId>" -H "Authorization: Bearer manuel-test-token-2026" | python3 -m json.tool | grep -A10 '"cost"'`
+
+**Beklenen sonuç**
+- `cost.inputPricePerMillionTokens = 0.15`, `cost.outputPricePerMillionTokens
+  = 0.6` — uygulanan oranın birebir aynısı.
+- `cost.inputCost`/`outputCost` yalnız `usage.inputTokens`/`outputTokens` ×
+  oran / 1 000 000'dır; birim fiyat alanları bu toplama katılmaz.
+
+---
+
+### MT-OBS-061 — Fiyat listesi run bittikten SONRA değişse bile o run'ın maliyeti DEĞİŞMEZ; yeniden hesaplama zaten fiyatlıyı `runsSkipped`'e sayar
+
+`RunCost`'un XML dokümanı "a later change to the price list does not change
+past values" der; bu case bunu `recalculate-costs` çağrısından SONRA doğrular.
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 132 |
+| **İlgili karar** | K-650 |
+
+**Ön koşul**
+- `MT-OBS-060`'ın fiyatlı çalıştırması var, `runId` not alınmış.
+- `MT-OBS-021`'in fiyatsız (`manuel-bos`) çalıştırması da var (hâlâ `Unknown`).
+
+**Adımlar**
+1. `curl -s ".../api/runs/<runId>" ... | python3 -c "import json,sys; print(json.load(sys.stdin)['cost'])"` — mevcut maliyeti kaydet.
+2. `dotnet user-secrets set "AgentPrism:Pricing:openai:gpt-5.4-mini:Input" "999"`, uygulama yeniden başlatılmış.
+3. `curl -s -X POST ".../api/stats/recalculate-costs" -H "Authorization: Bearer manuel-test-token-2026" | python3 -m json.tool`.
+4. Adım 1'i tekrarla.
+
+**Beklenen sonuç**
+- Adım 3: yanıt `runsConsidered`/`runsUpdated`/`runsStillUnknown`/`runsSkipped`
+  dört alanını taşır. `MT-OBS-060`'ın run'ı `runsSkipped`'e girer (zaten
+  fiyatlıydı, `runsConsidered`'e bile SAYILMAZ); `manuel-bos`'un run'ı
+  `runsConsidered`'e girer.
+- Adım 4: maliyet ve `inputPricePerMillionTokens` Adım 1 ile BİREBİR AYNIDIR
+  — `999` fiyatı bu run'a hiç yansımaz.
+- Fiyat `dotnet user-secrets remove "AgentPrism:Pricing:openai:gpt-5.4-mini:Input"`
+  ile geri alınır (sonraki case'ler eski değeri bekler).
+
+---
+
+### MT-OBS-062 — 👤 Run detayında sağlayıcı ve birim fiyat karoları iki dilde doğru görünür
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 132 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- `MT-OBS-060`'ın fiyatlı çalıştırması var.
+
+**Adımlar**
+1. İngilizce arayüzde çalıştırmanın detay sayfasını aç, üst karo şeridini oku.
+2. `localStorage.setItem('agentprism.locale', 'tr')`, sayfayı yenile, aynı karoları oku.
+
+**Beklenen sonuç**
+- Adım 1: "PROVIDER" karosu `openai` gösterir, "MODEL"in yanındadır. Altında
+  "Input price"/"Output price"/"Cached input price" karoları
+  `<tutar> / 1M tokens` biçiminde, tooltip'inde snapshot açıklaması.
+- Adım 2: aynı karolar "SAĞLAYICI"/"Girdi fiyatı"/"Çıktı fiyatı"/"Önbellek
+  girdi fiyatı" ve `<tutar> / 1M token` biçiminde görünür.
+- Fiyatsız (`manuel-bos`) bir çalıştırmada birim fiyat karoları HİÇ görünmez.
 
 ---

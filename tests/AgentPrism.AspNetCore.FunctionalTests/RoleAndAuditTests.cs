@@ -198,6 +198,7 @@ public sealed class RoleAndAuditTests
 
             var json = await AgentPrismTestHost.ReadJsonAsync(response);
             json.GetProperty("runsConsidered").GetInt64().ShouldBe(0);
+            json.GetProperty("runsSkipped").GetInt64().ShouldBe(0);
         }
 
         using var audit = await host.Client.GetAsync(new Uri("/agentprism/api/audit?entity=runs:*", UriKind.Relative));
@@ -206,6 +207,73 @@ public sealed class RoleAndAuditTests
             .ToList();
 
         entries.ShouldContain(static action => string.Equals(action, "stats.recalculate-costs", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task Recalculate_costs_skips_an_already_priced_run_and_fills_in_an_unknown_one()
+    {
+        // Phase 132, F-175: the maintenance endpoint is a repair tool, not a
+        // full recalculation — a run that already carries a known price is
+        // untouched, only PricingSource.Unknown rows are candidates. The other
+        // recalculate-costs test above proves the audit trail with EMPTY data
+        // (runsConsidered/runsSkipped both 0); this one drives the real
+        // narrowing behavior through the full HTTP+DI+store chain with a
+        // priced row and an unpriced row seeded directly.
+        await using var host = await AgentPrismTestHost.StartAsync();
+        var runs = host.Services.GetRequiredService<IRunStore>();
+
+        var pricedRunId = await SeedRunAsync(runs, "priced-model", new RunCost
+        {
+            InputCost = 1m,
+            OutputCost = 2m,
+            Currency = "USD",
+            Source = PricingSource.Catalog,
+        });
+
+        var unpricedRunId = await SeedRunAsync(runs, "unpriced-model", new RunCost { Source = PricingSource.Unknown });
+
+        using var response = await host.Client.PostAsync(
+            new Uri("/agentprism/api/stats/recalculate-costs", UriKind.Relative),
+            content: null);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        var json = await AgentPrismTestHost.ReadJsonAsync(response);
+        json.GetProperty("runsConsidered").GetInt64().ShouldBe(1);
+        json.GetProperty("runsSkipped").GetInt64().ShouldBe(1);
+        json.GetProperty("runsUpdated").GetInt64().ShouldBe(0);
+        json.GetProperty("runsStillUnknown").GetInt64().ShouldBe(1);
+
+        var priced = await runs.GetRunAsync(pricedRunId);
+        priced!.Cost!.InputCost.ShouldBe(1m);
+        priced.Cost.OutputCost.ShouldBe(2m);
+
+        var unpriced = await runs.GetRunAsync(unpricedRunId);
+        unpriced!.Cost!.Source.ShouldBe(PricingSource.Unknown);
+    }
+
+    private static async Task<Guid> SeedRunAsync(IRunStore runs, string modelId, RunCost cost)
+    {
+        var runId = AgentPrismId.NewId();
+
+        await runs.StartRunAsync(new RunStartInfo
+        {
+            RunId = runId,
+            AgentName = "test-agent",
+            StartedAt = DateTimeOffset.UtcNow,
+            ModelId = modelId,
+        });
+
+        await runs.CompleteRunAsync(new RunCompletion
+        {
+            RunId = runId,
+            Status = RunStatus.Completed,
+            CompletedAt = DateTimeOffset.UtcNow,
+            Usage = new RunUsage { InputTokens = 1_000, OutputTokens = 1_000, TotalTokens = 2_000 },
+            Cost = cost,
+        });
+
+        return runId;
     }
 
     // --- /api/meta role information ---

@@ -62,6 +62,8 @@ its database.
 | `total_cost` | decimal | See [Reading `total_cost`](#reading-total_cost) below |
 | `cost_currency` | text | Populated whenever `total_cost` is |
 | `error_type` | text | The raw error type string; `NULL` for a run that has not failed |
+| `model_provider` | text | The provider that actually answered; `NULL` for a row written before this column existed |
+| `input_price_per_mtok`, `output_price_per_mtok`, `cached_input_price_per_mtok` | decimal | The unit price (per million tokens) applied when the run completed — a price snapshot, `NULL` when the price was unknown. Rates, not amounts: they are never part of `total_cost` |
 
 Everything here is metadata or a value derived from metadata. No conversation
 content, tool argument, tool result, or file content is ever in scope for this or

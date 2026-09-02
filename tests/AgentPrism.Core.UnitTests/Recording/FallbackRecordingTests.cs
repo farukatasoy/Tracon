@@ -37,6 +37,7 @@ public sealed class FallbackRecordingTests
 
         var run = (await store.QueryRunsAsync(new RunQuery())).ShouldHaveSingleItem();
         run.ModelId.ShouldBe("fallback-model");
+        run.ModelProvider.ShouldBe("fallback");
 
         pricingResolver.LastProvider.ShouldBe("fallback");
         pricingResolver.LastModel.ShouldBe("fallback-model");
@@ -77,6 +78,7 @@ public sealed class FallbackRecordingTests
 
         var run = (await store.QueryRunsAsync(new RunQuery())).ShouldHaveSingleItem();
         run.ModelId.ShouldBe("primary-model");
+        run.ModelProvider.ShouldBe("primary");
 
         pricingResolver.LastProvider.ShouldBe("primary");
         pricingResolver.LastModel.ShouldBe("primary-model");

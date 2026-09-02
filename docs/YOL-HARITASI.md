@@ -144,6 +144,6 @@ bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 | [129](arsiv/fazlar/129-IS-KUYRUGU-LANELERI.md) | İş Kuyruğu `lane`'leri | ✅ Tamamlandı |
 | [130](arsiv/fazlar/130-URETILEN-SEMANIN-KISITLARI.md) | Üretilen Şemanın Kısıtları | ✅ Tamamlandı |
 | [131](arsiv/fazlar/131-YAPISAL-YANIT-DOGRULAMA-SEAMI.md) | Yapısal Yanıt Doğrulama Seam'i | ✅ Tamamlandı |
-| [132](132-UYGULANAN-FIYAT-SNAPSHOTU.md) | Uygulanan Fiyat Snapshot'ı ve Sağlayıcı Kimliği | 📋 Planlandı |
+| [132](132-UYGULANAN-FIYAT-SNAPSHOTU.md) | Uygulanan Fiyat Snapshot'ı ve Sağlayıcı Kimliği | ✅ Tamamlandı |
 
 Seçilmemiş adaylar: [`ADAYLAR.md`](ADAYLAR.md). Fazların hangi dalgada, hangi gerekçeyle sıralandığı (Faz 8–56, kapandı): [`arsiv/IKINCI-FAZ-YOL-HARITASI.md`](arsiv/IKINCI-FAZ-YOL-HARITASI.md) · [`arsiv/UCUNCU-FAZ-YOL-HARITASI.md`](arsiv/UCUNCU-FAZ-YOL-HARITASI.md).

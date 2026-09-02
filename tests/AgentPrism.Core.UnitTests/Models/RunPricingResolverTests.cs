@@ -43,6 +43,11 @@ public sealed class RunPricingResolverTests
         cost.InputCost.ShouldBe(1m);
         cost.OutputCost.ShouldBe(2m);
         cost.Currency.ShouldBe("USD");
+
+        // Phase 132, F-175: the applied unit prices are the RATE that produced
+        // the cost above, not the cost itself.
+        cost.InputPricePerMillionTokens.ShouldBe(1m);
+        cost.OutputPricePerMillionTokens.ShouldBe(2m);
     }
 
     [Fact]
@@ -86,6 +91,9 @@ public sealed class RunPricingResolverTests
         cost.Source.ShouldBe(PricingSource.Unknown);
         cost.InputCost.ShouldBeNull();
         cost.OutputCost.ShouldBeNull();
+        cost.InputPricePerMillionTokens.ShouldBeNull();
+        cost.OutputPricePerMillionTokens.ShouldBeNull();
+        cost.CachedInputPricePerMillionTokens.ShouldBeNull();
     }
 
     [Fact]
@@ -156,6 +164,49 @@ public sealed class RunPricingResolverTests
         cost.ShouldNotBeNull();
         cost.InputCost.ShouldBe(2m);
         cost.OutputCost.ShouldBeNull();
+    }
+
+    [Fact]
+    public void Cached_input_price_stays_null_when_no_cache_rate_is_configured_even_with_a_reported_cache_hit()
+    {
+        var provider = new FakeModelProvider(name: "openai", models:
+        [
+            new ModelDescriptor { Name = "gpt-x", InputCostPerMillionTokens = 1m },
+        ]);
+        var resolver = CreateResolver(providers: [provider]);
+
+        var cost = resolver.Resolve(
+            "openai",
+            "gpt-x",
+            new RunUsage { InputTokens = 1_000_000, OutputTokens = 0, TotalTokens = 1_000_000, CachedInputTokens = 500_000 });
+
+        cost.ShouldNotBeNull();
+        cost.CachedInputCost.ShouldBeNull();
+        cost.CachedInputPricePerMillionTokens.ShouldBeNull();
+    }
+
+    [Fact]
+    public void Cached_input_price_round_trips_the_configured_cache_rate()
+    {
+        var provider = new FakeModelProvider(name: "openai", models:
+        [
+            new ModelDescriptor
+            {
+                Name = "gpt-x",
+                InputCostPerMillionTokens = 2m,
+                CachedInputCostPerMillionTokens = 0.5m,
+            },
+        ]);
+        var resolver = CreateResolver(providers: [provider]);
+
+        var cost = resolver.Resolve(
+            "openai",
+            "gpt-x",
+            new RunUsage { InputTokens = 1_000_000, OutputTokens = 0, TotalTokens = 1_000_000, CachedInputTokens = 400_000 });
+
+        cost.ShouldNotBeNull();
+        cost.CachedInputPricePerMillionTokens.ShouldBe(0.5m);
+        cost.CachedInputCost.ShouldBe(0.2m);
     }
 
     private static RunUsage Usage(long input, long output)
