@@ -7878,14 +7878,25 @@ attempt. When the attempts run out, the run closes `Failed` with the same
 new failure category to handle.
 
 Repair never runs on the streaming path, for the same reason validation there cannot
-undo already-sent content: see the caution above. A repair turn also never reuses
-your session's durable history — it runs with no session of its own, so the
-correction exchange never becomes part of your conversation record. The turn that
-was rejected is a different matter: because the underlying agent framework saves a
-turn's own request and response as soon as that ONE call completes, a rejected
-first attempt is already saved to your session before repair ever starts. Repair
-recovers the *run's* result; it does not retroactively rewrite what your session
-already recorded for that turn.
+undo already-sent content: see the caution above.
+
+:::caution[Repair does not run on a run that carries a session]
+A run you gave a `sessionId` gets **no repair budget**, even when
+`MaxRepairAttempts` is set: the rejection fails the run exactly as it would with
+repair switched off, and the rejection event carries `repairSuppressedBySession`
+so you can tell the two apart.
+
+The reason is that the underlying agent framework saves a turn's request and
+response as soon as that one model call completes — before AgentPrism can judge
+it. Repairing anyway would let the run succeed while the conversation it belongs
+to still ended in the rejected draft, so your next turn would read an answer the
+caller never received. Failing instead keeps the run's result and the
+conversation saying the same thing.
+
+Use repair on stateless runs — extraction, classification, generation jobs. For a
+structured agent that must keep a conversation, validate and handle the rejection
+in your own code. This is a current limitation, not a permanent contract.
+:::
 
 ## Design schemas for reliable extraction
 

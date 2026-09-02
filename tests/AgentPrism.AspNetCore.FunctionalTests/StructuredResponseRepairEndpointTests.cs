@@ -209,7 +209,7 @@ public sealed class StructuredResponseRepairEndpointTests
     }
 
     [Fact]
-    public async Task Repair_messages_are_not_written_to_the_callers_own_session()
+    public async Task A_run_with_a_durable_session_gets_no_repair_budget_and_fails_closed()
     {
         var provider = new FakeModelProvider("structured")
             .RespondsWith("not valid json")
@@ -220,36 +220,37 @@ public sealed class StructuredResponseRepairEndpointTests
         using var response = await PostBufferedAsync(
             host, new AgentRunRequest { Message = "hello", SessionId = "repair-session" });
 
-        response.EnsureSuccessStatusCode();
+        // 🚨 Repair is CONFIGURED here, and deliberately not used. The framework
+        // persists a turn's exchange as soon as that ONE model call completes,
+        // before this decorator sees the result, so a repaired run would return
+        // an answer its own session never recorded - the next turn would then
+        // read a response the caller never received. The run fails instead.
+        response.StatusCode.ShouldBe(HttpStatusCode.BadGateway);
+
+        // Exactly ONE model call: the repair turn never opened.
+        provider.Requests.Count.ShouldBe(1);
+
+        var run = await SingleRunAsync(host);
+
+        run.Status.ShouldBe(RunStatus.Failed);
+        run.Error!.Class.ShouldBe(RunErrorClass.StructuredResponseInvalid);
+
+        var events = await EventTypesAsync(host, run.Id);
+
+        events.ShouldContain("StructuredResponseRejected");
+        events.ShouldNotContain("StructuredResponseRepairAttempted");
 
         using var sessionResponse = await host.Client.GetAsync(
             new Uri("/agentprism/api/sessions/repair-session", UriKind.Relative), TestContext.Current.CancellationToken);
 
-        sessionResponse.StatusCode.ShouldBe(HttpStatusCode.OK);
-
-        var json = await AgentPrismTestHost.ReadJsonAsync(sessionResponse);
-        var messages = json.GetProperty("messages");
-
-        // Exactly the ORIGINAL turn's own two messages (the user's "hello" and
-        // its own, first-attempt reply) - the underlying agent framework
-        // persists a turn's exchange as soon as that ONE model call
-        // completes, before this decorator ever sees the result, so a
-        // rejected first attempt lands in the session exactly as it did
-        // before this phase (unchanged Phase 131 behavior). What repair adds -
-        // the correction round-trip, called with session: null - is the part
-        // that must not (and does not) ALSO land here: the count stays at 2,
-        // not 4, and neither the raw invalid text a second time nor the
-        // correction prompt appears.
-        messages.GetArrayLength().ShouldBe(2);
-
-        static string MessageText(JsonElement message)
-            => message.GetProperty("contents")[0].GetProperty("text").GetString() ?? string.Empty;
-
-        MessageText(messages[0]).ShouldBe("hello");
-        MessageText(messages[1]).ShouldBe("not valid json");
-
-        var raw = messages.GetRawText();
-        raw.ShouldNotContain("Reply again");
+        // Stronger than "the history matches the run": a session is persisted
+        // only when its run COMPLETES SUCCESSFULLY, so a first turn that fails
+        // this way leaves no durable history at all - the rejected draft never
+        // becomes conversation the next turn could read. (A later turn in an
+        // ALREADY saved session likewise leaves that session at its previous
+        // turn's state.) Before the guard, this same run succeeded and saved
+        // the rejected draft as the assistant's answer.
+        sessionResponse.StatusCode.ShouldBe(HttpStatusCode.NotFound);
     }
 
     [Fact]
