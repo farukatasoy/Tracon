@@ -38,6 +38,22 @@
    ve `FallbackChatClient`'ın halkadaki yerleri).
 5. Gerektiğinde: [`MIMARI.md`](MIMARI.md) — çalıştırma yolu bölümü.
 
+### Faz 133'ten devralınan iki şey (bu fazı doğrudan etkiler)
+
+🚨 **`ManualTimeProvider` artık monotonik saati de sahteliyor.**
+`tests/AgentPrism.Core.UnitTests/Fakes/ManualTimeProvider.cs` eskiden yalnız
+`GetUtcNow()`'u eziyordu; `GetTimestamp()` gerçek `Stopwatch`'a düşüyordu.
+Artık ikisini de sahteler: `Advance` ileri giderken iki saati birden, geri
+giderken **yalnız duvar saatini** oynatır. Bir süre ölçen testin artık
+`Advance` çağırması **gerekir** — çağırmazsa süre `0` çıkar (eskiden gerçek
+geçen süre çıkardı). Onarım turunun süresini ölçeceksen bu seni etkiler.
+
+🚨 **`AgentPrismMetrics` kurucusu ikinci bir isteğe bağlı parametre aldı:**
+`AgentPrismMetrics(IMeterFactory?, IOptionsMonitor<AgentPrismOptions>?)`.
+`new AgentPrismMetrics()` ve `new AgentPrismMetrics(factory)` hâlâ çalışır.
+Yeni bir enstrümana tüketici tarafından ayarlanabilir bir sınır bağlayacaksan
+seçenekler artık oradan okunabiliyor — ayrı bir parametre zinciri açma.
+
 ---
 
 ## Amaç
