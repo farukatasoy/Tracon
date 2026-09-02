@@ -216,4 +216,19 @@ public enum RunEventType
     /// <see cref="IStructuredResponseValidator"/>.
     /// </remarks>
     StructuredResponseRejected = 27,
+
+    /// <summary>
+    /// A bounded repair turn is about to run after a rejected structured
+    /// response. <c>Text</c> carries the attempt count as <c>"{attempt}/{max}"</c>;
+    /// <c>Payload</c> carries the same two numbers plus <c>kind</c> and
+    /// <c>schemaName</c> as JSON.
+    /// </summary>
+    /// <remarks>
+    /// Written once per repair round, immediately before the extra model call
+    /// it describes, and only when <c>AgentPrismStructuredResponseOptions.MaxRepairAttempts</c>
+    /// is greater than zero. See <see cref="StructuredResponseRejected"/>, which
+    /// always precedes it: a repair round only starts after a rejection, never
+    /// on its own.
+    /// </remarks>
+    StructuredResponseRepairAttempted = 28,
 }

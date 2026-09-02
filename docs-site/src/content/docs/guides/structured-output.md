@@ -217,6 +217,49 @@ and still writes the event, but the client already received the invalid content 
 agent that uses structured output as a gate should not stream.
 :::
 
+## Let the model repair a rejected response
+
+`AgentPrism:StructuredResponse:MaxRepairAttempts` (default `0`) lets a rejected
+response get a bounded number of second chances before the run fails:
+
+```json
+{
+  "AgentPrism": {
+    "StructuredResponse": {
+      "Enabled": true,
+      "MaxRepairAttempts": 2
+    }
+  }
+}
+```
+
+`0` disables repair entirely — an invalid response fails the run exactly as it does
+without this setting. A value of `2` permits at most **three** model calls in
+total: the original turn plus two repairs. Each repair turn resends the original
+messages together with the rejected response and a short, fixed correction message,
+through the same call every other model turn makes — the tree's token, cost, and
+duration budget, the deadline, cancellation, and the fallback chain all apply to a
+repair turn exactly as they do to any other. A repair turn never opens a second
+`Idempotency-Key`, a child run, or a separate model pipeline: it stays inside the
+same run, and its token usage is folded into that run's own `usage` total.
+
+Each attempt writes its own `StructuredResponseRejected` event; a repair round that
+is about to start writes `StructuredResponseRepairAttempted` first. When repair
+finally succeeds, the run closes `Completed` and its `usage` is the sum of every
+attempt. When the attempts run out, the run closes `Failed` with the same
+`StructuredResponseInvalid` error class a straight rejection uses — repair adds no
+new failure category to handle.
+
+Repair never runs on the streaming path, for the same reason validation there cannot
+undo already-sent content: see the caution above. A repair turn also never reuses
+your session's durable history — it runs with no session of its own, so the
+correction exchange never becomes part of your conversation record. The turn that
+was rejected is a different matter: because the underlying agent framework saves a
+turn's own request and response as soon as that ONE call completes, a rejected
+first attempt is already saved to your session before repair ever starts. Repair
+recovers the *run's* result; it does not retroactively rewrite what your session
+already recorded for that turn.
+
 ## Design schemas for reliable extraction
 
 Keep the schema small and explicit. Mark required fields. Use
@@ -249,6 +292,7 @@ payload against your schema.
 | Streaming | The structured document can still arrive in multiple text updates |
 | `AgentPrism:StructuredResponse:Enabled` | `false`; the response is never inspected after the model returns it |
 | `IStructuredResponseValidator` | No-op by default (always valid); register your own to enforce a rule |
+| `AgentPrism:StructuredResponse:MaxRepairAttempts` | `0`; repair is off, an invalid response fails the run immediately |
 
 For a streamed run, assemble the complete response before parsing JSON. Individual
 SSE text events are fragments, not standalone JSON documents.

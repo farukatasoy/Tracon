@@ -111,10 +111,11 @@ public sealed record AgentRunScope
 
     /// <summary>
     /// Gets the accumulator that collects the extra token usage produced by
-    /// context compaction (summarization). It is folded into the final usage
-    /// at the end of the run.
+    /// side-channel model calls during the run — context compaction
+    /// (summarization) and bounded structured-response repair. It is folded
+    /// into the final usage at the end of the run.
     /// </summary>
-    internal CompactionUsageAccumulator? ExtraUsage { get; init; }
+    internal SideChannelUsageAccumulator? ExtraUsage { get; init; }
 
     /// <summary>
     /// Gets the non-token metrics reported by tools, keyed by call identity.

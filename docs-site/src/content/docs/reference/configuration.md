@@ -213,10 +213,17 @@ recording is best-effort during a storage outage.
 | Key | Default |
 |---|---:|
 | `StructuredResponse:Enabled` | `false` |
+| `StructuredResponse:MaxRepairAttempts` | `0` |
 
 Off by default: a response is never inspected after the model returns it. Applies only
 to an agent whose `ResponseFormat.Kind` is `Json` or `JsonSchema`. See
 [Validate the response](/guides/structured-output/#validate-the-response).
+
+`MaxRepairAttempts` is off by default too: a value of `0` fails the run on the first
+invalid response, exactly as when repair does not exist. A value of `2` permits at
+most three model calls in total — the original turn plus two repairs — all inside the
+same run, under the same budget. See
+[Let the model repair a rejected response](/guides/structured-output/#let-the-model-repair-a-rejected-response).
 
 ### Pricing
 

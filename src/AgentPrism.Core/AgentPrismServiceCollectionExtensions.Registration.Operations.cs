@@ -153,10 +153,10 @@ public static partial class AgentPrismServiceCollectionExtensions
         // no runtime effect until both the option and an IImageGenerator are present.
         services.AddOptions<AgentPrismImageOptions>().ValidateOnStart();
 
-        // Structured response validation (Phase 131). Same rationale: carries
-        // its own section, requires no separate Use...() call. Enabled=false
-        // (K1) - a single flag has no invalid state, so no IValidateOptions
-        // is registered for it.
+        // Structured response validation (Phase 131) and bounded repair (Phase
+        // 134). Same rationale: carries its own section, requires no separate
+        // Use...() call. Enabled=false and MaxRepairAttempts=0 (K1) - repair
+        // never fires unless a setup opts into both.
         services.AddOptions<AgentPrismStructuredResponseOptions>().ValidateOnStart();
 
         if (configurationSection is not null)
@@ -238,5 +238,7 @@ public static partial class AgentPrismServiceCollectionExtensions
             ServiceDescriptor.Singleton<IValidateOptions<AgentPrismDrainOptions>, AgentPrismDrainOptionsValidator>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IValidateOptions<AgentPrismImageOptions>, AgentPrismImageOptionsValidator>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IValidateOptions<AgentPrismStructuredResponseOptions>, AgentPrismStructuredResponseOptionsValidator>());
     }
 }

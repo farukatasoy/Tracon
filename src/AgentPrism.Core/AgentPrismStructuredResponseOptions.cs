@@ -18,4 +18,12 @@ public sealed class AgentPrismStructuredResponseOptions
     /// opts in.
     /// </summary>
     public bool Enabled { get; set; }
+
+    /// <summary>
+    /// How many REPAIR turns may follow an invalid response. <c>0</c> (the
+    /// default) disables repair entirely: an invalid response fails the run
+    /// exactly as it does today. A value of <c>2</c> permits at most THREE
+    /// model calls in total — the original turn plus two repairs.
+    /// </summary>
+    public int MaxRepairAttempts { get; set; }
 }

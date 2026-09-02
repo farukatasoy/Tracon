@@ -4956,6 +4956,7 @@ AgentPrism.IStructuredResponseValidator
 AgentPrism.IStructuredResponseValidator.ValidateAsync(AgentPrism.StructuredResponseValidationContext! context, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<AgentPrism.StructuredResponseValidationResult!>
 AgentPrism.RunErrorClass.StructuredResponseInvalid = 14 -> AgentPrism.RunErrorClass
 AgentPrism.RunEventType.StructuredResponseRejected = 27 -> AgentPrism.RunEventType
+AgentPrism.RunEventType.StructuredResponseRepairAttempted = 28 -> AgentPrism.RunEventType
 AgentPrism.StructuredResponseValidationContext
 AgentPrism.StructuredResponseValidationContext.<Clone>$() -> AgentPrism.StructuredResponseValidationContext!
 AgentPrism.StructuredResponseValidationContext.AgentName.get -> string!

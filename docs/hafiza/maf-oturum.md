@@ -28,6 +28,23 @@
 - **`ChatHistoryProvider.InvokingAsync` public** (2026-08-02): `InvokingContext` kurucusu da public (`MAAI001` işaretli). Oturum geçmişini okumanın tek public yolu; sağlayıcı bu çağrıda yalnız okur. `ProvideChatHistoryAsync` protected olduğu için kullanılamaz.
 - **`InMemoryChatHistoryProvider` durumu oturumda tutar** (2026-08-02): `GetMessages(AgentSession)` imzası bunu gösteriyor. Tek örneğin tüm oturumlarca paylaşılması güvenli; `AddAgentPrism()` bu yüzden açıkça kaydediyor (K-037).
 - **🚨 Responses API + `ChatHistoryProvider` = calisma ani hatasi** (K-030): `AsIChatClient(ResponsesClient, model)` sunucu tarafi `storage`'i acik birakir, `ChatClientAgent` `Only ConversationId or ChatHistoryProvider...` atar. **Yalniz `UsePostgreSql()` acikken** gorulur. Cozum `AsIChatClientWithStoredOutputDisabled(model)`.
+- **🚨 `session: null` ile yapılan bir çağrı, `ChatHistoryProvider` KURULUYSA
+  KAYDI ATLAMAZ — çerçeve kendi geçici bir `AgentSession` açar ve o oturuma
+  yazar** (2026-09-02, Faz 134, `Microsoft.Agents.AI` 1.18.0'a karşı küçük bir
+  konsol probuyla ölçüldü: özel bir `ChatHistoryProvider` alt sınıfı,
+  `session: null` ile `agent.RunAsync(...)` çağrıldığında `ProvideChatHistoryAsync`/
+  `StoreChatHistoryAsync`'in YİNE `session=non-null` ile çağrıldığını gösterdi
+  — çerçeve arka planda taze bir `AgentSession` üretip veriyor). Sonuç:
+  "`session: null` geç, kalıcılığı atla" varsayımı YANLIŞTIR; gerçek etki
+  "gerçek çağıranın oturumuna YAZMA, bunun yerine bir kerelik, hiç geri
+  okunmayan bir oturuma yaz" — bu, AgentPrism'in zaten gerçek oturumsuz
+  çalıştırmalarda (bkz. `RunRecordingAgent.RunCoreAsync`'in `session = null`
+  varsayılanı) SQL-destekli bir `ChatHistoryProvider` kuruluyken sergilediği
+  AYNI kabul edilmiş davranıştır — `conversations`/`conversation_items`
+  tablosunda sahipsiz ama zamanla saklama politikasınca temizlenen bir satır
+  üretir (`RetentionTargets.Conversations`, `updated_at < @cutoff`, `sessions`
+  varlığından bağımsız). `StructuredResponseValidatingAgent`'ın onarım turu
+  bunu bilerek kullanır (bkz. `docs/hafiza/cekirdek-calistirma.md`).
 
 ## OpenAI Responses ve depolama
 

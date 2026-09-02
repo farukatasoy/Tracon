@@ -1,20 +1,23 @@
 # 22 — Guardrail ve Yapılandırılmış Çıktı (`GUARD`)
 
-> **Alan kodu:** `GUARD` · **Faz:** 38, 48, 131
+> **Alan kodu:** `GUARD` · **Faz:** 38, 48, 131, 134
 > **Kaynak:** `src/AgentPrism.Abstractions/Agents/ResponseFormat.cs` ·
 > `Agents/ModelBinding.cs` (`ResponseFormat` alanı) ·
 > `Models/ModelDescriptor.cs` (`SupportsStructuredOutput` alanı) ·
 > `src/AgentPrism.Abstractions/Guards/` (tümü: `IContentGuard`, `ContentGuardContext`,
 > `ContentGuardResult`) · `AgentPrismException.cs`
 > (`AgentPrismContentBlockedException`, `AgentPrismStructuredResponseException`) ·
-> `Runs/RunEventType.cs` (`ContentMasked`/`ContentBlocked`/`StructuredResponseRejected`) ·
+> `Runs/RunEventType.cs` (`ContentMasked`/`ContentBlocked`/`StructuredResponseRejected`/
+> `StructuredResponseRepairAttempted`) ·
 > `Runs/RunErrorClass.cs` (`ContentBlocked`, `StructuredResponseInvalid`) ·
 > `src/AgentPrism.Core/Guards/` (tümü) ·
 > `src/AgentPrism.Core/Compilation/AgentDefinitionCompiler.cs`
 > (`BuildResponseFormat`/`CheckStructuredOutputCapability`/`FindModelDescriptor`) ·
 > `src/AgentPrism.Core/Compilation/StructuredResponseValidatingAgent.cs`,
-> `StructuredResponseValidatingAgentDecorator.cs` (Faz 131) ·
+> `StructuredResponseValidatingAgentDecorator.cs` (Faz 131, onarım döngüsü Faz 134) ·
 > `src/AgentPrism.Abstractions/Agents/IStructuredResponseValidator.cs` (Faz 131) ·
+> `src/AgentPrism.Core/AgentPrismStructuredResponseOptions.cs`
+> (`MaxRepairAttempts`, Faz 134) ·
 > `src/AgentPrism.Core/Models/ModelProviderRegistry.cs` (boru hattı sırası) ·
 > `src/AgentPrism.AspNetCore/Endpoints/AgentEndpoints.cs`
 > (`content_blocked` → `422`/SSE `error`) ·
@@ -2007,3 +2010,245 @@ curl -s -N -X POST "$APU/api/agents/order-summary/run" \
 > `Rejection_writes_a_StructuredResponseRejected_event_on_the_ambient_run_scope`
 > (`StructuredResponseValidatingAgentTests.cs`) aynı iddiayı HTTP ve birim
 > seviyesinde kanıtlar. ⬜ Elle koşulmadı.
+
+---
+
+# 11 — Sınırlı yapısal yanıt onarımı (bounded repair, Faz 134)
+
+`AgentPrismStructuredResponseOptions.MaxRepairAttempts` (varsayılan `0`) §10'un
+tek denemelik reddini sınırlı sayıda ONARIM turuna genişletir: geçersiz yanıt
+`run`'ı hemen düşürmez, aynı derlenmiş agent aynı `run` içinde tekrar çağrılır.
+🚨 §10'un başındaki not burada da geçerlidir: gerçek bir sağlayıcının
+`response_format` modu sözdizimsel olarak geçersiz JSON ÜRETMEZ, bu yüzden
+onarımı TETİKLEYEN hiçbir case gerçek bir sağlayıcı anahtarıyla koşulamaz —
+scriptlenebilir sahte bir sağlayıcı gerekir. Yedi case'in tamamı bu yüzden
+otomatik karşılıklarıyla kanıtlanır (`tests/AgentPrism.AspNetCore.FunctionalTests/StructuredResponseRepairEndpointTests.cs`,
+`tests/AgentPrism.Core.UnitTests/Compilation/StructuredResponseValidatingAgentTests.cs`);
+bu, MT-GUARD-090..096'nın devraldığı, kapanmamış aynı sınırdır — bkz. Faz 131'in
+devir notu.
+
+**Gerçek sonuç (bu ortamda koşuldu, 2026-09-02).** `MaxRepairAttempts: 2` açık
+bırakılmış `samples/AgentPrism.Api` (`appsettings.json`) `order-summary`
+agent'ına karşı gerçek bir `gpt-5.4-mini` çağrısı yapıldı:
+
+```bash
+curl -s -X POST "$APU/api/agents/order-summary/run" \
+  -H "$APB" -H "content-type: application/json" -H "Idempotency-Key: $(uuidgen)" \
+  -d '{"message":"Give me a summary for order ORD-2."}'
+```
+
+Yanıt `{"orderId":"ORD-2","summary":"Order ORD-2 has shipped and is estimated
+to be delivered in 2 days."}`; `GET /api/runs/{id}` → `status: "Completed"`,
+`error: null`, `usage: {inputTokens:393, outputTokens:55, totalTokens:448}`;
+olay dizisi `run.started, tool.invoking, tool.invoked, message.delta,
+message.completed, run.completed` — `StructuredResponseRejected` da
+`StructuredResponseRepairAttempted` da **yok**. Bu, K1'in "sıfır sürpriz"
+iddiasının pozitif kanıtıdır: `MaxRepairAttempts` sıfırdan farklı bir değere
+ayarlanmış olsa bile, geçerli-ilk-denemeli gerçek bir çalıştırma hiçbir ek
+model çağrısı yapmaz ve hiçbir yeni olay üretmez.
+
+### MT-GUARD-100 — `MaxRepairAttempts` verilmemişken davranış Faz 131 ile birebir aynıdır
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 134 |
+| **İlgili karar** | K1 |
+
+**Ön koşul**
+- `AgentPrism:StructuredResponse:Enabled: true`, `MaxRepairAttempts` hiç
+  ayarlanmamış (veya `0`).
+- Model **geçersiz JSON** üretecek şekilde script'lenmiş.
+
+**Adımlar**
+1. Agent'ı çalıştır.
+
+**Beklenen sonuç**
+- Modele tam olarak **bir** çağrı gider — onarım turu açılmaz.
+- `run.status` `Failed`; `StructuredResponseRepairAttempted` olayı **hiç yazılmaz**.
+
+> **Otomatik karşılığı:**
+> `MaxRepairAttempts_unset_defaults_to_zero_and_behaves_exactly_like_no_repair`
+> (`StructuredResponseRepairEndpointTests.cs`) ve
+> `MaxRepairAttempts_zero_behaves_exactly_like_no_repair_a_single_call_that_throws`
+> (`StructuredResponseValidatingAgentTests.cs`) aynı iddiayı HTTP ve birim
+> seviyesinde kanıtlar. ⬜ Elle koşulmadı (🚨 notu).
+
+---
+
+### MT-GUARD-101 — Onarım turu geçersiz yanıtı kurtarır; `run` `Completed` kapanır
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 134 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- `MaxRepairAttempts: 2`. Model önce geçersiz, sonra geçerli JSON üretecek
+  şekilde script'lenmiş (sırayla iki yanıt).
+
+**Adımlar**
+1. Agent'ı çalıştır; `run` kaydını ve olay dizisini oku.
+
+**Beklenen sonuç**
+- Modele tam olarak **iki** çağrı gider.
+- `run.status` `Completed`; `run.error` `null`.
+- Olay dizisinde bir `StructuredResponseRejected` VE bir
+  `StructuredResponseRepairAttempted` olayı vardır, bu sırayla.
+
+> **Otomatik karşılığı:**
+> `A_repair_turn_recovers_an_invalid_response_and_the_runs_usage_is_the_sum_of_both_turns`
+> (`StructuredResponseRepairEndpointTests.cs`) ve
+> `A_repair_turn_recovers_an_invalid_first_response`
+> (`StructuredResponseValidatingAgentTests.cs`). ⬜ Elle koşulmadı (🚨 notu).
+
+---
+
+### MT-GUARD-102 — Onarım hakkı tükenince `run` aynı hata sınıfıyla biter
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 134 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- `MaxRepairAttempts: 2`. Model HER çağrıda geçersiz JSON üretecek şekilde
+  script'lenmiş.
+
+**Adımlar**
+1. Agent'ı çalıştır.
+
+**Beklenen sonuç**
+- Modele tam olarak **üç** çağrı gider (ilk tur + iki onarım) — ne bir eksik
+  ne bir fazla.
+- `run.status` `Failed`; `run.error.class` `StructuredResponseInvalid` — §10'daki
+  hata sınıfının **aynısı**, onarım için yeni bir sınıf eklenmedi.
+
+> **Otomatik karşılığı:**
+> `Repair_attempts_are_capped_then_the_run_fails_exactly_like_an_unrepaired_rejection`
+> (`StructuredResponseRepairEndpointTests.cs`) ve
+> `Repair_attempts_are_capped_at_MaxRepairAttempts_then_the_run_still_fails`
+> (`StructuredResponseValidatingAgentTests.cs`). ⬜ Elle koşulmadı (🚨 notu).
+
+---
+
+### MT-GUARD-103 — `run.usage` her iki turun toplamıdır, hiçbiri kaybolmaz ya da iki kez sayılmaz
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 134 |
+| **İlgili karar** | 134.1 |
+
+**Ön koşul**
+- MT-GUARD-101'in kurulumu; her iki script'lenmiş yanıt kendi token
+  kullanımını bildiriyor.
+
+**Adımlar**
+1. MT-GUARD-101'i çalıştır.
+2. `GET /api/runs/{id}` → `usage` alanını oku.
+
+**Beklenen sonuç**
+- `usage.inputTokens`/`outputTokens` **iki turun düz toplamıdır** — ne
+  reddedilen ilk turun token'ı kaybolur, ne dönen son yanıtınki iki kez sayılır.
+
+> **Otomatik karşılığı:**
+> `A_repair_turn_recovers_an_invalid_response_and_the_runs_usage_is_the_sum_of_both_turns`
+> (`StructuredResponseRepairEndpointTests.cs`, gerçek HTTP + `RunRecordingAgent`
+> zinciriyle `run.usage` alanını ölçer) ve
+> `A_discarded_attempts_usage_folds_into_the_side_channel_and_the_returned_attempts_does_not`
+> (`StructuredResponseValidatingAgentTests.cs`, `SideChannelUsageAccumulator`'ı
+> doğrudan ölçer). ⬜ Elle koşulmadı (🚨 notu).
+
+---
+
+### MT-GUARD-104 — Dar `MaxTotalTokens` onarım turunu da durdurur, sonsuz dönmez
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 134 |
+| **İlgili karar** | 134.2 |
+
+**Ön koşul**
+- MT-GUARD-102'nin kurulumu (HER çağrı geçersiz), artı dar bir
+  `AgentPrismOptions.AgentGraph.MaxTotalTokens` — ilk (gerçek) turun kendisi
+  zaten bu tavanı aşacak kadar token bildiriyor.
+
+**Adımlar**
+1. Agent'ı çalıştır.
+
+**Beklenen sonuç**
+- Modele yalnız **bir** çağrı gider — bütçe denetimi ikinci (onarım) çağrısını
+  sağlayıcıya ULAŞMADAN önce durdurur; `MaxRepairAttempts`'in izin verdiği iki
+  tam onarım turu hiç denenmez.
+- `run.status` `Failed`; `run.error.class` `QuotaExceeded` — `StructuredResponseInvalid`
+  **değil**: bütçe aşımı, tükenen onarım hakkından önce yakalanır.
+
+> **Otomatik karşılığı:**
+> `The_trees_token_budget_still_applies_to_a_repair_turn_and_stops_it_from_looping`
+> (`StructuredResponseRepairEndpointTests.cs`, gerçek `RunBudgetChatClient`
+> zinciriyle). ⬜ Elle koşulmadı (🚨 notu).
+
+---
+
+### MT-GUARD-105 — Akışlı `run`'da onarım hiç açılmaz
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 134 |
+| **İlgili karar** | 134.4 |
+
+**Ön koşul**
+- `MaxRepairAttempts: 2`. Model geçersiz JSON üretecek şekilde script'lenmiş.
+
+**Adımlar**
+1. Aynı agent'ı `Idempotency-Key` **olmadan** (varsayılan SSE dalı) çalıştır.
+
+**Beklenen sonuç**
+- Modele yalnız **bir** çağrı gider — `MaxRepairAttempts` değeri ne olursa
+  olsun akışlı yolda onarım turu açılmaz.
+- Davranış §10/MT-GUARD-094 ile aynıdır: içerik akar, `run` sonradan `Failed`
+  kapanır, `event: error` görünür.
+
+> **Otomatik karşılığı:**
+> `Streaming_never_repairs_even_when_MaxRepairAttempts_is_positive`
+> (`StructuredResponseValidatingAgentTests.cs`). ⬜ Elle koşulmadı (🚨 notu).
+
+---
+
+### MT-GUARD-106 — Arayüz: onarım olayı iki dilde doğru görünür 👤 insan gerekir
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 134 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- MT-GUARD-101 (veya eşdeğeri) bir kez koşturuldu; en az bir
+  `StructuredResponseRepairAttempted` olayı vardır.
+
+**Adımlar**
+1. Tarayıcıda run detay ekranını aç (`http://localhost:5080/agentprism/runs/{id}`).
+2. Olay zaman çizelgesinde `StructuredResponseRepairAttempted` satırını bul.
+3. Arayüz dilini `tr`'ye çevir, satırı tekrar oku.
+
+**Beklenen sonuç**
+- Olay satırı görünür (teknik etiket `structured-response.repair-attempted`,
+  amber renk — `ModelFallbackUsed`/`ToolOutputTruncated` ile aynı "dikkat
+  gerekir" tonu). MT-GUARD-095'teki gibi bu etiket `en.ts`/`tr.ts`'ten
+  **gelmez**, TSX'te sabit bir dizgidir — iki dilde de aynı görünmesi
+  beklenen davranıştır, kusur değildir.
+- `StructuredResponseRejected` satırı hemen önce gelir (onarım her zaman bir
+  reddin ardından açılır, kendi başına değil).

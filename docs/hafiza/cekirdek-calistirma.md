@@ -93,3 +93,18 @@ yolda da koşar; bir genişleme noktası yola göre sessizce farklı davranmamal
   olduğunu KANITLAMAZ — ikisi ayrı ayrı denetlenir. Düzeltme:
   `SafeErrorText.ForPersistence(exception, correlationId)`; `ToRunError` artık
   `static` değil, `_logger.LogError` çağırabilmek için instance metot.
+- **🚨 `RunRecordingAgent`'ın `catch (Exception)` dalı `usage`'ı DAİMA `null`
+  geçirir — bir `run`'ın gerçek harcaması yalnız `scope.ExtraUsage` (yan kanal)
+  üzerinden `run.Usage`'a ulaşabilir** (2026-09-02, Faz 134, ölçüldü).
+  `CompleteAsync` içindeki `usage = MergeUsage(usage, scope.ExtraUsage?.ToRunUsage())`
+  satırı `MergeUsage(null, extra)` için `extra`'yı OLDUĞU GİBİ döndürür — yani
+  bir istisnayla biten `run`'ın TEK usage kaynağı `ExtraUsage`'dır. Faz 134
+  bunu bilerek kullandı (bkz. `StructuredResponseValidatingAgent`'ın onarım
+  döngüsü: her reddedilen/atılan `AgentResponse`'ın kullanımı `ExtraUsage`'a
+  eklenir, dönen SONUNCUSU hariç) ve bunun yan etkisi olarak Faz 131'den beri
+  var olan bir eksiği de kapattı: `MaxRepairAttempts` sıfır olsa bile, reddedilen
+  TEK denemenin token'ı artık `run.Usage`'da GÖRÜNÜR — önceden sessizce `null`
+  oluyordu. **Kural:** bir çalıştırma yolunun (tool, side-channel model çağrısı,
+  onarım turu) usage'ının `run.Usage`'a yansımasını istiyorsan `scope.ExtraUsage?.Add(...)`
+  kullan; normal `AgentResponse.Usage`'a güvenme — o yalnız BAŞARIYLA DÖNEN
+  son yanıt için işler, bir istisnayla biten hiçbir yol için değil.

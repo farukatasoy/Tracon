@@ -2,12 +2,12 @@ using Microsoft.Extensions.AI;
 
 namespace AgentPrism.Core.UnitTests.Recording;
 
-public sealed class CompactionUsageAccumulatorTests
+public sealed class SideChannelUsageAccumulatorTests
 {
     [Fact]
     public void Bos_toplayici_null_dondurur()
     {
-        var accumulator = new CompactionUsageAccumulator();
+        var accumulator = new SideChannelUsageAccumulator();
 
         accumulator.ToRunUsage().ShouldBeNull();
     }
@@ -15,7 +15,7 @@ public sealed class CompactionUsageAccumulatorTests
     [Fact]
     public void Null_kullanim_yok_sayilir()
     {
-        var accumulator = new CompactionUsageAccumulator();
+        var accumulator = new SideChannelUsageAccumulator();
 
         accumulator.Add(null);
 
@@ -25,7 +25,7 @@ public sealed class CompactionUsageAccumulatorTests
     [Fact]
     public void Birden_fazla_ekleme_toplanir()
     {
-        var accumulator = new CompactionUsageAccumulator();
+        var accumulator = new SideChannelUsageAccumulator();
 
         accumulator.Add(new UsageDetails { InputTokenCount = 10, OutputTokenCount = 2, TotalTokenCount = 12 });
         accumulator.Add(new UsageDetails { InputTokenCount = 5, OutputTokenCount = 1, TotalTokenCount = 6 });
@@ -44,7 +44,7 @@ public sealed class CompactionUsageAccumulatorTests
         // 🚨 The summarization side channel must not invent a measurement. If it
         // reported zero here, every run that compacts its context would claim an
         // observed 0% cache hit rate even on providers that report nothing.
-        var accumulator = new CompactionUsageAccumulator();
+        var accumulator = new SideChannelUsageAccumulator();
 
         accumulator.Add(new UsageDetails { InputTokenCount = 10, OutputTokenCount = 2, TotalTokenCount = 12 });
 
@@ -60,7 +60,7 @@ public sealed class CompactionUsageAccumulatorTests
     [Fact]
     public void Reported_breakdown_counters_accumulate_across_calls()
     {
-        var accumulator = new CompactionUsageAccumulator();
+        var accumulator = new SideChannelUsageAccumulator();
 
         accumulator.Add(new UsageDetails
         {
@@ -90,7 +90,7 @@ public sealed class CompactionUsageAccumulatorTests
     {
         // Every total is zero, yet the provider DID measure something: a cache
         // miss. Returning null here would throw that observation away.
-        var accumulator = new CompactionUsageAccumulator();
+        var accumulator = new SideChannelUsageAccumulator();
 
         accumulator.Add(new UsageDetails { CachedInputTokenCount = 0 });
 

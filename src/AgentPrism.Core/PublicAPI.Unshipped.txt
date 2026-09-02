@@ -1313,4 +1313,6 @@ AgentPrism.AgentPrismStructuredResponseOptions
 AgentPrism.AgentPrismStructuredResponseOptions.AgentPrismStructuredResponseOptions() -> void
 AgentPrism.AgentPrismStructuredResponseOptions.Enabled.get -> bool
 AgentPrism.AgentPrismStructuredResponseOptions.Enabled.set -> void
+AgentPrism.AgentPrismStructuredResponseOptions.MaxRepairAttempts.get -> int
+AgentPrism.AgentPrismStructuredResponseOptions.MaxRepairAttempts.set -> void
 const AgentPrism.AgentPrismStructuredResponseOptions.SectionName = "AgentPrism:StructuredResponse" -> string!

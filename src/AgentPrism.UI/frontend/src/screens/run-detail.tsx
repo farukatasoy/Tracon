@@ -79,6 +79,9 @@ const EVENT_STYLE: Record<RunEventType, { label: string; hue: string }> = {
   ToolOutputTruncated: { label: 'tool.output-truncated', hue: 'var(--ap-amber)' },
   // Phase 131. Danger hue: the run is ending Failed, same as ContentBlocked/RunFailed.
   StructuredResponseRejected: { label: 'structured-response.rejected', hue: 'var(--ap-danger)' },
+  // Phase 134. Amber, same "needs attention" hue as ModelFallbackUsed/ToolOutputTruncated:
+  // the run is not over yet, a repair turn is about to try again.
+  StructuredResponseRepairAttempted: { label: 'structured-response.repair-attempted', hue: 'var(--ap-amber)' },
 };
 
 /**

@@ -59,7 +59,18 @@ public sealed class JobMetricEndToEndTests
 
         triggered.EnsureSuccessStatusCode();
 
-        var counter = await collector.WaitForAsync(AgentPrismDiagnostics.JobCounterName);
+        // "media" (this schedule's own lane, set above) discriminates this
+        // test's own measurement from another, concurrently-running test's -
+        // MeterListener is process-wide. A few other tests also use the
+        // string "media" as a Lane value, but RecordJob (the only source of
+        // this instrument) fires exclusively from JobWorkerBackgroundService,
+        // and none of those other tests enables a real worker
+        // (UseScheduling(o => o.RunWorker = true)) - so none of them can
+        // actually publish a measurement under this name to collide with.
+        static bool IsThisTestsLane(Dictionary<string, object?> tags)
+            => Equals(tags.GetValueOrDefault(AgentPrismDiagnostics.Tags.Lane), "media");
+
+        var counter = await collector.WaitForAsync(AgentPrismDiagnostics.JobCounterName, IsThisTestsLane);
 
         counter.Value.ShouldBe(1);
         counter.Tags[AgentPrismDiagnostics.Tags.Lane].ShouldBe("media");
@@ -71,7 +82,7 @@ public sealed class JobMetricEndToEndTests
         counter.Tags.ShouldContainKey(AgentPrismDiagnostics.Tags.JobStatus);
         counter.Tags.ShouldContainKey(AgentPrismDiagnostics.Tags.TenantId);
 
-        var duration = await collector.WaitForAsync(AgentPrismDiagnostics.JobDurationName);
+        var duration = await collector.WaitForAsync(AgentPrismDiagnostics.JobDurationName, IsThisTestsLane);
 
         duration.Value.ShouldBeGreaterThanOrEqualTo(0);
         duration.Tags[AgentPrismDiagnostics.Tags.Lane].ShouldBe("media");
@@ -130,24 +141,38 @@ public sealed class JobMetricEndToEndTests
             _listener.Start();
         }
 
-        /// <summary>Waits for the first measurement published under <paramref name="name"/>.</summary>
+        /// <summary>
+        /// Waits for the first measurement published under <paramref name="name"/>
+        /// whose tags satisfy <paramref name="matches"/>.
+        /// </summary>
         /// <param name="name">The instrument name.</param>
+        /// <param name="matches">
+        /// A predicate over the measurement's tags. Required: <see cref="MeterListener"/>
+        /// is process-wide, so a job triggered by a DIFFERENT, concurrently-running
+        /// test (any of them queues its own job under the SAME instrument name) can
+        /// publish a measurement in between — a plain "first measurement with this
+        /// name" wait is not this test's own. Defaults to "any" for callers that do
+        /// not need discrimination.
+        /// </param>
         /// <returns>The measurement and its tags.</returns>
-        public async Task<(double Value, Dictionary<string, object?> Tags)> WaitForAsync(string name)
+        public async Task<(double Value, Dictionary<string, object?> Tags)> WaitForAsync(
+            string name, Func<Dictionary<string, object?>, bool>? matches = null)
         {
             var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(30);
 
             while (DateTime.UtcNow < deadline)
             {
-                if (Named(name) is [var first, ..])
+                var candidate = Named(name).FirstOrDefault(m => matches is null || matches(m.Tags));
+
+                if (candidate.Tags is not null)
                 {
-                    return first;
+                    return candidate;
                 }
 
                 await Task.Delay(25, TestContext.Current.CancellationToken);
             }
 
-            throw new TimeoutException($"No '{name}' measurement was published in time.");
+            throw new TimeoutException($"No matching '{name}' measurement was published in time.");
         }
 
         /// <summary>Polls the observable instruments and returns what <paramref name="name"/> reported.</summary>

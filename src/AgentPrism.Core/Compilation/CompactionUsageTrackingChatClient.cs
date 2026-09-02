@@ -12,7 +12,9 @@ namespace AgentPrism;
 /// <remarks>
 /// Applies only to the client used by <see cref="SummarizationCompactionStrategy"/>.
 /// This call is a side channel that is fully separate from the agent's own
-/// <c>AgentResponse</c>. Without this wrapper, its tokens are not recorded.
+/// <c>AgentResponse</c>. Without this wrapper, its tokens are not recorded. See
+/// <see cref="SideChannelUsageAccumulator"/> for the other side channel that
+/// shares this pattern (bounded structured-response repair).
 /// Precedent: <see cref="CircuitBreakingChatClient"/>.
 /// </remarks>
 internal sealed class CompactionUsageTrackingChatClient(IChatClient inner) : DelegatingChatClient(inner)

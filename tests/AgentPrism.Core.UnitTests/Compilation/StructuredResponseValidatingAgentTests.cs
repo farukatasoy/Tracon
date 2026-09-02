@@ -25,12 +25,13 @@ public sealed class StructuredResponseValidatingAgentTests
         FakeChatClient chatClient,
         AgentResponseFormat? format,
         IStructuredResponseValidator? validator = null,
-        bool enabled = true)
+        bool enabled = true,
+        int maxRepairAttempts = 0)
         => new(
             chatClient.AsAIAgent(),
             Descriptor(format),
             validator ?? new StaticValidator(StructuredResponseValidationResult.Valid),
-            new AgentPrismStructuredResponseOptions { Enabled = enabled },
+            new AgentPrismStructuredResponseOptions { Enabled = enabled, MaxRepairAttempts = maxRepairAttempts },
             NullLogger<StructuredResponseValidatingAgent>.Instance);
 
     [Fact]
@@ -244,6 +245,161 @@ public sealed class StructuredResponseValidatingAgentTests
         {
             AgentPrismRunContext.SetCurrent(null);
         }
+    }
+
+    [Fact]
+    public async Task MaxRepairAttempts_zero_behaves_exactly_like_no_repair_a_single_call_that_throws()
+    {
+        var chatClient = new FakeChatClient(_ => new ChatResponse(new ChatMessage(ChatRole.Assistant, "not json")));
+        var wrapped = Wrap(chatClient, Json(), maxRepairAttempts: 0);
+
+        await Should.ThrowAsync<AgentPrismStructuredResponseException>(async () => await wrapped.RunAsync("hello"));
+
+        chatClient.CallCount.ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task A_repair_turn_recovers_from_an_invalid_first_response()
+    {
+        var responses = new Queue<string>(["not json", "{\"ok\":true}"]);
+        var chatClient = new FakeChatClient(_ => new ChatResponse(new ChatMessage(ChatRole.Assistant, responses.Dequeue())));
+        var wrapped = Wrap(chatClient, Json(), maxRepairAttempts: 1);
+
+        var response = await wrapped.RunAsync("hello");
+
+        response.Text.ShouldBe("{\"ok\":true}");
+        chatClient.CallCount.ShouldBe(2);
+    }
+
+    [Fact]
+    public async Task Repair_attempts_are_capped_at_MaxRepairAttempts_then_the_run_still_fails()
+    {
+        var chatClient = new FakeChatClient(_ => new ChatResponse(new ChatMessage(ChatRole.Assistant, "not json")));
+        var wrapped = Wrap(chatClient, Json(), maxRepairAttempts: 2);
+
+        var exception = await Should.ThrowAsync<AgentPrismStructuredResponseException>(
+            async () => await wrapped.RunAsync("hello"));
+
+        // MaxRepairAttempts=2 permits at most THREE model calls: the original turn plus two repairs.
+        chatClient.CallCount.ShouldBe(3);
+        exception.Message.ShouldBe("The response is not valid JSON.");
+    }
+
+    [Fact]
+    public async Task A_repair_turn_carries_the_original_message_the_invalid_response_and_a_correction()
+    {
+        var responses = new Queue<string>(["not json", "{\"ok\":true}"]);
+        var chatClient = new FakeChatClient(_ => new ChatResponse(new ChatMessage(ChatRole.Assistant, responses.Dequeue())));
+        var wrapped = Wrap(chatClient, Json(), maxRepairAttempts: 1);
+
+        await wrapped.RunAsync("hello");
+
+        chatClient.LastRequest.Count.ShouldBe(3);
+        chatClient.LastRequest[0].Role.ShouldBe(ChatRole.User);
+        chatClient.LastRequest[0].Text.ShouldBe("hello");
+        chatClient.LastRequest[1].Role.ShouldBe(ChatRole.Assistant);
+        chatClient.LastRequest[1].Text.ShouldBe("not json");
+        chatClient.LastRequest[2].Role.ShouldBe(ChatRole.User);
+        chatClient.LastRequest[2].Text.ShouldContain("not valid JSON", Case.Sensitive);
+    }
+
+    [Fact]
+    public async Task Streaming_never_repairs_even_when_MaxRepairAttempts_is_positive()
+    {
+        var updates = new List<ChatResponseUpdate> { new(ChatRole.Assistant, "not json") };
+        var chatClient = new FakeChatClient(streamingUpdates: updates);
+        var wrapped = Wrap(chatClient, Json(), maxRepairAttempts: 2);
+
+        await Should.ThrowAsync<AgentPrismStructuredResponseException>(async () =>
+        {
+            await foreach (var _ in wrapped.RunStreamingAsync("hello"))
+            {
+            }
+        });
+
+        chatClient.CallCount.ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task Repair_events_carry_1_based_monotonic_attempt_and_maxAttempts_numbers()
+    {
+        var chatClient = new FakeChatClient(_ => new ChatResponse(new ChatMessage(ChatRole.Assistant, "not json")));
+        var wrapped = Wrap(chatClient, Json(), maxRepairAttempts: 2);
+
+        var runStore = new InMemoryRunStore();
+        var runId = Guid.NewGuid();
+
+        await runStore.StartRunAsync(new RunStartInfo
+        {
+            RunId = runId,
+            AgentName = "structured-agent",
+            StartedAt = DateTimeOffset.UtcNow,
+        });
+
+        var writer = new RunEventWriter(runStore, new AgentPrismRunRecordingOptions(), NullLogger.Instance, runId);
+
+        AgentPrismRunContext.SetCurrent(new AgentRunScope { RunId = runId, RootRunId = runId, Writer = writer });
+
+        try
+        {
+            await Should.ThrowAsync<AgentPrismStructuredResponseException>(async () => await wrapped.RunAsync("hello"));
+        }
+        finally
+        {
+            AgentPrismRunContext.SetCurrent(null);
+        }
+
+        var events = await CollectAsync(runStore.ReadEventsAsync(runId));
+
+        var rejected = events.Where(static e => e.Type == RunEventType.StructuredResponseRejected).ToList();
+        var repairAttempted = events.Where(static e => e.Type == RunEventType.StructuredResponseRepairAttempted).ToList();
+
+        rejected.Count.ShouldBe(3);
+        rejected[0].Payload!.ShouldContain("\"attempt\":1", Case.Sensitive);
+        rejected[0].Payload!.ShouldContain("\"maxAttempts\":3", Case.Sensitive);
+        rejected[1].Payload!.ShouldContain("\"attempt\":2", Case.Sensitive);
+        rejected[2].Payload!.ShouldContain("\"attempt\":3", Case.Sensitive);
+
+        repairAttempted.Count.ShouldBe(2);
+        repairAttempted[0].Text.ShouldBe("2/3");
+        repairAttempted[0].Payload!.ShouldContain("\"attempt\":2", Case.Sensitive);
+        repairAttempted[1].Text.ShouldBe("3/3");
+    }
+
+    [Fact]
+    public async Task A_discarded_attempts_usage_folds_into_the_side_channel_and_the_returned_attempts_does_not()
+    {
+        var responses = new Queue<string>(["not json", "{\"ok\":true}"]);
+        var chatClient = new FakeChatClient(_ => new ChatResponse(new ChatMessage(ChatRole.Assistant, responses.Dequeue()))
+        {
+            Usage = new UsageDetails { InputTokenCount = 10, OutputTokenCount = 5, TotalTokenCount = 15 },
+        });
+        var wrapped = Wrap(chatClient, Json(), maxRepairAttempts: 1);
+
+        var extraUsage = new SideChannelUsageAccumulator();
+
+        AgentPrismRunContext.SetCurrent(new AgentRunScope
+        {
+            RunId = Guid.NewGuid(),
+            RootRunId = Guid.NewGuid(),
+            ExtraUsage = extraUsage,
+        });
+
+        try
+        {
+            await wrapped.RunAsync("hello");
+        }
+        finally
+        {
+            AgentPrismRunContext.SetCurrent(null);
+        }
+
+        // Only the FIRST (discarded) response's usage was folded in - the second
+        // (returned) response's usage is counted through the normal path instead.
+        var usage = extraUsage.ToRunUsage();
+        usage.ShouldNotBeNull();
+        usage!.InputTokens.ShouldBe(10);
+        usage.OutputTokens.ShouldBe(5);
     }
 
     private static AgentResponseFormat Json() => new() { Kind = AgentResponseFormatKind.Json };
