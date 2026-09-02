@@ -205,6 +205,7 @@ public sealed class ServiceRegistrationSnapshotTests
         "AgentPrism.RetentionExecutor | Singleton | Factory",
         "AgentPrism.IJobHandler | Singleton | Factory",
         "Microsoft.Extensions.Hosting.IHostedService | Singleton | AgentPrism.JobWorkerBackgroundService",
+        "Microsoft.Extensions.Hosting.IHostedService | Singleton | Factory",
         "Microsoft.Extensions.Hosting.IHostedService | Singleton | AgentPrism.RunHeartbeatWriter",
         "Microsoft.Extensions.Hosting.IHostedService | Singleton | AgentPrism.RunReconciliationService",
         "Microsoft.Extensions.Hosting.IHostedService | Singleton | AgentPrism.ApprovalExpirationService",

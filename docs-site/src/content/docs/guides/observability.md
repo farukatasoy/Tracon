@@ -72,6 +72,9 @@ activity source and meter are both named `AgentPrism`. The root run span is
 | `agentprism.judge.score` | Judge score distribution |
 | `agentprism.model.cache` | Response-cache lookups, tagged hit or miss |
 | `agentprism.agent_source.failures` | Agent-source failure and contract-violation count |
+| `agentprism.job.executions` | Background jobs that reached a terminal status |
+| `agentprism.job.duration` | Duration of a single background-job attempt, in seconds |
+| `agentprism.job.queue.depth` | Outstanding jobs per lane and open status, when enabled |
 
 ### The attribute names
 
@@ -99,6 +102,9 @@ metric names above.
 | `agentprism.compaction.input_tokens` · `agentprism.compaction.output_tokens` | Compaction span | What the summarization call itself cost |
 | `agentprism.agent_source.name` | `agentprism.agent_source.failures` | The failing `IAgentSource`'s name |
 | `agentprism.agent_source.operation` | `agentprism.agent_source.failures` | `list`, `resolve`, or `consistency` |
+| `agentprism.job.lane` | Every job signal | The lane the job was queued in |
+| `agentprism.job.kind` | `agentprism.job.executions`, `agentprism.job.duration` | The job's kind |
+| `agentprism.job.status` | Every job signal | A terminal status on the counter and the histogram; an open one on the gauge |
 
 Three spans and one tool name are not metrics at all, and are named here because a
 trace search needs them: `execute_skill_script` (a skill script's own span, carrying
@@ -112,6 +118,36 @@ Four of these are **span attributes only** and are deliberately not metric tags:
 `agentprism.run.id`, `agentprism.session.id`, `agentprism.run.parent_id`, and
 `agentprism.run.depth`. Each is unbounded, and promoting one to a metric tag creates a
 new time series per run. Use them to find a trace, not to group a chart.
+:::
+
+### What the job metrics count
+
+`agentprism.job.executions` counts jobs that **finished**. Only a terminal status
+reaches it — `Completed`, `Failed`, or `Cancelled`. When an attempt fails and the
+job is released for another try, nothing is counted; a job configured with three
+attempts that ultimately fails is counted **once**, not three times.
+
+`agentprism.job.duration` follows the same rule and measures **one attempt**, not
+the job's whole lifetime. For a job that failed twice before succeeding, the
+single recorded measurement covers the last attempt. It is taken from a monotonic
+clock, so a clock correction during the job cannot produce a negative duration.
+
+`agentprism.job.queue.depth` is **off by default**, because it reads the database
+on every scrape. Turn it on with `Observability:EnableJobQueueDepthGauge`, and the
+reads are cached for `Observability:JobQueueDepthRefreshInterval`. It reports only
+the open statuses — `Pending`, `Leased`, and `Running` — so its cost tracks the
+work still outstanding rather than the queue's whole history. A lane with no open
+jobs is absent rather than reported as zero. The gauge carries **no tenant tag**:
+the worker pool leases across every tenant, so queue depth is a signal about the
+pool, not about one tenant's work.
+
+:::caution
+A lane name is chosen by you, and AgentPrism does not bound how many exist. To keep
+the metric backend safe from a deployment that derives a lane per user, only the
+first `Observability:MaxJobLaneCardinality` distinct lanes a process sees (64 by
+default) get a series of their own; every further lane is reported as `other`. A
+lane that earned its name keeps it for the life of the process, so a chart never
+sees the same lane move between its own series and `other`.
 :::
 
 Token and cost data depend on the provider response. Missing usage remains unknown;

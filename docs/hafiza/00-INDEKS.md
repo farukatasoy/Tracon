@@ -20,7 +20,8 @@
 | Workflow yürütme, executor kimliği, HITL | [workflows](workflows.md) |
 | `RunRecording` zinciri, `scope`/span, olay, iptal | [cekirdek-calistirma](cekirdek-calistirma.md) |
 | Metrik, maliyet, kota, `secret` süzgeci, `Bind()` | [olcum-kota-ve-secenekler](olcum-kota-ve-secenekler.md) |
-| Paylaşılan SQL katmanı, migration, yeni sağlayıcı | [sql-saglayicilari](sql-saglayicilari.md) |
+| Paylaşılan SQL katmanı, yeni sağlayıcı | [sql-saglayicilari](sql-saglayicilari.md) |
+| Migration, `__migrations` defteri, göç kilidi | [sql-migration](sql-migration.md) |
 | SQL Server tuzağı (parametre, sorgu, şema, upsert) | [sql-server-tuzaklari](sql-server-tuzaklari.md) |
 | SQL Server'ı yerelde ayağa kaldırma | [sql-server-yerel-test](sql-server-yerel-test.md) |
 | PostgreSQL (`jsonb`, sütun indeksi) | [postgresql](postgresql.md) |

@@ -8,7 +8,7 @@
 Bir fazın durumu yanlış görünüyorsa **o fazın dokümanını** düzelt;
 bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 
-## Fazlar (133 kalem)
+## Fazlar (136 kalem)
 
 | Faz | Konu | Durum |
 |-----|------|-------|
@@ -145,5 +145,8 @@ bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 | [130](arsiv/fazlar/130-URETILEN-SEMANIN-KISITLARI.md) | Üretilen Şemanın Kısıtları | ✅ Tamamlandı |
 | [131](arsiv/fazlar/131-YAPISAL-YANIT-DOGRULAMA-SEAMI.md) | Yapısal Yanıt Doğrulama Seam'i | ✅ Tamamlandı |
 | [132](arsiv/fazlar/132-UYGULANAN-FIYAT-SNAPSHOTU.md) | Uygulanan Fiyat Snapshot'ı ve Sağlayıcı Kimliği | ✅ Tamamlandı |
+| [133](133-IS-KUYRUGU-METRIKLERI.md) | İş Kuyruğu Metrikleri | ✅ Tamamlandı |
+| [134](134-SINIRLI-YANIT-ONARIMI.md) | Sınırlı Yapısal Yanıt Onarımı | 📋 Planlandı |
+| [135](135-URETILEN-SEMANIN-NESNE-GRAFI.md) | Üretilen Şemanın Nesne Grafı | 📋 Planlandı |
 
 Seçilmemiş adaylar: [`ADAYLAR.md`](ADAYLAR.md). Fazların hangi dalgada, hangi gerekçeyle sıralandığı (Faz 8–56, kapandı): [`arsiv/IKINCI-FAZ-YOL-HARITASI.md`](arsiv/IKINCI-FAZ-YOL-HARITASI.md) · [`arsiv/UCUNCU-FAZ-YOL-HARITASI.md`](arsiv/UCUNCU-FAZ-YOL-HARITASI.md).

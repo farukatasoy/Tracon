@@ -42,7 +42,13 @@
 > [Faz 131](arsiv/fazlar/131-YAPISAL-YANIT-DOGRULAMA-SEAMI.md) · **F-175** →
 > [Faz 132](arsiv/fazlar/132-UYGULANAN-FIYAT-SNAPSHOTU.md). Aynı turdan **dört kalem**
 > § *Bekleyen Kalemler*'e girdi (F-176 · F-177 · F-178 · F-179); hepsi bir
-> fazın tamamlanmasını bekler.
+> fazın tamamlanmasını bekliyordu. **Ek (2026-09-02):** Faz 129-132 kapandı ve
+> üçü plana dönüştü — **F-178'in job/kuyruk metrikleri yarısı** →
+> [Faz 133](133-IS-KUYRUGU-METRIKLERI.md) · **F-177** →
+> [Faz 134](134-SINIRLI-YANIT-ONARIMI.md) · **F-176** →
+> [Faz 135](135-URETILEN-SEMANIN-NESNE-GRAFI.md). Kuyrukta **F-178'in kalan
+> yarısı** (model deneme telemetrisi) ve **F-179** (dinamik routing) kaldı;
+> ikisi de gerçek üretim trafiği/olayı bekliyor.
 >
 > Faz durumu yalnız üretilen [`YOL-HARITASI.md`](YOL-HARITASI.md)'dedir.
 > Bir kusur bu dosyaya geri girmez; `kusur-giderme` kanalına gider. Kapatılmış
@@ -135,9 +141,7 @@ dönüşebilmeleri için burada duruyor.
 |---|---|---|
 | **F-95** | İmzası doğrulanmadı; ayrıca **experimental** bir MAF sözleşmesine 1.0 öncesi public yüzey bağlamak K-008'in ön sürüm sınırının tersidir | `maf-api-kesfi` imzayı doğrular **ve** F-141 ile karşılaştırma yapılır. Tercihen 1.0 sonrası |
 | **F-165** | 1.650 case tek faza sığmaz; bağımsız faz olarak planlanırsa kuyruğu bitmez | Bağımsız faz olarak **hiç** planlanmaz. Her fazın dokunduğu alanın manuel ailesi o fazda otomatikleştirilir |
-| **F-176** | Nested object şeması K-615 ile uzlaştırılmadan tasarlanamaz | [Faz 130](arsiv/fazlar/130-URETILEN-SEMANIN-KISITLARI.md) kapanır **ve** generator'ın `JsonSerializerContext` sözleşmesi için bir tasarım kararı verilir |
-| **F-177** | Bounded repair `run` içinde ikinci bir model çağrısı açar; doğrulama seam'i olmadan tanımsızdır | [Faz 131](arsiv/fazlar/131-YAPISAL-YANIT-DOGRULAMA-SEAMI.md) kapanır ve seam gerçek kullanımda ölçülür |
-| **F-178** | Job/kuyruk metrik ailesi bugün **hiç yok**; `lane` kimliği olmadan etiketlenemez | [Faz 129](arsiv/fazlar/129-IS-KUYRUGU-LANELERI.md) kapanır |
+| **F-178** | Job/kuyruk metrikleri yarısı [Faz 133](133-IS-KUYRUGU-METRIKLERI.md)'e gitti. Kalan yarı (model deneme telemetrisi) tüketicinin kendi ölçütüne göre bekler | Gerçek bir üretim fallback gecikmesi olayı ölçülür |
 | **F-179** | Ön koşulu yok: `run` satırı sağlayıcıyı saklamıyor, kayan latency penceresi ölçülmüyor | [Faz 132](arsiv/fazlar/132-UYGULANAN-FIYAT-SNAPSHOTU.md) kapanır **ve** F-178 attempt süresini ölçmeye başlar **ve** gerçek üretim trafiği oluşur |
 
 
@@ -317,76 +321,41 @@ bekleten şey bir tasarım kararı değil, MAF'ta kancanın bulunmamasıydı; MA
 1.19.0 o kancayı gönderdiği için 2026-08-26'da adaylığa döndü.
 
 
-### F-176 · AOT güvenli nested object tool şeması
+### F-178 · Model deneme (attempt) telemetrisi
 
-**Sorun:** Generator nested object ve object array ifade edemez. Gerçek business
-tool'ları (rubric, dimensions, sahne girdisi) bu yüzden JSON taşıyan düz
-`string` alanlara dönüyor; model hata oranı artıyor.
+> **Yarısı plana dönüştü.** Job/kuyruk metrikleri
+> [Faz 133](133-IS-KUYRUGU-METRIKLERI.md)'e gitti. Aşağıdaki gövde yalnız
+> **kalan yarıyı** anlatır.
 
-**Kapsam:** Record/property tabanlı nesne parametresi, nested object array, açık
-derinlik sınırı, cycle için derleme anı diagnostic'i ve AOT için açık
-`JsonSerializerContext`. Sınırsız `reflection` graph taraması **yapılmaz**.
-Manuel `AIFunction` kaçış yolu korunur.
+**Sorun:** Yedek zincirinde hangi linkte ne kadar süre harcandığı ölçülmüyor.
+`FallbackChatClient` döngü indeksini tutuyor ve `ModelFallbackUsed`'ı yazıyor,
+ama `grep -n "Stopwatch\|GetTimestamp\|Elapsed"` o dosyada **sıfır** eşleşme
+veriyor ve `ModelFallbackUsedEventPayload` süre veya indeks taşımıyor. Birincil
+model 28 sn'de timeout olup yedek 2 sn'de yanıtladığında, 30 sn'lik `run`'ın
+gecikmesinin hangi linkten geldiği ayrıştırılamaz.
 
-**Değer:** Complex tool'lar string tabanlı protokole dönmez; `IToolArgumentsValidator`
-tek şemadan bütün kuralları uygulayabilir.
+**Kapsam:** Deneme başına süre (monotonik saat), deneme indeksi, sağlayıcı,
+model ve sonuç kategorisi taşıyan bir `run` olayı veya `span`. Prompt ve yanıt
+içeriği telemetriye **girmez**; sağlayıcıya özel request ID **çıkarılmaz**
+(tüketici bu maliyeti kabul etti). Etiket kardinalitesi sınırlanır.
 
-**Mercek:** 4, 5.
-
-**Hazırlık:** Faz 130 scalar kısıtları sevk eder; şema üretim yolu o zaman hazır olur.
-
-**Maliyet:** Ölçülmedi. K-615 ile uzlaştırma zorunludur: generator kendi
-`JsonSerializerContext`'ini kullanmaz, tool sahibi verir, vermezse `APG0008`.
-
-**Risk:** AOT metadata eksikliği yalnız paketlenmiş tüketicide görülür.
-
-
-
-### F-177 · Sınırlı (bounded) yapısal yanıt onarımı
-
-**Sorun:** Geçersiz yapısal yanıtta `run` bugün yalnız başarısız olabilir.
-Tüketici aynı onarım turunu kendi kodunda yazarsa maliyet ana `run` kanıtından
-kopar.
-
-**Kapsam:** Geçersiz yanıt için sınırlı sayıda onarım turu; aynı bütçe, deadline
-ve iptal kapsamında; token ve maliyet kaydı ana `run` ağacına bağlı.
-
-**Değer:** Onarım maliyeti ve nedeni tek yerde görünür.
-
-**Mercek:** 2, 7, 8.
-
-**Hazırlık:** Faz 131 seam'i ve olayı sevk eder.
-
-**Maliyet:** Ölçülmedi. `AgentRunBudget`, `FallbackChatClient`'ın tur içi tool
-defteri ve cost attribution ile kesişir.
-
-**Risk:** 🚨 Onarım döngüsünün model boru hattındaki **konumu** yanlış seçilirse
-derlenir, testten geçer, yalnız gerçek senaryoda çöker (K-320 sınıfı).
-
-
-
-### F-178 · Job/kuyruk metrikleri ve model deneme telemetrisi
-
-**Sorun:** `AgentPrismMetrics` run, token, cost, tool, judge, model cache ve
-agent source sayıyor. **Hiç job metriği yok**: kuyruk derinliği, `lease`
-sayısı, job süresi ölçülmüyor. Aynı şekilde yedek zincirinde hangi linkte ne
-kadar süre harcandığı ölçülmüyor.
-
-**Kapsam:** `lane` etiketli job sayaç ve histogramları; model deneme başına
-süre, deneme indeksi ve sonuç kategorisi taşıyan bir olay veya `span`. Prompt
-ve yanıt içeriği telemetriye **girmez**; etiket kardinalitesi sınırlanır.
-
-**Değer:** Kimsenin dinlemediği bir `lane`'de biriken iş görünür olur;
-SLO ihlalinin ne kadarının başarısız denemeden geldiği ölçülebilir.
+**Değer:** "Birincil timeout değeri düşürülmeli mi?", "Yedek ilk model olmalı
+mı?" soruları kanıta dayanır.
 
 **Mercek:** 2, 7.
 
-**Hazırlık:** Faz 129 `lane` kimliğini sevk eder. `FallbackChatClient` döngü
-indeksini zaten tutuyor ve `ModelFallbackUsed`'ı zaten yazıyor.
+**Hazırlık:** `FallbackChatClient` döngü indeksini zaten tutuyor; ekleme
+tamamen additive'dir. Faz 133 metrik adı ve etiket kurallarını kurar.
 
 **Maliyet:** Ölçülmedi. Yeni tablo ve migration gerekmez.
 
 **Risk:** Etiket kardinalitesi kontrolsüz büyürse metrik altyapısını boğar.
+
+**Karşı görüş:** Tüketici bunu bilerek erteledi — *"Prodigy henüz production
+olmadığı için gerçek incident kaydı sunamıyoruz … İlk fallback latency olayı
+ölçüldüğünde bu talebi incident verisiyle yeniden açacağız."* Tek istediği,
+API tasarımında bunu engelleyecek bir karar alınmamasıdır; bu koşul bugün
+sağlanıyor.
 
 
 

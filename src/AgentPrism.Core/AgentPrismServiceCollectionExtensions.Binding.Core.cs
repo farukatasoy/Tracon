@@ -438,6 +438,31 @@ public static partial class AgentPrismServiceCollectionExtensions
         {
             options.QuotaUsageRefreshInterval = quotaUsageRefreshInterval;
         }
+
+        if (TryReadBool(
+                section,
+                nameof(AgentPrismObservabilityOptions.EnableJobQueueDepthGauge),
+                out var enableJobQueueDepthGauge))
+        {
+            options.EnableJobQueueDepthGauge = enableJobQueueDepthGauge;
+        }
+
+        if (TimeSpan.TryParse(
+                section[nameof(AgentPrismObservabilityOptions.JobQueueDepthRefreshInterval)],
+                CultureInfo.InvariantCulture,
+                out var jobQueueDepthRefreshInterval))
+        {
+            options.JobQueueDepthRefreshInterval = jobQueueDepthRefreshInterval;
+        }
+
+        if (int.TryParse(
+                section[nameof(AgentPrismObservabilityOptions.MaxJobLaneCardinality)],
+                NumberStyles.Integer,
+                CultureInfo.InvariantCulture,
+                out var maxJobLaneCardinality))
+        {
+            options.MaxJobLaneCardinality = maxJobLaneCardinality;
+        }
     }
 
     /// <summary>Binds the <c>AgentPrism:OnlineEvaluation</c> section.</summary>

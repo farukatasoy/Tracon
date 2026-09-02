@@ -279,7 +279,25 @@ internal sealed class SqlJobStore : IJobStore
         await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false);
     }
 
+    /// <inheritdoc />
+    [TenantAgnostic(
+        "Queue depth is an operator signal about the worker pool, which leases across EVERY tenant (LeaseAsync); there is no tenant boundary to apply and no tenant tag is published.")]
+    public async ValueTask<IReadOnlyList<JobQueueDepth>> GetQueueDepthAsync(CancellationToken cancellationToken = default)
+    {
+        var command = CreateCommand(_sql.SelectJobQueueDepth);
+
+        return await DbHelpers.ReadListAsync(command, ReadQueueDepth, cancellationToken).ConfigureAwait(false);
+    }
+
     private DbCommand CreateCommand(string sql) => _context.CreateCommand(sql);
+
+    private static JobQueueDepth ReadQueueDepth(DbDataReader reader)
+        => new()
+        {
+            Lane = reader.GetString(0),
+            Status = (JobStatus)reader.GetInt16(1),
+            Count = reader.GetInt64(2),
+        };
 
     private static JobRecord ReadJob(DbDataReader reader)
         => new()

@@ -31,7 +31,8 @@ internal sealed class JobWorkerBackgroundService(
     SchemaReadyGate schemaReadyGate,
     IAgentPrismDrainState drainState,
     TimeProvider? timeProvider = null,
-    ILogger<JobWorkerBackgroundService>? logger = null) : BackgroundService
+    ILogger<JobWorkerBackgroundService>? logger = null,
+    AgentPrismMetrics? metrics = null) : BackgroundService
 {
     private readonly string _ownerId = $"{Environment.MachineName}:{Environment.ProcessId}:{Guid.NewGuid():N}";
     private readonly TimeProvider _clock = timeProvider ?? TimeProvider.System;
@@ -251,6 +252,10 @@ internal sealed class JobWorkerBackgroundService(
         var handler = handlers.FirstOrDefault(candidate => candidate.Kind == job.Kind);
         var now = _clock.GetUtcNow();
 
+        // MONOTONIC clock, not the wall clock: a clock adjustment mid-attempt
+        // must not be able to produce a negative duration.
+        var startedAt = _clock.GetTimestamp();
+
         if (handler is null)
         {
             await jobStore.CompleteAsync(
@@ -262,6 +267,8 @@ internal sealed class JobWorkerBackgroundService(
                     ErrorMessage = $"No IJobHandler is registered for kind '{job.Kind}'.",
                 },
                 stoppingToken).ConfigureAwait(false);
+
+            RecordJobMetric(job, JobStatus.Failed, startedAt);
 
             return;
         }
@@ -295,21 +302,27 @@ internal sealed class JobWorkerBackgroundService(
             {
                 // The handler already saw this through IsCancelledAsync between
                 // items and exited early; do not overwrite with CompleteAsync.
+                // Cancelled IS terminal, so the attempt is still counted.
+                RecordJobMetric(job, JobStatus.Cancelled, startedAt);
+
                 return;
             }
 
             var finalItems = await jobStore.ListItemsAsync(job.Id, stoppingToken).ConfigureAwait(false);
             var allFailed = finalItems.Count > 0 && finalItems.All(item => item.Status == JobItemStatus.Failed);
+            var finalStatus = allFailed ? JobStatus.Failed : JobStatus.Completed;
 
             await jobStore.CompleteAsync(
                 new JobCompletion
                 {
                     JobId = job.Id,
-                    Status = allFailed ? JobStatus.Failed : JobStatus.Completed,
+                    Status = finalStatus,
                     CompletedAt = _clock.GetUtcNow(),
                     ErrorMessage = allFailed ? "All of the job's items failed." : null,
                 },
                 stoppingToken).ConfigureAwait(false);
+
+            RecordJobMetric(job, finalStatus, startedAt);
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
@@ -337,6 +350,8 @@ internal sealed class JobWorkerBackgroundService(
                         ErrorMessage = safeMessage,
                     },
                     stoppingToken).ConfigureAwait(false);
+
+                RecordJobMetric(job, JobStatus.Failed, startedAt);
             }
             else
             {
@@ -347,6 +362,46 @@ internal sealed class JobWorkerBackgroundService(
                 await jobStore
                     .ReleaseForRetryAsync(job.Id, safeMessage, retryAfter, stoppingToken)
                     .ConfigureAwait(false);
+
+                // 🚨 Deliberately NOT counted. The job has not finished; it
+                // will be leased again. Counting a release for retry would turn
+                // agentprism.job.executions from "how many jobs finished" into
+                // "how many things happened", and a job with MaxAttempts=3 that
+                // eventually fails would be counted three times instead of once.
+            }
+        }
+    }
+
+    /// <summary>
+    /// Writes this attempt's outcome to <c>agentprism.job.executions</c> and
+    /// <c>agentprism.job.duration</c>.
+    /// </summary>
+    /// <param name="job">The job whose attempt finished.</param>
+    /// <param name="status">The terminal status reached.</param>
+    /// <param name="startedAt">The monotonic timestamp taken when the attempt started.</param>
+    /// <remarks>
+    /// Observability must not break functionality. The job is ALREADY finalized
+    /// in the store by the time this runs; a listener callback that throws is
+    /// logged and swallowed, never surfaced to the caller. The metric is
+    /// written after the store call for the same reason: a job's completion
+    /// never depends on a measurement succeeding.
+    /// </remarks>
+    private void RecordJobMetric(JobRecord job, JobStatus status, long startedAt)
+    {
+        if (metrics is null)
+        {
+            return;
+        }
+
+        try
+        {
+            metrics.RecordJob(job.Lane, job.Kind, status, job.TenantId, _clock.GetElapsedTime(startedAt));
+        }
+        catch (Exception exception)
+        {
+            if (logger is not null && logger.IsEnabled(LogLevel.Warning))
+            {
+                logger.LogWarning(exception, "Could not record the job metric for {JobId}.", job.Id);
             }
         }
     }

@@ -243,6 +243,13 @@ AgentPrism.Testing.Contracts.Storage.JobStoreContract.Lease_with_an_empty_lanes_
 AgentPrism.Testing.Contracts.Storage.JobStoreContract.Lease_with_null_lanes_applies_no_filter() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.JobStoreContract.MarkRunningAsync_works_only_for_the_real_owner() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.JobStoreContract.QueryAsync_filters_by_lane() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.Storage.JobStoreContract.Queue_depth_counts_a_job_released_for_retry_as_pending_again() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.Storage.JobStoreContract.Queue_depth_counts_every_tenants_jobs_together() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.Storage.JobStoreContract.Queue_depth_drops_a_lane_once_its_last_job_finishes() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.Storage.JobStoreContract.Queue_depth_groups_pending_jobs_by_lane() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.Storage.JobStoreContract.Queue_depth_is_empty_when_no_job_is_open() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.Storage.JobStoreContract.Queue_depth_never_counts_a_terminal_status() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.Storage.JobStoreContract.Queue_depth_separates_the_open_statuses() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.JobStoreContract.QueryAsync_lane_filter_does_not_leak_another_tenants_job() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.JobStoreContract.QueryAsync_filters_by_tenant() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.JobStoreContract.ReleaseForRetryAsync_returns_to_pending_without_resetting_the_attempt() -> System.Threading.Tasks.Task!

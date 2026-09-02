@@ -25,7 +25,6 @@
 - **Kimlik bazli toplu silme, `IRetentionStore`'un cutoff-tabanli arayuzunu YENIDEN KULLANMAZ; paralel bir yol acilir** — iki islem farkli anahtarlarla calisir ve tek arayuze zorlanmalari her iki tarafi da bozar. Ayrinti: [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
 - **🚨 Depoda `LoadAllAsync` (kapsamdaki TUM satirlari cekip C#'ta filtreleme) deseni bulursan supheyle yaklas** (Faz 51): suzgec SQL'e indirilir (`LIKE ... ESCAPE`, onek `EscapeLikeLiteral` ile kacislanir). 🚨 SQL Server/SQLite regex TASIMAZ — nihai eslesme HER ZAMAN istemcide `Regex` ile kalir, SQL yalniz on daraltmadir. Vaka: [`arsiv/HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
 - **🚨 Linked-source (K-176) bir tipin `internal` isareti CROSS-ASSEMBLY sayim icin GUVENILMEZ** (Faz 33, K-247): ayni tip her saglayici derlemesine AYRI derlenir, CLR kimligi FARKLIDIR. Linked-source icindeki bir `internal` tipi `IEnumerable<T>` ile SAYMAK istiyorsan T **Abstractions'da** olmali. Vaka: [`arsiv/HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
-- **`MigrationRunner` artik `ISqlPersistenceDiagnostics` uygular** (2026-08-06, Faz 33, K-248): `GetSnapshotAsync` migration UYGULAMAZ, yalniz baglanti + bekleyen liste okur. `__migrations` defteri henuz yoksa (DbException) baglanti calisiyor sayilir, tum migration'lar bekliyor kabul edilir — `CanConnect=false` yalniz baglanti KURULAMADIGINDA doner.
 - **🚨 Linked-source (K-176) tiplerin AYNI tam nitelikli adi, `Microsoft.AspNetCore.OpenApi`'nin XML yorum onbellegini CATISTIRIR** (Faz 40, K-276): 2+ SQL saglayicisini birlikte referans veren ve `AddOpenApi()` kullanan bir tuketicide `/openapi/v1.json` **500** doner. K-247'nin XML-doc kardesi. Ayrinti ve durum: [`arsiv/HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md), `docs/ADAYLAR.md` F-76.
 
 - **🚨 CAGIRANIN VERDIGI bir metin tek basina birincil anahtar olamaz** (Faz 41, K-278): kimlik cagirandan geliyorsa anahtar **kiraciyi da icermelidir** (`sessions` → `(tenant_id, id)`); uuid v7 (K-015) bu tuzagi tasimaz. 🚨 SQLite birincil anahtari DEGISTIREMEZ — tablo yeniden kurulur, veri tasinir, indeksler ELLE kurulur. Vaka: [`arsiv/HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
@@ -33,6 +32,7 @@
 - **Kapsam kapisi: `TenantCoverageTests`** (Faz 41, K-281): `Stores/` altindaki her public metot ya `Covered` tablosunda ya `[TenantAgnostic("gerekce")]` ile isaretli olmali; yeni metotta build yesil kalir ama bu test duser. Gerekce 40 karakterden kisa olamaz. Ayrinti: [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
 
 - **🚨 Bir UPSERT'in dönüş değerini COALESCE edilmiş yapmak için `RETURNING`/`OUTPUT` eklerken SQL Server'ın İKİ DALINA da eklemeyi unutma** (Faz 98, K-608): `UPDATE ... OUTPUT inserted.x ... WHERE ...; IF @@ROWCOUNT = 0 INSERT ... OUTPUT inserted.x ... VALUES ...;` deseninde yalnız bir dala `OUTPUT` eklemek sessiz bir sağlayıcı farkı üretir — ikinci çağrı (UPDATE dalı) çalışırken ilk çağrı (INSERT dalı) hâlâ eski değeri döner veya tersi. `DbHelpers.ReadSingleAsync` iki sonuç kümesini zaten doğru sırayla dener (Faz 65'in deseni), okuma tarafında ek iş gerekmez — yalnız YAZMA tarafında iki `OUTPUT` satırı unutulmamalı. Sözleşme testi bunu dört sağlayıcıda ayrı ayrı koşarak yakalar.
+- **🚨 PAYLASILAN bir sorgunun SONUC SUTUNU her dialektte ayni CLR tipinde DEGILDIR — `COUNT(*)` SQL Server'da `int`, PostgreSQL/SQLite'ta `bigint`** (2026-09-02, Faz 133 yan bulgusu): `SelectConversationBranchPoint` paylasilan katmanda `COUNT(*)` yaziyor, okuyucu `reader.GetInt64(1)` cagiriyordu; SQL Server'da `InvalidCastException: Unable to cast 'System.Int32' to 'System.Int64'` firladi ve **konusma dallandirma (Faz 47) SQL Server'da HIC calismiyordu** — ozellik sevk edildiginden beri. Gorunmedi cunku `ConversationBranchTests` yalniz **SQLite'ta** vardi; gerekce "sorgular paylasilan katmanda, dialektten bagimsiz" idi. O gerekce sorgu **METNI** icin dogru, **OKUYUCU** icin yanlis. Kural: paylasilan bir sorguda toplama fonksiyonu yazarsan tipi `CAST(... AS bigint)` ile SABITLE. `MAX(seq)`/`SUM(kolon)` guvenlidir — sutunun kendi tipini doner ve `seq` uc dialektte de `bigint`. Tarama: 103 paylasilan sorgunun tamami, baska vaka yok. Kapi: `tests/AgentPrism.SqlServer.IntegrationTests/ConversationBranchTests.cs` (bes case, once KIRMIZI goruldu).
 - **🚨 Sorgu metni değişince `SqlTextSnapshotTests` kırılır** (2026-09-01, Faz 126): davranış değil metin sınanır; `AGENTPRISM_SQL_SNAPSHOT_REFRESH=1` ile yenile, diffi oku. Sütun rename: Postgres/SQLite `RENAME COLUMN`, SQL Server `sp_rename`.
 - **🚨 Yinelenen bir birincil anahtar değerini (`run_events(run_id, seq)` gibi çağıranın ürettiği bir anahtar) REDDETMEK için `SqlDialect.IsUniqueViolation` zaten var — yeniden icat etme** (Faz 98, K-607): `AppendEventAsync` gibi bir metodun ikinci çağrısı aynı anahtarla gelirse ham sürücü istisnası (`DbException`) sızmasın diye `catch (DbException ex) when (Dialect.IsUniqueViolation(ex))` ile yakalanıp `AgentPrismException`'a çevrilir — `IsForeignKeyViolation`'ın yanına ikinci bir `catch` bloğu olarak eklenir, aynı `try` içinde. Bellek içi store aynı kuralı elle uygular (log'da doğrusal tarama, `MaxRuns` sınırlı store'larda ucuz).
 
@@ -49,8 +49,6 @@ Parametre sayisi, sorgu yazimi, sema farklari (`NULL` benzersizligi,
 
 - **Iki dalli upsert `OUTPUT` GEREKTIRMEZSE cok basitlesir** (2026-08-19, Faz 65): `UpsertAsync` deger dondurmuyorsa `UPDATE WITH (UPDLOCK, SERIALIZABLE) ...; IF @@ROWCOUNT = 0 INSERT ...;` yeter — K-187/188/189'un asil tuzagi (`OUTPUT` ikinci sonuc kumesine duser) hic devreye girmez. `tenant_provider_bindings`/`tenant_egress_policies` bunu kullanir.
 
-- **🚨 `__migrations`'in KENDI semasini degistiren islem K-388'in tek-toplu-komut birlestirmesiyle CELISIR** (Faz 67, K-475): SQL Server toplu isi BASTAN derler; `ADD set_name` sonrasi ayni iste `set_name` referansi "Invalid column name" verir, `EXEC` ile SARILAMAZ. Cozum: dongu ONCESI `SqlDialect.UpgradeMigrationsTableAsync` (SQLite'ta K-278 rebuild). Vaka: [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
-
 ## SQLite'a ozgu tuzaklar
 
 SQLite'a ozgu tum notlar (indeks ad alani, upsert, `ExecuteScalarAsync` CLR
@@ -61,27 +59,9 @@ tipi, migration kilidi, uuid harf buyuklugu) **taşındı**:
 - **Etiket haritası (`runs.labels`) için `jsonb` seçimi ve üç dialektin süzgeç biçimi**: [`postgresql.md`](postgresql.md) (Faz 68, K-479). SQL Server/SQLite'ta harita JSON METNİDİR ve indeks YOKTUR.
 - **🚨 UPSERT'te bir alani duz uzerine yazmak ONU DOGRU BILEN yazimi silebilir** (Faz 68, K-486): kuyruklu `run` `StartRunAsync`'i IKI kez cagirir (HTTP'de kullanici bilinir, iscide `null`); `user_id = EXCLUDED.user_id` atfi SILERDI, `COALESCE(EXCLUDED.user_id, user_id)` korur. Bir alan "set → unset" yonunde MESRU degismiyorsa `COALESCE` her zaman dogrudur. Vaka: [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
 
-## 🚨 Geçici çakışma: iki şekli var, yeniden deneme YOLUN TAMAMINI kapsar (K-540, K-545)
+## Migration ve goc kilidi
 
-Migration kilidi **şemaya** kapsamlıdır (K-389); farklı şemaların ilk göçü
-veritabanı genelindeki katalog nesnelerinde buluşur. Çarpışma iki yüzle gelir ve
-ikisi de geçicidir — **unique ihlali** ve **deadlock**; sunucu kurbanı **zaten**
-geri almıştır. `SqlDialect.IsDeadlock`: SQL Server `1205` · PostgreSQL `40P01` ·
-SQLite `SQLITE_BUSY`/`SQLITE_LOCKED`.
-
-Sınıf iki kez bedel ödetti: K-540 deadlock'un `catch`'e hiç girmediğini (5 case),
-K-545 `MigrationRunner`'ın **bootstrap** deyimlerinin — şema · ledger · ledger
-yükseltmesi · ledger okuması — döngünün **dışında** kaldığını buldu: 15 case
-birden, hepsi **0 ms**, `fixture` hiç kalkmadı.
-
-1. Yalnız `IsUniqueViolation`'a bakan bir `catch` deadlock'u **ham** bırakır;
-   `MigrationRunner.IsTransientConflict` ikisini birden sorar.
-2. **"Bu yalnızca kurulum" muafiyeti yoktur** — aynı katalog nesnesine dokunan
-   her deyim yarışır ve idempotentse yeniden denenir.
-3. Yeniden denenen şey **re-runnable** olmalıdır; çok deyimli bir rebuild bunu
-   kendiliğinden sağlamaz ([`sqlite.md`](sqlite.md)).
-
-Dört `store`'un (`Session`, `Idempotency`, `Experiment`, `Eval`)
-`IsUniqueViolation` yakalaması bu sınıf **değildir**: anlamsal daldır ve yazımları
-idempotent olmadığı için denenmez. Vakalar:
-[`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
+`MigrationRunner`, `__migrations` defteri, gecici catisma (unique ihlali ·
+deadlock) ve yeniden deneme kurallari ayri dosyadadir:
+[`sql-migration.md`](sql-migration.md) — Faz 133'te butce asimini gidermek icin
+ayrildi, `sqlite.md`'nin Faz 36'daki emsaliyle.

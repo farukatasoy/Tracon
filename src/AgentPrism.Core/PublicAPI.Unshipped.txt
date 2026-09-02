@@ -131,14 +131,17 @@ AgentPrism.AgentPrismKnowledgeOptions.Dimensions.set -> void
 AgentPrism.AgentPrismKnowledgeOptions.MaxResults.get -> int
 AgentPrism.AgentPrismKnowledgeOptions.MaxResults.set -> void
 AgentPrism.AgentPrismMetrics
-AgentPrism.AgentPrismMetrics.AgentPrismMetrics(System.Diagnostics.Metrics.IMeterFactory? meterFactory = null) -> void
+AgentPrism.AgentPrismMetrics.AgentPrismMetrics(System.Diagnostics.Metrics.IMeterFactory? meterFactory = null, Microsoft.Extensions.Options.IOptionsMonitor<AgentPrism.AgentPrismOptions!>? options = null) -> void
 AgentPrism.AgentPrismMetrics.Dispose() -> void
 AgentPrism.AgentPrismMetrics.JudgeCost.get -> System.Diagnostics.Metrics.Counter<double>!
 AgentPrism.AgentPrismMetrics.JudgeScore.get -> System.Diagnostics.Metrics.Histogram<double>!
+AgentPrism.AgentPrismMetrics.JobExecutions.get -> System.Diagnostics.Metrics.Counter<long>!
+AgentPrism.AgentPrismMetrics.JobDuration.get -> System.Diagnostics.Metrics.Histogram<double>!
 AgentPrism.AgentPrismMetrics.ModelCacheLookups.get -> System.Diagnostics.Metrics.Counter<long>!
 AgentPrism.AgentPrismMetrics.RecordCost(string! agentName, string? modelId, string! tenantId, decimal cost, string! currency) -> void
 AgentPrism.AgentPrismMetrics.RecordJudgeCost(string! judgeName, string? modelId, string! tenantId, decimal cost, string! currency) -> void
 AgentPrism.AgentPrismMetrics.RecordJudgeScore(string! judgeName, string! agentName, string! tenantId, int score) -> void
+AgentPrism.AgentPrismMetrics.RecordJob(string! lane, AgentPrism.JobKind kind, AgentPrism.JobStatus status, string? tenantId, System.TimeSpan duration) -> void
 AgentPrism.AgentPrismMetrics.RecordModelCacheLookup(string! provider, string! tenantId, bool hit) -> void
 AgentPrism.AgentPrismMetrics.RecordRun(string! agentName, AgentPrism.RunStatus status, string! tenantId, string? modelId, System.TimeSpan duration, AgentPrism.RunUsage? usage, int? agentVersion = null) -> void
 AgentPrism.AgentPrismMetrics.RecordToolInvocation(string! toolName, bool succeeded, System.TimeSpan? duration) -> void
@@ -156,6 +159,12 @@ AgentPrism.AgentPrismObservabilityOptions.Enabled.get -> bool
 AgentPrism.AgentPrismObservabilityOptions.Enabled.set -> void
 AgentPrism.AgentPrismObservabilityOptions.EnableQuotaUsageGauge.get -> bool
 AgentPrism.AgentPrismObservabilityOptions.EnableQuotaUsageGauge.set -> void
+AgentPrism.AgentPrismObservabilityOptions.EnableJobQueueDepthGauge.get -> bool
+AgentPrism.AgentPrismObservabilityOptions.EnableJobQueueDepthGauge.set -> void
+AgentPrism.AgentPrismObservabilityOptions.JobQueueDepthRefreshInterval.get -> System.TimeSpan
+AgentPrism.AgentPrismObservabilityOptions.JobQueueDepthRefreshInterval.set -> void
+AgentPrism.AgentPrismObservabilityOptions.MaxJobLaneCardinality.get -> int
+AgentPrism.AgentPrismObservabilityOptions.MaxJobLaneCardinality.set -> void
 AgentPrism.AgentPrismObservabilityOptions.IncludeAgentVersionTag.get -> bool
 AgentPrism.AgentPrismObservabilityOptions.IncludeAgentVersionTag.set -> void
 AgentPrism.AgentPrismObservabilityOptions.MaxSpansPerRun.get -> int
@@ -908,6 +917,9 @@ const AgentPrism.AgentPrismDiagnostics.ActivitySourceName = "AgentPrism" -> stri
 const AgentPrism.AgentPrismDiagnostics.CompactHistoryActivityName = "compact_history" -> string!
 const AgentPrism.AgentPrismDiagnostics.JudgeCostCounterName = "agentprism.judge.cost" -> string!
 const AgentPrism.AgentPrismDiagnostics.JudgeScoreHistogramName = "agentprism.judge.score" -> string!
+const AgentPrism.AgentPrismDiagnostics.JobCounterName = "agentprism.job.executions" -> string!
+const AgentPrism.AgentPrismDiagnostics.JobDurationName = "agentprism.job.duration" -> string!
+const AgentPrism.AgentPrismDiagnostics.JobQueueDepthGaugeName = "agentprism.job.queue.depth" -> string!
 const AgentPrism.AgentPrismDiagnostics.MeterName = "AgentPrism" -> string!
 const AgentPrism.AgentPrismDiagnostics.ModelCacheLookupCounterName = "agentprism.model.cache" -> string!
 const AgentPrism.AgentPrismDiagnostics.QuotaLimitGaugeName = "agentprism.quota.limit" -> string!
@@ -929,6 +941,9 @@ const AgentPrism.AgentPrismDiagnostics.Tags.Direction = "agentprism.token.direct
 const AgentPrism.AgentPrismDiagnostics.Tags.DurationMs = "agentprism.script.duration_ms" -> string!
 const AgentPrism.AgentPrismDiagnostics.Tags.ExitCode = "agentprism.script.exit_code" -> string!
 const AgentPrism.AgentPrismDiagnostics.Tags.JudgeName = "agentprism.judge.name" -> string!
+const AgentPrism.AgentPrismDiagnostics.Tags.Lane = "agentprism.job.lane" -> string!
+const AgentPrism.AgentPrismDiagnostics.Tags.JobKind = "agentprism.job.kind" -> string!
+const AgentPrism.AgentPrismDiagnostics.Tags.JobStatus = "agentprism.job.status" -> string!
 const AgentPrism.AgentPrismDiagnostics.Tags.ModelId = "agentprism.model.id" -> string!
 const AgentPrism.AgentPrismDiagnostics.Tags.ParentRunId = "agentprism.run.parent_id" -> string!
 const AgentPrism.AgentPrismDiagnostics.Tags.Provider = "agentprism.model.provider" -> string!

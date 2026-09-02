@@ -199,7 +199,7 @@ caller's role and key scopes. See the complete scope table in
 |---|---|---|
 | Run event stream | Gapless, ordered domain events | Recording options choose deltas, tool payloads, input, and payload size |
 | OpenTelemetry traces | `ActivitySource` spans | Your exporter remains in control; AgentPrism can also persist a sample |
-| Metrics | Run counts, duration, tokens, cost, tools, errors, judges, and optional quota gauges | Standard .NET metrics; high-cardinality and store-backed gauges are bounded |
+| Metrics | Run counts, duration, tokens, cost, tools, errors, judges, background-job executions and attempt duration, plus optional quota and job-queue-depth gauges | Standard .NET metrics; high-cardinality tags are bounded and store-backed gauges are opt-in and cached |
 | Cost attribution | Per model, agent, run, child run, voice, and image usage | Prices come from a model catalog or explicit configuration; image prices are never inferred |
 | Provider health | Cached status and optional background polling | On-demand by default; a provider without a health check reports `Unknown` |
 | Health checks | `AddAgentPrismHealthChecks()` | Adds checks to the consumer's health-check system; you choose the route with `MapHealthChecks()` |

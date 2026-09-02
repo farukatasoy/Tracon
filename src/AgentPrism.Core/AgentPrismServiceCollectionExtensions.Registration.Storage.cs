@@ -307,6 +307,20 @@ public static partial class AgentPrismServiceCollectionExtensions
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IHostedService, JobWorkerBackgroundService>());
 
+        // Queue-depth gauge (Phase 133). Registered as an IHostedService for
+        // the same single reason as QuotaUsageObserver: so the container builds
+        // this object EARLY and its ObservableGauge exists. While
+        // EnableJobQueueDepthGauge is off (the default) the gauge is created
+        // but never touches the store - see the class documentation.
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, JobQueueDepthObserver>(
+            static provider => new JobQueueDepthObserver(
+                provider.GetRequiredService<IJobStore>(),
+                provider.GetRequiredService<IOptionsMonitor<AgentPrismOptions>>(),
+                provider.GetService<System.Diagnostics.Metrics.IMeterFactory>(),
+                provider.GetService<TimeProvider>(),
+                provider.GetService<Microsoft.Extensions.Logging.ILogger<JobQueueDepthObserver>>(),
+                provider.GetRequiredService<AgentPrismMetrics>())));
+
         // Orphaned run reconciliation (Phase 54). Both return immediately and
         // issue no query to the store while RunReconciliationOptions.Enabled is
         // off (the default) (K1).

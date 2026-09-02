@@ -59,3 +59,30 @@ public sealed record JobItemResult
     /// <summary>The failure message. Populated only for <see cref="JobItemStatus.Failed"/>.</summary>
     public string? Error { get; init; }
 }
+
+/// <summary>The number of open jobs in one lane/status pair.</summary>
+/// <remarks>
+/// <para>
+/// Returned by <see cref="IJobStore.GetQueueDepthAsync"/> and published through
+/// the <c>agentprism.job.queue.depth</c> observable gauge. Only the
+/// <strong>open</strong> statuses are reported — <see cref="JobStatus.Pending"/>,
+/// <see cref="JobStatus.Leased"/>, and <see cref="JobStatus.Running"/>. Terminal
+/// statuses are counted by <c>agentprism.job.executions</c> instead of by
+/// scanning the table, which ties the cost of this query to the amount of
+/// <em>outstanding</em> work rather than to the size of the queue's history.
+/// </para>
+/// <para>
+/// A pair with no open jobs is not reported; the absence of a row means zero.
+/// </para>
+/// </remarks>
+public sealed record JobQueueDepth
+{
+    /// <summary>The lane the jobs belong to. See <see cref="JobLanes"/>.</summary>
+    public required string Lane { get; init; }
+
+    /// <summary>The open status the jobs are in.</summary>
+    public required JobStatus Status { get; init; }
+
+    /// <summary>The number of jobs in this lane and status.</summary>
+    public required long Count { get; init; }
+}

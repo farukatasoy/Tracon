@@ -496,6 +496,39 @@ public sealed class AgentPrismObservabilityOptions
     /// not reach the database before this interval elapses.
     /// </summary>
     public TimeSpan QuotaUsageRefreshInterval { get; set; } = TimeSpan.FromSeconds(30);
+
+    /// <summary>
+    /// Gets or sets whether the <c>agentprism.job.queue.depth</c> observable
+    /// gauge publishes measurements.
+    /// </summary>
+    /// <remarks>
+    /// <strong>Disabled by default</strong> under the no-surprises rule, for the same
+    /// reason as <see cref="EnableQuotaUsageGauge"/>: the gauge reads the database.
+    /// The <c>agentprism.job.executions</c> counter and the
+    /// <c>agentprism.job.duration</c> histogram are NOT affected by this setting —
+    /// they cost no extra query and are always written.
+    /// </remarks>
+    public bool EnableJobQueueDepthGauge { get; set; }
+
+    /// <summary>
+    /// Gets or sets the queue-depth gauge's cache refresh interval. Consecutive
+    /// polls do not reach the database before this interval elapses.
+    /// </summary>
+    public TimeSpan JobQueueDepthRefreshInterval { get; set; } = TimeSpan.FromSeconds(30);
+
+    /// <summary>
+    /// Gets or sets how many distinct job lanes may each get a metric series of
+    /// their own before further lanes are folded into a single <c>other</c> series.
+    /// </summary>
+    /// <remarks>
+    /// A lane name is chosen by the consumer (<see cref="JobLanes"/>) and its
+    /// count is unbounded, so it is the one tag value AgentPrism does not
+    /// control. This limit is a guard, not a design constraint: an installation
+    /// with more than 64 meaningful lanes is an operator error rather than a
+    /// use case. Lanes keep the name they were first seen under for the life of
+    /// the process; the set never shrinks.
+    /// </remarks>
+    public int MaxJobLaneCardinality { get; set; } = 64;
 }
 
 /// <summary>Defines how much detail run recording retains.</summary>

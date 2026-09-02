@@ -72,6 +72,15 @@ public static class AgentPrismDiagnostics
     /// <summary>Gets the counter name for agent-source failures.</summary>
     public const string AgentSourceFailureCounterName = "agentprism.agent_source.failures";
 
+    /// <summary>Gets the counter name for finished background jobs.</summary>
+    public const string JobCounterName = "agentprism.job.executions";
+
+    /// <summary>Gets the job-attempt duration histogram name in seconds.</summary>
+    public const string JobDurationName = "agentprism.job.duration";
+
+    /// <summary>Gets the observable gauge that shows outstanding jobs per lane and status.</summary>
+    public const string JobQueueDepthGaugeName = "agentprism.job.queue.depth";
+
     /// <summary>Defines span and metric tag names. Changing them breaks dashboards.</summary>
     public static class Tags
     {
@@ -155,5 +164,27 @@ public static class AgentPrismDiagnostics
 
         /// <summary>Gets the agent-source operation tag.</summary>
         public const string AgentSourceOperation = "agentprism.agent_source.operation";
+
+        /// <summary>Gets the job lane tag name. See <see cref="JobLanes"/>.</summary>
+        /// <remarks>
+        /// A lane name is chosen by the consumer, so its cardinality is not
+        /// bounded by AgentPrism. Once a process has seen
+        /// <see cref="AgentPrismObservabilityOptions.MaxJobLaneCardinality"/>
+        /// distinct lanes, every further lane is written as <c>other</c>.
+        /// </remarks>
+        public const string Lane = "agentprism.job.lane";
+
+        /// <summary>Gets the job-kind tag name.</summary>
+        public const string JobKind = "agentprism.job.kind";
+
+        /// <summary>Gets the job-status tag name.</summary>
+        /// <remarks>
+        /// The counter and the duration histogram carry a TERMINAL status
+        /// (<c>Completed</c>, <c>Failed</c>, <c>Cancelled</c>) — they record a job
+        /// that finished. The queue-depth gauge carries an OPEN one
+        /// (<c>Pending</c>, <c>Leased</c>, <c>Running</c>) — it reports work that
+        /// has not finished. The two sets never overlap.
+        /// </remarks>
+        public const string JobStatus = "agentprism.job.status";
     }
 }

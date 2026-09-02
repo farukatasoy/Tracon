@@ -409,6 +409,9 @@ public sealed class RunReconciliationTests
 
         public ValueTask ReportItemAsync(JobItemResult item, CancellationToken cancellationToken = default)
             => _inner.ReportItemAsync(item, cancellationToken);
+
+        public ValueTask<IReadOnlyList<JobQueueDepth>> GetQueueDepthAsync(CancellationToken cancellationToken = default)
+            => _inner.GetQueueDepthAsync(cancellationToken);
     }
 
     /// <summary>Fake <see cref="IOptionsMonitor{T}"/> that returns a fixed value and never watches for changes.</summary>
