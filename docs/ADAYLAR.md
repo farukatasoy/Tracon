@@ -314,38 +314,53 @@ paylaşırken düşüyor. Faz 133 arayüze, ses yoluna veya playground'a
 yalıtım veya kilit çakışmasıdır"* kalemi. Sessiz bırakılmaz; testi uzatmak
 (zaman aşımını büyütmek) semptomu susturur, sebebi değil.
 
-**Sonraki adım:** ses akışının hangi adımının yük altında geciktiğini ölç —
-sahte ses sağlayıcısının ilk parçayı üretme süresi mi, WebSocket
-el sıkışması mı, yoksa tarayıcı başlatma yarışı mı. Ölçüm olmadan zaman aşımı
-büyütülmez.
+**Ek ölçüm (2026-09-02, F-181 turunda):** Ağustos'tan kalan bir tam-paket
+koşum kaydı (`tests/AgentPrism.Ui.E2ETests/artifacts/repro/full-suite-before/`,
+izlenmiyor) bu testi **geçerken** yakalamış. TRX'teki gerçek süre
+**00:00:02.58**. Koşum logundaki `(36s)` testin süresi değil, koşumun o andaki
+geçen süresidir — karıştırılmamalı.
 
-### F-181 · `RunCostMetricEndToEndTests`'in `MeterListener` yalıtımı kırılgan
+Bu, teşhisi daraltıyor: yük altında geçtiğinde test 2,6 saniye sürüyor, ama
+düştüğünde 30 saniyelik `voice-transcript` beklemesine takılıyor. Aradaki fark
+~12 kat. Yani sorun **yavaş ama ilerleyen** bir yol değil; bir olay **hiç
+gelmiyor**. Bu, "zaman aşımını büyüt" refleksini kanıtla eler.
 
-**Sorun:** `tests/AgentPrism.AspNetCore.FunctionalTests/RunCostMetricEndToEndTests.cs`
-process-wide bir `MeterListener` kurup `agentprism.run.cost` adlı ölçümün
-**ilk** ölçeğini `.ShouldHaveSingleItem()` ile bekliyor. Aynı process'te
-paralel çalışan **başka bir test** de gerçek bir fiyatlandırılmış `run`
-tamamlarsa (aynı isimli ölçüm), bu test o ölçümü yakalar ve yanlış değerle
-düşer ya da fazladan öge yüzünden `.ShouldHaveSingleItem()` patlar.
+**Sonraki adım:** kayıp olayı ara, gecikmeyi değil — WebSocket el sıkışmasının
+tamamlanıp `ready`'nin gelmemesi, ya da sahte cihazın ürettiği tondan VAD'ın
+commit edilebilir bir tampon üretememesi. `UiTests.cs:259` (`voice-meter`,
+20 sn) ve `:266` (`voice-commit`, 20 sn) beklemeleri düşmüyor; düşen yalnız
+`:270`. Bu, el sıkışmasının tamamlandığını ve sorunun **commit sonrası
+sunucu turunda** olduğunu söylüyor — bir sonraki repro turu oraya bakmalı.
 
-**Bulundu (2026-09-02, Faz 134 denetimi):** `tests/AgentPrism.AspNetCore.FunctionalTests/JobMetricEndToEndTests.cs`
-aynı desenle (`agentprism.job.executions`, process-wide `MeterListener`)
-gerçekten çöktü — Faz 134'ün eklediği yeni bir kuyruklu `run` testi eşzamanlı
-çalışırken "default" lane'li bir ölçüm sızdı. Kök sebep düzeltildi (bkz. Faz
-134'ün "Denetim Bulguları" bölümü: ölçüm artık tags üzerinden bu testin KENDİ
-lane değeriyle süzülüyor). `RunCostMetricEndToEndTests.cs` **henüz hiçbir
-şeyle çakışmadı** (bugün hiçbir eşzamanlı test aynı isimli maliyet ölçümü
-üretmiyor) — bu yüzden 🔴 değil, gözlemlenmiş bir **gizil kırılganlık**.
+**Üç ardışık tam-paket koşumunda tekrarlanmadı:** Faz 134 · Faz 135 · ve
+2026-09-02'nin F-181 kapanış kapısı (`dotnet test AgentPrism.slnx -c Release
+--no-build -maxcpucount:1`, E2E **57/57** yeşil, 506 sn). Kusur gerçek ama
+seyrek; bir sonraki düşüşte **koşumun kendi TRX'i saklanmalıdır** — asıl eksik
+kanıt, düşen koşumdaki adım sürelerinin dağılımıdır.
 
-**Sınıf:** Aynı desenin tekrarı: process-wide `MeterListener` + "ilk ölçümü
-al" varsayımı, meşru paralel test yürütmesiyle çakışıyor. Repoda bu deseni
-kullanan başka test dosyası varsa (`grep -rn "MeterListener" tests/`) hepsi
-aynı riski taşır.
+### F-181 · `MeterListener` yalıtımı — ✅ KAPANDI (2026-09-02)
 
-**Sonraki adım:** `JobMetricEndToEndTests`'in düzeltmesindeki deseni
-(ölçümün kendi ayırt edici etiketiyle süzme) `RunCostMetricEndToEndTests`'e
-ve varsa kardeşlerine uygula — `AgentName`/`ModelId` zaten benzersiz bir
-ayırt edici olabilir.
+**Kapanış:** `kusur-giderme` faz dışı koşuldu. Sınıf taraması **dört** vaka
+buldu (kayıtta bir tane vardı):
+
+| Dosya | Durum |
+|---|---|
+| `AspNetCore.FunctionalTests/JobMetricEndToEndTests.cs` | Faz 134'te etiket süzgeciyle düzeltilmişti; **instance bağlamasına** yükseltildi |
+| `AspNetCore.FunctionalTests/RunCostMetricEndToEndTests.cs` | F-181'in kendisi; düzeltildi |
+| `Core.UnitTests/Quotas/QuotaUsageObserverTests.cs` | Kayıtta yoktu; düzeltildi |
+| `Core.UnitTests/Diagnostics/JobQueueDepthGaugeTests.cs` | Kayıtta yoktu (`TestMeterFactory`'si vardı ama süzgeci isme bakıyordu); düzeltildi |
+
+**Çözüm:** Etiketle süzmek yerine `Meter` **instance**'ına bağlanma. Etiket
+süzgeci, hangi testlerin çakışabileceğine dair düzyazı bir akıl yürütmeye
+dayanıyordu; yeni bir test onu sessizce geçersiz kılabilirdi. Dinlenen her tip
+`IMeterFactory` alıyor ve `AgentPrismTestHost.StartAsync` servis kaydına izin
+veriyor — izolasyon dört vakanın dördünde de mümkündü.
+
+**Kapı:** `MeterListenerIsolationTests` (sıfır tolerans, taban çizgisi yok).
+Düzeltmeden **önce** kırmızıydı (dört vaka), sonra yeşil. Tarayıcı yorumları
+ayıklar: tuzağı XML dokümanında ANLATAN `ObservabilityTests` cezalandırılmaz.
+
+**Karar:** K-656. **Tuzak:** `docs/hafiza/test-altyapisi.md`.
 
 ## Aday Olmayan Açık Kayıtlar
 

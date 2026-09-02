@@ -4,8 +4,12 @@
 > düzlemidir. Faz planı, sohbet özeti veya genel karar defteri değildir. Yalnız
 > ölçülen kanıtı, yayın kararlarını, risk kabulünü ve doğrulama durumunu taşır.
 >
-> **Son güncelleme:** 2026-08-28  
+> **Son güncelleme:** 2026-09-02  
 > **Çalışma modu:** `nuget-danismani` — Yayın kararı  
+> **🚨 2026-09-02 turu:** Faz 129–135 sonrası karar yenilendi. İki 🔴 ölçüldü
+> (BL-053, BL-054), **ikisi de aynı gün kapandı** ve yayın provası sonuna kadar
+> yeşil koştu. Aşağıdaki 2026-08-28 anlatısı tarihsel bağlamdır; **güncel karar
+> §4'ün başındaki 2026-09-02 bloğudur**.  
 > **Hedef durumu:** Seam matrisi **11/11 küme tamam**; BL-006 **kapandı**;
 > BL-026 ölçümle **🟡'ye indirildi**, belge kısmı **[Faz 121](arsiv/fazlar/121-SEAM-SOZLESME-DOKUMANI.md) ile kapandı**;
 > BL-027/BL-037 sınıf taramasıyla **21 vakaya
@@ -95,6 +99,45 @@ değerlendirilecektir.
 
 ## 4. Mevcut net yayın kararı
 
+### Güncel karar — 2026-09-02 (`nuget-danismani`, Faz 129–135 sonrası)
+
+**✅ Teknik olarak yayınlanabilir.** Açık 🔴 yoktur. Kalan tek şey hesap ve
+operasyon kararlarıdır (OP-008/009/011, §14) — bunlar repo dışı kullanıcı
+işidir ve tag için zaten açık onay gerekir.
+
+> Bu karar aynı gün **iki kez** verildi. Sabah turunda iki 🔴 ölçüldü
+> (BL-053, BL-054); ikisi de aynı gün kapatıldı ve prova sonuna kadar yeşil
+> koştu. Tarihçe aşağıdadır — silinmedi, çünkü asıl ders kusurlarda değil,
+> **kapanış kapısının onları görememesinde**.
+
+| Ölçüm | Sonuç |
+|---|---|
+| `python3 scripts/kapi.py kapanis --taban HEAD` (2026-09-02) | ✅ 10/10 adım yeşil; E2E 57/57; toplam test koşumu 506 sn |
+| `kapi.py yayin --kuru --surum 1.0.0-preview.1` — **1. koşum** | ❌ `EXIT=1`, BL-053 |
+| `kapi.py yayin --kuru --surum 1.0.0-preview.1` — **2. koşum** (düzeltmelerden sonra) | ✅ `EXIT=0`; 20 paket · `npm publish --dry-run` · **altı** sample 169 test · Native AOT smoke publish **ve çalıştırma** (`provider/source/generated-tool AOT smoke passed`) |
+
+Kapanış kapısı yeşilken yayın provasının düşmesi bu turun asıl bulgusudur ve
+**BL-053**'ün sınıfını tanımlar: `samples/` hiçbir çözüm dosyasında değildir
+(`grep -c Samples AgentPrism.slnx` → `0`), dolayısıyla `dotnet test
+AgentPrism.slnx` onları çalıştıramaz. Sevk edilen bir sözleşmeyi genişleten faz,
+o sözleşmenin dış referans implementation'ında geçtiğini kapanış kapısıyla
+kanıtlayamaz. Kural K-657 ile `faz-tamamlama` Adım 1'e eklendi.
+
+**İkinci koşumda altı sample'ın altısı da ölçüldü** (ilk koşum ilk düşen
+sample'da durmuştu): `FileRunStore` 92, `CustomModelProvider` 38,
+`CustomRunJudge` 11, `CustomAgentSource` 15, `CustomTool` 8,
+`CustomJobHandler` 5 — hepsi exact sürüm ve izole `NUGET_PACKAGES` ile.
+
+**En küçük güvenli yayın kapsamı değişmedi** (20 paket, `preview`). Sürüm
+numarası `1.0.0-preview.1` yeniden kullanılabilir: hiç yayınlanmadı.
+
+**Faz 129–135'in bu kayda etkisi:** **BL-044** kısmen kapandı — Faz 133
+`Scheduling` kümesine `agentprism.job.executions`, `agentprism.job.duration` ve
+opt-in `agentprism.job.queue.depth`'i sevk etti. `Webhooks`, `Coordination`,
+`Idempotency` ve `Triggers` hâlâ metriksizdir. **BL-047** (audit-write
+başarısızlık metriği) ölçüldü, hâlâ açık.
+
+
 **❌ Yayınlanmamalı — şu an.** Yayın türü (`preview`, UR-001) ve paket kapsamı
 (tam entegrasyon seti, UR-002) kullanıcı tarafından sabitlendi. 22 sütunlu seam
 matrisi 11/11 kümede tamamlandı (§15) ve **4 bağımsız 🔴 preview-blocker kusur
@@ -177,8 +220,9 @@ sistemik hattın arkasına alındı (§13).
 
 ## 6. Açık blocker'lar
 
-Henüz yeniden üretilmiş bir 🔴 blocker yoktur. Aşağıdaki maddeler blocker değil,
-doğrulama kapısıdır.
+**2026-09-02 itibarıyla açık 🔴 yoktur.** BL-053 ve BL-054 aynı gün açıldı ve
+kapandı; BL-055 açık bir 🟡'dir. Aşağıdaki 2026-08-28 maddelerinin çoğu blocker
+değil, doğrulama kapısıdır.
 
 | Kimlik | Durum | Bulgu veya soru | Seviye | Ölçülen kanıt | Sorumlu workflow | Doğrulama ölçütü |
 |---|---|---|---|---|---|---|
@@ -226,6 +270,9 @@ doğrulama kapısıdır.
 | BL-050 | **KISMEN KAPANDI (Faz 121)** | Küme I kayıt ergonomisi tutarsız — yalnız `IRunJudge` tam üçlü (`AddRunJudge<T>()`/instance/factory) alıyor; diğer arayüzler için hiç `AddX()` yok (kulvar 2, açık kalır); `IVectorSearchStore`/`IConversationBranchStore`/`IMigrationApplier`/`ISqlPersistenceDiagnostics` için contract test yok (kulvar 1, açık kalır); ~~singleton/thread-safety/no-per-run-state 10/11 arayüzde dokümante değil~~ **doküman kısmı kapandı**; ~~`IAttachmentStore.OpenReadAsync`/`IAttachmentStorage.ReadAsync` stream sahipliğini belirtmiyor~~ **kapandı** | 🟡 1.0 blocker (kalan: registration API + contract test — kulvar 1/2) | Küme I raporu | `nuget-danismani` → faz zinciri (kalan) · **[Faz 121](arsiv/fazlar/121-SEAM-SOZLESME-DOKUMANI.md)** (doküman ✅) | 12 üyenin (`ISessionStore`, `IConversationBranchStore`, `IAttachmentStore`, `IAttachmentStorage`, `IRetentionStore`, `IArchiveSink`, `IRetentionPolicyStore`, `IEvalStore`, `IExperimentStore`, `IMigrationApplier`, `ISqlPersistenceDiagnostics`, `IVectorSearchStore`) hepsine DI lifetime (singleton, ikisi optional) eklendi; `IAttachmentStore.OpenReadAsync`/`IAttachmentStorage.WriteAsync`/`ReadAsync` stream sahipliğini (çağıran sahiplenir ve dispose eder) açıkça yazıyor. Registration API ve contract test kulvar 1/2 kapsamında kalır |
 | BL-051 | **KAPANDI (2026-08-28, Faz 122)** | Küme I cila bulgusu (🟢): retention "politika yok = sonsuza kadar sakla" dokümante ve kasıtlı bir varsayılan (Faz 25 kararı) ama `Enabled=false` + politika yoksa hiçbir başlangıç uyarısı yok — compliance için retention'a güvenen bir tüketici yanlış yapılandırmayı fark etmeyebilir | 🟢 Doküman/cila → **kapandı** | Küme I raporu | `nuget-danismani` → doküman senkronu (Faz 122 ✅) | `SilentGapWarningService`, `AgentPrismRetentionOptions.Enabled=false` iken Production'da bir kez `Warning` düşürüyor (DB politika kontrolü yok — kasıtlı, `NonPersistentStorageWarningService`'in "veritabanı açma" kuralıyla tutarlı). Gerçek `samples/AgentPrism.Api`'de doğrulandı (MT-DIAG-057) |
 | BL-052 | **KAPANDI (2026-08-28, Faz 123)** | **Yayın kapısı altı dış sample'ın yalnız beşini koşuyordu.** `AgentPrism.Samples.CustomJobHandler.Tests` Faz 120'de BL-041'in paketlenmiş-tüketici kanıtı olarak eklendi, fakat `SAMPLE_TEST_PROJECTS` listesine girmemişti. Sample'ın şekli kapıda koşan `FileRunStore.Tests` ile aynıdır (`PackageReference` + `VersionOverride`), yani dışlanma teknik bir gerekçeye dayanmıyordu. Kapı dışında `AgentPrismSamplePackageVersion` varsayılanı `*-*` (**floating**) olduğu için bu sample exact sürüm ve izole `NUGET_PACKAGES` altında **hiç** koşmuyordu — Faz 97'de ölçülen bayat-paket tuzağının tam kapsamındaydı | ~~🟡~~ ✅ Kapandı | `scripts/release_extension_samples.py` beş proje sayıyordu, `CustomJobHandler.Tests` yoktu | `nuget-danismani` → **[Faz 123](arsiv/fazlar/123-YAYIN-KRITIK-YOLU.md)** | Sample listeye eklendi (6/6) **ve** `validate_sample_inventory` yazıldı — `samples/AgentPrism.Samples.*.Tests` envanteri `SAMPLE_TEST_PROJECTS` ∪ gerekçeli `SAMPLE_TEST_EXCLUSIONS` ile TAM eşleşmezse kapı adı vererek kırılır; aynı sınıf boşluk üçüncü kez sessizce tekrarlayamaz. Kanıt: `kapi.py yayin --kuru --surum 1.0.0-preview.1` → `✅ 6 exact-version packed sample ve Native AOT smoke` |
+| BL-053 | **KAPANDI** (2026-09-02, `kusur-giderme`) | Sevk edilen `RunStoreContract`'ın iki Faz 132 case'i (`Completion_overrides_the_model_provider_when_a_fallback_answered`, `Completion_leaves_the_model_provider_unchanged_when_no_override_is_given`) dış sample `AgentPrism.Samples.FileRunStore`'a karşı **düşüyor**: `FileRunStore.cs` `ModelId`'yi işliyor (`:88`, `:183`), `ModelProvider`'ı hiç işlemiyor. `docs-site/.../guides/write-your-own-store.md` de alandan hiç söz etmiyor — rehberi izleyen üçüncü taraf aynı hatayı yazar | 🔴 Preview blocker | `kapi.py yayin --kuru --surum 1.0.0-preview.1` → `EXIT=1`; `Failed: 2, Passed: 90, Total: 92`; exact sürüm + izole `NUGET_PACKAGES` + yalnız `PackageReference` (kanıt merdiveni 6. seviye) | `nuget-danismani` → `kusur-giderme` | **Tamamlandı.** `FileRunStore.cs:89` ve `:189` `ModelProvider`'ı işliyor (`ModelId`'nin tam kardeşi: `null` mevcut değeri korur); izole cache ile red→green kanıtlandı (90/92 → **92/92**). Rehbere yedinci davranış ekseni **Completion overrides** eklendi. **Sınıf taraması:** Faz 129–135'te yalnız İKİ sevk edilen contract büyüdü — `RunStoreContract` (sample'ı vardı, düzeltildi) ve `JobStoreContract` (hiç dış sample'ı yok → **BL-055**) |
+| BL-054 | **KAPANDI** (2026-09-02) | `CHANGELOG.md`'nin `## [1.0.0-preview.1]` bölümü **2026-08-28 tarihli** ve Faz 129 öncesi ürünü anlatıyor; `## [Unreleased]` boş. Bugün yayınlansa sürüm notları iki kırıcı `IJobStore` değişikliğini (lane filtresi, `GetQueueDepthAsync`), `RunCost`/`RunRecord` alanlarını, yapısal doğrulama seam'ini ve bounded repair'i hiç anmıyor | 🔴 Preview blocker | OP-007 kapısı yalnız bölümün **boş olmadığına** bakıyor (`scripts/changelog.py:44`), bayatlığı göremez | `nuget-danismani` → `tuketici-dokuman-senkronu` | **Tamamlandı.** Dört ürün seviyesi kalem eklendi (cost provenance · named job lanes · structured-response validation + bounded repair · generated tool schema constraints/nested object); tarih 2026-09-02'ye çekildi. `changelog.py` bölümü ayrıştırıyor. 🚨 Tarih tag gününde doğrulanır |
+| BL-055 | **Açık** | `JobStoreContract` Faz 129 ve 133'te **+110 satır** case kazandı (lane filtresi, `GetQueueDepthAsync`) ama **hiçbir dış sample'ı yoktur** — `CustomJobHandler` `JobHandlerContract`'ı koşar, `JobStoreContract`'ı değil. Yeni case'ler paketlenmiş tüketiciye karşı hiç doğrulanmadı | 🟡 1.0 blocker | `grep -rn JobStoreContract samples/` boş; `git diff --stat` Faz 129–135 aralığında yalnız iki contract dosyası değişti | `nuget-danismani` → faz zinciri | `IJobStore` uygulayan bir dış sample eklenir ve `JobStoreContract`'ı exact sürümle koşar. BL-007/BL-017/BL-030 ile aynı aile |
 
 
 ## 7. Ürün ve public API kararları
@@ -361,6 +408,8 @@ operasyon kritik yolunu yeniden açmaz.
 | KG-021 | 2026-08-28 | Tamamlandı | **RK-011/OP-010 için yol A + C seçildi 👤.** **C uygulandı:** `ci.yml`'de `publish` işi `npm-publish`'e bağlandı (`needs: [pack, release-dryrun, npm-publish]`); npm kanalı kırılırsa NuGet **hiç** basmaz. **A kullanıcıdadır:** `agentprism` npm scope'u + `NPM_TOKEN` tag'den önce hazırlanır | Ölçüldü 2026-08-28: iki iş `if:` koşulu aynı, `needs:` farklıydı ve **paralel** koşuyordu ([`ci.yml:284`/`:319`, değişiklik öncesi](../.github/workflows/ci.yml)); `agentprism` npm scope'u yok (OP-003, `404`) ve sevk edilen doküman **10 satırda** `@agentprism/client` diyor. NuGet'te geri dönüş yoktur, npm'in kısıtlı bir unpublish penceresi vardır — bu yüzden ucuz kanal ÖNCE basar. Sıralama zinciri kırmaz: `npm-publish` var olan sürümü atlar (`npm view` kontrolü), yani aynı etiket yeniden itilebilir | YAML çözümlendi, 7 iş, döngü yok; `publish -> [pack, release-dryrun, npm-publish]`, `github-release -> [publish, npm-publish]`. `docs/manuel-test/01-KURULUM-VE-PAKETLEME.md:2579` kabul ölçütü (`needs:` satırı `release-dryrun` içerir) hâlâ geçer |
 | KG-022 | 2026-08-28 | Tamamlandı | **Doküman drift taraması koşuldu (`tuketici-dokuman-senkronu`, tam kapsam) ve kapandı.** 12 bayat iddia düzeltildi; hiçbiri makine kapısı tarafından yakalanmıyordu. RK-005 aynı turda kapatıldı | **Ölçülen yer gerçeği:** konsol **30 ekran / 36 rota** (`app.tsx`: 30 `*Screen` importu, 36 `pattern:`) — sevk edilen metin 27 (×2) ve 28 (×3) diyordu, rota 33 ve 36 diyordu · JS bundle **175,9 KB gzip** (`npm run build`) — üç yüzey 180,2 / 165,8 / 169,4 diyordu · istemci **162 operasyon** (`agentprism.json` + üretilen `AgentPrismApiClient.g.cs`) — kök README 161 diyordu (×2) · store contract'ı **31** (`Contracts/` kökünde 32 dosya, biri ortak taban `TenantIsolationContract`) — README ve paket `Description`'ı “32 others”/“29 more” diyordu · kök README paket tablosu **19 satır** taşıyordu, 20 paket var (`AgentPrism.Testing.Contracts.Xunit` eksikti) · `AgentPrism.UI` README'sinde **Triggers alanı hiç yoktu** (site sayfası kapsıyordu) · `Contracts.Xunit` README'si ve `Description`'ı **altı contract ailesinin ikisini** anlatıyordu (Tools ve Scheduling eksik) — CHANGELOG ise altısını da vaat ediyor · `packages.md` `IJobHandler`'ı atlıyordu · `AgentPrism.Client`'ın `Description`'ı sevk edilen metinde **iç repo yolu** taşıyordu (`docs/openapi/agentprism.json`; repo özel, tüketicinin elinde yok) → yayınlanan adrese çevrildi · kök README'nin “4408 tests, 16 projects” satırı: 16→**20** ölçüldü, test sayısı **ölçülemedi** (tam Release koşumu MEMORY.md'nin boru-hattı tuzağına takıldı, %0,6 CPU'da asıldı) ve **uydurulmak yerine kaldırıldı** | **Dört kapı da yeşil:** (1) `ShippedDocumentationSelfContainmentTests`+`CapabilityExampleTests`+`SourceLanguageTests` 6/6, `LocalReferenceTests` 10/10; (2) `build-agent-map.mjs --check` — **önce kızardı**, paket `Description`'ı haritayı besliyor, yeniden üretildi; (3) `npm run check` — 1044 sayfa, 151 442 bağlantı, ağırlık tavanı; (4) `--site-denetle` — `paket-tanimi`/`paket-readme` **gerçek boşluk buldu** (`packages.md`'de `IJobHandler` eksikti, düzeltildi); `buildtransitive` ve `cekirdek-kavram` gerekçelendi: ikisini de **üretilen** `AgentPrism.AgentMap.md` tetikledi, diff yalnız revizyon hash'i + bir paket açıklaması satırıdır — tüketicinin gördüğü MSBuild yüzeyi de çekirdek kavram da değişmedi. **Kalıcı kapı yazılmadı; [F-171](ADAYLAR.md) olarak kaydedildi** — 12 kalemin altısı elle kopyalanmış ölçüm sayısıydı (K-483 sınıfı) |
 | KG-023 | 2026-08-28 | Tamamlandı | **NuGet.org authentication modeli trusted publishing olarak sabitlendi.** Kullanıcı kişisel-owner policy'yi `AgentPrism*`, push-only, `farukatasoy/AgentPrism`, `ci.yml`, `nuget` sınırlarıyla oluşturdu; CI kalıcı `NUGET_API_KEY` yerine OIDC kullanır 👤 | Uzun ömürlü secret ve rotation riski kalkar; NuGet.org her koşumda bir saatlik key üretir. GitHub Free/private repo OIDC'yi engellemez. Policy ilk başarılı publish'e kadar yedi günlük geçici aktivasyondadır | `.github/workflows/ci.yml`: publish job `contents: read` + `id-token: write`; `NuGet/login@v1`; step output key; `secrets.NUGET_API_KEY` referansı sıfır |
+| KG-024 | 2026-09-02 | Tamamlandı | **Yayın kararı Faz 129–135 sonrası yenilendi: ❌ Yayınlanmamalı.** İki yeni 🔴 (BL-053, BL-054). Sample'lar çözüme ALINMADI; onun yerine `faz-tamamlama` Adım 1'e koşullu yayın provası eklendi (K-657, kullanıcı kararı) | Kapanış kapısı 10/10 yeşilken `kapi.py yayin --kuru` `EXIT=1` döndü — iki kapı farklı şeyler ölçüyor ve fazlar zayıf olanla kapanıyordu | Prova ilk düşen sample'da durdu; beş sample ve AOT smoke ÖLÇÜLMEDİ. BL-053/054 kapandıktan sonra prova sonuna kadar koşulur ve karar yeniden verilir |
+| KG-025 | 2026-09-02 | Tamamlandı | **BL-053 ve BL-054 kapatıldı; prova sonuna kadar yeşil koştu (`EXIT=0`). Karar ❌ → ✅ teknik olarak yayınlanabilir.** Sınıf taraması `JobStoreContract`'ın dış sample'ı olmadığını buldu → BL-055 | Altı sample 169 test + Native AOT smoke publish ve çalıştırma, exact sürüm ve izole `NUGET_PACKAGES` ile | 🚨 **Yerel sürüm kimliği tuzağı ölçüldü:** global NuGet cache'te 28 Ağustos'tan kalma bir `1.0.0-preview.1` vardı ve izolasyonsuz `dotnet test` ona derledi — aynı sürüm dizesi iki farklı içeriği adlandırıyor. Rehber sayfasına `NUGET_PACKAGES=$(mktemp -d)` uyarısı eklendi |
 
 ## 12. Ertelenen işler ve gerekçeleri
 
@@ -440,6 +489,8 @@ kullandığını bilmeden yapmak koşulmayan 26 suite üretir (YAGNI). Bu yüzde
 Aşağıdakiler bu hattın parçası **değildir**; `preview.1` tag'inden önce ayrıca
 kapanmalıdır:
 
+0. ~~**BL-053 ve BL-054**~~ — **kapandı (2026-09-02)**; prova sonuna kadar
+   yeşil koştu. Tag gününde `CHANGELOG.md`'nin tarihi doğrulanır.
 1. **OP-011** — private repo + GitHub Free için repository secret ve manuel tag
    kontrolü kabul edilir veya GitHub Pro'ya geçilir.
 2. **OP-008, OP-009 ve §14** — deprecation/hotfix, dependency takibi ve ilk 72
