@@ -1,5 +1,7 @@
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Diagnostics.Metrics;
+using Microsoft.Extensions.Options;
 
 namespace AgentPrism;
 
@@ -22,16 +24,37 @@ namespace AgentPrism;
 /// </remarks>
 public sealed class AgentPrismMetrics : IDisposable
 {
+    /// <summary>The lane tag written once the cardinality guard has tripped.</summary>
+    private const string OtherLane = "other";
+
     private readonly Meter _meter;
     private readonly bool _ownsMeter;
+    private readonly IOptionsMonitor<AgentPrismOptions>? _options;
+
+    // The lane names this process has already given a series of their own.
+    // It only ever GROWS: a lane that once earned its name keeps it for the
+    // life of the process. A shrinking set would write the same lane under its
+    // own name one day and under "other" the next, producing a series nobody
+    // can read on a dashboard.
+    private readonly ConcurrentDictionary<string, byte> _knownLanes = new(StringComparer.Ordinal);
+    private int _knownLaneCount;
 
     /// <summary>Creates a new metric set.</summary>
     /// <param name="meterFactory">
     /// Meter factory. When <see langword="null"/>, a new <see cref="Meter"/>
     /// instance is created and owned by this object.
     /// </param>
-    public AgentPrismMetrics(IMeterFactory? meterFactory = null)
+    /// <param name="options">
+    /// The root options type that <see cref="AgentPrismOptions.Observability"/>
+    /// — which carries <see cref="AgentPrismObservabilityOptions.MaxJobLaneCardinality"/>
+    /// — hangs off. When <see langword="null"/>, that setting's own default is used.
+    /// The nested type is never injected standalone: it is not registered with
+    /// <c>services.Configure&lt;AgentPrismObservabilityOptions&gt;</c> anywhere.
+    /// </param>
+    public AgentPrismMetrics(IMeterFactory? meterFactory = null, IOptionsMonitor<AgentPrismOptions>? options = null)
     {
+        _options = options;
+
         if (meterFactory is null)
         {
             _meter = new Meter(AgentPrismDiagnostics.MeterName);
@@ -91,6 +114,16 @@ public sealed class AgentPrismMetrics : IDisposable
             AgentPrismDiagnostics.AgentSourceFailureCounterName,
             unit: "{failure}",
             description: "Agent-source failures, tagged by source and operation.");
+
+        JobExecutions = _meter.CreateCounter<long>(
+            AgentPrismDiagnostics.JobCounterName,
+            unit: "{job}",
+            description: "Number of background jobs that reached a terminal status.");
+
+        JobDuration = _meter.CreateHistogram<double>(
+            AgentPrismDiagnostics.JobDurationName,
+            unit: "s",
+            description: "Duration of a single background-job ATTEMPT, not of the job across all of its attempts.");
     }
 
     /// <summary>Run counter. Tags: agent, status, tenant.</summary>
@@ -122,6 +155,22 @@ public sealed class AgentPrismMetrics : IDisposable
 
     /// <summary>Agent-source failure counter. Tags: source, operation.</summary>
     public Counter<long> AgentSourceFailures { get; }
+
+    /// <summary>Finished-job counter. Tags: lane, kind, status, tenant.</summary>
+    /// <remarks>
+    /// Only a TERMINAL status is counted. A lease renewal or a release for
+    /// retry is not an outcome, and counting it would turn this instrument's
+    /// meaning from "how many jobs finished" into "how many things happened".
+    /// </remarks>
+    public Counter<long> JobExecutions { get; }
+
+    /// <summary>Job-attempt duration. Tags: lane, kind, status.</summary>
+    /// <remarks>
+    /// One measurement covers ONE attempt. A job that fails twice and then
+    /// succeeds records a single measurement, for its last attempt — the
+    /// earlier attempts ended in a retry, which is not a terminal status.
+    /// </remarks>
+    public Histogram<double> JobDuration { get; }
 
     /// <summary>Records the result of a run.</summary>
     /// <param name="agentName">Agent name.</param>
@@ -285,6 +334,108 @@ public sealed class AgentPrismMetrics : IDisposable
                 { AgentPrismDiagnostics.Tags.AgentSourceName, sourceName },
                 { AgentPrismDiagnostics.Tags.AgentSourceOperation, operation },
             });
+
+    /// <summary>Records a background job that reached a terminal status.</summary>
+    /// <param name="lane">
+    /// The job's lane (<see cref="JobRecord.Lane"/>). Guarded against runaway
+    /// cardinality: see <see cref="AgentPrismObservabilityOptions.MaxJobLaneCardinality"/>.
+    /// </param>
+    /// <param name="kind">The job's kind.</param>
+    /// <param name="status">
+    /// The terminal status: <see cref="JobStatus.Completed"/>,
+    /// <see cref="JobStatus.Failed"/>, or <see cref="JobStatus.Cancelled"/>.
+    /// </param>
+    /// <param name="tenantId">The tenant the job belongs to. <c>"unknown"</c> is written when null.</param>
+    /// <param name="duration">
+    /// How long THIS attempt took, measured on a monotonic clock. It is not the
+    /// job's total time across every attempt.
+    /// </param>
+    public void RecordJob(string lane, JobKind kind, JobStatus status, string? tenantId, TimeSpan duration)
+    {
+        var laneTag = ResolveLaneTag(lane);
+        var kindTag = kind.ToString();
+        var statusTag = status.ToString();
+
+        JobExecutions.Add(
+            1,
+            new TagList
+            {
+                { AgentPrismDiagnostics.Tags.Lane, laneTag },
+                { AgentPrismDiagnostics.Tags.JobKind, kindTag },
+                { AgentPrismDiagnostics.Tags.JobStatus, statusTag },
+                { AgentPrismDiagnostics.Tags.TenantId, tenantId ?? "unknown" },
+            });
+
+        JobDuration.Record(
+            duration.TotalSeconds,
+            new TagList
+            {
+                { AgentPrismDiagnostics.Tags.Lane, laneTag },
+                { AgentPrismDiagnostics.Tags.JobKind, kindTag },
+                { AgentPrismDiagnostics.Tags.JobStatus, statusTag },
+            });
+    }
+
+    /// <summary>
+    /// Maps a lane name onto the tag value to publish, keeping the number of
+    /// distinct lane series bounded.
+    /// </summary>
+    /// <param name="lane">The job's lane name.</param>
+    /// <returns>
+    /// <paramref name="lane"/> itself while the process is still below
+    /// <see cref="AgentPrismObservabilityOptions.MaxJobLaneCardinality"/> distinct
+    /// lanes; <c>"other"</c> afterwards.
+    /// </returns>
+    /// <remarks>
+    /// <para>
+    /// A lane name is chosen by the consumer and AgentPrism does not bound how
+    /// many exist — a consumer that derives one lane per user would otherwise
+    /// flood the metric backend. The slot is reserved BEFORE the name is
+    /// recorded, so concurrent completions cannot push the set past the limit.
+    /// A consumer whose own lane is literally named <c>other</c> shares the
+    /// overflow series; the name is reserved for this purpose.
+    /// </para>
+    /// <para>
+    /// <c>internal</c> rather than private because the queue-depth gauge tags the
+    /// same lane values and has to share THIS object's set. Two independent sets
+    /// would let the counter publish a lane under its own name while the gauge
+    /// called it <c>other</c>, which is the unreadable series the guard exists
+    /// to prevent.
+    /// </para>
+    /// </remarks>
+    internal string ResolveLaneTag(string lane)
+    {
+        if (_knownLanes.ContainsKey(lane))
+        {
+            return lane;
+        }
+
+        var max = Math.Max(1, _options?.CurrentValue.Observability.MaxJobLaneCardinality ?? 64);
+
+        while (true)
+        {
+            var current = Volatile.Read(ref _knownLaneCount);
+
+            if (current >= max)
+            {
+                return OtherLane;
+            }
+
+            if (Interlocked.CompareExchange(ref _knownLaneCount, current + 1, current) != current)
+            {
+                continue;
+            }
+
+            if (!_knownLanes.TryAdd(lane, 0))
+            {
+                // Another thread registered the same lane while this one held a
+                // reserved slot; hand the slot back so the budget is not spent twice.
+                Interlocked.Decrement(ref _knownLaneCount);
+            }
+
+            return lane;
+        }
+    }
 
     /// <inheritdoc />
     public void Dispose()

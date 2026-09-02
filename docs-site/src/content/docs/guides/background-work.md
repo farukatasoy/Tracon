@@ -226,6 +226,46 @@ to `"default"` plus the lanes listed there; a job queued under some other, unlis
 lane is simply never leased by that worker. It still exists — filter
 `GET /api/jobs?lane=` or check the lane column on the Jobs screen to find it.
 
+## Watching the queue
+
+The worker publishes two metrics with no configuration at all, both tagged by
+lane, kind, and terminal status:
+
+| Instrument | What it counts |
+|---|---|
+| `agentprism.job.executions` | Jobs that reached `Completed`, `Failed`, or `Cancelled` |
+| `agentprism.job.duration` | How long a single attempt took, in seconds |
+
+A job released for another attempt is **not** counted. A job configured with three
+attempts that ultimately fails is one `Failed`, not three, and the recorded duration
+belongs to that last attempt rather than to the job's whole lifetime.
+
+A third instrument answers "is work piling up in a lane nobody is leasing from",
+which the jobs list and the Jobs screen can only show if somebody looks:
+
+```json
+{
+  "AgentPrism": {
+    "Observability": {
+      "EnableJobQueueDepthGauge": true,
+      "JobQueueDepthRefreshInterval": "00:00:30"
+    }
+  }
+}
+```
+
+`agentprism.job.queue.depth` then reports outstanding jobs per lane and open status
+(`Pending`, `Leased`, `Running`). It is off by default because it queries the
+database on a scrape; the refresh interval caches those reads, so a scrape more
+often than every 30 seconds costs nothing extra. Terminal jobs are never counted
+here — they are already on the counter — which keeps the query's cost tied to the
+work still outstanding instead of to the queue's history.
+
+Alerting is yours to configure: AgentPrism measures the depth and leaves the
+threshold to your observability stack. See
+[observability](/guides/observability/#what-the-job-metrics-count) for the full tag
+list and the lane-cardinality guard.
+
 ## Singleton services and orphaned-run recovery
 
 Two more background concerns sit next to the job queue, both off by default and

@@ -212,7 +212,7 @@ each term means inside AgentPrism.
 **Span.** One timed activity inside a trace, such as a model call, tool call, or agent run.
 
 **Metric.** An aggregated .NET measurement for rates, duration, usage, cost, errors, tools,
-  judges, or optional quota gauges.
+  judges, background jobs, or the optional quota and queue-depth gauges.
 
 **Control plane.** The catalog, execution records, policies, operational services, API, and console
   around agents. AgentPrism adds this plane without hiding the MAF objects below it.

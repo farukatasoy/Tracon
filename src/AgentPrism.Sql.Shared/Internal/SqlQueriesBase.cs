@@ -420,6 +420,9 @@ internal abstract class SqlQueriesBase
     /// <summary>Gets the query that reports the outcome of a job item and updates the job counters.</summary>
     public string ReportJobItem { get; protected set; } = string.Empty;
 
+    /// <summary>Gets the query that counts the OPEN jobs, grouped by lane and status.</summary>
+    public string SelectJobQueueDepth { get; protected set; } = string.Empty;
+
     /// <summary>Gets the validated schema name.</summary>
     public string Schema { get; private set; } = string.Empty;
 
@@ -1123,8 +1126,11 @@ internal abstract class SqlQueriesBase
             ORDER BY i.seq;
             """;
 
+        // COUNT(*) is CAST to bigint because SQL Server's COUNT returns int
+        // while PostgreSQL's and SQLite's return bigint, and the shared reader
+        // takes every dialect through GetInt64.
         SelectConversationBranchPoint = $"""
-            SELECT COALESCE(MAX(seq), -1), COUNT(*)
+            SELECT COALESCE(MAX(seq), -1), CAST(COUNT(*) AS bigint)
             FROM {Table("conversation_items")}
             WHERE conversation_id = @conversation_id
               AND (@up_to_sequence IS NULL OR seq <= @up_to_sequence);
@@ -1422,6 +1428,18 @@ internal abstract class SqlQueriesBase
             FROM {Table("job_items")}
             WHERE job_id = @job_id
             ORDER BY seq;
+            """;
+
+        // Counts ONLY the open statuses (Pending, Leased, Running). That set is
+        // exactly the partial condition of `jobs_claim_idx (lane, status,
+        // scheduled_for) WHERE status IN (0, 1, 2)`, so this needs no index of
+        // its own. COUNT(*) is CAST to bigint because SQL Server's COUNT
+        // returns int, and the reader takes every dialect through GetInt64.
+        SelectJobQueueDepth = $"""
+            SELECT lane, status, CAST(COUNT(*) AS bigint)
+            FROM {Table("jobs")}
+            WHERE status IN (0, 1, 2)
+            GROUP BY lane, status;
             """;
 
         SelectEvalSuites = $"""

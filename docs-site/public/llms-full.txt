@@ -203,7 +203,7 @@ caller's role and key scopes. See the complete scope table in
 |---|---|---|
 | Run event stream | Gapless, ordered domain events | Recording options choose deltas, tool payloads, input, and payload size |
 | OpenTelemetry traces | `ActivitySource` spans | Your exporter remains in control; AgentPrism can also persist a sample |
-| Metrics | Run counts, duration, tokens, cost, tools, errors, judges, and optional quota gauges | Standard .NET metrics; high-cardinality and store-backed gauges are bounded |
+| Metrics | Run counts, duration, tokens, cost, tools, errors, judges, background-job executions and attempt duration, plus optional quota and job-queue-depth gauges | Standard .NET metrics; high-cardinality tags are bounded and store-backed gauges are opt-in and cached |
 | Cost attribution | Per model, agent, run, child run, voice, and image usage | Prices come from a model catalog or explicit configuration; image prices are never inferred |
 | Provider health | Cached status and optional background polling | On-demand by default; a provider without a health check reports `Unknown` |
 | Health checks | `AddAgentPrismHealthChecks()` | Adds checks to the consumer's health-check system; you choose the route with `MapHealthChecks()` |
@@ -3349,6 +3349,46 @@ to `"default"` plus the lanes listed there; a job queued under some other, unlis
 lane is simply never leased by that worker. It still exists — filter
 `GET /api/jobs?lane=` or check the lane column on the Jobs screen to find it.
 
+## Watching the queue
+
+The worker publishes two metrics with no configuration at all, both tagged by
+lane, kind, and terminal status:
+
+| Instrument | What it counts |
+|---|---|
+| `agentprism.job.executions` | Jobs that reached `Completed`, `Failed`, or `Cancelled` |
+| `agentprism.job.duration` | How long a single attempt took, in seconds |
+
+A job released for another attempt is **not** counted. A job configured with three
+attempts that ultimately fails is one `Failed`, not three, and the recorded duration
+belongs to that last attempt rather than to the job's whole lifetime.
+
+A third instrument answers "is work piling up in a lane nobody is leasing from",
+which the jobs list and the Jobs screen can only show if somebody looks:
+
+```json
+{
+  "AgentPrism": {
+    "Observability": {
+      "EnableJobQueueDepthGauge": true,
+      "JobQueueDepthRefreshInterval": "00:00:30"
+    }
+  }
+}
+```
+
+`agentprism.job.queue.depth` then reports outstanding jobs per lane and open status
+(`Pending`, `Leased`, `Running`). It is off by default because it queries the
+database on a scrape; the refresh interval caches those reads, so a scrape more
+often than every 30 seconds costs nothing extra. Terminal jobs are never counted
+here — they are already on the counter — which keeps the query's cost tied to the
+work still outstanding instead of to the queue's history.
+
+Alerting is yours to configure: AgentPrism measures the depth and leaves the
+threshold to your observability stack. See
+[observability](/guides/observability/#what-the-job-metrics-count) for the full tag
+list and the lane-cardinality guard.
+
 ## Singleton services and orphaned-run recovery
 
 Two more background concerns sit next to the job queue, both off by default and
@@ -6240,6 +6280,9 @@ activity source and meter are both named `AgentPrism`. The root run span is
 | `agentprism.judge.score` | Judge score distribution |
 | `agentprism.model.cache` | Response-cache lookups, tagged hit or miss |
 | `agentprism.agent_source.failures` | Agent-source failure and contract-violation count |
+| `agentprism.job.executions` | Background jobs that reached a terminal status |
+| `agentprism.job.duration` | Duration of a single background-job attempt, in seconds |
+| `agentprism.job.queue.depth` | Outstanding jobs per lane and open status, when enabled |
 
 ### The attribute names
 
@@ -6267,6 +6310,9 @@ metric names above.
 | `agentprism.compaction.input_tokens` · `agentprism.compaction.output_tokens` | Compaction span | What the summarization call itself cost |
 | `agentprism.agent_source.name` | `agentprism.agent_source.failures` | The failing `IAgentSource`'s name |
 | `agentprism.agent_source.operation` | `agentprism.agent_source.failures` | `list`, `resolve`, or `consistency` |
+| `agentprism.job.lane` | Every job signal | The lane the job was queued in |
+| `agentprism.job.kind` | `agentprism.job.executions`, `agentprism.job.duration` | The job's kind |
+| `agentprism.job.status` | Every job signal | A terminal status on the counter and the histogram; an open one on the gauge |
 
 Three spans and one tool name are not metrics at all, and are named here because a
 trace search needs them: `execute_skill_script` (a skill script's own span, carrying
@@ -6280,6 +6326,36 @@ Four of these are **span attributes only** and are deliberately not metric tags:
 `agentprism.run.id`, `agentprism.session.id`, `agentprism.run.parent_id`, and
 `agentprism.run.depth`. Each is unbounded, and promoting one to a metric tag creates a
 new time series per run. Use them to find a trace, not to group a chart.
+:::
+
+### What the job metrics count
+
+`agentprism.job.executions` counts jobs that **finished**. Only a terminal status
+reaches it — `Completed`, `Failed`, or `Cancelled`. When an attempt fails and the
+job is released for another try, nothing is counted; a job configured with three
+attempts that ultimately fails is counted **once**, not three times.
+
+`agentprism.job.duration` follows the same rule and measures **one attempt**, not
+the job's whole lifetime. For a job that failed twice before succeeding, the
+single recorded measurement covers the last attempt. It is taken from a monotonic
+clock, so a clock correction during the job cannot produce a negative duration.
+
+`agentprism.job.queue.depth` is **off by default**, because it reads the database
+on every scrape. Turn it on with `Observability:EnableJobQueueDepthGauge`, and the
+reads are cached for `Observability:JobQueueDepthRefreshInterval`. It reports only
+the open statuses — `Pending`, `Leased`, and `Running` — so its cost tracks the
+work still outstanding rather than the queue's whole history. A lane with no open
+jobs is absent rather than reported as zero. The gauge carries **no tenant tag**:
+the worker pool leases across every tenant, so queue depth is a signal about the
+pool, not about one tenant's work.
+
+:::caution
+A lane name is chosen by you, and AgentPrism does not bound how many exist. To keep
+the metric backend safe from a deployment that derives a lane per user, only the
+first `Observability:MaxJobLaneCardinality` distinct lanes a process sees (64 by
+default) get a series of their own; every further lane is reported as `other`. A
+lane that earned its name keeps it for the life of the process, so a chart never
+sees the same lane move between its own series and `other`.
 :::
 
 Token and cost data depend on the provider response. Missing usage remains unknown;
@@ -9109,6 +9185,19 @@ an empty list applies no filter, and a retried job keeps its lane. See
 [Background work](/guides/background-work/) for what a lane is and how a job's lane is
 chosen.
 
+`IJobStore` carries one aggregate method alongside the record-level ones.
+`GetQueueDepthAsync` counts outstanding jobs grouped by lane and status, the way
+`IRunStore.GetStatisticsAsync` sits on the run store rather than in an interface of
+its own. Three rules the contract checks, and that a custom store has to honor:
+
+- Count **only** the open statuses — `Pending`, `Leased`, and `Running`. A terminal
+  job is counted by `agentprism.job.executions` when it finishes, so scanning for it
+  here would tie the query's cost to the queue's whole history.
+- Omit a lane/status pair with no open jobs rather than reporting it as zero.
+- Take **no tenant argument and apply no tenant filter**. Like `LeaseAsync`, this is
+  a question about the worker pool, which leases across every tenant. The shipped SQL
+  stores answer it from the same partial index that backs leasing.
+
 ## Read next
 
 - [Persistence](/getting-started/persistence/) — the three shipped providers, for
@@ -10153,9 +10242,18 @@ on the model binding, not a global setting. See
 | `Observability:IncludeAgentVersionTag` | `true` |
 | `Observability:EnableQuotaUsageGauge` | `false` |
 | `Observability:QuotaUsageRefreshInterval` | 30 seconds |
+| `Observability:EnableJobQueueDepthGauge` | `false` |
+| `Observability:JobQueueDepthRefreshInterval` | 30 seconds |
+| `Observability:MaxJobLaneCardinality` | `64` |
 
 These settings control AgentPrism span creation and its own trace store. They do not
 replace the application's OpenTelemetry exporter.
+
+Both gauges are off by default because each one reads the database on a scrape;
+the matching refresh interval caches those reads.
+`MaxJobLaneCardinality` bounds how many distinct job lanes get a metric series of
+their own before the rest are folded into a single `other` series — see
+[observability](/guides/observability/#what-the-job-metrics-count).
 
 ### Run recording
 
@@ -10856,7 +10954,7 @@ each term means inside AgentPrism.
 **Span.** One timed activity inside a trace, such as a model call, tool call, or agent run.
 
 **Metric.** An aggregated .NET measurement for rates, duration, usage, cost, errors, tools,
-  judges, or optional quota gauges.
+  judges, background jobs, or the optional quota and queue-depth gauges.
 
 **Control plane.** The catalog, execution records, policies, operational services, API, and console
   around agents. AgentPrism adds this plane without hiding the MAF objects below it.
