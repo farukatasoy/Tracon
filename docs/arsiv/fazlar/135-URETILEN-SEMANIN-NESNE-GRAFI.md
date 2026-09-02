@@ -1,13 +1,13 @@
 # Faz 135 — Üretilen Şemanın Nesne Grafı
 
 > **Durum:** ✅ Tamamlandı (2026-09-02)
-> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) — **F-176**
-> **Önkoşul:** [Faz 130](arsiv/fazlar/130-URETILEN-SEMANIN-KISITLARI.md) — kısıt üretim yolu ve `ParameterConstraints` bu fazın üstüne oturur
+> **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) — **F-176**
+> **Önkoşul:** [Faz 130](130-URETILEN-SEMANIN-KISITLARI.md) — kısıt üretim yolu ve `ParameterConstraints` bu fazın üstüne oturur
 > **Paketler:** `AgentPrism.Generators` (tek paket)
 > **Yeni paket:** Yok · **Migration:** Yok
 > **Public API:** büyümüyor — üretilen şema metni ve derleme anı davranışı değişir. İki yeni analyzer diagnostic kodu eklenir (`APG0011`, `APG0012`)
 > **Tüketici yüzeyi:** `docs-site/`: `guides/write-your-own-tool.md`, `concepts/tools.md`, `capabilities.md` (diagnostic bağlantısının hedef bölümü) · sevk edilen: `APG0003` metni, yeni `APG0011`/`APG0012` metinleri, `AnalyzerReleases.Unshipped.md`
-> **Manuel test alanı:** [`docs/manuel-test/02-CEKIRDEK-VE-KATALOG.md`](manuel-test/02-CEKIRDEK-VE-KATALOG.md) — 🚨 Faz 133'ün **133.0** kalibrasyonu uygulanmamışsa case yazılamaz
+> **Manuel test alanı:** [`docs/manuel-test/02-CEKIRDEK-VE-KATALOG.md`](../../manuel-test/02-CEKIRDEK-VE-KATALOG.md) — 🚨 Faz 133'ün **133.0** kalibrasyonu uygulanmamışsa case yazılamaz
 
 ---
 
@@ -25,16 +25,16 @@
    sahibi verir, vermezse `APG0008`), **L27** (`ValidateDataAnnotations()`
    `reflection`/`IL2026` yüzünden reddedildi — bu faz da runtime `reflection`
    kullanmaz).
-3. [Faz 130](arsiv/fazlar/130-URETILEN-SEMANIN-KISITLARI.md) — yalnız devir notu:
+3. [Faz 130](130-URETILEN-SEMANIN-KISITLARI.md) — yalnız devir notu:
    ```bash
    awk '/## Sonraki Faza Devir Notu/,0' docs/arsiv/fazlar/130-URETILEN-SEMANIN-KISITLARI.md
    ```
    Nested object'i o faz **bilerek** kapsam dışı bıraktı ve gerekçesini
    (K-615 ile uzlaşma) yazdı. Bu faz o uzlaşmayı uygular.
 4. Alan hafızası (bu faz bir alana dokunuyor):
-   [`hafiza/analyzer-yazimi.md`](hafiza/analyzer-yazimi.md) (incremental
+   [`hafiza/analyzer-yazimi.md`](../../hafiza/analyzer-yazimi.md) (incremental
    generator, **değer eşitliği**, diagnostic yazımı).
-5. Gerektiğinde: [`hafiza/build-ve-analyzer.md`](hafiza/build-ve-analyzer.md)
+5. Gerektiğinde: [`hafiza/build-ve-analyzer.md`](../../hafiza/build-ve-analyzer.md)
    (AOT kaçış merdiveni).
 
 ---
@@ -82,15 +82,15 @@ listeler. `APG0011` bunu **hangi tipin eksik olduğunu söyleyerek** kolaylaşt�
 
 | Kanıt | Gözlem |
 |---|---|
-| [`ParameterModel.cs:4-14`](../src/AgentPrism.Generators/ParameterModel.cs) | `ParameterShape` üç üye: `Scalar`, `Array`, `CancellationToken`. **`Object` yok** |
-| [`ParameterModel.cs:32-42`](../src/AgentPrism.Generators/ParameterModel.cs) | `LeafTypeKind` sekiz üye; hepsi skaler. Nesne temsili yok |
-| [`SourceWriter.cs:242`](../src/AgentPrism.Generators/SourceWriter.cs) | Kök şema `{"type":"object","properties":…,"required":…,"additionalProperties":false}` — **yalnız kökte** nesne var |
-| [`SourceWriter.cs:245-269`](../src/AgentPrism.Generators/SourceWriter.cs) | `BuildSchemaNode`/`BuildLeafSchemaNode` yalnız skaler ve dizi düğümü üretir |
-| [`ToolDiagnostics.cs:38`](../src/AgentPrism.Generators/ToolDiagnostics.cs) | `APG0003` metni sınırı sevk edilmiş metinde itiraf ediyor: *"The generator also never expresses a nested object on any parameter … For another type, or a nested schema, register manually"* |
+| [`ParameterModel.cs:4-14`](../../../src/AgentPrism.Generators/ParameterModel.cs) | `ParameterShape` üç üye: `Scalar`, `Array`, `CancellationToken`. **`Object` yok** |
+| [`ParameterModel.cs:32-42`](../../../src/AgentPrism.Generators/ParameterModel.cs) | `LeafTypeKind` sekiz üye; hepsi skaler. Nesne temsili yok |
+| [`SourceWriter.cs:242`](../../../src/AgentPrism.Generators/SourceWriter.cs) | Kök şema `{"type":"object","properties":…,"required":…,"additionalProperties":false}` — **yalnız kökte** nesne var |
+| [`SourceWriter.cs:245-269`](../../../src/AgentPrism.Generators/SourceWriter.cs) | `BuildSchemaNode`/`BuildLeafSchemaNode` yalnız skaler ve dizi düğümü üretir |
+| [`ToolDiagnostics.cs:38`](../../../src/AgentPrism.Generators/ToolDiagnostics.cs) | `APG0003` metni sınırı sevk edilmiş metinde itiraf ediyor: *"The generator also never expresses a nested object on any parameter … For another type, or a nested schema, register manually"* |
 | `grep -n '"APG00' ToolDiagnostics.cs` | Kullanılan kodlar `APG0001`–`APG0010` (`APG0010` Faz 130'da alındı). İlk boş kod **`APG0011`** |
-| [`AgentPrismToolAttribute.cs:114`](../src/AgentPrism.Abstractions/Tools/AgentPrismToolAttribute.cs) | `public Type? JsonSerializerContext { get; init; }` — K-615'in tüketici yüzeyi. Bu faz **yeni bir alan eklemez**, aynı alanı kullanır |
-| [`ToolDiagnostics.cs:83`](../src/AgentPrism.Generators/ToolDiagnostics.cs) | `APG0008` metni **sonuç** tipi için yazılmış: *"Tool method '{0}' returns complex type '{1}'"* — parametre için ayrı bir teşhis gerekir |
-| [`ParameterModel.cs:55-70`](../src/AgentPrism.Generators/ParameterModel.cs) | `ParameterConstraints` yalnız ilkel alan taşıyor; XML'i incremental önbellek gerekçesini yazıyor |
+| [`AgentPrismToolAttribute.cs:114`](../../../src/AgentPrism.Abstractions/Tools/AgentPrismToolAttribute.cs) | `public Type? JsonSerializerContext { get; init; }` — K-615'in tüketici yüzeyi. Bu faz **yeni bir alan eklemez**, aynı alanı kullanır |
+| [`ToolDiagnostics.cs:83`](../../../src/AgentPrism.Generators/ToolDiagnostics.cs) | `APG0008` metni **sonuç** tipi için yazılmış: *"Tool method '{0}' returns complex type '{1}'"* — parametre için ayrı bir teşhis gerekir |
+| [`ParameterModel.cs:55-70`](../../../src/AgentPrism.Generators/ParameterModel.cs) | `ParameterConstraints` yalnız ilkel alan taşıyor; XML'i incremental önbellek gerekçesini yazıyor |
 
 > Kanıtlar 2026-09-02 tarihinde doğrulandı.
 
@@ -266,7 +266,7 @@ docs-site/src/content/docs/capabilities.md
 > Generator paket sınırını geçer (tüketicinin derlemesinde çalışır). Şema
 > **metni** birim testiyle kanıtlanır; AOT metadata'sının gerçekten yeterli
 > olduğu **yalnız paketlenmiş tüketicide** kanıtlanır —
-> [`.agents/ortak/test-seviyeleri.md`](../.agents/ortak/test-seviyeleri.md).
+> [`.agents/ortak/test-seviyeleri.md`](../../../.agents/ortak/test-seviyeleri.md).
 
 | Ne bozulabilir | Seviye | Test sınıfı |
 |---|---|---|
