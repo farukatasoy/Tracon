@@ -42,6 +42,10 @@ public sealed class ReadViewColumnSetTests
         "total_cost",
         "cost_currency",
         "error_type",
+        "model_provider",
+        "input_price_per_mtok",
+        "output_price_per_mtok",
+        "cached_input_price_per_mtok",
     ];
 
     /// <summary>

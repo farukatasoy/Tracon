@@ -73,6 +73,10 @@ SELECT
     END                   AS total_cost,
     -- total_cost: END
     cost_currency,
-    error_type
+    error_type,
+    model_provider,
+    input_price_per_mtok,
+    output_price_per_mtok,
+    cached_input_price_per_mtok
     -- runs_v1: columns END
 FROM {schema}runs;

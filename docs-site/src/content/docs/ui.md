@@ -94,7 +94,11 @@ started.
 A run's detail header names the user it belongs to and shows its labels as badges.
 
 Opening a run gives the summary and the full event stream in order: message deltas,
-tool calls with arguments and results, errors with their class. When a reasoning
+tool calls with arguments and results, errors with their class. The summary names
+the provider that actually answered, next to the model, and — when pricing is
+configured — the unit price applied for input, output, and any cached input; that
+price is a snapshot of what was in effect when the run ended, unaffected by a later
+catalog or configuration change. When a reasoning
 model's thinking is recorded, it renders as its own collapsible block, separate from
 the answer. A run that called other agents shows the whole tree, and each agent's
 tokens and duration are attributed separately.

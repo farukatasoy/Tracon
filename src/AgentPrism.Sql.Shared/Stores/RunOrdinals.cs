@@ -66,4 +66,8 @@ internal static class RunOrdinals
     public const int TreeAudioOutputTokens = 50;
     public const int TreeCostCachedInput = 51;
     public const int ContinuedFromRunId = 52;
+    public const int ModelProvider = 53;
+    public const int InputPricePerMillionTokens = 54;
+    public const int OutputPricePerMillionTokens = 55;
+    public const int CachedInputPricePerMillionTokens = 56;
 }

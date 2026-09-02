@@ -93,8 +93,27 @@ public sealed record RunCost
     /// <summary>Gets the input token cost, or <see langword="null"/> when the price is unknown.</summary>
     public decimal? InputCost { get; init; }
 
+    /// <summary>
+    /// Gets the input price, per million tokens, that produced
+    /// <c>InputCost</c>. <see langword="null"/> when the price is unknown.
+    /// </summary>
+    /// <remarks>
+    /// This is not a fourth addend of <see cref="Total"/>: it is the rate, not
+    /// an amount. Adding it to the cost total would double-count the same charge
+    /// on a different scale — <see cref="Total"/> sums only <see cref="InputCost"/>,
+    /// <see cref="OutputCost"/> and <see cref="CachedInputCost"/>.
+    /// </remarks>
+    public decimal? InputPricePerMillionTokens { get; init; }
+
     /// <summary>Gets the output token cost, or <see langword="null"/> when the price is unknown.</summary>
     public decimal? OutputCost { get; init; }
+
+    /// <summary>
+    /// Gets the output price, per million tokens, that produced
+    /// <c>OutputCost</c>. <see langword="null"/> when the price is unknown.
+    /// </summary>
+    /// <remarks>Not a cost addend — see <see cref="InputPricePerMillionTokens"/>.</remarks>
+    public decimal? OutputPricePerMillionTokens { get; init; }
 
     /// <summary>
     /// Gets the cost of the input tokens that were served from the prompt
@@ -116,7 +135,20 @@ public sealed record RunCost
     /// </remarks>
     public decimal? CachedInputCost { get; init; }
 
+    /// <summary>
+    /// Gets the cache-read price, per million tokens, that produced
+    /// <c>CachedInputCost</c>. <see langword="null"/> when no cache rate
+    /// was applied — either the cache rate is undefined, or the provider
+    /// reported no cache read at all.
+    /// </summary>
+    /// <remarks>Not a cost addend — see <see cref="InputPricePerMillionTokens"/>.</remarks>
+    public decimal? CachedInputPricePerMillionTokens { get; init; }
+
     /// <summary>Gets the currency, taken from <c>AgentPrism:Pricing:Currency</c>.</summary>
+    /// <remarks>
+    /// Required whenever <see cref="Source"/> is not <see cref="PricingSource.Unknown"/>:
+    /// a known price with no currency label is a resolver defect, not a legitimate state.
+    /// </remarks>
     public string? Currency { get; init; }
 
     /// <summary>Gets where the price came from.</summary>
@@ -136,6 +168,9 @@ public sealed record RunCost
     /// the cached tokens out of the input charge and bills them here. A hand
     /// written two-term sum under-reports every run that hit the prompt cache —
     /// and a quota ceiling computed that way can be exceeded.
+    /// <see cref="InputPricePerMillionTokens"/>, <see cref="OutputPricePerMillionTokens"/>
+    /// and <see cref="CachedInputPricePerMillionTokens"/> are rates, not amounts —
+    /// they must never be added here.
     /// </remarks>
     public decimal? Total()
         => this is { InputCost: null, OutputCost: null, CachedInputCost: null }
@@ -247,6 +282,13 @@ public sealed record RunStartInfo
     /// </summary>
     public string? ModelId { get; init; }
 
+    /// <summary>
+    /// Gets the provider of <c>ModelId</c>, resolved from the agent's
+    /// primary <c>ModelBinding</c>, or <see langword="null"/> when it is
+    /// unknown.
+    /// </summary>
+    public string? ModelProvider { get; init; }
+
     /// <summary>Gets whether the run streams.</summary>
     public bool IsStreaming { get; init; }
 
@@ -325,6 +367,14 @@ public sealed record RunCompletion
     /// no-op, not an omission.
     /// </remarks>
     public string? ModelId { get; init; }
+
+    /// <summary>
+    /// Gets the provider of the model that actually answered, overriding
+    /// <c>runs.model_provider</c> the same way <c>ModelId</c> overrides
+    /// <c>runs.model_id</c>. <see langword="null"/> leaves the stored value
+    /// unchanged — the overwhelmingly common case (no fallback happened).
+    /// </summary>
+    public string? ModelProvider { get; init; }
 
     /// <summary>
     /// Gets the EXPECTED tenant of the run being closed. Defence in depth; when <see
@@ -468,9 +518,19 @@ public sealed record RunTimeSeriesQuery
 }
 
 /// <summary>Result of a cost recalculation.</summary>
+/// <remarks>
+/// A run's price is a snapshot (<see cref="RunCost"/>): once a run carries a
+/// known price (<see cref="PricingSource.Catalog"/> or
+/// <see cref="PricingSource.Configuration"/>), recalculation never touches it
+/// again. Only rows with <see cref="PricingSource.Unknown"/> — or no cost at
+/// all, from before cost tracking existed — are candidates.
+/// </remarks>
 public sealed record RunCostRecalculationResult
 {
-    /// <summary>Gets the number of runs considered, that is those with a model and usage.</summary>
+    /// <summary>
+    /// Gets the number of runs considered, that is those with a model and usage
+    /// AND an unpriced (<c>PricingSource.Unknown</c> or absent) cost.
+    /// </summary>
     public required long RunsConsidered { get; init; }
 
     /// <summary>Gets the number of runs whose price resolved and was updated.</summary>
@@ -478,4 +538,10 @@ public sealed record RunCostRecalculationResult
 
     /// <summary>Gets the number of runs whose price is still unknown afterwards.</summary>
     public required long RunsStillUnknown { get; init; }
+
+    /// <summary>
+    /// Gets the number of runs skipped because they already carried a known
+    /// price. A priced run's cost is a snapshot and is never rewritten.
+    /// </summary>
+    public required long RunsSkipped { get; init; }
 }

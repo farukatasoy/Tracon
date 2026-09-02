@@ -119,6 +119,13 @@ it is not converted to zero. AgentPrism also does not invent a price. A run can 
 token metrics but no cost metric when neither the model catalog nor your pricing
 configuration supplies a price.
 
+A run's cost is a **price snapshot** ([concepts/runs](/concepts/runs/#what-a-run-carries)):
+computed once, from the unit price in effect when the run ended, and never
+recomputed from a later price change. `POST /api/stats/recalculate-costs` is a
+repair tool for the runs that were unpriced at the time — it fills in a price
+for them once one becomes available, and never touches a run that already has
+a known cost.
+
 :::caution
 This tag set is **fixed**, and run attribution is deliberately absent from it.
 Neither the user id nor the labels of a run become metric tags: both are

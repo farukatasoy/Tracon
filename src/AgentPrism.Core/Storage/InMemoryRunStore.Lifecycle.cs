@@ -28,6 +28,7 @@ internal sealed partial class InMemoryRunStore
             Labels = info.Labels,
             SessionId = info.SessionId,
             ModelId = info.ModelId,
+            ModelProvider = info.ModelProvider,
             IsStreaming = info.IsStreaming,
             ParentRunId = info.ParentRunId,
             RootRunId = info.RootRunId,
@@ -91,6 +92,7 @@ internal sealed partial class InMemoryRunStore
             Error = completion.Error,
             Cost = completion.Cost,
             ModelId = completion.ModelId ?? existing.ModelId,
+            ModelProvider = completion.ModelProvider ?? existing.ModelProvider,
         };
 
         return default;

@@ -5,7 +5,7 @@ import { formatDateTime, useT } from '../lib/i18n';
 import { readSse } from '../lib/sse';
 import { foldRunEvents } from '../lib/transcript';
 import { Link } from '../lib/router';
-import { absoluteTime, count, duration, prettyJson, relativeTime, shortId } from '../lib/format';
+import { absoluteTime, count, duration, money, prettyJson, relativeTime, shortId } from '../lib/format';
 import {
   Badge,
   CodeBlock,
@@ -28,6 +28,18 @@ import { Waterfall, formatMs } from '../components/waterfall';
 import { StatusBadge, Stat } from './runs';
 import type { RunEvent, RunEventType } from '../lib/run-event';
 import type { RunRecord, RunTrace, ToolInvocationRecord } from '../lib/server-types';
+
+/**
+ * Formats an applied unit price, or an em dash when it was never priced —
+ * never `0`, which would read as "free" (same rule as `money`).
+ */
+function unitPrice(
+  t: ReturnType<typeof useT>,
+  value: number | null | undefined,
+  currency: string | null | undefined,
+): string {
+  return value == null ? '—' : t('runDetail.unitPrice.perMillionTokens', { price: money(value, currency) });
+}
 
 /** Event name and hue per event type. Shapes and labels carry the meaning too. */
 const EVENT_STYLE: Record<RunEventType, { label: string; hue: string }> = {
@@ -276,6 +288,7 @@ export function RunDetailScreen({ id }: { id: string }): ReactNode {
       <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-6">
         <Stat label={t('common.duration')} value={duration(record.startedAt, record.completedAt)} />
         <Stat label={t('common.model')} value={record.modelId ?? '—'} />
+        <Stat label={t('common.provider')} value={record.modelProvider ?? '—'} />
         <Stat label={t('runDetail.inputTokens')} value={count(record.usage?.inputTokens)} />
         <Stat label={t('runDetail.outputTokens')} value={count(record.usage?.outputTokens)} />
         <Stat
@@ -285,6 +298,26 @@ export function RunDetailScreen({ id }: { id: string }): ReactNode {
         />
         <Stat label={t('runs.column.events')} value={count(record.eventCount)} />
       </div>
+
+      {record.cost != null && (
+        <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-6">
+          <Stat
+            label={t('runDetail.unitPrice.input')}
+            value={unitPrice(t, record.cost.inputPricePerMillionTokens, record.cost.currency)}
+            hint={t('runDetail.unitPrice.hint')}
+          />
+          <Stat
+            label={t('runDetail.unitPrice.output')}
+            value={unitPrice(t, record.cost.outputPricePerMillionTokens, record.cost.currency)}
+            hint={t('runDetail.unitPrice.hint')}
+          />
+          <Stat
+            label={t('runDetail.unitPrice.cached')}
+            value={unitPrice(t, record.cost.cachedInputPricePerMillionTokens, record.cost.currency)}
+            hint={t('runDetail.unitPrice.hint')}
+          />
+        </div>
+      )}
 
       {record.status === 'AwaitingInput' && (
         <div className="mb-4">

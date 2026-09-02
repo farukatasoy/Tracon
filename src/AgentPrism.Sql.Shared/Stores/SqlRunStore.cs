@@ -70,6 +70,7 @@ internal sealed class SqlRunStore : IRunStore
             Labels = info.Labels is { Count: > 0 } ? info.Labels : null,
             SessionId = info.SessionId,
             ModelId = info.ModelId,
+            ModelProvider = info.ModelProvider,
             IsStreaming = info.IsStreaming,
             ParentRunId = info.ParentRunId,
             RootRunId = info.RootRunId,
@@ -87,6 +88,7 @@ internal sealed class SqlRunStore : IRunStore
         DbHelpers.Add(command, "agent_name", record.AgentName);
         AddNullableText(command, "session_id", record.SessionId);
         AddNullableText(command, "model_id", record.ModelId);
+        AddNullableText(command, "model_provider", record.ModelProvider);
         DbHelpers.Add(command, "status", (short)record.Status);
         Dialect.AddTimestamp(command, "started_at", record.StartedAt);
         DbHelpers.Add(command, "is_streaming", record.IsStreaming);
@@ -221,14 +223,18 @@ internal sealed class SqlRunStore : IRunStore
         Dialect.AddInt16(command, "error_class", completion.Error?.Class is { } errorClass ? (short)errorClass : null);
         AddNullableText(command, "error_fingerprint", completion.Error?.Fingerprint);
         AddNullableDecimal(command, "input_cost", completion.Cost?.InputCost);
+        AddNullableDecimal(command, "input_price_per_mtok", completion.Cost?.InputPricePerMillionTokens);
         AddNullableDecimal(command, "output_cost", completion.Cost?.OutputCost);
+        AddNullableDecimal(command, "output_price_per_mtok", completion.Cost?.OutputPricePerMillionTokens);
         AddNullableDecimal(command, "cached_input_cost", completion.Cost?.CachedInputCost);
+        AddNullableDecimal(command, "cached_input_price_per_mtok", completion.Cost?.CachedInputPricePerMillionTokens);
         AddNullableText(command, "cost_currency", completion.Cost?.Currency);
         Dialect.AddInt16(command, "pricing_source", completion.Cost is { } cost ? (short)cost.Source : null);
 
         // NULL leaves the column at the value StartRunAsync already wrote
         // (phase 62) — the SQL text COALESCEs it, this is not a conditional here.
         AddNullableText(command, "model_id", completion.ModelId);
+        AddNullableText(command, "model_provider", completion.ModelProvider);
 
         // EXPECTED tenant (K-355). NULL means no check.
         AddNullableText(command, "tenant_id", completion.TenantId);
@@ -255,8 +261,11 @@ internal sealed class SqlRunStore : IRunStore
         var command = CreateCommand(_sql.UpdateRunCost);
         DbHelpers.Add(command, "id", runId);
         AddNullableDecimal(command, "input_cost", cost?.InputCost);
+        AddNullableDecimal(command, "input_price_per_mtok", cost?.InputPricePerMillionTokens);
         AddNullableDecimal(command, "output_cost", cost?.OutputCost);
+        AddNullableDecimal(command, "output_price_per_mtok", cost?.OutputPricePerMillionTokens);
         AddNullableDecimal(command, "cached_input_cost", cost?.CachedInputCost);
+        AddNullableDecimal(command, "cached_input_price_per_mtok", cost?.CachedInputPricePerMillionTokens);
         AddNullableText(command, "cost_currency", cost?.Currency);
         Dialect.AddInt16(command, "pricing_source", cost is { } value ? (short)value.Source : null);
 
@@ -872,6 +881,7 @@ internal sealed class SqlRunStore : IRunStore
             Usage = ownUsage,
             EventCount = reader.GetInt64(RunOrdinals.EventCount),
             ModelId = DbHelpers.GetNullableString(reader, RunOrdinals.ModelId),
+            ModelProvider = DbHelpers.GetNullableString(reader, RunOrdinals.ModelProvider),
             ParentRunId = reader.IsDBNull(RunOrdinals.ParentRunId) ? null : reader.GetGuid(RunOrdinals.ParentRunId),
             RootRunId = reader.IsDBNull(RunOrdinals.RootRunId) ? null : reader.GetGuid(RunOrdinals.RootRunId),
             Depth = reader.GetInt16(RunOrdinals.Depth),
@@ -1001,11 +1011,14 @@ internal sealed class SqlRunStore : IRunStore
         return new RunCost
         {
             InputCost = DbHelpers.GetNullableDecimal(reader, RunOrdinals.InputCost),
+            InputPricePerMillionTokens = DbHelpers.GetNullableDecimal(reader, RunOrdinals.InputPricePerMillionTokens),
             OutputCost = DbHelpers.GetNullableDecimal(reader, RunOrdinals.OutputCost),
+            OutputPricePerMillionTokens = DbHelpers.GetNullableDecimal(reader, RunOrdinals.OutputPricePerMillionTokens),
 
             // Appended in phase 68. NULL when no cache rate was
             // configured -- which is NOT the same as PricingSource.Unknown.
             CachedInputCost = DbHelpers.GetNullableDecimal(reader, RunOrdinals.CachedInputCost),
+            CachedInputPricePerMillionTokens = DbHelpers.GetNullableDecimal(reader, RunOrdinals.CachedInputPricePerMillionTokens),
             Currency = DbHelpers.GetNullableString(reader, RunOrdinals.CostCurrency),
             Source = (PricingSource)reader.GetInt16(RunOrdinals.PricingSource),
         };

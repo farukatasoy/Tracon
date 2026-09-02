@@ -57,6 +57,7 @@ public sealed partial class RunRecordingAgent
                 Labels = start.Labels,
                 SessionId = start.SessionId,
                 ModelId = _modelId,
+                ModelProvider = _modelProvider,
                 IsStreaming = start.IsStreaming,
                 ParentRunId = start.ParentRunId,
 

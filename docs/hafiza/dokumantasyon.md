@@ -58,6 +58,13 @@ kopyasi bunu bir suzgecle siliyordu, paketlenen kopya silmiyordu. OpenAPI'nin
 seri hale getirdigi sozlesme tiplerinde `<c>UyeAdi</c>` yaz; ic tiplerde
 `<see cref>` IDE gezinmesi icin kalir.
 
+**Tekrar (Faz 132, bagimsiz denetimde bulundu):** Kural yalniz `<summary>`'yi
+kapsar — OpenAPI `description` alaninin kaynagi odur. Ayni `<see cref>`
+`<remarks>` icinde SORUNSUZDUR (docfx site sayfasinda duzgun link uretir,
+OpenAPI'ye hic girmez); kurali `<remarks>`'a da uygulamak fazla istir. Yeni
+bir kayit tipine alan eklerken `<summary>`'sini "komsu uyeye referans veriyor
+mu" diye bir kez kontrol et.
+
 ## Ekran goruntusu ureteci
 
 - `AGENTPRISM_UI_SCREENSHOTS=1 dotnet test tests/AgentPrism.Ui.E2ETests -c Release`

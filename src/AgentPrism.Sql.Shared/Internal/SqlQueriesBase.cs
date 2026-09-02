@@ -182,6 +182,10 @@ internal abstract class SqlQueriesBase
         new("audio_output_tokens", RunColumnSource.Tree),
         new("cost_cached_input", RunColumnSource.Tree),
         new("continued_from_run_id", RunColumnSource.Own),
+        new("model_provider", RunColumnSource.Own),
+        new("input_price_per_mtok", RunColumnSource.Own),
+        new("output_price_per_mtok", RunColumnSource.Own),
+        new("cached_input_price_per_mtok", RunColumnSource.Own),
     ];
 
     /// <summary>Gets the query that inserts a tool invocation record.</summary>

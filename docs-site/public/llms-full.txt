@@ -1247,6 +1247,14 @@ deliberate exception, described in [governance](/concepts/governance/).
 The summary — `GET /api/runs/{runId}` — has status, timings, token counts, error
 class, and cost when pricing is configured. It does not carry the conversation.
 
+`modelProvider` names the provider that actually answered — the same provider
+`modelId`'s model came from. `cost` is a **price snapshot**: it also carries the
+unit price (per million tokens) that was applied for input, output, and any
+prompt-cache read, computed once when the run ends. A later change to your
+pricing catalog or configuration never rewrites a run's already-known cost —
+`POST /api/stats/recalculate-costs` only fills in runs whose price was unknown
+at the time, it never re-prices a run that already has one.
+
 The conversation is the **event stream**, written with gapless sequence numbers by a
 single writer:
 
@@ -6279,6 +6287,13 @@ it is not converted to zero. AgentPrism also does not invent a price. A run can 
 token metrics but no cost metric when neither the model catalog nor your pricing
 configuration supplies a price.
 
+A run's cost is a **price snapshot** ([concepts/runs](/concepts/runs/#what-a-run-carries)):
+computed once, from the unit price in effect when the run ended, and never
+recomputed from a later price change. `POST /api/stats/recalculate-costs` is a
+repair tool for the runs that were unpriced at the time — it fills in a price
+for them once one becomes available, and never touches a run that already has
+a known cost.
+
 :::caution
 This tag set is **fixed**, and run attribution is deliberately absent from it.
 Neither the user id nor the labels of a run become metric tags: both are
@@ -10917,6 +10932,8 @@ its database.
 | `total_cost` | decimal | See [Reading `total_cost`](#reading-total_cost) below |
 | `cost_currency` | text | Populated whenever `total_cost` is |
 | `error_type` | text | The raw error type string; `NULL` for a run that has not failed |
+| `model_provider` | text | The provider that actually answered; `NULL` for a row written before this column existed |
+| `input_price_per_mtok`, `output_price_per_mtok`, `cached_input_price_per_mtok` | decimal | The unit price (per million tokens) applied when the run completed — a price snapshot, `NULL` when the price was unknown. Rates, not amounts: they are never part of `total_cost` |
 
 Everything here is metadata or a value derived from metadata. No conversation
 content, tool argument, tool result, or file content is ever in scope for this or
@@ -12138,7 +12155,11 @@ started.
 A run's detail header names the user it belongs to and shows its labels as badges.
 
 Opening a run gives the summary and the full event stream in order: message deltas,
-tool calls with arguments and results, errors with their class. When a reasoning
+tool calls with arguments and results, errors with their class. The summary names
+the provider that actually answered, next to the model, and — when pricing is
+configured — the unit price applied for input, output, and any cached input; that
+price is a snapshot of what was in effect when the run ended, unaffected by a later
+catalog or configuration change. When a reasoning
 model's thinking is recorded, it renders as its own collapsible block, separate from
 the answer. A run that called other agents shows the whole tree, and each agent's
 tokens and duration are attributed separately.

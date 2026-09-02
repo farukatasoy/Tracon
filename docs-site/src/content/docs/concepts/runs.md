@@ -44,6 +44,14 @@ deliberate exception, described in [governance](/concepts/governance/).
 The summary — `GET /api/runs/{runId}` — has status, timings, token counts, error
 class, and cost when pricing is configured. It does not carry the conversation.
 
+`modelProvider` names the provider that actually answered — the same provider
+`modelId`'s model came from. `cost` is a **price snapshot**: it also carries the
+unit price (per million tokens) that was applied for input, output, and any
+prompt-cache read, computed once when the run ends. A later change to your
+pricing catalog or configuration never rewrites a run's already-known cost —
+`POST /api/stats/recalculate-costs` only fills in runs whose price was unknown
+at the time, it never re-prices a run that already has one.
+
 The conversation is the **event stream**, written with gapless sequence numbers by a
 single writer:
 

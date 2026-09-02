@@ -694,7 +694,7 @@ AgentPrism.RunEventDraft.Type.get -> AgentPrism.RunEventType
 AgentPrism.RunEventDraft.Type.init -> void
 AgentPrism.RunEventWriter
 AgentPrism.RunEventWriter.AppendAsync(AgentPrism.RunEventDraft draft, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<AgentPrism.RunEvent!>
-AgentPrism.RunEventWriter.CompleteAsync(AgentPrism.RunStatus status, AgentPrism.RunUsage? usage = null, AgentPrism.RunError? error = null, AgentPrism.RunCost? cost = null, string? modelId = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
+AgentPrism.RunEventWriter.CompleteAsync(AgentPrism.RunStatus status, AgentPrism.RunUsage? usage = null, AgentPrism.RunError? error = null, AgentPrism.RunCost? cost = null, string? modelId = null, string? modelProvider = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
 AgentPrism.RunEventWriter.EventCount.get -> long
 AgentPrism.RunEventWriter.IsDisabled.get -> bool
 AgentPrism.RunEventWriter.RecordToolInvocationAsync(AgentPrism.ToolInvocationRecord! invocation, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask

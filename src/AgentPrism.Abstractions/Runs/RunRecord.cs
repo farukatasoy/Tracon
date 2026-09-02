@@ -65,6 +65,13 @@ public sealed record RunRecord
     /// </summary>
     public string? ModelId { get; init; }
 
+    /// <summary>
+    /// Gets the provider of <c>ModelId</c>, or <see langword="null"/> for
+    /// a row written before this column existed. Rows written before are not
+    /// backfilled — see <c>POST /api/stats/recalculate-costs</c>.
+    /// </summary>
+    public string? ModelProvider { get; init; }
+
     /// <summary>Gets whether the run streamed.</summary>
     public bool IsStreaming { get; init; }
 

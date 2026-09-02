@@ -198,10 +198,10 @@ internal sealed class PostgresQueries : SqlQueriesBase
         // time with the SAME id and the row is updated in place (no new row
         // is OPENED).
         InsertRun = $"""
-            INSERT INTO {Schema}.runs (id, tenant_id, agent_name, session_id, model_id, status, started_at, is_streaming, event_count,
+            INSERT INTO {Schema}.runs (id, tenant_id, agent_name, session_id, model_id, model_provider, status, started_at, is_streaming, event_count,
                                        parent_run_id, root_run_id, depth, kind, workflow_name, agent_version, experiment_id, variant,
                                        replay_of_run_id, user_id, labels, continued_from_run_id)
-            VALUES (@id, @tenant_id, @agent_name, @session_id, @model_id, @status, @started_at, @is_streaming, 0,
+            VALUES (@id, @tenant_id, @agent_name, @session_id, @model_id, @model_provider, @status, @started_at, @is_streaming, 0,
                     @parent_run_id, @root_run_id, @depth, @kind, @workflow_name, @agent_version, @experiment_id, @variant,
                     @replay_of_run_id, @user_id, @labels, @continued_from_run_id)
             ON CONFLICT (id) DO UPDATE SET
@@ -209,6 +209,7 @@ internal sealed class PostgresQueries : SqlQueriesBase
                 agent_name    = EXCLUDED.agent_name,
                 session_id    = EXCLUDED.session_id,
                 model_id      = EXCLUDED.model_id,
+                model_provider = EXCLUDED.model_provider,
                 status        = EXCLUDED.status,
                 started_at    = EXCLUDED.started_at,
                 is_streaming  = EXCLUDED.is_streaming,
@@ -252,21 +253,30 @@ internal sealed class PostgresQueries : SqlQueriesBase
                 error_class    = @error_class,
                 error_fingerprint = @error_fingerprint,
                 input_cost     = @input_cost,
+                input_price_per_mtok = @input_price_per_mtok,
                 output_cost    = @output_cost,
+                output_price_per_mtok = @output_price_per_mtok,
                 cached_input_cost = @cached_input_cost,
+                cached_input_price_per_mtok = @cached_input_price_per_mtok,
                 cost_currency  = @cost_currency,
                 pricing_source = @pricing_source,
-                model_id       = COALESCE(@model_id, model_id)
+                model_id       = COALESCE(@model_id, model_id),
+                model_provider = COALESCE(@model_provider, model_provider)
             WHERE id = @id AND (@tenant_id IS NULL OR tenant_id = @tenant_id);
             """;
 
         // Used only by the maintenance endpoint (POST /api/stats/recalculate-costs);
-        // in the normal flow the cost is written once by UpdateRunCompletion.
+        // in the normal flow the cost is written once by UpdateRunCompletion. Never
+        // touches model_provider: recalculation resolves the cost of an EXISTING
+        // provider attribution, it does not change it.
         UpdateRunCost = $"""
             UPDATE {Schema}.runs
             SET input_cost     = @input_cost,
+                input_price_per_mtok = @input_price_per_mtok,
                 output_cost    = @output_cost,
+                output_price_per_mtok = @output_price_per_mtok,
                 cached_input_cost = @cached_input_cost,
+                cached_input_price_per_mtok = @cached_input_price_per_mtok,
                 cost_currency  = @cost_currency,
                 pricing_source = @pricing_source
             WHERE id = @id AND (@tenant_id IS NULL OR tenant_id = @tenant_id);
@@ -386,7 +396,8 @@ internal sealed class PostgresQueries : SqlQueriesBase
             r.cached_input_cost,
             tree.cached_input_tokens, tree.reasoning_tokens, tree.audio_input_tokens, tree.audio_output_tokens,
             tree.cost_cached_input,
-            r.continued_from_run_id
+            r.continued_from_run_id,
+            r.model_provider, r.input_price_per_mtok, r.output_price_per_mtok, r.cached_input_price_per_mtok
             """;
 
         SelectRun = $"""

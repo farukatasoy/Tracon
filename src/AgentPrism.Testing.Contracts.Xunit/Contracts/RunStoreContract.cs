@@ -280,6 +280,43 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
     }
 
     [Fact]
+    public async Task Completion_overrides_the_model_provider_when_a_fallback_answered()
+    {
+        // Phase 132, F-175: runs.model_provider is written at start from the
+        // PRIMARY binding and corrected at completion the same way model_id is,
+        // when a ModelBinding.Fallbacks link answered instead.
+        var runId = AgentPrismId.NewId();
+        await Store.StartRunAsync(TestData.Run(runId) with { ModelId = "primary-model", ModelProvider = "primary" });
+
+        await Store.CompleteRunAsync(new RunCompletion
+        {
+            RunId = runId,
+            Status = RunStatus.Completed,
+            CompletedAt = DateTimeOffset.UtcNow,
+            ModelId = "fallback-model",
+            ModelProvider = "fallback",
+        });
+
+        (await Store.GetRunAsync(runId))!.ModelProvider.ShouldBe("fallback");
+    }
+
+    [Fact]
+    public async Task Completion_leaves_the_model_provider_unchanged_when_no_override_is_given()
+    {
+        var runId = AgentPrismId.NewId();
+        await Store.StartRunAsync(TestData.Run(runId) with { ModelId = "primary-model", ModelProvider = "primary" });
+
+        await Store.CompleteRunAsync(new RunCompletion
+        {
+            RunId = runId,
+            Status = RunStatus.Completed,
+            CompletedAt = DateTimeOffset.UtcNow,
+        });
+
+        (await Store.GetRunAsync(runId))!.ModelProvider.ShouldBe("primary");
+    }
+
+    [Fact]
     public async Task Completion_stores_error_class_and_fingerprint()
     {
         var runId = AgentPrismId.NewId();
@@ -573,6 +610,71 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
 
         var statistics = await Store.GetStatisticsAsync(new RunStatisticsQuery());
         statistics.TotalCost.ShouldBe(3.5m);
+    }
+
+    [Fact]
+    public async Task Applied_unit_prices_round_trip_and_do_not_enter_the_total()
+    {
+        // Phase 132, F-175: the price snapshot carries the RATE that produced
+        // each cost term, not just the amount. K-483's rule extends to these
+        // three fields: they are never summed into RunCost.Total().
+        var runId = AgentPrismId.NewId();
+        await Store.StartRunAsync(TestData.Run(runId) with { ModelId = "m" });
+
+        await Store.CompleteRunAsync(new RunCompletion
+        {
+            RunId = runId,
+            Status = RunStatus.Completed,
+            CompletedAt = DateTimeOffset.UtcNow,
+            Usage = new RunUsage { InputTokens = 1_000_000, OutputTokens = 1_000_000, CachedInputTokens = 0, TotalTokens = 2_000_000 },
+            Cost = new RunCost
+            {
+                InputCost = 1m,
+                InputPricePerMillionTokens = 1m,
+                OutputCost = 2m,
+                OutputPricePerMillionTokens = 2m,
+                CachedInputCost = 0m,
+                CachedInputPricePerMillionTokens = 0.1m,
+                Currency = "USD",
+                Source = PricingSource.Catalog,
+            },
+        });
+
+        var record = await Store.GetRunAsync(runId);
+
+        record.ShouldNotBeNull();
+        record.Cost.ShouldNotBeNull();
+        record.Cost.InputPricePerMillionTokens.ShouldBe(1m);
+        record.Cost.OutputPricePerMillionTokens.ShouldBe(2m);
+        record.Cost.CachedInputPricePerMillionTokens.ShouldBe(0.1m);
+
+        // The rates are NOT addends: the total is still input + output + cache
+        // COST (1 + 2 + 0), never the sum that also folds in the rates.
+        record.Cost.Total().ShouldBe(3m);
+    }
+
+    [Fact]
+    public async Task Unit_prices_stay_null_when_the_model_price_is_unknown()
+    {
+        var runId = AgentPrismId.NewId();
+        await Store.StartRunAsync(TestData.Run(runId) with { ModelId = "m" });
+
+        await Store.CompleteRunAsync(new RunCompletion
+        {
+            RunId = runId,
+            Status = RunStatus.Completed,
+            CompletedAt = DateTimeOffset.UtcNow,
+            Usage = new RunUsage { InputTokens = 100, OutputTokens = 50, TotalTokens = 150 },
+            Cost = new RunCost { Source = PricingSource.Unknown },
+        });
+
+        var record = await Store.GetRunAsync(runId);
+
+        record.ShouldNotBeNull();
+        record.Cost.ShouldNotBeNull();
+        record.Cost.InputPricePerMillionTokens.ShouldBeNull();
+        record.Cost.OutputPricePerMillionTokens.ShouldBeNull();
+        record.Cost.CachedInputPricePerMillionTokens.ShouldBeNull();
     }
 
     [Fact]

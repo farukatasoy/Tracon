@@ -119,8 +119,8 @@ export type RetentionRun = Fix<Generated.RetentionRun, 'archivedRows' | 'deleted
 export type RunAgentStatistics = Fix<Generated.RunAgentStatistics, 'failedRuns' | 'totalRuns' | 'totalTokens'>;
 export type RunComparisonResponse = Omit<Generated.RunComparisonResponse, 'left' | 'right'> & { left: RunComparisonSide; right: RunComparisonSide };
 export type RunComparisonSide = Fix<Generated.RunComparisonSide, 'agentVersion' | 'durationMs' | 'toolCallCount'> & { cost: RunCost | null; scores: RunScore[]; usage: RunUsage | null };
-export type RunCost = Fix<Generated.RunCost, 'cachedInputCost' | 'inputCost' | 'outputCost'>;
-export type RunCostRecalculationResult = Fix<Generated.RunCostRecalculationResult, 'runsConsidered' | 'runsStillUnknown' | 'runsUpdated'>;
+export type RunCost = Fix<Generated.RunCost, 'cachedInputCost' | 'cachedInputPricePerMillionTokens' | 'inputCost' | 'inputPricePerMillionTokens' | 'outputCost' | 'outputPricePerMillionTokens'>;
+export type RunCostRecalculationResult = Fix<Generated.RunCostRecalculationResult, 'runsConsidered' | 'runsSkipped' | 'runsStillUnknown' | 'runsUpdated'>;
 export type RunErrorCluster = Fix<Generated.RunErrorCluster, 'count'>;
 // `class` is required and non-nullable on THIS schema, but `RunErrorClass` is
 // ALSO used nullably elsewhere in the document (`errorClass?: null | RunErrorClass`
