@@ -1,13 +1,13 @@
 # Faz 134 — Sınırlı Yapısal Yanıt Onarımı
 
 > **Durum:** ✅ Tamamlandı (2026-09-02)
-> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) — **F-177**
-> **Önkoşul:** [Faz 131](arsiv/fazlar/131-YAPISAL-YANIT-DOGRULAMA-SEAMI.md) — onarım, doğrulama seam'i olmadan tanımsızdır
+> **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) — **F-177**
+> **Önkoşul:** [Faz 131](131-YAPISAL-YANIT-DOGRULAMA-SEAMI.md) — onarım, doğrulama seam'i olmadan tanımsızdır
 > **Paketler:** `AgentPrism.Abstractions`, `.Core`, `.UI` (olay etiketi)
 > **Yeni paket:** Yok · **Migration:** Yok — yeni `RunEventType` değeri mevcut `smallint` sütuna yazılır
 > **Public API:** büyüyor — bir options alanı, bir `RunEventType` değeri. `wc -l src/*/PublicAPI.Shipped.txt` → her dosya 1 satır; shipped giriş **sıfır**
 > **Tüketici yüzeyi:** `docs-site/`: `guides/structured-output.md`, `concepts/runs.md` (olay listesi), `reference/configuration.md`, `capabilities.md` · sevk edilen: `AgentPrismStructuredResponseOptions` XML dokümanı, `en.ts`/`tr.ts` olay etiketi
-> **Manuel test alanı:** [`docs/manuel-test/22-GUARDRAIL-VE-YAPISAL-CIKTI.md`](manuel-test/22-GUARDRAIL-VE-YAPISAL-CIKTI.md) — 🚨 Faz 133'ün **133.0** kalibrasyonu uygulanmamışsa case yazılamaz
+> **Manuel test alanı:** [`docs/manuel-test/22-GUARDRAIL-VE-YAPISAL-CIKTI.md`](../../manuel-test/22-GUARDRAIL-VE-YAPISAL-CIKTI.md) — 🚨 Faz 133'ün **133.0** kalibrasyonu uygulanmamışsa case yazılamaz
 
 ---
 
@@ -24,7 +24,7 @@
    **K-632** (bütçe muhasebesinin %100'ünü `RunBudgetChatClient` taşır),
    **K-631** (fiyat çözümleyici boru hattı kurulumunda geç çözülür),
    **K-603** (`RunErrorClass`'ın 9 numarası emekli boşluktur).
-3. [Faz 131](arsiv/fazlar/131-YAPISAL-YANIT-DOGRULAMA-SEAMI.md) — yalnız devir notu:
+3. [Faz 131](131-YAPISAL-YANIT-DOGRULAMA-SEAMI.md) — yalnız devir notu:
    ```bash
    awk '/## Sonraki Faza Devir Notu/,0' docs/arsiv/fazlar/131-YAPISAL-YANIT-DOGRULAMA-SEAMI.md
    ```
@@ -32,11 +32,11 @@
    `FakeModelProvider.EchoesUserMessage()`'ın `"Echo: "` öneki tuzağını yazar —
    bu fazın testleri o tuzağa doğrudan çarpar.
 4. Alan hafızası (bu faz iki alana dokunuyor):
-   [`hafiza/cekirdek-calistirma.md`](hafiza/cekirdek-calistirma.md) (ambient
+   [`hafiza/cekirdek-calistirma.md`](../../hafiza/cekirdek-calistirma.md) (ambient
    `AgentPrismRunContext`, akışlı yolda `SetCurrent` tekrarı),
-   [`hafiza/model-boru-hatti.md`](hafiza/model-boru-hatti.md) (`RunBudgetChatClient`
+   [`hafiza/model-boru-hatti.md`](../../hafiza/model-boru-hatti.md) (`RunBudgetChatClient`
    ve `FallbackChatClient`'ın halkadaki yerleri).
-5. Gerektiğinde: [`MIMARI.md`](MIMARI.md) — çalıştırma yolu bölümü.
+5. Gerektiğinde: [`MIMARI.md`](../../MIMARI.md) — çalıştırma yolu bölümü.
 
 ### Faz 133'ten devralınan iki şey (bu fazı doğrudan etkiler)
 
@@ -96,14 +96,14 @@ Gerekçe ve bedeli birlikte:
 
 | Kanıt | Gözlem |
 |---|---|
-| [`StructuredResponseValidatingAgent.cs`](../src/AgentPrism.Core/Compilation/StructuredResponseValidatingAgent.cs) | `RunCoreAsync` bir kez `base.RunCoreAsync` çağırıyor, `ValidateAsync` diyor ve sonucu döndürüyor. **Onarım yolu yok** |
+| [`StructuredResponseValidatingAgent.cs`](../../../src/AgentPrism.Core/Compilation/StructuredResponseValidatingAgent.cs) | `RunCoreAsync` bir kez `base.RunCoreAsync` çağırıyor, `ValidateAsync` diyor ve sonucu döndürüyor. **Onarım yolu yok** |
 | Aynı dosya | Tip `DelegatingAIAgent`; dönen tip **`AgentResponse`** — `AgentRunResponse` DEĞİL. MEMORY.md'nin uyardığı tam karışıklık; imzayı tahmin etme |
-| [`AgentPrismStructuredResponseOptions.cs`](../src/AgentPrism.Core/AgentPrismStructuredResponseOptions.cs) | Tek alan: `Enabled`. `MaxRepairAttempts` **yok** |
-| [`RunEventType.cs:218`](../src/AgentPrism.Abstractions/Runs/RunEventType.cs) | En büyük değer **27** (`StructuredResponseRejected`, Faz 131). İlk boş değer **28** |
-| [`RunErrorClass.cs:120`](../src/AgentPrism.Abstractions/Runs/RunErrorClass.cs) | `StructuredResponseInvalid = 14` sevk edildi. Bu faz **yeni hata sınıfı eklemez** — tükenmiş onarım aynı sınıfla biter |
-| [`RunRecordingAgent.Completion.cs:68`](../src/AgentPrism.Core/Recording/RunRecordingAgent.Completion.cs) | 🚨 `usage = MergeUsage(usage, scope.ExtraUsage?.ToRunUsage())` — `usage` parametresi **dönen tek `AgentResponse`'tan** gelir |
-| `CompactionUsageAccumulator.cs:5-14` (bu fazda `SideChannelUsageAccumulator.cs`'e yeniden adlandırıldı — [bkz.](../src/AgentPrism.Core/Recording/SideChannelUsageAccumulator.cs)) | XML'i kuralı yazıyor: *"The summarization call is a side channel that is fully separate from the agent's `AgentResponse`, so its tokens never enter the normal flow"* |
-| [`CompactionUsageTrackingChatClient.cs:32`](../src/AgentPrism.Core/Compilation/CompactionUsageTrackingChatClient.cs) | Yan kanala yazma deseni: `AgentPrismRunContext.Current?.ExtraUsage?.Add(response.Usage)` |
+| [`AgentPrismStructuredResponseOptions.cs`](../../../src/AgentPrism.Core/AgentPrismStructuredResponseOptions.cs) | Tek alan: `Enabled`. `MaxRepairAttempts` **yok** |
+| [`RunEventType.cs:218`](../../../src/AgentPrism.Abstractions/Runs/RunEventType.cs) | En büyük değer **27** (`StructuredResponseRejected`, Faz 131). İlk boş değer **28** |
+| [`RunErrorClass.cs:120`](../../../src/AgentPrism.Abstractions/Runs/RunErrorClass.cs) | `StructuredResponseInvalid = 14` sevk edildi. Bu faz **yeni hata sınıfı eklemez** — tükenmiş onarım aynı sınıfla biter |
+| [`RunRecordingAgent.Completion.cs:68`](../../../src/AgentPrism.Core/Recording/RunRecordingAgent.Completion.cs) | 🚨 `usage = MergeUsage(usage, scope.ExtraUsage?.ToRunUsage())` — `usage` parametresi **dönen tek `AgentResponse`'tan** gelir |
+| `CompactionUsageAccumulator.cs:5-14` (bu fazda `SideChannelUsageAccumulator.cs`'e yeniden adlandırıldı — [bkz.](../../../src/AgentPrism.Core/Recording/SideChannelUsageAccumulator.cs)) | XML'i kuralı yazıyor: *"The summarization call is a side channel that is fully separate from the agent's `AgentResponse`, so its tokens never enter the normal flow"* |
+| [`CompactionUsageTrackingChatClient.cs:32`](../../../src/AgentPrism.Core/Compilation/CompactionUsageTrackingChatClient.cs) | Yan kanala yazma deseni: `AgentPrismRunContext.Current?.ExtraUsage?.Add(response.Usage)` |
 | `ModelProviderRegistry.cs:463` | `RunBudgetChatClient` **chat** boru hattındadır — yani derlenmiş agent'ın **içinde** |
 | Faz 131 devir notu | *"`RunRecordingAgent`'ın akışlı yolunda `AgentPrismRunContext.SetCurrent` HER `MoveNextAsync` öncesi yeniden yazılıyor … en içteki decorator … doğru ambient scope'u görüyor"* |
 
@@ -291,7 +291,7 @@ kusur sınıfının aynısıdır.
 ## Hata Modları ve Testler
 
 > Onarım DI · akış · bütçe · `run` kaydı sınırlarını geçer. Birim testi bunu
-> kanıtlamaz — [`.agents/ortak/test-seviyeleri.md`](../.agents/ortak/test-seviyeleri.md).
+> kanıtlamaz — [`.agents/ortak/test-seviyeleri.md`](../../../.agents/ortak/test-seviyeleri.md).
 
 | Ne bozulabilir | Seviye | Test sınıfı |
 |---|---|---|
