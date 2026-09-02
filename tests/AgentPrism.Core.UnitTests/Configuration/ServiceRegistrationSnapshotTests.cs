@@ -110,6 +110,7 @@ public sealed class ServiceRegistrationSnapshotTests
         "Microsoft.Extensions.Options.IValidateOptions`1[AgentPrism.AgentPrismRunContinuationOptions] | Singleton | AgentPrism.AgentPrismRunContinuationOptionsValidator",
         "Microsoft.Extensions.Options.IValidateOptions`1[AgentPrism.AgentPrismDrainOptions] | Singleton | AgentPrism.AgentPrismDrainOptionsValidator",
         "Microsoft.Extensions.Options.IValidateOptions`1[AgentPrism.AgentPrismImageOptions] | Singleton | AgentPrism.AgentPrismImageOptionsValidator",
+        "Microsoft.Extensions.Options.IValidateOptions`1[AgentPrism.AgentPrismStructuredResponseOptions] | Singleton | AgentPrism.AgentPrismStructuredResponseOptionsValidator",
         "Microsoft.Extensions.Logging.ILoggerFactory | Singleton | Microsoft.Extensions.Logging.LoggerFactory",
         "Microsoft.Extensions.Logging.ILogger`1[TCategoryName] | Singleton | Microsoft.Extensions.Logging.Logger`1[T]",
         "Microsoft.Extensions.Options.IConfigureOptions`1[Microsoft.Extensions.Logging.LoggerFilterOptions] | Singleton | Instance:Microsoft.Extensions.Logging.DefaultLoggerLevelConfigureOptions",

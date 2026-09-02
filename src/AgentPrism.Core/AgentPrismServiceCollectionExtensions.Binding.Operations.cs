@@ -338,6 +338,15 @@ public static partial class AgentPrismServiceCollectionExtensions
         {
             options.Enabled = enabled;
         }
+
+        if (int.TryParse(
+                section[nameof(AgentPrismStructuredResponseOptions.MaxRepairAttempts)],
+                NumberStyles.Integer,
+                CultureInfo.InvariantCulture,
+                out var maxRepairAttempts))
+        {
+            options.MaxRepairAttempts = maxRepairAttempts;
+        }
     }
 
     /// <summary>Binds the <c>AgentPrism:Canary</c> section.</summary>
