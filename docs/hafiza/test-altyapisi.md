@@ -192,12 +192,13 @@ tekrarlanmalı — ve `.editorconfig`'in `[tests/**/*.cs]` bölümü (CA1707 alt
   önekli metni döner** (2026-09-01, Faz 131). Geçerli JSON test etmek isteyen
   bir test bu yüzden echo modunu kullanamaz — `"Echo: {...}"` sözdizimsel olarak
   geçersiz JSON'dur. `RespondsWith(sabitMetin)` ile sabit bir yanıt kuyruklamak
-  gerekir (bkz. `AgentPrismTestHost.StartAsync`'in `agentPrism.AddModelProvider(
-  new FakeModelProvider("...").RespondsWith(...))` deseni).
-- **🚨 `MeterListener` process-wide'dır; "bu isimli İLK ölçüm benimdir"
-  varsayımı BAŞKA bir paralel testin ölçümüyle kirlenir** (2026-09-02, Faz 134,
-  gerçekten çöktü: taban commit'te izole 1/1 yeşil, yeni eşzamanlı bir testle
-  3/3 kırık). Her test host `new Meter(AgentPrismDiagnostics.MeterName)` kurar
-  — AYNI isim, FARKLI instance; süzgeç yalnız İSİM bakar. `JobMetricEndToEndTests.cs`
-  düzeltildi; `RunCostMetricEndToEndTests.cs` aynı deseni taşır (F-181).
-  **Kural:** `WaitForAsync(isim)` değil `WaitForAsync(isim, etiket => ...)`.
+  gerekir (`FakeModelProvider("...").RespondsWith(...)`).
+- **🚨 `MeterListener` process-wide'dır; süzgeç `Meter` INSTANCE'ına bağlanır,
+  ismine değil** (Faz 134'te gerçekten çöktü: izole 1/1 yeşil, yeni eşzamanlı
+  bir testle 3/3 kırık). Her host `new Meter(AgentPrismDiagnostics.MeterName)`
+  kurar — AYNI isim, FARKLI instance. **Kural:** teste kendi `IMeterFactory`'sini
+  ver, `ReferenceEquals(instrument.Meter, meter)` ile süz —
+  `Fakes/MetricTestHelpers.cs` (birim), `Infrastructure/TestMeterIsolation.cs`
+  (fonksiyonel; host'a `AddSingleton<IMeterFactory>`). Etiketle süzmek YETMEZ —
+  gerekçe kapının XML'inde. Sınıf taraması (2026-09-02) dört vaka buldu, dördü
+  de düzeltildi. Kapı: `MeterListenerIsolationTests`.

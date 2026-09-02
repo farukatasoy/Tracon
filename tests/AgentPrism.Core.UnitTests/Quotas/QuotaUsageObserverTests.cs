@@ -21,13 +21,16 @@ public sealed class QuotaUsageObserverTests
         var tenants = new InMemoryTenantStore();
         var store = new CountingQuotaStore(new InMemoryQuotaStore());
 
+        using var meterFactory = new TestMeterFactory();
+
         using var observer = new QuotaUsageObserver(
             store,
             tenants,
             Options(new AgentPrismOptions { Observability = new AgentPrismObservabilityOptions { EnableQuotaUsageGauge = false } }),
-            Options(new AgentPrismQuotaOptions()));
+            Options(new AgentPrismQuotaOptions()),
+            meterFactory);
 
-        using var collector = new GaugeCollector(AgentPrismDiagnostics.MeterName);
+        using var collector = new GaugeCollector(meterFactory.Meter);
 
         collector.Trigger(AgentPrismDiagnostics.QuotaUsageGaugeName).ShouldBeEmpty();
         collector.Trigger(AgentPrismDiagnostics.QuotaLimitGaugeName).ShouldBeEmpty();
@@ -46,14 +49,17 @@ public sealed class QuotaUsageObserverTests
 
         await RecordUsageAsync(store, clock, runs: 3, tokens: 400);
 
+        using var meterFactory = new TestMeterFactory();
+
         using var observer = new QuotaUsageObserver(
             store,
             tenants,
             Options(new AgentPrismOptions { Observability = new AgentPrismObservabilityOptions { EnableQuotaUsageGauge = true } }),
             Options(new AgentPrismQuotaOptions()),
+            meterFactory,
             timeProvider: clock);
 
-        using var collector = new GaugeCollector(AgentPrismDiagnostics.MeterName);
+        using var collector = new GaugeCollector(meterFactory.Meter);
 
         var usage = collector.Trigger(AgentPrismDiagnostics.QuotaUsageGaugeName);
         var limit = collector.Trigger(AgentPrismDiagnostics.QuotaLimitGaugeName);
@@ -83,14 +89,17 @@ public sealed class QuotaUsageObserverTests
         var (store, tenants) = await SeedAsync(clock, maxRuns: 10, enabled: false);
         await RecordUsageAsync(store, clock, runs: 5);
 
+        using var meterFactory = new TestMeterFactory();
+
         using var observer = new QuotaUsageObserver(
             store,
             tenants,
             Options(new AgentPrismOptions { Observability = new AgentPrismObservabilityOptions { EnableQuotaUsageGauge = true } }),
             Options(new AgentPrismQuotaOptions()),
+            meterFactory,
             timeProvider: clock);
 
-        using var collector = new GaugeCollector(AgentPrismDiagnostics.MeterName);
+        using var collector = new GaugeCollector(meterFactory.Meter);
 
         collector.Trigger(AgentPrismDiagnostics.QuotaUsageGaugeName).ShouldBeEmpty();
     }
@@ -101,6 +110,8 @@ public sealed class QuotaUsageObserverTests
         var clock = new ManualTimeProvider(new DateTimeOffset(2026, 8, 6, 9, 0, 0, TimeSpan.Zero));
         var (inner, tenants) = await SeedAsync(clock, maxRuns: 10);
         var store = new CountingQuotaStore(inner);
+
+        using var meterFactory = new TestMeterFactory();
 
         using var observer = new QuotaUsageObserver(
             store,
@@ -114,9 +125,10 @@ public sealed class QuotaUsageObserverTests
                 },
             }),
             Options(new AgentPrismQuotaOptions()),
+            meterFactory,
             timeProvider: clock);
 
-        using var collector = new GaugeCollector(AgentPrismDiagnostics.MeterName);
+        using var collector = new GaugeCollector(meterFactory.Meter);
 
         for (var i = 0; i < 10; i++)
         {
@@ -139,14 +151,17 @@ public sealed class QuotaUsageObserverTests
         var (store, tenants) = await SeedAsync(clock, maxRuns: 10);
         await RecordUsageAsync(store, clock, runs: 1);
 
+        using var meterFactory = new TestMeterFactory();
+
         using var observer = new QuotaUsageObserver(
             store,
             tenants,
             Options(new AgentPrismOptions { Observability = new AgentPrismObservabilityOptions { EnableQuotaUsageGauge = true } }),
             Options(new AgentPrismQuotaOptions()),
+            meterFactory,
             timeProvider: clock);
 
-        using var collector = new GaugeCollector(AgentPrismDiagnostics.MeterName);
+        using var collector = new GaugeCollector(meterFactory.Meter);
 
         var measurement = collector.Trigger(AgentPrismDiagnostics.QuotaUsageGaugeName).ShouldHaveSingleItem();
 
@@ -274,11 +289,14 @@ public sealed class QuotaUsageObserverTests
         private readonly MeterListener _listener = new();
         private readonly List<(string Name, double Value, Dictionary<string, object?> Tags)> _measurements = [];
 
-        public GaugeCollector(string meterName)
+        public GaugeCollector(Meter meter)
         {
+            // Filtering by the meter's NAME would also catch a different Meter
+            // instance with the same name published by a test running in
+            // parallel (MeterListenerIsolationTests enforces this).
             _listener.InstrumentPublished = (instrument, listener) =>
             {
-                if (string.Equals(instrument.Meter.Name, meterName, StringComparison.Ordinal))
+                if (ReferenceEquals(instrument.Meter, meter))
                 {
                     listener.EnableMeasurementEvents(instrument);
                 }

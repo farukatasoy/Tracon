@@ -86,6 +86,7 @@ public sealed class JsonFileRunStore : IRunStore
                 Labels = info.Labels,
                 SessionId = info.SessionId,
                 ModelId = info.ModelId,
+                ModelProvider = info.ModelProvider,
                 IsStreaming = info.IsStreaming,
                 ParentRunId = info.ParentRunId,
                 RootRunId = info.RootRunId,
@@ -181,6 +182,11 @@ public sealed class JsonFileRunStore : IRunStore
                 Error = completion.Error,
                 Cost = completion.Cost,
                 ModelId = completion.ModelId ?? existing.ModelId,
+
+                // Null leaves the stored value alone, exactly like ModelId: a
+                // fallback link answering is the only reason a completion
+                // carries a provider at all.
+                ModelProvider = completion.ModelProvider ?? existing.ModelProvider,
             };
 
             Save();

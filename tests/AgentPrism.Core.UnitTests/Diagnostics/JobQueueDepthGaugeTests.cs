@@ -16,8 +16,9 @@ public sealed class JobQueueDepthGaugeTests
     {
         var store = new CountingJobStore();
 
-        using var observer = Observer(store, enabled: false);
-        using var collector = new GaugeCollector(AgentPrismDiagnostics.MeterName);
+        using var meterFactory = new TestMeterFactory();
+        using var observer = Observer(store, enabled: false, meterFactory);
+        using var collector = new GaugeCollector(meterFactory.Meter);
 
         collector.Trigger(AgentPrismDiagnostics.JobQueueDepthGaugeName).ShouldBeEmpty();
 
@@ -32,8 +33,9 @@ public sealed class JobQueueDepthGaugeTests
         await EnqueueAsync(store, lane: "default", count: 3);
         await EnqueueAsync(store, lane: "media", count: 1);
 
-        using var observer = Observer(store, enabled: true);
-        using var collector = new GaugeCollector(AgentPrismDiagnostics.MeterName);
+        using var meterFactory = new TestMeterFactory();
+        using var observer = Observer(store, enabled: true, meterFactory);
+        using var collector = new GaugeCollector(meterFactory.Meter);
 
         var measurements = collector.Trigger(AgentPrismDiagnostics.JobQueueDepthGaugeName);
 
@@ -48,8 +50,9 @@ public sealed class JobQueueDepthGaugeTests
         await EnqueueAsync(store, lane: "default", count: 1, tenantId: "tenant-a");
         await EnqueueAsync(store, lane: "default", count: 1, tenantId: "tenant-b");
 
-        using var observer = Observer(store, enabled: true);
-        using var collector = new GaugeCollector(AgentPrismDiagnostics.MeterName);
+        using var meterFactory = new TestMeterFactory();
+        using var observer = Observer(store, enabled: true, meterFactory);
+        using var collector = new GaugeCollector(meterFactory.Meter);
 
         var measurements = collector.Trigger(AgentPrismDiagnostics.JobQueueDepthGaugeName);
 
@@ -68,8 +71,9 @@ public sealed class JobQueueDepthGaugeTests
         var store = new CountingJobStore();
         await EnqueueAsync(store, lane: "default", count: 1);
 
-        using var observer = Observer(store, enabled: true, clock: clock);
-        using var collector = new GaugeCollector(AgentPrismDiagnostics.MeterName);
+        using var meterFactory = new TestMeterFactory();
+        using var observer = Observer(store, enabled: true, meterFactory, clock: clock);
+        using var collector = new GaugeCollector(meterFactory.Meter);
 
         collector.Trigger(AgentPrismDiagnostics.JobQueueDepthGaugeName);
         store.DepthCalls.ShouldBe(1);
@@ -88,8 +92,9 @@ public sealed class JobQueueDepthGaugeTests
     {
         var store = new ThrowingJobStore();
 
-        using var observer = Observer(store, enabled: true);
-        using var collector = new GaugeCollector(AgentPrismDiagnostics.MeterName);
+        using var meterFactory = new TestMeterFactory();
+        using var observer = Observer(store, enabled: true, meterFactory);
+        using var collector = new GaugeCollector(meterFactory.Meter);
 
         // Observability must not break functionality: the scrape returns empty
         // rather than propagating the store's failure to the collector.
@@ -104,8 +109,9 @@ public sealed class JobQueueDepthGaugeTests
         var store = new CountingJobStore();
         await EnqueueAsync(store, lane: "default", count: 4);
 
-        using var observer = Observer(store, enabled: true, clock: clock);
-        using var collector = new GaugeCollector(AgentPrismDiagnostics.MeterName);
+        using var meterFactory = new TestMeterFactory();
+        using var observer = Observer(store, enabled: true, meterFactory, clock: clock);
+        using var collector = new GaugeCollector(meterFactory.Meter);
 
         collector.Trigger(AgentPrismDiagnostics.JobQueueDepthGaugeName)
             .ShouldHaveSingleItem().Value.ShouldBe(4);
@@ -136,8 +142,8 @@ public sealed class JobQueueDepthGaugeTests
             },
         });
 
-        using var factory = new TestMeterFactory();
-        using var metrics = new AgentPrismMetrics(factory, options);
+        using var meterFactory = new TestMeterFactory();
+        using var metrics = new AgentPrismMetrics(meterFactory, options);
 
         // The counter is what names "alpha" and "beta" first and spends the budget.
         metrics.RecordJob("alpha", JobKind.AgentBatch, JobStatus.Completed, "t", TimeSpan.Zero);
@@ -146,11 +152,11 @@ public sealed class JobQueueDepthGaugeTests
         using var observer = new JobQueueDepthObserver(
             store,
             options,
-            factory,
+            meterFactory,
             logger: NullLogger<JobQueueDepthObserver>.Instance,
             metrics: metrics);
 
-        using var collector = new GaugeCollector(AgentPrismDiagnostics.MeterName);
+        using var collector = new GaugeCollector(meterFactory.Meter);
 
         var lanes = collector.Trigger(AgentPrismDiagnostics.JobQueueDepthGaugeName)
             .Select(static m => (string?)m.Tags.GetValueOrDefault(AgentPrismDiagnostics.Tags.Lane))
@@ -164,7 +170,11 @@ public sealed class JobQueueDepthGaugeTests
         lanes.ShouldBe(["alpha", "beta", "other"]);
     }
 
-    private static JobQueueDepthObserver Observer(IJobStore store, bool enabled, ManualTimeProvider? clock = null)
+    private static JobQueueDepthObserver Observer(
+        IJobStore store,
+        bool enabled,
+        IMeterFactory meterFactory,
+        ManualTimeProvider? clock = null)
         => new(
             store,
             new StaticOptionsMonitor<AgentPrismOptions>(new AgentPrismOptions
@@ -175,6 +185,7 @@ public sealed class JobQueueDepthGaugeTests
                     JobQueueDepthRefreshInterval = TimeSpan.FromSeconds(30),
                 },
             }),
+            meterFactory,
             timeProvider: clock,
             logger: NullLogger<JobQueueDepthObserver>.Instance);
 
@@ -286,11 +297,14 @@ public sealed class JobQueueDepthGaugeTests
         private readonly MeterListener _listener = new();
         private readonly List<(string Name, long Value, Dictionary<string, object?> Tags)> _measurements = [];
 
-        public GaugeCollector(string meterName)
+        public GaugeCollector(Meter meter)
         {
+            // Filtering by the meter's NAME would also catch a different Meter
+            // instance with the same name published by a test running in
+            // parallel (MeterListenerIsolationTests enforces this).
             _listener.InstrumentPublished = (instrument, listener) =>
             {
-                if (string.Equals(instrument.Meter.Name, meterName, StringComparison.Ordinal))
+                if (ReferenceEquals(instrument.Meter, meter))
                 {
                     listener.EnableMeasurementEvents(instrument);
                 }

@@ -9156,7 +9156,7 @@ public sealed class MyRunStore : IRunStore
 }
 ```
 
-Fifteen methods, and six behavior axes the contract suite checks that a compiler
+Fifteen methods, and seven behavior axes the contract suite checks that a compiler
 cannot:
 
 | Axis | Rule |
@@ -9165,6 +9165,7 @@ cannot:
 | Tenant behavior | Three modes across the interface: **expected tenant** (`AppendEventAsync`, `CompleteRunAsync`, `UpdateRunCostAsync` compare the call's tenant against the record's own, ignoring the ambient tenant), **ambient tenant** (the read methods filter by `ITenantContext` unless overridden), **tenant-independent** (`TouchHeartbeatAsync`, `ClaimOrphanedRunsAsync` are maintenance work that scans every tenant) |
 | Thread safety | Registered as a singleton; must be safe under concurrent calls from unrelated runs and must not depend on a scoped service |
 | Null / not-found semantics | `GetRunAsync` returns `null`; `ReadEventsAsync` returns an empty sequence; `AppendEventAsync` and `CompleteRunAsync` throw `AgentPrismException` |
+| Completion overrides | `CompleteRunAsync` may correct the model attribution a run started with: `RunCompletion.ModelId` and `RunCompletion.ModelProvider` each **overwrite** the stored value when set, and **leave it unchanged** when `null` — the common case, since only a `ModelBinding.Fallbacks` link answering makes a completion carry them. Persisting `ModelId` but forgetting `ModelProvider` costs the run its provider attribution silently, and the cost resolver then falls back to matching by model name alone |
 | Event order | `RunEvent.Sequence` is assigned by the caller, not the store; events are append-only; `ReadEventsAsync`'s `fromSequence` is inclusive |
 | Duplicate `Sequence` | A second `AppendEventAsync` call reusing a sequence number already written for that run is a caller error — reject it with `AgentPrismException`, do not silently accept or silently drop it |
 
@@ -9190,6 +9191,21 @@ store rather than by fetching rows into memory, tree totals across parent/child 
 and error-cluster grouping. A method your store has not implemented yet makes the
 inherited test **fail** with whatever exception that method throws — it does not fail
 to compile, so an incomplete store is still a normal, greppable red build.
+
+:::caution[Testing against a prerelease build]
+If you point your project at a **prerelease** AgentPrism package that you built
+yourself rather than one from nuget.org, give the run its own package cache:
+
+```bash
+NUGET_PACKAGES=$(mktemp -d) dotnet test
+```
+
+A prerelease version string can name different content over time. NuGet caches
+by package id and version, so once `1.0.0-preview.1` is extracted into your
+global cache, a later build carrying the same version is never re-read — your
+store then compiles against the older contract and the contract suite reports
+failures that do not exist in the package you just built.
+:::
 
 ```mermaid
 flowchart TD

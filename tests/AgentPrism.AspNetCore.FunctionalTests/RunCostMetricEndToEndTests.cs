@@ -4,6 +4,7 @@ using System.Net.Http.Json;
 using System.Runtime.CompilerServices;
 using AgentPrism.AspNetCore.FunctionalTests.Infrastructure;
 using Microsoft.Extensions.AI;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace AgentPrism.AspNetCore.FunctionalTests;
 
@@ -25,11 +26,13 @@ public sealed class RunCostMetricEndToEndTests
     [Fact]
     public async Task Run_cost_is_published_through_the_real_DI_chain()
     {
-        using var collector = new MetricCollector(AgentPrismDiagnostics.MeterName);
+        using var meterFactory = new TestMeterFactory();
+        using var collector = new MeterInstanceCollector(meterFactory.Meter);
 
         var provider = new PricedEchoModelProvider();
 
-        await using var host = await AgentPrismTestHost.StartAsync(builder =>
+        await using var host = await AgentPrismTestHost.StartAsync(
+            builder =>
         {
             builder.AddModelProvider(provider);
             builder.AddAgent(new AgentDefinition
@@ -40,7 +43,8 @@ public sealed class RunCostMetricEndToEndTests
                 Model = new ModelBinding { Provider = "priced-fake", Model = "priced-model" },
                 Origin = AgentDefinitionOrigin.Code,
             });
-        });
+        },
+            configureServices: services => services.AddSingleton<IMeterFactory>(meterFactory));
 
         using var response = await host.Client.PostAsJsonAsync(
             new Uri("/agentprism/api/agents/priced/run", UriKind.Relative),
@@ -52,7 +56,7 @@ public sealed class RunCostMetricEndToEndTests
         // unless the SSE stream is fully consumed.
         await SseReader.ReadAllAsync(await response.Content.ReadAsStreamAsync());
 
-        var measurement = collector.DoubleMeasurements(AgentPrismDiagnostics.RunCostCounterName).ShouldHaveSingleItem();
+        var measurement = collector.Snapshot(AgentPrismDiagnostics.RunCostCounterName).ShouldHaveSingleItem();
 
         // $2/M input * 1,000,000 + $4/M output * 500,000 = 4.0
         measurement.Value.ShouldBe(4.0);
@@ -120,56 +124,4 @@ public sealed class RunCostMetricEndToEndTests
         }
     }
 
-    /// <summary>A simple listener that collects the measurements of a given <c>Meter</c>.</summary>
-    private sealed class MetricCollector : IDisposable
-    {
-        private readonly MeterListener _listener = new();
-        private readonly List<(string Name, double Value, Dictionary<string, object?> Tags)> _doubles = [];
-        private readonly Lock _gate = new();
-
-        public MetricCollector(string meterName)
-        {
-            _listener.InstrumentPublished = (instrument, listener) =>
-            {
-                if (string.Equals(instrument.Meter.Name, meterName, StringComparison.Ordinal))
-                {
-                    listener.EnableMeasurementEvents(instrument);
-                }
-            };
-
-            _listener.SetMeasurementEventCallback<double>((instrument, value, tags, _) =>
-            {
-                lock (_gate)
-                {
-                    _doubles.Add((instrument.Name, value, ToDictionary(tags)));
-                }
-            });
-
-            _listener.Start();
-        }
-
-        public List<(double Value, Dictionary<string, object?> Tags)> DoubleMeasurements(string name)
-        {
-            lock (_gate)
-            {
-                return [.. _doubles
-                    .Where(m => string.Equals(m.Name, name, StringComparison.Ordinal))
-                    .Select(m => (m.Value, m.Tags))];
-            }
-        }
-
-        public void Dispose() => _listener.Dispose();
-
-        private static Dictionary<string, object?> ToDictionary(ReadOnlySpan<KeyValuePair<string, object?>> tags)
-        {
-            var result = new Dictionary<string, object?>(StringComparer.Ordinal);
-
-            foreach (var tag in tags)
-            {
-                result[tag.Key] = tag.Value;
-            }
-
-            return result;
-        }
-    }
 }

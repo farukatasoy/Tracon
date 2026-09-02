@@ -5,7 +5,7 @@
 
 En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek bölünme). Yeni kararlar için: [`KARARLAR-INDEKS.md`](../KARARLAR-INDEKS.md).
 
-## Arşivlenen Kararlar (567 kalem)
+## Arşivlenen Kararlar (569 kalem)
 
 | K | Satır | Karar |
 |---|---|---|
@@ -576,3 +576,5 @@ En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek böl
 | K-565 | 611 | `AgentPrism.Client` `AgentPrism.Abstractions`'ı REFERANSLAMAZ; DTO'lar OpenAPI belgesinden üretilir, sunucu tipleriyle aynı şekle sahip ama FARKLI CLR tipidir (Faz 83) |
 | K-566 | 612 | `AgentPrism.Client` ve `AgentPrism.Cli` public API takibinin (`PublicApiAnalyzers`) DIŞINDADIR (Faz 83, Açık Soru 2 karar A) |
 | K-567 | 613 | `AgentPrism.Client`'ın AOT sözünden VAZGEÇİLDİ: `AgentPrismAotCompatible=false` (Faz 83, ölçülen risk gerçekleşti) |
+| K-568 | 614 | `IMigrationApplier` arayüzü `AgentPrism.Abstractions`'a eklendi: linked-source `MigrationRunner` tipinin üç sağlayıcı derlemesinde belirsiz olması sorununu çözer (Faz 83) |
+| K-569 | 615 | `AddAgentPrismClient` `IServiceCollection` döner, `IHttpClientBuilder` DEĞİL; `IHttpClientFactory` kullanılmaz (Faz 83, plandan sapma) |
