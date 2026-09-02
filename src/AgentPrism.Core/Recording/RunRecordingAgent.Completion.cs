@@ -95,6 +95,7 @@ public sealed partial class RunRecordingAgent
             // the value WriteRunStartAsync already wrote (the overwhelmingly
             // common case), never a redundant write of the same value.
             modelId: fallbackUsed?.Model,
+            modelProvider: fallbackUsed?.Provider,
             cancellationToken: cancellationToken).ConfigureAwait(false);
 
         // 🚨 The budget is NOT recorded here (phase 114, was: `scope.Budget?.RecordUsage(...)`).

@@ -3497,8 +3497,8 @@
           "AgentPrism",
           "Agents"
         ],
-        "summary": "Recalculates the cost of all runs based on the current pricing source.",
-        "description": "This is a maintenance endpoint. It is used to refresh past runs when pricing is defined later. The provider is not kept on historical rows; if the same model name is defined for more than one provider, the first alphabetical match wins. Requires Admin; the call is written to the audit trail.",
+        "summary": "Fills in the cost of runs whose price is still unknown.",
+        "description": "This is a maintenance endpoint. It fills in the cost of runs whose price is still unknown (unpriced when they completed, typically because the model was not configured yet); a run\u0027s cost is a price snapshot and this endpoint never rewrites one that already has a known price, even if the price list changed since. A run written before the provider column existed resolves by model name alone; if the same model name is defined for more than one provider, the first alphabetical match wins. Requires Admin; the call is written to the audit trail.",
         "operationId": "AgentPrismRecalculateCosts",
         "responses": {
           "200": {
@@ -12936,6 +12936,16 @@
             "description": "Gets the input token cost, or \u0060null\u0060 when the price is unknown.",
             "format": "double"
           },
+          "inputPricePerMillionTokens": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "description": "Gets the input price, per million tokens, that produced\n\u0060InputCost\u0060. \u0060null\u0060 when the price is unknown.",
+            "format": "double"
+          },
           "outputCost": {
             "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
             "type": [
@@ -12946,6 +12956,16 @@
             "description": "Gets the output token cost, or \u0060null\u0060 when the price is unknown.",
             "format": "double"
           },
+          "outputPricePerMillionTokens": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "description": "Gets the output price, per million tokens, that produced\n\u0060OutputCost\u0060. \u0060null\u0060 when the price is unknown.",
+            "format": "double"
+          },
           "cachedInputCost": {
             "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
             "type": [
@@ -12954,6 +12974,16 @@
               "string"
             ],
             "description": "Gets the cost of the input tokens that were served from the prompt\ncache, or \u0060null\u0060 when no cache read was priced.",
+            "format": "double"
+          },
+          "cachedInputPricePerMillionTokens": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "description": "Gets the cache-read price, per million tokens, that produced\n\u0060CachedInputCost\u0060. \u0060null\u0060 when no cache rate\nwas applied \u2014 either the cache rate is undefined, or the provider\nreported no cache read at all.",
             "format": "double"
           },
           "currency": {
@@ -12974,7 +13004,8 @@
         "required": [
           "runsConsidered",
           "runsUpdated",
-          "runsStillUnknown"
+          "runsStillUnknown",
+          "runsSkipped"
         ],
         "type": "object",
         "properties": {
@@ -12984,7 +13015,7 @@
               "integer",
               "string"
             ],
-            "description": "Gets the number of runs considered, that is those with a model and usage.",
+            "description": "Gets the number of runs considered, that is those with a model and usage\nAND an unpriced (\u0060PricingSource.Unknown\u0060 or absent) cost.",
             "format": "int64"
           },
           "runsUpdated": {
@@ -13003,6 +13034,15 @@
               "string"
             ],
             "description": "Gets the number of runs whose price is still unknown afterwards.",
+            "format": "int64"
+          },
+          "runsSkipped": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "Gets the number of runs skipped because they already carried a known\nprice. A priced run\u0027s cost is a snapshot and is never rewritten.",
             "format": "int64"
           }
         },
@@ -13406,6 +13446,13 @@
               "string"
             ],
             "description": "Gets the model used by the run. Cost and per-model reports need it. It is\n\u0060null\u0060 when the agent definition carries no model."
+          },
+          "modelProvider": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Gets the provider of \u0060ModelId\u0060, or \u0060null\u0060 for\na row written before this column existed. Rows written before are not\nbackfilled \u2014 see \u0060POST /api/stats/recalculate-costs\u0060."
           },
           "isStreaming": {
             "type": "boolean",

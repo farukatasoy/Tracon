@@ -1358,8 +1358,8 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Recalculates the cost of all runs based on the current pricing source.
-         * @description This is a maintenance endpoint. It is used to refresh past runs when pricing is defined later. The provider is not kept on historical rows; if the same model name is defined for more than one provider, the first alphabetical match wins. Requires Admin; the call is written to the audit trail.
+         * Fills in the cost of runs whose price is still unknown.
+         * @description This is a maintenance endpoint. It fills in the cost of runs whose price is still unknown (unpriced when they completed, typically because the model was not configured yet); a run's cost is a price snapshot and this endpoint never rewrites one that already has a known price, even if the price list changed since. A run written before the provider column existed resolves by model name alone; if the same model name is defined for more than one provider, the first alphabetical match wins. Requires Admin; the call is written to the audit trail.
          */
         post: operations["AgentPrismRecalculateCosts"];
         delete?: never;
@@ -5472,15 +5472,35 @@ export interface components {
             inputCost?: null | number | string;
             /**
              * Format: double
+             * @description Gets the input price, per million tokens, that produced
+             *     `InputCost`. `null` when the price is unknown.
+             */
+            inputPricePerMillionTokens?: null | number | string;
+            /**
+             * Format: double
              * @description Gets the output token cost, or `null` when the price is unknown.
              */
             outputCost?: null | number | string;
+            /**
+             * Format: double
+             * @description Gets the output price, per million tokens, that produced
+             *     `OutputCost`. `null` when the price is unknown.
+             */
+            outputPricePerMillionTokens?: null | number | string;
             /**
              * Format: double
              * @description Gets the cost of the input tokens that were served from the prompt
              *     cache, or `null` when no cache read was priced.
              */
             cachedInputCost?: null | number | string;
+            /**
+             * Format: double
+             * @description Gets the cache-read price, per million tokens, that produced
+             *     `CachedInputCost`. `null` when no cache rate
+             *     was applied — either the cache rate is undefined, or the provider
+             *     reported no cache read at all.
+             */
+            cachedInputPricePerMillionTokens?: null | number | string;
             /** @description Gets the currency, taken from `AgentPrism:Pricing:Currency`. */
             currency?: null | string;
             /** @description Gets where the price came from. */
@@ -5490,7 +5510,8 @@ export interface components {
         RunCostRecalculationResult: {
             /**
              * Format: int64
-             * @description Gets the number of runs considered, that is those with a model and usage.
+             * @description Gets the number of runs considered, that is those with a model and usage
+             *     AND an unpriced (`PricingSource.Unknown` or absent) cost.
              */
             runsConsidered: number | string;
             /**
@@ -5503,6 +5524,12 @@ export interface components {
              * @description Gets the number of runs whose price is still unknown afterwards.
              */
             runsStillUnknown: number | string;
+            /**
+             * Format: int64
+             * @description Gets the number of runs skipped because they already carried a known
+             *     price. A priced run's cost is a snapshot and is never rewritten.
+             */
+            runsSkipped: number | string;
         };
         /** @description Error information for a failed run. */
         RunError: {
@@ -5519,7 +5546,7 @@ export interface components {
             fingerprint?: null | string;
         };
         /** @enum {unknown} */
-        RunErrorClass: "Unknown" | "ProviderError" | "ProviderUnavailable" | "RateLimited" | "QuotaExceeded" | "ContentFiltered" | "ToolError" | "Timeout" | "CompilationFailed" | "Canceled" | "ContentBlocked" | "Infrastructure" | "ToolTimeout" | null;
+        RunErrorClass: "Unknown" | "ProviderError" | "ProviderUnavailable" | "RateLimited" | "QuotaExceeded" | "ContentFiltered" | "ToolError" | "Timeout" | "CompilationFailed" | "Canceled" | "ContentBlocked" | "Infrastructure" | "ToolTimeout" | "StructuredResponseInvalid" | null;
         /** @description The summary of runs sharing the same fingerprint. */
         RunErrorCluster: {
             /** @description The digest of the normalized message. */
@@ -5698,6 +5725,12 @@ export interface components {
              *     `null` when the agent definition carries no model.
              */
             modelId?: null | string;
+            /**
+             * @description Gets the provider of `ModelId`, or `null` for
+             *     a row written before this column existed. Rows written before are not
+             *     backfilled — see `POST /api/stats/recalculate-costs`.
+             */
+            modelProvider?: null | string;
             /** @description Gets whether the run streamed. */
             isStreaming?: boolean;
             usage?: null | components["schemas"]["RunUsage"];

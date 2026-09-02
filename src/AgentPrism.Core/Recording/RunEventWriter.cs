@@ -260,6 +260,12 @@ public sealed class RunEventWriter
     /// <see cref="StartAsync"/> already wrote unchanged — the overwhelmingly
     /// common case.
     /// </param>
+    /// <param name="modelProvider">
+    /// The provider of <paramref name="modelId"/>, overriding
+    /// <c>runs.model_provider</c> the same way <paramref name="modelId"/>
+    /// overrides <c>runs.model_id</c>. <see langword="null"/> leaves the
+    /// stored value unchanged.
+    /// </param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>The completion task.</returns>
     public async ValueTask CompleteAsync(
@@ -268,6 +274,7 @@ public sealed class RunEventWriter
         RunError? error = null,
         RunCost? cost = null,
         string? modelId = null,
+        string? modelProvider = null,
         CancellationToken cancellationToken = default)
     {
         // 🚨 NOT gated on IsDisabled here (unlike every other method on this
@@ -306,6 +313,7 @@ public sealed class RunEventWriter
                     Error = error,
                     Cost = cost,
                     ModelId = modelId,
+                    ModelProvider = modelProvider,
 
                     // Expected tenant stamp (K-355).
                     TenantId = TenantId,

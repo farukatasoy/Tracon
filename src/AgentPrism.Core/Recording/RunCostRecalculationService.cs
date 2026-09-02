@@ -1,15 +1,20 @@
 namespace AgentPrism;
 
 /// <summary>
-/// Maintenance service that recalculates the cost of all runs against the
-/// current pricing source (catalog/configuration).
+/// Maintenance service that fills in the cost of runs whose price is still
+/// unknown, against the current pricing source (catalog/configuration).
 /// </summary>
 /// <remarks>
-/// Used only by the <c>POST /api/stats/recalculate-costs</c> endpoint. Every
-/// call is a <strong>full</strong> recalculation — there is no "only unknown
-/// ones" filter, because the endpoint's purpose is to apply the current
-/// pricing to history as-is. Since the provider is not stored on historical
-/// rows, resolution is done by model name alone.
+/// Used only by the <c>POST /api/stats/recalculate-costs</c> endpoint. A run's
+/// cost is a price snapshot (<see cref="RunCost"/>): a run that already
+/// carries a known price (<see cref="PricingSource.Catalog"/> or
+/// <see cref="PricingSource.Configuration"/>) is <strong>never</strong>
+/// rewritten, even if the price list changed since. Only
+/// <see cref="PricingSource.Unknown"/> rows — and rows with no cost at all,
+/// from before cost tracking existed — are candidates. A row written before
+/// <c>runs.model_provider</c> existed resolves by model name alone, the same
+/// as before this field existed; a row written after carries its own provider
+/// and resolves against it directly.
 /// </remarks>
 internal sealed class RunCostRecalculationService
 {
@@ -42,6 +47,7 @@ internal sealed class RunCostRecalculationService
         long considered = 0;
         long updated = 0;
         long stillUnknown = 0;
+        long skipped = 0;
 
         for (var skip = 0; ; skip += PageSize)
         {
@@ -67,9 +73,20 @@ internal sealed class RunCostRecalculationService
                     continue;
                 }
 
+                // 🚨 A priced run's cost is a SNAPSHOT and is never rewritten — the
+                // endpoint's job is to fill in a gap, not to re-apply today's
+                // pricing to history. A row with no Cost at all predates cost
+                // tracking and is treated the same as Unknown: there is nothing
+                // to protect.
+                if (run.Cost is { Source: not PricingSource.Unknown })
+                {
+                    skipped++;
+                    continue;
+                }
+
                 considered++;
 
-                var cost = _resolver.Resolve(provider: null, run.ModelId, run.Usage);
+                var cost = _resolver.Resolve(run.ModelProvider, run.ModelId, run.Usage);
                 if (cost is null)
                 {
                     continue;
@@ -102,6 +119,7 @@ internal sealed class RunCostRecalculationService
             RunsConsidered = considered,
             RunsUpdated = updated,
             RunsStillUnknown = stillUnknown,
+            RunsSkipped = skipped,
         };
     }
 }

@@ -214,6 +214,7 @@ internal static class CatalogEndpoints
                         writer.WriteNumber("considered", result.RunsConsidered);
                         writer.WriteNumber("updated", result.RunsUpdated);
                         writer.WriteNumber("stillUnknown", result.RunsStillUnknown);
+                        writer.WriteNumber("skipped", result.RunsSkipped);
                     }),
                     cancellationToken).ConfigureAwait(false);
 
@@ -223,12 +224,15 @@ internal static class CatalogEndpoints
             .RequireApiKeyScope(ApiKeyScope.RunsWrite)
             .WithName("AgentPrismRecalculateCosts")
             .WithTags("AgentPrism", "Agents")
-            .WithSummary("Recalculates the cost of all runs based on the current pricing source.")
+            .WithSummary("Fills in the cost of runs whose price is still unknown.")
             .WithDescription(
-                "This is a maintenance endpoint. It is used to refresh past runs when " +
-                "pricing is defined later. The provider is not kept on historical rows; " +
-                "if the same model name is defined for more than one provider, the first " +
-                "alphabetical match wins. Requires Admin; " +
+                "This is a maintenance endpoint. It fills in the cost of runs whose price " +
+                "is still unknown (unpriced when they completed, typically because the " +
+                "model was not configured yet); a run's cost is a price snapshot and this " +
+                "endpoint never rewrites one that already has a known price, even if the " +
+                "price list changed since. A run written before the provider column existed " +
+                "resolves by model name alone; if the same model name is defined for more " +
+                "than one provider, the first alphabetical match wins. Requires Admin; " +
                 "the call is written to the audit trail.");
     }
 }
