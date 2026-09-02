@@ -51,17 +51,28 @@ namespace AgentPrism;
 /// from the repair round.
 /// </para>
 /// <para>
-/// <strong>The session still reflects the FIRST attempt, not the repaired
-/// one.</strong> The underlying agent framework persists a turn's own
-/// request and response as soon as that ONE model call completes, entirely
-/// inside its own call — this class only sees the result afterward and has
-/// no hook to hold that write back or replace it. So when the very first
-/// (real-session) attempt is rejected and a later repair recovers it, the
-/// session already carries the rejected draft; only the repair EXCHANGE
-/// itself (the correction message and the retry) is kept out, per the
-/// paragraph above. This is not a new gap: an unrepaired rejection persisted
-/// the same draft before repair existed, only the run also failed then, so
-/// the mismatch was never visible on a run that otherwise succeeded.
+/// <strong>A run that carries a durable session gets no repair budget.</strong>
+/// The underlying agent framework persists a turn's own request and response
+/// as soon as that ONE model call completes, entirely inside its own call —
+/// this class only sees the result afterward and has no hook to hold that
+/// write back or replace it. Repairing anyway would let the run SUCCEED while
+/// its session still ends in the rejected draft, so the next turn would read a
+/// response the caller never received. Instead, when the run's <c>session</c>
+/// is non-null the attempt budget collapses to one: the rejection fails the
+/// run exactly as it would with repair disabled, and the run's result and the
+/// session's history keep saying the same thing. The rejection event carries
+/// <c>RepairSuppressedBySession</c> so this is distinguishable from a run that
+/// simply had no repair configured.
+/// </para>
+/// <para>
+/// This limitation is <strong>not</strong> a permanent contract. MAF's
+/// <c>ChatHistoryProvider</c> does expose store-side seams (a response-message
+/// filter and an overridable <c>StoreChatHistoryAsync</c>); what is missing is
+/// a way to defer the history commit until the run's validation verdict
+/// exists, since the store runs the moment the model call returns and
+/// <c>InvokedContext.ResponseMessages</c> is read-only. Making the commit
+/// conditional on the verdict is a design in its own right, not a patch to
+/// this class.
 /// </para>
 /// <para>
 /// <strong>Streaming.</strong> Content is forwarded to the caller as it
@@ -133,7 +144,23 @@ internal sealed class StructuredResponseValidatingAgent : DelegatingAIAgent
         // 1-based: 1 is the original turn, 2.. are repairs. maxAttempts is the
         // total call budget - one more than MaxRepairAttempts, since the
         // original turn also counts as a call.
-        var maxAttempts = _options.MaxRepairAttempts + 1;
+        //
+        // 🚨 A run that carries a durable session gets NO repair budget. The
+        // underlying framework has already persisted the first attempt's own
+        // response by the time this class sees it, and nothing here can hold
+        // that write back or replace it (see the class remarks). Repairing
+        // anyway would let the run SUCCEED while the session it belongs to
+        // still ends in the rejected draft - the next turn would then read a
+        // response the caller never received. Failing closed keeps the run's
+        // result and the session's history saying the same thing.
+        // 🚨 `session is not null` is NOT the test: the run path hands the agent a
+        // session object even when the caller asked for no durable conversation.
+        // Only a session AgentPrism itself stamped carries an identity, and only
+        // such a session outlives the run - that is the one repair would desync.
+        var repairSuppressed = _options.MaxRepairAttempts > 0
+            && session is not null
+            && AgentSessionIdentity.GetId(session) is not null;
+        var maxAttempts = repairSuppressed ? 1 : _options.MaxRepairAttempts + 1;
 
         var response = await base.RunCoreAsync(originalMessages, session, options, cancellationToken).ConfigureAwait(false);
 
@@ -154,7 +181,7 @@ internal sealed class StructuredResponseValidatingAgent : DelegatingAIAgent
             // the run's recorded usage.
             AgentPrismRunContext.Current?.ExtraUsage?.Add(response.Usage);
 
-            await RejectedAsync(format, reason, attempt, maxAttempts, cancellationToken).ConfigureAwait(false);
+            await RejectedAsync(format, reason, attempt, maxAttempts, repairSuppressed, cancellationToken).ConfigureAwait(false);
 
             if (attempt >= maxAttempts)
             {
@@ -213,7 +240,7 @@ internal sealed class StructuredResponseValidatingAgent : DelegatingAIAgent
             yield break;
         }
 
-        await RejectedAsync(format, reason, attempt: 1, maxAttempts: 1, cancellationToken).ConfigureAwait(false);
+        await RejectedAsync(format, reason, attempt: 1, maxAttempts: 1, repairSuppressed: false, cancellationToken).ConfigureAwait(false);
 
         throw new AgentPrismStructuredResponseException(reason);
     }
@@ -287,7 +314,12 @@ internal sealed class StructuredResponseValidatingAgent : DelegatingAIAgent
     }
 
     private async ValueTask RejectedAsync(
-        AgentResponseFormat format, string reason, int attempt, int maxAttempts, CancellationToken cancellationToken)
+        AgentResponseFormat format,
+        string reason,
+        int attempt,
+        int maxAttempts,
+        bool repairSuppressed,
+        CancellationToken cancellationToken)
     {
         if (AgentPrismRunContext.Current?.Writer is not { } writer)
         {
@@ -304,6 +336,7 @@ internal sealed class StructuredResponseValidatingAgent : DelegatingAIAgent
                 Reason = reason,
                 Provider = _descriptor.Model?.Provider,
                 Model = _descriptor.Model?.Model,
+                RepairSuppressedBySession = repairSuppressed ? true : null,
             },
             AgentPrismCoreJsonContext.Default.StructuredResponseRejectedEventPayload);
 
@@ -391,6 +424,14 @@ internal sealed record StructuredResponseRejectedEventPayload
 
     /// <summary>Gets the model that produced the rejected response, if known.</summary>
     public string? Model { get; init; }
+
+    /// <summary>
+    /// Gets <see langword="true"/> when repair was configured but deliberately
+    /// not attempted because the run carries a durable session;
+    /// <see langword="null"/> otherwise, so a run that simply has no repair
+    /// budget is not confused with one whose budget was withheld.
+    /// </summary>
+    public bool? RepairSuppressedBySession { get; init; }
 }
 
 /// <summary>The <see cref="RunEventType.StructuredResponseRepairAttempted"/> event payload.</summary>
