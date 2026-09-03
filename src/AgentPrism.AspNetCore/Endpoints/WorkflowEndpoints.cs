@@ -124,9 +124,11 @@ internal static class WorkflowEndpoints
             .WithDescription(
                 "Each frame carries a RunEvent. The first frame reports the run ID; every " +
                 "agent invoked within the workflow opens its own runs row, viewable as a tree " +
-                "via GET /api/runs/{runId}/tree.")
+                "via GET /api/runs/{runId}/tree. If a registered IRunAuthorizationHandler denies " +
+                "the caller, the run does not start and a 403 is returned, before the quota check.")
             // The success response is always SSE; if the engine is not registered, it returns 501.
             .Produces<string>(StatusCodes.Status200OK, contentType: "text/event-stream")
+            .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status429TooManyRequests)
             .ProducesProblem(StatusCodes.Status501NotImplemented);
@@ -367,6 +369,8 @@ internal static class WorkflowEndpoints
         string name,
         [FromServices] IWorkflowRunner? runner,
         [FromServices] QuotaEnforcer? quotaEnforcer,
+        [FromServices] IRunAuthorizationHandler? runAuthorizationHandler,
+        [FromServices] IRunAttributionContext? attributionContext,
         [FromServices] ITenantContext tenantContext,
         HttpContext httpContext,
         CancellationToken cancellationToken)
@@ -388,6 +392,16 @@ internal static class WorkflowEndpoints
         if (await runner.GetAsync(name, cancellationToken).ConfigureAwait(false) is null)
         {
             return NotFound(name);
+        }
+
+        // 🚨 Checked BEFORE the quota gate: an unauthorized call must not
+        // consume the tenant's quota - phase 139, F-185, same ordering as
+        // the agent run endpoint (AgentEndpoints.cs).
+        if (await RunAuthorizationGate
+                .CheckRunAsync(runAuthorizationHandler, tenantContext, name, request?.SessionId, attributionContext, cancellationToken)
+                .ConfigureAwait(false) is { } authorizationProblem)
+        {
+            return authorizationProblem;
         }
 
         // 🚨 HATA-S1-006: workflow runs pass through the SAME quota gate as

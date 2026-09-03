@@ -1,29 +1,30 @@
 ---
 title: Embedding into a host application
-description: Bind AgentPrism's five embedding points to your own identity, authorization, eventing, and storage, and read the identity a tool body sees.
+description: Bind AgentPrism's six embedding points to your own identity, authorization, eventing, and storage, and read the identity a tool body sees.
 ---
 
 `AddAgentPrism()` plus `MapAgentPrism()` is a complete, working setup on its own —
 that two-line promise is what [Your first agent](/getting-started/first-agent/)
 shows. Embedding AgentPrism into an application that already has its own tenants,
 users, permissions, event bus, or object storage is a different job: it means
-replacing five built-in defaults with bindings into systems you already run. All
-five are wired the same way, are all optional, and can be added one at a time.
+replacing six built-in defaults with bindings into systems you already run. All
+six are wired the same way, are all optional, and can be added one at a time.
 
-## The five points
+## The six points
 
 | Contract | What you give it | Built-in default when unbound |
 |---|---|---|
 | `ITenantContext`, `ITenantStore` | The current tenant, resolved from your own identity layer | A single fixed tenant |
 | `IRunAttributionContext` | The current user and job labels a run belongs to | `UserId` and `Labels` are always `null` |
 | `IToolAuthorizationHandler` | A decision for every tool call: allowed or denied | Every call is allowed |
+| `IRunAuthorizationHandler` | A decision for every run start and session access: allowed or denied | Every run starts and every session is reachable |
 | `IRunEventSink` | A bridge that receives every run event as it is written | No bridge; events reach only `IRunStore` |
 | `IAttachmentStorage` | A place to write attachment bytes outside the database | Content is stored as `bytea` in the database |
 
 Each interface is registered with `TryAdd`, so a registration made **before**
 `AddAgentPrism()` wins over the built-in default; a registration made after it is
 silently ignored. `GET /api/diagnostics` (once you turn it on) reports which of the
-five are still built-in and which your application replaced — see
+six are still built-in and which your application replaced — see
 [Extension points](#extension-points-in-diagnostics) below.
 
 ```csharp
@@ -33,6 +34,7 @@ builder.Services.AddSingleton<ITenantContext, YourTenantContext>();
 builder.Services.AddSingleton<ITenantStore, YourTenantStore>();
 builder.Services.AddSingleton<IRunAttributionContext, YourRunAttributionContext>();
 builder.Services.AddSingleton<IToolAuthorizationHandler, YourToolAuthorizationHandler>();
+builder.Services.AddSingleton<IRunAuthorizationHandler, YourRunAuthorizationHandler>();
 builder.Services.AddSingleton<IRunEventSink, YourRunEventSink>();
 builder.Services.AddSingleton<IAttachmentStorage, YourAttachmentStorage>();
 
@@ -42,7 +44,7 @@ var agentPrism = builder.AddAgentPrism()
 ```
 
 The order above — bindings first, `AddAgentPrism()` second — is the only order that
-works. `AddAgentPrism()` calls `TryAdd*` for all five; called first, it claims every
+works. `AddAgentPrism()` calls `TryAdd*` for all six; called first, it claims every
 slot and your registrations that follow do nothing.
 
 ### 1 — Tenant resolution
@@ -133,6 +135,44 @@ public sealed class YourAttachmentStorage(IYourBlobClient blobs) : IAttachmentSt
 decides where the bytes live. AgentPrism takes no dependency on any cloud SDK —
 you write this class against whichever client your object store already uses.
 
+### 6 — Run and session authorization
+
+AgentPrism draws ownership at the **tenant** level; it never learns which user
+inside a tenant a run or a session belongs to. Without this binding, every
+caller with the `Operator` role in a tenant can start a run as, read, and
+delete every other user's session in the same tenant.
+
+```csharp
+public sealed class YourRunAuthorizationHandler(IYourOwnershipService ownership) : IRunAuthorizationHandler
+{
+    public async ValueTask<RunAuthorizationResult> AuthorizeRunAsync(
+        RunAuthorizationRequest request, CancellationToken cancellationToken = default)
+        => await ownership.CanStartAsync(request.TenantId, request.UserId, request.AgentName, cancellationToken)
+            ? RunAuthorizationResult.Allow()
+            : RunAuthorizationResult.Deny("This user cannot run this agent.");
+
+    public async ValueTask<RunAuthorizationResult> AuthorizeSessionAsync(
+        SessionAuthorizationRequest request, CancellationToken cancellationToken = default)
+        => await ownership.OwnsAsync(request.TenantId, request.UserId, request.SessionId, cancellationToken)
+            ? RunAuthorizationResult.Allow()
+            : RunAuthorizationResult.Deny("This session belongs to a different user.");
+}
+```
+
+Both methods are called explicitly at every endpoint that starts a run (the
+agent run endpoint, the workflow run endpoint, the inbound trigger accept
+endpoint, and the OpenAI-compatible `/v1/responses` endpoint — there is no
+single filter all four share, so each one calls this binding in its own
+body) and at every endpoint that touches a session (list, read, delete,
+branch). A denied session **read**, **delete**, or **branch** returns `404`,
+identical to a session that does not exist — a `403` there would confirm the
+session's existence to a caller who should not even know it. A denied
+**list** returns `403` instead: a list is an operation, not a single
+resource, so there is no existence to leak, and the response is never
+silently filtered — filtering there would break the `skip`/`take` paging
+contract. If this handler throws, the call is denied (fail-closed); a gate
+that fails open on an exception is not a gate.
+
 ## Reading identity inside a tool body
 
 A tool cannot reach `AgentSession`, so it cannot read `ITenantContext` or
@@ -141,19 +181,21 @@ values from `AgentPrismRunContext.Current` instead — a static, `AsyncLocal`-ba
 snapshot the run pipeline populates before every tool call:
 
 ```csharp
-[AgentPrismTool("current_account", "Returns the tenant, run, and session identity of the current run.")]
+[AgentPrismTool("current_account", "Returns the tenant, run, session, and caller identity of the current run.")]
 public static string CurrentAccount()
 {
     var scope = AgentPrismRunContext.Current;
 
     return scope is null
         ? "no run in progress"
-        : $"tenant={scope.TenantId} run={scope.RunId} session={scope.SessionId}";
+        : $"tenant={scope.TenantId} run={scope.RunId} session={scope.SessionId} user={scope.UserId}";
 }
 ```
 
 This is the only place a tool can read the run's identity — there is no parameter
-AgentPrism injects for it. `AgentRunScope` also carries `RootRunId` (the top of an
+AgentPrism injects for it. `scope.UserId` is the same value `IRunAttributionContext`
+resolved for the run record, not a new concept — just a second place to read it
+from. `AgentRunScope` also carries `RootRunId` (the top of an
 agent-calls-agent tree) and `Budget` (the shared token/depth/count ceiling for that
 tree).
 
@@ -213,8 +255,8 @@ whether it is still AgentPrism's built-in default.
 ```mermaid
 flowchart TD
     accTitle: Binding and verification order
-    accDescr: Register the five implementations, then call AddAgentPrism so TryAdd claims whatever is still unbound, then read the diagnostics endpoint to confirm each binding actually took.
-    A["Register ITenantContext, IRunAttributionContext,<br/>IToolAuthorizationHandler, IRunEventSink,<br/>IAttachmentStorage"] --> B["AddAgentPrism call<br/>TryAdd claims any still-open slot"]
+    accDescr: Register the six implementations, then call AddAgentPrism so TryAdd claims whatever is still unbound, then read the diagnostics endpoint to confirm each binding actually took.
+    A["Register ITenantContext, IRunAttributionContext,<br/>IToolAuthorizationHandler, IRunAuthorizationHandler,<br/>IRunEventSink, IAttachmentStorage"] --> B["AddAgentPrism call<br/>TryAdd claims any still-open slot"]
     B --> C["GET /api/diagnostics<br/>reads extensionPoints"]
     C --> D{"isBuiltInDefault?"}
     D -->|false| E["binding is active"]
@@ -230,7 +272,7 @@ flowchart TD
 }
 ```
 
-A fresh installation shows all five as built-in. Read this endpoint right after
+A fresh installation shows all six as built-in. Read this endpoint right after
 adding a binding to confirm it actually took — `isBuiltInDefault: true` on a
 contract you meant to replace means the registration ran too late, or against the
 wrong interface.

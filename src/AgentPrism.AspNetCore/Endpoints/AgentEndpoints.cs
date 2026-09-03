@@ -184,6 +184,7 @@ internal static class AgentEndpoints
                 IAgentPrismDrainState drainState,
                 [FromServices] QuotaEnforcer? quotaEnforcer,
                 [FromServices] IRunAttributionContext? attributionContext,
+                [FromServices] IRunAuthorizationHandler? runAuthorizationHandler,
                 HttpContext httpContext,
                 CancellationToken cancellationToken) =>
             {
@@ -212,6 +213,16 @@ internal static class AgentEndpoints
                 if (RunAttributionGate.Check(attributionContext) is { } attributionProblem)
                 {
                     return attributionProblem;
+                }
+
+                // 🚨 Authorization runs AFTER attribution (it needs the resolved
+                // UserId) and BEFORE the quota check (an unauthorized call must
+                // not consume the tenant's quota) - phase 139, F-185.
+                if (await RunAuthorizationGate
+                        .CheckRunAsync(runAuthorizationHandler, tenantContext, name, request!.SessionId, attributionContext, cancellationToken)
+                        .ConfigureAwait(false) is { } authorizationProblem)
+                {
+                    return authorizationProblem;
                 }
 
                 // 🚨 The quota check happens BEFORE the run starts. An in-progress
@@ -286,13 +297,16 @@ internal static class AgentEndpoints
                 "registered IContentGuard blocks the content, the non-streaming response returns " +
                 "'422' and the run's error type becomes 'content_blocked'; in the STREAMING " +
                 "response the status code has already been sent, so the block arrives as an SSE " +
-                "'error' event instead.")
+                "'error' event instead. If a registered IRunAuthorizationHandler denies the caller, " +
+                "the run does not start and a 403 is returned; this check runs before the quota " +
+                "check, so a denied run never consumes the tenant's quota.")
             // The success response is SSE by default (see AgentRunStream); but a
             // request carrying the 'Idempotency-Key' header gets a JSON body, and
             // one carrying 'Prefer: respond-async' gets a 202 body.
             .Produces<string>(StatusCodes.Status200OK, contentType: "text/event-stream")
             .Produces<AcceptedRunResponse>(StatusCodes.Status202Accepted)
             .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status422UnprocessableEntity)
             .ProducesProblem(StatusCodes.Status429TooManyRequests)

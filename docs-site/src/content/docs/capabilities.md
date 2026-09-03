@@ -240,14 +240,15 @@ conditional or separately mapped, so they are not all represented by the generat
 | Tenant resolution | Resolves the current tenant from your own identity layer | `ITenantContext`, `ITenantStore` | `AmbientTenantScope` carries the tenant into background work outside an HTTP request |
 | Run attribution | Attributes a run to your own user and job labels | `IRunAttributionContext` | Unset by default; the columns stay `NULL` until you register one |
 | Tool authorization | Decides whether a caller may invoke a specific tool | `IToolAuthorizationHandler` | Allows every call by default; a thrown exception denies the call |
+| Run and session authorization | Decides whether a caller may start a run or read/list/delete/branch a session | `IRunAuthorizationHandler` | Allows every call by default; a thrown exception denies the call. Called at all four run-starting endpoints, not one shared filter |
 | Run event bridge | Bridges run events to your own channel or message bus | `IRunEventSink` | Queue the event and return; a slow sink degrades on its own, never the model stream |
 | Attachment storage | Stores attachment content in your own object store | `IAttachmentStorage` | Content stays in the database until you register one |
 
 Each contract is registered with `TryAdd`, so a registration made before
 `AddAgentPrism()` wins over AgentPrism's built-in default, and
-`GET /api/diagnostics` reports which of the five are still built-in. A tool body
-reads the same identity through `AgentPrismRunContext`, since it cannot reach
-`AgentSession` directly.
+`GET /api/diagnostics` reports which of the six are still built-in. A tool body
+reads the same identity (including `UserId`) through `AgentPrismRunContext`,
+since it cannot reach `AgentSession` directly.
 
 ## Coding-agent support
 
