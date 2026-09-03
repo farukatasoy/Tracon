@@ -5041,3 +5041,64 @@ static AgentPrism.JobHandlerKeys.BuiltIn.get -> System.Collections.Generic.IRead
 static AgentPrism.JobHandlerKeys.IsReserved(string? key) -> bool
 static AgentPrism.JobHandlerKeys.IsValidKey(string? key) -> bool
 const AgentPrism.JobErrorCodes.HandlerActivationFailed = "agentprism.job.handler-activation-failed" -> string!
+AgentPrism.IRunAuthorizationHandler
+AgentPrism.IRunAuthorizationHandler.AuthorizeRunAsync(AgentPrism.RunAuthorizationRequest! request, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<AgentPrism.RunAuthorizationResult!>
+AgentPrism.IRunAuthorizationHandler.AuthorizeSessionAsync(AgentPrism.SessionAuthorizationRequest! request, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<AgentPrism.RunAuthorizationResult!>
+AgentPrism.RunAccess
+AgentPrism.RunAccess.Start = 0 -> AgentPrism.RunAccess
+AgentPrism.RunAuthorizationRequest
+AgentPrism.RunAuthorizationRequest.<Clone>$() -> AgentPrism.RunAuthorizationRequest!
+AgentPrism.RunAuthorizationRequest.Access.get -> AgentPrism.RunAccess
+AgentPrism.RunAuthorizationRequest.Access.init -> void
+AgentPrism.RunAuthorizationRequest.AgentName.get -> string!
+AgentPrism.RunAuthorizationRequest.AgentName.init -> void
+AgentPrism.RunAuthorizationRequest.Equals(AgentPrism.RunAuthorizationRequest? other) -> bool
+AgentPrism.RunAuthorizationRequest.RunAuthorizationRequest() -> void
+AgentPrism.RunAuthorizationRequest.SessionId.get -> string?
+AgentPrism.RunAuthorizationRequest.SessionId.init -> void
+AgentPrism.RunAuthorizationRequest.TenantId.get -> string!
+AgentPrism.RunAuthorizationRequest.TenantId.init -> void
+AgentPrism.RunAuthorizationRequest.UserId.get -> string?
+AgentPrism.RunAuthorizationRequest.UserId.init -> void
+AgentPrism.RunAuthorizationResult
+AgentPrism.RunAuthorizationResult.<Clone>$() -> AgentPrism.RunAuthorizationResult!
+AgentPrism.RunAuthorizationResult.Equals(AgentPrism.RunAuthorizationResult? other) -> bool
+AgentPrism.RunAuthorizationResult.IsAllowed.get -> bool
+AgentPrism.RunAuthorizationResult.IsAllowed.init -> void
+AgentPrism.RunAuthorizationResult.Reason.get -> string?
+AgentPrism.RunAuthorizationResult.Reason.init -> void
+AgentPrism.RunAuthorizationResult.RunAuthorizationResult() -> void
+AgentPrism.SessionAccess
+AgentPrism.SessionAccess.Branch = 3 -> AgentPrism.SessionAccess
+AgentPrism.SessionAccess.Delete = 2 -> AgentPrism.SessionAccess
+AgentPrism.SessionAccess.List = 1 -> AgentPrism.SessionAccess
+AgentPrism.SessionAccess.Read = 0 -> AgentPrism.SessionAccess
+AgentPrism.SessionAuthorizationRequest
+AgentPrism.SessionAuthorizationRequest.<Clone>$() -> AgentPrism.SessionAuthorizationRequest!
+AgentPrism.SessionAuthorizationRequest.Access.get -> AgentPrism.SessionAccess
+AgentPrism.SessionAuthorizationRequest.Access.init -> void
+AgentPrism.SessionAuthorizationRequest.Equals(AgentPrism.SessionAuthorizationRequest? other) -> bool
+AgentPrism.SessionAuthorizationRequest.SessionAuthorizationRequest() -> void
+AgentPrism.SessionAuthorizationRequest.SessionId.get -> string?
+AgentPrism.SessionAuthorizationRequest.SessionId.init -> void
+AgentPrism.SessionAuthorizationRequest.TenantId.get -> string!
+AgentPrism.SessionAuthorizationRequest.TenantId.init -> void
+AgentPrism.SessionAuthorizationRequest.UserId.get -> string?
+AgentPrism.SessionAuthorizationRequest.UserId.init -> void
+override AgentPrism.RunAuthorizationRequest.Equals(object? obj) -> bool
+override AgentPrism.RunAuthorizationRequest.GetHashCode() -> int
+override AgentPrism.RunAuthorizationRequest.ToString() -> string!
+override AgentPrism.RunAuthorizationResult.Equals(object? obj) -> bool
+override AgentPrism.RunAuthorizationResult.GetHashCode() -> int
+override AgentPrism.RunAuthorizationResult.ToString() -> string!
+override AgentPrism.SessionAuthorizationRequest.Equals(object? obj) -> bool
+override AgentPrism.SessionAuthorizationRequest.GetHashCode() -> int
+override AgentPrism.SessionAuthorizationRequest.ToString() -> string!
+static AgentPrism.RunAuthorizationRequest.operator !=(AgentPrism.RunAuthorizationRequest? left, AgentPrism.RunAuthorizationRequest? right) -> bool
+static AgentPrism.RunAuthorizationRequest.operator ==(AgentPrism.RunAuthorizationRequest? left, AgentPrism.RunAuthorizationRequest? right) -> bool
+static AgentPrism.RunAuthorizationResult.Allow() -> AgentPrism.RunAuthorizationResult!
+static AgentPrism.RunAuthorizationResult.Deny(string! reason) -> AgentPrism.RunAuthorizationResult!
+static AgentPrism.RunAuthorizationResult.operator !=(AgentPrism.RunAuthorizationResult? left, AgentPrism.RunAuthorizationResult? right) -> bool
+static AgentPrism.RunAuthorizationResult.operator ==(AgentPrism.RunAuthorizationResult? left, AgentPrism.RunAuthorizationResult? right) -> bool
+static AgentPrism.SessionAuthorizationRequest.operator !=(AgentPrism.SessionAuthorizationRequest? left, AgentPrism.SessionAuthorizationRequest? right) -> bool
+static AgentPrism.SessionAuthorizationRequest.operator ==(AgentPrism.SessionAuthorizationRequest? left, AgentPrism.SessionAuthorizationRequest? right) -> bool

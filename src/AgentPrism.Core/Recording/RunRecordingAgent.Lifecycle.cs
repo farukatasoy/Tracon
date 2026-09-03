@@ -100,6 +100,13 @@ public sealed partial class RunRecordingAgent
             // `RunStartInfo.SessionId` (that is, runs.session_id) DOES NOT USE this fallback
             // and keeps its meaning.
             SessionId = sessionId ?? prismOptions?.SessionId,
+
+            // Same attribution the run record gets - see the remark below on
+            // 'attribution'. Read here, in the SAME synchronous body, so it is
+            // visible in the scope from the moment AgentPrismRunContext.SetCurrent
+            // runs.
+            UserId = attribution.UserId,
+            Labels = attribution.Labels,
             Budget = prismOptions?.Budget ?? (depth == 0 ? _graphOptions.CreateBudget(_timeProvider) : null),
             Writer = writer,
             ExtraUsage = new SideChannelUsageAccumulator(),

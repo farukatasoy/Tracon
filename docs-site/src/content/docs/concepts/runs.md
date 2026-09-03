@@ -197,6 +197,42 @@ curl "http://localhost:5081/agentprism/api/stats" | jq '.byUser, .byLabel'
 `byLabel` rows do **not** sum to `totalRuns`: a run carrying three labels appears
 in three of them. A label set is not a partition of the runs.
 
+## Who is allowed to start it
+
+Attribution answers "who did this, for the cost report"; it does not by
+itself stop anyone from starting a run. AgentPrism draws ownership at the
+**tenant** level, so by default any caller with the `Operator` role in a
+tenant can start any agent in that tenant, regardless of `UserId`.
+
+Bind `IRunAuthorizationHandler` to enforce your own per-user rule. It is
+called at every endpoint that starts a run — the agent run endpoint, the
+workflow run endpoint, the inbound trigger accept endpoint, and the
+OpenAI-compatible `/v1/responses` endpoint — **before** the quota check, so a
+denied call never consumes the tenant's quota:
+
+```csharp
+public sealed class YourRunAuthorizationHandler(IYourOwnershipService ownership) : IRunAuthorizationHandler
+{
+    public async ValueTask<RunAuthorizationResult> AuthorizeRunAsync(
+        RunAuthorizationRequest request, CancellationToken cancellationToken = default)
+        => await ownership.CanStartAsync(request.TenantId, request.UserId, request.AgentName, cancellationToken)
+            ? RunAuthorizationResult.Allow()
+            : RunAuthorizationResult.Deny("This user cannot run this agent.");
+
+    public ValueTask<RunAuthorizationResult> AuthorizeSessionAsync(
+        SessionAuthorizationRequest request, CancellationToken cancellationToken = default)
+        => new(RunAuthorizationResult.Allow());
+}
+
+builder.Services.AddSingleton<IRunAuthorizationHandler, YourRunAuthorizationHandler>();
+```
+
+Register nothing and nothing changes: every run starts, exactly as before
+this binding existed. If the handler throws, the run is denied
+(fail-closed) — see [Embedding: run and session authorization](/guides/embedding/#6--run-and-session-authorization)
+for the session half of the same contract (list, read, delete, branch) and
+the exact response shape each denial produces.
+
 ### Starting a run from .NET with explicit identity
 
 `AgentPrismRunOptions` is the .NET-side counterpart of the run request. It is not a

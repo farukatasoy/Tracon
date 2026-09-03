@@ -30,6 +30,7 @@ public sealed class AgentPrismDiagnosticsCollector
     private readonly ITenantContext _tenantContext;
     private readonly IRunAttributionContext _runAttributionContext;
     private readonly IToolAuthorizationHandler _toolAuthorizationHandler;
+    private readonly IRunAuthorizationHandler _runAuthorizationHandler;
     private readonly IEnumerable<IRunEventSink> _runEventSinks;
     private readonly IAttachmentStorage? _attachmentStorage;
     private readonly ILogger<AgentPrismDiagnosticsCollector>? _logger;
@@ -45,6 +46,7 @@ public sealed class AgentPrismDiagnosticsCollector
     /// <param name="tenantContext">The bound tenant context, reported as an embedding point.</param>
     /// <param name="runAttributionContext">The bound run attribution context, reported as an embedding point.</param>
     /// <param name="toolAuthorizationHandler">The bound tool authorization handler, reported as an embedding point.</param>
+    /// <param name="runAuthorizationHandler">The bound run/session authorization handler, reported as an embedding point.</param>
     /// <param name="runEventSinks">The registered run event sinks, reported as an embedding point.</param>
     /// <param name="attachmentStorage">The bound attachment storage, reported as an embedding point. <see langword="null"/> when content lives in the database.</param>
     /// <param name="circuitBreaker">The circuit breaker. No circuit is open when it is not registered.</param>
@@ -64,6 +66,7 @@ public sealed class AgentPrismDiagnosticsCollector
         ITenantContext tenantContext,
         IRunAttributionContext runAttributionContext,
         IToolAuthorizationHandler toolAuthorizationHandler,
+        IRunAuthorizationHandler runAuthorizationHandler,
         IEnumerable<IRunEventSink> runEventSinks,
         IAttachmentStorage? attachmentStorage = null,
         ModelProviderCircuitBreaker? circuitBreaker = null,
@@ -79,6 +82,7 @@ public sealed class AgentPrismDiagnosticsCollector
         ArgumentNullException.ThrowIfNull(tenantContext);
         ArgumentNullException.ThrowIfNull(runAttributionContext);
         ArgumentNullException.ThrowIfNull(toolAuthorizationHandler);
+        ArgumentNullException.ThrowIfNull(runAuthorizationHandler);
         ArgumentNullException.ThrowIfNull(runEventSinks);
 
         _providers = providers;
@@ -91,6 +95,7 @@ public sealed class AgentPrismDiagnosticsCollector
         _tenantContext = tenantContext;
         _runAttributionContext = runAttributionContext;
         _toolAuthorizationHandler = toolAuthorizationHandler;
+        _runAuthorizationHandler = runAuthorizationHandler;
         _runEventSinks = runEventSinks;
         _attachmentStorage = attachmentStorage;
         _circuitBreaker = circuitBreaker;
@@ -203,7 +208,7 @@ public sealed class AgentPrismDiagnosticsCollector
     }
 
     /// <summary>
-    /// Reports the five embedding points, and for each one whether the bound
+    /// Reports the six embedding points, and for each one whether the bound
     /// implementation is AgentPrism's built-in default or the host's own.
     /// </summary>
     private IReadOnlyList<ExtensionPointDiagnostic> CollectExtensionPoints()
@@ -233,6 +238,12 @@ public sealed class AgentPrismDiagnosticsCollector
                 Contract = nameof(IToolAuthorizationHandler),
                 Implementation = _toolAuthorizationHandler.GetType().Name,
                 IsBuiltInDefault = _toolAuthorizationHandler.GetType() == typeof(AllowAllToolAuthorizationHandler),
+            },
+            new ExtensionPointDiagnostic
+            {
+                Contract = nameof(IRunAuthorizationHandler),
+                Implementation = _runAuthorizationHandler.GetType().Name,
+                IsBuiltInDefault = _runAuthorizationHandler.GetType() == typeof(AllowAllRunAuthorizationHandler),
             },
             new ExtensionPointDiagnostic
             {

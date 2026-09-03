@@ -167,7 +167,7 @@ public sealed class DiagnosticsCollectorTests
     // --- Phase 85: embedding points ---
 
     [Fact]
-    public async Task Bare_setup_reports_all_five_embedding_points_as_built_in_default()
+    public async Task Bare_setup_reports_all_six_embedding_points_as_built_in_default()
     {
         var services = new ServiceCollection();
         services.AddAgentPrism().AddModelProvider(new FakeModelProvider());
@@ -177,10 +177,10 @@ public sealed class DiagnosticsCollectorTests
 
         var report = await collector.CollectAsync();
 
-        report.ExtensionPoints.Count.ShouldBe(5);
+        report.ExtensionPoints.Count.ShouldBe(6);
         report.ExtensionPoints.ShouldAllBe(static point => point.IsBuiltInDefault);
         report.ExtensionPoints.Select(static point => point.Contract).ShouldBe(
-            [nameof(ITenantContext), nameof(IRunAttributionContext), nameof(IToolAuthorizationHandler), nameof(IRunEventSink), nameof(IAttachmentStorage)]);
+            [nameof(ITenantContext), nameof(IRunAttributionContext), nameof(IToolAuthorizationHandler), nameof(IRunAuthorizationHandler), nameof(IRunEventSink), nameof(IAttachmentStorage)]);
 
         var sink = report.ExtensionPoints.Single(
             static point => string.Equals(point.Contract, nameof(IRunEventSink), StringComparison.Ordinal));
@@ -201,6 +201,7 @@ public sealed class DiagnosticsCollectorTests
         services.AddSingleton<ITenantContext, FixedTenantContext>();
         services.AddSingleton<IRunAttributionContext, FixedRunAttributionContext>();
         services.AddSingleton<IToolAuthorizationHandler, DenyAllToolAuthorizationHandler>();
+        services.AddSingleton<IRunAuthorizationHandler, DenyAllRunAuthorizationHandler>();
         services.AddSingleton<IRunEventSink, RecordingRunEventSink>();
         services.AddSingleton<IAttachmentStorage, FakeAttachmentStorage>();
 
@@ -211,7 +212,7 @@ public sealed class DiagnosticsCollectorTests
 
         var report = await collector.CollectAsync();
 
-        report.ExtensionPoints.Count.ShouldBe(5);
+        report.ExtensionPoints.Count.ShouldBe(6);
         report.ExtensionPoints.ShouldAllBe(static point => !point.IsBuiltInDefault);
 
         report.ExtensionPoints.Single(
@@ -223,6 +224,9 @@ public sealed class DiagnosticsCollectorTests
         report.ExtensionPoints.Single(
                 static point => string.Equals(point.Contract, nameof(IToolAuthorizationHandler), StringComparison.Ordinal))
             .Implementation.ShouldBe(nameof(DenyAllToolAuthorizationHandler));
+        report.ExtensionPoints.Single(
+                static point => string.Equals(point.Contract, nameof(IRunAuthorizationHandler), StringComparison.Ordinal))
+            .Implementation.ShouldBe(nameof(DenyAllRunAuthorizationHandler));
         report.ExtensionPoints.Single(
                 static point => string.Equals(point.Contract, nameof(IRunEventSink), StringComparison.Ordinal))
             .Implementation.ShouldBe(nameof(RecordingRunEventSink));
@@ -268,6 +272,19 @@ public sealed class DiagnosticsCollectorTests
             ToolAuthorizationRequest request,
             CancellationToken cancellationToken = default)
             => new(ToolAuthorizationResult.Deny("denied by test"));
+    }
+
+    private sealed class DenyAllRunAuthorizationHandler : IRunAuthorizationHandler
+    {
+        public ValueTask<RunAuthorizationResult> AuthorizeRunAsync(
+            RunAuthorizationRequest request,
+            CancellationToken cancellationToken = default)
+            => new(RunAuthorizationResult.Deny("denied by test"));
+
+        public ValueTask<RunAuthorizationResult> AuthorizeSessionAsync(
+            SessionAuthorizationRequest request,
+            CancellationToken cancellationToken = default)
+            => new(RunAuthorizationResult.Deny("denied by test"));
     }
 
     private sealed class RecordingRunEventSink : IRunEventSink
