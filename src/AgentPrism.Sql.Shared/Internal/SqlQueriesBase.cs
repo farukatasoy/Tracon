@@ -896,7 +896,7 @@ internal abstract class SqlQueriesBase
             """;
 
     protected const string ScheduleColumns = """
-            id, tenant_id, name, kind, target_name, cron, time_zone, payload, enabled,
+            id, tenant_id, name, handler_key, target_name, cron, time_zone, payload, enabled,
             next_run_at, last_run_at, created_by, created_at, updated_at, lane
             """;
 
@@ -906,10 +906,36 @@ internal abstract class SqlQueriesBase
             """;
 
     protected const string JobColumns = """
-            id, tenant_id, schedule_id, kind, target_name, status, payload, total_items, done_items,
+            id, tenant_id, schedule_id, handler_key, target_name, status, payload, total_items, done_items,
             failed_items, attempt, lease_owner, lease_until, scheduled_for, started_at, completed_at,
             error_message, created_at, max_attempts, lane
             """;
+
+    // 🚨 Derived, never retyped. SQL Server's lease query spelled this list out
+    // by hand, so renaming a column in JobColumns left its OUTPUT clause
+    // pointing at the old name -- a drift no compiler, and no SQL snapshot of
+    // the OTHER two providers, could see. The reader maps by ORDINAL, so the
+    // two lists must also stay in the same ORDER, which deriving guarantees.
+    /// <summary>
+    /// <see cref="JobColumns"/> with every name qualified by <c>inserted.</c>,
+    /// for T-SQL's <c>OUTPUT</c> clause.
+    /// </summary>
+    protected static string InsertedJobColumns { get; } = Qualify(JobColumns, "inserted.");
+
+    /// <summary>Prefixes every comma-separated name in a column list.</summary>
+    /// <param name="columns">The column list.</param>
+    /// <param name="prefix">The qualifier to prepend, including its dot.</param>
+    /// <returns>The qualified list, line breaks preserved.</returns>
+    private static string Qualify(string columns, string prefix)
+        => string.Join(
+            ",",
+            columns.Split(',').Select(part =>
+            {
+                var trimmed = part.TrimStart();
+                var leading = part[..^trimmed.Length];
+
+                return leading + prefix + trimmed;
+            }));
 
     protected const string SuiteColumns = """
             id, tenant_id, name, description, agent_name, checks, created_at, updated_at
@@ -1379,9 +1405,9 @@ internal abstract class SqlQueriesBase
 
         InsertJob = $"""
             INSERT INTO {Table("jobs")}
-                (id, tenant_id, schedule_id, kind, target_name, status, payload, total_items,
+                (id, tenant_id, schedule_id, handler_key, target_name, status, payload, total_items,
                  done_items, failed_items, attempt, scheduled_for, created_at, max_attempts, lane)
-            VALUES (@id, @tenant_id, @schedule_id, @kind, @target_name, 0, @payload, @total_items,
+            VALUES (@id, @tenant_id, @schedule_id, @handler_key, @target_name, 0, @payload, @total_items,
                     0, 0, 0, @scheduled_for, @created_at, @max_attempts, @lane);
             """;
 

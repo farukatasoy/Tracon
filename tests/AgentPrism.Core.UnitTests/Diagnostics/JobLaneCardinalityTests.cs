@@ -80,7 +80,7 @@ public sealed class JobLaneCardinalityTests
 
         for (var index = 0; index < 70; index++)
         {
-            metrics.RecordJob($"lane-{index}", JobKind.AgentBatch, JobStatus.Completed, "t", TimeSpan.Zero);
+            metrics.RecordJob($"lane-{index}", JobHandlerKeys.AgentBatch, JobStatus.Completed, "t", TimeSpan.Zero);
         }
 
         collector.Lanes.Count(static lane => string.Equals(lane, "other", StringComparison.Ordinal)).ShouldBe(6);
@@ -127,7 +127,7 @@ public sealed class JobLaneCardinalityTests
         }
 
         public void Record(string lane)
-            => _metrics.RecordJob(lane, JobKind.AgentBatch, JobStatus.Completed, "tenant-a", TimeSpan.FromSeconds(1));
+            => _metrics.RecordJob(lane, JobHandlerKeys.AgentBatch, JobStatus.Completed, "tenant-a", TimeSpan.FromSeconds(1));
 
         public List<string> Lanes() => _collector.Lanes;
 

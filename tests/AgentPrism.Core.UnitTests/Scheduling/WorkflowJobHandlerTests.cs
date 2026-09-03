@@ -6,12 +6,6 @@ namespace AgentPrism.Core.UnitTests.Scheduling;
 public sealed class WorkflowJobHandlerTests
 {
     [Fact]
-    public void Kind_is_Workflow()
-    {
-        new WorkflowJobHandler(null, NullLogger<WorkflowJobHandler>.Instance).Kind.ShouldBe(JobKind.Workflow);
-    }
-
-    [Fact]
     public async Task Throws_when_no_runner_is_registered()
     {
         var handler = new WorkflowJobHandler(runner: null, NullLogger<WorkflowJobHandler>.Instance);
@@ -63,7 +57,7 @@ public sealed class WorkflowJobHandlerTests
             {
                 Id = Guid.NewGuid(),
                 TenantId = "tenant",
-                Kind = JobKind.Workflow,
+                HandlerKey = JobHandlerKeys.Workflow,
                 TargetName = "daily-report",
                 Status = JobStatus.Running,
                 ScheduledFor = DateTimeOffset.UtcNow,

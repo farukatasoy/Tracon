@@ -4,7 +4,7 @@ using Microsoft.Extensions.Logging;
 namespace AgentPrism;
 
 /// <summary>
-/// Handles <see cref="JobKind.RunContinuation"/> jobs: resumes an interrupted
+/// Handles <see cref="JobHandlerKeys.RunContinuation"/> jobs: resumes an interrupted
 /// run, in the SAME session, as a new run.
 /// </summary>
 /// <remarks>
@@ -53,9 +53,6 @@ internal sealed class RunContinuationJobHandler(
     // decorator with the larger Order runs first, so the recording wrapper
     // (Order = 0) ends up outermost.
     private readonly IAgentDecorator[] _decorators = [.. decorators.OrderByDescending(static decorator => decorator.Order)];
-
-    /// <inheritdoc />
-    public JobKind Kind => JobKind.RunContinuation;
 
     /// <inheritdoc />
     public async ValueTask ExecuteAsync(JobContext context, CancellationToken cancellationToken = default)

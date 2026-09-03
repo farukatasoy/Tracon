@@ -47,3 +47,12 @@
 - **Node'un gerçek `fetch`/`Request`'i (undici; jsdom hiçbirini uygulamaz) GÖRECELİ URL kabul etmez** — `new Request('/agentprism/api/agents')` "Failed to parse URL from …" atar. Uygulama `apiBase`'i bilerek göreceli tutar (tarayıcı sayfaya göre çözer); test ortamında `test/setup.ts` `globalThis.Request`'i göreceli girdiyi `http://localhost` tabanına göre çözen bir sarmalayıcıyla değiştirir. `window.matchMedia` ve `Element.prototype.scrollIntoView` de aynı dosyada aynı sebeple (jsdom'da yok) dolduruluyor.
 - **`server-types.ts`'in `Fix<>` ile zorunlu kıldığı alan (ör. `RunStatistics.byAgent`, `AgentSkillDefinition.enabled`) gerçek sunucuda HER ZAMAN dolu gelir — ama genel `{}` fixture varsayılanı bunu MODELLEMEZ.** Route-driven smoke testte (`app.test.tsx`) 90+ uçtan onlarcası bu yüzden çöktü (`.length`/`.map` on `undefined`); hiçbiri gerçek uygulama kusuru değildi. Düzeltme genel varsayılanı zenginleştirmek değil, çöken rotaya hedefli bir `fixture(...)` eklemektir — bkz. `app.test.tsx`'teki `overridesFor()`.
 - **`userEvent.type` `{`/`}` karakterini özel tuş sözdizimi sanır** — sözdizimsel olarak bozuk JSON gibi ham metin yazarken `fireEvent.change(el, { target: { value } })` kullan, `user.type` değil.
+- **🚨 Arayüz varlıklarını (`wwwroot/assets`) silip TAM derleme koşmak iki TFM'i
+  yarıştırır** (2026-09-03, Faz 137): `AgentPrism.UI` `net9.0` ve `net10.0` için
+  derlenir, ikisi de AYNI `wwwroot`'a `npm run build` koşar ve postbuild adımı
+  brotli'ledikten sonra ham `.js`'i siler — ikincisi `ENOENT: unlink` ile düşer
+  ve derleme `MSB3073` verir. Sıcak derlemede damga (`artifacts/obj/AgentPrism.UI/
+  agentprism-frontend*.stamp`) adımı atlattığı için görünmez; yalnız SOĞUK
+  frontend derlemesinde çıkar. Çözüm `-m:1` ile derlemek. Damgayı silip
+  varlıkları silmemek de yetmez: derleme "güncel" sanır ve `wwwroot/assets` BOŞ
+  kalır, sonra E2E testleri "UI assets are not embedded" ile toplu düşer.

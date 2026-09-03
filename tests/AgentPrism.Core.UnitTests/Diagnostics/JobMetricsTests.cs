@@ -22,7 +22,7 @@ public sealed class JobMetricsTests
         var measurement = harness.Counter.ShouldHaveSingleItem();
         measurement.Value.ShouldBe(1);
         measurement.Tags[AgentPrismDiagnostics.Tags.Lane].ShouldBe("media");
-        measurement.Tags[AgentPrismDiagnostics.Tags.JobKind].ShouldBe(nameof(JobKind.AgentBatch));
+        measurement.Tags[AgentPrismDiagnostics.Tags.JobHandlerKey].ShouldBe(JobHandlerKeys.AgentBatch);
         measurement.Tags[AgentPrismDiagnostics.Tags.JobStatus].ShouldBe(nameof(JobStatus.Completed));
         measurement.Tags[AgentPrismDiagnostics.Tags.TenantId].ShouldBe("tenant-a");
     }
@@ -129,7 +129,7 @@ public sealed class JobMetricsTests
             {
                 Id = Guid.NewGuid(),
                 TenantId = "tenant-a",
-                Kind = JobKind.AgentBatch,
+                HandlerKey = JobHandlerKeys.AgentBatch,
                 TargetName = "target",
                 Status = JobStatus.Pending,
                 ScheduledFor = now,
@@ -138,10 +138,13 @@ public sealed class JobMetricsTests
             [],
             TestContext.Current.CancellationToken);
 
+        using var handlers = TestJobHandlerHost.For((JobHandlerKeys.AgentBatch, new CompletingHandler()));
+
         using var worker = new JobWorkerBackgroundService(
             jobs,
             new InMemoryJobScheduleStore(),
-            [new CompletingHandler()],
+            handlers.Registry,
+            handlers.Scopes,
             new StaticOptionsMonitor<AgentPrismSchedulingOptions>(new AgentPrismSchedulingOptions
             {
                 MaxConcurrentJobs = 1,
@@ -212,6 +215,7 @@ public sealed class JobMetricsTests
     {
         private readonly TestMeterFactory _meterFactory = new();
         private readonly TaggedCollector _collector;
+        private readonly TestJobHandlerHost _handlers;
         private readonly JobWorkerBackgroundService _worker;
         private readonly ManualTimeProvider? _clock;
 
@@ -237,10 +241,15 @@ public sealed class JobMetricsTests
 
             configure?.Invoke(schedulingOptions);
 
+            _handlers = handler is null
+                ? TestJobHandlerHost.For()
+                : TestJobHandlerHost.For((JobHandlerKeys.AgentBatch, handler));
+
             _worker = new JobWorkerBackgroundService(
                 Jobs,
                 new InMemoryJobScheduleStore(),
-                handler is null ? [] : [handler],
+                _handlers.Registry,
+                _handlers.Scopes,
                 new StaticOptionsMonitor<AgentPrismSchedulingOptions>(schedulingOptions),
                 new SchemaReadyGate([]),
                 new NotDrainingState(),
@@ -264,7 +273,7 @@ public sealed class JobMetricsTests
                 {
                     Id = Guid.NewGuid(),
                     TenantId = "tenant-a",
-                    Kind = JobKind.AgentBatch,
+                    HandlerKey = JobHandlerKeys.AgentBatch,
                     TargetName = "target",
                     Lane = lane,
                     Status = JobStatus.Pending,
@@ -297,6 +306,7 @@ public sealed class JobMetricsTests
         public void Dispose()
         {
             _worker.Dispose();
+            _handlers.Dispose();
             _collector.Dispose();
             _meterFactory.Dispose();
         }
@@ -357,15 +367,11 @@ public sealed class JobMetricsTests
 
     private sealed class CompletingHandler : IJobHandler
     {
-        public JobKind Kind => JobKind.AgentBatch;
-
         public ValueTask ExecuteAsync(JobContext context, CancellationToken cancellationToken = default) => default;
     }
 
     private sealed class ThrowingHandler : IJobHandler
     {
-        public JobKind Kind => JobKind.AgentBatch;
-
         public ValueTask ExecuteAsync(JobContext context, CancellationToken cancellationToken = default)
             => throw new AgentPrismException("simulated handler failure");
     }
@@ -376,8 +382,6 @@ public sealed class JobMetricsTests
         private IJobStore? _store;
         private string? _tenantId;
         private Guid _jobId;
-
-        public JobKind Kind => JobKind.AgentBatch;
 
         public void CancelWith(IJobStore store, string tenantId, Guid jobId)
         {
@@ -398,8 +402,6 @@ public sealed class JobMetricsTests
     /// <summary>Moves the monotonic clock forward and the wall clock backwards while the job runs.</summary>
     private sealed class ClockMovingHandler(ManualTimeProvider clock, TimeSpan forward, TimeSpan rewind) : IJobHandler
     {
-        public JobKind Kind => JobKind.AgentBatch;
-
         public ValueTask ExecuteAsync(JobContext context, CancellationToken cancellationToken = default)
         {
             clock.Advance(forward);

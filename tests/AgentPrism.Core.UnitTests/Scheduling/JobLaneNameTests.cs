@@ -35,39 +35,39 @@ public sealed class JobLaneNameTests
         => JobLanes.IsValidName(new string('a', 64)).ShouldBeTrue();
 
     [Fact]
-    public void Resolve_keeps_an_explicit_non_default_lane_even_if_lane_by_kind_maps_the_kind()
+    public void Resolve_keeps_an_explicit_non_default_lane_even_if_lane_by_handler_key_maps_the_key()
     {
-        var laneByKind = new Dictionary<JobKind, string> { [JobKind.Retention] = "housekeeping" };
+        var laneByHandlerKey = new Dictionary<string, string>(StringComparer.Ordinal) { [JobHandlerKeys.Retention] = "housekeeping" };
 
-        JobLanes.Resolve("media", JobKind.Retention, laneByKind).ShouldBe("media");
+        JobLanes.Resolve("media", JobHandlerKeys.Retention, laneByHandlerKey).ShouldBe("media");
     }
 
     [Fact]
-    public void Resolve_applies_lane_by_kind_only_when_the_lane_is_still_default()
+    public void Resolve_applies_lane_by_handler_key_only_when_the_lane_is_still_default()
     {
-        var laneByKind = new Dictionary<JobKind, string> { [JobKind.Retention] = "housekeeping" };
+        var laneByHandlerKey = new Dictionary<string, string>(StringComparer.Ordinal) { [JobHandlerKeys.Retention] = "housekeeping" };
 
-        JobLanes.Resolve(JobLanes.Default, JobKind.Retention, laneByKind).ShouldBe("housekeeping");
+        JobLanes.Resolve(JobLanes.Default, JobHandlerKeys.Retention, laneByHandlerKey).ShouldBe("housekeeping");
     }
 
     [Fact]
-    public void Resolve_leaves_default_alone_when_lane_by_kind_has_no_entry_for_the_kind()
+    public void Resolve_leaves_default_alone_when_lane_by_handler_key_has_no_entry_for_the_key()
     {
-        var laneByKind = new Dictionary<JobKind, string> { [JobKind.Retention] = "housekeeping" };
+        var laneByHandlerKey = new Dictionary<string, string>(StringComparer.Ordinal) { [JobHandlerKeys.Retention] = "housekeeping" };
 
-        JobLanes.Resolve(JobLanes.Default, JobKind.Eval, laneByKind).ShouldBe(JobLanes.Default);
+        JobLanes.Resolve(JobLanes.Default, JobHandlerKeys.Eval, laneByHandlerKey).ShouldBe(JobLanes.Default);
     }
 
     [Fact]
     public void Resolve_throws_for_a_name_that_fails_validation()
-        => Should.Throw<ArgumentException>(() => JobLanes.Resolve("Media", JobKind.AgentBatch, laneByKind: null));
+        => Should.Throw<ArgumentException>(() => JobLanes.Resolve("Media", JobHandlerKeys.AgentBatch, laneByHandlerKey: null));
 
     [Fact]
-    public void Resolve_throws_when_lane_by_kind_itself_maps_to_an_invalid_name()
+    public void Resolve_throws_when_lane_by_handler_key_itself_maps_to_an_invalid_name()
     {
-        var laneByKind = new Dictionary<JobKind, string> { [JobKind.Retention] = "Housekeeping" };
+        var laneByHandlerKey = new Dictionary<string, string>(StringComparer.Ordinal) { [JobHandlerKeys.Retention] = "Housekeeping" };
 
-        Should.Throw<ArgumentException>(() => JobLanes.Resolve(JobLanes.Default, JobKind.Retention, laneByKind));
+        Should.Throw<ArgumentException>(() => JobLanes.Resolve(JobLanes.Default, JobHandlerKeys.Retention, laneByHandlerKey));
     }
 
     [Fact]
@@ -120,14 +120,14 @@ public sealed class JobLaneNameTests
     }
 
     [Fact]
-    public void Validator_rejects_an_invalid_name_in_lane_by_kind()
+    public void Validator_rejects_an_invalid_name_in_lane_by_handler_key()
     {
         var options = new AgentPrismSchedulingOptions();
-        options.LaneByKind[JobKind.Retention] = "Housekeeping";
+        options.LaneByHandlerKey[JobHandlerKeys.Retention] = "Housekeeping";
 
         var result = _validator.Validate(null, options);
 
         result.Succeeded.ShouldBeFalse();
-        result.Failures!.ShouldContain(failure => failure.Contains("LaneByKind") && failure.Contains("Housekeeping"));
+        result.Failures!.ShouldContain(failure => failure.Contains("LaneByHandlerKey") && failure.Contains("Housekeeping"));
     }
 }

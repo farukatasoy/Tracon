@@ -340,7 +340,7 @@ public sealed class AgentPrismMetrics : IDisposable
     /// The job's lane (<see cref="JobRecord.Lane"/>). Guarded against runaway
     /// cardinality: see <see cref="AgentPrismObservabilityOptions.MaxJobLaneCardinality"/>.
     /// </param>
-    /// <param name="kind">The job's kind.</param>
+    /// <param name="handlerKey">The job's handler key (<see cref="JobRecord.HandlerKey"/>).</param>
     /// <param name="status">
     /// The terminal status: <see cref="JobStatus.Completed"/>,
     /// <see cref="JobStatus.Failed"/>, or <see cref="JobStatus.Cancelled"/>.
@@ -350,10 +350,10 @@ public sealed class AgentPrismMetrics : IDisposable
     /// How long THIS attempt took, measured on a monotonic clock. It is not the
     /// job's total time across every attempt.
     /// </param>
-    public void RecordJob(string lane, JobKind kind, JobStatus status, string? tenantId, TimeSpan duration)
+    public void RecordJob(string lane, string handlerKey, JobStatus status, string? tenantId, TimeSpan duration)
     {
         var laneTag = ResolveLaneTag(lane);
-        var kindTag = kind.ToString();
+
         var statusTag = status.ToString();
 
         JobExecutions.Add(
@@ -361,7 +361,7 @@ public sealed class AgentPrismMetrics : IDisposable
             new TagList
             {
                 { AgentPrismDiagnostics.Tags.Lane, laneTag },
-                { AgentPrismDiagnostics.Tags.JobKind, kindTag },
+                { AgentPrismDiagnostics.Tags.JobHandlerKey, handlerKey },
                 { AgentPrismDiagnostics.Tags.JobStatus, statusTag },
                 { AgentPrismDiagnostics.Tags.TenantId, tenantId ?? "unknown" },
             });
@@ -371,7 +371,7 @@ public sealed class AgentPrismMetrics : IDisposable
             new TagList
             {
                 { AgentPrismDiagnostics.Tags.Lane, laneTag },
-                { AgentPrismDiagnostics.Tags.JobKind, kindTag },
+                { AgentPrismDiagnostics.Tags.JobHandlerKey, handlerKey },
                 { AgentPrismDiagnostics.Tags.JobStatus, statusTag },
             });
     }

@@ -137,6 +137,15 @@ migration instead. If you must take such a change, drop and recreate the schema 
 that environment first.
 :::
 
+:::caution[A migration can be one-way]
+Most migrations only add. Some rewrite or drop a column, and while AgentPrism is in
+preview a release may contain one: the data is carried across by the migration
+itself, but there is no downgrade path back to the older schema. Take a backup
+before upgrading a database you cannot lose, and roll a version back by restoring
+that backup rather than by pointing an older build at the newer schema — the
+checksum check will refuse it anyway.
+:::
+
 Set `AutoApplyMigrations = false` when schema changes are their own deployment step.
 AgentPrism then verifies but does not write. The diagnostics endpoint can report
 whether the schema is current, but it is deliberately not mapped by default because

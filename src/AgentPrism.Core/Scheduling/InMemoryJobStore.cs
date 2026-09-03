@@ -28,7 +28,7 @@ internal sealed class InMemoryJobStore : IJobStore
     /// <summary>Initializes a new in-memory job store.</summary>
     /// <param name="timeProvider">The time provider. Uses <see cref="TimeProvider.System"/> when omitted.</param>
     /// <param name="schedulingOptions">
-    /// The source for <c>LaneByKind</c>. <see langword="null"/> disables lane-by-kind resolution.
+    /// The source for <c>LaneByHandlerKey</c>. <see langword="null"/> disables lane-by-key resolution.
     /// </param>
     public InMemoryJobStore(TimeProvider? timeProvider = null, IOptionsMonitor<AgentPrismSchedulingOptions>? schedulingOptions = null)
     {
@@ -45,7 +45,7 @@ internal sealed class InMemoryJobStore : IJobStore
         ArgumentNullException.ThrowIfNull(job);
         ArgumentNullException.ThrowIfNull(items);
 
-        var lane = JobLanes.Resolve(job.Lane, job.Kind, _schedulingOptions?.CurrentValue.LaneByKind);
+        var lane = JobLanes.Resolve(job.Lane, job.HandlerKey, _schedulingOptions?.CurrentValue.LaneByHandlerKey);
 
         var record = job with
         {
@@ -295,7 +295,7 @@ internal sealed class InMemoryJobStore : IJobStore
                 continue;
             }
 
-            if (query.Kind is { } kind && job.Kind != kind)
+            if (query.HandlerKey is { } handlerKey && !string.Equals(job.HandlerKey, handlerKey, StringComparison.Ordinal))
             {
                 continue;
             }

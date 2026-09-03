@@ -268,7 +268,7 @@ public sealed class InboundTriggerDispatcherTests
 
         var job = await jobStore.GetAsync(TenantId, dispatched.JobId);
         job.ShouldNotBeNull();
-        job!.Kind.ShouldBe(JobKind.AgentRun);
+        job!.HandlerKey.ShouldBe(JobHandlerKeys.AgentRun);
     }
 
     [Fact]
@@ -295,7 +295,7 @@ public sealed class InboundTriggerDispatcherTests
 
         var job = await jobStore.GetAsync(TenantId, dispatched.JobId);
         job.ShouldNotBeNull();
-        job!.Kind.ShouldBe(JobKind.Workflow);
+        job!.HandlerKey.ShouldBe(JobHandlerKeys.Workflow);
         job.TargetName.ShouldBe("demo-workflow");
 
         var items = await jobStore.ListItemsAsync(dispatched.JobId);

@@ -342,8 +342,6 @@ AgentPrism.JobScheduleSaveRequest.Enabled.get -> bool
 AgentPrism.JobScheduleSaveRequest.Enabled.init -> void
 AgentPrism.JobScheduleSaveRequest.Equals(AgentPrism.JobScheduleSaveRequest? other) -> bool
 AgentPrism.JobScheduleSaveRequest.JobScheduleSaveRequest() -> void
-AgentPrism.JobScheduleSaveRequest.Kind.get -> AgentPrism.JobKind
-AgentPrism.JobScheduleSaveRequest.Kind.init -> void
 AgentPrism.JobScheduleSaveRequest.Lane.get -> string?
 AgentPrism.JobScheduleSaveRequest.Lane.init -> void
 AgentPrism.JobScheduleSaveRequest.Payload.get -> System.Text.Json.JsonElement
@@ -1161,3 +1159,5 @@ AgentPrism.AgentRunRequest.Documents.get -> System.Collections.Generic.IReadOnly
 AgentPrism.AgentRunRequest.Documents.init -> void
 AgentPrism.AgentRunRequest.Parameters.get -> System.Collections.Generic.IReadOnlyDictionary<string!, string!>?
 AgentPrism.AgentRunRequest.Parameters.init -> void
+AgentPrism.JobScheduleSaveRequest.HandlerKey.get -> string!
+AgentPrism.JobScheduleSaveRequest.HandlerKey.init -> void

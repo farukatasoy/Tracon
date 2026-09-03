@@ -112,7 +112,7 @@ internal sealed class WebhookPublisher(
                     {
                         Id = AgentPrismId.NewId(),
                         TenantId = tenantId,
-                        Kind = JobKind.WebhookDelivery,
+                        HandlerKey = JobHandlerKeys.WebhookDelivery,
                         TargetName = subscription.Name,
                         Status = JobStatus.Pending,
                         Payload = jobPayload,

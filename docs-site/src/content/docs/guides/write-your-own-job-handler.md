@@ -3,15 +3,15 @@ title: Write your own job handler
 description: Implement a safe IJobHandler for the durable job queue and verify it with AgentPrism's executable contract suite.
 ---
 
-`IJobHandler` executes a durable job of one `JobKind`. It is registered as a
-singleton and dispatched by the background worker; AgentPrism ships handlers
-for `AgentBatch`, `Workflow`, and `Eval` the same way.
+`IJobHandler` executes a durable job under one **handler key** — a stable
+string such as `contoso.nightly-report`. The key is the job's identity: it is
+both how the job is classified and how the background worker picks the handler
+that runs it. AgentPrism's own handlers live under the reserved `agentprism.`
+prefix; you pick a prefix of your own.
 
 ```csharp
 public sealed class NightlyReportJobHandler(ILogger<NightlyReportJobHandler>? logger = null) : IJobHandler
 {
-    public JobKind Kind => JobKind.AgentBatch;
-
     public async ValueTask ExecuteAsync(JobContext context, CancellationToken cancellationToken = default)
     {
         foreach (var item in context.Items)
@@ -38,27 +38,93 @@ public sealed class NightlyReportJobHandler(ILogger<NightlyReportJobHandler>? lo
 }
 ```
 
-Register it on the service collection:
+Register it with the key it answers to:
 
 ```csharp
-builder.Services.AddJobHandler<NightlyReportJobHandler>();
+builder.Services.AddJobHandler<NightlyReportJobHandler>("contoso.nightly-report");
 ```
 
-`AddJobHandler<THandler>()` uses `TryAddEnumerable`, so registering the same
-implementation type twice has no effect.
+The worker looks the key up by exact match, so **this call may come before or
+after `AddAgentPrism()`** — registration order never decides which handler
+runs, and no handler can shadow another. The handler is registered *scoped*
+and resolved from a fresh scope for every execution, so it may take scoped
+dependencies in its constructor: two jobs running in parallel, and two attempts
+of the same job, never share an instance.
 
-:::caution[Existing kinds are already claimed]
-The worker picks a handler with `handlers.FirstOrDefault(h => h.Kind == job.Kind)`
-over the DI-resolved `IEnumerable<IJobHandler>`, which .NET resolves in
-registration order. `AddAgentPrism()` registers AgentPrism's own handler for
-every `JobKind` value before your code runs, so a handler you add after it for
-`AgentBatch`, `Workflow`, `Eval`, or any of the other built-in kinds is
-registered but never dispatched — the built-in one always wins. This pattern
-only works, today, if you register your handler *before* `AddAgentPrism()`
-(registration order then puts yours first) and there is no way to add a
-genuinely new `JobKind` value from outside the package, since the enum is
-closed. Treat `IJobHandler` as verified at the interface level — the contract
-below — until this ordering limitation is resolved.
+```mermaid
+flowchart TD
+    accTitle: How a job finds its handler
+    accDescr: A registration adds a key and a handler type to the registry, which rejects a duplicate key, a reserved key and a malformed key at host start. When the worker leases a job it looks the job's handler key up in that registry; an unregistered key fails the job with a stable error code, and a registered one opens a fresh dependency-injection scope, resolves the handler from it and runs it.
+    REG["AddJobHandler&lt;T&gt;(&quot;contoso.nightly-report&quot;)"] --> MAP["Handler registry:<br/>key to type"]
+    MAP --> CHECK{"Duplicate, reserved,<br/>or malformed key?"}
+    CHECK -- yes --> STOP["Host does not start"]
+    CHECK -- no --> READY["Ready"]
+    READY --> LEASE["Worker leases a job"]
+    LEASE --> LOOK{"Is job.handlerKey<br/>in the registry?"}
+    LOOK -- no --> FAIL["Job fails with<br/>UnknownHandlerKey"]
+    LOOK -- yes --> SCOPE["New DI scope per execution"]
+    SCOPE --> RUN["ExecuteAsync"]
+    RUN --> DISPOSE["Scope disposed"]
+```
+
+Three mistakes stop the host from starting rather than failing quietly later:
+
+- **Two handlers under one key.** A key identifies exactly one handler.
+- **A key inside the `agentprism.` namespace.** That prefix is reserved.
+- **A malformed key.** 1-128 characters: lowercase ASCII letters, digits,
+  `.`, `_`, or `-`, starting with a letter or digit. Uppercase is rejected
+  rather than normalized, so one key can never become two.
+
+## Queue work for your handler
+
+`IJobDispatcher` is the supported way to create a job from your own code. It
+fills in the identifier, status and timestamps, and refuses a key no handler
+serves:
+
+```csharp
+public sealed class ReportScheduler(IJobDispatcher jobs)
+{
+    public ValueTask<JobRecord> QueueNightlyAsync(string tenantId, IReadOnlyList<string> customers)
+        => jobs.EnqueueAsync(new JobRequest
+        {
+            TenantId = tenantId,
+            HandlerKey = "contoso.nightly-report",
+            TargetName = "nightly-report",
+            Items = customers,
+        });
+}
+```
+
+If a job is somehow queued for a key nobody registered — a stale row, a
+mistyped key — the worker fails that job with the stable code
+`JobErrorCodes.UnknownHandlerKey` instead of leaving it in the queue forever.
+The raw key is written to the log, not to the job's `errorMessage`: that field
+is read back over HTTP, and an unregistered key may have come from an
+untrusted source.
+
+:::note[Scheduling from outside is opt-in]
+`PUT /api/schedules/{name}` accepts only the keys listed in
+`AgentPrismSchedulingOptions.HttpSchedulableHandlerKeys`, which defaults to
+AgentPrism's own built-in keys. A handler key is a dispatch identity, so an
+unrestricted endpoint would turn every registered handler — including internal
+ones you registered for your own background work — into an externally callable
+surface. Name your key there only when you want it schedulable over HTTP.
+
+A non-empty list **replaces** that default rather than extending it, so an
+allow-list can also narrow the surface. To keep the built-in keys as well, name
+them alongside your own:
+
+```csharp
+builder.Services.UseScheduling(options =>
+{
+    foreach (var key in JobHandlerKeys.BuiltIn)
+    {
+        options.HttpSchedulableHandlerKeys.Add(key);
+    }
+
+    options.HttpSchedulableHandlerKeys.Add("contoso.nightly-report");
+});
+```
 :::
 
 ## Runtime contract
@@ -105,6 +171,8 @@ using AgentPrism.Testing.Contracts.Scheduling;
 
 public sealed class NightlyReportJobHandlerTests : JobHandlerContract
 {
+    protected override string HandlerKey => "contoso.nightly-report";
+
     protected override ValueTask<IJobHandler> CreateHandlerAsync()
         => ValueTask.FromResult<IJobHandler>(new NightlyReportJobHandler());
 
@@ -117,9 +185,10 @@ The inherited tests verify that a `Completed` item is not processed again,
 that a retry with mixed item statuses only processes the `Pending` ones, and
 that cancellation is observed between items. They do not test the queue
 itself — leasing, retry scheduling, or persistence; see
-[Reliable runs](/guides/reliability/) for that. `samples/AgentPrism.Samples.CustomJobHandler`
-in the repository runs this same contract as a package consumer, not a
-project reference.
+[Reliable runs](/guides/reliability/) for that.
+`samples/AgentPrism.Samples.CustomJobHandler` in the repository runs this same
+contract as a package consumer, and also boots a real host to prove the sample
+handler actually receives a queued job.
 
 ## Read next
 

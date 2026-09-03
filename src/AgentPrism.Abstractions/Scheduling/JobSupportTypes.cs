@@ -6,8 +6,8 @@ public sealed record JobQuery
     /// <summary>Fetches only this tenant's jobs.</summary>
     public string? TenantId { get; init; }
 
-    /// <summary>Fetches only jobs of this kind.</summary>
-    public JobKind? Kind { get; init; }
+    /// <summary>Fetches only jobs dispatched to this handler key. See <see cref="JobHandlerKeys"/>.</summary>
+    public string? HandlerKey { get; init; }
 
     /// <summary>Fetches only jobs in this lane. See <see cref="JobLanes"/>.</summary>
     public string? Lane { get; init; }

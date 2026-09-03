@@ -2289,6 +2289,32 @@
         }
       }
     },
+    "/agentprism/api/schedules/handler-keys": {
+      "get": {
+        "tags": [
+          "AgentPrism",
+          "Scheduling"
+        ],
+        "summary": "Lists the handler keys a schedule may be created for.",
+        "description": "The allow-list PUT /api/schedules/{name} enforces, so a client can offer exactly the keys that will be accepted rather than guessing. It is AgentPrism\u0027s own built-in keys unless the host set AgentPrismSchedulingOptions.HttpSchedulableHandlerKeys, and it is NOT the full set of registered handlers: a handler with no entry here runs jobs queued in process but cannot be scheduled from outside. Admin only \u2014 a consumer\u0027s key names are deployment detail, so this list is deliberately not on the unauthenticated meta endpoint.",
+        "operationId": "AgentPrismListSchedulableHandlerKeys",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/agentprism/api/schedules/{name}/trigger": {
       "post": {
         "tags": [
@@ -2337,15 +2363,15 @@
           "AgentPrism",
           "Scheduling"
         ],
-        "summary": "Lists jobs, filtered by kind, status, lane, or schedule.",
-        "description": "Every queued unit of work shares this queue \u2014 scheduled runs, retention cleanups, webhook deliveries, and queued agent runs \u2014 so filter by \u0027kind\u0027 to narrow it. \u0027scheduleId\u0027 returns the executions of one schedule. \u0027lane\u0027 returns only the jobs queued under that lane \u2014 the way to see whether a lane nobody\u0027s worker subscribes to is quietly piling up. Job items are not included here; read them from the single-job endpoint. Paging is offset based, with \u0027skip\u0027 defaulting to 0 and \u0027take\u0027 to 50.",
+        "summary": "Lists jobs, filtered by handler key, status, lane, or schedule.",
+        "description": "Every queued unit of work shares this queue \u2014 scheduled runs, retention cleanups, webhook deliveries, and queued agent runs \u2014 so filter by \u0027handlerKey\u0027 to narrow it. \u0027scheduleId\u0027 returns the executions of one schedule. \u0027lane\u0027 returns only the jobs queued under that lane \u2014 the way to see whether a lane nobody\u0027s worker subscribes to is quietly piling up. Job items are not included here; read them from the single-job endpoint. Paging is offset based, with \u0027skip\u0027 defaulting to 0 and \u0027take\u0027 to 50.",
         "operationId": "AgentPrismListJobs",
         "parameters": [
           {
-            "name": "kind",
+            "name": "handlerKey",
             "in": "query",
             "schema": {
-              "$ref": "#/components/schemas/JobKind"
+              "type": "string"
             }
           },
           {
@@ -4458,7 +4484,7 @@
           "Retention"
         ],
         "summary": "Runs the cleanup now.",
-        "description": "Does not run synchronously: a JobKind.Retention job is enqueued and processed from the queue.",
+        "description": "Does not run synchronously: an agentprism.retention job is enqueued and processed from the queue.",
         "operationId": "AgentPrismRunRetention",
         "parameters": [
           {
@@ -7255,7 +7281,7 @@
               "null",
               "string"
             ],
-            "description": "The lane a queued run (\u0060Prefer: respond-async\u0060) is queued under.\nSee \u0060JobLanes\u0060. Ignored for a synchronous run \u2014 nothing is\nqueued. Left empty, the run uses \u0060JobLanes.Default\u0060 (or whatever\n\u0060AgentPrismSchedulingOptions.LaneByKind\u0060 maps\n\u0060JobKind.AgentRun\u0060 to)."
+            "description": "The lane a queued run (\u0060Prefer: respond-async\u0060) is queued under.\nSee \u0060JobLanes\u0060. Ignored for a synchronous run \u2014 nothing is\nqueued. Left empty, the run uses \u0060JobLanes.Default\u0060 (or whatever\n\u0060AgentPrismSchedulingOptions.LaneByHandlerKey\u0060 maps\n\u0060JobHandlerKeys.AgentRun\u0060 to)."
           },
           "culture": {
             "type": [
@@ -10917,25 +10943,11 @@
         ],
         "description": "The status of a batch job item."
       },
-      "JobKind": {
-        "enum": [
-          "AgentBatch",
-          "Workflow",
-          "Eval",
-          "WebhookDelivery",
-          "Retention",
-          "AgentRun",
-          "OnlineEval",
-          "ApprovalResume",
-          "RunContinuation"
-        ],
-        "description": "What target a job runs."
-      },
       "JobRecord": {
         "required": [
           "id",
           "tenantId",
-          "kind",
+          "handlerKey",
           "targetName",
           "status",
           "scheduledFor",
@@ -10960,9 +10972,9 @@
             "description": "The identifier of the schedule that produced this job.\n\u0060null\u0060 for manually created (one-off) jobs.",
             "format": "uuid"
           },
-          "kind": {
-            "description": "The job\u0027s kind.",
-            "$ref": "#/components/schemas/JobKind"
+          "handlerKey": {
+            "type": "string",
+            "description": "The key of the IJobHandler that executes this job. See\nJobHandlerKeys."
           },
           "lane": {
             "type": "string",
@@ -11081,7 +11093,7 @@
         "required": [
           "tenantId",
           "name",
-          "kind",
+          "handlerKey",
           "targetName",
           "createdAt",
           "updatedAt"
@@ -11101,9 +11113,9 @@
             "type": "string",
             "description": "The schedule name, unique within the tenant."
           },
-          "kind": {
-            "description": "The kind of job this schedule produces.",
-            "$ref": "#/components/schemas/JobKind"
+          "handlerKey": {
+            "type": "string",
+            "description": "The key of the IJobHandler the jobs this schedule\nproduces are dispatched to. See JobHandlerKeys."
           },
           "lane": {
             "type": "string",
@@ -11125,7 +11137,7 @@
             "description": "The time zone the \u0060Cron\u0060 expression is interpreted in."
           },
           "payload": {
-            "description": "The input set or parameters. Interpreted according to the job kind.",
+            "description": "The input set or parameters. Interpreted by the job\u0027s handler.",
             "$ref": "#/components/schemas/JsonElement"
           },
           "enabled": {
@@ -11170,14 +11182,14 @@
       },
       "JobScheduleSaveRequest": {
         "required": [
-          "kind",
+          "handlerKey",
           "targetName"
         ],
         "type": "object",
         "properties": {
-          "kind": {
-            "description": "Kind of job this schedule produces.",
-            "$ref": "#/components/schemas/JobKind"
+          "handlerKey": {
+            "type": "string",
+            "description": "Key of the handler the jobs this schedule produces run on. See\n\u0060JobHandlerKeys\u0060."
           },
           "targetName": {
             "type": "string",
@@ -11199,7 +11211,7 @@
               "null",
               "string"
             ],
-            "description": "The lane the jobs this schedule produces run in. See\n\u0060JobLanes\u0060. Left empty, the jobs run in \u0060JobLanes.Default\u0060\n(or whatever \u0060AgentPrismSchedulingOptions.LaneByKind\u0060 maps\nJobKind JobScheduleSaveRequest.Kind to)."
+            "description": "The lane the jobs this schedule produces run in. See\n\u0060JobLanes\u0060. Left empty, the jobs run in \u0060JobLanes.Default\u0060\n(or whatever \u0060AgentPrismSchedulingOptions.LaneByHandlerKey\u0060 maps\nstring JobScheduleSaveRequest.HandlerKey to)."
           },
           "payload": {
             "description": "Input set or parameters.",

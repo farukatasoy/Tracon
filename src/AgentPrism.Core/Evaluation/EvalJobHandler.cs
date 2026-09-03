@@ -7,7 +7,7 @@ using Microsoft.Extensions.Options;
 namespace AgentPrism;
 
 /// <summary>
-/// Executes <see cref="JobKind.Eval"/> jobs: runs every case in an eval suite
+/// Executes <see cref="JobHandlerKeys.Eval"/> jobs: runs every case in an eval suite
 /// against the agent being measured and writes the results to <see cref="IEvalStore"/>.
 /// </summary>
 /// <remarks>
@@ -37,9 +37,6 @@ internal sealed class EvalJobHandler(
     IEnumerable<IAgentDecorator> decorators,
     ILogger<EvalJobHandler>? logger = null) : IJobHandler
 {
-    /// <inheritdoc />
-    public JobKind Kind => JobKind.Eval;
-
     /// <inheritdoc />
     public async ValueTask ExecuteAsync(JobContext context, CancellationToken cancellationToken = default)
     {

@@ -102,7 +102,7 @@ Rapor §2'de altı iddiayı kendisi düşürmüştü. Altısı da bizim tarafım
 | 2.1 `IRunEventSink` | [`IRunEventSink.cs`](../../src/AgentPrism.Abstractions/Runs/IRunEventSink.cs) — sıcak yol, sink hatası koşuyu düşürmez, tek örnek tüm koşulara hizmet eder, `RunEvent.TenantId` ile kiracı ayrımı |
 | 2.2 `IToolAuthorizationHandler` | [`ToolAuthorizationTypes.cs`](../../src/AgentPrism.Abstractions/Tools/ToolAuthorizationTypes.cs) + [`AllowAllToolAuthorizationHandler.cs`](../../src/AgentPrism.Core/Tools/AllowAllToolAuthorizationHandler.cs) |
 | 2.3 Örnekleme ayarları | [`ModelBinding.cs:18,21,24,36`](../../src/AgentPrism.Abstractions/Agents/ModelBinding.cs) `Temperature`·`MaxOutputTokens`·`TopP`·`ReasoningEffort`, sürümlenen tanımın içinde. **Koşu isteği bunları geçersiz kılamaz** — `AgentRunRequest` böyle bir alan taşımıyor. Yedek model devreye girerse `RunRecord.ModelId` gerçek modeli yazar. Ayrı kolon gereksiz |
-| 2.4 Toplu üretim | [`JobKind.cs:15`](../../src/AgentPrism.Abstractions/Scheduling/JobKind.cs#L15) `AgentBatch` · [`JobRecord.cs:33-39`](../../src/AgentPrism.Abstractions/Scheduling/JobRecord.cs) `TotalItems`/`DoneItems`/`FailedItems` |
+| 2.4 Toplu üretim | [`JobHandlerKeys.cs`](../../src/AgentPrism.Abstractions/Scheduling/JobHandlerKeys.cs) `AgentBatch` (Faz 137 öncesi `JobKind.AgentBatch`) · [`JobRecord.cs:33-39`](../../src/AgentPrism.Abstractions/Scheduling/JobRecord.cs) `TotalItems`/`DoneItems`/`FailedItems` |
 | 2.5 Fatura üretimi | *Bilerek Önerilmeyenler*'de kalır; tüketici de itiraz etmiyor |
 | 2.6 EF Core köprü paketi | L16 · L29. Paket **önerilmedi** |
 

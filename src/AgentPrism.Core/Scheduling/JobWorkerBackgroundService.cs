@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -26,7 +27,8 @@ namespace AgentPrism;
 internal sealed class JobWorkerBackgroundService(
     IJobStore jobStore,
     IJobScheduleStore scheduleStore,
-    IEnumerable<IJobHandler> handlers,
+    JobHandlerRegistry registry,
+    IServiceScopeFactory scopeFactory,
     IOptionsMonitor<AgentPrismSchedulingOptions> optionsMonitor,
     SchemaReadyGate schemaReadyGate,
     IAgentPrismDrainState drainState,
@@ -34,6 +36,13 @@ internal sealed class JobWorkerBackgroundService(
     ILogger<JobWorkerBackgroundService>? logger = null,
     AgentPrismMetrics? metrics = null) : BackgroundService
 {
+    /// <summary>
+    /// The handler-key metric tag published for a job whose key no handler is
+    /// registered for. A constant, so arbitrary text on a job row cannot give
+    /// <c>agentprism.job.executions</c> unbounded cardinality.
+    /// </summary>
+    internal const string UnregisteredHandlerKeyTag = "unregistered";
+
     private readonly string _ownerId = $"{Environment.MachineName}:{Environment.ProcessId}:{Guid.NewGuid():N}";
     private readonly TimeProvider _clock = timeProvider ?? TimeProvider.System;
     private readonly ConcurrentDictionary<Guid, Task> _runningJobs = new();
@@ -249,30 +258,141 @@ internal sealed class JobWorkerBackgroundService(
     private async Task ExecuteJobAsync(JobRecord job, CancellationToken stoppingToken)
     {
         var options = optionsMonitor.CurrentValue;
-        var handler = handlers.FirstOrDefault(candidate => candidate.Kind == job.Kind);
         var now = _clock.GetUtcNow();
 
         // MONOTONIC clock, not the wall clock: a clock adjustment mid-attempt
         // must not be able to produce a negative duration.
         var startedAt = _clock.GetTimestamp();
 
-        if (handler is null)
+        if (!registry.TryGetHandlerType(job.HandlerKey, out var handlerType))
         {
-            await jobStore.CompleteAsync(
-                new JobCompletion
-                {
-                    JobId = job.Id,
-                    Status = JobStatus.Failed,
-                    CompletedAt = now,
-                    ErrorMessage = $"No IJobHandler is registered for kind '{job.Kind}'.",
-                },
-                stoppingToken).ConfigureAwait(false);
+            var unknownKeyRef = SafeErrorText.NewCorrelationId();
 
-            RecordJobMetric(job, JobStatus.Failed, startedAt);
+            // 🚨 The raw key goes to the LOG, never to the persisted message:
+            // a key nobody registered may have come from an untrusted source,
+            // and ErrorMessage is read back over HTTP and shown in the UI.
+            if (logger is not null && logger.IsEnabled(LogLevel.Error))
+            {
+                logger.LogError(
+                    "Job {JobId} carries the handler key '{HandlerKey}', which no IJobHandler is registered for. (ref: {CorrelationId})",
+                    job.Id,
+                    job.HandlerKey,
+                    unknownKeyRef);
+            }
+
+            // 🚨 The metric tag is a CONSTANT here, not the key. The registered
+            // key set is fixed at host start and therefore bounded, but a key
+            // nobody registered is arbitrary text from an untrusted source --
+            // publishing it would give the tag unbounded cardinality, the same
+            // hazard ResolveLaneTag guards for lanes. The raw key is in the log,
+            // under the same correlation id.
+            await FailWithoutRunningAsync(
+                job,
+                JobErrorCodes.Format(JobErrorCodes.UnknownHandlerKey, unknownKeyRef),
+                now,
+                startedAt,
+                UnregisteredHandlerKeyTag,
+                stoppingToken).ConfigureAwait(false);
 
             return;
         }
 
+        // 🚨 The ambient tenant is opened HERE, in the method that owns the
+        // whole execution, not inside the helper below: an AsyncLocal write
+        // made in an async helper does not flow back to its caller. It also has
+        // to precede the container call -- a scoped dependency may read
+        // ITenantContext while it is being constructed.
+        using var tenantScope = AmbientTenantScope.Begin(job.TenantId);
+
+        // 🚨 One scope per EXECUTION, not per process: two jobs running in
+        // parallel, and two attempts of the same job, each get their own
+        // handler instance and their own scoped dependencies. The scope stays
+        // open until ExecuteAsync returns.
+        var scope = scopeFactory.CreateAsyncScope();
+
+        await using (scope.ConfigureAwait(false))
+        {
+            IJobHandler handler;
+
+            try
+            {
+                handler = (IJobHandler)scope.ServiceProvider.GetRequiredService(handlerType);
+            }
+            catch (Exception exception) when (exception is not OperationCanceledException)
+            {
+                // 🚨 Before the handler resolves, NOTHING owns the job's outcome:
+                // the attempt limit lives in ExecuteWithHandlerAsync's catch, and
+                // the caller of this method only logs. Letting an activation
+                // failure escape would leave the job re-leased forever, once per
+                // lease expiry, with no terminal status. A missing dependency is a
+                // configuration mistake, so retrying cannot help either — fail it.
+                var activationRef = SafeErrorText.NewCorrelationId();
+
+                if (logger is not null && logger.IsEnabled(LogLevel.Error))
+                {
+                    logger.LogError(
+                        exception,
+                        "The job handler registered for '{HandlerKey}' could not be constructed. (ref: {CorrelationId})",
+                        job.HandlerKey,
+                        activationRef);
+                }
+
+                await FailWithoutRunningAsync(
+                    job,
+                    JobErrorCodes.Format(JobErrorCodes.HandlerActivationFailed, activationRef),
+                    _clock.GetUtcNow(),
+                    startedAt,
+                    job.HandlerKey,
+                    stoppingToken).ConfigureAwait(false);
+
+                return;
+            }
+
+            await ExecuteWithHandlerAsync(job, handler, options, startedAt, stoppingToken).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>
+    /// Closes a job that never reached its handler, and counts the attempt.
+    /// </summary>
+    /// <param name="job">The leased job.</param>
+    /// <param name="errorMessage">The redacted message, already carrying a stable code.</param>
+    /// <param name="completedAt">The wall-clock completion time.</param>
+    /// <param name="startedAt">The monotonic timestamp taken when the attempt started.</param>
+    /// <param name="handlerKeyTag">
+    /// The value to publish as the handler-key metric tag. The job's own key
+    /// when it is registered; <see cref="UnregisteredHandlerKeyTag"/> when it
+    /// is not, so an arbitrary key cannot give the tag unbounded cardinality.
+    /// </param>
+    /// <param name="stoppingToken">The worker's shutdown token.</param>
+    private async Task FailWithoutRunningAsync(
+        JobRecord job,
+        string errorMessage,
+        DateTimeOffset completedAt,
+        long startedAt,
+        string handlerKeyTag,
+        CancellationToken stoppingToken)
+    {
+        await jobStore.CompleteAsync(
+            new JobCompletion
+            {
+                JobId = job.Id,
+                Status = JobStatus.Failed,
+                CompletedAt = completedAt,
+                ErrorMessage = errorMessage,
+            },
+            stoppingToken).ConfigureAwait(false);
+
+        RecordJobMetric(job, JobStatus.Failed, startedAt, handlerKeyTag);
+    }
+
+    private async Task ExecuteWithHandlerAsync(
+        JobRecord job,
+        IJobHandler handler,
+        AgentPrismSchedulingOptions options,
+        long startedAt,
+        CancellationToken stoppingToken)
+    {
         await jobStore.MarkRunningAsync(job.Id, _ownerId, stoppingToken).ConfigureAwait(false);
 
         var items = await jobStore.ListItemsAsync(job.Id, stoppingToken).ConfigureAwait(false);
@@ -289,7 +409,6 @@ internal sealed class JobWorkerBackgroundService(
             },
         };
 
-        using var tenantScope = AmbientTenantScope.Begin(job.TenantId);
         using var leaseRenewal = StartLeaseRenewal(job.Id, options.LeaseDuration, stoppingToken);
 
         try
@@ -379,6 +498,10 @@ internal sealed class JobWorkerBackgroundService(
     /// <param name="job">The job whose attempt finished.</param>
     /// <param name="status">The terminal status reached.</param>
     /// <param name="startedAt">The monotonic timestamp taken when the attempt started.</param>
+    /// <param name="handlerKeyTag">
+    /// Overrides the handler-key tag. <see langword="null"/> publishes the job's
+    /// own key, which is what every path that actually reached a handler does.
+    /// </param>
     /// <remarks>
     /// Observability must not break functionality. The job is ALREADY finalized
     /// in the store by the time this runs; a listener callback that throws is
@@ -386,7 +509,7 @@ internal sealed class JobWorkerBackgroundService(
     /// written after the store call for the same reason: a job's completion
     /// never depends on a measurement succeeding.
     /// </remarks>
-    private void RecordJobMetric(JobRecord job, JobStatus status, long startedAt)
+    private void RecordJobMetric(JobRecord job, JobStatus status, long startedAt, string? handlerKeyTag = null)
     {
         if (metrics is null)
         {
@@ -395,7 +518,12 @@ internal sealed class JobWorkerBackgroundService(
 
         try
         {
-            metrics.RecordJob(job.Lane, job.Kind, status, job.TenantId, _clock.GetElapsedTime(startedAt));
+            metrics.RecordJob(
+                job.Lane,
+                handlerKeyTag ?? job.HandlerKey,
+                status,
+                job.TenantId,
+                _clock.GetElapsedTime(startedAt));
         }
         catch (Exception exception)
         {
@@ -453,7 +581,7 @@ internal sealed class JobWorkerBackgroundService(
                     Id = AgentPrismId.NewId(),
                     TenantId = schedule.TenantId,
                     ScheduleId = schedule.Id,
-                    Kind = schedule.Kind,
+                    HandlerKey = schedule.HandlerKey,
                     Lane = schedule.Lane,
                     TargetName = schedule.TargetName,
                     Status = JobStatus.Pending,

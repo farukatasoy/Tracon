@@ -269,6 +269,13 @@ This applies everywhere a run, job, or webhook delivery can fail: the
 `error`/`error_message` field on a run, job, or webhook delivery, and the error
 body of the HTTP, SSE, and MCP endpoints, all follow the same rule.
 
+A failure the queue itself produces — rather than a handler — carries a stable
+code instead of prose. A job queued for a handler key nobody registered fails
+with `agentprism.job.unknown-handler-key`, and the key itself is written to the
+log rather than to `errorMessage`, for the same reason a foreign exception's
+text is: the key may have come from an untrusted source, and that field is read
+back over HTTP. Match on the code, never on the sentence around it.
+
 ## Replay and comparison
 
 - `GET /api/runs/{runId}/input` — the recorded input, when input recording is on

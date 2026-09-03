@@ -227,7 +227,7 @@ public sealed class InMemoryJobStoreTests
         {
             Id = Guid.NewGuid(),
             TenantId = "tenant",
-            Kind = JobKind.AgentBatch,
+            HandlerKey = JobHandlerKeys.AgentBatch,
             TargetName = "summarizer",
             Status = JobStatus.Pending,
             ScheduledFor = DateTimeOffset.UtcNow,

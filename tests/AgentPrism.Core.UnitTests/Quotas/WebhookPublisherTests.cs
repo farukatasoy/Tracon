@@ -35,7 +35,7 @@ public sealed class WebhookPublisherTests
         // The delivery is written into the SAME queue as phase 17; there is no second queue.
         var queued = await jobs.QueryAsync(new JobQuery { TenantId = Tenant });
         queued.Count.ShouldBe(1);
-        queued[0].Kind.ShouldBe(JobKind.WebhookDelivery);
+        queued[0].HandlerKey.ShouldBe(JobHandlerKeys.WebhookDelivery);
     }
 
     [Fact]

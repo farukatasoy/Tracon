@@ -20,8 +20,11 @@ public sealed record JobSchedule
     /// <summary>The schedule name, unique within the tenant.</summary>
     public required string Name { get; init; }
 
-    /// <summary>The kind of job this schedule produces.</summary>
-    public required JobKind Kind { get; init; }
+    /// <summary>
+    /// The key of the <see cref="IJobHandler"/> the jobs this schedule
+    /// produces are dispatched to. See <see cref="JobHandlerKeys"/>.
+    /// </summary>
+    public required string HandlerKey { get; init; }
 
     /// <summary>
     /// The lane the jobs this schedule produces run in. See
@@ -42,7 +45,7 @@ public sealed record JobSchedule
     /// <summary>The time zone the <c>Cron</c> expression is interpreted in.</summary>
     public string TimeZone { get; init; } = "UTC";
 
-    /// <summary>The input set or parameters. Interpreted according to the job kind.</summary>
+    /// <summary>The input set or parameters. Interpreted by the job's handler.</summary>
     public JsonElement Payload { get; init; }
 
     /// <summary>Whether the schedule is enabled. If disabled, it is not triggered automatically.</summary>

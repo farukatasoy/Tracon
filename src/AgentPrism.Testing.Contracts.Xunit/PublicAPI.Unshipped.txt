@@ -671,6 +671,9 @@ override AgentPrism.Testing.Contracts.Storage.JobStoreContract.CountAsync(string
 override AgentPrism.Testing.Contracts.Storage.JobStoreContract.ExistsAsync(string! tenantId, object! key) -> System.Threading.Tasks.ValueTask<bool>
 override AgentPrism.Testing.Contracts.Storage.JobStoreContract.SeedAsync(string! tenantId, string! name) -> System.Threading.Tasks.ValueTask<object!>
 override AgentPrism.Testing.Contracts.Storage.JobStoreContract.TryDeleteAsync(string! tenantId, object! key) -> System.Threading.Tasks.ValueTask<bool?>
+AgentPrism.Testing.Contracts.Storage.JobStoreContract.QueryAsync_filters_by_handler_key() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.Storage.JobStoreContract.QueryAsync_returns_nothing_for_a_handler_key_no_job_uses() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.Storage.JobStoreContract.QueryAsync_treats_an_empty_handler_key_as_a_filter_that_matches_nothing() -> System.Threading.Tasks.Task!
 override AgentPrism.Testing.Contracts.Storage.McpServerStoreContract.CountAsync(string! tenantId) -> System.Threading.Tasks.ValueTask<int>
 override AgentPrism.Testing.Contracts.Storage.McpServerStoreContract.ExistsAsync(string! tenantId, object! key) -> System.Threading.Tasks.ValueTask<bool>
 override AgentPrism.Testing.Contracts.Storage.McpServerStoreContract.SeedAsync(string! tenantId, string! name) -> System.Threading.Tasks.ValueTask<object!>
@@ -771,3 +774,4 @@ virtual AgentPrism.Testing.Contracts.Storage.SingletonLeaseStoreContract.OnDispo
 virtual AgentPrism.Testing.Contracts.Storage.TenantIsolationContract<TStore>.OnDisposeAsync() -> System.Threading.Tasks.ValueTask
 virtual AgentPrism.Testing.Contracts.Storage.TenantIsolationContract<TStore>.TryDeleteAsync(string! tenantId, object! key) -> System.Threading.Tasks.ValueTask<bool?>
 virtual AgentPrism.Testing.Contracts.Storage.TenantIsolationContract<TStore>.TryOverwriteAsync(string! tenantId, string! name) -> System.Threading.Tasks.ValueTask<bool>
+virtual AgentPrism.Testing.Contracts.Scheduling.JobHandlerContract.HandlerKey.get -> string!

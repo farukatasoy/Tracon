@@ -10,13 +10,6 @@ public sealed class OnlineEvalJobHandlerTests
     private const string Agent = "support";
 
     [Fact]
-    public void Kind_is_OnlineEval()
-    {
-        var handler = BuildHandler(new InMemoryRunStore(tenantContext: new FixedTenantContext(Tenant)), new InMemoryRunInputStore(), new InMemoryRunScoreStore(), []);
-        handler.Kind.ShouldBe(JobKind.OnlineEval);
-    }
-
-    [Fact]
     public async Task Missing_run_produces_no_error_and_writes_no_score()
     {
         var runs = new InMemoryRunStore(tenantContext: new FixedTenantContext(Tenant));
@@ -346,7 +339,7 @@ public sealed class OnlineEvalJobHandlerTests
     {
         Id = Guid.NewGuid(),
         TenantId = Tenant,
-        Kind = JobKind.OnlineEval,
+        HandlerKey = JobHandlerKeys.OnlineEval,
         TargetName = Agent,
         Status = JobStatus.Running,
         Attempt = 1,

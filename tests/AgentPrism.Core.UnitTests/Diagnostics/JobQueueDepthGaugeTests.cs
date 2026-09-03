@@ -146,8 +146,8 @@ public sealed class JobQueueDepthGaugeTests
         using var metrics = new AgentPrismMetrics(meterFactory, options);
 
         // The counter is what names "alpha" and "beta" first and spends the budget.
-        metrics.RecordJob("alpha", JobKind.AgentBatch, JobStatus.Completed, "t", TimeSpan.Zero);
-        metrics.RecordJob("beta", JobKind.AgentBatch, JobStatus.Completed, "t", TimeSpan.Zero);
+        metrics.RecordJob("alpha", JobHandlerKeys.AgentBatch, JobStatus.Completed, "t", TimeSpan.Zero);
+        metrics.RecordJob("beta", JobHandlerKeys.AgentBatch, JobStatus.Completed, "t", TimeSpan.Zero);
 
         using var observer = new JobQueueDepthObserver(
             store,
@@ -200,7 +200,7 @@ public sealed class JobQueueDepthGaugeTests
                 {
                     Id = Guid.NewGuid(),
                     TenantId = tenantId,
-                    Kind = JobKind.AgentBatch,
+                    HandlerKey = JobHandlerKeys.AgentBatch,
                     TargetName = "target",
                     Lane = lane,
                     Status = JobStatus.Pending,

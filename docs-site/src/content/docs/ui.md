@@ -128,16 +128,19 @@ conversation back, and branching it, need a SQL store.
 
 ## Jobs
 
-<a class="ui-shot" href="/screenshots/jobs.png"><img src="/screenshots/jobs.png" alt="The job queue with kind, status, attempt count, and next run time" width="2880" height="1800" loading="lazy" decoding="async" /></a>
+<a class="ui-shot" href="/screenshots/jobs.png"><img src="/screenshots/jobs.png" alt="The job queue with handler key, status, attempt count, and next run time" width="2880" height="1800" loading="lazy" decoding="async" /></a>
 
 Everything AgentPrism runs in the background, in one queue: queued agent runs,
 scheduled runs, workflow executions, evaluation runs, online-evaluation scoring, and
-webhook deliveries. Each row carries its kind, status, attempt count, and — for a
-failure — the classified error.
+webhook deliveries. Each row carries its handler key, status, attempt count, and —
+for a failure — the classified error. The handler key is what decides which code
+runs the job, so it is also the most useful thing to filter the queue by.
 
-Schedules live on the same screen. A schedule is a cron expression plus the payload to
-run; leaving the expression empty makes it manual-only, which is the honest way to
-park one. Triggering a schedule by hand queues exactly the job the timer would have.
+Schedules live on the same screen. A schedule is a cron expression, a handler key,
+and the payload to run; leaving the expression empty makes it manual-only, which is
+the honest way to park one. Triggering a schedule by hand queues exactly the job the
+timer would have. The handler dropdown lists only the keys this server accepts over
+HTTP, so a schedule the form lets you save is one the server will take.
 
 Every job and schedule shows its lane — a plain text tag that keeps unrelated kinds
 of work from blocking each other in the same queue. Filter the job list by lane to

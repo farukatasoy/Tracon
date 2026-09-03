@@ -175,7 +175,7 @@ public sealed class RetentionEndpointTests
         var job = await jobStore.GetAsync("default", jobId);
 
         job.ShouldNotBeNull();
-        job.Kind.ShouldBe(JobKind.Retention);
+        job.HandlerKey.ShouldBe(JobHandlerKeys.Retention);
         job.TargetName.ShouldBe("run_events");
     }
 

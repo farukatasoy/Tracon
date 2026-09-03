@@ -6,7 +6,7 @@ using Microsoft.Extensions.Options;
 namespace AgentPrism;
 
 /// <summary>
-/// Executes <see cref="JobKind.AgentRun"/> jobs: runs a single, queued
+/// Executes <see cref="JobHandlerKeys.AgentRun"/> jobs: runs a single, queued
 /// (<c>Prefer: respond-async</c>) agent run from the queue.
 /// </summary>
 /// <remarks>
@@ -49,9 +49,6 @@ internal sealed class AgentRunJobHandler(
     ILogger<AgentRunJobHandler>? logger = null) : IJobHandler
 {
     private readonly TimeProvider _clock = timeProvider ?? TimeProvider.System;
-
-    /// <inheritdoc />
-    public JobKind Kind => JobKind.AgentRun;
 
     /// <inheritdoc />
     public async ValueTask ExecuteAsync(JobContext context, CancellationToken cancellationToken = default)

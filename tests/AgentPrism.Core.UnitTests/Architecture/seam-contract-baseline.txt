@@ -60,8 +60,6 @@ IIdempotencyStore:tenant
 IInboundTriggerStore:delivery
 IInboundTriggerStore:lifetime
 IInboundTriggerStore:tenant
-IJobHandler:lifetime
-IJobHandler:tenant
 IJobScheduleStore:delivery
 IJobScheduleStore:lifetime
 IJobScheduleStore:tenant

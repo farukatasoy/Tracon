@@ -9,8 +9,17 @@ namespace AgentPrism;
 /// </remarks>
 public sealed record JobScheduleSaveRequest
 {
-    /// <summary>Kind of job this schedule produces.</summary>
-    public required JobKind Kind { get; init; }
+    /// <summary>
+    /// Key of the handler the jobs this schedule produces run on. See
+    /// <c>JobHandlerKeys</c>.
+    /// </summary>
+    /// <remarks>
+    /// Only a key listed in
+    /// <c>AgentPrismSchedulingOptions.HttpSchedulableHandlerKeys</c> is
+    /// accepted; left empty, that list means AgentPrism's own built-in keys.
+    /// Making a consumer's key schedulable over HTTP is a deliberate opt-in.
+    /// </remarks>
+    public required string HandlerKey { get; init; }
 
     /// <summary>Name of the agent or workflow to run.</summary>
     public required string TargetName { get; init; }
@@ -27,8 +36,8 @@ public sealed record JobScheduleSaveRequest
     /// <summary>
     /// The lane the jobs this schedule produces run in. See
     /// <c>JobLanes</c>. Left empty, the jobs run in <c>JobLanes.Default</c>
-    /// (or whatever <c>AgentPrismSchedulingOptions.LaneByKind</c> maps
-    /// <see cref="Kind"/> to).
+    /// (or whatever <c>AgentPrismSchedulingOptions.LaneByHandlerKey</c> maps
+    /// <see cref="HandlerKey"/> to).
     /// </summary>
     public string? Lane { get; init; }
 

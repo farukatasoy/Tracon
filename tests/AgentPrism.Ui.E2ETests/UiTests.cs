@@ -1111,6 +1111,12 @@ public sealed class UiTests(BrowserFixture browsers)
         await session.Page.GetByRole(AriaRole.Button, new() { Name = "New schedule" }).ClickAsync();
 
         await session.Page.GetByPlaceholder("nightly-report").FillAsync("e2e-batch-job");
+
+        // Phase 137: the handler is picked from the server's own allow-list, not
+        // from two hard-coded options. Leaving it blank is a 400, so the screen
+        // must actually offer the built-in key here.
+        await session.Page.GetByTestId("schedule-handler-key").SelectOptionAsync(JobHandlerKeys.AgentBatch);
+
         await session.Page.GetByPlaceholder("summarizer").FillAsync("support");
         // Phase 129: the lane field. Left blank on a fresh row, "default" is
         // shown; here it is set so the column's actual value can be asserted.

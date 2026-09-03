@@ -175,7 +175,7 @@ public static class AgentPrismDiagnostics
         public const string Lane = "agentprism.job.lane";
 
         /// <summary>Gets the job-kind tag name.</summary>
-        public const string JobKind = "agentprism.job.kind";
+        public const string JobHandlerKey = "agentprism.job.handler_key";
 
         /// <summary>Gets the job-status tag name.</summary>
         /// <remarks>

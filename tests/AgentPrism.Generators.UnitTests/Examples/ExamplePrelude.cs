@@ -105,8 +105,6 @@ internal static class ExamplePrelude
         // Stands in for "your own scheduled job", named in one <example> only.
         internal sealed class NightlyReportJobHandler : IJobHandler
         {
-            public JobKind Kind => JobKind.AgentBatch;
-
             public ValueTask ExecuteAsync(JobContext context, CancellationToken cancellationToken = default) => ValueTask.CompletedTask;
         }
 

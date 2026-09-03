@@ -299,7 +299,7 @@ internal sealed class RunReconciliationService(
                 {
                     Id = continuationRunId,
                     TenantId = tenantId,
-                    Kind = JobKind.RunContinuation,
+                    HandlerKey = JobHandlerKeys.RunContinuation,
                     TargetName = record.AgentName,
                     Status = JobStatus.Pending,
                     Payload = BuildContinuationPayload(record.Id, continuationRunId),
@@ -350,7 +350,7 @@ internal sealed class RunReconciliationService(
     }
 
     /// <summary>
-    /// Builds the payload for a <see cref="JobKind.RunContinuation"/> job.
+    /// Builds the payload for a <see cref="JobHandlerKeys.RunContinuation"/> job.
     /// Parsing happens in <c>RunContinuationJobHandler.ParsePayload</c>
     /// (hand-written, AOT-compatible); this is written by hand for the same reason.
     /// </summary>

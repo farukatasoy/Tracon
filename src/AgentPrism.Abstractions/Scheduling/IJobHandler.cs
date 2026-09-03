@@ -1,21 +1,40 @@
 namespace AgentPrism;
 
 /// <summary>
-/// The extension point that provides job execution logic for a specific
-/// <see cref="JobKind"/>.
+/// The extension point that provides job execution logic for one handler key.
 /// </summary>
 /// <remarks>
-/// Registered with <c>AddJobHandler&lt;T&gt;()</c>. AgentPrism.Core provides
-/// two implementations (<see cref="JobKind.AgentBatch"/>,
-/// <see cref="JobKind.Workflow"/>); evaluation adds its own handler
-/// (<see cref="JobKind.Eval"/>) the same way. The background worker picks
-/// among the registered handlers by the <see cref="Kind"/> field.
+/// <para>
+/// Registered with <c>AddJobHandler&lt;T&gt;(handlerKey)</c>: the key lives on
+/// the registration, not on the type, so the same type can serve two keys and
+/// a duplicate key is caught at startup. The background worker looks the key
+/// up by exact, ordinal match, so <strong>registration order never decides
+/// which handler runs</strong> — a consumer handler cannot shadow a built-in
+/// one, and a built-in one cannot shadow a consumer's.
+/// </para>
+/// <para>
+/// <strong>Lifetime:</strong> the handler is registered <c>scoped</c> and
+/// resolved from a fresh dependency-injection scope per execution. Scoped
+/// dependencies are therefore safe to take in the constructor: two jobs
+/// running in parallel, and two attempts of the same job, never share an
+/// instance.
+/// </para>
+/// <para>
+/// <strong>Tenant:</strong> runs under the <c>ambient tenant</c> — the worker
+/// opens the job's own tenant scope before calling
+/// <see cref="ExecuteAsync"/>, so an <c>ITenantContext</c> the handler
+/// resolves reports <see cref="JobRecord.TenantId"/>, not the process default.
+/// The record is also on <see cref="JobContext.Job"/> for a handler that
+/// prefers to read it explicitly.
+/// </para>
+/// <example>
+/// <code>
+/// builder.Services.AddJobHandler&lt;NightlyReportJobHandler&gt;("contoso.nightly-report");
+/// </code>
+/// </example>
 /// </remarks>
 public interface IJobHandler
 {
-    /// <summary>The job kind this handler can execute.</summary>
-    JobKind Kind { get; }
-
     /// <summary>Executes the job.</summary>
     /// <param name="context">The job context: record, items, reporting, and cancellation check.</param>
     /// <param name="cancellationToken">The cancellation token (triggered when the worker shuts down).</param>
@@ -38,11 +57,9 @@ public interface IJobHandler
     /// charging a payment, calling an external API) MUST be idempotent, or
     /// MUST check <see cref="JobItemRecord.Status"/> itself and skip any item
     /// that is not <see cref="JobItemStatus.Pending"/> — see
-    /// <see cref="JobContext.Items"/>. The three handlers AgentPrism ships
-    /// (<see cref="JobKind.AgentBatch"/>, <see cref="JobKind.Workflow"/>,
-    /// <see cref="JobKind.Eval"/>) all do the latter, and the reusable
-    /// <c>JobHandlerContract</c> in <c>AgentPrism.Testing.Contracts.Xunit</c>
-    /// asserts it.
+    /// <see cref="JobContext.Items"/>. The handlers AgentPrism ships all do
+    /// the latter, and the reusable <c>JobHandlerContract</c> in
+    /// <c>AgentPrism.Testing.Contracts.Xunit</c> asserts it.
     /// </para>
     /// </remarks>
     ValueTask ExecuteAsync(JobContext context, CancellationToken cancellationToken = default);
@@ -54,7 +71,9 @@ public interface IJobHandler
 /// <remarks>
 /// The handler does not access <see cref="IJobStore"/> directly; this keeps
 /// the handler focused only on execution logic and removes the need to set
-/// up a fake store in a unit test.
+/// up a fake store in a unit test. It carries no service provider either:
+/// the handler is built by the container from its own per-execution scope, so
+/// its dependencies arrive through its constructor.
 /// </remarks>
 public sealed class JobContext
 {

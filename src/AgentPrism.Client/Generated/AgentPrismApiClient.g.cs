@@ -4792,6 +4792,83 @@ namespace AgentPrism.Client.Generated
 
         /// <param name="cancellationToken">A cancellation token that can be used by other objects or threads to receive notice of cancellation.</param>
         /// <summary>
+        /// Lists the handler keys a schedule may be created for.
+        /// </summary>
+        /// <remarks>
+        /// The allow-list PUT /api/schedules/{name} enforces, so a client can offer exactly the keys that will be accepted rather than guessing. It is AgentPrism's own built-in keys unless the host set AgentPrismSchedulingOptions.HttpSchedulableHandlerKeys, and it is NOT the full set of registered handlers: a handler with no entry here runs jobs queued in process but cannot be scheduled from outside. Admin only — a consumer's key names are deployment detail, so this list is deliberately not on the unauthenticated meta endpoint.
+        /// </remarks>
+        /// <returns>OK</returns>
+        /// <exception cref="AgentPrismApiException">A server side error occurred.</exception>
+        public virtual async System.Threading.Tasks.Task<System.Collections.Generic.ICollection<string>> AgentPrismListSchedulableHandlerKeysAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken))
+        {
+            var client_ = _httpClient;
+            var disposeClient_ = false;
+            try
+            {
+                using (var request_ = new System.Net.Http.HttpRequestMessage())
+                {
+                    request_.Method = new System.Net.Http.HttpMethod("GET");
+                    request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
+
+                    var urlBuilder_ = new System.Text.StringBuilder();
+                
+                    // Operation Path: "api/schedules/handler-keys"
+                    urlBuilder_.Append("api/schedules/handler-keys");
+
+                    PrepareRequest(client_, request_, urlBuilder_);
+
+                    var url_ = urlBuilder_.ToString();
+                    request_.RequestUri = new System.Uri(url_, System.UriKind.RelativeOrAbsolute);
+
+                    PrepareRequest(client_, request_, url_);
+
+                    var response_ = await client_.SendAsync(request_, System.Net.Http.HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
+                    var disposeResponse_ = true;
+                    try
+                    {
+                        var headers_ = new System.Collections.Generic.Dictionary<string, System.Collections.Generic.IEnumerable<string>>();
+                        foreach (var item_ in response_.Headers)
+                            headers_[item_.Key] = item_.Value;
+                        if (response_.Content != null && response_.Content.Headers != null)
+                        {
+                            foreach (var item_ in response_.Content.Headers)
+                                headers_[item_.Key] = item_.Value;
+                        }
+
+                        ProcessResponse(client_, response_);
+
+                        var status_ = (int)response_.StatusCode;
+                        if (status_ == 200)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<System.Collections.Generic.ICollection<string>>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new AgentPrismApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            return objectResponse_.Object;
+                        }
+                        else
+                        {
+                            var responseData_ = response_.Content == null ? null : await response_.Content.ReadAsStringAsync().ConfigureAwait(false);
+                            throw new AgentPrismApiException("The HTTP status code of the response was not expected (" + status_ + ").", status_, responseData_, headers_, null);
+                        }
+                    }
+                    finally
+                    {
+                        if (disposeResponse_)
+                            response_.Dispose();
+                    }
+                }
+            }
+            finally
+            {
+                if (disposeClient_)
+                    client_.Dispose();
+            }
+        }
+
+        /// <param name="cancellationToken">A cancellation token that can be used by other objects or threads to receive notice of cancellation.</param>
+        /// <summary>
         /// Runs a schedule immediately, without waiting for the cron schedule.
         /// </summary>
         /// <remarks>
@@ -4878,14 +4955,14 @@ namespace AgentPrism.Client.Generated
 
         /// <param name="cancellationToken">A cancellation token that can be used by other objects or threads to receive notice of cancellation.</param>
         /// <summary>
-        /// Lists jobs, filtered by kind, status, lane, or schedule.
+        /// Lists jobs, filtered by handler key, status, lane, or schedule.
         /// </summary>
         /// <remarks>
-        /// Every queued unit of work shares this queue — scheduled runs, retention cleanups, webhook deliveries, and queued agent runs — so filter by 'kind' to narrow it. 'scheduleId' returns the executions of one schedule. 'lane' returns only the jobs queued under that lane — the way to see whether a lane nobody's worker subscribes to is quietly piling up. Job items are not included here; read them from the single-job endpoint. Paging is offset based, with 'skip' defaulting to 0 and 'take' to 50.
+        /// Every queued unit of work shares this queue — scheduled runs, retention cleanups, webhook deliveries, and queued agent runs — so filter by 'handlerKey' to narrow it. 'scheduleId' returns the executions of one schedule. 'lane' returns only the jobs queued under that lane — the way to see whether a lane nobody's worker subscribes to is quietly piling up. Job items are not included here; read them from the single-job endpoint. Paging is offset based, with 'skip' defaulting to 0 and 'take' to 50.
         /// </remarks>
         /// <returns>OK</returns>
         /// <exception cref="AgentPrismApiException">A server side error occurred.</exception>
-        public virtual async System.Threading.Tasks.Task<System.Collections.Generic.ICollection<JobRecord>> AgentPrismListJobsAsync(JobKind? kind = null, JobStatus? status = null, System.Guid? scheduleId = null, string? lane = null, int? skip = null, int? take = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken))
+        public virtual async System.Threading.Tasks.Task<System.Collections.Generic.ICollection<JobRecord>> AgentPrismListJobsAsync(string? handlerKey = null, JobStatus? status = null, System.Guid? scheduleId = null, string? lane = null, int? skip = null, int? take = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken))
         {
             var client_ = _httpClient;
             var disposeClient_ = false;
@@ -4901,9 +4978,9 @@ namespace AgentPrism.Client.Generated
                     // Operation Path: "api/jobs"
                     urlBuilder_.Append("api/jobs");
                     urlBuilder_.Append('?');
-                    if (kind != null)
+                    if (handlerKey != null)
                     {
-                        urlBuilder_.Append(System.Uri.EscapeDataString("kind")).Append('=').Append(System.Uri.EscapeDataString(ConvertToString(kind, System.Globalization.CultureInfo.InvariantCulture))).Append('&');
+                        urlBuilder_.Append(System.Uri.EscapeDataString("handlerKey")).Append('=').Append(System.Uri.EscapeDataString(ConvertToString(handlerKey, System.Globalization.CultureInfo.InvariantCulture))).Append('&');
                     }
                     if (status != null)
                     {
@@ -7406,10 +7483,10 @@ namespace AgentPrism.Client.Generated
 
         /// <param name="cancellationToken">A cancellation token that can be used by other objects or threads to receive notice of cancellation.</param>
         /// <summary>
-        /// Recalculates the cost of all runs based on the current pricing source.
+        /// Fills in the cost of runs whose price is still unknown.
         /// </summary>
         /// <remarks>
-        /// This is a maintenance endpoint. It is used to refresh past runs when pricing is defined later. The provider is not kept on historical rows; if the same model name is defined for more than one provider, the first alphabetical match wins. Requires Admin; the call is written to the audit trail.
+        /// This is a maintenance endpoint. It fills in the cost of runs whose price is still unknown (unpriced when they completed, typically because the model was not configured yet); a run's cost is a price snapshot and this endpoint never rewrites one that already has a known price, even if the price list changed since. A run written before the provider column existed resolves by model name alone; if the same model name is defined for more than one provider, the first alphabetical match wins. Requires Admin; the call is written to the audit trail.
         /// </remarks>
         /// <returns>OK</returns>
         /// <exception cref="AgentPrismApiException">A server side error occurred.</exception>
@@ -9776,7 +9853,7 @@ namespace AgentPrism.Client.Generated
         /// Runs the cleanup now.
         /// </summary>
         /// <remarks>
-        /// Does not run synchronously: a JobKind.Retention job is enqueued and processed from the queue.
+        /// Does not run synchronously: an agentprism.retention job is enqueued and processed from the queue.
         /// </remarks>
         /// <returns>OK</returns>
         /// <exception cref="AgentPrismApiException">A server side error occurred.</exception>
@@ -15017,8 +15094,8 @@ namespace AgentPrism.Client.Generated
         /// The lane a queued run (`Prefer: respond-async`) is queued under.
         /// <br/>See `JobLanes`. Ignored for a synchronous run — nothing is
         /// <br/>queued. Left empty, the run uses `JobLanes.Default` (or whatever
-        /// <br/>`AgentPrismSchedulingOptions.LaneByKind` maps
-        /// <br/>`JobKind.AgentRun` to).
+        /// <br/>`AgentPrismSchedulingOptions.LaneByHandlerKey` maps
+        /// <br/>`JobHandlerKeys.AgentRun` to).
         /// </summary>
 
         [System.Text.Json.Serialization.JsonPropertyName("lane")]
@@ -18374,43 +18451,6 @@ namespace AgentPrism.Client.Generated
     }
 
     /// <summary>
-    /// What target a job runs.
-    /// </summary>
-    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.2.0.0 (NJsonSchema v11.1.0.0 (Newtonsoft.Json v13.0.0.0))")]
-    [System.Text.Json.Serialization.JsonConverter(typeof(System.Text.Json.Serialization.JsonStringEnumConverter<JobKind>))]
-    public enum JobKind
-    {
-
-        [System.Runtime.Serialization.EnumMember(Value = @"AgentBatch")]
-        AgentBatch = 0,
-
-        [System.Runtime.Serialization.EnumMember(Value = @"Workflow")]
-        Workflow = 1,
-
-        [System.Runtime.Serialization.EnumMember(Value = @"Eval")]
-        Eval = 2,
-
-        [System.Runtime.Serialization.EnumMember(Value = @"WebhookDelivery")]
-        WebhookDelivery = 3,
-
-        [System.Runtime.Serialization.EnumMember(Value = @"Retention")]
-        Retention = 4,
-
-        [System.Runtime.Serialization.EnumMember(Value = @"AgentRun")]
-        AgentRun = 5,
-
-        [System.Runtime.Serialization.EnumMember(Value = @"OnlineEval")]
-        OnlineEval = 6,
-
-        [System.Runtime.Serialization.EnumMember(Value = @"ApprovalResume")]
-        ApprovalResume = 7,
-
-        [System.Runtime.Serialization.EnumMember(Value = @"RunContinuation")]
-        RunContinuation = 8,
-
-    }
-
-    /// <summary>
     /// The summary of a queued job. The header of its items (JobItemRecord).
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.2.0.0 (NJsonSchema v11.1.0.0 (Newtonsoft.Json v13.0.0.0))")]
@@ -18439,11 +18479,12 @@ namespace AgentPrism.Client.Generated
         public System.Guid? ScheduleId { get; set; } = default!;
 
         /// <summary>
-        /// The job's kind.
+        /// The key of the IJobHandler that executes this job. See
+        /// <br/>JobHandlerKeys.
         /// </summary>
 
-        [System.Text.Json.Serialization.JsonPropertyName("kind")]
-        public JobKind Kind { get; set; } = default!;
+        [System.Text.Json.Serialization.JsonPropertyName("handlerKey")]
+        public string HandlerKey { get; set; } = default!;
 
         /// <summary>
         /// The lane this job runs in. See JobLanes. A worker only
@@ -18590,11 +18631,12 @@ namespace AgentPrism.Client.Generated
         public string Name { get; set; } = default!;
 
         /// <summary>
-        /// The kind of job this schedule produces.
+        /// The key of the IJobHandler the jobs this schedule
+        /// <br/>produces are dispatched to. See JobHandlerKeys.
         /// </summary>
 
-        [System.Text.Json.Serialization.JsonPropertyName("kind")]
-        public JobKind Kind { get; set; } = default!;
+        [System.Text.Json.Serialization.JsonPropertyName("handlerKey")]
+        public string HandlerKey { get; set; } = default!;
 
         /// <summary>
         /// The lane the jobs this schedule produces run in. See
@@ -18628,7 +18670,7 @@ namespace AgentPrism.Client.Generated
         public string TimeZone { get; set; } = default!;
 
         /// <summary>
-        /// The input set or parameters. Interpreted according to the job kind.
+        /// The input set or parameters. Interpreted by the job's handler.
         /// </summary>
 
         [System.Text.Json.Serialization.JsonPropertyName("payload")]
@@ -18685,11 +18727,12 @@ namespace AgentPrism.Client.Generated
     public partial class JobScheduleSaveRequest
     {
         /// <summary>
-        /// Kind of job this schedule produces.
+        /// Key of the handler the jobs this schedule produces run on. See
+        /// <br/>`JobHandlerKeys`.
         /// </summary>
 
-        [System.Text.Json.Serialization.JsonPropertyName("kind")]
-        public JobKind Kind { get; set; } = default!;
+        [System.Text.Json.Serialization.JsonPropertyName("handlerKey")]
+        public string HandlerKey { get; set; } = default!;
 
         /// <summary>
         /// Name of the agent or workflow to run.
@@ -18716,8 +18759,8 @@ namespace AgentPrism.Client.Generated
         /// <summary>
         /// The lane the jobs this schedule produces run in. See
         /// <br/>`JobLanes`. Left empty, the jobs run in `JobLanes.Default`
-        /// <br/>(or whatever `AgentPrismSchedulingOptions.LaneByKind` maps
-        /// <br/>JobKind JobScheduleSaveRequest.Kind to).
+        /// <br/>(or whatever `AgentPrismSchedulingOptions.LaneByHandlerKey` maps
+        /// <br/>string JobScheduleSaveRequest.HandlerKey to).
         /// </summary>
 
         [System.Text.Json.Serialization.JsonPropertyName("lane")]
@@ -20644,11 +20687,27 @@ namespace AgentPrism.Client.Generated
         public double? InputCost { get; set; } = default!;
 
         /// <summary>
+        /// Gets the input price, per million tokens, that produced
+        /// <br/>`InputCost`. `null` when the price is unknown.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("inputPricePerMillionTokens")]
+        public double? InputPricePerMillionTokens { get; set; } = default!;
+
+        /// <summary>
         /// Gets the output token cost, or `null` when the price is unknown.
         /// </summary>
 
         [System.Text.Json.Serialization.JsonPropertyName("outputCost")]
         public double? OutputCost { get; set; } = default!;
+
+        /// <summary>
+        /// Gets the output price, per million tokens, that produced
+        /// <br/>`OutputCost`. `null` when the price is unknown.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("outputPricePerMillionTokens")]
+        public double? OutputPricePerMillionTokens { get; set; } = default!;
 
         /// <summary>
         /// Gets the cost of the input tokens that were served from the prompt
@@ -20657,6 +20716,16 @@ namespace AgentPrism.Client.Generated
 
         [System.Text.Json.Serialization.JsonPropertyName("cachedInputCost")]
         public double? CachedInputCost { get; set; } = default!;
+
+        /// <summary>
+        /// Gets the cache-read price, per million tokens, that produced
+        /// <br/>`CachedInputCost`. `null` when no cache rate
+        /// <br/>was applied — either the cache rate is undefined, or the provider
+        /// <br/>reported no cache read at all.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("cachedInputPricePerMillionTokens")]
+        public double? CachedInputPricePerMillionTokens { get; set; } = default!;
 
         /// <summary>
         /// Gets the currency, taken from `AgentPrism:Pricing:Currency`.
@@ -20681,7 +20750,8 @@ namespace AgentPrism.Client.Generated
     public partial class RunCostRecalculationResult
     {
         /// <summary>
-        /// Gets the number of runs considered, that is those with a model and usage.
+        /// Gets the number of runs considered, that is those with a model and usage
+        /// <br/>AND an unpriced (`PricingSource.Unknown` or absent) cost.
         /// </summary>
 
         [System.Text.Json.Serialization.JsonPropertyName("runsConsidered")]
@@ -20700,6 +20770,14 @@ namespace AgentPrism.Client.Generated
 
         [System.Text.Json.Serialization.JsonPropertyName("runsStillUnknown")]
         public long RunsStillUnknown { get; set; } = default!;
+
+        /// <summary>
+        /// Gets the number of runs skipped because they already carried a known
+        /// <br/>price. A priced run's cost is a snapshot and is never rewritten.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("runsSkipped")]
+        public long RunsSkipped { get; set; } = default!;
 
     }
 
@@ -20780,6 +20858,9 @@ namespace AgentPrism.Client.Generated
 
         [System.Runtime.Serialization.EnumMember(Value = @"ToolTimeout")]
         ToolTimeout = 12,
+
+        [System.Runtime.Serialization.EnumMember(Value = @"StructuredResponseInvalid")]
+        StructuredResponseInvalid = 13,
 
     }
 
@@ -21134,6 +21215,15 @@ namespace AgentPrism.Client.Generated
 
         [System.Text.Json.Serialization.JsonPropertyName("modelId")]
         public string? ModelId { get; set; } = default!;
+
+        /// <summary>
+        /// Gets the provider of `ModelId`, or `null` for
+        /// <br/>a row written before this column existed. Rows written before are not
+        /// <br/>backfilled — see `POST /api/stats/recalculate-costs`.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("modelProvider")]
+        public string? ModelProvider { get; set; } = default!;
 
         /// <summary>
         /// Gets whether the run streamed.

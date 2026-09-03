@@ -348,7 +348,7 @@ public sealed class OnlineEvalCheckpointTests
     {
         Id = Guid.NewGuid(),
         TenantId = Tenant,
-        Kind = JobKind.OnlineEval,
+        HandlerKey = JobHandlerKeys.OnlineEval,
         TargetName = Agent,
         Status = JobStatus.Running,
         Attempt = attempt,

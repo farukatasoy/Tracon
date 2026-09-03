@@ -81,3 +81,20 @@
 - **🚨 Çok deyimli bir rebuild YENİDEN ÇALIŞTIRILABİLİR değildir; `MigrationRunner` artık onu yeniden deniyor** (2026-08-21, K-545): `SqliteDialect.UpgradeMigrationsTableAsync` ledger'ı `CREATE {t}_new` → `INSERT ... SELECT` → `DROP {t}` → `RENAME` sırasıyla **tek komut metninde** gönderir. SQLite açık bir transaction yoksa **her deyime kendi örtük transaction'ını** verir; arada düşen bir deneme `{t}_new`'i ortada bırakır ve sonraki deneme "table already exists" ile ölür — bu **geçici değildir**, kendiliğinden geçmez ve yeniden deneme sayısını boşa harcar. Kural: yeniden denenebilecek her çok deyimli DDL kendi ara nesnelerini **başta** temizler (`DROP TABLE IF EXISTS {t}_new;`).
 - **🚨 Dışarıdan gelen `DbConnection`'ı somut sağlayıcı tipine CAST ETME** (2026-08-21, K-545): `AcquireMigrationLockAsync` `((SqliteConnection)connection).DataSource` yazıyordu; `DataSource` zaten `DbConnection` üyesidir ve cast hiçbir şey kazandırmıyordu. Bedeli: bağlantıyı saran her çağıran (proxy, telemetri dekoratörü, testteki hata enjektörü) `InvalidCastException` alır — kusurun testi tam olarak buna çarptı. `src` taraması ikinci bir vaka bulmadı; `PgVectorSearchStore`'daki `(NpgsqlTransaction)` cast'i meşrudur, çünkü transaction'ı aynı metot kendi `NpgsqlConnection`'ından açar.
 - **🚨 `ALTER TABLE ... RENAME TO` TÜM dosyadaki VIEW'ları yeniden çözer, yalnız kendi tablosunu değil** (2026-08-26, Faz 111): `SqliteTestContext.DisposeAsync()` yalnız `type = 'table'` nesnelerini siliyordu; `EnableReadViews` bir `runs_v1` GÖRÜNÜMÜ kurunca, testin kendi `runs` tablosu silinip görünüm SİLİNMEDEN kalıyordu — sarkan (dangling) bir görünüm. Bir SONRAKİ, tamamen ilgisiz testin `0006_sessions_tenant_key` gibi çok deyimli bir rebuild'i (`RENAME TO`) çalıştırdığında SQLite şema genelinde HER görünümü yeniden çözümlüyor; sarkan görünüm "no such table" ile o ilgisiz migration'ı düşürüyordu. Ölçüldü: art arda 4 `SqliteTestContext` oluşturan tek bir sıralı döngü İKİNCİ döngüde her seferinde patlıyordu. Düzeltme: `DisposeAsync()` önce `type = 'view'` nesnelerini, sonra tabloları siler (`ReadObjectNamesAsync(type)` iki tür için de kullanılır). SQL Server'ın `DropSchemaAsync()`'i de aynı sınıftandı (view önce silinmezse `DROP SCHEMA` "being referenced by object" ile başarısız olur) — orada da view'lar tablo silme adımından ÖNCE düşürülür.
+- **🚨 `foreign_keys = ON` altında `DROP TABLE` örtük bir `DELETE FROM` yapar ve
+  `ON DELETE CASCADE`'i TETİKLER** (2026-09-03, Faz 137, K-666): SQLite'ın 12
+  adımlı tablo-yeniden-kurma reçetesi (`_new` → kopyala → `DROP` → `RENAME`,
+  `0006_sessions_tenant_key.sql` emsali) yalnız ÇOCUĞU OLMAYAN bir tabloda
+  güvenlidir. `jobs`'u yeniden kurmak `job_items`'ın (`ON DELETE CASCADE`) TÜM
+  satırlarını silerdi. Reçetenin kendi kaçışı `PRAGMA foreign_keys = OFF`'tur ve
+  o bir işlem içinde **NO-OP**'tur — `MigrationRunner` her migration'ı bir işlem
+  içinde koşar, yani bu repoda kaçış YOKTUR. Yalnızca sütun düşürmek gerekiyorsa
+  `ALTER TABLE ... DROP COLUMN` (SQLite 3.35+) doğru araçtır; sütun hiçbir
+  indekste olmamalıdır. Emsal seçmeden önce `PRAGMA foreign_key_list` ile
+  tablonun çocuğu var mı diye bak.
+- **SQLite'ta `NOT NULL` bir sütun sonradan eklenirken varsayılan ZORUNLUDUR ve
+  `ALTER COLUMN` YOKTUR** (aynı vaka): kalıcı olarak kalan o varsayılanı
+  **bilerek geçersiz** bir değer seç (ör. boş dizge, geçerli hiçbir anahtarın
+  eşleşmediği). Sütunu atlayan bir insert o zaman fail-closed bir kayıt üretir;
+  nullable bırakmak ise okuyucuyu (`GetString`) çökertir ve o kaydı içeren
+  **liste ucunun tamamını** düşürür.

@@ -8,7 +8,7 @@ using Microsoft.Extensions.Options;
 namespace AgentPrism;
 
 /// <summary>
-/// Executes a single webhook delivery attempt (<see cref="JobKind.WebhookDelivery"/>).
+/// Executes a single webhook delivery attempt (<see cref="JobHandlerKeys.WebhookDelivery"/>).
 /// </summary>
 /// <remarks>
 /// <para>
@@ -33,9 +33,6 @@ internal sealed class WebhookDeliveryJobHandler(
     IOptionsMonitor<AgentPrismEgressOptions>? egressOptions = null) : IJobHandler
 {
     private readonly TimeProvider _clock = timeProvider ?? TimeProvider.System;
-
-    /// <inheritdoc />
-    public JobKind Kind => JobKind.WebhookDelivery;
 
     /// <inheritdoc />
     public async ValueTask ExecuteAsync(JobContext context, CancellationToken cancellationToken = default)

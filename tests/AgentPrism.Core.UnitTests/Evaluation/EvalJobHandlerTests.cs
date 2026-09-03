@@ -14,13 +14,6 @@ public sealed class EvalJobHandlerTests
     private const string AgentName = "customer-support-agent";
 
     [Fact]
-    public void Kind_is_Eval()
-    {
-        var handler = CreateHandler(new InMemoryEvalStore(), new MapAgent());
-        handler.Kind.ShouldBe(JobKind.Eval);
-    }
-
-    [Fact]
     public async Task Missing_suite_throws_and_the_run_is_never_attempted()
     {
         var evalStore = new InMemoryEvalStore();
@@ -475,7 +468,7 @@ public sealed class EvalJobHandlerTests
     {
         Id = jobId,
         TenantId = TenantId,
-        Kind = JobKind.Eval,
+        HandlerKey = JobHandlerKeys.Eval,
         TargetName = suite?.AgentName ?? AgentName,
         Status = JobStatus.Running,
         Payload = Payload(suite?.Name ?? "no-such-suite"),

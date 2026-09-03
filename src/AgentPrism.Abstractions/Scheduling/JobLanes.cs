@@ -5,7 +5,8 @@ namespace AgentPrism;
 /// <summary>Well-known values and validation for job <c>lane</c> identifiers.</summary>
 /// <remarks>
 /// A <c>lane</c> is a plain string tag on a job (<see cref="JobRecord.Lane"/>); it
-/// has no registry or lifecycle of its own. Worker instances subscribe to a
+/// has no registry or lifecycle of its own, and it is NOT the job's dispatch
+/// identity (that is <see cref="JobRecord.HandlerKey"/>). Worker instances subscribe to a
 /// subset of lanes (<c>AgentPrismSchedulingOptions.Lanes</c>) to avoid
 /// head-of-line blocking between unrelated kinds of work.
 /// </remarks>
@@ -32,12 +33,13 @@ public static partial class JobLanes
 
     /// <summary>
     /// Resolves the lane a job is enqueued under, applying
-    /// <c>AgentPrismSchedulingOptions.LaneByKind</c> when <paramref name="lane"/>
-    /// is still <see cref="Default"/>, then validates the result.
+    /// <c>AgentPrismSchedulingOptions.LaneByHandlerKey</c> when
+    /// <paramref name="lane"/> is still <see cref="Default"/>, then validates
+    /// the result.
     /// </summary>
     /// <param name="lane">The lane requested by the caller (<see cref="JobRecord.Lane"/>).</param>
-    /// <param name="kind">The job's kind.</param>
-    /// <param name="laneByKind">The configured kind-to-lane map. May be <see langword="null"/> or empty.</param>
+    /// <param name="handlerKey">The job's handler key (<see cref="JobRecord.HandlerKey"/>).</param>
+    /// <param name="laneByHandlerKey">The configured key-to-lane map. May be <see langword="null"/> or empty.</param>
     /// <returns>The resolved, valid lane name.</returns>
     /// <exception cref="ArgumentException">The resolved name is not a valid lane name.</exception>
     /// <remarks>
@@ -46,13 +48,13 @@ public static partial class JobLanes
     /// that already set an explicit, non-default lane (an HTTP request body,
     /// or a schedule's own <see cref="JobSchedule.Lane"/>) is never overridden.
     /// </remarks>
-    public static string Resolve(string lane, JobKind kind, IDictionary<JobKind, string>? laneByKind)
+    public static string Resolve(string lane, string handlerKey, IDictionary<string, string>? laneByHandlerKey)
     {
         var resolved = lane;
 
         if (string.Equals(resolved, Default, StringComparison.Ordinal)
-            && laneByKind is { Count: > 0 }
-            && laneByKind.TryGetValue(kind, out var mapped))
+            && laneByHandlerKey is { Count: > 0 }
+            && laneByHandlerKey.TryGetValue(handlerKey, out var mapped))
         {
             resolved = mapped;
         }

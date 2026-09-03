@@ -22,7 +22,7 @@ internal sealed class SqlJobStore : IJobStore
     /// <summary>Creates a new job store.</summary>
     /// <param name="context">The store context.</param>
     /// <param name="schedulingOptions">
-    /// The source for <c>LaneByKind</c>. <see langword="null"/> disables lane-by-kind resolution.
+    /// The source for <c>LaneByHandlerKey</c>. <see langword="null"/> disables lane-by-key resolution.
     /// </param>
     /// <exception cref="ArgumentNullException">One of the dependencies is <see langword="null"/>.</exception>
     public SqlJobStore(SqlStoreContext context, IOptionsMonitor<AgentPrismSchedulingOptions>? schedulingOptions = null)
@@ -46,7 +46,7 @@ internal sealed class SqlJobStore : IJobStore
         ArgumentNullException.ThrowIfNull(job);
         ArgumentNullException.ThrowIfNull(items);
 
-        var lane = JobLanes.Resolve(job.Lane, job.Kind, _schedulingOptions?.CurrentValue.LaneByKind);
+        var lane = JobLanes.Resolve(job.Lane, job.HandlerKey, _schedulingOptions?.CurrentValue.LaneByHandlerKey);
 
         var connection = await _context.DataSource.OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
 
@@ -60,7 +60,7 @@ internal sealed class SqlJobStore : IJobStore
                 DbHelpers.Add(insertJob, "id", job.Id);
                 DbHelpers.Add(insertJob, "tenant_id", job.TenantId);
                 AddNullableUuid(insertJob, "schedule_id", job.ScheduleId);
-                DbHelpers.Add(insertJob, "kind", (short)job.Kind);
+                DbHelpers.Add(insertJob, "handler_key", job.HandlerKey);
                 DbHelpers.Add(insertJob, "target_name", job.TargetName);
                 Dialect.AddJsonb(insertJob, "payload", RawJson(job.Payload));
                 DbHelpers.Add(insertJob, "total_items", items.Count);
@@ -239,7 +239,7 @@ internal sealed class SqlJobStore : IJobStore
 
         var command = CreateCommand(_sql.SelectJobs);
         AddNullableText(command, "tenant_id", query.TenantId);
-        Dialect.AddInt16(command, "kind", (short?)query.Kind);
+        AddNullableText(command, "handler_key", query.HandlerKey);
         Dialect.AddInt16(command, "status", (short?)query.Status);
         AddNullableUuid(command, "schedule_id", query.ScheduleId);
         AddNullableText(command, "lane", query.Lane);
@@ -305,7 +305,7 @@ internal sealed class SqlJobStore : IJobStore
             Id = reader.GetGuid(0),
             TenantId = reader.GetString(1),
             ScheduleId = reader.IsDBNull(2) ? null : reader.GetGuid(2),
-            Kind = (JobKind)reader.GetInt16(3),
+            HandlerKey = reader.GetString(3),
             TargetName = reader.GetString(4),
             Status = (JobStatus)reader.GetInt16(5),
             Payload = ReadJsonb(reader, 6),

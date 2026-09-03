@@ -118,7 +118,7 @@ crash.
 
 ## Create a recurring schedule
 
-The schedule name is part of the URL. The body selects the fixed job kind, target,
+The schedule name is part of the URL. The body selects the handler key, target,
 calendar, time zone, and payload:
 
 ```bash
@@ -127,7 +127,7 @@ curl -sS -X PUT \
   -H "Authorization: Bearer $AGENTPRISM_API_KEY" \
   -H 'Content-Type: application/json' \
   -d '{
-    "kind": "AgentBatch",
+    "handlerKey": "agentprism.agent-batch",
     "targetName": "support",
     "cron": "0 8 * * 1-5",
     "timeZone": "UTC",
@@ -143,6 +143,17 @@ A JSON array creates one item for each element. Any other JSON value creates one
 item. A missing payload creates no items. Each job accepts at most
 `MaxItemsPerJob` items.
 
+`handlerKey` names the handler that runs the jobs this schedule produces. Only
+the keys the server allows over HTTP are accepted —
+`GET /api/schedules/handler-keys` returns exactly that list, and anything else
+is a `400`. It is AgentPrism's own built-in keys unless the host set
+`Scheduling.HttpSchedulableHandlerKeys`, so making one of your own handlers
+schedulable from outside is a deliberate opt-in. A non-empty setting
+**replaces** that default rather than extending it — which is what lets an
+operator narrow the surface, and also what makes a list naming only a consumer
+key turn every built-in key off. See
+[Write your own job handler](/guides/write-your-own-job-handler/).
+
 AgentPrism accepts five-field cron expressions: minute, hour, day of month, month,
 and day of week. It supports `*`, fixed values, ranges, lists, and `/step`. It does
 not support seconds or the `L`, `W`, and `#` extensions. When both day-of-month and
@@ -154,9 +165,10 @@ Useful operations are:
 | Operation | Endpoint |
 |---|---|
 | List schedules | `GET /api/schedules` |
+| List the handler keys a schedule may use | `GET /api/schedules/handler-keys` |
 | Read, replace, or delete one schedule | `GET`, `PUT`, or `DELETE /api/schedules/{name}` |
 | Trigger now | `POST /api/schedules/{name}/trigger` |
-| List jobs | `GET /api/jobs?kind=&status=&lane=&scheduleId=&skip=&take=` |
+| List jobs | `GET /api/jobs?handlerKey=&status=&lane=&scheduleId=&skip=&take=` |
 | Inspect one job and its items | `GET /api/jobs/{id}` |
 | Request cancellation | `POST /api/jobs/{id}/cancel` |
 
@@ -200,8 +212,8 @@ builder.Services.UseScheduling(options =>
     // "media" gets its own concurrency budget, separate from MaxConcurrentJobs.
     options.MaxConcurrentJobsPerLane["media"] = 1;
 
-    // A Retention job queued without an explicit lane is routed to "housekeeping".
-    options.LaneByKind[JobKind.Retention] = "housekeeping";
+    // A retention job queued without an explicit lane is routed to "housekeeping".
+    options.LaneByHandlerKey[JobHandlerKeys.Retention] = "housekeeping";
 });
 ```
 
@@ -216,8 +228,8 @@ Set a job's lane explicitly, or let it inherit one:
 - A schedule accepts an optional `lane` field; every job it produces — on its
   cron, or from a manual trigger — inherits that value.
 - Any other job (evaluation, retention, webhook delivery, and so on) uses
-  `Scheduling.LaneByKind` if the operator configured one for its kind, otherwise
-  `"default"`.
+  `Scheduling.LaneByHandlerKey` if the operator configured one for its handler
+  key, otherwise `"default"`.
 
 `Scheduling.Lanes` left `null` (the default) means the worker leases from every
 lane — the same behavior as before lanes existed. Once `MaxConcurrentJobsPerLane`
@@ -229,7 +241,7 @@ lane is simply never leased by that worker. It still exists — filter
 ## Watching the queue
 
 The worker publishes two metrics with no configuration at all, both tagged by
-lane, kind, and terminal status:
+lane, handler key, and terminal status:
 
 | Instrument | What it counts |
 |---|---|
@@ -332,7 +344,8 @@ real cross-instance election.
 | `Scheduling.MaxItemsPerJob` | `1,000` | Must be at least `1` |
 | `Scheduling.Lanes` | `null` | `null` leases from every lane; a list scopes the worker to only those lanes |
 | `Scheduling.MaxConcurrentJobsPerLane` | empty | Per-lane concurrency; a lane not listed shares `MaxConcurrentJobs` |
-| `Scheduling.LaneByKind` | empty | Maps a job kind to a lane when the caller left it unset |
+| `Scheduling.LaneByHandlerKey` | empty | Maps a handler key to a lane when the caller left it unset |
+| `Scheduling.HttpSchedulableHandlerKeys` | empty | Handler keys `PUT /api/schedules/{name}` accepts; empty means the built-in keys, and a non-empty list replaces that default |
 | `AsyncRun.Enabled` | `true` | A queued run request returns `501` when disabled |
 | `AsyncRun.MaxAttempts` | `1` | Controls queued agent-run retries |
 | Job list page | 50 records | `skip` defaults to `0`; `take` defaults to `50` |

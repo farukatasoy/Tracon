@@ -22,12 +22,12 @@ import {
   Th,
 } from '../components/ui';
 import { PlusIcon, TrashIcon } from '../components/icons';
-import type { AgentPrismMetaResponse as Meta, JobKind, JobStatus } from '@agentprism/client';
+import type { AgentPrismMetaResponse as Meta, JobStatus } from '@agentprism/client';
 import type { JobRecord, JobSchedule } from '../lib/server-types';
 
 const EMPTY_FORM = {
   name: '',
-  kind: 'AgentBatch' as JobKind,
+  handlerKey: '',
   targetName: '',
   lane: '',
   cron: '',
@@ -94,7 +94,7 @@ export function JobProgressBar({
 function toForm(schedule: JobSchedule): ScheduleForm {
   return {
     name: schedule.name,
-    kind: schedule.kind,
+    handlerKey: schedule.handlerKey,
     targetName: schedule.targetName,
     lane: schedule.lane === 'default' ? '' : schedule.lane,
     cron: schedule.cron ?? '',
@@ -124,6 +124,15 @@ export function JobsScreen({ meta }: { meta: Meta }): ReactNode {
     queryKey: ['schedules'],
     queryFn: () => unwrap(apiClient.GET('/api/schedules')) as Promise<JobSchedule[]>,
   });
+  // The keys the server will actually accept. Hard-coding them here is what
+  // made the old screen offer exactly two of the nine built-in kinds and none
+  // of a consumer's own; the allow-list lives in the server's settings, so the
+  // dropdown reads it from there.
+  const handlerKeys = useQuery({
+    queryKey: ['schedule-handler-keys'],
+    queryFn: () => unwrap(apiClient.GET('/api/schedules/handler-keys')) as Promise<string[]>,
+    enabled: meta.roles.canAdminister,
+  });
   const jobs = useQuery({
     queryKey: ['jobs', laneFilter],
     queryFn: () =>
@@ -147,7 +156,7 @@ export function JobsScreen({ meta }: { meta: Meta }): ReactNode {
         apiClient.PUT('/api/schedules/{name}', {
           params: { path: { name: form.name } },
           body: {
-            kind: form.kind,
+            handlerKey: form.handlerKey,
             targetName: form.targetName,
             lane: form.lane.length > 0 ? form.lane : null,
             cron: form.cron.length > 0 ? form.cron : null,
@@ -249,10 +258,18 @@ export function JobsScreen({ meta }: { meta: Meta }): ReactNode {
               />
             </Field>
 
-            <Field label={t('workflowEditor.kind')}>
-              <Select value={form.kind} onChange={(value) => setForm({ ...form, kind: value as JobKind })}>
-                <option value="AgentBatch">{t('jobs.kind.agentBatch')}</option>
-                <option value="Workflow">{t('jobs.kind.workflow')}</option>
+            <Field label={t('jobs.handlerKey')} required hint={t('jobs.handlerKeyHint')}>
+              <Select
+                value={form.handlerKey}
+                testId="schedule-handler-key"
+                onChange={(value) => setForm({ ...form, handlerKey: value })}
+              >
+                <option value="">{t('jobs.handlerKeyPlaceholder')}</option>
+                {(handlerKeys.data ?? []).map((key) => (
+                  <option key={key} value={key}>
+                    {key}
+                  </option>
+                ))}
               </Select>
             </Field>
 
@@ -355,7 +372,7 @@ export function JobsScreen({ meta }: { meta: Meta }): ReactNode {
               <thead>
                 <tr>
                   <Th>{t('common.name')}</Th>
-                  <Th>{t('workflowEditor.kind')}</Th>
+                  <Th>{t('jobs.handlerKey')}</Th>
                   <Th>{t('jobs.target')}</Th>
                   <Th>{t('jobs.lane')}</Th>
                   <Th>{t('jobs.cron')}</Th>
@@ -372,7 +389,7 @@ export function JobsScreen({ meta }: { meta: Meta }): ReactNode {
                       <Mono className="font-semibold">{schedule.name}</Mono>
                     </Td>
                     <Td>
-                      <Badge tone="accent">{schedule.kind}</Badge>
+                      <Badge tone="accent">{schedule.handlerKey}</Badge>
                     </Td>
                     <Td className="text-muted">{schedule.targetName}</Td>
                     <Td>
@@ -460,7 +477,7 @@ export function JobsScreen({ meta }: { meta: Meta }): ReactNode {
               <thead>
                 <tr>
                   <Th>{t('jobs.job')}</Th>
-                  <Th>{t('workflowEditor.kind')}</Th>
+                  <Th>{t('jobs.handlerKey')}</Th>
                   <Th>{t('jobs.target')}</Th>
                   <Th>{t('jobs.lane')}</Th>
                   <Th>{t('common.status')}</Th>
@@ -478,7 +495,7 @@ export function JobsScreen({ meta }: { meta: Meta }): ReactNode {
                       </Link>
                     </Td>
                     <Td>
-                      <Badge tone="accent">{job.kind}</Badge>
+                      <Badge tone="accent">{job.handlerKey}</Badge>
                     </Td>
                     <Td className="text-muted">{job.targetName}</Td>
                     <Td>

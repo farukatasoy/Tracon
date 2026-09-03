@@ -173,7 +173,7 @@ public sealed class DocumentationScreenshotTests(BrowserFixture browsers)
                 // A batch over a list of inputs: the shape the screen describes, and
                 // the one a schedule can fire on its own. AgentRun expects a caller
                 // to supply the run id, so a timer cannot produce it.
-                kind = "AgentBatch",
+                handlerKey = "agentprism.agent-batch",
                 targetName = "support",
                 cron = "0 3 * * *",
                 timeZone = "UTC",
