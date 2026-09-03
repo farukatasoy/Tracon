@@ -190,8 +190,8 @@ internal sealed class ContentGuardingChatClient(
         {
             var replacement = await ContentGuardMessageMasker
                 .RewriteContentAsync(
-                    message.Contents[index], pipeline, ContentGuardDirection.Output, modelId,
-                    recordDecision: true, cancellationToken)
+                    message.Contents[index], pipeline, ContentGuardDirection.Output, message.Role,
+                    callIdToToolName: null, modelId, recordDecision: true, cancellationToken)
                 .ConfigureAwait(false);
 
             if (replacement is null)
@@ -229,8 +229,8 @@ internal sealed class ContentGuardingChatClient(
         {
             var replacement = await ContentGuardMessageMasker
                 .RewriteContentAsync(
-                    update.Contents[index], pipeline, ContentGuardDirection.Output, modelId,
-                    recordDecision: true, cancellationToken)
+                    update.Contents[index], pipeline, ContentGuardDirection.Output, update.Role,
+                    callIdToToolName: null, modelId, recordDecision: true, cancellationToken)
                 .ConfigureAwait(false);
 
             if (replacement is null)
@@ -280,7 +280,9 @@ internal sealed class ContentGuardingChatClient(
         return joined is null
             ? null
             : await pipeline
-                .InspectAsync(ContentGuardDirection.Output, joined.ToString(), modelId, cancellationToken)
+                .InspectAsync(
+                    ContentGuardDirection.Output, joined.ToString(), ContentGuardSource.ModelOutput, toolName: null,
+                    modelId, cancellationToken)
                 .ConfigureAwait(false);
     }
 

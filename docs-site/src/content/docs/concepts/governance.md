@@ -373,6 +373,28 @@ Blocked content never reaches the provider network and does not trip the circuit
 breaker. Recording stores the placeholder `[content_blocked]`, while the audit entry
 records the guard, rule, and direction without the blocked text.
 
+### Source-aware decisions
+
+`ContentGuardContext` carries a `Source`: `UserMessage`, `ToolResult`, `Document`,
+`ModelOutput`, or `SkillResource`. A user message and a tool result used to enter a
+guard the same way — both are `Direction.Input` — even though the trust level is not
+the same. A user can only poison their own session; a tool result can carry text a
+different tenant's data wrote into a shared system, which is the most common
+prompt-injection path. A guard reads `Source` to apply a stricter rule to
+`ToolResult` than to `UserMessage`, or to skip a check that only makes sense for one
+of them.
+
+When `Source` is `ToolResult`, `ToolName` carries the tool's name if it can still be
+resolved from the same message list — a many-turn conversation can drop the earlier
+tool call from context, leaving `ToolName` `null` even though `Source` still reads
+`ToolResult`. A security decision keys off `Source`, never off whether `ToolName`
+happened to resolve.
+
+`Source` defaults to `Unknown` for content a guard cannot classify. `Unknown` is
+never a reason to relax a check — a guard should treat it at least as strictly as
+its most sensitive known source. The built-in pattern guard does not read `Source`
+at all: the same denied-term and PII patterns apply everywhere, including `Unknown`.
+
 :::note[Masked content stays masked]
 Input preview runs before the recording path. When a guard returns `Mask`, the model,
 recorded input, and run events receive the masked value. AgentPrism does not retain a

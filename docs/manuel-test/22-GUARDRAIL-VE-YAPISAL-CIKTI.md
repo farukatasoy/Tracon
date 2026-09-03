@@ -1,11 +1,11 @@
 # 22 — Guardrail ve Yapılandırılmış Çıktı (`GUARD`)
 
-> **Alan kodu:** `GUARD` · **Faz:** 38, 48, 131, 134
+> **Alan kodu:** `GUARD` · **Faz:** 38, 48, 131, 134, 140
 > **Kaynak:** `src/AgentPrism.Abstractions/Agents/ResponseFormat.cs` ·
 > `Agents/ModelBinding.cs` (`ResponseFormat` alanı) ·
 > `Models/ModelDescriptor.cs` (`SupportsStructuredOutput` alanı) ·
 > `src/AgentPrism.Abstractions/Guards/` (tümü: `IContentGuard`, `ContentGuardContext`,
-> `ContentGuardResult`) · `AgentPrismException.cs`
+> `ContentGuardSource` — Faz 140, `ContentGuardResult`) · `AgentPrismException.cs`
 > (`AgentPrismContentBlockedException`, `AgentPrismStructuredResponseException`) ·
 > `Runs/RunEventType.cs` (`ContentMasked`/`ContentBlocked`/`StructuredResponseRejected`/
 > `StructuredResponseRepairAttempted`) ·
@@ -1701,6 +1701,211 @@ curl -s -X POST "$APU/api/agents/$AGENT/run" -H "$APB" -H "content-type: applica
   yürütüp yürütmediği — ayrı, model-bağımlı bir gözlemdir; bu case yalnız
   AgentPrism'in sınırı doğru kaçırdığını kanıtlar, modelin buna uyacağını
   garanti ETMEZ.)
+
+---
+
+### MT-GUARD-077 — Kaynağı loglayan bir guard: kullanıcı mesajı, tool sonucu ve model çıktısı üçü de doğru ayırt edilir (Faz 140, F-186)
+
+Fazın kendi kanıtı: `ContentGuardContext.Source`/`.ToolName`'in gerçek ikinci
+tur tool döngüsünde doğru dolduğu. `AgentPrism.Api` ile aynı desen 2026-09-03
+tarihinde gerçek OpenAI çağrısıyla da doğrulandı (bkz. fazın kendi dokümanı,
+"Bu Fazda Verilen Kararlar").
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 140 |
+| **İlgili karar** | F-186 |
+
+**Ön koşul**
+- MT-GUARD-052'nin proje kurulumu hazır.
+
+**Adımlar**
+1. Bir tool tanımla; `FakeModelProvider`'ı bu tool'u çağırıp sonucunu
+   yankılayacak şekilde kur (MT-GUARD-074 ile aynı kurulum).
+2. `Source`/`ToolName`'i konsola yazan özel bir guard ekle (gerçek bir
+   `IContentGuard`, ayrı bir gözlem kanalı değil — `PatternContentGuard`'ın
+   YANINDA çalışır).
+3. Çalıştır; üç ayrı çağrının (kullanıcı mesajı, tool sonucu, model çıktısı)
+   gördüğü `Source`'u karşılaştır.
+
+**Girilecek veri**
+```bash
+cd ~/agentprism-manuel/guard-testleri
+cat > Program.cs <<'EOF'
+using AgentPrism;
+using AgentPrism.Testing;
+using Microsoft.Extensions.AI;
+
+internal sealed class KaynakLoglayanGuard : IContentGuard
+{
+    public string Name => "kaynak-loglayici";
+
+    public ValueTask<ContentGuardResult> InspectAsync(ContentGuardContext context, CancellationToken ct = default)
+    {
+        Console.WriteLine($"GOZLEM direction={context.Direction} source={context.Source} toolName={context.ToolName ?? "<null>"}");
+        return ValueTask.FromResult(ContentGuardResult.Allow);
+    }
+}
+
+var provider = new FakeModelProvider()
+    .CallsTool("siparis_durumu")
+    .EchoesLastToolResult();
+
+await using var host = await AgentPrismTestHost.StartAsync(o =>
+{
+    o.ModelProvider = provider;
+    o.ConfigureAgentPrism = builder => builder
+        .AddContentGuard<KaynakLoglayanGuard>()
+        .AddTool(AIFunctionFactory.Create(
+            () => "kargoya verildi",
+            "siparis_durumu",
+            "Bir siparisin durumunu dondurur (test amacli)."))
+        .AddAgent(new AgentDefinition
+        {
+            Name = "kaynak-testi",
+            Model = new ModelBinding { Provider = "fake", Model = "model-1" },
+            ToolNames = ["siparis_durumu"],
+        });
+});
+
+var sonuc = await host.RunAsync("kaynak-testi", "siparisim nerede");
+Console.WriteLine("durum: " + sonuc.Record.Status);
+EOF
+
+dotnet run -c Release
+```
+
+**Beklenen sonuç**
+- `GOZLEM` satırlarından biri `direction=Input source=UserMessage
+  toolName=<null>` yazar (kullanıcının kendi mesajı).
+- Bir sonraki `GOZLEM` satırı `direction=Input source=ToolResult
+  toolName=siparis_durumu` yazar — tool adı, ikinci çağrının mesaj listesinde
+  hâlâ duran `FunctionCallContent`'ten çözülmüştür.
+- Son `GOZLEM` satırı `direction=Output source=ModelOutput toolName=<null>`
+  yazar (modelin kendi nihai yanıtı).
+- `durum: Completed`.
+
+---
+
+### MT-GUARD-078 — Yalnız `ToolResult`'ta bloklayan bir guard: kullanıcının kendi yazdığı desen geçer, tool'un döndürdüğü aynı desen bloklanır (Faz 140, F-186)
+
+`Source` alanının asıl kazancı: eskiden aynı torbaya giren iki senaryo artık
+ayrı politika alabiliyor. Bu case Faz 140'ın öncesinde **imkânsız** olan bir
+kuralı kanıtlar.
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 140 |
+| **İlgili karar** | F-186 |
+
+**Ön koşul**
+- MT-GUARD-077'nin proje kurulumu hazır.
+
+**Adımlar**
+1. Yalnız `context.Source == ContentGuardSource.ToolResult` iken bir deseni
+   bloklayan özel bir guard yaz.
+2. Kullanıcı aynı deseni **kendi** mesajında yazsın — bloklanmamalı.
+3. Aynı deseni tool **döndürsün** — bloklanmalı.
+
+**Girilecek veri**
+```bash
+cd ~/agentprism-manuel/guard-testleri
+cat > Program.cs <<'EOF'
+using AgentPrism;
+using AgentPrism.Testing;
+using Microsoft.Extensions.AI;
+
+internal sealed class YalnizToolSonucundaBlokluGuard : IContentGuard
+{
+    public string Name => "yalniz-tool-sonucu";
+
+    public ValueTask<ContentGuardResult> InspectAsync(ContentGuardContext context, CancellationToken ct = default)
+    {
+        var blokla = context.Source == ContentGuardSource.ToolResult &&
+            context.Text.Contains("YASAKLI-DESEN", StringComparison.Ordinal);
+
+        return ValueTask.FromResult(blokla
+            ? ContentGuardResult.Block("tool-sonucu-deseni", "Yalniz tool sonucunda bloklanir.")
+            : ContentGuardResult.Allow);
+    }
+}
+
+var provider = new FakeModelProvider()
+    .CallsTool("kirli_tool")
+    .EchoesLastToolResult();
+
+await using var host = await AgentPrismTestHost.StartAsync(o =>
+{
+    o.ModelProvider = provider;
+    o.ConfigureAgentPrism = builder => builder
+        .AddContentGuard<YalnizToolSonucundaBlokluGuard>()
+        .AddTool(AIFunctionFactory.Create(
+            () => "YASAKLI-DESEN iceren tool ciktisi",
+            "kirli_tool",
+            "Test amacli, YASAKLI-DESEN dondurur."))
+        .AddAgent(new AgentDefinition
+        {
+            Name = "secici-blok-testi",
+            Model = new ModelBinding { Provider = "fake", Model = "model-1" },
+            ToolNames = ["kirli_tool"],
+        });
+});
+
+// 1) Kullanicinin KENDI mesajinda ayni desen -> bloklanMAMALI.
+var kullaniciYazdi = await host.RunAsync("secici-blok-testi", "YASAKLI-DESEN kelimesini biliyorum");
+Console.WriteLine("kullanici yazdi -> durum: " + kullaniciYazdi.Record.Status);
+
+// 2) Tool'un DONDURDUGU ayni desen -> BLOKLANMALI (ikinci model cagrisinda).
+var toolDondu = await host.RunAsync("secici-blok-testi", "kirli_tool'u cagir");
+Console.WriteLine("tool dondu   -> durum: " + toolDondu.Record.Status);
+EOF
+
+dotnet run -c Release
+```
+
+**Beklenen sonuç**
+- `kullanici yazdi -> durum: Completed` — kullanıcının kendi mesajı
+  `Source=UserMessage` taşıdığı için guard onu bloklamaz; Faz 140'tan ÖNCE bu
+  ayrım yoktu ve aynı desen `Direction=Input` olduğu için kaynağından
+  bağımsız bloklanırdı (yanlış pozitif).
+- `tool dondu   -> durum: Failed` — `kirli_tool`'un döndürdüğü metin
+  `Source=ToolResult` taşıdığı için aynı guard bu kez bloklar (ikinci model
+  çağrısının girdisinde).
+
+---
+
+### MT-GUARD-079 — Kaynak taşımayan (Faz 140 öncesi yazılmış) bir guard değişmeden çalışır (Faz 140, F-186)
+
+Geriye dönük uyumluluk kontrolü: `Source`/`ToolName`'i hiç okumayan mevcut
+`PatternContentGuard`'ın davranışı **birebir aynı** kalmalıdır. Yeni koşum
+gerekmez — bu, MT-GUARD-040/041/043/050/053'ün AYNEN tekrarıdır.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 140 |
+| **İlgili karar** | F-186 |
+
+**Ön koşul**
+- Örnek uygulama çalışıyor.
+
+**Adımlar**
+1. MT-GUARD-041 (kredi kartı maskeleme), MT-GUARD-043 (yasak sözcük, 422) ve
+   MT-GUARD-050'yi (Luhn'a uymayan sayı maskelenmez) aynen yeniden çalıştır.
+
+**Girilecek veri**
+- MT-GUARD-041/043/050'nin kendi "Girilecek veri" bloklarının aynısı.
+
+**Beklenen sonuç**
+- Üçünün de "Beklenen sonuç"u **değişmeden** tutar. `ContentGuardContext.Source`
+  ve `.ToolName` alanları eklendi ama `PatternContentGuard.InspectAsync` bu
+  alanları hiç okumadığı için (kasıtlı — bkz. `PatternContentGuard.cs`'in
+  kendi belgesi) davranış birebir aynıdır.
 
 ---
 

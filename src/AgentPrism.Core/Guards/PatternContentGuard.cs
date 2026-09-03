@@ -33,6 +33,15 @@ namespace AgentPrism;
 /// is a match</strong>. If no rule is defined, <see cref="ContentGuardResult.Allow"/>
 /// is returned on the first line.
 /// </para>
+/// <para>
+/// <strong>This guard deliberately ignores <see cref="ContentGuardContext.Source"/>.</strong>
+/// The same denied-term and PII patterns apply no matter where the text came
+/// from, including <see cref="ContentGuardSource.Unknown"/> — an unclassified
+/// source is never treated as a reason to skip a check. A guard that wants
+/// source-dependent strictness (for example, blocking a pattern only in
+/// <see cref="ContentGuardSource.ToolResult"/>) reads <see cref="ContentGuardContext.Source"/>
+/// in its own <see cref="IContentGuard.InspectAsync"/> implementation.
+/// </para>
 /// </remarks>
 internal sealed partial class PatternContentGuard : IContentGuard
 {

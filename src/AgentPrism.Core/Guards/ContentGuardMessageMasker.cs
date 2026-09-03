@@ -38,9 +38,14 @@ internal static class ContentGuardMessageMasker
         IReadOnlyList<ChatMessage> messages,
         string? modelId,
         CancellationToken cancellationToken)
-        => RewriteAsync(
+    {
+        var callIdToToolName = BuildToolNameMap(messages);
+
+        return RewriteAsync(
             messages,
-            message => RewriteMessageAsync(pipeline, direction, message, modelId, recordDecision: true, cancellationToken));
+            message => RewriteMessageAsync(
+                pipeline, direction, message, modelId, callIdToToolName, recordDecision: true, cancellationToken));
+    }
 
     /// <summary>
     /// Inspects every message EXCEPT the system instruction in the given
@@ -56,9 +61,74 @@ internal static class ContentGuardMessageMasker
         IReadOnlyList<ChatMessage> messages,
         string? modelId,
         CancellationToken cancellationToken)
-        => RewriteAsync(
+    {
+        var callIdToToolName = BuildToolNameMap(messages);
+
+        return RewriteAsync(
             messages,
-            message => RewriteMessageAsync(pipeline, direction, message, modelId, recordDecision: false, cancellationToken));
+            message => RewriteMessageAsync(
+                pipeline, direction, message, modelId, callIdToToolName, recordDecision: false, cancellationToken));
+    }
+
+    /// <summary>
+    /// Builds a <c>CallId</c> → tool name lookup from every <see cref="FunctionCallContent"/>
+    /// in the message list.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="FunctionResultContent"/> carries only a <c>CallId</c>, not the tool's
+    /// name — the name lives on the earlier <see cref="FunctionCallContent"/> that
+    /// requested the call. The map is built <strong>only if the list contains at
+    /// least one <see cref="FunctionResultContent"/></strong>: a plain text-only
+    /// conversation (the common case) allocates nothing.
+    /// </remarks>
+    /// <returns>
+    /// The lookup, or <see langword="null"/> if no message carries a tool result.
+    /// A missed lookup (a many-turn conversation whose earlier
+    /// <see cref="FunctionCallContent"/> fell out of context) is expected and is
+    /// <strong>not</strong> an error — the caller falls back to a <see langword="null"/>
+    /// tool name while <see cref="ContentGuardSource.ToolResult"/> still applies.
+    /// </returns>
+    private static Dictionary<string, string>? BuildToolNameMap(IReadOnlyList<ChatMessage> messages)
+    {
+        var hasToolResult = false;
+
+        foreach (var message in messages)
+        {
+            foreach (var content in message.Contents)
+            {
+                if (content is FunctionResultContent)
+                {
+                    hasToolResult = true;
+                    break;
+                }
+            }
+
+            if (hasToolResult)
+            {
+                break;
+            }
+        }
+
+        if (!hasToolResult)
+        {
+            return null;
+        }
+
+        Dictionary<string, string>? callIdToToolName = null;
+
+        foreach (var message in messages)
+        {
+            foreach (var content in message.Contents)
+            {
+                if (content is FunctionCallContent call)
+                {
+                    (callIdToToolName ??= new Dictionary<string, string>(StringComparer.Ordinal))[call.CallId] = call.Name;
+                }
+            }
+        }
+
+        return callIdToToolName;
+    }
 
     private static async ValueTask<IReadOnlyList<ChatMessage>> RewriteAsync(
         IReadOnlyList<ChatMessage> messages,
@@ -102,6 +172,7 @@ internal static class ContentGuardMessageMasker
         ContentGuardDirection direction,
         ChatMessage message,
         string? modelId,
+        IReadOnlyDictionary<string, string>? callIdToToolName,
         bool recordDecision,
         CancellationToken cancellationToken)
     {
@@ -110,7 +181,8 @@ internal static class ContentGuardMessageMasker
         for (var index = 0; index < message.Contents.Count; index++)
         {
             var replacement = await RewriteContentAsync(
-                message.Contents[index], pipeline, direction, modelId, recordDecision, cancellationToken)
+                message.Contents[index], pipeline, direction, message.Role, callIdToToolName, modelId,
+                recordDecision, cancellationToken)
                 .ConfigureAwait(false);
 
             if (replacement is null)
@@ -155,11 +227,29 @@ internal static class ContentGuardMessageMasker
     /// registered — the opposite of "content that cannot be inspected is not
     /// let through" (see <see cref="ContentGuardPipeline"/>'s own remarks).
     /// </remarks>
+    /// <param name="content">The content to inspect.</param>
+    /// <param name="pipeline">The guard pipeline.</param>
+    /// <param name="direction">The direction of the inspection.</param>
+    /// <param name="role">
+    /// The role of the message the content came from. Drives source
+    /// classification for content that is not a tool result (see
+    /// <see cref="ClassifySource"/>).
+    /// </param>
+    /// <param name="callIdToToolName">
+    /// The <c>CallId</c> → tool name lookup built by <see cref="BuildToolNameMap"/>,
+    /// or <see langword="null"/> if the caller has none (for example, the output
+    /// path, which never inspects a tool result).
+    /// </param>
+    /// <param name="modelId">The identity of the model being called.</param>
+    /// <param name="recordDecision">Whether the decision should be recorded.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>The replacement content, or <see langword="null"/> if unchanged.</returns>
     public static async ValueTask<AIContent?> RewriteContentAsync(
         AIContent content,
         ContentGuardPipeline pipeline,
         ContentGuardDirection direction,
+        ChatRole? role,
+        IReadOnlyDictionary<string, string>? callIdToToolName,
         string? modelId,
         bool recordDecision,
         CancellationToken cancellationToken)
@@ -179,11 +269,52 @@ internal static class ContentGuardMessageMasker
             return null;
         }
 
+        var (source, toolName) = ClassifySource(content, role, callIdToToolName);
+
         var rewritten = recordDecision
-            ? await pipeline.InspectAsync(direction, text, modelId, cancellationToken).ConfigureAwait(false)
-            : await pipeline.PreviewAsync(direction, text, modelId, cancellationToken).ConfigureAwait(false);
+            ? await pipeline.InspectAsync(direction, text, source, toolName, modelId, cancellationToken).ConfigureAwait(false)
+            : await pipeline.PreviewAsync(direction, text, source, toolName, modelId, cancellationToken).ConfigureAwait(false);
 
         return rewritten is null ? null : WriteText(content, rewritten);
+    }
+
+    /// <summary>
+    /// Classifies where a piece of inspectable text came from.
+    /// </summary>
+    /// <remarks>
+    /// A <see cref="FunctionResultContent"/> is always <see cref="ContentGuardSource.ToolResult"/>
+    /// regardless of the message's role — this is deliberate: the source
+    /// classification must not depend on tool-name resolution succeeding
+    /// (see <see cref="ContentGuardContext.ToolName"/>). Everything else is
+    /// classified by the message's role: a previous turn's assistant text
+    /// replayed as history is still <see cref="ContentGuardSource.ModelOutput"/>
+    /// even though it is being sent to the model again (direction
+    /// <see cref="ContentGuardDirection.Input"/>) — the classification tracks
+    /// where the text originated, not which way it is currently travelling.
+    /// </remarks>
+    private static (ContentGuardSource Source, string? ToolName) ClassifySource(
+        AIContent content, ChatRole? role, IReadOnlyDictionary<string, string>? callIdToToolName)
+    {
+        if (content is FunctionResultContent { CallId: var callId })
+        {
+            var toolName = callIdToToolName is not null && callIdToToolName.TryGetValue(callId, out var name)
+                ? name
+                : null;
+
+            return (ContentGuardSource.ToolResult, toolName);
+        }
+
+        if (role == ChatRole.User)
+        {
+            return (ContentGuardSource.UserMessage, null);
+        }
+
+        if (role == ChatRole.Assistant)
+        {
+            return (ContentGuardSource.ModelOutput, null);
+        }
+
+        return (ContentGuardSource.Unknown, null);
     }
 
     /// <summary>

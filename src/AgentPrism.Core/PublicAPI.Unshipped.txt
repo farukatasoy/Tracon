@@ -498,9 +498,9 @@ AgentPrism.ConfigurationKeyGuard
 AgentPrism.ContentGuardPipeline
 AgentPrism.ContentGuardPipeline.ContentGuardPipeline(System.Collections.Generic.IEnumerable<AgentPrism.IContentGuard!>! guards, Microsoft.Extensions.Options.IOptionsMonitor<AgentPrism.AgentPrismContentGuardOptions!>! options, AgentPrism.IAuditLog! auditLog, AgentPrism.IAuditActorResolver! actorResolver, AgentPrism.ITenantContext! tenantContext, Microsoft.Extensions.Logging.ILoggerFactory! loggerFactory) -> void
 AgentPrism.ContentGuardPipeline.HasGuards.get -> bool
-AgentPrism.ContentGuardPipeline.InspectAsync(AgentPrism.ContentGuardDirection direction, string! text, string? modelId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<string?>
+AgentPrism.ContentGuardPipeline.InspectAsync(AgentPrism.ContentGuardDirection direction, string! text, AgentPrism.ContentGuardSource source, string? toolName, string? modelId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<string?>
 AgentPrism.ContentGuardPipeline.Options.get -> AgentPrism.AgentPrismContentGuardOptions!
-AgentPrism.ContentGuardPipeline.PreviewAsync(AgentPrism.ContentGuardDirection direction, string! text, string? modelId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<string?>
+AgentPrism.ContentGuardPipeline.PreviewAsync(AgentPrism.ContentGuardDirection direction, string! text, AgentPrism.ContentGuardSource source, string? toolName, string? modelId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<string?>
 AgentPrism.CronExpression
 AgentPrism.CronExpression.GetNextOccurrence(System.DateTimeOffset afterUtc, System.TimeZoneInfo! timeZone) -> System.DateTimeOffset
 AgentPrism.DefaultProviderRetryClassifier

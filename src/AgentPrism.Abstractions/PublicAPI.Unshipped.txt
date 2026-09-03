@@ -717,10 +717,14 @@ AgentPrism.ContentGuardContext.ModelId.get -> string?
 AgentPrism.ContentGuardContext.ModelId.init -> void
 AgentPrism.ContentGuardContext.RunId.get -> System.Guid?
 AgentPrism.ContentGuardContext.RunId.init -> void
+AgentPrism.ContentGuardContext.Source.get -> AgentPrism.ContentGuardSource
+AgentPrism.ContentGuardContext.Source.init -> void
 AgentPrism.ContentGuardContext.TenantId.get -> string?
 AgentPrism.ContentGuardContext.TenantId.init -> void
 AgentPrism.ContentGuardContext.Text.get -> string!
 AgentPrism.ContentGuardContext.Text.init -> void
+AgentPrism.ContentGuardContext.ToolName.get -> string?
+AgentPrism.ContentGuardContext.ToolName.init -> void
 AgentPrism.ContentGuardDirection
 AgentPrism.ContentGuardDirection.Input = 0 -> AgentPrism.ContentGuardDirection
 AgentPrism.ContentGuardDirection.Output = 1 -> AgentPrism.ContentGuardDirection
@@ -736,6 +740,13 @@ AgentPrism.ContentGuardResult.Reason.get -> string?
 AgentPrism.ContentGuardResult.Reason.init -> void
 AgentPrism.ContentGuardResult.RuleName.get -> string?
 AgentPrism.ContentGuardResult.RuleName.init -> void
+AgentPrism.ContentGuardSource
+AgentPrism.ContentGuardSource.Document = 3 -> AgentPrism.ContentGuardSource
+AgentPrism.ContentGuardSource.ModelOutput = 4 -> AgentPrism.ContentGuardSource
+AgentPrism.ContentGuardSource.SkillResource = 5 -> AgentPrism.ContentGuardSource
+AgentPrism.ContentGuardSource.ToolResult = 2 -> AgentPrism.ContentGuardSource
+AgentPrism.ContentGuardSource.Unknown = 0 -> AgentPrism.ContentGuardSource
+AgentPrism.ContentGuardSource.UserMessage = 1 -> AgentPrism.ContentGuardSource
 AgentPrism.ContextWindowEstimate
 AgentPrism.ContextWindowEstimate.<Clone>$() -> AgentPrism.ContextWindowEstimate!
 AgentPrism.ContextWindowEstimate.AllowedPromptTokens.get -> int?

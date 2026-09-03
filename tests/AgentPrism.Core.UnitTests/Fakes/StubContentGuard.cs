@@ -21,6 +21,12 @@ internal sealed class StubContentGuard(
     /// <summary>The directions the guard saw, in call order.</summary>
     public List<ContentGuardDirection> SeenDirections { get; } = [];
 
+    /// <summary>The sources the guard saw, in call order.</summary>
+    public List<ContentGuardSource> SeenSources { get; } = [];
+
+    /// <summary>The tool names the guard saw, in call order.</summary>
+    public List<string?> SeenToolNames { get; } = [];
+
     /// <summary>The last context the guard saw.</summary>
     public ContentGuardContext? LastContext { get; private set; }
 
@@ -35,6 +41,8 @@ internal sealed class StubContentGuard(
         CallCount++;
         SeenText.Add(context.Text);
         SeenDirections.Add(context.Direction);
+        SeenSources.Add(context.Source);
+        SeenToolNames.Add(context.ToolName);
         LastContext = context;
 
         return ValueTask.FromResult(decide(context));

@@ -219,6 +219,36 @@ public sealed class PatternContentGuardTests
         stopwatch.Elapsed.ShouldBeLessThan(TimeSpan.FromSeconds(10));
     }
 
+    [Fact]
+    public async Task Unknown_source_is_never_treated_as_a_reason_to_allow()
+    {
+        // 🚨 Phase 140's rule: an unclassified source must be at least as
+        // strict as any known source, never an implicit "skip the check".
+        // This guard deliberately does not read Source at all — locking that
+        // in guards against a future regression that special-cases Unknown.
+        var guard = Guard(options => options.DeniedTerms.Add("secret-project"));
+
+        var result = await Inspect(guard, "tell me about secret-project", ContentGuardSource.Unknown);
+
+        result.Action.ShouldBe(ContentGuardAction.Block);
+    }
+
+    [Fact]
+    public async Task Decision_is_identical_regardless_of_source()
+    {
+        // The built-in guard applies the same patterns no matter where the
+        // text came from — a user message and a tool result carrying the same
+        // card number are masked identically.
+        var guard = Guard(options => options.MaskedPii = PiiPatterns.CreditCard);
+
+        var fromUser = await Inspect(guard, "card 4539578763621486", ContentGuardSource.UserMessage);
+        var fromToolResult = await Inspect(guard, "card 4539578763621486", ContentGuardSource.ToolResult);
+        var fromUnknown = await Inspect(guard, "card 4539578763621486", ContentGuardSource.Unknown);
+
+        fromUser.MaskedText.ShouldBe(fromToolResult.MaskedText);
+        fromUser.MaskedText.ShouldBe(fromUnknown.MaskedText);
+    }
+
     private static PatternContentGuard Guard(Action<PatternContentGuardOptions>? configure = null)
     {
         var options = new PatternContentGuardOptions();
@@ -227,8 +257,9 @@ public sealed class PatternContentGuardTests
         return new PatternContentGuard(new StaticOptionsMonitor<PatternContentGuardOptions>(options));
     }
 
-    private static async Task<ContentGuardResult> Inspect(PatternContentGuard guard, string text)
+    private static async Task<ContentGuardResult> Inspect(
+        PatternContentGuard guard, string text, ContentGuardSource source = ContentGuardSource.Unknown)
         => await guard.InspectAsync(
-            new ContentGuardContext { Direction = ContentGuardDirection.Input, Text = text },
+            new ContentGuardContext { Direction = ContentGuardDirection.Input, Text = text, Source = source },
             TestContext.Current.CancellationToken);
 }
