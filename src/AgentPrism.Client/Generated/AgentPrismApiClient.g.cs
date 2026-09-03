@@ -921,7 +921,7 @@ namespace AgentPrism.Client.Generated
         /// Runs an agent for trial purposes and streams the response via SSE.
         /// </summary>
         /// <remarks>
-        /// If the quota is exceeded, the run does not start and a 429 is returned; the ProblemDetails carries which quota was exceeded and when the counter resets. When the pre-flight context-window check is enabled (disabled by default) and the prompt is estimated to exceed the model's window, the run does not start and a 400 is returned with the estimated and allowed token counts; no call reaches the provider. A request carrying the 'Idempotency-Key' header runs with a single JSON response (non-streaming) instead of SSE, because a replayed response cannot be reconstructed from a stream. A request carrying the 'Prefer: respond-async' header queues the run and returns '202 Accepted' with a 'Location' header. If a registered IContentGuard blocks the content, the non-streaming response returns '422' and the run's error type becomes 'content_blocked'; in the STREAMING response the status code has already been sent, so the block arrives as an SSE 'error' event instead.
+        /// If the quota is exceeded, the run does not start and a 429 is returned; the ProblemDetails carries which quota was exceeded and when the counter resets. When the pre-flight context-window check is enabled (disabled by default) and the prompt is estimated to exceed the model's window, the run does not start and a 400 is returned with the estimated and allowed token counts; no call reaches the provider. A request carrying the 'Idempotency-Key' header runs with a single JSON response (non-streaming) instead of SSE, because a replayed response cannot be reconstructed from a stream. A request carrying the 'Prefer: respond-async' header queues the run and returns '202 Accepted' with a 'Location' header. If a registered IContentGuard blocks the content, the non-streaming response returns '422' and the run's error type becomes 'content_blocked'; in the STREAMING response the status code has already been sent, so the block arrives as an SSE 'error' event instead. If a registered IRunAuthorizationHandler denies the caller, the run does not start and a 403 is returned; this check runs before the quota check, so a denied run never consumes the tenant's quota.
         /// </remarks>
         /// <returns>OK</returns>
         /// <exception cref="AgentPrismApiException">A server side error occurred.</exception>
@@ -1004,6 +1004,16 @@ namespace AgentPrism.Client.Generated
                                 throw new AgentPrismApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
                             }
                             throw new AgentPrismApiException<ProblemDetails>("Bad Request", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
+                        }
+                        else
+                        if (status_ == 403)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<ProblemDetails>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new AgentPrismApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            throw new AgentPrismApiException<ProblemDetails>("Forbidden", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
                         }
                         else
                         if (status_ == 404)
@@ -2115,7 +2125,7 @@ namespace AgentPrism.Client.Generated
         /// Lists sessions from most recently updated to oldest.
         /// </summary>
         /// <remarks>
-        /// Paging is offset based: 'skip' defaults to 0 and 'take' to 50, and 'take' is clamped to the 1..200 range rather than rejected, so an out-of-range value never fails the request. 'agentName' narrows the list to one agent. Because the order is by last update, a session that changes while a client pages can move between pages; use the session id, not the position, as the identity.
+        /// Paging is offset based: 'skip' defaults to 0 and 'take' to 50, and 'take' is clamped to the 1..200 range rather than rejected, so an out-of-range value never fails the request. 'agentName' narrows the list to one agent. Because the order is by last update, a session that changes while a client pages can move between pages; use the session id, not the position, as the identity. If a registered IRunAuthorizationHandler denies the caller, the response is 403 — the list is REJECTED, never silently filtered, because server-side filtering would break the skip/take paging contract.
         /// </remarks>
         /// <returns>OK</returns>
         /// <exception cref="AgentPrismApiException">A server side error occurred.</exception>
@@ -2182,6 +2192,16 @@ namespace AgentPrism.Client.Generated
                             return objectResponse_.Object;
                         }
                         else
+                        if (status_ == 403)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<ProblemDetails>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new AgentPrismApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            throw new AgentPrismApiException<ProblemDetails>("Forbidden", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
+                        }
+                        else
                         {
                             var responseData_ = response_.Content == null ? null : await response_.Content.ReadAsStringAsync().ConfigureAwait(false);
                             throw new AgentPrismApiException("The HTTP status code of the response was not expected (" + status_ + ").", status_, responseData_, headers_, null);
@@ -2206,7 +2226,7 @@ namespace AgentPrism.Client.Generated
         /// Returns a session's metadata and chat history.
         /// </summary>
         /// <remarks>
-        /// 'messages' is the readable chat history and is null when the configured session storage cannot expose one — with an in-memory setup the history lives inside an opaque state blob. 'state' always carries that raw provider state. Messages come back in sequence order, so the index of a message is the sequence number the branch endpoint expects.
+        /// 'messages' is the readable chat history and is null when the configured session storage cannot expose one — with an in-memory setup the history lives inside an opaque state blob. 'state' always carries that raw provider state. Messages come back in sequence order, so the index of a message is the sequence number the branch endpoint expects. If a registered IRunAuthorizationHandler denies the caller, the response is 404 — identical to a session that does not exist, so a denial never confirms the session's existence.
         /// </remarks>
         /// <returns>OK</returns>
         /// <exception cref="AgentPrismApiException">A server side error occurred.</exception>
@@ -2263,6 +2283,16 @@ namespace AgentPrism.Client.Generated
                             return objectResponse_.Object;
                         }
                         else
+                        if (status_ == 404)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<ProblemDetails>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new AgentPrismApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            throw new AgentPrismApiException<ProblemDetails>("Not Found", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
+                        }
+                        else
                         {
                             var responseData_ = response_.Content == null ? null : await response_.Content.ReadAsStringAsync().ConfigureAwait(false);
                             throw new AgentPrismApiException("The HTTP status code of the response was not expected (" + status_ + ").", status_, responseData_, headers_, null);
@@ -2287,7 +2317,7 @@ namespace AgentPrism.Client.Generated
         /// Deletes a session.
         /// </summary>
         /// <remarks>
-        /// Attachments linked to the session are deleted with it, and this call is the only way they are cleaned up: an attachment may be uploaded before any session exists, so the link is deliberately not a database foreign key. The attachments are removed only after the session itself is found, so a 404 leaves no side effect. Runs recorded under the session are kept — run history does not depend on the session still existing.
+        /// Attachments linked to the session are deleted with it, and this call is the only way they are cleaned up: an attachment may be uploaded before any session exists, so the link is deliberately not a database foreign key. The attachments are removed only after the session itself is found, so a 404 leaves no side effect. Runs recorded under the session are kept — run history does not depend on the session still existing. If a registered IRunAuthorizationHandler denies the caller, the response is also 404, identical to a session that does not exist.
         /// </remarks>
         /// <returns>No Content</returns>
         /// <exception cref="AgentPrismApiException">A server side error occurred.</exception>
@@ -2338,6 +2368,16 @@ namespace AgentPrism.Client.Generated
                             return;
                         }
                         else
+                        if (status_ == 404)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<ProblemDetails>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new AgentPrismApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            throw new AgentPrismApiException<ProblemDetails>("Not Found", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
+                        }
+                        else
                         {
                             var responseData_ = response_.Content == null ? null : await response_.Content.ReadAsStringAsync().ConfigureAwait(false);
                             throw new AgentPrismApiException("The HTTP status code of the response was not expected (" + status_ + ").", status_, responseData_, headers_, null);
@@ -2362,7 +2402,7 @@ namespace AgentPrism.Client.Generated
         /// Branches a conversation from a specific point and opens a new session.
         /// </summary>
         /// <remarks>
-        /// Items up to and including 'upToSequence' are COPIED into a NEW conversation; the pointer is only provenance information. Writing to the branch does not change the parent conversation. Branching only works while a persistent SQL provider is enabled; in an in-memory setup, chat history lives in an opaque blob of session state and this returns 501.
+        /// Items up to and including 'upToSequence' are COPIED into a NEW conversation; the pointer is only provenance information. Writing to the branch does not change the parent conversation. Branching only works while a persistent SQL provider is enabled; in an in-memory setup, chat history lives in an opaque blob of session state and this returns 501. If a registered IRunAuthorizationHandler denies the caller, the response is 404, identical to a session that does not exist.
         /// </remarks>
         /// <returns>Created</returns>
         /// <exception cref="AgentPrismApiException">A server side error occurred.</exception>
@@ -3992,7 +4032,7 @@ namespace AgentPrism.Client.Generated
         /// Runs the workflow and streams its events over SSE.
         /// </summary>
         /// <remarks>
-        /// Each frame carries a RunEvent. The first frame reports the run ID; every agent invoked within the workflow opens its own runs row, viewable as a tree via GET /api/runs/{runId}/tree.
+        /// Each frame carries a RunEvent. The first frame reports the run ID; every agent invoked within the workflow opens its own runs row, viewable as a tree via GET /api/runs/{runId}/tree. If a registered IRunAuthorizationHandler denies the caller, the run does not start and a 403 is returned, before the quota check.
         /// </remarks>
         /// <returns>OK</returns>
         /// <exception cref="AgentPrismApiException">A server side error occurred.</exception>
@@ -4052,6 +4092,16 @@ namespace AgentPrism.Client.Generated
                                 throw new AgentPrismApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
                             }
                             return objectResponse_.Object;
+                        }
+                        else
+                        if (status_ == 403)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<ProblemDetails>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new AgentPrismApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            throw new AgentPrismApiException<ProblemDetails>("Forbidden", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
                         }
                         else
                         if (status_ == 404)
@@ -13336,7 +13386,7 @@ namespace AgentPrism.Client.Generated
         /// Run endpoint compatible with the OpenAI Responses API.
         /// </summary>
         /// <remarks>
-        /// The agent is selected from the 'model' field; if not found, 'metadata.entity_id' is tried. If 'conversation' is given the session is stored under that identifier; if not, under the generated response identifier, so chaining with 'previous_response_id' works.
+        /// The agent is selected from the 'model' field; if not found, 'metadata.entity_id' is tried. If 'conversation' is given the session is stored under that identifier; if not, under the generated response identifier, so chaining with 'previous_response_id' works. If a registered IRunAuthorizationHandler denies the caller, the response is 403.
         /// </remarks>
         /// <returns>OK</returns>
         /// <exception cref="AgentPrismApiException">A server side error occurred.</exception>
@@ -13394,6 +13444,16 @@ namespace AgentPrism.Client.Generated
                                 throw new AgentPrismApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
                             }
                             throw new AgentPrismApiException<OpenAIErrorEnvelope>("Bad Request", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
+                        }
+                        else
+                        if (status_ == 403)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<OpenAIErrorEnvelope>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new AgentPrismApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            throw new AgentPrismApiException<OpenAIErrorEnvelope>("Forbidden", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
                         }
                         else
                         if (status_ == 404)
@@ -14010,7 +14070,7 @@ namespace AgentPrism.Client.Generated
         /// Accepts a signed external event and queues a run.
         /// </summary>
         /// <remarks>
-        /// No bearer token: the caller authenticates with an HMAC signature over the raw body ('X-AgentPrism-Timestamp' + 'X-AgentPrism-Signature', the same headers outbound webhooks send, in the reverse direction). The event is ALWAYS queued and this ALWAYS returns 202 — there is no synchronous mode; a long model call would otherwise fail the caller's own webhook timeout. A missing or wrong signature, an unknown trigger, and a disabled trigger all return the SAME generic response so a caller cannot enumerate trigger names.
+        /// No bearer token: the caller authenticates with an HMAC signature over the raw body ('X-AgentPrism-Timestamp' + 'X-AgentPrism-Signature', the same headers outbound webhooks send, in the reverse direction). The event is ALWAYS queued and this ALWAYS returns 202 — there is no synchronous mode; a long model call would otherwise fail the caller's own webhook timeout. A missing or wrong signature, an unknown trigger, and a disabled trigger all return the SAME generic response so a caller cannot enumerate trigger names. If a registered IRunAuthorizationHandler denies the target run, the response is 403, before the quota check.
         /// </remarks>
         /// <returns>Accepted</returns>
         /// <exception cref="AgentPrismApiException">A server side error occurred.</exception>
@@ -14091,6 +14151,16 @@ namespace AgentPrism.Client.Generated
                                 throw new AgentPrismApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
                             }
                             throw new AgentPrismApiException<ProblemDetails>("Unauthorized", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
+                        }
+                        else
+                        if (status_ == 403)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<ProblemDetails>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new AgentPrismApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            throw new AgentPrismApiException<ProblemDetails>("Forbidden", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
                         }
                         else
                         if (status_ == 409)
