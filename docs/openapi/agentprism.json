@@ -392,7 +392,7 @@
           "Agents"
         ],
         "summary": "Runs an agent for trial purposes and streams the response via SSE.",
-        "description": "If the quota is exceeded, the run does not start and a 429 is returned; the ProblemDetails carries which quota was exceeded and when the counter resets. When the pre-flight context-window check is enabled (disabled by default) and the prompt is estimated to exceed the model\u0027s window, the run does not start and a 400 is returned with the estimated and allowed token counts; no call reaches the provider. A request carrying the \u0027Idempotency-Key\u0027 header runs with a single JSON response (non-streaming) instead of SSE, because a replayed response cannot be reconstructed from a stream. A request carrying the \u0027Prefer: respond-async\u0027 header queues the run and returns \u0027202 Accepted\u0027 with a \u0027Location\u0027 header. If a registered IContentGuard blocks the content, the non-streaming response returns \u0027422\u0027 and the run\u0027s error type becomes \u0027content_blocked\u0027; in the STREAMING response the status code has already been sent, so the block arrives as an SSE \u0027error\u0027 event instead.",
+        "description": "If the quota is exceeded, the run does not start and a 429 is returned; the ProblemDetails carries which quota was exceeded and when the counter resets. When the pre-flight context-window check is enabled (disabled by default) and the prompt is estimated to exceed the model\u0027s window, the run does not start and a 400 is returned with the estimated and allowed token counts; no call reaches the provider. A request carrying the \u0027Idempotency-Key\u0027 header runs with a single JSON response (non-streaming) instead of SSE, because a replayed response cannot be reconstructed from a stream. A request carrying the \u0027Prefer: respond-async\u0027 header queues the run and returns \u0027202 Accepted\u0027 with a \u0027Location\u0027 header. If a registered IContentGuard blocks the content, the non-streaming response returns \u0027422\u0027 and the run\u0027s error type becomes \u0027content_blocked\u0027; in the STREAMING response the status code has already been sent, so the block arrives as an SSE \u0027error\u0027 event instead. If a registered IRunAuthorizationHandler denies the caller, the run does not start and a 403 is returned; this check runs before the quota check, so a denied run never consumes the tenant\u0027s quota.",
         "operationId": "AgentPrismRunAgent",
         "parameters": [
           {
@@ -437,6 +437,16 @@
           },
           "400": {
             "description": "Bad Request",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
             "content": {
               "application/problem\u002Bjson": {
                 "schema": {
@@ -968,7 +978,7 @@
           "Sessions"
         ],
         "summary": "Lists sessions from most recently updated to oldest.",
-        "description": "Paging is offset based: \u0027skip\u0027 defaults to 0 and \u0027take\u0027 to 50, and \u0027take\u0027 is clamped to the 1..200 range rather than rejected, so an out-of-range value never fails the request. \u0027agentName\u0027 narrows the list to one agent. Because the order is by last update, a session that changes while a client pages can move between pages; use the session id, not the position, as the identity.",
+        "description": "Paging is offset based: \u0027skip\u0027 defaults to 0 and \u0027take\u0027 to 50, and \u0027take\u0027 is clamped to the 1..200 range rather than rejected, so an out-of-range value never fails the request. \u0027agentName\u0027 narrows the list to one agent. Because the order is by last update, a session that changes while a client pages can move between pages; use the session id, not the position, as the identity. If a registered IRunAuthorizationHandler denies the caller, the response is 403 \u2014 the list is REJECTED, never silently filtered, because server-side filtering would break the skip/take paging contract.",
         "operationId": "AgentPrismListSessions",
         "parameters": [
           {
@@ -1016,6 +1026,16 @@
                 }
               }
             }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
           }
         }
       }
@@ -1027,7 +1047,7 @@
           "Sessions"
         ],
         "summary": "Returns a session\u0027s metadata and chat history.",
-        "description": "\u0027messages\u0027 is the readable chat history and is null when the configured session storage cannot expose one \u2014 with an in-memory setup the history lives inside an opaque state blob. \u0027state\u0027 always carries that raw provider state. Messages come back in sequence order, so the index of a message is the sequence number the branch endpoint expects.",
+        "description": "\u0027messages\u0027 is the readable chat history and is null when the configured session storage cannot expose one \u2014 with an in-memory setup the history lives inside an opaque state blob. \u0027state\u0027 always carries that raw provider state. Messages come back in sequence order, so the index of a message is the sequence number the branch endpoint expects. If a registered IRunAuthorizationHandler denies the caller, the response is 404 \u2014 identical to a session that does not exist, so a denial never confirms the session\u0027s existence.",
         "operationId": "AgentPrismGetSession",
         "parameters": [
           {
@@ -1049,6 +1069,16 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
           }
         }
       },
@@ -1058,7 +1088,7 @@
           "Sessions"
         ],
         "summary": "Deletes a session.",
-        "description": "Attachments linked to the session are deleted with it, and this call is the only way they are cleaned up: an attachment may be uploaded before any session exists, so the link is deliberately not a database foreign key. The attachments are removed only after the session itself is found, so a 404 leaves no side effect. Runs recorded under the session are kept \u2014 run history does not depend on the session still existing.",
+        "description": "Attachments linked to the session are deleted with it, and this call is the only way they are cleaned up: an attachment may be uploaded before any session exists, so the link is deliberately not a database foreign key. The attachments are removed only after the session itself is found, so a 404 leaves no side effect. Runs recorded under the session are kept \u2014 run history does not depend on the session still existing. If a registered IRunAuthorizationHandler denies the caller, the response is also 404, identical to a session that does not exist.",
         "operationId": "AgentPrismDeleteSession",
         "parameters": [
           {
@@ -1073,6 +1103,16 @@
         "responses": {
           "204": {
             "description": "No Content"
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
           }
         }
       }
@@ -1084,7 +1124,7 @@
           "Sessions"
         ],
         "summary": "Branches a conversation from a specific point and opens a new session.",
-        "description": "Items up to and including \u0027upToSequence\u0027 are COPIED into a NEW conversation; the pointer is only provenance information. Writing to the branch does not change the parent conversation. Branching only works while a persistent SQL provider is enabled; in an in-memory setup, chat history lives in an opaque blob of session state and this returns 501.",
+        "description": "Items up to and including \u0027upToSequence\u0027 are COPIED into a NEW conversation; the pointer is only provenance information. Writing to the branch does not change the parent conversation. Branching only works while a persistent SQL provider is enabled; in an in-memory setup, chat history lives in an opaque blob of session state and this returns 501. If a registered IRunAuthorizationHandler denies the caller, the response is 404, identical to a session that does not exist.",
         "operationId": "AgentPrismBranchSession",
         "parameters": [
           {
@@ -1910,7 +1950,7 @@
           "Workflows"
         ],
         "summary": "Runs the workflow and streams its events over SSE.",
-        "description": "Each frame carries a RunEvent. The first frame reports the run ID; every agent invoked within the workflow opens its own runs row, viewable as a tree via GET /api/runs/{runId}/tree.",
+        "description": "Each frame carries a RunEvent. The first frame reports the run ID; every agent invoked within the workflow opens its own runs row, viewable as a tree via GET /api/runs/{runId}/tree. If a registered IRunAuthorizationHandler denies the caller, the run does not start and a 403 is returned, before the quota check.",
         "operationId": "AgentPrismRunWorkflow",
         "parameters": [
           {
@@ -1938,6 +1978,16 @@
               "text/event-stream": {
                 "schema": {
                   "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }
@@ -6058,7 +6108,7 @@
           "OpenAI"
         ],
         "summary": "Run endpoint compatible with the OpenAI Responses API.",
-        "description": "The agent is selected from the \u0027model\u0027 field; if not found, \u0027metadata.entity_id\u0027 is tried. If \u0027conversation\u0027 is given the session is stored under that identifier; if not, under the generated response identifier, so chaining with \u0027previous_response_id\u0027 works.",
+        "description": "The agent is selected from the \u0027model\u0027 field; if not found, \u0027metadata.entity_id\u0027 is tried. If \u0027conversation\u0027 is given the session is stored under that identifier; if not, under the generated response identifier, so chaining with \u0027previous_response_id\u0027 works. If a registered IRunAuthorizationHandler denies the caller, the response is 403.",
         "operationId": "AgentPrismOpenAIResponses",
         "responses": {
           "200": {
@@ -6078,6 +6128,16 @@
           },
           "400": {
             "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpenAIErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
             "content": {
               "application/json": {
                 "schema": {
@@ -6400,7 +6460,7 @@
           "Triggers"
         ],
         "summary": "Accepts a signed external event and queues a run.",
-        "description": "No bearer token: the caller authenticates with an HMAC signature over the raw body (\u0027X-AgentPrism-Timestamp\u0027 \u002B \u0027X-AgentPrism-Signature\u0027, the same headers outbound webhooks send, in the reverse direction). The event is ALWAYS queued and this ALWAYS returns 202 \u2014 there is no synchronous mode; a long model call would otherwise fail the caller\u0027s own webhook timeout. A missing or wrong signature, an unknown trigger, and a disabled trigger all return the SAME generic response so a caller cannot enumerate trigger names.",
+        "description": "No bearer token: the caller authenticates with an HMAC signature over the raw body (\u0027X-AgentPrism-Timestamp\u0027 \u002B \u0027X-AgentPrism-Signature\u0027, the same headers outbound webhooks send, in the reverse direction). The event is ALWAYS queued and this ALWAYS returns 202 \u2014 there is no synchronous mode; a long model call would otherwise fail the caller\u0027s own webhook timeout. A missing or wrong signature, an unknown trigger, and a disabled trigger all return the SAME generic response so a caller cannot enumerate trigger names. If a registered IRunAuthorizationHandler denies the target run, the response is 403, before the quota check.",
         "operationId": "AgentPrismAcceptInboundTrigger",
         "parameters": [
           {
@@ -6443,6 +6503,16 @@
           },
           "401": {
             "description": "Unauthorized",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
             "content": {
               "application/problem\u002Bjson": {
                 "schema": {

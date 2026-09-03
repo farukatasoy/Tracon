@@ -1,6 +1,6 @@
 # 13 — Kiracı ve Güvenlik (`SEC`)
 
-> **Alan kodu:** `SEC` · **Faz:** 6, 9, 41, 50, 53, 63, 65, 69, 82
+> **Alan kodu:** `SEC` · **Faz:** 6, 9, 41, 50, 53, 63, 65, 69, 82, 139
 > **Kaynak:** `src/AgentPrism.AspNetCore/Security/` (tümü: `AgentPrismEndpointFilter`,
 > `LoopbackGuard`, `BearerTokenValidator`, `ApiKeyAuthenticator`, `ApiKeyRequestContext`,
 > `ApiKeyScopeRequirement`, `ExternalSurfaceGuard`, `ExternalCallAudit`, `AgentPrismPolicies`,
@@ -32,7 +32,10 @@
 > `src/AgentPrism.Core/Security/` (`AesGcmContentProtector`, `NullContentProtector`,
 > `ContentProtectionEnvelope`, `AgentPrismContentProtectionOptions`,
 > `AgentPrismContentProtectionOptionsValidator`), `AgentPrismContentProtectionExtensions.cs`,
-> `src/AgentPrism.Sql.Shared/Internal/ProtectedValue.cs` (Faz 82 — at-rest içerik koruması).
+> `src/AgentPrism.Sql.Shared/Internal/ProtectedValue.cs` (Faz 82 — at-rest içerik koruması) ·
+> `src/AgentPrism.Abstractions/Runs/RunAuthorizationTypes.cs` (Faz 139 — `IRunAuthorizationHandler`),
+> `src/AgentPrism.Core/Runs/AllowAllRunAuthorizationHandler.cs`,
+> `src/AgentPrism.AspNetCore/RateLimiting/RunAuthorizationGate.cs` (Faz 139).
 >
 > Ortam kurulumu, fixture verisi ve reset yordamı [`00-INDEKS.md`](00-INDEKS.md)'dedir.
 
@@ -2673,3 +2676,304 @@ bir agent.
 - Adım 3'teki arama **doğru dosyayı ve doğru satırı** bulur — sunucu tarafı ön
   süzgeç (yalnız PostgreSQL'de var) devre dışı kalsa da nihai eşleşme
   istemcide çalışır ve sonuç değişmez.
+
+---
+
+# 2 — Çalıştırma ve Oturum Yetkilendirmesi (Faz 139, F-185, `IRunAuthorizationHandler`)
+
+AgentPrism sahipliği kiracı düzeyinde çizer; kiracı **içindeki** kullanıcıyı
+hiçbir yerde ayırmaz. Bu bölüm, tüketicinin kendi `IRunAuthorizationHandler`
+kaydının run başlatmayı ve session erişimini (Read/List/Delete/Branch)
+doğru reddettiğini/izin verdiğini kanıtlar. Otomatikleştirilmiş karşılığın
+tamamı `RunAuthorizationEndpointTests` (18 test, `TestServer` üzerinden gerçek
+HTTP) ve `RunAuthorizationResultTests`'tedir (Core.UnitTests) — koşuldu, hepsi
+yeşil (bkz. faz dokümanının DoD bölümü).
+
+### MT-SEC-140 — Handler kayıtlı değilken hiçbir şey değişmez
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 139 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- `IRunAuthorizationHandler` kaydı yapılmadı (varsayılan kurulum).
+
+**Adımlar**
+1. `/api/diagnostics` çağır, altıncı genişleme noktasını kontrol et.
+2. `support` agent'ına normal bir run at.
+
+**Girilecek veri**
+```bash
+curl -s "$APU/api/diagnostics" -H "$APB" | python3 -c \
+  "import json,sys; d=json.load(sys.stdin); p=[x for x in d['extensionPoints'] if x['contract']=='IRunAuthorizationHandler'][0]; print(p)"
+curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/agents/support/run" \
+     -H "$APB" -H 'content-type: application/json' -d '{"message":"What is your return policy?"}'
+```
+
+**Beklenen sonuç**
+- `IRunAuthorizationHandler` → `AllowAllRunAuthorizationHandler`,
+  `isBuiltInDefault: true`.
+- Run `HTTP: 200`, akış normal tamamlanır — hiçbir davranış değişmez (K1).
+- **Koşuldu (2026-09-03):** diagnostics 6 genişleme noktası döndü, altıncısı
+  tam olarak beklenen şekilde; run `200` ile gerçek bir OpenAI yanıtı üretti.
+  Otomatikleştirilmiş karşılığı: `Nothing_changes_when_no_handler_is_registered`,
+  `Bare_setup_reports_the_run_authorization_handler_as_built_in_default`.
+
+---
+
+### MT-SEC-141 — Handler yalnız beklenen kullanıcıya izin verir
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 139 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- Örnek uygulamaya GEÇİCİ olarak `UserId == "a"` dışını reddeden bir
+  `IRunAuthorizationHandler` kaydı eklenir (`Program.cs`, `AddAgentPrism()`
+  zincirine `services.Replace(...)`); `IRunAttributionContext` sabit `"a"` veya
+  `"b"` döner.
+
+**Adımlar**
+1. Kimliği `"a"` iken run at.
+2. Kimliği `"b"` iken aynı agent'a run at.
+
+**Beklenen sonuç**
+- Adım 1: `HTTP: 200`, run çalışır.
+- Adım 2: `HTTP: 403`, `title: "Run not authorized"`, `runs` satırı **açılmaz**
+  (`GET /api/runs` boş kalır).
+- Otomatikleştirilmiş karşılığı: `Handler_allows_the_expected_user`,
+  `Handler_denies_a_different_user_and_no_run_row_opens`.
+
+---
+
+### MT-SEC-142 — Reddedilen bir run başkasının session'ını da kapsar
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 139 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- MT-SEC-141'in kurulumu; `"a"` kimliğiyle `sessionId: "session-of-a"` taşıyan
+  bir run zaten var.
+
+**Adımlar**
+1. Kimliği `"b"` iken AYNI `sessionId` ile run at.
+
+**Beklenen sonuç**
+- `HTTP: 403` — handler'a giden istek `sessionId: "session-of-a"`,
+  `userId: "b"` taşır; karar SessionId'yi de görebilir.
+- Otomatikleştirilmiş karşılığı: `Handler_denies_a_run_against_another_users_session`.
+
+---
+
+### MT-SEC-143 — `throw` eden handler reddeder (fail-closed)
+
+Negatif senaryo.
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 139 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- Handler'ın `AuthorizeRunAsync`'i her çağrıda `InvalidOperationException` fırlatır.
+
+**Adımlar**
+1. Herhangi bir agent'a run at.
+
+**Beklenen sonuç**
+- `HTTP: 403` (`500` DEĞİL) — bir gate hatada açık kalırsa gate değildir.
+  `runs` satırı açılmaz.
+- Otomatikleştirilmiş karşılığı: `Throwing_handler_denies_the_run_fail_closed`.
+
+---
+
+### MT-SEC-144 — Reddedilen run kotayı tüketmez (sıra: atıf → yetki → kota)
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 139 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- `MaxRuns=1` günlük kota tanımlı; her çağrıyı reddeden bir handler kayıtlı.
+
+**Adımlar**
+1. Reddedilecek bir run dene.
+2. `/api/quotas/usage` (veya `QuotaEnforcer.CheckAsync`) ile sayaç durumunu
+   kontrol et.
+
+**Beklenen sonuç**
+- Adım 1: `HTTP: 403`.
+- Adım 2: sayaç **hâlâ boş** — reddedilen çağrı kotayı tüketmemiştir; aynı
+  limitle yapılan bir sonraki (izinli) çağrı hâlâ geçer.
+- Otomatikleştirilmiş karşılığı: `Denied_run_does_not_consume_the_quota`.
+
+---
+
+### MT-SEC-145 — Kuyruğa alınan (`Prefer: respond-async`) run da kapsanır
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 139 |
+| **İlgili karar** | K-103 sınıfı |
+
+**Ön koşul**
+- Her çağrıyı reddeden bir handler kayıtlı.
+
+**Adımlar**
+1. `Prefer: respond-async` başlığıyla run dene.
+
+**Beklenen sonuç**
+- `HTTP: 403` — `202 Accepted` DEĞİL. İş kuyruğuna hiç yazılmaz
+  (`GET /api/jobs` bu çağrı için boş kalır); kapı worker'a düşmeden,
+  HTTP katmanında çalışır.
+- Otomatikleştirilmiş karşılığı: `Queued_run_is_denied_before_it_is_queued`.
+
+---
+
+### MT-SEC-146 — Session erişimi: `List` → `403`, `Read`/`Delete`/`Branch` → `404`
+
+Negatif senaryo. `List` bir kaynak değil bir işlemdir; diğer üçü var olan bir
+kaynağa erişimdir ve reddi `404`'e (var olmayanla AYNI gövde) düşer — `403`
+kaynağın var olduğunu sızdırırdı.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 139 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- Gerçek bir session var (`"a"` ile açılmış). Handler sırayla yalnız
+  `List`/`Read`/`Delete`/`Branch` erişimini reddedecek şekilde değiştirilir.
+
+**Adımlar**
+1. `GET /api/sessions` çağır (List reddedilirken).
+2. `GET /api/sessions/{id}` çağır (Read reddedilirken).
+3. `DELETE /api/sessions/{id}` çağır (Delete reddedilirken).
+4. `POST /api/sessions/{id}/branch` çağır (Branch reddedilirken).
+
+**Beklenen sonuç**
+- Adım 1: `HTTP: 403`.
+- Adım 2-4: `HTTP: 404`, gövde (`title`/`detail`) hiç var olmamış bir
+  `sessionId` ile YAPILAN aynı çağrının gövdesiyle **birebir aynı** — reddedilen
+  ile gerçekten yok olan ayırt edilemez.
+- Adım 2 için canlı temel çizgi (2026-09-03, handler'sız): var olmayan bir
+  session `GET`'i zaten `404` + `{"title":"Session not found","detail":"There
+  is no session with id '...'."}` döndürüyor; reddedilen senaryo bununla
+  aynı şekli üretir.
+- Otomatikleştirilmiş karşılığı: `Denied_session_list_returns_403`,
+  `Denied_session_read_returns_404_not_403`, `Denied_session_delete_returns_404`,
+  `Denied_session_branch_returns_404`.
+
+---
+
+### MT-SEC-147 — Dört run başlatan yüzeyin dördü de kapsanır (bypass yok)
+
+🚨 Bu case fazın en kritik iddiasını doğrular: run başlatan uçlar ortak bir
+filtre PAYLAŞMAZ, her biri kapıyı kendi gövdesinde çağırır. Bir uç
+unutulmuşsa bu case onu yakalar.
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 139 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- Her çağrıyı reddeden bir handler kayıtlı; bir workflow (`chain`) ve bir
+  inbound trigger (imzalı) tanımlı.
+
+**Adımlar**
+1. `POST /api/agents/{name}/run` dene.
+2. `POST /api/workflows/{name}/run` dene.
+3. İmzalı bir inbound trigger isteği gönder.
+4. `POST /v1/responses` (OpenAI uyumlu yüzey) dene.
+
+**Beklenen sonuç**
+- Dördü de `HTTP: 403` döner; hiçbiri handler'ı atlayıp çalışmaz.
+- Otomatikleştirilmiş karşılığı: `Handler_denies_a_different_user_and_no_run_row_opens`
+  (yüzey 1), `Workflow_run_is_covered` (yüzey 2), `Inbound_trigger_is_covered`
+  (yüzey 3), `OpenAI_compatible_endpoint_is_covered` (yüzey 4).
+
+---
+
+### MT-SEC-148 — Handler'a giden `TenantId` ambient kiracıdır
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 139 |
+| **İlgili karar** | — |
+
+**Adımlar**
+1. Handler'ın gördüğü `RunAuthorizationRequest.TenantId`'yi logla/kaydet.
+2. Normal (kiracı başlığı olmadan) bir run at.
+
+**Beklenen sonuç**
+- `TenantId` `"default"` (`SingleTenantContext`'in varsayılanı) — kapı
+  kendi kiracı değeri UYDURMAZ, her zaman `ITenantContext`'ten okur.
+- Otomatikleştirilmiş karşılığı: `Handler_receives_the_ambient_tenant`.
+
+---
+
+### MT-SEC-149 — İzin verilen çağıranın kimliği tool gövdesine ulaşır
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 139 (A8) |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- `IRunAttributionContext` `"ada"` döner; çağıranın kimliğini döndüren bir
+  test tool'u agent'a bağlı.
+
+**Adımlar**
+1. Tool'u tetikleyecek bir run at.
+2. Tool'un ürettiği sonucu (veya modelin yankıladığı metni) incele.
+
+**Beklenen sonuç**
+- Tool `AgentPrismRunContext.Current?.UserId` üzerinden `"ada"`yı görür — yeni
+  bir kavram değil, `IRunAttributionContext`'in run kaydı için zaten okuduğu
+  değerin tool'a açılan aynı kopyasıdır.
+- Otomatikleştirilmiş karşılığı: `Allowed_user_id_reaches_the_tool_via_scope`.
+
+---
+
+### MT-SEC-150 — Eşzamanlı çağrılar aynı handler örneğinde birbirini bozmaz
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 139 |
+| **İlgili karar** | — |
+
+**Adımlar**
+1. Aynı handler örneğine karşı çok sayıda run'ı EŞZAMANLI gönder.
+
+**Beklenen sonuç**
+- Hepsi tutarlı şekilde karar alır (istisna/çakışma yok); handler her çağrıyı
+  ayrı ayrı görür.
+- Otomatikleştirilmiş karşılığı: `Concurrent_runs_are_each_authorized_independently`.

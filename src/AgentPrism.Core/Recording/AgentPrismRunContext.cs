@@ -80,6 +80,27 @@ public sealed record AgentRunScope
     /// </remarks>
     public string? SessionId { get; init; }
 
+    /// <summary>
+    /// Gets the user this run belongs to, or <see langword="null"/> when unknown.
+    /// </summary>
+    /// <remarks>
+    /// The same value <see cref="IRunAttributionContext"/> resolved for the run
+    /// record (<see cref="RunRecord.UserId"/>) — this is not a new concept, only
+    /// a new place to read it from. A tool reads it from
+    /// <see cref="AgentPrismRunContext.Current"/> to learn who is calling it,
+    /// since a tool cannot depend on HTTP request state directly.
+    /// </remarks>
+    public string? UserId { get; init; }
+
+    /// <summary>
+    /// Gets the labels of this run, or <see langword="null"/> when there are none.
+    /// </summary>
+    /// <remarks>
+    /// The same value <see cref="IRunAttributionContext"/> resolved for the run
+    /// record (<see cref="RunRecord.Labels"/>).
+    /// </remarks>
+    public IReadOnlyDictionary<string, string>? Labels { get; init; }
+
     /// <summary>Gets the budget shared across the tree.</summary>
     public AgentRunBudget? Budget { get; init; }
 

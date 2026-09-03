@@ -32,6 +32,13 @@ public static partial class AgentPrismServiceCollectionExtensions
         // A consumer replaces this registration to enforce its own policy.
         services.TryAddSingleton<IToolAuthorizationHandler, AllowAllToolAuthorizationHandler>();
 
+        // Run and session authorization (phase 139, F-185): AgentPrism draws
+        // ownership at the tenant level and never learns which user inside a
+        // tenant a run or session belongs to. Allows every call by default, so
+        // an application that registers nothing keeps today's behaviour exactly.
+        // A consumer replaces this registration to enforce their own rule.
+        services.TryAddSingleton<IRunAuthorizationHandler, AllowAllRunAuthorizationHandler>();
+
         // Tool argument validation (phase 127): valid by default. Registered as
         // the specific shared instance so ToolWrapperChain.Compose can recognize
         // it by reference and skip installing ValidatingAIFunction when a
@@ -178,6 +185,7 @@ public static partial class AgentPrismServiceCollectionExtensions
             provider.GetRequiredService<ITenantContext>(),
             provider.GetRequiredService<IRunAttributionContext>(),
             provider.GetRequiredService<IToolAuthorizationHandler>(),
+            provider.GetRequiredService<IRunAuthorizationHandler>(),
             provider.GetServices<IRunEventSink>(),
             provider.GetService<IAttachmentStorage>(),
             provider.GetService<ModelProviderCircuitBreaker>()));

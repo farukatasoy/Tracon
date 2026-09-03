@@ -5,6 +5,7 @@ using Microsoft.Agents.AI.Hosting;
 using Microsoft.Agents.AI.Hosting.OpenAI;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
@@ -57,6 +58,8 @@ internal static class OpenAIResponsesEndpoints
                 IAttachmentStore attachmentStore,
                 AttachmentTypeGuard attachmentGuard,
                 IAuditActorResolver actorResolver,
+                [FromServices] IRunAuthorizationHandler? runAuthorizationHandler,
+                [FromServices] IRunAttributionContext? attributionContext,
                 CancellationToken cancellationToken)
                 => HandleAsync(
                     httpContext,
@@ -67,6 +70,8 @@ internal static class OpenAIResponsesEndpoints
                     attachmentStore,
                     attachmentGuard,
                     actorResolver,
+                    runAuthorizationHandler,
+                    attributionContext,
                     prefix,
                     cancellationToken))
             .RequireRole(roles.Operator)
@@ -78,7 +83,8 @@ internal static class OpenAIResponsesEndpoints
             .WithDescription(
                 "The agent is selected from the 'model' field; if not found, 'metadata.entity_id' is tried. " +
                 "If 'conversation' is given the session is stored under that identifier; if not, under the " +
-                "generated response identifier, so chaining with 'previous_response_id' works.")
+                "generated response identifier, so chaining with 'previous_response_id' works. If a " +
+                "registered IRunAuthorizationHandler denies the caller, the response is 403.")
             // One of two shapes, depending on the 'stream' flag in the body:
             // a JSON body (raw JsonElement, the schema comes from MAF's
             // OpenAIResponses.WriteResponse and is not typed at compile time)
@@ -90,6 +96,7 @@ internal static class OpenAIResponsesEndpoints
                 contentType: "application/json",
                 additionalContentTypes: ["text/event-stream"])
             .Produces<OpenAICompatSupport.OpenAIErrorEnvelope>(StatusCodes.Status400BadRequest)
+            .Produces<OpenAICompatSupport.OpenAIErrorEnvelope>(StatusCodes.Status403Forbidden)
             .Produces<OpenAICompatSupport.OpenAIErrorEnvelope>(StatusCodes.Status404NotFound)
             .Produces<OpenAICompatSupport.OpenAIErrorEnvelope>(StatusCodes.Status502BadGateway);
     }
@@ -103,6 +110,8 @@ internal static class OpenAIResponsesEndpoints
         IAttachmentStore attachmentStore,
         AttachmentTypeGuard attachmentGuard,
         IAuditActorResolver actorResolver,
+        IRunAuthorizationHandler? runAuthorizationHandler,
+        IRunAttributionContext? attributionContext,
         string prefix,
         CancellationToken cancellationToken)
     {
@@ -168,6 +177,19 @@ internal static class OpenAIResponsesEndpoints
         // call with 'previous_response_id'.
         var saveId = runRequest.ConversationId ?? responseId;
         var loadId = OpenAIResponses.GetSessionStoreId(runRequest) ?? saveId;
+
+        // 🚨 Checked BEFORE the tenant-ownership check below, same ordering
+        // as every other run-starting endpoint (phase 139, F-185): an
+        // unauthorized call must not learn whether 'loadId' exists.
+        if (await RunAuthorizationGate
+                .CheckRunAsync(runAuthorizationHandler, tenantContext, agentName, loadId, attributionContext, cancellationToken)
+                .ConfigureAwait(false) is { } authorizationProblem)
+        {
+            return OpenAICompatSupport.Error(
+                StatusCodes.Status403Forbidden,
+                authorizationProblem.ProblemDetails.Detail ?? "The registered IRunAuthorizationHandler denied this run.",
+                type: "run_not_authorized");
+        }
 
         // 'conversation' and 'previous_response_id' are untrusted input;
         // tenant ownership is verified before loading.

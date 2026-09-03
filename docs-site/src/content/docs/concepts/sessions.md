@@ -135,6 +135,46 @@ conversation. The session screen reads stored items and can branch at any point.
 - `previous_response_id` and `conversation_id` are treated as untrusted input. Tenant
   ownership is verified on every use.
 
+## Who can access a session
+
+Everything above is tenant-scoped: any caller with the `Reader`/`Operator`
+role in a tenant can list, read, delete, and branch every session in that
+tenant, regardless of which user opened it. AgentPrism does not learn a
+per-user owner on its own — bind `IRunAuthorizationHandler` to add that layer
+from your own identity system:
+
+```csharp
+public sealed class YourRunAuthorizationHandler(IYourOwnershipService ownership) : IRunAuthorizationHandler
+{
+    public ValueTask<RunAuthorizationResult> AuthorizeRunAsync(
+        RunAuthorizationRequest request, CancellationToken cancellationToken = default)
+        => new(RunAuthorizationResult.Allow());
+
+    public async ValueTask<RunAuthorizationResult> AuthorizeSessionAsync(
+        SessionAuthorizationRequest request, CancellationToken cancellationToken = default)
+    {
+        // request.SessionId is null only for SessionAccess.List.
+        if (request.Access == SessionAccess.List)
+        {
+            return RunAuthorizationResult.Allow();
+        }
+
+        return await ownership.OwnsAsync(request.TenantId, request.UserId, request.SessionId!, cancellationToken)
+            ? RunAuthorizationResult.Allow()
+            : RunAuthorizationResult.Deny("This session belongs to a different user.");
+    }
+}
+```
+
+The response shape follows the same "don't confirm what shouldn't be seen"
+rule the OpenAI-compatible conversations above already use: a denied
+**read**, **delete**, or **branch** returns `404` with the exact same body a
+genuinely missing session gets, and a denied **list** returns `403` — a list
+has no single identity to leak, and it is rejected outright rather than
+silently filtered, which would otherwise break the `skip`/`take` paging
+contract. See [Embedding: run and session authorization](/guides/embedding/#6--run-and-session-authorization)
+for the run-starting half of the same contract.
+
 ## Attachments
 
 Attachments are uploaded independently and referenced from messages; the bytes live in

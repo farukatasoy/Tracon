@@ -97,9 +97,11 @@ internal static class TriggerEndpoints
                     HttpContext httpContext,
                     [FromServices] InboundTriggerDispatcher dispatcher,
                     [FromServices] QuotaEnforcer? quotaEnforcer,
+                    [FromServices] IRunAuthorizationHandler? runAuthorizationHandler,
+                    [FromServices] IRunAttributionContext? attributionContext,
                     [FromServices] IOptionsMonitor<AgentPrismInboundTriggerOptions> options,
                     CancellationToken cancellationToken)
-                    => AcceptAsync(tenantId, name, httpContext, dispatcher, quotaEnforcer, options, prefix, cancellationToken))
+                    => AcceptAsync(tenantId, name, httpContext, dispatcher, quotaEnforcer, runAuthorizationHandler, attributionContext, options, prefix, cancellationToken))
             .WithName("AgentPrismAcceptInboundTrigger")
             .WithTags("AgentPrism", "Triggers")
             .WithSummary("Accepts a signed external event and queues a run.")
@@ -110,10 +112,13 @@ internal static class TriggerEndpoints
                 "ALWAYS queued and this ALWAYS returns 202 — there is no synchronous mode; a " +
                 "long model call would otherwise fail the caller's own webhook timeout. A missing " +
                 "or wrong signature, an unknown trigger, and a disabled trigger all return the " +
-                "SAME generic response so a caller cannot enumerate trigger names.")
+                "SAME generic response so a caller cannot enumerate trigger names. If a registered " +
+                "IRunAuthorizationHandler denies the target run, the response is 403, before the " +
+                "quota check.")
             .Produces<InboundTriggerAcceptedResponse>(StatusCodes.Status202Accepted)
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesProblem(StatusCodes.Status413PayloadTooLarge)
             .ProducesProblem(StatusCodes.Status429TooManyRequests);
@@ -264,6 +269,8 @@ internal static class TriggerEndpoints
         HttpContext httpContext,
         InboundTriggerDispatcher dispatcher,
         QuotaEnforcer? quotaEnforcer,
+        IRunAuthorizationHandler? runAuthorizationHandler,
+        IRunAttributionContext? attributionContext,
         IOptionsMonitor<AgentPrismInboundTriggerOptions> options,
         string prefix,
         CancellationToken cancellationToken)
@@ -294,12 +301,25 @@ internal static class TriggerEndpoints
         }
 
         var validated = validation.Validated!;
+        var triggerTenant = new FixedTenantContext(validated.Trigger.TenantId);
+
+        // Same 403 shape as every other run-starting endpoint (phase 139,
+        // F-185): a trigger cannot bypass the installation's run
+        // authorization policy just because it has no bearer token.
+        if (await RunAuthorizationGate
+                .CheckRunAsync(runAuthorizationHandler, triggerTenant, validated.Trigger.TargetName, sessionId: null, attributionContext, cancellationToken)
+                .ConfigureAwait(false) is { } authorizationResult)
+        {
+            await dispatcher.ReleaseAsync(validated, cancellationToken).ConfigureAwait(false);
+
+            return authorizationResult;
+        }
 
         // Same 429 shape as every other run-starting endpoint (K-394's
         // precedent): a trigger cannot bypass the tenant's quota just because
         // it has no bearer token.
         var quotaResult = await QuotaGate
-            .CheckAsync(quotaEnforcer, new FixedTenantContext(validated.Trigger.TenantId), validated.Trigger.TargetName, httpContext, cancellationToken)
+            .CheckAsync(quotaEnforcer, triggerTenant, validated.Trigger.TargetName, httpContext, cancellationToken)
             .ConfigureAwait(false);
 
         if (quotaResult is not null)
