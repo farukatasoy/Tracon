@@ -34,7 +34,7 @@ public sealed class AgentCallGraphTests
 
         using var response = await host.Client.PostAsJsonAsync(
             Agents,
-            TestData.Request() with { CallableAgentNames = ["hic-yok"] });
+            TestData.Request() with { CallableAgentNames = ["does-not-exist"] });
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
 

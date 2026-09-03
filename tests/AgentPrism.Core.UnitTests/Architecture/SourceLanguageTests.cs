@@ -146,6 +146,7 @@ public sealed class SourceLanguageTests
         "gerekir", "gerekmez", "edilmez", "yapilmaz", "yazilmaz", "kullanilmaz",
         // domain nouns
         "bos", "yeni", "eski", "zaman", "varsayilan", "deger", "gerekce",
+        "yok", "ses", "kullanilabilir", "daha",
         "denetim", "gercek", "kayit", "kaydi", "kayitli", "cagri", "cagrisi",
         "kimlik", "kimligi", "kiraci", "kiracinin", "saglayici", "saglayicinin",
         "calistirma", "calistirmanin", "hata", "hatasi", "iptal", "kaynak",

@@ -150,6 +150,6 @@ bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 | [135](arsiv/fazlar/135-URETILEN-SEMANIN-NESNE-GRAFI.md) | Üretilen Şemanın Nesne Grafı | ✅ Tamamlandı |
 | [136](arsiv/fazlar/136-PAKET-KIMLIGININ-TEKILLIGI.md) | Paket Kimliğinin Tekilliği | ✅ Tamamlandı |
 | [137](arsiv/fazlar/137-IS-TURUNUN-ACIK-ANAHTARI.md) | İş Türünün Açık Anahtarı | ✅ Tamamlandı |
-| [138](138-SES-TANIMININ-SAGLAYICI-USTVERISI.md) | Ses Tanımının Sağlayıcı Üstverisi | 📋 Planlandı |
+| [138](138-SES-TANIMININ-SAGLAYICI-USTVERISI.md) | Ses Tanımının Sağlayıcı Üstverisi | ✅ Tamamlandı |
 
 Seçilmemiş adaylar: [`ADAYLAR.md`](ADAYLAR.md). Fazların hangi dalgada, hangi gerekçeyle sıralandığı (Faz 8–56, kapandı): [`arsiv/IKINCI-FAZ-YOL-HARITASI.md`](arsiv/IKINCI-FAZ-YOL-HARITASI.md) · [`arsiv/UCUNCU-FAZ-YOL-HARITASI.md`](arsiv/UCUNCU-FAZ-YOL-HARITASI.md).

@@ -265,7 +265,7 @@ public sealed class SecurityTests
 
         using var response = await host.Client.PostAsJsonAsync(
             new Uri("/agentprism/v1/responses", UriKind.Relative),
-            new { model = "yok", input = "merhaba" });
+            new { model = "does-not-exist", input = "hello" });
 
         response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
     }

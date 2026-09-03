@@ -22,7 +22,7 @@ import { WebhookPanel } from '../components/webhook-panel';
 import { ApiKeyPanel } from '../components/api-key-panel';
 import { TenantProviderPanel } from '../components/tenant-provider-panel';
 import { RetentionPanel } from '../components/retention-panel';
-import { readVoiceForLocale, writeVoiceForLocale } from '../lib/voice';
+import { readVoiceForLocale, voiceOptionMeta, writeVoiceForLocale } from '../lib/voice';
 import type { AgentPrismMetaResponse as Meta } from '@agentprism/client';
 import type { RunStatistics } from '../lib/server-types';
 
@@ -243,12 +243,13 @@ export function SettingsScreen({ meta }: { meta: Meta }): ReactNode {
 /**
  * Which voice speaks each language.
  *
- * 🚨 A Turkish answer read out by an English voice is unintelligible. The
- * provider does not report the language of a voice — `VoiceDescriptor` carries
- * only an id, a name and a category — so the mapping cannot be derived and an
- * operator sets it here once. The conversation panel then sends the chosen id
- * in the `start` frame, which the protocol already accepts; the server never
- * learns about languages.
+ * 🚨 A Turkish answer read out by an English voice is unintelligible. Phase 138
+ * added `VoiceDescriptor.attributes`, and the option label below shows the
+ * `language`/`gender` values a provider reports through it — but not every
+ * provider reports them, so the mapping still cannot be derived reliably and
+ * an operator sets it here once. The conversation panel then sends the chosen
+ * id in the `start` frame, which the protocol already accepts; the server
+ * never learns about languages.
  *
  * The panel hides itself when no speech provider is configured: an empty
  * dropdown would only raise a question it cannot answer.
@@ -284,11 +285,15 @@ function VoicePreferencePanel(): ReactNode {
               }}
             >
               <option value="">{t('settings.serverDefaultVoice')}</option>
-              {voices.data.map((voice) => (
-                <option key={voice.voiceId} value={voice.voiceId}>
-                  {voice.name}
-                </option>
-              ))}
+              {voices.data.map((voice) => {
+                const meta = voiceOptionMeta(voice.attributes);
+
+                return (
+                  <option key={voice.voiceId} value={voice.voiceId}>
+                    {meta === null ? voice.name : `${voice.name} (${meta})`}
+                  </option>
+                );
+              })}
             </Select>
           </label>
         ))}

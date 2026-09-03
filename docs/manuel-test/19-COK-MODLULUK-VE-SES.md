@@ -2191,3 +2191,164 @@ curl -s -o /dev/null -w '%{http_code}\n' -X POST "$APU/api/images/generate" \
 - Transkript listesine boş bir tur eklenmez ve **önceki** turun kaydı
   (özellikle "kesildi" notu) değişmez.
 - Tur sayacı artmaz: sonraki gerçek tur `done` çerçevesinde `turn: 1` taşır.
+
+### MT-MM-100 — `list_voices` ve `GET /api/voice/voices` sağlayıcı attribute'larını taşır
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 138 |
+| **İlgili karar** | K-669 |
+
+**Ön koşul**
+- Gerçek bir ElevenLabs anahtarı yapılandırılmış (`UseVoice`).
+
+**Adımlar**
+1. `GET /api/voice/voices` çağır.
+2. Yanıttaki her sesin `attributes` alanını incele.
+
+**Beklenen sonuç**
+- Her ses bir `attributes` nesnesi taşır (boş olabilir, `null` değil).
+- En az bir seste `gender` anahtarı var.
+- `labels` taşımayan bir ses varsa o sesin `attributes`'ı **boş nesnedir**,
+  `null` değildir.
+
+### MT-MM-101 — Sağlayıcı üstverisi `preview_url` veya API key sızdırmaz
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 138 |
+| **İlgili karar** | K-669 |
+
+**Ön koşul**
+- MT-MM-100'ün yanıtı elde edilmiş.
+
+**Adımlar**
+1. Tam yanıt gövdesini `preview_url` ve yapılandırılan API key değeri için
+   tara.
+
+**Beklenen sonuç**
+- Hiçbir `preview_url` alanı yanıtta yer almaz.
+- API key değeri yanıtın hiçbir yerinde geçmez.
+
+### MT-MM-102 — Model `list_voices` çıktısında gender bilgisini görür
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 138 |
+| **İlgili karar** | K-669 |
+
+**Ön koşul**
+- Bir agent'a `list_voices` tool'u bağlı ve gerçek bir ElevenLabs anahtarı
+  yapılandırılmış.
+
+**Adımlar**
+1. Agent'a "hangi kadın sesler var?" gibi bir soru sor.
+
+**Beklenen sonuç**
+- Model, `list_voices` çıktısındaki gender bilgisini kullanarak yanıt verir
+  (çıktı satırlarında `— female` gibi bir ek görünür).
+
+### MT-MM-103 — Ses sağlayıcısı yokken `list_voices` İngilizce mesaj döner
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 138 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- Ses sağlayıcısı hiç yapılandırılmamış (`UseVoice` çağrılmamış) VEYA
+  `ISpeechSynthesizer` sıfır ses döndüren bir sahte uygulama.
+
+**Adımlar**
+1. `list_voices` tool'unu çağır.
+
+**Beklenen sonuç**
+- Dönen metin **İngilizce**'dir ("No voices available."); Türkçe metin yoktur.
+
+### MT-MM-104 — 50'den fazla ses varken kalan sayı satırı İngilizce'dir
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Düşük |
+| **İlgili faz** | Faz 138 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- Sağlayıcı 50'den fazla ses döndürüyor (gerçek ElevenLabs hesabı veya sahte
+  `ISpeechSynthesizer`).
+
+**Adımlar**
+1. `list_voices` tool'unu çağır.
+
+**Beklenen sonuç**
+- Çıktının son satırı "… and N more voices." biçimindedir; Türkçe metin
+  yoktur.
+
+### MT-MM-105 — Kaynak dili kapısı yeşildir ve taban çizgisi büyümedi
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 138 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- Depo kök dizini.
+
+**Adımlar**
+1. `dotnet test tests/AgentPrism.Core.UnitTests -c Release --filter-method
+   "*Source_tree_carries_no_Turkish*"` koştur.
+
+**Beklenen sonuç**
+- Test yeşildir.
+- `tests/AgentPrism.Core.UnitTests/Architecture/source-language-baseline.txt`
+  boş kalır (hiçbir dosya için izin verilen satır sayısı büyümedi).
+
+### MT-MM-106 — Ses yolu Native AOT'ta çalışır
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 138 |
+| **İlgili karar** | K-006 |
+
+**Ön koşul**
+- Depo kök dizini.
+
+**Adımlar**
+1. `python3 scripts/kapi.py yayin --kuru` koştur.
+
+**Beklenen sonuç**
+- Native AOT smoke koşumu ses yolunu (yeni `Dictionary<string,string>`
+  serileştirmesi dahil) hatasız geçer.
+
+### MT-MM-107 — Var olan özel `ISpeechSynthesizer` uygulaması değişmeden derlenir
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 138 |
+| **İlgili karar** | K-669 |
+
+**Ön koşul**
+- `ISpeechSynthesizer`'ı uygulayan, `VoiceDescriptor` döndüren özel bir tüketici
+  projesi (`samples/` veya harici).
+
+**Adımlar**
+1. Projeyi yeni `AgentPrism.Abstractions` sürümüne karşı derle.
+
+**Beklenen sonuç**
+- Proje **hiçbir kod değişikliği olmadan** derlenir: `Attributes` varsayılanlı
+  bir alan olduğu için mevcut nesne başlatıcılar etkilenmez.

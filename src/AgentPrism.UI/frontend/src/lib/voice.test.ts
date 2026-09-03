@@ -5,6 +5,7 @@ import {
   createSilenceDetector,
   loudness,
   parseVoiceEvent,
+  voiceOptionMeta,
   voiceSubProtocols,
 } from './voice';
 
@@ -90,6 +91,25 @@ describe('loudness', () => {
 
   it('is zero for an empty block', () => {
     expect(loudness(new Uint8Array(0))).toBe(0);
+  });
+});
+
+describe('voiceOptionMeta', () => {
+  it('returns null when attributes are undefined', () => {
+    expect(voiceOptionMeta(undefined)).toBeNull();
+  });
+
+  it('returns null when neither language nor gender is present', () => {
+    expect(voiceOptionMeta({ accent: 'American' })).toBeNull();
+  });
+
+  it('joins language and gender', () => {
+    expect(voiceOptionMeta({ language: 'en', gender: 'female' })).toBe('en, female');
+  });
+
+  it('shows whichever of the two is present', () => {
+    expect(voiceOptionMeta({ gender: 'female' })).toBe('female');
+    expect(voiceOptionMeta({ language: 'en,fr' })).toBe('en,fr');
   });
 });
 

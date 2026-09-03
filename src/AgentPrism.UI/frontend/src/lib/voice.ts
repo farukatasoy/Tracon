@@ -98,11 +98,14 @@ const VOICE_STORAGE_PREFIX = 'agentprism.voice.';
 /**
  * The voice this language is spoken with.
  *
- * 🚨 A Turkish answer read out by an English voice is unintelligible, and the
- * provider does NOT report which language a voice speaks — `VoiceDescriptor`
- * carries an id, a name and a category, nothing else. So the mapping cannot be
- * derived; an operator picks it once per language on the Settings screen and it
- * is stored here.
+ * 🚨 A Turkish answer read out by an English voice is unintelligible. Phase 138
+ * added `VoiceDescriptor.attributes`, but a provider's `language` entry is not
+ * guaranteed — it depends on that provider reporting it (ElevenLabs does, via
+ * a separate verified-languages field; another provider might not). The
+ * mapping still cannot be derived reliably across providers, so an operator
+ * picks it once per language on the Settings screen and it is stored here.
+ * `voiceOptionMeta` below only helps that operator recognize a matching voice
+ * faster; it does not replace the choice.
  *
  * The choice travels to the server in the `start` frame of the conversation
  * (`voiceId`), which the protocol already accepts. Nothing on the server has to
@@ -116,6 +119,23 @@ export function readVoiceForLocale(locale: string): string | null {
   } catch {
     return null;
   }
+}
+
+/**
+ * A short suffix for a voice picker option, built from the provider's safe
+ * scalar attributes (Phase 138) — for example `"en, female"`. `null` when the
+ * voice carries neither, so the caller can fall back to the bare name.
+ */
+export function voiceOptionMeta(attributes: Record<string, string> | undefined): string | null {
+  if (attributes === undefined) {
+    return null;
+  }
+
+  const parts = [attributes.language, attributes.gender].filter(
+    (value): value is string => typeof value === 'string' && value.length > 0,
+  );
+
+  return parts.length === 0 ? null : parts.join(', ');
 }
 
 export function writeVoiceForLocale(locale: string, voiceId: string | null): void {

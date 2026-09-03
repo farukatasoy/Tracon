@@ -85,3 +85,17 @@
     "yalitim cakismasi" sanildi. Yuk yalnizca pencereyi genisletiyordu; gercek
     sebep koddaydi. **Tek basina gecip pakette dusen test otomatik olarak
     kirilgan degildir** — kod yolu okunmadan siniflandirilmaz.
+- **🚨 ElevenLabs'in `/v2/voices` ucu `page_size` verilmezse VARSAYILAN 10 ses
+  doner** (2026-09-03, Faz 138, K-669'un yaninda olculdu, olcum kaynagi:
+  `api.elevenlabs.io/openapi.json` — `GET /v2/voices` parametre listesi):
+  `ElevenLabsSpeechClient.ListVoicesAsync` sorgu dizesi hic eklemeden
+  `BuildUri("v2/voices")` cagiriyordu; kod `MaxReportedVoices = 500` sinirini
+  varsayiyordu ama gercekte saglayici HER ZAMAN yalniz ilk 10'u donuyordu —
+  premade katalog bile bunu asar. Cozum `page_size=100` + `has_more`/
+  `next_page_token` takibi (`ReadVoicesPageAsync` + `MapVoices` ayrimi).
+  **`VoiceResponseModel`'in `labels` sozlugu `language` anahtari TASIMAZ** —
+  dil ayri, coklu-model `verified_languages` dizisinde durur
+  (`VerifiedVoiceLanguageResponseModel.language`, zorunlu alan). Yeni bir
+  saglayici entegre edilirken saglayicinin GERCEK OpenAPI/semasi
+  (varsa) once cekilip grep'lenmeli — dokumantasyon prosasi ("filtering,
+  based on the voice's 'language' label" gibi) semanin kendisiyle CELISEBILIR.

@@ -65,11 +65,23 @@ internal sealed class ElevenLabsTranscriptionResponse
     public double? AudioDurationSeconds { get; set; }
 }
 
-/// <summary>ElevenLabs voice list response.</summary>
+/// <summary>ElevenLabs <c>/v2/voices</c> response.</summary>
 internal sealed class ElevenLabsVoicesResponse
 {
     [JsonPropertyName("voices")]
     public List<ElevenLabsVoice>? Voices { get; set; }
+
+    /// <summary>
+    /// Whether another page follows. The endpoint defaults to <c>page_size=10</c>
+    /// when unspecified, so a client that ignores this field silently truncates
+    /// any catalog larger than one page.
+    /// </summary>
+    [JsonPropertyName("has_more")]
+    public bool HasMore { get; set; }
+
+    /// <summary>The token to pass as <c>next_page_token</c> to fetch the next page.</summary>
+    [JsonPropertyName("next_page_token")]
+    public string? NextPageToken { get; set; }
 }
 
 /// <summary>A single voice in the list.</summary>
@@ -83,6 +95,31 @@ internal sealed class ElevenLabsVoice
 
     [JsonPropertyName("category")]
     public string? Category { get; set; }
+
+    /// <summary>
+    /// Provider-reported scalar labels (for example <c>gender</c>, <c>accent</c>,
+    /// <c>age</c>, <c>use_case</c>). Modeled as <see cref="JsonElement"/> values,
+    /// not <see cref="string"/>: the provider's schema promises scalars, but a
+    /// malformed or future non-string value must not crash the whole list's
+    /// deserialization. <see cref="VoiceAttributeMapper"/> does the safe narrowing.
+    /// </summary>
+    [JsonPropertyName("labels")]
+    public Dictionary<string, JsonElement>? Labels { get; set; }
+
+    /// <summary>
+    /// The languages this voice is verified for, one entry per model. Deliberately
+    /// NOT part of <see cref="Labels"/> — ElevenLabs' <c>VoiceResponseModel</c>
+    /// carries language here, not in <c>labels</c> (measured 2026-09-03).
+    /// </summary>
+    [JsonPropertyName("verified_languages")]
+    public List<ElevenLabsVerifiedLanguage>? VerifiedLanguages { get; set; }
+}
+
+/// <summary>One language ElevenLabs has verified a voice for, tied to a specific model.</summary>
+internal sealed class ElevenLabsVerifiedLanguage
+{
+    [JsonPropertyName("language")]
+    public string? Language { get; set; }
 }
 
 /// <summary>
@@ -100,4 +137,6 @@ internal sealed class ElevenLabsVoice
 [JsonSerializable(typeof(ElevenLabsTranscriptionResponse))]
 [JsonSerializable(typeof(ElevenLabsVoicesResponse))]
 [JsonSerializable(typeof(ElevenLabsVoice))]
+[JsonSerializable(typeof(ElevenLabsVerifiedLanguage))]
+[JsonSerializable(typeof(Dictionary<string, JsonElement>))]
 internal sealed partial class ElevenLabsJsonContext : JsonSerializerContext;
