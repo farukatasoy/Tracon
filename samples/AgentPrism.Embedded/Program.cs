@@ -8,21 +8,25 @@
 // docs-site/src/content/docs/guides/embedding.md for the full explanation this
 // sample follows line by line.
 //
-// The five embedding points, all bound BEFORE AddAgentPrism() so the host's own
+// The six embedding points, all bound BEFORE AddAgentPrism() so the host's own
 // registration wins over the built-in default (every contract uses TryAdd):
 //   1. ITenantContext / ITenantStore -> Tenancy/
 //   2. IRunAttributionContext        -> Attribution/
 //   3. IToolAuthorizationHandler     -> Authorization/
-//   4. IRunEventSink                 -> Events/ (bounded channel, drops on backpressure)
-//   5. IAttachmentStorage            -> Attachments/
+//   4. IRunAuthorizationHandler      -> Authorization/
+//   5. IRunEventSink                 -> Events/ (bounded channel, drops on backpressure)
+//   6. IAttachmentStorage            -> Attachments/
 //
 // Background work: Jobs/ runs an agent with NO HTTP request behind it, using
 // AmbientTenantScope and AmbientRunAttributionScope — the mandatory scenario
-// this sample exists to prove end to end.
+// this sample exists to prove end to end. It calls AIAgent.RunAsync directly,
+// so it does NOT go through IRunAuthorizationHandler — that gate sits in front
+// of AgentPrism's OWN HTTP run endpoints (mapped below), not every code path
+// that can start a run.
 //
-// GET /agentprism/api/diagnostics (enabled below) reports all five as
+// GET /agentprism/api/diagnostics (enabled below) reports all six as
 // isBuiltInDefault: false, naming this sample's own types — contrast with
-// samples/AgentPrism.Api, where the four points it never binds still report
+// samples/AgentPrism.Api, where the points it never binds still report
 // AgentPrism's own defaults.
 
 using AgentPrism;
@@ -35,13 +39,14 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddHttpContextAccessor();
 
-// The five embedding points. Order matters: AddAgentPrism() below calls
-// TryAdd* for all five, so a registration made first wins; a registration
+// The six embedding points. Order matters: AddAgentPrism() below calls
+// TryAdd* for all six, so a registration made first wins; a registration
 // made after AddAgentPrism() is silently ignored.
 builder.Services.AddSingleton<ITenantContext, EmbeddedTenantContext>();
 builder.Services.AddSingleton<ITenantStore, EmbeddedTenantStore>();
 builder.Services.AddSingleton<IRunAttributionContext, EmbeddedRunAttributionContext>();
 builder.Services.AddSingleton<IToolAuthorizationHandler, EmbeddedToolAuthorizationHandler>();
+builder.Services.AddSingleton<IRunAuthorizationHandler, EmbeddedRunAuthorizationHandler>();
 builder.Services.AddSingleton<RunEventBridgeState>();
 builder.Services.AddSingleton<BoundedChannelRunEventSink>();
 builder.Services.AddSingleton<IRunEventSink>(static provider => provider.GetRequiredService<BoundedChannelRunEventSink>());
