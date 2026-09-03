@@ -165,7 +165,7 @@ sütununa sığıyor.
 
 ## Sonraki Faza Devir Notu
 
-- **Sıradaki faz: [Faz 138 — Ses Tanımının Sağlayıcı Üstverisi](../../138-SES-TANIMININ-SAGLAYICI-USTVERISI.md).**
+- **Sıradaki faz: [Faz 138 — Ses Tanımının Sağlayıcı Üstverisi](138-SES-TANIMININ-SAGLAYICI-USTVERISI.md).**
   Bu fazla kesişimi yoktur; 138'in kendi "Bu Faza Başlarken" listesi yeterlidir.
 - **🚨 `TryAddEnumerable` + "listede ara" deseni bir genişleme noktası DEĞİLDİR.**
   Bu faz o desenin bir örneğini kapattı ama sınıfını taramadı. `TryAddEnumerable`
