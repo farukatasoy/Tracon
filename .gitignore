@@ -105,6 +105,7 @@ docs-site/dist/
 docs-site/.astro/
 docs-site/src/content/docs/api/
 docs-site/src/content/docs/http-api/
+docs-site/src/content/docs/reference/changelog.md
 docs-site/src/generated/
 docs-site/public/openapi/
 docfx/api-md/

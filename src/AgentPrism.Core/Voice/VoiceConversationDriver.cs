@@ -344,7 +344,10 @@ internal sealed class VoiceConversationDriver
                     _buffer.Length);
             }
 
-            Commit();
+            // The result is discarded on purpose: a full buffer always has audio to
+            // take, so this path cannot be the one that owes an `idle` frame - and
+            // it holds a span, so it could not await a send anyway.
+            _ = Commit();
         }
 
         /// <summary>Handles a text frame.</summary>
@@ -372,7 +375,11 @@ internal sealed class VoiceConversationDriver
                     return false;
 
                 case VoiceConversationProtocol.ClientCommit:
-                    Commit();
+                    if (Commit())
+                    {
+                        await SendAsync(Idle()).ConfigureAwait(false);
+                    }
+
                     return false;
 
                 case VoiceConversationProtocol.ClientCancel:
@@ -464,13 +471,22 @@ internal sealed class VoiceConversationDriver
         }
 
         /// <summary>Closes the current utterance and starts the turn.</summary>
-        private void Commit()
+        /// <returns>
+        /// <see langword="true"/> when the commit was accepted but there was no
+        /// audio to take, so the caller owes the client an
+        /// <see cref="VoiceConversationProtocol.ServerIdle"/> frame. The
+        /// buffer-full caller never sees this - that buffer is full by definition.
+        /// </returns>
+        private bool Commit()
         {
             lock (_state)
             {
                 if (_state.Commit() != VoiceTransitionOutcome.Accepted)
                 {
-                    return;
+                    // The state machine refused: no turn was closed, so the client
+                    // is not waiting on one either. Saying `idle` here would push a
+                    // client that is mid-turn back to listening.
+                    return false;
                 }
             }
 
@@ -478,8 +494,14 @@ internal sealed class VoiceConversationDriver
             {
                 // `commit` arrived before any audio. This is not an error (a short
                 // cough can also trigger the VAD of the client); go back to listening.
+                //
+                // 🚨 Going back in SILENCE is what hung the panel: the client puts
+                // itself in 'thinking' the moment the user presses send, and only a
+                // server frame moves it back AND restarts its recorder. Measured
+                // through the browser suite - pressing send inside the recorder's
+                // first 250 ms timeslice reaches here, and the panel never recovered.
                 FinishTurn(counted: false);
-                return;
+                return true;
             }
 
             // 🚨 The token of the previous turn is disposed HERE, not inside the turn
@@ -490,6 +512,7 @@ internal sealed class VoiceConversationDriver
             _turnCancellation?.Dispose();
             _turnCancellation = new CancellationTokenSource();
             _turn = ProcessTurnAsync(utterance, _turnCancellation.Token);
+            return false;
         }
 
         /// <summary>Handles an interruption (barge-in).</summary>
@@ -533,7 +556,14 @@ internal sealed class VoiceConversationDriver
 
                 if (text.Length == 0)
                 {
+                    // 🚨 Same class as the empty commit in `Commit`, and likelier in
+                    // production: the audio arrived, but the transcriber heard
+                    // nothing usable (background noise, a knock on the desk). The
+                    // client IGNORES a transcript frame whose text is empty, and the
+                    // `done` frame below is skipped by this return - so without this
+                    // the panel stays in 'thinking' with a stopped recorder.
                     FinishTurn(counted: false);
+                    await SendAsync(Idle()).ConfigureAwait(false);
                     return;
                 }
 
@@ -835,6 +865,9 @@ internal sealed class VoiceConversationDriver
 
         private static VoiceServerMessage Error(string message)
             => new() { Type = VoiceConversationProtocol.ServerError, Message = message };
+
+        private static VoiceServerMessage Idle()
+            => new() { Type = VoiceConversationProtocol.ServerIdle };
 
         /// <summary>Closes the connection: it ends the pending turn and writes the record.</summary>
         private async Task ShutdownAsync(Guid recordId, DateTimeOffset started, VoiceSessionEndReason reason)
