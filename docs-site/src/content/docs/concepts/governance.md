@@ -247,6 +247,16 @@ A rule sets any of three limits — runs, tokens, or cost — over a period, sco
 tenant or to one agent. Exceeding one returns `429` with which quota was hit and when
 the counter resets.
 
+You are told **before** the wall, not only at it. As the counter crosses each
+percentage in `Quotas:ThresholdPercents` (`80` and `100` by default) AgentPrism posts
+a [`quota.threshold`](#webhooks) webhook carrying the metric, the period, the limit,
+the consumption, the threshold crossed, and when the counter resets. Each threshold
+fires **once per period**, so a counter that keeps climbing past `80` does not
+re-notify. Set the list to empty to turn the notifications off.
+
+The threshold event is a notification, not a decision: it stops nothing, and `429`
+remains the only thing that refuses a run.
+
 :::caution[Counters are approximate]
 The check happens **before** a run starts; consumption is written **after** it
 finishes. A run already in progress is never cut off mid-flight, so brief overshoot is
@@ -400,6 +410,19 @@ everything else.
 ## Webhooks
 
 Subscribe to events and AgentPrism posts them to your endpoint.
+
+| Event | Fires when |
+|---|---|
+| `run.completed` | A run completed successfully |
+| `run.failed` | A run ended in an error |
+| `approval.pending` | A tool call is awaiting approval |
+| `workflow.request.pending` | A workflow is awaiting human input |
+| `job.completed` | A queued job completed successfully |
+| `job.failed` | A queued job ended in an error |
+| `eval.completed` | An evaluation run completed |
+| `quota.threshold` | A quota counter crossed a percentage in `Quotas:ThresholdPercents` — once per period |
+| `run.score.low` | The online-evaluation window's average score dropped below `OnlineEvaluation:LowScoreThreshold`, once the minimum sample count is met |
+| `test.ping` | You sent a test delivery to verify the subscription |
 
 The signature is `HMAC-SHA256(timestamp + "." + body, secret)`, with the timestamp
 inside the signature so a replay cannot be reused. Your receiver decides the tolerance
