@@ -55,7 +55,7 @@
 > ölçüldü ve **üç iddiasının üçü de doğrulandı**. Kalemler bu dosyada
 > sıralanmadı — kanıtları raporla geldi ve aynı turda yeniden üretildi:
 > **F-182** (paket kimliğinin tekilliği, TT-002) →
-> [Faz 136](136-PAKET-KIMLIGININ-TEKILLIGI.md); repro kilitli, `1.0.0-preview.1`
+> [Faz 136](arsiv/fazlar/136-PAKET-KIMLIGININ-TEKILLIGI.md); repro kilitli, `1.0.0-preview.1`
 > tag'inin önüne girer. **F-183** (custom job dispatch, TT-001) ve **F-184**
 > (voice descriptor sağlayıcı üstverisi, TT-003) →
 > [Faz 137](137-IS-TURUNUN-ACIK-ANAHTARI.md) ve

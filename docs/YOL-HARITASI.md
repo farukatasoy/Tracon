@@ -148,7 +148,7 @@ bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 | [133](arsiv/fazlar/133-IS-KUYRUGU-METRIKLERI.md) | İş Kuyruğu Metrikleri | ✅ Tamamlandı |
 | [134](arsiv/fazlar/134-SINIRLI-YANIT-ONARIMI.md) | Sınırlı Yapısal Yanıt Onarımı | ✅ Tamamlandı |
 | [135](arsiv/fazlar/135-URETILEN-SEMANIN-NESNE-GRAFI.md) | Üretilen Şemanın Nesne Grafı | ✅ Tamamlandı |
-| [136](136-PAKET-KIMLIGININ-TEKILLIGI.md) | Paket Kimliğinin Tekilliği | ✅ Tamamlandı |
+| [136](arsiv/fazlar/136-PAKET-KIMLIGININ-TEKILLIGI.md) | Paket Kimliğinin Tekilliği | ✅ Tamamlandı |
 | [137](137-IS-TURUNUN-ACIK-ANAHTARI.md) | İş Türünün Açık Anahtarı | 📋 Planlandı |
 | [138](138-SES-TANIMININ-SAGLAYICI-USTVERISI.md) | Ses Tanımının Sağlayıcı Üstverisi | 📋 Planlandı |
 
