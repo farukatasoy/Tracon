@@ -223,7 +223,7 @@ public sealed class SchedulingEndpointTests
             {
                 TenantId = "default",
                 Name = "gece-raporu",
-                Kind = JobKind.AgentBatch,
+                HandlerKey = JobHandlerKeys.AgentBatch,
                 TargetName = "ozetleyici",
                 Payload = JsonDocument.Parse("""["a"]""").RootElement,
                 CreatedAt = DateTimeOffset.UtcNow,
@@ -244,7 +244,7 @@ public sealed class SchedulingEndpointTests
     private static JobScheduleSaveRequest Request()
         => new()
         {
-            Kind = JobKind.AgentBatch,
+            HandlerKey = JobHandlerKeys.AgentBatch,
             TargetName = "ozetleyici",
             Cron = "0 3 * * *",
             TimeZone = "UTC",

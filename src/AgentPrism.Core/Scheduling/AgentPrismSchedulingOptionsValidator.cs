@@ -83,13 +83,30 @@ internal sealed class AgentPrismSchedulingOptionsValidator : IValidateOptions<Ag
             }
         }
 
-        foreach (var lane in options.LaneByKind.Values)
+        foreach (var (handlerKey, lane) in options.LaneByHandlerKey)
         {
+            if (!JobHandlerKeys.IsValidKey(handlerKey))
+            {
+                (failures ??= []).Add(
+                    $"{nameof(AgentPrismSchedulingOptions)}.{nameof(AgentPrismSchedulingOptions.LaneByHandlerKey)} " +
+                    $"contains the key '{handlerKey}', which is not a valid job handler key.");
+            }
+
             if (!JobLanes.IsValidName(lane))
             {
                 (failures ??= []).Add(
-                    $"{nameof(AgentPrismSchedulingOptions)}.{nameof(AgentPrismSchedulingOptions.LaneByKind)} " +
+                    $"{nameof(AgentPrismSchedulingOptions)}.{nameof(AgentPrismSchedulingOptions.LaneByHandlerKey)} " +
                     $"contains '{lane}', which is not a valid lane name.");
+            }
+        }
+
+        foreach (var handlerKey in options.HttpSchedulableHandlerKeys)
+        {
+            if (!JobHandlerKeys.IsValidKey(handlerKey))
+            {
+                (failures ??= []).Add(
+                    $"{nameof(AgentPrismSchedulingOptions)}.{nameof(AgentPrismSchedulingOptions.HttpSchedulableHandlerKeys)} " +
+                    $"contains '{handlerKey}', which is not a valid job handler key.");
             }
         }
 

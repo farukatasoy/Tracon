@@ -76,16 +76,49 @@ public sealed class AgentPrismSchedulingOptions
     public IDictionary<string, int> MaxConcurrentJobsPerLane { get; } = new Dictionary<string, int>(StringComparer.Ordinal);
 
     /// <summary>
-    /// Maps a job kind to the lane it is queued under, when the caller did not
-    /// set <see cref="JobRecord.Lane"/>/<see cref="JobSchedule.Lane"/> explicitly.
+    /// Maps a handler key to the lane its jobs are queued under, when the
+    /// caller did not set <see cref="JobRecord.Lane"/>/<see cref="JobSchedule.Lane"/>
+    /// explicitly.
     /// </summary>
     /// <remarks>
     /// Applied once, inside <see cref="IJobStore.EnqueueAsync"/>: a job whose
     /// <c>Lane</c> is still <see cref="JobLanes.Default"/> at enqueue time is
-    /// routed through this map by its <see cref="JobRecord.Kind"/>. This lets
-    /// an operator isolate a built-in kind (for example
-    /// <see cref="JobKind.Retention"/>) into its own lane without changing any
-    /// call site that creates jobs of that kind.
+    /// routed through this map by its <see cref="JobRecord.HandlerKey"/>. This
+    /// lets an operator isolate one kind of work (for example
+    /// <see cref="JobHandlerKeys.Retention"/>, or a consumer's own key) into
+    /// its own lane without changing any call site that creates those jobs.
     /// </remarks>
-    public IDictionary<JobKind, string> LaneByKind { get; } = new Dictionary<JobKind, string>();
+    public IDictionary<string, string> LaneByHandlerKey { get; }
+        = new Dictionary<string, string>(StringComparer.Ordinal);
+
+    /// <summary>
+    /// The handler keys <c>PUT /api/schedules/{name}</c> accepts. Empty — the
+    /// default — means the built-in keys only (<see cref="JobHandlerKeys.BuiltIn"/>).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A handler key is a dispatch identity, so an unrestricted schedule
+    /// endpoint would turn <strong>every registered handler</strong> — including
+    /// internal ones a consumer registered for its own background work — into
+    /// an externally callable surface. This list is the opt-in: a consumer that
+    /// wants its own key schedulable over HTTP names that key here, explicitly.
+    /// </para>
+    /// <para>
+    /// A non-empty list <strong>replaces</strong> the built-in default, it
+    /// does not extend it. This is deliberate — narrowing the surface (allowing
+    /// only <see cref="JobHandlerKeys.AgentBatch"/>, say) is a thing an
+    /// allow-list has to be able to express. The consequence is that a list
+    /// naming only a consumer key turns <em>every</em> built-in key off; a
+    /// consumer that wants both adds the built-in keys it needs alongside its
+    /// own, for example
+    /// <c>[.. JobHandlerKeys.BuiltIn, "contoso.nightly-report"]</c>.
+    /// </para>
+    /// <para>
+    /// It restricts only the HTTP schedule endpoint. Code paths inside the
+    /// process (<see cref="IJobDispatcher"/>, the built-in producers) are not
+    /// affected, and neither is reading: <c>GET /api/jobs?handlerKey=</c>
+    /// still returns jobs of any key the caller's tenant owns.
+    /// </para>
+    /// </remarks>
+    public IList<string> HttpSchedulableHandlerKeys { get; } = [];
 }

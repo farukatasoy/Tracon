@@ -41,7 +41,7 @@ public sealed class OnlineEvalRetryTests
             {
                 Id = AgentPrismId.NewId(),
                 TenantId = tenantContext.TenantId,
-                Kind = JobKind.OnlineEval,
+                HandlerKey = JobHandlerKeys.OnlineEval,
                 TargetName = "test-agent",
                 Status = JobStatus.Pending,
                 Payload = JsonSerializer.SerializeToElement(new[] { runId.ToString() }),

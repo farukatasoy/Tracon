@@ -135,39 +135,44 @@ public static partial class AgentPrismServiceCollectionExtensions
             provider.GetRequiredService<IOptionsMonitor<AgentPrismInboundTriggerOptions>>(),
             provider.GetService<TimeProvider>()));
 
-        // Three built-in handlers: agent batch run, queued single run (Phase
-        // 46), and workflow. All three are added with TryAddEnumerable; Phase
-        // 18 (eval) adds its own handler the same way with AddJobHandler<T>().
-        services.TryAddEnumerable(ServiceDescriptor.Singleton<IJobHandler, AgentBatchJobHandler>());
-        services.TryAddEnumerable(ServiceDescriptor.Singleton<IJobHandler, AgentRunJobHandler>());
+        // 🚨 Every handler -- built-in and consumer alike -- is registered
+        // SCOPED and keyed. The worker resolves it from a fresh scope per
+        // execution and looks it up by exact key match, so registration order
+        // no longer decides the winner and a handler may take scoped
+        // dependencies. AddBuiltInJobHandler is the internal twin of the
+        // public AddJobHandler<T>(key): it is the only path allowed to use the
+        // reserved "agentprism." namespace.
+        services.AddBuiltInJobHandler<AgentBatchJobHandler>(JobHandlerKeys.AgentBatch);
+        services.AddBuiltInJobHandler<AgentRunJobHandler>(JobHandlerKeys.AgentRun);
 
         // Post-approval resume (Phase 55). SEPARATE from AgentRunJobHandler:
         // runs with a NEW RunId, does not touch the old one (K-014).
-        services.TryAddEnumerable(ServiceDescriptor.Singleton<IJobHandler, ApprovalResumeJobHandler>());
+        services.AddBuiltInJobHandler<ApprovalResumeJobHandler>(JobHandlerKeys.ApprovalResume);
 
         // Interrupted-run continuation (Phase 87). Triggered only by
         // RunReconciliationService, never by a client request; SEPARATE from
         // both AgentRunJobHandler and ApprovalResumeJobHandler for the same
         // "new RunId, old row never changes" reason.
-        services.TryAddEnumerable(ServiceDescriptor.Singleton<IJobHandler, RunContinuationJobHandler>());
+        services.AddBuiltInJobHandler<RunContinuationJobHandler>(JobHandlerKeys.RunContinuation);
 
         // An explicit factory is used: the built-in DI container does not fill
         // in constructor parameters that carry a default value, and
         // IWorkflowRunner is not registered in most setups (unless
         // UseWorkflows() is called) - the same rationale applies to the
         // RunRecordingAgentDecorator registration too.
-        services.TryAddEnumerable(ServiceDescriptor.Singleton<IJobHandler, WorkflowJobHandler>(
+        services.AddBuiltInJobHandler(
+            JobHandlerKeys.Workflow,
             static provider => new WorkflowJobHandler(
                 provider.GetService<IWorkflowRunner>(),
-                provider.GetService<Microsoft.Extensions.Logging.ILogger<WorkflowJobHandler>>())));
+                provider.GetService<Microsoft.Extensions.Logging.ILogger<WorkflowJobHandler>>()));
 
         // Evaluation (eval) infrastructure (Phase 18). The suite/case/run store
         // is always registered; runs execute through the same job queue
-        // (JobKind.Eval). The check registry is built from custom records
+        // (JobHandlerKeys.Eval). The check registry is built from custom records
         // (added via AddEvalCheck); the six built-in kinds are fixed inside EvalCheckRegistry.
         services.TryAddSingleton<IEvalStore, InMemoryEvalStore>();
         services.TryAddSingleton<EvalCheckRegistry>();
-        services.TryAddEnumerable(ServiceDescriptor.Singleton<IJobHandler, EvalJobHandler>());
+        services.AddBuiltInJobHandler<EvalJobHandler>(JobHandlerKeys.Eval);
 
         // Promoting production cases (Phase 45, F-53). Reads the query text
         // from the run's session; all of its dependencies are already registered above.
@@ -183,16 +188,12 @@ public static partial class AgentPrismServiceCollectionExtensions
         services.TryAddSingleton<RunJudgeSet>();
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, RunJudgeValidationService>());
 
-        // 🚨 The concrete type is ALSO registered: the POST
-        // /api/runs/{id}/judge endpoint requests OnlineEvalJobHandler by its
-        // OWN type to call JudgeRunAsync directly. TryAddEnumerable(Singleton<IJobHandler, T>)
-        // only produces a registration resolvable via the interface; without
-        // registering the concrete type SEPARATELY, the endpoint could not
-        // find it in DI. The same factory returns the SAME instance, so the
-        // two registrations (concrete + interface) share a single singleton.
-        services.TryAddSingleton<OnlineEvalJobHandler>();
-        services.TryAddEnumerable(ServiceDescriptor.Singleton<IJobHandler, OnlineEvalJobHandler>(
-            static provider => provider.GetRequiredService<OnlineEvalJobHandler>()));
+        // The POST /api/runs/{id}/judge endpoint requests OnlineEvalJobHandler
+        // by its OWN type to call JudgeRunAsync directly. Since Phase 137 a
+        // handler is registered by its concrete type anyway (the worker
+        // resolves it through the registry's key -> type map), so ONE scoped
+        // registration now serves both the endpoint and the worker.
+        services.AddBuiltInJobHandler<OnlineEvalJobHandler>(JobHandlerKeys.OnlineEval);
 
         // Quotas and event publishing (Phase 21). The stores are always
         // registered; nothing is rejected unless a rule is defined, and no
@@ -250,14 +251,15 @@ public static partial class AgentPrismServiceCollectionExtensions
                 provider.GetService<Microsoft.Extensions.Logging.ILogger<QuotaUsageObserver>>())));
 
         // The delivery handler uses the SAME queue as Phase 17 (K-160).
-        services.TryAddEnumerable(ServiceDescriptor.Singleton<IJobHandler, WebhookDeliveryJobHandler>(
+        services.AddBuiltInJobHandler(
+            JobHandlerKeys.WebhookDelivery,
             static provider => new WebhookDeliveryJobHandler(
                 provider.GetRequiredService<IWebhookStore>(),
                 provider.GetRequiredService<WebhookHttpClient>(),
                 provider.GetRequiredService<IOptionsMonitor<AgentPrismWebhookOptions>>(),
                 provider.GetService<IConfiguration>(),
                 provider.GetService<TimeProvider>(),
-                provider.GetService<Microsoft.Extensions.Logging.ILogger<WebhookDeliveryJobHandler>>())));
+                provider.GetService<Microsoft.Extensions.Logging.ILogger<WebhookDeliveryJobHandler>>()));
 
         // Idempotency-Key support (Phase 43). The store is always registered
         // (K-018: first-class); InMemoryIdempotencyStore is sufficient for a
@@ -299,10 +301,28 @@ public static partial class AgentPrismServiceCollectionExtensions
             provider.GetService<TimeProvider>(),
             provider.GetService<Microsoft.Extensions.Logging.ILogger<RetentionExecutor>>()));
 
-        services.TryAddEnumerable(ServiceDescriptor.Singleton<IJobHandler, RetentionJobHandler>(
+        services.AddBuiltInJobHandler(
+            JobHandlerKeys.Retention,
             static provider => new RetentionJobHandler(
                 provider.GetRequiredService<RetentionExecutor>(),
-                provider.GetService<Microsoft.Extensions.Logging.ILogger<RetentionJobHandler>>())));
+                provider.GetService<Microsoft.Extensions.Logging.ILogger<RetentionJobHandler>>()));
+
+        // 🚨 Built BEFORE the worker's first tick and before the migrations:
+        // a duplicate or reserved handler key must break the host's START, not
+        // surface later as one swallowed background log line.
+        services.TryAddSingleton(static provider => JobHandlerRegistry.Create(
+            provider.GetServices<JobHandlerRegistration>()));
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IHostedService, JobHandlerRegistryValidator>());
+
+        // The supported way for consumer code to queue work: it fills in the
+        // persistence fields IJobStore.EnqueueAsync demands, and refuses a
+        // handler key nobody registered.
+        services.TryAddSingleton<IJobDispatcher>(static provider => new JobDispatcher(
+            provider.GetRequiredService<IJobStore>(),
+            provider.GetRequiredService<JobHandlerRegistry>(),
+            provider.GetRequiredService<IOptionsMonitor<AgentPrismSchedulingOptions>>(),
+            provider.GetService<TimeProvider>()));
 
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IHostedService, JobWorkerBackgroundService>());

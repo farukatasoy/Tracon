@@ -49,7 +49,7 @@ public sealed class JobMetricEndToEndTests
             new Uri("/agentprism/api/schedules/metric-probe", UriKind.Relative),
             new JobScheduleSaveRequest
             {
-                Kind = JobKind.AgentBatch,
+                HandlerKey = JobHandlerKeys.AgentBatch,
                 TargetName = "no-such-agent",
                 Cron = "0 3 * * *",
                 TimeZone = "UTC",
@@ -73,7 +73,7 @@ public sealed class JobMetricEndToEndTests
 
         counter.Value.ShouldBe(1);
         counter.Tags[AgentPrismDiagnostics.Tags.Lane].ShouldBe("media");
-        counter.Tags[AgentPrismDiagnostics.Tags.JobKind].ShouldBe(nameof(JobKind.AgentBatch));
+        counter.Tags[AgentPrismDiagnostics.Tags.JobHandlerKey].ShouldBe(JobHandlerKeys.AgentBatch);
 
         // The target agent does not exist, so every item fails and the job's
         // terminal status is Failed. What matters here is that a TERMINAL
@@ -105,7 +105,7 @@ public sealed class JobMetricEndToEndTests
             new Uri("/agentprism/api/schedules/depth-probe", UriKind.Relative),
             new JobScheduleSaveRequest
             {
-                Kind = JobKind.AgentBatch,
+                HandlerKey = JobHandlerKeys.AgentBatch,
                 TargetName = "no-such-agent",
                 Cron = "0 3 * * *",
                 TimeZone = "UTC",

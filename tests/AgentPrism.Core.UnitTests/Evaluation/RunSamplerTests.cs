@@ -44,7 +44,7 @@ public sealed class RunSamplerTests
 
         var queued = await jobs.QueryAsync(new JobQuery { TenantId = Tenant });
         queued.Count.ShouldBe(1);
-        queued[0].Kind.ShouldBe(JobKind.OnlineEval);
+        queued[0].HandlerKey.ShouldBe(JobHandlerKeys.OnlineEval);
         queued[0].TargetName.ShouldBe(Agent);
 
         var items = await jobs.ListItemsAsync(queued[0].Id);

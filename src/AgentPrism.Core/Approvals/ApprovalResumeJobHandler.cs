@@ -5,7 +5,7 @@ using Microsoft.Extensions.Logging;
 namespace AgentPrism;
 
 /// <summary>
-/// Handles <see cref="JobKind.ApprovalResume"/> jobs. It answers the pending tool
+/// Handles <see cref="JobHandlerKeys.ApprovalResume"/> jobs. It answers the pending tool
 /// approval request in the session history for a decided <see cref="PendingApproval"/>
 /// and resumes the run.
 /// </summary>
@@ -33,9 +33,6 @@ internal sealed class ApprovalResumeJobHandler(
     ILogger<ApprovalResumeJobHandler>? logger = null) : IJobHandler
 {
     private readonly TimeProvider _clock = timeProvider ?? TimeProvider.System;
-
-    /// <inheritdoc />
-    public JobKind Kind => JobKind.ApprovalResume;
 
     /// <inheritdoc />
     public async ValueTask ExecuteAsync(JobContext context, CancellationToken cancellationToken = default)

@@ -17,8 +17,18 @@ public sealed record JobRecord
     /// </summary>
     public Guid? ScheduleId { get; init; }
 
-    /// <summary>The job's kind.</summary>
-    public required JobKind Kind { get; init; }
+    /// <summary>
+    /// The key of the <see cref="IJobHandler"/> that executes this job. See
+    /// <see cref="JobHandlerKeys"/>.
+    /// </summary>
+    /// <remarks>
+    /// Both the job's classification and its dispatch identity; there is no
+    /// second field. The worker matches it against the registered keys
+    /// ordinally, so a job whose key nobody registered fails with
+    /// <see cref="JobErrorCodes.UnknownHandlerKey"/> instead of running the
+    /// wrong handler.
+    /// </remarks>
+    public required string HandlerKey { get; init; }
 
     /// <summary>
     /// The lane this job runs in. See <see cref="JobLanes"/>. A worker only
@@ -55,7 +65,7 @@ public sealed record JobRecord
     /// <remarks>
     /// Webhook delivery uses a ladder different from the global
     /// setting; this field prevents a single global number from being forced
-    /// onto every job kind.
+    /// onto every kind of job.
     /// </remarks>
     public int? MaxAttempts { get; init; }
 

@@ -996,7 +996,7 @@ internal static class AgentEndpoints
             {
                 Id = runId,
                 TenantId = tenantContext.TenantId,
-                Kind = JobKind.AgentRun,
+                HandlerKey = JobHandlerKeys.AgentRun,
                 Lane = lane,
                 TargetName = name,
                 Status = JobStatus.Pending,
@@ -1026,7 +1026,7 @@ internal static class AgentEndpoints
     }
 
     /// <summary>
-    /// Builds the payload for a <see cref="JobKind.AgentRun"/> job. Parsing
+    /// Builds the payload for a <see cref="JobHandlerKeys.AgentRun"/> job. Parsing
     /// happens in <c>AgentRunJobHandler.ParsePayload</c> (hand-written, AOT-compatible).
     /// </summary>
     private static JsonElement BuildQueuedRunPayload(Guid runId, string message, string? sessionId)

@@ -295,7 +295,7 @@ internal sealed class InboundTriggerDispatcher
                 {
                     Id = runId,
                     TenantId = trigger.TenantId,
-                    Kind = JobKind.AgentRun,
+                    HandlerKey = JobHandlerKeys.AgentRun,
                     TargetName = trigger.TargetName,
                     Status = JobStatus.Pending,
                     Payload = BuildAgentRunPayload(runId, validated.Message, trigger.Name),
@@ -313,7 +313,7 @@ internal sealed class InboundTriggerDispatcher
             {
                 Id = AgentPrismId.NewId(),
                 TenantId = trigger.TenantId,
-                Kind = JobKind.Workflow,
+                HandlerKey = JobHandlerKeys.Workflow,
                 TargetName = trigger.TargetName,
                 Status = JobStatus.Pending,
                 Payload = JsonSerializer.SerializeToElement(validated.Message, AgentPrismCoreJsonContext.Default.String),

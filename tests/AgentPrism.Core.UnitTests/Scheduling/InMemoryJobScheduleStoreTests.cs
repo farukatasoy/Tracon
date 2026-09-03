@@ -119,7 +119,7 @@ public sealed class InMemoryJobScheduleStoreTests
         {
             TenantId = "tenant",
             Name = "night-report",
-            Kind = JobKind.AgentBatch,
+            HandlerKey = JobHandlerKeys.AgentBatch,
             TargetName = "summarizer",
             Cron = "0 3 * * *",
             Enabled = true,

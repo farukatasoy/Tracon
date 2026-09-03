@@ -13,7 +13,7 @@ namespace AgentPrism;
 /// <para>
 /// The <c>preview</c> endpoint is mandatory: no one should start a deletion
 /// without knowing how much data it will delete. No endpoint deletes directly
-/// — even the <c>run</c> endpoint enqueues a job (<see cref="JobKind.Retention"/>);
+/// — even the <c>run</c> endpoint enqueues a job (<see cref="JobHandlerKeys.Retention"/>);
 /// it does not run synchronously.
 /// </para>
 /// <para>
@@ -58,7 +58,7 @@ internal static class RetentionEndpoints
             .WithName("AgentPrismRunRetention")
             .WithTags("AgentPrism", "Retention")
             .WithSummary("Runs the cleanup now.")
-            .WithDescription("Does not run synchronously: a JobKind.Retention job is enqueued and processed from the queue.");
+            .WithDescription("Does not run synchronously: an agentprism.retention job is enqueued and processed from the queue.");
 
         builder.MapGet("/api/retention/history", HistoryAsync)
             .RequireRole(roles.Admin)
@@ -281,7 +281,7 @@ internal static class RetentionEndpoints
             {
                 Id = AgentPrismId.NewId(),
                 TenantId = tenants.TenantId,
-                Kind = JobKind.Retention,
+                HandlerKey = JobHandlerKeys.Retention,
                 TargetName = targetName,
                 Status = JobStatus.Pending,
                 Payload = JsonSerializer.SerializeToElement(new { target = targetName }),

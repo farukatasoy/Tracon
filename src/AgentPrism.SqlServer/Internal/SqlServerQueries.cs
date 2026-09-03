@@ -1212,7 +1212,7 @@ internal sealed class SqlServerQueries : SqlQueriesBase
 
         UpsertJobSchedule = $"""
             UPDATE {Schema}.job_schedules WITH (UPDLOCK, SERIALIZABLE)
-               SET kind        = @kind,
+               SET handler_key = @handler_key,
                    target_name = @target_name,
                    cron        = @cron,
                    time_zone   = @time_zone,
@@ -1228,7 +1228,7 @@ internal sealed class SqlServerQueries : SqlQueriesBase
             IF @@ROWCOUNT = 0
             INSERT INTO {Schema}.job_schedules ({ScheduleColumns})
             OUTPUT inserted.id, inserted.created_by, inserted.created_at
-            VALUES (@id, @tenant_id, @name, @kind, @target_name, @cron, @time_zone, @payload, @enabled,
+            VALUES (@id, @tenant_id, @name, @handler_key, @target_name, @cron, @time_zone, @payload, @enabled,
                     @next_run_at, @last_run_at, @created_by, @created_at, @updated_at, @lane);
             """;
 
@@ -1292,19 +1292,14 @@ internal sealed class SqlServerQueries : SqlQueriesBase
                    lease_until = @lease_until,
                    attempt     = attempt + 1,
                    started_at  = COALESCE(started_at, @now)
-             OUTPUT inserted.id, inserted.tenant_id, inserted.schedule_id, inserted.kind,
-                    inserted.target_name, inserted.status, inserted.payload, inserted.total_items,
-                    inserted.done_items, inserted.failed_items, inserted.attempt, inserted.lease_owner,
-                    inserted.lease_until, inserted.scheduled_for, inserted.started_at,
-                    inserted.completed_at, inserted.error_message, inserted.created_at,
-                    inserted.max_attempts, inserted.lane;
+             OUTPUT {InsertedJobColumns};
             """;
 
         SelectJobs = $"""
             SELECT {JobColumns}
             FROM {Schema}.jobs
             WHERE (@tenant_id   IS NULL OR tenant_id   = @tenant_id)
-              AND (@kind        IS NULL OR kind        = @kind)
+              AND (@handler_key IS NULL OR handler_key = @handler_key)
               AND (@lane        IS NULL OR lane         = @lane)
               AND (@status      IS NULL OR status      = @status)
               AND (@schedule_id IS NULL OR schedule_id = @schedule_id)

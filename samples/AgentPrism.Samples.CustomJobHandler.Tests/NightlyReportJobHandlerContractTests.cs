@@ -7,6 +7,8 @@ namespace AgentPrism.Samples.CustomJobHandler.Tests;
 /// <summary>Runs the published job handler contract against the sample handler.</summary>
 public sealed class NightlyReportJobHandlerContractTests : JobHandlerContract
 {
+    protected override string HandlerKey => NightlyReportJobHandlerRegistrationExtensions.HandlerKey;
+
     protected override ValueTask<IJobHandler> CreateHandlerAsync()
         => ValueTask.FromResult<IJobHandler>(new NightlyReportJobHandler());
 

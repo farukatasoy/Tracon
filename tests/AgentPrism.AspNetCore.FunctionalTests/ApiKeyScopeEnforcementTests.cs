@@ -39,7 +39,7 @@ public sealed class ApiKeyScopeEnforcementTests
 
         using var request = new HttpRequestMessage(HttpMethod.Put, "/agentprism/api/schedules/daily")
         {
-            Content = JsonContent.Create(new { kind = "AgentBatch", targetName = "kod-agent", timeZone = "UTC", enabled = true }),
+            Content = JsonContent.Create(new { handlerKey = "agentprism.agent-batch", targetName = "kod-agent", timeZone = "UTC", enabled = true }),
         };
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", created.PlaintextKey);
 
@@ -58,7 +58,7 @@ public sealed class ApiKeyScopeEnforcementTests
         using var request = new HttpRequestMessage(HttpMethod.Put, "/agentprism/api/schedules/daily")
         {
             Content = JsonContent.Create(
-                new { kind = "AgentBatch", targetName = "kod-agent", timeZone = "UTC", payload = new { }, enabled = true }),
+                new { handlerKey = "agentprism.agent-batch", targetName = "kod-agent", timeZone = "UTC", payload = new { }, enabled = true }),
         };
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", created.PlaintextKey);
 

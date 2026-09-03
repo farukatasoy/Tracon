@@ -7,7 +7,7 @@ namespace AgentPrism;
 
 /// <summary>
 /// Decides whether to sample a completed run for online evaluation and, when
-/// sampled, queues a <see cref="JobKind.OnlineEval"/> job.
+/// sampled, queues a <see cref="JobHandlerKeys.OnlineEval"/> job.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -87,7 +87,7 @@ public sealed class RunSampler(
                 {
                     Id = AgentPrismId.NewId(),
                     TenantId = request.TenantId,
-                    Kind = JobKind.OnlineEval,
+                    HandlerKey = JobHandlerKeys.OnlineEval,
                     TargetName = request.AgentName,
                     Status = JobStatus.Pending,
                     Payload = payload,

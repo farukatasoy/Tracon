@@ -1,3 +1,5 @@
+using System.Globalization;
+using System.Text.RegularExpressions;
 using AgentPrism.Cli.FunctionalTests.Infrastructure;
 
 namespace AgentPrism.Cli.FunctionalTests;
@@ -18,8 +20,7 @@ public sealed class MigrateCommandTests
         var result = await CliRunner.RunAsync("migrate", "--provider", "sqlite", "--connection", connectionString);
 
         result.ExitCode.ShouldBe(0);
-        result.StandardOutput.ShouldContain("applied");
-        result.StandardOutput.ShouldNotContain("0 applied");
+        CountOf(result.StandardOutput, "applied").ShouldBeGreaterThan(0);
     }
 
     [Fact]
@@ -33,7 +34,7 @@ public sealed class MigrateCommandTests
         var second = await CliRunner.RunAsync("migrate", "--provider", "sqlite", "--connection", connectionString);
 
         second.ExitCode.ShouldBe(0);
-        second.StandardOutput.ShouldContain("0 applied");
+        CountOf(second.StandardOutput, "applied").ShouldBe(0);
     }
 
     [Fact]
@@ -50,7 +51,7 @@ public sealed class MigrateCommandTests
         var status = await CliRunner.RunAsync("migrate", "status", "--provider", "sqlite", "--connection", connectionString);
 
         status.ExitCode.ShouldBe(0);
-        status.StandardOutput.ShouldContain("0 pending");
+        CountOf(status.StandardOutput, "pending").ShouldBe(0);
         new FileInfo(databasePath).LastWriteTimeUtc.ShouldBe(beforeStatus);
     }
 
@@ -62,7 +63,7 @@ public sealed class MigrateCommandTests
         var status = await CliRunner.RunAsync("migrate", "status", "--provider", "sqlite", "--connection", connectionString);
 
         status.ExitCode.ShouldBe(0);
-        status.StandardOutput.ShouldNotContain("0 pending");
+        CountOf(status.StandardOutput, "pending").ShouldBeGreaterThan(0);
     }
 
     [Fact]
@@ -94,4 +95,33 @@ public sealed class MigrateCommandTests
 
     private static string ExtractDataSource(string connectionString) =>
         connectionString["Data Source=".Length..];
+
+    /// <summary>
+    /// Reads the <c>&lt;n&gt; applied</c> / <c>&lt;n&gt; pending</c> count out
+    /// of the command's first line.
+    /// </summary>
+    /// <param name="output">The command's standard output.</param>
+    /// <param name="noun">Either <c>applied</c> or <c>pending</c>.</param>
+    /// <returns>The number reported.</returns>
+    /// <remarks>
+    /// 🚨 The number is PARSED, not string-matched. These assertions used to
+    /// read <c>ShouldNotContain("0 applied")</c>, which passes only while the
+    /// real count has no trailing zero: the migration set reaching 30 turned
+    /// <c>"30 applied"</c> into a match for <c>"0 applied"</c> and failed a
+    /// test that was describing correct behaviour. Any assertion about a
+    /// COUNT compares numbers.
+    /// </remarks>
+    private static int CountOf(string output, string noun)
+    {
+        var match = Regex.Match(
+            output,
+            $@"(?m)^(?<count>\d+) {Regex.Escape(noun)}\b",
+            RegexOptions.CultureInvariant,
+            TimeSpan.FromSeconds(1));
+
+        match.Success.ShouldBeTrue($"the output has no '<n> {noun}' line: {output}");
+
+        return int.Parse(match.Groups["count"].Value, CultureInfo.InvariantCulture);
+    }
+
 }

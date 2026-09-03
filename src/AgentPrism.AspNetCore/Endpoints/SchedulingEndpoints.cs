@@ -62,6 +62,22 @@ internal static class SchedulingEndpoints
                 "'lane' defaults to 'default' and every job this schedule produces — cron-dispatched " +
                 "or manually triggered — inherits it.");
 
+        builder.MapGet("/api/schedules/handler-keys", ListHandlerKeysAsync)
+            .RequireRole(roles.Admin)
+            .RequireApiKeyScope(ApiKeyScope.PlatformRead)
+            .WithName("AgentPrismListSchedulableHandlerKeys")
+            .WithTags("AgentPrism", "Scheduling")
+            .WithSummary("Lists the handler keys a schedule may be created for.")
+            .WithDescription(
+                "The allow-list PUT /api/schedules/{name} enforces, so a client can offer exactly " +
+                "the keys that will be accepted rather than guessing. It is AgentPrism's own " +
+                "built-in keys unless the host set " +
+                "AgentPrismSchedulingOptions.HttpSchedulableHandlerKeys, and it is NOT the full " +
+                "set of registered handlers: a handler with no entry here runs jobs queued in " +
+                "process but cannot be scheduled from outside. Admin only — a consumer's key " +
+                "names are deployment detail, so this list is deliberately not on the " +
+                "unauthenticated meta endpoint.");
+
         builder.MapDelete("/api/schedules/{name}", DeleteScheduleAsync)
             .RequireRole(roles.Admin)
             .RequireApiKeyScope(ApiKeyScope.PlatformAdmin)
@@ -94,10 +110,10 @@ internal static class SchedulingEndpoints
             .RequireApiKeyScope(ApiKeyScope.RunsRead)
             .WithName("AgentPrismListJobs")
             .WithTags("AgentPrism", "Scheduling")
-            .WithSummary("Lists jobs, filtered by kind, status, lane, or schedule.")
+            .WithSummary("Lists jobs, filtered by handler key, status, lane, or schedule.")
             .WithDescription(
                 "Every queued unit of work shares this queue — scheduled runs, retention " +
-                "cleanups, webhook deliveries, and queued agent runs — so filter by 'kind' to " +
+                "cleanups, webhook deliveries, and queued agent runs — so filter by 'handlerKey' to " +
                 "narrow it. 'scheduleId' returns the executions of one schedule. 'lane' returns " +
                 "only the jobs queued under that lane — the way to see whether a lane nobody's " +
                 "worker subscribes to is quietly piling up. Job items are not included here; read " +
@@ -149,6 +165,15 @@ internal static class SchedulingEndpoints
         return schedule is null ? ScheduleNotFound(name) : TypedResults.Ok(schedule);
     }
 
+    private static Ok<IReadOnlyList<string>> ListHandlerKeysAsync(
+        [FromServices] IOptionsMonitor<AgentPrismSchedulingOptions> schedulingOptions)
+    {
+        var allowed = schedulingOptions.CurrentValue.HttpSchedulableHandlerKeys;
+
+        return TypedResults.Ok<IReadOnlyList<string>>(
+            allowed.Count == 0 ? [.. JobHandlerKeys.BuiltIn] : [.. allowed]);
+    }
+
     private static async Task<Results<Ok<JobSchedule>, ProblemHttpResult>> SaveScheduleAsync(
         string name,
         HttpContext httpContext,
@@ -171,6 +196,18 @@ internal static class SchedulingEndpoints
         if (string.IsNullOrWhiteSpace(request.TargetName))
         {
             return InvalidSchedule("'targetName' is required.");
+        }
+
+        // 🚨 A handler key is a DISPATCH identity, so an unrestricted endpoint
+        // would turn every registered handler -- including the internal ones a
+        // consumer registered for its own background work -- into an externally
+        // callable surface. Only an explicitly allowed key gets through; the
+        // default list is AgentPrism's own built-in keys.
+        if (!IsSchedulableOverHttp(request.HandlerKey, schedulingOptions.CurrentValue))
+        {
+            return InvalidSchedule(
+                $"'{request.HandlerKey}' cannot be scheduled over HTTP. Add it to " +
+                "AgentPrismSchedulingOptions.HttpSchedulableHandlerKeys to allow it.");
         }
 
         var lane = request.Lane ?? JobLanes.Default;
@@ -221,7 +258,7 @@ internal static class SchedulingEndpoints
             Id = existing?.Id ?? Guid.Empty,
             TenantId = tenants.TenantId,
             Name = name,
-            Kind = request.Kind,
+            HandlerKey = request.HandlerKey,
             Lane = lane,
             TargetName = request.TargetName,
             Cron = request.Cron,
@@ -294,7 +331,7 @@ internal static class SchedulingEndpoints
                 Id = AgentPrismId.NewId(),
                 TenantId = tenants.TenantId,
                 ScheduleId = schedule.Id,
-                Kind = schedule.Kind,
+                HandlerKey = schedule.HandlerKey,
                 Lane = schedule.Lane,
                 TargetName = schedule.TargetName,
                 Status = JobStatus.Pending,
@@ -311,7 +348,7 @@ internal static class SchedulingEndpoints
     private static async Task<Ok<IReadOnlyList<JobRecord>>> ListJobsAsync(
         [FromServices] IJobStore store,
         [FromServices] ITenantContext tenants,
-        [FromQuery] JobKind? kind,
+        [FromQuery] string? handlerKey,
         [FromQuery] JobStatus? status,
         [FromQuery] Guid? scheduleId,
         [FromQuery] string? lane,
@@ -323,7 +360,7 @@ internal static class SchedulingEndpoints
             new JobQuery
             {
                 TenantId = tenants.TenantId,
-                Kind = kind,
+                HandlerKey = handlerKey,
                 Status = status,
                 ScheduleId = scheduleId,
                 Lane = lane,
@@ -392,4 +429,32 @@ internal static class SchedulingEndpoints
             title: "Job not found",
             detail: $"There is no job with id '{id}'.",
             statusCode: StatusCodes.Status404NotFound);
+
+    /// <summary>
+    /// Whether <paramref name="handlerKey"/> may be scheduled through the HTTP
+    /// endpoint.
+    /// </summary>
+    /// <param name="handlerKey">The key from the request body.</param>
+    /// <param name="options">The scheduling settings.</param>
+    /// <returns><see langword="true"/> if the key is allowed.</returns>
+    /// <remarks>
+    /// An empty <see cref="AgentPrismSchedulingOptions.HttpSchedulableHandlerKeys"/>
+    /// means the built-in keys only, which is exactly what the endpoint
+    /// accepted before handler keys existed — an upgraded deployment keeps
+    /// working with no configuration change.
+    /// </remarks>
+    private static bool IsSchedulableOverHttp(string? handlerKey, AgentPrismSchedulingOptions options)
+    {
+        if (handlerKey is not { Length: > 0 })
+        {
+            return false;
+        }
+
+        var allowed = options.HttpSchedulableHandlerKeys;
+
+        return allowed.Count == 0
+            ? JobHandlerKeys.BuiltIn.Contains(handlerKey, StringComparer.Ordinal)
+            : allowed.Contains(handlerKey, StringComparer.Ordinal);
+    }
+
 }

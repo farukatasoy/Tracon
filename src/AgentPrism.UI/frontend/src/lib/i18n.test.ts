@@ -119,7 +119,6 @@ describe('catalogues', () => {
       'runDetail.forWorkflow',
       'runDetail.forAgent',
       'workflows.column.workflow',
-      'jobs.kind.workflow',
       'waterfall.spans_one',
       'graph.nodeTitle',
       'graph.legend.agent',

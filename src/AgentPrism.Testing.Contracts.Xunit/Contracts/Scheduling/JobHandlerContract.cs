@@ -14,23 +14,31 @@ public abstract class JobHandlerContract : IAsyncLifetime
 
     /// <summary>
     /// The job identifier shared by every <see cref="JobContext"/> built
-    /// during this instance's tests. A kind that keys other state by job id
+    /// during this instance's tests. A handler that keys other state by job id
     /// (an eval run record, for example) can create that state against this
     /// value inside <see cref="CreateHandlerAsync"/>.
     /// </summary>
     protected Guid JobId { get; } = Guid.NewGuid();
 
     /// <summary>
-    /// Creates the handler under test, performing whatever async setup its
-    /// kind needs (an eval suite and run record, a workflow registration,
-    /// and so on).
+    /// Creates the handler under test, performing whatever async setup it
+    /// needs (an eval suite and run record, a workflow registration, and
+    /// so on).
     /// </summary>
     protected abstract ValueTask<IJobHandler> CreateHandlerAsync();
 
-    /// <summary>Creates one job item the handler's kind can process.</summary>
+    /// <summary>Creates one job item the handler under test can process.</summary>
     /// <param name="sequence">The item's position within the job.</param>
     /// <param name="status">The item's starting status.</param>
     protected abstract JobItemRecord CreateItem(int sequence, JobItemStatus status);
+
+    /// <summary>
+    /// The handler key the job records this contract builds carry. Override
+    /// when the handler under test needs its real key (a built-in one from
+    /// <see cref="JobHandlerKeys"/>, or the consumer's own); the value never
+    /// reaches dispatch here, because the contract calls the handler directly.
+    /// </summary>
+    protected virtual string HandlerKey => "contract.handler";
 
     /// <summary>
     /// Builds the job record wrapping <paramref name="items"/>. Override to
@@ -40,7 +48,7 @@ public abstract class JobHandlerContract : IAsyncLifetime
     {
         Id = JobId,
         TenantId = "contract-tenant",
-        Kind = Handler.Kind,
+        HandlerKey = HandlerKey,
         TargetName = "contract-target",
         Status = JobStatus.Running,
         TotalItems = items.Count,
