@@ -8512,7 +8512,23 @@ frames and binary audio:
    end of speech.
 4. Read `transcript`, `runStarted`, `text`, `audioStart`, binary audio, `audioEnd`,
    and `done` frames.
-5. Send `cancel` for barge-in or `stop` to close cleanly.
+5. Read `idle` — a commit that closed no turn. Handle it or your client hangs.
+6. Send `cancel` for barge-in or `stop` to close cleanly.
+
+:::caution[A commit does not always produce a turn]
+Two ordinary cases end a commit without a turn: the commit reaches the server
+before any audio does (voice activity detection fired on a cough, or the user
+pressed send inside the recorder's first timeslice), and the audio transcribes to
+nothing usable (a noisy room). Both answer with a single `idle` frame and no
+`done`.
+
+Your client must treat `idle` as "the turn is over, start listening again" —
+return to the listening state and reopen the microphone if you stopped it to
+commit. Do not fold it into `done`: `done` closes a turn that exists and carries
+that turn's number and cancelled flag, so a client that handles the two alike
+rewrites the record of the previous turn. A client that ignores `idle` stays in
+whatever pending state it entered when it committed, and never recovers.
+:::
 
 Input formats are `webm-opus` and raw mono 16-bit little-endian `pcm16`. WebM Opus is
 the browser-friendly default. Raw PCM uses `InputSampleRate`, 16 kHz by default, when
@@ -9985,6 +10001,88 @@ upgrades](/reference/versioning/).
 
 ---
 
+# Release notes
+
+Every AgentPrism package is cut from one version line, so a release below covers
+all 20 NuGet packages and the npm client at once. Each package's release-notes
+metadata links straight to the entry for the version you installed.
+
+Read [Versions and upgrades](/reference/versioning/) before you move between
+previews: it carries the pinning rules and the upgrade sequence this page's
+entries assume.
+
+## Releases
+
+<a id="v1.0.0-preview.1"></a>
+
+### 1.0.0-preview.1 — 2026-09-03
+
+#### Added
+
+- Initial public preview release of AgentPrism, a production-grade agent
+  control plane for the [Microsoft Agent Framework](https://learn.microsoft.com/en-us/agent-framework/overview/).
+- Model provider adapters for OpenAI (Chat Completions and Responses),
+  Anthropic (Claude), Google (Gemini), and Azure OpenAI, plus an
+  `IModelProvider` extension point for any other provider — with per-tenant
+  bring-your-own-key (BYOK) support and per-tenant egress policy.
+- Persistence backends for PostgreSQL, SQL Server, and SQLite, each with
+  embedded migrations; the runtime (`AgentPrism.Core`) needs no database.
+- An embedded React console — 30 screens across 36 routes (Dashboard,
+  Agents, Skills, Playground, Sessions, Runs, Workflows, Jobs, Evals,
+  Experiments, Approvals, Tools, Models, MCP, Triggers, Audit, Diagnostics,
+  Settings) — with zero JavaScript dependency in the consuming project.
+- A management HTTP API alongside OpenAI-compatible endpoints
+  (`/v1/responses`, `/v1/chat/completions`, `/v1/conversations`), multi-tenant
+  by default.
+- Run recording with spans, metrics, and cost; a tamper-evident audit trail
+  with a verifiable hash chain; data subject export and erasure.
+- Cost provenance: a priced run records the unit prices actually applied and
+  the provider that answered it, so a historical cost stays explainable after
+  the price list changes.
+- Named job lanes: a job carries a lane, a worker subscribes to the lanes it
+  serves, and each lane can hold its own concurrency budget — unrelated kinds
+  of background work no longer block one another. Queue depth, throughput, and
+  duration are reported as OpenTelemetry metrics.
+- Opt-in structured-response validation: when an agent asks for JSON or a JSON
+  schema, the response can be checked before the run closes, with a bounded
+  repair turn that stays inside the same run's budget, cost accounting, and
+  cancellation. A run that carries a durable session gets no repair budget:
+  the underlying agent framework persists a turn as soon as that one model
+  call completes, so a repaired run would return an answer its own session
+  never recorded. Such a rejection fails the run exactly as it would with
+  repair switched off, and its rejection event carries
+  `repairSuppressedBySession` to tell that apart from a run that simply had no
+  repair configured.
+- Tool schemas generated from your method signatures express JSON Schema
+  constraints taken from standard `System.ComponentModel.DataAnnotations`
+  attributes, and support nested object and object-array parameters.
+- Extension points for custom tools, model providers, run stores, run
+  judges, agent sources, and scheduled job handlers, each with a published
+  behavior-contract test suite (`AgentPrism.Testing.Contracts.Xunit`) so a
+  third-party implementation can be verified against the same tests
+  AgentPrism's own implementations run.
+- Workflow execution with five orchestration patterns, checkpoints, resume,
+  and human-in-the-loop approval.
+- MCP tool discovery from remote servers, and agent exposure over MCP and
+  A2A.
+- A typed management client generated from the OpenAPI document, published
+  both as a NuGet package (`AgentPrism.Client`) and an npm package
+  (`@agentprism/client`).
+- A `dotnet new agentprism-api` project template and an `agentprism` global
+  CLI tool (`migrate`, `migrate status`, `health`).
+- Native AOT and trimming compatibility for `AgentPrism.Abstractions`,
+  `AgentPrism.Core`, `AgentPrism.PostgreSql`, `AgentPrism.OpenAI`,
+  `AgentPrism.Anthropic`, `AgentPrism.Google`, `AgentPrism.Azure`, and
+  `AgentPrism.Voice`.
+
+## Read next
+
+- [Versions and upgrades](/reference/versioning/) — how to pin the family and upgrade it without drift
+- [Compatibility matrices](/reference/compatibility/) — the framework, runtime, and protocol versions each release supports
+- [Choosing packages](/packages/) — which packages you actually take a version of
+
+---
+
 # Compatibility
 
 Use this page before you choose a target framework, database, model provider, or
@@ -11256,10 +11354,10 @@ not treated as a breaking change until the family reaches `1.0.0`.
 
 ## Release notes
 
-Every published version has a dated entry in the repository's root
-`CHANGELOG.md`, grouped as Added, Changed, Deprecated, Removed, Fixed, and
-Security. Each package's `PackageReleaseNotes` metadata links to the entry
-for the exact version you installed.
+Every published version has a dated entry on the [Release
+notes](/reference/changelog/) page, grouped as Added, Changed, Deprecated,
+Removed, Fixed, and Security. Each package's `PackageReleaseNotes` metadata
+links to the entry for the exact version you installed.
 
 ## Which version do these docs describe?
 
@@ -11269,13 +11367,15 @@ the OpenAPI snapshot in that source tree.
 
 That makes the site the best description of the next build. It can also document a public
 API that is newer than the preview package you installed. When exact reproducibility
-matters, pin every AgentPrism package and read the documentation from the matching source
-tag or commit.
+matters, pin every AgentPrism package and check the [Release
+notes](/reference/changelog/) entry for the version you installed before you rely on
+anything this site describes.
 
 :::caution[Preview contract]
 AgentPrism has not shipped `1.0`. Public APIs, migrations, configuration keys, and
-provider behavior can change between previews. Review the source diff and this site's
-compatibility matrices before each upgrade.
+provider behavior can change between previews. Review the [Release
+notes](/reference/changelog/) and this site's compatibility matrices before each
+upgrade.
 :::
 
 ## Install the newest preview
@@ -11376,9 +11476,10 @@ flowchart LR
 ## Upgrade safely
 
 1. Create a branch and update all AgentPrism packages together.
-2. Read the source diff for public API, configuration, and migration
-   changes — and whether the Microsoft Agent Framework version moved, which
-   affects persisted session and checkpoint bodies (above).
+2. Read the [Release notes](/reference/changelog/) for public API,
+   configuration, and migration changes — and whether the Microsoft Agent
+   Framework version moved, which affects persisted session and checkpoint
+   bodies (above).
 3. Build with warnings as errors and run the full test suite.
 4. Start a disposable environment against a copy of production-shaped data.
 5. Inspect `/api/meta`, health checks, provider health, and migration diagnostics.

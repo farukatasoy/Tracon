@@ -2163,3 +2163,31 @@ curl -s -o /dev/null -w '%{http_code}\n' -X POST "$APU/api/images/generate" \
   aspect-ratio/size-tier sözleşmesine tahmin ederek dönüştürmez.
 - İkinci çağrı sağlayıcının varsayılan boyutuyla çalışır; fiyat kaydı yoksa
   maliyet `null` kalır.
+
+### MT-MM-099 — Tur üretmeyen bir `commit` paneli asmaz: `idle` çerçevesi dinlemeye döndürür
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Yüksek |
+| **İlgili faz** | F-180 kapanışı |
+| **İlgili karar** | K-660 |
+
+**Ön koşul**
+- `UseVoiceConversation()` etkin, transcriber ve synthesizer yapılandırılmış.
+- Playground'da bir agent'ın konuşma paneli açık ve `ready` alınmış.
+
+**Adımlar**
+1. Ses modunu aç, mikrofonu başlat ve **hiç konuşmadan** "şimdi gönder"e
+   (`voice-commit`) hemen bas — kaydedicinin ilk dilimi dolmadan.
+2. Panelin durumunu ve mikrofonun yeniden açılıp açılmadığını gözle.
+3. Gürültülü bir ortamda (ya da anlaşılmayan bir ses çıkararak) konuş ve gönder;
+   çözümlemenin boş metin döndüğü turu üret.
+
+**Beklenen sonuç**
+- Her iki adımda da sunucu tek bir `idle` çerçevesi gönderir; `done` GÖNDERMEZ.
+- Panel `thinking` durumunda ASILI KALMAZ: dinlemeye döner ve kaydedici yeniden
+  başlar, yani kullanıcı yeniden konuşabilir.
+- Transkript listesine boş bir tur eklenmez ve **önceki** turun kaydı
+  (özellikle "kesildi" notu) değişmez.
+- Tur sayacı artmaz: sonraki gerçek tur `done` çerçevesinde `turn: 1` taşır.

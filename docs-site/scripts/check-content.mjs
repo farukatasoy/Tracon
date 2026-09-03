@@ -591,6 +591,7 @@ const DIAGRAM_EXEMPT = new Map([
   ['reference/configuration.md', 'a table of keys, defaults, and the package that reads each section'],
   ['reference/compatibility.md', 'support matrices, which are already tables'],
   ['reference/glossary.md', 'alphabetical definitions with no flow between them'],
+  ['reference/changelog.md', 'a dated list of released versions, with no flow between entries'],
   ['packages.md', 'a decision table: one row per package'],
 ]);
 

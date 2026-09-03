@@ -404,6 +404,58 @@ public sealed class VoiceConversationTests
             .GetProperty("turn").GetInt32().ShouldBe(1);
     }
 
+    [Fact]
+    public async Task Commit_without_audio_tells_the_client_it_is_listening_again()
+    {
+        // 🚨 The defect this locks: the server went back to listening on its own
+        // and sent NOTHING. The client had already put itself in 'thinking' the
+        // moment the user pressed send, and only a server frame moves it back AND
+        // restarts the recorder - so the panel hung for good and the user could
+        // not speak again. Its sibling above measured the SERVER's state (a later
+        // turn still works) and could never see this: the gap was the frame the
+        // client never got.
+        //
+        // Reachable from the interface, not only in theory: pressing send within
+        // the recorder's first 250 ms timeslice commits before any audio has been
+        // sent. Under full-suite load that window is wide enough that the E2E
+        // voice test hit it and hung for its full 30 s timeout.
+        var voice = new StubVoiceProvider();
+        await using var host = await StartAsync(voice);
+        await using var client = await ConnectAsync(host);
+
+        await client.SendControlAsync(new { type = "start", agent = Agent, inputFormat = "pcm16" });
+        await client.WaitForAsync("ready");
+
+        await client.SendControlAsync(new { type = "commit" });
+
+        // Bounded on purpose: without the frame this waits for the whole test
+        // timeout and reports a cancellation instead of the missing contract.
+        await client.WaitForAsync("idle")
+            .WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+    }
+
+    [Fact]
+    public async Task Unintelligible_audio_tells_the_client_it_is_listening_again()
+    {
+        // The second case of the same class, found by scanning for it and likelier
+        // than the first: the audio DID arrive, and the transcriber heard nothing
+        // usable - a knock on the desk, a noisy room. The client ignores a
+        // transcript frame whose text is empty, so that frame cannot be the one
+        // that releases it.
+        var voice = new StubVoiceProvider { Transcript = string.Empty };
+        await using var host = await StartAsync(voice);
+        await using var client = await ConnectAsync(host);
+
+        await client.SendControlAsync(new { type = "start", agent = Agent, inputFormat = "pcm16" });
+        await client.WaitForAsync("ready");
+
+        await client.SendAudioAsync(new byte[1600]);
+        await client.SendControlAsync(new { type = "commit" });
+
+        await client.WaitForAsync("idle")
+            .WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+    }
+
     private static Task<AgentPrismTestHost> StartAsync(
         StubVoiceProvider? voice = null,
         string? authToken = null,

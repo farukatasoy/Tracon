@@ -6,7 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
-## [1.0.0-preview.1] - 2026-09-02
+## [1.0.0-preview.1] - 2026-09-03
 
 ### Added
 
@@ -37,7 +37,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Opt-in structured-response validation: when an agent asks for JSON or a JSON
   schema, the response can be checked before the run closes, with a bounded
   repair turn that stays inside the same run's budget, cost accounting, and
-  cancellation.
+  cancellation. A run that carries a durable session gets no repair budget:
+  the underlying agent framework persists a turn as soon as that one model
+  call completes, so a repaired run would return an answer its own session
+  never recorded. Such a rejection fails the run exactly as it would with
+  repair switched off, and its rejection event carries
+  `repairSuppressedBySession` to tell that apart from a run that simply had no
+  repair configured.
 - Tool schemas generated from your method signatures express JSON Schema
   constraints taken from standard `System.ComponentModel.DataAnnotations`
   attributes, and support nested object and object-array parameters.

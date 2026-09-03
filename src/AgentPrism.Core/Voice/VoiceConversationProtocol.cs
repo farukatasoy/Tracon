@@ -72,6 +72,22 @@ public static class VoiceConversationProtocol
 
     /// <summary>The turn ended.</summary>
     public const string ServerDone = "done";
+
+    /// <summary>
+    /// The commit closed nothing: it arrived before any audio, so no turn ran and
+    /// the conversation is listening again.
+    /// </summary>
+    /// <remarks>
+    /// This is not an error - a short cough can trigger the client's voice
+    /// activity detection, and pressing send inside the recorder's first
+    /// timeslice commits before a chunk has been sent. It is a separate frame
+    /// from <see cref="ServerDone"/> on purpose: <c>done</c> closes a turn that
+    /// exists and carries that turn's number and cancellation flag, so a client
+    /// that treats the two alike would rewrite the record of the PREVIOUS turn.
+    /// A client that receives this returns to listening and reopens its
+    /// microphone; it must not add a transcript entry.
+    /// </remarks>
+    public const string ServerIdle = "idle";
 }
 
 /// <summary>The audio formats that the client can send.</summary>

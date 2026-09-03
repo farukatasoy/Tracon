@@ -14,10 +14,10 @@ not treated as a breaking change until the family reaches `1.0.0`.
 
 ## Release notes
 
-Every published version has a dated entry in the repository's root
-`CHANGELOG.md`, grouped as Added, Changed, Deprecated, Removed, Fixed, and
-Security. Each package's `PackageReleaseNotes` metadata links to the entry
-for the exact version you installed.
+Every published version has a dated entry on the [Release
+notes](/reference/changelog/) page, grouped as Added, Changed, Deprecated,
+Removed, Fixed, and Security. Each package's `PackageReleaseNotes` metadata
+links to the entry for the exact version you installed.
 
 ## Which version do these docs describe?
 
@@ -27,13 +27,15 @@ the OpenAPI snapshot in that source tree.
 
 That makes the site the best description of the next build. It can also document a public
 API that is newer than the preview package you installed. When exact reproducibility
-matters, pin every AgentPrism package and read the documentation from the matching source
-tag or commit.
+matters, pin every AgentPrism package and check the [Release
+notes](/reference/changelog/) entry for the version you installed before you rely on
+anything this site describes.
 
 :::caution[Preview contract]
 AgentPrism has not shipped `1.0`. Public APIs, migrations, configuration keys, and
-provider behavior can change between previews. Review the source diff and this site's
-compatibility matrices before each upgrade.
+provider behavior can change between previews. Review the [Release
+notes](/reference/changelog/) and this site's compatibility matrices before each
+upgrade.
 :::
 
 ## Install the newest preview
@@ -134,9 +136,10 @@ flowchart LR
 ## Upgrade safely
 
 1. Create a branch and update all AgentPrism packages together.
-2. Read the source diff for public API, configuration, and migration
-   changes — and whether the Microsoft Agent Framework version moved, which
-   affects persisted session and checkpoint bodies (above).
+2. Read the [Release notes](/reference/changelog/) for public API,
+   configuration, and migration changes — and whether the Microsoft Agent
+   Framework version moved, which affects persisted session and checkpoint
+   bodies (above).
 3. Build with warnings as errors and run the full test suite.
 4. Start a disposable environment against a copy of production-shaped data.
 5. Inspect `/api/meta`, health checks, provider health, and migration diagnostics.

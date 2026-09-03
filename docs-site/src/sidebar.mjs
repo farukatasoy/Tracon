@@ -110,6 +110,7 @@ export const sidebar = [
       { label: 'Compatibility matrices', slug: 'reference/compatibility' },
       { label: 'Read contract views', slug: 'reference/read-views' },
       { label: 'Versions and upgrades', slug: 'reference/versioning' },
+      { label: 'Release notes', slug: 'reference/changelog' },
       { label: 'Choosing packages', slug: 'packages' },
       { label: 'Glossary', slug: 'reference/glossary' },
     ],

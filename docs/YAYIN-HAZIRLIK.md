@@ -4,7 +4,7 @@
 > düzlemidir. Faz planı, sohbet özeti veya genel karar defteri değildir. Yalnız
 > ölçülen kanıtı, yayın kararlarını, risk kabulünü ve doğrulama durumunu taşır.
 >
-> **Son güncelleme:** 2026-09-02  
+> **Son güncelleme:** 2026-09-03  
 > **Çalışma modu:** `nuget-danismani` — Yayın kararı  
 > **🚨 2026-09-02 turu:** Faz 129–135 sonrası karar yenilendi. İki 🔴 ölçüldü
 > (BL-053, BL-054), **ikisi de aynı gün kapandı** ve yayın provası sonuna kadar
@@ -99,7 +99,69 @@ değerlendirilecektir.
 
 ## 4. Mevcut net yayın kararı
 
-### Güncel karar — 2026-09-02 (`nuget-danismani`, Faz 129–135 sonrası)
+### Güncel karar — 2026-09-03 (`nuget-danismani`, tag öncesi tur)
+
+**✅ Yayınlanabilir. Kalan tek adım kullanıcının tag onayıdır.** Açık 🔴
+yoktur ve dört kapının dördü de yeşil koştu. Bu tur bir 🔴 açtı ve aynı turda
+kapattı (BL-056), dört operasyon kararını sabitledi (OP-008/009/011 + §14) ve
+kapanış kapısını kırmızıya çeken F-180'i kök nedeninden kapattı (K-660).
+
+| Ölçüm | Sonuç |
+|---|---|
+| `git log --since=2026-09-02` | 2026-09-02 provasından **sonra** bir commit: `ef06fc37`, `AgentPrism.Core`'da davranış değişikliği (K-658). Prova onu görmedi |
+| `curl` × 3, anonim | `github.com/farukatasoy/AgentPrism` → **404**; `.../blob/v1.0.0-preview.1/CHANGELOG.md` → **404**; `agentprism.doayen.web.tr` → **200** |
+| `grep -r "github.com/farukatasoy" docs-site README.md` | **0 bağlantı** — ölü bağlantı yalnız paket metaverisindeydi, sevk edilen metinde değil |
+| `grep -rl "new Meter(" src` | 3 dosya. BL-044 ve BL-047 hâlâ açık (ölçüldü, GA hattında) |
+
+**BL-056 bu turun bulgusudur ve sınıfı §10'un kendi kapısıdır:** checklist'teki
+`[x] ... repository ve project URL varlığı doğrulandı` kalemi alanların `.nuspec`
+içinde **var olduğunu** ölçüyordu, **çözüldüğünü** değil. Ağa çıkmayan bir kapı
+(K-604) bunu yapısal olarak göremez; kanıt merdiveninin 5. seviyesi 6. seviyeyi
+kapsamaz.
+
+**Yapılan iş (2026-09-03):** CHANGELOG'a K-658 davranışı ve tag tarihi yazıldı ·
+`PackageProjectUrl` ve `PackageReleaseNotes` doküman sitesine çevrildi (K-659) ·
+site release-notes sayfası kök `CHANGELOG.md`'den **üretilir** oldu
+(`docs-site/scripts/build-changelog.mjs`, ayna kopya yok) · `versioning.md`'nin
+private repo yüzünden yanlışlaşan dört iddiası düzeltildi ("source diff'i oku" →
+release notes) · `SECURITY.md` ve issue şablonları eklendi.
+
+**Taze kapı koşumu (2026-09-03, yukarıdaki değişikliklerden sonra):**
+
+| Kapı | Sonuç |
+|---|---|
+| `kapi.py yayin --kuru --surum 1.0.0-preview.1` | ✅ `EXIT=0` — 20 paket · `npm publish --dry-run` · altı sample exact sürüm ve izole `NUGET_PACKAGES` ile · Native AOT smoke publish **ve çalıştırma** (`provider/source/generated-tool AOT smoke passed`) |
+| `kapi.py kapanis --taban 77a60970` | ❌ `EXIT=1` — 10 adımın **dokuzu** yeşil; yalnız `dotnet test AgentPrism.slnx` düştü, **tek** test: `UiTests.Playground_voice_mode_opens_microphone_and_shows_transcript` |
+| `dotnet test` yalnız E2E projesi (izole) | ✅ **57/57 yeşil** |
+
+**Bu, kayıtlı F-180'dir; bu turun ürünü değildir.** Aynı test, aynı 30000 ms
+Playwright zaman aşımı (`GetByTestId("voice-transcript")`), aynı koşul: yalnız
+tam çözüm koşumu. Bugünkü değişiklikler `AgentPrism.Core`'un yapısal yanıt
+yolu, paket metaverisi ve `docs-site`'tır — ses veya playground yoluna
+dokunulmadı. 2026-09-02 turunda aynı kapı E2E'yi 57/57 geçmişti, yani kusur
+aralıklıdır.
+
+**F-180 kapatıldı (2026-09-03, `kusur-giderme`, K-660) — ve yalıtım kusuru
+değil, sevk edilen bir ürün kusuru çıktı.** `VoiceConversationDriver.Commit`
+ses gelmeden ulaşan bir `commit`'te hiçbir çerçeve göndermeden dönüyordu;
+istemci gönder'e basıldığı anda kendini `'thinking'`e alıp kaydediciyi
+durdurduğu için panel kalıcı asılıyor ve mikrofon bir daha açılmıyordu. Yük
+yalnız pencereyi genişletiyordu. **Sınıf taraması ikinci ve üretimde daha olası
+vakayı buldu:** transcriber boş metin döndüğünde `ProcessTurnAsync` aynı sessiz
+dönüşü yapıyordu. İkisi de yeni `idle` sunucu çerçevesiyle kapatıldı; ikisi de
+red→green kanıtlandı.
+
+**Düzeltme sonrası kapı koşumu (2026-09-03):**
+
+| Kapı | Sonuç |
+|---|---|
+| `kapi.py kapanis --taban 77a60970` | ✅ `EXIT=0` — 10/10 adım; **E2E 57/57**; toplam test koşumu 464,92 sn |
+| `kapi.py yayin --kuru --surum 1.0.0-preview.1` | ✅ `EXIT=0` — 20 paket · `npm publish --dry-run` · altı sample · Native AOT smoke publish ve çalıştırma |
+
+**Kalan tek adım:** `1.0.0-preview.1` için açık tag onayı. Tag gününde
+`CHANGELOG.md`'nin tarihi (`2026-09-03`) yeniden doğrulanır.
+
+### Önceki karar — 2026-09-02 (`nuget-danismani`, Faz 129–135 sonrası)
 
 **✅ Teknik olarak yayınlanabilir.** Açık 🔴 yoktur. Kalan tek şey hesap ve
 operasyon kararlarıdır (OP-008/009/011, §14) — bunlar repo dışı kullanıcı
@@ -272,6 +334,7 @@ değil, doğrulama kapısıdır.
 | BL-052 | **KAPANDI (2026-08-28, Faz 123)** | **Yayın kapısı altı dış sample'ın yalnız beşini koşuyordu.** `AgentPrism.Samples.CustomJobHandler.Tests` Faz 120'de BL-041'in paketlenmiş-tüketici kanıtı olarak eklendi, fakat `SAMPLE_TEST_PROJECTS` listesine girmemişti. Sample'ın şekli kapıda koşan `FileRunStore.Tests` ile aynıdır (`PackageReference` + `VersionOverride`), yani dışlanma teknik bir gerekçeye dayanmıyordu. Kapı dışında `AgentPrismSamplePackageVersion` varsayılanı `*-*` (**floating**) olduğu için bu sample exact sürüm ve izole `NUGET_PACKAGES` altında **hiç** koşmuyordu — Faz 97'de ölçülen bayat-paket tuzağının tam kapsamındaydı | ~~🟡~~ ✅ Kapandı | `scripts/release_extension_samples.py` beş proje sayıyordu, `CustomJobHandler.Tests` yoktu | `nuget-danismani` → **[Faz 123](arsiv/fazlar/123-YAYIN-KRITIK-YOLU.md)** | Sample listeye eklendi (6/6) **ve** `validate_sample_inventory` yazıldı — `samples/AgentPrism.Samples.*.Tests` envanteri `SAMPLE_TEST_PROJECTS` ∪ gerekçeli `SAMPLE_TEST_EXCLUSIONS` ile TAM eşleşmezse kapı adı vererek kırılır; aynı sınıf boşluk üçüncü kez sessizce tekrarlayamaz. Kanıt: `kapi.py yayin --kuru --surum 1.0.0-preview.1` → `✅ 6 exact-version packed sample ve Native AOT smoke` |
 | BL-053 | **KAPANDI** (2026-09-02, `kusur-giderme`) | Sevk edilen `RunStoreContract`'ın iki Faz 132 case'i (`Completion_overrides_the_model_provider_when_a_fallback_answered`, `Completion_leaves_the_model_provider_unchanged_when_no_override_is_given`) dış sample `AgentPrism.Samples.FileRunStore`'a karşı **düşüyor**: `FileRunStore.cs` `ModelId`'yi işliyor (`:88`, `:183`), `ModelProvider`'ı hiç işlemiyor. `docs-site/.../guides/write-your-own-store.md` de alandan hiç söz etmiyor — rehberi izleyen üçüncü taraf aynı hatayı yazar | 🔴 Preview blocker | `kapi.py yayin --kuru --surum 1.0.0-preview.1` → `EXIT=1`; `Failed: 2, Passed: 90, Total: 92`; exact sürüm + izole `NUGET_PACKAGES` + yalnız `PackageReference` (kanıt merdiveni 6. seviye) | `nuget-danismani` → `kusur-giderme` | **Tamamlandı.** `FileRunStore.cs:89` ve `:189` `ModelProvider`'ı işliyor (`ModelId`'nin tam kardeşi: `null` mevcut değeri korur); izole cache ile red→green kanıtlandı (90/92 → **92/92**). Rehbere yedinci davranış ekseni **Completion overrides** eklendi. **Sınıf taraması:** Faz 129–135'te yalnız İKİ sevk edilen contract büyüdü — `RunStoreContract` (sample'ı vardı, düzeltildi) ve `JobStoreContract` (hiç dış sample'ı yok → **BL-055**) |
 | BL-054 | **KAPANDI** (2026-09-02) | `CHANGELOG.md`'nin `## [1.0.0-preview.1]` bölümü **2026-08-28 tarihli** ve Faz 129 öncesi ürünü anlatıyor; `## [Unreleased]` boş. Bugün yayınlansa sürüm notları iki kırıcı `IJobStore` değişikliğini (lane filtresi, `GetQueueDepthAsync`), `RunCost`/`RunRecord` alanlarını, yapısal doğrulama seam'ini ve bounded repair'i hiç anmıyor | 🔴 Preview blocker | OP-007 kapısı yalnız bölümün **boş olmadığına** bakıyor (`scripts/changelog.py:44`), bayatlığı göremez | `nuget-danismani` → `tuketici-dokuman-senkronu` | **Tamamlandı.** Dört ürün seviyesi kalem eklendi (cost provenance · named job lanes · structured-response validation + bounded repair · generated tool schema constraints/nested object); tarih 2026-09-02'ye çekildi. `changelog.py` bölümü ayrıştırıyor. 🚨 Tarih tag gününde doğrulanır |
+| BL-056 | **KAPANDI** (2026-09-03, aynı tur) | 20 paketin `PackageProjectUrl` ve `PackageReleaseNotes` alanları private repo'ya bakıyordu; her ikisi de tüketici için **HTTP 404** | 🔴 Preview blocker | Anonim `curl`: repo kökü ve `blob/v1.0.0-preview.1/CHANGELOG.md` → 404; doküman sitesi → 200. Adım 7 filtresinin altı sorusunu geçti (ölçüldü · artifact'ten yeniden üretilebilir · tüketici bugün yaşar · kapıyla kilitlenebilir) | `nuget-danismani` | **Tamamlandı.** İki alan `agentprism.doayen.web.tr`'ye çevrildi (K-659); release-notes hedefi kök `CHANGELOG.md`'den üretilen `/reference/changelog/#v<sürüm>` sayfasıdır. `RepositoryUrl` bilinçli olarak repo'da kaldı — provenance alanıdır, paket kapısı `<repository commit>` ister ve bir doküman sitesi git repo'su değildir (RK-013) |
 | BL-055 | **Açık** | `JobStoreContract` Faz 129 ve 133'te **+110 satır** case kazandı (lane filtresi, `GetQueueDepthAsync`) ama **hiçbir dış sample'ı yoktur** — `CustomJobHandler` `JobHandlerContract`'ı koşar, `JobStoreContract`'ı değil. Yeni case'ler paketlenmiş tüketiciye karşı hiç doğrulanmadı | 🟡 1.0 blocker | `grep -rn JobStoreContract samples/` boş; `git diff --stat` Faz 129–135 aralığında yalnız iki contract dosyası değişti | `nuget-danismani` → faz zinciri | `IJobStore` uygulayan bir dış sample eklenir ve `JobStoreContract`'ı exact sürümle koşar. BL-007/BL-017/BL-030 ile aynı aile |
 
 
@@ -294,10 +357,10 @@ değil, doğrulama kapısıdır.
 | OP-005 | **Tamamlandı (2026-08-28, KN-022)** | Trusted Publishing hesaba açıktı; kişisel owner `farukatasoy`, repo `farukatasoy/AgentPrism`, workflow `ci.yml`, environment `nuget`, pattern `AgentPrism*`, push-only policy oluşturuldu | CI publish job `id-token: write` + `NuGet/login@v1` kullanır; private repo policy ilk başarılı publish tamamlanana kadar yedi günlük geçici aktivasyondadır |
 | OP-006 | Tag ve GitHub release | **Tamamlandı (2026-08-28, Faz 123)** | Her `v*` tag'i gerçek NuGet ve npm publish tetikler. Ölçüldü 2026-08-27: CI hiç GitHub release üretmiyordu | `ci.yml`'e `github-release` işi eklendi (`needs: [publish, npm-publish]`, yalnız `v*` etiketinde koşar). Gövde `CHANGELOG.md`'nin o sürüme ait bölümü (`scripts/changelog.py` — OP-007 ile aynı ayrıştırıcı); aynı etiket yeniden itilirse `gh release view` var olan release'i bulur ve oluşturma adımı atlanır |
 | OP-007 | Release notes | **Tamamlandı (2026-08-28, Faz 123)** | Ölçüldü 2026-08-27: hiçbir artifact yoktu — `CHANGELOG.md` yok, `PackageReleaseNotes` hiçbir `Directory.Build.props`'ta tanımlı değil, `docs-site`'ta changelog sayfası yok. 20 paket sayfası boş release-notes alanıyla çıkıyordu | Kök `CHANGELOG.md` eklendi (Keep a Changelog); `src/Directory.Build.props` her pakete sürüme çapalı `PackageReleaseNotes` URL'i veriyor (`BeforeTargets="GenerateNuspec"` bir hedef içinde atanır — ölçüldü: düz bir `PropertyGroup`'ta `$(Version)` MinVer'in kendi hedefinden ÖNCE boş okunuyordu); `kapi.py yayin` zorlanan sürüm için CHANGELOG'da `[<sürüm>]` bölümünü fail-closed arıyor; `docs-site/reference/versioning.md` köke bağlanıyor (ayna sayfa yok). Kanıt: 20/20 `.nuspec` çözümlenmiş URL taşıyor |
-| OP-008 | Deprecation/yank/hotfix | Karar gerekli | Repo politikası henüz bu ledger'a doğrulanmadı | — |
-| OP-009 | Dependency/vulnerability takibi | İnceleniyor | Dependabot NuGet yapılandırması mevcut (`.github/dependabot.yml`, haftalık) | — |
+| OP-008 | Deprecation/yank/hotfix | **Tamamlandı (2026-09-03)** | Repo politikası yoktu | **Yalnız ileri sürüm** — kullanıcı kararı. Yayınlanan sürüm unlist veya yank edilmez; düzeltme `preview.2` ile gelir. Yalnız güvenlik veya veri bütünlüğü kusurunda paket NuGet.org'da deprecate edilir ve düzeltilmiş sürüme yönlendirilir. NuGet.org'un kalıcı artifact mantığıyla tutarlıdır; `SECURITY.md` aynı sözü yazıyor |
+| OP-009 | Dependency/vulnerability takibi | **Tamamlandı (2026-09-03)** | **Ölçüldü:** `.github/dependabot.yml` **dört** ekosistemi kapsıyor (NuGet haftalık · `AgentPrism.UI/frontend` npm haftalık · `docs-site` npm haftalık · github-actions aylık) ve `Directory.Build.props:23` `TreatWarningsAsErrors=true` altında NuGet Audit'in `NU1903`'ü restore'u zaten kırıyor | **Ek kapı eklenmedi** — kullanıcı kararı. Mevcut iki mekanizma yeterli sayıldı; ayrı bir zamanlanmış `dotnet list package --vulnerable` işi eklenmedi |
 | OP-010 | npm/NuGet asimetrik kısmi yayın | **Tamamlandı (2026-08-28, KG-021/KN-021)** | Aynı `v*` tag'i `nuget-publish` ([`ci.yml:284`](../.github/workflows/ci.yml#L284)) ve `npm-publish` ([`ci.yml:319`](../.github/workflows/ci.yml#L319)) işlerini **paralel** tetikler (farklı `needs`). `agentprism` npm scope'u bugün yok; `NPM_TOKEN` durumu repo dışında. Scope hazır değilse 20 NuGet paketi **kalıcı** yayınlanır, npm işi kırılır — ve sevk edilen doküman `npm install @agentprism/client` diyor (`docs-site/src/content/docs/packages.md:70`, `guides/typescript-client.md:25`) | **Yol A + C.** **C uygulandı:** `publish` işi artık `needs: [pack, release-dryrun, npm-publish]` ([`ci.yml:293`](../.github/workflows/ci.yml#L293)) — geri dönüşü olmayan kanal (NuGet) EN SON basar; npm kırılırsa 20 paket hiç yayınlanmaz. Zincir kırılmaz: `npm-publish` var olan sürümü atlar, aynı etiket yeniden itilebilir. **A tamamlandı (KN-021):** npm scope ve `NPM_TOKEN` hazırlığını kullanıcı doğruladı; token yetkisi ilk publish işinde ölçülecek |
-| OP-011 | GitHub Free/private repo CI koruması | **Karar gerekli** | KN-020: GitHub Free private repo'da environment secret, required reviewer ve deployment tag restriction yok. Workflow `environment: nuget/npm` kullanıyor, fakat bu adlar tek başına publish approval kapısı değildir | **A:** GitHub Free'de kal; iki token'ı repository secret yap, tek bakımcı riskini kabul et ve tag öncesi manuel checklist uygula. **B:** GitHub Pro'ya geç; environment secret ve yalnız `v*` tag deployment restriction kullan. Pro private repo'da required reviewer sağlamaz. Öneri: tek bakımcılı ilk preview için A; yalnız bu yayın için plan yükseltme gerekli değil |
+| OP-011 | GitHub Free/private repo CI koruması | **Tamamlandı (2026-09-03)** | KN-020: GitHub Free private repo'da environment secret, required reviewer ve deployment tag restriction yok. **Ölçüldü 2026-09-03:** CI'da kalıcı secret **tek**tir — `NPM_TOKEN` ([`ci.yml:405`](../.github/workflows/ci.yml#L405)); NuGet tarafı OIDC trusted publishing kullanır ve secret taşımaz (OP-004/005) | **A — GitHub Free'de kal** (kullanıcı kararı). Tek bakımcı riski kabul edilir; tag öncesi §10 checklist'i elle uygulanır. Not: repo public yapılırsa environment protection ve deployment tag restriction Free planda zaten gelir — bu, K-659'un yeniden açılma ölçütüyle aynı kapıdır |
 
 ## 9. Risk kaydı
 
@@ -314,6 +377,7 @@ değil, doğrulama kapısıdır.
 | RK-009 | **Kapandı (Faz 119/K-640)** | Ham exception mesajı sızıntısı kalıcı ve dışa açık yüzeylerde bir kusur sınıfıydı | ~~Yüksek~~ | 26 vaka kapatıldı | `SafeErrorText` tüm 26 siteye uygulandı; `RawExceptionTextSiteTests` yeni sızıntıları fail-closed yakalar | `kusur-giderme` |
 | RK-010 | **Kapandı (Faz 120)** | `IJobHandler`'ın sözleşmesi at-least-once'ı söylemiyordu (BL-041) — dokümante edilen örneği izleyen bir tüketici crash/retry'de side effect'i iki kez çalıştırabilirdi | ~~Yüksek~~ | Orta (lease kaybı/retry production'da olağan) / yüksek (dokümante edilen doğrudan örnek yanlış) | `IJobHandler.cs`'nin XML dokümanına at-least-once uyarısı ve süzülmemiş `Items` notu eklendi; `JobHandlerContract` kuralı kilitliyor, `JobLeaseExpiryTests` davranışı ölçüyor. `IIdempotencyStore`'u job loop'una bağlamak değerlendirilmedi — BL-041'in kapanış notunun gerekçesiyle gereksiz ikinci bir mekanizma olurdu | `nuget-danismani` → `kusur-giderme` → [Faz 120](arsiv/fazlar/120-JOB-SOZLESMESI-AT-LEAST-ONCE.md) |
 | RK-011 | **Kapandı (KG-021/KN-021)** | NuGet ve npm kanallarının paralel basılması kalıcı asimetrik yayın üretebilirdi | ~~Yüksek~~ | Yapısal risk kapandı; npm credential yetkisi ilk publish işinde ölçülecek | `publish` npm işine bağlandı; kullanıcı npm scope ve `NPM_TOKEN` hazırlığını doğruladı | Yayın operasyonu |
+| RK-013 | **Kabul edildi (2026-09-03, K-659)** | `RepositoryUrl` private bir repo'yu gösterir: üçüncü taraf için Source Link kaynak çözemez ve `.snupkg` sembolleri kaynak adımlamasına açılmaz | Orta | Kesin / düşük-orta | Tüketiciye dönük iki URL siteye çevrildi, yani okura sunulan hiçbir bağlantı ölü değil. Sembol paketleri yine yayımlanır (yığın izi satır numarası taşır). Repo public yapılırsa kendiliğinden çözülür | `nuget-danismani` |
 | RK-012 | **Kabul edildi** | Kişisel owner modeli (OP-001): 20 paketin sahipliği tek hesaba bağlıdır; devir paket başına elle yapılır ve hesap kaybı 20 kimliği birden etkiler | Orta | Düşük / yüksek | Kullanıcı bilinçli olarak kabul etti (2026-08-27). Azaltım: 2FA (OP-002) ve gerekirse sonradan organization'a devir | Yayın operasyonu |
 
 ## 10. Yayın checklist'i
@@ -326,6 +390,7 @@ operasyon kritik yolunu yeniden açmaz.
 
 - [x] Hedef yayın türü kullanıcı tarafından onaylandı: `preview` (UR-001).
 - [ ] Çalışma sürümü `1.0.0-preview.1`; gerçek tag öncesi kullanıcıdan son sürüm onayı alınmadı.
+- [x] `CHANGELOG.md` sevk edilen davranışı doğru anlatıyor (K-658 eklendi) ve tarihi güncel (2026-09-03 — **tag gününde yeniden doğrulanır**).
 - [x] En küçük güvenli paket kümesi onaylandı: tam 20 paket (UR-002).
 - [x] Exact sürümlü temiz pack başarılı.
 - [x] Üretilen paket kimlik kümesi beklenen kümeyle aynı.
@@ -336,7 +401,8 @@ operasyon kritik yolunu yeniden açmaz.
 - [x] Kapının beklediği her TFM assembly ve XML documentation dosyası artifact içinde mevcut.
 - [x] `.nuspec` pre-release dependency sınırı doğrulandı.
 - [x] Paket README, icon, license, repository ve project URL varlığı doğrulandı.
-- [ ] `.snupkg` envanteri ölçüldü; Source Link'in NuGet artifact'inden gerçek kaynak çözümleme davranışı doğrulanmadı.
+- [x] Tüketiciye dönük paket URL'lerinin gerçekten **çözüldüğü** ölçüldü (BL-056/K-659) — `PackageProjectUrl` ve `PackageReleaseNotes` doküman sitesine bakar.
+- [ ] `.snupkg` envanteri ölçüldü; Source Link üçüncü taraf için **çözemez** — repo private (RK-013, kabul edildi).
 - [ ] Deterministic/reproducible release ölçüldü.
 - [ ] Package validation sonucu incelendi.
 
@@ -371,13 +437,14 @@ operasyon kritik yolunu yeniden açmaz.
 - [x] 20 Package ID'nin uygunluğu ölçüldü ve kişisel sahiplik planı seçildi (OP-001/003).
 - [x] npm organization, npm 2FA, CI publish token ve GitHub repository `NPM_TOKEN` secret kullanıcı tarafından doğrulandı (KN-021).
 - [x] Publishing authentication onaylandı: secret'sız OIDC trusted publishing, bir saatlik geçici key (OP-004/005, KN-022).
-- [ ] CI environment protection ve yayın yetkilendirmesi doğrulandı.
+- [x] CI environment protection ve yayın yetkilendirmesi kararı verildi (OP-011 seçenek A; tek kalıcı secret `NPM_TOKEN`, NuGet tarafı OIDC).
 - [x] License expression, repository URL, project URL, icon, README, authors, owners, tags ve description artifact'te doğrulandı (KN-003/018, KG-022).
 - [x] Tag stratejisi ve GitHub release akışı uygulandı ve doğrulandı (OP-006/007).
-- [ ] Deprecation/yank yaklaşımı onaylandı.
-- [ ] Bozuk release için hotfix ve geri dönüş planı onaylandı.
-- [ ] Dependency ve vulnerability izleme sorumluluğu onaylandı.
-- [ ] İlk 72 saat gözlem ve destek sorumluluğu onaylandı.
+- [x] Deprecation/yank yaklaşımı onaylandı (OP-008: yalnız ileri sürüm).
+- [x] Bozuk release için hotfix ve geri dönüş planı onaylandı (OP-008 ile aynı karar; düzeltme yeni sürümle).
+- [x] Dependency ve vulnerability izleme sorumluluğu onaylandı (OP-009).
+- [x] İlk 72 saat gözlem ve destek sorumluluğu onaylandı (§14; `SECURITY.md` + issue şablonları eklendi).
+- [x] Düzeltme sonrası dört kapı yeşil koştu (kapanış 10/10 · E2E 57/57 · yayın provası 20 paket + AOT).
 - [ ] Gerçek yayın için kullanıcıdan açık onay alındı.
 
 ## 11. Karar günlüğü
@@ -491,12 +558,18 @@ kapanmalıdır:
 
 0. ~~**BL-053 ve BL-054**~~ — **kapandı (2026-09-02)**; prova sonuna kadar
    yeşil koştu. Tag gününde `CHANGELOG.md`'nin tarihi doğrulanır.
-1. **OP-011** — private repo + GitHub Free için repository secret ve manuel tag
-   kontrolü kabul edilir veya GitHub Pro'ya geçilir.
-2. **OP-008, OP-009 ve §14** — deprecation/hotfix, dependency takibi ve ilk 72
-   saat sorumluluğu sabitlenir.
-3. `1.0.0-preview.1` son kez onaylanır, taze dry-run koşulur ve gerçek tag için
-   açık kullanıcı onayı alınır.
+1. ~~**OP-011**~~ — **kapandı (2026-09-03):** GitHub Free'de kalındı, seçenek A.
+2. ~~**OP-008, OP-009 ve §14**~~ — **kapandı (2026-09-03):** yalnız ileri sürüm ·
+   mevcut Dependabot + `NU1903` restore kapısı yeterli · `SECURITY.md` ve issue
+   şablonları eklendi.
+3. ~~**BL-056**~~ — **kapandı (2026-09-03):** paket URL'leri doküman sitesine
+   çevrildi (K-659).
+4. ~~**F-180**~~ — **kapandı (2026-09-03, K-660):** kök neden ses
+   protokolündeki sessiz dönüştü, düzeltildi ve sınıfı tarandı.
+5. ~~Taze `kapanis` + `yayin --kuru`~~ — **koşuldu (2026-09-03), ikisi de
+   yeşil.**
+6. **Açık kalan tek adım:** `1.0.0-preview.1` için gerçek tag onayı. Tag
+   gününde `CHANGELOG.md`'nin tarihi yeniden doğrulanır.
 
 ### GA turuna ertelenenler
 
@@ -510,7 +583,7 @@ kapanmalıdır:
 
 | Zaman | Durum | Plan |
 |---|---|---|
-| Yayın öncesi | Karar gerekli | Support kanalı, sorumlu kişi, telemetry ve package health gözlem yüzeyleri seçilir |
+| Yayın öncesi | **Tamamlandı (2026-09-03)** | Sorumlu: tek bakımcı (`farukatasoy`). Güvenlik kanalı `SECURITY.md` (özel e-posta, 72 saat içinde onay); kusur kanalı GitHub issue şablonları (bug · dokümantasyon). 🚨 **Repo private olduğu sürece ikisi de dış tüketiciye görünmez** — public kanal bugün yalnız doküman sitesidir; repo public yapılana kadar bu bir kabul edilen boşluktur |
 | 0–2 saat | Bekliyor | NuGet.org paket sayfaları, dependency graph, README/icon/license, symbol görünürlüğü ve temiz makinede install doğrulanır |
 | 2–24 saat | Bekliyor | Restore/build/runtime sorunları, issue'lar, dependency ve security uyarıları izlenir; doğrulanmış kritik kusurda yeni indirmeler için deprecation değerlendirilir |
 | 24–48 saat | Bekliyor | İlk tüketici geri bildirimi public API, docs ve extension ergonomisi sınıflarına ayrılır; preview compatibility etkisi yazılır |

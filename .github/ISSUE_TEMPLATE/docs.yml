@@ -1,0 +1,19 @@
+name: Documentation defect
+description: Something on agentprism.doayen.web.tr, in a package README, or in XML documentation is wrong or missing.
+labels: [documentation]
+body:
+  - type: input
+    id: where
+    attributes:
+      label: Where
+      description: The page URL, the package README, or the type and member whose XML documentation is wrong.
+      placeholder: https://agentprism.doayen.web.tr/reference/versioning/
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: What it says, and what is actually true
+      description: Documentation that promises more than the runtime delivers is treated as a defect in the runtime contract.
+    validations:
+      required: true

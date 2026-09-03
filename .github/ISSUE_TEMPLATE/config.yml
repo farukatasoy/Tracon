@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Documentation
+    url: https://agentprism.doayen.web.tr
+    about: Guides, the .NET and HTTP references, compatibility matrices, and release notes.
+  - name: Report a vulnerability
+    url: https://github.com/farukatasoy/AgentPrism/blob/main/SECURITY.md
+    about: Security defects are reported privately, never as a public issue.

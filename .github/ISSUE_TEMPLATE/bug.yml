@@ -1,0 +1,58 @@
+name: Bug report
+description: A defect in a published AgentPrism package.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Never paste credentials, connection strings, raw API keys, customer data,
+        or unreviewed prompt and tool content. Redact them first.
+        Security defects go to SECURITY.md instead, not here.
+  - type: input
+    id: version
+    attributes:
+      label: AgentPrism version
+      description: From `dotnet list package`. All AgentPrism packages share one version line.
+      placeholder: 1.0.0-preview.1
+    validations:
+      required: true
+  - type: input
+    id: framework
+    attributes:
+      label: Target framework and runtime
+      placeholder: net10.0, linux-x64, Native AOT
+    validations:
+      required: true
+  - type: dropdown
+    id: storage
+    attributes:
+      label: Storage backend
+      options: [None (in-memory), PostgreSQL, SQL Server, SQLite, Custom IRunStore]
+    validations:
+      required: true
+  - type: input
+    id: provider
+    attributes:
+      label: Model provider and model
+      description: Include the provider SDK version if you know it.
+      placeholder: OpenAI, gpt-4.1-mini
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected, and what happened instead
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Minimal reproduction
+      description: The smallest configuration and call sequence that shows it.
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Redacted diagnostics
+      description: Run id, trace id, error class, and the relevant log lines.

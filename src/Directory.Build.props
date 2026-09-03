@@ -45,7 +45,19 @@
     <Company>Intelera</Company>
     <Product>AgentPrism</Product>
     <Copyright>Copyright (c) Faruk Atasoy</Copyright>
-    <PackageProjectUrl>https://github.com/farukatasoy/AgentPrism</PackageProjectUrl>
+    <!--
+      🚨 Measured (HTTP 404, anonymous): the GitHub repository is private, so any
+      github.com URL shipped in package metadata is a dead link for every
+      consumer. The two fields a person actually clicks on nuget.org - the
+      project website and the release notes - therefore point at the public
+      documentation site, which is the only public surface this product has.
+      RepositoryUrl stays on the real repository on purpose: it is provenance
+      that tooling reads, not a link offered to a reader, and the packing gate
+      requires a <repository commit="..."/> element. The consequence is written
+      down rather than hidden - Source Link cannot resolve sources for a third
+      party while the repository is private.
+    -->
+    <PackageProjectUrl>https://agentprism.doayen.web.tr</PackageProjectUrl>
     <RepositoryUrl>https://github.com/farukatasoy/AgentPrism</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
@@ -86,13 +98,19 @@
   <Target Name="AgentPrismSetPackageReleaseNotes" BeforeTargets="GenerateNuspec">
     <PropertyGroup>
       <!--
-        Anchored to the version tag, not embedded release-note text: 20
-        packages share one version stream, so inlining the same text 20 times
-        would drift. Before the matching `v$(Version)` tag exists, this URL
-        404s - accepted, the metadata gate validates the URL's SHAPE, not its
-        reachability (K-604 keeps the gate network-free).
+        Anchored to the version, not embedded release-note text: 20 packages
+        share one version stream, so inlining the same text 20 times would
+        drift. The target is the documentation site's release-notes page, which
+        is generated from the root CHANGELOG.md - a github.com URL would 404
+        for every consumer while the repository is private. The `v<version>`
+        anchor is written explicitly by that generator, because a heading slug
+        would drop the dots from a version like `1.0.0-preview.1`. The page
+        exists only after the site is rebuilt and deployed for the version
+        being tagged; the metadata gate validates the URL's SHAPE and that it
+        carries the resolved version, not its reachability (K-604 keeps the
+        gate network-free).
       -->
-      <PackageReleaseNotes>https://github.com/farukatasoy/AgentPrism/blob/v$(Version)/CHANGELOG.md</PackageReleaseNotes>
+      <PackageReleaseNotes>https://agentprism.doayen.web.tr/reference/changelog/#v$(Version)</PackageReleaseNotes>
     </PropertyGroup>
   </Target>
 
