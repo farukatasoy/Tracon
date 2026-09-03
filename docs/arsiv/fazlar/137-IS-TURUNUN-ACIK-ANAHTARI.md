@@ -10,9 +10,14 @@
 > **Public API:** **Büyüyor ve kırıyor** — `JobKind` kalkar. `PublicAPI.Shipped.txt`
 > dosyaları boş (`wc -l src/*/PublicAPI.Shipped.txt` ile doğrula), yani bugün ucuz; ilk
 > `preview` yayınından sonra pahalı
-> **Tüketici yüzeyi:** `docs-site/` — `concepts/jobs`, `guides/write-your-own-store`,
-> `reference/http-api` (üretilir) · sevk edilen: `IJobHandler` XML `<example>`,
-> `src/AgentPrism.Core/README.md`, `samples/AgentPrism.Samples.CustomJobHandler`
+> **Tüketici yüzeyi (gerçekleşen):** `docs-site/` — elle:
+> `guides/write-your-own-job-handler`, `guides/background-work`, `concepts/runs`,
+> `ui.md`, `capabilities.md`, `reference/configuration`, `getting-started/persistence`,
+> `guides/observability`; üretilen: `api/`, `http-api/`, `openapi/agentprism.json`,
+> `llms*.txt`, `AgentPrism.AgentMap.md`, 20 ekran görüntüsü · sevk edilen:
+> `IJobHandler`/`IJobDispatcher`/`JobHandlerKeys` XML dokümanı,
+> `samples/AgentPrism.Samples.CustomJobHandler`
+> *(planın tahmin ettiği sayfa adları — `concepts/jobs`, `guides/write-your-own-store` — bu repoda yok)*
 > **Manuel test alanı:** [`manuel-test/16-IS-KUYRUGU-VE-ZAMANLAMA.md`](../../manuel-test/16-IS-KUYRUGU-VE-ZAMANLAMA.md)
 
 ---
@@ -44,7 +49,7 @@
 | 2 | SQLite'ta sütun düşürmek için tablo yeniden kurulacaktı (`0006_sessions_tenant_key.sql` emsali) | `ALTER TABLE ... DROP COLUMN` kullanıldı | Ölçüldü: `jobs` ve `job_schedules`'in ikisi de `PRAGMA foreign_keys = ON` altında çocuk taşır. FK açıkken `DROP TABLE` örtük `DELETE FROM` yapar ve `ON DELETE CASCADE`'i tetikler — `jobs`'u yeniden kurmak `job_items`'ın TÜM satırlarını silerdi. Kaçış (`PRAGMA foreign_keys = OFF`) işlem içinde no-op'tur ve `MigrationRunner` her migration'ı işlem içinde koşar. 0006'nın tablosunun çocuğu yoktu (K-666) |
 | 3 | Rezerve önek denetimi `JobHandlerRegistry` kurucusunda, host başlangıcında olacaktı | Rezerve önek ve biçim denetimi **`AddJobHandler` çağrısının kendisinde** atar; duplicate denetimi registry'de kalır | Argüman doğrulaması koleksiyona bakmaz, yani K-251'in "kurulum anındaki ön-kontrol yapma" kuralını ihlal etmez ve hatayı çağrı yerinde adlandırır. Duplicate ancak tüm kayıtlar toplandıktan sonra bilinebilir, o registry'de kaldı. İkisi de host'u açtırmaz (K-663) |
 | 4 | `JobHandlerContract` handler'ın kendi `Kind`'ını kullanıyordu | Sözleşmeye `protected virtual string HandlerKey` eklendi (varsayılan `"contract.handler"`) | Handler artık anahtarını bildirmiyor. Sözleşme handler'ı doğrudan çağırdığı için değer dispatch'e hiç ulaşmaz; override yalnız kaydın gerçekçi görünmesi içindir |
-| 5 | Metrik etiketi `agentprism.job.kind` idi | `agentprism.job.handler_key` oldu | Etiket adı sütunun ve alanın adını izler. Kardinalite riski ölçüldü ve **yok**: anahtar kümesi kayıtlıdır, host başlangıcında sabitlenir ve `JobHandlerRegistry` dışında bir değer metriğe hiç ulaşmaz (kayıtsız anahtar handler'a varmadan `Failed` kapanır) |
+| 5 | Metrik etiketi `agentprism.job.kind` idi | `agentprism.job.handler_key` oldu | Etiket adı sütunun ve alanın adını izler. 🚨 Fazın ilk hâli kardinalite riskini "yok" saymıştı — kayıtlı anahtar kümesi host başlangıcında sabitlenir, doğru. Ama **kayıtsız** anahtar yolu o kümenin dışındadır ve ham anahtarı etikete yazıyordu; bağımsız denetim bunu buldu (🟡 #5) ve o yol artık sabit `"unregistered"` etiketini yazar |
 
 ### Plan dışı düzeltilen kusurlar
 
