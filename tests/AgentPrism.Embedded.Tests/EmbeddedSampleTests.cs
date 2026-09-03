@@ -8,7 +8,7 @@ namespace AgentPrism.Embedded.Tests;
 
 /// <summary>
 /// Runs <c>samples/AgentPrism.Embedded</c>'s actual entry point end to end
-/// (Phase 85, F-140). Confirms the DoD this sample exists to prove: all five
+/// (Phase 85, F-140). Confirms the DoD this sample exists to prove: all six
 /// embedding points report as bound, a background job with no HTTP request
 /// behind it still carries the right tenant and user, and a congested event
 /// bridge drops events instead of slowing the run down.
@@ -16,7 +16,7 @@ namespace AgentPrism.Embedded.Tests;
 public sealed class EmbeddedSampleTests
 {
     [Fact]
-    public async Task All_five_extension_points_report_the_samples_own_types()
+    public async Task All_six_extension_points_report_the_samples_own_types()
     {
         await using var host = new EmbeddedSampleHost();
         using var client = host.CreateClient();
@@ -27,7 +27,7 @@ public sealed class EmbeddedSampleTests
         var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync()).RootElement;
         var extensionPoints = body.GetProperty("extensionPoints").EnumerateArray().ToArray();
 
-        extensionPoints.Length.ShouldBe(5);
+        extensionPoints.Length.ShouldBe(6);
         extensionPoints.ShouldAllBe(static point => !point.GetProperty("isBuiltInDefault").GetBoolean());
 
         var implementations = extensionPoints.ToDictionary(
@@ -38,6 +38,7 @@ public sealed class EmbeddedSampleTests
         implementations["ITenantContext"].ShouldBe("EmbeddedTenantContext");
         implementations["IRunAttributionContext"].ShouldBe("EmbeddedRunAttributionContext");
         implementations["IToolAuthorizationHandler"].ShouldBe("EmbeddedToolAuthorizationHandler");
+        implementations["IRunAuthorizationHandler"].ShouldBe("EmbeddedRunAuthorizationHandler");
         implementations["IRunEventSink"].ShouldBe("BoundedChannelRunEventSink");
         implementations["IAttachmentStorage"].ShouldBe("InMemoryBufferAttachmentStorage");
     }

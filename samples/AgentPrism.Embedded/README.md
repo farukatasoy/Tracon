@@ -19,7 +19,7 @@ model provider and in-memory persistence, the same "zero surprises" pattern
 
 ## What it binds
 
-Five contracts, all registered **before** `AddAgentPrism()` so they win over
+Six contracts, all registered **before** `AddAgentPrism()` so they win over
 AgentPrism's built-in default (every one uses `TryAdd`):
 
 | Contract | This sample's implementation |
@@ -28,18 +28,19 @@ AgentPrism's built-in default (every one uses `TryAdd`):
 | `ITenantStore` | `Tenancy/EmbeddedTenantStore.cs` — in-memory stand-in for the host's own tenant directory |
 | `IRunAttributionContext` | `Attribution/EmbeddedRunAttributionContext.cs` — reads `X-Host-User`, falls back to `AmbientRunAttributionScope` |
 | `IToolAuthorizationHandler` | `Authorization/EmbeddedToolAuthorizationHandler.cs` — a fixed per-tenant permission map |
+| `IRunAuthorizationHandler` | `Authorization/EmbeddedRunAuthorizationHandler.cs` — denies starting a run for a tenant the host's directory does not know about |
 | `IRunEventSink` | `Events/BoundedChannelRunEventSink.cs` — an 8-item bounded channel that **drops** on backpressure, drained by `Events/RunEventBridgeWorker.cs` |
 | `IAttachmentStorage` | `Attachments/InMemoryBufferAttachmentStorage.cs` — stands in for an external object store |
 
-Confirm all five took over the built-in default:
+Confirm all six took over the built-in default:
 
 ```bash
 curl -s http://localhost:5082/agentprism/api/diagnostics | jq '.extensionPoints'
 ```
 
 Every entry reads `"isBuiltInDefault": false` here — contrast with
-`samples/AgentPrism.Api`, which reports `true` for four of the five. Its
-fifth, `IRunAttributionContext`, is already bound to its own
+`samples/AgentPrism.Api`, which reports `true` for five of the six. Its
+exception, `IRunAttributionContext`, is already bound to its own
 `DemoRunAttributionContext` (Phase 68, for its per-user cost demo) — a
 pre-existing binding this phase did not add.
 
