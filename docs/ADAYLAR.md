@@ -59,7 +59,7 @@
 > tag'inin önüne girer. **F-183** (custom job dispatch, AP-REQ-001) ve **F-184**
 > (voice descriptor sağlayıcı üstverisi, AP-REQ-003) →
 > [Faz 137](arsiv/fazlar/137-IS-TURUNUN-ACIK-ANAHTARI.md) ve
-> [Faz 138](138-SES-TANIMININ-SAGLAYICI-USTVERISI.md); ikisi de tüketiciden
+> [Faz 138](arsiv/fazlar/138-SES-TANIMININ-SAGLAYICI-USTVERISI.md); ikisi de tüketiciden
 > kesin sözleşme yanıtı aldı.
 >
 > F-183'ün ölçümü raporun bulduğundan ağır çıktı: sevk edilen

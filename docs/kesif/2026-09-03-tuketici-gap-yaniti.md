@@ -113,7 +113,7 @@ karşılaştırma adımını anlatır.
 
 ## AP-REQ-003 — Ses tanımının sağlayıcı üstverisi
 
-**Faz:** [138 — Ses Tanımının Sağlayıcı Üstverisi](../138-SES-TANIMININ-SAGLAYICI-USTVERISI.md)
+**Faz:** [138 — Ses Tanımının Sağlayıcı Üstverisi](../arsiv/fazlar/138-SES-TANIMININ-SAGLAYICI-USTVERISI.md)
 
 ### Karar
 

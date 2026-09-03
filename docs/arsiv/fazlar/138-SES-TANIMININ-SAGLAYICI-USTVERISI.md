@@ -2,14 +2,14 @@
 
 > **Durum:** ✅ Tamamlandı (2026-09-03)
 > **Kaynak:** Tüketici raporu AP-REQ-003 + yanıt dokümanı §5 (ProdigyEnabler, 2026-09-03) · **F-184**
-> **Önkoşul:** Yok — [Faz 137](arsiv/fazlar/137-IS-TURUNUN-ACIK-ANAHTARI.md) ile bağımsızdır, paralel uygulanabilir
+> **Önkoşul:** Yok — [Faz 137](137-IS-TURUNUN-ACIK-ANAHTARI.md) ile bağımsızdır, paralel uygulanabilir
 > **Paketler:** `AgentPrism.Abstractions`, `.Voice`, `.AspNetCore`, `.Client`, `.UI`
 > **Yeni paket:** Yok · **Migration:** Yok — `VoiceDescriptor` kalıcılaştırılmaz
 > **Public API:** **Büyüyor, kırmıyor** — `VoiceDescriptor`'a varsayılanlı bir alan eklenir.
 > `PublicAPI.Shipped.txt` boş olduğu için bugün ucuz (`wc -l src/*/PublicAPI.Shipped.txt` ile doğrula)
 > **Tüketici yüzeyi:** `docs-site/` — `guides/voice` · sevk edilen: `VoiceDescriptor`
 > XML dokümanı, `src/AgentPrism.Voice/README.md` (`list_voices` satırı)
-> **Manuel test alanı:** [`manuel-test/19-COK-MODLULUK-VE-SES.md`](manuel-test/19-COK-MODLULUK-VE-SES.md)
+> **Manuel test alanı:** [`manuel-test/19-COK-MODLULUK-VE-SES.md`](../../manuel-test/19-COK-MODLULUK-VE-SES.md)
 
 ---
 
@@ -25,9 +25,9 @@
    **K-006** (AOT uyumluluğu — `Abstractions` ve `Voice` yansıma kullanamaz) ·
    **K-228** (arayüz sözlüğünde eksik anahtar derleme hatasıdır) ·
    **K-232** (sunucu yanıtları çevrilmez)
-3. Alan hafızası: [`hafiza/ses-ve-konusma.md`](hafiza/ses-ve-konusma.md) —
+3. Alan hafızası: [`hafiza/ses-ve-konusma.md`](../../hafiza/ses-ve-konusma.md) —
    ElevenLabs istemcisinin tuzakları, `multipart/form-data` zorunluluğu, timestamp yolu.
-4. Gerektiğinde: [`hafiza/dokumantasyon.md`](hafiza/dokumantasyon.md) § dil sınırı —
+4. Gerektiğinde: [`hafiza/dokumantasyon.md`](../../hafiza/dokumantasyon.md) § dil sınırı —
    bu faz o sınırın bir ihlalini kapatıyor.
 
 ---
@@ -48,18 +48,18 @@ boşluktan muzdariptir** ve elle bir geçici çözüm taşır.
 
 | Kanıt | Gözlem |
 |---|---|
-| [`SpeechModels.cs:149-159`](../src/AgentPrism.Abstractions/Voice/SpeechModels.cs) | `VoiceDescriptor` üç alan taşır; `preview_url`'ün dışlanması bilinçli ve dokümanlıdır (`:145`) |
-| [`ElevenLabsJson.cs:76-86`](../src/AgentPrism.Voice/Internal/ElevenLabsJson.cs) | `ElevenLabsVoice` yalnız `voice_id`, `name`, `category` okur — `labels` **hiç parse edilmez** |
-| [`ElevenLabsSpeechClient.cs:556`](../src/AgentPrism.Voice/Internal/ElevenLabsSpeechClient.cs) | `ReadVoicesAsync` yalnız bu üç alanı eşler |
-| [`settings.tsx:243-250`](../src/AgentPrism.UI/frontend/src/screens/settings.tsx) | 🚨 Konsolun kendi notu: *"The provider does not report the language of a voice — `VoiceDescriptor` carries only an id, a name and a category — so the mapping cannot be derived and an operator sets it here once."* |
-| [`voice.ts:98-105`](../src/AgentPrism.UI/frontend/src/lib/voice.ts) | Aynı gerekçe; dil→ses eşlemesi `localStorage`'da elle tutulur |
+| [`SpeechModels.cs:149-159`](../../../src/AgentPrism.Abstractions/Voice/SpeechModels.cs) | `VoiceDescriptor` üç alan taşır; `preview_url`'ün dışlanması bilinçli ve dokümanlıdır (`:145`) |
+| [`ElevenLabsJson.cs:76-86`](../../../src/AgentPrism.Voice/Internal/ElevenLabsJson.cs) | `ElevenLabsVoice` yalnız `voice_id`, `name`, `category` okur — `labels` **hiç parse edilmez** |
+| [`ElevenLabsSpeechClient.cs:556`](../../../src/AgentPrism.Voice/Internal/ElevenLabsSpeechClient.cs) | `ReadVoicesAsync` yalnız bu üç alanı eşler |
+| [`settings.tsx:243-250`](../../../src/AgentPrism.UI/frontend/src/screens/settings.tsx) | 🚨 Konsolun kendi notu: *"The provider does not report the language of a voice — `VoiceDescriptor` carries only an id, a name and a category — so the mapping cannot be derived and an operator sets it here once."* |
+| [`voice.ts:98-105`](../../../src/AgentPrism.UI/frontend/src/lib/voice.ts) | Aynı gerekçe; dil→ses eşlemesi `localStorage`'da elle tutulur |
 
 > Kanıtlar 2026-09-03 tarihinde doğrulandı.
 
 ### Aynı dosyada bulunan, ilgisiz ama sevk edilen bir kusur
 
-🔴 [`ListVoicesTool.cs:55`](../src/AgentPrism.Voice/Tools/ListVoicesTool.cs) ve
-[`:77`](../src/AgentPrism.Voice/Tools/ListVoicesTool.cs) **modele Türkçe metin
+🔴 [`ListVoicesTool.cs:55`](../../../src/AgentPrism.Voice/Tools/ListVoicesTool.cs) ve
+[`:77`](../../../src/AgentPrism.Voice/Tools/ListVoicesTool.cs) **modele Türkçe metin
 döndürüyor**: `"Kullanilabilir ses yok."` ve `"\n… ve … ses daha."`
 
 Bu, AGENTS.md'nin dil sınırının doğrudan ihlalidir — pakete giren ve çalışma
@@ -227,7 +227,7 @@ docs-site/src/content/docs/guides/voice.md
 ## Hata Modları ve Testler
 
 > Sağlayıcı yanıtının eşlenmesi **paket ve HTTP** sınırlarını geçer.
-> [`.agents/ortak/test-seviyeleri.md`](../.agents/ortak/test-seviyeleri.md).
+> [`.agents/ortak/test-seviyeleri.md`](../../../.agents/ortak/test-seviyeleri.md).
 
 | Ne bozulabilir | Seviye | Test |
 |---|---|---|
@@ -255,7 +255,7 @@ bugünkü hata yolu değişmez.
 
 ## Manuel Kabul Case'leri
 
-> Kapanışta [`manuel-test/19-COK-MODLULUK-VE-SES.md`](manuel-test/19-COK-MODLULUK-VE-SES.md) içine eklenir.
+> Kapanışta [`manuel-test/19-COK-MODLULUK-VE-SES.md`](../../manuel-test/19-COK-MODLULUK-VE-SES.md) içine eklenir.
 
 | # | Ön koşul | Adımlar | Beklenen sonuç |
 |---|---|---|---|
@@ -459,7 +459,7 @@ boşluk bırakmadı:
   conversation"); tool'un dönüş biçimindeki bir ayrıntı o seviyeye ait değil.
 
 Bu özelliğin gerçek, ayrıntılı tüketici sayfası zaten güncellendi:
-[`guides/voice.md`](../docs-site/src/content/docs/guides/voice.md)'nin yeni
+[`guides/voice.md`](../../../docs-site/src/content/docs/guides/voice.md)'nin yeni
 "Voice attributes" bölümü.
 
 ## Gerçek Run Kanıtı
@@ -505,7 +505,7 @@ API yok), 3.7 (repo kuralları temiz).
 ## Sonraki Faza Devir Notu
 
 Üç fazın (136 · 137 · 138) tamamı kapandı. Tüketici yanıt dokümanı
-[`docs/kesif/2026-09-03-tuketici-gap-yaniti.md`](kesif/2026-09-03-tuketici-gap-yaniti.md)
+[`docs/kesif/2026-09-03-tuketici-gap-yaniti.md`](../../kesif/2026-09-03-tuketici-gap-yaniti.md)
 AP-REQ-002 ve AP-REQ-003 bölümleriyle tamamlandı. AP-REQ-001 bölümü Faz 137
 kapanışında BOŞ kaldı (o fazın kendi kapanış notu: hedef dosya o an
 oluşturulmamıştı) — bu faz onu doldurmadı, kapsamı yalnız AP-REQ-003'tü;
