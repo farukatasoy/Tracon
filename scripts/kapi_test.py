@@ -9,6 +9,7 @@ import pathlib
 import sys
 import tempfile
 import unittest
+import zipfile
 from unittest import mock
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
@@ -507,41 +508,75 @@ class YayinTestleri(unittest.TestCase):
             self.assertEqual(kapi._target_frameworks(root, "AgentPrism.Testing"), ("net10.0",))
             self.assertEqual(kapi._target_frameworks(root, "AgentPrism.Core"), ("net8.0", "net9.0", "net10.0"))
 
+    @staticmethod
+    def _write_fake_nupkg(path: pathlib.Path, *, content: bytes, psmdcp_guid: str = "0" * 32) -> None:
+        """A minimal but REAL zip, shaped enough to exercise `_content_fingerprint`:
+        one meaningful entry plus the two OPC entries NuGet regenerates with a
+        random name on every real `dotnet pack` (see `_VOLATILE_OPC_ENTRY`)."""
+        with zipfile.ZipFile(path, "w") as archive:
+            archive.writestr("lib/net10.0/Thing.dll", content)
+            archive.writestr("_rels/.rels", f"<Relationships><Relationship Target=\"/package/services/metadata/core-properties/{psmdcp_guid}.psmdcp\" /></Relationships>")
+            archive.writestr(f"package/services/metadata/core-properties/{psmdcp_guid}.psmdcp", "<coreProperties />")
+
     # Faz 136, 136.3: "bayat paket temizlenir" iddiası (eski `_clean_stale_packages`,
     # koşumdan ÖNCE aynı kimlikteki her şeyi sessizce siliyordu) yerini "farklı
     # içerikli aynı kimlik promote edilmez" iddiasına bırakır - staging'den
-    # release_dir'e taşıma artık SHA-256 karşılaştırmasından geçmeden olmaz.
+    # release_dir'e taşıma artık içerik parmak izi karşılaştırmasından
+    # geçmeden olmaz (ham SHA-256 değil - bkz. `_content_fingerprint`).
     def test_yeni_paket_staging_dizininden_release_dizinine_tasinir(self):
         with tempfile.TemporaryDirectory() as directory:
             root = pathlib.Path(directory)
             staging_dir, release_dir = root / "staging", root / "release"
             staging_dir.mkdir()
-            (staging_dir / "AgentPrism.Core.1.0.0-preview.1.nupkg").write_bytes(b"content")
+            name = "AgentPrism.Core.1.0.0-preview.1.nupkg"
+            self._write_fake_nupkg(staging_dir / name, content=b"content")
 
-            conflicts = kapi._promote_staged_packages(staging_dir, release_dir, ["AgentPrism.Core.1.0.0-preview.1.nupkg"])
+            conflicts = kapi._promote_staged_packages(staging_dir, release_dir, [name])
 
             self.assertEqual(conflicts, [])
-            self.assertEqual((release_dir / "AgentPrism.Core.1.0.0-preview.1.nupkg").read_bytes(), b"content")
-            self.assertFalse((staging_dir / "AgentPrism.Core.1.0.0-preview.1.nupkg").exists())
+            self.assertTrue((release_dir / name).exists())
+            self.assertFalse((staging_dir / name).exists())
 
-    def test_ayni_sha256_deterministik_no_op_olarak_gecer(self):
+    def test_ayni_icerik_parmak_izi_deterministik_no_op_olarak_gecer(self):
         with tempfile.TemporaryDirectory() as directory:
             root = pathlib.Path(directory)
             staging_dir, release_dir = root / "staging", root / "release"
             staging_dir.mkdir()
             release_dir.mkdir()
             name = "AgentPrism.Core.1.0.0-preview.1.nupkg"
-            (staging_dir / name).write_bytes(b"same-content")
-            (release_dir / name).write_bytes(b"same-content")
+            self._write_fake_nupkg(staging_dir / name, content=b"same-content")
+            self._write_fake_nupkg(release_dir / name, content=b"same-content")
 
             conflicts = kapi._promote_staged_packages(staging_dir, release_dir, [name])
 
             self.assertEqual(conflicts, [])
-            self.assertEqual((release_dir / name).read_bytes(), b"same-content")
 
-    def test_farkli_sha256_koşumu_durdurur_ve_mevcut_artifacti_korur(self):
-        """Aynı kimlikte (id+sürüm) FARKLI bir SHA-256: hiçbir dosya promote
-        edilmez - konfilktsiz olan bile - ve mevcut release_dir olduğu gibi kalır."""
+    def test_farkli_opc_rastgele_adi_tek_basina_konflikt_saymaz(self):
+        """🚨 Ölçüldü (2026-09-03): NuGet, HER `dotnet pack` koşumunda
+        `package/services/metadata/core-properties/<rastgele>.psmdcp` dosyasını
+        YENİ bir GUID ile yazar ve `_rels/.rels` o adı taşır - aynı commit'i
+        art arda iki kez paketlemek bile FARKLI ham SHA-256 üretir. Ham dosya
+        hash'i karşılaştırılsaydı bu, MT-PKG-115'in kanıtlamak istediği
+        senaryonun TAM TERSİNİ üretirdi: değişmeyen bir sürümün İKİNCİ koşumu
+        her seferinde 'farklı artifact' diye reddedilirdi."""
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            staging_dir, release_dir = root / "staging", root / "release"
+            staging_dir.mkdir()
+            release_dir.mkdir()
+            name = "AgentPrism.Core.1.0.0-preview.1.nupkg"
+            self._write_fake_nupkg(staging_dir / name, content=b"same-content", psmdcp_guid="a" * 32)
+            self._write_fake_nupkg(release_dir / name, content=b"same-content", psmdcp_guid="b" * 32)
+            self.assertNotEqual(kapi._sha256(staging_dir / name), kapi._sha256(release_dir / name))
+
+            conflicts = kapi._promote_staged_packages(staging_dir, release_dir, [name])
+
+            self.assertEqual(conflicts, [])
+
+    def test_farkli_icerik_koşumu_durdurur_ve_mevcut_artifacti_korur(self):
+        """Aynı kimlikte (id+sürüm) GERÇEKTEN farklı içerik: hiçbir dosya
+        promote edilmez - konfilktsiz olan bile - ve mevcut release_dir olduğu
+        gibi kalır."""
         with tempfile.TemporaryDirectory() as directory:
             root = pathlib.Path(directory)
             staging_dir, release_dir = root / "staging", root / "release"
@@ -549,14 +584,17 @@ class YayinTestleri(unittest.TestCase):
             release_dir.mkdir()
             conflicting = "AgentPrism.Core.1.0.0-preview.1.nupkg"
             clean = "AgentPrism.Abstractions.1.0.0-preview.1.nupkg"
-            (staging_dir / conflicting).write_bytes(b"new-content")
-            (release_dir / conflicting).write_bytes(b"old-content")
-            (staging_dir / clean).write_bytes(b"non-conflicting")
+            self._write_fake_nupkg(staging_dir / conflicting, content=b"new-content")
+            self._write_fake_nupkg(release_dir / conflicting, content=b"old-content")
+            self._write_fake_nupkg(staging_dir / clean, content=b"non-conflicting")
 
             conflicts = kapi._promote_staged_packages(staging_dir, release_dir, [conflicting, clean])
 
+            with zipfile.ZipFile(release_dir / conflicting) as archive:
+                untouched_content = archive.read("lib/net10.0/Thing.dll")
+
             self.assertEqual(conflicts, [conflicting])
-            self.assertEqual((release_dir / conflicting).read_bytes(), b"old-content")
+            self.assertEqual(untouched_content, b"old-content")
             self.assertFalse((release_dir / clean).exists())
             self.assertTrue((staging_dir / clean).exists())
 
