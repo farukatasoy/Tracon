@@ -39,6 +39,13 @@ Bugün bir kiracıdaki her `Operator`, aynı kiracıdaki **başka bir kullanıc�
 - [x] Reddedilen run `runs` satırı **açmaz** ve kota **tüketmez** — `Handler_denies_a_different_user_and_no_run_row_opens`, `Denied_run_does_not_consume_the_quota`
 - [x] `AgentRunScope.UserId` tool gövdesinde görünür; akışlı yolda da dolu — `Allowed_user_id_reaches_the_tool_via_scope` (varsayılan akışlı/SSE yolu üzerinden)
 - [x] Dört doğrulama kapısı sıfır uyarı verir — `python3 scripts/kapi.py kapanis`
+      (üç koşumda `dotnet test AgentPrism.slnx` adımı iki kez tek bir testte
+      kırmızı çıktı: `ModelHealthSingletonTests.Health_check_runs_on_only_one_instance`
+      — bu faz **öncesinde** `docs/hafiza/test-altyapisi.md`'de belgelenmiş,
+      yalnız tüm çözüm birlikte koşarken kaynak çakışmasından ortaya çıkan
+      bilinen bir flaky test; izole (`AgentPrism.Core.UnitTests` tek başına,
+      4 kez) ve tek test filtreli (3 kez) koşumların tamamı geçti — regresyon
+      DEĞİL)
 - [x] `samples/AgentPrism.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı — aşağıda
 - [x] `secret` taraması boş döndü — `python3 scripts/kapi.py tarama`
 - [x] Manuel kabul case'leri `docs/manuel-test/13-KIRACI-VE-GUVENLIK.md` içine eklendi; otomatikleştirilebilenler koşuldu — MT-SEC-140..150, tamamı otomatik ve yeşil
