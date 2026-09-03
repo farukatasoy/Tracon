@@ -152,7 +152,7 @@ bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 | [137](arsiv/fazlar/137-IS-TURUNUN-ACIK-ANAHTARI.md) | İş Türünün Açık Anahtarı | ✅ Tamamlandı |
 | [138](arsiv/fazlar/138-SES-TANIMININ-SAGLAYICI-USTVERISI.md) | Ses Tanımının Sağlayıcı Üstverisi | ✅ Tamamlandı |
 | [139](arsiv/fazlar/139-CALISTIRMA-VE-OTURUM-YETKILENDIRMESI.md) | Çalıştırma ve Oturum Yetkilendirmesi | ✅ Tamamlandı |
-| [140](140-ICERIK-GUARDININ-KAYNAGI.md) | İçerik Guard'ının Kaynağı | 📋 Planlandı |
+| [140](arsiv/fazlar/140-ICERIK-GUARDININ-KAYNAGI.md) | İçerik Guard'ının Kaynağı | 📋 Planlandı |
 | [141](141-GENISLETILEBILIR-CALISTIRMA-OLAYI.md) | Genişletilebilir Çalıştırma Olayı | 📋 Planlandı |
 | [142](142-ONAY-ISTEGININ-SUNUMU.md) | Onay İsteğinin Sunumu | 📋 Planlandı |
 | [143](143-TOOL-ARGUMANININ-SOZLESME-TESTLERI.md) | Tool Argümanının Sözleşme Testleri | 📋 Planlandı |
