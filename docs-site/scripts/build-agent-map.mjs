@@ -47,8 +47,17 @@ export const agentMapBudgetBytes = 10240;
  * question — while the shipped map is read at the start of every session from
  * disk. The page index measures ~8.0 KB on its own, so the two cannot share one
  * ceiling without either starving the map or lifting its limit.
+ *
+ * Raised from 20 KiB once, measured: 51 pages reached 20666 bytes and the
+ * release-notes page - which every published package's metadata links to, so it
+ * cannot be dropped - did not fit in the last 3 bytes. 24 KiB is ~6000 tokens
+ * for an index an agent fetches on purpose, and it leaves room again. Trimming
+ * unrelated pages' descriptions to fund one new page was the alternative; those
+ * descriptions are also the site's search snippets, so shrinking them to make
+ * an accounting figure work would have paid for the page with the reader's
+ * text.
  */
-export const llmsBudgetBytes = 20480;
+export const llmsBudgetBytes = 24576;
 
 /** The byte ceiling of each budgeted artifact. */
 export const budgets = { agentMap: agentMapBudgetBytes, llms: llmsBudgetBytes };

@@ -298,7 +298,31 @@ kızartabilir. Kontrol yalnız **işaretli** sayıya bakmalı, her rakama değil
 build'de değişir — belki doğru cevap sayıyı sevk edilen metinden tamamen
 çıkarmaktır. Aday bu ikilemi kapsamına dahil ediyor.
 
-### F-180 · Tam paket koşumunda E2E zaman aşımı yalıtımı
+### F-180 · Tam paket koşumunda E2E zaman aşımı — ✅ KAPANDI (2026-09-03)
+
+**Kapanış:** `kusur-giderme` faz dışı koşuldu. **Yalıtım kusuru değildi —
+sevk edilen bir ürün kusuruydu** (K-660). Aşağıdaki teşhis anlatısı doğru
+daralmıştı ("kayıp olay commit sonrasındadır"); eksik olan tek şey sunucunun o
+yolda hiçbir çerçeve göndermediğiydi.
+
+**Kök neden:** `VoiceConversationDriver.Commit`, ses gelmeden ulaşan bir
+`commit`'te `FinishTurn(counted:false)` çağırıp **hiçbir çerçeve göndermeden**
+dönüyordu. İstemci ise gönder'e basıldığı anda kendini `'thinking'`e alıp
+kaydediciyi durdurur — panel kalıcı asılır, mikrofon bir daha açılmaz. Kaydedicinin
+ilk 250 ms'lik dilimi içinde commit etmek bu yola girer; tam paket yükü o pencereyi
+genişletiyordu, sebebi o değildi.
+
+**Sınıf taraması ikinci vakayı buldu** (üretimde daha olası): transcriber boş metin
+döndüğünde `ProcessTurnAsync` aynı sessiz dönüşü yapıyordu ve istemci boş
+`transcript` çerçevesini zaten yok sayıyor. İkisi de yeni `idle` sunucu
+çerçevesiyle kapatıldı, ikisi de red→green kanıtlandı
+(`VoiceConversationTests`). Mevcut `Commit_without_audio_does_NOT_produce_a_turn`
+testi bunu göremiyordu: yalnız **sunucunun** dinlemeye döndüğünü ölçüyordu.
+
+Tuzak `docs/hafiza/ses-ve-konusma.md`'de; sözleşme `docs-site/guides/voice.md`'de.
+
+<details>
+<summary>Kapanış öncesi teşhis anlatısı (kayıt)</summary>
 
 **Sorun:** `AgentPrism.Ui.E2ETests.UiTests.Playground_voice_mode_opens_microphone_and_shows_transcript`
 **yalnız** tam çözüm koşumunda (`dotnet test AgentPrism.slnx -c Release
@@ -351,6 +375,8 @@ neden gelmedi. Zaman aşımını büyütmek hâlâ yasak.
 --no-build -maxcpucount:1`, E2E **57/57** yeşil, 506 sn). Kusur gerçek ama
 seyrek; bir sonraki düşüşte **koşumun kendi TRX'i saklanmalıdır** — asıl eksik
 kanıt, düşen koşumdaki adım sürelerinin dağılımıdır.
+
+</details>
 
 ### F-181 · `MeterListener` yalıtımı — ✅ KAPANDI (2026-09-02)
 

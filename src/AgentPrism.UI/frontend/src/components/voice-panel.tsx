@@ -196,6 +196,17 @@ export function VoicePanel({ agent, sessionId }: { agent: string; sessionId: str
           recorder.current?.state === 'inactive' && recorder.current.start(250);
           break;
 
+        case 'idle':
+          // 🚨 The commit closed nothing - it reached the server before any audio.
+          // Pressing send inside the recorder's first timeslice does this. We are
+          // already in 'thinking' because `commit` put us there, and the recorder
+          // is stopped, so without this the panel hangs and the microphone never
+          // reopens. Deliberately NOT folded into 'done': no turn ran, so the
+          // previous turn's record must not be touched.
+          setState('listening');
+          recorder.current?.state === 'inactive' && recorder.current.start(250);
+          break;
+
         case 'error':
           // Server text, shown as it came: the API contract is single-language.
           setError(event.message ?? t('voice.failed'));

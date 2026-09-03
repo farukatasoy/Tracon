@@ -136,6 +136,14 @@ internal sealed class VoiceConversationClient(WebSocket socket) : IAsyncDisposab
             {
                 // The server may have already closed.
             }
+            catch (ObjectDisposedException)
+            {
+                // 🚨 A test that gave up on a frame it expected leaves a receive in
+                // flight, and TestWebSocket.CloseAsync reads before it closes - so
+                // teardown threw and REPLACED the assertion that actually failed.
+                // A failing test has to say what it was waiting for, not how its
+                // socket ended.
+            }
         }
 
         socket.Dispose();

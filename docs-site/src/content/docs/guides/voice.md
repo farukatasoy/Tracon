@@ -150,7 +150,23 @@ frames and binary audio:
    end of speech.
 4. Read `transcript`, `runStarted`, `text`, `audioStart`, binary audio, `audioEnd`,
    and `done` frames.
-5. Send `cancel` for barge-in or `stop` to close cleanly.
+5. Read `idle` — a commit that closed no turn. Handle it or your client hangs.
+6. Send `cancel` for barge-in or `stop` to close cleanly.
+
+:::caution[A commit does not always produce a turn]
+Two ordinary cases end a commit without a turn: the commit reaches the server
+before any audio does (voice activity detection fired on a cough, or the user
+pressed send inside the recorder's first timeslice), and the audio transcribes to
+nothing usable (a noisy room). Both answer with a single `idle` frame and no
+`done`.
+
+Your client must treat `idle` as "the turn is over, start listening again" —
+return to the listening state and reopen the microphone if you stopped it to
+commit. Do not fold it into `done`: `done` closes a turn that exists and carries
+that turn's number and cancelled flag, so a client that handles the two alike
+rewrites the record of the previous turn. A client that ignores `idle` stays in
+whatever pending state it entered when it committed, and never recovers.
+:::
 
 Input formats are `webm-opus` and raw mono 16-bit little-endian `pcm16`. WebM Opus is
 the browser-friendly default. Raw PCM uses `InputSampleRate`, 16 kHz by default, when
