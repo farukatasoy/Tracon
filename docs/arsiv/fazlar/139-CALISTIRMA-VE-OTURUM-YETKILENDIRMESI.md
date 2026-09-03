@@ -1,13 +1,13 @@
 # Faz 139 — Çalıştırma ve Oturum Yetkilendirmesi
 
 > **Durum:** ✅ Tamamlandı (2026-09-03)
-> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-185** (tüketici turu 3, A1 + A8)
+> **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-185** (tüketici turu 3, A1 + A8)
 > **Önkoşul:** Yok
 > **Paketler:** `AgentPrism.Abstractions`, `AgentPrism.Core`, `AgentPrism.AspNetCore`
 > **Yeni paket:** Yok · **Migration:** Yok
 > **Public API:** Büyüyor — yeni kontrat + `AgentRunScope`'a iki alan. `wc -l src/*/PublicAPI.Shipped.txt` → her dosya **1 satır** (yalnız başlık), yani shipped giriş **sıfır**: bugün eklemek bedava, GA'dan sonra bir sürüm kararı
 > **Tüketici yüzeyi:** `docs-site/`: `guides/embedding.md` (genişleme noktası listesi), `concepts/sessions.md`, `concepts/runs.md`, `capabilities.md` · sevk edilen: XML `<example>`, `src/AgentPrism.Abstractions/README.md`
-> **Manuel test alanı:** [`docs/manuel-test/13-KIRACI-VE-GUVENLIK.md`](manuel-test/13-KIRACI-VE-GUVENLIK.md)
+> **Manuel test alanı:** [`docs/manuel-test/13-KIRACI-VE-GUVENLIK.md`](../../manuel-test/13-KIRACI-VE-GUVENLIK.md)
 
 ---
 
@@ -26,11 +26,11 @@
    oturum deposu kiracıyla sınırlanınca ses ucunun reddi etkisiz kaldı),
    **K-162** (devam eden run kota aşımında kesilmez)
 3. Alan hafızası (bu faz iki alana dokunuyor):
-   [`hafiza/http-uc-tuzaklari.md`](hafiza/http-uc-tuzaklari.md) (uç filtresi ve
-   gövde bağlama sırası) · [`hafiza/aspnetcore-di.md`](hafiza/aspnetcore-di.md)
+   [`hafiza/http-uc-tuzaklari.md`](../../hafiza/http-uc-tuzaklari.md) (uç filtresi ve
+   gövde bağlama sırası) · [`hafiza/aspnetcore-di.md`](../../hafiza/aspnetcore-di.md)
    (singleton/scoped sınırı — kontrat singleton olmak zorundadır)
 4. Gerektiğinde, tamamı değil ilgili bölümü:
-   [`MIMARI-GUVENLIK.md`](MIMARI-GUVENLIK.md) — kiracı ve rol bölümü
+   [`MIMARI-GUVENLIK.md`](../../MIMARI-GUVENLIK.md) — kiracı ve rol bölümü
 
 ---
 
@@ -49,14 +49,14 @@ ayırmıyor. Bu faz sahipliği AgentPrism'e **öğretmez** — tüketiciye **sor
 
 | Kanıt | Gözlem |
 |---|---|
-| [`AgentEndpoints.cs:193-233`](../src/AgentPrism.AspNetCore/Endpoints/AgentEndpoints.cs) | Run yolunda dört kapı var (`DrainGate` · `RunAttributionGate` · `QuotaGate` · `PreflightGate`). **Hiçbiri** çağıranı session sahipliğiyle karşılaştırmıyor |
-| [`AgentEndpoints.cs:825`](../src/AgentPrism.AspNetCore/Endpoints/AgentEndpoints.cs) | `sessionId` **istek gövdesinden** geliyor ve doğrudan `GetOrCreateSessionAsync`'e veriliyor |
-| [`SessionEndpoints.cs:22,52,65,79`](../src/AgentPrism.AspNetCore/Endpoints/SessionEndpoints.cs) | Dört session ucu yalnız rol (`Reader`/`Operator`) ve API key scope taşıyor |
-| [`AgentSessionManager.cs:365`](../src/AgentPrism.Core/Sessions/AgentSessionManager.cs) | Liste sorgusu yalnız `_tenantContext.TenantId` ile daralıyor |
-| [`AgentPrismDiagnosticsCollector.cs:221-245`](../src/AgentPrism.Core/Diagnostics/AgentPrismDiagnosticsCollector.cs) | Sevk edilen **beş** genişleme noktası sayılıyor; run başlatmayı veya session okumayı yetkilendiren **yok** |
-| [`AgentPrismRunContext.cs:52`](../src/AgentPrism.Core/Recording/AgentPrismRunContext.cs) | `AgentRunScope` `UserId` ve `Labels` taşımıyor |
-| [`RunRecord.cs:47,57`](../src/AgentPrism.Abstractions/Runs/RunRecord.cs) | Aynı iki değer **zaten toplanıyor** ve `runs` satırına yazılıyor — bir adım ötede düşürülüyor |
-| [`RunAttributionGate.cs:19`](../src/AgentPrism.AspNetCore/RateLimiting/RunAttributionGate.cs) | 🚨 *"the endpoints that start runs do not share one"* — run başlatan uçlar **ortak filtre paylaşmıyor**; kapı her uca **tek tek** eklenmelidir |
+| [`AgentEndpoints.cs:193-233`](../../../src/AgentPrism.AspNetCore/Endpoints/AgentEndpoints.cs) | Run yolunda dört kapı var (`DrainGate` · `RunAttributionGate` · `QuotaGate` · `PreflightGate`). **Hiçbiri** çağıranı session sahipliğiyle karşılaştırmıyor |
+| [`AgentEndpoints.cs:825`](../../../src/AgentPrism.AspNetCore/Endpoints/AgentEndpoints.cs) | `sessionId` **istek gövdesinden** geliyor ve doğrudan `GetOrCreateSessionAsync`'e veriliyor |
+| [`SessionEndpoints.cs:22,52,65,79`](../../../src/AgentPrism.AspNetCore/Endpoints/SessionEndpoints.cs) | Dört session ucu yalnız rol (`Reader`/`Operator`) ve API key scope taşıyor |
+| [`AgentSessionManager.cs:365`](../../../src/AgentPrism.Core/Sessions/AgentSessionManager.cs) | Liste sorgusu yalnız `_tenantContext.TenantId` ile daralıyor |
+| [`AgentPrismDiagnosticsCollector.cs:221-245`](../../../src/AgentPrism.Core/Diagnostics/AgentPrismDiagnosticsCollector.cs) | Sevk edilen **beş** genişleme noktası sayılıyor; run başlatmayı veya session okumayı yetkilendiren **yok** |
+| [`AgentPrismRunContext.cs:52`](../../../src/AgentPrism.Core/Recording/AgentPrismRunContext.cs) | `AgentRunScope` `UserId` ve `Labels` taşımıyor |
+| [`RunRecord.cs:47,57`](../../../src/AgentPrism.Abstractions/Runs/RunRecord.cs) | Aynı iki değer **zaten toplanıyor** ve `runs` satırına yazılıyor — bir adım ötede düşürülüyor |
+| [`RunAttributionGate.cs:19`](../../../src/AgentPrism.AspNetCore/RateLimiting/RunAttributionGate.cs) | 🚨 *"the endpoints that start runs do not share one"* — run başlatan uçlar **ortak filtre paylaşmıyor**; kapı her uca **tek tek** eklenmelidir |
 
 > Kanıtlar 2026-09-03 tarihinde doğrulandı.
 
