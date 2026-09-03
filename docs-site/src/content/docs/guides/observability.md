@@ -103,7 +103,7 @@ metric names above.
 | `agentprism.agent_source.name` | `agentprism.agent_source.failures` | The failing `IAgentSource`'s name |
 | `agentprism.agent_source.operation` | `agentprism.agent_source.failures` | `list`, `resolve`, or `consistency` |
 | `agentprism.job.lane` | Every job signal | The lane the job was queued in |
-| `agentprism.job.kind` | `agentprism.job.executions`, `agentprism.job.duration` | The job's kind |
+| `agentprism.job.handler_key` | `agentprism.job.executions`, `agentprism.job.duration` | The key of the handler that ran the job |
 | `agentprism.job.status` | Every job signal | A terminal status on the counter and the histogram; an open one on the gauge |
 
 Three spans and one tool name are not metrics at all, and are named here because a

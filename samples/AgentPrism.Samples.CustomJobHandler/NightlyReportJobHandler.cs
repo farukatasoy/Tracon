@@ -4,16 +4,22 @@ namespace AgentPrism.Samples.CustomJobHandler;
 
 /// <summary>A handler that generates one nightly report line per job item.</summary>
 /// <remarks>
+/// <para>
+/// Registered under the consumer key
+/// <see cref="NightlyReportJobHandlerRegistrationExtensions.HandlerKey"/>. The
+/// key -- not the type, and not the registration order -- is what the worker
+/// dispatches on, so this handler runs whether it is registered before or
+/// after <c>AddAgentPrism()</c>, and it can never be shadowed by a built-in one.
+/// </para>
+/// <para>
 /// Demonstrates the at-least-once contract <see cref="IJobHandler.ExecuteAsync"/>
 /// documents: it skips any item not <see cref="JobItemStatus.Pending"/>, so a
 /// retry after a crashed worker or an expired lease never re-generates a
 /// report that already went out.
+/// </para>
 /// </remarks>
 public sealed class NightlyReportJobHandler(ILogger<NightlyReportJobHandler>? logger = null) : IJobHandler
 {
-    /// <inheritdoc />
-    public JobKind Kind => JobKind.AgentBatch;
-
     /// <inheritdoc />
     public async ValueTask ExecuteAsync(JobContext context, CancellationToken cancellationToken = default)
     {

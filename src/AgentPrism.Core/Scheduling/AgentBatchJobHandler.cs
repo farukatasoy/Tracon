@@ -3,7 +3,7 @@ using Microsoft.Extensions.Logging;
 namespace AgentPrism;
 
 /// <summary>
-/// Handles <see cref="JobKind.AgentBatch"/> jobs. It runs a registered agent in
+/// Handles <see cref="JobHandlerKeys.AgentBatch"/> jobs. It runs a registered agent in
 /// sequence for each input in the job items.
 /// </summary>
 /// <remarks>
@@ -18,9 +18,6 @@ internal sealed class AgentBatchJobHandler(
     IAgentCatalog catalog,
     ILogger<AgentBatchJobHandler>? logger = null) : IJobHandler
 {
-    /// <inheritdoc />
-    public JobKind Kind => JobKind.AgentBatch;
-
     /// <inheritdoc />
     public async ValueTask ExecuteAsync(JobContext context, CancellationToken cancellationToken = default)
     {

@@ -16,7 +16,7 @@ namespace AgentPrism;
 /// All dependencies other than <see cref="IEvalStore"/> are marked
 /// <strong>explicitly</strong> with <c>[FromServices]</c> — the rationale is the
 /// same as <see cref="SchedulingEndpoints"/>. Triggering a run uses the existing
-/// job queue (<see cref="IJobStore"/>, <see cref="JobKind.Eval"/>); there is no separate execution path.
+/// job queue (<see cref="IJobStore"/>, <see cref="JobHandlerKeys.Eval"/>); there is no separate execution path.
 /// </remarks>
 internal static class EvalEndpoints
 {
@@ -503,7 +503,7 @@ internal static class EvalEndpoints
             {
                 Id = AgentPrismId.NewId(),
                 TenantId = tenants.TenantId,
-                Kind = JobKind.Eval,
+                HandlerKey = JobHandlerKeys.Eval,
                 TargetName = suite.AgentName,
                 Status = JobStatus.Pending,
                 Payload = BuildRunPayload(suite.Name, request?.ModelId, request?.NumRepetitions, request?.AgentVersion),

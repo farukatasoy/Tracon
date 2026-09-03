@@ -2,7 +2,7 @@ using Microsoft.Extensions.Logging;
 
 namespace AgentPrism;
 
-/// <summary>Runs a retention sweep (<see cref="JobKind.Retention"/>).</summary>
+/// <summary>Runs a retention sweep (<see cref="JobHandlerKeys.Retention"/>).</summary>
 /// <remarks>
 /// <see cref="JobRecord.TargetName"/> is either a specific <see cref="RetentionTargets"/>
 /// value or <c>"*"</c>, which processes all active policies. The job has one item.
@@ -12,9 +12,6 @@ internal sealed class RetentionJobHandler(
     RetentionExecutor executor,
     ILogger<RetentionJobHandler>? logger = null) : IJobHandler
 {
-    /// <inheritdoc />
-    public JobKind Kind => JobKind.Retention;
-
     /// <inheritdoc />
     public async ValueTask ExecuteAsync(JobContext context, CancellationToken cancellationToken = default)
     {

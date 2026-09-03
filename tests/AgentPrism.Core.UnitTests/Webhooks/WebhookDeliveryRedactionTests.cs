@@ -84,7 +84,7 @@ public sealed class WebhookDeliveryRedactionTests
             {
                 Id = AgentPrismId.NewId(),
                 TenantId = "default",
-                Kind = JobKind.WebhookDelivery,
+                HandlerKey = JobHandlerKeys.WebhookDelivery,
                 TargetName = "orders",
                 Status = JobStatus.Running,
                 Payload = default,

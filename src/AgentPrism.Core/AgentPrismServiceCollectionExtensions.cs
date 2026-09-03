@@ -70,34 +70,70 @@ public static partial class AgentPrismServiceCollectionExtensions
     }
 
     /// <summary>
-    /// Adds an <see cref="IJobHandler"/> extension point.
+    /// Adds an <see cref="IJobHandler"/> extension point under a handler key.
     /// </summary>
     /// <typeparam name="THandler">The handler type to add.</typeparam>
     /// <param name="services">Service collection.</param>
+    /// <param name="handlerKey">
+    /// The key jobs are dispatched by. 1-128 characters: lowercase ASCII
+    /// letters, digits, <c>.</c>, <c>_</c>, or <c>-</c>, starting with a
+    /// letter or digit. Pick a namespace prefix of your own
+    /// (<c>contoso.nightly-report</c>).
+    /// </param>
     /// <returns>The same collection, for chaining.</returns>
     /// <remarks>
-    /// Evaluation registers its own handler with this method.
-    /// <c>TryAddEnumerable</c> is used: if the same type is added twice, only
-    /// the first counts. The worker dispatches by <see cref="IJobHandler.Kind"/>
-    /// using the first registered handler for that value, so a handler added
-    /// after <c>AddAgentPrism()</c> for a <see cref="JobKind"/> that already
-    /// has a built-in handler (every value does today) is registered but
-    /// never runs; register it before <c>AddAgentPrism()</c> instead.
+    /// <para>
+    /// The worker dispatches by exact, ordinal key match, so
+    /// <strong>this call may appear before or after <c>AddAgentPrism()</c></strong>
+    /// — registration order does not decide which handler runs, and no handler
+    /// can shadow another.
+    /// </para>
+    /// <para>
+    /// The handler is registered <strong>scoped</strong> and resolved from a
+    /// fresh scope for every execution, so it may take scoped dependencies in
+    /// its constructor. Registering two handlers under the same key, or using
+    /// a key inside AgentPrism's own <c>agentprism.</c> namespace, stops the
+    /// host from starting.
+    /// </para>
     /// <example>
     /// <code>
-    /// builder.Services.AddJobHandler&lt;NightlyReportJobHandler&gt;();
+    /// builder.Services.AddJobHandler&lt;NightlyReportJobHandler&gt;("contoso.nightly-report");
     /// </code>
     /// </example>
     /// </remarks>
     /// <exception cref="ArgumentNullException"><paramref name="services"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException">
+    /// <paramref name="handlerKey"/> is empty, malformed, or inside the
+    /// <see cref="JobHandlerKeys.ReservedPrefix"/> namespace.
+    /// </exception>
     public static IServiceCollection AddJobHandler<
         [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] THandler>(
-        this IServiceCollection services)
+        this IServiceCollection services,
+        string handlerKey)
         where THandler : class, IJobHandler
     {
         ArgumentNullException.ThrowIfNull(services);
+        ArgumentException.ThrowIfNullOrWhiteSpace(handlerKey);
 
-        services.TryAddEnumerable(ServiceDescriptor.Singleton<IJobHandler, THandler>());
+        if (!JobHandlerKeys.IsValidKey(handlerKey))
+        {
+            throw new ArgumentException(
+                $"'{handlerKey}' is not a valid job handler key. A key must be 1-128 characters: " +
+                "lowercase ASCII letters, digits, '.', '_', or '-', starting with a letter or digit.",
+                nameof(handlerKey));
+        }
+
+        if (JobHandlerKeys.IsReserved(handlerKey))
+        {
+            throw new ArgumentException(
+                $"The job handler key '{handlerKey}' is reserved: the '{JobHandlerKeys.ReservedPrefix}' " +
+                "namespace belongs to AgentPrism's own handlers. Pick a key of your own " +
+                "(for example 'contoso.nightly-report').",
+                nameof(handlerKey));
+        }
+
+        services.TryAddScoped<THandler>();
+        services.AddSingleton(new JobHandlerRegistration(handlerKey, typeof(THandler), BuiltIn: false));
 
         return services;
     }

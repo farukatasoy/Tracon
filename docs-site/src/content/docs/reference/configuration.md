@@ -329,7 +329,8 @@ registers more than one image provider or a custom keyed generator.
 | `Scheduling:MaxItemsPerJob` | `1000` |
 | `Scheduling:Lanes` | `null`; leases from every lane |
 | `Scheduling:MaxConcurrentJobsPerLane` | empty; a lane not listed shares `MaxConcurrentJobs` |
-| `Scheduling:LaneByKind` | empty; maps a job kind to a lane when the caller left it unset |
+| `Scheduling:LaneByHandlerKey` | empty; maps a handler key to a lane when the caller left it unset |
+| `Scheduling:HttpSchedulableHandlerKeys` | empty; the handler keys `PUT /api/schedules/{name}` accepts. Empty means the built-in keys; a non-empty list replaces that default rather than extending it |
 | `AsyncRun:Enabled` | `true` |
 | `AsyncRun:MaxAttempts` | `1` |
 | `SingletonExecution:Enabled` | `false` |

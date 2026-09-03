@@ -24,7 +24,7 @@ public sealed class JobLeaseExpiryTests
             {
                 Id = Guid.NewGuid(),
                 TenantId = "tenant",
-                Kind = JobKind.AgentBatch,
+                HandlerKey = JobHandlerKeys.AgentBatch,
                 TargetName = "summarizer",
                 Status = JobStatus.Pending,
                 ScheduledFor = clock.GetUtcNow(),

@@ -97,7 +97,7 @@ public sealed class DrainTests
             {
                 Id = runId,
                 TenantId = tenantContext.TenantId,
-                Kind = JobKind.AgentRun,
+                HandlerKey = JobHandlerKeys.AgentRun,
                 TargetName = "kod-agent",
                 Status = JobStatus.Pending,
                 Payload = JsonSerializer.SerializeToElement(new { runId = runId.ToString(), message = "hello" }),

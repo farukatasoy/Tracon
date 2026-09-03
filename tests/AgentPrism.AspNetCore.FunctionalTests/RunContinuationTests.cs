@@ -198,7 +198,7 @@ public sealed class RunContinuationTests
         (await runs.GetRunAsync(runId)).ShouldNotBeNull().Status.ShouldBe(RunStatus.Failed);
 
         var jobs = host.Services.GetRequiredService<IJobStore>();
-        var jobsForRun = await jobs.QueryAsync(new JobQuery { Kind = JobKind.RunContinuation });
+        var jobsForRun = await jobs.QueryAsync(new JobQuery { HandlerKey = JobHandlerKeys.RunContinuation });
         jobsForRun.ShouldBeEmpty();
     }
 

@@ -251,9 +251,9 @@ public sealed class RetentionDataPlaneTests(PostgresFixture fixture) : IAsyncLif
 
         await _context.ExecuteAsync($"""
             INSERT INTO {_context.SchemaName}.jobs
-                (id, tenant_id, kind, target_name, status, payload, scheduled_for, completed_at, created_at)
+                (id, tenant_id, handler_key, target_name, status, payload, scheduled_for, completed_at, created_at)
             VALUES
-                ('{id}', 'test', 0, 'support', {status}, {emptyJsonPayload}, now(), {completedSql}, now());
+                ('{id}', 'test', '{JobHandlerKeys.AgentBatch}', 'support', {status}, {emptyJsonPayload}, now(), {completedSql}, now());
             """);
 
         return id;

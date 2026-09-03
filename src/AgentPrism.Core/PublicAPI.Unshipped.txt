@@ -167,7 +167,6 @@ AgentPrism.AgentPrismMetrics.JudgeScore.get -> System.Diagnostics.Metrics.Histog
 AgentPrism.AgentPrismMetrics.ModelCacheLookups.get -> System.Diagnostics.Metrics.Counter<long>!
 AgentPrism.AgentPrismMetrics.RecordAgentSourceFailure(string! sourceName, string! operation) -> void
 AgentPrism.AgentPrismMetrics.RecordCost(string! agentName, string? modelId, string! tenantId, decimal cost, string! currency) -> void
-AgentPrism.AgentPrismMetrics.RecordJob(string! lane, AgentPrism.JobKind kind, AgentPrism.JobStatus status, string? tenantId, System.TimeSpan duration) -> void
 AgentPrism.AgentPrismMetrics.RecordJudgeCost(string! judgeName, string? modelId, string! tenantId, decimal cost, string! currency) -> void
 AgentPrism.AgentPrismMetrics.RecordJudgeScore(string! judgeName, string! agentName, string! tenantId, int score) -> void
 AgentPrism.AgentPrismMetrics.RecordModelCacheLookup(string! provider, string! tenantId, bool hit) -> void
@@ -179,6 +178,7 @@ AgentPrism.AgentPrismMetrics.Runs.get -> System.Diagnostics.Metrics.Counter<long
 AgentPrism.AgentPrismMetrics.Tokens.get -> System.Diagnostics.Metrics.Counter<long>!
 AgentPrism.AgentPrismMetrics.ToolDuration.get -> System.Diagnostics.Metrics.Histogram<double>!
 AgentPrism.AgentPrismMetrics.ToolInvocations.get -> System.Diagnostics.Metrics.Counter<long>!
+AgentPrism.AgentPrismMetrics.RecordJob(string! lane, string! handlerKey, AgentPrism.JobStatus status, string? tenantId, System.TimeSpan duration) -> void
 AgentPrism.AgentPrismObservabilityOptions
 AgentPrism.AgentPrismObservabilityOptions.AgentPrismObservabilityOptions() -> void
 AgentPrism.AgentPrismObservabilityOptions.AlwaysPersistFailures.get -> bool
@@ -1043,7 +1043,6 @@ const AgentPrism.AgentPrismDiagnostics.Tags.Depth = "agentprism.run.depth" -> st
 const AgentPrism.AgentPrismDiagnostics.Tags.Direction = "agentprism.token.direction" -> string!
 const AgentPrism.AgentPrismDiagnostics.Tags.DurationMs = "agentprism.script.duration_ms" -> string!
 const AgentPrism.AgentPrismDiagnostics.Tags.ExitCode = "agentprism.script.exit_code" -> string!
-const AgentPrism.AgentPrismDiagnostics.Tags.JobKind = "agentprism.job.kind" -> string!
 const AgentPrism.AgentPrismDiagnostics.Tags.JobStatus = "agentprism.job.status" -> string!
 const AgentPrism.AgentPrismDiagnostics.Tags.JudgeName = "agentprism.judge.name" -> string!
 const AgentPrism.AgentPrismDiagnostics.Tags.Lane = "agentprism.job.lane" -> string!
@@ -1189,8 +1188,8 @@ static AgentPrism.AgentPrismRunContext.CurrentRunId.get -> System.Guid?
 static AgentPrism.AgentPrismRunContext.SetCurrent(AgentPrism.AgentRunScope? scope) -> void
 static AgentPrism.AgentPrismServiceCollectionExtensions.AddAgentPrism(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, Microsoft.Extensions.Configuration.IConfiguration? configurationSection = null) -> AgentPrism.IAgentPrismBuilder!
 static AgentPrism.AgentPrismServiceCollectionExtensions.AddAgentPrism(this Microsoft.Extensions.Hosting.IHostApplicationBuilder! builder) -> AgentPrism.IAgentPrismBuilder!
-static AgentPrism.AgentPrismServiceCollectionExtensions.AddJobHandler<THandler>(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
 static AgentPrism.AgentPrismServiceCollectionExtensions.UseScheduling(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, System.Action<AgentPrism.AgentPrismSchedulingOptions!>? configure = null) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
+static AgentPrism.AgentPrismServiceCollectionExtensions.AddJobHandler<THandler>(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, string! handlerKey) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
 static AgentPrism.AgentPrismSkillScriptBuilderExtensions.UseSkillScripts(this AgentPrism.IAgentPrismBuilder! builder, System.Action<AgentPrism.AgentPrismSkillScriptOptions!>! configure) -> AgentPrism.IAgentPrismBuilder!
 static AgentPrism.AgentPrismToolApprovalPolicyExtensions.AddToolApprovalPolicy(this AgentPrism.IAgentPrismBuilder! builder, string! toolName, System.Func<AgentPrism.ToolApprovalContext!, AgentPrism.ToolApprovalPolicyDecision>! policy) -> AgentPrism.IAgentPrismBuilder!
 static AgentPrism.AgentPrismToolUsage.Report(AgentPrism.ToolCallUsage! usage) -> bool
@@ -1317,3 +1316,4 @@ static readonly AgentPrism.TruncatingAIFunction.MinimumEnvelopeBytes -> int
 ~override AgentPrism.RunEventDraft.ToString() -> string
 ~override AgentPrism.WebhookUrlVerdict.Equals(object obj) -> bool
 ~override AgentPrism.WebhookUrlVerdict.ToString() -> string
+const AgentPrism.AgentPrismDiagnostics.Tags.JobHandlerKey = "agentprism.job.handler_key" -> string!

@@ -142,8 +142,8 @@ public sealed class EvalEndpointTests
 
         using var job = await host.Client.GetAsync(new Uri($"/agentprism/api/jobs/{jobId}", UriKind.Relative));
         job.StatusCode.ShouldBe(HttpStatusCode.OK);
-        (await AgentPrismTestHost.ReadJsonAsync(job)).GetProperty("job").GetProperty("kind").GetString()
-            .ShouldBe("Eval");
+        (await AgentPrismTestHost.ReadJsonAsync(job)).GetProperty("job").GetProperty("handlerKey").GetString()
+            .ShouldBe(JobHandlerKeys.Eval);
 
         using var listed = await host.Client.GetAsync(Runs);
         (await AgentPrismTestHost.ReadJsonAsync(listed)).GetArrayLength().ShouldBe(1);

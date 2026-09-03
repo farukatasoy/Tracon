@@ -277,7 +277,7 @@ public sealed class RunReconciliationTests
         await WaitUntilAsync(
             async () =>
             {
-                var jobs = await jobStore.QueryAsync(new JobQuery { Kind = JobKind.RunContinuation });
+                var jobs = await jobStore.QueryAsync(new JobQuery { HandlerKey = JobHandlerKeys.RunContinuation });
                 var runs = await runStore.QueryRunsAsync(new RunQuery { SessionId = "session-race", OnlyRootRuns = false });
                 return jobs.Count == 1 && runs.Count == 2;
             },
@@ -287,7 +287,7 @@ public sealed class RunReconciliationTests
         await serviceA.StopAsync(TestContext.Current.CancellationToken);
         await serviceB.StopAsync(TestContext.Current.CancellationToken);
 
-        var continuationJobs = await jobStore.QueryAsync(new JobQuery { Kind = JobKind.RunContinuation });
+        var continuationJobs = await jobStore.QueryAsync(new JobQuery { HandlerKey = JobHandlerKeys.RunContinuation });
         continuationJobs.Count.ShouldBe(1);
 
         var allRuns = await runStore.QueryRunsAsync(new RunQuery { SessionId = "session-race", OnlyRootRuns = false });

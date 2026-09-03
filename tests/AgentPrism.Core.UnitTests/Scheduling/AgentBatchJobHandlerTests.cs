@@ -9,13 +9,6 @@ namespace AgentPrism.Core.UnitTests.Scheduling;
 public sealed class AgentBatchJobHandlerTests
 {
     [Fact]
-    public void Kind_is_AgentBatch()
-    {
-        new AgentBatchJobHandler(new SingleAgentCatalog(new ScriptedAgent()), NullLogger<AgentBatchJobHandler>.Instance)
-            .Kind.ShouldBe(JobKind.AgentBatch);
-    }
-
-    [Fact]
     public async Task Throws_when_the_agent_is_not_found()
     {
         var handler = new AgentBatchJobHandler(new SingleAgentCatalog(null), NullLogger<AgentBatchJobHandler>.Instance);
@@ -96,7 +89,7 @@ public sealed class AgentBatchJobHandlerTests
             {
                 Id = Guid.NewGuid(),
                 TenantId = "tenant",
-                Kind = JobKind.AgentBatch,
+                HandlerKey = JobHandlerKeys.AgentBatch,
                 TargetName = "summarizer",
                 Status = JobStatus.Running,
                 ScheduledFor = DateTimeOffset.UtcNow,

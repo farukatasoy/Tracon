@@ -840,6 +840,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/schedules/handler-keys": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Lists the handler keys a schedule may be created for.
+         * @description The allow-list PUT /api/schedules/{name} enforces, so a client can offer exactly the keys that will be accepted rather than guessing. It is AgentPrism's own built-in keys unless the host set AgentPrismSchedulingOptions.HttpSchedulableHandlerKeys, and it is NOT the full set of registered handlers: a handler with no entry here runs jobs queued in process but cannot be scheduled from outside. Admin only — a consumer's key names are deployment detail, so this list is deliberately not on the unauthenticated meta endpoint.
+         */
+        get: operations["AgentPrismListSchedulableHandlerKeys"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/schedules/{name}/trigger": {
         parameters: {
             query?: never;
@@ -868,8 +888,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Lists jobs, filtered by kind, status, lane, or schedule.
-         * @description Every queued unit of work shares this queue — scheduled runs, retention cleanups, webhook deliveries, and queued agent runs — so filter by 'kind' to narrow it. 'scheduleId' returns the executions of one schedule. 'lane' returns only the jobs queued under that lane — the way to see whether a lane nobody's worker subscribes to is quietly piling up. Job items are not included here; read them from the single-job endpoint. Paging is offset based, with 'skip' defaulting to 0 and 'take' to 50.
+         * Lists jobs, filtered by handler key, status, lane, or schedule.
+         * @description Every queued unit of work shares this queue — scheduled runs, retention cleanups, webhook deliveries, and queued agent runs — so filter by 'handlerKey' to narrow it. 'scheduleId' returns the executions of one schedule. 'lane' returns only the jobs queued under that lane — the way to see whether a lane nobody's worker subscribes to is quietly piling up. Job items are not included here; read them from the single-job endpoint. Paging is offset based, with 'skip' defaulting to 0 and 'take' to 50.
          */
         get: operations["AgentPrismListJobs"];
         put?: never;
@@ -1795,7 +1815,7 @@ export interface paths {
         put?: never;
         /**
          * Runs the cleanup now.
-         * @description Does not run synchronously: a JobKind.Retention job is enqueued and processed from the queue.
+         * @description Does not run synchronously: an agentprism.retention job is enqueued and processed from the queue.
          */
         post: operations["AgentPrismRunRetention"];
         delete?: never;
@@ -3006,8 +3026,8 @@ export interface components {
              * @description The lane a queued run (`Prefer: respond-async`) is queued under.
              *     See `JobLanes`. Ignored for a synchronous run — nothing is
              *     queued. Left empty, the run uses `JobLanes.Default` (or whatever
-             *     `AgentPrismSchedulingOptions.LaneByKind` maps
-             *     `JobKind.AgentRun` to).
+             *     `AgentPrismSchedulingOptions.LaneByHandlerKey` maps
+             *     `JobHandlerKeys.AgentRun` to).
              */
             lane?: null | string;
             /**
@@ -4427,11 +4447,6 @@ export interface components {
          * @enum {unknown}
          */
         JobItemStatus: "Pending" | "Completed" | "Failed";
-        /**
-         * @description What target a job runs.
-         * @enum {unknown}
-         */
-        JobKind: "AgentBatch" | "Workflow" | "Eval" | "WebhookDelivery" | "Retention" | "AgentRun" | "OnlineEval" | "ApprovalResume" | "RunContinuation";
         /** @description The summary of a queued job. The header of its items (JobItemRecord). */
         JobRecord: {
             /**
@@ -4447,8 +4462,11 @@ export interface components {
              *     `null` for manually created (one-off) jobs.
              */
             scheduleId?: null | string;
-            /** @description The job's kind. */
-            kind: components["schemas"]["JobKind"];
+            /**
+             * @description The key of the IJobHandler that executes this job. See
+             *     JobHandlerKeys.
+             */
+            handlerKey: string;
             /**
              * @description The lane this job runs in. See JobLanes. A worker only
              *     leases jobs from the lanes it subscribes to
@@ -4528,8 +4546,11 @@ export interface components {
             tenantId: string;
             /** @description The schedule name, unique within the tenant. */
             name: string;
-            /** @description The kind of job this schedule produces. */
-            kind: components["schemas"]["JobKind"];
+            /**
+             * @description The key of the IJobHandler the jobs this schedule
+             *     produces are dispatched to. See JobHandlerKeys.
+             */
+            handlerKey: string;
             /**
              * @description The lane the jobs this schedule produces run in. See
              *     JobLanes. Both a cron-dispatched run and a manual
@@ -4545,7 +4566,7 @@ export interface components {
             cron?: null | string;
             /** @description The time zone the `Cron` expression is interpreted in. */
             timeZone?: string;
-            /** @description The input set or parameters. Interpreted according to the job kind. */
+            /** @description The input set or parameters. Interpreted by the job's handler. */
             payload?: components["schemas"]["JsonElement"];
             /** @description Whether the schedule is enabled. If disabled, it is not triggered automatically. */
             enabled?: boolean;
@@ -4574,8 +4595,11 @@ export interface components {
         };
         /** @description Request to create/update a schedule. */
         JobScheduleSaveRequest: {
-            /** @description Kind of job this schedule produces. */
-            kind: components["schemas"]["JobKind"];
+            /**
+             * @description Key of the handler the jobs this schedule produces run on. See
+             *     `JobHandlerKeys`.
+             */
+            handlerKey: string;
             /** @description Name of the agent or workflow to run. */
             targetName: string;
             /**
@@ -4588,8 +4612,8 @@ export interface components {
             /**
              * @description The lane the jobs this schedule produces run in. See
              *     `JobLanes`. Left empty, the jobs run in `JobLanes.Default`
-             *     (or whatever `AgentPrismSchedulingOptions.LaneByKind` maps
-             *     JobKind JobScheduleSaveRequest.Kind to).
+             *     (or whatever `AgentPrismSchedulingOptions.LaneByHandlerKey` maps
+             *     string JobScheduleSaveRequest.HandlerKey to).
              */
             lane?: null | string;
             /** @description Input set or parameters. */
@@ -7550,7 +7574,6 @@ export type ItemResource = components['schemas']['ItemResource'];
 export type JobDetailResponse = components['schemas']['JobDetailResponse'];
 export type JobItemRecord = components['schemas']['JobItemRecord'];
 export type JobItemStatus = components['schemas']['JobItemStatus'];
-export type JobKind = components['schemas']['JobKind'];
 export type JobRecord = components['schemas']['JobRecord'];
 export type JobSchedule = components['schemas']['JobSchedule'];
 export type JobScheduleSaveRequest = components['schemas']['JobScheduleSaveRequest'];
@@ -9187,6 +9210,26 @@ export interface operations {
             };
         };
     };
+    AgentPrismListSchedulableHandlerKeys: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": string[];
+                };
+            };
+        };
+    };
     AgentPrismTriggerSchedule: {
         parameters: {
             query?: never;
@@ -9216,7 +9259,7 @@ export interface operations {
     AgentPrismListJobs: {
         parameters: {
             query?: {
-                kind?: components["schemas"]["JobKind"];
+                handlerKey?: string;
                 status?: components["schemas"]["JobStatus"];
                 scheduleId?: string;
                 lane?: string;

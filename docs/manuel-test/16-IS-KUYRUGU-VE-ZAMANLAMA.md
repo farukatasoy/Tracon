@@ -1,6 +1,6 @@
 # 16 — İş Kuyruğu, Zamanlama, Tek Yürütücü Seçimi ve Dayanıklı Çalıştırma (`JOB`)
 
-> **Alan kodu:** `JOB` · **Faz:** 17, 42, 46, 66, 120, 129
+> **Alan kodu:** `JOB` · **Faz:** 17, 42, 46, 66, 120, 129, 137
 > **Kaynak:** `src/AgentPrism.Abstractions/Scheduling/` (tümü) ·
 > `src/AgentPrism.Abstractions/Coordination/` (tümü — `ISingletonLeaseStore`,
 > `SingletonExecutionOptions`) ·
@@ -2557,3 +2557,249 @@ GROUP BY lane, status;
   **içermez**.
 - Taranan satır sayısı **açık iş** sayısı kadardır (3 000), tablonun
   tamamı kadar değil — maliyet kuyruk geçmişiyle büyümez.
+
+---
+
+### MT-JOB-122 — İki custom handler kendi işini çalıştırır
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 137 |
+| **İlgili karar** | K-663 |
+
+**Ön koşul:** Örnek uygulamada iki custom handler kayıtlı:
+`AddJobHandler<AHandler>("acme.a")` ve `AddJobHandler<BHandler>("acme.b")`.
+Her handler işlediği anahtarı log'a yazar.
+
+**Adımlar**
+1. `IJobDispatcher` ile `acme.a` anahtarlı bir iş kuyruğa al.
+2. `IJobDispatcher` ile `acme.b` anahtarlı bir iş kuyruğa al.
+3. İkisi de terminal duruma gelene kadar bekle.
+
+**Beklenen sonuç**
+- `AHandler` yalnız `acme.a` işini, `BHandler` yalnız `acme.b` işini çalıştırır.
+- İki iş de `Completed` kapanır; hiçbir handler diğerinin işini görmez.
+- `GET /api/jobs?handlerKey=acme.a` yalnız birinci işi döner.
+
+---
+
+### MT-JOB-123 — Kayıt sırası sonucu değiştirmez
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 137 |
+| **İlgili karar** | K-663 |
+
+**Ön koşul:** MT-JOB-122'nin kaydı, ama `AddJobHandler<...>` çağrıları
+`AddAgentPrism()`'den **önce** yapılır.
+
+**Adımlar** MT-JOB-122'nin adımlarının aynısı.
+
+**Beklenen sonuç**
+- Sonuç MT-JOB-122 ile **birebir aynıdır**. Faz 137 öncesinde bu iki sıra
+  zıt sonuç veriyordu; anahtar eşleşmesi tam olduğu için sıra artık
+  kazananı belirlemez.
+
+---
+
+### MT-JOB-124 — Aynı anahtarın iki kez kaydı host'u açtırmaz
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 137 |
+| **İlgili karar** | K-663 |
+
+**Ön koşul:** İki **farklı** tip aynı anahtarla kaydedilir:
+`AddJobHandler<AHandler>("acme.a")` ve `AddJobHandler<BHandler>("acme.a")`.
+
+**Adımlar** Uygulamayı başlat.
+
+**Beklenen sonuç**
+- Host **açılmaz**; `InvalidOperationException` atılır.
+- Mesaj çakışan **anahtarı** ve **iki tip adını** birden içerir.
+- Hata worker'ın ilk tick'inde değil, host başlangıcında çıkar.
+
+---
+
+### MT-JOB-125 — `agentprism.` öneki tüketiciye kapalıdır
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 137 |
+| **İlgili karar** | K-663 |
+
+**Ön koşul:** `AddJobHandler<AHandler>("agentprism.retention")`.
+
+**Adımlar** Uygulamayı başlat.
+
+**Beklenen sonuç**
+- Uygulama **başlamaz**; `ArgumentException` atılır.
+- Mesaj `agentprism.` önekinin rezerve olduğunu söyler ve kendi önek
+  seçmeyi önerir.
+- Yerleşik `agentprism.retention` handler'ı **gölgelenmemiştir**.
+
+---
+
+### MT-JOB-126 — Kayıtsız anahtarlı iş fail-closed'dır ve anahtarı sızdırmaz
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 137 |
+| **İlgili karar** | K-664 |
+
+**Ön koşul:** Worker açık. `IJobStore.EnqueueAsync` ile **doğrudan**
+`HandlerKey = "acme.no-such-handler"` olan bir iş yazılır.
+
+**Adımlar**
+1. Worker tick'ini bekle.
+2. `GET /api/jobs/{id}` ile işi oku.
+3. Sunucu log'una bak.
+
+**Beklenen sonuç**
+- İş `Failed`'dır.
+- `errorMessage` `agentprism.job.unknown-handler-key` kodunu **içerir**.
+- `errorMessage` ham anahtarı (`acme.no-such-handler`) **içermez**.
+- Ham anahtar yalnız log'dadır ve mesajdaki `ref:` ile aynı korelasyon
+  kimliğini taşır.
+
+---
+
+### MT-JOB-127 — Her execution kendi DI scope'unu alır
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 137 |
+| **İlgili karar** | K-663 |
+
+**Ön koşul:** `services.AddScoped<Marker>()` (kurucusunda yeni bir `Guid`
+üreten sıradan bir tip) ve o `Marker`'ı kurucusunda alan bir custom handler.
+Handler `Marker`'ın kimliğini log'a yazar.
+
+**Adımlar**
+1. Aynı anahtarla arka arkaya iki iş kuyruğa al.
+2. Bir işi hata verdirerek **retry**'a düşür ve ikinci denemeyi bekle.
+
+**Beklenen sonuç**
+- İki iş **farklı** `Marker` kimliği raporlar.
+- Retry de **farklı** bir kimlik raporlar — attempt başına yeni scope.
+- `JobContext` üzerinde `IServiceProvider` **yoktur**; bağımlılık yalnız
+  kurucudan gelir.
+
+---
+
+### MT-JOB-128 — `handler_key` migration'ı dokuz değerin dokuzunu eşler
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 137 |
+| **İlgili karar** | K-662 · K-666 |
+
+**Ön koşul:** Faz 137 **öncesi** şemaya sahip bir veritabanı (üç sağlayıcının
+her biri için ayrı ayrı). `jobs` ve `job_schedules` tablolarında `kind`
+sütununun dokuz değerinin dokuzu için de en az bir satır.
+
+**Adımlar**
+1. Satır sayılarını not al: `SELECT COUNT(*) FROM jobs;` ve
+   `SELECT COUNT(*) FROM job_schedules;`
+2. Yeni sürümü başlat (veya `agentprism migrate` koş).
+3. `SELECT handler_key, COUNT(*) FROM jobs GROUP BY handler_key;`
+
+**Beklenen sonuç**
+- Satır sayıları **değişmemiştir**.
+- Eşleme: `0→agentprism.agent-batch`, `1→agentprism.workflow`,
+  `2→agentprism.eval`, `3→agentprism.webhook-delivery`,
+  `4→agentprism.retention`, `5→agentprism.agent-run`,
+  `6→agentprism.online-eval`, `7→agentprism.approval-resume`,
+  `8→agentprism.run-continuation`.
+- `kind` sütunu **artık yoktur**; `handler_key` `NOT NULL`'dur.
+- Üç sağlayıcıda da sonuç aynıdır.
+
+---
+
+### MT-JOB-129 — Zamanlama ucu izin listesi dışındaki anahtarı reddeder
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 137 |
+| **İlgili karar** | K-665 |
+
+**Ön koşul:** `HttpSchedulableHandlerKeys` **boş** (varsayılan). Bir custom
+handler `acme.a` anahtarıyla kayıtlı.
+
+**Adımlar**
+1. `GET /api/schedules/handler-keys` çağır.
+2. `PUT /api/schedules/x` gövdesinde `"handlerKey": "acme.a"` gönder.
+3. `HttpSchedulableHandlerKeys`'e `acme.a` ekleyip uygulamayı yeniden başlat
+   ve 1–2'yi tekrarla.
+
+**Beklenen sonuç**
+- 1. adımda yanıt yalnız **dokuz yerleşik anahtarı** listeler.
+- 2. adım `400` döner; mesaj `HttpSchedulableHandlerKeys`'i adlandırır;
+  zamanlama **oluşmaz**.
+- 3. adımda liste `acme.a`'yı içerir ve `PUT` `200` döner.
+- `GET /api/schedules/handler-keys` **Admin** ister; Reader `403` alır.
+
+---
+
+### MT-JOB-130 — Arayüz handler açılır listesi sunucudan gelir
+
+| | |
+|---|---|
+| **İzlek** | B · 👤 insan gerekir |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 137 |
+| **İlgili karar** | K-665 |
+
+**Ön koşul:** Örnek uygulama ayakta, Jobs ekranı açık, Admin rolü.
+
+**Adımlar**
+1. "New schedule" düğmesine bas.
+2. "Handler key" açılır listesini aç.
+3. `HttpSchedulableHandlerKeys`'e bir custom anahtar ekleyip uygulamayı
+   yeniden başlat ve tekrar bak.
+
+**Beklenen sonuç**
+- Liste sabit kodlu iki seçenek değil, `GET /api/schedules/handler-keys`
+  yanıtıdır — varsayılanda dokuz yerleşik anahtar.
+- 3. adımdan sonra custom anahtar da listede görünür.
+- Zamanlama ve iş tablolarının sütun başlığı **"Handler key"**'dir ve hücre
+  tam anahtarı gösterir (`agentprism.agent-batch`).
+
+---
+
+### MT-JOB-131 — `GET /api/jobs` her satırda `handlerKey` taşır
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 137 |
+| **İlgili karar** | K-662 |
+
+**Ön koşul:** En az bir tamamlanmış iş.
+
+**Adımlar**
+1. `GET /api/jobs` çağır.
+2. `GET /api/jobs?handlerKey=agentprism.agent-batch` çağır.
+3. `GET /api/jobs?handlerKey=agentprism.retention` çağır.
+
+**Beklenen sonuç**
+- Her satır `handlerKey` alanı taşır; `kind` alanı **yoktur**.
+- 2. adım yalnız o anahtarın işlerini döner.
+- 3. adım (o türde iş yoksa) boş dizi döner — süzgeç gerçekten uygulanır.

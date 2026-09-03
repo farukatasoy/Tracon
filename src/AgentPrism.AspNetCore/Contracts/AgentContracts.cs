@@ -229,8 +229,8 @@ public sealed record AgentRunRequest
     /// The lane a queued run (<c>Prefer: respond-async</c>) is queued under.
     /// See <c>JobLanes</c>. Ignored for a synchronous run — nothing is
     /// queued. Left empty, the run uses <c>JobLanes.Default</c> (or whatever
-    /// <c>AgentPrismSchedulingOptions.LaneByKind</c> maps
-    /// <c>JobKind.AgentRun</c> to).
+    /// <c>AgentPrismSchedulingOptions.LaneByHandlerKey</c> maps
+    /// <c>JobHandlerKeys.AgentRun</c> to).
     /// </summary>
     public string? Lane { get; init; }
 

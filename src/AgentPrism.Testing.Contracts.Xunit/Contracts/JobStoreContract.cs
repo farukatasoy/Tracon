@@ -225,6 +225,41 @@ public abstract class JobStoreContract : TenantIsolationContract<IJobStore>
     }
 
     [Fact]
+    public async Task QueryAsync_filters_by_handler_key()
+    {
+        await Store.EnqueueAsync(
+            TestData.Job() with { HandlerKey = JobHandlerKeys.AgentBatch }, ["a"]);
+        await Store.EnqueueAsync(
+            TestData.Job() with { HandlerKey = JobHandlerKeys.Retention }, ["a"]);
+
+        var results = await Store.QueryAsync(
+            new JobQuery { HandlerKey = JobHandlerKeys.Retention });
+
+        results.ShouldHaveSingleItem();
+        results[0].HandlerKey.ShouldBe(JobHandlerKeys.Retention);
+    }
+
+    [Fact]
+    public async Task QueryAsync_returns_nothing_for_a_handler_key_no_job_uses()
+    {
+        await Store.EnqueueAsync(TestData.Job() with { HandlerKey = JobHandlerKeys.AgentBatch }, ["a"]);
+
+        (await Store.QueryAsync(new JobQuery { HandlerKey = "contoso.absent" })).ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task QueryAsync_treats_an_empty_handler_key_as_a_filter_that_matches_nothing()
+    {
+        // 🚨 An EXPLICIT empty string is a filter, not "no filter" — the two
+        // implementations diverged here before. `null` means unfiltered; the
+        // empty string is a value no valid key can equal, so it matches nothing.
+        await Store.EnqueueAsync(TestData.Job() with { HandlerKey = JobHandlerKeys.AgentBatch }, ["a"]);
+
+        (await Store.QueryAsync(new JobQuery { HandlerKey = "" })).ShouldBeEmpty();
+        (await Store.QueryAsync(new JobQuery { HandlerKey = null })).ShouldNotBeEmpty();
+    }
+
+    [Fact]
     public async Task Enqueued_job_defaults_to_the_default_lane()
     {
         var job = await Store.EnqueueAsync(TestData.Job(), ["a"]);

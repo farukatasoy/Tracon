@@ -188,7 +188,7 @@ internal static class ApprovalEndpoints
             {
                 Id = newRunId,
                 TenantId = tenants.TenantId,
-                Kind = JobKind.ApprovalResume,
+                HandlerKey = JobHandlerKeys.ApprovalResume,
                 TargetName = originalRun.AgentName,
                 Status = JobStatus.Pending,
                 Payload = BuildResumePayload(newRunId, id, originalRun.AgentName),

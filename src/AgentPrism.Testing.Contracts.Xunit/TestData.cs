@@ -84,7 +84,7 @@ public static class TestData
         {
             Id = AgentPrismId.NewId(),
             TenantId = tenantId,
-            Kind = JobKind.AgentBatch,
+            HandlerKey = JobHandlerKeys.AgentBatch,
             TargetName = "test-agent",
             Status = JobStatus.Pending,
             Payload = State("""["input"]"""),
@@ -105,7 +105,7 @@ public static class TestData
         {
             TenantId = tenantId,
             Name = name,
-            Kind = JobKind.AgentBatch,
+            HandlerKey = JobHandlerKeys.AgentBatch,
             TargetName = "test-agent",
             Cron = "0 3 * * *",
             TimeZone = "UTC",

@@ -11,12 +11,6 @@ namespace AgentPrism.Core.UnitTests.Scheduling;
 public sealed class AgentRunJobHandlerTests
 {
     [Fact]
-    public void Kind_is_AgentRun()
-    {
-        NewHandler(new SingleAgentCatalog(new ScriptedAgent())).Kind.ShouldBe(JobKind.AgentRun);
-    }
-
-    [Fact]
     public async Task A_successful_run_uses_the_pre_assigned_id()
     {
         var runs = new InMemoryRunStore();
@@ -68,7 +62,7 @@ public sealed class AgentRunJobHandlerTests
             {
                 Id = Guid.NewGuid(),
                 TenantId = "default",
-                Kind = JobKind.AgentRun,
+                HandlerKey = JobHandlerKeys.AgentRun,
                 TargetName = "fake-agent",
                 Status = JobStatus.Running,
                 Payload = JsonDocument.Parse("""{"runId":"invalid"}""").RootElement,
@@ -100,7 +94,7 @@ public sealed class AgentRunJobHandlerTests
             {
                 Id = runId,
                 TenantId = "default",
-                Kind = JobKind.AgentRun,
+                HandlerKey = JobHandlerKeys.AgentRun,
                 TargetName = targetName,
                 Status = JobStatus.Running,
                 Payload = JsonSerializer.SerializeToElement(new { runId = runId.ToString(), message }),

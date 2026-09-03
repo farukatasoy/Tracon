@@ -236,7 +236,6 @@ AgentPrism.AgentPrismSchedulingOptions.Enabled.get -> bool
 AgentPrism.AgentPrismSchedulingOptions.Enabled.set -> void
 AgentPrism.AgentPrismSchedulingOptions.Lanes.get -> System.Collections.Generic.IReadOnlyList<string!>?
 AgentPrism.AgentPrismSchedulingOptions.Lanes.set -> void
-AgentPrism.AgentPrismSchedulingOptions.LaneByKind.get -> System.Collections.Generic.IDictionary<AgentPrism.JobKind, string!>!
 AgentPrism.AgentPrismSchedulingOptions.LeaseDuration.get -> System.TimeSpan
 AgentPrism.AgentPrismSchedulingOptions.LeaseDuration.set -> void
 AgentPrism.AgentPrismSchedulingOptions.MaxAttempts.get -> int
@@ -1196,7 +1195,6 @@ AgentPrism.IInboundTriggerStore.ListAsync(string! tenantId, System.Threading.Can
 AgentPrism.IInboundTriggerStore.UpsertAsync(AgentPrism.InboundTrigger! trigger, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<AgentPrism.InboundTrigger!>
 AgentPrism.IJobHandler
 AgentPrism.IJobHandler.ExecuteAsync(AgentPrism.JobContext! context, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
-AgentPrism.IJobHandler.Kind.get -> AgentPrism.JobKind
 AgentPrism.IJobScheduleStore
 AgentPrism.IJobScheduleStore.DeleteAsync(string! tenantId, string! name, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<bool>
 AgentPrism.IJobScheduleStore.GetAsync(string! tenantId, string! name, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<AgentPrism.JobSchedule?>
@@ -1578,27 +1576,15 @@ AgentPrism.JobItemStatus
 AgentPrism.JobItemStatus.Completed = 1 -> AgentPrism.JobItemStatus
 AgentPrism.JobItemStatus.Failed = 2 -> AgentPrism.JobItemStatus
 AgentPrism.JobItemStatus.Pending = 0 -> AgentPrism.JobItemStatus
-AgentPrism.JobKind
-AgentPrism.JobKind.AgentBatch = 0 -> AgentPrism.JobKind
-AgentPrism.JobKind.AgentRun = 5 -> AgentPrism.JobKind
-AgentPrism.JobKind.ApprovalResume = 7 -> AgentPrism.JobKind
-AgentPrism.JobKind.Eval = 2 -> AgentPrism.JobKind
-AgentPrism.JobKind.OnlineEval = 6 -> AgentPrism.JobKind
-AgentPrism.JobKind.Retention = 4 -> AgentPrism.JobKind
-AgentPrism.JobKind.RunContinuation = 8 -> AgentPrism.JobKind
-AgentPrism.JobKind.WebhookDelivery = 3 -> AgentPrism.JobKind
-AgentPrism.JobKind.Workflow = 1 -> AgentPrism.JobKind
 AgentPrism.JobLanes
 const AgentPrism.JobLanes.Default = "default" -> string!
 static AgentPrism.JobLanes.IsValidName(string? name) -> bool
-static AgentPrism.JobLanes.Resolve(string! lane, AgentPrism.JobKind kind, System.Collections.Generic.IDictionary<AgentPrism.JobKind, string!>? laneByKind) -> string!
+static AgentPrism.JobLanes.Resolve(string! lane, string! handlerKey, System.Collections.Generic.IDictionary<string!, string!>? laneByHandlerKey) -> string!
 AgentPrism.JobPayload
 AgentPrism.JobQuery
 AgentPrism.JobQuery.<Clone>$() -> AgentPrism.JobQuery!
 AgentPrism.JobQuery.Equals(AgentPrism.JobQuery? other) -> bool
 AgentPrism.JobQuery.JobQuery() -> void
-AgentPrism.JobQuery.Kind.get -> AgentPrism.JobKind?
-AgentPrism.JobQuery.Kind.init -> void
 AgentPrism.JobQuery.Lane.get -> string?
 AgentPrism.JobQuery.Lane.init -> void
 AgentPrism.JobQuery.ScheduleId.get -> System.Guid?
@@ -1639,8 +1625,6 @@ AgentPrism.JobRecord.FailedItems.init -> void
 AgentPrism.JobRecord.Id.get -> System.Guid
 AgentPrism.JobRecord.Id.init -> void
 AgentPrism.JobRecord.JobRecord() -> void
-AgentPrism.JobRecord.Kind.get -> AgentPrism.JobKind
-AgentPrism.JobRecord.Kind.init -> void
 AgentPrism.JobRecord.Lane.get -> string!
 AgentPrism.JobRecord.Lane.init -> void
 AgentPrism.JobRecord.LeaseOwner.get -> string?
@@ -1685,8 +1669,6 @@ AgentPrism.JobSchedule.Equals(AgentPrism.JobSchedule? other) -> bool
 AgentPrism.JobSchedule.Id.get -> System.Guid
 AgentPrism.JobSchedule.Id.init -> void
 AgentPrism.JobSchedule.JobSchedule() -> void
-AgentPrism.JobSchedule.Kind.get -> AgentPrism.JobKind
-AgentPrism.JobSchedule.Kind.init -> void
 AgentPrism.JobSchedule.Lane.get -> string!
 AgentPrism.JobSchedule.Lane.init -> void
 AgentPrism.JobSchedule.LastRunAt.get -> System.DateTimeOffset?
@@ -4998,3 +4980,56 @@ static AgentPrism.StructuredResponseValidationResult.Invalid(string! reason) -> 
 static AgentPrism.StructuredResponseValidationResult.Valid.get -> AgentPrism.StructuredResponseValidationResult!
 static AgentPrism.StructuredResponseValidationResult.operator !=(AgentPrism.StructuredResponseValidationResult? left, AgentPrism.StructuredResponseValidationResult? right) -> bool
 static AgentPrism.StructuredResponseValidationResult.operator ==(AgentPrism.StructuredResponseValidationResult? left, AgentPrism.StructuredResponseValidationResult? right) -> bool
+AgentPrism.AgentPrismSchedulingOptions.HttpSchedulableHandlerKeys.get -> System.Collections.Generic.IList<string!>!
+AgentPrism.AgentPrismSchedulingOptions.LaneByHandlerKey.get -> System.Collections.Generic.IDictionary<string!, string!>!
+AgentPrism.IJobDispatcher
+AgentPrism.IJobDispatcher.EnqueueAsync(AgentPrism.JobRequest! request, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<AgentPrism.JobRecord!>
+AgentPrism.JobErrorCodes
+AgentPrism.JobHandlerKeys
+AgentPrism.JobQuery.HandlerKey.get -> string?
+AgentPrism.JobQuery.HandlerKey.init -> void
+AgentPrism.JobRecord.HandlerKey.get -> string!
+AgentPrism.JobRecord.HandlerKey.init -> void
+AgentPrism.JobRequest
+AgentPrism.JobRequest.<Clone>$() -> AgentPrism.JobRequest!
+AgentPrism.JobRequest.Equals(AgentPrism.JobRequest? other) -> bool
+AgentPrism.JobRequest.HandlerKey.get -> string!
+AgentPrism.JobRequest.HandlerKey.init -> void
+AgentPrism.JobRequest.Items.get -> System.Collections.Generic.IReadOnlyList<string!>!
+AgentPrism.JobRequest.Items.init -> void
+AgentPrism.JobRequest.JobRequest() -> void
+AgentPrism.JobRequest.Lane.get -> string!
+AgentPrism.JobRequest.Lane.init -> void
+AgentPrism.JobRequest.MaxAttempts.get -> int?
+AgentPrism.JobRequest.MaxAttempts.init -> void
+AgentPrism.JobRequest.Payload.get -> System.Text.Json.JsonElement
+AgentPrism.JobRequest.Payload.init -> void
+AgentPrism.JobRequest.ScheduledFor.get -> System.DateTimeOffset?
+AgentPrism.JobRequest.ScheduledFor.init -> void
+AgentPrism.JobRequest.TargetName.get -> string!
+AgentPrism.JobRequest.TargetName.init -> void
+AgentPrism.JobRequest.TenantId.get -> string!
+AgentPrism.JobRequest.TenantId.init -> void
+override AgentPrism.JobRequest.Equals(object? obj) -> bool
+override AgentPrism.JobRequest.GetHashCode() -> int
+override AgentPrism.JobRequest.ToString() -> string!
+static AgentPrism.JobRequest.operator !=(AgentPrism.JobRequest? left, AgentPrism.JobRequest? right) -> bool
+static AgentPrism.JobRequest.operator ==(AgentPrism.JobRequest? left, AgentPrism.JobRequest? right) -> bool
+AgentPrism.JobSchedule.HandlerKey.get -> string!
+AgentPrism.JobSchedule.HandlerKey.init -> void
+const AgentPrism.JobErrorCodes.UnknownHandlerKey = "agentprism.job.unknown-handler-key" -> string!
+static AgentPrism.JobErrorCodes.Format(string! code, string! correlationId) -> string!
+const AgentPrism.JobHandlerKeys.AgentBatch = "agentprism.agent-batch" -> string!
+const AgentPrism.JobHandlerKeys.AgentRun = "agentprism.agent-run" -> string!
+const AgentPrism.JobHandlerKeys.ApprovalResume = "agentprism.approval-resume" -> string!
+const AgentPrism.JobHandlerKeys.Eval = "agentprism.eval" -> string!
+const AgentPrism.JobHandlerKeys.OnlineEval = "agentprism.online-eval" -> string!
+const AgentPrism.JobHandlerKeys.ReservedPrefix = "agentprism." -> string!
+const AgentPrism.JobHandlerKeys.Retention = "agentprism.retention" -> string!
+const AgentPrism.JobHandlerKeys.RunContinuation = "agentprism.run-continuation" -> string!
+const AgentPrism.JobHandlerKeys.WebhookDelivery = "agentprism.webhook-delivery" -> string!
+const AgentPrism.JobHandlerKeys.Workflow = "agentprism.workflow" -> string!
+static AgentPrism.JobHandlerKeys.BuiltIn.get -> System.Collections.Generic.IReadOnlyList<string!>!
+static AgentPrism.JobHandlerKeys.IsReserved(string? key) -> bool
+static AgentPrism.JobHandlerKeys.IsValidKey(string? key) -> bool
+const AgentPrism.JobErrorCodes.HandlerActivationFailed = "agentprism.job.handler-activation-failed" -> string!

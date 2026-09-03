@@ -11,9 +11,9 @@ namespace AgentPrism;
 [JsonConverter(typeof(JsonStringEnumConverter<InboundTriggerTargetKind>))]
 public enum InboundTriggerTargetKind
 {
-    /// <summary>The trigger starts a queued agent run (<see cref="JobKind.AgentRun"/>).</summary>
+    /// <summary>The trigger starts a queued agent run (<see cref="JobHandlerKeys.AgentRun"/>).</summary>
     Agent = 0,
 
-    /// <summary>The trigger starts a queued workflow run (<see cref="JobKind.Workflow"/>).</summary>
+    /// <summary>The trigger starts a queued workflow run (<see cref="JobHandlerKeys.Workflow"/>).</summary>
     Workflow = 1,
 }

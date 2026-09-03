@@ -3,7 +3,7 @@ using Microsoft.Extensions.Logging;
 namespace AgentPrism;
 
 /// <summary>
-/// Handles <see cref="JobKind.Workflow"/> jobs. It runs a registered workflow in
+/// Handles <see cref="JobHandlerKeys.Workflow"/> jobs. It runs a registered workflow in
 /// sequence with each input in the job items.
 /// </summary>
 /// <remarks>
@@ -24,9 +24,6 @@ internal sealed class WorkflowJobHandler(
     IWorkflowRunner? runner = null,
     ILogger<WorkflowJobHandler>? logger = null) : IJobHandler
 {
-    /// <inheritdoc />
-    public JobKind Kind => JobKind.Workflow;
-
     /// <inheritdoc />
     public async ValueTask ExecuteAsync(JobContext context, CancellationToken cancellationToken = default)
     {

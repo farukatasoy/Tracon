@@ -14,6 +14,7 @@ public sealed class JobWorkerBackgroundServiceTests
     {
         var jobs = new InMemoryJobStore();
         var handler = new BlockingHandler();
+        using var host = TestJobHandlerHost.For((JobHandlerKeys.AgentBatch, handler));
         var now = DateTimeOffset.UtcNow;
 
         await jobs.EnqueueAsync(
@@ -21,7 +22,7 @@ public sealed class JobWorkerBackgroundServiceTests
             {
                 Id = Guid.NewGuid(),
                 TenantId = "tenant-a",
-                Kind = JobKind.AgentBatch,
+                HandlerKey = JobHandlerKeys.AgentBatch,
                 TargetName = "blocking-handler",
                 Status = JobStatus.Pending,
                 ScheduledFor = now,
@@ -33,7 +34,8 @@ public sealed class JobWorkerBackgroundServiceTests
         using var worker = new JobWorkerBackgroundService(
             jobs,
             new InMemoryJobScheduleStore(),
-            [handler],
+            host.Registry,
+            host.Scopes,
             new StaticOptionsMonitor<AgentPrismSchedulingOptions>(new AgentPrismSchedulingOptions
             {
                 MaxConcurrentJobs = 1,
@@ -61,6 +63,7 @@ public sealed class JobWorkerBackgroundServiceTests
     {
         var jobs = new InMemoryJobStore();
         var handler = new LaneAwareHandler(blockedLane: "media");
+        using var host = TestJobHandlerHost.For((JobHandlerKeys.AgentBatch, handler));
         var now = DateTimeOffset.UtcNow;
 
         // Two jobs in "media" (both block forever, once leased) plus one in
@@ -78,7 +81,8 @@ public sealed class JobWorkerBackgroundServiceTests
         using var worker = new JobWorkerBackgroundService(
             jobs,
             new InMemoryJobScheduleStore(),
-            [handler],
+            host.Registry,
+            host.Scopes,
             new StaticOptionsMonitor<AgentPrismSchedulingOptions>(options),
             new SchemaReadyGate([]),
             new NotDraining(),
@@ -107,6 +111,7 @@ public sealed class JobWorkerBackgroundServiceTests
     {
         var jobs = new InMemoryJobStore();
         var handler = new LaneAwareHandler(blockedLane: null);
+        using var host = TestJobHandlerHost.For((JobHandlerKeys.AgentBatch, handler));
         var now = DateTimeOffset.UtcNow;
 
         var defaultJobId = await EnqueueAsync(jobs, "default", now);
@@ -114,7 +119,8 @@ public sealed class JobWorkerBackgroundServiceTests
         using var worker = new JobWorkerBackgroundService(
             jobs,
             new InMemoryJobScheduleStore(),
-            [handler],
+            host.Registry,
+            host.Scopes,
             new StaticOptionsMonitor<AgentPrismSchedulingOptions>(new AgentPrismSchedulingOptions
             {
                 MaxConcurrentJobs = 1,
@@ -142,7 +148,7 @@ public sealed class JobWorkerBackgroundServiceTests
             {
                 Id = id,
                 TenantId = "tenant-a",
-                Kind = JobKind.AgentBatch,
+                HandlerKey = JobHandlerKeys.AgentBatch,
                 Lane = lane,
                 TargetName = "lane-aware-handler",
                 Status = JobStatus.Pending,
@@ -171,7 +177,7 @@ public sealed class JobWorkerBackgroundServiceTests
             {
                 Id = jobId,
                 TenantId = "tenant-a",
-                Kind = JobKind.AgentBatch,
+                HandlerKey = JobHandlerKeys.AgentBatch,
                 TargetName = "throwing-handler",
                 Status = JobStatus.Pending,
                 MaxAttempts = 1,
@@ -181,10 +187,14 @@ public sealed class JobWorkerBackgroundServiceTests
             [],
             TestContext.Current.CancellationToken);
 
+        using var host = TestJobHandlerHost.For(
+            (JobHandlerKeys.AgentBatch, new ThrowingHandler(new HttpRequestException(ProviderSecret))));
+
         using var worker = new JobWorkerBackgroundService(
             jobs,
             new InMemoryJobScheduleStore(),
-            [new ThrowingHandler(new HttpRequestException(ProviderSecret))],
+            host.Registry,
+            host.Scopes,
             new StaticOptionsMonitor<AgentPrismSchedulingOptions>(new AgentPrismSchedulingOptions
             {
                 MaxConcurrentJobs = 1,
@@ -264,8 +274,6 @@ public sealed class JobWorkerBackgroundServiceTests
 
     private sealed class ThrowingHandler(Exception exception) : IJobHandler
     {
-        public JobKind Kind => JobKind.AgentBatch;
-
         public ValueTask ExecuteAsync(JobContext context, CancellationToken cancellationToken = default)
             => throw exception;
     }
@@ -274,8 +282,6 @@ public sealed class JobWorkerBackgroundServiceTests
     {
         private readonly TaskCompletionSource _started = new(TaskCreationOptions.RunContinuationsAsynchronously);
         private readonly TaskCompletionSource _release = new(TaskCreationOptions.RunContinuationsAsynchronously);
-
-        public JobKind Kind => JobKind.AgentBatch;
 
         public Task Started => _started.Task;
 
@@ -302,8 +308,6 @@ public sealed class JobWorkerBackgroundServiceTests
         private readonly string? _blockedLane = blockedLane;
         private readonly TaskCompletionSource _mediaStarted = new(TaskCreationOptions.RunContinuationsAsynchronously);
         private readonly TaskCompletionSource _releaseMedia = new(TaskCreationOptions.RunContinuationsAsynchronously);
-
-        public JobKind Kind => JobKind.AgentBatch;
 
         public Task MediaStarted => _mediaStarted.Task;
 

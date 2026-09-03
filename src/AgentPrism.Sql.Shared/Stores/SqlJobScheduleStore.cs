@@ -75,7 +75,7 @@ internal sealed class SqlJobScheduleStore : IJobScheduleStore
         DbHelpers.Add(command, "id", id);
         DbHelpers.Add(command, "tenant_id", schedule.TenantId);
         DbHelpers.Add(command, "name", schedule.Name);
-        DbHelpers.Add(command, "kind", (short)schedule.Kind);
+        DbHelpers.Add(command, "handler_key", schedule.HandlerKey);
         DbHelpers.Add(command, "target_name", schedule.TargetName);
         AddNullableText(command, "cron", schedule.Cron);
         DbHelpers.Add(command, "time_zone", schedule.TimeZone);
@@ -156,7 +156,7 @@ internal sealed class SqlJobScheduleStore : IJobScheduleStore
             Id = reader.GetGuid(0),
             TenantId = reader.GetString(1),
             Name = reader.GetString(2),
-            Kind = (JobKind)reader.GetInt16(3),
+            HandlerKey = reader.GetString(3),
             TargetName = reader.GetString(4),
             Cron = DbHelpers.GetNullableString(reader, 5),
             TimeZone = reader.GetString(6),

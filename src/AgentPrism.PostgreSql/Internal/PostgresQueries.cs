@@ -1056,12 +1056,12 @@ internal sealed class PostgresQueries : SqlQueriesBase
 
         UpsertJobSchedule = $"""
             INSERT INTO {Schema}.job_schedules
-                (id, tenant_id, name, kind, target_name, cron, time_zone, payload, enabled,
+                (id, tenant_id, name, handler_key, target_name, cron, time_zone, payload, enabled,
                  next_run_at, last_run_at, created_by, created_at, updated_at, lane)
-            VALUES (@id, @tenant_id, @name, @kind, @target_name, @cron, @time_zone, @payload, @enabled,
+            VALUES (@id, @tenant_id, @name, @handler_key, @target_name, @cron, @time_zone, @payload, @enabled,
                     @next_run_at, @last_run_at, @created_by, @created_at, @updated_at, @lane)
             ON CONFLICT (tenant_id, name) DO UPDATE
-                SET kind        = EXCLUDED.kind,
+                SET handler_key = EXCLUDED.handler_key,
                     target_name = EXCLUDED.target_name,
                     cron        = EXCLUDED.cron,
                     time_zone   = EXCLUDED.time_zone,
@@ -1133,7 +1133,7 @@ internal sealed class PostgresQueries : SqlQueriesBase
             SELECT {JobColumns}
             FROM {Schema}.jobs
             WHERE (@tenant_id   IS NULL OR tenant_id   = @tenant_id)
-              AND (@kind        IS NULL OR kind        = @kind)
+              AND (@handler_key IS NULL OR handler_key = @handler_key)
               AND (@status      IS NULL OR status      = @status)
               AND (@schedule_id IS NULL OR schedule_id = @schedule_id)
               AND (@lane        IS NULL OR lane         = @lane)

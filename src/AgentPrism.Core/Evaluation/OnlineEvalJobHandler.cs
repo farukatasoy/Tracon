@@ -4,7 +4,7 @@ using Microsoft.Extensions.Options;
 namespace AgentPrism;
 
 /// <summary>
-/// Executes <see cref="JobKind.OnlineEval"/> jobs: scores a sampled production
+/// Executes <see cref="JobHandlerKeys.OnlineEval"/> jobs: scores a sampled production
 /// run with every registered <see cref="IRunJudge"/>.
 /// </summary>
 /// <remarks>
@@ -55,9 +55,6 @@ internal sealed class OnlineEvalJobHandler(
     /// judge's own row among a run's scores (as opposed to a human's).
     /// </summary>
     private const string JudgeAuthorPrefix = "judge:";
-
-    /// <inheritdoc />
-    public JobKind Kind => JobKind.OnlineEval;
 
     /// <inheritdoc />
     public async ValueTask ExecuteAsync(JobContext context, CancellationToken cancellationToken = default)
