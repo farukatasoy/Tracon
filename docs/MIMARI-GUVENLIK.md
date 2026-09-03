@@ -326,4 +326,12 @@ Engellenen içerik ağa **hiç çıkmaz**, devre kesiciyi **tetiklemez** (K-322)
 model sınırındadır — `run_events`/`run_inputs` ham metni saklar.
 Ayrıntı: [`48-GUARDRAILS.md`](arsiv/fazlar/48-GUARDRAILS.md).
 
+`ContentGuardContext.Source` (Faz 140) denetlenen metnin kullanıcı mesajı mı,
+tool sonucu mu (+ `ToolName`) yoksa model çıktısı mı olduğunu taşır — üçü de
+eskiden aynı `Direction=Input` torbasına giriyordu. Sınıflama içerik tipine
+ve mesajın rolüne bakar, **`Direction`'a değil** (K-672); `Unknown` hiçbir
+zaman gevşek bir karara çevrilmez. Yerleşik `PatternContentGuard` bunu
+kasıtlı okumaz — kaynağa göre farklı davranmak isteyen bir guard kendi
+implementasyonunda `context.Source`'u okur.
+
 ---

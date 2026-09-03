@@ -87,6 +87,11 @@ public sealed class ContentGuardPipeline
     /// <summary>Runs a piece of text through every guard.</summary>
     /// <param name="direction">The direction of the inspection.</param>
     /// <param name="text">The text to inspect.</param>
+    /// <param name="source">The source of the inspected text.</param>
+    /// <param name="toolName">
+    /// The tool name when <paramref name="source"/> is <see cref="ContentGuardSource.ToolResult"/>;
+    /// otherwise <see langword="null"/>.
+    /// </param>
     /// <param name="modelId">The identity of the model being called.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>
@@ -100,6 +105,8 @@ public sealed class ContentGuardPipeline
     public async ValueTask<string?> InspectAsync(
         ContentGuardDirection direction,
         string text,
+        ContentGuardSource source,
+        string? toolName,
         string? modelId,
         CancellationToken cancellationToken = default)
     {
@@ -122,6 +129,8 @@ public sealed class ContentGuardPipeline
                 TenantId = scope?.TenantId ?? _tenantContext.TenantId,
                 AgentName = scope?.AgentName,
                 ModelId = modelId,
+                Source = source,
+                ToolName = toolName,
             };
 
             var result = await guard.InspectAsync(context, cancellationToken).ConfigureAwait(false);
@@ -180,6 +189,15 @@ public sealed class ContentGuardPipeline
     /// model, and the run then closes with <c>Failed</c>/<c>content_blocked</c>.
     /// </para>
     /// </remarks>
+    /// <param name="direction">The direction of the inspection.</param>
+    /// <param name="text">The text to inspect.</param>
+    /// <param name="source">The source of the inspected text.</param>
+    /// <param name="toolName">
+    /// The tool name when <paramref name="source"/> is <see cref="ContentGuardSource.ToolResult"/>;
+    /// otherwise <see langword="null"/>.
+    /// </param>
+    /// <param name="modelId">The identity of the model being called.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>
     /// The text to record; <see langword="null"/> if no guard requested a change
     /// (the caller should use the original text).
@@ -187,6 +205,8 @@ public sealed class ContentGuardPipeline
     public async ValueTask<string?> PreviewAsync(
         ContentGuardDirection direction,
         string text,
+        ContentGuardSource source,
+        string? toolName,
         string? modelId,
         CancellationToken cancellationToken = default)
     {
@@ -209,6 +229,8 @@ public sealed class ContentGuardPipeline
                 TenantId = scope?.TenantId ?? _tenantContext.TenantId,
                 AgentName = scope?.AgentName,
                 ModelId = modelId,
+                Source = source,
+                ToolName = toolName,
             };
 
             var result = await guard.InspectAsync(context, cancellationToken).ConfigureAwait(false);

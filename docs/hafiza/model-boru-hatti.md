@@ -164,3 +164,14 @@ Yeni bir halka eklerken tek soru sudur: **her model cagrisini gormesi gerekiyor 
 - **Kapi:** `TenantProviderBindingStoreContract`'in uc yeni case-mismatch
   case'i (dort implementasyonun HEPSINDE kosar) + registry seviyesinde
   `A_binding_saved_under_a_different_letter_case_is_still_the_tenants_binding`.
+
+## `ContentGuardContext.Source`: DIRECTION degil, ICERIK TIPI + ROL (Faz 140)
+
+- **🚨 `FunctionResultContent` her zaman `ToolResult`, rolden BAGIMSIZ; digerleri
+  `Role`'e gore siniflanir** (`User`→`UserMessage`, `Assistant`→`ModelOutput`),
+  `Direction`'a hic bakilmaz — eski turun yeniden gonderilen asistan metni
+  ikinci cagrida `Input` yonundedir ama kaynagi hala modeldir.
+- **`CallId→FunctionCallContent.Name` haritasi yalniz listede tool sonucu VARSA
+  kurulur** (`BuildToolNameMap`, duz metinde tahsis yok). Harita eksik kalabilir;
+  `ToolName` o zaman `null` ama `Source` yine `ToolResult` — karar `Source`'a
+  dayanmali, ada degil.
