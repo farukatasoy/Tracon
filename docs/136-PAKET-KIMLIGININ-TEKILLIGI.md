@@ -323,22 +323,41 @@ ikinci savunma hattıdır, tek hat değil.
 
 ## Bitiş Ölçütleri (DoD)
 
-- [ ] Kirli ağaçta `dotnet pack` `AGENTPRISM0004` verir; **hiçbir** `.nupkg` üretilmez
-- [ ] Aynı kirli ağaçta `dotnet build` ve `dotnet test` **başarılı** kalır
-- [ ] Untracked dosya da kapıyı tetikler (kabul case 4 koşuldu)
-- [ ] `AgentPrismAllowDirtyPack=true` yalnız `dirty` taşıyan açık `MinVerVersionOverride` ile geçer; CI'da hiç geçmez
-- [ ] Aynı ID+sürüm, farklı SHA-256 → `kapi.py yayin` durur ve mevcut artifact **yerinde kalır**
-- [ ] Aynı ID+sürüm, aynı SHA-256 → koşum deterministik no-op olarak geçer
-- [ ] `package-manifest.json` 20 paketin ID · sürüm · commit · dirty state · SHA-256 değerlerini taşır
-- [ ] `_clean_stale_packages` kaldırıldı; onun yerine geçen davranışın testi yeşil
-- [ ] `python3 scripts/kapi.py yayin --kuru --surum 1.0.0-preview.1` → `EXIT=0`
-- [ ] Dört doğrulama kapısı sıfır uyarı verir
-- [ ] `samples/AgentPrism.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı
-- [ ] `secret` taraması boş döndü
-- [ ] Manuel kabul case'leri `docs/manuel-test/01-KURULUM-VE-PAKETLEME.md` içine eklendi; otomatikleştirilebilenler koşuldu
-- [ ] `faz-denetim` koşuldu; 🔴 bulgu kalmadı
-- [ ] `docs-site/reference/versioning.md` artifact kimliği politikasını anlatır; `npm run build` + bağlantı kontrolü temiz
-- [ ] `docs/kesif/2026-09-03-tuketici-gap-yaniti.md` AP-REQ-002 bölümü §9 şablonuyla dolduruldu
+- [x] Kirli ağaçta `dotnet pack` `AGENTPRISM0004` verir; **hiçbir** `.nupkg` üretilmez — doğrulandı elle (`AgentPrism.Abstractions`) ve `PackCleanlinessGateTests.DirtyWorkingTreeStopsPackWithAgentPrism0004`
+- [x] Aynı kirli ağaçta `dotnet build` ve `dotnet test` **başarılı** kalır — `PackCleanlinessGateTests.DirtyWorkingTreeDoesNotStopBuild`; `dotnet test AgentPrism.slnx` (51/51 `AgentPrism.Package.Tests`) `AgentPrismSkipCleanWorkingTreeCheck` ile dirty ağaçta yeşil koştu (bkz. Denetim Bulguları #1)
+- [x] Untracked dosya da kapıyı tetikler (kabul case 4 koşuldu) — `DirtMarker` HER `PackCleanlinessGateTests` fact'inde untracked bir dosya kullanır (tracked dosya değil), 6/6 geçti
+- [x] `AgentPrismAllowDirtyPack=true` yalnız `dirty` taşıyan açık `MinVerVersionOverride` ile geçer; CI'da hiç geçmez — elle + `OverrideWithoutDirtyVersionStopsPackWithAgentPrism0006` (`AGENTPRISM0006`) + `OverrideInCiStopsPackWithAgentPrism0005` (`AGENTPRISM0005`) + `OverrideWithDirtyVersionPacksSuccessfully`
+- [x] Aynı ID+sürüm, farklı SHA-256 → `kapi.py yayin` durur ve mevcut artifact **yerinde kalır** — gerçek koşumda KAZARA yeniden üretildi (bir önceki commit'in artifact'leri yeni commit'e karşı 20/20 reddedildi, hiçbiri değişmedi) + `test_farkli_icerik_koşumu_durdurur_ve_mevcut_artifacti_korur`
+- [x] Aynı ID+sürüm, aynı SHA-256 → koşum deterministik no-op olarak geçer — **plan yanlıştı, düzeltildi** (bkz. Plandan Sapmalar): gerçek "aynı commit, aynı sürüm, iki ardışık koşum" `EXIT=0` ve sıfır ❌ verdi (`/tmp/yayin7a.out`, `/tmp/yayin7b.out`); `test_ayni_icerik_parmak_izi_deterministik_no_op_olarak_gecer` + `test_farkli_opc_rastgele_adi_tek_basina_konflikt_saymaz`
+- [x] `package-manifest.json` 20 paketin ID · sürüm · commit · dirty state · SHA-256 değerlerini taşır — gerçek koşumdan: `20 1.0.0-preview.1 False`, commit `2fd0c3ab...`, her paket `symbolsFile`/`symbolsSha256` dahil
+- [x] `_clean_stale_packages` kaldırıldı; onun yerine geçen davranışın testi yeşil — `grep -c _clean_stale_packages scripts/kapi.py` → `0`; `_promote_staged_packages` dört testle kilitli
+- [x] `python3 scripts/kapi.py yayin --kuru --surum 1.0.0-preview.1` → `EXIT=0` — gerçek koşum, 20 paket + npm dry-run + 6 sample + Native AOT smoke (`provider/source/generated-tool AOT smoke passed`)
+- [x] Dört doğrulama kapısı sıfır uyarı verir — `kapi.py kapanis --taban 8b21cf9f` → `EXIT=0` (dil sınırı regresyonu bulundu ve düzeltildi, bkz. Denetim Bulguları)
+- [x] `samples/AgentPrism.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı — aşağıda
+- [x] `secret` taraması boş döndü — `kapi.py tarama` → `✅ temiz`
+- [x] Manuel kabul case'leri `docs/manuel-test/01-KURULUM-VE-PAKETLEME.md` içine eklendi; otomatikleştirilebilenler koşuldu — MT-PKG-108..115, 117 elle/testle koşuldu; MT-PKG-116 senaryosu gerçek koşumda kazara tekrarlandı (yukarı bakınız)
+- [x] `faz-denetim` koşuldu; 🔴 bulgu kalmadı — 1× 🔴 bulundu ve kapandı (aşağıda)
+- [x] `docs-site/reference/versioning.md` artifact kimliği politikasını anlatır; `npm run build` + bağlantı kontrolü temiz — `npm run check` (content+build+links+weight) `EXIT=0`, 154653 iç bağlantı, 0 kırık
+- [x] `docs/kesif/2026-09-03-tuketici-gap-yaniti.md` AP-REQ-002 bölümü §9 şablonuyla dolduruldu
+
+### `samples/AgentPrism.Api` gerçek koşum kanıtı
+
+Bu faz çalışma anı davranışına dokunmuyor (yalnız paketleme sözleşmesi); koşum
+bir **regresyon** denetimidir.
+
+```
+$ curl -s http://localhost:5081/agentprism/api/meta
+{"version":"0.0.0-preview.0.536","prefix":"/agentprism","authentication":{"allowRemoteAccess":false,"requiresBearerToken":true,...},"storage":{"persistent":false,...},"roles":{"canRead":true,"canOperate":true,"canAdminister":true}}
+
+$ curl -s -o /dev/null -w "%{http_code}\n" http://localhost:5081/health
+200
+
+$ curl -s http://localhost:5081/agentprism/api/agents
+{"type":"...","title":"Authentication failed","status":401,"detail":"A valid 'Authorization: Bearer <token>' header is required."}
+```
+
+Beklendiği gibi: `/health` `200`, `/api/meta` yapılandırmayı doğru bildiriyor,
+yetkisiz `/api/agents` çağrısı `401` ile reddediliyor. Regresyon yok.
 
 ### Doğrulama komutları
 
@@ -396,6 +415,23 @@ büyük bir yapısal sapma öngörmüyordu; bağımsız denetim bir tane buldu:
   Python birim testinde (`test_manifest_her_paket_icin_id_dosya_ve_sha256_tasir`)
   kanıtlandı**, plan bunu "Birim" olarak zaten öngörmüştü — sapma değil,
   doğrulama.
+- **🚨 Plan "aynı SHA-256 → no-op" diyordu; DoD doğrulaması sırasında bu
+  YANLIŞ çıktı ve ikinci bir gerçek kusur ortaya çıkardı.** Aynı commit'i
+  `--surum 1.0.0-preview.1` ile ard arda iki kez paketlemek 20/20 pakette
+  FARKLI ham SHA-256 üretti — NuGet.Packaging her `dotnet pack` koşumunda OPC
+  core-properties parçasını (`package/services/metadata/core-properties/<32
+  hex>.psmdcp`) rastgele bir GUID adıyla yeniden yazar. Ham dosya hash'i
+  karşılaştırılsaydı `kapi.py yayin`'in ikinci koşumu, aynı commit üzerinde
+  bile, HER ZAMAN sahte bir "farklı artifact" çakışması bildirirdi — no-op
+  iddiasının tam tersi. Çözüm `_content_fingerprint` (`scripts/kapi.py`): iki
+  rastgele-adlı OPC girişini hariç tutup geri kalanı hash'ler; manifest'in
+  yayınlanan `sha256` alanı DEĞİŞMEDİ. Gerçek `kapi.py yayin --kuru --surum
+  1.0.0-preview.1` aynı commit üzerinde iki kez koşularak kanıtlandı
+  (ikincisi `EXIT=0`, hiç ❌ çakışma satırı yok); ayrıca üç yeni birim testi
+  (`test_farkli_opc_rastgele_adi_tek_basina_konflikt_saymaz` ve komşuları,
+  `scripts/kapi_test.py`) bunu kilitler. Ayrı bir commit'te düzeltildi
+  (`3928f50d`) — ana faz commit'inden (`2fd0c3ab`) SONRA, DoD doğrulaması
+  sırasında bulundu.
 
 ## Bu Fazda Verilen Kararlar
 

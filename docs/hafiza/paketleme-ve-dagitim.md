@@ -92,24 +92,39 @@
   ACIK bir `MinVerVersionOverride` ister (`0.0.0-dirty.<ad>`, her zaman temiz
   surumun ALTINDA sıralanır) ve CI'da (`CI=true` veya
   `ContinuousIntegrationBuild=true`) HIC calismaz.
-- **🚨 Bu kapı Faz 136'dan sonra `AgentPrism.Package.Tests`'i de KAPSAR.**
-  `TemplateFixture` (assembly fixture, HER testten once koşar) ve
-  `ReleaseArtifactFixture` gerçek `dotnet pack "AgentPrism.src.slnf"` çalıştırır
-  - repo kökünde HERHANGİ bir commit'siz değişiklik varken (bu fazın kendi
-    geliştirme oturumu dahil) bu proje **hiç çalışmaz**, `AGENTPRISM0004` ile
-    assembly fixture'da patlar. `dotnet test` öncesi commit at ya da stash'le;
-    yarım kalmış iterasyon için `git stash` + iş bitince `git stash pop` daha
-    güvenlidir. `PackCleanlinessGateTests` (aynı test projesinde) bu kapıyı
-    KASITLI olarak dirtiler - `RepositoryTreeGate` koleksiyonu onu
-    `ReleaseArtifactTests`'ten SIRALI tutar, aksi halde paralel çalışan iki
-    gerçek `dotnet pack` birbirinin kirlilik durumunu görür.
+- **🚨 Bu kapı, iterasyon için commit isteyen çağıranları da yakalar** (Faz
+  136, bağımsız denetim 🔴#1). `kapi.py kapanis`'in kendi pack adımı ve
+  `AgentPrism.Package.Tests`'in `TemplateFixture`/`ReleaseArtifactFixture`'ı
+  gerçek `dotnet pack "AgentPrism.src.slnf"` çalıştırır - bunlar paketleme
+  SÖZLEŞMESİNİ (README, icon, K-008) doğrular, bir yayın adayı üretmez, ama
+  repo commit'i yalnız kullanıcı isteyince atılır. **Çözüm:**
+  `AgentPrismSkipCleanWorkingTreeCheck=true` - kapıyı TAMAMEN atlar, yalnız bu
+  üç iç araç noktasının kendi `dotnet pack` çağrısına eklenmiştir (K-661). Yeni
+  bir çağıran noktasına eklemek (insanın DOĞRUDAN kullanması dahil) bu kararı
+  ihlal eder. `PackCleanlinessGateTests` (aynı test projesinde) gerçek kapıyı
+  KASITLI olarak dirtiler - `RepositoryTreeGate` koleksiyonu onu
+  `ReleaseArtifactTests`'ten SIRALI tutar, aksi halde paralel çalışan iki
+  gerçek `dotnet pack` birbirinin kirlilik durumunu görür.
+- **🚨 NuGet'in KENDİSİ `.nupkg`'i iki ayrı `dotnet pack` koşumunda AYNI
+  ÜRETMEZ** (Faz 136, ölçüldü: aynı commit, aynı `MinVerVersionOverride`, art
+  arda iki koşum → 20/20 paket FARKLI ham SHA-256). `.nupkg`/`.snupkg` bir OPC
+  (Open Packaging Conventions) zip'idir; NuGet.Packaging kendi core-properties
+  parçasını HER koşumda RASTGELE (`Guid.NewGuid()`) bir dosya adıyla yazar
+  (`package/services/metadata/core-properties/<32 hex>.psmdcp`) ve
+  `_rels/.rels` o adı taşır - `lib/`, `.nuspec` ve geri kalan HER giriş
+  birebir aynı kalsa bile. Ham dosya SHA-256'sını karşılaştırmak "aynı sürümün
+  ikinci koşumu" senaryosunu HER ZAMAN sahte bir "farklı artifact" çakışmasına
+  çevirirdi - tam da no-op iddiasının tersini. Çözüm `_content_fingerprint`:
+  bu iki rastgele-adlı girişi HARİÇ TUTUP geri kalan girişleri (ad + bayt)
+  hash'ler; manifest'in yayınlanan `sha256` alanı DEĞİŞMEDİ (hâlâ ham dosya
+  hash'i - gerçekte yayınlanana eşleşen budur).
 - **`scripts/kapi.py yayin` artık staging dizinine paketler, sonra promote
   eder** (`artifacts/package/staging/run-<rastgele>/`, `.gitignore`'daki
   `artifacts/` altında - bir sonraki koşumun kendi "erken ret" git denetimini
   kirletmez). `_clean_stale_packages`'ın sessiz silmesi KALDIRILDI: aynı
-  `<id, sürüm>` çifti `release_dir`'de FARKLI bir SHA-256 ile zaten varsa hiçbir
-  dosya promote edilmez (`_promote_staged_packages`, hepsi ya da hiçbiri), aynı
-  SHA-256 ise deterministik no-op'tur. Sonuç: tekrarlanan yerel `--surum`
-  koşumları artık `release_dir`'i ESKİ sürümlerden OTOMATİK temizlemez - bu
-  bilinçlidir (silme davranışı kaldırıldı, eklenmedi); gerekiyorsa elle
+  `<id, sürüm>` çifti `release_dir`'de FARKLI bir içerik parmak iziyle zaten
+  varsa hiçbir dosya promote edilmez (`_promote_staged_packages`, hepsi ya da
+  hiçbiri), aynı parmak iziyle deterministik no-op'tur. Sonuç: tekrarlanan
+  yerel `--surum` koşumları artık `release_dir`'i ESKİ sürümlerden OTOMATİK
+  temizlemez - bu bilinçlidir (silme davranışı kaldırıldı, eklenmedi); gerekiyorsa elle
   `rm -rf artifacts/package/release`.
