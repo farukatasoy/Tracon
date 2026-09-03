@@ -17,6 +17,7 @@
 | Tur | Sonuç |
 |---|---|
 | [`2026-08-23-yapisal-sorun-envanteri.md`](2026-08-23-yapisal-sorun-envanteri.md) | 24 kalem: 20 kapandı (Faz 91–109) · 1 ölçümle düştü · 1 kapsam dışı · 2 adaya taşındı (F-67, F-165) · 3 karara bağlı |
+| [`2026-08-21-uygulanabilirlik-raporu.md`](2026-08-21-uygulanabilirlik-raporu.md) | Dış tüketici raporu (`0.0.0-preview.0.291`): F-113 → Faz 113 · F-115 → Faz 115 · üç ardıl tur onu geçersizleştirdi |
 
 **Neden ayrı dizin:** `docs/kesif` ve `docs/arsiv` doküman bütçesinden zaten
 ayrı ayrı hariçtir (K-426, `scripts/dokuman-bakim.py` `HARIC`). Taşıma bir

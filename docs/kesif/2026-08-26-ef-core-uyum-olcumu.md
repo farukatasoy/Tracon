@@ -33,7 +33,7 @@ emsaliyle aynı çizgi: genişleme noktası bizde, somut uygulama tüketicide.
 
 | # | Delik | Kanıt | Faz |
 |---|---|---|---|
-| P1 | Havuz paylaşımı iddiası çelişkili | [`embedding.md:165`](../../docs-site/src/content/docs/guides/embedding.md) "share one Npgsql connection pool" ↔ [uygulanabilirlik raporu §7.1](2026-08-21-uygulanabilirlik-raporu.md) "havuz iki katına çıkar" | 110 |
+| P1 | Havuz paylaşımı iddiası çelişkili | [`embedding.md:165`](../../docs-site/src/content/docs/guides/embedding.md) "share one Npgsql connection pool" ↔ [uygulanabilirlik raporu §7.1](../arsiv/kesif/2026-08-21-uygulanabilirlik-raporu.md) "havuz iki katına çıkar" | 110 |
 | P2 | Dış `DbDataSource` yüzeyi yok; PostgreSQL'de kazara var, sıraya bağlı | `AgentPrismPostgreSqlBuilderExtensions.cs:94` · `AgentPrismSqlServerBuilderExtensions.cs:91` · `AgentPrismSqliteBuilderExtensions.cs:80` | 110 |
 | P3 | "Ortak transaction yok" cevabı yalnız Türkçe keşif notunda | `docs-site/` içinde karşılığı yok | 110 |
 | P4 | Okuma tarafı sözleşme değil | `grep -rli "CREATE VIEW" src/*/Migrations/*.sql` **boş** | 111 |

@@ -113,7 +113,26 @@ Bir adayın `Mercek` satırı aşağıdaki destekleyen mercekleri numarayla saya
 
 ## Sıralama — kuyruk boş
 
-2026-08-26 itibarıyla **plana dönüşmeyi bekleyen sıralanabilir aday yoktur.**
+2026-09-03 itibarıyla **plana dönüşmeyi bekleyen sıralanabilir aday yoktur.**
+
+> **Ek (2026-09-03, tüketici turu 3).** ProdigyEnabler'ın `1.0.0-preview.1`
+> raporu ölçüldü ([kesif](kesif/2026-09-03-tuketici-turu-3-olcumu.md)). On iki
+> iddianın onu doğru çıktı; ikisi yanlıştı ve **ikisi de bizim dokümanımızın**
+> ürettiği yanlış anlamaydı — `kusur-giderme` ile kapandı ve
+> `sevk_edilen_olay_anlatisi()` kapısı eklendi.
+>
+> Beş kalem aynı gün plana döndü ve bu listeden **çıktı**: **F-185** →
+> [Faz 139](139-CALISTIRMA-VE-OTURUM-YETKILENDIRMESI.md) · **F-186** →
+> [Faz 140](140-ICERIK-GUARDININ-KAYNAGI.md) · **F-187** →
+> [Faz 141](141-GENISLETILEBILIR-CALISTIRMA-OLAYI.md) · **F-188** →
+> [Faz 142](142-ONAY-ISTEGININ-SUNUMU.md) · **F-189** →
+> [Faz 143](143-TOOL-ARGUMANININ-SOZLESME-TESTLERI.md).
+>
+> Aynı turdan **sıralanmayan** kalemler (talep kanıtı zayıf veya tüketici
+> kendisi çözebiliyor): session transkript dışa aktarımı · akış delta'larının
+> sunucuda birleştirilmesi · bağlama başına endpoint. Gerekçeleri keşif
+> kaydındadır; koşulları oluşursa yeniden aday olurlar.
+
 Üç planlama turu dokuz adayın yedisini faza çevirdi:
 
 | Aday | Faz |

@@ -103,19 +103,32 @@ Register an `IRunEventSink` to receive every event as it is written, in addition
 the store — a live dashboard, a message queue, a second archive:
 
 ```csharp
-public sealed class QueueRunEventSink(IMessageQueue queue) : IRunEventSink
+public sealed class QueueRunEventSink : IRunEventSink
 {
-    public async ValueTask OnEventAsync(RunEvent runEvent, CancellationToken cancellationToken = default)
-        => await queue.PublishAsync(runEvent, cancellationToken);
+    // Bounded and non-blocking: a full channel drops the oldest event rather
+    // than holding up the run. Your own background reader drains it.
+    private readonly Channel<RunEvent> _pending = Channel.CreateBounded<RunEvent>(
+        new BoundedChannelOptions(1024) { FullMode = BoundedChannelFullMode.DropOldest });
+
+    public ChannelReader<RunEvent> Pending => _pending.Reader;
+
+    public ValueTask OnEventAsync(RunEvent runEvent, CancellationToken cancellationToken = default)
+    {
+        _pending.Writer.TryWrite(runEvent);
+
+        return ValueTask.CompletedTask;
+    }
 }
 
 services.AddSingleton<IRunEventSink, QueueRunEventSink>();
 ```
 
-A sink runs on the hot path — queue and return, do not block on further I/O — and one
-instance serves every concurrent run, so it must be thread-safe. A sink that throws is
-disabled for the rest of that run and logged; neither the store write nor any other
-registered sink is affected. Register none and nothing changes.
+A sink runs on the hot path — AgentPrism awaits `OnEventAsync` directly and holds no
+queue of its own in front of it, so the buffer above is yours to own. Queue and
+return; do not publish to a message bus inline. One instance serves every concurrent
+run, so it must be thread-safe. A sink that throws is disabled for the rest of that
+run and logged; neither the store write nor any other registered sink is affected.
+Register none and nothing changes.
 
 ## Who ran it, and for what
 

@@ -8,7 +8,7 @@
 Bir fazın durumu yanlış görünüyorsa **o fazın dokümanını** düzelt;
 bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 
-## Fazlar (139 kalem)
+## Fazlar (144 kalem)
 
 | Faz | Konu | Durum |
 |-----|------|-------|
@@ -151,5 +151,10 @@ bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 | [136](arsiv/fazlar/136-PAKET-KIMLIGININ-TEKILLIGI.md) | Paket Kimliğinin Tekilliği | ✅ Tamamlandı |
 | [137](arsiv/fazlar/137-IS-TURUNUN-ACIK-ANAHTARI.md) | İş Türünün Açık Anahtarı | ✅ Tamamlandı |
 | [138](arsiv/fazlar/138-SES-TANIMININ-SAGLAYICI-USTVERISI.md) | Ses Tanımının Sağlayıcı Üstverisi | ✅ Tamamlandı |
+| [139](139-CALISTIRMA-VE-OTURUM-YETKILENDIRMESI.md) | Çalıştırma ve Oturum Yetkilendirmesi | 📋 Planlandı |
+| [140](140-ICERIK-GUARDININ-KAYNAGI.md) | İçerik Guard'ının Kaynağı | 📋 Planlandı |
+| [141](141-GENISLETILEBILIR-CALISTIRMA-OLAYI.md) | Genişletilebilir Çalıştırma Olayı | 📋 Planlandı |
+| [142](142-ONAY-ISTEGININ-SUNUMU.md) | Onay İsteğinin Sunumu | 📋 Planlandı |
+| [143](143-TOOL-ARGUMANININ-SOZLESME-TESTLERI.md) | Tool Argümanının Sözleşme Testleri | 📋 Planlandı |
 
 Seçilmemiş adaylar: [`ADAYLAR.md`](ADAYLAR.md). Fazların hangi dalgada, hangi gerekçeyle sıralandığı (Faz 8–56, kapandı): [`arsiv/IKINCI-FAZ-YOL-HARITASI.md`](arsiv/IKINCI-FAZ-YOL-HARITASI.md) · [`arsiv/UCUNCU-FAZ-YOL-HARITASI.md`](arsiv/UCUNCU-FAZ-YOL-HARITASI.md).

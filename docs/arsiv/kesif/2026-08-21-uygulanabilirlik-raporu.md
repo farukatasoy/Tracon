@@ -1,3 +1,12 @@
+> **ARŞİVLENDİ (2026-09-03).** Bu tur tükendi. Dışarıdan gelen bir tüketici
+> raporudur ve `0.0.0-preview.0.291` sürümünü inceler — üç tur eskidir.
+> Ardılları: [`2026-08-21-tuketici-turu-2.md`](../../kesif/2026-08-21-tuketici-turu-2.md)
+> (doğrulama), `2026-09-01` (dört faz: 129–132), `2026-09-03`
+> (üç faz: 136–138) ve `2026-09-03` turu 3 ölçümü.
+> Kalemleri: F-113 → [Faz 113](../fazlar/113-ARIZA-SINIFLANDIRMA-SEAMI.md) ·
+> F-115 → [Faz 115](../fazlar/115-EVALIN-BASSIZ-KOSUCUSU.md). Açık kalem yok.
+> Bundan sonra **yalnız `grep` hedefidir**; durum alanları bayattır.
+
 # AgentPrism — Uygulanabilirlik ve Geçiş Raporu
 
 > **Tarih:** 2026-08-21
@@ -9,7 +18,7 @@
 > **Not (AgentPrism tarafı, 2026-08-21):** Bu dosya dışarıdan gelen bir tüketici
 > raporudur ve **olduğu gibi** saklanır. §12'deki sorular tüketicinin kendi
 > kararlarıdır, bizim değil. Doğrulama:
-> [`2026-08-21-tuketici-turu-2.md`](2026-08-21-tuketici-turu-2.md).
+> [`2026-08-21-tuketici-turu-2.md`](../../kesif/2026-08-21-tuketici-turu-2.md).
 
 ---
 

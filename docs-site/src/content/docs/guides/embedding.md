@@ -103,11 +103,14 @@ and [Troubleshooting a slow sink](/guides/observability/#troubleshooting) for th
 full contract.
 
 **The one rule that matters most:** `OnEventAsync` must queue the event and
-return. It runs on the run's own hot path, awaited before the response keeps
-streaming to its caller — a sink that does its own network I/O inline ties the
-model's response speed to that network call's latency. A channel that reaches
-capacity **drops** the event and logs it; it does not block, and it does not slow
-the run down to match a queue depth or a slow consumer.
+return. AgentPrism awaits it directly on the run's own hot path, before the
+response keeps streaming to its caller — a sink that does its own network I/O
+inline ties the model's response speed to that network call's latency.
+
+AgentPrism holds **no queue of its own** in front of your sink, so the buffer is
+yours to own: write to a bounded channel and return. Size that channel to drop
+the event and log it when it is full rather than block, so a slow consumer of
+yours never slows the run down to match its queue depth.
 
 ### 5 — Attachment storage
 

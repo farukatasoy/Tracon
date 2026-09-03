@@ -1120,3 +1120,58 @@ class TamMetinKodBloguTestleri(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class SevkEdilenOlayAnlatisiTestleri(unittest.TestCase):
+    """Sevk edilen webhook olayının anlatı kapsamı (2026-09-03 kusuru)."""
+
+    def _kok(self, olaylar: str, anlati: dict[str, str]) -> pathlib.Path:
+        kok = pathlib.Path(tempfile.mkdtemp())
+        sabit = kok / "src" / "AgentPrism.Abstractions" / "Webhooks"
+        sabit.mkdir(parents=True)
+        (sabit / "WebhookTypes.cs").write_text(olaylar, encoding="utf-8")
+        icerik = kok / "docs-site" / "src" / "content" / "docs"
+        icerik.mkdir(parents=True)
+        for ad, metin in anlati.items():
+            yol = icerik / ad
+            yol.parent.mkdir(parents=True, exist_ok=True)
+            yol.write_text(metin, encoding="utf-8")
+        return kok
+
+    SABITLER = (
+        'public const string RunCompleted = "run.completed";\n'
+        'public const string QuotaThreshold = "quota.threshold";\n'
+    )
+
+    def test_anlatida_gecmeyen_olay_kirmizidir(self):
+        kok = self._kok(self.SABITLER, {"concepts/governance.md": "run.completed anlatısı"})
+        bulgular = dokuman_bakim.sevk_edilen_olay_anlatisi(kok)
+        self.assertEqual(1, len(bulgular))
+        self.assertIn("quota.threshold", bulgular[0])
+
+    def test_anlatida_gecen_olay_yanlis_pozitif_uretmez(self):
+        kok = self._kok(
+            self.SABITLER,
+            {"concepts/governance.md": "run.completed ve quota.threshold anlatısı"})
+        self.assertEqual([], dokuman_bakim.sevk_edilen_olay_anlatisi(kok))
+
+    def test_uretilen_api_referansi_anlati_SAYILMAZ(self):
+        """Kusurun çekirdeği: `/api/` altındaki üretilen sayfa kapsama girmez."""
+        kok = self._kok(
+            self.SABITLER,
+            {
+                "concepts/governance.md": "run.completed anlatısı",
+                "api/AgentPrism.WebhookEvents.md": "quota.threshold burada üretildi",
+            })
+        bulgular = dokuman_bakim.sevk_edilen_olay_anlatisi(kok)
+        self.assertEqual(1, len(bulgular))
+        self.assertIn("quota.threshold", bulgular[0])
+
+    def test_uretilen_sema_sayfasi_anlati_SAYILMAZ(self):
+        kok = self._kok(
+            self.SABITLER,
+            {
+                "concepts/governance.md": "run.completed anlatısı",
+                "http-api/schema-webhook.md": "quota.threshold şema sayfası",
+            })
+        self.assertEqual(1, len(dokuman_bakim.sevk_edilen_olay_anlatisi(kok)))

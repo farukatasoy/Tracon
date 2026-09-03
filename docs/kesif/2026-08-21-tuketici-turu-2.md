@@ -8,7 +8,7 @@
 `aday-kesfi` protokolünü koş".
 **Girdi:** [`2026-08-21-tuketici-raporu.md`](2026-08-21-tuketici-raporu.md)
 (Y1…Y9 + §4 ek öneriler + §5 açık sorular) ·
-[`2026-08-21-uygulanabilirlik-raporu.md`](2026-08-21-uygulanabilirlik-raporu.md)
+[`2026-08-21-uygulanabilirlik-raporu.md`](../arsiv/kesif/2026-08-21-uygulanabilirlik-raporu.md)
 (§7 çatışma noktaları, §10 eksik yetenekler, §12 açık sorular).
 Kaynak: ProdigyEnabler (ABP 10.5 · .NET 10 · PostgreSQL · Hangfire),
 `0.0.0-preview.0.291` referanslı gerçek bir gömme denemesi. **Önceki tur aynı

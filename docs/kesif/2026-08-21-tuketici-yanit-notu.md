@@ -2,7 +2,7 @@
 
 > **Kimden:** AgentPrism geliştirme tarafı · **Tarih:** 2026-08-21
 > **Neye yanıt:** [`2026-08-21-tuketici-raporu.md`](2026-08-21-tuketici-raporu.md)
-> (Y1…Y9 · §4 · §5) ve [`2026-08-21-uygulanabilirlik-raporu.md`](2026-08-21-uygulanabilirlik-raporu.md)
+> (Y1…Y9 · §4 · §5) ve [`2026-08-21-uygulanabilirlik-raporu.md`](../arsiv/kesif/2026-08-21-uygulanabilirlik-raporu.md)
 > (§7 · §10 · §12)
 > **Tur kaydı:** [`2026-08-21-tuketici-turu-2.md`](2026-08-21-tuketici-turu-2.md)
 
