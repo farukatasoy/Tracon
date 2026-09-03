@@ -162,5 +162,5 @@ collection kablolaması.
 - **`artifacts/package/release/`, `kapi.py yayin` koşumları arasında artık
   OTOMATİK temizlenmiyor.** Eski sürümlerin dosyaları elde kalır (bilinçli,
   bkz. `docs/hafiza/paketleme-ve-dagitim.md`); gerekirse elle `rm -rf`.
-- Sıradaki faz: AP-REQ-001 (custom job dispatch), [Faz 137](../../137-IS-TURUNUN-ACIK-ANAHTARI.md)
+- Sıradaki faz: AP-REQ-001 (custom job dispatch), [Faz 137](137-IS-TURUNUN-ACIK-ANAHTARI.md)
   — zaten bu fazı önkoşul olarak işaretliyor, ek bir devir notu istemiyor.

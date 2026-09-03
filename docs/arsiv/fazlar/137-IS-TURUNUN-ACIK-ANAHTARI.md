@@ -2,7 +2,7 @@
 
 > **Durum:** ✅ Tamamlandı (2026-09-03)
 > **Kaynak:** Tüketici raporu AP-REQ-001 + yanıt dokümanı §1–§3 (ProdigyEnabler, 2026-09-03) · **F-183**
-> **Önkoşul:** [Faz 136](arsiv/fazlar/136-PAKET-KIMLIGININ-TEKILLIGI.md) — tüketici bu fazı yeni ve
+> **Önkoşul:** [Faz 136](136-PAKET-KIMLIGININ-TEKILLIGI.md) — tüketici bu fazı yeni ve
 > benzersiz bir paket sürümü üzerinden ölçecek; kimlik kapısı önce girer
 > **Paketler:** `AgentPrism.Abstractions`, `.Core`, `.Sql.Shared`, `.PostgreSql`,
 > `.SqlServer`, `.Sqlite`, `.AspNetCore`, `.Client`, `.UI`, `.Testing.Contracts.Xunit`
@@ -13,7 +13,7 @@
 > **Tüketici yüzeyi:** `docs-site/` — `concepts/jobs`, `guides/write-your-own-store`,
 > `reference/http-api` (üretilir) · sevk edilen: `IJobHandler` XML `<example>`,
 > `src/AgentPrism.Core/README.md`, `samples/AgentPrism.Samples.CustomJobHandler`
-> **Manuel test alanı:** [`manuel-test/16-IS-KUYRUGU-VE-ZAMANLAMA.md`](manuel-test/16-IS-KUYRUGU-VE-ZAMANLAMA.md)
+> **Manuel test alanı:** [`manuel-test/16-IS-KUYRUGU-VE-ZAMANLAMA.md`](../../manuel-test/16-IS-KUYRUGU-VE-ZAMANLAMA.md)
 
 ---
 
@@ -29,13 +29,13 @@
    **K-138** (cron benzersiz kısıtı) · **K-178** (migration numaraları sağlayıcı başına
    bağımsızdır) · **K-315**/**K-368**/**K-583** (`Replay` · `ApprovalResume` ·
    `RunContinuation` ayrı işlemlerdir, karıştırılmaz)
-3. [`arsiv/fazlar/120-JOB-SOZLESMESI-AT-LEAST-ONCE.md`](arsiv/fazlar/120-JOB-SOZLESMESI-AT-LEAST-ONCE.md)
+3. [`arsiv/fazlar/120-JOB-SOZLESMESI-AT-LEAST-ONCE.md`](120-JOB-SOZLESMESI-AT-LEAST-ONCE.md)
    — yalnız devir notu. `IJobHandler`'ın at-least-once sözleşmesi ve
    `JobHandlerContract` oradan gelir; bu faz o sözleşmeyi **korur**.
-4. [`arsiv/fazlar/129-IS-KUYRUGU-LANELERI.md`](arsiv/fazlar/129-IS-KUYRUGU-LANELERI.md)
+4. [`arsiv/fazlar/129-IS-KUYRUGU-LANELERI.md`](129-IS-KUYRUGU-LANELERI.md)
    — yalnız devir notu. `Lane` bu fazda anahtar **değildir** ve öyle kalmalıdır.
-5. Alan hafızası: [`hafiza/sql-migration.md`](hafiza/sql-migration.md) (üç sağlayıcı
-   migration tuzakları) · [`hafiza/aspnetcore-di.md`](hafiza/aspnetcore-di.md) (scope
+5. Alan hafızası: [`hafiza/sql-migration.md`](../../hafiza/sql-migration.md) (üç sağlayıcı
+   migration tuzakları) · [`hafiza/aspnetcore-di.md`](../../hafiza/aspnetcore-di.md) (scope
    yaşam döngüsü).
 
 ---
@@ -59,20 +59,20 @@ tutulmaz.
 | Kanıt | Gözlem |
 |---|---|
 | `JobKind.cs` (bu fazda silindi; `git show 6a4d5376:src/AgentPrism.Abstractions/Scheduling/JobKind.cs`) | Kapalı enum, dokuz değer. XML dokümanı sıra değişmezliğini `smallint` sütununa bağlıyor |
-| [`IJobHandler.cs:15`](../src/AgentPrism.Abstractions/Scheduling/IJobHandler.cs) | Handler kimliği yalnız `JobKind Kind`'dır |
-| [`JobWorkerBackgroundService.cs:252`](../src/AgentPrism.Core/Scheduling/JobWorkerBackgroundService.cs) | `handlers.FirstOrDefault(candidate => candidate.Kind == job.Kind)` — **ilk kayıt kazanır** |
-| [`AgentPrismServiceCollectionExtensions.cs:100`](../src/AgentPrism.Core/AgentPrismServiceCollectionExtensions.cs) | `TryAddEnumerable(Singleton)`; sıra = kayıt sırası |
-| [`AgentPrismServiceCollectionExtensions.cs:78-85`](../src/AgentPrism.Core/AgentPrismServiceCollectionExtensions.cs) | XML dokümanı sınırı **itiraf ediyor**: "registered but never runs; register it before `AddAgentPrism()` instead" — yani sevk edilen tavsiye, yerleşik handler'ı gölgelemektir |
-| [`Registration.Storage.cs:141`](../src/AgentPrism.Core/AgentPrismServiceCollectionExtensions.Registration.Storage.cs) | `AgentBatchJobHandler` `AddAgentPrism()` içinde **ilk** kaydolur |
-| [`JobWorkerBackgroundService.cs:29`](../src/AgentPrism.Core/Scheduling/JobWorkerBackgroundService.cs) | Handler'lar `IEnumerable<IJobHandler>` ile **kök sağlayıcıdan singleton** çözülür. `scheduling/` altında `IServiceScopeFactory` **hiç geçmiyor** |
+| [`IJobHandler.cs:15`](../../../src/AgentPrism.Abstractions/Scheduling/IJobHandler.cs) | Handler kimliği yalnız `JobKind Kind`'dır |
+| [`JobWorkerBackgroundService.cs:252`](../../../src/AgentPrism.Core/Scheduling/JobWorkerBackgroundService.cs) | `handlers.FirstOrDefault(candidate => candidate.Kind == job.Kind)` — **ilk kayıt kazanır** |
+| [`AgentPrismServiceCollectionExtensions.cs:100`](../../../src/AgentPrism.Core/AgentPrismServiceCollectionExtensions.cs) | `TryAddEnumerable(Singleton)`; sıra = kayıt sırası |
+| [`AgentPrismServiceCollectionExtensions.cs:78-85`](../../../src/AgentPrism.Core/AgentPrismServiceCollectionExtensions.cs) | XML dokümanı sınırı **itiraf ediyor**: "registered but never runs; register it before `AddAgentPrism()` instead" — yani sevk edilen tavsiye, yerleşik handler'ı gölgelemektir |
+| [`Registration.Storage.cs:141`](../../../src/AgentPrism.Core/AgentPrismServiceCollectionExtensions.Registration.Storage.cs) | `AgentBatchJobHandler` `AddAgentPrism()` içinde **ilk** kaydolur |
+| [`JobWorkerBackgroundService.cs:29`](../../../src/AgentPrism.Core/Scheduling/JobWorkerBackgroundService.cs) | Handler'lar `IEnumerable<IJobHandler>` ile **kök sağlayıcıdan singleton** çözülür. `scheduling/` altında `IServiceScopeFactory` **hiç geçmiyor** |
 
 🚨 **Raporun görmediği, daha ağır bulgu — sevk ettiğimiz örnek ölü koddur.**
-[`NightlyReportJobHandler.cs:15`](../samples/AgentPrism.Samples.CustomJobHandler/NightlyReportJobHandler.cs)
+[`NightlyReportJobHandler.cs:15`](../../../samples/AgentPrism.Samples.CustomJobHandler/NightlyReportJobHandler.cs)
 `Kind => JobKind.AgentBatch` bildirir;
-[`NightlyReportJobHandlerRegistrationExtensions.cs`](../samples/AgentPrism.Samples.CustomJobHandler/NightlyReportJobHandlerRegistrationExtensions.cs)
+[`NightlyReportJobHandlerRegistrationExtensions.cs`](../../../samples/AgentPrism.Samples.CustomJobHandler/NightlyReportJobHandlerRegistrationExtensions.cs)
 `AddAgentPrism()`'den **sonra** kaydolur. Gerçek bir worker'da bu örnek **hiç
 çalışmaz**. Testi
-([`NightlyReportJobHandlerRegistrationTests.cs`](../samples/AgentPrism.Samples.CustomJobHandler.Tests/NightlyReportJobHandlerRegistrationTests.cs))
+([`NightlyReportJobHandlerRegistrationTests.cs`](../../../samples/AgentPrism.Samples.CustomJobHandler.Tests/NightlyReportJobHandlerRegistrationTests.cs))
 yalnız DI kaydını ve `Kind` değerini ölçüyor — dispatch'i hiç ölçmüyor. Bu örnek
 aynı zamanda BL-041/RK-010'un "paketlenmiş tüketici kanıtı" olarak kayıtlıdır;
 o kanıt olduğundan zayıftır.
@@ -224,7 +224,7 @@ public interface IJobDispatcher
 ```
 
 `IJobStore.EnqueueAsync` bugün de public'tir ve item listesi alır
-([`IJobStore.cs:31`](../src/AgentPrism.Abstractions/Scheduling/IJobStore.cs)),
+([`IJobStore.cs:31`](../../../src/AgentPrism.Abstractions/Scheduling/IJobStore.cs)),
 yani tüketici teknik olarak zaten iş yaratabiliyor. Ama o yüzey `Id`, `Status`,
 `CreatedAt` gibi persistence ayrıntılarını çağırana yıkıyor ve **anahtarın
 kayıtlı olduğunu doğrulamıyor.** `IJobDispatcher` bu iki boşluğu kapatır; store
@@ -233,7 +233,7 @@ yüzeyi değişmez.
 ### HTTP sınırı — varsayılan kapalı (K1)
 
 `PUT /api/schedules/{name}` bugün `Kind` alıyor
-([`SchedulingEndpoints.cs:52`](../src/AgentPrism.AspNetCore/Endpoints/SchedulingEndpoints.cs)).
+([`SchedulingEndpoints.cs:52`](../../../src/AgentPrism.AspNetCore/Endpoints/SchedulingEndpoints.cs)).
 Dizge anahtara geçince bu uç, **kayıtlı her handler'ı dış çağrı yüzeyine
 çevirir**. Tüketici bunu açıkça uyardı.
 
@@ -255,7 +255,7 @@ düşürülür. `jobs` ve `job_schedules` için ayrı ayrı.
 
 🚨 SQLite'ta sütun düşürmek için repo'nun kendi emsali izlenir: tablo yeniden
 kurulur (`CREATE TABLE …_new` → kopyala → `RENAME TO`), bkz.
-[`0006_sessions_tenant_key.sql:14,30`](../src/AgentPrism.Sqlite/Migrations/0006_sessions_tenant_key.sql).
+[`0006_sessions_tenant_key.sql:14,30`](../../../src/AgentPrism.Sqlite/Migrations/0006_sessions_tenant_key.sql).
 
 Migration numaraları **rezerve edilmez**; uygulama anında sağlayıcı başına
 bir sonraki boş numara alınır (K-178).
@@ -357,7 +357,7 @@ samples/AgentPrism.Samples.CustomJobHandler{,.Tests}/
 ## Hata Modları ve Testler
 
 > Bu fazın davranışı **DI · depo · HTTP · paket** sınırlarını geçer. Birim testi
-> tek başına kanıtlamaz — [`.agents/ortak/test-seviyeleri.md`](../.agents/ortak/test-seviyeleri.md).
+> tek başına kanıtlamaz — [`.agents/ortak/test-seviyeleri.md`](../../../.agents/ortak/test-seviyeleri.md).
 
 | Ne bozulabilir | Seviye | Test |
 |---|---|---|
@@ -392,7 +392,7 @@ Beş soru: **iptal** — scope dispose edilir, item progress korunur. **Eşzaman
 
 ## Manuel Kabul Case'leri
 
-> Kapanışta [`manuel-test/16-IS-KUYRUGU-VE-ZAMANLAMA.md`](manuel-test/16-IS-KUYRUGU-VE-ZAMANLAMA.md) içine eklenir.
+> Kapanışta [`manuel-test/16-IS-KUYRUGU-VE-ZAMANLAMA.md`](../../manuel-test/16-IS-KUYRUGU-VE-ZAMANLAMA.md) içine eklenir.
 
 | # | Ön koşul | Adımlar | Beklenen sonuç |
 |---|---|---|---|
@@ -766,7 +766,7 @@ sütununa sığıyor.
 
 ## Sonraki Faza Devir Notu
 
-- **Sıradaki faz: [Faz 138 — Ses Tanımının Sağlayıcı Üstverisi](138-SES-TANIMININ-SAGLAYICI-USTVERISI.md).**
+- **Sıradaki faz: [Faz 138 — Ses Tanımının Sağlayıcı Üstverisi](../../138-SES-TANIMININ-SAGLAYICI-USTVERISI.md).**
   Bu fazla kesişimi yoktur; 138'in kendi "Bu Faza Başlarken" listesi yeterlidir.
 - **🚨 `TryAddEnumerable` + "listede ara" deseni bir genişleme noktası DEĞİLDİR.**
   Bu faz o desenin bir örneğini kapattı ama sınıfını taramadı. `TryAddEnumerable`
