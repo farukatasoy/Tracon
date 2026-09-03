@@ -11359,6 +11359,28 @@ notes](/reference/changelog/) page, grouped as Added, Changed, Deprecated,
 Removed, Fixed, and Security. Each package's `PackageReleaseNotes` metadata
 links to the entry for the exact version you installed.
 
+## Package identity
+
+A `<package id, version>` pair names exactly one artifact. The release process
+enforces this before a package is ever produced:
+
+- **Every packed artifact traces back to a commit.** The build refuses to
+  produce a package from an uncommitted working tree — there is no version
+  that can mean "whatever the source happened to be at the time." Each
+  package's `.nuspec` carries the exact commit it was built from.
+- **A version is never silently replaced with different content.** If a
+  release run would produce a `<package id, version>` pair that already
+  exists with different bytes, the run stops and the existing, previously
+  published artifact is left untouched — it is never overwritten in place.
+
+This is independent of NuGet's own package integrity check: every `.nupkg`
+carries a content hash (`<id>.<version>.nupkg.sha512` next to it in your local
+package cache — find the cache path with `dotnet nuget locals global-packages
+--list`), and nuget.org publishes the same hash for the version it lists. If
+those two ever disagree, something between the registry and your machine
+changed the bytes — that check exists independently of anything AgentPrism
+does, and applies to any NuGet package, not only this family.
+
 ## Which version do these docs describe?
 
 This site is built from the repository's `main` branch. The .NET reference is generated

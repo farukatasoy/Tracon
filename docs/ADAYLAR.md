@@ -50,6 +50,24 @@
 > yarısı** (model deneme telemetrisi) ve **F-179** (dinamik routing) kaldı;
 > ikisi de gerçek üretim trafiği/olayı bekliyor.
 >
+>
+> **Ek (2026-09-03, tüketici turu 2):** Aynı tüketicinin ikinci raporu koda karşı
+> ölçüldü ve **üç iddiasının üçü de doğrulandı**. Kalemler bu dosyada
+> sıralanmadı — kanıtları raporla geldi ve aynı turda yeniden üretildi:
+> **F-182** (paket kimliğinin tekilliği, AP-REQ-002) →
+> [Faz 136](136-PAKET-KIMLIGININ-TEKILLIGI.md); repro kilitli, `1.0.0-preview.1`
+> tag'inin önüne girer. **F-183** (custom job dispatch, AP-REQ-001) ve **F-184**
+> (voice descriptor sağlayıcı üstverisi, AP-REQ-003) →
+> [Faz 137](137-IS-TURUNUN-ACIK-ANAHTARI.md) ve
+> [Faz 138](138-SES-TANIMININ-SAGLAYICI-USTVERISI.md); ikisi de tüketiciden
+> kesin sözleşme yanıtı aldı.
+>
+> F-183'ün ölçümü raporun bulduğundan ağır çıktı: sevk edilen
+> `samples/AgentPrism.Samples.CustomJobHandler` örneği `JobKind.AgentBatch`
+> bildirir ve `AddAgentPrism()`'den sonra kaydolur, yani gerçek bir worker'da
+> **hiç çalışmaz** — testi yalnız DI kaydını ölçüyor. Bu kusur ayrı bir kayıt
+> açmaz; F-183'ün düşen testidir.
+>
 > Faz durumu yalnız üretilen [`YOL-HARITASI.md`](YOL-HARITASI.md)'dedir.
 > Bir kusur bu dosyaya geri girmez; `kusur-giderme` kanalına gider. Kapatılmış
 > kararın yeniden açılması kullanıcı kararıdır. Ölçüm bekleyen iddia, kanıt

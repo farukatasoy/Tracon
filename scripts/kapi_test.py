@@ -133,7 +133,12 @@ class KapiTestleri(unittest.TestCase):
 
         self.assertIn("dotnet build AgentPrism.slnx -c Release", rendered)
         self.assertIn("dotnet test AgentPrism.slnx -c Release --no-build -maxcpucount:1", rendered)
-        self.assertIn("dotnet pack AgentPrism.slnx -c Release --no-build", rendered)
+        # AgentPrismSkipCleanWorkingTreeCheck (Faz 136): this pack validates the
+        # packaging CONTRACT during iteration, not a release candidate - it must
+        # not be blocked by the new dirty-tree gate the way `kapi.py yayin` is.
+        self.assertIn(
+            "dotnet pack AgentPrism.slnx -c Release --no-build -p:AgentPrismSkipCleanWorkingTreeCheck=true",
+            rendered)
         self.assertIn("dotnet format AgentPrism.slnx --verify-no-changes", rendered)
 
     def test_kapanis_performans_adimini_kosullu_ekler(self):
@@ -502,18 +507,98 @@ class YayinTestleri(unittest.TestCase):
             self.assertEqual(kapi._target_frameworks(root, "AgentPrism.Testing"), ("net10.0",))
             self.assertEqual(kapi._target_frameworks(root, "AgentPrism.Core"), ("net8.0", "net9.0", "net10.0"))
 
-    def test_bayat_paketler_yalniz_kendi_kimligi_icin_temizlenir(self):
+    # Faz 136, 136.3: "bayat paket temizlenir" iddiası (eski `_clean_stale_packages`,
+    # koşumdan ÖNCE aynı kimlikteki her şeyi sessizce siliyordu) yerini "farklı
+    # içerikli aynı kimlik promote edilmez" iddiasına bırakır - staging'den
+    # release_dir'e taşıma artık SHA-256 karşılaştırmasından geçmeden olmaz.
+    def test_yeni_paket_staging_dizininden_release_dizinine_tasinir(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            staging_dir, release_dir = root / "staging", root / "release"
+            staging_dir.mkdir()
+            (staging_dir / "AgentPrism.Core.1.0.0-preview.1.nupkg").write_bytes(b"content")
+
+            conflicts = kapi._promote_staged_packages(staging_dir, release_dir, ["AgentPrism.Core.1.0.0-preview.1.nupkg"])
+
+            self.assertEqual(conflicts, [])
+            self.assertEqual((release_dir / "AgentPrism.Core.1.0.0-preview.1.nupkg").read_bytes(), b"content")
+            self.assertFalse((staging_dir / "AgentPrism.Core.1.0.0-preview.1.nupkg").exists())
+
+    def test_ayni_sha256_deterministik_no_op_olarak_gecer(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            staging_dir, release_dir = root / "staging", root / "release"
+            staging_dir.mkdir()
+            release_dir.mkdir()
+            name = "AgentPrism.Core.1.0.0-preview.1.nupkg"
+            (staging_dir / name).write_bytes(b"same-content")
+            (release_dir / name).write_bytes(b"same-content")
+
+            conflicts = kapi._promote_staged_packages(staging_dir, release_dir, [name])
+
+            self.assertEqual(conflicts, [])
+            self.assertEqual((release_dir / name).read_bytes(), b"same-content")
+
+    def test_farkli_sha256_koşumu_durdurur_ve_mevcut_artifacti_korur(self):
+        """Aynı kimlikte (id+sürüm) FARKLI bir SHA-256: hiçbir dosya promote
+        edilmez - konfilktsiz olan bile - ve mevcut release_dir olduğu gibi kalır."""
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            staging_dir, release_dir = root / "staging", root / "release"
+            staging_dir.mkdir()
+            release_dir.mkdir()
+            conflicting = "AgentPrism.Core.1.0.0-preview.1.nupkg"
+            clean = "AgentPrism.Abstractions.1.0.0-preview.1.nupkg"
+            (staging_dir / conflicting).write_bytes(b"new-content")
+            (release_dir / conflicting).write_bytes(b"old-content")
+            (staging_dir / clean).write_bytes(b"non-conflicting")
+
+            conflicts = kapi._promote_staged_packages(staging_dir, release_dir, [conflicting, clean])
+
+            self.assertEqual(conflicts, [conflicting])
+            self.assertEqual((release_dir / conflicting).read_bytes(), b"old-content")
+            self.assertFalse((release_dir / clean).exists())
+            self.assertTrue((staging_dir / clean).exists())
+
+    def test_manifest_her_paket_icin_id_dosya_ve_sha256_tasir(self):
         with tempfile.TemporaryDirectory() as directory:
             release_dir = pathlib.Path(directory)
-            (release_dir / "AgentPrism.Core.0.0.0-preview.0.1.nupkg").write_bytes(b"")
-            (release_dir / "AgentPrism.Core.0.0.0-preview.0.1.snupkg").write_bytes(b"")
-            (release_dir / "AgentPrism.Abstractions.0.0.0-preview.0.1.nupkg").write_bytes(b"")
 
-            kapi._clean_stale_packages(release_dir, ["AgentPrism.Core"])
+            manifest_path = kapi._write_manifest(
+                release_dir,
+                version="1.0.0-preview.1",
+                commit="8b21cf9f301fbbbaee32268df838bc0130e45059",
+                packages=[
+                    {"id": "AgentPrism.Core", "file": "AgentPrism.Core.1.0.0-preview.1.nupkg", "sha256": "abc",
+                     "symbolsFile": "AgentPrism.Core.1.0.0-preview.1.snupkg", "symbolsSha256": "def"},
+                ],
+            )
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
 
-            remaining = {path.name for path in release_dir.iterdir()}
+        self.assertEqual(manifest["version"], "1.0.0-preview.1")
+        self.assertEqual(manifest["dirty"], False)
+        self.assertEqual(manifest["packages"][0]["id"], "AgentPrism.Core")
+        self.assertEqual(manifest["packages"][0]["sha256"], "abc")
 
-        self.assertEqual(remaining, {"AgentPrism.Abstractions.0.0.0-preview.0.1.nupkg"})
+    def test_yayin_kirli_agacta_erken_reddeder_pack_denenmez(self):
+        with mock.patch.object(kapi, "_git", return_value=[" M src/Directory.Build.props"]):
+            with mock.patch("subprocess.run") as run:
+                result = kapi.release_rehearsal(None)
+
+        self.assertEqual(result, 1)
+        run.assert_not_called()
+
+    def test_yayin_git_bulunamazsa_atlar_ve_packi_yine_de_dener(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            (root / "src").mkdir()
+
+            with mock.patch.object(kapi, "_git", return_value=None):
+                with mock.patch("subprocess.run", return_value=mock.Mock(returncode=1)) as run:
+                    result = kapi.release_rehearsal(None, root=root, release_dir=root / "artifacts" / "package" / "release")
+
+        self.assertEqual(result, 1)
+        run.assert_called_once()
 
 
 if __name__ == "__main__":

@@ -24,9 +24,13 @@ public sealed class ReleaseArtifactFixture : IAsyncLifetime
 
     public async ValueTask InitializeAsync()
     {
+        // AgentPrismSkipCleanWorkingTreeCheck (Phase 136): this fixture validates
+        // the packaging CONTENT CONTRACT during test runs, not a release
+        // candidate - it must not be blocked by AgentPrismValidateCleanWorkingTree
+        // the way `kapi.py yayin` (the real release rehearsal) is.
         var result = await ProcessRunner.RunAsync(
             "dotnet",
-            $"pack \"{RepoPaths.PackableSolutionFilter}\" -c Release",
+            $"pack \"{RepoPaths.PackableSolutionFilter}\" -c Release -p:AgentPrismSkipCleanWorkingTreeCheck=true",
             environment: new Dictionary<string, string>(StringComparer.Ordinal) { ["MinVerVersionOverride"] = Version },
             timeout: PackTimeout);
 

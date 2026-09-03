@@ -17,6 +17,7 @@ namespace AgentPrism.Package.Tests;
 /// push); these facts are the automated, <c>dotnet test</c>-gated half of the
 /// same contract.
 /// </remarks>
+[Collection(RepositoryTreeGate.Name)]
 public sealed class ReleaseArtifactTests(ReleaseArtifactFixture fixture) : IClassFixture<ReleaseArtifactFixture>
 {
     private static readonly Regex PrereleaseDependency = new(

@@ -2806,3 +2806,322 @@ cd docs-site && npm run build && npm run preview
 **Beklenen sonuç**
 - Sayfada "Release notes" başlığı ve kök `CHANGELOG.md`'ye giden bir bağlantı görünür.
 - Bağlantı GitHub'da `CHANGELOG.md`'yi açar (repo public olduğunda; private iken 404 kabul edilir — kapı URL'in şeklini doğrular, erişilebilirliğini değil).
+
+---
+
+### MT-PKG-108 — Temiz ağaçta pack normal çalışır
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 136 |
+| **İlgili karar** | K-661 |
+
+Yeni kapının temiz ağaçta hiçbir etkisi olmamalı.
+
+**Ön koşul**
+- `git status --porcelain` boş.
+
+**Adımlar**
+1. Tek bir paketi paketle.
+
+**Girilecek veri**
+```bash
+MSBUILDDISABLENODEREUSE=1 dotnet pack src/AgentPrism.Abstractions/AgentPrism.Abstractions.csproj -c Release
+```
+
+**Beklenen sonuç**
+- Çıkış `0`; `artifacts/package/release/AgentPrism.Abstractions.*.nupkg` üretilir.
+
+---
+
+### MT-PKG-109 — Commit'siz bir değişiklik `AGENTPRISM0004` ile pack'i durdurur
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 136 |
+| **İlgili karar** | K-661 |
+
+Aynı `<id, sürüm>` çiftinin farklı içerikli iki artifact adlandırabildiği
+tüketici bulgusunun (AP-REQ-002) kapatıldığı kapı.
+
+**Ön koşul**
+- `git status --porcelain` boş.
+
+**Adımlar**
+1. Takip edilen bir dosyaya commit'siz bir satır ekle.
+2. Aynı paketi paketlemeyi dene.
+3. Değişikliği geri al.
+
+**Girilecek veri**
+```bash
+printf '\n' >> src/Directory.Build.props
+MSBUILDDISABLENODEREUSE=1 dotnet pack src/AgentPrism.Abstractions/AgentPrism.Abstractions.csproj -c Release
+git checkout -- src/Directory.Build.props
+```
+
+**Beklenen sonuç**
+- Sıfır olmayan çıkış; `error AGENTPRISM0004` mesajı görünür.
+- Hiçbir yeni `.nupkg` üretilmez.
+
+---
+
+### MT-PKG-110 — Kirli ağaçta `dotnet build` etkilenmez
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 136 |
+| **İlgili karar** | K-661 |
+
+Kapı yalnız `GenerateNuspec`'ten önce koşar; `build`/`test` yolunu HİÇ görmez.
+
+**Ön koşul**
+- MT-PKG-109'daki gibi bir dosya kirletilmiş olsun (aynı adımı tekrarla).
+
+**Adımlar**
+1. Kirli ağaçta derle.
+2. Değişikliği geri al.
+
+**Girilecek veri**
+```bash
+printf '\n' >> src/Directory.Build.props
+MSBUILDDISABLENODEREUSE=1 dotnet build src/AgentPrism.Abstractions/AgentPrism.Abstractions.csproj -c Release
+git checkout -- src/Directory.Build.props
+```
+
+**Beklenen sonuç**
+- Çıkış `0`; `AGENTPRISM0004` **görünmez**.
+
+---
+
+### MT-PKG-111 — Yalnız untracked bir dosya da kapıyı tetikler
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 136 |
+| **İlgili karar** | K-661 |
+
+136.1'in bilinçli kararı: `git status --porcelain` `-uno` almaz — takip edilmeyen
+bir `.cs` dosyası SDK'nın varsayılan glob'uyla pakete girebilir.
+
+**Ön koşul**
+- `git status --porcelain` boş.
+
+**Adımlar**
+1. Bir projeye takip edilmeyen boş bir dosya bırak.
+2. Paketlemeyi dene.
+3. Dosyayı sil.
+
+**Girilecek veri**
+```bash
+touch src/AgentPrism.Abstractions/.mt-pkg-111-marker
+MSBUILDDISABLENODEREUSE=1 dotnet pack src/AgentPrism.Abstractions/AgentPrism.Abstractions.csproj -c Release
+rm src/AgentPrism.Abstractions/.mt-pkg-111-marker
+```
+
+**Beklenen sonuç**
+- Sıfır olmayan çıkış; `error AGENTPRISM0004` mesajı görünür.
+
+---
+
+### MT-PKG-112 — Override sürümsüz verilirse `AGENTPRISM0006` ister
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 136 |
+| **İlgili karar** | K-661 |
+
+Override sürüm ÜRETMEZ, sürümü insandan ister — MinVer'in kirli bir artifact'i
+kendiliğinden bir sürüme bağlamasını tamamen engeller.
+
+**Ön koşul**
+- `git status --porcelain` boş.
+
+**Adımlar**
+1. Ağacı kirlet.
+2. `AgentPrismAllowDirtyPack=true` ile, `MinVerVersionOverride` VERMEDEN paketle.
+3. Değişikliği geri al.
+
+**Girilecek veri**
+```bash
+printf '\n' >> src/Directory.Build.props
+MSBUILDDISABLENODEREUSE=1 dotnet pack src/AgentPrism.Abstractions/AgentPrism.Abstractions.csproj -c Release -p:AgentPrismAllowDirtyPack=true
+git checkout -- src/Directory.Build.props
+```
+
+**Beklenen sonuç**
+- Sıfır olmayan çıkış; `error AGENTPRISM0006` mesajı görünür.
+
+---
+
+### MT-PKG-113 — Açık `dirty` sürümüyle override başarıyla paketler
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 136 |
+| **İlgili karar** | K-661 |
+
+**Ön koşul**
+- `git status --porcelain` boş.
+
+**Adımlar**
+1. Ağacı kirlet.
+2. Override'ı açık `dirty` sürümüyle ver.
+3. Değişikliği geri al.
+4. Üretilen dosyayı sil (temizlik).
+
+**Girilecek veri**
+```bash
+printf '\n' >> src/Directory.Build.props
+MSBUILDDISABLENODEREUSE=1 dotnet pack src/AgentPrism.Abstractions/AgentPrism.Abstractions.csproj -c Release -p:AgentPrismAllowDirtyPack=true -p:MinVerVersionOverride=0.0.0-dirty.deneme
+git checkout -- src/Directory.Build.props
+rm -f artifacts/package/release/AgentPrism.Abstractions.0.0.0-dirty.deneme.nupkg artifacts/package/release/AgentPrism.Abstractions.0.0.0-dirty.deneme.snupkg
+```
+
+**Beklenen sonuç**
+- Çıkış `0`; `AgentPrism.Abstractions.0.0.0-dirty.deneme.nupkg` üretilir.
+
+---
+
+### MT-PKG-114 — CI'da override tamamen reddedilir
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 136 |
+| **İlgili karar** | K-661 |
+
+Kirli bir pack'in hiçbir CI koşumundan çıkmasına izin verilmez — `dirty`
+taşıyan açık bir sürümle bile.
+
+**Ön koşul**
+- `git status --porcelain` boş.
+
+**Adımlar**
+1. Ağacı kirlet.
+2. MT-PKG-113'ün AYNI komutunu `CI=true` ile koş.
+3. Değişikliği geri al.
+
+**Girilecek veri**
+```bash
+printf '\n' >> src/Directory.Build.props
+MSBUILDDISABLENODEREUSE=1 CI=true dotnet pack src/AgentPrism.Abstractions/AgentPrism.Abstractions.csproj -c Release -p:AgentPrismAllowDirtyPack=true -p:MinVerVersionOverride=0.0.0-dirty.deneme
+git checkout -- src/Directory.Build.props
+```
+
+**Beklenen sonuç**
+- Sıfır olmayan çıkış; `error AGENTPRISM0005` mesajı görünür.
+
+---
+
+### MT-PKG-115 — Aynı sürümle iki ardışık yayın koşumu ikincisinde no-op'tur
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 136 |
+| **İlgili karar** | K-661 |
+
+`_clean_stale_packages`'ın sessiz silmesi kaldırıldı; yerine gelen promote
+akışının deterministik no-op yolu.
+
+**Ön koşul**
+- `git status --porcelain` boş.
+
+**Adımlar**
+1. Yayın provasını koş.
+2. Aynı komutu tekrar koş.
+
+**Girilecek veri**
+```bash
+MSBUILDDISABLENODEREUSE=1 python3 scripts/kapi.py yayin --kuru --surum 1.0.0-preview.1
+MSBUILDDISABLENODEREUSE=1 python3 scripts/kapi.py yayin --kuru --surum 1.0.0-preview.1
+```
+
+**Beklenen sonuç**
+- İkisi de çıkış `0` ile biter.
+- İkinci koşumun çıktısında hiçbir "❌" satırı yoktur (aynı SHA-256 promote
+  edilmeden geçer).
+
+---
+
+### MT-PKG-116 — Aynı kimlikte farklı içerik yayın koşumunu durdurur, mevcut artifact yerinde kalır
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 136 |
+| **İlgili karar** | K-661 |
+
+Tüketicinin ölçtüğü olayın kendisi: aynı sürüm iddiası, farklı SHA-256.
+
+**Ön koşul**
+- MT-PKG-115 koşuldu (`release_dir`'de `1.0.0-preview.1` paketleri var).
+
+**Adımlar**
+1. Bir kaynak dosyaya küçük, davranışı etkilemeyen bir yorum ekle ve commit'le.
+2. AYNI sürümle yayın provasını tekrar koş.
+3. Mevcut `.nupkg`'in SHA-256'sının DEĞİŞMEDİĞİNİ doğrula.
+4. Commit'i geri al (`git revert` veya `reset`).
+
+**Girilecek veri**
+```bash
+echo "// mt-pkg-116" >> src/AgentPrism.Abstractions/AssemblyInfo.cs 2>/dev/null || \
+  printf '\n// mt-pkg-116\n' >> src/AgentPrism.Abstractions/AgentPrism.Abstractions.csproj
+git add -A && git commit -m "test: mt-pkg-116 geçici değişiklik"
+shasum -a 256 artifacts/package/release/AgentPrism.Abstractions.1.0.0-preview.1.nupkg
+MSBUILDDISABLENODEREUSE=1 python3 scripts/kapi.py yayin --kuru --surum 1.0.0-preview.1
+shasum -a 256 artifacts/package/release/AgentPrism.Abstractions.1.0.0-preview.1.nupkg
+git reset --hard HEAD~1
+```
+
+**Beklenen sonuç**
+- İkinci koşum sıfır olmayan çıkışla durur; "FARKLI içerikli bir artifact
+  zaten var" mesajı `AgentPrism.Abstractions`'ı adlandırır.
+- İki `shasum` çağrısı **aynı** değeri verir (dosya hiç değişmedi).
+
+---
+
+### MT-PKG-117 — Manifest 20 paketin kimliğini SHA-256 ile taşır
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 136 |
+| **İlgili karar** | K-661 |
+
+**Ön koşul**
+- MT-PKG-115 koşuldu.
+
+**Adımlar**
+1. Manifesti oku.
+
+**Girilecek veri**
+```bash
+python3 -c "
+import json
+d = json.load(open('artifacts/package/release/package-manifest.json'))
+print(len(d['packages']), d['version'], d['dirty'])
+print(d['packages'][0])
+"
+```
+
+**Beklenen sonuç**
+- `20 1.0.0-preview.1 False`.
+- İlk paket kaydı `id`, `file`, `sha256` alanlarını taşır (kütüphane
+  profilindeyse `symbolsFile`/`symbolsSha256` de dolu).

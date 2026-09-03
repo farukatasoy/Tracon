@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse
 import dataclasses
 import fnmatch
+import hashlib
 import json
 import os
 import pathlib
@@ -18,6 +19,7 @@ import shlex
 import shutil
 import subprocess
 import sys
+import tempfile
 import time
 import zipfile
 from collections.abc import Callable, Iterable, Mapping, Sequence
@@ -613,7 +615,15 @@ def closing_commands(base: str, *, site: bool = True, performance: bool = True) 
         Command(("python3", "scripts/denetim-paketi.py", "--taban", base)),
         Command(("dotnet", "build", "AgentPrism.slnx", "-c", "Release")),
         full_solution_test_command(),
-        Command(("dotnet", "pack", "AgentPrism.slnx", "-c", "Release", "--no-build")),
+        # AgentPrismSkipCleanWorkingTreeCheck (Faz 136): this pack validates the
+        # PACKAGING CONTRACT (README, icon, K-008) during iteration - it is not
+        # a release candidate, so it must still work on an uncommitted tree.
+        # The real release rehearsal (`kapi.py yayin`) and the CI `pack` job a
+        # `v*` tag actually publishes from both leave this unset and stay fully
+        # gated by AgentPrismValidateCleanWorkingTree.
+        Command((
+            "dotnet", "pack", "AgentPrism.slnx", "-c", "Release", "--no-build",
+            "-p:AgentPrismSkipCleanWorkingTreeCheck=true")),
         # 🚨 NOT --no-restore: measured (2026-08-27) that dotnet format's
         # restore-less MSBuildWorkspace load intermittently fails to resolve
         # PackageReference types for every samples/*.Tests project (a
@@ -698,13 +708,46 @@ def _names_own_version(project_id: str, file_name: str) -> bool:
     return file_name.startswith(prefix) and file_name[len(prefix) : len(prefix) + 1].isdigit()
 
 
-def _clean_stale_packages(release_dir: pathlib.Path, project_ids: Iterable[str]) -> None:
-    if not release_dir.exists():
-        return
-    for project_id in project_ids:
-        for path in release_dir.glob(f"{project_id}.*"):
-            if path.suffix in (".nupkg", ".snupkg") and _names_own_version(project_id, path.name):
-                path.unlink()
+def _sha256(path: pathlib.Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1 << 20), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _promote_staged_packages(staging_dir: pathlib.Path, release_dir: pathlib.Path, file_names: Iterable[str]) -> list[str]:
+    """Moves each named file from `staging_dir` into `release_dir` - UNLESS an
+    identically named file already lives there with a DIFFERENT SHA-256, in
+    which case NOTHING is moved and the mismatched names are returned so the
+    caller can report them and abort. `release_dir` is therefore never left
+    half-updated: either every file promotes, or none does. A same-hash match
+    is a deterministic no-op - the existing file is already what this run
+    would have produced, so it is left in place as the one true copy."""
+    file_names = list(file_names)
+    conflicts = [
+        name for name in file_names
+        if (release_dir / name).exists() and _sha256(release_dir / name) != _sha256(staging_dir / name)
+    ]
+    if conflicts:
+        return conflicts
+
+    release_dir.mkdir(parents=True, exist_ok=True)
+    for name in file_names:
+        destination = release_dir / name
+        if destination.exists():
+            continue
+        shutil.move(str(staging_dir / name), str(destination))
+    return []
+
+
+def _write_manifest(
+    release_dir: pathlib.Path, *, version: str, commit: str, packages: list[dict[str, str | None]]
+) -> pathlib.Path:
+    manifest = {"version": version, "commit": commit, "dirty": False, "packages": packages}
+    manifest_path = release_dir / "package-manifest.json"
+    manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+    return manifest_path
 
 
 def _resolve_nupkg(release_dir: pathlib.Path, project_id: str, requested_version: str | None) -> pathlib.Path | None:
@@ -713,11 +756,11 @@ def _resolve_nupkg(release_dir: pathlib.Path, project_id: str, requested_version
         return candidate if candidate.exists() else None
 
     # No requested version: pick the package this project produced MOST
-    # RECENTLY. _clean_stale_packages already removed every earlier artifact
-    # of THIS project before packing, so any survivor here is from the run
+    # RECENTLY. The caller always packs into a fresh, run-unique staging
+    # directory (release_rehearsal), so every survivor here is from the run
     # that just completed; "most recent" is only a tie-breaker between a
     # project's own multiple TFM-driven writes, not a defense against
-    # cross-run staleness.
+    # cross-run staleness - there is no other run's output to be stale against.
     candidates = [path for path in release_dir.glob(f"{project_id}.*.nupkg") if _names_own_version(project_id, path.name)]
     return max(candidates, key=lambda path: path.stat().st_mtime) if candidates else None
 
@@ -745,32 +788,73 @@ def release_rehearsal(
     release_dir = release_dir or PACKAGE_RELEASE_DIR
     project_ids = packable_project_ids(root)
 
-    # 🚨 MEASURED: without this, a stale .nupkg from an EARLIER invocation (e.g.
-    # a prior --surum run) can outlive an incremental `dotnet pack` that decides
-    # a project's inputs are unchanged and skips re-creating its output. The
-    # "most recently written" resolution below would then silently pick that
-    # stale file over the one this run actually produced - two packages ending
-    # up on a different version than the rest, exactly what the "single line"
-    # assertion below exists to catch. Removing each tracked project's own
-    # previous artifacts first forces a real rebuild for every one of them.
-    _clean_stale_packages(release_dir, project_ids)
+    # Erken ret (136.3): çalışma ağacı denetlenir ÖNCE dakikalarca süren bir
+    # `dotnet pack`e girilir. MSBuild kapısı (AgentPrismValidateCleanWorkingTree)
+    # zaten aynı sonucu verirdi; bu adım yalnız geri bildirimi öne çeker.
+    # Koşulsuzdur - bir yayın provasının kanıt değeri kirli bir ağaçta yoktur,
+    # burada AgentPrismAllowDirtyPack karşılığı bir override YOKTUR (Faz 136,
+    # Açık Soru 3). git bulunamazsa (kaynak tarball, git PATH'te yok) kapı
+    # ATLANIR - `dotnet pack` kendi MSBuild kapısı üzerinden aynı denetimi
+    # tekrar dener; burası ikinci savunma hattıdır, tek hat değil.
+    status_lines = _git("status", "--porcelain")
+    if status_lines is None:
+        print("⚠️ git bulunamadı veya bu bir git deposu değil; çalışma ağacı temizliği burada denetlenemedi")
+    elif status_lines:
+        print("❌ Çalışma ağacı temiz değil ('git status --porcelain'):")
+        for line in status_lines:
+            print(f"  {line}")
+        print("Bir yayın provasının kanıt değeri kirli bir ağaçta yoktur; commit veya stash sonrası tekrar deneyin.")
+        return 1
 
-    environment = os.environ.copy()
-    environment["MSBUILDDISABLENODEREUSE"] = "1"
-    if requested_version:
-        environment["MinVerVersionOverride"] = requested_version
+    commit_lines = _git("rev-parse", "HEAD")
+    commit = commit_lines[0] if commit_lines else "unknown"
 
-    pack_command = Command(("dotnet", "pack", str(PACKABLE_SOLUTION_FILTER), "-c", "Release"))
-    print(f"$ {pack_command.display}" + (f"  (MinVerVersionOverride={requested_version})" if requested_version else ""), flush=True)
-    pack_result = subprocess.run(list(pack_command.args), cwd=root, env=environment, check=False)
-    if pack_result.returncode:
-        print(f"❌ 'dotnet pack' çıkış {pack_result.returncode}")
-        return pack_result.returncode
+    # Staging dizini koşum başına benzersizdir (Faz 136, Açık Soru 1: paralel
+    # koşumlar desteklenmez, ama bu en azından ikisinin BİRBİRİNİN çıktısını
+    # ezmesini önler). `artifacts/` .gitignore'dadır - staging burada yaşarsa
+    # bir sonraki koşumun kendi "erken ret" denetimini kirletmez.
+    staging_root = release_dir.parent / "staging"
+    staging_root.mkdir(parents=True, exist_ok=True)
+    staging_dir = pathlib.Path(tempfile.mkdtemp(prefix="run-", dir=staging_root))
 
+    try:
+        environment = os.environ.copy()
+        environment["MSBUILDDISABLENODEREUSE"] = "1"
+        if requested_version:
+            environment["MinVerVersionOverride"] = requested_version
+
+        pack_command = Command(("dotnet", "pack", str(PACKABLE_SOLUTION_FILTER), "-c", "Release", "-o", str(staging_dir)))
+        print(f"$ {pack_command.display}" + (f"  (MinVerVersionOverride={requested_version})" if requested_version else ""), flush=True)
+        pack_result = subprocess.run(list(pack_command.args), cwd=root, env=environment, check=False)
+        if pack_result.returncode:
+            print(f"❌ 'dotnet pack' çıkış {pack_result.returncode}")
+            return pack_result.returncode
+
+        return _finish_release_rehearsal(
+            root=root,
+            release_dir=release_dir,
+            staging_dir=staging_dir,
+            project_ids=project_ids,
+            requested_version=requested_version,
+            commit=commit,
+        )
+    finally:
+        shutil.rmtree(staging_dir, ignore_errors=True)
+
+
+def _finish_release_rehearsal(
+    *,
+    root: pathlib.Path,
+    release_dir: pathlib.Path,
+    staging_dir: pathlib.Path,
+    project_ids: list[str],
+    requested_version: str | None,
+    commit: str,
+) -> int:
     resolved: dict[str, pathlib.Path] = {}
     missing: list[str] = []
     for project_id in project_ids:
-        nupkg = _resolve_nupkg(release_dir, project_id, requested_version)
+        nupkg = _resolve_nupkg(staging_dir, project_id, requested_version)
         if nupkg is None:
             missing.append(project_id)
         else:
@@ -820,7 +904,7 @@ def release_rehearsal(
     # kümesi ayrıca taranır.
     produced_ids = {
         path.name[: -len(f".{resolved_version}.nupkg")]
-        for path in release_dir.glob(f"*.{resolved_version}.nupkg")
+        for path in staging_dir.glob(f"*.{resolved_version}.nupkg")
     }
     unexpected = sorted(produced_ids - set(project_ids))
     if unexpected:
@@ -878,6 +962,47 @@ def release_rehearsal(
         for error in errors:
             print(f"  {error}")
         return 1
+
+    # 136.3 - overwrite koruması ve manifest. Staging'de doğrulanmış paketler
+    # ancak burada release_dir'e taşınır (promote); `_promote_staged_packages`
+    # aynı isimde FARKLI bir SHA-256 bulursa HİÇBİR dosyayı taşımaz ve mevcut
+    # release_dir olduğu gibi kalır (hepsi ya da hiçbiri).
+    staged_file_names: dict[str, list[str]] = {}
+    for project_id in sorted(resolved):
+        nupkg = resolved[project_id]
+        names = [nupkg.name]
+        snupkg = nupkg.with_suffix(".snupkg")
+        if snupkg.exists():
+            names.append(snupkg.name)
+        staged_file_names[project_id] = names
+
+    all_file_names = [name for names in staged_file_names.values() for name in names]
+    conflicts = _promote_staged_packages(staging_dir, release_dir, all_file_names)
+    if conflicts:
+        print("❌ Aynı kimlikte (id+sürüm) FARKLI içerikli bir artifact zaten var - mevcut dosya korundu:")
+        for name in conflicts:
+            print(f"  {name}")
+        return 1
+
+    packages_manifest: list[dict[str, str | None]] = []
+    for project_id in sorted(resolved):
+        names = staged_file_names[project_id]
+        nupkg_path = release_dir / names[0]
+        entry: dict[str, str | None] = {
+            "id": project_id,
+            "file": nupkg_path.name,
+            "sha256": _sha256(nupkg_path),
+            "symbolsFile": None,
+            "symbolsSha256": None,
+        }
+        if len(names) > 1:
+            snupkg_path = release_dir / names[1]
+            entry["symbolsFile"] = snupkg_path.name
+            entry["symbolsSha256"] = _sha256(snupkg_path)
+        packages_manifest.append(entry)
+
+    manifest_path = _write_manifest(release_dir, version=resolved_version, commit=commit, packages=packages_manifest)
+    print(f"📄 {manifest_path.relative_to(root)} yazıldı ({len(packages_manifest)} paket)")
 
     print(f"✅ {len(resolved)} paket, sürüm '{resolved_version}':")
     for project_id in sorted(resolved):

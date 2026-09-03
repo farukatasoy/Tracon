@@ -26,9 +26,12 @@ public sealed class TemplateFixture : IAsyncLifetime
 
     public async ValueTask InitializeAsync()
     {
+        // AgentPrismSkipCleanWorkingTreeCheck (Phase 136): same reasoning as
+        // ReleaseArtifactFixture - this pack backs a local test feed, it is
+        // never what a `v*` tag actually publishes.
         var packResult = await ProcessRunner.RunAsync(
             "dotnet",
-            $"pack \"{RepoPaths.PackableSolutionFilter}\" -c Release",
+            $"pack \"{RepoPaths.PackableSolutionFilter}\" -c Release -p:AgentPrismSkipCleanWorkingTreeCheck=true",
             timeout: PackTimeout);
 
         if (packResult.ExitCode != 0)
