@@ -716,18 +716,51 @@ def _sha256(path: pathlib.Path) -> str:
     return digest.hexdigest()
 
 
+# 🚨 MEASURED (2026-09-03): a `.nupkg`/`.snupkg` is an OPC (Open Packaging
+# Conventions) zip. NuGet.Packaging writes its core-properties part under a
+# RANDOM (Guid.NewGuid()) file name every single `dotnet pack` invocation -
+# "package/services/metadata/core-properties/<32 hex>.psmdcp" - and
+# `_rels/.rels` embeds that same random name as a relationship target. Packing
+# the SAME commit with the SAME MinVerVersionOverride twice in a row therefore
+# produces two `.nupkg` files with byte-for-byte IDENTICAL `lib/`, `.nuspec`
+# and every other entry, but a DIFFERENT raw SHA-256 - `dotnet pack` itself has
+# no deterministic-output guarantee for the outer container, only for the
+# compiler's own DLL/PDB output. Comparing raw file hashes here would make
+# `kapi.py yayin` report a false "different artifact" conflict on every
+# second run against an unchanged commit, which is precisely the false
+# positive Faz 136's own manual case 8 exists to rule out.
+_VOLATILE_OPC_ENTRY = re.compile(r"^_rels/\.rels$|^package/services/metadata/core-properties/[0-9a-f]{32}\.psmdcp$")
+
+
+def _content_fingerprint(path: pathlib.Path) -> str:
+    """A hash of a `.nupkg`/`.snupkg`'s MEANINGFUL content - every entry
+    except the random-named OPC metadata NuGet regenerates on every pack.
+    Two packs of the same commit are expected to have the SAME fingerprint;
+    the raw file SHA-256 (`_sha256`, used for the published manifest) is not
+    expected to match and is not what decides a promote/conflict."""
+    digest = hashlib.sha256()
+    with zipfile.ZipFile(path) as archive:
+        names = sorted(name for name in archive.namelist() if not _VOLATILE_OPC_ENTRY.match(name))
+        for name in names:
+            digest.update(name.encode("utf-8"))
+            digest.update(archive.read(name))
+    return digest.hexdigest()
+
+
 def _promote_staged_packages(staging_dir: pathlib.Path, release_dir: pathlib.Path, file_names: Iterable[str]) -> list[str]:
     """Moves each named file from `staging_dir` into `release_dir` - UNLESS an
-    identically named file already lives there with a DIFFERENT SHA-256, in
-    which case NOTHING is moved and the mismatched names are returned so the
-    caller can report them and abort. `release_dir` is therefore never left
-    half-updated: either every file promotes, or none does. A same-hash match
-    is a deterministic no-op - the existing file is already what this run
-    would have produced, so it is left in place as the one true copy."""
+    identically named file already lives there with a DIFFERENT content
+    fingerprint (`_content_fingerprint`, NOT the raw file hash - see its
+    docstring), in which case NOTHING is moved and the mismatched names are
+    returned so the caller can report them and abort. `release_dir` is
+    therefore never left half-updated: either every file promotes, or none
+    does. A same-fingerprint match is a deterministic no-op - the existing
+    file already carries what this run would have produced, so it is left in
+    place as the one true copy."""
     file_names = list(file_names)
     conflicts = [
         name for name in file_names
-        if (release_dir / name).exists() and _sha256(release_dir / name) != _sha256(staging_dir / name)
+        if (release_dir / name).exists() and _content_fingerprint(release_dir / name) != _content_fingerprint(staging_dir / name)
     ]
     if conflicts:
         return conflicts
