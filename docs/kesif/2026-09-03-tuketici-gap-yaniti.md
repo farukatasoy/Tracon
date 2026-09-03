@@ -205,7 +205,7 @@ Yok — `VoiceDescriptor` hiç kalıcılaştırılmaz.
 
 ### Hedef commit
 
-Bu faz `main`'e tek commit'te gider; SHA bu bölüme commit sonrası eklenir.
+`28ca187f` (ana uygulama), takip eden arşivleme/damıtma `3982ce8e`.
 
 ### Hedef paket sürümü
 
