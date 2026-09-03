@@ -15985,6 +15985,13 @@
               "string"
             ],
             "description": "The category given by the provider (for example, \u0060premade\u0060)."
+          },
+          "attributes": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Provider-reported, bounded, safe scalar attributes (for example,\n\u0060gender\u0060 or \u0060language\u0060 \u2014 see \u0060VoiceAttributeNames\u0060)."
           }
         },
         "description": "The definition of an available voice."

@@ -197,8 +197,8 @@ public sealed class AgentCrudTests
         await using var host = await AgentPrismTestHost.StartAsync();
 
         using var response = await host.Client.PutAsJsonAsync(
-            new Uri("/agentprism/api/agents/yok-boyle", UriKind.Relative),
-            TestData.Request(name: "yok-boyle"));
+            new Uri("/agentprism/api/agents/no-such-agent", UriKind.Relative),
+            TestData.Request(name: "no-such-agent"));
 
         response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
     }

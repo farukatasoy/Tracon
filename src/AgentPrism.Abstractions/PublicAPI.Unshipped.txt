@@ -3400,8 +3400,16 @@ AgentPrism.VectorSearchRequest.TenantId.init -> void
 AgentPrism.VectorSearchRequest.Top.get -> int
 AgentPrism.VectorSearchRequest.Top.init -> void
 AgentPrism.VectorSearchRequest.VectorSearchRequest() -> void
+AgentPrism.VoiceAttributeNames
+const AgentPrism.VoiceAttributeNames.Accent = "accent" -> string!
+const AgentPrism.VoiceAttributeNames.Age = "age" -> string!
+const AgentPrism.VoiceAttributeNames.Gender = "gender" -> string!
+const AgentPrism.VoiceAttributeNames.Language = "language" -> string!
+const AgentPrism.VoiceAttributeNames.UseCase = "use-case" -> string!
 AgentPrism.VoiceDescriptor
 AgentPrism.VoiceDescriptor.<Clone>$() -> AgentPrism.VoiceDescriptor!
+AgentPrism.VoiceDescriptor.Attributes.get -> System.Collections.Generic.IReadOnlyDictionary<string!, string!>!
+AgentPrism.VoiceDescriptor.Attributes.init -> void
 AgentPrism.VoiceDescriptor.Category.get -> string?
 AgentPrism.VoiceDescriptor.Category.init -> void
 AgentPrism.VoiceDescriptor.Equals(AgentPrism.VoiceDescriptor? other) -> bool

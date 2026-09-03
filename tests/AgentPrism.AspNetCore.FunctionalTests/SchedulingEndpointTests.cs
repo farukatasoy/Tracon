@@ -140,7 +140,7 @@ public sealed class SchedulingEndpointTests
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
-        using var response = await host.Client.GetAsync(new Uri("/agentprism/api/schedules/yok", UriKind.Relative));
+        using var response = await host.Client.GetAsync(new Uri("/agentprism/api/schedules/does-not-exist", UriKind.Relative));
 
         response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
     }

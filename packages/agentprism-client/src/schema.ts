@@ -6942,6 +6942,13 @@ export interface components {
             name: string;
             /** @description The category given by the provider (for example, `premade`). */
             category?: null | string;
+            /**
+             * @description Provider-reported, bounded, safe scalar attributes (for example,
+             *     `gender` or `language` — see `VoiceAttributeNames`).
+             */
+            attributes?: {
+                [key: string]: string;
+            };
         };
         /** @description The voice provider's reachability status. */
         VoiceHealth: {

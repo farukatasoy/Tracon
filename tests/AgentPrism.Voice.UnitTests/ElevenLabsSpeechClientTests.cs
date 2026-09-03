@@ -189,6 +189,116 @@ public sealed class ElevenLabsSpeechClientTests
     }
 
     [Fact]
+    public async Task Voice_labels_and_verified_languages_map_into_Attributes()
+    {
+        var handler = new StubHttpMessageHandler(_ => StubHttpMessageHandler.Json(
+            """
+            {"voices":[
+              {
+                "voice_id": "a",
+                "name": "Amy",
+                "category": "premade",
+                "labels": {"gender": "female", "accent": "American", "use_case": "conversational"},
+                "verified_languages": [{"language": "en", "model_id": "m1"}, {"language": "fr", "model_id": "m2"}]
+              }
+            ]}
+            """));
+
+        using var client = CreateClient(handler);
+
+        var voices = await client.ListVoicesAsync(TestContext.Current.CancellationToken);
+
+        var voice = voices.ShouldHaveSingleItem();
+        voice.Attributes[VoiceAttributeNames.Gender].ShouldBe("female");
+        voice.Attributes[VoiceAttributeNames.Accent].ShouldBe("American");
+        voice.Attributes[VoiceAttributeNames.UseCase].ShouldBe("conversational");
+        voice.Attributes[VoiceAttributeNames.Language].ShouldBe("en,fr");
+    }
+
+    [Fact]
+    public async Task A_voice_with_no_labels_yields_an_empty_but_non_null_Attributes_collection()
+    {
+        var handler = new StubHttpMessageHandler(_ => StubHttpMessageHandler.Json(
+            """{"voices":[{"voice_id":"a","name":"Amy"}]}"""));
+
+        using var client = CreateClient(handler);
+
+        var voices = await client.ListVoicesAsync(TestContext.Current.CancellationToken);
+
+        voices.ShouldHaveSingleItem().Attributes.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task Voice_list_follows_has_more_and_next_page_token_across_pages()
+    {
+        // 🚨 /v2/voices defaults to page_size=10 when unspecified: a client that
+        // ignores has_more/next_page_token silently truncates any real catalog.
+        var handler = new StubHttpMessageHandler(request =>
+        {
+            var query = request.RequestUri!.Query;
+
+            return !query.Contains("next_page_token", StringComparison.Ordinal)
+                ? StubHttpMessageHandler.Json(
+                    """{"voices":[{"voice_id":"a","name":"Amy"}],"has_more":true,"next_page_token":"page-2"}""")
+                : StubHttpMessageHandler.Json(
+                    """{"voices":[{"voice_id":"b","name":"Zoe"}],"has_more":false}""");
+        });
+
+        using var client = CreateClient(handler);
+
+        var voices = await client.ListVoicesAsync(TestContext.Current.CancellationToken);
+
+        voices.Count.ShouldBe(2);
+        handler.Requests.Count.ShouldBe(2);
+        handler.Requests[0].Uri.Query.ShouldContain("page_size=100");
+        handler.Requests[1].Uri.Query.ShouldContain("next_page_token=page-2");
+    }
+
+    [Fact]
+    public async Task A_failure_on_a_later_page_fails_the_whole_call_rather_than_returning_a_partial_list()
+    {
+        var handler = new StubHttpMessageHandler(request =>
+        {
+            var query = request.RequestUri!.Query;
+
+            return !query.Contains("next_page_token", StringComparison.Ordinal)
+                ? StubHttpMessageHandler.Json(
+                    """{"voices":[{"voice_id":"a","name":"Amy"}],"has_more":true,"next_page_token":"page-2"}""")
+                : new HttpResponseMessage(HttpStatusCode.InternalServerError)
+                {
+                    Content = new StringContent("""{"detail":"provider outage"}"""),
+                };
+        });
+
+        using var client = CreateClient(handler);
+
+        var exception = await Should.ThrowAsync<AgentPrismException>(
+            async () => await client.ListVoicesAsync(TestContext.Current.CancellationToken));
+
+        exception.Message.ShouldContain("Voice list could not be retrieved");
+        handler.Requests.Count.ShouldBe(2);
+    }
+
+    [Fact]
+    public async Task Voice_list_stops_paging_once_the_reported_cap_is_reached()
+    {
+        var page = "{\"voices\":[" +
+                   string.Join(',', Enumerable.Range(0, 200).Select(i => $$"""{"voice_id":"v{{i}}","name":"n{{i:D3}}"}""")) +
+                   "],\"has_more\":true,\"next_page_token\":\"more\"}";
+
+        var handler = new StubHttpMessageHandler(_ => StubHttpMessageHandler.Json(page));
+
+        using var client = CreateClient(handler);
+
+        var voices = await client.ListVoicesAsync(TestContext.Current.CancellationToken);
+
+        voices.Count.ShouldBe(500);
+
+        // 500 / 200-per-page = 3 pages; a fourth would only add duplicates past the cap.
+        handler.Requests.Count.ShouldBe(3);
+    }
+
+    [Fact]
     public async Task Transcript_is_sent_with_a_multipart_body()
     {
         var handler = new StubHttpMessageHandler(_ => StubHttpMessageHandler.Json(

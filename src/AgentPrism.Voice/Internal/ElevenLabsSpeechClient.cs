@@ -213,18 +213,48 @@ internal sealed class ElevenLabsSpeechClient : ISpeechSynthesizer, ISpeechTransc
         }
     }
 
+    /// <summary>The most voices requested per <c>/v2/voices</c> call - the provider's own ceiling.</summary>
+    private const int VoicePageSize = 100;
+
     /// <inheritdoc />
+    /// <remarks>
+    /// Follows the provider's <c>has_more</c>/<c>next_page_token</c> pagination
+    /// until it reports no more pages or the result reaches the reported cap,
+    /// requesting the largest page size the provider allows on each call.
+    /// </remarks>
     public async ValueTask<IReadOnlyList<VoiceDescriptor>> ListVoicesAsync(
         CancellationToken cancellationToken = default)
     {
-        using var message = new HttpRequestMessage(HttpMethod.Get, BuildUri("v2/voices"));
-        AddApiKey(message);
+        var collected = new List<ElevenLabsVoice>();
+        string? pageToken = null;
 
-        using var response = await _http.SendAsync(message, cancellationToken).ConfigureAwait(false);
+        do
+        {
+            var path = pageToken is null
+                ? $"v2/voices?page_size={VoicePageSize}"
+                : $"v2/voices?page_size={VoicePageSize}&next_page_token={Uri.EscapeDataString(pageToken)}";
 
-        await EnsureSuccessAsync(response, "Voice list could not be retrieved", cancellationToken).ConfigureAwait(false);
+            using var message = new HttpRequestMessage(HttpMethod.Get, BuildUri(path));
+            AddApiKey(message);
 
-        return await ReadVoicesAsync(response, cancellationToken).ConfigureAwait(false);
+            using var response = await _http.SendAsync(message, cancellationToken).ConfigureAwait(false);
+
+            await EnsureSuccessAsync(response, "Voice list could not be retrieved", cancellationToken).ConfigureAwait(false);
+
+            var page = await ReadVoicesPageAsync(response, cancellationToken).ConfigureAwait(false);
+
+            if (page?.Voices is { Count: > 0 } voices)
+            {
+                collected.AddRange(voices);
+            }
+
+            pageToken = page is { HasMore: true } && page.NextPageToken is { Length: > 0 } token
+                ? token
+                : null;
+        }
+        while (pageToken is not null && collected.Count < MaxReportedVoices);
+
+        return MapVoices(collected);
     }
 
     /// <inheritdoc />
@@ -551,9 +581,9 @@ internal sealed class ElevenLabsSpeechClient : ISpeechSynthesizer, ISpeechTransc
         return result;
     }
 
-    /// <summary>Parses the voice list body.</summary>
+    /// <summary>Parses one page of the voice list body.</summary>
     /// <remarks><c>internal</c>: unit tests verify this with a prepared body.</remarks>
-    internal static async ValueTask<IReadOnlyList<VoiceDescriptor>> ReadVoicesAsync(
+    internal static async ValueTask<ElevenLabsVoicesResponse?> ReadVoicesPageAsync(
         HttpResponseMessage response,
         CancellationToken cancellationToken)
     {
@@ -561,39 +591,40 @@ internal sealed class ElevenLabsSpeechClient : ISpeechSynthesizer, ISpeechTransc
 
         await using (stream.ConfigureAwait(false))
         {
-            var payload = await JsonSerializer
+            return await JsonSerializer
                 .DeserializeAsync(stream, ElevenLabsJsonContext.Default.ElevenLabsVoicesResponse, cancellationToken)
                 .ConfigureAwait(false);
-
-            if (payload?.Voices is not { Count: > 0 } voices)
-            {
-                return [];
-            }
-
-            var result = new List<VoiceDescriptor>(voices.Count);
-
-            foreach (var voice in voices)
-            {
-                if (result.Count >= MaxReportedVoices)
-                {
-                    break;
-                }
-
-                if (voice.VoiceId is { Length: > 0 } id)
-                {
-                    result.Add(new VoiceDescriptor
-                    {
-                        VoiceId = id,
-                        Name = voice.Name ?? id,
-                        Category = voice.Category,
-                    });
-                }
-            }
-
-            result.Sort(static (left, right) => string.CompareOrdinal(left.Name, right.Name));
-
-            return result;
         }
+    }
+
+    /// <summary>Maps, bounds and sorts raw provider voices into the public model.</summary>
+    /// <remarks><c>internal</c>: unit tests verify this directly, without HTTP.</remarks>
+    internal static IReadOnlyList<VoiceDescriptor> MapVoices(IEnumerable<ElevenLabsVoice> voices)
+    {
+        var result = new List<VoiceDescriptor>();
+
+        foreach (var voice in voices)
+        {
+            if (result.Count >= MaxReportedVoices)
+            {
+                break;
+            }
+
+            if (voice.VoiceId is { Length: > 0 } id)
+            {
+                result.Add(new VoiceDescriptor
+                {
+                    VoiceId = id,
+                    Name = voice.Name ?? id,
+                    Category = voice.Category,
+                    Attributes = VoiceAttributeMapper.Map(voice.Labels, voice.VerifiedLanguages),
+                });
+            }
+        }
+
+        result.Sort(static (left, right) => string.CompareOrdinal(left.Name, right.Name));
+
+        return result;
     }
 
     /// <summary>Parses the transcription response.</summary>

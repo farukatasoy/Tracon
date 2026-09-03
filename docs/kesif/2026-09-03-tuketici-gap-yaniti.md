@@ -111,4 +111,130 @@ karşılaştırma adımını anlatır.
 
 ---
 
-*AP-REQ-001 ve AP-REQ-003 bölümleri kendi fazlarının kapanışında eklenir.*
+## AP-REQ-003 — Ses tanımının sağlayıcı üstverisi
+
+**Faz:** [138 — Ses Tanımının Sağlayıcı Üstverisi](../138-SES-TANIMININ-SAGLAYICI-USTVERISI.md)
+
+### Karar
+
+Kabul edildi ve kapatıldı. İddianız doğruydu: `VoiceDescriptor` yalnız üç alan
+taşıyordu (`VoiceId`, `Name`, `Category`) ve ElevenLabs'in `labels` alanı hiç
+parse edilmiyordu — kendi konsolumuz bile bu boşluk yüzünden elle bir dil
+eşlemesi taşıyordu (`settings.tsx`/`voice.ts`).
+
+### Gerekçe
+
+Kanıt bu oturumda ölçüldü: `ElevenLabsVoice` (`ElevenLabsJson.cs`) yalnız
+`voice_id`/`name`/`category` okuyordu, `ReadVoicesAsync` yalnız bu üçünü
+eşliyordu. §5'in istediği minimum kümenin (`gender`/`language`/`accent`) hangi
+alandan geldiği ölçüm gerektiriyordu: ElevenLabs'in yayınladığı OpenAPI
+belgesi (`api.elevenlabs.io/openapi.json`) doğrudan indirilip
+`components.schemas.VoiceResponseModel` incelendi. Sonuç raporun varsayımından
+farklı çıktı — `labels` (`additionalProperties: string`) `gender`/`accent`/
+`age`/`use_case`/`description` taşıyor ama **`language` taşımıyor**; dil ayrı
+bir alanda, `verified_languages` (bir voice birden çok model için doğrulanmış
+olabileceğinden dizi, her öge `VerifiedVoiceLanguageResponseModel.language`
+zorunlu alanı) durur. Sorgu dokümantasyon prosasının ("filtering, based on the
+voice's 'language' label") şemanın kendisiyle çeliştiği de bu turda görüldü —
+gerçek karar örnek JSON ve şema tanımından alındı, prosadan değil.
+
+İkinci bir ölçüm daha aynı dosyada çıktı: `ListVoicesAsync` `/v2/voices`'i hiç
+sorgu dizesi eklemeden çağırıyordu; o uç `page_size` verilmezse **varsayılan
+10** ses döndürür. Kod `MaxReportedVoices = 500` sınırını varsayıyordu ama
+gerçekte hiçbir hesap 10'dan fazla ses hiç görmüyordu — raporunuzun kapsamı
+dışında ama aynı dosyada karşılaşılan bir kusurdu, bu fazda birlikte kapatıldı.
+
+### Uygulanan sözleşme
+
+- `VoiceDescriptor.Attributes` — `IReadOnlyDictionary<string, string>`,
+  varsayılan boş (mevcut kod değişmeden derlenir). `VoiceAttributeNames`
+  sabitleri (`Gender`, `Language`, `Accent`, `Age`, `UseCase`) yazım hatasını
+  önler; küme kapalı değildir, bilinmeyen güvenli bir etiket de kendi anahtarı
+  altında taşınır (raporun §5'i bunu açıkça istedi).
+- **Sınırlar** (`VoiceAttributeMapper`): en fazla 32 attribute, 64 karakter
+  key, 256 karakter value; case-insensitive duplicate key tek kanonik
+  (küçük harf, `_`→`-`) değere iner; yalnız `JsonValueKind.String` değer
+  taşınır — sayı/nesne/dizi/null güvenle atlanır (`VoiceAttributeMapperTests`,
+  15 birim testi).
+- **`preview_url` ve API key hiçbir koşulda taşınmaz** — ilki mevcut, bilinçli
+  bir karar (`SpeechModels.cs`); ikincisi `ElevenLabsVoice`'ta hiç alan olarak
+  yok. `SecretLeakTests` tam alan taraması yapar.
+- **`language` normalizasyonu**: `verified_languages` dizisindeki dağınık
+  dil kodları küçük harfe indirgenip tekilleştirilir, sıralanır ve tek bir
+  `Attributes["language"]` değerine virgülle birleştirilir (`"en,fr"`).
+- **Sayfalama düzeltmesi**: `ListVoicesAsync` artık `page_size=100` ile
+  başlar ve `has_more`/`next_page_token` bitene veya 500 sınırına ulaşana
+  kadar sayfaları takip eder.
+- **`list_voices` çıktısı** artık bilinen bir `gender` varsa gösterir; aracın
+  iki Türkçe dizgesi ("Kullanilabilir ses yok." / "… ve … ses daha.")
+  İngilizce'ye çevrildi ve `SourceLanguageTests`'in kelime listesi bu sınıfı
+  yakalayacak biçimde genişletildi (taban çizgisi büyümedi — aynı turda
+  ortaya çıkan beş test dosyasındaki benzer Türkçe test verisi de temizlendi).
+- **Arayüz**: `settings.tsx`'teki ses seçici artık `language`/`gender`
+  varsa `"Amy (en, female)"` biçiminde gösterir; elle dil eşlemesi bu fazda
+  KALDIRILMADI (bkz. aşağı, kapsam bilinçli dar tutuldu).
+
+### Bu rapordan farklı davranış
+
+Raporun 9. maddesi `language`'ın `labels` altında olacağını varsayıyordu;
+ölçüm bunun yanlış olduğunu gösterdi (`verified_languages` ayrı bir alan).
+Sözleşme aynı kaldı (`Attributes["language"]`), yalnız eşleme kaynağı farklı.
+
+Raporun önerdiği gibi typed `Gender`/`Language`/`Accent` özellikleri yerine
+sınırlı bir sözlük seçildi — raporun kendisi de §5'te bunu tercih etmişti;
+her yeni sağlayıcı etiketi (`use_case`, `age`, ileride başkaları) aksi hâlde
+yeni bir public sözleşme değişikliği isterdi (K-669).
+
+Konsolun (`settings.tsx`) elle dil eşlemesi bu fazda **kaldırılmadı**. Ölçüm
+dilin gerçekten geldiğini gösterdi, ama yalnız ElevenLabs için ve yalnız
+sağlayıcı bunu doğrularsa (`verified_languages` boş dönebilir); tüm
+sağlayıcılar için garanti değildir, bu yüzden operatörün elle seçimi hâlâ tek
+güvenilir yoldur. Seçici artık bu üstveriyle zenginleşir ama seçimin yerini
+almaz — kapsam bilinçli dar tutuldu, kaldırma kararı ayrı bir tur gerektirir.
+
+### Breaking change
+
+Yok. `VoiceDescriptor.Attributes` varsayılanlı bir alan; var olan her
+`ISpeechSynthesizer` uygulaması değişmeden derlenir (`Attributes` yalnız
+`VoiceDescriptor`'ı üreten kodun doldurabileceği bir alan, uygulamanın
+kendisinin değil).
+
+### Store migration
+
+Yok — `VoiceDescriptor` hiç kalıcılaştırılmaz.
+
+### Hedef commit
+
+Bu faz `main`'e tek commit'te gider; SHA bu bölüme commit sonrası eklenir.
+
+### Hedef paket sürümü
+
+`1.0.0-preview.1` ve sonrası — henüz tag atılmadı (AP-REQ-002 ile aynı durum).
+
+### Eklenen testler
+
+- `tests/AgentPrism.Voice.UnitTests/VoiceAttributeMapperTests.cs` — 15 birim
+  testi: bilinen etiketler, `null`/nesne/dizi/sayısal değer güvenli atlama,
+  32/64/256 sınırları, case-insensitive + `_`→`-` kanonikleştirme,
+  `verified_languages` birleştirme.
+- `tests/AgentPrism.Voice.UnitTests/ElevenLabsSpeechClientTests.cs` — yeni:
+  `labels`+`verified_languages` uçtan uca eşleme, boş `labels` → boş
+  koleksiyon, `has_more`/`next_page_token` sayfalama takibi, 500 sınırında
+  durma.
+- `tests/AgentPrism.Voice.UnitTests/SecretLeakTests.cs` — yeni:
+  `preview_url`'in `VoiceDescriptor`'a hiçbir koşulda ulaşmadığının tam alan
+  taraması.
+- `tests/AgentPrism.Voice.UnitTests/ListVoicesToolTests.cs` — yeni: İngilizce
+  mesajlar, gender gösterimi.
+- `tests/AgentPrism.Core.UnitTests/Architecture/SourceLanguageTests.cs` —
+  kelime listesi genişletildi (`yok`, `ses`, `kullanilabilir`, `daha`); aynı
+  turda beş `AgentPrism.AspNetCore.FunctionalTests` dosyasındaki benzer
+  Türkçe test verisi (`"yok-boyle"`, `"merhaba"`, ...) İngilizce'ye çevrildi.
+- `src/AgentPrism.UI/frontend/src/lib/voice.test.ts` — `voiceOptionMeta` için
+  4 yeni test.
+
+### Tüketici upgrade adımları
+
+Yok — kaynak uyumlu bir büyüme. `AgentPrism.Voice`/`AgentPrism.Abstractions`'ı
+güncelleyen bir tüketici `VoiceDescriptor.Attributes`'a hemen erişebilir;
+erişmeyen kod değişmeden çalışmaya devam eder.

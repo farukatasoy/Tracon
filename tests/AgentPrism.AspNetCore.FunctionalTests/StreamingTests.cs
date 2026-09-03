@@ -73,8 +73,8 @@ public sealed class StreamingTests
         await using var host = await AgentPrismTestHost.StartAsync();
 
         using var response = await host.Client.PostAsJsonAsync(
-            new Uri("/agentprism/api/agents/yok-boyle/run", UriKind.Relative),
-            new AgentRunRequest { Message = "merhaba" });
+            new Uri("/agentprism/api/agents/no-such-agent/run", UriKind.Relative),
+            new AgentRunRequest { Message = "hello" });
 
         response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
         response.Content.Headers.ContentType?.MediaType.ShouldBe("application/problem+json");

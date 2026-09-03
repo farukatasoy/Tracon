@@ -23,7 +23,7 @@ dotnet user-secrets set "AgentPrism:Voice:ApiKey" "..."
 |------|----------|-------|
 | `speak` | Converts text to speech, writes it to the attachment store | Attachment **ID** |
 | `transcribe` | Converts an audio attachment to text | Resolved text |
-| `list_voices` | Lists the available voices | List of name + ID |
+| `list_voices` | Lists the available voices | Name, ID, category, and safe scalar attributes (for example `gender`) |
 
 Tools are defined **in code**. A tool can be added to an agent from the
 UI, but tool **code** cannot be written there.

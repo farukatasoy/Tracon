@@ -8454,10 +8454,39 @@ agentPrism.AddAgent(new AgentDefinition
 |---|---|
 | `speak` | Text in; generated audio attachment ID out |
 | `transcribe` | Audio attachment ID in; resolved text out |
-| `list_voices` | Provider voice names and identifiers out |
+| `list_voices` | Provider voice names, identifiers, and safe scalar attributes out |
 
 Generated audio is stored through the normal attachment contract. The model receives
 an attachment ID, not a large byte array.
+
+### Voice attributes
+
+`VoiceDescriptor.Attributes` carries a provider's own bounded, safe scalar
+metadata for a voice — for example `gender`, `language`, `accent`, `age`, or
+`use-case`. `VoiceAttributeNames` names the well-known keys, but the set is not
+closed: any other safe scalar label a provider reports survives under its own
+key. The collection is empty, never `null`, when the provider reports nothing.
+
+```csharp
+var voices = await synthesizer.ListVoicesAsync();
+var femaleEnglish = voices.Where(v =>
+    v.Attributes.GetValueOrDefault(VoiceAttributeNames.Gender) == "female" &&
+    (v.Attributes.GetValueOrDefault(VoiceAttributeNames.Language) ?? "").Contains("en"));
+```
+
+Bounds keep a misbehaving provider response from becoming a payload: at most 32
+attributes per voice, a 64-character key, a 256-character value. A duplicate
+key that differs only by case or by `_`/`-` collapses to one canonical
+lowercase, hyphenated entry (`use_case` and `use-case` both become `use-case`).
+`preview_url` is never carried — playing it would connect the browser directly
+to the provider's address — and neither is any other provider-internal field;
+only the declared safe scalar labels reach the model.
+
+Whether `language` is populated depends entirely on what the underlying
+provider reports: the built-in ElevenLabs implementation reads it from that
+provider's per-model verified-languages list, joining multiple verified
+languages into one comma-separated value (for example `"en,fr"`). A provider
+that reports nothing comparable simply omits the key — it is never guessed.
 
 ### Use a storable output format
 

@@ -23686,6 +23686,14 @@ namespace AgentPrism.Client.Generated
         [System.Text.Json.Serialization.JsonPropertyName("category")]
         public string? Category { get; set; } = default!;
 
+        /// <summary>
+        /// Provider-reported, bounded, safe scalar attributes (for example,
+        /// <br/>`gender` or `language` — see `VoiceAttributeNames`).
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("attributes")]
+        public System.Collections.Generic.IDictionary<string, string> Attributes { get; set; } = default!;
+
     }
 
     /// <summary>
