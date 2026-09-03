@@ -9,7 +9,7 @@
 > **Tüketici yüzeyi:** `docs-site/src/content/docs/reference/versioning.md` (sürüm ve
 > artifact kimliği politikası) · sevk edilen yapıt: **yok** — tanı yalnız kaynaktan
 > derleyende görünür, repo private olduğu için tüketiciye ulaşmaz
-> **Manuel test alanı:** [`manuel-test/01-KURULUM-VE-PAKETLEME.md`](manuel-test/01-KURULUM-VE-PAKETLEME.md)
+> **Manuel test alanı:** [`manuel-test/01-KURULUM-VE-PAKETLEME.md`](../../manuel-test/01-KURULUM-VE-PAKETLEME.md)
 
 ---
 
@@ -27,13 +27,13 @@
    işleri prova kapısına bağlı; kapı **ağa çıkmaz**) · **K-622** (`kapi.py yayin`
    sample'ları izole `NUGET_PACKAGES` ve tek exact sürümle koşar) · **K-659**
    (pakete giren tüketiciye dönük URL'ler doküman sitesine bakar)
-3. [`YAYIN-HAZIRLIK.md`](YAYIN-HAZIRLIK.md) — yalnız §4 (güncel yayın kararı) ve
+3. [`YAYIN-HAZIRLIK.md`](../../YAYIN-HAZIRLIK.md) — yalnız §4 (güncel yayın kararı) ve
    §6'daki BL-055. Bu faz, orada "kalan tek adım" diye yazılan `1.0.0-preview.1`
    tag'inin **önüne** giren kapıdır.
 4. Alan hafızası:
-   [`hafiza/paketleme-ve-dagitim.md`](hafiza/paketleme-ve-dagitim.md) — pack
+   [`hafiza/paketleme-ve-dagitim.md`](../../hafiza/paketleme-ve-dagitim.md) — pack
    tuzakları, `IncludeBuildOutput=false` profilleri, üretilen dosya kuralları.
-5. Gerektiğinde: [`.agents/ortak/kapilar.md`](../.agents/ortak/kapilar.md) — dört
+5. Gerektiğinde: [`.agents/ortak/kapilar.md`](../../../.agents/ortak/kapilar.md) — dört
    doğrulama kapısının komut yüzeyi.
 
 ---
@@ -71,9 +71,9 @@ Kök neden üç katmandır:
 
 | Kanıt | Gözlem |
 |---|---|
-| [`src/Directory.Build.props:79-81`](../src/Directory.Build.props) | MinVer sürümü yalnız git geçmişinden türetir. Height, `git rev-list --count --first-parent <commit>` eksi bir olarak ölçüldü (`ef06fc37` → 533, `8b21cf9f` → 534). Çalışma ağacının durumu **hiç girdi değildir** |
-| [`Directory.Build.targets:46-50`](../Directory.Build.targets) | `AgentPrismValidatePackageReadme` pack anında koşan bir kapının **tam desenini** taşıyor (`BeforeTargets="GenerateNuspec"`, `IsPackable` koşulu, `Code="AGENTPRISM0001"`). Temizlik için eşdeğeri **yok** |
-| [`scripts/kapi.py:701-709`](../scripts/kapi.py), çağrı [`:756`](../scripts/kapi.py) | 🚨 `_clean_stale_packages`, paketlemeden **önce** aynı kimlikteki artifact'i **siler**. Sessiz overwrite bir kaza değil, mevcut tasarımın kendisidir. Tüketicinin "farklı SHA-256 taşıyan existing artifact overwrite öncesinde durdurmalı" maddesi bugün yapısal olarak karşılanamaz |
+| [`src/Directory.Build.props:79-81`](../../../src/Directory.Build.props) | MinVer sürümü yalnız git geçmişinden türetir. Height, `git rev-list --count --first-parent <commit>` eksi bir olarak ölçüldü (`ef06fc37` → 533, `8b21cf9f` → 534). Çalışma ağacının durumu **hiç girdi değildir** |
+| [`Directory.Build.targets:46-50`](../../../Directory.Build.targets) | `AgentPrismValidatePackageReadme` pack anında koşan bir kapının **tam desenini** taşıyor (`BeforeTargets="GenerateNuspec"`, `IsPackable` koşulu, `Code="AGENTPRISM0001"`). Temizlik için eşdeğeri **yok** |
+| [`scripts/kapi.py:701-709`](../../../scripts/kapi.py), çağrı [`:756`](../../../scripts/kapi.py) | 🚨 `_clean_stale_packages`, paketlemeden **önce** aynı kimlikteki artifact'i **siler**. Sessiz overwrite bir kaza değil, mevcut tasarımın kendisidir. Tüketicinin "farklı SHA-256 taşıyan existing artifact overwrite öncesinde durdurmalı" maddesi bugün yapısal olarak karşılanamaz |
 
 > Kanıtlar 2026-09-03 tarihinde doğrulandı.
 
@@ -261,7 +261,7 @@ docs/kesif/2026-09-03-tuketici-gap-yaniti.md         (yeni — §9 yanıtı)
 ## Hata Modları ve Testler
 
 > Seviyeyi plan seçer. Bu fazın davranışı **paket sınırını** geçer; birim testi
-> tek başına kanıtlamaz — [`.agents/ortak/test-seviyeleri.md`](../.agents/ortak/test-seviyeleri.md).
+> tek başına kanıtlamaz — [`.agents/ortak/test-seviyeleri.md`](../../../.agents/ortak/test-seviyeleri.md).
 
 | Ne bozulabilir | Seviye | Test |
 |---|---|---|
@@ -291,7 +291,7 @@ ikinci savunma hattıdır, tek hat değil.
 
 ## Manuel Kabul Case'leri
 
-> Kapanışta [`manuel-test/01-KURULUM-VE-PAKETLEME.md`](manuel-test/01-KURULUM-VE-PAKETLEME.md)
+> Kapanışta [`manuel-test/01-KURULUM-VE-PAKETLEME.md`](../../manuel-test/01-KURULUM-VE-PAKETLEME.md)
 > içine eklenir.
 
 | # | Ön koşul | Adımlar | Beklenen sonuç |
@@ -506,5 +506,5 @@ collection kablolaması.
 - **`artifacts/package/release/`, `kapi.py yayin` koşumları arasında artık
   OTOMATİK temizlenmiyor.** Eski sürümlerin dosyaları elde kalır (bilinçli,
   bkz. `docs/hafiza/paketleme-ve-dagitim.md`); gerekirse elle `rm -rf`.
-- Sıradaki faz: AP-REQ-001 (custom job dispatch), [Faz 137](137-IS-TURUNUN-ACIK-ANAHTARI.md)
+- Sıradaki faz: AP-REQ-001 (custom job dispatch), [Faz 137](../../137-IS-TURUNUN-ACIK-ANAHTARI.md)
   — zaten bu fazı önkoşul olarak işaretliyor, ek bir devir notu istemiyor.

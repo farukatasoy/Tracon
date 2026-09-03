@@ -10,7 +10,7 @@
 
 ## AP-REQ-002 — Paket kimliğinin tekilliği
 
-**Faz:** [136 — Paket Kimliğinin Tekilliği](../136-PAKET-KIMLIGININ-TEKILLIGI.md)
+**Faz:** [136 — Paket Kimliğinin Tekilliği](../arsiv/fazlar/136-PAKET-KIMLIGININ-TEKILLIGI.md)
 
 ### Karar
 
@@ -82,9 +82,8 @@ Yok.
 
 ### Hedef commit
 
-Bu doküman fazın kendi commit'inde eklendi; tam hash için
-`git log --oneline -- docs/136-PAKET-KIMLIGININ-TEKILLIGI.md` ile ilk kaydı
-kontrol edin.
+`2fd0c3ab57fba074f43012aa7b747e419f5194b9` (ana uygulama), takip eden düzeltme
+`3928f50d` (OPC rastgeleliği kaynaklı yanlış-pozitif çakışma).
 
 ### Hedef paket sürümü
 

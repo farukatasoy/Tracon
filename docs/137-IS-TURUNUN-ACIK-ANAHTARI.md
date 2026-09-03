@@ -2,7 +2,7 @@
 
 > **Durum:** 📋 Planlandı (2026-09-03)
 > **Kaynak:** Tüketici raporu AP-REQ-001 + yanıt dokümanı §1–§3 (ProdigyEnabler, 2026-09-03) · **F-183**
-> **Önkoşul:** [Faz 136](136-PAKET-KIMLIGININ-TEKILLIGI.md) — tüketici bu fazı yeni ve
+> **Önkoşul:** [Faz 136](arsiv/fazlar/136-PAKET-KIMLIGININ-TEKILLIGI.md) — tüketici bu fazı yeni ve
 > benzersiz bir paket sürümü üzerinden ölçecek; kimlik kapısı önce girer
 > **Paketler:** `AgentPrism.Abstractions`, `.Core`, `.Sql.Shared`, `.PostgreSql`,
 > `.SqlServer`, `.Sqlite`, `.AspNetCore`, `.Client`, `.UI`, `.Testing.Contracts.Xunit`
