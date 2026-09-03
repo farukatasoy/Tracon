@@ -4324,3 +4324,110 @@ Kalan 60 arayüz TEKİL seam ve hepsi `TryAdd*` ile kayıtlı — düz `Add*`/`R
 ### K-542
 
 **Kök alınmadı** — ölçüldü: `doayen.web.tr` kökünde canlı bir ASP.NET Core uygulaması var (Kestrel, `:5001`, Let's Encrypt'li ters proxy); alt alan adı o uygulamaya dokunmaz ve proxy sıralaması gerektirmez. **`base` kalıcı olarak `/`**: alt yol sitenin değil BARINDIRICININ özelliğiydi (Pages proje sitesi depo adını yola sokar). El yazısı 39 sayfadaki 224 bağlantı önekten arındırıldı; bedeli açıktır — site bir gün alt yola dönerse o 224 bağlantı da güncellenmelidir, ama bu SESSİZ bir kırılma değildir, `check-links.mjs` üretilen `dist/` üzerinde 130 320 bağlantıyı yürür ve yayından ÖNCE kızarır. Alternatif (remark eklentisi) REDDEDİLDİ: frontmatter `link:` alanlarını ve MDX'teki ham `<a href>` özniteliklerini görmez, yani kapsamı eksik bir soyutlama olurdu. Adres yedi ayrı kopyada yaşıyordu ve hiçbir kapı uyuştuklarını doğrulamıyordu — biri sondaki eğik çizgi olmadan yazılmıştı; hepsi `site.config.mjs`'ten türetildi ve `check-content.mjs` 11. kontrolü eklendi: türetebilecek bir dosyada adresi HARFİYEN yazmak da, `formerHosts` listesindeki eski bir barındırıcıya işaret etmek de kapıyı kızartır (üçü de ölçümle doğrulandı). C# tarafı ayrı dilde olduğu için ikinci bir bildirim zorunluydu (`DocumentationLinks`); `DiagnosticIntegrityTests` `site.config.mjs`'i OKUR ve ikisinin ayrılmasını engeller — `ShippedDocumentationSelfContainmentTests`'in `internal-history.pattern` için kullandığı desen. **Yayın yerel script'tir** (`scripts/site-deploy.sh`: derleme → dört kapı → rsync): özel repo'nun Actions dakikası sınırlıdır ve GitHub'a SSH anahtarı konmaz. **Barındırma Traefik'tir, host üzerinde nginx/Caddy DEĞİL** — ölçüldü: :80 ve :443'ü Docker dinliyor, sunucuda Traefik v2.11 konteyneri var ve yönlendirme Docker label'ıyla yapılıyor. Site de bir konteynerdir (`nginx:1.27-alpine`, statik dizini salt-okunur bağlar) ve mevcut servisin konvansiyonunu kopyalar: `reverse-proxy` dış ağı, `websecure` entrypoint'i, `le` sertifika çözücüsü. Yapılandırma repo'dadır (`docs-site/deploy/`) ve elle sunucuda tutulmaz; `SITE_HOST` `.env` ile geçer, böylece adres orada da tekrarlanmaz — kapı o dizini de tarar. Script `docker compose up -d` koşar, yani konteyner repo'daki dosyadan sapamaz. CI'nin `pages` işi `site` işine dönüştü — YAYINLAMAZ, yalnız derler ve kapılarını koşar. Aynı sebebin ikinci sonucu: repo özel olduğu için Starlight'ın `editLink`'i ve başlıktaki GitHub ikonu KALDIRILDI — ölçüldü, `github.com/farukatasoy/AgentPrism` anonim okuyucuya **404** veriyor ve 'Edit page' bağlantısı el yazısı 39 sayfanın hepsinde duruyordu; her ziyaretçinin yalnız başarısız olabileceği bir bağlantı, bağlantısızlıktan kötüdür (👤 kullanıcı kararı). Aynı sebeple 10 paket README'sindeki "Repository and full documentation" satırı siteye yönlendirildi — o satır NuGet'te duruyordu ve vaadinin iki yarısı da açılamıyordu. Tekrarı `check-content.mjs` engeller: `repositoryIsPublic` `false` olduğu sürece repo adresi sevk edilen metinde YASAKTIR; repo açılınca tek bayrak çevrilir. **Taşıma geçicidir**; geri dönüş `site.config.mjs`'te tek satırdır.
+
+## Faz 90 damıtmasında taşınan gerekçeler
+
+### K-646
+
+Referans örnek (`ContosoModelProvider`) sarmalayıcıyı da önbelleğe alır; sözleşmenin kendi XML dokümanı bunu açıkça ister ("a caller builds it once and holds on to it"). Ölçüldü: gerçek çağıran (`ModelProviderRegistry.BuildPipeline`) bu kimliğe BUGÜN bağlı değil — her çağrıda tüm boru hattını yeniden kurar — kullanıcıya bu ölçüm gösterildi ve sözleşmeyi gevşetmek yerine dört adaptörün düzeltilmesi seçildi: `AgentDefinitionValidator` + `AgentDefinitionCompiler` aynı (credential, binding) çiftini normal akışta gerçekten İKİ KEZ çözüyor, yani "iki kez üretmek zararsız olmalı" iddiası gerçek bir yoldan doğrulanıyor. Dördü de aynı `ProviderCredentialClientCache<TFactory>` + `CreateChatClientCore` desenini paylaştığı için kusur sınıf çapında tekrarlıyordu (`kusur-giderme` sınıf taraması); `AgentPrism.Testing.FakeModelProvider` aynı deseni taşır ama tarandı ve BİLEREK dışarıda bırakıldı — bir test double'dır, her çağrıyı `Requests` listesine kaydeder ve hiçbir tüketici sarmalayıcı kimliğine bağlı değildir.
+
+### K-647
+
+XML dokümanı NuGet paketine girer — tüketici hiç yazılmayan bir anahtarı ayrıştırır. Ölçüm sebebi verdi: payload iddiası taşıyan 14 üyenin **4'ünün** payload'ını hiçbir test okumuyordu ve `ModelFallbackUsed` o dördün içindeydi. Vaka 1'de kod eksikti (sebep çağrı yerinde vardı), vaka 2'de doküman yanlıştı. `reason`'ın kapalı küme olması K-640'ın kuralıdır: `run_events` kalıcıdır ve bir sağlayıcı mesajı isteği veya yanıt gövdesini alıntılayabilir. Karar ifadesi tek yerde tutuldu (`FallbackRetryClassifier.Classify` sebebi üretir, `IsRetryable` ondan türer) — K-483'ün "elle tekrarlanan toplama ifadesi" sınıfının aynısı. Kapının yazılı sınırı: prose'u anahtarla karşılaştıramaz — `ContentMasked` gerçek bir testle KAPSANMIŞTI ve yine de kaydı; kapı yalnız iddianın önüne bir insan koyar.
+
+### K-648
+
+Kusur düşen bir testle üretildi: var olan bir oturumda eşzamanlı iki tur **ikisi de başarı bildirdi** (beklenen 1, ölçülen 2) ve kaybedenin turu sessizce üzerine yazıldı — kullanıcı bunu kapsam kararı değil, gözden kaçma olarak doğruladı. İçeride sessiz retry REDDEDİLDİ: kaybeden turun hangi kararla düştüğünü çağırandan gizlerdi ve ilk kaydın var olan davranışıyla çelişirdi. Üç tuzak ölçüldü: (1) `AuditingSessionStore` yeni üyeyi iletmezse arayüzün atomik OLMAYAN varsayılan gövdesini miras alır ve düzeltmeyi sessizce iptal eder; (2) koşulsuz `SaveAsync` sürümü İLERLETMELİ, gelen kayıttan almamalıdır, yoksa eski sürümü tutan bir yazar hâlâ eşleşir; (3) çakışma 409'a yalnız `AgentEndpoints`'in akışsız dalında eşleniyordu — OpenAI-uyumlu akışsız uç 502 veriyordu ve o da 409'a alındı (akışlı dallarda başlıklar gönderilmiş olduğu için tipli `error` frame'i doğru davranıştır).
+
+### K-649
+
+Kullanıcıya iki seçenek sunuldu: (A) mevcut sütunu yeniden adlandır + gerçekten eksik olan ekseni (`state_maf_version`, hangi MAF sürümünün yazdığı) ekle, (B) planı harfiyen uygula ve iki paralel/çakışan sütun taşı. (A) seçildi: tek kavram, tekrar yok. Bu, `SessionRecord.StateSchemaVersion`'ın planlanan `int?` yerine `int` (hiç `null` olmadı) olmasına, `WorkflowCheckpointRecord`'un ise plandaki gibi `int?` kalmasına (checkpoints hiç damgalanmamıştı, orada NULL dönemi GERÇEK) yol açtı. Damgalama/doğrulama STORE'dan MANAGER'a taşındı çünkü yalnız `AgentSessionManager` (ve checkpoint eşdeğeri `AgentPrismCheckpointStore`) hem "şimdi çalışan MAF sürümü" hem "kayıtlı sürüm" bilgisine aynı anda sahip; bu sayede `InMemorySessionStore`'a hiç dokunulmadı (plan öngörmüştü, ölçüldü: gerekmedi — record zaten `with {}` ile her alanı taşıyordu). **Tam gerekçe:** `docs/126-KALICI-PAYLOAD-SURUM-SOZLESMESI.md` — Plandan Sapmalar.
+
+### K-650
+
+Ucun meşru işi eksik veriyi onarmaktır (bir modelin fiyatı sonradan tanımlandığında boş kalan satırları doldurmak), fiyatlanmış bir satırı yeniden yazmak snapshot'ın var olma sebebini yok eder. `RunCostRecalculationResult`'a `RunsSkipped` alanı eklendi (zaten fiyatlı olduğu için atlanan satır sayısı); `RunsConsidered`'ın anlamı da daraldı — artık yalnız taranan `Unknown` satırları sayar.
+
+### K-651
+
+K-214'ün amacı **sınırsız büyümeyi** engellemekti, sabit bir sayıyı korumak değil; 1 950 000 kendisi de 1 746 526 B ölçümüne göre konmuştu ve set o günden beri meşru biçimde büyüdü. Sınır 2 300 000'e alındı. Faz dokümanı formülü "ölçülen + %15" diye yazıyordu; `scripts/dokuman-bakim.py`'nin kendi eşiği (`BOSLUK_ORANI = 0.15`) bir bütçenin **en az %15'inin boş kalmasını** ister, yani doğru formül `ölçülen / 0.85`'tir (2 250 000 yalnız %13,3 boşluk bırakır ve `--denetle` `ok` döndürmezdi). Dosyanın o satırdaki mevcut yorumu (`olculen/0.85 = 2.05M olurdu`) zaten bunu yazıyordu.
+
+### K-652
+
+`SqlQueriesBase.SelectConversationBranchPoint` çıplak `COUNT(*)` yazıyor ve tek paylaşılan okuyucu `reader.GetInt64(1)` çağırıyordu; SQL Server'da `InvalidCastException` fırlıyordu ve **konuşma dallandırma (Faz 47) o sağlayıcıda sevk edildiğinden beri hiç çalışmıyordu**. Kusur görünmedi çünkü `ConversationBranchTests` yalnız SQLite'ta vardı — gerekçe "sorgular paylaşılan katmanda, dialektten bağımsız" idi ve o gerekçe sorgu **metni** için doğru, **okuyucu** için yanlıştı. Paylaşılan katmanın tek okuyucusu vardır; sonuç sütununun CLR tipi dialekte göre değişirse o okuyucu bir sağlayıcıda çöker. `MAX(kolon)`/`SUM(kolon)` bu sınıfta değildir — sütunun kendi tipini döner.
+
+### K-653
+
+Kiracı etiketi eklemek iki şeyi birden bozardı: seri kardinalitesini kiracı sayısıyla çarpar, ve var olmayan bir kiracı sınırı ima ederek gösterge panelini yanıltırdı. Sayaç (`agentprism.job.executions`) kiracı etiketi **taşır** — o bir işin sonucudur ve `agentprism.runs`'ın kabulü orada da geçerlidir; gauge ile sayaç arasındaki bu fark kasıtlıdır.
+
+### K-654
+
+Bedeli: onarımın maliyeti ana `run`'ın toplamı içinde erir, ayrı bir sütundan okunamaz — yalnız olay dizisinden (`StructuredResponseRejected`/`StructuredResponseRepairAttempted`) sayılabilir; saklama politikası olayları `run` ile birlikte siler, onarım geçmişi `run`'dan uzun yaşamaz.
+
+### K-655
+
+Bedel açıkça büyüdü: derin bir grafta tüketici her tipi elle listeler; `APG0011` bunu hangi tipin eksik olduğunu adıyla söyleyerek karşılar (Open Question 3: her eksik tip için ayrı teşhis, ilkinde durmaz).
+
+### K-656
+
+Faz 134'te gerçekten çöktü; sınıf taraması dört vaka buldu (`JobMetricEndToEndTests`, `RunCostMetricEndToEndTests`, `QuotaUsageObserverTests`, `JobQueueDepthGaugeTests`) — dördü de instance bağlamasına geçirildi. Faz 134'ün etiket süzgeci çözümü (`Lane == "media"`) YETERSİZ sayıldı: hangi testlerin çakışabileceğine dair düzyazı bir akıl yürütmeye dayanıyordu ve yeni bir test onu sessizce geçersiz kılabilirdi. Dinlenen her tip (`AgentPrismMetrics`, `QuotaUsageObserver`, `JobQueueDepthObserver`) `IMeterFactory` alır ve `AgentPrismTestHost.StartAsync` servis kaydına izin verir, yani izolasyon her vakada mümkündü.
+
+### K-657
+
+Bedeli, kapanış kapısının (`dotnet test AgentPrism.slnx`) onları çalıştıramamasıdır. **Ölçülen vaka:** Faz 132 `RunStoreContract`'a iki `ModelProvider` case'i ekledi, kapanış kapısını 10/10 yeşil geçti, yayın provası `EXIT=1` döndü — `AgentPrism.Samples.FileRunStore` `ModelProvider`'ı hiç işlemiyordu (BL-053). Sample'ları çözüme almak reddedildi: `ProjectReference`'a düşme riski taşır ve sample'ın "gerçek tüketici" değerini yok eder.
+
+### K-658
+
+Onarım yine de yapılsaydı `run` BAŞARILI kapanırken oturum reddedilen taslakla bitecek ve sonraki tur, çağıranın hiç almadığı bir yanıtı bağlam olarak okuyacaktı. Faz 134 bu yazmayı üretmedi; görünür kıldı (öncesinde `run` da düşüyordu). 🚨 Ayırt edici `session is not null` DEĞİLDİR — çalıştırma yolu oturum istenmese de bir session nesnesi verir; doğru ölçüt `AgentSessionIdentity.GetId(session) is not null`, yani AgentPrism'in damgaladığı oturum. Olay yükü `RepairSuppressedBySession` taşır, böylece 'bütçe yoktu' ile 'bütçe geri çekildi' ayrılır.
+
+### K-659
+
+20 paketin `PackageProjectUrl` ve `PackageReleaseNotes` alanları NuGet.org sayfasında **tıklanan** bağlantılardır; ölü bağlantı o sürüm için kalıcıdır. İkisi de `agentprism.doayen.web.tr`'ye çevrildi — K-514 zaten bu alan adını sevk edilen metinde serbest bırakıyordu. `PackageReleaseNotes` sitede **üretilen** `/reference/changelog/#v<sürüm>` sayfasına bakar (kaynak kök `CHANGELOG.md`, ayna kopya yok).
+
+### K-660
+
+İstemci gönder'e basıldığı anda kendini `'thinking'`e alıp kaydediciyi durdurduğu için panel kalıcı asılıyor ve mikrofon bir daha açılmıyordu. Sınıf taraması ikinci vakayı buldu (transcriber boş metin dönünce `ProcessTurnAsync` aynı sessiz dönüşü yapıyordu — üretimde daha olası). İkisi de yeni `idle` sunucu çerçevesiyle kapatıldı; `VoiceConversationTests` iki vakayı da kilitliyor (ikisi de red→green kanıtlandı).
+
+### K-661
+
+Kök nedenin üçüncü katmanı `scripts/kapi.py`'nin `_clean_stale_packages`'ıydı: `kapi.py yayin` her koşumda aynı kimlikteki mevcut artifact'i paketlemeden ÖNCE sessizce siliyordu — sessiz overwrite bir kaza değil, tasarımın kendisiydi. Çözüm iki parça: (1) `Directory.Build.targets`'te yeni `AgentPrismValidateCleanWorkingTree` hedefi (`BeforeTargets="GenerateNuspec"`) `git status --porcelain` (untracked dahil) boş değilse `AGENTPRISM0004` ile durur; yerel deneme `AgentPrismAllowDirtyPack=true` + `dirty` taşıyan açık bir `MinVerVersionOverride` ister, CI'da (`CI`/`ContinuousIntegrationBuild`) tamamen reddedilir (`AGENTPRISM0005`/`0006`). (2) `kapi.py yayin` artık staging dizinine paketler ve `_promote_staged_packages` ile release_dir'e taşır — aynı kimlikte farklı SHA-256 varsa HİÇBİR dosyayı promote etmeden durur (hepsi ya da hiçbiri), aynı SHA-256 deterministik no-op'tur; her koşum `package-manifest.json` (id, dosya, SHA-256, commit, `dirty`) yazar. Bağımsız denetim (`faz-denetim`) bir yapısal boşluk buldu: yeni kapı `kapi.py kapanis`'in kendi pack adımını ve `AgentPrism.Package.Tests`'in gerçek `dotnet pack` çalıştıran fixture'larını (`ReleaseArtifactFixture`, `TemplateFixture`) da kapsıyordu — bunlar paketleme SÖZLEŞMESİNİ (README, icon, K-008) doğrular, bir yayın adayı üretmez, ama repo commit'i yalnız kullanıcı isteyince atar; yeni kapı olmadan kapanış kapısı commit'lenmemiş bir ağaçta HİÇ geçemezdi. Çözüm: `AgentPrismSkipCleanWorkingTreeCheck` — yalnız bu üç iç araç noktasının ayarladığı, insanın DOĞRUDAN kullanmadığı ayrı bir bypass. Gerçek yayın yolu (`kapi.py yayin`, CI'nin gerçek `pack` işi — bir `v*` etiketinin nuget.org'a yayınladığı TEK yol) bunu HİÇ ayarlamaz. **Tam gerekçe:** `docs/136-PAKET-KIMLIGININ-TEKILLIGI.md`.
+
+### K-662
+
+Tüketici `JobKind.Custom` + ayrı bir `HandlerKey` alanı önerdi ve seçimi bize bıraktı; iki alan REDDEDİLDİ çünkü kalıcı bir çift kimlik üretir — yerleşik iş için `Kind`, custom iş için `HandlerKey` sorgulanır ve panolar/süzgeçler zamanla ikisinden birine kayar (tüketici bunu kendi raporunda yazıyordu). Anahtar hem sınıflandırma hem dispatch kimliğidir; gruplama ad alanı önekiyle yapılır (`agentprism.*` karşısında tüketicinin kendi öneki). Bedel ölçüldü: 132 dosya, 174 geçiş, üç sağlayıcıda sütun değişimi (`kind` → `handler_key`, dokuz değerin dokuzu backfill'lenir). `preview` aşamasındayız, `PublicAPI.Shipped.txt` dosyalarının hepsi boştu (`wc -l` → yalnız `#nullable enable`) ve tüketici kırıcı değişikliği açıkça kabul etti; aynı iş 1.0'dan sonra çok daha pahalı olurdu. Anahtar biçimi `^[a-z0-9][a-z0-9._-]{0,127}$`; büyük harf REDDEDİLİR, normalize EDİLMEZ (`JobLanes.IsValidName`'in aynı gerekçesi: iki kanonik biçim iki farklı handler üretir).
+
+### K-663
+
+Sevk ettiğimiz örnek (`samples/AgentPrism.Samples.CustomJobHandler`) tam olarak bu yüzden ÖLÜ KODdu ve testi yalnız DI kaydını ölçüyordu — dispatch'i hiç ölçmüyordu. Anahtar tipe değil KAYDA bağlandı (tüketici raporu §3.4): duplicate denetimi kayıt anına taşınır ve aynı tip iki anahtara bağlanabilir. `Singleton` → `Scoped` geçişi tüketicinin şartıydı; `JobContext`'e `IServiceProvider` eklenmesi AÇIKÇA reddedildi (service locator constructor injection'ı öldürür). Fail-fast üç durumu kapsar: duplicate anahtar ve bozuk biçim `JobHandlerRegistry.Create` içinde host BAŞLANGICINDA (`JobHandlerRegistryValidator`, `IHostedService`) atar; rezerve `agentprism.` öneki ise public `AddJobHandler` çağrısının kendisinde atar. Worker hatası loglanıp yutulduğu için bu üçü worker'ın ilk tick'ine bırakılamazdı.
+
+### K-664
+
+`JobRecord.ErrorMessage` HTTP üzerinden geri okunur ve arayüzde gösterilir — `SafeErrorText.ForPersistence`'ın yabancı exception metni için uyguladığı kuralın aynısı burada da geçerlidir. Ham anahtar yalnız log'a düşer ve kalıcı mesajdaki `ref:` ile aynı korelasyon kimliğini taşır, böylece operatör ikisini eşleştirebilir. Kod SERBEST METİNDEN ayrıdır (tüketici raporunun 6. maddesi): tüketici "kimse bu anahtarı işlemiyor" ile "handler patladı" ayrımını cümle eşleştirerek değil kod eşleştirerek yapar. `samples/AgentPrism.Samples.CustomJobHandler.Tests` bu iki iddiayı (kod VAR, ham anahtar YOK) paketlenmiş tüketici seviyesinde kilitler.
+
+### K-665
+
+Varsayılan yalnız yerleşiklerdir, böylece yükseltilen bir kurulum yapılandırma değişikliği olmadan aynı şekilde çalışır. 🚨 PLANDAN SAPMA: plan listeyi `AgentPrismMetaResponse` üzerinden arayüze veriyordu, ama `/api/meta` `AllowAnonymous`'tur ve kendi XML dokümanı "no secret, tenant data, agent name, or count information" taşımadığını yazar — tüketicinin `contoso.gece-raporu` gibi anahtar adları o sözleşmeyi bozarak anonim çağrıya sızardı. Bunun yerine planın "yeni uç yok" kısıtından sapıldı ve liste `GET /api/schedules/handler-keys` ile yayınlandı; uç zaten Admin + `PlatformRead` isteyen zamanlama ekranının ihtiyacını karşılar.
+
+### K-666
+
+`jobs` ve `job_schedules`'in İKİSİ DE `PRAGMA foreign_keys = ON` altında çocuk taşır (`job_items.job_id REFERENCES jobs ON DELETE CASCADE`; `jobs.schedule_id REFERENCES job_schedules`). Foreign key açıkken `DROP TABLE` örtük bir `DELETE FROM` yapar ve `ON DELETE CASCADE`'i TETİKLER — `jobs`'u yeniden kurmak `job_items`'ın TÜM satırlarını sessizce silerdi. Olağan kaçış (`PRAGMA foreign_keys = OFF`) bir işlem içinde NO-OP'tur ve `MigrationRunner` her migration'ı bir işlem içinde koşar. 0006'nın tablosunun çocuğu yoktu; emsal orada güvenliydi, burada değil. `DROP COLUMN` SQLite 3.35+ ister (SQLitePCLRaw 2.1.12 çok daha yenisini taşır) ve indeksin bağlı olduğu bir sütunu reddeder — `kind` hiçbir indekste değildir. İkinci sapma: SQLite'ta `ALTER COLUMN` olmadığı için `NOT NULL` ADD'in kendisinden gelmek zorunda ve varsayılan ister; varsayılan BOŞ DİZGEdir ve bilerek GEÇERSİZ bir anahtardır — sütunu atlayan bir insert `JobErrorCodes.UnknownHandlerKey` ile fail-closed bir iş üretir, okuyucuyu (ve onunla birlikte tüm iş listesi ucunu) `GetString`'de çökerten bir `NULL` değil.
+
+### K-667
+
+Sonuç: `AddJobHandler<T>(key)`'i veya `AddAgentPrism()`'i iki kez çağırmak iki ÖZDEŞ kayıt üretir. Denetim bunu ölçtü: registry aynı tip için bile atıyordu, yani `AddAgentPrism()`'in kendi XML dokümanının verdiği "all services are registered with TryAdd" (idempotent kurulum) sözü kırılıyordu ve bunu iddia eden test registry'yi hiç kurmadığı için yeşil kalıyordu. Kural artık şudur: bir anahtar TAM OLARAK BİR handler'ı adlandırır; aynı handler'ı iki kez adlandırmak o kuralı ihlal etmez. Mutasyonla kanıtlandı — no-op dalı silinince `JobHandlerRegistryTests`'in iki case'i kırmızıya döner.
+
+### K-668
+
+Denetim bunun sessiz bedelini ölçtü: `GetRequiredService` atarsa istisna `MarkRunningAsync`'ten ÖNCE kaçar, `RunJobAsync`'in dış `catch`'i onu Warning olarak yutar ve attempt sınırı yalnız `ExecuteWithHandlerAsync`'in kendi `catch`'inde uygulandığı için iş HİÇ terminal olmaz — her kira bitiminde yeniden lease edilir, sonsuza kadar. Faz öncesinde aynı hata host'u SESLİ kırıyordu, yani bu bir regresyondu. Eksik bir bağımlılık yapılandırma hatasıdır ve yeniden deneme onu düzeltemez, bu yüzden iş RETRY'a değil doğrudan `Failed`'a gider. İstisnanın kendi metni kalıcı alana YAZILMAZ (K-664'ün aynı gerekçesi); log'a düşer ve mesajdaki `ref:` ile eşleşir.
+
+### K-669
+
+Typed `Gender`/`Language`/`Accent` özellikleri her yeni sağlayıcı etiketinde (`use_case`, `age`, ileride başkaları) yeni bir public sözleşme değişikliği ister; tüketici sözlüğü açıkça tercih etti. Sınır kanıtla korunur: en fazla 32 attribute, 64 karakter key, 256 karakter value; case-insensitive duplicate key tek kanonik (küçük harf, `_`→`-`) değere iner; yalnız güvenli scalar STRING değer taşınır — `VoiceAttributeMapper` sağlayıcının JSON şemasının "yalnız string" vaadine güvenmez, her `labels` değerini `JsonElement.ValueKind` ile doğrular ve sayı/nesne/dizi/null'ı atlar. `preview_url` (mevcut karar, `SpeechModels.cs`) ve API key hiçbir koşulda taşınmaz. ElevenLabs'te `language` `labels` içinde DEĞİL, ayrı `verified_languages` alanındadır (ölçüldü, `VoiceResponseModel`/`VerifiedVoiceLanguageResponseModel`); birden çok doğrulanmış dil tek `Attributes["language"]` değerine virgülle birleştirilir.
+
+### K-670
+
+Sıra `DrainGate → RunAttributionGate → RunAuthorizationGate → QuotaGate → PreflightGate`dir: yetkilendirme atıftan SONRA gelir (kapı `UserId`'yi atıftan okur) ve kotadan ÖNCE gelir (yetkisiz bir çağrı kiracının kotasını tüketmemelidir). Kapsam kanıtı `RunAuthorizationEndpointTests`'te dört yüzeyin HER BİRİ için ayrı bir test olarak durur — paylaşılan tek bir parametrize test, unutulan beşinci bir yüzeyi YAKALAYAMAZDI.
+
+### K-671
+
+`Read`/`Delete`/`Branch` ise TEKİL bir kaynağa erişimdir ve `403` orada kaynağın VAR OLDUĞUNU sızdırırdı ("görmemesi gereken kaynak 404, 403 değil" kuralı, K-278/K-283 ailesi). Denetim kanıtı: `RunAuthorizationGate.CheckSessionAsync`'in ürettiği `404` gövdesi (`title`/`detail`), `SessionEndpoints`'in gerçek "yok" yanıtıyla AYNI metni üretecek şekilde bilerek kopyalanmıştır — iki farklı metin bir yan kanal olurdu.
+
