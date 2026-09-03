@@ -11,193 +11,24 @@
 
 ---
 
-## Bu Faza Başlarken
-
-1. Bu doküman
-2. Kararlar — yalnız bu kalemleri grep'le:
-   ```bash
-   grep -n "K-320" docs/KARARLAR.md
-   ```
-   **K-320** (🚨 Faz 48'in planı guard'ı "boru hattının en dışına" koyuyordu;
-   tek bir grep o konumun tool çağrı turlarını göremediğini gösterdi ve fazın
-   yarısı taşımaya dönüştü). Bu faz aynı boru hattına dokunuyor.
-3. Alan hafızası:
-   [`hafiza/model-boru-hatti.md`](../../hafiza/model-boru-hatti.md) (guard'ın
-   `IChatClient` zincirindeki yeri)
+> ### ⚗️ Damıtılmış kayıt
+> Bu dosya fazın **planını** değil, fazın bıraktığı **kalıcı bilgiyi**
+> taşır. Plan gövdesi, planlanan/gerçekleşen API, dosya listesi, risk ve
+> açık soru bölümleri kapanışta düştü — **silinmedi, git geçmişindedir.**
+>
+> Tam metin — kopyala, çalıştır:
+>
+> ```bash
+> git show 01c6e267:docs/arsiv/fazlar/140-ICERIK-GUARDININ-KAYNAGI.md
+> ```
+>
+> Damıtıldı 2026-09-04 · `scripts/dokuman-bakim.py faz-damit`
 
 ---
 
 ## Amaç
 
-Guard bugün denetlediği metnin bir **tool sonucu** mu, bir **kullanıcı mesajı**
-mı, yoksa **model çıktısı** mı olduğunu ayırt edemiyor. Üçü de aynı torbaya
-giriyor. Ama güven farkı büyüktür: kullanıcı mesajı bilinen bir kaynaktan gelir
-ve kullanıcı yalnızca kendi oturumunu zehirleyebilir; tool sonucu **başka bir
-kullanıcının** veritabanına yazdığı metni taşıyabilir.
-
-Bu faz yeni bilgi üretmez — **zaten var olan** bir ayrımı guard'a geçirir.
-
-- **F-186** — `ContentGuardContext`'e metnin kaynağı ve (mümkünse) tool adı.
-
-### Bugün ne çalışmıyor — doğrulanmış kanıt
-
-| Kanıt | Gözlem |
-|---|---|
-| [`ContentGuardContext.cs:25-45`](../../../src/AgentPrism.Abstractions/Guards/ContentGuardContext.cs) | Alanlar: `Direction`, `Text`, `RunId`, `TenantId`, `AgentName`, `ModelId`. Kaynak bilgisi **yok** |
-| [`ContentGuardMessageMasker.cs:74`](../../../src/AgentPrism.Core/Guards/ContentGuardMessageMasker.cs) | `message.Role == ChatRole.System` — rol **zaten okunuyor** (sistem talimatı atlanıyor) |
-| [`ContentGuardMessageMasker.cs:167`](../../../src/AgentPrism.Core/Guards/ContentGuardMessageMasker.cs) | `content is FunctionResultContent { Result: var result }` — tool sonucu **zaten ayırt ediliyor** |
-| [`ContentGuardMessageMasker.cs:202-210`](../../../src/AgentPrism.Core/Guards/ContentGuardMessageMasker.cs) | `TextContent` ve `FunctionResultContent` ayrı ayrı ele alınıyor |
-| [`ContentGuardingChatClient.cs:150`](../../../src/AgentPrism.Core/Guards/ContentGuardingChatClient.cs) | Girdi yolunda `ContentGuardDirection.Input` — tool sonucu da kullanıcı mesajı da aynı `Input` |
-
-> Kanıtlar 2026-09-03 tarihinde doğrulandı.
-
-**Sonuç:** ayrım çağrı yerinde **mevcut** ve `ContentGuardContext` kurulmadan
-hemen önce **atılıyor**. Tüketicinin gerekçesi doğrudur.
-
----
-
-## 140.1 — 🚨 `Source` bedava, `ToolName` değil
-
-Bu fazın en önemli ölçümü budur ve tüketicinin raporunda **yok**.
-
-`FunctionResultContent` tool **adını taşımaz**; yalnız `CallId` taşır. Tool adı
-aynı mesaj listesindeki daha önceki bir `FunctionCallContent`'te durur.
-`ToolName`'i doldurmak için `CallId → FunctionCallContent.Name` eşlemesi kuran
-**ikinci bir geçiş** gerekir.
-
-```mermaid
-flowchart LR
-    A["ChatMessage listesi"] --> B["1. geçiş:<br/>CallId → Name haritası<br/>(FunctionCallContent)"]
-    B --> C["2. geçiş:<br/>her içerik için<br/>ContentGuardContext"]
-    C --> D{"içerik türü"}
-    D -- "FunctionResultContent" --> E["Source = ToolResult<br/>ToolName = harita[CallId]"]
-    D -- "TextContent, Role=User" --> F["Source = UserMessage"]
-    D -- "TextContent, Role=Assistant" --> G["Source = ModelOutput"]
-```
-
-Harita **yalnız** listede en az bir `FunctionResultContent` varsa kurulur;
-yoksa tahsis yapılmaz. Sıcak yol ve tahsis bütçesi korunur (Mercek 4).
-
-🚨 **Harita eksik kalabilir.** Çok turlu bir konuşmada eski turların
-`FunctionCallContent`'i baglamdan düşmüş olabilir; o durumda `CallId` eşleşmez.
-`ToolName` o zaman `null` kalır ama `Source` yine `ToolResult` olur — **kaynak
-bilgisi tool adına bağlı değildir.** Bu ayrım güvenlik açısından kritiktir:
-guard'ın en sıkı kuralı `Source`'a bakar, `ToolName`'e değil.
-
-## 140.2 — Kaynak kümesi
-
-```csharp
-public enum ContentGuardSource
-{
-    Unknown = 0,
-    UserMessage = 1,
-    ToolResult = 2,
-    Document = 3,
-    ModelOutput = 4,
-    SkillResource = 5
-}
-```
-
-`Unknown = 0` bilinçlidir ve iki işi vardır: geriye dönük uyum (yeni alan eski
-kodda `Unknown` gelir) ve **dürüstlük** — kaynağı belirlenememiş bir metni
-yanlış sınıflandırmak, sınıflandırmamaktan kötüdür.
-
-🚨 **`Unknown` bir güvenlik kararına "izin ver" diye çevrilmemelidir.** Sevk
-edilen `PatternContentGuard` ve XML dokümanı bunu açıkça yazar: bilinmeyen
-kaynak **en sıkı** kuralı alır.
-
----
-
-## Planlanan Public API
-
-```csharp
-// AgentPrism.Abstractions
-public sealed record ContentGuardContext
-{
-    // mevcut: Direction, Text, RunId, TenantId, AgentName, ModelId
-
-    /// <summary>Denetlenen metnin kaynağı.</summary>
-    public ContentGuardSource Source { get; init; }
-
-    /// <summary>
-    /// Metin bir tool sonucundan geliyorsa tool'un adı; değilse null.
-    /// Source == ToolResult iken de null olabilir — çağrı bağlamdan düşmüşse
-    /// ad çözülemez. Güvenlik kararı Source'a dayanmalıdır, buna değil.
-    /// </summary>
-    public string? ToolName { get; init; }
-}
-
-public enum ContentGuardSource { Unknown = 0, UserMessage = 1, ToolResult = 2, Document = 3, ModelOutput = 4, SkillResource = 5 }
-```
-
-Yeni uç yok, yeni kayıt yok. Var olan `IContentGuard` implementasyonları
-**değişmeden** çalışır.
-
-### Arayüz payı
-
-Yok.
-
----
-
-## Planlanan Dosya Listesi
-
-```
-src/AgentPrism.Abstractions/
-└── Guards/
-    └── ContentGuardContext.cs            (iki alan + yeni enum)
-
-src/AgentPrism.Core/
-└── Guards/
-    ├── ContentGuardMessageMasker.cs      (CallId→Name haritası, kaynak sınıflama)
-    ├── ContentGuardingChatClient.cs      (kaynağı aşağı geçirir)
-    ├── ContentGuardPipeline.cs           (context kurulumu)
-    └── PatternContentGuard.cs            (Unknown = en sıkı kural)
-```
-
----
-
-## Hata Modları ve Testler
-
-| Ne bozulabilir | Seviye | Test sınıfı |
-|---|---|---|
-| Tool sonucu `UserMessage` olarak sınıflanır (güvenlik kararı ters döner) | Fonksiyonel | `ContentGuardSourceTests` |
-| `CallId` eşleşmeyince `Source` da `Unknown`'a düşer | Birim | `ContentGuardSourceTests` |
-| `Unknown` en sıkı kural yerine izin verir | Birim | `PatternContentGuardTests` |
-| Model çıktısı `ToolResult` sanılır | Fonksiyonel | `ContentGuardSourceTests` |
-| Akışlı yolda kaynak kaybolur | Fonksiyonel | `StreamingGuardTests` |
-| Harita her çağrıda tahsis eder (sıcak yol) | Birim (tahsis) | `ContentGuardAllocationTests` — Faz 116 kapısı |
-| Var olan guard implementasyonu kırılır | Fonksiyonel | mevcut `ContentGuardTests` yeşil kalmalı |
-| Aynı `CallId` iki kez geçer | Birim | `ContentGuardSourceTests` |
-| Boş mesaj listesi | Birim | `ContentGuardSourceTests` |
-| Başka kiracının tool adı sızar | Sözleşme | `TenantIsolationContract` (guard `TenantId` taşıyor) |
-
-🚨 **Tool sonucunun modele **ikinci turda** geri girdiği yol fonksiyonel testle
-kanıtlanır.** Kütüphanenin kendi ifadesi: *"a guard placed outside the loop
-would never see it."* Birim testi bu turu kuramaz.
-
----
-
-## Manuel Kabul Case'leri
-
-| # | Ön koşul | Adımlar | Beklenen sonuç |
-|---|---|---|---|
-| 1 | Kaynağı loglayan guard | `support` agent'ına düz mesaj at | Guard `UserMessage` görür |
-| 2 | Aynı guard | `get_order_status` tool'unu tetikleyen mesaj at | Guard ikinci turda `ToolResult` **ve** `ToolName = "get_order_status"` görür |
-| 3 | Aynı guard | Model yanıtını denetle | `ModelOutput` |
-| 4 | Yalnız `ToolResult`'ta blok eden guard | Kullanıcı aynı deseni **kendi** yazsın | Bloklanmaz — yanlış pozitif çözüldü |
-| 5 | Aynı guard | Tool aynı deseni döndürsün | Bloklanır |
-| 6 | Kaynak taşımayan eski guard | Run at | Değişmeden çalışır |
-
----
-
-## Açık Sorular
-
-| # | Soru | Seçenekler | Öneri |
-|---|---|---|---|
-| 1 | `Document` ve `SkillResource` bu fazda gerçekten doldurulsun mu? | A: Üçünü doldur (User/Tool/Model), ikisini enum'da bırak · B: Beşini de doldur | **A** — doküman ve skill kaynağı guard'a farklı bir yoldan giriyor; ölçülmeden doldurmak yanlış sınıflandırma üretir. Enum'da durmaları zararsız, `Unknown` dürüst kalır |
-| 2 | `ToolName` `RunEvent.ToolName` ile aynı normalizasyonu mu alsın? | A: Aynı · B: Ham ad | **A** — iki yerde farklı ad taşımak korelasyonu bozar |
-
----
+Guard bugün denetlediği metnin bir **tool sonucu** mu, bir **kullanıcı mesajı** mı, yoksa **model çıktısı** mı olduğunu ayırt edemiyor. Üçü de aynı torbaya giriyor.
 
 ## Bitiş Ölçütleri (DoD)
 
@@ -259,21 +90,6 @@ Gözlemlenen sıra (gerçek çıktı):
 
 ---
 
-## Riskler
-
-| Risk | Önlem |
-|------|-------|
-| 🚨 Guard'ın konumu yanlış varsayılır (K-320 sınıfı) | Plan konumu **ölçtü**: guard `IChatClient` zincirinde, tool çağrı döngüsünün **içinde**. Uygulama başlarken `grep` ile yeniden doğrulanır |
-| `CallId` haritası sıcak yolda tahsis eder | Harita yalnız `FunctionResultContent` varsa kurulur; tahsis testi kapı |
-| Yanlış sınıflandırma güvenlik kararını ters çevirir | `Unknown` en sıkı kuralı alır; üç kaynak fonksiyonel testle kilitlenir |
-| Public yüzey büyür | Additive; `Unknown = 0` eski kodu bozmaz. Shipped giriş sıfır |
-
----
-
-<!-- ============================================================
-     AŞAĞISI KAPANIŞTA DOLDURULUR — `faz-tamamlama` skill'i.
-     ============================================================ -->
-
 ## Plandan Sapmalar
 
 - **`guides/reliability.md` güncellenmedi.** Plan bu dosyayı da tüketici
@@ -307,82 +123,6 @@ Gözlemlenen sıra (gerçek çıktı):
   `ToolApprovalRuleEvaluator.cs:183` dahil hepsi ham `FunctionCallContent.Name`
   kullanıyor); "aynı normalizasyon" burada "ham ad" anlamına geliyor ve
   `ContentGuardMessageMasker.BuildToolNameMap` da aynısını yapıyor.
-
-## Gerçekleşen Public API
-
-Plandakiyle birebir aynı, artı planın öngörmediği iki imza değişikliği
-(`ContentGuardPipeline`'ın kendi metotları — plan "context kurulumu" derken
-bunu zaten ima ediyordu, ama taslak imza yazmamıştı):
-
-```csharp
-// AgentPrism.Abstractions — plandakiyle birebir aynı
-public enum ContentGuardSource { Unknown = 0, UserMessage = 1, ToolResult = 2, Document = 3, ModelOutput = 4, SkillResource = 5 }
-
-public sealed record ContentGuardContext
-{
-    // mevcut alanlar değişmedi
-    public ContentGuardSource Source { get; init; }
-    public string? ToolName { get; init; }
-}
-
-// AgentPrism.Core — İMZA DEĞİŞTİ (plan dışı, "context kurulumu" kapsamında).
-// PublicAPI.Shipped.txt'lerin TAMAMI boştu (repo 0.0.0-preview.0.x), bu yüzden
-// overload eklemek yerine doğrudan imza değişikliği tercih edildi.
-public sealed class ContentGuardPipeline
-{
-    public ValueTask<string?> InspectAsync(
-        ContentGuardDirection direction, string text,
-        ContentGuardSource source, string? toolName,
-        string? modelId, CancellationToken cancellationToken = default);
-
-    public ValueTask<string?> PreviewAsync(
-        ContentGuardDirection direction, string text,
-        ContentGuardSource source, string? toolName,
-        string? modelId, CancellationToken cancellationToken = default);
-}
-```
-
-`AgentPrism.Abstractions` public tip sayısı 370 → 371 (`public-surface-baseline.txt`
-güncellendi, `AGENTPRISM_PUBLIC_SURFACE_REFRESH=1` ile).
-
-### Arayüz payı
-
-Plandaki gibi: yok.
-
-## Dosya Listesi (gerçekleşen)
-
-Plandakiyle birebir aynı, artı test/doküman dosyaları (plan bunları listelemiyordu):
-
-```
-src/AgentPrism.Abstractions/
-└── Guards/
-    └── ContentGuardContext.cs            (ContentGuardSource enum + Source/ToolName)
-
-src/AgentPrism.Core/
-└── Guards/
-    ├── ContentGuardMessageMasker.cs      (BuildToolNameMap, ClassifySource, rol/harita parametreleri)
-    ├── ContentGuardingChatClient.cs      (role/callIdToToolName çağrı yerlerine geçirildi)
-    ├── ContentGuardPipeline.cs           (InspectAsync/PreviewAsync source+toolName aldı)
-    └── PatternContentGuard.cs            (yalnız XML doküman — "Source'u kasıtlı okumuyorum")
-
-tests/AgentPrism.Core.UnitTests/
-├── Fakes/StubContentGuard.cs             (SeenSources/SeenToolNames eklendi)
-└── Guards/
-    ├── ContentGuardSourceTests.cs        (yeni — 8 test)
-    ├── ContentGuardAllocationTests.cs    (yeni — 1 test)
-    └── PatternContentGuardTests.cs       (Unknown_source_is_never_treated_as_a_reason_to_allow,
-                                            Decision_is_identical_regardless_of_source eklendi)
-
-src/AgentPrism.Abstractions/PublicAPI.Unshipped.txt
-src/AgentPrism.Core/PublicAPI.Unshipped.txt
-tests/AgentPrism.Core.UnitTests/Architecture/public-surface-baseline.txt
-
-docs/manuel-test/22-GUARDRAIL-VE-YAPISAL-CIKTI.md   (MT-GUARD-077/078/079, başlık Faz listesi)
-docs-site/src/content/docs/concepts/governance.md   ("Source-aware decisions" bölümü)
-docs-site/public/llms-full.txt                      (yeniden üretildi)
-docs/KARARLAR.md, docs/arsiv/KARARLAR-GECMISI.md    (K-672)
-docs/hafiza/model-boru-hatti.md                     (yeni tuzak bölümü)
-```
 
 ## Denetim Bulguları
 
