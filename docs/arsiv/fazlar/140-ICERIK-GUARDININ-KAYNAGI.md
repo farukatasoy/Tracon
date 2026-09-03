@@ -1,13 +1,13 @@
 # Faz 140 — İçerik Guard'ının Kaynağı
 
 > **Durum:** ✅ Tamamlandı (2026-09-04)
-> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-186** (tüketici turu 3, A4)
+> **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-186** (tüketici turu 3, A4)
 > **Önkoşul:** Yok
 > **Paketler:** `AgentPrism.Abstractions`, `AgentPrism.Core`
 > **Yeni paket:** Yok · **Migration:** Yok
 > **Public API:** Büyüyor — `ContentGuardContext`'e iki `init` alan + yeni enum. Additive; `Unknown = 0` geriye dönük uyumludur
 > **Tüketici yüzeyi:** `docs-site/`: `concepts/governance.md` (content guard bölümü), `guides/reliability.md` · sevk edilen: XML `<example>`
-> **Manuel test alanı:** [`docs/manuel-test/22-GUARDRAIL-VE-YAPISAL-CIKTI.md`](manuel-test/22-GUARDRAIL-VE-YAPISAL-CIKTI.md)
+> **Manuel test alanı:** [`docs/manuel-test/22-GUARDRAIL-VE-YAPISAL-CIKTI.md`](../../manuel-test/22-GUARDRAIL-VE-YAPISAL-CIKTI.md)
 
 ---
 
@@ -22,7 +22,7 @@
    tek bir grep o konumun tool çağrı turlarını göremediğini gösterdi ve fazın
    yarısı taşımaya dönüştü). Bu faz aynı boru hattına dokunuyor.
 3. Alan hafızası:
-   [`hafiza/model-boru-hatti.md`](hafiza/model-boru-hatti.md) (guard'ın
+   [`hafiza/model-boru-hatti.md`](../../hafiza/model-boru-hatti.md) (guard'ın
    `IChatClient` zincirindeki yeri)
 
 ---
@@ -43,11 +43,11 @@ Bu faz yeni bilgi üretmez — **zaten var olan** bir ayrımı guard'a geçirir.
 
 | Kanıt | Gözlem |
 |---|---|
-| [`ContentGuardContext.cs:25-45`](../src/AgentPrism.Abstractions/Guards/ContentGuardContext.cs) | Alanlar: `Direction`, `Text`, `RunId`, `TenantId`, `AgentName`, `ModelId`. Kaynak bilgisi **yok** |
-| [`ContentGuardMessageMasker.cs:74`](../src/AgentPrism.Core/Guards/ContentGuardMessageMasker.cs) | `message.Role == ChatRole.System` — rol **zaten okunuyor** (sistem talimatı atlanıyor) |
-| [`ContentGuardMessageMasker.cs:167`](../src/AgentPrism.Core/Guards/ContentGuardMessageMasker.cs) | `content is FunctionResultContent { Result: var result }` — tool sonucu **zaten ayırt ediliyor** |
-| [`ContentGuardMessageMasker.cs:202-210`](../src/AgentPrism.Core/Guards/ContentGuardMessageMasker.cs) | `TextContent` ve `FunctionResultContent` ayrı ayrı ele alınıyor |
-| [`ContentGuardingChatClient.cs:150`](../src/AgentPrism.Core/Guards/ContentGuardingChatClient.cs) | Girdi yolunda `ContentGuardDirection.Input` — tool sonucu da kullanıcı mesajı da aynı `Input` |
+| [`ContentGuardContext.cs:25-45`](../../../src/AgentPrism.Abstractions/Guards/ContentGuardContext.cs) | Alanlar: `Direction`, `Text`, `RunId`, `TenantId`, `AgentName`, `ModelId`. Kaynak bilgisi **yok** |
+| [`ContentGuardMessageMasker.cs:74`](../../../src/AgentPrism.Core/Guards/ContentGuardMessageMasker.cs) | `message.Role == ChatRole.System` — rol **zaten okunuyor** (sistem talimatı atlanıyor) |
+| [`ContentGuardMessageMasker.cs:167`](../../../src/AgentPrism.Core/Guards/ContentGuardMessageMasker.cs) | `content is FunctionResultContent { Result: var result }` — tool sonucu **zaten ayırt ediliyor** |
+| [`ContentGuardMessageMasker.cs:202-210`](../../../src/AgentPrism.Core/Guards/ContentGuardMessageMasker.cs) | `TextContent` ve `FunctionResultContent` ayrı ayrı ele alınıyor |
+| [`ContentGuardingChatClient.cs:150`](../../../src/AgentPrism.Core/Guards/ContentGuardingChatClient.cs) | Girdi yolunda `ContentGuardDirection.Input` — tool sonucu da kullanıcı mesajı da aynı `Input` |
 
 > Kanıtlar 2026-09-03 tarihinde doğrulandı.
 
