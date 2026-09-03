@@ -656,6 +656,40 @@ def dokuman_iddia_cakismalari(kok: pathlib.Path = ROOT) -> list[str]:
     return bulgular
 
 
+def sevk_edilen_olay_anlatisi(kok: pathlib.Path = ROOT) -> list[str]:
+    """Her `WebhookEvents` sabiti en az bir ANLATI sayfasinda gecmelidir.
+
+    Kusur sinifi (2026-09-03, tuketici turu 3): `quota.threshold` sevk
+    edilmisti ve calisiyordu, ama yalniz URETILEN API referansinda gorunuyordu.
+    Belgeyi bastan sona okuyan bir tuketici ozelligi bulamadi ve VAR OLANI
+    yeniden onerdi. Uretilen referans bir kesif yuzeyi degildir; tuketiciye
+    donuk her olayin anlatida bir cumlesi olmak zorundadir.
+    """
+    sabitler = kok / "src" / "AgentPrism.Abstractions" / "Webhooks" / "WebhookTypes.cs"
+    icerik = kok / "docs-site" / "src" / "content" / "docs"
+    if not sabitler.exists() or not icerik.is_dir():
+        return []
+
+    olaylar = re.findall(
+        r'public const string \w+ = "([^"]+)";', sabitler.read_text(encoding="utf-8"))
+    if not olaylar:
+        return ["WebhookTypes.cs icinden olay sabiti okunamadi"]
+
+    # Anlati = uretilen API referansi ve uretilen HTTP sema sayfalari HARIC.
+    anlati = [
+        yol for yol in icerik.rglob("*.md")
+        if "/api/" not in yol.as_posix()
+        and not yol.name.startswith("schema-")
+    ]
+    metin = "\n".join(yol.read_text(encoding="utf-8") for yol in anlati)
+
+    return [
+        f"webhook olayi '{olay}' hicbir anlati sayfasinda gecmiyor "
+        f"(yalniz uretilen referansta yasiyor)"
+        for olay in sorted(set(olaylar)) if olay not in metin
+    ]
+
+
 def tekrarlanan_kapi_tanimlari(kok: pathlib.Path = ROOT) -> list[str]:
     """Ensure CI and skills delegate scan/closing commands to ``kapi.py``."""
     kapi = kok / "scripts" / "kapi.py"
@@ -1904,6 +1938,13 @@ def denetle() -> int:
     for s in iddia_bulgulari:
         print(f"  {s}")
     hata |= int(bool(iddia_bulgulari))
+
+    olay_bulgulari = sevk_edilen_olay_anlatisi()
+    print(f"\nSevk edilen olayın anlatısı: "
+          f"{'❌ ' + str(len(olay_bulgulari)) + ' bulgu' if olay_bulgulari else '✅ temiz'}")
+    for s_ in olay_bulgulari:
+        print(f"  {s_}")
+    hata |= int(bool(olay_bulgulari))
 
     kapi_bulgulari = tekrarlanan_kapi_tanimlari()
     print(f"\nTekrarlanan kapı tanımları: "

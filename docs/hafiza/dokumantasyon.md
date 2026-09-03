@@ -273,3 +273,14 @@ Repo-geneli `*.md` taraması bu ağacı dışlamazsa dependency README'lerini ü
 dokümanı sanır; paket içinde sevk edilmeyen göreli hedefler sahte kırık link
 üretir. `kirik_baglantilar()` `.nuget` ağacını atlar ve regression testi CI
 dizin yapısını geçici ağaçta yeniden kurar.
+
+## 🚨 Uretilen referans bir KESIF yuzeyi degildir (2026-09-03)
+
+`quota.threshold` sevk edilmisti ve calisiyordu; anlati onu hic anlatmiyordu.
+Tuketici ozelligi bulamadi ve **var olani yeniden onerdi**. Ciplak varsayilan
+satiri davranisi anlatmaz; uretilen referansa adini **zaten bilen** bakar.
+Kapi: `sevk_edilen_olay_anlatisi()`.
+
+Ayni tur: **oznesiz cumle.** "A channel that reaches capacity drops the event"
+tuketicinin KENDI kanalini tarif ediyordu, AgentPrism'inki gibi okundu —
+AgentPrism'in kanali yoktur. Sorumlulugu anlatan cumle oznesini yazsin.
