@@ -153,9 +153,18 @@ public sealed class YourRunAuthorizationHandler(IYourOwnershipService ownership)
 
     public async ValueTask<RunAuthorizationResult> AuthorizeSessionAsync(
         SessionAuthorizationRequest request, CancellationToken cancellationToken = default)
-        => await ownership.OwnsAsync(request.TenantId, request.UserId, request.SessionId, cancellationToken)
+    {
+        // request.SessionId is null only for SessionAccess.List, which has no
+        // single session identity to check ownership of.
+        if (request.Access == SessionAccess.List)
+        {
+            return RunAuthorizationResult.Allow();
+        }
+
+        return await ownership.OwnsAsync(request.TenantId, request.UserId, request.SessionId!, cancellationToken)
             ? RunAuthorizationResult.Allow()
             : RunAuthorizationResult.Deny("This session belongs to a different user.");
+    }
 }
 ```
 
