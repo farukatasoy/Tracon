@@ -38,7 +38,8 @@ internal sealed class ListVoicesTool : VoiceToolBase
 
     /// <inheritdoc />
     public override string Description =>
-        "Lists the voices available for speech synthesis. Returns a name and id for each voice.";
+        "Lists the voices available for speech synthesis. Returns a name, id, " +
+        "and known safe attributes (for example gender) for each voice.";
 
     /// <inheritdoc />
     protected override async ValueTask<object?> InvokeCoreAsync(
@@ -52,7 +53,7 @@ internal sealed class ListVoicesTool : VoiceToolBase
 
         if (voices.Count == 0)
         {
-            return "Kullanilabilir ses yok.";
+            return "No voices available.";
         }
 
         var builder = new StringBuilder();
@@ -70,11 +71,16 @@ internal sealed class ListVoicesTool : VoiceToolBase
             {
                 builder.Append(" — ").Append(category);
             }
+
+            if (voice.Attributes.TryGetValue(VoiceAttributeNames.Gender, out var gender))
+            {
+                builder.Append(" — ").Append(gender);
+            }
         }
 
         if (voices.Count > MaxListedVoices)
         {
-            builder.Append("\n… ve ").Append(voices.Count - MaxListedVoices).Append(" ses daha.");
+            builder.Append("\n… and ").Append(voices.Count - MaxListedVoices).Append(" more voices.");
         }
 
         return builder.ToString();

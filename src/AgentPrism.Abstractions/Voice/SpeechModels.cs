@@ -1,3 +1,5 @@
+using System.Collections.ObjectModel;
+
 namespace AgentPrism;
 
 /// <summary>A text-to-speech generation request.</summary>
@@ -156,6 +158,40 @@ public sealed record VoiceDescriptor
 
     /// <summary>The category given by the provider (for example, <c>premade</c>).</summary>
     public string? Category { get; init; }
+
+    /// <summary>
+    /// Provider-reported, bounded, safe scalar attributes (for example,
+    /// <c>gender</c> or <c>language</c> — see <c>VoiceAttributeNames</c>).
+    /// </summary>
+    /// <remarks>
+    /// Empty, never <see langword="null"/>, when the provider reports nothing.
+    /// The set is provider-defined and not limited to <c>VoiceAttributeNames</c>'s
+    /// constants: any safe scalar label the provider sends survives under its own key.
+    /// </remarks>
+    public IReadOnlyDictionary<string, string> Attributes { get; init; }
+        = ReadOnlyDictionary<string, string>.Empty;
+}
+
+/// <summary>
+/// Names for well-known <see cref="VoiceDescriptor.Attributes"/> keys. Not
+/// exhaustive: a provider may report other safe scalar labels under their own key.
+/// </summary>
+public static class VoiceAttributeNames
+{
+    /// <summary>The voice's spoken gender.</summary>
+    public const string Gender = "gender";
+
+    /// <summary>The voice's spoken language (provider-defined code, for example an ISO 639-1 code).</summary>
+    public const string Language = "language";
+
+    /// <summary>The voice's accent.</summary>
+    public const string Accent = "accent";
+
+    /// <summary>The voice's age category.</summary>
+    public const string Age = "age";
+
+    /// <summary>The voice's intended use case.</summary>
+    public const string UseCase = "use-case";
 }
 
 /// <summary>The voice provider's reachability status.</summary>

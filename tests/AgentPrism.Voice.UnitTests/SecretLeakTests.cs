@@ -109,6 +109,40 @@ public sealed class SecretLeakTests
     }
 
     [Fact]
+    public async Task Voice_list_never_carries_preview_url_into_the_public_model()
+    {
+        // 🚨 preview_url is a DELIBERATE omission (playing it would connect the
+        // browser to the provider's address, VoiceDescriptor's own remarks).
+        // ElevenLabsVoice has no property for it, so the field can never reach
+        // VoiceDescriptor or its Attributes no matter what the response contains.
+        var handler = new StubHttpMessageHandler(_ => StubHttpMessageHandler.Json(
+            """
+            {"voices":[
+              {
+                "voice_id": "a",
+                "name": "Amy",
+                "category": "premade",
+                "preview_url": "https://storage.example/secret-path.mp3",
+                "labels": {"gender": "female"},
+                "verified_languages": [{"language": "en", "model_id": "m1"}]
+              }
+            ]}
+            """));
+
+        var options = new VoiceOptions { ApiKey = ApiKey, DefaultVoiceId = "voice-1" };
+        using var client = new ElevenLabsSpeechClient(options, new HttpClient(handler));
+
+        var voices = await client.ListVoicesAsync(TestContext.Current.CancellationToken);
+
+        var voice = voices.ShouldHaveSingleItem();
+        var serialized = JsonSerializer.Serialize(voice);
+
+        serialized.ShouldNotContain("preview_url");
+        serialized.ShouldNotContain("storage.example");
+        voice.Attributes[VoiceAttributeNames.Gender].ShouldBe("female");
+    }
+
+    [Fact]
     public async Task Key_appears_only_in_the_REQUEST_header_not_in_the_body()
     {
         var handler = new StubHttpMessageHandler(_ => StubHttpMessageHandler.Binary([0x49, 0x44, 0x33, 0x04]));
