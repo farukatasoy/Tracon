@@ -159,6 +159,7 @@ Bir senaryonun kendi verisi gerekiyorsa case içinde tanımlanır ve buraya girm
 | `get_order_status` | `orderId` | Sabit metin döndürür |
 | `list_recent_orders` | `customerId` | `ORD-1001, ORD-1002` döndürür |
 | `cancel_order` | `orderId` | **`RequiresApproval = true`** — onay kartı üretir |
+| `mark_preview_ready` | `orderId` | Faz 141: `RunEventType.Custom` yazar (`contoso.preview-ready`) |
 
 ### 3.3 Örnek uygulamada hazır gelen workflow'lar
 

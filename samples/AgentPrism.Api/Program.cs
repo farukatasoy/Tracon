@@ -402,7 +402,7 @@ agentPrism
         // model's call comes back to the caller as a pending FunctionCallContent.
         // estimate_shipping_cost (F-176, 135.1) takes an OBJECT parameter -
         // the model sends a nested JSON argument, not a scalar.
-        ToolNames = ["get_order_status", "list_recent_orders", "cancel_order", "read_shopping_cart", "estimate_shipping_cost"],
+        ToolNames = ["get_order_status", "list_recent_orders", "cancel_order", "read_shopping_cart", "estimate_shipping_cost", "mark_preview_ready"],
     })
 
     // A harness-configured agent: context compaction and todo tracking are on.

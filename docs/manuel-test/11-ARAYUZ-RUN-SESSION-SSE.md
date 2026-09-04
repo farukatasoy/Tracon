@@ -2,7 +2,8 @@
 
 > **Alan kodu:** `UIRUN` · **Faz:** 5 (çalıştırma/oturum ekranları), 32
 > (çalıştırma iptali), 47 (yeniden oynatma, karşılaştırma, dallandırma), 70
-> (`ReasoningDelta` olayı, `IRunEventSink`)
+> (`ReasoningDelta` olayı, `IRunEventSink`), 141 (`RunEventType.Custom` ve
+> `CustomType`)
 > **Kaynak:** `src/AgentPrism.UI/frontend/src/screens/runs.tsx` (liste) ·
 > `screens/run-detail.tsx` (tek çalıştırma: özet, canlı/geçmiş SSE, olay
 > zaman çizelgesi, çağrı ağacı) · `screens/sessions.tsx` (liste) ·
@@ -1656,5 +1657,119 @@ case iki yolun gerçek bir sunucuda hâlâ aynı sonuca vardığını doğrular.
 - **Koşuldu (2026-08-26):** run `01a03b6e-50e4-7c6b-b2c9-9b4333d89707`,
   `Running` → `Canceled` (`completedAt` dolduruldu), akışlı bağlantı
   sunucu tarafından kapatıldı (curl süreci kendiliğinden bitti).
+
+---
+
+### MT-UIRUN-052 — Tüketicinin yazdığı `Custom` olayı canlı akışta ve geçmiş okumada `customType` taşır (Faz 141)
+
+Gerçek bir OpenAI çağrısıyla ölçüldü (2026-09-04, `support` agent'ı, gerçek
+`mark_preview_ready` tool'u — `samples/AgentPrism.Api/OrderTools.cs`).
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 141 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- `samples/AgentPrism.Api` gerçek bir tool-çağıran sağlayıcıyla (ör. OpenAI,
+  `AgentPrism:Providers:OpenAI:ApiKey` `user-secrets` ile ayarlı) ayakta —
+  `support` agent'ı `mark_preview_ready`'i `ToolNames` listesinde taşır.
+
+**Adımlar**
+1. `curl -s -X POST "http://localhost:5080/agentprism/api/agents/support/run" -H "Authorization: Bearer manuel-test-token-2026" -H "Content-Type: application/json" -d '{"message":"Please call mark_preview_ready for order ORD-7 so the customer can review it."}'` ile akışı izle, `runId`'yi not al.
+2. `curl -s "http://localhost:5080/agentprism/api/runs/<runId>/events" -H "Authorization: Bearer manuel-test-token-2026" | grep -A1 "\"type\":\"Custom\""`.
+
+**Beklenen sonuç — gerçek koşumda ölçülen**
+- Adım 1: model `mark_preview_ready` tool'unu `orderId: "ORD-7"` argümanıyla
+  çağırır (`finishReason: "tool_calls"`), tool `"Preview for order ORD-7 is
+  ready to review."` döner.
+- Adım 2: bir `Custom` olayı görünür — **ölçülen** (run
+  `01a06aa0-5eac-705b-9101-d0c5bdeeaea4`, sequence 2):
+  ```json
+  {"runId":"01a06aa0-5eac-705b-9101-d0c5bdeeaea4","sequence":2,"type":"Custom","text":null,"toolName":null,"toolCallId":null,"payload":"{\"orderId\":\"ORD-7\"}","customType":"contoso.preview-ready"}
+  ```
+- Hemen ardından gelen `ToolInvoked` olayında (`sequence: 3`) `customType` alanı
+  `null`'dır — **iki yönlü kural üretimde de doğrulandı**: `Custom` OLMAYAN bir
+  olay `customType` taşımaz.
+
+---
+
+### MT-UIRUN-053 — 👤 Konsolda `Custom` olayı jenerik kartla çizilir; satır adı `CustomType`'tır
+
+MT-UIRUN-052'nin devamı — aynı `runId` konsolda açılır. Görsel doğrulama
+gerektirir; alan sözleşmesi (satır adının `customType` olması) E2E testiyle
+otomasyonla da koşulur: `AgentPrism.Ui.E2ETests.UiTests.
+Custom_run_event_renders_as_a_generic_card_named_after_its_CustomType`.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 141 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- MT-UIRUN-052 tamamlanmış, `runId` elde.
+
+**Adımlar**
+1. Konsolda `/agentprism/runs/<runId>` sayfasını aç.
+2. Olay Zaman Çizelgesi'nde `Custom` tipli satırı bul.
+
+**Beklenen sonuç**
+- Satırın adı jenerik `custom` DEĞİL, `contoso.preview-ready`'dir
+  (`run-detail.tsx`'in `EventRow`'u `event.customType`'ı `style.label`'ın
+  yerine kullanır).
+- Gövdede `{"orderId":"ORD-7"}` JSON'ı okunabilir biçimde (`CodeBlock` +
+  `prettyJson`) görünür — özel bir "Custom kartı" bileşeni YOKTUR, aynı jenerik
+  gövde her event tipinde kullanılır.
+
+---
+
+### MT-UIRUN-054 — `agentprism.` önekli `CustomType` yazan tool çağrısı reddedilir; run devam eder
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 141 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- `AgentRunScope.Writer.AppendAsync(new RunEventDraft(RunEventType.Custom) {
+  CustomType = "agentprism.internal" })` çağıran bir tool (geçici olarak eklenir
+  veya birim testle doğrulanır — bkz. `RunEventDraftValidationTests`).
+
+**Adımlar**
+1. Tool'u çağıran bir run başlat.
+
+**Beklenen sonuç**
+- `AppendAsync` çağrısı `ArgumentException` fırlatır; çağıran tool kodu
+  reddedilir. `RunEventWriter` bu istisnayı YUTMAZ (yalnız `store` hatalarını
+  yutar) — istisna tool'un kendi çağrı zincirine düşer ve MAF onu bir `ToolFailed`
+  olayına çevirir; run kendisi `Failed` olmaz, tool çağrısı başarısız sayılır.
+- Otomatik test kanıtı: `RunEventDraftValidationTests.A_Custom_event_under_the_reserved_agentprism_prefix_is_rejected`.
+
+---
+
+### MT-UIRUN-055 — Eski istemci (`customType` bilmeyen) `Custom` olayını sessizce yok sayar
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Düşük |
+| **İlgili faz** | Faz 141 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- MT-UIRUN-052'deki gibi bir `Custom` olayı üretilmiş bir run.
+
+**Adımlar**
+1. `curl -s ".../runs/<runId>/events" | python3 -c "import sys,json; [print(json.loads(l[5:])) for l in sys.stdin if l.startswith('data:') and '\"customType\"' not in l]"` gibi `customType` alanını YOK SAYAN bir ayrıştırıcıyla JSON'ı oku (eski bir istemcinin DTO'sunu simüle eder).
+
+**Beklenen sonuç**
+- Ayrıştırma hatasız tamamlanır; alan additive olduğundan bilinmeyen bir JSON
+  alanı okumayı denemeyen hiçbir istemci kırılmaz.
 
 ---

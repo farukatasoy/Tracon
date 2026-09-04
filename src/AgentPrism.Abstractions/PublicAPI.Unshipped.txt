@@ -2363,6 +2363,8 @@ AgentPrism.RunErrorStatistics.TotalRuns.init -> void
 AgentPrism.RunEvent
 AgentPrism.RunEvent.<Clone>$() -> AgentPrism.RunEvent!
 AgentPrism.RunEvent.Equals(AgentPrism.RunEvent? other) -> bool
+AgentPrism.RunEvent.CustomType.get -> string?
+AgentPrism.RunEvent.CustomType.init -> void
 AgentPrism.RunEvent.Payload.get -> string?
 AgentPrism.RunEvent.Payload.init -> void
 AgentPrism.RunEvent.RunEvent() -> void
@@ -2382,11 +2384,16 @@ AgentPrism.RunEvent.ToolName.get -> string?
 AgentPrism.RunEvent.ToolName.init -> void
 AgentPrism.RunEvent.Type.get -> AgentPrism.RunEventType
 AgentPrism.RunEvent.Type.init -> void
+AgentPrism.RunEventCustomTypes
+const AgentPrism.RunEventCustomTypes.ReservedPrefix = "agentprism." -> string!
+static AgentPrism.RunEventCustomTypes.IsReserved(string? customType) -> bool
+static AgentPrism.RunEventCustomTypes.IsValidType(string? customType) -> bool
 AgentPrism.RunEventType
 AgentPrism.RunEventType.ChildRunCompleted = 9 -> AgentPrism.RunEventType
 AgentPrism.RunEventType.ChildRunStarted = 8 -> AgentPrism.RunEventType
 AgentPrism.RunEventType.ContentBlocked = 21 -> AgentPrism.RunEventType
 AgentPrism.RunEventType.ContentMasked = 20 -> AgentPrism.RunEventType
+AgentPrism.RunEventType.Custom = 29 -> AgentPrism.RunEventType
 AgentPrism.RunEventType.DocumentAttached = 24 -> AgentPrism.RunEventType
 AgentPrism.RunEventType.ExecutorCompleted = 15 -> AgentPrism.RunEventType
 AgentPrism.RunEventType.ExecutorFailed = 16 -> AgentPrism.RunEventType
