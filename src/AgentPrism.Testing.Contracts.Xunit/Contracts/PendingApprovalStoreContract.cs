@@ -79,6 +79,48 @@ public abstract class PendingApprovalStoreContract : TenantIsolationContract<IPe
     }
 
     [Fact]
+    public async Task Presentation_round_trips_through_create_and_get()
+    {
+        var approval = (await ApprovalAsync("tenant-a", "cancel-order")) with
+        {
+            Presentation = new ToolApprovalPresentation
+            {
+                EntityType = "order",
+                EntityId = "42",
+                EntityName = "Order #42",
+                Message = "Cancel order #42 for customer Jane Doe.",
+            },
+        };
+
+        await Store.CreateAsync(approval);
+
+        AmbientTenant.TenantId = "tenant-a";
+
+        var loaded = await Store.GetAsync(approval.Id);
+
+        loaded.ShouldNotBeNull();
+        loaded.Presentation.ShouldNotBeNull();
+        loaded.Presentation!.EntityType.ShouldBe("order");
+        loaded.Presentation.EntityId.ShouldBe("42");
+        loaded.Presentation.EntityName.ShouldBe("Order #42");
+        loaded.Presentation.Message.ShouldBe("Cancel order #42 for customer Jane Doe.");
+    }
+
+    [Fact]
+    public async Task Absent_presentation_is_read_back_as_null()
+    {
+        var approval = await ApprovalAsync("tenant-a", "cancel-order");
+
+        approval.Presentation.ShouldBeNull();
+
+        await Store.CreateAsync(approval);
+
+        AmbientTenant.TenantId = "tenant-a";
+
+        (await Store.GetAsync(approval.Id))!.Presentation.ShouldBeNull();
+    }
+
+    [Fact]
     public async Task Listing_returns_only_pending_requests()
     {
         AmbientTenant.TenantId = "tenant-a";

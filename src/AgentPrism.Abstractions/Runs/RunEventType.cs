@@ -122,9 +122,24 @@ public enum RunEventType
     /// the stream.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// Separate from <see cref="RunCompleted"/> and <see cref="RunFailed"/>: the
     /// work neither finished nor failed. On this event the user interface shows the
     /// pending request card.
+    /// </para>
+    /// <para>
+    /// Produced for two different terminal statuses, and <c>Payload</c> differs between
+    /// them. For a workflow closing with <see cref="RunStatus.AwaitingInput"/>, the
+    /// details already arrived on the preceding <see cref="WorkflowRequest"/> event and
+    /// this one carries no payload of its own. For a root run closing with
+    /// <see cref="RunStatus.AwaitingApproval"/>, <c>Payload</c> is a JSON array, one
+    /// entry per pending tool call: <c>requestId</c>, <c>toolName</c>, and — when a
+    /// consumer registered an <see cref="IToolApprovalPresenter"/> and it resolved
+    /// something — <c>entityType</c>, <c>entityId</c>, <c>entityName</c>, and
+    /// <c>message</c> from <see cref="ToolApprovalPresentation"/>. It never carries the
+    /// call's raw arguments; those are read from <see cref="PendingApproval.Arguments"/>
+    /// or from the <c>ToolApprovalRequestContent</c> already present in the response.
+    /// </para>
     /// </remarks>
     RunAwaitingInput = 19,
 

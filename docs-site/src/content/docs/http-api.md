@@ -67,6 +67,12 @@ The status code is sent before the first frame. A failure after that arrives as 
 a failed run as a success.
 :::
 
+A run that stops on a tool call needing a human decision sends an `approvals` frame
+before the stream ends — the pending request's id and tool name, plus whatever an
+[approval presenter](/concepts/governance/#approvals) resolved for it. See
+[Approvals](/concepts/governance/#approvals) for the queued-run mailbox shape, which
+answers the same request differently.
+
 ## Paging
 
 List endpoints that page use `skip` and `take`. `skip` defaults to 0, `take` to 50,

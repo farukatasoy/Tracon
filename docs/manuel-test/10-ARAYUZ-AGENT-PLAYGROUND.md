@@ -1,7 +1,8 @@
 # 10 — Arayüz: Agent ve Playground (`UIAG`)
 
 > **Alan kodu:** `UIAG` · **Faz:** 5 (agent kataloğu, editör, playground), 19 (sürüm
-> karşılaştırma — `agent-detail.tsx` içindeki `VersionCompare`)
+> karşılaştırma — `agent-detail.tsx` içindeki `VersionCompare`), 142 (onay
+> kartında varlık adı sunumu ve katlanır ham argümanlar)
 > **Kaynak:** `src/AgentPrism.UI/frontend/src/screens/agents.tsx` (katalog) ·
 > `screens/agent-editor.tsx` (oluşturma/düzenleme) · `screens/agent-detail.tsx`
 > (özet, versiyon geçmişi, karşılaştırma, geri alma) · `screens/playground.tsx`
@@ -927,8 +928,12 @@ Oturum kimliği sunucudan rezerve edilir (K-043) — arayüz kendi biçimini uyd
 2. Akış bitene kadar bekle.
 
 **Beklenen sonuç**
-- `data-testid="approval-card"` görünür: tool adı `cancel_order`,
-  `tools.approvalRequired` rozeti, argümanlar bölümü dolu.
+- `data-testid="approval-card"` görünür: tool adı `cancel_order` başlıkta
+  (mono yazı tipi — hiçbir `IToolApprovalPresenter` kayıtlı değilse
+  gösterilecek varlık adı yoktur), `tools.approvalRequired` rozeti.
+- "Argümanlar" satırı KATLI durur (Faz 142): `data-testid=
+  "approval-toggle-arguments"` düğmesine tıklamadan argüman içeriği
+  görünmez. Tıklandığında `orderId: "ORD-1001"` içeren bölüm açılır.
 - Onay kartından SONRA hiçbir metin bloğu gelmez — MAF çalıştırmayı burada
   DURDURUR (istek bekleyen bir onaya rağmen tamamlanmış sayılır).
 - Tur durumu `done` olur (`event: done` çerçevesi gelir), `failed` DEĞİL.
@@ -1666,3 +1671,34 @@ Faz 109 bu iki ekranı çok sayıda alt modüle böldüğü için ikisi burada a
 - Sayfanın kendisi yatay kaymaz. Önizleme paneli (agent editor) ve ek
   çipleri/parametre alanları (playground) dar genişlikte sarar, taşmaz.
 - Gönder/Onayla/Reddet düğmeleri hâlâ dokunulabilir boyuttadır.
+
+---
+
+### MT-UIAG-053 — Kayıtlı bir `IToolApprovalPresenter` varken onay kartı başlıkta varlık adını gösterir (Faz 142)
+
+`MT-UIAG-028`'in aksine burada `samples/AgentPrism.Api`'nin kendi
+`OrderApprovalPresenter`'ı devrede — sunucu SSE akışına ayrı bir
+`event: approvals` çerçevesi ekler, kart onu `requestId` ile eşleştirip
+kendini günceller.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 142 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- `playground/support` açık, yeni sohbet.
+
+**Adımlar**
+1. `ORD-1001 siparisimi iptal et` gönder.
+2. Akış bitene kadar bekle.
+
+**Beklenen sonuç**
+- Kartın başlığında `Order ORD-1001` görünür (kalın), altında ince/mono
+  yazıyla `cancel_order` durur — `MT-UIAG-028`'deki gibi yalnız tool adı
+  DEĞİL.
+- Altında `Cancel order ORD-1001 for Priya Shah.` mesajı görünür.
+- "Argümanlar" satırı yine KATLI başlar; açılınca `orderId: "ORD-1001"`
+  görünür.

@@ -23,8 +23,8 @@
    düşer), **K-584** (`Destructive` etkili tool taşıyan koşu varsayılan olarak
    devam etmez)
 3. Alan hafızası:
-   [`hafiza/cekirdek-calistirma.md`](hafiza/cekirdek-calistirma.md) (🚨 tool
-   bağımlılığı **kurulum anında** alınır) ·
+   [`hafiza/tool-onay-ve-yetkilendirme.md`](hafiza/tool-onay-ve-yetkilendirme.md)
+   (🚨 tool bağımlılığı **kurulum anında** alınır) ·
    [`hafiza/aspnetcore-di.md`](hafiza/aspnetcore-di.md) (singleton/scoped sınırı)
 
 ---
@@ -225,19 +225,127 @@ konsol probunda aynı çağrı **çalışıyordu**.
 
 ## Bitiş Ölçütleri (DoD)
 
-- [ ] Çözümleyici kayıtlı değilken **hiçbir** davranış değişmez
-- [ ] 🚨 `throw` eden çözümleyici onay isteğini **engellemez** (case 4 kanıt)
-- [ ] Zaman aşımı çalışır; istek yine yayımlanır
-- [ ] 🚨 Scoped bağımlılık gerçek DI konteynerinde çözülür (K-218 kapanır)
-- [ ] Ham argümanlar her zaman erişilebilir kalır
-- [ ] Alanlar `pending` ucunda **ve** `RunAwaitingInput` payload'ında görünür
-- [ ] Bundle payı ölçüldü; `en.ts`/`tr.ts` eksiksiz
-- [ ] Dört doğrulama kapısı sıfır uyarı verir
-- [ ] `samples/AgentPrism.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı
-- [ ] `secret` taraması boş döndü
-- [ ] Manuel kabul case'leri `docs/manuel-test/07-HTTP-YONETIM-API.md` içine eklendi
-- [ ] `faz-denetim` koşuldu; 🔴 bulgu kalmadı
-- [ ] `docs-site/` güncellendi + onay ekranı görüntüsü yenilendi; `npm run build` + `check-links.mjs` temiz
+- [x] Çözümleyici kayıtlı değilken **hiçbir** davranış değişmez —
+  `ToolApprovalPresenterTests.Unregistered_presenter_resolves_nothing_and_is_never_called`
+  (spy asla çağrılmaz) + `ToolApprovalPresenterRunner`'ın kendi hızlı yolu
+  (`presenter is NullToolApprovalPresenter` → hiç `ToolApprovalContext`
+  kurulmaz).
+- [x] 🚨 `throw` eden çözümleyici onay isteğini **engellemez** —
+  `ToolApprovalPresenterTests.Throwing_presenter_does_not_block_the_approval_request`.
+- [x] Zaman aşımı çalışır; istek yine yayımlanır —
+  `ToolApprovalPresenterTests.Presenter_past_the_configured_timeout_resolves_null_without_blocking`
+  (20 ms yapılandırılmış zaman aşımı, sonsuz bekleyen sahte çözümleyiciye
+  karşı 5 saniyeden kısa sürede döner).
+- [x] 🚨 Scoped bağımlılık gerçek DI konteynerinde çözülür (K-218 kapanır) —
+  `ToolApprovalPresenterScopeTests.Presenter_resolves_a_scoped_dependency_through_the_real_container`,
+  gerçek `ServiceCollection.BuildServiceProvider()` + `IServiceScopeFactory`.
+- [x] Ham argümanlar her zaman erişilebilir kalır — `PendingApprovalStoreContract`
+  ve gerçek örnek uygulama koşumunda (aşağıda) her durumda `arguments` dolu.
+- [x] Alanlar `pending` ucunda **ve** `RunAwaitingInput` payload'ında görünür —
+  gerçek koşum kanıtı aşağıda.
+- [x] Bundle payı ölçüldü; `en.ts`/`tr.ts` eksiksiz — `npm run build`:
+  `javascript : 177.3 KB gzipped (budget 250 KB)` (Faz 141'den beri değişim
+  yok denecek kadar küçük; bu fazın kendi JS eklentisi `<1 KB`).
+- [x] Dört doğrulama kapısı sıfır uyarı verir — aşağıdaki "Doğrulama Kapıları
+  Çıktısı" bölümü.
+- [x] `samples/AgentPrism.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı
+  — aşağıda.
+- [x] `secret` taraması boş döndü — `python3 scripts/kapi.py tarama`'nın
+  `olası secret` bölümü boş (yalnız migration-manifest sıralama boşluğu
+  kaldı, bkz. Sonraki Faza Devir Notu).
+- [x] Manuel kabul case'leri eklendi — **`07-HTTP-YONETIM-API.md` DEĞİL**,
+  bkz. Plandan Sapmalar #2: `21-DAYANIKLILIK-VE-IPTAL.md` (MT-RES-020
+  genişletildi, MT-RES-073 yeni) ve `10-ARAYUZ-AGENT-PLAYGROUND.md`
+  (MT-UIAG-028 düzeltildi, MT-UIAG-053 yeni).
+- [x] `faz-denetim` koşuldu; 🔴 bulgu kalmadı — bkz. Denetim Bulguları.
+- [x] `docs-site/` güncellendi + onay ekranı görüntüsü yenilendi; `npm run build` +
+  `check-links.mjs` temiz — `npm run check` (check:content · build ·
+  check:links · check:weight) dördü de yeşil;
+  `docs-site/public/screenshots/approvals.png`
+  `AGENTPRISM_UI_SCREENSHOTS=1` ile yenilendi (gerçek bir `IToolApprovalPresenter`
+  kayıtlı E2E host'ta, artık boş liste değil `Order ORD-7` satırı gösteriyor).
+
+### Gerçek koşum kanıtı (`samples/AgentPrism.Api`, gerçek OpenAI sağlayıcısı)
+
+Kuyruklu yol — `Prefer: respond-async` ile `ORD-1001` iptali:
+
+```
+POST /api/agents/support/run  (Prefer: respond-async, sessionId=faz142-demo)
+→ 202 {"runId":"01a06b96-062d-7af2-a9c8-b0c1a7539332", …}
+
+GET /api/runs/{runId}          → status: "AwaitingApproval" (ilk sorguda)
+
+GET /api/approvals/pending     → [{
+  "toolName": "cancel_order",
+  "arguments": "orderId=ORD-1001",
+  "presentation": {
+    "entityType": "order", "entityId": "ORD-1001",
+    "entityName": "Order ORD-1001",
+    "message": "Cancel order ORD-1001 for Priya Shah."
+  },
+  "status": "Pending", …
+}]
+
+GET /api/runs/{runId}/events   → son olay:
+  event: RunAwaitingInput
+  payload: [{"requestId":"ficc_call_…","toolName":"cancel_order",
+    "entityType":"order","entityId":"ORD-1001",
+    "entityName":"Order ORD-1001",
+    "message":"Cancel order ORD-1001 for Priya Shah."}]
+
+POST /api/approvals/{id}/decide {"approved":true}
+→ 200 {"status":"Approved", "presentation": {…SAME…}, …}
+```
+
+Senkron yol (playground stili) — `ORD-1002`, `event: approvals` çerçevesi:
+
+```
+POST /api/agents/support/run  (Prefer YOK — SSE akışı)
+…
+id: 13
+event: update
+data: {"contents":[{"$type":"toolApprovalRequest","toolCall":{"$type":"functionCall",
+  "name":"cancel_order","arguments":{"orderId":"ORD-1002"}, …},
+  "requestId":"ficc_call_ejhBzi5SUOy6MxANJrmIl9U6"}]}
+
+id: 14
+event: approvals
+data: [{"requestId":"ficc_call_ejhBzi5SUOy6MxANJrmIl9U6","toolName":"cancel_order",
+  "entityType":"order","entityId":"ORD-1002","entityName":"Order ORD-1002",
+  "message":"Cancel order ORD-1002 for Marcus Lee."}]
+
+id: 15
+event: done
+```
+
+Fail-open — bilinmeyen `ORD-9999`:
+
+```
+GET /api/approvals/pending → [{"toolName":"cancel_order",
+  "arguments":"orderId=ORD-9999", "presentation": null, "status":"Pending", …}]
+```
+
+İstek yine yayımlandı, ham argüman dolu, `presentation` yalnız `null` —
+tam olarak 142.2'nin dört-durum tablosunun vaat ettiği gibi.
+
+### Doğrulama Kapıları Çıktısı
+
+- `dotnet build AgentPrism.slnx -c Release` — 0 uyarı, 0 hata (temiz `artifacts/`
+  ile üç kez doğrulandı; ilk iki koşumun kırmızıları bu oturumun kendi eşzamanlı
+  ad-hoc `dotnet pack`/`dotnet build` çağrılarının `artifacts/package/`'ı
+  kirletmesinden kaynaklanıyordu — kod kusuru değildi, `rm -rf artifacts` + tek
+  seferlik temiz koşumla doğrulandı).
+- `dotnet test AgentPrism.slnx --no-build` — Core (2341), AspNetCore.FunctionalTests
+  (766), Workflows.UnitTests (107), Sql.Shared.UnitTests (20),
+  PostgreSql/SqlServer/Sqlite.IntegrationTests (gerçek Testcontainers ile),
+  Generators.UnitTests (271, `<example>` blokları dahil), Ui.E2ETests
+  (ekran görüntüsü koşumu dahil) — tümü yeşil.
+- `python3 scripts/kapi.py tarama` — senkronizasyon kopyası: temiz; `secret`:
+  temiz; bayat doküman referansı: temiz; migration-integrity: kırmızı (BEKLENEN,
+  bkz. Sonraki Faza Devir Notu — kapanış commit'inden sonra ayrı bir commit'le
+  kapanır).
+- `docs-site`: `npm run check` (check:content · build · check:links ·
+  check:weight) dördü de yeşil.
 
 ---
 
@@ -259,24 +367,209 @@ konsol probunda aynı çağrı **çalışıyordu**.
 
 ## Plandan Sapmalar
 
-> Kapanışta doldurulur.
+1. **🚨 `ApprovingAIFunction` hiç yazılmadı — planın merkezi varsayımı ölçümde
+   yanlış çıktı.** `ToolRegistryWrapperOrderTests.cs`'te ZATEN ölçülmüş bir
+   gerçek: MEAI'nin function-invoking istemcisi `ApprovalRequiredAIFunction`'ı
+   `AITool.GetService(Type)` üzerinden BULARAK ayırır, `InvokeAsync`'i hiç
+   çağırmadan — bir tool sarmalayıcısının onay tetikleyen çağrıda `InvokeAsync`'i
+   hiç görmeyeceği anlamına gelir. Sunum çözümü bunun yerine
+   `RunRecordingAgent`'a taşındı: `ToolApprovalRequestContent`'in ZATEN okunduğu
+   tek nokta (`ChildRunApproval` ailesi). Açık Soru 2'nin cevabı NE
+   `ApprovingAIFunction` NE uçtu — `RunRecordingAgent` oldu. Vaka
+   `docs/hafiza/tool-onay-ve-yetkilendirme.md`'ye yazıldı.
+2. **Manuel kabul case'leri `07-HTTP-YONETIM-API.md`'ye DEĞİL, mevcut yerleşik
+   dosyalara eklendi.** `/api/approvals/*` uçlarının kuyruk senaryosu zaten
+   `21-DAYANIKLILIK-VE-IPTAL.md` §3'te (`MT-RES-020`+) yaşıyordu — presentation
+   alanları oraya (MT-RES-020 genişletildi, MT-RES-073 eklendi) ve canlı
+   playground SSE senaryosu `10-ARAYUZ-AGENT-PLAYGROUND.md`'ye (MT-UIAG-028
+   düzeltildi, MT-UIAG-053 eklendi) gitti — kurulu yerleşim korunuyor.
+3. **Açık Soru 1 → A: kalıcı.** `pending_approvals.presentation` jsonb/text
+   sütunu (3 migration: Postgres 0045, SqlServer/Sqlite 0032). Gerekçe planın
+   önerdiği gibi: onay kuyruktan sürdürülüyor ve çözümleyici o an başka bir
+   süreçte/pencerede olabilir; yeniden çözmek tutarsız bir "aynı istek farklı
+   anda farklı ad" riski taşırdı.
+4. **Açık Soru 3 → 2 saniye, `AgentPrismToolOptions.ApprovalPresentationTimeout`
+   ile ayarlanabilir.** Gerekçe: çözümleyici tek bir hızlı, salt okunur arama
+   (birincil anahtarla nokta okuma) yapmalı — gerçek iş değil; kısa varsayılan
+   yalnız bir isim kaybettirir, onayın kendisini asla geciktirmez.
+5. **🚨 `AgentPrismRunOptions.Clone()` sessizce `BeforePendingApprovalIsPublished`'ı
+   düşürüyordu — fazın kapsamı dışında, K-103 döneminden kalma bir kusur, bu
+   fazda dokunulan aynı satırda bulunup düzeltildi.** Private copy ctor bu
+   alanı hiç kopyalamıyordu; `Clone()`'un kendi XML dokümanı "tüm alanları
+   korur" diyordu, kod tutmuyordu. Bağımsız denetimin 🟡 #3 bulgusu.
+6. **🚨 `RunEventWriter.CompleteAsync`'in kapanış olayı switch'i
+   `RunStatus.AwaitingApproval`'ı hiç eşlemiyordu, default kola düşüp HER
+   onay-bekleyen kökü `RunFailed` + "The run was canceled." olarak
+   yayımlıyordu.** Kusur `RunRecordingAgentOutcomeMatrixTests`'in kendi
+   yorumunda bilerek pin'lenmişti ("gelecekte düzeltilecek quirk"); fazın
+   kendi DoD'si (RunAwaitingInput payload'ı) bu düzeltmeyi zorunlu kıldı. Vaka
+   `docs/hafiza/cekirdek-calistirma.md`'de.
+7. **Embedding point sayısı altıdan yediye çıktı — bağımsız denetimin 🟡 #2
+   bulgusuyla bulundu, plan bunu öngörmüyordu.** `IToolApprovalPresenter`
+   diğer altı genişleme noktasıyla (TryAdd + fail-open, tüketici override
+   kazanır) aynı ailede olduğu hâlde ne `GET /api/diagnostics`'e ne
+   `capabilities.md`'ye eklenmişti; ikisi de düzeltildi
+   (`AgentPrismDiagnosticsCollector`, `docs-site/.../capabilities.md`).
+8. **`guides/embedding.md`'nin "six points" listesine 7. madde EKLENMEDİ —
+   bilinçli kapsam kararı.** O liste embedding noktalarının GENEL ailesi
+   değil, bir widget'ı BAŞKA bir uygulamaya gömmenin altyapı-yapıştırma
+   sorunlarıdır (kiracı, atıf, yetkilendirme, event bridge, depolama, run/session
+   yetkilendirmesi); onay sunumu farklı bir eksen. Listeyi "yedi nokta"ya
+   çevirip başlığı değiştirmek yerine §3'e çapraz referans eklendi.
 
 ## Bu Fazda Verilen Kararlar
 
-> Kapanışta doldurulur.
+| Karar | Kayıt |
+|---|---|
+| Sunum alanları `pending_approvals`'a kalıcı sütun olarak yazılır (Açık Soru 1 → A) | K-675 |
+| `IToolApprovalPresenter` fail-open'dır — kayıtlı değil/`null` döner/`throw` eder/zaman aşımına uğrar dört durumun HİÇBİRİ onay isteğinin yayımını engellemez | K-676 |
+
+Tam gerekçe `docs/KARARLAR.md`'de (Bölüm 2, sona eklendi).
 
 ## Gerçekleşen Public API
 
-> Kapanışta doldurulur.
+```csharp
+// AgentPrism.Abstractions
+public interface IToolApprovalPresenter
+{
+    ValueTask<ToolApprovalPresentation?> PresentAsync(
+        ToolApprovalContext context, CancellationToken cancellationToken = default);
+}
+
+public sealed record ToolApprovalPresentation
+{
+    public string? EntityType { get; init; }
+    public string? EntityId { get; init; }
+    public string? EntityName { get; init; }
+    public string? Message { get; init; }
+}
+
+// PendingApproval: +Presentation
+public sealed record PendingApproval
+{
+    // … mevcut alanlar
+    public ToolApprovalPresentation? Presentation { get; init; }
+}
+
+// AgentPrismRunOptions.BeforePendingApprovalIsPublished — İMZA DEĞİŞTİ (Unshipped, kırıcı değil):
+public Func<
+    IEnumerable<ChatMessage>,
+    IReadOnlyDictionary<string, ToolApprovalPresentation?>, // YENİ 2. parametre
+    CancellationToken,
+    ValueTask>? BeforePendingApprovalIsPublished { get; init; }
+
+// AgentPrism.Core
+public sealed class ToolApprovalPresenterRunner // singleton, timeout + fail-open sarmalayıcı
+{
+    public ValueTask<IReadOnlyDictionary<string, ToolApprovalPresentation?>> ResolveAllAsync(
+        IReadOnlyList<ToolApprovalRequestContent> requests, string tenantId, string? agentName,
+        CancellationToken cancellationToken);
+}
+
+// AgentPrismToolOptions: +ApprovalPresentationTimeout (varsayılan 2 sn)
+// RunEventType.RunAwaitingInput: Payload artık AwaitingApproval için de dolu (bkz. XML doküman)
+// Kayıt: TryAddSingleton<IToolApprovalPresenter, NullToolApprovalPresenter>()
+```
+
+**Planlanmış ama gerçekleşmeyen:** `ApprovingAIFunction` (bkz. Plandan Sapmalar #1).
 
 ## Dosya Listesi (gerçekleşen)
 
-> Kapanışta doldurulur.
+```
+src/AgentPrism.Abstractions/
+├── Approvals/IToolApprovalPresenter.cs        (yeni)
+├── Approvals/ToolApprovalPresentation.cs      (yeni)
+├── Approvals/PendingApproval.cs               (Presentation alanı)
+├── Runs/AgentPrismRunOptions.cs               (hook imzası + Clone() kusuru)
+├── Runs/RunEventType.cs                       (RunAwaitingInput doküman)
+└── Diagnostics/{AgentPrismDiagnosticsReport,ExtensionPointDiagnostic}.cs (7. nokta)
+
+src/AgentPrism.Core/
+├── Approvals/NullToolApprovalPresenter.cs     (yeni)
+├── Approvals/ToolApprovalPresenterRunner.cs   (yeni)
+├── Approvals/FunctionCallArguments.cs         (yeni — ToolApprovalRuleEvaluator ile paylaşılan)
+├── Approvals/PendingToolApprovalEventItem.cs  (yeni — olay payload DTO'su)
+├── Graph/ChildAgentInvoker.cs                 (ChildRunApproval.CollectRequests)
+├── Recording/RunEventWriter.cs                (AwaitingApproval kapanış olayı kusuru)
+├── Recording/RunRecordingAgent.cs + .Completion.cs (sunum çözümü + payload üretimi)
+├── Recording/RunRecordingAgentDecorator.cs    (approvalPresenterRunner kaydı)
+├── Scheduling/AgentRunJobHandler.cs           (Presentation → PendingApproval)
+├── Diagnostics/AgentPrismDiagnosticsCollector.cs (7. nokta)
+├── AgentPrismOptions.cs                       (ApprovalPresentationTimeout)
+├── AgentPrismCoreJsonContext.cs               (payload DTO serileştirme)
+├── AgentPrismServiceCollectionExtensions.Binding.Core.cs      (timeout config binding)
+└── AgentPrismServiceCollectionExtensions.Registration.Core.cs (kayıt)
+
+src/AgentPrism.AspNetCore/Endpoints/AgentEndpoints.cs  (approvals SSE çerçevesi)
+
+src/AgentPrism.Sql.Shared/Internal/{SqlQueriesBase,AgentPrismJsonContext}.cs
+src/AgentPrism.Sql.Shared/Stores/SqlPendingApprovalStore.cs
+src/AgentPrism.PostgreSql/{Internal/PostgresQueries.cs, Migrations/0045_pending_approval_presentation.sql}
+src/AgentPrism.SqlServer/{Internal/SqlServerQueries.cs, Migrations/0032_pending_approval_presentation.sql}
+src/AgentPrism.Sqlite/{Internal/SqliteQueries.cs, Migrations/0032_pending_approval_presentation.sql}
+
+src/AgentPrism.UI/frontend/src/
+├── lib/transcript.ts                          (presentation alanları + applyApprovalPresentations)
+├── components/transcript.tsx                  (varlık adı başlıkta, katlanır argümanlar)
+├── screens/approvals.tsx                      (varlık adı + katlanır argümanlar)
+├── screens/playground/use-playground-run.ts   (approvals SSE çerçevesi işleme)
+└── locales/{en,tr}/operations.ts              (approvals.rawArguments)
+
+samples/AgentPrism.Api/{OrderApprovalPresenter.cs, Program.cs}
+tests/AgentPrism.Ui.E2ETests/Infrastructure/{ScriptedApprovalPresenter.cs, UiHost.cs}
+tests/AgentPrism.Ui.E2ETests/DocumentationScreenshotTests.cs (SeedPendingApprovalAsync + landmark)
+
+tests/AgentPrism.Core.UnitTests/Approvals/{ToolApprovalPresenterTests,ToolApprovalPresenterScopeTests}.cs (yeni)
+tests/AgentPrism.Core.UnitTests/Scheduling/AgentRunJobHandlerTests.cs (queue path presentation testi)
+tests/AgentPrism.Core.UnitTests/Diagnostics/DiagnosticsCollectorTests.cs (7. nokta)
+tests/AgentPrism.Core.UnitTests/Recording/RunRecordingAgentOutcomeMatrixTests.cs (RunAwaitingInput + payload)
+tests/AgentPrism.Core.UnitTests/Configuration/ServiceRegistrationSnapshotTests.cs
+tests/AgentPrism.AspNetCore.FunctionalTests/DiagnosticsEndpointTests.cs (7. nokta)
+tests/AgentPrism.Testing.Contracts.Xunit/Contracts/PendingApprovalStoreContract.cs (+2 case, tüm store'larda koşar)
+
+docs-site/src/content/docs/{concepts/governance.md, concepts/tools.md, guides/embedding.md, capabilities.md}
+```
 
 ## Denetim Bulguları
 
-> Kapanışta doldurulur.
+Bağımsız denetim ([`faz-denetim`](../.agents/skills/faz-denetim/SKILL.md)) 🔴 bulgu üretmedi.
+
+| # | Seviye | Bulgu | Sonuç |
+|---|---|---|---|
+| 1 | 🟡 | Kuyruk yolunun (`AgentRunJobHandler`) `IToolApprovalPresenter`'ı gerçekten `PendingApproval.Presentation`'a yazdığını kanıtlayan hızlı/izole bir test yoktu — yalnız E2E ekran görüntüsü testi. | **Düzeltildi**: `AgentRunJobHandlerTests.A_registered_presenter_reaches_the_persisted_PendingApproval_row` — gerçek `RunRecordingAgent` + `AgentRunJobHandler` + `InMemoryPendingApprovalStore` zincirini DI/HTTP olmadan koşar. |
+| 2 | 🟡 | `IToolApprovalPresenter` diğer altı "TryAdd + fail-open" genişleme noktasıyla aynı ailede olduğu hâlde `capabilities.md`'ye ve `AgentPrismDiagnosticsCollector`'a (`GET /api/diagnostics`) eklenmemişti. | **Düzeltildi**: yedinci nokta olarak ikisine de eklendi; `DiagnosticsCollectorTests` ve `DiagnosticsEndpointTests`'in "altı"ya sabit sayıları "yedi"ye güncellendi. |
+| 3 | 🟡 | `AgentPrismRunOptions.Clone()`'un `BeforePendingApprovalIsPublished`'ı kopyalamaması (K-103 döneminden kalma, bu fazda dokunulan satırda bulunan) hiçbir yerde açıkça kayıt altına alınmamıştı. | **Gerekçelendi/kayıt altına alındı**: Plandan Sapmalar #5. |
+| 🟢 | 🟢 | `ChildRunApproval.Describe`/`CollectRequests` neredeyse aynı döngüyü iki kez yürütüyor. | **Devredildi**: ayrı bir temizlik fazına değecek kadar önemli değil; birleştirilmedi, kod tekrarı davranışı etkilemiyor. |
+| 🟢 | 🟢 | `ToolApprovalPresenterRunner.ResolveAllAsync` N>1 bekleyen istekte sıralı çözer. | **Devredildi**: mantık N>1 için de doğru (paylaşılan mutable state yok); performans optimizasyonu, DoD veya güvenlik sınırı değil. |
+
+Denetimin "temiz" bulduğu başlıklar: 3.2 (test tiyatrosu), 3.6 (plan dışı public API), 3.7 (repo kuralları).
 
 ## Sonraki Faza Devir Notu
 
-> Kapanışta doldurulur.
+- **`IToolApprovalPresenter` artık AgentPrism'in yedinci embedding noktasıdır.**
+  Yeni bir genişleme noktası eklerken bu ikili kontrolü unutma:
+  `AgentPrismDiagnosticsCollector.CollectExtensionPoints()` (kod) VE
+  `docs-site/.../capabilities.md`'nin "Embedding points" tablosu (doküman) —
+  ikisi de elle senkron tutulur, hiçbir kapı bu boşluğu otomatik yakalamaz
+  (bağımsız denetimin bu fazda bulduğu tam boşluk buydu).
+- **`AgentPrismRunOptions.BeforePendingApprovalIsPublished`'ın imzası
+  ikinci bir parametre kazandı** (`IReadOnlyDictionary<string,
+  ToolApprovalPresentation?>`). Bu hook'u okuyan/yazan başka bir yer varsa
+  (bugün yalnız `AgentRunJobHandler` ve `AgentEndpoints.cs` var) imza-gövde
+  taramasını (`grep -rn "BeforePendingApprovalIsPublished" src/`) çalıştır.
+- **SSE `approvals` çerçevesi yalnız SENKRON streaming run ucundadır**
+  (`AgentEndpoints.AgentRunStream.ExecuteStreamingAsync`), kuyruklu
+  (`Prefer: respond-async`) yolda DEĞİL — kuyruklu yolun kendi mailbox'ı
+  (`GET /api/approvals/pending`) zaten var. İkisini karıştırma; bağımsız
+  denetim bu ayrımı görev bağlamındaki bir özetleme hatasında bulup düzeltti.
+  bkz. `docs/hafiza/cekirdek-calistirma.md`.
+- **`docs/manuel-test/`'in `docs/manuel-test/*.md` bütçesi %12 boşlukla DAR
+  durumdaydı bu faz başlarken** (`dokuman-bakim.py --denetle`). Yeni case
+  eklerken kısa yaz; bir sonraki faz bu ağacı taşırabilir — şimdi taşı,
+  aşınca değil.
+- **`scripts/applied-migrations.json`'a bu fazın 3 migration'ı için
+  `sourceCommits` girdisi HENÜZ yazılmadı** — kapanış commit'inden SONRA,
+  o commit'in SHA'sını referanslayan ayrı bir "docs: pin phase 142's
+  migrations..." commit'iyle eklenir (bkz. phase 126/129/132/137/141
+  emsali). Bu commit atılmadan `kapi.py tarama` migration-integrity
+  kontrolünde kırmızı kalır — bu BEKLENEN bir sıralamadır, kusur değildir.

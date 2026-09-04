@@ -81,6 +81,11 @@ The Run button is disabled while a required field is empty; this is the same rul
 the server enforces (a run with a missing required value never starts), surfaced
 before the round trip instead of after it.
 
+A tool call that needs a human decision stops the stream and renders as an approval
+card instead of a result — the entity name and message from a registered
+[approval presenter](/concepts/governance/#approvals) when there is one, the raw
+call arguments otherwise. Approving or rejecting resumes the run as a new turn.
+
 ## Runs
 
 <a class="ui-shot" href="/screenshots/runs.png"><img src="/screenshots/runs.png" alt="The run list with status, duration, token counts, and event counts" width="2880" height="1800" loading="lazy" decoding="async" /></a>
@@ -183,8 +188,11 @@ winner. The numbers are yours to judge.
 <a class="ui-shot" href="/screenshots/approvals.png"><img src="/screenshots/approvals.png" alt="Pending tool approvals awaiting a decision" width="2880" height="1800" loading="lazy" decoding="async" /></a>
 
 Tool calls waiting on a human, with the arguments as they were recorded and an expiry.
-Approving or rejecting both resume the run — the model has to see a result or a
-refusal and carry on.
+When a registered [approval presenter](/concepts/governance/#approvals) resolves an
+entity name and message for the call, the table shows that instead of the raw
+arguments; a call the presenter could not resolve still shows the arguments, since
+the presenter fails open. Approving or rejecting both resume the run — the model has
+to see a result or a refusal and carry on.
 
 Standing "don't ask again" rules live under Governance, where they can be reviewed,
 revoked, or written by hand with an argument condition (for example `amount <= 100`)

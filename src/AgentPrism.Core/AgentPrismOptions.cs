@@ -108,6 +108,19 @@ public sealed class AgentPrismToolOptions
     /// defence for the day that bound is forgotten.
     /// </remarks>
     public int? DefaultMaxOutputBytes { get; set; }
+
+    /// <summary>
+    /// Gets or sets the longest an <see cref="IToolApprovalPresenter"/> may run before an
+    /// approval request is published without its presentation.
+    /// </summary>
+    /// <remarks>
+    /// 2 seconds: unlike <see cref="DefaultTimeout"/>, this runs on the path that
+    /// publishes <see cref="RunStatus.AwaitingApproval"/> — the presenter is expected to
+    /// do a single fast, read-only lookup (a point read by primary key), not real work.
+    /// A slow presenter never blocks the approval itself; it only loses its own
+    /// presentation, so a short default costs nothing but a resolved entity name.
+    /// </remarks>
+    public TimeSpan ApprovalPresentationTimeout { get; set; } = TimeSpan.FromSeconds(2);
 }
 
 /// <summary>Defines options for the <c>POST /api/agents/validate</c> endpoint.</summary>

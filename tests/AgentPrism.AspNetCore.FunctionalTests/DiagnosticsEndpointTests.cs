@@ -45,7 +45,7 @@ public sealed class DiagnosticsEndpointTests
     }
 
     [Fact]
-    public async Task Green_field_setup_reports_all_six_embedding_points_as_built_in_default()
+    public async Task Green_field_setup_reports_all_seven_embedding_points_as_built_in_default()
     {
         await using var host = await AgentPrismTestHost.StartAsync(
             configureEndpoints: static options => options.EnableDiagnosticsEndpoint = true);
@@ -54,10 +54,10 @@ public sealed class DiagnosticsEndpointTests
 
         var extensionPoints = body.GetProperty("extensionPoints").EnumerateArray().ToArray();
 
-        extensionPoints.Length.ShouldBe(6);
+        extensionPoints.Length.ShouldBe(7);
         extensionPoints.ShouldAllBe(static point => point.GetProperty("isBuiltInDefault").GetBoolean());
         extensionPoints.Select(static point => point.GetProperty("contract").GetString()).ShouldBe(
-            ["ITenantContext", "IRunAttributionContext", "IToolAuthorizationHandler", "IRunAuthorizationHandler", "IRunEventSink", "IAttachmentStorage"]);
+            ["ITenantContext", "IRunAttributionContext", "IToolAuthorizationHandler", "IRunAuthorizationHandler", "IRunEventSink", "IAttachmentStorage", "IToolApprovalPresenter"]);
     }
 
     [Fact]

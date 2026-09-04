@@ -55,4 +55,9 @@ namespace AgentPrism;
 // `tool_approval_rules.argument_conditions` jsonb/text column, independent of
 // AgentPrismCoreJsonContext's ToolApprovalRule graph.
 [JsonSerializable(typeof(IReadOnlyList<ToolArgumentCondition>))]
+
+// The tool-approval presentation (phase 142). Written to the
+// `pending_approvals.presentation` jsonb/text column, resolved once when the
+// request is first written.
+[JsonSerializable(typeof(ToolApprovalPresentation))]
 internal sealed partial class AgentPrismJsonContext : JsonSerializerContext;

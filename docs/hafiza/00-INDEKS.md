@@ -19,6 +19,7 @@
 | MAF oturumu, `ChatHistoryProvider`, Responses depolama | [maf-oturum](maf-oturum.md) |
 | Workflow yürütme, executor kimliği, HITL | [workflows](workflows.md) |
 | `RunRecording` zinciri, `scope`/span, olay, iptal | [cekirdek-calistirma](cekirdek-calistirma.md) |
+| Tool onayı, yetkilendirme sırası, sunum genişleme noktası | [tool-onay-ve-yetkilendirme](tool-onay-ve-yetkilendirme.md) |
 | Metrik, maliyet, kota, `secret` süzgeci, `Bind()` | [olcum-kota-ve-secenekler](olcum-kota-ve-secenekler.md) |
 | Paylaşılan SQL katmanı, yeni sağlayıcı | [sql-saglayicilari](sql-saglayicilari.md) |
 | Migration, `__migrations` defteri, göç kilidi | [sql-migration](sql-migration.md) |

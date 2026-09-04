@@ -5096,6 +5096,7 @@ export interface components {
              *     recording settings.
              */
             arguments?: null | string;
+            presentation?: null | components["schemas"]["ToolApprovalPresentation"];
             /** @description Gets the status of the request. */
             status: components["schemas"]["ApprovalStatus"];
             /** @description Gets the actor that made the decision, or `null` when no decision was made. */
@@ -6537,6 +6538,20 @@ export interface components {
              */
             rememberArgumentsOnly?: boolean;
         };
+        /**
+         * @description A human-readable projection of one tool-approval request, produced by a consumer's
+         *     IToolApprovalPresenter.
+         */
+        ToolApprovalPresentation: {
+            /** @description Gets the kind of entity the call acts on (for example `"skill"` or `"order"`). */
+            entityType?: null | string;
+            /** @description Gets the entity's own identifier, as read from the call's arguments. */
+            entityId?: null | string;
+            /** @description Gets the entity's human-readable name, resolved from `EntityId`. */
+            entityName?: null | string;
+            /** @description Gets a free-form sentence describing the call, for a reviewer who has none of the above. */
+            message?: null | string;
+        };
         /** @description A persistent approval rule for a tool call the user said "do not ask again" for. */
         ToolApprovalRule: {
             /**
@@ -7674,6 +7689,7 @@ export type TenantRequest = components['schemas']['TenantRequest'];
 export type TimeSeriesBucket = components['schemas']['TimeSeriesBucket'];
 export type TimeSeriesPoint = components['schemas']['TimeSeriesPoint'];
 export type ToolApprovalDecision = components['schemas']['ToolApprovalDecision'];
+export type ToolApprovalPresentation = components['schemas']['ToolApprovalPresentation'];
 export type ToolApprovalRule = components['schemas']['ToolApprovalRule'];
 export type ToolApprovalRuleRequest = components['schemas']['ToolApprovalRuleRequest'];
 export type ToolArgumentCondition = components['schemas']['ToolArgumentCondition'];

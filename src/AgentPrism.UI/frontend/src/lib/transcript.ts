@@ -55,6 +55,16 @@ export type TranscriptItem =
       name: string;
       args: string | null;
       decided: 'approved' | 'rejected' | null;
+      /**
+       * The `IToolApprovalPresenter` result for this request, if any — arrives
+       * separately from the `approvals` SSE frame (server phase 142), never
+       * inline with the raw `ToolApprovalRequestContent`, so it starts `null`
+       * and is filled in by `applyApprovalPresentations` once the frame lands.
+       */
+      entityType: string | null;
+      entityId: string | null;
+      entityName: string | null;
+      message: string | null;
     }
   | {
       kind: 'tool';
@@ -239,6 +249,10 @@ function applyContent(state: TranscriptState, content: ChatContent, boundary = 0
         name: typeof call?.name === 'string' ? call.name : 'unknown',
         args: stringify(call?.arguments ?? null),
         decided: null,
+        entityType: null,
+        entityId: null,
+        entityName: null,
+        message: null,
       });
 
       break;
@@ -261,6 +275,57 @@ function applyContent(state: TranscriptState, content: ChatContent, boundary = 0
     default:
       break;
   }
+}
+
+/**
+ * One entry of the `approvals` SSE frame (server phase 142) — the shape
+ * `AgentEndpoints.PendingApprovalAnnouncement` serializes.
+ */
+export interface ApprovalPresentationAnnouncement {
+  requestId: string;
+  toolName: string;
+  entityType: string | null;
+  entityId: string | null;
+  entityName: string | null;
+  message: string | null;
+}
+
+/**
+ * Merges resolved presentations into the matching `approval` items, by
+ * `requestId`. The `approvals` frame always arrives after the `update` frame
+ * that created the card (the server resolves it only once the whole response
+ * is known), so this never needs to create an item, only fill one in.
+ */
+export function applyApprovalPresentations(
+  state: TranscriptState,
+  announcements: readonly ApprovalPresentationAnnouncement[],
+): TranscriptState {
+  if (announcements.length === 0) {
+    return state;
+  }
+
+  const byRequestId = new Map(announcements.map((announcement) => [announcement.requestId, announcement]));
+
+  return {
+    ...state,
+    items: state.items.map((item) => {
+      if (item.kind !== 'approval') {
+        return item;
+      }
+
+      const announcement = byRequestId.get(item.requestId);
+
+      return announcement === undefined
+        ? item
+        : {
+            ...item,
+            entityType: announcement.entityType,
+            entityId: announcement.entityId,
+            entityName: announcement.entityName,
+            message: announcement.message,
+          };
+    }),
+  };
 }
 
 function findTool(items: TranscriptItem[], callId: string | null): Extract<TranscriptItem, { kind: 'tool' }> | null {

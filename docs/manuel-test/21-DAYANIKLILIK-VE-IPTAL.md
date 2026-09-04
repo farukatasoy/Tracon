@@ -2,7 +2,8 @@
 
 > **Alan kodu:** `RES` · **Faz:** 32, 54, 55 tam kapsam · 87 (devam mekanizması ve
 > zarif kapanış) tam kapsam · 44 yalnız `Canceled`/`Infrastructure`
-> sınıfları · 46/47 yalnız bu dosyaya özgü kesişim noktaları (bkz. Sınır tablosu).
+> sınıfları · 46/47 yalnız bu dosyaya özgü kesişim noktaları (bkz. Sınır tablosu) ·
+> 142 yalnız `PendingApproval.Presentation` alanı ve `IToolApprovalPresenter`.
 >
 > **Kaynak:**
 > `src/AgentPrism.Abstractions/Runs/IRunCancellationRegistry.cs`,
@@ -675,7 +676,15 @@ curl -s "$APU/api/approvals/pending" -H "$APB" | python3 -m json.tool
   (JSON DEĞİL, "anahtar=deger" biçiminde — AOT gerekçesiyle), `status:
   "Pending"`, `expiresAt` `createdAt`'ten `~24 saat` sonra (varsayılan
   `DefaultExpiration`).
+- Adım 3 (Faz 142): kayıt ayrıca `presentation` alanı taşır —
+  `samples/AgentPrism.Api/OrderApprovalPresenter.cs` `ORD-1001`'i çözer:
+  `presentation.entityType: "order"`, `entityId: "ORD-1001"`, `entityName:
+  "Order ORD-1001"`, `message` "Priya Shah" adını içerir. Ham `arguments`
+  alanı DEĞİŞMEDEN kalır — sunum onun yerine geçmez.
 - Adım 4: aynı kayıt tekil `GET` ile de gelir.
+- (Faz 142) `GET /api/runs/{runId}/events` akışının SON olayı
+  `RunAwaitingInput`'tur; `payload` alanı `requestId`, `toolName` ve aynı
+  `entityName`/`message` çiftini JSON dizi olarak taşır.
 
 ---
 
@@ -1764,5 +1773,34 @@ psql -c "UPDATE agentprism.sessions SET state_schema_version = 999999 WHERE id =
 - Kırmızı çıkarsa fixture YENİDEN ÜRETİLMEZ (bkz.
   `tests/AgentPrism.Core.UnitTests/Fixtures/README.md`); karar
   `nuget-danismani` kanalına gider.
+
+---
+
+### MT-RES-073 — `IToolApprovalPresenter` bilinmeyen bir varlıkta `null` döner; onay isteği yine de yayımlanır (Faz 142)
+
+`OrderApprovalPresenter` yalnız `ORD-1001`/`ORD-1002`'yi bilir — üçüncü bir
+sipariş numarası fail-open sözleşmesinin GÖZLENEBİLİR ucunu ölçer (`throw`/
+zaman aşımı senaryoları `ToolApprovalPresenterTests`'te birim testiyle kilitli,
+gerçek bir hata enjekte etmek için sunucu koduna dokunmak gerekir).
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 142 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- Örnek uygulama çalışıyor.
+
+**Adımlar**
+1. `support`'a "ORD-9999 siparisimi iptal et" mesajını `Prefer:
+   respond-async` ile gönder.
+2. Onay `Pending` olunca `GET /api/approvals/pending`'i oku.
+
+**Beklenen sonuç**
+- Kayıt yine yayımlanır (`status: "Pending"`); `presentation` alanı `null`
+  döner. `arguments` `"orderId=ORD-9999"` ile DOLU kalır — çözümleyicinin
+  "bilmiyorum" demesi ham argümanı gizlemez.
 
 ---

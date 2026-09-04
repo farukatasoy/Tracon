@@ -1135,6 +1135,45 @@ internal static class AgentEndpoints
                         AgentVersion = assignment?.Version,
                         ExperimentId = assignment?.ExperimentId,
                         Variant = assignment?.Variant,
+
+                        // 🚨 Phase 142: this is the ONLY delivery path for a synchronous
+                        // run's tool-approval presentation — the queue path's mailbox
+                        // (GET /api/approvals/pending) does not exist for a run started
+                        // without 'Prefer: respond-async', and the 'update' frames above
+                        // carry MAF's own ToolApprovalRequestContent verbatim, which has
+                        // no field to carry a presentation. A separate 'approvals' frame,
+                        // sent right before the stream's own 'done' frame, is how the
+                        // console's approval card learns an entity's name.
+                        BeforePendingApprovalIsPublished = async (producedMessages, presentations, hookCancellation) =>
+                        {
+                            var requests = ChildRunApproval.CollectRequests(producedMessages);
+
+                            if (requests.Count == 0)
+                            {
+                                return;
+                            }
+
+                            var announcements = requests
+                                .Select(request =>
+                                {
+                                    var presentation = presentations.GetValueOrDefault(request.RequestId);
+
+                                    return new PendingApprovalAnnouncement(
+                                        request.RequestId,
+                                        request.ToolCall is FunctionCallContent call ? call.Name : request.ToolCall.CallId,
+                                        presentation?.EntityType,
+                                        presentation?.EntityId,
+                                        presentation?.EntityName,
+                                        presentation?.Message);
+                                })
+                                .ToArray();
+
+                            await writer.WriteEventAsync(
+                                sequence++,
+                                "approvals",
+                                JsonSerializer.Serialize(announcements, JsonOptions),
+                                hookCancellation).ConfigureAwait(false);
+                        },
                     },
                     cancellationToken);
 
@@ -1406,6 +1445,18 @@ internal static class AgentEndpoints
 
         /// <summary>The JSON response for a non-streaming (Idempotency-Key) run.</summary>
         private sealed record AgentRunResult(Guid RunId, string? SessionId, Microsoft.Agents.AI.AgentResponse Response);
+
+        /// <summary>
+        /// The <c>approvals</c> SSE frame: the presentation resolved for one pending
+        /// tool-approval request, sent right before the stream's <c>done</c> frame.
+        /// </summary>
+        private sealed record PendingApprovalAnnouncement(
+            string RequestId,
+            string ToolName,
+            string? EntityType,
+            string? EntityId,
+            string? EntityName,
+            string? Message);
     }
 
     internal static async ValueTask<AgentDescriptor?> FindDescriptorAsync(

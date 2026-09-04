@@ -197,15 +197,7 @@ public sealed class ToolApprovalRuleEvaluator
     }
 
     private static IReadOnlyDictionary<string, object?> ToArguments(IDictionary<string, object?>? arguments)
-        => arguments switch
-        {
-            null => EmptyArguments,
-            IReadOnlyDictionary<string, object?> readOnly => readOnly,
-            _ => new Dictionary<string, object?>(arguments, StringComparer.Ordinal),
-        };
-
-    private static readonly IReadOnlyDictionary<string, object?> EmptyArguments =
-        new Dictionary<string, object?>(StringComparer.Ordinal);
+        => FunctionCallArguments.ToReadOnly(arguments);
 
     /// <summary>
     /// Produces a deterministic fingerprint from tool arguments.

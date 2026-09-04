@@ -53,6 +53,7 @@ public sealed class AgentPrismRunOptions : AgentRunOptions
         SessionId = other.SessionId;
         ReplayOfRunId = other.ReplayOfRunId;
         ContinuedFromRunId = other.ContinuedFromRunId;
+        BeforePendingApprovalIsPublished = other.BeforePendingApprovalIsPublished;
     }
 
     /// <summary>
@@ -188,8 +189,15 @@ public sealed class AgentPrismRunOptions : AgentRunOptions
     /// <see cref="RunStatus.AwaitingApproval"/> whose approval was never recorded
     /// is unanswerable.
     /// </para>
+    /// <para>
+    /// The second parameter carries the <see cref="ToolApprovalPresentation"/> already
+    /// resolved for each pending request, keyed by <c>ToolApprovalRequestContent.RequestId</c>
+    /// — the same resolution the closing run event's payload was built from. A caller that
+    /// also persists a <see cref="PendingApproval"/> row (as <c>AgentRunJobHandler</c> does)
+    /// reads the presentation from here instead of resolving it a second time.
+    /// </para>
     /// </remarks>
-    public Func<IEnumerable<ChatMessage>, CancellationToken, ValueTask>? BeforePendingApprovalIsPublished { get; init; }
+    public Func<IEnumerable<ChatMessage>, IReadOnlyDictionary<string, ToolApprovalPresentation?>, CancellationToken, ValueTask>? BeforePendingApprovalIsPublished { get; init; }
 
     /// <inheritdoc />
     /// <remarks>
