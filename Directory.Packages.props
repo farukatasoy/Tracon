@@ -259,8 +259,8 @@
       gelmez; test fixture'i eksikse kendisi indirir (bkz.
       tests/AgentPrism.Ui.E2ETests/Infrastructure/PlaywrightFixture.cs).
     -->
-    <PackageVersion Include="Microsoft.Playwright" Version="1.61.0" />
-    <PackageVersion Include="NSubstitute" Version="6.0.0" />
+    <PackageVersion Include="Microsoft.Playwright" Version="1.62.0" />
+    <PackageVersion Include="NSubstitute" Version="6.2.0" />
     <PackageVersion Include="Shouldly" Version="4.3.0" />
     <!--
       Testcontainers.MsSql/PostgreSql 4.13.0'in gecisli bagimliligi SSH.NET
@@ -272,8 +272,8 @@
       surumun onune gecer.
     -->
     <PackageVersion Include="SSH.NET" Version="2026.0.0" />
-    <PackageVersion Include="Testcontainers.MsSql" Version="4.13.0" />
-    <PackageVersion Include="Testcontainers.PostgreSql" Version="4.13.0" />
+    <PackageVersion Include="Testcontainers.MsSql" Version="4.14.0" />
+    <PackageVersion Include="Testcontainers.PostgreSql" Version="4.14.0" />
     <PackageVersion Include="xunit.v3" Version="3.2.2" />
     <!--
       AgentPrism.Testing.Contracts.Xunit (Phase 98) is a LIBRARY of abstract
