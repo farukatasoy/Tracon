@@ -24,6 +24,25 @@ public sealed class RunEventSinkTests
     }
 
     [Fact]
+    public async Task A_consumer_written_Custom_event_reaches_every_sink_like_a_built_in_one()
+    {
+        // Phase 141: the sink contract is "every event", and Custom is not an
+        // exception carved out of that promise.
+        var store = new InMemoryRunStore(tenantContext: new FixedTenantContext());
+        var sink = new SpyRunEventSink();
+        var writer = new RunEventWriter(store, new AgentPrismRunRecordingOptions(), NullLogger.Instance, AgentPrismId.NewId(), [sink]);
+
+        await writer.StartAsync(
+            new RunStartInfo { RunId = writer.RunId, AgentName = "test-agent", StartedAt = DateTimeOffset.UtcNow },
+            query: "hello");
+
+        await writer.AppendAsync(new RunEventDraft(RunEventType.Custom) { CustomType = "contoso.preview-ready" });
+
+        sink.Events.ShouldContain(runEvent =>
+            runEvent.Type == RunEventType.Custom && runEvent.CustomType == "contoso.preview-ready");
+    }
+
+    [Fact]
     public async Task A_sink_sees_the_exact_same_sequence_numbers_as_the_store()
     {
         var store = new InMemoryRunStore(tenantContext: new FixedTenantContext());

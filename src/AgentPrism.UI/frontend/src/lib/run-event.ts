@@ -32,9 +32,12 @@ export type RunEventType =
   | 'ContentBlocked'
   | 'ModelFallbackUsed'
   | 'ReasoningDelta'
+  | 'DocumentAttached'
+  | 'RunContinuationBlocked'
   | 'ToolOutputTruncated'
   | 'StructuredResponseRejected'
-  | 'StructuredResponseRepairAttempted';
+  | 'StructuredResponseRepairAttempted'
+  | 'Custom';
 
 export interface RunEvent {
   runId: string;
@@ -45,4 +48,6 @@ export interface RunEvent {
   toolName?: string | null;
   toolCallId?: string | null;
   payload?: string | null;
+  /** Names a 'Custom' event (phase 141). Null for every other event type. */
+  customType?: string | null;
 }

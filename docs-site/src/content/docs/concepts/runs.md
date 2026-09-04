@@ -97,6 +97,46 @@ services.Configure<AgentPrismOptions>(options =>
 With it off, a reasoning model still streams its thinking to the caller in real time —
 this setting only controls whether it is **recorded**.
 
+### Writing your own event
+
+The event types above are a closed set — the console maps every one of them to a
+specific visual, and a client can rely on that never changing shape. `RunEventType.Custom`
+is the one deliberate escape hatch: your own tool writes it directly, through the
+writer your run already carries:
+
+```csharp
+[AgentPrismTool("mark_preview_ready", "Marks an order's preview as ready to review.")]
+public static async Task<string> MarkPreviewReady(string orderId)
+{
+    var writer = AgentPrismRunContext.Current?.Writer;
+
+    if (writer is not null)
+    {
+        await writer.AppendAsync(new RunEventDraft(RunEventType.Custom)
+        {
+            CustomType = "contoso.preview-ready",
+            Payload = $$"""{"orderId":"{{orderId}}"}""",
+        });
+    }
+
+    return $"Preview for order {orderId} is ready to review.";
+}
+```
+
+`CustomType` names your event — 1-128 characters, lowercase ASCII letters,
+digits, `.`, `_`, or `-`. It is required on a `Custom` event and rejected
+(`ArgumentException`) on every other type: a caller who sets it on a built-in
+event type gets told immediately, rather than having it silently dropped by
+every store. The `agentprism.` prefix is reserved, so a future built-in
+custom type can never collide with your own. `Payload` is yours too —
+AgentPrism makes no claim about its shape and never reads it.
+
+The console draws an unrecognized `CustomType` with a single generic card —
+its own name as the title, `Payload` pretty-printed as the body — so a new
+custom type never needs a console change to show up. When a built-in event
+type already fits what happened, use that instead; `Custom` is for events
+AgentPrism has no name for.
+
 ## Observing events beyond the store
 
 Register an `IRunEventSink` to receive every event as it is written, in addition to

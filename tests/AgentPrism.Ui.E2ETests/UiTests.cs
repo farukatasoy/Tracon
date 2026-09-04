@@ -627,6 +627,28 @@ public sealed class UiTests(BrowserFixture browsers)
     }
 
     [Fact]
+    public async Task Custom_run_event_renders_as_a_generic_card_named_after_its_CustomType()
+    {
+        // Phase 141: a consumer-written RunEventType.Custom event reaches the
+        // SSE stream and the console draws it with the consumer's OWN
+        // CustomType as its name, not a generic "Custom" label -- proving
+        // both that the field survives the wire and that 141.2's card renders.
+        await using var host = await UiHost.StartAsync();
+        await using var session = await Session.OpenAsync(browsers, host);
+
+        await session.Page.GotoAsync($"{host.UiAddress}/playground/custom-event-agent");
+        await session.Page.GetByTestId("playground-input").FillAsync("prepare ORD-7");
+        await session.Page.GetByTestId("playground-send").ClickAsync();
+
+        await session.Page.GetByText("Preview for order ORD-7 is ready.").First.WaitForAsync(new() { Timeout = 20_000 });
+
+        await session.Page.GetByRole(AriaRole.Link, new() { NameRegex = RunLinkPattern }).First.ClickAsync();
+
+        await session.Page.GetByText("contoso.preview-ready", new() { Exact = true }).First
+            .WaitForAsync(new() { Timeout = 20_000 });
+    }
+
+    [Fact]
     public async Task Child_agent_run_appears_as_a_tree()
     {
         await using var host = await UiHost.StartAsync();

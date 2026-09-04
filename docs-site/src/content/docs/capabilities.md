@@ -111,6 +111,7 @@ claim to provide an operating-system sandbox.
 | Streaming runs | .NET or `POST /api/agents/{name}/run` | Text and tool activity stream as SSE events |
 | Non-streaming runs | .NET or an idempotent HTTP request | A completed response can be stored and replayed safely |
 | Run recording | Core decorator pipeline | Default-on summaries, events, tool calls, usage, cost, errors, and optional input; it can be disabled and store failure never breaks the run |
+| Custom run events | `RunEventType.Custom` and `AgentRunScope.Writer` | A tool writes its own named event into the stream a consumer already carries; the console draws it with a generic card, no code change required |
 | Custom agent decorator | `AddAgentDecorator<T>()`, instance, or factory | Joins the built-in decorators; `Order` decides where |
 | Cancellation | Run API and cancellation registry | A caller can request cancellation by run id while preserving the final recorded state |
 | Replay | Recorded run input and replay service | Re-run against the current or selected definition, with tool replay modes and mismatch protection |

@@ -30,6 +30,9 @@ namespace AgentPrism;
 /// <term><see cref="RunEventType.ToolFailed"/></term><description><see cref="ToolName"/>, <see cref="ToolCallId"/>, <c>Text</c> (error message)</description>
 /// </item>
 ///   <item><term><see cref="RunEventType.RunFailed"/></term><description><c>Text</c> (error message)</description></item>
+/// <item>
+/// <term><see cref="RunEventType.Custom"/></term><description><see cref="CustomType"/>, <see cref="Payload"/> (consumer-defined, unexamined)</description>
+/// </item>
 /// </list>
 /// </para>
 /// </remarks>
@@ -58,6 +61,12 @@ public sealed record RunEvent
 
     /// <summary>Gets the free-form JSON payload that carries tool arguments and results.</summary>
     public string? Payload { get; init; }
+
+    /// <summary>
+    /// Gets the namespaced type that qualifies a <see cref="RunEventType.Custom"/>
+    /// event. <see langword="null"/> for every other event type.
+    /// </summary>
+    public string? CustomType { get; init; }
 
     /// <summary>
     /// Gets the EXPECTED tenant of the run the event is written to. Defence in depth.

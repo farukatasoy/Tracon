@@ -784,6 +784,8 @@ AgentPrism.RunErrorFingerprint
 AgentPrism.RunEventDraft
 AgentPrism.RunEventDraft.Deconstruct(out AgentPrism.RunEventType Type) -> void
 AgentPrism.RunEventDraft.Equals(AgentPrism.RunEventDraft other) -> bool
+AgentPrism.RunEventDraft.CustomType.get -> string?
+AgentPrism.RunEventDraft.CustomType.init -> void
 AgentPrism.RunEventDraft.Payload.get -> string?
 AgentPrism.RunEventDraft.Payload.init -> void
 AgentPrism.RunEventDraft.RunEventDraft() -> void
