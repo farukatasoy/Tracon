@@ -20,6 +20,9 @@
     "src/AgentPrism.Sqlite/Migrations/0029_price_snapshot.sql": "d9cfff7f475059b8d1f10e52b169a290ae4ca340",
     "src/AgentPrism.PostgreSql/Migrations/0043_job_handler_key.sql": "931ec5300b5fb8d966023f5d20a8fd0cf1ea58fd",
     "src/AgentPrism.SqlServer/Migrations/0030_job_handler_key.sql": "931ec5300b5fb8d966023f5d20a8fd0cf1ea58fd",
-    "src/AgentPrism.Sqlite/Migrations/0030_job_handler_key.sql": "931ec5300b5fb8d966023f5d20a8fd0cf1ea58fd"
+    "src/AgentPrism.Sqlite/Migrations/0030_job_handler_key.sql": "931ec5300b5fb8d966023f5d20a8fd0cf1ea58fd",
+    "src/AgentPrism.PostgreSql/Migrations/0044_run_event_custom_type.sql": "2a94409c",
+    "src/AgentPrism.SqlServer/Migrations/0031_run_event_custom_type.sql": "2a94409c",
+    "src/AgentPrism.Sqlite/Migrations/0031_run_event_custom_type.sql": "2a94409c"
   }
 }
