@@ -120,10 +120,8 @@ tekrarlanmalı — ve `.editorconfig`'in `[tests/**/*.cs]` bölümü (CA1707 alt
   50x marj bile tükeniyor), `AgentPrism.Ui.E2ETests.UiTests.Playground_voice_mode_opens_microphone_and_shows_transcript`
   (Faz 130: `GetByTestId("voice-transcript")` 30s Playwright timeout'una takıldı,
   izole koşumda 2.5s'de geçti), `AgentPrism.Ui.E2ETests.UiTests.Runs_screen_lists_only_roots_by_default`
-  (Faz 141: aynı 30s `WaitForAsync` deseni, tam çözüm koşumunda bir kez kırmızı
-  çıktı — izole koşumda 4/4 ve tüm E2E projesi tek başına 58/58 geçti; test
-  fazın kendi değişikliğine (yeni bir agent/tool eklenmesi) hiç dokunmuyor).
-  Altısı da kendi projesinde tek başına 100% geçti.
+  (Faz 141: aynı 30s `WaitForAsync` deseni bir kez kırıldı, izole 4/4 ve tüm
+  proje 58/58 geçti). Altısı da kendi projesinde tek başına 100% geçti.
   Şüphe: binlerce testin aynı anda paylaştığı port/dosya/thread-pool kaynağı —
   hiçbiri fazın kendi değişikliğiyle ilgili değildi. Bir kapı koşumunda bunlardan
   biri kırmızı çıkarsa önce İZOLE tekrar et; yalnız izole de kırmızıysa gerçek
@@ -151,10 +149,6 @@ tekrarlanmalı — ve `.editorconfig`'in `[tests/**/*.cs]` bölümü (CA1707 alt
   üretti. Sınıftaki reconciliation, continuation, singleton ve heartbeat
   senaryoları da sonuç bekler; sayaçlar thread-safe'tir. Sınıf 10 turda 70/70
   geçti.
-- **Kaynak nedenselliğini ölçme yolu değişmedi.** Bir tam koşum kırılması faz
-  değişikliğinden şüphe ettiriyorsa `git stash push -u` → tabanı derle → tam
-  koşum → `git stash pop` uygula. Worktree kullanma; extension sample'ları yerel
-  NuGet feed'ini ister ve `artifacts/package/release` worktree'de yoktur.
 - **🚨 `ImplementationFactory.Method.Name`/`DeclaringType` derleyici-üretimi
   closure adı, PARTIAL CLASS genelinde numaralanır — dosya değil, hatta metot
   bile değil** (2026-08-26, Faz 105): `TryAddSingleton(static provider => ...)`
