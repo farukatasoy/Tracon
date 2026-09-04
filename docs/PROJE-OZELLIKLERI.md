@@ -12,15 +12,17 @@
 - **Tanım doğrulama:** Provider, model, tool, skill, callable agent, cycle ve policy hataları model çağrısı yapılmadan denetlenir.
 - **Model binding:** Provider, model, temperature, output limiti, `top_p`, reasoning effort ve provider-specific settings agent bazında ayarlanabilir.
 - **Structured output:** Text, JSON ve JSON Schema response formatları provider yeteneğine göre doğrulanır ve uygulanır.
+- **Structured response validation:** Opt-in `IStructuredResponseValidator`, tamamlanmış response'u run kapanmadan önce custom kurallarla fail-closed olarak denetler.
+- **Structured response repair:** Reddedilen non-streaming response, `MaxRepairAttempts` ile sınırlı ek model turlarında onarılabilir; streaming ve durable session run'larında repair yapılmaz.
 - **Parameterized instructions:** `{{name}}` placeholder'ları run'a ait doğrulanmış parameter değerleriyle bağlanır.
 - **Culture-aware instructions:** Agent instructions, istek culture bilgisine göre uygun dil varyantından çözülebilir.
 - **Shared instructions:** Bir agent, tek seviyeli ortak instructions bloğunu compile sırasında kendi instructions metninin önüne ekleyebilir.
-- **Agent-to-agent çağrı grafiği:** Agent'lar kayıtlı başka agent'ları tool olarak çağırabilir; cycle, depth, child run, token ve cost limitleri uygulanır.
+- **Agent-to-agent çağrı grafiği:** Agent'lar kayıtlı başka agent'ları tool olarak çağırabilir; cycle denetimi ve child run ilişkileri korunur.
 - **Harness mode:** MAF harness üzerinden iteration ve context limitleri ile todo, file-memory, web-search, skill ve mode provider'ları kullanılabilir.
 - **Context compaction:** Geçmiş, eşik tabanlı truncation veya utility model ile summarization yapılarak sıkıştırılabilir.
 - **Response cache:** `IDistributedCache` ile tenant, provider, model, request ve tool setini dikkate alan response caching kullanılabilir.
 - **Concurrent tool calls:** Aynı model turundaki bağımsız tool çağrıları, açıkça etkinleştirildiğinde paralel yürütülebilir.
-- **Model fallback zinciri:** Sınıflandırılmış provider hatalarında tanımlı yedek provider ve modellere sırayla geçilebilir.
+- **Model fallback zinciri:** Sınıflandırılmış provider hatalarında tanımlı yedek provider ve modellere sırayla geçilir; ortak ledger tamamlanmış tool side effect'lerinin fallback sırasında yeniden çalışmasını önler.
 - **Provider concurrency limiti:** Model çağrıları provider ve credential scope bazında sınırlandırılabilir.
 - **Context preflight:** İstek context kullanımı run başlamadan tahmin edilir ve model penceresini aşan istek reddedilebilir.
 - **Compiled agent cache:** Compile edilen agent'lar definition ve bağlı kaynak fingerprint'lerine göre cache'lenir ve değişiklikte yenilenir.
@@ -36,19 +38,24 @@
 - **Configuration tabanlı model catalog:** Model adları, context pencereleri ve fiyatlar configuration'dan alınır; catalog allowlist olarak kullanılmaz.
 - **Image generation:** OpenAI, Azure OpenAI veya Google image generator ile üretilen görseller doğrulanıp attachment olarak saklanabilir.
 - **Speech tools:** ElevenLabs tabanlı `speak`, `transcribe` ve `list_voices` tool'ları ile custom speech implementation'ları desteklenir.
+- **Voice provider metadata:** `VoiceDescriptor.Attributes`, provider'a özgü güvenli scalar bilgileri bounded biçimde voice catalog'a ve HTTP response'una taşır.
 - **Live voice conversation:** WebSocket akışı transcription, durable agent session ve speech synthesis adımlarını uzun süreli bir konuşmada birleştirir.
 
 ## Tool, skill, MCP ve context yönetimi
 
 - **Tool kayıt seçenekleri:** `AIFunction`, delegate, attributed type scanning ve source-generated kayıt yolları desteklenir.
+- **Scoped tool çalıştırma:** `AddScopedTool`, her tool çağrısı için ayrı DI scope açar ve scope'u çağrı sonunda kapatır.
 - **Build-time tool generation:** `[AgentPrismTool]` metotları reflection ve dynamic code olmadan compile sırasında keşfedilip kaydedilebilir.
+- **Generated tool schema:** Generator, `[Description]`, standard DataAnnotations constraint'leri ve en fazla üç seviyeli object parameter graph'ını JSON Schema'ya aktarır.
 - **Tool governance metadata:** Tool bazında effect, permission, approval, timeout, output limiti ve `SafeToRepeat` policy'si tanımlanabilir.
 - **Tool authorization:** `IToolAuthorizationHandler`, mevcut caller ve run context için her tool çağrısını izin veya ret ile sonuçlandırabilir.
+- **Tool argument validation:** `IToolArgumentsValidator`, code veya MCP tool gövdesinden önce argument'ları denetler ve ret durumunda gerçek çağrıyı çalıştırmaz.
 - **Tool approval akışı:** Hassas çağrılar expiring pending approval oluşturur ve insan kararı sonrası queued run olarak devam eder.
+- **Approval presentation:** `IToolApprovalPresenter`, pending approval'ın ham argument'larını best-effort biçimde kullanıcıya anlamlı entity adı ve mesajıyla zenginleştirebilir.
 - **Standing approval rules:** Tool adı ve argument koşullarına bağlı, sonradan revoke edilebilen kalıcı approval kuralları tanımlanabilir.
 - **Tool timeout ve output sınırı:** Uzun süren çağrılar iptal edilir; büyük sonuçlar model görmeden bounded JSON envelope içine kısaltılır.
 - **Client-side tools:** Server yalnız tool declaration'ını yayınlar; tool gövdesini browser veya başka bir client çalıştırıp sonucu sonraki istekte geri verir.
-- **Custom content guards:** Birden çok `IContentGuard` input ve output üzerinde sırayla çalışır; en katı karar uygulanır.
+- **Custom content guards:** Birden çok `IContentGuard` user message, tool result, document, model output ve skill resource kaynak bilgisiyle sırayla çalışır; en katı karar uygulanır.
 - **Pattern content guard:** Denied term'ler block edilebilir ve seçili PII desenleri maskelenebilir.
 - **Skill catalog:** Markdown instructions ve bounded resource içeren skill'ler koddan, store'dan veya file source'dan sağlanabilir.
 - **Skill script execution:** Açık opt-in, interpreter allowlist, tenant grant, timeout, output limiti ve concurrency limitleriyle server-side script çalıştırılabilir.
@@ -66,14 +73,16 @@
 - **Run recording:** Run özeti, status, event'ler, tool çağrıları, usage, cost, hata ve isteğe bağlı input varsayılan olarak kaydedilir.
 - **Ordered event stream:** Run event'leri gapless sıra numarasıyla saklanır; SSE akışı live veya replay modunda `Last-Event-ID` ile sürdürülebilir.
 - **Run tree:** Root ve child run ilişkileri saklanır; ağaç usage, cost ve child sayıları birlikte sorgulanabilir.
-- **Run budget:** Depth, toplam run, token ve cost limitleri model turları arasında uygulanır.
+- **Run budget:** Depth, toplam run, token, cost ve wall-clock duration limitleri model turları arasında uygulanır.
 - **Run cancellation:** Bir run kimliğiyle iptal istenebilir ve root run iptali aynı ağaçtaki etkin child run'lara yayılır.
 - **Run replay:** Kaydedilmiş input seçili agent version'ıyla yeniden çalıştırılabilir; recorded tool playback ve mismatch guard seçenekleri vardır.
 - **Run karşılaştırma:** İki run output, usage, cost, süre ve status verileri üzerinden karşılaştırılabilir.
 - **Run feedback ve score:** Kullanıcı feedback'i veya custom/model judge score'u tamamlanmış run'a eklenebilir ve silinebilir.
 - **Run error classification:** Hatalar override edilebilen classifier zinciriyle sınıflandırılır ve fingerprint ile failure cluster'larına ayrılır.
 - **Run attribution:** Tüketicinin user, correlation ve job label bilgileri run kaydına aktarılabilir.
+- **Custom run event'leri:** Tüketici kodu, doğrulanmış bir custom type ve payload ile mevcut run stream'ine kendi event'ini yazabilir.
 - **Durable sessions:** Conversation kimliği ve MAF session state store üzerinden kaydedilir; session geçmişi okunabilir ve silinebilir.
+- **Session optimistic concurrency:** Generation tabanlı compare-and-swap, stale session state yazımını reddeder ve HTTP yüzeyinde conflict sonucu üretir.
 - **Session branching:** SQL store kullanan bir conversation, adreslenebilir bir geçmiş öğesinden yeni session olarak çatallanabilir.
 - **Attachment yönetimi:** Image, audio, PDF ve text dosyaları size, media type ve magic-byte kontrolleriyle yüklenebilir, indirilebilir ve silinebilir.
 - **Multimodal messages:** Text, image, audio ve document içerikleri MAF content tipleriyle provider'a iletilir.
@@ -88,7 +97,9 @@
 - **Human-in-the-loop:** Bekleyen workflow request'leri listelenebilir; insan response'u checkpoint'ten yeni execution step başlatır.
 - **Workflow node retry:** Transient provider hatası yalnız ilgili function node'unda backoff policy ile yeniden denenebilir.
 - **Job queue:** Lease, retry, item status, cancellation ve handler dispatch içeren at-least-once job yürütme modeli sağlanır.
-- **Custom job handler:** Tüketici, yeni bir job kind için `IJobHandler` implementation'ı kaydedebilir.
+- **Custom job handler:** Tüketici, reserved namespace dışında açık bir string handler key ile `IJobHandler` implementation'ı kaydedebilir.
+- **Programmatic job dispatch:** `IJobDispatcher`, yalnız kayıtlı handler key'leri için uygulama kodundan durable job queue'ya iş ekler.
+- **Job queue lane'leri:** Worker'lar seçili lane'lere abone olabilir ve her lane için ayrı concurrency limitiyle unrelated background işleri izole edebilir.
 - **Agent ve workflow jobs:** Tek agent, batch agent ve workflow çalıştırmaları ortak durable queue üzerinden yürütülebilir.
 - **Schedules:** One-time ve cron schedule'lar açık time zone bilgisiyle job üretebilir ve elle tetiklenebilir.
 - **Worker control:** Bir process job worker çalıştırabilir veya yalnız API node'u olarak yapılandırılabilir.
@@ -134,6 +145,7 @@
 - **Data subject hakları:** Consumer resolver ile kimliğe bağlı içerik preview, export ve erase işlemlerinden geçirilebilir.
 - **CORS allowlist:** Management ve embed istekleri yalnız exact origin allowlist'i yapılandırıldığında cross-origin erişim alır.
 - **External protocol guard:** MCP server ve A2A çağrıları `ExternalInvoke` scope'u ile remote-access ayarlarının güvenli birleşimini zorunlu tutar.
+- **Run ve session authorization:** `IRunAuthorizationHandler`, run başlangıçlarını ve session read, list, delete veya branch erişimini caller bağlamına göre reddedebilir.
 - **Skill script güvenlik sınırı:** Script özelliği opt-in ve audit'li çalışır; işletim sistemi sandbox'ı sağlamadığı açık bir contract olarak korunur.
 
 ## Persistence ve storage
@@ -145,6 +157,7 @@
 - **Migration yönetimi:** Migration'lar startup'ta otomatik veya `MigrationRunner` ve CLI ile ayrı deployment adımı olarak uygulanabilir ve status bilgisi okunabilir.
 - **Consumer data source kullanımı:** Üç SQL provider da tüketicinin verdiği `DbDataSource` veya connection pool ile çalışabilir.
 - **Read contract view'ları:** Optional SQL view seti, run ve ilgili operational veriyi analytics tüketicilerine kararlı kolon sözleşmesiyle sunar.
+- **Persisted payload compatibility:** Session ve workflow checkpoint kayıtları schema ile MAF version bilgisini taşır; daha yeni bilinmeyen schema okunmadan reddedilir.
 - **Replaceable store'lar:** Consumer registration'ı `TryAdd*` davranışıyla korunur; built-in store'lar custom implementation'larla değiştirilebilir.
 - **External attachment storage:** `IAttachmentStorage` ile binary içerik custom object store'a yönlendirilebilir.
 - **Tenant-isolated durable contracts:** SQL store'lar definition, session, run, job, eval, workflow, governance ve observability verilerinde tenant sınırını uygular.
@@ -153,9 +166,10 @@
 
 - **OpenTelemetry traces:** Run, model, tool, compaction ve ilgili işlem span'leri standard `ActivitySource` üzerinden yayınlanır.
 - **Persisted trace sample:** Başarılı run'lar oranla, failed run'lar ise isteğe bağlı olarak her zaman store'a yazılan trace örneği üretebilir.
-- **Metrics:** Run sayısı, süre, token, cost, tool, hata, judge, cache ve optional quota gauge ölçümleri standard .NET metrics ile yayınlanır.
+- **Metrics:** Run, token, cost, tool, hata, judge, cache ve job execution veya duration ölçümleri standard .NET metrics ile yayınlanır; bounded lane cardinality kullanan queue-depth gauge opt-in olarak açılabilir.
 - **Cost attribution:** Model, cache input, voice ve image usage fiyatlandırılır; root ve child run cost toplamları saklanır.
-- **Cost recalculation:** Catalog veya explicit fiyat değiştiğinde geçmiş run cost değerleri management endpoint üzerinden yeniden hesaplanabilir.
+- **Applied price snapshot:** Run kaydı, gerçek provider kimliğini ve cost hesabında kullanılan model, rate, currency ile source bilgisini snapshot olarak saklar.
+- **Cost recalculation:** Management endpoint, yalnız fiyatı bilinmeyen geçmiş run'ları hesaplar ve önceden fiyatlandırılmış snapshot'ları değiştirmez.
 - **Provider health:** Provider health check sonuçları cache'lenir ve isteğe bağlı background polling ile yenilenir.
 - **Circuit breaker:** Tekrarlanan provider hataları closed, open ve half-open durumlarıyla yeni çağrıları durdurur; tenant BYOK credential'ları ayrı state taşır.
 - **ASP.NET Core health check:** AgentPrism durumu consumer'ın `IHealthChecksBuilder` pipeline'ına eklenebilir.
@@ -206,13 +220,14 @@
 - **Agent decorator seam:** Custom `IAgentDecorator` type, instance veya factory olarak kayıt ve telemetry/recording pipeline'ına sıralı biçimde katılabilir.
 - **Project template:** `dotnet new agentprism-api`, çalışan bir control plane, sample tool, boş secret placeholder'ları ve README üretir.
 - **Pre-release dependency isolation:** Preview MAF hosting bağımlılıkları yalnız `AgentPrism.AspNetCore` paketinde tutulur.
+- **Package artifact kimliği:** Pack gate, aynı version için farklı içerikli package üretimini ve mevcut release artifact'ının overwrite edilmesini reddeder.
 
 ## Test, kalite ve coding-agent desteği
 
 - **Fake model provider:** `FakeModelProvider`, network çağrısı yapmadan deterministic text, usage ve tool-call turn'leri script edebilir.
 - **Integrated test host:** `AgentPrismTestHost`, gerçek catalog, HTTP endpoint'leri ve in-memory store'larla test uygulaması başlatır.
 - **Framework-neutral assertions:** `RunAssertions`, run status, output ve tool invocation sonuçlarını xUnit, NUnit veya MSTest bağımlılığı olmadan denetler.
-- **Extension contract suites:** `AgentPrism.Testing.Contracts.Xunit`, custom store, provider, judge, source, tool ve job handler implementation'larına ortak davranış testleri verir.
+- **Extension contract suites:** `AgentPrism.Testing.Contracts.Xunit`, custom store, provider, judge, source, tool, tool validator, tool authorization ve job handler implementation'larına ortak davranış testleri verir.
 - **Source generator diagnostics:** Tool generator; ad, signature, parameter, description, instance method ve JSON serialization hatalarını build sırasında raporlar.
 - **Usage analyzer diagnostics:** Eksik registration, literal secret, el yapımı retry/decorator, stale agent map ve hatalı ambient scope kullanımını build sırasında bildirir.
 - **Generated agent map:** Opt-in build target, mevcut dosyayı ezmeden repository için AgentPrism capability map içeren `AGENTS.md` üretebilir.
@@ -226,4 +241,4 @@
 ## Özet
 
 - **Toplam kategori:** 13
-- **Toplam özellik:** 182
+- **Toplam özellik:** 197
