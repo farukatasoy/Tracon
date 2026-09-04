@@ -63,6 +63,8 @@
       so - a consumer on NUnit or MSTest cannot use this package.
     -->
     <PackageReference Include="xunit.v3.extensibility.core" />
+    <!-- Assert.SkipWhen only (see Directory.Packages.props); everything else routes through Shouldly. -->
+    <PackageReference Include="xunit.v3.assert" />
     <PackageReference Include="Shouldly" />
   </ItemGroup>
 

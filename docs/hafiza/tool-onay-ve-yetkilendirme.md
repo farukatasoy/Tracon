@@ -24,3 +24,20 @@
   `RunRecordingAgent`'ta zaten okunduğu tek nokta (`ChildRunApproval` ailesi).
   Faz 142'nin planı `ApprovingAIFunction` adlı bir sarmalayıcı öngörüyordu;
   bu ölçüm nedeniyle o dosya hiç yazılmadı — bkz. fazın "Plandan Sapmalar"ı.
+- **🚨 `AIFunction.JsonSchema`'da `"type"` bir dize DEĞİL bir DİZİ olabilir** (Faz 143,
+  Microsoft.Extensions.AI 10.9.0'da ölçüldü): `string?` gibi nullable bir C# parametresi
+  `"type":["string","null"]` üretir, `"type":"string"` değil — 9.9.1'de bu davranış yoktu
+  (probe önce eski sürümle yazıldı, gerçek pakette skip'e düştü). `TryGetProperty("type",
+  out var t) && t.ValueKind == JsonValueKind.String` deseni sessizce hiç eşleşmez ve
+  nullable her parametre "desteklenmiyor" sanılır. Çözüm: `type` okuyan her yerde önce
+  `ValueKind == Array` dalını da kontrol et, ilk `"null"` olmayan girdiyi kullan
+  (`SchemaArgumentGenerator.PrimaryType`). Bir tool şemasını TÜKETEN (üreten değil) her
+  kod, MEAI'nin GERÇEK kurulu sürümüyle ölçülmeli — `maf-api-kesfi` dump'ı tip imzasını
+  gösterir ama ÜRETİLEN JSON şeklini göstermez, küçük bir probe projesi gerekir.
+- **xunit.v3, yalnız `public` sınıfları test olarak keşfeder — `private`/`internal` bir
+  sınıf, bir sözleşme temel sınıfından (`[Fact]` miras alarak) türese bile `dotnet test`'in
+  normal koşumuna karışmaz** (Faz 143, ampirik ölçüldü: `internal sealed class` + kasten
+  kırık `ExpectedResultText` → "Zero tests ran"). Bu, "sözleşme suite'i kasten kırık bir
+  implementasyonda KIRMIZI olmalı" kanıtını (`ContractSelfProofTests` deseni) NORMAL yeşil
+  koşumu bozmadan yazmanın yoludur: kırık fixture'ı `private sealed class` yap, `[Fact]`
+  metodunu doğrudan çağır (`await instance.SomeFact()`), `try/catch` ile "attı mı" sına.
