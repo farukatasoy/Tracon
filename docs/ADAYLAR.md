@@ -125,7 +125,7 @@ Bir adayın `Mercek` satırı aşağıdaki destekleyen mercekleri numarayla saya
 > [Faz 139](arsiv/fazlar/139-CALISTIRMA-VE-OTURUM-YETKILENDIRMESI.md) · **F-186** →
 > [Faz 140](arsiv/fazlar/140-ICERIK-GUARDININ-KAYNAGI.md) · **F-187** →
 > [Faz 141](arsiv/fazlar/141-GENISLETILEBILIR-CALISTIRMA-OLAYI.md) · **F-188** →
-> [Faz 142](142-ONAY-ISTEGININ-SUNUMU.md) · **F-189** →
+> [Faz 142](arsiv/fazlar/142-ONAY-ISTEGININ-SUNUMU.md) · **F-189** →
 > [Faz 143](143-TOOL-ARGUMANININ-SOZLESME-TESTLERI.md).
 >
 > Aynı turdan **sıralanmayan** kalemler (talep kanıtı zayıf veya tüketici
