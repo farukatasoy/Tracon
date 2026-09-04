@@ -149,7 +149,10 @@ içindedir; denetçi onu okur ve şunları arar:
 - Yeni giriş noktası (`Add*`, `Use*`, `Map*`) `<example>` taşıyor mu? Yerel
   referans dosyasının reçetesi bu sözü verir.
 - Yeni yetenek veya yeni paket `capabilities.md`'ye girdi mi? Sevk edilen agent
-  haritasının **tek kaynağı** odur ve bugün hiçbir kapı bu boşluğu yakalamıyor.
+  haritasının **tek kaynağı** odur. Yalnız **genişleme noktası** kümesinin kapısı
+  vardır (`dokuman-bakim.py` → `sevk_edilen_genisleme_noktasi`: kod ↔
+  `capabilities.md` ↔ sevk edilen metindeki sayı); yetenek ve paket satırları
+  hâlâ **elle** tutuluyor — denetçinin bakacağı yer orasıdır.
 - Kapı seti tam koştu mu? `npm run build` **yetmez** — `npm run check` dördünü
   (`check:content` · `build` · `check:links` · `check:weight`) koşar.
 

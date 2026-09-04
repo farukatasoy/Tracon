@@ -36,6 +36,7 @@
 | NSwag ile üretilen istemci (`AgentPrism.Client`/`@agentprism/client`) | [nswag-istemci-uretimi](nswag-istemci-uretimi.md) |
 | Test **yazımı** (xunit, Shouldly, sözleşme, Playwright) | [test-altyapisi](test-altyapisi.md) |
 | Test **koşumu** asılı/eksik (`dotnet test`, MSBuild) | [test-kosum-tuzaklari](test-kosum-tuzaklari.md) |
+| Test tek başına geçip **tam koşumda** düşüyor | [test-yalitimi](test-yalitimi.md) |
 | Kapanış kapısı taban ölçümü (wall-clock, proje sonucu) | [test-kosum-olcumleri](test-kosum-olcumleri.md) |
 | Arayüz (Vite, SPA rota, TS, ekran) | [frontend](frontend.md) |
 | Arayüz yerelleştirme (`useT`, `Messages`, `Intl`) | [frontend-yerellestirme](frontend-yerellestirme.md) |

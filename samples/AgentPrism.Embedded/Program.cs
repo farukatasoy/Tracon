@@ -8,8 +8,12 @@
 // docs-site/src/content/docs/guides/embedding.md for the full explanation this
 // sample follows line by line.
 //
-// The six embedding points, all bound BEFORE AddAgentPrism() so the host's own
-// registration wins over the built-in default (every contract uses TryAdd):
+// AgentPrism has SEVEN embedding points. This sample binds six of them, all
+// BEFORE AddAgentPrism() so the host's own registration wins over the
+// built-in default (every contract uses TryAdd). The seventh,
+// IToolApprovalPresenter, is left on its built-in default on purpose:
+// samples/AgentPrism.Api shows that one. Count claims here are gated by
+// dokuman-bakim.py -> sevk_edilen_genisleme_noktasi().
 //   1. ITenantContext / ITenantStore -> Tenancy/
 //   2. IRunAttributionContext        -> Attribution/
 //   3. IToolAuthorizationHandler     -> Authorization/
@@ -39,9 +43,9 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddHttpContextAccessor();
 
-// The six embedding points. Order matters: AddAgentPrism() below calls
-// TryAdd* for all six, so a registration made first wins; a registration
-// made after AddAgentPrism() is silently ignored.
+// Six of the seven embedding points. Order matters: AddAgentPrism() below
+// calls TryAdd* for all seven, so a registration made first wins; a
+// registration made after AddAgentPrism() is silently ignored.
 builder.Services.AddSingleton<ITenantContext, EmbeddedTenantContext>();
 builder.Services.AddSingleton<ITenantStore, EmbeddedTenantStore>();
 builder.Services.AddSingleton<IRunAttributionContext, EmbeddedRunAttributionContext>();

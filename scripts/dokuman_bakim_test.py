@@ -1122,6 +1122,86 @@ if __name__ == "__main__":
     unittest.main()
 
 
+class SevkEdilenGenislemeNoktasiTestleri(unittest.TestCase):
+    """Genişleme noktası sayısı kod ↔ sevk edilen metin (2026-09-04, KUSUR-A1).
+
+    Sınıf ÜÇ kez ölçüldü: `a377106e` (Faz 139, altıncı nokta) · Faz 142'nin
+    denetim bulgusu #2 (yedinci nokta) · 2026-09-04 süreç denetimi. Faz 142'nin
+    devir notu "hiçbir kapı bu boşluğu otomatik yakalamaz" diyordu; kapı budur.
+    """
+
+    KOD = """
+    private IReadOnlyList<ExtensionPointDiagnostic> CollectExtensionPoints()
+    {
+        return
+        [
+            new ExtensionPointDiagnostic { Contract = nameof(ITenantContext) },
+            new ExtensionPointDiagnostic { Contract = nameof(IRunEventSink) },
+        ];
+    }
+}
+"""
+
+    def _kok(self, tablo: str, sevk: dict[str, str] | None = None) -> pathlib.Path:
+        kok = pathlib.Path(tempfile.mkdtemp())
+        kaynak = kok / "src" / "AgentPrism.Core" / "Diagnostics"
+        kaynak.mkdir(parents=True)
+        (kaynak / "AgentPrismDiagnosticsCollector.cs").write_text(self.KOD, encoding="utf-8")
+        icerik = kok / "docs-site" / "src" / "content" / "docs"
+        icerik.mkdir(parents=True)
+        (icerik / "capabilities.md").write_text(
+            "# X\n\n## Embedding points\n\n" + tablo + "\n## Sonraki\n", encoding="utf-8")
+        (kok / "samples").mkdir()
+        for ad, metin in (sevk or {}).items():
+            yol = (kok / ad) if ad.startswith("samples/") else (icerik / ad)
+            yol.parent.mkdir(parents=True, exist_ok=True)
+            yol.write_text(metin, encoding="utf-8")
+        return kok
+
+    IKI_SATIR = ("| Capability | Bind it |\n|---|---|\n"
+                 "| Tenant | `ITenantContext` |\n| Events | `IRunEventSink` |\n")
+
+    def test_eksik_tablo_satiri_kirmizidir(self):
+        kok = self._kok("| Capability | Bind it |\n|---|---|\n| Tenant | `ITenantContext` |\n")
+        bulgular = dokuman_bakim.sevk_edilen_genisleme_noktasi(kok)
+        self.assertTrue(any("1 satır" in b for b in bulgular))
+        self.assertTrue(any("IRunEventSink" in b for b in bulgular))
+
+    def test_sevk_edilen_metindeki_bayat_sayi_kirmizidir(self):
+        # KUSUR-A1'in birebir hali: kod 2 nokta, örnek "three embedding points".
+        kok = self._kok(self.IKI_SATIR, {
+            "samples/Program.cs": "// The three embedding points, all bound first.\n"})
+        bulgular = dokuman_bakim.sevk_edilen_genisleme_noktasi(kok)
+        self.assertEqual(1, len(bulgular))
+        self.assertIn("3 genişleme noktası diyor, kod 2", bulgular[0])
+
+    def test_dogru_sayi_yanlis_pozitif_uretmez(self):
+        kok = self._kok(self.IKI_SATIR, {
+            "samples/Program.cs": "// The two embedding points.\n"})
+        self.assertEqual([], dokuman_bakim.sevk_edilen_genisleme_noktasi(kok))
+
+    def test_EN_YAKIN_sayi_yonetir(self):
+        """"One of the two embedding points" DOĞRUDUR; soldaki sayı örneğin kendi payıdır."""
+        kok = self._kok(self.IKI_SATIR, {
+            "samples/README.md": "One of the two embedding points is bound here.\n"})
+        self.assertEqual([], dokuman_bakim.sevk_edilen_genisleme_noktasi(kok))
+
+    def test_genel_extension_point_ifadesi_SAYILMAZ(self):
+        """"extension point" genel terimdir (IModelProvider, IAgentSource, ...).
+
+        Onu saymak yanlış pozitif üretir ve yanlış pozitif veren kapı kapatılır.
+        """
+        kok = self._kok(self.IKI_SATIR, {
+            "guides/write-your-own-error-classifier.md": "Two questions, two extension points\n"})
+        self.assertEqual([], dokuman_bakim.sevk_edilen_genisleme_noktasi(kok))
+
+    def test_uretilen_api_referansi_SAYILMAZ(self):
+        kok = self._kok(self.IKI_SATIR, {
+            "api/AgentPrism.Report.md": "one entry per embedding point\n",
+            "http-api/schema-report.md": "nine embedding points\n"})
+        self.assertEqual([], dokuman_bakim.sevk_edilen_genisleme_noktasi(kok))
+
+
 class SevkEdilenOlayAnlatisiTestleri(unittest.TestCase):
     """Sevk edilen webhook olayının anlatı kapsamı (2026-09-03 kusuru)."""
 

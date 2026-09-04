@@ -154,5 +154,14 @@ bulunduysa ve tek başına bir düzeltmeyse: `docs/KARARLAR.md`'ye kararı,
 > 1. Kusuru gösteren test **düzeltmeden önce** kırmızı mıydı?
 > 2. Sınıf taraması yapıldı mı, sonucu yazıldı mı?
 > 3. Aynı kusur bir daha olursa **hangi kapı** yakalar?
+> 4. **Adım 1'in repro'su, kendi koşullarında tekrar koşuldu mu?**
 
 3'e "hiçbiri" cevabı veriyorsan iş bitmemiştir.
+
+4 ayrı bir sorudur ve hedefli testin yeşili onu **cevaplamaz**. Ölçülen vaka
+(F-180, 2026-09-04): repro "yük altındaki tam paket koşumu"ydu; kapanış iki
+gerçek ürün yolunu düzeltti ve `VoiceConversationTests` ile kanıtladı, ama
+repro'yu tekrar koşmadı. Kayıt **✅ KAPANDI** işaretlendi; aynı test bir gün
+sonra aynı imzayla yine düştü. Repro yük altındaki bir koşumsa kapanış **o
+koşumla** kanıtlanır; kapatamıyorsan kaydı "vaka kapandı, sınıf açık" diye
+işaretle — "kapandı" deme.

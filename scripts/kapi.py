@@ -122,6 +122,7 @@ def run_commands(
             continue
 
         started = time.monotonic()
+        wall_started = time.time()
         try:
             result = runner(
                 list(command.args),
@@ -141,6 +142,8 @@ def run_commands(
         elapsed = time.monotonic() - started
         if exit_code:
             print(f"❌ Çıkış {exit_code} ({elapsed:.2f} s): {command.display}")
+            if command.args[:2] == ("dotnet", "test"):
+                isolate_failed_tests(failed_tests_from_trx(wall_started), runner=runner)
             return exit_code
         print(f"✅ {elapsed:.2f} s")
 
@@ -553,6 +556,30 @@ TEST_PROJECTS: dict[str, tuple[str, ...]] = {
 }
 
 
+# Every src/ change reaches this project, whatever the package: its
+# ExampleExtractor enumerates src/**/*.cs and COMPILES every <example> block it
+# finds, so an XML doc comment added anywhere under src/ can break it. Measured
+# escape: 9433efe4 ("caught only by the full solution test run, not by
+# AgentPrism.Core.UnitTests alone") - the inner loop selected Core.UnitTests +
+# AspNetCore.FunctionalTests and never ran the project that actually failed.
+# Costs 2.4 s measured (2026-09-04 per-project profile).
+EXAMPLE_COMPILING_TEST_PROJECT = "AgentPrism.Generators.UnitTests"
+
+# A sample directory the solution really tests, and the project that tests it
+# (via ProjectReference). Measured escape: a377106e - phase 139 added a sixth
+# embedding point, samples/AgentPrism.Embedded fell behind, and `ic-dongu`
+# selected NO test project at all for a samples/ change.
+SAMPLE_TEST_PROJECTS: dict[str, str] = {
+    "AgentPrism.Embedded": "AgentPrism.Embedded.Tests",
+}
+
+# These ship as consumer-facing samples but are NOT in AgentPrism.slnx: they
+# compile against packed NuGet packages, so no closing-gate test run covers
+# them. Only `kapi.py yayin` (release_extension_samples.py) does. Saying so out
+# loud beats selecting nothing silently.
+RELEASE_ONLY_SAMPLE_PREFIX = "samples/AgentPrism.Samples."
+
+
 def affected_test_projects(paths: Iterable[str]) -> tuple[list[str], bool]:
     projects: set[str] = set()
     needs_full = False
@@ -566,12 +593,23 @@ def affected_test_projects(paths: Iterable[str]) -> tuple[list[str], bool]:
                 projects.add(match.group(1))
             continue
         if path.startswith("src/"):
+            projects.add(EXAMPLE_COMPILING_TEST_PROJECT)
             match = re.match(r"src/([^/]+)/", path)
             package = match.group(1).removesuffix(".csproj") if match else ""
             if package in TEST_PROJECTS:
                 projects.update(TEST_PROJECTS[package])
             else:
                 needs_full = True
+        elif path.startswith("samples/"):
+            if path.startswith(RELEASE_ONLY_SAMPLE_PREFIX):
+                print(
+                    f"⚠️ {path}: bu örnek çözümde değildir; yalnız "
+                    "`python3 scripts/kapi.py yayin` onu paketlenmiş sürüme karşı koşar.")
+                continue
+            match = re.match(r"samples/([^/]+)/", path)
+            sample = match.group(1) if match else ""
+            if sample in SAMPLE_TEST_PROJECTS:
+                projects.add(SAMPLE_TEST_PROJECTS[sample])
         elif path.startswith("packages/") or path.startswith("scripts/"):
             projects.add("AgentPrism.Client.UnitTests" if path.startswith("packages/") else "AgentPrism.Core.UnitTests")
     return sorted(projects), needs_full
@@ -591,9 +629,90 @@ def full_solution_test_command() -> Command:
     each of them can start additional processes and exhaust the local Docker
     memory budget.
     """
+    # `-- --report-trx` ci.yml:183 ile AYNI: dusen testin adi makine
+    # okunur hale gelir ve `isolate_failed_tests` onu izole tekrar kosar.
+    # Olculdu 2026-09-04: TRX yazimi kosum suresini olcum gurultusunun
+    # altinda etkiler (557 sn TRX'li, 561 sn TRX'siz).
     return Command((
         "dotnet", "test", "AgentPrism.slnx", "-c", "Release", "--no-build",
-        f"-maxcpucount:{TEST_MAX_CPU_COUNT}"))
+        f"-maxcpucount:{TEST_MAX_CPU_COUNT}", "--", "--report-trx"))
+
+
+TRX_NS = "{http://microsoft.com/schemas/VisualStudio/TeamTest/2010}"
+
+
+def failed_tests_from_trx(since: float, root: pathlib.Path = ROOT) -> list[tuple[str, str]]:
+    """(proje, tam test adi) — `since`'ten sonra yazilmis her TRX'teki dusen test."""
+    import xml.etree.ElementTree as elementtree
+
+    failures: list[tuple[str, str]] = []
+    for trx in sorted((root / "artifacts" / "bin").glob("*/release/TestResults/*.trx")):
+        try:
+            if trx.stat().st_mtime < since:
+                continue
+            tree = elementtree.parse(trx)
+        except (OSError, elementtree.ParseError):
+            continue
+        project = trx.relative_to(root / "artifacts" / "bin").parts[0]
+        for result in tree.getroot().iter(TRX_NS + "UnitTestResult"):
+            if result.get("outcome") not in (None, "Passed", "NotExecuted"):
+                name = result.get("testName")
+                if name:
+                    failures.append((project, name))
+    return failures
+
+
+def isolate_failed_tests(
+    failures: Sequence[tuple[str, str]],
+    *,
+    runner: Runner = subprocess.run,
+    root: pathlib.Path = ROOT,
+) -> list[tuple[str, str, bool]]:
+    """Dusen her testi TEK BASINA tekrar kos ve hukmu bas.
+
+    `kusur-giderme` Adim 2'nin uc adimli el yordami budur. Bu repoda "tam
+    kosumda duser, izole gecer" sinifi YEDI kez kayda gecti: alti vaka
+    `docs/hafiza/test-yalitimi.md`'de belgelidir (sinif Faz 103'te acildi;
+    Faz 82 · 130 · 134 · 141 ayri testlerle tekrarladi), yedincisini
+    2026-09-04 surec denetiminin taban kosumu uretti. Her seferinde ayirt
+    etme ELLE yapildi — cogu kez TAM paketi ikinci kez kosarak (~9 dakika,
+    olculdu: 553 sn). Izole kosum saniyeler surer (olculdu: 2,5 sn).
+
+    🚨 CIKIS KODUNU DEGISTIRMEZ. Bu bir teshistir, kapi gevsemesi degil:
+    kirmizi kirmizi kalir. Verdigi tek sey, bir sonraki adimin ne oldugudur.
+    """
+    verdicts: list[tuple[str, str, bool]] = []
+    for project, name in failures:
+        executable = root / "artifacts" / "bin" / project / "release" / project
+        # Bir `[Theory]`'nin TRX adi argumanlari da tasir ve onlar NOKTA
+        # icerebilir: `...A_provider_name_is_matched(savedAs: "a.b")`. Once
+        # arguman kuyrugu atilir, SONRA son parca alinir - ters sira metot
+        # adi yerine bir argumani filtreye koyardi.
+        method = name.split("(", 1)[0].rsplit(".", 1)[-1]
+        if not executable.exists():
+            print(f"   ⚠️ {project}: derlenmis ikili yok, izole kosum atlandi")
+            continue
+        environment = os.environ.copy()
+        environment["MSBUILDDISABLENODEREUSE"] = "1"
+        result = runner(
+            [str(executable), "--filter-method", f"*{method}*"],
+            cwd=str(root), env=environment, check=False,
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        verdicts.append((project, name, int(result.returncode) == 0))
+
+    if not verdicts:
+        return verdicts
+    print("\n🔬 İzole yeniden koşum (teşhis — çıkış kodunu DEĞİŞTİRMEZ):")
+    for project, name, passed in verdicts:
+        print(f"   {'✅ izole GEÇTİ' if passed else '❌ izole de DÜŞTÜ'}  {project} · {name}")
+    if all(passed for _, _, passed in verdicts):
+        print("   → Hepsi izole geçti: tam koşum kaynak çekişmesi sınıfı"
+              " (docs/hafiza/test-altyapisi.md). Tam paketi TEKRAR koş;"
+              " ikinci koşumda da düşerse gerçek kusurdur.")
+    else:
+        print("   → İzole de düşen test GERÇEK regresyondur;"
+              " `kusur-giderme` skill'ini koş.")
+    return verdicts
 
 
 def inner_loop_commands(paths: list[str]) -> list[Command]:
