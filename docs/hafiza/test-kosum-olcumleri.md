@@ -133,3 +133,17 @@ Taban çizgisi (`bench/baseline.json`, aynı makine): `CacheHit` 24 B,
 `AppendEvent` 104 B, `QueryRuns` 44336 B (200 satır seed, `Take=50`).
 `CompiledAgentCache.GetOrAdd`'ın kendisi düzeltilmeden önce `CacheHit` 88 B
 ölçülüyordu — bkz. [`cekirdek-calistirma.md`](cekirdek-calistirma.md).
+
+### 🚨 Taban çizgisi KODDAN bağımsız kayabilir — güncellemeden önce baseline commit'i ölç (2026-09-04, Faz 142)
+
+`kapi.py performans` `AppendEvent` için 104 B → 112 B kırmızısı verdi;
+`RunEventWriter.cs`'in tek diff'i `CompleteAsync` içindeydi, `AppendAsync`'e
+HİÇ dokunmamıştı. Şüpheli: `git worktree add` ile taban commit'i (`381285c4`)
+AYRI bir dizinde derlenip TEK BAŞINA ölçüldü — sonuç yine 112 B. Aynı kodun
+2026-09-02 ölçümü 104 B'ydi; makine aynı (Apple M1 Pro), yalnız iki gün
+içinde OS/SDK yama düzeyi kaymış olabilir (`kaynak tespit edilemedi` —
+`dotnet --info` sürüm numarası değişmedi, muhtemel neden alt seviyede).
+Sonuç: kod suçsuzdu, taban çizgisi bayatlamıştı. `--guncelle` çalıştırılmadan
+önce **taban commit'i ayrı bir `git worktree`'de tek başına ölçmek** kodun mu
+ortamın mı sorumlu olduğunu ayırt eder — doğrudan `--guncelle` çalıştırmak bu
+ayrımı **atlar** ve gerçek bir regresyonu maskeleyebilirdi.
