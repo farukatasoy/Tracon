@@ -23,6 +23,9 @@
     "src/AgentPrism.Sqlite/Migrations/0030_job_handler_key.sql": "931ec5300b5fb8d966023f5d20a8fd0cf1ea58fd",
     "src/AgentPrism.PostgreSql/Migrations/0044_run_event_custom_type.sql": "2a94409c",
     "src/AgentPrism.SqlServer/Migrations/0031_run_event_custom_type.sql": "2a94409c",
-    "src/AgentPrism.Sqlite/Migrations/0031_run_event_custom_type.sql": "2a94409c"
+    "src/AgentPrism.Sqlite/Migrations/0031_run_event_custom_type.sql": "2a94409c",
+    "src/AgentPrism.PostgreSql/Migrations/0045_pending_approval_presentation.sql": "7eebc0d6",
+    "src/AgentPrism.SqlServer/Migrations/0032_pending_approval_presentation.sql": "7eebc0d6",
+    "src/AgentPrism.Sqlite/Migrations/0032_pending_approval_presentation.sql": "7eebc0d6"
   }
 }
