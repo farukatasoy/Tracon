@@ -169,6 +169,50 @@ Gerekçeler:
 | **F-152 · 2 → 2** ve plana | Maliyet iddiası ("kalıcı model ve **üç SQL sağlayıcı migration'ı** gerekir") çürüdü: `UpsertAsync` **yargıç başına** çağrılıyor ve satır `Author = "judge:{ad}"` taşıyor; `IRunScoreStore.ListAsync` ve `JobRecord.Attempt` de zaten var. **Checkpoint bugün zaten veride duruyor** — eksik olan tek şey döngünün onu okuması. Yeni tablo, migration ve public yüzey **yok**. |
 | **F-95 sıralamadan çıktı** | Dördüncü sıra, sahip olmadığı bir plan hazırlığını ima ediyordu. `Hazırlık` satırı zaten "🚨 İmza doğrulanmadı" diyor. |
 
+### F-190 · MCP Tasks testlerinin tam çözüm koşumunda yalıtımı
+
+**Sorun:** `dotnet test AgentPrism.slnx` (tüm çözüm birlikte) koşumunda üç MCP
+Tasks testi düşüyor: `McpTasksEndpointTests.Unknown_task_id_is_reported_as_a_protocol_error_not_a_500`,
+`McpTaskCrossInstanceTests.Second_instance_reconstructs_a_completed_task_from_the_shared_database`,
+`McpTaskCrossInstanceTests.Second_instance_reconstructs_an_approval_rejection_generically_not_with_todays_exact_wording`.
+
+**Ölçüm (2026-09-04):** Yalıtım sorunudur, regresyon değildir.
+
+| Koşum | Sonuç |
+|---|---|
+| Tüm çözüm (`AgentPrism.slnx`) | ❌ 3 düştü / 766 |
+| Yalnız `AgentPrism.AspNetCore.FunctionalTests` derlemesi | ✅ 766/766 |
+| Yalnız `*McpTask*` filtresi (HEAD) | ✅ 12/12 |
+| Yalnız `*McpTask*` filtresi (temel `f2147a27`, Faz 139 öncesi) | ✅ 12/12 |
+
+Faz 139–143 **hiçbir MCP koduna dokunmadı** (`git diff --name-only f2147a27..HEAD`
+yalnız `docs-site/public/screenshots/mcp.png` veriyor).
+
+Düşüşlerden birinin mesajı nedeni işaret ediyor: *"'GetTaskAsync' requires a
+newer protocol revision that supports tasks (the '2026-07-28' revision or
+later). The negotiated protocol version is '2025-11-25'."* Yani paralel koşumda
+istemci **yanlış protokol sürümüyle** anlaşıyor; ayrı koşumda doğru sürümü
+alıyor. Bu, `MeterListener` vakasının (K-656) sınıfıdır: process-wide bir durum
+başka bir testin kurduğu duruma bağlanıyor.
+
+**Kapsam:** MCP Tasks test kurulumunun paylaşılan process durumundan
+yalıtılması. Çözüm sınıfı K-656 ile aynıdır: paylaşılan adı/durumu değil
+**instance**'ı bağla.
+
+**Değer:** Kapanış kapısı bugün tam çözüm koşumunda kırmızı; bu, gerçek bir
+regresyonu gizleyebilir.
+
+**Mercek:** 2.
+
+**Hazırlık:** Repro sabit ve ucuz. K-656'nın çözüm deseni hazır.
+
+**Maliyet:** Ölçülmedi.
+
+**Risk:** Düşük — yalnız test altyapısı.
+
+**Karşı görüş:** Ciddi bir karşı gerekçe bulunamadı. Kırmızı bir kapanış kapısı
+bırakılamaz; bugün yalnız "bilinen sorun" olarak taşınıyor.
+
 ## Bekleyen Kalemler
 
 İkisi de **bugün faz değildir**. Gövdeleri, koşulları oluştuğunda plana

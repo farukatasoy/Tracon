@@ -32,7 +32,7 @@
 | Enum/alan JSON serileştirme, `.WithTags` | [aspnetcore-json](aspnetcore-json.md) |
 | MSBuild, csproj, AOT, analyzer tanısı | [build-ve-analyzer](build-ve-analyzer.md) |
 | Analyzer/üreteç **yazımı** (`APG*`) | [analyzer-yazimi](analyzer-yazimi.md) |
-| `dotnet pack`, `buildTransitive/`, şablon | [paketleme-ve-dagitim](paketleme-ve-dagitim.md) |
+| `dotnet pack`, `buildTransitive/`, şablon, yerel feed tüketicisi | [paketleme-ve-dagitim](paketleme-ve-dagitim.md) |
 | NSwag ile üretilen istemci (`AgentPrism.Client`/`@agentprism/client`) | [nswag-istemci-uretimi](nswag-istemci-uretimi.md) |
 | Test **yazımı** (xunit, Shouldly, sözleşme, Playwright) | [test-altyapisi](test-altyapisi.md) |
 | Test **koşumu** asılı/eksik (`dotnet test`, MSBuild) | [test-kosum-tuzaklari](test-kosum-tuzaklari.md) |

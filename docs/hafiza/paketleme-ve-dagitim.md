@@ -128,3 +128,40 @@
   yerel `--surum` koşumları artık `release_dir`'i ESKİ sürümlerden OTOMATİK
   temizlemez - bu bilinçlidir (silme davranışı kaldırıldı, eklenmedi); gerekiyorsa elle
   `rm -rf artifacts/package/release`.
+
+## Repo dışı bir tüketiciyi yerel feed'e bağlama (2026-09-04)
+
+> Masaüstündeki ayrı bir proje entegre olurken kuruldu. Amaç: tüketicinin bir
+> sonraki `v*` etiketini ve nuget.org yayınını **beklemeden** her commit'in
+> paketini alabilmesi. `samples/NuGet.config` deseninin repo dışına taşınmış
+> hâlidir — yeni bir mekanizma değildir.
+
+- **🚨 MinVer her commit'te benzersiz ve monoton bir sürüm üretir; `v*` etiketi
+  sürümü DEĞİL, yalnız nuget.org yayınını açar.** Ölçüldü (2026-09-04, temiz
+  klon, aynı HEAD `780e45ca`): etiket yok → `0.0.0-preview.0.578`;
+  `v1.0.0-preview.1` + 3 commit → `1.0.0-preview.1.3` (yayınlanan
+  `preview.1`'in ÜSTÜNDE, `preview.2`'nin ALTINDA); `v1.0.0` + 3 commit →
+  `1.1.0-preview.0.3` — `MinVerAutoIncrement=minor` yalnız **stable** etiketten
+  sonra devreye girer. Yani döngü hiçbir etiket durumunda kırılmaz ve üretilen
+  sürüm yayınlanan hiçbir sürümle çakışmaz. Tüketiciyi hızlandırmak için
+  fazladan `v*` etiketi **atılmamalıdır**: nuget.org'a giden sürüm kalıcıdır
+  (unlist edilir, silinmez) ve 20 paketin public sürüm listesini kirletir.
+- **🚨 Tüketicinin `packageSourceMapping`'i opsiyonel DEĞİLDİR.** `AgentPrism*`
+  yerel feed'e map'lenmezse aile yayınlandığı gün nuget.org'daki sürüm
+  **sessizce** kazanır ve tüketici yerel değişikliği görmeyi bırakır — hiçbir
+  uyarı çıkmaz.
+- **Tüketici EXACT sürüm pin'ler, floating (`*-*`) kullanmaz.** Floating, bu
+  dosyada kayıtlı bayat paket sınıfına girer: artımlı pack değişmemiş projeyi
+  yeniden üretmez, global cache eskiyi tutar. Yükseklik her commit'te arttığı
+  için exact pin'de bu sınıf **yapısal olarak** oluşmaz. `samples/` içindeki
+  `*-*` yalnız repo içi kolaylıktır; `release_extension_samples.py` onu yayın
+  yolunda zaten reddeder.
+- **Feed yolu tüketicinin `NuGet.config`'ine GÖRELİ yazılır** — mutlak yol
+  commit edilirse tüketici başka makinede restore edilemez.
+- **İterasyon komutu `dotnet pack AgentPrism.src.slnf -c Release`'tir**; çıktı
+  `UseArtifactsOutput` ile doğrudan `artifacts/package/release/`'e düşer.
+  `kapi.py yayin` bu döngünün aracı **değildir** (yayın provasıdır). Çözüm
+  dosyası seçimi ve kirli ağaç kapısı yukarıda kayıtlıdır.
+- **Feed dizini sınırsız büyür** (commit başına 20 paket × 2 dosya); otomatik
+  temizlik Faz 136'da bilinçli kaldırıldı. Ara sıra
+  `rm -rf artifacts/package/release` çalıştırıp bir kez yeniden paketle.
