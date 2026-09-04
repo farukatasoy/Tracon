@@ -1,13 +1,13 @@
 # Faz 143 — Tool Argümanının Sözleşme Testleri
 
 > **Durum:** ✅ Tamamlandı (2026-09-04)
-> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-189** (tüketici turu 3, B7)
+> **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-189** (tüketici turu 3, B7)
 > **Önkoşul:** Yok
 > **Paketler:** `AgentPrism.Testing.Contracts.Xunit`
 > **Yeni paket:** Yok — mevcut sözleşme paketine ek (K-605 ile sevk edildi) · **Migration:** Yok
 > **Public API:** Büyüyor — yeni `abstract` sözleşme sınıfları. Yalnız test paketinde; tüketicinin çalışma anı grafiğine **girmez**
 > **Tüketici yüzeyi:** `docs-site/`: `guides/testing.md`, `guides/write-your-own-tool.md`, `packages.md` · sevk edilen: `src/AgentPrism.Testing.Contracts.Xunit/README.md`
-> **Manuel test alanı:** [`docs/manuel-test/24-TEST-PAKETI-VE-SABLON.md`](manuel-test/24-TEST-PAKETI-VE-SABLON.md)
+> **Manuel test alanı:** [`docs/manuel-test/24-TEST-PAKETI-VE-SABLON.md`](../../manuel-test/24-TEST-PAKETI-VE-SABLON.md)
 
 ---
 
@@ -28,7 +28,7 @@
    sed -n '1,40p' src/AgentPrism.Testing.Contracts.Xunit/Contracts/Tools/RepeatableToolContract.cs
    ```
 4. Alan hafızası:
-   [`hafiza/analyzer-yazimi.md`](hafiza/analyzer-yazimi.md) (şema üretimi)
+   [`hafiza/analyzer-yazimi.md`](../../hafiza/analyzer-yazimi.md) (şema üretimi)
 
 ---
 
@@ -52,9 +52,9 @@ gerçek hata kaynağı.
 | Kanıt | Gözlem |
 |---|---|
 | `ls src/AgentPrism.Testing.Contracts.Xunit/Contracts/Tools/` | Yalnız **iki** dosya: `CustomToolContract.cs`, `RepeatableToolContract.cs` |
-| [`CustomToolContract.cs:6`](../src/AgentPrism.Testing.Contracts.Xunit/Contracts/Tools/CustomToolContract.cs) | `abstract class CustomToolContract : IAsyncLifetime` — kaydı kanıtlar, argüman güvenliğini **değil** |
-| [`IToolArgumentsValidator.cs:25-27`](../src/AgentPrism.Abstractions/Tools/IToolArgumentsValidator.cs) | *"If this validator throws, the call is **rejected** (fail-closed)."* — vaat yazılı |
-| [`ToolAuthorizationTypes.cs`](../src/AgentPrism.Abstractions/Tools/ToolAuthorizationTypes.cs) | *"If this handler throws, the call is **denied**."* — ikinci vaat |
+| [`CustomToolContract.cs:6`](../../../src/AgentPrism.Testing.Contracts.Xunit/Contracts/Tools/CustomToolContract.cs) | `abstract class CustomToolContract : IAsyncLifetime` — kaydı kanıtlar, argüman güvenliğini **değil** |
+| [`IToolArgumentsValidator.cs:25-27`](../../../src/AgentPrism.Abstractions/Tools/IToolArgumentsValidator.cs) | *"If this validator throws, the call is **rejected** (fail-closed)."* — vaat yazılı |
+| [`ToolAuthorizationTypes.cs`](../../../src/AgentPrism.Abstractions/Tools/ToolAuthorizationTypes.cs) | *"If this handler throws, the call is **denied**."* — ikinci vaat |
 | `ls .../Contracts/` | 33 store sözleşmesi var; tool tarafında argüman güvenliği yok |
 
 > Kanıtlar 2026-09-03 tarihinde doğrulandı.
