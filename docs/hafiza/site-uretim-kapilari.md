@@ -14,6 +14,18 @@
 
 ## Uretilen sayfa ve onbellek tuzaklari
 
+- **`build-agent-map.mjs`'i EN SON içerik düzenlemesinden SONRA çalıştır, ilk
+  düzenlemeden sonra değil** (2026-09-04, Faz 141): `tuketici-dokuman-senkronu`
+  Adım 5'in 2. kapısı (`--check`) yeşil olduktan SONRA `dokuman-bakim.py
+  --site-denetle`'nin "arayuz"/"kalicilik" gibi bir kuralı yeni bir sayfa
+  düzenlemesi (`ui.md`) daha ister — o düzenleme agent map'i YENİDEN bayatlatır
+  ve `--check` bunu bir SONRAKİ koşuma kadar yakalamaz. `kapi.py kapanis`
+  kendi `node build-agent-map.mjs --check` adımını koşana kadar fark edilmedi.
+  Kural: site sayfalarına dokunan HER düzenleme turundan sonra (yalnız ilk
+  turdan sonra değil) `node docs-site/scripts/build-agent-map.mjs --check`
+  tekrar koş; `capabilities.md`'ye dokunmasan bile — üretici `docs-site/src/
+  content/docs/**/*.md`'nin TAMAMINI (yalnız `capabilities.md`'yi değil)
+  `llms-full.txt`'e gömer.
 - **`docs-site/src/content/docs/{api,http-api}/` ve `public/openapi/` GITIGNORE'dur.**
   Commit edilmezler; her yayinda uretilirler. `git status` temiz gorunurken
   uretilen icerik bayat olabilir.
