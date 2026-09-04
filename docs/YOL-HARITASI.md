@@ -153,7 +153,7 @@ bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 | [138](arsiv/fazlar/138-SES-TANIMININ-SAGLAYICI-USTVERISI.md) | Ses Tanımının Sağlayıcı Üstverisi | ✅ Tamamlandı |
 | [139](arsiv/fazlar/139-CALISTIRMA-VE-OTURUM-YETKILENDIRMESI.md) | Çalıştırma ve Oturum Yetkilendirmesi | ✅ Tamamlandı |
 | [140](arsiv/fazlar/140-ICERIK-GUARDININ-KAYNAGI.md) | İçerik Guard'ının Kaynağı | ✅ Tamamlandı |
-| [141](141-GENISLETILEBILIR-CALISTIRMA-OLAYI.md) | Genişletilebilir Çalıştırma Olayı | 🔧 Kod tamam · testler yeşil · `faz-denetim` geçti (🔴 yok) · dört kapı ve yayın provası commit sonrası koşulacak (2026-09-04) |
+| [141](arsiv/fazlar/141-GENISLETILEBILIR-CALISTIRMA-OLAYI.md) | Genişletilebilir Çalıştırma Olayı | 🔧 Kod tamam · testler yeşil · `faz-denetim` geçti (🔴 yok) · dört kapı ve yayın provası commit sonrası koşulacak (2026-09-04) |
 | [142](142-ONAY-ISTEGININ-SUNUMU.md) | Onay İsteğinin Sunumu | 📋 Planlandı |
 | [143](143-TOOL-ARGUMANININ-SOZLESME-TESTLERI.md) | Tool Argümanının Sözleşme Testleri | 📋 Planlandı |
 

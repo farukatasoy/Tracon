@@ -1,7 +1,7 @@
 # Faz 141 — Genişletilebilir Çalıştırma Olayı
 
 > **Durum:** ✅ Tamamlandı (2026-09-04)
-> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-187** (tüketici turu 3, A5)
+> **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-187** (tüketici turu 3, A5)
 > **Önkoşul:** Yok
 > **Paketler:** `AgentPrism.Abstractions`, `AgentPrism.Core`, `AgentPrism.PostgreSql`,
 > `AgentPrism.SqlServer`, `AgentPrism.Sqlite`, `AgentPrism.Sql.Shared`, `AgentPrism.UI`
@@ -24,7 +24,7 @@
 > · sevk edilen: XML dokümanı (`<example>` YOK — `RunEventCustomTypes`'ın
 > metotları `Add*`/`Use*`/`Map*` değil, `JobHandlerKeys.IsValidKey`/`IsReserved`
 > ile aynı gerekçeyle), konsol jenerik kartı (`run-detail.tsx`)
-> **Manuel test alanı:** [`docs/manuel-test/11-ARAYUZ-RUN-SESSION-SSE.md`](manuel-test/11-ARAYUZ-RUN-SESSION-SSE.md) — MT-UIRUN-052..055
+> **Manuel test alanı:** [`docs/manuel-test/11-ARAYUZ-RUN-SESSION-SSE.md`](../../manuel-test/11-ARAYUZ-RUN-SESSION-SSE.md) — MT-UIRUN-052..055
 
 ---
 
@@ -41,8 +41,8 @@
    **K-411** (senkronizasyon kopyaları — bu faz `.cs` **ve** `.ts` tarafına
    birlikte dokunuyor)
 3. Alan hafızası (iki alan):
-   [`hafiza/cekirdek-calistirma.md`](hafiza/cekirdek-calistirma.md) (olay yazma
-   yolu) · [`hafiza/frontend.md`](hafiza/frontend.md) (konsol olay listesi
+   [`hafiza/cekirdek-calistirma.md`](../../hafiza/cekirdek-calistirma.md) (olay yazma
+   yolu) · [`hafiza/frontend.md`](../../hafiza/frontend.md) (konsol olay listesi
    **elle** bakılıyor)
 4. `JobHandlerKeys` doğrulama kuralı — bu faz onu **birebir tekrarlar**:
    ```bash
@@ -66,10 +66,10 @@ Bu faz kapalılığı **korur** ve tek bir kaçış deliği açar.
 
 | Kanıt | Gözlem |
 |---|---|
-| [`RunEventType.cs:22-233`](../src/AgentPrism.Abstractions/Runs/RunEventType.cs) | Kapalı enum, **29 değer** (0–28). Son değer `StructuredResponseRepairAttempted = 28` |
-| [`RunEventWriter.cs:356-368`](../src/AgentPrism.Core/Recording/RunEventWriter.cs) | `RunEventDraft` beş alan taşıyor: `Type`, `Text`, `ToolName`, `ToolCallId`, `Payload` |
-| [`RunEventWriter.cs:139`](../src/AgentPrism.Core/Recording/RunEventWriter.cs) | `AppendAsync` **public** — yazma yolu açık |
-| [`run-event.ts:8-10`](../src/AgentPrism.UI/frontend/src/lib/run-event.ts) | Konsol listesi **elle** bakılıyor; dosyanın kendi yorumu bunu yazıyor |
+| [`RunEventType.cs:22-233`](../../../src/AgentPrism.Abstractions/Runs/RunEventType.cs) | Kapalı enum, **29 değer** (0–28). Son değer `StructuredResponseRepairAttempted = 28` |
+| [`RunEventWriter.cs:356-368`](../../../src/AgentPrism.Core/Recording/RunEventWriter.cs) | `RunEventDraft` beş alan taşıyor: `Type`, `Text`, `ToolName`, `ToolCallId`, `Payload` |
+| [`RunEventWriter.cs:139`](../../../src/AgentPrism.Core/Recording/RunEventWriter.cs) | `AppendAsync` **public** — yazma yolu açık |
+| [`run-event.ts:8-10`](../../../src/AgentPrism.UI/frontend/src/lib/run-event.ts) | Konsol listesi **elle** bakılıyor; dosyanın kendi yorumu bunu yazıyor |
 | `SqlServer/MigrationsViews/0001_read_views.sql:23` | `runs_v1` **run** seviyesindedir; olay türünden etkilenmez |
 
 > Kanıtlar 2026-09-03 tarihinde doğrulandı.

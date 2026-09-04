@@ -85,7 +85,7 @@ internal static class OrderTools
     /// <param name="orderId">The order number.</param>
     /// <returns>A human-readable confirmation message.</returns>
     /// <remarks>
-    /// Demo tool for F-187 (docs/141-GENISLETILEBILIR-CALISTIRMA-OLAYI.md): the
+    /// Demo tool for F-187 (docs/arsiv/fazlar/141-GENISLETILEBILIR-CALISTIRMA-OLAYI.md): the
     /// consumer's own event does not fit any built-in <see cref="RunEventType"/>,
     /// so it writes <see cref="RunEventType.Custom"/> directly through the
     /// ambient <see cref="AgentPrismRunContext"/> — the same writer
