@@ -167,7 +167,7 @@ public sealed class DiagnosticsCollectorTests
     // --- Phase 85: embedding points ---
 
     [Fact]
-    public async Task Bare_setup_reports_all_six_embedding_points_as_built_in_default()
+    public async Task Bare_setup_reports_all_seven_embedding_points_as_built_in_default()
     {
         var services = new ServiceCollection();
         services.AddAgentPrism().AddModelProvider(new FakeModelProvider());
@@ -177,10 +177,10 @@ public sealed class DiagnosticsCollectorTests
 
         var report = await collector.CollectAsync();
 
-        report.ExtensionPoints.Count.ShouldBe(6);
+        report.ExtensionPoints.Count.ShouldBe(7);
         report.ExtensionPoints.ShouldAllBe(static point => point.IsBuiltInDefault);
         report.ExtensionPoints.Select(static point => point.Contract).ShouldBe(
-            [nameof(ITenantContext), nameof(IRunAttributionContext), nameof(IToolAuthorizationHandler), nameof(IRunAuthorizationHandler), nameof(IRunEventSink), nameof(IAttachmentStorage)]);
+            [nameof(ITenantContext), nameof(IRunAttributionContext), nameof(IToolAuthorizationHandler), nameof(IRunAuthorizationHandler), nameof(IRunEventSink), nameof(IAttachmentStorage), nameof(IToolApprovalPresenter)]);
 
         var sink = report.ExtensionPoints.Single(
             static point => string.Equals(point.Contract, nameof(IRunEventSink), StringComparison.Ordinal));
@@ -189,6 +189,10 @@ public sealed class DiagnosticsCollectorTests
         var storage = report.ExtensionPoints.Single(
             static point => string.Equals(point.Contract, nameof(IAttachmentStorage), StringComparison.Ordinal));
         storage.Implementation.ShouldBe("(database)");
+
+        var presenter = report.ExtensionPoints.Single(
+            static point => string.Equals(point.Contract, nameof(IToolApprovalPresenter), StringComparison.Ordinal));
+        presenter.Implementation.ShouldBe(nameof(NullToolApprovalPresenter));
     }
 
     [Fact]
@@ -204,6 +208,7 @@ public sealed class DiagnosticsCollectorTests
         services.AddSingleton<IRunAuthorizationHandler, DenyAllRunAuthorizationHandler>();
         services.AddSingleton<IRunEventSink, RecordingRunEventSink>();
         services.AddSingleton<IAttachmentStorage, FakeAttachmentStorage>();
+        services.AddSingleton<IToolApprovalPresenter, FakeToolApprovalPresenter>();
 
         services.AddAgentPrism().AddModelProvider(new FakeModelProvider());
 
@@ -212,7 +217,7 @@ public sealed class DiagnosticsCollectorTests
 
         var report = await collector.CollectAsync();
 
-        report.ExtensionPoints.Count.ShouldBe(6);
+        report.ExtensionPoints.Count.ShouldBe(7);
         report.ExtensionPoints.ShouldAllBe(static point => !point.IsBuiltInDefault);
 
         report.ExtensionPoints.Single(
@@ -233,6 +238,9 @@ public sealed class DiagnosticsCollectorTests
         report.ExtensionPoints.Single(
                 static point => string.Equals(point.Contract, nameof(IAttachmentStorage), StringComparison.Ordinal))
             .Implementation.ShouldBe(nameof(FakeAttachmentStorage));
+        report.ExtensionPoints.Single(
+                static point => string.Equals(point.Contract, nameof(IToolApprovalPresenter), StringComparison.Ordinal))
+            .Implementation.ShouldBe(nameof(FakeToolApprovalPresenter));
     }
 
     [Fact]
@@ -285,6 +293,13 @@ public sealed class DiagnosticsCollectorTests
             SessionAuthorizationRequest request,
             CancellationToken cancellationToken = default)
             => new(RunAuthorizationResult.Deny("denied by test"));
+    }
+
+    private sealed class FakeToolApprovalPresenter : IToolApprovalPresenter
+    {
+        public ValueTask<ToolApprovalPresentation?> PresentAsync(
+            ToolApprovalContext context, CancellationToken cancellationToken = default)
+            => new((ToolApprovalPresentation?)null);
     }
 
     private sealed class RecordingRunEventSink : IRunEventSink

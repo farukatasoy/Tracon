@@ -195,8 +195,10 @@ and, for the full EF Core pattern,
 Runs, events, and tool calls survive restarts, so the console shows real history
 rather than the current process. Sessions can be read back as chat history rather
 than an opaque blob — which is also what makes branching a conversation possible.
-Queued runs, schedules, evals, experiments, and quotas all become usable, since they
-depend on state outliving a request.
+Queued runs, schedules, evals, experiments, quotas, and the pending-approval mailbox
+all become usable, since they depend on state outliving a request. A resolved
+[approval presentation](/concepts/governance/#approvals) is persisted next to the
+raw call arguments, so it survives a restart the same way the arguments do.
 
 It is also what makes recovering from a crash possible at all: a run's recorded
 tool calls are what an [automatically continued run](/guides/reliability/#continue-an-interrupted-run-automatically)

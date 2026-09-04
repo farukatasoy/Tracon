@@ -244,10 +244,11 @@ conditional or separately mapped, so they are not all represented by the generat
 | Run and session authorization | Decides whether a caller may start a run or read/list/delete/branch a session | `IRunAuthorizationHandler` | Allows every call by default; a thrown exception denies the call. Called at all four run-starting endpoints, not one shared filter |
 | Run event bridge | Bridges run events to your own channel or message bus | `IRunEventSink` | Queue the event and return; a slow sink degrades on its own, never the model stream |
 | Attachment storage | Stores attachment content in your own object store | `IAttachmentStorage` | Content stays in the database until you register one |
+| Tool-approval presentation | Turns a pending approval's raw arguments into a resolved entity name | `IToolApprovalPresenter` | Best-effort: not registered, throws, or times out all publish the approval request unchanged |
 
 Each contract is registered with `TryAdd`, so a registration made before
 `AddAgentPrism()` wins over AgentPrism's built-in default, and
-`GET /api/diagnostics` reports which of the six are still built-in. A tool body
+`GET /api/diagnostics` reports which of the seven are still built-in. A tool body
 reads the same identity (including `UserId`) through `AgentPrismRunContext`,
 since it cannot reach `AgentSession` directly.
 

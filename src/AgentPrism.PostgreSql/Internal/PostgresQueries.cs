@@ -1466,7 +1466,7 @@ internal sealed class PostgresQueries : SqlQueriesBase
                  LIMIT @max
              )
              RETURNING id, tenant_id, run_id, session_id, request_id, tool_name, arguments, status,
-                       decided_by, decided_at, expires_at, created_at;
+                       decided_by, decided_at, expires_at, created_at, presentation;
             """;
 
         // -------------------------------------------------------------------

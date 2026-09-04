@@ -107,7 +107,7 @@ AgentPrism.AgentPrismContentProtectionOptions.Keys.get -> System.Collections.Gen
 AgentPrism.AgentPrismDiagnostics
 AgentPrism.AgentPrismDiagnostics.Tags
 AgentPrism.AgentPrismDiagnosticsCollector
-AgentPrism.AgentPrismDiagnosticsCollector.AgentPrismDiagnosticsCollector(System.Collections.Generic.IEnumerable<AgentPrism.IModelProvider!>! providers, AgentPrism.ModelProviderHealthCache! healthCache, System.Collections.Generic.IEnumerable<AgentPrism.ISqlPersistenceDiagnostics!>! sqlDiagnostics, System.Collections.Generic.IEnumerable<AgentPrism.SqlPersistenceRegistrationMarker!>! sqlMarkers, AgentPrism.IAgentCatalog! agentCatalog, System.Collections.Generic.IEnumerable<AgentPrism.IAgentSource!>! agentSources, AgentPrism.IToolRegistry! toolRegistry, AgentPrism.ITenantContext! tenantContext, AgentPrism.IRunAttributionContext! runAttributionContext, AgentPrism.IToolAuthorizationHandler! toolAuthorizationHandler, AgentPrism.IRunAuthorizationHandler! runAuthorizationHandler, System.Collections.Generic.IEnumerable<AgentPrism.IRunEventSink!>! runEventSinks, AgentPrism.IAttachmentStorage? attachmentStorage = null, AgentPrism.ModelProviderCircuitBreaker? circuitBreaker = null, Microsoft.Extensions.Logging.ILogger<AgentPrism.AgentPrismDiagnosticsCollector!>? logger = null) -> void
+AgentPrism.AgentPrismDiagnosticsCollector.AgentPrismDiagnosticsCollector(System.Collections.Generic.IEnumerable<AgentPrism.IModelProvider!>! providers, AgentPrism.ModelProviderHealthCache! healthCache, System.Collections.Generic.IEnumerable<AgentPrism.ISqlPersistenceDiagnostics!>! sqlDiagnostics, System.Collections.Generic.IEnumerable<AgentPrism.SqlPersistenceRegistrationMarker!>! sqlMarkers, AgentPrism.IAgentCatalog! agentCatalog, System.Collections.Generic.IEnumerable<AgentPrism.IAgentSource!>! agentSources, AgentPrism.IToolRegistry! toolRegistry, AgentPrism.ITenantContext! tenantContext, AgentPrism.IRunAttributionContext! runAttributionContext, AgentPrism.IToolAuthorizationHandler! toolAuthorizationHandler, AgentPrism.IRunAuthorizationHandler! runAuthorizationHandler, System.Collections.Generic.IEnumerable<AgentPrism.IRunEventSink!>! runEventSinks, AgentPrism.IToolApprovalPresenter! approvalPresenter, AgentPrism.IAttachmentStorage? attachmentStorage = null, AgentPrism.ModelProviderCircuitBreaker? circuitBreaker = null, Microsoft.Extensions.Logging.ILogger<AgentPrism.AgentPrismDiagnosticsCollector!>? logger = null) -> void
 AgentPrism.AgentRunScope.Labels.get -> System.Collections.Generic.IReadOnlyDictionary<string!, string!>?
 AgentPrism.AgentRunScope.Labels.init -> void
 AgentPrism.AgentRunScope.UserId.get -> string?
@@ -370,6 +370,8 @@ AgentPrism.AgentPrismToolOptions
 AgentPrism.AgentPrismToolOptions.AgentPrismToolOptions() -> void
 AgentPrism.AgentPrismToolOptions.AllowUnverifiedToolRegistry.get -> bool
 AgentPrism.AgentPrismToolOptions.AllowUnverifiedToolRegistry.set -> void
+AgentPrism.AgentPrismToolOptions.ApprovalPresentationTimeout.get -> System.TimeSpan
+AgentPrism.AgentPrismToolOptions.ApprovalPresentationTimeout.set -> void
 AgentPrism.AgentPrismToolOptions.DefaultMaxOutputBytes.get -> int?
 AgentPrism.AgentPrismToolOptions.DefaultMaxOutputBytes.set -> void
 AgentPrism.AgentPrismToolOptions.DefaultTimeout.get -> System.TimeSpan
@@ -800,7 +802,7 @@ AgentPrism.RunEventDraft.Type.get -> AgentPrism.RunEventType
 AgentPrism.RunEventDraft.Type.init -> void
 AgentPrism.RunEventWriter
 AgentPrism.RunEventWriter.AppendAsync(AgentPrism.RunEventDraft draft, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<AgentPrism.RunEvent!>
-AgentPrism.RunEventWriter.CompleteAsync(AgentPrism.RunStatus status, AgentPrism.RunUsage? usage = null, AgentPrism.RunError? error = null, AgentPrism.RunCost? cost = null, string? modelId = null, string? modelProvider = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
+AgentPrism.RunEventWriter.CompleteAsync(AgentPrism.RunStatus status, AgentPrism.RunUsage? usage = null, AgentPrism.RunError? error = null, AgentPrism.RunCost? cost = null, string? modelId = null, string? modelProvider = null, string? closingEventPayload = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
 AgentPrism.RunEventWriter.EventCount.get -> long
 AgentPrism.RunEventWriter.IsDisabled.get -> bool
 AgentPrism.RunEventWriter.RecordToolInvocationAsync(AgentPrism.ToolInvocationRecord! invocation, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
@@ -825,7 +827,7 @@ AgentPrism.RunPromotionStatus.MultiTurn = 3 -> AgentPrism.RunPromotionStatus
 AgentPrism.RunPromotionStatus.NoQuery = 2 -> AgentPrism.RunPromotionStatus
 AgentPrism.RunPromotionStatus.RunNotFound = 0 -> AgentPrism.RunPromotionStatus
 AgentPrism.RunRecordingAgent
-AgentPrism.RunRecordingAgent.RunRecordingAgent(Microsoft.Agents.AI.AIAgent! innerAgent, AgentPrism.IRunStore! runStore, AgentPrism.ITenantContext! tenantContext, AgentPrism.AgentPrismRunRecordingOptions! options, Microsoft.Extensions.Logging.ILogger<AgentPrism.RunRecordingAgent!>! logger, AgentPrism.AgentPrismMetrics? metrics = null, AgentPrism.RunTraceCollector? traceCollector = null, string? modelId = null, string? modelProvider = null, System.TimeProvider? timeProvider = null, AgentPrism.AgentPrismAgentGraphOptions? graphOptions = null, int? agentVersion = null, bool includeAgentVersionTag = true, AgentPrism.IRunPricingResolver? pricingResolver = null, AgentPrism.QuotaEnforcer? quotaEnforcer = null, AgentPrism.IWebhookPublisher? webhookPublisher = null, AgentPrism.IRunCancellationRegistry? cancellationRegistry = null, AgentPrism.IRunErrorClassifier? errorClassifier = null, AgentPrism.IRunInputStore? runInputStore = null, AgentPrism.RunSampler? runSampler = null, AgentPrism.ContentGuardPipeline? contentGuardPipeline = null, AgentPrism.IRunAttributionContext? attributionContext = null, System.Collections.Generic.IReadOnlyList<AgentPrism.IRunEventSink!>? sinks = null) -> void
+AgentPrism.RunRecordingAgent.RunRecordingAgent(Microsoft.Agents.AI.AIAgent! innerAgent, AgentPrism.IRunStore! runStore, AgentPrism.ITenantContext! tenantContext, AgentPrism.AgentPrismRunRecordingOptions! options, Microsoft.Extensions.Logging.ILogger<AgentPrism.RunRecordingAgent!>! logger, AgentPrism.AgentPrismMetrics? metrics = null, AgentPrism.RunTraceCollector? traceCollector = null, string? modelId = null, string? modelProvider = null, System.TimeProvider? timeProvider = null, AgentPrism.AgentPrismAgentGraphOptions? graphOptions = null, int? agentVersion = null, bool includeAgentVersionTag = true, AgentPrism.IRunPricingResolver? pricingResolver = null, AgentPrism.QuotaEnforcer? quotaEnforcer = null, AgentPrism.IWebhookPublisher? webhookPublisher = null, AgentPrism.IRunCancellationRegistry? cancellationRegistry = null, AgentPrism.IRunErrorClassifier? errorClassifier = null, AgentPrism.IRunInputStore? runInputStore = null, AgentPrism.RunSampler? runSampler = null, AgentPrism.ContentGuardPipeline? contentGuardPipeline = null, AgentPrism.IRunAttributionContext? attributionContext = null, System.Collections.Generic.IReadOnlyList<AgentPrism.IRunEventSink!>? sinks = null, AgentPrism.ToolApprovalPresenterRunner? approvalPresenterRunner = null) -> void
 AgentPrism.RunReplayOutcome
 AgentPrism.RunReplayOutcome.ApprovalRequired = 4 -> AgentPrism.RunReplayOutcome
 AgentPrism.RunReplayOutcome.ClientToolNotReplayable = 5 -> AgentPrism.RunReplayOutcome
@@ -939,6 +941,9 @@ AgentPrism.ToolApprovalPolicyRegistration.ToolName.init -> void
 AgentPrism.ToolApprovalPolicyRegistry
 AgentPrism.ToolApprovalPolicyRegistry.ToolApprovalPolicyRegistry(System.Collections.Generic.IEnumerable<AgentPrism.ToolApprovalPolicyRegistration!>! registrations) -> void
 AgentPrism.ToolApprovalPolicyRegistry.TryGet(string! toolName, out System.Func<AgentPrism.ToolApprovalContext!, AgentPrism.ToolApprovalPolicyDecision>? policy) -> bool
+AgentPrism.ToolApprovalPresenterRunner
+AgentPrism.ToolApprovalPresenterRunner.ResolveAllAsync(System.Collections.Generic.IReadOnlyList<Microsoft.Extensions.AI.ToolApprovalRequestContent!>! requests, string! tenantId, string? agentName, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyDictionary<string!, AgentPrism.ToolApprovalPresentation?>!>
+AgentPrism.ToolApprovalPresenterRunner.ToolApprovalPresenterRunner(AgentPrism.IToolApprovalPresenter! presenter, Microsoft.Extensions.Options.IOptionsMonitor<AgentPrism.AgentPrismOptions!>! options, Microsoft.Extensions.Logging.ILogger<AgentPrism.ToolApprovalPresenterRunner!>! logger) -> void
 AgentPrism.ToolApprovalRuleEvaluator
 AgentPrism.ToolApprovalRuleEvaluator.IsAutoApprovedAsync(string! agentName, Microsoft.Extensions.AI.FunctionCallContent! call, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<bool>
 AgentPrism.ToolApprovalRuleEvaluator.ToolApprovalRuleEvaluator(AgentPrism.IToolApprovalRuleStore! rules, AgentPrism.ToolApprovalPolicyRegistry! policies, AgentPrism.ITenantContext! tenantContext, Microsoft.Extensions.Logging.ILogger<AgentPrism.ToolApprovalRuleEvaluator!>! logger) -> void
@@ -1219,6 +1224,7 @@ static AgentPrism.AuditSecretFilter.Redact(string? json) -> string?
 static AgentPrism.CallableAgentInfo.operator !=(AgentPrism.CallableAgentInfo left, AgentPrism.CallableAgentInfo right) -> bool
 static AgentPrism.CallableAgentInfo.operator ==(AgentPrism.CallableAgentInfo left, AgentPrism.CallableAgentInfo right) -> bool
 static AgentPrism.CanaryEvaluator.Evaluate(AgentPrism.CanaryPolicy! policy, System.Collections.Generic.IReadOnlyList<AgentPrism.ExperimentVariantResult!>! results, System.DateTimeOffset now) -> AgentPrism.CanaryEvaluation!
+static AgentPrism.ChildRunApproval.CollectRequests(System.Collections.Generic.IEnumerable<Microsoft.Extensions.AI.ChatMessage!>! messages) -> System.Collections.Generic.IReadOnlyList<Microsoft.Extensions.AI.ToolApprovalRequestContent!>!
 static AgentPrism.ChildRunApproval.Describe(System.Collections.Generic.IEnumerable<Microsoft.Extensions.AI.AIContent!>! contents) -> string?
 static AgentPrism.ChildRunApproval.Describe(System.Collections.Generic.IEnumerable<Microsoft.Extensions.AI.ChatMessage!>! messages) -> string?
 static AgentPrism.CodeAgentRegistration.FromDefinition(AgentPrism.AgentDefinition! definition) -> AgentPrism.CodeAgentRegistration!

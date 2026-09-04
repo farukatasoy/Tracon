@@ -348,6 +348,27 @@ public static class ChildRunApproval
         return names is null ? null : string.Join(", ", names);
     }
 
+    /// <summary>Collects the tool-approval requests found in a response's messages.</summary>
+    /// <param name="messages">Response messages.</param>
+    /// <returns>The requests, in the order they appear. Empty when there are none.</returns>
+    public static IReadOnlyList<ToolApprovalRequestContent> CollectRequests(IEnumerable<ChatMessage> messages)
+    {
+        List<ToolApprovalRequestContent>? requests = null;
+
+        foreach (var message in messages)
+        {
+            foreach (var content in message.Contents)
+            {
+                if (content is ToolApprovalRequestContent request)
+                {
+                    (requests ??= []).Add(request);
+                }
+            }
+        }
+
+        return requests ?? [];
+    }
+
     private static void Collect(IEnumerable<AIContent> contents, ref List<string>? names)
     {
         foreach (var content in contents)

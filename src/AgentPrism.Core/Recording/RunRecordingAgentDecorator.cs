@@ -30,6 +30,7 @@ internal sealed class RunRecordingAgentDecorator : IAgentDecorator
     private readonly ContentGuardPipeline? _contentGuardPipeline;
     private readonly IRunAttributionContext? _attributionContext;
     private readonly IReadOnlyList<IRunEventSink> _sinks;
+    private readonly ToolApprovalPresenterRunner? _approvalPresenterRunner;
 
     /// <summary>Creates a new recording decorator.</summary>
     /// <param name="runStore">The store the events are written to.</param>
@@ -66,6 +67,11 @@ internal sealed class RunRecordingAgentDecorator : IAgentDecorator
     /// The run event observers. If <see langword="null"/> or empty, every event
     /// goes to <paramref name="runStore"/> only.
     /// </param>
+    /// <param name="approvalPresenterRunner">
+    /// Resolves the <see cref="ToolApprovalPresentation"/> of a pending tool call. If
+    /// <see langword="null"/>, no presentation is resolved and behavior is identical to
+    /// before <see cref="IToolApprovalPresenter"/> existed.
+    /// </param>
     /// <exception cref="ArgumentNullException">One of the required dependencies is <see langword="null"/>.</exception>
     public RunRecordingAgentDecorator(
         IRunStore runStore,
@@ -84,7 +90,8 @@ internal sealed class RunRecordingAgentDecorator : IAgentDecorator
         RunSampler? runSampler = null,
         ContentGuardPipeline? contentGuardPipeline = null,
         IRunAttributionContext? attributionContext = null,
-        IEnumerable<IRunEventSink>? sinks = null)
+        IEnumerable<IRunEventSink>? sinks = null,
+        ToolApprovalPresenterRunner? approvalPresenterRunner = null)
     {
         ArgumentNullException.ThrowIfNull(runStore);
         ArgumentNullException.ThrowIfNull(tenantContext);
@@ -108,6 +115,7 @@ internal sealed class RunRecordingAgentDecorator : IAgentDecorator
         _contentGuardPipeline = contentGuardPipeline;
         _attributionContext = attributionContext;
         _sinks = sinks?.ToArray() ?? [];
+        _approvalPresenterRunner = approvalPresenterRunner;
     }
 
     /// <inheritdoc />
@@ -146,6 +154,7 @@ internal sealed class RunRecordingAgentDecorator : IAgentDecorator
             _runSampler,
             _contentGuardPipeline,
             _attributionContext,
-            _sinks);
+            _sinks,
+            _approvalPresenterRunner);
     }
 }

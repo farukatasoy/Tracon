@@ -1695,18 +1695,20 @@ internal abstract class SqlQueriesBase
             DELETE FROM {Table("singleton_leases")} WHERE name = @name AND owner_id = @owner_id;
             """;
 
+        // 🚨 New columns are ALWAYS appended at the end (docs/hafiza/postgresql.md):
+        // presentation reads by fixed ordinal 12, after the original twelve columns.
         InsertPendingApproval = $"""
             INSERT INTO {Table("pending_approvals")}
                 (id, tenant_id, run_id, session_id, request_id, tool_name, arguments, status,
-                 decided_by, decided_at, expires_at, created_at)
+                 decided_by, decided_at, expires_at, created_at, presentation)
             VALUES
                 (@id, @tenant_id, @run_id, @session_id, @request_id, @tool_name, @arguments, @status,
-                 @decided_by, @decided_at, @expires_at, @created_at);
+                 @decided_by, @decided_at, @expires_at, @created_at, @presentation);
             """;
 
         SelectPendingApprovals = $"""
             SELECT id, tenant_id, run_id, session_id, request_id, tool_name, arguments, status,
-                   decided_by, decided_at, expires_at, created_at
+                   decided_by, decided_at, expires_at, created_at, presentation
               FROM {Table("pending_approvals")}
              WHERE tenant_id = @tenant_id AND status = @status
              ORDER BY created_at ASC;
@@ -1714,7 +1716,7 @@ internal abstract class SqlQueriesBase
 
         SelectPendingApproval = $"""
             SELECT id, tenant_id, run_id, session_id, request_id, tool_name, arguments, status,
-                   decided_by, decided_at, expires_at, created_at
+                   decided_by, decided_at, expires_at, created_at, presentation
               FROM {Table("pending_approvals")}
              WHERE id = @id AND tenant_id = @tenant_id;
             """;

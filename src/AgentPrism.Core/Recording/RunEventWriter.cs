@@ -269,6 +269,11 @@ public sealed class RunEventWriter
     /// overrides <c>runs.model_id</c>. <see langword="null"/> leaves the
     /// stored value unchanged.
     /// </param>
+    /// <param name="closingEventPayload">
+    /// The <c>Payload</c> written on the closing event when <paramref name="status"/> is
+    /// <see cref="RunStatus.AwaitingInput"/> or <see cref="RunStatus.AwaitingApproval"/>.
+    /// Ignored for every other status. See <see cref="RunEventType.RunAwaitingInput"/>.
+    /// </param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>The completion task.</returns>
     public async ValueTask CompleteAsync(
@@ -278,6 +283,7 @@ public sealed class RunEventWriter
         RunCost? cost = null,
         string? modelId = null,
         string? modelProvider = null,
+        string? closingEventPayload = null,
         CancellationToken cancellationToken = default)
     {
         // 🚨 NOT gated on IsDisabled here (unlike every other method on this
@@ -290,9 +296,13 @@ public sealed class RunEventWriter
             RunStatus.Completed => new RunEventDraft(RunEventType.RunCompleted),
             RunStatus.Failed => new RunEventDraft(RunEventType.RunFailed) { Text = error?.Message },
 
-            // A run awaiting human input is neither finished nor failed;
-            // writing RunFailed would show a red error in the UI.
-            RunStatus.AwaitingInput => new RunEventDraft(RunEventType.RunAwaitingInput),
+            // A run awaiting human input or approval is neither finished nor
+            // failed; writing RunFailed would show a red error in the UI.
+            // AwaitingApproval was previously missing from this pattern and
+            // fell to the default branch below, which announced every
+            // approval-required run as canceled.
+            RunStatus.AwaitingInput or RunStatus.AwaitingApproval
+                => new RunEventDraft(RunEventType.RunAwaitingInput) { Payload = closingEventPayload },
             _ => new RunEventDraft(RunEventType.RunFailed) { Text = "The run was canceled." },
         };
 

@@ -178,6 +178,54 @@ Deciding either way **resumes** the run — the model has to see a result or a r
 and continue. And the decision opens a **new** run; the one that stopped is never
 rewritten.
 
+By default an approver sees the raw call: `{ "orderId": "ORD-1001" }`. Register
+`IToolApprovalPresenter` to turn that into "Cancel order for Priya Shah" — implement
+`PresentAsync`, reading whatever the call's arguments name, and return a
+`ToolApprovalPresentation` (an entity type, id, name, and a free-form message; every
+field is optional).
+
+```csharp
+public sealed class OrderApprovalPresenter(IServiceScopeFactory scopes) : IToolApprovalPresenter
+{
+    public async ValueTask<ToolApprovalPresentation?> PresentAsync(
+        ToolApprovalContext context, CancellationToken cancellationToken = default)
+    {
+        if (context.GetString("orderId") is not { } orderId)
+        {
+            return null;
+        }
+
+        using var scope = scopes.CreateScope();
+        var orders = scope.ServiceProvider.GetRequiredService<IOrderRepository>();
+        var order = await orders.FindAsync(orderId, cancellationToken);
+
+        return order is null ? null : new ToolApprovalPresentation
+        {
+            EntityType = "order",
+            EntityId = orderId,
+            EntityName = $"Order {orderId}",
+            Message = $"Cancel order {orderId} for {order.CustomerName}.",
+        };
+    }
+}
+
+services.AddSingleton<IToolApprovalPresenter, OrderApprovalPresenter>();
+```
+
+Register it as a singleton and reach a scoped dependency, such as a `DbContext`,
+through an injected `IServiceScopeFactory` — the same rule as
+[the empty service provider mistake](/getting-started/tools/#the-rule-that-trips-people-up),
+because this runs on the same tool-call path. Unlike authorization and validation, a
+presenter is not a gate: it fails **open**. Not registered, resolves nothing, throws, or
+runs past its timeout (`AgentPrismToolOptions.ApprovalPresentationTimeout`, 2 seconds
+by default) — the approval request publishes either way, with the raw arguments still
+there. A presentation is decoration for a decision a human still has to make from the
+real call, never a replacement for it.
+
+The resolved presentation reaches every surface a pending request does: the mailbox
+list, the single-request read, the `RunAwaitingInput` run event, and the console's own
+approval card.
+
 :::note[The audit entry is written before the decision is applied]
 Everywhere else an audit failure is swallowed. Not here: an approval decision that
 cannot be recorded is not applied at all. Approvals and skill scripts are the only two

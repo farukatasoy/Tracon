@@ -35,4 +35,8 @@ namespace AgentPrism;
 
 // Phase 134: the StructuredResponseRepairAttempted run-event payload.
 [JsonSerializable(typeof(StructuredResponseRepairAttemptedEventPayload))]
+
+// Phase 142: the RunAwaitingInput run-event payload for a root run closing
+// with RunStatus.AwaitingApproval.
+[JsonSerializable(typeof(IReadOnlyList<PendingToolApprovalEventItem>))]
 internal sealed partial class AgentPrismCoreJsonContext : JsonSerializerContext;

@@ -138,6 +138,12 @@ builder.Services.AddOpenApi();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddSingleton<IRunAttributionContext, DemoRunAttributionContext>();
 
+// Tool-approval presentation (phase 142): turns the cancel_order approval
+// card's raw `{ "orderId": "ORD-1001" }` into "Cancel order for Priya Shah".
+// Registered BEFORE AddAgentPrism() for the same reason as
+// IRunAttributionContext above — TryAddSingleton must not overwrite it.
+builder.Services.AddSingleton<IToolApprovalPresenter, OrderApprovalPresenter>();
+
 // Response caching (Phase 81, F-45) needs an IDistributedCache; AgentPrism
 // never registers one itself (an agent that enables ResponseCache without
 // this line fails to compile with a message naming exactly this gap).

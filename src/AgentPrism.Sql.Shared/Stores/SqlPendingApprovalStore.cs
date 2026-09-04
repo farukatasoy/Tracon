@@ -1,4 +1,5 @@
 using System.Data.Common;
+using System.Text.Json;
 
 namespace AgentPrism;
 
@@ -50,6 +51,12 @@ internal sealed class SqlPendingApprovalStore : IPendingApprovalStore
         Dialect.AddTimestamp(command, "decided_at", approval.DecidedAt);
         Dialect.AddTimestamp(command, "expires_at", approval.ExpiresAt);
         Dialect.AddTimestamp(command, "created_at", approval.CreatedAt);
+        Dialect.AddJsonb(
+            command,
+            "presentation",
+            approval.Presentation is null
+                ? null
+                : JsonSerializer.Serialize(approval.Presentation, AgentPrismJsonContext.Default.ToolApprovalPresentation));
 
         await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false);
     }
@@ -117,6 +124,8 @@ internal sealed class SqlPendingApprovalStore : IPendingApprovalStore
 
     private DbCommand CreateCommand(string sql) => _context.CreateCommand(sql);
 
+    // 🚨 New columns are ALWAYS appended at the end (docs/hafiza/postgresql.md):
+    // presentation reads by fixed ordinal 12, after the original twelve columns.
     private static PendingApproval ReadApproval(DbDataReader reader)
         => new()
         {
@@ -132,5 +141,11 @@ internal sealed class SqlPendingApprovalStore : IPendingApprovalStore
             DecidedAt = DbHelpers.GetNullableTimestamp(reader, 9),
             ExpiresAt = DbHelpers.GetTimestamp(reader, 10),
             CreatedAt = DbHelpers.GetTimestamp(reader, 11),
+            Presentation = ReadPresentation(DbHelpers.GetNullableString(reader, 12)),
         };
+
+    private static ToolApprovalPresentation? ReadPresentation(string? json)
+        => string.IsNullOrEmpty(json)
+            ? null
+            : JsonSerializer.Deserialize(json, AgentPrismJsonContext.Default.ToolApprovalPresentation);
 }

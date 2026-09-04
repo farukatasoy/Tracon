@@ -97,6 +97,10 @@ internal sealed class UiHost : IAsyncDisposable
 
         configureServices?.Invoke(builder.Services);
 
+        // Registered BEFORE AddAgentPrism() so TryAddSingleton does not overwrite it
+        // (same pattern as IRunAttributionContext in samples/AgentPrism.Api).
+        builder.Services.AddSingleton<IToolApprovalPresenter, ScriptedApprovalPresenter>();
+
         var provider = new FakeModelProvider(ScriptedModels.ProviderName)
             .ForModel(ScriptedModels.Default, cfg => cfg.EchoesUserMessage())
             .ForModel(ScriptedModels.Support, cfg => cfg
