@@ -54,6 +54,14 @@ internal static class McpTaskTestClient
                         ["io.modelcontextprotocol/tasks"] = new object(),
                     },
                 },
+                // F-190: the SDK's production default (5s) is tuned for real
+                // network peers. Under the full-package CI run's CPU
+                // contention, this in-memory TestServer can occasionally miss
+                // that window; the SDK then silently falls back to the
+                // legacy `initialize` handshake and negotiates 2025-11-25,
+                // which the Tasks extension rejects. 30s stays safely under
+                // McpClientOptions.InitializationTimeout's 60s default.
+                DiscoverProbeTimeout = TimeSpan.FromSeconds(30),
             });
     }
 }

@@ -169,7 +169,46 @@ Gerekçeler:
 | **F-152 · 2 → 2** ve plana | Maliyet iddiası ("kalıcı model ve **üç SQL sağlayıcı migration'ı** gerekir") çürüdü: `UpsertAsync` **yargıç başına** çağrılıyor ve satır `Author = "judge:{ad}"` taşıyor; `IRunScoreStore.ListAsync` ve `JobRecord.Attempt` de zaten var. **Checkpoint bugün zaten veride duruyor** — eksik olan tek şey döngünün onu okuması. Yeni tablo, migration ve public yüzey **yok**. |
 | **F-95 sıralamadan çıktı** | Dördüncü sıra, sahip olmadığı bir plan hazırlığını ima ediyordu. `Hazırlık` satırı zaten "🚨 İmza doğrulanmadı" diyor. |
 
-### F-190 · MCP Tasks testlerinin tam çözüm koşumunda yalıtımı
+### F-190 · MCP Tasks testlerinin tam çözüm koşumunda yalıtımı — ✅ KAPANDI (2026-09-04)
+
+**Kapanış:** `kusur-giderme` faz dışı koşuldu. **K-656 sınıfı DEĞİLMİŞ** —
+ilk teşhis yanlış daralmıştı (bkz. aşağıdaki kayıt). Gerçek kök neden:
+`ModelContextProtocol.Core`'un istemcisi (`McpClient.CreateAsync`,
+`ProtocolVersion` verilmemişse) önce `server/discover` probesini dener; bu
+probe `McpClientOptions.DiscoverProbeTimeout` ile sınırlıdır ve **üretim
+varsayımı 5 saniyedir**. Süre aşılırsa istemci SESSİZCE eski `initialize`
+handshake'ine düşer ve `2025-11-25` negotiate eder — Tasks eklentisi bunu
+reddeder, düşen testin mesajı bunu birebir söylüyordu. Tam paket koşumu CPU
+baskısı altında bu 5 saniyeyi ara sıra aşıyordu. SDK'nın kendi XML dokümanı
+bunu zaten belgeliyor: varsayılan "gerçek ağ eşleri" için kasıtlı kısa,
+"yüksek gecikmeli ortamlar için artırın" diyor — in-memory `TestServer` +
+onlarca paralel host tam olarak o ortam.
+
+**Düzeltme:** `Infrastructure/McpTaskTestClient.cs`'e
+`DiscoverProbeTimeout = TimeSpan.FromSeconds(30)` eklendi (varsayılan
+`InitializationTimeout` 60 sn'nin altında kalır — SDK'nın kendi bağlanma
+bütçesi böyle bozulmaz).
+
+**Kapı:** `McpTasksEndpointTests.Discover_probe_negotiates_2026_07_28_even_when_the_first_response_is_slow` —
+`configureApp`'ten geçirilen bir middleware ilk `/agentprism/mcp` isteğini
+6 saniye geciktirir (SDK'nın 5 sn varsayılanının üstü, düzeltmenin 30 sn'sinin
+altı). Düzeltmeden ÖNCE kırmızıydı (`2025-11-25` negotiate edildi, ölçüldü),
+sonra yeşil. Gerçek CI çekişmesini beklemeden mekanizmayı deterministik
+kanıtlıyor.
+
+**Sınıf taraması:** Bu SDK istemcisini (`McpClient.CreateAsync`) kuran tek yer
+`McpTaskTestClient.cs`'ti — başka vaka yok. Üretim tarafında
+(`McpOAuthAuthorizationCoordinator.cs:233`) `clientOptions: null` **kasıtlı**:
+o kod gerçek ağ eşlerine bağlanıyor, SDK'nın üretim varsayımı orada doğru —
+kapsam dışı.
+
+**Kapılar:** `ic-dongu` ✅ (767/767, yeni test dahil) · `tarama` ✅ temiz ·
+`kapanis --taban dd0ad27e` çalıştırıldı.
+
+**Tuzak:** [`docs/hafiza/test-altyapisi.md`](hafiza/test-altyapisi.md).
+
+<details>
+<summary>Kapanış öncesi teşhis anlatısı (yanlış sınıflandırma, kayıt)</summary>
 
 **Sorun:** `dotnet test AgentPrism.slnx` (tüm çözüm birlikte) koşumunda üç MCP
 Tasks testi düşüyor: `McpTasksEndpointTests.Unknown_task_id_is_reported_as_a_protocol_error_not_a_500`,
@@ -192,26 +231,19 @@ Düşüşlerden birinin mesajı nedeni işaret ediyor: *"'GetTaskAsync' requires
 newer protocol revision that supports tasks (the '2026-07-28' revision or
 later). The negotiated protocol version is '2025-11-25'."* Yani paralel koşumda
 istemci **yanlış protokol sürümüyle** anlaşıyor; ayrı koşumda doğru sürümü
-alıyor. Bu, `MeterListener` vakasının (K-656) sınıfıdır: process-wide bir durum
-başka bir testin kurduğu duruma bağlanıyor.
+alıyor. **Bu ilk izlenim yanlış çıktı:** mesaj `MeterListener` vakasının
+(K-656) sınıfına — process-wide bir durumun başka bir testin kurduğu duruma
+bağlanması — benziyordu, ama SDK'yı decompile edip gerçek mekanizmayı
+(`DiscoverProbeTimeout` + timeout-tetiklemeli fallback) bulunca sınıfın
+FARKLI olduğu ortaya çıktı: paylaşılan durum değil, üretim için ayarlanmış kısa
+bir zaman aşımı.
 
-**Kapsam:** MCP Tasks test kurulumunun paylaşılan process durumundan
-yalıtılması. Çözüm sınıfı K-656 ile aynıdır: paylaşılan adı/durumu değil
-**instance**'ı bağla.
-
-**Değer:** Kapanış kapısı bugün tam çözüm koşumunda kırmızı; bu, gerçek bir
-regresyonu gizleyebilir.
-
-**Mercek:** 2.
-
-**Hazırlık:** Repro sabit ve ucuz. K-656'nın çözüm deseni hazır.
-
-**Maliyet:** Ölçülmedi.
+**Değer:** Kapanış kapısı tam çözüm koşumunda kırmızı çıkabiliyordu; bu,
+gerçek bir regresyonu gizleyebilirdi.
 
 **Risk:** Düşük — yalnız test altyapısı.
 
-**Karşı görüş:** Ciddi bir karşı gerekçe bulunamadı. Kırmızı bir kapanış kapısı
-bırakılamaz; bugün yalnız "bilinen sorun" olarak taşınıyor.
+</details>
 
 ## Bekleyen Kalemler
 
