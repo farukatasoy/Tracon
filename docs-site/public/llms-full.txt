@@ -12911,7 +12911,10 @@ price is a snapshot of what was in effect when the run ended, unaffected by a la
 catalog or configuration change. When a reasoning
 model's thinking is recorded, it renders as its own collapsible block, separate from
 the answer. A run that called other agents shows the whole tree, and each agent's
-tokens and duration are attributed separately.
+tokens and duration are attributed separately. A tool that writes its own custom
+event — see [Writing your own event](/concepts/runs/#writing-your-own-event) —
+renders as a generic card named after that event's own type, with no console
+change required to show up.
 
 Two runs can be compared side by side, and any run can be scored — those scores sit
 next to the ones automatic judges write.
