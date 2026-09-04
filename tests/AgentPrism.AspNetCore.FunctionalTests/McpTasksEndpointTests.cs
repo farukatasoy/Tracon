@@ -1,6 +1,9 @@
 using System.Net.Http.Json;
 using System.Text.Json;
+using System.Threading;
 using AgentPrism.AspNetCore.FunctionalTests.Infrastructure;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using ModelContextProtocol;
 using ModelContextProtocol.Extensions.Tasks;
@@ -11,6 +14,45 @@ namespace AgentPrism.AspNetCore.FunctionalTests;
 /// <summary>Phase 117: the MCP Tasks extension, backed by AgentPrism's run store.</summary>
 public sealed class McpTasksEndpointTests
 {
+    [Fact]
+    public async Task Discover_probe_negotiates_2026_07_28_even_when_the_first_response_is_slow()
+    {
+        // F-190: McpClient.CreateAsync (ProtocolVersion left unset) first
+        // probes with server/discover, bounded by the SDK's own
+        // McpClientOptions.DiscoverProbeTimeout -- 5 seconds by production
+        // default. Miss that window and the client silently falls back to
+        // the legacy `initialize` handshake, negotiating 2025-11-25, which
+        // GetTaskAsync then rejects. The full-package CI run hit this rarely
+        // under CPU contention (three tests, seen once); this test forces
+        // the same slow-first-response shape deterministically instead of
+        // waiting for real contention to reproduce it.
+        var firstRequest = 0;
+
+        await using var host = await AgentPrismTestHost.StartAsync(
+            configureAgentPrism: builder => builder
+                .AddAgent(TestData.Definition())
+                .UseMcpServer(o =>
+                {
+                    o.ExposedAgents.Add("kod-agent");
+                    o.EnableTasks = true;
+                }),
+            configureApp: app => app.Use(async (HttpContext context, Func<Task> next) =>
+            {
+                if (context.Request.Path.StartsWithSegments("/agentprism/mcp", StringComparison.Ordinal)
+                    && Interlocked.Exchange(ref firstRequest, 1) == 0)
+                {
+                    await Task.Delay(TimeSpan.FromSeconds(6));
+                }
+
+                await next();
+            }),
+            configureAfterMap: app => app.MapAgentPrismMcpServer());
+
+        await using var client = await McpTaskTestClient.ConnectAsync(host.Client, "/agentprism/mcp");
+
+        client.NegotiatedProtocolVersion.ShouldBe("2026-07-28");
+    }
+
     [Fact]
     public async Task EnableTasks_false_still_answers_synchronously()
     {
