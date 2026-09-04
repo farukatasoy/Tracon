@@ -58,6 +58,12 @@
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
     <!-- CVE pin; rationale in Directory.Packages.props. -->
     <PackageReference Include="Microsoft.OpenApi" />
+    <!--
+      UI-only package: renders the /openapi/v1.json document produced above at
+      /swagger. Does not bring in Swashbuckle's own SwaggerGen, so there is no
+      second, competing OpenAPI generator in this sample.
+    -->
+    <PackageReference Include="Swashbuckle.AspNetCore.SwaggerUI" />
   </ItemGroup>
 
   <!--
