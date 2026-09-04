@@ -200,3 +200,23 @@ tekrarlanmalı — ve `.editorconfig`'in `[tests/**/*.cs]` bölümü (CA1707 alt
   (fonksiyonel; host'a `AddSingleton<IMeterFactory>`). Etiketle süzmek YETMEZ —
   gerekçe kapının XML'inde. Sınıf taraması (2026-09-02) dört vaka buldu, dördü
   de düzeltildi. Kapı: `MeterListenerIsolationTests`.
+- **🚨 `ModelContextProtocol` istemcisi `server/discover` probesi 5 saniye
+  aşılırsa SESSİZCE eski `initialize` handshake'ine düşer ve `2025-11-25`
+  negotiate eder — Tasks eklentisi bunu reddeder** (F-190, faz dışı kusur
+  giderme, 2026-09-04). Tam paket koşumu CPU baskısı altında bu 5 saniyeyi
+  arada bir aşıyordu (üç `McpTask*` testi düşüyordu, izole hep geçiyordu; K-656
+  ile YÜZEYSEL benzer ama SINIFI farklı — paylaşılan process durumu değil, kısa
+  bir üretim-varsayımlı zaman aşımı). `ModelContextProtocol.Core`'un kendi
+  `McpClientOptions.DiscoverProbeTimeout` XML'i bunu zaten belgeliyor:
+  varsayılan 5 sn "gerçek ağ eşleri için" kasıtlı kısa, "yüksek gecikmeli
+  ortamlar için artırın" diyor — in-memory `TestServer` + onlarca paralel host
+  tam olarak o ortamdır. **Çözüm**: test istemcisinde
+  `DiscoverProbeTimeout = TimeSpan.FromSeconds(30)` (varsayılan
+  `InitializationTimeout` 60 sn'nin altında kalır) —
+  `Infrastructure/McpTaskTestClient.cs`. Mekanizma
+  `configureApp`'ten geçirilen bir middleware'in İLK isteği 6 sn geciktirmesiyle
+  deterministik kırmızıya çevrildi (`McpTasksEndpointTests.Discover_probe_negotiates_2026_07_28_even_when_the_first_response_is_slow`),
+  gerçek CI çekişmesini beklemeden. Sınıf taraması: bu SDK istemcisini kuran
+  TEK yer bu dosyaydı — üretim tarafında (`McpOAuthAuthorizationCoordinator`)
+  `clientOptions: null` kasıtlı, çünkü o gerçek ağ eşlerine bağlanıyor ve SDK
+  varsayılanı orada doğru.
