@@ -251,6 +251,12 @@
       yayinlanan paketlerin bagimlilik grafigine girmez.
     -->
     <PackageVersion Include="Microsoft.OpenApi" Version="2.11.0" />
+    <!--
+      Yalnizca UI paketi (SwaggerGen degil): dokuman zaten Microsoft.AspNetCore.OpenApi
+      ile uretiliyor (AddOpenApi/MapOpenApi), bu paket sadece /openapi/v1.json'u
+      interaktif bir sayfada gosterir. samples/AgentPrism.Api disinda kullanilmaz.
+    -->
+    <PackageVersion Include="Swashbuckle.AspNetCore.SwaggerUI" Version="10.2.3" />
     <!-- 1.x serisi: xunit.v3 3.2.2 Microsoft Testing Platform v1 uzerine kuruludur.
          2.x TrxReport, Testing.Platform 2.x ceker ve calisma aninda TypeLoadException verir. -->
     <PackageVersion Include="Microsoft.Testing.Extensions.TrxReport" Version="1.9.1" />

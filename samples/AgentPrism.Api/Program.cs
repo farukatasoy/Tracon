@@ -880,6 +880,15 @@ app.MapHealthChecks("/health");
 
 app.MapOpenApi();
 
+// Swagger UI: renders the document MapOpenApi() serves at /openapi/v1.json.
+// A browsable reference for this sample's HTTP surface; no AgentPrism package
+// depends on this — a consumer picks their own OpenAPI viewer.
+app.UseSwaggerUI(options =>
+{
+    options.SwaggerEndpoint("/openapi/v1.json", "AgentPrism API v1");
+    options.RoutePrefix = "swagger";
+});
+
 // The single entry point. The management API (/agentprism/api/*), the
 // OpenAI-compatible run endpoints (/agentprism/v1/*), and the embedded UI
 // (/agentprism) are all wired up by this one call.
