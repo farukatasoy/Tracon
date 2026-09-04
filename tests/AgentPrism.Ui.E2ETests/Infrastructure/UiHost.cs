@@ -30,6 +30,9 @@ internal static class ScriptedModels
 
     /// <summary>Model for the "client-tool-agent" code agent: calls a client-side tool, then echoes its result (Phase 61).</summary>
     public const string ClientTool = "scripted-client-tool";
+
+    /// <summary>Model for the "custom-event-agent" code agent: calls a tool that writes a RunEventType.Custom event, then echoes its result (Phase 141).</summary>
+    public const string CustomEvent = "scripted-custom-event";
 }
 
 /// <summary>
@@ -110,7 +113,10 @@ internal sealed class UiHost : IAsyncDisposable
                 .EchoesLastToolResult())
             .ForModel(ScriptedModels.ClientTool, cfg => cfg
                 .CallsTool("read_page_title")
-                .EchoesLastToolResult("Title: "));
+                .EchoesLastToolResult("Title: "))
+            .ForModel(ScriptedModels.CustomEvent, cfg => cfg
+                .CallsTool("mark_preview_ready", new { orderId = "ORD-7" })
+                .EchoesLastToolResult());
 
         // Voice endpoints need only these abstractions; there is NO reference
         // to the AgentPrism.Voice package. A single instance backs both.
@@ -187,6 +193,20 @@ internal sealed class UiHost : IAsyncDisposable
                     Model = ScriptedModels.ClientTool,
                 },
                 ToolNames = ["read_page_title"],
+                Origin = AgentDefinitionOrigin.Code,
+            })
+            .AddAgent(new AgentDefinition
+            {
+                Name = "custom-event-agent",
+                DisplayName = "Custom event agent",
+                Description = "Code agent used in E2E tests that writes a RunEventType.Custom event (Phase 141).",
+                Instructions = "Give a short answer.",
+                Model = new ModelBinding
+                {
+                    Provider = ScriptedModels.ProviderName,
+                    Model = ScriptedModels.CustomEvent,
+                },
+                ToolNames = ["mark_preview_ready"],
                 Origin = AgentDefinitionOrigin.Code,
             })
 

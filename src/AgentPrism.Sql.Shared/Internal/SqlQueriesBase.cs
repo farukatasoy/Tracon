@@ -1118,15 +1118,15 @@ internal abstract class SqlQueriesBase
         // made when @tenant_id is NULL. The subquery is a primary-key lookup;
         // its added cost on the hot write path is a single index read.
         InsertRunEvent = $"""
-            INSERT INTO {Table("run_events")} (run_id, seq, type, text, tool_name, tool_call_id, payload, created_at)
-            SELECT @run_id, @seq, @type, @text, @tool_name, @tool_call_id, @payload, @created_at
+            INSERT INTO {Table("run_events")} (run_id, seq, type, text, tool_name, tool_call_id, payload, custom_type, created_at)
+            SELECT @run_id, @seq, @type, @text, @tool_name, @tool_call_id, @payload, @custom_type, @created_at
             WHERE EXISTS (
                 SELECT 1 FROM {Table("runs")} r
                 WHERE r.id = @run_id AND (@tenant_id IS NULL OR r.tenant_id = @tenant_id));
             """;
 
         SelectRunEvents = $"""
-            SELECT e.run_id, e.seq, e.type, e.text, e.tool_name, e.tool_call_id, e.payload, e.created_at
+            SELECT e.run_id, e.seq, e.type, e.text, e.tool_name, e.tool_call_id, e.payload, e.created_at, e.custom_type
             FROM {Table("run_events")} e
             JOIN {Table("runs")} r ON r.id = e.run_id
             WHERE e.run_id = @run_id AND e.seq >= @from_sequence AND r.tenant_id = @tenant_id

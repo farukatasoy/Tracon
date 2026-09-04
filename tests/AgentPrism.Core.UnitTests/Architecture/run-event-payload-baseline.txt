@@ -7,6 +7,7 @@ ChildRunCompleted | uncovered | Same gap as ChildRunStarted: the tree is asserte
 ChildRunStarted | uncovered | ChildAgentInvokerTests and AgentCallGraphTests assert the child run tree through run RECORDS, never through the parent's event payload
 ContentBlocked | covered | tests/AgentPrism.Core.UnitTests/Guards/ContentGuardRecordingTests.cs
 ContentMasked | covered | tests/AgentPrism.Core.UnitTests/Guards/ContentGuardRecordingTests.cs
+Custom | covered | tests/AgentPrism.AspNetCore.FunctionalTests/StreamingTests.cs
 DocumentAttached | covered | tests/AgentPrism.Core.UnitTests/Recording/RunRecordingAgentTests.cs
 ExecutorFailed | covered | tests/AgentPrism.Workflows.UnitTests/WorkflowEventMapperTests.cs
 HistoryCompacted | covered | tests/AgentPrism.Core.UnitTests/Recording/RunRecordingAgentTests.cs

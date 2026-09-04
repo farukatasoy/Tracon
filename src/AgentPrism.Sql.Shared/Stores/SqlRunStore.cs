@@ -152,6 +152,7 @@ internal sealed class SqlRunStore : IRunStore
         AddNullableText(command, "tool_name", runEvent.ToolName);
         AddNullableText(command, "tool_call_id", runEvent.ToolCallId);
         Dialect.AddText(command, "payload", ProtectedValue.Write(_context, ProtectedColumn.RunEventPayload, runEvent.Payload));
+        AddNullableText(command, "custom_type", runEvent.CustomType);
         Dialect.AddTimestamp(command, "created_at", runEvent.Timestamp);
 
         // 🚨 EXPECTED tenant, NOT the ambient tenant. RunStartInfo.TenantId can
@@ -818,6 +819,7 @@ internal sealed class SqlRunStore : IRunStore
             ToolCallId = DbHelpers.GetNullableString(reader, 5),
             Payload = ProtectedValue.Read(_context, DbHelpers.GetNullableString(reader, 6)),
             Timestamp = DbHelpers.GetTimestamp(reader, 7),
+            CustomType = DbHelpers.GetNullableString(reader, 8),
         };
 
     /// <summary>

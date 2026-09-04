@@ -181,6 +181,48 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
     }
 
     [Fact]
+    public async Task Custom_event_custom_type_round_trips_and_stays_null_for_every_other_type()
+    {
+        // Phase 141: CustomType is the only field the Custom escape hatch
+        // adds to the wire; every store (in-memory and all three SQL
+        // dialects) must carry it through unchanged, and must NOT invent one
+        // for a built-in event type that never set it.
+        var runId = AgentPrismId.NewId();
+        await Store.StartRunAsync(TestData.Run(runId));
+
+        await Store.AppendEventAsync(new RunEvent
+        {
+            RunId = runId,
+            Sequence = 0,
+            Type = RunEventType.Custom,
+            Timestamp = DateTimeOffset.UtcNow,
+            CustomType = "contoso.preview-ready",
+        });
+
+        await Store.AppendEventAsync(new RunEvent
+        {
+            RunId = runId,
+            Sequence = 1,
+            Type = RunEventType.ToolInvoking,
+            Timestamp = DateTimeOffset.UtcNow,
+            ToolName = "get_order_status",
+        });
+
+        var events = new List<RunEvent>();
+
+        await foreach (var runEvent in Store.ReadEventsAsync(runId))
+        {
+            events.Add(runEvent);
+        }
+
+        events.Count.ShouldBe(2);
+        events[0].Type.ShouldBe(RunEventType.Custom);
+        events[0].CustomType.ShouldBe("contoso.preview-ready");
+        events[1].Type.ShouldBe(RunEventType.ToolInvoking);
+        events[1].CustomType.ShouldBeNull();
+    }
+
+    [Fact]
     public async Task Event_cannot_be_appended_to_a_nonexistent_run()
         => await Should.ThrowAsync<AgentPrismException>(
             async () => await Store.AppendEventAsync(TestData.Event(AgentPrismId.NewId(), 0)));

@@ -138,6 +138,8 @@ public sealed class RunEventWriter
     /// </remarks>
     public async ValueTask<RunEvent> AppendAsync(RunEventDraft draft, CancellationToken cancellationToken = default)
     {
+        ValidateCustomType(draft);
+
         var runEvent = new RunEvent
         {
             RunId = RunId,
@@ -147,6 +149,7 @@ public sealed class RunEventWriter
             Text = Truncate(draft.Text),
             ToolName = draft.ToolName,
             ToolCallId = draft.ToolCallId,
+            CustomType = draft.CustomType,
             // 🚨 A pending human request is a DELIBERATE exception to this
             // rule. Here the payload is not an observability detail, it is
             // the function itself: the UI reads pending requests only from
@@ -326,6 +329,49 @@ public sealed class RunEventWriter
         }
     }
 
+    /// <summary>
+    /// Enforces the two-way rule between <see cref="RunEventDraft.Type"/> and
+    /// <see cref="RunEventDraft.CustomType"/>: required and valid when
+    /// <see cref="RunEventType.Custom"/>, <see langword="null"/> otherwise.
+    /// </summary>
+    /// <exception cref="ArgumentException">The rule is violated.</exception>
+    /// <remarks>
+    /// A one-way check would let a caller write <c>CustomType</c> on a
+    /// non-<see cref="RunEventType.Custom"/> event and believe it was
+    /// carried — every store silently drops it, since only <see
+    /// cref="RunEventType.Custom"/> gives it any meaning.
+    /// </remarks>
+    private static void ValidateCustomType(RunEventDraft draft)
+    {
+        if (draft.Type != RunEventType.Custom)
+        {
+            if (draft.CustomType is not null)
+            {
+                throw new ArgumentException(
+                    "RunEventDraft.CustomType must be null unless Type is RunEventType.Custom.",
+                    nameof(draft));
+            }
+
+            return;
+        }
+
+        if (!RunEventCustomTypes.IsValidType(draft.CustomType))
+        {
+            throw new ArgumentException(
+                "RunEventDraft.CustomType is required when Type is RunEventType.Custom, and must be " +
+                "1-128 characters of lowercase ASCII letters, digits, '.', '_', or '-'.",
+                nameof(draft));
+        }
+
+        if (RunEventCustomTypes.IsReserved(draft.CustomType))
+        {
+            throw new ArgumentException(
+                $"RunEventDraft.CustomType cannot start with the reserved prefix " +
+                $"'{RunEventCustomTypes.ReservedPrefix}'.",
+                nameof(draft));
+        }
+    }
+
     private string? Truncate(string? value)
     {
         if (value is null || _options.MaxPayloadLength <= 0 || value.Length <= _options.MaxPayloadLength)
@@ -366,4 +412,19 @@ public readonly record struct RunEventDraft(RunEventType Type)
 
     /// <summary>Gets the free-form JSON payload.</summary>
     public string? Payload { get; init; }
+
+    /// <summary>
+    /// Gets the namespaced type that qualifies a <see cref="RunEventType.Custom"/>
+    /// event.
+    /// </summary>
+    /// <remarks>
+    /// Required when <see cref="Type"/> is <see cref="RunEventType.Custom"/>;
+    /// must be <see langword="null"/> otherwise. 1-128 characters: lowercase
+    /// ASCII letters, digits, <c>.</c>, <c>_</c>, or <c>-</c>, starting with a
+    /// letter or digit — the same shape as a job handler key. The
+    /// <c>"agentprism."</c> prefix is reserved; pick your own namespace
+    /// (e.g. <c>"contoso.preview-ready"</c>). <see cref="RunEventWriter.AppendAsync"/>
+    /// throws <see cref="ArgumentException"/> for a draft that violates either rule.
+    /// </remarks>
+    public string? CustomType { get; init; }
 }

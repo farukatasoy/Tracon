@@ -80,6 +80,34 @@ internal static class OrderTools
         JsonSerializerContext = typeof(ShippingAddressJsonContext))]
     public static string EstimateShippingCost([Description("The delivery address.")] ShippingAddress address)
         => $"Estimated shipping to {address.City}, {address.PostalCode}: $12.50 (3-5 business days).";
+
+    /// <summary>Marks an order's preview as ready, for a customer to review before it ships.</summary>
+    /// <param name="orderId">The order number.</param>
+    /// <returns>A human-readable confirmation message.</returns>
+    /// <remarks>
+    /// Demo tool for F-187 (docs/141-GENISLETILEBILIR-CALISTIRMA-OLAYI.md): the
+    /// consumer's own event does not fit any built-in <see cref="RunEventType"/>,
+    /// so it writes <see cref="RunEventType.Custom"/> directly through the
+    /// ambient <see cref="AgentPrismRunContext"/> — the same writer
+    /// <c>RunRecordingAgent</c> uses for every built-in event. AgentPrism makes
+    /// no claim about the payload's shape; it is entirely this tool's own.
+    /// </remarks>
+    [AgentPrismTool("mark_preview_ready", "Marks an order's preview as ready for the customer to review.")]
+    public static async Task<string> MarkPreviewReady([Description("The order number.")] string orderId)
+    {
+        var writer = AgentPrismRunContext.Current?.Writer;
+
+        if (writer is not null)
+        {
+            await writer.AppendAsync(new RunEventDraft(RunEventType.Custom)
+            {
+                CustomType = "contoso.preview-ready",
+                Payload = $$"""{"orderId":"{{orderId}}"}""",
+            });
+        }
+
+        return $"Preview for order {orderId} is ready to review.";
+    }
 }
 
 /// <summary>

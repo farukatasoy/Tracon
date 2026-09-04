@@ -355,6 +355,7 @@ AgentPrism.Testing.Contracts.Storage.RunStoreContract.Completion_overrides_the_m
 AgentPrism.Testing.Contracts.Storage.RunStoreContract.Completion_stores_error_class_and_fingerprint() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.RunStoreContract.Completion_updates_the_summary() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.RunStoreContract.ContinuedFromRunId_round_trips() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.Storage.RunStoreContract.Custom_event_custom_type_round_trips_and_stays_null_for_every_other_type() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.RunStoreContract.Cost_does_not_exist_at_all_when_model_is_unknown() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.RunStoreContract.Cost_fields_are_null_but_source_is_written_as_unknown_when_pricing_is_undefined() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.RunStoreContract.Cost_is_written_and_read_back() -> System.Threading.Tasks.Task!

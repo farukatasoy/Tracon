@@ -231,4 +231,25 @@ public enum RunEventType
     /// on its own.
     /// </remarks>
     StructuredResponseRepairAttempted = 28,
+
+    /// <summary>
+    /// A consumer-defined event, written directly with
+    /// <c>AgentRunScope.Writer.AppendAsync</c>. <c>CustomType</c> (a
+    /// namespaced string, see <see cref="RunEventCustomTypes"/>) names it;
+    /// <c>Payload</c> carries whatever the consumer put there. AgentPrism
+    /// makes no claim about the payload's shape — it is the consumer's own
+    /// and out of scope for this contract. Like every other event's payload,
+    /// it is written only when <c>AgentPrismRunRecordingOptions.RecordToolPayloads</c>
+    /// is on — with it off, <c>Custom</c> still appears in the stream but
+    /// <c>Payload</c> is <see langword="null"/>.
+    /// </summary>
+    /// <remarks>
+    /// The escape hatch for the otherwise closed set of event types above.
+    /// When a built-in event type already fits, use that instead —
+    /// <see cref="Custom"/> is for events AgentPrism has no name for. A type
+    /// under the <see cref="RunEventCustomTypes.ReservedPrefix"/> namespace
+    /// is rejected at write time, so a future built-in custom type can never
+    /// collide with a consumer's own.
+    /// </remarks>
+    Custom = 29,
 }

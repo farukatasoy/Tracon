@@ -74,14 +74,26 @@ const EVENT_STYLE: Record<RunEventType, { label: string; hue: string }> = {
   // Phase 70. Distinct from MessageDelta's cyan: this is the model's
   // reasoning, not its answer.
   ReasoningDelta: { label: 'reasoning.delta', hue: 'var(--ap-violet)' },
+  // Phase 14. Structural, same indigo as RunStarted -- a document joining the
+  // run is part of its setup, not an outcome.
+  DocumentAttached: { label: 'document.attached', hue: 'var(--ap-indigo)' },
   // Phase 89. Amber, same "needs attention" hue as ModelFallbackUsed: a tool
   // that keeps getting truncated is a sign its own output bound is missing.
   ToolOutputTruncated: { label: 'tool.output-truncated', hue: 'var(--ap-amber)' },
+  // Phase 87. Amber: written on a run that is ALREADY Failed, to explain why
+  // orphaned-run reconciliation declined to continue it automatically -- not
+  // a new failure of its own.
+  RunContinuationBlocked: { label: 'run.continuation-blocked', hue: 'var(--ap-amber)' },
   // Phase 131. Danger hue: the run is ending Failed, same as ContentBlocked/RunFailed.
   StructuredResponseRejected: { label: 'structured-response.rejected', hue: 'var(--ap-danger)' },
   // Phase 134. Amber, same "needs attention" hue as ModelFallbackUsed/ToolOutputTruncated:
   // the run is not over yet, a repair turn is about to try again.
   StructuredResponseRepairAttempted: { label: 'structured-response.repair-attempted', hue: 'var(--ap-amber)' },
+  // Phase 141. The label here is only a fallback: EventRow shows the event's
+  // OWN CustomType instead whenever one is present, which it always is by
+  // the time it reaches the wire (RunEventWriter rejects a Custom event
+  // without one).
+  Custom: { label: 'custom', hue: 'var(--ap-muted)' },
 };
 
 /**
@@ -542,6 +554,10 @@ export function parseDuration(value: string): number {
 
 function EventRow({ event }: { event: RunEvent }): ReactNode {
   const style = EVENT_STYLE[event.type] ?? { label: event.type, hue: 'var(--ap-muted)' };
+  // 141.2: a Custom event's own name IS its CustomType, not the generic
+  // fallback label -- a consumer's contoso.preview-ready must read as
+  // that, not as an unstyled "Custom" row.
+  const label = event.type === 'Custom' && event.customType != null ? event.customType : style.label;
   const body = event.payload ?? event.text ?? null;
 
   return (
@@ -559,7 +575,7 @@ function EventRow({ event }: { event: RunEvent }): ReactNode {
         <div className="flex items-baseline gap-2">
           <Mono className="text-subtle">{event.sequence}</Mono>
           <span className="font-mono text-[12px] font-medium" style={{ color: style.hue }}>
-            {style.label}
+            {label}
           </span>
           {event.toolName != null && <Badge>{event.toolName}</Badge>}
           <span className="ml-auto text-[11px] text-subtle" title={absoluteTime(event.timestamp)}>

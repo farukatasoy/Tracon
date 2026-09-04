@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using AgentPrism.AspNetCore.FunctionalTests.Infrastructure;
+using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 using FakeModelProvider = AgentPrism.Testing.FakeModelProvider;
 
@@ -114,6 +115,62 @@ public sealed class StreamingTests
         // Sequence numbers must be contiguous and increasing.
         var ids = frames.Select(static frame => long.Parse(frame.Id!, System.Globalization.CultureInfo.InvariantCulture)).ToList();
         ids.ShouldBe(Enumerable.Range(0, ids.Count).Select(static i => (long)i).ToList());
+    }
+
+    [Fact]
+    public async Task A_consumer_written_Custom_event_carries_its_CustomType_over_the_wire()
+    {
+        // Phase 141: the escape hatch reaches the client additively -- the
+        // SAME endpoint serves both the live SSE tail and a finished run's
+        // historical read (K-014), so this one test stands for both DoD rows
+        // ("SSE carries customType" and "replay/historical read carries it").
+        const string ToolName = "mark_preview_ready";
+
+        await using var host = await AgentPrismTestHost.StartAsync(
+            builder => builder
+                .AddModelProvider(new FakeModelProvider("custom-event-model")
+                    .CallsTool(ToolName)
+                    .RespondsWith("done"))
+                .AddTool(
+                    AIFunctionFactory.Create(
+                        async () =>
+                        {
+                            await AgentPrismRunContext.Current!.Writer!.AppendAsync(new RunEventDraft(RunEventType.Custom)
+                            {
+                                CustomType = "contoso.preview-ready",
+                                Payload = """{"orderId":"ORD-7"}""",
+                            });
+
+                            return "preview ready";
+                        },
+                        ToolName))
+                .AddAgent(TestData.Definition() with
+                {
+                    Model = new ModelBinding { Provider = "custom-event-model", Model = "custom-event-1" },
+                    ToolNames = [ToolName],
+                }));
+
+        using var run = await PostRunAsync(host, new AgentRunRequest { Message = "prepare ORD-7" });
+        await SseReader.ReadAllAsync(await run.Content.ReadAsStreamAsync());
+
+        using var runs = await host.Client.GetAsync(new Uri("/agentprism/api/runs", UriKind.Relative));
+        var runId = (await AgentPrismTestHost.ReadJsonAsync(runs))[0].GetProperty("id").GetGuid();
+
+        using var response = await host.Client.GetAsync(
+            new Uri($"/agentprism/api/runs/{runId}/events", UriKind.Relative),
+            HttpCompletionOption.ResponseHeadersRead);
+
+        var frames = await SseReader.ReadAllAsync(await response.Content.ReadAsStreamAsync());
+        var custom = frames
+            .Where(static frame => frame.Data.Contains("\"type\":\"Custom\"", StringComparison.Ordinal))
+            .ShouldHaveSingleItem();
+
+        custom.Data.ShouldContain("\"customType\":\"contoso.preview-ready\"");
+
+        // The payload itself, not just customType -- proves Payload is carried
+        // through unexamined, the claim RunEventType.Custom's XML doc makes.
+        custom.Data.ShouldContain("orderId");
+        custom.Data.ShouldContain("ORD-7");
     }
 
     [Fact]
