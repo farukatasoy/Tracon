@@ -1,13 +1,13 @@
 # Faz 142 — Onay İsteğinin Sunumu
 
 > **Durum:** ✅ Tamamlandı (2026-09-04)
-> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-188** (tüketici turu 3, A3)
+> **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-188** (tüketici turu 3, A3)
 > **Önkoşul:** Yok
 > **Paketler:** `AgentPrism.Abstractions`, `AgentPrism.Core`, `AgentPrism.AspNetCore`, `AgentPrism.UI`
 > **Yeni paket:** Yok · **Migration:** Gerekli olabilir — sunum alanları kalıcı mı, Açık Soru 1. Numara uygulama anında alınır
 > **Public API:** Büyüyor — yeni kontrat + `PendingApproval`'a alanlar
 > **Tüketici yüzeyi:** `docs-site/`: `concepts/tools.md` (onay bölümü), `concepts/governance.md`, `guides/embedding.md` · sevk edilen: XML `<example>`, konsol onay ekranı + ekran görüntüsü
-> **Manuel test alanı:** [`docs/manuel-test/07-HTTP-YONETIM-API.md`](manuel-test/07-HTTP-YONETIM-API.md)
+> **Manuel test alanı:** [`docs/manuel-test/07-HTTP-YONETIM-API.md`](../../manuel-test/07-HTTP-YONETIM-API.md)
 
 ---
 
@@ -23,9 +23,9 @@
    düşer), **K-584** (`Destructive` etkili tool taşıyan koşu varsayılan olarak
    devam etmez)
 3. Alan hafızası:
-   [`hafiza/tool-onay-ve-yetkilendirme.md`](hafiza/tool-onay-ve-yetkilendirme.md)
+   [`hafiza/tool-onay-ve-yetkilendirme.md`](../../hafiza/tool-onay-ve-yetkilendirme.md)
    (🚨 tool bağımlılığı **kurulum anında** alınır) ·
-   [`hafiza/aspnetcore-di.md`](hafiza/aspnetcore-di.md) (singleton/scoped sınırı)
+   [`hafiza/aspnetcore-di.md`](../../hafiza/aspnetcore-di.md) (singleton/scoped sınırı)
 
 ---
 
@@ -43,9 +43,9 @@ sorun **AgentPrism'in kendi konsolunda da** vardır.
 
 | Kanıt | Gözlem |
 |---|---|
-| [`PendingApproval.cs:19-66`](../src/AgentPrism.Abstractions/Approvals/PendingApproval.cs) | Alanlar: `Id`, `TenantId`, `RunId`, `SessionId`, `RequestId`, `ToolName`, `Arguments`, `Status`, `DecidedBy`, `DecidedAt`, `ExpiresAt`, `CreatedAt`. Sunum alanı **yok** |
-| [`ToolApprovalContext.cs:14-26`](../src/AgentPrism.Abstractions/Approvals/ToolApprovalContext.cs) | `TenantId`, `ToolName`, `Arguments` + `GetNumber`/`GetString` yardımcıları. Metin üretmiyor |
-| [`ApprovalEndpoints.cs:35,50,66`](../src/AgentPrism.AspNetCore/Endpoints/ApprovalEndpoints.cs) | Üç uç ham `Arguments` döndürüyor |
+| [`PendingApproval.cs:19-66`](../../../src/AgentPrism.Abstractions/Approvals/PendingApproval.cs) | Alanlar: `Id`, `TenantId`, `RunId`, `SessionId`, `RequestId`, `ToolName`, `Arguments`, `Status`, `DecidedBy`, `DecidedAt`, `ExpiresAt`, `CreatedAt`. Sunum alanı **yok** |
+| [`ToolApprovalContext.cs:14-26`](../../../src/AgentPrism.Abstractions/Approvals/ToolApprovalContext.cs) | `TenantId`, `ToolName`, `Arguments` + `GetNumber`/`GetString` yardımcıları. Metin üretmiyor |
+| [`ApprovalEndpoints.cs:35,50,66`](../../../src/AgentPrism.AspNetCore/Endpoints/ApprovalEndpoints.cs) | Üç uç ham `Arguments` döndürüyor |
 
 > Kanıtlar 2026-09-03 tarihinde doğrulandı.
 
@@ -532,7 +532,7 @@ docs-site/src/content/docs/{concepts/governance.md, concepts/tools.md, guides/em
 
 ## Denetim Bulguları
 
-Bağımsız denetim ([`faz-denetim`](../.agents/skills/faz-denetim/SKILL.md)) 🔴 bulgu üretmedi.
+Bağımsız denetim ([`faz-denetim`](../../../.agents/skills/faz-denetim/SKILL.md)) 🔴 bulgu üretmedi.
 
 | # | Seviye | Bulgu | Sonuç |
 |---|---|---|---|

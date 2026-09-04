@@ -154,7 +154,7 @@ bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 | [139](arsiv/fazlar/139-CALISTIRMA-VE-OTURUM-YETKILENDIRMESI.md) | Çalıştırma ve Oturum Yetkilendirmesi | ✅ Tamamlandı |
 | [140](arsiv/fazlar/140-ICERIK-GUARDININ-KAYNAGI.md) | İçerik Guard'ının Kaynağı | ✅ Tamamlandı |
 | [141](arsiv/fazlar/141-GENISLETILEBILIR-CALISTIRMA-OLAYI.md) | Genişletilebilir Çalıştırma Olayı | ✅ Tamamlandı |
-| [142](142-ONAY-ISTEGININ-SUNUMU.md) | Onay İsteğinin Sunumu | 📋 Planlandı |
+| [142](arsiv/fazlar/142-ONAY-ISTEGININ-SUNUMU.md) | Onay İsteğinin Sunumu | 📋 Planlandı |
 | [143](143-TOOL-ARGUMANININ-SOZLESME-TESTLERI.md) | Tool Argümanının Sözleşme Testleri | 📋 Planlandı |
 
 Seçilmemiş adaylar: [`ADAYLAR.md`](ADAYLAR.md). Fazların hangi dalgada, hangi gerekçeyle sıralandığı (Faz 8–56, kapandı): [`arsiv/IKINCI-FAZ-YOL-HARITASI.md`](arsiv/IKINCI-FAZ-YOL-HARITASI.md) · [`arsiv/UCUNCU-FAZ-YOL-HARITASI.md`](arsiv/UCUNCU-FAZ-YOL-HARITASI.md).
