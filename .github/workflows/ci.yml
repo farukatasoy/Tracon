@@ -93,8 +93,18 @@ jobs:
       # `dotnet build`e baglanmaz. Bedeli sudur - kaynak degisip uretec kosulmazsa
       # dort kapinin dordu de yesil kalir ve nupkg BAYAT harita sevk eder. Bu adim
       # o bosluktur; hicbir npm bagimliligi istemez.
+      #
+      # `reference/changelog.md` .gitignore'dadir (CHANGELOG.md'den uretilir,
+      # kaynagiyla iki kopya olmasin diye) ama build-agent-map.mjs onu hala
+      # `reference/` dizininden okur - llmsBudgetBytes yorumu bu sayfanin
+      # llms.txt'ten DUSURULEMEYECEGINI acikca soyler. Taze bir checkout'ta dosya
+      # yokken --check calisirsa harita bu sayfayi dislar ve COMMIT edilmis
+      # (sayfayi iceren) surumle sonsuza dek uyusmaz; build-changelog.mjs de npm
+      # bagimliligi istemedigi icin buraya eklemek yukaridaki yorumu bozmaz.
       - name: Agent haritasi kaynagiyla ayni mi
-        run: node docs-site/scripts/build-agent-map.mjs --check
+        run: |
+          node docs-site/scripts/build-changelog.mjs
+          node docs-site/scripts/build-agent-map.mjs --check
 
       # Icerik ve sunum kapilari. `pages` isi PULL REQUEST'te kosmaz, bu yuzden bu
       # adim ORADA degil BURADA durur - yoksa kapinin kirmizi olmasi hicbir PR'i
