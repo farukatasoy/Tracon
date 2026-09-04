@@ -92,6 +92,10 @@ supheli bir derlemeden HEMEN sonra calistirmadan once bu adimi atlama.
   Uc adim da kosuldu: tam kosumda dustu, izolasyonda 1/1, ikinci tam kosumda 56/56 gecti.
   Aday: **F-130**. Iki vaka ayni sinif -- `Ui.E2ETests` tam kosumda kaynak cekismesine acik.
   **Ucuncu vaka (2026-08-23, Faz 90 kapanisi): AYNI test** (`Eval_suite_is_created_case_added_and_run_passes`). Uc adim yine kosuldu: tam kosumda 4956/4957 (bu tek test dustu), izolasyonda 1/1 (7,7 sn), ikinci tam kosum cikis kodu 0. **Kapanış (2026-08-26):** kök yarış bulundu: ilk `GET /cases` pending iken kullanıcı `Add case`e basabiliyor, sonra gelen boş yanıt yeni satırı siliyordu. UI ilk yükleme bitene kadar `Add case` ve `Save cases`i kapatır; frontend regression testi önce kırmızı, düzeltmeden sonra yeşildir. F-130 açık kayıt değildir.
+- **Kaynak nedenselliğini ölçme yolu değişmedi.** Bir tam koşum kırılması faz
+  değişikliğinden şüphe ettiriyorsa `git stash push -u` → tabanı derle → tam
+  koşum → `git stash pop` uygula. Worktree kullanma; extension sample'ları yerel
+  NuGet feed'ini ister ve `artifacts/package/release` worktree'de yoktur.
 
 - **🚨 `dotnet test ... | grep ... | head -N` KOSUMU ERKEN KESER.** `head` N
   satiri alinca boruyu kapatir, `dotnet test` SIGPIPE alir ve kalan test
