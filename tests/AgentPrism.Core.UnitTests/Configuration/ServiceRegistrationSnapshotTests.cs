@@ -230,6 +230,8 @@ public sealed class ServiceRegistrationSnapshotTests
         "AgentPrism.RunTraceCollector | Singleton | AgentPrism.RunTraceCollector",
         "AgentPrism.ToolApprovalPolicyRegistry | Singleton | AgentPrism.ToolApprovalPolicyRegistry",
         "AgentPrism.ToolApprovalRuleEvaluator | Singleton | AgentPrism.ToolApprovalRuleEvaluator",
+        "AgentPrism.IToolApprovalPresenter | Singleton | Instance:AgentPrism.NullToolApprovalPresenter",
+        "AgentPrism.ToolApprovalPresenterRunner | Singleton | AgentPrism.ToolApprovalPresenterRunner",
         "AgentPrism.AgentSessionManager | Singleton | Factory",
         "AgentPrism.ConversationBranchService | Singleton | Factory",
         "AgentPrism.RunReplayService | Singleton | Factory",

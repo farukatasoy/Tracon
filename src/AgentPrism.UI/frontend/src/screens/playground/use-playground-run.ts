@@ -2,7 +2,14 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { client, openStream, unwrap } from '../../lib/api';
 import { readSse } from '../../lib/sse';
-import { emptyTranscript, foldMessages, foldUpdate, type TranscriptState } from '../../lib/transcript';
+import {
+  applyApprovalPresentations,
+  emptyTranscript,
+  foldMessages,
+  foldUpdate,
+  type ApprovalPresentationAnnouncement,
+  type TranscriptState,
+} from '../../lib/transcript';
 import { useNavigate, useSearchParams } from '../../lib/router';
 import type { ChatMessage, SessionDetailResponse } from '@agentprism/client';
 import type { AgentDescriptor, AgentDetailResponse, AttachmentDescriptor, ConversationResource } from '../../lib/server-types';
@@ -231,6 +238,14 @@ export function usePlaygroundRun(
             const payload = JSON.parse(frame.data) as { contents?: [] };
 
             update((turn) => ({ ...turn, transcript: foldUpdate(turn.transcript, payload) }));
+
+            continue;
+          }
+
+          if (frame.event === 'approvals') {
+            const payload = JSON.parse(frame.data) as ApprovalPresentationAnnouncement[];
+
+            update((turn) => ({ ...turn, transcript: applyApprovalPresentations(turn.transcript, payload) }));
 
             continue;
           }

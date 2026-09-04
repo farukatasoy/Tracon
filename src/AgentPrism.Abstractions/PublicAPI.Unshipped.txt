@@ -206,7 +206,7 @@ AgentPrism.AgentPrismRunOptions
 AgentPrism.AgentPrismRunOptions.AgentPrismRunOptions() -> void
 AgentPrism.AgentPrismRunOptions.AgentVersion.get -> int?
 AgentPrism.AgentPrismRunOptions.AgentVersion.init -> void
-AgentPrism.AgentPrismRunOptions.BeforePendingApprovalIsPublished.get -> System.Func<System.Collections.Generic.IEnumerable<Microsoft.Extensions.AI.ChatMessage!>!, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask>?
+AgentPrism.AgentPrismRunOptions.BeforePendingApprovalIsPublished.get -> System.Func<System.Collections.Generic.IEnumerable<Microsoft.Extensions.AI.ChatMessage!>!, System.Collections.Generic.IReadOnlyDictionary<string!, AgentPrism.ToolApprovalPresentation?>!, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask>?
 AgentPrism.AgentPrismRunOptions.BeforePendingApprovalIsPublished.init -> void
 AgentPrism.AgentPrismRunOptions.Budget.get -> AgentPrism.AgentRunBudget?
 AgentPrism.AgentPrismRunOptions.Budget.init -> void
@@ -1375,6 +1375,8 @@ AgentPrism.ITenantStore
 AgentPrism.ITenantStore.DeleteAsync(string! slug, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<bool>
 AgentPrism.ITenantStore.ListAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<AgentPrism.TenantDescriptor!>!>
 AgentPrism.ITenantStore.SaveAsync(AgentPrism.TenantDescriptor! tenant, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<AgentPrism.TenantDescriptor!>
+AgentPrism.IToolApprovalPresenter
+AgentPrism.IToolApprovalPresenter.PresentAsync(AgentPrism.ToolApprovalContext! context, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<AgentPrism.ToolApprovalPresentation?>
 AgentPrism.IToolApprovalRuleStore
 AgentPrism.IToolApprovalRuleStore.AddAsync(AgentPrism.ToolApprovalRule! rule, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<AgentPrism.ToolApprovalRule!>
 AgentPrism.IToolApprovalRuleStore.DeleteAsync(string! tenantId, System.Guid ruleId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<bool>
@@ -2013,6 +2015,8 @@ AgentPrism.PendingApproval.ExpiresAt.init -> void
 AgentPrism.PendingApproval.Id.get -> System.Guid
 AgentPrism.PendingApproval.Id.init -> void
 AgentPrism.PendingApproval.PendingApproval() -> void
+AgentPrism.PendingApproval.Presentation.get -> AgentPrism.ToolApprovalPresentation?
+AgentPrism.PendingApproval.Presentation.init -> void
 AgentPrism.PendingApproval.RequestId.get -> string!
 AgentPrism.PendingApproval.RequestId.init -> void
 AgentPrism.PendingApproval.RunId.get -> System.Guid
@@ -3132,6 +3136,18 @@ AgentPrism.ToolApprovalPolicyDecision
 AgentPrism.ToolApprovalPolicyDecision.NotRequired = 1 -> AgentPrism.ToolApprovalPolicyDecision
 AgentPrism.ToolApprovalPolicyDecision.Required = 2 -> AgentPrism.ToolApprovalPolicyDecision
 AgentPrism.ToolApprovalPolicyDecision.Undecided = 0 -> AgentPrism.ToolApprovalPolicyDecision
+AgentPrism.ToolApprovalPresentation
+AgentPrism.ToolApprovalPresentation.<Clone>$() -> AgentPrism.ToolApprovalPresentation!
+AgentPrism.ToolApprovalPresentation.EntityId.get -> string?
+AgentPrism.ToolApprovalPresentation.EntityId.init -> void
+AgentPrism.ToolApprovalPresentation.EntityName.get -> string?
+AgentPrism.ToolApprovalPresentation.EntityName.init -> void
+AgentPrism.ToolApprovalPresentation.EntityType.get -> string?
+AgentPrism.ToolApprovalPresentation.EntityType.init -> void
+AgentPrism.ToolApprovalPresentation.Equals(AgentPrism.ToolApprovalPresentation? other) -> bool
+AgentPrism.ToolApprovalPresentation.Message.get -> string?
+AgentPrism.ToolApprovalPresentation.Message.init -> void
+AgentPrism.ToolApprovalPresentation.ToolApprovalPresentation() -> void
 AgentPrism.ToolApprovalRule
 AgentPrism.ToolApprovalRule.<Clone>$() -> AgentPrism.ToolApprovalRule!
 AgentPrism.ToolApprovalRule.AgentName.get -> string?
@@ -4396,6 +4412,9 @@ override AgentPrism.TenantProviderBinding.ToString() -> string!
 override AgentPrism.TimeSeriesPoint.Equals(object? obj) -> bool
 override AgentPrism.TimeSeriesPoint.GetHashCode() -> int
 override AgentPrism.TimeSeriesPoint.ToString() -> string!
+override AgentPrism.ToolApprovalPresentation.Equals(object? obj) -> bool
+override AgentPrism.ToolApprovalPresentation.GetHashCode() -> int
+override AgentPrism.ToolApprovalPresentation.ToString() -> string!
 override AgentPrism.ToolApprovalRule.Equals(object? obj) -> bool
 override AgentPrism.ToolApprovalRule.GetHashCode() -> int
 override AgentPrism.ToolApprovalRule.ToString() -> string!
@@ -4831,6 +4850,8 @@ static AgentPrism.TenantProviderBinding.operator !=(AgentPrism.TenantProviderBin
 static AgentPrism.TenantProviderBinding.operator ==(AgentPrism.TenantProviderBinding? left, AgentPrism.TenantProviderBinding? right) -> bool
 static AgentPrism.TimeSeriesPoint.operator !=(AgentPrism.TimeSeriesPoint? left, AgentPrism.TimeSeriesPoint? right) -> bool
 static AgentPrism.TimeSeriesPoint.operator ==(AgentPrism.TimeSeriesPoint? left, AgentPrism.TimeSeriesPoint? right) -> bool
+static AgentPrism.ToolApprovalPresentation.operator !=(AgentPrism.ToolApprovalPresentation? left, AgentPrism.ToolApprovalPresentation? right) -> bool
+static AgentPrism.ToolApprovalPresentation.operator ==(AgentPrism.ToolApprovalPresentation? left, AgentPrism.ToolApprovalPresentation? right) -> bool
 static AgentPrism.ToolApprovalRule.operator !=(AgentPrism.ToolApprovalRule? left, AgentPrism.ToolApprovalRule? right) -> bool
 static AgentPrism.ToolApprovalRule.operator ==(AgentPrism.ToolApprovalRule? left, AgentPrism.ToolApprovalRule? right) -> bool
 static AgentPrism.ToolArgumentCondition.operator !=(AgentPrism.ToolArgumentCondition? left, AgentPrism.ToolArgumentCondition? right) -> bool

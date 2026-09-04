@@ -73,7 +73,7 @@ public sealed record AgentPrismDiagnosticsReport
     /// Fixed length: one entry per embedding point (<c>ITenantContext</c>,
     /// <c>IRunAttributionContext</c>, <c>IToolAuthorizationHandler</c>,
     /// <c>IRunAuthorizationHandler</c>, <c>IRunEventSink</c>,
-    /// <c>IAttachmentStorage</c>), never more. Carries no
+    /// <c>IAttachmentStorage</c>, <c>IToolApprovalPresenter</c>), never more. Carries no
     /// <c>secret</c>: only the bound implementation's type name and whether it
     /// is AgentPrism's built-in default.
     /// </remarks>

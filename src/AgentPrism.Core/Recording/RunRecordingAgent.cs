@@ -54,6 +54,7 @@ public sealed partial class RunRecordingAgent : DelegatingAIAgent
     private readonly ContentGuardPipeline? _contentGuardPipeline;
     private readonly IRunAttributionContext? _attributionContext;
     private readonly IReadOnlyList<IRunEventSink> _sinks;
+    private readonly ToolApprovalPresenterRunner? _approvalPresenterRunner;
 
     /// <summary>Creates a new recording wrapper.</summary>
     /// <param name="innerAgent">The wrapped agent.</param>
@@ -128,6 +129,11 @@ public sealed partial class RunRecordingAgent : DelegatingAIAgent
     /// event goes to <paramref name="runStore"/> only — the identical hot path as before
     /// this extension point existed.
     /// </param>
+    /// <param name="approvalPresenterRunner">
+    /// Resolves the <see cref="ToolApprovalPresentation"/> of a pending tool call. When
+    /// <see langword="null"/>, no presentation is resolved — identical behavior to before
+    /// <see cref="IToolApprovalPresenter"/> existed.
+    /// </param>
     /// <exception cref="ArgumentNullException">When one of the required dependencies is <see langword="null"/>.</exception>
     public RunRecordingAgent(
         AIAgent innerAgent,
@@ -152,7 +158,8 @@ public sealed partial class RunRecordingAgent : DelegatingAIAgent
         RunSampler? runSampler = null,
         ContentGuardPipeline? contentGuardPipeline = null,
         IRunAttributionContext? attributionContext = null,
-        IReadOnlyList<IRunEventSink>? sinks = null)
+        IReadOnlyList<IRunEventSink>? sinks = null,
+        ToolApprovalPresenterRunner? approvalPresenterRunner = null)
         : base(innerAgent)
     {
         ArgumentNullException.ThrowIfNull(runStore);
@@ -182,6 +189,7 @@ public sealed partial class RunRecordingAgent : DelegatingAIAgent
         _contentGuardPipeline = contentGuardPipeline;
         _attributionContext = attributionContext;
         _sinks = sinks is { Count: > 0 } ? sinks : [];
+        _approvalPresenterRunner = approvalPresenterRunner;
     }
 
     /// <inheritdoc />
@@ -259,17 +267,26 @@ public sealed partial class RunRecordingAgent : DelegatingAIAgent
             // DID NOT CHANGE (K-372) - only the queue path (AgentRunJobHandler) writes it;
             // this change does not reopen the risk of a double decision race.
             if (start.Scope.Depth == 0 &&
-                ChildRunApproval.Describe(response.Messages) is not null)
+                ChildRunApproval.CollectRequests(response.Messages) is { Count: > 0 } pendingRequests)
             {
+                var presentations = await ResolvePresentationsAsync(pendingRequests, scope, cancellationToken)
+                    .ConfigureAwait(false);
+
                 // 🚨 The caller records the pending approval HERE, before the
                 // terminal status becomes visible. See the remarks on
                 // AgentPrismRunOptions.BeforePendingApprovalIsPublished: closing
                 // the run first published a status whose approval was not yet
                 // listable, on EVERY queued run that asked for one (F-133).
-                await InvokeBeforePendingApprovalAsync(options, response.Messages, cancellationToken)
+                await InvokeBeforePendingApprovalAsync(options, response.Messages, presentations, cancellationToken)
                     .ConfigureAwait(false);
 
-                await CompleteAsync(scope, RunStatus.AwaitingApproval, usage, null, cancellationToken)
+                await CompleteAsync(
+                    scope,
+                    RunStatus.AwaitingApproval,
+                    usage,
+                    null,
+                    cancellationToken,
+                    closingEventPayload: BuildAwaitingApprovalPayload(pendingRequests, presentations))
                     .ConfigureAwait(false);
 
                 return response;
@@ -452,12 +469,19 @@ public sealed partial class RunRecordingAgent : DelegatingAIAgent
                 ? RunStatus.AwaitingApproval
                 : RunStatus.Completed;
 
+        string? awaitingApprovalPayload = null;
+
         if (streamingStatus == RunStatus.AwaitingApproval)
         {
-            await InvokeBeforePendingApprovalAsync(
-                options,
-                [new ChatMessage(ChatRole.Assistant, approvalContents ?? [])],
-                cancellationToken).ConfigureAwait(false);
+            var approvalMessages = new[] { new ChatMessage(ChatRole.Assistant, approvalContents ?? []) };
+            var pendingRequests = ChildRunApproval.CollectRequests(approvalMessages);
+            var presentations = await ResolvePresentationsAsync(pendingRequests, scope, cancellationToken)
+                .ConfigureAwait(false);
+
+            awaitingApprovalPayload = BuildAwaitingApprovalPayload(pendingRequests, presentations);
+
+            await InvokeBeforePendingApprovalAsync(options, approvalMessages, presentations, cancellationToken)
+                .ConfigureAwait(false);
         }
 
         await CompleteAsync(
@@ -465,6 +489,7 @@ public sealed partial class RunRecordingAgent : DelegatingAIAgent
             streamingStatus,
             ToRunUsage(usage),
             pendingApproval is null ? null : ApprovalError(pendingApproval),
-            cancellationToken).ConfigureAwait(false);
+            cancellationToken,
+            closingEventPayload: awaitingApprovalPayload).ConfigureAwait(false);
     }
 }

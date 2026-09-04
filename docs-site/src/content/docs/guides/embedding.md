@@ -95,7 +95,12 @@ full contract, including why the value is never read from the run request body.
 
 Decides whether a caller may invoke a specific tool at all, separately from
 approval — see [Tools](/concepts/tools/#authorization-validation-and-timeout) for the binding
-pattern and how authorization and approval order relative to each other.
+pattern and how authorization and approval order relative to each other. If your
+widget renders its own approval card instead of the built-in console's, register
+[`IToolApprovalPresenter`](/concepts/governance/#approvals) too — it turns a raw
+`{ "orderId": "ORD-1001" }` into a name your widget can show directly, and it reaches
+your widget the same way the built-in one reads it: an `approvals` frame on the
+streaming run endpoint, keyed by the pending request's `requestId`.
 
 ### 4 — Run event bridge
 
@@ -281,7 +286,8 @@ flowchart TD
 }
 ```
 
-A fresh installation shows all six as built-in. Read this endpoint right after
+A fresh installation shows all seven (the six above, plus `IToolApprovalPresenter` —
+see [Approvals](/concepts/governance/#approvals)) as built-in. Read this endpoint right after
 adding a binding to confirm it actually took — `isBuiltInDefault: true` on a
 contract you meant to replace means the registration ran too late, or against the
 wrong interface.

@@ -124,7 +124,10 @@ public static string CancelOrder(string orderId) => ...;
 ```
 
 `Effect` (`Read`/`Write`/`Destructive`/`External`) is information, not a gate — the
-console shows it as a badge, and the audit trail records it. A call that outlives its
+console shows it as a badge, and the audit trail records it. By default the approval
+card an operator sees carries only this raw call; register
+[`IToolApprovalPresenter`](/concepts/governance/#approvals) to show a resolved entity
+name instead. A call that outlives its
 timeout does not fail the run either: the model sees a tool error and continues, the same
 as a denial. Timeout is **not cooperative**: it never forcibly stops the body, and it
 never hands the body a linked, timeout-aware token either — the body only ever sees the

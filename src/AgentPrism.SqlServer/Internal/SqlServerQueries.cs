@@ -1682,7 +1682,8 @@ internal sealed class SqlServerQueries : SqlQueriesBase
                SET status = @status_expired
             OUTPUT inserted.id, inserted.tenant_id, inserted.run_id, inserted.session_id,
                    inserted.request_id, inserted.tool_name, inserted.arguments, inserted.status,
-                   inserted.decided_by, inserted.decided_at, inserted.expires_at, inserted.created_at
+                   inserted.decided_by, inserted.decided_at, inserted.expires_at, inserted.created_at,
+                   inserted.presentation
               FROM {Schema}.pending_approvals AS a
              WHERE a.id IN (
                        SELECT TOP (@max) id FROM {Schema}.pending_approvals

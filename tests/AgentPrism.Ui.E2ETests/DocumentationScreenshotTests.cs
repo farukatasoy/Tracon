@@ -71,7 +71,7 @@ public sealed class DocumentationScreenshotTests(BrowserFixture browsers)
         ("workflows", "/workflows", "summarize-and-translate"),
         ("evals", "/evals", "Evals"),
         ("experiments", "/experiments", "Experiments"),
-        ("approvals", "/approvals", "Approvals"),
+        ("approvals", "/approvals", "Order ORD-7"),
         ("tools", "/tools", "get_order_status"),
         ("skills", "/skills", SeededSkillName),
         ("models", "/models", "scripted"),
@@ -92,6 +92,7 @@ public sealed class DocumentationScreenshotTests(BrowserFixture browsers)
         // detail screen something to show.
         await SeedRunsAsync(host);
         await SeedCatalogAsync(host);
+        await SeedPendingApprovalAsync(host);
 
         var context = await browsers.Browser.NewContextAsync(new BrowserNewContextOptions
         {
@@ -249,6 +250,57 @@ public sealed class DocumentationScreenshotTests(BrowserFixture browsers)
         throw new InvalidOperationException(
             $"The seeded job did not settle within two minutes; last status was '{status ?? "none"}'. " +
             "The screenshot would capture whichever state the race produced.");
+    }
+
+    /// <summary>
+    /// Queues a run that stops at <c>AwaitingApproval</c>, so the approvals screen shows
+    /// a real pending request instead of the empty state (phase 142). Only the queue
+    /// path writes a mailbox row — a synchronous run's approval never reaches
+    /// <c>GET /api/approvals/pending</c> at all.
+    /// </summary>
+    private static async Task SeedPendingApprovalAsync(UiHost host)
+    {
+        using var client = new HttpClient { BaseAddress = new Uri(host.BaseAddress) };
+        using var request = new HttpRequestMessage(
+            HttpMethod.Post, $"{host.Prefix}/api/agents/approval-agent/run")
+        {
+            // 🚨 A queued run without a sessionId is CORRECTED to Failed once it
+            // asks for approval — the decision is the input of the next turn and
+            // cannot be resolved without a session to carry it (AgentRunJobHandler).
+            // Omitting it here would poll for AwaitingApproval for two minutes and
+            // then fail on a status that was always going to be Failed.
+            Content = JsonContent.Create(new { message = "Cancel order ORD-7.", sessionId = "approvals-ord-7" }),
+            Headers = { { "Prefer", "respond-async" } },
+        };
+
+        using var response = await client.SendAsync(request);
+
+        response.EnsureSuccessStatusCode();
+
+        using var accepted = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        var runId = accepted.RootElement.GetProperty("runId").GetString();
+
+        var deadline = DateTimeOffset.UtcNow.AddMinutes(2);
+        string? status = null;
+
+        while (DateTimeOffset.UtcNow < deadline)
+        {
+            using var document = JsonDocument.Parse(
+                await client.GetStringAsync($"{host.Prefix}/api/runs/{runId}"));
+
+            status = document.RootElement.GetProperty("status").GetString();
+
+            if (string.Equals(status, "AwaitingApproval", StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            await Task.Delay(TimeSpan.FromSeconds(1));
+        }
+
+        throw new InvalidOperationException(
+            $"The seeded approval did not reach AwaitingApproval within two minutes; " +
+            $"last status was '{status ?? "none"}'.");
     }
 
     private static async Task EnsureSuccessAsync(Task<HttpResponseMessage> call)

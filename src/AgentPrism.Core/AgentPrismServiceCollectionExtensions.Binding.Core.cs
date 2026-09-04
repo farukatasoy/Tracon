@@ -52,6 +52,14 @@ public static partial class AgentPrismServiceCollectionExtensions
         {
             options.AllowUnverifiedToolRegistry = allowUnverifiedToolRegistry;
         }
+
+        if (TimeSpan.TryParse(
+                section[nameof(AgentPrismToolOptions.ApprovalPresentationTimeout)],
+                CultureInfo.InvariantCulture,
+                out var approvalPresentationTimeout))
+        {
+            options.ApprovalPresentationTimeout = approvalPresentationTimeout;
+        }
     }
 
     /// <summary>Binds the <c>AgentPrism:Preflight</c> section.</summary>

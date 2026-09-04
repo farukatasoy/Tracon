@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Text.Json;
 using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging;
@@ -30,12 +31,54 @@ public sealed partial class RunRecordingAgent
     private static async ValueTask InvokeBeforePendingApprovalAsync(
         AgentRunOptions? options,
         IEnumerable<ChatMessage> messages,
+        IReadOnlyDictionary<string, ToolApprovalPresentation?> presentations,
         CancellationToken cancellationToken)
     {
         if (options is AgentPrismRunOptions { BeforePendingApprovalIsPublished: { } hook })
         {
-            await hook(messages, cancellationToken).ConfigureAwait(false);
+            await hook(messages, presentations, cancellationToken).ConfigureAwait(false);
         }
+    }
+
+    /// <summary>Resolves a presentation for every pending request, or an empty result when no presenter is registered.</summary>
+    private async ValueTask<IReadOnlyDictionary<string, ToolApprovalPresentation?>> ResolvePresentationsAsync(
+        IReadOnlyList<ToolApprovalRequestContent> requests,
+        RunScope scope,
+        CancellationToken cancellationToken)
+        => _approvalPresenterRunner is null
+            ? EmptyPresentations
+            : await _approvalPresenterRunner
+                .ResolveAllAsync(requests, scope.TenantId, scope.AgentName, cancellationToken)
+                .ConfigureAwait(false);
+
+    private static readonly IReadOnlyDictionary<string, ToolApprovalPresentation?> EmptyPresentations =
+        new Dictionary<string, ToolApprovalPresentation?>(StringComparer.Ordinal);
+
+    /// <summary>Builds the <see cref="RunEventType.RunAwaitingInput"/> closing event's <c>Payload</c>.</summary>
+    private static string BuildAwaitingApprovalPayload(
+        IReadOnlyList<ToolApprovalRequestContent> requests,
+        IReadOnlyDictionary<string, ToolApprovalPresentation?> presentations)
+    {
+        var items = new List<PendingToolApprovalEventItem>(requests.Count);
+
+        foreach (var request in requests)
+        {
+            var presentation = presentations.GetValueOrDefault(request.RequestId);
+
+            items.Add(new PendingToolApprovalEventItem
+            {
+                RequestId = request.RequestId,
+                ToolName = request.ToolCall is FunctionCallContent call ? call.Name : request.ToolCall.CallId,
+                EntityType = presentation?.EntityType,
+                EntityId = presentation?.EntityId,
+                EntityName = presentation?.EntityName,
+                Message = presentation?.Message,
+            });
+        }
+
+        return JsonSerializer.Serialize(
+            (IReadOnlyList<PendingToolApprovalEventItem>)items,
+            AgentPrismCoreJsonContext.Default.IReadOnlyListPendingToolApprovalEventItem);
     }
 
     private async ValueTask CompleteAsync(
@@ -43,7 +86,8 @@ public sealed partial class RunRecordingAgent
         RunStatus status,
         RunUsage? usage,
         RunError? error,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        string? closingEventPayload = null)
     {
         // 🚨 The classifier is called ONLY when there is an error: on a successful run
         // (error is null) it never fires on the hot path.
@@ -96,6 +140,7 @@ public sealed partial class RunRecordingAgent
             // common case), never a redundant write of the same value.
             modelId: fallbackUsed?.Model,
             modelProvider: fallbackUsed?.Provider,
+            closingEventPayload: closingEventPayload,
             cancellationToken: cancellationToken).ConfigureAwait(false);
 
         // 🚨 The budget is NOT recorded here (phase 114, was: `scope.Budget?.RecordUsage(...)`).

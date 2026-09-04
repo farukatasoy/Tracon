@@ -248,10 +248,11 @@ conditional or separately mapped, so they are not all represented by the generat
 | Run and session authorization | Decides whether a caller may start a run or read/list/delete/branch a session | `IRunAuthorizationHandler` | Allows every call by default; a thrown exception denies the call. Called at all four run-starting endpoints, not one shared filter |
 | Run event bridge | Bridges run events to your own channel or message bus | `IRunEventSink` | Queue the event and return; a slow sink degrades on its own, never the model stream |
 | Attachment storage | Stores attachment content in your own object store | `IAttachmentStorage` | Content stays in the database until you register one |
+| Tool-approval presentation | Turns a pending approval's raw arguments into a resolved entity name | `IToolApprovalPresenter` | Best-effort: not registered, throws, or times out all publish the approval request unchanged |
 
 Each contract is registered with `TryAdd`, so a registration made before
 `AddAgentPrism()` wins over AgentPrism's built-in default, and
-`GET /api/diagnostics` reports which of the six are still built-in. A tool body
+`GET /api/diagnostics` reports which of the seven are still built-in. A tool body
 reads the same identity (including `UserId`) through `AgentPrismRunContext`,
 since it cannot reach `AgentSession` directly.
 
@@ -865,6 +866,54 @@ read and an absolute expiry.
 Deciding either way **resumes** the run — the model has to see a result or a refusal
 and continue. And the decision opens a **new** run; the one that stopped is never
 rewritten.
+
+By default an approver sees the raw call: `{ "orderId": "ORD-1001" }`. Register
+`IToolApprovalPresenter` to turn that into "Cancel order for Priya Shah" — implement
+`PresentAsync`, reading whatever the call's arguments name, and return a
+`ToolApprovalPresentation` (an entity type, id, name, and a free-form message; every
+field is optional).
+
+```csharp
+public sealed class OrderApprovalPresenter(IServiceScopeFactory scopes) : IToolApprovalPresenter
+{
+    public async ValueTask<ToolApprovalPresentation?> PresentAsync(
+        ToolApprovalContext context, CancellationToken cancellationToken = default)
+    {
+        if (context.GetString("orderId") is not { } orderId)
+        {
+            return null;
+        }
+
+        using var scope = scopes.CreateScope();
+        var orders = scope.ServiceProvider.GetRequiredService<IOrderRepository>();
+        var order = await orders.FindAsync(orderId, cancellationToken);
+
+        return order is null ? null : new ToolApprovalPresentation
+        {
+            EntityType = "order",
+            EntityId = orderId,
+            EntityName = $"Order {orderId}",
+            Message = $"Cancel order {orderId} for {order.CustomerName}.",
+        };
+    }
+}
+
+services.AddSingleton<IToolApprovalPresenter, OrderApprovalPresenter>();
+```
+
+Register it as a singleton and reach a scoped dependency, such as a `DbContext`,
+through an injected `IServiceScopeFactory` — the same rule as
+[the empty service provider mistake](/getting-started/tools/#the-rule-that-trips-people-up),
+because this runs on the same tool-call path. Unlike authorization and validation, a
+presenter is not a gate: it fails **open**. Not registered, resolves nothing, throws, or
+runs past its timeout (`AgentPrismToolOptions.ApprovalPresentationTimeout`, 2 seconds
+by default) — the approval request publishes either way, with the raw arguments still
+there. A presentation is decoration for a decision a human still has to make from the
+real call, never a replacement for it.
+
+The resolved presentation reaches every surface a pending request does: the mailbox
+list, the single-request read, the `RunAwaitingInput` run event, and the console's own
+approval card.
 
 :::note[The audit entry is written before the decision is applied]
 Everywhere else an audit failure is swallowed. Not here: an approval decision that
@@ -1968,7 +2017,10 @@ public static string CancelOrder(string orderId) => ...;
 ```
 
 `Effect` (`Read`/`Write`/`Destructive`/`External`) is information, not a gate — the
-console shows it as a badge, and the audit trail records it. A call that outlives its
+console shows it as a badge, and the audit trail records it. By default the approval
+card an operator sees carries only this raw call; register
+[`IToolApprovalPresenter`](/concepts/governance/#approvals) to show a resolved entity
+name instead. A call that outlives its
 timeout does not fail the run either: the model sees a tool error and continues, the same
 as a denial. Timeout is **not cooperative**: it never forcibly stops the body, and it
 never hands the body a linked, timeout-aware token either — the body only ever sees the
@@ -2825,8 +2877,10 @@ and, for the full EF Core pattern,
 Runs, events, and tool calls survive restarts, so the console shows real history
 rather than the current process. Sessions can be read back as chat history rather
 than an opaque blob — which is also what makes branching a conversation possible.
-Queued runs, schedules, evals, experiments, and quotas all become usable, since they
-depend on state outliving a request.
+Queued runs, schedules, evals, experiments, quotas, and the pending-approval mailbox
+all become usable, since they depend on state outliving a request. A resolved
+[approval presentation](/concepts/governance/#approvals) is persisted next to the
+raw call arguments, so it survives a restart the same way the arguments do.
 
 It is also what makes recovering from a crash possible at all: a run's recorded
 tool calls are what an [automatically continued run](/guides/reliability/#continue-an-interrupted-run-automatically)
@@ -4725,7 +4779,12 @@ full contract, including why the value is never read from the run request body.
 
 Decides whether a caller may invoke a specific tool at all, separately from
 approval — see [Tools](/concepts/tools/#authorization-validation-and-timeout) for the binding
-pattern and how authorization and approval order relative to each other.
+pattern and how authorization and approval order relative to each other. If your
+widget renders its own approval card instead of the built-in console's, register
+[`IToolApprovalPresenter`](/concepts/governance/#approvals) too — it turns a raw
+`{ "orderId": "ORD-1001" }` into a name your widget can show directly, and it reaches
+your widget the same way the built-in one reads it: an `approvals` frame on the
+streaming run endpoint, keyed by the pending request's `requestId`.
 
 ### 4 — Run event bridge
 
@@ -4911,7 +4970,8 @@ flowchart TD
 }
 ```
 
-A fresh installation shows all six as built-in. Read this endpoint right after
+A fresh installation shows all seven (the six above, plus `IToolApprovalPresenter` —
+see [Approvals](/concepts/governance/#approvals)) as built-in. Read this endpoint right after
 adding a binding to confirm it actually took — `isBuiltInDefault: true` on a
 contract you meant to replace means the registration ran too late, or against the
 wrong interface.
@@ -10000,6 +10060,12 @@ The status code is sent before the first frame. A failure after that arrives as 
 a failed run as a success.
 :::
 
+A run that stops on a tool call needing a human decision sends an `approvals` frame
+before the stream ends — the pending request's id and tool name, plus whatever an
+[approval presenter](/concepts/governance/#approvals) resolved for it. See
+[Approvals](/concepts/governance/#approvals) for the queued-run mailbox shape, which
+answers the same request differently.
+
 ## Paging
 
 List endpoints that page use `skip` and `take`. `skip` defaults to 0, `take` to 50,
@@ -12891,6 +12957,11 @@ The Run button is disabled while a required field is empty; this is the same rul
 the server enforces (a run with a missing required value never starts), surfaced
 before the round trip instead of after it.
 
+A tool call that needs a human decision stops the stream and renders as an approval
+card instead of a result — the entity name and message from a registered
+[approval presenter](/concepts/governance/#approvals) when there is one, the raw
+call arguments otherwise. Approving or rejecting resumes the run as a new turn.
+
 ## Runs
 
 <a class="ui-shot" href="/screenshots/runs.png"><img src="/screenshots/runs.png" alt="The run list with status, duration, token counts, and event counts" width="2880" height="1800" loading="lazy" decoding="async" /></a>
@@ -12993,8 +13064,11 @@ winner. The numbers are yours to judge.
 <a class="ui-shot" href="/screenshots/approvals.png"><img src="/screenshots/approvals.png" alt="Pending tool approvals awaiting a decision" width="2880" height="1800" loading="lazy" decoding="async" /></a>
 
 Tool calls waiting on a human, with the arguments as they were recorded and an expiry.
-Approving or rejecting both resume the run — the model has to see a result or a
-refusal and carry on.
+When a registered [approval presenter](/concepts/governance/#approvals) resolves an
+entity name and message for the call, the table shows that instead of the raw
+arguments; a call the presenter could not resolve still shows the arguments, since
+the presenter fails open. Approving or rejecting both resume the run — the model has
+to see a result or a refusal and carry on.
 
 Standing "don't ask again" rules live under Governance, where they can be reviewed,
 revoked, or written by hand with an argument condition (for example `amount <= 100`)

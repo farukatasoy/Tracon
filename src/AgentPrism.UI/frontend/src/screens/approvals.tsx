@@ -66,11 +66,26 @@ export function ApprovalsScreen({ meta }: { meta: Meta }): ReactNode {
                   return (
                     <tr key={approval.id}>
                       <Td>
-                        <Mono className="font-semibold">{approval.toolName}</Mono>
+                        {approval.presentation?.entityName == null ? (
+                          <Mono className="font-semibold">{approval.toolName}</Mono>
+                        ) : (
+                          <>
+                            <p className="font-semibold">{approval.presentation.entityName}</p>
+                            <Mono className="text-[11px] text-subtle">{approval.toolName}</Mono>
+                          </>
+                        )}
+                        {approval.presentation?.message != null && (
+                          <p className="mt-0.5 max-w-sm text-[11px] text-subtle">{approval.presentation.message}</p>
+                        )}
                         {approval.arguments != null && approval.arguments.length > 0 && (
-                          <p className="mt-0.5 max-w-sm truncate text-[11px] text-subtle" title={approval.arguments}>
-                            {approval.arguments}
-                          </p>
+                          <details className="mt-0.5">
+                            <summary className="cursor-pointer text-[11px] text-subtle">
+                              {t('approvals.rawArguments')}
+                            </summary>
+                            <p className="mt-0.5 max-w-sm text-wrap break-all text-[11px] text-subtle">
+                              {approval.arguments}
+                            </p>
+                          </details>
                         )}
                       </Td>
                       <Td>

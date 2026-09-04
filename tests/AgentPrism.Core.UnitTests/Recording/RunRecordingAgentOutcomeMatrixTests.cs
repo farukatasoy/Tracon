@@ -120,13 +120,19 @@ public sealed class RunRecordingAgentOutcomeMatrixTests
         var run = await harness.SingleRunAsync();
         run.Status.ShouldBe(RunStatus.AwaitingApproval);
 
-        // The closing event maps every non-Completed/Failed/AwaitingInput status
-        // to RunFailed today (RunEventWriter.CompleteAsync's default arm) - the
-        // SAME quirk the Canceled case above hits. The matrix pins this so a
-        // future fix of one path without the other shows up here first.
-        (await harness.LastEventTypeAsync(run.Id)).ShouldBe(RunEventType.RunFailed);
+        var closingEvent = await harness.LastEventAsync(run.Id);
+
+        closingEvent.Type.ShouldBe(RunEventType.RunAwaitingInput);
         harness.Registry.ActiveCount.ShouldBe(0);
         (await harness.RunSpanStatusTagAsync(run.Id)).ShouldBe(nameof(RunStatus.AwaitingApproval));
+
+        // Phase 142: Payload carries one entry per pending request — no
+        // IToolApprovalPresenter is registered in this harness, so the
+        // presentation fields stay absent and only the raw request survives.
+        closingEvent.Payload.ShouldNotBeNull();
+        closingEvent.Payload.ShouldContain("\"requestId\":\"req-1\"");
+        closingEvent.Payload.ShouldContain("\"toolName\":\"delete_order\"");
+        closingEvent.Payload.ShouldNotContain("entityName");
     }
 
     private static FakeChatClient ContentFilteredClient(bool streaming)
@@ -218,16 +224,18 @@ public sealed class RunRecordingAgentOutcomeMatrixTests
         public async Task<RunRecord> SingleRunAsync()
             => (await Store.QueryRunsAsync(new RunQuery())).ShouldHaveSingleItem();
 
-        public async Task<RunEventType> LastEventTypeAsync(Guid runId)
+        public async Task<RunEventType> LastEventTypeAsync(Guid runId) => (await LastEventAsync(runId)).Type;
+
+        public async Task<RunEvent> LastEventAsync(Guid runId)
         {
-            var last = RunEventType.RunStarted;
+            RunEvent? last = null;
 
             await foreach (var runEvent in Store.ReadEventsAsync(runId))
             {
-                last = runEvent.Type;
+                last = runEvent;
             }
 
-            return last;
+            return last ?? throw new InvalidOperationException($"Run {runId} has no events.");
         }
 
         public async Task<string?> RunSpanStatusTagAsync(Guid runId)

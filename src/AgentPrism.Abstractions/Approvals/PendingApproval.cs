@@ -47,6 +47,21 @@ public sealed record PendingApproval
     /// </summary>
     public string? Arguments { get; init; }
 
+    /// <summary>
+    /// Gets the human-readable presentation an <see cref="IToolApprovalPresenter"/>
+    /// resolved for this request, or <see langword="null"/> when no presenter is
+    /// registered, none resolved anything, or the resolution failed or timed out.
+    /// </summary>
+    /// <remarks>
+    /// Resolved once, when the request is first written, not on every read: the
+    /// presenter's own source (a database row, say) can change or disappear later, and
+    /// re-resolving on each <c>GET</c> would let the same request describe itself
+    /// differently from one poll to the next. <see cref="Arguments"/> stays populated
+    /// alongside this field — a presentation never replaces the raw call an operator
+    /// reviews.
+    /// </remarks>
+    public ToolApprovalPresentation? Presentation { get; init; }
+
     /// <summary>Gets the status of the request.</summary>
     public required ApprovalStatus Status { get; init; }
 

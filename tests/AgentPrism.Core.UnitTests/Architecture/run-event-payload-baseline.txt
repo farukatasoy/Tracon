@@ -12,6 +12,7 @@ DocumentAttached | covered | tests/AgentPrism.Core.UnitTests/Recording/RunRecord
 ExecutorFailed | covered | tests/AgentPrism.Workflows.UnitTests/WorkflowEventMapperTests.cs
 HistoryCompacted | covered | tests/AgentPrism.Core.UnitTests/Recording/RunRecordingAgentTests.cs
 ModelFallbackUsed | covered | tests/AgentPrism.Core.UnitTests/Recording/FallbackRecordingTests.cs
+RunAwaitingInput | covered | tests/AgentPrism.Core.UnitTests/Recording/RunRecordingAgentOutcomeMatrixTests.cs
 StructuredResponseRejected | covered | tests/AgentPrism.Core.UnitTests/Compilation/StructuredResponseValidatingAgentTests.cs
 StructuredResponseRepairAttempted | covered | tests/AgentPrism.Core.UnitTests/Compilation/StructuredResponseValidatingAgentTests.cs
 SuperStepCompleted | uncovered | WorkflowEventMapperTests pins the SuperStepStarted payload but stops at the TYPE for the completion, so the activated-executors + checkpoint-id shape is unasserted

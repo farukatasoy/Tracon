@@ -281,6 +281,7 @@ export const enOperations = {
   "approvals.empty.title": 'Nothing is waiting',
   "approvals.empty.body": 'A queued run only appears here when a tool call needs approval and no live client can answer it.',
   "approvals.tool": 'Tool',
+  "approvals.rawArguments": 'Raw arguments',
   "approvals.run": 'Run',
   "approvals.expiresAt": 'Expires',
   "approvals.approve": 'Approve',

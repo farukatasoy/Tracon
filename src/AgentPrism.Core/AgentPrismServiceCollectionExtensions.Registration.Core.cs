@@ -187,6 +187,7 @@ public static partial class AgentPrismServiceCollectionExtensions
             provider.GetRequiredService<IToolAuthorizationHandler>(),
             provider.GetRequiredService<IRunAuthorizationHandler>(),
             provider.GetServices<IRunEventSink>(),
+            provider.GetRequiredService<IToolApprovalPresenter>(),
             provider.GetService<IAttachmentStorage>(),
             provider.GetService<ModelProviderCircuitBreaker>()));
 
@@ -333,6 +334,12 @@ public static partial class AgentPrismServiceCollectionExtensions
         // Service that evaluates approval rules.
         services.TryAddSingleton<ToolApprovalRuleEvaluator>();
 
+        // Phase 142: a consumer's presentation resolver for a pending approval
+        // request. NullToolApprovalPresenter is the no-op default; TryAdd
+        // means a consumer's own registration always wins.
+        services.TryAddSingleton<IToolApprovalPresenter>(NullToolApprovalPresenter.Instance);
+        services.TryAddSingleton<ToolApprovalPresenterRunner>();
+
         // Session lifecycle. Independent of the store.
         // An explicit factory is used: the built-in DI container does not fill
         // in constructor parameters that carry a default value, TimeProvider
@@ -444,7 +451,12 @@ public static partial class AgentPrismServiceCollectionExtensions
                 provider.GetRequiredService<IRunAttributionContext>(),
                 // Phase 70. GetServices resolves lazily and never throws when
                 // no IRunEventSink is registered — an empty sequence.
-                provider.GetServices<IRunEventSink>())));
+                provider.GetServices<IRunEventSink>(),
+                // Phase 142: without this line no ToolApprovalPresentation is
+                // ever resolved, even when a consumer registered its own
+                // IToolApprovalPresenter — the exact trap the comments above
+                // describe, for one more parameter.
+                provider.GetRequiredService<ToolApprovalPresenterRunner>())));
 
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IAgentDecorator, OpenTelemetryAgentDecorator>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IAgentDecorator, ToolApprovalAgentDecorator>());

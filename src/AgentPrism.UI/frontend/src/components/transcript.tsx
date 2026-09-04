@@ -121,6 +121,8 @@ function ApprovalCard({
   const t = useT();
   const [remember, setRemember] = useState(false);
 
+  const [argsOpen, setArgsOpen] = useState(false);
+
   return (
     <div
       data-testid="approval-card"
@@ -128,7 +130,14 @@ function ApprovalCard({
       style={{ borderLeft: '2px solid var(--ap-amber)' }}
     >
       <div className="flex items-center gap-2 px-3 py-2">
-        <span className="font-mono text-[12px] font-medium">{item.name}</span>
+        {item.entityName === null ? (
+          <span className="font-mono text-[12px] font-medium">{item.name}</span>
+        ) : (
+          <span className="flex flex-col">
+            <span className="text-[12px] font-medium">{item.entityName}</span>
+            <span className="font-mono text-[10px] text-subtle">{item.name}</span>
+          </span>
+        )}
         {item.decided === null ? (
           <Badge tone="warn">{t('tools.approvalRequired')}</Badge>
         ) : item.decided === 'approved' ? (
@@ -145,7 +154,24 @@ function ApprovalCard({
       </div>
 
       <div className="flex flex-col gap-2 border-t border-line px-3 py-2.5">
-        <Section label={t('transcript.arguments')} body={item.args} empty={t('transcript.noArguments')} />
+        {item.message !== null && <p className="text-[12px] text-subtle">{item.message}</p>}
+
+        <div>
+          <button
+            type="button"
+            data-testid="approval-toggle-arguments"
+            onClick={() => setArgsOpen(!argsOpen)}
+            className="flex items-center gap-1 text-[11px] font-semibold tracking-wide text-subtle uppercase"
+          >
+            <ChevronIcon className={cx('size-3 transition-transform', argsOpen && 'rotate-90')} />
+            {t('transcript.arguments')}
+          </button>
+          {argsOpen && (
+            <div className="mt-1">
+              <Section label="" body={item.args} empty={t('transcript.noArguments')} />
+            </div>
+          )}
+        </div>
 
         {item.decided === null && onDecide !== undefined && (
           <div className="flex flex-wrap items-center gap-2">
@@ -262,9 +288,11 @@ function Section({
 }): ReactNode {
   return (
     <div>
-      <span className="mb-1 block text-[11px] font-semibold tracking-wide text-subtle uppercase">
-        {label}
-      </span>
+      {label.length > 0 && (
+        <span className="mb-1 block text-[11px] font-semibold tracking-wide text-subtle uppercase">
+          {label}
+        </span>
+      )}
       {body === null || body.length === 0 ? (
         <span className={cx('text-[12px]', tone === 'danger' ? 'text-danger' : 'text-subtle')}>
           {empty}

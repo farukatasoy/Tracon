@@ -33,6 +33,7 @@ public sealed class AgentPrismDiagnosticsCollector
     private readonly IRunAuthorizationHandler _runAuthorizationHandler;
     private readonly IEnumerable<IRunEventSink> _runEventSinks;
     private readonly IAttachmentStorage? _attachmentStorage;
+    private readonly IToolApprovalPresenter _approvalPresenter;
     private readonly ILogger<AgentPrismDiagnosticsCollector>? _logger;
 
     /// <summary>Initializes a diagnostics collector.</summary>
@@ -49,6 +50,7 @@ public sealed class AgentPrismDiagnosticsCollector
     /// <param name="runAuthorizationHandler">The bound run/session authorization handler, reported as an embedding point.</param>
     /// <param name="runEventSinks">The registered run event sinks, reported as an embedding point.</param>
     /// <param name="attachmentStorage">The bound attachment storage, reported as an embedding point. <see langword="null"/> when content lives in the database.</param>
+    /// <param name="approvalPresenter">The bound tool-approval presenter, reported as an embedding point.</param>
     /// <param name="circuitBreaker">The circuit breaker. No circuit is open when it is not registered.</param>
     /// <param name="logger">
     /// The logger. When absent, a catalog read failure is ignored and the report
@@ -68,6 +70,7 @@ public sealed class AgentPrismDiagnosticsCollector
         IToolAuthorizationHandler toolAuthorizationHandler,
         IRunAuthorizationHandler runAuthorizationHandler,
         IEnumerable<IRunEventSink> runEventSinks,
+        IToolApprovalPresenter approvalPresenter,
         IAttachmentStorage? attachmentStorage = null,
         ModelProviderCircuitBreaker? circuitBreaker = null,
         ILogger<AgentPrismDiagnosticsCollector>? logger = null)
@@ -84,6 +87,7 @@ public sealed class AgentPrismDiagnosticsCollector
         ArgumentNullException.ThrowIfNull(toolAuthorizationHandler);
         ArgumentNullException.ThrowIfNull(runAuthorizationHandler);
         ArgumentNullException.ThrowIfNull(runEventSinks);
+        ArgumentNullException.ThrowIfNull(approvalPresenter);
 
         _providers = providers;
         _healthCache = healthCache;
@@ -98,6 +102,7 @@ public sealed class AgentPrismDiagnosticsCollector
         _runAuthorizationHandler = runAuthorizationHandler;
         _runEventSinks = runEventSinks;
         _attachmentStorage = attachmentStorage;
+        _approvalPresenter = approvalPresenter;
         _circuitBreaker = circuitBreaker;
         _logger = logger;
     }
@@ -208,7 +213,7 @@ public sealed class AgentPrismDiagnosticsCollector
     }
 
     /// <summary>
-    /// Reports the six embedding points, and for each one whether the bound
+    /// Reports the seven embedding points, and for each one whether the bound
     /// implementation is AgentPrism's built-in default or the host's own.
     /// </summary>
     private IReadOnlyList<ExtensionPointDiagnostic> CollectExtensionPoints()
@@ -256,6 +261,12 @@ public sealed class AgentPrismDiagnosticsCollector
                 Contract = nameof(IAttachmentStorage),
                 Implementation = _attachmentStorage?.GetType().Name ?? "(database)",
                 IsBuiltInDefault = _attachmentStorage is null,
+            },
+            new ExtensionPointDiagnostic
+            {
+                Contract = nameof(IToolApprovalPresenter),
+                Implementation = _approvalPresenter.GetType().Name,
+                IsBuiltInDefault = _approvalPresenter.GetType() == typeof(NullToolApprovalPresenter),
             },
         ];
     }

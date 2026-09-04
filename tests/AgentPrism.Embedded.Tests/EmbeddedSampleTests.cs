@@ -8,15 +8,15 @@ namespace AgentPrism.Embedded.Tests;
 
 /// <summary>
 /// Runs <c>samples/AgentPrism.Embedded</c>'s actual entry point end to end
-/// (Phase 85, F-140). Confirms the DoD this sample exists to prove: all six
-/// embedding points report as bound, a background job with no HTTP request
-/// behind it still carries the right tenant and user, and a congested event
-/// bridge drops events instead of slowing the run down.
+/// (Phase 85, F-140). Confirms the DoD this sample exists to prove: the six
+/// embedding points it customizes report as bound, a background job with no
+/// HTTP request behind it still carries the right tenant and user, and a
+/// congested event bridge drops events instead of slowing the run down.
 /// </summary>
 public sealed class EmbeddedSampleTests
 {
     [Fact]
-    public async Task All_six_extension_points_report_the_samples_own_types()
+    public async Task Six_of_the_seven_extension_points_report_the_samples_own_types()
     {
         await using var host = new EmbeddedSampleHost();
         using var client = host.CreateClient();
@@ -27,12 +27,15 @@ public sealed class EmbeddedSampleTests
         var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync()).RootElement;
         var extensionPoints = body.GetProperty("extensionPoints").EnumerateArray().ToArray();
 
-        extensionPoints.Length.ShouldBe(6);
-        extensionPoints.ShouldAllBe(static point => !point.GetProperty("isBuiltInDefault").GetBoolean());
+        extensionPoints.Length.ShouldBe(7);
 
         var implementations = extensionPoints.ToDictionary(
             static point => point.GetProperty("contract").GetString()!,
             static point => point.GetProperty("implementation").GetString(),
+            StringComparer.Ordinal);
+        var builtIn = extensionPoints.ToDictionary(
+            static point => point.GetProperty("contract").GetString()!,
+            static point => point.GetProperty("isBuiltInDefault").GetBoolean(),
             StringComparer.Ordinal);
 
         implementations["ITenantContext"].ShouldBe("EmbeddedTenantContext");
@@ -41,6 +44,18 @@ public sealed class EmbeddedSampleTests
         implementations["IRunAuthorizationHandler"].ShouldBe("EmbeddedRunAuthorizationHandler");
         implementations["IRunEventSink"].ShouldBe("BoundedChannelRunEventSink");
         implementations["IAttachmentStorage"].ShouldBe("InMemoryBufferAttachmentStorage");
+        builtIn["ITenantContext"].ShouldBeFalse();
+        builtIn["IRunAttributionContext"].ShouldBeFalse();
+        builtIn["IToolAuthorizationHandler"].ShouldBeFalse();
+        builtIn["IRunAuthorizationHandler"].ShouldBeFalse();
+        builtIn["IRunEventSink"].ShouldBeFalse();
+        builtIn["IAttachmentStorage"].ShouldBeFalse();
+
+        // This sample does not customize tool-approval presentation (phase 142)
+        // — it carries no tool that requires approval at all — so the seventh
+        // point stays AgentPrism's own built-in default, unlike the other six.
+        implementations["IToolApprovalPresenter"].ShouldBe("NullToolApprovalPresenter");
+        builtIn["IToolApprovalPresenter"].ShouldBeTrue();
     }
 
     /// <summary>

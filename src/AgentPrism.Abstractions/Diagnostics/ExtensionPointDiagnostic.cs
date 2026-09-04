@@ -5,19 +5,20 @@ namespace AgentPrism;
 /// </summary>
 /// <remarks>
 /// <para>
-/// AgentPrism embeds into a host application through six contracts:
+/// AgentPrism embeds into a host application through seven contracts:
 /// <c>ITenantContext</c>, <c>IRunAttributionContext</c>,
 /// <c>IToolAuthorizationHandler</c>, <c>IRunAuthorizationHandler</c>,
-/// <c>IRunEventSink</c>, and <c>IAttachmentStorage</c>. Each is registered
+/// <c>IRunEventSink</c>, <c>IAttachmentStorage</c>, and
+/// <c>IToolApprovalPresenter</c>. Each is registered
 /// with <c>TryAdd</c>, so an application that registers nothing keeps
 /// AgentPrism's built-in behavior exactly. This record answers, for each of
-/// the six, whether the host replaced that default.
+/// the seven, whether the host replaced that default.
 /// </para>
 /// <para>
 /// This is the list, and it does not grow to cover every contract AgentPrism
 /// registers with <c>TryAdd</c>: turning every replaceable registration into a
 /// row would produce a dependency-injection dump instead of an answer to
-/// "which of my six embedding points are wired".
+/// "which of my seven embedding points are wired".
 /// </para>
 /// </remarks>
 public sealed record ExtensionPointDiagnostic

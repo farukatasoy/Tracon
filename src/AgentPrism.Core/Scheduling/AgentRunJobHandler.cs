@@ -101,9 +101,9 @@ internal sealed class AgentRunJobHandler(
             new AgentPrismRunOptions
             {
                 RunId = runId,
-                BeforePendingApprovalIsPublished = async (producedMessages, hookCancellation) =>
+                BeforePendingApprovalIsPublished = async (producedMessages, presentations, hookCancellation) =>
                 {
-                    var requests = CollectPendingApprovalRequests(producedMessages);
+                    var requests = ChildRunApproval.CollectRequests(producedMessages);
 
                     // No session means the request can never be answered; the check
                     // after this call corrects the run to Failed.
@@ -115,7 +115,7 @@ internal sealed class AgentRunJobHandler(
                     await sessions.SaveSessionAsync(agent, session, hookCancellation).ConfigureAwait(false);
                     savedInsideTheHook = true;
 
-                    await RecordPendingApprovalsAsync(requests, runId, sessionId!, context, hookCancellation)
+                    await RecordPendingApprovalsAsync(requests, presentations, runId, sessionId!, context, hookCancellation)
                         .ConfigureAwait(false);
                 },
             },
@@ -126,7 +126,7 @@ internal sealed class AgentRunJobHandler(
             await sessions.SaveSessionAsync(agent, session, cancellationToken).ConfigureAwait(false);
         }
 
-        var pendingRequests = CollectPendingApprovalRequests(response.Messages);
+        var pendingRequests = ChildRunApproval.CollectRequests(response.Messages);
 
         if (pendingRequests.Count == 0)
         {
@@ -160,8 +160,18 @@ internal sealed class AgentRunJobHandler(
     /// Runs from <c>BeforePendingApprovalIsPublished</c>, so every row is visible
     /// before the run reports <see cref="RunStatus.AwaitingApproval"/>.
     /// </summary>
+    /// <param name="requests">The pending requests found in the run's response.</param>
+    /// <param name="presentations">
+    /// The presentation already resolved for each request, keyed by <c>RequestId</c> —
+    /// resolved once by <see cref="RunRecordingAgent"/>, not a second time here.
+    /// </param>
+    /// <param name="runId">The run these requests belong to.</param>
+    /// <param name="sessionId">The run's session.</param>
+    /// <param name="context">The job context.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
     private async ValueTask RecordPendingApprovalsAsync(
         IReadOnlyList<ToolApprovalRequestContent> requests,
+        IReadOnlyDictionary<string, ToolApprovalPresentation?> presentations,
         Guid runId,
         string sessionId,
         JobContext context,
@@ -183,6 +193,7 @@ internal sealed class AgentRunJobHandler(
                 Arguments = options.Value.RunRecording.RecordToolPayloads && request.ToolCall is FunctionCallContent argsCall
                     ? FormatArguments(argsCall)
                     : null,
+                Presentation = presentations.GetValueOrDefault(request.RequestId),
                 Status = ApprovalStatus.Pending,
                 ExpiresAt = now + expiration,
                 CreatedAt = now,
@@ -208,25 +219,6 @@ internal sealed class AgentRunJobHandler(
                     cancellationToken).ConfigureAwait(false);
             }
         }
-    }
-
-    private static List<ToolApprovalRequestContent> CollectPendingApprovalRequests(
-        IEnumerable<ChatMessage> messages)
-    {
-        List<ToolApprovalRequestContent>? requests = null;
-
-        foreach (var message in messages)
-        {
-            foreach (var content in message.Contents)
-            {
-                if (content is ToolApprovalRequestContent request)
-                {
-                    (requests ??= []).Add(request);
-                }
-            }
-        }
-
-        return requests ?? [];
     }
 
     private static string? FormatArguments(FunctionCallContent call)

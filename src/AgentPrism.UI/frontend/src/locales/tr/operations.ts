@@ -286,6 +286,7 @@ export const trOperations: Pick<Messages, keyof typeof enOperations> = {
   "approvals.empty.title": 'Bekleyen bir şey yok',
   "approvals.empty.body": 'Kuyruğa alınan bir run burada yalnız bir tool çağrısı onay isterse ve cevap verecek canlı bir istemci yoksa görünür.',
   "approvals.tool": 'Tool',
+  "approvals.rawArguments": 'Ham argümanlar',
   "approvals.run": 'Run',
   "approvals.expiresAt": 'Süre sonu',
   "approvals.approve": 'Onayla',

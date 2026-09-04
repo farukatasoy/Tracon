@@ -267,12 +267,14 @@ AgentPrism.Testing.Contracts.Storage.MutableTenantContext.MutableTenantContext(s
 AgentPrism.Testing.Contracts.Storage.MutableTenantContext.TenantId.get -> string!
 AgentPrism.Testing.Contracts.Storage.MutableTenantContext.TenantId.set -> void
 AgentPrism.Testing.Contracts.Storage.PendingApprovalStoreContract
+AgentPrism.Testing.Contracts.Storage.PendingApprovalStoreContract.Absent_presentation_is_read_back_as_null() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.PendingApprovalStoreContract.Created_request_is_read_back() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.PendingApprovalStoreContract.Deciding_updates_status_and_actor() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.PendingApprovalStoreContract.Expired_request_is_closed_and_returned() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.PendingApprovalStoreContract.Expiry_scan_does_not_exceed_the_max_limit() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.PendingApprovalStoreContract.Listing_returns_only_pending_requests() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.PendingApprovalStoreContract.PendingApprovalStoreContract() -> void
+AgentPrism.Testing.Contracts.Storage.PendingApprovalStoreContract.Presentation_round_trips_through_create_and_get() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.PendingApprovalStoreContract.Second_decision_is_rejected() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.QuotaStoreContract
 AgentPrism.Testing.Contracts.Storage.QuotaStoreContract.Another_tenants_rule_is_not_visible() -> System.Threading.Tasks.Task!

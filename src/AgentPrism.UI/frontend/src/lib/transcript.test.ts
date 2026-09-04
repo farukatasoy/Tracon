@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { emptyTranscript, foldMessages, foldRunEvents, foldUpdate } from './transcript';
+import { applyApprovalPresentations, emptyTranscript, foldMessages, foldRunEvents, foldUpdate } from './transcript';
 import type { ChatMessage } from '@agentprism/client';
 import type { RunEvent } from './run-event';
 
@@ -210,5 +210,72 @@ describe('foldMessages', () => {
 
   it('returns one state per message even for an empty message list', () => {
     expect(foldMessages([])).toEqual([]);
+  });
+});
+
+describe('approval presentation', () => {
+  it('starts every approval card with no presentation, filled in only once the frame arrives', () => {
+    const state = foldUpdate(emptyTranscript, {
+      contents: [{ requestId: 'req-1', toolCall: { name: 'delete_skill', arguments: { skillId: 'x' } } }],
+    });
+
+    expect(state.items).toEqual([
+      {
+        kind: 'approval',
+        id: 'approval-req-1',
+        requestId: 'req-1',
+        name: 'delete_skill',
+        args: JSON.stringify({ skillId: 'x' }, null, 2),
+        decided: null,
+        entityType: null,
+        entityId: null,
+        entityName: null,
+        message: null,
+      },
+    ]);
+  });
+
+  it('fills in the matching approval card by requestId', () => {
+    const before = foldUpdate(emptyTranscript, {
+      contents: [{ requestId: 'req-1', toolCall: { name: 'delete_skill' } }],
+    });
+
+    const after = applyApprovalPresentations(before, [
+      {
+        requestId: 'req-1',
+        toolName: 'delete_skill',
+        entityType: 'skill',
+        entityId: '8f14e45f-ceea-467e-adc9-15476f4f0f47',
+        entityName: 'Refund Policy',
+        message: null,
+      },
+    ]);
+
+    expect(after.items[0]).toMatchObject({
+      entityType: 'skill',
+      entityId: '8f14e45f-ceea-467e-adc9-15476f4f0f47',
+      entityName: 'Refund Policy',
+    });
+  });
+
+  it('leaves every other item, and an unmatched request, untouched', () => {
+    const before = foldUpdate(emptyTranscript, {
+      contents: [
+        { $type: 'text', text: 'hello' },
+        { requestId: 'req-1', toolCall: { name: 'delete_skill' } },
+      ],
+    });
+
+    const after = applyApprovalPresentations(before, [
+      { requestId: 'req-does-not-exist', toolName: 'other_tool', entityType: null, entityId: null, entityName: 'Should not apply', message: null },
+    ]);
+
+    expect(after).toEqual(before);
+  });
+
+  it('is a no-op for an empty announcement list, returning the SAME state reference', () => {
+    const before = foldUpdate(emptyTranscript, { contents: [{ requestId: 'req-1', toolCall: { name: 'delete_skill' } }] });
+
+    expect(applyApprovalPresentations(before, [])).toBe(before);
   });
 });

@@ -12228,6 +12228,17 @@
             ],
             "description": "Gets the arguments of the tool call as \u0060key=value\u0060 pairs (reflection-based\nJSON serialization is NOT USED, to stay AOT compatible). It stays\n\u0060null\u0060 when \u0060RecordToolPayloads\u0060 is turned off in the\nrecording settings."
           },
+          "presentation": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "Gets the human-readable presentation an IToolApprovalPresenter\nresolved for this request, or \u0060null\u0060 when no presenter is\nregistered, none resolved anything, or the resolution failed or timed out.",
+                "$ref": "#/components/schemas/ToolApprovalPresentation"
+              }
+            ]
+          },
           "status": {
             "description": "Gets the status of the request.",
             "$ref": "#/components/schemas/ApprovalStatus"
@@ -15084,6 +15095,40 @@
           }
         },
         "description": "Tool approval decision sent from the UI."
+      },
+      "ToolApprovalPresentation": {
+        "type": "object",
+        "properties": {
+          "entityType": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Gets the kind of entity the call acts on (for example \u0060\u0022skill\u0022\u0060 or \u0060\u0022order\u0022\u0060)."
+          },
+          "entityId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Gets the entity\u0027s own identifier, as read from the call\u0027s arguments."
+          },
+          "entityName": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Gets the entity\u0027s human-readable name, resolved from \u0060EntityId\u0060."
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Gets a free-form sentence describing the call, for a reviewer who has none of the above."
+          }
+        },
+        "description": "A human-readable projection of one tool-approval request, produced by a consumer\u0027s\nIToolApprovalPresenter."
       },
       "ToolApprovalRule": {
         "required": [

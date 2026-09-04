@@ -116,6 +116,41 @@ describe('PlaygroundScreen', () => {
     expect(await screen.findByText('Deleted.')).toBeTruthy();
   });
 
+  it('shows the resolved entity name once the approvals frame arrives', async () => {
+    restoreFetch = installApiMock([
+      ...baseOverrides(),
+      sseFixture(
+        'POST',
+        'api/agents/:name/run',
+        sseFrame('run', { runId: 'run-1' }) +
+          sseFrame('update', { contents: [{ requestId: 'req-1', toolCall: { name: 'delete_skill', arguments: {} } }] }) +
+          sseFrame('approvals', [
+            {
+              requestId: 'req-1',
+              toolName: 'delete_skill',
+              entityType: 'skill',
+              entityId: '8f14e45f-ceea-467e-adc9-15476f4f0f47',
+              entityName: 'Refund Policy',
+              message: null,
+            },
+          ]) +
+          sseFrame('done', {}),
+      ),
+    ]);
+
+    const user = userEvent.setup();
+
+    renderScreen(<PlaygroundScreen />);
+
+    await user.type(await screen.findByTestId('playground-input'), 'Delete the refund policy skill');
+    await user.click(screen.getByTestId('playground-send'));
+
+    expect(await screen.findByText('Refund Policy')).toBeTruthy();
+    // Raw arguments stay reachable, just folded — the tool name is the
+    // collapsed caption under the resolved entity name.
+    expect(screen.getByText('delete_skill')).toBeTruthy();
+  });
+
   it('adds and then clears a pending attachment', async () => {
     restoreFetch = installApiMock([
       ...baseOverrides(),
