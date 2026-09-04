@@ -2,12 +2,15 @@
 """Tests for the single validation gate runner."""
 from __future__ import annotations
 
+import contextlib
 import importlib.util
+import io
 import json
 import os
 import pathlib
 import sys
 import tempfile
+import time
 import unittest
 import zipfile
 from unittest import mock
@@ -121,8 +124,119 @@ class KapiTestleri(unittest.TestCase):
     def test_harita_eksigi_tam_test_kosumuna_duser(self):
         projects, full = kapi.affected_test_projects(["src/Unknown.Package/Thing.cs"])
 
-        self.assertEqual(projects, [])
+        self.assertEqual(projects, ["AgentPrism.Generators.UnitTests"])
         self.assertTrue(full)
+
+    def test_her_src_degisikligi_ornek_derleyen_projeyi_secer(self):
+        # KACIS 9433efe4: src/AgentPrism.Core'a eklenen bir XML <example>
+        # blogu AgentPrism.Generators.UnitTests'i DERLENMEZ hale getirdi;
+        # ic dongu Core.UnitTests + AspNetCore.FunctionalTests seciyordu ve
+        # gercekte dusen projeyi HIC kosmuyordu. ExampleExtractor
+        # src/**/*.cs'in tamamini okur, yalniz Generators'i degil.
+        projects, full = kapi.affected_test_projects(
+            ["src/AgentPrism.Core/Builder/IAgentPrismBuilder.cs"])
+
+        self.assertIn("AgentPrism.Generators.UnitTests", projects)
+        self.assertFalse(full)
+
+    def test_embedded_ornegi_kendi_test_projesini_secer(self):
+        # KACIS a377106e: Faz 139 altinci genisleme noktasini ekledi,
+        # samples/AgentPrism.Embedded geride kaldi. O gun bir samples/
+        # degisikligi HICBIR test projesi secmiyordu; Embedded.Tests ise
+        # ProjectReference ile tam o ornege bagli.
+        projects, full = kapi.affected_test_projects(
+            ["samples/AgentPrism.Embedded/Program.cs"])
+
+        self.assertEqual(projects, ["AgentPrism.Embedded.Tests"])
+        self.assertFalse(full)
+
+    def test_yayin_ornekleri_sessiz_gecmez(self):
+        # samples/AgentPrism.Samples.* cozumde DEGILDIR: hicbir kapanis
+        # kosumu onlari kapsamaz, yalniz `kapi.py yayin`. Secim bos kalir
+        # ama bu ARTIK sessiz degildir.
+        with contextlib.redirect_stdout(io.StringIO()) as output:
+            projects, full = kapi.affected_test_projects(
+                ["samples/AgentPrism.Samples.CustomJobHandler/Program.cs"])
+
+        self.assertEqual(projects, [])
+        self.assertFalse(full)
+        self.assertIn("kapi.py yayin", output.getvalue())
+
+    def test_tam_kosum_komutu_trx_uretir(self):
+        # ci.yml:183 ile AYNI kuyruk: dusen testin adi makine okunur olmadan
+        # izole yeniden kosum yazilamaz.
+        command = kapi.full_solution_test_command()
+
+        self.assertEqual(command.args[-2:], ("--", "--report-trx"))
+
+    def _trx(self, kok: pathlib.Path, proje: str, sonuclar: list[tuple[str, str]]) -> None:
+        dizin = kok / "artifacts" / "bin" / proje / "release" / "TestResults"
+        dizin.mkdir(parents=True, exist_ok=True)
+        satirlar = "".join(
+            f'<UnitTestResult testName="{ad}" outcome="{durum}" />' for ad, durum in sonuclar)
+        (dizin / "r.trx").write_text(
+            '<?xml version="1.0"?><TestRun xmlns='
+            '"http://microsoft.com/schemas/VisualStudio/TeamTest/2010">'
+            f"<Results>{satirlar}</Results></TestRun>",
+            encoding="utf-8")
+
+    def test_trx_yalniz_dusen_testi_verir(self):
+        with tempfile.TemporaryDirectory() as directory:
+            kok = pathlib.Path(directory)
+            self._trx(kok, "AgentPrism.Ui.E2ETests", [
+                ("AgentPrism.Ui.E2ETests.UiTests.Gecen", "Passed"),
+                ("AgentPrism.Ui.E2ETests.UiTests.Dusen", "Failed"),
+                ("AgentPrism.Ui.E2ETests.UiTests.Atlanan", "NotExecuted"),
+            ])
+
+            dusenler = kapi.failed_tests_from_trx(0, kok)
+
+        self.assertEqual(
+            dusenler, [("AgentPrism.Ui.E2ETests", "AgentPrism.Ui.E2ETests.UiTests.Dusen")])
+
+    def test_bayat_trx_sayilmaz(self):
+        # Onceki kosumun TRX'i bu kosumun dusen testi degildir.
+        with tempfile.TemporaryDirectory() as directory:
+            kok = pathlib.Path(directory)
+            self._trx(kok, "AgentPrism.Core.UnitTests", [("X.Y.Eski", "Failed")])
+
+            self.assertEqual(kapi.failed_tests_from_trx(time.time() + 60, kok), [])
+
+    def test_izole_kosum_cikis_kodunu_degistirmez_ama_hukum_verir(self):
+        # SINIF: "tam kosumda duser, izole gecer" YEDI kez kayda gecti ve her
+        # seferinde ayirt etme elle yapildi (cogu kez TAM paketi ikinci kez
+        # kosarak, ~9 dk). Kapi GEVSEMEZ: bu yalnizca bir sonraki adimi soyler.
+        with tempfile.TemporaryDirectory() as directory:
+            kok = pathlib.Path(directory)
+            ikili = kok / "artifacts" / "bin" / "P" / "release"
+            ikili.mkdir(parents=True)
+            (ikili / "P").write_text("", encoding="utf-8")
+            runner = mock.Mock(return_value=mock.Mock(returncode=0))
+
+            with contextlib.redirect_stdout(io.StringIO()) as output:
+                hukumler = kapi.isolate_failed_tests(
+                    [("P", "N.S.Dusen")], runner=runner, root=kok)
+
+        self.assertEqual(hukumler, [("P", "N.S.Dusen", True)])
+        self.assertIn("--filter-method", runner.call_args.args[0])
+        self.assertIn("*Dusen*", runner.call_args.args[0])
+        self.assertIn("izole GEÇTİ", output.getvalue())
+        self.assertIn("TEKRAR koş", output.getvalue())
+
+    def test_izole_de_dusen_test_gercek_regresyondur(self):
+        with tempfile.TemporaryDirectory() as directory:
+            kok = pathlib.Path(directory)
+            ikili = kok / "artifacts" / "bin" / "P" / "release"
+            ikili.mkdir(parents=True)
+            (ikili / "P").write_text("", encoding="utf-8")
+            runner = mock.Mock(return_value=mock.Mock(returncode=1))
+
+            with contextlib.redirect_stdout(io.StringIO()) as output:
+                hukumler = kapi.isolate_failed_tests(
+                    [("P", "N.S.Dusen")], runner=runner, root=kok)
+
+        self.assertEqual(hukumler, [("P", "N.S.Dusen", False)])
+        self.assertIn("GERÇEK regresyon", output.getvalue())
 
     def test_frontend_degisikligi_ic_dongude_frontendi_acar(self):
         self.assertTrue(kapi.frontend_changed(["src/AgentPrism.UI/frontend/src/app.tsx"]))
@@ -133,7 +247,9 @@ class KapiTestleri(unittest.TestCase):
         rendered = [command.display for command in commands]
 
         self.assertIn("dotnet build AgentPrism.slnx -c Release", rendered)
-        self.assertIn("dotnet test AgentPrism.slnx -c Release --no-build -maxcpucount:1", rendered)
+        self.assertIn(
+            "dotnet test AgentPrism.slnx -c Release --no-build -maxcpucount:1 -- --report-trx",
+            rendered)
         # AgentPrismSkipCleanWorkingTreeCheck (Faz 136): this pack validates the
         # packaging CONTRACT during iteration, not a release candidate - it must
         # not be blocked by the new dirty-tree gate the way `kapi.py yayin` is.
@@ -161,7 +277,7 @@ class KapiTestleri(unittest.TestCase):
         rendered = [command.display for command in commands]
 
         self.assertIn(
-            "dotnet test AgentPrism.slnx -c Release --no-build -maxcpucount:1",
+            "dotnet test AgentPrism.slnx -c Release --no-build -maxcpucount:1 -- --report-trx",
             rendered)
 
     def test_dry_run_komut_calistirmaz(self):

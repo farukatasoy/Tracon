@@ -948,7 +948,7 @@ kapandığı için "X'te standart, .NET'te yok" damarı tükendi. Kalan sekiz ka
 dokunan iki kalem ayrı planlanırsa ikincisi birincisini bozar.
 
 Kullanıcı sırası: **A → B → C → E**. 🚨 **Küme A ikiye bölündü (2026-08-21):** `faz-planlama` "üç kalem bir faz değil, bir turdur" der ve bir faz ancak AYNI altyapıyı paylaşan iki kalemi birleştirir. F-125 ve F-136 ikisi de `AgentPrism.Generators.UnitTests` içinde bir C# kapısıdır (ölçüldü: `AnalyzerTestHelper` ve `DiagnosticIntegrityTests` orada) → **Faz 79**. F-129 ise `scripts/dokuman-bakim.py` içinde bir Python kapısıdır ve ayrı kalır. Faz 7 **ertelenmeye devam** eder (K-068).
-Tam koşum kaydı: [`kesif/2026-08-21-faz-adaylari-tespiti.md`](../kesif/2026-08-21-faz-adaylari-tespiti.md).
+Tam koşum kaydı: [`kesif/2026-08-21-faz-adaylari-tespiti.md`](kesif/2026-08-21-faz-adaylari-tespiti.md).
 
 | Sıra | Küme | Kalemler | Ortak yanı | Bu turda ölçülen |
 |---|---|---|---|---|

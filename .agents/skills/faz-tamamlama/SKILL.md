@@ -66,19 +66,11 @@ uyuşmalıdır. Yeni paket ayrıca şunları ister — atlanırsa build veya tes
 - Meta pakete (`src/AgentPrism/AgentPrism.csproj`) `ProjectReference`
 - `DependencyDirectionTests.AllowedReferences` içine bir satır
 
-### 🚨 Senkronizasyon kopyası ve `secret` taraması (kapılardan ÖNCE)
-
-**CI bu taramayı otomatik yapar**; burada elle koşulması push'tan önce erken
-kapı — CI'ın bulacağı bir şeyi burada yakalamak bir turu kurtarır. **Bu adım o
-yüzden atlanamaz.**
-
-```bash
-python3 scripts/kapi.py tarama
-```
-
-Çıktı **temiz olmalıdır**. Sync kopyası beş kez, gerçek `secret` sızıntısı bir
-kez yaşandı; ikisinin de vaka kaydı ve tuzakları:
-[`references/gerekce.md`](references/gerekce.md).
+Senkronizasyon kopyası ve `secret` taraması AYRICA koşulmaz: `kapanis`'in
+**ilk** komutu `python3 scripts/kapi.py tarama`'dır (3,1 sn) ve koşum ilk
+kırmızıda durur — ayrı bir ön koşum hiçbir tur kazandırmaz (ölçüldü: 2026-09-04
+süreç denetimi). Sync kopyası beş kez, gerçek `secret` sızıntısı bir kez
+yaşandı; vaka kayıtları [`references/gerekce.md`](references/gerekce.md).
 
 ---
 

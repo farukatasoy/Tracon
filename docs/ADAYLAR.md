@@ -411,10 +411,17 @@ kızartabilir. Kontrol yalnız **işaretli** sayıya bakmalı, her rakama değil
 build'de değişir — belki doğru cevap sayıyı sevk edilen metinden tamamen
 çıkarmaktır. Aday bu ikilemi kapsamına dahil ediyor.
 
-### F-180 · Tam paket koşumunda E2E zaman aşımı — ✅ KAPANDI (2026-09-03)
+### F-180 · Tam paket koşumunda E2E zaman aşımı — ⚠️ VAKA KAPANDI, SINIF AÇIK (2026-09-04)
 
 **Kapanış:** `kusur-giderme` faz dışı koşuldu. **Yalıtım kusuru değildi —
-sevk edilen bir ürün kusuruydu** (K-660). Aşağıdaki teşhis anlatısı doğru
+sevk edilen bir ürün kusuruydu** (K-660).
+
+> 🚨 **2026-09-04 · YENİDEN DÜŞTÜ.** Süreç denetiminin taban koşumunda aynı
+> test aynı imzayla düştü (`Timeout 30000ms exceeded ... voice-transcript`);
+> izole koşum **1/1, 2,5 sn**. K-660'ın düzeltmesi HEAD'dedir ve kapattığı iki
+> ürün yolu gerçektir — ama kaydı AÇAN repro (yük altındaki tam paket koşumu)
+> kapanışta tekrar koşulmadı. Bu, `test-yalitimi.md`'nin YEDİNCİ vakasıdır.
+> Ölçüm ve ders: [`kesif/2026-09-04-surec-denetimi.md`](kesif/2026-09-04-surec-denetimi.md). Aşağıdaki teşhis anlatısı doğru
 daralmıştı ("kayıp olay commit sonrasındadır"); eksik olan tek şey sunucunun o
 yolda hiçbir çerçeve göndermediğiydi.
 

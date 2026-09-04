@@ -1,8 +1,21 @@
 # Keşif Turu — 2026-08-20 · MAF / Semantic Kernel / Microsoft.Extensions.AI ekosistem taraması
 
+> ## 📦 ARŞİV — tükenmiş tur
+>
+> 2026-09-04'te taşındı: `docs/kesif/` bütçesi aşıldı (376.792/370.000 B) ve
+> **içerik silinmez, taşınır**. Bu tur bir **ekosistem taramasıdır** ve
+> ekosistem taramaları tarih damgalıdır: 2026-08-26'nın iki turu
+> ([`../../kesif/2026-08-26-yeni-feature-fikirleri.md`](../../kesif/2026-08-26-yeni-feature-fikirleri.md))
+> MAF 1.19.0 dahil daha yeni bir yüzey taradı ve bunu geçersizleştirdi.
+> Ürettiği kalemler: F-45 · F-133 · F-134 — durumları
+> [`ADAYLAR.md`](../../ADAYLAR.md) § *Aday Olmayan Açık Kayıtlar*'dadır.
+>
+> Bundan sonra **yalnız `grep` hedefidir**; durum alanları bayattır.
+
+
 > Bu bir **koşum kaydıdır**, spec değildir. Sıcak yolda değildir ve baştan sona
 > okunmaz. Onaylanan kalemlerin tam metni
-> [`ADAYLAR.md`](../ADAYLAR.md) içinde yaşar; bu dosya
+> [`ADAYLAR.md`](../../ADAYLAR.md) içinde yaşar; bu dosya
 > yalnız oraya işaret eder.
 
 **Tetikleyen:** Kullanıcı, projenin geliştirilmesinden bu yana MAF, Semantic

@@ -690,6 +690,95 @@ def sevk_edilen_olay_anlatisi(kok: pathlib.Path = ROOT) -> list[str]:
     ]
 
 
+GENISLEME_SAYI_SOZCUKLERI = {
+    "one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6,
+    "seven": 7, "eight": 8, "nine": 9, "ten": 10,
+}
+
+
+def sevk_edilen_genisleme_noktasi(kok: pathlib.Path = ROOT) -> list[str]:
+    """Genisleme noktasi kumesi kodda ve SEVK EDILEN metinde ayni olmalidir.
+
+    Kusur sinifi (K-483 ailesi), UC kez olctu:
+      1. Faz 139 altinci noktayi ekledi -> samples/AgentPrism.Embedded geride
+         kaldi (`a377106e`).
+      2. Faz 142 yedinciyi ekledi -> `faz-denetim` capabilities.md ve
+         DiagnosticsCollector'i yakaladi (bulgu #2), ORNEGIN kendi metnini
+         kacirdi. Fazin devir notu bunu aynen yazdi: "ikisi de elle senkron
+         tutulur, hicbir kapi bu boslugu otomatik yakalamaz".
+      3. 2026-09-04 surec denetimi (KUSUR-A1): Program.cs hala "TryAdd* for
+         all six" diyordu, README "five of the six".
+
+    Tek kaynak `CollectExtensionPoints()`. Kapi uc sey ister:
+      - capabilities.md'nin "Embedding points" tablosu N satirdir;
+      - koddaki her sozlesme adi o tabloda gecer;
+      - sevk edilen metinde "<sayi> embedding/extension point" yaziyorsa
+        o sayi N'dir.
+    """
+    toplayici = (kok / "src" / "AgentPrism.Core" / "Diagnostics"
+                 / "AgentPrismDiagnosticsCollector.cs")
+    yetenekler = kok / "docs-site" / "src" / "content" / "docs" / "capabilities.md"
+    if not toplayici.exists() or not yetenekler.exists():
+        return []
+
+    govde = re.search(
+        r"CollectExtensionPoints\(\)\s*\{(.*?)\n    \}",
+        toplayici.read_text(encoding="utf-8"), re.S)
+    if not govde:
+        return ["CollectExtensionPoints() gövdesi okunamadı"]
+    sozlesmeler = re.findall(r"Contract = nameof\((\w+)\)", govde.group(1))
+    if not sozlesmeler:
+        return ["CollectExtensionPoints() içinden sözleşme adı okunamadı"]
+    n = len(sozlesmeler)
+
+    bulgular: list[str] = []
+    bolum = re.search(r"\n## Embedding points\n(.*?)(?=\n## |\Z)",
+                      yetenekler.read_text(encoding="utf-8"), re.S)
+    if not bolum:
+        return ["capabilities.md içinde '## Embedding points' bölümü yok"]
+    satirlar = [s for s in bolum.group(1).splitlines()
+                if s.startswith("|") and not re.match(r"\|[\s|:-]+\|$", s)][1:]
+    if len(satirlar) != n:
+        bulgular.append(
+            f"capabilities.md 'Embedding points' tablosu {len(satirlar)} satır, "
+            f"CollectExtensionPoints() {n} nokta döndürüyor")
+    for ad in sozlesmeler:
+        if f"`{ad}`" not in bolum.group(1):
+            bulgular.append(f"'{ad}' capabilities.md 'Embedding points' tablosunda yok")
+
+    # YALNIZ "embedding point" — bu kumenin sevk edilen terimidir
+    # (`capabilities.md` § "Embedding points"). "extension point" GENEL bir
+    # terimdir: `IModelProvider`, `IAgentSource`, hata siniflandirici ve
+    # decorator sayfalari onu baska kumeler icin kullanir; onlari saymak
+    # yanlis pozitif uretir ve yanlis pozitif veren kapi kapatilir.
+    # Ifadeye EN YAKIN sayi yonetir: "Six of the seven embedding points"
+    # DOGRUDUR ve yediyi kasteder; soldaki "Six" ornegin kendi bagladigi
+    # sayidir. Soldan ilk sayiyi almak bu dogru cumleyi kizartirdi.
+    ifade_deseni = re.compile(r"((?:\b[\w'-]+\W+){0,4})embedding\s+points?\b", re.I)
+    sayi_deseni = re.compile(
+        r"\b(\d+|" + "|".join(GENISLEME_SAYI_SOZCUKLERI) + r")\b", re.I)
+    # Uretilen API referansi ve HTTP sema sayfalari haric: elle yazilmis bir
+    # iddia degil, koddan uretilirler (`sevk_edilen_olay_anlatisi` ayni sinir).
+    hedefler = sorted((kok / "samples").rglob("*.cs")) \
+        + sorted((kok / "samples").rglob("*.md")) \
+        + [yol for yol in sorted((kok / "docs-site" / "src" / "content" / "docs").rglob("*.md"))
+           if "/api/" not in yol.as_posix() and not yol.name.startswith("schema-")]
+    for yol in hedefler:
+        for no, satir in enumerate(yol.read_text(encoding="utf-8").splitlines(), 1):
+            for eslesme in ifade_deseni.finditer(satir):
+                sayilar = sayi_deseni.findall(eslesme.group(1))
+                if not sayilar:
+                    continue
+                ham = sayilar[-1].lower()
+                sayi = GENISLEME_SAYI_SOZCUKLERI.get(ham, int(ham) if ham.isdigit() else None)
+                if sayi is not None and sayi != n:
+                    bulgular.append(
+                        f"{yol.relative_to(kok).as_posix()}:{no}: sevk edilen metin "
+                        f"{sayi} genişleme noktası diyor, kod {n} tanesini bildiriyor "
+                        f"— «{eslesme.group(0).strip()}»")
+    return bulgular
+
+
 def tekrarlanan_kapi_tanimlari(kok: pathlib.Path = ROOT) -> list[str]:
     """Ensure CI and skills delegate scan/closing commands to ``kapi.py``."""
     kapi = kok / "scripts" / "kapi.py"
@@ -1945,6 +2034,13 @@ def denetle() -> int:
     for s_ in olay_bulgulari:
         print(f"  {s_}")
     hata |= int(bool(olay_bulgulari))
+
+    nokta_bulgulari = sevk_edilen_genisleme_noktasi()
+    print(f"\nSevk edilen genişleme noktası: "
+          f"{'❌ ' + str(len(nokta_bulgulari)) + ' bulgu' if nokta_bulgulari else '✅ temiz'}")
+    for s_ in nokta_bulgulari:
+        print(f"  {s_}")
+    hata |= int(bool(nokta_bulgulari))
 
     kapi_bulgulari = tekrarlanan_kapi_tanimlari()
     print(f"\nTekrarlanan kapı tanımları: "

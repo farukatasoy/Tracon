@@ -1,6 +1,6 @@
 ---
 title: Embedding into a host application
-description: Bind AgentPrism's six embedding points to your own identity, authorization, eventing, and storage, and read the identity a tool body sees.
+description: Bind AgentPrism's seven embedding points to your own identity, authorization, eventing, storage, and approval presentation, and read the identity a tool body sees.
 ---
 
 `AddAgentPrism()` plus `MapAgentPrism()` is a complete, working setup on its own —

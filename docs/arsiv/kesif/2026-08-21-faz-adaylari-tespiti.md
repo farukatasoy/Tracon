@@ -1,7 +1,19 @@
 # Keşif Turu — 2026-08-21 · Faza dönüşmesi gereken fikirlerin tespiti
 
+> ## 📦 ARŞİV — tükenmiş tur
+>
+> 2026-09-04'te taşındı: `docs/kesif/` bütçesi aşıldı (376.792/370.000 B) ve
+> **içerik silinmez, taşınır**. Turun ürettiği on altı kalemin tamamı
+> yerine ulaştı — hiçbiri öksüz değil (2026-09-04'te tek tek `grep`'lendi):
+> F-101 · F-106 · F-109 · F-123 · F-128 · F-130 · F-132 · F-137 · F-138
+> [`ADAYLAR.md`](../../ADAYLAR.md)'de · F-122 · F-125 · F-129 · F-133 ·
+> F-134 · F-135 · F-136 [`../PLANA-DONUSEN-ADAYLAR.md`](../PLANA-DONUSEN-ADAYLAR.md)'de.
+>
+> Bundan sonra **yalnız `grep` hedefidir**; durum alanları bayattır.
+
+
 > Bu bir **koşum kaydıdır**, spec değildir. Sıcak yolda değildir ve baştan sona
-> okunmaz. Onaylanan kalemlerin tam metni [`ADAYLAR.md`](../ADAYLAR.md) içinde
+> okunmaz. Onaylanan kalemlerin tam metni [`ADAYLAR.md`](../../ADAYLAR.md) içinde
 > yaşar; bu dosya yalnız oraya işaret eder.
 
 **Tetikleyen:** Kullanıcı — "faza dönüştürülmesi gereken fikirleri tespit & analiz et".
@@ -79,7 +91,7 @@ Faz 7 **ertelenmeye devam** eder. Küme D önerildiği gibi düşürüldü.
 
 ## 4. Derinleşen kalemler (Aşama 3)
 
-Tam gövdeler [`ADAYLAR.md`](../ADAYLAR.md)'dedir. Burada yalnız bu turda
+Tam gövdeler [`ADAYLAR.md`](../../ADAYLAR.md)'dedir. Burada yalnız bu turda
 **yeni ölçülen** kanıt ve her kalemin sonucu durur.
 
 ### Küme A — F-125 · `<example>` derleme kapısı

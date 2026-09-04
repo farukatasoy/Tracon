@@ -19,8 +19,9 @@ model provider and in-memory persistence, the same "zero surprises" pattern
 
 ## What it binds
 
-Six contracts, all registered **before** `AddAgentPrism()` so they win over
-AgentPrism's built-in default (every one uses `TryAdd`):
+AgentPrism has seven embedding points. This sample binds six of them, all
+registered **before** `AddAgentPrism()` so they win over AgentPrism's built-in
+default (every one uses `TryAdd`):
 
 | Contract | This sample's implementation |
 |---|---|
@@ -32,17 +33,17 @@ AgentPrism's built-in default (every one uses `TryAdd`):
 | `IRunEventSink` | `Events/BoundedChannelRunEventSink.cs` — an 8-item bounded channel that **drops** on backpressure, drained by `Events/RunEventBridgeWorker.cs` |
 | `IAttachmentStorage` | `Attachments/InMemoryBufferAttachmentStorage.cs` — stands in for an external object store |
 
-Confirm all six took over the built-in default:
+Confirm those six took over the built-in default:
 
 ```bash
 curl -s http://localhost:5082/agentprism/api/diagnostics | jq '.extensionPoints'
 ```
 
-Every entry reads `"isBuiltInDefault": false` here — contrast with
-`samples/AgentPrism.Api`, which reports `true` for five of the six. Its
-exception, `IRunAttributionContext`, is already bound to its own
-`DemoRunAttributionContext` (Phase 68, for its per-user cost demo) — a
-pre-existing binding this phase did not add.
+Six of the seven entries read `"isBuiltInDefault": false` here; the seventh,
+`IToolApprovalPresenter`, stays on its built-in default on purpose — see
+`samples/AgentPrism.Api`, which binds that one (`OrderApprovalPresenter`) plus
+`IRunAttributionContext` (`DemoRunAttributionContext`, for its per-user cost
+demo) and so reports `true` for the remaining five.
 
 ## The mandatory scenario: background work
 

@@ -34,7 +34,12 @@ gerekçesini koda ve `docs/KARARLAR.md`'ye yaz.
 Arayüze dokunmuyorsan `-p:AgentPrismFrontendEnabled=false` npm/Vite/Vitest
 adımlarını atlar (`kapi.py ic-dongu` bunu değişen dosyalara bakarak otomatik
 seçer). Dördünün tamamı **faz kapanışında** ve arayüz/paket değişiminde
-çalışır. E2E tuzağı: `faz-uygulama` Adım 5 — arayüze dokunuyorsan bu bayrağı
+çalışır.
+
+`ic-dongu`'nun kapsamadığı tek yer: `samples/AgentPrism.Samples.*` **hiçbir
+çözüm dosyasında değildir**, onları yalnız `kapi.py yayin` paketlenmiş sürüme
+karşı koşar. `ic-dongu` böyle bir yola dokunduğunda bunu **yazar**; sessizce
+geçmez (2026-09-04 süreç denetimi, F-183). E2E tuzağı: `faz-uygulama` Adım 5 — arayüze dokunuyorsan bu bayrağı
 **kullanma**, E2E testleri gömülü varlıkları arar ve koşum asılı kalır.
 
 `dotnet build` **arayüzü de derler**: `npm ci` → `tsc --noEmit` → Vitest →
