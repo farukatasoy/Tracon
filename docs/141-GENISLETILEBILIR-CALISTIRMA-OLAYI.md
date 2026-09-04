@@ -1,6 +1,6 @@
 # Faz 141 — Genişletilebilir Çalıştırma Olayı
 
-> **Durum:** 🔧 Kod tamam · testler yeşil · `faz-denetim` geçti (🔴 yok) · dört kapı ve yayın provası commit sonrası koşulacak (2026-09-04)
+> **Durum:** ✅ Tamamlandı (2026-09-04)
 > **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-187** (tüketici turu 3, A5)
 > **Önkoşul:** Yok
 > **Paketler:** `AgentPrism.Abstractions`, `AgentPrism.Core`, `AgentPrism.PostgreSql`,
@@ -257,7 +257,7 @@ src/AgentPrism.UI/frontend/src/lib/
 - [x] `secret` taraması boş döndü — `scripts/kapi.py tarama`
 - [x] Manuel kabul case'leri `docs/manuel-test/11-ARAYUZ-RUN-SESSION-SSE.md` içine eklendi — MT-UIRUN-052..055
 - [x] `faz-denetim` koşuldu; 🔴 bulgu kalmadı — üç 🟡 bulundu, üçü de düzeltildi
-- [x] `docs-site/` güncellendi; `npm run check` (dördü de: içerik, derleme, bağlantı, ağırlık) temiz
+- [x] `docs-site/` güncellendi; `npm run check` (dördü de: içerik, derleme, bağlantı, ağırlık) temiz; `scripts/site-deploy.sh` ile yayınlandı ve canlıda doğrulandı (`curl https://agentprism.doayen.web.tr/concepts/runs/` "Writing your own event" içeriyor)
 
 ---
 
