@@ -256,5 +256,5 @@ mistake instead of hiding it.
 ## Read next
 
 - [Your first agent](/getting-started/first-agent/) — the application these tests are written against
-- [Add a tool](/getting-started/tools/) — tools are the part most worth asserting on
 - [Runs and recording](/concepts/runs/) — the record a test reads to prove what happened
+- [Write your own tool](/guides/write-your-own-tool/) — fuzz-test your own `IToolArgumentsValidator` or `IToolAuthorizationHandler` with `AgentPrism.Testing.Contracts.Xunit`

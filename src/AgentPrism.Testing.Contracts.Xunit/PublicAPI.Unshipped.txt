@@ -778,3 +778,31 @@ virtual AgentPrism.Testing.Contracts.Storage.TenantIsolationContract<TStore>.OnD
 virtual AgentPrism.Testing.Contracts.Storage.TenantIsolationContract<TStore>.TryDeleteAsync(string! tenantId, object! key) -> System.Threading.Tasks.ValueTask<bool?>
 virtual AgentPrism.Testing.Contracts.Storage.TenantIsolationContract<TStore>.TryOverwriteAsync(string! tenantId, string! name) -> System.Threading.Tasks.ValueTask<bool>
 virtual AgentPrism.Testing.Contracts.Scheduling.JobHandlerContract.HandlerKey.get -> string!
+AgentPrism.Testing.Contracts.Tools.ToolArgumentValidationContract
+AgentPrism.Testing.Contracts.Tools.ToolArgumentValidationContract.A_pre_cancelled_token_is_honored() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.Tools.ToolArgumentValidationContract.DisposeAsync() -> System.Threading.Tasks.ValueTask
+AgentPrism.Testing.Contracts.Tools.ToolArgumentValidationContract.InitializeAsync() -> System.Threading.Tasks.ValueTask
+AgentPrism.Testing.Contracts.Tools.ToolArgumentValidationContract.Missing_required_argument_is_rejected() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.Tools.ToolArgumentValidationContract.Out_of_range_number_is_rejected() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.Tools.ToolArgumentValidationContract.Pattern_violation_is_rejected() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.Tools.ToolArgumentValidationContract.Throwing_validator_rejects_the_call() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.Tools.ToolArgumentValidationContract.Tool.get -> Microsoft.Extensions.AI.AIFunction!
+AgentPrism.Testing.Contracts.Tools.ToolArgumentValidationContract.ToolArgumentValidationContract() -> void
+AgentPrism.Testing.Contracts.Tools.ToolArgumentValidationContract.Type_mismatch_is_rejected() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.Tools.ToolArgumentValidationContract.Unknown_extra_property_is_handled_deliberately() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.Tools.ToolArgumentValidationContract.Validator.get -> AgentPrism.IToolArgumentsValidator!
+AgentPrism.Testing.Contracts.Tools.ToolAuthorizationContract
+AgentPrism.Testing.Contracts.Tools.ToolAuthorizationContract.Denied_call_never_runs_the_tool_body() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.Tools.ToolAuthorizationContract.DisposeAsync() -> System.Threading.Tasks.ValueTask
+AgentPrism.Testing.Contracts.Tools.ToolAuthorizationContract.Handler.get -> AgentPrism.IToolAuthorizationHandler!
+AgentPrism.Testing.Contracts.Tools.ToolAuthorizationContract.Handler_receives_the_calling_tenant() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.Tools.ToolAuthorizationContract.InitializeAsync() -> System.Threading.Tasks.ValueTask
+AgentPrism.Testing.Contracts.Tools.ToolAuthorizationContract.Throwing_handler_denies_the_call() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.Tools.ToolAuthorizationContract.ToolAuthorizationContract() -> void
+abstract AgentPrism.Testing.Contracts.Tools.ToolArgumentValidationContract.CreateToolAsync() -> System.Threading.Tasks.ValueTask<Microsoft.Extensions.AI.AIFunction!>
+abstract AgentPrism.Testing.Contracts.Tools.ToolArgumentValidationContract.CreateValidatorAsync() -> System.Threading.Tasks.ValueTask<AgentPrism.IToolArgumentsValidator!>
+abstract AgentPrism.Testing.Contracts.Tools.ToolAuthorizationContract.CreateHandlerAsync() -> System.Threading.Tasks.ValueTask<AgentPrism.IToolAuthorizationHandler!>
+abstract AgentPrism.Testing.Contracts.Tools.ToolAuthorizationContract.AllowedRequest.get -> AgentPrism.ToolAuthorizationRequest!
+abstract AgentPrism.Testing.Contracts.Tools.ToolAuthorizationContract.DeniedRequest.get -> AgentPrism.ToolAuthorizationRequest!
+virtual AgentPrism.Testing.Contracts.Tools.ToolArgumentValidationContract.ExtraPropertyIsRejected.get -> bool
+virtual AgentPrism.Testing.Contracts.Tools.ToolArgumentValidationContract.Seed.get -> int

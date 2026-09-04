@@ -254,6 +254,36 @@ an argument can carry a secret. If your validator throws, the call is rejected
 (fail-closed), the same way a throwing `IToolAuthorizationHandler` denies instead of
 crashing the run.
 
+Writing `NoExtraFieldsValidator` above does not prove it actually rejects a
+malformed call — a validator that always returns `Valid` compiles just as
+cleanly. `ToolArgumentValidationContract` fuzzes your validator against one of
+your own tools:
+
+```csharp
+using AgentPrism.Testing.Contracts.Tools;
+using Microsoft.Extensions.AI;
+
+public sealed class NoExtraFieldsValidatorTests : ToolArgumentValidationContract
+{
+    protected override ValueTask<AIFunction> CreateToolAsync() => new(MyOrderTool);
+
+    protected override ValueTask<IToolArgumentsValidator> CreateValidatorAsync()
+        => new(new NoExtraFieldsValidator());
+}
+```
+
+It reads `MyOrderTool`'s own JSON Schema and tries a missing required field, a
+type mismatch, an out-of-range number, a pattern violation, an unrecognized
+extra property, and a call crafted to fault a naive validator's own code —
+every one must end up rejected (a thrown exception counts too; that is what
+fail-closed means). A scenario your tool's schema does not exercise (no
+numeric bound, no pattern) is skipped with an explicit reason instead of
+passing silently. `ToolAuthorizationContract` does the same for
+`IToolAuthorizationHandler`, except authorization has no schema to derive an
+"invalid" call from — you supply `DeniedRequest` and `AllowedRequest`, two
+calls your own policy decides oppositely, the same way `CustomToolContract`
+below asks for the tool's expected result.
+
 ## Prove the registration
 
 The `AgentPrism.Testing.Contracts.Xunit` package ships `CustomToolContract`.

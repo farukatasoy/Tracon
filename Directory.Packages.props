@@ -287,6 +287,16 @@
     -->
     <PackageVersion Include="xunit.v3.extensibility.core" Version="3.2.2" />
     <!--
+      Faz 143. ".extensibility.core" above carries [Fact]/[Theory] and
+      IAsyncLifetime but NOT the Assert class (that lives in
+      xunit.v3.assert.dll) - ToolArgumentValidationContract needs
+      Assert.SkipWhen for a schema shape its generator cannot fuzz (a nested
+      object parameter, K-615). This sub-package is the assertion library
+      alone: no buildTransitive props, so it does not force <OutputType>Exe>
+      the way plain "xunit.v3" does.
+    -->
+    <PackageVersion Include="xunit.v3.assert" Version="3.2.2" />
+    <!--
       Faz 79. AgentPrism.Azure kasitli olarak Azure.Identity'ye bagimli DEGILDIR
       (AzureOpenAIProviderOptions.CredentialFactory'nin gerekcesine bak): kimlik
       bilgisi tipi tuketiciye birakilir. Sevk edilen `<example>` yine de

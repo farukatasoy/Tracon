@@ -3,18 +3,23 @@
 > **Alan kodu:** `TEST` · **Faz:** 37 (`dotnet new` şablonu), 39 (`AgentPrism.Testing`),
 > 95 (paket tüketici kapısı ve geçişli bağımlılık taban çizgisi),
 > 98 (depolama sözleşmesi paketi ve örnek store),
-> 99 (sağlayıcı sözleşmesi paketi ve örnek sağlayıcı)
+> 99 (sağlayıcı sözleşmesi paketi ve örnek sağlayıcı),
+> 143 (tool argümanı/yetkilendirme sözleşmesi ve tohumlu fuzz üreteci)
 > **Kaynak:** `src/AgentPrism.Templates/` (tümü — `content/AgentPrism.Starter/`,
 > `.template.config/template.json`, `dotnetcli.host.json`) ·
 > `src/AgentPrism.Testing/` (tümü — `FakeModelProvider.cs`, `FakeModelRequest.cs`,
 > `AgentPrismTestHost.cs`, `AgentPrismTestHostOptions.cs`, `RunAssertions.cs`,
 > `AgentPrismAssertionException.cs`, `Internal/FakeChatClient.cs`,
 > `Internal/FakeModelScript.cs`) ·
-> `src/AgentPrism.Testing.Contracts.Xunit/` (tümü — 32 sözleşme sınıfı,
-> `TestData.cs`, `ContractCoverage.cs`) ·
+> `src/AgentPrism.Testing.Contracts.Xunit/` (tümü — 32 store sözleşmesi,
+> `ToolArgumentValidationContract.cs`, `ToolAuthorizationContract.cs`,
+> `Internal/SchemaArgumentGenerator.cs`, `TestData.cs`, `ContractCoverage.cs`) ·
 > `samples/AgentPrism.Samples.FileRunStore/` ve `.Tests/` ·
 > çapraz doğrulama için `tests/AgentPrism.Package.Tests/`,
-> `tests/AgentPrism.Testing.UnitTests/`, `src/AgentPrism/AgentPrism.csproj`
+> `tests/AgentPrism.Testing.UnitTests/`,
+> `tests/AgentPrism.Testing.Contracts.Xunit.UnitTests/` (yeni — üreteç `internal` testleri),
+> `tests/AgentPrism.Core.UnitTests/Tools/` (yeni sözleşmelerin dogfood + self-proof testleri),
+> `src/AgentPrism/AgentPrism.csproj`
 > (meta paket referans listesi), `src/AgentPrism.Core/Compilation/AgentDefinitionCompiler.cs`
 > (K-032 katalog denetimi).
 >
@@ -2685,5 +2690,210 @@ dotnet build "$TMP/apg2" -c Release
   another type, or a constrained schema, register manually with
   'AddTool(AIFunctionFactory.Create(...))'.` görünür.
 - `dotnet build` hata ile biter (`0` çıkış kodu **değil**).
+
+---
+
+### MT-TEST-090 — `ToolArgumentValidationContract` doğru bir validator'da yeşil geçer (Faz 143)
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 143 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- Repo derlenmiş (`dotnet build AgentPrism.slnx -c Release -p:AgentPrismFrontendEnabled=false`).
+
+**Adımlar**
+1. `ToolArgumentValidationContractTests`i (`tests/AgentPrism.Core.UnitTests/Tools/`)
+   koştur — `ValidatableSearchTool`'un JSON Schema'sına karşı doğru bir
+   referans validator (`ReferenceToolArgumentsValidator`) türetir.
+
+**Girilecek veri**
+```bash
+cd /Users/farukatasoy/Desktop/projects/AgentPrism
+./artifacts/bin/AgentPrism.Core.UnitTests/release/AgentPrism.Core.UnitTests \
+  --filter-method "*ToolArgumentValidationContractTests*"
+```
+
+**Gerçek sonuç (2026-09-04)**
+```
+Test run summary: Passed!
+  total: 7
+  failed: 0
+  succeeded: 7
+```
+
+**Beklenen sonuç**
+- Yedi `[Fact]`'in tamamı (altı plandaki + `A_pre_cancelled_token_is_honored`)
+  yeşildir — doğru bir validator suite'i geçer.
+
+---
+
+### MT-TEST-091 — 🚨 Aynı suite, her şeyi kabul eden bir validator'da KIRMIZI olur — test tiyatrosu yok (Faz 143)
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 143 |
+| **İlgili karar** | — |
+
+Fazın en önemli kanıtı: `ContractSelfProofTests`'in yerini tutan
+`ToolContractSelfProofTests`, kasten kırık bir `AcceptAllToolArgumentsValidator`
+(her zaman `Valid` döner), bir `AllowAllToolAuthorizationHandler` (her zaman
+`Allow` döner), bir `TenantLockedToolAuthorizationHandler` (tek bir tenant'a
+kilitli, başkası için throw eder) ve bir `AlwaysDenyToolAuthorizationHandler`
+(her zaman `Deny` döner — "tenant'ı yok sayan" bugün ikinci yarısı, `faz-denetim`
+bulgusu 🟡#1'in kapanışı) ile her sözleşme `[Fact]`'ini tek tek KIRMIZI'ya
+düşürüp bunu kendi testleriyle kanıtlar — bu sayede kırık implementasyon
+`dotnet test`'in NORMAL yeşil koşumuna hiç karışmaz (private nested fixture,
+xunit tarafından ayrı bir test sınıfı olarak keşfedilmez).
+
+**Ön koşul**
+- MT-TEST-090 geçti.
+
+**Adımlar**
+1. `ToolContractSelfProofTests`i koştur.
+
+**Girilecek veri**
+```bash
+./artifacts/bin/AgentPrism.Core.UnitTests/release/AgentPrism.Core.UnitTests \
+  --filter-method "*ToolContractSelfProofTests*"
+```
+
+**Gerçek sonuç (2026-09-04)**
+```
+Test run summary: Passed!
+  total: 11
+  failed: 0
+  succeeded: 11
+```
+
+**Beklenen sonuç**
+- On bir `[Fact]`'in tamamı yeşildir — her biri kendi kırık fixture'ının
+  (kabul-hepsi validator, izin-ver-hepsi handler, tek-tenant'a kilitli handler,
+  her-zaman-reddeden handler) ilgili sözleşme senaryosunu gerçekten kırmızıya
+  düşürdüğünü doğrular
+  (`ThrowsAsync` yardımcı metodu ile).
+- `dotnet test`'in **normal** koşumunda bu kırık fixture'lar (`AcceptAllValidatorFixture`,
+  `AllowAllHandlerFixture`, `TenantLockedHandlerFixture`) **ayrı bir test sınıfı
+  olarak görünmez** — hepsi `private sealed class`, xunit yalnız `public` sınıfları keşfeder.
+
+---
+
+### MT-TEST-092 — Aynı tohum aynı argümanları üretir; tohumlu üreteç kırılgan değildir (Faz 143)
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 143 |
+| **İlgili karar** | 143.2 |
+
+**Ön koşul**
+- Repo derlenmiş.
+
+**Adımlar**
+1. `SchemaArgumentGeneratorTests`i (yeni proje: `AgentPrism.Testing.Contracts.Xunit.UnitTests`,
+   `internal` üreteci `InternalsVisibleTo` ile doğrudan sınar) iki kez art arda koştur.
+
+**Girilecek veri**
+```bash
+./artifacts/bin/AgentPrism.Testing.Contracts.Xunit.UnitTests/release/AgentPrism.Testing.Contracts.Xunit.UnitTests
+./artifacts/bin/AgentPrism.Testing.Contracts.Xunit.UnitTests/release/AgentPrism.Testing.Contracts.Xunit.UnitTests
+```
+
+**Gerçek sonuç (2026-09-04)**
+```
+Test run summary: Passed!
+  total: 13
+  failed: 0
+  succeeded: 13
+```
+(iki koşumda da birebir aynı — `Same_seed_produces_the_same_baseline` ve
+`Same_seed_produces_the_same_missing_required_mutation` bunu doğrudan sınar.)
+
+**Beklenen sonuç**
+- İki koşum da 13/13 yeşildir; aynı tohumla üretilen argüman kümeleri
+  (`Canonical(...)` karşılaştırması) birebir aynıdır.
+
+---
+
+### MT-TEST-093 — Nested object parametreli bir tool, sözleşmeyi açıkça atlar — sessizce değil (Faz 143)
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 143 |
+| **İlgili karar** | K-615 |
+
+**Ön koşul**
+- Repo derlenmiş.
+
+**Adımlar**
+1. `SchemaArgumentGeneratorTests.Required_nested_object_property_skips_the_baseline_with_a_reason`ı koştur.
+
+**Girilecek veri**
+```bash
+./artifacts/bin/AgentPrism.Testing.Contracts.Xunit.UnitTests/release/AgentPrism.Testing.Contracts.Xunit.UnitTests \
+  --filter-method "*Required_nested_object*"
+```
+
+**Gerçek sonuç (2026-09-04)**
+```
+Test run summary: Passed!
+  total: 1
+  failed: 0
+  succeeded: 1
+```
+
+**Beklenen sonuç**
+- `SchemaArgumentGenerator.Baseline(...)` nested object (`Address`) parametreli
+  bir tool'da `IsSkipped: true` döner ve `SkipReason` parametre adını
+  (`address`) açıkça anar — sessiz bir boş sonuç değil.
+
+---
+
+### MT-TEST-094 — `AgentPrism.Testing.Contracts.Xunit` üretime sızmaz; iki yeni sözleşme yalnız `AgentPrism.Abstractions`'a bağımlıdır (Faz 143)
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 143 |
+| **İlgili karar** | K-007 |
+
+MT-TEST-073'ün aynı iddiasının Faz 143 sonrası tekrarı — `ToolArgumentValidationContract`/
+`ToolAuthorizationContract` yalnız `Microsoft.Extensions.AI` (zaten Abstractions
+üzerinden gelen) tipini kullanır, yeni bir paket **eklemez**.
+
+**Ön koşul**
+- Repo derlenmiş.
+
+**Adımlar**
+1. `DependencyDirectionTests.Each_package_references_only_allowed_packages`ı koştur.
+
+**Girilecek veri**
+```bash
+./artifacts/bin/AgentPrism.Core.UnitTests/release/AgentPrism.Core.UnitTests \
+  --filter-method "*DependencyDirectionTests*"
+```
+
+**Gerçek sonuç (2026-09-04)**
+```
+Test run summary: Passed!
+  total: 5
+  failed: 0
+  succeeded: 5
+```
+
+**Beklenen sonuç**
+- `AgentPrism.Testing.Contracts.Xunit`'in izin listesi hâlâ yalnız
+  `["AgentPrism.Abstractions"]`dir — `xunit.v3.assert` (Adım 1'de eklenen
+  `Assert.SkipWhen` için) bir NuGet paket referansıdır, bir `AgentPrism.*`
+  proje referansı değildir, bu yüzden bu testin kapsamına hiç girmez.
 
 ---

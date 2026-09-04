@@ -134,6 +134,44 @@ runtime invokes it. Derive `RepeatableToolContract` instead — it extends
 `AgentPrismToolRegistration.SafeToRepeat`, because that flag is a promise the
 runtime acts on and the extra scenarios are what hold you to it.
 
+Two more classes test your **own** implementations of AgentPrism's two tool
+gates, not a tool itself:
+
+```csharp
+using AgentPrism.Testing.Contracts.Tools;
+using Microsoft.Extensions.AI;
+
+public sealed class MyValidatorTests : ToolArgumentValidationContract
+{
+    protected override ValueTask<AIFunction> CreateToolAsync() => new(MyTools.Search);
+
+    protected override ValueTask<IToolArgumentsValidator> CreateValidatorAsync() => new(new MyValidator());
+}
+```
+
+`ToolArgumentValidationContract` reads `Tool`'s own JSON Schema and fuzzes
+`Validator` against it: a missing required field, a type mismatch, an
+out-of-range number, a pattern violation, an unrecognized extra property, and
+a poisoned call most likely to fault a naive validator's own code. Every
+scenario accepts either a rejection or a thrown exception — AgentPrism's own
+wrapper turns a thrown exception into a rejection (fail-closed), so both count
+as the call being turned away. A scenario your tool's schema does not exercise
+(no numeric bound, no pattern, a nested-object parameter this generator does
+not model) is skipped with an explicit reason, not silently passed. Override
+`ExtraPropertyIsRejected` to state whether your validator accepts an
+undeclared property — AgentPrism does not mandate either way.
+
+`ToolAuthorizationContract` tests your `IToolAuthorizationHandler` the same
+way `CustomToolContract` tests a tool: you supply the ground truth. Authorization
+is your own business policy — there is no schema to derive an "invalid" call
+from — so you declare `DeniedRequest` and `AllowedRequest`, two calls your
+handler's own policy decides oppositely. The contract checks the handler
+actually reaches that denial (by returning it directly, or by throwing and
+relying on AgentPrism's fail-closed wrapper), never runs the protected call
+once denied, and genuinely bases its decision on the request it was given —
+a handler that returns the same verdict regardless of who is calling cannot
+pass by ignoring its input.
+
 ### Job handlers — `AgentPrism.Testing.Contracts.Scheduling`
 
 Derive `JobHandlerContract` for an `IJobHandler`. Job delivery is
