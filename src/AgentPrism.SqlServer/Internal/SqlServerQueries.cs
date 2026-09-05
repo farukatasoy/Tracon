@@ -1434,6 +1434,18 @@ internal sealed class SqlServerQueries : SqlQueriesBase
                 (@tenant_id, @agent_name, @period, @period_start, @runs, @tokens, @cost, @updated_at);
             """;
 
+        // For the ',key1,key2,' delimiter rationale see PostgreSQL's
+        // TryClaimQuotaThresholdNotification. UPDLOCK/SERIALIZABLE matches the
+        // AddQuotaUsage pattern above -- two workers racing the same threshold
+        // must not both read "not present" before either writes.
+        TryClaimQuotaThresholdNotification = $"""
+            UPDATE {Schema}.quota_usage WITH (UPDLOCK, SERIALIZABLE)
+               SET notified_thresholds = COALESCE(notified_thresholds, ',') + @key + ','
+             WHERE tenant_id = @tenant_id AND agent_name = @agent_name
+               AND period = @period AND period_start = @period_start
+               AND (notified_thresholds IS NULL OR notified_thresholds NOT LIKE '%,' + @key + ',%');
+            """;
+
         // --- Webhook ---
 
         const string webhookSubscriptionOutput = """

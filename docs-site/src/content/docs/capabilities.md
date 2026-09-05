@@ -178,7 +178,7 @@ experiment, and automatic rollback is off until you configure it.
 | Reader, Operator, Admin roles | Endpoint groups | Optional policy names; production can require all three at startup |
 | API keys | HTTP API and stores | Hashed, revocable, expiring, tenant-bound, and narrowed by a closed scope enum |
 | Multi-tenancy | `UseTenancy()` | Single tenant by default; a verified key outranks a claim or header |
-| Quotas | Run admission | Enabled with an empty rule set, so no run is rejected until a rule exists |
+| Quotas | Run admission | Enabled with an empty rule set, so no run is rejected until a rule exists; a crossed threshold can also be written into the triggering run's own event stream, off by default |
 | Rate limiting | HTTP requests | Off by default; partition by tenant, key, or remote address |
 | Approvals | Tool execution and queued resume | Expiring requests, explicit decisions, and revocable standing rules |
 | Audit trail | Administrative writes | Actor, action, entity, before/after data, and secret masking |

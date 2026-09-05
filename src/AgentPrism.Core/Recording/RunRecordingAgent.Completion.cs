@@ -129,6 +129,20 @@ public sealed partial class RunRecordingAgent
         // list changes later, the cost of this run does not change.
         var cost = _pricingResolver?.Resolve(modelProvider, modelId, usage);
 
+        // 🚨 Quota accounting runs BEFORE the terminal write (phase 146,
+        // 146.1). Consumption is real the moment it is spent — the tokens
+        // are already billed by the provider regardless of how this run's
+        // row closes — and a threshold notice appended AFTER the terminal
+        // event would never land inside this run's own append-only stream:
+        // by the time a reader sees the terminal event, it has stopped
+        // reading. Only a root run accounts (the same Depth == 0 gate as
+        // the block below); RecordQuotaAsync itself never throws
+        // (QuotaEnforcer.RecordAsync's contract) so this cannot fail the run.
+        if (scope.Depth == 0)
+        {
+            await RecordQuotaAsync(scope, usage, cost, cancellationToken).ConfigureAwait(false);
+        }
+
         await scope.Writer.CompleteAsync(
             status,
             usage,
@@ -153,13 +167,12 @@ public sealed partial class RunRecordingAgent
         // every tree's spend.
         var elapsed = _timeProvider.GetElapsedTime(scope.StartedAt);
 
-        // 🚨 Quota accounting and event publication run ONLY on a root run. A child run is
-        // part of the same user request; if it were counted separately, an agent tree would
-        // consume the quota as fast as its depth, and a separate run.completed event would
-        // be emitted for every node.
+        // 🚨 Event publication runs ONLY on a root run (quota accounting above shares the
+        // same gate). A child run is part of the same user request; if it were counted
+        // separately, an agent tree would consume the quota as fast as its depth, and a
+        // separate run.completed event would be emitted for every node.
         if (scope.Depth == 0)
         {
-            await RecordQuotaAsync(scope, usage, cost, cancellationToken).ConfigureAwait(false);
             await PublishRunEventAsync(scope, status, usage, cost, error, elapsed, modelId, cancellationToken).ConfigureAwait(false);
             await SampleForOnlineEvalAsync(scope, status, cancellationToken).ConfigureAwait(false);
         }

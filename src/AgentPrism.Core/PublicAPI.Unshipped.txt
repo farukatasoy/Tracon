@@ -261,6 +261,8 @@ AgentPrism.AgentPrismQuotaOptions.AllowOnStoreFailure.get -> bool
 AgentPrism.AgentPrismQuotaOptions.AllowOnStoreFailure.set -> void
 AgentPrism.AgentPrismQuotaOptions.Enabled.get -> bool
 AgentPrism.AgentPrismQuotaOptions.Enabled.set -> void
+AgentPrism.AgentPrismQuotaOptions.PublishThresholdToRunStream.get -> bool
+AgentPrism.AgentPrismQuotaOptions.PublishThresholdToRunStream.set -> void
 AgentPrism.AgentPrismQuotaOptions.ResolveTimeZone() -> System.TimeZoneInfo!
 AgentPrism.AgentPrismQuotaOptions.ThresholdPercents.get -> System.Collections.Generic.IList<int>!
 AgentPrism.AgentPrismQuotaOptions.TimeZone.get -> string!
@@ -746,7 +748,7 @@ AgentPrism.ProviderCredentialClientCache<TFactory>.ProviderCredentialClientCache
 AgentPrism.QuotaEnforcer
 AgentPrism.QuotaEnforcer.CheckAsync(string! tenantId, string! agentName, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<AgentPrism.QuotaDecision!>
 AgentPrism.QuotaEnforcer.QuotaEnforcer(AgentPrism.IQuotaStore! store, Microsoft.Extensions.Options.IOptionsMonitor<AgentPrism.AgentPrismQuotaOptions!>! optionsMonitor, AgentPrism.IWebhookPublisher? webhookPublisher = null, System.TimeProvider? timeProvider = null, Microsoft.Extensions.Logging.ILogger<AgentPrism.QuotaEnforcer!>? logger = null) -> void
-AgentPrism.QuotaEnforcer.RecordAsync(AgentPrism.QuotaConsumption! consumption, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
+AgentPrism.QuotaEnforcer.RecordAsync(AgentPrism.QuotaConsumption! consumption, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<AgentPrism.QuotaThresholdCrossing!>!>
 AgentPrism.QuotaPeriodCalculator
 AgentPrism.RateLimitPartitionKind
 AgentPrism.RateLimitPartitionKind.Global = 1 -> AgentPrism.RateLimitPartitionKind

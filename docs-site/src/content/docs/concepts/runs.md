@@ -142,8 +142,12 @@ digits, `.`, `_`, or `-`. It is required on a `Custom` event and rejected
 (`ArgumentException`) on every other type: a caller who sets it on a built-in
 event type gets told immediately, rather than having it silently dropped by
 every store. The `agentprism.` prefix is reserved, so a future built-in
-custom type can never collide with your own. `Payload` is yours too —
-AgentPrism makes no claim about its shape and never reads it.
+custom type can never collide with your own — `agentprism.quota.threshold`
+(the [quota threshold notice](/concepts/governance/#quotas-and-rate-limits))
+is the one built-in use of it today; `AppendAsync` rejects any value under
+that prefix, so a `Custom` event carrying it can only have come from
+AgentPrism itself. `Payload` is yours too — AgentPrism makes no claim about
+its shape and never reads it.
 
 The console draws an unrecognized `CustomType` with a single generic card —
 its own name as the title, `Payload` pretty-printed as the body — so a new
