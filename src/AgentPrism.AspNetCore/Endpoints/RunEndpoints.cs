@@ -176,7 +176,12 @@ internal static class RunEndpoints
             .WithSummary("Streams a run's events over SSE; live and historical use the same path.")
             .WithDescription(
                 "If the connection drops, the client resumes from its last sequence number using the " +
-                "'Last-Event-ID' header. If the run is still in progress, the stream stays open until it completes.");
+                "'Last-Event-ID' header. If the run is still in progress, the stream stays open until it completes. " +
+                "This stream's frame names ('run.started', 'tool.invoking', ...) are a different, larger set than " +
+                "the direct run-agent stream's ('run', 'update', 'approvals', 'done', 'error') — the two are " +
+                "separate contracts, not one seen through two content types.")
+            .Produces<string>(StatusCodes.Status200OK, contentType: "text/event-stream")
+            .ProducesProblem(StatusCodes.Status404NotFound);
 
         builder.MapPost("/api/runs/{runId:guid}/cancel", CancelRunAsync)
             .RequireRole(roles.Operator)
@@ -956,7 +961,11 @@ internal static class RunEndpoints
 
         /// <summary>
         /// Translates the event type to an SSE event name. These names are a
-        /// <strong>stable</strong> contract; changing them breaks clients.
+        /// <strong>stable</strong> contract; changing them breaks clients. The
+        /// first ten are shipped and their strings are FIXED
+        /// (<c>RunEventFrameNameContractTests</c> pins them); the rest complete
+        /// the table using the names the console's <c>EVENT_STYLE</c>
+        /// (<c>run-detail.tsx</c>) already carried.
         /// </summary>
         private static string EventName(RunEventType type) => type switch
         {
@@ -970,6 +979,27 @@ internal static class RunEndpoints
             RunEventType.RunFailed => "run.failed",
             RunEventType.ChildRunStarted => "child.started",
             RunEventType.ChildRunCompleted => "child.completed",
+            RunEventType.HistoryCompacted => "history.compacted",
+            RunEventType.WorkflowStarted => "workflow.started",
+            RunEventType.SuperStepStarted => "superstep.started",
+            RunEventType.SuperStepCompleted => "superstep.completed",
+            RunEventType.ExecutorInvoked => "executor.invoked",
+            RunEventType.ExecutorCompleted => "executor.completed",
+            RunEventType.ExecutorFailed => "executor.failed",
+            RunEventType.WorkflowOutput => "workflow.output",
+            RunEventType.WorkflowRequest => "workflow.request",
+            RunEventType.RunAwaitingInput => "run.awaiting-input",
+            RunEventType.ContentMasked => "content.masked",
+            RunEventType.ContentBlocked => "content.blocked",
+            RunEventType.ModelFallbackUsed => "model.fallback-used",
+            RunEventType.ReasoningDelta => "reasoning.delta",
+            RunEventType.DocumentAttached => "document.attached",
+            RunEventType.ToolOutputTruncated => "tool.output-truncated",
+            RunEventType.RunContinuationBlocked => "run.continuation-blocked",
+            RunEventType.StructuredResponseRejected => "structured-response.rejected",
+            RunEventType.StructuredResponseRepairAttempted => "structured-response.repair-attempted",
+            RunEventType.Custom => "custom",
+            RunEventType.ChildRunTimedOut => "child.timed-out",
             _ => "unknown",
         };
     }

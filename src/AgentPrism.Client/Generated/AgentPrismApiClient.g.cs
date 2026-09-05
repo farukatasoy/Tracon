@@ -978,12 +978,16 @@ namespace AgentPrism.Client.Generated
                         var status_ = (int)response_.StatusCode;
                         if (status_ == 200)
                         {
-                            var objectResponse_ = await ReadObjectResponseAsync<string>(response_, headers_, cancellationToken).ConfigureAwait(false);
-                            if (objectResponse_.Object == null)
+                            // Phase 145: an SSE body is not JSON - ReadObjectResponseAsync<string>
+                            // would JsonSerializer.Deserialize<string> the raw "event: ...\ndata: ..."
+                            // text and throw. Read it as plain text instead. response_.Content is
+                            // nullable per HttpResponseMessage's own contract - same null check
+                            // ReadObjectResponseAsync<T> above makes before it reads the body.
+                            if (response_.Content == null)
                             {
-                                throw new AgentPrismApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                                return string.Empty;
                             }
-                            return objectResponse_.Object;
+                            return await response_.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
                         }
                         else
                         if (status_ == 202)
@@ -2825,11 +2829,11 @@ namespace AgentPrism.Client.Generated
         /// Streams a run's events over SSE; live and historical use the same path.
         /// </summary>
         /// <remarks>
-        /// If the connection drops, the client resumes from its last sequence number using the 'Last-Event-ID' header. If the run is still in progress, the stream stays open until it completes.
+        /// If the connection drops, the client resumes from its last sequence number using the 'Last-Event-ID' header. If the run is still in progress, the stream stays open until it completes. This stream's frame names ('run.started', 'tool.invoking', ...) are a different, larger set than the direct run-agent stream's ('run', 'update', 'approvals', 'done', 'error') — the two are separate contracts, not one seen through two content types.
         /// </remarks>
         /// <returns>OK</returns>
         /// <exception cref="AgentPrismApiException">A server side error occurred.</exception>
-        public virtual async System.Threading.Tasks.Task AgentPrismStreamRunEventsAsync(System.Guid runId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken))
+        public virtual async System.Threading.Tasks.Task<string> AgentPrismStreamRunEventsAsync(System.Guid runId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken))
         {
             if (runId == null)
                 throw new System.ArgumentNullException("runId");
@@ -2841,6 +2845,7 @@ namespace AgentPrism.Client.Generated
                 using (var request_ = new System.Net.Http.HttpRequestMessage())
                 {
                     request_.Method = new System.Net.Http.HttpMethod("GET");
+                    request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("text/event-stream"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
                 
@@ -2874,7 +2879,26 @@ namespace AgentPrism.Client.Generated
                         var status_ = (int)response_.StatusCode;
                         if (status_ == 200)
                         {
-                            return;
+                            // Phase 145: an SSE body is not JSON - ReadObjectResponseAsync<string>
+                            // would JsonSerializer.Deserialize<string> the raw "event: ...\ndata: ..."
+                            // text and throw. Read it as plain text instead. response_.Content is
+                            // nullable per HttpResponseMessage's own contract - same null check
+                            // ReadObjectResponseAsync<T> above makes before it reads the body.
+                            if (response_.Content == null)
+                            {
+                                return string.Empty;
+                            }
+                            return await response_.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+                        }
+                        else
+                        if (status_ == 404)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<ProblemDetails>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new AgentPrismApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            throw new AgentPrismApiException<ProblemDetails>("Not Found", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
                         }
                         else
                         {
@@ -4086,12 +4110,16 @@ namespace AgentPrism.Client.Generated
                         var status_ = (int)response_.StatusCode;
                         if (status_ == 200)
                         {
-                            var objectResponse_ = await ReadObjectResponseAsync<string>(response_, headers_, cancellationToken).ConfigureAwait(false);
-                            if (objectResponse_.Object == null)
+                            // Phase 145: an SSE body is not JSON - ReadObjectResponseAsync<string>
+                            // would JsonSerializer.Deserialize<string> the raw "event: ...\ndata: ..."
+                            // text and throw. Read it as plain text instead. response_.Content is
+                            // nullable per HttpResponseMessage's own contract - same null check
+                            // ReadObjectResponseAsync<T> above makes before it reads the body.
+                            if (response_.Content == null)
                             {
-                                throw new AgentPrismApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                                return string.Empty;
                             }
-                            return objectResponse_.Object;
+                            return await response_.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
                         }
                         else
                         if (status_ == 403)
@@ -4294,12 +4322,16 @@ namespace AgentPrism.Client.Generated
                         var status_ = (int)response_.StatusCode;
                         if (status_ == 200)
                         {
-                            var objectResponse_ = await ReadObjectResponseAsync<string>(response_, headers_, cancellationToken).ConfigureAwait(false);
-                            if (objectResponse_.Object == null)
+                            // Phase 145: an SSE body is not JSON - ReadObjectResponseAsync<string>
+                            // would JsonSerializer.Deserialize<string> the raw "event: ...\ndata: ..."
+                            // text and throw. Read it as plain text instead. response_.Content is
+                            // nullable per HttpResponseMessage's own contract - same null check
+                            // ReadObjectResponseAsync<T> above makes before it reads the body.
+                            if (response_.Content == null)
                             {
-                                throw new AgentPrismApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                                return string.Empty;
                             }
-                            return objectResponse_.Object;
+                            return await response_.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
                         }
                         else
                         if (status_ == 501)
@@ -4472,12 +4504,16 @@ namespace AgentPrism.Client.Generated
                         var status_ = (int)response_.StatusCode;
                         if (status_ == 200)
                         {
-                            var objectResponse_ = await ReadObjectResponseAsync<string>(response_, headers_, cancellationToken).ConfigureAwait(false);
-                            if (objectResponse_.Object == null)
+                            // Phase 145: an SSE body is not JSON - ReadObjectResponseAsync<string>
+                            // would JsonSerializer.Deserialize<string> the raw "event: ...\ndata: ..."
+                            // text and throw. Read it as plain text instead. response_.Content is
+                            // nullable per HttpResponseMessage's own contract - same null check
+                            // ReadObjectResponseAsync<T> above makes before it reads the body.
+                            if (response_.Content == null)
                             {
-                                throw new AgentPrismApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                                return string.Empty;
                             }
-                            return objectResponse_.Object;
+                            return await response_.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
                         }
                         else
                         if (status_ == 400)

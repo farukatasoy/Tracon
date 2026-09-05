@@ -93,6 +93,27 @@ namespace AgentPrism.Client.Generated
 """
 
 
+# A minimal slice of what NJsonSchema emits for a pure `text/event-stream`
+# 200 response (2026-09-05, Faz 145): a bare `string` root response, read
+# through the SAME JSON-deserializing helper every other operation uses.
+SAMPLE_SSE_STRING_RESPONSE_SOURCE = """\
+        var status_ = (int)response_.StatusCode;
+        if (status_ == 200)
+        {
+            var objectResponse_ = await ReadObjectResponseAsync<string>(response_, headers_, cancellationToken).ConfigureAwait(false);
+            if (objectResponse_.Object == null)
+            {
+                throw new AgentPrismApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+            }
+            return objectResponse_.Object;
+        }
+        else
+        if (status_ == 404)
+        {
+            var objectResponse_ = await ReadObjectResponseAsync<ProblemDetails>(response_, headers_, cancellationToken).ConfigureAwait(false);
+"""
+
+
 class NswagPostprocessClientTestleri(unittest.TestCase):
     def test_json_element_wrapper_class_is_deleted(self):
         source, _ = nswag_postprocess_client.rewrite_colliding_any_types(SAMPLE_JSON_ELEMENT_SOURCE)
@@ -137,6 +158,27 @@ class NswagPostprocessClientTestleri(unittest.TestCase):
 
         with self.assertRaises(SystemExit):
             nswag_postprocess_client.rewrite_colliding_any_types(duplicated)
+
+    def test_sse_string_response_reads_plain_text_instead_of_json(self):
+        source, count = nswag_postprocess_client.rewrite_sse_string_responses(
+            SAMPLE_SSE_STRING_RESPONSE_SOURCE)
+
+        self.assertEqual(count, 1)
+        self.assertIn(
+            "return await response_.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);",
+            source)
+        # The comment explaining the rewrite is allowed to NAME the helper
+        # it replaces; only the actual call site must be gone.
+        self.assertNotIn("ReadObjectResponseAsync<string>(", source)
+        # The untouched 404 branch (a real JSON ProblemDetails body) must survive.
+        self.assertIn("ReadObjectResponseAsync<ProblemDetails>", source)
+
+    def test_sse_string_response_rewrite_is_idempotent_when_nothing_matches(self):
+        source, count = nswag_postprocess_client.rewrite_sse_string_responses(
+            SAMPLE_JSON_ELEMENT_SOURCE)
+
+        self.assertEqual(count, 0)
+        self.assertEqual(source, SAMPLE_JSON_ELEMENT_SOURCE)
 
 
 if __name__ == "__main__":
