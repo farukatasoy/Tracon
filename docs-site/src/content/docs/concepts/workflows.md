@@ -23,7 +23,11 @@ stays optional on purpose.
 | `Magentic` | A manager plans, tracks progress, and replans; a manager agent is required |
 
 `MaxIterations` bounds the turn count for `Handoff`, `GroupChat`, and `Magentic` — the
-only structural guard against two agents handing off to each other forever.
+only structural guard against two agents handing off to each other forever. Each
+participant call also carries the same two-layer wait limit a callable agent's
+sub-call does (see [Agents calling agents](/concepts/agents/#agents-calling-agents)):
+a cooperative deadline, then a hard cutoff for a participant that ignores it. There
+is no per-participant override here — the installation-wide default applies.
 
 ```csharp
 new WorkflowDefinition

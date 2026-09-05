@@ -14432,6 +14432,9 @@ namespace AgentPrism.Client.Generated
         [System.Text.Json.Serialization.JsonPropertyName("callableAgentNames")]
         public System.Collections.Generic.ICollection<string> CallableAgentNames { get; set; } = default!;
 
+        [System.Text.Json.Serialization.JsonPropertyName("subAgents")]
+        public SubAgentSettings? SubAgents { get; set; } = default!;
+
         /// <summary>
         /// Gets the MCP resources added to the run context (mode A). Each item has the
         /// <br/>form `"{server}:{uri}"`. They are read at the start of the run and are
@@ -19936,6 +19939,9 @@ namespace AgentPrism.Client.Generated
         [System.Text.Json.Serialization.JsonPropertyName("arguments")]
         public string? Arguments { get; set; } = default!;
 
+        [System.Text.Json.Serialization.JsonPropertyName("presentation")]
+        public ToolApprovalPresentation? Presentation { get; set; } = default!;
+
         /// <summary>
         /// Gets the status of the request.
         /// </summary>
@@ -22530,6 +22536,29 @@ namespace AgentPrism.Client.Generated
     }
 
     /// <summary>
+    /// Determines how long an agent waits for the agents it calls.
+    /// </summary>
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.2.0.0 (NJsonSchema v11.1.0.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class SubAgentSettings
+    {
+        /// <summary>
+        /// Gets the deadline applied to a single sub-agent run (the cooperative layer).
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("childDeadline")]
+        public string? ChildDeadline { get; set; } = default!;
+
+        /// <summary>
+        /// Gets the hard wait cutoff handed to the framework (the hard-cutoff layer).
+        /// <br/>Must be greater than `ChildDeadline`.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("waitTimeout")]
+        public string? WaitTimeout { get; set; } = default!;
+
+    }
+
+    /// <summary>
     /// A registered tenant.
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.2.0.0 (NJsonSchema v11.1.0.0 (Newtonsoft.Json v13.0.0.0))")]
@@ -22805,6 +22834,43 @@ namespace AgentPrism.Client.Generated
 
         [System.Text.Json.Serialization.JsonPropertyName("rememberArgumentsOnly")]
         public bool RememberArgumentsOnly { get; set; } = default!;
+
+    }
+
+    /// <summary>
+    /// A human-readable projection of one tool-approval request, produced by a consumer's
+    /// <br/>IToolApprovalPresenter.
+    /// </summary>
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.2.0.0 (NJsonSchema v11.1.0.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class ToolApprovalPresentation
+    {
+        /// <summary>
+        /// Gets the kind of entity the call acts on (for example `"skill"` or `"order"`).
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("entityType")]
+        public string? EntityType { get; set; } = default!;
+
+        /// <summary>
+        /// Gets the entity's own identifier, as read from the call's arguments.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("entityId")]
+        public string? EntityId { get; set; } = default!;
+
+        /// <summary>
+        /// Gets the entity's human-readable name, resolved from `EntityId`.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("entityName")]
+        public string? EntityName { get; set; } = default!;
+
+        /// <summary>
+        /// Gets a free-form sentence describing the call, for a reviewer who has none of the above.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("message")]
+        public string? Message { get; set; } = default!;
 
     }
 

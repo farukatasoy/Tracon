@@ -153,7 +153,7 @@ public sealed class ChildAgentInvokerTests
         var client = new FakeChatClient(_ => new ChatResponse(
             new ChatMessage(ChatRole.Assistant, [new FunctionCallContent("c1", "dangerous_task", null)])));
 
-        var (invoker, store) = CreateInvoker(client, approvalTool);
+        var (invoker, store) = CreateInvoker(client, tools: [approvalTool]);
 
         SetScope(depth: 0, budget: new AgentRunBudget { MaxDepth = 3 });
 
@@ -167,6 +167,68 @@ public sealed class ChildAgentInvokerTests
         var child = (await store.QueryRunsAsync(new RunQuery { OnlyRootRuns = false })).ShouldHaveSingleItem();
         child.Status.ShouldBe(RunStatus.Failed);
         child.Error!.Message.ShouldContain("A child agent cannot request approval", Case.Sensitive);
+    }
+
+    [Fact]
+    public async Task Callers_own_cancellation_still_propagates_when_no_timeout_fires()
+    {
+        // 144.1 regression: the caller's real cancellation must not be
+        // mistaken for either wait-limit layer. Both layers are set far
+        // longer than the test's own cancellation, so only the caller's
+        // token can possibly end this call.
+        var (invoker, store) = CreateInvoker(
+            new BlockingChatClient(), childDeadline: TimeSpan.FromSeconds(30), waitTimeout: TimeSpan.FromSeconds(60));
+
+        SetScope(depth: 0, budget: new AgentRunBudget { MaxDepth = 3 });
+
+        using var cts = new CancellationTokenSource();
+        cts.CancelAfter(TimeSpan.FromMilliseconds(50));
+
+        await Should.ThrowAsync<OperationCanceledException>(
+            async () => await invoker.RunAsync("run", cancellationToken: cts.Token));
+
+        // The refusal-as-tool-result path (used for both wait-limit layers)
+        // was NOT taken - a real cancellation propagates as an exception.
+        var events = new List<RunEventType>();
+
+        await foreach (var runEvent in store.ReadEventsAsync(
+            (await store.QueryRunsAsync(new RunQuery { OnlyRootRuns = false })).Single().Id))
+        {
+            events.Add(runEvent.Type);
+        }
+
+        events.ShouldNotContain(RunEventType.ChildRunTimedOut);
+    }
+
+    [Fact]
+    public async Task One_child_timing_out_does_not_affect_a_sibling_call_that_completes_normally()
+    {
+        var budget = new AgentRunBudget { MaxDepth = 3 };
+
+        var (hangingInvoker, hangingStore) = CreateInvoker(
+            new BlockingChatClient(), childDeadline: TimeSpan.FromMilliseconds(50), waitTimeout: TimeSpan.FromSeconds(5));
+        var (fastInvoker, fastStore) = CreateInvoker();
+
+        SetScope(depth: 0, budget: budget);
+        var hangingCall = hangingInvoker.RunAsync("run");
+
+        SetScope(depth: 0, budget: budget);
+        var fastCall = fastInvoker.RunAsync("run");
+
+        var hangingResponse = await hangingCall;
+        var fastResponse = await fastCall;
+
+        hangingResponse.Text.ShouldContain("did not respond in time", Case.Sensitive);
+        fastResponse.Text.ShouldBe("research result");
+
+        var hangingChild = (await hangingStore.QueryRunsAsync(new RunQuery { OnlyRootRuns = false })).ShouldHaveSingleItem();
+        hangingChild.Status.ShouldBe(RunStatus.Canceled);
+
+        var fastChild = (await fastStore.QueryRunsAsync(new RunQuery { OnlyRootRuns = false })).ShouldHaveSingleItem();
+        fastChild.Status.ShouldBe(RunStatus.Completed);
+
+        // Both calls reserved a run against the SAME shared budget.
+        budget.StartedRuns.ShouldBe(2);
     }
 
     /// <summary>Writes the scope to the current flow.</summary>
@@ -196,7 +258,9 @@ public sealed class ChildAgentInvokerTests
     }
 
     private static (ChildAgentInvoker Invoker, InMemoryRunStore Store) CreateInvoker(
-        FakeChatClient? client = null,
+        IChatClient? client = null,
+        TimeSpan? childDeadline = null,
+        TimeSpan? waitTimeout = null,
         params AIFunction[] tools)
     {
         var store = new InMemoryRunStore(tenantContext: new FixedTenantContext());
@@ -228,7 +292,9 @@ public sealed class ChildAgentInvokerTests
             tenantContext,
             NullLogger.Instance,
             "router",
-            new CallableAgentInfo("researcher", "Performs research.", 1));
+            new CallableAgentInfo("researcher", "Performs research.", 1),
+            childDeadline: childDeadline ?? TimeSpan.FromSeconds(30),
+            waitTimeout: waitTimeout ?? TimeSpan.FromSeconds(60));
 
         return (invoker, store);
     }

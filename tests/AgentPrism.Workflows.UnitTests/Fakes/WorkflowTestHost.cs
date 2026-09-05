@@ -41,7 +41,8 @@ internal sealed class WorkflowTestHost
         }
 
         Resolver = new CallableAgentResolver(new CatalogServices(_agents));
-        AgentCache = new WorkflowAgentCache(Resolver, TenantContext, NullLoggerFactory.Instance);
+        AgentCache = new WorkflowAgentCache(
+            Resolver, TenantContext, NullLoggerFactory.Instance, Options.Create(new AgentPrismOptions()));
     }
 
     public FixedTenantContext TenantContext { get; }

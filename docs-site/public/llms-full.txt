@@ -46,7 +46,7 @@ workflow, MCP, voice, and external protocol packages add their own explicit call
 | Definition validation | Checks providers, tools, skills, callable agents, cycles, and policy before save | Compiler and `POST /api/agents/validate` | Validation does not call a model |
 | Model binding | Provider, model, temperature, output limit, `top_p`, reasoning effort, and provider-specific settings | `AgentDefinition.Model` | Credentials stay in provider configuration, never in the definition |
 | Structured output | Explicit text, JSON, or JSON Schema responses | `ModelBinding.ResponseFormat` | Provider support is validated or translated by that provider; an opt-in, fail-closed `IStructuredResponseValidator` seam can check the response before the run closes; a rejected response can get a bounded number of model-driven repair turns (`MaxRepairAttempts`), non-streaming runs only |
-| Agent graph | One agent can call registered agents as tools | `CallableAgentNames` | Shared limits bound call depth, total child runs, total token/cost spend, and wall-clock time — the token, cost, and time limits cut a run off mid-run, between model turns |
+| Agent graph | One agent can call registered agents as tools | `CallableAgentNames` | Shared limits bound call depth, total child runs, total token/cost spend, and wall-clock time — the token, cost, and time limits cut a run off mid-run, between model turns. Each call also has a two-layer wait limit (`SubAgentSettings`, or the installation-wide default): a cooperative deadline, then a hard cutoff that abandons a child that ignores cancellation |
 | Harness mode | Context and iteration limits plus todo, file-memory, web-search, skill, and mode providers | `AgentDefinition.Harness` | The harness extends the agent; it does not replace MAF types. Its providers are on by default — each has its own `Disable...` flag |
 | Context compaction | Trigger-based truncation or summarization with preserved turns and an optional utility model | `AgentDefinition.Compaction` and `AgentPrism:UtilityModel` | Compaction is per definition and can be disabled by harness settings |
 | Working memory | Todo state, file memory, text search, and vector search tools | `AgentDefinition.Memory` | Vector search also needs PostgreSQL and an embedding generator |
@@ -519,13 +519,35 @@ flowchart TD
     CI --> E["child.started / child.completed<br/>on the root stream"]
 ```
 
-Four rules hold across the tree:
+Five rules hold across the tree:
 
 - Every run in the tree shares one budget, so a tree cannot spend more than a single
   run was allowed
 - Every run in the tree shares one trace id, and only the root owns the trace buffer
 - A child runs in the **same tenant**; a tenant change refuses the call
 - A child **cannot ask for approval** — a child run that tries fails
+- A child call has a two-layer wait limit: a cooperative deadline that cancels a
+  child reading its token, and a hard cutoff for one that does not. Past the hard
+  cutoff the tree keeps going; the child keeps running in the background and its
+  eventual result is discarded. Set `SubAgentSettings` on the calling agent to
+  override the installation-wide default:
+
+  ```csharp
+  new AgentDefinition
+  {
+      Name = "router",
+      CallableAgentNames = ["researcher"],
+      SubAgents = new SubAgentSettings
+      {
+          ChildDeadline = TimeSpan.FromSeconds(10),
+          WaitTimeout = TimeSpan.FromSeconds(20),
+      },
+      // ...
+  };
+  ```
+
+  A timed-out call writes a `ChildRunTimedOut` event to the root run's stream,
+  naming which layer cut it.
 
 The whole tree is readable with `GET /api/runs/{runId}/tree`, from any member.
 

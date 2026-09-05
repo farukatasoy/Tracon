@@ -76,6 +76,14 @@ public sealed record AgentDefinition
     public IReadOnlyList<string> CallableAgentNames { get; init; } = [];
 
     /// <summary>
+    /// Gets how long this agent waits for the agents it calls. When
+    /// <see langword="null"/>, <c>AgentPrismAgentGraphOptions.ChildDeadline</c>
+    /// and <c>WaitTimeout</c> apply instead. Ignored when
+    /// <see cref="CallableAgentNames"/> is empty.
+    /// </summary>
+    public SubAgentSettings? SubAgents { get; init; }
+
+    /// <summary>
     /// Gets the MCP resources added to the run context (mode A). Each item has the
     /// form <c>"{server}:{uri}"</c>. They are read at the start of the run and are
     /// predictable; every run receives the same resources.
