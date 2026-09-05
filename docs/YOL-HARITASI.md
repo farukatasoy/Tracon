@@ -8,7 +8,7 @@
 Bir fazın durumu yanlış görünüyorsa **o fazın dokümanını** düzelt;
 bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 
-## Fazlar (145 kalem)
+## Fazlar (149 kalem)
 
 | Faz | Konu | Durum |
 |-----|------|-------|
@@ -157,5 +157,9 @@ bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 | [142](arsiv/fazlar/142-ONAY-ISTEGININ-SUNUMU.md) | Onay İsteğinin Sunumu | ✅ Tamamlandı |
 | [143](arsiv/fazlar/143-TOOL-ARGUMANININ-SOZLESME-TESTLERI.md) | Tool Argümanının Sözleşme Testleri | ✅ Tamamlandı |
 | [144](arsiv/fazlar/144-ALT-AGENT-BEKLEME-SINIRI.md) | Alt-Agent Bekleme Sınırı | ✅ Tamamlandı |
+| [145](145-OLAY-AKISININ-CERCEVE-SOZLESMESI.md) | Kayıtlı Olay Akışının Çerçeve Sözleşmesi | ✅ Tamamlandı |
+| [146](146-CALISTIRMAYA-BAGLI-KOTA-ESIGI.md) | Çalıştırmaya Bağlı Kota Eşiği | 📋 Planlandı |
+| [147](147-YETKI-KAPISININ-KAYNAK-KAPSAMI.md) | Yetkilendirme Kapısının Kaynak Kapsamı | 📋 Planlandı |
+| [148](148-OTURUM-SAHIPLIGININ-KALICILIGI.md) | Oturum Sahipliğinin Kalıcılığı | 📋 Planlandı |
 
 Seçilmemiş adaylar: [`ADAYLAR.md`](ADAYLAR.md). Fazların hangi dalgada, hangi gerekçeyle sıralandığı (Faz 8–56, kapandı): [`arsiv/IKINCI-FAZ-YOL-HARITASI.md`](arsiv/IKINCI-FAZ-YOL-HARITASI.md) · [`arsiv/UCUNCU-FAZ-YOL-HARITASI.md`](arsiv/UCUNCU-FAZ-YOL-HARITASI.md).

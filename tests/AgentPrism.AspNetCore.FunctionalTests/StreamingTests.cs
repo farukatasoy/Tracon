@@ -165,6 +165,12 @@ public sealed class StreamingTests
             .Where(static frame => frame.Data.Contains("\"type\":\"Custom\"", StringComparison.Ordinal))
             .ShouldHaveSingleItem();
 
+        // Phase 145: the frame's OWN SSE "event:" name is the closed, AgentPrism-owned
+        // "custom" -- never "unknown", and never the consumer's CustomType string
+        // (that lives only in the JSON body's "customType" field, asserted below).
+        custom.Event.ShouldBe("custom");
+        frames.ShouldNotContain(static frame => string.Equals(frame.Event, "unknown", StringComparison.Ordinal));
+
         custom.Data.ShouldContain("\"customType\":\"contoso.preview-ready\"");
 
         // The payload itself, not just customType -- proves Payload is carried

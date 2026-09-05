@@ -56,6 +56,30 @@ was found: after regenerating docs/openapi/agentprism.json, run
 ['components']['schemas']; print([k for k, v in s.items() if v == {}])"` -
 add every name beyond JsonElement/ChatRole to COLLIDING_ANY_TYPES.
 
+A fourth pass fixes a JSON-vs-SSE class of defect (Faz 145, found by
+independent audit): every pure `text/event-stream` 200 response has a bare
+`string` schema, so NSwag generates `Task<string>` and reads it through the
+SAME `ReadObjectResponseAsync<T>` helper every JSON-bodied operation uses -
+which calls `System.Text.Json.JsonSerializer.Deserialize<string>` on the raw
+SSE body. A real SSE frame ("event: run.started\ndata: {...}\n\n") is not a
+JSON string literal, so every call to one of these methods throws
+`JsonException` unconditionally - MEASURED with an isolated repro
+(`JsonSerializer.Deserialize<string>(sseText)` -> "'e' is an invalid start of
+a value."). This is invisible to `dotnet build` (no compile error) and to
+`ClientCoverageTests` (which only checks the method NAME exists, not that a
+call succeeds) - nothing in the repo calls a generated SSE client method
+against a real server. The fix does not touch the schema (a raw SSE stream
+still has no JSON shape to describe): it rewrites just the 200-branch of each
+such operation to read the body as plain text instead of through the
+JSON-deserializing helper. Matched structurally, not by an operation-name
+list: a `status_ == 200` branch that calls `ReadObjectResponseAsync<string>`
+IS a pure-SSE-string response in this API - no other operation shape produces
+that combination (verified 2026-09-05: exactly 5 occurrences, all under
+`status_ == 200`, matching the 5 pure-SSE endpoints; the two dual JSON/SSE
+endpoints - `/v1/responses`, `/v1/chat/completions` - generate a JSON return
+type instead and are unaffected, a separate pre-existing limitation this pass
+does not attempt to fix).
+
 Usage: nswag-postprocess-client.py <generated-client.cs>
 """
 
@@ -201,6 +225,46 @@ def rewrite_colliding_any_types(source: str) -> tuple[str, int]:
     return source, total_references
 
 
+# A pure-SSE 200 branch: matches the JSON-deserializing helper call, its null
+# check, and the return - exactly the block NSwag emits for a bare `string`
+# root response type. Whitespace-sensitive on purpose (see module docstring's
+# fourth-pass note): a change to NJsonSchema's template should make this stop
+# matching rather than silently matching something else.
+SSE_STRING_RESPONSE_PATTERN = re.compile(
+    r"( *)if \(status_ == 200\)\r?\n"
+    r" *\{\r?\n"
+    r" *var objectResponse_ = await ReadObjectResponseAsync<string>\(response_, headers_, cancellationToken\)\.ConfigureAwait\(false\);\r?\n"
+    r" *if \(objectResponse_\.Object == null\)\r?\n"
+    r" *\{\r?\n"
+    r' *throw new AgentPrismApiException\("Response was null which was not expected\.", status_, objectResponse_\.Text, headers_, null\);\r?\n'
+    r" *\}\r?\n"
+    r" *return objectResponse_\.Object;\r?\n"
+    r" *\}\r?\n"
+)
+
+
+def rewrite_sse_string_responses(source: str) -> tuple[str, int]:
+    def replace(match: re.Match[str]) -> str:
+        indent = match.group(1)
+        return (
+            f"{indent}if (status_ == 200)\n"
+            f"{indent}{{\n"
+            f"{indent}    // Phase 145: an SSE body is not JSON - ReadObjectResponseAsync<string>\n"
+            f"{indent}    // would JsonSerializer.Deserialize<string> the raw \"event: ...\\ndata: ...\"\n"
+            f"{indent}    // text and throw. Read it as plain text instead. response_.Content is\n"
+            f"{indent}    // nullable per HttpResponseMessage's own contract - same null check\n"
+            f"{indent}    // ReadObjectResponseAsync<T> above makes before it reads the body.\n"
+            f"{indent}    if (response_.Content == null)\n"
+            f"{indent}    {{\n"
+            f"{indent}        return string.Empty;\n"
+            f"{indent}    }}\n"
+            f"{indent}    return await response_.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);\n"
+            f"{indent}}}\n"
+        )
+
+    return SSE_STRING_RESPONSE_PATTERN.subn(replace, source)
+
+
 def main() -> int:
     if len(sys.argv) != 2:
         print(f"Usage: {sys.argv[0]} <generated-client.cs>", file=sys.stderr)
@@ -221,15 +285,17 @@ def main() -> int:
 
     source, enum_count = rewrite_enum_declarations(source)
     source, any_type_reference_count = rewrite_colliding_any_types(source)
+    source, sse_string_count = rewrite_sse_string_responses(source)
 
     with open(path, "w", encoding="utf-8") as f:
         f.write(source)
 
     print(
         f"Rewrote {property_count} JsonStringEnumConverter property attribute(s), added "
-        f"{enum_count} type-level JsonConverter attribute(s) to enum declarations, and qualified "
+        f"{enum_count} type-level JsonConverter attribute(s) to enum declarations, qualified "
         f"{any_type_reference_count} colliding any-type reference(s) "
-        f"({', '.join(COLLIDING_ANY_TYPES)}) in {path}"
+        f"({', '.join(COLLIDING_ANY_TYPES)}), and fixed {sse_string_count} pure-SSE "
+        f"200 response(s) to read plain text instead of JSON in {path}"
     )
     return 0
 

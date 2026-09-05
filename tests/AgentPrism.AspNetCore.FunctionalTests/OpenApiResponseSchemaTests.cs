@@ -98,6 +98,28 @@ public sealed class OpenApiResponseSchemaTests
             .ShouldBeTrue("The streaming SSE response is not reported.");
     }
 
+    [Fact]
+    public async Task Recorded_event_stream_endpoint_reports_SSE_and_404()
+    {
+        // Phase 145 (K-273 class): before this phase, this was the only SSE
+        // endpoint in the family that reported NO content type at all -- the
+        // "200" response had a bare description and no "content" key, so a
+        // generated client treated the stream as plain JSON.
+        var document = await FetchDocumentAsync();
+
+        var operation = OpenApiTestHelpers.FindByOperationId(document, "AgentPrismStreamRunEvents");
+        var responses = operation.GetProperty("responses");
+
+        responses.GetProperty("200").GetProperty("content").TryGetProperty("text/event-stream", out _)
+            .ShouldBeTrue("The success response must be reported as SSE.");
+
+        responses.TryGetProperty("404", out var notFoundResponse).ShouldBeTrue(
+            "The '404' response (run does not exist) is not reported.");
+
+        notFoundResponse.GetProperty("content").TryGetProperty("application/problem+json", out _)
+            .ShouldBeTrue("The '404' response is not reported as ProblemDetails.");
+    }
+
     private static async Task<System.Text.Json.JsonElement> FetchDocumentAsync()
     {
         await using var host = await AgentPrismTestHost.StartAsync(withOpenApi: true);

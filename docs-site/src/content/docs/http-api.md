@@ -73,6 +73,12 @@ before the stream ends — the pending request's id and tool name, plus whatever
 [Approvals](/concepts/governance/#approvals) for the queued-run mailbox shape, which
 answers the same request differently.
 
+`GET /api/runs/{runId}/events` is a **separate** SSE contract with its own, larger
+set of frame names (`run.started`, `tool.invoking`, ...) — see
+[the two-contract table in Runs and recording](/concepts/runs/#two-sse-contracts-not-one).
+
+
+
 ## Paging
 
 List endpoints that page use `skip` and `take`. `skip` defaults to 0, `take` to 50,

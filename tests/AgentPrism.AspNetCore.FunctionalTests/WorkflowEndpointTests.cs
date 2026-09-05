@@ -325,6 +325,45 @@ public sealed class WorkflowEndpointTests
     }
 
     [Fact]
+    public async Task Recorded_event_stream_uses_the_workflow_frame_names()
+    {
+        // Phase 145: before this phase, every one of these frames fell through
+        // to the server's "unknown" branch on the RECORDED stream (this test
+        // reads GET /api/runs/{id}/events, not the direct run POST stream that
+        // Run_streams_over_SSE_and_produces_a_tree above already covers).
+        await using var host = await StartWithEngineAsync();
+
+        using (var saved = await SaveAsync(host, "chain", Sequential()))
+        {
+            saved.StatusCode.ShouldBe(HttpStatusCode.OK);
+        }
+
+        Guid runId;
+
+        using (var response = await host.Client.PostAsJsonAsync(
+                   "/agentprism/api/workflows/chain/run",
+                   new WorkflowRunHttpRequest { Message = "hello" }))
+        {
+            var frames = await SseReader.ReadAllAsync(await response.Content.ReadAsStreamAsync());
+            runId = JsonDocument.Parse(frames[0].Data).RootElement.GetProperty("runId").GetGuid();
+        }
+
+        using var events = await host.Client.GetAsync(
+            new Uri($"/agentprism/api/runs/{runId}/events", UriKind.Relative),
+            HttpCompletionOption.ResponseHeadersRead);
+
+        var recorded = await SseReader.ReadAllAsync(await events.Content.ReadAsStreamAsync());
+
+        recorded.ShouldContain(static frame => string.Equals(frame.Event, "workflow.started", StringComparison.Ordinal));
+        recorded.ShouldContain(static frame => string.Equals(frame.Event, "superstep.started", StringComparison.Ordinal));
+        recorded.ShouldContain(static frame => string.Equals(frame.Event, "superstep.completed", StringComparison.Ordinal));
+        recorded.ShouldContain(static frame => string.Equals(frame.Event, "executor.invoked", StringComparison.Ordinal));
+        recorded.ShouldContain(static frame => string.Equals(frame.Event, "executor.completed", StringComparison.Ordinal));
+        recorded.ShouldContain(static frame => string.Equals(frame.Event, "workflow.output", StringComparison.Ordinal));
+        recorded.ShouldNotContain(static frame => string.Equals(frame.Event, "unknown", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public async Task Checkpoints_are_listed_and_resumed()
     {
         await using var host = await StartWithEngineAsync();

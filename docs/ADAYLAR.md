@@ -68,6 +68,27 @@
 > **hiç çalışmaz** — testi yalnız DI kaydını ölçüyor. Bu kusur ayrı bir kayıt
 > açmaz; F-183'ün düşen testidir.
 >
+>
+> **Ek (2026-09-05, tüketici turu 4):** ProdigyEnabler'ın `0.0.0-preview.0.589`
+> raporu koda karşı ölçüldü ([kesif](kesif/2026-09-05-tuketici-turu-4-olcumu.md)).
+> On dört iddianın on üçü doğru çıktı; yanlış olan tek iddia bir risk satırıydı
+> (`MigrationDescriptor` public sanılmış, `internal` çıktı). Dört kalem **doğrudan
+> plana** dönüştü — bu dosyada hiç sıralanmadılar, çünkü kanıtları raporla
+> birlikte geldi ve aynı turda doğrulandı: **F-193** →
+> [Faz 145](145-OLAY-AKISININ-CERCEVE-SOZLESMESI.md) · **F-194** (A2 + F3 birleşti) →
+> [Faz 146](146-CALISTIRMAYA-BAGLI-KOTA-ESIGI.md) · **F-195** →
+> [Faz 147](147-YETKI-KAPISININ-KAYNAK-KAPSAMI.md) · **F-196** →
+> [Faz 148](148-OTURUM-SAHIPLIGININ-KALICILIGI.md).
+>
+> Planlama ölçümü raporda **olmayan** bir bulgu üretti: `POST /runs/{id}/replay`
+> ve `/v1/chat/completions` de gerçek bir `run` başlatıyor ve ikisi de
+> `RunAuthorizationGate`'i çağırmıyor. Faz 139'un "dört run başlatan yüzey"
+> iddiası (K-670) eksiktir; gerçek sayı **altıdır**. Faz 147 bunu kapsıyor.
+>
+> Aynı turdan **sıralanmayan** kalemler: F2 (zorunlu extension binding profili) ·
+> F6 (ses/WebSocket test harness'i) · F7 (migration plan artifact'i) — üçünün de
+> boşluğu gerçek, talep kanıtı yok. **Elenenler:** F4 · F5 · F8. Gerekçeler keşif
+> kaydındadır.
 > Faz durumu yalnız üretilen [`YOL-HARITASI.md`](YOL-HARITASI.md)'dedir.
 > Bir kusur bu dosyaya geri girmez; `kusur-giderme` kanalına gider. Kapatılmış
 > kararın yeniden açılması kullanıcı kararıdır. Ölçüm bekleyen iddia, kanıt
@@ -213,6 +234,84 @@ bağlam semantiğini değiştirir.
 değil. F-167'nin dersi geçerlidir: *"SDK maliyeti zaten ödenmiş" bir talep kanıtı
 değil, yalnız bir indirimdir.*
 
+
+### F-197 · Generated client's DTO collections default to `null`, not empty
+
+**Sorun:** Faz 145's independent audit found this while writing a real-server
+test for the phase's own fix: `AgentPrism.Client`'s NSwag-generated DTOs
+(`AgentRunRequest.Approvals`/`ToolResults`/`AttachmentIds`/`Documents`, and
+likely others across ~250 generated types) default to `= default!` (`null`),
+not an empty collection. Server code that reads them unconditionally
+(`request.Documents.Count`, `AgentEndpoints.cs`) throws
+`NullReferenceException` the moment a caller builds a request with only the
+fields they care about — exactly the ergonomics a typed client exists to
+prevent. Measured (2026-09-05): calling `AgentPrismRunAgentAsync` with only
+`Message` set NREs; every collection has to be explicitly initialized to `[]`
+to avoid it (`tests/AgentPrism.AspNetCore.FunctionalTests/GeneratedClientSseTests.cs`
+works around it this way today).
+
+**Kapsam:** A `nswag-postprocess-client.py` pass that rewrites every
+generated collection-typed property's default from `default!` to an empty
+collection literal (`new List<T>()`/`new Dictionary<K,V>()` as appropriate).
+Scope the fix to properties, not constructor parameters — request DTOs here
+have no constructors NSwag generates arguments for.
+
+**Değer:** Removes a silent trap for every consumer of the typed client, not
+just the SSE-returning operations Faz 145 touched — `ClientCoverageTests`
+only proves a method exists, never that a minimal call succeeds, so this
+class of defect is invisible until a real caller hits it in production.
+
+**Mercek:** 1, 2.
+
+**Hazırlık:** `nswag-postprocess-client.py` already has three precedented
+rewrite passes over the same generated file (enum converters, colliding
+any-types) plus the fourth this phase added (SSE string responses) — the
+same script, same regeneration pipeline.
+
+**Maliyet:** Ölçülmedi. No schema change, no new package; purely a
+generated-file post-process rewrite plus regression coverage across the
+generated DTOs that carry a collection property.
+
+**Risk:** A collection property that legitimately needs to stay `null` to
+distinguish "not provided" from "provided empty" (a `PATCH`-style partial
+update, if one is ever added) would need an explicit exemption — none exists
+in the API today (every collection here is read unconditionally), but the
+fix should check for one before rewriting blindly.
+
+### F-198 · The two dual JSON/SSE client operations never call the streaming shape
+
+**Sorun:** `/v1/responses` and `/v1/chat/completions` report BOTH
+`application/json` and `text/event-stream` for their 200 response (the
+request body's `stream` flag picks one at runtime); NSwag's generated
+`AgentPrismOpenAIResponsesAsync`/`AgentPrismOpenAIChatCompletionsAsync`
+methods generate ONLY the JSON shape (`Task<JsonElement>`/`Task<ChatCompletion>`)
+and have no way to read the streaming shape at all — a caller who sets
+`stream: true` through the typed client gets a JSON-deserialization crash
+against a raw SSE body, the same class of defect Faz 145 fixed for the five
+pure-SSE operations (F-193's `nswag-postprocess-client.py` fourth pass
+explicitly does not touch these two, noted in its own docstring).
+
+**Kapsam:** Design a shape for a dual-response typed client method — most
+likely two separate generated methods (`...Async` for JSON,
+`...StreamAsync` for SSE) selected by an explicit parameter, since NSwag
+itself cannot express a runtime-conditional return type. Needs either a
+`nswag.json`/postprocess change or acceptance that this pair stays
+JSON-only in the typed client (with `HttpClient` as the documented escape
+hatch for streaming OpenAI-compatible calls).
+
+**Değer:** Closes the last two operations in the family still silently
+broken for their streaming mode through the typed client.
+
+**Mercek:** 1, 2.
+
+**Hazırlık:** Not started — needs a design decision (two methods vs. one
+with a runtime branch) before any code.
+
+**Maliyet:** Ölçülmedi.
+
+**Risk:** A wrong design here (e.g., silently picking JSON always) leaves
+the streaming OpenAI-compatible path permanently unreachable from the typed
+client without a clear error explaining why.
 
 ### Sıralamayı Değiştiren Ölçümler
 

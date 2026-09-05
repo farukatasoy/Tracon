@@ -40,6 +40,13 @@ public sealed class SubAgentTimeoutTests
         types.ShouldContain(RunEventType.ChildRunTimedOut);
         types.ShouldContain(RunEventType.ChildRunCompleted);
         timedOut.HardCutoff.ShouldBeFalse();
+
+        // Phase 145: the recorded event stream's SSE "event:" name for this
+        // frame is the stable "child.timed-out" -- before this phase it fell
+        // through to "unknown" on the wire.
+        var wire = await FetchRootEventStreamTextAsync(host);
+        wire.ShouldContain("event: child.timed-out", Case.Sensitive);
+        wire.ShouldNotContain("event: unknown", Case.Sensitive);
     }
 
     [Fact]
@@ -196,6 +203,15 @@ public sealed class SubAgentTimeoutTests
         }
 
         return (types, timedOut ?? throw new InvalidOperationException("No ChildRunTimedOut event was written."));
+    }
+
+    private static async Task<string> FetchRootEventStreamTextAsync(AgentPrismTestHost host)
+    {
+        var runs = host.Services.GetRequiredService<IRunStore>();
+        var root = (await runs.QueryRunsAsync(new RunQuery())).ShouldHaveSingleItem();
+
+        return await host.Client.GetStringAsync(
+            new Uri($"/agentprism/api/runs/{root.Id}/events", UriKind.Relative));
     }
 
     private static FakeModelProvider BuildRouterProvider()
