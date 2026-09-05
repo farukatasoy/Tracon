@@ -79,7 +79,7 @@ Faz 147'nin kapsamına alındı.
 |---|---|---|
 | **F1** → F-193 | Plana | [Faz 145 — Kayıtlı Olay Akışının Çerçeve Sözleşmesi](../arsiv/fazlar/145-OLAY-AKISININ-CERCEVE-SOZLESMESI.md) |
 | **A2 + F3** → F-194 | Plana (birleşti — aynı kota altyapısı, Faz 21 emsali) | [Faz 146 — Çalıştırmaya Bağlı Kota Eşiği](../arsiv/fazlar/146-CALISTIRMAYA-BAGLI-KOTA-ESIGI.md) |
-| **A1 · kapsam** → F-195 | Plana | [Faz 147 — Yetkilendirme Kapısının Kaynak Kapsamı](../147-YETKI-KAPISININ-KAYNAK-KAPSAMI.md) |
+| **A1 · kapsam** → F-195 | Plana | [Faz 147 — Yetkilendirme Kapısının Kaynak Kapsamı](../arsiv/fazlar/147-YETKI-KAPISININ-KAYNAK-KAPSAMI.md) |
 | **A1 · sahiplik** → F-196 | Plana | [Faz 148 — Oturum Sahipliğinin Kalıcılığı](../148-OTURUM-SAHIPLIGININ-KALICILIGI.md) |
 | **F2** · zorunlu binding profili | ⏸ Sıralanmadı | Bilgi zaten `ExtensionPointDiagnostic`'te; emsal `RequireRolePolicies`. Küçük ve gerçek, ama talep kanıtı yok — tüketici bunu bir "fikir" diye sundu |
 | **F7** · migration plan artifact'i | ⏸ Sıralanmadı | Boşluk gerçek ama değeri düşük; raporun kendi kanıtı (`MigrationDescriptor` public) yanlış çıktı |

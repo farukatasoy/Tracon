@@ -1,13 +1,13 @@
 # Faz 147 — Yetkilendirme Kapısının Kaynak Kapsamı
 
 > **Durum:** ✅ Tamamlandı (2026-09-05)
-> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-195** (tüketici turu 4, A1 · kapsam yarısı)
-> **Önkoşul:** Yok — [Faz 139](arsiv/fazlar/139-CALISTIRMA-VE-OTURUM-YETKILENDIRMESI.md) sözleşmeyi zaten sevk etti; bu faz onun kapsamını tamamlar
+> **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-195** (tüketici turu 4, A1 · kapsam yarısı)
+> **Önkoşul:** Yok — [Faz 139](139-CALISTIRMA-VE-OTURUM-YETKILENDIRMESI.md) sözleşmeyi zaten sevk etti; bu faz onun kapsamını tamamlar
 > **Paketler:** `AgentPrism.Abstractions`, `AgentPrism.AspNetCore`
 > **Yeni paket:** Yok · **Migration:** Yok
 > **Public API:** Büyüyor — iki enum'a üye, bir request record. `wc -l src/*/PublicAPI.Shipped.txt` → 17 satır / 17 dosya (yalnız başlık), **shipped giriş sıfır**: bugün eklemek bedava, Faz 7'den sonra bir sürüm kararı
 > **Tüketici yüzeyi:** `docs-site/`: `guides/embedding.md`, `concepts/governance.md`, `concepts/runs.md`, `guides/voice.md`, `capabilities.md` · sevk edilen: `IRunAuthorizationHandler` XML `<example>`, `src/AgentPrism.Abstractions/README.md`
-> **Manuel test alanı:** [`docs/manuel-test/13-KIRACI-VE-GUVENLIK.md`](manuel-test/13-KIRACI-VE-GUVENLIK.md)
+> **Manuel test alanı:** [`docs/manuel-test/13-KIRACI-VE-GUVENLIK.md`](../../manuel-test/13-KIRACI-VE-GUVENLIK.md)
 
 ---
 
@@ -25,17 +25,17 @@
    **K-642** (bölünmüş ifade tuzağı: kaynak taraması düz dizge ile yapılmaz) ·
    **K-670** (kapı dört run başlatan yüzeyi kapsar; `IEndpointFilter` DEĞİL, elle çağrı) ·
    **K-671** (reddedilen `List` `403`, reddedilen `Read`/`Delete`/`Branch` `404` ve gövdesi var olmayan session'la birebir aynı)
-3. [`arsiv/fazlar/139-CALISTIRMA-VE-OTURUM-YETKILENDIRMESI.md`](arsiv/fazlar/139-CALISTIRMA-VE-OTURUM-YETKILENDIRMESI.md) — **devir notunu tamamen oku**:
+3. [`arsiv/fazlar/139-CALISTIRMA-VE-OTURUM-YETKILENDIRMESI.md`](139-CALISTIRMA-VE-OTURUM-YETKILENDIRMESI.md) — **devir notunu tamamen oku**:
    ```bash
    awk '/## Sonraki Faza Devir Notu/,0' docs/arsiv/fazlar/139-CALISTIRMA-VE-OTURUM-YETKILENDIRMESI.md
    ```
    O not iki şeyi bu faza devrediyor: yeni bir run başlatan yüzeyin kapıyı kendi gövdesinde çağırma zorunluluğu, ve sesin **kapsam dışı bırakıldığı**.
 4. Alan hafızası (bu faz üç alana dokunuyor):
-   [`hafiza/tool-onay-ve-yetkilendirme.md`](hafiza/tool-onay-ve-yetkilendirme.md) (yetkilendirme deseni) ·
-   [`hafiza/http-uc-tuzaklari.md`](hafiza/http-uc-tuzaklari.md) 🚨 (dönüş tipi gevşetmenin OpenAPI'yi sessizce bozması — Faz 139 bunu yaşadı) ·
-   [`hafiza/ses-ve-konusma.md`](hafiza/ses-ve-konusma.md) (WebSocket el sıkışması ve subprotocol)
+   [`hafiza/tool-onay-ve-yetkilendirme.md`](../../hafiza/tool-onay-ve-yetkilendirme.md) (yetkilendirme deseni) ·
+   [`hafiza/http-uc-tuzaklari.md`](../../hafiza/http-uc-tuzaklari.md) 🚨 (dönüş tipi gevşetmenin OpenAPI'yi sessizce bozması — Faz 139 bunu yaşadı) ·
+   [`hafiza/ses-ve-konusma.md`](../../hafiza/ses-ve-konusma.md) (WebSocket el sıkışması ve subprotocol)
 5. Gerektiğinde, tamamı değil ilgili bölümü:
-   [`MIMARI-GUVENLIK.md`](MIMARI-GUVENLIK.md) — yetkilendirme katmanları bölümü
+   [`MIMARI-GUVENLIK.md`](../../MIMARI-GUVENLIK.md) — yetkilendirme katmanları bölümü
 
 ---
 
@@ -47,7 +47,7 @@ bile, aynı kiracıdaki bir `Reader` başka bir kullanıcının `run`'ının met
 girdisini, trace'ini, tool çağrılarını ve eklerini okuyabiliyor; bir `Operator`
 onu iptal edebiliyor.
 
-Bu faz **sahiplik öğretmez** — o [Faz 148](148-OTURUM-SAHIPLIGININ-KALICILIGI.md)'in
+Bu faz **sahiplik öğretmez** — o [Faz 148](../../148-OTURUM-SAHIPLIGININ-KALICILIGI.md)'in
 işidir. Bu faz var olan kapının **her kaynağa** ulaşmasını sağlar. Faz 139'un
 kendi gerekçesi burada da geçerlidir: *"Yalnız birini kapsasaydık kapı bir
 bypass'a dönerdi ve yanlış bir güvenlik hissi üretirdi — bu, kapının hiç
@@ -60,15 +60,15 @@ olmamasından kötüdür."*
 
 | Kanıt | Gözlem |
 |---|---|
-| [`RunEndpoints.cs`](../src/AgentPrism.AspNetCore/Endpoints/RunEndpoints.cs) (992 satır) | `RunAuthorizationGate` çağrısı **sıfır**. `grep -c "RunAuthorizationGate" ` → 0 |
-| [`RunEndpoints.cs:306`](../src/AgentPrism.AspNetCore/Endpoints/RunEndpoints.cs) | Tek koruma `run.TenantId == tenants.TenantId` — kiracı düzeyi |
-| [`ApprovalEndpoints.cs`](../src/AgentPrism.AspNetCore/Endpoints/ApprovalEndpoints.cs) · [`AttachmentEndpoints.cs`](../src/AgentPrism.AspNetCore/Endpoints/AttachmentEndpoints.cs) | Kapı çağrısı **sıfır** |
-| [`ObservabilityEndpoints.cs:18`](../src/AgentPrism.AspNetCore/Endpoints/ObservabilityEndpoints.cs) | `GET /api/runs/{id}/trace` aynı durumda |
-| [`VoiceConversationEndpoint.cs:262`](../src/AgentPrism.AspNetCore/Voice/VoiceConversationEndpoint.cs) | `OwnsSessionAsync` yalnız `record.TenantId == tenantId` karşılaştırıyor |
-| [`RunAuthorizationTypes.cs`](../src/AgentPrism.Abstractions/Runs/RunAuthorizationTypes.cs) | `RunAccess` yalnız `Start = 0` taşıyor; XML'i de *"Always Start today"* diyor |
-| 🚨 [`RunEndpoints.cs:251`](../src/AgentPrism.AspNetCore/Endpoints/RunEndpoints.cs) | `POST /api/runs/{id}/replay` — kendi özeti *"Starts a new run with recorded input."* diyor, `RunReplayService` katalogdan agent çözüyor, **kapı çağrısı yok**. Bu bir **beşinci** run başlatan yüzeydir |
-| 🚨 [`OpenAIChatCompletionsEndpoints.cs:107`](../src/AgentPrism.AspNetCore/OpenAICompat/OpenAIChatCompletionsEndpoints.cs) | `/v1/chat/completions` katalogdan agent çözüp `RunAsync`/`RunStreamingAsync` çağırıyor (`:138`, `:301`), **kapı çağrısı yok**. Bu bir **altıncı** run başlatan yüzeydir |
-| [`RunAuthorizationCoverageTests.cs:42`](../tests/AgentPrism.Core.UnitTests/Architecture/RunAuthorizationCoverageTests.cs) | `ExpectedRunStartingFiles` **dört** dosya sayıyor; testin kendi dokümanı *"cannot discover a brand-new FIFTH run-starting endpoint"* diyor |
+| [`RunEndpoints.cs`](../../../src/AgentPrism.AspNetCore/Endpoints/RunEndpoints.cs) (992 satır) | `RunAuthorizationGate` çağrısı **sıfır**. `grep -c "RunAuthorizationGate" ` → 0 |
+| [`RunEndpoints.cs:306`](../../../src/AgentPrism.AspNetCore/Endpoints/RunEndpoints.cs) | Tek koruma `run.TenantId == tenants.TenantId` — kiracı düzeyi |
+| [`ApprovalEndpoints.cs`](../../../src/AgentPrism.AspNetCore/Endpoints/ApprovalEndpoints.cs) · [`AttachmentEndpoints.cs`](../../../src/AgentPrism.AspNetCore/Endpoints/AttachmentEndpoints.cs) | Kapı çağrısı **sıfır** |
+| [`ObservabilityEndpoints.cs:18`](../../../src/AgentPrism.AspNetCore/Endpoints/ObservabilityEndpoints.cs) | `GET /api/runs/{id}/trace` aynı durumda |
+| [`VoiceConversationEndpoint.cs:262`](../../../src/AgentPrism.AspNetCore/Voice/VoiceConversationEndpoint.cs) | `OwnsSessionAsync` yalnız `record.TenantId == tenantId` karşılaştırıyor |
+| [`RunAuthorizationTypes.cs`](../../../src/AgentPrism.Abstractions/Runs/RunAuthorizationTypes.cs) | `RunAccess` yalnız `Start = 0` taşıyor; XML'i de *"Always Start today"* diyor |
+| 🚨 [`RunEndpoints.cs:251`](../../../src/AgentPrism.AspNetCore/Endpoints/RunEndpoints.cs) | `POST /api/runs/{id}/replay` — kendi özeti *"Starts a new run with recorded input."* diyor, `RunReplayService` katalogdan agent çözüyor, **kapı çağrısı yok**. Bu bir **beşinci** run başlatan yüzeydir |
+| 🚨 [`OpenAIChatCompletionsEndpoints.cs:107`](../../../src/AgentPrism.AspNetCore/OpenAICompat/OpenAIChatCompletionsEndpoints.cs) | `/v1/chat/completions` katalogdan agent çözüp `RunAsync`/`RunStreamingAsync` çağırıyor (`:138`, `:301`), **kapı çağrısı yok**. Bu bir **altıncı** run başlatan yüzeydir |
+| [`RunAuthorizationCoverageTests.cs:42`](../../../tests/AgentPrism.Core.UnitTests/Architecture/RunAuthorizationCoverageTests.cs) | `ExpectedRunStartingFiles` **dört** dosya sayıyor; testin kendi dokümanı *"cannot discover a brand-new FIFTH run-starting endpoint"* diyor |
 
 > Kanıtlar 2026-09-05 tarihinde doğrulandı (HEAD `234d4081`).
 >
@@ -281,7 +281,7 @@ tests/AgentPrism.AspNetCore.FunctionalTests/
 
 ## Manuel Kabul Case'leri
 
-> Kapanışta [`docs/manuel-test/13-KIRACI-VE-GUVENLIK.md`](manuel-test/13-KIRACI-VE-GUVENLIK.md) içine eklenir.
+> Kapanışta [`docs/manuel-test/13-KIRACI-VE-GUVENLIK.md`](../../manuel-test/13-KIRACI-VE-GUVENLIK.md) içine eklenir.
 
 | # | Ön koşul | Adımlar | Beklenen sonuç |
 |---|---|---|---|
@@ -357,7 +357,7 @@ diff <(curl -s "$APU/api/runs/$OTHER_RUN" -H "$APB") \
 |------|-------|
 | 21 çağrı yeri elle eklenirken biri atlanır | Kapsam kapısı (147.5) dosya bazında sayar; fonksiyonel test uç bazında kanıtlar. İki katman birlikte |
 | Kapı sırası yanlış konur ve başka kiracının kimliği handler'a gider | Açık Soru 4 kararı: kapı kiracı kontrolünden **sonra**. Fonksiyonel test bunu ayrıca kanıtlar |
-| 🚨 Faz 139'un `Task<IResult>` gevşetmesi tekrarlanır ve OpenAPI'den `200` sessizce düşer | [`hafiza/http-uc-tuzaklari.md`](hafiza/http-uc-tuzaklari.md) uygulama öncesi okunur; her uç somut `Results<T, ProblemHttpResult>` imzasını **korur**. `OpenApiSnapshotTests` diff'i gözle incelenir |
+| 🚨 Faz 139'un `Task<IResult>` gevşetmesi tekrarlanır ve OpenAPI'den `200` sessizce düşer | [`hafiza/http-uc-tuzaklari.md`](../../hafiza/http-uc-tuzaklari.md) uygulama öncesi okunur; her uç somut `Results<T, ProblemHttpResult>` imzasını **korur**. `OpenApiSnapshotTests` diff'i gözle incelenir |
 | Ses kapsamı K-283'ü bozar ve var olmayan oturum reddedilir | Manuel case 13 ve `VoiceAuthorizationTests` bu davranışı ayrıca kilitler |
 | Enum büyümesi kırıcı sayılır | `PublicAPI.Shipped.txt` boş (ölçüldü: 17 satır / 17 dosya). Bugün bedava; plan bunu Faz 7 kararı olarak işaretler |
 | `AgentName`'in `required` olmaktan çıkması mevcut tüketici kodunu bozar | Kırıcı ama `Shipped` boş. Ayrıca `Start` erişiminde alan **her zaman dolu** kalır; yalnız derleyici zorlaması gevşer |
@@ -535,7 +535,7 @@ doğruladı ve `OpenApiSnapshotTests` riskinin gerçekleşmediğini ölçtü.
 
 ## Sonraki Faza Devir Notu
 
-[Faz 148](148-OTURUM-SAHIPLIGININ-KALICILIGI.md) bu fazın hemen üstüne biniyor:
+[Faz 148](../../148-OTURUM-SAHIPLIGININ-KALICILIGI.md) bu fazın hemen üstüne biniyor:
 Faz 147 kapıyı **her kaynağa** ulaştırdı ama sahipliği hâlâ **öğretmiyor** —
 `IRunAuthorizationHandler` tüketicinin kendi kaydına soruyor. Faz 148 o kaydı
 AgentPrism'in içine taşıyacak. Devreden dört gerçek bilgi:

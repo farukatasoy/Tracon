@@ -2,7 +2,7 @@
 
 > **Durum:** 📋 Planlandı (2026-09-05)
 > **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-196** (tüketici turu 4, A1 · sahiplik yarısı)
-> **Önkoşul:** [Faz 147](147-YETKI-KAPISININ-KAYNAK-KAPSAMI.md) — kapı bütün kaynak grafiğini kapsamadan sahiplik yarım bir sınır olur; sahipli liste dönerken `run` okuma açık kalırsa sızıntı kapanmaz
+> **Önkoşul:** [Faz 147](arsiv/fazlar/147-YETKI-KAPISININ-KAYNAK-KAPSAMI.md) — kapı bütün kaynak grafiğini kapsamadan sahiplik yarım bir sınır olur; sahipli liste dönerken `run` okuma açık kalırsa sızıntı kapanmaz
 > **Paketler:** `AgentPrism.Abstractions`, `AgentPrism.Core`, `AgentPrism.AspNetCore`, `AgentPrism.PostgreSql`, `AgentPrism.SqlServer`, `AgentPrism.Sqlite`, `AgentPrism.Testing.Contracts.Xunit`
 > **Yeni paket:** Yok · **Migration:** **Gerekli — üç set** (`sessions`'a sütun + indeks). Numaralar uygulama anında alınır (K-178)
 > **Public API:** Büyüyor — `SessionRecord` ve `SessionQuery`'ye birer alan, bir seçenek sınıfı. `wc -l src/*/PublicAPI.Shipped.txt` → 17 satır / 17 dosya (yalnız başlık), **shipped giriş sıfır**: bugün eklemek bedava, Faz 7'den sonra bir sürüm kararı
@@ -26,7 +26,7 @@
    **K-283** 🚨 (görünmeyen oturum YOK sayılır) ·
    **K-605** (store sözleşmeleri xunit taban sınıfı olarak **sevk edilir** — `SessionStoreContract` büyüyecek) ·
    **K-670 · K-671** (kapı deseni ve ret kodları)
-3. [`147-YETKI-KAPISININ-KAYNAK-KAPSAMI.md`](147-YETKI-KAPISININ-KAYNAK-KAPSAMI.md) — yalnız devir notu:
+3. [`147-YETKI-KAPISININ-KAYNAK-KAPSAMI.md`](arsiv/fazlar/147-YETKI-KAPISININ-KAYNAK-KAPSAMI.md) — yalnız devir notu:
    ```bash
    awk '/## Sonraki Faza Devir Notu/,0' docs/147-YETKI-KAPISININ-KAYNAK-KAPSAMI.md
    ```
