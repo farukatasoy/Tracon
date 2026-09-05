@@ -2729,6 +2729,7 @@ export interface components {
             skillNames?: string[];
             /** @description Gets the names of the other agents this agent may call. */
             callableAgentNames?: string[];
+            subAgents?: null | components["schemas"]["SubAgentSettings"];
             /**
              * @description Gets the MCP resources added to the run context (mode A). Each item has the
              *     form `"{server}:{uri}"`. They are read at the start of the run and are
@@ -6405,6 +6406,16 @@ export interface components {
         };
         /** Format: binary */
         Stream: string;
+        /** @description Determines how long an agent waits for the agents it calls. */
+        SubAgentSettings: {
+            /** @description Gets the deadline applied to a single sub-agent run (the cooperative layer). */
+            childDeadline?: null | string;
+            /**
+             * @description Gets the hard wait cutoff handed to the framework (the hard-cutoff layer).
+             *     Must be greater than `ChildDeadline`.
+             */
+            waitTimeout?: null | string;
+        };
         /** @description A registered tenant. */
         TenantDescriptor: {
             /**
@@ -7680,6 +7691,7 @@ export type SpeakRequest = components['schemas']['SpeakRequest'];
 export type SpeakResponse = components['schemas']['SpeakResponse'];
 export type SpeechAlignment = components['schemas']['SpeechAlignment'];
 export type Stream = components['schemas']['Stream'];
+export type SubAgentSettings = components['schemas']['SubAgentSettings'];
 export type TenantDescriptor = components['schemas']['TenantDescriptor'];
 export type TenantEgressPolicyRequest = components['schemas']['TenantEgressPolicyRequest'];
 export type TenantEgressPolicyResponse = components['schemas']['TenantEgressPolicyResponse'];

@@ -37,7 +37,8 @@ export type RunEventType =
   | 'ToolOutputTruncated'
   | 'StructuredResponseRejected'
   | 'StructuredResponseRepairAttempted'
-  | 'Custom';
+  | 'Custom'
+  | 'ChildRunTimedOut';
 
 export interface RunEvent {
   runId: string;

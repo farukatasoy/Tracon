@@ -267,4 +267,23 @@ public enum RunEventType
     /// collide with a consumer's own.
     /// </remarks>
     Custom = 29,
+
+    /// <summary>
+    /// A sub-agent run passed its wait limit. <c>Text</c> carries the child
+    /// agent's name; <c>Payload</c> is a JSON object with the child run id
+    /// (<c>childRunId</c>) and whether the cutoff was a hard one
+    /// (<c>hardCutoff</c>). When <c>hardCutoff</c> is <see langword="false"/>,
+    /// the sub-agent's own cancellation was honored and its resources were
+    /// released. When <see langword="true"/>, the sub-agent ignored
+    /// cancellation and keeps running in the background; its eventual
+    /// result is discarded without producing a further event, a metric, or
+    /// an unobserved exception.
+    /// </summary>
+    /// <remarks>
+    /// 30, not inserted earlier in the list: <see cref="Custom"/> is 29 and
+    /// <c>run_events.type</c> is a <c>smallint</c> column — the enum's numeric
+    /// value is what is stored. Shifting an existing member's value would
+    /// silently reinterpret every already-persisted event of that type.
+    /// </remarks>
+    ChildRunTimedOut = 30,
 }

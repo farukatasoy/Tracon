@@ -5141,3 +5141,19 @@ static AgentPrism.RunAuthorizationResult.operator !=(AgentPrism.RunAuthorization
 static AgentPrism.RunAuthorizationResult.operator ==(AgentPrism.RunAuthorizationResult? left, AgentPrism.RunAuthorizationResult? right) -> bool
 static AgentPrism.SessionAuthorizationRequest.operator !=(AgentPrism.SessionAuthorizationRequest? left, AgentPrism.SessionAuthorizationRequest? right) -> bool
 static AgentPrism.SessionAuthorizationRequest.operator ==(AgentPrism.SessionAuthorizationRequest? left, AgentPrism.SessionAuthorizationRequest? right) -> bool
+AgentPrism.AgentDefinition.SubAgents.get -> AgentPrism.SubAgentSettings?
+AgentPrism.AgentDefinition.SubAgents.init -> void
+AgentPrism.RunEventType.ChildRunTimedOut = 30 -> AgentPrism.RunEventType
+AgentPrism.SubAgentSettings
+AgentPrism.SubAgentSettings.<Clone>$() -> AgentPrism.SubAgentSettings!
+AgentPrism.SubAgentSettings.ChildDeadline.get -> System.TimeSpan?
+AgentPrism.SubAgentSettings.ChildDeadline.init -> void
+AgentPrism.SubAgentSettings.Equals(AgentPrism.SubAgentSettings? other) -> bool
+AgentPrism.SubAgentSettings.SubAgentSettings() -> void
+AgentPrism.SubAgentSettings.WaitTimeout.get -> System.TimeSpan?
+AgentPrism.SubAgentSettings.WaitTimeout.init -> void
+override AgentPrism.SubAgentSettings.Equals(object? obj) -> bool
+override AgentPrism.SubAgentSettings.GetHashCode() -> int
+override AgentPrism.SubAgentSettings.ToString() -> string!
+static AgentPrism.SubAgentSettings.operator !=(AgentPrism.SubAgentSettings? left, AgentPrism.SubAgentSettings? right) -> bool
+static AgentPrism.SubAgentSettings.operator ==(AgentPrism.SubAgentSettings? left, AgentPrism.SubAgentSettings? right) -> bool

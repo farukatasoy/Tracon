@@ -252,7 +252,9 @@ public static partial class AgentPrismServiceCollectionExtensions
             // lines below (the in-memory store by default), so this is never null
             // in practice - GetService, not GetRequiredService, only to avoid a
             // hard dependency order requirement between the two registrations.
-            provider.GetService<IAgentDefinitionStore>()));
+            provider.GetService<IAgentDefinitionStore>(),
+            provider.GetRequiredService<IOptions<AgentPrismOptions>>().Value.AgentGraph,
+            provider.GetService<TimeProvider>()));
 #pragma warning restore MAAI001
 
         // Knowledge base management surface (Phase 51): document upload,

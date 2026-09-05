@@ -293,6 +293,22 @@ public static partial class AgentPrismServiceCollectionExtensions
         {
             options.MaxDuration = maxDuration;
         }
+
+        if (TimeSpan.TryParse(
+                section[nameof(AgentPrismAgentGraphOptions.ChildDeadline)],
+                CultureInfo.InvariantCulture,
+                out var childDeadline))
+        {
+            options.ChildDeadline = childDeadline;
+        }
+
+        if (TimeSpan.TryParse(
+                section[nameof(AgentPrismAgentGraphOptions.WaitTimeout)],
+                CultureInfo.InvariantCulture,
+                out var waitTimeout))
+        {
+            options.WaitTimeout = waitTimeout;
+        }
     }
 
     private static void BindAttachments(IConfigurationSection section, AgentPrismAttachmentOptions options)

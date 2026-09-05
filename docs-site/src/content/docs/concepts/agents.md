@@ -204,13 +204,35 @@ flowchart TD
     CI --> E["child.started / child.completed<br/>on the root stream"]
 ```
 
-Four rules hold across the tree:
+Five rules hold across the tree:
 
 - Every run in the tree shares one budget, so a tree cannot spend more than a single
   run was allowed
 - Every run in the tree shares one trace id, and only the root owns the trace buffer
 - A child runs in the **same tenant**; a tenant change refuses the call
 - A child **cannot ask for approval** — a child run that tries fails
+- A child call has a two-layer wait limit: a cooperative deadline that cancels a
+  child reading its token, and a hard cutoff for one that does not. Past the hard
+  cutoff the tree keeps going; the child keeps running in the background and its
+  eventual result is discarded. Set `SubAgentSettings` on the calling agent to
+  override the installation-wide default:
+
+  ```csharp
+  new AgentDefinition
+  {
+      Name = "router",
+      CallableAgentNames = ["researcher"],
+      SubAgents = new SubAgentSettings
+      {
+          ChildDeadline = TimeSpan.FromSeconds(10),
+          WaitTimeout = TimeSpan.FromSeconds(20),
+      },
+      // ...
+  };
+  ```
+
+  A timed-out call writes a `ChildRunTimedOut` event to the root run's stream,
+  naming which layer cut it.
 
 The whole tree is readable with `GET /api/runs/{runId}/tree`, from any member.
 
