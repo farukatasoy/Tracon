@@ -56,6 +56,8 @@ public sealed partial class AgentDefinitionCompiler
     private readonly IEmbeddingGenerator<string, Embedding<float>>? _embeddingGenerator;
     private readonly int _knowledgeMaxResults;
     private readonly IAgentDefinitionStore? _definitionStore;
+    private readonly AgentPrismAgentGraphOptions _agentGraph;
+    private readonly TimeProvider? _timeProvider;
 
     // MAAI001: Microsoft.Agents.AI.AgentFileStore is marked "evaluation
     // purposes only". The suppression is kept in a single file (this file,
@@ -119,6 +121,15 @@ public sealed partial class AgentDefinitionCompiler
     /// When <see langword="null"/>, a definition that references a shared
     /// instructions block gets a compilation error.
     /// </param>
+    /// <param name="agentGraph">
+    /// Tree-wide defaults, including the sub-agent wait limits
+    /// (<see cref="AgentPrismAgentGraphOptions.ChildDeadline"/>/<see cref="AgentPrismAgentGraphOptions.WaitTimeout"/>)
+    /// a definition's own <see cref="AgentDefinition.SubAgents"/> may override.
+    /// When <see langword="null"/>, the type's own defaults apply.
+    /// </param>
+    /// <param name="timeProvider">
+    /// Time source for the sub-agent wait race. Defaults to <see cref="TimeProvider.System"/>.
+    /// </param>
     /// <exception cref="ArgumentNullException">One of the required dependencies is <see langword="null"/>.</exception>
 #pragma warning disable MAAI001 // AgentFileStore — see the rationale on the _fileStore field.
     public AgentDefinitionCompiler(
@@ -137,7 +148,9 @@ public sealed partial class AgentDefinitionCompiler
         IVectorSearchStore? vectorSearchStore = null,
         IEmbeddingGenerator<string, Embedding<float>>? embeddingGenerator = null,
         int knowledgeMaxResults = 5,
-        IAgentDefinitionStore? definitionStore = null)
+        IAgentDefinitionStore? definitionStore = null,
+        AgentPrismAgentGraphOptions? agentGraph = null,
+        TimeProvider? timeProvider = null)
 #pragma warning restore MAAI001
     {
         ArgumentNullException.ThrowIfNull(models);
@@ -159,6 +172,8 @@ public sealed partial class AgentDefinitionCompiler
         _embeddingGenerator = embeddingGenerator;
         _knowledgeMaxResults = knowledgeMaxResults;
         _definitionStore = definitionStore;
+        _agentGraph = agentGraph ?? new AgentPrismAgentGraphOptions();
+        _timeProvider = timeProvider;
     }
 
     /// <summary>Converts a definition into an executable agent.</summary>

@@ -11,7 +11,7 @@ AgentPrism.AgentCallGraphProblem.Message.get -> string!
 AgentPrism.AgentCallGraphProblem.Message.init -> void
 AgentPrism.AgentDecoratorPipeline
 AgentPrism.AgentDefinitionCompiler
-AgentPrism.AgentDefinitionCompiler.AgentDefinitionCompiler(AgentPrism.IModelProviderRegistry! models, AgentPrism.IToolRegistry! tools, Microsoft.Extensions.Logging.ILoggerFactory? loggerFactory = null, System.IServiceProvider? services = null, Microsoft.Agents.AI.ChatHistoryProvider? chatHistoryProvider = null, AgentPrism.AgentSkillCatalog? skills = null, AgentPrism.SkillScriptSupport? scripts = null, AgentPrism.CallableAgentResolver? callableAgents = null, AgentPrism.ITenantContext? tenantContext = null, AgentPrism.ModelBinding? utilityModel = null, Microsoft.Agents.AI.AgentFileStore? fileStore = null, AgentPrism.IMcpResourceContextProviderFactory? mcpResources = null, AgentPrism.IVectorSearchStore? vectorSearchStore = null, Microsoft.Extensions.AI.IEmbeddingGenerator<string!, Microsoft.Extensions.AI.Embedding<float>!>? embeddingGenerator = null, int knowledgeMaxResults = 5, AgentPrism.IAgentDefinitionStore? definitionStore = null) -> void
+AgentPrism.AgentDefinitionCompiler.AgentDefinitionCompiler(AgentPrism.IModelProviderRegistry! models, AgentPrism.IToolRegistry! tools, Microsoft.Extensions.Logging.ILoggerFactory? loggerFactory = null, System.IServiceProvider? services = null, Microsoft.Agents.AI.ChatHistoryProvider? chatHistoryProvider = null, AgentPrism.AgentSkillCatalog? skills = null, AgentPrism.SkillScriptSupport? scripts = null, AgentPrism.CallableAgentResolver? callableAgents = null, AgentPrism.ITenantContext? tenantContext = null, AgentPrism.ModelBinding? utilityModel = null, Microsoft.Agents.AI.AgentFileStore? fileStore = null, AgentPrism.IMcpResourceContextProviderFactory? mcpResources = null, AgentPrism.IVectorSearchStore? vectorSearchStore = null, Microsoft.Extensions.AI.IEmbeddingGenerator<string!, Microsoft.Extensions.AI.Embedding<float>!>? embeddingGenerator = null, int knowledgeMaxResults = 5, AgentPrism.IAgentDefinitionStore? definitionStore = null, AgentPrism.AgentPrismAgentGraphOptions? agentGraph = null, System.TimeProvider? timeProvider = null) -> void
 AgentPrism.AgentDefinitionCompiler.Compile(AgentPrism.AgentDefinition! definition) -> Microsoft.Agents.AI.AIAgent!
 AgentPrism.AgentDefinitionCompiler.Compile(AgentPrism.AgentDefinition! definition, AgentPrism.ResolvedCallableAgents callableAgents) -> Microsoft.Agents.AI.AIAgent!
 AgentPrism.AgentDefinitionCompiler.Compile(AgentPrism.AgentDefinition! definition, AgentPrism.ResolvedCallableAgents callableAgents, System.Func<Microsoft.Extensions.AI.AIFunction!, Microsoft.Extensions.AI.AIFunction!>? toolTransform, string? culture = null) -> Microsoft.Agents.AI.AIAgent!
@@ -41,6 +41,10 @@ AgentPrism.AgentParameterValidationResult.IsValid.init -> void
 AgentPrism.AgentParameterValidator
 AgentPrism.AgentPrismAgentGraphOptions
 AgentPrism.AgentPrismAgentGraphOptions.AgentPrismAgentGraphOptions() -> void
+AgentPrism.AgentPrismAgentGraphOptions.ChildDeadline.get -> System.TimeSpan
+AgentPrism.AgentPrismAgentGraphOptions.ChildDeadline.set -> void
+AgentPrism.AgentPrismAgentGraphOptions.WaitTimeout.get -> System.TimeSpan
+AgentPrism.AgentPrismAgentGraphOptions.WaitTimeout.set -> void
 AgentPrism.AgentPrismAgentGraphOptions.CreateBudget(System.TimeProvider! timeProvider) -> AgentPrism.AgentRunBudget!
 AgentPrism.AgentPrismAgentGraphOptions.MaxDepth.get -> int
 AgentPrism.AgentPrismAgentGraphOptions.MaxDepth.set -> void
@@ -478,7 +482,7 @@ AgentPrism.CanaryOptions.CanaryOptions() -> void
 AgentPrism.CanaryOptions.ScanInterval.get -> System.TimeSpan
 AgentPrism.CanaryOptions.ScanInterval.set -> void
 AgentPrism.ChildAgentInvoker
-AgentPrism.ChildAgentInvoker.ChildAgentInvoker(AgentPrism.CallableAgentResolver! resolver, AgentPrism.ITenantContext! tenantContext, Microsoft.Extensions.Logging.ILogger! logger, string! callerName, AgentPrism.CallableAgentInfo child) -> void
+AgentPrism.ChildAgentInvoker.ChildAgentInvoker(AgentPrism.CallableAgentResolver! resolver, AgentPrism.ITenantContext! tenantContext, Microsoft.Extensions.Logging.ILogger! logger, string! callerName, AgentPrism.CallableAgentInfo child, System.TimeSpan childDeadline, System.TimeSpan waitTimeout, System.TimeProvider? timeProvider = null) -> void
 AgentPrism.ChildRunApproval
 AgentPrism.CodeAgentRegistration
 AgentPrism.CodeAgentRegistration.Definition.get -> AgentPrism.AgentDefinition?

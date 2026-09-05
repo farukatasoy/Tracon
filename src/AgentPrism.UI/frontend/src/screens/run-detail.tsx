@@ -94,6 +94,10 @@ const EVENT_STYLE: Record<RunEventType, { label: string; hue: string }> = {
   // the time it reaches the wire (RunEventWriter rejects a Custom event
   // without one).
   Custom: { label: 'custom', hue: 'var(--ap-muted)' },
+  // Phase 144. Amber, same "needs attention" hue as ModelFallbackUsed: a
+  // sub-agent call ran past its wait limit -- the tree kept going, but an
+  // operator should notice which layer cut it (event payload's hardCutoff).
+  ChildRunTimedOut: { label: 'child.timed-out', hue: 'var(--ap-amber)' },
 };
 
 /**

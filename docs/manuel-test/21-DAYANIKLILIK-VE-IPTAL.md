@@ -1804,3 +1804,133 @@ gerçek bir hata enjekte etmek için sunucu koduna dokunmak gerekir).
   "bilmiyorum" demesi ham argümanı gizlemez.
 
 ---
+
+### MT-RES-080 — Kooperatif katman: çok kısa `ChildDeadline` alt-agent'ı gerçekten iptal eder (Faz 144)
+
+İki katmanın ikisi de (kooperatif iptal + sert kesme) gerçek bir MAF
+`background_agents_*` tool akışı üzerinden `SubAgentTimeoutTests`
+(`AgentPrism.AspNetCore.FunctionalTests`) ile zaten otomatik kanıtlanmıştır —
+bu case'ler örnek uygulamada elle gözlem içindir.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 144 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- `samples/AgentPrism.Api` ayakta.
+- `yonlendirici` adlı bir agent, `CallableAgentNames = ["arastirmaci"]` ve
+  `SubAgents.ChildDeadline = 00:00:01` ile tanımlı (gerçek bir model çağrısı
+  genelde bir saniyeden uzun sürer, bu yüzden kesme gerçek koşulda tetiklenir).
+
+**Adımlar**
+1. `yonlendirici`'yi çalıştır, `arastirmaci`'yi çağıracak bir istek gönder.
+2. `GET /agentprism/api/runs/{runId}/events` ile kök `run`'ın olay akışını oku.
+
+**Beklenen sonuç**
+- Kök `run`, `ChildDeadline` süresinde biter (alt-agent'ın kendi model
+  çağrısının tam süresini beklemez).
+- Olay akışında `ChildRunTimedOut` görünür; `Payload`'daki `hardCutoff` alanı
+  `false`'dur (kooperatif katman kesti, kaynak bırakıldı).
+- `ChildRunCompleted` de görünür — alt-agent'ın kendi çalıştırması gerçekten
+  iptal edilerek bitmiştir, arka planda asılı kalmamıştır.
+
+---
+
+### MT-RES-081 — Harness'li kök agent aynı iki katmanı uygular (Faz 144)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 144 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- MT-RES-080 ile aynı kurulum, tek fark: `yonlendirici`'nin `Harness` alanı
+  dolu (harness yolu).
+
+**Adımlar**
+- MT-RES-080 ile birebir aynı.
+
+**Beklenen sonuç**
+- Birebir aynı: `run` `ChildDeadline` süresinde biter, `ChildRunTimedOut`
+  yazılır. Harness yolu düz agent yolundan farklı davranmaz — 144.4'ün amacı
+  budur.
+
+---
+
+### MT-RES-082 — Agent'ın kendi `SubAgents.ChildDeadline`'ı kurulum varsayılanını ezer (Faz 144)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Düşük |
+| **İlgili faz** | Faz 144 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- Kurulumun `AgentPrism:AgentGraph:ChildDeadline`'ı büyük bir değerde
+  (ör. `00:02:00`, varsayılan).
+- `yonlendirici`'nin kendi `SubAgents.ChildDeadline`'ı çok kısa (`00:00:01`).
+
+**Adımlar**
+- MT-RES-080 ile aynı çağrı.
+
+**Beklenen sonuç**
+- `run`, kurulumun iki dakikalık varsayılanını değil, agent'ın bir saniyelik
+  değerini bekleyip zaman aşımına uğrar — çözümleme sırası agent → kurulum →
+  MAF varsayılanıdır (`SubAgentSettingsResolutionTests` ile birim düzeyinde de
+  kilitlidir).
+
+---
+
+### MT-RES-083 — Geçersiz `WaitTimeout <= ChildDeadline` uygulamayı derleme/çalıştırma anında düşürür (Faz 144)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 144 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- `yonlendirici` tanımında `SubAgents = { ChildDeadline: 00:00:30, WaitTimeout:
+  00:00:30 }` (eşit — geçersiz kombinasyon).
+
+**Adımlar**
+1. Uygulamayı başlat veya `yonlendirici`'yi katalogdan çöz (`GET
+   /agentprism/api/agents/yonlendirici` ya da ilk çalıştırma denemesi).
+
+**Beklenen sonuç**
+- `AgentPrismCompilationException` fırlar; mesaj `yonlendirici` agent adını ve
+  `ChildDeadline`/`WaitTimeout` alan adlarını taşır. Kombinasyon sessizce kabul
+  EDİLMEZ.
+
+---
+
+### MT-RES-084 — Zaman aşımına uğrayan bir `run`'da çocuğa ait GEÇ olay YOKTUR (Faz 144)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 144 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- MT-RES-080'in zaman aşımına uğramış `run`'ı elde.
+
+**Adımlar**
+1. `run` bittikten sonra birkaç saniye bekle (alt-agent'ın gerçek model
+   çağrısının doğal olarak tamamlanmasına yetecek kadar).
+2. `GET /agentprism/api/runs/{runId}/events`'i TEKRAR oku.
+
+**Beklenen sonuç**
+- Olay listesi ilk okumadakiyle AYNIDIR — alt-agent'ın gecikmiş sonucu
+  (başarı ya da hata) hiçbir yeni olay, metrik veya sunucu hatası üretmez;
+  sessizce atılır (K-621 ile aynı sözleşme).
+
+---

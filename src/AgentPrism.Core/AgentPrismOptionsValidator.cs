@@ -159,6 +159,24 @@ internal sealed class AgentPrismOptionsValidator : IValidateOptions<AgentPrismOp
             }
         }
 
+        var agentGraph = options.AgentGraph;
+
+        if (agentGraph.ChildDeadline <= TimeSpan.Zero)
+        {
+            (failures ??= []).Add(
+                $"{nameof(AgentPrismAgentGraphOptions)}.{nameof(AgentPrismAgentGraphOptions.ChildDeadline)} " +
+                $"must be greater than zero. Actual value: {agentGraph.ChildDeadline}.");
+        }
+
+        if (agentGraph.WaitTimeout <= agentGraph.ChildDeadline)
+        {
+            (failures ??= []).Add(
+                $"{nameof(AgentPrismAgentGraphOptions)}.{nameof(AgentPrismAgentGraphOptions.WaitTimeout)} " +
+                $"({agentGraph.WaitTimeout}) must be greater than {nameof(AgentPrismAgentGraphOptions.ChildDeadline)} " +
+                $"({agentGraph.ChildDeadline}); otherwise the hard cutoff would fire before the cooperative one ever " +
+                "gets a chance to take effect.");
+        }
+
         return failures is null
             ? ValidateOptionsResult.Success
             : ValidateOptionsResult.Fail(failures);

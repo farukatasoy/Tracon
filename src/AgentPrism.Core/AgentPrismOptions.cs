@@ -204,6 +204,52 @@ public sealed class AgentPrismAgentGraphOptions
     /// </remarks>
     public TimeSpan MaxDuration { get; set; }
 
+    /// <summary>
+    /// The fixed pad <see cref="WaitTimeout"/> adds on top of
+    /// <see cref="ChildDeadline"/> when it was not set explicitly.
+    /// </summary>
+    private static readonly TimeSpan WaitTimeoutPad = TimeSpan.FromSeconds(30);
+
+    private TimeSpan? _waitTimeout;
+
+    /// <summary>
+    /// Gets or sets the deadline applied to a single sub-agent call (the
+    /// cooperative layer). Overridable per agent with <see cref="SubAgentSettings.ChildDeadline"/>.
+    /// </summary>
+    /// <remarks>
+    /// Unlike <see cref="MaxDuration"/>, this default intentionally
+    /// <em>exists</em> and is non-zero, the same reasoning as <see cref="MaxDepth"/>
+    /// and <see cref="MaxTotalTokens"/>: an unlimited installation learns about
+    /// its first hanging sub-agent call from a stuck tree, not from a setting.
+    /// </remarks>
+    public TimeSpan ChildDeadline { get; set; } = TimeSpan.FromMinutes(2);
+
+    /// <summary>
+    /// Gets or sets the hard wait cutoff for a sub-agent call that ignores
+    /// cancellation (the hard-cutoff layer). Must be greater than
+    /// <see cref="ChildDeadline"/>; overridable per agent with
+    /// <see cref="SubAgentSettings.WaitTimeout"/>.
+    /// </summary>
+    /// <remarks>
+    /// When never set explicitly, this tracks <see cref="ChildDeadline"/> plus
+    /// a fixed 30-second pad — raising <see cref="ChildDeadline"/> alone keeps
+    /// the hard cutoff strictly after the cooperative one by construction,
+    /// exactly the guarantee <see cref="AgentPrismOptionsValidator"/> checks.
+    /// Setting this property pins it to that value instead. A
+    /// <see cref="ChildDeadline"/> within <see cref="WaitTimeoutPad"/> of
+    /// <see cref="TimeSpan.MaxValue"/> clamps the derived value to
+    /// <see cref="TimeSpan.MaxValue"/> rather than overflowing — the same
+    /// "an absurd duration behaves as practically unlimited, not a crash"
+    /// convention <see cref="AgentRunBudget"/> uses for its own deadline.
+    /// </remarks>
+    public TimeSpan WaitTimeout
+    {
+        get => _waitTimeout ?? (ChildDeadline <= TimeSpan.MaxValue - WaitTimeoutPad
+            ? ChildDeadline + WaitTimeoutPad
+            : TimeSpan.MaxValue);
+        set => _waitTimeout = value;
+    }
+
     /// <summary>Creates a tree budget from these options.</summary>
     /// <param name="timeProvider">
     /// The time source <see cref="AgentRunBudget.Deadline"/> is computed from.

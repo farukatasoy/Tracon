@@ -6654,6 +6654,17 @@
             },
             "description": "Gets the names of the other agents this agent may call."
           },
+          "subAgents": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "Gets how long this agent waits for the agents it calls. When\n\u0060null\u0060, \u0060AgentPrismAgentGraphOptions.ChildDeadline\u0060\nand \u0060WaitTimeout\u0060 apply instead. Ignored when\nIReadOnlyList\u0026lt;string\u0026gt; AgentDefinition.CallableAgentNames is empty.",
+                "$ref": "#/components/schemas/SubAgentSettings"
+              }
+            ]
+          },
           "mcpResourceUris": {
             "type": "array",
             "items": {
@@ -14840,6 +14851,28 @@
       "Stream": {
         "type": "string",
         "format": "binary"
+      },
+      "SubAgentSettings": {
+        "type": "object",
+        "properties": {
+          "childDeadline": {
+            "pattern": "^-?(\\d\u002B\\.)?\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,7})?$",
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Gets the deadline applied to a single sub-agent run (the cooperative layer)."
+          },
+          "waitTimeout": {
+            "pattern": "^-?(\\d\u002B\\.)?\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,7})?$",
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Gets the hard wait cutoff handed to the framework (the hard-cutoff layer).\nMust be greater than \u0060ChildDeadline\u0060."
+          }
+        },
+        "description": "Determines how long an agent waits for the agents it calls."
       },
       "TenantDescriptor": {
         "required": [

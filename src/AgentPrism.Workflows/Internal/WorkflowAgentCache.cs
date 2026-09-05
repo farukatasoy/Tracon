@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using Microsoft.Agents.AI;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace AgentPrism;
 
@@ -44,24 +45,38 @@ internal sealed class WorkflowAgentCache
     private readonly CallableAgentResolver _resolver;
     private readonly ITenantContext _tenantContext;
     private readonly ILoggerFactory _loggerFactory;
+    private readonly AgentPrismAgentGraphOptions _agentGraph;
+    private readonly TimeProvider? _timeProvider;
 
     /// <summary>Creates a new cache.</summary>
     /// <param name="resolver">The resolver that resolves agents from the catalog.</param>
     /// <param name="tenantContext">The tenant context.</param>
     /// <param name="loggerFactory">The logger factory.</param>
-    /// <exception cref="ArgumentNullException">One of the dependencies is <see langword="null"/>.</exception>
+    /// <param name="options">
+    /// Tree-wide defaults, including the sub-agent wait limits
+    /// (<see cref="AgentPrismAgentGraphOptions.ChildDeadline"/>/<see cref="AgentPrismAgentGraphOptions.WaitTimeout"/>)
+    /// applied to every workflow participant — a workflow participant has no
+    /// <see cref="AgentDefinition.SubAgents"/> of its own to override them with.
+    /// </param>
+    /// <param name="timeProvider">Time source for the sub-agent wait race. Defaults to <see cref="TimeProvider.System"/>.</param>
+    /// <exception cref="ArgumentNullException">One of the required dependencies is <see langword="null"/>.</exception>
     public WorkflowAgentCache(
         CallableAgentResolver resolver,
         ITenantContext tenantContext,
-        ILoggerFactory loggerFactory)
+        ILoggerFactory loggerFactory,
+        IOptions<AgentPrismOptions> options,
+        TimeProvider? timeProvider = null)
     {
         ArgumentNullException.ThrowIfNull(resolver);
         ArgumentNullException.ThrowIfNull(tenantContext);
         ArgumentNullException.ThrowIfNull(loggerFactory);
+        ArgumentNullException.ThrowIfNull(options);
 
         _resolver = resolver;
         _tenantContext = tenantContext;
         _loggerFactory = loggerFactory;
+        _agentGraph = options.Value.AgentGraph;
+        _timeProvider = timeProvider;
     }
 
     /// <summary>
@@ -82,18 +97,32 @@ internal sealed class WorkflowAgentCache
         => _agents.GetOrAdd(
             new AgentKey(_tenantContext.TenantId, workflowName, agentName),
             static (key, state) => Create(key, state),
-            (Resolver: _resolver, TenantContext: _tenantContext, LoggerFactory: _loggerFactory, Description: description));
+            (
+                Resolver: _resolver,
+                TenantContext: _tenantContext,
+                LoggerFactory: _loggerFactory,
+                Description: description,
+                AgentGraph: _agentGraph,
+                TimeProvider: _timeProvider));
 
     private static ChildAgentInvoker Create(
         AgentKey key,
-        (CallableAgentResolver Resolver, ITenantContext TenantContext, ILoggerFactory LoggerFactory, string? Description) state)
+        (CallableAgentResolver Resolver,
+         ITenantContext TenantContext,
+         ILoggerFactory LoggerFactory,
+         string? Description,
+         AgentPrismAgentGraphOptions AgentGraph,
+         TimeProvider? TimeProvider) state)
     {
         var invoker = new ChildAgentInvoker(
             state.Resolver,
             state.TenantContext,
             state.LoggerFactory.CreateLogger<ChildAgentInvoker>(),
             key.WorkflowName,
-            new CallableAgentInfo(key.AgentName, state.Description, Version: 0));
+            new CallableAgentInfo(key.AgentName, state.Description, Version: 0),
+            state.AgentGraph.ChildDeadline,
+            state.AgentGraph.WaitTimeout,
+            state.TimeProvider);
 
         // The identity is written on the instance BEFORE it enters the graph:
         // MAF reads the executor id at binding time, and changing it afterward

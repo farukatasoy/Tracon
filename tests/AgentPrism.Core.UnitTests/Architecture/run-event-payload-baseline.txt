@@ -3,8 +3,9 @@
 # One line per RunEventType member whose documentation makes a claim about the
 # event's payload. 'covered' names the test file that reads that payload;
 # 'uncovered' records the debt and only ever SHRINKS.
-ChildRunCompleted | uncovered | Same gap as ChildRunStarted: the tree is asserted through run records, not through the parent's event payload
+ChildRunCompleted | covered | tests/AgentPrism.AspNetCore.FunctionalTests/SubAgentTimeoutTests.cs
 ChildRunStarted | uncovered | ChildAgentInvokerTests and AgentCallGraphTests assert the child run tree through run RECORDS, never through the parent's event payload
+ChildRunTimedOut | covered | tests/AgentPrism.AspNetCore.FunctionalTests/SubAgentTimeoutTests.cs
 ContentBlocked | covered | tests/AgentPrism.Core.UnitTests/Guards/ContentGuardRecordingTests.cs
 ContentMasked | covered | tests/AgentPrism.Core.UnitTests/Guards/ContentGuardRecordingTests.cs
 Custom | covered | tests/AgentPrism.AspNetCore.FunctionalTests/StreamingTests.cs

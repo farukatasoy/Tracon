@@ -1,5 +1,6 @@
 using AgentPrism.Workflows.UnitTests.Fakes;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 
 namespace AgentPrism.Workflows.UnitTests;
 
@@ -78,7 +79,8 @@ public sealed class WorkflowAgentIdentityTests
 
         var first = host.AgentCache.Get("chain", "summarizer", description: null).Id;
 
-        var restarted = new WorkflowAgentCache(host.Resolver, host.TenantContext, NullLoggerFactory.Instance);
+        var restarted = new WorkflowAgentCache(
+            host.Resolver, host.TenantContext, NullLoggerFactory.Instance, Options.Create(new AgentPrismOptions()));
         var second = restarted.Get("chain", "summarizer", description: null).Id;
 
         second.ShouldBe(first);

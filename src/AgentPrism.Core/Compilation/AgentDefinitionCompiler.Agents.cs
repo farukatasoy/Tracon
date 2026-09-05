@@ -118,14 +118,22 @@ public sealed partial class AgentDefinitionCompiler
     private BackgroundAgentsProvider? CreateBackgroundAgentsProvider(
         AgentDefinition definition,
         ResolvedCallableAgents callableAgents)
-        => CreateChildAgents(definition, callableAgents) is { } children
-            ? new BackgroundAgentsProvider(children, new BackgroundAgentsProviderOptions())
+        => CreateChildAgents(definition, callableAgents) is { } build
+            ? new BackgroundAgentsProvider(build.Children, new BackgroundAgentsProviderOptions { WaitTimeout = build.WaitTimeout })
             : null;
 #pragma warning restore MAAI001
 
     /// <summary>Builds callable sub-agents together with their wrappers.</summary>
-    /// <returns>The wrapped sub-agents; <see langword="null"/> when the definition calls no sub-agent.</returns>
-    private List<AIAgent>? CreateChildAgents(AgentDefinition definition, ResolvedCallableAgents callableAgents)
+    /// <returns>
+    /// The wrapped sub-agents and the resolved hard wait cutoff; <see langword="null"/>
+    /// when the definition calls no sub-agent.
+    /// </returns>
+    /// <exception cref="AgentPrismCompilationException">
+    /// The sub-agent resolver is not registered, or the resolved
+    /// <see cref="SubAgentSettings.ChildDeadline"/>/<see cref="SubAgentSettings.WaitTimeout"/>
+    /// combination is invalid (144.2).
+    /// </exception>
+    private ChildAgentsBuild? CreateChildAgents(AgentDefinition definition, ResolvedCallableAgents callableAgents)
     {
         if (callableAgents.Agents.Count == 0)
         {
@@ -142,6 +150,8 @@ public sealed partial class AgentDefinitionCompiler
             };
         }
 
+        var (childDeadline, waitTimeout) = ResolveSubAgentTimeouts(definition);
+
         var logger = _loggerFactory?.CreateLogger<ChildAgentInvoker>()
             ?? (ILogger)Microsoft.Extensions.Logging.Abstractions.NullLogger<ChildAgentInvoker>.Instance;
 
@@ -149,10 +159,64 @@ public sealed partial class AgentDefinitionCompiler
 
         foreach (var info in callableAgents.Agents)
         {
-            children.Add(new ChildAgentInvoker(_callableAgents, _tenantContext, logger, definition.Name, info));
+            children.Add(new ChildAgentInvoker(
+                _callableAgents,
+                _tenantContext,
+                logger,
+                definition.Name,
+                info,
+                childDeadline,
+                waitTimeout,
+                _timeProvider));
         }
 
-        return children;
+        return new ChildAgentsBuild(children, waitTimeout);
+    }
+
+    /// <summary>
+    /// Resolves the sub-agent wait limits for a definition: its own
+    /// <see cref="AgentDefinition.SubAgents"/> override the tree-wide
+    /// <see cref="AgentPrismAgentGraphOptions.ChildDeadline"/>/<see cref="AgentPrismAgentGraphOptions.WaitTimeout"/>
+    /// defaults field by field, then the resolved pair is validated together
+    /// — the same "resolve, then validate the whole" shape as
+    /// <see cref="BuildCompactionStrategy"/>.
+    /// </summary>
+    /// <exception cref="AgentPrismCompilationException">
+    /// The resolved deadline is not positive, or the resolved wait timeout is
+    /// not strictly greater than the resolved deadline.
+    /// </exception>
+    // internal (not private): so the resolution order (agent override wins
+    // field by field over the tree-wide default) can be tested directly, the
+    // same reason BuildCompactionStrategy is internal.
+    internal (TimeSpan ChildDeadline, TimeSpan WaitTimeout) ResolveSubAgentTimeouts(AgentDefinition definition)
+    {
+        var childDeadline = definition.SubAgents?.ChildDeadline ?? _agentGraph.ChildDeadline;
+        var waitTimeout = definition.SubAgents?.WaitTimeout ?? _agentGraph.WaitTimeout;
+
+        if (childDeadline <= TimeSpan.Zero)
+        {
+            throw new AgentPrismCompilationException(
+                $"Agent '{definition.Name}' has an invalid sub-agent wait limit: " +
+                $"{nameof(SubAgentSettings.ChildDeadline)} must be greater than zero. " +
+                $"Actual value: {childDeadline}.")
+            {
+                AgentName = definition.Name,
+            };
+        }
+
+        if (waitTimeout <= childDeadline)
+        {
+            throw new AgentPrismCompilationException(
+                $"Agent '{definition.Name}' has an invalid sub-agent wait limit: " +
+                $"{nameof(SubAgentSettings.WaitTimeout)} ({waitTimeout}) must be greater than " +
+                $"{nameof(SubAgentSettings.ChildDeadline)} ({childDeadline}); otherwise the hard cutoff " +
+                "would fire before the cooperative one ever gets a chance to take effect.")
+            {
+                AgentName = definition.Name,
+            };
+        }
+
+        return (childDeadline, waitTimeout);
     }
 
     private HarnessAgent CompileHarnessAgent(
@@ -208,9 +272,14 @@ public sealed partial class AgentDefinitionCompiler
             options.AgentSkillsSource = CreateSkillsSource(definition);
         }
 
-        if (CreateChildAgents(definition, callableAgents) is { } children)
+        if (CreateChildAgents(definition, callableAgents) is { } build)
         {
-            options.BackgroundAgents = children;
+            // 144.4: the option object is built by AgentPrism on BOTH compile
+            // paths, so behavior never depends on what MAF's own null
+            // semantics happen to be for BackgroundAgentsProviderOptions
+            // (measured unassigned before this phase — see 144's plan).
+            options.BackgroundAgents = build.Children;
+            options.BackgroundAgentsProviderOptions = new BackgroundAgentsProviderOptions { WaitTimeout = build.WaitTimeout };
         }
 
         // Conflict check: if the user has both requested compaction/memory and
@@ -280,3 +349,6 @@ public sealed partial class AgentDefinitionCompiler
 #pragma warning restore MAAI001
     }
 }
+
+/// <summary>The sub-agent wrappers built for a definition, together with their resolved hard wait cutoff.</summary>
+internal sealed record ChildAgentsBuild(List<AIAgent> Children, TimeSpan WaitTimeout);

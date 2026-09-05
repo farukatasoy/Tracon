@@ -39,4 +39,7 @@ namespace AgentPrism;
 // Phase 142: the RunAwaitingInput run-event payload for a root run closing
 // with RunStatus.AwaitingApproval.
 [JsonSerializable(typeof(IReadOnlyList<PendingToolApprovalEventItem>))]
+
+// Phase 144: the ChildRunTimedOut run-event payload.
+[JsonSerializable(typeof(ChildRunTimedOutEventPayload))]
 internal sealed partial class AgentPrismCoreJsonContext : JsonSerializerContext;
