@@ -5,8 +5,9 @@ namespace AgentPrism;
 
 /// <summary>
 /// Helper that checks the registered <see cref="IRunAuthorizationHandler"/>
-/// before a run starts or a session is accessed, and produces a <c>403</c>
-/// (or, for a session read, a <c>404</c>) when the handler denies the call.
+/// before a run starts, a run resource is reached, or a session is accessed,
+/// and produces a <c>403</c> (for a list or a run start) or a <c>404</c> (for a
+/// single resource) when the handler denies the call.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -80,6 +81,85 @@ internal static class RunAuthorizationGate
             title: "Run not authorized",
             detail: reason ?? "The registered IRunAuthorizationHandler denied this run.",
             statusCode: StatusCodes.Status403Forbidden);
+    }
+
+    /// <summary>
+    /// Checks whether a run resource may be reached; produces the response to
+    /// return if it may not.
+    /// </summary>
+    /// <param name="handler">The authorization handler. If <see langword="null"/>, no check is performed.</param>
+    /// <param name="tenants">The tenant context.</param>
+    /// <param name="runId">
+    /// The run the request is about, or <see langword="null"/> when there is no
+    /// single run (a list, or an attachment with no run behind it).
+    /// </param>
+    /// <param name="agentName">
+    /// The agent of the run the resource belongs to, or <see langword="null"/> when it is not known.
+    /// </param>
+    /// <param name="sessionId">The session the resource belongs to, or <see langword="null"/>.</param>
+    /// <param name="attributionContext">The attribution context, used to resolve the calling user.</param>
+    /// <param name="access">The kind of access being requested.</param>
+    /// <param name="denied">
+    /// The response to return when the handler denies the access. The caller
+    /// supplies it because it must be <strong>byte for byte</strong> the
+    /// response that endpoint already gives for a resource that genuinely does
+    /// not exist: a denial that reads differently confirms the resource exists
+    /// through a side channel. List endpoints pass a <c>403</c> instead — a
+    /// list is an operation, not a resource, so there is no identity to leak.
+    /// </param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>
+    /// <paramref name="denied"/> if the handler denies the access; otherwise <see langword="null"/>.
+    /// </returns>
+    /// <remarks>
+    /// Called <strong>after</strong> the endpoint has established that the
+    /// resource exists and belongs to the calling tenant, so another tenant's
+    /// identity never reaches a consumer's handler. The one shape that cannot
+    /// follow that order is a list, which has no resource to look up first.
+    /// </remarks>
+    public static async ValueTask<ProblemHttpResult?> CheckRunResourceAsync(
+        IRunAuthorizationHandler? handler,
+        ITenantContext tenants,
+        Guid? runId,
+        string? agentName,
+        string? sessionId,
+        IRunAttributionContext? attributionContext,
+        RunAccess access,
+        ProblemHttpResult denied,
+        CancellationToken cancellationToken)
+    {
+        if (handler is null)
+        {
+            return null;
+        }
+
+        var (userId, _) = RunAttributionReader.Read(attributionContext);
+
+        var request = new RunAuthorizationRequest
+        {
+            TenantId = tenants.TenantId,
+            AgentName = agentName,
+            SessionId = sessionId,
+            UserId = userId,
+            RunId = runId,
+            Access = access,
+        };
+
+        try
+        {
+            if ((await handler.AuthorizeRunAsync(request, cancellationToken).ConfigureAwait(false)).IsAllowed)
+            {
+                return null;
+            }
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            // Fail-closed: the access does not proceed. The denial reason a
+            // handler would have supplied is deliberately NOT surfaced here —
+            // the response must stay identical to a missing resource's.
+        }
+
+        return denied;
     }
 
     /// <summary>Checks whether a session access may proceed; produces the response to return if it may not.</summary>

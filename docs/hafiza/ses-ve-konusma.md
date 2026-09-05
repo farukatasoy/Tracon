@@ -99,3 +99,20 @@
   saglayici entegre edilirken saglayicinin GERCEK OpenAPI/semasi
   (varsa) once cekilip grep'lenmeli — dokumantasyon prosasi ("filtering,
   based on the voice's 'language' label" gibi) semanin kendisiyle CELISEBILIR.
+- **🚨 Ses ucuna bir yetkilendirme kapısı eklerken K-283 KORUNMALIDIR** (Faz 147,
+  K-687): var olmayan bir oturum reddedilmez — handler yine de sorulur ama
+  varsayılan cevap soketi AÇAR. Kapıyı "oturum yoksa reddet" olarak yazmak her
+  kurulumdaki İLK konuşmayı sessizce bozar ve başka hiçbir test bunu görmez;
+  `VoiceAuthorizationTests.An_unknown_session_still_opens_when_the_handler_allows_it`
+  bunu kilitler. Ret `404`'tür (`401` değil — kimlik doğrulaması başarılıydı;
+  `403` değil — oturumun varlığını doğrulardı) ve gövdeyi
+  `WriteSessionNotFoundAsync` tek yerden yazar: `CheckSessionAsync`'in kendi
+  `404` gövdesi bilerek ATILIR, çünkü metni bu ucunkinden farklıdır.
+- **TestServer'da reddedilen bir WebSocket el sıkışmasının GÖVDESİ okunamaz**
+  (Faz 147): `WebSocketClient.ConnectAsync` `InvalidOperationException` atar ve
+  yanıt gövdesi kaybolur. Düz bir `GET` ile gövdeyi okumaya çalışmak da işe
+  yaramaz — `IsWebSocketRequest` kontrolü kapıdan ÖNCE çalışır ve `400` döner.
+  Test edilebilir olan şey istisnanın mesajındaki durum kodudur
+  (`error.Message.ShouldContain("404")`); gövde birebirliği ise yapısal olarak,
+  tek bir yardımcıyı paylaşarak sağlanır.
+

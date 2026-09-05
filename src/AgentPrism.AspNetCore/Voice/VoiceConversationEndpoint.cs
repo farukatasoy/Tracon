@@ -50,7 +50,9 @@ internal static class VoiceConversationEndpoint
             .WithDescription(
                 "Client -> server: raw audio (binary) and control messages (JSON text). " +
                 "Server -> client: audio chunks (binary) and event frames (JSON text). " +
-                "The token is carried in the 'Sec-WebSocket-Protocol' subprotocol; it is NOT accepted in the query string.");
+                "The token is carried in the 'Sec-WebSocket-Protocol' subprotocol; it is NOT accepted in the query string. " +
+                "If a registered IRunAuthorizationHandler denies the caller, the handshake is refused with 404 — identical " +
+                "to a session belonging to another tenant, so a denial never confirms the session exists.");
     }
 
     private static async Task HandleAsync(HttpContext context, string sessionId, AgentPrismEndpointOptions options)
@@ -108,11 +110,28 @@ internal static class VoiceConversationEndpoint
         {
             // 🚨 sessionId is untrusted input. Another tenant's session is
             // answered as if it "does not exist"; reporting its existence would leak information.
-            await WriteProblemAsync(
-                context,
-                StatusCodes.Status404NotFound,
-                "Session not found",
-                $"There is no session with id '{sessionId}', or it does not belong to this tenant.").ConfigureAwait(false);
+            await WriteSessionNotFoundAsync(context, sessionId).ConfigureAwait(false);
+
+            return;
+        }
+
+        // 🚨 The handler is asked even when the session does not exist yet:
+        // K-283 keeps a fresh voice session openable, and only the consumer can
+        // say whether THIS caller may open one under THIS id. The gate's own
+        // 404 body is deliberately discarded and this endpoint's own wording is
+        // written instead, so a denial stays byte for byte identical to the
+        // "does not belong to this tenant" answer a few lines above.
+        if (await RunAuthorizationGate
+                .CheckSessionAsync(
+                    services.GetService<IRunAuthorizationHandler>(),
+                    tenantContext,
+                    sessionId,
+                    services.GetService<IRunAttributionContext>(),
+                    SessionAccess.Voice,
+                    context.RequestAborted)
+                .ConfigureAwait(false) is not null)
+        {
+            await WriteSessionNotFoundAsync(context, sessionId).ConfigureAwait(false);
 
             return;
         }
@@ -261,6 +280,17 @@ internal static class VoiceConversationEndpoint
 
         return record is null || string.Equals(record.TenantId, tenantId, StringComparison.Ordinal);
     }
+
+    /// <summary>
+    /// Writes the single 404 this endpoint uses for "no such session", whether
+    /// the session belongs to another tenant or the handler denied the caller.
+    /// </summary>
+    private static Task WriteSessionNotFoundAsync(HttpContext context, string sessionId)
+        => WriteProblemAsync(
+            context,
+            StatusCodes.Status404NotFound,
+            "Session not found",
+            $"There is no session with id '{sessionId}', or it does not belong to this tenant.");
 
     private static async Task WriteProblemAsync(HttpContext context, int statusCode, string title, string detail)
     {

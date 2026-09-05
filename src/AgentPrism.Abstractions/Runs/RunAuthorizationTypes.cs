@@ -66,8 +66,17 @@ public sealed record RunAuthorizationRequest
     /// <summary>Gets the tenant the run would belong to.</summary>
     public required string TenantId { get; init; }
 
-    /// <summary>Gets the name of the agent (or workflow) the run would start.</summary>
-    public required string AgentName { get; init; }
+    /// <summary>
+    /// Gets the name of the agent (or workflow) the run would start, or
+    /// <see langword="null"/> when the request is not about starting one.
+    /// </summary>
+    /// <remarks>
+    /// Always populated for <see cref="RunAccess.Start"/>. For every other
+    /// <see cref="RunAccess"/> value it carries the agent name of the run the
+    /// resource belongs to when that is known, and <see langword="null"/> when
+    /// it is not (a list, or an attachment uploaded before any run existed).
+    /// </remarks>
+    public string? AgentName { get; init; }
 
     /// <summary>
     /// Gets the session the run would continue, or <see langword="null"/> for
@@ -78,7 +87,21 @@ public sealed record RunAuthorizationRequest
     /// <summary>Gets the calling user, or <see langword="null"/> when unknown.</summary>
     public string? UserId { get; init; }
 
-    /// <summary>Gets the kind of access being requested. Always <see cref="RunAccess.Start"/> today.</summary>
+    /// <summary>
+    /// Gets the run the request is about, or <see langword="null"/> when there
+    /// is no single run.
+    /// </summary>
+    /// <remarks>
+    /// Populated for every resource access (reading a run, canceling it,
+    /// scoring it, its attachments and its approvals) and for a replay, where
+    /// it identifies the <em>source</em> run whose recorded input is about to
+    /// run again. It is <see langword="null"/> for a plain
+    /// <see cref="RunAccess.Start"/> — the run does not exist yet — and for
+    /// list operations.
+    /// </remarks>
+    public Guid? RunId { get; init; }
+
+    /// <summary>Gets the kind of access being requested.</summary>
     public required RunAccess Access { get; init; }
 }
 
@@ -102,13 +125,50 @@ public sealed record SessionAuthorizationRequest
 }
 
 /// <summary>The kind of access a <see cref="RunAuthorizationRequest"/> asks about.</summary>
+/// <remarks>
+/// The numeric values are <strong>not</strong> a persistence contract. A
+/// <see cref="RunAuthorizationRequest"/> is decided synchronously on the
+/// request thread and its result is never stored or replayed, so no row, blob,
+/// or message anywhere holds one of these numbers. Members may therefore be
+/// renumbered or removed like any other public enum member, under the ordinary
+/// source-compatibility rules and nothing stricter.
+/// </remarks>
 public enum RunAccess
 {
-    /// <summary>Starting a new run.</summary>
+    /// <summary>Starting a new run, including replaying a recorded one.</summary>
     Start = 0,
+
+    /// <summary>
+    /// Reading a run: its summary, its tree, its event stream, its recorded
+    /// input, its span tree, its tool calls, and the scores written for it.
+    /// </summary>
+    Read = 1,
+
+    /// <summary>Requesting cancellation of a run.</summary>
+    Cancel = 2,
+
+    /// <summary>Writing or deleting a score for a run.</summary>
+    /// <remarks>
+    /// Deliberately separate from <see cref="Cancel"/>: scoring a run does not
+    /// stop it, and binding both to one decision would force a consumer to
+    /// choose a permission that is either too wide or too narrow. Reading
+    /// scores is <see cref="Read"/>.
+    /// </remarks>
+    Feedback = 3,
+
+    /// <summary>Uploading, downloading, listing, or deleting an attachment.</summary>
+    Attachment = 4,
+
+    /// <summary>Listing, reading, or deciding an approval request.</summary>
+    Approval = 5,
 }
 
 /// <summary>The kind of access a <see cref="SessionAuthorizationRequest"/> asks about.</summary>
+/// <remarks>
+/// As with <see cref="RunAccess"/>, the numeric values are <strong>not</strong>
+/// a persistence contract: the decision is synchronous and is never stored or
+/// replayed.
+/// </remarks>
 public enum SessionAccess
 {
     /// <summary>Reading a session's metadata and chat history.</summary>
@@ -122,6 +182,15 @@ public enum SessionAccess
 
     /// <summary>Branching a session's conversation into a new session.</summary>
     Branch = 3,
+
+    /// <summary>Opening a real-time voice conversation over the session.</summary>
+    /// <remarks>
+    /// A voice session that does not exist yet is <strong>not</strong> an
+    /// error: the first turn opens it. The handler is still asked, so a
+    /// consumer decides for itself whether a caller may open a new
+    /// conversation under that id.
+    /// </remarks>
+    Voice = 4,
 }
 
 /// <summary>The outcome of an authorization decision.</summary>

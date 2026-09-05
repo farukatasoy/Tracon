@@ -17,7 +17,7 @@ six are wired the same way, are all optional, and can be added one at a time.
 | `ITenantContext`, `ITenantStore` | The current tenant, resolved from your own identity layer | A single fixed tenant |
 | `IRunAttributionContext` | The current user and job labels a run belongs to | `UserId` and `Labels` are always `null` |
 | `IToolAuthorizationHandler` | A decision for every tool call: allowed or denied | Every call is allowed |
-| `IRunAuthorizationHandler` | A decision for every run start and session access: allowed or denied | Every run starts and every session is reachable |
+| `IRunAuthorizationHandler` | A decision for every run start, every access to a run's resources, and every session access: allowed or denied | Every run starts, every run is readable, and every session is reachable |
 | `IRunEventSink` | A bridge that receives every run event as it is written | No bridge; events reach only `IRunStore` |
 | `IAttachmentStorage` | A place to write attachment bytes outside the database | Content is stored as `bytea` in the database |
 
@@ -144,17 +144,49 @@ you write this class against whichever client your object store already uses.
 
 AgentPrism draws ownership at the **tenant** level; it never learns which user
 inside a tenant a run or a session belongs to. Without this binding, every
-caller with the `Operator` role in a tenant can start a run as, read, and
-delete every other user's session in the same tenant.
+caller with the `Operator` role in a tenant can start a run as, read, cancel,
+score, and delete every other user's runs, attachments, approvals, and
+sessions in the same tenant.
+
+`AuthorizeRunAsync` answers two different questions, told apart by
+`request.Access`. `RunAccess.Start` asks whether a run may **begin**;
+every other value asks whether an existing run's **resource** may be reached,
+and carries `request.RunId` so you can look that run up in your own records:
+
+| `RunAccess` | What the caller is asking to do |
+|---|---|
+| `Start` | Start a run — including a replay, which carries the source run's `RunId` |
+| `Read` | Read the run: summary, tree, event stream, recorded input, span tree, tool calls, scores |
+| `Cancel` | Request cancellation of the run |
+| `Feedback` | Write or delete a score for the run |
+| `Attachment` | Upload, download, list, or delete an attachment |
+| `Approval` | List, read, or decide an approval request |
 
 ```csharp
 public sealed class YourRunAuthorizationHandler(IYourOwnershipService ownership) : IRunAuthorizationHandler
 {
     public async ValueTask<RunAuthorizationResult> AuthorizeRunAsync(
         RunAuthorizationRequest request, CancellationToken cancellationToken = default)
-        => await ownership.CanStartAsync(request.TenantId, request.UserId, request.AgentName, cancellationToken)
+    {
+        // Starting a run: there is no run yet, so the question is about the agent.
+        if (request.Access == RunAccess.Start && request.RunId is null)
+        {
+            return await ownership.CanStartAsync(request.TenantId, request.UserId, request.AgentName!, cancellationToken)
+                ? RunAuthorizationResult.Allow()
+                : RunAuthorizationResult.Deny("This user cannot run this agent.");
+        }
+
+        // Everything else is about an existing run. RunId is null only for a
+        // list, and for an attachment uploaded before any run existed.
+        if (request.RunId is not { } runId)
+        {
+            return RunAuthorizationResult.Allow();
+        }
+
+        return await ownership.OwnsRunAsync(request.TenantId, request.UserId, runId, cancellationToken)
             ? RunAuthorizationResult.Allow()
-            : RunAuthorizationResult.Deny("This user cannot run this agent.");
+            : RunAuthorizationResult.Deny("This run belongs to a different user.");
+    }
 
     public async ValueTask<RunAuthorizationResult> AuthorizeSessionAsync(
         SessionAuthorizationRequest request, CancellationToken cancellationToken = default)
@@ -173,19 +205,43 @@ public sealed class YourRunAuthorizationHandler(IYourOwnershipService ownership)
 }
 ```
 
-Both methods are called explicitly at every endpoint that starts a run (the
-agent run endpoint, the workflow run endpoint, the inbound trigger accept
-endpoint, and the OpenAI-compatible `/v1/responses` endpoint — there is no
-single filter all four share, so each one calls this binding in its own
-body) and at every endpoint that touches a session (list, read, delete,
-branch). A denied session **read**, **delete**, or **branch** returns `404`,
-identical to a session that does not exist — a `403` there would confirm the
-session's existence to a caller who should not even know it. A denied
-**list** returns `403` instead: a list is an operation, not a single
+Both methods are called explicitly at every endpoint concerned — there is no
+single filter they all share, because these endpoints have no route shape in
+common, so each one calls this binding in its own body:
+
+- **Six run-starting endpoints:** the agent run endpoint, the workflow run
+  endpoint, the inbound trigger accept endpoint, the OpenAI-compatible
+  `/v1/responses` and `/v1/chat/completions` endpoints, and `POST
+  /api/runs/{id}/replay`. The check runs **before** the quota check, so a
+  denied call never consumes the tenant's quota.
+- **Every run resource:** the run summary, its tree, its event stream, its
+  recorded input, its span tree, its tool calls, its scores, its
+  cancellation, its attachments, and its approval requests.
+- **Every session access:** list, read, delete, branch, and opening a
+  real-time voice conversation (`SessionAccess.Voice`).
+
+**How a denial answers depends on what was asked for.** A denied single
+resource — a run, a session, an attachment, an approval request — returns
+`404`, with a body **identical** to the one that resource gets when it
+genuinely does not exist. A `403` there would confirm the resource exists to
+a caller who should not even know it, and wording that differed between
+"denied" and "missing" would leak the same thing through a side channel. A
+denied **list** returns `403` instead: a list is an operation, not a single
 resource, so there is no existence to leak, and the response is never
 silently filtered — filtering there would break the `skip`/`take` paging
-contract. If this handler throws, the call is denied (fail-closed); a gate
-that fails open on an exception is not a gate.
+contract. A denied **run start** and a denied **attachment upload** also
+return `403`: neither addresses an existing resource. A denied voice
+handshake is refused before the socket upgrades, with the same `404` an
+unreachable session already gives.
+
+A voice session that does not exist yet is **not** an error: the first turn
+opens it, and the handler is still asked, so you decide for yourself whether
+a caller may open a conversation under that id.
+
+If this handler throws, the call is denied (fail-closed); a gate that fails
+open on an exception is not a gate. When it denies a single resource, the
+`Reason` you supply is deliberately **not** returned — the response has to
+stay identical to a missing resource's.
 
 ## Reading identity inside a tool body
 

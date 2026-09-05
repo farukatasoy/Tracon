@@ -5119,15 +5119,22 @@ AgentPrism.IRunAuthorizationHandler
 AgentPrism.IRunAuthorizationHandler.AuthorizeRunAsync(AgentPrism.RunAuthorizationRequest! request, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<AgentPrism.RunAuthorizationResult!>
 AgentPrism.IRunAuthorizationHandler.AuthorizeSessionAsync(AgentPrism.SessionAuthorizationRequest! request, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<AgentPrism.RunAuthorizationResult!>
 AgentPrism.RunAccess
+AgentPrism.RunAccess.Approval = 5 -> AgentPrism.RunAccess
+AgentPrism.RunAccess.Attachment = 4 -> AgentPrism.RunAccess
+AgentPrism.RunAccess.Cancel = 2 -> AgentPrism.RunAccess
+AgentPrism.RunAccess.Feedback = 3 -> AgentPrism.RunAccess
+AgentPrism.RunAccess.Read = 1 -> AgentPrism.RunAccess
 AgentPrism.RunAccess.Start = 0 -> AgentPrism.RunAccess
 AgentPrism.RunAuthorizationRequest
 AgentPrism.RunAuthorizationRequest.<Clone>$() -> AgentPrism.RunAuthorizationRequest!
 AgentPrism.RunAuthorizationRequest.Access.get -> AgentPrism.RunAccess
 AgentPrism.RunAuthorizationRequest.Access.init -> void
-AgentPrism.RunAuthorizationRequest.AgentName.get -> string!
+AgentPrism.RunAuthorizationRequest.AgentName.get -> string?
 AgentPrism.RunAuthorizationRequest.AgentName.init -> void
 AgentPrism.RunAuthorizationRequest.Equals(AgentPrism.RunAuthorizationRequest? other) -> bool
 AgentPrism.RunAuthorizationRequest.RunAuthorizationRequest() -> void
+AgentPrism.RunAuthorizationRequest.RunId.get -> System.Guid?
+AgentPrism.RunAuthorizationRequest.RunId.init -> void
 AgentPrism.RunAuthorizationRequest.SessionId.get -> string?
 AgentPrism.RunAuthorizationRequest.SessionId.init -> void
 AgentPrism.RunAuthorizationRequest.TenantId.get -> string!
@@ -5147,6 +5154,7 @@ AgentPrism.SessionAccess.Branch = 3 -> AgentPrism.SessionAccess
 AgentPrism.SessionAccess.Delete = 2 -> AgentPrism.SessionAccess
 AgentPrism.SessionAccess.List = 1 -> AgentPrism.SessionAccess
 AgentPrism.SessionAccess.Read = 0 -> AgentPrism.SessionAccess
+AgentPrism.SessionAccess.Voice = 4 -> AgentPrism.SessionAccess
 AgentPrism.SessionAuthorizationRequest
 AgentPrism.SessionAuthorizationRequest.<Clone>$() -> AgentPrism.SessionAuthorizationRequest!
 AgentPrism.SessionAuthorizationRequest.Access.get -> AgentPrism.SessionAccess

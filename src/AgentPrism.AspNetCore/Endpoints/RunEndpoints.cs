@@ -40,8 +40,11 @@ internal static class RunEndpoints
         AgentPrismRolePolicies roles,
         string prefix)
     {
-        builder.MapGet("/api/runs", async Task<Ok<IReadOnlyList<RunRecord>>> (
+        builder.MapGet("/api/runs", async Task<Results<Ok<IReadOnlyList<RunRecord>>, ProblemHttpResult>> (
                 IRunStore runs,
+                [FromServices] IRunAuthorizationHandler? runAuthorizationHandler,
+                [FromServices] IRunAttributionContext? attributionContext,
+                ITenantContext tenants,
                 [FromQuery] string? agentName,
                 [FromQuery] RunStatus? status,
                 [FromQuery] RunKind? kind,
@@ -57,6 +60,26 @@ internal static class RunEndpoints
                 [FromQuery] int? take,
                 CancellationToken cancellationToken) =>
             {
+                // 🚨 A denied list is REJECTED (403), never silently filtered:
+                // there is no single run identity to hide, and filtering rows
+                // out server-side would break the skip/take paging contract —
+                // the same rule the session list follows (K-671).
+                if (await RunAuthorizationGate
+                        .CheckRunResourceAsync(
+                            runAuthorizationHandler,
+                            tenants,
+                            runId: null,
+                            agentName: null,
+                            sessionId: null,
+                            attributionContext,
+                            RunAccess.Read,
+                            NotAuthorized(),
+                            cancellationToken)
+                        .ConfigureAwait(false) is { } authorizationProblem)
+                {
+                    return authorizationProblem;
+                }
+
                 var (labelKey, labelValue) = RunAttributionGate.ParseLabelFilter(label);
 
                 var records = await runs.QueryRunsAsync(
@@ -95,16 +118,38 @@ internal static class RunEndpoints
                 "the direct children of a run. 'userId' narrows the list to one user's runs, and " +
                 "'label' takes a 'key:value' pair ('label=team:payments'); a bare 'label=team' " +
                 "matches any value of that key. Both dimensions are recorded from the server-side " +
-                "IRunAttributionContext, never from the run request body.");
+                "IRunAttributionContext, never from the run request body. If a registered " +
+                "IRunAuthorizationHandler denies the caller, the response is 403 — the list is " +
+                "REJECTED, never silently filtered.")
+            .ProducesProblem(StatusCodes.Status403Forbidden);
 
         builder.MapGet("/api/runs/{runId:guid}/tree", async Task<Results<Ok<IReadOnlyList<RunRecord>>, ProblemHttpResult>> (
                 Guid runId,
                 IRunStore runs,
+                [FromServices] IRunAuthorizationHandler? runAuthorizationHandler,
+                [FromServices] IRunAttributionContext? attributionContext,
+                ITenantContext tenants,
                 CancellationToken cancellationToken) =>
             {
                 if (await runs.GetRunAsync(runId, cancellationToken).ConfigureAwait(false) is not { } record)
                 {
                     return NotFound(runId);
+                }
+
+                if (await RunAuthorizationGate
+                        .CheckRunResourceAsync(
+                            runAuthorizationHandler,
+                            tenants,
+                            runId,
+                            record.AgentName,
+                            record.SessionId,
+                            attributionContext,
+                            RunAccess.Read,
+                            NotFound(runId),
+                            cancellationToken)
+                        .ConfigureAwait(false) is { } authorizationProblem)
+                {
+                    return authorizationProblem;
                 }
 
                 // The tree is always fetched from the ROOT. A request from a child
@@ -138,10 +183,34 @@ internal static class RunEndpoints
         builder.MapGet("/api/runs/{runId:guid}", async Task<Results<Ok<RunRecord>, ProblemHttpResult>> (
                 Guid runId,
                 IRunStore runs,
-                CancellationToken cancellationToken)
-                => await runs.GetRunAsync(runId, cancellationToken).ConfigureAwait(false) is { } record
-                    ? TypedResults.Ok(record)
-                    : NotFound(runId))
+                [FromServices] IRunAuthorizationHandler? runAuthorizationHandler,
+                [FromServices] IRunAttributionContext? attributionContext,
+                ITenantContext tenants,
+                CancellationToken cancellationToken) =>
+            {
+                if (await runs.GetRunAsync(runId, cancellationToken).ConfigureAwait(false) is not { } record)
+                {
+                    return NotFound(runId);
+                }
+
+                if (await RunAuthorizationGate
+                        .CheckRunResourceAsync(
+                            runAuthorizationHandler,
+                            tenants,
+                            runId,
+                            record.AgentName,
+                            record.SessionId,
+                            attributionContext,
+                            RunAccess.Read,
+                            NotFound(runId),
+                            cancellationToken)
+                        .ConfigureAwait(false) is { } authorizationProblem)
+                {
+                    return authorizationProblem;
+                }
+
+                return TypedResults.Ok(record);
+            })
             .RequireRole(roles.Reader)
             .RequireApiKeyScope(ApiKeyScope.RunsRead)
             .WithName("AgentPrismGetRun")
@@ -157,14 +226,36 @@ internal static class RunEndpoints
         builder.MapGet("/api/runs/{runId:guid}/events", async Task<Results<ProblemHttpResult, IResult>> (
                 Guid runId,
                 IRunStore runs,
+                [FromServices] IRunAuthorizationHandler? runAuthorizationHandler,
+                [FromServices] IRunAttributionContext? attributionContext,
+                ITenantContext tenants,
                 HttpContext httpContext,
                 CancellationToken cancellationToken) =>
             {
                 // The existence check happens before the stream starts; the status
-                // code cannot be changed once the response has started.
-                if (await runs.GetRunAsync(runId, cancellationToken).ConfigureAwait(false) is null)
+                // code cannot be changed once the response has started. The
+                // authorization check has to clear the same bar: a denial must
+                // arrive as a status code, never as a stream that opens and
+                // then stops.
+                if (await runs.GetRunAsync(runId, cancellationToken).ConfigureAwait(false) is not { } record)
                 {
                     return NotFound(runId);
+                }
+
+                if (await RunAuthorizationGate
+                        .CheckRunResourceAsync(
+                            runAuthorizationHandler,
+                            tenants,
+                            runId,
+                            record.AgentName,
+                            record.SessionId,
+                            attributionContext,
+                            RunAccess.Read,
+                            NotFound(runId),
+                            cancellationToken)
+                        .ConfigureAwait(false) is { } authorizationProblem)
+                {
+                    return authorizationProblem;
                 }
 
                 return new RunEventStream(runId, runs, options.RunEventPollInterval);
@@ -261,6 +352,8 @@ internal static class RunEndpoints
                 [FromServices] ITenantContext tenants,
                 [FromServices] ILoggerFactory loggerFactory,
                 [FromServices] IAuthorizationService? authorization,
+                [FromServices] IRunAuthorizationHandler? runAuthorizationHandler,
+                [FromServices] IRunAttributionContext? attributionContext,
                 HttpContext httpContext,
                 CancellationToken cancellationToken) => await ReplayRunAsync(
                     runId,
@@ -271,6 +364,8 @@ internal static class RunEndpoints
                     loggerFactory,
                     roles,
                     authorization,
+                    runAuthorizationHandler,
+                    attributionContext,
                     httpContext,
                     prefix,
                     cancellationToken).ConfigureAwait(false))
@@ -289,7 +384,9 @@ internal static class RunEndpoints
                 "a client-side tool (AddClientTool) cannot be replayed in ANY tool mode and also returns " +
                 "409 — its body runs in the caller's browser and no call to it was recorded. " +
                 "Replay is sessionless: if the source run belongs to a session, only that TURN's " +
-                "input is replayed; the conversation history is not carried over.")
+                "input is replayed; the conversation history is not carried over. Replay STARTS a " +
+                "run, so a registered IRunAuthorizationHandler is asked with the SOURCE run's id; a " +
+                "denial returns 403 before any run row is opened.")
             .Produces<RunReplayResponse>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status403Forbidden)
@@ -304,6 +401,8 @@ internal static class RunEndpoints
         [FromServices] IRunStore runs,
         [FromServices] IRunInputStore inputs,
         [FromServices] ITenantContext tenants,
+        [FromServices] IRunAuthorizationHandler? runAuthorizationHandler,
+        [FromServices] IRunAttributionContext? attributionContext,
         CancellationToken cancellationToken)
     {
         var run = await runs.GetRunAsync(runId, cancellationToken).ConfigureAwait(false);
@@ -311,6 +410,22 @@ internal static class RunEndpoints
         if (run is null || !string.Equals(run.TenantId, tenants.TenantId, StringComparison.Ordinal))
         {
             return NotFound(runId);
+        }
+
+        if (await RunAuthorizationGate
+                .CheckRunResourceAsync(
+                    runAuthorizationHandler,
+                    tenants,
+                    runId,
+                    run.AgentName,
+                    run.SessionId,
+                    attributionContext,
+                    RunAccess.Read,
+                    NotFound(runId),
+                    cancellationToken)
+                .ConfigureAwait(false) is { } authorizationProblem)
+        {
+            return authorizationProblem;
         }
 
         var input = await inputs
@@ -340,6 +455,8 @@ internal static class RunEndpoints
         [FromServices] IRunStore runs,
         [FromServices] IRunScoreStore scores,
         [FromServices] ITenantContext tenants,
+        [FromServices] IRunAuthorizationHandler? runAuthorizationHandler,
+        [FromServices] IRunAttributionContext? attributionContext,
         CancellationToken cancellationToken)
     {
         var left = await runs.GetRunAsync(a, cancellationToken).ConfigureAwait(false);
@@ -355,6 +472,27 @@ internal static class RunEndpoints
         if (right is null || !string.Equals(right.TenantId, tenants.TenantId, StringComparison.Ordinal))
         {
             return NotFound(b);
+        }
+
+        // 🚨 A comparison reads TWO runs, so it passes the gate TWICE. Either
+        // denial denies the whole comparison; asking once would let a caller
+        // read a run they may not see by pairing it with one they may.
+        if (await RunAuthorizationGate
+                .CheckRunResourceAsync(
+                    runAuthorizationHandler, tenants, a, left.AgentName, left.SessionId,
+                    attributionContext, RunAccess.Read, NotFound(a), cancellationToken)
+                .ConfigureAwait(false) is { } leftProblem)
+        {
+            return leftProblem;
+        }
+
+        if (await RunAuthorizationGate
+                .CheckRunResourceAsync(
+                    runAuthorizationHandler, tenants, b, right.AgentName, right.SessionId,
+                    attributionContext, RunAccess.Read, NotFound(b), cancellationToken)
+                .ConfigureAwait(false) is { } rightProblem)
+        {
+            return rightProblem;
         }
 
         return TypedResults.Ok(new RunComparisonResponse
@@ -464,6 +602,8 @@ internal static class RunEndpoints
         [FromServices] ILoggerFactory loggerFactory,
         [FromServices] AgentPrismRolePolicies roles,
         [FromServices] IAuthorizationService? authorization,
+        [FromServices] IRunAuthorizationHandler? runAuthorizationHandler,
+        [FromServices] IRunAttributionContext? attributionContext,
         HttpContext httpContext,
         string prefix,
         CancellationToken cancellationToken)
@@ -525,6 +665,34 @@ internal static class RunEndpoints
                     detail: preparation.Detail,
                     statusCode: StatusCodes.Status400BadRequest),
             };
+        }
+
+        // 🚨 Replay is the SIXTH run-starting surface, and phase 139 missed it:
+        // this endpoint's own summary says "Starts a new run with recorded
+        // input". The gate is asked with RunAccess.Start, but through
+        // CheckRunResourceAsync rather than CheckRunAsync, because the request
+        // must carry the SOURCE run's id - without it a handler cannot tell
+        // "start a run of agent X" apart from "replay somebody else's recorded
+        // conversation", which is the whole reason replay needed covering.
+        // It runs after PrepareAsync (where the source run's tenant ownership
+        // is settled) and BEFORE any run row is opened, so a denied replay
+        // leaves no row behind and consumes no quota.
+        var sourceRun = preparation.SourceRun!;
+
+        if (await RunAuthorizationGate
+                .CheckRunResourceAsync(
+                    runAuthorizationHandler,
+                    tenants,
+                    runId,
+                    sourceRun.AgentName,
+                    sessionId: null,
+                    attributionContext,
+                    RunAccess.Start,
+                    NotAuthorized(),
+                    cancellationToken)
+                .ConfigureAwait(false) is { } authorizationProblem)
+        {
+            return authorizationProblem;
         }
 
         var newRunId = AgentPrismId.NewId();
@@ -623,6 +791,8 @@ internal static class RunEndpoints
         [FromServices] IAuditLog auditLog,
         [FromServices] IAuditActorResolver actorResolver,
         [FromServices] ILoggerFactory loggerFactory,
+        [FromServices] IRunAuthorizationHandler? runAuthorizationHandler,
+        [FromServices] IRunAttributionContext? attributionContext,
         [FromServices] TimeProvider? timeProvider,
         CancellationToken cancellationToken)
     {
@@ -655,6 +825,15 @@ internal static class RunEndpoints
         if (run is null || !string.Equals(run.TenantId, tenants.TenantId, StringComparison.Ordinal))
         {
             return NotFoundFeedback(runId);
+        }
+
+        if (await RunAuthorizationGate
+                .CheckRunResourceAsync(
+                    runAuthorizationHandler, tenants, runId, run.AgentName, run.SessionId,
+                    attributionContext, RunAccess.Feedback, NotFoundFeedback(runId), cancellationToken)
+                .ConfigureAwait(false) is { } authorizationProblem)
+        {
+            return authorizationProblem;
         }
 
         var now = (timeProvider ?? TimeProvider.System).GetUtcNow();
@@ -729,6 +908,8 @@ internal static class RunEndpoints
         [FromServices] IAuditLog auditLog,
         [FromServices] IAuditActorResolver actorResolver,
         [FromServices] ILoggerFactory loggerFactory,
+        [FromServices] IRunAuthorizationHandler? runAuthorizationHandler,
+        [FromServices] IRunAttributionContext? attributionContext,
         [FromServices] TimeProvider? timeProvider,
         CancellationToken cancellationToken)
     {
@@ -740,6 +921,17 @@ internal static class RunEndpoints
         if (run is null || !string.Equals(run.TenantId, tenants.TenantId, StringComparison.Ordinal))
         {
             return NotFound(runId);
+        }
+
+        // Checked before the status is read: a denied caller must not learn
+        // whether the run is still executing.
+        if (await RunAuthorizationGate
+                .CheckRunResourceAsync(
+                    runAuthorizationHandler, tenants, runId, run.AgentName, run.SessionId,
+                    attributionContext, RunAccess.Cancel, NotFound(runId), cancellationToken)
+                .ConfigureAwait(false) is { } authorizationProblem)
+        {
+            return authorizationProblem;
         }
 
         if (run.Status == RunStatus.Queued)
@@ -816,6 +1008,8 @@ internal static class RunEndpoints
         [FromServices] IRunStore runs,
         [FromServices] IRunScoreStore scores,
         [FromServices] ITenantContext tenants,
+        [FromServices] IRunAuthorizationHandler? runAuthorizationHandler,
+        [FromServices] IRunAttributionContext? attributionContext,
         CancellationToken cancellationToken)
     {
         var run = await runs.GetRunAsync(runId, cancellationToken).ConfigureAwait(false);
@@ -823,6 +1017,17 @@ internal static class RunEndpoints
         if (run is null || !string.Equals(run.TenantId, tenants.TenantId, StringComparison.Ordinal))
         {
             return NotFoundFeedback(runId);
+        }
+
+        // Reading scores is Read, not Feedback: the scores belong to the run,
+        // and a reader who may see the run may see what was scored on it.
+        if (await RunAuthorizationGate
+                .CheckRunResourceAsync(
+                    runAuthorizationHandler, tenants, runId, run.AgentName, run.SessionId,
+                    attributionContext, RunAccess.Read, NotFoundFeedback(runId), cancellationToken)
+                .ConfigureAwait(false) is { } authorizationProblem)
+        {
+            return authorizationProblem;
         }
 
         var list = await scores.ListAsync(tenants.TenantId, runId, cancellationToken).ConfigureAwait(false);
@@ -839,6 +1044,8 @@ internal static class RunEndpoints
         [FromServices] IAuditLog auditLog,
         [FromServices] IAuditActorResolver actorResolver,
         [FromServices] ILoggerFactory loggerFactory,
+        [FromServices] IRunAuthorizationHandler? runAuthorizationHandler,
+        [FromServices] IRunAttributionContext? attributionContext,
         CancellationToken cancellationToken)
     {
         var run = await runs.GetRunAsync(runId, cancellationToken).ConfigureAwait(false);
@@ -848,12 +1055,31 @@ internal static class RunEndpoints
             return NotFoundFeedback(runId);
         }
 
+        if (await RunAuthorizationGate
+                .CheckRunResourceAsync(
+                    runAuthorizationHandler, tenants, runId, run.AgentName, run.SessionId,
+                    attributionContext, RunAccess.Feedback, NotFoundFeedback(runId), cancellationToken)
+                .ConfigureAwait(false) is { } authorizationProblem)
+        {
+            return authorizationProblem;
+        }
+
+        // 🚨 The gate above was asked about `runId`, but the store deletes by
+        // `scoreId` alone - IRunScoreStore.DeleteAsync takes no run id. Without
+        // this check the two identities are never tied together, so a caller
+        // allowed to score run A could delete a score belonging to run B by
+        // naming A in the route: the gate would answer about A and the store
+        // would delete B's row. The route's run must actually own the score.
+        var runScores = await scores.ListAsync(tenants.TenantId, runId, cancellationToken).ConfigureAwait(false);
+
+        if (!runScores.Any(score => score.Id == scoreId))
+        {
+            return ScoreNotFound(scoreId);
+        }
+
         if (!await scores.DeleteAsync(tenants.TenantId, scoreId, cancellationToken).ConfigureAwait(false))
         {
-            return TypedResults.Problem(
-                title: "Score not found",
-                detail: $"There is no score with id '{scoreId}'.",
-                statusCode: StatusCodes.Status404NotFound);
+            return ScoreNotFound(scoreId);
         }
 
         await AuditRecorder.WriteAsync(
@@ -883,6 +1109,19 @@ internal static class RunEndpoints
             title: "Run not found",
             detail: $"There is no run with id '{runId}'.",
             statusCode: StatusCodes.Status404NotFound);
+
+    private static ProblemHttpResult ScoreNotFound(Guid scoreId)
+        => TypedResults.Problem(
+            title: "Score not found",
+            detail: $"There is no score with id '{scoreId}'.",
+            statusCode: StatusCodes.Status404NotFound);
+
+    /// <summary>The response a denied LIST gets: 403, with no run identity in it.</summary>
+    private static ProblemHttpResult NotAuthorized()
+        => TypedResults.Problem(
+            title: "Run not authorized",
+            detail: "The registered IRunAuthorizationHandler denied this request.",
+            statusCode: StatusCodes.Status403Forbidden);
 
     /// <summary>
     /// Writes events as SSE; polls for new events while the run is in progress.

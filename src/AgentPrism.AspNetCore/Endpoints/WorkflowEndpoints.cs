@@ -145,7 +145,8 @@ internal static class WorkflowEndpoints
                 "404 rather than 403, so the API does not confirm that it exists. An empty list " +
                 "means the run wrote no checkpoint — checkpointing is a property of how the " +
                 "workflow was built, not something this endpoint can turn on. Checkpoints are " +
-                "subject to retention, so an old run may have none left.");
+                "subject to retention, so an old run may have none left. A denial by a " +
+                "registered IRunAuthorizationHandler produces the same 404.");
 
         builder.MapPost("/api/workflows/runs/{runId:guid}/resume", ResumeAsync)
             .RequireRole(roles.Operator)
@@ -159,9 +160,12 @@ internal static class WorkflowEndpoints
                 "The body is optional — without a checkpoint id the run resumes from its latest " +
                 "checkpoint. The engine must be registered; otherwise the response is 501. " +
                 "Because the status code is sent before the stream begins, a failure after that " +
-                "point arrives as an SSE error frame rather than an HTTP error.")
+                "point arrives as an SSE error frame rather than an HTTP error. Resuming STARTS " +
+                "a run, so a registered IRunAuthorizationHandler is asked with the SOURCE run's " +
+                "id; a denial returns 403 before any run row is opened.")
             .Accepts<WorkflowResumeHttpRequest>(true, "application/json")
             .Produces<string>(StatusCodes.Status200OK, contentType: "text/event-stream")
+            .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status501NotImplemented);
 
         builder.MapGet("/api/workflows/runs/{runId:guid}/requests", ListRequestsAsync)
@@ -172,7 +176,10 @@ internal static class WorkflowEndpoints
             .WithSummary("Lists a run's pending human input requests.")
             .WithDescription(
                 "Only a run in the 'AwaitingInput' state returns requests. Requests are read " +
-                "from the run's event stream; there is no separate table.");
+                "from the run's event stream; there is no separate table. A run belonging to " +
+                "another tenant, and a denial by a registered IRunAuthorizationHandler, both " +
+                "return the same 404.")
+            .ProducesProblem(StatusCodes.Status404NotFound);
 
         builder.MapPost("/api/workflows/runs/{runId:guid}/respond", RespondAsync)
             .RequireRole(roles.Operator)
@@ -184,9 +191,12 @@ internal static class WorkflowEndpoints
             .WithDescription(
                 "The response is matched to the request re-published with the same ID in the " +
                 "execution resumed from the checkpoint. Resuming opens a NEW runs row; events " +
-                "stream over SSE.")
+                "stream over SSE — so this STARTS a run, and a registered " +
+                "IRunAuthorizationHandler is asked with the source run's id; a denial returns " +
+                "403 before any run row is opened.")
             .Produces<string>(StatusCodes.Status200OK, contentType: "text/event-stream")
             .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status501NotImplemented);
     }
 
@@ -436,6 +446,8 @@ internal static class WorkflowEndpoints
             [FromServices] IWorkflowCheckpointStore checkpoints,
             [FromServices] IRunStore runs,
             [FromServices] ITenantContext tenants,
+            [FromServices] IRunAuthorizationHandler? runAuthorizationHandler,
+            [FromServices] IRunAttributionContext? attributionContext,
             CancellationToken cancellationToken)
     {
         var record = await runs.GetRunAsync(runId, cancellationToken).ConfigureAwait(false);
@@ -445,6 +457,17 @@ internal static class WorkflowEndpoints
         if (record is null || !string.Equals(record.TenantId, tenants.TenantId, StringComparison.Ordinal))
         {
             return RunNotFound(runId);
+        }
+
+        // A checkpoint carries the workflow's own state, so reading the list is
+        // reading the run (phase 147).
+        if (await RunAuthorizationGate
+                .CheckRunResourceAsync(
+                    runAuthorizationHandler, tenants, runId, record.AgentName, record.SessionId,
+                    attributionContext, RunAccess.Read, RunNotFound(runId), cancellationToken)
+                .ConfigureAwait(false) is { } authorizationProblem)
+        {
+            return authorizationProblem;
         }
 
         var list = await checkpoints
@@ -458,6 +481,10 @@ internal static class WorkflowEndpoints
         Guid runId,
         HttpContext httpContext,
         [FromServices] IWorkflowRunner? runner,
+        [FromServices] IRunStore runs,
+        [FromServices] ITenantContext tenants,
+        [FromServices] IRunAuthorizationHandler? runAuthorizationHandler,
+        [FromServices] IRunAttributionContext? attributionContext,
         CancellationToken cancellationToken)
     {
         if (runner is null)
@@ -472,6 +499,17 @@ internal static class WorkflowEndpoints
         if (bindError is not null)
         {
             return bindError;
+        }
+
+        // 🚨 Resume opens a NEW run row from somebody's checkpoint, so it is a
+        // run-STARTING surface and its denial is a 403 like every other one.
+        // The request carries the SOURCE run's id, the same shape replay uses.
+        if (await AuthorizeWorkflowRunAsync(
+                runId, runs, tenants, runAuthorizationHandler, attributionContext,
+                RunAccess.Start, NotAuthorized(), cancellationToken)
+            .ConfigureAwait(false) is { } authorizationProblem)
+        {
+            return authorizationProblem;
         }
 
         var newRunId = AgentPrismId.NewId();
@@ -492,11 +530,23 @@ internal static class WorkflowEndpoints
         ListRequestsAsync(
             Guid runId,
             [FromServices] IWorkflowRunner? runner,
+            [FromServices] IRunStore runs,
+            [FromServices] ITenantContext tenants,
+            [FromServices] IRunAuthorizationHandler? runAuthorizationHandler,
+            [FromServices] IRunAttributionContext? attributionContext,
             CancellationToken cancellationToken)
     {
         if (runner is null)
         {
             return NotRegistered();
+        }
+
+        if (await AuthorizeWorkflowRunAsync(
+                runId, runs, tenants, runAuthorizationHandler, attributionContext,
+                RunAccess.Read, RunNotFound(runId), cancellationToken)
+            .ConfigureAwait(false) is { } authorizationProblem)
+        {
+            return authorizationProblem;
         }
 
         try
@@ -521,6 +571,10 @@ internal static class WorkflowEndpoints
         Guid runId,
         HttpContext httpContext,
         [FromServices] IWorkflowRunner? runner,
+        [FromServices] IRunStore runs,
+        [FromServices] ITenantContext tenants,
+        [FromServices] IRunAuthorizationHandler? runAuthorizationHandler,
+        [FromServices] IRunAttributionContext? attributionContext,
         CancellationToken cancellationToken)
     {
         if (runner is null)
@@ -543,6 +597,16 @@ internal static class WorkflowEndpoints
                 title: "Response invalid",
                 detail: "'requestId' is required.",
                 statusCode: StatusCodes.Status400BadRequest);
+        }
+
+        // Answering a human-in-the-loop request continues the workflow on a NEW
+        // run row, so this is a run-starting surface too.
+        if (await AuthorizeWorkflowRunAsync(
+                runId, runs, tenants, runAuthorizationHandler, attributionContext,
+                RunAccess.Start, NotAuthorized(), cancellationToken)
+            .ConfigureAwait(false) is { } authorizationProblem)
+        {
+            return authorizationProblem;
         }
 
         var newRunId = AgentPrismId.NewId();
@@ -592,6 +656,52 @@ internal static class WorkflowEndpoints
             title: "Workflow not found",
             detail: $"There is no workflow named '{name}'.",
             statusCode: StatusCodes.Status404NotFound);
+
+    /// <summary>
+    /// Asks the gate about a workflow run, once its tenant is settled.
+    /// </summary>
+    /// <remarks>
+    /// 🚨 A run that is missing or belongs to another tenant is deliberately
+    /// left ALONE here: the runner already answers it with the same "there is
+    /// no run with id" body it always did, and short-circuiting it here would
+    /// change that answer for an installation with no handler registered. The
+    /// gate is only asked about a run this tenant really has, which is also why
+    /// another tenant's identity never reaches a consumer's handler.
+    /// </remarks>
+    private static async ValueTask<ProblemHttpResult?> AuthorizeWorkflowRunAsync(
+        Guid runId,
+        IRunStore runs,
+        ITenantContext tenants,
+        IRunAuthorizationHandler? runAuthorizationHandler,
+        IRunAttributionContext? attributionContext,
+        RunAccess access,
+        ProblemHttpResult denied,
+        CancellationToken cancellationToken)
+    {
+        if (runAuthorizationHandler is null)
+        {
+            return null;
+        }
+
+        if (await runs.GetRunAsync(runId, cancellationToken).ConfigureAwait(false) is not { } record ||
+            !string.Equals(record.TenantId, tenants.TenantId, StringComparison.Ordinal))
+        {
+            return null;
+        }
+
+        return await RunAuthorizationGate
+            .CheckRunResourceAsync(
+                runAuthorizationHandler, tenants, runId, record.AgentName, record.SessionId,
+                attributionContext, access, denied, cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    /// <summary>The response a denied run START gets: 403, like every other run-starting surface.</summary>
+    private static ProblemHttpResult NotAuthorized()
+        => TypedResults.Problem(
+            title: "Run not authorized",
+            detail: "The registered IRunAuthorizationHandler denied this run.",
+            statusCode: StatusCodes.Status403Forbidden);
 
     private static ProblemHttpResult RunNotFound(Guid runId)
         => TypedResults.Problem(

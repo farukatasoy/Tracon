@@ -212,6 +212,18 @@ accepts the bearer value through a second subprotocol with the
 It never accepts the credential in the query string, where browser, server, and proxy
 logs would capture it.
 
+Authentication is not authorization. A registered
+[`IRunAuthorizationHandler`](/guides/embedding/#6--run-and-session-authorization) is
+asked before the socket upgrades, with `SessionAccess.Voice` and the session id from
+the route, so a host can stop one user from speaking into another user's
+conversation. A denial refuses the handshake with `404` — the same answer an
+unreachable session already gives, so a refusal never confirms the conversation
+exists.
+
+A session id the server has never seen is **not** rejected: the first turn opens it.
+The handler is still asked, so only you decide whether that caller may open a new
+conversation under that id.
+
 ## Privacy and retention
 
 Voice is personal data. `PersistAudio` defaults to `false`; transcripts and normal
