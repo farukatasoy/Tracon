@@ -173,6 +173,21 @@ public sealed record QuotaConsumption
 
     /// <summary>The moment the consumption occurred (UTC). The period is computed from this.</summary>
     public required DateTimeOffset OccurredAt { get; init; }
+
+    /// <summary>
+    /// The identifier of the root run whose completion produced this
+    /// consumption. <see langword="null"/> when consumption is recorded
+    /// outside a run (there is no such caller today, but the field stays
+    /// optional rather than assume one always exists).
+    /// </summary>
+    public string? RunId { get; init; }
+
+    /// <summary>
+    /// The user the run belongs to. <see langword="null"/> when the run
+    /// carries no attribution — a run's correlation is <strong>not
+    /// guessed</strong> from another active user.
+    /// </summary>
+    public string? UserId { get; init; }
 }
 
 /// <summary>A filter for querying quota usage.</summary>

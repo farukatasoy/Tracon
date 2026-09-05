@@ -88,4 +88,41 @@ public interface IQuotaStore
         QuotaConsumption consumption,
         IReadOnlyDictionary<QuotaPeriod, DateOnly> periodStarts,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Atomically claims a quota threshold notification for one scope/period,
+    /// so that only one caller among concurrent workers — and only the first
+    /// run to reach it across a process restart — proceeds to publish it.
+    /// </summary>
+    /// <param name="tenantId">The tenant identifier.</param>
+    /// <param name="agentName">
+    /// The scope: an agent name, or an empty string (<c>""</c>) for the
+    /// tenant-wide counter — the same convention <see cref="QuotaUsageRecord.AgentName"/> uses.
+    /// </param>
+    /// <param name="period">The counter's interval.</param>
+    /// <param name="periodStart">The first day of the period (local time).</param>
+    /// <param name="metric">The metric whose threshold was crossed.</param>
+    /// <param name="thresholdPercent">The crossed threshold percentage.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>
+    /// <see langword="true"/> if this call is the one that claims the
+    /// threshold — no earlier call claimed it in this period, and the caller
+    /// should publish the notice. <see langword="false"/> if it was already
+    /// claimed (by an earlier run, or a concurrent worker), or the usage row
+    /// for this scope/period does not exist yet.
+    /// </returns>
+    /// <remarks>
+    /// The claim survives a process restart: it lives in the same durable
+    /// row <see cref="AddUsageAsync"/> writes to, not in memory. When the
+    /// period rolls over, a new row forms and the claim starts clean —
+    /// there is nothing to reset by hand.
+    /// </remarks>
+    ValueTask<bool> TryClaimThresholdNotificationAsync(
+        string tenantId,
+        string agentName,
+        QuotaPeriod period,
+        DateOnly periodStart,
+        QuotaMetric metric,
+        int thresholdPercent,
+        CancellationToken cancellationToken = default);
 }

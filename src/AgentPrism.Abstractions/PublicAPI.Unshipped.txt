@@ -1275,6 +1275,7 @@ AgentPrism.IQuotaStore.GetAsync(string! tenantId, System.Guid id, System.Threadi
 AgentPrism.IQuotaStore.GetUsageAsync(AgentPrism.QuotaUsageQuery! query, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<AgentPrism.QuotaUsageRecord!>!>
 AgentPrism.IQuotaStore.ListAsync(string! tenantId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<AgentPrism.QuotaDefinition!>!>
 AgentPrism.IQuotaStore.SaveAsync(AgentPrism.QuotaDefinition! definition, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<AgentPrism.QuotaDefinition!>
+AgentPrism.IQuotaStore.TryClaimThresholdNotificationAsync(string! tenantId, string! agentName, AgentPrism.QuotaPeriod period, System.DateOnly periodStart, AgentPrism.QuotaMetric metric, int thresholdPercent, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<bool>
 AgentPrism.IRetentionPolicyStore
 AgentPrism.IRetentionPolicyStore.AppendRunProgressAsync(System.Guid runId, long deletedDelta, long archivedDelta, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
 AgentPrism.IRetentionPolicyStore.CompleteRunAsync(System.Guid runId, System.DateTimeOffset completedAt, string? errorMessage, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
@@ -2068,12 +2069,16 @@ AgentPrism.QuotaConsumption.Equals(AgentPrism.QuotaConsumption? other) -> bool
 AgentPrism.QuotaConsumption.OccurredAt.get -> System.DateTimeOffset
 AgentPrism.QuotaConsumption.OccurredAt.init -> void
 AgentPrism.QuotaConsumption.QuotaConsumption() -> void
+AgentPrism.QuotaConsumption.RunId.get -> string?
+AgentPrism.QuotaConsumption.RunId.init -> void
 AgentPrism.QuotaConsumption.Runs.get -> long
 AgentPrism.QuotaConsumption.Runs.init -> void
 AgentPrism.QuotaConsumption.TenantId.get -> string!
 AgentPrism.QuotaConsumption.TenantId.init -> void
 AgentPrism.QuotaConsumption.Tokens.get -> long
 AgentPrism.QuotaConsumption.Tokens.init -> void
+AgentPrism.QuotaConsumption.UserId.get -> string?
+AgentPrism.QuotaConsumption.UserId.init -> void
 AgentPrism.QuotaDecision
 AgentPrism.QuotaDecision.<Clone>$() -> AgentPrism.QuotaDecision!
 AgentPrism.QuotaDecision.AgentName.get -> string?
@@ -2127,6 +2132,26 @@ AgentPrism.QuotaMetric.Tokens = 1 -> AgentPrism.QuotaMetric
 AgentPrism.QuotaPeriod
 AgentPrism.QuotaPeriod.Daily = 0 -> AgentPrism.QuotaPeriod
 AgentPrism.QuotaPeriod.Monthly = 1 -> AgentPrism.QuotaPeriod
+AgentPrism.QuotaThresholdCrossing
+AgentPrism.QuotaThresholdCrossing.<Clone>$() -> AgentPrism.QuotaThresholdCrossing!
+AgentPrism.QuotaThresholdCrossing.AgentName.get -> string?
+AgentPrism.QuotaThresholdCrossing.AgentName.init -> void
+AgentPrism.QuotaThresholdCrossing.Equals(AgentPrism.QuotaThresholdCrossing? other) -> bool
+AgentPrism.QuotaThresholdCrossing.Limit.get -> decimal
+AgentPrism.QuotaThresholdCrossing.Limit.init -> void
+AgentPrism.QuotaThresholdCrossing.Metric.get -> AgentPrism.QuotaMetric
+AgentPrism.QuotaThresholdCrossing.Metric.init -> void
+AgentPrism.QuotaThresholdCrossing.NoticeId.get -> string!
+AgentPrism.QuotaThresholdCrossing.NoticeId.init -> void
+AgentPrism.QuotaThresholdCrossing.Period.get -> AgentPrism.QuotaPeriod
+AgentPrism.QuotaThresholdCrossing.Period.init -> void
+AgentPrism.QuotaThresholdCrossing.QuotaThresholdCrossing() -> void
+AgentPrism.QuotaThresholdCrossing.ResetsAt.get -> System.DateTimeOffset?
+AgentPrism.QuotaThresholdCrossing.ResetsAt.init -> void
+AgentPrism.QuotaThresholdCrossing.ThresholdPercent.get -> int
+AgentPrism.QuotaThresholdCrossing.ThresholdPercent.init -> void
+AgentPrism.QuotaThresholdCrossing.Used.get -> decimal
+AgentPrism.QuotaThresholdCrossing.Used.init -> void
 AgentPrism.QuotaUsageQuery
 AgentPrism.QuotaUsageQuery.<Clone>$() -> AgentPrism.QuotaUsageQuery!
 AgentPrism.QuotaUsageQuery.AgentName.get -> string?
@@ -2389,6 +2414,7 @@ AgentPrism.RunEvent.ToolName.init -> void
 AgentPrism.RunEvent.Type.get -> AgentPrism.RunEventType
 AgentPrism.RunEvent.Type.init -> void
 AgentPrism.RunEventCustomTypes
+const AgentPrism.RunEventCustomTypes.QuotaThreshold = "agentprism.quota.threshold" -> string!
 const AgentPrism.RunEventCustomTypes.ReservedPrefix = "agentprism." -> string!
 static AgentPrism.RunEventCustomTypes.IsReserved(string? customType) -> bool
 static AgentPrism.RunEventCustomTypes.IsValidType(string? customType) -> bool
@@ -3646,10 +3672,14 @@ AgentPrism.WebhookQuotaSummary.Period.get -> AgentPrism.QuotaPeriod
 AgentPrism.WebhookQuotaSummary.Period.init -> void
 AgentPrism.WebhookQuotaSummary.ResetsAt.get -> System.DateTimeOffset?
 AgentPrism.WebhookQuotaSummary.ResetsAt.init -> void
+AgentPrism.WebhookQuotaSummary.RunId.get -> string?
+AgentPrism.WebhookQuotaSummary.RunId.init -> void
 AgentPrism.WebhookQuotaSummary.ThresholdPercent.get -> int
 AgentPrism.WebhookQuotaSummary.ThresholdPercent.init -> void
 AgentPrism.WebhookQuotaSummary.Used.get -> decimal
 AgentPrism.WebhookQuotaSummary.Used.init -> void
+AgentPrism.WebhookQuotaSummary.UserId.get -> string?
+AgentPrism.WebhookQuotaSummary.UserId.init -> void
 AgentPrism.WebhookQuotaSummary.WebhookQuotaSummary() -> void
 AgentPrism.WebhookRunSummary
 AgentPrism.WebhookRunSummary.<Clone>$() -> AgentPrism.WebhookRunSummary!
@@ -4261,6 +4291,9 @@ override AgentPrism.QuotaDecision.ToString() -> string!
 override AgentPrism.QuotaDefinition.Equals(object? obj) -> bool
 override AgentPrism.QuotaDefinition.GetHashCode() -> int
 override AgentPrism.QuotaDefinition.ToString() -> string!
+override AgentPrism.QuotaThresholdCrossing.Equals(object? obj) -> bool
+override AgentPrism.QuotaThresholdCrossing.GetHashCode() -> int
+override AgentPrism.QuotaThresholdCrossing.ToString() -> string!
 override AgentPrism.QuotaUsageQuery.Equals(object? obj) -> bool
 override AgentPrism.QuotaUsageQuery.GetHashCode() -> int
 override AgentPrism.QuotaUsageQuery.ToString() -> string!
@@ -4735,6 +4768,8 @@ static AgentPrism.QuotaDecision.operator !=(AgentPrism.QuotaDecision? left, Agen
 static AgentPrism.QuotaDecision.operator ==(AgentPrism.QuotaDecision? left, AgentPrism.QuotaDecision? right) -> bool
 static AgentPrism.QuotaDefinition.operator !=(AgentPrism.QuotaDefinition? left, AgentPrism.QuotaDefinition? right) -> bool
 static AgentPrism.QuotaDefinition.operator ==(AgentPrism.QuotaDefinition? left, AgentPrism.QuotaDefinition? right) -> bool
+static AgentPrism.QuotaThresholdCrossing.operator !=(AgentPrism.QuotaThresholdCrossing? left, AgentPrism.QuotaThresholdCrossing? right) -> bool
+static AgentPrism.QuotaThresholdCrossing.operator ==(AgentPrism.QuotaThresholdCrossing? left, AgentPrism.QuotaThresholdCrossing? right) -> bool
 static AgentPrism.QuotaUsageQuery.operator !=(AgentPrism.QuotaUsageQuery? left, AgentPrism.QuotaUsageQuery? right) -> bool
 static AgentPrism.QuotaUsageQuery.operator ==(AgentPrism.QuotaUsageQuery? left, AgentPrism.QuotaUsageQuery? right) -> bool
 static AgentPrism.QuotaUsageRecord.operator !=(AgentPrism.QuotaUsageRecord? left, AgentPrism.QuotaUsageRecord? right) -> bool

@@ -380,6 +380,7 @@ not enable sampling.
 | `Quotas:TimeZone` | `UTC` |
 | `Quotas:ThresholdPercents` | `80`, `100` |
 | `Quotas:AllowOnStoreFailure` | `true` |
+| `Quotas:PublishThresholdToRunStream` | `false` |
 | `RateLimit:Enabled` | `false` |
 | `RateLimit:PermitLimit` | `60` |
 | `RateLimit:Window` | 1 minute |

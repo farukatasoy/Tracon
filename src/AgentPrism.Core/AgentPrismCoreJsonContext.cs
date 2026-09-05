@@ -42,4 +42,7 @@ namespace AgentPrism;
 
 // Phase 144: the ChildRunTimedOut run-event payload.
 [JsonSerializable(typeof(ChildRunTimedOutEventPayload))]
+
+// Phase 146: the quota threshold notice's Custom run-event payload.
+[JsonSerializable(typeof(QuotaThresholdNoticePayload))]
 internal sealed partial class AgentPrismCoreJsonContext : JsonSerializerContext;

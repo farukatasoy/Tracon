@@ -182,7 +182,7 @@ experiment, and automatic rollback is off until you configure it.
 | Reader, Operator, Admin roles | Endpoint groups | Optional policy names; production can require all three at startup |
 | API keys | HTTP API and stores | Hashed, revocable, expiring, tenant-bound, and narrowed by a closed scope enum |
 | Multi-tenancy | `UseTenancy()` | Single tenant by default; a verified key outranks a claim or header |
-| Quotas | Run admission | Enabled with an empty rule set, so no run is rejected until a rule exists |
+| Quotas | Run admission | Enabled with an empty rule set, so no run is rejected until a rule exists; a crossed threshold can also be written into the triggering run's own event stream, off by default |
 | Rate limiting | HTTP requests | Off by default; partition by tenant, key, or remote address |
 | Approvals | Tool execution and queued resume | Expiring requests, explicit decisions, and revocable standing rules |
 | Audit trail | Administrative writes | Actor, action, entity, before/after data, and secret masking |
@@ -1016,6 +1016,18 @@ re-notify. Set the list to empty to turn the notifications off.
 The threshold event is a notification, not a decision: it stops nothing, and `429`
 remains the only thing that refuses a run.
 
+Turning on `Quotas:PublishThresholdToRunStream` (off by default) also writes the
+crossed threshold into the *triggering run's own* event stream — a `custom` frame
+carrying `agentprism.quota.threshold` before the run's terminal event, so a client
+already watching that one run's SSE stream sees the warning without a separate
+webhook subscription. The frame's payload carries a `noticeId` (stable across a
+reconnect, for dedup), the run and user the threshold belongs to, and the same
+metric/period/limit/consumption fields the webhook carries. A threshold is claimed
+for notification **once per period** durably — a restart or a second worker
+process never re-announces one that already fired. Only the root run of a call
+tree ever carries the notice — consumption is counted once at the tree's root,
+the same scope [runs](/concepts/runs/) are already counted and billed at.
+
 :::caution[Counters are approximate]
 The check happens **before** a run starts; consumption is written **after** it
 finishes. A run already in progress is never cut off mid-flight, so brief overshoot is
@@ -1464,8 +1476,12 @@ digits, `.`, `_`, or `-`. It is required on a `Custom` event and rejected
 (`ArgumentException`) on every other type: a caller who sets it on a built-in
 event type gets told immediately, rather than having it silently dropped by
 every store. The `agentprism.` prefix is reserved, so a future built-in
-custom type can never collide with your own. `Payload` is yours too —
-AgentPrism makes no claim about its shape and never reads it.
+custom type can never collide with your own — `agentprism.quota.threshold`
+(the [quota threshold notice](/concepts/governance/#quotas-and-rate-limits))
+is the one built-in use of it today; `AppendAsync` rejects any value under
+that prefix, so a `Custom` event carrying it can only have come from
+AgentPrism itself. `Payload` is yours too — AgentPrism makes no claim about
+its shape and never reads it.
 
 The console draws an unrecognized `CustomType` with a single generic card —
 its own name as the title, `Payload` pretty-printed as the body — so a new
@@ -11179,6 +11195,7 @@ not enable sampling.
 | `Quotas:TimeZone` | `UTC` |
 | `Quotas:ThresholdPercents` | `80`, `100` |
 | `Quotas:AllowOnStoreFailure` | `true` |
+| `Quotas:PublishThresholdToRunStream` | `false` |
 | `RateLimit:Enabled` | `false` |
 | `RateLimit:PermitLimit` | `60` |
 | `RateLimit:Window` | 1 minute |

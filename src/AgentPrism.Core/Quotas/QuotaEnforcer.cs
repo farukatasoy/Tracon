@@ -119,12 +119,18 @@ public sealed class QuotaEnforcer(
     /// </summary>
     /// <param name="consumption">The consumption.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
-    /// <returns>The completion task.</returns>
+    /// <returns>
+    /// The thresholds this call newly crossed, in publication order. Always
+    /// empty unless <see cref="AgentPrismQuotaOptions.PublishThresholdToRunStream"/>
+    /// is on — the <c>quota.threshold</c> webhook itself is unconditional and
+    /// does not depend on this return value; see the option's own remarks.
+    /// </returns>
     /// <remarks>
     /// This call <strong>never throws</strong>: quota accounting is an
     /// observability function and must not retroactively break a completed run.
+    /// A failure below returns an empty list, the same as "nothing crossed".
     /// </remarks>
-    public async ValueTask RecordAsync(
+    public async ValueTask<IReadOnlyList<QuotaThresholdCrossing>> RecordAsync(
         QuotaConsumption consumption,
         CancellationToken cancellationToken = default)
     {
@@ -134,7 +140,7 @@ public sealed class QuotaEnforcer(
 
         if (!options.Enabled)
         {
-            return;
+            return [];
         }
 
         try
@@ -143,7 +149,8 @@ public sealed class QuotaEnforcer(
             var periodStarts = QuotaPeriodCalculator.GetAllPeriodStarts(consumption.OccurredAt, timeZone);
 
             await store.AddUsageAsync(consumption, periodStarts, cancellationToken).ConfigureAwait(false);
-            await PublishThresholdEventsAsync(consumption, options, timeZone, cancellationToken).ConfigureAwait(false);
+
+            return await ClaimThresholdCrossingsAsync(consumption, options, timeZone, cancellationToken).ConfigureAwait(false);
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
@@ -153,6 +160,8 @@ public sealed class QuotaEnforcer(
             {
                 logger.LogWarning(exception, "Could not write quota consumption: {TenantId}/{AgentName}.", consumption.TenantId, consumption.AgentName);
             }
+
+            return [];
         }
     }
 
@@ -240,22 +249,30 @@ public sealed class QuotaEnforcer(
         };
     }
 
-    private async ValueTask PublishThresholdEventsAsync(
+    /// <summary>
+    /// Finds every threshold this consumption newly crosses, claims each one
+    /// exactly once (in-process fast path first, durable store second),
+    /// publishes the unconditional <c>quota.threshold</c> webhook for it, and
+    /// — only when <see cref="AgentPrismQuotaOptions.PublishThresholdToRunStream"/>
+    /// is on — reports it back for the caller to write into the run's own
+    /// event stream.
+    /// </summary>
+    private async ValueTask<IReadOnlyList<QuotaThresholdCrossing>> ClaimThresholdCrossingsAsync(
         QuotaConsumption consumption,
         AgentPrismQuotaOptions options,
         TimeZoneInfo timeZone,
         CancellationToken cancellationToken)
     {
-        if (webhookPublisher is null || options.ThresholdPercents.Count == 0)
+        if (options.ThresholdPercents.Count == 0)
         {
-            return;
+            return [];
         }
 
         var definitions = await store.ListAsync(consumption.TenantId, cancellationToken).ConfigureAwait(false);
 
         if (definitions.Count == 0)
         {
-            return;
+            return [];
         }
 
         var usage = await store
@@ -263,6 +280,7 @@ public sealed class QuotaEnforcer(
             .ConfigureAwait(false);
 
         var now = consumption.OccurredAt;
+        List<QuotaThresholdCrossing>? crossings = null;
 
         foreach (var definition in definitions)
         {
@@ -302,19 +320,55 @@ public sealed class QuotaEnforcer(
 
                     var key = new ThresholdKey(consumption.TenantId, scope, definition.Period, periodStart, metric, threshold);
 
+                    // Fast path: already handled by THIS process in this period —
+                    // no store round-trip needed, whichever way the first call resolved.
                     if (!_firedThresholds.TryAdd(key, 0))
                     {
-                        // This threshold was already published in this period.
                         break;
                     }
 
-                    await PublishThresholdAsync(definition, metric, threshold, limit, used, now, timeZone, cancellationToken)
+                    // Durability layer (146.4): claims the SAME threshold across a
+                    // process restart or a concurrent worker. Only the caller that
+                    // wins this atomic claim publishes; a loss is not an error, it
+                    // means another run already reported this crossing.
+                    var claimed = await store.TryClaimThresholdNotificationAsync(
+                        consumption.TenantId, scope, definition.Period, periodStart, metric, threshold, cancellationToken)
                         .ConfigureAwait(false);
+
+                    if (!claimed)
+                    {
+                        break;
+                    }
+
+                    var resetsAt = QuotaPeriodCalculator.GetPeriodEnd(now, definition.Period, timeZone);
+
+                    if (webhookPublisher is not null)
+                    {
+                        await PublishThresholdAsync(definition, metric, threshold, limit, used, resetsAt, consumption, cancellationToken)
+                            .ConfigureAwait(false);
+                    }
+
+                    if (options.PublishThresholdToRunStream)
+                    {
+                        (crossings ??= []).Add(new QuotaThresholdCrossing
+                        {
+                            NoticeId = AgentPrismId.NewId().ToString(),
+                            Metric = metric,
+                            Period = definition.Period,
+                            ThresholdPercent = threshold,
+                            Limit = limit,
+                            Used = used,
+                            AgentName = definition.AgentName,
+                            ResetsAt = resetsAt,
+                        });
+                    }
 
                     break;
                 }
             }
         }
+
+        return (IReadOnlyList<QuotaThresholdCrossing>?)crossings ?? [];
     }
 
     /// <summary>Returns, in order, the limits (metric, limit, consumption) defined on a rule.</summary>
@@ -348,8 +402,8 @@ public sealed class QuotaEnforcer(
         int threshold,
         decimal limit,
         decimal used,
-        DateTimeOffset now,
-        TimeZoneInfo timeZone,
+        DateTimeOffset resetsAt,
+        QuotaConsumption consumption,
         CancellationToken cancellationToken)
     {
         if (webhookPublisher is null)
@@ -370,7 +424,9 @@ public sealed class QuotaEnforcer(
                     ThresholdPercent = threshold,
                     Limit = limit,
                     Used = used,
-                    ResetsAt = QuotaPeriodCalculator.GetPeriodEnd(now, definition.Period, timeZone),
+                    ResetsAt = resetsAt,
+                    RunId = consumption.RunId,
+                    UserId = consumption.UserId,
                 },
             },
             cancellationToken).ConfigureAwait(false);

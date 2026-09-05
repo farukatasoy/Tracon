@@ -1,4 +1,5 @@
 using System.Data.Common;
+using System.Globalization;
 
 namespace AgentPrism;
 
@@ -178,6 +179,41 @@ internal sealed class SqlQuotaStore : IQuotaStore
 
         await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false);
     }
+
+    /// <inheritdoc />
+    public async ValueTask<bool> TryClaimThresholdNotificationAsync(
+        string tenantId,
+        string agentName,
+        QuotaPeriod period,
+        DateOnly periodStart,
+        QuotaMetric metric,
+        int thresholdPercent,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
+        ArgumentNullException.ThrowIfNull(agentName);
+
+        var command = CreateCommand(_sql.TryClaimQuotaThresholdNotification);
+
+        DbHelpers.Add(command, "tenant_id", tenantId);
+        DbHelpers.Add(command, "agent_name", agentName);
+        DbHelpers.Add(command, "period", (short)period);
+        DbHelpers.Add(command, "period_start", periodStart);
+        DbHelpers.Add(command, "key", ThresholdKeyText(metric, thresholdPercent));
+
+        return await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false) > 0;
+    }
+
+    /// <summary>
+    /// The <c>notified_thresholds</c> token for one metric/threshold pair.
+    /// <c>InMemoryQuotaStore</c> keeps its own copy of this shape (this type
+    /// is linked source, compiled separately into each SQL provider assembly,
+    /// and cannot be shared with <c>AgentPrism.Core</c> across an assembly
+    /// boundary); the two must stay behaviorally identical, the same
+    /// contract every other method here already keeps with it.
+    /// </summary>
+    private static string ThresholdKeyText(QuotaMetric metric, int thresholdPercent)
+        => string.Create(CultureInfo.InvariantCulture, $"{(int)metric}:{thresholdPercent}");
 
     private DbCommand CreateCommand(string sql) => _context.CreateCommand(sql);
 

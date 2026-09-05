@@ -305,6 +305,18 @@ re-notify. Set the list to empty to turn the notifications off.
 The threshold event is a notification, not a decision: it stops nothing, and `429`
 remains the only thing that refuses a run.
 
+Turning on `Quotas:PublishThresholdToRunStream` (off by default) also writes the
+crossed threshold into the *triggering run's own* event stream — a `custom` frame
+carrying `agentprism.quota.threshold` before the run's terminal event, so a client
+already watching that one run's SSE stream sees the warning without a separate
+webhook subscription. The frame's payload carries a `noticeId` (stable across a
+reconnect, for dedup), the run and user the threshold belongs to, and the same
+metric/period/limit/consumption fields the webhook carries. A threshold is claimed
+for notification **once per period** durably — a restart or a second worker
+process never re-announces one that already fired. Only the root run of a call
+tree ever carries the notice — consumption is counted once at the tree's root,
+the same scope [runs](/concepts/runs/) are already counted and billed at.
+
 :::caution[Counters are approximate]
 The check happens **before** a run starts; consumption is written **after** it
 finishes. A run already in progress is never cut off mid-flight, so brief overshoot is

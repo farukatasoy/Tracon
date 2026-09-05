@@ -260,6 +260,84 @@ public abstract class QuotaStoreContract : TenantIsolationContract<IQuotaStore>
         (await Store.GetUsageAsync(new QuotaUsageQuery { TenantId = "other" })).ShouldBeEmpty();
     }
 
+    [Fact]
+    public async Task First_claim_of_a_threshold_succeeds()
+    {
+        await Store.AddUsageAsync(Consumption(runs: 8), Periods);
+
+        (await ClaimAsync()).ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task A_threshold_already_claimed_in_this_period_is_not_claimed_again()
+    {
+        // 🚨 This is the SAME call a fresh process makes after a restart --
+        // the claim lives in the durable row, not in memory, so there is
+        // nothing separate to simulate here.
+        await Store.AddUsageAsync(Consumption(runs: 8), Periods);
+
+        (await ClaimAsync()).ShouldBeTrue();
+        (await ClaimAsync()).ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task Claim_fails_when_the_usage_row_does_not_exist_yet()
+        => (await ClaimAsync()).ShouldBeFalse();
+
+    [Fact]
+    public async Task A_different_metric_is_a_separate_claim()
+    {
+        await Store.AddUsageAsync(Consumption(runs: 8, tokens: 80), Periods);
+
+        (await ClaimAsync(metric: QuotaMetric.Runs)).ShouldBeTrue();
+        (await ClaimAsync(metric: QuotaMetric.Tokens)).ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task A_different_threshold_percent_is_a_separate_claim()
+    {
+        await Store.AddUsageAsync(Consumption(runs: 10), Periods);
+
+        (await ClaimAsync(thresholdPercent: 80)).ShouldBeTrue();
+        (await ClaimAsync(thresholdPercent: 100)).ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task A_new_period_starts_with_no_claim_even_if_the_previous_period_already_has_one()
+    {
+        await Store.AddUsageAsync(Consumption(runs: 8), Periods);
+        (await ClaimAsync()).ShouldBeTrue();
+
+        var nextDay = new Dictionary<QuotaPeriod, DateOnly>
+        {
+            [QuotaPeriod.Daily] = Today.AddDays(1),
+            [QuotaPeriod.Monthly] = new(2026, 8, 1),
+        };
+
+        await Store.AddUsageAsync(Consumption(runs: 8), nextDay);
+
+        (await ClaimAsync(periodStart: Today.AddDays(1))).ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task Concurrent_claims_of_the_same_threshold_let_only_one_caller_win()
+    {
+        await Store.AddUsageAsync(Consumption(runs: 8), Periods);
+
+        const int Concurrency = 20;
+
+        var results = await Task.WhenAll(Enumerable.Range(0, Concurrency).Select(_ => ClaimAsync().AsTask()));
+
+        results.Count(claimed => claimed).ShouldBe(1);
+    }
+
+    private async ValueTask<bool> ClaimAsync(
+        QuotaMetric metric = QuotaMetric.Runs,
+        int thresholdPercent = 80,
+        DateOnly? periodStart = null)
+        => await Store.TryClaimThresholdNotificationAsync(
+            Tenant, "support", QuotaPeriod.Daily, periodStart ?? Today, metric, thresholdPercent);
+
     private static QuotaUsageRecord Find(
         IReadOnlyList<QuotaUsageRecord> usage,
         string agentName,

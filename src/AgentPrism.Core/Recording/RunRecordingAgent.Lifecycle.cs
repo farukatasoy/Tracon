@@ -187,7 +187,8 @@ public sealed partial class RunRecordingAgent
             Depth: start.Scope.Depth,
             SessionId: start.SessionId,
             Kind: start.Kind,
-            FallbackAttribution: start.Scope.FallbackAttribution);
+            FallbackAttribution: start.Scope.FallbackAttribution,
+            UserId: start.UserId);
 
     /// <summary>
     /// Reads the run's attribution.
@@ -242,5 +243,6 @@ public sealed partial class RunRecordingAgent
         int Depth,
         string? SessionId,
         RunKind Kind,
-        FallbackModelAttribution? FallbackAttribution);
+        FallbackModelAttribution? FallbackAttribution,
+        string? UserId);
 }

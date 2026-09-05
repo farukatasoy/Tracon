@@ -136,9 +136,26 @@ public sealed class RunEventWriter
     /// Returning a value from a disabled writer is also deliberate — closing
     /// observability must not interrupt the response streaming to the client.
     /// </remarks>
-    public async ValueTask<RunEvent> AppendAsync(RunEventDraft draft, CancellationToken cancellationToken = default)
+    public ValueTask<RunEvent> AppendAsync(RunEventDraft draft, CancellationToken cancellationToken = default)
+        => AppendCoreAsync(draft, allowReserved: false, cancellationToken);
+
+    /// <summary>
+    /// Appends an event whose <see cref="RunEventDraft.CustomType"/> falls
+    /// under <see cref="RunEventCustomTypes.ReservedPrefix"/> — the one check
+    /// <see cref="AppendAsync"/> exists to enforce against every OTHER
+    /// caller. <c>internal</c> so only AgentPrism's own code (today: the
+    /// quota threshold notice) can reach it; a consumer only ever sees the
+    /// public, reserved-rejecting <see cref="AppendAsync"/>.
+    /// </summary>
+    /// <param name="draft">The event draft. <see cref="RunEventDraft.CustomType"/> must still be a valid shape.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The event with its sequence number and timestamp assigned.</returns>
+    internal ValueTask<RunEvent> AppendReservedAsync(RunEventDraft draft, CancellationToken cancellationToken = default)
+        => AppendCoreAsync(draft, allowReserved: true, cancellationToken);
+
+    private async ValueTask<RunEvent> AppendCoreAsync(RunEventDraft draft, bool allowReserved, CancellationToken cancellationToken)
     {
-        ValidateCustomType(draft);
+        ValidateCustomType(draft, allowReserved);
 
         var runEvent = new RunEvent
         {
@@ -156,8 +173,15 @@ public sealed class RunEventWriter
             // this event, and if the payload were suppressed the user would
             // never see the question they need to answer. The same
             // rationale was established in K-089 (a script that cannot be
-            // written to the audit trail does not run).
-            Payload = _options.RecordToolPayloads || draft.Type == RunEventType.WorkflowRequest
+            // written to the audit trail does not run). The quota threshold
+            // notice (phase 146) is the SAME exception: NoticeId is the
+            // dedup key a client reads to suppress a repeated warning, not
+            // an observability detail, and it exists only inside this
+            // reserved-prefix event's own payload -- suppressing it would
+            // leave the client an unlabeled "custom" frame it cannot act on.
+            Payload = _options.RecordToolPayloads ||
+                      draft.Type == RunEventType.WorkflowRequest ||
+                      (allowReserved && draft.Type == RunEventType.Custom)
                 ? Truncate(draft.Payload)
                 : null,
 
@@ -351,7 +375,7 @@ public sealed class RunEventWriter
     /// carried — every store silently drops it, since only <see
     /// cref="RunEventType.Custom"/> gives it any meaning.
     /// </remarks>
-    private static void ValidateCustomType(RunEventDraft draft)
+    private static void ValidateCustomType(RunEventDraft draft, bool allowReserved)
     {
         if (draft.Type != RunEventType.Custom)
         {
@@ -373,7 +397,7 @@ public sealed class RunEventWriter
                 nameof(draft));
         }
 
-        if (RunEventCustomTypes.IsReserved(draft.CustomType))
+        if (!allowReserved && RunEventCustomTypes.IsReserved(draft.CustomType))
         {
             throw new ArgumentException(
                 $"RunEventDraft.CustomType cannot start with the reserved prefix " +

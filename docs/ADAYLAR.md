@@ -422,6 +422,8 @@ dönüşebilmeleri için burada duruyor.
 | **F-165** | 1.650 case tek faza sığmaz; bağımsız faz olarak planlanırsa kuyruğu bitmez | Bağımsız faz olarak **hiç** planlanmaz. Her fazın dokunduğu alanın manuel ailesi o fazda otomatikleştirilir |
 | **F-178** | Job/kuyruk metrikleri yarısı [Faz 133](arsiv/fazlar/133-IS-KUYRUGU-METRIKLERI.md)'e gitti. Kalan yarı (model deneme telemetrisi) tüketicinin kendi ölçütüne göre bekler | Gerçek bir üretim fallback gecikmesi olayı ölçülür |
 | **F-179** | Ön koşulu yok: `run` satırı sağlayıcıyı saklamıyor, kayan latency penceresi ölçülmüyor | [Faz 132](arsiv/fazlar/132-UYGULANAN-FIYAT-SNAPSHOTU.md) kapanır **ve** F-178 attempt süresini ölçmeye başlar **ve** gerçek üretim trafiği oluşur |
+| **F-199** | Kota eşiği claim edildikten SONRA webhook/akış yayını başarısız olursa o eşik dönem sonuna kadar kalıcı kaybolur — düşük risk, ayrı bir kalem | Kota webhook/notice teslimi için bir retry/backoff mekanizması istenirse ([Faz 146](arsiv/fazlar/146-CALISTIRMAYA-BAGLI-KOTA-ESIGI.md) denetim bulgusu) |
+| **F-200** | "Komşu kullanıcı kota notice'ı almaz" garantisi yapısaldır (`RunEventWriter`'ın run başına özel `Guid`'i) ama özel bir çok-kullanıcılı regresyon testi yok | Gelecekte `RunEventWriter`/`RunRecordingAgent`'ın run-izolasyonu yeniden düzenlenirse ([Faz 146](arsiv/fazlar/146-CALISTIRMAYA-BAGLI-KOTA-ESIGI.md) denetim bulgusu) |
 
 
 

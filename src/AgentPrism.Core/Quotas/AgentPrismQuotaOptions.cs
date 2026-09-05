@@ -50,6 +50,29 @@ public sealed class AgentPrismQuotaOptions
     /// </remarks>
     public bool AllowOnStoreFailure { get; set; } = true;
 
+    /// <summary>
+    /// Gets or sets whether a crossed quota threshold is also written as a
+    /// <see cref="RunEventType.Custom"/> notice (<see
+    /// cref="RunEventCustomTypes.QuotaThreshold"/>) into the triggering root
+    /// run's own event stream, before its terminal event.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Defaults to <see langword="false"/>: with it off, behavior is
+    /// byte-for-byte identical to before this option existed — the same
+    /// <c>quota.threshold</c> webhook, no new frame in the run's event
+    /// stream. The webhook itself is unaffected by this flag; it always
+    /// fires when a threshold is crossed, exactly as before.
+    /// </para>
+    /// <para>
+    /// A consumer that wants a threshold notice correlated to the exact run
+    /// and delivered on the same connection the run streamed from turns this
+    /// on. See <see cref="RunEventCustomTypes.QuotaThreshold"/> for the
+    /// event's shape and the guarantee that only AgentPrism can write it.
+    /// </para>
+    /// </remarks>
+    public bool PublishThresholdToRunStream { get; set; }
+
     /// <summary>Returns the resolved time zone, falling back to UTC when its name is unknown.</summary>
     /// <returns>The time zone.</returns>
     /// <remarks>

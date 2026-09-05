@@ -119,6 +119,11 @@ public static partial class AgentPrismServiceCollectionExtensions
             options.AllowOnStoreFailure = allowOnFailure;
         }
 
+        if (TryReadBool(section, nameof(AgentPrismQuotaOptions.PublishThresholdToRunStream), out var publishToRunStream))
+        {
+            options.PublishThresholdToRunStream = publishToRunStream;
+        }
+
         var thresholds = section.GetSection(nameof(AgentPrismQuotaOptions.ThresholdPercents));
 
         if (thresholds.Exists())
