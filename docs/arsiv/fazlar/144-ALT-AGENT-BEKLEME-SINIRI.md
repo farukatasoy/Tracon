@@ -1,13 +1,13 @@
 # Faz 144 — Alt-Agent Bekleme Sınırı
 
 > **Durum:** ✅ Tamamlandı (2026-09-05)
-> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-191**
+> **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-191**
 > **Önkoşul:** Yok. Kalemin tek bağımlılığı MAF 1.20.0 yükseltmesiydi; 2026-09-05'te yapıldı ve HEAD'dedir (`Directory.Packages.props:19`).
 > **Paketler:** `AgentPrism.Abstractions`, `AgentPrism.Core`
 > **Yeni paket:** Yok · **Migration:** Yok — yeni bir `RunEventType` üyesi şema değiştirmez (`run_events.type` zaten `smallint`)
 > **Public API:** Büyüyor — Faz 7'den önce ucuz. Ölçüldü (2026-09-05): `wc -l src/*/PublicAPI.Shipped.txt` → tüm paketlerde **17 satır** (dosyalar boş). Aynı yüzeyi Faz 7'den sonra eklemek kırıcı olurdu
 > **Tüketici yüzeyi:** `docs-site/src/content/docs/concepts/agents.md` (alt-agent bölümü) · `capabilities.md` (bir satır) · sevk edilen: `SubAgentSettings` XML `<example>`'ı
-> **Manuel test alanı:** [`docs/manuel-test/21-DAYANIKLILIK-VE-IPTAL.md`](manuel-test/21-DAYANIKLILIK-VE-IPTAL.md) — case'ler oraya eklenir
+> **Manuel test alanı:** [`docs/manuel-test/21-DAYANIKLILIK-VE-IPTAL.md`](../../manuel-test/21-DAYANIKLILIK-VE-IPTAL.md) — case'ler oraya eklenir
 
 ---
 
@@ -34,7 +34,7 @@
    `BackgroundAgentsProvider` için `MAAI001` bastırılır.
    **K-062** — harness'ta arka plan agent'ları yalnız değer atandığında açılır.
 
-3. [`arsiv/fazlar/143-TOOL-ARGUMANININ-SOZLESME-TESTLERI.md`](arsiv/fazlar/143-TOOL-ARGUMANININ-SOZLESME-TESTLERI.md)
+3. [`arsiv/fazlar/143-TOOL-ARGUMANININ-SOZLESME-TESTLERI.md`](143-TOOL-ARGUMANININ-SOZLESME-TESTLERI.md)
    — yalnız devir notu:
 
    ```bash
@@ -42,14 +42,14 @@
    ```
 
 4. Alan hafızası (bu faz iki alana dokunuyor):
-   [`hafiza/cekirdek-calistirma.md`](hafiza/cekirdek-calistirma.md) — `run`
+   [`hafiza/cekirdek-calistirma.md`](../../hafiza/cekirdek-calistirma.md) — `run`
    kaydı zinciri, `scope`, olay yazımı ve iptal; bu fazın olay yazma yolu
    oradadır.
-   [`hafiza/maf-api.md`](hafiza/maf-api.md) — `MAAI001`, `BackgroundAgentsProvider`
+   [`hafiza/maf-api.md`](../../hafiza/maf-api.md) — `MAAI001`, `BackgroundAgentsProvider`
    ve alt agent'ın `options = null` ile çağrılması.
 
 5. Gerektiğinde, tamamı değil ilgili bölümü:
-   [`MAF-GENISLEME-NOKTALARI.md`](MAF-GENISLEME-NOKTALARI.md) § *Sürüm damgası*
+   [`MAF-GENISLEME-NOKTALARI.md`](../../MAF-GENISLEME-NOKTALARI.md) § *Sürüm damgası*
    — `WaitTimeout`'un hangi sürümle geldiği ve neyin kullanılmadığı.
 
 ---
@@ -68,11 +68,11 @@ zaman aşımını `run` kanıtına yazar.
 
 | Kanıt | Gözlem |
 |---|---|
-| [`ChildAgentInvoker.cs`](../src/AgentPrism.Core/Graph/ChildAgentInvoker.cs) | 390 satır. `CancelAfter\|Deadline\|TimeSpan\|WaitTimeout` için **sıfır** eşleşme. Yalnız çağırandan gelen `CancellationToken` taşınıyor |
-| [`AgentDefinitionCompiler.Agents.cs:122`](../src/AgentPrism.Core/Compilation/AgentDefinitionCompiler.Agents.cs#L122) | Düz agent yolu: `new BackgroundAgentsProviderOptions()` — tüm varsayılanlar |
-| [`AgentDefinitionCompiler.Agents.cs:213`](../src/AgentPrism.Core/Compilation/AgentDefinitionCompiler.Agents.cs#L213) | Harness yolu: `options.BackgroundAgents = children` set ediliyor, `BackgroundAgentsProviderOptions` **hiç** set edilmiyor |
+| [`ChildAgentInvoker.cs`](../../../src/AgentPrism.Core/Graph/ChildAgentInvoker.cs) | 390 satır. `CancelAfter\|Deadline\|TimeSpan\|WaitTimeout` için **sıfır** eşleşme. Yalnız çağırandan gelen `CancellationToken` taşınıyor |
+| [`AgentDefinitionCompiler.Agents.cs:122`](../../../src/AgentPrism.Core/Compilation/AgentDefinitionCompiler.Agents.cs#L122) | Düz agent yolu: `new BackgroundAgentsProviderOptions()` — tüm varsayılanlar |
+| [`AgentDefinitionCompiler.Agents.cs:213`](../../../src/AgentPrism.Core/Compilation/AgentDefinitionCompiler.Agents.cs#L213) | Harness yolu: `options.BackgroundAgents = children` set ediliyor, `BackgroundAgentsProviderOptions` **hiç** set edilmiyor |
 | `grep -rln "sub-agent timeout\|alt-agent zaman aşımı" docs/ src/` | **Sıfır** dosya. Konu hiçbir yerde kayıtlı değil |
-| [`ChildAgentInvoker.cs:257-269`](../src/AgentPrism.Core/Graph/ChildAgentInvoker.cs#L257) | `ChildRunStarted` ve `ChildRunCompleted` yazılıyor; zaman aşımı için olay **yok** |
+| [`ChildAgentInvoker.cs:257-269`](../../../src/AgentPrism.Core/Graph/ChildAgentInvoker.cs#L257) | `ChildRunStarted` ve `ChildRunCompleted` yazılıyor; zaman aşımı için olay **yok** |
 
 > Kanıtlar 2026-09-05 tarihinde doğrulandı.
 
@@ -159,7 +159,7 @@ davranışı için ayar nesnesi yoktur. Bu faz deseni tamamlar.
 `MemorySettings` · `HarnessSettings` deseninde — `AgentPrism.Abstractions`
 içinde `sealed record`, `null` bırakılabilir.
 
-**Global varsayılan:** [`AgentPrismAgentGraphOptions`](../src/AgentPrism.Core/AgentPrismOptions.cs#L154).
+**Global varsayılan:** [`AgentPrismAgentGraphOptions`](../../../src/AgentPrism.Core/AgentPrismOptions.cs#L154).
 Bu sınıf zaten alt-agent ağacının sınırlarını taşıyor (`MaxDepth = 3`,
 `MaxTotalTokens = 200_000`) ve XML dokümanı bu fazın gerekçesini önceden
 yazmış: *"The default intentionally exists. An unlimited installation learns
@@ -192,7 +192,7 @@ Hata tipi `AgentPrismCompilationException`, `AgentName` alanı dolu.
 > 🚨 **Yeni üyenin numarası 30'dur. 29 ALINAMAZ ve araya EKLEME YAPILAMAZ.**
 > `RunEventType.Custom = 29` son üyedir (Faz 141) ve `run_events.type` sütunu
 > `smallint`'tir — enum'un **sayısal değeri veritabanında durur**
-> ([`0001_initial.sql:174`](../src/AgentPrism.PostgreSql/Migrations/0001_initial.sql#L174)).
+> ([`0001_initial.sql:174`](../../../src/AgentPrism.PostgreSql/Migrations/0001_initial.sql#L174)).
 > Araya eklemek `Custom`'ı 30'a kaydırır ve saklanmış her `Custom` olayı
 > sessizce yanlış tipe döner. Bu bir migration ile geri alınamaz; olay geçmişi
 > bozulur.
@@ -453,7 +453,7 @@ curl -s http://localhost:5080/agentprism/api/runs/<id>/events -H "Authorization:
 - **K-677** — Alt-agent çağrısının iki katmanlı bekleme sınırında katman 2'yi
   (sert kesme) `ChildAgentInvoker`'ın KENDİSİ uygular; MAF'ın
   `BackgroundAgentsProviderOptions.WaitTimeout`'una güvenilmez. Tam gerekçe:
-  [`KARARLAR.md`](KARARLAR.md) ve [`arsiv/KARARLAR-GECMISI.md`](arsiv/KARARLAR-GECMISI.md) — K-677.
+  [`KARARLAR.md`](../../KARARLAR.md) ve [`arsiv/KARARLAR-GECMISI.md`](../KARARLAR-GECMISI.md) — K-677.
 
 ## Gerçekleşen Public API
 
