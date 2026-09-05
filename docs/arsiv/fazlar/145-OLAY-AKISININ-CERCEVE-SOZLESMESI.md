@@ -1,13 +1,13 @@
 # Faz 145 — Kayıtlı Olay Akışının Çerçeve Sözleşmesi
 
 > **Durum:** ✅ Tamamlandı (2026-09-05)
-> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-193** (tüketici turu 4, F1)
+> **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-193** (tüketici turu 4, F1)
 > **Önkoşul:** Yok
 > **Paketler:** `AgentPrism.AspNetCore` · kapı testi `AgentPrism.Core.UnitTests`
 > **Yeni paket:** Yok · **Migration:** Yok
 > **Public API:** Büyümüyor — `EventName` `private static`, `.Produces<string>` yalnız üstveridir. Ölçüldü: `wc -l src/*/PublicAPI.Shipped.txt` → 17 satır / 17 dosya, yani her dosya yalnız başlık taşıyor, **shipped giriş sıfır**
 > **Tüketici yüzeyi:** `docs-site/`: `concepts/runs.md`, `http-api.md` (+ üretilen `api/`, `http-api/`, `llms-full.txt`) · sevk edilen: `AgentPrismStreamRunEvents` uç açıklaması, `docs/openapi/agentprism.json`, `packages/agentprism-client/src/schema.ts`, `src/AgentPrism.Client/Generated/*.g.cs` (hepsi yeniden üretilir — gerçekleşen kapsam plandan geniş, bkz. "Plandan Sapmalar")
-> **Manuel test alanı:** [`docs/manuel-test/11-ARAYUZ-RUN-SESSION-SSE.md`](manuel-test/11-ARAYUZ-RUN-SESSION-SSE.md)
+> **Manuel test alanı:** [`docs/manuel-test/11-ARAYUZ-RUN-SESSION-SSE.md`](../../manuel-test/11-ARAYUZ-RUN-SESSION-SSE.md)
 
 ---
 
@@ -30,17 +30,17 @@
    **K-642** (bölünmüş ifade tuzağı: kaynak taraması düz dizge ile yapılmaz) ·
    **K-647** (`RunEventType` üyesinin payload iddiası onu OKUYAN bir testle eşleşir) ·
    **K-673 · K-674** (`custom_type` ayrı sütundur; geçersiz `CustomType` reddedilir)
-3. [`arsiv/fazlar/141-GENISLETILEBILIR-CALISTIRMA-OLAYI.md`](arsiv/fazlar/141-GENISLETILEBILIR-CALISTIRMA-OLAYI.md) — yalnız devir notu:
+3. [`arsiv/fazlar/141-GENISLETILEBILIR-CALISTIRMA-OLAYI.md`](141-GENISLETILEBILIR-CALISTIRMA-OLAYI.md) — yalnız devir notu:
    ```bash
    awk '/## Sonraki Faza Devir Notu/,0' docs/arsiv/fazlar/141-GENISLETILEBILIR-CALISTIRMA-OLAYI.md
    ```
    `RunEventType.Custom` ve `CustomType` sözleşmesini o faz sevk etti; bu faz onu tel üzerinde görünür yapar.
 4. Alan hafızası (bu faz üç alana dokunuyor):
-   [`hafiza/http-uc-tuzaklari.md`](hafiza/http-uc-tuzaklari.md) (OpenAPI üstverisi ve dönüş tipi tuzakları) ·
-   [`hafiza/frontend.md`](hafiza/frontend.md) (arayüzün olay tablosu ve `run-event.ts` ikizi) ·
-   [`hafiza/test-altyapisi.md`](hafiza/test-altyapisi.md) (Architecture kapı testlerinin kaynak tarama deseni)
+   [`hafiza/http-uc-tuzaklari.md`](../../hafiza/http-uc-tuzaklari.md) (OpenAPI üstverisi ve dönüş tipi tuzakları) ·
+   [`hafiza/frontend.md`](../../hafiza/frontend.md) (arayüzün olay tablosu ve `run-event.ts` ikizi) ·
+   [`hafiza/test-altyapisi.md`](../../hafiza/test-altyapisi.md) (Architecture kapı testlerinin kaynak tarama deseni)
 5. Gerektiğinde, tamamı değil ilgili bölümü:
-   [`MIMARI.md`](MIMARI.md) — çalıştırma olayı akışı bölümü
+   [`MIMARI.md`](../../MIMARI.md) — çalıştırma olayı akışı bölümü
 
 ---
 
@@ -64,14 +64,14 @@ sevk etti, sevk edilen akış onu adlandıramıyor.
 
 | Kanıt | Gözlem |
 |---|---|
-| [`RunEndpoints.cs:961`](../src/AgentPrism.AspNetCore/Endpoints/RunEndpoints.cs) | `EventName` 31 üyenin **10'unu** adlandırıyor |
-| [`RunEndpoints.cs:973`](../src/AgentPrism.AspNetCore/Endpoints/RunEndpoints.cs) | `_ => "unknown"` — kalan **21 üye** ad taşımadan gidiyor |
-| [`RunEventType.cs:269`](../src/AgentPrism.Abstractions/Runs/RunEventType.cs) | `Custom = 29` (Faz 141) `unknown` olarak çıkıyor |
-| [`RunEventType.cs:288`](../src/AgentPrism.Abstractions/Runs/RunEventType.cs) | `ChildRunTimedOut = 30` (Faz 144) `unknown` olarak çıkıyor |
-| [`RunEndpoints.cs:174`](../src/AgentPrism.AspNetCore/Endpoints/RunEndpoints.cs) | `AgentPrismStreamRunEvents` zincirinde `.Produces<string>(…, "text/event-stream")` **yok** |
-| [`docs/openapi/agentprism.json`](openapi/agentprism.json) | Aynı işlemin yanıtı `{"200": {"description": "OK"}}` — `content` alanı hiç yok |
-| [`AgentEndpoints.cs:306`](../src/AgentPrism.AspNetCore/Endpoints/AgentEndpoints.cs) · [`WorkflowEndpoints.cs:130`](../src/AgentPrism.AspNetCore/Endpoints/WorkflowEndpoints.cs) | Diğer **altı** SSE işleminin hepsi içerik tipini bildiriyor |
-| [`run-detail.tsx:45`](../src/AgentPrism.UI/frontend/src/screens/run-detail.tsx) | 🚨 Arayüzün `EVENT_STYLE` tablosu **31 üyenin hepsi için ad taşıyor** — ad kümesi zaten yazılmış, sunucu onu yaymıyor |
+| [`RunEndpoints.cs:961`](../../../src/AgentPrism.AspNetCore/Endpoints/RunEndpoints.cs) | `EventName` 31 üyenin **10'unu** adlandırıyor |
+| [`RunEndpoints.cs:973`](../../../src/AgentPrism.AspNetCore/Endpoints/RunEndpoints.cs) | `_ => "unknown"` — kalan **21 üye** ad taşımadan gidiyor |
+| [`RunEventType.cs:269`](../../../src/AgentPrism.Abstractions/Runs/RunEventType.cs) | `Custom = 29` (Faz 141) `unknown` olarak çıkıyor |
+| [`RunEventType.cs:288`](../../../src/AgentPrism.Abstractions/Runs/RunEventType.cs) | `ChildRunTimedOut = 30` (Faz 144) `unknown` olarak çıkıyor |
+| [`RunEndpoints.cs:174`](../../../src/AgentPrism.AspNetCore/Endpoints/RunEndpoints.cs) | `AgentPrismStreamRunEvents` zincirinde `.Produces<string>(…, "text/event-stream")` **yok** |
+| [`docs/openapi/agentprism.json`](../../openapi/agentprism.json) | Aynı işlemin yanıtı `{"200": {"description": "OK"}}` — `content` alanı hiç yok |
+| [`AgentEndpoints.cs:306`](../../../src/AgentPrism.AspNetCore/Endpoints/AgentEndpoints.cs) · [`WorkflowEndpoints.cs:130`](../../../src/AgentPrism.AspNetCore/Endpoints/WorkflowEndpoints.cs) | Diğer **altı** SSE işleminin hepsi içerik tipini bildiriyor |
+| [`run-detail.tsx:45`](../../../src/AgentPrism.UI/frontend/src/screens/run-detail.tsx) | 🚨 Arayüzün `EVENT_STYLE` tablosu **31 üyenin hepsi için ad taşıyor** — ad kümesi zaten yazılmış, sunucu onu yaymıyor |
 
 > Kanıtlar 2026-09-05 tarihinde doğrulandı (HEAD `234d4081`). Ölçüm komutları:
 > `grep -c "^\s\+[A-Za-z]\+ = [0-9]\+,$" src/AgentPrism.Abstractions/Runs/RunEventType.cs` → **31**;
@@ -187,8 +187,8 @@ taşımıyor** ve hiçbir yerde yan yana yazılı değil.
 
 | Akış | Çerçeve adları | Kaynak |
 |---|---|---|
-| `POST /api/agents/{name}/run` | `run` · `update` · `approvals` · `done` · `error` | [`AgentEndpoints.cs:1123`](../src/AgentPrism.AspNetCore/Endpoints/AgentEndpoints.cs), `:1173`, `:1183`, `:1193`, `:1217` |
-| `GET /api/runs/{id}/events` | 145.1 tablosu, `id` alanı kalıcı sıra numarasıdır | [`RunEndpoints.cs:961`](../src/AgentPrism.AspNetCore/Endpoints/RunEndpoints.cs) |
+| `POST /api/agents/{name}/run` | `run` · `update` · `approvals` · `done` · `error` | [`AgentEndpoints.cs:1123`](../../../src/AgentPrism.AspNetCore/Endpoints/AgentEndpoints.cs), `:1173`, `:1183`, `:1193`, `:1217` |
+| `GET /api/runs/{id}/events` | 145.1 tablosu, `id` alanı kalıcı sıra numarasıdır | [`RunEndpoints.cs:961`](../../../src/AgentPrism.AspNetCore/Endpoints/RunEndpoints.cs) |
 
 Bu ayrım `docs-site/concepts/runs.md` içine **tablo olarak** girer ve
 `AgentPrismStreamRunEvents` uç açıklamasına bir cümleyle yazılır. Tüketici
@@ -264,7 +264,7 @@ tutmaz. `RunEventWriter`'ın sıra üretimi (K-022) değişmez.
 
 ## Manuel Kabul Case'leri
 
-> Kapanışta [`docs/manuel-test/11-ARAYUZ-RUN-SESSION-SSE.md`](manuel-test/11-ARAYUZ-RUN-SESSION-SSE.md) içine eklenir.
+> Kapanışta [`docs/manuel-test/11-ARAYUZ-RUN-SESSION-SSE.md`](../../manuel-test/11-ARAYUZ-RUN-SESSION-SSE.md) içine eklenir.
 
 | # | Ön koşul | Adımlar | Beklenen sonuç |
 |---|---|---|---|
@@ -336,7 +336,7 @@ print(len(n), sorted(n))"
 | Arayüz etiketleri görsel amaçlı yazıldı; wire adı olmaya uygun olmayan bir tane çıkar | Uygulama Adım 1'de 31 adın tamamı gözden geçirilir. Bir ad değişecekse bu bir **karardır** ve arayüz de o adı alır — iki taraf ayrışamaz |
 | `unknown` dalını silme isteği doğar ve `switch` gelecekteki üyede derlenmez olur | Dal korunur; DoD bunu açıkça yazıyor |
 | OpenAPI snapshot'ı yenilenirken başka işlemler de kayar ve diff okunamaz hâle gelir | Snapshot diff'i uygulama sırasında **ayrı bir commit**'te alınır; beklenen tek değişiklik bu ucun `200`/`404` girdisidir |
-| `schema.ts` yeniden üretimi NSwag/openapi-typescript zincirini tetikler ve başka kırılma getirir | [`hafiza/nswag-istemci-uretimi.md`](hafiza/nswag-istemci-uretimi.md) okunur; üretim çıktısı diff'le doğrulanır |
+| `schema.ts` yeniden üretimi NSwag/openapi-typescript zincirini tetikler ve başka kırılma getirir | [`hafiza/nswag-istemci-uretimi.md`](../../hafiza/nswag-istemci-uretimi.md) okunur; üretim çıktısı diff'le doğrulanır |
 
 ---
 
