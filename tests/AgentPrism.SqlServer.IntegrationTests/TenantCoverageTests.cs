@@ -59,7 +59,9 @@ public sealed class TenantCoverageTests
              "ListRunningWithCanaryAsync", "SetCanaryPolicyAsync", "AdvanceCanaryRampAsync", "RollbackCanaryAsync"],
         ["SqlJobScheduleStore"] = ["GetAsync", "ListAsync", "SaveAsync", "DeleteAsync"],
         ["SqlJobStore"] = ["EnqueueAsync", "GetAsync", "QueryAsync", "CancelAsync"],
-        ["SqlQuotaStore"] = ["ListAsync", "GetAsync", "SaveAsync", "DeleteAsync", "GetUsageAsync", "AddUsageAsync"],
+        ["SqlQuotaStore"] =
+            ["ListAsync", "GetAsync", "SaveAsync", "DeleteAsync", "GetUsageAsync", "AddUsageAsync",
+             "TryClaimThresholdNotificationAsync"],
         ["SqlRetentionPolicyStore"] =
             ["ListPoliciesAsync", "GetPolicyAsync", "SavePolicyAsync", "DeletePolicyAsync", "CreateRunAsync", "ListRunsAsync"],
         ["SqlRetentionStore"] =

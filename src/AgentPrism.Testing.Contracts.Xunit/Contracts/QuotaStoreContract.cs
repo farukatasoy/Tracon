@@ -331,12 +331,30 @@ public abstract class QuotaStoreContract : TenantIsolationContract<IQuotaStore>
         results.Count(claimed => claimed).ShouldBe(1);
     }
 
+    [Fact]
+    public async Task A_different_tenants_identically_shaped_claim_is_independent()
+    {
+        const string OtherTenant = "other";
+
+        await Store.AddUsageAsync(Consumption(runs: 8), Periods);
+        await Store.AddUsageAsync(Consumption(runs: 8) with { TenantId = OtherTenant }, Periods);
+
+        (await ClaimAsync(tenantId: Tenant)).ShouldBeTrue();
+
+        // Tenant A's claim just above must not have silently claimed the
+        // same threshold on the other tenant's behalf -- the other tenant's
+        // own first claim still succeeds, and a repeat still fails.
+        (await ClaimAsync(tenantId: OtherTenant)).ShouldBeTrue();
+        (await ClaimAsync(tenantId: OtherTenant)).ShouldBeFalse();
+    }
+
     private async ValueTask<bool> ClaimAsync(
         QuotaMetric metric = QuotaMetric.Runs,
         int thresholdPercent = 80,
-        DateOnly? periodStart = null)
+        DateOnly? periodStart = null,
+        string tenantId = Tenant)
         => await Store.TryClaimThresholdNotificationAsync(
-            Tenant, "support", QuotaPeriod.Daily, periodStart ?? Today, metric, thresholdPercent);
+            tenantId, "support", QuotaPeriod.Daily, periodStart ?? Today, metric, thresholdPercent);
 
     private static QuotaUsageRecord Find(
         IReadOnlyList<QuotaUsageRecord> usage,
