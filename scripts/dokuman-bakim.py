@@ -204,7 +204,11 @@ DIZIN_BUTCESI = {
     # 🚨 Sinir ISIN SONUNDA olculdu, basinda degil -- Faz 90 vakasi (yukarida)
     # tam tersini yapip kapanistan once olctugu icin sinir aninda %14 posluga
     # dusmustu. Kalibrasyondan once `faz-tamamlama` bitmis olmalidir.
-    ("docs/arsiv", True, False):      3_590_000,    # YENIDEN KALIBRE; kapanista olculen 3_051_285
+    ("docs/arsiv", True, False):      4_240_000,    # YENIDEN KALIBRE Faz 145 kapanisi; olculen 3_597_767
+    # (K-678/K-679 gerekcesi KARARLAR-GECMISI.md'ye girince onceki 3_590_000
+    # sinirini asti). Ayni formul: olculen/(1-%15 bosluk) = 4_232_667,
+    # yukari yuvarlandi. Bu bir BUYUTME karari degil, K-214'un ongordugu
+    # duzenli faz-basi buyumenin (~9-16 KB/faz) dogal sonucu.
     ("docs/manuel-test/kosumlar", True, False): 620_000,  # YENI; olculen 518_817
     ("docs/kesif", True, False):        370_000,    # YENIDEN KALIBRE 2026-08-31; olculen 312_256
 }
