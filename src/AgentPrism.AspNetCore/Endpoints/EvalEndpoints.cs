@@ -178,7 +178,9 @@ internal static class EvalEndpoints
             .WithDescription(
                 "This SKIPS the sampling decision; it is for calibration and debugging. " +
                 "If no IRunJudge is registered, or the run's input/output cannot be read, " +
-                "an empty list is returned.");
+                "an empty list is returned. Judging both READS the run and WRITES a score for " +
+                "it, so a registered IRunAuthorizationHandler is asked for both; either denial " +
+                "returns 404, identical to a run that does not exist.");
     }
 
     private static async Task<Ok<IReadOnlyList<EvalSuite>>> ListSuitesAsync(
@@ -348,10 +350,13 @@ internal static class EvalEndpoints
         HttpContext httpContext,
         [FromServices] IEvalStore evalStore,
         [FromServices] RunToCasePromoter promoter,
+        [FromServices] IRunStore runs,
         [FromServices] ITenantContext tenants,
         [FromServices] IAuditLog auditLog,
         [FromServices] IAuditActorResolver actorResolver,
         [FromServices] ILoggerFactory loggerFactory,
+        [FromServices] IRunAuthorizationHandler? runAuthorizationHandler,
+        [FromServices] IRunAttributionContext? attributionContext,
         CancellationToken cancellationToken)
     {
         var (request, bindError) = await RequestBodyBinding
@@ -368,6 +373,23 @@ internal static class EvalEndpoints
         if (suite is null)
         {
             return SuiteNotFound(name);
+        }
+
+        // Promotion COPIES the run's recorded input into an eval case, which
+        // then stays readable through the evals API - so it is a read of that
+        // run and passes the same gate. A run that is missing or belongs to
+        // another tenant is left to the promoter, which already answers with
+        // the identical "run not found" body.
+        if (runAuthorizationHandler is not null &&
+            await runs.GetRunAsync(runId, cancellationToken).ConfigureAwait(false) is { } sourceRun &&
+            string.Equals(sourceRun.TenantId, tenants.TenantId, StringComparison.Ordinal) &&
+            await RunAuthorizationGate
+                .CheckRunResourceAsync(
+                    runAuthorizationHandler, tenants, runId, sourceRun.AgentName, sourceRun.SessionId,
+                    attributionContext, RunAccess.Read, RunNotFoundForPromotion(runId), cancellationToken)
+                .ConfigureAwait(false) is { } authorizationProblem)
+        {
+            return authorizationProblem;
         }
 
         var outcome = await promoter
@@ -591,6 +613,8 @@ internal static class EvalEndpoints
         [FromServices] IAuditLog auditLog,
         [FromServices] IAuditActorResolver actorResolver,
         [FromServices] ILoggerFactory loggerFactory,
+        [FromServices] IRunAuthorizationHandler? runAuthorizationHandler,
+        [FromServices] IRunAttributionContext? attributionContext,
         CancellationToken cancellationToken)
     {
         var run = await runs.GetRunAsync(runId, cancellationToken).ConfigureAwait(false);
@@ -601,6 +625,23 @@ internal static class EvalEndpoints
         if (run is null || !string.Equals(run.TenantId, tenants.TenantId, StringComparison.Ordinal))
         {
             return RunNotFoundForPromotion(runId);
+        }
+
+        // 🚨 Judging does BOTH things the gate distinguishes: it reads the
+        // run's recorded input and output, and it writes a score for that run.
+        // Asking for only one of them would leave the other reachable through
+        // this route while it is refused on '/api/runs/{id}' next door
+        // (phase 147).
+        foreach (var access in new[] { RunAccess.Read, RunAccess.Feedback })
+        {
+            if (await RunAuthorizationGate
+                    .CheckRunResourceAsync(
+                        runAuthorizationHandler, tenants, runId, run.AgentName, run.SessionId,
+                        attributionContext, access, RunNotFoundForPromotion(runId), cancellationToken)
+                    .ConfigureAwait(false) is { } authorizationProblem)
+            {
+                return authorizationProblem;
+            }
         }
 
         var (scores, failures) = await jobHandler.JudgeRunAsync(run, cancellationToken: cancellationToken).ConfigureAwait(false);

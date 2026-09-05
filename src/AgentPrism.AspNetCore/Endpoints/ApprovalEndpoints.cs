@@ -44,7 +44,10 @@ internal static class ApprovalEndpoints
                 "('Prefer: respond-async') stops on a tool call that needs approval — a run " +
                 "driven synchronously carries its approval in the response stream instead and " +
                 "never reaches this mailbox. Each entry carries an expiry, which is an absolute " +
-                "point in the future rather than an elapsed duration.");
+                "point in the future rather than an elapsed duration. If a registered " +
+                "IRunAuthorizationHandler denies the caller, the response is 403 — the list is " +
+                "REJECTED, never silently filtered.")
+            .ProducesProblem(StatusCodes.Status403Forbidden);
 
         builder.MapGet("/api/approvals/{id:guid}", GetAsync)
             .RequireRole(roles.Operator)
@@ -56,7 +59,8 @@ internal static class ApprovalEndpoints
                 "Unlike the list, this reads a request in any state, so it is how a client polls " +
                 "the outcome after deciding: the response then carries who decided, when, and " +
                 "which way. The request holds the tool call's arguments as recorded, which is " +
-                "what an approver reviews before deciding. An unknown id returns 404.");
+                "what an approver reviews before deciding. An unknown id returns 404, and so does a " +
+                "denial by a registered IRunAuthorizationHandler.");
 
         builder.MapPost("/api/approvals/{id:guid}/decide", DecideAsync)
             .RequireRole(roles.Operator)
@@ -67,13 +71,37 @@ internal static class ApprovalEndpoints
             .Accepts<ApprovalDecisionRequest>("application/json")
             .WithDescription(
                 "The decision enqueues a NEW run (same sessionId, new RunId); the old run " +
-                "stays AwaitingApproval. A second decision on the same request gets 409.");
+                "stays AwaitingApproval. A second decision on the same request gets 409. If a " +
+                "registered IRunAuthorizationHandler denies the caller, the response is 404, " +
+                "identical to an approval request that does not exist — the 409 is never reached, " +
+                "so a denial cannot reveal that the request was already decided.");
     }
 
-    private static async Task<Ok<IReadOnlyList<PendingApproval>>> ListPendingAsync(
+    private static async Task<Results<Ok<IReadOnlyList<PendingApproval>>, ProblemHttpResult>> ListPendingAsync(
         [FromServices] IPendingApprovalStore store,
+        [FromServices] ITenantContext tenants,
+        [FromServices] IRunAuthorizationHandler? runAuthorizationHandler,
+        [FromServices] IRunAttributionContext? attributionContext,
         CancellationToken cancellationToken)
     {
+        // A denied list is REJECTED (403), never silently filtered: there is no
+        // single approval identity to hide.
+        if (await RunAuthorizationGate
+                .CheckRunResourceAsync(
+                    runAuthorizationHandler,
+                    tenants,
+                    runId: null,
+                    agentName: null,
+                    sessionId: null,
+                    attributionContext,
+                    RunAccess.Approval,
+                    NotAuthorized(),
+                    cancellationToken)
+                .ConfigureAwait(false) is { } authorizationProblem)
+        {
+            return authorizationProblem;
+        }
+
         var pending = await store.ListPendingAsync(cancellationToken).ConfigureAwait(false);
 
         return TypedResults.Ok(pending);
@@ -82,11 +110,35 @@ internal static class ApprovalEndpoints
     private static async Task<Results<Ok<PendingApproval>, ProblemHttpResult>> GetAsync(
         Guid id,
         [FromServices] IPendingApprovalStore store,
+        [FromServices] ITenantContext tenants,
+        [FromServices] IRunAuthorizationHandler? runAuthorizationHandler,
+        [FromServices] IRunAttributionContext? attributionContext,
         CancellationToken cancellationToken)
     {
         var approval = await store.GetAsync(id, cancellationToken).ConfigureAwait(false);
 
-        return approval is null ? NotFound(id) : TypedResults.Ok(approval);
+        if (approval is null)
+        {
+            return NotFound(id);
+        }
+
+        if (await RunAuthorizationGate
+                .CheckRunResourceAsync(
+                    runAuthorizationHandler,
+                    tenants,
+                    approval.RunId,
+                    agentName: null,
+                    approval.SessionId,
+                    attributionContext,
+                    RunAccess.Approval,
+                    NotFound(id),
+                    cancellationToken)
+                .ConfigureAwait(false) is { } authorizationProblem)
+        {
+            return authorizationProblem;
+        }
+
+        return TypedResults.Ok(approval);
     }
 
     private static async Task<Results<Ok<PendingApproval>, ProblemHttpResult>> DecideAsync(
@@ -99,6 +151,8 @@ internal static class ApprovalEndpoints
         [FromServices] IAuditLog auditLog,
         [FromServices] IAuditActorResolver actorResolver,
         [FromServices] ILoggerFactory loggerFactory,
+        [FromServices] IRunAuthorizationHandler? runAuthorizationHandler,
+        [FromServices] IRunAttributionContext? attributionContext,
         CancellationToken cancellationToken)
     {
         var (bound, bindError) = await RequestBodyBinding
@@ -117,6 +171,24 @@ internal static class ApprovalEndpoints
         if (approval is null)
         {
             return NotFound(id);
+        }
+
+        // 🚨 Asked BEFORE the status is read: a 409 would tell a denied caller
+        // that the request exists and has already been decided.
+        if (await RunAuthorizationGate
+                .CheckRunResourceAsync(
+                    runAuthorizationHandler,
+                    tenants,
+                    approval.RunId,
+                    agentName: null,
+                    approval.SessionId,
+                    attributionContext,
+                    RunAccess.Approval,
+                    NotFound(id),
+                    cancellationToken)
+                .ConfigureAwait(false) is { } authorizationProblem)
+        {
+            return authorizationProblem;
         }
 
         if (approval.Status != ApprovalStatus.Pending)
@@ -261,6 +333,13 @@ internal static class ApprovalEndpoints
             title: "Approval request not found",
             detail: $"There is no pending approval request with id '{id}', or it does not belong to this tenant.",
             statusCode: StatusCodes.Status404NotFound);
+
+    /// <summary>The response a denied LIST gets: 403, naming no approval request.</summary>
+    private static ProblemHttpResult NotAuthorized()
+        => TypedResults.Problem(
+            title: "Run not authorized",
+            detail: "The registered IRunAuthorizationHandler denied this request.",
+            statusCode: StatusCodes.Status403Forbidden);
 
     private static ProblemHttpResult AlreadyDecided(Guid id)
         => TypedResults.Problem(

@@ -41,3 +41,25 @@
   implementasyonda KIRMIZI olmalı" kanıtını (`ContractSelfProofTests` deseni) NORMAL yeşil
   koşumu bozmadan yazmanın yoludur: kırık fixture'ı `private sealed class` yap, `[Fact]`
   metodunu doğrudan çağır (`await instance.SomeFact()`), `try/catch` ile "attı mı" sına.
+- **🚨 Bir yetkilendirme kapısı, ret YANITINI kendisi üretemez — çağırandan
+  almalıdır** (Faz 147, K-684): `RunAuthorizationGate.CheckRunResourceAsync`
+  reddi `denied` parametresiyle alır. Sebep ölçüldü: reddedilen tekil kaynağın
+  gövdesi o UCUN kendi "yok" yanıtıyla birebir aynı olmalıdır ve o metin uçtan
+  uca değişir (`"Run not found"` · `"Trace not found"` · `"Attachment not
+  found"` · `"Approval request not found"`). Kapının kendi metnini üretmesi bir
+  uçta kaçınılmaz olarak ayrışır ve ayrışma bir varlık oracle'ıdır. Aynı sebeple
+  handler'ın `Reason`'ı tekil kaynak reddinde YUTULUR.
+- **🚨 Kapı sırası iki taraflıdır: kiracı kontrolünden SONRA, durum
+  okumasından ÖNCE** (Faz 147): "sonra", başka kiracının kimliğinin tüketicinin
+  handler'ına hiç gitmemesini ve var olmayan kaynak için handler'ın hiç
+  çağrılmamasını sağlar. "önce" ise `cancel` ve onay kararındaki `409`'un
+  reddedilen çağırana kaynağın var olduğunu VE durumunu söylemesini engeller.
+  İkisinden biri unutulursa kod derlenir, testten geçer ve yalnız bir sızıntı
+  senaryosunda görünür.
+- **Yeni bir run başlatan yüzey eklendiğinde `RunAuthorizationCoverageTests`'in
+  İKİ listesi vardır** (Faz 147): `ExpectedRunStartingFiles` (altı dosya) ve
+  `ExpectedResourceFiles`. Tarama dosya bazındadır ve `RunEndpoints.cs` ikisinde
+  de yer alır; oradaki run BAŞLATMA kanıtı `CheckRunResourceAsync ... RunAccess.Start`
+  regex'idir, çünkü replay kaynak `run`'ın id'sini taşımak zorundadır ve
+  `CheckRunAsync` bunu ifade edemez.
+

@@ -264,18 +264,27 @@ tenant can start any agent in that tenant, regardless of `UserId`.
 
 Bind `IRunAuthorizationHandler` to enforce your own per-user rule. It is
 called at every endpoint that starts a run — the agent run endpoint, the
-workflow run endpoint, the inbound trigger accept endpoint, and the
-OpenAI-compatible `/v1/responses` endpoint — **before** the quota check, so a
-denied call never consumes the tenant's quota:
+workflow run endpoint, the inbound trigger accept endpoint, the
+OpenAI-compatible `/v1/responses` and `/v1/chat/completions` endpoints, and
+`POST /api/runs/{id}/replay` — **before** the quota check, so a denied call
+never consumes the tenant's quota. The same method is asked again for every
+access to an existing run's resources: reading it, canceling it, scoring it,
+and reaching its attachments and approval requests. Which question is being
+asked is on `request.Access`, and a resource question carries
+`request.RunId`:
 
 ```csharp
 public sealed class YourRunAuthorizationHandler(IYourOwnershipService ownership) : IRunAuthorizationHandler
 {
     public async ValueTask<RunAuthorizationResult> AuthorizeRunAsync(
         RunAuthorizationRequest request, CancellationToken cancellationToken = default)
-        => await ownership.CanStartAsync(request.TenantId, request.UserId, request.AgentName, cancellationToken)
-            ? RunAuthorizationResult.Allow()
-            : RunAuthorizationResult.Deny("This user cannot run this agent.");
+        => request.RunId is { } runId
+            ? await ownership.OwnsRunAsync(request.TenantId, request.UserId, runId, cancellationToken)
+                ? RunAuthorizationResult.Allow()
+                : RunAuthorizationResult.Deny("This run belongs to a different user.")
+            : await ownership.CanStartAsync(request.TenantId, request.UserId, request.AgentName, cancellationToken)
+                ? RunAuthorizationResult.Allow()
+                : RunAuthorizationResult.Deny("This user cannot run this agent.");
 
     public ValueTask<RunAuthorizationResult> AuthorizeSessionAsync(
         SessionAuthorizationRequest request, CancellationToken cancellationToken = default)
@@ -285,11 +294,15 @@ public sealed class YourRunAuthorizationHandler(IYourOwnershipService ownership)
 builder.Services.AddSingleton<IRunAuthorizationHandler, YourRunAuthorizationHandler>();
 ```
 
-Register nothing and nothing changes: every run starts, exactly as before
-this binding existed. If the handler throws, the run is denied
-(fail-closed) — see [Embedding: run and session authorization](/guides/embedding/#6--run-and-session-authorization)
-for the session half of the same contract (list, read, delete, branch) and
-the exact response shape each denial produces.
+Register nothing and nothing changes: every run starts and every run stays
+readable, exactly as before this binding existed. If the handler throws, the
+call is denied (fail-closed). A denied single resource answers `404`, with a
+body identical to a run that does not exist — a `403` there would confirm
+the run exists; a denied list answers `403`. See
+[Embedding: run and session authorization](/guides/embedding/#6--run-and-session-authorization)
+for the full `RunAccess` table, the session half of the same contract (list,
+read, delete, branch, voice), and the exact response shape each denial
+produces.
 
 ### Starting a run from .NET with explicit identity
 

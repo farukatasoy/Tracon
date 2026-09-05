@@ -578,7 +578,7 @@
           "Attachments"
         ],
         "summary": "Uploads a new attachment.",
-        "description": "The body must be \u0027multipart/form-data\u0027 and must carry a \u0027file\u0027 field. The type is validated by magic bytes, not by the Content-Type the client reports.",
+        "description": "The body must be \u0027multipart/form-data\u0027 and must carry a \u0027file\u0027 field. The type is validated by magic bytes, not by the Content-Type the client reports. If a registered IRunAuthorizationHandler denies the caller, the response is 403.",
         "operationId": "AgentPrismUploadAttachment",
         "parameters": [
           {
@@ -617,6 +617,16 @@
                 }
               }
             }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
           }
         }
       },
@@ -626,7 +636,7 @@
           "Attachments"
         ],
         "summary": "Lists attachments.",
-        "description": "Only descriptors are returned \u2014 file name, media type, size, and content hash \u2014 never the bytes; fetch those from the download endpoint. \u0027sessionId\u0027 narrows the list to one session, and attachments uploaded without a session are reachable only without that filter. Paging is offset based: \u0027skip\u0027 defaults to 0, \u0027take\u0027 to 50, and \u0027take\u0027 is clamped to 1..200 instead of being rejected.",
+        "description": "Only descriptors are returned \u2014 file name, media type, size, and content hash \u2014 never the bytes; fetch those from the download endpoint. \u0027sessionId\u0027 narrows the list to one session, and attachments uploaded without a session are reachable only without that filter. Paging is offset based: \u0027skip\u0027 defaults to 0, \u0027take\u0027 to 50, and \u0027take\u0027 is clamped to 1..200 instead of being rejected. If a registered IRunAuthorizationHandler denies the caller, the response is 403 \u2014 the list is REJECTED, never silently filtered.",
         "operationId": "AgentPrismListAttachments",
         "parameters": [
           {
@@ -674,6 +684,16 @@
                 }
               }
             }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
           }
         }
       }
@@ -685,7 +705,7 @@
           "Attachments"
         ],
         "summary": "Streams the raw content of an attachment.",
-        "description": "The response carries the attachment\u0027s own stored media type, an ETag holding the content\u0027s SHA-256, and \u0027Content-Disposition: attachment\u0027 together with \u0027X-Content-Type-Options: nosniff\u0027 \u2014 a browser therefore downloads the bytes instead of rendering them, so uploaded HTML can never execute in the console\u0027s origin. The token travels in the Authorization header, so a browser cannot use this URL directly as an image or audio element source; fetch the bytes and wrap them in an object URL instead.",
+        "description": "The response carries the attachment\u0027s own stored media type, an ETag holding the content\u0027s SHA-256, and \u0027Content-Disposition: attachment\u0027 together with \u0027X-Content-Type-Options: nosniff\u0027 \u2014 a browser therefore downloads the bytes instead of rendering them, so uploaded HTML can never execute in the console\u0027s origin. The token travels in the Authorization header, so a browser cannot use this URL directly as an image or audio element source; fetch the bytes and wrap them in an object URL instead. If a registered IRunAuthorizationHandler denies the caller, the response is 404, identical to an attachment that does not exist.",
         "operationId": "AgentPrismDownloadAttachment",
         "parameters": [
           {
@@ -727,7 +747,7 @@
           "Attachments"
         ],
         "summary": "Deletes an attachment.",
-        "description": "The bytes are removed immediately; there is no soft delete. Messages that already reference the attachment keep the reference and it stops resolving, so delete an attachment only when its conversation no longer needs to be replayed. Deleting the owning session removes its attachments as well, which is usually the call to reach for. An unknown id returns 404.",
+        "description": "The bytes are removed immediately; there is no soft delete. Messages that already reference the attachment keep the reference and it stops resolving, so delete an attachment only when its conversation no longer needs to be replayed. Deleting the owning session removes its attachments as well, which is usually the call to reach for. An unknown id returns 404, and so does a denial by a registered IRunAuthorizationHandler.",
         "operationId": "AgentPrismDeleteAttachment",
         "parameters": [
           {
@@ -1207,7 +1227,7 @@
           "Runs"
         ],
         "summary": "Lists runs from newest to oldest.",
-        "description": "By default, ONLY root runs are returned. To also see child runs, use \u0027includeChildren=true\u0027; pass \u0027rootRunId\u0027 for an entire tree, or \u0027parentRunId\u0027 for the direct children of a run. \u0027userId\u0027 narrows the list to one user\u0027s runs, and \u0027label\u0027 takes a \u0027key:value\u0027 pair (\u0027label=team:payments\u0027); a bare \u0027label=team\u0027 matches any value of that key. Both dimensions are recorded from the server-side IRunAttributionContext, never from the run request body.",
+        "description": "By default, ONLY root runs are returned. To also see child runs, use \u0027includeChildren=true\u0027; pass \u0027rootRunId\u0027 for an entire tree, or \u0027parentRunId\u0027 for the direct children of a run. \u0027userId\u0027 narrows the list to one user\u0027s runs, and \u0027label\u0027 takes a \u0027key:value\u0027 pair (\u0027label=team:payments\u0027); a bare \u0027label=team\u0027 matches any value of that key. Both dimensions are recorded from the server-side IRunAttributionContext, never from the run request body. If a registered IRunAuthorizationHandler denies the caller, the response is 403 \u2014 the list is REJECTED, never silently filtered.",
         "operationId": "AgentPrismListRuns",
         "parameters": [
           {
@@ -1325,6 +1345,16 @@
                   "items": {
                     "$ref": "#/components/schemas/RunRecord"
                   }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }
@@ -1680,7 +1710,7 @@
           "Runs"
         ],
         "summary": "Starts a new run with recorded input.",
-        "description": "The input is preserved, the conditions change: \u0027agentVersion\u0027, \u0027modelId\u0027, and \u0027toolMode\u0027. The default \u0027toolMode\u0027 value is \u0027ReplayTools\u0027, and NO tool actually runs \u2014 recorded results are replayed. Replaying a call with no recorded result STOPS the replay and returns 422. \u0027LiveTools\u0027 ACTUALLY runs tools, produces side effects, requires the Admin role, and returns 409 if a tool requires approval. An agent carrying a client-side tool (AddClientTool) cannot be replayed in ANY tool mode and also returns 409 \u2014 its body runs in the caller\u0027s browser and no call to it was recorded. Replay is sessionless: if the source run belongs to a session, only that TURN\u0027s input is replayed; the conversation history is not carried over.",
+        "description": "The input is preserved, the conditions change: \u0027agentVersion\u0027, \u0027modelId\u0027, and \u0027toolMode\u0027. The default \u0027toolMode\u0027 value is \u0027ReplayTools\u0027, and NO tool actually runs \u2014 recorded results are replayed. Replaying a call with no recorded result STOPS the replay and returns 422. \u0027LiveTools\u0027 ACTUALLY runs tools, produces side effects, requires the Admin role, and returns 409 if a tool requires approval. An agent carrying a client-side tool (AddClientTool) cannot be replayed in ANY tool mode and also returns 409 \u2014 its body runs in the caller\u0027s browser and no call to it was recorded. Replay is sessionless: if the source run belongs to a session, only that TURN\u0027s input is replayed; the conversation history is not carried over. Replay STARTS a run, so a registered IRunAuthorizationHandler is asked with the SOURCE run\u0027s id; a denial returns 403 before any run row is opened.",
         "operationId": "AgentPrismReplayRun",
         "parameters": [
           {
@@ -2049,7 +2079,7 @@
           "Workflows"
         ],
         "summary": "Lists the checkpoints of a workflow run.",
-        "description": "Checkpoints are the points a run can be resumed from; each entry\u0027s id is what the resume endpoint takes. A run belonging to another tenant is reported as 404 rather than 403, so the API does not confirm that it exists. An empty list means the run wrote no checkpoint \u2014 checkpointing is a property of how the workflow was built, not something this endpoint can turn on. Checkpoints are subject to retention, so an old run may have none left.",
+        "description": "Checkpoints are the points a run can be resumed from; each entry\u0027s id is what the resume endpoint takes. A run belonging to another tenant is reported as 404 rather than 403, so the API does not confirm that it exists. An empty list means the run wrote no checkpoint \u2014 checkpointing is a property of how the workflow was built, not something this endpoint can turn on. Checkpoints are subject to retention, so an old run may have none left. A denial by a registered IRunAuthorizationHandler produces the same 404.",
         "operationId": "AgentPrismListWorkflowCheckpoints",
         "parameters": [
           {
@@ -2086,7 +2116,7 @@
           "Workflows"
         ],
         "summary": "Resumes from a checkpoint and streams events over SSE.",
-        "description": "Resuming opens a NEW run rather than continuing the old one: the original run row is never rewritten, and the first streamed frame reports the new run id. The body is optional \u2014 without a checkpoint id the run resumes from its latest checkpoint. The engine must be registered; otherwise the response is 501. Because the status code is sent before the stream begins, a failure after that point arrives as an SSE error frame rather than an HTTP error.",
+        "description": "Resuming opens a NEW run rather than continuing the old one: the original run row is never rewritten, and the first streamed frame reports the new run id. The body is optional \u2014 without a checkpoint id the run resumes from its latest checkpoint. The engine must be registered; otherwise the response is 501. Because the status code is sent before the stream begins, a failure after that point arrives as an SSE error frame rather than an HTTP error. Resuming STARTS a run, so a registered IRunAuthorizationHandler is asked with the SOURCE run\u0027s id; a denial returns 403 before any run row is opened.",
         "operationId": "AgentPrismResumeWorkflow",
         "parameters": [
           {
@@ -2119,6 +2149,16 @@
               }
             }
           },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
           "501": {
             "description": "Not Implemented",
             "content": {
@@ -2139,7 +2179,7 @@
           "Workflows"
         ],
         "summary": "Lists a run\u0027s pending human input requests.",
-        "description": "Only a run in the \u0027AwaitingInput\u0027 state returns requests. Requests are read from the run\u0027s event stream; there is no separate table.",
+        "description": "Only a run in the \u0027AwaitingInput\u0027 state returns requests. Requests are read from the run\u0027s event stream; there is no separate table. A run belonging to another tenant, and a denial by a registered IRunAuthorizationHandler, both return the same 404.",
         "operationId": "AgentPrismListWorkflowRequests",
         "parameters": [
           {
@@ -2165,6 +2205,16 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
           }
         }
       }
@@ -2176,7 +2226,7 @@
           "Workflows"
         ],
         "summary": "Responds to a pending request and resumes the run.",
-        "description": "The response is matched to the request re-published with the same ID in the execution resumed from the checkpoint. Resuming opens a NEW runs row; events stream over SSE.",
+        "description": "The response is matched to the request re-published with the same ID in the execution resumed from the checkpoint. Resuming opens a NEW runs row; events stream over SSE \u2014 so this STARTS a run, and a registered IRunAuthorizationHandler is asked with the source run\u0027s id; a denial returns 403 before any run row is opened.",
         "operationId": "AgentPrismRespondWorkflowRequest",
         "parameters": [
           {
@@ -2211,6 +2261,16 @@
           },
           "400": {
             "description": "Bad Request",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
             "content": {
               "application/problem\u002Bjson": {
                 "schema": {
@@ -3024,7 +3084,7 @@
           "Evals"
         ],
         "summary": "Manually has judge(s) score a run.",
-        "description": "This SKIPS the sampling decision; it is for calibration and debugging. If no IRunJudge is registered, or the run\u0027s input/output cannot be read, an empty list is returned.",
+        "description": "This SKIPS the sampling decision; it is for calibration and debugging. If no IRunJudge is registered, or the run\u0027s input/output cannot be read, an empty list is returned. Judging both READS the run and WRITES a score for it, so a registered IRunAuthorizationHandler is asked for both; either denial returns 404, identical to a run that does not exist.",
         "operationId": "AgentPrismJudgeRun",
         "parameters": [
           {
@@ -4386,7 +4446,7 @@
           "Approvals"
         ],
         "summary": "Lists the tenant\u0027s pending approval requests.",
-        "description": "Only requests still awaiting a decision are returned; a decided request leaves the list and stays readable by id. A request appears here when a queued run (\u0027Prefer: respond-async\u0027) stops on a tool call that needs approval \u2014 a run driven synchronously carries its approval in the response stream instead and never reaches this mailbox. Each entry carries an expiry, which is an absolute point in the future rather than an elapsed duration.",
+        "description": "Only requests still awaiting a decision are returned; a decided request leaves the list and stays readable by id. A request appears here when a queued run (\u0027Prefer: respond-async\u0027) stops on a tool call that needs approval \u2014 a run driven synchronously carries its approval in the response stream instead and never reaches this mailbox. Each entry carries an expiry, which is an absolute point in the future rather than an elapsed duration. If a registered IRunAuthorizationHandler denies the caller, the response is 403 \u2014 the list is REJECTED, never silently filtered.",
         "operationId": "AgentPrismListPendingApprovals",
         "responses": {
           "200": {
@@ -4401,6 +4461,16 @@
                 }
               }
             }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
           }
         }
       }
@@ -4412,7 +4482,7 @@
           "Approvals"
         ],
         "summary": "Returns a single pending approval request.",
-        "description": "Unlike the list, this reads a request in any state, so it is how a client polls the outcome after deciding: the response then carries who decided, when, and which way. The request holds the tool call\u0027s arguments as recorded, which is what an approver reviews before deciding. An unknown id returns 404.",
+        "description": "Unlike the list, this reads a request in any state, so it is how a client polls the outcome after deciding: the response then carries who decided, when, and which way. The request holds the tool call\u0027s arguments as recorded, which is what an approver reviews before deciding. An unknown id returns 404, and so does a denial by a registered IRunAuthorizationHandler.",
         "operationId": "AgentPrismGetPendingApproval",
         "parameters": [
           {
@@ -4446,7 +4516,7 @@
           "Approvals"
         ],
         "summary": "Decides a pending approval request.",
-        "description": "The decision enqueues a NEW run (same sessionId, new RunId); the old run stays AwaitingApproval. A second decision on the same request gets 409.",
+        "description": "The decision enqueues a NEW run (same sessionId, new RunId); the old run stays AwaitingApproval. A second decision on the same request gets 409. If a registered IRunAuthorizationHandler denies the caller, the response is 404, identical to an approval request that does not exist \u2014 the 409 is never reached, so a denial cannot reveal that the request was already decided.",
         "operationId": "AgentPrismDecideApproval",
         "parameters": [
           {
@@ -5257,7 +5327,7 @@
           "Runs"
         ],
         "summary": "Lists a run\u0027s tool calls in chronological order.",
-        "description": "Duration is measured only for streaming runs: in a non-streaming run all messages arrive at once, so the true duration between call and result cannot be read.",
+        "description": "Duration is measured only for streaming runs: in a non-streaming run all messages arrive at once, so the true duration between call and result cannot be read. A run that does not exist, belongs to another tenant, or is denied by a registered IRunAuthorizationHandler returns the same 404.",
         "operationId": "AgentPrismListRunToolInvocations",
         "parameters": [
           {
@@ -5280,6 +5350,16 @@
                   "items": {
                     "$ref": "#/components/schemas/ToolInvocationRecord"
                   }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }
@@ -6193,7 +6273,7 @@
           "OpenAI"
         ],
         "summary": "Run endpoint compatible with the OpenAI Chat Completions API.",
-        "description": "Stateless: the client carries history. The agent is selected from the \u0027model\u0027 field; if not found, \u0027metadata.entity_id\u0027 is tried.",
+        "description": "Stateless: the client carries history. The agent is selected from the \u0027model\u0027 field; if not found, \u0027metadata.entity_id\u0027 is tried. If a registered IRunAuthorizationHandler denies the caller, the response is 403 on BOTH the streaming and the non-streaming path.",
         "operationId": "AgentPrismOpenAIChatCompletions",
         "responses": {
           "200": {
@@ -6213,6 +6293,16 @@
           },
           "400": {
             "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpenAIErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
             "content": {
               "application/json": {
                 "schema": {

@@ -159,7 +159,7 @@ bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 | [144](arsiv/fazlar/144-ALT-AGENT-BEKLEME-SINIRI.md) | Alt-Agent Bekleme Sınırı | ✅ Tamamlandı |
 | [145](arsiv/fazlar/145-OLAY-AKISININ-CERCEVE-SOZLESMESI.md) | Kayıtlı Olay Akışının Çerçeve Sözleşmesi | ✅ Tamamlandı |
 | [146](arsiv/fazlar/146-CALISTIRMAYA-BAGLI-KOTA-ESIGI.md) | Çalıştırmaya Bağlı Kota Eşiği | ✅ Tamamlandı |
-| [147](147-YETKI-KAPISININ-KAYNAK-KAPSAMI.md) | Yetkilendirme Kapısının Kaynak Kapsamı | 📋 Planlandı |
+| [147](147-YETKI-KAPISININ-KAYNAK-KAPSAMI.md) | Yetkilendirme Kapısının Kaynak Kapsamı | ✅ Tamamlandı |
 | [148](148-OTURUM-SAHIPLIGININ-KALICILIGI.md) | Oturum Sahipliğinin Kalıcılığı | 📋 Planlandı |
 
 Seçilmemiş adaylar: [`ADAYLAR.md`](ADAYLAR.md). Fazların hangi dalgada, hangi gerekçeyle sıralandığı (Faz 8–56, kapandı): [`arsiv/IKINCI-FAZ-YOL-HARITASI.md`](arsiv/IKINCI-FAZ-YOL-HARITASI.md) · [`arsiv/UCUNCU-FAZ-YOL-HARITASI.md`](arsiv/UCUNCU-FAZ-YOL-HARITASI.md).

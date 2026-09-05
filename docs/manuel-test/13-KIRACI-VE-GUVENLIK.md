@@ -1,6 +1,6 @@
 # 13 — Kiracı ve Güvenlik (`SEC`)
 
-> **Alan kodu:** `SEC` · **Faz:** 6, 9, 41, 50, 53, 63, 65, 69, 82, 139
+> **Alan kodu:** `SEC` · **Faz:** 6, 9, 41, 50, 53, 63, 65, 69, 82, 139, 147
 > **Kaynak:** `src/AgentPrism.AspNetCore/Security/` (tümü: `AgentPrismEndpointFilter`,
 > `LoopbackGuard`, `BearerTokenValidator`, `ApiKeyAuthenticator`, `ApiKeyRequestContext`,
 > `ApiKeyScopeRequirement`, `ExternalSurfaceGuard`, `ExternalCallAudit`, `AgentPrismPolicies`,
@@ -35,7 +35,11 @@
 > `src/AgentPrism.Sql.Shared/Internal/ProtectedValue.cs` (Faz 82 — at-rest içerik koruması) ·
 > `src/AgentPrism.Abstractions/Runs/RunAuthorizationTypes.cs` (Faz 139 — `IRunAuthorizationHandler`),
 > `src/AgentPrism.Core/Runs/AllowAllRunAuthorizationHandler.cs`,
-> `src/AgentPrism.AspNetCore/RateLimiting/RunAuthorizationGate.cs` (Faz 139).
+> `src/AgentPrism.AspNetCore/RateLimiting/RunAuthorizationGate.cs` (Faz 139 · 147 —
+> Faz 147 `CheckRunResourceAsync`'i ve `RunAccess`/`SessionAccess.Voice` üyelerini ekledi;
+> çağrı yerleri `Endpoints/RunEndpoints.cs`, `ObservabilityEndpoints.cs`,
+> `AttachmentEndpoints.cs`, `ApprovalEndpoints.cs`,
+> `OpenAICompat/OpenAIChatCompletionsEndpoints.cs`, `Voice/VoiceConversationEndpoint.cs`).
 >
 > Ortam kurulumu, fixture verisi ve reset yordamı [`00-INDEKS.md`](00-INDEKS.md)'dedir.
 
@@ -2977,3 +2981,345 @@ unutulmuşsa bu case onu yakalar.
 - Hepsi tutarlı şekilde karar alır (istisna/çakışma yok); handler her çağrıyı
   ayrı ayrı görür.
 - Otomatikleştirilmiş karşılığı: `Concurrent_runs_are_each_authorized_independently`.
+
+---
+
+### MT-SEC-151 — Handler kayıtlı değilken 21 kaynak ucunun hiçbiri değişmez
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 147 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- `IRunAuthorizationHandler` kaydı yapılmadı (varsayılan `AllowAll`).
+- En az bir tamamlanmış `run`, bir ek ve bir onay kaydı var.
+
+**Adımlar**
+1. Run okuma uçlarının hepsini çağır: `{id}`, `/tree`, `/events`, `/input`,
+   `/trace`, `/tools`, `/feedback`, `/compare/{b}`.
+2. Liste uçlarını çağır: `/api/runs`, `/api/attachments`, `/api/approvals/pending`.
+3. Yazma uçlarını çağır: `/cancel`, `/feedback`, ek yükle/indir/sil, onay oku/karar ver.
+
+**Girilecek veri**
+```bash
+for p in "" "/tree" "/input" "/tools" "/feedback"; do
+  printf '%-10s -> %s\n' "$p" \
+    "$(curl -s -o /dev/null -w '%{http_code}' "$APU/api/runs/$RUNID$p" -H "$APB")"
+done
+```
+
+**Beklenen sonuç**
+- Her yanıt Faz 147 öncesiyle **birebir aynı**. Okuma uçları `200`, liste uçları
+  `200`, tamamlanmış bir `run`'ın `cancel`'ı `409`.
+- Otomatikleştirilmiş karşılığı:
+  `Every_resource_endpoint_is_unchanged_when_no_handler_is_registered`.
+
+---
+
+### MT-SEC-152 — Reddedilen tekil `run` okuması, var olmayan `run` ile BİREBİR aynıdır
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 147 |
+| **İlgili karar** | K-684 |
+
+**Ön koşul**
+- Handler B kullanıcısının `run`'ını A kullanıcısına reddediyor.
+
+**Adımlar**
+1. A olarak B'nin `run`'ını oku.
+2. A olarak var olmayan bir `run` id'si oku.
+3. İki gövdeyi id'ler eşitlenerek karşılaştır.
+
+**Girilecek veri**
+```bash
+diff <(curl -s "$APU/api/runs/$OTHER_RUN" -H "$APB" | sed "s/$OTHER_RUN/{id}/g") \
+     <(curl -s "$APU/api/runs/00000000-0000-0000-0000-000000000000" -H "$APB" \
+       | sed 's/00000000-0000-0000-0000-000000000000/{id}/g')
+```
+
+**Beklenen sonuç**
+- İkisi de `404`; `diff` **boş**. `403` dönseydi `run`'ın varlığını doğrulardı.
+- **Koşuldu (2026-09-05):** `samples/AgentPrism.Embedded` üzerinde koşuldu, iki
+  gövde birebir aynı çıktı (`title: "Run not found"`).
+- Otomatikleştirilmiş karşılığı:
+  `Denied_run_read_is_indistinguishable_from_a_missing_run`.
+
+---
+
+### MT-SEC-153 — Reddedilen olay akışı hiç açılmaz
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 147 |
+| **İlgili karar** | — |
+
+**Adımlar**
+1. Reddeden handler'la `GET /api/runs/{B}/events` çağır.
+
+**Beklenen sonuç**
+- `404`; `Content-Type` **`text/event-stream` DEĞİL**. Akış başladıktan sonra
+  durum kodu değiştirilemez; ret bir durum kodu olarak gelmelidir.
+- Otomatikleştirilmiş karşılığı:
+  `Denied_run_events_returns_404_and_the_stream_never_opens`.
+
+---
+
+### MT-SEC-154 — Reddedilen `trace`, `input` ve `tools` üçü de `404`
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 147 |
+| **İlgili karar** | K-685 |
+
+**Adımlar**
+1. Reddeden handler'la `/trace`, `/input`, `/tools` uçlarını çağır.
+2. `/tools` ucunu **var olmayan** bir `run` id'siyle de çağır.
+
+**Beklenen sonuç**
+- Üçü de `404`.
+- `/tools` var olmayan `run` için de `404` — Faz 147 öncesi `200 []` dönüyordu.
+  Değişiklik kasıtlıdır: aksi hâlde ret bir varlık kanıtı olurdu (K-685).
+- Otomatikleştirilmiş karşılıkları: `Denied_run_trace_returns_404`,
+  `Denied_run_input_returns_404`, `Denied_run_tool_invocations_returns_404`.
+
+---
+
+### MT-SEC-155 — Reddedilen `cancel` `404` döner, `409` DEĞİL
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 147 |
+| **İlgili karar** | K-684 |
+
+**Ön koşul**
+- Tamamlanmış bir `run` (normalde `cancel` için `409` döner).
+
+**Adımlar**
+1. Reddeden handler'la `POST /api/runs/{id}/cancel` çağır.
+
+**Beklenen sonuç**
+- `404`. `409` dönseydi reddedilen çağırana `run`'ın var olduğunu ve bittiğini
+  söylerdi — kapı durum okumasından ÖNCE çalışır.
+- Otomatikleştirilmiş karşılığı:
+  `Denied_cancel_returns_404_before_the_status_is_read`.
+
+---
+
+### MT-SEC-156 — Reddedilen `replay` `403` döner, satır açılmaz, kota tüketilmez
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 147 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- Kaynak `run` girdisiyle birlikte kayıtlı; agent tanımı `store`'da.
+- Agent için `MaxRuns: 1` günlük kota tanımlı.
+
+**Adımlar**
+1. Reddeden handler'la `POST /api/runs/{id}/replay` çağır.
+2. `/api/runs` sayısını önce/sonra karşılaştır.
+3. Kota sayacını oku.
+
+**Beklenen sonuç**
+- `403` — replay bir `run` BAŞLATIR, kaynak okuması değildir.
+- Yeni `runs` satırı **açılmaz**; kota sayacı **hareket etmez**.
+- Handler'a giden istek `Access = Start` **ve** `RunId = kaynak run` taşır —
+  ikincisi olmasa handler "bu agent'ı çalıştır" ile "başkasının konuşmasını
+  yeniden oynat"ı ayırt edemezdi.
+- Otomatikleştirilmiş karşılıkları:
+  `Denied_replay_returns_403_and_opens_no_run_row`,
+  `Denied_replay_does_not_consume_the_quota`.
+
+---
+
+### MT-SEC-157 — `/v1/chat/completions` akışlı ve akışsız dalda ayrı ayrı kapsanır
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 147 |
+| **İlgili karar** | — |
+
+**Adımlar**
+1. Reddeden handler'la `stream` olmadan çağır.
+2. Aynı çağrıyı `"stream": true` ile tekrarla.
+
+**Girilecek veri**
+```bash
+curl -s -o /dev/null -w '%{http_code}\n' -X POST "$APU/../v1/chat/completions" \
+  -H "$APB" -H 'content-type: application/json' \
+  -d '{"model":"support","messages":[{"role":"user","content":"hi"}]}'
+```
+
+**Beklenen sonuç**
+- İkisi de `403`; akışlı dalda yanıt `text/event-stream` **değil**.
+- **Koşuldu (2026-09-05):** `samples/AgentPrism.Embedded` üzerinde bilinmeyen
+  kiracıyla `403` alındı.
+- Otomatikleştirilmiş karşılıkları:
+  `Denied_chat_completions_returns_403_on_the_non_streaming_path`,
+  `Denied_chat_completions_returns_403_on_the_streaming_path`.
+
+---
+
+### MT-SEC-158 — Ek uçları: yükleme ve liste `403`, indirme ve silme `404`
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 147 |
+| **İlgili karar** | K-686 |
+
+**Adımlar**
+1. Reddeden handler'la ek yükle, listele, indir ve sil.
+
+**Beklenen sonuç**
+- `POST /api/attachments` → `403` (adreslenen kaynak yok, gizlenecek kimlik yok).
+- `GET /api/attachments` → `403`.
+- `GET`/`DELETE /api/attachments/{id}` → `404`, var olmayan ekle birebir aynı gövde.
+- Reddedilen yükleme hiçbir şey yazmaz; reddedilen silme baytları korur.
+- Otomatikleştirilmiş karşılıkları:
+  `Denied_attachment_upload_returns_403_and_stores_nothing`,
+  `Denied_attachment_download_returns_404`,
+  `Denied_attachment_delete_returns_404_and_keeps_the_bytes`,
+  `Denied_attachment_list_returns_403`.
+
+---
+
+### MT-SEC-159 — Onay uçları: liste `403`, okuma ve karar `404`, kayıt `Pending` kalır
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 147 |
+| **İlgili karar** | K-684 |
+
+**Ön koşul**
+- `Pending` durumda bir onay kaydı.
+
+**Adımlar**
+1. Reddeden handler'la `/api/approvals/pending`, `/api/approvals/{id}` ve
+   `/api/approvals/{id}/decide` çağır.
+2. Onayın durumunu tekrar oku.
+
+**Beklenen sonuç**
+- Liste `403`; okuma ve karar `404` (var olmayan onayla birebir aynı gövde).
+- Onay hâlâ `Pending`. Kapı `Status != Pending` kontrolünden ÖNCE çalışır:
+  aksi hâlde `409`, reddedilen çağırana kaydın zaten karara bağlandığını
+  söylerdi.
+- Otomatikleştirilmiş karşılıkları: `Denied_approval_list_returns_403`,
+  `Denied_approval_read_returns_404`,
+  `Denied_approval_decision_returns_404_and_leaves_it_pending`.
+
+---
+
+### MT-SEC-160 — `throw` eden handler her kaynağı reddeder (fail-closed)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 147 |
+| **İlgili karar** | — |
+
+**Adımlar**
+1. `AuthorizeRunAsync`'i istisna fırlatan bir handler kaydet.
+2. Tekil kaynak, liste ve ek uçlarını çağır.
+
+**Beklenen sonuç**
+- Tekil kaynaklar `404`, listeler `403`. Hiçbiri açılmaz.
+- Otomatikleştirilmiş karşılığı:
+  `Throwing_handler_denies_every_resource_fail_closed`.
+
+---
+
+### MT-SEC-161 — Handler'a başka kiracının kimliği HİÇ gitmez
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 147 |
+| **İlgili karar** | — |
+
+**Adımlar**
+1. Başka kiracıya ait bir `run` id'sini oku.
+2. Var olmayan bir `run` id'sini oku.
+3. Handler'ın gördüğü istek listesini kontrol et.
+
+**Beklenen sonuç**
+- İkisi de `404`; handler **hiç çağrılmaz**. Kapı, kaynak bulunduktan ve
+  kiracısı doğrulandıktan SONRA sorulur.
+- Otomatikleştirilmiş karşılıkları:
+  `A_missing_run_is_answered_without_asking_the_handler`,
+  `Another_tenants_run_never_reaches_the_handler`.
+
+---
+
+### MT-SEC-162 — Ses: başka kullanıcının oturumuna bağlanma reddedilir
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 147 |
+| **İlgili karar** | K-687 |
+
+**Ön koşul**
+- `UseVoiceConversation()` etkin, transcriber ve synthesizer kayıtlı.
+- Handler `SessionAccess.Voice`'ı reddediyor.
+
+**Adımlar**
+1. Var olan bir oturumun WebSocket akışına bağlan.
+
+**Beklenen sonuç**
+- El sıkışma reddedilir; taşınan durum kodu `404` — `401` DEĞİL (kimlik
+  doğrulaması başarılıydı) ve `403` DEĞİL (oturumun varlığını doğrulardı).
+  Erişilemeyen oturumun aldığı yanıtla aynı metin.
+- Otomatikleştirilmiş karşılıkları:
+  `Denied_caller_cannot_open_another_users_conversation`,
+  `A_denial_is_refused_with_404_not_401_or_403`.
+
+---
+
+### MT-SEC-163 — Ses: var olmayan oturumun ilk turu HÂLÂ açılır (K-283 korunur)
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 147 |
+| **İlgili karar** | K-283 · K-687 |
+
+**Ön koşul**
+- Handler izin veriyor.
+- Sunucunun hiç görmediği bir `sessionId`.
+
+**Adımlar**
+1. O `sessionId` ile WebSocket akışına bağlan.
+
+**Beklenen sonuç**
+- Bağlantı **açılır**; ilk tur oturumu oluşturur. Handler yine de **sorulur** —
+  yeni bir konuşma açma iznini yalnız tüketici verebilir.
+- Bu davranış bozulursa her kurulumdaki İLK konuşma sessizce çalışmaz hâle
+  gelir; başka hiçbir test bunu görmez.
+- Otomatikleştirilmiş karşılığı:
+  `An_unknown_session_still_opens_when_the_handler_allows_it`.
+
