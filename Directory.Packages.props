@@ -16,7 +16,7 @@
   <PropertyGroup>
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
     <!-- Tum MAF GA paketleri ayni surumde ilerler. -->
-    <MicrosoftAgentsAIVersion>1.18.0</MicrosoftAgentsAIVersion>
+    <MicrosoftAgentsAIVersion>1.20.0</MicrosoftAgentsAIVersion>
     <!--
       MEAI 10.9.0 Microsoft.Extensions.* >= 10.0.11 ister; 10.0.10'da kalmak
       NU1605 (paket dusurme) verir ve TreatWarningsAsErrors altinda restore'u
@@ -34,11 +34,11 @@
   </ItemGroup>
 
   <ItemGroup Label="Microsoft Agent Framework - onsurum (yalnizca AgentPrism.AspNetCore)">
-    <PackageVersion Include="Microsoft.Agents.AI.Hosting" Version="1.18.0-preview.260818.1" />
-    <PackageVersion Include="Microsoft.Agents.AI.Hosting.OpenAI" Version="1.18.0-alpha.260818.1" />
+    <PackageVersion Include="Microsoft.Agents.AI.Hosting" Version="1.20.0-preview.260831.1" />
+    <PackageVersion Include="Microsoft.Agents.AI.Hosting.OpenAI" Version="1.20.0-alpha.260831.1" />
     <!--
       Faz 50: AgentPrism'i disa acan A2A sunucusu. Ayni surum hatti
-      (1.18.0-preview.260818.1), K-008 kapsaminda yalnizca AgentPrism.AspNetCore.
+      (1.20.0-preview.260831.1), K-008 kapsaminda yalnizca AgentPrism.AspNetCore.
       `Microsoft.Agents.AI.Hosting.AspNetCore` plan taslaginda OLCULMEMISTI;
       `AddA2AServer` yalniz KAYIT yapar, HTTP ucunu `A2A.AspNetCore`'un
       `MapA2A`/`MapHttpA2A` uzantilari acar (K-057'nin yeniden acilma notuna
@@ -46,8 +46,8 @@
       Microsoft.Agents.AI.Hosting.A2A, Microsoft.Agents.AI.Hosting.AspNetCore
       (4 paket, hepsi ayni SDK ailesi; yabanci bagimlilik yok).
     -->
-    <PackageVersion Include="Microsoft.Agents.AI.Hosting.A2A" Version="1.18.0-preview.260818.1" />
-    <PackageVersion Include="Microsoft.Agents.AI.Hosting.AspNetCore" Version="1.18.0-preview.260818.1" />
+    <PackageVersion Include="Microsoft.Agents.AI.Hosting.A2A" Version="1.20.0-preview.260831.1" />
+    <PackageVersion Include="Microsoft.Agents.AI.Hosting.AspNetCore" Version="1.20.0-preview.260831.1" />
     <PackageVersion Include="A2A.AspNetCore" Version="1.0.0-preview2" />
   </ItemGroup>
 

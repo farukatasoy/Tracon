@@ -5,7 +5,7 @@ namespace AgentPrism;
 /// <para>
 /// There is <strong>NO</strong> counterpart to
 /// <see cref="AgentPrismMcpServerOptions.ExposeAllAgents"/>. Measured
-/// (<c>Microsoft.Agents.AI.Hosting.A2A</c> 1.18.0-preview.260818.1):
+/// (<c>Microsoft.Agents.AI.Hosting.A2A</c> 1.20.0-preview.260831.1):
 /// <c>AddA2AServer</c> is a REGISTRATION-TIME API and can only publish agents
 /// explicitly named in <see cref="ExposedAgents"/>; it cannot see an agent
 /// added at runtime.

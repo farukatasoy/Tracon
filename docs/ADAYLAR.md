@@ -111,9 +111,23 @@ Bir adayın `Mercek` satırı aşağıdaki destekleyen mercekleri numarayla saya
 | 7 | **Ölçme–iyileştirme** | Üretim verisini geliştirmeye geri besler mi? |
 | 8 | **Maliyet (FinOps)** | Tüketicinin model faturasını düşürür mü? |
 
-## Sıralama — kuyruk boş
+## Sıralama — bir aday
 
-2026-09-03 itibarıyla **plana dönüşmeyi bekleyen sıralanabilir aday yoktur.**
+2026-09-05 itibarıyla sıralanabilir **bir** aday vardır. İkisi de MAF yüzey
+taramasından çıkmıştı (`maf-api-kesfi`, 1.18.0 → 1.20.0 tam dump diff'i +
+kullanım ölçümü: 324 MAF public tipin 203'ü AgentPrism kaynağında hiç geçmiyor);
+biri aynı gün plana dönüştü.
+
+| Sıra | Aday | Neden bu sırada |
+|---|---|---|
+| 1 | **F-192** · Harness'in döngü yeteneği | Yeni yetenek. Pinlenmiş sürümde **zaten hazır**; yükseltme beklemez |
+
+> **F-191 · Alt-agent bekleme zaman aşımı → [Faz 144](144-ALT-AGENT-BEKLEME-SINIRI.md)**
+> (2026-09-05). Bağımlılığı olan MAF 1.20.0 yükseltmesi aynı oturumda yapıldı ve
+> kalemin çerçevesi ölçümle değişti: yükseltme **düz agent yolunun** süresiz
+> asılma riskini kod yazılmadan kapattı (`WaitTimeout` varsayılanı 00:05:00),
+> geriye harness yolu · sayının AgentPrism tarafından seçilmesi · zaman aşımının
+> `run` kanıtına yazılması kaldı. Plan bu üçünü kapsar.
 
 > **Ek (2026-09-03, tüketici turu 3).** ProdigyEnabler'ın `1.0.0-preview.1`
 > raporu ölçüldü ([kesif](kesif/2026-09-03-tuketici-turu-3-olcumu.md)). On iki
@@ -147,6 +161,59 @@ Bir adayın `Mercek` satırı aşağıdaki destekleyen mercekleri numarayla saya
 
 Kalan ikisi § *Bekleyen Kalemler*'dedir ve **sıralamaya girmez**.
 
+### F-192 · Harness'in döngü (loop) yeteneği
+
+**Sorun:** `HarnessAgentOptions` iki üye taşır — `LoopEvaluators` ve
+`LoopAgentOptions` — ve AgentPrism **ikisini de set etmiyor**
+([`AgentDefinitionCompiler.Agents.cs:172`](../src/AgentPrism.Core/Compilation/AgentDefinitionCompiler.Agents.cs#L172)).
+MAF bunu harness'in birinci sınıf, opt-in yeteneği yapmıştır
+([PR #6544](https://github.com/microsoft/agent-framework/pull/6544)): en az bir
+evaluator verilince harness `LoopAgent` ile **en dıştan** sarılır. Ölçüm
+(2026-09-05): `LoopAgent` ve `LoopEvaluator` AgentPrism kaynağında **0 dosyada**
+geçiyor. [`MAF-GENISLEME-NOKTALARI`](MAF-GENISLEME-NOKTALARI.md) bunu
+*"planlanmadı (eval'den AYRI kavram)"* diye kaydetmiş — **reddedilmemiş,
+ertelenmiş**.
+
+**Kapsam:** `HarnessSettings`'e bir bitiş ölçütü aç. MAF'ın hazır evaluator'ları:
+`TodoCompletionLoopEvaluator` (AgentPrism'in `TodoProvider`'ı zaten açık ve bu
+evaluator **agent moduna göre kapsanabiliyor**) · `CompletionMarkerLoopEvaluator` ·
+`AIJudgeLoopEvaluator` · `BackgroundTaskCompletionLoopEvaluator` ·
+`DelegateLoopEvaluator`. Döngü iterasyonları `run` kanıtına yazılır.
+
+**Değer:** "Bitene kadar çalış" davranışı. Bugün tüketici bunu kendi dış
+döngüsüyle yazmak zorunda ve o döngü `run` kanıtının dışında kalıyor.
+
+**Mercek:** 1, 2, 8.
+
+**Hazırlık:** **Hazır ve çekirdekte** — `Microsoft.Agents.AI` içinde; yeni paket
+yok, native bağımlılık yok. İmzalar `maf-api-kesfi` ile doğrulandı (2026-09-05)
+ve **pinlenmiş 1.18.0'da zaten mevcut** (`LoopAgent`, `LoopEvaluators`,
+`LoopAgentOptions` üçü de). `LoopAgent : DelegatingAIAgent` olduğu için
+AgentPrism'in decorator zincirine (`IAgentDecorator` · `RunRecordingAgent`)
+oturur — F-95'in kancasının aksine **yapısal engel yok**.
+
+**Maliyet:** Ölçülmedi. Yeni paket yok. Public yüzey: `HarnessSettings`'e bitiş
+ölçütü + evaluator seçimi. ⚠️ Evaluator'lar MAF tipleridir; seçimi bildirimsel
+bir enum olarak mı yoksa doğrudan MAF tipiyle mi açacağı L21'e (*MAF tipleri
+sarmalanmadı*) takılır — planın çözmesi gereken ilk soru budur.
+
+**Risk:** 🚨 `MaximumIterationsPerRequest` ile **karıştırılmamalıdır**: o bir
+*tavan*'dır (kaçak döngü güvenliği), `LoopAgent` bir *bitiş ölçütü*'dür. İkisi
+aynı ayar gibi sunulursa tüketici yanılır. Döngü model faturasını çarpar;
+`LoopAgentOptions.MaxIterations` ve [Faz 114](arsiv/fazlar/114-CALISTIRMA-ICI-BUTCE-TAVANI.md)'ün
+bütçe tavanı ile **birlikte** yargılanmalıdır. `FreshContextPerIteration`
+bağlam semantiğini değiştirir.
+
+**Bağımlılık:** **Yok.** MAF yükseltmesi beklemez — 1.18.0 yeterlidir.
+
+**Ekosistem:** 2026-09-05 — [PR #6544](https://github.com/microsoft/agent-framework/pull/6544).
+
+**Karşı görüş:** Talep kanıtı ölçülmedi. Hiçbir tüketici turu "bitene kadar
+çalış" istemedi; bu kalem bir yüzey taramasından çıktı, bir kullanıcı acısından
+değil. F-167'nin dersi geçerlidir: *"SDK maliyeti zaten ödenmiş" bir talep kanıtı
+değil, yalnız bir indirimdir.*
+
+
 ### Sıralamayı Değiştiren Ölçümler
 
 Üç planlama turu (üçüncü, dördüncü, beşinci) kanıtı yeniden doğruladı
@@ -167,7 +234,7 @@ Gerekçeler:
 | **F-67 ile F-168 "aynı karar" iddiası zayıfladı** | Aday metni "F-67 ile **aynı** kararı ister" diyordu. Ölçüm bunu çürüttü: F-168 bir eşik **koymaz**, tüketiciden **alır** — AgentPrism kalite barı dayatmaz. F-67 ise bu depo için gerçek bir sayı seçmek zorundadır. Ortak olan yalnız "gürültülü kapı kurma" ilkesi; gürültünün kaynağı bile farklı (model belirsizliği ↔ paylaşılan CI makinesi). Bu yüzden **tek faz değil, iki ayrı faz** yazıldı. |
 | **F-167 · 3 → 1** ve plana | En büyük maliyet iddiası ("Tasks extension'ı **yeni bir NuGet paketidir** ve geçişli ağırlığı sayılmalıdır") gerçek restore ile çürüdü: `ModelContextProtocol.Extensions.Tasks` 2.2.0 `.AspNetCore`'un üstüne **net 1 paket** ekliyor, geçişli ağırlık **sıfır** — on iki geçişli paketin tamamı zaten grafikte. Ayrıca `IMcpTaskStore` AgentPrism'in var olan run kaydı üzerine oturuyor: **yeni tablo ve migration gerekmiyor**. Buna karşılık ölçüm yeni bir risk buldu: SDK sözleşmesinde **kiracı parametresi yok** ve K-103'ün onay kontrolü run kuyruğa taşınınca handler'dan düşüyor. |
 | **F-152 · 2 → 2** ve plana | Maliyet iddiası ("kalıcı model ve **üç SQL sağlayıcı migration'ı** gerekir") çürüdü: `UpsertAsync` **yargıç başına** çağrılıyor ve satır `Author = "judge:{ad}"` taşıyor; `IRunScoreStore.ListAsync` ve `JobRecord.Attempt` de zaten var. **Checkpoint bugün zaten veride duruyor** — eksik olan tek şey döngünün onu okuması. Yeni tablo, migration ve public yüzey **yok**. |
-| **F-95 sıralamadan çıktı** | Dördüncü sıra, sahip olmadığı bir plan hazırlığını ima ediyordu. `Hazırlık` satırı zaten "🚨 İmza doğrulanmadı" diyor. |
+| **F-95 sıralamadan çıktı** | Dördüncü sıra, sahip olmadığı bir plan hazırlığını ima ediyordu. `Hazırlık` satırı zaten "🚨 İmza doğrulanmadı" diyor. **2026-09-05 güncellemesi:** imza doğrulandı ve **MAF yolu kapandı** — kanca ayrı bir alpha pakettedir (`Microsoft.Agents.AI.AgentHooks`), sözleşmesi *enforcement*'tır (kesinti/devam değil) ve `FunctionInvokingChatClient` içeren client'ı reddeder. Kalem yalnız F-141 üzerinden ilerler; bkz. § *Bekleyen Kalemler* → F-95 `Hazırlık`. |
 
 ### F-190 · MCP Tasks testlerinin tam çözüm koşumunda yalıtımı — ✅ KAPANDI (2026-09-04)
 
@@ -266,35 +333,63 @@ agent yürütmesinin **içine** girebilmesi gerekir. Bu kalem şu ölçümle kap
 dışına alınmıştı: *"MAF agent düzeyinde kanca vermiyor; kancayı AgentPrism
 yazmak K3'ü zorlar. Kanca yalnız `Microsoft.Agents.AI.Workflows` içinde var."*
 
-**Kapsam:** Önce MAF'ın yeni kanca sözleşmesinin AgentPrism'in ihtiyacını
-gerçekten karşılayıp karşılamadığını ölç. Karşılıyorsa kancayı **doğrudan**
-kullan; AgentPrism paralel bir kanca hiyerarşisi kurmaz (K3).
+**Kapsam:** ~~Önce MAF'ın yeni kanca sözleşmesini ölç~~ — **ölçüldü
+(2026-09-05), karşılamıyor** (bkz. `Hazırlık`). Kalan kapsam F-141'in
+kapsamıdır: kesinti/devam'ı MAF'a kanca takmadan çözmek. AgentPrism paralel bir
+kanca hiyerarşisi kurmaz (K3); bu kural MAF kancası alınmadığı için de geçerli
+kalır — F-141 agent yürütmesinin **içine** girmeyen bir tasarım seçmelidir.
 
 **Değer:** Kesintiye uğramış tur, MAF'ı sarmalamadan devam ettirilebilir.
 
 **Mercek:** 2, 5, 6.
 
-**Hazırlık:** **Ekosistemde ölçüldü (2026-08-26)** — MAF **1.19.0** sürüm notu
-".NET: agent-hooks interception contract as a first-class experimental feature"
-satırını taşır ([PR #7564](https://github.com/microsoft/agent-framework/pull/7564)).
-Repo `Directory.Packages.props:19`'da **1.18.0**'dadır.
-🚨 **İmza doğrulanmadı.** `faz-planlama` Adım 1'de `maf-api-kesfi` koşulmadan
-bu kalem plana dönüşmez.
+**Hazırlık:** 🚨 **İmza doğrulandı (2026-09-05) — MAF yolu KAPALI.**
+`maf-api-kesfi` koşuldu; 1.18.0 → 1.20.0 tam yüzey dump'ı diff'lendi.
+Kanca çekirdek paketlerde **yoktur**: ayrı ve **alpha** bir pakettedir —
+`Microsoft.Agents.AI.AgentHooks` **1.20.0-alpha.260831.1**. Ölçülen public
+yüzey **iki tiptir**: `AgentHooksChatClientExtensions.AsAIAgentWithAgentHooks(...)`
+ve `AgentHooksOptions`. Üç ölçüm bu kalemi kapatır:
 
-**Maliyet:** Ölçülmedi; MAF yükseltmesinin kendi maliyeti de sayılmalıdır.
+1. **Sözleşme yanlış ihtiyacı karşılıyor.** Kanca bir *enforcement/interception*
+   sözleşmesidir (AGENT-HOOKS-0.1): allow/deny/transform verdict, approval seam,
+   `InterceptionRecord`. Bu kalemin ihtiyacı olan **kesinti/devam** (turu
+   checkpoint'leyip sonra sürdürme) yüzeyde **yoktur**.
+2. **Bölünemez ve pipeline'ımızla uyumsuz.** Seam decorator'ları `internal`;
+   PR gövdesi "partial installs are impossible by construction" diyor. Dahası
+   `AsAIAgentWithAgentHooks`, içinde `FunctionInvokingChatClient` bulunan bir
+   client'ı **reddeder** ("tools would execute below the verdicts"). AgentPrism'in
+   her provider pipeline'ı `UseFunctionInvocation()` kurar
+   ([`AnthropicChatClientFactory.cs:14`](../src/AgentPrism.Anthropic/AnthropicChatClientFactory.cs#L14) ·
+   [`AzureOpenAIChatClientFactory.cs:16`](../src/AgentPrism.Azure/AzureOpenAIChatClientFactory.cs#L16) ·
+   [`GoogleChatClientFactory.cs:15`](../src/AgentPrism.Google/GoogleChatClientFactory.cs#L15)).
+   Kancayı almak, agent kurulum yolunun tamamını MAF'a devretmek demektir.
+3. **Bağımlılık grafiği kabul edilemez.** `ResponsibleAI.AgentHooks`
+   0.1.0-alpha.4 bir **native FFI** taşır (`libagent_hooks_ffi`, 1.7 MB) ve
+   yalnız dört RID kapsar: linux-x64 · osx-arm64 · osx-x64 · win-x64 —
+   **linux-arm64 yoktur**. Yanında `Microsoft.ML.Tokenizers`,
+   `Microsoft.Extensions.AI.Evaluation`, `VectorData.Abstractions`,
+   `Compliance.Abstractions`, `FileSystemGlobbing` gelir. `AgentPrism.Core`
+   bugün AOT-uyumludur; bu graf hem onu hem "tüketicinin bağımlılık grafiğini
+   kirletme" kuralını bozar.
 
-**Risk:** Kanca **experimental** ilan edilmiştir. AgentPrism'in public yüzeyini
-değişken bir MAF sözleşmesine bağlamak erken olabilir.
+**Maliyet:** Ölçüldü ve **karşılanamaz** — yukarıdaki 2. ve 3. maddeler.
 
-**Bağımlılık:** MAF 1.19.0'a yükseltme. F-141 (MAF-kancasız alternatif tasarım)
-bu kalemin rakibidir — ikisi **birlikte** yargılanır, ikisi birden yapılmaz.
+**Risk:** Yüzeyin tamamı `[Experimental("MAAI001")]`'dir ve paket alpha
+kanalındadır. K-008 ön sürüm paketlerini yalnız `AgentPrism.AspNetCore` içinde
+tutar; bu kanca ise `AgentPrism.Core`'un agent kurulum yoluna girer.
 
-**Ekosistem:** 2026-08-26 — [MAF sürüm notları](https://github.com/microsoft/agent-framework/releases).
+**Bağımlılık:** ~~MAF 1.19.0'a yükseltme~~ — **düştü**. Yükseltme bu kalemi
+**açmıyor** (1.18.0 → 1.20.0 diff'inde sıfır kaldırma, kanca ayrı pakette).
+F-141 (MAF-kancasız alternatif tasarım) artık bu kalemin rakibi değil, **tek
+yoludur**.
 
-**Karşı görüş:** F-141 aynı ihtiyacı MAF'a hiç kanca takmadan karşılıyor ve
-2026-08-21'de bu tasarımın **doğru** olduğu kaydedilmişti. Experimental bir
-MAF yüzeyine bağlanmak, çalışan bir alternatifi elde varken net bir gerileme
-olabilir.
+**Ekosistem:** 2026-09-05 — [`dotnet-1.19.0` sürüm notları](https://github.com/microsoft/agent-framework/releases/tag/dotnet-1.19.0) ·
+[PR #7564](https://github.com/microsoft/agent-framework/pull/7564).
+
+**Karşı görüş:** ~~F-141 rakiptir~~ — ölçümden sonra karşı görüş kalmadı. F-141
+aynı ihtiyacı MAF'a hiç kanca takmadan karşılıyor ve 2026-08-21'de bu tasarımın
+**doğru** olduğu kaydedilmişti. MAF yolu ölçümle kapandığına göre bu kalem
+yalnız F-141 üzerinden ilerler.
 
 
 
@@ -392,13 +487,35 @@ kaldırmak da geçerli bir çözümdür ve ölçülmelidir.
 veya operasyon aynı altı yüzeyi sessizce bayatlatır; NuGet'e basılan README
 geri alınamaz.
 
+**Ek kapsam — bağımlılık sürümü damgalı DAVRANIŞ iddiaları (ölçüldü 2026-09-05).**
+Yukarıdaki tablo *sayılarla* ilgilidir. Aynı sınıfın ikinci yarısı sevk edilen
+XML dokümanlarındadır: bir bağımlılık sürümünü **adıyla anıp** o sürümde ölçülmüş
+bir davranış iddia eden yorumlar. Ölçüm: `src/` genelinde **beş** tane —
+[`IVectorSearchStore.cs:16`](../src/AgentPrism.Abstractions/Knowledge/IVectorSearchStore.cs#L16) (MEAI 10.8.0) ·
+[`McpTransportFactory.cs:32`](../src/AgentPrism.Mcp/Internal/McpTransportFactory.cs#L32) (MCP 2.2.0) ·
+[`AgentPrismSqlServerOptions.cs:32`](../src/AgentPrism.SqlServer/AgentPrismSqlServerOptions.cs#L32) (SqlClient 7.0.2) ·
+[`OpenAIResponsesEndpoints.cs:25`](../src/AgentPrism.AspNetCore/OpenAICompat/OpenAIResponsesEndpoints.cs#L25) (Hosting.OpenAI) ·
+[`FallbackChatClient.cs:612`](../src/AgentPrism.Core/Models/FallbackChatClient.cs#L612) (OpenAI 2.12.0).
+
+Bunlar F-171'in var olan mekanizmasıyla **kapatılamaz**: bir davranış iddiası
+koddan yeniden hesaplanamaz, yalnız yeniden **ölçülebilir**. Kapının yapabileceği
+şey farklıdır ve daha ucuzdur: damgadaki sürümü `Directory.Packages.props`'taki
+pinle karşılaştırıp **saptığında kırmak**. O zaman yükseltme yapan oturum
+iddiayı ya yeniden ölçer ya damgayı bilerek günceller; bugün olduğu gibi
+**şansa** kalmaz. 🚨 Bu ihtiyaç bugün gerçek bir kaçışla kanıtlandı: MAF
+1.18.0 → 1.20.0 yükseltmesinde bu beş iddianın hiçbiri hiçbir kapı tarafından
+işaretlenmedi; ikisi elle grep'lendiği için yeniden ölçüldü (`ToAgentRunRequest`
+ve `AddA2AServer` — ikisi de geçerli çıktı) ve üçü yükseltmenin kapsamı dışında
+kaldığı için hiç bakılmadı.
+
 **Mercek:** 6.
 
 **Hazırlık:** Yukarıdaki tablo ölçüldü ve düzeltmeler uygulandı (drift taraması,
 2026-08-28). Kapı yazılmadı — bu aday odur.
 
 **Maliyet:** Düşük-orta; tek bir kontrol dosyası, mevcut `check-content.mjs`
-deseninde.
+deseninde. Ek kapsam (sürüm damgası) daha ucuzdur — beş iddia, tek regex ve
+`Directory.Packages.props` karşılaştırması; yeniden hesaplama gerektirmez.
 
 **Risk:** Fazla katı bir kapı, meşru yuvarlanmış ifadeyi ("about 30 screens")
 kızartabilir. Kontrol yalnız **işaretli** sayıya bakmalı, her rakama değil.
@@ -421,9 +538,27 @@ sevk edilen bir ürün kusuruydu** (K-660).
 > izole koşum **1/1, 2,5 sn**. K-660'ın düzeltmesi HEAD'dedir ve kapattığı iki
 > ürün yolu gerçektir — ama kaydı AÇAN repro (yük altındaki tam paket koşumu)
 > kapanışta tekrar koşulmadı. Bu, `test-yalitimi.md`'nin YEDİNCİ vakasıdır.
-> Ölçüm ve ders: [`kesif/2026-09-04-surec-denetimi.md`](kesif/2026-09-04-surec-denetimi.md). Aşağıdaki teşhis anlatısı doğru
-daralmıştı ("kayıp olay commit sonrasındadır"); eksik olan tek şey sunucunun o
-yolda hiçbir çerçeve göndermediğiydi.
+> Ölçüm ve ders: [`kesif/2026-09-04-surec-denetimi.md`](kesif/2026-09-04-surec-denetimi.md).
+>
+> ✅ **DÜZELTME SONRASI İLK YÜK ALTI KOŞUM YEŞİL (2026-09-05).** Kaydın eksik
+> dediği kanıt budur. MAF 1.20.0 yükseltmesinin kapanış kapısında tam paket
+> koşuldu (`dotnet test AgentPrism.slnx -c Release --no-build -maxcpucount:1`,
+> 21 proje, 6161 test, 0 düşen) ve
+> `Playground_voice_mode_opens_microphone_and_shows_transcript` **geçti —
+> TRX süresi 00:00:01.49**, E2E 58/58. Karşılaştırma: kaydın kendi yük altı
+> geçme tabanı **2,58 sn**, düşme imzası ise 30 sn'lik `voice-transcript`
+> beklemesiydi. Süre tabanın da altına indi; bu, K-660'ın `idle` çerçevesinin
+> gerçekten geldiğiyle tutarlıdır.
+>
+> 🚨 **Sınıf yine de KAPANMADI.** Kayıt kusuru "gerçek ama seyrek" diye
+> niteliyor ve düzeltme ÖNCESİNDE de üç yük altı koşum yeşil gelmişti. Bir
+> koşum bir düzeltmeyi doğrular, seyrek bir sınıfı kapatmaz. Fark şudur:
+> önceki üç yeşil koşum K-660'tan ÖNCEYDİ, bu ilk sonrasıdır. **Kapanış
+> ölçütü:** düzeltme sonrası ard arda üç yük altı tam paket koşumunun üçünde de
+> yeşil. Sayaç bugün **1/3**'tür.
+
+Aşağıdaki teşhis anlatısı doğru daralmıştı ("kayıp olay commit sonrasındadır");
+eksik olan tek şey sunucunun o yolda hiçbir çerçeve göndermediğiydi.
 
 **Kök neden:** `VoiceConversationDriver.Commit`, ses gelmeden ulaşan bir
 `commit`'te `FinishTurn(counted:false)` çağırıp **hiçbir çerçeve göndermeden**

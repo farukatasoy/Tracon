@@ -22,7 +22,7 @@ namespace AgentPrism;
 /// That endpoint does its storage through the <c>IConversationStorage</c>,
 /// <c>IResponsesService</c>, and <c>IAgentConversationIndex</c> abstractions;
 /// those interfaces are also <strong>internal</strong> inside
-/// <c>Microsoft.Agents.AI.Hosting.OpenAI</c> (measured, 1.18.0-alpha.260818.1).
+/// <c>Microsoft.Agents.AI.Hosting.OpenAI</c> (measured, 1.20.0-alpha.260831.1).
 /// A consumer assembly cannot name these types, so no matter the registration
 /// order it cannot replace MAF's in-memory implementations. Using that path
 /// would silently lose all of the persistence, tenant isolation, audit trail,
@@ -317,13 +317,13 @@ internal static class OpenAIResponsesEndpoints
     /// </para>
     /// <para>
     /// <strong>The caller cannot answer that call over this endpoint.</strong>
-    /// Re-measured on 2026-08-21 against <c>Microsoft.Agents.AI.Hosting.OpenAI</c>
-    /// 1.18.0-alpha.260818.1: <see cref="OpenAIResponses.ToAgentRunRequest"/>
+    /// Re-measured on 2026-09-05 against <c>Microsoft.Agents.AI.Hosting.OpenAI</c>
+    /// 1.20.0-alpha.260831.1: <see cref="OpenAIResponses.ToAgentRunRequest"/>
     /// deserializes <em>every</em> item of the <c>input</c> array into its
     /// internal <c>Responses.Models.InputMessage</c>, which declares <c>role</c>
     /// and <c>content</c> as required. There is no polymorphic dispatch on the
     /// item's <c>type</c>, so a <c>function_call_output</c> (and a
-    /// <c>function_call</c>) item still fails — the 1.18.0-alpha line wraps the
+    /// <c>function_call</c>) item still fails — the 1.18.0-alpha line began wrapping the
     /// parse error, so the type is now
     /// <c>ArgumentException: The request body could not be parsed as an OpenAI
     /// Responses request. (Parameter 'body')</c> where 1.16.0-alpha threw

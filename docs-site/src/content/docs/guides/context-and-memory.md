@@ -167,6 +167,28 @@ memory, todo tracking, and text search. It does not currently expose vector sear
 MCP resource URIs. Set vector memory through code or the management HTTP API. Set MCP
 resource URIs in code.
 
+## Know the agent modes
+
+A harness agent always runs in a mode. The mode provider is on unless
+`Harness.DisableAgentModeProvider` is true. A plain chat agent has no modes.
+
+Two modes come from MAF, and a new session starts in the first one:
+
+| Mode | Behavior |
+|---|---|
+| `plan` | Interactive. The agent asks clarifying questions, discusses options, and waits for your approval before it proceeds. **This is the starting mode.** |
+| `execute` | Autonomous. The agent carries the work out without stopping for approval. |
+
+The provider adds two tools, `mode_set` and `mode_get`, so the model can read and
+change its own mode. It also injects the current mode's instructions on every
+invocation. Those instructions apply to every substantive request, including short
+factual questions — a harness agent in `plan` mode can answer a simple question with
+questions of its own.
+
+You cannot define your own modes today. AgentPrism passes no mode options to MAF, so
+you get these two. Set `Harness.DisableAgentModeProvider = true` to turn the provider
+off, together with both of its tools.
+
 ## Add predictable MCP resources
 
 Code-defined agents can name resources in `{server}:{uri}` form:
@@ -251,6 +273,10 @@ Register PostgreSQL, SQL Server, or SQLite for a built-in persistent implementat
 
 **Harness compilation reports a conflict.** Do not enable a capability in
 `Compaction` or `Memory` while the matching `Harness.Disable...` flag is true.
+
+**A harness agent asks questions instead of answering.** A new session starts in
+`plan` mode, which is interactive by design. Tell the agent to switch, or set
+`Harness.DisableAgentModeProvider = true`.
 
 **An MCP resource fails to compile or is truncated.** Confirm `UseMcp()` ran, the
 reference uses `{server}:{uri}`, and the resource stays within the configured byte
