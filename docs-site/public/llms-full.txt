@@ -2279,7 +2279,11 @@ stays optional on purpose.
 | `Magentic` | A manager plans, tracks progress, and replans; a manager agent is required |
 
 `MaxIterations` bounds the turn count for `Handoff`, `GroupChat`, and `Magentic` — the
-only structural guard against two agents handing off to each other forever.
+only structural guard against two agents handing off to each other forever. Each
+participant call also carries the same two-layer wait limit a callable agent's
+sub-call does (see [Agents calling agents](/concepts/agents/#agents-calling-agents)):
+a cooperative deadline, then a hard cutoff for a participant that ignores it. There
+is no per-participant override here — the installation-wide default applies.
 
 ```csharp
 new WorkflowDefinition
@@ -13060,7 +13064,9 @@ price is a snapshot of what was in effect when the run ended, unaffected by a la
 catalog or configuration change. When a reasoning
 model's thinking is recorded, it renders as its own collapsible block, separate from
 the answer. A run that called other agents shows the whole tree, and each agent's
-tokens and duration are attributed separately. A tool that writes its own custom
+tokens and duration are attributed separately. A sub-agent call that passed its
+wait limit shows a distinct timeline entry naming which layer cut it — see
+[Agents calling agents](/concepts/agents/#agents-calling-agents). A tool that writes its own custom
 event — see [Writing your own event](/concepts/runs/#writing-your-own-event) —
 renders as a generic card named after that event's own type, with no console
 change required to show up.
