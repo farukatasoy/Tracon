@@ -19,14 +19,18 @@
 Aşağıdaki imzalar **reflection ile doğrulanmıştır**. Bir sonraki fazda yeni bir MAF
 tipi kullanacaksanız önce imzayı doğrulayın — `.agents/skills/maf-api-kesfi/SKILL.md`.
 
-> **Sürüm damgası — 2026-08-21.** Bölüm başlıklarındaki damgalar imzanın **ilk**
+> **Sürüm damgası — 2026-09-05.** Bölüm başlıklarındaki damgalar imzanın **ilk**
 > ölçüldüğü sürümü söyler (MAF 1.16.0 · MEAI 10.8.3 · MCP 2.0.0). Pinlenmiş sürüm
-> bugün **MAF 1.18.0 · MEAI 10.9.0 · MCP 2.2.0**'dir. Yükseltmede iki tam yüzey
-> dump'ı alınıp diff'lendi: **hiçbir tip ve hiçbir üye kaldırılmadı** — değişimin
-> tamamı eklemedir, yani aşağıdaki her imza bugün de geçerlidir. Yöntem:
+> bugün **MAF 1.20.0 · MEAI 10.9.0 · MCP 2.2.0**'dir. Her yükseltmede iki tam yüzey
+> dump'ı alınıp tip kapsamlı diff'lendi: **hiçbir tip ve hiçbir üye kaldırılmadı** —
+> değişimin tamamı eklemedir, yani aşağıdaki her imza bugün de geçerlidir. Yöntem:
 > [`maf-api-kesfi`](../.agents/skills/maf-api-kesfi/SKILL.md) § *Sürüm yükseltirken*.
 >
-> Eklenenlerin tamamı (altı üye, yedi tip):
+> 1.18.0 → 1.20.0 turu (2026-09-05): **0 kaldırma**, 5 yeni tip, 4 tipte yeni üye.
+> MEAI 10.9.0 ve MCP 2.2.0 zaten en güncel sürümdür ve değişmedi. `Hosting` hâlâ
+> **preview**, `Hosting.OpenAI` hâlâ **alpha** — K-008'in sınırı yerinde durur.
+>
+> Eklenenlerin tamamı:
 >
 > | Sürüm | Eklenen | AgentPrism'e etkisi |
 > |---|---|---|
@@ -36,6 +40,12 @@ tipi kullanacaksanız önce imzayı doğrulayın — `.agents/skills/maf-api-kes
 > | MAF 1.18.0 | `BackgroundAgentsProvider.ReleaseSessionAsync(session, cancelRunning, timeout, ct)` | Kullanılmıyor; arka plan agent'ları K-062 kapsamında kapalı |
 > | MEAI 10.9.0 | `RoutingChatClient` · `FailoverChatClient` · `OrderedFailoverChatClient` · `SemanticRoutingChatClient` · `RoutingContext` · `FailoverChatClientAttempt` · `ScoreAggregation` | 🚨 Yedek zinciri artık **MEAI'de var**. AgentPrism'inki Faz 62'de yazıldı ve devre kesici, ön uçuş denetimi ve atıf kaydıyla birleşiktir; değiştirmek bir karar işidir, bir yükseltme işi değil |
 > | MCP 2.2.0 | `McpServerHandlers.SubscriptionsListenHandler` | Kullanılmıyor — AgentPrism'in MCP sunucusu abonelik yayınlamıyor |
+> | MAF 1.20.0 | `WorkflowHostingExtensions.WithCheckpointing(AIAgent, CheckpointManager)` | 🚨 **Kullanılmıyor — ölçüldü ve tuzak çıktı.** Adı düz bir agent'a checkpoint takar gibi durur; probe (2026-09-05) bunun **sessiz passthrough** olduğunu gösterdi: `ChatClientAgent` ile çağrıldığında `ReferenceEquals(giren, çıkan)` **True**, store'a `Create=0 Retrieve=0 Index=0`, istisna **yok**. Yalnız workflow kökenli agent'lar için anlamlıdır. F-95'in (kesinti/devam) MAF yolunu **AgentHooks'tan bağımsız olarak** ikinci kez kapatır |
+> | MAF 1.20.0 | `WorkflowSessionCheckpointRecovery` · `WorkflowAgentMetadata` | Kullanılmıyor. `WithCheckpointing`'in workflow tarafındaki eşlikçileri; AgentPrism workflow checkpoint'ini kendi `AgentPrismCheckpointStore`'u ile yürütür ([`WorkflowRunner.cs:925`](../src/AgentPrism.Workflows/Internal/WorkflowRunner.cs#L925)) |
+> | MAF 1.20.0 | `RoutePersistingRoutingChatClient` · `RoutePersistingRoutingChatClientOptions` (`GetActiveRoute(session)` / `SetActiveRoute(session, route)`) | Kullanılmıyor. Bir oturumun seçtiği rotayı `StateKey` altında kalıcılaştırır. 🚨 **F-179'u AÇMAZ** (ölçüldü 2026-09-05): F-179'un istediği policy seam'i `RoutingChatClient.SelectClientAsync(RoutingContext, ct)` `protected virtual`'dır ve **1.18.0'da zaten vardı**; bu yeni tip yalnız oturum yapışkanlığı ekler, çağrı öncesi maliyet/gecikme seçimi veya `run` kanıtı vermez. F-179'u bekleten şey MAF değil, AgentPrism tarafındaki ön koşullardır. Bir üstteki MEAI satırının kararı burada da geçerli: değiştirmek bir karar işidir |
+> | MAF 1.20.0 | `HarnessAgent.RunCoreAsync` · `RunCoreStreamingAsync` (protected virtual) · `Hosting.AIHostAgent` aynı ikili | Kullanılmıyor. Türetip override etmeye açılmış; AgentPrism kaydı dıştan bir `DelegatingAIAgent` ile alır ve bu her agent tipinde aynı çalışır (§ *Reddedilen işler* L28) |
+> | MAF 1.20.0 | `FeatureUsage.ApplyToUserAgent` · `MarkUsed` | Kullanılmıyor — MAF'ın kendi telemetri işaretlemesi |
+> | MAF 1.20.0 | `BackgroundAgentsProviderOptions.WaitTimeout` | Kullanılmıyor; arka plan agent'ları K-062 kapsamında kapalı |
 
 ### Faz 1'de kullanılanlar
 
