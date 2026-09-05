@@ -122,7 +122,7 @@ biri aynı gün plana dönüştü.
 |---|---|---|
 | 1 | **F-192** · Harness'in döngü yeteneği | Yeni yetenek. Pinlenmiş sürümde **zaten hazır**; yükseltme beklemez |
 
-> **F-191 · Alt-agent bekleme zaman aşımı → [Faz 144](144-ALT-AGENT-BEKLEME-SINIRI.md)**
+> **F-191 · Alt-agent bekleme zaman aşımı → [Faz 144](arsiv/fazlar/144-ALT-AGENT-BEKLEME-SINIRI.md)**
 > (2026-09-05). Bağımlılığı olan MAF 1.20.0 yükseltmesi aynı oturumda yapıldı ve
 > kalemin çerçevesi ölçümle değişti: yükseltme **düz agent yolunun** süresiz
 > asılma riskini kod yazılmadan kapattı (`WaitTimeout` varsayılanı 00:05:00),
