@@ -157,6 +157,18 @@ public sealed record WebhookQuotaSummary
 
     /// <summary>The time the counter resets (UTC).</summary>
     public DateTimeOffset? ResetsAt { get; init; }
+
+    /// <summary>
+    /// The root run whose completion crossed this threshold. <see langword="null"/>
+    /// when consumption was recorded outside a run.
+    /// </summary>
+    public string? RunId { get; init; }
+
+    /// <summary>
+    /// The user the triggering run belongs to. <see langword="null"/> when
+    /// the run carries no attribution.
+    /// </summary>
+    public string? UserId { get; init; }
 }
 
 /// <summary>A score window threshold's webhook summary.</summary>

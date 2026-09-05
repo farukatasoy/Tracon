@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Globalization;
 
 namespace AgentPrism;
 
@@ -22,6 +23,12 @@ internal sealed class InMemoryQuotaStore : IQuotaStore
 {
     private readonly ConcurrentDictionary<Guid, QuotaDefinition> _definitions = new();
     private readonly ConcurrentDictionary<UsageKey, QuotaUsageRecord> _usage = new();
+
+    // 🚨 A SEPARATE dictionary, keyed the same way as _usage, not a field on
+    // QuotaUsageRecord: the record is replaced wholesale on every increment
+    // (AddOrUpdate), and a claim recorded on the OLD instance would be lost
+    // the moment the next run's consumption replaces it.
+    private readonly ConcurrentDictionary<UsageKey, ConcurrentDictionary<string, byte>> _notifiedThresholds = new();
 
     /// <inheritdoc />
     public ValueTask<IReadOnlyList<QuotaDefinition>> ListAsync(
@@ -174,6 +181,41 @@ internal sealed class InMemoryQuotaStore : IQuotaStore
                 UpdatedAt = consumption.OccurredAt,
             });
     }
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// The claim survives only for the process's lifetime — the same
+    /// limitation this whole store has (single-process deployments only, see
+    /// the class remarks). Restart safety is what <c>SqlQuotaStore</c> adds.
+    /// </remarks>
+    public ValueTask<bool> TryClaimThresholdNotificationAsync(
+        string tenantId,
+        string agentName,
+        QuotaPeriod period,
+        DateOnly periodStart,
+        QuotaMetric metric,
+        int thresholdPercent,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
+        ArgumentNullException.ThrowIfNull(agentName);
+
+        var usageKey = new UsageKey(tenantId, agentName, period, periodStart);
+
+        if (!_usage.ContainsKey(usageKey))
+        {
+            return new ValueTask<bool>(false);
+        }
+
+        var claimed = _notifiedThresholds
+            .GetOrAdd(usageKey, static _ => new ConcurrentDictionary<string, byte>(StringComparer.Ordinal))
+            .TryAdd(ThresholdKeyText(metric, thresholdPercent), 0);
+
+        return new ValueTask<bool>(claimed);
+    }
+
+    private static string ThresholdKeyText(QuotaMetric metric, int thresholdPercent)
+        => string.Create(CultureInfo.InvariantCulture, $"{(int)metric}:{thresholdPercent}");
 
     private readonly record struct UsageKey(string TenantId, string AgentName, QuotaPeriod Period, DateOnly PeriodStart);
 }

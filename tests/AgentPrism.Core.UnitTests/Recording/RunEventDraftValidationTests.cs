@@ -90,6 +90,71 @@ public sealed class RunEventDraftValidationTests
     }
 
     [Fact]
+    public async Task The_quota_threshold_reserved_type_is_rejected_by_the_public_append_path()
+    {
+        // A regression guard for the concrete value a consumer could plausibly
+        // try to imitate, not just the reserved prefix in the abstract.
+        var writer = await CreateStartedWriterAsync();
+
+        await Should.ThrowAsync<ArgumentException>(
+            async () => await writer.AppendAsync(
+                new RunEventDraft(RunEventType.Custom) { CustomType = RunEventCustomTypes.QuotaThreshold }));
+    }
+
+    [Fact]
+    public async Task A_reserved_CustomType_is_accepted_through_AppendReservedAsync()
+    {
+        // AppendReservedAsync is internal -- only AgentPrism's own code (the
+        // quota threshold notice) can reach it; this proves the bypass exists
+        // and is scoped to exactly the reserved-prefix check, nothing looser.
+        var writer = await CreateStartedWriterAsync();
+
+        var runEvent = await writer.AppendReservedAsync(
+            new RunEventDraft(RunEventType.Custom) { CustomType = RunEventCustomTypes.QuotaThreshold, Payload = "{}" });
+
+        runEvent.CustomType.ShouldBe(RunEventCustomTypes.QuotaThreshold);
+    }
+
+    [Fact]
+    public async Task AppendReservedAsync_still_rejects_a_malformed_type()
+    {
+        // The bypass is narrow: it lifts ONLY the reserved-prefix check, not
+        // the shape check every Custom event must still pass.
+        var writer = await CreateStartedWriterAsync();
+
+        await Should.ThrowAsync<ArgumentException>(
+            async () => await writer.AppendReservedAsync(
+                new RunEventDraft(RunEventType.Custom) { CustomType = "Agentprism.Bad-Case" }));
+    }
+
+    [Fact]
+    public async Task A_reserved_Custom_events_payload_survives_even_when_RecordToolPayloads_is_off()
+    {
+        // The quota threshold notice's NoticeId is the function itself, not an
+        // observability detail (the same exception WorkflowRequest already
+        // gets) -- suppressing it would leave the client an unlabeled frame.
+        var store = new InMemoryRunStore();
+        var options = new AgentPrismRunRecordingOptions { RecordToolPayloads = false };
+        var writer = new RunEventWriter(store, options, NullLogger.Instance, AgentPrismId.NewId());
+
+        await writer.StartAsync(
+            new RunStartInfo { RunId = writer.RunId, AgentName = "test-agent", StartedAt = DateTimeOffset.UtcNow },
+            query: "hello");
+
+        var runEvent = await writer.AppendReservedAsync(
+            new RunEventDraft(RunEventType.Custom) { CustomType = RunEventCustomTypes.QuotaThreshold, Payload = "{\"noticeId\":\"abc\"}" });
+
+        runEvent.Payload.ShouldBe("{\"noticeId\":\"abc\"}");
+
+        // An ordinary Custom event (through the public path) still loses its
+        // payload with the same setting off -- the exception is narrow.
+        var ordinary = await writer.AppendAsync(
+            new RunEventDraft(RunEventType.Custom) { CustomType = "contoso.preview-ready", Payload = "{\"x\":1}" });
+
+        ordinary.Payload.ShouldBeNull();
+    }
+
+    [Fact]
     public async Task A_non_Custom_event_carrying_a_type_is_rejected()
     {
         // 🚨 The other half of the two-way rule (141.1): a caller who sets

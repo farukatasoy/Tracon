@@ -1258,6 +1258,19 @@ internal sealed class PostgresQueries : SqlQueriesBase
                    updated_at = EXCLUDED.updated_at;
             """;
 
+        // 🚨 notified_thresholds is a ',key1,key2,'-delimited list -- comma on
+        // BOTH sides of every entry, so a LIKE membership check can never
+        // false-positive on a digit-prefix collision. Affected rows = 0 means
+        // either the row does not exist yet, or the key is already present --
+        // the caller cannot tell which and does not need to.
+        TryClaimQuotaThresholdNotification = $"""
+            UPDATE {Schema}.quota_usage
+               SET notified_thresholds = COALESCE(notified_thresholds, ',') || @key || ','
+             WHERE tenant_id = @tenant_id AND agent_name = @agent_name
+               AND period = @period AND period_start = @period_start
+               AND (notified_thresholds IS NULL OR notified_thresholds NOT LIKE '%,' || @key || ',%');
+            """;
+
         // -------------------------------------------------------------------
         // Phase 21 -- webhook
         // -------------------------------------------------------------------

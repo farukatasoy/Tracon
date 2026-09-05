@@ -1258,6 +1258,16 @@ internal sealed class SqliteQueries : SqlQueriesBase
                    updated_at = excluded.updated_at;
             """;
 
+        // For the ',key1,key2,' delimiter rationale see PostgreSQL's
+        // TryClaimQuotaThresholdNotification.
+        TryClaimQuotaThresholdNotification = $"""
+            UPDATE {Schema}quota_usage
+               SET notified_thresholds = COALESCE(notified_thresholds, ',') || @key || ','
+             WHERE tenant_id = @tenant_id AND agent_name = @agent_name
+               AND period = @period AND period_start = @period_start
+               AND (notified_thresholds IS NULL OR notified_thresholds NOT LIKE '%,' || @key || ',%');
+            """;
+
         // --- Webhook ---
 
         UpsertWebhookSubscription = $"""

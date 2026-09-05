@@ -277,6 +277,16 @@ public sealed class QuotaUsageObserverTests
             IReadOnlyDictionary<QuotaPeriod, DateOnly> periodStarts,
             CancellationToken cancellationToken = default)
             => inner.AddUsageAsync(consumption, periodStarts, cancellationToken);
+
+        public ValueTask<bool> TryClaimThresholdNotificationAsync(
+            string tenantId,
+            string agentName,
+            QuotaPeriod period,
+            DateOnly periodStart,
+            QuotaMetric metric,
+            int thresholdPercent,
+            CancellationToken cancellationToken = default)
+            => inner.TryClaimThresholdNotificationAsync(tenantId, agentName, period, periodStart, metric, thresholdPercent, cancellationToken);
     }
 
     /// <summary>

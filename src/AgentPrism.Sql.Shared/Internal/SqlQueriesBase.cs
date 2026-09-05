@@ -714,6 +714,14 @@ internal abstract class SqlQueriesBase
     /// <summary>Gets the query that reads the quota consumption counters.</summary>
     public string SelectQuotaUsage { get; protected set; } = string.Empty;
 
+    /// <summary>
+    /// Gets the query that atomically claims a quota threshold notification —
+    /// appends the threshold key to <c>notified_thresholds</c> only if it is
+    /// not already present, and only if the usage row exists. The affected
+    /// row count (0 or 1) reports whether this call won the claim.
+    /// </summary>
+    public string TryClaimQuotaThresholdNotification { get; protected set; } = string.Empty;
+
     /// <summary>Gets the query that inserts or updates a webhook subscription.</summary>
     public string UpsertWebhookSubscription { get; protected set; } = string.Empty;
 

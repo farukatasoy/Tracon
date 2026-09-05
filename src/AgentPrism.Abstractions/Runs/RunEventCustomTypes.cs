@@ -23,6 +23,18 @@ public static partial class RunEventCustomTypes
     public const string ReservedPrefix = "agentprism.";
 
     /// <summary>
+    /// The <see cref="RunEventType.Custom"/> type of the quota threshold
+    /// notice a root run's completion writes into its own event stream.
+    /// </summary>
+    /// <remarks>
+    /// Falls under <see cref="ReservedPrefix"/>: a consumer cannot write an
+    /// event under this type, so a client can trust that every event carrying
+    /// it came from AgentPrism itself, not from the agent's own tool code.
+    /// Off by default (<c>AgentPrismQuotaOptions.PublishThresholdToRunStream</c>).
+    /// </remarks>
+    public const string QuotaThreshold = ReservedPrefix + "quota.threshold";
+
+    /// <summary>
     /// Checks whether <paramref name="customType"/> is a valid custom event
     /// type: 1-128 characters, lowercase ASCII letters, digits, <c>.</c>,
     /// <c>_</c>, or <c>-</c>, starting with a letter or digit.

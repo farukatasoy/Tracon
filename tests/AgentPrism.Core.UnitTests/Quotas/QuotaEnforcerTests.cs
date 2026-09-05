@@ -346,6 +346,16 @@ public sealed class QuotaEnforcerTests
             IReadOnlyDictionary<QuotaPeriod, DateOnly> periodStarts,
             CancellationToken cancellationToken = default)
             => throw new InvalidOperationException("store unreachable");
+
+        public ValueTask<bool> TryClaimThresholdNotificationAsync(
+            string tenantId,
+            string agentName,
+            QuotaPeriod period,
+            DateOnly periodStart,
+            QuotaMetric metric,
+            int thresholdPercent,
+            CancellationToken cancellationToken = default)
+            => throw new InvalidOperationException("store unreachable");
     }
 
     private sealed class StaticOptionsMonitor<T>(T value) : IOptionsMonitor<T>

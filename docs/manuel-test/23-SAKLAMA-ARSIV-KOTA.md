@@ -1,6 +1,6 @@
 # 23 — Saklama, Arşiv, Kota ve Çalıştırma-İçi Bütçe (`RET`)
 
-> **Alan kodu:** `RET` · **Faz:** 21 (yalnız kota dilimi), 25, 36, 114, 128
+> **Alan kodu:** `RET` · **Faz:** 21 (yalnız kota dilimi), 25, 36, 114, 128, 146
 > **Kaynak:** `src/AgentPrism.Abstractions/Retention/` (tümü) ·
 > `src/AgentPrism.Core/Retention/` (tümü) ·
 > `src/AgentPrism.Sql.Shared/Internal/RetentionTargetRegistry.cs` ·
@@ -14,7 +14,12 @@
 > `src/AgentPrism.Abstractions/Runs/AgentRunBudget.cs` ·
 > `src/AgentPrism.Core/Models/RunBudgetChatClient.cs` (Faz 114) ·
 > `src/AgentPrism.Core/AgentPrismOptions.cs`
-> (`AgentPrismAgentGraphOptions.MaxDuration`, Faz 128).
+> (`AgentPrismAgentGraphOptions.MaxDuration`, Faz 128) ·
+> `src/AgentPrism.Core/Recording/RunRecordingAgent.Notifications.cs`
+> (`WriteQuotaThresholdNoticeAsync`) ·
+> `src/AgentPrism.Abstractions/Runs/RunEventCustomTypes.cs`
+> (`QuotaThreshold`) · `src/AgentPrism.AspNetCore/Endpoints/AgentEndpoints.cs`
+> (`WriteQuotaThresholdNoticesAsync`, Faz 146).
 >
 > 🚨 **Faz 21'in yalnız KOTA dilimi bu dosyanındır.** Hız sınırı
 > (`AgentPrismRateLimitFilter`) ve webhook/olay yayını (`WebhookEndpoints`,
@@ -1721,3 +1726,256 @@ hangisinin önce fırlayacağı çalışma zamanının hangi noktada olduğuna
 bağlıdır — otomatik test bunu, tool'un cancellation'ı GÖZLEMLEYECEĞİ
 noktayı sabitleyerek (bir `TaskCompletionSource.WaitAsync(cancellationToken)`
 ile) deterministik hâle getirir.
+
+---
+
+# 7 — Çalıştırmaya bağlı kota eşiği bildirimi (Faz 146)
+
+Eşiği geçiren `run`'ın kendi olay akışına yazılan `agentprism.quota.threshold`
+bildirimi: sıra (terminal olaydan önce), korelasyon (`run`/kullanıcı), iki
+yoldan aynı payload, `Last-Event-ID` ile yeniden okunabilirlik, kalıcı
+tekillik ve varsayılan kapalı davranış.
+
+> **Gerçek para uyarısı.** Bu bölümdeki tüm case'ler gerçek bir sağlayıcı
+> çağrısı yapar (`support` agent'ının bağlı olduğu model). `PublishThresholdToRunStream`
+> varsayılan **kapalıdır**; case'ler `--AgentPrism:Quotas:PublishThresholdToRunStream=true`
+> ile başlatılan bir örnek uygulama koşumu gerektirir.
+
+### MT-RET-070 — Anahtar kapalıyken davranış birebir eskisiyle aynıdır
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 146 |
+| **İlgili karar** | K1 (146.5) |
+
+**Ön koşul**
+- Örnek uygulama **varsayılan** ayarlarla çalışıyor (`PublishThresholdToRunStream` ayarlanmamış).
+- `support` agent'ı için `maxRuns=1` bir kota kaydı var.
+
+**Adımlar**
+1. Bir `run` çalıştır (eşiği geçirir).
+2. Akışta `custom` çerçevesi olmadığını doğrula.
+
+**Girilecek veri**
+```bash
+curl -s -X PUT "$APU/api/quotas" -H "$APB" -H "content-type: application/json" \
+  -d '{"agentName":"support","period":"Daily","maxRuns":1,"enabled":true}'
+
+curl -N -s "$APU/api/agents/support/run" -H "$APB" -H 'content-type: application/json' \
+  -d '{"message":"merhaba"}' | grep -E '^event:'
+```
+
+**Beklenen sonuç**
+- Sıra yalnız `run … update* … done` — **`custom` çerçevesi yok**.
+- `quota.threshold` webhook'u (bir abone kayıtlıysa) eskisi gibi gelir — bu
+  bildirim kanalından bağımsızdır.
+
+---
+
+### MT-RET-071 — Anahtar açıkken `custom` çerçevesi `done`'dan ÖNCE gelir
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 146 |
+| **İlgili karar** | 146.1 |
+
+**Ön koşul**
+- Örnek uygulama `--AgentPrism:Quotas:PublishThresholdToRunStream=true` ile başlatıldı.
+- `support` agent'ı için `maxRuns=1` bir kota kaydı var (temiz dönem).
+
+**Adımlar**
+1. Bir `run` çalıştır.
+2. Çerçeve sırasını oku.
+
+**Girilecek veri**
+```bash
+curl -s -X PUT "$APU/api/quotas" -H "$APB" -H "content-type: application/json" \
+  -d '{"agentName":"support","period":"Daily","maxRuns":1,"enabled":true}'
+
+curl -N -s "$APU/api/agents/support/run" -H "$APB" -H 'content-type: application/json' \
+  -d '{"message":"merhaba"}' | grep -E '^event:'
+```
+
+**Gerçek sonuç (2026-09-05, `gpt-5.4-mini`, `manuel-test-token-2026`)**
+```
+event: run
+event: update  (× 13)
+event: custom
+event: done
+```
+
+**Beklenen sonuç**
+- `event: custom` **`event: done`'dan önce** gelir. ✅ Doğrulandı.
+- Aynı akışın `data:` gövdesi `"type":"Custom"` ve
+  `"customType":"agentprism.quota.threshold"` taşır.
+
+---
+
+### MT-RET-072 — Doğrudan akış ile `GET /api/runs/{id}/events` AYNI bildirimi sunar
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 146 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- MT-RET-071'in `run`'ı (aynı koşum).
+
+**Adımlar**
+1. `run`'ın kimliğini oku.
+2. Olay akışını `GET .../events` ile oku, `custom` çerçevesini karşılaştır.
+
+**Girilecek veri**
+```bash
+RUN_ID=$(curl -s "$APU/api/runs" -H "$APB" | jq -r '.[0].id')
+curl -s "$APU/api/runs/$RUN_ID/events" -H "$APB" | grep -A1 '^event: custom'
+```
+
+**Gerçek sonuç (2026-09-05)**
+```
+event: custom
+data: {"runId":"...","sequence":11,"type":"Custom", ...,
+       "payload":"{\"noticeId\":\"...\",\"tenantId\":\"default\",\"userId\":null,
+                    \"runId\":\"...\",\"sessionId\":null,\"metric\":\"Runs\",
+                    \"period\":\"Daily\",\"thresholdPercent\":100,\"limit\":1,
+                    \"used\":1,\"resetsAt\":\"2026-09-06T00:00:00+00:00\"}",
+       "customType":"agentprism.quota.threshold"}
+```
+
+**Beklenen sonuç**
+- `noticeId` MT-RET-071'in doğrudan akışındaki değerle **birebir aynıdır**. ✅ Doğrulandı — iki yol aynı kalıcı `RunEvent`'i okur, ikinci bir kopya üretmez.
+
+---
+
+### MT-RET-073 — `Last-Event-ID` ile yeniden bağlanma bildirimi tekrar okuyabilir
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 146 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- MT-RET-071/072'nin `run`'ı.
+
+**Adımlar**
+1. `Last-Event-ID: 0` ile olay akışını yeniden oku.
+
+**Girilecek veri**
+```bash
+curl -s "$APU/api/runs/$RUN_ID/events" -H "$APB" -H "Last-Event-ID: 0" | grep -c '^event: custom'
+```
+
+**Beklenen sonuç**
+- `1` döner — bildirim akışta hâlâ okunabilir, ikinci bir kopya üretmez.
+
+---
+
+### MT-RET-074 — Aynı dönemde ikinci bir eşik geçişi bildirimi TEKRARLAMAZ
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 146 |
+| **İlgili karar** | 146.4 |
+
+**Ön koşul**
+- `maxRuns=2`, tek eşik `%50` (varsayılan `[80,100]` yerine).
+- Uygulama `--AgentPrism:Quotas:PublishThresholdToRunStream=true
+  --AgentPrism:Quotas:ThresholdPercents:0=50` ile başlatıldı (veya iki
+  eleman varsayılanı kabul edilip yalnız ilk `run`'ın `%50`'yi, ikinci
+  `run`'ın `%100`'ü geçtiği ayrı ayrı gözlemlenir).
+
+**Adımlar**
+1. İlk `run`'ı çalıştır — eşiği geçirir, bildirim gelir.
+2. İkinci `run`'ı çalıştır (kota hâlâ izin veriyor) — **aynı** eşik zaten
+   claim edilmiş, yeni bildirim gelmemeli.
+
+**Girilecek veri**
+```bash
+curl -s -X PUT "$APU/api/quotas" -H "$APB" -H "content-type: application/json" \
+  -d '{"agentName":"support","period":"Daily","maxRuns":2,"enabled":true}'
+
+curl -N -s "$APU/api/agents/support/run" -H "$APB" -d '{"message":"once"}' | grep -c '^event: custom'
+curl -N -s "$APU/api/agents/support/run" -H "$APB" -d '{"message":"iki"}' | grep -c '^event: custom'
+```
+
+**Beklenen sonuç**
+- İlk çağrı `1` (bildirim var), ikinci çağrı `0` (aynı eşik ikinci kez
+  yayımlanmaz) — otomatik karşılığı: `QuotaRunNoticeTests.A_second_run_that_crosses_no_new_threshold_gets_no_notice`
+  (fonksiyonel) ve `QuotaStoreContract.A_threshold_already_claimed_in_this_period_is_not_claimed_again`
+  (dört depoda: bellek içi + PostgreSQL + SQL Server + SQLite).
+
+---
+
+### MT-RET-075 — Host yeniden başlatıldığında aynı eşik yeniden yayımlanmaz
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 146 |
+| **İlgili karar** | 146.4 |
+
+Otomatik karşılığı `QuotaStoreContract`'ın dört koşumu (kalıcı depo — SQL
+sağlayıcılarında) zaten kanıtlıyor: tekillik satırın kendisinde durur, bellek
+içi süreç durumunda değil. Bu case yalnız SQL bir sağlayıcı (SQLite/PostgreSQL/
+SQL Server) yapılandırıldığında elle koşulabilir; bellek içi kurulumda
+"yeniden başlatma" kavramı yoktur (sayaç da sıfırlanır).
+
+**Ön koşul**
+- SQLite ile çalışıyor (`AgentPrism:Sqlite:ConnectionString` tanımlı).
+- MT-RET-074'ün ilk `run`'ı (eşik zaten claim edildi).
+
+**Adımlar**
+1. Uygulamayı durdur, yeniden başlat (aynı veritabanı dosyasıyla).
+2. Aynı dönemde yeni bir `run` çalıştır.
+
+**Beklenen sonuç**
+- Yeni `run`'ın akışında `custom` çerçevesi **yok** — claim veritabanı
+  satırında durur, süreç yeniden başlasa da hayatta kalır.
+
+---
+
+### MT-RET-076 — Alt-agent ağacı eşiği geçirirse bildirim yalnız KÖK `run`'da bir kez görünür
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 146 |
+| **İlgili karar** | — |
+
+Otomatik karşılığı: kota muhasebesi yalnız `Depth == 0`'da çalışır
+(`RunRecordingAgent.Completion.cs`'nin mevcut kapısı, Faz 146 yalnız
+`RecordQuotaAsync`'in ÇAĞRILDIĞI konumu taşıdı, kapıyı değiştirmedi) —
+`AgentDelegationTests.cs`'in ailesi bu kapıyı zaten dolaylı kanıtlıyor.
+Elle koşum `router` → `support` (alt-agent) zincirini kullanır.
+
+**Ön koşul**
+- `router` agent'ı (`support`'u çağırabilir) için `maxRuns=1` bir kota kaydı.
+
+**Adımlar**
+1. `router`'ı çalıştır (kendisi `support`'u çağırır, iki `run` satırı açılır).
+2. Kök `run`'ın akışında kaç `custom` çerçevesi olduğunu say.
+
+**Girilecek veri**
+```bash
+curl -s -X PUT "$APU/api/quotas" -H "$APB" -H "content-type: application/json" \
+  -d '{"agentName":"router","period":"Daily","maxRuns":1,"enabled":true}'
+
+curl -N -s "$APU/api/agents/router/run" -H "$APB" -H 'content-type: application/json' \
+  -d '{"message":"merhaba"}' | grep -c '^event: custom'
+```
+
+**Beklenen sonuç**
+- **`1`** — bildirim yalnız kök `run`'da, tam bir kez görünür; alt-agent'ın
+  kendi çalıştırması hiç bildirim yazmaz.
