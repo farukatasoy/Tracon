@@ -1,13 +1,13 @@
 # Faz 146 — Çalıştırmaya Bağlı Kota Eşiği
 
 > **Durum:** ✅ Tamamlandı (2026-09-05)
-> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-194** (tüketici turu 4, A2 + F3)
-> **Önkoşul:** [Faz 145](arsiv/fazlar/145-OLAY-AKISININ-CERCEVE-SOZLESMESI.md) — notice bir `Custom` olayıdır; 145 olmadan istemciye `unknown` adıyla ulaşır ve talebin kendisi karşılanmaz
+> **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-194** (tüketici turu 4, A2 + F3)
+> **Önkoşul:** [Faz 145](145-OLAY-AKISININ-CERCEVE-SOZLESMESI.md) — notice bir `Custom` olayıdır; 145 olmadan istemciye `unknown` adıyla ulaşır ve talebin kendisi karşılanmaz
 > **Paketler:** `AgentPrism.Abstractions`, `AgentPrism.Core`, `AgentPrism.PostgreSql`, `AgentPrism.SqlServer`, `AgentPrism.Sqlite`
 > **Yeni paket:** Yok · **Migration:** **Gerekli — üç set** (`quota_usage`'a sütun ekleme). Numaralar uygulama anında alınır (K-178)
 > **Public API:** Büyüyor — `WebhookQuotaSummary`'ye iki alan, bir seçenek sınıfı, bir notice payload tipi, **ve `IQuotaStore`'a yeni bir üye** (`TryClaimThresholdNotificationAsync` — bu genişleme noktasını uygulayan her tüketici de güncellenmeli; plan bunu ayrı işaretlememişti, denetimde yakalandı, bkz. Plandan Sapmalar #5). `wc -l src/*/PublicAPI.Shipped.txt` → 17 satır / 17 dosya (yalnız başlık), **shipped giriş sıfır**: bugün eklemek bedava, Faz 7'den sonra bir sürüm kararı
 > **Tüketici yüzeyi:** `docs-site/`: `concepts/runs.md`, `concepts/governance.md`, `guides/observability.md`, `capabilities.md` · sevk edilen: XML `<example>`, `src/AgentPrism.Abstractions/README.md`
-> **Manuel test alanı:** [`docs/manuel-test/23-SAKLAMA-ARSIV-KOTA.md`](manuel-test/23-SAKLAMA-ARSIV-KOTA.md)
+> **Manuel test alanı:** [`docs/manuel-test/23-SAKLAMA-ARSIV-KOTA.md`](../../manuel-test/23-SAKLAMA-ARSIV-KOTA.md)
 
 ---
 
@@ -27,18 +27,18 @@
    **K-630** (bütçe kesmesi yeni `RunErrorClass` üyesi AÇMADAN mevcut `QuotaExceeded`'e eşlendi — bu fazın "yeni enum açma" refleksine karşı emsal) ·
    **K-647** (bir olay tipinin payload iddiası onu OKUYAN bir testle eşleşir) ·
    **K-673 · K-674** (`custom_type` ayrı sütundur; geçersiz `CustomType` **reddedilir**)
-3. [`145-OLAY-AKISININ-CERCEVE-SOZLESMESI.md`](arsiv/fazlar/145-OLAY-AKISININ-CERCEVE-SOZLESMESI.md) — yalnız devir notu:
+3. [`145-OLAY-AKISININ-CERCEVE-SOZLESMESI.md`](145-OLAY-AKISININ-CERCEVE-SOZLESMESI.md) — yalnız devir notu:
    ```bash
    awk '/## Sonraki Faza Devir Notu/,0' docs/145-OLAY-AKISININ-CERCEVE-SOZLESMESI.md
    ```
    `Custom` olayının çerçeve adı (`custom`) ve `customType`'ın gövdede taşınması sözleşmesi oradan devralınır.
 4. Alan hafızası (bu faz dört alana dokunuyor):
-   [`hafiza/olcum-kota-ve-secenekler.md`](hafiza/olcum-kota-ve-secenekler.md) (kota sayacı ve seçenek tuzakları) ·
-   [`hafiza/cekirdek-calistirma.md`](hafiza/cekirdek-calistirma.md) 🚨 (`AsyncLocal`/`Activity.Current` vakası — bu faz `RunRecordingAgent`'ın tamamlanma gövdesine dokunuyor) ·
-   [`hafiza/sql-migration.md`](hafiza/sql-migration.md) (üç sağlayıcıda sütun ekleme) ·
-   [`hafiza/sql-saglayicilari.md`](hafiza/sql-saglayicilari.md) (dialect farkları)
+   [`hafiza/olcum-kota-ve-secenekler.md`](../../hafiza/olcum-kota-ve-secenekler.md) (kota sayacı ve seçenek tuzakları) ·
+   [`hafiza/cekirdek-calistirma.md`](../../hafiza/cekirdek-calistirma.md) 🚨 (`AsyncLocal`/`Activity.Current` vakası — bu faz `RunRecordingAgent`'ın tamamlanma gövdesine dokunuyor) ·
+   [`hafiza/sql-migration.md`](../../hafiza/sql-migration.md) (üç sağlayıcıda sütun ekleme) ·
+   [`hafiza/sql-saglayicilari.md`](../../hafiza/sql-saglayicilari.md) (dialect farkları)
 5. Gerektiğinde, tamamı değil ilgili bölümü:
-   [`arsiv/fazlar/21-KOTA-VE-OLAY-YAYINI.md`](arsiv/fazlar/21-KOTA-VE-OLAY-YAYINI.md) (kota modelinin kuruluşu)
+   [`arsiv/fazlar/21-KOTA-VE-OLAY-YAYINI.md`](21-KOTA-VE-OLAY-YAYINI.md) (kota modelinin kuruluşu)
 
 ---
 
@@ -70,15 +70,15 @@ doğru akışa, doğru sırada bağlanmasıdır**.
 
 | Kanıt | Gözlem |
 |---|---|
-| [`RunRecordingAgent.Completion.cs:132`](../src/AgentPrism.Core/Recording/RunRecordingAgent.Completion.cs) | `scope.Writer.CompleteAsync(...)` — terminal olay burada yazılır |
-| [`RunRecordingAgent.Completion.cs:162`](../src/AgentPrism.Core/Recording/RunRecordingAgent.Completion.cs) | `RecordQuotaAsync(...)` **otuz satır sonra** çalışır; eşik ancak burada bilinir |
-| [`RunRecordingAgent.Notifications.cs:32`](../src/AgentPrism.Core/Recording/RunRecordingAgent.Notifications.cs) | `QuotaConsumption` yalnız `TenantId` · `AgentName` · `Runs` · `Tokens` · `Cost` · `OccurredAt` taşır |
-| [`WebhookEventPayload.cs:138`](../src/AgentPrism.Abstractions/Webhooks/WebhookEventPayload.cs) | `WebhookQuotaSummary` `Metric` · `AgentName` · `Period` · `ThresholdPercent` · `Limit` · `Used` · `ResetsAt` taşır; **`RunId`/`UserId` yok** |
-| [`QuotaEnforcer.cs:39`](../src/AgentPrism.Core/Quotas/QuotaEnforcer.cs) | `_firedThresholds` bir `ConcurrentDictionary` — **süreç içi**; yorumu da bunu söylüyor |
-| [`QuotaEnforcer.cs:305`](../src/AgentPrism.Core/Quotas/QuotaEnforcer.cs) | `_firedThresholds.TryAdd(key, 0)` tek tekilleştirme noktası |
-| [`QuotaEnforcer.cs:127`](../src/AgentPrism.Core/Quotas/QuotaEnforcer.cs) | `RecordAsync` `ValueTask` döner — **hangi eşiğin geçildiğini çağırana söylemiyor** |
-| [`RunEventType.cs`](../src/AgentPrism.Abstractions/Runs/RunEventType.cs) | 31 üyenin hiçbiri kota eşiği değil |
-| [`0012_quotas_and_webhooks.sql:40`](../src/AgentPrism.PostgreSql/Migrations/0012_quotas_and_webhooks.sql) | `quota_usage` PK'sı `(tenant_id, agent_name, period, period_start)` — eşik hafızasının doğal yeri |
+| [`RunRecordingAgent.Completion.cs:132`](../../../src/AgentPrism.Core/Recording/RunRecordingAgent.Completion.cs) | `scope.Writer.CompleteAsync(...)` — terminal olay burada yazılır |
+| [`RunRecordingAgent.Completion.cs:162`](../../../src/AgentPrism.Core/Recording/RunRecordingAgent.Completion.cs) | `RecordQuotaAsync(...)` **otuz satır sonra** çalışır; eşik ancak burada bilinir |
+| [`RunRecordingAgent.Notifications.cs:32`](../../../src/AgentPrism.Core/Recording/RunRecordingAgent.Notifications.cs) | `QuotaConsumption` yalnız `TenantId` · `AgentName` · `Runs` · `Tokens` · `Cost` · `OccurredAt` taşır |
+| [`WebhookEventPayload.cs:138`](../../../src/AgentPrism.Abstractions/Webhooks/WebhookEventPayload.cs) | `WebhookQuotaSummary` `Metric` · `AgentName` · `Period` · `ThresholdPercent` · `Limit` · `Used` · `ResetsAt` taşır; **`RunId`/`UserId` yok** |
+| [`QuotaEnforcer.cs:39`](../../../src/AgentPrism.Core/Quotas/QuotaEnforcer.cs) | `_firedThresholds` bir `ConcurrentDictionary` — **süreç içi**; yorumu da bunu söylüyor |
+| [`QuotaEnforcer.cs:305`](../../../src/AgentPrism.Core/Quotas/QuotaEnforcer.cs) | `_firedThresholds.TryAdd(key, 0)` tek tekilleştirme noktası |
+| [`QuotaEnforcer.cs:127`](../../../src/AgentPrism.Core/Quotas/QuotaEnforcer.cs) | `RecordAsync` `ValueTask` döner — **hangi eşiğin geçildiğini çağırana söylemiyor** |
+| [`RunEventType.cs`](../../../src/AgentPrism.Abstractions/Runs/RunEventType.cs) | 31 üyenin hiçbiri kota eşiği değil |
+| [`0012_quotas_and_webhooks.sql:40`](../../../src/AgentPrism.PostgreSql/Migrations/0012_quotas_and_webhooks.sql) | `quota_usage` PK'sı `(tenant_id, agent_name, period, period_start)` — eşik hafızasının doğal yeri |
 
 > Kanıtlar 2026-09-05 tarihinde doğrulandı (HEAD `234d4081`).
 
@@ -308,7 +308,7 @@ src/AgentPrism.Testing.Contracts.Xunit/Contracts/
 
 ## Manuel Kabul Case'leri
 
-> Kapanışta [`docs/manuel-test/23-SAKLAMA-ARSIV-KOTA.md`](manuel-test/23-SAKLAMA-ARSIV-KOTA.md) içine eklenir.
+> Kapanışta [`docs/manuel-test/23-SAKLAMA-ARSIV-KOTA.md`](../../manuel-test/23-SAKLAMA-ARSIV-KOTA.md) içine eklenir.
 
 | # | Ön koşul | Adımlar | Beklenen sonuç |
 |---|---|---|---|
@@ -377,7 +377,7 @@ curl -s "$APU/api/runs/$RUN_ID/events" -H "$APB" \
 
 | Risk | Önlem |
 |------|-------|
-| 🚨 Sıra değişikliği `RunRecordingAgent`'ın tamamlanma gövdesine dokunuyor; bu gövde Faz 62, 114 ve 144'ün notlarını taşıyor | Uygulama önce [`hafiza/cekirdek-calistirma.md`](hafiza/cekirdek-calistirma.md)'yi okur. `Completion.cs:155` civarındaki bütçe yorumu (Faz 114) ve `Depth == 0` koşulu **korunur**; taşınan yalnız `RecordQuotaAsync` çağrısıdır |
+| 🚨 Sıra değişikliği `RunRecordingAgent`'ın tamamlanma gövdesine dokunuyor; bu gövde Faz 62, 114 ve 144'ün notlarını taşıyor | Uygulama önce [`hafiza/cekirdek-calistirma.md`](../../hafiza/cekirdek-calistirma.md)'yi okur. `Completion.cs:155` civarındaki bütçe yorumu (Faz 114) ve `Depth == 0` koşulu **korunur**; taşınan yalnız `RecordQuotaAsync` çağrısıdır |
 | Kota artık `run` kapanmadan önce tüketiliyor; bir hata durumunda çift muhasebe doğar | Tüketim tek çağrıdır ve `RecordAsync` kendi istisnasını yutar (`QuotaEnforcer.cs:147`). `CompleteAsync` hatası tüketimi geri almaz — bu davranış XML'e **açıkça** yazılır |
 | `RecordAsync` imza değişikliği kırıcı | `PublicAPI.Shipped.txt` boş (ölçüldü: 17 satır / 17 dosya). Bugün bedava; plan bunu Faz 7 kararı olarak işaretler |
 | Üç dialect'te koşullu `UPDATE` farklı davranır ve dedup yarışa açılır | Sözleşme testi (`QuotaStoreContract`) dört koşumda birden çalışır; eşzamanlılık case'i **paralel iki yazıcıyla** kurulur |
