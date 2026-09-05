@@ -153,6 +153,12 @@ public sealed class ContentGuardEndpointTests
 
         events.ShouldContain("ContentMasked", Case.Sensitive);
 
+        // Phase 145: the SSE "event:" name for this frame is "content.masked",
+        // never "unknown" -- before this phase every ContentMasked frame fell
+        // through the server's name table and reached the wire unnamed.
+        events.ShouldContain("event: content.masked", Case.Sensitive);
+        events.ShouldNotContain("event: unknown", Case.Sensitive);
+
         // 🚨 The guard's OWN event carries no content. Measurement: extract the
         // ContentMasked lines and search for the card number.
         //

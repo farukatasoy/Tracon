@@ -1404,6 +1404,20 @@ connection.
 curl -N http://localhost:5081/agentprism/api/runs/{runId}/events
 ```
 
+### Two SSE contracts, not one
+
+This is a **different** stream from the one `POST /api/agents/{name}/run` returns, and
+the two do not share a frame-name contract. Both report `Content-Type:
+text/event-stream`, so the `event:` name is the only way to tell them apart:
+
+| Stream | Frame names |
+|---|---|
+| `POST /api/agents/{name}/run` (and the workflow and OpenAI-compatible equivalents) | `run` · `update` · `approvals` · `done` · `error` — one per step of that single live call |
+| `GET /api/runs/{runId}/events` | `run.started` · `message.delta` · `tool.invoking` · `tool.invoked` · `tool.failed` · `run.completed` · `run.failed` and one more per event type in the diagram above — the recorded, append-only log |
+
+A client written against one contract will not decode the other; pick the endpoint
+that matches what you are building — a live turn, or a run's full recorded history.
+
 Tool calls are also written individually — name, arguments, result, duration, error —
 so "which tool failed and with what input" is a query, not a log search.
 
@@ -10147,6 +10161,12 @@ before the stream ends — the pending request's id and tool name, plus whatever
 [approval presenter](/concepts/governance/#approvals) resolved for it. See
 [Approvals](/concepts/governance/#approvals) for the queued-run mailbox shape, which
 answers the same request differently.
+
+`GET /api/runs/{runId}/events` is a **separate** SSE contract with its own, larger
+set of frame names (`run.started`, `tool.invoking`, ...) — see
+[the two-contract table in Runs and recording](/concepts/runs/#two-sse-contracts-not-one).
+
+
 
 ## Paging
 

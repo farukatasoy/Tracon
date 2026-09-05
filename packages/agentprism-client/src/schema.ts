@@ -469,7 +469,7 @@ export interface paths {
         };
         /**
          * Streams a run's events over SSE; live and historical use the same path.
-         * @description If the connection drops, the client resumes from its last sequence number using the 'Last-Event-ID' header. If the run is still in progress, the stream stays open until it completes.
+         * @description If the connection drops, the client resumes from its last sequence number using the 'Last-Event-ID' header. If the run is still in progress, the stream stays open until it completes. This stream's frame names ('run.started', 'tool.invoking', ...) are a different, larger set than the direct run-agent stream's ('run', 'update', 'approvals', 'done', 'error') — the two are separate contracts, not one seen through two content types.
          */
         get: operations["AgentPrismStreamRunEvents"];
         put?: never;
@@ -8667,7 +8667,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "text/event-stream": string;
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
             };
         };
     };

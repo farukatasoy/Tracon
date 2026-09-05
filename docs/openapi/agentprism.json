@@ -1410,7 +1410,7 @@
           "Runs"
         ],
         "summary": "Streams a run\u0027s events over SSE; live and historical use the same path.",
-        "description": "If the connection drops, the client resumes from its last sequence number using the \u0027Last-Event-ID\u0027 header. If the run is still in progress, the stream stays open until it completes.",
+        "description": "If the connection drops, the client resumes from its last sequence number using the \u0027Last-Event-ID\u0027 header. If the run is still in progress, the stream stays open until it completes. This stream\u0027s frame names (\u0027run.started\u0027, \u0027tool.invoking\u0027, ...) are a different, larger set than the direct run-agent stream\u0027s (\u0027run\u0027, \u0027update\u0027, \u0027approvals\u0027, \u0027done\u0027, \u0027error\u0027) \u2014 the two are separate contracts, not one seen through two content types.",
         "operationId": "AgentPrismStreamRunEvents",
         "parameters": [
           {
@@ -1425,7 +1425,24 @@
         ],
         "responses": {
           "200": {
-            "description": "OK"
+            "description": "OK",
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
           }
         }
       }

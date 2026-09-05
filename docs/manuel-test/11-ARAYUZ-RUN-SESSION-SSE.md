@@ -1773,3 +1773,159 @@ Custom_run_event_renders_as_a_generic_card_named_after_its_CustomType`.
   alanı okumayı denemeyen hiçbir istemci kırılmaz.
 
 ---
+
+### MT-UIRUN-056 — Guard maskelemesi akışta `content.masked` adıyla görünür; `unknown` hiç geçmez
+
+Faz 145'ten önce bu olay sunucunun ad tablosunda YOKTU ve `event: unknown`
+olarak gidiyordu.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 48, 145 |
+| **İlgili karar** | K-273 |
+
+**Ön koşul**
+- `samples/AgentPrism.Api` ayakta; `AddPatternContentGuard`'ın maskeleme
+  kuralı `MT-UIRUN-010`'daki gibi etkin.
+
+**Adımlar**
+1. Maskelenecek bir metin gönder, çalıştırma bitene kadar bekle.
+2. `curl -N -s ".../api/runs/<runId>/events" -H "Authorization: Bearer manuel-test-token-2026" | grep '^event:' | sort -u` çalıştır.
+
+**Beklenen sonuç**
+- Çıktıda `event: content.masked` satırı görünür.
+- Çıktıda `event: unknown` HİÇ geçmez.
+
+---
+
+### MT-UIRUN-057 — Tüketicinin yazdığı `Custom` olayı akışta `custom` adıyla görünür
+
+MT-UIRUN-052'nin aynı senaryosu, bu kez SSE `event:` adının kendisi ölçülür
+(052 yalnız JSON gövdesindeki `customType` alanını ölçtü).
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 141, 145 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- MT-UIRUN-052'deki gibi bir `Custom` olayı üretilmiş bir run.
+
+**Adımlar**
+1. `curl -N -s ".../api/runs/<runId>/events" -H "Authorization: Bearer manuel-test-token-2026"` çalıştır.
+
+**Beklenen sonuç**
+- `event: custom` satırı gelir (tüketicinin kendi `CustomType` dizgesi
+  DEĞİL — o yalnız gövdedeki `customType` alanında durur).
+- Aynı çerçevenin `data:` satırı `"customType"` alanını dolu taşır.
+
+---
+
+### MT-UIRUN-058 — Bitmiş bir workflow çalıştırmasının olay akışında workflow çerçeve adları görünür
+
+Faz 145'ten önce bu üç ad da (ve ailedeki diğerleri) `event: unknown`
+olarak gidiyordu.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 16, 145 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- `ozetle-ve-cevir` (veya başka Sıralı bir workflow) ile bitmiş bir
+  çalıştırma var; `runId`'si elde (bkz. MT-UIRUN-013'ün üretim adımı).
+
+**Adımlar**
+1. `curl -N -s ".../api/runs/<runId>/events" -H "Authorization: Bearer manuel-test-token-2026" | grep '^event:' | sort -u` çalıştır.
+
+**Beklenen sonuç**
+- Çıktıda EN AZ şu adlar görünür: `workflow.started`, `superstep.started`,
+  `workflow.output`.
+- Çıktıda `event: unknown` HİÇ geçmez.
+
+---
+
+### MT-UIRUN-059 — `Last-Event-ID` ile yeniden bağlanan istemci AYNI çerçeve adlarını görür
+
+MT-UIRUN-019'un aksine burada istemci `Last-Event-ID`'yi GÖNDERİR (`curl`
+ile elle) — bu case arayüzün eksikliğini değil, sunucunun kendi resume
+sözleşmesini ölçer.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Düşük |
+| **İlgili faz** | Faz 145 |
+| **İlgili karar** | K-022 |
+
+**Ön koşul**
+- Birden çok olay üretmiş, bitmiş bir çalıştırma. `runId`'si elde.
+
+**Adımlar**
+1. `curl -N -s ".../api/runs/<runId>/events" -H "Authorization: Bearer manuel-test-token-2026" | grep -E '^(id|event):'` ile TAM akışı al, ilk iki olayın `id:`/`event:` çiftini not al.
+2. `curl -N -s ".../api/runs/<runId>/events" -H "Authorization: Bearer manuel-test-token-2026" -H "Last-Event-ID: 1" | grep -E '^(id|event):'` ile sıra 1'den devam iste.
+
+**Beklenen sonuç**
+- Adım 2'nin ilk çerçevesi `id: 2` taşır.
+- Adım 2'deki her `id`/`event` çifti, Adım 1'deki AYNI `id`'nin çiftiyle
+  BİREBİR eşleşir — resume gerçek bir yeniden hesaplama değil, aynı
+  append-only kaydın devamıdır (K-014).
+
+---
+
+### MT-UIRUN-060 — OpenAPI belgesi olay akışı ucunun içerik tipini `text/event-stream` olarak bildirir
+
+Faz 145'ten önce bu uç ailedeki TEK içerik tipi bildirmeyen SSE ucuydu; bir
+üretilmiş istemci onu düz JSON sanıyordu.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Düşük |
+| **İlgili faz** | Faz 40, 145 |
+| **İlgili karar** | K-273 |
+
+**Ön koşul**
+- Kabuk açık.
+
+**Adımlar**
+1. `curl -s ".../openapi/v1.json" | jq '.paths["/api/runs/{runId}/events"].get.responses."200".content'` çalıştır.
+2. Aynı belgede `.responses."404"` alanına bak.
+
+**Beklenen sonuç**
+- Adım 1: `text/event-stream` anahtarı DOLU döner (boş `{}` veya `null`
+  DEĞİL).
+- Adım 2: `404` yanıtı `application/problem+json` içerik tipiyle
+  bildirilmiştir.
+
+---
+
+### MT-UIRUN-061 — Alt-agent bekleme sınırı aşıldığında `child.timed-out` çerçevesi görünür
+
+Faz 144'ün olayı, Faz 145'ten önce `event: unknown` olarak gidiyordu.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Düşük |
+| **İlgili faz** | Faz 144, 145 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- [`21-DAYANIKLILIK-VE-IPTAL.md`](21-DAYANIKLILIK-VE-IPTAL.md)'nin
+  `MT-RES-080` kurulumuyla alt-agent bekleme sınırını aşmış bir kök `run`
+  üretilmiş; `runId`'si elde.
+
+**Adımlar**
+1. `curl -N -s ".../api/runs/<runId>/events" -H "Authorization: Bearer manuel-test-token-2026" | grep '^event:' | sort -u` çalıştır.
+
+**Beklenen sonuç**
+- Çıktıda `event: child.timed-out` satırı görünür.
+
+---
