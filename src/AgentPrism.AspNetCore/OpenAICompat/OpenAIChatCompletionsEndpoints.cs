@@ -4,6 +4,7 @@ using System.Text.Json.Serialization;
 using Microsoft.Agents.AI;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
@@ -56,7 +57,9 @@ internal static class OpenAIChatCompletionsEndpoints
             .WithSummary("Run endpoint compatible with the OpenAI Chat Completions API.")
             .WithDescription(
                 "Stateless: the client carries history. The agent is selected from the " +
-                "'model' field; if not found, 'metadata.entity_id' is tried.")
+                "'model' field; if not found, 'metadata.entity_id' is tried. If a registered " +
+                "IRunAuthorizationHandler denies the caller, the response is 403 on BOTH the " +
+                "streaming and the non-streaming path.")
             // One of two shapes, depending on the 'stream' flag in the body.
             // For the same status code, a SECOND .Produces call OVERWRITES the
             // FIRST (measured); the two must be written in a single call using
@@ -69,6 +72,7 @@ internal static class OpenAIChatCompletionsEndpoints
                 contentType: "application/json",
                 additionalContentTypes: ["text/event-stream"])
             .Produces<OpenAICompatSupport.OpenAIErrorEnvelope>(StatusCodes.Status400BadRequest)
+            .Produces<OpenAICompatSupport.OpenAIErrorEnvelope>(StatusCodes.Status403Forbidden)
             .Produces<OpenAICompatSupport.OpenAIErrorEnvelope>(StatusCodes.Status404NotFound)
             .Produces<OpenAICompatSupport.OpenAIErrorEnvelope>(StatusCodes.Status502BadGateway);
     }
@@ -76,6 +80,9 @@ internal static class OpenAIChatCompletionsEndpoints
     private static async Task<IResult> HandleAsync(
         HttpContext httpContext,
         IAgentCatalog catalog,
+        ITenantContext tenantContext,
+        [FromServices] IRunAuthorizationHandler? runAuthorizationHandler,
+        [FromServices] IRunAttributionContext? attributionContext,
         CancellationToken cancellationToken)
     {
         JsonElement body;
@@ -117,6 +124,24 @@ internal static class OpenAIChatCompletionsEndpoints
                 StatusCodes.Status404NotFound,
                 $"There is no agent named '{agentName}'.",
                 type: "model_not_found");
+        }
+
+        // 🚨 This is the SIXTH run-starting surface and phase 139 missed it:
+        // the endpoint resolves an agent from the catalog and calls RunAsync /
+        // RunStreamingAsync a few lines below. The gate is asked BEFORE the
+        // streaming branch, so both the streaming and the non-streaming path
+        // are covered by this one call - a check inside either branch would
+        // leave the other one open (phase 147, F-195).
+        //
+        // Chat Completions is stateless, so there is no session to name.
+        if (await RunAuthorizationGate
+                .CheckRunAsync(runAuthorizationHandler, tenantContext, agentName, sessionId: null, attributionContext, cancellationToken)
+                .ConfigureAwait(false) is { } authorizationProblem)
+        {
+            return OpenAICompatSupport.Error(
+                StatusCodes.Status403Forbidden,
+                authorizationProblem.ProblemDetails.Detail ?? "The registered IRunAuthorizationHandler denied this run.",
+                type: "run_not_authorized");
         }
 
         if (!TryReadMessages(body, out var messages, out var error))

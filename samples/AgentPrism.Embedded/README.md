@@ -29,7 +29,7 @@ default (every one uses `TryAdd`):
 | `ITenantStore` | `Tenancy/EmbeddedTenantStore.cs` — in-memory stand-in for the host's own tenant directory |
 | `IRunAttributionContext` | `Attribution/EmbeddedRunAttributionContext.cs` — reads `X-Host-User`, falls back to `AmbientRunAttributionScope` |
 | `IToolAuthorizationHandler` | `Authorization/EmbeddedToolAuthorizationHandler.cs` — a fixed per-tenant permission map |
-| `IRunAuthorizationHandler` | `Authorization/EmbeddedRunAuthorizationHandler.cs` — denies starting a run for a tenant the host's directory does not know about |
+| `IRunAuthorizationHandler` | `Authorization/EmbeddedRunAuthorizationHandler.cs` — denies starting a run, and reaching a run's resources, for a tenant the host's directory does not know about |
 | `IRunEventSink` | `Events/BoundedChannelRunEventSink.cs` — an 8-item bounded channel that **drops** on backpressure, drained by `Events/RunEventBridgeWorker.cs` |
 | `IAttachmentStorage` | `Attachments/InMemoryBufferAttachmentStorage.cs` — stands in for an external object store |
 
