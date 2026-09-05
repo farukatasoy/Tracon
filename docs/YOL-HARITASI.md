@@ -156,6 +156,6 @@ bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 | [141](arsiv/fazlar/141-GENISLETILEBILIR-CALISTIRMA-OLAYI.md) | Genişletilebilir Çalıştırma Olayı | ✅ Tamamlandı |
 | [142](arsiv/fazlar/142-ONAY-ISTEGININ-SUNUMU.md) | Onay İsteğinin Sunumu | ✅ Tamamlandı |
 | [143](arsiv/fazlar/143-TOOL-ARGUMANININ-SOZLESME-TESTLERI.md) | Tool Argümanının Sözleşme Testleri | ✅ Tamamlandı |
-| [144](arsiv/fazlar/144-ALT-AGENT-BEKLEME-SINIRI.md) | Alt-Agent Bekleme Sınırı | 📋 Planlandı |
+| [144](arsiv/fazlar/144-ALT-AGENT-BEKLEME-SINIRI.md) | Alt-Agent Bekleme Sınırı | ✅ Tamamlandı |
 
 Seçilmemiş adaylar: [`ADAYLAR.md`](ADAYLAR.md). Fazların hangi dalgada, hangi gerekçeyle sıralandığı (Faz 8–56, kapandı): [`arsiv/IKINCI-FAZ-YOL-HARITASI.md`](arsiv/IKINCI-FAZ-YOL-HARITASI.md) · [`arsiv/UCUNCU-FAZ-YOL-HARITASI.md`](arsiv/UCUNCU-FAZ-YOL-HARITASI.md).
