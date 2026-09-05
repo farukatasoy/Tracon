@@ -158,7 +158,7 @@ bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 | [143](arsiv/fazlar/143-TOOL-ARGUMANININ-SOZLESME-TESTLERI.md) | Tool Argümanının Sözleşme Testleri | ✅ Tamamlandı |
 | [144](arsiv/fazlar/144-ALT-AGENT-BEKLEME-SINIRI.md) | Alt-Agent Bekleme Sınırı | ✅ Tamamlandı |
 | [145](arsiv/fazlar/145-OLAY-AKISININ-CERCEVE-SOZLESMESI.md) | Kayıtlı Olay Akışının Çerçeve Sözleşmesi | ✅ Tamamlandı |
-| [146](146-CALISTIRMAYA-BAGLI-KOTA-ESIGI.md) | Çalıştırmaya Bağlı Kota Eşiği | ✅ Tamamlandı |
+| [146](arsiv/fazlar/146-CALISTIRMAYA-BAGLI-KOTA-ESIGI.md) | Çalıştırmaya Bağlı Kota Eşiği | ✅ Tamamlandı |
 | [147](147-YETKI-KAPISININ-KAYNAK-KAPSAMI.md) | Yetkilendirme Kapısının Kaynak Kapsamı | 📋 Planlandı |
 | [148](148-OTURUM-SAHIPLIGININ-KALICILIGI.md) | Oturum Sahipliğinin Kalıcılığı | 📋 Planlandı |
 

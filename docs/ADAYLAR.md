@@ -76,7 +76,7 @@
 > plana** dönüştü — bu dosyada hiç sıralanmadılar, çünkü kanıtları raporla
 > birlikte geldi ve aynı turda doğrulandı: **F-193** →
 > [Faz 145](arsiv/fazlar/145-OLAY-AKISININ-CERCEVE-SOZLESMESI.md) · **F-194** (A2 + F3 birleşti) →
-> [Faz 146](146-CALISTIRMAYA-BAGLI-KOTA-ESIGI.md) · **F-195** →
+> [Faz 146](arsiv/fazlar/146-CALISTIRMAYA-BAGLI-KOTA-ESIGI.md) · **F-195** →
 > [Faz 147](147-YETKI-KAPISININ-KAYNAK-KAPSAMI.md) · **F-196** →
 > [Faz 148](148-OTURUM-SAHIPLIGININ-KALICILIGI.md).
 >
