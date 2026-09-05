@@ -10178,6 +10178,11 @@ before the stream ends — the pending request's id and tool name, plus whatever
 [Approvals](/concepts/governance/#approvals) for the queued-run mailbox shape, which
 answers the same request differently.
 
+With `Quotas:PublishThresholdToRunStream` turned on (off by default), a run whose
+completion crosses a [quota threshold](/concepts/governance/#quotas-and-rate-limits)
+also gets a `custom` frame before `done` — the same notice, byte for byte, that
+`GET /api/runs/{runId}/events` carries for that run.
+
 `GET /api/runs/{runId}/events` is a **separate** SSE contract with its own, larger
 set of frame names (`run.started`, `tool.invoking`, ...) — see
 [the two-contract table in Runs and recording](/concepts/runs/#two-sse-contracts-not-one).
