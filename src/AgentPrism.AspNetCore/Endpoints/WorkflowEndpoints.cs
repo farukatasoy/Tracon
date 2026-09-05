@@ -661,7 +661,7 @@ internal static class WorkflowEndpoints
     /// Asks the gate about a workflow run, once its tenant is settled.
     /// </summary>
     /// <remarks>
-    /// 🚨 A run that is missing or belongs to another tenant is deliberately
+    /// A run that is missing or belongs to another tenant is deliberately
     /// left ALONE here: the runner already answers it with the same "there is
     /// no run with id" body it always did, and short-circuiting it here would
     /// change that answer for an installation with no handler registered. The
