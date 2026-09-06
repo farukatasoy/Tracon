@@ -109,7 +109,7 @@
           "Agents"
         ],
         "summary": "Returns an agent\u0027s catalog summary and its persisted definition, if any.",
-        "description": "A code-defined agent resolves through the catalog but has no stored definition; for it \u0027definition\u0027 is null and \u0027isEditable\u0027 is false. \u0027isEditable\u0027 is the single field a client checks before offering an edit form \u2014 it is true only when the agent\u0027s origin is the database.",
+        "description": "A code-defined agent has no STORED definition, so \u0027isEditable\u0027 is always false for it \u2014 code is changed by changing the application, not through this API. A code agent declared declaratively (AddAgent(AgentDefinition)) still returns its full in-memory definition in \u0027definition\u0027, including \u0027instructions\u0027; only a code agent built from a factory (AddAgent(name, factory)) has \u0027definition\u0027 as null, since there is no AgentDefinition to return for one. For a factory agent whose concrete type exposes instructions (currently only Microsoft.Agents.AI.ChatClientAgent), \u0027factoryInstructions\u0027 carries a best-effort read of them instead; it is null when the type does not expose them or reading them failed. \u0027isEditable\u0027 is the single field a client checks before offering an edit form \u2014 it is true only when the agent\u0027s origin is the database.",
         "operationId": "AgentPrismGetAgent",
         "parameters": [
           {
@@ -7093,10 +7093,17 @@
                 "type": "null"
               },
               {
-                "description": "Persistent definition. \u0060null\u0060 if the agent is defined only in code.",
+                "description": "The agent\u0027s definition. \u0060null\u0060 only for a code agent built\nfrom a factory (\u0060AddAgent(name, factory)\u0060), which carries no\n\u0060AgentDefinition\u0060 at all. A code agent declared with\n\u0060AddAgent(AgentDefinition)\u0060 returns its in-memory definition here\ndespite never being written to the database.",
                 "$ref": "#/components/schemas/AgentDefinition"
               }
             ]
+          },
+          "factoryInstructions": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Best-effort instructions read directly from the resolved agent when\n\u0060Definition\u0060 is \u0060null\u0060 because the agent is\nbuilt from a factory (\u0060AddAgent(name, factory)\u0060) and its concrete\ntype exposes them (currently only \u0060Microsoft.Agents.AI.ChatClientAgent\u0060).\n\u0060null\u0060 when \u0060Definition\u0060 is populated instead\n(read \u0060Definition.Instructions\u0060 there), when the factory\u0027s concrete\ntype does not expose instructions, or when invoking the factory to check\nfailed \u2014 this field is diagnostic only and never blocks the response."
           },
           "isEditable": {
             "type": "boolean",

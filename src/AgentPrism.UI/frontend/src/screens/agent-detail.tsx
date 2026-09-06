@@ -53,7 +53,7 @@ export function AgentDetailScreen({ name, meta }: { name: string; meta: Meta }):
     return <ErrorNote error={agent.error} />;
   }
 
-  const { descriptor, definition, isEditable } = agent.data;
+  const { descriptor, definition, factoryInstructions, isEditable } = agent.data;
 
   return (
     <>
@@ -138,8 +138,10 @@ export function AgentDetailScreen({ name, meta }: { name: string; meta: Meta }):
 
         <Panel title={t('agentDetail.instructions')}>
           <div className="p-4">
-            {definition?.instructions ? (
-              <p className="text-[13px] leading-relaxed whitespace-pre-wrap">{definition.instructions}</p>
+            {definition?.instructions || factoryInstructions ? (
+              <p className="text-[13px] leading-relaxed whitespace-pre-wrap">
+                {definition?.instructions ?? factoryInstructions}
+              </p>
             ) : (
               <p className="text-[13px] text-subtle">
                 {t('agentDetail.noInstructions')}

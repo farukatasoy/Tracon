@@ -1,6 +1,8 @@
 using System.Net;
 using System.Net.Http.Json;
 using AgentPrism.AspNetCore.FunctionalTests.Infrastructure;
+using Microsoft.Extensions.AI;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace AgentPrism.AspNetCore.FunctionalTests;
 
@@ -115,8 +117,95 @@ public sealed class AgentCrudTests
 
         json.GetProperty("isEditable").GetBoolean().ShouldBeFalse();
         json.GetProperty("descriptor").GetProperty("origin").GetString().ShouldBe("Code");
-        json.TryGetProperty("definition", out var definition).ShouldBeTrue();
-        definition.ValueKind.ShouldBe(System.Text.Json.JsonValueKind.Null);
+    }
+
+    [Fact]
+    public async Task Detail_of_a_declarative_code_agent_exposes_its_in_memory_definition()
+    {
+        // TestData.Definition() sets Instructions = "Reply briefly." - this proves
+        // it reaches the response even though it is never written to the database
+        // (IAgentDefinitionStore never sees a code agent's definition at all).
+        await using var host = await AgentPrismTestHost.StartAsync(
+            static builder => builder.AddAgent(TestData.Definition()));
+
+        using var response = await host.Client.GetAsync(
+            new Uri("/agentprism/api/agents/kod-agent", UriKind.Relative));
+
+        var json = await AgentPrismTestHost.ReadJsonAsync(response);
+
+        json.GetProperty("definition").GetProperty("instructions").GetString().ShouldBe("Reply briefly.");
+        json.GetProperty("factoryInstructions").ValueKind.ShouldBe(System.Text.Json.JsonValueKind.Null);
+    }
+
+    [Fact]
+    public async Task Detail_of_a_factory_code_agent_reads_its_instructions_best_effort()
+    {
+        await using var host = await AgentPrismTestHost.StartAsync(static builder => builder.AddAgent(
+            "factory-agent",
+            services => services.GetRequiredService<IModelProviderRegistry>()
+                .CreateChatClient(TestData.Model())
+                .AsAIAgent(instructions: "Reply briefly, factory agent.", name: "factory-agent")));
+
+        using var response = await host.Client.GetAsync(
+            new Uri("/agentprism/api/agents/factory-agent", UriKind.Relative));
+
+        var json = await AgentPrismTestHost.ReadJsonAsync(response);
+
+        json.GetProperty("definition").ValueKind.ShouldBe(System.Text.Json.JsonValueKind.Null);
+        json.GetProperty("factoryInstructions").GetString().ShouldBe("Reply briefly, factory agent.");
+    }
+
+    [Fact]
+    public async Task Detail_of_a_factory_agent_with_no_readable_instructions_stays_null_instead_of_failing()
+    {
+        // PlainAgent is a bare AIAgent, not a ChatClientAgent - there is no
+        // known way to read instructions from it. The detail view must still
+        // return 200, not 500: reading instructions is a best-effort extra,
+        // never a reason to break the read-only view.
+        await using var host = await AgentPrismTestHost.StartAsync(
+            static builder => builder.AddAgent("plain-agent", static _ => new PlainAgent()));
+
+        using var response = await host.Client.GetAsync(
+            new Uri("/agentprism/api/agents/plain-agent", UriKind.Relative));
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        var json = await AgentPrismTestHost.ReadJsonAsync(response);
+
+        json.GetProperty("definition").ValueKind.ShouldBe(System.Text.Json.JsonValueKind.Null);
+        json.GetProperty("factoryInstructions").ValueKind.ShouldBe(System.Text.Json.JsonValueKind.Null);
+    }
+
+    private sealed class PlainAgent : Microsoft.Agents.AI.AIAgent
+    {
+        protected override Task<Microsoft.Agents.AI.AgentResponse> RunCoreAsync(
+            IEnumerable<Microsoft.Extensions.AI.ChatMessage> messages,
+            Microsoft.Agents.AI.AgentSession? session = null,
+            Microsoft.Agents.AI.AgentRunOptions? options = null,
+            CancellationToken cancellationToken = default)
+            => throw new NotSupportedException("Never run in this test - only the detail endpoint's factory read is exercised.");
+
+        protected override IAsyncEnumerable<Microsoft.Agents.AI.AgentResponseUpdate> RunCoreStreamingAsync(
+            IEnumerable<Microsoft.Extensions.AI.ChatMessage> messages,
+            Microsoft.Agents.AI.AgentSession? session = null,
+            Microsoft.Agents.AI.AgentRunOptions? options = null,
+            CancellationToken cancellationToken = default)
+            => throw new NotSupportedException("Never run in this test - only the detail endpoint's factory read is exercised.");
+
+        protected override ValueTask<Microsoft.Agents.AI.AgentSession> CreateSessionCoreAsync(CancellationToken cancellationToken = default)
+            => throw new NotSupportedException("Never run in this test - only the detail endpoint's factory read is exercised.");
+
+        protected override ValueTask<System.Text.Json.JsonElement> SerializeSessionCoreAsync(
+            Microsoft.Agents.AI.AgentSession session,
+            System.Text.Json.JsonSerializerOptions? jsonSerializerOptions = null,
+            CancellationToken cancellationToken = default)
+            => throw new NotSupportedException("Never run in this test - only the detail endpoint's factory read is exercised.");
+
+        protected override ValueTask<Microsoft.Agents.AI.AgentSession> DeserializeSessionCoreAsync(
+            System.Text.Json.JsonElement serializedState,
+            System.Text.Json.JsonSerializerOptions? jsonSerializerOptions = null,
+            CancellationToken cancellationToken = default)
+            => throw new NotSupportedException("Never run in this test - only the detail endpoint's factory read is exercised.");
     }
 
     [Fact]
