@@ -62,10 +62,16 @@ internal static class AgentEndpoints
             .WithTags("AgentPrism", "Agents")
             .WithSummary("Returns an agent's catalog summary and its persisted definition, if any.")
             .WithDescription(
-                "A code-defined agent resolves through the catalog but has no stored definition; " +
-                "for it 'definition' is null and 'isEditable' is false. 'isEditable' is the single " +
-                "field a client checks before offering an edit form — it is true only when the " +
-                "agent's origin is the database.");
+                "A code-defined agent has no STORED definition, so 'isEditable' is always false for " +
+                "it — code is changed by changing the application, not through this API. A code agent " +
+                "declared declaratively (AddAgent(AgentDefinition)) still returns its full in-memory " +
+                "definition in 'definition', including 'instructions'; only a code agent built from a " +
+                "factory (AddAgent(name, factory)) has 'definition' as null, since there is no " +
+                "AgentDefinition to return for one. For a factory agent whose concrete type exposes " +
+                "instructions (currently only Microsoft.Agents.AI.ChatClientAgent), 'factoryInstructions' " +
+                "carries a best-effort read of them instead; it is null when the type does not expose " +
+                "them or reading them failed. 'isEditable' is the single field a client checks before " +
+                "offering an edit form — it is true only when the agent's origin is the database.");
 
         builder.MapPost("/api/agents", CreateAgentAsync)
             .RequireRole(roles.Admin)
@@ -432,6 +438,8 @@ internal static class AgentEndpoints
         string name,
         IAgentCatalog catalog,
         IAgentDefinitionStore definitions,
+        IEnumerable<CodeAgentRegistration> codeRegistrations,
+        HttpContext httpContext,
         CancellationToken cancellationToken)
     {
         var descriptor = await FindDescriptorAsync(catalog, name, cancellationToken).ConfigureAwait(false);
@@ -442,11 +450,50 @@ internal static class AgentEndpoints
         }
 
         var definition = await definitions.GetAsync(name, cancellationToken).ConfigureAwait(false);
+        string? factoryInstructions = null;
+
+        // 🚨 IAgentDefinitionStore only ever sees the DATABASE; a code agent's
+        // definition lives in the CodeAgentRegistration singleton the consumer
+        // registered and is never written there. Without this fallback,
+        // 'definition' comes back null for EVERY code agent, hiding a
+        // declarative one's instructions even though they are sitting right
+        // here in memory.
+        if (definition is null && descriptor.Origin == AgentDefinitionOrigin.Code)
+        {
+            var registration = codeRegistrations.FirstOrDefault(
+                candidate => string.Equals(candidate.Name, name, StringComparison.Ordinal));
+
+            if (registration?.Definition is { } codeDefinition)
+            {
+                definition = codeDefinition;
+            }
+            else if (registration?.Factory is { } factory)
+            {
+                // Best-effort only: the caller fully controls how a factory agent
+                // is built (CodeAgentRegistration.FromFactory), so invoking it here
+                // to peek at 'Instructions' must not turn a read-only detail view
+                // into a 500 when the factory throws.
+                try
+                {
+                    if (factory(httpContext.RequestServices) is Microsoft.Agents.AI.ChatClientAgent chatClientAgent)
+                    {
+                        factoryInstructions = chatClientAgent.Instructions;
+                    }
+                }
+                catch (Exception exception)
+                {
+                    httpContext.RequestServices.GetRequiredService<ILoggerFactory>()
+                        .CreateLogger("AgentPrism.AgentEndpoints")
+                        .LogWarning(exception, "Reading instructions from factory agent '{AgentName}' failed.", name);
+                }
+            }
+        }
 
         return TypedResults.Ok(new AgentDetailResponse
         {
             Descriptor = descriptor,
             Definition = definition,
+            FactoryInstructions = factoryInstructions,
             IsEditable = descriptor.Origin == AgentDefinitionOrigin.Database,
         });
     }

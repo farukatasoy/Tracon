@@ -177,14 +177,35 @@ public sealed record SkillScriptGrantRequest
 /// defined in code <strong>cannot be edited</strong>: on a name collision,
 /// code wins, so a definition written to the database would
 /// never resolve. <see cref="IsEditable"/> lets the UI know this in advance.
+/// A code-defined agent still exposes its instructions where they can be read
+/// without ambiguity — see <c>Definition</c> and <c>FactoryInstructions</c> —
+/// even though it cannot be edited here.
 /// </remarks>
 public sealed record AgentDetailResponse
 {
     /// <summary>Catalog summary.</summary>
     public required AgentDescriptor Descriptor { get; init; }
 
-    /// <summary>Persistent definition. <see langword="null"/> if the agent is defined only in code.</summary>
+    /// <summary>
+    /// The agent's definition. <see langword="null"/> only for a code agent built
+    /// from a factory (<c>AddAgent(name, factory)</c>), which carries no
+    /// <c>AgentDefinition</c> at all. A code agent declared with
+    /// <c>AddAgent(AgentDefinition)</c> returns its in-memory definition here
+    /// despite never being written to the database.
+    /// </summary>
     public AgentDefinition? Definition { get; init; }
+
+    /// <summary>
+    /// Best-effort instructions read directly from the resolved agent when
+    /// <c>Definition</c> is <see langword="null"/> because the agent is
+    /// built from a factory (<c>AddAgent(name, factory)</c>) and its concrete
+    /// type exposes them (currently only <c>Microsoft.Agents.AI.ChatClientAgent</c>).
+    /// <see langword="null"/> when <c>Definition</c> is populated instead
+    /// (read <c>Definition.Instructions</c> there), when the factory's concrete
+    /// type does not expose instructions, or when invoking the factory to check
+    /// failed — this field is diagnostic only and never blocks the response.
+    /// </summary>
+    public string? FactoryInstructions { get; init; }
 
     /// <summary>Whether this agent can be modified through the management API.</summary>
     public required bool IsEditable { get; init; }

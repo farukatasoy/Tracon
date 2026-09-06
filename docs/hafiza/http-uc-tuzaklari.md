@@ -43,4 +43,31 @@
   gördüğü tip kümesini büyütür, `IResult`'a düzleştirmek onu SIFIRLAR. Yine de
   her imza değişiminden sonra snapshot yenilenir ve diff `grep -E '^[-+] *"[0-9]{3}"'`
   ile okunur — sessizce kaybolan bir yanıt kodu testi KIRMAZ.
+- **🚨 `GET /api/agents/{name}` bir KOD agent'ının `definition`'ını yalnız
+  `IAgentDefinitionStore`'a (veritabanı) bakarak dolduruyordu; `CodeAgentRegistration`
+  singleton'ı hiç sorulmuyordu** (2026-09-06, kusur bildirimi): declarative
+  `AddAgent(AgentDefinition)` ile kaydedilen bir agent'ın `Instructions`'ı
+  bellekte (`CodeAgentRegistration.Definition`) gerçekten vardı ama panelde HİÇ
+  görünmüyordu — `definition` her zaman `null` dönüyordu. Düzeltme
+  `AgentEndpoints.GetAgentAsync`'e `IEnumerable<CodeAgentRegistration>` enjekte
+  edip DB `null` dönünce ONA bakan bir fallback ekledi; factory tabanlı
+  (`AddAgent(name, factory)`) bir agent için hâlâ `AgentDefinition` yok, ama
+  somut tipi `ChatClientAgent` ise `factoryInstructions` alanına best-effort
+  okunuyor (factory'yi ÇAĞIRMAK gerekiyor — `catalog.ResolveAsync` DEĞİL, çünkü
+  o decorator zinciriyle sarar ve `ChatClientAgent` tip kontrolünü kırar;
+  `registration.Factory(httpContext.RequestServices)` DOĞRUDAN çağrılır, hata
+  yutulup loglanır — bir GET'i asla 500'e çevirmez).
+  **Kalan, BİLEREK dokunulmayan boşluk:** aynı kök neden (`AgentParameterGate`
+  de `definitionStore.GetAsync` — yalnız DB — kullanıyor, bkz. kendi XML
+  yorumu "a code-defined agent... has no schema at all") declarative bir kod
+  agent'ının `Parameters` şemasını `/run` ve `/estimate`'te HİÇ görmüyor. Bu
+  düzeltme Playground'un artık `definition.parameters`'ı GÖRMESİNİ sağladığı
+  için (aynı `GetAgentAsync` yanıtından okunuyor), declarative + parametreli
+  BİR agent varsa panel alanları GÖSTERİR ama sunucu her değeri "unknown
+  parameter" ile REDDEDER — pre-existing, dokümante, ayrı bir boşluk;
+  `RunAsync`'in parametreli dalı `CompiledAgentCache`'i ve decorator zincirini
+  BİLEREK bypass ettiği için (bkz. `RunAsync` içindeki 🚨 yorumu) buraya
+  dokunmak çok daha büyük bir değişiklik ister. Bugüne kadar hiçbir
+  test/örnek declarative kod agent'ını `Parameters` ile birleştirmedi; biri
+  birleştirirse önce burası kırılır.
 
