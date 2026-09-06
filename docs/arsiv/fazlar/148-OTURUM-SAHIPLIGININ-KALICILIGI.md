@@ -238,6 +238,25 @@ yazım yolu olmadığını ve akışlı yolun `CheckRunSessionAsync` sayesinde g
 `403` verdiğini **doğruladı** (devir notunun akışa dair cümlesi buna göre
 düzeltildi).
 
+## Site Senkronu — `http-api` Kuralının Gerekçesi
+
+`--site-denetle` `http-api` kuralını tetikledi (`AgentEndpoints.cs` değişti) ve
+hedef sayfanın değişmediğini bildirdi. Hedef **elle yazılmaz**:
+`docs-site/src/content/docs/http-api/*.md` `build-http-api.mjs` tarafından
+`docs/openapi/agentprism.json`'dan **üretilir** ve `.gitignore`'dadır, bu yüzden
+`git diff` onu hiçbir zaman göremez.
+
+Gerçek yüzey **güncellendi**: dört oturum ucunun ve `run` başlatan üç ucun
+`WithDescription`'ı yeni `403`/`404` davranışını anlatıyor, OpenAPI belgesi
+yeniden üretildi (commit'li) ve üretilen sayfa metni doğrulandı —
+`grep -c "session ownership" docs-site/src/content/docs/http-api/sessions.md`
+→ **4**. Her iki üretilmiş istemci (`AgentPrism.Client`, `@agentprism/client`)
+de aynı belgeden yeniden üretildi.
+
+Kuralın kendisi bu yüzden yanlış negatif üretiyor: hedefi izlenmeyen bir üretilmiş
+dosyadır. Kalıcı düzeltme, kuralın hedefini `docs/openapi/agentprism.json`'a
+çevirmektir — aday olarak devir notundadır.
+
 ## Sonraki Faza Devir Notu
 
 Sahiplik artık AgentPrism'in kendi verisidir. Devreden beş gerçek bilgi:
@@ -269,6 +288,12 @@ Sahiplik artık AgentPrism'in kendi verisidir. Devreden beş gerçek bilgi:
   `SseWriter.StartAsync`'in üstüne taşımak `409`'u da gerçek durum koduna
   çevirir; bu faz var olan davranışı değiştirmemek için kapsam dışı bıraktı.
   Aday olarak açılabilir.
+- **`--site-denetle`'nin `http-api` kuralı YANLIŞ NEGATİF üretiyor.** Hedefi
+  (`docs-site/src/content/docs/http-api/*.md`) üretilen ve `.gitignore`'da olan
+  bir dosyadır; `git diff` onu asla göremez, bu yüzden kural HTTP yüzeyi her
+  değiştiğinde kırmızı olur. Kuralın hedefi `docs/openapi/agentprism.json`
+  (izlenen, üretilen ve commit'lenen dosya) olmalıdır — küçük bir
+  `dokuman-bakim.py` düzeltmesi, aday.
 - **Denetimin 🟢 kalemleri:** (1) mod açıkken `GetSessionAsync`/`DeleteSessionAsync`
   oturumu **iki kez** okur (kapı bir kez, gövde bir kez) — kapı okuduğu kaydı
   döndürseydi tur yarıya inerdi, ölçülmedi; (2) K-692'nin öncelik tersine
