@@ -18,6 +18,7 @@
 - **Culture-aware instructions:** Agent instructions, istek culture bilgisine göre uygun dil varyantından çözülebilir.
 - **Shared instructions:** Bir agent, tek seviyeli ortak instructions bloğunu compile sırasında kendi instructions metninin önüne ekleyebilir.
 - **Agent-to-agent çağrı grafiği:** Agent'lar kayıtlı başka agent'ları tool olarak çağırabilir; cycle denetimi ve child run ilişkileri korunur.
+- **Alt-agent bekleme sınırı:** Çağrılan alt-agent iki katmanlı sınırla beklenir; cooperative `ChildDeadline` iptal token'ını okuyan çocuğu durdurur, hard `WaitTimeout` token'ı yok sayan çocuğu beklemeden düşürür ve zaman aşımı çağıran run'ın olay akışına yazılır.
 - **Harness mode:** MAF harness üzerinden iteration ve context limitleri ile todo, file-memory, web-search, skill ve mode provider'ları kullanılabilir.
 - **Context compaction:** Geçmiş, eşik tabanlı truncation veya utility model ile summarization yapılarak sıkıştırılabilir.
 - **Response cache:** `IDistributedCache` ile tenant, provider, model, request ve tool setini dikkate alan response caching kullanılabilir.
@@ -72,6 +73,7 @@
 - **Non-streaming run:** Tamamlanmış response tek HTTP sonucu olarak döner ve kayıt altına alınır.
 - **Run recording:** Run özeti, status, event'ler, tool çağrıları, usage, cost, hata ve isteğe bağlı input varsayılan olarak kaydedilir.
 - **Ordered event stream:** Run event'leri gapless sıra numarasıyla saklanır; SSE akışı live veya replay modunda `Last-Event-ID` ile sürdürülebilir.
+- **Event frame sözleşmesi:** Her `RunEventType` üyesi kayıtlı akışta kararlı bir frame adıyla yayılır; sevk edilmiş adlar değişmez ve isimsiz üye bırakılması build kapısında hata olur.
 - **Run tree:** Root ve child run ilişkileri saklanır; ağaç usage, cost ve child sayıları birlikte sorgulanabilir.
 - **Run budget:** Depth, toplam run, token, cost ve wall-clock duration limitleri model turları arasında uygulanır.
 - **Run cancellation:** Bir run kimliğiyle iptal istenebilir ve root run iptali aynı ağaçtaki etkin child run'lara yayılır.
@@ -131,9 +133,11 @@
 - **Multi-tenancy:** Tenant claim, izinli header veya doğrulanmış API key üzerinden çözülür ve store sorguları tenant sınırını uygular.
 - **Tenant BYOK:** Tenant, provider credential değerini store'a yazmadan configuration key adı ve endpoint ile kendi model bağlantısını tanımlayabilir.
 - **Tenant provider egress policy:** Her tenant için izinli provider kümesi belirlenir ve yetkisiz binding agent compile aşamasında reddedilir.
+- **Session sahipliği:** Opt-in mod, bir oturumu açan kullanıcıyı kalıcı olarak kaydeder; oturum listesi sayfalamadan önce sahibe daraltılır ve başka sahibin oturumu var olmayan oturumla aynı yanıtı alır. Katı modda mod açılmadan önce yazılmış sahipsiz satırlar da reddedilir.
 - **Usage quota:** Request, token ve cost limitleri günlük veya aylık dönemlerde, seçili time zone ile run admission sırasında uygulanabilir.
+- **Kota eşiği korelasyonu:** Eşik geçişi webhook payload'ında tetikleyen run ve user kimliğini taşır; opt-in ayarla aynı bildirim, eşiği geçiren run'ın kendi olay akışına dönem başına yalnız bir kez yazılır.
 - **HTTP rate limiting:** İstekler tenant, API key veya remote address partition'ına göre fixed-window limitlenebilir.
-- **Audit trail:** Administrative mutation'lar actor, action, entity ve redacted before/after payload ile kaydedilir.
+- **Audit trail:** Administrative mutation'lar actor, action, entity ve redacted before/after payload ile kaydedilir; agent, skill, workflow, MCP server ve governance store'larının kapsamı bir build kapısıyla zorlanır ve dışarıda bırakılan store yazılı gerekçe ister.
 - **Tamper-evident audit chain:** Audit kayıtları hash chain ile bağlanır ve bütünlük `/api/audit/verify` üzerinden denetlenebilir.
 - **Signed outbound webhooks:** Event'ler HMAC imzası, HTTPS ve header kontrolleriyle gönderilir; retry ve ardışık hata sonrası disable desteklenir.
 - **Signed inbound triggers:** Harici sistemler HMAC'li JSON isteğiyle API key olmadan agent veya workflow run'ını queue'ya alabilir.
@@ -145,7 +149,7 @@
 - **Data subject hakları:** Consumer resolver ile kimliğe bağlı içerik preview, export ve erase işlemlerinden geçirilebilir.
 - **CORS allowlist:** Management ve embed istekleri yalnız exact origin allowlist'i yapılandırıldığında cross-origin erişim alır.
 - **External protocol guard:** MCP server ve A2A çağrıları `ExternalInvoke` scope'u ile remote-access ayarlarının güvenli birleşimini zorunlu tutar.
-- **Run ve session authorization:** `IRunAuthorizationHandler`, run başlangıçlarını ve session read, list, delete veya branch erişimini caller bağlamına göre reddedebilir.
+- **Run ve session authorization:** `IRunAuthorizationHandler`, run başlangıçlarını, mevcut bir run'ın her kaynağını (okuma, liste, iptal, replay, trace, tool çağrısı, ek, workflow ve eval yüzeyleri) ve session read, list, delete, branch veya speak erişimini caller bağlamına göre reddedebilir; reddedilen tekil kaynak var olmayan kaynakla aynı yanıtı verir.
 - **Skill script güvenlik sınırı:** Script özelliği opt-in ve audit'li çalışır; işletim sistemi sandbox'ı sağlamadığı açık bir contract olarak korunur.
 
 ## Persistence ve storage
@@ -218,6 +222,7 @@
 - **Consumer-first DI:** Servisler `TryAdd*` ile kaydedilir; tüketicinin önceden verdiği implementation korunur.
 - **MAF type passthrough:** `AIAgent`, `AgentSession`, `ChatMessage` ve `AIFunction` yeni bir AgentPrism abstraction'ı ile sarılmaz.
 - **Agent decorator seam:** Custom `IAgentDecorator` type, instance veya factory olarak kayıt ve telemetry/recording pipeline'ına sıralı biçimde katılabilir.
+- **Zorunlu binding profili:** `RequireCustomBinding<T>()` ile ilan edilen genişleme noktası yerleşik varsayılanla çözülüyorsa host başlamaz; hata mesajı hangi sözleşmenin, hangi tiple çözüldüğünü ve nasıl düzeltileceğini söyler.
 - **Project template:** `dotnet new agentprism-api`, çalışan bir control plane, sample tool, boş secret placeholder'ları ve README üretir.
 - **Pre-release dependency isolation:** Preview MAF hosting bağımlılıkları yalnız `AgentPrism.AspNetCore` paketinde tutulur.
 - **Package artifact kimliği:** Pack gate, aynı version için farklı içerikli package üretimini ve mevcut release artifact'ının overwrite edilmesini reddeder.
@@ -241,4 +246,4 @@
 ## Özet
 
 - **Toplam kategori:** 13
-- **Toplam özellik:** 197
+- **Toplam özellik:** 202
