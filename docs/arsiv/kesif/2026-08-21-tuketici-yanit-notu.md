@@ -1,10 +1,23 @@
+> ## 📦 Arşiv bloğu — taşındı 2026-09-06
+>
+> **Bu yanıt notu tükenmiştir.** Andığı beş kalemin (`F-34` · `F-140`–`F-143`)
+> hiçbiri `ADAYLAR.md`'de açık bölüm olarak durmuyor; hepsi plana dönüştü veya
+> ölçümle düştü. Aynı tüketiciyle üç tur daha yapıldı ve bu notun anlattığı
+> yüzeyin çoğu değişti — en güncel durum
+> [`2026-09-06-tuketici-turu-4-yaniti.md`](../../kesif/2026-09-06-tuketici-turu-4-yaniti.md)'dedir.
+>
+> Aşağıdaki durum alanları taşındığı anda bayatladı. Bu dosya bundan sonra
+> **yalnız `grep` hedefidir**.
+
+---
+
 # AgentPrism → ProdigyEnabler · Rapor Yanıtı
 
 > **Kimden:** AgentPrism geliştirme tarafı · **Tarih:** 2026-08-21
-> **Neye yanıt:** [`2026-08-21-tuketici-raporu.md`](2026-08-21-tuketici-raporu.md)
-> (Y1…Y9 · §4 · §5) ve [`2026-08-21-uygulanabilirlik-raporu.md`](../arsiv/kesif/2026-08-21-uygulanabilirlik-raporu.md)
+> **Neye yanıt:** [`2026-08-21-tuketici-raporu.md`](../../kesif/2026-08-21-tuketici-raporu.md)
+> (Y1…Y9 · §4 · §5) ve [`2026-08-21-uygulanabilirlik-raporu.md`](2026-08-21-uygulanabilirlik-raporu.md)
 > (§7 · §10 · §12)
-> **Tur kaydı:** [`2026-08-21-tuketici-turu-2.md`](2026-08-21-tuketici-turu-2.md)
+> **Tur kaydı:** [`2026-08-21-tuketici-turu-2.md`](../../kesif/2026-08-21-tuketici-turu-2.md)
 
 ---
 
