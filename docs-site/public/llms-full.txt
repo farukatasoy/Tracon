@@ -3076,6 +3076,14 @@ Both endpoints accept an optional `tenantId` filter; leaving it out never means
 Durable rows are also what
 [content protection](/getting-started/security/#at-rest-content-protection) encrypts.
 
+A durable `sessions` row is also what
+[session ownership](/concepts/sessions/#session-ownership) writes its owner into.
+The column is added by a migration, is nullable, and stays NULL until you turn
+ownership on — so enabling persistence costs nothing here, and enabling ownership
+later is a configuration change rather than a data change. The listing filter is a
+`WHERE` clause on that column, applied before paging, which is precisely what an
+in-memory setup cannot offer.
+
 ## Read next
 
 - [Securing the endpoints](/getting-started/security/) — required reading

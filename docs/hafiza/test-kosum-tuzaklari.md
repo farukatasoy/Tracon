@@ -122,6 +122,8 @@ supheli bir derlemeden HEMEN sonra calistirmadan once bu adimi atlama.
 
 ## 🚨 Paralel test SINIFLARI migration deadlock'u uretir (Faz 76)
 
+- **🚨 Ayni sinifin YENI belirtisi: cekisme test GOVDESINDE degil FIXTURE ACILISINDA patlar** (2026-09-06, Faz 148): SQL Server tam kosumda 13/655 dustu, hepsi `SqlServerSchemaFixture.InitializeAsync` icinde `Migration '0001_initial' … Execution Timeout Expired`. Dusen testlerin fazla hic ilgisi yoktu — yeni migration'i sanik sanmak icin her sebep vardi. Ayirt eden iki sey: `kapi.py`'nin kendi izole kosumu 13/13 gecti, paket tek basina 655/655 verdi. `mssql/server` burada amd64 emulasyonundadir (K-386), fixture acilisi zaten yavastir. **Kural**: migration ekledigin fazda SQL Server dusuyorsa once paketi TEK BASINA kosur — `0001_initial`'in timeout'u seninkiyle ilgili degildir.
+
 - **🚨 Full solution test run'inda test PROJELERI sinirsiz paralel kosmaz** (2026-08-25, Faz 100 sonrasi): `dotnet test AgentPrism.slnx` 24 test executable'i ayni anda baslatinca Docker container'lari, Playwright, functional host'lar ve `AgentPrism.Package.Tests` icindeki `dotnet pack` ayni CPU/RAM butcesine saldirir. Belirti urun hatasi degildir: `SourceLanguageTests` 5 sn Regex timeout'u ve CLI'nin 10 sn HTTP timeout'u yalniz tam run'da duser; ikisi de izolasyonda saniyeler icinde gecer. **Uc** worker bile Package build, PostgreSQL ve functional host'lari birlikte dakikalara iterdi. Cozum: gate ve CI tam run'lari **`-maxcpucount:1`** ile kosar. Bu, toplam wall-clock suresini artirir; ancak Docker ve package testi ayni anda makineyi doyurmadigi icin kaynak cekismesinden uzayan tekil testleri ve sahte timeout'lari kaldirir.
 
 - **🚨 `dotnet new sln` varsayilan uzantisi SDK'ya gore degisir** (2026-08-28):
