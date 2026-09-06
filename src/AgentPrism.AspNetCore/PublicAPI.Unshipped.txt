@@ -48,6 +48,8 @@ AgentPrism.AgentDetailResponse.Definition.init -> void
 AgentPrism.AgentDetailResponse.Descriptor.get -> AgentPrism.AgentDescriptor!
 AgentPrism.AgentDetailResponse.Descriptor.init -> void
 AgentPrism.AgentDetailResponse.Equals(AgentPrism.AgentDetailResponse? other) -> bool
+AgentPrism.AgentDetailResponse.FactoryInstructions.get -> string?
+AgentPrism.AgentDetailResponse.FactoryInstructions.init -> void
 AgentPrism.AgentDetailResponse.IsEditable.get -> bool
 AgentPrism.AgentDetailResponse.IsEditable.init -> void
 AgentPrism.AgentPrismA2ABuilderExtensions
