@@ -5,11 +5,20 @@ namespace AgentPrism;
 /// </summary>
 /// <remarks>
 /// <para>
-/// AgentPrism draws ownership at the TENANT level; it never learns which user
-/// inside a tenant a session or a run belongs to. Without this handler, every
+/// AgentPrism draws ownership at the TENANT level. Without this handler, every
 /// <c>Operator</c> in a tenant can start a run as, read, and delete every
-/// other user's session in the same tenant. This interface does not teach
-/// AgentPrism that boundary — it asks the consumer to enforce their own.
+/// other user's runs and sessions in the same tenant. This interface does not
+/// teach AgentPrism that boundary — it asks the consumer to enforce their own.
+/// </para>
+/// <para>
+/// One narrower boundary IS built in, for sessions only:
+/// <see cref="AgentPrismSessionOwnershipOptions"/> records which user opened a
+/// session and narrows the session listing to that user. It is off by default,
+/// and it does not replace this handler — it answers "which user owns this
+/// session" so that a handler no longer has to reject a whole listing just to
+/// keep users apart, and leaves every other question (runs, attachments,
+/// approvals, scores, per-project rules) to the consumer's own policy. The two
+/// compose: both are consulted, and either can refuse.
 /// </para>
 /// <para>
 /// The default implementation (<c>AllowAllRunAuthorizationHandler</c>,
