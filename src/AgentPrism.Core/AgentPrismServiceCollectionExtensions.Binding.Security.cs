@@ -429,6 +429,11 @@ public static partial class AgentPrismServiceCollectionExtensions
             options.RequireAuthenticatedOwner = requireOwner;
         }
 
+        if (TryReadBool(section, nameof(AgentPrismSessionOwnershipOptions.RefuseUnownedSessions), out var refuseUnowned))
+        {
+            options.RefuseUnownedSessions = refuseUnowned;
+        }
+
         // 🚨 Read with the empty string ACCEPTED, unlike most string settings
         // here: "" is the documented way to say "no caller gets an unfiltered
         // listing", and treating it as "not configured" would silently restore

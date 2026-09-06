@@ -178,7 +178,9 @@ Three properties are worth knowing before you turn it on:
 - **It is not retroactive.** Sessions written before you enabled it have no
   owner. AgentPrism cannot invent one for a conversation it did not watch being
   opened. Those sessions stay readable by id, so nothing that was live at the
-  moment of the flip breaks — but they no longer appear in any user's list.
+  moment of the flip breaks — but they no longer appear in any user's list. Once
+  they no longer matter, `RefuseUnownedSessions` closes that door too; see
+  below.
 - **Someone still needs the whole list.** A caller who satisfies
   `AgentPrism:SessionOwnership:ManagementPolicy` (default: the `Operator` role
   policy) gets the unfiltered tenant listing, including those unowned rows. If
@@ -193,6 +195,43 @@ which is only useful while migrating: such a session is invisible in its own
 caller's list from the moment it is written.
 
 Sessionless runs are unaffected — there is nothing to own.
+
+#### Refusing the unowned rows too
+
+An unowned row is not discoverable — it appears in no user's list — but by
+default it is still readable by anyone in the tenant who knows its id.
+`RefuseUnownedSessions` (default `false`) turns that into a refusal:
+
+```json
+{
+  "AgentPrism": {
+    "SessionOwnership": {
+      "Enabled": true,
+      "RefuseUnownedSessions": true
+    }
+  }
+}
+```
+
+| With strict mode on | What happens |
+|---|---|
+| `GET`/`DELETE`/`POST …/branch` on an unowned session | `404`, byte for byte identical to a session that does not exist |
+| `GET`/`DELETE` `/v1/conversations/{id}` on an unowned session | The same `404` — the OpenAI-compatible routes reach the same sessions |
+| A voice socket on an unowned session | Refused with `404` |
+| Starting a run against an unowned session | `403` with `errorType` `session_owner_required` |
+| A caller who satisfies `ManagementPolicy` reading one | Still `200` — support keeps the access it already had in the management listing |
+| A caller who satisfies `ManagementPolicy` starting a run on one | `403` — that exemption covers reading a conversation, never appending to it |
+| A session that **does not exist yet** | Unchanged: the first turn opens it and claims it |
+
+The last row is the one to hold on to. "Never created" and "created without an
+owner" are different rows and get different answers; if they were folded
+together, the first turn of every new conversation would be refused.
+
+The setting does nothing on its own — with `Enabled` off, no owner is ever
+read. Default `false` because turning it on strands every conversation that was
+live at the moment you enabled ownership. Turn it on once those conversations
+no longer matter, or from day one in a deployment that has no unowned rows at
+all.
 
 ### Your own authorization handler
 

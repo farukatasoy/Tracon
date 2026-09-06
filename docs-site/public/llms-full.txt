@@ -121,7 +121,7 @@ claim to provide an operating-system sandbox.
 | Replay | Recorded run input and replay service | Re-run against the current or selected definition, with tool replay modes and mismatch protection |
 | Compare and score | HTTP API, console, or a custom `IRunJudge` | Compare two runs, attach human scores, or score completed runs automatically; an online judge uses its provider setup credential and still obeys tenant egress policy |
 | Sessions | `AgentSessionManager` and session endpoints | Durable conversation identity and readable history when the store supports it |
-| Session ownership | `AgentPrism:SessionOwnership` | Off by default; records which user opened a session, narrows the session list to that user **before** paging, and answers `404` for another user's session — sessions written before it was turned on stay unowned and appear only in the management listing |
+| Session ownership | `AgentPrism:SessionOwnership` | Off by default; records which user opened a session, narrows the session list to that user **before** paging, and answers `404` for another user's session — sessions written before it was turned on stay unowned and appear only in the management listing, and `RefuseUnownedSessions` refuses those too once they no longer matter |
 | Branching | Session branch API | Fork a durable conversation from an addressable item; SQL storage is required |
 | Attachments | Attachment API and message references | Image, audio, PDF, and text uploads use size limits and magic-byte validation |
 | Document channel | A run's `documents` field | Reference text kept apart from instructions in the message list and the run record; a convention and an audit trail, not a security guarantee |
@@ -183,7 +183,7 @@ experiment, and automatic rollback is off until you configure it.
 | Reader, Operator, Admin roles | Endpoint groups | Optional policy names; production can require all three at startup |
 | API keys | HTTP API and stores | Hashed, revocable, expiring, tenant-bound, and narrowed by a closed scope enum |
 | Multi-tenancy | `UseTenancy()` | Single tenant by default; a verified key outranks a claim or header |
-| Session ownership | `AgentPrism:SessionOwnership` | A second boundary drawn under the tenant; off by default, and while off nothing changes. The owner comes from `IRunAttributionContext` and is never read from a request body |
+| Session ownership | `AgentPrism:SessionOwnership` | A second boundary drawn under the tenant; off by default, and while off nothing changes. The owner comes from `IRunAttributionContext` and is never read from a request body. `RefuseUnownedSessions` extends it to the rows that predate it, while a session that does not exist yet is still opened by its first turn |
 | Quotas | Run admission | Enabled with an empty rule set, so no run is rejected until a rule exists; a crossed threshold can also be written into the triggering run's own event stream, off by default |
 | Rate limiting | HTTP requests | Off by default; partition by tenant, key, or remote address |
 | Approvals | Tool execution and queued resume | Expiring requests, explicit decisions, and revocable standing rules |
@@ -810,6 +810,10 @@ default: inside a tenant, every `Reader` sees every session. Turning on
 records which user opened it, and the session list narrows to that user. It
 governs sessions only, and it never crosses the tenant: the same person in two
 tenants still has two independent data spaces.
+
+Ownership is not retroactive, so rows written before you turned it on belong to
+nobody. They fall out of every user's list immediately; `RefuseUnownedSessions`
+refuses them outright once the conversations they hold no longer matter.
 
 See [Sessions: session ownership](/concepts/sessions/#session-ownership) for the
 behaviour and the migration notes, and
@@ -1955,7 +1959,9 @@ Three properties are worth knowing before you turn it on:
 - **It is not retroactive.** Sessions written before you enabled it have no
   owner. AgentPrism cannot invent one for a conversation it did not watch being
   opened. Those sessions stay readable by id, so nothing that was live at the
-  moment of the flip breaks — but they no longer appear in any user's list.
+  moment of the flip breaks — but they no longer appear in any user's list. Once
+  they no longer matter, `RefuseUnownedSessions` closes that door too; see
+  below.
 - **Someone still needs the whole list.** A caller who satisfies
   `AgentPrism:SessionOwnership:ManagementPolicy` (default: the `Operator` role
   policy) gets the unfiltered tenant listing, including those unowned rows. If
@@ -1970,6 +1976,43 @@ which is only useful while migrating: such a session is invisible in its own
 caller's list from the moment it is written.
 
 Sessionless runs are unaffected — there is nothing to own.
+
+#### Refusing the unowned rows too
+
+An unowned row is not discoverable — it appears in no user's list — but by
+default it is still readable by anyone in the tenant who knows its id.
+`RefuseUnownedSessions` (default `false`) turns that into a refusal:
+
+```json
+{
+  "AgentPrism": {
+    "SessionOwnership": {
+      "Enabled": true,
+      "RefuseUnownedSessions": true
+    }
+  }
+}
+```
+
+| With strict mode on | What happens |
+|---|---|
+| `GET`/`DELETE`/`POST …/branch` on an unowned session | `404`, byte for byte identical to a session that does not exist |
+| `GET`/`DELETE` `/v1/conversations/{id}` on an unowned session | The same `404` — the OpenAI-compatible routes reach the same sessions |
+| A voice socket on an unowned session | Refused with `404` |
+| Starting a run against an unowned session | `403` with `errorType` `session_owner_required` |
+| A caller who satisfies `ManagementPolicy` reading one | Still `200` — support keeps the access it already had in the management listing |
+| A caller who satisfies `ManagementPolicy` starting a run on one | `403` — that exemption covers reading a conversation, never appending to it |
+| A session that **does not exist yet** | Unchanged: the first turn opens it and claims it |
+
+The last row is the one to hold on to. "Never created" and "created without an
+owner" are different rows and get different answers; if they were folded
+together, the first turn of every new conversation would be refused.
+
+The setting does nothing on its own — with `Enabled` off, no owner is ever
+read. Default `false` because turning it on strands every conversation that was
+live at the moment you enabled ownership. Turn it on once those conversations
+no longer matter, or from day one in a deployment that has no unowned rows at
+all.
 
 ### Your own authorization handler
 
@@ -5110,7 +5153,11 @@ common, so each one calls this binding in its own body:
   recorded input, its span tree, its tool calls, its scores, its
   cancellation, its attachments, and its approval requests.
 - **Every session access:** list, read, delete, branch, and opening a
-  real-time voice conversation (`SessionAccess.Voice`).
+  real-time voice conversation (`SessionAccess.Voice`) — including the
+  OpenAI-compatible routes that reach the same sessions under another name,
+  `GET`/`DELETE /v1/conversations/{id}` and `GET /v1/conversations/{id}/items`.
+  `POST /v1/conversations` is not among them: it reserves an identifier and
+  writes nothing, so there is no session yet to authorize.
 
 **How a denial answers depends on what was asked for.** A denied single
 resource — a run, a session, an attachment, an approval request — returns
@@ -7299,6 +7346,33 @@ curl -sS https://agents.example.com/agentprism/v1/responses \
 Creating a conversation reserves an identifier; the session is born on the first
 response call. Tenant ownership is checked on every reference. An identifier owned
 by another tenant returns `404`, not evidence that the resource exists.
+
+### The conversation routes go through your own gates
+
+`GET`, `DELETE` and `GET …/items` reach the same sessions `/api/sessions/{id}`
+reaches, so they pass the same two checks before answering:
+
+- **Session ownership**, when `AgentPrism:SessionOwnership` is on — including
+  `RefuseUnownedSessions`. See
+  [Sessions: session ownership](/concepts/sessions/#session-ownership).
+- **Your registered `IRunAuthorizationHandler`**, with `SessionAccess.Read` on
+  the two reads and `SessionAccess.Delete` on the delete.
+
+:::caution[Behaviour change]
+Before this, the conversation routes never asked your handler. If you have one
+registered and it refuses some sessions, it now refuses them here too — the
+direction is fail-closed, but it is a change. `POST /v1/conversations` is not
+gated: it reserves an identifier and writes nothing.
+:::
+
+If your deployment does not use these routes at all, leave them unmapped:
+
+```csharp
+app.MapAgentPrism("/agentprism", options => options.MapOpenAIConversations = false);
+```
+
+The four paths then answer `404` and disappear from the OpenAPI document.
+`/v1/responses` and `/v1/chat/completions` are unaffected.
 
 ## Chat Completions: stateless history
 
@@ -11666,6 +11740,7 @@ configuration section.
 | `AuthorizationPolicy` | `null` |
 | `RequireRolePolicies` | `false` |
 | `EnableDiagnosticsEndpoint` | `false` |
+| `MapOpenAIConversations` | `true` |
 | `RunEventPollInterval` | 250 ms |
 | `AllowedOrigins` | empty (no CORS header sent) |
 
@@ -11678,6 +11753,14 @@ app.MapAgentPrism("/agentprism", options =>
     options.RequireAuthorization("AgentPrismAccess");
 });
 ```
+
+`MapOpenAIConversations` is the only one that starts on. Setting it to `false`
+leaves the four `/v1/conversations` routes unmapped: they answer `404` and
+disappear from the OpenAPI document, while `/v1/responses` and
+`/v1/chat/completions` are unaffected. It shrinks the surface a deployment that
+never calls those routes exposes; it is not a security control, since the
+routes go through the same role policies, API key scopes, session ownership and
+`IRunAuthorizationHandler` gate as `/api/sessions`.
 
 Do not enable remote access without a token, API key, or authorization policy.
 Behind a reverse proxy, configure forwarded headers and do not treat the proxy's

@@ -63,3 +63,23 @@
   regex'idir, çünkü replay kaynak `run`'ın id'sini taşımak zorundadır ve
   `CheckRunAsync` bunu ifade edemez.
 
+- **🚨 Bir yüzey YARIM kapılı olabilir; bir kapıyı bulmak diğeri hakkında kanıt
+  değildir** (Faz 149). `OpenAIConversationsEndpoints` üç `SessionOwnershipGate`
+  çağrısı taşıyordu (Faz 148 eklemişti) ve `RunAuthorizationGate` çağrısı
+  **sıfırdı**: handler'ı `GET /api/sessions/{id}`'yi reddedecek biçimde kurmuş
+  bir tüketicide `GET /v1/conversations/{id}/items` aynı sohbet geçmişini
+  veriyordu. Dosya `ExpectedSessionOwnershipFiles`'ta vardı,
+  `ExpectedResourceFiles`'ta yoktu — kapsam kapısı **iki ayrı liste**dir ve
+  ikisini birden kontrol etmeyen bir denetim yeşil görünür. Yeni bir oturum
+  yüzeyi eklerken **ikisine de** ekle.
+- **Yetkilendirme kapısı ile SAHİPLİK kapısı ayrı sorular sorar ve ikisi de
+  gerekir** (Faz 148 · 149): handler tüketicinin politikasıdır, sahiplik
+  AgentPrism'in kendi verisidir. Sıra: kiracı → handler → sahiplik → gövde.
+  Sahiplik kapısı `HttpContext` ister (yönetim politikası istek başına
+  değerlendirilir); handler kapısı istemez.
+- **Yönetim muafiyeti ASİMETRİKTİR ve öyle kalmalıdır** (Faz 149, K-694):
+  `ManagementPolicy` sahipsiz bir satırı **okutur** (`DeniesAsync`), ama o
+  satıra `run` başlatmaz (`CheckRunSessionAsync`). Okumak ile konuşmaya eklemek
+  farklı eylemlerdir. Sahipliği "tek yardımcıda toplamak" isteyen bir
+  sadeleştirme bu asimetriyi siler; `The_management_exemption_does_not_extend_to_starting_a_run`
+  onu tutar.

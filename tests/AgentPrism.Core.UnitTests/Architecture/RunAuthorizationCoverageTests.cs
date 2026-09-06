@@ -115,6 +115,17 @@ public sealed class RunAuthorizationCoverageTests
     ];
 
     /// <summary>The files that reach a run's or a session's RESOURCES behind the same handler (phase 147).</summary>
+    /// <remarks>
+    /// 🚨 <c>OpenAIConversationsEndpoints</c> joined in phase 149, one phase
+    /// after it joined the ownership list below — the same file, the same
+    /// miss, found twice. Phase 148 gave it AgentPrism's own ownership
+    /// boundary and stopped there; the consumer's own
+    /// <c>IRunAuthorizationHandler</c> was still never asked, so an
+    /// installation whose handler refused <c>GET /api/sessions/{id}</c> had
+    /// <c>GET /v1/conversations/{id}/items</c> hand over the same history.
+    /// A surface can be half-gated, and finding one of its two gates is not
+    /// evidence about the other.
+    /// </remarks>
     private static readonly (string Path, Regex Marker)[] ExpectedResourceFiles =
     [
         ("src/AgentPrism.AspNetCore/Endpoints/RunEndpoints.cs", ResourceMarker),
@@ -125,6 +136,7 @@ public sealed class RunAuthorizationCoverageTests
         ("src/AgentPrism.AspNetCore/Endpoints/WorkflowEndpoints.cs", ResourceMarker),
         ("src/AgentPrism.AspNetCore/Endpoints/EvalEndpoints.cs", ResourceMarker),
         ("src/AgentPrism.AspNetCore/Voice/VoiceConversationEndpoint.cs", ResourceMarker),
+        ("src/AgentPrism.AspNetCore/OpenAICompat/OpenAIConversationsEndpoints.cs", ResourceMarker),
     ];
 
     /// <summary>

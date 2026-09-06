@@ -3,8 +3,8 @@ using System.Text.Json.Serialization;
 using Microsoft.Agents.AI;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Routing;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -151,8 +151,10 @@ internal static class OpenAIConversationsEndpoints
 
     private static async Task<IResult> RetrieveAsync(
         string conversationId,
+        HttpContext httpContext,
         ISessionStore sessions,
         ITenantContext tenantContext,
+        [FromServices] IRunAuthorizationHandler? runAuthorizationHandler,
         [FromServices] IRunAttributionContext? attributionContext,
         [FromServices] IOptionsMonitor<AgentPrismSessionOwnershipOptions>? sessionOwnershipOptions,
         CancellationToken cancellationToken)
@@ -168,15 +170,40 @@ internal static class OpenAIConversationsEndpoints
             return NotFound(conversationId);
         }
 
+        // 🚨 The consumer's own handler is asked HERE too, not only on the
+        // /api/sessions route: this surface reaches the very same sessions
+        // under a different name, and phase 148 already had to come back for it
+        // once with the ownership boundary. Asked AFTER the tenant is settled
+        // and BEFORE any state is read (K-684), and the gate's own problem body
+        // is deliberately DISCARDED — this endpoint answers in the OpenAI error
+        // shape, byte for byte the "wrong tenant" answer above.
+        //
+        // 🚨 What that byte equality does and does NOT buy, on THIS endpoint:
+        // it keeps a refusal indistinguishable from another tenant's
+        // conversation, which is the comparison that matters. It does not hide
+        // existence, and it cannot: an identifier nobody has used yet answers
+        // 200 here, because a conversation id is a RESERVATION and the session
+        // is born on the first /v1/responses call (see the type remarks). So on
+        // this surface "404" already means "not yours" rather than "never
+        // existed" — the endpoint's own WithDescription says so — and the
+        // identity-hiding 404 of /api/sessions/{id} has no equivalent to
+        // preserve here.
+        if (await RunAuthorizationGate
+                .CheckSessionAsync(runAuthorizationHandler, tenantContext, conversationId, attributionContext, SessionAccess.Read, cancellationToken)
+                .ConfigureAwait(false) is not null)
+        {
+            return NotFound(conversationId);
+        }
+
         // 🚨 The OpenAI-compatible surface reaches the SAME sessions under a
         // different name, so it needs the same ownership boundary - phase 148.
         // Leaving it out made `/api/sessions/{id}` answer 404 for another
         // user's session while `/v1/conversations/{id}/items` returned its
         // whole history: one door locked, the one beside it open. The answer
-        // is this endpoint's OWN "not found", byte for byte the tenant check's,
-        // so a denial still cannot confirm the conversation exists.
+        // is this endpoint's OWN "not found", byte for byte the tenant check's
+        // — the same equality, and the same limit, as the handler gate above.
         if (await SessionOwnershipGate
-                .DeniesAsync(sessionOwnershipOptions, attributionContext, sessions, conversationId, cancellationToken)
+                .DeniesAsync(sessionOwnershipOptions, attributionContext, sessions, conversationId, httpContext, cancellationToken)
                 .ConfigureAwait(false))
         {
             return NotFound(conversationId);
@@ -196,9 +223,11 @@ internal static class OpenAIConversationsEndpoints
 
     private static async Task<IResult> DeleteAsync(
         string conversationId,
+        HttpContext httpContext,
         ISessionStore sessions,
         AgentSessionManager manager,
         ITenantContext tenantContext,
+        [FromServices] IRunAuthorizationHandler? runAuthorizationHandler,
         [FromServices] IRunAttributionContext? attributionContext,
         [FromServices] IOptionsMonitor<AgentPrismSessionOwnershipOptions>? sessionOwnershipOptions,
         CancellationToken cancellationToken)
@@ -210,9 +239,19 @@ internal static class OpenAIConversationsEndpoints
             return NotFound(conversationId);
         }
 
+        // Same handler gate as RetrieveAsync above, with the access this
+        // endpoint actually performs. Checked BEFORE the delete: a denial must
+        // leave the conversation, and the session under it, untouched.
+        if (await RunAuthorizationGate
+                .CheckSessionAsync(runAuthorizationHandler, tenantContext, conversationId, attributionContext, SessionAccess.Delete, cancellationToken)
+                .ConfigureAwait(false) is not null)
+        {
+            return NotFound(conversationId);
+        }
+
         // Same boundary as RetrieveAsync above, and the same "not found" body.
         if (await SessionOwnershipGate
-                .DeniesAsync(sessionOwnershipOptions, attributionContext, sessions, conversationId, cancellationToken)
+                .DeniesAsync(sessionOwnershipOptions, attributionContext, sessions, conversationId, httpContext, cancellationToken)
                 .ConfigureAwait(false))
         {
             return NotFound(conversationId);
@@ -231,10 +270,12 @@ internal static class OpenAIConversationsEndpoints
 
     private static async Task<IResult> ListItemsAsync(
         string conversationId,
+        HttpContext httpContext,
         ISessionStore sessions,
         IAgentCatalog catalog,
         ChatHistoryProvider chatHistory,
         ITenantContext tenantContext,
+        [FromServices] IRunAuthorizationHandler? runAuthorizationHandler,
         [FromServices] IRunAttributionContext? attributionContext,
         [FromServices] IOptionsMonitor<AgentPrismSessionOwnershipOptions>? sessionOwnershipOptions,
         ILoggerFactory loggerFactory,
@@ -248,9 +289,18 @@ internal static class OpenAIConversationsEndpoints
             return NotFound(conversationId);
         }
 
+        // Same handler gate as RetrieveAsync above; reading a conversation's
+        // items IS reading the session's chat history.
+        if (await RunAuthorizationGate
+                .CheckSessionAsync(runAuthorizationHandler, tenantContext, conversationId, attributionContext, SessionAccess.Read, cancellationToken)
+                .ConfigureAwait(false) is not null)
+        {
+            return NotFound(conversationId);
+        }
+
         // Same boundary as RetrieveAsync above, and the same "not found" body.
         if (await SessionOwnershipGate
-                .DeniesAsync(sessionOwnershipOptions, attributionContext, sessions, conversationId, cancellationToken)
+                .DeniesAsync(sessionOwnershipOptions, attributionContext, sessions, conversationId, httpContext, cancellationToken)
                 .ConfigureAwait(false))
         {
             return NotFound(conversationId);

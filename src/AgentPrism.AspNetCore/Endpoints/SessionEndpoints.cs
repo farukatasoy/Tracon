@@ -214,7 +214,7 @@ internal static class SessionEndpoints
         // branching is a copy, not a handover, and the caller only got here by
         // already being that owner.
         if (await SessionOwnershipGate
-                .DeniesAsync(ownershipOptions, attributionContext, store, sessionId, cancellationToken)
+                .DeniesAsync(ownershipOptions, attributionContext, store, sessionId, httpContext, cancellationToken)
                 .ConfigureAwait(false))
         {
             return SessionNotFound(sessionId);
@@ -270,6 +270,7 @@ internal static class SessionEndpoints
 
     private static async Task<Results<Ok<SessionDetailResponse>, ProblemHttpResult>> GetSessionAsync(
         string sessionId,
+        HttpContext httpContext,
         ISessionStore store,
         IAgentCatalog catalog,
         ChatHistoryProvider chatHistory,
@@ -291,7 +292,7 @@ internal static class SessionEndpoints
         // from the same two strings: a denial that read differently would
         // confirm the session exists through a side channel (K-671).
         if (await SessionOwnershipGate
-                .DeniesAsync(ownershipOptions, attributionContext, store, sessionId, cancellationToken)
+                .DeniesAsync(ownershipOptions, attributionContext, store, sessionId, httpContext, cancellationToken)
                 .ConfigureAwait(false))
         {
             return SessionNotFound(sessionId);
@@ -334,6 +335,7 @@ internal static class SessionEndpoints
     /// </remarks>
     private static async Task<Results<NoContent, ProblemHttpResult>> DeleteSessionAsync(
         string sessionId,
+        HttpContext httpContext,
         AgentSessionManager sessions,
         ISessionStore store,
         IAttachmentStore attachmentStore,
@@ -353,7 +355,7 @@ internal static class SessionEndpoints
         // 🚨 Checked BEFORE the delete, not after: a denial must leave the
         // other owner's session, and its attachments, untouched.
         if (await SessionOwnershipGate
-                .DeniesAsync(ownershipOptions, attributionContext, store, sessionId, cancellationToken)
+                .DeniesAsync(ownershipOptions, attributionContext, store, sessionId, httpContext, cancellationToken)
                 .ConfigureAwait(false))
         {
             return SessionNotFound(sessionId);

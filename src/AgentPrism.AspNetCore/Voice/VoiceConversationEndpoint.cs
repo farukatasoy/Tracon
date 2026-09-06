@@ -149,6 +149,7 @@ internal static class VoiceConversationEndpoint
                     services.GetService<IRunAttributionContext>(),
                     services.GetRequiredService<ISessionStore>(),
                     sessionId,
+                    context,
                     context.RequestAborted)
                 .ConfigureAwait(false))
         {

@@ -98,6 +98,10 @@ records which user opened it, and the session list narrows to that user. It
 governs sessions only, and it never crosses the tenant: the same person in two
 tenants still has two independent data spaces.
 
+Ownership is not retroactive, so rows written before you turned it on belong to
+nobody. They fall out of every user's list immediately; `RefuseUnownedSessions`
+refuses them outright once the conversations they hold no longer matter.
+
 See [Sessions: session ownership](/concepts/sessions/#session-ownership) for the
 behaviour and the migration notes, and
 [Embedding](/guides/embedding/#6--run-and-session-authorization) for how it
