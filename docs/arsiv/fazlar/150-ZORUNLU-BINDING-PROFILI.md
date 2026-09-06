@@ -1,13 +1,13 @@
 # Faz 150 — Zorunlu Binding Profili
 
 > **Durum:** ✅ Tamamlandı (2026-09-06)
-> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-202** (tüketici turu 4, F2)
+> **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-202** (tüketici turu 4, F2)
 > **Önkoşul:** Yok
 > **Paketler:** `AgentPrism.Core` · kanıt testi `AgentPrism.Core.UnitTests`
 > **Yeni paket:** Yok · **Migration:** Yok
 > **Public API:** Büyüyor — `IAgentPrismBuilder`'a bir metot + bir istisna tipi (Açık Soru 2). `wc -l src/*/PublicAPI.Shipped.txt` → 17 satır / 17 dosya (yalnız başlık), **shipped giriş sıfır**: bugün eklemek bedava, Faz 7'den sonra bir sürüm kararı
 > **Tüketici yüzeyi:** `docs-site/`: `guides/embedding.md`, `guides/production.md`, `concepts/governance.md`, `capabilities.md` · sevk edilen: `IAgentPrismBuilder` XML `<example>`, `src/AgentPrism.Core/README.md`
-> **Manuel test alanı:** [`docs/manuel-test/25-SAGLIK-TESHIS-OPENAPI.md`](manuel-test/25-SAGLIK-TESHIS-OPENAPI.md)
+> **Manuel test alanı:** [`docs/manuel-test/25-SAGLIK-TESHIS-OPENAPI.md`](../../manuel-test/25-SAGLIK-TESHIS-OPENAPI.md)
 
 ---
 
@@ -24,16 +24,16 @@
    **K-006** (AspNetCore'a özgü tipler Core'a sızmaz — bu fazın kontrolü Core'da yaşıyor) ·
    **K-250** (`AgentPrismDiagnosticsReport` genel bir sağlık kararı TAŞIMAZ; üç durumlu yargı yalnız `AgentPrismHealthCheck`'tedir — bu faz o ayrımı bozmaz) ·
    **K-421** (`EnablePublicApiTracking` açıktır)
-3. [`149-SAHIPSIZ-OTURUMUN-KATI-REDDI.md`](arsiv/fazlar/149-SAHIPSIZ-OTURUMUN-KATI-REDDI.md) — yalnız devir notu:
+3. [`149-SAHIPSIZ-OTURUMUN-KATI-REDDI.md`](149-SAHIPSIZ-OTURUMUN-KATI-REDDI.md) — yalnız devir notu:
    ```bash
    awk '/## Sonraki Faza Devir Notu/,0' docs/149-SAHIPSIZ-OTURUMUN-KATI-REDDI.md
    ```
    Konu olarak bağımsızdır; yalnız iki fazın da aynı yedi sözleşmeye dokunduğunu bilmek gerekir.
 4. Alan hafızası (bu faz iki alana dokunuyor):
-   [`hafiza/aspnetcore-di.md`](hafiza/aspnetcore-di.md) 🚨 (kayıt sırası, `TryAdd` ve captive dependency tuzakları) ·
-   [`hafiza/test-altyapisi.md`](hafiza/test-altyapisi.md) (host başlatma testlerinin deseni)
+   [`hafiza/aspnetcore-di.md`](../../hafiza/aspnetcore-di.md) 🚨 (kayıt sırası, `TryAdd` ve captive dependency tuzakları) ·
+   [`hafiza/test-altyapisi.md`](../../hafiza/test-altyapisi.md) (host başlatma testlerinin deseni)
 5. Gerektiğinde, tamamı değil ilgili bölümü:
-   [`MAF-GENISLEME-NOKTALARI.md`](MAF-GENISLEME-NOKTALARI.md) — genişleme noktası listesi
+   [`MAF-GENISLEME-NOKTALARI.md`](../../MAF-GENISLEME-NOKTALARI.md) — genişleme noktası listesi
 
 ---
 
@@ -65,11 +65,11 @@ niyet beyan edilir, eksikse host başlamaz.
 
 | Kanıt | Gözlem |
 |---|---|
-| [`AgentPrismDiagnosticsCollector.cs:219`](../src/AgentPrism.Core/Diagnostics/AgentPrismDiagnosticsCollector.cs) | `CollectExtensionPoints()` yedi sözleşmeyi çözüp `IsBuiltInDefault`'u hesaplıyor — **cevap zaten üretiliyor** |
-| [`ExtensionPointDiagnostic.cs`](../src/AgentPrism.Abstractions/Diagnostics/ExtensionPointDiagnostic.cs) | `Contract` · `Implementation` · `IsBuiltInDefault` üç alanı da public |
-| [`AgentPrismRolePolicies.cs:62`](../src/AgentPrism.AspNetCore/Security/AgentPrismRolePolicies.cs) | `RequireRolePolicies` açıkken eksik policy `InvalidOperationException` ile **host'u durduruyor** — sevk edilmiş emsal |
-| [`JobHandlerRegistryValidator.cs`](../src/AgentPrism.Core/Scheduling/JobHandlerRegistryValidator.cs) | Core'da 13 satırlık bir `IHostedService`; tek işi bir kaydı **başlangıçta çözmek**. Bu fazın şekli budur |
-| [`ToolRegistrationValidationService.cs`](../src/AgentPrism.Core/Tools/ToolRegistrationValidationService.cs) | Aynı desenin ikinci örneği |
+| [`AgentPrismDiagnosticsCollector.cs:219`](../../../src/AgentPrism.Core/Diagnostics/AgentPrismDiagnosticsCollector.cs) | `CollectExtensionPoints()` yedi sözleşmeyi çözüp `IsBuiltInDefault`'u hesaplıyor — **cevap zaten üretiliyor** |
+| [`ExtensionPointDiagnostic.cs`](../../../src/AgentPrism.Abstractions/Diagnostics/ExtensionPointDiagnostic.cs) | `Contract` · `Implementation` · `IsBuiltInDefault` üç alanı da public |
+| [`AgentPrismRolePolicies.cs:62`](../../../src/AgentPrism.AspNetCore/Security/AgentPrismRolePolicies.cs) | `RequireRolePolicies` açıkken eksik policy `InvalidOperationException` ile **host'u durduruyor** — sevk edilmiş emsal |
+| [`JobHandlerRegistryValidator.cs`](../../../src/AgentPrism.Core/Scheduling/JobHandlerRegistryValidator.cs) | Core'da 13 satırlık bir `IHostedService`; tek işi bir kaydı **başlangıçta çözmek**. Bu fazın şekli budur |
+| [`ToolRegistrationValidationService.cs`](../../../src/AgentPrism.Core/Tools/ToolRegistrationValidationService.cs) | Aynı desenin ikinci örneği |
 | `grep -rn "IsBuiltInDefault" src/` | Değeri **yalnız** teşhis raporunda okunuyor; hiçbir kapı ona bakmıyor |
 
 Yedi sözleşme ve yerleşik varsayılanları (ölçüldü, `:229`–`:275`):
@@ -141,7 +141,7 @@ flowchart LR
 **kurulmasına** yol açar. `AgentPrismDiagnosticsCollector` bunu zaten yapıyor,
 ama o istek anında çalışıyor; başlangıçta çözmek yeni bir kurulum sırası
 üretebilir. Uygulama, doğrulayıcının hangi servisleri hangi sırayla çözdüğünü
-[`hafiza/aspnetcore-di.md`](hafiza/aspnetcore-di.md)'ye karşı okur ve captive
+[`hafiza/aspnetcore-di.md`](../../hafiza/aspnetcore-di.md)'ye karşı okur ve captive
 dependency üretmediğini kanıtlar.
 
 **Hata mesajı üç şeyi söylemelidir** — tüketicinin isteği buydu ("hangi
@@ -248,7 +248,7 @@ tests/AgentPrism.AspNetCore.FunctionalTests/
 
 ## Manuel Kabul Case'leri
 
-> Kapanışta [`docs/manuel-test/25-SAGLIK-TESHIS-OPENAPI.md`](manuel-test/25-SAGLIK-TESHIS-OPENAPI.md) içine eklenir.
+> Kapanışta [`docs/manuel-test/25-SAGLIK-TESHIS-OPENAPI.md`](../../manuel-test/25-SAGLIK-TESHIS-OPENAPI.md) içine eklenir.
 
 | # | Ön koşul | Adımlar | Beklenen sonuç |
 |---|---|---|---|
@@ -313,7 +313,7 @@ curl -s "$APU/api/diagnostics" -H "$APB" | jq '.extensionPoints | length'
 
 | Risk | Önlem |
 |------|-------|
-| 🚨 Doğrulayıcı yedi sözleşmeyi başlangıçta çözerek yeni bir kurulum sırası üretir ve başka bir kayıt bozulur | Uygulama önce [`hafiza/aspnetcore-di.md`](hafiza/aspnetcore-di.md)'yi okur. `ServiceRegistrationSnapshotTests` ve `ValidateOnBuild` açık host testi iki katman kurar |
+| 🚨 Doğrulayıcı yedi sözleşmeyi başlangıçta çözerek yeni bir kurulum sırası üretir ve başka bir kayıt bozulur | Uygulama önce [`hafiza/aspnetcore-di.md`](../../hafiza/aspnetcore-di.md)'yi okur. `ServiceRegistrationSnapshotTests` ve `ValidateOnBuild` açık host testi iki katman kurar |
 | `IAttachmentStorage`/`IRunEventSink` yokluk dalı diğer beşiyle aynı koda indirilir ve sessizce yanlış cevap verir | Plan bunu 🚨 ile ayırıyor; DoD ayrı bir madde; birim testi iki sözleşmeyi ayrı ayrı ölçer |
 | Kontrol yalnız `AddAgentPrism` çağıran host'ta çalışır; `AgentPrism.Cli` gibi başka giriş noktaları kapsanmaz | Uygulama Adım 1'de `AddAgentPrism` çağıran giriş noktalarını **sayar** ve kapsanmayanı dokümana yazar |
 | Serbest generic yanlış tiple çağrılır ve hata mesajı anlaşılmaz olur | Açık Soru 1'in A cevabı: tanınmayan tip için başlangıçta **açık** bir hata; mesaj yedi sözleşmeyi listeler |
