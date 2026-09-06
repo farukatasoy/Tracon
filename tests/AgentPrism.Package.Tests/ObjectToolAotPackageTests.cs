@@ -39,7 +39,7 @@ public sealed class ObjectToolAotPackageTests(TemplateFixture fixture)
         publishResult.Combined.ShouldNotContain("IL2026", Case.Sensitive, publishResult.Combined);
         publishResult.Combined.ShouldNotContain("IL3050", Case.Sensitive, publishResult.Combined);
 
-        var executable = Path.Combine(publishDirectory, "Consumer");
+        var executable = Path.Combine(publishDirectory, OperatingSystem.IsWindows() ? "Consumer.exe" : "Consumer");
         File.Exists(executable).ShouldBeTrue($"Expected a published executable at '{executable}'.{Environment.NewLine}{publishResult.Combined}");
 
         var runResult = await ProcessRunner.RunAsync(executable, string.Empty, dir.Path, TimeSpan.FromMinutes(1));
