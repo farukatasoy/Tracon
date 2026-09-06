@@ -89,6 +89,20 @@ scope's `RunIds`. Erasing a run row removes its `user_id` along with everything
 else on it.
 :::
 
+### Below the tenant: session ownership
+
+The tenant is the data boundary, and it is the only one AgentPrism draws by
+default: inside a tenant, every `Reader` sees every session. Turning on
+`AgentPrism:SessionOwnership` adds a second, narrower line under it — a session
+records which user opened it, and the session list narrows to that user. It
+governs sessions only, and it never crosses the tenant: the same person in two
+tenants still has two independent data spaces.
+
+See [Sessions: session ownership](/concepts/sessions/#session-ownership) for the
+behaviour and the migration notes, and
+[Embedding](/guides/embedding/#6--run-and-session-authorization) for how it
+composes with `IRunAuthorizationHandler`.
+
 ## Per-tenant provider credentials and egress
 
 By default every tenant shares the model provider credential a `Use...()` call

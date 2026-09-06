@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 
 namespace AgentPrism;
 
@@ -130,6 +131,26 @@ internal static class VoiceConversationEndpoint
                     SessionAccess.Voice,
                     context.RequestAborted)
                 .ConfigureAwait(false) is not null)
+        {
+            await WriteSessionNotFoundAsync(context, sessionId).ConfigureAwait(false);
+
+            return;
+        }
+
+        // 🚨 Ownership is checked with the SAME "does not exist" answer, for
+        // the same reason as the tenant check above. A voice socket writes to
+        // the session it opens, so leaving this path ungated would let one user
+        // speak into another user's conversation while every HTTP route to it
+        // answered 404. K-283 survives: a session nothing has written yet
+        // carries no owner and is not refused here.
+        if (await SessionOwnershipGate
+                .DeniesAsync(
+                    services.GetService<IOptionsMonitor<AgentPrismSessionOwnershipOptions>>(),
+                    services.GetService<IRunAttributionContext>(),
+                    services.GetRequiredService<ISessionStore>(),
+                    sessionId,
+                    context.RequestAborted)
+                .ConfigureAwait(false))
         {
             await WriteSessionNotFoundAsync(context, sessionId).ConfigureAwait(false);
 

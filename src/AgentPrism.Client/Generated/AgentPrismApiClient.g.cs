@@ -921,7 +921,7 @@ namespace AgentPrism.Client.Generated
         /// Runs an agent for trial purposes and streams the response via SSE.
         /// </summary>
         /// <remarks>
-        /// If the quota is exceeded, the run does not start and a 429 is returned; the ProblemDetails carries which quota was exceeded and when the counter resets. When the pre-flight context-window check is enabled (disabled by default) and the prompt is estimated to exceed the model's window, the run does not start and a 400 is returned with the estimated and allowed token counts; no call reaches the provider. A request carrying the 'Idempotency-Key' header runs with a single JSON response (non-streaming) instead of SSE, because a replayed response cannot be reconstructed from a stream. A request carrying the 'Prefer: respond-async' header queues the run and returns '202 Accepted' with a 'Location' header. If a registered IContentGuard blocks the content, the non-streaming response returns '422' and the run's error type becomes 'content_blocked'; in the STREAMING response the status code has already been sent, so the block arrives as an SSE 'error' event instead. If a registered IRunAuthorizationHandler denies the caller, the run does not start and a 403 is returned; this check runs before the quota check, so a denied run never consumes the tenant's quota.
+        /// If the quota is exceeded, the run does not start and a 429 is returned; the ProblemDetails carries which quota was exceeded and when the counter resets. When the pre-flight context-window check is enabled (disabled by default) and the prompt is estimated to exceed the model's window, the run does not start and a 400 is returned with the estimated and allowed token counts; no call reaches the provider. A request carrying the 'Idempotency-Key' header runs with a single JSON response (non-streaming) instead of SSE, because a replayed response cannot be reconstructed from a stream. A request carrying the 'Prefer: respond-async' header queues the run and returns '202 Accepted' with a 'Location' header. If a registered IContentGuard blocks the content, the non-streaming response returns '422' and the run's error type becomes 'content_blocked'; in the STREAMING response the status code has already been sent, so the block arrives as an SSE 'error' event instead. If a registered IRunAuthorizationHandler denies the caller, the run does not start and a 403 is returned; this check runs before the quota check, so a denied run never consumes the tenant's quota.When session ownership is turned on, naming another user's session in 'sessionId' is also refused with 403, and opening a NEW session is refused the same way when no authenticated identity can be resolved to own it ('errorType': 'session_owner_required').
         /// </remarks>
         /// <returns>OK</returns>
         /// <exception cref="AgentPrismApiException">A server side error occurred.</exception>
@@ -2149,7 +2149,7 @@ namespace AgentPrism.Client.Generated
         /// Lists sessions from most recently updated to oldest.
         /// </summary>
         /// <remarks>
-        /// Paging is offset based: 'skip' defaults to 0 and 'take' to 50, and 'take' is clamped to the 1..200 range rather than rejected, so an out-of-range value never fails the request. 'agentName' narrows the list to one agent. Because the order is by last update, a session that changes while a client pages can move between pages; use the session id, not the position, as the identity. If a registered IRunAuthorizationHandler denies the caller, the response is 403 — the list is REJECTED, never silently filtered, because server-side filtering would break the skip/take paging contract.
+        /// Paging is offset based: 'skip' defaults to 0 and 'take' to 50, and 'take' is clamped to the 1..200 range rather than rejected, so an out-of-range value never fails the request. 'agentName' narrows the list to one agent. Because the order is by last update, a session that changes while a client pages can move between pages; use the session id, not the position, as the identity. If a registered IRunAuthorizationHandler denies the caller, the response is 403 — a denied list is REJECTED, never quietly shortened. When session ownership is turned on, the list is additionally narrowed to the calling user's own sessions before paging is applied, unless the caller satisfies the configured management policy; sessions written before ownership was turned on carry no owner and appear only in that management listing.
         /// </remarks>
         /// <returns>OK</returns>
         /// <exception cref="AgentPrismApiException">A server side error occurred.</exception>
@@ -2250,7 +2250,7 @@ namespace AgentPrism.Client.Generated
         /// Returns a session's metadata and chat history.
         /// </summary>
         /// <remarks>
-        /// 'messages' is the readable chat history and is null when the configured session storage cannot expose one — with an in-memory setup the history lives inside an opaque state blob. 'state' always carries that raw provider state. Messages come back in sequence order, so the index of a message is the sequence number the branch endpoint expects. If a registered IRunAuthorizationHandler denies the caller, the response is 404 — identical to a session that does not exist, so a denial never confirms the session's existence.
+        /// 'messages' is the readable chat history and is null when the configured session storage cannot expose one — with an in-memory setup the history lives inside an opaque state blob. 'state' always carries that raw provider state. Messages come back in sequence order, so the index of a message is the sequence number the branch endpoint expects. If a registered IRunAuthorizationHandler denies the caller, the response is 404 — identical to a session that does not exist, so a denial never confirms the session's existence. With session ownership turned on, another user's session answers the same 404.
         /// </remarks>
         /// <returns>OK</returns>
         /// <exception cref="AgentPrismApiException">A server side error occurred.</exception>
@@ -2341,7 +2341,7 @@ namespace AgentPrism.Client.Generated
         /// Deletes a session.
         /// </summary>
         /// <remarks>
-        /// Attachments linked to the session are deleted with it, and this call is the only way they are cleaned up: an attachment may be uploaded before any session exists, so the link is deliberately not a database foreign key. The attachments are removed only after the session itself is found, so a 404 leaves no side effect. Runs recorded under the session are kept — run history does not depend on the session still existing. If a registered IRunAuthorizationHandler denies the caller, the response is also 404, identical to a session that does not exist.
+        /// Attachments linked to the session are deleted with it, and this call is the only way they are cleaned up: an attachment may be uploaded before any session exists, so the link is deliberately not a database foreign key. The attachments are removed only after the session itself is found, so a 404 leaves no side effect. Runs recorded under the session are kept — run history does not depend on the session still existing. If a registered IRunAuthorizationHandler denies the caller, the response is also 404, identical to a session that does not exist; with session ownership turned on, another user's session answers that same 404 and is left untouched.
         /// </remarks>
         /// <returns>No Content</returns>
         /// <exception cref="AgentPrismApiException">A server side error occurred.</exception>
@@ -2426,7 +2426,7 @@ namespace AgentPrism.Client.Generated
         /// Branches a conversation from a specific point and opens a new session.
         /// </summary>
         /// <remarks>
-        /// Items up to and including 'upToSequence' are COPIED into a NEW conversation; the pointer is only provenance information. Writing to the branch does not change the parent conversation. Branching only works while a persistent SQL provider is enabled; in an in-memory setup, chat history lives in an opaque blob of session state and this returns 501. If a registered IRunAuthorizationHandler denies the caller, the response is 404, identical to a session that does not exist.
+        /// Items up to and including 'upToSequence' are COPIED into a NEW conversation; the pointer is only provenance information. Writing to the branch does not change the parent conversation. Branching only works while a persistent SQL provider is enabled; in an in-memory setup, chat history lives in an opaque blob of session state and this returns 501. If a registered IRunAuthorizationHandler denies the caller, the response is 404, identical to a session that does not exist; with session ownership turned on, another user's session answers that same 404. The new session inherits the SOURCE session's owner, not the caller's — a branch is a copy, not a handover.
         /// </remarks>
         /// <returns>Created</returns>
         /// <exception cref="AgentPrismApiException">A server side error occurred.</exception>
@@ -4086,7 +4086,7 @@ namespace AgentPrism.Client.Generated
         /// Runs the workflow and streams its events over SSE.
         /// </summary>
         /// <remarks>
-        /// Each frame carries a RunEvent. The first frame reports the run ID; every agent invoked within the workflow opens its own runs row, viewable as a tree via GET /api/runs/{runId}/tree. If a registered IRunAuthorizationHandler denies the caller, the run does not start and a 403 is returned, before the quota check.
+        /// Each frame carries a RunEvent. The first frame reports the run ID; every agent invoked within the workflow opens its own runs row, viewable as a tree via GET /api/runs/{runId}/tree. If a registered IRunAuthorizationHandler denies the caller, the run does not start and a 403 is returned, before the quota check. When session ownership is turned on, naming another user's session in 'sessionId' is refused the same way, and so is opening a NEW session when no authenticated identity can be resolved to own it.
         /// </remarks>
         /// <returns>OK</returns>
         /// <exception cref="AgentPrismApiException">A server side error occurred.</exception>
@@ -13502,7 +13502,7 @@ namespace AgentPrism.Client.Generated
         /// Run endpoint compatible with the OpenAI Responses API.
         /// </summary>
         /// <remarks>
-        /// The agent is selected from the 'model' field; if not found, 'metadata.entity_id' is tried. If 'conversation' is given the session is stored under that identifier; if not, under the generated response identifier, so chaining with 'previous_response_id' works. If a registered IRunAuthorizationHandler denies the caller, the response is 403.
+        /// The agent is selected from the 'model' field; if not found, 'metadata.entity_id' is tried. If 'conversation' is given the session is stored under that identifier; if not, under the generated response identifier, so chaining with 'previous_response_id' works. If a registered IRunAuthorizationHandler denies the caller, the response is 403. When session ownership is turned on, a 'conversation' or 'previous_response_id' that belongs to another user is refused the same way, and so is opening a NEW conversation when no authenticated identity can be resolved to own it.
         /// </remarks>
         /// <returns>OK</returns>
         /// <exception cref="AgentPrismApiException">A server side error occurred.</exception>
@@ -22424,6 +22424,14 @@ namespace AgentPrism.Client.Generated
 
         [System.Text.Json.Serialization.JsonPropertyName("tenantId")]
         public string? TenantId { get; set; } = default!;
+
+        /// <summary>
+        /// The user the session belongs to, or `null` when the
+        /// <br/>session is unowned.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("ownerId")]
+        public string? OwnerId { get; set; } = default!;
 
         /// <summary>
         /// The AgentPrism schema generation that wrote `State`.

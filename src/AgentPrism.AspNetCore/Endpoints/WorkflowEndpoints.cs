@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace AgentPrism;
 
@@ -125,7 +126,10 @@ internal static class WorkflowEndpoints
                 "Each frame carries a RunEvent. The first frame reports the run ID; every " +
                 "agent invoked within the workflow opens its own runs row, viewable as a tree " +
                 "via GET /api/runs/{runId}/tree. If a registered IRunAuthorizationHandler denies " +
-                "the caller, the run does not start and a 403 is returned, before the quota check.")
+                "the caller, the run does not start and a 403 is returned, before the quota check. " +
+                "When session ownership is turned on, naming another user's session in 'sessionId' " +
+                "is refused the same way, and so is opening a NEW session when no authenticated " +
+                "identity can be resolved to own it.")
             // The success response is always SSE; if the engine is not registered, it returns 501.
             .Produces<string>(StatusCodes.Status200OK, contentType: "text/event-stream")
             .ProducesProblem(StatusCodes.Status403Forbidden)
@@ -381,6 +385,8 @@ internal static class WorkflowEndpoints
         [FromServices] QuotaEnforcer? quotaEnforcer,
         [FromServices] IRunAuthorizationHandler? runAuthorizationHandler,
         [FromServices] IRunAttributionContext? attributionContext,
+        [FromServices] ISessionStore sessionStore,
+        [FromServices] IOptionsMonitor<AgentPrismSessionOwnershipOptions>? sessionOwnershipOptions,
         [FromServices] ITenantContext tenantContext,
         HttpContext httpContext,
         CancellationToken cancellationToken)
@@ -412,6 +418,15 @@ internal static class WorkflowEndpoints
                 .ConfigureAwait(false) is { } authorizationProblem)
         {
             return authorizationProblem;
+        }
+
+        // 🚨 Ownership guards the run surface too (phase 148); see
+        // AgentEndpoints for why the session endpoints alone are not enough.
+        if (await SessionOwnershipGate
+                .CheckRunSessionAsync(sessionOwnershipOptions, attributionContext, sessionStore, request?.SessionId, cancellationToken)
+                .ConfigureAwait(false) is { } ownershipProblem)
+        {
+            return ownershipProblem;
         }
 
         // 🚨 HATA-S1-006: workflow runs pass through the SAME quota gate as

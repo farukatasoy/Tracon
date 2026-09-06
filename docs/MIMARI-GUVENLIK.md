@@ -129,34 +129,41 @@ K-277, K-278, K-279.
 **Yalıtım hangi katmandadır (K-623, Faz 104).** Yalıtım **uygulama
 katmanındadır**: kiracı `ITenantContext` ile çözülür, filtre sorgu katmanında
 uygulanır ve yukarıdaki kapı bunu zorlar. Veritabanı RLS'i **yoktur ve bilinçli
-olarak yoktur** — `grep -rn "ROW LEVEL SECURITY" src/` sıfır döner. Gerekçenin
-tamamı K-623'tedir; özeti üç maddedir: kapı zaten `TenantCoverageTests`'tir,
-SQLite'ta RLS karşılığı yoktur (üç sağlayıcının davranışı ayrışır) ve SQL Server
-tarafı gerçek container üzerinde doğrulanamıyor (K-186, K-317). Bu bir savunma
-derinliği reddi değil, bir sıralama kararıdır. Tüketiciye dönük karşılığı
-`docs-site/src/content/docs/concepts/governance.md`'dedir.
+olarak yoktur** — `grep -rn "ROW LEVEL SECURITY" src/` sıfır döner; bir savunma
+derinliği reddi değil, bir sıralama kararıdır. Üç maddelik gerekçe K-623'tedir,
+tüketiciye dönük karşılığı `docs-site/`'ın governance sayfasındadır.
 
 **Hız sınırı bir yalıtım sınırı DEĞİLDİR (Faz 104).**
 `AgentPrismRateLimitOptions` ve `InboundTriggerRateLimiter` süreç belleğinde
-sayar; `Partition = Tenant` her örneğin **kendi** penceresini kiracıya böler,
-dağıtım genelinde paylaşılan bir pencereyi değil. Bir kiracının toplam
-tüketimini bağlayan şey kotadır — o veritabanında sayılır ve örnek sayısından
-etkilenmez.
+sayar; `Partition = Tenant` her örneğin **kendi** penceresini böler, paylaşılan
+bir pencereyi değil. Kiracının toplam tüketimini bağlayan şey kotadır — o
+veritabanında sayılır ve örnek sayısından etkilenmez.
 
 **Kiracı sağlayıcı anahtarları / BYOK ve egress (Faz 65).** Varsayılan
-**kapalıdır**: kiracı `store`'larından biri bile kayıtlı değilse veya
-tenant context yoksa `ModelProviderRegistry.CreateChatClientAsync` sync
-`CreateChatClient` ile birebir davranır. Açıldığında, her model çağrısından
-önce iki kontrol TEK yerde sırayla çalışır: (0) **egress** — kiracının
-`tenant_egress_policies` kaydı sağlayıcıyı izin veriyor mu (politika yoksa
-kısıtsız); (1) **kimlik bilgisi** — kiracının `tenant_provider_bindings`
-kaydı var mı, varsa yapılandırma anahtarının **adı** (asla değeri, K-059)
-`IConfiguration`'dan çözülür. Kayıt var ama değer yoksa çağrı global
-anahtara **düşmez**; anlaşılır bir hata verir. Bu tek nokta hem gerçek
-`run` derlemesini (`CompiledAgentCache` → `AgentDefinitionCompiler.CompileAsync`)
-hem `AgentDefinitionValidator`'ın ön-uçuş kontrolünü besler — izinsiz bir
-sağlayıcıya işaret eden tanım **derleme anında**, gerçek bir ağ çağrısı
-olmadan reddedilir.
+**kapalıdır**. Açıldığında her model çağrısından önce iki kontrol TEK yerde
+sırayla çalışır: **egress** (kiracının `tenant_egress_policies` kaydı
+sağlayıcıya izin veriyor mu; politika yoksa kısıtsız) ve **kimlik bilgisi**
+(`tenant_provider_bindings`; kayıtta yalnız yapılandırma anahtarının **adı**
+durur, değeri asla — K-059). Kayıt var ama değer yoksa çağrı global anahtara
+**düşmez**, anlaşılır bir hata verir. Aynı tek nokta hem gerçek `run`
+derlemesini hem ön-uçuş doğrulamasını besler; izinsiz sağlayıcıya işaret eden
+tanım **derleme anında**, ağ çağrısı olmadan reddedilir. Gerekçe: K-065 · K-059.
+
+**Kiracının ALTINDA ikinci bir sınır: oturum sahipliği (Faz 148).**
+Varsayılan **kapalıdır**; kapalıyken `sessions.owner_id` `NULL` kalır ve hiçbir
+liste daralmaz. Açıldığında oturum, onu AÇAN kullanıcıyı kaydeder — kaynak
+`IRunAttributionContext`'tir, gövde **asla** okunmaz. Kiracı sınırı değişmez ve
+sahiplik onu hiç kesmez.
+
+Süzgeç SQL `WHERE`'dedir, `Skip`/`Take`'ten **önce** (K-688) · sahiplik **bir
+kez** atanır ve dört depo da `COALESCE` eder (K-689) · kapı `run` başlatan
+yüzeyleri ve `/v1/conversations`'ı da kapsar, HTTP sınırında yaşar (K-691) ·
+sahiplik **geriye dönük değildir** (K-693). Mod açıkken
+`IRunAttributionContext` bir muhasebe değil bir **yetkilendirme** girdisidir:
+çözülemeyen kimlik `403` üretir (K-690).
+
+Kapının hangi yüzeyleri kapsadığı ve neden `AgentSessionManager`'da
+olmadığı: [`hafiza/maf-oturum.md`](hafiza/maf-oturum.md).
 
 ## Roller ve denetim izi
 

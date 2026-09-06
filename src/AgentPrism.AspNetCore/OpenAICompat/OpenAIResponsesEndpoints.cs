@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace AgentPrism;
 
@@ -60,6 +61,7 @@ internal static class OpenAIResponsesEndpoints
                 IAuditActorResolver actorResolver,
                 [FromServices] IRunAuthorizationHandler? runAuthorizationHandler,
                 [FromServices] IRunAttributionContext? attributionContext,
+                [FromServices] IOptionsMonitor<AgentPrismSessionOwnershipOptions>? sessionOwnershipOptions,
                 CancellationToken cancellationToken)
                 => HandleAsync(
                     httpContext,
@@ -72,6 +74,7 @@ internal static class OpenAIResponsesEndpoints
                     actorResolver,
                     runAuthorizationHandler,
                     attributionContext,
+                    sessionOwnershipOptions,
                     prefix,
                     cancellationToken))
             .RequireRole(roles.Operator)
@@ -84,7 +87,10 @@ internal static class OpenAIResponsesEndpoints
                 "The agent is selected from the 'model' field; if not found, 'metadata.entity_id' is tried. " +
                 "If 'conversation' is given the session is stored under that identifier; if not, under the " +
                 "generated response identifier, so chaining with 'previous_response_id' works. If a " +
-                "registered IRunAuthorizationHandler denies the caller, the response is 403.")
+                "registered IRunAuthorizationHandler denies the caller, the response is 403. When " +
+                "session ownership is turned on, a 'conversation' or 'previous_response_id' that " +
+                "belongs to another user is refused the same way, and so is opening a NEW " +
+                "conversation when no authenticated identity can be resolved to own it.")
             // One of two shapes, depending on the 'stream' flag in the body:
             // a JSON body (raw JsonElement, the schema comes from MAF's
             // OpenAIResponses.WriteResponse and is not typed at compile time)
@@ -112,6 +118,7 @@ internal static class OpenAIResponsesEndpoints
         IAuditActorResolver actorResolver,
         IRunAuthorizationHandler? runAuthorizationHandler,
         IRunAttributionContext? attributionContext,
+        IOptionsMonitor<AgentPrismSessionOwnershipOptions>? sessionOwnershipOptions,
         string prefix,
         CancellationToken cancellationToken)
     {
@@ -191,6 +198,19 @@ internal static class OpenAIResponsesEndpoints
                 type: "run_not_authorized");
         }
 
+        // 🚨 Ownership guards this run surface too (phase 148): a Responses
+        // call that names another user's conversation would otherwise replay
+        // its whole history into the model. Inert while ownership is off.
+        if (await SessionOwnershipGate
+                .CheckRunSessionAsync(sessionOwnershipOptions, attributionContext, sessions, loadId, cancellationToken)
+                .ConfigureAwait(false) is { } ownershipProblem)
+        {
+            return OpenAICompatSupport.Error(
+                StatusCodes.Status403Forbidden,
+                ownershipProblem.ProblemDetails.Detail ?? "This session is not available to the calling user.",
+                type: AgentPrismSessionOwnerRequiredException.SessionOwnerRequiredErrorType);
+        }
+
         // 'conversation' and 'previous_response_id' are untrusted input;
         // tenant ownership is verified before loading.
         if (!await OpenAICompatSupport
@@ -245,6 +265,16 @@ internal static class OpenAIResponsesEndpoints
         catch (OperationCanceledException)
         {
             throw;
+        }
+        catch (AgentPrismSessionOwnerRequiredException ex)
+        {
+            // The sibling of AgentEndpoints' own 403 branch, for the same
+            // reason: an ownership refusal the deployment configured is a
+            // policy answer, not an upstream failure.
+            return OpenAICompatSupport.Error(
+                StatusCodes.Status403Forbidden,
+                ex.Message,
+                type: AgentPrismSessionOwnerRequiredException.SessionOwnerRequiredErrorType);
         }
         catch (AgentPrismSessionConflictException ex)
         {

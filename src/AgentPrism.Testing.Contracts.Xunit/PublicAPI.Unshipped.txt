@@ -814,3 +814,11 @@ abstract AgentPrism.Testing.Contracts.Tools.ToolAuthorizationContract.AllowedReq
 abstract AgentPrism.Testing.Contracts.Tools.ToolAuthorizationContract.DeniedRequest.get -> AgentPrism.ToolAuthorizationRequest!
 virtual AgentPrism.Testing.Contracts.Tools.ToolArgumentValidationContract.ExtraPropertyIsRejected.get -> bool
 virtual AgentPrism.Testing.Contracts.Tools.ToolArgumentValidationContract.Seed.get -> int
+AgentPrism.Testing.Contracts.Storage.SessionStoreContract.An_owned_session_round_trips_its_owner() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.Storage.SessionStoreContract.A_session_saved_without_an_owner_reads_back_null() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.Storage.SessionStoreContract.Query_filters_by_owner_and_never_returns_an_unowned_row() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.Storage.SessionStoreContract.Query_applies_the_owner_filter_BEFORE_paging() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.Storage.SessionStoreContract.The_same_owner_stays_separate_in_two_tenants() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.Storage.SessionStoreContract.An_owner_at_the_maximum_allowed_length_round_trips_whole() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.Storage.SessionStoreContract.A_later_write_that_carries_no_owner_does_not_CLEAR_the_stored_one() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.Storage.SessionStoreContract.An_unowned_session_can_still_be_given_an_owner() -> System.Threading.Tasks.Task!

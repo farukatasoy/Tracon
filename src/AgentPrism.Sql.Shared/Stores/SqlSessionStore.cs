@@ -21,6 +21,15 @@ namespace AgentPrism;
 /// against the version running RIGHT NOW, something only the caller closest
 /// to Microsoft Agent Framework knows.
 /// </para>
+/// <para>
+/// <see cref="SessionRecord.OwnerId"/> is the ONE column this store does
+/// not carry through verbatim: every write COALESCEs it, so a save that brings
+/// no owner leaves an owner already stored in place. Ownership is claimed once
+/// and "set → unset" is not a legitimate transition for it. Without that rule a
+/// background write with no request behind it -
+/// the queued run's worker, a continuation - would clear the column and drop
+/// the session out of its owner's listing for good.
+/// </para>
 /// </remarks>
 internal sealed class SqlSessionStore : ISessionStore
 {
@@ -68,6 +77,7 @@ internal sealed class SqlSessionStore : ISessionStore
         Dialect.AddText(command, "state_maf_version", record.StateMafVersion);
         Dialect.AddTimestamp(command, "created_at", record.CreatedAt);
         Dialect.AddTimestamp(command, "updated_at", record.UpdatedAt);
+        Dialect.AddText(command, "owner_id", record.OwnerId);
 
         await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false);
     }
@@ -95,6 +105,7 @@ internal sealed class SqlSessionStore : ISessionStore
         Dialect.AddText(command, "state_maf_version", record.StateMafVersion);
         Dialect.AddTimestamp(command, "created_at", record.CreatedAt);
         Dialect.AddTimestamp(command, "updated_at", record.UpdatedAt);
+        Dialect.AddText(command, "owner_id", record.OwnerId);
 
         try
         {
@@ -130,6 +141,7 @@ internal sealed class SqlSessionStore : ISessionStore
         DbHelpers.Add(command, "state_schema_version", record.StateSchemaVersion);
         Dialect.AddText(command, "state_maf_version", record.StateMafVersion);
         Dialect.AddTimestamp(command, "updated_at", record.UpdatedAt);
+        Dialect.AddText(command, "owner_id", record.OwnerId);
         DbHelpers.Add(command, "expected_version", expectedVersion);
 
         return await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false) > 0;
@@ -157,6 +169,7 @@ internal sealed class SqlSessionStore : ISessionStore
                 TenantId = reader.GetString(5),
                 Version = reader.GetInt64(6),
                 StateMafVersion = DbHelpers.GetNullableString(reader, 7),
+                OwnerId = DbHelpers.GetNullableString(reader, 8),
             },
             cancellationToken).ConfigureAwait(false);
     }
@@ -202,6 +215,12 @@ internal sealed class SqlSessionStore : ISessionStore
         var command = CreateCommand(_sql.SelectSessions);
         DbHelpers.Add(command, "tenant_id", query.TenantId ?? _tenantContext.TenantId);
         Dialect.AddText(command, "agent_name", query.AgentName);
+
+        // 🚨 Typed explicitly like every other optional filter parameter: an
+        // untyped NULL is 42P08 on PostgreSQL and a silently wrong plan on SQL
+        // Server. The predicate itself lives in the WHERE clause of each
+        // dialect's SelectSessions, ahead of paging.
+        Dialect.AddText(command, "owner_id", query.OwnerId);
         DbHelpers.Add(command, "skip", Math.Max(query.Skip, 0));
         DbHelpers.Add(command, "take", Math.Max(query.Take, 0));
 
@@ -222,6 +241,7 @@ internal sealed class SqlSessionStore : ISessionStore
                     TenantId = reader.GetString(6),
                     Version = reader.GetInt64(7),
                     StateMafVersion = DbHelpers.GetNullableString(reader, 8),
+                    OwnerId = DbHelpers.GetNullableString(reader, 9),
                 };
             },
             cancellationToken).ConfigureAwait(false);

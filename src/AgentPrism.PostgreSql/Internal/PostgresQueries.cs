@@ -170,23 +170,39 @@ internal sealed class PostgresQueries : SqlQueriesBase
         // letting the caller's (possibly stale) value land would let a later
         // conditional update match a generation that no longer describes the
         // stored state.
+        // 🚨 owner_id is COALESCEd, never assigned from EXCLUDED (K-486's
+        // rule): a session's owner is claimed once, and "set -> unset" is
+        // never a legitimate transition for it. An unconditional save that
+        // carries no owner - a background continuation, a worker with no
+        // request behind it - would otherwise clear the column and drop the
+        // session out of its owner's listing forever. The in-memory store
+        // holds the same rule a second time.
         UpsertSession = $"""
-            INSERT INTO {Schema}.sessions (id, tenant_id, agent_name, state, state_schema_version, created_at, updated_at, version, state_maf_version)
-            VALUES (@id, @tenant_id, @agent_name, @state, @state_schema_version, @created_at, @updated_at, 1, @state_maf_version)
+            INSERT INTO {Schema}.sessions (id, tenant_id, agent_name, state, state_schema_version, created_at, updated_at, version, state_maf_version, owner_id)
+            VALUES (@id, @tenant_id, @agent_name, @state, @state_schema_version, @created_at, @updated_at, 1, @state_maf_version, @owner_id)
             ON CONFLICT (tenant_id, id) DO UPDATE
                 SET agent_name           = EXCLUDED.agent_name,
                     state                = EXCLUDED.state,
                     state_schema_version = EXCLUDED.state_schema_version,
                     state_maf_version    = EXCLUDED.state_maf_version,
                     updated_at           = EXCLUDED.updated_at,
+                    owner_id             = COALESCE({Schema}.sessions.owner_id, EXCLUDED.owner_id),
                     version              = {Schema}.sessions.version + 1;
             """;
 
+        // 🚨 The owner predicate sits in the WHERE clause, ahead of OFFSET and
+        // LIMIT, so paging runs over the ALREADY narrowed set. Filtering after
+        // the page was cut would return short pages and let a caller count
+        // other users' sessions from the gaps. `owner_id = @owner_id` also
+        // matches no unowned row on its own - NULL = anything is unknown in
+        // SQL - which is exactly the wanted semantics: an unowned session is
+        // nobody's, not everybody's.
         SelectSessions = $"""
-            SELECT id, agent_name, state, state_schema_version, created_at, updated_at, tenant_id, version, state_maf_version
+            SELECT id, agent_name, state, state_schema_version, created_at, updated_at, tenant_id, version, state_maf_version, owner_id
             FROM {Schema}.sessions
             WHERE tenant_id = @tenant_id
               AND (@agent_name IS NULL OR agent_name = @agent_name)
+              AND (@owner_id IS NULL OR owner_id = @owner_id)
             ORDER BY updated_at DESC
             OFFSET @skip LIMIT @take;
             """;

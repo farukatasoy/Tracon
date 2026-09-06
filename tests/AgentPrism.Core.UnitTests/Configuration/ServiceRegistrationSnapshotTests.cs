@@ -101,6 +101,7 @@ public sealed class ServiceRegistrationSnapshotTests
         "Microsoft.Extensions.Options.IConfigureOptions`1[Microsoft.Extensions.Options.StartupValidatorOptions] | Transient | Factory",
         "Microsoft.Extensions.Options.IConfigureOptions`1[Microsoft.Extensions.Options.StartupValidatorOptions] | Transient | Factory",
         "Microsoft.Extensions.Options.IConfigureOptions`1[Microsoft.Extensions.Options.StartupValidatorOptions] | Transient | Factory",
+        "Microsoft.Extensions.Options.IConfigureOptions`1[Microsoft.Extensions.Options.StartupValidatorOptions] | Transient | Factory",
         "Microsoft.Extensions.Options.IValidateOptions`1[AgentPrism.AgentPrismQuotaOptions] | Singleton | AgentPrism.AgentPrismQuotaOptionsValidator",
         "Microsoft.Extensions.Options.IValidateOptions`1[AgentPrism.AgentPrismWebhookOptions] | Singleton | AgentPrism.AgentPrismWebhookOptionsValidator",
         "Microsoft.Extensions.Options.IValidateOptions`1[AgentPrism.AgentPrismRetentionOptions] | Singleton | AgentPrism.AgentPrismRetentionOptionsValidator",

@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace AgentPrism;
 
@@ -21,19 +22,21 @@ internal static class SessionEndpoints
     public static void Map(IEndpointRouteBuilder builder, AgentPrismRolePolicies roles)
     {
         builder.MapGet("/api/sessions", async Task<Results<Ok<IReadOnlyList<SessionRecord>>, ProblemHttpResult>> (
+                HttpContext httpContext,
                 AgentSessionManager sessions,
                 ITenantContext tenants,
                 [FromServices] IRunAuthorizationHandler? runAuthorizationHandler,
                 [FromServices] IRunAttributionContext? attributionContext,
+                [FromServices] IOptionsMonitor<AgentPrismSessionOwnershipOptions>? ownershipOptions,
                 string? agentName,
                 int? skip,
                 int? take,
                 CancellationToken cancellationToken) =>
             {
-                // 🚨 A denied list is NOT filtered, it is REJECTED (403): the
-                // caller who asked for a filtered list already keeps that
-                // filter on their own side, and server-side filtering would
-                // break the skip/take paging contract - phase 139, F-185.
+                // 🚨 A handler that DENIES the list still rejects it outright
+                // (403) rather than quietly returning fewer rows: the handler
+                // answered a yes/no question and silently downgrading a "no"
+                // to a short list would hide the refusal from the caller.
                 if (await RunAuthorizationGate
                         .CheckSessionAsync(runAuthorizationHandler, tenants, sessionId: null, attributionContext, SessionAccess.List, cancellationToken)
                         .ConfigureAwait(false) is { } authorizationProblem)
@@ -41,10 +44,25 @@ internal static class SessionEndpoints
                     return authorizationProblem;
                 }
 
+                // 🚨 Ownership narrowing is a DIFFERENT thing and it DOES
+                // filter - phase 148. Until then AgentPrism knew of no owner
+                // narrower than the tenant, so the only honest answer to "show
+                // this user their own sessions" was to reject the whole list;
+                // filtering after the fact would also have broken the
+                // skip/take contract by cutting rows out of an already-built
+                // page. Neither objection survives now: the owner lives in the
+                // row, the filter is a WHERE clause, and paging runs over the
+                // already-narrowed set. Off by default, in which case this
+                // resolves to null and nothing about the query changes.
+                var ownerFilter = await SessionOwnershipGate
+                    .ResolveListOwnerFilterAsync(ownershipOptions, attributionContext, httpContext, cancellationToken)
+                    .ConfigureAwait(false);
+
                 var records = await sessions.QuerySessionsAsync(
                     new SessionQuery
                     {
                         AgentName = agentName,
+                        OwnerId = ownerFilter,
                         Skip = Math.Max(skip ?? 0, 0),
                         Take = Math.Clamp(take ?? 50, 1, 200),
                     },
@@ -63,9 +81,12 @@ internal static class SessionEndpoints
                 "fails the request. 'agentName' narrows the list to one agent. Because the order " +
                 "is by last update, a session that changes while a client pages can move between " +
                 "pages; use the session id, not the position, as the identity. If a registered " +
-                "IRunAuthorizationHandler denies the caller, the response is 403 — the list is " +
-                "REJECTED, never silently filtered, because server-side filtering would break the " +
-                "skip/take paging contract.")
+                "IRunAuthorizationHandler denies the caller, the response is 403 — a denied list is " +
+                "REJECTED, never quietly shortened. When session ownership is turned on, the list is " +
+                "additionally narrowed to the calling user's own sessions before paging is applied, " +
+                "unless the caller satisfies the configured management policy; sessions written " +
+                "before ownership was turned on carry no owner and appear only in that management " +
+                "listing.")
             .ProducesProblem(StatusCodes.Status403Forbidden);
 
         builder.MapGet("/api/sessions/{sessionId}", GetSessionAsync)
@@ -81,7 +102,8 @@ internal static class SessionEndpoints
                 "back in sequence order, so the index of a message is the sequence number the " +
                 "branch endpoint expects. If a registered IRunAuthorizationHandler denies the " +
                 "caller, the response is 404 — identical to a session that does not exist, so a " +
-                "denial never confirms the session's existence.")
+                "denial never confirms the session's existence. With session ownership turned on, " +
+                "another user's session answers the same 404.")
             .ProducesProblem(StatusCodes.Status404NotFound);
 
         builder.MapDelete("/api/sessions/{sessionId}", DeleteSessionAsync)
@@ -97,7 +119,9 @@ internal static class SessionEndpoints
                 "removed only after the session itself is found, so a 404 leaves no side effect. " +
                 "Runs recorded under the session are kept — run history does not depend on the " +
                 "session still existing. If a registered IRunAuthorizationHandler denies the " +
-                "caller, the response is also 404, identical to a session that does not exist.")
+                "caller, the response is also 404, identical to a session that does not exist; with " +
+                "session ownership turned on, another user's session answers that same 404 and is " +
+                "left untouched.")
             .ProducesProblem(StatusCodes.Status404NotFound);
 
         builder.MapPost("/api/sessions/{sessionId}/branch", BranchSessionAsync)
@@ -114,13 +138,34 @@ internal static class SessionEndpoints
                 "provider is enabled; in an in-memory setup, chat history lives in an opaque " +
                 "blob of session state and this returns 501. If a registered " +
                 "IRunAuthorizationHandler denies the caller, the response is 404, identical to a " +
-                "session that does not exist.")
+                "session that does not exist; with session ownership turned on, another user's " +
+                "session answers that same 404. The new session inherits the SOURCE session's " +
+                "owner, not the caller's — a branch is a copy, not a handover.")
             .Produces<SessionBranchResult>(StatusCodes.Status201Created)
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesProblem(StatusCodes.Status501NotImplemented);
     }
+
+    /// <summary>
+    /// The one "session not found" response every endpoint here returns.
+    /// </summary>
+    /// <remarks>
+    /// A single factory on purpose. Three endpoints answer this for two
+    /// different reasons — the session genuinely does not exist, or the caller
+    /// may not reach it — and the two have to be indistinguishable byte for
+    /// byte. Two hand-written copies of the same strings drift; one factory
+    /// cannot. <c>RunAuthorizationGate</c> writes the identical pair for its
+    /// own denials.
+    /// </remarks>
+    /// <param name="sessionId">The session the caller asked for.</param>
+    /// <returns>The 404 problem response.</returns>
+    private static ProblemHttpResult SessionNotFound(string sessionId)
+        => TypedResults.Problem(
+            title: "Session not found",
+            detail: $"There is no session with id '{sessionId}'.",
+            statusCode: StatusCodes.Status404NotFound);
 
     /// <summary>
     /// Branches a session's conversation and opens a new session that carries the branch.
@@ -134,11 +179,13 @@ internal static class SessionEndpoints
         string sessionId,
         HttpContext httpContext,
         ConversationBranchService branches,
+        ISessionStore store,
         IAuditLog auditLog,
         IAuditActorResolver actorResolver,
         ITenantContext tenants,
         [FromServices] IRunAuthorizationHandler? runAuthorizationHandler,
         [FromServices] IRunAttributionContext? attributionContext,
+        [FromServices] IOptionsMonitor<AgentPrismSessionOwnershipOptions>? ownershipOptions,
         ILoggerFactory loggerFactory,
         CancellationToken cancellationToken)
     {
@@ -160,6 +207,17 @@ internal static class SessionEndpoints
                 .ConfigureAwait(false) is { } authorizationProblem)
         {
             return authorizationProblem;
+        }
+
+        // Same 404 as above, for the same reason. The branch that DOES get
+        // made keeps the SOURCE session's owner rather than the caller's:
+        // branching is a copy, not a handover, and the caller only got here by
+        // already being that owner.
+        if (await SessionOwnershipGate
+                .DeniesAsync(ownershipOptions, attributionContext, store, sessionId, cancellationToken)
+                .ConfigureAwait(false))
+        {
+            return SessionNotFound(sessionId);
         }
 
         var request = bound!;
@@ -218,6 +276,7 @@ internal static class SessionEndpoints
         ITenantContext tenants,
         [FromServices] IRunAuthorizationHandler? runAuthorizationHandler,
         [FromServices] IRunAttributionContext? attributionContext,
+        [FromServices] IOptionsMonitor<AgentPrismSessionOwnershipOptions>? ownershipOptions,
         ILoggerFactory loggerFactory,
         CancellationToken cancellationToken)
     {
@@ -228,14 +287,21 @@ internal static class SessionEndpoints
             return authorizationProblem;
         }
 
+        // 🚨 The SAME body a missing session gets, written a few lines below
+        // from the same two strings: a denial that read differently would
+        // confirm the session exists through a side channel (K-671).
+        if (await SessionOwnershipGate
+                .DeniesAsync(ownershipOptions, attributionContext, store, sessionId, cancellationToken)
+                .ConfigureAwait(false))
+        {
+            return SessionNotFound(sessionId);
+        }
+
         var record = await store.GetAsync(sessionId, cancellationToken).ConfigureAwait(false);
 
         if (record is null)
         {
-            return TypedResults.Problem(
-                title: "Session not found",
-                detail: $"There is no session with id '{sessionId}'.",
-                statusCode: StatusCodes.Status404NotFound);
+            return SessionNotFound(sessionId);
         }
 
         var messages = await ChatHistoryReader
@@ -269,10 +335,12 @@ internal static class SessionEndpoints
     private static async Task<Results<NoContent, ProblemHttpResult>> DeleteSessionAsync(
         string sessionId,
         AgentSessionManager sessions,
+        ISessionStore store,
         IAttachmentStore attachmentStore,
         ITenantContext tenantContext,
         [FromServices] IRunAuthorizationHandler? runAuthorizationHandler,
         [FromServices] IRunAttributionContext? attributionContext,
+        [FromServices] IOptionsMonitor<AgentPrismSessionOwnershipOptions>? ownershipOptions,
         CancellationToken cancellationToken)
     {
         if (await RunAuthorizationGate
@@ -282,12 +350,18 @@ internal static class SessionEndpoints
             return authorizationProblem;
         }
 
+        // 🚨 Checked BEFORE the delete, not after: a denial must leave the
+        // other owner's session, and its attachments, untouched.
+        if (await SessionOwnershipGate
+                .DeniesAsync(ownershipOptions, attributionContext, store, sessionId, cancellationToken)
+                .ConfigureAwait(false))
+        {
+            return SessionNotFound(sessionId);
+        }
+
         if (!await sessions.DeleteSessionAsync(sessionId, cancellationToken).ConfigureAwait(false))
         {
-            return TypedResults.Problem(
-                title: "Session not found",
-                detail: $"There is no session with id '{sessionId}'.",
-                statusCode: StatusCodes.Status404NotFound);
+            return SessionNotFound(sessionId);
         }
 
         await attachmentStore
