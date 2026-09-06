@@ -161,7 +161,7 @@ bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 | [146](arsiv/fazlar/146-CALISTIRMAYA-BAGLI-KOTA-ESIGI.md) | Çalıştırmaya Bağlı Kota Eşiği | ✅ Tamamlandı |
 | [147](arsiv/fazlar/147-YETKI-KAPISININ-KAYNAK-KAPSAMI.md) | Yetkilendirme Kapısının Kaynak Kapsamı | ✅ Tamamlandı |
 | [148](arsiv/fazlar/148-OTURUM-SAHIPLIGININ-KALICILIGI.md) | Oturum Sahipliğinin Kalıcılığı | ✅ Tamamlandı |
-| [149](149-SAHIPSIZ-OTURUMUN-KATI-REDDI.md) | Sahipsiz Oturumun Katı Reddi | ✅ Tamamlandı |
+| [149](arsiv/fazlar/149-SAHIPSIZ-OTURUMUN-KATI-REDDI.md) | Sahipsiz Oturumun Katı Reddi | ✅ Tamamlandı |
 | [150](150-ZORUNLU-BINDING-PROFILI.md) | Zorunlu Binding Profili | 📋 Planlandı |
 
 Seçilmemiş adaylar: [`ADAYLAR.md`](ADAYLAR.md). Fazların hangi dalgada, hangi gerekçeyle sıralandığı (Faz 8–56, kapandı): [`arsiv/IKINCI-FAZ-YOL-HARITASI.md`](arsiv/IKINCI-FAZ-YOL-HARITASI.md) · [`arsiv/UCUNCU-FAZ-YOL-HARITASI.md`](arsiv/UCUNCU-FAZ-YOL-HARITASI.md).

@@ -93,7 +93,7 @@
 > **Ek (2026-09-06, tüketici turu 4 yanıtı):** Tüketici §8'deki üç soruyu
 > yanıtladı ([yanıt raporu](kesif/2026-09-06-tuketici-turu-4-yaniti.md)). İki
 > kalem **doğrudan plana** dönüştü: **F-201** →
-> [Faz 149](149-SAHIPSIZ-OTURUMUN-KATI-REDDI.md) (sahipsiz oturumun katı reddi;
+> [Faz 149](arsiv/fazlar/149-SAHIPSIZ-OTURUMUN-KATI-REDDI.md) (sahipsiz oturumun katı reddi;
 > **K-693'ün yeniden açılma koşulu karşılandı**) · **F-202** →
 > [Faz 150](150-ZORUNLU-BINDING-PROFILI.md) (F2, zorunlu extension binding
 > profili). İkisi de tüketicinin geçişini **bloklamıyor**.

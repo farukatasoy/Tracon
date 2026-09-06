@@ -24,7 +24,7 @@
    **K-006** (AspNetCore'a özgü tipler Core'a sızmaz — bu fazın kontrolü Core'da yaşıyor) ·
    **K-250** (`AgentPrismDiagnosticsReport` genel bir sağlık kararı TAŞIMAZ; üç durumlu yargı yalnız `AgentPrismHealthCheck`'tedir — bu faz o ayrımı bozmaz) ·
    **K-421** (`EnablePublicApiTracking` açıktır)
-3. [`149-SAHIPSIZ-OTURUMUN-KATI-REDDI.md`](149-SAHIPSIZ-OTURUMUN-KATI-REDDI.md) — yalnız devir notu:
+3. [`149-SAHIPSIZ-OTURUMUN-KATI-REDDI.md`](arsiv/fazlar/149-SAHIPSIZ-OTURUMUN-KATI-REDDI.md) — yalnız devir notu:
    ```bash
    awk '/## Sonraki Faza Devir Notu/,0' docs/149-SAHIPSIZ-OTURUMUN-KATI-REDDI.md
    ```
