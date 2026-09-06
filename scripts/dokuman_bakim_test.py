@@ -84,6 +84,47 @@ class KuralEslesmesiTestleri(unittest.TestCase):
         # Aynı yol genel cekirdek-kavram kuralını da tetikler -- ikisi ayrı satır.
         self.assertIn("cekirdek-kavram", adlar)
 
+    def test_http_api_kurali_uretilen_openapi_belgesiyle_karsilanir(self):
+        # F-203: HTTP yuzeyi degistiginde bayatlayabilen IZLENEN cikti,
+        # elle yazilmis sekil sayfasi degil, uretilip commit edilen OpenAPI
+        # belgesidir. Hedef depo koku'ne gore cozulur.
+        degisen = [
+            "src/AgentPrism.AspNetCore/Endpoints/AgentEndpoints.cs",
+            "docs/openapi/agentprism.json",
+        ]
+        eslesme = dokuman_bakim._kural_eslesmesi(degisen)
+        http = next(e for e in eslesme if e[0] == "http-api")
+        self.assertTrue(http[3])
+
+    def test_http_api_kurali_sekil_sayfasiyla_da_karsilanir(self):
+        # Iki alternatif hedef: belge yeniden uretilmediyse SEKIL sayfasinin
+        # elle guncellenmesi de kurali karsilar.
+        degisen = [
+            "src/AgentPrism.AspNetCore/OpenAICompat/Foo.cs",
+            "docs-site/src/content/docs/http-api.md",
+        ]
+        eslesme = dokuman_bakim._kural_eslesmesi(degisen)
+        http = next(e for e in eslesme if e[0] == "http-api")
+        self.assertTrue(http[3])
+
+    def test_http_api_kurali_hicbir_hedef_degismezse_kirmizidir(self):
+        eslesme = dokuman_bakim._kural_eslesmesi(
+            ["src/AgentPrism.AspNetCore/Endpoints/AgentEndpoints.cs"])
+        http = next(e for e in eslesme if e[0] == "http-api")
+        self.assertFalse(http[3])
+
+    def test_depo_koku_hedefi_site_koku_altinda_ARANMAZ(self):
+        # `docs/openapi/agentprism.json` site icerik koku ile ONEKLENMEMELIDIR;
+        # oneklenirse hicbir zaman eslesmez ve kural kalici kirmizi kalir --
+        # F-203'un tam olarak duzelttigi kusur.
+        degisen = [
+            "src/AgentPrism.AspNetCore/Endpoints/AgentEndpoints.cs",
+            "docs-site/src/content/docs/docs/openapi/agentprism.json",
+        ]
+        eslesme = dokuman_bakim._kural_eslesmesi(degisen)
+        http = next(e for e in eslesme if e[0] == "http-api")
+        self.assertFalse(http[3])
+
     def test_tetiklenmeyen_kural_sonuca_girmez(self):
         self.assertEqual(dokuman_bakim._kural_eslesmesi(["README.md"]), [])
 

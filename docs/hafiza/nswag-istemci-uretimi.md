@@ -113,3 +113,27 @@
   ile kirilir. Sample'lari `scripts/release_extension_samples.py` dogrudan
   `.csproj` ile kosar. `release_extension_samples_test.py` bu siniri zorlar.
 
+- **🚨 NJsonSchema `= default!`'i NON-nullable ilan ettigi koleksiyonlara da
+  yazar; tip non-null vaat eder, deger `null`dur ve derleyici kimseyi
+  uyarmaz** (2026-09-06, F-197). Cagiran yalniz umursadigi alanlari doldurup
+  istek kurar, istemci `"documents": null` serilestirir (`DefaultIgnoreCondition`
+  ayarli DEGIL), `System.Text.Json` sunucudaki `record`'un `= []` baslangic
+  degerini EZER ve koleksiyonu kosulsuz okuyan uc `500` doner. Olculdu: 50
+  non-nullable, 56 nullable koleksiyon property'si. Kapi
+  `nswag-postprocess-client.py`'nin BESINCI gecisidir; ayirt edici `?`
+  annotation'inin kendisidir — nullable olan `default!` KALIR, cunku o
+  annotation "verilmedi" ile "bos verildi"yi ayirdigini soyler. **Ders:
+  `ClientCoverageTests` bir metodun VAR oldugunu kanitlar, CAGRILABILDIGINI
+  degil; uretilen istemcinin her yeni davranisi gercek bir sunucuya karsi
+  MINIMAL bir cagriyla olculmelidir.**
+
+- **🚨 Postprocess script'i IDEMPOTENT DEGILDIR — islenmis dosya uzerinde
+  bir daha kosturma.** Ikinci gecis (`ENUM_DECLARATION_PATTERN`) ustunde
+  oznitelik olsun olmasin her `public enum`'u eslestirir ve IKINCI bir
+  `[JsonConverter]` ekler. Yeni bir gecis eklerken dogru yol tam yeniden
+  uretimdir: `dotnet tool restore` → `nswag-prepare-document.py` →
+  `dotnet nswag run nswag.json` → `nswag-postprocess-client.py` →
+  `generate-client-json-context.py`. Belge degismediyse cikti yalniz yeni
+  gecisin deltasi kadar farkli olmalidir; `diff` ile DOGRULA (F-197'de
+  100 satir = 50 cift, baska kayma yok).
+

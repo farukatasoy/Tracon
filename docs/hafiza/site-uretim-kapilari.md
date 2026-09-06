@@ -102,3 +102,19 @@ ve referans bilgilerini arar. `dotnet build ... -c Release` çalıştırılmış
 ("tip bulunamadı") üretir — proje aslında derlenir, yalnız bu iki aracın
 okuduğu `obj/` klasörü boştur. Çözüm: yeni bir proje eklerken kapanış
 kapılarından ÖNCE hem `-c Release` hem `-c Debug` ile bir kez derle.
+
+- **🚨 Bir senkron kuralinin hedefi, YUZEY degistiginde gercekten bayatlayan
+  IZLENEN dosya olmalidir** (2026-09-06, F-203). `--site-denetle`'nin
+  `http-api` kurali elle yazilmis `http-api.md`yi hedefliyordu; o sayfa
+  API'nin SEKLIDIR (kimlik dogrulama, akis, sayfalama, hata govdesi) ve bir
+  ucun eklenmesi onu degistirmez. Operasyon basina dokumantasyon ise
+  `http-api/` altina URETILIR ve `.gitignore`dadir — `git diff` onu HIC
+  goremez. Sonuc olculdu: son 40 commit'te kural 7 kez tetiklendi, **5'i
+  kirmizi** dondu ve hepsi `--site-gerekce-yazildi` ile gecildi. Surekli
+  kirmizi bir kapi, kapi degildir; insanlari onu susturmaya egitir. Hedef
+  `docs/openapi/agentprism.json` (uretilen ama IZLENEN ve COMMIT EDILEN)
+  eklendikten sonra 5 → 3. **Ders: bir kural yazarken "bu hedef, yuzey
+  degisince gercekten degisir mi ve `git` onu gorebilir mi" sorusunu
+  TARIHE KARSI olc** — `_kural_eslesmesi` saf fonksiyondur, `git log`
+  uzerinde dogrudan kosturulabilir. `docs/` ile baslayan hedef artik depo
+  koku'ne goredir; her kullaniciya donuk yuzey bir site sayfasi degildir.
