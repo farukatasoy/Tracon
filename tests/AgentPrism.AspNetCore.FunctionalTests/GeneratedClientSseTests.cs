@@ -67,21 +67,15 @@ public sealed class GeneratedClientSseTests
         return new AgentPrismApiClient(host.Client);
     }
 
-    // 🚨 The generated AgentRunRequest defaults every collection property
-    // (Approvals, ToolResults, AttachmentIds, Documents) to null, not empty
-    // (NJsonSchema emits "= default!"); AgentEndpoints.RunAsync reads several
-    // of these with ".Count" unconditionally and NullReferenceExceptions if
-    // the caller leaves them unset. A pre-existing defect in the generated
-    // client, out of this phase's scope (F-19x candidate, docs/ADAYLAR.md) —
-    // every collection is filled here purely to work around it.
+    // The collections are no longer filled to work around a null default —
+    // F-197 fixed that in nswag-postprocess-client.py's fifth pass, and
+    // GeneratedClientCollectionDefaultTests is the test that proves a minimal
+    // request works. Only Message is set here, which is also what a real
+    // caller writes.
     // Fully qualified: this file also sees the server-side AgentPrism.AgentRunRequest
     // through the project's global usings, and the bare name is ambiguous (CS0104).
     private static AgentPrism.Client.Generated.AgentRunRequest RunRequest() => new()
     {
         Message = "merhaba",
-        Approvals = [],
-        ToolResults = [],
-        AttachmentIds = [],
-        Documents = [],
     };
 }

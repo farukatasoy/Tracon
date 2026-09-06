@@ -24,7 +24,16 @@ public static partial class AgentPrismServiceCollectionExtensions
             provider.GetRequiredService<ITenantContext>(),
             provider.GetRequiredService<IAuditActorResolver>(),
             provider.GetRequiredService<Microsoft.Extensions.Logging.ILogger<AuditingAgentDefinitionStore>>()));
-        services.TryAddSingleton<IAgentSkillStore, InMemoryAgentSkillStore>();
+        // A skill carries instructions AND server-side scripts, so saving or
+        // deleting one enters the audit trail for the same reason an agent
+        // definition does (F-170). Its script GRANT store was already audited
+        // while the skill itself was not, which recorded who permitted a
+        // script to run but not who wrote it.
+        services.TryAddSingleton<IAgentSkillStore>(static provider => new AuditingAgentSkillStore(
+            new InMemoryAgentSkillStore(),
+            provider.GetRequiredService<IAuditLog>(),
+            provider.GetRequiredService<IAuditActorResolver>(),
+            provider.GetRequiredService<Microsoft.Extensions.Logging.ILogger<AuditingAgentSkillStore>>()));
         services.TryAddSingleton(static provider => new AgentSkillCatalog(
             provider.GetServices<CodeSkillRegistration>(),
             provider.GetRequiredService<IAgentSkillStore>(),

@@ -114,6 +114,37 @@ SAMPLE_SSE_STRING_RESPONSE_SOURCE = """\
 """
 
 
+
+# What NJsonSchema emits for a request DTO's collection properties (measured
+# 2026-09-06): every property gets `= default!`, whether or not the declared
+# type is nullable. Both shapes appear here on purpose - the pass must rewrite
+# only the non-nullable ones.
+SAMPLE_NULL_COLLECTION_SOURCE = """\
+namespace AgentPrism.Client.Generated
+{
+    public partial class AgentRunRequest
+    {
+        [System.Text.Json.Serialization.JsonPropertyName("message")]
+        public string? Message { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("approvals")]
+        public System.Collections.Generic.ICollection<ToolApprovalDecision> Approvals { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("attachmentIds")]
+        public System.Collections.Generic.ICollection<System.Guid> AttachmentIds { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("headers")]
+        public System.Collections.Generic.IDictionary<string, string> Headers { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("parameters")]
+        public System.Collections.Generic.IDictionary<string, string>? Parameters { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("annotations")]
+        public System.Collections.Generic.ICollection<AIAnnotation>? Annotations { get; set; } = default!;
+    }
+}
+"""
+
 class NswagPostprocessClientTestleri(unittest.TestCase):
     def test_json_element_wrapper_class_is_deleted(self):
         source, _ = nswag_postprocess_client.rewrite_colliding_any_types(SAMPLE_JSON_ELEMENT_SOURCE)
@@ -179,6 +210,70 @@ class NswagPostprocessClientTestleri(unittest.TestCase):
 
         self.assertEqual(count, 0)
         self.assertEqual(source, SAMPLE_JSON_ELEMENT_SOURCE)
+
+
+    def test_non_nullable_collections_get_an_empty_default(self):
+        source, count = nswag_postprocess_client.rewrite_null_collection_defaults(
+            SAMPLE_NULL_COLLECTION_SOURCE)
+
+        # Three non-nullable collections: two ICollection, one IDictionary.
+        self.assertEqual(count, 3)
+        self.assertIn(
+            "public System.Collections.Generic.ICollection<ToolApprovalDecision> Approvals "
+            "{ get; set; } = new System.Collections.Generic.List<ToolApprovalDecision>();",
+            source)
+        self.assertIn(
+            "public System.Collections.Generic.ICollection<System.Guid> AttachmentIds "
+            "{ get; set; } = new System.Collections.Generic.List<System.Guid>();",
+            source)
+        # A dictionary is initialized with Dictionary, not List.
+        self.assertIn(
+            "public System.Collections.Generic.IDictionary<string, string> Headers "
+            "{ get; set; } = new System.Collections.Generic.Dictionary<string, string>();",
+            source)
+
+    def test_a_nullable_collection_keeps_its_null(self):
+        source, _ = nswag_postprocess_client.rewrite_null_collection_defaults(
+            SAMPLE_NULL_COLLECTION_SOURCE)
+
+        # The `?` annotation is the contract that says "not provided" differs
+        # from "provided empty"; erasing it would erase a real distinction.
+        self.assertIn(
+            "public System.Collections.Generic.IDictionary<string, string>? Parameters "
+            "{ get; set; } = default!;",
+            source)
+        self.assertIn(
+            "public System.Collections.Generic.ICollection<AIAnnotation>? Annotations "
+            "{ get; set; } = default!;",
+            source)
+
+    def test_a_non_collection_property_is_left_alone(self):
+        source, _ = nswag_postprocess_client.rewrite_null_collection_defaults(
+            SAMPLE_NULL_COLLECTION_SOURCE)
+
+        self.assertIn("public string? Message { get; set; } = default!;", source)
+
+    def test_the_rewrite_is_idempotent(self):
+        once, first = nswag_postprocess_client.rewrite_null_collection_defaults(
+            SAMPLE_NULL_COLLECTION_SOURCE)
+        twice, second = nswag_postprocess_client.rewrite_null_collection_defaults(once)
+
+        self.assertEqual(first, 3)
+        self.assertEqual(second, 0)
+        self.assertEqual(once, twice)
+
+    def test_a_nested_generic_collection_is_refused_rather_than_rewritten_wrongly(self):
+        # `[^<>]*` cannot match a nested generic on purpose: there is no single
+        # concrete type this pass could pick for one, so it must fail loudly by
+        # not matching (the regeneration then leaves a visible `default!`).
+        nested = (
+            "        public System.Collections.Generic.ICollection"
+            "<System.Collections.Generic.List<string>> Rows { get; set; } = default!;\n")
+
+        source, count = nswag_postprocess_client.rewrite_null_collection_defaults(nested)
+
+        self.assertEqual(count, 0)
+        self.assertEqual(source, nested)
 
 
 if __name__ == "__main__":
