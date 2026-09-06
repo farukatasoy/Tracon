@@ -183,7 +183,10 @@ public static class AgentPrismEndpointRouteBuilderExtensions
 
         OpenAIResponsesEndpoints.Map(group, ResolveSessionStore(services), roles, normalizedPrefix, idempotencyFilter);
         OpenAIChatCompletionsEndpoints.Map(group, roles, idempotencyFilter);
-        OpenAIConversationsEndpoints.Map(group, roles);
+        if (options.MapOpenAIConversations)
+        {
+            OpenAIConversationsEndpoints.Map(group, roles);
+        }
 
         MapUi(endpoints, services, options, normalizedPrefix);
         MapMcpOAuthCallback(endpoints, options, normalizedPrefix);

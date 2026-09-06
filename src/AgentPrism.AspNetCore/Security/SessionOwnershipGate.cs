@@ -36,9 +36,14 @@ namespace AgentPrism;
 /// <item>
 /// <description>
 /// <see cref="DeniesAsync"/> guards ONE session on the session endpoints,
-/// answering with each endpoint's own <c>404</c>. There is no management
-/// exemption here: a management role is a reason to see that a session exists,
-/// never a reason to read one user's conversation as another user.
+/// answering with each endpoint's own <c>404</c>. A management role buys no
+/// access to an OWNED session here: it is a reason to see that a session
+/// exists, never a reason to read one user's conversation as another user. It
+/// does exempt the caller from
+/// <see cref="AgentPrismSessionOwnershipOptions.RefuseUnownedSessions"/>,
+/// which refuses a row that belongs to nobody — there no user's conversation
+/// can leak, and the same caller already sees that row in the management
+/// listing.
 /// </description>
 /// </item>
 /// <item>
@@ -109,6 +114,7 @@ internal static class SessionOwnershipGate
     /// <param name="attribution">The identity pipeline the caller is read from.</param>
     /// <param name="store">The session store the stored owner is read from.</param>
     /// <param name="sessionId">The session being reached.</param>
+    /// <param name="httpContext">The request, used to evaluate the management policy.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>
     /// <see langword="true"/> when the caller must get the endpoint's own
@@ -132,23 +138,25 @@ internal static class SessionOwnershipGate
     /// </item>
     /// <item>
     /// <description>
-    /// <strong>The stored row is unowned.</strong> Every row written before
-    /// ownership was turned on carries a <see langword="null"/> owner, and
-    /// AgentPrism cannot invent one for a session it did not watch being
-    /// opened. Those rows keep exactly the tenant-wide reachability they had
-    /// the day before the option was turned on; ownership is documented as not
-    /// retroactive, and denying them would strand every conversation that was
-    /// live at the moment of the flip. They are still absent from every
-    /// owner-filtered LISTING, so they stop being discoverable — a consumer
-    /// that wants them refused outright can say so through
-    /// <see cref="IRunAuthorizationHandler"/>.
+    /// <strong>The stored row is unowned, and the deployment has not asked for
+    /// those to be refused.</strong> Every row written before ownership was
+    /// turned on carries a <see langword="null"/> owner, and AgentPrism cannot
+    /// invent one for a session it did not watch being opened. By default those
+    /// rows keep exactly the tenant-wide reachability they had the day before
+    /// the option was turned on; ownership is documented as not retroactive,
+    /// and denying them would strand every conversation that was live at the
+    /// moment of the flip. They are still absent from every owner-filtered
+    /// LISTING, so they stop being discoverable.
+    /// <see cref="AgentPrismSessionOwnershipOptions.RefuseUnownedSessions"/>
+    /// turns that default around and refuses them, and a caller who satisfies
+    /// the management policy is exempt from that refusal.
     /// </description>
     /// </item>
     /// </list>
     /// <para>
     /// What IS denied: the row carries an owner and the caller is not that
     /// owner — including a caller with no resolvable identity at all, who can
-    /// prove ownership of nothing.
+    /// prove ownership of nothing. No policy exempts a caller from that one.
     /// </para>
     /// </remarks>
     public static async ValueTask<bool> DeniesAsync(
@@ -156,20 +164,38 @@ internal static class SessionOwnershipGate
         IRunAttributionContext? attribution,
         ISessionStore store,
         string sessionId,
+        HttpContext httpContext,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(store);
+        ArgumentNullException.ThrowIfNull(httpContext);
 
-        if (options?.CurrentValue is not { Enabled: true })
+        if (options?.CurrentValue is not { Enabled: true } settings)
         {
             return false;
         }
 
         var record = await store.GetAsync(sessionId, cancellationToken).ConfigureAwait(false);
 
-        if (record?.OwnerId is not { } ownerId)
+        if (record is null)
         {
+            // Never opened. The endpoint's own lookup answers this, and
+            // RefuseUnownedSessions deliberately does NOT reach here — see the
+            // remarks above.
             return false;
+        }
+
+        if (record.OwnerId is not { } ownerId)
+        {
+            // An unowned row: written before ownership was turned on, and
+            // AgentPrism cannot invent an owner for it. Reachable by default,
+            // refused when the deployment asks for it — except to a caller who
+            // satisfies the management policy, who already sees this row in the
+            // management listing and would otherwise be left looking at a row
+            // it cannot open. Every failure of that evaluation lands on the
+            // refusing side, the same fail-closed direction as the listing.
+            return settings.RefuseUnownedSessions &&
+                   !await SatisfiesManagementPolicyAsync(settings, httpContext).ConfigureAwait(false);
         }
 
         var (userId, _) = RunAttributionReader.Read(attribution);
@@ -204,9 +230,13 @@ internal static class SessionOwnershipGate
     /// the HTTP boundary can ask.
     /// </para>
     /// <para>
-    /// Two answers, deliberately: an owned session that is not the caller's is
-    /// refused, and a session that does not exist yet is refused only when
-    /// nothing can be resolved to own it. A run against a FRESH id by an
+    /// Three answers, deliberately: an owned session that is not the caller's
+    /// is refused; a session that does not exist yet is refused only when
+    /// nothing can be resolved to own it; and an UNOWNED row is refused only
+    /// while
+    /// <see cref="AgentPrismSessionOwnershipOptions.RefuseUnownedSessions"/> is
+    /// on, with no management exemption — that exemption lets support READ a
+    /// legacy conversation, not append to one. A run against a FRESH id by an
     /// identified caller proceeds and claims the session, which is how every
     /// owned session is born.
     /// </para>
@@ -251,18 +281,41 @@ internal static class SessionOwnershipGate
                 : null;
         }
 
-        if (record.OwnerId is not { } ownerId || string.Equals(ownerId, userId, StringComparison.Ordinal))
+        if (record.OwnerId is not { } ownerId)
         {
-            // The caller's own session, or an unowned row from before
-            // ownership was turned on — see DeniesAsync for why those stay
-            // reachable.
+            // An unowned row from before ownership was turned on. Reachable by
+            // default; refused outright when the deployment asks for it.
+            //
+            // 🚨 No management exemption here, unlike DeniesAsync. That
+            // exemption exists so support can READ a row it already sees in the
+            // management listing; starting a run APPENDS to the conversation,
+            // and an operator continuing somebody's conversation as themselves
+            // is not the same act as reading it.
+            return settings.RefuseUnownedSessions ? RefusedAsAnotherUsers() : null;
+        }
+
+        if (string.Equals(ownerId, userId, StringComparison.Ordinal))
+        {
             return null;
         }
 
-        return Refused(
+        // 🚨 The SAME refusal an unowned row gets above, word for word.
+        // Wording that told the two apart would let a caller learn, from a
+        // response it is already allowed to see, which sessions predate
+        // ownership — and the client's action is identical either way: this
+        // session cannot carry the run.
+        return RefusedAsAnotherUsers();
+    }
+
+    /// <summary>
+    /// Builds the single refusal both "not yours" and "nobody's" answer with
+    /// on a run-starting endpoint.
+    /// </summary>
+    /// <returns>The <c>403</c> to return.</returns>
+    private static ProblemHttpResult RefusedAsAnotherUsers()
+        => Refused(
             "Session not authorized",
             "The session named in this request belongs to another user.");
-    }
 
     /// <summary>
     /// Builds the <c>403</c> an ownership refusal returns from a run-starting

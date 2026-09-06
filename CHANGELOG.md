@@ -6,6 +6,37 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- `AgentPrism:SessionOwnership:RefuseUnownedSessions` (default `false`).
+  Session ownership is not retroactive, so rows written before it was turned
+  on belong to nobody; until now those stayed readable by id to anyone in the
+  tenant, and only disappeared from owner-filtered listings. With this on they
+  are refused instead — `404` on the session and `/v1/conversations` routes,
+  `403` (`errorType` `session_owner_required`) on a run that names one, `404`
+  on a voice socket. A caller who satisfies `ManagementPolicy` still reads
+  them, so support keeps the access it already had in the management listing;
+  that exemption does not extend to starting a run. A session that does not
+  exist yet is unaffected: the first turn still opens it and claims it.
+- `AgentPrismEndpointOptions.MapOpenAIConversations` (default `true`). Set it
+  to `false` in `MapAgentPrism` to leave the four `/v1/conversations` routes
+  unmapped; they then answer `404` and disappear from the OpenAPI document.
+  `/v1/responses` and `/v1/chat/completions` are unaffected.
+
+### Changed
+
+- **The `/v1/conversations` read and delete routes now go through your
+  registered `IRunAuthorizationHandler`.** `GET /v1/conversations/{id}`,
+  `GET /v1/conversations/{id}/items` and `DELETE /v1/conversations/{id}` ask
+  it with `SessionAccess.Read`, `Read` and `Delete`; they previously never
+  asked it at all, while `/api/sessions/{id}` did. If you have a handler
+  registered that refuses some sessions, it now refuses them on this surface
+  too. The direction is fail-closed and it closes a real gap — an installation
+  whose handler denied `GET /api/sessions/{id}` had
+  `GET /v1/conversations/{id}/items` hand back the same chat history — but it
+  is a behaviour change for existing setups. `POST /v1/conversations` is not
+  gated: it reserves an identifier and writes nothing.
+
 ## [1.0.0-preview.1] - 2026-09-03
 
 ### Added

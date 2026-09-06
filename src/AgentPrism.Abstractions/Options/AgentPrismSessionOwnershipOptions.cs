@@ -89,11 +89,11 @@ public sealed class AgentPrismSessionOwnershipOptions
     /// </summary>
     /// <remarks>
     /// <para>
-    /// Evaluated per request, on the listing endpoint only. A caller who
-    /// satisfies it gets today's unfiltered tenant listing — including the
-    /// unowned rows written before ownership was turned on, which is the only
-    /// way those rows stay reachable. Every other caller gets a listing
-    /// narrowed to their own identity.
+    /// Evaluated per request. A caller who satisfies it gets today's
+    /// unfiltered tenant listing — including the unowned rows written before
+    /// ownership was turned on, which is the only way those rows stay
+    /// discoverable. Every other caller gets a listing narrowed to their own
+    /// identity.
     /// </para>
     /// <para>
     /// <strong>Fail-closed.</strong> If the policy is not registered in the
@@ -105,14 +105,20 @@ public sealed class AgentPrismSessionOwnershipOptions
     /// NO caller gets an unfiltered listing over HTTP.
     /// </para>
     /// <para>
-    /// This only ever governs what a LISTING returns. It grants no access to
-    /// an individual session: reading, deleting and branching another owner's
-    /// session answer <c>404</c> regardless of policy, because a management
-    /// role is not a reason to leak one user's conversation to another. The
-    /// asymmetry is deliberate — a listing is an operation with no single
-    /// identity to leak, and it is the only path by which an unowned legacy
-    /// row stays reachable at all; an individual session is a resource whose
-    /// content belongs to one user.
+    /// It grants no access to another user's session: reading, deleting and
+    /// branching a session that is OWNED by somebody else answers <c>404</c>
+    /// regardless of policy, because a management role is not a reason to leak
+    /// one user's conversation to another. The asymmetry is deliberate — a
+    /// listing is an operation with no single identity to leak; an owned
+    /// session is a resource whose content belongs to one user.
+    /// </para>
+    /// <para>
+    /// The one individual access it does govern is
+    /// <see cref="RefuseUnownedSessions"/>: an UNOWNED row belongs to nobody,
+    /// so there is no user whose conversation could leak, and refusing it to
+    /// the same caller who can already see it in the management listing would
+    /// leave support looking at a row it cannot open. That exemption covers
+    /// reading a session, never continuing one — see that property.
     /// </para>
     /// <para>
     /// The default is written as a literal because
@@ -124,6 +130,52 @@ public sealed class AgentPrismSessionOwnershipOptions
     /// </para>
     /// </remarks>
     public string? ManagementPolicy { get; set; } = DefaultManagementPolicy;
+
+    /// <summary>
+    /// Gets or sets whether access to an EXISTING session row that carries no
+    /// owner is REFUSED. Default <see langword="false"/>.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Only consulted while <see cref="Enabled"/> is on; on its own this
+    /// setting does nothing at all.
+    /// </para>
+    /// <para>
+    /// <strong>What it changes.</strong> Rows written before ownership was
+    /// turned on carry a <see langword="null"/> owner forever, and ownership is
+    /// not retroactive. By default those rows keep the tenant-wide
+    /// reachability they had the day before the flip: they vanish from every
+    /// owner-filtered LISTING but are still readable one by one by anybody in
+    /// the tenant. Turn this on and they are refused instead — read, delete,
+    /// branch and voice answer the endpoint's own "session not found", and a
+    /// run that names one is refused with <c>403</c>. Listing behaviour does
+    /// not change; it already excluded them.
+    /// </para>
+    /// <para>
+    /// <strong>What it deliberately does NOT change.</strong> A session that
+    /// does not exist yet is untouched: the first turn still opens it and
+    /// claims it, which is how every owned session is born. "Not created yet"
+    /// and "created without an owner" are different rows and get different
+    /// answers.
+    /// </para>
+    /// <para>
+    /// A caller who satisfies <see cref="ManagementPolicy"/> still reaches an
+    /// unowned row through the session resource endpoints, so support and
+    /// audit keep the access they had — the same reason those rows stay in the
+    /// management listing. That exemption covers reading a session, not
+    /// continuing one: a run that names an unowned session is refused for every
+    /// caller, because starting a run appends to the conversation as somebody
+    /// else.
+    /// </para>
+    /// <para>
+    /// Default off because turning it on strands every conversation that was
+    /// live at the moment ownership was enabled. Turn it on once those
+    /// conversations no longer matter, or in a deployment that enabled
+    /// ownership from its first day and therefore has no unowned rows at all.
+    /// </para>
+    /// </remarks>
+    public bool RefuseUnownedSessions { get; set; }
+
 
     /// <summary>
     /// The literal spelling of <c>AgentPrismPolicies.Operator</c>, repeated

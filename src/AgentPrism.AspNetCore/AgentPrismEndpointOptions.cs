@@ -149,6 +149,38 @@ public sealed class AgentPrismEndpointOptions
     public bool EnableDiagnosticsEndpoint { get; set; }
 
     /// <summary>
+    /// Whether the OpenAI-compatible <c>/v1/conversations</c> endpoints are
+    /// connected. Default <see langword="true"/>.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// These four endpoints exist so an OpenAI client library can list, read
+    /// and delete a conversation by the same identifier it passes to
+    /// <c>/v1/responses</c>. A deployment that drives AgentPrism only through
+    /// its own <c>/api/sessions</c> routes never calls them, and turning them
+    /// off removes the routes entirely: the paths answer <c>404</c> and vanish
+    /// from the OpenAPI document.
+    /// </para>
+    /// <para>
+    /// Default <see langword="true"/> because the surface has shipped and
+    /// silently withdrawing it would break existing clients. It is a switch for
+    /// a deployment that wants a smaller attack surface, not a security
+    /// control: the endpoints go through the same role policies, API key
+    /// scopes, session ownership and <see cref="IRunAuthorizationHandler"/>
+    /// gate as every other session route, and leaving them mapped opens no door
+    /// that <c>/api/sessions</c> does not open already.
+    /// </para>
+    /// <para>
+    /// The other OpenAI-compatible surfaces — <c>/v1/responses</c> and
+    /// <c>/v1/chat/completions</c> — are NOT governed by this flag. They start
+    /// runs rather than reach a stored conversation, and a deployment that
+    /// wants them gone should not have to give up the conversation routes to
+    /// say so.
+    /// </para>
+    /// </remarks>
+    public bool MapOpenAIConversations { get; set; } = true;
+
+    /// <summary>
     /// Origins allowed to call the AgentPrism endpoints from a browser. Empty
     /// by default — no <c>Access-Control-Allow-Origin</c> header is ever
     /// sent, so a cross-origin browser request is blocked by the browser

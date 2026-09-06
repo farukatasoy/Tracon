@@ -4,8 +4,10 @@ using System.Net.WebSockets;
 using System.Text.Json;
 using AgentPrism.AspNetCore.FunctionalTests.Infrastructure;
 using Microsoft.AspNetCore.TestHost;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Options;
 
 namespace AgentPrism.AspNetCore.FunctionalTests;
 
@@ -75,6 +77,8 @@ public sealed class SessionOwnershipTests
         defaults.RequireAuthenticatedOwner.ShouldBeTrue(
             "once ownership IS turned on, the safe answer to an unresolvable identity is refusal");
         defaults.ManagementPolicy.ShouldBe(AgentPrismPolicies.Operator);
+        defaults.RefuseUnownedSessions.ShouldBeFalse(
+            "turning ownership on must not strand the conversations that were live at that moment");
     }
 
     // ------------------------------------------------------------------
@@ -913,6 +917,516 @@ public sealed class SessionOwnershipTests
         (await StoreAsync(host).GetAsync("explodes")).ShouldBeNull();
     }
 
+
+    // ------------------------------------------------------------------
+    // Phase 149: strict mode. An EXISTING row that belongs to nobody can be
+    // refused outright, and "does not exist yet" is a different row.
+    // ------------------------------------------------------------------
+
+    [Fact]
+    public async Task Strict_mode_does_nothing_while_ownership_itself_is_off()
+    {
+        // 🚨 The flag is meaningless on its own: with Enabled off the gate
+        // never reads a row at all. A reader who sets only this one has NOT
+        // turned a boundary on, and the code must not pretend otherwise.
+        await using var host = await StartAsync(
+            enabled: false, out var identity, refuseUnownedSessions: true);
+
+        await StoreAsync(host).SaveAsync(Seed("legacy", owner: null));
+
+        identity.UserId = "anybody";
+
+        using var read = await host.Client.GetAsync(Session("legacy"));
+        read.StatusCode.ShouldBe(HttpStatusCode.OK);
+    }
+
+    [Fact]
+    public async Task An_unowned_session_stays_reachable_on_every_surface_while_strict_mode_is_off()
+    {
+        // The K-693 guarantee, restated as the DEFAULT once the strict flag
+        // exists: every surface that can now refuse must still let this row
+        // through until a deployment asks otherwise.
+        await using var host = await StartAsync(enabled: true, out var identity);
+
+        await StoreAsync(host).SaveAsync(Seed("legacy", owner: null));
+
+        identity.UserId = "anybody";
+
+        using (var read = await host.Client.GetAsync(Session("legacy")))
+        {
+            read.StatusCode.ShouldBe(HttpStatusCode.OK);
+        }
+
+        using (var conversation = await host.Client.GetAsync(Conversation("legacy")))
+        {
+            conversation.StatusCode.ShouldBe(HttpStatusCode.OK);
+        }
+
+        using (var items = await host.Client.GetAsync(new Uri(Conversation("legacy") + "/items", UriKind.Relative)))
+        {
+            items.StatusCode.ShouldBe(HttpStatusCode.OK);
+        }
+
+        using var run = await host.Client.PostAsJsonAsync(
+            Run, new AgentRunRequest { Message = "hello", SessionId = "legacy" });
+
+        run.StatusCode.ShouldBe(HttpStatusCode.OK);
+    }
+
+    [Fact]
+    public async Task Strict_mode_answers_an_unowned_session_with_the_same_404_a_missing_one_gets()
+    {
+        await using var host = await StartAsync(
+            enabled: true, out var identity, refuseUnownedSessions: true);
+
+        await StoreAsync(host).SaveAsync(Seed("legacy", owner: null));
+
+        identity.UserId = "anybody";
+
+        using var denied = await host.Client.GetAsync(Session("legacy"));
+        using var missing = await host.Client.GetAsync(Session("no-such-session"));
+
+        denied.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+
+        // 🚨 BYTE FOR BYTE (K-671). Wording that told "refused" apart from
+        // "never existed" would let a caller enumerate which sessions predate
+        // ownership from a response it is allowed to see.
+        (await denied.Content.ReadAsStringAsync())
+            .ShouldBe((await missing.Content.ReadAsStringAsync())
+                .Replace("no-such-session", "legacy", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task Strict_mode_refuses_deleting_an_unowned_session_and_leaves_the_row_alone()
+    {
+        await using var host = await StartAsync(
+            enabled: true, out var identity, refuseUnownedSessions: true);
+
+        await StoreAsync(host).SaveAsync(Seed("legacy", owner: null));
+
+        identity.UserId = "anybody";
+
+        using var response = await host.Client.DeleteAsync(Session("legacy"));
+
+        response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+
+        // 🚨 The refusal has to precede the delete. A 404 handed back over a
+        // row that is already gone is not a refusal.
+        (await StoreAsync(host).GetAsync("legacy")).ShouldNotBeNull();
+    }
+
+    [Fact]
+    public async Task Strict_mode_refuses_the_unowned_session_on_the_conversations_surface_too()
+    {
+        // The compatibility surface reaches the same rows under a different
+        // name — the miss phases 148 and 149 both had to come back for.
+        await using var host = await StartAsync(
+            enabled: true, out var identity, refuseUnownedSessions: true);
+
+        await StoreAsync(host).SaveAsync(Seed("legacy", owner: null));
+
+        identity.UserId = "anybody";
+
+        using var retrieve = await host.Client.GetAsync(Conversation("legacy"));
+        using var items = await host.Client.GetAsync(new Uri(Conversation("legacy") + "/items", UriKind.Relative));
+        using var deleted = await host.Client.DeleteAsync(Conversation("legacy"));
+
+        retrieve.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+        items.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+        deleted.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+
+        (await StoreAsync(host).GetAsync("legacy")).ShouldNotBeNull();
+    }
+
+    [Fact]
+    public async Task Strict_mode_refuses_branching_an_unowned_session()
+    {
+        using var database = new TempSqliteDatabase("session-owner-strict-branch");
+
+        await using var host = await StartSqliteAsync(
+            database, out var identity, refuseUnownedSessions: true);
+
+        await StoreAsync(host).SaveAsync(Seed("legacy", owner: null));
+
+        identity.UserId = "anybody";
+
+        using var response = await host.Client.PostAsJsonAsync(
+            new Uri("/agentprism/api/sessions/legacy/branch", UriKind.Relative),
+            new SessionBranchRequest { NewSessionId = "branched" });
+
+        response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+        (await StoreAsync(host).GetAsync("branched")).ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task Strict_mode_refuses_a_run_that_names_an_unowned_session()
+    {
+        // 🚨 The widest door. Continuing an unowned conversation replays its
+        // whole history into the model, so refusing it only on the session
+        // endpoints would leave the boundary decorative.
+        await using var host = await StartAsync(
+            enabled: true, out var identity, refuseUnownedSessions: true);
+
+        await StoreAsync(host).SaveAsync(Seed("legacy", owner: null));
+        var before = (await StoreAsync(host).GetAsync("legacy")).ShouldNotBeNull();
+
+        identity.UserId = "anybody";
+
+        using var response = await host.Client.PostAsJsonAsync(
+            Run, new AgentRunRequest { Message = "hello", SessionId = "legacy" });
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+
+        var problem = await AgentPrismTestHost.ReadJsonAsync(response);
+        problem.GetProperty("errorType").GetString()
+            .ShouldBe(AgentPrismSessionOwnerRequiredException.SessionOwnerRequiredErrorType);
+
+        var after = (await StoreAsync(host).GetAsync("legacy")).ShouldNotBeNull();
+        after.Version.ShouldBe(before.Version, "the refused turn must not have written the session");
+        after.OwnerId.ShouldBeNull("a refusal must not claim the row on the way out");
+    }
+
+    [Fact]
+    public async Task The_unowned_refusal_reads_exactly_like_another_users_refusal()
+    {
+        // 🚨 One refusal, one wording. Two spellings would let a caller learn
+        // which sessions predate ownership from responses it is allowed to
+        // see, and a client's action is identical either way: this session
+        // cannot carry the run.
+        await using var host = await StartAsync(
+            enabled: true, out var identity, refuseUnownedSessions: true);
+
+        var store = StoreAsync(host);
+        await store.SaveAsync(Seed("legacy", owner: null));
+        await store.SaveAsync(Seed("someone-elses", owner: "a"));
+
+        identity.UserId = "b";
+
+        using var unowned = await host.Client.PostAsJsonAsync(
+            Run, new AgentRunRequest { Message = "hello", SessionId = "legacy" });
+        using var others = await host.Client.PostAsJsonAsync(
+            Run, new AgentRunRequest { Message = "hello", SessionId = "someone-elses" });
+
+        unowned.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+        others.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+
+        (await unowned.Content.ReadAsStringAsync())
+            .ShouldBe(await others.Content.ReadAsStringAsync());
+    }
+
+    [Fact]
+    public async Task Strict_mode_refuses_a_non_streaming_run_the_same_way()
+    {
+        // 🚨 The two run shapes are separate code paths: an Idempotency-Key
+        // request answers with a single JSON body instead of SSE. Both are
+        // refused BEFORE any response has begun, so both carry a real 403 —
+        // this is not the guard class that has to degrade into an SSE 'error'
+        // frame (K-324).
+        await using var host = await StartAsync(
+            enabled: true, out var identity, refuseUnownedSessions: true);
+
+        await StoreAsync(host).SaveAsync(Seed("legacy", owner: null));
+
+        identity.UserId = "anybody";
+
+        using var response = await PostIdempotentAsync(host, "strict-1", "legacy");
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+
+        var problem = await AgentPrismTestHost.ReadJsonAsync(response);
+        problem.GetProperty("errorType").GetString()
+            .ShouldBe(AgentPrismSessionOwnerRequiredException.SessionOwnerRequiredErrorType);
+    }
+
+    [Fact]
+    public async Task Strict_mode_still_opens_a_session_that_does_not_exist_yet()
+    {
+        // 🚨 K-283, the single failure this phase's risk table names first.
+        // "Never created" and "created without an owner" are DIFFERENT rows.
+        // Folding them together would silently kill the first turn of every
+        // conversation in every installation that turns strict mode on.
+        await using var host = await StartAsync(
+            enabled: true, out var identity, refuseUnownedSessions: true);
+
+        identity.UserId = "a";
+
+        using var response = await host.Client.PostAsJsonAsync(
+            Run, new AgentRunRequest { Message = "hello", SessionId = "brand-new" });
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        (await StoreAsync(host).GetAsync("brand-new")).ShouldNotBeNull().OwnerId.ShouldBe("a");
+    }
+
+    [Fact]
+    public async Task Strict_mode_still_opens_a_voice_socket_on_a_session_that_does_not_exist_yet()
+    {
+        var identity = new SwitchableAttribution { UserId = "a" };
+
+        await using var host = await StartVoiceAsync(identity, refuseUnownedSessions: true);
+
+        var socketClient = host.CreateWebSocketClient();
+        socketClient.SubProtocols.Add(VoiceConversationProtocol.SubProtocol);
+
+        using var socket = await socketClient.ConnectAsync(
+            new Uri("http://localhost/agentprism/api/voice/sessions/never-seen/stream", UriKind.Absolute),
+            TestContext.Current.CancellationToken);
+
+        socket.State.ShouldBe(WebSocketState.Open);
+    }
+
+    [Fact]
+    public async Task Strict_mode_refuses_a_voice_socket_on_an_unowned_session()
+    {
+        var identity = new SwitchableAttribution();
+
+        await using var host = await StartVoiceAsync(identity, refuseUnownedSessions: true);
+
+        await StoreAsync(host).SaveAsync(Seed("legacy", owner: null));
+
+        identity.UserId = "anybody";
+
+        var socketClient = host.CreateWebSocketClient();
+        socketClient.SubProtocols.Add(VoiceConversationProtocol.SubProtocol);
+
+        var connect = async () => await socketClient.ConnectAsync(
+            new Uri("http://localhost/agentprism/api/voice/sessions/legacy/stream"),
+            TestContext.Current.CancellationToken);
+
+        var error = await connect.ShouldThrowAsync<InvalidOperationException>();
+
+        // 404 (K-687), never 403: a 403 would confirm the conversation exists.
+        error.Message.ShouldContain("404");
+    }
+
+    [Fact]
+    public async Task A_management_caller_still_reads_an_unowned_session_in_strict_mode()
+    {
+        // 🚨 The registered policy carries a REAL assertion this test flips.
+        // A blanket `_ => true` would prove only that a policy is reachable;
+        // what production depends on is that a caller who does NOT satisfy it
+        // is still refused — the second half below.
+        ManagementPolicyHolder.Satisfied = false;
+
+        await using var host = await StartAsync(
+            enabled: true,
+            out var identity,
+            refuseUnownedSessions: true,
+            configureServices: static services => TestAuthenticationHandler.Add(services)
+                .AddAuthorizationBuilder()
+                .AddPolicy(AgentPrismPolicies.Reader, static policy => policy.RequireAssertion(static _ => true))
+                .AddPolicy(AgentPrismPolicies.Operator, static policy => policy.RequireAssertion(
+                    static _ => ManagementPolicyHolder.Satisfied))
+                .AddPolicy(AgentPrismPolicies.Admin, static policy => policy.RequireAssertion(static _ => true)));
+
+        await StoreAsync(host).SaveAsync(Seed("legacy", owner: null));
+
+        identity.UserId = "operator";
+        ManagementPolicyHolder.Satisfied = true;
+
+        using (var read = await host.Client.GetAsync(Session("legacy")))
+        {
+            read.StatusCode.ShouldBe(HttpStatusCode.OK,
+                "support already sees this row in the management listing; refusing to open it " +
+                "would leave them looking at a row they cannot read");
+        }
+
+        // 🚨 The half that matters: the SAME policy now fails for this caller
+        // and the row is refused again. Without it, a gate that ignored the
+        // policy's RESULT would still have passed the assertion above.
+        ManagementPolicyHolder.Satisfied = false;
+
+        using var denied = await host.Client.GetAsync(Session("legacy"));
+        denied.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
+    public async Task The_management_exemption_does_not_extend_to_starting_a_run()
+    {
+        // 🚨 Reading a legacy conversation and appending to it as somebody
+        // else are different acts. The exemption exists so support can READ
+        // a row it already sees listed; it buys no write.
+        ManagementPolicyHolder.Satisfied = true;
+
+        await using var host = await StartAsync(
+            enabled: true,
+            out var identity,
+            refuseUnownedSessions: true,
+            configureServices: static services => TestAuthenticationHandler.Add(services)
+                .AddAuthorizationBuilder()
+                .AddPolicy(AgentPrismPolicies.Reader, static policy => policy.RequireAssertion(static _ => true))
+                .AddPolicy(AgentPrismPolicies.Operator, static policy => policy.RequireAssertion(
+                    static _ => ManagementPolicyHolder.Satisfied))
+                .AddPolicy(AgentPrismPolicies.Admin, static policy => policy.RequireAssertion(static _ => true)));
+
+        await StoreAsync(host).SaveAsync(Seed("legacy", owner: null));
+
+        identity.UserId = "operator";
+
+        using var response = await host.Client.PostAsJsonAsync(
+            Run, new AgentRunRequest { Message = "hello", SessionId = "legacy" });
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+    }
+
+    [Fact]
+    public async Task An_unregistered_management_policy_refuses_the_unowned_row_instead_of_opening_it()
+    {
+        // Fail-closed, the same direction the listing takes: a setup that
+        // registers no role policies at all is supported, and "policy
+        // missing" must never mean "policy passed".
+        await using var host = await StartAsync(
+            enabled: true, out var identity, refuseUnownedSessions: true);
+
+        await StoreAsync(host).SaveAsync(Seed("legacy", owner: null));
+
+        identity.UserId = "anybody";
+
+        using var response = await host.Client.GetAsync(Session("legacy"));
+        response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
+    public async Task Strict_mode_leaves_an_owned_session_to_its_own_owner()
+    {
+        // The flag adds a refusal; it must not take one away, and it must not
+        // start refusing the owner their own row.
+        await using var host = await StartAsync(
+            enabled: true, out var identity, refuseUnownedSessions: true);
+
+        identity.UserId = "a";
+        await RunAsync(host, "a-1");
+
+        using (var mine = await host.Client.GetAsync(Session("a-1")))
+        {
+            mine.StatusCode.ShouldBe(HttpStatusCode.OK);
+        }
+
+        identity.UserId = "b";
+
+        using var theirs = await host.Client.GetAsync(Session("a-1"));
+        theirs.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
+    public async Task Two_parallel_reads_of_one_unowned_session_are_both_refused()
+    {
+        await using var host = await StartAsync(
+            enabled: true, out var identity, refuseUnownedSessions: true);
+
+        await StoreAsync(host).SaveAsync(Seed("legacy", owner: null));
+
+        identity.UserId = "anybody";
+
+        var responses = await Task.WhenAll(
+            host.Client.GetAsync(Session("legacy")),
+            host.Client.GetAsync(Session("legacy")));
+
+        try
+        {
+            responses.ShouldAllBe(static response => response.StatusCode == HttpStatusCode.NotFound);
+        }
+        finally
+        {
+            foreach (var response in responses)
+            {
+                response.Dispose();
+            }
+        }
+    }
+
+    [Fact]
+    public async Task Strict_mode_is_bound_from_configuration()
+    {
+        // 🚨 The section is bound BY HAND (K-021, AOT). A property added to
+        // the type but not to BindSessionOwnership is silently inert for
+        // every deployment that configures AgentPrism through appsettings —
+        // the exact defect class K-406 and K-253 both were.
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>(StringComparer.Ordinal)
+            {
+                ["AgentPrism:SessionOwnership:Enabled"] = "true",
+                ["AgentPrism:SessionOwnership:RefuseUnownedSessions"] = "true",
+            })
+            .Build();
+
+        var services = new ServiceCollection();
+        services.AddAgentPrism(configuration.GetSection(AgentPrismOptions.SectionName));
+
+        await using var provider = services.BuildServiceProvider();
+        var bound = provider.GetRequiredService<IOptions<AgentPrismSessionOwnershipOptions>>().Value;
+
+        bound.Enabled.ShouldBeTrue();
+        bound.RefuseUnownedSessions.ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task Strict_mode_refuses_an_unowned_conversation_on_the_OpenAI_run_surface()
+    {
+        // 🚨 The third run-starting surface, and the one whose refusal is
+        // TRANSLATED: /v1/responses converts the gate's ProblemDetails into the
+        // OpenAI error envelope. The other two return it as-is, so a shared
+        // helper is not evidence that this one still answers correctly on the
+        // unowned branch — the branch is new and the translation is not.
+        await using var host = await StartAsync(
+            enabled: true, out var identity, refuseUnownedSessions: true);
+
+        await StoreAsync(host).SaveAsync(Seed("conv-legacy", owner: null));
+
+        identity.UserId = "anybody";
+
+        using var response = await host.Client.PostAsJsonAsync(
+            new Uri("/agentprism/v1/responses", UriKind.Relative),
+            new { model = "kod-agent", input = "hello", conversation = "conv-legacy" });
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+
+        // The row was neither claimed nor written by the refused call.
+        (await StoreAsync(host).GetAsync("conv-legacy")).ShouldNotBeNull().OwnerId.ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task Strict_mode_refuses_an_unowned_session_on_the_workflow_run_surface()
+    {
+        // The fourth ownership call site that can name a session. Same helper,
+        // different wiring — phase 148's own audit found a surface whose gate
+        // was present but reading the wrong value.
+        await using var host = await AgentPrismTestHost.StartAsync(
+            builder => builder
+                .AddAgent(TestData.Definition("writer"))
+                .AddAgent(TestData.Definition("editor"))
+                .UseWorkflows(),
+            configureServices: services =>
+            {
+                Configure(services, enabled: true, requireAuthenticatedOwner: true, refuseUnownedSessions: true);
+                services.Replace(ServiceDescriptor.Singleton<IRunAttributionContext>(WorkflowIdentity));
+            });
+
+        using (var saved = await host.Client.PutAsJsonAsync(
+            "/agentprism/api/workflows/chain",
+            new WorkflowSaveRequest { Kind = WorkflowKind.Sequential, AgentNames = ["writer", "editor"] }))
+        {
+            saved.StatusCode.ShouldBe(HttpStatusCode.OK);
+        }
+
+        await StoreAsync(host).SaveAsync(new SessionRecord
+        {
+            Id = "wf-legacy",
+            AgentName = "writer",
+            State = JsonDocument.Parse("{}").RootElement.Clone(),
+            CreatedAt = DateTimeOffset.UtcNow,
+            UpdatedAt = DateTimeOffset.UtcNow,
+            TenantId = "default",
+        });
+
+        WorkflowIdentity.UserId = "anybody";
+
+        using var response = await host.Client.PostAsJsonAsync(
+            "/agentprism/api/workflows/chain/run",
+            new WorkflowRunHttpRequest { Message = "hello", SessionId = "wf-legacy" });
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+    }
+
     // ------------------------------------------------------------------
     // Helpers.
     // ------------------------------------------------------------------
@@ -1033,6 +1547,7 @@ public sealed class SessionOwnershipTests
         bool enabled,
         out SwitchableAttribution identity,
         bool requireAuthenticatedOwner = true,
+        bool refuseUnownedSessions = false,
         Action<IServiceCollection>? configureServices = null)
     {
         var attribution = new SwitchableAttribution();
@@ -1042,7 +1557,7 @@ public sealed class SessionOwnershipTests
             static builder => builder.AddAgent(TestData.Definition()),
             configureServices: services =>
             {
-                Configure(services, enabled, requireAuthenticatedOwner);
+                Configure(services, enabled, requireAuthenticatedOwner, refuseUnownedSessions);
                 services.Replace(ServiceDescriptor.Singleton<IRunAttributionContext>(attribution));
                 configureServices?.Invoke(services);
             });
@@ -1050,7 +1565,8 @@ public sealed class SessionOwnershipTests
 
     private static Task<AgentPrismTestHost> StartSqliteAsync(
         TempSqliteDatabase database,
-        out SwitchableAttribution identity)
+        out SwitchableAttribution identity,
+        bool refuseUnownedSessions = false)
     {
         var attribution = new SwitchableAttribution();
         identity = attribution;
@@ -1061,16 +1577,41 @@ public sealed class SessionOwnershipTests
                 .UseSqlite(options => options.ConnectionString = database.ConnectionString),
             configureServices: services =>
             {
-                Configure(services, enabled: true, requireAuthenticatedOwner: true);
+                Configure(services, enabled: true, requireAuthenticatedOwner: true, refuseUnownedSessions);
                 services.Replace(ServiceDescriptor.Singleton<IRunAttributionContext>(attribution));
             });
     }
 
-    private static void Configure(IServiceCollection services, bool enabled, bool requireAuthenticatedOwner)
+    /// <summary>Starts a host whose voice conversation endpoint is mapped.</summary>
+    /// <param name="identity">The per-request identity the test switches.</param>
+    /// <param name="refuseUnownedSessions">Whether strict mode is on.</param>
+    /// <returns>The running host.</returns>
+    private static Task<AgentPrismTestHost> StartVoiceAsync(
+        SwitchableAttribution identity,
+        bool refuseUnownedSessions)
+        => AgentPrismTestHost.StartAsync(
+            configureAgentPrism: static builder => builder
+                .AddAgent(TestData.Definition("kod-agent"))
+                .UseVoiceConversation(static options => options.OutputMediaType = "audio/mpeg"),
+            configureServices: services =>
+            {
+                Configure(services, enabled: true, requireAuthenticatedOwner: true, refuseUnownedSessions);
+                services.Replace(ServiceDescriptor.Singleton<IRunAttributionContext>(identity));
+                var voice = new StubVoiceProvider();
+                services.AddSingleton<ISpeechTranscriber>(voice);
+                services.AddSingleton<ISpeechSynthesizer>(voice);
+            });
+
+    private static void Configure(
+        IServiceCollection services,
+        bool enabled,
+        bool requireAuthenticatedOwner,
+        bool refuseUnownedSessions = false)
         => services.Configure<AgentPrismSessionOwnershipOptions>(options =>
         {
             options.Enabled = enabled;
             options.RequireAuthenticatedOwner = requireAuthenticatedOwner;
+            options.RefuseUnownedSessions = refuseUnownedSessions;
         });
 
     /// <summary>
