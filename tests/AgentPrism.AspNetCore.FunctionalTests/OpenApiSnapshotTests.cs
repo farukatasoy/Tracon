@@ -37,12 +37,53 @@ public sealed class OpenApiSnapshotTests
 
         var committed = await File.ReadAllTextAsync(SnapshotPath);
 
-        current.ShouldBe(
-            committed,
-            customMessage: "The OpenAPI document differs from 'docs/openapi/agentprism.json'. Endpoint " +
-                           $"metadata changed; to refresh: {RefreshEnvVar}=1 dotnet test " +
-                           "tests/AgentPrism.AspNetCore.FunctionalTests -c Release " +
-                           "--filter FullyQualifiedName~OpenApiSnapshotTests");
+        // Plain ShouldBe() dumps BOTH multi-KB strings in full on failure. The
+        // document is near-entirely one giant pretty-printed JSON value per
+        // property, so that dump is a handful of extremely long lines -- CI log
+        // viewers (and anyone pasting the failure) truncate well before the
+        // actual point of divergence. Report just the first differing character
+        // and a short window around it instead.
+        if (!string.Equals(current, committed, StringComparison.Ordinal))
+        {
+            throw new ShouldAssertException(DescribeDifference(current, committed));
+        }
+    }
+
+    private static string DescribeDifference(string current, string committed)
+    {
+        var length = Math.Min(current.Length, committed.Length);
+        var index = 0;
+
+        while (index < length && current[index] == committed[index])
+        {
+            index++;
+        }
+
+        var line = 1;
+
+        for (var i = 0; i < index; i++)
+        {
+            if (committed[i] == '\n')
+            {
+                line++;
+            }
+        }
+
+        const int radius = 120;
+        var start = Math.Max(0, index - radius);
+
+        static string Snippet(string text, int start, int index)
+            => start >= text.Length
+                ? "<string ends here>"
+                : text[start..Math.Min(text.Length, index + 120)];
+
+        return "The OpenAPI document differs from 'docs/openapi/agentprism.json' at character " +
+               $"{index} (line {line}). Lengths: current={current.Length}, committed={committed.Length}." +
+               Environment.NewLine +
+               $"committed: ...{Snippet(committed, start, index)}..." + Environment.NewLine +
+               $"current:   ...{Snippet(current, start, index)}..." + Environment.NewLine +
+               $"To refresh: {RefreshEnvVar}=1 dotnet test tests/AgentPrism.AspNetCore.FunctionalTests " +
+               "-c Release --filter FullyQualifiedName~OpenApiSnapshotTests";
     }
 
 #pragma warning disable MEAI001
