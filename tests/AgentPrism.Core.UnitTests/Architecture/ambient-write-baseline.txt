@@ -14,6 +14,7 @@ src/AgentPrism.Core/Recording/RunReconciliationService.cs:TryContinueAsync | Bac
 src/AgentPrism.Core/Recording/RunRecordingAgent.Lifecycle.cs:PrepareRun | Synchronous method (not async); attribution and span resolved here on purpose so the AsyncLocal write stays in the caller's own body
 src/AgentPrism.Core/Recording/RunRecordingAgent.cs:RunCoreAsync | Non-streaming path; SetCurrent is called in this async method's own body, the documented correct pattern (Faz 6/11)
 src/AgentPrism.Core/Recording/RunRecordingAgent.cs:RunCoreStreamingAsync | Streaming iterator; the write repeats immediately before every MoveNextAsync inside the loop (Faz 12 fix)
+src/AgentPrism.Core/Scheduling/AgentRunJobHandler.cs:ExecuteAsync | using var attribution opens the scope in this method's own body and holds it across every await of the one job; not a streaming iterator, so no MoveNextAsync boundary is crossed
 src/AgentPrism.Core/Scheduling/JobWorkerBackgroundService.cs:ExecuteJobAsync | using var tenantScope opens and restores the ambient tenant for exactly one job execution, not a streaming loop
 src/AgentPrism.Core/Skills/Scripts/SandboxedSkillScriptRunner.cs:RunFileScriptAsync | using var activity opens the span in this method's own body; no streaming loop crosses a yield boundary here
 src/AgentPrism.Core/Skills/Scripts/SandboxedSkillScriptRunner.cs:RunStoredScriptAsync | Same pattern as RunFileScriptAsync: using var activity in the method's own non-streaming body

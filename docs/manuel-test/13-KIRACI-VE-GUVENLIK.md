@@ -3323,3 +3323,283 @@ curl -s -o /dev/null -w '%{http_code}\n' -X POST "$APU/../v1/chat/completions" \
 - Otomatikleştirilmiş karşılığı:
   `An_unknown_session_still_opens_when_the_handler_allows_it`.
 
+
+---
+
+### MT-SEC-164 — Sahiplik kapalıyken (varsayılan) hiçbir davranış değişmez
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 148 |
+| **İlgili karar** | K1 |
+
+**Ön koşul**
+- `AgentPrism:SessionOwnership` bölümü **hiç yok** (varsayılan kurulum).
+- `IRunAttributionContext` bir kullanıcı çözüyor.
+
+**Adımlar**
+1. Bir oturum aç, listele, oku, dallandır, sil.
+2. Veritabanında `SELECT owner_id FROM agentprism.sessions;` koştur.
+
+**Beklenen sonuç**
+- Dört işlem de bu fazdan önceki davranışı birebir verir.
+- `owner_id` her satırda `NULL`; yeni indeks boştur.
+- Otomatikleştirilmiş karşılığı: `Nothing_changes_when_ownership_is_not_configured`.
+
+---
+
+### MT-SEC-165 — Sahipli liste yalnız çağıranın oturumlarını döner
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 148 |
+
+**Ön koşul**
+- `AgentPrism:SessionOwnership:Enabled=true`.
+- A ve B kullanıcısının birer oturumu var.
+
+**Adımlar**
+1. A olarak `GET /api/sessions`.
+2. B olarak aynı çağrı.
+
+**Beklenen sonuç**
+- Her biri **yalnız kendi** oturumunu görür; `ownerId` alanı doludur.
+- Otomatikleştirilmiş karşılığı: `The_list_returns_only_the_callers_own_sessions`.
+
+---
+
+### MT-SEC-166 — Başka sahibin oturumu okuma/silme/dallandırmada `404`
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 148 |
+| **İlgili karar** | K-671 |
+
+**Ön koşul**
+- Mod açık, A'nın bir oturumu var.
+
+**Adımlar**
+1. B olarak `GET /api/sessions/{A}`, sonra var olmayan bir id ile aynı çağrı.
+   İki gövdeyi `diff` ile karşılaştır.
+2. B olarak `DELETE /api/sessions/{A}`.
+3. B olarak `POST /api/sessions/{A}/branch`.
+
+**Beklenen sonuç**
+- Üçü de `404`. Okuma gövdesi var olmayan oturumunkiyle **birebir** aynıdır
+  (yalnız id metni farklı) — ret, oturumun varlığını doğrulamaz.
+- A'nın oturumu **durmaya devam eder**; silme yan etki bırakmaz.
+- Otomatikleştirilmiş karşılıkları:
+  `Reading_another_owners_session_answers_the_same_404_a_missing_one_does`,
+  `Deleting_another_owners_session_answers_404_and_leaves_it_alone`,
+  `Branching_another_owners_session_answers_404`.
+
+---
+
+### MT-SEC-167 — Başka sahibin oturumuna `run` atmak reddedilir
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 148 |
+
+**Ön koşul**
+- Mod açık, A'nın bir oturumu var.
+
+**Adımlar**
+1. B olarak `POST /api/agents/{ad}/run` gövdesinde `sessionId = {A}` ile çağır.
+2. B olarak `POST /v1/responses` gövdesinde `conversation = {A}` ile çağır.
+
+**Beklenen sonuç**
+- İkisi de `403`; `errorType` = `session_owner_required`.
+- A'nın oturumunun `version` alanı **değişmez** — reddedilen tur hiç yazmaz.
+- 🚨 Bu case'in kapsadığı kapı, oturum uçlarınınkinden **ayrıdır**: bir turu
+  sürdürmek konuşmanın tamamını modele geri okur. Yalnız `GET /api/sessions/{id}`
+  korunursa sınır süs olur.
+- Otomatikleştirilmiş karşılıkları:
+  `Running_against_another_owners_session_is_refused`,
+  `Running_against_another_owners_conversation_is_refused_on_the_OpenAI_surface`.
+
+---
+
+### MT-SEC-168 — Süzgeç sayfalamadan ÖNCE uygulanır
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 148 |
+
+**Ön koşul**
+- Mod açık. A'nın 5 oturumu var; ayrıca 5 **sahipsiz** oturum var ve
+  bunlar daha yeni güncellenmiş (yani filtresiz listenin başında gelirler).
+
+**Adımlar**
+1. A olarak `GET /api/sessions?take=3`.
+
+**Beklenen sonuç**
+- **Üç** satır döner ve üçü de A'nındır. Sahipsiz satır hiç görünmez.
+- İki veya sıfır satır dönerse süzgeç sayfalamadan **sonra** uygulanıyordur;
+  bu bir sızıntıdır — boşluklardan başka kullanıcının oturum sayısı çıkarılabilir.
+- Otomatikleştirilmiş karşılığı: `The_owner_filter_is_applied_before_paging`.
+
+---
+
+### MT-SEC-169 — Kimlik çözülemezse oturum açılmaz
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 148 |
+
+**Ön koşul**
+- Mod açık, `RequireAuthenticatedOwner=true` (varsayılan).
+- `IRunAttributionContext` `null` dönüyor.
+
+**Adımlar**
+1. `sessionId` vererek `run` at.
+2. Aynı isteği `sessionId` **vermeden** at.
+3. Veritabanında o `sessionId`'yi ara.
+
+**Beklenen sonuç**
+- 1. adım `403`; başlık `Session owner required`.
+- 2. adım `200` — oturumsuz turun sahibi olmaz, reddedilmez.
+- 3. adım hiçbir satır bulmaz: **sahipsiz satır açılmaz**.
+- Otomatikleştirilmiş karşılıkları:
+  `Opening_a_session_without_an_identity_is_refused_and_writes_no_row`,
+  `A_sessionless_run_is_unaffected_by_the_owner_requirement`.
+
+---
+
+### MT-SEC-170 — Yönetim rolü filtresiz kiracı listesini görür
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 148 |
+
+**Ön koşul**
+- Mod açık. `AgentPrismPolicies.Operator` politikası **kayıtlı**.
+- A'nın bir oturumu ve mod açılmadan önce yazılmış bir **sahipsiz** oturum var.
+
+**Adımlar**
+1. Operator olarak `GET /api/sessions`.
+2. Politikayı kaldır, aynı çağrıyı tekrarla.
+
+**Beklenen sonuç**
+- 1. adımda iki oturum da görünür — sahipsiz eski satırın erişilebilir kaldığı
+  **tek yol** budur.
+- 2. adımda liste daralır. Kayıtlı olmayan politika **filtresiz liste vermez**;
+  yön bilinçlidir.
+- Otomatikleştirilmiş karşılıkları:
+  `A_management_caller_sees_the_whole_tenant_including_unowned_rows`,
+  `An_unregistered_management_policy_narrows_the_list_instead_of_opening_it`.
+
+---
+
+### MT-SEC-171 — Sahip gövdeden değiştirilemez, ikinci yazımda düşmez
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 148 |
+| **İlgili karar** | K-486 |
+
+**Ön koşul**
+- Mod açık, A kimliği çözülüyor.
+
+**Adımlar**
+1. Gövdeye `ownerId`, `userId`, `owner` alanlarını `"kurban"` değeriyle koyarak
+   `run` at.
+2. Aynı oturumda **ikinci** bir tur at.
+3. Her adımdan sonra `owner_id` ve `version` sütunlarını oku.
+
+**Beklenen sonuç**
+- Sahip her zaman **A**'dır; gövde alanları etkisizdir.
+- `version` ikinci turda ilerler (gerçekten güncelleme yolu) ama `owner_id`
+  değişmez ve **`NULL`'a düşmez**.
+- Otomatikleştirilmiş karşılıkları: `No_body_field_can_set_the_owner`,
+  `A_second_turn_on_the_same_session_keeps_the_owner`.
+
+---
+
+### MT-SEC-172 — Kuyruğa alınmış `run` sahibi iş zarfından alır
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 148 |
+
+**Ön koşul**
+- Mod açık, iş kuyruğu işçisi koşuyor.
+
+**Adımlar**
+1. A olarak `Prefer: respond-async` ve `sessionId` ile `run` at (`202` bekle).
+2. İşçi işi almadan önce çözülen kimliği **başka** bir kullanıcıya çevir.
+3. İş bittikten sonra `owner_id`'yi oku ve A olarak listele.
+
+**Beklenen sonuç**
+- Sahip **A**'dır — kimliği zarf taşır, işçinin o an gördüğü değer değil.
+  `HttpContext` yoktur; zarf tek doğru kaynaktır.
+- Oturum A'nın listesinde çıkar, ikinci kullanıcının listesinde çıkmaz.
+- Otomatikleştirilmiş karşılıkları:
+  `A_queued_run_takes_its_owner_from_the_job_envelope`,
+  `A_queued_run_lists_under_its_owner_afterwards`.
+
+---
+
+### MT-SEC-173 — Dallandırma sahibi KAYNAKTAN korur
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 148 |
+
+**Ön koşul**
+- Mod açık, kalıcı SQL sağlayıcısı etkin, A'nın bir oturumu var.
+
+**Adımlar**
+1. A olarak kendi oturumunu dallandır.
+2. Yeni oturumun `owner_id` alanını oku.
+
+**Beklenen sonuç**
+- Yeni oturumun sahibi **A**'dır — dallandırma bir kopyadır, bir devir değil.
+- Otomatikleştirilmiş karşılığı: `Branching_keeps_the_source_sessions_owner`.
+
+---
+
+### MT-SEC-174 — 👤 Dolu bir `sessions` tablosunda migration kilidi ÖLÇÜLÜR
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 148 |
+| **İnsan gerekir** | 👤 Evet |
+
+**Ön koşul**
+- Üretim benzeri boyutta (en az birkaç milyon satır) dolu bir `sessions` tablosu.
+- Üç sağlayıcıdan en az biri; her biri ayrı ölçülür.
+
+**Adımlar**
+1. `ALTER TABLE ... ADD COLUMN owner_id` + indeks migration'ını uygula.
+2. Uygulama süresini ve tablo üzerindeki kilit süresini **ölç**.
+3. Ölçülen değeri satır sayısıyla birlikte yaz.
+
+**Beklenen sonuç**
+- Sütun `NULL` varsayılanlı olduğu için tablo yeniden yazımı **beklenmez** ve
+  indeks kısmidir (`WHERE owner_id IS NOT NULL`), yani boş tabloda ucuzdur.
+- 🚨 Bu bir beklenti, bir ölçüm değildir. Süre **ölçülür ve yazılır**; tahmin
+  edilmez. Bu case'in otomatik karşılığı **yoktur** ve olamaz — ölçüm gerçek
+  veri hacmi ister.

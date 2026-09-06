@@ -216,6 +216,15 @@ internal sealed class ConversationBranchService
                 CreatedAt = now,
                 UpdatedAt = now,
                 TenantId = _tenantContext.TenantId,
+
+                // 🚨 The SOURCE session's owner, never the caller's identity.
+                // Branching copies a conversation; it does not transfer it.
+                // Resolving the caller here instead would quietly move a
+                // conversation to whoever branched it, and a null owner on a
+                // background branch would drop the copy out of its owner's
+                // listing. The caller reached this point only by already
+                // satisfying the ownership gate on the source.
+                OwnerId = record.OwnerId,
             },
             cancellationToken).ConfigureAwait(false);
 

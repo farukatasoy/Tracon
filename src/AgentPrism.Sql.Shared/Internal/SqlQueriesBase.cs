@@ -1077,15 +1077,15 @@ internal abstract class SqlQueriesBase
             """;
 
         InsertSession = $"""
-            INSERT INTO {Table("sessions")} (id, tenant_id, agent_name, state, state_schema_version, created_at, updated_at, version, state_maf_version)
-            VALUES (@id, @tenant_id, @agent_name, @state, @state_schema_version, @created_at, @updated_at, 1, @state_maf_version);
+            INSERT INTO {Table("sessions")} (id, tenant_id, agent_name, state, state_schema_version, created_at, updated_at, version, state_maf_version, owner_id)
+            VALUES (@id, @tenant_id, @agent_name, @state, @state_schema_version, @created_at, @updated_at, 1, @state_maf_version, @owner_id);
             """;
 
-        // `version` and `state_maf_version` are appended LAST so every
-        // existing ordinal keeps its index (same rule as the `version`
+        // `version`, `state_maf_version` and `owner_id` are appended LAST so
+        // every existing ordinal keeps its index (same rule as the `version`
         // column itself, decision K-648).
         SelectSession = $"""
-            SELECT agent_name, state, state_schema_version, created_at, updated_at, tenant_id, version, state_maf_version
+            SELECT agent_name, state, state_schema_version, created_at, updated_at, tenant_id, version, state_maf_version, owner_id
             FROM {Table("sessions")}
             WHERE id = @id AND tenant_id = @tenant_id;
             """;
@@ -1102,6 +1102,7 @@ internal abstract class SqlQueriesBase
                    state_schema_version = @state_schema_version,
                    state_maf_version    = @state_maf_version,
                    updated_at           = @updated_at,
+                   owner_id             = COALESCE(owner_id, @owner_id),
                    version              = version + 1
              WHERE id = @id AND tenant_id = @tenant_id AND version = @expected_version;
             """;

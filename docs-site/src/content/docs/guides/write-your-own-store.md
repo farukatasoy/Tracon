@@ -133,6 +133,25 @@ an empty list applies no filter, and a retried job keeps its lane. See
 [Background work](/guides/background-work/) for what a lane is and how a job's lane is
 chosen.
 
+`ISessionStore`'s contract (`SessionStoreContract`) checks the two rules that make
+per-user [session ownership](/concepts/sessions/#session-ownership) work, and they are
+easy to miss in a custom store because everything else keeps passing without them:
+
+- **`SessionQuery.OwnerId` filters before `Skip`/`Take`.** The contract seeds five
+  owned and five unowned sessions with the unowned ones newest, then asks for
+  `Take = 3`. A store that pages first and filters the page afterwards returns fewer
+  than three rows — and the gaps let a caller count how many sessions other users
+  hold. A row with a `null` owner matches no owner filter at all: an unowned session
+  is nobody's, not everybody's.
+- **A write that carries no owner does not clear one already stored.** A session is
+  written more than once, and a later write can come from a background worker with no
+  request behind it. The three shipped SQL stores `COALESCE` the column for exactly
+  this reason. Without the rule, a session silently drops out of its owner's list on
+  the second write while every first-write test stays green.
+
+A store that ignores `OwnerId` still compiles and still runs — session ownership just
+never works on it. Running `SessionStoreContract` is what makes that visible.
+
 `IJobStore` carries one aggregate method alongside the record-level ones.
 `GetQueueDepthAsync` counts outstanding jobs grouped by lane and status, the way
 `IRunStore.GetStatisticsAsync` sits on the run store rather than in an interface of

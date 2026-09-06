@@ -199,6 +199,47 @@ public sealed record SessionRecord
     /// <summary>The tenant identifier.</summary>
     public string? TenantId { get; init; }
 
+    /// <summary>
+    /// The user the session belongs to, or <see langword="null"/> when the
+    /// session is unowned.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// This is a SECOND, NARROWER boundary drawn UNDER the tenant, not a
+    /// replacement for it: <see cref="TenantId"/> still answers "whose data is
+    /// this", and this answers "which user inside that tenant". Do not confuse
+    /// it with <see cref="ISessionStore.GetOwnerTenantIdAsync"/>, whose "owner"
+    /// is the owning TENANT.
+    /// </para>
+    /// <para>
+    /// The value is an <strong>opaque string</strong> with the same meaning
+    /// <see cref="IRunAttributionContext.UserId"/> carries, bounded by
+    /// <see cref="RunLabels.MaxUserIdLength"/>. AgentPrism neither resolves nor
+    /// validates it; the consumer decides what it identifies. It is
+    /// <strong>never read from a request body</strong> — a body field naming
+    /// the owner would let any client write a session under someone else's
+    /// name.
+    /// </para>
+    /// <para>
+    /// <see langword="null"/> means the session is unowned: every row written
+    /// before ownership tracking existed, and every row written by an
+    /// application that leaves
+    /// <see cref="AgentPrismSessionOwnershipOptions.Enabled"/> off. An unowned
+    /// row is never returned by an owner-filtered
+    /// <see cref="SessionQuery.OwnerId"/> query; it stays visible to a
+    /// management listing that applies no owner filter.
+    /// </para>
+    /// <para>
+    /// <strong>Assigned once.</strong> A store must not let a later write clear
+    /// an owner that is already set: the identity that opened a session keeps
+    /// it, and "set → unset" is never a legitimate transition here. Writing a
+    /// DIFFERENT owner onto an owned row is equally not a transition AgentPrism
+    /// performs — a derived session (a branch, a Responses chain) carries the
+    /// SOURCE session's owner, not the caller's.
+    /// </para>
+    /// </remarks>
+    public string? OwnerId { get; init; }
+
     /// <summary>The AgentPrism schema generation that wrote <c>State</c>.</summary>
     /// <remarks>
     /// <para>
@@ -258,6 +299,28 @@ public sealed record SessionQuery
 
     /// <summary>Fetches only this tenant's sessions.</summary>
     public string? TenantId { get; init; }
+
+    /// <summary>
+    /// Fetches only this owner's sessions. <see langword="null"/> applies no
+    /// owner filter at all and lists the whole tenant, which is what a
+    /// management listing wants.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <strong>The filter is applied BEFORE <see cref="Skip"/> and
+    /// <see cref="Take"/>.</strong> A store that filters the page it already
+    /// fetched returns short pages, empty pages, and — worst — lets a caller
+    /// infer how many sessions OTHER users hold from the gaps. Paging runs over
+    /// the already-narrowed set, so the paging contract stays intact and no
+    /// count leaks.
+    /// </para>
+    /// <para>
+    /// A row whose <see cref="SessionRecord.OwnerId"/> is <see langword="null"/>
+    /// is NOT matched by any owner filter. Unowned rows are not "everyone's";
+    /// they are nobody's.
+    /// </para>
+    /// </remarks>
+    public string? OwnerId { get; init; }
 
     /// <summary>The number of records to skip.</summary>
     public int Skip { get; init; }

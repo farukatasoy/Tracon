@@ -227,23 +227,29 @@ internal sealed class SqliteQueries : SqlQueriesBase
 
         // See PostgresQueries: `version` advances, it is never taken from
         // the incoming row.
+        // See PostgresQueries: owner_id is COALESCEd, never taken straight
+        // from the incoming row (K-486).
         UpsertSession = $"""
-            INSERT INTO {Schema}sessions (id, tenant_id, agent_name, state, state_schema_version, created_at, updated_at, version, state_maf_version)
-            VALUES (@id, @tenant_id, @agent_name, @state, @state_schema_version, @created_at, @updated_at, 1, @state_maf_version)
+            INSERT INTO {Schema}sessions (id, tenant_id, agent_name, state, state_schema_version, created_at, updated_at, version, state_maf_version, owner_id)
+            VALUES (@id, @tenant_id, @agent_name, @state, @state_schema_version, @created_at, @updated_at, 1, @state_maf_version, @owner_id)
             ON CONFLICT (tenant_id, id) DO UPDATE
                 SET agent_name           = excluded.agent_name,
                     state                = excluded.state,
                     state_schema_version = excluded.state_schema_version,
                     state_maf_version    = excluded.state_maf_version,
                     updated_at           = excluded.updated_at,
+                    owner_id             = COALESCE(owner_id, excluded.owner_id),
                     version              = version + 1;
             """;
 
+        // See PostgresQueries: the owner predicate is in the WHERE clause,
+        // ahead of LIMIT/OFFSET, so paging runs over the narrowed set.
         SelectSessions = $"""
-            SELECT id, agent_name, state, state_schema_version, created_at, updated_at, tenant_id, version, state_maf_version
+            SELECT id, agent_name, state, state_schema_version, created_at, updated_at, tenant_id, version, state_maf_version, owner_id
             FROM {Schema}sessions
             WHERE tenant_id = @tenant_id
               AND (@agent_name IS NULL OR agent_name = @agent_name)
+              AND (@owner_id IS NULL OR owner_id = @owner_id)
             ORDER BY updated_at DESC
             LIMIT @take OFFSET @skip;
             """;

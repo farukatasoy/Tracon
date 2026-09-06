@@ -55,7 +55,17 @@ internal sealed class AgentRunJobHandler(
     {
         ArgumentNullException.ThrowIfNull(context);
 
-        var (runId, message, sessionId) = ParsePayload(context.Job.Payload);
+        var (runId, message, sessionId, userId) = ParsePayload(context.Job.Payload);
+
+        // 🚨 Opened in THIS method's own body, wrapping every await that
+        // follows. An AsyncLocal write made inside an async helper does not
+        // flow back to its caller, so resolving the identity in a helper and
+        // returning it here would leave the scope closed by the time the
+        // session is saved. Everything the run touches - the session manager's
+        // owner resolution, the run record's attribution - reads from this one
+        // scope, which is why the value has to be replayed rather than passed
+        // as a parameter to one of them.
+        using var attribution = AmbientRunAttributionScope.Begin(userId, labels: null);
 
         Microsoft.Agents.AI.AIAgent agent;
         Microsoft.Agents.AI.AgentSession? session;
@@ -278,7 +288,7 @@ internal sealed class AgentRunJobHandler(
         }
     }
 
-    private static (Guid RunId, string Message, string? SessionId) ParsePayload(JsonElement payload)
+    private static (Guid RunId, string Message, string? SessionId, string? UserId) ParsePayload(JsonElement payload)
     {
         if (payload.ValueKind != JsonValueKind.Object ||
             !payload.TryGetProperty("runId", out var runIdElement) ||
@@ -300,6 +310,26 @@ internal sealed class AgentRunJobHandler(
             ? sessionElement.GetString()
             : null;
 
-        return (runId, message, sessionId);
+        // Absent on every job enqueued before this field existed, and on every
+        // job enqueued by a caller AgentPrism could not identify. Both read
+        // back as null, which is what an unattributed run has always been.
+        var userId = payload.TryGetProperty("userId", out var userElement) &&
+            userElement.ValueKind == JsonValueKind.String
+            ? userElement.GetString()
+            : null;
+
+        // 🚨 Dropped rather than thrown on: AmbientRunAttributionScope.Begin
+        // REJECTS an over-long identity, and a job payload is durable data
+        // that may have been written by an older build or by hand. Letting it
+        // throw would fail the job on every one of its retries and never
+        // recover. Dropping it leaves the run unattributed, which with
+        // ownership on means the session write is refused - fail-closed, and
+        // for a stated reason.
+        if (RunLabels.ValidateUserId(userId) is not null)
+        {
+            userId = null;
+        }
+
+        return (runId, message, sessionId, userId);
     }
 }

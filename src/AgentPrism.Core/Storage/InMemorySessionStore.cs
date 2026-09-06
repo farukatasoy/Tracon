@@ -54,6 +54,15 @@ internal sealed class InMemorySessionStore : ISessionStore
             {
                 CreatedAt = existing.CreatedAt,
                 Version = existing.Version + 1,
+
+                // 🚨 The owner is CARRIED, never overwritten: "set -> unset" is
+                // not a legitimate transition for this column, so a write that
+                // brings no owner must not clear the one already there. The
+                // SQL stores hold the same rule with COALESCE. Without it a
+                // second save on a path that cannot resolve an identity - the
+                // queued run's worker, a background continuation - drops the
+                // session out of its owner's listing forever.
+                OwnerId = existing.OwnerId ?? incoming.OwnerId,
             },
             record with { TenantId = tenantId, Version = 1 });
 
@@ -98,12 +107,14 @@ internal sealed class InMemorySessionStore : ISessionStore
             return new ValueTask<bool>(false);
         }
 
-        // CreatedAt belongs to the first write, the same rule SaveAsync applies.
+        // CreatedAt belongs to the first write, and the owner belongs to
+        // whoever claimed it - the same two rules SaveAsync applies.
         var updated = record with
         {
             TenantId = tenantId,
             CreatedAt = existing.CreatedAt,
             Version = expectedVersion + 1,
+            OwnerId = existing.OwnerId ?? record.OwnerId,
         };
 
         return new ValueTask<bool>(_sessions.TryUpdate(key, updated, existing));
@@ -162,6 +173,17 @@ internal sealed class InMemorySessionStore : ISessionStore
             }
 
             if (!string.Equals(record.TenantId, tenantId, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            // 🚨 Applied HERE, while the match set is still being built, and
+            // never after Paginate: filtering a page that was already cut
+            // returns short pages and lets a caller count other users'
+            // sessions from the gaps. An unowned row matches NO owner filter -
+            // an unowned session is nobody's, not everybody's.
+            if (query.OwnerId is { } ownerId &&
+                !string.Equals(record.OwnerId, ownerId, StringComparison.Ordinal))
             {
                 continue;
             }

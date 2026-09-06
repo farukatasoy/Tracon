@@ -2,6 +2,7 @@ using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
 using Microsoft.Agents.AI;
+using Microsoft.Extensions.Options;
 
 namespace AgentPrism;
 
@@ -49,6 +50,8 @@ public sealed class AgentSessionManager
     private readonly ISessionStore _store;
     private readonly ITenantContext _tenantContext;
     private readonly TimeProvider _timeProvider;
+    private readonly IRunAttributionContext? _attributionContext;
+    private readonly IOptionsMonitor<AgentPrismSessionOwnershipOptions>? _ownershipOptions;
 
     /// <summary>
     /// Marks sessions that <see cref="GetOrCreateSessionAsync"/> found no record
@@ -101,8 +104,23 @@ public sealed class AgentSessionManager
     /// <param name="store">The session store.</param>
     /// <param name="tenantContext">The tenant context.</param>
     /// <param name="timeProvider">The time source. The system clock is used if not given.</param>
+    /// <param name="attributionContext">
+    /// The identity pipeline a session owner is read from. Only consulted while
+    /// <see cref="AgentPrismSessionOwnershipOptions.Enabled"/> is on; without it
+    /// ownership cannot be resolved and every write behaves as if no identity
+    /// were available.
+    /// </param>
+    /// <param name="ownershipOptions">
+    /// The ownership settings. <see langword="null"/> means ownership is off,
+    /// which is also the default when the options ARE registered.
+    /// </param>
     /// <exception cref="ArgumentNullException">One of the required dependencies is <see langword="null"/>.</exception>
-    public AgentSessionManager(ISessionStore store, ITenantContext tenantContext, TimeProvider? timeProvider = null)
+    public AgentSessionManager(
+        ISessionStore store,
+        ITenantContext tenantContext,
+        TimeProvider? timeProvider = null,
+        IRunAttributionContext? attributionContext = null,
+        IOptionsMonitor<AgentPrismSessionOwnershipOptions>? ownershipOptions = null)
     {
         ArgumentNullException.ThrowIfNull(store);
         ArgumentNullException.ThrowIfNull(tenantContext);
@@ -110,6 +128,8 @@ public sealed class AgentSessionManager
         _store = store;
         _tenantContext = tenantContext;
         _timeProvider = timeProvider ?? TimeProvider.System;
+        _attributionContext = attributionContext;
+        _ownershipOptions = ownershipOptions;
     }
 
     /// <summary>
@@ -124,6 +144,10 @@ public sealed class AgentSessionManager
     /// <exception cref="ArgumentNullException"><paramref name="agent"/> is <see langword="null"/>.</exception>
     /// <exception cref="ArgumentException"><paramref name="sessionId"/> is empty.</exception>
     /// <exception cref="AgentPrismException">The stored state cannot be restored by this agent.</exception>
+    /// <exception cref="AgentPrismSessionOwnerRequiredException">
+    /// Session ownership is on, this call would OPEN a new session, and no
+    /// authenticated identity could be resolved to own it.
+    /// </exception>
     public async ValueTask<AgentSession> GetOrCreateSessionAsync(
         AIAgent agent,
         string sessionId,
@@ -145,6 +169,17 @@ public sealed class AgentSessionManager
             // session; the atomic claim happens in SaveSessionAsync, at the
             // moment of the first save (see that method's description,
             // HATA-004).
+            // 🚨 Ownership is resolved HERE, before the agent has run, and not
+            // only at the save that follows: a rejection after the turn has
+            // already reached the model has cost real money and produced an
+            // answer nobody may keep. The value is deliberately DISCARDED --
+            // the save resolves it again through the same method, from the
+            // same source, and this call exists purely to fail early. Both
+            // calls have to stay: a session whose identity was stamped by hand
+            // never passes through here at all, and the save is the only place
+            // that can still keep the invariant for it.
+            _ = ClaimOwnerId(sessionId);
+
             session = await agent.CreateSessionAsync(cancellationToken).ConfigureAwait(false);
             _newlyOpenedSessions.Add(session, NewSessionMarker);
         }
@@ -180,7 +215,7 @@ public sealed class AgentSessionManager
 
         if (record is not null)
         {
-            _restoredVersions.AddOrUpdate(session, new RestoredRecord(sessionId, record.Version));
+            _restoredVersions.AddOrUpdate(session, new RestoredRecord(sessionId, record.Version, record.OwnerId));
         }
 
         AgentSessionIdentity.SetId(session, sessionId);
@@ -200,6 +235,11 @@ public sealed class AgentSessionManager
     /// This was the FIRST save of a session that <see cref="GetOrCreateSessionAsync"/>
     /// opened FRESH, and a concurrent request saved the same NEW session
     /// identity before we did.
+    /// </exception>
+    /// <exception cref="AgentPrismSessionOwnerRequiredException">
+    /// Session ownership is on, this write would CLAIM ownership of a session,
+    /// and no authenticated identity could be resolved to be its owner. See
+    /// <see cref="ResolveOwnerId(AgentSession, string)"/>.
     /// </exception>
     /// <remarks>
     /// <para>
@@ -225,6 +265,13 @@ public sealed class AgentSessionManager
     /// silently overwritten. A save that targets a DIFFERENT identity than the
     /// session was read from is a new record, not a replacement, and is still
     /// written unconditionally.
+    /// </para>
+    /// <para>
+    /// The session's OWNER travels through all three of those branches
+    /// untouched once it is set: <see cref="ResolveOwnerId(AgentSession, string)"/> claims it on the
+    /// first write and carries it verbatim on every later one. The stores
+    /// hold the same rule a second time, so an owner survives even a write
+    /// this manager never saw.
     /// </para>
     /// </remarks>
     public async ValueTask<string> SaveSessionAsync(
@@ -256,6 +303,7 @@ public sealed class AgentSessionManager
             CreatedAt = now,
             UpdatedAt = now,
             TenantId = _tenantContext.TenantId,
+            OwnerId = ResolveOwnerId(session, sessionId),
         };
 
         if (_newlyOpenedSessions.TryGetValue(session, out _))
@@ -273,8 +321,12 @@ public sealed class AgentSessionManager
             _newlyOpenedSessions.Remove(session);
 
             // The first write lands at generation 1; a second save within this
-            // same request must replace THAT, not re-create.
-            _restoredVersions.AddOrUpdate(session, new RestoredRecord(sessionId, 1));
+            // same request must replace THAT, not re-create. The owner it just
+            // claimed is remembered with it, so the second save CARRIES it
+            // instead of resolving the identity a second time — on a queued
+            // run that second save happens in a background worker with no
+            // request behind it.
+            _restoredVersions.AddOrUpdate(session, new RestoredRecord(sessionId, 1, record.OwnerId));
         }
         else if (_restoredVersions.TryGetValue(session, out var restored) &&
                  string.Equals(restored.SessionId, sessionId, StringComparison.Ordinal))
@@ -308,6 +360,160 @@ public sealed class AgentSessionManager
     }
 
     /// <summary>
+    /// Decides which user this write records as the session's owner.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Returns <see langword="null"/> — today's behaviour, an unowned row —
+    /// whenever <see cref="AgentPrismSessionOwnershipOptions.Enabled"/> is off.
+    /// That is the default, so an application that configures nothing never
+    /// reaches the rest of this method.
+    /// </para>
+    /// <para>
+    /// With ownership on there are exactly two cases, and the split is what
+    /// keeps an owner from ever being silently replaced or dropped:
+    /// </para>
+    /// <list type="bullet">
+    /// <item>
+    /// <description>
+    /// The session was <strong>restored</strong> from a stored row. Its owner
+    /// is CARRIED FORWARD verbatim, including a <see langword="null"/> owner on
+    /// a row written before ownership existed. This covers every later write
+    /// of an existing session, and it covers a session deliberately saved
+    /// under a NEW identity (the Responses endpoint's
+    /// <c>previous_response_id</c> chain) — a derived session inherits the
+    /// source's owner, exactly as a branch does, because deriving is a copy
+    /// and not a handover.
+    /// </description>
+    /// </item>
+    /// <item>
+    /// <description>
+    /// The session is <strong>new to this manager</strong> — freshly opened,
+    /// or stamped with an identity by hand. The owner is resolved from the
+    /// identity pipeline, once, and this is the ONLY moment ownership is
+    /// claimed.
+    /// </description>
+    /// </item>
+    /// </list>
+    /// <para>
+    /// The identity comes from <see cref="IRunAttributionContext"/> and
+    /// NEVER from the request body. A body field naming the owner would let
+    /// any client open a session under someone else&apos;s name, which is the
+    /// same forgery <c>IRunAttributionContext</c> already refuses for cost
+    /// records.
+    /// </para>
+    /// <para>
+    /// <see cref="RunAttributionReader"/> answers <see langword="null"/> for
+    /// a faulty implementation and for a value that breaks
+    /// <see cref="RunLabels.MaxUserIdLength"/> — it never surfaces a partial
+    /// or unvalidated identity. Under ownership that <see langword="null"/>
+    /// becomes a REJECTION rather than a NULL column: attribution&apos;s promise
+    /// that its own failure cannot stop a run does not extend to a value the
+    /// deployment has asked to be an authorization input.
+    /// </para>
+    /// </remarks>
+    /// <param name="session">The session being saved.</param>
+    /// <param name="sessionId">The identity the record is written under.</param>
+    /// <returns>The owner to write, or <see langword="null"/> for an unowned row.</returns>
+    /// <exception cref="AgentPrismSessionOwnerRequiredException">
+    /// Ownership is on, this write CLAIMS ownership, no identity resolved, and
+    /// <see cref="AgentPrismSessionOwnershipOptions.RequireAuthenticatedOwner"/>
+    /// is on.
+    /// </exception>
+    private string? ResolveOwnerId(AgentSession session, string sessionId)
+        => _restoredVersions.TryGetValue(session, out var restored) &&
+           _ownershipOptions?.CurrentValue is { Enabled: true }
+            ? restored.OwnerId
+            : ClaimOwnerId(sessionId);
+
+    /// <summary>
+    /// Claims an owner for a session that has no stored one to carry forward.
+    /// </summary>
+    /// <remarks>
+    /// Split out of <see cref="ResolveOwnerId(AgentSession, string)"/> so that
+    /// <see cref="GetOrCreateSessionAsync"/> can reach it BEFORE an
+    /// <c>AgentSession</c> object exists to key the carry-forward table with -
+    /// the whole point of the early call is to refuse before the agent runs.
+    /// </remarks>
+    /// <param name="sessionId">The identity the record is written under.</param>
+    /// <returns>The owner to write, or <see langword="null"/> for an unowned row.</returns>
+    /// <exception cref="AgentPrismSessionOwnerRequiredException">
+    /// Ownership is on, no identity resolved, and
+    /// <see cref="AgentPrismSessionOwnershipOptions.RequireAuthenticatedOwner"/>
+    /// is on.
+    /// </exception>
+    private string? ClaimOwnerId(string sessionId)
+    {
+        var options = _ownershipOptions?.CurrentValue;
+
+        if (options is not { Enabled: true })
+        {
+            return null;
+        }
+
+        var userId = ResolveClaimingIdentity();
+
+        if (userId is null && options.RequireAuthenticatedOwner)
+        {
+            throw new AgentPrismSessionOwnerRequiredException(
+                $"Session '{sessionId}' cannot be opened: session ownership is on and no authenticated " +
+                "identity could be resolved to own it. Bind IRunAttributionContext to the application's " +
+                "identity pipeline, or turn AgentPrism:SessionOwnership:RequireAuthenticatedOwner off to " +
+                "allow unowned sessions - an unowned session is invisible to every owner-filtered listing.")
+            {
+                SessionId = sessionId,
+            };
+        }
+
+        return userId;
+    }
+
+    /// <summary>
+    /// Reads the identity that gets to claim a session, giving an OPEN ambient
+    /// scope precedence over the registered attribution service.
+    /// </summary>
+    /// <returns>The claiming identity, or <see langword="null"/> when there is none.</returns>
+    /// <remarks>
+    /// <para>
+    /// The precedence is the point, and it is inverted from what "the
+    /// consumer's registration always wins" would suggest. On a background
+    /// path — the queued run's worker, a scheduled run — AgentPrism itself
+    /// opens the scope from the DURABLE JOB ENVELOPE, which is the recorded
+    /// answer to "who asked for this work". A registered
+    /// <see cref="IRunAttributionContext"/> is normally bound to the current
+    /// HTTP request and has nothing to read on that thread; an implementation
+    /// that answers anyway answers about a DIFFERENT caller than the one whose
+    /// session is being written. Measured: with a consumer implementation
+    /// registered, the queued run claimed the session for whichever user the
+    /// worker's ambient service happened to name.
+    /// </para>
+    /// <para>
+    /// <see cref="AmbientRunAttributionScope.IsActive"/>, not a null check on
+    /// the value: a scope opened with no user is the deliberate statement
+    /// "this work belongs to nobody", and falling through to the service there
+    /// would let the wrong identity back in through the same door.
+    /// </para>
+    /// <para>
+    /// This precedence governs OWNERSHIP only. Attribution's own reader is
+    /// untouched, so a run's <c>user_id</c> column keeps resolving exactly as
+    /// it did.
+    /// </para>
+    /// </remarks>
+    private string? ResolveClaimingIdentity()
+    {
+        if (AmbientRunAttributionScope.IsActive)
+        {
+            // Already validated against RunLabels by Begin, so it needs no
+            // second pass through RunAttributionReader.
+            return AmbientRunAttributionScope.CurrentUserId;
+        }
+
+        var (userId, _) = RunAttributionReader.Read(_attributionContext);
+
+        return userId;
+    }
+
+    /// <summary>
     /// Reads the informational version off the Microsoft Agent Framework
     /// assembly that produces <c>SerializeSessionAsync</c> output.
     /// </summary>
@@ -330,13 +536,31 @@ public sealed class AgentSessionManager
     /// <summary>The record a restored session was read from.</summary>
     /// <param name="sessionId">The identity the state was read under.</param>
     /// <param name="version">The store generation at that moment.</param>
-    private sealed class RestoredRecord(string sessionId, long version)
+    /// <param name="ownerId">The owner the source row carried, or <see langword="null"/> when it was unowned.</param>
+    private sealed class RestoredRecord(string sessionId, long version, string? ownerId)
     {
         /// <summary>The identity the state was read under.</summary>
         public string SessionId { get; } = sessionId;
 
         /// <summary>The generation this session's next write must replace.</summary>
         public long Version { get; set; } = version;
+
+        /// <summary>
+        /// The owner this session's next write must CARRY FORWARD.
+        /// </summary>
+        /// <remarks>
+        /// The whole reason the owner is remembered here rather than
+        /// re-resolved on every save. A single request saves the same session
+        /// more than once on real paths — the queued run's approval hook saves
+        /// before the run's own save, and the Responses endpoint restores under
+        /// one identity and saves under another. Re-resolving would let the
+        /// second write land a DIFFERENT owner, or no owner at all on a
+        /// background continuation that has no request to read an identity
+        /// from, silently dropping the session out of its owner's listing.
+        /// Ownership is assigned once, at the first write, and carried from
+        /// there.
+        /// </remarks>
+        public string? OwnerId { get; } = ownerId;
     }
 
     /// <summary>Deletes the session.</summary>

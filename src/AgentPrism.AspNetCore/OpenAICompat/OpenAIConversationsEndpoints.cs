@@ -4,8 +4,10 @@ using Microsoft.Agents.AI;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace AgentPrism;
 
@@ -151,6 +153,8 @@ internal static class OpenAIConversationsEndpoints
         string conversationId,
         ISessionStore sessions,
         ITenantContext tenantContext,
+        [FromServices] IRunAttributionContext? attributionContext,
+        [FromServices] IOptionsMonitor<AgentPrismSessionOwnershipOptions>? sessionOwnershipOptions,
         CancellationToken cancellationToken)
     {
         // The ownership check runs BEFORE GetAsync, independent of the tenant;
@@ -159,6 +163,20 @@ internal static class OpenAIConversationsEndpoints
         // check (HATA-S2-005).
         if (!await OpenAICompatSupport
                 .IsOwnedByTenantAsync(sessions, tenantContext, conversationId, cancellationToken)
+                .ConfigureAwait(false))
+        {
+            return NotFound(conversationId);
+        }
+
+        // 🚨 The OpenAI-compatible surface reaches the SAME sessions under a
+        // different name, so it needs the same ownership boundary - phase 148.
+        // Leaving it out made `/api/sessions/{id}` answer 404 for another
+        // user's session while `/v1/conversations/{id}/items` returned its
+        // whole history: one door locked, the one beside it open. The answer
+        // is this endpoint's OWN "not found", byte for byte the tenant check's,
+        // so a denial still cannot confirm the conversation exists.
+        if (await SessionOwnershipGate
+                .DeniesAsync(sessionOwnershipOptions, attributionContext, sessions, conversationId, cancellationToken)
                 .ConfigureAwait(false))
         {
             return NotFound(conversationId);
@@ -181,10 +199,20 @@ internal static class OpenAIConversationsEndpoints
         ISessionStore sessions,
         AgentSessionManager manager,
         ITenantContext tenantContext,
+        [FromServices] IRunAttributionContext? attributionContext,
+        [FromServices] IOptionsMonitor<AgentPrismSessionOwnershipOptions>? sessionOwnershipOptions,
         CancellationToken cancellationToken)
     {
         if (!await OpenAICompatSupport
                 .IsOwnedByTenantAsync(sessions, tenantContext, conversationId, cancellationToken)
+                .ConfigureAwait(false))
+        {
+            return NotFound(conversationId);
+        }
+
+        // Same boundary as RetrieveAsync above, and the same "not found" body.
+        if (await SessionOwnershipGate
+                .DeniesAsync(sessionOwnershipOptions, attributionContext, sessions, conversationId, cancellationToken)
                 .ConfigureAwait(false))
         {
             return NotFound(conversationId);
@@ -207,12 +235,22 @@ internal static class OpenAIConversationsEndpoints
         IAgentCatalog catalog,
         ChatHistoryProvider chatHistory,
         ITenantContext tenantContext,
+        [FromServices] IRunAttributionContext? attributionContext,
+        [FromServices] IOptionsMonitor<AgentPrismSessionOwnershipOptions>? sessionOwnershipOptions,
         ILoggerFactory loggerFactory,
         int? limit,
         CancellationToken cancellationToken)
     {
         if (!await OpenAICompatSupport
                 .IsOwnedByTenantAsync(sessions, tenantContext, conversationId, cancellationToken)
+                .ConfigureAwait(false))
+        {
+            return NotFound(conversationId);
+        }
+
+        // Same boundary as RetrieveAsync above, and the same "not found" body.
+        if (await SessionOwnershipGate
+                .DeniesAsync(sessionOwnershipOptions, attributionContext, sessions, conversationId, cancellationToken)
                 .ConfigureAwait(false))
         {
             return NotFound(conversationId);

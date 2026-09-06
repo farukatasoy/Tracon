@@ -98,3 +98,9 @@ Bul: `grep -n 'K-059\|jsonb' docs/KARARLAR.md`; oku: `sed -n 'N,Np' docs/KARARLA
 | K-685 | 742 | `GET /api/runs/{id}/tools` var olmayan bir `run` için artık `200 []` değil `404` döner; bu, handler kayıtlı olmasa bile geçerli bilinçli bir davranış değişikliğidir 👤 |
 | K-686 | 743 | `POST /api/attachments` reddi `403` döner, `404` değil 👤 |
 | K-687 | 744 | Ses WebSocket'inin yetkilendirme reddi `404` döner ve gövdesi erişilemeyen oturumunkiyle BİREBİR aynıdır (`401` veya `403` DEĞİL); var olmayan oturum reddedilmez, handler sorulur ve varsayılan cevap soketi açar (K-283 korunur) 👤 |
+| K-688 | 745 | Oturum sahipliği KALICI bir sütundur (`sessions.owner_id`, üç migration), ayrı tablo değil; `SessionQuery.OwnerId` süzgeci SQL `WHERE`'de, `Skip`/`Take`'ten ÖNCE yaşar. Sütun nullable ve yabancı anahtarsızdır (K-030 sınıfı) 👤 |
+| K-689 | 746 | Sahiplik BİR KEZ atanır: ilk yazımda çözülür, sonraki her yazımda kaynaktan taşınır, dört depo da `COALESCE` eder — "set → unset" meşru bir geçiş değildir (K-486 sınıfı). Türetilen oturum (branch · Responses zinciri) KAYNAĞIN sahibini miras alır |
+| K-690 | 747 | Mod açıkken `IRunAttributionContext` muhasebe değil YETKİLENDİRME girdisidir: çözülemeyen kimlik oturumu açtırmaz (`403` · `session_owner_required`), `NULL` sütun bırakmaz 👤 |
+| K-691 | 748 | Sahiplik sınırı `run` başlatan yüzeylerde de zorlanır (`403`); `ManagementPolicy` muafiyeti YALNIZ listeye uygulanır. Kapı `AgentSessionManager`'da değil HTTP sınırında yaşar — arka plan işinin karşılaştıracağı bir çağıran kimliği yoktur |
+| K-692 | 749 | Sahip çözümünde AÇIK bir `AmbientRunAttributionScope` kayıtlı `IRunAttributionContext`'i EZER (yalnız sahiplik için); kuyruklu `run` sahibini dayanıklı iş zarfından alır |
+| K-693 | 750 | Sahipsiz eski satır tekil erişimde reddedilmez ama sahipli listede hiç görünmez; sahiplik geriye dönük değildir |

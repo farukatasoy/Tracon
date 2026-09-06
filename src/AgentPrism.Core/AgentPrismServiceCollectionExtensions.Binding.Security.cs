@@ -402,4 +402,40 @@ public static partial class AgentPrismServiceCollectionExtensions
             options.Archive = archive;
         }
     }
+
+    /// <summary>
+    /// Binds the <c>AgentPrism:SessionOwnership</c> section.
+    /// </summary>
+    /// <param name="section">The configuration section.</param>
+    /// <param name="options">The settings to fill in.</param>
+    /// <remarks>
+    /// Bound BY HAND like every other section here. A missing section leaves
+    /// every default in place, which means ownership stays off.
+    /// </remarks>
+    private static void BindSessionOwnership(IConfigurationSection section, AgentPrismSessionOwnershipOptions options)
+    {
+        if (!section.Exists())
+        {
+            return;
+        }
+
+        if (TryReadBool(section, nameof(AgentPrismSessionOwnershipOptions.Enabled), out var enabled))
+        {
+            options.Enabled = enabled;
+        }
+
+        if (TryReadBool(section, nameof(AgentPrismSessionOwnershipOptions.RequireAuthenticatedOwner), out var requireOwner))
+        {
+            options.RequireAuthenticatedOwner = requireOwner;
+        }
+
+        // 🚨 Read with the empty string ACCEPTED, unlike most string settings
+        // here: "" is the documented way to say "no caller gets an unfiltered
+        // listing", and treating it as "not configured" would silently restore
+        // the Operator default the deployment just tried to remove.
+        if (section[nameof(AgentPrismSessionOwnershipOptions.ManagementPolicy)] is { } managementPolicy)
+        {
+            options.ManagementPolicy = managementPolicy;
+        }
+    }
 }
