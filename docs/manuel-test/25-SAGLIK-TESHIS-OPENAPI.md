@@ -1,10 +1,12 @@
 # 25 — Sağlık Denetimi, Teşhis ve OpenAPI Yayını (`DIAG`)
 
-> **Alan kodu:** `DIAG` · **Faz:** 33 (sağlık denetimi + `/api/diagnostics`), 40 (OpenAPI yayını), 85 (`extensionPoints`)
+> **Alan kodu:** `DIAG` · **Faz:** 33 (sağlık denetimi + `/api/diagnostics`), 40 (OpenAPI yayını), 85 (`extensionPoints`), 150 (zorunlu binding profili)
 > **Kaynak:** `src/AgentPrism.AspNetCore/Health/` (tümü) ·
 > `src/AgentPrism.AspNetCore/Endpoints/DiagnosticsEndpoints.cs` ·
 > `src/AgentPrism.Abstractions/Diagnostics/` (tümü) ·
 > `src/AgentPrism.Core/Diagnostics/AgentPrismDiagnosticsCollector.cs` ·
+> `src/AgentPrism.Core/Diagnostics/AgentPrismExtensionPoints.cs` ·
+> `src/AgentPrism.Core/Diagnostics/RequiredBindingValidator.cs` (Faz 150) ·
 > `src/AgentPrism.Sql.Shared/Migrations/MigrationRunner.cs` (yalnız `GetSnapshotAsync`,
 > `ISqlPersistenceDiagnostics` uygulaması) · uç üstverisi için `src/AgentPrism.AspNetCore/Endpoints/*.cs`
 > ve `src/AgentPrism.AspNetCore/OpenAICompat/*.cs`'in `.WithTags`/`.Produces` çağrıları ·
@@ -1623,5 +1625,293 @@ pkill -f AgentPrism.Api
   üzerinden elle politika kaydetme seçeneğini adlandırır.
 - MT-DIAG-055'in uyarısıyla **aynı** log turunda birlikte görünebilir —
   ikisi de bağımsız kontroller, biri diğerini bastırmaz.
+
+---
+
+### MT-DIAG-058 — `RequireCustomBinding` çağrılmayan kurulum bugünkü gibi açılır — Faz 150
+
+Zorunlu binding profili **kapalıdır**. Bu case fazın ilk DoD satırıdır: çağrı
+yoksa hiçbir davranış değişmez ve doğrulayıcı hiçbir servisi çözmez.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 150 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- Örnek uygulama değiştirilmemiş hâliyle derlendi (`samples/AgentPrism.Api`
+  hiçbir `RequireCustomBinding` çağrısı taşımaz).
+
+**Adımlar**
+1. Örnek uygulamayı başlat.
+2. Kalkışın tamamlandığını ve hiçbir binding hatası düşmediğini doğrula.
+
+**Girilecek veri**
+```bash
+dotnet run --project samples/AgentPrism.Api --no-launch-profile --urls http://localhost:5099 \
+  > /tmp/faz150-varsayilan.log 2>&1 &
+sleep 14
+grep -c "Application started" /tmp/faz150-varsayilan.log                  # beklenen: 1
+grep -ci "required custom binding" /tmp/faz150-varsayilan.log             # beklenen: 0
+pkill -f AgentPrism.Api
+```
+
+**Beklenen sonuç**
+- Uygulama ayağa kalkar; `required custom binding` dizgesi log'da **hiç** geçmez.
+
+---
+
+### MT-DIAG-059 — Zorunlu ilan edilen sözleşme yerleşik varsayılanla çözülürse host BAŞLAMAZ — Faz 150
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 150 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- `samples/AgentPrism.Api/Program.cs` içinde `builder.AddAgentPrism()`
+  zincirine GEÇİCİ olarak `.RequireCustomBinding<IRunAuthorizationHandler>()`
+  ekle. Örnek uygulama kendi `IRunAuthorizationHandler`'ını kaydetmez.
+
+**Adımlar**
+1. Değiştirilmiş örnek uygulamayı başlat.
+2. Kalkışın **başarısız** olduğunu ve mesajın üç bilgiyi taşıdığını doğrula.
+3. `Program.cs`'i geri al.
+
+**Girilecek veri**
+```bash
+dotnet run --project samples/AgentPrism.Api --no-launch-profile --urls http://localhost:5099 \
+  > /tmp/faz150-eksik.log 2>&1
+grep -c "IRunAuthorizationHandler" /tmp/faz150-eksik.log                  # beklenen: >=1
+grep -c "AllowAllRunAuthorizationHandler" /tmp/faz150-eksik.log           # beklenen: >=1
+grep -c "BEFORE the AddAgentPrism() call" /tmp/faz150-eksik.log           # beklenen: >=1
+grep -c "Application started" /tmp/faz150-eksik.log                       # beklenen: 0
+git checkout -- samples/AgentPrism.Api/Program.cs
+```
+
+**Beklenen sonuç**
+- Süreç bir `InvalidOperationException` ile durur; `Application started` **hiç** yazılmaz.
+- Mesaj üçünü de adlandırır: zorunlu sözleşme (`IRunAuthorizationHandler`),
+  onun yerine çözülen tip (`AllowAllRunAuthorizationHandler`) ve düzeltme
+  (`BEFORE the AddAgentPrism() call`).
+
+---
+
+### MT-DIAG-060 — Tüketici kaydı `AddAgentPrism`'den ÖNCE yapılırsa host açılır — Faz 150
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 150 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- `samples/AgentPrism.Embedded` değiştirilmemiş hâliyle derlendi. Bu örnek
+  dört sözleşmeyi zorunlu ilan eder ve dördünü de `AddAgentPrism()`'den ÖNCE
+  kaydeder — case'in ölçtüğü tam olarak bu sıradır.
+
+**Adımlar**
+1. Gömme örneğini başlat.
+2. Kalkışı ve dört zorunlu binding'in de kabul edildiğini doğrula.
+
+**Girilecek veri**
+```bash
+dotnet run --project samples/AgentPrism.Embedded --no-launch-profile --urls http://localhost:5098 \
+  > /tmp/faz150-gomme.log 2>&1 &
+sleep 14
+grep -c "Application started" /tmp/faz150-gomme.log                       # beklenen: 1
+grep -ci "required custom binding" /tmp/faz150-gomme.log                  # beklenen: 0
+pkill -f AgentPrism.Embedded
+```
+
+**Beklenen sonuç**
+- Uygulama ayağa kalkar; hiçbir binding hatası düşmez.
+
+---
+
+### MT-DIAG-061 — 🚨 `TryAdd` kaydı `AddAgentPrism`'den SONRA yapılırsa host BAŞLAMAZ — Faz 150
+
+Tüketicinin bildirdiği senaryo budur: modül sırası nedeniyle handler kaydı
+`AddAgentPrism`'den sonra koşar, yerleşik varsayılan slotu zaten tutmaktadır ve
+`TryAdd` sessizce düşer.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 150 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- `samples/AgentPrism.Embedded/Program.cs` içinde
+  `builder.Services.AddSingleton<IRunAuthorizationHandler, EmbeddedRunAuthorizationHandler>();`
+  satırını GEÇİCİ olarak `AddAgentPrism()` çağrısından **sonraya** taşı ve
+  `AddSingleton` yerine `TryAddSingleton` yaz
+  (`using Microsoft.Extensions.DependencyInjection.Extensions;` gerekir).
+
+**Adımlar**
+1. Değiştirilmiş gömme örneğini başlat.
+2. Kalkışın başarısız olduğunu doğrula.
+3. `Program.cs`'i geri al.
+
+**Girilecek veri**
+```bash
+dotnet run --project samples/AgentPrism.Embedded --no-launch-profile --urls http://localhost:5098 \
+  > /tmp/faz150-gec-tryadd.log 2>&1
+grep -c "AllowAllRunAuthorizationHandler" /tmp/faz150-gec-tryadd.log      # beklenen: >=1
+grep -c "Application started" /tmp/faz150-gec-tryadd.log                  # beklenen: 0
+git checkout -- samples/AgentPrism.Embedded/Program.cs
+```
+
+**Beklenen sonuç**
+- Host başlamaz; mesaj yerleşik varsayılanı adlandırır.
+- 🚨 Aynı satır `AddSingleton` ile (`TryAdd` olmadan) geç kaydedilirse host
+  **açılır** — kap son kaydı çözer. Kapı olguyu bildirir, sırayı değil.
+
+---
+
+### MT-DIAG-062 — `IAttachmentStorage` YOKLUK dalı: hiç kayıt yoksa host BAŞLAMAZ — Faz 150
+
+Diğer beş sözleşmede "varsayılan" bir tiptir; bu ikisinde bir **yokluktur**.
+Tip karşılaştırmasıyla ölçen bir uygulama burada yanlış cevap verir.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 150 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- `samples/AgentPrism.Embedded/Program.cs` içindeki
+  `builder.Services.AddSingleton<IAttachmentStorage, InMemoryBufferAttachmentStorage>();`
+  satırını GEÇİCİ olarak yorum satırına al. Zincirdeki
+  `.RequireCustomBinding<IAttachmentStorage>()` çağrısı yerinde kalır.
+
+**Adımlar**
+1. Değiştirilmiş gömme örneğini başlat.
+2. Kalkışın başarısız olduğunu doğrula.
+3. `Program.cs`'i geri al.
+
+**Girilecek veri**
+```bash
+dotnet run --project samples/AgentPrism.Embedded --no-launch-profile --urls http://localhost:5098 \
+  > /tmp/faz150-yokluk.log 2>&1
+grep -c "IAttachmentStorage" /tmp/faz150-yokluk.log                       # beklenen: >=1
+grep -c "nothing is registered" /tmp/faz150-yokluk.log                    # beklenen: >=1
+grep -c "Application started" /tmp/faz150-yokluk.log                      # beklenen: 0
+git checkout -- samples/AgentPrism.Embedded/Program.cs
+```
+
+**Beklenen sonuç**
+- Host başlamaz. Mesaj `nothing is registered` der — bir tip adı **değil**,
+  çünkü AgentPrism bu sözleşme için hiçbir şey kaydetmez.
+
+---
+
+### MT-DIAG-063 — Aynı sözleşme adaptörle kayıtlıysa host açılır (yokluk dalının karşıtı) — Faz 150
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 150 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- MT-DIAG-062'nin değişikliği geri alındı — `InMemoryBufferAttachmentStorage`
+  yeniden kayıtlıdır.
+
+**Adımlar**
+1. Gömme örneğini başlat.
+2. `/api/diagnostics` çıktısında `IAttachmentStorage`'ın kendi tipiyle
+   göründüğünü doğrula.
+
+**Girilecek veri**
+```bash
+dotnet run --project samples/AgentPrism.Embedded --no-launch-profile --urls http://localhost:5098 \
+  > /tmp/faz150-adaptor.log 2>&1 &
+sleep 14
+grep -c "Application started" /tmp/faz150-adaptor.log                     # beklenen: 1
+pkill -f AgentPrism.Embedded
+```
+
+**Beklenen sonuç**
+- Uygulama ayağa kalkar; yokluk dalı yalnız gerçek yoklukta tetiklenir.
+
+---
+
+### MT-DIAG-064 — Kontrol HTTP'siz host'ta da çalışır — Faz 150
+
+Zorunlu binding bir HTTP kavramı değil, bir kompozisyon kavramıdır. Bu case
+`MapAgentPrism` çağırmayan bir host'ta kontrolün koştuğunu ölçer.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 150 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- `samples/AgentPrism.Embedded/Program.cs` içindeki `app.MapAgentPrism(...)`
+  çağrısını (ve varsa ona bağlı `options` bloğunu) GEÇİCİ olarak yorum satırına
+  al. Ayrıca `IToolAuthorizationHandler` kaydını da yorum satırına al.
+
+**Adımlar**
+1. Değiştirilmiş gömme örneğini başlat.
+2. Uç hiç map edilmemiş olmasına rağmen host'un başlamadığını doğrula.
+3. `Program.cs`'i geri al.
+
+**Girilecek veri**
+```bash
+dotnet run --project samples/AgentPrism.Embedded --no-launch-profile --urls http://localhost:5098 \
+  > /tmp/faz150-httpsiz.log 2>&1
+grep -c "AllowAllToolAuthorizationHandler" /tmp/faz150-httpsiz.log        # beklenen: >=1
+grep -c "Application started" /tmp/faz150-httpsiz.log                     # beklenen: 0
+git checkout -- samples/AgentPrism.Embedded/Program.cs
+```
+
+**Beklenen sonuç**
+- Host başlamaz. Kontrol `MapAgentPrism`'e bağlı değildir.
+
+---
+
+### MT-DIAG-065 — `/api/diagnostics` çıktısı DEĞİŞMEDİ (K-250) — Faz 150
+
+Zorunluluk bir **niyettir**; teşhis raporu yalnız **olguyu** taşır. Bu faz
+`extensionPoints` şemasına hiçbir alan eklemez.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 150 |
+| **İlgili karar** | K-250 |
+
+**Ön koşul**
+- MT-DIAG-050 kurulumu (gömme örneği ayakta, teşhis ucu açık).
+
+**Adımlar**
+1. Teşhis ucunu çağır.
+2. `extensionPoints` girdi sayısını ve alan kümesini doğrula.
+
+**Girilecek veri**
+```bash
+curl -s "$APU/api/diagnostics" -H "$APB" | jq '.extensionPoints | length'
+# beklenen: 7
+curl -s "$APU/api/diagnostics" -H "$APB" | jq -r '.extensionPoints[0] | keys | join(",")'
+# beklenen: contract,implementation,isBuiltInDefault
+```
+
+**Beklenen sonuç**
+- Tam **yedi** girdi.
+- Her girdide yalnız üç alan: `contract`, `implementation`, `isBuiltInDefault`.
+  Zorunluluğu bildiren yeni bir alan **yoktur**.
 
 ---
