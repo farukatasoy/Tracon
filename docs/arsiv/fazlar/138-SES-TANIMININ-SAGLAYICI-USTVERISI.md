@@ -176,7 +176,7 @@ API yok), 3.7 (repo kuralları temiz).
 ## Sonraki Faza Devir Notu
 
 Üç fazın (136 · 137 · 138) tamamı kapandı. Tüketici yanıt dokümanı
-[`docs/kesif/2026-09-03-tuketici-gap-yaniti.md`](../../kesif/2026-09-03-tuketici-gap-yaniti.md)
+[`docs/kesif/2026-09-03-tuketici-gap-yaniti.md`](../kesif/2026-09-03-tuketici-gap-yaniti.md)
 AP-REQ-002 ve AP-REQ-003 bölümleriyle tamamlandı. AP-REQ-001 bölümü Faz 137
 kapanışında BOŞ kaldı (o fazın kendi kapanış notu: hedef dosya o an
 oluşturulmamıştı) — bu faz onu doldurmadı, kapsamı yalnız AP-REQ-003'tü;

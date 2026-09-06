@@ -4,7 +4,8 @@
 **Tarih:** 2026-09-06 (güncellendi — ilk sürüm aynı gün, `fc2f9d8d`)
 **Yanıtlanan belgeler:** `agentprism-feature-talepleri-2026-09-05.md` (A1 · A2 · F1–F8), `agentprism-uygulanabilirlik-raporu-2026-09-05.md` ve §8'e verdiğiniz yanıt
 **İncelediğiniz sürüm:** `0.0.0-preview.0.589` · source commit `234d4081`
-**Bu yanıtın kaynağı:** commit `916f2d78` — **Faz 145 · 146 · 147 · 148 · 149 · 150** kapandı, ayrıca beş kusur giderildi
+**Bu yanıtın kaynağı:** commit `7b1e101a` = **`0.0.0-preview.0.622`** — pin'iniz doğrulandı, [§0.1](#01-pininiz-doğrulandı)
+**Kapsanan:** Faz **145 · 146 · 147 · 148 · 149 · 150** + beş kusur
 
 > ### 🔄 Bu sürümde ne değişti
 >
@@ -23,6 +24,28 @@
 > - 🚨 Sevk edilmiş bir dokümantasyon iddiamız yanlış çıktı ve düzeltildi:
 >   `AddAgentPrism`'den **sonra** yapılan `Add*` kaydı kazanır
 >   ([§7'deki uyarı](#-di-kayıt-sırası--sevk-edilmiş-bir-iddiamız-yanlıştı)).
+
+---
+
+## 0.1 Pin'iniz doğrulandı
+
+`0.0.0-preview.0.622` **altı fazın ve kusur turunun tamamını** taşıyor. Bunu
+tahminle değil, diskteki `.nupkg`'nin XML'ini açarak ölçtük:
+
+| Aranan üye | Geldiği faz | `.622` XML'inde |
+|---|---|---|
+| `QuotaThresholdCrossing` | 146 | ✅ |
+| `RunAccess.Read` | 147 | ✅ |
+| `SessionRecord.OwnerId` | 148 | ✅ |
+| `RefuseUnownedSessions` | **149** | ✅ |
+| `RequireCustomBinding` | **150** | ✅ |
+| `MapOpenAIConversations` | **149** | ✅ |
+| OpenAPI: SSE bildiren operation | 145 | **7** · `AgentPrismStreamRunEvents` dahil |
+| OpenAPI: path / operation | — | 126 / 163 |
+
+`0.0.0-preview.0.622` = commit `7b1e101a`. Sürüm MinVer ile commit
+yüksekliğinden üretilir; sayı ile commit arasındaki eşleme elle
+hesaplanamaz — bu tabloyu paketin kendisinden okuduk.
 
 ---
 
@@ -549,7 +572,7 @@ bu bir kısıttır — bize söyleyin.
 
 Kendi `IQuotaStore` implementasyonunuz olmadığı için ilk ikisi sizi etkilemez.
 
-**Sürüm henüz yayımlanmadı.** Bu yanıt `916f2d78` commit'ini anlatır.
+**Sürüm yayımlandı:** `0.0.0-preview.0.622` ([§0.1](#01-pininiz-doğrulandı)).
 
 ---
 
@@ -714,20 +737,74 @@ eşitliğine** çevrildi.
 
 ---
 
-## 10. Sizden beklediğimiz
+## 10. Üç sorunun cevabı
 
-§8'deki üç sorunun üçü de cevaplandı ve üçü de uygulandı. Yeni üç soru:
+İki maddeye cevabınız kaydedildi; üçüncüsünü siz bize sordunuz.
 
-1. **Katı modda operatör bir konuşmayı devralabilmeli mi?** [§5.3](#53-yönetim-payı-ve-katı-modun-sınırı) — bugün
-   operatör sahipsiz bir konuşmayı **okuyabilir ama sürdüremez** (K-694).
-   Destek akışınız devralmayı gerektiriyorsa bu ayrı bir kalemdir.
-2. **`MapOpenAIConversations`'ı kapatacak mısınız?** Kapatırsanız
-   `/v1/conversations` dört ucu hiç haritalanmaz ve OpenAPI'den düşer —
-   Orval/Swagger tarafınızı sadeleştirir.
-3. **K-702'nin `400`'ü gövde üreticinizi etkiliyor mu?** [§8](#-k-702--sevk-edilmiş-bir-davranış-değişikliği) — açık
-   `null` gönderen bir serializer artık `400` alır.
+### 10.1 · `MapOpenAIConversations=false` — kaydedildi ✅
 
-**Yanlış anladığımız bir yer varsa söyleyin — ölçümü tekrarlarız.**
+Doğru okumuşsunuz: bayrak yalnız conversations ailesini kapatır,
+`/v1/responses` ve `/v1/chat/completions` **açık kalır** (K-697) ve ikisi de
+zaten yetki kapısından geçiyor.
+
+Kapattığınızda dört uç haritalanmaz **ve OpenAPI'den de düşer** — çalışan
+host'un Swagger çıktısından Orval üretme kararınızla bu doğal olarak uyuşuyor:
+üretilen istemcide `/v1/conversations` hiç görünmez, dışlama listesi
+tutmanıza gerek kalmaz.
+
+### 10.2 · K-702 — kaydedildi ✅
+
+Planınız sözleşmeyle birebir örtüşüyor: alanı atlamak veya `[]` göndermek
+ikisi de `200`; açık `null` `400`; nullable alanlar `null` kabul etmeye devam
+eder. FE serializer'ını doğrulayamadığınızı yazmışsınız — testi entegrasyonda
+koşmanız yeterli, bizden ek bir şey gerekmiyor.
+
+### 10.3 · Operatörün konuşmayı devralması — cevabımız
+
+**Bugün hiçbir devralma yolu yok.** Üç yolu da ölçtük:
+
+| Yol | Bugünkü davranış |
+|---|---|
+| `run` ile sürdürme | ❌ `CheckRunSessionAsync` yönetim politikasını **hiç göremiyor** — imzasında `HttpContext` yok |
+| Dallandırma | ❌ Dal, **kaynağın** sahibini miras alır (`ConversationBranchService.cs:227`). Sahipsiz bir satırın dalı da sahipsizdir; operatör onu yine sürdüremez |
+| Sahiplik devri | ❌ `owner_id = COALESCE(owner_id, @owner_id)` — bir kez atanır, hiç değişmez (K-689) |
+
+Operatörün katı modda yapabildiği tam olarak şudur: **sahipsiz** bir satırı
+listede görmek, okumak ve silmek. Başka bir kullanıcının **sahipli** satırı
+operatöre de kapalıdır (K-691) ve bu faz onu değiştirmedi.
+
+**Önerimiz — üç seçenek, birini yapmayın:**
+
+**❌ (A) Yönetim muafiyetini `run` başlatmaya taşımak.** Bunu önermiyoruz.
+Operatörü **görünmez bir ortak yazar** yapar: kullanıcının konuşmasına onun
+yazmadığı turlar eklenir ve oturum satırında bunu kaydeden hiçbir şey yoktur.
+Katı modun daralttığı sınırı tam olarak geri açar. Sahipli satırlara da
+uzatılırsa K-691 doğrudan düşer.
+
+**✅ (B) Dallandırmada sahip çağıran olsun — teşhis amaçlı devralma.** Yönetim
+politikasını taşıyan çağıran dallandırdığında dal **kaynağın** değil
+**çağıranın** sahipliğine geçer. Operatör kendi kopyasında sürdürür, teşhis
+eder, üretir; kullanıcının konuşmasına **hiç dokunulmaz**. Hiçbir invariant
+kırılmaz — dal yeni bir oturumdur ve yeni oturumun sahibini yaratma anında
+atamak zaten normal kuraldır. En ucuz seçenek.
+
+**⚠️ (C) Açık ve denetlenen sahiplik devri — gerçek devralma.** Operatör
+kullanıcının **kendi thread'inde** cevap verecekse bu gerekir. Bedeli:
+K-689'un "bir kez atanır" kuralı bir yönetim işlemi için delinir, devir denetim
+izine yazılır, ve devirden sonra kullanıcı o oturumu **kendi listesinde
+göremez**.
+
+**Kararı destek akışınız veriyor:**
+
+- Destek ekibi konuşmayı **okuyup teşhis ediyorsa** → bugünkü davranış yeterli,
+  hiçbir şey yapmayın.
+- Destek **kendi kopyasında yeniden üretmek** istiyorsa → (B). Küçük bir faz,
+  geçişinizi bloklamaz.
+- Destek **kullanıcının thread'ine yazacaksa** → (C). Bu bir ürün kararıdır ve
+  kullanıcıya "konuşmanız destek ekibine devredildi" demeyi gerektirir.
+
+Hangisi olduğunu söyleyin, ölçüp planlayalım. **Üçü de Faz 8/9 kapılarınızı
+bekletmiyor** — kapılar açık.
 
 ---
 
@@ -770,5 +847,5 @@ yapılmadı; örnek uygulama koşumları SQLite/bellek içi `store` ve gerçek
 sağlayıcı çağrılarıyla faz kapanışlarında yapıldı ve çıktıları faz
 dokümanlarında duruyor. Sizin ortamınızdaki smoke testi bunun yerine geçmez.
 
-Sürüm henüz **yayımlanmadı**. NuGet paketi çıktığında pin'i güncelleyip ölçümü
-tekrarlayın.
+Pin'iniz (`0.0.0-preview.0.622`) bu yanıtın anlattığı her şeyi taşıyor;
+[§0.1](#01-pininiz-doğrulandı) tabloyu paketin XML'inden okuyarak kanıtlar.

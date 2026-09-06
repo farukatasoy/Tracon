@@ -1,9 +1,24 @@
+> ## 📦 Arşiv bloğu — taşındı 2026-09-06
+>
+> **Bu yanıt tükenmiştir.** Anlattığı üç talebin (AP-REQ-001/002/003) üçü de
+> plana dönüştü ve kapandı: **F-182** → Faz 136 · **F-183** → Faz 137 ·
+> **F-184** → Faz 138. `ADAYLAR.md`'de açık bölümü kalmadı.
+>
+> Aynı tüketiciyle iki tur daha yapıldı ve bu yanıtın anlattığı yüzeyin çoğu
+> değişti (altı faz + bir kusur turu). Güncel durum:
+> [`2026-09-06-tuketici-turu-4-yaniti.md`](../../kesif/2026-09-06-tuketici-turu-4-yaniti.md).
+>
+> Aşağıdaki durum alanları taşındığı anda bayatladı. Bu dosya bundan sonra
+> **yalnız `grep` hedefidir**.
+
+---
+
 # AgentPrism → ProdigyEnabler · Tüketici Turu 2 Rapor Yanıtı
 
 > **Kimden:** AgentPrism geliştirme tarafı · **Tarih:** 2026-09-03
 > **Neye yanıt:** Tüketici raporu AP-REQ-001/002/003 (ProdigyEnabler,
 > 2026-09-03) · §9 şablonu
-> **Kaynak kayıt:** [`docs/ADAYLAR.md`](../ADAYLAR.md), "Ek (2026-09-03,
+> **Kaynak kayıt:** [`docs/ADAYLAR.md`](../../ADAYLAR.md), "Ek (2026-09-03,
 > tüketici turu 2)" — üç iddianın üçü de koda karşı doğrulandı
 
 ---
@@ -62,7 +77,7 @@ feed'inizde iki hat bir arada durmamalıdır.
 
 ## AP-REQ-001 — Açık ve çakışmasız custom job dispatch
 
-**Faz:** [137 — İş Türünün Açık Anahtarı](../arsiv/fazlar/137-IS-TURUNUN-ACIK-ANAHTARI.md)
+**Faz:** [137 — İş Türünün Açık Anahtarı](../fazlar/137-IS-TURUNUN-ACIK-ANAHTARI.md)
 
 ### Karar
 
@@ -275,7 +290,7 @@ düşürüldü (K-666); testi bu veri kaybını da ölçer.
 
 ## AP-REQ-002 — Paket kimliğinin tekilliği
 
-**Faz:** [136 — Paket Kimliğinin Tekilliği](../arsiv/fazlar/136-PAKET-KIMLIGININ-TEKILLIGI.md)
+**Faz:** [136 — Paket Kimliğinin Tekilliği](../fazlar/136-PAKET-KIMLIGININ-TEKILLIGI.md)
 
 ### Karar
 
@@ -398,7 +413,7 @@ karşılaştırma adımını anlatır.
 
 ## AP-REQ-003 — Ses tanımının sağlayıcı üstverisi
 
-**Faz:** [138 — Ses Tanımının Sağlayıcı Üstverisi](../arsiv/fazlar/138-SES-TANIMININ-SAGLAYICI-USTVERISI.md)
+**Faz:** [138 — Ses Tanımının Sağlayıcı Üstverisi](../fazlar/138-SES-TANIMININ-SAGLAYICI-USTVERISI.md)
 
 ### Karar
 
