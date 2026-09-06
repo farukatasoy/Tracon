@@ -1,13 +1,13 @@
 # Faz 149 — Sahipsiz Oturumun Katı Reddi
 
 > **Durum:** ✅ Tamamlandı (2026-09-06)
-> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-201** (tüketici turu 4 yanıtı, §8 soru 1)
-> **Önkoşul:** [Faz 148](arsiv/fazlar/148-OTURUM-SAHIPLIGININ-KALICILIGI.md) — sahiplik sütunu, `SessionOwnershipGate` ve seçenek sınıfı oradan gelir
+> **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-201** (tüketici turu 4 yanıtı, §8 soru 1)
+> **Önkoşul:** [Faz 148](148-OTURUM-SAHIPLIGININ-KALICILIGI.md) — sahiplik sütunu, `SessionOwnershipGate` ve seçenek sınıfı oradan gelir
 > **Paketler:** `AgentPrism.Abstractions`, `AgentPrism.AspNetCore`
 > **Yeni paket:** Yok · **Migration:** Yok — `owner_id` sütunu Faz 148'de açıldı
 > **Public API:** Büyüyor — bir seçenek alanı + bir uç haritalama bayrağı. `wc -l src/*/PublicAPI.Shipped.txt` → 17 satır / 17 dosya (yalnız başlık), **shipped giriş sıfır**: bugün eklemek bedava, Faz 7'den sonra bir sürüm kararı
 > **Tüketici yüzeyi:** `docs-site/`: `concepts/sessions.md`, `concepts/governance.md`, `guides/openai-api.md`, `guides/embedding.md`, `capabilities.md` · sevk edilen: `AgentPrismSessionOwnershipOptions` XML `<example>`, `AgentPrismEndpointOptions` XML, `src/AgentPrism.Abstractions/README.md`
-> **Manuel test alanı:** [`docs/manuel-test/13-KIRACI-VE-GUVENLIK.md`](manuel-test/13-KIRACI-VE-GUVENLIK.md)
+> **Manuel test alanı:** [`docs/manuel-test/13-KIRACI-VE-GUVENLIK.md`](../../manuel-test/13-KIRACI-VE-GUVENLIK.md)
 
 ---
 
@@ -25,17 +25,17 @@
    **K-324** (`422`/ret yalnız akışsız dalda dönebilir; akışlı yolda ret bir `error` çerçevesidir) ·
    **K-670 · K-671** (kapı deseni ve ret kodları) ·
    **K-688–K-693** (Faz 148'in altı kararı; özellikle **K-693** — bu faz onun *yeniden açılma koşulunu* karşılıyor)
-3. [`arsiv/fazlar/148-OTURUM-SAHIPLIGININ-KALICILIGI.md`](arsiv/fazlar/148-OTURUM-SAHIPLIGININ-KALICILIGI.md) — **devir notunu tamamen oku**:
+3. [`arsiv/fazlar/148-OTURUM-SAHIPLIGININ-KALICILIGI.md`](148-OTURUM-SAHIPLIGININ-KALICILIGI.md) — **devir notunu tamamen oku**:
    ```bash
    awk '/## Sonraki Faza Devir Notu/,0' docs/arsiv/fazlar/148-OTURUM-SAHIPLIGININ-KALICILIGI.md
    ```
    Sahiplik kapısının çağrı yerleri, akışlı yolda ret biçimi ve `SessionOwnershipGate`'in iki metodu oradan devralınır.
 4. Alan hafızası (bu faz üç alana dokunuyor):
-   [`hafiza/tool-onay-ve-yetkilendirme.md`](hafiza/tool-onay-ve-yetkilendirme.md) (yetkilendirme deseni) ·
-   [`hafiza/http-uc-tuzaklari.md`](hafiza/http-uc-tuzaklari.md) 🚨 (dönüş tipi gevşetmenin OpenAPI'yi sessizce bozması) ·
-   [`hafiza/maf-oturum.md`](hafiza/maf-oturum.md) (oturum yazma yolu)
+   [`hafiza/tool-onay-ve-yetkilendirme.md`](../../hafiza/tool-onay-ve-yetkilendirme.md) (yetkilendirme deseni) ·
+   [`hafiza/http-uc-tuzaklari.md`](../../hafiza/http-uc-tuzaklari.md) 🚨 (dönüş tipi gevşetmenin OpenAPI'yi sessizce bozması) ·
+   [`hafiza/maf-oturum.md`](../../hafiza/maf-oturum.md) (oturum yazma yolu)
 5. Gerektiğinde, tamamı değil ilgili bölümü:
-   [`MIMARI-GUVENLIK.md`](MIMARI-GUVENLIK.md) — kiracı ve sahiplik sınırı bölümü
+   [`MIMARI-GUVENLIK.md`](../../MIMARI-GUVENLIK.md) — kiracı ve sahiplik sınırı bölümü
 
 ---
 
@@ -67,13 +67,13 @@ kapısından geçiyor, tüketicinin handler'ından **geçmiyor**.
 
 | Kanıt | Gözlem |
 |---|---|
-| [`SessionOwnershipGate.cs:170`](../src/AgentPrism.AspNetCore/Security/SessionOwnershipGate.cs) | `if (record?.OwnerId is not { } ownerId) return false;` — sahipsiz satır **izin alıyor** |
-| [`SessionOwnershipGate.cs:254`](../src/AgentPrism.AspNetCore/Security/SessionOwnershipGate.cs) | `run` yolunda aynı taviz; yorumu *"an unowned row from before ownership was turned on"* diyor |
-| [`SessionOwnershipGate.cs:240`](../src/AgentPrism.AspNetCore/Security/SessionOwnershipGate.cs) | 🚨 `record is null` (henüz açılmamış oturum) **ayrı bir dal** — tüketicinin istediği ayrım kodda zaten var |
-| [`OpenAIConversationsEndpoints.cs:178`](../src/AgentPrism.AspNetCore/OpenAICompat/OpenAIConversationsEndpoints.cs), `:214`, `:252` | Üç `SessionOwnershipGate` çağrısı var; `IRunAuthorizationHandler` çağrısı **sıfır** |
-| [`AgentPrismEndpointRouteBuilderExtensions.cs:186`](../src/AgentPrism.AspNetCore/AgentPrismEndpointRouteBuilderExtensions.cs) | `OpenAIConversationsEndpoints.Map(group, roles);` — **koşulsuz**, kapatma seçeneği yok |
-| [`AgentPrismSessionOwnershipOptions.cs`](../src/AgentPrism.Abstractions/Options/AgentPrismSessionOwnershipOptions.cs) | Üç üye: `Enabled` · `RequireAuthenticatedOwner` · `ManagementPolicy` |
-| [`AgentPrismEndpointOptions.cs`](../src/AgentPrism.AspNetCore/AgentPrismEndpointOptions.cs) | Bugün hiçbir uç ailesini kapatan bayrak yok |
+| [`SessionOwnershipGate.cs:170`](../../../src/AgentPrism.AspNetCore/Security/SessionOwnershipGate.cs) | `if (record?.OwnerId is not { } ownerId) return false;` — sahipsiz satır **izin alıyor** |
+| [`SessionOwnershipGate.cs:254`](../../../src/AgentPrism.AspNetCore/Security/SessionOwnershipGate.cs) | `run` yolunda aynı taviz; yorumu *"an unowned row from before ownership was turned on"* diyor |
+| [`SessionOwnershipGate.cs:240`](../../../src/AgentPrism.AspNetCore/Security/SessionOwnershipGate.cs) | 🚨 `record is null` (henüz açılmamış oturum) **ayrı bir dal** — tüketicinin istediği ayrım kodda zaten var |
+| [`OpenAIConversationsEndpoints.cs:178`](../../../src/AgentPrism.AspNetCore/OpenAICompat/OpenAIConversationsEndpoints.cs), `:214`, `:252` | Üç `SessionOwnershipGate` çağrısı var; `IRunAuthorizationHandler` çağrısı **sıfır** |
+| [`AgentPrismEndpointRouteBuilderExtensions.cs:186`](../../../src/AgentPrism.AspNetCore/AgentPrismEndpointRouteBuilderExtensions.cs) | `OpenAIConversationsEndpoints.Map(group, roles);` — **koşulsuz**, kapatma seçeneği yok |
+| [`AgentPrismSessionOwnershipOptions.cs`](../../../src/AgentPrism.Abstractions/Options/AgentPrismSessionOwnershipOptions.cs) | Üç üye: `Enabled` · `RequireAuthenticatedOwner` · `ManagementPolicy` |
+| [`AgentPrismEndpointOptions.cs`](../../../src/AgentPrism.AspNetCore/AgentPrismEndpointOptions.cs) | Bugün hiçbir uç ailesini kapatan bayrak yok |
 | `grep -rn "SessionOwnershipGate\." src/AgentPrism.AspNetCore/` | **11 çağrı yeri**, 6 dosya: `AgentEndpoints` 1 · `SessionEndpoints` 4 · `WorkflowEndpoints` 1 · `OpenAIConversationsEndpoints` 3 · `OpenAIResponsesEndpoints` 1 · `VoiceConversationEndpoint` 1 |
 
 > Kanıtlar 2026-09-06 tarihinde doğrulandı (HEAD `fc2f9d8d`).
@@ -267,7 +267,7 @@ tests/AgentPrism.AspNetCore.FunctionalTests/
 
 ## Manuel Kabul Case'leri
 
-> Kapanışta [`docs/manuel-test/13-KIRACI-VE-GUVENLIK.md`](manuel-test/13-KIRACI-VE-GUVENLIK.md) içine eklenir.
+> Kapanışta [`docs/manuel-test/13-KIRACI-VE-GUVENLIK.md`](../../manuel-test/13-KIRACI-VE-GUVENLIK.md) içine eklenir.
 
 | # | Ön koşul | Adımlar | Beklenen sonuç |
 |---|---|---|---|
