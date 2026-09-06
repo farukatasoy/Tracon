@@ -46,6 +46,19 @@ app.MapAgentPrism("/agentprism");
 app.Run();
 ```
 
+A deployment whose module order can leave an authorization handler on AgentPrism's
+permissive default should say so out loud, so the mistake is a failed startup rather
+than an allowed request:
+
+```csharp
+var agentPrism = builder.AddAgentPrism()
+    .RequireCustomBinding<IRunAuthorizationHandler>()
+    .RequireCustomBinding<IToolAuthorizationHandler>();
+```
+
+See [Make a binding required](/guides/embedding/#make-a-binding-required) for the
+seven contracts this accepts and what the check does and does not prove.
+
 Use your platform's secret manager for the provider API key and database connection
 string. The canonical OpenAI key path is `AgentPrism:Providers:OpenAI:ApiKey`; its
 environment form is `AgentPrism__Providers__OpenAI__ApiKey`. Do not put either value
@@ -365,6 +378,7 @@ scaled without a matching quota.
 - [ ] Load database and provider credentials only from a secret facility.
 - [ ] Run or verify migrations before readiness can pass.
 - [ ] Require a real authentication policy and all three role policies.
+- [ ] Declare every embedding point the deployment depends on with `RequireCustomBinding<T>()`.
 - [ ] Configure trusted proxy headers and TLS without relying on loopback identity.
 - [ ] Choose combined or split workers and calculate cluster-wide concurrency.
 - [ ] Enable singleton execution and orphan reconciliation only with shared SQL state.

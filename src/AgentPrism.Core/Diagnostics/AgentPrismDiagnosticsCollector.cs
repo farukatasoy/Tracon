@@ -216,6 +216,12 @@ public sealed class AgentPrismDiagnosticsCollector
     /// Reports the seven embedding points, and for each one whether the bound
     /// implementation is AgentPrism's built-in default or the host's own.
     /// </summary>
+    /// <remarks>
+    /// The built-in default types come from <see cref="AgentPrismExtensionPoints"/>,
+    /// the same table the required-binding startup gate reads. The report states
+    /// the fact and carries no judgement about whether that binding is acceptable;
+    /// the gate is where an installation declares what it will accept.
+    /// </remarks>
     private IReadOnlyList<ExtensionPointDiagnostic> CollectExtensionPoints()
     {
         var sinks = _runEventSinks.ToList();
@@ -230,25 +236,25 @@ public sealed class AgentPrismDiagnosticsCollector
             {
                 Contract = nameof(ITenantContext),
                 Implementation = _tenantContext.GetType().Name,
-                IsBuiltInDefault = _tenantContext.GetType() == typeof(SingleTenantContext),
+                IsBuiltInDefault = _tenantContext.GetType() == AgentPrismExtensionPoints.BuiltInDefaultOf(typeof(ITenantContext)),
             },
             new ExtensionPointDiagnostic
             {
                 Contract = nameof(IRunAttributionContext),
                 Implementation = _runAttributionContext.GetType().Name,
-                IsBuiltInDefault = _runAttributionContext.GetType() == typeof(DefaultRunAttributionContext),
+                IsBuiltInDefault = _runAttributionContext.GetType() == AgentPrismExtensionPoints.BuiltInDefaultOf(typeof(IRunAttributionContext)),
             },
             new ExtensionPointDiagnostic
             {
                 Contract = nameof(IToolAuthorizationHandler),
                 Implementation = _toolAuthorizationHandler.GetType().Name,
-                IsBuiltInDefault = _toolAuthorizationHandler.GetType() == typeof(AllowAllToolAuthorizationHandler),
+                IsBuiltInDefault = _toolAuthorizationHandler.GetType() == AgentPrismExtensionPoints.BuiltInDefaultOf(typeof(IToolAuthorizationHandler)),
             },
             new ExtensionPointDiagnostic
             {
                 Contract = nameof(IRunAuthorizationHandler),
                 Implementation = _runAuthorizationHandler.GetType().Name,
-                IsBuiltInDefault = _runAuthorizationHandler.GetType() == typeof(AllowAllRunAuthorizationHandler),
+                IsBuiltInDefault = _runAuthorizationHandler.GetType() == AgentPrismExtensionPoints.BuiltInDefaultOf(typeof(IRunAuthorizationHandler)),
             },
             new ExtensionPointDiagnostic
             {
@@ -266,7 +272,7 @@ public sealed class AgentPrismDiagnosticsCollector
             {
                 Contract = nameof(IToolApprovalPresenter),
                 Implementation = _approvalPresenter.GetType().Name,
-                IsBuiltInDefault = _approvalPresenter.GetType() == typeof(NullToolApprovalPresenter),
+                IsBuiltInDefault = _approvalPresenter.GetType() == AgentPrismExtensionPoints.BuiltInDefaultOf(typeof(IToolApprovalPresenter)),
             },
         ];
     }

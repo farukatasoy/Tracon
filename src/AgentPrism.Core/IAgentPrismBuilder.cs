@@ -400,4 +400,49 @@ public interface IAgentPrismBuilder
     /// </example>
     /// </remarks>
     IAgentPrismBuilder AddEvalCheck(string kind, Microsoft.Agents.AI.EvalCheck check);
+
+    /// <summary>
+    /// Declares that <typeparamref name="T"/> must resolve to the application's
+    /// own registration. The host does not start when AgentPrism's built-in
+    /// default is what resolves.
+    /// </summary>
+    /// <typeparam name="T">
+    /// One of the seven embedding points: <see cref="ITenantContext"/>,
+    /// <see cref="IRunAttributionContext"/>, <see cref="IToolAuthorizationHandler"/>,
+    /// <see cref="IRunAuthorizationHandler"/>, <see cref="IRunEventSink"/>,
+    /// <see cref="IAttachmentStorage"/>, or <see cref="IToolApprovalPresenter"/>.
+    /// Any other type stops the host from starting, with a message naming the seven.
+    /// </typeparam>
+    /// <returns>The chain, for further configuration.</returns>
+    /// <remarks>
+    /// <para>
+    /// Off by default: an application that never calls this behaves exactly as
+    /// before. Every extension point is registered with <c>TryAdd</c>, so a host
+    /// that binds nothing runs on the built-in default and starts silently. That
+    /// suits a first run; it does not suit a deployment whose module order can
+    /// leave an authorization handler on the permissive default without anyone
+    /// noticing until the first unauthorized request.
+    /// </para>
+    /// <para>
+    /// The check runs while the host starts, not when endpoints are mapped, so
+    /// an embedded host with no HTTP surface gets the same guarantee. Register
+    /// the implementation BEFORE <c>AddAgentPrism()</c>: a <c>TryAdd</c>
+    /// registration made afterwards is dropped, and the built-in default stays.
+    /// </para>
+    /// <para>
+    /// This is a composition gate. It proves which implementation is bound; it
+    /// proves nothing about whether that implementation decides correctly.
+    /// </para>
+    /// <example>
+    /// <code>
+    /// builder.Services.AddSingleton&lt;IRunAuthorizationHandler, OrderDeskAuthorization&gt;();
+    ///
+    /// builder.AddAgentPrism()
+    ///        .RequireCustomBinding&lt;IRunAuthorizationHandler&gt;()
+    ///        .RequireCustomBinding&lt;IToolAuthorizationHandler&gt;();
+    /// </code>
+    /// </example>
+    /// </remarks>
+    IAgentPrismBuilder RequireCustomBinding<T>()
+        where T : class;
 }

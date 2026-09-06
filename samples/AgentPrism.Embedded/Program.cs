@@ -44,8 +44,9 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddHttpContextAccessor();
 
 // Six of the seven embedding points. Order matters: AddAgentPrism() below
-// calls TryAdd* for all seven, so a registration made first wins; a
-// registration made after AddAgentPrism() is silently ignored.
+// calls TryAdd* for all seven, so a registration made first wins. Made after,
+// a TryAdd registration is dropped because AgentPrism's default already holds
+// the slot; registering first is the order that always works.
 builder.Services.AddSingleton<ITenantContext, EmbeddedTenantContext>();
 builder.Services.AddSingleton<ITenantStore, EmbeddedTenantStore>();
 builder.Services.AddSingleton<IRunAttributionContext, EmbeddedRunAttributionContext>();
@@ -63,6 +64,13 @@ builder.Services.AddSingleton<EmbeddedJobQueue>();
 builder.Services.AddHostedService<EmbeddedJobWorker>();
 
 var agentPrism = builder.AddAgentPrism()
+    // The host does not start if any of these four falls back to AgentPrism's
+    // built-in default — a module-order mistake becomes a startup failure
+    // instead of an authorization decision nobody notices.
+    .RequireCustomBinding<ITenantContext>()
+    .RequireCustomBinding<IToolAuthorizationHandler>()
+    .RequireCustomBinding<IRunAuthorizationHandler>()
+    .RequireCustomBinding<IAttachmentStorage>()
     .AddGeneratedTools()
     .AddModelProvider(new EchoModelProvider());
 

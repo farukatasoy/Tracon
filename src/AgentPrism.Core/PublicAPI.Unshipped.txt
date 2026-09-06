@@ -589,6 +589,7 @@ AgentPrism.IAgentPrismBuilder.AddTool(System.Delegate! method, string? name = nu
 AgentPrism.IAgentPrismBuilder.AddToolsFrom(System.Type! type) -> AgentPrism.IAgentPrismBuilder!
 AgentPrism.IAgentPrismBuilder.AddToolsFrom<T>() -> AgentPrism.IAgentPrismBuilder!
 AgentPrism.IAgentPrismBuilder.Configure(System.Action<AgentPrism.AgentPrismOptions!>! configure) -> AgentPrism.IAgentPrismBuilder!
+AgentPrism.IAgentPrismBuilder.RequireCustomBinding<T>() -> AgentPrism.IAgentPrismBuilder!
 AgentPrism.IAgentPrismBuilder.Services.get -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
 AgentPrism.ImagePriceOverride
 AgentPrism.ImagePriceOverride.ImagePriceOverride() -> void
