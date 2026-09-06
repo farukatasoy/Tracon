@@ -8,7 +8,7 @@
 Bir fazın durumu yanlış görünüyorsa **o fazın dokümanını** düzelt;
 bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 
-## Fazlar (151 kalem)
+## Fazlar (155 kalem)
 
 | Faz | Konu | Durum |
 |-----|------|-------|
@@ -163,5 +163,9 @@ bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 | [148](arsiv/fazlar/148-OTURUM-SAHIPLIGININ-KALICILIGI.md) | Oturum Sahipliğinin Kalıcılığı | ✅ Tamamlandı |
 | [149](arsiv/fazlar/149-SAHIPSIZ-OTURUMUN-KATI-REDDI.md) | Sahipsiz Oturumun Katı Reddi | ✅ Tamamlandı |
 | [150](arsiv/fazlar/150-ZORUNLU-BINDING-PROFILI.md) | Zorunlu Binding Profili | ✅ Tamamlandı |
+| [151](151-HARNESSIN-DONGU-YETENEGI.md) | Harness'in Döngü Yeteneği | 📋 Planlandı |
+| [152](152-SKORUN-ADI-VE-SEKLI.md) | Skorun Adı ve Şekli | 📋 Planlandı |
+| [153](153-EVAL-KOSUMLARI-ARASINDA-REGRESYON-FARKI.md) | Eval Koşumları Arasında Regresyon Farkı | 📋 Planlandı |
+| [154](154-SKOR-TRENDININ-KALICI-SORGUSU.md) | Skor Trendinin Kalıcı Sorgusu | 📋 Planlandı |
 
 Seçilmemiş adaylar: [`ADAYLAR.md`](ADAYLAR.md). Fazların hangi dalgada, hangi gerekçeyle sıralandığı (Faz 8–56, kapandı): [`arsiv/IKINCI-FAZ-YOL-HARITASI.md`](arsiv/IKINCI-FAZ-YOL-HARITASI.md) · [`arsiv/UCUNCU-FAZ-YOL-HARITASI.md`](arsiv/UCUNCU-FAZ-YOL-HARITASI.md).
