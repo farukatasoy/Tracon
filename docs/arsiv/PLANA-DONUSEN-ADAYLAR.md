@@ -24,7 +24,7 @@
 
 On kalem, harici bir tüketici projesinin uygulanabilirlik raporundan doğdu ve
 aynı gün altı faza dönüştü. Turun tam kaydı:
-[`../kesif/2026-08-18-tuketici-raporu.md`](../kesif/2026-08-18-tuketici-raporu.md).
+[`kesif/2026-08-18-tuketici-raporu.md`](kesif/2026-08-18-tuketici-raporu.md).
 
 | Kalem | Faz |
 |---|---|
@@ -405,7 +405,7 @@ Faz 65'in kapsamına katılmadıkça planlanmamalıdır.
 > değildi: gerçek bir tüketici projesi `docs-site/`'ın 91 sayfasını tarayıp bir
 > uygulanabilirlik raporu üretti; rapor ölçüldü ve **on yeni kalem** doğdu
 > (F-110…F-119). Turun tamamı:
-> [`kesif/2026-08-18-tuketici-raporu.md`](../kesif/2026-08-18-tuketici-raporu.md).
+> [`kesif/2026-08-18-tuketici-raporu.md`](kesif/2026-08-18-tuketici-raporu.md).
 >
 > 🚨 **Onu da aynı gün plana dönüştü** — altı yeni faz (67–72) ve F-119'un
 > [Faz 65](fazlar/65-KIRACI-SAGLAYICI-ANAHTARLARI.md)'e katılması. Açık kalem sayısı

@@ -12,7 +12,7 @@
 (§7 çatışma noktaları, §10 eksik yetenekler, §12 açık sorular).
 Kaynak: ProdigyEnabler (ABP 10.5 · .NET 10 · PostgreSQL · Hangfire),
 `0.0.0-preview.0.291` referanslı gerçek bir gömme denemesi. **Önceki tur aynı
-tüketiciden geldi** ([2026-08-18](2026-08-18-tuketici-raporu.md)) ve
+tüketiciden geldi** ([2026-08-18](../arsiv/kesif/2026-08-18-tuketici-raporu.md)) ve
 F-110…F-119'u doğurdu; Faz 69, 70, 72 ondan çıktı.
 **Zemin:** Faz 78 kapalı, 79–83 planlandı · aday dosyasında 31 seçilmemiş kalem
 · en büyük numara **F-139**.

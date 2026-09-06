@@ -1,7 +1,23 @@
+> ## 📦 Arşiv bloğu — taşındı 2026-09-06
+>
+> **Bu tur tükenmiştir.** Ürettiği on dört kalemin (`F-34` · `F-72` · `F-100` ·
+> `F-109`–`F-119`) hiçbiri `ADAYLAR.md`'de açık bölüm olarak durmuyor; hepsi
+> ya plana dönüştü ya ölçümle düştü ya da sonraki turlar tarafından
+> geçersizleştirildi. En görünür varış yerleri: **F-109** →
+> [Faz 112](../fazlar/112-REPLAY-ISTEMCI-TOOL-SOZLESMESI.md) · **F-113** →
+> [Faz 113](../fazlar/113-ARIZA-SINIFLANDIRMA-SEAMI.md) · **F-115** →
+> [Faz 115](../fazlar/115-EVALIN-BASSIZ-KOSUCUSU.md).
+>
+> Aşağıdaki durum alanları taşındığı anda bayatladı. Bu dosya bundan sonra
+> **yalnız `grep` hedefidir** — bir iddianın nasıl ölçüldüğünü ve neden
+> reddedildiğini aramak için. Bir iş listesi değildir.
+
+---
+
 # Keşif Turu — 2026-08-18 · Tüketici raporu kaynaklı kalemler
 
 > Bu bir **koşum kaydıdır**, spec değildir. Sıcak yolda değildir ve baştan sona
-> okunmaz. Onaylanan kalemlerin tam metni [`ADAYLAR.md`](../ADAYLAR.md)
+> okunmaz. Onaylanan kalemlerin tam metni [`ADAYLAR.md`](../../ADAYLAR.md)
 > içinde yaşar; bu dosya yalnız oraya işaret eder.
 
 **Tetikleyen:** Harici bir proje (ProdigyEnabler, ABP 10.5 / .NET 10) `docs-site/`
@@ -22,11 +38,11 @@ repo'da değildir, tüketici projesinin `claudedocs/` dizinindedir.
 
 | Kaynak | Bulgu |
 |---|---|
-| [`YOL-HARITASI.md`](../YOL-HARITASI.md) | 67 kalem · Faz 62–66 📋 planlandı · **Faz 7 ⏸ — hiçbir paket yayınlanmadı** |
+| [`YOL-HARITASI.md`](../../YOL-HARITASI.md) | 67 kalem · Faz 62–66 📋 planlandı · **Faz 7 ⏸ — hiçbir paket yayınlanmadı** |
 | Faz 61 devir notu | Yarım kalan: F-109 (replay). Yeni kalem bırakmamış |
 | Ekosistem boşluk tablosu | On üç satırın on ikisi plana girdi; kalan iki satır F-34, F-72 |
-| [`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](../arsiv/KARARLAR-INDEKS-REDDEDILEN.md) | 24 kalem tarandı — **on kalemin hiçbiri listede yok** |
-| [`ADAYLAR.md`](../ADAYLAR.md) grep | `pgvector` · `cache` · `reasoning` · `timeout` · `purpose` · `SignalR` · `fatura` · `yerelleştir` → **eşleşme yok**. Onu da yeni kalemdir |
+| [`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](../KARARLAR-INDEKS-REDDEDILEN.md) | 24 kalem tarandı — **on kalemin hiçbiri listede yok** |
+| [`ADAYLAR.md`](../../ADAYLAR.md) grep | `pgvector` · `cache` · `reasoning` · `timeout` · `purpose` · `SignalR` · `fatura` · `yerelleştir` → **eşleşme yok**. Onu da yeni kalemdir |
 | `git ls-files` | Turun başında çalışma alanı temiz |
 
 🚨 **Turun en önemli zemin bulgusu:** Faz 7 yayınlanmadı, her paketin
@@ -43,7 +59,7 @@ harcandı. Eleme ölçümün sonucudur.
 
 | # | Rapor kalemi | Ölçüm sonucu | Sonuç |
 |---|---|---|---|
-| 1 | §8.1 Kiracı sağlayıcı anahtarı (BYOK) | **Zaten planda** — [Faz 65](../arsiv/fazlar/65-KIRACI-SAGLAYICI-ANAHTARLARI.md) 📋 | ❌ elendi — kalem yok |
+| 1 | §8.1 Kiracı sağlayıcı anahtarı (BYOK) | **Zaten planda** — [Faz 65](../fazlar/65-KIRACI-SAGLAYICI-ANAHTARLARI.md) 📋 | ❌ elendi — kalem yok |
 | 2 | §8.2 Tool düzeyinde yetkilendirme | Yok — ölçüldü | ✅ F-113 |
 | 3 | §8.3 AI olmayan workflow düğümü | Yok — ölçüldü | ✅ F-116 |
 | 4 | §8.4 Faturalandırma çıktısı | Yok, ama **kütüphane sınırının dışı** | ❌ elendi → *Bilerek Önerilmeyenler* |
@@ -86,7 +102,7 @@ sorusu kalemin gerekçesini değiştirmez.
 
 ## 4. Derinleşen kalemler (Aşama 3)
 
-Onunun da tam metni [`ADAYLAR.md`](../ADAYLAR.md) içindedir. Burada yalnız
+Onunun da tam metni [`ADAYLAR.md`](../../ADAYLAR.md) içindedir. Burada yalnız
 kanıt satırı ve eleyici sınır kontrolü durur.
 
 | F-NN | Kanıt seviyesi ve yeri | Eleyici sınır | Public yüzey |
@@ -120,21 +136,21 @@ deler.
 ### Kanal 1 — yeni aday
 
 🚨 **Onu da aynı gün plana dönüştü** (kullanıcı kararı). Gövdeleri
-[`../arsiv/PLANA-DONUSEN-ADAYLAR.md`](../arsiv/PLANA-DONUSEN-ADAYLAR.md)'e
-taşındı; [`../ADAYLAR.md`](../ADAYLAR.md)'de tek satırlık iz kaldı.
+[`../arsiv/PLANA-DONUSEN-ADAYLAR.md`](../PLANA-DONUSEN-ADAYLAR.md)'e
+taşındı; [`../ADAYLAR.md`](../../ADAYLAR.md)'de tek satırlık iz kaldı.
 
 | F-NN | Başlık | Faz |
 |---|---|---|
-| F-110 | `pgvector`'ün isteğe bağlı olması | [Faz 67](../arsiv/fazlar/67-ISTEGE-BAGLI-MIGRATION-SETI.md) |
-| F-111 | Çalıştırma kimliği ve maliyet kırılım boyutları | [Faz 68](../arsiv/fazlar/68-CALISTIRMA-KIMLIGI-VE-TOKEN-KIRILIMI.md) |
-| F-112 | Cache ve reasoning token kırılımı | [Faz 68](../arsiv/fazlar/68-CALISTIRMA-KIMLIGI-VE-TOKEN-KIRILIMI.md) |
-| F-113 | Tool düzeyinde yetkilendirme ve etki sınıfı | [Faz 69](../arsiv/fazlar/69-TOOL-YETKILENDIRMESI-VE-TIMEOUT.md) |
-| F-114 | Tool yürütme timeout'u | [Faz 69](../arsiv/fazlar/69-TOOL-YETKILENDIRMESI-VE-TIMEOUT.md) |
-| F-115 | Çalıştırma olayı hedefi ve `ReasoningDelta` | [Faz 70](../arsiv/fazlar/70-CALISTIRMA-OLAYI-HEDEFI.md) |
-| F-116 | Workflow kod düğümü | [Faz 71](../arsiv/fazlar/71-WORKFLOW-KOD-DUGUMU.md) |
-| F-117 | Talimatta çok dillilik | [Faz 72](../arsiv/fazlar/72-COK-DILLI-TALIMAT-VE-ZAMAN-DAMGALI-SENTEZ.md) |
-| F-118 | Zaman damgalı konuşma sentezi | [Faz 72](../arsiv/fazlar/72-COK-DILLI-TALIMAT-VE-ZAMAN-DAMGALI-SENTEZ.md) |
-| F-119 | Kiracı bazlı sağlayıcı allowlist'i | [Faz 65](../arsiv/fazlar/65-KIRACI-SAGLAYICI-ANAHTARLARI.md)'e katıldı |
+| F-110 | `pgvector`'ün isteğe bağlı olması | [Faz 67](../fazlar/67-ISTEGE-BAGLI-MIGRATION-SETI.md) |
+| F-111 | Çalıştırma kimliği ve maliyet kırılım boyutları | [Faz 68](../fazlar/68-CALISTIRMA-KIMLIGI-VE-TOKEN-KIRILIMI.md) |
+| F-112 | Cache ve reasoning token kırılımı | [Faz 68](../fazlar/68-CALISTIRMA-KIMLIGI-VE-TOKEN-KIRILIMI.md) |
+| F-113 | Tool düzeyinde yetkilendirme ve etki sınıfı | [Faz 69](../fazlar/69-TOOL-YETKILENDIRMESI-VE-TIMEOUT.md) |
+| F-114 | Tool yürütme timeout'u | [Faz 69](../fazlar/69-TOOL-YETKILENDIRMESI-VE-TIMEOUT.md) |
+| F-115 | Çalıştırma olayı hedefi ve `ReasoningDelta` | [Faz 70](../fazlar/70-CALISTIRMA-OLAYI-HEDEFI.md) |
+| F-116 | Workflow kod düğümü | [Faz 71](../fazlar/71-WORKFLOW-KOD-DUGUMU.md) |
+| F-117 | Talimatta çok dillilik | [Faz 72](../fazlar/72-COK-DILLI-TALIMAT-VE-ZAMAN-DAMGALI-SENTEZ.md) |
+| F-118 | Zaman damgalı konuşma sentezi | [Faz 72](../fazlar/72-COK-DILLI-TALIMAT-VE-ZAMAN-DAMGALI-SENTEZ.md) |
+| F-119 | Kiracı bazlı sağlayıcı allowlist'i | [Faz 65](../fazlar/65-KIRACI-SAGLAYICI-ANAHTARLARI.md)'e katıldı |
 
 **Gruplama gerekçesi (kullanıcı kararı):** F-113+F-114 aynı `ToolDescriptor`
 kaydına, F-111+F-112 aynı `runs` tablosuna dokunur — ayrı planlamak aynı yere

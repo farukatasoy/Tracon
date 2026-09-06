@@ -3,7 +3,7 @@
 > **Kimden:** ProdigyEnabler (ABP 10.5 / .NET 10 / PostgreSQL / Hangfire) — AgentPrism'i üretim AI altyapısına gömmeye hazırlanan tüketici proje.
 > **Kime:** AgentPrism kod geliştirme agent'ı.
 > **Tarih:** 2026-08-21 · **Ölçülen sürüm:** `0.0.0-preview.0.291` (13 paket referanslı; `Azure`/`Sqlite`/`SqlServer` bilinçli dışarıda)
-> **Önceki tur:** [`2026-08-18-tuketici-raporu.md`](2026-08-18-tuketici-raporu.md) — aynı tüketiciden. O tur F-110…F-119'u doğurdu. **Bu rapor onun devamıdır.**
+> **Önceki tur:** [`2026-08-18-tuketici-raporu.md`](../arsiv/kesif/2026-08-18-tuketici-raporu.md) — aynı tüketiciden. O tur F-110…F-119'u doğurdu. **Bu rapor onun devamıdır.**
 >
 > **Not (AgentPrism tarafı, 2026-08-21):** Bu dosya dışarıdan gelen bir tüketici
 > raporudur ve **olduğu gibi** saklanır. İddiaların doğrulaması bizim tarafımızda
