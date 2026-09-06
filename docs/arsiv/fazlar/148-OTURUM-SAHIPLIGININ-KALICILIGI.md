@@ -1,13 +1,13 @@
 # Faz 148 — Oturum Sahipliğinin Kalıcılığı
 
 > **Durum:** ✅ Tamamlandı (2026-09-06)
-> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-196** (tüketici turu 4, A1 · sahiplik yarısı)
-> **Önkoşul:** [Faz 147](arsiv/fazlar/147-YETKI-KAPISININ-KAYNAK-KAPSAMI.md) — kapı bütün kaynak grafiğini kapsamadan sahiplik yarım bir sınır olur; sahipli liste dönerken `run` okuma açık kalırsa sızıntı kapanmaz
+> **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-196** (tüketici turu 4, A1 · sahiplik yarısı)
+> **Önkoşul:** [Faz 147](147-YETKI-KAPISININ-KAYNAK-KAPSAMI.md) — kapı bütün kaynak grafiğini kapsamadan sahiplik yarım bir sınır olur; sahipli liste dönerken `run` okuma açık kalırsa sızıntı kapanmaz
 > **Paketler:** `AgentPrism.Abstractions`, `AgentPrism.Core`, `AgentPrism.AspNetCore`, `AgentPrism.PostgreSql`, `AgentPrism.SqlServer`, `AgentPrism.Sqlite`, `AgentPrism.Testing.Contracts.Xunit`
 > **Yeni paket:** Yok · **Migration:** **Gerekli — üç set** (`sessions`'a sütun + indeks). Numaralar uygulama anında alınır (K-178)
 > **Public API:** Büyüyor — `SessionRecord` ve `SessionQuery`'ye birer alan, bir seçenek sınıfı. `wc -l src/*/PublicAPI.Shipped.txt` → 17 satır / 17 dosya (yalnız başlık), **shipped giriş sıfır**: bugün eklemek bedava, Faz 7'den sonra bir sürüm kararı
 > **Tüketici yüzeyi:** `docs-site/`: `concepts/sessions.md`, `concepts/governance.md`, `guides/embedding.md`, `guides/write-your-own-store.md`, `capabilities.md` · sevk edilen: `ISessionStore` XML `<example>`, `src/AgentPrism.Abstractions/README.md`, `SessionStoreContract`
-> **Manuel test alanı:** [`docs/manuel-test/13-KIRACI-VE-GUVENLIK.md`](manuel-test/13-KIRACI-VE-GUVENLIK.md)
+> **Manuel test alanı:** [`docs/manuel-test/13-KIRACI-VE-GUVENLIK.md`](../../manuel-test/13-KIRACI-VE-GUVENLIK.md)
 
 ---
 
@@ -26,17 +26,17 @@
    **K-283** 🚨 (görünmeyen oturum YOK sayılır) ·
    **K-605** (store sözleşmeleri xunit taban sınıfı olarak **sevk edilir** — `SessionStoreContract` büyüyecek) ·
    **K-670 · K-671** (kapı deseni ve ret kodları)
-3. [`147-YETKI-KAPISININ-KAYNAK-KAPSAMI.md`](arsiv/fazlar/147-YETKI-KAPISININ-KAYNAK-KAPSAMI.md) — yalnız devir notu:
+3. [`147-YETKI-KAPISININ-KAYNAK-KAPSAMI.md`](147-YETKI-KAPISININ-KAYNAK-KAPSAMI.md) — yalnız devir notu:
    ```bash
    awk '/## Sonraki Faza Devir Notu/,0' docs/147-YETKI-KAPISININ-KAYNAK-KAPSAMI.md
    ```
    Kapının hangi kaynakları kapsadığı ve `RunAccess`/`SessionAccess` üyeleri oradan devralınır.
 4. Alan hafızası (bu faz dört alana dokunuyor):
-   [`hafiza/sql-migration.md`](hafiza/sql-migration.md) (üç sağlayıcıda sütun + indeks ekleme) ·
-   [`hafiza/sql-saglayicilari.md`](hafiza/sql-saglayicilari.md) · [`hafiza/sql-server-tuzaklari.md`](hafiza/sql-server-tuzaklari.md) (dialect farkları) ·
-   [`hafiza/maf-oturum.md`](hafiza/maf-oturum.md) 🚨 (`AgentSessionManager`'ın çift `SaveAsync` kusuru — `AgentSessionManager.cs:211` yorumu)
+   [`hafiza/sql-migration.md`](../../hafiza/sql-migration.md) (üç sağlayıcıda sütun + indeks ekleme) ·
+   [`hafiza/sql-saglayicilari.md`](../../hafiza/sql-saglayicilari.md) · [`hafiza/sql-server-tuzaklari.md`](../../hafiza/sql-server-tuzaklari.md) (dialect farkları) ·
+   [`hafiza/maf-oturum.md`](../../hafiza/maf-oturum.md) 🚨 (`AgentSessionManager`'ın çift `SaveAsync` kusuru — `AgentSessionManager.cs:211` yorumu)
 5. Gerektiğinde, tamamı değil ilgili bölümü:
-   [`MIMARI-GUVENLIK.md`](MIMARI-GUVENLIK.md) — kiracı ve rol sınırı bölümü
+   [`MIMARI-GUVENLIK.md`](../../MIMARI-GUVENLIK.md) — kiracı ve rol sınırı bölümü
 
 ---
 
@@ -66,14 +66,14 @@ Bu faz sahipliği **isteğe bağlı, varsayılan kapalı** bir mod olarak AgentP
 
 | Kanıt | Gözlem |
 |---|---|
-| [`ISessionStore.cs:179`](../src/AgentPrism.Abstractions/Sessions/ISessionStore.cs) | `SessionRecord`: `Id` · `AgentName` · `State` · `CreatedAt` · `UpdatedAt` · `TenantId` · `StateSchemaVersion` · `StateMafVersion` · `Version` — **sahip alanı yok** |
-| [`ISessionStore.cs:254`](../src/AgentPrism.Abstractions/Sessions/ISessionStore.cs) | `SessionQuery`: `AgentName` · `TenantId` · `Skip` · `Take` — **kullanıcı filtresi yok** |
-| [`SessionEndpoints.cs:36`](../src/AgentPrism.AspNetCore/Endpoints/SessionEndpoints.cs) | 🚨 Kodun kendi yorumu: reddedilen liste **filtrelenmez, reddedilir**; sunucu tarafı filtreleme sayfalama sözleşmesini bozardı |
-| [`SessionEndpoints.cs:44`](../src/AgentPrism.AspNetCore/Endpoints/SessionEndpoints.cs) | Sorgu yalnız `AgentName` · `Skip` · `Take` ile kuruluyor |
-| [`0001_initial.sql:72`](../src/AgentPrism.PostgreSql/Migrations/0001_initial.sql) | `sessions` tablosu: `id` · `tenant_id` · `agent_name` · `state` · `schema_version` · `created_at` · `updated_at` |
-| [`0001_initial.sql:82`](../src/AgentPrism.PostgreSql/Migrations/0001_initial.sql) | İndeksler `(tenant_id, updated_at DESC)` ve `(tenant_id, agent_name, updated_at DESC)` |
-| [`RunAuthorizationTypes.cs`](../src/AgentPrism.Abstractions/Runs/RunAuthorizationTypes.cs) | `IRunAuthorizationHandler` XML'i: *"AgentPrism draws ownership at the TENANT level; it never learns which user inside a tenant a session or a run belongs to."* |
-| [`arsiv/fazlar/139-…md`](arsiv/fazlar/139-CALISTIRMA-VE-OTURUM-YETKILENDIRMESI.md) (Plandan Sapmalar 5) | *"Bu fazda kalıcı bir session-sahiplik veri modeli yok"* — bu faz o boşluğu kapatır |
+| [`ISessionStore.cs:179`](../../../src/AgentPrism.Abstractions/Sessions/ISessionStore.cs) | `SessionRecord`: `Id` · `AgentName` · `State` · `CreatedAt` · `UpdatedAt` · `TenantId` · `StateSchemaVersion` · `StateMafVersion` · `Version` — **sahip alanı yok** |
+| [`ISessionStore.cs:254`](../../../src/AgentPrism.Abstractions/Sessions/ISessionStore.cs) | `SessionQuery`: `AgentName` · `TenantId` · `Skip` · `Take` — **kullanıcı filtresi yok** |
+| [`SessionEndpoints.cs:36`](../../../src/AgentPrism.AspNetCore/Endpoints/SessionEndpoints.cs) | 🚨 Kodun kendi yorumu: reddedilen liste **filtrelenmez, reddedilir**; sunucu tarafı filtreleme sayfalama sözleşmesini bozardı |
+| [`SessionEndpoints.cs:44`](../../../src/AgentPrism.AspNetCore/Endpoints/SessionEndpoints.cs) | Sorgu yalnız `AgentName` · `Skip` · `Take` ile kuruluyor |
+| [`0001_initial.sql:72`](../../../src/AgentPrism.PostgreSql/Migrations/0001_initial.sql) | `sessions` tablosu: `id` · `tenant_id` · `agent_name` · `state` · `schema_version` · `created_at` · `updated_at` |
+| [`0001_initial.sql:82`](../../../src/AgentPrism.PostgreSql/Migrations/0001_initial.sql) | İndeksler `(tenant_id, updated_at DESC)` ve `(tenant_id, agent_name, updated_at DESC)` |
+| [`RunAuthorizationTypes.cs`](../../../src/AgentPrism.Abstractions/Runs/RunAuthorizationTypes.cs) | `IRunAuthorizationHandler` XML'i: *"AgentPrism draws ownership at the TENANT level; it never learns which user inside a tenant a session or a run belongs to."* |
+| [`arsiv/fazlar/139-…md`](139-CALISTIRMA-VE-OTURUM-YETKILENDIRMESI.md) (Plandan Sapmalar 5) | *"Bu fazda kalıcı bir session-sahiplik veri modeli yok"* — bu faz o boşluğu kapatır |
 
 > Kanıtlar 2026-09-05 tarihinde doğrulandı (HEAD `234d4081`).
 
@@ -291,7 +291,7 @@ tests/AgentPrism.AspNetCore.FunctionalTests/
 
 ## Manuel Kabul Case'leri
 
-> Kapanışta [`docs/manuel-test/13-KIRACI-VE-GUVENLIK.md`](manuel-test/13-KIRACI-VE-GUVENLIK.md) içine eklenir.
+> Kapanışta [`docs/manuel-test/13-KIRACI-VE-GUVENLIK.md`](../../manuel-test/13-KIRACI-VE-GUVENLIK.md) içine eklenir.
 
 | # | Ön koşul | Adımlar | Beklenen sonuç |
 |---|---|---|---|
@@ -366,7 +366,7 @@ diff <(curl -s "$APU/api/sessions/$B_SESSION" -H "Authorization: Bearer $TOKEN_A
 
 | Risk | Önlem |
 |------|-------|
-| 🚨 `AgentSessionManager`'ın çift `SaveAsync` yolu (`AgentSessionManager.cs:211` yorumundaki kusur sınıfı) ikinci yazmada sahibi `NULL`'a düşürür | [`hafiza/maf-oturum.md`](hafiza/maf-oturum.md) uygulama öncesi okunur. Fonksiyonel test ikinci yazmadan sonra sahibi **açıkça** okur |
+| 🚨 `AgentSessionManager`'ın çift `SaveAsync` yolu (`AgentSessionManager.cs:211` yorumundaki kusur sınıfı) ikinci yazmada sahibi `NULL`'a düşürür | [`hafiza/maf-oturum.md`](../../hafiza/maf-oturum.md) uygulama öncesi okunur. Fonksiyonel test ikinci yazmadan sonra sahibi **açıkça** okur |
 | Filtre `store` implementasyonlarından birinde sayfalamadan sonra uygulanır | Sözleşme testi 5+5 kurgusuyla bunu **matematiksel olarak** yakalar: filtre sonraysa `take=3` sahipsiz satır döndürür |
 | Üç dialect'te `text`/`nvarchar` farkı sessiz kesme üretir | Açık Soru 4: `owner_id` mevcut `tenant_id` tipini birebir alır. `SqlTextSnapshotTests` üç dosyayı yan yana gösterir |
 | Dolu bir tabloda `ALTER TABLE` üretimde uzun kilit tutar | Manuel case 11 süreyi **ölçer**. Tahmini süre yazılmaz. Sütun `NULL` varsayılanlı olduğu için tablo yeniden yazımı beklenmez, ama bu **ölçülerek** doğrulanır |
