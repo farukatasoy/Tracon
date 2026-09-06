@@ -137,7 +137,7 @@ doğruladı ve `OpenApiSnapshotTests` riskinin gerçekleşmediğini ölçtü.
 
 ## Sonraki Faza Devir Notu
 
-[Faz 148](../../148-OTURUM-SAHIPLIGININ-KALICILIGI.md) bu fazın hemen üstüne biniyor:
+[Faz 148](148-OTURUM-SAHIPLIGININ-KALICILIGI.md) bu fazın hemen üstüne biniyor:
 Faz 147 kapıyı **her kaynağa** ulaştırdı ama sahipliği hâlâ **öğretmiyor** —
 `IRunAuthorizationHandler` tüketicinin kendi kaydına soruyor. Faz 148 o kaydı
 AgentPrism'in içine taşıyacak. Devreden dört gerçek bilgi:

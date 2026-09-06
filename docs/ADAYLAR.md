@@ -78,7 +78,7 @@
 > [Faz 145](arsiv/fazlar/145-OLAY-AKISININ-CERCEVE-SOZLESMESI.md) · **F-194** (A2 + F3 birleşti) →
 > [Faz 146](arsiv/fazlar/146-CALISTIRMAYA-BAGLI-KOTA-ESIGI.md) · **F-195** →
 > [Faz 147](arsiv/fazlar/147-YETKI-KAPISININ-KAYNAK-KAPSAMI.md) · **F-196** →
-> [Faz 148](148-OTURUM-SAHIPLIGININ-KALICILIGI.md).
+> [Faz 148](arsiv/fazlar/148-OTURUM-SAHIPLIGININ-KALICILIGI.md).
 >
 > Planlama ölçümü raporda **olmayan** bir bulgu üretti: `POST /runs/{id}/replay`
 > ve `/v1/chat/completions` de gerçek bir `run` başlatıyor ve ikisi de
