@@ -119,6 +119,15 @@
 > bırakılanlar (kullanıcı kararı): F-198 · F-171 · F-200 · F-180 · F-199 ·
 > F-205.
 >
+> **Ek (2026-09-07, altıncı tur — planlama):** **F-192 · F-208 · F-207 · F-209**
+> plana dönüştü ([Faz 151](151-HARNESSIN-DONGU-YETENEGI.md) ·
+> [Faz 152](152-SKORUN-ADI-VE-SEKLI.md) ·
+> [Faz 153](153-EVAL-KOSUMLARI-ARASINDA-REGRESYON-FARKI.md) ·
+> [Faz 154](154-SKOR-TRENDININ-KALICI-SORGUSU.md)); bölümleri bu dosyadan
+> **silindi**. Doğrulama dört aday metnini de düzeltti ve **bir keşif iddiasını
+> çürüttü** — düzeltmeler § *Sıralamayı Değiştiren Ölçümler*'dedir. Aynı tur
+> tek yeni aday üretti: **F-210**.
+>
 > Faz durumu yalnız üretilen [`YOL-HARITASI.md`](YOL-HARITASI.md)'dedir.
 > Bir kusur bu dosyaya geri girmez; `kusur-giderme` kanalına gider. Kapatılmış
 > kararın yeniden açılması kullanıcı kararıdır. Ölçüm bekleyen iddia, kanıt
@@ -126,8 +135,8 @@
 
 ## Okuma Sırası
 
-**Sıralanabilir aday kalmadı** (2026-08-26). Bu dosyaya bakma sebebin
-şunlardan biridir:
+**Sıralanabilir aday: bir** — F-210, ve o da [Faz 152](152-SKORUN-ADI-VE-SEKLI.md)
+kapanmadan planlanamaz (2026-09-07). Bu dosyaya bakma sebebin şunlardan biridir:
 
 | İhtiyaç | Nereye bak |
 |---|---|
@@ -164,14 +173,32 @@ Bir adayın `Mercek` satırı aşağıdaki destekleyen mercekleri numarayla saya
 
 ## Sıralama — bir aday
 
-2026-09-05 itibarıyla sıralanabilir **bir** aday vardır. İkisi de MAF yüzey
-taramasından çıkmıştı (`maf-api-kesfi`, 1.18.0 → 1.20.0 tam dump diff'i +
-kullanım ölçümü: 324 MAF public tipin 203'ü AgentPrism kaynağında hiç geçmiyor);
-biri aynı gün plana dönüştü.
+**Dördü de plana dönüştü (2026-09-07, altıncı planlama turu).** 2026-09-05
+itibarıyla sıralanabilir bir aday vardı; Langfuse esinli tur
+([kesif](kesif/2026-09-07-langfuse-esinli-tur.md)) üç tane daha üretti. Turun
+bulgusu beklenenin tersiydi: Langfuse'un **beş sütununun beşi de** bu repo'da
+zaten vardı (prompt sürümleme → `IAgentDefinitionStore`; LLM-as-judge →
+`IRunJudge`; gold dataset → `RunToCasePromoter`; maliyet-gecikme panosu →
+`RunStatistics`; deney → `Experiment` + canary). Üç fikir "zaten var" diye
+elendi; tur başlıklara değil **kenarlara** yöneldi.
+
+| Aday | Faz |
+|---|---|
+| F-192 | [151 — Harness'in Döngü Yeteneği](151-HARNESSIN-DONGU-YETENEGI.md) |
+| F-208 | [152 — Skorun Adı ve Şekli](152-SKORUN-ADI-VE-SEKLI.md) |
+| F-207 | [153 — Eval Koşumları Arasında Regresyon Farkı](153-EVAL-KOSUMLARI-ARASINDA-REGRESYON-FARKI.md) |
+| F-209 | [154 — Skor Trendinin Kalıcı Sorgusu](154-SKOR-TRENDININ-KALICI-SORGUSU.md) |
+
+🚨 **Faz 152 → Faz 154 sırası zorunludur.** İkisi de `run_scores` tablosuna
+dokunuyor; 152 skora bir **ad** getiriyor ve 154'ün kırılımı o adı içermelidir.
+Ters sırada kırılım iki kez elden geçer. Faz 151 ve 153 bağımsızdır.
+
+Aynı tur bir **yeni aday** üretti: **F-210** (aşağıda). O da F-208'e bağlıdır ve
+sıralamaya Faz 152 kapandıktan sonra girer.
 
 | Sıra | Aday | Neden bu sırada |
 |---|---|---|
-| 1 | **F-192** · Harness'in döngü yeteneği | Yeni yetenek. Pinlenmiş sürümde **zaten hazır**; yükseltme beklemez |
+| 1 | **F-210** · `.Quality` evaluator katalogu | Tek sıralanabilir aday. **Faz 152 kapanmadan planlanamaz** — bugün `RunJudgment` tek skor taşıyor |
 
 > **F-191 · Alt-agent bekleme zaman aşımı → [Faz 144](arsiv/fazlar/144-ALT-AGENT-BEKLEME-SINIRI.md)**
 > (2026-09-05). Bağımlılığı olan MAF 1.20.0 yükseltmesi aynı oturumda yapıldı ve
@@ -198,7 +225,7 @@ biri aynı gün plana dönüştü.
 > sunucuda birleştirilmesi · bağlama başına endpoint. Gerekçeleri keşif
 > kaydındadır; koşulları oluşursa yeniden aday olurlar.
 
-Üç planlama turu dokuz adayın yedisini faza çevirdi:
+Dört planlama turu on üç adayın on birini faza çevirdi:
 
 | Aday | Faz |
 |---|---|
@@ -211,59 +238,6 @@ biri aynı gün plana dönüştü.
 | F-152 | [118 — Yargıç Başına Checkpoint](arsiv/fazlar/118-YARGIC-BASINA-CHECKPOINT.md) |
 
 Kalan ikisi § *Bekleyen Kalemler*'dedir ve **sıralamaya girmez**.
-
-### F-192 · Harness'in döngü (loop) yeteneği
-
-**Sorun:** `HarnessAgentOptions` iki üye taşır — `LoopEvaluators` ve
-`LoopAgentOptions` — ve AgentPrism **ikisini de set etmiyor**
-([`AgentDefinitionCompiler.Agents.cs:172`](../src/AgentPrism.Core/Compilation/AgentDefinitionCompiler.Agents.cs#L172)).
-MAF bunu harness'in birinci sınıf, opt-in yeteneği yapmıştır
-([PR #6544](https://github.com/microsoft/agent-framework/pull/6544)): en az bir
-evaluator verilince harness `LoopAgent` ile **en dıştan** sarılır. Ölçüm
-(2026-09-05): `LoopAgent` ve `LoopEvaluator` AgentPrism kaynağında **0 dosyada**
-geçiyor. [`MAF-GENISLEME-NOKTALARI`](MAF-GENISLEME-NOKTALARI.md) bunu
-*"planlanmadı (eval'den AYRI kavram)"* diye kaydetmiş — **reddedilmemiş,
-ertelenmiş**.
-
-**Kapsam:** `HarnessSettings`'e bir bitiş ölçütü aç. MAF'ın hazır evaluator'ları:
-`TodoCompletionLoopEvaluator` (AgentPrism'in `TodoProvider`'ı zaten açık ve bu
-evaluator **agent moduna göre kapsanabiliyor**) · `CompletionMarkerLoopEvaluator` ·
-`AIJudgeLoopEvaluator` · `BackgroundTaskCompletionLoopEvaluator` ·
-`DelegateLoopEvaluator`. Döngü iterasyonları `run` kanıtına yazılır.
-
-**Değer:** "Bitene kadar çalış" davranışı. Bugün tüketici bunu kendi dış
-döngüsüyle yazmak zorunda ve o döngü `run` kanıtının dışında kalıyor.
-
-**Mercek:** 1, 2, 8.
-
-**Hazırlık:** **Hazır ve çekirdekte** — `Microsoft.Agents.AI` içinde; yeni paket
-yok, native bağımlılık yok. İmzalar `maf-api-kesfi` ile doğrulandı (2026-09-05)
-ve **pinlenmiş 1.18.0'da zaten mevcut** (`LoopAgent`, `LoopEvaluators`,
-`LoopAgentOptions` üçü de). `LoopAgent : DelegatingAIAgent` olduğu için
-AgentPrism'in decorator zincirine (`IAgentDecorator` · `RunRecordingAgent`)
-oturur — F-95'in kancasının aksine **yapısal engel yok**.
-
-**Maliyet:** Ölçülmedi. Yeni paket yok. Public yüzey: `HarnessSettings`'e bitiş
-ölçütü + evaluator seçimi. ⚠️ Evaluator'lar MAF tipleridir; seçimi bildirimsel
-bir enum olarak mı yoksa doğrudan MAF tipiyle mi açacağı L21'e (*MAF tipleri
-sarmalanmadı*) takılır — planın çözmesi gereken ilk soru budur.
-
-**Risk:** 🚨 `MaximumIterationsPerRequest` ile **karıştırılmamalıdır**: o bir
-*tavan*'dır (kaçak döngü güvenliği), `LoopAgent` bir *bitiş ölçütü*'dür. İkisi
-aynı ayar gibi sunulursa tüketici yanılır. Döngü model faturasını çarpar;
-`LoopAgentOptions.MaxIterations` ve [Faz 114](arsiv/fazlar/114-CALISTIRMA-ICI-BUTCE-TAVANI.md)'ün
-bütçe tavanı ile **birlikte** yargılanmalıdır. `FreshContextPerIteration`
-bağlam semantiğini değiştirir.
-
-**Bağımlılık:** **Yok.** MAF yükseltmesi beklemez — 1.18.0 yeterlidir.
-
-**Ekosistem:** 2026-09-05 — [PR #6544](https://github.com/microsoft/agent-framework/pull/6544).
-
-**Karşı görüş:** Talep kanıtı ölçülmedi. Hiçbir tüketici turu "bitene kadar
-çalış" istemedi; bu kalem bir yüzey taramasından çıktı, bir kullanıcı acısından
-değil. F-167'nin dersi geçerlidir: *"SDK maliyeti zaten ödenmiş" bir talep kanıtı
-değil, yalnız bir indirimdir.*
-
 
 ### F-197 · Üretilen istemcinin koleksiyonları `null` başlıyordu — ✅ KAPANDI (2026-09-06)
 
@@ -326,10 +300,80 @@ with a runtime branch) before any code.
 the streaming OpenAI-compatible path permanently unreachable from the typed
 client without a clear error explaining why.
 
+### F-210 · `Microsoft.Extensions.AI.Evaluation.Quality` evaluator katalogu
+
+> **Bağımlı:** [Faz 152](152-SKORUN-ADI-VE-SEKLI.md). Faz 152 kapanmadan
+> **planlanamaz** — bugün `RunJudgment` tek bir `int? Score` taşıyor, `IEvaluator`
+> ise çok adlı `EvaluationResult` döndürüyor.
+
+**Sorun:** AgentPrism'in tek yerleşik yargıcı vardır ve o da elle yazılmış tek
+bir genel kalite prompt'udur (`ModelRunJudge`, `Name => "model"`, 0-100 skor).
+Microsoft **on bir kalibre edilmiş evaluator** sevk ediyor ve üçü doğrudan agent
+işidir: `TaskAdherenceEvaluator` · `ToolCallAccuracyEvaluator` ·
+`IntentResolutionEvaluator`. Kalanlar: `Coherence` · `Completeness` ·
+`Equivalence` · `Fluency` · `Groundedness` · `Relevance` ·
+`RelevanceTruthAndCompleteness` · `Retrieval`.
+
+Bağlanamamalarının **iki** sebebi var ve ikisi de ölçüldü:
+
+1. `IRunJudge`/`RunJudgment` tek skor taşıyor; `IEvaluator.EvaluateAsync`
+   `EvaluationResult` (adlı metrik sözlüğü) döndürüyor. ⇒ Faz 152 bunu açar.
+2. [`EvalJobHandler.cs:139`](../src/AgentPrism.Core/Evaluation/EvalJobHandler.cs#L139)
+   `new LocalEvaluator([.. checks])` **sabit kodlu**. MAF'ın `IAgentEvaluator`
+   seam'i var (`LocalEvaluator : IAgentEvaluator`) ama AgentPrism onu tüketiciye
+   açmıyor; `LocalEvaluator` yalnız `EvalCheck[]` (boolean delege) alıyor.
+
+**Kapsam:** `IEvaluator` tabanlı bir `IRunJudge` köprüsü (bir evaluator'ın çok
+adlı sonucunu Faz 152'nin adlı skorlarına yazar) ve `IAgentEvaluator` seam'inin
+`IAgentPrismBuilder` üzerinden açılması. **Kapsam dışı:** on bir evaluator'ın
+hepsini bildirimsel yüzeye açmak; `.Safety` ve `.NLP` (ikisi de preview).
+
+**Değer:** Tüketici "cevap alakalı mı", "tool doğru mu çağrıldı", "görev yerine
+getirildi mi" sorularını **kendi prompt'unu yazmadan** ölçer. Bunlar bir eval
+altyapısının en pahalı parçasıdır ve Microsoft onları kalibre edip sevk etmiştir.
+
+**Mercek:** 1, 6, 7.
+
+**Hazırlık:** Hazır ve ölçüldü (2026-09-07, `maf-api-kesfi` + gerçek nuspec).
+
+| Ölçüm | Sonuç |
+|---|---|
+| `M.E.AI.Evaluation.Quality` 10.9.0 | **GA** (preview değil) |
+| Kendi bağımlılığı | **Yalnız** `M.E.AI.Evaluation` 10.9.0 |
+| `M.E.AI.Evaluation` bugün nerede | 🚨 `Core` · `AspNetCore` · `Cli` grafiğinde **zaten var** — `Microsoft.Agents.AI` 1.20.0 getiriyor |
+| ⇒ Net maliyet | **1 paket, geçişli ağırlık 0** |
+| `RequiresUnreferencedCode` / `RequiresDynamicCode` | **0 / 0** — AOT sinyali iyi, kanıt değil |
+| Evaluator imzası | Hepsi `IEvaluator`, parametresiz ctor, çalışma anında `ChatConfiguration` alıyor |
+
+**Maliyet:** Ölçülmedi (kod tarafı). Paket ağırlığı yukarıda ölçüldü. Yeni tablo
+ve migration **gerekmez** — Faz 152'nin `run_scores` şekli yeterlidir.
+
+**Risk:** ⚠️ `.Quality` evaluator'ları **model çağırır**; bir eval koşumunun
+faturasını evaluator sayısı kadar çarpar. ⚠️ AOT: paket `Core`'a doğrudan
+referans olarak girerse AOT kapısı **gerçek koşumla** doğrulanmalıdır — annotation
+temizliği kanıt değildir. ⚠️ Prompt'lar Microsoft'a aittir; sürüm yükseltmesi
+skorları kaydırabilir ve bir taban çizgisi karşılaştırmasını
+([Faz 153](153-EVAL-KOSUMLARI-ARASINDA-REGRESYON-FARKI.md)) sessizce bozar.
+
+**Bağımlılık:** 🚨 Faz 152.
+
+**Ekosistem:** (2026-09-07'de ölçüldü) `.Quality` 10.9.0 GA · `.Reporting` 10.9.0
+GA · `.Console` 10.9.0 GA · `.Safety` ve `.NLP` yalnız preview.
+`.Reporting`'in `ExecutionName`/`ResultStore` kavramı disk tabanlıdır ve test
+harness'ine dönüktür; kiracılı sunucu API'si vermez — Faz 153 o kavramı ödünç
+alıyor, uygulamasını değil.
+
+**Karşı görüş:** Talep kanıtı **yok**. Dört tüketici turunun hiçbirinde bu
+istenmedi; kalem bir yüzey taramasından çıktı. F-167'nin dersi geçerlidir:
+*"SDK maliyeti zaten ödenmiş" bir talep kanıtı değil, yalnız bir indirimdir.*
+Ağırlığını azaltan tek şey, AgentPrism'in bugün **tek** yargıcının elle yazılmış
+tek bir prompt olması — bir kontrol düzlemi için dar bir taban.
+
+
 ### Sıralamayı Değiştiren Ölçümler
 
-Üç planlama turu (üçüncü, dördüncü, beşinci) kanıtı yeniden doğruladı
-(`faz-planlama` Adım 1) ve aday metinlerini birikimli olarak düzeltti. Sıra
+Dört planlama turu (üçüncü, dördüncü, beşinci, altıncı) kanıtı yeniden
+doğruladı (`faz-planlama` Adım 1) ve aday metinlerini birikimli olarak düzeltti. Sıra
 numaraları **ikinci turun** tablosuna göredir; plana dönen kalemler o tablodan
 çıktı. Bu kayıt, bir kalem ileride yeniden açılırsa **hangi iddianın ölçümle
 çürüdüğünü** korur.
@@ -347,6 +391,11 @@ Gerekçeler:
 | **F-167 · 3 → 1** ve plana | En büyük maliyet iddiası ("Tasks extension'ı **yeni bir NuGet paketidir** ve geçişli ağırlığı sayılmalıdır") gerçek restore ile çürüdü: `ModelContextProtocol.Extensions.Tasks` 2.2.0 `.AspNetCore`'un üstüne **net 1 paket** ekliyor, geçişli ağırlık **sıfır** — on iki geçişli paketin tamamı zaten grafikte. Ayrıca `IMcpTaskStore` AgentPrism'in var olan run kaydı üzerine oturuyor: **yeni tablo ve migration gerekmiyor**. Buna karşılık ölçüm yeni bir risk buldu: SDK sözleşmesinde **kiracı parametresi yok** ve K-103'ün onay kontrolü run kuyruğa taşınınca handler'dan düşüyor. |
 | **F-152 · 2 → 2** ve plana | Maliyet iddiası ("kalıcı model ve **üç SQL sağlayıcı migration'ı** gerekir") çürüdü: `UpsertAsync` **yargıç başına** çağrılıyor ve satır `Author = "judge:{ad}"` taşıyor; `IRunScoreStore.ListAsync` ve `JobRecord.Attempt` de zaten var. **Checkpoint bugün zaten veride duruyor** — eksik olan tek şey döngünün onu okuması. Yeni tablo, migration ve public yüzey **yok**. |
 | **F-95 sıralamadan çıktı** | Dördüncü sıra, sahip olmadığı bir plan hazırlığını ima ediyordu. `Hazırlık` satırı zaten "🚨 İmza doğrulanmadı" diyor. **2026-09-05 güncellemesi:** imza doğrulandı ve **MAF yolu kapandı** — kanca ayrı bir alpha pakettedir (`Microsoft.Agents.AI.AgentHooks`), sözleşmesi *enforcement*'tır (kesinti/devam değil) ve `FunctionInvokingChatClient` içeren client'ı reddeder. Kalem yalnız F-141 üzerinden ilerler; bkz. § *Bekleyen Kalemler* → F-95 `Hazırlık`. |
+| **F-208 · paket ağırlığı riski DÜŞTÜ** | Aday metni *"`M.E.AI.Evaluation` bağımlılığını almak `Abstractions`'ın grafiğini büyütür"* diyordu. Gerçek restore ile ölçüldü (2026-09-07): paketin **tek** bağımlılığı `M.E.AI.Abstractions` 10.9.0'dır ve `AgentPrism.Abstractions` onu **zaten referanslıyor** ⇒ **net 1 paket, geçişli ağırlık 0**. Karar bu yüzden ağırlıkla değil **tip doğasıyla** verildi (kalıcı kayıt ↔ mutable çalışma-anı nesnesi): şekli hizala, tipi alma. |
+| 🚨 **Keşif iddiası ÇÜRÜDÜ: repo bu aileyi kullanıyor** | [`kesif/2026-09-07-langfuse-esinli-tur.md:85`](kesif/2026-09-07-langfuse-esinli-tur.md) *"🚨 Repo bu aileyi kullanmıyor"* diyordu. Doğru olan yalnız yarısıdır: `Directory.Packages.props` `.Evaluation*`'ı **doğrudan** referanslamıyor, ama `Microsoft.Extensions.AI.Evaluation` 10.9.0 `Core`/`AspNetCore`/`Cli` grafiğinde `Microsoft.Agents.AI` 1.20.0 üzerinden **var** ve [`EvalJobHandler.cs:3`](../src/AgentPrism.Core/Evaluation/EvalJobHandler.cs#L3) `using`'i ile **kullanılıyor** (`EvaluationMetric`, `:432` ve `:458`). Keşif kaydı düzeltildi. |
+| **F-208'in kapsamı BÜYÜDÜ** | Ölçüm ikinci bir boşluk buldu: [`EvalJobHandler.cs:458`](../src/AgentPrism.Core/Evaluation/EvalJobHandler.cs#L458) `SerializeScores` metriğin `Value`, `Interpretation.Rating`, `Diagnostics` ve `Metadata` alanlarını **atıyor**. Bugün gözlemlenebilir bir yanlış davranış yok (MAF `EvalCheck`'i yalnız boolean üretiyor), ama şekil kararıyla aynı koddur. Kullanıcı kararı: ayrı kusur açılmaz, [Faz 152](152-SKORUN-ADI-VE-SEKLI.md)'nin kapsamına girer. |
+| **F-192'nin satır numarası kaydı** | Aday metni `AgentDefinitionCompiler.Agents.cs:172` diyordu; doğru satır **236**'dır. `LoopAgent`/`LoopEvaluator` sayımı (`0 dosya`) ve MAF imzalarının tamamı 1.20.0'da yeniden doğrulandı — `HarnessAgentOptions.LoopEvaluators` ve `.LoopAgentOptions` yerinde. |
+| **F-209'un önkoşulu SERTLEŞTİ** | Aday metni sırayı *"F-208 önce koşarsa kırılıma skor adı da girer"* diye yumuşak yazıyordu. Plan bunu **zorunlu önkoşula** çevirdi: Faz 152 `Value`'yu `double?` yapıyor ve `Categorical` şeklini açıyor; toplulaştırmanın kova anahtarı `(name, kind)` olmak zorunda ve `null` değer ortalamaya girmemeli. Ters sırada bu üç kural sonradan eklenir. |
 
 ### F-190 · MCP Tasks testlerinin tam çözüm koşumunda yalıtımı — ✅ KAPANDI (2026-09-04)
 
@@ -780,7 +829,7 @@ kaydındadır.
 
 | Kanal | ID'ler | Kural |
 |---|---|---|
-| **Plana dönüştü** | F-109 → [Faz 112](arsiv/fazlar/112-REPLAY-ISTEMCI-TOOL-SOZLESMESI.md) · F-149 → [Faz 113](arsiv/fazlar/113-ARIZA-SINIFLANDIRMA-SEAMI.md) · F-166 → [Faz 114](arsiv/fazlar/114-CALISTIRMA-ICI-BUTCE-TAVANI.md) · F-168 → [Faz 115](arsiv/fazlar/115-EVALIN-BASSIZ-KOSUCUSU.md) · F-67 → [Faz 116](arsiv/fazlar/116-PERFORMANS-TAHSIS-KAPISI.md) · F-167 → [Faz 117](arsiv/fazlar/117-MCP-TASKS-UZANTISI.md) · F-152 → [Faz 118](arsiv/fazlar/118-YARGIC-BASINA-CHECKPOINT.md) | Bölümleri bu dosyadan silindi; kanıt ve tasarım faz dokümanındadır. Aday listesine geri dönmezler. |
+| **Plana dönüştü** | F-109 → [Faz 112](arsiv/fazlar/112-REPLAY-ISTEMCI-TOOL-SOZLESMESI.md) · F-149 → [Faz 113](arsiv/fazlar/113-ARIZA-SINIFLANDIRMA-SEAMI.md) · F-166 → [Faz 114](arsiv/fazlar/114-CALISTIRMA-ICI-BUTCE-TAVANI.md) · F-168 → [Faz 115](arsiv/fazlar/115-EVALIN-BASSIZ-KOSUCUSU.md) · F-67 → [Faz 116](arsiv/fazlar/116-PERFORMANS-TAHSIS-KAPISI.md) · F-167 → [Faz 117](arsiv/fazlar/117-MCP-TASKS-UZANTISI.md) · F-152 → [Faz 118](arsiv/fazlar/118-YARGIC-BASINA-CHECKPOINT.md) · **F-192 → [Faz 151](151-HARNESSIN-DONGU-YETENEGI.md)** · **F-208 → [Faz 152](152-SKORUN-ADI-VE-SEKLI.md)** · **F-207 → [Faz 153](153-EVAL-KOSUMLARI-ARASINDA-REGRESYON-FARKI.md)** · **F-209 → [Faz 154](154-SKOR-TRENDININ-KALICI-SORGUSU.md)** | Bölümleri bu dosyadan silindi; kanıt ve tasarım faz dokümanındadır. Aday listesine geri dönmezler. |
 | **Kapatılan kusur kayıtları** | F-106, F-130, F-137, F-138, F-139 | Kapanış kanıtı keşif kaydındadır; yeniden görülürse yeni kusur kaydı açılır. |
 | **Karar / uyumluluk** | F-72, F-90, F-91, F-92, F-132, **F-169** | Mevcut karar veya dış bağımlılık değişmeden planlanmaz. F-95 2026-08-26'da adaylığa döndü. **F-169** (MAF CodeAct / Hyperlight sandbox) F-72 ile **aynı eşiktedir**: paket GA ve taşınabilir olana kadar planlanmaz — ölçüm [`kesif/2026-08-26-yeni-feature-fikirleri.md`](kesif/2026-08-26-yeni-feature-fikirleri.md) § 9. |
 | **Ölçüm bekliyor** | F-51, F-94, F-96, F-97, F-99, F-101, F-123, F-128, F-154, F-156, F-157, F-159, F-160, F-161, F-162 | Her biri için gereken somut kanıt keşif kaydında yazılıdır. |
@@ -794,6 +843,16 @@ Reddedilmiş mimari işler için tek kaynak
 kararını değiştirmeden yeniden aday olmaz. **F-95 bu listede değildir** — onu
 bekleten şey bir tasarım kararı değil, MAF'ta kancanın bulunmamasıydı; MAF
 1.19.0 o kancayı gönderdiği için 2026-08-26'da adaylığa döndü.
+
+**Zaten var — bir daha "eksik" diye önerilmez** (2026-09-07 Langfuse turu, üçü
+de kod ölçümüyle çürütüldü). Bunlar mimari ret değildir; **mevcut
+yeteneklerdir**:
+
+| Önerilen | Nerede zaten var |
+|---|---|
+| Eval suite'i için CI kapısı | `agentprism eval --min-pass-rate --max-failures`, regresyonda çıkış kodu 3 (`src/AgentPrism.Cli/Commands/EvalCommand.cs:168`) |
+| Skor düşüşünde alarm | `WebhookEvents.RunScoreLow`, `MinSampleSize` gürültü eşiğiyle (`src/AgentPrism.Core/Evaluation/OnlineEvalSummaryService.cs`) |
+| Agent sürümüne `production`/`staging` label'ı | `Experiment` sürüm başına ağırlıklı varyant veriyor, `IAgentDefinitionStore.RollbackAsync` geri alıyor; ortam ayrımını kiracı sınırı çözüyor |
 
 
 ### F-178 · Model deneme (attempt) telemetrisi
