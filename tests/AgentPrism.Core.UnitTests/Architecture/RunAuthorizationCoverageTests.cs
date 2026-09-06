@@ -245,8 +245,8 @@ public sealed class RunAuthorizationCoverageTests
                 "await RunAuthorizationGate\n    .CheckSessionAsync(b);\n" +
                 "await RunAuthorizationGate\n    .CheckRunResourceAsync(c);\n");
 
-            ResourceMarker.Matches(File.ReadAllText(threeCalls)).Count.ShouldBe(3);
-            ResourceMarker.Matches(File.ReadAllText(withoutCall)).Count.ShouldBe(0);
+            ResourceMarker.Count(File.ReadAllText(threeCalls)).ShouldBe(3);
+            ResourceMarker.Count(File.ReadAllText(withoutCall)).ShouldBe(0);
         }
         finally
         {
@@ -285,7 +285,7 @@ public sealed class RunAuthorizationCoverageTests
 
             File.Exists(path).ShouldBeTrue($"'{relative}' no longer exists; this gate has gone stale and must be updated.");
 
-            var actual = marker.Matches(File.ReadAllText(path)).Count;
+            var actual = marker.Count(File.ReadAllText(path));
 
             if (actual != calls)
             {
