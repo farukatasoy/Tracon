@@ -30,6 +30,51 @@ class DenetimPaketiTestleri(unittest.TestCase):
 
         self.assertEqual(denetim_paketi.test_theater_candidates(diff), ["New_test"])
 
+    def test_shouldly_iddiasi_tasiyan_test_aday_SAYILMAZ(self):
+        # 🚨 Var olan test yalniz POZITIF yonu kanitliyordu (iddiasiz test
+        # yakalanir); NEGATIF yon hic denenmemisti ve kusur tam orada yasadi.
+        # `\bShould\b` bu depodaki 7488 Shouldly iddiasinin hicbirini
+        # eslestirmiyordu, yani tarayici HER yeni testi aday sayiyordu.
+        diff = """diff --git a/tests/X.cs b/tests/X.cs
++++ b/tests/X.cs
++    [Fact]
++    public void New_test()
++    {
++        entry.Action.ShouldBe("skill.create");
++    }
+"""
+
+        self.assertEqual(denetim_paketi.test_theater_candidates(diff), [])
+
+    def test_her_shouldly_bicimi_taninir(self):
+        for iddia in ("ShouldBe", "ShouldContain", "ShouldNotBeNull",
+                      "ShouldBeTrue", "ShouldBeEmpty", "ShouldHaveSingleItem"):
+            with self.subTest(iddia=iddia):
+                diff = f"""diff --git a/tests/X.cs b/tests/X.cs
++++ b/tests/X.cs
++    [Fact]
++    public void New_test()
++    {{
++        value.{iddia}();
++    }}
+"""
+
+                self.assertEqual(denetim_paketi.test_theater_candidates(diff), [])
+
+    def test_gercekten_iddiasiz_test_HALA_aday(self):
+        # Duzeltme tarayiciyi kor etmemeli: gevsetilen tek sey Shouldly'nin
+        # taninmasidir, iddia ARAMA sarti degil.
+        diff = """diff --git a/tests/X.cs b/tests/X.cs
++++ b/tests/X.cs
++    [Fact]
++    public async Task New_test()
++    {
++        await store.SaveAsync(skill);
++    }
+"""
+
+        self.assertEqual(denetim_paketi.test_theater_candidates(diff), ["New_test"])
+
     def test_imza_govde_kaymasi_adayini_etiketler(self):
         diff = """diff --git a/src/X.cs b/src/X.cs
 +++ b/src/X.cs

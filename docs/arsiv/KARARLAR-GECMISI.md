@@ -4341,6 +4341,8 @@ Kusur düşen bir testle üretildi: var olan bir oturumda eşzamanlı iki tur **
 
 ### K-649
 
+Planın öncülü ÖLÇÜMLE çürüdü. Plan `sessions`'a ayrı, nullable bir `state_schema_version` sütunu ekleyip "NULL = damgalama öncesi satır" yorumu öneriyordu; `faz-uygulama` Adım 1'in "planın yapısal iddiasını grep'le ölç" kuralı gereği `SqlSessionStore.cs` okununca `sessions.schema_version integer NOT NULL`'ün `0001_initial.sql`'den beri var olduğu ve HER satırın hep damgalandığı görüldü — sessions için "damgasız dönem" diye bir şey yoktu.
+
 Kullanıcıya iki seçenek sunuldu: (A) mevcut sütunu yeniden adlandır + gerçekten eksik olan ekseni (`state_maf_version`, hangi MAF sürümünün yazdığı) ekle, (B) planı harfiyen uygula ve iki paralel/çakışan sütun taşı. (A) seçildi: tek kavram, tekrar yok. Bu, `SessionRecord.StateSchemaVersion`'ın planlanan `int?` yerine `int` (hiç `null` olmadı) olmasına, `WorkflowCheckpointRecord`'un ise plandaki gibi `int?` kalmasına (checkpoints hiç damgalanmamıştı, orada NULL dönemi GERÇEK) yol açtı. Damgalama/doğrulama STORE'dan MANAGER'a taşındı çünkü yalnız `AgentSessionManager` (ve checkpoint eşdeğeri `AgentPrismCheckpointStore`) hem "şimdi çalışan MAF sürümü" hem "kayıtlı sürüm" bilgisine aynı anda sahip; bu sayede `InMemorySessionStore`'a hiç dokunulmadı (plan öngörmüştü, ölçüldü: gerekmedi — record zaten `with {}` ile her alanı taşıyordu). **Tam gerekçe:** `docs/126-KALICI-PAYLOAD-SURUM-SOZLESMESI.md` — Plandan Sapmalar.
 
 ### K-650
@@ -4674,6 +4676,56 @@ Açık Soru 1'in üç seçeneği vardı; kullanıcı A'yı seçti. `MapOpenAICom
 ### K-700
 
 `ExtensionPointDiagnostic` bir **olgu** taşır: hangi tip bağlı ve yerleşik varsayılan mı. Zorunluluk bir **niyettir** ve kompozisyonda yaşar. İkisini aynı kayda koymak K-250'nin ayrımını (rapor yargı taşımaz) gevşetirdi. Pratik gerekçe daha da nettir: zorunluluk ihlal edilmişse host ayakta değildir, yani raporu okuyacak kimse yoktur — alan yalnız ihlal EDİLMEMİŞ kurulumlarda görünürdü ve orada da hiçbir şey öğretmezdi. OpenAPI anlık görüntüsü ve `extensionPoints` şeması bu yüzden değişmedi; `MT-DIAG-065` üç alanın tam kümesini kilitler.
+
+### K-702
+
+Kusur tek değil, tek SINIFIN iki yarısıydı: bir koleksiyon non-nullable ilan
+edilmişti ve çalışma anında `null`du, onu koşulsuz okuyan da patlıyordu.
+
+**İstemci yarısı.** NJsonSchema HER property'ye `= default!` yazar — non-nullable
+ilan ettiklerine de. Tip non-null vaat ediyor, değer `null`; derleyici kimseyi
+uyarmıyor. `AgentPrismRunAgentAsync` yalnız `Message` ile çağrıldığında `500`
+dönüyordu ve `GeneratedClientSseTests` bunu dört koleksiyonu elle doldurarak
+BYPASS ediyordu — kusur kaydın içinde, yorumla birlikte duruyordu.
+
+**Sunucu yarısı.** Bu ilk teşhiste yoktu; sınıf taraması buldu. İstemciyi
+düzeltmek ham HTTP çağıranı korumaz: `System.Text.Json`, JSON'da açık `null`
+görünce `record`'un `= []` başlangıç değerini **ezer**. Ölçüm (2026-09-06,
+`AgentEndpoints.RunAsync`):
+
+| Gövde | Önce |
+|---|---|
+| `{"message":"x","approvals":null}` | `500` NullReferenceException |
+| `{"message":"x","toolResults":null}` | `500` |
+| `{"message":"x","attachmentIds":null}` | `500` |
+| `{"message":"x","documents":null}` | `200` — ama SSE gövdesi NRE taşıyor |
+
+Sonuncusu en kötüsü: çağıran run'ın başladığını duyuyor, run ise akışın
+içinde ölüyor.
+
+**Neden `400`, "boş koleksiyona çevir" değil.** İkincisi bozuk bir gövdeyi
+sessizce kabul ederdi ve tek noktalı bir mekanizması yok — 13 property için
+converter ya da elle normalizasyon. `400` ise platformun kendi anahtarıyla
+(`RespectNullableAnnotations`) tek noktada, `RequestBodyBinding` içinde
+çözülür; oradaki iki okuyucu `JsonException`'ı zaten aynı `ProblemDetails`
+`400`'üne çeviriyor. Ayırt edici, iki tarafta da tüketicinin ZATEN gördüğü
+`nullable` annotation'ıdır: `IReadOnlyDictionary<string,string>? Parameters`
+gibi gerçekten "verilmedi"yi ayırt eden bir property'ye dokunulmaz.
+
+**Sevk edilen davranış değişti.** Bugüne kadar açık `null` gönderen bir çağıran
+`500` (veya sessiz `null`) alıyordu, bundan sonra `400` alır. Bu bir kırıcı
+değişiklik değil, bir hata sınıfının doğru koda taşınmasıdır: hiçbir çağıran
+`500`'e bağımlı olamaz.
+
+**Kapsam sınırı.** Türetilen seçenekler YALNIZ istek gövdesi okumakta kullanılır
+(`ConditionalWeakTable` ile uygulamanın kendi seçeneklerinden türetilir, böylece
+tüketicinin `ConfigureHttpJsonOptions` ile eklediği converter'lar korunur).
+Yanıtlar hâlâ uygulamanın kendi seçenekleriyle yazılır — AgentPrism'in
+serileştirdiği hiçbir şey `null` yüzünden atmaya başlamaz.
+
+Kanıt: `GeneratedClientCollectionDefaultTests` (yeni) — dört ham gövde `400`,
+atlanan koleksiyon hâlâ `200`, nullable property'ye açık `null` hâlâ `200`.
+Fonksiyonel paket düzeltme sonrası 922/922.
 
 ### K-701
 

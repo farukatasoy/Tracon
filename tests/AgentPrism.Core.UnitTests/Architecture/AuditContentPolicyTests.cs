@@ -56,10 +56,15 @@ public sealed class AuditContentPolicyTests
         "src/AgentPrism.AspNetCore/Security/ExternalCallAudit.cs",
 
         // Core — the write helper itself, and store decorators (all administrator
-        // actions: agent/experiment/mcp-server/session/skill-script-grant/tenant/
+        // actions: agent/experiment/mcp-server/session/skill/skill-script-grant/tenant/
         // tool-approval-rule/workflow-definition writes).
         "src/AgentPrism.Core/Audit/AuditRecorder.cs",
         "src/AgentPrism.Core/Audit/AuditingAgentDefinitionStore.cs",
+        // Reviewed: writes the skill DEFINITION (name, description, instructions,
+        // scripts, resources) — agent configuration an administrator authored, the
+        // same category as an agent definition. It carries no conversation content:
+        // a skill is never a user message or a model reply.
+        "src/AgentPrism.Core/Audit/AuditingAgentSkillStore.cs",
         "src/AgentPrism.Core/Audit/AuditingExperimentStore.cs",
         "src/AgentPrism.Core/Audit/AuditingMcpServerStore.cs",
         "src/AgentPrism.Core/Audit/AuditingSessionStore.cs",

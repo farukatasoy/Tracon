@@ -19,6 +19,7 @@ namespace AgentPrism;
 [JsonSerializable(typeof(ToolApprovalRule))]
 [JsonSerializable(typeof(SkillScriptGrant))]
 [JsonSerializable(typeof(AgentSkillScriptDefinition))]
+[JsonSerializable(typeof(AgentSkillDefinition))]
 [JsonSerializable(typeof(WorkflowDefinition))]
 [JsonSerializable(typeof(Experiment))]
 [JsonSerializable(typeof(CanaryRollbackAuditPayload))]

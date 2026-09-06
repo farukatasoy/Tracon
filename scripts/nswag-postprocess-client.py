@@ -80,6 +80,29 @@ endpoints - `/v1/responses`, `/v1/chat/completions` - generate a JSON return
 type instead and are unaffected, a separate pre-existing limitation this pass
 does not attempt to fix).
 
+A fifth pass fixes a NULL-COLLECTION class of defect (F-197, found by phase
+145's independent audit while writing a real-server test). NJsonSchema emits
+`= default!` for EVERY property - including the ones it declares as
+NON-nullable collections (`ICollection<T>`/`IDictionary<K,V>` with no `?`).
+The declared type promises non-null and the value is null, so nothing warns
+the caller: the client then serializes an explicit `"documents": null`, and
+System.Text.Json OVERWRITES the server record's own `= []` initializer with
+that null. Server code that reads the collection unconditionally
+(`request.Documents.Count`, `AgentEndpoints.RunAsync`) throws
+NullReferenceException - a 500 for a request the type system called valid.
+MEASURED (2026-09-06): a real-server call carrying only `Message` NREs;
+`GeneratedClientSseTests` used to fill all four collections by hand purely to
+work around it.
+
+The NULLABLE annotation is the discriminator, and it is left alone: a property
+NSwag declared `ICollection<T>?` says "not provided" is distinguishable from
+"provided empty", and rewriting it would erase a real distinction (measured:
+56 such properties, e.g. `AgentRunRequest.Parameters`). Only the 50
+non-nullable ones are rewritten, to `new List<T>()`/`new Dictionary<K,V>()`.
+This pass fixes the TYPED CLIENT only - a raw HTTP caller can still send an
+explicit null, which the server rejects with a 400 instead of a 500
+(`RequestBodyBinding`'s RespectNullableAnnotations, same class, K-694).
+
 Usage: nswag-postprocess-client.py <generated-client.cs>
 """
 
@@ -265,6 +288,37 @@ def rewrite_sse_string_responses(source: str) -> tuple[str, int]:
     return SSE_STRING_RESPONSE_PATTERN.subn(replace, source)
 
 
+# A NON-nullable generated collection property left at `default!`. The absence
+# of `?` after the closing angle bracket is the whole point (see the module
+# docstring's fifth-pass note): a nullable collection keeps its null, because
+# the annotation is the contract that says "not provided" differs from
+# "provided empty". `[^<>]*` deliberately refuses nested generics - NSwag emits
+# none among the DTO properties (verified 2026-09-06), and a nested one would
+# need a different concrete type than the two below, so it must fail loudly
+# by not matching rather than be rewritten wrongly.
+NULL_COLLECTION_PATTERN = re.compile(
+    r"(?P<prefix>public System\.Collections\.Generic\.)"
+    r"(?P<kind>ICollection|IDictionary)"
+    r"(?P<args><[^<>]*>)"
+    r"(?P<rest> \w+ \{ get; set; \}) = default!;"
+)
+
+# The concrete type each generated interface is initialized with.
+CONCRETE_COLLECTION = {"ICollection": "List", "IDictionary": "Dictionary"}
+
+
+def rewrite_null_collection_defaults(source: str) -> tuple[str, int]:
+    def replace(match: re.Match[str]) -> str:
+        concrete = CONCRETE_COLLECTION[match.group("kind")]
+        return (
+            f"{match.group('prefix')}{match.group('kind')}{match.group('args')}"
+            f"{match.group('rest')} = "
+            f"new System.Collections.Generic.{concrete}{match.group('args')}();"
+        )
+
+    return NULL_COLLECTION_PATTERN.subn(replace, source)
+
+
 def main() -> int:
     if len(sys.argv) != 2:
         print(f"Usage: {sys.argv[0]} <generated-client.cs>", file=sys.stderr)
@@ -286,6 +340,7 @@ def main() -> int:
     source, enum_count = rewrite_enum_declarations(source)
     source, any_type_reference_count = rewrite_colliding_any_types(source)
     source, sse_string_count = rewrite_sse_string_responses(source)
+    source, null_collection_count = rewrite_null_collection_defaults(source)
 
     with open(path, "w", encoding="utf-8") as f:
         f.write(source)
@@ -294,8 +349,10 @@ def main() -> int:
         f"Rewrote {property_count} JsonStringEnumConverter property attribute(s), added "
         f"{enum_count} type-level JsonConverter attribute(s) to enum declarations, qualified "
         f"{any_type_reference_count} colliding any-type reference(s) "
-        f"({', '.join(COLLIDING_ANY_TYPES)}), and fixed {sse_string_count} pure-SSE "
-        f"200 response(s) to read plain text instead of JSON in {path}"
+        f"({', '.join(COLLIDING_ANY_TYPES)}), fixed {sse_string_count} pure-SSE "
+        f"200 response(s) to read plain text instead of JSON, and gave "
+        f"{null_collection_count} non-nullable collection property(ies) an empty "
+        f"default instead of null in {path}"
     )
     return 0
 

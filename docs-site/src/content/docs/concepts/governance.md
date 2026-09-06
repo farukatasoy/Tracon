@@ -140,16 +140,24 @@ for the full HTTP contract.
 
 ## The audit trail
 
-Who changed what, when, and from what to what. Agent definitions, MCP servers,
-tenants, approval rules, quotas, retention policies, and approval decisions all land
-in it.
+Who changed what, when, and from what to what. Agent definitions, skills, MCP
+servers, tenants, approval rules, API keys, quotas, retention policies, egress
+policies, provider bindings, triggers, webhooks, and approval decisions all land in
+it.
+
+Skills are in that list for the same reason agent definitions are: a skill carries
+the instructions the model is given **and** the scripts that run on your server, so
+`skill.create`, `skill.update`, and `skill.delete` are governance changes, not
+content edits.
 
 Runs do **not** — the run history already holds the full record. The one exception is
 a content guard's block decision, which is a governance decision rather than a run
 detail and must stay traceable after retention deletes the run.
 
-Writes happen in store **decorators**, not in endpoints, so no code path can change
-one of those entities without an entry.
+Most writes happen in store **decorators** rather than in endpoints, so no code path
+can change one of those entities without an entry. The rest are written by the
+endpoint itself, where the audited unit is the operation and not the row it touches —
+branching a session, erasing a data subject, or rotating an API key.
 
 The actor comes from your authentication. With none configured the actor is `null`,
 and that is not hidden.

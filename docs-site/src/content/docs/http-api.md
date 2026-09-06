@@ -105,6 +105,14 @@ through the whole API:
 session, or conversation is reported as missing, so the API does not confirm that it
 exists.
 
+**A field the schema declares as non-nullable rejects an explicit `null`.** Omitting
+a list is fine — `{"message": "hello"}` is a complete run request, and every list the
+schema does not require simply defaults to empty. Sending `{"message": "hello",
+"approvals": null}` is not the same thing: it states a value for a field whose
+contract has no null, and the API answers `400` rather than acting on it. A field
+that genuinely distinguishes "not provided" from "provided empty" is declared
+nullable in the schema and still accepts `null`.
+
 **Error text is English and is not translated.** The same failure has to read the same
 way in a log, a test, and a support ticket. The console translates its own labels and
 shows server text as it is.

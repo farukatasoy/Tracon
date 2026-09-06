@@ -1,6 +1,10 @@
+using System.Runtime.CompilerServices;
 using System.Text.Json;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.AspNetCore.Http.Json;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 
 namespace AgentPrism;
 
@@ -27,6 +31,62 @@ internal static class RequestBodyBinding
     internal const string ProblemTitle = "Invalid request body";
 
     /// <summary>
+    /// Per-consumer <see cref="JsonSerializerOptions"/> derived from the
+    /// application's own, keyed by the instance they were derived from.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="ConditionalWeakTable{TKey,TValue}"/> rather than a single
+    /// static field: a test host — or a consumer hosting two AgentPrism
+    /// applications in one process — has more than one options instance, and
+    /// caching just the first would silently apply one application's
+    /// converters to another's bodies.
+    /// </remarks>
+    private static readonly ConditionalWeakTable<JsonSerializerOptions, JsonSerializerOptions> BodyOptions = new();
+
+    // Why this exists at all: a request record declares its collections
+    // non-nullable AND initializes them (`IReadOnlyList<ToolApprovalDecision>
+    // Approvals { get; init; } = [];`), but System.Text.Json OVERWRITES that
+    // initializer when the body carries an explicit null. `{"approvals": null}`
+    // therefore left a non-nullable property null, and every unconditional read
+    // of it (`request.Approvals.Count`) threw NullReferenceException. Measured
+    // across the contracts: 13 properties carry that shape, and four of them are
+    // on AgentRunRequest alone - one of which answered 200 and then failed
+    // inside the SSE stream, after the caller had been told the run started.
+    /// <summary>
+    /// The application's JSON options plus <c>RespectNullableAnnotations</c>.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A body that states <c>null</c> for a property the contract declares
+    /// non-nullable is invalid, and this makes the platform say so: such a
+    /// value throws <see cref="JsonException"/>, which both readers below
+    /// already turn into the same <c>400</c> <c>ProblemDetails</c> every other
+    /// malformed body gets. Omitting the property is unaffected — the
+    /// contract's own initializer still applies — and a property that
+    /// genuinely accepts "not provided" is declared nullable and keeps
+    /// accepting <c>null</c>.
+    /// </para>
+    /// <para>
+    /// The options are derived from the application's own rather than built
+    /// fresh, so a consumer's converters registered through
+    /// <c>ConfigureHttpJsonOptions</c> keep applying to AgentPrism's bodies.
+    /// The derived instance reads request bodies only; responses are still
+    /// written with the application's own options, so nothing AgentPrism
+    /// serializes can start throwing on a null.
+    /// </para>
+    /// </remarks>
+    private static JsonSerializerOptions ReadOptions(HttpContext httpContext)
+    {
+        var applicationOptions = httpContext.RequestServices
+            .GetRequiredService<IOptions<JsonOptions>>()
+            .Value.SerializerOptions;
+
+        return BodyOptions.GetValue(
+            applicationOptions,
+            static source => new JsonSerializerOptions(source) { RespectNullableAnnotations = true });
+    }
+
+    /// <summary>
     /// Reads the body as <typeparamref name="T"/>.
     /// </summary>
     /// <typeparam name="T">The expected body type.</typeparam>
@@ -45,7 +105,7 @@ internal static class RequestBodyBinding
         try
         {
             var value = await httpContext.Request
-                .ReadFromJsonAsync<T>(cancellationToken)
+                .ReadFromJsonAsync<T>(ReadOptions(httpContext), cancellationToken)
                 .ConfigureAwait(false);
 
             if (value is null)
@@ -107,7 +167,7 @@ internal static class RequestBodyBinding
         try
         {
             var value = await httpContext.Request
-                .ReadFromJsonAsync<T>(cancellationToken)
+                .ReadFromJsonAsync<T>(ReadOptions(httpContext), cancellationToken)
                 .ConfigureAwait(false);
 
             return (value, null);

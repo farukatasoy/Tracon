@@ -103,15 +103,15 @@ public sealed class RunAuthorizationCoverageTests
     /// hidden the other two — which is exactly how phase 147's audit found them
     /// still ungated.
     /// </remarks>
-    private static readonly (string Path, Regex Marker)[] ExpectedRunStartingFiles =
+    private static readonly (string Path, Regex Marker, int Calls)[] ExpectedRunStartingFiles =
     [
-        ("src/AgentPrism.AspNetCore/Endpoints/AgentEndpoints.cs", StartMarker),
-        ("src/AgentPrism.AspNetCore/Endpoints/WorkflowEndpoints.cs", StartMarker),
-        ("src/AgentPrism.AspNetCore/Endpoints/WorkflowEndpoints.cs", ResourceStartMarker),
-        ("src/AgentPrism.AspNetCore/Endpoints/TriggerEndpoints.cs", StartMarker),
-        ("src/AgentPrism.AspNetCore/OpenAICompat/OpenAIResponsesEndpoints.cs", StartMarker),
-        ("src/AgentPrism.AspNetCore/OpenAICompat/OpenAIChatCompletionsEndpoints.cs", StartMarker),
-        ("src/AgentPrism.AspNetCore/Endpoints/RunEndpoints.cs", ResourceStartMarker),
+        ("src/AgentPrism.AspNetCore/Endpoints/AgentEndpoints.cs", StartMarker, 1),
+        ("src/AgentPrism.AspNetCore/Endpoints/WorkflowEndpoints.cs", StartMarker, 1),
+        ("src/AgentPrism.AspNetCore/Endpoints/WorkflowEndpoints.cs", ResourceStartMarker, 2),
+        ("src/AgentPrism.AspNetCore/Endpoints/TriggerEndpoints.cs", StartMarker, 1),
+        ("src/AgentPrism.AspNetCore/OpenAICompat/OpenAIResponsesEndpoints.cs", StartMarker, 1),
+        ("src/AgentPrism.AspNetCore/OpenAICompat/OpenAIChatCompletionsEndpoints.cs", StartMarker, 1),
+        ("src/AgentPrism.AspNetCore/Endpoints/RunEndpoints.cs", ResourceStartMarker, 1),
     ];
 
     /// <summary>The files that reach a run's or a session's RESOURCES behind the same handler (phase 147).</summary>
@@ -126,17 +126,17 @@ public sealed class RunAuthorizationCoverageTests
     /// A surface can be half-gated, and finding one of its two gates is not
     /// evidence about the other.
     /// </remarks>
-    private static readonly (string Path, Regex Marker)[] ExpectedResourceFiles =
+    private static readonly (string Path, Regex Marker, int Calls)[] ExpectedResourceFiles =
     [
-        ("src/AgentPrism.AspNetCore/Endpoints/RunEndpoints.cs", ResourceMarker),
-        ("src/AgentPrism.AspNetCore/Endpoints/ObservabilityEndpoints.cs", ResourceMarker),
-        ("src/AgentPrism.AspNetCore/Endpoints/AttachmentEndpoints.cs", ResourceMarker),
-        ("src/AgentPrism.AspNetCore/Endpoints/ApprovalEndpoints.cs", ResourceMarker),
-        ("src/AgentPrism.AspNetCore/Endpoints/SessionEndpoints.cs", ResourceMarker),
-        ("src/AgentPrism.AspNetCore/Endpoints/WorkflowEndpoints.cs", ResourceMarker),
-        ("src/AgentPrism.AspNetCore/Endpoints/EvalEndpoints.cs", ResourceMarker),
-        ("src/AgentPrism.AspNetCore/Voice/VoiceConversationEndpoint.cs", ResourceMarker),
-        ("src/AgentPrism.AspNetCore/OpenAICompat/OpenAIConversationsEndpoints.cs", ResourceMarker),
+        ("src/AgentPrism.AspNetCore/Endpoints/RunEndpoints.cs", ResourceMarker, 12),
+        ("src/AgentPrism.AspNetCore/Endpoints/ObservabilityEndpoints.cs", ResourceMarker, 2),
+        ("src/AgentPrism.AspNetCore/Endpoints/AttachmentEndpoints.cs", ResourceMarker, 4),
+        ("src/AgentPrism.AspNetCore/Endpoints/ApprovalEndpoints.cs", ResourceMarker, 3),
+        ("src/AgentPrism.AspNetCore/Endpoints/SessionEndpoints.cs", ResourceMarker, 4),
+        ("src/AgentPrism.AspNetCore/Endpoints/WorkflowEndpoints.cs", ResourceMarker, 2),
+        ("src/AgentPrism.AspNetCore/Endpoints/EvalEndpoints.cs", ResourceMarker, 2),
+        ("src/AgentPrism.AspNetCore/Voice/VoiceConversationEndpoint.cs", ResourceMarker, 1),
+        ("src/AgentPrism.AspNetCore/OpenAICompat/OpenAIConversationsEndpoints.cs", ResourceMarker, 3),
     ];
 
     /// <summary>
@@ -161,14 +161,14 @@ public sealed class RunAuthorizationCoverageTests
     /// a session parameter, it belongs in this list, and the phase that adds it
     /// must say so in its handover note.
     /// </remarks>
-    private static readonly (string Path, Regex Marker)[] ExpectedSessionOwnershipFiles =
+    private static readonly (string Path, Regex Marker, int Calls)[] ExpectedSessionOwnershipFiles =
     [
-        ("src/AgentPrism.AspNetCore/Endpoints/AgentEndpoints.cs", OwnershipRunMarker),
-        ("src/AgentPrism.AspNetCore/Endpoints/WorkflowEndpoints.cs", OwnershipRunMarker),
-        ("src/AgentPrism.AspNetCore/OpenAICompat/OpenAIResponsesEndpoints.cs", OwnershipRunMarker),
-        ("src/AgentPrism.AspNetCore/Endpoints/SessionEndpoints.cs", OwnershipResourceMarker),
-        ("src/AgentPrism.AspNetCore/Voice/VoiceConversationEndpoint.cs", OwnershipResourceMarker),
-        ("src/AgentPrism.AspNetCore/OpenAICompat/OpenAIConversationsEndpoints.cs", OwnershipResourceMarker),
+        ("src/AgentPrism.AspNetCore/Endpoints/AgentEndpoints.cs", OwnershipRunMarker, 1),
+        ("src/AgentPrism.AspNetCore/Endpoints/WorkflowEndpoints.cs", OwnershipRunMarker, 1),
+        ("src/AgentPrism.AspNetCore/OpenAICompat/OpenAIResponsesEndpoints.cs", OwnershipRunMarker, 1),
+        ("src/AgentPrism.AspNetCore/Endpoints/SessionEndpoints.cs", OwnershipResourceMarker, 4),
+        ("src/AgentPrism.AspNetCore/Voice/VoiceConversationEndpoint.cs", OwnershipResourceMarker, 1),
+        ("src/AgentPrism.AspNetCore/OpenAICompat/OpenAIConversationsEndpoints.cs", OwnershipResourceMarker, 3),
     ];
 
     [Fact]
@@ -232,6 +232,21 @@ public sealed class RunAuthorizationCoverageTests
 
             ResourceStartMarker.IsMatch(File.ReadAllText(replayCall)).ShouldBeTrue();
             ResourceStartMarker.IsMatch(File.ReadAllText(withResourceCall)).ShouldBeFalse();
+
+            // 🚨 The gate counts, it does not merely detect (F-204). A marker
+            // that matched only the FIRST call site would make every expected
+            // count 1 and re-open the exact gap this ratchet closes, so the
+            // counting behavior is asserted here rather than inferred from the
+            // real tree's numbers.
+            var threeCalls = Path.Combine(directory.FullName, "ThreeCalls.cs");
+            File.WriteAllText(
+                threeCalls,
+                "await RunAuthorizationGate\n    .CheckSessionAsync(a);\n" +
+                "await RunAuthorizationGate\n    .CheckSessionAsync(b);\n" +
+                "await RunAuthorizationGate\n    .CheckRunResourceAsync(c);\n");
+
+            ResourceMarker.Matches(File.ReadAllText(threeCalls)).Count.ShouldBe(3);
+            ResourceMarker.Matches(File.ReadAllText(withoutCall)).Count.ShouldBe(0);
         }
         finally
         {
@@ -239,25 +254,50 @@ public sealed class RunAuthorizationCoverageTests
         }
     }
 
-    private static void AssertEveryFileMatches((string Path, Regex Marker)[] expected, string message)
+    /// <summary>
+    /// Asserts each file still calls its gate the EXACT expected number of
+    /// times.
+    /// </summary>
+    /// <remarks>
+    /// 🚨 This used to assert PRESENCE, and presence is not coverage: a file
+    /// holds one entry per marker while carrying many call sites, so deleting
+    /// all but one left the gate green. MEASURED (2026-09-06, F-204):
+    /// <c>RunEndpoints.cs</c> carries TWELVE resource checks — eleven could
+    /// have been removed silently, and <c>OpenAIConversationsEndpoints.cs</c>
+    /// carries three, the file phases 147 and 149 each had to come back for.
+    /// <para>
+    /// The count is EXACT, not a floor. A floor would let an addition pay for
+    /// a deletion and go green on a net zero, and the point of a ratchet on a
+    /// security boundary is that changing it is deliberate: adding a gated
+    /// endpoint here must be confirmed by a human updating the number, the
+    /// same way <c>SourceLanguageTests</c>' baseline is. The failure message
+    /// names the file and both numbers so the update takes one line.
+    /// </para>
+    /// </remarks>
+    private static void AssertEveryFileMatches((string Path, Regex Marker, int Calls)[] expected, string message)
     {
         var root = FindRepositoryRoot();
-        var missing = new List<string>();
+        var wrong = new List<string>();
 
-        foreach (var (relative, marker) in expected)
+        foreach (var (relative, marker, calls) in expected)
         {
             var path = Path.Combine(root, relative.Replace('/', Path.DirectorySeparatorChar));
 
             File.Exists(path).ShouldBeTrue($"'{relative}' no longer exists; this gate has gone stale and must be updated.");
 
-            if (!marker.IsMatch(File.ReadAllText(path)))
+            var actual = marker.Matches(File.ReadAllText(path)).Count;
+
+            if (actual != calls)
             {
-                missing.Add(relative);
+                wrong.Add($"{relative} (expected {calls}, found {actual})");
             }
         }
 
-        missing.ShouldBeEmpty(
-            customMessage: $"The following endpoint file(s) no longer call {message}: {string.Join(", ", missing)}");
+        wrong.ShouldBeEmpty(
+            customMessage: $"The following endpoint file(s) no longer call {message} the expected number of " +
+                           "times. A LOWER count means a call site was deleted and that surface is now " +
+                           "ungated — restore it. A HIGHER count means a gated surface was added: confirm it " +
+                           $"is correctly gated, then update the number here. {string.Join(", ", wrong)}");
     }
 
     private static string FindRepositoryRoot()

@@ -234,8 +234,17 @@ BOSLUK_ORANI = 0.15
 # BILEREK genistir -- Abstractions/Core degisiminin hangi kavram sayfasina
 # dusecegi onceden bilinemez; kalan kurallar TAM dosya eslesmesi ister.
 SITE_KURALLARI: tuple[tuple[str, str, tuple[str, ...], str], ...] = (
+    # 🚨 Bu kuralin hedefi ONCE yalniz `http-api.md`ydi ve OLCULDU (2026-09-06,
+    # F-203): son 40 commit'te kural 7 kez tetiklendi, 5'i KIRMIZI dondu ve
+    # hepsi `--site-gerekce-yazildi` ile gecildi. Sebep, hedefin yanlis dosya
+    # olmasiydi. `http-api.md` elle yazilmis bir SEKIL sayfasidir (kimlik
+    # dogrulama, akis, sayfalama, hata gövdesi); bir ucun eklenmesi onu
+    # degistirmez. Operasyon basina dokumantasyon `http-api/` altina URETILIR
+    # ve `.gitignore`dadir -- `git diff` onu hic goremez. Bayatlayabilen ve
+    # IZLENEN tek sey, uretilip commit EDILEN OpenAPI belgesidir; kural artik
+    # once onu kabul eder. `docs/` ile baslayan hedef depo koku'ne goredir.
     ("http-api", r"^src/AgentPrism\.AspNetCore/(Endpoints|OpenAICompat|A2A|McpServer)/",
-     ("http-api.md",), "HTTP yuzeyi degisti"),
+     ("docs/openapi/agentprism.json", "http-api.md"), "HTTP yuzeyi degisti"),
     ("guvenlik-kiraci", r"^src/AgentPrism\.AspNetCore/(Security|Tenancy)/",
      ("getting-started/security.md", "concepts/governance.md"), "guvenlik/kiraci sinirlari degisti"),
     ("arayuz", r"^src/AgentPrism\.UI/frontend/src/(screens|components)/",
@@ -269,7 +278,10 @@ def _kural_eslesmesi(degisen: list[str]) -> list[tuple[str, tuple[str, ...], str
     Dizin hedefi ("concepts/") herhangi bir alt sayfanin degismesiyle karsilanir;
     kalan hedefler TAM dosya adiyla eslesir ve listedeki hedeflerden HERHANGI
     BIRININ degismesi yeterlidir (guvenlik-kiraci kurali iki alternatif sayfa
-    tasir)."""
+    tasir). `docs/` ile baslayan bir hedef site icerik kokune degil DEPO
+    KOKU'ne goredir -- her kullaniciya donuk yuzey bir site sayfasi degildir
+    (F-203: HTTP yuzeyinin bayatlayabilen izlenen ciktisi
+    `docs/openapi/agentprism.json`tir)."""
     degisen_kume = set(degisen)
     sonuc: list[tuple[str, tuple[str, ...], str, bool]] = []
     for ad, desen, hedefler, _neden in SITE_KURALLARI:
@@ -281,7 +293,13 @@ def _kural_eslesmesi(degisen: list[str]) -> list[tuple[str, tuple[str, ...], str
                 y.startswith("docs-site/src/content/docs/concepts/") for y in degisen
             )
         else:
-            tam_hedefler = {f"docs-site/src/content/docs/{h}" for h in hedefler}
+            # `docs/` ile baslayan hedef DEPO KOKU'ne goredir (uretilip
+            # commit edilen OpenAPI belgesi gibi); kalani site icerik
+            # kokune gore cozulur.
+            tam_hedefler = {
+                h if h.startswith("docs/") else f"docs-site/src/content/docs/{h}"
+                for h in hedefler
+            }
             karsilandi = bool(tam_hedefler & degisen_kume)
         sonuc.append((ad, hedefler, vuran[0], karsilandi))
     return sonuc

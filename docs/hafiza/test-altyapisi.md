@@ -158,3 +158,30 @@ tekrarlanmalı — ve `.editorconfig`'in `[tests/**/*.cs]` bölümü (CA1707 alt
 
 Tek basina gecip tam kosumda dusen test AYRI dosyadadir:
 [`test-yalitimi.md`](test-yalitimi.md) (2026-09-04'te butce ve konu icin ayrildi).
+
+- **🚨 VARLIK taramasi kapsam DEGILDIR — cagri sayisini say** (2026-09-06,
+  F-204). `RunAuthorizationCoverageTests` her (dosya, marker) cifti icin
+  `IsMatch` soruyordu; bir dosya ise marker basina COK cagri tasir. Olculdu:
+  `RunEndpoints.cs` **12** `CheckRunResourceAsync` cagrisi tasiyor —
+  on birinin silinmesi kapiyi yesil birakirdi; `OpenAIConversationsEndpoints.cs`
+  uc tane tasiyor, ki o dosya Faz 147 ve 149'un IKISININ de geri donmek
+  zorunda kaldigi dosyadir. Sayim TAM esitliktir, taban degil: taban olsaydi
+  bir ekleme bir silmeyi oder ve net sifirda kapi sessiz gecerdi. Bir guvenlik
+  sinirini degistirmek bilincli olmalidir — sayiyi elle guncellemek o onaydir.
+  **Ders: bir "hâlâ cagriliyor mu" kapisi yazarken once o cagrinin dosyada
+  KAC KEZ gectigini olc; bir'den buyukse `IsMatch` yanlis aractir.**
+
+- **🚨 Bir DEDEKTORU yalniz POZITIF yonde test etmek, onu kor birakir**
+  (2026-09-06, F-206). `denetim-paketi.py`'nin test tiyatrosu tarayicisi
+  `\bShould\b` ariyordu. Bu depo Shouldly kullanir ve her iddia
+  `ShouldBe`/`ShouldContain`/`ShouldNotBeNull` seklindedir — `Should`'dan sonra
+  kelime karakteri geldigi icin `\b` sinir OLUSTURMAZ ve desen hicbirini
+  eslestirmez. Olculdu: `tests/` agacinda **7488** Shouldly cagrisi, **6**
+  `Assert.` cagrisi; yani tarayici pratikte HER yeni testi "iddiasiz aday"
+  sayiyordu. Var olan tek testi (`test_iddiasiz_test_adayini_bulur`) yalniz
+  "iddiasiz test YAKALANIR"i kanitliyordu; "iddiali test YAKALANMAZ" hic
+  denenmemisti ve kusur tam orada yasadi. **Ders: bir tarayici/kapi testi HER
+  ZAMAN iki yonlu yazilir** — eslesmesi gerekeni eslestirdigi KADAR,
+  eslesmemesi gerekeni eslestirmedigi de kanitlanir. Cikis kodunu kirmayan bir
+  dedektorde bu daha da onemlidir: gurultu sessizce normallesir.
+

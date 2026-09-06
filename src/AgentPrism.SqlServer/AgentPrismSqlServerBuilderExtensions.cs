@@ -164,8 +164,12 @@ public static class AgentPrismSqlServerBuilderExtensions
                 provider.GetRequiredService<ITenantContext>(),
                 provider.GetRequiredService<IAuditActorResolver>(),
                 provider.GetRequiredService<ILogger<AuditingAgentDefinitionStore>>())));
-        services.Replace(
-            ServiceDescriptor.Singleton<IAgentSkillStore, SqlAgentSkillStore>());
+        services.Replace(ServiceDescriptor.Singleton<IAgentSkillStore, AuditingAgentSkillStore>(
+            static provider => new AuditingAgentSkillStore(
+                ActivatorUtilities.CreateInstance<SqlAgentSkillStore>(provider),
+                provider.GetRequiredService<IAuditLog>(),
+                provider.GetRequiredService<IAuditActorResolver>(),
+                provider.GetRequiredService<ILogger<AuditingAgentSkillStore>>())));
 
         // Script run grants are also wrapped in the audit-trail decorator:
         // granting permission means granting the right to run code on the server.

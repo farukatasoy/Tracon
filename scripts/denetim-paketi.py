@@ -14,7 +14,14 @@ import subprocess
 import sys
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-ASSERTION = re.compile(r"\b(?:Assert|Should|Verify|Received|HaveDiagnostic|Throws|DoesNotThrow|Equal|True|False|Contains|NotNull)\b")
+# 🚨 `Should\w*`, ciplak `Should` DEGIL. Bu depo Shouldly kullanir ve her
+# iddia `ShouldBe`/`ShouldContain`/`ShouldNotBeNull` seklindedir; `\bShould\b`
+# bunlarin HICBIRINI eslestirmez ("Should"dan sonra kelime karakteri gelir,
+# sinir olusmaz). Olculdu (2026-09-06): `tests/` agacinda 7488 Shouldly
+# cagrisi, 6 `Assert.` cagrisi var -- yani tarayici pratikte HER yeni testi
+# aday sayiyordu. Cikis kodunu kirmadigi icin gurultu olarak yasadi; kirmizi
+# kalan bir dedektor insanlari onu gormezden gelmeye egitir.
+ASSERTION = re.compile(r"\b(?:Assert|Should\w*|Verify|Received|HaveDiagnostic|Throws|DoesNotThrow|Equal|True|False|Contains|NotNull)\b")
 TEST_ATTRIBUTE = re.compile(r"\[[^\]]*(?:Fact|Theory|Test|TestCase)[^\]]*\]")
 TEST_METHOD = re.compile(
     r"^\+\s*(?:public|internal|private|protected)\s+(?:static\s+)?(?:async\s+)?"

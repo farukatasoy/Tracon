@@ -152,7 +152,7 @@ public sealed class ServiceRegistrationSnapshotTests
         "AgentPrism.IAuditActorResolver | Singleton | AgentPrism.AmbientAuditActorResolver",
         "AgentPrism.IContentProtector | Singleton | Instance:AgentPrism.NullContentProtector",
         "AgentPrism.IAgentDefinitionStore | Singleton | Factory",
-        "AgentPrism.IAgentSkillStore | Singleton | AgentPrism.InMemoryAgentSkillStore",
+        "AgentPrism.IAgentSkillStore | Singleton | Factory",
         "AgentPrism.AgentSkillCatalog | Singleton | Factory",
         "AgentPrism.IRunScoreStore | Singleton | AgentPrism.InMemoryRunScoreStore",
         "AgentPrism.IRunStore | Singleton | Factory",

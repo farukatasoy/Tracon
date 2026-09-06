@@ -108,6 +108,17 @@
 > olduğunu kendileri doğruladı. **Kota** sorusu kapandı: dönem kotası tenant
 > ortak bütçesidir ve mevcut `(tenant, agent, dönem)` kapsamı bunu karşılıyor —
 > yapılacak iş yok.
+> **Ek (2026-09-06, kusur turu):** Beş kusur `kusur-giderme` ile faz dışı
+> kapandı: **F-197** · **F-170** · **F-203** · **F-204** · **F-206**
+> (sonuncusu turun kendi kapı koşumunda bulundu). Üçünün ölçümü kaydın
+> yazdığından farklı çıktı ve fark her seferinde kayda işlendi — F-197'nin
+> sınıf taraması kayıtta hiç olmayan bir **sunucu** vakası buldu (ham
+> `{"approvals":null}` → `500`), F-203'ün **öncülü** yanlıştı (hedef dosya
+> gitignore'lu değil) ama çözümü doğruydu, F-204'ün boşluğu kaydın
+> söylediğinden büyüktü (3 değil 12 çağrı). Karar: **K-702**. Kapsam dışı
+> bırakılanlar (kullanıcı kararı): F-198 · F-171 · F-200 · F-180 · F-199 ·
+> F-205.
+>
 > Faz durumu yalnız üretilen [`YOL-HARITASI.md`](YOL-HARITASI.md)'dedir.
 > Bir kusur bu dosyaya geri girmez; `kusur-giderme` kanalına gider. Kapatılmış
 > kararın yeniden açılması kullanıcı kararıdır. Ölçüm bekleyen iddia, kanıt
@@ -254,48 +265,31 @@ değil. F-167'nin dersi geçerlidir: *"SDK maliyeti zaten ödenmiş" bir talep k
 değil, yalnız bir indirimdir.*
 
 
-### F-197 · Generated client's DTO collections default to `null`, not empty
+### F-197 · Üretilen istemcinin koleksiyonları `null` başlıyordu — ✅ KAPANDI (2026-09-06)
 
-**Sorun:** Faz 145's independent audit found this while writing a real-server
-test for the phase's own fix: `AgentPrism.Client`'s NSwag-generated DTOs
-(`AgentRunRequest.Approvals`/`ToolResults`/`AttachmentIds`/`Documents`, and
-likely others across ~250 generated types) default to `= default!` (`null`),
-not an empty collection. Server code that reads them unconditionally
-(`request.Documents.Count`, `AgentEndpoints.cs`) throws
-`NullReferenceException` the moment a caller builds a request with only the
-fields they care about — exactly the ergonomics a typed client exists to
-prevent. Measured (2026-09-05): calling `AgentPrismRunAgentAsync` with only
-`Message` set NREs; every collection has to be explicitly initialized to `[]`
-to avoid it (`tests/AgentPrism.AspNetCore.FunctionalTests/GeneratedClientSseTests.cs`
-works around it this way today).
+**Kapanış:** `kusur-giderme` faz dışı koşuldu. Kayıt tek vakayı anlatıyordu;
+**sınıf taraması ikinci ve daha ağır vakayı buldu** — sunucu.
 
-**Kapsam:** A `nswag-postprocess-client.py` pass that rewrites every
-generated collection-typed property's default from `default!` to an empty
-collection literal (`new List<T>()`/`new Dictionary<K,V>()` as appropriate).
-Scope the fix to properties, not constructor parameters — request DTOs here
-have no constructors NSwag generates arguments for.
+| Yarı | Ölçüm (düzeltme öncesi) | Düzeltme |
+|---|---|---|
+| İstemci | 50 non-nullable koleksiyon property'si `= default!`; yalnız `Message` ile çağrı `500` | `nswag-postprocess-client.py` **beşinci geçişi**; tam yeniden üretim, delta 100 satır (50 çift), başka kayma yok |
+| **Sunucu** (kayıtta yoktu) | Ham `{"approvals":null}` → `500` NRE; `{"documents":null}` → `200` ama SSE gövdesinde NRE | `RequestBodyBinding` gövde okumasına `RespectNullableAnnotations` → `400` `ProblemDetails` |
 
-**Değer:** Removes a silent trap for every consumer of the typed client, not
-just the SSE-returning operations Faz 145 touched — `ClientCoverageTests`
-only proves a method exists, never that a minimal call succeeds, so this
-class of defect is invisible until a real caller hits it in production.
+**Ayırt edici iki tarafta da `nullable` annotation'ıdır.** 56 nullable koleksiyon
+property'si `default!` KALIR — `?` işareti "verilmedi" ile "boş verildi"yi
+ayırdığını söyleyen sözleşmedir ve silinmesi gerçek bir ayrımı siler.
 
-**Mercek:** 1, 2.
+**Kapı:** `GeneratedClientCollectionDefaultTests` (YENİ) — düzeltmeden önce iki
+testi de kırmızıydı (`AgentEndpoints.cs:698` NRE, ölçüldü), sonra yeşil. Dört
+ham gövde `400`, atlanan koleksiyon hâlâ `200`, nullable property'ye açık `null`
+hâlâ `200`. `nswag_postprocess_client_test.py`'a beş birim testi eklendi
+(nullable'ın korunması ve iç içe generic'in REDDİ dahil).
 
-**Hazırlık:** `nswag-postprocess-client.py` already has three precedented
-rewrite passes over the same generated file (enum converters, colliding
-any-types) plus the fourth this phase added (SSE string responses) — the
-same script, same regeneration pipeline.
+**Karar:** K-702. **Tuzak:** `docs/hafiza/nswag-istemci-uretimi.md` ·
+`docs/hafiza/aspnetcore-json.md`.
 
-**Maliyet:** Ölçülmedi. No schema change, no new package; purely a
-generated-file post-process rewrite plus regression coverage across the
-generated DTOs that carry a collection property.
-
-**Risk:** A collection property that legitimately needs to stay `null` to
-distinguish "not provided" from "provided empty" (a `PATCH`-style partial
-update, if one is ever added) would need an explicit exemption — none exists
-in the API today (every collection here is read unconditionally), but the
-fix should check for one before rewriting blindly.
+**Kapılar:** fonksiyonel paket 922/922 · `python3 -m unittest discover -s scripts`
+232/232.
 
 ### F-198 · The two dual JSON/SSE client operations never call the streaming shape
 
@@ -443,8 +437,9 @@ dönüşebilmeleri için burada duruyor.
 | **F-179** | Ön koşulu yok: `run` satırı sağlayıcıyı saklamıyor, kayan latency penceresi ölçülmüyor | [Faz 132](arsiv/fazlar/132-UYGULANAN-FIYAT-SNAPSHOTU.md) kapanır **ve** F-178 attempt süresini ölçmeye başlar **ve** gerçek üretim trafiği oluşur |
 | **F-199** | Kota eşiği claim edildikten SONRA webhook/akış yayını başarısız olursa o eşik dönem sonuna kadar kalıcı kaybolur — düşük risk, ayrı bir kalem | Kota webhook/notice teslimi için bir retry/backoff mekanizması istenirse ([Faz 146](arsiv/fazlar/146-CALISTIRMAYA-BAGLI-KOTA-ESIGI.md) denetim bulgusu) |
 | **F-200** | "Komşu kullanıcı kota notice'ı almaz" garantisi yapısaldır (`RunEventWriter`'ın run başına özel `Guid`'i) ama özel bir çok-kullanıcılı regresyon testi yok | Gelecekte `RunEventWriter`/`RunRecordingAgent`'ın run-izolasyonu yeniden düzenlenirse ([Faz 146](arsiv/fazlar/146-CALISTIRMAYA-BAGLI-KOTA-ESIGI.md) denetim bulgusu) |
-| **F-203** | `dokuman-bakim.py --site-denetle`'nin `http-api` kuralı YANLIŞ NEGATİF üretiyor: hedefi (`docs-site/src/content/docs/http-api/*.md`) üretilen ve `.gitignore`'da olan bir dosyadır, `git diff` onu asla göremez — kural HTTP yüzeyi her değiştiğinde kırmızı olur. Hedef `docs/openapi/agentprism.json` (izlenen, üretilen, commit'lenen) olmalı | Küçük bir `dokuman-bakim.py` düzeltmesi; bir doküman/kapı fazı açıldığında ([Faz 148](arsiv/fazlar/148-OTURUM-SAHIPLIGININ-KALICILIGI.md) devir notu, [Faz 149](arsiv/fazlar/149-SAHIPSIZ-OTURUMUN-KATI-REDDI.md) da düzeltmedi) |
-| **F-204** | `RunAuthorizationCoverageTests`'in taraması dosya seviyesindedir: `OpenAIConversationsEndpoints.cs` üç `CheckSessionAsync` çağrısı taşır ve üçünden ikisi silinse tarama yeşil kalır. Sınıfın `WorkflowEndpoints` için kurduğu "aynı dosya iki marker" çözümü var ama çağrı SAYISI için bir mekanizma yok | Taramanın yapısal sınırı; bir kapı fazı bunu ele alırsa ([Faz 149](arsiv/fazlar/149-SAHIPSIZ-OTURUMUN-KATI-REDDI.md) denetim bulgusu) |
+| **F-203** | ✅ **KAPANDI (2026-09-06)** — `kusur-giderme` faz dışı. 🚨 Kaydın öncülü YANLIŞTI: hedef `docs-site/src/content/docs/http-api.md` **izleniyor** ve `.gitignore`'da değil; gitignore'lu olan `http-api/` **dizinidir**. Gerçek kusur farklıydı ve tarihe karşı ölçüldü: o sayfa API'nin elle yazılmış **şeklidir** (kimlik doğrulama, akış, sayfalama, hata gövdesi) ve bir uç eklenmesi onu değiştirmez, yani kural son 40 commit'te **7 kez tetiklendi, 5'i kırmızı** döndü ve hepsi `--site-gerekce-yazildi` ile geçildi — sürekli kırmızı bir kapı insanları onu susturmaya eğitir. Kaydın önerdiği **çözüm** yine de doğruydu: `docs/openapi/agentprism.json` (üretilen ama izlenen ve commit edilen) alternatif hedef olarak eklendi ve `docs/` ile başlayan hedef artık depo köküne göre çözülür. Aynı tarihte yeniden ölçüldü: **5 kırmızı → 3**. Kalan üçü uç dosyasının değişip HTTP yüzeyinin değişmediği commit'lerdir (XML yorum düzeltmesi, MAF yükseltmesi) — gerekçe yazma yolu tam olarak onlar içindir. Kapı: `dokuman_bakim_test.py`'a dört test (depo kökü hedefinin site kökü altında ARANMADIĞI dahil). Tuzak: `docs/hafiza/dokumantasyon.md` |
+| **F-204** | ✅ **KAPANDI (2026-09-06)** — `kusur-giderme` faz dışı. Boşluk kaydın söylediğinden **büyüktü**: kayıt yalnız `OpenAIConversationsEndpoints.cs`'in üç çağrısını anıyordu, ölçüm `RunEndpoints.cs`'in **12** `CheckRunResourceAsync` çağrısı taşıdığını buldu — on birinin silinmesi kapıyı yeşil bırakırdı. Kapı varlıktan (`IsMatch`) **tam sayı eşitliğine** çevrildi (kullanıcı kararı); taban değil, çünkü taban bir eklemenin bir silmeyi ödemesine ve net sıfırda sessiz geçmesine izin verirdi. 22 (dosya, marker) çiftinin sayısı ölçülüp yazıldı. Düzeltmeden **önce** kırmızı olduğu kanıtlandı: bir `CheckSessionAsync` çağrısı silinince *"expected 3, found 2"* — eski kapı bunu göremiyordu. Taramanın kendi regresyon testi de sayma davranışını kanıtlar. Tuzak: `docs/hafiza/test-altyapisi.md` |
+| **F-206** | ✅ **KAPANDI (2026-09-06)** — `kusur-giderme` faz dışı. Kapanış turunun kendi kapı koşumunda bulundu: `denetim-paketi.py:17`'nin test tiyatrosu tarayıcısı `\bShould\b` arıyordu ve bu depodaki **7488** Shouldly iddiasının **hiçbirini** eşleştirmiyordu (`Should`'dan sonra kelime karakteri gelir, `\b` sınır oluşturmaz); `Assert.` yalnız **6** yerde geçiyor. Yani tarayıcı pratikte her yeni testi aday sayıyordu — bu turda 5 yanlış pozitif, düzeltmeden sonra **0**. Çıkış kodunu kırmadığı için gürültü olarak yaşamıştı; F-203'ün sınıfı. Kök sebep testtedir: var olan tek test yalnız POZİTİF yönü ("iddiasız test yakalanır") kanıtlıyordu. Düzeltme `Should\w*` + **iki yönlü** üç test (Shouldly tanınır · altı biçim ayrı ayrı · gerçekten iddiasız test HÂLÂ aday). Eski regex'e karşı kırmızı olduğu ölçüldü. Tuzak: `docs/hafiza/test-altyapisi.md` |
 | **F-205** | `/v1/conversations/{id}` varlık asimetrisi: kullanılmamış kimlik `200`, reddedilen kimlik `404`. Katı modda bir çağıran hangi id'lerin sahipsiz SATIR olduğunu sayabilir — erişim kapalı, yalnız varlık görünür. `/api/sessions/{id}` bu sızıntıyı taşımaz | Davranış ucun rezervasyon semantiğinden miras (Faz 4); kapatmak OpenAI uyumluluğunu bozar. Tüketici varlık gizliliği talep ederse ([Faz 149](arsiv/fazlar/149-SAHIPSIZ-OTURUMUN-KATI-REDDI.md) denetim bulgusu) |
 
 
@@ -549,36 +544,34 @@ Bu aday o case'leri silmeyi değil, otomatikleştirilebilir kısmı ayırmayı �
 
 
 
-### F-170 · Store audit kapsamının tamamlanması
+### F-170 · Store audit kapsamının tamamlanması — ✅ KAPANDI (2026-09-06)
 
-**Sorun:** `IAgentSkillStore`'un hiçbir `Auditing*` decorator'ı yok — skill
-kaydı ve silme denetim izine hiç yazmıyor. Kardeşleri (`IAgentDefinitionStore`,
-`ISkillScriptGrantStore`) yazıyor. Faz 121'in bağımsız denetimi buldu ve 🟢
-olarak devretti.
+**Kapanış:** `kusur-giderme` faz dışı koşuldu. Kaydın istediği ölçüm yapıldı:
+28 store arayüzü, 8 `Auditing*` dekoratörü, 12 endpoint dosyası `AuditRecorder`'ı
+doğrudan çağırıyor. Gerçek boşluk **birdi** ve kaydın işaret ettiği yerdeydi:
+`IAgentSkillStore`. `PUT`/`DELETE /api/skills/{name}` denetim izine hiçbir şey
+yazmıyordu — oysa kardeşi `ISkillScriptGrantStore` yazıyordu, yani iz bir
+script'i kimin **çalıştırmaya izin verdiğini** kaydediyor, kimin **yazdığını**
+kaydetmiyordu.
 
-**Kapsam:** Hangi store'ların audit decorator'ı olduğunu ve olması gerektiğini
-ölçmek, boşlukları kapatmak. Tek vaka değil sınıf: `Auditing*` deseninin
-kapsadığı ve kapsamadığı store'lar bir tabloya çıkarılır.
+**Düzeltme:** `AuditingAgentSkillStore` (`skill.create` · `skill.update` ·
+`skill.delete`). Kiracı, skill'in **kendisinden** alınır, `ITenantContext`'ten
+değil — bu arayüz kiracıyı açık parametre alır. `AuditRecorder`'ın yut-ve-logla
+yolunu kullanır: skill sürümlü ve geri alınabilir yapılandırmadır, script
+**izni** gibi geri dönüşsüz değildir.
 
-**Değer:** Denetim izi eksiksiz olmayan bir kayıt, compliance için denetim izi
-olmamasıyla aynı yerdedir — kısmi kapsam yanlış güven verir.
+**Dört kayıt yeri:** Core + PostgreSql + SqlServer + Sqlite. Bir saplayıcının
+`services.Replace`'i dekoratörü sessizce düşürür.
 
-**Mercek:** 3, 6.
+**Kapı:** `AuditCoverageTests` (YENİ) — gerçek container'dan çözüp
+`IAuditDecorated` arar. Düzeltmeden **önce** kırmızıydı (ölçüldü: *"do not
+resolve to an IAuditDecorated decorator: IAgentSkillStore"*). Asıl değeri
+üçüncü testidir: her `I*Store` ya denetlenen ya da **gerekçesiyle** hariç
+listesinde olmalı — yazıldığı gün sınıflandırılmamış iki store buldu
+(`IConversationBranchStore` → endpoint-audited, `IVoiceSessionStore` →
+machine-written).
 
-**Hazırlık:** Faz 121 denetim bulgusu #2. Ölçülmedi — hangi store'ların
-decorator taşıdığı sayılmalı.
-
-**Maliyet:** Orta; runtime davranış eklentisi, doküman işi değil.
-
-**Risk:** Audit yazımının kendisi bir hata yolu üretir — `AuditRecorder`'ın
-mevcut "audit yazamazsa akış durmaz" sözleşmesi korunmalıdır.
-
-**Bağımlılık:** Yok.
-
-**Ekosistem:** 2026-08-28 — iç kalite kaydı; dış ekosistem iddiası yok.
-
-**Karşı görüş:** Kapsam bilinçli olabilir — skill kaydı düşük riskli sayılmış
-olabilir. Aday, önce **ölçmeyi** öneriyor; boşluk kasıtlıysa gerekçesi yazılır.
+**Tuzak:** `docs/hafiza/aspnetcore-di.md`.
 
 ### F-171 · Sevk edilen metindeki ölçülmüş sayılar için kapı
 

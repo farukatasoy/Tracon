@@ -145,8 +145,12 @@ public static class AgentPrismSqliteBuilderExtensions
                 provider.GetRequiredService<ITenantContext>(),
                 provider.GetRequiredService<IAuditActorResolver>(),
                 provider.GetRequiredService<ILogger<AuditingAgentDefinitionStore>>())));
-        services.Replace(
-            ServiceDescriptor.Singleton<IAgentSkillStore, SqlAgentSkillStore>());
+        services.Replace(ServiceDescriptor.Singleton<IAgentSkillStore, AuditingAgentSkillStore>(
+            static provider => new AuditingAgentSkillStore(
+                ActivatorUtilities.CreateInstance<SqlAgentSkillStore>(provider),
+                provider.GetRequiredService<IAuditLog>(),
+                provider.GetRequiredService<IAuditActorResolver>(),
+                provider.GetRequiredService<ILogger<AuditingAgentSkillStore>>())));
 
         services.Replace(ServiceDescriptor.Singleton<ISkillScriptGrantStore, AuditingSkillScriptGrantStore>(
             static provider => new AuditingSkillScriptGrantStore(

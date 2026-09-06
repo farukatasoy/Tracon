@@ -14541,7 +14541,7 @@ namespace AgentPrism.Client.Generated
         /// </summary>
 
         [System.Text.Json.Serialization.JsonPropertyName("toolNames")]
-        public System.Collections.Generic.ICollection<string> ToolNames { get; set; } = default!;
+        public System.Collections.Generic.ICollection<string> ToolNames { get; set; } = new System.Collections.Generic.List<string>();
 
         /// <summary>
         /// Gets the names of the skills this agent may load at run time. Every name must
@@ -14549,14 +14549,14 @@ namespace AgentPrism.Client.Generated
         /// </summary>
 
         [System.Text.Json.Serialization.JsonPropertyName("skillNames")]
-        public System.Collections.Generic.ICollection<string> SkillNames { get; set; } = default!;
+        public System.Collections.Generic.ICollection<string> SkillNames { get; set; } = new System.Collections.Generic.List<string>();
 
         /// <summary>
         /// Gets the names of the other agents this agent may call.
         /// </summary>
 
         [System.Text.Json.Serialization.JsonPropertyName("callableAgentNames")]
-        public System.Collections.Generic.ICollection<string> CallableAgentNames { get; set; } = default!;
+        public System.Collections.Generic.ICollection<string> CallableAgentNames { get; set; } = new System.Collections.Generic.List<string>();
 
         [System.Text.Json.Serialization.JsonPropertyName("subAgents")]
         public SubAgentSettings? SubAgents { get; set; } = default!;
@@ -14568,7 +14568,7 @@ namespace AgentPrism.Client.Generated
         /// </summary>
 
         [System.Text.Json.Serialization.JsonPropertyName("mcpResourceUris")]
-        public System.Collections.Generic.ICollection<string> McpResourceUris { get; set; } = default!;
+        public System.Collections.Generic.ICollection<string> McpResourceUris { get; set; } = new System.Collections.Generic.List<string>();
 
         [System.Text.Json.Serialization.JsonPropertyName("harness")]
         public HarnessSettings? Harness { get; set; } = default!;
@@ -14621,7 +14621,7 @@ namespace AgentPrism.Client.Generated
         /// </summary>
 
         [System.Text.Json.Serialization.JsonPropertyName("parameters")]
-        public System.Collections.Generic.ICollection<AgentParameter> Parameters { get; set; } = default!;
+        public System.Collections.Generic.ICollection<AgentParameter> Parameters { get; set; } = new System.Collections.Generic.List<AgentParameter>();
 
         /// <summary>
         /// Gets the name of another definition whose `Instructions` text is
@@ -14706,21 +14706,21 @@ namespace AgentPrism.Client.Generated
         /// </summary>
 
         [System.Text.Json.Serialization.JsonPropertyName("toolNames")]
-        public System.Collections.Generic.ICollection<string> ToolNames { get; set; } = default!;
+        public System.Collections.Generic.ICollection<string> ToolNames { get; set; } = new System.Collections.Generic.List<string>();
 
         /// <summary>
         /// Names of skills that can be loaded at runtime.
         /// </summary>
 
         [System.Text.Json.Serialization.JsonPropertyName("skillNames")]
-        public System.Collections.Generic.ICollection<string> SkillNames { get; set; } = default!;
+        public System.Collections.Generic.ICollection<string> SkillNames { get; set; } = new System.Collections.Generic.List<string>();
 
         /// <summary>
         /// Names of other agents this agent may call.
         /// </summary>
 
         [System.Text.Json.Serialization.JsonPropertyName("callableAgentNames")]
-        public System.Collections.Generic.ICollection<string> CallableAgentNames { get; set; } = default!;
+        public System.Collections.Generic.ICollection<string> CallableAgentNames { get; set; } = new System.Collections.Generic.List<string>();
 
         [System.Text.Json.Serialization.JsonPropertyName("harness")]
         public HarnessSettings? Harness { get; set; } = default!;
@@ -14736,7 +14736,7 @@ namespace AgentPrism.Client.Generated
         /// </summary>
 
         [System.Text.Json.Serialization.JsonPropertyName("parameters")]
-        public System.Collections.Generic.ICollection<AgentParameter> Parameters { get; set; } = default!;
+        public System.Collections.Generic.ICollection<AgentParameter> Parameters { get; set; } = new System.Collections.Generic.List<AgentParameter>();
 
         /// <summary>
         /// The referenced shared instructions block. See `AgentDefinition.SharedInstructionsName`.
@@ -14806,21 +14806,21 @@ namespace AgentPrism.Client.Generated
         /// </summary>
 
         [System.Text.Json.Serialization.JsonPropertyName("toolNames")]
-        public System.Collections.Generic.ICollection<string> ToolNames { get; set; } = default!;
+        public System.Collections.Generic.ICollection<string> ToolNames { get; set; } = new System.Collections.Generic.List<string>();
 
         /// <summary>
         /// Gets the names of the skills this agent may load at run time.
         /// </summary>
 
         [System.Text.Json.Serialization.JsonPropertyName("skillNames")]
-        public System.Collections.Generic.ICollection<string> SkillNames { get; set; } = default!;
+        public System.Collections.Generic.ICollection<string> SkillNames { get; set; } = new System.Collections.Generic.List<string>();
 
         /// <summary>
         /// Gets the names of the other agents this agent may call.
         /// </summary>
 
         [System.Text.Json.Serialization.JsonPropertyName("callableAgentNames")]
-        public System.Collections.Generic.ICollection<string> CallableAgentNames { get; set; } = default!;
+        public System.Collections.Generic.ICollection<string> CallableAgentNames { get; set; } = new System.Collections.Generic.List<string>();
 
         /// <summary>
         /// Gets whether the harness capabilities are enabled.
@@ -15314,21 +15314,21 @@ namespace AgentPrism.Client.Generated
         /// </summary>
 
         [System.Text.Json.Serialization.JsonPropertyName("approvals")]
-        public System.Collections.Generic.ICollection<ToolApprovalDecision> Approvals { get; set; } = default!;
+        public System.Collections.Generic.ICollection<ToolApprovalDecision> Approvals { get; set; } = new System.Collections.Generic.List<ToolApprovalDecision>();
 
         /// <summary>
         /// Results of client-side tool calls.
         /// </summary>
 
         [System.Text.Json.Serialization.JsonPropertyName("toolResults")]
-        public System.Collections.Generic.ICollection<ClientToolResult> ToolResults { get; set; } = default!;
+        public System.Collections.Generic.ICollection<ClientToolResult> ToolResults { get; set; } = new System.Collections.Generic.List<ClientToolResult>();
 
         /// <summary>
         /// Identifiers of attachments previously uploaded via `POST /api/attachments`.
         /// </summary>
 
         [System.Text.Json.Serialization.JsonPropertyName("attachmentIds")]
-        public System.Collections.Generic.ICollection<System.Guid> AttachmentIds { get; set; } = default!;
+        public System.Collections.Generic.ICollection<System.Guid> AttachmentIds { get; set; } = new System.Collections.Generic.List<System.Guid>();
 
         /// <summary>
         /// Values for the target agent's IReadOnlyList&amp;lt;AgentParameter&amp;gt; AgentDefinition.Parameters schema.
@@ -15342,7 +15342,7 @@ namespace AgentPrism.Client.Generated
         /// </summary>
 
         [System.Text.Json.Serialization.JsonPropertyName("documents")]
-        public System.Collections.Generic.ICollection<AgentRunDocument> Documents { get; set; } = default!;
+        public System.Collections.Generic.ICollection<AgentRunDocument> Documents { get; set; } = new System.Collections.Generic.List<AgentRunDocument>();
 
     }
 
@@ -15434,14 +15434,14 @@ namespace AgentPrism.Client.Generated
         /// </summary>
 
         [System.Text.Json.Serialization.JsonPropertyName("resources")]
-        public System.Collections.Generic.ICollection<AgentSkillResourceDefinition> Resources { get; set; } = default!;
+        public System.Collections.Generic.ICollection<AgentSkillResourceDefinition> Resources { get; set; } = new System.Collections.Generic.List<AgentSkillResourceDefinition>();
 
         /// <summary>
         /// The skill's scripts stored in the database.
         /// </summary>
 
         [System.Text.Json.Serialization.JsonPropertyName("scripts")]
-        public System.Collections.Generic.ICollection<AgentSkillScriptDefinition> Scripts { get; set; } = default!;
+        public System.Collections.Generic.ICollection<AgentSkillScriptDefinition> Scripts { get; set; } = new System.Collections.Generic.List<AgentSkillScriptDefinition>();
 
         /// <summary>
         /// The skill's creation time.
@@ -15526,14 +15526,14 @@ namespace AgentPrism.Client.Generated
         /// </summary>
 
         [System.Text.Json.Serialization.JsonPropertyName("resources")]
-        public System.Collections.Generic.ICollection<AgentSkillResourceDefinition> Resources { get; set; } = default!;
+        public System.Collections.Generic.ICollection<AgentSkillResourceDefinition> Resources { get; set; } = new System.Collections.Generic.List<AgentSkillResourceDefinition>();
 
         /// <summary>
         /// Skill scripts.
         /// </summary>
 
         [System.Text.Json.Serialization.JsonPropertyName("scripts")]
-        public System.Collections.Generic.ICollection<AgentSkillScriptDefinition> Scripts { get; set; } = default!;
+        public System.Collections.Generic.ICollection<AgentSkillScriptDefinition> Scripts { get; set; } = new System.Collections.Generic.List<AgentSkillScriptDefinition>();
 
     }
 
@@ -16890,7 +16890,7 @@ namespace AgentPrism.Client.Generated
         /// </summary>
 
         [System.Text.Json.Serialization.JsonPropertyName("rampSteps")]
-        public System.Collections.Generic.ICollection<int> RampSteps { get; set; } = default!;
+        public System.Collections.Generic.ICollection<int> RampSteps { get; set; } = new System.Collections.Generic.List<int>();
 
         /// <summary>
         /// Gets the minimum time between steps.
@@ -17332,7 +17332,7 @@ namespace AgentPrism.Client.Generated
         /// </summary>
 
         [System.Text.Json.Serialization.JsonPropertyName("expectedTools")]
-        public System.Collections.Generic.ICollection<string> ExpectedTools { get; set; } = default!;
+        public System.Collections.Generic.ICollection<string> ExpectedTools { get; set; } = new System.Collections.Generic.List<string>();
 
         /// <summary>
         /// Text given to the model as extra context.
@@ -17393,7 +17393,7 @@ namespace AgentPrism.Client.Generated
         /// </summary>
 
         [System.Text.Json.Serialization.JsonPropertyName("expectedTools")]
-        public System.Collections.Generic.ICollection<string> ExpectedTools { get; set; } = default!;
+        public System.Collections.Generic.ICollection<string> ExpectedTools { get; set; } = new System.Collections.Generic.List<string>();
 
         /// <summary>
         /// Text to give the model as extra context.
@@ -19061,14 +19061,14 @@ namespace AgentPrism.Client.Generated
         /// </summary>
 
         [System.Text.Json.Serialization.JsonPropertyName("scores")]
-        public System.Collections.Generic.ICollection<RunScore> Scores { get; set; } = default!;
+        public System.Collections.Generic.ICollection<RunScore> Scores { get; set; } = new System.Collections.Generic.List<RunScore>();
 
         /// <summary>
         /// The normalized failures reported by judges.
         /// </summary>
 
         [System.Text.Json.Serialization.JsonPropertyName("failures")]
-        public System.Collections.Generic.ICollection<JudgeFailure> Failures { get; set; } = default!;
+        public System.Collections.Generic.ICollection<JudgeFailure> Failures { get; set; } = new System.Collections.Generic.List<JudgeFailure>();
 
     }
 
@@ -19208,7 +19208,7 @@ namespace AgentPrism.Client.Generated
         /// </summary>
 
         [System.Text.Json.Serialization.JsonPropertyName("arguments")]
-        public System.Collections.Generic.ICollection<McpPromptArgumentSummary> Arguments { get; set; } = default!;
+        public System.Collections.Generic.ICollection<McpPromptArgumentSummary> Arguments { get; set; } = new System.Collections.Generic.List<McpPromptArgumentSummary>();
 
     }
 
@@ -19378,7 +19378,7 @@ namespace AgentPrism.Client.Generated
         /// </summary>
 
         [System.Text.Json.Serialization.JsonPropertyName("headers")]
-        public System.Collections.Generic.IDictionary<string, string> Headers { get; set; } = default!;
+        public System.Collections.Generic.IDictionary<string, string> Headers { get; set; } = new System.Collections.Generic.Dictionary<string, string>();
 
         /// <summary>
         /// Whether the server is enabled. Its tools are not discovered while disabled.
@@ -19680,7 +19680,7 @@ namespace AgentPrism.Client.Generated
         /// </summary>
 
         [System.Text.Json.Serialization.JsonPropertyName("fallbacks")]
-        public System.Collections.Generic.ICollection<ModelFallback> Fallbacks { get; set; } = default!;
+        public System.Collections.Generic.ICollection<ModelFallback> Fallbacks { get; set; } = new System.Collections.Generic.List<ModelFallback>();
 
         [System.Text.Json.Serialization.JsonPropertyName("responseCache")]
         public ResponseCacheSettings? ResponseCache { get; set; } = default!;
@@ -19828,7 +19828,7 @@ namespace AgentPrism.Client.Generated
         /// </summary>
 
         [System.Text.Json.Serialization.JsonPropertyName("models")]
-        public System.Collections.Generic.ICollection<ModelDescriptor> Models { get; set; } = default!;
+        public System.Collections.Generic.ICollection<ModelDescriptor> Models { get; set; } = new System.Collections.Generic.List<ModelDescriptor>();
 
         /// <summary>
         /// The provider's last known health status.
@@ -19887,7 +19887,7 @@ namespace AgentPrism.Client.Generated
         /// </summary>
 
         [System.Text.Json.Serialization.JsonPropertyName("models")]
-        public System.Collections.Generic.ICollection<string> Models { get; set; } = default!;
+        public System.Collections.Generic.ICollection<string> Models { get; set; } = new System.Collections.Generic.List<string>();
 
     }
 
@@ -20870,7 +20870,7 @@ namespace AgentPrism.Client.Generated
         /// </summary>
 
         [System.Text.Json.Serialization.JsonPropertyName("scores")]
-        public System.Collections.Generic.ICollection<RunScore> Scores { get; set; } = default!;
+        public System.Collections.Generic.ICollection<RunScore> Scores { get; set; } = new System.Collections.Generic.List<RunScore>();
 
     }
 
@@ -21134,7 +21134,7 @@ namespace AgentPrism.Client.Generated
         /// </summary>
 
         [System.Text.Json.Serialization.JsonPropertyName("topClusters")]
-        public System.Collections.Generic.ICollection<RunErrorCluster> TopClusters { get; set; } = default!;
+        public System.Collections.Generic.ICollection<RunErrorCluster> TopClusters { get; set; } = new System.Collections.Generic.List<RunErrorCluster>();
 
     }
 
@@ -21813,7 +21813,7 @@ namespace AgentPrism.Client.Generated
         /// </summary>
 
         [System.Text.Json.Serialization.JsonPropertyName("byAgent")]
-        public System.Collections.Generic.ICollection<RunAgentStatistics> ByAgent { get; set; } = default!;
+        public System.Collections.Generic.ICollection<RunAgentStatistics> ByAgent { get; set; } = new System.Collections.Generic.List<RunAgentStatistics>();
 
         /// <summary>
         /// The breakdown by model. Runs with an unknown model name do not appear
@@ -21821,14 +21821,14 @@ namespace AgentPrism.Client.Generated
         /// </summary>
 
         [System.Text.Json.Serialization.JsonPropertyName("byModel")]
-        public System.Collections.Generic.ICollection<RunModelStatistics> ByModel { get; set; } = default!;
+        public System.Collections.Generic.ICollection<RunModelStatistics> ByModel { get; set; } = new System.Collections.Generic.List<RunModelStatistics>();
 
         /// <summary>
         /// The breakdown by definition version. Runs with an unknown version do not appear in this list.
         /// </summary>
 
         [System.Text.Json.Serialization.JsonPropertyName("byVersion")]
-        public System.Collections.Generic.ICollection<RunVersionStatistics> ByVersion { get; set; } = default!;
+        public System.Collections.Generic.ICollection<RunVersionStatistics> ByVersion { get; set; } = new System.Collections.Generic.List<RunVersionStatistics>();
 
         /// <summary>
         /// The breakdown by user. Runs that carry no user identity do not appear
@@ -21836,7 +21836,7 @@ namespace AgentPrism.Client.Generated
         /// </summary>
 
         [System.Text.Json.Serialization.JsonPropertyName("byUser")]
-        public System.Collections.Generic.ICollection<RunUserStatistics> ByUser { get; set; } = default!;
+        public System.Collections.Generic.ICollection<RunUserStatistics> ByUser { get; set; } = new System.Collections.Generic.List<RunUserStatistics>();
 
         /// <summary>
         /// The breakdown by label. One entry per distinct key/value pair, so a run
@@ -21844,7 +21844,7 @@ namespace AgentPrism.Client.Generated
         /// </summary>
 
         [System.Text.Json.Serialization.JsonPropertyName("byLabel")]
-        public System.Collections.Generic.ICollection<RunLabelStatistics> ByLabel { get; set; } = default!;
+        public System.Collections.Generic.ICollection<RunLabelStatistics> ByLabel { get; set; } = new System.Collections.Generic.List<RunLabelStatistics>();
 
         /// <summary>
         /// The breakdown by error class. Only runs that ended in an error are
@@ -21853,7 +21853,7 @@ namespace AgentPrism.Client.Generated
         /// </summary>
 
         [System.Text.Json.Serialization.JsonPropertyName("byErrorClass")]
-        public System.Collections.Generic.ICollection<RunErrorStatistics> ByErrorClass { get; set; } = default!;
+        public System.Collections.Generic.ICollection<RunErrorStatistics> ByErrorClass { get; set; } = new System.Collections.Generic.List<RunErrorStatistics>();
 
         /// <summary>
         /// The total cost. If a model has undefined pricing, that model's run
@@ -21992,7 +21992,7 @@ namespace AgentPrism.Client.Generated
         /// </summary>
 
         [System.Text.Json.Serialization.JsonPropertyName("spans")]
-        public System.Collections.Generic.ICollection<TraceSpan> Spans { get; set; } = default!;
+        public System.Collections.Generic.ICollection<TraceSpan> Spans { get; set; } = new System.Collections.Generic.List<TraceSpan>();
 
     }
 
@@ -23058,7 +23058,7 @@ namespace AgentPrism.Client.Generated
         /// </summary>
 
         [System.Text.Json.Serialization.JsonPropertyName("argumentConditions")]
-        public System.Collections.Generic.ICollection<ToolArgumentCondition> ArgumentConditions { get; set; } = default!;
+        public System.Collections.Generic.ICollection<ToolArgumentCondition> ArgumentConditions { get; set; } = new System.Collections.Generic.List<ToolArgumentCondition>();
 
         /// <summary>
         /// Gets who created the rule, or `null` when there is no authentication.
@@ -23102,7 +23102,7 @@ namespace AgentPrism.Client.Generated
         /// </summary>
 
         [System.Text.Json.Serialization.JsonPropertyName("argumentConditions")]
-        public System.Collections.Generic.ICollection<ToolArgumentCondition> ArgumentConditions { get; set; } = default!;
+        public System.Collections.Generic.ICollection<ToolArgumentCondition> ArgumentConditions { get; set; } = new System.Collections.Generic.List<ToolArgumentCondition>();
 
     }
 
@@ -23702,7 +23702,7 @@ namespace AgentPrism.Client.Generated
         /// </summary>
 
         [System.Text.Json.Serialization.JsonPropertyName("attributes")]
-        public System.Collections.Generic.IDictionary<string, string> Attributes { get; set; } = default!;
+        public System.Collections.Generic.IDictionary<string, string> Attributes { get; set; } = new System.Collections.Generic.Dictionary<string, string>();
 
     }
 
@@ -23962,7 +23962,7 @@ namespace AgentPrism.Client.Generated
         /// </summary>
 
         [System.Text.Json.Serialization.JsonPropertyName("attributes")]
-        public System.Collections.Generic.IDictionary<string, string> Attributes { get; set; } = default!;
+        public System.Collections.Generic.IDictionary<string, string> Attributes { get; set; } = new System.Collections.Generic.Dictionary<string, string>();
 
     }
 
@@ -24328,7 +24328,7 @@ namespace AgentPrism.Client.Generated
         /// </summary>
 
         [System.Text.Json.Serialization.JsonPropertyName("headers")]
-        public System.Collections.Generic.IDictionary<string, string> Headers { get; set; } = default!;
+        public System.Collections.Generic.IDictionary<string, string> Headers { get; set; } = new System.Collections.Generic.Dictionary<string, string>();
 
         /// <summary>
         /// Whether the subscription is enabled.
@@ -24516,7 +24516,7 @@ namespace AgentPrism.Client.Generated
         /// </summary>
 
         [System.Text.Json.Serialization.JsonPropertyName("agentNames")]
-        public System.Collections.Generic.ICollection<string> AgentNames { get; set; } = default!;
+        public System.Collections.Generic.ICollection<string> AgentNames { get; set; } = new System.Collections.Generic.List<string>();
 
         /// <summary>
         /// Gets the manager agent's name. Required for
@@ -24532,7 +24532,7 @@ namespace AgentPrism.Client.Generated
         /// </summary>
 
         [System.Text.Json.Serialization.JsonPropertyName("nodes")]
-        public System.Collections.Generic.ICollection<WorkflowNodeReference> Nodes { get; set; } = default!;
+        public System.Collections.Generic.ICollection<WorkflowNodeReference> Nodes { get; set; } = new System.Collections.Generic.List<WorkflowNodeReference>();
 
         /// <summary>
         /// Gets the maximum number of turns. The only guard against an infinite
@@ -24626,7 +24626,7 @@ namespace AgentPrism.Client.Generated
         /// </summary>
 
         [System.Text.Json.Serialization.JsonPropertyName("agentNames")]
-        public System.Collections.Generic.ICollection<string> AgentNames { get; set; } = default!;
+        public System.Collections.Generic.ICollection<string> AgentNames { get; set; } = new System.Collections.Generic.List<string>();
 
         /// <summary>
         /// Gets the mixed agent/function node list for a Sequential workflow that
@@ -24634,7 +24634,7 @@ namespace AgentPrism.Client.Generated
         /// </summary>
 
         [System.Text.Json.Serialization.JsonPropertyName("nodes")]
-        public System.Collections.Generic.ICollection<WorkflowNodeReference> Nodes { get; set; } = default!;
+        public System.Collections.Generic.ICollection<WorkflowNodeReference> Nodes { get; set; } = new System.Collections.Generic.List<WorkflowNodeReference>();
 
         /// <summary>
         /// Gets the definition version. Always 1 for code-defined workflows.
@@ -24733,14 +24733,14 @@ namespace AgentPrism.Client.Generated
         /// </summary>
 
         [System.Text.Json.Serialization.JsonPropertyName("nodes")]
-        public System.Collections.Generic.ICollection<WorkflowGraphNode> Nodes { get; set; } = default!;
+        public System.Collections.Generic.ICollection<WorkflowGraphNode> Nodes { get; set; } = new System.Collections.Generic.List<WorkflowGraphNode>();
 
         /// <summary>
         /// Gets the edges between nodes.
         /// </summary>
 
         [System.Text.Json.Serialization.JsonPropertyName("edges")]
-        public System.Collections.Generic.ICollection<WorkflowGraphEdge> Edges { get; set; } = default!;
+        public System.Collections.Generic.ICollection<WorkflowGraphEdge> Edges { get; set; } = new System.Collections.Generic.List<WorkflowGraphEdge>();
 
         /// <summary>
         /// Gets the Mermaid text produced by Microsoft Agent Framework.
