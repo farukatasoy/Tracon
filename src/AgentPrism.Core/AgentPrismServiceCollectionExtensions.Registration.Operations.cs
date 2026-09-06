@@ -159,6 +159,13 @@ public static partial class AgentPrismServiceCollectionExtensions
         // never fires unless a setup opts into both.
         services.AddOptions<AgentPrismStructuredResponseOptions>().ValidateOnStart();
 
+        // Per-user session ownership (Phase 148). Same rationale: carries its
+        // own SectionName, requires no separate Use...() call. Enabled=false
+        // (K1) - while off, no owner is written, no listing is narrowed and
+        // sessions.owner_id stays NULL, so a setup that configures nothing
+        // keeps today's behaviour exactly.
+        services.AddOptions<AgentPrismSessionOwnershipOptions>().ValidateOnStart();
+
         if (configurationSection is not null)
         {
             services.Configure<AgentPrismQuotaOptions>(
@@ -199,6 +206,8 @@ public static partial class AgentPrismServiceCollectionExtensions
                 options => BindImages(configurationSection.GetSection("Images"), options));
             services.Configure<AgentPrismStructuredResponseOptions>(
                 options => BindStructuredResponse(configurationSection.GetSection("StructuredResponse"), options));
+            services.Configure<AgentPrismSessionOwnershipOptions>(
+                options => BindSessionOwnership(configurationSection.GetSection("SessionOwnership"), options));
 
             var contentGuardSection = configurationSection.GetSection("ContentGuard");
 

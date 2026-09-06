@@ -448,3 +448,67 @@ public sealed class AgentPrismStructuredResponseException : AgentPrismException
     /// <inheritdoc />
     public override string ErrorType => StructuredResponseInvalidErrorType;
 }
+
+/// <summary>
+/// Thrown when session ownership is on, a session write needs an owner, and no
+/// authenticated identity could be resolved to be that owner.
+/// </summary>
+/// <remarks>
+/// <para>
+/// <strong>Fail-closed.</strong> With
+/// <see cref="AgentPrismSessionOwnershipOptions.Enabled"/> on and
+/// <see cref="AgentPrismSessionOwnershipOptions.RequireAuthenticatedOwner"/>
+/// left at its default, a session is never OPENED without an owner: an
+/// ownerless row would be invisible to every owner-filtered listing from that
+/// moment on, so the caller would have written a session they can never read
+/// back. Rejecting the write is the honest answer; writing the row and hiding
+/// it is not.
+/// </para>
+/// <para>
+/// This is the one place where attribution stops being bookkeeping.
+/// <see cref="IRunAttributionContext"/> promises that its own failure never
+/// stops a run — an unresolved user costs a NULL column and nothing else. With
+/// ownership on, the SAME value becomes an authorization input, and its
+/// absence rejects the write instead. Same service, two contract strengths;
+/// the option is what moves between them.
+/// </para>
+/// <para>
+/// Over HTTP this surfaces as <c>403</c>, not <c>500</c>: it is a policy
+/// decision the deployment asked for, not a fault. It is also not <c>401</c> —
+/// the caller may be perfectly well authenticated for the endpoint's own role
+/// policy and still carry no identity the attribution pipeline can name.
+/// </para>
+/// </remarks>
+public sealed class AgentPrismSessionOwnerRequiredException : AgentPrismException
+{
+    /// <summary>
+    /// The stable value written to <see cref="AgentPrismException.ErrorType"/>.
+    /// </summary>
+    public const string SessionOwnerRequiredErrorType = "session_owner_required";
+
+    /// <summary>Creates a new error.</summary>
+    public AgentPrismSessionOwnerRequiredException()
+    {
+    }
+
+    /// <summary>Creates a new error.</summary>
+    /// <param name="message">The error message.</param>
+    public AgentPrismSessionOwnerRequiredException(string message)
+        : base(message)
+    {
+    }
+
+    /// <summary>Creates a new error.</summary>
+    /// <param name="message">The error message.</param>
+    /// <param name="innerException">The underlying error.</param>
+    public AgentPrismSessionOwnerRequiredException(string message, Exception innerException)
+        : base(message, innerException)
+    {
+    }
+
+    /// <summary>Gets the id of the session that could not be given an owner.</summary>
+    public string? SessionId { get; init; }
+
+    /// <inheritdoc />
+    public override string ErrorType => SessionOwnerRequiredErrorType;
+}

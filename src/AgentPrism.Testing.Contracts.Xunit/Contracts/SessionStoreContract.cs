@@ -385,6 +385,162 @@ public abstract class SessionStoreContract : TenantIsolationContract<ISessionSto
     }
 
     [Fact]
+    public async Task An_owned_session_round_trips_its_owner()
+    {
+        // Phase 148. OwnerId is the user a session belongs to - a SECOND
+        // boundary under the tenant, not the owning TENANT that
+        // GetOwnerTenantIdAsync answers.
+        await Store.SaveAsync(TestData.Session("owned") with { OwnerId = "user-a" });
+
+        (await Store.GetAsync("owned")).ShouldNotBeNull().OwnerId.ShouldBe("user-a");
+
+        // And the listing carries it too, not only the single read.
+        (await Store.QueryAsync(new SessionQuery()))
+            .ShouldHaveSingleItem().OwnerId.ShouldBe("user-a");
+    }
+
+    [Fact]
+    public async Task A_session_saved_without_an_owner_reads_back_null()
+    {
+        // Every row written before ownership existed, and every row written by
+        // a setup that leaves it off. Null must survive as null, not become an
+        // empty string.
+        await Store.SaveAsync(TestData.Session("unowned"));
+
+        (await Store.GetAsync("unowned")).ShouldNotBeNull().OwnerId.ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task Query_filters_by_owner_and_never_returns_an_unowned_row()
+    {
+        await Store.SaveAsync(TestData.Session("a1") with { OwnerId = "user-a" });
+        await Store.SaveAsync(TestData.Session("b1") with { OwnerId = "user-b" });
+        await Store.SaveAsync(TestData.Session("nobody"));
+
+        var mine = await Store.QueryAsync(new SessionQuery { OwnerId = "user-a" });
+
+        mine.ShouldHaveSingleItem().Id.ShouldBe(
+            "a1",
+            "an owner filter returns that owner's rows only - and an unowned row is NOBODY's, " +
+            "so it must not fall into anyone's list");
+
+        // No filter still lists everything: that is what a management listing
+        // asks for, and the only way an unowned row stays reachable.
+        (await Store.QueryAsync(new SessionQuery())).Count.ShouldBe(3);
+    }
+
+    [Fact]
+    public async Task Query_applies_the_owner_filter_BEFORE_paging()
+    {
+        // 🚨 The assertion this whole field exists for. Five owned rows and
+        // five unowned ones, interleaved so the newest five are unowned. A
+        // store that pages first and filters the page afterwards returns
+        // FEWER than three rows here - and, worse, the gaps let a caller count
+        // how many sessions other users hold.
+        var now = DateTimeOffset.UtcNow;
+
+        for (var i = 0; i < 5; i++)
+        {
+            // Unowned rows are the most recently updated, so they head an
+            // unfiltered page.
+            await Store.SaveAsync(TestData.Session($"free{i}") with { UpdatedAt = now.AddMinutes(-i) });
+            await Store.SaveAsync(TestData.Session($"mine{i}") with
+            {
+                OwnerId = "user-a",
+                UpdatedAt = now.AddMinutes(-10 - i),
+            });
+        }
+
+        var page = await Store.QueryAsync(new SessionQuery { OwnerId = "user-a", Take = 3 });
+
+        page.Count.ShouldBe(3, "paging must run over the ALREADY narrowed set");
+        page.ShouldAllBe(static session => session.OwnerId == "user-a");
+        page.Select(static session => session.Id).ShouldBe(["mine0", "mine1", "mine2"]);
+    }
+
+    [Fact]
+    public async Task The_same_owner_stays_separate_in_two_tenants()
+    {
+        // Ownership is drawn UNDER the tenant and never across it: one person
+        // using two tenants gets two independent data spaces, and a shared
+        // owner string must not merge them.
+        await Store.SaveAsync(TestData.Session("in-a") with { TenantId = TenantA, OwnerId = "same-person" });
+        await Store.SaveAsync(TestData.Session("in-b") with { TenantId = TenantB, OwnerId = "same-person" });
+
+        AmbientTenant.TenantId = TenantA;
+
+        (await Store.QueryAsync(new SessionQuery { OwnerId = "same-person" }))
+            .ShouldHaveSingleItem().Id.ShouldBe("in-a");
+
+        AmbientTenant.TenantId = TenantB;
+
+        (await Store.QueryAsync(new SessionQuery { OwnerId = "same-person" }))
+            .ShouldHaveSingleItem().Id.ShouldBe("in-b");
+    }
+
+    [Fact]
+    public async Task An_owner_at_the_maximum_allowed_length_round_trips_whole()
+    {
+        // 🚨 The column is bounded (SQL Server cannot index nvarchar(max), so
+        // every indexed key column here is nvarchar(200)) and
+        // RunLabels.MaxUserIdLength is set to exactly that bound. A value at
+        // the bound must come back WHOLE - a silently truncated owner would
+        // stop matching its own filter and lose the user their sessions.
+        var longest = new string('u', RunLabels.MaxUserIdLength);
+
+        await Store.SaveAsync(TestData.Session("at-the-limit") with { OwnerId = longest });
+
+        (await Store.GetAsync("at-the-limit")).ShouldNotBeNull().OwnerId.ShouldBe(longest);
+
+        (await Store.QueryAsync(new SessionQuery { OwnerId = longest }))
+            .ShouldHaveSingleItem().Id.ShouldBe("at-the-limit");
+    }
+
+    [Fact]
+    public async Task A_later_write_that_carries_no_owner_does_not_CLEAR_the_stored_one()
+    {
+        // 🚨 The defect class this rule closes. A session is saved more than
+        // once on real paths - the queued run's approval hook saves before the
+        // run's own save - and the second save can come from a worker with no
+        // request behind it, carrying no owner at all. A plain assignment
+        // would blank the column and drop the session out of its owner's
+        // listing FOREVER, silently, while every test that only checked the
+        // first write stayed green.
+        await Store.TryCreateAsync(TestData.Session("keeps-owner") with { OwnerId = "user-a" });
+
+        await Store.SaveAsync(TestData.Session("keeps-owner") with
+        {
+            OwnerId = null,
+            State = TestData.State("""{"turn":2}"""),
+        });
+
+        var afterSave = (await Store.GetAsync("keeps-owner")).ShouldNotBeNull();
+        afterSave.OwnerId.ShouldBe("user-a", "an unconditional save must not clear an owner already set");
+        afterSave.State.GetProperty("turn").GetInt32().ShouldBe(2, "everything else IS overwritten");
+
+        (await Store.TryUpdateAsync(
+            TestData.Session("keeps-owner") with { OwnerId = null, State = TestData.State("""{"turn":3}""") },
+            afterSave.Version)).ShouldBeTrue();
+
+        (await Store.GetAsync("keeps-owner")).ShouldNotBeNull()
+            .OwnerId.ShouldBe("user-a", "the conditional update follows the SAME rule");
+    }
+
+    [Fact]
+    public async Task An_unowned_session_can_still_be_given_an_owner()
+    {
+        // The other side of the rule above: COALESCE keeps an owner that
+        // EXISTS, it does not freeze the column at null. A row written before
+        // ownership was turned on must still be claimable by a write that
+        // brings one.
+        await Store.TryCreateAsync(TestData.Session("adopt-me"));
+
+        await Store.SaveAsync(TestData.Session("adopt-me") with { OwnerId = "user-a" });
+
+        (await Store.GetAsync("adopt-me")).ShouldNotBeNull().OwnerId.ShouldBe("user-a");
+    }
+
+    [Fact]
     public async Task GetOwnerTenantIdAsync_returns_null_for_a_never_used_id()
     {
         AmbientTenant.TenantId = TenantA;

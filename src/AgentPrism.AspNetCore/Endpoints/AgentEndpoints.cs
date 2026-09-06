@@ -184,6 +184,8 @@ internal static class AgentEndpoints
                 IAgentPrismDrainState drainState,
                 [FromServices] QuotaEnforcer? quotaEnforcer,
                 [FromServices] IRunAttributionContext? attributionContext,
+                [FromServices] ISessionStore sessionStore,
+                [FromServices] IOptionsMonitor<AgentPrismSessionOwnershipOptions>? sessionOwnershipOptions,
                 [FromServices] IRunAuthorizationHandler? runAuthorizationHandler,
                 HttpContext httpContext,
                 CancellationToken cancellationToken) =>
@@ -223,6 +225,18 @@ internal static class AgentEndpoints
                         .ConfigureAwait(false) is { } authorizationProblem)
                 {
                     return authorizationProblem;
+                }
+
+                // 🚨 Ownership guards the run surface too, not only the session
+                // endpoints (phase 148): continuing a conversation reads its
+                // whole history back into the model, so leaving this door open
+                // would make gating GET /api/sessions/{id} decorative. Inert
+                // while ownership is off, which is the default.
+                if (await SessionOwnershipGate
+                        .CheckRunSessionAsync(sessionOwnershipOptions, attributionContext, sessionStore, request!.SessionId, cancellationToken)
+                        .ConfigureAwait(false) is { } ownershipProblem)
+                {
+                    return ownershipProblem;
                 }
 
                 // 🚨 The quota check happens BEFORE the run starts. An in-progress
@@ -299,7 +313,10 @@ internal static class AgentEndpoints
                 "response the status code has already been sent, so the block arrives as an SSE " +
                 "'error' event instead. If a registered IRunAuthorizationHandler denies the caller, " +
                 "the run does not start and a 403 is returned; this check runs before the quota " +
-                "check, so a denied run never consumes the tenant's quota.")
+                "check, so a denied run never consumes the tenant's quota." +
+                "When session ownership is turned on, naming another user's session in 'sessionId' " +
+                "is also refused with 403, and opening a NEW session is refused the same way when no " +
+                "authenticated identity can be resolved to own it ('errorType': 'session_owner_required').")
             // The success response is SSE by default (see AgentRunStream); but a
             // request carrying the 'Idempotency-Key' header gets a JSON body, and
             // one carrying 'Prefer: respond-async' gets a 202 body.
@@ -1014,7 +1031,7 @@ internal static class AgentEndpoints
                 Lane = lane,
                 TargetName = name,
                 Status = JobStatus.Pending,
-                Payload = BuildQueuedRunPayload(runId, request.Message, request.SessionId),
+                Payload = BuildQueuedRunPayload(runId, request.Message, request.SessionId, attributionContext?.UserId),
                 MaxAttempts = options.MaxAttempts,
                 ScheduledFor = now,
                 CreatedAt = now,
@@ -1043,12 +1060,23 @@ internal static class AgentEndpoints
     /// Builds the payload for a <see cref="JobHandlerKeys.AgentRun"/> job. Parsing
     /// happens in <c>AgentRunJobHandler.ParsePayload</c> (hand-written, AOT-compatible).
     /// </summary>
-    private static JsonElement BuildQueuedRunPayload(Guid runId, string message, string? sessionId)
+    private static JsonElement BuildQueuedRunPayload(Guid runId, string message, string? sessionId, string? userId)
         => JsonSerializer.SerializeToElement(new
         {
             runId = runId.ToString(),
             message,
             sessionId,
+
+            // 🚨 The identity is captured HERE, inside the HTTP request, for
+            // the same reason the runs row captures it a few lines above: an
+            // HTTP-bound IRunAttributionContext has nothing to read from
+            // inside a background worker. Without it, a queued run that opens
+            // a session would open it unowned - or, with
+            // RequireAuthenticatedOwner on, fail in the worker long after the
+            // caller received its 202. The worker replays this value through
+            // AmbientRunAttributionScope so the session manager resolves the
+            // owner from the one source it uses everywhere else.
+            userId,
         });
 
     /// <summary>
@@ -1341,6 +1369,24 @@ internal static class AgentEndpoints
                             ["guard"] = ex.GuardName,
                             ["rule"] = ex.RuleName,
                             ["direction"] = ex.Direction.ToString(),
+                        })
+                    .ExecuteAsync(httpContext).ConfigureAwait(false);
+            }
+            catch (AgentPrismSessionOwnerRequiredException ex)
+            {
+                // 🚨 403, not 500: session ownership is on and the deployment
+                // asked for exactly this refusal, so it is a policy decision
+                // and not a fault. Not 401 either - the caller cleared the
+                // endpoint's own role policy and is authenticated as far as
+                // ASP.NET Core is concerned; what is missing is an identity the
+                // attribution pipeline can name as the session's owner.
+                await Results.Problem(
+                        title: "Session owner required",
+                        detail: ex.Message,
+                        statusCode: StatusCodes.Status403Forbidden,
+                        extensions: new Dictionary<string, object?>(StringComparer.Ordinal)
+                        {
+                            ["errorType"] = AgentPrismSessionOwnerRequiredException.SessionOwnerRequiredErrorType,
                         })
                     .ExecuteAsync(httpContext).ConfigureAwait(false);
             }

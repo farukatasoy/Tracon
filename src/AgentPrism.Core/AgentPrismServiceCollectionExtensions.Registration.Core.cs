@@ -349,7 +349,9 @@ public static partial class AgentPrismServiceCollectionExtensions
         services.TryAddSingleton(static provider => new AgentSessionManager(
             provider.GetRequiredService<ISessionStore>(),
             provider.GetRequiredService<ITenantContext>(),
-            provider.GetService<TimeProvider>()));
+            provider.GetService<TimeProvider>(),
+            provider.GetService<IRunAttributionContext>(),
+            provider.GetService<Microsoft.Extensions.Options.IOptionsMonitor<AgentPrismSessionOwnershipOptions>>()));
 
         // Conversation branching (Phase 47). IConversationBranchStore is
         // registered only while a SQL provider is on; without it, the service

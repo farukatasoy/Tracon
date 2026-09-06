@@ -137,11 +137,68 @@ conversation. The session screen reads stored items and can branch at any point.
 
 ## Who can access a session
 
-Everything above is tenant-scoped: any caller with the `Reader`/`Operator`
-role in a tenant can list, read, delete, and branch every session in that
-tenant, regardless of which user opened it. AgentPrism does not learn a
-per-user owner on its own — bind `IRunAuthorizationHandler` to add that layer
-from your own identity system:
+By default everything above is tenant-scoped: any caller with the
+`Reader`/`Operator` role in a tenant can list, read, delete, and branch every
+session in that tenant, regardless of which user opened it.
+
+There are two ways to draw a narrower line, and they compose. **Session
+ownership** is built in and needs no code. **`IRunAuthorizationHandler`** hands
+the decision to your own policy.
+
+### Session ownership
+
+Turning ownership on makes AgentPrism record which user a session belongs to,
+and narrow the session list to that user:
+
+```json
+{
+  "AgentPrism": {
+    "SessionOwnership": {
+      "Enabled": true
+    }
+  }
+}
+```
+
+The owner comes from `IRunAttributionContext` — the same interface that names
+the user on a cost report — and is read at the moment a session is **opened**.
+It is never read from a request body: a `userId` field there would let any
+client open a session under someone else's name.
+
+| With ownership on | What happens |
+|---|---|
+| `GET /api/sessions` | Only the caller's own sessions, narrowed **before** paging, so `take=3` returns three of *their* sessions |
+| `GET`/`DELETE`/`POST …/branch` on another user's session | `404`, byte for byte identical to a session that does not exist |
+| Starting a run against another user's session | `403` — continuing a conversation reads its whole history back, so the run surface is guarded too |
+| A branch of your own session | The copy inherits **your** ownership; branching is a copy, not a handover |
+| No identity can be resolved | The session is not opened at all: `403` with `errorType` `session_owner_required` |
+
+Three properties are worth knowing before you turn it on:
+
+- **It is not retroactive.** Sessions written before you enabled it have no
+  owner. AgentPrism cannot invent one for a conversation it did not watch being
+  opened. Those sessions stay readable by id, so nothing that was live at the
+  moment of the flip breaks — but they no longer appear in any user's list.
+- **Someone still needs the whole list.** A caller who satisfies
+  `AgentPrism:SessionOwnership:ManagementPolicy` (default: the `Operator` role
+  policy) gets the unfiltered tenant listing, including those unowned rows. If
+  the policy is not registered, *nobody* gets the unfiltered list — the failure
+  direction is deliberate. Set it to `""` to state that outright.
+- **Ownership is drawn under the tenant, never across it.** The same person in
+  two tenants still has two independent data spaces.
+
+`RequireAuthenticatedOwner` (default `true`) is what turns an unresolvable
+identity into a refusal. Turning it off lets unowned sessions be opened again,
+which is only useful while migrating: such a session is invisible in its own
+caller's list from the moment it is written.
+
+Sessionless runs are unaffected — there is nothing to own.
+
+### Your own authorization handler
+
+Ownership answers "which user", and only for sessions. For anything else —
+per-project rules, shared conversations, an external policy service — bind
+`IRunAuthorizationHandler`:
 
 ```csharp
 public sealed class YourRunAuthorizationHandler(IYourOwnershipService ownership) : IRunAuthorizationHandler
@@ -169,11 +226,16 @@ public sealed class YourRunAuthorizationHandler(IYourOwnershipService ownership)
 The response shape follows the same "don't confirm what shouldn't be seen"
 rule the OpenAI-compatible conversations above already use: a denied
 **read**, **delete**, or **branch** returns `404` with the exact same body a
-genuinely missing session gets, and a denied **list** returns `403` — a list
-has no single identity to leak, and it is rejected outright rather than
-silently filtered, which would otherwise break the `skip`/`take` paging
-contract. See [Embedding: run and session authorization](/guides/embedding/#6--run-and-session-authorization)
+genuinely missing session gets, and a denied **list** returns `403`. Note the
+difference from ownership: a handler answers a yes/no question, so a "no" on a
+list rejects the whole call rather than quietly returning fewer rows. Ownership
+is a filter and does narrow the list. See
+[Embedding: run and session authorization](/guides/embedding/#6--run-and-session-authorization)
 for the run-starting half of the same contract.
+
+With ownership on, a handler no longer has to reject a whole listing just to
+keep users apart — the listing arrives already narrowed, and the handler is
+free to answer the questions ownership cannot.
 
 ## Attachments
 

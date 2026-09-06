@@ -142,11 +142,38 @@ you write this class against whichever client your object store already uses.
 
 ### 6 — Run and session authorization
 
-AgentPrism draws ownership at the **tenant** level; it never learns which user
-inside a tenant a run or a session belongs to. Without this binding, every
-caller with the `Operator` role in a tenant can start a run as, read, cancel,
-score, and delete every other user's runs, attachments, approvals, and
-sessions in the same tenant.
+AgentPrism draws ownership at the **tenant** level by default; without this
+binding, every caller with the `Operator` role in a tenant can start a run as,
+read, cancel, score, and delete every other user's runs, attachments,
+approvals, and sessions in the same tenant.
+
+:::note[Sessions have a built-in answer too]
+Turning on [session ownership](/concepts/sessions/#session-ownership) makes
+AgentPrism record which user opened a session and narrow the session list to
+that user, with no handler at all. It covers **sessions only**; runs,
+attachments, approvals, and scores still need the handler below. The two
+compose — with ownership on, a handler no longer has to reject a whole session
+listing just to keep users apart.
+:::
+
+#### Ownership and attribution are not the same promise
+
+Both read the user from `IRunAttributionContext`, and it is worth being exact
+about how differently they treat a failure there:
+
+| | Attribution | Session ownership |
+|---|---|---|
+| What the value does | Names the user on a cost report | Decides who may reach a session |
+| If your implementation throws | The run continues; the column stays `NULL` | The session is not opened: `403` |
+| If it returns an over-long value | Dropped whole; the run continues | Treated as no identity: `403` |
+| When it is read | Every run | Only when a session is **opened** |
+
+Same service, two contract strengths. The rule "observability never breaks
+functionality" holds for attribution and deliberately does **not** hold once a
+deployment has asked for that value to be an authorization input. If you bind
+`IRunAttributionContext` and later turn ownership on, re-read your
+implementation with that in mind: a path that used to degrade quietly now
+refuses.
 
 `AuthorizeRunAsync` answers two different questions, told apart by
 `request.Access`. `RunAccess.Start` asks whether a run may **begin**;

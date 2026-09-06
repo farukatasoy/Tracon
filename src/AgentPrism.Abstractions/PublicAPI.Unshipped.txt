@@ -5200,3 +5200,24 @@ override AgentPrism.SubAgentSettings.GetHashCode() -> int
 override AgentPrism.SubAgentSettings.ToString() -> string!
 static AgentPrism.SubAgentSettings.operator !=(AgentPrism.SubAgentSettings? left, AgentPrism.SubAgentSettings? right) -> bool
 static AgentPrism.SubAgentSettings.operator ==(AgentPrism.SubAgentSettings? left, AgentPrism.SubAgentSettings? right) -> bool
+AgentPrism.AgentPrismSessionOwnerRequiredException
+AgentPrism.AgentPrismSessionOwnerRequiredException.AgentPrismSessionOwnerRequiredException() -> void
+AgentPrism.AgentPrismSessionOwnerRequiredException.AgentPrismSessionOwnerRequiredException(string! message) -> void
+AgentPrism.AgentPrismSessionOwnerRequiredException.AgentPrismSessionOwnerRequiredException(string! message, System.Exception! innerException) -> void
+AgentPrism.AgentPrismSessionOwnerRequiredException.SessionId.get -> string?
+AgentPrism.AgentPrismSessionOwnerRequiredException.SessionId.init -> void
+const AgentPrism.AgentPrismSessionOwnerRequiredException.SessionOwnerRequiredErrorType = "session_owner_required" -> string!
+override AgentPrism.AgentPrismSessionOwnerRequiredException.ErrorType.get -> string!
+AgentPrism.AgentPrismSessionOwnershipOptions
+AgentPrism.AgentPrismSessionOwnershipOptions.AgentPrismSessionOwnershipOptions() -> void
+AgentPrism.AgentPrismSessionOwnershipOptions.Enabled.get -> bool
+AgentPrism.AgentPrismSessionOwnershipOptions.Enabled.set -> void
+AgentPrism.AgentPrismSessionOwnershipOptions.ManagementPolicy.get -> string?
+AgentPrism.AgentPrismSessionOwnershipOptions.ManagementPolicy.set -> void
+AgentPrism.AgentPrismSessionOwnershipOptions.RequireAuthenticatedOwner.get -> bool
+AgentPrism.AgentPrismSessionOwnershipOptions.RequireAuthenticatedOwner.set -> void
+const AgentPrism.AgentPrismSessionOwnershipOptions.SectionName = "AgentPrism:SessionOwnership" -> string!
+AgentPrism.SessionRecord.OwnerId.get -> string?
+AgentPrism.SessionRecord.OwnerId.init -> void
+AgentPrism.SessionQuery.OwnerId.get -> string?
+AgentPrism.SessionQuery.OwnerId.init -> void

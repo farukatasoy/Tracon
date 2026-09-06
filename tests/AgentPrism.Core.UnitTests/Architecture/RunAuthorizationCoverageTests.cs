@@ -71,6 +71,25 @@ public sealed class RunAuthorizationCoverageTests
         TimeSpan.FromSeconds(5));
 
     /// <summary>
+    /// Phase 148's own ratchet, kept in this class rather than a new one
+    /// because it guards the SAME failure in the same way: an HTTP surface
+    /// that reaches a session without asking whose it is. Session ownership is
+    /// a second boundary drawn under the tenant, and it is enforced by explicit
+    /// calls for the same reason the authorization gate is — these endpoints
+    /// share no route shape.
+    /// </summary>
+    private static readonly Regex OwnershipRunMarker = new(
+        @"SessionOwnershipGate\s*\.\s*CheckRunSessionAsync\s*\(",
+        RegexOptions.Compiled | RegexOptions.CultureInvariant,
+        TimeSpan.FromSeconds(5));
+
+    /// <summary>Matches either single-session ownership check on a session endpoint.</summary>
+    private static readonly Regex OwnershipResourceMarker = new(
+        @"SessionOwnershipGate\s*\.\s*(DeniesAsync|ResolveListOwnerFilterAsync)\s*\(",
+        RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture,
+        TimeSpan.FromSeconds(5));
+
+    /// <summary>
     /// The files that START a run. Four came from phase 139; replay, Chat
     /// Completions, and the two workflow continuation endpoints from 147.
     /// </summary>
@@ -107,6 +126,46 @@ public sealed class RunAuthorizationCoverageTests
         ("src/AgentPrism.AspNetCore/Endpoints/EvalEndpoints.cs", ResourceMarker),
         ("src/AgentPrism.AspNetCore/Voice/VoiceConversationEndpoint.cs", ResourceMarker),
     ];
+
+    /// <summary>
+    /// The run-starting files that can name a SESSION, and therefore have to
+    /// ask whose it is (phase 148).
+    /// </summary>
+    /// <remarks>
+    /// 🚨 <c>OpenAIConversationsEndpoints</c> is on this list because the
+    /// phase's own audit found it OUTSIDE it: <c>/v1/conversations/{id}</c>
+    /// reaches the very same sessions under a different name, so while
+    /// <c>GET /api/sessions/{id}</c> answered 404 for another user's session,
+    /// <c>GET /v1/conversations/{id}/items</c> returned its whole history and
+    /// <c>DELETE</c> removed it. The same class of miss phase 139 made and
+    /// phase 147 had to come back for — a compatibility surface is a surface.
+    ///
+    /// 🚨 Three run-starting files, not six. <c>TriggerEndpoints</c> and
+    /// <c>OpenAIChatCompletionsEndpoints</c> pass <c>sessionId: null</c> to the
+    /// authorization gate — they start sessionless runs and have no session to
+    /// own. Listing them here would demand a call that could only ever be a
+    /// no-op, and a no-op call is worse than none: the next reader would take
+    /// it as evidence that those surfaces carry sessions. If either ever gains
+    /// a session parameter, it belongs in this list, and the phase that adds it
+    /// must say so in its handover note.
+    /// </remarks>
+    private static readonly (string Path, Regex Marker)[] ExpectedSessionOwnershipFiles =
+    [
+        ("src/AgentPrism.AspNetCore/Endpoints/AgentEndpoints.cs", OwnershipRunMarker),
+        ("src/AgentPrism.AspNetCore/Endpoints/WorkflowEndpoints.cs", OwnershipRunMarker),
+        ("src/AgentPrism.AspNetCore/OpenAICompat/OpenAIResponsesEndpoints.cs", OwnershipRunMarker),
+        ("src/AgentPrism.AspNetCore/Endpoints/SessionEndpoints.cs", OwnershipResourceMarker),
+        ("src/AgentPrism.AspNetCore/Voice/VoiceConversationEndpoint.cs", OwnershipResourceMarker),
+        ("src/AgentPrism.AspNetCore/OpenAICompat/OpenAIConversationsEndpoints.cs", OwnershipResourceMarker),
+    ];
+
+    [Fact]
+    public void Every_known_session_reaching_surface_still_calls_the_ownership_gate()
+        => AssertEveryFileMatches(
+            ExpectedSessionOwnershipFiles,
+            "'SessionOwnershipGate.CheckRunSessionAsync(' or '.DeniesAsync(' — another user's session " +
+            "can be read, continued, or spoken into there WITHOUT the per-user ownership boundary " +
+            "(phase 148, F-196)");
 
     [Fact]
     public void Every_known_run_starting_surface_still_calls_the_gate()

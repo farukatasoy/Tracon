@@ -264,6 +264,11 @@ internal sealed class SqlServerQueries : SqlQueriesBase
 
         // See PostgresQueries: `version` advances, it is never taken from
         // the incoming row.
+        // See PostgresQueries: owner_id is COALESCEd, never assigned straight
+        // (K-486). 🚨 BOTH branches of the two-branch upsert carry the column,
+        // the UPDATE with its COALESCE and the INSERT with the raw parameter -
+        // adding it to only one is the silent provider difference K-608 and
+        // phase 137 both recorded.
         UpsertSession = $"""
             UPDATE {Schema}.sessions WITH (UPDLOCK, SERIALIZABLE)
                SET agent_name           = @agent_name,
@@ -271,19 +276,24 @@ internal sealed class SqlServerQueries : SqlQueriesBase
                    state_schema_version = @state_schema_version,
                    state_maf_version    = @state_maf_version,
                    updated_at           = @updated_at,
+                   owner_id             = COALESCE(owner_id, @owner_id),
                    version              = version + 1
              WHERE id = @id AND tenant_id = @tenant_id;
 
             IF @@ROWCOUNT = 0
-            INSERT INTO {Schema}.sessions (id, tenant_id, agent_name, state, state_schema_version, created_at, updated_at, version, state_maf_version)
-            VALUES (@id, @tenant_id, @agent_name, @state, @state_schema_version, @created_at, @updated_at, 1, @state_maf_version);
+            INSERT INTO {Schema}.sessions (id, tenant_id, agent_name, state, state_schema_version, created_at, updated_at, version, state_maf_version, owner_id)
+            VALUES (@id, @tenant_id, @agent_name, @state, @state_schema_version, @created_at, @updated_at, 1, @state_maf_version, @owner_id);
             """;
 
+        // See PostgresQueries: the owner predicate is in the WHERE clause,
+        // ahead of the OFFSET/FETCH paging, so paging runs over the narrowed
+        // set.
         SelectSessions = $"""
-            SELECT id, agent_name, state, state_schema_version, created_at, updated_at, tenant_id, version, state_maf_version
+            SELECT id, agent_name, state, state_schema_version, created_at, updated_at, tenant_id, version, state_maf_version, owner_id
             FROM {Schema}.sessions
             WHERE tenant_id = @tenant_id
               AND (@agent_name IS NULL OR agent_name = @agent_name)
+              AND (@owner_id IS NULL OR owner_id = @owner_id)
               {TakeGuard}
             ORDER BY updated_at DESC
             {Paging}

@@ -167,7 +167,7 @@ export interface paths {
         put?: never;
         /**
          * Runs an agent for trial purposes and streams the response via SSE.
-         * @description If the quota is exceeded, the run does not start and a 429 is returned; the ProblemDetails carries which quota was exceeded and when the counter resets. When the pre-flight context-window check is enabled (disabled by default) and the prompt is estimated to exceed the model's window, the run does not start and a 400 is returned with the estimated and allowed token counts; no call reaches the provider. A request carrying the 'Idempotency-Key' header runs with a single JSON response (non-streaming) instead of SSE, because a replayed response cannot be reconstructed from a stream. A request carrying the 'Prefer: respond-async' header queues the run and returns '202 Accepted' with a 'Location' header. If a registered IContentGuard blocks the content, the non-streaming response returns '422' and the run's error type becomes 'content_blocked'; in the STREAMING response the status code has already been sent, so the block arrives as an SSE 'error' event instead. If a registered IRunAuthorizationHandler denies the caller, the run does not start and a 403 is returned; this check runs before the quota check, so a denied run never consumes the tenant's quota.
+         * @description If the quota is exceeded, the run does not start and a 429 is returned; the ProblemDetails carries which quota was exceeded and when the counter resets. When the pre-flight context-window check is enabled (disabled by default) and the prompt is estimated to exceed the model's window, the run does not start and a 400 is returned with the estimated and allowed token counts; no call reaches the provider. A request carrying the 'Idempotency-Key' header runs with a single JSON response (non-streaming) instead of SSE, because a replayed response cannot be reconstructed from a stream. A request carrying the 'Prefer: respond-async' header queues the run and returns '202 Accepted' with a 'Location' header. If a registered IContentGuard blocks the content, the non-streaming response returns '422' and the run's error type becomes 'content_blocked'; in the STREAMING response the status code has already been sent, so the block arrives as an SSE 'error' event instead. If a registered IRunAuthorizationHandler denies the caller, the run does not start and a 403 is returned; this check runs before the quota check, so a denied run never consumes the tenant's quota.When session ownership is turned on, naming another user's session in 'sessionId' is also refused with 403, and opening a NEW session is refused the same way when no authenticated identity can be resolved to own it ('errorType': 'session_owner_required').
          */
         post: operations["AgentPrismRunAgent"];
         delete?: never;
@@ -205,13 +205,13 @@ export interface paths {
         };
         /**
          * Lists attachments.
-         * @description Only descriptors are returned — file name, media type, size, and content hash — never the bytes; fetch those from the download endpoint. 'sessionId' narrows the list to one session, and attachments uploaded without a session are reachable only without that filter. Paging is offset based: 'skip' defaults to 0, 'take' to 50, and 'take' is clamped to 1..200 instead of being rejected.
+         * @description Only descriptors are returned — file name, media type, size, and content hash — never the bytes; fetch those from the download endpoint. 'sessionId' narrows the list to one session, and attachments uploaded without a session are reachable only without that filter. Paging is offset based: 'skip' defaults to 0, 'take' to 50, and 'take' is clamped to 1..200 instead of being rejected. If a registered IRunAuthorizationHandler denies the caller, the response is 403 — the list is REJECTED, never silently filtered.
          */
         get: operations["AgentPrismListAttachments"];
         put?: never;
         /**
          * Uploads a new attachment.
-         * @description The body must be 'multipart/form-data' and must carry a 'file' field. The type is validated by magic bytes, not by the Content-Type the client reports.
+         * @description The body must be 'multipart/form-data' and must carry a 'file' field. The type is validated by magic bytes, not by the Content-Type the client reports. If a registered IRunAuthorizationHandler denies the caller, the response is 403.
          */
         post: operations["AgentPrismUploadAttachment"];
         delete?: never;
@@ -229,14 +229,14 @@ export interface paths {
         };
         /**
          * Streams the raw content of an attachment.
-         * @description The response carries the attachment's own stored media type, an ETag holding the content's SHA-256, and 'Content-Disposition: attachment' together with 'X-Content-Type-Options: nosniff' — a browser therefore downloads the bytes instead of rendering them, so uploaded HTML can never execute in the console's origin. The token travels in the Authorization header, so a browser cannot use this URL directly as an image or audio element source; fetch the bytes and wrap them in an object URL instead.
+         * @description The response carries the attachment's own stored media type, an ETag holding the content's SHA-256, and 'Content-Disposition: attachment' together with 'X-Content-Type-Options: nosniff' — a browser therefore downloads the bytes instead of rendering them, so uploaded HTML can never execute in the console's origin. The token travels in the Authorization header, so a browser cannot use this URL directly as an image or audio element source; fetch the bytes and wrap them in an object URL instead. If a registered IRunAuthorizationHandler denies the caller, the response is 404, identical to an attachment that does not exist.
          */
         get: operations["AgentPrismDownloadAttachment"];
         put?: never;
         post?: never;
         /**
          * Deletes an attachment.
-         * @description The bytes are removed immediately; there is no soft delete. Messages that already reference the attachment keep the reference and it stops resolving, so delete an attachment only when its conversation no longer needs to be replayed. Deleting the owning session removes its attachments as well, which is usually the call to reach for. An unknown id returns 404.
+         * @description The bytes are removed immediately; there is no soft delete. Messages that already reference the attachment keep the reference and it stops resolving, so delete an attachment only when its conversation no longer needs to be replayed. Deleting the owning session removes its attachments as well, which is usually the call to reach for. An unknown id returns 404, and so does a denial by a registered IRunAuthorizationHandler.
          */
         delete: operations["AgentPrismDeleteAttachment"];
         options?: never;
@@ -345,7 +345,7 @@ export interface paths {
         };
         /**
          * Lists sessions from most recently updated to oldest.
-         * @description Paging is offset based: 'skip' defaults to 0 and 'take' to 50, and 'take' is clamped to the 1..200 range rather than rejected, so an out-of-range value never fails the request. 'agentName' narrows the list to one agent. Because the order is by last update, a session that changes while a client pages can move between pages; use the session id, not the position, as the identity. If a registered IRunAuthorizationHandler denies the caller, the response is 403 — the list is REJECTED, never silently filtered, because server-side filtering would break the skip/take paging contract.
+         * @description Paging is offset based: 'skip' defaults to 0 and 'take' to 50, and 'take' is clamped to the 1..200 range rather than rejected, so an out-of-range value never fails the request. 'agentName' narrows the list to one agent. Because the order is by last update, a session that changes while a client pages can move between pages; use the session id, not the position, as the identity. If a registered IRunAuthorizationHandler denies the caller, the response is 403 — a denied list is REJECTED, never quietly shortened. When session ownership is turned on, the list is additionally narrowed to the calling user's own sessions before paging is applied, unless the caller satisfies the configured management policy; sessions written before ownership was turned on carry no owner and appear only in that management listing.
          */
         get: operations["AgentPrismListSessions"];
         put?: never;
@@ -365,14 +365,14 @@ export interface paths {
         };
         /**
          * Returns a session's metadata and chat history.
-         * @description 'messages' is the readable chat history and is null when the configured session storage cannot expose one — with an in-memory setup the history lives inside an opaque state blob. 'state' always carries that raw provider state. Messages come back in sequence order, so the index of a message is the sequence number the branch endpoint expects. If a registered IRunAuthorizationHandler denies the caller, the response is 404 — identical to a session that does not exist, so a denial never confirms the session's existence.
+         * @description 'messages' is the readable chat history and is null when the configured session storage cannot expose one — with an in-memory setup the history lives inside an opaque state blob. 'state' always carries that raw provider state. Messages come back in sequence order, so the index of a message is the sequence number the branch endpoint expects. If a registered IRunAuthorizationHandler denies the caller, the response is 404 — identical to a session that does not exist, so a denial never confirms the session's existence. With session ownership turned on, another user's session answers the same 404.
          */
         get: operations["AgentPrismGetSession"];
         put?: never;
         post?: never;
         /**
          * Deletes a session.
-         * @description Attachments linked to the session are deleted with it, and this call is the only way they are cleaned up: an attachment may be uploaded before any session exists, so the link is deliberately not a database foreign key. The attachments are removed only after the session itself is found, so a 404 leaves no side effect. Runs recorded under the session are kept — run history does not depend on the session still existing. If a registered IRunAuthorizationHandler denies the caller, the response is also 404, identical to a session that does not exist.
+         * @description Attachments linked to the session are deleted with it, and this call is the only way they are cleaned up: an attachment may be uploaded before any session exists, so the link is deliberately not a database foreign key. The attachments are removed only after the session itself is found, so a 404 leaves no side effect. Runs recorded under the session are kept — run history does not depend on the session still existing. If a registered IRunAuthorizationHandler denies the caller, the response is also 404, identical to a session that does not exist; with session ownership turned on, another user's session answers that same 404 and is left untouched.
          */
         delete: operations["AgentPrismDeleteSession"];
         options?: never;
@@ -391,7 +391,7 @@ export interface paths {
         put?: never;
         /**
          * Branches a conversation from a specific point and opens a new session.
-         * @description Items up to and including 'upToSequence' are COPIED into a NEW conversation; the pointer is only provenance information. Writing to the branch does not change the parent conversation. Branching only works while a persistent SQL provider is enabled; in an in-memory setup, chat history lives in an opaque blob of session state and this returns 501. If a registered IRunAuthorizationHandler denies the caller, the response is 404, identical to a session that does not exist.
+         * @description Items up to and including 'upToSequence' are COPIED into a NEW conversation; the pointer is only provenance information. Writing to the branch does not change the parent conversation. Branching only works while a persistent SQL provider is enabled; in an in-memory setup, chat history lives in an opaque blob of session state and this returns 501. If a registered IRunAuthorizationHandler denies the caller, the response is 404, identical to a session that does not exist; with session ownership turned on, another user's session answers that same 404. The new session inherits the SOURCE session's owner, not the caller's — a branch is a copy, not a handover.
          */
         post: operations["AgentPrismBranchSession"];
         delete?: never;
@@ -409,7 +409,7 @@ export interface paths {
         };
         /**
          * Lists runs from newest to oldest.
-         * @description By default, ONLY root runs are returned. To also see child runs, use 'includeChildren=true'; pass 'rootRunId' for an entire tree, or 'parentRunId' for the direct children of a run. 'userId' narrows the list to one user's runs, and 'label' takes a 'key:value' pair ('label=team:payments'); a bare 'label=team' matches any value of that key. Both dimensions are recorded from the server-side IRunAttributionContext, never from the run request body.
+         * @description By default, ONLY root runs are returned. To also see child runs, use 'includeChildren=true'; pass 'rootRunId' for an entire tree, or 'parentRunId' for the direct children of a run. 'userId' narrows the list to one user's runs, and 'label' takes a 'key:value' pair ('label=team:payments'); a bare 'label=team' matches any value of that key. Both dimensions are recorded from the server-side IRunAttributionContext, never from the run request body. If a registered IRunAuthorizationHandler denies the caller, the response is 403 — the list is REJECTED, never silently filtered.
          */
         get: operations["AgentPrismListRuns"];
         put?: never;
@@ -595,7 +595,7 @@ export interface paths {
         put?: never;
         /**
          * Starts a new run with recorded input.
-         * @description The input is preserved, the conditions change: 'agentVersion', 'modelId', and 'toolMode'. The default 'toolMode' value is 'ReplayTools', and NO tool actually runs — recorded results are replayed. Replaying a call with no recorded result STOPS the replay and returns 422. 'LiveTools' ACTUALLY runs tools, produces side effects, requires the Admin role, and returns 409 if a tool requires approval. An agent carrying a client-side tool (AddClientTool) cannot be replayed in ANY tool mode and also returns 409 — its body runs in the caller's browser and no call to it was recorded. Replay is sessionless: if the source run belongs to a session, only that TURN's input is replayed; the conversation history is not carried over.
+         * @description The input is preserved, the conditions change: 'agentVersion', 'modelId', and 'toolMode'. The default 'toolMode' value is 'ReplayTools', and NO tool actually runs — recorded results are replayed. Replaying a call with no recorded result STOPS the replay and returns 422. 'LiveTools' ACTUALLY runs tools, produces side effects, requires the Admin role, and returns 409 if a tool requires approval. An agent carrying a client-side tool (AddClientTool) cannot be replayed in ANY tool mode and also returns 409 — its body runs in the caller's browser and no call to it was recorded. Replay is sessionless: if the source run belongs to a session, only that TURN's input is replayed; the conversation history is not carried over. Replay STARTS a run, so a registered IRunAuthorizationHandler is asked with the SOURCE run's id; a denial returns 403 before any run row is opened.
          */
         post: operations["AgentPrismReplayRun"];
         delete?: never;
@@ -703,7 +703,7 @@ export interface paths {
         put?: never;
         /**
          * Runs the workflow and streams its events over SSE.
-         * @description Each frame carries a RunEvent. The first frame reports the run ID; every agent invoked within the workflow opens its own runs row, viewable as a tree via GET /api/runs/{runId}/tree. If a registered IRunAuthorizationHandler denies the caller, the run does not start and a 403 is returned, before the quota check.
+         * @description Each frame carries a RunEvent. The first frame reports the run ID; every agent invoked within the workflow opens its own runs row, viewable as a tree via GET /api/runs/{runId}/tree. If a registered IRunAuthorizationHandler denies the caller, the run does not start and a 403 is returned, before the quota check. When session ownership is turned on, naming another user's session in 'sessionId' is refused the same way, and so is opening a NEW session when no authenticated identity can be resolved to own it.
          */
         post: operations["AgentPrismRunWorkflow"];
         delete?: never;
@@ -721,7 +721,7 @@ export interface paths {
         };
         /**
          * Lists the checkpoints of a workflow run.
-         * @description Checkpoints are the points a run can be resumed from; each entry's id is what the resume endpoint takes. A run belonging to another tenant is reported as 404 rather than 403, so the API does not confirm that it exists. An empty list means the run wrote no checkpoint — checkpointing is a property of how the workflow was built, not something this endpoint can turn on. Checkpoints are subject to retention, so an old run may have none left.
+         * @description Checkpoints are the points a run can be resumed from; each entry's id is what the resume endpoint takes. A run belonging to another tenant is reported as 404 rather than 403, so the API does not confirm that it exists. An empty list means the run wrote no checkpoint — checkpointing is a property of how the workflow was built, not something this endpoint can turn on. Checkpoints are subject to retention, so an old run may have none left. A denial by a registered IRunAuthorizationHandler produces the same 404.
          */
         get: operations["AgentPrismListWorkflowCheckpoints"];
         put?: never;
@@ -743,7 +743,7 @@ export interface paths {
         put?: never;
         /**
          * Resumes from a checkpoint and streams events over SSE.
-         * @description Resuming opens a NEW run rather than continuing the old one: the original run row is never rewritten, and the first streamed frame reports the new run id. The body is optional — without a checkpoint id the run resumes from its latest checkpoint. The engine must be registered; otherwise the response is 501. Because the status code is sent before the stream begins, a failure after that point arrives as an SSE error frame rather than an HTTP error.
+         * @description Resuming opens a NEW run rather than continuing the old one: the original run row is never rewritten, and the first streamed frame reports the new run id. The body is optional — without a checkpoint id the run resumes from its latest checkpoint. The engine must be registered; otherwise the response is 501. Because the status code is sent before the stream begins, a failure after that point arrives as an SSE error frame rather than an HTTP error. Resuming STARTS a run, so a registered IRunAuthorizationHandler is asked with the SOURCE run's id; a denial returns 403 before any run row is opened.
          */
         post: operations["AgentPrismResumeWorkflow"];
         delete?: never;
@@ -761,7 +761,7 @@ export interface paths {
         };
         /**
          * Lists a run's pending human input requests.
-         * @description Only a run in the 'AwaitingInput' state returns requests. Requests are read from the run's event stream; there is no separate table.
+         * @description Only a run in the 'AwaitingInput' state returns requests. Requests are read from the run's event stream; there is no separate table. A run belonging to another tenant, and a denial by a registered IRunAuthorizationHandler, both return the same 404.
          */
         get: operations["AgentPrismListWorkflowRequests"];
         put?: never;
@@ -783,7 +783,7 @@ export interface paths {
         put?: never;
         /**
          * Responds to a pending request and resumes the run.
-         * @description The response is matched to the request re-published with the same ID in the execution resumed from the checkpoint. Resuming opens a NEW runs row; events stream over SSE.
+         * @description The response is matched to the request re-published with the same ID in the execution resumed from the checkpoint. Resuming opens a NEW runs row; events stream over SSE — so this STARTS a run, and a registered IRunAuthorizationHandler is asked with the source run's id; a denial returns 403 before any run row is opened.
          */
         post: operations["AgentPrismRespondWorkflowRequest"];
         delete?: never;
@@ -1127,7 +1127,7 @@ export interface paths {
         put?: never;
         /**
          * Manually has judge(s) score a run.
-         * @description This SKIPS the sampling decision; it is for calibration and debugging. If no IRunJudge is registered, or the run's input/output cannot be read, an empty list is returned.
+         * @description This SKIPS the sampling decision; it is for calibration and debugging. If no IRunJudge is registered, or the run's input/output cannot be read, an empty list is returned. Judging both READS the run and WRITES a score for it, so a registered IRunAuthorizationHandler is asked for both; either denial returns 404, identical to a run that does not exist.
          */
         post: operations["AgentPrismJudgeRun"];
         delete?: never;
@@ -1713,7 +1713,7 @@ export interface paths {
         };
         /**
          * Lists the tenant's pending approval requests.
-         * @description Only requests still awaiting a decision are returned; a decided request leaves the list and stays readable by id. A request appears here when a queued run ('Prefer: respond-async') stops on a tool call that needs approval — a run driven synchronously carries its approval in the response stream instead and never reaches this mailbox. Each entry carries an expiry, which is an absolute point in the future rather than an elapsed duration.
+         * @description Only requests still awaiting a decision are returned; a decided request leaves the list and stays readable by id. A request appears here when a queued run ('Prefer: respond-async') stops on a tool call that needs approval — a run driven synchronously carries its approval in the response stream instead and never reaches this mailbox. Each entry carries an expiry, which is an absolute point in the future rather than an elapsed duration. If a registered IRunAuthorizationHandler denies the caller, the response is 403 — the list is REJECTED, never silently filtered.
          */
         get: operations["AgentPrismListPendingApprovals"];
         put?: never;
@@ -1733,7 +1733,7 @@ export interface paths {
         };
         /**
          * Returns a single pending approval request.
-         * @description Unlike the list, this reads a request in any state, so it is how a client polls the outcome after deciding: the response then carries who decided, when, and which way. The request holds the tool call's arguments as recorded, which is what an approver reviews before deciding. An unknown id returns 404.
+         * @description Unlike the list, this reads a request in any state, so it is how a client polls the outcome after deciding: the response then carries who decided, when, and which way. The request holds the tool call's arguments as recorded, which is what an approver reviews before deciding. An unknown id returns 404, and so does a denial by a registered IRunAuthorizationHandler.
          */
         get: operations["AgentPrismGetPendingApproval"];
         put?: never;
@@ -1755,7 +1755,7 @@ export interface paths {
         put?: never;
         /**
          * Decides a pending approval request.
-         * @description The decision enqueues a NEW run (same sessionId, new RunId); the old run stays AwaitingApproval. A second decision on the same request gets 409.
+         * @description The decision enqueues a NEW run (same sessionId, new RunId); the old run stays AwaitingApproval. A second decision on the same request gets 409. If a registered IRunAuthorizationHandler denies the caller, the response is 404, identical to an approval request that does not exist — the 409 is never reached, so a denial cannot reveal that the request was already decided.
          */
         post: operations["AgentPrismDecideApproval"];
         delete?: never;
@@ -2105,7 +2105,7 @@ export interface paths {
         };
         /**
          * Lists a run's tool calls in chronological order.
-         * @description Duration is measured only for streaming runs: in a non-streaming run all messages arrive at once, so the true duration between call and result cannot be read.
+         * @description Duration is measured only for streaming runs: in a non-streaming run all messages arrive at once, so the true duration between call and result cannot be read. A run that does not exist, belongs to another tenant, or is denied by a registered IRunAuthorizationHandler returns the same 404.
          */
         get: operations["AgentPrismListRunToolInvocations"];
         put?: never;
@@ -2539,7 +2539,7 @@ export interface paths {
         put?: never;
         /**
          * Run endpoint compatible with the OpenAI Responses API.
-         * @description The agent is selected from the 'model' field; if not found, 'metadata.entity_id' is tried. If 'conversation' is given the session is stored under that identifier; if not, under the generated response identifier, so chaining with 'previous_response_id' works. If a registered IRunAuthorizationHandler denies the caller, the response is 403.
+         * @description The agent is selected from the 'model' field; if not found, 'metadata.entity_id' is tried. If 'conversation' is given the session is stored under that identifier; if not, under the generated response identifier, so chaining with 'previous_response_id' works. If a registered IRunAuthorizationHandler denies the caller, the response is 403. When session ownership is turned on, a 'conversation' or 'previous_response_id' that belongs to another user is refused the same way, and so is opening a NEW conversation when no authenticated identity can be resolved to own it.
          */
         post: operations["AgentPrismOpenAIResponses"];
         delete?: never;
@@ -2559,7 +2559,7 @@ export interface paths {
         put?: never;
         /**
          * Run endpoint compatible with the OpenAI Chat Completions API.
-         * @description Stateless: the client carries history. The agent is selected from the 'model' field; if not found, 'metadata.entity_id' is tried.
+         * @description Stateless: the client carries history. The agent is selected from the 'model' field; if not found, 'metadata.entity_id' is tried. If a registered IRunAuthorizationHandler denies the caller, the response is 403 on BOTH the streaming and the non-streaming path.
          */
         post: operations["AgentPrismOpenAIChatCompletions"];
         delete?: never;
@@ -6293,6 +6293,11 @@ export interface components {
             /** @description The tenant identifier. */
             tenantId?: null | string;
             /**
+             * @description The user the session belongs to, or `null` when the
+             *     session is unowned.
+             */
+            ownerId?: null | string;
+            /**
              * Format: int32
              * @description The AgentPrism schema generation that wrote `State`.
              */
@@ -8174,6 +8179,15 @@ export interface operations {
                     "application/json": components["schemas"]["AttachmentDescriptor"][];
                 };
             };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
         };
     };
     AgentPrismUploadAttachment: {
@@ -8200,6 +8214,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AttachmentDescriptor"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
         };
@@ -8603,6 +8626,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RunRecord"][];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
         };
@@ -9136,6 +9168,15 @@ export interface operations {
                     "text/event-stream": string;
                 };
             };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
             /** @description Not Implemented */
             501: {
                 headers: {
@@ -9167,6 +9208,15 @@ export interface operations {
                     "application/json": components["schemas"]["WorkflowPendingRequest"][];
                 };
             };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
         };
     };
     AgentPrismRespondWorkflowRequest: {
@@ -9195,6 +9245,15 @@ export interface operations {
             };
             /** @description Bad Request */
             400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -10592,6 +10651,15 @@ export interface operations {
                     "application/json": components["schemas"]["PendingApproval"][];
                 };
             };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
         };
     };
     AgentPrismGetPendingApproval: {
@@ -11155,6 +11223,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ToolInvocationRecord"][];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
         };
@@ -11755,6 +11832,15 @@ export interface operations {
             };
             /** @description Bad Request */
             400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OpenAIErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
