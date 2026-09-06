@@ -19,7 +19,8 @@ builder.AddAgentPrism()          // reads the "AgentPrism" configuration section
 
 Everything is registered with `TryAdd`. Register your own implementation of a seam
 **before** this call and yours wins — AgentPrism never overwrites a consumer's
-registration.
+registration. Add `.RequireCustomBinding<T>()` for a seam the deployment must not run
+without: the host does not start while AgentPrism's built-in default is what resolves.
 
 ## What it does
 

@@ -4662,3 +4662,31 @@ Ret metni tek tutuldu: `RefusedAsAnotherUsers()` hem sahipsiz satır hem başkas
 ### K-697
 
 Açık Soru 1'in üç seçeneği vardı; kullanıcı A'yı seçti. `MapOpenAICompatible` gibi geniş bir bayrak (B) fazın kapsamını aşıyordu ve daha kötüsü, conversations yüzeyini kapatmak isteyen bir kurulumu `/v1/responses` ile `/v1/chat/completions`'ı da kapatmaya zorlardı — bunlar `run` BAŞLATAN yüzeylerdir ve zaten kapıdan geçerler, yani fazın kapattığı boşluğun parçası değillerdi. İki bayrak birden (C) bir etkileşim kuralı üretirdi ("ikisi de kapalıysa ne olur"). Varsayılan `true`: yüzey `1.0.0-preview.1` ile sevk edildi ve varsayılanı `false` yapmak sessiz bir kırılma olurdu. Bayrak `AgentPrismEndpointOptions`'ta yaşar ve yapılandırmadan bağlanmaz — bu tip `MapAgentPrism` çağrısına aittir (`AuthToken` de oradadır).
+
+### K-698
+
+İki seçenek vardı ve kullanıcı A'yı (çalışma anı) seçti. B, yedi arayüze ortak bir işaretçi (`IAgentPrismExtensionPoint`) ekleyip generic kısıtı ona bağlamayı öneriyordu; uygulama Adım 1'de bunun **kümeyi kapatmadığını** ölçtü — tüketicinin kendi sınıfı da işaretçiyi uygularsa kısıttan geçer, yani B derleme anı güvencesi gibi görünüp aslında yalnız bir isimlendirme kuralıdır. Bedeli ise gerçektir: yedi public sözleşmenin imzası bir iç taksonomi için değişir ve `IAttachmentStorage` gibi bağımsız bir depolama sözleşmesi AgentPrism'in sınıflandırmasına bağlanır. A'nın maliyeti tek bir hata yoludur ve o yol zaten var: tanınmayan tip host başlangıcında yediyi listeleyen açık bir mesajla reddedilir (`Membership_is_checked_before_anything_is_resolved` — kontrol, hiçbir servis ÇÖZÜLMEDEN önce koşar, ki bir yazım hatası eksik binding gibi raporlanmasın).
+
+### K-699
+
+`AgentPrismRolePolicies.cs:84` aynı repoda, aynı hata sınıfını (yanlış kompozisyon) `InvalidOperationException` ile bildiriyor. Yeni bir istisna tipi public yüzeyi büyütür ve karşılığında hiçbir şey vermez: tüketicinin bunu yakalaması beklenmez, çünkü host zaten başlamaz — yakalanacak bir akış yoktur. `ToolRegistrationValidationService`'in `AgentPrismException` kullanması karşı emsal olarak değerlendirildi ve reddedildi: orada hata tüketicinin bir seçenekle (`AllowUnverifiedToolRegistry`) **kapatabildiği** bir kuraldır, burada tüketicinin kendi beyanıdır.
+
+### K-700
+
+`ExtensionPointDiagnostic` bir **olgu** taşır: hangi tip bağlı ve yerleşik varsayılan mı. Zorunluluk bir **niyettir** ve kompozisyonda yaşar. İkisini aynı kayda koymak K-250'nin ayrımını (rapor yargı taşımaz) gevşetirdi. Pratik gerekçe daha da nettir: zorunluluk ihlal edilmişse host ayakta değildir, yani raporu okuyacak kimse yoktur — alan yalnız ihlal EDİLMEMİŞ kurulumlarda görünürdü ve orada da hiçbir şey öğretmezdi. OpenAPI anlık görüntüsü ve `extensionPoints` şeması bu yüzden değişmedi; `MT-DIAG-065` üç alanın tam kümesini kilitler.
+
+### K-701
+
+Tüketicinin F2 metni yalnız "kabul edilmeyen default çözülüyorsa" diyordu; lifetime kaygısı onların ayrı bir risk satırındaydı. `ValidateOnBuild`/`ValidateScopes` captive dependency'yi zaten host başlangıcında yakalar, yani ikinci bir mekanizma aynı işi yapardı. Ölçülmemiş bir talep için public yüzeye bir aşırı yükleme eklemek, sonradan geri alınması pahalı bir karardır. Doğrulayıcı bu yüzden lifetime'a hiç bakmaz — ama **kendisi** bir `scope`'tan çözer, ki `Scoped` kaydedilmiş geçerli bir binding'i yanlışlıkla reddetmesin (`A_scoped_binding_passes_with_ValidateScopes_and_ValidateOnBuild_turned_on`).
+
+### K-212
+
+Ölçüldü: MAF 1.16.0 ile UYUŞUYOR (Faz 27 planının koşulu gerçekleşmedi) ama üç ayrı gerekçeyle ertelendi: 37 geçişli paket ağırlığı, gerçek bir Azure aboneliği olmadan doğrulanamazlık, ve uzak agent'ın AgentPrism'in tool onayı/kalıcılık/kiracı yalıtımı garantilerini geçersiz kılması.
+
+### K-441
+
+30 KB gzip bütçesi konsolun kendi `sse.ts`'ini widget'a taşımayı göze alamaz. Akışsız yol zaten tam bir tur tamamlıyor (kanıt: `samples/AgentPrism.Api` üzerinde gerçek bir OpenAI çağrısıyla uçtan uca doğrulandı — bkz. fazın DoD bölümü) ve widget'ın "yaz, gönder, yanıtı gör" senaryosu için akış deneyimi zorunlu değil. Ölçülen sonuç: widget 2,7 KB gzip (bütçenin ~%9'u), kalan pay büyük.
+
+### K-504
+
+Plan dosya listesi `Tools/SpeakTool.cs`'i "değişir" diye işaretlemişti, dokunulmadı: tool sonucu modele düz metin özet döner (`attachmentId`/`type`/`size`/`duration`), hizalama verisini taşıyacak bir alan yok ve planın HTTP uç tablosu zaten yalnız operatör ucunu adlandırıyordu.

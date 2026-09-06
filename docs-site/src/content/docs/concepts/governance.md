@@ -107,6 +107,13 @@ behaviour and the migration notes, and
 [Embedding](/guides/embedding/#6--run-and-session-authorization) for how it
 composes with `IRunAuthorizationHandler`.
 
+Every one of these handlers has a permissive built-in default, and a host that binds
+nothing starts silently on it. Where that silence is unacceptable, declare the
+binding required with
+[`RequireCustomBinding<T>()`](/guides/embedding/#make-a-binding-required): the host
+then refuses to start while AgentPrism's default is what resolves. It gates
+composition, not the decision the handler goes on to make.
+
 ## Per-tenant provider credentials and egress
 
 By default every tenant shares the model provider credential a `Use...()` call

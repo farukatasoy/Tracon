@@ -20,8 +20,9 @@ namespace AgentPrism.Generators.UnitTests.Examples;
 /// A handful of blocks name a type that exists only to illustrate an extension
 /// point (<c>OnPremiseModelProvider</c>, <c>OrderTools</c>, <c>IOrderGateway</c>,
 /// <c>IOrderRepository</c>, <c>NightlyReportJobHandler</c>, <c>GitAgentSource</c>,
-/// <c>ResponseQualityJudge</c>, <c>AuditingAgentDecorator</c>): "a
-/// provider/tool/service/repository/handler/source/judge/decorator you wrote yourself". Those get a
+/// <c>ResponseQualityJudge</c>, <c>AuditingAgentDecorator</c>,
+/// <c>OrderDeskAuthorization</c>): "a
+/// provider/tool/service/repository/handler/source/judge/decorator/authorization you wrote yourself". Those get a
 /// minimal stub here for the same reason - a real consumer would have written
 /// one, and the doc text stays untouched.
 /// </para>
@@ -127,6 +128,15 @@ internal static class ExamplePrelude
             public ValueTask<IReadOnlyList<AgentDescriptor>> ListAsync(CancellationToken cancellationToken = default) => default;
 
             public ValueTask<AIAgent?> ResolveAsync(string agentName, string? culture = null, CancellationToken cancellationToken = default) => default;
+        }
+
+        // Stands in for "your own run/session authorization handler", named in
+        // one <example> only.
+        internal sealed class OrderDeskAuthorization : IRunAuthorizationHandler
+        {
+            public ValueTask<RunAuthorizationResult> AuthorizeRunAsync(RunAuthorizationRequest request, CancellationToken cancellationToken = default) => default;
+
+            public ValueTask<RunAuthorizationResult> AuthorizeSessionAsync(SessionAuthorizationRequest request, CancellationToken cancellationToken = default) => default;
         }
 
         // Stands in for "your own run judge", named in one <example> only.

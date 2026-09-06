@@ -22,10 +22,15 @@ six are wired the same way, are all optional, and can be added one at a time.
 | `IAttachmentStorage` | A place to write attachment bytes outside the database | Content is stored as `bytea` in the database |
 
 Each interface is registered with `TryAdd`, so a registration made **before**
-`AddAgentPrism()` wins over the built-in default; a registration made after it is
-silently ignored. `GET /api/diagnostics` (once you turn it on) reports which of the
-six are still built-in and which your application replaced — see
-[Extension points](#extension-points-in-diagnostics) below.
+`AddAgentPrism()` wins over the built-in default. A registration made after it is
+where module order starts to matter: a `TryAdd` registration is dropped, because
+AgentPrism's default already holds the slot, while a plain `Add` still wins the
+resolve and leaves AgentPrism's unused registration behind it. Register first and
+neither case can bite you. `GET /api/diagnostics` (once you turn it on) reports which
+of the six are still built-in and which your application replaced — see
+[Extension points](#extension-points-in-diagnostics) below; to turn a missed binding
+into a failed startup instead of a report nobody reads, see
+[Make a binding required](#make-a-binding-required).
 
 ```csharp
 var builder = WebApplication.CreateBuilder(args);
@@ -346,6 +351,46 @@ migrates alongside yours instead of at every instance's startup. See
 [Choose a migration strategy](/guides/production/#choose-a-migration-strategy) for
 the fleet-deployment version of this same setting.
 
+## Make a binding required
+
+Reporting a missed binding is not the same as refusing to run without it. An
+application that means to enforce its own rule can declare the binding required, and
+the host then does not start while AgentPrism's built-in default is what resolves:
+
+```csharp
+builder.Services.AddSingleton<IRunAuthorizationHandler, YourRunAuthorizationHandler>();
+builder.Services.AddSingleton<IToolAuthorizationHandler, YourToolAuthorizationHandler>();
+
+builder.AddAgentPrism()
+    .RequireCustomBinding<IRunAuthorizationHandler>()
+    .RequireCustomBinding<IToolAuthorizationHandler>();
+```
+
+The check runs while the host starts, and the message names the contract, the type
+that resolved instead, and how to fix it:
+
+```text
+IRunAuthorizationHandler was declared as a required custom binding, but AgentPrism's
+built-in default AllowAllRunAuthorizationHandler is what resolved. Register your own
+IRunAuthorizationHandler on IServiceCollection BEFORE the AddAgentPrism() call.
+```
+
+Four properties are worth knowing before you rely on it:
+
+- **It is off by default.** An application that never calls `RequireCustomBinding`
+  behaves exactly as it did before, and the call resolves nothing extra at startup.
+- **It is not an HTTP concern.** The check runs at host start, so an embedded host
+  that never calls `MapAgentPrism()` gets the same guarantee.
+- **`IRunEventSink` and `IAttachmentStorage` are judged by absence.** AgentPrism
+  registers nothing for those two, so "still on the default" means no registration at
+  all rather than a particular type.
+- **It is a composition gate, not a security proof.** It tells you your
+  implementation is the one bound. It cannot tell you that your implementation
+  decides correctly — that is what your own tests are for.
+
+Any type that is not one of the seven contracts also stops the host, with a message
+listing the seven that are accepted.
+
 ## Extension points in diagnostics
 
 `GET /api/diagnostics` (off by default; turn it on with
@@ -382,6 +427,7 @@ wrong interface.
 ## Verification checklist
 
 - [ ] Every binding you need is registered **before** `AddAgentPrism()`
+- [ ] Bindings your deployment must not run without are declared with `RequireCustomBinding<T>()`
 - [ ] `GET /api/diagnostics` shows `isBuiltInDefault: false` for each contract you bound
 - [ ] A background job opens `AmbientTenantScope.Begin(tenantId)` in the method that starts the run, and the scope covers every `await` on that path
 - [ ] `IRunEventSink.OnEventAsync` never performs blocking I/O inline — it queues and returns

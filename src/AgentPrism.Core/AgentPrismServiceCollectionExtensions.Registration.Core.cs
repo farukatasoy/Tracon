@@ -39,6 +39,16 @@ public static partial class AgentPrismServiceCollectionExtensions
         // A consumer replaces this registration to enforce their own rule.
         services.TryAddSingleton<IRunAuthorizationHandler, AllowAllRunAuthorizationHandler>();
 
+        // Composition gate for the seven embedding points (phase 150, F-202).
+        // Registered here, ahead of every IHostedService AgentPrism itself
+        // registers, so a host whose module order left a required binding on the
+        // built-in default fails before AgentPrism's own background work starts.
+        // A host that registers its own hosted service before AddAgentPrism()
+        // still starts that one first; that order is the host's to choose. The
+        // gate resolves nothing unless the application declared a contract
+        // through RequireCustomBinding.
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, RequiredBindingValidator>());
+
         // Tool argument validation (phase 127): valid by default. Registered as
         // the specific shared instance so ToolWrapperChain.Compose can recognize
         // it by reference and skip installing ValidatingAIFunction when a

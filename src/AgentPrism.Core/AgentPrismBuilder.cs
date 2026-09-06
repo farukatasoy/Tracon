@@ -236,4 +236,16 @@ internal sealed class AgentPrismBuilder : IAgentPrismBuilder
         Services.AddSingleton(new AgentPrismEvalCheckRegistration(kind, check));
         return this;
     }
+
+    public IAgentPrismBuilder RequireCustomBinding<T>()
+        where T : class
+    {
+        // The type argument is NOT checked here. Whether the container ends up
+        // on the built-in default is only knowable once every module has
+        // registered, so the answer belongs to host start, and reporting a
+        // wrong type argument from the same place keeps one error surface
+        // instead of two.
+        Services.AddSingleton(new RequiredBindingRegistration(typeof(T)));
+        return this;
+    }
 }

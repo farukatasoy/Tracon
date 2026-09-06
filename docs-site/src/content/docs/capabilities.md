@@ -250,7 +250,8 @@ conditional or separately mapped, so they are not all represented by the generat
 
 Each contract is registered with `TryAdd`, so a registration made before
 `AddAgentPrism()` wins over AgentPrism's built-in default, and
-`GET /api/diagnostics` reports which of the seven are still built-in. A tool body
+`GET /api/diagnostics` reports which of the seven are still built-in.
+`RequireCustomBinding<T>()` turns a missed binding into a failed startup. A tool body
 reads the same identity (including `UserId`) through `AgentPrismRunContext`,
 since it cannot reach `AgentSession` directly.
 

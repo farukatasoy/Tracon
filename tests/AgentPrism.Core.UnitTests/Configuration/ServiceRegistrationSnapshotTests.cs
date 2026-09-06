@@ -120,6 +120,7 @@ public sealed class ServiceRegistrationSnapshotTests
         "AgentPrism.IRunAttributionContext | Singleton | AgentPrism.DefaultRunAttributionContext",
         "AgentPrism.IToolAuthorizationHandler | Singleton | AgentPrism.AllowAllToolAuthorizationHandler",
         "AgentPrism.IRunAuthorizationHandler | Singleton | AgentPrism.AllowAllRunAuthorizationHandler",
+        "Microsoft.Extensions.Hosting.IHostedService | Singleton | AgentPrism.RequiredBindingValidator",
         "AgentPrism.IToolArgumentsValidator | Singleton | Instance:AgentPrism.NoOpToolArgumentsValidator",
         "AgentPrism.IStructuredResponseValidator | Singleton | Instance:AgentPrism.NoOpStructuredResponseValidator",
         "AgentPrism.IToolRegistry | Singleton | Factory",
