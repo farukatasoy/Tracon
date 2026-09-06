@@ -4538,3 +4538,111 @@ Faz 148: sahip çözümünde AÇIK bir `AmbientRunAttributionScope`, kayıtlı `
 ### K-693
 
 Faz 148: sahipsiz (`owner_id IS NULL`) eski bir satır TEKİL erişimde (okuma, silme, dallandırma, ses, `run` sürdürme) reddedilmez; sahipli hiçbir LİSTEDE ise görünmez. AgentPrism, açılışını izlemediği bir oturuma sahip icat edemez, bu yüzden mod açılmadan önce yazılmış her satır sahipsizdir. Reddetmek, bayrağın açıldığı ANDA canlı olan HER konuşmayı sahipsiz bırakırdı — üretimde bayrağı açmayı imkânsız kılan bir davranış. İzin vermek o satırların bayraktan bir gün önceki kiracı-geneli erişilebilirliğini AYNEN korur; sahiplik dokümante edilmiş biçimde GERİYE DÖNÜK DEĞİLDİR. Keşfedilebilirlik yine de kapanır: sahipsiz satır hiçbir sahipli listede çıkmaz, yalnız yönetim listesinde görünür (K-691). Daha katı davranış isteyen tüketici bunu `IRunAuthorizationHandler` ile söyler — bu, sahipliğin cevaplayamadığı soruları cevaplamak için zaten oradadır. Aynı gerekçe var olmayan bir oturumu da reddetmemeyi gerektirir (K-283): ses ucu, hiçbir şeyin yazmadığı bir id altında meşru olarak taze bir oturum açar.
+
+## Faz 90 damıtmasında taşınan gerekçeler
+
+### K-003
+
+Ad çakışmasında **kod kazanır** — kod derleme zamanında doğrulanmıştır.
+
+### K-008
+
+`Abstractions`, `Core`, `PostgreSql`, `OpenAI` yalnız GA paketlere bağlı. Sonuç: MAF GA'ya geçtiğinde tek pakette sürüm güncellemesi yeterli. AgentPrism o ana kadar `1.0.0-preview.N` yayınlanır.
+
+### K-010
+
+`/api/meta` kimlik doğrulaması olmadan erişilir — arayüzün kimlik yöntemini öğrenmesi için; hassas veri içermez.
+
+### K-016
+
+Faz 1–6 boyunca API yüzeyi hızla değişecek; her değişikliği kaydettirmek yayınlanmamış bir pakette hiçbir koruma sağlamaz.
+
+### K-019
+
+Ad çakışmasında öncelikli kaynak kazanır. Böylece `AgentPrism.Core` ön sürüm `Hosting` paketine bağlanmadan MAF agent'larını da katalogda gösterebilir.
+
+### K-020
+
+Bastırma yalnız `AgentDefinitionCompiler.CompileHarnessAgent` içinde, gerekçesi koda yazılı. MAF bu API'yi değiştirirse tek nokta güncellenir.
+
+### K-028
+
+Kökte düz ayar tutmak (`AgentPrism:ConnectionString`) `SchemaName`, `CommandTimeoutSeconds` gibi eklere yer bırakmıyordu ve ileride `AgentPrism.SqlServer` eklenirse çakışırdı.
+
+### K-082
+
+Skill değişiminden sonra agent cache'i `UpdatedAt` parmak iziyle yenilenir.
+
+### K-083
+
+Tool yetkisi K-012 güvenlik sınırında kalır; script davranışı Faz 11 ile birlikte ele alınır.
+
+### K-084
+
+Sınır `AgentPrismSkillOptions.MaxSkillsPerAgent` ile tüketici tarafından değiştirilebilir; HTTP derleyici yolu ve UI aynı varsayılanı uygular.
+
+### K-085
+
+Tenant, sıralı skill adları, skill sürümü ve `UpdatedAt` ile üretilen SHA-256 parmak izi anahtara girmezse çalışan süreç eski skill içeriğini kullanırdı.
+
+### K-107
+
+Depo zamanla büyür ama K1 (sıfır sürpriz) ve mevcut append-only desenle (K-014) tutarlıdır — "bu mesaj neden yok" sorusu hiçbir zaman sorulmaz.
+
+### K-109
+
+Üç alt strateji de aynı `CompactionSettings` alanlarından (aynı tetikleyici, `MinimumPreservedGroups`/`Turns`) kurulur; kullanıcı sırayı değiştiremez.
+
+### K-117
+
+Maliyeti bir tablo ve bir `AgentFileStore` uygulamasıydı; Faz 13'ün `InMemoryAgentFileStore` ile bıraktığı yarım işi (K-110) kapattı — `FileMemoryProvider`/`TextSearchProvider` kod değişmeden kalıcı belleğe döndü.
+
+### K-119
+
+Kullanıcı beşinin tamamını istedi. Ölçülen maliyet düşük çıktı: `AgentWorkflowBuilder` hepsi için hazır fabrika sunuyor ve derleyicideki fark desen başına 10–20 satır.
+
+### K-151
+
+Kök satırda ikisi ayrı sütun olarak gösterilir, toplanmaz.
+
+### K-156
+
+İkinci bir "devre durumu" ucu var olan bilgiyi tekrar eden gereksiz bir yüzey olurdu.
+
+### K-196
+
+AOT/trim ölçümü Faz 24'ün DoD'sinde açık kalan bir kalemdir.
+
+### K-230
+
+K-047'nin gerekçesi (XSS'te sır kalıcı sızmasın) dile uygulanmaz. Sıra: `localStorage` → `navigator.languages` → `en`.
+
+### K-246
+
+`entity` alanı `run:{runId}` biçimindedir; `before`/`after` boş bırakılır (çalıştırma satırı zaten `GET /api/runs/{id}` ile okunabilir).
+
+### K-255
+
+`agentprism.quota.limit` eklendi; ikisi aynı etiket kümesini (`tenant.id`, `quota.scope`, `quota.period`, `quota.metric`) paylaşır.
+
+### K-258 — devam (Faz 90 damıtması)
+
+`IRetentionStore.FindRowLimitCut
+
+### K-307
+
+Kapalı gelseydi başlığı gönderen bir istemci arka planda koşulduğunu sanıp korunmazdı; asıl sessiz sürpriz bu olurdu.
+
+### K-355 — devam (Faz 90 damıtması)
+
+### K-310
+
+Gerçek yan etki üreten tek moddur; rol farkı bunu görünür kılar ve uç `Operator` ile bağlı olduğu için fark çalışma anında zorlanır. Onay yasağının gerekçesi K-103'ün aynısıdır: yeniden oynatma arka planda başlayabilir ve onay isteği o anda cevaplayacak bir istemci bulamaz. Denetim `ToolDescriptor.RequiresApproval` üzerinden yapılır; kiracıdaki otomatik onay kuralları hesaba KATILMAZ (kullanıcı kararı) — kural sonradan silinirse aynı istek sessizce 409'a dönerdi.
+
+### K-541
+
+F-133'ün kök sebebi ölçüldü ve kaydın "kırılgan test" teşhisi YANLIŞTI: pencere bir yarış değil, **sabit bir sıraydı** ve onay isteyen HER kuyruk çalıştırmasında açıktı. `RunRecordingAgent` çalıştırmayı `agent.RunAsync`'in İÇİNDE kapatıyor, `AgentRunJobHandler` ise onay satırını çağrı DÖNDÜKTEN sonra yazıyordu; arada `GET /api/approvals/pending` kendini "bekliyorum" ilan etmiş bir `run` için boş dizi veriyordu. İki değişmez birlikte sağlanmalıdır ve sıraları sabittir: **önce oturum** (karar bir `ApprovalResume` işi kuyruklar ve o iş oturumu okur), **sonra onay satırı** (tüketici durumu yokladıktan sonra listeyi okur), **en sonda durum**. Tamamlamayı handler'a devretmek REDDEDİLDİ: `RunRecordingAgent.CompleteAsync` yalnız durum yazmaz — bitmemiş tool'ları boşaltır, compaction usage'ını birleştirir, fallback atfını çözer, maliyeti ve metriği yazar; devretmek bunların hepsini kaybettirirdi. Bunun yerine durum yazılmadan hemen önce koşan bir kanca kondu. Kanca **public**tir: `AgentPrismRunOptions` zaten `Depth`, `RootRunId`, `ReplayOfRunId` gibi kontrol düzlemi düğmeleri taşır ve kendi kuyruğunu işleyen tüketici aynı sıralama sorununu yaşar; tip `Unshipped` olduğu için bugün bedelsizdir (👤 kullanıcı kararı). Kanca akışlı yolda da koşar (onay içerikleri tek bir assistant mesajında toplanır) ki genişleme noktası yola göre sessizce farklı davranmasın. K-372 yeniden AÇILMADI: o karar hangi YOLUN yazdığına dairdir, sıraya değil.
+
+### K-600
+
+Dosya 456 KB'ye ulaşıp bütçesinin %4'üne düşmüştü; medyan satır 625 B, en uzunu 4.052 B. İşaretçi formatı zaten vardı (376 satırda) ama bayt tavanı ve kapı yoktu. Sıra bağlayıcıdır: önce kes-sonra taşı bir kesintide kalıcı kayıp bırakır. ASLA kesilmez: başlık, tarih, yeniden açılma koşulu, `(kullanıcı kararı)` ve `yeniden açıldı` — `_kararlar_kalemleri()` 👤/🔁 işaretlerini satırın TAMAMINDA arar, kesilirse üretilen indeks **sessizce** yanlış olur (3 satır bu yüzden atlandı ve raporlandı). Sonuç: 482 satır, 134.230 B taşındı, 455.921 → 321.691 B; 596 kalem, 👤 113, 🔁 3 değişmedi. Taşınan metnin `docs/`e göre yazılmış bağlantıları yeniden yazılmazsa 292 kırık bağlantı doğuyordu — ölçüldü ve düzeltildi.
