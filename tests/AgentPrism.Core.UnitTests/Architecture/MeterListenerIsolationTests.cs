@@ -160,7 +160,7 @@ public sealed class MeterListenerIsolationTests
                 continue;
             }
 
-            var matches = NameFilterPattern.Matches(StripComments(File.ReadAllText(file))).Count;
+            var matches = NameFilterPattern.Count(StripComments(File.ReadAllText(file)));
 
             if (matches > 0)
             {
