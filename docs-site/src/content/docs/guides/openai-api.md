@@ -120,6 +120,33 @@ Creating a conversation reserves an identifier; the session is born on the first
 response call. Tenant ownership is checked on every reference. An identifier owned
 by another tenant returns `404`, not evidence that the resource exists.
 
+### The conversation routes go through your own gates
+
+`GET`, `DELETE` and `GET …/items` reach the same sessions `/api/sessions/{id}`
+reaches, so they pass the same two checks before answering:
+
+- **Session ownership**, when `AgentPrism:SessionOwnership` is on — including
+  `RefuseUnownedSessions`. See
+  [Sessions: session ownership](/concepts/sessions/#session-ownership).
+- **Your registered `IRunAuthorizationHandler`**, with `SessionAccess.Read` on
+  the two reads and `SessionAccess.Delete` on the delete.
+
+:::caution[Behaviour change]
+Before this, the conversation routes never asked your handler. If you have one
+registered and it refuses some sessions, it now refuses them here too — the
+direction is fail-closed, but it is a change. `POST /v1/conversations` is not
+gated: it reserves an identifier and writes nothing.
+:::
+
+If your deployment does not use these routes at all, leave them unmapped:
+
+```csharp
+app.MapAgentPrism("/agentprism", options => options.MapOpenAIConversations = false);
+```
+
+The four paths then answer `404` and disappear from the OpenAPI document.
+`/v1/responses` and `/v1/chat/completions` are unaffected.
+
 ## Chat Completions: stateless history
 
 Chat Completions remains useful for clients that carry their own message list:

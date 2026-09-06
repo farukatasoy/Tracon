@@ -56,3 +56,21 @@
 - **`OpenAIResponses` public ve tam yolu veriyor** (2026-08-02): `ToAgentRunRequest` / `GetSessionStoreId` / `CreateResponseId` / `WriteResponse` / `WriteResponseStreamAsync`. Sonuncusu **hazır SSE çerçeveleri** üretir (`event:` + `data:` + boş satır) — yeniden çerçeveleme bozar, `SseWriter.WriteRawAsync` ile olduğu gibi yazılır.
 - **`GetSessionStoreId` = `conversation ?? previous_response_id ?? null`** (2026-08-02): ölçüldü. `OpenAIResponsesRunRequest` agent adı **taşımaz**; gövdeden kendimiz okuruz.
 - **🚨 MAF'in OpenAI `storage` arayuzleri `internal`** (2026-08-02): `IConversationStorage`, `IAgentConversationStore` vb. disaridan uygulanamaz — kendi kalicilik katmanini MAF'in depolama noktasina takamazsin. Ayrinti: [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
+
+## Sahiplik: "henüz yok" ile "sahipsiz" ayrı satırlardır
+
+**🚨 Faz 149.** `SessionOwnershipGate`'in iki metodunda da üç dal vardır ve
+ortadaki ikisi ASLA birleştirilmez:
+
+| Dal | Anlamı | Cevap |
+|---|---|---|
+| `record is null` | Oturum hiç açılmamış | Geçer — ilk tur onu açar (K-283) |
+| `record.OwnerId is null` | Sahiplik açılmadan ÖNCE yazılmış satır | `RefuseUnownedSessions` karar verir |
+| `record.OwnerId != caller` | Başkasının oturumu | Her zaman ret |
+
+İlk iki dalı "sahipsiz" diye birleştiren herhangi bir sadeleştirme her
+kurulumdaki **ilk** konuşmayı sessizce öldürür: yeni bir `sessionId` ile gelen
+her istek `403`/`404` alır. Derlenir, çoğu testten geçer, yalnız gerçek ilk
+turda çöker. Üç fonksiyonel test bunu üç katmandan kilitler
+(`Strict_mode_still_opens_a_session_that_does_not_exist_yet`,
+`..._a_voice_socket_...`, `Strict_mode_refuses_a_run_that_names_an_unowned_session`).

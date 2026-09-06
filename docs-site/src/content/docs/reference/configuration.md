@@ -633,6 +633,7 @@ configuration section.
 | `AuthorizationPolicy` | `null` |
 | `RequireRolePolicies` | `false` |
 | `EnableDiagnosticsEndpoint` | `false` |
+| `MapOpenAIConversations` | `true` |
 | `RunEventPollInterval` | 250 ms |
 | `AllowedOrigins` | empty (no CORS header sent) |
 
@@ -645,6 +646,14 @@ app.MapAgentPrism("/agentprism", options =>
     options.RequireAuthorization("AgentPrismAccess");
 });
 ```
+
+`MapOpenAIConversations` is the only one that starts on. Setting it to `false`
+leaves the four `/v1/conversations` routes unmapped: they answer `404` and
+disappear from the OpenAPI document, while `/v1/responses` and
+`/v1/chat/completions` are unaffected. It shrinks the surface a deployment that
+never calls those routes exposes; it is not a security control, since the
+routes go through the same role policies, API key scopes, session ownership and
+`IRunAuthorizationHandler` gate as `/api/sessions`.
 
 Do not enable remote access without a token, API key, or authorization policy.
 Behind a reverse proxy, configure forwarded headers and do not treat the proxy's

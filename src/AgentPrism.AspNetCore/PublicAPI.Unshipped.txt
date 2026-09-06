@@ -79,6 +79,8 @@ AgentPrism.AgentPrismEndpointOptions.AuthToken.set -> void
 AgentPrism.AgentPrismEndpointOptions.EnableDiagnosticsEndpoint.get -> bool
 AgentPrism.AgentPrismEndpointOptions.EnableDiagnosticsEndpoint.set -> void
 AgentPrism.AgentPrismEndpointOptions.AllowedOrigins.get -> System.Collections.Generic.IList<string!>!
+AgentPrism.AgentPrismEndpointOptions.MapOpenAIConversations.get -> bool
+AgentPrism.AgentPrismEndpointOptions.MapOpenAIConversations.set -> void
 AgentPrism.AgentPrismEndpointOptions.RequireAuthorization(string! policyName) -> void
 AgentPrism.AgentPrismEndpointOptions.RequireRolePolicies.get -> bool
 AgentPrism.AgentPrismEndpointOptions.RequireRolePolicies.set -> void

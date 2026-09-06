@@ -1,6 +1,6 @@
 # 13 — Kiracı ve Güvenlik (`SEC`)
 
-> **Alan kodu:** `SEC` · **Faz:** 6, 9, 41, 50, 53, 63, 65, 69, 82, 139, 147
+> **Alan kodu:** `SEC` · **Faz:** 6, 9, 41, 50, 53, 63, 65, 69, 82, 139, 147, 148, 149
 > **Kaynak:** `src/AgentPrism.AspNetCore/Security/` (tümü: `AgentPrismEndpointFilter`,
 > `LoopbackGuard`, `BearerTokenValidator`, `ApiKeyAuthenticator`, `ApiKeyRequestContext`,
 > `ApiKeyScopeRequirement`, `ExternalSurfaceGuard`, `ExternalCallAudit`, `AgentPrismPolicies`,
@@ -3603,3 +3603,212 @@ curl -s -o /dev/null -w '%{http_code}\n' -X POST "$APU/../v1/chat/completions" \
 - 🚨 Bu bir beklenti, bir ölçüm değildir. Süre **ölçülür ve yazılır**; tahmin
   edilmez. Bu case'in otomatik karşılığı **yoktur** ve olamaz — ölçüm gerçek
   veri hacmi ister.
+
+---
+
+### MT-SEC-175 — `RefuseUnownedSessions` tek başına hiçbir şey yapmaz
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 149 |
+| **İnsan gerekir** | Hayır |
+
+**Ön koşul**
+- `AgentPrism:SessionOwnership:Enabled=false`, `RefuseUnownedSessions=true`.
+- Sahipsiz (`owner_id IS NULL`) bir oturum var.
+
+**Adımlar**
+1. `GET /api/sessions/{sahipsiz-id}`.
+
+**Beklenen sonuç**
+- `200`. Sahiplik kapalıyken kapı hiçbir satır okumaz; bu bayrak inerttir.
+- 🚨 Bu case yalnız bayrağı okuyan bir kurulumu değil, **yanlış anlaşılmayı**
+  kapatır: yalnız bu satırı ekleyen bir operatör hiçbir sınır açmamıştır.
+- Otomatikleştirilmiş karşılığı:
+  `Strict_mode_does_nothing_while_ownership_itself_is_off`.
+
+---
+
+### MT-SEC-176 — Katı mod sahipsiz satırı var olmayanla AYNI gövdeyle reddeder
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 149 |
+| **İnsan gerekir** | Hayır |
+
+**Ön koşul**
+- `Enabled=true`, `RefuseUnownedSessions=true`.
+- Sahipsiz bir oturum (`legacy`) var.
+
+**Adımlar**
+1. ```bash
+   diff <(curl -s "$APU/api/sessions/legacy" -H "Authorization: Bearer $TOKEN") \
+        <(curl -s "$APU/api/sessions/yok-boyle-bir-id" -H "Authorization: Bearer $TOKEN")
+   ```
+2. Aynı oturuma `DELETE` at; sonra satırın hâlâ durduğunu doğrula.
+
+**Beklenen sonuç**
+- İkisi de `404`; gövdeler **yalnız id metninde** ayrışır (K-671).
+- `DELETE` de `404` döner ve satır **silinmez** — kapı silmeden önce sorulur.
+- Otomatikleştirilmiş karşılıkları:
+  `Strict_mode_answers_an_unowned_session_with_the_same_404_a_missing_one_gets`,
+  `Strict_mode_refuses_deleting_an_unowned_session_and_leaves_the_row_alone`.
+
+---
+
+### MT-SEC-177 — Katı modda sahipsiz oturuma `run` başlatılamaz
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 149 |
+| **İnsan gerekir** | Hayır |
+
+**Ön koşul**
+- `Enabled=true`, `RefuseUnownedSessions=true`; sahipsiz `legacy` oturumu.
+
+**Adımlar**
+1. `POST /api/agents/{ad}/run`, gövdede `"sessionId":"legacy"` (varsayılan akışlı).
+2. Aynı isteği `Idempotency-Key` başlığıyla tekrarla (akışsız dal).
+3. Aynı oturuma ses WebSocket'i aç.
+
+**Beklenen sonuç**
+- 1 ve 2: `403` + `errorType: session_owner_required`. 🚨 **İkisi de gerçek
+  `403`'tür** — sahiplik kapısı `SseWriter.StartAsync`'ten önce koşar, bu yüzden
+  akışlı yol SSE `error` çerçevesine düşmez (K-324 sınıfı burada geçerli değil).
+- Ret gövdesi **başkasının oturumu** reddiyle birebir aynıdır.
+- 3: soket açılmaz, `404` (K-687).
+- Otomatikleştirilmiş karşılıkları:
+  `Strict_mode_refuses_a_run_that_names_an_unowned_session`,
+  `Strict_mode_refuses_a_non_streaming_run_the_same_way`,
+  `The_unowned_refusal_reads_exactly_like_another_users_refusal`,
+  `Strict_mode_refuses_a_voice_socket_on_an_unowned_session`.
+
+---
+
+### MT-SEC-178 — 🚨 Katı modda VAR OLMAYAN oturum yine açılır
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 149 |
+| **İnsan gerekir** | Hayır |
+
+**Ön koşul**
+- `Enabled=true`, `RefuseUnownedSessions=true`; kimlik çözülüyor.
+
+**Adımlar**
+1. ```bash
+   curl -s -o /dev/null -w '%{http_code}\n' -X POST "$APU/api/agents/support/run" \
+     -H "Authorization: Bearer $TOKEN" -H 'content-type: application/json' \
+     -d '{"input":"merhaba","sessionId":"hic-olmayan-id"}'
+   ```
+2. Hiç yazılmamış bir `sessionId` ile ses WebSocket'i aç.
+
+**Beklenen sonuç**
+- 1: `200`; oturum açılır ve sahibi çağırandır.
+- 2: soket **açılır**.
+- 🚨 Bu case K-283'ü korur. "Henüz yok" ile "sahipsiz yazılmış" **ayrı**
+  satırlardır; ikisi birleşirse her kurulumdaki İLK konuşma sessizce ölür.
+- Otomatikleştirilmiş karşılıkları:
+  `Strict_mode_still_opens_a_session_that_does_not_exist_yet`,
+  `Strict_mode_still_opens_a_voice_socket_on_a_session_that_does_not_exist_yet`.
+
+---
+
+### MT-SEC-179 — Katı modda yönetim payı okur ama `run` başlatamaz
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 149 |
+| **İnsan gerekir** | Hayır |
+
+**Ön koşul**
+- `Enabled=true`, `RefuseUnownedSessions=true`.
+- `AgentPrism.Operator` politikası kayıtlı; sahipsiz `legacy` oturumu.
+
+**Adımlar**
+1. Yönetim payı taşıyan token ile `GET /api/sessions/legacy`.
+2. Aynı token ile `legacy` oturumuna `run` başlat.
+3. Politikayı sağlamayan bir token ile 1'i tekrarla.
+
+**Beklenen sonuç**
+- 1: `200` — destek ekibi listede zaten gördüğü satırı açabilir.
+- 2: `403` — muafiyet **okumayı** kapsar, konuşmaya **yazmayı** değil.
+- 3: `404`. Politika kayıtlı değilse de `404` (fail-closed).
+- Otomatikleştirilmiş karşılıkları:
+  `A_management_caller_still_reads_an_unowned_session_in_strict_mode`,
+  `The_management_exemption_does_not_extend_to_starting_a_run`,
+  `An_unregistered_management_policy_refuses_the_unowned_row_instead_of_opening_it`.
+
+---
+
+### MT-SEC-180 — `/v1/conversations` tüketicinin yetki handler'ından geçer
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 149 |
+| **İnsan gerekir** | Hayır |
+
+**Ön koşul**
+- `AuthorizeSessionAsync`'i reddeden bir `IRunAuthorizationHandler` kayıtlı.
+- Var olan bir oturum (`conv-1`).
+
+**Adımlar**
+1. `GET /v1/conversations/conv-1`.
+2. `GET /v1/conversations/conv-1/items`.
+3. `DELETE /v1/conversations/conv-1`; sonra satırın durduğunu doğrula.
+4. `POST /v1/conversations` (yeni kimlik).
+
+**Beklenen sonuç**
+- 1–3: `404`, OpenAI hata biçiminde ve başka kiracının kimliğiyle **birebir**
+  aynı gövde. `403` **dönmez** — konuşmanın varlığını doğrulardı.
+- 3'te satır **silinmez**.
+- 4: `200` — bu uç yalnız kimlik ayırır, hiçbir şey yazmaz; kapıya bağlı değildir.
+- ⚠️ Bu, handler kaydetmiş MEVCUT kurulumlar için bir **davranış
+  değişikliğidir**: bu uçlar önce hiç sormuyordu.
+- Otomatikleştirilmiş karşılıkları:
+  `OpenAIConversationsAuthorizationTests` sınıfının tamamı.
+
+---
+
+### MT-SEC-181 — `/v1/conversations` haritalaması kapatılabilir
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 149 |
+| **İnsan gerekir** | Hayır |
+
+**Ön koşul**
+- `app.MapAgentPrism(prefix, options => options.MapOpenAIConversations = false);`
+- Var olan bir oturum (`conv-1`).
+
+**Adımlar**
+1. Dört uca da istek at (`POST`, `GET`, `GET …/items`, `DELETE`).
+2. ```bash
+   curl -s "$APU/openapi/v1.json" | jq '.paths | keys | map(select(startswith("/v1/conversations")))'
+   ```
+3. `GET /api/sessions/conv-1`.
+4. `/v1/responses` ve `/v1/chat/completions` yollarının belgede durduğunu doğrula.
+
+**Beklenen sonuç**
+- 1: dördü de `404` — rota **hiç yok**, reddedilmiyor.
+- 2: `[]`.
+- 3: `200` — oturum kendi ucundan hâlâ erişilebilir; satır silinmemiştir.
+- 4: iki yol da **durur**; bayrak yalnız conversations'ı yönetir.
+- Otomatikleştirilmiş karşılıkları:
+  `Turning_the_surface_off_removes_all_four_routes`,
+  `Turning_the_surface_off_removes_it_from_the_OpenAPI_document`,
+  `Turning_the_surface_off_leaves_the_other_OpenAI_routes_alone`.

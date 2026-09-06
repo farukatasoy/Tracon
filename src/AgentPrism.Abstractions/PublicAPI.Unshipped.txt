@@ -5214,6 +5214,8 @@ AgentPrism.AgentPrismSessionOwnershipOptions.Enabled.get -> bool
 AgentPrism.AgentPrismSessionOwnershipOptions.Enabled.set -> void
 AgentPrism.AgentPrismSessionOwnershipOptions.ManagementPolicy.get -> string?
 AgentPrism.AgentPrismSessionOwnershipOptions.ManagementPolicy.set -> void
+AgentPrism.AgentPrismSessionOwnershipOptions.RefuseUnownedSessions.get -> bool
+AgentPrism.AgentPrismSessionOwnershipOptions.RefuseUnownedSessions.set -> void
 AgentPrism.AgentPrismSessionOwnershipOptions.RequireAuthenticatedOwner.get -> bool
 AgentPrism.AgentPrismSessionOwnershipOptions.RequireAuthenticatedOwner.set -> void
 const AgentPrism.AgentPrismSessionOwnershipOptions.SectionName = "AgentPrism:SessionOwnership" -> string!

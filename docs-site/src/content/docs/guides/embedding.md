@@ -245,7 +245,11 @@ common, so each one calls this binding in its own body:
   recorded input, its span tree, its tool calls, its scores, its
   cancellation, its attachments, and its approval requests.
 - **Every session access:** list, read, delete, branch, and opening a
-  real-time voice conversation (`SessionAccess.Voice`).
+  real-time voice conversation (`SessionAccess.Voice`) — including the
+  OpenAI-compatible routes that reach the same sessions under another name,
+  `GET`/`DELETE /v1/conversations/{id}` and `GET /v1/conversations/{id}/items`.
+  `POST /v1/conversations` is not among them: it reserves an identifier and
+  writes nothing, so there is no session yet to authorize.
 
 **How a denial answers depends on what was asked for.** A denied single
 resource — a run, a session, an attachment, an approval request — returns
