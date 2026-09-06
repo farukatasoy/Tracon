@@ -95,7 +95,7 @@
 > kalem **doğrudan plana** dönüştü: **F-201** →
 > [Faz 149](arsiv/fazlar/149-SAHIPSIZ-OTURUMUN-KATI-REDDI.md) (sahipsiz oturumun katı reddi;
 > **K-693'ün yeniden açılma koşulu karşılandı**) · **F-202** →
-> [Faz 150](150-ZORUNLU-BINDING-PROFILI.md) (F2, zorunlu extension binding
+> [Faz 150](arsiv/fazlar/150-ZORUNLU-BINDING-PROFILI.md) (F2, zorunlu extension binding
 > profili). İkisi de tüketicinin geçişini **bloklamıyor**.
 >
 > Planlama ölçümü bir boşluk daha buldu: `/v1/conversations` (dört uç, koşulsuz
