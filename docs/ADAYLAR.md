@@ -89,6 +89,25 @@
 > F6 (ses/WebSocket test harness'i) · F7 (migration plan artifact'i) — üçünün de
 > boşluğu gerçek, talep kanıtı yok. **Elenenler:** F4 · F5 · F8. Gerekçeler keşif
 > kaydındadır.
+>
+> **Ek (2026-09-06, tüketici turu 4 yanıtı):** Tüketici §8'deki üç soruyu
+> yanıtladı ([yanıt raporu](kesif/2026-09-06-tuketici-turu-4-yaniti.md)). İki
+> kalem **doğrudan plana** dönüştü: **F-201** →
+> [Faz 149](149-SAHIPSIZ-OTURUMUN-KATI-REDDI.md) (sahipsiz oturumun katı reddi;
+> **K-693'ün yeniden açılma koşulu karşılandı**) · **F-202** →
+> [Faz 150](150-ZORUNLU-BINDING-PROFILI.md) (F2, zorunlu extension binding
+> profili). İkisi de tüketicinin geçişini **bloklamıyor**.
+>
+> Planlama ölçümü bir boşluk daha buldu: `/v1/conversations` (dört uç, koşulsuz
+> map'leniyor) sahiplik kapısından geçiyor ama `IRunAuthorizationHandler`'dan
+> **geçmiyor** — tüketici kendi handler'ıyla kuracağı kuralı orada uygulayamaz.
+> Faz 149 bunu kapsıyor.
+>
+> **F6** (ses/WebSocket harness) ve **F7** (migration plan artifact'i) tüketici
+> tarafından geri çekildi; F7'nin `MigrationDescriptor` öncülünün yanlış
+> olduğunu kendileri doğruladı. **Kota** sorusu kapandı: dönem kotası tenant
+> ortak bütçesidir ve mevcut `(tenant, agent, dönem)` kapsamı bunu karşılıyor —
+> yapılacak iş yok.
 > Faz durumu yalnız üretilen [`YOL-HARITASI.md`](YOL-HARITASI.md)'dedir.
 > Bir kusur bu dosyaya geri girmez; `kusur-giderme` kanalına gider. Kapatılmış
 > kararın yeniden açılması kullanıcı kararıdır. Ölçüm bekleyen iddia, kanıt
