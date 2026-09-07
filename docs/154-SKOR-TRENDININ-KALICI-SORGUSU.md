@@ -2,7 +2,7 @@
 
 > **Durum:** 📋 Planlandı (2026-09-07)
 > **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-209**
-> **Önkoşul:** 🚨 [Faz 152](152-SKORUN-ADI-VE-SEKLI.md) — aynı tabloya (`run_scores`) dokunur ve **önce koşmalıdır**. 152 skora bir **ad** getiriyor; kırılım o adı içermelidir, aksi hâlde kırılım iki kez elden geçer.
+> **Önkoşul:** 🚨 [Faz 152](arsiv/fazlar/152-SKORUN-ADI-VE-SEKLI.md) — aynı tabloya (`run_scores`) dokunur ve **önce koşmalıdır**. 152 skora bir **ad** getiriyor; kırılım o adı içermelidir, aksi hâlde kırılım iki kez elden geçer.
 > **Paketler:** `AgentPrism.Abstractions`, `AgentPrism.Core`, `AgentPrism.AspNetCore`, `AgentPrism.PostgreSql`, `AgentPrism.Sqlite`, `AgentPrism.SqlServer`, `AgentPrism.Testing.Contracts.Xunit`, `AgentPrism.UI`
 > **Yeni paket:** Yok · **Migration:** 🚨 **gerekli, üç sağlayıcıda** — yalnız indeks; numaralar uygulama anında alınır (K-178). Yeni tablo **yok**
 > **Public API:** Büyüyor — `IRunScoreStore`'a bir okuma üyesi + bir sorgu/sonuç tipi çifti. `wc -l src/*/PublicAPI.Shipped.txt` → her dosya **1 satır** (ölçüldü 2026-09-07): depo arayüzüne üye eklemek üçüncü taraf uygulayıcıyı kırar ve **`1.0` öncesi** yapılmalıdır.
@@ -25,7 +25,7 @@
    (sunucu yanıtları çevrilmez), **K-421** (public API takibi açık), **K-638**
    (yargıç checkpoint'i yeni tablo AÇMADAN mevcut `run_scores` satırlarından
    okur — bu fazın emsali ve aynı kuralın devamı).
-3. [`152-SKORUN-ADI-VE-SEKLI.md`](152-SKORUN-ADI-VE-SEKLI.md) — yalnız devir notu:
+3. [`152-SKORUN-ADI-VE-SEKLI.md`](arsiv/fazlar/152-SKORUN-ADI-VE-SEKLI.md) — yalnız devir notu:
    ```bash
    awk '/## Sonraki Faza Devir Notu/,0' docs/152-SKORUN-ADI-VE-SEKLI.md
    ```
@@ -48,7 +48,7 @@ Skor özeti süreç yeniden başlayınca **sıfırlanıyor** ve ürün bunu tük
 **kendi tablosunu sorgulayarak** çözmesini söylüyor. Bir NuGet paketinin
 tüketiciyi kendi şemasına yönlendirmesi bir sözleşme boşluğudur: `run_scores`
 public bir yüzey değildir, migration'la değişebilir — nitekim
-[Faz 152](152-SKORUN-ADI-VE-SEKLI.md) tam olarak onu değiştiriyor.
+[Faz 152](arsiv/fazlar/152-SKORUN-ADI-VE-SEKLI.md) tam olarak onu değiştiriyor.
 
 Bu faz **tasarımı değiştirmez**. Mevcut "no durable counter store" kuralı
 korunur; canlı gösterge bellekte kalır. Eklenen tek şey eksik olan **okuma

@@ -121,7 +121,7 @@
 >
 > **Ek (2026-09-07, altıncı tur — planlama):** **F-192 · F-208 · F-207 · F-209**
 > plana dönüştü ([Faz 151](arsiv/fazlar/151-HARNESSIN-DONGU-YETENEGI.md) ·
-> [Faz 152](152-SKORUN-ADI-VE-SEKLI.md) ·
+> [Faz 152](arsiv/fazlar/152-SKORUN-ADI-VE-SEKLI.md) ·
 > [Faz 153](153-EVAL-KOSUMLARI-ARASINDA-REGRESYON-FARKI.md) ·
 > [Faz 154](154-SKOR-TRENDININ-KALICI-SORGUSU.md)); bölümleri bu dosyadan
 > **silindi**. Doğrulama dört aday metnini de düzeltti ve **bir keşif iddiasını
@@ -135,7 +135,7 @@
 
 ## Okuma Sırası
 
-**Sıralanabilir aday: bir** — F-210, ve o da [Faz 152](152-SKORUN-ADI-VE-SEKLI.md)
+**Sıralanabilir aday: bir** — F-210, ve o da [Faz 152](arsiv/fazlar/152-SKORUN-ADI-VE-SEKLI.md)
 kapanmadan planlanamaz (2026-09-07). Bu dosyaya bakma sebebin şunlardan biridir:
 
 | İhtiyaç | Nereye bak |
@@ -185,7 +185,7 @@ elendi; tur başlıklara değil **kenarlara** yöneldi.
 | Aday | Faz |
 |---|---|
 | F-192 | [151 — Harness'in Döngü Yeteneği](arsiv/fazlar/151-HARNESSIN-DONGU-YETENEGI.md) |
-| F-208 | [152 — Skorun Adı ve Şekli](152-SKORUN-ADI-VE-SEKLI.md) |
+| F-208 | [152 — Skorun Adı ve Şekli](arsiv/fazlar/152-SKORUN-ADI-VE-SEKLI.md) |
 | F-207 | [153 — Eval Koşumları Arasında Regresyon Farkı](153-EVAL-KOSUMLARI-ARASINDA-REGRESYON-FARKI.md) |
 | F-209 | [154 — Skor Trendinin Kalıcı Sorgusu](154-SKOR-TRENDININ-KALICI-SORGUSU.md) |
 
@@ -302,7 +302,7 @@ client without a clear error explaining why.
 
 ### F-210 · `Microsoft.Extensions.AI.Evaluation.Quality` evaluator katalogu
 
-> **Bağımlı:** [Faz 152](152-SKORUN-ADI-VE-SEKLI.md). Faz 152 kapanmadan
+> **Bağımlı:** [Faz 152](arsiv/fazlar/152-SKORUN-ADI-VE-SEKLI.md). Faz 152 kapanmadan
 > **planlanamaz** — bugün `RunJudgment` tek bir `int? Score` taşıyor, `IEvaluator`
 > ise çok adlı `EvaluationResult` döndürüyor.
 
@@ -393,7 +393,7 @@ Gerekçeler:
 | **F-95 sıralamadan çıktı** | Dördüncü sıra, sahip olmadığı bir plan hazırlığını ima ediyordu. `Hazırlık` satırı zaten "🚨 İmza doğrulanmadı" diyor. **2026-09-05 güncellemesi:** imza doğrulandı ve **MAF yolu kapandı** — kanca ayrı bir alpha pakettedir (`Microsoft.Agents.AI.AgentHooks`), sözleşmesi *enforcement*'tır (kesinti/devam değil) ve `FunctionInvokingChatClient` içeren client'ı reddeder. Kalem yalnız F-141 üzerinden ilerler; bkz. § *Bekleyen Kalemler* → F-95 `Hazırlık`. |
 | **F-208 · paket ağırlığı riski DÜŞTÜ** | Aday metni *"`M.E.AI.Evaluation` bağımlılığını almak `Abstractions`'ın grafiğini büyütür"* diyordu. Gerçek restore ile ölçüldü (2026-09-07): paketin **tek** bağımlılığı `M.E.AI.Abstractions` 10.9.0'dır ve `AgentPrism.Abstractions` onu **zaten referanslıyor** ⇒ **net 1 paket, geçişli ağırlık 0**. Karar bu yüzden ağırlıkla değil **tip doğasıyla** verildi (kalıcı kayıt ↔ mutable çalışma-anı nesnesi): şekli hizala, tipi alma. |
 | 🚨 **Keşif iddiası ÇÜRÜDÜ: repo bu aileyi kullanıyor** | [`kesif/2026-09-07-langfuse-esinli-tur.md:85`](kesif/2026-09-07-langfuse-esinli-tur.md) *"🚨 Repo bu aileyi kullanmıyor"* diyordu. Doğru olan yalnız yarısıdır: `Directory.Packages.props` `.Evaluation*`'ı **doğrudan** referanslamıyor, ama `Microsoft.Extensions.AI.Evaluation` 10.9.0 `Core`/`AspNetCore`/`Cli` grafiğinde `Microsoft.Agents.AI` 1.20.0 üzerinden **var** ve [`EvalJobHandler.cs:3`](../src/AgentPrism.Core/Evaluation/EvalJobHandler.cs#L3) `using`'i ile **kullanılıyor** (`EvaluationMetric`, `:432` ve `:458`). Keşif kaydı düzeltildi. |
-| **F-208'in kapsamı BÜYÜDÜ** | Ölçüm ikinci bir boşluk buldu: [`EvalJobHandler.cs:458`](../src/AgentPrism.Core/Evaluation/EvalJobHandler.cs#L458) `SerializeScores` metriğin `Value`, `Interpretation.Rating`, `Diagnostics` ve `Metadata` alanlarını **atıyor**. Bugün gözlemlenebilir bir yanlış davranış yok (MAF `EvalCheck`'i yalnız boolean üretiyor), ama şekil kararıyla aynı koddur. Kullanıcı kararı: ayrı kusur açılmaz, [Faz 152](152-SKORUN-ADI-VE-SEKLI.md)'nin kapsamına girer. |
+| **F-208'in kapsamı BÜYÜDÜ** | Ölçüm ikinci bir boşluk buldu: [`EvalJobHandler.cs:458`](../src/AgentPrism.Core/Evaluation/EvalJobHandler.cs#L458) `SerializeScores` metriğin `Value`, `Interpretation.Rating`, `Diagnostics` ve `Metadata` alanlarını **atıyor**. Bugün gözlemlenebilir bir yanlış davranış yok (MAF `EvalCheck`'i yalnız boolean üretiyor), ama şekil kararıyla aynı koddur. Kullanıcı kararı: ayrı kusur açılmaz, [Faz 152](arsiv/fazlar/152-SKORUN-ADI-VE-SEKLI.md)'nin kapsamına girer. |
 | **F-192'nin satır numarası kaydı** | Aday metni `AgentDefinitionCompiler.Agents.cs:172` diyordu; doğru satır **236**'dır. `LoopAgent`/`LoopEvaluator` sayımı (`0 dosya`) ve MAF imzalarının tamamı 1.20.0'da yeniden doğrulandı — `HarnessAgentOptions.LoopEvaluators` ve `.LoopAgentOptions` yerinde. |
 | **F-209'un önkoşulu SERTLEŞTİ** | Aday metni sırayı *"F-208 önce koşarsa kırılıma skor adı da girer"* diye yumuşak yazıyordu. Plan bunu **zorunlu önkoşula** çevirdi: Faz 152 `Value`'yu `double?` yapıyor ve `Categorical` şeklini açıyor; toplulaştırmanın kova anahtarı `(name, kind)` olmak zorunda ve `null` değer ortalamaya girmemeli. Ters sırada bu üç kural sonradan eklenir. |
 
@@ -869,7 +869,7 @@ kaydındadır.
 
 | Kanal | ID'ler | Kural |
 |---|---|---|
-| **Plana dönüştü** | F-109 → [Faz 112](arsiv/fazlar/112-REPLAY-ISTEMCI-TOOL-SOZLESMESI.md) · F-149 → [Faz 113](arsiv/fazlar/113-ARIZA-SINIFLANDIRMA-SEAMI.md) · F-166 → [Faz 114](arsiv/fazlar/114-CALISTIRMA-ICI-BUTCE-TAVANI.md) · F-168 → [Faz 115](arsiv/fazlar/115-EVALIN-BASSIZ-KOSUCUSU.md) · F-67 → [Faz 116](arsiv/fazlar/116-PERFORMANS-TAHSIS-KAPISI.md) · F-167 → [Faz 117](arsiv/fazlar/117-MCP-TASKS-UZANTISI.md) · F-152 → [Faz 118](arsiv/fazlar/118-YARGIC-BASINA-CHECKPOINT.md) · **F-192 → [Faz 151](arsiv/fazlar/151-HARNESSIN-DONGU-YETENEGI.md)** · **F-208 → [Faz 152](152-SKORUN-ADI-VE-SEKLI.md)** · **F-207 → [Faz 153](153-EVAL-KOSUMLARI-ARASINDA-REGRESYON-FARKI.md)** · **F-209 → [Faz 154](154-SKOR-TRENDININ-KALICI-SORGUSU.md)** | Bölümleri bu dosyadan silindi; kanıt ve tasarım faz dokümanındadır. Aday listesine geri dönmezler. |
+| **Plana dönüştü** | F-109 → [Faz 112](arsiv/fazlar/112-REPLAY-ISTEMCI-TOOL-SOZLESMESI.md) · F-149 → [Faz 113](arsiv/fazlar/113-ARIZA-SINIFLANDIRMA-SEAMI.md) · F-166 → [Faz 114](arsiv/fazlar/114-CALISTIRMA-ICI-BUTCE-TAVANI.md) · F-168 → [Faz 115](arsiv/fazlar/115-EVALIN-BASSIZ-KOSUCUSU.md) · F-67 → [Faz 116](arsiv/fazlar/116-PERFORMANS-TAHSIS-KAPISI.md) · F-167 → [Faz 117](arsiv/fazlar/117-MCP-TASKS-UZANTISI.md) · F-152 → [Faz 118](arsiv/fazlar/118-YARGIC-BASINA-CHECKPOINT.md) · **F-192 → [Faz 151](arsiv/fazlar/151-HARNESSIN-DONGU-YETENEGI.md)** · **F-208 → [Faz 152](arsiv/fazlar/152-SKORUN-ADI-VE-SEKLI.md)** · **F-207 → [Faz 153](153-EVAL-KOSUMLARI-ARASINDA-REGRESYON-FARKI.md)** · **F-209 → [Faz 154](154-SKOR-TRENDININ-KALICI-SORGUSU.md)** | Bölümleri bu dosyadan silindi; kanıt ve tasarım faz dokümanındadır. Aday listesine geri dönmezler. |
 | **Kapatılan kusur kayıtları** | F-106, F-130, F-137, F-138, F-139 | Kapanış kanıtı keşif kaydındadır; yeniden görülürse yeni kusur kaydı açılır. |
 | **Karar / uyumluluk** | F-72, F-90, F-91, F-92, F-132, **F-169** | Mevcut karar veya dış bağımlılık değişmeden planlanmaz. F-95 2026-08-26'da adaylığa döndü. **F-169** (MAF CodeAct / Hyperlight sandbox) F-72 ile **aynı eşiktedir**: paket GA ve taşınabilir olana kadar planlanmaz — ölçüm [`kesif/2026-08-26-yeni-feature-fikirleri.md`](kesif/2026-08-26-yeni-feature-fikirleri.md) § 9. |
 | **Ölçüm bekliyor** | F-51, F-94, F-96, F-97, F-99, F-101, F-123, F-128, F-154, F-156, F-157, F-159, F-160, F-161, F-162 | Her biri için gereken somut kanıt keşif kaydında yazılıdır. |

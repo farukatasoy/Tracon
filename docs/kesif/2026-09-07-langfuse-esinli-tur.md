@@ -97,7 +97,7 @@ gerçekten yalnız `Microsoft.Extensions.AI` · `.Abstractions` · `.OpenAI`
 ∴ F-208'in *"bağımlılığı almak mı, şekilleri kopyalamak mı"* karar noktası
 ağırlıkla çözülmedi; **tip doğasıyla** çözüldü (kalıcı kayıt ↔ mutable
 çalışma-anı nesnesi). Karar: şekli hizala, tipi alma —
-[`../152-SKORUN-ADI-VE-SEKLI.md`](../152-SKORUN-ADI-VE-SEKLI.md) § 152.1.
+[`../152-SKORUN-ADI-VE-SEKLI.md`](../arsiv/fazlar/152-SKORUN-ADI-VE-SEKLI.md) § 152.1.
 
 ---
 
@@ -183,7 +183,7 @@ sorgula" demesi sözleşme dışıdır; kalem tasarımı değiştirmiyor, eksik 
 | F-NN | Başlık | Aday dosyasına yazıldı mı |
 |---|---|---|
 | F-207 | Eval koşumları arasında regresyon farkı | ✅ → [Faz 153](../153-EVAL-KOSUMLARI-ARASINDA-REGRESYON-FARKI.md) |
-| F-208 | Score'un adı ve şekli | ✅ → [Faz 152](../152-SKORUN-ADI-VE-SEKLI.md) |
+| F-208 | Score'un adı ve şekli | ✅ → [Faz 152](../arsiv/fazlar/152-SKORUN-ADI-VE-SEKLI.md) |
 | F-209 | Skor trendinin kalıcı sorgusu | ✅ → [Faz 154](../154-SKOR-TRENDININ-KALICI-SORGUSU.md) |
 
 **Ek (2026-09-07, aynı gün, planlama turu):** Üçü de plana dönüştü. Ölçüm bir
