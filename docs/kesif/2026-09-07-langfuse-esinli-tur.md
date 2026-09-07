@@ -184,7 +184,7 @@ sorgula" demesi sözleşme dışıdır; kalem tasarımı değiştirmiyor, eksik 
 |---|---|---|
 | F-207 | Eval koşumları arasında regresyon farkı | ✅ → [Faz 153](../arsiv/fazlar/153-EVAL-KOSUMLARI-ARASINDA-REGRESYON-FARKI.md) |
 | F-208 | Score'un adı ve şekli | ✅ → [Faz 152](../arsiv/fazlar/152-SKORUN-ADI-VE-SEKLI.md) |
-| F-209 | Skor trendinin kalıcı sorgusu | ✅ → [Faz 154](../154-SKOR-TRENDININ-KALICI-SORGUSU.md) |
+| F-209 | Skor trendinin kalıcı sorgusu | ✅ → [Faz 154](../arsiv/fazlar/154-SKOR-TRENDININ-KALICI-SORGUSU.md) |
 
 **Ek (2026-09-07, aynı gün, planlama turu):** Üçü de plana dönüştü. Ölçüm bir
 **dördüncü aday** üretti: **F-210** — `Microsoft.Extensions.AI.Evaluation.Quality`
