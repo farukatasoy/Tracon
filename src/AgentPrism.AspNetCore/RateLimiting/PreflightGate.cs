@@ -1,6 +1,6 @@
+using System.Globalization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Options;
-using System.Globalization;
 
 namespace AgentPrism;
 
