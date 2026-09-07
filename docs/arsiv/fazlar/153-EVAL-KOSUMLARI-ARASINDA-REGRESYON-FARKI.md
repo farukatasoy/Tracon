@@ -1,8 +1,8 @@
 # Faz 153 — Eval Koşumları Arasında Regresyon Farkı
 
 > **Durum:** ✅ Tamamlandı (2026-09-07)
-> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-207**
-> **Önkoşul:** Yok. [Faz 152](arsiv/fazlar/152-SKORUN-ADI-VE-SEKLI.md) ile **çakışmaz** — o `run_scores`'a, bu `eval_case_results`'a dokunur.
+> **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-207**
+> **Önkoşul:** Yok. [Faz 152](152-SKORUN-ADI-VE-SEKLI.md) ile **çakışmaz** — o `run_scores`'a, bu `eval_case_results`'a dokunur.
 > **Paketler:** `AgentPrism.Abstractions`, `AgentPrism.Core`, `AgentPrism.AspNetCore`, `AgentPrism.PostgreSql`, `AgentPrism.Sqlite`, `AgentPrism.SqlServer`, `AgentPrism.Cli`, `AgentPrism.Testing.Contracts.Xunit`, `AgentPrism.UI`
 > **Yeni paket:** Yok · **Migration:** Yok — hizalama anahtarı (`EvalCaseResult.CaseId`) ve gereken alanlar mevcut şemadadır
 > **Public API:** Büyüyor — bir okuma tipi ailesi + bir `IEvalStore` üyesi + bir CLI seçeneği. `wc -l src/*/PublicAPI.Shipped.txt` → her dosya **1 satır** (ölçüldü 2026-09-07): `IEvalStore`'a üye eklemek üçüncü taraf uygulayıcıyı kırar ve bu **`1.0` öncesi** yapılmalıdır.
@@ -25,19 +25,19 @@
    (public API takibi açık), **K-633** (üretilmiş istemcinin tipleri elle
    düzeltildi — yeni uç aynı zincirden geçer), **K-641** (`IJobHandler`
    at-least-once — aynı eval `run`'ı yeniden koşabilir, fark bunu gizlememelidir).
-3. [`arsiv/fazlar/115-EVALIN-BASSIZ-KOSUCUSU.md`](arsiv/fazlar/115-EVALIN-BASSIZ-KOSUCUSU.md) — yalnız devir notu:
+3. [`arsiv/fazlar/115-EVALIN-BASSIZ-KOSUCUSU.md`](115-EVALIN-BASSIZ-KOSUCUSU.md) — yalnız devir notu:
    ```bash
    awk '/## Sonraki Faza Devir Notu/,0' docs/arsiv/fazlar/115-EVALIN-BASSIZ-KOSUCUSU.md
    ```
    `agentprism eval` komutunun mutlak kapısı (`--min-pass-rate`/`--max-failures`)
    ve CLI test altyapısı (`RealHttpHost` · `CliRunner`) oradan devralınır.
 4. Alan hafızası (bu faz üç alana dokunuyor):
-   [`hafiza/http-uc-tuzaklari.md`](hafiza/http-uc-tuzaklari.md) (yeni uç, sayfalama,
-   `404` semantiği) · [`hafiza/nswag-istemci-uretimi.md`](hafiza/nswag-istemci-uretimi.md)
+   [`hafiza/http-uc-tuzaklari.md`](../../hafiza/http-uc-tuzaklari.md) (yeni uç, sayfalama,
+   `404` semantiği) · [`hafiza/nswag-istemci-uretimi.md`](../../hafiza/nswag-istemci-uretimi.md)
    (üretilen istemci beş geçişli post-process'ten geçer) ·
-   [`hafiza/frontend.md`](hafiza/frontend.md) (fark görünümü, `en.ts`/`tr.ts`)
+   [`hafiza/frontend.md`](../../hafiza/frontend.md) (fark görünümü, `en.ts`/`tr.ts`)
 5. Gerektiğinde, tamamı değil ilgili bölümü:
-   [`MIMARI.md`](MIMARI.md) — eval veri modeli
+   [`MIMARI.md`](../../MIMARI.md) — eval veri modeli
 
 ---
 
@@ -60,13 +60,13 @@ işi yaptığını söylüyor.
 
 | Kanıt | Gözlem |
 |---|---|
-| [`EvalEndpoints.cs:141`](../src/AgentPrism.AspNetCore/Endpoints/EvalEndpoints.cs#L141) | Sevk edilen metin: *"Comparing entries over time is how a regression between agent versions is spotted."* |
-| [`IEvalStore.cs:143`](../src/AgentPrism.Abstractions/Evaluation/IEvalStore.cs#L143) | `ListCaseResultsAsync` **tek** bir `evalRunId` alıyor; iki koşumu hizalayan üye yok |
-| [`EvalCommand.cs:168`](../src/AgentPrism.Cli/Commands/EvalCommand.cs#L168) | `PassesThreshold(detail.Run, minPassRate, maxFailures)` — kapı **mutlak**; taban çizgisi kavramı yok |
+| [`EvalEndpoints.cs:141`](../../../src/AgentPrism.AspNetCore/Endpoints/EvalEndpoints.cs#L141) | Sevk edilen metin: *"Comparing entries over time is how a regression between agent versions is spotted."* |
+| [`IEvalStore.cs:143`](../../../src/AgentPrism.Abstractions/Evaluation/IEvalStore.cs#L143) | `ListCaseResultsAsync` **tek** bir `evalRunId` alıyor; iki koşumu hizalayan üye yok |
+| [`EvalCommand.cs:168`](../../../src/AgentPrism.Cli/Commands/EvalCommand.cs#L168) | `PassesThreshold(detail.Run, minPassRate, maxFailures)` — kapı **mutlak**; taban çizgisi kavramı yok |
 | `grep -n "compare\|previous\|regress\|delta\|baseline" …/eval-run-detail.tsx` | **0 eşleşme** |
-| [`EvalCaseResult.cs`](../src/AgentPrism.Abstractions/Evaluation/EvalCaseResult.cs) | `CaseId` · `Passed` · `Output` · `Scores` · `FailureReason` — hizalama anahtarı hazır |
-| [`EvalRun.cs`](../src/AgentPrism.Abstractions/Evaluation/EvalRun.cs) | `AgentVersion` · `ModelId` · `Total`/`Passed`/`Failed` — karşılaştırma başlığı hazır |
-| [`EvalEndpoints.cs:156-158`](../src/AgentPrism.AspNetCore/Endpoints/EvalEndpoints.cs#L156) | 🚨 *"Per-case results are a retention target, so an old eval run may keep its summary while its details are gone."* |
+| [`EvalCaseResult.cs`](../../../src/AgentPrism.Abstractions/Evaluation/EvalCaseResult.cs) | `CaseId` · `Passed` · `Output` · `Scores` · `FailureReason` — hizalama anahtarı hazır |
+| [`EvalRun.cs`](../../../src/AgentPrism.Abstractions/Evaluation/EvalRun.cs) | `AgentVersion` · `ModelId` · `Total`/`Passed`/`Failed` — karşılaştırma başlığı hazır |
+| [`EvalEndpoints.cs:156-158`](../../../src/AgentPrism.AspNetCore/Endpoints/EvalEndpoints.cs#L156) | 🚨 *"Per-case results are a retention target, so an old eval run may keep its summary while its details are gone."* |
 
 > Kanıtlar 2026-09-07 tarihinde doğrulandı.
 
@@ -275,7 +275,7 @@ tests/
 
 > Seviyeyi plan seçer. Sınır geçen davranış (DI · HTTP · kiracı · akış · depo ·
 > paket) birim testiyle kanıtlanamaz —
-> [`.agents/ortak/test-seviyeleri.md`](../.agents/ortak/test-seviyeleri.md).
+> [`.agents/ortak/test-seviyeleri.md`](../../../.agents/ortak/test-seviyeleri.md).
 
 | Ne bozulabilir | Seviye | Test sınıfı |
 |---|---|---|
@@ -409,7 +409,7 @@ agentprism eval smoke --baseline previous --max-regressions 0; echo "exit=$?"
 ## Bu Fazda Verilen Kararlar
 
 K-714 · K-715 · K-716 👤 · K-717 👤 · K-718 · K-719 · K-720 · K-721 · K-722 👤 · K-723 —
-[`KARARLAR-INDEKS.md`](KARARLAR-INDEKS.md).
+[`KARARLAR-INDEKS.md`](../../KARARLAR-INDEKS.md).
 
 ## Gerçekleşen Public API
 
