@@ -847,6 +847,19 @@ internal sealed class PostgresQueries : SqlQueriesBase
             GROUP BY r.variant;
             """;
 
+        // 🚨 date_trunc(unit, timestamptz) depends on the SESSION time zone --
+        // a non-UTC `TimeZone` setting would silently shift every bucket
+        // boundary relative to SQLite/SQL Server/the in-memory store, all of
+        // which truncate in UTC unconditionally (measured, Phase 154). The
+        // "AT TIME ZONE 'UTC'" round trip forces UTC regardless of the
+        // session setting: the first leg reads the instant as UTC wall-clock
+        // time (timestamptz -> timestamp, no zone left to apply), date_trunc
+        // truncates that wall-clock value, and the second leg re-attaches UTC
+        // (timestamp -> timestamptz) so the result stays comparable to every
+        // other timestamptz column and parameter.
+        static string TruncateUtc(string bucketUnitParam, string column)
+            => $"(date_trunc({bucketUnitParam}, {column} AT TIME ZONE 'UTC') AT TIME ZONE 'UTC')";
+
         // Empty buckets are also returned (generate_series + LEFT JOIN):
         // otherwise a gap in the chart would look like "zero" instead of "no
         // data". Eval/Workflow runs are DELIBERATELY NOT excluded — unlike
@@ -861,13 +874,13 @@ internal sealed class PostgresQueries : SqlQueriesBase
                 -- the `cursor < To` loop in InMemoryRunStore.
                 SELECT bucket
                 FROM generate_series(
-                    date_trunc(@bucket_unit, @from_ts),
-                    date_trunc(@bucket_unit, @to_ts),
+                    {TruncateUtc("@bucket_unit", "@from_ts")},
+                    {TruncateUtc("@bucket_unit", "@to_ts")},
                     @bucket_step) AS bucket
                 WHERE bucket < @to_ts
             ),
             matched AS (
-                SELECT date_trunc(@bucket_unit, started_at) AS bucket,
+                SELECT {TruncateUtc("@bucket_unit", "started_at")} AS bucket,
                        COUNT(*)::bigint AS runs,
                        COUNT(*) FILTER (WHERE status = @status_failed)::bigint AS failed_runs,
                        {TreeSum("input_tokens", null, true)}::bigint AS input_tokens,
@@ -882,7 +895,7 @@ internal sealed class PostgresQueries : SqlQueriesBase
                   AND (@agent_name IS NULL OR agent_name = @agent_name)
                   AND (@model_id   IS NULL OR model_id   = @model_id)
                   AND (@kind       IS NULL OR kind       = @kind)
-                GROUP BY date_trunc(@bucket_unit, started_at)
+                GROUP BY {TruncateUtc("@bucket_unit", "started_at")}
             )
             SELECT buckets.bucket,
                    COALESCE(matched.runs, 0),
@@ -1443,6 +1456,139 @@ internal sealed class PostgresQueries : SqlQueriesBase
                    source     = EXCLUDED.source,
                    created_at = EXCLUDED.created_at
             RETURNING {RunScoreColumns};
+            """;
+
+        // -------------------------------------------------------------------
+        // Phase 154 -- score summary (a query, not a counter; 154.1)
+        // -------------------------------------------------------------------
+
+        // Shared by every breakdown AND the series query below. `prefix` is
+        // the table alias with its trailing dot ("s." for the joined ByAgent
+        // query), or "" for the single-table ones.
+        static string ScoreFilter(string prefix) => $"""
+              AND (@from_ts IS NULL OR {prefix}created_at >= @from_ts)
+              AND (@to_ts IS NULL OR {prefix}created_at < @to_ts)
+              AND (@score_name IS NULL OR {prefix}name = @score_name)
+              AND (@source IS NULL OR {prefix}source = @source)
+              AND (@author IS NULL OR {prefix}author = @author)
+              AND (@target = 0
+                   OR (@target = 1 AND ({prefix}message_id IS NULL OR {prefix}message_id = ''))
+                   OR (@target = 2 AND {prefix}message_id IS NOT NULL AND {prefix}message_id <> ''))
+            """;
+
+        // The ByAgent query joins `runs` directly, so its agent filter is a
+        // plain column comparison; the other four have no such join and reach
+        // the agent name through a subquery instead.
+        var scoreAgentFilterViaSubquery = $"""
+              AND (@agent_name IS NULL OR run_id IN (SELECT id FROM {Schema}.runs WHERE tenant_id = @tenant_id AND agent_name = @agent_name))
+            """;
+
+        SelectRunScoreSummary = $"""
+            SELECT name,
+                   kind,
+                   COUNT(*)::bigint,
+                   (COUNT(*) - COUNT(value))::bigint,
+                   AVG(value),
+                   MIN(value),
+                   MAX(value)
+            FROM {Schema}.run_scores
+            WHERE tenant_id = @tenant_id
+            {ScoreFilter(string.Empty)}
+            {scoreAgentFilterViaSubquery}
+            GROUP BY name, kind
+            ORDER BY COUNT(*) DESC, name
+            LIMIT @max_rows;
+
+            -- Second result set: this breakdown's category counts. Fetched
+            -- UNBOUNDED (no @max_rows here) and capped per name in code,
+            -- because the cap is PER GROUP, not over the whole result set.
+            SELECT name,
+                   text_value,
+                   COUNT(*)::bigint
+            FROM {Schema}.run_scores
+            WHERE tenant_id = @tenant_id
+              AND kind = @kind_categorical
+              AND text_value IS NOT NULL
+            {ScoreFilter(string.Empty)}
+            {scoreAgentFilterViaSubquery}
+            GROUP BY name, text_value
+            ORDER BY name, COUNT(*) DESC;
+
+            -- Third result set: breakdown by author. Scores with no author
+            -- (an identity-less setup) are excluded.
+            SELECT author,
+                   kind,
+                   COUNT(*)::bigint,
+                   (COUNT(*) - COUNT(value))::bigint,
+                   AVG(value),
+                   MIN(value),
+                   MAX(value)
+            FROM {Schema}.run_scores
+            WHERE tenant_id = @tenant_id
+              AND author IS NOT NULL AND author <> ''
+            {ScoreFilter(string.Empty)}
+            {scoreAgentFilterViaSubquery}
+            GROUP BY author, kind
+            ORDER BY COUNT(*) DESC, author
+            LIMIT @max_rows;
+
+            -- Fourth result set: breakdown by source.
+            SELECT source,
+                   kind,
+                   COUNT(*)::bigint,
+                   (COUNT(*) - COUNT(value))::bigint,
+                   AVG(value),
+                   MIN(value),
+                   MAX(value)
+            FROM {Schema}.run_scores
+            WHERE tenant_id = @tenant_id
+            {ScoreFilter(string.Empty)}
+            {scoreAgentFilterViaSubquery}
+            GROUP BY source, kind
+            ORDER BY COUNT(*) DESC, source
+            LIMIT @max_rows;
+
+            -- Fifth result set: breakdown by the agent that produced the
+            -- scored run (a score itself carries no agent name).
+            SELECT r.agent_name,
+                   s.kind,
+                   COUNT(*)::bigint,
+                   (COUNT(*) - COUNT(s.value))::bigint,
+                   AVG(s.value),
+                   MIN(s.value),
+                   MAX(s.value)
+            FROM {Schema}.run_scores AS s
+            JOIN {Schema}.runs AS r ON r.tenant_id = s.tenant_id AND r.id = s.run_id
+            WHERE s.tenant_id = @tenant_id
+            {ScoreFilter("s.")}
+              AND (@agent_name IS NULL OR r.agent_name = @agent_name)
+            GROUP BY r.agent_name, s.kind
+            ORDER BY COUNT(*) DESC, r.agent_name
+            LIMIT @max_rows;
+            """;
+
+        // A single result set, run only when RunScoreQuery.Bucket is given
+        // (154, open question 5: no cost when it is not). Buckets with no
+        // matching score are NOT produced -- a sparse series, unlike
+        // SelectRunTimeSeries. date_trunc('week', ...) truncates to the
+        // preceding Monday (ISO 8601), matching RunScoreBucketing.Truncate.
+        // TruncateUtc (declared above, by SelectRunTimeSeries) keeps this
+        // independent of the server's session time zone.
+        SelectRunScoreSeries = $"""
+            SELECT {TruncateUtc("@bucket_unit", "created_at")} AS bucket,
+                   name,
+                   kind,
+                   COUNT(*)::bigint,
+                   (COUNT(*) - COUNT(value))::bigint,
+                   AVG(value),
+                   MIN(value),
+                   MAX(value)
+            FROM {Schema}.run_scores
+            WHERE tenant_id = @tenant_id
+            {ScoreFilter(string.Empty)}
+            {scoreAgentFilterViaSubquery}
+            GROUP BY {TruncateUtc("@bucket_unit", "created_at")}, name, kind
+            ORDER BY bucket, name;
             """;
 
         // If the lease is held by someone else and has not expired, WHERE

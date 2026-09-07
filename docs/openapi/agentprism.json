@@ -3158,7 +3158,7 @@
           "Evals"
         ],
         "summary": "Returns a summary of the online evaluation window.",
-        "description": "Returns the average judge score, sample count, and judge cost within the window. The summary is in-memory (it resets when the process restarts); for an authoritative result, the \u0027run_scores\u0027 table can be queried directly.",
+        "description": "Returns the average judge score, sample count, and judge cost within the window. The summary is in-memory (it resets when the process restarts); for an authoritative result that survives a restart, use \u0027GET /api/evaluation/scores/summary\u0027 instead.",
         "operationId": "AgentPrismGetOnlineEvaluationSummary",
         "responses": {
           "200": {
@@ -3167,6 +3167,111 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/OnlineEvaluationSummary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/agentprism/api/evaluation/scores/summary": {
+      "get": {
+        "tags": [
+          "AgentPrism",
+          "Evals"
+        ],
+        "summary": "Aggregates run and message scores by name, author, source, and agent.",
+        "description": "A query over the scores already written, not a counter -- unlike \u0027/api/evaluation/online\u0027, the result survives a process restart. Each breakdown groups by (name, kind): a 1-5 star rating and a 0-100 numeric score sharing a name never average together. \u0027messageId\u0027 is never a breakdown dimension; use \u0027target\u0027 (run, message, or both) instead. \u0027bucket\u0027 (hour, day, or week, UTC) adds a trend series; omitting it costs nothing extra. A bucketed series with no \u0027from\u0027 defaults to the last 90 days, since a series has no other bound the way a breakdown does. Every breakdown, and the categories inside one categorical score\u0027s entry, is capped at \u0027maxRows\u0027. 400 if \u0027from\u0027 is at or after \u0027to\u0027, or \u0027maxRows\u0027 is out of range.",
+        "operationId": "AgentPrismGetRunScoreSummary",
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "scoreName",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "agentName",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "source",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "author",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "target",
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/RunScoreTarget"
+            }
+          },
+          {
+            "name": "bucket",
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/RunScoreBucket"
+            }
+          },
+          {
+            "name": "maxRows",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunScoreSummary"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }
@@ -14344,6 +14449,124 @@
         },
         "description": "A human (or judge) score for a run or for a single message within a run."
       },
+      "RunScoreAggregate": {
+        "required": [
+          "key",
+          "kind",
+          "count"
+        ],
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string",
+            "description": "The breakdown key: a score name, an author, a source, or an agent name,\ndepending on which list this entry is in."
+          },
+          "kind": {
+            "description": "The shape every score in this group shares.",
+            "$ref": "#/components/schemas/RunScoreKind"
+          },
+          "count": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "The number of scores in the group, INCLUDING those carrying no value.",
+            "format": "int64"
+          },
+          "noValueCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "The number of scores in the group carrying no value\n(\u0060Value\u0060 is \u0060null\u0060). A\nRunScoreKind.Categorical score always carries no value, so\nfor that kind this equals \u0060Count\u0060. Never counted into\n\u0060Average\u0060.",
+            "format": "int64"
+          },
+          "average": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?(?:[eE][\u002B-]?\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "description": "The average value. \u0060null\u0060 for\nRunScoreKind.Categorical, or when every score in the group\ncarries no value.",
+            "format": "double"
+          },
+          "minimum": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?(?:[eE][\u002B-]?\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "description": "The smallest value. Same null rule as \u0060Average\u0060.",
+            "format": "double"
+          },
+          "maximum": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?(?:[eE][\u002B-]?\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "description": "The largest value. Same null rule as \u0060Average\u0060.",
+            "format": "double"
+          },
+          "categories": {
+            "type": "object",
+            "additionalProperties": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int64"
+            },
+            "description": "Count per category (\u0060TextValue\u0060), highest count\nfirst. Populated only on IReadOnlyList\u0026lt;RunScoreAggregate\u0026gt; RunScoreSummary.ByName entries\nwhose RunScoreKind RunScoreAggregate.Kind is RunScoreKind.Categorical; every\nother group carries an empty map."
+          },
+          "truncatedCategoryCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "The number of distinct categories that did NOT fit inside\nIReadOnlyDictionary\u0026lt;string, long\u0026gt; RunScoreAggregate.Categories because \u0060MaxRows\u0060 (RunScoreQuery) was\nreached. Zero when nothing was cut. Reported instead of silently\ndropping categories, which would read as \u0022these categories do not exist\u0022.",
+            "format": "int64"
+          }
+        },
+        "description": "One aggregated group: every score sharing a breakdown key AND a\nRunScoreKind."
+      },
+      "RunScoreBucket": {
+        "enum": [
+          "Hour",
+          "Day",
+          "Week",
+          null
+        ]
+      },
+      "RunScoreBucketAggregate": {
+        "required": [
+          "bucketStart",
+          "groups"
+        ],
+        "type": "object",
+        "properties": {
+          "bucketStart": {
+            "type": "string",
+            "description": "The bucket\u0027s start time (UTC).",
+            "format": "date-time"
+          },
+          "groups": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RunScoreAggregate"
+            },
+            "description": "The name/kind groups scored inside this bucket \u2014 grouped exactly like\nIReadOnlyList\u0026lt;RunScoreAggregate\u0026gt; RunScoreSummary.ByName, bounded by\nint RunScoreQuery.MaxRows. Every entry\u0027s IReadOnlyDictionary\u0026lt;string, long\u0026gt; RunScoreAggregate.Categories\nis empty; a categorical breakdown over time is out of scope for this series."
+          }
+        },
+        "description": "One time bucket of the trend series (IReadOnlyList\u0026lt;RunScoreBucketAggregate\u0026gt; RunScoreSummary.Series)."
+      },
       "RunScoreKind": {
         "enum": [
           "Binary",
@@ -14352,6 +14575,58 @@
           "Categorical"
         ],
         "description": "The shape of the value a RunScore carries."
+      },
+      "RunScoreSummary": {
+        "required": [
+          "byName"
+        ],
+        "type": "object",
+        "properties": {
+          "byName": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RunScoreAggregate"
+            },
+            "description": "The breakdown by score name \u2014 the primary breakdown, always populated."
+          },
+          "byAuthor": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RunScoreAggregate"
+            },
+            "description": "The breakdown by author. Scores with no author (an identity-less setup) are excluded."
+          },
+          "bySource": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RunScoreAggregate"
+            },
+            "description": "The breakdown by source (\u0060human\u0060, \u0060api\u0060, \u0060judge:{name}\u0060)."
+          },
+          "byAgent": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RunScoreAggregate"
+            },
+            "description": "The breakdown by the agent that produced the scored run."
+          },
+          "series": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RunScoreBucketAggregate"
+            },
+            "description": "The trend series, one entry per time bucket. Empty when\n\u0060Bucket\u0060 (RunScoreQuery) was not given. Buckets with no matching\nscore are NOT included \u2014 this is a sparse series, not a filled one."
+          }
+        },
+        "description": "The result of ValueTask\u0026lt;RunScoreSummary\u0026gt; IRunScoreStore.SummarizeAsync(RunScoreQuery query, CancellationToken cancellationToken = default(CancellationToken))."
+      },
+      "RunScoreTarget": {
+        "enum": [
+          "Any",
+          "Run",
+          "Message",
+          null
+        ]
       },
       "RunStatistics": {
         "required": [

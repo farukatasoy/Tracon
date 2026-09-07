@@ -813,6 +813,28 @@ internal abstract class SqlQueriesBase
     public string DeleteRunScore { get; protected set; } = string.Empty;
 
     /// <summary>
+    /// Gets the multi-statement query that aggregates scores by name, author,
+    /// source, and agent. Five result sets, in order: the by-name
+    /// breakdown, that breakdown's category counts (only <c>Categorical</c>
+    /// rows), the by-author breakdown, the by-source breakdown, and the
+    /// by-agent breakdown (joined against <c>runs</c>). Every breakdown but
+    /// the categories one is capped at <c>@max_rows</c>; category counts are
+    /// fetched unbounded and capped in code, once per name, because the cap
+    /// there is PER GROUP, not over the whole result set.
+    /// </summary>
+    public string SelectRunScoreSummary { get; protected set; } = string.Empty;
+
+    /// <summary>
+    /// Gets the query that aggregates scores by time bucket and
+    /// (name, kind) -- feeds <see cref="RunScoreSummary.Series"/>. Unlike
+    /// <c>SelectRunTimeSeries</c>, buckets with no matching score are NOT
+    /// produced — this is a sparse series. Run only when
+    /// <see cref="RunScoreQuery.Bucket"/> is given, so no cost is paid when it
+    /// is not.
+    /// </summary>
+    public string SelectRunScoreSeries { get; protected set; } = string.Empty;
+
+    /// <summary>
     /// Gets the query that acquires the singleton lease (it inserts when the row is
     /// absent, and updates when the owner or the expiry allows it).
     /// </summary>

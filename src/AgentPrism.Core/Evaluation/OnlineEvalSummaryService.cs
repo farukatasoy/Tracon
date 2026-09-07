@@ -10,11 +10,12 @@ namespace AgentPrism;
 /// </summary>
 /// <remarks>
 /// <para>
-/// The score window is <strong>in memory</strong>, with one queue per tenant.
-/// The <c>run_scores</c> table is always the source of truth; an operator can
-/// query its exact result at any time. This service is only an inexpensive live
-/// indicator and alarm, and resets when the process restarts. The same design is
-/// used for <see cref="RunSampler"/>'s hourly budget (the no-surprises rule: no durable counter store).
+/// The score window is <strong>in memory</strong>, with one queue per tenant,
+/// and resets when the process restarts. This service is only an inexpensive
+/// live indicator and alarm; for an authoritative result that survives a
+/// restart, query <see cref="IRunScoreStore.SummarizeAsync"/> instead
+/// (<c>GET /api/evaluation/scores/summary</c>). The same live-indicator design
+/// is used for <see cref="RunSampler"/>'s hourly budget (the no-surprises rule: no durable counter store).
 /// </para>
 /// <para>
 /// One low score does not produce an alarm. Threshold evaluation does not run

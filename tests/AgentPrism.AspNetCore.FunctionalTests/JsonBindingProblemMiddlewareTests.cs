@@ -2,6 +2,8 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text;
 using AgentPrism.AspNetCore.FunctionalTests.Infrastructure;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace AgentPrism.AspNetCore.FunctionalTests;
 
@@ -82,5 +84,59 @@ public sealed class JsonBindingProblemMiddlewareTests
 
         var json = await AgentPrismTestHost.ReadJsonAsync(response);
         json.GetProperty("title").GetString().ShouldBe("Invalid request body");
+    }
+
+    /// <summary>
+    /// A miscased (or otherwise unparseable) query-string enum value is a
+    /// DIFFERENT binding path than the three tests above: minimal API throws
+    /// <c>BadHttpRequestException</c> for a parameter binding failure
+    /// carrying no <see cref="JsonException"/> inner exception to key off of.
+    /// Like the body-binding case, this is gated by
+    /// <c>RouteHandlerOptions.ThrowOnBadRequest</c> (Development only) — in
+    /// Production minimal API does not throw at all and writes its own
+    /// bodyless <c>400</c> directly, which this test does not exercise.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Two endpoints on purpose: <c>/api/stats/timeseries</c> pre-dates this
+    /// phase (so this is a pre-existing defect class, not one this phase
+    /// introduced) and <c>/api/evaluation/scores/summary</c> is new (Phase 154)
+    /// — both share the same nullable-enum-query-parameter shape and the same
+    /// fix.
+    /// </para>
+    /// <para>
+    /// 🚨 <c>app.UseExceptionHandler()</c> is REQUIRED to reproduce the
+    /// reported defect (measured on a real Kestrel host running Development,
+    /// the shape every real consumer's <c>Program.cs</c> uses): without any
+    /// outer exception handler, ASP.NET Core's own hosting layer already
+    /// gives a <c>BadHttpRequestException</c> a bare <c>400</c> (plain text,
+    /// no <c>ProblemDetails</c>) — the DEFECT is that a consumer's
+    /// <c>UseExceptionHandler()</c>, registered earlier in the pipeline than
+    /// <c>MapAgentPrism</c>, has a broader catch and turns that exception
+    /// into a <c>500</c> before it ever reaches this framework fallback. This
+    /// middleware's whole job is to intercept it BEFORE it reaches that outer
+    /// handler (see the type's own remarks). Omitting
+    /// <c>app.UseExceptionHandler()</c> here would make this test pass
+    /// against the pre-fix code for the wrong reason.
+    /// </para>
+    /// </remarks>
+    [Theory]
+    [InlineData("/agentprism/api/stats/timeseries?bucket=day")]
+    [InlineData("/agentprism/api/evaluation/scores/summary?bucket=day")]
+    public async Task Miscased_enum_query_parameter_returns_400_not_500(string path)
+    {
+        await using var host = await AgentPrismTestHost.StartAsync(
+            environment: "Development",
+            configureServices: static services => services.AddProblemDetails(),
+            configureApp: static app => app.UseExceptionHandler());
+
+        using var response = await host.Client.GetAsync(new Uri(path, UriKind.Relative));
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        response.Content.Headers.ContentType?.MediaType.ShouldBe("application/problem+json");
+
+        var json = await AgentPrismTestHost.ReadJsonAsync(response);
+        json.GetProperty("title").GetString().ShouldBe("Invalid request parameter");
+        (json.GetProperty("detail").GetString() ?? string.Empty).ShouldContain("bucket");
     }
 }

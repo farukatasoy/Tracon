@@ -42,7 +42,15 @@ public static partial class AgentPrismServiceCollectionExtensions
         // Run/message scores (Phase 31). Registered BEFORE IRunStore:
         // InMemoryRunStore.GetStatisticsAsync's summary calculation obtains
         // this shared single instance via DI (see the InMemoryRunStore constructor).
-        services.TryAddSingleton<IRunScoreStore, InMemoryRunScoreStore>();
+        //
+        // The agent name resolver closure captures `provider` but does not call
+        // GetRequiredService<IRunStore>() until it actually RUNS (inside a later
+        // SummarizeAsync call) -- IRunStore's own factory needs IRunScoreStore,
+        // so resolving it eagerly here would be a constructor-time cycle
+        // (Phase 154).
+        services.TryAddSingleton<IRunScoreStore>(provider => new InMemoryRunScoreStore(
+            provider.GetRequiredService<ITenantContext>(),
+            (runId, cancellationToken) => ResolveScoredRunAgentNameAsync(provider, runId, cancellationToken)));
         services.TryAddSingleton<IRunStore>(static provider => new InMemoryRunStore(
             provider.GetRequiredService<IRunScoreStore>(),
             provider.GetRequiredService<ITenantContext>()));
@@ -370,5 +378,23 @@ public static partial class AgentPrismServiceCollectionExtensions
         // experiment is scanned unless turned on.
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IHostedService, CanaryEvaluationService>());
+    }
+
+    /// <summary>
+    /// Resolves a run's agent name for <c>InMemoryRunScoreStore</c>'s
+    /// <see cref="IRunScoreStore.SummarizeAsync"/>. A separate method (not a
+    /// lambda body) only so the DI registration comment above it stays
+    /// readable.
+    /// </summary>
+    private static async ValueTask<string?> ResolveScoredRunAgentNameAsync(
+        IServiceProvider provider,
+        Guid runId,
+        CancellationToken cancellationToken)
+    {
+        var run = await provider.GetRequiredService<IRunStore>()
+            .GetRunAsync(runId, cancellationToken)
+            .ConfigureAwait(false);
+
+        return run?.AgentName;
     }
 }

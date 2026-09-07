@@ -1125,9 +1125,29 @@ export interface paths {
         };
         /**
          * Returns a summary of the online evaluation window.
-         * @description Returns the average judge score, sample count, and judge cost within the window. The summary is in-memory (it resets when the process restarts); for an authoritative result, the 'run_scores' table can be queried directly.
+         * @description Returns the average judge score, sample count, and judge cost within the window. The summary is in-memory (it resets when the process restarts); for an authoritative result that survives a restart, use 'GET /api/evaluation/scores/summary' instead.
          */
         get: operations["AgentPrismGetOnlineEvaluationSummary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/evaluation/scores/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Aggregates run and message scores by name, author, source, and agent.
+         * @description A query over the scores already written, not a counter -- unlike '/api/evaluation/online', the result survives a process restart. Each breakdown groups by (name, kind): a 1-5 star rating and a 0-100 numeric score sharing a name never average together. 'messageId' is never a breakdown dimension; use 'target' (run, message, or both) instead. 'bucket' (hour, day, or week, UTC) adds a trend series; omitting it costs nothing extra. A bucketed series with no 'from' defaults to the last 90 days, since a series has no other bound the way a breakdown does. Every breakdown, and the categories inside one categorical score's entry, is capped at 'maxRows'. 400 if 'from' is at or after 'to', or 'maxRows' is out of range.
+         */
+        get: operations["AgentPrismGetRunScoreSummary"];
         put?: never;
         post?: never;
         delete?: never;
@@ -6084,10 +6104,107 @@ export interface components {
             createdAt?: string;
         };
         /**
+         * @description One aggregated group: every score sharing a breakdown key AND a
+         *     RunScoreKind.
+         */
+        RunScoreAggregate: {
+            /**
+             * @description The breakdown key: a score name, an author, a source, or an agent name,
+             *     depending on which list this entry is in.
+             */
+            key: string;
+            /** @description The shape every score in this group shares. */
+            kind: components["schemas"]["RunScoreKind"];
+            /**
+             * Format: int64
+             * @description The number of scores in the group, INCLUDING those carrying no value.
+             */
+            count: number | string;
+            /**
+             * Format: int64
+             * @description The number of scores in the group carrying no value
+             *     (`Value` is `null`). A
+             *     RunScoreKind.Categorical score always carries no value, so
+             *     for that kind this equals `Count`. Never counted into
+             *     `Average`.
+             */
+            noValueCount?: number | string;
+            /**
+             * Format: double
+             * @description The average value. `null` for
+             *     RunScoreKind.Categorical, or when every score in the group
+             *     carries no value.
+             */
+            average?: null | number | string;
+            /**
+             * Format: double
+             * @description The smallest value. Same null rule as `Average`.
+             */
+            minimum?: null | number | string;
+            /**
+             * Format: double
+             * @description The largest value. Same null rule as `Average`.
+             */
+            maximum?: null | number | string;
+            /**
+             * @description Count per category (`TextValue`), highest count
+             *     first. Populated only on IReadOnlyList&lt;RunScoreAggregate&gt; RunScoreSummary.ByName entries
+             *     whose RunScoreKind RunScoreAggregate.Kind is RunScoreKind.Categorical; every
+             *     other group carries an empty map.
+             */
+            categories?: {
+                [key: string]: number | string;
+            };
+            /**
+             * Format: int64
+             * @description The number of distinct categories that did NOT fit inside
+             *     IReadOnlyDictionary&lt;string, long&gt; RunScoreAggregate.Categories because `MaxRows` (RunScoreQuery) was
+             *     reached. Zero when nothing was cut. Reported instead of silently
+             *     dropping categories, which would read as "these categories do not exist".
+             */
+            truncatedCategoryCount?: number | string;
+        };
+        /** @enum {unknown} */
+        RunScoreBucket: "Hour" | "Day" | "Week" | null;
+        /** @description One time bucket of the trend series (IReadOnlyList&lt;RunScoreBucketAggregate&gt; RunScoreSummary.Series). */
+        RunScoreBucketAggregate: {
+            /**
+             * Format: date-time
+             * @description The bucket's start time (UTC).
+             */
+            bucketStart: string;
+            /**
+             * @description The name/kind groups scored inside this bucket — grouped exactly like
+             *     IReadOnlyList&lt;RunScoreAggregate&gt; RunScoreSummary.ByName, bounded by
+             *     int RunScoreQuery.MaxRows. Every entry's IReadOnlyDictionary&lt;string, long&gt; RunScoreAggregate.Categories
+             *     is empty; a categorical breakdown over time is out of scope for this series.
+             */
+            groups: components["schemas"]["RunScoreAggregate"][];
+        };
+        /**
          * @description The shape of the value a RunScore carries.
          * @enum {unknown}
          */
         RunScoreKind: "Binary" | "Stars" | "Numeric" | "Categorical";
+        /** @description The result of ValueTask&lt;RunScoreSummary&gt; IRunScoreStore.SummarizeAsync(RunScoreQuery query, CancellationToken cancellationToken = default(CancellationToken)). */
+        RunScoreSummary: {
+            /** @description The breakdown by score name — the primary breakdown, always populated. */
+            byName: components["schemas"]["RunScoreAggregate"][];
+            /** @description The breakdown by author. Scores with no author (an identity-less setup) are excluded. */
+            byAuthor?: components["schemas"]["RunScoreAggregate"][];
+            /** @description The breakdown by source (`human`, `api`, `judge:{name}`). */
+            bySource?: components["schemas"]["RunScoreAggregate"][];
+            /** @description The breakdown by the agent that produced the scored run. */
+            byAgent?: components["schemas"]["RunScoreAggregate"][];
+            /**
+             * @description The trend series, one entry per time bucket. Empty when
+             *     `Bucket` (RunScoreQuery) was not given. Buckets with no matching
+             *     score are NOT included — this is a sparse series, not a filled one.
+             */
+            series?: components["schemas"]["RunScoreBucketAggregate"][];
+        };
+        /** @enum {unknown} */
+        RunScoreTarget: "Any" | "Run" | "Message" | null;
         /** @description A summary of the runs in a time range. */
         RunStatistics: {
             /**
@@ -7871,7 +7988,12 @@ export type RunRecord = components['schemas']['RunRecord'];
 export type RunReplayRequest = components['schemas']['RunReplayRequest'];
 export type RunReplayResponse = components['schemas']['RunReplayResponse'];
 export type RunScore = components['schemas']['RunScore'];
+export type RunScoreAggregate = components['schemas']['RunScoreAggregate'];
+export type RunScoreBucket = components['schemas']['RunScoreBucket'];
+export type RunScoreBucketAggregate = components['schemas']['RunScoreBucketAggregate'];
 export type RunScoreKind = components['schemas']['RunScoreKind'];
+export type RunScoreSummary = components['schemas']['RunScoreSummary'];
+export type RunScoreTarget = components['schemas']['RunScoreTarget'];
 export type RunStatistics = components['schemas']['RunStatistics'];
 export type RunStatus = components['schemas']['RunStatus'];
 export type RunTrace = components['schemas']['RunTrace'];
@@ -10004,6 +10126,45 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["OnlineEvaluationSummary"];
+                };
+            };
+        };
+    };
+    AgentPrismGetRunScoreSummary: {
+        parameters: {
+            query?: {
+                from?: string;
+                to?: string;
+                scoreName?: string;
+                agentName?: string;
+                source?: string;
+                author?: string;
+                target?: components["schemas"]["RunScoreTarget"];
+                bucket?: components["schemas"]["RunScoreBucket"];
+                maxRows?: number | string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RunScoreSummary"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
         };
