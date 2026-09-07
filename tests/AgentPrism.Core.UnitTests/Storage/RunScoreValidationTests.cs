@@ -87,7 +87,7 @@ public sealed class RunScoreValidationTests
 
     /// <remarks>
     /// A null value is NOT an invariant violation on a numeric kind: it records
-    /// that no measurement was made, the same rule <c>RunJudgment.Score</c>
+    /// that no measurement was made, the same rule <c>JudgeScore.Value</c>
     /// already states. Only the categorical/numeric MIX is refused.
     /// </remarks>
     [Fact]
@@ -114,6 +114,6 @@ public sealed class RunScoreValidationTests
         public string Name => name;
 
         public ValueTask<RunJudgment> JudgeAsync(RunJudgeContext context, CancellationToken cancellationToken = default)
-            => new(new RunJudgment { Score = 1 });
+            => new(JudgeVerdict.Headline(name, 1));
     }
 }

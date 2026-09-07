@@ -138,6 +138,6 @@ public sealed class OnlineEvaluationEndpointTests
         public string Name => "stub";
 
         public ValueTask<RunJudgment> JudgeAsync(RunJudgeContext context, CancellationToken cancellationToken = default)
-            => new(new RunJudgment { Score = score, Reason = reason });
+            => new(JudgeVerdict.Headline("stub", score, reason));
     }
 }

@@ -167,6 +167,8 @@ production behavior.
 | Built-in checks | Eval case configuration | Deterministic checks run without a judge model |
 | Custom checks | `AddEvalCheck(kind, check)` | Application code adds a named MAF `EvalCheck` |
 | Run judges | `IRunJudge` via `AddRunJudge<T>()`, instance, or factory, or the built-in `AddModelRunJudge()` | Manual or automatic scores with named criteria |
+| Calibrated evaluator catalog | `AddEvaluatorJudge(name, evaluator)` with a `Microsoft.Extensions.AI.Evaluation` `IEvaluator` | Each metric the evaluator reports becomes its own `{judge}.{metric}` score row |
+| Suite grading seam | `AddEvalEvaluatorFactory<T>()` or an instance | Replaces the MAF `LocalEvaluator` an eval suite is graded with |
 | Online evaluation | Judge registration plus enabled sampling | A bounded sample of live runs is scored in the background |
 | Eval run comparison | `GET /api/evals/runs/{id}/diff` or `IEvalStore.DiffRunsAsync` | Two runs of a suite align case by case into six buckets; added and dropped cases are never counted as regressions |
 | Relative CI gate | `agentprism eval --baseline <runId\|previous> --max-regressions <n>` | A build fails on the cases that broke against an earlier run, not only on an absolute pass rate |
@@ -826,6 +828,62 @@ default wording does not fit your domain.
 For lifecycle, concurrency, timeout, tenant, and retry requirements of a custom
 judge, see [Write your own judge](/guides/write-your-own-judge/).
 
+### Calibrated evaluators
+
+A judge does not have to be a prompt you wrote. `AddEvaluatorJudge` binds any
+`IEvaluator` from `Microsoft.Extensions.AI.Evaluation` — including the calibrated
+catalog in `Microsoft.Extensions.AI.Evaluation.Quality`, which grades relevance,
+coherence, completeness, task adherence, and tool-call accuracy without you
+writing a scoring prompt at all.
+
+AgentPrism does **not** reference that catalog. Add the package when you want it,
+so a consumer who does not carries none of it:
+
+```bash
+dotnet add package Microsoft.Extensions.AI.Evaluation.Quality
+```
+
+```csharp
+builder.AddAgentPrism()
+       .AddEvaluatorJudge(
+           "relevance",
+           new RelevanceEvaluator(),
+           options => options.Model = new ModelBinding { Provider = "openai", Model = "gpt-5.4-mini" });
+```
+
+Every metric the evaluator reports becomes its **own** score row, named
+`{judge}.{metric}` — `relevance.Relevance`, `relevance.Coherence`. The judge-name
+prefix is what lets two evaluators report a metric of the same name without one
+overwriting the other, because a score name is part of what makes a score unique.
+
+A metric the evaluator could not measure is stored with a **null** value, not a
+zero, and its diagnostics are kept in the comment so the gap is explained. Metrics
+map onto score kinds by shape: a numeric metric to `Numeric`, a boolean metric to
+`Binary`, a string metric to `Categorical`.
+
+Two limits are worth knowing before you turn this on:
+
+- **Each evaluator costs a model call per sampled run.** Registering four of them
+  multiplies the judging cost of online evaluation by four.
+- **A bridged metric never enters the 0-100 online average.** The calibrated
+  evaluators grade on their own scales, and mixing a 1-5 score into a 0-100 average
+  would fire the low-score alarm on healthy runs. Only a judge's *headline* score —
+  the one named exactly after the judge, as the built-in judge writes — feeds that
+  window. Bridged scores are stored, returned, and aggregated by the
+  [persistent score summary](#persistent-score-summary), which groups by name and
+  kind and so keeps the scales apart.
+
+A judge sees the run's input, its output text, and the **names** of the tools it
+called — not their arguments or results. An evaluator that grades tool calls has
+nothing to grade there and reports no measurement.
+
+### Replacing what grades a suite
+
+Eval suites are graded by MAF's `LocalEvaluator`, built from the checks the suite
+declares. `AddEvalEvaluatorFactory` replaces that choice. The factory receives the
+suite's compiled checks, so it can wrap the built-in behaviour rather than
+discarding what the suite asked for. Registering none changes nothing.
+
 ## Human feedback
 
 Scores can be attached to a run, or to a single message in it. Human scores and judge
@@ -853,7 +911,8 @@ A score carries one of four shapes:
 
 `value` is a decimal, so `0.87` is stored as `0.87`. A **null** `value` means no
 measurement was made — not zero. Zero is a measurement; the absence of one is not,
-which is the same rule `RunJudgment.Score` follows when a judge cannot decide.
+which is the same rule a judge follows: a judge that cannot decide returns an empty
+`RunJudgment` and writes no row at all.
 
 Deleting a score is written to the audit trail: removing a judgement is itself
 traceable.
@@ -10200,7 +10259,20 @@ public sealed class ResponseQualityJudge : IRunJudge
         CancellationToken cancellationToken = default)
     {
         var score = context.Output.Length >= 40 ? 90 : 45;
-        return new(new RunJudgment { Score = score, Reason = "Output-length rule." });
+
+        return new(new RunJudgment
+        {
+            Scores =
+            [
+                new JudgeScore
+                {
+                    Name = Name,
+                    Kind = RunScoreKind.Numeric,
+                    Value = score,
+                    Comment = "Output-length rule.",
+                },
+            ],
+        });
     }
 }
 ```
@@ -10232,9 +10304,24 @@ A judge can still be called again for the same run: manual re-scoring always
 reruns it, and a queued job retry (triggered when a *different* judge fails)
 reruns every judge that has not yet written a score for that run — a judge
 that already wrote one is skipped on that retry. Make side effects idempotent.
-Return a score from 0 to 100, or `null` when no decision is possible. Do not
-return `0` for an unknown result. Scores outside that range are rejected and
-do not retry. `Reason` is optional and is stored at a maximum of 4000 characters.
+
+A judgment carries a **list** of named scores, and each one becomes its own score
+row. Return an **empty** list when no decision is possible — that writes nothing.
+Do not return `0` for an unknown result; a null `Value` records "measured nothing",
+and an empty judgment records "did not measure".
+
+Each score states its own `Kind` and must stay inside that kind's range: `Binary`
+is 0 or 1, `Stars` is 1 to 5, `Numeric` is 0 to 100, and `Categorical` carries a
+`TextValue` instead of a `Value`. Names must satisfy the same rule as `Name` and
+must be distinct within one judgment. A judgment that breaks any of these is
+rejected as a whole, before the first row is written, and does not retry.
+`Comment` is optional and is stored at a maximum of 4000 characters.
+
+The score named exactly after the judge is its **headline** score. Only that one
+feeds the online-evaluation average and the `agentprism.judge.score` histogram,
+both of which are defined on the 0-100 scale; a judge that reports several metrics
+on several scales gives them other names, and they are stored and queryable
+without distorting that average.
 
 The cancellation token is the call budget. AgentPrism applies `JudgeTimeout` to
 each judge call, which defaults to 60 seconds. Propagate a real cancellation. Do

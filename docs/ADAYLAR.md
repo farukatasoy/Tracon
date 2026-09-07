@@ -705,3 +705,33 @@ tüketici talebi olmadan yapılırsa geri alması pahalıdır.
 
 ---
 
+
+### F-218 · Skor satırı evaluator paket sürümünü damgalamıyor
+
+**Kaynak:** [Faz 155](155-KALIBRE-EDILMIS-EVALUATOR-KATALOGU.md) — plan risk
+tablosunda vardı, kapsam dışı bırakıldı.
+
+**Gözlem:** `AddEvaluatorJudge` ile bağlanan bir `IEvaluator`'ın puanı,
+`Microsoft.Extensions.AI.Evaluation.Quality`'nin **prompt'una** bağlıdır ve o
+prompt paket sürümüyle değişir. Skor satırı hangi sürümün ürettiğini
+kaydetmiyor; bir yükseltme [Faz 153](arsiv/fazlar/153-EVAL-KOSUMLARI-ARASINDA-REGRESYON-FARKI.md)'ün
+regresyon taban çizgisini **sessizce** kaydırabilir — fark "model bozuldu"
+gibi görünür, oysa yargıcın kendisi değişmiştir.
+
+**Kapsam:** `RunScore`'a bir kaynak/sürüm damgası eklemek, ya da damgayı
+`Comment`'e sıkıştırmadan ayrı bir alana koymak.
+
+**Değer:** Skor trendini yorumlanabilir kılar; "yargıç değişti mi" sorusunun
+koşulan bir cevabı olur.
+
+**Mercek:** 3, 6.
+
+**Hazırlık:** Faz 155 köprüyü kurdu; damga onun üstüne biner.
+
+**Maliyet:** Orta — `RunScore` kalıcı bir tiptir, üç SQL sağlayıcısında
+migration ister (K-711'in emsali).
+
+**Risk:** Kalıcı şemaya alan eklemek geri dönüşü pahalıdır; talep kanıtı
+şimdilik tek bir risk satırıdır, ölçülmüş bir tüketici şikâyeti değil.
+
+---

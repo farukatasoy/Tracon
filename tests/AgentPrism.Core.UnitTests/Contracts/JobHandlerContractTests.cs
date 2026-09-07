@@ -120,6 +120,7 @@ public sealed class EvalJobHandlerContractTests : JobHandlerContract
             new InMemoryAgentDefinitionStore(),
             new AgentDefinitionCompiler(TestData.Providers(new FakeModelProvider()), TestData.Registry()),
             new EvalCheckRegistry([]),
+            new LocalEvalEvaluatorFactory(),
             Options.Create(new AgentPrismOptions()),
             [],
             NullLogger<EvalJobHandler>.Instance);

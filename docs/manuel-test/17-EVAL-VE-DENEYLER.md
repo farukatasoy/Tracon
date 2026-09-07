@@ -1,11 +1,13 @@
 # 17 — Eval, Deneyler (A/B), Kanarya Yayını ve Geri Bildirim (`EVAL`)
 
-> **Alan kodu:** `EVAL` · **Faz:** 18, 19, 31, 45, 49, 56, 100, 103, 118, 152, 153
+> **Alan kodu:** `EVAL` · **Faz:** 18, 19, 31, 45, 49, 56, 100, 103, 118, 152, 153, 155
 > **Kaynak:** `src/AgentPrism.Abstractions/Evaluation/` (tümü) ·
 > `src/AgentPrism.Abstractions/Experiments/` (tümü — `Experiment.cs`,
 > `ExperimentVariant.cs`, `ExperimentStatus.cs`, `CanaryPolicy.cs`,
 > `CanaryEvaluation.cs`, `CanaryDecisionKind.cs`) ·
-> `src/AgentPrism.Core/Evaluation/` (tümü) · `src/AgentPrism.Core/Experiments/`
+> `src/AgentPrism.Core/Evaluation/` (tümü — Faz 155'te eklenen
+> `EvaluatorRunJudge.cs` ve `IEvalEvaluatorFactory.cs` dahil) ·
+> `src/AgentPrism.Abstractions/Evaluation/JudgeScore.cs` · `src/AgentPrism.Core/Experiments/`
 > (tümü) · `src/AgentPrism.Core/Audit/AuditingExperimentStore.cs` ·
 > `src/AgentPrism.AspNetCore/Endpoints/EvalEndpoints.cs`,
 > `ExperimentEndpoints.cs` · `src/AgentPrism.AspNetCore/Contracts/EvaluationContracts.cs`,
@@ -2675,5 +2677,136 @@ Bkz. MT-EVAL-045 (aynı upsert davranışı). Buradaki ek iddia: yargıç
 - Grafik en az bir nokta gösterir; hata görünmez.
 - Yeniden başlatma sonrası grafik **aynı** veriyi göstermeye devam eder,
   üstteki canlı gösterge ise "No run has been judged yet" durumuna dönebilir.
+
+**Alan kodu:** `EVAL`
+
+---
+
+### EVAL-136 — Kalibre evaluator'ın her metriği ayrı skor satırı olur
+
+**Ön koşul**
+- `.Quality` paketi eklenmiş; `AddEvaluatorJudge("relevance", new RelevanceEvaluator(), o => o.Model = ...)`
+  kayıtlı. Online eval açık **veya** elle skorlama kullanılacak.
+
+**Adımlar**
+1. Bir `run` koş, `RUN_ID`'yi al.
+2. `POST /api/runs/{RUN_ID}/judge`
+3. `curl -s .../api/runs/$RUN_ID/feedback | jq '[.[] | {name, kind, value}]'`
+
+**Beklenen sonuç**
+- Evaluator'ın **her** metriği ayrı bir satırdır.
+- Ad **metrik adıdır, yargıç adı değil**; `relevance.Relevance` biçiminde
+  `{yargıç}.{metrik}` önekiyle yazılır.
+- `source` ve `author` alanları `judge:relevance`'tır.
+
+**Alan kodu:** `EVAL`
+
+---
+
+### EVAL-137 — Hiçbir evaluator kayıtlı değilken davranış değişmez
+
+**Ön koşul**
+- `AddEvaluatorJudge` **hiç** çağrılmamış.
+
+**Adımlar**
+1. Bir `run` koş.
+2. `POST /api/runs/{RUN_ID}/judge`
+
+**Beklenen sonuç**
+- Yanıt `200`; `scores` ve `failures` **boş**.
+- `run_scores` tablosunda yeni satır **yok**. Faz 155 öncesiyle birebir aynı.
+
+**Alan kodu:** `EVAL`
+
+---
+
+### EVAL-138 — Ölçüm üretmeyen metrik `null` yazar, `0` değil
+
+**Ön koşul**
+- Ölçüm üretemeyen bir evaluator kayıtlı (ör. `ToolCallAccuracyEvaluator` —
+  yargıç bağlamı tool **argümanı** taşımaz, bu yüzden ölçemez).
+
+**Adımlar**
+1. Bir `run` koş, `POST /api/runs/{RUN_ID}/judge`
+2. `curl -s .../api/runs/$RUN_ID/feedback | jq '[.[] | {name, value, comment}]'`
+
+**Beklenen sonuç**
+- Satır **vardır**; `value` `null`'dır, `0` **değildir**.
+- `comment` evaluator'ın `Diagnostics` metnini taşır — neden ölçemediği yazılıdır.
+
+**Alan kodu:** `EVAL`
+
+---
+
+### EVAL-139 — Aynı metriği üreten iki evaluator birbirini ezmez
+
+**Ön koşul**
+- İki ayrı adla iki evaluator kayıtlı, ikisi de `Relevance` metriği üretiyor:
+  `AddEvaluatorJudge("first", ...)` ve `AddEvaluatorJudge("second", ...)`.
+
+**Adımlar**
+1. Bir `run` koş, `POST /api/runs/{RUN_ID}/judge`
+2. `curl -s .../api/runs/$RUN_ID/feedback | jq '[.[].name]'`
+
+**Beklenen sonuç**
+- **İki** satır: `first.Relevance` ve `second.Relevance`.
+- Biri diğerini **ezmez**; ikisinin de `value`'su okunur.
+
+**Alan kodu:** `EVAL`
+
+---
+
+### EVAL-140 — İstisna atan evaluator `run`'ı düşürmez
+
+**Ön koşul**
+- Biri istisna atan, biri normal çalışan iki evaluator kayıtlı.
+
+**Adımlar**
+1. Bir `run` koş, `POST /api/runs/{RUN_ID}/judge`
+
+**Beklenen sonuç**
+- Yanıt `200` — `run` tamamlanır, iş düşmez.
+- `failures` dizisinde bozuk yargıcın adı ve `errorType` alanı görünür.
+- Çalışan yargıcın skoru **yazılmıştır**.
+
+**Alan kodu:** `EVAL`
+
+---
+
+### EVAL-141 — Köprü skoru 0-100 canlı ortalamaya girmez
+
+**Ön koşul**
+- Yalnız bir evaluator yargıcı kayıtlı (yerleşik `AddModelRunJudge` **kapalı**).
+- Kalibre evaluator 1-5 ölçeğinde puan veriyor.
+
+**Adımlar**
+1. Bir `run` koş, `POST /api/runs/{RUN_ID}/judge`
+2. `GET /api/evaluation/online`
+3. `GET /api/evaluation/scores/summary`
+
+**Beklenen sonuç**
+- Canlı özet: `sampleCount` **0**, `belowThreshold` **false** — 4 puanlık bir
+  metrik 0-100 eşiğinin altında sayılıp yanlış alarm üretmez.
+- Kalıcı özet: skor **görünür**, `byName` kırılımında `(name, kind)` çiftiyle
+  ayrı raporlanır.
+- Yerleşik `model` yargıcı açıksa yalnız **onun** skoru canlı ortalamaya girer.
+
+**Alan kodu:** `EVAL`
+
+---
+
+### EVAL-142 — Eval suite'inin değerlendiricisi değiştirilebilir
+
+**Ön koşul**
+- `AddEvalEvaluatorFactory<T>()` ile kendi fabrikan kayıtlı; fabrika suite'in
+  check'lerini alıp `LocalEvaluator`'ı sarıyor (ör. loglama ekliyor).
+
+**Adımlar**
+1. Bir eval suite'i koş.
+2. Fabrikanın kaydını **kaldır**, aynı suite'i tekrar koş.
+
+**Beklenen sonuç**
+- Fabrika kayıtlıyken senin sarmalayıcın çalışır ve suite'in check'lerini görür.
+- Kayıt kaldırılınca davranış **birebir** eskiye döner; sonuç aynıdır.
 
 **Alan kodu:** `EVAL`

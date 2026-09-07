@@ -173,13 +173,17 @@ internal sealed class OnlineEvalJobHandler(
         var failures = new List<JudgeFailure>();
         var alreadyScored = skipAlreadyScored
             ? await ReadAlreadyScoredJudgesAsync(run, cancellationToken).ConfigureAwait(false)
-            : new Dictionary<string, RunScore>(StringComparer.Ordinal);
+            : new Dictionary<string, List<RunScore>>(StringComparer.Ordinal);
 
         foreach (var judge in judgeList)
         {
             if (alreadyScored.TryGetValue(judge.Name, out var existing))
             {
-                scores.Add(existing);
+                // ALL of the judge's rows, not just one: a judge writes one row
+                // per named score, and a caller reading this list back would
+                // otherwise see a skipped judge report fewer scores than it
+                // actually wrote.
+                scores.AddRange(existing);
                 if (logger?.IsEnabled(LogLevel.Debug) is true)
                 {
                     logger.LogDebug(
@@ -205,7 +209,7 @@ internal sealed class OnlineEvalJobHandler(
     /// so every judge runs — a checkpoint read must not make the job brittle.
     /// A caller-requested cancellation is NOT swallowed here.
     /// </remarks>
-    private async ValueTask<Dictionary<string, RunScore>> ReadAlreadyScoredJudgesAsync(RunRecord run, CancellationToken cancellationToken)
+    private async ValueTask<Dictionary<string, List<RunScore>>> ReadAlreadyScoredJudgesAsync(RunRecord run, CancellationToken cancellationToken)
     {
         // 🚨 "Has this judge already scored this run?" is asked over Author
         // ALONE, never over the (author, name) pair (K-638, phase 152). Names
@@ -215,13 +219,21 @@ internal sealed class OnlineEvalJobHandler(
         try
         {
             var existingScores = await scoreStore.ListAsync(tenantContext.TenantId, run.Id, cancellationToken).ConfigureAwait(false);
-            var result = new Dictionary<string, RunScore>(StringComparer.Ordinal);
+            var result = new Dictionary<string, List<RunScore>>(StringComparer.Ordinal);
 
             foreach (var score in existingScores)
             {
                 if (!string.IsNullOrEmpty(score.Author) && score.Author.StartsWith(JudgeAuthorPrefix, StringComparison.Ordinal))
                 {
-                    result[score.Author[JudgeAuthorPrefix.Length..]] = score;
+                    var judgeName = score.Author[JudgeAuthorPrefix.Length..];
+
+                    if (!result.TryGetValue(judgeName, out var rows))
+                    {
+                        rows = [];
+                        result[judgeName] = rows;
+                    }
+
+                    rows.Add(score);
                 }
             }
 
@@ -230,7 +242,7 @@ internal sealed class OnlineEvalJobHandler(
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
             logger?.LogWarning(exception, "Failed to read existing scores for run {RunId}; no judge will be skipped.", run.Id);
-            return new Dictionary<string, RunScore>(StringComparer.Ordinal);
+            return new Dictionary<string, List<RunScore>>(StringComparer.Ordinal);
         }
     }
 
@@ -290,45 +302,200 @@ internal sealed class OnlineEvalJobHandler(
         }
 
         // 🚨 No decision reached: a silent 0 is NOT written. A zero is a
-        // measurement, not the absence of one.
-        if (judgment.Score is not { } score)
+        // measurement, not the absence of one. An empty judgment is the judge
+        // saying "nothing to record", and it writes no row at all.
+        if (judgment.Scores.Count == 0)
         {
             return;
         }
 
-        if (score is < 0 or > 100)
+        // 🚨 Validated BEFORE the first write. RunScore.Name is part of the
+        // stored uniqueness key (K-710), so a judgment that repeats a name
+        // would silently overwrite its own earlier row. Validating the whole
+        // list first keeps a bad judgment from writing a partial set.
+        if (!TryValidate(judgment.Scores, judge, judgeContext, out var contractError))
         {
             failures.Add(Failure(judge.Name, JudgeFailureTypes.Contract, retryable: false));
-            logger?.LogWarning("Judge '{Judge}' returned an out-of-range score for run {RunId}.", judge.Name, judgeContext.RunId);
+            logger?.LogWarning(
+                "Judge '{Judge}' returned an invalid judgment for run {RunId}: {Error}",
+                judge.Name,
+                judgeContext.RunId,
+                contractError);
             return;
         }
 
-        var reason = NormalizeReason(judgment.Reason);
+        // 🚨 Written into a LOCAL list first, not straight into `scores`. If the
+        // store fails partway through a judge's set, the rows already written
+        // have to be taken back out again -- see the compensation below.
+        var written = new List<RunScore>(judgment.Scores.Count);
 
-        var saved = await scoreStore.UpsertAsync(
-            new RunScore
-            {
-                TenantId = tenantContext.TenantId,
-                RunId = judgeContext.RunId,
-                Name = judge.Name,
-                Kind = RunScoreKind.Numeric,
-                Value = score,
-                Comment = reason,
-                Source = $"{JudgeAuthorPrefix}{judge.Name}",
-                Author = $"{JudgeAuthorPrefix}{judge.Name}",
-                CreatedAt = now,
-            },
-            cancellationToken).ConfigureAwait(false);
-
-        scores.Add(saved);
-
-        metrics?.RecordJudgeScore(judge.Name, run.AgentName, tenantContext.TenantId, score);
-
-        if (summaryService is not null)
+        try
         {
-            await summaryService.RecordScoreAsync(tenantContext.TenantId, score, cancellationToken).ConfigureAwait(false);
+            foreach (var judgeScore in judgment.Scores)
+            {
+                written.Add(await scoreStore.UpsertAsync(
+                    new RunScore
+                    {
+                        TenantId = tenantContext.TenantId,
+                        RunId = judgeContext.RunId,
+                        Name = judgeScore.Name,
+                        Kind = judgeScore.Kind,
+                        Value = judgeScore.Value,
+                        TextValue = judgeScore.TextValue,
+                        Comment = NormalizeReason(judgeScore.Comment),
+                        Source = $"{JudgeAuthorPrefix}{judge.Name}",
+                        Author = $"{JudgeAuthorPrefix}{judge.Name}",
+                        CreatedAt = now,
+                    },
+                    cancellationToken).ConfigureAwait(false));
+            }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            // 🚨 A HALF-WRITTEN set is worse than none, and the retry checkpoint
+            // cannot tell the two apart: it asks "does a row with this judge's
+            // author exist", so one surviving row would make the retry SKIP the
+            // judge and freeze the missing metrics forever. Take the partial set
+            // back out so the retry re-runs the judge from a clean slate; the
+            // upsert is idempotent, so a re-run rewrites the same rows.
+            await CompensateAsync(written, judge, judgeContext).ConfigureAwait(false);
+
+            failures.Add(Failure(judge.Name, JudgeFailureTypes.Failed, retryable: true));
+            LogFailure(judge, judgeContext, exception);
+            return;
+        }
+
+        scores.AddRange(written);
+
+        foreach (var judgeScore in judgment.Scores)
+        {
+            // 🚨 Only the HEADLINE score reaches the window and the histogram:
+            // the one named after the judge AND shaped as a 0-100 Numeric,
+            // because that is the scale both are defined on. Name alone is not
+            // enough -- a judge is free to give its headline verdict as Stars,
+            // and a 5 on a 1-5 scale would sit far below a 0-100 low-score
+            // threshold and fire the alarm on a healthy run. See JudgeScore.
+            if (judgeScore.Kind != RunScoreKind.Numeric ||
+                !string.Equals(judgeScore.Name, judge.Name, StringComparison.Ordinal) ||
+                judgeScore.Value is not { } headline)
+            {
+                continue;
+            }
+
+            metrics?.RecordJudgeScore(judge.Name, run.AgentName, tenantContext.TenantId, headline);
+
+            if (summaryService is not null)
+            {
+                await summaryService.RecordScoreAsync(tenantContext.TenantId, headline, cancellationToken).ConfigureAwait(false);
+            }
         }
     }
+
+    /// <summary>Removes the rows a failed judge managed to write before it failed.</summary>
+    /// <remarks>
+    /// Best effort, and deliberately not cancellable: the point is to leave the
+    /// retry a clean slate, and a cancelled cleanup would leave exactly the
+    /// half-written set it exists to prevent. A cleanup that fails as well is
+    /// logged and nothing more -- the store is already refusing writes, and
+    /// throwing here would replace a reported judge failure with a job crash.
+    /// </remarks>
+    private async ValueTask CompensateAsync(
+        IReadOnlyList<RunScore> written,
+        IRunJudge judge,
+        RunJudgeContext judgeContext)
+    {
+        foreach (var score in written)
+        {
+            try
+            {
+                await scoreStore.DeleteAsync(judgeContext.TenantId, score.Id, CancellationToken.None).ConfigureAwait(false);
+            }
+            catch (Exception exception) when (exception is not OperationCanceledException)
+            {
+                logger?.LogWarning(
+                    exception,
+                    "Judge '{Judge}' failed partway through writing its scores for run {RunId}, and score {ScoreId} could not be removed. That judge is now skipped on a retry and its remaining metrics stay unwritten.",
+                    judge.Name,
+                    judgeContext.RunId,
+                    score.Id);
+            }
+        }
+    }
+
+    /// <summary>Reports whether every score in a judgment can be stored.</summary>
+    /// <remarks>
+    /// Two rules are checked here that <see cref="RunScoreRules.Validate"/>
+    /// does not carry: the numeric range of each kind, and the uniqueness of
+    /// the names inside one judgment. The shared rules (the name pattern and
+    /// the categorical value shape) are asked of <see cref="RunScoreRules"/>
+    /// rather than spelled a second time.
+    /// </remarks>
+    private static bool TryValidate(
+        IReadOnlyList<JudgeScore> judgeScores,
+        IRunJudge judge,
+        RunJudgeContext judgeContext,
+        out string error)
+    {
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var judgeScore in judgeScores)
+        {
+            if (!seen.Add(judgeScore.Name))
+            {
+                error = $"the name '{judgeScore.Name}' is repeated";
+                return false;
+            }
+
+            if (!IsInRange(judgeScore.Kind, judgeScore.Value))
+            {
+                error = $"'{judgeScore.Name}' is out of range for {judgeScore.Kind}";
+                return false;
+            }
+
+            try
+            {
+                RunScoreRules.Validate(new RunScore
+                {
+                    TenantId = judgeContext.TenantId,
+                    RunId = judgeContext.RunId,
+                    Name = judgeScore.Name,
+                    Kind = judgeScore.Kind,
+                    Value = judgeScore.Value,
+                    TextValue = judgeScore.TextValue,
+                    Source = $"{JudgeAuthorPrefix}{judge.Name}",
+                });
+            }
+            catch (ArgumentException exception)
+            {
+                error = exception.Message;
+                return false;
+            }
+        }
+
+        error = string.Empty;
+        return true;
+    }
+
+    /// <summary>Reports whether a value falls inside the range its kind declares.</summary>
+    /// <remarks>
+    /// A <see langword="null"/> value is always in range: it records that no
+    /// measurement was made.
+    /// </remarks>
+    private static bool IsInRange(RunScoreKind kind, double? value)
+        => value is not { } number || kind switch
+        {
+            RunScoreKind.Binary => number is 0 or 1,
+            RunScoreKind.Stars => number is >= 1 and <= 5,
+            RunScoreKind.Numeric => number is >= 0 and <= 100,
+
+            // A categorical score carries no numeric value at all;
+            // RunScoreRules.Validate rejects one that does.
+            _ => false,
+        };
 
     private static async ValueTask CompleteItemAsync(
         JobContext context,

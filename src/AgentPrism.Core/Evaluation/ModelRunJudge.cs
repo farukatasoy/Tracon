@@ -155,7 +155,25 @@ internal sealed class ModelRunJudge(
 
         var (score, reason) = ParseJudgment(response.Text, loggerFactory.CreateLogger<ModelRunJudge>());
 
-        return new RunJudgment { Score = score, Reason = reason };
+        // The built-in judge reports ONE overall verdict, and it carries the
+        // judge's own name. That makes it the headline score: it is the one
+        // that feeds the online-evaluation window and the judge-score
+        // histogram. No decision means an EMPTY judgment, never a zero.
+        return score is { } decided
+            ? new RunJudgment
+            {
+                Scores =
+                [
+                    new JudgeScore
+                    {
+                        Name = Name,
+                        Kind = RunScoreKind.Numeric,
+                        Value = decided,
+                        Comment = reason,
+                    },
+                ],
+            }
+            : new RunJudgment();
     }
 
     private static string BuildInstructions(ModelRunJudgeOptions options)

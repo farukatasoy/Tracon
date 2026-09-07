@@ -267,7 +267,7 @@ public sealed class OnlineEvalRetryTests
         public ValueTask<RunJudgment> JudgeAsync(RunJudgeContext context, CancellationToken cancellationToken = default)
         {
             Interlocked.Increment(ref _callCount);
-            return new ValueTask<RunJudgment>(new RunJudgment { Score = score });
+            return new ValueTask<RunJudgment>(JudgeVerdict.Headline(name, score));
         }
     }
 
@@ -286,7 +286,7 @@ public sealed class OnlineEvalRetryTests
 
             return call <= failuresBeforeSuccess
                 ? throw new InvalidOperationException("simulated transient failure")
-                : new ValueTask<RunJudgment>(new RunJudgment { Score = score });
+                : new ValueTask<RunJudgment>(JudgeVerdict.Headline(name, score));
         }
     }
 }

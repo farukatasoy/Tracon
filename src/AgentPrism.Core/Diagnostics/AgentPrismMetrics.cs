@@ -278,7 +278,7 @@ public sealed class AgentPrismMetrics : IDisposable
     /// <param name="agentName">Name of the scored agent.</param>
     /// <param name="tenantId">Tenant identifier.</param>
     /// <param name="score">Score, 0-100.</param>
-    public void RecordJudgeScore(string judgeName, string agentName, string tenantId, int score)
+    public void RecordJudgeScore(string judgeName, string agentName, string tenantId, double score)
         => JudgeScore.Record(
             score,
             new TagList

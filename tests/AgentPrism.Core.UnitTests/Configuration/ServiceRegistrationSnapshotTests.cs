@@ -188,6 +188,7 @@ public sealed class ServiceRegistrationSnapshotTests
         "AgentPrism.JobHandlerRegistration | Singleton | Instance:AgentPrism.JobHandlerRegistration",
         "AgentPrism.IEvalStore | Singleton | AgentPrism.InMemoryEvalStore",
         "AgentPrism.EvalCheckRegistry | Singleton | AgentPrism.EvalCheckRegistry",
+        "AgentPrism.IEvalEvaluatorFactory | Singleton | AgentPrism.LocalEvalEvaluatorFactory",
         "AgentPrism.EvalJobHandler | Scoped | AgentPrism.EvalJobHandler",
         "AgentPrism.JobHandlerRegistration | Singleton | Instance:AgentPrism.JobHandlerRegistration",
         "AgentPrism.RunToCasePromoter | Singleton | AgentPrism.RunToCasePromoter",

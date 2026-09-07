@@ -19,7 +19,7 @@ public sealed class OnlineEvalCheckpointTests
         var inputs = new InMemoryRunInputStore();
         var runId = await SeedRunAsync(runs, inputs);
         var scores = new InMemoryRunScoreStore();
-        var judge = new CountingJudge("good", static _ => new RunJudgment { Score = 70 });
+        var judge = new CountingJudge("good", static _ => JudgeVerdict.Headline("good", 70));
         var handler = BuildHandler(runs, inputs, scores, [judge]);
 
         // A pre-existing row, as if left over from something unrelated to this attempt.
@@ -38,7 +38,7 @@ public sealed class OnlineEvalCheckpointTests
         var inputs = new InMemoryRunInputStore();
         var runId = await SeedRunAsync(runs, inputs);
         var scores = new InMemoryRunScoreStore();
-        var judge = new CountingJudge("good", static _ => new RunJudgment { Score = 70 });
+        var judge = new CountingJudge("good", static _ => JudgeVerdict.Headline("good", 70));
         var handler = BuildHandler(runs, inputs, scores, [judge]);
 
         await handler.JudgeRunAsync((await runs.GetRunAsync(runId))!);
@@ -57,8 +57,8 @@ public sealed class OnlineEvalCheckpointTests
         var inputs = new InMemoryRunInputStore();
         var runId = await SeedRunAsync(runs, inputs);
         var scores = new InMemoryRunScoreStore();
-        var judgeA = new CountingJudge("a", static _ => new RunJudgment { Score = 70 });
-        var judgeB = new CountingJudge("b", static _ => new RunJudgment { Score = 50 });
+        var judgeA = new CountingJudge("a", static _ => JudgeVerdict.Headline("a", 70));
+        var judgeB = new CountingJudge("b", static _ => JudgeVerdict.Headline("b", 50));
         var handler = BuildHandler(runs, inputs, scores, [judgeA, judgeB]);
 
         await handler.JudgeRunAsync((await runs.GetRunAsync(runId))!);
@@ -126,7 +126,7 @@ public sealed class OnlineEvalCheckpointTests
         var inputs = new InMemoryRunInputStore();
         var runId = await SeedRunAsync(runs, inputs);
         var scores = new InMemoryRunScoreStore();
-        var judge = new CountingJudge("unsure", static _ => new RunJudgment { Score = null, Reason = "unclear" });
+        var judge = new CountingJudge("unsure", static _ => JudgeVerdict.Headline("unsure", null, "unclear"));
         var handler = BuildHandler(runs, inputs, scores, [judge]);
         var run = await runs.GetRunAsync(runId);
 
@@ -146,7 +146,7 @@ public sealed class OnlineEvalCheckpointTests
         var inputs = new InMemoryRunInputStore();
         var runId = await SeedRunAsync(runs, inputs);
         var scores = new InMemoryRunScoreStore();
-        var judge = new CountingJudge("out-of-range", static _ => new RunJudgment { Score = 101 });
+        var judge = new CountingJudge("out-of-range", static _ => JudgeVerdict.Headline("out-of-range", 101));
         var handler = BuildHandler(runs, inputs, scores, [judge]);
         var run = await runs.GetRunAsync(runId);
 
@@ -168,7 +168,7 @@ public sealed class OnlineEvalCheckpointTests
         var inputs = new InMemoryRunInputStore();
         var runId = await SeedRunAsync(runs, inputs);
         var scores = new InMemoryRunScoreStore();
-        var judge = new CountingJudge("a.b-c_d", static _ => new RunJudgment { Score = 55 });
+        var judge = new CountingJudge("a.b-c_d", static _ => JudgeVerdict.Headline("a.b-c_d", 55));
         var handler = BuildHandler(runs, inputs, scores, [judge]);
         var run = await runs.GetRunAsync(runId);
 
@@ -182,23 +182,194 @@ public sealed class OnlineEvalCheckpointTests
     }
 
     [Fact]
-    public async Task A_judge_name_the_startup_gate_would_reject_is_refused_at_the_score_write()
+    public async Task A_score_name_the_startup_gate_would_reject_is_refused_before_the_write()
     {
         // RunJudgeSet fails the host before any run when a judge name breaks
         // [A-Za-z0-9._-]{1,64}, so this is unreachable in a composed host.
-        // Reached anyway -- a directly constructed handler -- the score store
-        // refuses it rather than writing a name it cannot index.
+        // Reached anyway -- a directly constructed handler -- the judgment is
+        // refused BEFORE the first write rather than throwing out of the job:
+        // one bad judge must not take the whole run down with it, and the
+        // caller of POST /api/runs/{id}/judge learns which judge was wrong.
         var runs = new InMemoryRunStore(tenantContext: new FixedTenantContext(Tenant));
         var inputs = new InMemoryRunInputStore();
         var runId = await SeedRunAsync(runs, inputs);
         var scores = new InMemoryRunScoreStore();
-        var judge = new CountingJudge("a:b", static _ => new RunJudgment { Score = 55 });
+        var judge = new CountingJudge("a:b", static _ => JudgeVerdict.Headline("a:b", 55));
         var handler = BuildHandler(runs, inputs, scores, [judge]);
         var run = await runs.GetRunAsync(runId);
 
-        await Should.ThrowAsync<ArgumentException>(async () => await handler.JudgeRunAsync(run!));
+        var (written, failures) = await handler.JudgeRunAsync(run!);
 
+        written.ShouldBeEmpty();
+        var failure = failures.ShouldHaveSingleItem();
+        failure.JudgeName.ShouldBe("a:b");
+        failure.ErrorType.ShouldBe("judge_contract");
+        failure.IsRetryable.ShouldBeFalse();
         (await scores.ListAsync(Tenant, runId)).ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task A_judgment_that_repeats_a_name_writes_nothing()
+    {
+        // The name is part of the uniqueness key, so the second row would
+        // silently overwrite the first. The whole judgment is refused instead,
+        // and refused BEFORE the first write -- a partial set is worse than none.
+        var runs = new InMemoryRunStore(tenantContext: new FixedTenantContext(Tenant));
+        var inputs = new InMemoryRunInputStore();
+        var runId = await SeedRunAsync(runs, inputs);
+        var scores = new InMemoryRunScoreStore();
+        var judge = new CountingJudge("twin", static _ => new RunJudgment
+        {
+            Scores =
+            [
+                new JudgeScore { Name = "twin.same", Kind = RunScoreKind.Numeric, Value = 10 },
+                new JudgeScore { Name = "twin.same", Kind = RunScoreKind.Numeric, Value = 90 },
+            ],
+        });
+        var handler = BuildHandler(runs, inputs, scores, [judge]);
+        var run = await runs.GetRunAsync(runId);
+
+        var (written, failures) = await handler.JudgeRunAsync(run!);
+
+        written.ShouldBeEmpty();
+        failures.ShouldHaveSingleItem().ErrorType.ShouldBe("judge_contract");
+        (await scores.ListAsync(Tenant, runId)).ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task A_judge_that_wrote_several_rows_is_skipped_on_a_retry_and_reports_all_of_them()
+    {
+        // The checkpoint asks "does a row with this judge's author exist", so a
+        // judge writing N rows must still count as scored -- and the caller must
+        // get back every row it wrote, not one of them.
+        var runs = new InMemoryRunStore(tenantContext: new FixedTenantContext(Tenant));
+        var inputs = new InMemoryRunInputStore();
+        var runId = await SeedRunAsync(runs, inputs);
+        var scores = new InMemoryRunScoreStore();
+        var judge = new CountingJudge("multi", static _ => new RunJudgment
+        {
+            Scores =
+            [
+                new JudgeScore { Name = "multi.a", Kind = RunScoreKind.Numeric, Value = 10 },
+                new JudgeScore { Name = "multi.b", Kind = RunScoreKind.Numeric, Value = 20 },
+                new JudgeScore { Name = "multi.c", Kind = RunScoreKind.Numeric, Value = 30 },
+            ],
+        });
+        var handler = BuildHandler(runs, inputs, scores, [judge]);
+        var run = await runs.GetRunAsync(runId);
+
+        var first = await handler.JudgeRunAsync(run!);
+        first.Scores.Count.ShouldBe(3);
+
+        var second = await handler.JudgeRunAsync(run!, skipAlreadyScored: true);
+
+        judge.CallCount.ShouldBe(1);
+        second.Scores.Select(static score => score.Name)
+            .ShouldBe(["multi.a", "multi.b", "multi.c"], ignoreOrder: true);
+        (await scores.ListAsync(Tenant, runId)).Count.ShouldBe(3);
+    }
+
+    [Fact]
+    public async Task A_store_failure_partway_through_a_set_leaves_nothing_behind()
+    {
+        // 🚨 A HALF-written set is worse than none: the checkpoint keys on the
+        // author alone, so one surviving row would make the retry skip the judge
+        // and freeze the missing metrics forever.
+        var runs = new InMemoryRunStore(tenantContext: new FixedTenantContext(Tenant));
+        var inputs = new InMemoryRunInputStore();
+        var runId = await SeedRunAsync(runs, inputs);
+        var scores = new FailAfterRunScoreStore(new InMemoryRunScoreStore(), failOnWrite: 2);
+        var judge = new CountingJudge("multi", static _ => new RunJudgment
+        {
+            Scores =
+            [
+                new JudgeScore { Name = "multi.a", Kind = RunScoreKind.Numeric, Value = 10 },
+                new JudgeScore { Name = "multi.b", Kind = RunScoreKind.Numeric, Value = 20 },
+                new JudgeScore { Name = "multi.c", Kind = RunScoreKind.Numeric, Value = 30 },
+            ],
+        });
+        var handler = BuildHandler(runs, inputs, scores, [judge]);
+        var run = await runs.GetRunAsync(runId);
+
+        var (written, failures) = await handler.JudgeRunAsync(run!);
+
+        written.ShouldBeEmpty();
+        var failure = failures.ShouldHaveSingleItem();
+        failure.JudgeName.ShouldBe("multi");
+        failure.IsRetryable.ShouldBeTrue();
+
+        // Nothing survives, so the retry sees an unscored run and calls the
+        // judge again instead of skipping it.
+        (await scores.ListAsync(Tenant, runId)).ShouldBeEmpty();
+
+        scores.StopFailing();
+        await handler.JudgeRunAsync(run!, skipAlreadyScored: true);
+
+        judge.CallCount.ShouldBe(2);
+        (await scores.ListAsync(Tenant, runId)).Count.ShouldBe(3);
+    }
+
+    [Fact]
+    public async Task A_non_numeric_headline_score_stays_out_of_the_zero_to_hundred_window()
+    {
+        // A judge is free to give its overall verdict as Stars. A 5 on a 1-5
+        // scale must not be averaged into a 0-100 window whose low-score
+        // threshold is 60, or the alarm fires on every healthy run.
+        var runs = new InMemoryRunStore(tenantContext: new FixedTenantContext(Tenant));
+        var inputs = new InMemoryRunInputStore();
+        var runId = await SeedRunAsync(runs, inputs);
+        var scores = new InMemoryRunScoreStore();
+        var summary = new OnlineEvalSummaryService(
+            runs,
+            new FixedOptionsMonitor(new OnlineEvaluationOptions()));
+        var judge = new CountingJudge("stars", static _ => new RunJudgment
+        {
+            Scores = [new JudgeScore { Name = "stars", Kind = RunScoreKind.Stars, Value = 5 }],
+        });
+        var handler = new OnlineEvalJobHandler(
+            runs,
+            inputs,
+            scores,
+            [judge],
+            new FixedTenantContext(Tenant),
+            summaryService: summary);
+        var run = await runs.GetRunAsync(runId);
+
+        await handler.JudgeRunAsync(run!);
+
+        // The row is written and readable...
+        (await scores.ListAsync(Tenant, runId)).ShouldHaveSingleItem().Value.ShouldBe(5);
+
+        // ...but it never entered the 0-100 average.
+        (await summary.GetSummaryAsync(Tenant)).SampleCount.ShouldBe(0);
+    }
+
+    /// <summary>A store that fails on the Nth write, then can be told to behave.</summary>
+    private sealed class FailAfterRunScoreStore(IRunScoreStore inner, int failOnWrite) : IRunScoreStore
+    {
+        private int _writes;
+        private bool _stopped;
+
+        public void StopFailing() => _stopped = true;
+
+        public async ValueTask<RunScore> UpsertAsync(RunScore score, CancellationToken cancellationToken = default)
+        {
+            if (!_stopped && ++_writes == failOnWrite)
+            {
+                throw new InvalidOperationException("simulated store failure");
+            }
+
+            return await inner.UpsertAsync(score, cancellationToken).ConfigureAwait(false);
+        }
+
+        public ValueTask<IReadOnlyList<RunScore>> ListAsync(string tenantId, Guid runId, CancellationToken cancellationToken = default)
+            => inner.ListAsync(tenantId, runId, cancellationToken);
+
+        public ValueTask<bool> DeleteAsync(string tenantId, Guid scoreId, CancellationToken cancellationToken = default)
+            => inner.DeleteAsync(tenantId, scoreId, cancellationToken);
+
+        public ValueTask<RunScoreSummary> SummarizeAsync(RunScoreQuery query, CancellationToken cancellationToken = default)
+            => inner.SummarizeAsync(query, cancellationToken);
     }
 
     [Fact]
@@ -221,7 +392,7 @@ public sealed class OnlineEvalCheckpointTests
             CreatedAt = DateTimeOffset.UtcNow,
         });
 
-        var judge = new CountingJudge("good", static _ => new RunJudgment { Score = 70 });
+        var judge = new CountingJudge("good", static _ => JudgeVerdict.Headline("good", 70));
         var handler = BuildHandler(runs, inputs, scores, [judge]);
         var run = await runs.GetRunAsync(runId);
 
@@ -239,8 +410,8 @@ public sealed class OnlineEvalCheckpointTests
         var runs = new InMemoryRunStore(tenantContext: new FixedTenantContext(Tenant));
         var inputs = new InMemoryRunInputStore();
         var runId = await SeedRunAsync(runs, inputs);
-        var goodJudge = new CountingJudge("good", static _ => new RunJudgment { Score = 70 });
-        var otherJudge = new CountingJudge("other", static _ => new RunJudgment { Score = 40 });
+        var goodJudge = new CountingJudge("good", static _ => JudgeVerdict.Headline("good", 70));
+        var otherJudge = new CountingJudge("other", static _ => JudgeVerdict.Headline("other", 40));
         var scores = new ThrowingListRunScoreStore(new InMemoryRunScoreStore());
         var handler = BuildHandler(runs, inputs, scores, [goodJudge, otherJudge]);
         var run = await runs.GetRunAsync(runId);
@@ -260,7 +431,7 @@ public sealed class OnlineEvalCheckpointTests
         var inputs = new InMemoryRunInputStore();
         var runId = await SeedRunAsync(runs, inputs);
         var scores = new CancelingRunScoreStore(new InMemoryRunScoreStore());
-        var judge = new CountingJudge("good", static _ => new RunJudgment { Score = 70 });
+        var judge = new CountingJudge("good", static _ => JudgeVerdict.Headline("good", 70));
         var handler = BuildHandler(runs, inputs, scores, [judge]);
         var run = await runs.GetRunAsync(runId);
         using var cancellation = new CancellationTokenSource();
@@ -286,7 +457,7 @@ public sealed class OnlineEvalCheckpointTests
         {
             started.TrySetResult();
             await release.Task;
-            return new RunJudgment { Score = 91 };
+            return JudgeVerdict.Headline("slow", 91);
         });
 
         var handler = BuildHandler(

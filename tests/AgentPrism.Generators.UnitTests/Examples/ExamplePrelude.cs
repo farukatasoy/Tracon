@@ -21,7 +21,7 @@ namespace AgentPrism.Generators.UnitTests.Examples;
 /// point (<c>OnPremiseModelProvider</c>, <c>OrderTools</c>, <c>IOrderGateway</c>,
 /// <c>IOrderRepository</c>, <c>NightlyReportJobHandler</c>, <c>GitAgentSource</c>,
 /// <c>ResponseQualityJudge</c>, <c>AuditingAgentDecorator</c>,
-/// <c>OrderDeskAuthorization</c>): "a
+/// <c>OrderDeskAuthorization</c>, <c>LoggingEvaluatorFactory</c>): "a
 /// provider/tool/service/repository/handler/source/judge/decorator/authorization you wrote yourself". Those get a
 /// minimal stub here for the same reason - a real consumer would have written
 /// one, and the doc text stays untouched.
@@ -67,6 +67,8 @@ internal static class ExamplePrelude
         using System.Threading;
         using System.Threading.Tasks;
         using Microsoft.Extensions.AI;
+        using Microsoft.Extensions.AI.Evaluation;
+        using Microsoft.Extensions.AI.Evaluation.Quality;
         using Microsoft.Extensions.Configuration;
         using Microsoft.Extensions.DependencyInjection;
         using Microsoft.Extensions.Hosting;
@@ -145,6 +147,12 @@ internal static class ExamplePrelude
             public string Name => "response-quality";
 
             public ValueTask<RunJudgment> JudgeAsync(RunJudgeContext context, CancellationToken cancellationToken = default) => default;
+        }
+
+        // Stands in for "your own eval-evaluator factory", named in two <example> blocks.
+        internal sealed class LoggingEvaluatorFactory : IEvalEvaluatorFactory
+        {
+            public IAgentEvaluator Create(IReadOnlyList<EvalCheck> checks) => new LocalEvaluator([.. checks]);
         }
 
         // Stands in for "your own agent decorator", named in two <example> blocks.

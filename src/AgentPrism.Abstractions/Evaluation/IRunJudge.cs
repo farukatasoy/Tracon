@@ -76,20 +76,32 @@ public sealed record RunJudgeContext
     public IReadOnlyList<string> ToolNames { get; init; } = [];
 }
 
-/// <summary>The judge's verdict.</summary>
+/// <summary>The judge's verdict: the named scores it produced.</summary>
+/// <remarks>
+/// <para>
+/// A judge that reports one overall verdict returns a single
+/// <see cref="JudgeScore"/> named after itself. A judge that bridges a metric
+/// catalog returns one entry per metric. Each entry becomes its own
+/// <see cref="RunScore"/> row.
+/// </para>
+/// <para>
+/// An <strong>empty</strong> list means the judge reached no decision, and
+/// nothing is written. It is not an error and it is not a score of zero.
+/// </para>
+/// </remarks>
 public sealed record RunJudgment
 {
     /// <summary>The greatest stored reason length.</summary>
     public const int MaxReasonLength = 4000;
-    /// <summary>The score, 0-100. <see langword="null"/> if the judge could not decide.</summary>
-    /// <remarks>
-    /// When no decision can be made, <see langword="null"/> is returned,
-    /// NOT <c>0</c>. Zero is a measurement; the absence of a measurement is not.
-    /// </remarks>
-    public int? Score { get; init; }
 
-    /// <summary>A rationale written into the <see cref="RunScore.Comment"/> field.</summary>
-    public string? Reason { get; init; }
+    /// <summary>The scores the judge produced. Empty when it reached no decision.</summary>
+    /// <remarks>
+    /// Names must be distinct within one judgment; <see cref="JudgeScore.Name"/>
+    /// is part of the stored uniqueness key, so a repeated name would overwrite
+    /// the earlier row. A duplicate is reported as a contract failure and
+    /// nothing is written for that judge.
+    /// </remarks>
+    public IReadOnlyList<JudgeScore> Scores { get; init; } = [];
 }
 
 /// <summary>A normalized judge failure returned by manual scoring.</summary>

@@ -189,6 +189,11 @@ public static partial class AgentPrismServiceCollectionExtensions
         // (added via AddEvalCheck); the six built-in kinds are fixed inside EvalCheckRegistry.
         services.TryAddSingleton<IEvalStore, InMemoryEvalStore>();
         services.TryAddSingleton<EvalCheckRegistry>();
+
+        // Phase 155: the seam around "what grades a suite". TryAdd, so a
+        // consumer's own factory wins and registering none keeps MAF's
+        // LocalEvaluator built over the suite's own checks.
+        services.TryAddSingleton<IEvalEvaluatorFactory, LocalEvalEvaluatorFactory>();
         services.AddBuiltInJobHandler<EvalJobHandler>(JobHandlerKeys.Eval);
 
         // Promoting production cases (Phase 45, F-53). Reads the query text

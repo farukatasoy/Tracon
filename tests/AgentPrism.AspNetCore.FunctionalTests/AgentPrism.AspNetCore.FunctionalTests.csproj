@@ -49,6 +49,12 @@
       make library behavior depend on the sample's configuration. With
       TestHost, each test sets up its own host.
     -->
+    <!--
+      Phase 155: the calibrated evaluator catalog. Referenced HERE and never by a
+      shipped package - a consumer who does not want the catalog carries none of
+      it, and this test is what proves the bridge against the real evaluators.
+    -->
+    <PackageReference Include="Microsoft.Extensions.AI.Evaluation.Quality" />
     <PackageReference Include="Microsoft.AspNetCore.TestHost" />
     <!-- To verify that the OpenAPI document is actually generated. -->
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" />

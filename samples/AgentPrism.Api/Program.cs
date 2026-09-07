@@ -81,6 +81,7 @@ using Microsoft.Agents.AI;
 using Microsoft.Agents.AI.Workflows;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.Extensions.AI;
+using Microsoft.Extensions.AI.Evaluation.Quality;
 using OpenAI;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -387,6 +388,16 @@ if (openAiEnabled)
         options.Criteria.Add("Does the answer address the question directly and correctly?");
         options.Criteria.Add("Was the right tool called for order questions?");
     });
+
+    // A calibrated evaluator from Microsoft.Extensions.AI.Evaluation.Quality,
+    // bound as a second judge. AgentPrism does not reference that package; this
+    // sample adds it itself, which is what a consumer does. Every metric the
+    // evaluator reports becomes its own score row named `relevance.{metric}`,
+    // and the judge-name prefix is what keeps two evaluators reporting the same
+    // metric from overwriting each other.
+    //
+    // 🚨 Each evaluator costs a model call on every sampled run.
+    agentPrism.AddEvaluatorJudge("relevance", new RelevanceEvaluator());
 }
 
 agentPrism
