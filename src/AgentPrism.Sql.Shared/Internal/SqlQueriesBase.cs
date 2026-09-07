@@ -985,8 +985,11 @@ internal abstract class SqlQueriesBase
     protected const string RetentionRunColumns =
          "id, tenant_id, target, deleted_rows, archived_rows, started_at, completed_at, error";
 
+    // 🚨 name and text_value are APPENDED (phase 152), not slotted in: the
+    // reader (SqlRunScoreStore.Read) addresses columns by ordinal, so an
+    // insertion in the middle would silently shift every field after it.
     protected const string RunScoreColumns =
-         "id, tenant_id, run_id, message_id, kind, value, comment, source, author, created_at";
+         "id, tenant_id, run_id, message_id, kind, value, comment, source, author, created_at, name, text_value";
 
     protected const string TenantProviderBindingColumns =
          "tenant_id, provider_name, api_key_configuration_name, endpoint, updated_at";

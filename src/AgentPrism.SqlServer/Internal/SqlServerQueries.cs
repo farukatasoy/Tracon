@@ -1615,7 +1615,8 @@ internal sealed class SqlServerQueries : SqlQueriesBase
 
         const string runScoreOutput =
             "inserted.id, inserted.tenant_id, inserted.run_id, inserted.message_id, inserted.kind, " +
-            "inserted.value, inserted.comment, inserted.source, inserted.author, inserted.created_at";
+            "inserted.value, inserted.comment, inserted.source, inserted.author, inserted.created_at, " +
+            "inserted.name, inserted.text_value";
 
         // 🚨 MERGE IS NOT USED (K-177): first a locked UPDATE, then INSERT if
         // no row exists.
@@ -1632,6 +1633,7 @@ internal sealed class SqlServerQueries : SqlQueriesBase
             UPDATE {Schema}.run_scores WITH (UPDLOCK, SERIALIZABLE)
                SET kind       = @kind,
                    value      = @value,
+                   text_value = @text_value,
                    comment    = @comment,
                    source     = @source,
                    created_at = @created_at
@@ -1639,12 +1641,13 @@ internal sealed class SqlServerQueries : SqlQueriesBase
              WHERE tenant_id = @tenant_id
                AND run_id = @run_id
                AND ISNULL(message_id, N'') = ISNULL(@message_id, N'')
-               AND author = @author;
+               AND author = @author
+               AND name = @name;
 
             IF @@ROWCOUNT = 0
             INSERT INTO {Schema}.run_scores ({RunScoreColumns})
             OUTPUT {runScoreOutput}
-            VALUES (@id, @tenant_id, @run_id, @message_id, @kind, @value, @comment, @source, @author, @created_at);
+            VALUES (@id, @tenant_id, @run_id, @message_id, @kind, @value, @comment, @source, @author, @created_at, @name, @text_value);
             """;
 
         // MERGE is not used (K-177). Two-branch pattern: first UPDATE (if we

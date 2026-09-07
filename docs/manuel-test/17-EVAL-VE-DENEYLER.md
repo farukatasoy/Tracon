@@ -1,6 +1,6 @@
 # 17 — Eval, Deneyler (A/B), Kanarya Yayını ve Geri Bildirim (`EVAL`)
 
-> **Alan kodu:** `EVAL` · **Faz:** 18, 19, 31, 45, 49, 56, 100, 103, 118
+> **Alan kodu:** `EVAL` · **Faz:** 18, 19, 31, 45, 49, 56, 100, 103, 118, 152
 > **Kaynak:** `src/AgentPrism.Abstractions/Evaluation/` (tümü) ·
 > `src/AgentPrism.Abstractions/Experiments/` (tümü — `Experiment.cs`,
 > `ExperimentVariant.cs`, `ExperimentStatus.cs`, `CanaryPolicy.cs`,
@@ -12,13 +12,13 @@
 > `ExperimentContracts.cs` · `src/AgentPrism.AspNetCore/Endpoints/RunEndpoints.cs`
 > (yalnız `feedback`/`compare`/`input`/`replay` dalları — Faz 31 ve ilgili) ·
 > `src/AgentPrism.Abstractions/Runs/RunScore.cs`, `RunScoreKind.cs`,
-> `IRunScoreStore.cs`, `RunReplay.cs` ·
+> `RunScoreRules.cs`, `IRunScoreStore.cs`, `RunReplay.cs` ·
 > `src/AgentPrism.UI/frontend/src/screens/evals.tsx`, `eval-detail.tsx`,
 > `eval-run-detail.tsx`, `experiments.tsx`, `experiment-detail.tsx` ·
 > `src/AgentPrism.UI/frontend/src/components/promote-to-eval-case.tsx`,
 > `feedback-control.tsx` · Migration'lar: `0009_eval.sql`,
 > `0010_experiments.sql`, `0017_run_scores.sql`, `0022_eval_case_source.sql`,
-> `0028_experiment_canary.sql`.
+> `0028_experiment_canary.sql`, `0048_run_score_name_and_shape.sql`.
 >
 > Ortam kurulumu, fixture verisi ve reset yordamı [`00-INDEKS.md`](00-INDEKS.md)'dedir.
 
@@ -2244,3 +2244,161 @@ Bkz. MT-EVAL-045 (aynı upsert davranışı). Buradaki ek iddia: yargıç
 
 **Alan kodu:** `EVAL`
 
+---
+
+### EVAL-112 — Aynı yazar aynı `run`'a İKİ FARKLI ADLA skor yazar
+
+**Ön koşul**
+- `samples/AgentPrism.Api` ayakta, kimlik çözümlenebiliyor
+  (`AgentPrism__Demo__Roles__Enabled=true` ve `X-AgentPrism-Demo-Role: operator`).
+  🚨 Kimliksiz kurulumda tekillik hiç devreye girmez ve her çağrı yeni satır
+  açar (K1) — bu case o yolu ölçmez.
+- Tamamlanmış bir `run` (`$RUN`).
+
+**Adımlar**
+1. `POST /api/runs/$RUN/feedback` `{"name":"helpfulness","kind":"Stars","value":4}`
+2. `POST /api/runs/$RUN/feedback` `{"name":"accuracy","kind":"Binary","value":1}`
+3. `GET /api/runs/$RUN/feedback`
+
+**Beklenen sonuç**
+- İki çağrı da `200`.
+- Liste **iki** satır döner; `helpfulness` `4`, `accuracy` `1`. Birincisi
+  ezilmez.
+
+**Alan kodu:** `EVAL`
+
+---
+
+### EVAL-113 — Aynı ad ikinci kez yazılınca YALNIZ o satır güncellenir
+
+**Ön koşul**
+- EVAL-112 sonrası (aynı `run`, aynı yazar).
+
+**Adımlar**
+1. `POST /api/runs/$RUN/feedback` `{"name":"helpfulness","kind":"Stars","value":5}`
+2. `GET /api/runs/$RUN/feedback`
+
+**Beklenen sonuç**
+- `200`; liste hâlâ **iki** satır.
+- `helpfulness` `5` olur; `accuracy` `1` olarak **değişmeden** durur.
+
+**Alan kodu:** `EVAL`
+
+---
+
+### EVAL-114 — Kategorik skor metin olarak saklanır
+
+**Ön koşul**
+- Tamamlanmış bir `run`.
+
+**Adımlar**
+1. `POST /api/runs/$RUN/feedback` `{"name":"severity","kind":"Categorical","textValue":"minor"}`
+2. `GET /api/runs/$RUN/feedback`
+
+**Beklenen sonuç**
+- `200`; satır `"kind":"Categorical"`, `"textValue":"minor"` ve
+  `"value":null` taşır.
+- Aynı gövdeye `"value"` eklemek `400` döner: kategorik skor sayısal değer
+  taşımaz.
+
+**Alan kodu:** `EVAL`
+
+---
+
+### EVAL-115 — Ondalık skor YUVARLANMAZ
+
+**Ön koşul**
+- Tamamlanmış bir `run`. Üç SQL sağlayıcısında da ayrı ayrı koşulur
+  (PostgreSQL · SQL Server · SQLite) — sütun tipi sağlayıcı başına farklıdır
+  (`double precision` · `float` · `REAL`).
+
+**Adımlar**
+1. `POST /api/runs/$RUN/feedback` `{"name":"similarity","kind":"Numeric","value":0.87}`
+2. `GET /api/runs/$RUN/feedback`
+
+**Beklenen sonuç**
+- Değer `0.87` olarak geri döner — `1` veya `0` değil.
+
+**Alan kodu:** `EVAL`
+
+---
+
+### EVAL-116 — Geçersiz skor adı `400` döner
+
+**Ön koşul**
+- Tamamlanmış bir `run`.
+
+**Adımlar**
+1. Sırayla şu adlarla yaz: `has boşluk` · 65 karakterlik bir ad ·
+   `türkçe` · `judge:quality`.
+
+**Beklenen sonuç**
+- Dördü de `400`; `detail` alanı
+  `A run score name must match [A-Za-z0-9._-]{1,64}.` der.
+- `name` **hiç verilmeyen** bir gövde `200` döner ve satır `overall` adını
+  alır — mevcut tüketicinin çağrısı kırılmaz.
+
+**Alan kodu:** `EVAL`
+
+---
+
+### EVAL-117 — Faz 152 öncesi veriyle dolu bir veritabanı göç eder 👤
+
+**Ön koşul**
+- Faz 152 **öncesi** bir sürümle doldurulmuş, içinde hem insan hem yargıç
+  skor satırı bulunan bir veritabanı. Üç sağlayıcıda da ayrı koşulur.
+
+**Adımlar**
+1. Yeni sürümü başlat; migration otomatik uygulanır
+   (PostgreSQL `0048`, SQLite `0035`, SQL Server `0035`).
+2. `run_scores` satır sayısını göç öncesi/sonrası karşılaştır.
+3. `name` sütununu oku.
+
+**Beklenen sonuç**
+- Satır sayısı **değişmez**; hiçbir satır kaybolmaz.
+- `author` değeri `judge:{ad}` olan satırlar `name = {ad}` alır
+  (`judge:quality` → `quality`).
+- Diğer tüm satırlar `name = overall` alır.
+- Göç sonrası aynı yazar aynı `run`'a ikinci bir adla yazabilir.
+
+**Alan kodu:** `EVAL`
+
+---
+
+### EVAL-118 — Eval sonucundaki skorlar değer ve derece taşır
+
+**Ön koşul**
+- En az bir vakası olan bir eval takımı.
+
+**Adımlar**
+1. Takımı koş, bitmesini bekle.
+2. `GET /api/evals/runs/{id}` → `results[].scores`
+
+**Beklenen sonuç**
+- Her metrik `kind` (`boolean` · `numeric` · `string`) **ve** `value` taşır.
+- Yorumlanmış bir metrik `rating` taşır (`Good` gibi); yorumlanmamış olanda
+  `passed` `null`'dır ve `rating` hiç yazılmaz.
+- `metadata` alanı **yoktur** — model yanıtı üstverisi istemciye sızmaz.
+
+**Alan kodu:** `EVAL`
+
+---
+
+### EVAL-119 — Arayüzde bir `run` birden çok adla skorlanır 👤
+
+**Ön koşul**
+- Konsol açık, bir `run`'ın detay ekranı.
+
+**Adımlar**
+1. Geri bildirim panelinde başparmağı yukarı çevir.
+2. API üzerinden aynı `run`'a `severity`/`Categorical` bir skor yaz.
+3. Ekranı yenile.
+
+**Beklenen sonuç**
+- Başparmak durumu yalnız `overall` adlı **insan** skorunu yansıtır; bir
+  yargıç skoru başparmağı asla doldurmaz.
+- Kategorik skor "Diğer skorlar" başlığı altında adı ve metin değeriyle
+  **salt okunur** görünür.
+- `Kaldır` (başparmağa ikinci tıklama) yalnız `overall` satırını siler.
+
+**Alan kodu:** `EVAL`

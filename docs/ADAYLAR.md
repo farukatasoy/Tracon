@@ -956,3 +956,31 @@ değerlendirilen adaylar, policy adı).
 **Risk:** Ölçüm olmadan "en ucuzu seç" kararı yanlış olur. Tüketici de
 "önce doğru telemetry, sonra dinamik policy" diyor.
 
+---
+
+### F-213 · Store sözleşmelerinin iptal davranışı yazılı değil
+
+**Sorun:** Hiçbir `*StoreContract` iptal case'i taşımıyor ve dört uygulama
+farklı davranıyor: SQL store'lar token'ı ADO.NET üzerinden doğal olarak
+gözlüyor, bellek içi store'lar (`InMemoryRunScoreStore` ve kardeşleri) token'ı
+hiç okumuyor. Bir tüketici `UpsertAsync(score, alreadyCancelledToken)`
+çağırdığında ne olacağını sözleşmeden öğrenemiyor.
+
+**Kapsam:** Tek bir store değil, **store ailesi** için bir karar: sevk edilen
+sözleşmelere iptal case'i girsin mi, girecekse bellek içi uygulamalar da
+`ThrowIfCancellationRequested` ile hizalansın mı. Karar üçüncü taraf
+`IRunScoreStore`/`IRunStore` uygulamalarına yeni bir zorunluluk yükler.
+
+**Değer:** İptal davranışı bugün uygulama detayı; sözleşmeye girerse
+tüketicinin varsayımı ölçülebilir hâle gelir.
+
+**Mercek:** 3, 7.
+
+**Hazırlık:** Hazır — Faz 152 bu case'i bilerek dışarıda bıraktı ve
+gerekçesini fazın "Plandan Sapmalar" tablosuna yazdı (sapma 3).
+
+**Maliyet:** Küçük ama YAYGIN: ~20 sözleşme sınıfı ve bellek içi karşılıkları.
+
+**Risk:** Sözleşmeyi genişletmek sevk edilen bir söz vermektir; ölçülmüş bir
+tüketici talebi olmadan yapılırsa geri alması pahalıdır.
+

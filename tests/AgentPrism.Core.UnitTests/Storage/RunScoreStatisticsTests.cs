@@ -101,6 +101,7 @@ public sealed class RunScoreStatisticsTests
         {
             TenantId = Tenant,
             RunId = runId,
+            Name = RunScoreRules.DefaultName,
             Kind = RunScoreKind.Binary,
             Value = value,
             Source = "human",

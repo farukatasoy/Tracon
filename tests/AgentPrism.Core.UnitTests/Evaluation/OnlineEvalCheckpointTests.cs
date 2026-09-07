@@ -160,13 +160,15 @@ public sealed class OnlineEvalCheckpointTests
     }
 
     [Fact]
-    public async Task A_judge_name_containing_a_colon_round_trips_through_the_checkpoint()
+    public async Task A_judge_name_containing_a_separator_round_trips_through_the_checkpoint()
     {
+        // The `judge:` prefix is stripped by length, not by splitting on ':',
+        // so a name carrying the legal separators must survive the round trip.
         var runs = new InMemoryRunStore(tenantContext: new FixedTenantContext(Tenant));
         var inputs = new InMemoryRunInputStore();
         var runId = await SeedRunAsync(runs, inputs);
         var scores = new InMemoryRunScoreStore();
-        var judge = new CountingJudge("a:b", static _ => new RunJudgment { Score = 55 });
+        var judge = new CountingJudge("a.b-c_d", static _ => new RunJudgment { Score = 55 });
         var handler = BuildHandler(runs, inputs, scores, [judge]);
         var run = await runs.GetRunAsync(runId);
 
@@ -175,7 +177,28 @@ public sealed class OnlineEvalCheckpointTests
 
         judge.CallCount.ShouldBe(1);
         var saved = retryScores.ShouldHaveSingleItem();
-        saved.Author.ShouldBe("judge:a:b");
+        saved.Author.ShouldBe("judge:a.b-c_d");
+        saved.Name.ShouldBe("a.b-c_d");
+    }
+
+    [Fact]
+    public async Task A_judge_name_the_startup_gate_would_reject_is_refused_at_the_score_write()
+    {
+        // RunJudgeSet fails the host before any run when a judge name breaks
+        // [A-Za-z0-9._-]{1,64}, so this is unreachable in a composed host.
+        // Reached anyway -- a directly constructed handler -- the score store
+        // refuses it rather than writing a name it cannot index.
+        var runs = new InMemoryRunStore(tenantContext: new FixedTenantContext(Tenant));
+        var inputs = new InMemoryRunInputStore();
+        var runId = await SeedRunAsync(runs, inputs);
+        var scores = new InMemoryRunScoreStore();
+        var judge = new CountingJudge("a:b", static _ => new RunJudgment { Score = 55 });
+        var handler = BuildHandler(runs, inputs, scores, [judge]);
+        var run = await runs.GetRunAsync(runId);
+
+        await Should.ThrowAsync<ArgumentException>(async () => await handler.JudgeRunAsync(run!));
+
+        (await scores.ListAsync(Tenant, runId)).ShouldBeEmpty();
     }
 
     [Fact]
@@ -190,6 +213,7 @@ public sealed class OnlineEvalCheckpointTests
         {
             TenantId = Tenant,
             RunId = runId,
+            Name = RunScoreRules.DefaultName,
             Kind = RunScoreKind.Binary,
             Value = 1,
             Source = "human",

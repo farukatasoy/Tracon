@@ -2769,6 +2769,8 @@ AgentPrism.RunScore.Kind.get -> AgentPrism.RunScoreKind
 AgentPrism.RunScore.Kind.init -> void
 AgentPrism.RunScore.MessageId.get -> string?
 AgentPrism.RunScore.MessageId.init -> void
+AgentPrism.RunScore.Name.get -> string!
+AgentPrism.RunScore.Name.init -> void
 AgentPrism.RunScore.RunId.get -> System.Guid
 AgentPrism.RunScore.RunId.init -> void
 AgentPrism.RunScore.RunScore() -> void
@@ -2776,12 +2778,16 @@ AgentPrism.RunScore.Source.get -> string!
 AgentPrism.RunScore.Source.init -> void
 AgentPrism.RunScore.TenantId.get -> string!
 AgentPrism.RunScore.TenantId.init -> void
-AgentPrism.RunScore.Value.get -> int
+AgentPrism.RunScore.TextValue.get -> string?
+AgentPrism.RunScore.TextValue.init -> void
+AgentPrism.RunScore.Value.get -> double?
 AgentPrism.RunScore.Value.init -> void
 AgentPrism.RunScoreKind
 AgentPrism.RunScoreKind.Binary = 1 -> AgentPrism.RunScoreKind
+AgentPrism.RunScoreKind.Categorical = 4 -> AgentPrism.RunScoreKind
 AgentPrism.RunScoreKind.Numeric = 3 -> AgentPrism.RunScoreKind
 AgentPrism.RunScoreKind.Stars = 2 -> AgentPrism.RunScoreKind
+AgentPrism.RunScoreRules
 AgentPrism.RunStartInfo
 AgentPrism.RunStartInfo.<Clone>$() -> AgentPrism.RunStartInfo!
 AgentPrism.RunStartInfo.AgentName.get -> string!
@@ -4198,6 +4204,10 @@ const AgentPrism.RunLabels.MaxKeyLength = 64 -> int
 const AgentPrism.RunLabels.MaxUserIdLength = 200 -> int
 const AgentPrism.RunLabels.MaxValueLength = 256 -> int
 const AgentPrism.RunReconciliationOptions.SectionName = "AgentPrism:RunReconciliation" -> string!
+const AgentPrism.RunScoreRules.DefaultName = "overall" -> string!
+const AgentPrism.RunScoreRules.MaxNameLength = 64 -> int
+const AgentPrism.RunScoreRules.MaxTextValueLength = 256 -> int
+const AgentPrism.RunScoreRules.NameDescription = "A run score name must match [A-Za-z0-9._-]{1,64}." -> string!
 const AgentPrism.RunTimeSeriesBucketing.MaxBuckets = 500 -> int
 const AgentPrism.SingletonExecutionOptions.SectionName = "AgentPrism:SingletonExecution" -> string!
 const AgentPrism.ToolArgumentConditionLimits.MaxConditions = 10 -> int
@@ -5076,6 +5086,8 @@ static AgentPrism.RunReplayRequest.operator !=(AgentPrism.RunReplayRequest? left
 static AgentPrism.RunReplayRequest.operator ==(AgentPrism.RunReplayRequest? left, AgentPrism.RunReplayRequest? right) -> bool
 static AgentPrism.RunScore.operator !=(AgentPrism.RunScore? left, AgentPrism.RunScore? right) -> bool
 static AgentPrism.RunScore.operator ==(AgentPrism.RunScore? left, AgentPrism.RunScore? right) -> bool
+static AgentPrism.RunScoreRules.IsValidName(string? name) -> bool
+static AgentPrism.RunScoreRules.Validate(AgentPrism.RunScore! score) -> void
 static AgentPrism.RunStartInfo.operator !=(AgentPrism.RunStartInfo? left, AgentPrism.RunStartInfo? right) -> bool
 static AgentPrism.RunStartInfo.operator ==(AgentPrism.RunStartInfo? left, AgentPrism.RunStartInfo? right) -> bool
 static AgentPrism.RunStatistics.operator !=(AgentPrism.RunStatistics? left, AgentPrism.RunStatistics? right) -> bool

@@ -18,11 +18,13 @@ internal sealed class InMemoryRunScoreStore : IRunScoreStore
     public ValueTask<RunScore> UpsertAsync(RunScore score, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(score);
+        RunScoreRules.Validate(score);
 
-        // When the same author scores the same target, run or message, a second time,
-        // update the existing row. If the author is empty in an anonymous deployment,
-        // this rule does not apply and each call creates a new row. This matches the
-        // unique index in SQL providers. See the run_scores migration.
+        // When the same author writes the same NAME onto the same target, run or
+        // message, a second time, update the existing row. A different name from the
+        // same author opens a new row. If the author is empty in an anonymous
+        // deployment, the rule does not apply and each call creates a new row. This
+        // matches the unique index in SQL providers. See the run_scores migration.
         if (score.Author is { Length: > 0 })
         {
             var existing = _scores.Values.FirstOrDefault(candidate => IsSameTarget(candidate, score));
@@ -80,5 +82,6 @@ internal sealed class InMemoryRunScoreStore : IRunScoreStore
         => string.Equals(left.TenantId, right.TenantId, StringComparison.Ordinal)
            && left.RunId == right.RunId
            && string.Equals(left.MessageId ?? string.Empty, right.MessageId ?? string.Empty, StringComparison.Ordinal)
-           && string.Equals(left.Author, right.Author, StringComparison.Ordinal);
+           && string.Equals(left.Author, right.Author, StringComparison.Ordinal)
+           && string.Equals(left.Name, right.Name, StringComparison.Ordinal);
 }

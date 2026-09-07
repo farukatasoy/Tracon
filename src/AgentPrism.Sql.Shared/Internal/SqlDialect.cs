@@ -449,6 +449,18 @@ internal abstract class SqlDialect
     public virtual void AddInt64(DbCommand command, string name, long? value)
         => AddTyped(command, name, DbType.Int64, value);
 
+    /// <summary>Binds a nullable double-precision value to a parameter.</summary>
+    /// <param name="command">The command.</param>
+    /// <param name="name">The parameter name.</param>
+    /// <param name="value">The value; it can be <see langword="null"/>.</param>
+    /// <remarks>
+    /// For a measured quantity that is not money. Money uses
+    /// <see cref="AddDecimal"/>: SQL Server needs an explicit precision/scale
+    /// there, and a binary float would round it.
+    /// </remarks>
+    public virtual void AddDouble(DbCommand command, string name, double? value)
+        => AddTyped(command, name, DbType.Double, value);
+
     /// <summary>Binds a nullable decimal value to a parameter.</summary>
     /// <param name="command">The command.</param>
     /// <param name="name">The parameter name.</param>

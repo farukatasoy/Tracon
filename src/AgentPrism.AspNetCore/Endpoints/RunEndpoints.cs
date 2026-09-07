@@ -294,8 +294,11 @@ internal static class RunEndpoints
             .WithSummary("Writes a score for a run or for a single message.")
             .Accepts<RunFeedbackRequest>("application/json")
             .WithDescription(
-                "When the same author scores the same target (run or message) a second time, the row is " +
-                "UPDATED, not a new row opened. If 'messageId' is left blank, the score applies to the whole run.");
+                "When the same author writes the same 'name' onto the same target (run or message) a second " +
+                "time, the row is UPDATED, not a new row opened; a different name opens a new row, so one " +
+                "reviewer can score a run for both 'helpfulness' and 'accuracy'. A blank 'name' becomes " +
+                "'overall'. If 'messageId' is left blank, the score applies to the whole run. A 'categorical' " +
+                "score carries 'textValue' instead of 'value'; every other kind carries 'value'.");
 
         builder.MapGet("/api/runs/{runId:guid}/feedback", ListFeedbackAsync)
             .RequireRole(roles.Reader)
@@ -807,14 +810,55 @@ internal static class RunEndpoints
 
         var request = bound!;
 
-        if (request.Kind == RunScoreKind.Binary && request.Value is not (0 or 1))
+        // A caller that sends no name keeps today's behavior: one score per
+        // author per target, named 'overall' — the same name the migration
+        // gave every row written before scores had names.
+        var name = string.IsNullOrWhiteSpace(request.Name) ? RunScoreRules.DefaultName : request.Name;
+
+        if (!RunScoreRules.IsValidName(name))
         {
-            return InvalidFeedback("A binary score ('binary') can only be 0 or 1.");
+            return InvalidFeedback(RunScoreRules.NameDescription);
         }
 
-        if (request.Kind == RunScoreKind.Stars && request.Value is < 1 or > 5)
+        if (request.Kind == RunScoreKind.Categorical)
         {
-            return InvalidFeedback("A star score ('stars') must be between 1 and 5.");
+            if (string.IsNullOrWhiteSpace(request.TextValue))
+            {
+                return InvalidFeedback("A categorical score ('categorical') needs a 'textValue'.");
+            }
+
+            if (request.TextValue.Length > RunScoreRules.MaxTextValueLength)
+            {
+                return InvalidFeedback(
+                    $"'textValue' can be at most {RunScoreRules.MaxTextValueLength} characters.");
+            }
+
+            if (request.Value is not null)
+            {
+                return InvalidFeedback("A categorical score ('categorical') carries no numeric 'value'.");
+            }
+        }
+        else
+        {
+            if (request.TextValue is not null)
+            {
+                return InvalidFeedback("Only a categorical score ('categorical') carries a 'textValue'.");
+            }
+
+            if (request.Value is null)
+            {
+                return InvalidFeedback("A numeric score needs a 'value'.");
+            }
+
+            if (request.Kind == RunScoreKind.Binary && request.Value is not (0 or 1))
+            {
+                return InvalidFeedback("A binary score ('binary') can only be 0 or 1.");
+            }
+
+            if (request.Kind == RunScoreKind.Stars && request.Value is < 1 or > 5)
+            {
+                return InvalidFeedback("A star score ('stars') must be between 1 and 5.");
+            }
         }
 
         var run = await runs.GetRunAsync(runId, cancellationToken).ConfigureAwait(false);
@@ -844,8 +888,10 @@ internal static class RunEndpoints
                 TenantId = tenants.TenantId,
                 RunId = runId,
                 MessageId = string.IsNullOrWhiteSpace(request.MessageId) ? null : request.MessageId,
+                Name = name,
                 Kind = request.Kind,
                 Value = request.Value,
+                TextValue = request.TextValue,
                 Comment = string.IsNullOrWhiteSpace(request.Comment) ? null : request.Comment,
                 Source = "human",
                 Author = actorResolver.Resolve(),
@@ -864,8 +910,22 @@ internal static class RunEndpoints
             after: AuditPayload.Write(writer =>
             {
                 writer.WriteString("runId", runId.ToString());
+                writer.WriteString("name", saved.Name);
                 writer.WriteString("kind", saved.Kind.ToString());
-                writer.WriteNumber("value", saved.Value);
+
+                if (saved.Value is { } value)
+                {
+                    writer.WriteNumber("value", value);
+                }
+                else
+                {
+                    writer.WriteNull("value");
+                }
+
+                if (saved.TextValue is { } textValue)
+                {
+                    writer.WriteString("textValue", textValue);
+                }
             }),
             cancellationToken).ConfigureAwait(false);
 
@@ -1248,11 +1308,34 @@ internal static class RunEndpoints
 /// <summary>Request body for writing a run/message score.</summary>
 public sealed record RunFeedbackRequest
 {
+    /// <summary>
+    /// The score's stable, low-cardinality name. Left blank it becomes
+    /// <c>overall</c>.
+    /// </summary>
+    /// <remarks>
+    /// Must match <c>[A-Za-z0-9._-]{1,64}</c>, the rule
+    /// <see cref="RunScoreRules"/> carries. The same author can write more than
+    /// one name onto the same run; writing the same name twice updates the
+    /// existing row.
+    /// </remarks>
+    public string? Name { get; init; }
+
     /// <summary>The format of the score.</summary>
     public required RunScoreKind Kind { get; init; }
 
-    /// <summary>0/1 for <see cref="RunScoreKind.Binary"/>, 1.5 for <see cref="RunScoreKind.Stars"/>.</summary>
-    public required int Value { get; init; }
+    /// <summary>
+    /// 0/1 for <see cref="RunScoreKind.Binary"/>, 1 to 5 for
+    /// <see cref="RunScoreKind.Stars"/>, 0 to 100 for
+    /// <see cref="RunScoreKind.Numeric"/>. Left out for
+    /// <see cref="RunScoreKind.Categorical"/>, required otherwise.
+    /// </summary>
+    public double? Value { get; init; }
+
+    /// <summary>
+    /// The categorical label. Required for <see cref="RunScoreKind.Categorical"/>
+    /// and rejected for every other kind.
+    /// </summary>
+    public string? TextValue { get; init; }
 
     /// <summary>The id of the scored message. If left blank, the score applies to the whole run.</summary>
     public string? MessageId { get; init; }

@@ -162,6 +162,7 @@ export const trRuns: Pick<Messages, keyof typeof enRuns> = {
   "feedback.anonymous": 'anonim',
   "feedback.saveError": 'Geri bildirim yazılamadı.',
   "feedback.noneYet": 'Henüz hiçbir çalıştırma puanlanmadı.',
+  "feedback.otherScores": 'Diğer skorlar',
   "onlineEval.title": 'Çevrimiçi değerlendirme',
   "onlineEval.noneYet": 'Henüz hiçbir çalıştırma yargılanmadı.',
   "onlineEval.sampleCount": 'Örneklenen çalıştırma',

@@ -509,8 +509,12 @@ AgentPrism.RunFeedbackRequest.Kind.get -> AgentPrism.RunScoreKind
 AgentPrism.RunFeedbackRequest.Kind.init -> void
 AgentPrism.RunFeedbackRequest.MessageId.get -> string?
 AgentPrism.RunFeedbackRequest.MessageId.init -> void
+AgentPrism.RunFeedbackRequest.Name.get -> string?
+AgentPrism.RunFeedbackRequest.Name.init -> void
 AgentPrism.RunFeedbackRequest.RunFeedbackRequest() -> void
-AgentPrism.RunFeedbackRequest.Value.get -> int
+AgentPrism.RunFeedbackRequest.TextValue.get -> string?
+AgentPrism.RunFeedbackRequest.TextValue.init -> void
+AgentPrism.RunFeedbackRequest.Value.get -> double?
 AgentPrism.RunFeedbackRequest.Value.init -> void
 AgentPrism.RunInputResponse
 AgentPrism.RunInputResponse.<Clone>$() -> AgentPrism.RunInputResponse!

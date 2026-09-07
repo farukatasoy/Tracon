@@ -116,7 +116,7 @@ claim to provide an operating-system sandbox.
 | Custom agent decorator | `AddAgentDecorator<T>()`, instance, or factory | Joins the built-in decorators; `Order` decides where |
 | Cancellation | Run API and cancellation registry | A caller can request cancellation by run id while preserving the final recorded state |
 | Replay | Recorded run input and replay service | Re-run against the current or selected definition, with tool replay modes and mismatch protection |
-| Compare and score | HTTP API, console, or a custom `IRunJudge` | Compare two runs, attach human scores, or score completed runs automatically; an online judge uses its provider setup credential and still obeys tenant egress policy |
+| Compare and score | HTTP API, console, or a custom `IRunJudge` | Compare two runs, attach human scores, or score completed runs automatically; a score carries a name, so one reviewer can rate the same run on several criteria; an online judge uses its provider setup credential and still obeys tenant egress policy |
 | Sessions | `AgentSessionManager` and session endpoints | Durable conversation identity and readable history when the store supports it |
 | Session ownership | `AgentPrism:SessionOwnership` | Off by default; records which user opened a session, narrows the session list to that user **before** paging, and answers `404` for another user's session — sessions written before it was turned on stay unowned and appear only in the management listing, and `RefuseUnownedSessions` refuses those too once they no longer matter |
 | Branching | Session branch API | Fork a durable conversation from an addressable item; SQL storage is required |

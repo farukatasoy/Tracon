@@ -515,7 +515,7 @@ export interface paths {
         put?: never;
         /**
          * Writes a score for a run or for a single message.
-         * @description When the same author scores the same target (run or message) a second time, the row is UPDATED, not a new row opened. If 'messageId' is left blank, the score applies to the whole run.
+         * @description When the same author writes the same 'name' onto the same target (run or message) a second time, the row is UPDATED, not a new row opened; a different name opens a new row, so one reviewer can score a run for both 'helpfulness' and 'accuracy'. A blank 'name' becomes 'overall'. If 'messageId' is left blank, the score applies to the whole run. A 'categorical' score carries 'textValue' instead of 'value'; every other kind carries 'value'.
          */
         post: operations["AgentPrismSaveRunFeedback"];
         delete?: never;
@@ -5669,13 +5669,26 @@ export interface components {
         };
         /** @description Request body for writing a run/message score. */
         RunFeedbackRequest: {
+            /**
+             * @description The score's stable, low-cardinality name. Left blank it becomes
+             *     `overall`.
+             */
+            name?: null | string;
             /** @description The format of the score. */
             kind: components["schemas"]["RunScoreKind"];
             /**
-             * Format: int32
-             * @description 0/1 for RunScoreKind.Binary, 1.5 for RunScoreKind.Stars.
+             * Format: double
+             * @description 0/1 for RunScoreKind.Binary, 1 to 5 for
+             *     RunScoreKind.Stars, 0 to 100 for
+             *     RunScoreKind.Numeric. Left out for
+             *     RunScoreKind.Categorical, required otherwise.
              */
-            value: number | string;
+            value?: null | number | string;
+            /**
+             * @description The categorical label. Required for RunScoreKind.Categorical
+             *     and rejected for every other kind.
+             */
+            textValue?: null | string;
             /** @description The id of the scored message. If left blank, the score applies to the whole run. */
             messageId?: null | string;
             /** @description Free-text comment. */
@@ -5930,20 +5943,22 @@ export interface components {
             runId: string;
             /** @description The identifier of the message being scored. If empty, the score belongs to the whole run. */
             messageId?: null | string;
-            /** @description The shape of `Value`. */
+            /** @description The score's stable, low-cardinality name — part of the uniqueness key. */
+            name: string;
+            /** @description The shape of the value. */
             kind: components["schemas"]["RunScoreKind"];
             /**
-             * Format: int32
-             * @description The score value. 0/1 for RunScoreKind.Binary, 1.5 for RunScoreKind.Stars.
+             * Format: double
+             * @description The numeric value: 0/1 for RunScoreKind.Binary, 1 to 5 for
+             *     RunScoreKind.Stars, 0 to 100 for
+             *     RunScoreKind.Numeric.
              */
-            value: number | string;
+            value?: null | number | string;
+            /** @description The categorical value. Set only when RunScoreKind RunScore.Kind is RunScoreKind.Categorical. */
+            textValue?: null | string;
             /** @description A free-text comment. */
             comment?: null | string;
-            /**
-             * @description The score's source: `human`, `api`, or `judge`. Today
-             *     only `human` is used; the column is set up from the start so
-             *     online evaluation can write a judge score into the same table as-is.
-             */
+            /** @description The score's source: `human`, `api`, or `judge:{name}`. */
             source: string;
             /** @description The actor who gave the score. `null` in an identity-less setup. */
             author?: null | string;
@@ -5957,7 +5972,7 @@ export interface components {
          * @description The shape of the value a RunScore carries.
          * @enum {unknown}
          */
-        RunScoreKind: "Binary" | "Stars" | "Numeric";
+        RunScoreKind: "Binary" | "Stars" | "Numeric" | "Categorical";
         /** @description A summary of the runs in a time range. */
         RunStatistics: {
             /**

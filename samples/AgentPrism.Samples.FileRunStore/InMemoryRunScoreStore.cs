@@ -18,19 +18,21 @@ internal sealed class InMemoryRunScoreStore : IRunScoreStore
     public ValueTask<RunScore> UpsertAsync(RunScore score, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(score);
+        RunScoreRules.Validate(score);
 
         lock (_gate)
         {
             var id = score.Id == Guid.Empty ? Guid.NewGuid() : score.Id;
 
-            // The same author scoring the same target a second time updates
-            // the row instead of opening a new one; an author-less score
-            // always opens a new row.
+            // The same author writing the same NAME onto the same target a
+            // second time updates the row instead of opening a new one; a
+            // different name, or an author-less score, opens a new row.
             var existingIndex = score.Author is { Length: > 0 }
                 ? _scores.FindIndex(candidate =>
                     candidate.RunId == score.RunId
                     && string.Equals(candidate.MessageId, score.MessageId, StringComparison.Ordinal)
-                    && string.Equals(candidate.Author, score.Author, StringComparison.Ordinal))
+                    && string.Equals(candidate.Author, score.Author, StringComparison.Ordinal)
+                    && string.Equals(candidate.Name, score.Name, StringComparison.Ordinal))
                 : -1;
 
             var stored = score with { Id = id };

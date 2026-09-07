@@ -3038,7 +3038,7 @@ namespace AgentPrism.Client.Generated
         /// Writes a score for a run or for a single message.
         /// </summary>
         /// <remarks>
-        /// When the same author scores the same target (run or message) a second time, the row is UPDATED, not a new row opened. If 'messageId' is left blank, the score applies to the whole run.
+        /// When the same author writes the same 'name' onto the same target (run or message) a second time, the row is UPDATED, not a new row opened; a different name opens a new row, so one reviewer can score a run for both 'helpfulness' and 'accuracy'. A blank 'name' becomes 'overall'. If 'messageId' is left blank, the score applies to the whole run. A 'categorical' score carries 'textValue' instead of 'value'; every other kind carries 'value'.
         /// </remarks>
         /// <returns>OK</returns>
         /// <exception cref="AgentPrismApiException">A server side error occurred.</exception>
@@ -21243,6 +21243,14 @@ namespace AgentPrism.Client.Generated
     public partial class RunFeedbackRequest
     {
         /// <summary>
+        /// The score's stable, low-cardinality name. Left blank it becomes
+        /// <br/>`overall`.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("name")]
+        public string? Name { get; set; } = default!;
+
+        /// <summary>
         /// The format of the score.
         /// </summary>
 
@@ -21250,11 +21258,22 @@ namespace AgentPrism.Client.Generated
         public RunScoreKind Kind { get; set; } = default!;
 
         /// <summary>
-        /// 0/1 for RunScoreKind.Binary, 1.5 for RunScoreKind.Stars.
+        /// 0/1 for RunScoreKind.Binary, 1 to 5 for
+        /// <br/>RunScoreKind.Stars, 0 to 100 for
+        /// <br/>RunScoreKind.Numeric. Left out for
+        /// <br/>RunScoreKind.Categorical, required otherwise.
         /// </summary>
 
         [System.Text.Json.Serialization.JsonPropertyName("value")]
-        public int Value { get; set; } = default!;
+        public double? Value { get; set; } = default!;
+
+        /// <summary>
+        /// The categorical label. Required for RunScoreKind.Categorical
+        /// <br/>and rejected for every other kind.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("textValue")]
+        public string? TextValue { get; set; } = default!;
 
         /// <summary>
         /// The id of the scored message. If left blank, the score applies to the whole run.
@@ -21744,18 +21763,34 @@ namespace AgentPrism.Client.Generated
         public string? MessageId { get; set; } = default!;
 
         /// <summary>
-        /// The shape of `Value`.
+        /// The score's stable, low-cardinality name — part of the uniqueness key.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("name")]
+        public string Name { get; set; } = default!;
+
+        /// <summary>
+        /// The shape of the value.
         /// </summary>
 
         [System.Text.Json.Serialization.JsonPropertyName("kind")]
         public RunScoreKind Kind { get; set; } = default!;
 
         /// <summary>
-        /// The score value. 0/1 for RunScoreKind.Binary, 1.5 for RunScoreKind.Stars.
+        /// The numeric value: 0/1 for RunScoreKind.Binary, 1 to 5 for
+        /// <br/>RunScoreKind.Stars, 0 to 100 for
+        /// <br/>RunScoreKind.Numeric.
         /// </summary>
 
         [System.Text.Json.Serialization.JsonPropertyName("value")]
-        public int Value { get; set; } = default!;
+        public double? Value { get; set; } = default!;
+
+        /// <summary>
+        /// The categorical value. Set only when RunScoreKind RunScore.Kind is RunScoreKind.Categorical.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("textValue")]
+        public string? TextValue { get; set; } = default!;
 
         /// <summary>
         /// A free-text comment.
@@ -21765,9 +21800,7 @@ namespace AgentPrism.Client.Generated
         public string? Comment { get; set; } = default!;
 
         /// <summary>
-        /// The score's source: `human`, `api`, or `judge`. Today
-        /// <br/>only `human` is used; the column is set up from the start so
-        /// <br/>online evaluation can write a judge score into the same table as-is.
+        /// The score's source: `human`, `api`, or `judge:{name}`.
         /// </summary>
 
         [System.Text.Json.Serialization.JsonPropertyName("source")]
@@ -21805,6 +21838,9 @@ namespace AgentPrism.Client.Generated
 
         [System.Runtime.Serialization.EnumMember(Value = @"Numeric")]
         Numeric = 2,
+
+        [System.Runtime.Serialization.EnumMember(Value = @"Categorical")]
+        Categorical = 3,
 
     }
 

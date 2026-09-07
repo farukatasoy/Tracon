@@ -6,9 +6,18 @@ import { Button, ErrorNote, Panel, TextArea } from './ui';
 import { ThumbsDownIcon, ThumbsUpIcon } from './icons';
 import type { RunScore } from '../lib/server-types';
 
+/** The score name this control owns. Every other name is read-only here. */
+const OVERALL = 'overall';
+
 /**
  * Run-level "was this helpful" control: thumbs up/down plus an optional
  * comment (F-52, Phase 31).
+ *
+ * Since phase 152 a run can carry MORE THAN ONE score per author, told apart
+ * by `name`. This control still owns exactly one of them — the run-level
+ * `overall` score written by whoever is looking at the screen. Every other row
+ * (a second human name, a judge score, a categorical label) is listed
+ * read-only underneath.
  *
  * Message-level scoring and star ratings are part of the store contract
  * (`IRunScoreStore`, `RunScoreKind.Stars`) but are not exposed in this
@@ -31,7 +40,21 @@ export function FeedbackControl({ runId }: { runId: string }): ReactNode {
   // author); this control shows and edits only the run-level (no
   // `messageId`) score belonging to whoever is looking at the screen right
   // now, which the server resolves — the client never has to know who that is.
-  const mine = feedback.data?.find((score) => score.messageId == null);
+  //
+  // 🚨 `source` and `name` are both required in the match. A judge score also
+  // carries no `messageId`, so matching on that alone picked up the judge's
+  // row as "mine" — the thumbs then rendered the judge's number and Remove
+  // deleted the judge's score. Since phase 152 a human can hold several names
+  // as well, so this control names the one it owns.
+  const mine = feedback.data?.find((score) =>
+    score.messageId == null && score.source === 'human' && score.name === OVERALL);
+
+  // Everything the control does not own: a second human name, a categorical
+  // label, a judge score. Read-only, so a name this screen cannot write is
+  // still visible.
+  const otherScores = (feedback.data ?? []).filter(
+    (score) => score.messageId == null && !score.source.startsWith('judge:') && score !== mine,
+  );
 
   const [comment, setComment] = useState(mine?.comment ?? '');
 
@@ -46,7 +69,7 @@ export function FeedbackControl({ runId }: { runId: string }): ReactNode {
       unwrap(
         apiClient.POST('/api/runs/{runId}/feedback', {
           params: { path: { runId } },
-          body: { kind: 'Binary', value, comment: comment.trim() || undefined },
+          body: { name: OVERALL, kind: 'Binary', value, comment: comment.trim() || undefined },
         }),
       ) as Promise<RunScore>,
     onMutate: async (value) => {
@@ -57,8 +80,10 @@ export function FeedbackControl({ runId }: { runId: string }): ReactNode {
         tenantId: mine?.tenantId ?? '',
         runId,
         messageId: null,
+        name: OVERALL,
         kind: 'Binary',
         value,
+        textValue: null,
         comment: comment.trim() || null,
         source: 'human',
         author: mine?.author ?? null,
@@ -127,7 +152,7 @@ export function FeedbackControl({ runId }: { runId: string }): ReactNode {
   };
 
   const saveComment = (): void => {
-    if (mine != null && comment !== (mine.comment ?? '')) {
+    if (mine != null && mine.value != null && comment !== (mine.comment ?? '')) {
       rate.mutate(mine.value as 0 | 1);
     }
   };
@@ -173,12 +198,25 @@ export function FeedbackControl({ runId }: { runId: string }): ReactNode {
 
         {rate.isError && <ErrorNote error={rate.error} />}
 
+        {otherScores.length > 0 && (
+          <div className="mt-2 flex flex-col gap-1 border-t border-line pt-2">
+            <span className="text-[11px] font-semibold text-body">{t('feedback.otherScores')}</span>
+            {otherScores.map((score) => (
+              <div key={score.id} className="flex items-center gap-2 text-[11px] text-subtle">
+                <span className="font-semibold text-body">{score.name}</span>
+                <span>{score.kind === 'Categorical' ? score.textValue : formatScoreValue(score.value)}</span>
+                {score.comment != null && <span>· {score.comment}</span>}
+              </div>
+            ))}
+          </div>
+        )}
+
         <div className="mt-2 flex flex-col gap-1 border-t border-line pt-2">
           {judgeScores.map((score) => (
             <div key={score.id} className="flex items-center gap-2 text-[11px] text-subtle">
               <span className="font-semibold text-body">{t('onlineEval.judgeScoreLabel')}</span>
               <span>{score.source.replace('judge:', '')}</span>
-              <span className="font-semibold text-body">{score.value}/100</span>
+              <span className="font-semibold text-body">{formatScoreValue(score.value)}/100</span>
               {score.comment != null && <span>· {score.comment}</span>}
             </div>
           ))}
@@ -197,4 +235,17 @@ export function FeedbackControl({ runId }: { runId: string }): ReactNode {
       </div>
     </Panel>
   );
+}
+
+/**
+ * Renders a numeric score. `null` means NO MEASUREMENT was made, not zero
+ * (phase 152), so it renders as a dash rather than a 0 nobody wrote. A whole
+ * number keeps its short form; a decimal keeps at most two places.
+ */
+function formatScoreValue(value: number | null | undefined): string {
+  if (value == null) {
+    return '—';
+  }
+
+  return Number.isInteger(value) ? String(value) : value.toFixed(2);
 }
