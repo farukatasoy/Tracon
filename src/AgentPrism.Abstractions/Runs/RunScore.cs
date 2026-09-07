@@ -59,7 +59,7 @@ public sealed record RunScore
     /// </remarks>
     public double? Value { get; init; }
 
-    /// <summary>The categorical value. Set only when <see cref="Kind"/> is <see cref="RunScoreKind.Categorical"/>.</summary>
+    /// <summary>The categorical value. Set only for a <see cref="RunScoreKind.Categorical"/> score.</summary>
     /// <remarks>At most <see cref="RunScoreRules.MaxTextValueLength"/> characters; free-form prose belongs in <see cref="Comment"/>.</remarks>
     public string? TextValue { get; init; }
 

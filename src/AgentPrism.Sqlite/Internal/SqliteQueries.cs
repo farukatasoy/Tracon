@@ -508,9 +508,11 @@ internal sealed class SqliteQueries : SqlQueriesBase
                    MAX(cost_currency),
                    COUNT(*) FILTER (WHERE pricing_source = @pricing_source_unknown),
                    (SELECT COUNT(DISTINCT rs.run_id) FROM {matchedRunScoresFilter}),
-                   (SELECT CASE WHEN COUNT(*) FILTER (WHERE rs.kind = @kind_binary) = 0 THEN NULL
+                   -- 🚨 A null value is excluded from the DENOMINATOR too; see
+                   -- the note in PostgresQueries.
+                   (SELECT CASE WHEN COUNT(*) FILTER (WHERE rs.kind = @kind_binary AND rs.value IS NOT NULL) = 0 THEN NULL
                                 ELSE CAST(COUNT(*) FILTER (WHERE rs.kind = @kind_binary AND rs.value = 1) AS REAL)
-                                     / COUNT(*) FILTER (WHERE rs.kind = @kind_binary)
+                                     / COUNT(*) FILTER (WHERE rs.kind = @kind_binary AND rs.value IS NOT NULL)
                            END
                     FROM {matchedRunScoresFilter}),
                    -- Ordinals 14-17, APPENDED so the reader's fixed positions

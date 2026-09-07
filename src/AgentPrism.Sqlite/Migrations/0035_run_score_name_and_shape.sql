@@ -16,6 +16,13 @@
 -- REAL affinity is not cosmetic: with the old INTEGER affinity SQLite folds a
 -- whole number (4.0) back into an integer, and the reader asks for a double.
 
+-- SQLite has no `IF NOT EXISTS` for `ALTER TABLE ... ADD COLUMN`; safety comes
+-- from the migration runner, which runs this file exactly once.
+--
+-- The DEFAULT is kept on the column rather than dropped after the backfill, and
+-- all three providers carry the SAME one: it is the name the HTTP endpoint
+-- applies when a caller sends none, so a name-less insert means the same thing
+-- everywhere.
 ALTER TABLE {schema}run_scores ADD COLUMN name TEXT NOT NULL DEFAULT 'overall';
 
 ALTER TABLE {schema}run_scores ADD COLUMN text_value TEXT NULL;

@@ -23,8 +23,15 @@ ALTER TABLE {schema}.run_scores ADD text_value nvarchar(256) NULL;
 -- SQL Server compiles the WHOLE batch before running it -- without EXEC this
 -- fails with "Invalid column name 'name'" (the trap 0021_run_attribution.sql
 -- records).
+-- 🚨 The backfill is bounded to 64 characters. `author` is nvarchar(200) and
+-- `name` is nvarchar(64); a judge-prefixed author longer than 70 characters
+-- would abort the whole migration with "String or binary data would be
+-- truncated" on a populated customer database. Only RunJudgeSet bounds a JUDGE
+-- name today, and nothing bounds a human author, so the guard is not
+-- theoretical. A truncated legacy name still reads; an aborted migration does
+-- not.
 EXEC(N'UPDATE {schema}.run_scores
-          SET name = SUBSTRING(author, 7, LEN(author))
+          SET name = LEFT(SUBSTRING(author, 7, LEN(author)), 64)
         WHERE LEFT(author, 6) = ''judge:''
           AND LEN(author) > 6;');
 

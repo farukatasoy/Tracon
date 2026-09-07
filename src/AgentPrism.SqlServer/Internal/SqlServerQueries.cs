@@ -583,9 +583,11 @@ internal sealed class SqlServerQueries : SqlQueriesBase
                    MAX(cost_currency),
                    CAST(COALESCE(SUM(CASE WHEN pricing_source = @pricing_source_unknown THEN 1 ELSE 0 END), 0) AS bigint),
                    (SELECT CAST(COUNT(DISTINCT rs.run_id) AS bigint) FROM {matchedRunScoresFilter}),
-                   (SELECT CASE WHEN COALESCE(SUM(CASE WHEN rs.kind = @kind_binary THEN 1 ELSE 0 END), 0) = 0 THEN NULL
+                   -- 🚨 A null value is excluded from the DENOMINATOR too; see
+                   -- the note in PostgresQueries.
+                   (SELECT CASE WHEN COALESCE(SUM(CASE WHEN rs.kind = @kind_binary AND rs.value IS NOT NULL THEN 1 ELSE 0 END), 0) = 0 THEN NULL
                                 ELSE CAST(COALESCE(SUM(CASE WHEN rs.kind = @kind_binary AND rs.value = 1 THEN 1 ELSE 0 END), 0) AS float)
-                                     / SUM(CASE WHEN rs.kind = @kind_binary THEN 1 ELSE 0 END)
+                                     / SUM(CASE WHEN rs.kind = @kind_binary AND rs.value IS NOT NULL THEN 1 ELSE 0 END)
                            END
                     FROM {matchedRunScoresFilter}),
                    -- Ordinals 14-17, APPENDED so the reader's fixed positions

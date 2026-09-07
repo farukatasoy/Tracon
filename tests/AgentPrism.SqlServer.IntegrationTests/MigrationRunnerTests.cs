@@ -258,8 +258,10 @@ public sealed class MigrationRunnerTests(SqlServerFixture fixture)
         var migrations = MigrationDescriptor
             .Discover(typeof(MigrationRunner).Assembly, "AgentPrism.SqlServer.Migrations.");
 
-        var upgrade = migrations[^1];
-        upgrade.Name.ShouldBe("0035_run_score_name_and_shape");
+        // 🚨 Found BY NAME, not as migrations[^1]: the next phase that adds a
+        // migration would otherwise turn this test red for an unrelated reason.
+        var upgrade = migrations.Single(candidate =>
+            string.Equals(candidate.Name, "0035_run_score_name_and_shape", StringComparison.Ordinal));
 
         await context.ExecuteAsync($"IF SCHEMA_ID(N'{schemaName}') IS NULL EXEC(N'CREATE SCHEMA {schemaName};');");
         await context.ExecuteAsync(context.StoreContext.Sql.CreateMigrationsTable);

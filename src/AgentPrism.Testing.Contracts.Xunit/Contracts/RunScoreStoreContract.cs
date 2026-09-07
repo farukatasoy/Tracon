@@ -210,6 +210,22 @@ public abstract class RunScoreStoreContract : TenantIsolationContract<IRunScoreS
         => await Should.ThrowAsync<ArgumentException>(
             async () => await Store.UpsertAsync(Score(AgentPrismId.NewId()) with { Name = name }));
 
+    /// <remarks>
+    /// A uniqueness key that does not match shows up first as a race: two
+    /// writers each miss the other's row and both insert.
+    /// </remarks>
+    [Fact]
+    public async Task Concurrent_writes_of_the_SAME_name_leave_exactly_one_row()
+    {
+        var runId = AgentPrismId.NewId();
+
+        await Task.WhenAll(
+            Enumerable.Range(0, 8).Select(attempt =>
+                Store.UpsertAsync(Score(runId) with { Value = attempt % 2 }).AsTask()));
+
+        (await Store.ListAsync(Tenant, runId)).ShouldHaveSingleItem();
+    }
+
     [Fact]
     public async Task Repeated_writes_of_the_SAME_name_leave_exactly_one_row()
     {

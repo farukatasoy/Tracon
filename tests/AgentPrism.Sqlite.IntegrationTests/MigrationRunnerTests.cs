@@ -339,8 +339,10 @@ public sealed class MigrationRunnerTests(SqliteFixture fixture)
         var migrations = MigrationDescriptor
             .Discover(typeof(MigrationRunner).Assembly, "AgentPrism.Sqlite.Migrations.");
 
-        var upgrade = migrations[^1];
-        upgrade.Name.ShouldBe("0035_run_score_name_and_shape");
+        // 🚨 Found BY NAME, not as migrations[^1]: the next phase that adds a
+        // migration would otherwise turn this test red for an unrelated reason.
+        var upgrade = migrations.Single(candidate =>
+            string.Equals(candidate.Name, "0035_run_score_name_and_shape", StringComparison.Ordinal));
 
         await context.ExecuteAsync(context.StoreContext.Sql.CreateMigrationsTable);
 

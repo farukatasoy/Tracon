@@ -504,9 +504,14 @@ internal sealed class PostgresQueries : SqlQueriesBase
                    MAX(cost_currency),
                    COUNT(*) FILTER (WHERE pricing_source = @pricing_source_unknown)::bigint,
                    (SELECT COUNT(DISTINCT rs.run_id) FROM {matchedRunScoresFilter})::bigint,
-                   (SELECT CASE WHEN COUNT(*) FILTER (WHERE rs.kind = @kind_binary) = 0 THEN NULL
+                   -- 🚨 `rs.value IS NOT NULL` is in the DENOMINATOR too, not
+                   -- only implied by the numerator: a null value records that
+                   -- NO MEASUREMENT was made, not a negative one. Counting it
+                   -- below the line would report a run scored only positively
+                   -- as half positive.
+                   (SELECT CASE WHEN COUNT(*) FILTER (WHERE rs.kind = @kind_binary AND rs.value IS NOT NULL) = 0 THEN NULL
                                 ELSE (COUNT(*) FILTER (WHERE rs.kind = @kind_binary AND rs.value = 1))::float8
-                                     / COUNT(*) FILTER (WHERE rs.kind = @kind_binary)
+                                     / COUNT(*) FILTER (WHERE rs.kind = @kind_binary AND rs.value IS NOT NULL)
                            END
                     FROM {matchedRunScoresFilter}),
                    -- Ordinals 14-17, APPENDED so the reader's fixed positions

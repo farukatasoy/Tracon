@@ -9,9 +9,11 @@ internal sealed class RunJudgeSet
 
         foreach (var judge in judges)
         {
-            if (string.IsNullOrWhiteSpace(judge.Name) ||
-                judge.Name.Length > 64 ||
-                judge.Name.Any(static character => !char.IsAsciiLetterOrDigit(character) && character is not '-' and not '_' and not '.'))
+            // 🚨 The rule is NOT written a second time here. A judge writes its
+            // own name into the score it produces, so a name this gate accepts
+            // must also be a name RunScoreRules accepts -- two spellings of one
+            // rule would eventually let a registered judge fail at the write.
+            if (!RunScoreRules.IsValidName(judge.Name))
             {
                 throw new AgentPrismException(
                     "Each IRunJudge.Name must match [A-Za-z0-9._-]{1,64}.");
