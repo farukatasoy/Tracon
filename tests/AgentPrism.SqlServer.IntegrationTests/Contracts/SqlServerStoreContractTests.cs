@@ -62,6 +62,10 @@ public sealed class SqlServerRunStoreContractTests(SqlServerSchemaFixture schema
         await schema.ResetAsync();
         return schema.Context.Runs;
     }
+
+    /// <inheritdoc />
+    protected override ValueTask<IRunScoreStore?> CreateScoreStoreAsync()
+        => ValueTask.FromResult<IRunScoreStore?>(schema.Context.RunScores);
 }
 
 /// <inheritdoc cref="SqlServerAgentDefinitionStoreContractTests" />

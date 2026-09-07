@@ -124,5 +124,49 @@ public sealed class EvalCheckRegistryTests
         ]));
     }
 
+    [Theory]
+    [InlineData("nonempty")]
+    [InlineData("NONEMPTY")]
+    [InlineData("NonEmpty")]
+    public void A_built_in_kind_resolves_whatever_its_casing(string kind)
+    {
+        // Custom registrations are looked up case-INSENSITIVELY, built-in
+        // kinds were matched case-SENSITIVELY. The same name therefore meant
+        // different things depending on where it appeared.
+        var registry = new EvalCheckRegistry([]);
+
+        var checks = registry.BuildChecks(Parse($$"""[{"kind":"{{kind}}"}]"""));
+
+        checks.ShouldHaveSingleItem();
+    }
+
+    [Fact]
+    public void Registering_a_case_variant_of_a_built_in_kind_is_refused()
+    {
+        // Without this guard "nonempty" registers cleanly and then means the
+        // CUSTOM check, while "nonEmpty" in the same suite means the built-in
+        // one -- two spellings of one name, two behaviors. LoopEvaluatorRegistry
+        // already refuses exactly this; the eval registry did not.
+        var exception = Should.Throw<AgentPrismException>(
+            () => new EvalCheckRegistry([new AgentPrismEvalCheckRegistration("nonempty", EvalChecks.NonEmpty())]));
+
+        exception.Message.ShouldContain("nonempty");
+        exception.Message.ShouldContain("built in");
+    }
+
+    [Fact]
+    public void An_unknown_kind_names_the_kind_it_could_not_resolve()
+    {
+        // The shipped message interpolated its first half only; the second
+        // printed the literal "{kind}" back at the consumer.
+        var registry = new EvalCheckRegistry([]);
+
+        var exception = Should.Throw<AgentPrismException>(
+            () => registry.BuildChecks(Parse("""[{"kind":"noSuchThing"}]""")));
+
+        exception.Message.ShouldContain("AddEvalCheck(\"noSuchThing\"");
+        exception.Message.ShouldNotContain("{kind}");
+    }
+
     private static JsonElement Parse(string json) => JsonDocument.Parse(json).RootElement.Clone();
 }

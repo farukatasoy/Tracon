@@ -14,11 +14,25 @@ public sealed class JsonFileRunStoreContractTests : RunStoreContract, IDisposabl
 {
     private readonly string _tempDirectory = Directory.CreateTempSubdirectory("agentprism-file-run-store-").FullName;
 
+    private JsonFileRunStore? _store;
+
     /// <inheritdoc />
     protected override ValueTask<IRunStore> CreateStoreAsync()
-        => new(new JsonFileRunStore(
+    {
+        _store = new JsonFileRunStore(
             Path.Combine(_tempDirectory, $"{Guid.NewGuid():N}.json"),
-            tenantContext: AmbientTenant));
+            tenantContext: AmbientTenant);
+
+        return new(_store);
+    }
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// The store's own default score store, so the contract writes into the
+    /// same backend the run store reads from.
+    /// </remarks>
+    protected override ValueTask<IRunScoreStore?> CreateScoreStoreAsync()
+        => ValueTask.FromResult<IRunScoreStore?>(_store!.Scores);
 
     /// <inheritdoc />
     public void Dispose()

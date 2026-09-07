@@ -128,6 +128,21 @@
 > çürüttü** — düzeltmeler § *Sıralamayı Değiştiren Ölçümler*'dedir. Aynı tur
 > tek yeni aday üretti: **F-210**.
 >
+> **Ek (2026-09-07, kusur turu):** Üç kusur `kusur-giderme` ile faz dışı kapandı:
+> **F-214** · **F-211** · **F-212**. Üçünün de ölçümü kaydın yazdığından geniş
+> çıktı — F-214'ün predicate'i dört değil **beş** yerde yaşıyordu
+> (`InMemoryRunStore.Analytics.cs` kayıtta hiç yoktu), F-211'in eval yarısında
+> gölgeleme guard'ı **hiç yoktu** (kayıt yalnız harf asimetrisini anıyordu) ve
+> aynı dosyada interpolasyonsuz bir hata mesajı bulundu, F-212'nin ters yönü
+> kayıtta yoktu (`WorkflowRequest`'in payload'ı **her zaman** yazılır ama
+> dokümanı bunu söylemiyordu). Karar: **K-703** (yalnız F-211).
+>
+> Aynı turun **kendi kapanış kapısı** dördüncü bir kusur buldu (F-206 emsali):
+> **F-215** — SQL Server'ın `run_scores` upsert'ü yarışıyor ve `NULL`/`''`
+> semantiği Postgres/SQLite'tan sapıyor. 2026-08-24'ten beri sevk ediliyor,
+> izole koşumda da düşüyor. Bu turda **kapatılmadı** — çözümü migration
+> gerektirir (kullanıcı kararı). Kayıt aşağıdadır.
+>
 > Faz durumu yalnız üretilen [`YOL-HARITASI.md`](YOL-HARITASI.md)'dedir.
 > Bir kusur bu dosyaya geri girmez; `kusur-giderme` kanalına gider. Kapatılmış
 > kararın yeniden açılması kullanıcı kararıdır. Ölçüm bekleyen iddia, kanıt
@@ -822,45 +837,13 @@ ayıklar: tuzağı XML dokümanında ANLATAN `ObservabilityTests` cezalandırıl
 
 **Karar:** K-656. **Tuzak:** `docs/hafiza/test-altyapisi.md`.
 
-### F-211 · `kind` eşleşmesinin büyük/küçük harf asimetrisi
+### F-211 · `kind` eşleşmesinin büyük/küçük harf asimetrisi — ✅ KAPANDI (2026-09-07)
 
-**Sorun:** İki kayıt defterinde (`EvalCheckRegistry`, `LoopEvaluatorRegistry`)
-yerleşik `kind` adları **ordinal** bir `switch` ile eşleşiyor, özel kayıtlar ise
-`OrdinalIgnoreCase` bir sözlükte duruyor. Sonuç ölü bir ad alanı: `"aijudge"`
-kayıtta "yerleşik bir kind'i gölgeleyemezsin" diye reddedilir
-([`LoopEvaluatorRegistry.cs:78`](../src/AgentPrism.Core/Compilation/LoopEvaluatorRegistry.cs#L78)),
-kullanımda ise "bilinmeyen kind" diye reddedilir
-([`:167`](../src/AgentPrism.Core/Compilation/LoopEvaluatorRegistry.cs#L167)) —
-yani hiçbir şekilde kullanılamayan bir ad.
+**Kapanış:** `kusur-giderme` faz dışı koşuldu. Kayıt asimetriyi doğru tarif ediyordu ama **eval yarısını eksik ölçmüştü**: `EvalCheckRegistry`'de yerleşik gölgeleme guard'ı hiç yoktu, yani `"nonempty"` kaydedilip **kullanılabiliyordu** ve `"nonEmpty"` ile aynı suite'te iki ayrı şey demekti — loop defterinin prose'unda açıkça reddettiği durum. Düzeltme iki defterde de `Canonical(kind)` + eval defterine loop defterinin guard'ı. Aynı hata mesajında ikinci kusur çıktı: ikinci yarısı interpolasyonsuzdu ve tüketiciye düz `{kind}` basıyordu. **Kapı:** `LoopEvaluatorRegistryTests` + `EvalCheckRegistryTests`, iki yönlü (harf varyantı ÇÖZÜLÜR · bilinmeyen ad HÂLÂ reddedilir). Düzeltmeden önce 8 test kırmızıydı. **Karar:** K-703. **Tuzak:** `docs/hafiza/aspnetcore-di.md`.
 
-**Kapsam:** İki defterin de yerleşik eşleşmesini aynı karşılaştırıcıya taşımak,
-ya da bildirimsel `kind` adlarının büyük/küçük harfe duyarlı olduğunu sevk
-edilen metne yazmak. Sınıf iki dosyayı birden kapsar; tek dosyada düzeltmek
-asimetrinin yarısını bırakır.
+### F-212 · Olay payload'ının `RecordToolPayloads` şartı sevk edilen metinde eksik — ✅ KAPANDI (2026-09-07)
 
-**Değer:** Bugün kapalı yönde başarısız oluyor (yanlış ad reddediliyor), yani
-acil değil. Ama tüketici "neden `aiJudge` çalışıp `aijudge` çalışmıyor" sorusunu
-hata mesajından **çıkaramaz**: iki mesaj birbiriyle çelişiyor gibi okunur.
-
-### F-212 · Olay payload'ının `RecordToolPayloads` şartı sevk edilen metinde eksik
-
-**Sorun:** `RunEventWriter` `AgentPrismRunRecordingOptions.RecordToolPayloads`
-kapalıyken `Payload` alanını **tamamen** `null` bırakıyor
-([`RunEventWriter.cs:182`](../src/AgentPrism.Core/Recording/RunEventWriter.cs#L182)).
-Bazı `RunEventType` üyeleri bunu XML dokümanında yazıyor
-(`ToolOutputTruncated`, `StructuredResponseRejected`, `Custom`), bazıları
-yazmıyor (`ChildRunTimedOut`, `LoopIterationCompleted`). Tüketici payload
-şartını üyeden üyeye farklı öğreniyor.
-
-**Kapsam:** Şartı bir kez, `RunEventType`'ın tip düzeyi `<remarks>`'ında
-söylemek ve üye başına tekrarı kaldırmak. Alternatif: `RunEventPayloadContractTests`
-ratchet'ine "payload iddiası olan her üye şartı da anar" kuralını eklemek —
-o zaman kapı sınıfı kapatır, metin değil.
-
-**Değer:** Bugün iki üye eksik; her yeni payload taşıyan üye kur'a çekiyor.
-Sınıf `RunEventPayloadContractTests`'in kendi belgelenmiş sınırının
-("İngilizceyi JSON'a karşı makineyle denetleyemeyiz") tam da kenarında duruyor
-ve bu yarısı **denetlenebilir**.
+**Kapanış:** `kusur-giderme` faz dışı koşuldu. Ölçüm: 32 üyenin **~18'i** payload iddiası taşıyor, şartı yalnız **3'ü** anıyordu. 🚨 Kayıtta olmayan **ters yön** daha ağırdı: `WorkflowRequest`'in payload'ı yazıcıda bilerek **her zaman** yazılır (bekleyen insan isteği yalnız oradan okunur) ama üye dokümanı bu muafiyeti hiç söylemiyordu — genel kuralı uygulayan okuyucu yanlış sonuca varırdı. Kaydın iki seçeneğinden **birincisi** seçildi (kullanıcı kararı): şart bir kez tip düzeyi `<remarks>`'ta, üç üyedeki tekrar kaldırıldı, `WorkflowRequest` ve reserved-prefix `Custom` muafiyet olarak adlandırıldı. **Kapı:** `RunEventPayloadSuppressionTests` (YENİ, üç test). Asıl değeri ikincisidir: yazıcının muafiyet kümesi ile dokümandaki küme **eşit** olmalı. Yazıcıya `RunCompleted` muafiyeti eklenerek kırmızı olduğu ölçüldü. Üçüncü test tekrarı yasaklar ve yazıldığı gün üç ihlal buldu. **Tuzak:** `docs/hafiza/dokumantasyon.md`.
 
 ## Aday Olmayan Açık Kayıtlar
 
@@ -986,37 +969,65 @@ tüketici talebi olmadan yapılırsa geri alması pahalıdır.
 
 ---
 
-### F-214 · Deneylerde boş-string `MessageId` run seviyesi ortalamayı bozabilir
+### F-215 · SQL Server'ın `run_scores` upsert'ü yarışıyor ve `NULL`/`''` semantiği kardeşlerinden sapıyor
 
-**Sorun:** Faz 154 denetimi `run_scores` sorgularında "yorum yok" için iki
-farklı yazım buldu: `message_id IS NULL` (Postgres/SQLite/SQL Server) ve
-`MessageId is { Length: > 0 }` (bellek içi). Skor özetinde (Faz 154) ikisi
-aynı davranışa hizalandı — `''` artık her yerde `NULL` gibi ele alınıyor. AMA
-`SelectExperimentResults` (üç SQL sağlayıcı) hâlâ yalnız `message_id IS NULL`
-kullanıyor, ve `samples/AgentPrism.Samples.FileRunStore/FileRunStore.cs`'nin
-`GetExperimentResultsAsync` karşılığı hâlâ `score.MessageId is null` kontrolü
-yapıyor (`Length: > 0` değil). Bir çağıran `MessageId = ""` ile run seviyesi
-bir skor yazarsa, deney sonucu ortalaması o skoru **sessizce dışlar** — SQL
-tarafında mesaj seviyesi sayılır, bellek içi tarafında da tutarsız kalır.
+> **Kusur kanalı, faz değil.** Çözümü **migration** gerektirir (kalıcı veri
+> kararı) ve bir `K-*` açar; bu yüzden kendi turunda kapanır.
 
-**Kapsam:** `SelectExperimentResults` (Postgres/SQLite/SQL Server) +
-`FileRunStore.GetExperimentResultsAsync` benzeri kod + varsa deney
-sonuçlarını okuyan başka sorgular. Skor özeti dışındaki her `message_id`
-karşılaştırması için aynı tarama gerekir.
+**Repro (kilitli, 2026-09-07):**
+`AgentPrism.SqlServer.IntegrationTests --filter-method "*Concurrent_writes_of_the_SAME_name*"`
+— **izole koşumda 3 turun 2'sinde** düşer:
 
-**Değer:** Skor özeti ile deney sonuçları arasında aynı veriye iki farklı
-cevap vermeyi önler — ölçülmüş, gerçek bir tutarsızlık.
+```
+SqlException : Cannot insert duplicate key row in object 't_….run_scores'
+with unique index 'run_scores_target_author_name_idx'.
+```
 
-**Mercek:** 7 (kusur giderme — Faz 154 denetiminde bulundu, faz kapsamı dışı
-olduğu için ertelendi).
+Kırılgan test **değildir**: izole de düşer. Kusur 2026-08-24'ten
+(`102ab384`) beri sevk ediliyor. Postgres 767/767 ve SQLite 711/711 yeşil —
+sapma tek sağlayıcıdadır.
 
-**Hazırlık:** Hazır — düzeltme deseni Faz 154'te zaten yazıldı
-(`AgentPrism.PostgreSql/Internal/PostgresQueries.cs`'deki `ScoreFilter`
-local fonksiyonuna bakılabilir).
+**İki ayrı bulgu, tek kök:**
 
-**Maliyet:** Küçük — üç SQL sorgusu + bir sample metodu + karşılık gelen
-deney sonucu contract testi.
+| # | Bulgu | Ölçüm |
+|---|---|---|
+| 1 | **Yarış** | [`SqlServerQueries.cs:1650`](../src/AgentPrism.SqlServer/Internal/SqlServerQueries.cs#L1650) `ISNULL(message_id, N'') = ISNULL(@message_id, N'')` ile arıyor. Sarmalanmış sütun **sargable değildir**, yani `UPDATE ... WITH (UPDLOCK, SERIALIZABLE)` `run_scores_target_author_name_idx` üzerinde range lock **alamaz**; iki eşzamanlı oturum da `@@ROWCOUNT = 0` görüp `INSERT` eder |
+| 2 | **Sözleşme sapması** | SQL Server [`0035:45`](../src/AgentPrism.SqlServer/Migrations/0035_run_score_name_and_shape.sql#L45) **ham sütunu** indeksler → `NULL` ile `''` AYRI anahtarlardır. Postgres [`0048:54`](../src/AgentPrism.PostgreSql/Migrations/0048_run_score_name_and_shape.sql#L54) ve SQLite [`0035:44`](../src/AgentPrism.Sqlite/Migrations/0035_run_score_name_and_shape.sql#L44) **`COALESCE(message_id, '')` ifadesini** indeksler → aynıdırlar. Aynı `(run, author, name)` için `MessageId = null` ve `MessageId = ""` SQL Server'da **iki satır**, kardeşlerinde **bir satır** üretir |
 
-**Risk:** Düşük; `MessageId = ""` yazan bir tüketici bugün nadir, ama sessiz
-yanlış ortalama tespit edilmesi zor bir hatadır.
+Upsert predicate'i (1) `NULL`/`''`'ü aynı sayar, indeks (2) ayrı sayar — kod
+kendi içinde de tutarsızdır.
+
+**Önerilen çözüm (ölçülmedi):** SQL Server'a `message_key AS ISNULL(message_id, N'') PERSISTED`
+computed column'u ve unique index'i o sütuna taşımak; predicate `message_key = ISNULL(@message_id, N'')`
+olur. Tek hamlede ikisini de kapatır: semantik kardeşlerine uyar **ve** predicate
+sargable olduğu için range lock gerçekten tutar. 🚨 Migration mevcut satırlarda
+`NULL` ile `''` çiftlerini birleştirmek zorunda kalabilir — yazılmadan önce
+üretimde böyle bir çift var mı ölçülmelidir.
+
+**Alternatif:** yalnız yarışı kapatan bir yeniden deneme (duplicate key
+`2601`/`2627` yakalanır, `UPDATE` tekrarlanır). Şemaya dokunmaz ama (2)'yi
+açık bırakır ve semptom tedavisidir.
+
+**Değer:** Sevk edilen bir sözleşme sağlayıcıya göre farklı davranıyor ve
+eşzamanlı bir yazar üretimde `500` alıyor.
+
+**Mercek:** 2, 3.
+
+**Hazırlık:** Repro kilitli, kök sebep ölçüldü, çözüm tasarlandı — ölçülmedi.
+
+**Maliyet:** Bir migration + bir sorgu + `RunScoreStoreContract`'a
+"`null` ile `\"\"` aynı hedeftir" case'i. Contract case'i **dört** store'da koşar.
+
+**Risk:** Migration kalıcı veriye dokunur; `K-*` gerektirir.
+
+**Bulunma yeri:** F-214 · F-211 · F-212 turunun **kendi kapanış kapısı**
+(F-206 emsali). F-214'ün sınıf taraması bunu KAÇIRDI: tarama `IS NULL` ve
+`= ''` desenlerini aradı, `ISNULL(` sarmalını aramadı.
+
+---
+
+### F-214 · Deneylerde boş-string `MessageId` run seviyesi ortalamayı bozabilir — ✅ KAPANDI (2026-09-07)
+
+**Kapanış:** `kusur-giderme` faz dışı koşuldu. Boşluk kaydın söylediğinden **bir yer büyüktü**: kayıt üç SQL sorgusu + `FileRunStore.cs` diyordu, ölçüm beşinci yeri buldu — [`InMemoryRunStore.Analytics.cs:57`](../src/AgentPrism.Core/Storage/InMemoryRunStore.Analytics.cs#L57) de `score.MessageId is null` kullanıyordu, yani bellek içi deney sonucu da aynı skoru dışlıyordu. Beşi birden `is not { Length: > 0 }` / `(message_id IS NULL OR message_id = '')` oldu (SQL Server'da `N''`). **Kapı:** `RunStoreContract`'a **iki yönlü** bir çift test — bir tanesi yetmezdi, çünkü "her skoru run seviyesi say" diyen aşırı düzeltme de tek testi yeşil geçerdi. Sözleşme skor store'unu yeni `CreateScoreStoreAsync()` kancasıyla ister (`virtual`, `abstract` değil: sevk edilen sözleşmeyi türeten üçüncü tarafı kırmamak için) ve beş fixture'ın hepsi override eder. Düzeltmeden önce bellek içi ve SQLite'ta kırmızı olduğu ölçüldü (*"should be 80d but was null"*). Karar açılmadı: sevk edilen `RunScore.MessageId` sözleşmesi **zaten** *"if empty, the score belongs to the whole run"* diyordu; kod sözleşmeye hizalandı. **Tuzak:** `docs/hafiza/sql-saglayicilari.md`.
+
 

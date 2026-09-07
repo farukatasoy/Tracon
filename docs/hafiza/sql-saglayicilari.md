@@ -37,6 +37,8 @@
 - **🚨 Sorgu metni değişince `SqlTextSnapshotTests` kırılır** (2026-09-01, Faz 126): davranış değil metin sınanır; `AGENTPRISM_SQL_SNAPSHOT_REFRESH=1` ile yenile, diffi oku. Sütun rename: Postgres/SQLite `RENAME COLUMN`, SQL Server `sp_rename`.
 - **🚨 Yinelenen bir birincil anahtar değerini (`run_events(run_id, seq)` gibi çağıranın ürettiği bir anahtar) REDDETMEK için `SqlDialect.IsUniqueViolation` zaten var — yeniden icat etme** (Faz 98, K-607): `AppendEventAsync` gibi bir metodun ikinci çağrısı aynı anahtarla gelirse ham sürücü istisnası (`DbException`) sızmasın diye `catch (DbException ex) when (Dialect.IsUniqueViolation(ex))` ile yakalanıp `AgentPrismException`'a çevrilir — `IsForeignKeyViolation`'ın yanına ikinci bir `catch` bloğu olarak eklenir, aynı `try` içinde. Bellek içi store aynı kuralı elle uygular (log'da doğrusal tarama, `MaxRuns` sınırlı store'larda ucuz).
 
+- **🚨 "Bos" bir metin sutunu `NULL` ile `''` DEMEKTIR — `IS NULL` tek basina yetmez** (2026-09-07, F-214): `RunScore.MessageId`'nin sevk edilen sozlesmesi *"if empty, the score belongs to the whole run"* der; **empty** ikisini birden kapsar. Faz 154'un skor ozeti dogru yazdi (`ScoreFilter`), `SelectExperimentResults` uc saglayicida da yalniz `IS NULL` kullandi — `MessageId = ""` skoru bir sorguda run, digerinde mesaj seviyesi sayilip arm ortalamasindan **sessizce** dustu. C# karsiligi `is null` ile `is { Length: > 0 }` farkidir. 🚨 Predicate **bes** yerde tekrarlanir, birlikte degisir: uc `*Queries.cs` + `InMemoryRunStore.Analytics.cs` + `samples/.../FileRunStore.cs`; SQL Server'da bos dizge `N''`. Kapi: `RunStoreContract`'ta **iki yonlu** cift test — ikincisi olmadan "her skoru run seviyesi say" diyen asiri duzeltme de yesil gecerdi. Skoru `IRunStore` okur, YAZMAZ; sozlesme kendi store'unu `CreateScoreStoreAsync()` ile ister.
+
 ## SQL Server'a ozgu tuzaklar
 
 Parametre sayisi, sorgu yazimi, sema farklari (`NULL` benzersizligi,
@@ -45,10 +47,9 @@ Parametre sayisi, sorgu yazimi, sema farklari (`NULL` benzersizligi,
 
 ## Test altyapisi
 
-- **`mcr.microsoft.com/mssql/server` bu makinede artık koşuyor** (K-386). `azure-sql-edge` ikamesi (K-317) yedek kalır. Kurulum, tekrar dene ve **performans** (K-387..K-391, ayri sema yerine sinif basina paylasilan sema + `ResetDataAsync`): [`sql-server-yerel-test.md`](sql-server-yerel-test.md).
-- **Sozlesme testleri `tests/Shared/` altindadir** ve saglayici basina bir entegrasyon test projesine derlenir (`AgentPrism.StoreContracts` ad alani). Yeni bir saglayici eklerken sozlesme testi YAZILMAZ; yalnizca kosucu sinif turetilir. SQLite bu iddianin DORDUNCU kanitidir (K-194).
+- **SQL Server'i yerelde ayaga kaldirma** (imaj secimi, tekrar dene, sinif basina paylasilan sema): [`sql-server-yerel-test.md`](sql-server-yerel-test.md).
+- **Yeni saglayici eklerken sozlesme testi YAZILMAZ**, yalnizca kosucu sinif turetilir: [`test-altyapisi.md`](test-altyapisi.md).
 
-- **Iki dalli upsert `OUTPUT` GEREKTIRMEZSE cok basitlesir** (2026-08-19, Faz 65): `UpsertAsync` deger dondurmuyorsa `UPDATE WITH (UPDLOCK, SERIALIZABLE) ...; IF @@ROWCOUNT = 0 INSERT ...;` yeter — K-187/188/189'un asil tuzagi (`OUTPUT` ikinci sonuc kumesine duser) hic devreye girmez. `tenant_provider_bindings`/`tenant_egress_policies` bunu kullanir.
 
 ## SQLite'a ozgu tuzaklar
 

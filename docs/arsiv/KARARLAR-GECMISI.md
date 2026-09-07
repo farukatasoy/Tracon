@@ -4944,3 +4944,40 @@ Ham argümanlar (`PendingApproval.Arguments`) her durumda erişilebilir kalır. 
 
 Ayırt edici iki tarafta da `nullable` annotation'ıdır.
 
+### K-703
+
+Kusur tek dosyada değil, aynı asimetrinin iki kopyasındaydı ve iki farklı
+şekilde tezahür ediyordu.
+
+**Loop defteri.** `LoopEvaluatorRegistry` bir kaydın yerleşik bir adı
+gölgelemesini `OrdinalIgnoreCase` ile reddeder — prose'u gerekçesini de yazar:
+*"Shadowing a built-in kind would make the same definition mean different
+things in two applications."* Ama kullanım tarafındaki `switch (criterion.Kind)`
+ordinaldi. Sonuç ölü bir ad alanıdır: `"aijudge"` kayıtta *"built in and cannot
+be replaced"*, kullanımda *"Unknown loop criterion kind"* alır. İki mesaj
+birbiriyle çelişiyor okunur ve hiçbiri sebebin büyük/küçük harf olduğunu
+söylemez.
+
+**Eval defteri.** Aynı asimetri, ters sonuç. `EvalCheckRegistry`'de yerleşik
+gölgeleme guard'ı **hiç yoktu**: `"nonempty"` sorunsuz kaydolur, suite'te
+`"nonempty"` yazınca ordinal `switch` ıskalar, `default` dalı
+`OrdinalIgnoreCase` sözlükte onu bulur ve ÖZEL check çalışır — oysa `"nonEmpty"`
+yerleşiği çalıştırır. Loop defterinin yazıyla reddettiği durum burada sessizce
+yaşıyordu.
+
+**Yön seçimi.** Harf duyarlı tarafa hizalamak (kayıt da ordinal olsun) iki
+adı kalıcı olarak ayrı şeyler yapardı; loop defterinin kendi gerekçesinin
+tersidir. Harf duyarsız tarafa hizalamak davranışı **genişletir** —
+`kind: "aijudge"` artık yerleşiği çözer — ve yalnız bir yerde daraltır: bugün
+`"nonempty"` kaydeden bir tüketici artık başlangıçta net mesajla atar. Sessizce
+anlam değiştirmektense yüksek sesle düşmek seçildi; paket 1.0 öncesidir.
+
+Uygulama iki defterde de aynı: `Canonical(kind)` yerleşik adı
+`OrdinalIgnoreCase` çözer, bulamazsa girdiyi aynen döndürür; `switch` onun
+üzerinde çalışır, `default` dalı özel sözlüğe düşer. Eval defterine loop
+defterinin guard'ı birebir eklendi.
+
+Aynı turda aynı mesajda ikinci bir kusur çıktı ve düzeltildi:
+`EvalCheckRegistry`'nin *"unknown check kind"* metninin ikinci yarısı
+interpolasyonsuzdu (`$` yok) ve tüketiciye düz `{kind}` basıyordu. Mesaj artık
+yerleşik `kind` listesini de sayar.

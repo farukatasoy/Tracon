@@ -53,7 +53,25 @@ namespace AgentPrism.Core.UnitTests.Architecture;
 public sealed class RunEventPayloadContractTests
 {
     private const string RefreshEnvVar = "AGENTPRISM_RUN_EVENT_PAYLOAD_REFRESH";
-    private const string OwnFileName = "RunEventPayloadContractTests.cs";
+    /// <summary>
+    /// Gates that read RunEventType.cs as TEXT rather than reading an event's
+    /// payload at run time.
+    /// </summary>
+    /// <remarks>
+    /// Such a file names event types in <c>nameof</c> and in prose and mentions
+    /// "Payload" while asserting nothing about one, so the heuristic below
+    /// would read it as coverage. Counting it would let a gate certify its own
+    /// subject and would move an entry to <c>covered</c> without anyone ever
+    /// having looked at that payload — the exact blindness this ratchet exists
+    /// to measure. The list is short on purpose: add a file only when it scans
+    /// source instead of running the writer.
+    /// </remarks>
+    private static readonly string[] SourceScanningGates =
+    [
+        "RunEventPayloadContractTests.cs",
+        "RunEventPayloadSuppressionTests.cs",
+        "RunEventTypeFrontendParityTests.cs",
+    ];
     private const string Covered = "covered";
     private const string Uncovered = "uncovered";
 
@@ -235,6 +253,44 @@ public sealed class RunEventPayloadContractTests
     /// payload" from "nobody ever looked at it", which is the only
     /// distinction the two shipped defects turned on.
     /// </remarks>
+    [Fact]
+    public void Every_excluded_gate_really_reads_the_source_instead_of_a_payload()
+    {
+        // The exclusion list is the one place a member could be hidden from
+        // the coverage scan. A file earns a place on it only by reading
+        // RunEventType.cs as text; a normal test that asserts on a payload
+        // must never be parked here to silence the ratchet.
+        var failures = new List<string>();
+
+        foreach (var gate in SourceScanningGates)
+        {
+            var matches = Directory
+                .EnumerateFiles(TestsRoot, gate, SearchOption.AllDirectories)
+                .ToList();
+
+            if (matches.Count == 0)
+            {
+                failures.Add($"{gate}: listed as a source-scanning gate but no such file exists.");
+                continue;
+            }
+
+            foreach (var file in matches)
+            {
+                var text = File.ReadAllText(file);
+
+                if (!text.Contains("File.ReadAllText", StringComparison.Ordinal) &&
+                    !text.Contains("File.ReadAllLines", StringComparison.Ordinal))
+                {
+                    failures.Add(
+                        $"{gate}: excluded from the coverage scan but never reads a source file. " +
+                        "Only a gate that scans RunEventType.cs as text belongs on that list.");
+                }
+            }
+        }
+
+        failures.ShouldBeEmpty(string.Join(Environment.NewLine, failures));
+    }
+
     private static List<string> FindCoveringTestFiles(string member)
     {
         var marker = $"RunEventType.{member}";
@@ -242,10 +298,9 @@ public sealed class RunEventPayloadContractTests
 
         foreach (var file in Directory.EnumerateFiles(TestsRoot, "*.cs", SearchOption.AllDirectories))
         {
-            // This gate names event types itself (in nameof and in prose); it
-            // must never count as coverage for one, or it would certify its
-            // own subject.
-            if (Path.GetFileName(file).Equals(OwnFileName, StringComparison.Ordinal))
+            if (Array.Exists(
+                    SourceScanningGates,
+                    gate => Path.GetFileName(file).Equals(gate, StringComparison.Ordinal)))
             {
                 continue;
             }

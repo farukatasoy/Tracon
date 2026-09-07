@@ -22,9 +22,17 @@ public sealed class InMemoryAgentDefinitionStoreContractTests : AgentDefinitionS
 /// <inheritdoc cref="InMemoryAgentDefinitionStoreContractTests" />
 public sealed class InMemoryRunStoreContractTests : RunStoreContract
 {
+    // The run store reads scores through this instance; the contract writes
+    // them through the same one, so both point at one backend.
+    private readonly InMemoryRunScoreStore _scores = new();
+
     /// <inheritdoc />
     protected override ValueTask<IRunStore> CreateStoreAsync()
-        => ValueTask.FromResult<IRunStore>(new InMemoryRunStore(tenantContext: AmbientTenant));
+        => ValueTask.FromResult<IRunStore>(new InMemoryRunStore(_scores, AmbientTenant));
+
+    /// <inheritdoc />
+    protected override ValueTask<IRunScoreStore?> CreateScoreStoreAsync()
+        => ValueTask.FromResult<IRunScoreStore?>(_scores);
 }
 
 /// <inheritdoc cref="InMemoryAgentDefinitionStoreContractTests" />

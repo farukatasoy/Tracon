@@ -55,6 +55,29 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
         return (await Store.QueryRunsAsync(new RunQuery())).Count;
     }
 
+    /// <summary>
+    /// The score store that writes into the SAME backend as <c>Store</c>.
+    /// </summary>
+    /// <returns>
+    /// The score store, or <see langword="null"/> when the fixture has none.
+    /// </returns>
+    /// <remarks>
+    /// <para>
+    /// <see cref="IRunStore.GetExperimentResultsAsync"/> averages the
+    /// <c>run_scores</c> rows belonging to each run, but scores are written
+    /// through a DIFFERENT interface. A fixture that cannot hand back a score
+    /// store pointing at the same backend skips the scenarios that need one;
+    /// every store in this repository overrides this.
+    /// </para>
+    /// <para>
+    /// Virtual and not abstract on purpose: this contract ships, and turning
+    /// an existing contract class abstract would break every third-party
+    /// store that already derives from it.
+    /// </para>
+    /// </remarks>
+    protected virtual ValueTask<IRunScoreStore?> CreateScoreStoreAsync()
+        => ValueTask.FromResult<IRunScoreStore?>(null);
+
     [Fact]
     public async Task StartRunAsync_upserts_when_called_twice_with_the_same_id()
     {
@@ -1436,6 +1459,98 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
         var v2 = results.Single(static r => string.Equals(r.Variant, "v2", StringComparison.Ordinal));
         v2.Version.ShouldBe(2);
         v2.FailedRuns.ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task Experiment_results_average_a_run_level_score_written_with_an_empty_message_id()
+    {
+        // RunScore.MessageId is documented as "if empty, the score belongs to
+        // the whole run" -- empty, not null. The score summary (phase 154)
+        // reads it that way; the experiment average did not, so the same row
+        // counted as run-level in one query and message-level in the other,
+        // silently dropping out of the arm's average.
+        var scores = await CreateScoreStoreAsync();
+        Assert.SkipWhen(scores is null, "This fixture has no score store for the same backend.");
+
+        var experimentId = Guid.NewGuid();
+        var runId = AgentPrismId.NewId();
+
+        await Store.StartRunAsync(TestData.Run(runId, "alpha") with
+        {
+            ExperimentId = experimentId,
+            Variant = "control",
+        });
+        await Store.CompleteRunAsync(new RunCompletion
+        {
+            RunId = runId,
+            Status = RunStatus.Completed,
+            CompletedAt = DateTimeOffset.UtcNow,
+        });
+
+        await scores!.UpsertAsync(new RunScore
+        {
+            TenantId = AmbientTenant.TenantId,
+            RunId = runId,
+            MessageId = string.Empty,
+            Name = "quality",
+            Kind = RunScoreKind.Numeric,
+            Value = 80,
+            Source = "human",
+            CreatedAt = DateTimeOffset.UtcNow,
+        });
+
+        var results = await Store.GetExperimentResultsAsync(new ExperimentResultsQuery
+        {
+            ExperimentId = experimentId,
+            TenantId = AmbientTenant.TenantId,
+        });
+
+        results.ShouldHaveSingleItem().AverageScore.ShouldBe(80);
+    }
+
+    [Fact]
+    public async Task Experiment_results_leave_a_message_level_score_out_of_the_average()
+    {
+        // The other half of the same boundary: widening "run-level" must not
+        // swallow real message scores. Without this, a fix that treats every
+        // score as run-level would also pass the test above.
+        var scores = await CreateScoreStoreAsync();
+        Assert.SkipWhen(scores is null, "This fixture has no score store for the same backend.");
+
+        var experimentId = Guid.NewGuid();
+        var runId = AgentPrismId.NewId();
+
+        await Store.StartRunAsync(TestData.Run(runId, "alpha") with
+        {
+            ExperimentId = experimentId,
+            Variant = "control",
+        });
+        await Store.CompleteRunAsync(new RunCompletion
+        {
+            RunId = runId,
+            Status = RunStatus.Completed,
+            CompletedAt = DateTimeOffset.UtcNow,
+        });
+
+        await scores!.UpsertAsync(new RunScore
+        {
+            TenantId = AmbientTenant.TenantId,
+            RunId = runId,
+            MessageId = "msg-1",
+            Name = "quality",
+            Kind = RunScoreKind.Numeric,
+            Value = 10,
+            Source = "human",
+            CreatedAt = DateTimeOffset.UtcNow,
+        });
+
+        var results = await Store.GetExperimentResultsAsync(new ExperimentResultsQuery
+        {
+            ExperimentId = experimentId,
+            TenantId = AmbientTenant.TenantId,
+        });
+
+        results.ShouldHaveSingleItem().AverageScore.ShouldBeNull();
     }
 
     [Fact]

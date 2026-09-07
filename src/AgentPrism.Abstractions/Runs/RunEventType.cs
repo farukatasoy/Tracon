@@ -7,6 +7,7 @@ namespace AgentPrism;
 /// visual elements, so the values must stay stable.
 /// </summary>
 /// <remarks>
+/// <para>
 /// Written to JSON <strong>by name</strong> (<c>"Code"</c>), not by number. The
 /// wire contract explains itself that way and survives a change in value order.
 /// The converter sits on the type, so the format is the same everywhere without
@@ -14,6 +15,21 @@ namespace AgentPrism;
 /// JSON (RunStatus and RunEventType are smallint in the database,
 /// AgentDefinitionOrigin is rebuilt on read), so a format change does not affect
 /// stored data.
+/// </para>
+/// <para>
+/// <strong>Every member's <c>Payload</c> is written only when
+/// <c>AgentPrismRunRecordingOptions.RecordToolPayloads</c> is on.</strong>
+/// With it off the event still appears in the stream and <c>Text</c> still
+/// carries its summary, but <c>Payload</c> is <see langword="null"/> — so a
+/// payload described below is what the field holds when it is written, not a
+/// promise that it is always there. Two exceptions always carry theirs,
+/// because there the payload is the function rather than an observability
+/// detail: <see cref="WorkflowRequest"/>, which is the only place a pending
+/// human request can be read from, and <see cref="Custom"/> under
+/// <c>RunEventCustomTypes.ReservedPrefix</c>, whose payload carries the
+/// dedup key a client needs to act on the frame. A consumer's OWN
+/// <see cref="Custom"/> event is not exempt.
+/// </para>
 /// </remarks>
 [JsonConverter(typeof(JsonStringEnumConverter<RunEventType>))]
 public enum RunEventType
@@ -114,6 +130,10 @@ public enum RunEventType
     /// The payload carries <em>enough to rebuild</em> the pending request: port id,
     /// request id, request and response type names, and the data to display.
     /// Pending requests are read from these events; no separate table was added.
+    /// That is why this event is one of the two exempt from
+    /// <c>AgentPrismRunRecordingOptions.RecordToolPayloads</c> (see the type's
+    /// remarks): suppressing this payload would leave the user unable to see
+    /// the question they have to answer.
     /// </remarks>
     WorkflowRequest = 18,
 
@@ -209,8 +229,7 @@ public enum RunEventType
     /// <summary>
     /// A tool result was trimmed to its byte limit. <c>ToolName</c> carries
     /// the tool's name; <c>Text</c> a short summary of how many bytes were
-    /// dropped and the limit. <c>Payload</c> carries the same information as
-    /// JSON, subject to <c>AgentPrismRunRecordingOptions.RecordToolPayloads</c>.
+    /// dropped and the limit. <c>Payload</c> carries the same information as JSON.
     /// </summary>
     /// <remarks>
     /// Neither field carries the dropped content itself — the point of
@@ -223,8 +242,7 @@ public enum RunEventType
     /// The response failed structured output validation and the run is
     /// ending as <see cref="RunStatus.Failed"/>. <c>Text</c> carries the
     /// safe rejection reason; <c>Payload</c> carries the same reason plus
-    /// <c>kind</c>, <c>schemaName</c>, <c>provider</c> and <c>model</c> as
-    /// JSON, subject to <c>AgentPrismRunRecordingOptions.RecordToolPayloads</c>.
+    /// <c>kind</c>, <c>schemaName</c>, <c>provider</c> and <c>model</c> as JSON.
     /// </summary>
     /// <remarks>
     /// Neither field carries the model's raw response text — see
@@ -253,10 +271,11 @@ public enum RunEventType
     /// namespaced string, see <see cref="RunEventCustomTypes"/>) names it;
     /// <c>Payload</c> carries whatever the consumer put there. AgentPrism
     /// makes no claim about the payload's shape — it is the consumer's own
-    /// and out of scope for this contract. Like every other event's payload,
-    /// it is written only when <c>AgentPrismRunRecordingOptions.RecordToolPayloads</c>
-    /// is on — with it off, <c>Custom</c> still appears in the stream but
-    /// <c>Payload</c> is <see langword="null"/>.
+    /// and out of scope for this contract. A consumer's own <c>Custom</c> event
+    /// follows the general rule in the type's remarks: with
+    /// <c>AgentPrismRunRecordingOptions.RecordToolPayloads</c> off it still
+    /// appears in the stream but <c>Payload</c> is <see langword="null"/>. Only
+    /// a type under <see cref="RunEventCustomTypes.ReservedPrefix"/> is exempt.
     /// </summary>
     /// <remarks>
     /// The escape hatch for the otherwise closed set of event types above.

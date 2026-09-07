@@ -31,7 +31,6 @@ namespace AgentPrism.Samples.FileRunStore;
 public sealed class JsonFileRunStore : IRunStore
 {
     private readonly string _filePath;
-    private readonly IRunScoreStore _scores;
     private readonly ITenantContext _tenantContext;
     private readonly Lock _gate = new();
 
@@ -61,7 +60,7 @@ public sealed class JsonFileRunStore : IRunStore
 
         _filePath = filePath;
         _tenantContext = tenantContext ?? new FixedTenantContext("default");
-        _scores = scores ?? new InMemoryRunScoreStore(
+        Scores = scores ?? new InMemoryRunScoreStore(
             _tenantContext,
             runId =>
             {
@@ -73,6 +72,18 @@ public sealed class JsonFileRunStore : IRunStore
 
         Load();
     }
+
+    /// <summary>
+    /// The score store this run store reads run-level scores from.
+    /// </summary>
+    /// <remarks>
+    /// Scores are written through <see cref="IRunScoreStore"/>, not through
+    /// <see cref="IRunStore"/>, but <see cref="GetExperimentResultsAsync"/>
+    /// and <see cref="GetStatisticsAsync"/> read them back. A caller that let
+    /// this store build its own default needs this handle to reach the same
+    /// backend both stores point at.
+    /// </remarks>
+    public IRunScoreStore Scores { get; }
 
     /// <inheritdoc />
     public ValueTask<RunRecord> StartRunAsync(RunStartInfo info, CancellationToken cancellationToken = default)
@@ -603,7 +614,7 @@ public sealed class JsonFileRunStore : IRunStore
             total++;
 
             var runScores = record.TenantId is { Length: > 0 } scoreTenantId
-                ? await _scores.ListAsync(scoreTenantId, record.Id, cancellationToken).ConfigureAwait(false)
+                ? await Scores.ListAsync(scoreTenantId, record.Id, cancellationToken).ConfigureAwait(false)
                 : [];
 
             if (runScores.Count > 0)
@@ -861,7 +872,7 @@ public sealed class JsonFileRunStore : IRunStore
             }
 
             var scores = record.TenantId is { Length: > 0 } scoreTenantId
-                ? await _scores.ListAsync(scoreTenantId, record.Id, cancellationToken).ConfigureAwait(false)
+                ? await Scores.ListAsync(scoreTenantId, record.Id, cancellationToken).ConfigureAwait(false)
                 : [];
 
             double sum = 0;
@@ -869,7 +880,7 @@ public sealed class JsonFileRunStore : IRunStore
 
             foreach (var score in scores)
             {
-                if (score.Kind == RunScoreKind.Numeric && score.MessageId is null && score.Value is { } value)
+                if (score.Kind == RunScoreKind.Numeric && score.MessageId is not { Length: > 0 } && score.Value is { } value)
                 {
                     sum += value;
                     count++;

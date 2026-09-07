@@ -184,4 +184,5 @@ Tek basina gecip tam kosumda dusen test AYRI dosyadadir:
   ZAMAN iki yonlu yazilir** — eslesmesi gerekeni eslestirdigi KADAR,
   eslesmemesi gerekeni eslestirmedigi de kanitlanir. Cikis kodunu kirmayan bir
   dedektorde bu daha da onemlidir: gurultu sessizce normallesir.
-
+- **Sozlesme testleri `tests/Shared/` altindadir** ve saglayici basina bir entegrasyon test projesine derlenir (`AgentPrism.StoreContracts` ad alani). Yeni bir saglayici eklerken sozlesme testi YAZILMAZ; yalnizca kosucu sinif turetilir. SQLite bu iddianin DORDUNCU kanitidir (K-194).  
+  *(2026-09-07'de `sql-saglayicilari.md`'den butce icin tasindi.)*
