@@ -182,7 +182,7 @@ sorgula" demesi sözleşme dışıdır; kalem tasarımı değiştirmiyor, eksik 
 
 | F-NN | Başlık | Aday dosyasına yazıldı mı |
 |---|---|---|
-| F-207 | Eval koşumları arasında regresyon farkı | ✅ → [Faz 153](../153-EVAL-KOSUMLARI-ARASINDA-REGRESYON-FARKI.md) |
+| F-207 | Eval koşumları arasında regresyon farkı | ✅ → [Faz 153](../arsiv/fazlar/153-EVAL-KOSUMLARI-ARASINDA-REGRESYON-FARKI.md) |
 | F-208 | Score'un adı ve şekli | ✅ → [Faz 152](../arsiv/fazlar/152-SKORUN-ADI-VE-SEKLI.md) |
 | F-209 | Skor trendinin kalıcı sorgusu | ✅ → [Faz 154](../154-SKOR-TRENDININ-KALICI-SORGUSU.md) |
 
