@@ -226,6 +226,28 @@ public abstract class RunScoreStoreContract : TenantIsolationContract<IRunScoreS
         (await Store.ListAsync(Tenant, runId)).ShouldHaveSingleItem();
     }
 
+    /// <remarks>
+    /// A NULL <see cref="RunScore.MessageId"/> and an EMPTY ONE both mean "the
+    /// whole run" (<see cref="Score_with_no_message_id_belongs_to_the_whole_run"/>),
+    /// so a concurrent write of one shape racing a write of the OTHER shape must
+    /// still collapse to a single row -- not two, one per shape.
+    /// </remarks>
+    [Fact]
+    public async Task Concurrent_writes_with_null_and_empty_MessageId_leave_exactly_one_row()
+    {
+        var runId = AgentPrismId.NewId();
+
+        await Task.WhenAll(
+            Enumerable.Range(0, 8).Select(attempt =>
+                Store.UpsertAsync(Score(runId) with
+                {
+                    MessageId = attempt % 2 == 0 ? null : string.Empty,
+                    Value = attempt % 2,
+                }).AsTask()));
+
+        (await Store.ListAsync(Tenant, runId)).ShouldHaveSingleItem();
+    }
+
     [Fact]
     public async Task Repeated_writes_of_the_SAME_name_leave_exactly_one_row()
     {
