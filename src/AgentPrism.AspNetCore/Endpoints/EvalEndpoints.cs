@@ -20,6 +20,9 @@ namespace AgentPrism;
 /// </remarks>
 internal static class EvalEndpoints
 {
+    private const int DefaultDiffPageSize = 50;
+    private const int MaxDiffPageSize = 500;
+
     /// <summary>Maps the eval endpoints.</summary>
     /// <param name="builder">The endpoint group.</param>
     /// <param name="roles">The resolved role policies.</param>
@@ -139,10 +142,11 @@ internal static class EvalEndpoints
             .WithSummary("Lists a suite's past runs.")
             .WithDescription(
                 "Each entry is one execution of the whole suite with its aggregate outcome; the " +
-                "per-case results live behind the single eval-run endpoint. Comparing entries " +
-                "over time is how a regression between agent versions is spotted. Paging is " +
-                "offset based, with 'skip' defaulting to 0 and 'take' to 50. An unknown suite " +
-                "name returns 404.");
+                "per-case results live behind the single eval-run endpoint. To find the " +
+                "regression between two of these entries, hand both to the eval-run diff " +
+                "endpoint: it aligns them case by case instead of leaving the comparison to " +
+                "the caller. Paging is offset based, with 'skip' defaulting to 0 and 'take' " +
+                "to 50. An unknown suite name returns 404.");
 
         builder.MapGet("/api/evals/runs/{id:guid}", GetRunAsync)
             .RequireRole(roles.Reader)
@@ -157,6 +161,28 @@ internal static class EvalEndpoints
                 "to the exact conversation. Per-case results are a retention target, so an old " +
                 "eval run may keep its summary while its details are gone. An unknown id, or one " +
                 "belonging to another tenant, returns 404.");
+
+        builder.MapGet("/api/evals/runs/{id:guid}/diff", DiffRunsAsync)
+            .RequireRole(roles.Reader)
+            .RequireApiKeyScope(ApiKeyScope.EvalsRead)
+            .WithName("AgentPrismDiffEvalRuns")
+            .WithTags("AgentPrism", "Evals")
+            .WithSummary("Compares two eval runs of the same suite, case by case.")
+            .WithDescription(
+                "The run in the path is the candidate; 'baseline' names the run it is judged " +
+                "against. Every case lands in exactly one bucket - Regressed, Fixed, " +
+                "StillFailing, Unchanged, Added or Removed - and each entry names both sides' " +
+                "agent run, so a regression is one click from the two conversations that " +
+                "produced it. Cases added to or dropped from the suite are their own buckets " +
+                "and are never counted as regressions. Paging is offset based over the aligned " +
+                "cases, regressions first; the counters always describe the whole comparison. " +
+                "Both runs must have completed and must measure the same suite, otherwise 400. " +
+                "If retention has removed either run's per-case results the answer is 409, " +
+                "never an empty diff: an empty diff would read as 'nothing changed'. An " +
+                "unknown id, or one belonging to another tenant, returns 404.")
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict);
 
         builder.MapGet("/api/evaluation/online", GetOnlineEvaluationSummaryAsync)
             .RequireRole(roles.Reader)
@@ -594,6 +620,51 @@ internal static class EvalEndpoints
 
         var results = await store.ListCaseResultsAsync(tenants.TenantId, id, cancellationToken).ConfigureAwait(false);
         return TypedResults.Ok(new EvalRunDetailResponse { Run = run, Results = results });
+    }
+
+    private static async Task<Results<Ok<EvalRunDiff>, ProblemHttpResult>> DiffRunsAsync(
+        Guid id,
+        [FromQuery] Guid baseline,
+        [FromQuery] int? skip,
+        [FromQuery] int? take,
+        [FromServices] IEvalStore store,
+        [FromServices] ITenantContext tenants,
+        CancellationToken cancellationToken)
+    {
+        var query = new EvalRunDiffQuery
+        {
+            TenantId = tenants.TenantId,
+            BaselineRunId = baseline,
+            CandidateRunId = id,
+            Skip = Math.Max(0, skip ?? 0),
+            Take = Math.Clamp(take ?? DefaultDiffPageSize, 1, MaxDiffPageSize),
+        };
+
+        EvalRunDiff? diff;
+
+        try
+        {
+            diff = await store.DiffRunsAsync(query, cancellationToken).ConfigureAwait(false);
+        }
+        catch (EvalRunDiffUnavailableException exception)
+        {
+            // 🚨 Never softened into an empty 200: a diff with no entries reads
+            // as "nothing changed" and turns a CI gate green over a regression.
+            // The message is the store's own and is not translated (K-232).
+            return TypedResults.Problem(
+                title: "Eval runs cannot be compared",
+                detail: exception.Message,
+                statusCode: exception.Reason switch
+                {
+                    EvalRunDiffUnavailableReason.DifferentSuites => StatusCodes.Status400BadRequest,
+                    EvalRunDiffUnavailableReason.RunNotCompleted => StatusCodes.Status400BadRequest,
+                    _ => StatusCodes.Status409Conflict,
+                });
+        }
+
+        // Either run being unknown, or belonging to another tenant, is the same
+        // 404 - a distinct message would leak existence.
+        return diff is null ? RunNotFound(id) : TypedResults.Ok(diff);
     }
 
     private static async Task<Ok<OnlineEvaluationSummary>> GetOnlineEvaluationSummaryAsync(

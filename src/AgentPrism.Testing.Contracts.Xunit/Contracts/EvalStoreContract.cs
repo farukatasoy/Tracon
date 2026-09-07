@@ -358,4 +358,309 @@ public abstract class EvalStoreContract : TenantIsolationContract<IEvalStore>
         (await Store.QueryRunsAsync(new EvalRunQuery { TenantId = "tenant-b" })).ShouldBeEmpty();
         (await Store.QueryRunsAsync(new EvalRunQuery { TenantId = "tenant-a" })).ShouldHaveSingleItem();
     }
+
+    [Fact]
+    public async Task DiffRunsAsync_separates_the_six_buckets()
+    {
+        var suite = await Store.SaveSuiteAsync(TestData.EvalSuite());
+        var unchanged = AgentPrismId.NewId();
+        var regressed = AgentPrismId.NewId();
+        var repaired = AgentPrismId.NewId();
+        var stillFailing = AgentPrismId.NewId();
+        var removed = AgentPrismId.NewId();
+        var added = AgentPrismId.NewId();
+
+        var baseline = await CompletedRunAsync(
+            suite.Id,
+            (unchanged, true),
+            (regressed, true),
+            (repaired, false),
+            (stillFailing, false),
+            (removed, true));
+
+        var candidate = await CompletedRunAsync(
+            suite.Id,
+            (unchanged, true),
+            (regressed, false),
+            (repaired, true),
+            (stillFailing, false),
+            (added, false));
+
+        var diff = await Store.DiffRunsAsync(new EvalRunDiffQuery
+        {
+            TenantId = "default",
+            BaselineRunId = baseline,
+            CandidateRunId = candidate,
+        });
+
+        diff.ShouldNotBeNull();
+        diff!.Baseline.Id.ShouldBe(baseline);
+        diff.Candidate.Id.ShouldBe(candidate);
+        diff.TotalCases.ShouldBe(6);
+        diff.UnchangedCount.ShouldBe(1);
+        diff.RegressedCount.ShouldBe(1);
+        diff.FixedCount.ShouldBe(1);
+        diff.StillFailingCount.ShouldBe(1);
+        diff.RemovedCount.ShouldBe(1);
+        diff.AddedCount.ShouldBe(1);
+
+        diff.Cases.Single(entry => entry.CaseId == regressed).Kind.ShouldBe(EvalCaseDiffKind.Regressed);
+        diff.Cases.Single(entry => entry.CaseId == added).Kind.ShouldBe(EvalCaseDiffKind.Added);
+        diff.Cases.Single(entry => entry.CaseId == removed).Kind.ShouldBe(EvalCaseDiffKind.Removed);
+    }
+
+    [Fact]
+    public async Task DiffRunsAsync_throws_when_the_baseline_details_were_removed_by_retention()
+    {
+        // 🚨 An empty diff would read as "nothing changed" and turn a CI gate
+        // green over a regression. The run keeps its summary; only the per-case
+        // rows are a retention target.
+        var suite = await Store.SaveSuiteAsync(TestData.EvalSuite());
+        var trimmed = await CompletedRunAsync(suite.Id, caseCount: 3);
+        var candidate = await CompletedRunAsync(suite.Id, (AgentPrismId.NewId(), true));
+
+        var error = await Should.ThrowAsync<EvalRunDiffUnavailableException>(async () =>
+            await Store.DiffRunsAsync(new EvalRunDiffQuery
+            {
+                TenantId = "default",
+                BaselineRunId = trimmed,
+                CandidateRunId = candidate,
+            }));
+
+        error.Reason.ShouldBe(EvalRunDiffUnavailableReason.DetailsRemoved);
+    }
+
+    [Fact]
+    public async Task DiffRunsAsync_throws_when_the_candidate_details_were_removed_by_retention()
+    {
+        var suite = await Store.SaveSuiteAsync(TestData.EvalSuite());
+        var baseline = await CompletedRunAsync(suite.Id, (AgentPrismId.NewId(), true));
+        var trimmed = await CompletedRunAsync(suite.Id, caseCount: 3);
+
+        var error = await Should.ThrowAsync<EvalRunDiffUnavailableException>(async () =>
+            await Store.DiffRunsAsync(new EvalRunDiffQuery
+            {
+                TenantId = "default",
+                BaselineRunId = baseline,
+                CandidateRunId = trimmed,
+            }));
+
+        error.Reason.ShouldBe(EvalRunDiffUnavailableReason.DetailsRemoved);
+    }
+
+    [Fact]
+    public async Task DiffRunsAsync_throws_when_retention_removed_only_SOME_of_the_results()
+    {
+        // Retention deletes in batches and the sweep can stop between them, so
+        // "partly trimmed" is a real state. Diffing the survivors would report
+        // the deleted cases as Removed and quietly shrink the regression count.
+        var suite = await Store.SaveSuiteAsync(TestData.EvalSuite());
+        var kept = AgentPrismId.NewId();
+        var partial = await CompletedRunAsync(suite.Id, summarisedCases: 5, (kept, true));
+        var candidate = await CompletedRunAsync(suite.Id, (kept, true));
+
+        var error = await Should.ThrowAsync<EvalRunDiffUnavailableException>(async () =>
+            await Store.DiffRunsAsync(new EvalRunDiffQuery
+            {
+                TenantId = "default",
+                BaselineRunId = partial,
+                CandidateRunId = candidate,
+            }));
+
+        error.Reason.ShouldBe(EvalRunDiffUnavailableReason.DetailsRemoved);
+    }
+
+    [Fact]
+    public async Task DiffRunsAsync_counts_a_case_recorded_twice_once()
+    {
+        // K-641: IJobHandler is at-least-once, so the same eval run can record
+        // a case a second time. Alignment must not double count it.
+        var suite = await Store.SaveSuiteAsync(TestData.EvalSuite());
+        var caseId = AgentPrismId.NewId();
+        var baseline = await CompletedRunAsync(suite.Id, (caseId, true));
+        var candidate = await CompletedRunAsync(suite.Id, (caseId, true), (caseId, true));
+
+        var diff = await Store.DiffRunsAsync(new EvalRunDiffQuery
+        {
+            TenantId = "default",
+            BaselineRunId = baseline,
+            CandidateRunId = candidate,
+        });
+
+        diff!.TotalCases.ShouldBe(1);
+        diff.Cases.ShouldHaveSingleItem().Kind.ShouldBe(EvalCaseDiffKind.Unchanged);
+    }
+
+    [Fact]
+    public async Task DiffRunsAsync_returns_null_for_another_tenants_run()
+    {
+        var mine = await Store.SaveSuiteAsync(TestData.EvalSuite("tenant-a", "team"));
+        var theirs = await Store.SaveSuiteAsync(TestData.EvalSuite("tenant-b", "team"));
+        var caseId = AgentPrismId.NewId();
+
+        var baseline = await CompletedRunAsync(mine.Id, "tenant-a", (caseId, true));
+        var foreign = await CompletedRunAsync(theirs.Id, "tenant-b", (caseId, true));
+
+        (await Store.DiffRunsAsync(new EvalRunDiffQuery
+        {
+            TenantId = "tenant-a",
+            BaselineRunId = foreign,
+            CandidateRunId = baseline,
+        })).ShouldBeNull();
+
+        (await Store.DiffRunsAsync(new EvalRunDiffQuery
+        {
+            TenantId = "tenant-a",
+            BaselineRunId = baseline,
+            CandidateRunId = foreign,
+        })).ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task DiffRunsAsync_returns_null_for_an_unknown_run()
+    {
+        var suite = await Store.SaveSuiteAsync(TestData.EvalSuite());
+        var known = await CompletedRunAsync(suite.Id, (AgentPrismId.NewId(), true));
+
+        (await Store.DiffRunsAsync(new EvalRunDiffQuery
+        {
+            TenantId = "default",
+            BaselineRunId = AgentPrismId.NewId(),
+            CandidateRunId = known,
+        })).ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task DiffRunsAsync_refuses_an_unfinished_run()
+    {
+        var suite = await Store.SaveSuiteAsync(TestData.EvalSuite());
+        var completed = await CompletedRunAsync(suite.Id, (AgentPrismId.NewId(), true));
+        var pending = await Store.CreateRunAsync(TestData.EvalRun("default", suite.Id));
+
+        var error = await Should.ThrowAsync<EvalRunDiffUnavailableException>(async () =>
+            await Store.DiffRunsAsync(new EvalRunDiffQuery
+            {
+                TenantId = "default",
+                BaselineRunId = pending.Id,
+                CandidateRunId = completed,
+            }));
+
+        error.Reason.ShouldBe(EvalRunDiffUnavailableReason.RunNotCompleted);
+    }
+
+    [Fact]
+    public async Task DiffRunsAsync_refuses_two_runs_of_different_suites()
+    {
+        var first = await Store.SaveSuiteAsync(TestData.EvalSuite("default", "suite-one"));
+        var second = await Store.SaveSuiteAsync(TestData.EvalSuite("default", "suite-two"));
+        var caseId = AgentPrismId.NewId();
+
+        var baseline = await CompletedRunAsync(first.Id, (caseId, true));
+        var candidate = await CompletedRunAsync(second.Id, (caseId, true));
+
+        var error = await Should.ThrowAsync<EvalRunDiffUnavailableException>(async () =>
+            await Store.DiffRunsAsync(new EvalRunDiffQuery
+            {
+                TenantId = "default",
+                BaselineRunId = baseline,
+                CandidateRunId = candidate,
+            }));
+
+        error.Reason.ShouldBe(EvalRunDiffUnavailableReason.DifferentSuites);
+    }
+
+    [Fact]
+    public async Task DiffRunsAsync_observes_cancellation()
+    {
+        var suite = await Store.SaveSuiteAsync(TestData.EvalSuite());
+        var caseId = AgentPrismId.NewId();
+        var baseline = await CompletedRunAsync(suite.Id, (caseId, true));
+        var candidate = await CompletedRunAsync(suite.Id, (caseId, false));
+
+        using var source = new CancellationTokenSource();
+        await source.CancelAsync();
+
+        await Should.ThrowAsync<OperationCanceledException>(async () =>
+            await Store.DiffRunsAsync(
+                new EvalRunDiffQuery
+                {
+                    TenantId = "default",
+                    BaselineRunId = baseline,
+                    CandidateRunId = candidate,
+                },
+                source.Token));
+    }
+
+    private ValueTask<Guid> CompletedRunAsync(Guid suiteId, params (Guid CaseId, bool Passed)[] results)
+        => CompletedRunAsync(suiteId, "default", results);
+
+    /// <summary>A run whose summary counts more cases than the rows it kept.</summary>
+    private async ValueTask<Guid> CompletedRunAsync(
+        Guid suiteId,
+        int summarisedCases,
+        params (Guid CaseId, bool Passed)[] results)
+    {
+        var run = await Store.CreateRunAsync(TestData.EvalRun("default", suiteId));
+
+        foreach (var (caseId, passed) in results)
+        {
+            await Store.RecordCaseResultAsync(new EvalCaseResult
+            {
+                Id = AgentPrismId.NewId(),
+                EvalRunId = run.Id,
+                CaseId = caseId,
+                Passed = passed,
+            });
+        }
+
+        await CompleteAsync(run.Id, summarisedCases, summarisedCases, 0);
+        return run.Id;
+    }
+
+    private async ValueTask<Guid> CompletedRunAsync(Guid suiteId, int caseCount)
+    {
+        // A run that measured cases but keeps none of their rows - what
+        // retention leaves behind.
+        var run = await Store.CreateRunAsync(TestData.EvalRun("default", suiteId));
+        await CompleteAsync(run.Id, caseCount, caseCount, 0);
+        return run.Id;
+    }
+
+    private async ValueTask<Guid> CompletedRunAsync(
+        Guid suiteId,
+        string tenantId,
+        params (Guid CaseId, bool Passed)[] results)
+    {
+        var run = await Store.CreateRunAsync(TestData.EvalRun(tenantId, suiteId));
+
+        foreach (var (caseId, passed) in results)
+        {
+            await Store.RecordCaseResultAsync(new EvalCaseResult
+            {
+                Id = AgentPrismId.NewId(),
+                EvalRunId = run.Id,
+                CaseId = caseId,
+                RunId = AgentPrismId.NewId(),
+                Passed = passed,
+                FailureReason = passed ? null : "check failed",
+            });
+        }
+
+        var distinct = results.Select(static result => result.CaseId).Distinct().Count();
+        var passedCount = results.Where(static result => result.Passed).Select(static result => result.CaseId).Distinct().Count();
+        await CompleteAsync(run.Id, distinct, passedCount, distinct - passedCount);
+
+        return run.Id;
+    }
+
+    private ValueTask CompleteAsync(Guid runId, int total, int passed, int failed)
+        => Store.CompleteRunAsync(new EvalRunCompletion
+        {
+            EvalRunId = runId,
+            Status = EvalRunStatus.Completed,
+            CompletedAt = DateTimeOffset.UtcNow,
+            Total = total,
+            Passed = passed,
+            Failed = failed,
+        });
 }

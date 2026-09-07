@@ -1065,7 +1065,7 @@ export interface paths {
         };
         /**
          * Lists a suite's past runs.
-         * @description Each entry is one execution of the whole suite with its aggregate outcome; the per-case results live behind the single eval-run endpoint. Comparing entries over time is how a regression between agent versions is spotted. Paging is offset based, with 'skip' defaulting to 0 and 'take' to 50. An unknown suite name returns 404.
+         * @description Each entry is one execution of the whole suite with its aggregate outcome; the per-case results live behind the single eval-run endpoint. To find the regression between two of these entries, hand both to the eval-run diff endpoint: it aligns them case by case instead of leaving the comparison to the caller. Paging is offset based, with 'skip' defaulting to 0 and 'take' to 50. An unknown suite name returns 404.
          */
         get: operations["AgentPrismListEvalRuns"];
         put?: never;
@@ -1088,6 +1088,26 @@ export interface paths {
          * @description This is the endpoint to poll after triggering a suite: the eval run is queued and processed in the background, and its results fill in as cases complete. Each result names the agent run it came from, so a failing check can be traced to the exact conversation. Per-case results are a retention target, so an old eval run may keep its summary while its details are gone. An unknown id, or one belonging to another tenant, returns 404.
          */
         get: operations["AgentPrismGetEvalRun"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/evals/runs/{id}/diff": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Compares two eval runs of the same suite, case by case.
+         * @description The run in the path is the candidate; 'baseline' names the run it is judged against. Every case lands in exactly one bucket - Regressed, Fixed, StillFailing, Unchanged, Added or Removed - and each entry names both sides' agent run, so a regression is one click from the two conversations that produced it. Cases added to or dropped from the suite are their own buckets and are never counted as regressions. Paging is offset based over the aligned cases, regressions first; the counters always describe the whole comparison. Both runs must have completed and must measure the same suite, otherwise 400. If retention has removed either run's per-case results the answer is 409, never an empty diff: an empty diff would read as 'nothing changed'. An unknown id, or one belonging to another tenant, returns 404.
+         */
+        get: operations["AgentPrismDiffEvalRuns"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3894,6 +3914,46 @@ export interface components {
                 [key: string]: string;
             };
         };
+        /** @description One case's outcome on both sides of an EvalRunDiff. */
+        EvalCaseDiff: {
+            /**
+             * Format: uuid
+             * @description The identifier of the case being compared.
+             */
+            caseId: string;
+            /** @description Which bucket this case falls into. */
+            kind: components["schemas"]["EvalCaseDiffKind"];
+            /**
+             * @description Whether the case passed on the baseline side.
+             *     `null` when the case is EvalCaseDiffKind.Added.
+             */
+            baselinePassed?: null | boolean;
+            /**
+             * @description Whether the case passed on the candidate side.
+             *     `null` when the case is EvalCaseDiffKind.Removed.
+             */
+            candidatePassed?: null | boolean;
+            /**
+             * Format: uuid
+             * @description The identifier of the agent run the baseline result came from, so a
+             *     regression can be traced to the exact conversation.
+             */
+            baselineRunId?: null | string;
+            /**
+             * Format: uuid
+             * @description The identifier of the agent run the candidate result came from.
+             */
+            candidateRunId?: null | string;
+            /** @description The baseline side's failure reason, when it failed. */
+            baselineFailureReason?: null | string;
+            /** @description The candidate side's failure reason, when it failed. */
+            candidateFailureReason?: null | string;
+        };
+        /**
+         * @description The bucket an aligned case falls into within an EvalRunDiff.
+         * @enum {unknown}
+         */
+        EvalCaseDiffKind: "Unchanged" | "Fixed" | "Regressed" | "StillFailing" | "Added" | "Removed";
         /** @description Input shape of an eval case (in a request). */
         EvalCaseInput: {
             /** @description Query text to send to the agent. */
@@ -4014,6 +4074,61 @@ export interface components {
             run: components["schemas"]["EvalRun"];
             /** @description Per-case results. */
             results: components["schemas"]["EvalCaseResult"][];
+        };
+        /**
+         * @description The case-by-case difference between two completed EvalRun
+         *     records of the same suite.
+         */
+        EvalRunDiff: {
+            /** @description The run being compared against (the older, known-good side). */
+            baseline: components["schemas"]["EvalRun"];
+            /** @description The run being judged. */
+            candidate: components["schemas"]["EvalRun"];
+            /**
+             * @description The requested page of aligned cases, ordered so that the buckets an
+             *     engineer looks for come first: EvalCaseDiffKind.Regressed,
+             *     EvalCaseDiffKind.StillFailing,
+             *     EvalCaseDiffKind.Added, EvalCaseDiffKind.Fixed,
+             *     EvalCaseDiffKind.Removed, then
+             *     EvalCaseDiffKind.Unchanged; within a bucket by case
+             *     identifier.
+             */
+            cases: components["schemas"]["EvalCaseDiff"][];
+            /**
+             * Format: int32
+             * @description The number of aligned cases across both runs, ignoring paging.
+             */
+            totalCases: number | string;
+            /**
+             * Format: int32
+             * @description The number of cases that passed on both sides.
+             */
+            unchangedCount: number | string;
+            /**
+             * Format: int32
+             * @description The number of cases that failed on the baseline and pass now.
+             */
+            fixedCount: number | string;
+            /**
+             * Format: int32
+             * @description The number of cases that passed on the baseline and fail now.
+             */
+            regressedCount: number | string;
+            /**
+             * Format: int32
+             * @description The number of cases that failed on both sides.
+             */
+            stillFailingCount: number | string;
+            /**
+             * Format: int32
+             * @description The number of cases present only in the candidate run.
+             */
+            addedCount: number | string;
+            /**
+             * Format: int32
+             * @description The number of cases present only in the baseline run.
+             */
+            removedCount: number | string;
         };
         /**
          * @description The status of an eval run.
@@ -7653,12 +7768,15 @@ export type CurrentTenantResponse = components['schemas']['CurrentTenantResponse
 export type DataSubjectErasureResult = components['schemas']['DataSubjectErasureResult'];
 export type DeletedResource = components['schemas']['DeletedResource'];
 export type EvalCase = components['schemas']['EvalCase'];
+export type EvalCaseDiff = components['schemas']['EvalCaseDiff'];
+export type EvalCaseDiffKind = components['schemas']['EvalCaseDiffKind'];
 export type EvalCaseInput = components['schemas']['EvalCaseInput'];
 export type EvalCasePromotionRequest = components['schemas']['EvalCasePromotionRequest'];
 export type EvalCaseResult = components['schemas']['EvalCaseResult'];
 export type EvalCaseSource = components['schemas']['EvalCaseSource'];
 export type EvalRun = components['schemas']['EvalRun'];
 export type EvalRunDetailResponse = components['schemas']['EvalRunDetailResponse'];
+export type EvalRunDiff = components['schemas']['EvalRunDiff'];
 export type EvalRunStatus = components['schemas']['EvalRunStatus'];
 export type EvalRunTriggerRequest = components['schemas']['EvalRunTriggerRequest'];
 export type EvalSuite = components['schemas']['EvalSuite'];
@@ -9813,6 +9931,59 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["EvalRunDetailResponse"];
+                };
+            };
+        };
+    };
+    AgentPrismDiffEvalRuns: {
+        parameters: {
+            query: {
+                baseline: string;
+                skip?: number | string;
+                take?: number | string;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EvalRunDiff"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
         };

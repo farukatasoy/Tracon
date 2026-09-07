@@ -144,6 +144,27 @@ public interface IEvalStore
         string tenantId,
         Guid evalRunId,
         CancellationToken cancellationToken = default);
+
+    /// <summary>Aligns two completed runs of the same suite, case by case.</summary>
+    /// <param name="query">Which two runs to compare, and which page of the result to return.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>
+    /// The difference; <see langword="null"/> if either run does not exist or
+    /// belongs to another tenant.
+    /// </returns>
+    /// <exception cref="EvalRunDiffUnavailableException">
+    /// The two runs exist but cannot be compared: they measure different
+    /// suites, one of them has not completed, or one of them holds results for
+    /// fewer cases than its summary counts because retention removed some of
+    /// them.
+    /// <strong>An empty diff is never returned in their place</strong> — it
+    /// would read as "nothing changed" and turn a CI gate green over a
+    /// regression. Implementations delegate to
+    /// <see cref="EvalRunDiffBuilder.Build"/> rather than restating the rules.
+    /// </exception>
+    ValueTask<EvalRunDiff?> DiffRunsAsync(
+        EvalRunDiffQuery query,
+        CancellationToken cancellationToken = default);
 }
 
 /// <summary>The result of <see cref="IEvalStore.AddCaseAsync"/>.</summary>
@@ -184,6 +205,33 @@ public sealed record EvalRunQuery
     public int Skip { get; init; }
 
     /// <summary>The maximum number of records to fetch.</summary>
+    public int Take { get; init; } = 50;
+}
+
+/// <summary>Which two eval runs to compare, and which page of the result to read.</summary>
+public sealed record EvalRunDiffQuery
+{
+    /// <summary>The tenant both runs must belong to.</summary>
+    /// <remarks>
+    /// Required. The tenant filter is never optional: a run belonging to
+    /// another tenant reads exactly like a run that does not exist.
+    /// </remarks>
+    public required string TenantId { get; init; }
+
+    /// <summary>The run being compared against (the older, known-good side).</summary>
+    public required Guid BaselineRunId { get; init; }
+
+    /// <summary>The run being judged.</summary>
+    public required Guid CandidateRunId { get; init; }
+
+    /// <summary>The number of aligned cases to skip.</summary>
+    public int Skip { get; init; }
+
+    /// <summary>The maximum number of aligned cases to fetch.</summary>
+    /// <remarks>
+    /// Paging touches <see cref="EvalRunDiff.Cases"/> only; the counters are
+    /// always for the whole diff.
+    /// </remarks>
     public int Take { get; init; } = 50;
 }
 
