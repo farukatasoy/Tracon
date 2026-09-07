@@ -13,18 +13,20 @@ You write the AI harness; you operate it at `/agentprism`.
 > **public API gate** (`EnablePublicApiTracking`) is on independently of any release
 > decision — an unrecorded surface change breaks the build. Start with
 > `dotnet new agentprism-api` and test without calling a model using
-> `AgentPrism.Testing`. Runs are recorded with spans, metrics, and cost; tenants are
-> isolated; agents can be exposed over MCP and A2A; `pgvector` powers semantic search;
-> API keys narrow access; A/B experiments roll back automatically under a canary rule.
-> A tool body can run in the browser (`AddClientTool`), and an embeddable chat widget
-> can be served to third-party pages over CORS. The audit trail is made tamper-evident
-> with a hash chain (`GET /api/audit/verify`), and a data subject's content can be
-> exported and erased by identity (`IDataSubjectResolver`). A tenant can bring its own
-> model provider key (BYOK), and an egress policy limits which providers its agents may
-> reach — an unauthorised provider is rejected at compile time. An external system such
-> as Slack can start a queued agent or workflow run with one signed HTTP request and no
-> API key (`POST /api/triggers/{tenantId}/{name}`). The **coding agent** integrating the
-> package learns from build-time diagnostics and an opt-in `AGENTS.md` capability map.
+> `AgentPrism.Testing`.
+>
+> - Runs recorded with spans, metrics and cost; tenants isolated; audit trail made
+>   tamper-evident with a hash chain (`GET /api/audit/verify`)
+> - Agents exposed over MCP and A2A; `pgvector` semantic search; API keys narrow access
+> - A tenant can bring its own model provider key (BYOK) under an egress policy —
+>   an unauthorised provider is rejected at compile time
+> - A/B experiments roll back automatically under a canary rule; a data subject's
+>   content can be exported and erased by identity (`IDataSubjectResolver`)
+> - An external system such as Slack can start a queued run with one signed HTTP
+>   request and no API key; a tool body can run in the browser (`AddClientTool`)
+>
+> The **coding agent** integrating the package learns from build-time diagnostics and
+> an opt-in `AGENTS.md` capability map.
 
 ```csharp
 builder.AddAgentPrism()
@@ -283,37 +285,15 @@ stays open because the release date is a deliberate decision. The list is genera
 each phase document into [docs/YOL-HARITASI.md](docs/YOL-HARITASI.md); unselected
 candidates are in [docs/ADAYLAR.md](docs/ADAYLAR.md).
 
-### Skill script execution and the isolation boundary
+### Skill script execution and content guards
 
-Skill scripts can run **on the server**. The feature is **off by default** and can only
-be turned on in code:
-
-```csharp
-builder.Services.AddAgentPrism()
-    .UseSkillScripts(options =>
-    {
-        options.PlatformIsolationAcknowledged = true;
-        options.Interpreters["py"] = "python3";
-    });
-```
-
-**AgentPrism provides no operating-system isolation.** A script runs with the user
-rights and network access of the AgentPrism process. AgentPrism gives you an
-interpreter and environment-variable allowlist, a timeout with process-tree kill,
-output truncation, a concurrency limit, and per-tenant grants with an audit trail; it
-gives you **no filesystem jail, no network restriction, no memory or CPU quota, and no
-privilege dropping**. Those belong to the hosting environment: run inside a
-**container**, as an **unprivileged user**, on a **restricted network**. The
-`PlatformIsolationAcknowledged` flag stops the feature being enabled without seeing
-this boundary; without it the application fails **at startup**.
-
-### Content guards
-
-**Off by default**: `AddAgentPrism()` registers no guard and adds no link to the model
-pipeline. Turning it on is an explicit choice — `.AddPatternContentGuard(o =>
-o.MaskedPii = PiiPatterns.CreditCard)` for the built-in pattern guard, or
-`IContentGuard` with `.AddContentGuard<T>()` for your own rules. Several guards run in
-order and **the strictest decision wins**; blocked content is written nowhere.
+Both are **off by default** and turned on explicitly in code
+(`.UseSkillScripts(...)`, `.AddPatternContentGuard(...)`/`.AddContentGuard<T>()`).
+Skill scripts run on the server with no OS-level isolation from AgentPrism itself —
+that boundary is the hosting environment's job (container, unprivileged user,
+restricted network). Full behavior, the security boundary, and the guard decision
+model: [docs/MIMARI-GUVENLIK.md](docs/MIMARI-GUVENLIK.md) (Turkish) ·
+[product docs](https://agentprism.doayen.web.tr).
 
 ### Version policy
 

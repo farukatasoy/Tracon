@@ -104,14 +104,22 @@ SORGU_BUTCESI = {
     # olan bir siniri korur), bu yuzden OLCULEN boyuta %15 bosluk eklendi -- 58.4'un
     # kalibrasyon kurali. MIMARI.md'nin siniri DUSURULMEDI: bolunme zaten %45 bosluk
     # birakti ve bugunku mimarinin buyumesine yer birakmak istiyoruz.
-    "docs/MIMARI-GUVENLIK.md": 21_000,  # olculen 17_421
+    "docs/MIMARI-GUVENLIK.md": 23_200,  # YENIDEN KALIBRE 2026-09-07; olculen 19_662
+                                        # (dokuman butcesi mudahale turu, Skill script
+                                        # calistirma bolumu arsive tasindiktan sonra bile
+                                        # icerik sikistirilamaz K-yogun; olculen/0.85=23_132)
     # Faz 90 (K-6xx): alan yonlendirme tablosu `MEMORY.md`den ayrildi. Tablo ALAN
     # SAYISIYLA buyur (20 -> 27 dosya), `MEMORY.md`nin tuzak listesi OGRENILEN
     # DERSLE; iki egri tek butcede sikisip dosyayi %1 bosluga dusurmustu.
     # BASLANGIC degil SORGU: `faz-baslangic` Adim 1 bunu okumaz, Adim 3 okur.
     # Sinir ILK KEZ konuyor -> olculene %15 bosluk eklendi (58.4 kalibrasyonu).
-    "docs/hafiza/00-INDEKS.md": 4_100,  # olculen 3_424
-    "README.md": 20_000,
+    "docs/hafiza/00-INDEKS.md": 5_800,  # YENIDEN KALIBRE 2026-09-07; olculen 4_872
+                                        # (dokuman butcesi mudahale turu, 10 yeni
+                                        # alan dosyasi satiri eklendi; olculen/0.85=5_732)
+    "README.md": 22_200,  # YENIDEN KALIBRE 2026-09-07; olculen 18_843
+                          # (dokuman butcesi mudahale turu, MIMARI-GUVENLIK.md
+                          # tekrari trimlendikten sonra bile paket tablosu +
+                          # HTTP yuzeyi ornekleri sikistirilamaz; olculen/0.85=22_168)
     # Faz 104: depoya disaridan gelen kisinin okudugu iki kok dosya. Ingilizce
     # (dil kapisi SourceLanguageTests onlari da tarar) ve BASLANGIC degil SORGU
     # baglami: hicbir oturum onlari acilista okumaz. Sinir ILK KEZ konuyor, bu
@@ -186,13 +194,14 @@ DIZIN_BUTCESI = {
     # Sinirlar 2026-08-23'te OLCULEN degere %15 bosluk eklenerek konuldu
     # (58.4 kalibrasyonu), tahminle degil. Hicbiri BUYUTULMEDI: ikisi
     # dusuruldu, ucu ILK KEZ konuyor (K-214'un emsali: `MIMARI-GUVENLIK.md`).
-    ("docs/manuel-test", False, True): 2_300_000,   # YENIDEN KALIBRE 2026-09-02; olculen 1_949_903.
-                                                    # olculen/0.85 = 2_294_003 -> yukari yuvarlandi.
+    ("docs/manuel-test", False, True): 2_490_000,   # YENIDEN KALIBRE 2026-09-07; olculen 2_108_738.
+                                                    # olculen/0.85 = 2_481_457 -> yukari yuvarlandi.
                                                     # Faz 133.0: K-214 sinirsiz buyumeyi engeller,
                                                     # SABIT bir sayiyi korumaz. Kalibrasyon yalniz
                                                     # olculen/(1-BOSLUK_ORANI) olarak, kullanici
                                                     # karariyla yapilir.
-    ("docs", True, True):             3_670_000,    # YENIDEN KALIBRE 2026-08-31; olculen 3_114_180
+    ("docs", True, True):             4_220_000,    # YENIDEN KALIBRE 2026-09-07; olculen 3_579_302
+                                                    # (dokuman butcesi mudahale turu; olculen/0.85=4_210_944)
     # Faz 90 kapanisi: 3_020_000 kapanistan ONCE olculmustu ve fazin KENDI
     # kaydi + denetim duzeltmeleri eklenince %14 bosluga dustu. Sinir fazin
     # SONUNDAKI boyuta gore konur (58.4 kalibrasyonu, `dokuman-bakim.py:105`
@@ -216,13 +225,14 @@ DIZIN_BUTCESI = {
     # 🚨 Sinir ISIN SONUNDA olculdu, basinda degil -- Faz 90 vakasi (yukarida)
     # tam tersini yapip kapanistan once olctugu icin sinir aninda %14 posluga
     # dusmustu. Kalibrasyondan once `faz-tamamlama` bitmis olmalidir.
-    ("docs/arsiv", True, False):      4_240_000,    # YENIDEN KALIBRE Faz 145 kapanisi; olculen 3_597_767
-    # (K-678/K-679 gerekcesi KARARLAR-GECMISI.md'ye girince onceki 3_590_000
-    # sinirini asti). Ayni formul: olculen/(1-%15 bosluk) = 4_232_667,
-    # yukari yuvarlandi. Bu bir BUYUTME karari degil, K-214'un ongordugu
-    # duzenli faz-basi buyumenin (~9-16 KB/faz) dogal sonucu.
+    ("docs/arsiv", True, False):      4_820_000,    # YENIDEN KALIBRE 2026-09-07; olculen 4_092_925
+    # (dokuman butcesi mudahale turu: MIMARI-GUVENLIK.md'nin Skill script
+    # calistirma bolumu 11-SKILL-SCRIPT-CALISTIRMA.md'ye tasindi). Ayni formul:
+    # olculen/(1-%15 bosluk) = 4_815_206, yukari yuvarlandi. Bu bir BUYUTME
+    # karari degil, K-214'un ongordugu duzenli faz-basi buyumenin dogal sonucu.
     ("docs/manuel-test/kosumlar", True, False): 620_000,  # YENI; olculen 518_817
-    ("docs/kesif", True, False):        370_000,    # YENIDEN KALIBRE 2026-08-31; olculen 312_256
+    ("docs/kesif", True, False):        420_000,    # YENIDEN KALIBRE 2026-09-07; olculen 356_857
+                                                    # (olculen/0.85=419_832)
 }
 
 # Damitilmis faz kaydi basina tavan: dizin butcesi TOPLAMI frenler, bu tek bir

@@ -1,6 +1,6 @@
 # Build, Paketleme ve Analyzer Tuzaklari
 
-> MSBuild, NuGet, AOT, .editorconfig, Meziantou/Roslyn tanilari.
+> MSBuild, NuGet, AOT, .editorconfig, baglantili kaynak, bagimlilik surumleri.
 >
 > Bu dosya `MEMORY.md`'nin alan dosyasidir. Yalnizca bu alana
 > dokunurken okunur. Yeni not buraya eklenir, `MEMORY.md`'ye degil.
@@ -8,6 +8,8 @@
 > **Paketleme ve tuketiciye teslim ayri bir dosyadadir:**
 > [`paketleme-ve-dagitim.md`](paketleme-ve-dagitim.md) (`dotnet pack`,
 > `.nuspec`, `buildTransitive/`, sablon, tuketicinin agacina yazma).
+> **Analyzer/lint TANI kodlariyla (RS/MA/CA) karsilasma ayri dosyadadir:**
+> [`analyzer-tanilari.md`](analyzer-tanilari.md).
 
 - **`Enum.TryParse<T>` / `Enum.IsDefined` / `Enum.GetNames<T>()` AOT temiz** (2026-08-02): `ReasoningEffort` çevrimi bunlarla yazıldı, hiçbir `IL2026`/`IL3050` çıkmadı.
 - **AOT üç yerde ödün istedi** (2026-08-02): `ValidateDataAnnotations()` → elle validator; `optionsBuilder.Bind()` → elle bağlama; tool argümanı serileştirme → elle biçimlendirme. Faz 2'de `jsonb` için `JsonSerializerContext` gerekecek.
@@ -16,7 +18,6 @@
 - **`CentralPackageTransitivePinningEnabled` kütüphanede zararlı** (2026-08-01): geçişli bağımlılıkları üretilen `.nuspec` içine **doğrudan** bağımlılık olarak yazar. Ölçüldü: `AgentPrism.PostgreSql` 13 → 2 doğrudan bağımlılık.
 - **Trim/AOT analyzer'ları kök seviyede açılamaz** (2026-08-01): `app.MapGet(pattern, delegate)` `IL2026` + `IL3050` üretir. Analyzer'lar `src/` katmanında, paket bazlı kapatılabilir olmalı.
 - **`.editorconfig` isimlendirme kurallarında sıra önemli** (2026-08-01): ilk eşleşen kural kazanır. `const` ve `static readonly` kuralları genel private alan kuralından **önce** gelmelidir.
-- **`MA0004` `await using` ifadelerini de kapsar** (2026-08-02): kütüphane kodunda hata seviyesinde. Kalıp: `var x = ...;` sonra `await using (x.ConfigureAwait(false)) { ... }`. Doğrudan `await using var x = ....ConfigureAwait(false)` yazmak değişkenin tipini `ConfiguredAsyncDisposable` yapar ve kullanılamaz hale getirir.
 - **Ham interpolasyonlu dizede `{{` kaçış değildir** (2026-08-02): tek `$` ile açılan ham dizede `{` her zaman interpolasyon başlatır; `'{}'::jsonb` yazmak CS9006 verir. Çözüm: sütunu INSERT listesinden çıkarıp şema varsayılanına bırak, ya da iki `$` ile aç.
 - **`Convert.ToHexStringLower` net9+** (2026-08-02): `net8.0` da hedeflendiği için `Convert.ToHexString` kullanılır. Migration checksum'ları bu yüzden büyük harf onaltılıktır.
 - **Statik sınıf tür argümanı olamaz** (2026-08-02): `AddToolsFrom<OrderTools>()` `CS0718` verir çünkü tool sınıfları genelde `static class`. Bu yüzden `AddToolsFrom(Type)` aşırı yüklemesi var.
@@ -25,7 +26,6 @@
 - **🚨 MSBuild hedef `Condition`'ı `DependsOnTargets`'tan ÖNCE değerlendirilir** (2026-08-02): bağımlılık zinciri hedeflerin kendi üzerinde kurulursa (`A` → `B` → `C`) ve `B`'nin koşulu `C`'nin ürettiği bir özelliğe bakıyorsa, `C` **hiç çalışmaz**. Zinciri en dıştaki hedefin `DependsOnTargets` listesinde sırayla kur. Yaşandı: Node algılama hedefi hiç koşmadı, arayüz sessizce derlenmedi.
 - **🚨 `Sdk="..."` niteliğiyle yüklenen SDK hedefleri projenin EN SONUNA gelir** (2026-08-02): csproj gövdesindeki `<Import Project="...targets" />` daha önce yüklenir ve içindeki `BeforeTargets="AssignTargetPaths"` *"does not exist in the project, and will be ignored"* diye **sessizce** atılır. SDK hedeflerine kanca atan bir `.targets` için açık `<Import Project="Sdk.props|Sdk.targets" Sdk="Microsoft.NET.Sdk" />` biçimini kullan. Karar K-051.
 - **🚨 Çok hedefli projede iç derlemeler paralel koşar** (2026-08-02): tek bir çıktı dizinine yazan bir dış araç (Vite, `emptyOutDir`) üç kez aynı anda çalışır ve `ENOENT ... unlink` verir. Böyle adımlar `BeforeTargets="DispatchToInnerBuilds"` ile dış derlemeye alınır. Karar K-050.
-- **`MA0009` kaynak üretilmiş `[GeneratedRegex]`'i de yakalar** (2026-08-02, Faz 8): "regex DoS" analizi timeout kontrolü sağlanamayan her regex'i işaretler. **Düzeltme (2026-08-07, Faz 48): `GeneratedRegexAttribute`'ün timeout aşırı yüklemesi VARDIR** — `matchTimeoutMilliseconds: 1000` yazılır ve analyzer susar. Repoda on üç kullanım bu biçimdedir; yeni desen yazarken timeout **atlanmaz**. Basit sabit desenler (ör. `^[a-z0-9][a-z0-9-]{0,31}$`) için regex'ten tamamen vazgeçip elle karakter döngüsü yazmak yine daha az koddur.
 - **AOT analyzer'ı jenerik tip argümanını da denetler** (2026-08-07, Faz 48): `ServiceDescriptor.Singleton<TService, TImplementation>()`'a kendi jenerik parametrenizi geçirmek `IL2091` verir; parametre `[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)]` ile işaretlenmelidir. `AddContentGuard<TGuard>` bunun örneğidir. Bu tanı derlemeyi kırar — AOT analyzer'ının `Core` üzerinde gerçekten canlı olduğunun kanıtı.
 - **`System.Threading.Lock` net9+** (2026-08-02): `src/` net8.0 da hedefler; orada `lock` nesnesi olarak listenin kendisi kullanılır — ayrı bir `object` alanı `MA0158` tetikler. Test projeleri net10.0'dır ve `Lock` kullanabilir.
 
@@ -55,33 +55,6 @@
   csproj'dan **once** yuklendigi icin orada turetmek tuketicinin `false` tercihini
   yok sayardi (K-006).
 
-## PublicApiAnalyzers (RS00xx, Faz 60)
-
-- **🚨 `dotnet format analyzers --diagnostics RS0016` tek koşumda bitmez —
-  çözüm boyunca iteratif çalıştır** (2026-08-16): her koşum yalnız bir sonraki
-  projenin (bağımlılık sırasına yakın) diagnostiklerini çözer. 17 paketlik bir
-  çözümde yakınsamak için 13 koşum gerekti. `Formatted N of M files.` çıktısı
-  N < M iken bile "bitti" görünebilir — asıl kanıt yeniden `dotnet build`
-  çalıştırıp kalan `RS0016` sayısına bakmaktır.
-- **🚨 Analyzer'ı ZORUNLU kılan `PackageReference` koşulsuzsa, o projede
-  eksik `PublicAPI.txt` `dotnet format`'ı `System.NotSupportedException:
-  Adding additional documents is not supported` ile ÇÖKERTİR** (2026-08-16):
-  `MSBuildWorkspace` eksik bir `AdditionalDocument`'i solution-çapında toplu
-  düzeltme sırasında EKLEYEMİYOR. Çözüm: dosya olmayan projeleri toplu koşum
-  ÖNCESİNDE ya boş `PublicAPI.{Shipped,Unshipped}.txt` ekleyerek ya da
-  analyzer referansını MSBuild özelliğiyle (`Condition`) o projede kapatarak
-  devre dışı bırak.
-- **RS0026 ("aynı ada sahip aşırı yükleme, opsiyonel parametre taşıyor")
-  RS0027 ile birlikte okunmalı** ("bu opsiyonel parametreyi taşıyan aşırı
-  yükleme, aynı isimdeki TÜM aşırı yüklemeler arasında EN ÇOK parametreye
-  sahip olmalı"): opsiyonel parametreyi KISA aşırı yüklemede bırakıp UZUN
-  aşırı yüklemeden kaldırmak RS0026'yı KAPATIR ama RS0027'yi AÇAR. Doğru yön
-  tam tersi — opsiyonel her zaman en uzun aşırı yüklemede kalır, kısa
-  olan(lar) ya tamamen opsiyonelsiz ya ayrı isimli (statik fabrika) olur.
-  Constructor çiftlerinde (isim değiştirilemez) çözüm `private` ctor + `public
-  static FromXyz(...)` fabrika metodudur — varsayılanlar fabrikada kalır,
-  ctor artık public API'de görünmez.
-
 ## Baglantili kaynak ve XML dokumani (K-352)
 
 - **🚨 Ayni kaynak N derlemeye baglanirsa N `.xml` AYNI `<member>` kimligini
@@ -96,16 +69,6 @@
   C# dosyalarını `CRLF` olarak çıkarabilir ve `dotnet format` her satırı
   `WHITESPACE` hatası sayar. Root `.gitattributes` içindeki
   `* text=auto eol=lf` sözleşmesini kaldırma veya daraltma.
-- **🚨 `CA1873`, logging argumani olarak verilen property erisimini de pahali
-  sayabilir** (2026-08-28, Ubuntu CI): `_buffer.Length`, `judge.Name` ve
-  `timeout.TotalSeconds` gibi erisimler bes cagrida build'i kirdi. Mesaji
-  susturma. Cagriyi ayni seviyenin `logger.IsEnabled(LogLevel.X)` guard'i
-  icine al; nullable logger icin `logger?.IsEnabled(...) is true` kullan.
-  Ayni tani her target framework icin tekrarlandigi icin 5 vaka 15 hata gorunur.
-- **`CA1875` için `Regex.Matches(...).Count` kullanma.** Yalnız eşleşme sayısı
-  gerekiyorsa `Regex.Count(...)` kullan; `MatchCollection` üretme. Analyzer
-  sürümü veya işletim sistemi farkı nedeniyle yerel incremental build tanıyı
-  göstermese bile temiz CI build'i gösterebilir.
 - **AOT kacis merdiveni** (AGENTS.md'den, Faz 77): `reflection` yerine sirayla dene —
   (1) elle yaz; (2) `source generator`; (3) kacinilmazsa `[RequiresUnreferencedCode]` +
   `[RequiresDynamicCode]` isaretle; uyariyi **bastirma**, cagirana ilet.
@@ -137,14 +100,3 @@
 - **Sürüklenmeyi Dependabot bildirir**: NuGet ve iki npm dizini **haftalik**,
   GitHub Actions **aylik**. Gruplar surum hatti kisitini korur: MAF'in GA/preview/alpha katmanlari
   tek PR'da gelir (K-008), MCP `.Core` + `.AspNetCore` tek PR'da (K-334).
-- **🚨 CA1305 format belirtecli bir INTERPOLASYONU GORMEZ** (2026-09-07, Faz 153,
-  K-720): format belirtecli bir interpolasyon `string.Format`'a degil
-  `DefaultInterpolatedStringHandler`'a derlenir. Olculdu: CA1305 `warning`'e
-  cekildiginde uc gercek ihlal dururken **sifir** bulgu verdi. Hangi belirtecin
-  riskli oldugu da olculdu (tr-TR): `0.0`, `0.000000` ve `P0` RISKLI; **`F0` ve
-  `0` DEGIL** — hicbir kulturde basamak gruplamazlar, yani `{seconds:F0}` gormek
-  tek basina bir bulgu DEGILDIR. Kural: surecten cikan (kalici, HTTP govdesi,
-  tool sonucu, CLI satiri) ve ondalik ya da yuzde tasiyan her metin
-  `string.Create(CultureInfo.InvariantCulture, $"...")` ile kurulur. Guard
-  davranissaldir (`InvariantShippedTextTests`), analyzer kurali yoktur. Ayrinti:
-  [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
