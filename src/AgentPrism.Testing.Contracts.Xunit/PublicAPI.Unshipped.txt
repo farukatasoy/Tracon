@@ -245,14 +245,19 @@ AgentPrism.Testing.Contracts.Storage.JobStoreContract.GetAsync_returns_null_for_
 AgentPrism.Testing.Contracts.Storage.JobStoreContract.JobStoreContract() -> void
 AgentPrism.Testing.Contracts.Storage.JobStoreContract.Job_can_be_re_leased_once_the_lease_expires() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.JobStoreContract.Job_not_yet_due_cannot_be_leased() -> System.Threading.Tasks.Task!
-AgentPrism.Testing.Contracts.Storage.JobStoreContract.Leased_job_is_not_given_to_another_worker_before_expiry() -> System.Threading.Tasks.Task!
-AgentPrism.Testing.Contracts.Storage.JobStoreContract.Leasing_marks_Leased_and_increments_the_attempt() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.JobStoreContract.Lease_with_a_lane_filter_never_returns_a_job_from_an_unlisted_lane() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.JobStoreContract.Lease_with_a_lane_filter_only_returns_a_job_in_that_lane() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.JobStoreContract.Lease_with_an_empty_lanes_list_applies_no_filter() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.JobStoreContract.Lease_with_null_lanes_applies_no_filter() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.Storage.JobStoreContract.Leased_job_is_not_given_to_another_worker_before_expiry() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.Storage.JobStoreContract.Leasing_marks_Leased_and_increments_the_attempt() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.JobStoreContract.MarkRunningAsync_works_only_for_the_real_owner() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.Storage.JobStoreContract.QueryAsync_filters_by_handler_key() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.JobStoreContract.QueryAsync_filters_by_lane() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.Storage.JobStoreContract.QueryAsync_filters_by_tenant() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.Storage.JobStoreContract.QueryAsync_lane_filter_does_not_leak_another_tenants_job() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.Storage.JobStoreContract.QueryAsync_returns_nothing_for_a_handler_key_no_job_uses() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.Storage.JobStoreContract.QueryAsync_treats_an_empty_handler_key_as_a_filter_that_matches_nothing() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.JobStoreContract.Queue_depth_counts_a_job_released_for_retry_as_pending_again() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.JobStoreContract.Queue_depth_counts_every_tenants_jobs_together() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.JobStoreContract.Queue_depth_drops_a_lane_once_its_last_job_finishes() -> System.Threading.Tasks.Task!
@@ -260,8 +265,6 @@ AgentPrism.Testing.Contracts.Storage.JobStoreContract.Queue_depth_groups_pending
 AgentPrism.Testing.Contracts.Storage.JobStoreContract.Queue_depth_is_empty_when_no_job_is_open() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.JobStoreContract.Queue_depth_never_counts_a_terminal_status() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.JobStoreContract.Queue_depth_separates_the_open_statuses() -> System.Threading.Tasks.Task!
-AgentPrism.Testing.Contracts.Storage.JobStoreContract.QueryAsync_lane_filter_does_not_leak_another_tenants_job() -> System.Threading.Tasks.Task!
-AgentPrism.Testing.Contracts.Storage.JobStoreContract.QueryAsync_filters_by_tenant() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.JobStoreContract.ReleaseForRetryAsync_returns_to_pending_without_resetting_the_attempt() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.JobStoreContract.ReportItemAsync_counts_successful_and_failed_items_separately() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.JobStoreContract.ReportItemAsync_is_idempotent() -> System.Threading.Tasks.Task!
@@ -288,8 +291,8 @@ AgentPrism.Testing.Contracts.Storage.PendingApprovalStoreContract.Presentation_r
 AgentPrism.Testing.Contracts.Storage.PendingApprovalStoreContract.Second_decision_is_rejected() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.QuotaStoreContract
 AgentPrism.Testing.Contracts.Storage.QuotaStoreContract.A_different_metric_is_a_separate_claim() -> System.Threading.Tasks.Task!
-AgentPrism.Testing.Contracts.Storage.QuotaStoreContract.A_different_threshold_percent_is_a_separate_claim() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.QuotaStoreContract.A_different_tenants_identically_shaped_claim_is_independent() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.Storage.QuotaStoreContract.A_different_threshold_percent_is_a_separate_claim() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.QuotaStoreContract.A_new_period_starts_with_no_claim_even_if_the_previous_period_already_has_one() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.QuotaStoreContract.A_threshold_already_claimed_in_this_period_is_not_claimed_again() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.QuotaStoreContract.Another_tenants_rule_is_not_visible() -> System.Threading.Tasks.Task!
@@ -344,27 +347,44 @@ AgentPrism.Testing.Contracts.Storage.RunInputStoreContract.Second_write_is_IGNOR
 AgentPrism.Testing.Contracts.Storage.RunInputStoreContract.Store.get -> AgentPrism.IRunInputStore!
 AgentPrism.Testing.Contracts.Storage.RunInputStoreContract.Written_input_round_trips_exactly() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.RunScoreStoreContract
+AgentPrism.Testing.Contracts.Storage.RunScoreStoreContract.A_categorical_score_carrying_a_numeric_value_is_REJECTED() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.Storage.RunScoreStoreContract.A_categorical_score_is_stored_as_text() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.Storage.RunScoreStoreContract.A_decimal_value_is_NOT_rounded() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.Storage.RunScoreStoreContract.A_null_value_is_counted_but_does_not_enter_the_average() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.Storage.RunScoreStoreContract.A_null_value_means_NO_MEASUREMENT_not_zero() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.Storage.RunScoreStoreContract.A_numeric_score_carrying_a_text_value_is_REJECTED() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.Storage.RunScoreStoreContract.A_whole_number_value_is_read_back_as_a_number_not_an_integer() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.Storage.RunScoreStoreContract.An_empty_match_returns_empty_lists_not_null() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.Storage.RunScoreStoreContract.An_empty_string_Author_is_excluded_from_the_author_breakdown_like_no_author() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.Storage.RunScoreStoreContract.An_empty_string_MessageId_is_treated_the_same_as_no_message() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.Storage.RunScoreStoreContract.An_illegal_name_is_REJECTED(string! name) -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.RunScoreStoreContract.Another_tenants_score_cannot_be_deleted() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.RunScoreStoreContract.Another_tenants_score_is_not_visible() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.Storage.RunScoreStoreContract.Another_tenants_score_never_enters_the_summary() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.Storage.RunScoreStoreContract.Author_breakdown_excludes_scores_with_no_author() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.Storage.RunScoreStoreContract.Canceled_token_throws() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.Storage.RunScoreStoreContract.Categorical_scores_report_category_counts_not_an_average() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.Storage.RunScoreStoreContract.Category_cardinality_beyond_MaxRows_is_truncated_and_reported() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.Storage.RunScoreStoreContract.Concurrent_writes_of_the_SAME_name_leave_exactly_one_row() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.RunScoreStoreContract.Deleting_a_nonexistent_score_returns_false() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.RunScoreStoreContract.Different_authors_score_the_same_target_independently() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.Storage.RunScoreStoreContract.Different_kinds_of_the_same_name_are_not_averaged_together() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.RunScoreStoreContract.Different_messages_are_scored_independently() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.RunScoreStoreContract.Empty_author_makes_EVERY_call_open_a_new_row() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.Storage.RunScoreStoreContract.Hour_buckets_group_scores_within_the_same_hour() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.Storage.RunScoreStoreContract.MessageId_is_never_a_breakdown_dimension() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.Storage.RunScoreStoreContract.Repeated_writes_of_the_SAME_name_leave_exactly_one_row() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.RunScoreStoreContract.RunScoreStoreContract() -> void
 AgentPrism.Testing.Contracts.Storage.RunScoreStoreContract.Same_author_scoring_the_same_target_twice_UPDATES_the_row() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.RunScoreStoreContract.Same_author_scoring_the_same_target_under_a_DIFFERENT_name_opens_a_new_row() -> System.Threading.Tasks.Task!
-AgentPrism.Testing.Contracts.Storage.RunScoreStoreContract.Updating_ONE_name_leaves_the_authors_other_names_untouched() -> System.Threading.Tasks.Task!
-AgentPrism.Testing.Contracts.Storage.RunScoreStoreContract.A_decimal_value_is_NOT_rounded() -> System.Threading.Tasks.Task!
-AgentPrism.Testing.Contracts.Storage.RunScoreStoreContract.A_whole_number_value_is_read_back_as_a_number_not_an_integer() -> System.Threading.Tasks.Task!
-AgentPrism.Testing.Contracts.Storage.RunScoreStoreContract.A_null_value_means_NO_MEASUREMENT_not_zero() -> System.Threading.Tasks.Task!
-AgentPrism.Testing.Contracts.Storage.RunScoreStoreContract.A_categorical_score_is_stored_as_text() -> System.Threading.Tasks.Task!
-AgentPrism.Testing.Contracts.Storage.RunScoreStoreContract.A_categorical_score_carrying_a_numeric_value_is_REJECTED() -> System.Threading.Tasks.Task!
-AgentPrism.Testing.Contracts.Storage.RunScoreStoreContract.A_numeric_score_carrying_a_text_value_is_REJECTED() -> System.Threading.Tasks.Task!
-AgentPrism.Testing.Contracts.Storage.RunScoreStoreContract.An_illegal_name_is_REJECTED(string! name) -> System.Threading.Tasks.Task!
-AgentPrism.Testing.Contracts.Storage.RunScoreStoreContract.Repeated_writes_of_the_SAME_name_leave_exactly_one_row() -> System.Threading.Tasks.Task!
-AgentPrism.Testing.Contracts.Storage.RunScoreStoreContract.Concurrent_writes_of_the_SAME_name_leave_exactly_one_row() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.RunScoreStoreContract.Score_is_deleted() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.RunScoreStoreContract.Score_with_no_message_id_belongs_to_the_whole_run() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.Storage.RunScoreStoreContract.Scores_are_grouped_into_time_buckets_and_empty_buckets_are_omitted() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.Storage.RunScoreStoreContract.Summary_can_be_read_while_a_score_is_being_written() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.Storage.RunScoreStoreContract.Target_Message_excludes_run_level_scores() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.Storage.RunScoreStoreContract.Target_Run_excludes_message_level_scores() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.Storage.RunScoreStoreContract.Updating_ONE_name_leaves_the_authors_other_names_untouched() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.Storage.RunScoreStoreContract.Week_buckets_start_on_Monday_and_group_the_whole_week() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.RunScoreStoreContract.Written_score_is_read_back() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.RunStoreContract
 AgentPrism.Testing.Contracts.Storage.RunStoreContract.A_label_key_without_a_value_matches_any_value_of_that_key() -> System.Threading.Tasks.Task!
@@ -386,18 +406,20 @@ AgentPrism.Testing.Contracts.Storage.RunStoreContract.Completion_overrides_the_m
 AgentPrism.Testing.Contracts.Storage.RunStoreContract.Completion_stores_error_class_and_fingerprint() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.RunStoreContract.Completion_updates_the_summary() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.RunStoreContract.ContinuedFromRunId_round_trips() -> System.Threading.Tasks.Task!
-AgentPrism.Testing.Contracts.Storage.RunStoreContract.Custom_event_custom_type_round_trips_and_stays_null_for_every_other_type() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.RunStoreContract.Cost_does_not_exist_at_all_when_model_is_unknown() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.RunStoreContract.Cost_fields_are_null_but_source_is_written_as_unknown_when_pricing_is_undefined() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.RunStoreContract.Cost_is_written_and_read_back() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.RunStoreContract.Cost_recalculation_updates_the_target_row() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.Storage.RunStoreContract.Custom_event_custom_type_round_trips_and_stays_null_for_every_other_type() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.RunStoreContract.Empty_store_summary_returns_zero() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.RunStoreContract.Event_cannot_be_appended_to_a_nonexistent_run() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.RunStoreContract.Event_fields_round_trip() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.RunStoreContract.Events_are_read_in_sequence_order() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.RunStoreContract.Every_cost_total_includes_the_cache_charge() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.RunStoreContract.Experiment_results_are_summarized_per_arm() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.Storage.RunStoreContract.Experiment_results_average_a_run_level_score_written_with_an_empty_message_id() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.RunStoreContract.Experiment_results_include_cost() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.Storage.RunStoreContract.Experiment_results_leave_a_message_level_score_out_of_the_average() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.RunStoreContract.Experiment_results_return_empty_for_an_experiment_with_no_traffic() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.RunStoreContract.List_returns_only_root_runs_by_default() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.RunStoreContract.Nonexistent_run_cannot_be_completed() -> System.Threading.Tasks.Task!
@@ -457,19 +479,27 @@ AgentPrism.Testing.Contracts.Storage.RunStoreContract.Unit_prices_stay_null_when
 AgentPrism.Testing.Contracts.Storage.RunStoreContract.UpdateRunCostAsync_does_not_update_with_the_wrong_expected_tenant() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.RunStoreContract.Workflow_run_lives_in_the_same_table() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.SessionStoreContract
+AgentPrism.Testing.Contracts.Storage.SessionStoreContract.A_later_write_that_carries_no_owner_does_not_CLEAR_the_stored_one() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.SessionStoreContract.A_session_saved_without_StateMafVersion_reads_back_null() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.Storage.SessionStoreContract.A_session_saved_without_an_owner_reads_back_null() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.Storage.SessionStoreContract.An_owned_session_round_trips_its_owner() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.Storage.SessionStoreContract.An_owner_at_the_maximum_allowed_length_round_trips_whole() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.Storage.SessionStoreContract.An_unowned_session_can_still_be_given_an_owner() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.SessionStoreContract.Delete_removes_the_record() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.SessionStoreContract.GetOwnerTenantIdAsync_returns_null_for_a_never_used_id() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.SessionStoreContract.GetOwnerTenantIdAsync_returns_the_real_owner_independent_of_the_ambient_tenant() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.SessionStoreContract.Nonexistent_session_returns_null() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.SessionStoreContract.Query_applies_paging() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.Storage.SessionStoreContract.Query_applies_the_owner_filter_BEFORE_paging() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.SessionStoreContract.Query_filters_by_agent_name() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.Storage.SessionStoreContract.Query_filters_by_owner_and_never_returns_an_unowned_row() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.SessionStoreContract.Query_starts_with_the_most_recently_updated() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.SessionStoreContract.SaveAsync_advances_the_version_so_a_stale_update_cannot_match_it() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.SessionStoreContract.Saving_with_the_same_id_overwrites_the_record_and_keeps_the_creation_time() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.SessionStoreContract.SessionStoreContract() -> void
 AgentPrism.Testing.Contracts.Storage.SessionStoreContract.Session_state_round_trips_without_corruption() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.SessionStoreContract.StateSchemaVersion_and_StateMafVersion_round_trip() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.Storage.SessionStoreContract.The_same_owner_stays_separate_in_two_tenants() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.SessionStoreContract.TryCreateAsync_only_one_concurrent_call_with_the_same_id_wins() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.SessionStoreContract.TryCreateAsync_returns_false_and_does_not_overwrite_for_an_existing_id() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.SessionStoreContract.TryCreateAsync_returns_true_and_saves_for_a_new_id() -> System.Threading.Tasks.Task!
@@ -624,6 +654,27 @@ AgentPrism.Testing.Contracts.Tools.CustomToolContract.Registration.get -> AgentP
 AgentPrism.Testing.Contracts.Tools.RepeatableToolContract
 AgentPrism.Testing.Contracts.Tools.RepeatableToolContract.Registration_is_marked_safe_to_repeat() -> void
 AgentPrism.Testing.Contracts.Tools.RepeatableToolContract.RepeatableToolContract() -> void
+AgentPrism.Testing.Contracts.Tools.ToolArgumentValidationContract
+AgentPrism.Testing.Contracts.Tools.ToolArgumentValidationContract.A_pre_cancelled_token_is_honored() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.Tools.ToolArgumentValidationContract.DisposeAsync() -> System.Threading.Tasks.ValueTask
+AgentPrism.Testing.Contracts.Tools.ToolArgumentValidationContract.InitializeAsync() -> System.Threading.Tasks.ValueTask
+AgentPrism.Testing.Contracts.Tools.ToolArgumentValidationContract.Missing_required_argument_is_rejected() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.Tools.ToolArgumentValidationContract.Out_of_range_number_is_rejected() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.Tools.ToolArgumentValidationContract.Pattern_violation_is_rejected() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.Tools.ToolArgumentValidationContract.Throwing_validator_rejects_the_call() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.Tools.ToolArgumentValidationContract.Tool.get -> Microsoft.Extensions.AI.AIFunction!
+AgentPrism.Testing.Contracts.Tools.ToolArgumentValidationContract.ToolArgumentValidationContract() -> void
+AgentPrism.Testing.Contracts.Tools.ToolArgumentValidationContract.Type_mismatch_is_rejected() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.Tools.ToolArgumentValidationContract.Unknown_extra_property_is_handled_deliberately() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.Tools.ToolArgumentValidationContract.Validator.get -> AgentPrism.IToolArgumentsValidator!
+AgentPrism.Testing.Contracts.Tools.ToolAuthorizationContract
+AgentPrism.Testing.Contracts.Tools.ToolAuthorizationContract.Denied_call_never_runs_the_tool_body() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.Tools.ToolAuthorizationContract.DisposeAsync() -> System.Threading.Tasks.ValueTask
+AgentPrism.Testing.Contracts.Tools.ToolAuthorizationContract.Handler.get -> AgentPrism.IToolAuthorizationHandler!
+AgentPrism.Testing.Contracts.Tools.ToolAuthorizationContract.Handler_receives_the_calling_tenant() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.Tools.ToolAuthorizationContract.InitializeAsync() -> System.Threading.Tasks.ValueTask
+AgentPrism.Testing.Contracts.Tools.ToolAuthorizationContract.Throwing_handler_denies_the_call() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.Tools.ToolAuthorizationContract.ToolAuthorizationContract() -> void
 abstract AgentPrism.Testing.Contracts.AgentSources.AgentSourceContract.CreateSourceAsync() -> System.Threading.Tasks.ValueTask<AgentPrism.IAgentSource!>
 abstract AgentPrism.Testing.Contracts.AgentSources.AgentSourceContract.KnownAgentName.get -> string!
 abstract AgentPrism.Testing.Contracts.AgentSources.TenantAwareAgentSourceContract.UseTenantAsync(string! tenantId) -> System.Threading.Tasks.ValueTask<string!>
@@ -649,6 +700,11 @@ abstract AgentPrism.Testing.Contracts.Storage.TenantIsolationContract<TStore>.Se
 abstract AgentPrism.Testing.Contracts.Storage.TraceStoreContract.SeedRunAsync(System.Guid runId) -> System.Threading.Tasks.ValueTask
 abstract AgentPrism.Testing.Contracts.Tools.CustomToolContract.CreateRegistrationAsync() -> System.Threading.Tasks.ValueTask<AgentPrism.AgentPrismToolRegistration!>
 abstract AgentPrism.Testing.Contracts.Tools.CustomToolContract.ExpectedResultText.get -> string!
+abstract AgentPrism.Testing.Contracts.Tools.ToolArgumentValidationContract.CreateToolAsync() -> System.Threading.Tasks.ValueTask<Microsoft.Extensions.AI.AIFunction!>
+abstract AgentPrism.Testing.Contracts.Tools.ToolArgumentValidationContract.CreateValidatorAsync() -> System.Threading.Tasks.ValueTask<AgentPrism.IToolArgumentsValidator!>
+abstract AgentPrism.Testing.Contracts.Tools.ToolAuthorizationContract.AllowedRequest.get -> AgentPrism.ToolAuthorizationRequest!
+abstract AgentPrism.Testing.Contracts.Tools.ToolAuthorizationContract.CreateHandlerAsync() -> System.Threading.Tasks.ValueTask<AgentPrism.IToolAuthorizationHandler!>
+abstract AgentPrism.Testing.Contracts.Tools.ToolAuthorizationContract.DeniedRequest.get -> AgentPrism.ToolAuthorizationRequest!
 const AgentPrism.Testing.Contracts.ContractCoverage.AgentSourceContracts = "AgentPrism.Testing.Contracts.AgentSources" -> string!
 const AgentPrism.Testing.Contracts.ContractCoverage.JudgeContracts = "AgentPrism.Testing.Contracts.Judges" -> string!
 const AgentPrism.Testing.Contracts.ContractCoverage.ProviderContracts = "AgentPrism.Testing.Contracts.Providers" -> string!
@@ -703,9 +759,6 @@ override AgentPrism.Testing.Contracts.Storage.JobStoreContract.CountAsync(string
 override AgentPrism.Testing.Contracts.Storage.JobStoreContract.ExistsAsync(string! tenantId, object! key) -> System.Threading.Tasks.ValueTask<bool>
 override AgentPrism.Testing.Contracts.Storage.JobStoreContract.SeedAsync(string! tenantId, string! name) -> System.Threading.Tasks.ValueTask<object!>
 override AgentPrism.Testing.Contracts.Storage.JobStoreContract.TryDeleteAsync(string! tenantId, object! key) -> System.Threading.Tasks.ValueTask<bool?>
-AgentPrism.Testing.Contracts.Storage.JobStoreContract.QueryAsync_filters_by_handler_key() -> System.Threading.Tasks.Task!
-AgentPrism.Testing.Contracts.Storage.JobStoreContract.QueryAsync_returns_nothing_for_a_handler_key_no_job_uses() -> System.Threading.Tasks.Task!
-AgentPrism.Testing.Contracts.Storage.JobStoreContract.QueryAsync_treats_an_empty_handler_key_as_a_filter_that_matches_nothing() -> System.Threading.Tasks.Task!
 override AgentPrism.Testing.Contracts.Storage.McpServerStoreContract.CountAsync(string! tenantId) -> System.Threading.Tasks.ValueTask<int>
 override AgentPrism.Testing.Contracts.Storage.McpServerStoreContract.ExistsAsync(string! tenantId, object! key) -> System.Threading.Tasks.ValueTask<bool>
 override AgentPrism.Testing.Contracts.Storage.McpServerStoreContract.SeedAsync(string! tenantId, string! name) -> System.Threading.Tasks.ValueTask<object!>
@@ -793,6 +846,7 @@ virtual AgentPrism.Testing.Contracts.Providers.ModelProviderContract.UnknownMode
 virtual AgentPrism.Testing.Contracts.Providers.ModelProviderCredentialContract.OtherCredential.get -> AgentPrism.ModelProviderCredential!
 virtual AgentPrism.Testing.Contracts.Providers.ModelProviderSettingsContract.UnsupportedSettingKey.get -> string!
 virtual AgentPrism.Testing.Contracts.Scheduling.JobHandlerContract.CreateJob(System.Collections.Generic.IReadOnlyList<AgentPrism.JobItemRecord!>! items) -> AgentPrism.JobRecord!
+virtual AgentPrism.Testing.Contracts.Scheduling.JobHandlerContract.HandlerKey.get -> string!
 virtual AgentPrism.Testing.Contracts.Storage.AuditLogContract.ExecuteRawAsync(string! sql) -> System.Threading.Tasks.ValueTask
 virtual AgentPrism.Testing.Contracts.Storage.AuditLogContract.FormatIdForRawSql(System.Guid id) -> string!
 virtual AgentPrism.Testing.Contracts.Storage.AuditLogContract.QualifiedAuditLogTable.get -> string!
@@ -802,61 +856,10 @@ virtual AgentPrism.Testing.Contracts.Storage.PendingApprovalStoreContract.Prepar
 virtual AgentPrism.Testing.Contracts.Storage.RetentionStoreContract.OnDisposeAsync() -> System.Threading.Tasks.ValueTask
 virtual AgentPrism.Testing.Contracts.Storage.RunInputStoreContract.OnDisposeAsync() -> System.Threading.Tasks.ValueTask
 virtual AgentPrism.Testing.Contracts.Storage.RunInputStoreContract.PrepareRunAsync(System.Guid runId, string! tenantId) -> System.Threading.Tasks.ValueTask
+virtual AgentPrism.Testing.Contracts.Storage.RunStoreContract.CreateScoreStoreAsync() -> System.Threading.Tasks.ValueTask<AgentPrism.IRunScoreStore?>
 virtual AgentPrism.Testing.Contracts.Storage.SingletonLeaseStoreContract.OnDisposeAsync() -> System.Threading.Tasks.ValueTask
 virtual AgentPrism.Testing.Contracts.Storage.TenantIsolationContract<TStore>.OnDisposeAsync() -> System.Threading.Tasks.ValueTask
 virtual AgentPrism.Testing.Contracts.Storage.TenantIsolationContract<TStore>.TryDeleteAsync(string! tenantId, object! key) -> System.Threading.Tasks.ValueTask<bool?>
 virtual AgentPrism.Testing.Contracts.Storage.TenantIsolationContract<TStore>.TryOverwriteAsync(string! tenantId, string! name) -> System.Threading.Tasks.ValueTask<bool>
-virtual AgentPrism.Testing.Contracts.Scheduling.JobHandlerContract.HandlerKey.get -> string!
-AgentPrism.Testing.Contracts.Tools.ToolArgumentValidationContract
-AgentPrism.Testing.Contracts.Tools.ToolArgumentValidationContract.A_pre_cancelled_token_is_honored() -> System.Threading.Tasks.Task!
-AgentPrism.Testing.Contracts.Tools.ToolArgumentValidationContract.DisposeAsync() -> System.Threading.Tasks.ValueTask
-AgentPrism.Testing.Contracts.Tools.ToolArgumentValidationContract.InitializeAsync() -> System.Threading.Tasks.ValueTask
-AgentPrism.Testing.Contracts.Tools.ToolArgumentValidationContract.Missing_required_argument_is_rejected() -> System.Threading.Tasks.Task!
-AgentPrism.Testing.Contracts.Tools.ToolArgumentValidationContract.Out_of_range_number_is_rejected() -> System.Threading.Tasks.Task!
-AgentPrism.Testing.Contracts.Tools.ToolArgumentValidationContract.Pattern_violation_is_rejected() -> System.Threading.Tasks.Task!
-AgentPrism.Testing.Contracts.Tools.ToolArgumentValidationContract.Throwing_validator_rejects_the_call() -> System.Threading.Tasks.Task!
-AgentPrism.Testing.Contracts.Tools.ToolArgumentValidationContract.Tool.get -> Microsoft.Extensions.AI.AIFunction!
-AgentPrism.Testing.Contracts.Tools.ToolArgumentValidationContract.ToolArgumentValidationContract() -> void
-AgentPrism.Testing.Contracts.Tools.ToolArgumentValidationContract.Type_mismatch_is_rejected() -> System.Threading.Tasks.Task!
-AgentPrism.Testing.Contracts.Tools.ToolArgumentValidationContract.Unknown_extra_property_is_handled_deliberately() -> System.Threading.Tasks.Task!
-AgentPrism.Testing.Contracts.Tools.ToolArgumentValidationContract.Validator.get -> AgentPrism.IToolArgumentsValidator!
-AgentPrism.Testing.Contracts.Tools.ToolAuthorizationContract
-AgentPrism.Testing.Contracts.Tools.ToolAuthorizationContract.Denied_call_never_runs_the_tool_body() -> System.Threading.Tasks.Task!
-AgentPrism.Testing.Contracts.Tools.ToolAuthorizationContract.DisposeAsync() -> System.Threading.Tasks.ValueTask
-AgentPrism.Testing.Contracts.Tools.ToolAuthorizationContract.Handler.get -> AgentPrism.IToolAuthorizationHandler!
-AgentPrism.Testing.Contracts.Tools.ToolAuthorizationContract.Handler_receives_the_calling_tenant() -> System.Threading.Tasks.Task!
-AgentPrism.Testing.Contracts.Tools.ToolAuthorizationContract.InitializeAsync() -> System.Threading.Tasks.ValueTask
-AgentPrism.Testing.Contracts.Tools.ToolAuthorizationContract.Throwing_handler_denies_the_call() -> System.Threading.Tasks.Task!
-AgentPrism.Testing.Contracts.Tools.ToolAuthorizationContract.ToolAuthorizationContract() -> void
-abstract AgentPrism.Testing.Contracts.Tools.ToolArgumentValidationContract.CreateToolAsync() -> System.Threading.Tasks.ValueTask<Microsoft.Extensions.AI.AIFunction!>
-abstract AgentPrism.Testing.Contracts.Tools.ToolArgumentValidationContract.CreateValidatorAsync() -> System.Threading.Tasks.ValueTask<AgentPrism.IToolArgumentsValidator!>
-abstract AgentPrism.Testing.Contracts.Tools.ToolAuthorizationContract.CreateHandlerAsync() -> System.Threading.Tasks.ValueTask<AgentPrism.IToolAuthorizationHandler!>
-abstract AgentPrism.Testing.Contracts.Tools.ToolAuthorizationContract.AllowedRequest.get -> AgentPrism.ToolAuthorizationRequest!
-abstract AgentPrism.Testing.Contracts.Tools.ToolAuthorizationContract.DeniedRequest.get -> AgentPrism.ToolAuthorizationRequest!
 virtual AgentPrism.Testing.Contracts.Tools.ToolArgumentValidationContract.ExtraPropertyIsRejected.get -> bool
 virtual AgentPrism.Testing.Contracts.Tools.ToolArgumentValidationContract.Seed.get -> int
-AgentPrism.Testing.Contracts.Storage.SessionStoreContract.An_owned_session_round_trips_its_owner() -> System.Threading.Tasks.Task!
-AgentPrism.Testing.Contracts.Storage.SessionStoreContract.A_session_saved_without_an_owner_reads_back_null() -> System.Threading.Tasks.Task!
-AgentPrism.Testing.Contracts.Storage.SessionStoreContract.Query_filters_by_owner_and_never_returns_an_unowned_row() -> System.Threading.Tasks.Task!
-AgentPrism.Testing.Contracts.Storage.SessionStoreContract.Query_applies_the_owner_filter_BEFORE_paging() -> System.Threading.Tasks.Task!
-AgentPrism.Testing.Contracts.Storage.SessionStoreContract.The_same_owner_stays_separate_in_two_tenants() -> System.Threading.Tasks.Task!
-AgentPrism.Testing.Contracts.Storage.SessionStoreContract.An_owner_at_the_maximum_allowed_length_round_trips_whole() -> System.Threading.Tasks.Task!
-AgentPrism.Testing.Contracts.Storage.SessionStoreContract.A_later_write_that_carries_no_owner_does_not_CLEAR_the_stored_one() -> System.Threading.Tasks.Task!
-AgentPrism.Testing.Contracts.Storage.SessionStoreContract.An_unowned_session_can_still_be_given_an_owner() -> System.Threading.Tasks.Task!
-AgentPrism.Testing.Contracts.Storage.RunScoreStoreContract.A_null_value_is_counted_but_does_not_enter_the_average() -> System.Threading.Tasks.Task!
-AgentPrism.Testing.Contracts.Storage.RunScoreStoreContract.An_empty_match_returns_empty_lists_not_null() -> System.Threading.Tasks.Task!
-AgentPrism.Testing.Contracts.Storage.RunScoreStoreContract.Another_tenants_score_never_enters_the_summary() -> System.Threading.Tasks.Task!
-AgentPrism.Testing.Contracts.Storage.RunScoreStoreContract.Author_breakdown_excludes_scores_with_no_author() -> System.Threading.Tasks.Task!
-AgentPrism.Testing.Contracts.Storage.RunScoreStoreContract.Canceled_token_throws() -> System.Threading.Tasks.Task!
-AgentPrism.Testing.Contracts.Storage.RunScoreStoreContract.Categorical_scores_report_category_counts_not_an_average() -> System.Threading.Tasks.Task!
-AgentPrism.Testing.Contracts.Storage.RunScoreStoreContract.Category_cardinality_beyond_MaxRows_is_truncated_and_reported() -> System.Threading.Tasks.Task!
-AgentPrism.Testing.Contracts.Storage.RunScoreStoreContract.Different_kinds_of_the_same_name_are_not_averaged_together() -> System.Threading.Tasks.Task!
-AgentPrism.Testing.Contracts.Storage.RunScoreStoreContract.MessageId_is_never_a_breakdown_dimension() -> System.Threading.Tasks.Task!
-AgentPrism.Testing.Contracts.Storage.RunScoreStoreContract.Scores_are_grouped_into_time_buckets_and_empty_buckets_are_omitted() -> System.Threading.Tasks.Task!
-AgentPrism.Testing.Contracts.Storage.RunScoreStoreContract.Summary_can_be_read_while_a_score_is_being_written() -> System.Threading.Tasks.Task!
-AgentPrism.Testing.Contracts.Storage.RunScoreStoreContract.Target_Message_excludes_run_level_scores() -> System.Threading.Tasks.Task!
-AgentPrism.Testing.Contracts.Storage.RunScoreStoreContract.Target_Run_excludes_message_level_scores() -> System.Threading.Tasks.Task!
-AgentPrism.Testing.Contracts.Storage.RunScoreStoreContract.Hour_buckets_group_scores_within_the_same_hour() -> System.Threading.Tasks.Task!
-AgentPrism.Testing.Contracts.Storage.RunScoreStoreContract.Week_buckets_start_on_Monday_and_group_the_whole_week() -> System.Threading.Tasks.Task!
-AgentPrism.Testing.Contracts.Storage.RunScoreStoreContract.An_empty_string_MessageId_is_treated_the_same_as_no_message() -> System.Threading.Tasks.Task!
-AgentPrism.Testing.Contracts.Storage.RunScoreStoreContract.An_empty_string_Author_is_excluded_from_the_author_breakdown_like_no_author() -> System.Threading.Tasks.Task!

@@ -47,6 +47,20 @@ internal sealed class LoopEvaluatorRegistry
         BackgroundTaskCompletionKind,
     ];
 
+    /// <summary>
+    /// The built-in spelling of <paramref name="kind"/>, or <paramref name="kind"/>
+    /// itself when no built-in matches.
+    /// </summary>
+    /// <remarks>
+    /// Registration rejects a built-in name case-INSENSITIVELY, so matching it
+    /// case-SENSITIVELY here left names such as "aijudge" unusable from both
+    /// ends: they could not be registered and they could not be resolved. One
+    /// comparer on both sides closes that dead name space.
+    /// </remarks>
+    private static string Canonical(string kind)
+        => Array.Find(BuiltInKinds, builtIn => string.Equals(builtIn, kind, StringComparison.OrdinalIgnoreCase))
+           ?? kind;
+
     private readonly Dictionary<string, LoopEvaluator> _custom;
     private readonly IModelProviderRegistry _models;
     private readonly ModelRunJudgeOptions? _judgeOptions;
@@ -165,7 +179,7 @@ internal sealed class LoopEvaluatorRegistry
             throw Invalid(definition, $"Every loop criterion must carry a '{nameof(LoopCriterion.Kind)}'.");
         }
 
-        switch (criterion.Kind)
+        switch (Canonical(criterion.Kind))
         {
             case CompletionMarkerKind:
                 if (string.IsNullOrWhiteSpace(criterion.Marker))
