@@ -21786,7 +21786,7 @@ namespace AgentPrism.Client.Generated
         public double? Value { get; set; } = default!;
 
         /// <summary>
-        /// The categorical value. Set only when RunScoreKind RunScore.Kind is RunScoreKind.Categorical.
+        /// The categorical value. Set only for a RunScoreKind.Categorical score.
         /// </summary>
 
         [System.Text.Json.Serialization.JsonPropertyName("textValue")]
