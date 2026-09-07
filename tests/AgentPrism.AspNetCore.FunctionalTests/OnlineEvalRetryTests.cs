@@ -72,6 +72,83 @@ public sealed class OnlineEvalRetryTests
         (await scores.ListAsync(tenantContext.TenantId, runId)).Count.ShouldBe(2);
     }
 
+    /// <summary>
+    /// 🚨 K-638 after phase 152: a judge that holds MORE THAN ONE named score
+    /// row is still recognised as having scored the run.
+    /// </summary>
+    /// <remarks>
+    /// Names joined the uniqueness key in phase 152, so one author can now hold
+    /// several rows. The checkpoint asks "has this judge scored?" over
+    /// <c>Author</c> ALONE; keying it on (author, name) would let a retry call
+    /// a judge that had already run.
+    /// </remarks>
+    [Fact]
+    public async Task A_judge_holding_two_named_scores_is_still_skipped_on_retry()
+    {
+        var goodJudge = new CountingRunJudge("good", 70);
+        var flakyJudge = new FlakyRunJudge("flaky", failuresBeforeSuccess: 1, score: 55);
+
+        await using var host = await AgentPrismTestHost.StartAsync(
+            configureServices: services =>
+            {
+                services.UseScheduling(static options => options.RunWorker = false);
+                services.AddSingleton<IRunJudge>(goodJudge);
+                services.AddSingleton<IRunJudge>(flakyJudge);
+            });
+
+        var jobStore = host.Services.GetRequiredService<IJobStore>();
+        var jobHandler = host.Services.GetRequiredService<OnlineEvalJobHandler>();
+        var tenantContext = host.Services.GetRequiredService<ITenantContext>();
+        var scores = host.Services.GetRequiredService<IRunScoreStore>();
+        var runId = await SeedScorableRunAsync(host);
+        var now = DateTimeOffset.UtcNow;
+
+        var job = await jobStore.EnqueueAsync(
+            new JobRecord
+            {
+                Id = AgentPrismId.NewId(),
+                TenantId = tenantContext.TenantId,
+                HandlerKey = JobHandlerKeys.OnlineEval,
+                TargetName = "test-agent",
+                Status = JobStatus.Pending,
+                Payload = JsonSerializer.SerializeToElement(new[] { runId.ToString() }),
+                ScheduledFor = now,
+                CreatedAt = now,
+            },
+            [runId.ToString()]);
+
+        // Attempt 1: 'good' scores, 'flaky' throws and the job stays pending.
+        await RunOneAttemptAsync(jobStore, jobHandler, job.Id);
+
+        goodJudge.CallCount.ShouldBe(1);
+
+        // A SECOND named row under the same judge author -- the shape phase 152
+        // makes possible and the shape the checkpoint must survive.
+        await scores.UpsertAsync(new RunScore
+        {
+            TenantId = tenantContext.TenantId,
+            RunId = runId,
+            Name = "verbosity",
+            Kind = RunScoreKind.Numeric,
+            Value = 42,
+            Source = "judge:good",
+            Author = "judge:good",
+            CreatedAt = now,
+        });
+
+        await RunOneAttemptAsync(jobStore, jobHandler, job.Id);
+
+        var completed = await jobStore.GetAsync(tenantContext.TenantId, job.Id);
+        completed.ShouldNotBeNull();
+        completed!.Status.ShouldBe(JobStatus.Completed);
+
+        goodJudge.CallCount.ShouldBe(1);
+        flakyJudge.CallCount.ShouldBe(2);
+
+        // good/quality + good/verbosity + flaky -- three rows, none overwritten.
+        (await scores.ListAsync(tenantContext.TenantId, runId)).Count.ShouldBe(3);
+    }
+
     [Fact]
     public async Task Manual_scoring_still_reruns_a_judge_that_already_scored_the_run()
     {

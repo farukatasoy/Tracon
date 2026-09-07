@@ -157,6 +157,7 @@ export const enRuns = {
   "feedback.anonymous": 'anonymous',
   "feedback.saveError": 'Could not save the feedback.',
   "feedback.noneYet": 'No run has been scored yet.',
+  "feedback.otherScores": 'Other scores',
   "onlineEval.title": 'Online evaluation',
   "onlineEval.noneYet": 'No run has been judged yet.',
   "onlineEval.sampleCount": 'Sampled runs',

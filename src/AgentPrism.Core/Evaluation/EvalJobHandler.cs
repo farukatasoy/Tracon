@@ -450,13 +450,21 @@ internal sealed class EvalJobHandler(
     /// to the jsonb column.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// Written by hand with <c>Utf8JsonWriter</c>; the reflection-based
     /// <c>JsonSerializer.Serialize</c> is not used - since there is no
     /// source-generated context for <c>EvaluationMetric</c>, it would produce
-    /// IL2026/IL3050. Library code must stay AOT-compatible.
+    /// IL2026/IL3050. Library code must stay AOT-compatible. The concrete
+    /// metric shape is told apart by pattern matching, never by reflection.
+    /// </para>
     /// </remarks>
-    private static JsonElement SerializeScores(IDictionary<string, EvaluationMetric> metrics)
+    internal static JsonElement SerializeScores(IDictionary<string, EvaluationMetric> metrics)
     {
+        // 🚨 Metadata is DELIBERATELY NOT written. It is a scope boundary, not
+        // an omission: EvaluationMetricExtensions.AddOrUpdateChatMetadata can
+        // put model response metadata there, and EvalCaseResult.Scores is
+        // served to clients. Context is left out for the same reason -- it
+        // carries the evaluator's own input, which can quote the run.
         using var buffer = new MemoryStream();
 
         using (var writer = new Utf8JsonWriter(buffer))
@@ -467,10 +475,12 @@ internal sealed class EvalJobHandler(
             {
                 writer.WriteStartObject();
                 writer.WriteString("name", metric.Name);
+                WriteMetricValue(writer, metric);
 
                 if (metric.Interpretation is { } interpretation)
                 {
                     writer.WriteBoolean("passed", !interpretation.Failed);
+                    writer.WriteString("rating", interpretation.Rating.ToString());
                 }
                 else
                 {
@@ -482,6 +492,8 @@ internal sealed class EvalJobHandler(
                     writer.WriteString("reason", reason);
                 }
 
+                WriteDiagnostics(writer, metric);
+
                 writer.WriteEndObject();
             }
 
@@ -491,5 +503,76 @@ internal sealed class EvalJobHandler(
         buffer.Position = 0;
         using var document = JsonDocument.Parse(buffer);
         return document.RootElement.Clone();
+    }
+
+    /// <summary>
+    /// Writes the metric's <c>kind</c> and <c>value</c>, matched on the concrete
+    /// metric shape.
+    /// </summary>
+    /// <remarks>
+    /// The three shapes are the ones <see cref="RunScoreKind"/> is aligned with.
+    /// A metric of an unknown shape gets a <c>kind</c> and no <c>value</c>
+    /// rather than being dropped silently, so a new shape is visible in the
+    /// stored result instead of vanishing from it.
+    /// </remarks>
+    private static void WriteMetricValue(Utf8JsonWriter writer, EvaluationMetric metric)
+    {
+        switch (metric)
+        {
+            case BooleanMetric { Value: { } boolean }:
+                writer.WriteString("kind", "boolean");
+                writer.WriteBoolean("value", boolean);
+                break;
+
+            case BooleanMetric:
+                writer.WriteString("kind", "boolean");
+                writer.WriteNull("value");
+                break;
+
+            case NumericMetric { Value: { } number }:
+                writer.WriteString("kind", "numeric");
+                writer.WriteNumber("value", number);
+                break;
+
+            case NumericMetric:
+                writer.WriteString("kind", "numeric");
+                writer.WriteNull("value");
+                break;
+
+            case StringMetric { Value: { } text }:
+                writer.WriteString("kind", "string");
+                writer.WriteString("value", text);
+                break;
+
+            case StringMetric:
+                writer.WriteString("kind", "string");
+                writer.WriteNull("value");
+                break;
+
+            default:
+                writer.WriteString("kind", "unknown");
+                break;
+        }
+    }
+
+    /// <summary>Writes the metric's diagnostics, if it carries any.</summary>
+    private static void WriteDiagnostics(Utf8JsonWriter writer, EvaluationMetric metric)
+    {
+        if (metric.Diagnostics is not { Count: > 0 } diagnostics)
+        {
+            return;
+        }
+
+        writer.WriteStartArray("diagnostics");
+
+        foreach (var diagnostic in diagnostics)
+        {
+            writer.WriteStartObject();
+            writer.WriteString("severity", diagnostic.Severity.ToString());
+            writer.WriteString("message", diagnostic.Message);
+            writer.WriteEndObject();
+        }
+
+        writer.WriteEndArray();
     }
 }

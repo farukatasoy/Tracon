@@ -98,3 +98,23 @@
   eşleşmediği). Sütunu atlayan bir insert o zaman fail-closed bir kayıt üretir;
   nullable bırakmak ise okuyucuyu (`GetString`) çökertir ve o kaydı içeren
   **liste ucunun tamamını** düşürür.
+
+- **`NOT NULL` bir sütunu nullable YAPMAK veya affinity'sini DEĞİŞTİRMEK tabloyu
+  yeniden kurmayı gerektirmez — `ADD COLUMN` + `UPDATE` + `DROP COLUMN` +
+  `RENAME COLUMN` yeter** (2026-09-07, Faz 152, `0035_run_score_name_and_shape.sql`):
+  `value INTEGER NOT NULL` → `value REAL NULL` dönüşümü için 12 adımlı yeniden
+  kurma reçetesi kullanılmadı; K-666 o reçetenin `foreign_keys = ON` altında
+  örtük `DELETE FROM` yaptığını ve kaçışın migration işleminin içinde no-op
+  olduğunu kaydediyor. `ALTER TABLE ... DROP COLUMN`'un tek şartı sütunun
+  **hiçbir indekste olmamasıdır** — `PRAGMA index_list` ile doğrula, sonra
+  `ADD COLUMN <yeni> <tip> NULL; UPDATE SET <yeni> = <eski>; DROP COLUMN <eski>;
+  RENAME COLUMN <yeni> TO <eski>;` yaz. 🚨 **REAL affinity kozmetik değildir:**
+  INTEGER/NUMERIC affinity bir tam sayıya eşit gerçek değeri (4.0) INTEGER'a
+  katlar; okuyucu `GetDouble` çağırıyorsa affinity açıkça `REAL` olmalıdır.
+  Sözleşme testi bunu `Value = 4` ve `Value = 0.87` ile birlikte ölçer.
+- **`NOT NULL` bir sütunu geriye dönük doldururken `DEFAULT`'u ÜÇ sağlayıcıda da
+  aynı yaz** (aynı vaka): SQLite `ADD COLUMN ... NOT NULL` için sabit bir
+  varsayılan ZORUNLU kılar, PostgreSQL/SQL Server kılmaz. Yalnız SQLite'a
+  varsayılan vermek, sütunu atlayan bir insert'in bir sağlayıcıda geçip
+  diğerinde patladığı sessiz bir sağlayıcı farkı üretir. `run_scores.name` üçünde
+  de `DEFAULT 'overall'` taşır ve bu, HTTP ucunun uyguladığı varsayılanla aynıdır.

@@ -1,10 +1,10 @@
 # Faz 152 — Skorun Adı ve Şekli
 
-> **Durum:** 📋 Planlandı (2026-09-07)
+> **Durum:** ✅ Tamamlandı (2026-09-07)
 > **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-208**
 > **Önkoşul:** Yok. **Ardılı vardır:** [Faz 154](154-SKOR-TRENDININ-KALICI-SORGUSU.md) aynı tabloya dokunur ve **bu fazdan sonra** koşar.
 > **Paketler:** `AgentPrism.Abstractions`, `AgentPrism.Core`, `AgentPrism.AspNetCore`, `AgentPrism.PostgreSql`, `AgentPrism.Sqlite`, `AgentPrism.SqlServer`, `AgentPrism.Testing.Contracts.Xunit`, `AgentPrism.UI`
-> **Yeni paket:** Yok — karar 152.1'de ölçümle verildi · **Migration:** 🚨 **gerekli, üç sağlayıcıda** — numaralar uygulama anında alınır (K-178)
+> **Yeni paket:** Yok — karar 152.1'de ölçümle verildi · **Migration:** PostgreSQL `0048` · SQLite `0035` · SQL Server `0035` (K-178: numaralar sağlayıcı başına bağımsızdır)
 > **Public API:** 🔴 Büyüyor **ve kırıyor** — `RunScore.Value` tipi değişir. `wc -l src/*/PublicAPI.Shipped.txt` → her dosya **1 satır** (ölçüldü 2026-09-07): hiçbir yüzey sevk edilmemiştir, bu değişiklik **bugün bedava**, `1.0`'dan sonra **imkânsızdır**.
 > **Tüketici yüzeyi:** site: `docs-site/src/content/docs/concepts/evaluation.md` · üretilen: `http-api/schema-runscore.md`, `api/agentprism.runscore` · sevk edilen: `RunScore` XML dokümanı, `IRunScoreStore` XML dokümanı, `RunEndpoints` `.WithDescription` metinleri
 > **Manuel test alanı:** `docs/manuel-test/17-EVAL-VE-DENEYLER.md`
@@ -390,24 +390,62 @@ doğrulaması, invariant) · **başka kiracı** ✅ · **alt sistem hatası** �
 
 ## Bitiş Ölçütleri (DoD)
 
-- [ ] Aynı yazar aynı `run`'a `helpfulness` ve `accuracy` yazabilir; ikisi de ayrı satır olarak durur
-- [ ] Aynı yazar aynı `(run, name)` çiftine ikinci kez yazınca satır **güncellenir**, yeni satır açılmaz
-- [ ] `Kind = Categorical` skor `TextValue` ile saklanır ve geri okunur
-- [ ] `Value = 0.87` üç SQL sağlayıcısında da `0.87` olarak geri döner
-- [ ] `Value = null` "ölçüm yok" olarak geri döner, `0` olarak değil
-- [ ] Dolu bir Faz 151 veritabanı üç sağlayıcıda da migration'dan **veri kaybı olmadan** geçer
-- [ ] K-638 checkpoint davranışı korunur: bir judge birden çok ad yazsa da retry'da yeniden çağrılmaz
-- [ ] `EvalCaseResult.Scores` sayısal bir metriğin değerini ve `rating`'ini taşır; `metadata` taşımaz
-- [ ] AOT kapısı geçer — `SerializeScores` `reflection` kullanmaz
-- [ ] Dört doğrulama kapısı sıfır uyarı verir
-- [ ] `samples/AgentPrism.Api` ile gerçek `run` + skor yazımı yapıldı, çıktı belgeye yazıldı
-- [ ] `secret` taraması boş döndü
-- [ ] Manuel kabul case'leri `docs/manuel-test/17-EVAL-VE-DENEYLER.md` içine eklendi; otomatikleştirilebilenler koşuldu
-- [ ] `faz-denetim` koşuldu; 🔴 bulgu kalmadı
-- [ ] `docs-site/concepts/evaluation.md` güncellendi; `npm run build` + `check-links.mjs` temiz
-- [ ] `RunScore` XML dokümanındaki *"1.5 for Stars"* hatası düzeltildi
-- [ ] `en.ts` ve `tr.ts` eksiksiz; bundle payı ölçüldü ve yazıldı
-- [ ] OpenAPI → NSwag → TypeScript zinciri yeniden üretildi
+| # | Ölçüt | Durum | Kanıt |
+|---|---|---|---|
+| 1 | Aynı yazar aynı `run`'a `helpfulness` ve `accuracy` yazabilir; ikisi de ayrı satır durur | ✅ | `RunScoreStoreContract.Same_author_scoring_the_same_target_under_a_DIFFERENT_name_opens_a_new_row` (dört koşum) · `RunScoreNameTests.Two_names_from_the_SAME_author_are_two_rows` · canlı koşum: iki `POST` `200`, `GET` iki satır |
+| 2 | Aynı `(run, name)` çiftine ikinci yazım satırı **günceller** | ✅ | `Updating_ONE_name_leaves_the_authors_other_names_untouched` · canlı: `helpfulness` `4 → 5`, `accuracy` `1` değişmedi, toplam satır 2 |
+| 3 | `Kind = Categorical` skor `TextValue` ile saklanır ve geri okunur | ✅ | `A_categorical_score_is_stored_as_text` (dört koşum) · canlı: `{"kind":"Categorical","textValue":"minor","value":null}` |
+| 4 | `Value = 0.87` üç SQL sağlayıcısında da `0.87` döner | ✅ | `A_decimal_value_is_NOT_rounded` — PostgreSQL 734/734 · SQL Server 669/669 · SQLite 677/677 yeşil. Ek olarak `A_whole_number_value_is_read_back_as_a_number_not_an_integer` (SQLite REAL affinity) |
+| 5 | `Value = null` "ölçüm yok" döner, `0` değil | ✅ | `A_null_value_means_NO_MEASUREMENT_not_zero` (dört koşum) |
+| 6 | Dolu bir Faz 151 veritabanı üç sağlayıcıda **veri kaybı olmadan** göç eder | ✅ | `Populated_pre_152_run_scores_upgrade_without_data_loss` × 3: satır sayısı 2 → 2 · `judge:quality` → `name = quality` · insan satırı → `name = overall` · göç sonrası `0.87` yazılabiliyor · eski tekillik indeksi düşmüş (ikinci ad yazılabiliyor) |
+| 7 | K-638 korunur: bir judge birden çok ad yazsa da retry'da yeniden çağrılmaz | ✅ | `OnlineEvalRetryTests.A_judge_holding_two_named_scores_is_still_skipped_on_retry` — `goodJudge.CallCount == 1`, üç skor satırı |
+| 8 | `EvalCaseResult.Scores` değer ve `rating` taşır; `metadata` taşımaz | ✅ | `SerializeScoresTests` (8 case) · canlı eval koşumu: `{"name":"non_empty","kind":"boolean","value":true,"passed":true,"rating":"Good","reason":"Response length 32 meets minimum 1"}` — `metadata` yok |
+| 9 | AOT kapısı geçer — `SerializeScores` `reflection` kullanmaz | ✅ | Desen eşlemesi (`is BooleanMetric` / `is NumericMetric` / `is StringMetric`), `Utf8JsonWriter` elle; `kapi.py kapanis` içindeki tam test koşumu yeşil |
+| 10 | Dört doğrulama kapısı sıfır uyarı verir | ✅ | `python3 scripts/kapi.py kapanis --taban 3e528aa0` — bkz. **Kapı koşumu** |
+| 11 | `samples/AgentPrism.Api` ile gerçek `run` + skor yazımı yapıldı | ✅ | Aşağıdaki **Canlı koşum çıktısı** |
+| 12 | `secret` taraması boş döndü | ✅ | `kapi.py tarama` |
+| 13 | Manuel kabul case'leri sete eklendi; otomatikleştirilebilenler koşuldu | ✅ | `docs/manuel-test/17-EVAL-VE-DENEYLER.md` **EVAL-112 … EVAL-119**; 112–116 ve 118 canlı koşuldu, 117 ve 119 `👤 insan gerekir` |
+| 14 | `faz-denetim` koşuldu; 🔴 bulgu kalmadı | ✅ | Bkz. **Denetim Bulguları** |
+| 15 | `docs-site/concepts/evaluation.md` güncellendi; site kapıları temiz | ✅ | `npm run check` — 1083 sayfa, 159 630 bağlantı, kırık 0; en ağır sayfa 56 439 B / 57 000 B |
+| 16 | `RunScore` XML dokümanındaki *"1.5 for Stars"* hatası düzeltildi | ✅ | Artık *"1 to 5 for Stars"*; aynı hata `RunFeedbackRequest.Value`'da da vardı ve orada da düzeltildi |
+| 17 | `en.ts` ve `tr.ts` eksiksiz; bundle payı ölçüldü | ✅ | Yeni anahtar: `feedback.otherScores` (iki dilde). Bundle **152,1 KB** brotli / 250 KB bütçe (fazdan önce 151,9 KB — **+0,2 KB**) |
+| 18 | OpenAPI → NSwag → TypeScript zinciri yeniden üretildi | ✅ | Dört adım da koşuldu: `AGENTPRISM_OPENAPI_REFRESH=1` → `npm run generate` → `nswag-prepare` + `nswag run` + `postprocess` + `json-context` → `packages/agentprism-client` `npm run build` |
+
+### Canlı koşum çıktısı (2026-09-07, `samples/AgentPrism.Api`)
+
+Kimlik çözümlenebilir bir kurulumda koşuldu
+(`AgentPrism__Demo__Roles__Enabled=true`, `X-AgentPrism-Demo-Role: operator`) —
+🚨 kimliksiz kurulumda tekillik hiç devreye girmez ve **her çağrı yeni satır
+açar** (K1, 0017'nin kaydettiği davranış). İlk koşum kimliksiz yapıldı ve
+`helpfulness` iki satır olarak göründü; bu bir kusur değil, o kuralın kendisidir.
+
+```
+case1 helpfulness/Stars 4  -> 200
+case2 accuracy/Binary 1    -> 200
+case3 helpfulness 4->5     -> 200
+case4 severity=minor       -> 200
+case5 similarity=0.87      -> 200
+case6 illegal name         -> 400
+no-name body (compat)      -> 200
+
+accuracy       kind=Binary       value=1    textValue=None   author=demo-agentprism-operator
+helpfulness    kind=Stars        value=5    textValue=None   author=demo-agentprism-operator
+overall        kind=Binary       value=0    textValue=None   author=demo-agentprism-operator
+severity       kind=Categorical  value=None textValue=minor  author=demo-agentprism-operator
+similarity     kind=Numeric      value=0.87 textValue=None   author=demo-agentprism-operator
+rows: 5
+```
+
+Eval koşumu (`GET /api/evals/runs/{id}`):
+
+```json
+"scores": [
+  { "name": "non_empty", "kind": "boolean", "value": true,
+    "passed": true, "rating": "Good", "reason": "Response length 32 meets minimum 1" }
+]
+```
+
+Faz öncesi aynı alan yalnız `{"name":…,"passed":…,"reason":…}` taşıyordu.
 
 ### Doğrulama komutları
 
@@ -449,19 +487,155 @@ curl -s http://localhost:5081/agentprism/api/runs/$RUN/feedback | jq '.[] | sele
 
 ## Plandan Sapmalar
 
-> Kapanışta doldurulur.
+| # | Plan ne diyordu | Ne yapıldı | Gerekçe |
+|---|---|---|---|
+| 1 | Planlanan Public API yalnız `RunScore` ve `RunScoreKind`'ı büyütüyordu | **`public static class RunScoreRules`** eklendi (`DefaultName`, `MaxNameLength`, `MaxTextValueLength`, `NameDescription`, `IsValidName`, `Validate`) | Invariant'ı **dört** store birden zorlamalı ve sözleşme testi bunu talep ediyor. `AgentPrism.Sql.Shared` linked source'tur (K-176) ve üç ayrı derlemeye derlenir; `Abstractions`'ın `internal`'ına erişemez — üç yeni `InternalsVisibleTo` yazmak paket üstverisine sızardı. `IRunScoreStore` bir **genişleme noktasıdır**: tüketicinin kendi store'u da aynı kuralı uygulamak zorunda ve sevk edilen `RunScoreStoreContract` onu buna zorluyor. Kuralı ikinci kez elle yazmak ikinci bir doğrulama yolu üretirdi (planın 152.2'de kendi yazdığı gerekçe). Public tip sayısı 380 → **381** |
+| 2 | 152.3(4): "`Kind` `Categorical` ise `TextValue` doludur ve `Value` `null`'dır; **değilse tersi**" | Invariant bir **şekil** kuralıdır, bir **varlık** kuralı değil: `Categorical` → `TextValue` dolu **ve** `Value` null; diğer kind'ler → `TextValue` null, `Value` **null olabilir** | Planın harfi kendi DoD'siyle çelişiyordu: "`Value = null` 'ölçüm yok' olarak geri döner" satırı, `Value`'nun non-categorical kind'lerde zorunlu olmasıyla aynı anda doğru olamaz. Depo katmanında `null` meşrudur (ölçüm yok); **HTTP ucu** daha katıdır ve non-categorical bir gövdede `value` ister — bugünkü davranış korunur |
+| 3 | Hata modu tablosunda "İptal: yazma ortasında `CancellationToken` iptal olur → Sözleşme" | Sözleşmeye **eklenmedi** | Repoda hiçbir store sözleşmesinin iptal case'i yok ve bellek içi store'lar token'ı hiç okumuyor. `RunScoreStoreContract` **sevk edilen** bir sözleşmedir; oraya iptal case'i eklemek her üçüncü taraf store'a yeni bir zorunluluk yükler ve bu tek fazın değil, tüm store ailesinin kararıdır. `docs/ADAYLAR.md` **F-213** olarak yazıldı |
+| 4 | Hata modu tablosunda "Eşzamanlılık: aynı `(run, author, name)` iki eşzamanlı yazım → Sözleşme" | `Repeated_writes_of_the_SAME_name_leave_exactly_one_row` yazıldı (art arda beş yazım) | Sözleşme fixture'ı sağlayıcı başına **tek bağlantı** tutar; paralel bir yazım demeti tekillik indeksini değil bağlantıyı ölçerdi. Art arda yazım, indeks değişiminin ilk göstereceği arızayı (anahtar tutmuyor ⇒ her yazım yeni satır) **gerçekten** yakalar. Adı da bunu söyler — "Concurrent" demez |
+| 5 | Manuel case tablosu `201` bekliyordu | Uç `200 OK` döner | Uç Faz 31'den beri `TypedResults.Ok` döndürüyor; plan bunu yanlış hatırlamış. Davranış değiştirilmedi — geriye uyumluluk `201`'e geçmekten daha değerli |
+| 6 | Plan `POST /feedback` rolünü `Reader` yazıyordu | Uç `Operator` ister (değişmedi) | Plan tablosu yanlıştı; yazma ucunun `Reader` olması bir güvenlik gerilemesi olurdu |
+| 7 | Plan yalnız `run_scores` tekillik indeksinin `COALESCE(message_id,'')` biçiminden söz ediyordu | SQL Server indeksi `message_id`'yi **`COALESCE`'suz** kullanır ve `WHERE author IS NOT NULL` ile **filtrelidir** | K-184: SQL Server `NULL`'ları birbirine **eşit** sayar — PostgreSQL'in tam tersi. `0005_run_scores.sql` bunu yazıyordu; `0035` yalnız `name`'i ekleyip filtreyi korudu |
+| 8 | Plan SQLite için "tablo yeniden yazımı gerektirir" diyordu | Tablo **yeniden kurulmadı**; `ADD COLUMN value_real` → `UPDATE` → `DROP COLUMN value` → `RENAME COLUMN` kullanıldı | K-666: `foreign_keys = ON` altında `DROP TABLE` örtük bir `DELETE FROM` yapar ve kaçış (`PRAGMA foreign_keys = OFF`) migration'ın işlemi içinde **no-op**'tur. `value` hiçbir indekste değil, yani `ALTER TABLE ... DROP COLUMN` (SQLite 3.35+) tam olarak bu vaka için doğru araç |
+| 9 | Plan `SerializeScores`'un `Metadata` yazmamasını XML dokümanına yazmayı öneriyordu | Gerekçe **implementation yorumuna** taşındı | `ShippedDocumentationSelfContainmentTests`: 🚨 emoji ve iç referans sevk edilen XML dokümanına giremez. Aynı sebeple `OnlineEvalJobHandler`'ın K-638 uyarısı da `///`'den `//`'ye taşındı |
+| 10 | Planda yoktu | **Arayüz kusuru düzeltildi:** `feedback-control.tsx` "benim skorum"u yalnız `messageId == null` ile arıyordu | Bir yargıç skoru da `messageId` taşımaz. Sıralama garantisi olmadığı için (`ListAsync`: "No order is guaranteed") başparmak paneli **yargıcın** satırını kendi satırı sanabiliyor, `Kaldır` da **yargıcın skorunu silebiliyordu**. Eşleşme artık `source === 'human' && name === 'overall'`. Faz 152 öncesinden gelen bir kusurdur; aynı kod yolu bu fazda zaten elden geçtiği için burada kapatıldı |
 
 ## Bu Fazda Verilen Kararlar
 
-> Kapanışta doldurulur. K-NNN numaraları burada alınır; plan numara rezerve etmez.
+> `K-*` numaraları `docs/KARARLAR.md` içindedir.
+
+| Karar | Nerede |
+|---|---|
+| `RunScore.Name` tekillik anahtarına girer; `author` `COALESCE` edilmez ve judge'ın `author` kaçışı korunur | K-710 |
+| `RunScore.Value` `required int` → `double?`; `null` "ölçüm yok" demektir; `TextValue` + `RunScoreKind.Categorical` eklenir | K-711 |
+| `RunScoreRules` **public**'tir; invariant dört store'da da aynı tek kaynaktan zorlanır | K-712 |
+| `SerializeScores` metriğin somut tipine göre değer/derece/tanı yazar; `Metadata` ve `Context` **yazılmaz** | K-713 |
+
+Kullanıcı kararları (2026-09-07, açık sorular): varsayılan ad `overall` · `name`
+HTTP gövdesinde opsiyonel · `Stars` ve `Numeric` ayrı kalır · `EvaluationRating`
+kalıcı sütuna girmez · `TextValue` sınırı 256.
 
 ## Gerçekleşen Public API
 
-> Kapanışta doldurulur.
+```csharp
+// AgentPrism.Abstractions
+public sealed record RunScore
+{
+    public Guid Id { get; init; }
+    public required string TenantId { get; init; }
+    public required Guid RunId { get; init; }
+    public string? MessageId { get; init; }
+    public required string Name { get; init; }          // YENİ
+    public required RunScoreKind Kind { get; init; }
+    public double? Value { get; init; }                 // required int -> double? (🔴 KIRICI)
+    public string? TextValue { get; init; }             // YENİ
+    public string? Comment { get; init; }
+    public required string Source { get; init; }
+    public string? Author { get; init; }
+    public DateTimeOffset CreatedAt { get; init; }
+}
+
+public enum RunScoreKind
+{
+    Binary = 1,
+    Stars = 2,
+    Numeric = 3,
+    Categorical = 4,   // YENİ (append)
+}
+
+public static class RunScoreRules                       // YENİ (sapma 1)
+{
+    public const string DefaultName = "overall";
+    public const int MaxNameLength = 64;
+    public const int MaxTextValueLength = 256;
+    public const string NameDescription = "A run score name must match [A-Za-z0-9._-]{1,64}.";
+
+    public static bool IsValidName(string? name);
+    public static void Validate(RunScore score);        // ArgumentException
+}
+
+// AgentPrism.AspNetCore
+public sealed record RunFeedbackRequest
+{
+    public string? Name { get; init; }                  // YENİ, boşsa "overall"
+    public required RunScoreKind Kind { get; init; }
+    public double? Value { get; init; }                 // required int -> double?
+    public string? TextValue { get; init; }             // YENİ
+    public string? MessageId { get; init; }
+    public string? Comment { get; init; }
+}
+```
+
+`IRunScoreStore` imzaları **değişmedi**; yalnız `UpsertAsync`'in sözleşmesi
+(`ArgumentException`, ad başına tekillik) genişledi.
+
+Public tip sayısı: `AgentPrism.Abstractions` 380 → **381**
+(`tests/AgentPrism.Core.UnitTests/Architecture/public-surface-baseline.txt`).
+
+### HTTP `endpoint`'leri
+
+Yeni uç yok. `POST /api/runs/{runId}/feedback` gövdesi `name` ve `textValue`
+kazandı; `value` ondalık ve opsiyonel oldu. `GET` aynı alanları döner.
+`DELETE` değişmedi. Roller değişmedi (`POST`/`DELETE` Operator, `GET` Reader).
 
 ## Dosya Listesi (gerçekleşen)
 
-> Kapanışta doldurulur.
+```
+YENİ
+src/AgentPrism.Abstractions/Runs/RunScoreRules.cs
+src/AgentPrism.PostgreSql/Migrations/0048_run_score_name_and_shape.sql
+src/AgentPrism.Sqlite/Migrations/0035_run_score_name_and_shape.sql
+src/AgentPrism.SqlServer/Migrations/0035_run_score_name_and_shape.sql
+tests/AgentPrism.Core.UnitTests/Evaluation/SerializeScoresTests.cs
+tests/AgentPrism.Core.UnitTests/Storage/RunScoreValidationTests.cs
+tests/AgentPrism.AspNetCore.FunctionalTests/Runs/RunScoreNameTests.cs
+
+DEĞİŞTİ — sözleşme ve çekirdek
+src/AgentPrism.Abstractions/Runs/RunScore.cs · RunScoreKind.cs · IRunScoreStore.cs
+src/AgentPrism.Core/Storage/InMemoryRunScoreStore.cs · InMemoryRunStore.Analytics.cs
+src/AgentPrism.Core/Evaluation/OnlineEvalJobHandler.cs · EvalJobHandler.cs · RunToCasePromoter.cs
+src/AgentPrism.AspNetCore/Endpoints/RunEndpoints.cs
+
+DEĞİŞTİ — SQL katmanı
+src/AgentPrism.Sql.Shared/Stores/SqlRunScoreStore.cs
+src/AgentPrism.Sql.Shared/Internal/SqlQueriesBase.cs (RunScoreColumns)
+src/AgentPrism.Sql.Shared/Internal/SqlDialect.cs (AddDouble) · DbHelpers.cs (GetNullableDouble)
+src/AgentPrism.PostgreSql/Internal/PostgresQueries.cs
+src/AgentPrism.Sqlite/Internal/SqliteQueries.cs
+src/AgentPrism.SqlServer/Internal/SqlServerQueries.cs
+
+DEĞİŞTİ — sevk edilen sözleşme, arayüz, istemci
+src/AgentPrism.Testing.Contracts.Xunit/Contracts/RunScoreStoreContract.cs
+src/AgentPrism.UI/frontend/src/components/feedback-control.tsx
+src/AgentPrism.UI/frontend/src/locales/{en,tr}/runs.ts
+samples/AgentPrism.Samples.FileRunStore/InMemoryRunScoreStore.cs
+docs/openapi/agentprism.json · packages/agentprism-client/src/schema.ts
+src/AgentPrism.Client/Generated/AgentPrismApiClient.g.cs
+üç PublicAPI.Unshipped.txt · üç sql-text-baseline · public-surface-baseline.txt
+
+DEĞİŞTİ — testler
+tests/AgentPrism.{PostgreSql,SqlServer,Sqlite}.IntegrationTests/Migration*Tests.cs
+tests/AgentPrism.{Core.UnitTests,*.IntegrationTests}/**/RunScoreStatisticsTests.cs
+tests/AgentPrism.Core.UnitTests/Evaluation/OnlineEvalCheckpointTests.cs
+tests/AgentPrism.AspNetCore.FunctionalTests/OnlineEvalRetryTests.cs · RunResourceAuthorizationTests.cs
+
+DEĞİŞTİ — tüketici dokümanı
+docs-site/src/content/docs/concepts/evaluation.md · capabilities.md
+docs-site/public/llms-full.txt (üretilen)
+docs/manuel-test/17-EVAL-VE-DENEYLER.md (EVAL-112 … EVAL-119)
+```
+
+## Testler
+
+| Sınıf | Seviye | Ne kanıtlar |
+|---|---|---|
+| `RunScoreStoreContract` (+10 case, **dört** koşumda) | Sözleşme | İki ad iki satır · aynı adın ikinci yazımı yalnız o satırı günceller · `0.87` yuvarlanmaz · tam sayı `double` okunur · `null` "ölçüm yok" · kategorik metin · invariant ihlalleri reddedilir · geçersiz ad reddedilir · tekrarlı yazım tek satır bırakır |
+| `RunScoreValidationTests` (21 case) | Birim | Ad kuralı `IRunJudge.Name` kuralıyla **birebir aynı**; şekil invariant'ı; `null` `Value` non-categorical'de meşru |
+| `SerializeScoresTests` (8 case) | Birim | Üç metrik şeklinin değeri, `rating`, `diagnostics`; `metadata` **yazılmaz** |
+| `RunScoreNameTests` (14 case) | Fonksiyonel (HTTP) | Ad varsayılanı · iki ad iki satır · ondalık · kategorik · dört `400` yolu |
+| `OnlineEvalRetryTests.A_judge_holding_two_named_scores_is_still_skipped_on_retry` | Fonksiyonel | 🚨 K-638: checkpoint `author` üzerinden sorar; iki adlı bir yargıç retry'da yeniden çağrılmaz |
+| `OnlineEvalCheckpointTests` (+1 case) | Birim | `judge:` öneki uzunlukla soyulur; startup kapısının reddedeceği bir yargıç adı skor yazımında da reddedilir |
+| `Populated_pre_152_run_scores_upgrade_without_data_loss` (üç sağlayıcı) | Fonksiyonel | Dolu tablodan göç: satır sayısı korunur · judge satırı judge adını, diğerleri `overall` alır · ondalık kabul edilir · eski tekillik indeksi düşer |
 
 ## Denetim Bulguları
 
@@ -469,4 +643,78 @@ curl -s http://localhost:5081/agentprism/api/runs/$RUN/feedback | jq '.[] | sele
 
 ## Sonraki Faza Devir Notu
 
-> Kapanışta doldurulur.
+**Faz 154 doğrudan bu fazın çıktısına oturur.** Devraldığı sözleşme birebir:
+
+```csharp
+public sealed record RunScore
+{
+    public required string Name { get; init; }   // [A-Za-z0-9._-]{1,64}
+    public required RunScoreKind Kind { get; init; }
+    public double? Value { get; init; }          // null = ÖLÇÜM YOK, sıfır DEĞİL
+    public string? TextValue { get; init; }      // yalnız Kind == Categorical
+    // Id · TenantId · RunId · MessageId · Comment · Source · Author · CreatedAt değişmedi
+}
+
+public enum RunScoreKind { Binary = 1, Stars = 2, Numeric = 3, Categorical = 4 }
+
+public static class RunScoreRules
+{
+    public const string DefaultName = "overall";
+    public const int MaxNameLength = 64;
+    public const int MaxTextValueLength = 256;
+    public const string NameDescription = "…";
+    public static bool IsValidName(string? name);
+    public static void Validate(RunScore score);  // ArgumentException
+}
+```
+
+`IRunScoreStore` imzaları **değişmedi**. `UpsertAsync` artık
+`RunScoreRules.Validate` çağırır ve invariant ihlalinde `ArgumentException`
+atar — dört uygulamada da (bellek içi, üç SQL, ve `samples/…FileRunStore`).
+
+### 🚨 Faz 154'ün bilmesi gerekenler
+
+- **`Value` `null` olabilir ve bu ORTALAMAYA GİRMEZ.** `AVG` `NULL`'ları
+  zaten yok sayar; bellek içi karşılığı `InMemoryRunStore.Analytics.cs`'te
+  elle yazılıdır (`score.Value is { } value`). 154'ün `NoValueCount` alanı bu
+  ayrımın devamıdır ve **sayıma** girmelidir.
+- **Kırılım anahtarı `(name, kind)` çiftidir, tek başına `name` DEĞİL.** Aynı
+  ad iki farklı `kind` ile yazılabilir; şema bunu yasaklamıyor ve
+  `RunScoreRules` de yasaklamıyor.
+- **`Categorical` skorun `Value`'su her zaman `null`'dır.** Sayısal bir
+  toplulaştırma onu **hiç görmemelidir**; kategorik dağılım `text_value`
+  üzerinden sayılır.
+- **Tekillik indeksi yeniden yazıldı ve adı değişti:**
+  `run_scores_target_author_idx` → `run_scores_target_author_name_idx`.
+  PostgreSQL/SQLite `(tenant_id, run_id, COALESCE(message_id,''), author, name)`;
+  🚨 SQL Server `COALESCE`'suz `(tenant_id, run_id, message_id, author, name)`
+  ve `WHERE author IS NOT NULL` ile **FİLTRELİ** (K-184). 154'ün ekleyeceği
+  `(tenant_id, created_at)` indeksi bunlardan bağımsızdır.
+- **Migration numaraları alındı:** PostgreSQL `0048`, SQLite `0035`,
+  SQL Server `0035`. 154 sıradakileri alır (`0049` / `0036` / `0036`).
+- 🚨 **Yeni migration'ı `scripts/applied-migrations.json`'a PİNLEMEYİ unutma.**
+  `kapi.py tarama` yeni bir migration dosyasını manifest'te bulamazsa kırmızı
+  olur; akış: önce özellik commit'i, sonra o commit'in sha'sıyla manifest
+  commit'i (emsal: `9a981009`).
+- **`SqlDialect.AddDouble` ve `DbHelpers.GetNullableDouble` eklendi.** Nullable
+  bir `double` bağlarken/okurken bunları kullan; `AddDecimal` para içindir
+  (SQL Server `Precision`/`Scale` ister).
+- **`RunScoreColumns` sırası: `… created_at, name, text_value`.** `name` ve
+  `text_value` **SONA** eklendi çünkü `SqlRunScoreStore.Read` ordinal okur.
+  Yeni bir sütun yine **sona** eklenir.
+
+### Faz 153'e devir
+
+Faz 153 `eval_case_results`'a dokunur ve bu fazla **çakışmaz**. Tek kesişim:
+`EvalCaseResult.Scores` JSON'unun şekli değişti — artık her metrik
+`kind`/`value` ve (yorumlanmışsa) `rating` ile `diagnostics` taşıyor.
+Regresyon farkı skoru okuyacaksa artık `passed` yerine `value`'yu
+karşılaştırabilir. `metadata` **hiçbir zaman** yazılmaz (K-713).
+
+### Açık uçlar
+
+- İptal davranışı store sözleşmelerinde hâlâ yazılı değil — `docs/ADAYLAR.md`
+  **F-213**.
+- Mesaj düzeyinde skorlama ve yıldız derecelendirme arayüzde hâlâ açık
+  değil (Faz 31'den kalan boşluk); `feedback-control.tsx` yalnız `overall`
+  adını **yazar**, diğer adları salt okunur listeler.

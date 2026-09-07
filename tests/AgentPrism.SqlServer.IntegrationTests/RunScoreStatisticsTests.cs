@@ -81,6 +81,7 @@ public sealed class RunScoreStatisticsTests(SqlServerFixture fixture) : IAsyncLi
         {
             TenantId = tenant,
             RunId = runId,
+            Name = RunScoreRules.DefaultName,
             Kind = RunScoreKind.Binary,
             Value = value,
             Source = "human",

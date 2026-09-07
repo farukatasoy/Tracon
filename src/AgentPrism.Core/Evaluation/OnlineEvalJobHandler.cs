@@ -16,10 +16,12 @@ namespace AgentPrism;
 /// <para>
 /// The score row's <see cref="RunScore.Author"/> field is INTENTIONALLY filled
 /// with <c>judge:{name}</c> (NOT <see langword="null"/> like a human score):
-/// this way the <c>run_scores</c> table's <c>(tenant_id, run_id, message_id, author)</c>
-/// uniqueness constraint kicks in, and retrying this job or manually
-/// repeating it via <c>POST /api/runs/{id}/judge</c> produces an update of the
-/// existing row for the SAME judge, NOT a second row.
+/// this way the <c>run_scores</c> table's
+/// <c>(tenant_id, run_id, message_id, author, name)</c> uniqueness constraint
+/// kicks in, and retrying this job or manually repeating it via
+/// <c>POST /api/runs/{id}/judge</c> produces an update of the existing row for
+/// the SAME judge, NOT a second row. <see cref="RunScore.Name"/> carries the
+/// judge's own name, so the pair stays one row per judge.
 /// </para>
 /// <para>
 /// <see cref="JudgeRunAsync"/> is the shared core used by BOTH the queued job
@@ -205,6 +207,11 @@ internal sealed class OnlineEvalJobHandler(
     /// </remarks>
     private async ValueTask<Dictionary<string, RunScore>> ReadAlreadyScoredJudgesAsync(RunRecord run, CancellationToken cancellationToken)
     {
+        // 🚨 "Has this judge already scored this run?" is asked over Author
+        // ALONE, never over the (author, name) pair (K-638, phase 152). Names
+        // became part of the uniqueness key, so a judge may one day write more
+        // than one row for a run; the checkpoint must still see it as scored,
+        // or a retry would call that judge again.
         try
         {
             var existingScores = await scoreStore.ListAsync(tenantContext.TenantId, run.Id, cancellationToken).ConfigureAwait(false);
@@ -303,6 +310,7 @@ internal sealed class OnlineEvalJobHandler(
             {
                 TenantId = tenantContext.TenantId,
                 RunId = judgeContext.RunId,
+                Name = judge.Name,
                 Kind = RunScoreKind.Numeric,
                 Value = score,
                 Comment = reason,
