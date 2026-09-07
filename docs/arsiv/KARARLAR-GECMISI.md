@@ -4835,3 +4835,22 @@ Emsal aynı repodadır: `AddEvalCheck` / `AgentPrismEvalCheckRegistration` de o
 tabloda **değildir** ve aynı sebeple değildir. Döngü onu izler. DoD'un o satırı
 karşılanmadı; kapsam bunun yerine `CapabilityCoverageTests` ile kapandı — yeni
 giriş noktası yetenek haritasında adıyla görünür.
+
+## Faz 90 damıtmasında taşınan gerekçeler
+
+### K-710
+
+`author` kasıtlı olarak `COALESCE` edilmez: kimliksiz kurulumda tekillik hiç devreye girmez ve her çağrı yeni satır açar (0017'nin kaydettiği davranış, korundu). Yargıcın kaçışı da kalkmaz, çünkü orada `author` gerçekten yazarı ifade eder; `name` yargıcın kendi adını taşır ve çift yine yargıç başına tek satır kalır. 🚨 K-638 buna bağlıdır: "bu yargıç skorladı mı" sorusu `author` ÜZERİNDEN sorulmaya devam eder, `(author, name)` üzerinden DEĞİL — bir yargıç birden çok ad yazabildiği için çift üzerinden sormak retry'de o yargıcı yeniden çağırırdı. Kapı: `OnlineEvalRetryTests.A_judge_holding_two_named_scores_is_still_skipped_on_retry`.
+
+### K-711
+
+Şekil .NET'in üç metrik şekliyle hizalanır (`BooleanMetric`→`Binary`, `NumericMetric`→`Stars`/`Numeric`, `StringMetric`→`Categorical`) ama `EvaluationMetric` kalıcı kayda GİRMEZ ve `AgentPrism.Abstractions` yeni paket referansı ALMAZ. Invariant bir ŞEKİL kuralıdır, varlık kuralı değil: `Categorical` → `TextValue` dolu ve `Value` null; diğer kind'ler → `TextValue` null, `Value` NULL OLABİLİR. Planın "değilse tersi" harfi kendi DoD'siyle (`Value = null` ölçüm yokluğudur) çelişiyordu; `RunJudgment.Score`'un zaten yazdığı kural yayıldı. Sütun tipleri: PostgreSQL `double precision`, SQL Server `float`, SQLite `REAL`.
+
+### K-712
+
+`AgentPrism.Sql.Shared` linked source'tur (K-176) ve üç AYRI sağlayıcı derlemesine derlenir; `Abstractions`'ın `internal`'ına erişemez, üç yeni `InternalsVisibleTo` yazmak paket üstverisine sızardı. Belirleyici olan paket hijyeni değil rol: `IRunScoreStore` bir genişleme noktasıdır ve sevk edilen `RunScoreStoreContract` üçüncü taraf store'u da aynı invariant'a zorlar — kuralı tüketiciye kapatıp sözleşmeyle talep etmek olmaz. Ad kuralı `IRunJudge.Name`'inkiyle BİREBİR aynıdır ve bu kasıtlıdır: yargıç kendi adını skora yazar, iki ayrı kural host'un kabul ettiği bir yargıcın skor yazamamasına yol açardı. Public tip sayısı 380 → 381.
+
+### K-713
+
+Bugün gözlemlenebilir bir yanlış davranış yoktu ve bunu yazmak dürüstlüktür: MAF'ın `EvalCheck` delegesi yalnız boolean üretiyor, yani `passed` `Value`'yu karşılıyordu; kusur ilk sayısal metrik geldiğinde görünürdü. `Metadata` bir KAPSAM SINIRIDIR, unutma değil: `EvaluationMetricExtensions.AddOrUpdateChatMetadata` oraya model yanıtı üstverisi koyabiliyor ve `EvalCaseResult.Scores` istemciye açıktır; `Context` aynı sebeple dışarıda (değerlendiricinin kendi girdisini taşır ve `run`'dan alıntı yapabilir). Yazım elle `Utf8JsonWriter` ile kalır ve somut tip `is BooleanMetric`/`is NumericMetric`/`is StringMetric` desen eşlemesiyle ayrılır — `EvaluationMetric` için kaynak üretilmiş `JsonSerializerContext` yoktur ve `JsonSerializer.Serialize` IL2026/IL3050 üretir. `EvaluationRating` kalıcı SÜTUN olmaz, yalnız bu JSON'da görünür.
+

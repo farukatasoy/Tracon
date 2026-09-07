@@ -3141,6 +3141,13 @@ itself, but there is no downgrade path back to the older schema. Take a backup
 before upgrading a database you cannot lose, and roll a version back by restoring
 that backup rather than by pointing an older build at the newer schema — the
 checksum check will refuse it anyway.
+
+The `run_scores` migration is the current example. It widens the score value from an
+integer to a nullable double, adds the score's name and its categorical value, and
+rewrites the uniqueness index. Existing rows are carried across: a score written by a
+judge keeps that judge's name, every other row is named `overall`. On SQLite the
+value column is rebuilt in place, so the table is rewritten — size that step against
+your own row count before upgrading a large database.
 :::
 
 Set `AutoApplyMigrations = false` when schema changes are their own deployment step.
@@ -13602,8 +13609,11 @@ event — see [Writing your own event](/concepts/runs/#writing-your-own-event) �
 renders as a generic card named after that event's own type, with no console
 change required to show up.
 
-Two runs can be compared side by side, and any run can be scored — those scores sit
-next to the ones automatic judges write.
+Two runs can be compared side by side, and any run can be scored. The thumbs on the
+run screen write one named score — `overall` — as the person looking at it. Every
+other score on that run, whether a second name someone wrote through the API or one
+an automatic judge produced, is listed beside them read-only, with its name and its
+value.
 
 A run that continues one interrupted by a process crash names the run it continues,
 right next to the session and parent-run links, as a clickable id that opens the
