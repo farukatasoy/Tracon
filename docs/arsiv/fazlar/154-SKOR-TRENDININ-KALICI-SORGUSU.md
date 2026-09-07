@@ -1,8 +1,8 @@
 # Faz 154 — Skor Trendinin Kalıcı Sorgusu
 
 > **Durum:** ✅ Tamamlandı (2026-09-07)
-> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-209**
-> **Önkoşul:** 🚨 [Faz 152](arsiv/fazlar/152-SKORUN-ADI-VE-SEKLI.md) — aynı tabloya (`run_scores`) dokunur ve **önce koşmalıdır**. 152 skora bir **ad** getiriyor; kırılım o adı içermelidir, aksi hâlde kırılım iki kez elden geçer.
+> **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-209**
+> **Önkoşul:** 🚨 [Faz 152](152-SKORUN-ADI-VE-SEKLI.md) — aynı tabloya (`run_scores`) dokunur ve **önce koşmalıdır**. 152 skora bir **ad** getiriyor; kırılım o adı içermelidir, aksi hâlde kırılım iki kez elden geçer.
 > **Paketler:** `AgentPrism.Abstractions`, `AgentPrism.Core`, `AgentPrism.AspNetCore`, `AgentPrism.PostgreSql`, `AgentPrism.Sqlite`, `AgentPrism.SqlServer`, `AgentPrism.Testing.Contracts.Xunit`, `AgentPrism.UI`
 > **Yeni paket:** Yok · **Migration:** 🚨 **gerekli, üç sağlayıcıda** — yalnız indeks; numaralar uygulama anında alınır (K-178). Yeni tablo **yok**
 > **Public API:** Büyüyor — `IRunScoreStore`'a bir okuma üyesi + bir sorgu/sonuç tipi çifti. `wc -l src/*/PublicAPI.Shipped.txt` → her dosya **1 satır** (ölçüldü 2026-09-07): depo arayüzüne üye eklemek üçüncü taraf uygulayıcıyı kırar ve **`1.0` öncesi** yapılmalıdır.
@@ -25,7 +25,7 @@
    (sunucu yanıtları çevrilmez), **K-421** (public API takibi açık), **K-638**
    (yargıç checkpoint'i yeni tablo AÇMADAN mevcut `run_scores` satırlarından
    okur — bu fazın emsali ve aynı kuralın devamı).
-3. [`152-SKORUN-ADI-VE-SEKLI.md`](arsiv/fazlar/152-SKORUN-ADI-VE-SEKLI.md) — yalnız devir notu:
+3. [`152-SKORUN-ADI-VE-SEKLI.md`](152-SKORUN-ADI-VE-SEKLI.md) — yalnız devir notu:
    ```bash
    awk '/## Sonraki Faza Devir Notu/,0' docs/152-SKORUN-ADI-VE-SEKLI.md
    ```
@@ -33,12 +33,12 @@
    `Value`'nun `double?` olması ve `Categorical` şekli kırılımı ve
    toplulaştırmayı **tanımlar**. Faz 152 kapanmadan bu faza başlama.
 4. Alan hafızası (bu faz üç alana dokunuyor):
-   [`hafiza/sql-migration.md`](hafiza/sql-migration.md) (yalnız indeks migration'ı) ·
-   [`hafiza/sql-saglayicilari.md`](hafiza/sql-saglayicilari.md) (toplulaştırma
-   ifadelerinin sağlayıcı farkları) · [`hafiza/postgresql.md`](hafiza/postgresql.md)
+   [`hafiza/sql-migration.md`](../../hafiza/sql-migration.md) (yalnız indeks migration'ı) ·
+   [`hafiza/sql-saglayicilari.md`](../../hafiza/sql-saglayicilari.md) (toplulaştırma
+   ifadelerinin sağlayıcı farkları) · [`hafiza/postgresql.md`](../../hafiza/postgresql.md)
    (indeks ve sorgu planı)
 5. Gerektiğinde, tamamı değil ilgili bölümü:
-   [`MIMARI.md`](MIMARI.md) — veri modeli · gözlemlenebilirlik bölümü
+   [`MIMARI.md`](../../MIMARI.md) — veri modeli · gözlemlenebilirlik bölümü
 
 ---
 
@@ -48,7 +48,7 @@ Skor özeti süreç yeniden başlayınca **sıfırlanıyor** ve ürün bunu tük
 **kendi tablosunu sorgulayarak** çözmesini söylüyor. Bir NuGet paketinin
 tüketiciyi kendi şemasına yönlendirmesi bir sözleşme boşluğudur: `run_scores`
 public bir yüzey değildir, migration'la değişebilir — nitekim
-[Faz 152](arsiv/fazlar/152-SKORUN-ADI-VE-SEKLI.md) tam olarak onu değiştiriyor.
+[Faz 152](152-SKORUN-ADI-VE-SEKLI.md) tam olarak onu değiştiriyor.
 
 Bu faz **tasarımı değiştirmez**. Mevcut "no durable counter store" kuralı
 korunur; canlı gösterge bellekte kalır. Eklenen tek şey eksik olan **okuma
@@ -61,11 +61,11 @@ korunur; canlı gösterge bellekte kalır. Eklenen tek şey eksik olan **okuma
 
 | Kanıt | Gözlem |
 |---|---|
-| [`EvalEndpoints.cs:167-170`](../src/AgentPrism.AspNetCore/Endpoints/EvalEndpoints.cs#L167) | Sevk edilen metin: *"The summary is in-memory (it resets when the process restarts); for an authoritative result, the 'run_scores' table can be queried directly."* |
-| [`OnlineEvalSummaryService.cs:13-18`](../src/AgentPrism.Core/Evaluation/OnlineEvalSummaryService.cs#L13) | Pencere bellekte, kiracı başına kuyruk; *"no durable counter store"* kuralına atıf |
-| [`IRunScoreStore.cs:37-54`](../src/AgentPrism.Abstractions/Runs/IRunScoreStore.cs#L37) | **Yalnız üç üye**: `UpsertAsync` · `ListAsync(tenantId, runId)` · `DeleteAsync`. Zaman aralığı veya toplulaştırma **yok** |
-| [`0017_run_scores.sql:50-52`](../src/AgentPrism.PostgreSql/Migrations/0017_run_scores.sql#L50) | Tek erişim indeksi `(tenant_id, run_id)`; yorum: *"Listing the scores of a run — that is the only access pattern."* Sqlite `0005` ve SqlServer `0005` de aynı |
-| [`RunStatisticsQuery.cs`](../src/AgentPrism.Abstractions/Runs/RunStatistics.cs) | Kırılım deseni hazır: `StartedAfter` · `AgentName` · `UserId` · `LabelKey`/`LabelValue` · `MaxAgents` tavanı |
+| [`EvalEndpoints.cs:167-170`](../../../src/AgentPrism.AspNetCore/Endpoints/EvalEndpoints.cs#L167) | Sevk edilen metin: *"The summary is in-memory (it resets when the process restarts); for an authoritative result, the 'run_scores' table can be queried directly."* |
+| [`OnlineEvalSummaryService.cs:13-18`](../../../src/AgentPrism.Core/Evaluation/OnlineEvalSummaryService.cs#L13) | Pencere bellekte, kiracı başına kuyruk; *"no durable counter store"* kuralına atıf |
+| [`IRunScoreStore.cs:37-54`](../../../src/AgentPrism.Abstractions/Runs/IRunScoreStore.cs#L37) | **Yalnız üç üye**: `UpsertAsync` · `ListAsync(tenantId, runId)` · `DeleteAsync`. Zaman aralığı veya toplulaştırma **yok** |
+| [`0017_run_scores.sql:50-52`](../../../src/AgentPrism.PostgreSql/Migrations/0017_run_scores.sql#L50) | Tek erişim indeksi `(tenant_id, run_id)`; yorum: *"Listing the scores of a run — that is the only access pattern."* Sqlite `0005` ve SqlServer `0005` de aynı |
+| [`RunStatisticsQuery.cs`](../../../src/AgentPrism.Abstractions/Runs/RunStatistics.cs) | Kırılım deseni hazır: `StartedAfter` · `AgentName` · `UserId` · `LabelKey`/`LabelValue` · `MaxAgents` tavanı |
 
 > Kanıtlar 2026-09-07 tarihinde doğrulandı.
 
@@ -147,7 +147,7 @@ kiracı sütunu **önce** gelmelidir.
 ## 154.4 — Sevk edilen metin düzeltilir
 
 Bu faz bir kod boşluğunu kapatmakla kalmaz, **yanlış bir sözü** de siler.
-[`EvalEndpoints.cs:167-170`](../src/AgentPrism.AspNetCore/Endpoints/EvalEndpoints.cs#L167)
+[`EvalEndpoints.cs:167-170`](../../../src/AgentPrism.AspNetCore/Endpoints/EvalEndpoints.cs#L167)
 bugün tüketiciyi `run_scores` tablosuna yönlendiriyor. O cümle kalkar ve yerine
 yeni ucun adı gelir.
 
@@ -303,7 +303,7 @@ tests/
 
 > Seviyeyi plan seçer. Sınır geçen davranış (DI · HTTP · kiracı · akış · depo ·
 > paket) birim testiyle kanıtlanamaz —
-> [`.agents/ortak/test-seviyeleri.md`](../.agents/ortak/test-seviyeleri.md).
+> [`.agents/ortak/test-seviyeleri.md`](../../../.agents/ortak/test-seviyeleri.md).
 
 | Ne bozulabilir | Seviye | Test sınıfı |
 |---|---|---|
@@ -489,7 +489,7 @@ psql -c "\di+ *run_scores*"
      `message_id IS NULL`/`is null` kontrolü yapıyor — `MessageId = ""` yazan
      bir çağıranda deney ortalaması sessizce yanlış olur. Bu **ayrı bir
      özellik** (deneyler, skor özeti değil) ve bu fazın kapsamı dışında;
-     [`ADAYLAR.md` — F-214](ADAYLAR.md) olarak kaydedildi.
+     [`ADAYLAR.md` — F-214](../../ADAYLAR.md) olarak kaydedildi.
 
 ## Bu Fazda Verilen Kararlar
 
