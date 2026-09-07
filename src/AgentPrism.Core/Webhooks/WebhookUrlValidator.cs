@@ -17,7 +17,7 @@ public readonly record struct WebhookUrlVerdict(bool IsAllowed, string? Reason, 
 /// </summary>
 /// <remarks>
 /// <para>
-/// <strong>This phase's biggest security risk.</strong> The webhook
+/// <strong>The webhook subsystem's biggest security risk.</strong> The webhook
 /// address is given by the <em>user</em>, and the server sends a request to
 /// that address. If left uncontrolled, it becomes a means of reaching
 /// internal-network services — including cloud metadata endpoints

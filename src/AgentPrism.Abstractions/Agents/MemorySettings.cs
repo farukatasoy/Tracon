@@ -13,8 +13,9 @@ namespace AgentPrism;
 public sealed record MemorySettings
 {
     /// <summary>
-    /// Gets a value that turns on file-based memory. In this phase it works only with
-    /// the in-memory store; the persistent version is left to a later phase.
+    /// Gets a value that turns on file-based memory. It reads whichever
+    /// <c>AgentFileStore</c> is registered; the built-in store keeps files in
+    /// memory, so they do not survive a restart unless you register your own.
     /// </summary>
     public bool EnableFileMemory { get; init; }
 
@@ -23,8 +24,8 @@ public sealed record MemorySettings
 
     /// <summary>
     /// Gets a value that turns on text search over the file store. The search runs over
-    /// the registered <c>AgentFileStore</c>, which in this phase is the in-memory store
-    /// by default.
+    /// the registered <c>AgentFileStore</c>, which is the in-memory store unless you
+    /// register another one.
     /// </summary>
     public bool EnableTextSearch { get; init; }
 

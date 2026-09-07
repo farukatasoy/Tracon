@@ -104,9 +104,23 @@ const operationCount = Object.values(openApi.paths ?? {}).reduce(
   0,
 );
 const uiRoutes = readFileSync(join(sourceRoot, 'AgentPrism.UI/frontend/src/app.tsx'), 'utf8');
-const screenCount = new Set(
-  [...uiRoutes.matchAll(/from '\.\/screens\/([^']+)'/g)].map((match) => match[1]),
-).size;
+
+// A "screen" is what the reader sees, so this counts the Screen COMPONENTS the
+// route table renders, not the modules they are imported from. Two modules
+// (skills, triggers) export a list screen and an editor screen each, so the
+// module count is 28 where the component count is 30 - and the pages have
+// always said 30. Counting modules made this gate measure something no page
+// claims, which is a gate that cannot fail for the reason it exists.
+const screenCount = new Set([...uiRoutes.matchAll(/<([A-Z]\w*Screen)\b/g)].map((match) => match[1])).size;
+
+// Domain tags, excluding the umbrella tag every operation also carries.
+const tagCount = new Set(
+  Object.values(openApi.paths ?? {}).flatMap((item) =>
+    Object.entries(item)
+      .filter(([method]) => ['get', 'post', 'put', 'patch', 'delete'].includes(method))
+      .flatMap(([, operation]) => operation.tags ?? []),
+  ),
+).size - 1;
 
 for (const [value, label] of [
   [packageCount, 'NuGet packages'],
@@ -445,6 +459,53 @@ for (const file of collect(sourceRoot).filter((entry) => entry.endsWith('Options
         `${relative(repositoryRoot, file)}: option '${property}' appears on no page that ` +
           `also names ${context.join(' or ')}`,
       );
+    }
+  }
+}
+
+// 🚨 Every manual page that states a countable fact, not just the one page that
+// happens to be checked below. Three pages carried stale operation counts (143,
+// 143, 162 against a real 165) and one a stale tag count (19 against 23) while
+// this gate stayed green, because the gate only knew about the landing page and
+// http-api.md. A drifted number is a wrong answer to a reader's question, so
+// the rule is that a page may state a count or omit it, but may not state a
+// stale one.
+//
+// Release notes and the changelog are deliberately exempt: their numbers
+// describe a dated snapshot, and rewriting those to today's value would destroy
+// the record rather than fix it.
+// A count, then up to five plain words, then the noun - so "143 operations" and
+// "143 management and OpenAI-compatible operations" are both caught. The words
+// may not themselves contain a digit, which keeps the match from jumping across
+// an unrelated number earlier in the sentence.
+const qualifier = String.raw`(?:[A-Za-z][\w-]*[\s]+){0,5}`;
+
+const countedClaims = [
+  { pattern: new RegExp(String.raw`(\d+)[\s-]${qualifier}operations\b`, 'g'), expected: operationCount, label: 'HTTP operations' },
+  { pattern: new RegExp(String.raw`(\d+)-operation\b`, 'g'), expected: operationCount, label: 'HTTP operations' },
+  { pattern: new RegExp(String.raw`grouped under (\d+) tags\b`, 'g'), expected: tagCount, label: 'domain tags' },
+  { pattern: new RegExp(String.raw`(\d+)[\s-]${qualifier}screens\b`, 'g'), expected: screenCount, label: 'console screens' },
+];
+
+for (const file of manualContent) {
+  const slug = relative(docsRoot, file);
+
+  if (slug.startsWith('release') || slug.includes('changelog')) {
+    continue;
+  }
+
+  // Line breaks are not meaningful to a prose claim; a wrapped sentence must
+  // read the same to this gate as an unwrapped one.
+  const page = readFileSync(file, 'utf8').replace(/\s+/g, ' ');
+
+  for (const { pattern, expected, label } of countedClaims) {
+    for (const [match, value] of page.matchAll(pattern)) {
+      if (Number(value) !== expected) {
+        errors.push(
+          `${slug}: says "${match.trim()}" but there are ${expected} ${label}. ` +
+            'Update the number, or drop it if the page does not need to count.',
+        );
+      }
     }
   }
 }

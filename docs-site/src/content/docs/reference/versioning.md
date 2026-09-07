@@ -21,8 +21,13 @@ links to the entry for the exact version you installed.
 
 ## Package identity
 
-A `<package id, version>` pair names exactly one artifact. The release process
-enforces this before a package is ever produced:
+For packages produced by the official release process, a `<package id, version>`
+pair names exactly one artifact. That guarantee comes from the pipeline, not from
+NuGet: a locally packed or otherwise unofficial build can reuse a version string
+that already named different content, and NuGet's cache will not notice — see
+[the caching caution](/guides/write-your-own-store/) if you pack previews
+yourself. For official artifacts the release process enforces this before a
+package is ever produced:
 
 - **Every packed artifact traces back to a commit.** The build refuses to
   produce a package from an uncommitted working tree — there is no version

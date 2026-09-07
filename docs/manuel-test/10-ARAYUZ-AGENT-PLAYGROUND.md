@@ -1702,3 +1702,64 @@ kendini günceller.
 - Altında `Cancel order ORD-1001 for Priya Shah.` mesajı görünür.
 - "Argümanlar" satırı yine KATLI başlar; açılınca `orderId: "ORD-1001"`
   görünür.
+
+---
+
+### MT-UIAG-054 — Konsolda açıklamayı düzenlemek, editörün kontrolü OLMAYAN alanları düşürmez (B01)
+
+Regresyon. `PUT /api/agents/{name}` tam değiştirmedir: form neyi taşımıyorsa o
+alan korunmaz, SİLİNİR. Ölçülen kayıp `parameters`, `sharedInstructionsName`,
+`model.providerSettings`, `model.responseCache`, `model.allowConcurrentToolCalls`
+ve yalnız vector search açık olan `memory` bloğuydu — hiçbirinin editörde
+kontrolü yok, hepsi artık `PreservedFields` ile taşınır.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | — (faz dışı kusur giderme) |
+| **İlgili karar** | K-725 |
+
+**Ön koşul**
+- HTTP ile bir definition yaz: `parameters` (bir kalem),
+  `sharedInstructionsName`, `model.allowConcurrentToolCalls: true` ve
+  `model.providerSettings` dolu olsun.
+
+**Adımlar**
+1. Konsolda o agent'ı aç, **yalnız açıklamayı** değiştir, kaydet.
+2. `GET {prefix}/api/agents/{name}` ile kaydı oku.
+
+**Beklenen sonuç**
+- `description` yeni değeri taşır.
+- `parameters`, `sharedInstructionsName`, `model.providerSettings` ve
+  `model.allowConcurrentToolCalls` **değişmemiştir** — hiçbiri boşalmaz,
+  `null` olmaz.
+- Editörde bu alanlar için bir kontrol GÖRÜNMEZ; korunmaları düzenlenebilir
+  olmalarını gerektirmez.
+
+---
+
+### MT-UIAG-055 — Yalnız vector search açık olan `memory` bloğu kaydetmede kaybolmaz (B01)
+
+Regresyon. `memoryHasAnything` yalnız file/todo/text search bakıyordu; yalnız
+`enableVectorSearch` açıksa istek `memory: null` gidiyordu.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | — (faz dışı kusur giderme) |
+| **İlgili karar** | K-725 |
+
+**Ön koşul**
+- `IVectorSearchStore` kayıtlı (PostgreSQL) bir ortam.
+- Bir definition'da yalnız `memory.enableVectorSearch: true` ve
+  `memory.vectorCollection` dolu; diğer memory bayrakları kapalı.
+
+**Adımlar**
+1. Konsolda agent'ı aç, adı/açıklamayı değiştirmeden kaydet.
+2. Kaydı `GET` ile oku.
+
+**Beklenen sonuç**
+- `memory` **null değildir**; `enableVectorSearch` hâlâ `true`,
+  `vectorCollection` korunmuştur.

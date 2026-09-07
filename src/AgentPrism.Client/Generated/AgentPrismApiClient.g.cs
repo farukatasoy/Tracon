@@ -10011,7 +10011,7 @@ namespace AgentPrism.Client.Generated
         /// Decides a pending approval request.
         /// </summary>
         /// <remarks>
-        /// The decision enqueues a NEW run (same sessionId, new RunId); the old run stays AwaitingApproval. A second decision on the same request gets 409. If a registered IRunAuthorizationHandler denies the caller, the response is 404, identical to an approval request that does not exist — the 409 is never reached, so a denial cannot reveal that the request was already decided.
+        /// The decision enqueues a NEW run (same sessionId, new RunId); the old run stays AwaitingApproval. Do not start that run yourself. Repeating the SAME decision is safe and returns 200: the continuation run's identity is derived from the approval, so a repeat finishes a handoff that failed partway instead of creating a second run. A second decision asking for the OPPOSITE answer gets 409. If a registered IRunAuthorizationHandler denies the caller, the response is 404, identical to an approval request that does not exist — the 409 is never reached, so a denial cannot reveal that the request was already decided.
         /// </remarks>
         /// <returns>OK</returns>
         /// <exception cref="AgentPrismApiException">A server side error occurred.</exception>
@@ -14973,6 +14973,17 @@ namespace AgentPrism.Client.Generated
         [System.Text.Json.Serialization.JsonPropertyName("callableAgentNames")]
         public System.Collections.Generic.ICollection<string> CallableAgentNames { get; set; } = new System.Collections.Generic.List<string>();
 
+        [System.Text.Json.Serialization.JsonPropertyName("subAgents")]
+        public SubAgentSettings? SubAgents { get; set; } = default!;
+
+        /// <summary>
+        /// MCP resources added to the run context, each of the form
+        /// <br/>`"{server}:{uri}"`. See `AgentDefinition.McpResourceUris`.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("mcpResourceUris")]
+        public System.Collections.Generic.ICollection<string> McpResourceUris { get; set; } = new System.Collections.Generic.List<string>();
+
         [System.Text.Json.Serialization.JsonPropertyName("harness")]
         public HarnessSettings? Harness { get; set; } = default!;
 
@@ -14981,6 +14992,13 @@ namespace AgentPrism.Client.Generated
 
         [System.Text.Json.Serialization.JsonPropertyName("memory")]
         public MemorySettings? Memory { get; set; } = default!;
+
+        /// <summary>
+        /// Free-form, application-specific metadata. See `AgentDefinition.Metadata`.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("metadata")]
+        public object Metadata { get; set; } = default!;
 
         /// <summary>
         /// The parameter schema. See IReadOnlyList&amp;lt;AgentParameter&amp;gt; AgentDefinition.Parameters.
@@ -17591,9 +17609,7 @@ namespace AgentPrism.Client.Generated
         public string? ExpectedOutput { get; set; } = default!;
 
         /// <summary>
-        /// The tool names looked up by the `toolCalled` check. An empty list
-        /// <br/>does not mean the check accepts any tool call — the check is still
-        /// <br/>defined separately in the suite's `checks` field.
+        /// The tool names this case is expected to exercise, recorded for reference.
         /// </summary>
 
         [System.Text.Json.Serialization.JsonPropertyName("expectedTools")]
@@ -18272,10 +18288,10 @@ namespace AgentPrism.Client.Generated
         public ExperimentStatus Status { get; set; } = default!;
 
         /// <summary>
-        /// Gets a reserved value. Runtime assignment does &lt;strong&gt;not read&lt;/strong&gt; it
-        /// <br/>in this phase. The assignment key is always the session identifier, or the
-        /// <br/>run identifier when no session exists. This property is reserved for future
-        /// <br/>strategies that assign outside a session.
+        /// Gets a reserved value. Runtime assignment does &lt;strong&gt;not read&lt;/strong&gt; it:
+        /// <br/>the assignment key is always the session identifier, or the run identifier
+        /// <br/>when no session exists. The property is reserved for future strategies that
+        /// <br/>assign outside a session, and setting it today changes nothing.
         /// </summary>
 
         [System.Text.Json.Serialization.JsonPropertyName("assignmentKey")]
@@ -20099,8 +20115,9 @@ namespace AgentPrism.Client.Generated
     public partial class MemorySettings
     {
         /// <summary>
-        /// Gets a value that turns on file-based memory. In this phase it works only with
-        /// <br/>the in-memory store; the persistent version is left to a later phase.
+        /// Gets a value that turns on file-based memory. It reads whichever
+        /// <br/>`AgentFileStore` is registered; the built-in store keeps files in
+        /// <br/>memory, so they do not survive a restart unless you register your own.
         /// </summary>
 
         [System.Text.Json.Serialization.JsonPropertyName("enableFileMemory")]
@@ -20115,8 +20132,8 @@ namespace AgentPrism.Client.Generated
 
         /// <summary>
         /// Gets a value that turns on text search over the file store. The search runs over
-        /// <br/>the registered `AgentFileStore`, which in this phase is the in-memory store
-        /// <br/>by default.
+        /// <br/>the registered `AgentFileStore`, which is the in-memory store unless you
+        /// <br/>register another one.
         /// </summary>
 
         [System.Text.Json.Serialization.JsonPropertyName("enableTextSearch")]

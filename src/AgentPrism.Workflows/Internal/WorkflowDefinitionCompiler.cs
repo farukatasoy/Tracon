@@ -128,7 +128,7 @@ internal sealed class WorkflowDefinitionCompiler
     /// The trade-off is explicit: an agent step inside a mixed chain does not
     /// stream <c>MessageDelta</c> events into the workflow's own event feed
     /// (streaming a single node's tokens through a boundary that was not
-    /// designed to carry them is a larger change than this phase's scope).
+    /// designed to carry them would be a much larger change).
     /// The step still runs through <c>RunStreamingAsync</c> so
     /// its own child <c>runs</c> row keeps full message and usage history,
     /// queryable through the tree exactly like any other agent step; only the

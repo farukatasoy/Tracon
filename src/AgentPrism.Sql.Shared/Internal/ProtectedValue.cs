@@ -8,8 +8,7 @@ namespace AgentPrism;
 /// <para>
 /// There is no global hook: <c>payload</c> alone appears in four tables and
 /// only one of them carries user content, so a store calls this type by
-/// hand at each site instead of a blanket wrapper (phase plan, decision
-/// 82.2).
+/// hand at each site instead of a blanket wrapper.
 /// </para>
 /// <para>
 /// Reads never consult <see cref="SqlStoreContext.ProtectedColumns"/> — only

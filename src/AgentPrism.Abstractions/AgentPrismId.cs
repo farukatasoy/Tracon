@@ -29,6 +29,51 @@ public static class AgentPrismId
     /// <returns>A time-ordered identifier.</returns>
     public static Guid NewId(DateTimeOffset timestamp)
     {
+        // 6-15: random.
+        Span<byte> random = stackalloc byte[10];
+        RandomNumberGenerator.Fill(random);
+
+        return Compose(timestamp, random);
+    }
+
+    /// <summary>
+    /// Creates a UUIDv7 that depends only on its inputs: the same time stamp
+    /// and seed always produce the same identifier.
+    /// </summary>
+    /// <param name="timestamp">
+    /// The time stamp to embed. Must itself be stable across calls — a stored
+    /// creation time, never <see cref="DateTimeOffset.UtcNow"/>.
+    /// </param>
+    /// <param name="seed">The value the identifier is derived from.</param>
+    /// <returns>A time-ordered identifier that can be recomputed.</returns>
+    /// <remarks>
+    /// <para>
+    /// For a write that must be re-drivable after a crash. Where
+    /// <see cref="NewId()"/> would mint a second identifier on a retry — and
+    /// so a second row — a derived one lets the retry land on exactly the row
+    /// the interrupted attempt was creating, without a table to remember what
+    /// that row was going to be.
+    /// </para>
+    /// <para>
+    /// Still a real UUIDv7, so it keeps the index locality
+    /// <see cref="NewId()"/> is chosen for: only the random bytes are replaced,
+    /// by a SHA-256 digest of <paramref name="seed"/>. It is a derivation, not
+    /// a signature — the seed is not recoverable, but neither is it a secret.
+    /// </para>
+    /// </remarks>
+    public static Guid DeriveId(DateTimeOffset timestamp, string seed)
+    {
+        ArgumentNullException.ThrowIfNull(seed);
+
+        Span<byte> digest = stackalloc byte[32];
+        SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(seed), digest);
+
+        return Compose(timestamp, digest[..10]);
+    }
+
+    /// <summary>Builds a UUIDv7 from a time stamp and ten bytes of payload.</summary>
+    private static Guid Compose(DateTimeOffset timestamp, ReadOnlySpan<byte> payload)
+    {
         Span<byte> bytes = stackalloc byte[16];
 
         // 0-5: 48-bit Unix milliseconds, big-endian.
@@ -40,8 +85,7 @@ public static class AgentPrismId
         bytes[4] = (byte)(milliseconds >> 8);
         bytes[5] = (byte)milliseconds;
 
-        // 6-15: random.
-        RandomNumberGenerator.Fill(bytes[6..]);
+        payload.CopyTo(bytes[6..]);
 
         // The high 4 bits of byte 6 are the version number (7).
         bytes[6] = (byte)((bytes[6] & 0x0F) | 0x70);

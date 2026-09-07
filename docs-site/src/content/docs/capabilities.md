@@ -237,7 +237,7 @@ a failure to record one is logged and stepped over rather than raised to the cal
 `MapAgentPrism()` exposes the documented management and OpenAI operations. The
 diagnostics endpoint, voice WebSocket, health route, MCP server, and A2A routes are
 conditional or separately mapped, so they are not all represented by the generated
-162-operation HTTP reference.
+165-operation HTTP reference.
 
 ## Embedding points
 

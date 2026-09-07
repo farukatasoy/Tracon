@@ -241,7 +241,7 @@ a failure to record one is logged and stepped over rather than raised to the cal
 `MapAgentPrism()` exposes the documented management and OpenAI operations. The
 diagnostics endpoint, voice WebSocket, health route, MCP server, and A2A routes are
 conditional or separately mapped, so they are not all represented by the generated
-162-operation HTTP reference.
+165-operation HTTP reference.
 
 ## Embedding points
 
@@ -703,9 +703,10 @@ curl -X PUT http://localhost:5081/agentprism/api/evals/support/cases \
 ```
 
 That `PUT` is a **full replacement**: cases missing from the body are removed, so send
-the whole list every time. Sequence numbers come from the body's order, which means
-reordering re-numbers the cases and past results then line up with different ones.
-Treat the list as ordered data, not a set. `expectedOutput` reaches `containsExpected`;
+the whole list every time. Sequence numbers come from the body's order, so reordering
+re-numbers the cases — but a sequence number is only display order. Runs are compared
+by case **identifier** (see below), so reordering does not line a past result up
+against a different question. `expectedOutput` reaches `containsExpected`;
 a case also carries an `expectedTools` field for record-keeping, but the tool names a
 `toolCalled` check verifies come from the suite's own check definition, shown above.
 
@@ -1549,7 +1550,10 @@ Everything else follows from these.
 ### No surprises
 
 `AddAgentPrism()` works alone. Without a configured database every store falls back to
-memory. A developer installs the package, writes one line, and has a working console.
+memory, so the runtime comes up on one line with no infrastructure behind it. The
+console is a separate step, not part of that line: add `AgentPrism.UI`, call
+`UseUI()`, and map the endpoints with `MapAgentPrism()` — see [the console
+guide](/ui/).
 A database is never required, and neither is any particular model vendor — OpenAI,
 Anthropic, Google, Azure OpenAI, and any OpenAI-compatible endpoint (including a
 self-hosted engine like Ollama or vLLM) all work side by side.
@@ -2937,6 +2941,12 @@ can be removed from the project file.
 
 ## By hand
 
+:::caution[Not published yet]
+No AgentPrism version has been pushed to NuGet or npm yet, so this command
+does not resolve. Until the first release, reference the projects from a
+clone of the repository.
+:::
+
 ```bash
 dotnet new web -o MyAgents
 cd MyAgents
@@ -3061,7 +3071,7 @@ process, using your configuration, your authentication, and your database.
 |---|---|
 | **Definitions** | An agent as data: model, prompt, tools, skills, callable agents. Versioned, with rollback |
 | **Runs** | Default-on recording — status, timings, tokens, cost, tool calls, traces, and an ordered event stream |
-| **HTTP API** | 143 generated operations, plus OpenAI-compatible Responses and Chat Completions surfaces |
+| **HTTP API** | 165 generated operations, plus OpenAI-compatible Responses and Chat Completions surfaces |
 | **Console** | 30 screens embedded when you add `AgentPrism.UI` and call `UseUI()` |
 | **Workflows** | Multi-agent execution with checkpoints and human-in-the-loop |
 | **Evaluation** | Suites, cases, automatic judges, and A/B experiments between agent versions |
@@ -3927,9 +3937,25 @@ curl -sS \
 ```
 
 Queued runs do not accept `attachmentIds` or an initial `approvals` collection. If a
-tool asks for approval later, the queued request must include a `sessionId`. Decide
-the pending approval through the approval endpoint, then start a new run in that
-session to resume the conversation.
+tool asks for approval later, the queued request must include a `sessionId`.
+
+**Do not start a second run yourself.** Deciding the approval is enough: the
+decision endpoint creates the continuation run and queues it for the worker in
+the same request, and the response's approval record is your confirmation that
+it did. Starting another run in that session on top of it duplicates the work.
+
+The run that asked for approval stays `AwaitingApproval` — it is finished. The
+continuation is a separate run in the same session, so a client watching for a
+result should follow the session rather than the original run id.
+
+If the decision request fails partway, repeat exactly the same decision. The
+continuation run's identity is derived from the approval, so a repeat completes
+the interrupted handoff instead of creating a second run; only a repeat that
+asks for the *opposite* answer is refused with `409`.
+
+This is the durable-mailbox path. An in-band approval — one supplied in a
+run request's `approvals` collection — is answered on the next request instead,
+and a workflow's human-in-the-loop step uses its own respond call.
 
 `AsyncRun.MaxAttempts` defaults to one. This is deliberate: an expired lease must not
 silently repeat an agent run that already changed an external system. Raise it only
@@ -4148,8 +4174,12 @@ longer than `OrphanThreshold` and marks them `Failed`.
 ```
 
 Both settings work with the in-memory lease store, but that store only
-coordinates within one process. Run PostgreSQL, SQL Server, or SQLite to get
-real cross-instance election.
+coordinates within one process. Run PostgreSQL or SQL Server to get real
+cross-instance election.
+
+SQLite implements the same lease contract and is correct within one process,
+but it is not a cross-instance backend: the caution below applies to election
+too. A store having lease semantics is not a cluster-support guarantee.
 
 ## Defaults and limits
 
@@ -5817,10 +5847,15 @@ the MCP server apply.
 
 Both surfaces are configured in code, never from the console:
 `AgentPrismMcpServerOptions` for the MCP server and `AgentPrismA2AOptions` for A2A.
-Each starts empty — `ExposedAgents` names the agents you publish, and
-`ExposeAllAgents` opts out of naming them one by one. `ToolNamePrefix` keeps the
-published tool names from colliding with another server's, and `Budget` bounds what
-an external caller may spend.
+They do not carry the same settings.
+
+`ExposeAllAgents` and `ToolNamePrefix` are **MCP-server settings only**:
+`ExposeAllAgents` opts out of naming published agents one by one, and
+`ToolNamePrefix` keeps the published tool names from colliding with another
+server's. A2A has neither — its names are fixed at registration, which is why
+there is no expose-all switch for it.
+
+`Budget`, which bounds what an external caller may spend, is on both.
 
 ## Production checklist
 
@@ -7736,8 +7771,12 @@ definition is authoritative.
 ## Authentication and authorization
 
 Use the bearer token configured on `MapAgentPrism`, or a tenant-bound AgentPrism API
-key with `ExternalInvoke`. The base URL, credential, and model semantics all change;
-test them explicitly when moving an existing client.
+key with `RunsWrite` — these routes start runs, so they take the same scope the
+management run endpoints take. `GET /v1/conversations/{id}` and its items route
+take `RunsRead` instead. `ExternalInvoke` is the scope for the MCP and A2A
+surfaces and does **not** authorize these routes: a key issued with only
+`ExternalInvoke` is rejected here. The base URL, credential, and model semantics
+all change; test them explicitly when moving an existing client.
 
 For a browser or untrusted device, do not embed a long-lived control-plane key.
 Terminate user authentication in your application and issue the narrowest credential
@@ -8646,12 +8685,19 @@ Your application still parses and validates the result at its trust boundary.
 
 ## Choose the mode
 
-| `ResponseFormat` | Request sent to the provider | Local response validation |
+| `ResponseFormat` | Request sent to the provider | Local response validation (default) |
 |---|---|---|
 | `null` | No format constraint | None |
 | `Text` | Explicit plain-text format | None |
 | `Json` | Valid JSON document, with no schema | None |
 | `JsonSchema` | JSON that follows the supplied schema | None |
+
+The last column is the **default**, not a permanent limit: with
+`AgentPrism:StructuredResponse:Enabled` turned on, a `Json` or `JsonSchema`
+response is checked for well-formed JSON before the run closes, and your own
+`IStructuredResponseValidator` runs alongside it. What is never built in — on or
+off — is validation of the payload against the schema you supplied; that is a
+rule you write in the validator. See [Validate the response](#validate-the-response).
 
 `null` and `Text` are not the same. `null` leaves the provider behavior unchanged.
 `Text` asks for plain text explicitly.
@@ -8918,7 +8964,8 @@ payload against your schema.
 | `SchemaDescription` | Optional; passed to the provider |
 | Schema root | Must be a JSON object |
 | Schema vocabulary validation | Not performed |
-| Returned payload validation | Not performed |
+| Returned payload validation against your schema | Not performed, on or off — write it in `IStructuredResponseValidator` |
+| Returned payload JSON syntax check | Not performed by default; performed when `StructuredResponse:Enabled` is on |
 | Capability check | Enforced only when the selected model exists in the configured catalog |
 | Streaming | The structured document can still arrive in multiple text updates |
 | `AgentPrism:StructuredResponse:Enabled` | `false`; the response is never inspected after the model returns it |
@@ -9271,10 +9318,12 @@ const client = createAgentPrismClient({
 ```
 
 `baseUrl` needs the prefix because `MapAgentPrism`'s mount point is a runtime
-parameter, not a fixed value — the document this package is generated from
-carries no prefix at all. If a request went to the document's bare path, a
-server mounted anywhere but the default `/agentprism` would answer every call
-with a silent `404`.
+parameter, not a fixed value. The published OpenAPI document does carry the
+default `/agentprism` prefix; generation strips it into a throwaway intermediate
+so the generated paths are mount-independent, and `baseUrl` supplies the mount
+back at run time. If a request went to a generated bare path with no `baseUrl`
+prefix, a server mounted anywhere but the default would answer every call with a
+silent `404`.
 
 `token` can be a function instead of a fixed string, so a caller whose token
 rotates or is read from storage per request never has to rebuild the client.
@@ -10957,6 +11006,12 @@ when you care about what enters your dependency graph.
 
 ## The meta package
 
+:::caution[Not published yet]
+No AgentPrism version has been pushed to NuGet or npm yet, so this command
+does not resolve. Until the first release, reference the projects from a
+clone of the repository.
+:::
+
 ```bash
 dotnet add package AgentPrism --prerelease
 ```
@@ -11180,83 +11235,19 @@ upgrades](/reference/versioning/).
 
 # Release notes
 
-Every AgentPrism package is cut from one version line, so a release below covers
-all 20 NuGet packages and the npm client at once. Each package's release-notes
-metadata links straight to the entry for the version you installed.
+**AgentPrism has not been released yet.** No version has been published to
+NuGet or npm, and there is no release tag, so there is nothing here to install
+or pin. Development happens on `main`.
 
-Read [Versions and upgrades](/reference/versioning/) before you move between
-previews: it carries the pinning rules and the upgrade sequence this page's
-entries assume.
-
-## Releases
-
-<a id="v1.0.0-preview.1"></a>
-
-### 1.0.0-preview.1 — 2026-09-03
-
-#### Added
-
-- Initial public preview release of AgentPrism, a production-grade agent
-  control plane for the [Microsoft Agent Framework](https://learn.microsoft.com/en-us/agent-framework/overview/).
-- Model provider adapters for OpenAI (Chat Completions and Responses),
-  Anthropic (Claude), Google (Gemini), and Azure OpenAI, plus an
-  `IModelProvider` extension point for any other provider — with per-tenant
-  bring-your-own-key (BYOK) support and per-tenant egress policy.
-- Persistence backends for PostgreSQL, SQL Server, and SQLite, each with
-  embedded migrations; the runtime (`AgentPrism.Core`) needs no database.
-- An embedded React console — 30 screens across 36 routes (Dashboard,
-  Agents, Skills, Playground, Sessions, Runs, Workflows, Jobs, Evals,
-  Experiments, Approvals, Tools, Models, MCP, Triggers, Audit, Diagnostics,
-  Settings) — with zero JavaScript dependency in the consuming project.
-- A management HTTP API alongside OpenAI-compatible endpoints
-  (`/v1/responses`, `/v1/chat/completions`, `/v1/conversations`), multi-tenant
-  by default.
-- Run recording with spans, metrics, and cost; a tamper-evident audit trail
-  with a verifiable hash chain; data subject export and erasure.
-- Cost provenance: a priced run records the unit prices actually applied and
-  the provider that answered it, so a historical cost stays explainable after
-  the price list changes.
-- Named job lanes: a job carries a lane, a worker subscribes to the lanes it
-  serves, and each lane can hold its own concurrency budget — unrelated kinds
-  of background work no longer block one another. Queue depth, throughput, and
-  duration are reported as OpenTelemetry metrics.
-- Opt-in structured-response validation: when an agent asks for JSON or a JSON
-  schema, the response can be checked before the run closes, with a bounded
-  repair turn that stays inside the same run's budget, cost accounting, and
-  cancellation. A run that carries a durable session gets no repair budget:
-  the underlying agent framework persists a turn as soon as that one model
-  call completes, so a repaired run would return an answer its own session
-  never recorded. Such a rejection fails the run exactly as it would with
-  repair switched off, and its rejection event carries
-  `repairSuppressedBySession` to tell that apart from a run that simply had no
-  repair configured.
-- Tool schemas generated from your method signatures express JSON Schema
-  constraints taken from standard `System.ComponentModel.DataAnnotations`
-  attributes, and support nested object and object-array parameters.
-- Extension points for custom tools, model providers, run stores, run
-  judges, agent sources, and scheduled job handlers, each with a published
-  behavior-contract test suite (`AgentPrism.Testing.Contracts.Xunit`) so a
-  third-party implementation can be verified against the same tests
-  AgentPrism's own implementations run.
-- Workflow execution with five orchestration patterns, checkpoints, resume,
-  and human-in-the-loop approval.
-- MCP tool discovery from remote servers, and agent exposure over MCP and
-  A2A.
-- A typed management client generated from the OpenAPI document, published
-  both as a NuGet package (`AgentPrism.Client`) and an npm package
-  (`@agentprism/client`).
-- A `dotnet new agentprism-api` project template and an `agentprism` global
-  CLI tool (`migrate`, `migrate status`, `health`).
-- Native AOT and trimming compatibility for `AgentPrism.Abstractions`,
-  `AgentPrism.Core`, `AgentPrism.PostgreSql`, `AgentPrism.OpenAI`,
-  `AgentPrism.Anthropic`, `AgentPrism.Google`, `AgentPrism.Azure`, and
-  `AgentPrism.Voice`.
+The repository's `CHANGELOG.md` tracks what has landed there. When the first
+version ships, this page will carry its entry, and each package's release-notes
+metadata will link straight to it.
 
 ## Read next
 
-- [Versions and upgrades](/reference/versioning/) — how to pin the family and upgrade it without drift
-- [Compatibility matrices](/reference/compatibility/) — the framework, runtime, and protocol versions each release supports
-- [Choosing packages](/packages/) — which packages you actually take a version of
+- [Versions and upgrades](/reference/versioning/) — the pinning and upgrade rules the first release will follow
+- [Compatibility matrices](/reference/compatibility/) — the framework, runtime, and protocol versions supported
+- [Choosing packages](/packages/) — which packages you would take a version of
 
 ---
 
@@ -11400,17 +11391,24 @@ form. This matrix shows where a change can originate.
 
 ## HTTP surface compatibility
 
-The generated HTTP reference contains 143 management and OpenAI-compatible
-operations grouped under 19 tags. It does not include every conditional route:
+The generated HTTP reference contains 165 management and OpenAI-compatible
+operations grouped under 23 domain tags.
 
-- `GET /api/diagnostics` exists only when `EnableDiagnosticsEndpoint` is true.
-- The voice conversation route is a WebSocket and exists only after
-  `UseVoiceConversation()`.
-- MCP server and A2A routes use their own `MapAgentPrismMcpServer()` and
-  `MapAgentPrismA2A()` calls.
-- Health checks join the consumer's health-check system. You choose their route with
-  ASP.NET Core `MapHealthChecks()`.
-- UI assets and SPA fallback routes are not API operations.
+Being in the reference and being live in your process are different questions.
+The document is generated from one build profile; whether a route answers depends
+on how you called `MapAgentPrism()`:
+
+| Route | In the reference | Live in your process |
+|---|---|---|
+| `GET /api/diagnostics` | Yes | Only when `EnableDiagnosticsEndpoint` is true |
+| Voice conversation | No — a WebSocket, not an operation | Only after `UseVoiceConversation()` |
+| MCP server routes | No | Only after `MapAgentPrismMcpServer()` |
+| A2A routes | No | Only after `MapAgentPrismA2A()` |
+| Health checks | No — they join your own health-check system | Wherever you put `MapHealthChecks()` |
+| UI assets and SPA fallback | No — not API operations | Only after `UseUI()` |
+
+So a route present in the reference is not automatically enabled for you, and a
+route absent from it is not automatically unavailable.
 
 The documented paths are relative to the prefix passed to `MapAgentPrism()`. With
 the usual prefix, `GET /api/agents` means `GET /agentprism/api/agents`.
@@ -12549,8 +12547,13 @@ links to the entry for the exact version you installed.
 
 ## Package identity
 
-A `<package id, version>` pair names exactly one artifact. The release process
-enforces this before a package is ever produced:
+For packages produced by the official release process, a `<package id, version>`
+pair names exactly one artifact. That guarantee comes from the pipeline, not from
+NuGet: a locally packed or otherwise unofficial build can reuse a version string
+that already named different content, and NuGet's cache will not notice — see
+[the caching caution](/guides/write-your-own-store/) if you pack previews
+yourself. For official artifacts the release process enforces this before a
+package is ever produced:
 
 - **Every packed artifact traces back to a commit.** The build refuses to
   produce a package from an uncommitted working tree — there is no version
@@ -12778,7 +12781,11 @@ Then call `GET /agentprism/api/diagnostics`. The route is absent by default, so 
 
 ### NuGet says no stable version exists
 
-AgentPrism is a preview package. Select pre-release versions explicitly:
+AgentPrism has not been published yet: no version exists on NuGet at all, stable
+or pre-release. Build from a clone of the repository until the first release.
+
+Once it is published, it will be a preview package, so select pre-release
+versions explicitly:
 
 ```bash
 dotnet add package AgentPrism --prerelease
@@ -13798,9 +13805,11 @@ Every job and schedule shows its lane — a plain text tag that keeps unrelated 
 of work from blocking each other in the same queue. Filter the job list by lane to
 find work a worker is not currently scoped to pick up.
 
-The queue only drains in a process that opted in with `UseScheduling()`. A queue that
-never moves is almost always an API process with no worker behind it — see
-[Jobs, schedules, and queues](/guides/background-work/).
+The queue drains in any process whose worker is running. That is the default:
+`AgentPrismSchedulingOptions.Enabled` and `RunWorker` are both `true`, so calling
+`UseScheduling()` is about configuring the worker, not switching it on. A queue
+that never moves is almost always a deployment where every process sets
+`RunWorker` to `false` — see [Jobs, schedules, and queues](/guides/background-work/).
 
 ## Workflows
 

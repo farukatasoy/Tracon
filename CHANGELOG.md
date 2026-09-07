@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+Nothing here has been published yet. AgentPrism is in development: no version
+has been pushed to NuGet or npm, and there is no release tag. The entries below
+describe what is on `main`. The first real release will get its own section,
+fixed to the artifacts it actually ships.
+
 ### Added
 
 - `AgentPrism:SessionOwnership:RefuseUnownedSessions` (default `false`).
@@ -37,12 +42,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   is a behaviour change for existing setups. `POST /v1/conversations` is not
   gated: it reserves an identifier and writes nothing.
 
-## [1.0.0-preview.1] - 2026-09-03
+### Added — foundation
 
-### Added
-
-- Initial public preview release of AgentPrism, a production-grade agent
-  control plane for the [Microsoft Agent Framework](https://learn.microsoft.com/en-us/agent-framework/overview/).
 - Model provider adapters for OpenAI (Chat Completions and Responses),
   Anthropic (Claude), Google (Gemini), and Azure OpenAI, plus an
   `IModelProvider` extension point for any other provider — with per-tenant
@@ -54,8 +55,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   Experiments, Approvals, Tools, Models, MCP, Triggers, Audit, Diagnostics,
   Settings) — with zero JavaScript dependency in the consuming project.
 - A management HTTP API alongside OpenAI-compatible endpoints
-  (`/v1/responses`, `/v1/chat/completions`, `/v1/conversations`), multi-tenant
-  by default.
+  (`/v1/responses`, `/v1/chat/completions`, `/v1/conversations`). Multi-tenancy
+  is opt-in: `AgentPrismTenancyOptions.Enabled` is `false` by default and
+  every request resolves to the single default tenant until you turn it on.
 - Run recording with spans, metrics, and cost; a tamper-evident audit trail
   with a verifiable hash chain; data subject export and erasure.
 - Cost provenance: a priced run records the unit prices actually applied and
@@ -91,11 +93,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   both as a NuGet package (`AgentPrism.Client`) and an npm package
   (`@agentprism/client`).
 - A `dotnet new agentprism-api` project template and an `agentprism` global
-  CLI tool (`migrate`, `migrate status`, `health`).
+  CLI tool (`migrate`, `migrate status`, `health`, `eval`).
 - Native AOT and trimming compatibility for `AgentPrism.Abstractions`,
   `AgentPrism.Core`, `AgentPrism.PostgreSql`, `AgentPrism.OpenAI`,
   `AgentPrism.Anthropic`, `AgentPrism.Google`, `AgentPrism.Azure`, and
   `AgentPrism.Voice`.
-
-[Unreleased]: https://github.com/farukatasoy/AgentPrism/compare/v1.0.0-preview.1...HEAD
-[1.0.0-preview.1]: https://github.com/farukatasoy/AgentPrism/releases/tag/v1.0.0-preview.1

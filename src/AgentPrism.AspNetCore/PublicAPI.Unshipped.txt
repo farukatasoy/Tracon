@@ -1163,6 +1163,12 @@ AgentPrism.AgentDefinitionRequest.Parameters.get -> System.Collections.Generic.I
 AgentPrism.AgentDefinitionRequest.Parameters.init -> void
 AgentPrism.AgentDefinitionRequest.SharedInstructionsName.get -> string?
 AgentPrism.AgentDefinitionRequest.SharedInstructionsName.init -> void
+AgentPrism.AgentDefinitionRequest.SubAgents.get -> AgentPrism.SubAgentSettings?
+AgentPrism.AgentDefinitionRequest.SubAgents.init -> void
+AgentPrism.AgentDefinitionRequest.McpResourceUris.get -> System.Collections.Generic.IReadOnlyList<string!>!
+AgentPrism.AgentDefinitionRequest.McpResourceUris.init -> void
+AgentPrism.AgentDefinitionRequest.Metadata.get -> System.Collections.Generic.IReadOnlyDictionary<string!, System.Text.Json.JsonElement>!
+AgentPrism.AgentDefinitionRequest.Metadata.init -> void
 AgentPrism.AgentRunRequest.Documents.get -> System.Collections.Generic.IReadOnlyList<AgentPrism.AgentRunDocument!>!
 AgentPrism.AgentRunRequest.Documents.init -> void
 AgentPrism.AgentRunRequest.Parameters.get -> System.Collections.Generic.IReadOnlyDictionary<string!, string!>?

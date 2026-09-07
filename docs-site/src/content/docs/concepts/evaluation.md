@@ -57,9 +57,10 @@ curl -X PUT http://localhost:5081/agentprism/api/evals/support/cases \
 ```
 
 That `PUT` is a **full replacement**: cases missing from the body are removed, so send
-the whole list every time. Sequence numbers come from the body's order, which means
-reordering re-numbers the cases and past results then line up with different ones.
-Treat the list as ordered data, not a set. `expectedOutput` reaches `containsExpected`;
+the whole list every time. Sequence numbers come from the body's order, so reordering
+re-numbers the cases — but a sequence number is only display order. Runs are compared
+by case **identifier** (see below), so reordering does not line a past result up
+against a different question. `expectedOutput` reaches `containsExpected`;
 a case also carries an `expectedTools` field for record-keeping, but the tool names a
 `toolCalled` check verifies come from the suite's own check definition, shown above.
 
