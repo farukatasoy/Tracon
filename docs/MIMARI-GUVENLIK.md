@@ -245,42 +245,21 @@ silme eylemi ise yeni bir denetim kaydı olarak eklenir.
 
 ## Skill script çalıştırma
 
-Bu, K2'nin (**"tool'lar yalnız kodda tanımlanır"**) **ikinci bilinçli
-istisnasıdır**. Birincisi MCP'ydi ve orada süreç **uzakta** çalışıyordu; burada
-süreç **AgentPrism'in makinesinde** çalışır.
+K2'nin (**"tool'lar yalnız kodda tanımlanır"**) ikinci bilinçli istisnası —
+birincisi MCP (uzakta çalışır), bu **AgentPrism'in kendi makinesinde** çalışır.
+Varsayılan **kapalıdır**; yalnız kodda açılır ve yürütülebilir yüzeyi genişleten
+alanlar (`Interpreters`, `SkillRoots`, `AllowStoredScripts`) yapılandırmadan
+OKUNMAZ. Her çalıştırma beş sıralı kapıdan geçer (Enabled · kiracı izni ·
+yorumlayıcı beyaz listesi · argüman doğrulama · denetim izi yazımı) ve denetim
+izi kapısı Faz 9 kuralının tek istisnasıdır: yazılamazsa çalıştırma da durur
+(K-089). `PlatformIsolationAcknowledged` dosya/ağ/kota/hak düşürme sınırlarının
+barındırma ortamında (container+cgroup) kurulduğunu KABUL ETTİRİR — AgentPrism
+bunları sağlamaz (K-086).
 
-Özellik **varsayılan olarak kapalıdır** ve yalnız kodda açılır
-(`UseSkillScripts(...)`: zorunlu onay bayrağı + boş başlayan yorumlayıcı beyaz
-listesi + kodda verilen skill kökleri). **Yürütülebilir yüzeyi genişleten üç
-alan yapılandırmadan okunmaz**: `Interpreters`, `SkillRoots` ve
-`AllowStoredScripts`. Bağlama bu alanları kodda verilenin üzerine **eklediği**
-için bir ortam değişkeni yeni yorumlayıcı tanıtabiliyordu. `Enabled` ve
-`PlatformIsolationAcknowledged` bağlanmaya devam eder — ikisi de yüzeyi
-genişletemez, yalnız kapatır veya sınırı kabul eder.
-
-Her çalıştırma **beş kapıdan sırayla** geçer; biri kapalıysa süreç hiç başlamaz
-ve `AgentPrismException` atılır: (1) `Enabled` · (2) kiracı için geçerli izin ·
-(3) uzantı yorumlayıcı beyaz listesinde (boş varsayılan, K-088) · (4) argüman
-boyutu, şeması ve **script adının düz bir dosya adı olduğu** · (5) denetim izine
-yazılabildi. Ardından **eşzamanlılık kotası** gelir; o bir kapı **değil, bir
-kuyruktur**: iki katmanlı `SemaphoreSlim` (kiracı + toplam) isteği reddetmez,
-yer açılana kadar **bekletir** — yalnız `CancellationToken` ile kopar.
-Ancak sonra ayrı süreç temiz ortamla, stdin'den argümanla (K-091), zaman aşımı
-ve çıktı sınırıyla başlar.
-
-🚨 Beşinci kapı Faz 9 kuralının **istisnasıdır**: denetim izine yazılamayan bir
-script çalıştırması, hiçbir kaydı olmayan bir uzaktan kod çalıştırma olurdu
-(K-089). Diğer tüm yazmalarda denetim hatası yutulur; burada yutulmaz.
-
-🚨 **AgentPrism dosya sistemi hapsi, ağ kısıtı, bellek/CPU kotası ve hak düşürme
-SAĞLAMAZ**; dördü de barındırma ortamında (container + cgroup + ayrıcalıksız
-kullanıcı) kurulur. `PlatformIsolationAcknowledged` bayrağı bu sınırı görmeden
-özellik açılmasını engeller: `Enabled = true` iken bayrak `false` ise
-**açılışta** hata verilir (K-086).
-
-Kapı akış şeması, koruma tablosunun tamamı (ortam temizliği, zaman aşımı, çıktı
-sınırı, eşzamanlılık, `SkillScriptGrant`, denetim olayları) ve barındırma
-kurulumu: [`11-SKILL-SCRIPT-CALISTIRMA.md`](arsiv/fazlar/11-SKILL-SCRIPT-CALISTIRMA.md).
+K2 istisnasının tam gerekçesi, beş kapının akış şeması, koruma tablosu (ortam
+temizliği, zaman aşımı, çıktı sınırı, eşzamanlılık, `SkillScriptGrant`, denetim
+olayları) ve barındırma kurulumu:
+[`11-SKILL-SCRIPT-CALISTIRMA.md`](arsiv/fazlar/11-SKILL-SCRIPT-CALISTIRMA.md).
 
 ## Kota ve webhook imzası
 

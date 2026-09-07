@@ -152,3 +152,43 @@ AgentPrism.AspNetCore.FunctionalTests  136 passed, 0 failed
   yükümlüdür.
 - Faz 7 (yayın) yapılırken bu fazın public API'si **güvenlik yüzeyi** olarak
   ayrıca gözden geçirilmelidir.
+
+---
+
+## Çalışma anı davranışı (K2 istisnası, kapı akışı, koruma tablosu)
+
+> `MIMARI-GUVENLIK.md`'den Faz 156'da taşındı: dosya %0 bosluga dusmustu ve bu
+> bölüm güncel mimariden çok bu fazın kalıcı davranış kaydına aitti.
+
+Bu, K2'nin (**"tool'lar yalnız kodda tanımlanır"**) **ikinci bilinçli
+istisnasıdır**. Birincisi MCP'ydi ve orada süreç **uzakta** çalışıyordu; burada
+süreç **AgentPrism'in makinesinde** çalışır.
+
+Özellik **varsayılan olarak kapalıdır** ve yalnız kodda açılır
+(`UseSkillScripts(...)`: zorunlu onay bayrağı + boş başlayan yorumlayıcı beyaz
+listesi + kodda verilen skill kökleri). **Yürütülebilir yüzeyi genişleten üç
+alan yapılandırmadan okunmaz**: `Interpreters`, `SkillRoots` ve
+`AllowStoredScripts`. Bağlama bu alanları kodda verilenin üzerine **eklediği**
+için bir ortam değişkeni yeni yorumlayıcı tanıtabiliyordu. `Enabled` ve
+`PlatformIsolationAcknowledged` bağlanmaya devam eder — ikisi de yüzeyi
+genişletemez, yalnız kapatır veya sınırı kabul eder.
+
+Her çalıştırma **beş kapıdan sırayla** geçer; biri kapalıysa süreç hiç başlamaz
+ve `AgentPrismException` atılır: (1) `Enabled` · (2) kiracı için geçerli izin ·
+(3) uzantı yorumlayıcı beyaz listesinde (boş varsayılan, K-088) · (4) argüman
+boyutu, şeması ve **script adının düz bir dosya adı olduğu** · (5) denetim izine
+yazılabildi. Ardından **eşzamanlılık kotası** gelir; o bir kapı **değil, bir
+kuyruktur**: iki katmanlı `SemaphoreSlim` (kiracı + toplam) isteği reddetmez,
+yer açılana kadar **bekletir** — yalnız `CancellationToken` ile kopar.
+Ancak sonra ayrı süreç temiz ortamla, stdin'den argümanla (K-091), zaman aşımı
+ve çıktı sınırıyla başlar.
+
+🚨 Beşinci kapı Faz 9 kuralının **istisnasıdır**: denetim izine yazılamayan bir
+script çalıştırması, hiçbir kaydı olmayan bir uzaktan kod çalıştırma olurdu
+(K-089). Diğer tüm yazmalarda denetim hatası yutulur; burada yutulmaz.
+
+🚨 **AgentPrism dosya sistemi hapsi, ağ kısıtı, bellek/CPU kotası ve hak düşürme
+SAĞLAMAZ**; dördü de barındırma ortamında (container + cgroup + ayrıcalıksız
+kullanıcı) kurulur. `PlatformIsolationAcknowledged` bayrağı bu sınırı görmeden
+özellik açılmasını engeller: `Enabled = true` iken bayrak `false` ise
+**açılışta** hata verilir (K-086).

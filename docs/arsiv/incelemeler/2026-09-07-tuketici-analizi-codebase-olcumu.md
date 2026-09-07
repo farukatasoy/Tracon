@@ -6,7 +6,7 @@
 
 ## 1. Kapsam, zemin ve kanıt sınırı
 
-- Girdi: [AgentPrism — Kapsamlı Teknik ve Ürün Analizi](../../AgentPrism-Kapsamli-Teknik-Analiz-2026-09-07.md), 1005 satır. SHA-256: `5127dd2a98ad24792c8de8c57baafae9bf70151a428c2402e14c7101f22aec1c`.
+- Girdi: [AgentPrism — Kapsamlı Teknik ve Ürün Analizi](2026-09-07-tuketici-analizi-girdi-raporu.md), 1005 satır. SHA-256: `5127dd2a98ad24792c8de8c57baafae9bf70151a428c2402e14c7101f22aec1c`.
 - Codebase: `2a3f5cff0f43078d7c41d5faf24ad45cb7131a8e`. Başlangıçta yalnız girdi raporu untracked idi. Bu inceleme ürün kodunu değiştirmedi, commit veya yayın yapmadı.
 - Kullanıcının netleştirmesi: **“şu an için henüz yayınlanmamış geliştirme sürümü”**. Registry'de yokluk bir yayın arızası değildir. Yayınlanmış gibi anlatmak doküman kusurudur.
 - [Yol haritasında](../../YOL-HARITASI.md) son numaralı faz 154 kapalıdır. Üretecin 155 kayıt sayması ile son faz numarası aynı ölçüm değildir. Son üç fazın devir notları okundu. Faz 153 özellikle case snapshot'ının bulunmadığını ve K-716 sınırını devreder.

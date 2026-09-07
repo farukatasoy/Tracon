@@ -11,7 +11,10 @@
 > Bu dosya `MEMORY.md`'nin alan dosyasidir. Yalnizca bu alana dokunurken okunur.
 > Sinir: **nasil paketlenir** sorusu
 > [`paketleme-ve-dagitim.md`](paketleme-ve-dagitim.md)'dedir; **pakete giren
-> metnin dogrulugu** buradadir.
+> metnin dogrulugu** buradadir. İçerik kapısı yazımı, sunum kapıları, önek
+> karşılaştırma ayırıcısı ve mermaid tema tuzakları (site kapı BETİKLERİNİN
+> kendi bakımı) [`site-uretim-kapilari.md`](site-uretim-kapilari.md)'ye
+> Faz 156'da taşındı.
 
 ## Sevk edilen metnin kurali (Faz 75, K-514)
 
@@ -77,54 +80,6 @@ mu" diye bir kez kontrol et.
   `JobScheduleSaveRequest.Payload` atanmazsa uc **500** doner (`JsonElement`
   `Undefined` tuzagi) ve tetikleyici imzalama anahtari
   `AgentPrism:TriggerSecrets:` onekini ZORUNLU tutar.
-
-## Icerik kapisi yazarken
-
-`check-content.mjs`'e iddia eklerken **gevsek yazmak kolaydir**; ikisi ilk
-yazimda gevsekti ve hicbir sey yakalamadi:
-
-- Bir ekranin anlatildigini "sayfada adi geciyor" ile olcme — `Jobs` kelimesi
-  o ekrani hic anlatmayan bir capraz baglantida da gecer. **Baslik ara**:
-  `^#{2,3} .*\bJobs\b`.
-- Bir adin belgelendigini `includes()` ile olcme — `agentprism.tenant.id`,
-  `agentprism.tenant.identifier`'in ON EKIDIR. **Kelime siniri kullan**.
-
-Kapiyi yazdiktan sonra **kirmizi oldugunu gor**: bir ekrani yeniden adlandir,
-bir adi degistir, bir sayiyi bozar. Gormeden yesil kabul etme.
-
-## Sunum kapilari (Faz 76)
-
-`check-content.mjs` artik icerigin yaninda **sunumu** da olcer: kapanis bolumu
-(`## Read next`, en fazla uc baglanti), diyagram borcu (esik 6 500 B + gerekceli
-muafiyet listesi), `site.css` token ciftlerinin WCAG kontrasti, bolum basina
-`og:image`, ve elle yazilan sayfalarda ic gelistirme referansi. Sayfa agirligi
-ayri bir betiktedir (`check-weight.mjs`) cunku `dist/` uzerinden olculur.
-
-## 🚨 Onek karsilastirmasinda ayirici
-
-`file.startsWith(join(docsRoot, 'http-api'))` elle yazilan **`http-api.md`**'yi de
-yakalar; o sayfa boylece frontmatter, aciklama uzunlugu, kurulum komutu ve diyagram
-erisilebilirligi denetimlerinin hepsinden sessizce muaf kaldi. `sep` eklendi;
-denetlenen sayfa 38 → 39.
-
-## 🚨 Mermaid: kenar etiketi dugumun degil PLAKANIN uzerindedir
-
-Flowchart stil sayfasi HER `.label`'i `nodeTextColor` ile boyar — kenar etiketleri
-dahil — ve kenar etiketi %50 saydam bir dikdortgene cizilir, yani zemini plakayla
-**karisimdir**. Koyu dolgu + beyaz metin kutularin icinde okunur, aralarinda
-okunmaz. Tek murekkep rengi + acik dolgu ikisini birden cozer (K-520).
-
-Ikinci tuzak: **`astro-mermaid` kendi CSS'ini calisma aninda `document.head`'e
-ekler.** `[data-theme="dark"] pre.mermaid[data-processed]` bizim
-`.sl-markdown-content pre.mermaid[data-processed]`'imizle esit puanlidir ve sonra
-geldigi icin beraberligi kazanir. Plaka rengi ozniteligi tekrarlayarak yazildi
-(`[data-processed][data-processed]`); `!important` secilmedi cunku o gelecekteki
-her duzeltmeyi de yener.
-
-Ucuncusu: **diyagram sozdizimi derleme aninda dogrulanmaz** — mermaid tarayicida
-render eder ve bozuk bir diyagram sessizce bir hata kutusu cizer. Yeni diyagram
-eklerken `astro preview` + tarayici ile bak; `mermaid.parse` Node'da DOM olmadan
-calismaz.
 
 ## 🚨 Karar numarasını tablonun SONUNA bakarak seçme (K-539)
 
