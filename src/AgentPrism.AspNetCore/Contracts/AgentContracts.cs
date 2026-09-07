@@ -47,6 +47,19 @@ public sealed record AgentDefinitionRequest
     /// </remarks>
     public IReadOnlyList<string> CallableAgentNames { get; init; } = [];
 
+    /// <summary>
+    /// How long this agent waits for the agents it calls. See
+    /// <c>AgentDefinition.SubAgents</c>. Ignored when
+    /// <see cref="CallableAgentNames"/> is empty.
+    /// </summary>
+    public SubAgentSettings? SubAgents { get; init; }
+
+    /// <summary>
+    /// MCP resources added to the run context, each of the form
+    /// <c>"{server}:{uri}"</c>. See <c>AgentDefinition.McpResourceUris</c>.
+    /// </summary>
+    public IReadOnlyList<string> McpResourceUris { get; init; } = [];
+
     /// <summary>Harness settings. If left empty, a plain chat agent is compiled.</summary>
     public HarnessSettings? Harness { get; init; }
 
@@ -55,6 +68,17 @@ public sealed record AgentDefinitionRequest
 
     /// <summary>Memory provider settings. If left empty, no memory provider is added.</summary>
     public MemorySettings? Memory { get; init; }
+
+    /// <summary>
+    /// Free-form, application-specific metadata. See <c>AgentDefinition.Metadata</c>.
+    /// </summary>
+    /// <remarks>
+    /// Owned by the application, not the server: unlike <c>Origin</c>, <c>Version</c>,
+    /// <c>TenantId</c> and <c>UpdatedAt</c>, this travels on the request so that an
+    /// update does not erase it. AgentPrism itself never reads these keys.
+    /// </remarks>
+    public IReadOnlyDictionary<string, System.Text.Json.JsonElement> Metadata { get; init; }
+        = new Dictionary<string, System.Text.Json.JsonElement>(StringComparer.Ordinal);
 
     /// <summary>The parameter schema. See <see cref="AgentDefinition.Parameters"/>.</summary>
     public IReadOnlyList<AgentParameter> Parameters { get; init; } = [];
@@ -76,9 +100,12 @@ public sealed record AgentDefinitionRequest
             ToolNames = ToolNames,
             SkillNames = SkillNames,
             CallableAgentNames = CallableAgentNames,
+            SubAgents = SubAgents,
+            McpResourceUris = McpResourceUris,
             Harness = Harness,
             Compaction = Compaction,
             Memory = Memory,
+            Metadata = Metadata,
             Parameters = Parameters,
             SharedInstructionsName = SharedInstructionsName,
             Origin = AgentDefinitionOrigin.Database,

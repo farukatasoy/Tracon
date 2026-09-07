@@ -107,9 +107,25 @@ curl -sS \
 ```
 
 Queued runs do not accept `attachmentIds` or an initial `approvals` collection. If a
-tool asks for approval later, the queued request must include a `sessionId`. Decide
-the pending approval through the approval endpoint, then start a new run in that
-session to resume the conversation.
+tool asks for approval later, the queued request must include a `sessionId`.
+
+**Do not start a second run yourself.** Deciding the approval is enough: the
+decision endpoint creates the continuation run and queues it for the worker in
+the same request, and the response's approval record is your confirmation that
+it did. Starting another run in that session on top of it duplicates the work.
+
+The run that asked for approval stays `AwaitingApproval` — it is finished. The
+continuation is a separate run in the same session, so a client watching for a
+result should follow the session rather than the original run id.
+
+If the decision request fails partway, repeat exactly the same decision. The
+continuation run's identity is derived from the approval, so a repeat completes
+the interrupted handoff instead of creating a second run; only a repeat that
+asks for the *opposite* answer is refused with `409`.
+
+This is the durable-mailbox path. An in-band approval — one supplied in a
+run request's `approvals` collection — is answered on the next request instead,
+and a workflow's human-in-the-loop step uses its own respond call.
 
 `AsyncRun.MaxAttempts` defaults to one. This is deliberate: an expired lease must not
 silently repeat an agent run that already changed an external system. Raise it only
@@ -328,8 +344,12 @@ longer than `OrphanThreshold` and marks them `Failed`.
 ```
 
 Both settings work with the in-memory lease store, but that store only
-coordinates within one process. Run PostgreSQL, SQL Server, or SQLite to get
-real cross-instance election.
+coordinates within one process. Run PostgreSQL or SQL Server to get real
+cross-instance election.
+
+SQLite implements the same lease contract and is correct within one process,
+but it is not a cross-instance backend: the caution below applies to election
+too. A store having lease semantics is not a cluster-support guarantee.
 
 ## Defaults and limits
 

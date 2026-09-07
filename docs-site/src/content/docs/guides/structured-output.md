@@ -26,12 +26,19 @@ Your application still parses and validates the result at its trust boundary.
 
 ## Choose the mode
 
-| `ResponseFormat` | Request sent to the provider | Local response validation |
+| `ResponseFormat` | Request sent to the provider | Local response validation (default) |
 |---|---|---|
 | `null` | No format constraint | None |
 | `Text` | Explicit plain-text format | None |
 | `Json` | Valid JSON document, with no schema | None |
 | `JsonSchema` | JSON that follows the supplied schema | None |
+
+The last column is the **default**, not a permanent limit: with
+`AgentPrism:StructuredResponse:Enabled` turned on, a `Json` or `JsonSchema`
+response is checked for well-formed JSON before the run closes, and your own
+`IStructuredResponseValidator` runs alongside it. What is never built in — on or
+off — is validation of the payload against the schema you supplied; that is a
+rule you write in the validator. See [Validate the response](#validate-the-response).
 
 `null` and `Text` are not the same. `null` leaves the provider behavior unchanged.
 `Text` asks for plain text explicitly.
@@ -298,7 +305,8 @@ payload against your schema.
 | `SchemaDescription` | Optional; passed to the provider |
 | Schema root | Must be a JSON object |
 | Schema vocabulary validation | Not performed |
-| Returned payload validation | Not performed |
+| Returned payload validation against your schema | Not performed, on or off — write it in `IStructuredResponseValidator` |
+| Returned payload JSON syntax check | Not performed by default; performed when `StructuredResponse:Enabled` is on |
 | Capability check | Enforced only when the selected model exists in the configured catalog |
 | Streaming | The structured document can still arrive in multiple text updates |
 | `AgentPrism:StructuredResponse:Enabled` | `false`; the response is never inspected after the model returns it |

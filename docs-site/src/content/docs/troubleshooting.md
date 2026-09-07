@@ -54,7 +54,11 @@ Then call `GET /agentprism/api/diagnostics`. The route is absent by default, so 
 
 ### NuGet says no stable version exists
 
-AgentPrism is a preview package. Select pre-release versions explicitly:
+AgentPrism has not been published yet: no version exists on NuGet at all, stable
+or pre-release. Build from a clone of the repository until the first release.
+
+Once it is published, it will be a preview package, so select pre-release
+versions explicitly:
 
 ```bash
 dotnet add package AgentPrism --prerelease

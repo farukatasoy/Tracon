@@ -8,6 +8,9 @@ import type {
   ModelBinding,
   ModelFallback,
 } from '@agentprism/client';
+// The definition READ back from the server, not the generated shape: the
+// generated one marks fields optional that a response always carries.
+import type { AgentDefinition } from '../../lib/server-types';
 
 export const REASONING_EFFORTS = ['', 'None', 'Low', 'Medium', 'High', 'ExtraHigh'] as const;
 
@@ -49,6 +52,41 @@ export interface CultureInstructions {
   text: string;
 }
 
+/**
+ * Definition fields the console stores but offers no control for.
+ *
+ * `PUT /api/agents/{name}` is a full replace, so anything the form does not
+ * carry is erased rather than left alone — a definition written from code or
+ * from the HTTP API lost its parameters, its shared instructions block and
+ * three of its model settings the first time somebody edited its description
+ * in the console (B01).
+ *
+ * Preserving a field is deliberately separate from editing it: these travel
+ * through the form untouched. Adding a real control for one of them means
+ * moving it out of here into `FormState` proper, not widening this type.
+ */
+export interface PreservedFields {
+  subAgents: AgentDefinitionRequest['subAgents'];
+  mcpResourceUris: AgentDefinitionRequest['mcpResourceUris'];
+  metadata: AgentDefinitionRequest['metadata'];
+  parameters: AgentDefinitionRequest['parameters'];
+  sharedInstructionsName: AgentDefinitionRequest['sharedInstructionsName'];
+  providerSettings: ModelBinding['providerSettings'];
+  responseCache: ModelBinding['responseCache'];
+  allowConcurrentToolCalls: ModelBinding['allowConcurrentToolCalls'];
+}
+
+export const emptyPreserved: PreservedFields = {
+  subAgents: null,
+  mcpResourceUris: [],
+  metadata: {},
+  parameters: [],
+  sharedInstructionsName: null,
+  providerSettings: {},
+  responseCache: null,
+  allowConcurrentToolCalls: false,
+};
+
 export interface FormState {
   name: string;
   displayName: string;
@@ -73,6 +111,7 @@ export interface FormState {
   harness: HarnessSettings;
   compaction: CompactionForm;
   memory: MemorySettings;
+  preserved: PreservedFields;
 }
 
 export const emptyForm: FormState = {
@@ -99,6 +138,7 @@ export const emptyForm: FormState = {
   harness: {},
   compaction: emptyCompaction,
   memory: emptyMemory,
+  preserved: emptyPreserved,
 };
 
 export function toNumber(value: string): number | null {
@@ -143,6 +183,9 @@ export function toRequest(form: FormState): AgentDefinitionRequest {
     fallbacks: form.fallbacks.filter(
       (fallback) => fallback.provider.trim().length > 0 && fallback.model.trim().length > 0,
     ),
+    providerSettings: form.preserved.providerSettings,
+    responseCache: form.preserved.responseCache,
+    allowConcurrentToolCalls: form.preserved.allowConcurrentToolCalls,
   };
 
   return {
@@ -158,6 +201,63 @@ export function toRequest(form: FormState): AgentDefinitionRequest {
     harness: form.harnessEnabled ? form.harness : null,
     compaction: form.compaction.strategy === 'None' ? null : form.compaction,
     memory: memoryHasAnything(form.memory) ? form.memory : null,
+    subAgents: form.preserved.subAgents,
+    mcpResourceUris: form.preserved.mcpResourceUris,
+    metadata: form.preserved.metadata,
+    parameters: form.preserved.parameters,
+    sharedInstructionsName: form.preserved.sharedInstructionsName,
+  };
+}
+
+/**
+ * Builds the form state for an existing definition.
+ *
+ * The inverse of {@link toRequest}, and deliberately in the same file: the two
+ * are only correct as a pair, and while the load half lived in the editor hook
+ * nothing could test that a definition survived a trip through the form.
+ * Everything the form has no control for is carried in `preserved`.
+ */
+export function fromDefinition(definition: AgentDefinition): FormState {
+  return {
+    name: definition.name,
+    displayName: definition.displayName ?? '',
+    description: definition.description ?? '',
+    instructions: definition.instructions ?? '',
+    instructionsByCulture: Object.entries(definition.instructionsByCulture ?? {}).map(([culture, text]) => ({
+      culture,
+      text,
+    })),
+    provider: definition.model.provider,
+    model: definition.model.model,
+    temperature: definition.model.temperature?.toString() ?? '',
+    maxOutputTokens: definition.model.maxOutputTokens?.toString() ?? '',
+    topP: definition.model.topP?.toString() ?? '',
+    reasoningEffort: definition.model.reasoningEffort ?? '',
+    responseFormatKind: definition.model.responseFormat?.kind ?? '',
+    responseFormatSchema:
+      definition.model.responseFormat?.schema !== undefined && definition.model.responseFormat?.schema !== null
+        ? JSON.stringify(definition.model.responseFormat.schema, null, 2)
+        : emptyForm.responseFormatSchema,
+    responseFormatSchemaName: definition.model.responseFormat?.schemaName ?? '',
+    responseFormatSchemaDescription: definition.model.responseFormat?.schemaDescription ?? '',
+    fallbacks: definition.model.fallbacks ?? [],
+    toolNames: [...definition.toolNames],
+    skillNames: [...definition.skillNames],
+    callableAgentNames: [...(definition.callableAgentNames ?? [])],
+    harnessEnabled: definition.harness !== null && definition.harness !== undefined,
+    harness: definition.harness ?? {},
+    compaction: definition.compaction ?? emptyCompaction,
+    memory: definition.memory ?? emptyMemory,
+    preserved: {
+      subAgents: definition.subAgents ?? null,
+      mcpResourceUris: definition.mcpResourceUris ?? [],
+      metadata: definition.metadata ?? {},
+      parameters: definition.parameters ?? [],
+      sharedInstructionsName: definition.sharedInstructionsName ?? null,
+      providerSettings: definition.model.providerSettings ?? {},
+      responseCache: definition.model.responseCache ?? null,
+      allowConcurrentToolCalls: definition.model.allowConcurrentToolCalls ?? false,
+    },
   };
 }
 
@@ -174,8 +274,19 @@ function toInstructionsByCulture(rows: CultureInstructions[]): Record<string, st
   return Object.fromEntries(entries.map((row) => [row.culture, row.text]));
 }
 
+/**
+ * True when any memory setting is actually turned on.
+ *
+ * Deliberately generic rather than a list of the flags that existed when this
+ * was written: the previous version named file/todo/text search only, so a
+ * definition whose sole memory feature was vector search serialized as
+ * `memory: null` and lost the block on save. A predicate that enumerates
+ * fields goes stale every time one is added; this one cannot.
+ */
 function memoryHasAnything(memory: MemorySettings): boolean {
-  return memory.enableFileMemory === true || memory.enableTodo === true || memory.enableTextSearch === true;
+  return Object.values(memory).some((value) =>
+    typeof value === 'string' ? value.trim().length > 0 : value !== null && value !== undefined && value !== false,
+  );
 }
 
 /**
