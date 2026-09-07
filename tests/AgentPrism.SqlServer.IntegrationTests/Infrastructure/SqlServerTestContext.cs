@@ -80,7 +80,7 @@ internal sealed class SqlServerTestContext : IAsyncDisposable
         RetentionPolicies = new SqlRetentionPolicyStore(wrapped);
         RetentionData = new SqlRetentionStore(wrapped);
         VoiceSessions = new SqlVoiceSessionStore(wrapped);
-        RunScores = new SqlRunScoreStore(wrapped);
+        RunScores = new SqlRunScoreStore(wrapped, TenantContext);
         SingletonLeases = new SqlSingletonLeaseStore(wrapped);
         IdempotencyKeys = new SqlIdempotencyStore(wrapped);
         RunInputs = new SqlRunInputStore(wrapped);

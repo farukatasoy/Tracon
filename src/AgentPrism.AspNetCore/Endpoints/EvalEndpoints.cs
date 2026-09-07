@@ -22,6 +22,8 @@ internal static class EvalEndpoints
 {
     private const int DefaultDiffPageSize = 50;
     private const int MaxDiffPageSize = 500;
+    private const int MaxRunScoreRows = 500;
+    private const int MaxRunScoreSeriesDays = 90;
 
     /// <summary>Maps the eval endpoints.</summary>
     /// <param name="builder">The endpoint group.</param>
@@ -193,7 +195,28 @@ internal static class EvalEndpoints
             .WithDescription(
                 "Returns the average judge score, sample count, and judge cost within the " +
                 "window. The summary is in-memory (it resets when the process restarts); for " +
-                "an authoritative result, the 'run_scores' table can be queried directly.");
+                "an authoritative result that survives a restart, use " +
+                "'GET /api/evaluation/scores/summary' instead.");
+
+        builder.MapGet("/api/evaluation/scores/summary", GetRunScoreSummaryAsync)
+            .RequireRole(roles.Reader)
+            .RequireApiKeyScope(ApiKeyScope.EvalsRead)
+            .WithName("AgentPrismGetRunScoreSummary")
+            .WithTags("AgentPrism", "Evals")
+            .WithSummary("Aggregates run and message scores by name, author, source, and agent.")
+            .WithDescription(
+                "A query over the scores already written, not a counter -- unlike " +
+                "'/api/evaluation/online', the result survives a process restart. Each " +
+                "breakdown groups by (name, kind): a 1-5 star rating and a 0-100 numeric " +
+                "score sharing a name never average together. 'messageId' is never a " +
+                "breakdown dimension; use 'target' (run, message, or both) instead. " +
+                "'bucket' (hour, day, or week, UTC) adds a trend series; omitting it costs " +
+                "nothing extra. A bucketed series with no 'from' defaults to the last 90 " +
+                "days, since a series has no other bound the way a breakdown does. Every " +
+                "breakdown, and the categories inside one categorical score's entry, is " +
+                "capped at 'maxRows'. 400 if 'from' is at or after 'to', or 'maxRows' is " +
+                "out of range.")
+            .ProducesProblem(StatusCodes.Status400BadRequest);
 
         builder.MapPost("/api/runs/{runId:guid}/judge", JudgeRunAsync)
             .RequireRole(roles.Operator)
@@ -673,6 +696,66 @@ internal static class EvalEndpoints
         CancellationToken cancellationToken)
     {
         var summary = await summaryService.GetSummaryAsync(tenants.TenantId, cancellationToken).ConfigureAwait(false);
+        return TypedResults.Ok(summary);
+    }
+
+    private static async Task<Results<Ok<RunScoreSummary>, ProblemHttpResult>> GetRunScoreSummaryAsync(
+        [FromServices] IRunScoreStore scores,
+        [FromServices] ITenantContext tenants,
+        [FromServices] TimeProvider? timeProvider,
+        DateTimeOffset? from,
+        DateTimeOffset? to,
+        string? scoreName,
+        string? agentName,
+        string? source,
+        string? author,
+        RunScoreTarget? target,
+        RunScoreBucket? bucket,
+        int? maxRows,
+        CancellationToken cancellationToken)
+    {
+        if (from is { } lowerBound && to is { } upperBound && lowerBound >= upperBound)
+        {
+            return TypedResults.Problem(
+                title: "Range invalid",
+                detail: "'from' must be before 'to'.",
+                statusCode: StatusCodes.Status400BadRequest);
+        }
+
+        if (maxRows is { } requestedMaxRows && (requestedMaxRows < 1 || requestedMaxRows > MaxRunScoreRows))
+        {
+            return TypedResults.Problem(
+                title: "'maxRows' out of range",
+                detail: $"'maxRows' must be between 1 and {MaxRunScoreRows}.",
+                statusCode: StatusCodes.Status400BadRequest);
+        }
+
+        // A bucketed series has no natural upper bound the way a breakdown
+        // does (MaxRows caps the groups INSIDE one bucket, not the number of
+        // buckets) -- an unbounded 'from' would let a long-lived tenant's
+        // series grow forever. 'from' is left alone when the caller gave it
+        // (even one far in the past); this default only kicks in when a
+        // bucket was asked for and no range was given at all.
+        var effectiveFrom = from ?? (bucket is null
+            ? null
+            : (timeProvider ?? TimeProvider.System).GetUtcNow().AddDays(-MaxRunScoreSeriesDays));
+
+        var summary = await scores.SummarizeAsync(
+            new RunScoreQuery
+            {
+                TenantId = tenants.TenantId,
+                From = effectiveFrom,
+                To = to,
+                ScoreName = scoreName,
+                AgentName = agentName,
+                Source = source,
+                Author = author,
+                Target = target ?? RunScoreTarget.Any,
+                Bucket = bucket,
+                MaxRows = maxRows ?? 20,
+            },
+            cancellationToken).ConfigureAwait(false);
+
         return TypedResults.Ok(summary);
     }
 

@@ -184,6 +184,24 @@ public sealed class MigrationRunnerTests(SqliteFixture fixture)
         exists.ShouldBe(1);
     }
 
+    /// <summary>
+    /// Guards the index a score summary time-range query needs: without it,
+    /// that query is a sequential scan of the whole table.
+    /// </summary>
+    [Fact]
+    public async Task Score_summary_created_at_index_is_created()
+    {
+        var tablePrefix = SqliteTestContext.NewTablePrefix();
+
+        await using var context = SqliteTestContext.Create(fixture, tablePrefix);
+        await context.Migrations.ApplyAsync();
+
+        var exists = await context.ScalarAsync<long>(
+            $"SELECT COUNT(*) FROM sqlite_master WHERE type = 'index' AND name = '{tablePrefix}run_scores_created_at_idx';");
+
+        exists.ShouldBe(1);
+    }
+
     [Fact]
     public void Migration_runner_reads_from_the_correct_assembly()
     {
@@ -367,7 +385,11 @@ public sealed class MigrationRunnerTests(SqliteFixture fixture)
                 ('{judgeId}', 'test', '{runId}', NULL, 3, 70, 'ok', 'judge:quality', 'judge:quality', '2026-01-01T00:00:00.0000000Z');
             """);
 
-        (await context.Migrations.ApplyAsync()).ShouldBe(1);
+        // Not hard-coded to 1: ApplyAsync() applies every pending migration,
+        // not just `upgrade`, and a later phase can add one that also lands
+        // after it (154 added an index migration right after this one).
+        var pendingFromUpgrade = migrations.Count(candidate => candidate.Id >= upgrade.Id);
+        (await context.Migrations.ApplyAsync()).ShouldBe(pendingFromUpgrade);
 
         var rows = await context.ScalarAsync<long>($"SELECT COUNT(*) FROM {prefix}run_scores;");
         rows.ShouldBe(2);

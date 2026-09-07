@@ -466,6 +466,9 @@ public sealed class OnlineEvalCheckpointTests
 
         public ValueTask<bool> DeleteAsync(string tenantId, Guid scoreId, CancellationToken cancellationToken = default)
             => inner.DeleteAsync(tenantId, scoreId, cancellationToken);
+
+        public ValueTask<RunScoreSummary> SummarizeAsync(RunScoreQuery query, CancellationToken cancellationToken = default)
+            => inner.SummarizeAsync(query, cancellationToken);
     }
 
     private sealed class CancelingRunScoreStore(IRunScoreStore inner) : IRunScoreStore
@@ -481,5 +484,8 @@ public sealed class OnlineEvalCheckpointTests
 
         public ValueTask<bool> DeleteAsync(string tenantId, Guid scoreId, CancellationToken cancellationToken = default)
             => inner.DeleteAsync(tenantId, scoreId, cancellationToken);
+
+        public ValueTask<RunScoreSummary> SummarizeAsync(RunScoreQuery query, CancellationToken cancellationToken = default)
+            => inner.SummarizeAsync(query, cancellationToken);
     }
 }

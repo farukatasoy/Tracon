@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { barLayout, linePath, scaleLinear, stackedSegments, tickIndices, tokenBreakdown } from './chart';
+import { barLayout, linePath, primaryScoreIdentity, scaleLinear, stackedSegments, tickIndices, tokenBreakdown } from './chart';
 
 describe('scaleLinear', () => {
   it('maps domain edges to range edges', () => {
@@ -150,5 +150,54 @@ describe('tokenBreakdown', () => {
 
     expect(slices.every((slice) => slice.tokens >= 0)).toBe(true);
     expect(slices.reduce((sum, slice) => sum + slice.tokens, 0)).toBe(20);
+  });
+});
+
+describe('primaryScoreIdentity', () => {
+  it('prefers overall even when it is not the most frequent group', () => {
+    const identity = primaryScoreIdentity([
+      { groups: [{ key: 'accuracy', kind: 'Numeric', average: 80 }] },
+      { groups: [{ key: 'accuracy', kind: 'Numeric', average: 82 }] },
+      { groups: [{ key: 'overall', kind: 'Binary', average: 1 }] },
+    ]);
+
+    expect(identity).toEqual({ key: 'overall', kind: 'Binary' });
+  });
+
+  it('falls back to the group appearing in the most buckets when there is no overall', () => {
+    const identity = primaryScoreIdentity([
+      { groups: [{ key: 'accuracy', kind: 'Numeric', average: 80 }] },
+      { groups: [{ key: 'accuracy', kind: 'Numeric', average: 82 }] },
+      { groups: [{ key: 'helpfulness', kind: 'Stars', average: 4 }] },
+    ]);
+
+    expect(identity).toEqual({ key: 'accuracy', kind: 'Numeric' });
+  });
+
+  it('never mixes two different score identities across buckets', () => {
+    // A regression case (Phase 154 audit): 'overall' scored as Binary in one
+    // bucket and as Numeric in another bucket must resolve to ONE of them,
+    // not silently switch depending on which bucket a caller reads.
+    const identity = primaryScoreIdentity([
+      { groups: [{ key: 'overall', kind: 'Binary', average: 1 }] },
+      { groups: [{ key: 'overall', kind: 'Numeric', average: 90 }] },
+    ]);
+
+    expect(identity?.key).toBe('overall');
+    expect(['Binary', 'Numeric']).toContain(identity?.kind);
+  });
+
+  it('ignores a group with no value, so a null average never wins the identity', () => {
+    const identity = primaryScoreIdentity([
+      { groups: [{ key: 'overall', kind: 'Binary', average: null }] },
+      { groups: [{ key: 'accuracy', kind: 'Numeric', average: 80 }] },
+    ]);
+
+    expect(identity).toEqual({ key: 'accuracy', kind: 'Numeric' });
+  });
+
+  it('returns undefined for an empty or all-null series', () => {
+    expect(primaryScoreIdentity([])).toBeUndefined();
+    expect(primaryScoreIdentity([{ groups: [{ key: 'overall', kind: 'Binary', average: null }] }])).toBeUndefined();
   });
 });

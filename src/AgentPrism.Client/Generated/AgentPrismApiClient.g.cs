@@ -6418,7 +6418,7 @@ namespace AgentPrism.Client.Generated
         /// Returns a summary of the online evaluation window.
         /// </summary>
         /// <remarks>
-        /// Returns the average judge score, sample count, and judge cost within the window. The summary is in-memory (it resets when the process restarts); for an authoritative result, the 'run_scores' table can be queried directly.
+        /// Returns the average judge score, sample count, and judge cost within the window. The summary is in-memory (it resets when the process restarts); for an authoritative result that survives a restart, use 'GET /api/evaluation/scores/summary' instead.
         /// </remarks>
         /// <returns>OK</returns>
         /// <exception cref="AgentPrismApiException">A server side error occurred.</exception>
@@ -6469,6 +6469,131 @@ namespace AgentPrism.Client.Generated
                                 throw new AgentPrismApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
                             }
                             return objectResponse_.Object;
+                        }
+                        else
+                        {
+                            var responseData_ = response_.Content == null ? null : await response_.Content.ReadAsStringAsync().ConfigureAwait(false);
+                            throw new AgentPrismApiException("The HTTP status code of the response was not expected (" + status_ + ").", status_, responseData_, headers_, null);
+                        }
+                    }
+                    finally
+                    {
+                        if (disposeResponse_)
+                            response_.Dispose();
+                    }
+                }
+            }
+            finally
+            {
+                if (disposeClient_)
+                    client_.Dispose();
+            }
+        }
+
+        /// <param name="cancellationToken">A cancellation token that can be used by other objects or threads to receive notice of cancellation.</param>
+        /// <summary>
+        /// Aggregates run and message scores by name, author, source, and agent.
+        /// </summary>
+        /// <remarks>
+        /// A query over the scores already written, not a counter -- unlike '/api/evaluation/online', the result survives a process restart. Each breakdown groups by (name, kind): a 1-5 star rating and a 0-100 numeric score sharing a name never average together. 'messageId' is never a breakdown dimension; use 'target' (run, message, or both) instead. 'bucket' (hour, day, or week, UTC) adds a trend series; omitting it costs nothing extra. A bucketed series with no 'from' defaults to the last 90 days, since a series has no other bound the way a breakdown does. Every breakdown, and the categories inside one categorical score's entry, is capped at 'maxRows'. 400 if 'from' is at or after 'to', or 'maxRows' is out of range.
+        /// </remarks>
+        /// <returns>OK</returns>
+        /// <exception cref="AgentPrismApiException">A server side error occurred.</exception>
+        public virtual async System.Threading.Tasks.Task<RunScoreSummary> AgentPrismGetRunScoreSummaryAsync(System.DateTimeOffset? from = null, System.DateTimeOffset? to = null, string? scoreName = null, string? agentName = null, string? source = null, string? author = null, RunScoreTarget? target = null, RunScoreBucket? bucket = null, int? maxRows = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken))
+        {
+            var client_ = _httpClient;
+            var disposeClient_ = false;
+            try
+            {
+                using (var request_ = new System.Net.Http.HttpRequestMessage())
+                {
+                    request_.Method = new System.Net.Http.HttpMethod("GET");
+                    request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
+
+                    var urlBuilder_ = new System.Text.StringBuilder();
+                
+                    // Operation Path: "api/evaluation/scores/summary"
+                    urlBuilder_.Append("api/evaluation/scores/summary");
+                    urlBuilder_.Append('?');
+                    if (from != null)
+                    {
+                        urlBuilder_.Append(System.Uri.EscapeDataString("from")).Append('=').Append(System.Uri.EscapeDataString(from.Value.ToString("s", System.Globalization.CultureInfo.InvariantCulture))).Append('&');
+                    }
+                    if (to != null)
+                    {
+                        urlBuilder_.Append(System.Uri.EscapeDataString("to")).Append('=').Append(System.Uri.EscapeDataString(to.Value.ToString("s", System.Globalization.CultureInfo.InvariantCulture))).Append('&');
+                    }
+                    if (scoreName != null)
+                    {
+                        urlBuilder_.Append(System.Uri.EscapeDataString("scoreName")).Append('=').Append(System.Uri.EscapeDataString(ConvertToString(scoreName, System.Globalization.CultureInfo.InvariantCulture))).Append('&');
+                    }
+                    if (agentName != null)
+                    {
+                        urlBuilder_.Append(System.Uri.EscapeDataString("agentName")).Append('=').Append(System.Uri.EscapeDataString(ConvertToString(agentName, System.Globalization.CultureInfo.InvariantCulture))).Append('&');
+                    }
+                    if (source != null)
+                    {
+                        urlBuilder_.Append(System.Uri.EscapeDataString("source")).Append('=').Append(System.Uri.EscapeDataString(ConvertToString(source, System.Globalization.CultureInfo.InvariantCulture))).Append('&');
+                    }
+                    if (author != null)
+                    {
+                        urlBuilder_.Append(System.Uri.EscapeDataString("author")).Append('=').Append(System.Uri.EscapeDataString(ConvertToString(author, System.Globalization.CultureInfo.InvariantCulture))).Append('&');
+                    }
+                    if (target != null)
+                    {
+                        urlBuilder_.Append(System.Uri.EscapeDataString("target")).Append('=').Append(System.Uri.EscapeDataString(ConvertToString(target, System.Globalization.CultureInfo.InvariantCulture))).Append('&');
+                    }
+                    if (bucket != null)
+                    {
+                        urlBuilder_.Append(System.Uri.EscapeDataString("bucket")).Append('=').Append(System.Uri.EscapeDataString(ConvertToString(bucket, System.Globalization.CultureInfo.InvariantCulture))).Append('&');
+                    }
+                    if (maxRows != null)
+                    {
+                        urlBuilder_.Append(System.Uri.EscapeDataString("maxRows")).Append('=').Append(System.Uri.EscapeDataString(ConvertToString(maxRows, System.Globalization.CultureInfo.InvariantCulture))).Append('&');
+                    }
+                    urlBuilder_.Length--;
+
+                    PrepareRequest(client_, request_, urlBuilder_);
+
+                    var url_ = urlBuilder_.ToString();
+                    request_.RequestUri = new System.Uri(url_, System.UriKind.RelativeOrAbsolute);
+
+                    PrepareRequest(client_, request_, url_);
+
+                    var response_ = await client_.SendAsync(request_, System.Net.Http.HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
+                    var disposeResponse_ = true;
+                    try
+                    {
+                        var headers_ = new System.Collections.Generic.Dictionary<string, System.Collections.Generic.IEnumerable<string>>();
+                        foreach (var item_ in response_.Headers)
+                            headers_[item_.Key] = item_.Value;
+                        if (response_.Content != null && response_.Content.Headers != null)
+                        {
+                            foreach (var item_ in response_.Content.Headers)
+                                headers_[item_.Key] = item_.Value;
+                        }
+
+                        ProcessResponse(client_, response_);
+
+                        var status_ = (int)response_.StatusCode;
+                        if (status_ == 200)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<RunScoreSummary>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new AgentPrismApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            return objectResponse_.Object;
+                        }
+                        else
+                        if (status_ == 400)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<ProblemDetails>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new AgentPrismApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            throw new AgentPrismApiException<ProblemDetails>("Bad Request", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
                         }
                         else
                         {
@@ -22129,6 +22254,132 @@ namespace AgentPrism.Client.Generated
     }
 
     /// <summary>
+    /// One aggregated group: every score sharing a breakdown key AND a
+    /// <br/>RunScoreKind.
+    /// </summary>
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.2.0.0 (NJsonSchema v11.1.0.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class RunScoreAggregate
+    {
+        /// <summary>
+        /// The breakdown key: a score name, an author, a source, or an agent name,
+        /// <br/>depending on which list this entry is in.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("key")]
+        public string Key { get; set; } = default!;
+
+        /// <summary>
+        /// The shape every score in this group shares.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("kind")]
+        public RunScoreKind Kind { get; set; } = default!;
+
+        /// <summary>
+        /// The number of scores in the group, INCLUDING those carrying no value.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("count")]
+        public long Count { get; set; } = default!;
+
+        /// <summary>
+        /// The number of scores in the group carrying no value
+        /// <br/>(`Value` is `null`). A
+        /// <br/>RunScoreKind.Categorical score always carries no value, so
+        /// <br/>for that kind this equals `Count`. Never counted into
+        /// <br/>`Average`.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("noValueCount")]
+        public long NoValueCount { get; set; } = default!;
+
+        /// <summary>
+        /// The average value. `null` for
+        /// <br/>RunScoreKind.Categorical, or when every score in the group
+        /// <br/>carries no value.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("average")]
+        public double? Average { get; set; } = default!;
+
+        /// <summary>
+        /// The smallest value. Same null rule as `Average`.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("minimum")]
+        public double? Minimum { get; set; } = default!;
+
+        /// <summary>
+        /// The largest value. Same null rule as `Average`.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("maximum")]
+        public double? Maximum { get; set; } = default!;
+
+        /// <summary>
+        /// Count per category (`TextValue`), highest count
+        /// <br/>first. Populated only on IReadOnlyList&amp;lt;RunScoreAggregate&amp;gt; RunScoreSummary.ByName entries
+        /// <br/>whose RunScoreKind RunScoreAggregate.Kind is RunScoreKind.Categorical; every
+        /// <br/>other group carries an empty map.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("categories")]
+        public System.Collections.Generic.IDictionary<string, long> Categories { get; set; } = new System.Collections.Generic.Dictionary<string, long>();
+
+        /// <summary>
+        /// The number of distinct categories that did NOT fit inside
+        /// <br/>IReadOnlyDictionary&amp;lt;string, long&amp;gt; RunScoreAggregate.Categories because `MaxRows` (RunScoreQuery) was
+        /// <br/>reached. Zero when nothing was cut. Reported instead of silently
+        /// <br/>dropping categories, which would read as "these categories do not exist".
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("truncatedCategoryCount")]
+        public long TruncatedCategoryCount { get; set; } = default!;
+
+    }
+
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.2.0.0 (NJsonSchema v11.1.0.0 (Newtonsoft.Json v13.0.0.0))")]
+    [System.Text.Json.Serialization.JsonConverter(typeof(System.Text.Json.Serialization.JsonStringEnumConverter<RunScoreBucket>))]
+    public enum RunScoreBucket
+    {
+
+        [System.Runtime.Serialization.EnumMember(Value = @"Hour")]
+        Hour = 0,
+
+        [System.Runtime.Serialization.EnumMember(Value = @"Day")]
+        Day = 1,
+
+        [System.Runtime.Serialization.EnumMember(Value = @"Week")]
+        Week = 2,
+
+    }
+
+    /// <summary>
+    /// One time bucket of the trend series (IReadOnlyList&amp;lt;RunScoreBucketAggregate&amp;gt; RunScoreSummary.Series).
+    /// </summary>
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.2.0.0 (NJsonSchema v11.1.0.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class RunScoreBucketAggregate
+    {
+        /// <summary>
+        /// The bucket's start time (UTC).
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("bucketStart")]
+        public System.DateTimeOffset BucketStart { get; set; } = default!;
+
+        /// <summary>
+        /// The name/kind groups scored inside this bucket — grouped exactly like
+        /// <br/>IReadOnlyList&amp;lt;RunScoreAggregate&amp;gt; RunScoreSummary.ByName, bounded by
+        /// <br/>int RunScoreQuery.MaxRows. Every entry's IReadOnlyDictionary&amp;lt;string, long&amp;gt; RunScoreAggregate.Categories
+        /// <br/>is empty; a categorical breakdown over time is out of scope for this series.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("groups")]
+        public System.Collections.Generic.ICollection<RunScoreAggregate> Groups { get; set; } = new System.Collections.Generic.List<RunScoreAggregate>();
+
+    }
+
+    /// <summary>
     /// The shape of the value a RunScore carries.
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.2.0.0 (NJsonSchema v11.1.0.0 (Newtonsoft.Json v13.0.0.0))")]
@@ -22147,6 +22398,67 @@ namespace AgentPrism.Client.Generated
 
         [System.Runtime.Serialization.EnumMember(Value = @"Categorical")]
         Categorical = 3,
+
+    }
+
+    /// <summary>
+    /// The result of ValueTask&amp;lt;RunScoreSummary&amp;gt; IRunScoreStore.SummarizeAsync(RunScoreQuery query, CancellationToken cancellationToken = default(CancellationToken)).
+    /// </summary>
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.2.0.0 (NJsonSchema v11.1.0.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class RunScoreSummary
+    {
+        /// <summary>
+        /// The breakdown by score name — the primary breakdown, always populated.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("byName")]
+        public System.Collections.Generic.ICollection<RunScoreAggregate> ByName { get; set; } = new System.Collections.Generic.List<RunScoreAggregate>();
+
+        /// <summary>
+        /// The breakdown by author. Scores with no author (an identity-less setup) are excluded.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("byAuthor")]
+        public System.Collections.Generic.ICollection<RunScoreAggregate> ByAuthor { get; set; } = new System.Collections.Generic.List<RunScoreAggregate>();
+
+        /// <summary>
+        /// The breakdown by source (`human`, `api`, `judge:{name}`).
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("bySource")]
+        public System.Collections.Generic.ICollection<RunScoreAggregate> BySource { get; set; } = new System.Collections.Generic.List<RunScoreAggregate>();
+
+        /// <summary>
+        /// The breakdown by the agent that produced the scored run.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("byAgent")]
+        public System.Collections.Generic.ICollection<RunScoreAggregate> ByAgent { get; set; } = new System.Collections.Generic.List<RunScoreAggregate>();
+
+        /// <summary>
+        /// The trend series, one entry per time bucket. Empty when
+        /// <br/>`Bucket` (RunScoreQuery) was not given. Buckets with no matching
+        /// <br/>score are NOT included — this is a sparse series, not a filled one.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("series")]
+        public System.Collections.Generic.ICollection<RunScoreBucketAggregate> Series { get; set; } = new System.Collections.Generic.List<RunScoreBucketAggregate>();
+
+    }
+
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.2.0.0 (NJsonSchema v11.1.0.0 (Newtonsoft.Json v13.0.0.0))")]
+    [System.Text.Json.Serialization.JsonConverter(typeof(System.Text.Json.Serialization.JsonStringEnumConverter<RunScoreTarget>))]
+    public enum RunScoreTarget
+    {
+
+        [System.Runtime.Serialization.EnumMember(Value = @"Any")]
+        Any = 0,
+
+        [System.Runtime.Serialization.EnumMember(Value = @"Run")]
+        Run = 1,
+
+        [System.Runtime.Serialization.EnumMember(Value = @"Message")]
+        Message = 2,
 
     }
 

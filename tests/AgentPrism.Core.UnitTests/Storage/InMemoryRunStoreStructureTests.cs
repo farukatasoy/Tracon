@@ -104,6 +104,9 @@ public sealed class InMemoryRunStoreStructureTests
             Guid scoreId,
             CancellationToken cancellationToken = default)
             => throw new NotSupportedException();
+
+        public ValueTask<RunScoreSummary> SummarizeAsync(RunScoreQuery query, CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
     }
 
     /// <summary>Cancels the caller's token the moment <see cref="IRunScoreStore.ListAsync"/> runs.</summary>
@@ -126,6 +129,9 @@ public sealed class InMemoryRunStoreStructureTests
             string tenantId,
             Guid scoreId,
             CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+
+        public ValueTask<RunScoreSummary> SummarizeAsync(RunScoreQuery query, CancellationToken cancellationToken = default)
             => throw new NotSupportedException();
     }
 }

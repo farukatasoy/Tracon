@@ -154,7 +154,7 @@ public sealed class ServiceRegistrationSnapshotTests
         "AgentPrism.IAgentDefinitionStore | Singleton | Factory",
         "AgentPrism.IAgentSkillStore | Singleton | Factory",
         "AgentPrism.AgentSkillCatalog | Singleton | Factory",
-        "AgentPrism.IRunScoreStore | Singleton | AgentPrism.InMemoryRunScoreStore",
+        "AgentPrism.IRunScoreStore | Singleton | Factory",
         "AgentPrism.IRunStore | Singleton | Factory",
         "AgentPrism.IRunInputStore | Singleton | AgentPrism.InMemoryRunInputStore",
         "AgentPrism.IPendingApprovalStore | Singleton | Factory",

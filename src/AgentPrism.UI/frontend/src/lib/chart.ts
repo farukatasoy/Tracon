@@ -152,6 +152,60 @@ export interface TokenTotals {
   reasoningTokens: number;
 }
 
+/** The top of each `RunScoreKind`'s value range, for the trend chart's Y axis. */
+export const SCORE_KIND_MAX: Record<string, number> = { Binary: 1, Stars: 5, Numeric: 100 };
+
+/** One (name, kind) group's average, as carried by `RunScoreBucketAggregate.groups`. */
+export interface ScoreGroup {
+  key: string;
+  kind: string;
+  average: number | null;
+}
+
+/** One bucket of the persistent score summary's trend series. */
+export interface ScoreBucket {
+  groups: readonly ScoreGroup[];
+}
+
+/**
+ * Picks the single (name, kind) identity a score trend chart plots across
+ * the WHOLE series: `overall` if any bucket carries it, otherwise whichever
+ * (name, kind) pair appears in the most buckets.
+ *
+ * Fixed once for the series so the line never mixes two different score
+ * identities across buckets — a per-bucket fallback would let a Binary
+ * `overall` average connect straight to a Numeric `accuracy` average with no
+ * visual break, and the two ranges plotted on one axis are meaningless
+ * together.
+ */
+export function primaryScoreIdentity(series: readonly ScoreBucket[]): { key: string; kind: string } | undefined {
+  const candidates = new Map<string, { key: string; kind: string; bucketCount: number }>();
+
+  for (const bucket of series) {
+    for (const group of bucket.groups) {
+      if (group.average === null) {
+        continue;
+      }
+
+      const id = `${group.kind} ${group.key}`;
+      const existing = candidates.get(id);
+
+      if (existing) {
+        existing.bucketCount += 1;
+      } else {
+        candidates.set(id, { key: group.key, kind: group.kind, bucketCount: 1 });
+      }
+    }
+  }
+
+  const ranked = [...candidates.values()];
+  const winner =
+    ranked.find((candidate) => candidate.key === 'overall') ??
+    ranked.sort((a, b) => b.bucketCount - a.bucketCount || a.key.localeCompare(b.key))[0];
+
+  return winner === undefined ? undefined : { key: winner.key, kind: winner.kind };
+}
+
 /**
  * Splits input/output totals into the four disjoint slices of a breakdown bar.
  *
