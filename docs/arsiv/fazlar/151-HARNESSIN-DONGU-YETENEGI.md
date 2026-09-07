@@ -1,7 +1,7 @@
 # Faz 151 — Harness'in Döngü Yeteneği
 
 > **Durum:** ✅ Tamamlandı (2026-09-07)
-> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-192**
+> **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-192**
 > **Önkoşul:** Yok. MAF 1.20.0 yeterlidir; yükseltme beklemez.
 > **Paketler:** `AgentPrism.Abstractions`, `AgentPrism.Core`, `AgentPrism.AspNetCore`
 > **Yeni paket:** Yok — `LoopAgent` ve beş evaluator `Microsoft.Agents.AI` çekirdeğindedir · **Migration:** Yok
@@ -25,7 +25,7 @@
    `AgentDefinitionCompiler.Agents.cs`'te kalır), **K-062** (`FileAccessStore`
    atanmadıkça özellik kapalıdır — bu fazın "varsayılan kapalı" deseninin
    emsali), **K-007** (yeni paket gerekçe ister — bu fazda yeni paket yok).
-3. [`arsiv/fazlar/150-ZORUNLU-BINDING-PROFILI.md`](arsiv/fazlar/150-ZORUNLU-BINDING-PROFILI.md) — yalnız devir notu:
+3. [`arsiv/fazlar/150-ZORUNLU-BINDING-PROFILI.md`](150-ZORUNLU-BINDING-PROFILI.md) — yalnız devir notu:
    ```bash
    awk '/## Sonraki Faza Devir Notu/,0' docs/arsiv/fazlar/150-ZORUNLU-BINDING-PROFILI.md
    ```
@@ -34,12 +34,12 @@
    `src/AgentPrism.Core/Diagnostics/AgentPrismExtensionPoints.cs` tablosuna
    satır ekler; teşhis raporu ve başlangıç kapısı ikisi de oradan okur.
 4. Alan hafızası (bu faz iki alana dokunuyor):
-   [`hafiza/maf-api.md`](hafiza/maf-api.md) (MAF tip imzaları ve `MAAI001`) ·
-   [`hafiza/cekirdek-calistirma.md`](hafiza/cekirdek-calistirma.md)
+   [`hafiza/maf-api.md`](../../hafiza/maf-api.md) (MAF tip imzaları ve `MAAI001`) ·
+   [`hafiza/cekirdek-calistirma.md`](../../hafiza/cekirdek-calistirma.md)
    (decorator zinciri ve 🚨 `Activity.Current`/`AsyncLocal` kuralı — `LoopAgent`
    akışlı yolda `RunCoreStreamingAsync`'i sarmalar)
 5. Gerektiğinde, tamamı değil ilgili bölümü:
-   [`MAF-GENISLEME-NOKTALARI.md`](MAF-GENISLEME-NOKTALARI.md) — döngü satırı
+   [`MAF-GENISLEME-NOKTALARI.md`](../../MAF-GENISLEME-NOKTALARI.md) — döngü satırı
    bugün *"planlanmadı (eval'den AYRI kavram)"* diyor; bu faz onu kapatır.
 
 ---
@@ -59,10 +59,10 @@ opt-in bir parçası yapmıştır; AgentPrism onu hiç bağlamamıştır.
 
 | Kanıt | Gözlem |
 |---|---|
-| [`AgentDefinitionCompiler.Agents.cs:236-268`](../src/AgentPrism.Core/Compilation/AgentDefinitionCompiler.Agents.cs#L236) | `HarnessAgentOptions` on üç üye set ediyor; `LoopEvaluators` ve `LoopAgentOptions` **ikisi de yok** |
+| [`AgentDefinitionCompiler.Agents.cs:236-268`](../../../src/AgentPrism.Core/Compilation/AgentDefinitionCompiler.Agents.cs#L236) | `HarnessAgentOptions` on üç üye set ediyor; `LoopEvaluators` ve `LoopAgentOptions` **ikisi de yok** |
 | `grep -rn "LoopAgent\|LoopEvaluator" src/` | **0 eşleşme** — kaynağın tamamında |
-| [`HarnessSettings.cs`](../src/AgentPrism.Abstractions/Agents/HarnessSettings.cs) | On bir üye; hiçbiri bitiş ölçütü değil. `MaximumIterationsPerRequest` bir **tavan**tır |
-| [`MAF-GENISLEME-NOKTALARI.md`](MAF-GENISLEME-NOKTALARI.md) | Döngü *"planlanmadı"* diye kayıtlı — **reddedilmemiş, ertelenmiş** |
+| [`HarnessSettings.cs`](../../../src/AgentPrism.Abstractions/Agents/HarnessSettings.cs) | On bir üye; hiçbiri bitiş ölçütü değil. `MaximumIterationsPerRequest` bir **tavan**tır |
+| [`MAF-GENISLEME-NOKTALARI.md`](../../MAF-GENISLEME-NOKTALARI.md) | Döngü *"planlanmadı"* diye kayıtlı — **reddedilmemiş, ertelenmiş** |
 
 > Kanıtlar 2026-09-07 tarihinde doğrulandı. Aday metnindeki satır numarası
 > (`:172`) kaymıştır; doğru satır **236**'dır.
@@ -122,7 +122,7 @@ evaluator'dan dördü yalnız **veri** alır (mod adı, işaret metni, ölçüt 
 beşincisi (`DelegateLoopEvaluator`) bir `Func` alır — yani **kod**. K2 gereği
 arayüzden gelen bir tanım kod tanımlayamaz. Bu yüzden yüzey ikiye ayrılır ve
 bu ayrım `AddEvalCheck` deseninin **birebir tekrarıdır**
-([`AgentPrismEvalCheckRegistration.cs`](../src/AgentPrism.Core/Evaluation/AgentPrismEvalCheckRegistration.cs)):
+([`AgentPrismEvalCheckRegistration.cs`](../../../src/AgentPrism.Core/Evaluation/AgentPrismEvalCheckRegistration.cs)):
 
 ```mermaid
 flowchart TD
@@ -180,7 +180,7 @@ yanlış yazıldığında (örneğin ulaşılamayan bir `completionMarker`) fatu
 sınırsız büyür ve tüketici bunu ancak faturada görür. Sayının kendisi Açık
 Soru 2'dedir.
 
-Döngü [Faz 114](arsiv/fazlar/114-CALISTIRMA-ICI-BUTCE-TAVANI.md)'ün bütçe
+Döngü [Faz 114](114-CALISTIRMA-ICI-BUTCE-TAVANI.md)'ün bütçe
 tavanıyla **birlikte** yargılanır: bütçe tavanı iterasyon ortasında dolarsa
 `run` durur ve döngü devam etmez. Plan bunu yeni bir mekanizmayla değil, mevcut
 tavanın `LoopAgent`'ın **içinde** kalmasıyla sağlar — `LoopAgent` en dıştadır,
@@ -322,7 +322,7 @@ tests/
 
 > Mutlu yoldan değil, **ne bozulabilir**den türetilir. Seviyeyi plan seçer.
 > Sınır geçen davranış (DI · HTTP · kiracı · akış · depo · paket) birim
-> testiyle kanıtlanamaz — [`.agents/ortak/test-seviyeleri.md`](../.agents/ortak/test-seviyeleri.md).
+> testiyle kanıtlanamaz — [`.agents/ortak/test-seviyeleri.md`](../../../.agents/ortak/test-seviyeleri.md).
 
 | Ne bozulabilir | Seviye | Test sınıfı |
 |---|---|---|
