@@ -630,9 +630,15 @@ Four more rules are worth knowing before you turn the loop on:
   run.** The work already finished is returned, and the iteration event names the
   criterion that failed.
 
-Each finished iteration writes a `LoopIterationCompleted` run event carrying the
-iteration number, whether another iteration follows, and which criterion asked
-for it. The criterion's feedback text is not carried in the event.
+Each evaluated iteration writes a `LoopIterationCompleted` run event carrying
+the iteration number, whether a criterion asked for another iteration, and which
+one. The criterion's feedback text is not carried in the event.
+
+The event marks an *evaluated* iteration, not a model turn. The turn that
+reaches `MaxIterations` is never evaluated — there is nothing left to decide —
+so a loop that ends at its ceiling writes one event fewer than it takes turns.
+Its last event carries `ceilingReached`, which is how the run record tells "the
+criterion was finally satisfied" apart from "we ran out of iterations".
 
 ## Read next
 
