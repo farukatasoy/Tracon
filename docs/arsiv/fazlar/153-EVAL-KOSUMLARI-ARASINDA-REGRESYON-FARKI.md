@@ -181,6 +181,17 @@ Yazarken bulunan iki kusur:
 "zaten damıtılmış" sayılıp atlanıyor (`--sinir 330` kuru koşumda yalnız 129 B).
 Sınır 420.000'e yükseltildi; gerekçe `scripts/dokuman-bakim.py` içinde yazılı.
 
+### Kapı koşumunun bulduğu üçüncü kusur
+
+Tavan yükseltilince `TemplateAgentsFileTests` düştü: bütçe sayısı orada
+**elle kopyalanmış** bir `const`'tu ve yorumu bunu açıkça söylüyordu
+("Mirrors `agentMapBudgetBytes` … Repeated here"). Üreteç, kendi kapısı ve site
+hepsi anlaştı, yalnız bu kopya geride kaldı — repo'nun daha önce bedelini
+ödediği "elle tekrarlanan ifade" sınıfının aynısı. Sayı artık tek kaynaktan
+(`build-agent-map.mjs`) **okunuyor**; ikinci bir düzenleme artık kaymaz.
+Sınıf tarandı: kalan iki kopya `docs/manuel-test/29-AGENT-DESTEGI.md`'deydi ve
+sabit sayı yerine sabitin **adına** çevrildi.
+
 ## Sonraki Faza Devir Notu
 
 - **`EvalRunDiffBuilder` artık üçüncü tarafın hizalama sözleşmesidir.** Yeni bir

@@ -1,3 +1,5 @@
+using System.Globalization;
+using System.Text.RegularExpressions;
 using AgentPrism.Package.Tests.Infrastructure;
 
 namespace AgentPrism.Package.Tests;
@@ -17,12 +19,33 @@ namespace AgentPrism.Package.Tests;
 public sealed class TemplateAgentsFileTests(TemplateFixture fixture)
 {
     /// <summary>
-    /// Mirrors <c>agentMapBudgetBytes</c> in
-    /// <c>docs-site/scripts/build-agent-map.mjs</c>, which is the gate that
-    /// enforces it. Repeated here so a consumer-visible file is checked where
-    /// the consumer sees it.
+    /// The budget the agent map is generated under, READ from
+    /// <c>docs-site/scripts/build-agent-map.mjs</c> rather than repeated.
     /// </summary>
-    private const int AgentMapBudgetBytes = 10240;
+    /// <remarks>
+    /// 🚨 It used to be a mirrored <c>const</c>, with a comment saying so.
+    /// Phase 153 raised the generator's ceiling and this copy stayed behind:
+    /// the generator, its own gate and the site all agreed, and only this test
+    /// failed — the repeated-expression class the repository has paid for
+    /// before. The value now has one home; a second edit cannot desynchronise
+    /// what is no longer duplicated.
+    /// </remarks>
+    private static int AgentMapBudgetBytes
+    {
+        get
+        {
+            var generator = Path.Combine(RepoPaths.Root, "docs-site", "scripts", "build-agent-map.mjs");
+            var match = Regex.Match(
+                File.ReadAllText(generator),
+                @"agentMapBudgetBytes\s*=\s*(?<bytes>\d+)",
+                RegexOptions.CultureInvariant,
+                TimeSpan.FromSeconds(5));
+
+            match.Success.ShouldBeTrue($"'{generator}' no longer declares agentMapBudgetBytes.");
+
+            return int.Parse(match.Groups["bytes"].Value, CultureInfo.InvariantCulture);
+        }
+    }
 
     private const string MarkerOpening = "<!-- AgentPrism agent map · revision: ";
 
