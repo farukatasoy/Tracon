@@ -1,13 +1,13 @@
 # Faz 155 — Kalibre Edilmiş Evaluator Kataloğu
 
 > **Durum:** ✅ Tamamlandı (2026-09-08)
-> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-210**
-> **Önkoşul:** [Faz 152](arsiv/fazlar/152-SKORUN-ADI-VE-SEKLI.md) — adlı ve tipli skor kaydını (`RunScore.Name`/`Kind`/`Value`) getirir. 🚨 Yalnız **kayıt** şeklini açtı; yargıcın **dönüş** şeklini açmadı — bu fazın ilk işi odur.
+> **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-210**
+> **Önkoşul:** [Faz 152](152-SKORUN-ADI-VE-SEKLI.md) — adlı ve tipli skor kaydını (`RunScore.Name`/`Kind`/`Value`) getirir. 🚨 Yalnız **kayıt** şeklini açtı; yargıcın **dönüş** şeklini açmadı — bu fazın ilk işi odur.
 > **Paketler:** `AgentPrism.Abstractions`, `AgentPrism.Core`
 > **Yeni paket:** `Microsoft.Extensions.AI.Evaluation.Quality` 10.9.0 — K-007 gerekçesi §155.4'te; net 1 paket, geçişli ağırlık 0 (ölçüldü 2026-09-07) · **Migration:** Yok — `run_scores` şekli yeterlidir
 > **Public API:** Büyüyor **ve bir sözleşmeyi değiştiriyor** — `RunJudgment`. Bugün ucuz: `wc -l src/*/PublicAPI.Shipped.txt` = **17 satır** (yalnız `#nullable enable` başlıkları), yani hiçbir yüzey yayımlanmadı. İlk yayından sonra aynı değişiklik **kırıcıdır**.
 > **Tüketici yüzeyi:** `docs-site/src/content/docs/concepts/evaluation.md` (yargıç bölümü) · sevk edilen: `IRunJudge`/`RunJudgment` XML dokümanı, `capabilities.md` satırı
-> **Manuel test alanı:** [`docs/manuel-test/17-EVAL-VE-DENEYLER.md`](manuel-test/17-EVAL-VE-DENEYLER.md)
+> **Manuel test alanı:** [`docs/manuel-test/17-EVAL-VE-DENEYLER.md`](../../manuel-test/17-EVAL-VE-DENEYLER.md)
 
 ---
 
@@ -25,15 +25,15 @@
    **K-711** (`RunScore.Value` `double?`; `null` = ölçüm yok, `TextValue` ve `Categorical` eklendi) ·
    **K-712** (`RunScoreRules` public'tir; invariant tek kaynaktan zorlanır) ·
    **K-007** (geçişli sabitleme kapalı — yeni paket gerekçe ister)
-3. [Faz 152](arsiv/fazlar/152-SKORUN-ADI-VE-SEKLI.md) — yalnız devir notu:
+3. [Faz 152](152-SKORUN-ADI-VE-SEKLI.md) — yalnız devir notu:
    ```bash
    awk '/## Sonraki Faza Devir Notu/,0' docs/arsiv/fazlar/152-SKORUN-ADI-VE-SEKLI.md
    ```
    Skorun ad/tip/değer sözleşmesini oradan devralıyorsun; bu faz o sözleşmeye **yazan** ikinci bir kaynak ekliyor.
 4. Alan hafızası (bu faz iki alana dokunuyor):
-   [`hafiza/maf-api.md`](hafiza/maf-api.md) (MAF tip imzaları tahmin edilmez) ·
-   [`hafiza/paketleme-ve-dagitim.md`](hafiza/paketleme-ve-dagitim.md) (yeni paket, AOT ve geçişli ağırlık)
-5. Gerektiğinde, tamamı değil ilgili bölümü: [`MIMARI.md`](MIMARI.md) — değerlendirme bölümü
+   [`hafiza/maf-api.md`](../../hafiza/maf-api.md) (MAF tip imzaları tahmin edilmez) ·
+   [`hafiza/paketleme-ve-dagitim.md`](../../hafiza/paketleme-ve-dagitim.md) (yeni paket, AOT ve geçişli ağırlık)
+5. Gerektiğinde, tamamı değil ilgili bölümü: [`MIMARI.md`](../../MIMARI.md) — değerlendirme bölümü
 
 ---
 
@@ -55,12 +55,12 @@ açmak. `.Safety` ve `.NLP` paketleri — ikisi de preview (K-008 sınırı).
 
 | Kanıt | Gözlem |
 |---|---|
-| [`IRunJudge.cs:89`](../src/AgentPrism.Abstractions/Evaluation/IRunJudge.cs#L89) | `RunJudgment` yalnız `int? Score` + `string? Reason` taşıyor. Bir yargıç **tek** skor döndürebilir |
-| [`OnlineEvalJobHandler.cs:313`](../src/AgentPrism.Core/Evaluation/OnlineEvalJobHandler.cs#L313) | Bir yargıç bir `RunScore` satırına eşleniyor: `Name = judge.Name`, `Kind = Numeric`. Ad yargıcın adıdır, metriğin değil |
-| [`ModelRunJudge.cs:50`](../src/AgentPrism.Core/Evaluation/ModelRunJudge.cs#L50) | Tek yerleşik yargıç; `Name => "model"`, 0-100 tek skor |
-| [`EvalJobHandler.cs:139`](../src/AgentPrism.Core/Evaluation/EvalJobHandler.cs#L139) | `new LocalEvaluator([.. checks])` **sabit kodlu**. MAF'ın `IAgentEvaluator` seam'i var ama tüketiciye açılmıyor |
+| [`IRunJudge.cs:89`](../../../src/AgentPrism.Abstractions/Evaluation/IRunJudge.cs#L89) | `RunJudgment` yalnız `int? Score` + `string? Reason` taşıyor. Bir yargıç **tek** skor döndürebilir |
+| [`OnlineEvalJobHandler.cs:313`](../../../src/AgentPrism.Core/Evaluation/OnlineEvalJobHandler.cs#L313) | Bir yargıç bir `RunScore` satırına eşleniyor: `Name = judge.Name`, `Kind = Numeric`. Ad yargıcın adıdır, metriğin değil |
+| [`ModelRunJudge.cs:50`](../../../src/AgentPrism.Core/Evaluation/ModelRunJudge.cs#L50) | Tek yerleşik yargıç; `Name => "model"`, 0-100 tek skor |
+| [`EvalJobHandler.cs:139`](../../../src/AgentPrism.Core/Evaluation/EvalJobHandler.cs#L139) | `new LocalEvaluator([.. checks])` **sabit kodlu**. MAF'ın `IAgentEvaluator` seam'i var ama tüketiciye açılmıyor |
 | `Directory.Packages.props` | `Evaluation` girdisi **yok** — `M.E.AI.Evaluation` grafiğe `Microsoft.Agents.AI` 1.20.0 üzerinden geçişli geliyor |
-| [`RunScore.cs:44`](../src/AgentPrism.Abstractions/Runs/RunScore.cs#L44) | Kayıt tarafı hazır: `Name`, `Kind`, `Value` (`double?`), `TextValue` |
+| [`RunScore.cs:44`](../../../src/AgentPrism.Abstractions/Runs/RunScore.cs#L44) | Kayıt tarafı hazır: `Name`, `Kind`, `Value` (`double?`), `TextValue` |
 
 > Kanıtlar 2026-09-07 tarihinde doğrulandı.
 >
@@ -296,7 +296,7 @@ dotnet list src/AgentPrism.Core package --include-transitive | grep -c Evaluatio
 | Risk | Önlem |
 |------|-------|
 | Evaluator model çağırır; eval faturası evaluator sayısıyla çarpılır | Köprü run bütçesine bağlanır; DoD bunu ölçer. Rehberde maliyet açıkça yazılır |
-| Microsoft prompt'ları sürümle değişir; skorlar kayar ve [Faz 153](arsiv/fazlar/153-EVAL-KOSUMLARI-ARASINDA-REGRESYON-FARKI.md)'ün taban çizgisi sessizce bozulur | Skor satırı üreten evaluator paket sürümünü kaydeder; sürüm değişimi taban çizgisi karşılaştırmasında görünür olur |
+| Microsoft prompt'ları sürümle değişir; skorlar kayar ve [Faz 153](153-EVAL-KOSUMLARI-ARASINDA-REGRESYON-FARKI.md)'ün taban çizgisi sessizce bozulur | Skor satırı üreten evaluator paket sürümünü kaydeder; sürüm değişimi taban çizgisi karşılaştırmasında görünür olur |
 | AOT kapısı annotation'a bakıp geçer, gerçek yayında kırılır | AOT gerçek yayın koşumuyla doğrulanır; DoD bunu şart koşar |
 | `RunJudgment` değişimi mevcut yargıçları kırar | Geriye uyum testi (`JudgeScoreShapeTests`); Açık Soru 1 kapanışta karara bağlanır |
 | Talep kanıtı yok — kalem yüzey taramasından çıktı | Kapsam dar tutuldu: köprü + seam. On bir evaluator'ın bildirimsel yüzeyi **kapsam dışıdır** |

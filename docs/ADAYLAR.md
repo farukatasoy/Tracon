@@ -251,7 +251,7 @@ bir adayın gerekçesini çürüttü — § *Sıralamayı Değiştiren Ölçüml
 
 | Aday | Faz |
 |---|---|
-| F-210 | [155 — Kalibre Edilmiş Evaluator Kataloğu](155-KALIBRE-EDILMIS-EVALUATOR-KATALOGU.md) |
+| F-210 | [155 — Kalibre Edilmiş Evaluator Kataloğu](arsiv/fazlar/155-KALIBRE-EDILMIS-EVALUATOR-KATALOGU.md) |
 | F-216 | [156 — Durum Ön Kontrolü ve Upgrade Penceresi](156-DURUM-ON-KONTROLU-VE-UPGRADE-PENCERESI.md) |
 | F-217 | [157 — Sınırlı Yük ve İki Process Arıza Kanıtı](157-SINIRLI-YUK-VE-IKI-PROCESS-ARIZA-KANITI.md) |
 
@@ -587,7 +587,7 @@ kaydındadır.
 
 | Kanal | ID'ler | Kural |
 |---|---|---|
-| **Plana dönüştü** | **F-210 → [Faz 155](155-KALIBRE-EDILMIS-EVALUATOR-KATALOGU.md)** · **F-216 → [Faz 156](156-DURUM-ON-KONTROLU-VE-UPGRADE-PENCERESI.md)** · **F-217 → [Faz 157](157-SINIRLI-YUK-VE-IKI-PROCESS-ARIZA-KANITI.md)** · F-109 → [Faz 112](arsiv/fazlar/112-REPLAY-ISTEMCI-TOOL-SOZLESMESI.md) · F-149 → [Faz 113](arsiv/fazlar/113-ARIZA-SINIFLANDIRMA-SEAMI.md) · F-166 → [Faz 114](arsiv/fazlar/114-CALISTIRMA-ICI-BUTCE-TAVANI.md) · F-168 → [Faz 115](arsiv/fazlar/115-EVALIN-BASSIZ-KOSUCUSU.md) · F-67 → [Faz 116](arsiv/fazlar/116-PERFORMANS-TAHSIS-KAPISI.md) · F-167 → [Faz 117](arsiv/fazlar/117-MCP-TASKS-UZANTISI.md) · F-152 → [Faz 118](arsiv/fazlar/118-YARGIC-BASINA-CHECKPOINT.md) · **F-192 → [Faz 151](arsiv/fazlar/151-HARNESSIN-DONGU-YETENEGI.md)** · **F-208 → [Faz 152](arsiv/fazlar/152-SKORUN-ADI-VE-SEKLI.md)** · **F-207 → [Faz 153](arsiv/fazlar/153-EVAL-KOSUMLARI-ARASINDA-REGRESYON-FARKI.md)** · **F-209 → [Faz 154](arsiv/fazlar/154-SKOR-TRENDININ-KALICI-SORGUSU.md)** | Bölümleri bu dosyadan silindi; kanıt ve tasarım faz dokümanındadır. Aday listesine geri dönmezler. |
+| **Plana dönüştü** | **F-210 → [Faz 155](arsiv/fazlar/155-KALIBRE-EDILMIS-EVALUATOR-KATALOGU.md)** · **F-216 → [Faz 156](156-DURUM-ON-KONTROLU-VE-UPGRADE-PENCERESI.md)** · **F-217 → [Faz 157](157-SINIRLI-YUK-VE-IKI-PROCESS-ARIZA-KANITI.md)** · F-109 → [Faz 112](arsiv/fazlar/112-REPLAY-ISTEMCI-TOOL-SOZLESMESI.md) · F-149 → [Faz 113](arsiv/fazlar/113-ARIZA-SINIFLANDIRMA-SEAMI.md) · F-166 → [Faz 114](arsiv/fazlar/114-CALISTIRMA-ICI-BUTCE-TAVANI.md) · F-168 → [Faz 115](arsiv/fazlar/115-EVALIN-BASSIZ-KOSUCUSU.md) · F-67 → [Faz 116](arsiv/fazlar/116-PERFORMANS-TAHSIS-KAPISI.md) · F-167 → [Faz 117](arsiv/fazlar/117-MCP-TASKS-UZANTISI.md) · F-152 → [Faz 118](arsiv/fazlar/118-YARGIC-BASINA-CHECKPOINT.md) · **F-192 → [Faz 151](arsiv/fazlar/151-HARNESSIN-DONGU-YETENEGI.md)** · **F-208 → [Faz 152](arsiv/fazlar/152-SKORUN-ADI-VE-SEKLI.md)** · **F-207 → [Faz 153](arsiv/fazlar/153-EVAL-KOSUMLARI-ARASINDA-REGRESYON-FARKI.md)** · **F-209 → [Faz 154](arsiv/fazlar/154-SKOR-TRENDININ-KALICI-SORGUSU.md)** | Bölümleri bu dosyadan silindi; kanıt ve tasarım faz dokümanındadır. Aday listesine geri dönmezler. |
 | **Kapatılan kusur kayıtları** | F-106, F-130, F-137, F-138, F-139 · **F-170 · F-180 · F-181 · F-190 · F-197 · F-211 · F-212 · F-214 · F-215** | Kapanış kanıtı keşif kaydındadır; yeniden görülürse yeni kusur kaydı açılır. **Kalın olanların gövdeleri 2026-09-07'de [`arsiv/ERTELENEN-ADAYLAR.md`](arsiv/ERTELENEN-ADAYLAR.md)'e taşındı** — bu dosya 80 KB bütçesini doldurmuştu ve kendi kuralı kusurların burada yaşamamasıdır. **F-180** özetiyle burada kalır: vakası kapandı, **sınıfı açık**. |
 | **Karar / uyumluluk** | F-72, F-90, F-91, F-92, F-132, **F-169** | Mevcut karar veya dış bağımlılık değişmeden planlanmaz. F-95 2026-08-26'da adaylığa döndü. **F-169** (MAF CodeAct / Hyperlight sandbox) F-72 ile **aynı eşiktedir**: paket GA ve taşınabilir olana kadar planlanmaz — ölçüm [`kesif/2026-08-26-yeni-feature-fikirleri.md`](kesif/2026-08-26-yeni-feature-fikirleri.md) § 9. |
 | **Ölçüm bekliyor** | F-51, F-94, F-96, F-97, F-99, F-101, F-123, F-128, F-154, F-156, F-157, F-159, F-160, F-161, F-162 | Her biri için gereken somut kanıt keşif kaydında yazılıdır. |
@@ -708,7 +708,7 @@ tüketici talebi olmadan yapılırsa geri alması pahalıdır.
 
 ### F-218 · Skor satırı evaluator paket sürümünü damgalamıyor
 
-**Kaynak:** [Faz 155](155-KALIBRE-EDILMIS-EVALUATOR-KATALOGU.md) — plan risk
+**Kaynak:** [Faz 155](arsiv/fazlar/155-KALIBRE-EDILMIS-EVALUATOR-KATALOGU.md) — plan risk
 tablosunda vardı, kapsam dışı bırakıldı.
 
 **Gözlem:** `AddEvaluatorJudge` ile bağlanan bir `IEvaluator`'ın puanı,
