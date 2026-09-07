@@ -33,6 +33,25 @@
     <PackageVersion Include="Microsoft.Agents.AI.Workflows" Version="$(MicrosoftAgentsAIVersion)" />
   </ItemGroup>
 
+  <ItemGroup Label="Microsoft.Extensions.AI degerlendirme - GA (Faz 155)">
+    <!--
+      K-007: yeni paket gerekce ister. Bu bir EKLEME degil, var olan gecisli bir
+      bagimliligin ACIK hale getirilmesidir. `Microsoft.Extensions.AI.Evaluation`
+      10.9.0 `Core`/`AspNetCore`/`Cli` grafiginde ZATEN vardir; `Microsoft.Agents.AI`
+      1.20.0 onu getirir (olculdu 2026-09-07: `dotnet list package` gecisli listesiyle).
+      `IEvaluator` koprusu (EvaluatorRunJudge) o arayuze DOGRUDAN baglandigi icin
+      gecisli bir referansa guvenmek kirilgandir - MAF bir gun onu birakabilir.
+      Net gecisli agirlik: 0.
+
+      `Microsoft.Extensions.AI.Evaluation.Quality` (kalibre edilmis evaluator
+      katalogu) BILEREK sevk edilen hicbir pakete girmez; onu yalniz test ve ornek
+      projeleri referanslar. Katalogu isteyen tuketici paketi kendisi ekler ve
+      `AddEvaluatorJudge` ile baglar. Kullanmayanin grafigi buyumez (Faz 155, K-727).
+    -->
+    <PackageVersion Include="Microsoft.Extensions.AI.Evaluation" Version="10.9.0" />
+    <PackageVersion Include="Microsoft.Extensions.AI.Evaluation.Quality" Version="10.9.0" />
+  </ItemGroup>
+
   <ItemGroup Label="Microsoft Agent Framework - onsurum (yalnizca AgentPrism.AspNetCore)">
     <PackageVersion Include="Microsoft.Agents.AI.Hosting" Version="1.20.0-preview.260831.1" />
     <PackageVersion Include="Microsoft.Agents.AI.Hosting.OpenAI" Version="1.20.0-alpha.260831.1" />

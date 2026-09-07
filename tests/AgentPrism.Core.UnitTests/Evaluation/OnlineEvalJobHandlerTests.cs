@@ -14,7 +14,7 @@ public sealed class OnlineEvalJobHandlerTests
     {
         var runs = new InMemoryRunStore(tenantContext: new FixedTenantContext(Tenant));
         var scores = new InMemoryRunScoreStore();
-        var handler = BuildHandler(runs, new InMemoryRunInputStore(), scores, [new ScriptedJudge("model", static _ => new RunJudgment { Score = 80 })]);
+        var handler = BuildHandler(runs, new InMemoryRunInputStore(), scores, [new ScriptedJudge("model", static _ => JudgeVerdict.Headline("model", 80))]);
 
         var runId = Guid.NewGuid();
         var reported = new List<JobItemResult>();
@@ -32,7 +32,7 @@ public sealed class OnlineEvalJobHandlerTests
         var runId = await SeedRunAsync(runs, withOutput: true);
 
         var scores = new InMemoryRunScoreStore();
-        var handler = BuildHandler(runs, new InMemoryRunInputStore(), scores, [new ScriptedJudge("model", static _ => new RunJudgment { Score = 80 })]);
+        var handler = BuildHandler(runs, new InMemoryRunInputStore(), scores, [new ScriptedJudge("model", static _ => JudgeVerdict.Headline("model", 80))]);
         var reported = new List<JobItemResult>();
 
         await handler.ExecuteAsync(ExecutionContext(runId, reported));
@@ -66,7 +66,7 @@ public sealed class OnlineEvalJobHandlerTests
         var runId = await SeedRunAsync(runs, withOutput: false, inputs: inputs);
 
         var scores = new InMemoryRunScoreStore();
-        var handler = BuildHandler(runs, inputs, scores, [new ScriptedJudge("model", static _ => new RunJudgment { Score = 80 })]);
+        var handler = BuildHandler(runs, inputs, scores, [new ScriptedJudge("model", static _ => JudgeVerdict.Headline("model", 80))]);
         var reported = new List<JobItemResult>();
 
         await handler.ExecuteAsync(ExecutionContext(runId, reported));
@@ -87,7 +87,7 @@ public sealed class OnlineEvalJobHandlerTests
             runs,
             inputs,
             scores,
-            [new ScriptedJudge("model", static _ => new RunJudgment { Score = 42, Reason = "reason" })]);
+            [new ScriptedJudge("model", static _ => JudgeVerdict.Headline("model", 42, "reason"))]);
         var reported = new List<JobItemResult>();
 
         await handler.ExecuteAsync(ExecutionContext(runId, reported));
@@ -114,7 +114,7 @@ public sealed class OnlineEvalJobHandlerTests
             runs,
             inputs,
             scores,
-            [new ScriptedJudge("model", static _ => new RunJudgment { Score = null, Reason = "unclear" })]);
+            [new ScriptedJudge("model", static _ => JudgeVerdict.Headline("model", null, "unclear"))]);
         var reported = new List<JobItemResult>();
 
         await handler.ExecuteAsync(ExecutionContext(runId, reported));
@@ -129,7 +129,7 @@ public sealed class OnlineEvalJobHandlerTests
         var inputs = new InMemoryRunInputStore();
         var runId = await SeedRunAsync(runs, withOutput: true, inputs: inputs);
 
-        var okJudge = new ScriptedJudge("good", static _ => new RunJudgment { Score = 70 });
+        var okJudge = new ScriptedJudge("good", static _ => JudgeVerdict.Headline("good", 70));
         var badJudge = new ScriptedJudge("bad", static _ => throw new InvalidOperationException("model crashed"));
 
         var scores = new InMemoryRunScoreStore();
@@ -157,7 +157,7 @@ public sealed class OnlineEvalJobHandlerTests
         var inputs = new InMemoryRunInputStore();
         var runId = await SeedRunAsync(runs, withOutput: true, inputs: inputs);
 
-        var judge = new ScriptedJudge("model", static _ => new RunJudgment { Score = 55 });
+        var judge = new ScriptedJudge("model", static _ => JudgeVerdict.Headline("model", 55));
         var scores = new InMemoryRunScoreStore();
         var handler = BuildHandler(runs, inputs, scores, [judge]);
 
@@ -176,7 +176,7 @@ public sealed class OnlineEvalJobHandlerTests
         var inputs = new InMemoryRunInputStore();
         var runId = await SeedRunAsync(runs, withOutput: true, inputs: inputs);
         var scores = new InMemoryRunScoreStore();
-        var handler = BuildHandler(runs, inputs, scores, [new ScriptedJudge("invalid", static _ => new RunJudgment { Score = 101 })]);
+        var handler = BuildHandler(runs, inputs, scores, [new ScriptedJudge("invalid", static _ => JudgeVerdict.Headline("invalid", 101))]);
         var reported = new List<JobItemResult>();
 
         await handler.ExecuteAsync(ExecutionContext(runId, reported));
@@ -226,7 +226,7 @@ public sealed class OnlineEvalJobHandlerTests
             {
                 started.SetResult();
                 await release.Task;
-                return new RunJudgment { Score = 91 };
+                return JudgeVerdict.Headline("ignores-cancellation", 91);
             })],
             new OnlineEvaluationOptions { JudgeTimeout = TimeSpan.FromMilliseconds(20) });
         var run = await runs.GetRunAsync(runId);

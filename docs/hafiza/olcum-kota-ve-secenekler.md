@@ -36,3 +36,53 @@
 - **`QuotaGate` `RunRecordingAgent`'a ulasmadan `429` doner — kota (`IQuotaStore`/`QuotaEnforcer`) asimi bir `RunError` URETMEZ** (2026-08-07, Faz 44, K-297): K-162'nin sonucu, hala gecerli. 🚨 **AMA `RunErrorClass.QuotaExceeded` artik BASKA bir yoldan da dolar** (2026-08-26, Faz 114, K-630): calistirma-ici bir agac butcesi (`AgentGraph.MaxTotalTokens`/`MaxTotalCost`) tukendiginde `RunBudgetChatClient`'in attigi `AgentPrismRunBudgetExceededException` de AYNI sinifa (`4`) eslenir — bu, `QuotaGate`'ten TAMAMEN bagimsiz, farkli bir mekanizmadir (kiraci/agent kotasi degil, tek bir run agacinin bütçesi). "QuotaExceeded asla dolmaz" iddiasi artik YANLIS; "kota (`IQuotaStore`) asla bir `RunError` uretmez" iddiasi hala DOGRU — ikisini karistirma.
 - **🚨 Bir olayi ILGILI `run`'in KENDI SSE akisina yazmak, olayi otomatik olarak o akisa YANSITMAZ — akis tipine gore degisir** (2026-09-05, Faz 146): `scope.Writer.AppendAsync`/`AppendReservedAsync` ile yazilan HER olay `GET /api/runs/{id}/events` ucunda GORUNUR (o uc `IRunStore.ReadEventsAsync`'i canli okur), ama DOGRUDAN `POST /api/agents/{name}/run` akisinda GORUNMEZ — o akis yalniz MAF'in kendi `AgentResponseUpdate`'lerini `update` cercevesi olarak iletir, `RunEventWriter` yazimlarindan tamamen bagimsizdir. Kota esigi bildirimini iki yolda da ayni payload'la sunmak icin `AgentEndpoints.WriteQuotaThresholdNoticesAsync` akis bittikten (butun `update` cerceveleri yollandiktan) SONRA, `done` yazilmadan ONCE, `IRunStore.ReadEventsAsync(runId, 0, ct)` ile KISA bir tarama yapar — ayri bir kopya INSA ETMEZ, ayni kalici kaydi IKINCI KEZ okur. Yeni bir "olayi iki yolda da gorunur yap" ihtiyaci dogarsa bu deseni tekrarla, yeni bir hook ACMA (K-680/681/682'nin Plandan Sapmalar #1'i, `docs/arsiv/fazlar/146-*.md`).
 - **🚨 `RunEventWriter.AppendAsync`'in rezerve-onek reddi (K-673/K-674) kutuphanenin KENDI notice'ini yazmasini da engeller — bypass INTERNAL bir ikinci giris noktasindan gecer** (2026-09-05, Faz 146): `AppendCoreAsync(draft, allowReserved, ct)` tek govde, `AppendAsync` (`allowReserved: false`, public) ve `AppendReservedAsync` (`allowReserved: true`, `internal`) iki ince sarmalayicidir. Tuketici asla `AppendReservedAsync`'e erisemez (ayni derleme disinda gorunmez) — K-673/K-674'un "tuketici taklit edemez" garantisi boylece korunur. Yeni bir rezerve `CustomType` (kutuphanenin kendi yazacagi baska bir notice) gerekirse AYNI `AppendReservedAsync`'i kullan, yeni bir bypass ICAT ETME.
+
+## Yargic skorunun olcegi (Faz 155)
+
+**🚨 Bir yargic artik N adli skor dondurur ve hepsi ayni olcekte DEGILDIR.**
+`OnlineEvalSummaryService.RecordScoreAsync` ve `AgentPrismMetrics.RecordJudgeScore`
+**0-100** tanimlidir; `OnlineEvaluationOptions.LowScoreThreshold` varsayilan **60**
+o olcekte karsilastirilir. Microsoft'un kalibre evaluator'lari ise **1-5** verir.
+
+Kural (K-730): pencereye ve histograma yalnizca **mansset** skor girer --
+adi yargicin adina **esit** VE `Kind == RunScoreKind.Numeric` olan skor.
+`OnlineEvalJobHandler.JudgeOneAsync`'te tek yerdedir.
+
+Iki tuzak, ikisi de bagimsiz denetimde bulundu:
+
+- **Ad yetmez, `Kind` de gerekir.** Ilk yazim yalnizca ada bakiyordu. Bir yargic
+  genel kararini `Stars` olarak verebilir (sevk edilen rehber bunu aciktan davet
+  ediyor); 1-5 olceginde bir **5**, 60 esiginin altina duser ve `run.score.low`
+  webhook'u **her saglikli kosumda** calar. Yani "kotu skor alarmi" saglam bir
+  ajanda surekli oter ve insanlar onu susturmayi ogrenir.
+- **Olcek tahmini yapma.** Kural bir AD KARSILASTIRMASIDIR, bir deger sezgisi
+  degil. "1 ile 5 arasindaysa yildizdir" gibi bir tahmin yanlis siniflandirir;
+  0-100 olceginde mesru bir 3 puan vardir.
+
+Yeni bir yargic eklerken: mansset skorunu **0-100 `Numeric`** ver, adini yargicin
+adiyla ayni yap. Baska bir olcek kullanacaksan ona **baska bir ad** ver -- saklanir,
+`GET /api/evaluation/scores/summary` onu `(name, kind)` kiriliminda raporlar,
+yalnizca canli ortalamaya girmez.
+
+## Yarim yazilmis skor kumesi (Faz 155)
+
+**🚨 Bir yargic N satir yaziyorsa, k'inci satirdaki store hatasi KALICI bir
+eksiklik uretir.** Retry checkpoint'i (K-638) "bu yargicin `author`'uyla bir satir
+var mi" diye sorar, kac satir oldugunu sormaz. Hayatta kalan tek satir yargici
+retry'da **atlatir**: kalan metrikler bir daha hic yazilmaz, is `Completed`
+raporlanir ve hicbir `JudgeFailure` gorunmez -- sessiz veri kaybi.
+
+Cozum telafidir, transaction degil: yazma dongusu `try/catch` icindedir ve hata
+halinde `CompensateAsync` o denemede yazilan satirlari **geri alir**, boylece
+retry temiz sayfadan baslar (`UpsertAsync` idempotent oldugu icin yeniden yazim
+guvenlidir). Iki ayrinti:
+
+- Temizlik **iptal edilemez** (`CancellationToken.None`). Iptal edilen bir
+  temizlik, tam da onlemek icin var oldugu yarim kumeyi birakirdi.
+- Temizlik de basarisiz olursa **loglanir, firlatilmaz**. Store zaten yazmayi
+  reddediyor; orada firlatmak raporlanan bir yargic hatasini bir is cokusune
+  cevirirdi.
+
+**Sinif taramasi:** "N kayit yaz, sonra bir checkpoint'e guven" deseni her yerde
+ayni tuzagi tasir. Checkpoint kismi bir kumeyi tam bir kumeden ayirt edemiyorsa,
+ya telafi yaz ya da checkpoint'e tamlik bilgisi ekle.

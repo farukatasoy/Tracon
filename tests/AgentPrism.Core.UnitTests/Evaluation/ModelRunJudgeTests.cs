@@ -26,8 +26,11 @@ public sealed class ModelRunJudgeTests
 
         var judgment = await judge.JudgeAsync(Context());
 
-        judgment.Score.ShouldBe(73);
-        judgment.Reason.ShouldBe("good answer");
+        var score = judgment.Scores.ShouldHaveSingleItem();
+        score.Name.ShouldBe("model");
+        score.Kind.ShouldBe(RunScoreKind.Numeric);
+        score.Value.ShouldBe(73);
+        score.Comment.ShouldBe("good answer");
     }
 
     [Fact]
@@ -38,8 +41,9 @@ public sealed class ModelRunJudgeTests
 
         var judgment = await judge.JudgeAsync(Context());
 
-        judgment.Score.ShouldBeNull();
-        judgment.Reason.ShouldBe("unclear");
+        // No decision: an EMPTY judgment, so no row is written at all. It is
+        // not a score of zero and it is not a null-valued row either.
+        judgment.Scores.ShouldBeEmpty();
     }
 
     [Fact]
@@ -50,8 +54,7 @@ public sealed class ModelRunJudgeTests
 
         var judgment = await judge.JudgeAsync(Context());
 
-        judgment.Score.ShouldBeNull();
-        judgment.Reason.ShouldNotBeNullOrWhiteSpace();
+        judgment.Scores.ShouldBeEmpty();
     }
 
     [Fact]
@@ -62,7 +65,7 @@ public sealed class ModelRunJudgeTests
 
         var judgment = await judge.JudgeAsync(Context());
 
-        judgment.Score.ShouldBe(100);
+        judgment.Scores.ShouldHaveSingleItem().Value.ShouldBe(100);
     }
 
     [Fact]

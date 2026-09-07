@@ -182,7 +182,7 @@ AgentPrism.AgentPrismMetrics.RecordAgentSourceFailure(string! sourceName, string
 AgentPrism.AgentPrismMetrics.RecordCost(string! agentName, string? modelId, string! tenantId, decimal cost, string! currency) -> void
 AgentPrism.AgentPrismMetrics.RecordJob(string! lane, string! handlerKey, AgentPrism.JobStatus status, string? tenantId, System.TimeSpan duration) -> void
 AgentPrism.AgentPrismMetrics.RecordJudgeCost(string! judgeName, string? modelId, string! tenantId, decimal cost, string! currency) -> void
-AgentPrism.AgentPrismMetrics.RecordJudgeScore(string! judgeName, string! agentName, string! tenantId, int score) -> void
+AgentPrism.AgentPrismMetrics.RecordJudgeScore(string! judgeName, string! agentName, string! tenantId, double score) -> void
 AgentPrism.AgentPrismMetrics.RecordModelCacheLookup(string! provider, string! tenantId, bool hit) -> void
 AgentPrism.AgentPrismMetrics.RecordRun(string! agentName, AgentPrism.RunStatus status, string! tenantId, string? modelId, System.TimeSpan duration, AgentPrism.RunUsage? usage, int? agentVersion = null) -> void
 AgentPrism.AgentPrismMetrics.RecordToolInvocation(string! toolName, bool succeeded, System.TimeSpan? duration) -> void
@@ -601,6 +601,8 @@ AgentPrism.IAgentPrismBuilder.AddToolsFrom<T>() -> AgentPrism.IAgentPrismBuilder
 AgentPrism.IAgentPrismBuilder.Configure(System.Action<AgentPrism.AgentPrismOptions!>! configure) -> AgentPrism.IAgentPrismBuilder!
 AgentPrism.IAgentPrismBuilder.RequireCustomBinding<T>() -> AgentPrism.IAgentPrismBuilder!
 AgentPrism.IAgentPrismBuilder.Services.get -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
+AgentPrism.IEvalEvaluatorFactory
+AgentPrism.IEvalEvaluatorFactory.Create(System.Collections.Generic.IReadOnlyList<Microsoft.Agents.AI.EvalCheck!>! checks) -> Microsoft.Agents.AI.IAgentEvaluator!
 AgentPrism.ImagePriceOverride
 AgentPrism.ImagePriceOverride.ImagePriceOverride() -> void
 AgentPrism.ImagePriceOverride.OutputCostPerMillionTokens.get -> decimal?
@@ -696,7 +698,7 @@ AgentPrism.ModelRunJudgeOptions.ModelRunJudgeOptions() -> void
 AgentPrism.OnlineEvalSummaryService
 AgentPrism.OnlineEvalSummaryService.GetSummaryAsync(string! tenantId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<AgentPrism.OnlineEvaluationSummary!>
 AgentPrism.OnlineEvalSummaryService.OnlineEvalSummaryService(AgentPrism.IRunStore! runStore, Microsoft.Extensions.Options.IOptionsMonitor<AgentPrism.OnlineEvaluationOptions!>! optionsMonitor, AgentPrism.IWebhookPublisher? webhookPublisher = null, System.TimeProvider? timeProvider = null) -> void
-AgentPrism.OnlineEvalSummaryService.RecordScoreAsync(string! tenantId, int score, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
+AgentPrism.OnlineEvalSummaryService.RecordScoreAsync(string! tenantId, double score, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
 AgentPrism.OnlineEvaluationOptions
 AgentPrism.OnlineEvaluationOptions.AgentNames.get -> System.Collections.Generic.IList<string!>!
 AgentPrism.OnlineEvaluationOptions.Enabled.get -> bool
@@ -1216,6 +1218,10 @@ static AgentPrism.AgentPrismEvalCheckRegistration.operator !=(AgentPrism.AgentPr
 static AgentPrism.AgentPrismEvalCheckRegistration.operator ==(AgentPrism.AgentPrismEvalCheckRegistration? left, AgentPrism.AgentPrismEvalCheckRegistration? right) -> bool
 static AgentPrism.AgentPrismLoopEvaluatorRegistration.operator !=(AgentPrism.AgentPrismLoopEvaluatorRegistration? left, AgentPrism.AgentPrismLoopEvaluatorRegistration? right) -> bool
 static AgentPrism.AgentPrismLoopEvaluatorRegistration.operator ==(AgentPrism.AgentPrismLoopEvaluatorRegistration? left, AgentPrism.AgentPrismLoopEvaluatorRegistration? right) -> bool
+static AgentPrism.AgentPrismOnlineEvaluationBuilderExtensions.AddEvalEvaluatorFactory(this AgentPrism.IAgentPrismBuilder! builder, AgentPrism.IEvalEvaluatorFactory! factory) -> AgentPrism.IAgentPrismBuilder!
+static AgentPrism.AgentPrismOnlineEvaluationBuilderExtensions.AddEvalEvaluatorFactory<TFactory>(this AgentPrism.IAgentPrismBuilder! builder) -> AgentPrism.IAgentPrismBuilder!
+static AgentPrism.AgentPrismOnlineEvaluationBuilderExtensions.AddEvaluatorJudge(this AgentPrism.IAgentPrismBuilder! builder, string! name, Microsoft.Extensions.AI.Evaluation.IEvaluator! evaluator) -> AgentPrism.IAgentPrismBuilder!
+static AgentPrism.AgentPrismOnlineEvaluationBuilderExtensions.AddEvaluatorJudge(this AgentPrism.IAgentPrismBuilder! builder, string! name, Microsoft.Extensions.AI.Evaluation.IEvaluator! evaluator, System.Action<AgentPrism.ModelRunJudgeOptions!>! configure) -> AgentPrism.IAgentPrismBuilder!
 static AgentPrism.AgentPrismOnlineEvaluationBuilderExtensions.AddModelRunJudge(this AgentPrism.IAgentPrismBuilder! builder, System.Action<AgentPrism.ModelRunJudgeOptions!>! configure) -> AgentPrism.IAgentPrismBuilder!
 static AgentPrism.AgentPrismRunContext.Current.get -> AgentPrism.AgentRunScope?
 static AgentPrism.AgentPrismRunContext.CurrentRunId.get -> System.Guid?

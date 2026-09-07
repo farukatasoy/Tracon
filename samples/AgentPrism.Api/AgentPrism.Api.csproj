@@ -55,6 +55,12 @@
       not depend on this package; endpoints carry metadata from the shared
       framework and appear in the document automatically when AddOpenApi() is called.
     -->
+    <!--
+      Phase 155: the calibrated evaluator catalog. This is exactly what a consumer
+      does - AgentPrism does not reference it, so anyone who wants the catalog adds
+      the package themselves.
+    -->
+    <PackageReference Include="Microsoft.Extensions.AI.Evaluation.Quality" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
     <!-- CVE pin; rationale in Directory.Packages.props. -->
     <PackageReference Include="Microsoft.OpenApi" />

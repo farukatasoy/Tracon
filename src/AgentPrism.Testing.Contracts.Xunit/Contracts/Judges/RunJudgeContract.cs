@@ -50,11 +50,61 @@ public abstract class RunJudgeContract : IAsyncLifetime
     }
 
     [Fact]
-    public async Task Judgment_score_is_null_or_in_range()
+    public async Task Every_score_in_a_judgment_can_be_stored()
     {
         var judgment = await Judge.JudgeAsync(CreateContext()).ConfigureAwait(false);
-        (judgment.Score is null || (judgment.Score >= 0 && judgment.Score <= 100)).ShouldBeTrue();
-        (judgment.Reason?.Length ?? 0).ShouldBeLessThanOrEqualTo(RunJudgment.MaxReasonLength);
+        ShouldBeStorable(judgment);
+    }
+
+    /// <summary>Asserts that every score in a judgment satisfies the stored invariants.</summary>
+    /// <param name="judgment">The judgment under test.</param>
+    /// <remarks>
+    /// An empty judgment passes: it says the judge reached no decision, and
+    /// nothing is written. What must never happen is a judgment that AgentPrism
+    /// then refuses to store — a repeated name, an out-of-range value, or a
+    /// value shape that does not match its kind.
+    /// </remarks>
+    protected static void ShouldBeStorable(RunJudgment judgment)
+    {
+        ArgumentNullException.ThrowIfNull(judgment);
+
+        var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var score in judgment.Scores)
+        {
+            RunScoreRules.IsValidName(score.Name).ShouldBeTrue(RunScoreRules.NameDescription);
+            names.Add(score.Name).ShouldBeTrue($"The name '{score.Name}' is repeated in one judgment.");
+            (score.Comment?.Length ?? 0).ShouldBeLessThanOrEqualTo(RunJudgment.MaxReasonLength);
+
+            if (score.Kind == RunScoreKind.Categorical)
+            {
+                score.Value.ShouldBeNull();
+                score.TextValue.ShouldNotBeNullOrEmpty();
+                score.TextValue.Length.ShouldBeLessThanOrEqualTo(RunScoreRules.MaxTextValueLength);
+                continue;
+            }
+
+            score.TextValue.ShouldBeNull();
+
+            if (score.Value is not { } value)
+            {
+                // No measurement. Legal, and not the same as a zero.
+                continue;
+            }
+
+            switch (score.Kind)
+            {
+                case RunScoreKind.Binary:
+                    (value is 0 or 1).ShouldBeTrue($"A binary score must be 0 or 1, not {value}.");
+                    break;
+                case RunScoreKind.Stars:
+                    value.ShouldBeInRange(1, 5);
+                    break;
+                default:
+                    value.ShouldBeInRange(0, 100);
+                    break;
+            }
+        }
     }
 
     [Fact]
@@ -74,7 +124,10 @@ public abstract class RunJudgeContract : IAsyncLifetime
             return await Judge.JudgeAsync(CreateContext()).ConfigureAwait(false);
         }))).ConfigureAwait(false);
 
-        results.All(static result => result.Score is null || (result.Score >= 0 && result.Score <= 100)).ShouldBeTrue();
+        foreach (var result in results)
+        {
+            ShouldBeStorable(result);
+        }
     }
 
     [Fact]
@@ -84,8 +137,8 @@ public abstract class RunJudgeContract : IAsyncLifetime
         var first = await Judge.JudgeAsync(context).ConfigureAwait(false);
         var second = await Judge.JudgeAsync(context).ConfigureAwait(false);
 
-        (first.Score is null || (first.Score >= 0 && first.Score <= 100)).ShouldBeTrue();
-        (second.Score is null || (second.Score >= 0 && second.Score <= 100)).ShouldBeTrue();
+        ShouldBeStorable(first);
+        ShouldBeStorable(second);
     }
 
     [Fact]

@@ -180,6 +180,62 @@ default wording does not fit your domain.
 For lifecycle, concurrency, timeout, tenant, and retry requirements of a custom
 judge, see [Write your own judge](/guides/write-your-own-judge/).
 
+### Calibrated evaluators
+
+A judge does not have to be a prompt you wrote. `AddEvaluatorJudge` binds any
+`IEvaluator` from `Microsoft.Extensions.AI.Evaluation` — including the calibrated
+catalog in `Microsoft.Extensions.AI.Evaluation.Quality`, which grades relevance,
+coherence, completeness, task adherence, and tool-call accuracy without you
+writing a scoring prompt at all.
+
+AgentPrism does **not** reference that catalog. Add the package when you want it,
+so a consumer who does not carries none of it:
+
+```bash
+dotnet add package Microsoft.Extensions.AI.Evaluation.Quality
+```
+
+```csharp
+builder.AddAgentPrism()
+       .AddEvaluatorJudge(
+           "relevance",
+           new RelevanceEvaluator(),
+           options => options.Model = new ModelBinding { Provider = "openai", Model = "gpt-5.4-mini" });
+```
+
+Every metric the evaluator reports becomes its **own** score row, named
+`{judge}.{metric}` — `relevance.Relevance`, `relevance.Coherence`. The judge-name
+prefix is what lets two evaluators report a metric of the same name without one
+overwriting the other, because a score name is part of what makes a score unique.
+
+A metric the evaluator could not measure is stored with a **null** value, not a
+zero, and its diagnostics are kept in the comment so the gap is explained. Metrics
+map onto score kinds by shape: a numeric metric to `Numeric`, a boolean metric to
+`Binary`, a string metric to `Categorical`.
+
+Two limits are worth knowing before you turn this on:
+
+- **Each evaluator costs a model call per sampled run.** Registering four of them
+  multiplies the judging cost of online evaluation by four.
+- **A bridged metric never enters the 0-100 online average.** The calibrated
+  evaluators grade on their own scales, and mixing a 1-5 score into a 0-100 average
+  would fire the low-score alarm on healthy runs. Only a judge's *headline* score —
+  the one named exactly after the judge, as the built-in judge writes — feeds that
+  window. Bridged scores are stored, returned, and aggregated by the
+  [persistent score summary](#persistent-score-summary), which groups by name and
+  kind and so keeps the scales apart.
+
+A judge sees the run's input, its output text, and the **names** of the tools it
+called — not their arguments or results. An evaluator that grades tool calls has
+nothing to grade there and reports no measurement.
+
+### Replacing what grades a suite
+
+Eval suites are graded by MAF's `LocalEvaluator`, built from the checks the suite
+declares. `AddEvalEvaluatorFactory` replaces that choice. The factory receives the
+suite's compiled checks, so it can wrap the built-in behaviour rather than
+discarding what the suite asked for. Registering none changes nothing.
+
 ## Human feedback
 
 Scores can be attached to a run, or to a single message in it. Human scores and judge
@@ -207,7 +263,8 @@ A score carries one of four shapes:
 
 `value` is a decimal, so `0.87` is stored as `0.87`. A **null** `value` means no
 measurement was made — not zero. Zero is a measurement; the absence of one is not,
-which is the same rule `RunJudgment.Score` follows when a judge cannot decide.
+which is the same rule a judge follows: a judge that cannot decide returns an empty
+`RunJudgment` and writes no row at all.
 
 Deleting a score is written to the audit trail: removing a judgement is itself
 traceable.

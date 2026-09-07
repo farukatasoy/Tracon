@@ -53,7 +53,7 @@ public sealed record RunScore
     /// </summary>
     /// <remarks>
     /// <see langword="null"/> means <strong>no measurement was made</strong>,
-    /// NOT zero — the same rule <see cref="RunJudgment.Score"/> already states.
+    /// NOT zero — the same rule <see cref="JudgeScore.Value"/> already states.
     /// Always <see langword="null"/> when <see cref="Kind"/> is
     /// <see cref="RunScoreKind.Categorical"/>.
     /// </remarks>
