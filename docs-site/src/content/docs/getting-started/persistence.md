@@ -144,6 +144,13 @@ itself, but there is no downgrade path back to the older schema. Take a backup
 before upgrading a database you cannot lose, and roll a version back by restoring
 that backup rather than by pointing an older build at the newer schema — the
 checksum check will refuse it anyway.
+
+The `run_scores` migration is the current example. It widens the score value from an
+integer to a nullable double, adds the score's name and its categorical value, and
+rewrites the uniqueness index. Existing rows are carried across: a score written by a
+judge keeps that judge's name, every other row is named `overall`. On SQLite the
+value column is rebuilt in place, so the table is rewritten — size that step against
+your own row count before upgrading a large database.
 :::
 
 Set `AutoApplyMigrations = false` when schema changes are their own deployment step.
