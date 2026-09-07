@@ -34,7 +34,7 @@
     "src/AgentPrism.SqlServer/Migrations/0034_session_owner.sql": "c3a7b3eeb85414c1cf330b6eddae1a8061eeca92",
     "src/AgentPrism.Sqlite/Migrations/0034_session_owner.sql": "c3a7b3eeb85414c1cf330b6eddae1a8061eeca92",
     "src/AgentPrism.PostgreSql/Migrations/0048_run_score_name_and_shape.sql": "0cfce8307f60238d03602f56fa18878da824fa81",
-    "src/AgentPrism.SqlServer/Migrations/0035_run_score_name_and_shape.sql": "0cfce8307f60238d03602f56fa18878da824fa81",
-    "src/AgentPrism.Sqlite/Migrations/0035_run_score_name_and_shape.sql": "0cfce8307f60238d03602f56fa18878da824fa81"
+    "src/AgentPrism.SqlServer/Migrations/0035_run_score_name_and_shape.sql": "46127b8a28b6370f2e175a20bd795e00a3641205",
+    "src/AgentPrism.Sqlite/Migrations/0035_run_score_name_and_shape.sql": "46127b8a28b6370f2e175a20bd795e00a3641205"
   }
 }
