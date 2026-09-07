@@ -163,6 +163,8 @@ production behavior.
 | Built-in checks | Eval case configuration | Deterministic checks run without a judge model |
 | Custom checks | `AddEvalCheck(kind, check)` | Application code adds a named MAF `EvalCheck` |
 | Run judges | `IRunJudge` via `AddRunJudge<T>()`, instance, or factory, or the built-in `AddModelRunJudge()` | Manual or automatic scores with named criteria |
+| Calibrated evaluator catalog | `AddEvaluatorJudge(name, evaluator)` with a `Microsoft.Extensions.AI.Evaluation` `IEvaluator` | Each metric the evaluator reports becomes its own `{judge}.{metric}` score row |
+| Suite grading seam | `AddEvalEvaluatorFactory<T>()` or an instance | Replaces the MAF `LocalEvaluator` an eval suite is graded with |
 | Online evaluation | Judge registration plus enabled sampling | A bounded sample of live runs is scored in the background |
 | Eval run comparison | `GET /api/evals/runs/{id}/diff` or `IEvalStore.DiffRunsAsync` | Two runs of a suite align case by case into six buckets; added and dropped cases are never counted as regressions |
 | Relative CI gate | `agentprism eval --baseline <runId\|previous> --max-regressions <n>` | A build fails on the cases that broke against an earlier run, not only on an absolute pass rate |

@@ -38,7 +38,13 @@ public sealed class OnlineEvalSummaryService(
     /// <param name="tenantId">The tenant identifier.</param>
     /// <param name="score">The written score, from 0 to 100.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
-    public async ValueTask RecordScoreAsync(string tenantId, int score, CancellationToken cancellationToken = default)
+    /// <remarks>
+    /// Only a judge's <strong>headline</strong> score reaches this window: the
+    /// one whose name equals the judge's own. The window and its alarm are
+    /// defined on the 0-100 scale, so a bridged metric on another scale is
+    /// stored but never averaged in. See <see cref="JudgeScore"/>.
+    /// </remarks>
+    public async ValueTask RecordScoreAsync(string tenantId, double score, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
 
@@ -153,9 +159,9 @@ public sealed class OnlineEvalSummaryService(
 
     private sealed class TenantWindow
     {
-        private readonly Queue<(DateTimeOffset At, int Score)> _samples = new();
+        private readonly Queue<(DateTimeOffset At, double Score)> _samples = new();
 
-        public void Add(DateTimeOffset at, int score, TimeSpan windowSize)
+        public void Add(DateTimeOffset at, double score, TimeSpan windowSize)
         {
             _samples.Enqueue((at, score));
             Prune(at, windowSize);

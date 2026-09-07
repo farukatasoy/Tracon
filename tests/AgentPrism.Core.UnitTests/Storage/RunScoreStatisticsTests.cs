@@ -99,7 +99,7 @@ public sealed class RunScoreStatisticsTests
     /// <remarks>
     /// 🚨 A null value records that NO MEASUREMENT was made. Counting it in the
     /// DENOMINATOR would report a run scored only positively as half positive —
-    /// exactly the reading `RunJudgment.Score` refuses to produce.
+    /// exactly the reading `JudgeScore.Value` refuses to produce.
     /// </remarks>
     [Fact]
     public async Task A_binary_score_with_no_measurement_leaves_the_rate_ALONE()

@@ -189,6 +189,7 @@ public sealed class EvalJobHandlerTests
             new InMemoryAgentDefinitionStore(),
             CreateCompiler(),
             new EvalCheckRegistry([]),
+            new LocalEvalEvaluatorFactory(),
             Options.Create(new AgentPrismOptions()),
             [],
             NullLogger<EvalJobHandler>.Instance);
@@ -236,6 +237,7 @@ public sealed class EvalJobHandlerTests
             definitionStore,
             compiler,
             new EvalCheckRegistry([]),
+            new LocalEvalEvaluatorFactory(),
             Options.Create(new AgentPrismOptions()),
             [],
             NullLogger<EvalJobHandler>.Instance);
@@ -287,6 +289,7 @@ public sealed class EvalJobHandlerTests
             definitionStore,
             compiler,
             new EvalCheckRegistry([]),
+            new LocalEvalEvaluatorFactory(),
             Options.Create(new AgentPrismOptions()),
             [decorator],
             NullLogger<EvalJobHandler>.Instance);
@@ -343,6 +346,7 @@ public sealed class EvalJobHandlerTests
             definitionStore,
             compiler,
             new EvalCheckRegistry([]),
+            new LocalEvalEvaluatorFactory(),
             Options.Create(new AgentPrismOptions()),
             [],
             NullLogger<EvalJobHandler>.Instance);
@@ -388,6 +392,7 @@ public sealed class EvalJobHandlerTests
             definitionStore,
             compiler,
             new EvalCheckRegistry([]),
+            new LocalEvalEvaluatorFactory(),
             Options.Create(new AgentPrismOptions { MaxParameterValueLength = 4 }),
             [],
             NullLogger<EvalJobHandler>.Instance);
@@ -426,6 +431,7 @@ public sealed class EvalJobHandlerTests
             new InMemoryAgentDefinitionStore(),
             CreateCompiler(),
             new EvalCheckRegistry([]),
+            new LocalEvalEvaluatorFactory(),
             Options.Create(new AgentPrismOptions()),
             [],
             NullLogger<EvalJobHandler>.Instance);

@@ -29,9 +29,9 @@ AgentPrism.Testing.Contracts.Judges.RunJudgeContract
 AgentPrism.Testing.Contracts.Judges.RunJudgeContract.A_pre_cancelled_token_is_honored() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Judges.RunJudgeContract.Concurrent_calls_start_together_and_complete() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Judges.RunJudgeContract.DisposeAsync() -> System.Threading.Tasks.ValueTask
+AgentPrism.Testing.Contracts.Judges.RunJudgeContract.Every_score_in_a_judgment_can_be_stored() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Judges.RunJudgeContract.InitializeAsync() -> System.Threading.Tasks.ValueTask
 AgentPrism.Testing.Contracts.Judges.RunJudgeContract.Judge.get -> AgentPrism.IRunJudge!
-AgentPrism.Testing.Contracts.Judges.RunJudgeContract.Judgment_score_is_null_or_in_range() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Judges.RunJudgeContract.Name_is_a_stable_valid_identifier_across_calls() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Judges.RunJudgeContract.Repeated_calls_with_the_same_context_complete() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Judges.RunJudgeContract.RunJudgeContract() -> void
@@ -827,6 +827,7 @@ override AgentPrism.Testing.Contracts.Storage.WorkflowDefinitionStoreContract.Se
 override AgentPrism.Testing.Contracts.Storage.WorkflowDefinitionStoreContract.TryDeleteAsync(string! tenantId, object! key) -> System.Threading.Tasks.ValueTask<bool?>
 static AgentPrism.Testing.Contracts.ContractCoverage.ContractTypes(string! namespaceScope) -> System.Collections.Generic.IReadOnlyList<System.Type!>!
 static AgentPrism.Testing.Contracts.ContractCoverage.MissingDerivedTypes(System.Reflection.Assembly! consumerAssembly, string! namespaceScope, System.Collections.Generic.IReadOnlyCollection<string!>? except = null) -> System.Collections.Generic.IReadOnlyList<string!>!
+static AgentPrism.Testing.Contracts.Judges.RunJudgeContract.ShouldBeStorable(AgentPrism.RunJudgment! judgment) -> void
 static AgentPrism.Testing.Contracts.Storage.TestData.Definition(string! name) -> AgentPrism.AgentDefinition!
 static AgentPrism.Testing.Contracts.Storage.TestData.EvalCase(System.Guid suiteId, string! query = "question") -> AgentPrism.EvalCase!
 static AgentPrism.Testing.Contracts.Storage.TestData.EvalCaseDraft(System.Guid? sourceRunId = null, string! query = "question") -> AgentPrism.EvalCaseDraft!

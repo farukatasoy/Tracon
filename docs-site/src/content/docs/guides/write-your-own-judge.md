@@ -17,7 +17,20 @@ public sealed class ResponseQualityJudge : IRunJudge
         CancellationToken cancellationToken = default)
     {
         var score = context.Output.Length >= 40 ? 90 : 45;
-        return new(new RunJudgment { Score = score, Reason = "Output-length rule." });
+
+        return new(new RunJudgment
+        {
+            Scores =
+            [
+                new JudgeScore
+                {
+                    Name = Name,
+                    Kind = RunScoreKind.Numeric,
+                    Value = score,
+                    Comment = "Output-length rule.",
+                },
+            ],
+        });
     }
 }
 ```
@@ -49,9 +62,24 @@ A judge can still be called again for the same run: manual re-scoring always
 reruns it, and a queued job retry (triggered when a *different* judge fails)
 reruns every judge that has not yet written a score for that run — a judge
 that already wrote one is skipped on that retry. Make side effects idempotent.
-Return a score from 0 to 100, or `null` when no decision is possible. Do not
-return `0` for an unknown result. Scores outside that range are rejected and
-do not retry. `Reason` is optional and is stored at a maximum of 4000 characters.
+
+A judgment carries a **list** of named scores, and each one becomes its own score
+row. Return an **empty** list when no decision is possible — that writes nothing.
+Do not return `0` for an unknown result; a null `Value` records "measured nothing",
+and an empty judgment records "did not measure".
+
+Each score states its own `Kind` and must stay inside that kind's range: `Binary`
+is 0 or 1, `Stars` is 1 to 5, `Numeric` is 0 to 100, and `Categorical` carries a
+`TextValue` instead of a `Value`. Names must satisfy the same rule as `Name` and
+must be distinct within one judgment. A judgment that breaks any of these is
+rejected as a whole, before the first row is written, and does not retry.
+`Comment` is optional and is stored at a maximum of 4000 characters.
+
+The score named exactly after the judge is its **headline** score. Only that one
+feeds the online-evaluation average and the `agentprism.judge.score` histogram,
+both of which are defined on the 0-100 scale; a judge that reports several metrics
+on several scales gives them other names, and they are stored and queryable
+without distorting that average.
 
 The cancellation token is the call budget. AgentPrism applies `JudgeTimeout` to
 each judge call, which defaults to 60 seconds. Propagate a real cancellation. Do

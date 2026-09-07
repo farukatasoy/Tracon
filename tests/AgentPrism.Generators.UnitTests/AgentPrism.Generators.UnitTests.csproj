@@ -42,6 +42,13 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" />
+    <!--
+      Phase 155: a shipped <example> names Microsoft.Extensions.AI.Evaluation.Quality's
+      RelevanceEvaluator. ExampleCompilationTests compiles every block against THIS
+      project's reference set, so the type has to be resolvable here - and only here:
+      no shipped package references the catalog.
+    -->
+    <PackageReference Include="Microsoft.Extensions.AI.Evaluation.Quality" />
     <!-- Test-only: the AzureOpenAIProviderOptions.CredentialFactory <example> names DefaultAzureCredential. -->
     <PackageReference Include="Azure.Identity" />
   </ItemGroup>

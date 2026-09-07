@@ -33,6 +33,7 @@ internal sealed class EvalJobHandler(
     IAgentDefinitionStore definitionStore,
     AgentDefinitionCompiler compiler,
     EvalCheckRegistry checkRegistry,
+    IEvalEvaluatorFactory evaluatorFactory,
     IOptions<AgentPrismOptions> options,
     IEnumerable<IAgentDecorator> decorators,
     ILogger<EvalJobHandler>? logger = null) : IJobHandler
@@ -136,7 +137,12 @@ internal sealed class EvalJobHandler(
                 $"Suite '{suite.Name}' has no checks; at least one check is required.");
         }
 
-        var evaluator = new LocalEvaluator([.. checks]);
+        // The seam, not a hard-coded LocalEvaluator: the default factory still
+        // builds one from these very checks, so registering nothing keeps the
+        // previous behaviour exactly (IEvalEvaluatorFactory).
+        var evaluator = evaluatorFactory.Create(checks)
+            ?? throw new AgentPrismException(
+                $"{evaluatorFactory.GetType().Name} returned no evaluator for suite '{suite.Name}'.");
 
         var passedCases = 0;
         var failedCases = 0;
@@ -236,7 +242,7 @@ internal sealed class EvalJobHandler(
         EvalCase evalCase,
         AIAgent agent,
         AgentDefinition? sourceDefinition,
-        LocalEvaluator evaluator,
+        IAgentEvaluator evaluator,
         string evalName,
         int numRepetitions,
         CancellationToken cancellationToken)
@@ -370,7 +376,7 @@ internal sealed class EvalJobHandler(
 
             var results = await evaluator.EvaluateAsync([evalItem], evalName, cancellationToken).ConfigureAwait(false);
 
-            // 🚨 LocalEvaluator.DetailedItems stays empty (populated only by
+            // 🚨 AgentEvaluationResults.DetailedItems stays empty (populated only by
             // reporting backends, measured); the single source of truth is
             // Items[0].Metrics - since the batch size is 1, it carries all of
             // this case's check results.
