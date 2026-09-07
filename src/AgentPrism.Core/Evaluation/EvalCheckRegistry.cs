@@ -26,6 +26,37 @@ namespace AgentPrism;
 /// </remarks>
 internal sealed class EvalCheckRegistry
 {
+    private const string NonEmptyKind = "nonEmpty";
+    private const string ContainsExpectedKind = "containsExpected";
+    private const string KeywordsKind = "keywords";
+    private const string ToolCalledKind = "toolCalled";
+    private const string ToolCallsPresentKind = "toolCallsPresent";
+    private const string HasImageContentKind = "hasImageContent";
+
+    private static readonly string[] BuiltInKinds =
+    [
+        NonEmptyKind,
+        ContainsExpectedKind,
+        KeywordsKind,
+        ToolCalledKind,
+        ToolCallsPresentKind,
+        HasImageContentKind,
+    ];
+
+    /// <summary>
+    /// The built-in spelling of <paramref name="kind"/>, or <paramref name="kind"/>
+    /// itself when no built-in matches.
+    /// </summary>
+    /// <remarks>
+    /// Custom checks are looked up case-INSENSITIVELY; matching built-in names
+    /// case-SENSITIVELY made one name mean two things ("nonempty" the custom
+    /// check, "nonEmpty" the built-in one). One comparer on both sides, plus
+    /// the shadowing guard in the constructor, closes that.
+    /// </remarks>
+    private static string Canonical(string kind)
+        => Array.Find(BuiltInKinds, builtIn => string.Equals(builtIn, kind, StringComparison.OrdinalIgnoreCase))
+           ?? kind;
+
     private readonly Dictionary<string, EvalCheck> _custom;
 
     /// <summary>Creates a new registry from a set of registrations.</summary>
@@ -40,6 +71,14 @@ internal sealed class EvalCheckRegistry
 
         foreach (var registration in registrations)
         {
+            if (Array.Exists(BuiltInKinds, kind => string.Equals(kind, registration.Kind, StringComparison.OrdinalIgnoreCase)))
+            {
+                throw new AgentPrismException(
+                    $"The eval check kind '{registration.Kind}' is built in and cannot be replaced. " +
+                    "Shadowing a built-in kind would make the same suite mean different things in " +
+                    "two applications. Register the check under a name of your own.");
+            }
+
             if (!_custom.TryAdd(registration.Kind, registration.Check))
             {
                 throw new AgentPrismException(
@@ -89,21 +128,21 @@ internal sealed class EvalCheckRegistry
 
         var kind = kindElement.GetString()!;
 
-        switch (kind)
+        switch (Canonical(kind))
         {
-            case "nonEmpty":
+            case NonEmptyKind:
                 return EvalChecks.NonEmpty(GetInt(spec, "minLength", 1));
 
-            case "containsExpected":
+            case ContainsExpectedKind:
                 return EvalChecks.ContainsExpected(GetBool(spec, "caseSensitive", false));
 
-            case "keywords":
+            case KeywordsKind:
                 var keywords = GetStringArray(spec, "values");
                 return spec.TryGetProperty("caseSensitive", out _)
                     ? EvalChecks.KeywordCheck(GetBool(spec, "caseSensitive", false), keywords)
                     : EvalChecks.KeywordCheck(keywords);
 
-            case "toolCalled":
+            case ToolCalledKind:
                 var tools = GetStringArray(spec, "tools");
                 var mode = GetString(spec, "mode", "all") switch
                 {
@@ -114,10 +153,10 @@ internal sealed class EvalCheckRegistry
                 };
                 return EvalChecks.ToolCalledCheck(mode, tools);
 
-            case "toolCallsPresent":
+            case ToolCallsPresentKind:
                 return EvalChecks.ToolCallsPresent();
 
-            case "hasImageContent":
+            case HasImageContentKind:
                 return EvalChecks.HasImageContent();
 
             default:
@@ -127,8 +166,9 @@ internal sealed class EvalCheckRegistry
                 }
 
                 throw new AgentPrismException(
-                    $"Unknown check kind: '{kind}'. If this is a custom check, it must be registered " +
-                    "with 'IAgentPrismBuilder.AddEvalCheck(\"{kind}\", ...)'.");
+                    $"Unknown check kind: '{kind}'. Built-in kinds: {string.Join(", ", BuiltInKinds)}. " +
+                    $"If this is a custom check, it must be registered with " +
+                    $"'IAgentPrismBuilder.AddEvalCheck(\"{kind}\", ...)'.");
         }
     }
 

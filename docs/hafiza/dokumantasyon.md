@@ -100,34 +100,6 @@ muafiyet listesi), `site.css` token ciftlerinin WCAG kontrasti, bolum basina
 `og:image`, ve elle yazilan sayfalarda ic gelistirme referansi. Sayfa agirligi
 ayri bir betiktedir (`check-weight.mjs`) cunku `dist/` uzerinden olculur.
 
-## Agirlik butcesine yakin sayfa (Faz 125, denetimde gozlemlendi)
-
-`troubleshooting.md` (`check:weight` tavani 57 000 B gzip) bu fazda ~46 satir
-eklenince 49 365 B'tan 54 706 B'a cikti — tavanin **%96'si**. Kapi bugun yesil
-ve bu fazda hicbir sey olcumsuz buyumedi (yalnizca 🟢 gozlem, 🔴/🟡 degil), ama
-sayfaya eklenecek **bir sonraki** icerik `check:weight`'i kirabilir. Yeni bir
-APG tanisi veya troubleshooting bolumu eklerken once `npm run check:weight`
-ciktisindaki en agir sayfayi kontrol et; troubleshooting.md zaten en agir
-sayfaysa (`Heaviest: troubleshooting/index.html`), yeni icerigi ayri bir
-sayfaya (ornek: `guides/`) tasimayi degerlendir.
-
-## 🚨 `check-content.mjs` TEMIZ bir checkout'ta kosar — statik import onu kirar
-
-Kapi derlemeden **once** kosar, yani `src/generated/*-sidebar.json` ve
-`content/docs/{api,http-api}/` henuz YOKTUR (ucu de `.gitignore`'da). `sidebar.mjs`
-o JSON'lari **statik** import edince kapi temiz klonda `ERR_MODULE_NOT_FOUND` ile
-dustu — ve yerelde yesil gorundugu icin ancak bagimsiz denetim buldu. Uretilen bir
-dosyayi okuyan her modul `existsSync` ile kosullu okumali. Dogrulama:
-`mv src/generated /tmp && node scripts/check-content.mjs`.
-
-## 🚨 Kapiyi CI'da hangi is kosuyor?
-
-`pages` isi `github.event_name != 'pull_request'` kosulludur. Oraya konan bir kapi
-**hicbir PR'i durdurmaz**. `check-content.mjs` yalniz `node:` yerlesikleri ve
-yerel dosya okur (olculdu: `node_modules` silinmisken kosuyor), bu yuzden `npm ci`
-olmadan PR'da kosan `build` isine konabilir. Agirlik kapisi `dist/` ister ve
-`pages`'te kalir.
-
 ## 🚨 Onek karsilastirmasinda ayirici
 
 `file.startsWith(join(docsRoot, 'http-api'))` elle yazilan **`http-api.md`**'yi de
@@ -266,14 +238,6 @@ kaldığı sürece dosya adını düz metinle (`` `CHANGELOG.md` ``) anlat, GitH
 URL'i yazma; repo açıldığında `repositoryIsPublic=true` olur ve gerçek
 bağlantı eklenebilir.
 
-## 🚨 Repo-geneli doküman taraması dependency cache'ini dışlamalıdır
-
-CI `NUGET_PACKAGES` değerini repo içindeki `.nuget/packages` dizinine koyar.
-Repo-geneli `*.md` taraması bu ağacı dışlamazsa dependency README'lerini ürün
-dokümanı sanır; paket içinde sevk edilmeyen göreli hedefler sahte kırık link
-üretir. `kirik_baglantilar()` `.nuget` ağacını atlar ve regression testi CI
-dizin yapısını geçici ağaçta yeniden kurar.
-
 ## 🚨 Uretilen referans bir KESIF yuzeyi degildir (2026-09-03)
 
 `quota.threshold` sevk edilmisti ve calisiyordu; anlati onu hic anlatmiyordu.
@@ -284,3 +248,31 @@ Kapi: `sevk_edilen_olay_anlatisi()`.
 Ayni tur: **oznesiz cumle.** "A channel that reaches capacity drops the event"
 tuketicinin KENDI kanalini tarif ediyordu, AgentPrism'inki gibi okundu —
 AgentPrism'in kanali yoktur. Sorumlulugu anlatan cumle oznesini yazsin.
+
+## 🚨 Bir çalışma anı şartını ÜYE ÜYE anlatmak, şartı üyeye özgü gösterir (2026-09-07, F-212)
+
+`RunEventWriter`, `AgentPrismRunRecordingOptions.RecordToolPayloads` kapalıyken
+her olayın `Payload` alanını `null` bırakır. `RunEventType`'ın **32 üyesinin
+~18'i** payload iddiası taşıyordu ve bu şartı yalnız **3'ü** anıyordu. Tüketici
+kuralı üyeden üyeye öğreniyor, anmayan üyede kuralın geçerli olmadığını
+sanıyordu.
+
+Ters yönü daha tehlikeliydi: `WorkflowRequest`'in payload'ı yazıcıda **bilerek
+her zaman** yazılır (bekleyen insan isteği yalnız oradan okunur) ama üye
+dokümanı bu muafiyeti hiç söylemiyordu — genel kuralı uygulayan okuyucu yanlış
+sonuca varırdı.
+
+**Kural: bir çalışma anı şartı bir kez, TİP düzeyinde yazılır; üye yalnız KENDİ
+muafiyetini anlatmak için o şarttan söz edebilir.** Tekrar, kuralı üyeye özgü
+gösterir.
+
+**Kapı:** `RunEventPayloadSuppressionTests` (üç test). Değerli olan ikincisidir:
+yazıcının koşulundaki `RunEventType.X` kümesi ile tip düzeyi `<remarks>`'ta
+adı geçen küme **eşit** olmalıdır — dördüncü bir muafiyet eklemek, doküman onu
+adlandırana kadar kapıyı kırar. Yazıcıya `RunCompleted` muafiyeti eklenerek
+kırmızı olduğu ölçüldü. Üçüncü test tekrarı yasaklar; yazıldığı gün üç ihlal
+buldu (`ToolOutputTruncated`, `StructuredResponseRejected`, `Custom`).
+
+Bu, `RunEventPayloadContractTests`'in kendi belgelenmiş sınırının
+(*"İngilizceyi JSON'a karşı makineyle denetleyemeyiz"*) **denetlenebilir**
+yarısıdır: kümeyi karşılaştırmak İngilizceyi okumak değildir.

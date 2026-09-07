@@ -824,7 +824,12 @@ internal sealed class PostgresQueries : SqlQueriesBase
             WITH run_avg_scores AS (
                 SELECT run_id, AVG(value) AS avg_score
                 FROM {Schema}.run_scores
-                WHERE tenant_id = @tenant_id AND kind = @score_kind_numeric AND message_id IS NULL
+                -- RunScore.MessageId is "if EMPTY, the score belongs to the
+                -- whole run" -- empty covers both NULL and ''. Matching only
+                -- NULL would drop a '' row out of the arm average while the
+                -- score summary (phase 154) still counted it as run-level.
+                WHERE tenant_id = @tenant_id AND kind = @score_kind_numeric
+                  AND (message_id IS NULL OR message_id = '')
                 GROUP BY run_id
             )
             SELECT r.variant,

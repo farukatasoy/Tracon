@@ -168,3 +168,6 @@ tests/AgentPrism.SqlServer.IntegrationTests -c Release`):
    `IWaitUntil` ile geçici olarak `SqlServerFixture`'ı değiştir, testleri
    koştur, sonucu bu dosyaya ve `docs/KARARLAR.md`'ye kaydet, fixture'ı
    geri al.
+
+- **`mcr.microsoft.com/mssql/server` bu makinede artık koşuyor** (K-386). `azure-sql-edge` ikamesi (K-317) yedek kalır. Kurulum, tekrar dene ve **performans** (K-387..K-391, ayri sema yerine sinif basina paylasilan sema + `ResetDataAsync`): [`sql-server-yerel-test.md`](sql-server-yerel-test.md).  
+  *(2026-09-07'de `sql-saglayicilari.md`'den butce icin tasindi.)*

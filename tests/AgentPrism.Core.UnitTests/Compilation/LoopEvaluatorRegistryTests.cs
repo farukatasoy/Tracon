@@ -236,6 +236,47 @@ public sealed class LoopEvaluatorRegistryTests
         exception.Message.ShouldContain("aiJudge");
     }
 
+    [Theory]
+    [InlineData("aijudge")]
+    [InlineData("AIJUDGE")]
+    [InlineData("CompletionMarker")]
+    public void A_built_in_kind_resolves_whatever_its_casing(string kind)
+    {
+        // Registration matched built-in names case-INSENSITIVELY while use
+        // matched them case-SENSITIVELY, so "aijudge" was a dead name: it
+        // could not be registered ("built in and cannot be replaced") and it
+        // could not be used ("unknown kind"). The two messages read as a
+        // contradiction and the consumer cannot tell casing is the reason.
+        var registry = BuildRegistry(
+            judge: new ModelRunJudgeOptions { Model = TestData.Binding() });
+
+        var definition = WithLoop(new LoopSettings
+        {
+            Criteria = [new LoopCriterion { Kind = kind, Marker = "DONE", JudgeCriteria = ["is it done"] }],
+        });
+
+        var (evaluator, _) = registry.Build(definition);
+
+        evaluator.ShouldBeOfType<RecordingLoopEvaluator>().Criteria.ShouldHaveSingleItem();
+    }
+
+    [Fact]
+    public void An_unknown_kind_still_fails_and_names_the_built_in_kinds()
+    {
+        // The other direction: widening the match must not turn every name
+        // into a built-in one.
+        var registry = BuildRegistry();
+        var definition = WithLoop(new LoopSettings
+        {
+            Criteria = [new LoopCriterion { Kind = "noSuchThing" }],
+        });
+
+        var exception = Should.Throw<AgentPrismCompilationException>(() => registry.Build(definition));
+
+        exception.Message.ShouldContain("noSuchThing");
+        exception.Message.ShouldContain("completionMarker");
+    }
+
     private static LoopEvaluatorRegistry BuildRegistry(params AgentPrismLoopEvaluatorRegistration[] registrations)
         => BuildRegistry(judge: null, registrations);
 
