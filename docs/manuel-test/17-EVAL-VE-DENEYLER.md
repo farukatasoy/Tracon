@@ -1704,8 +1704,9 @@ SELECT count(*), value, comment FROM agentprism.run_scores WHERE run_id = '<RUN_
 **Beklenen sonuç**
 > **Düzeltildi (2026-08-15, KAPANIS-PLANI §8) — ön koşul yanlış:** Statik
 > bearer token akışında `author` alanı `NULL`'a bağlanır (sabit bir değere
-> DEĞİL). `run_scores_target_author_idx` tekil indeksi `(tenant_id, run_id,
-> COALESCE(message_id,''), author)` üzerine kuruludur — `author`'ın kendisi
+> DEĞİL). `run_scores_target_author_name_idx` tekil indeksi `(tenant_id, run_id,
+> COALESCE(message_id,''), author, name)` üzerine kuruludur (Faz 152; öncesinde
+> adı `run_scores_target_author_idx` idi ve `name` sütunu yoktu) — `author`'ın kendisi
 > `COALESCE` edilmez, PostgreSQL'de `NULL ≠ NULL` olduğu için tekillik hiç
 > devreye girmez. Bu, `MT-EVAL-085`'in kabul ettiği davranışın aynısıdır
 > (kasıtlı, kod kusuru değil).

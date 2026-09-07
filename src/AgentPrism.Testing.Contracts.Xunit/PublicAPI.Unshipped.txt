@@ -352,6 +352,7 @@ AgentPrism.Testing.Contracts.Storage.RunScoreStoreContract.A_categorical_score_c
 AgentPrism.Testing.Contracts.Storage.RunScoreStoreContract.A_numeric_score_carrying_a_text_value_is_REJECTED() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.RunScoreStoreContract.An_illegal_name_is_REJECTED(string! name) -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.RunScoreStoreContract.Repeated_writes_of_the_SAME_name_leave_exactly_one_row() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.Storage.RunScoreStoreContract.Concurrent_writes_of_the_SAME_name_leave_exactly_one_row() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.RunScoreStoreContract.Score_is_deleted() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.RunScoreStoreContract.Score_with_no_message_id_belongs_to_the_whole_run() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.RunScoreStoreContract.Written_score_is_read_back() -> System.Threading.Tasks.Task!

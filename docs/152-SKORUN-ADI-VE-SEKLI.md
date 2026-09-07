@@ -281,9 +281,9 @@ Yeni uç **yok**. Üç mevcut uç gövde değiştirir:
 
 | Metot | Yol | Rol | Değişiklik |
 |---|---|---|---|
-| `POST` | `/api/runs/{runId}/feedback` | Reader | Gövde `name` (zorunlu) ve `textValue` kazanır |
+| `POST` | `/api/runs/{runId}/feedback` | Operator | Gövde `name` (opsiyonel, boşsa `overall`) ve `textValue` kazanır |
 | `GET` | `/api/runs/{runId}/feedback` | Reader | Yanıt aynı alanları döner |
-| `DELETE` | `/api/runs/{runId}/feedback/{scoreId}` | Reader | Değişmez |
+| `DELETE` | `/api/runs/{runId}/feedback/{scoreId}` | Operator | Değişmez |
 
 ### Arayüz payı
 
@@ -395,7 +395,7 @@ doğrulaması, invariant) · **başka kiracı** ✅ · **alt sistem hatası** �
 | 1 | Aynı yazar aynı `run`'a `helpfulness` ve `accuracy` yazabilir; ikisi de ayrı satır durur | ✅ | `RunScoreStoreContract.Same_author_scoring_the_same_target_under_a_DIFFERENT_name_opens_a_new_row` (dört koşum) · `RunScoreNameTests.Two_names_from_the_SAME_author_are_two_rows` · canlı koşum: iki `POST` `200`, `GET` iki satır |
 | 2 | Aynı `(run, name)` çiftine ikinci yazım satırı **günceller** | ✅ | `Updating_ONE_name_leaves_the_authors_other_names_untouched` · canlı: `helpfulness` `4 → 5`, `accuracy` `1` değişmedi, toplam satır 2 |
 | 3 | `Kind = Categorical` skor `TextValue` ile saklanır ve geri okunur | ✅ | `A_categorical_score_is_stored_as_text` (dört koşum) · canlı: `{"kind":"Categorical","textValue":"minor","value":null}` |
-| 4 | `Value = 0.87` üç SQL sağlayıcısında da `0.87` döner | ✅ | `A_decimal_value_is_NOT_rounded` — PostgreSQL 734/734 · SQL Server 669/669 · SQLite 677/677 yeşil. Ek olarak `A_whole_number_value_is_read_back_as_a_number_not_an_integer` (SQLite REAL affinity) |
+| 4 | `Value = 0.87` üç SQL sağlayıcısında da `0.87` döner | ✅ | `A_decimal_value_is_NOT_rounded` — PostgreSQL 737/737 · SQL Server 672/672 · SQLite 681/681 yeşil. Ek olarak `A_whole_number_value_is_read_back_as_a_number_not_an_integer` (SQLite REAL affinity) |
 | 5 | `Value = null` "ölçüm yok" döner, `0` değil | ✅ | `A_null_value_means_NO_MEASUREMENT_not_zero` (dört koşum) |
 | 6 | Dolu bir Faz 151 veritabanı üç sağlayıcıda **veri kaybı olmadan** göç eder | ✅ | `Populated_pre_152_run_scores_upgrade_without_data_loss` × 3: satır sayısı 2 → 2 · `judge:quality` → `name = quality` · insan satırı → `name = overall` · göç sonrası `0.87` yazılabiliyor · eski tekillik indeksi düşmüş (ikinci ad yazılabiliyor) |
 | 7 | K-638 korunur: bir judge birden çok ad yazsa da retry'da yeniden çağrılmaz | ✅ | `OnlineEvalRetryTests.A_judge_holding_two_named_scores_is_still_skipped_on_retry` — `goodJudge.CallCount == 1`, üç skor satırı |
@@ -639,7 +639,58 @@ docs/manuel-test/17-EVAL-VE-DENEYLER.md (EVAL-112 … EVAL-119)
 
 ## Denetim Bulguları
 
-> Kapanışta doldurulur.
+`faz-denetim` taze bağlamlı bağımsız bir denetçiyle koşuldu (2026-09-07).
+Denetçi kendi doğrulamalarını da koştu: `dotnet build` 0 uyarı ·
+`SerializeScoresTests` 8/8 · `RunScoreValidationTests` 21/21 ·
+`OnlineEvalCheckpointTests` 13/13 · `RunScoreNameTests` 14/14 ·
+`OnlineEvalRetryTests` 3/3 · `RunFeedbackEndpointTests` 10/10 · SQLite ve
+bellek içi `RunScoreStoreContract` 28/28 · Architecture 63/63 · frontend
+`tsc` + `vitest` 231/231 · docs-site üç kapı.
+
+### 🔴 Kapatıldı
+
+| # | Bulgu | Kapanış |
+|---|---|---|
+| 1 | **`PositiveRate`'in PAYDASI `Value = null` olan `Binary` satırları sayıyordu.** Faz `null` kuralını ortalama yolunda (`InMemoryRunStore.Analytics.cs`) düzeltti, oran yolunda düzeltmedi. Yalnız pozitif skorlanmış bir `run`, yanına ölçümsüz bir satır düşünce `positiveRate = 0.5` okuyordu; doğru cevap `1.0`. `RunScoreRules` ölçümsüz bir `Binary` skoru kabul ettiği için (`A_numeric_score_with_no_measurement_is_accepted`) bu yolu tüketici kodu doğrudan üretebilirdi | Üç sağlayıcının `SelectRunStatistics` ifadesine **paydada da** `value IS NOT NULL` eklendi; `InMemoryRunStore.Statistics.cs` `score.Value is null` satırını **tamamen** atlıyor. İki yeni test dört yerde birden: `A_binary_score_with_no_measurement_leaves_the_rate_ALONE` ve `A_run_scored_ONLY_without_a_measurement_has_NO_rate`. 🚨 Düzeltmeden **önce** koşuldu ve **ikisi de kırmızıydı** (`failed: 2`) |
+
+### 🟡 Kapatıldı
+
+| # | Bulgu | Kapanış |
+|---|---|---|
+| 2 | Planın söz verdiği **eşzamanlılık** sözleşme case'i yoktu | `Concurrent_writes_of_the_SAME_name_leave_exactly_one_row` — sekiz paralel `UpsertAsync`, dört koşumda. Emsal `IdempotencyStoreContract` |
+| 5 | `RunScoreRules` *"iki ad kuralı yazmak iki doğrulama yolu üretir"* diyerek public yapıldı ama **ikinci kopya `RunJudgeSet.cs:12-19`'da duruyordu** | `RunJudgeSet` artık `RunScoreRules.IsValidName` çağırıyor. Kural tek yerde; `The_name_rule_matches_the_judge_name_rule` artık kaymayı değil eşdeğerliği koruyor |
+| 6 | Üç migration testi `migrations[^1]`'e sabitliydi — **Faz 154 ilk migration'ını ekler eklemez üçü birden kırılırdı** | Üçü de artık migration'ı **adıyla** buluyor (`migrations.Single(… Name == "0048_…")`) |
+| 7 | Arayüz kusuru düzeltmesi (sapma 10) **testsizdi**; tek kanıtı kodun kendi yorumuydu | `feedback-control.test.tsx` — iki case. Birincisi eski seçiciye karşı **kırmızı görüldü** |
+| 8 | Manuel kabul case'leri henüz sette değildi; ayrıca `MT-EVAL-084` artık var olmayan `run_scores_target_author_idx` indeksini adıyla anlatıyordu | `EVAL-112 … EVAL-119` eklendi (`201` değil `200` bekleniyor — uç `TypedResults.Ok` döner). `MT-EVAL-084` yeni indeks adına güncellendi |
+| 9 | Faz dokümanının HTTP tablosu *"Gövde `name` (zorunlu)"* diyordu; karar ve kod opsiyonel | Tablo düzeltildi; rol sütunu da düzeltildi (`Reader` → `Operator`, kod hiç değişmedi) |
+| 10 | 🚨 **SQL Server backfill'i `nvarchar(64)` taşırabilir ve dolu bir müşteri veritabanında migration'ı yarıda kesebilirdi.** `author` `nvarchar(200)`; `judge:` önekli 71+ karakterlik bir `author` *"String or binary data would be truncated"* verirdi. İnsan `author`'ı `actorResolver.Resolve()`'dan gelir ve 64 karakter sınırına tabi değildir | `LEFT(SUBSTRING(author, 7, LEN(author)), 64)` ile sınırlandı; gerekçe migration yorumunda. Kesilmiş bir eski ad okunur, yarıda kalmış bir migration okunmaz |
+| 3 | Planın söz verdiği **iptal** sözleşme case'i yoktu | **Gerekçelendi, eklenmedi** — bkz. sapma 3. `docs/ADAYLAR.md` F-213 |
+| 4 | `RunScoreRules` plan dışı public API; gerekçe yalnız XML dokümanındaydı | **Gerekçelendi** — sapma 1 ve K-712 |
+
+### 🟢 Kapatıldı veya aday listesine
+
+| # | Bulgu | Sonuç |
+|---|---|---|
+| 12 | SQLite `0035` reponun standart *"`ADD COLUMN IF NOT EXISTS` yok; güvence runner'dan gelir"* notunu taşımıyordu | **Kapatıldı** — yorum eklendi, `DEFAULT`'un üç sağlayıcıda neden aynı olduğu da yazıldı |
+| 15 | Üretilen sayfada bozuk cümle: *"Set only when RunScoreKind RunScore.Kind is RunScoreKind.Categorical"* | **Kapatıldı** — `<see cref="Kind"/>` iç içe `cref` render'ı bozuyordu; cümle yeniden yazıldı |
+| 11 | Bir judge birden çok ad tutarsa `ReadAlreadyScoredJudgesAsync` sözlüğe **son** satırı yazar; `SelectRunScores`'ta `ORDER BY` yok | **Devredildi.** Checkpoint kararı yalnız *varlığa* bakar (K-638 doğru korunmuş) ve dönen `RunScore` yalnız raporlamada kullanılır; bugün judge tek ad yazar |
+| 13 | `RunScoreRules.Validate` `Binary` 0/1 ve `Stars` 1..5 **aralıklarını** kontrol etmiyor; o kontrol yalnız HTTP ucunda | **Devredildi.** Faz öncesi de böyleydi; aralık kuralı bir **sunum** kuralıdır ve kalıcı kayda giren yanlış bir aralığı bugün de hiçbir depo reddetmiyordu |
+| 14 | `RunToCasePromoter` artık gözden geçirenin **herhangi bir adındaki** 0/≤2 skoruyla `run`'ı negatif sayıyor | **Devredildi.** İstenen davranıştır (bir ad kötüyse `run` terfi adayıdır) ama ölçülmüş bir talep yok |
+
+### Denetimin temiz bulduğu başlıklar
+
+Test tiyatrosu yok · test seviyeleri doğru (depo → sözleşme, HTTP → fonksiyonel,
+migration → sağlayıcı başına integration, saf fonksiyon → birim) · imza-gövde
+kayması yok (`required string Name` derleyiciyi zorluyor; `RunScoreColumns`
+sona eklendiği için ordinal okuma bozulmuyor) · repo kuralları temiz (İngilizce,
+XML dokümanı, MAF tipi sarmalanmamış, `ConfigureAwait(false)`, `reflection` yok)
+· K-638 korunmuş · üç migration da veri kaybı üretmiyor ve sıra doğru ·
+muafiyet listeleri ve taban çizgileri **büyümedi**.
+
+🚨 Denetçi PostgreSQL ve SQL Server koşumlarını kendi ortamında
+çalıştıramadı (container gerektirir) ve bunu açıkça yazdı. Ana oturum ikisini
+de koştu: **PostgreSQL 737/737 · SQL Server 672/672 · SQLite 681/681** —
+düzeltmelerden sonra. Arayüz E2E 58/58, `Core.UnitTests` 2503/2503.
 
 ## Sonraki Faza Devir Notu
 

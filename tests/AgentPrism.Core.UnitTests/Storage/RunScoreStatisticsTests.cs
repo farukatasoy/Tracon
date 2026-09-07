@@ -96,6 +96,45 @@ public sealed class RunScoreStatisticsTests
             TenantId = Tenant,
         };
 
+    /// <remarks>
+    /// 🚨 A null value records that NO MEASUREMENT was made. Counting it in the
+    /// DENOMINATOR would report a run scored only positively as half positive —
+    /// exactly the reading `RunJudgment.Score` refuses to produce.
+    /// </remarks>
+    [Fact]
+    public async Task A_binary_score_with_no_measurement_leaves_the_rate_ALONE()
+    {
+        var scores = new InMemoryRunScoreStore();
+        var runs = new InMemoryRunStore(scores);
+        var runId = AgentPrismId.NewId();
+
+        await runs.StartRunAsync(Start(runId));
+
+        await scores.UpsertAsync(Score(runId, "alice", 1));
+        await scores.UpsertAsync(Score(runId, "bob", 0) with { Value = null });
+
+        var stats = await runs.GetStatisticsAsync(new RunStatisticsQuery { TenantId = Tenant });
+
+        stats.ScoredRuns.ShouldBe(1);
+        stats.PositiveRate.ShouldBe(1.0);
+    }
+
+    [Fact]
+    public async Task A_run_scored_ONLY_without_a_measurement_has_NO_rate()
+    {
+        var scores = new InMemoryRunScoreStore();
+        var runs = new InMemoryRunStore(scores);
+        var runId = AgentPrismId.NewId();
+
+        await runs.StartRunAsync(Start(runId));
+        await scores.UpsertAsync(Score(runId, "alice", 0) with { Value = null });
+
+        var stats = await runs.GetStatisticsAsync(new RunStatisticsQuery { TenantId = Tenant });
+
+        stats.ScoredRuns.ShouldBe(1);
+        stats.PositiveRate.ShouldBeNull();
+    }
+
     private static RunScore Score(Guid runId, string author, int value)
         => new()
         {

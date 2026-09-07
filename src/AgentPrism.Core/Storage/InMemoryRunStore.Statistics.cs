@@ -83,7 +83,11 @@ internal sealed partial class InMemoryRunStore
 
             foreach (var score in runScores)
             {
-                if (score.Kind != RunScoreKind.Binary)
+                // 🚨 A null value is skipped ENTIRELY, denominator included: it
+                // records that no measurement was made, not a negative one.
+                // The SQL side carries the same `value IS NOT NULL` on both
+                // sides of the ratio.
+                if (score.Kind != RunScoreKind.Binary || score.Value is null)
                 {
                     continue;
                 }

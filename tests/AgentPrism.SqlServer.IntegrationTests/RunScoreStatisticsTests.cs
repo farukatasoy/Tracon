@@ -76,6 +76,43 @@ public sealed class RunScoreStatisticsTests(SqlServerFixture fixture) : IAsyncLi
             TenantId = tenant,
         };
 
+    /// <remarks>
+    /// 🚨 A null value records that NO MEASUREMENT was made and stays out of the
+    /// DENOMINATOR too; otherwise a run scored only positively reads as half
+    /// positive.
+    /// </remarks>
+    [Fact]
+    public async Task A_binary_score_with_no_measurement_leaves_the_rate_ALONE()
+    {
+        var tenant = _context.TenantContext.TenantId;
+        var runId = AgentPrismId.NewId();
+
+        await _context.Runs.StartRunAsync(Start(runId, tenant));
+
+        await _context.RunScores.UpsertAsync(Score(runId, tenant, "alice", 1));
+        await _context.RunScores.UpsertAsync(Score(runId, tenant, "bob", 0) with { Value = null });
+
+        var stats = await _context.Runs.GetStatisticsAsync(new RunStatisticsQuery { TenantId = tenant });
+
+        stats.ScoredRuns.ShouldBe(1);
+        stats.PositiveRate.ShouldBe(1.0);
+    }
+
+    [Fact]
+    public async Task A_run_scored_ONLY_without_a_measurement_has_NO_rate()
+    {
+        var tenant = _context.TenantContext.TenantId;
+        var runId = AgentPrismId.NewId();
+
+        await _context.Runs.StartRunAsync(Start(runId, tenant));
+        await _context.RunScores.UpsertAsync(Score(runId, tenant, "alice", 0) with { Value = null });
+
+        var stats = await _context.Runs.GetStatisticsAsync(new RunStatisticsQuery { TenantId = tenant });
+
+        stats.ScoredRuns.ShouldBe(1);
+        stats.PositiveRate.ShouldBeNull();
+    }
+
     private static RunScore Score(Guid runId, string tenant, string author, int value)
         => new()
         {
