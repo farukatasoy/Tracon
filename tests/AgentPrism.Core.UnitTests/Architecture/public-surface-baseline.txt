@@ -4,11 +4,11 @@
 # Counts TYPES, not entries - an Options accessor does not move this number.
 # The number may only shrink; a growth is a deliberate surface addition.
 AgentPrism=0
-AgentPrism.Abstractions=378
+AgentPrism.Abstractions=380
 AgentPrism.Anthropic=5
 AgentPrism.AspNetCore=78
 AgentPrism.Azure=6
-AgentPrism.Core=156
+AgentPrism.Core=157
 AgentPrism.Google=6
 AgentPrism.Mcp=2
 AgentPrism.OpenAI=9

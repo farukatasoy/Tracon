@@ -18222,6 +18222,9 @@ namespace AgentPrism.Client.Generated
         [System.Text.Json.Serialization.JsonPropertyName("disableAgentModeProvider")]
         public bool DisableAgentModeProvider { get; set; } = default!;
 
+        [System.Text.Json.Serialization.JsonPropertyName("loop")]
+        public LoopSettings? Loop { get; set; } = default!;
+
     }
 
     /// <summary>
@@ -19083,6 +19086,87 @@ namespace AgentPrism.Client.Generated
 
         [System.Text.Json.Serialization.JsonPropertyName("failures")]
         public System.Collections.Generic.ICollection<JudgeFailure> Failures { get; set; } = new System.Collections.Generic.List<JudgeFailure>();
+
+    }
+
+    /// <summary>
+    /// One declarative stop criterion of the harness loop (see `LoopSettings`).
+    /// </summary>
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.2.0.0 (NJsonSchema v11.1.0.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class LoopCriterion
+    {
+        /// <summary>
+        /// Gets the criterion kind: `completionMarker`, `todoCompletion`,
+        /// <br/>`aiJudge`, `backgroundTaskCompletion`, or a kind registered in
+        /// <br/>code with `AddLoopEvaluator`.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("kind")]
+        public string Kind { get; set; } = default!;
+
+        /// <summary>
+        /// Gets the completion marker text. Read by `completionMarker` only,
+        /// <br/>where it is required.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("marker")]
+        public string? Marker { get; set; } = default!;
+
+        /// <summary>
+        /// Gets the criteria the judge model scores the answer against. Read by
+        /// <br/>`aiJudge` only, where at least one entry is required.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("judgeCriteria")]
+        public System.Collections.Generic.ICollection<string> JudgeCriteria { get; set; } = new System.Collections.Generic.List<string>();
+
+        /// <summary>
+        /// Gets the extra instructions handed to the judge model. Read by
+        /// <br/>`aiJudge` only.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("judgeInstructions")]
+        public string? JudgeInstructions { get; set; } = default!;
+
+        /// <summary>
+        /// Gets the agent modes the criterion applies to. Read by
+        /// <br/>`todoCompletion` only.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("modes")]
+        public System.Collections.Generic.ICollection<string> Modes { get; set; } = new System.Collections.Generic.List<string>();
+
+    }
+
+    /// <summary>
+    /// Turns the harness loop on: the agent is re-invoked until a stop criterion
+    /// <br/>says the work is finished.
+    /// </summary>
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.2.0.0 (NJsonSchema v11.1.0.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class LoopSettings
+    {
+        /// <summary>
+        /// Gets the stop criteria, evaluated in order. At least one is required.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("criteria")]
+        public System.Collections.Generic.ICollection<LoopCriterion> Criteria { get; set; } = new System.Collections.Generic.List<LoopCriterion>();
+
+        /// <summary>
+        /// Gets the upper number of loop iterations. `null` takes
+        /// <br/>`DefaultMaxIterations`. Must be greater than zero.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("maxIterations")]
+        public int? MaxIterations { get; set; } = default!;
+
+        /// <summary>
+        /// Gets a value that starts every iteration from a fresh context instead of
+        /// <br/>carrying the previous iterations' messages forward.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("freshContextPerIteration")]
+        public bool FreshContextPerIteration { get; set; } = default!;
 
     }
 

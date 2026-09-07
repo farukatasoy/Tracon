@@ -286,4 +286,36 @@ public enum RunEventType
     /// silently reinterpret every already-persisted event of that type.
     /// </remarks>
     ChildRunTimedOut = 30,
+
+    /// <summary>
+    /// One harness loop iteration was evaluated (see <see cref="LoopSettings"/>).
+    /// <c>Text</c> carries a one-line summary; <c>Payload</c> is a JSON object
+    /// with the 1-based iteration number (<c>iteration</c>), whether a criterion
+    /// asked for another iteration (<c>continued</c>), the <c>kind</c> of that
+    /// criterion (<c>continuedBy</c>, <see langword="null"/> when every criterion
+    /// was satisfied), whether it handed the agent feedback (<c>hasFeedback</c>),
+    /// the <c>kind</c> of a criterion that failed to evaluate
+    /// (<c>failedCriterion</c>, <see langword="null"/> otherwise), and whether
+    /// the iteration ceiling is what ends the loop (<c>ceilingReached</c>).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The event marks an <strong>evaluated</strong> iteration, not a model
+    /// turn. The turn that reaches <see cref="LoopSettings.MaxIterations"/> is
+    /// not evaluated — there is nothing left to decide — so a loop that ends at
+    /// its ceiling writes one event fewer than it takes turns, and its last
+    /// event carries <c>ceilingReached</c>.
+    /// </para>
+    /// <para>
+    /// The criterion's feedback <strong>text</strong> is deliberately absent:
+    /// it is free-form text written for the model, and the run event stream is
+    /// readable by the client. Its presence is reported, its content is not.
+    /// </para>
+    /// <para>
+    /// 31, not 30: <see cref="ChildRunTimedOut"/> already holds 30 and
+    /// <c>run_events.type</c> is a <c>smallint</c> column, so an existing
+    /// member's numeric value can never be shifted.
+    /// </para>
+    /// </remarks>
+    LoopIterationCompleted = 31,
 }

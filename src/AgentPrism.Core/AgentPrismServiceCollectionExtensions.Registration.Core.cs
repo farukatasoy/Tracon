@@ -264,7 +264,15 @@ public static partial class AgentPrismServiceCollectionExtensions
             // hard dependency order requirement between the two registrations.
             provider.GetService<IAgentDefinitionStore>(),
             provider.GetRequiredService<IOptions<AgentPrismOptions>>().Value.AgentGraph,
-            provider.GetService<TimeProvider>()));
+            provider.GetService<TimeProvider>(),
+            // Phase 151: the loop stop criteria a host added with
+            // AddLoopEvaluator. Empty when none was added, and a definition
+            // that names an unknown kind then fails to compile.
+            provider.GetServices<AgentPrismLoopEvaluatorRegistration>(),
+            // The judge binding an aiJudge loop criterion calls. Unconfigured
+            // unless AddModelRunJudge was called, in which case that criterion
+            // fails to compile instead of borrowing the agent's own model.
+            provider.GetService<IOptions<ModelRunJudgeOptions>>()?.Value));
 #pragma warning restore MAAI001
 
         // Knowledge base management surface (Phase 51): document upload,

@@ -45,6 +45,7 @@ public sealed class RunEventTypeTests
         ("StructuredResponseRepairAttempted", 28),
         ("Custom", 29),
         ("ChildRunTimedOut", 30),
+        ("LoopIterationCompleted", 31),
     ];
 
     [Fact]

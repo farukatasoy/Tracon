@@ -822,6 +822,46 @@ ayıklar: tuzağı XML dokümanında ANLATAN `ObservabilityTests` cezalandırıl
 
 **Karar:** K-656. **Tuzak:** `docs/hafiza/test-altyapisi.md`.
 
+### F-211 · `kind` eşleşmesinin büyük/küçük harf asimetrisi
+
+**Sorun:** İki kayıt defterinde (`EvalCheckRegistry`, `LoopEvaluatorRegistry`)
+yerleşik `kind` adları **ordinal** bir `switch` ile eşleşiyor, özel kayıtlar ise
+`OrdinalIgnoreCase` bir sözlükte duruyor. Sonuç ölü bir ad alanı: `"aijudge"`
+kayıtta "yerleşik bir kind'i gölgeleyemezsin" diye reddedilir
+([`LoopEvaluatorRegistry.cs:78`](../src/AgentPrism.Core/Compilation/LoopEvaluatorRegistry.cs#L78)),
+kullanımda ise "bilinmeyen kind" diye reddedilir
+([`:167`](../src/AgentPrism.Core/Compilation/LoopEvaluatorRegistry.cs#L167)) —
+yani hiçbir şekilde kullanılamayan bir ad.
+
+**Kapsam:** İki defterin de yerleşik eşleşmesini aynı karşılaştırıcıya taşımak,
+ya da bildirimsel `kind` adlarının büyük/küçük harfe duyarlı olduğunu sevk
+edilen metne yazmak. Sınıf iki dosyayı birden kapsar; tek dosyada düzeltmek
+asimetrinin yarısını bırakır.
+
+**Değer:** Bugün kapalı yönde başarısız oluyor (yanlış ad reddediliyor), yani
+acil değil. Ama tüketici "neden `aiJudge` çalışıp `aijudge` çalışmıyor" sorusunu
+hata mesajından **çıkaramaz**: iki mesaj birbiriyle çelişiyor gibi okunur.
+
+### F-212 · Olay payload'ının `RecordToolPayloads` şartı sevk edilen metinde eksik
+
+**Sorun:** `RunEventWriter` `AgentPrismRunRecordingOptions.RecordToolPayloads`
+kapalıyken `Payload` alanını **tamamen** `null` bırakıyor
+([`RunEventWriter.cs:182`](../src/AgentPrism.Core/Recording/RunEventWriter.cs#L182)).
+Bazı `RunEventType` üyeleri bunu XML dokümanında yazıyor
+(`ToolOutputTruncated`, `StructuredResponseRejected`, `Custom`), bazıları
+yazmıyor (`ChildRunTimedOut`, `LoopIterationCompleted`). Tüketici payload
+şartını üyeden üyeye farklı öğreniyor.
+
+**Kapsam:** Şartı bir kez, `RunEventType`'ın tip düzeyi `<remarks>`'ında
+söylemek ve üye başına tekrarı kaldırmak. Alternatif: `RunEventPayloadContractTests`
+ratchet'ine "payload iddiası olan her üye şartı da anar" kuralını eklemek —
+o zaman kapı sınıfı kapatır, metin değil.
+
+**Değer:** Bugün iki üye eksik; her yeni payload taşıyan üye kur'a çekiyor.
+Sınıf `RunEventPayloadContractTests`'in kendi belgelenmiş sınırının
+("İngilizceyi JSON'a karşı makineyle denetleyemeyiz") tam da kenarında duruyor
+ve bu yarısı **denetlenebilir**.
+
 ## Aday Olmayan Açık Kayıtlar
 
 Bu kalemler faz sıralamasına girmez. Tam kanıt, geçmiş ve sonraki adım keşif

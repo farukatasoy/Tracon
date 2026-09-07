@@ -4296,6 +4296,7 @@ export interface components {
             disableAgentSkillsProvider?: boolean;
             /** @description Gets a value that turns off the agent mode provider. */
             disableAgentModeProvider?: boolean;
+            loop?: null | components["schemas"]["LoopSettings"];
         };
         /** Format: binary */
         IFormFile: string;
@@ -4658,6 +4659,54 @@ export interface components {
             scores?: components["schemas"]["RunScore"][];
             /** @description The normalized failures reported by judges. */
             failures?: components["schemas"]["JudgeFailure"][];
+        };
+        /** @description One declarative stop criterion of the harness loop (see `LoopSettings`). */
+        LoopCriterion: {
+            /**
+             * @description Gets the criterion kind: `completionMarker`, `todoCompletion`,
+             *     `aiJudge`, `backgroundTaskCompletion`, or a kind registered in
+             *     code with `AddLoopEvaluator`.
+             */
+            kind: string;
+            /**
+             * @description Gets the completion marker text. Read by `completionMarker` only,
+             *     where it is required.
+             */
+            marker?: null | string;
+            /**
+             * @description Gets the criteria the judge model scores the answer against. Read by
+             *     `aiJudge` only, where at least one entry is required.
+             */
+            judgeCriteria?: string[];
+            /**
+             * @description Gets the extra instructions handed to the judge model. Read by
+             *     `aiJudge` only.
+             */
+            judgeInstructions?: null | string;
+            /**
+             * @description Gets the agent modes the criterion applies to. Read by
+             *     `todoCompletion` only.
+             */
+            modes?: string[];
+        };
+        /**
+         * @description Turns the harness loop on: the agent is re-invoked until a stop criterion
+         *     says the work is finished.
+         */
+        LoopSettings: {
+            /** @description Gets the stop criteria, evaluated in order. At least one is required. */
+            criteria: components["schemas"]["LoopCriterion"][];
+            /**
+             * Format: int32
+             * @description Gets the upper number of loop iterations. `null` takes
+             *     `DefaultMaxIterations`. Must be greater than zero.
+             */
+            maxIterations?: null | number | string;
+            /**
+             * @description Gets a value that starts every iteration from a fresh context instead of
+             *     carrying the previous iterations' messages forward.
+             */
+            freshContextPerIteration?: boolean;
         };
         /**
          * @description The MCP OAuth authorization flow.
@@ -7631,6 +7680,8 @@ export type JobTriggerRequest = components['schemas']['JobTriggerRequest'];
 export type JsonElement = components['schemas']['JsonElement'];
 export type JudgeFailure = components['schemas']['JudgeFailure'];
 export type JudgeRunResponse = components['schemas']['JudgeRunResponse'];
+export type LoopCriterion = components['schemas']['LoopCriterion'];
+export type LoopSettings = components['schemas']['LoopSettings'];
 export type McpOAuthAuthorizationMode = components['schemas']['McpOAuthAuthorizationMode'];
 export type McpOAuthStartResponse = components['schemas']['McpOAuthStartResponse'];
 export type McpPromptArgumentsRequest = components['schemas']['McpPromptArgumentsRequest'];

@@ -237,6 +237,18 @@ internal sealed class AgentPrismBuilder : IAgentPrismBuilder
         return this;
     }
 
+    // MAAI001: see the rationale on IAgentPrismBuilder.AddLoopEvaluator.
+#pragma warning disable MAAI001
+    public IAgentPrismBuilder AddLoopEvaluator(string kind, LoopEvaluator evaluator)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(kind);
+        ArgumentNullException.ThrowIfNull(evaluator);
+
+        Services.AddSingleton(new AgentPrismLoopEvaluatorRegistration(kind, evaluator));
+        return this;
+    }
+#pragma warning restore MAAI001
+
     public IAgentPrismBuilder RequireCustomBinding<T>()
         where T : class
     {

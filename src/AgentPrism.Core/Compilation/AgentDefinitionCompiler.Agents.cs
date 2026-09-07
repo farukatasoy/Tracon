@@ -345,6 +345,24 @@ public sealed partial class AgentDefinitionCompiler
             options.AIContextProviders = harnessProviders;
         }
 
+        // The loop (Phase 151) is OFF unless the definition asks for it. While
+        // Harness.Loop is null neither option is assigned, and MAF builds the
+        // agent exactly as it did before this member existed — the same
+        // opt-in-by-assignment rule FileAccessStore follows (K-062).
+        //
+        // AgentPrism hands MAF ONE evaluator, not the definition's list:
+        // RecordingLoopEvaluator runs the criteria in MAF's own order and
+        // writes a single LoopIterationCompleted event per iteration. Handing
+        // MAF the list instead would leave the run record with no evidence of
+        // the loop at all.
+        if (harness.Loop is not null)
+        {
+            var (loopEvaluator, loopOptions) = _loopEvaluators.Build(definition);
+
+            options.LoopEvaluators = [loopEvaluator];
+            options.LoopAgentOptions = loopOptions;
+        }
+
         return chatClient.AsHarnessAgent(options, _loggerFactory, _services);
 #pragma warning restore MAAI001
     }

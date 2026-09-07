@@ -10717,6 +10717,17 @@
           "disableAgentModeProvider": {
             "type": "boolean",
             "description": "Gets a value that turns off the agent mode provider."
+          },
+          "loop": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "Gets the loop (run-until-done) settings. \u0060null\u0060, the\ndefault, leaves the loop off.",
+                "$ref": "#/components/schemas/LoopSettings"
+              }
+            ]
           }
         },
         "description": "Settings for the harness capabilities. It mirrors a safe subset of the\n\u0060HarnessAgentOptions\u0060 structure of Microsoft Agent Framework."
@@ -11490,6 +11501,77 @@
           }
         },
         "description": "The result of manually scoring a run."
+      },
+      "LoopCriterion": {
+        "required": [
+          "kind"
+        ],
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "description": "Gets the criterion kind: \u0060completionMarker\u0060, \u0060todoCompletion\u0060,\n\u0060aiJudge\u0060, \u0060backgroundTaskCompletion\u0060, or a kind registered in\ncode with \u0060AddLoopEvaluator\u0060."
+          },
+          "marker": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Gets the completion marker text. Read by \u0060completionMarker\u0060 only,\nwhere it is required."
+          },
+          "judgeCriteria": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Gets the criteria the judge model scores the answer against. Read by\n\u0060aiJudge\u0060 only, where at least one entry is required."
+          },
+          "judgeInstructions": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Gets the extra instructions handed to the judge model. Read by\n\u0060aiJudge\u0060 only."
+          },
+          "modes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Gets the agent modes the criterion applies to. Read by\n\u0060todoCompletion\u0060 only."
+          }
+        },
+        "description": "One declarative stop criterion of the harness loop (see \u0060LoopSettings\u0060)."
+      },
+      "LoopSettings": {
+        "required": [
+          "criteria"
+        ],
+        "type": "object",
+        "properties": {
+          "criteria": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LoopCriterion"
+            },
+            "description": "Gets the stop criteria, evaluated in order. At least one is required."
+          },
+          "maxIterations": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "description": "Gets the upper number of loop iterations. \u0060null\u0060 takes\n\u0060DefaultMaxIterations\u0060. Must be greater than zero.",
+            "format": "int32"
+          },
+          "freshContextPerIteration": {
+            "type": "boolean",
+            "description": "Gets a value that starts every iteration from a fresh context instead of\ncarrying the previous iterations\u0027 messages forward."
+          }
+        },
+        "description": "Turns the harness loop on: the agent is re-invoked until a stop criterion\nsays the work is finished."
       },
       "McpOAuthAuthorizationMode": {
         "enum": [

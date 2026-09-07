@@ -402,6 +402,49 @@ public interface IAgentPrismBuilder
     IAgentPrismBuilder AddEvalCheck(string kind, Microsoft.Agents.AI.EvalCheck check);
 
     /// <summary>
+    /// Registers a code-defined loop stop criterion. A definition's
+    /// <see cref="LoopSettings.Criteria"/> can then reference it by this
+    /// <paramref name="kind"/> name.
+    /// </summary>
+    /// <param name="kind">
+    /// The criterion name. It must not be one of the built-in kinds
+    /// (<c>completionMarker</c>, <c>todoCompletion</c>, <c>aiJudge</c>,
+    /// <c>backgroundTaskCompletion</c>); shadowing one is rejected, so the same
+    /// definition cannot mean different things in two applications.
+    /// </param>
+    /// <param name="evaluator">
+    /// The criterion. <c>Microsoft.Agents.AI.DelegateLoopEvaluator</c> wraps a
+    /// plain function; a subclass of <c>LoopEvaluator</c> covers anything larger.
+    /// </param>
+    /// <returns>The chain, for further configuration.</returns>
+    /// <remarks>
+    /// Same rationale as tools and eval checks: a stop criterion whose logic is
+    /// code is only ever defined in code. A definition arriving from the
+    /// management API names the criterion, it never writes it.
+    /// <example>
+    /// The loop types are marked for evaluation only by Microsoft Agent
+    /// Framework, so naming one in your own code needs the suppression below:
+    /// <code>
+    /// #pragma warning disable MAAI001
+    /// builder.AddAgentPrism()
+    ///        .AddLoopEvaluator("hasCitations", new DelegateLoopEvaluator((context, ct) =>
+    ///            new ValueTask&lt;LoopEvaluation&gt;(
+    ///                context.LastResponse?.Text?.Contains("[1]", StringComparison.Ordinal) == true
+    ///                    ? LoopEvaluation.Stop()
+    ///                    : LoopEvaluation.Continue("Add a numbered citation for every claim."))));
+    /// #pragma warning restore MAAI001
+    /// </code>
+    /// </example>
+    /// </remarks>
+    // MAAI001: Microsoft.Agents.AI.LoopEvaluator is marked "evaluation purposes
+    // only". A registration surface cannot hide the type it registers, so the
+    // suppression is narrowed to this one member instead of the file. Rationale:
+    // docs/KARARLAR.md, decision K-020.
+#pragma warning disable MAAI001
+    IAgentPrismBuilder AddLoopEvaluator(string kind, Microsoft.Agents.AI.LoopEvaluator evaluator);
+#pragma warning restore MAAI001
+
+    /// <summary>
     /// Declares that <typeparamref name="T"/> must resolve to the application's
     /// own registration. The host does not start when AgentPrism's built-in
     /// default is what resolves.

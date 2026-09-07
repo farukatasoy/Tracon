@@ -46,4 +46,7 @@ namespace AgentPrism;
 
 // Phase 146: the quota threshold notice's Custom run-event payload.
 [JsonSerializable(typeof(QuotaThresholdNoticePayload))]
+
+// Phase 151: the LoopIterationCompleted run-event payload.
+[JsonSerializable(typeof(LoopIterationCompletedEventPayload))]
 internal sealed partial class AgentPrismCoreJsonContext : JsonSerializerContext;

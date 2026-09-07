@@ -58,6 +58,7 @@ public sealed partial class AgentDefinitionCompiler
     private readonly IAgentDefinitionStore? _definitionStore;
     private readonly AgentPrismAgentGraphOptions _agentGraph;
     private readonly TimeProvider? _timeProvider;
+    private readonly LoopEvaluatorRegistry _loopEvaluators;
 
     // MAAI001: Microsoft.Agents.AI.AgentFileStore is marked "evaluation
     // purposes only". The suppression is kept in a single file (this file,
@@ -130,6 +131,18 @@ public sealed partial class AgentDefinitionCompiler
     /// <param name="timeProvider">
     /// Time source for the sub-agent wait race. Defaults to <see cref="TimeProvider.System"/>.
     /// </param>
+    /// <param name="loopEvaluators">
+    /// The loop stop criteria registered in code with
+    /// <c>IAgentPrismBuilder.AddLoopEvaluator</c>. A definition whose
+    /// <see cref="LoopSettings.Criteria"/> names a kind that is neither built in
+    /// nor registered here gets a compilation error.
+    /// </param>
+    /// <param name="judgeOptions">
+    /// The judge binding configured with <c>AddModelRunJudge</c>. It is the model
+    /// an <c>aiJudge</c> loop criterion calls. When <see langword="null"/> or
+    /// unconfigured, that criterion gets a compilation error rather than
+    /// borrowing the agent's own model.
+    /// </param>
     /// <exception cref="ArgumentNullException">One of the required dependencies is <see langword="null"/>.</exception>
 #pragma warning disable MAAI001 // AgentFileStore — see the rationale on the _fileStore field.
     public AgentDefinitionCompiler(
@@ -150,7 +163,9 @@ public sealed partial class AgentDefinitionCompiler
         int knowledgeMaxResults = 5,
         IAgentDefinitionStore? definitionStore = null,
         AgentPrismAgentGraphOptions? agentGraph = null,
-        TimeProvider? timeProvider = null)
+        TimeProvider? timeProvider = null,
+        IEnumerable<AgentPrismLoopEvaluatorRegistration>? loopEvaluators = null,
+        ModelRunJudgeOptions? judgeOptions = null)
 #pragma warning restore MAAI001
     {
         ArgumentNullException.ThrowIfNull(models);
@@ -174,6 +189,7 @@ public sealed partial class AgentDefinitionCompiler
         _definitionStore = definitionStore;
         _agentGraph = agentGraph ?? new AgentPrismAgentGraphOptions();
         _timeProvider = timeProvider;
+        _loopEvaluators = new LoopEvaluatorRegistry(loopEvaluators ?? [], models, judgeOptions, loggerFactory);
     }
 
     /// <summary>Converts a definition into an executable agent.</summary>

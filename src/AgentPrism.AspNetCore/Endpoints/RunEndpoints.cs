@@ -1239,6 +1239,7 @@ internal static class RunEndpoints
             RunEventType.StructuredResponseRepairAttempted => "structured-response.repair-attempted",
             RunEventType.Custom => "custom",
             RunEventType.ChildRunTimedOut => "child.timed-out",
+            RunEventType.LoopIterationCompleted => "loop.iteration-completed",
             _ => "unknown",
         };
     }
