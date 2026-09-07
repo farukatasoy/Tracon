@@ -163,7 +163,7 @@ bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 | [148](arsiv/fazlar/148-OTURUM-SAHIPLIGININ-KALICILIGI.md) | Oturum Sahipliğinin Kalıcılığı | ✅ Tamamlandı |
 | [149](arsiv/fazlar/149-SAHIPSIZ-OTURUMUN-KATI-REDDI.md) | Sahipsiz Oturumun Katı Reddi | ✅ Tamamlandı |
 | [150](arsiv/fazlar/150-ZORUNLU-BINDING-PROFILI.md) | Zorunlu Binding Profili | ✅ Tamamlandı |
-| [151](151-HARNESSIN-DONGU-YETENEGI.md) | Harness'in Döngü Yeteneği | ✅ Tamamlandı |
+| [151](arsiv/fazlar/151-HARNESSIN-DONGU-YETENEGI.md) | Harness'in Döngü Yeteneği | ✅ Tamamlandı |
 | [152](152-SKORUN-ADI-VE-SEKLI.md) | Skorun Adı ve Şekli | 📋 Planlandı |
 | [153](153-EVAL-KOSUMLARI-ARASINDA-REGRESYON-FARKI.md) | Eval Koşumları Arasında Regresyon Farkı | 📋 Planlandı |
 | [154](154-SKOR-TRENDININ-KALICI-SORGUSU.md) | Skor Trendinin Kalıcı Sorgusu | 📋 Planlandı |
