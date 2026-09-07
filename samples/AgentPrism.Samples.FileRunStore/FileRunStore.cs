@@ -60,8 +60,16 @@ public sealed class JsonFileRunStore : IRunStore
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
 
         _filePath = filePath;
-        _scores = scores ?? new InMemoryRunScoreStore();
         _tenantContext = tenantContext ?? new FixedTenantContext("default");
+        _scores = scores ?? new InMemoryRunScoreStore(
+            _tenantContext,
+            runId =>
+            {
+                lock (_gate)
+                {
+                    return _runs.TryGetValue(runId, out var run) ? run.AgentName : null;
+                }
+            });
 
         Load();
     }
@@ -861,9 +869,9 @@ public sealed class JsonFileRunStore : IRunStore
 
             foreach (var score in scores)
             {
-                if (score.Kind == RunScoreKind.Numeric && score.MessageId is null)
+                if (score.Kind == RunScoreKind.Numeric && score.MessageId is null && score.Value is { } value)
                 {
-                    sum += score.Value;
+                    sum += value;
                     count++;
                 }
             }

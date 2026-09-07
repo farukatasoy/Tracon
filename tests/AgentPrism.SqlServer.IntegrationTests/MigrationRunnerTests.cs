@@ -180,6 +180,27 @@ public sealed class MigrationRunnerTests(SqlServerFixture fixture)
         exists.ShouldBe(1);
     }
 
+    /// <summary>
+    /// Guards the index a score summary time-range query needs: without it,
+    /// that query is a sequential scan of the whole table.
+    /// </summary>
+    [Fact]
+    public async Task Score_summary_created_at_index_is_created()
+    {
+        var schemaName = SqlServerTestContext.NewSchemaName();
+
+        await using var context = SqlServerTestContext.Create(fixture, schemaName);
+        await context.Migrations.ApplyAsync();
+
+        var exists = await context.ScalarAsync<int>($"""
+            SELECT COUNT(*) FROM sys.indexes
+            WHERE name = 'run_scores_created_at_idx'
+              AND object_id = OBJECT_ID(N'{schemaName}.run_scores');
+            """);
+
+        exists.ShouldBe(1);
+    }
+
     [Fact]
     public void Migration_runner_reads_from_the_correct_assembly()
     {
@@ -284,7 +305,11 @@ public sealed class MigrationRunnerTests(SqlServerFixture fixture)
                 ('{AgentPrismId.NewId()}', N'test', '{runId}', NULL, 3, 70, N'ok', N'judge:quality', N'judge:quality', '2026-01-01T00:00:00Z');
             """);
 
-        (await context.Migrations.ApplyAsync()).ShouldBe(1);
+        // Not hard-coded to 1: ApplyAsync() applies every pending migration,
+        // not just `upgrade`, and a later phase can add one that also lands
+        // after it (154 added an index migration right after this one).
+        var pendingFromUpgrade = migrations.Count(candidate => candidate.Id >= upgrade.Id);
+        (await context.Migrations.ApplyAsync()).ShouldBe(pendingFromUpgrade);
 
         (await context.ScalarAsync<int>($"SELECT COUNT(*) FROM {schemaName}.run_scores;")).ShouldBe(2);
 

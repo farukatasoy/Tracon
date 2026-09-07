@@ -66,7 +66,7 @@ public sealed class TenantCoverageTests
             ["ListPoliciesAsync", "GetPolicyAsync", "SavePolicyAsync", "DeletePolicyAsync", "CreateRunAsync", "ListRunsAsync"],
         ["SqlRetentionStore"] =
             ["CountOlderThanAsync", "ReadForArchiveAsync", "DeleteBatchAsync", "FindRowLimitCutoffAsync"],
-        ["SqlRunScoreStore"] = ["UpsertAsync", "ListAsync", "DeleteAsync"],
+        ["SqlRunScoreStore"] = ["UpsertAsync", "ListAsync", "DeleteAsync", "SummarizeAsync"],
         // 🚨 Four write paths moved from exempt to covered on 2026-08-08
         // (K-355): AppendEventAsync, CompleteRunAsync, UpdateRunCostAsync and
         // RecordToolInvocationAsync are now filtered by the EXPECTED tenant

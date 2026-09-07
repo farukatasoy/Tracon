@@ -2542,3 +2542,138 @@ Bkz. MT-EVAL-045 (aynı upsert davranışı). Buradaki ek iddia: yargıç
 - Her satırdaki iki taraf rozeti ilgili `run` sayfasına bağlanır.
 
 **Alan kodu:** `EVAL`
+
+---
+
+### EVAL-128 — Skor özeti isim ve derece çiftine göre kırılır
+
+**Ön koşul**
+- Aynı `run`'a `overall` adıyla iki farklı derece (`Stars` ve `Numeric`) skor yazılmış.
+
+**Adımlar**
+1. `GET /api/evaluation/scores/summary`
+
+**Beklenen sonuç**
+- `byName` iki ayrı satır döner — biri `kind: Stars`, diğeri `kind: Numeric`.
+- Hiçbir satırın `average`'ı diğerinin değerini içermez.
+
+**Alan kodu:** `EVAL`
+
+---
+
+### EVAL-129 — Sunucu yeniden başlatılınca özet **aynı** kalır, canlı gösterge sıfırlanır
+
+**Ön koşul**
+- En az bir `run` + bir skor yazılmış, kalıcı bir sağlayıcı (PostgreSQL/SQLite/SQL
+  Server) yapılandırılmış.
+
+**Adımlar**
+1. `GET /api/evaluation/scores/summary?bucket=day` → sonucu kaydet.
+2. `GET /api/evaluation/online` → `sampleCount`'u kaydet.
+3. Uygulamayı yeniden başlat.
+4. Her iki uçu tekrar çağır.
+
+**Beklenen sonuç**
+- Adım 1'in sonucu adım 4'te **birebir aynı** döner (kalıcı özet).
+- Adım 2'nin `sampleCount`'u yeniden başlatma sonrası **sıfırlanmış** görünür
+  (canlı gösterge davranışı değişmedi).
+
+**Alan kodu:** `EVAL` · `OBS`
+
+---
+
+### EVAL-130 — `Categorical` skorlar kategori sayımı döner, ortalama değil
+
+**Ön koşul**
+- `severity` adıyla iki `minor`, bir `major` kategorik skor yazılmış.
+
+**Adımlar**
+1. `GET /api/evaluation/scores/summary`
+
+**Beklenen sonuç**
+- `byName` içindeki `severity` satırının `average`'ı `null`'dır.
+- `categories` alanı `{"minor": 2, "major": 1}` döner.
+
+**Alan kodu:** `EVAL`
+
+---
+
+### EVAL-131 — `messageId` kırılım boyutu değildir; `target` filtresi çalışır
+
+**Ön koşul**
+- Aynı `run`'a bir run-düzeyi (`messageId` boş) ve iki farklı mesaj-düzeyi skor
+  yazılmış, hepsi aynı isimle.
+
+**Adımlar**
+1. `GET /api/evaluation/scores/summary` (filtresiz)
+2. `GET /api/evaluation/scores/summary?target=Run`
+3. `GET /api/evaluation/scores/summary?target=Message`
+
+**Beklenen sonuç**
+- Adım 1: `byName` tek satırda **üç** skoru birden sayar (mesaj kimliği ayrı
+  satır açmaz).
+- Adım 2: yalnız run-düzeyi skor sayılır (`count: 1`).
+- Adım 3: yalnız mesaj-düzeyi skorlar sayılır (`count: 2`).
+
+**Alan kodu:** `EVAL`
+
+---
+
+### EVAL-132 — `from` `to`'dan sonra `400` döner
+
+**Adımlar**
+1. `GET /api/evaluation/scores/summary?from=2026-09-10T00:00:00Z&to=2026-09-01T00:00:00Z`
+
+**Beklenen sonuç**
+- `400`.
+
+**Alan kodu:** `EVAL`
+
+---
+
+### EVAL-133 — `bucket=day` sonuçları eksiksiz bir seri döner, boş günler yok
+
+**Ön koşul**
+- İki farklı günde birer skor yazılmış, aradaki gün boş.
+
+**Adımlar**
+1. `GET /api/evaluation/scores/summary?bucket=day&from=…&to=…`
+
+**Beklenen sonuç**
+- `series` **iki** öğe döner — aradaki boş gün seride hiç görünmez.
+
+**Alan kodu:** `EVAL`
+
+---
+
+### EVAL-134 — Başka kiracının skoru özete girmez
+
+**Ön koşul**
+- İki kiracı, her biri kendi `run`'ına skor yazmış.
+
+**Adımlar**
+1. Her iki kiracı kimliğiyle ayrı ayrı `GET /api/evaluation/scores/summary`.
+
+**Beklenen sonuç**
+- Her kiracı yalnız kendi skorunu görür.
+
+**Alan kodu:** `EVAL` · `SEC`
+
+---
+
+### EVAL-135 — Arayüzde kalıcı skor eğilimi görünür 👤
+
+**Ön koşul**
+- Konsol açık, en az bir skorlanmış `run`.
+
+**Adımlar**
+1. Dashboard'da "Online evaluation" panelinin altındaki "Persistent trend
+   (survives a restart)" bölümüne bak.
+2. Uygulamayı yeniden başlat, sayfayı yenile.
+
+**Beklenen sonuç**
+- Grafik en az bir nokta gösterir; hata görünmez.
+- Yeniden başlatma sonrası grafik **aynı** veriyi göstermeye devam eder,
+  üstteki canlı gösterge ise "No run has been judged yet" durumuna dönebilir.
+
+**Alan kodu:** `EVAL`

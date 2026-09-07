@@ -984,3 +984,39 @@ gerekçesini fazın "Plandan Sapmalar" tablosuna yazdı (sapma 3).
 **Risk:** Sözleşmeyi genişletmek sevk edilen bir söz vermektir; ölçülmüş bir
 tüketici talebi olmadan yapılırsa geri alması pahalıdır.
 
+---
+
+### F-214 · Deneylerde boş-string `MessageId` run seviyesi ortalamayı bozabilir
+
+**Sorun:** Faz 154 denetimi `run_scores` sorgularında "yorum yok" için iki
+farklı yazım buldu: `message_id IS NULL` (Postgres/SQLite/SQL Server) ve
+`MessageId is { Length: > 0 }` (bellek içi). Skor özetinde (Faz 154) ikisi
+aynı davranışa hizalandı — `''` artık her yerde `NULL` gibi ele alınıyor. AMA
+`SelectExperimentResults` (üç SQL sağlayıcı) hâlâ yalnız `message_id IS NULL`
+kullanıyor, ve `samples/AgentPrism.Samples.FileRunStore/FileRunStore.cs`'nin
+`GetExperimentResultsAsync` karşılığı hâlâ `score.MessageId is null` kontrolü
+yapıyor (`Length: > 0` değil). Bir çağıran `MessageId = ""` ile run seviyesi
+bir skor yazarsa, deney sonucu ortalaması o skoru **sessizce dışlar** — SQL
+tarafında mesaj seviyesi sayılır, bellek içi tarafında da tutarsız kalır.
+
+**Kapsam:** `SelectExperimentResults` (Postgres/SQLite/SQL Server) +
+`FileRunStore.GetExperimentResultsAsync` benzeri kod + varsa deney
+sonuçlarını okuyan başka sorgular. Skor özeti dışındaki her `message_id`
+karşılaştırması için aynı tarama gerekir.
+
+**Değer:** Skor özeti ile deney sonuçları arasında aynı veriye iki farklı
+cevap vermeyi önler — ölçülmüş, gerçek bir tutarsızlık.
+
+**Mercek:** 7 (kusur giderme — Faz 154 denetiminde bulundu, faz kapsamı dışı
+olduğu için ertelendi).
+
+**Hazırlık:** Hazır — düzeltme deseni Faz 154'te zaten yazıldı
+(`AgentPrism.PostgreSql/Internal/PostgresQueries.cs`'deki `ScoreFilter`
+local fonksiyonuna bakılabilir).
+
+**Maliyet:** Küçük — üç SQL sorgusu + bir sample metodu + karşılık gelen
+deney sonucu contract testi.
+
+**Risk:** Düşük; `MessageId = ""` yazan bir tüketici bugün nadir, ama sessiz
+yanlış ortalama tespit edilmesi zor bir hatadır.
+

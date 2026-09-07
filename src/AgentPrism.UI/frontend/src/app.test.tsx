@@ -39,6 +39,20 @@ const emptyRunStatistics = {
   positiveRate: null,
 };
 
+/**
+ * `RunScoreSummary` (`/api/evaluation/scores/summary`) narrows `byName` and
+ * `series` to always-present the same way `emptyRunStatistics` does above —
+ * the generic `{}` fallback breaks `PersistentScoreTrendPanel`'s
+ * `.series.length` read.
+ */
+const emptyRunScoreSummary = {
+  byName: [],
+  byAuthor: [],
+  bySource: [],
+  byAgent: [],
+  series: [],
+};
+
 /** A code-defined agent with no persisted definition — a real, named path (`AgentEditorScreen`'s HATA-S4-010 branch), not a fixture shortcut. */
 const codeAgentDetail = {
   descriptor: {
@@ -197,7 +211,10 @@ function overridesFor(pattern: string): FixtureRoute[] {
   switch (pattern) {
     case '':
     case 'dashboard':
-      return [fixture('GET', 'api/stats', emptyRunStatistics)];
+      return [
+        fixture('GET', 'api/stats', emptyRunStatistics),
+        fixture('GET', 'api/evaluation/scores/summary', emptyRunScoreSummary),
+      ];
     case 'agents/:name':
     case 'agents/:name/edit':
       return [fixture('GET', 'api/agents/:name', codeAgentDetail)];

@@ -65,4 +65,20 @@ public interface IRunScoreStore
         string tenantId,
         Guid scoreId,
         CancellationToken cancellationToken = default);
+
+    /// <summary>Aggregates the scores matching a filter.</summary>
+    /// <param name="query">The filter and breakdown options.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The summary. Never <see langword="null"/>; an empty match returns empty lists.</returns>
+    /// <remarks>
+    /// A query, not a counter: it reads the rows that already exist. The live,
+    /// in-memory indicator of <c>OnlineEvalSummaryService</c> is unchanged by
+    /// this member — it keeps resetting when the process restarts. This one
+    /// survives a restart because it is computed from <see cref="UpsertAsync"/>'s
+    /// own rows, not a separate running total (no durable counter store is
+    /// introduced).
+    /// </remarks>
+    ValueTask<RunScoreSummary> SummarizeAsync(
+        RunScoreQuery query,
+        CancellationToken cancellationToken = default);
 }

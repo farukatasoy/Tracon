@@ -1751,3 +1751,27 @@ kök/çocuk span hiyerarşisini bozmadığını kanıtlar.
 
 ---
 
+### MT-OBS-060 — `run_scores` zaman aralığı sorgusu indeks kullanır, tam tablo taraması değil
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 154 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- PostgreSQL sağlayıcısı, migration'lar uygulanmış.
+
+**Adımlar**
+1. `psql -c "\di+ *run_scores*"` — indeks listesini gör.
+2. `psql -c "EXPLAIN SELECT * FROM agentprism.run_scores WHERE tenant_id = 'default' AND created_at >= now() - interval '30 days';"`
+
+**Beklenen sonuç**
+- Adım 1: `run_scores_created_at_idx` (`tenant_id, created_at`) ve
+  `run_scores_target_author_name_idx` (Faz 152) birlikte listelenir.
+- Adım 2: plan `run_scores_created_at_idx` üzerinden bir Index Scan/Bitmap
+  Index Scan gösterir — `Seq Scan on run_scores` **görünmez**.
+
+---
+

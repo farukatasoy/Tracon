@@ -810,9 +810,10 @@ Register an `IRunJudge` and finished runs are sampled and scored automatically. 
 summary endpoint reports the average score, the sample count, and what the judging
 cost.
 
-That summary is **in-memory** and resets when the process restarts. For an
-authoritative number, query the stored scores. Judging costs model calls, which is why
-it samples rather than scoring everything.
+That summary is **in-memory** and resets when the process restarts. For a number
+that survives a restart, use the [persistent score summary](#persistent-score-summary)
+below instead. Judging costs model calls, which is why it samples rather than
+scoring everything.
 
 `POST /api/runs/{runId}/judge` scores one run immediately, skipping the sampling
 decision — for calibration and debugging.
@@ -855,6 +856,48 @@ which is the same rule `RunJudgment.Score` follows when a judge cannot decide.
 
 Deleting a score is written to the audit trail: removing a judgement is itself
 traceable.
+
+## Persistent score summary
+
+`GET /api/evaluation/scores/summary` aggregates the scores already written — human
+and judge scores together, since they live in the same list. Unlike the
+[online evaluation](#online-evaluation) summary, this one reads persisted rows, so
+the same request made before and after a restart returns the same result.
+
+Every breakdown groups by **name and kind together**: a 1-5 star rating and a 0-100
+numeric score sharing a name never average into one number. `byName` is always
+returned; `byAuthor`, `bySource`, and `byAgent` narrow the same data by a different
+dimension. A `Categorical` group reports a count per category instead of an average.
+
+```
+GET /api/evaluation/scores/summary?bucket=day&from=2026-09-01T00:00:00Z
+```
+
+```json
+{
+  "byName": [
+    { "key": "overall", "kind": "Binary", "count": 42, "noValueCount": 0, "average": 0.83 }
+  ],
+  "series": [
+    { "bucketStart": "2026-09-01T00:00:00Z", "groups": [ /* one entry per (name, kind) scored that day */ ] }
+  ]
+}
+```
+
+`bucket` (`hour`, `day`, or `week`, UTC) adds the `series` field — a trend over time,
+one entry per bucket that actually has a score. A bucket with nothing scored in it is
+left out; the series is sparse, not filled. Leaving `bucket` out costs nothing extra
+and returns an empty `series`. A `bucket` given with no `from` defaults the whole query
+(breakdowns included) to the last 90 days — a series has no other bound the way a
+breakdown does; pass `from` explicitly for an unbounded breakdown alongside it.
+
+`messageId` is never a breakdown dimension — its cardinality is unbounded. Use
+`target` (`run`, `message`, or `any`, the default) to narrow to run-level or
+message-level scores instead.
+
+Every breakdown, and the categories inside one `Categorical` group, is capped at
+`maxRows` (default 20, max 500). A group's `truncatedCategoryCount` reports how many
+categories did not fit, so a long tail never silently disappears.
 
 ## Experiments
 
@@ -10690,7 +10733,7 @@ public void All_tool_contracts_are_covered()
 
 # HTTP API
 
-164 operations across 127 paths. This page is the shape they all share; the groups in
+165 operations across 128 paths. This page is the shape they all share; the groups in
 the sidebar are the operations themselves, each with what it does and what it returns.
 
 The OpenAPI document is published as

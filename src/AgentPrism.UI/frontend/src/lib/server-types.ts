@@ -140,6 +140,13 @@ export type RunModelStatistics = Fix<Generated.RunModelStatistics, 'inputTokens'
 export type RunRecord = Fix<Generated.RunRecord, 'agentVersion' | 'childRunCount' | 'depth' | 'eventCount' | 'isStreaming' | 'kind'> & { cost: RunCost | null; treeCost: RunTreeCost | null; treeUsage: RunUsage | null; usage: RunUsage | null };
 export type RunReplayResponse = Fix<Generated.RunReplayResponse, 'agentVersion'>;
 export type RunScore = Fix<Generated.RunScore, 'createdAt' | 'id' | 'value'>;
+// `categories` is an inline numeric map (not a $ref), so Fix<> (which only
+// widens a field's OWN union, not a nested object's values) cannot reach it;
+// built by hand like RunStatistics below, for the same React Query
+// generic-inference reason (see the comment on RunStatistics).
+export type RunScoreAggregate = Omit<Generated.RunScoreAggregate, 'average' | 'categories' | 'count' | 'maximum' | 'minimum' | 'noValueCount' | 'truncatedCategoryCount'> & { average: number | null; categories: Record<string, number>; count: number; maximum: number | null; minimum: number | null; noValueCount: number; truncatedCategoryCount: number };
+export type RunScoreBucketAggregate = Omit<Generated.RunScoreBucketAggregate, 'groups'> & { groups: RunScoreAggregate[] };
+export type RunScoreSummary = Omit<Generated.RunScoreSummary, 'byAgent' | 'byAuthor' | 'byName' | 'bySource' | 'series'> & { byAgent: RunScoreAggregate[]; byAuthor: RunScoreAggregate[]; byName: RunScoreAggregate[]; bySource: RunScoreAggregate[]; series: RunScoreBucketAggregate[] };
 // Flattened by hand into a single Omit<>&{} (not built with Fix<>, unlike
 // every other entry in this file): React Query's generic inference could not
 // carry a `Fix<...> & {...}` (three intersected object types) through

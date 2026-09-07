@@ -1,8 +1,23 @@
 import { useMemo, type ReactNode } from 'react';
-import { barLayout, linePath, scaleLinear, stackedSegments, tickIndices, tokenBreakdown } from '../lib/chart';
+import {
+  barLayout,
+  linePath,
+  primaryScoreIdentity,
+  scaleLinear,
+  SCORE_KIND_MAX,
+  stackedSegments,
+  tickIndices,
+  tokenBreakdown,
+} from '../lib/chart';
 import { count, money } from '../lib/format';
 import { useT } from '../lib/i18n';
-import type { RunModelStatistics, RunStatistics, TimeSeriesPoint } from '../lib/server-types';
+import type {
+  RunModelStatistics,
+  RunScoreAggregate,
+  RunScoreBucketAggregate,
+  RunStatistics,
+  TimeSeriesPoint,
+} from '../lib/server-types';
 
 /**
  * A faint wash of a theme colour. Same trick as the workflow graph: mixed at
@@ -118,6 +133,106 @@ function bucketLabel(bucket: string): string {
   return Number.isNaN(date.getTime())
     ? bucket
     : date.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric' });
+}
+
+/**
+ * The persistent score trend (unlike the live online-evaluation panel, this
+ * reads `GET /api/evaluation/scores/summary` and survives a server restart).
+ * One line: a single (name, kind) identity's average per bucket — `overall`
+ * when present anywhere in the series, otherwise the series' most common
+ * score. A bucket that never scored that identity leaves a gap rather than
+ * plotting a different metric in its place.
+ */
+export function ScoreTrendChart({
+  series,
+  height = 120,
+  width = 640,
+}: {
+  series: readonly RunScoreBucketAggregate[];
+  height?: number;
+  width?: number;
+}): ReactNode {
+  const t = useT();
+  const padding = { top: 10, right: 12, bottom: 20, left: 12 };
+  const plotWidth = width - padding.left - padding.right;
+  const plotHeight = height - padding.top - padding.bottom;
+
+  const layout = useMemo(() => {
+    const identity = primaryScoreIdentity(series);
+
+    if (identity === undefined) {
+      return null;
+    }
+
+    const points = series
+      .map((bucket) => ({
+        bucketStart: bucket.bucketStart,
+        group: bucket.groups.find(
+          (group) => group.key === identity.key && group.kind === identity.kind && group.average !== null,
+        ),
+      }))
+      .filter((point): point is { bucketStart: string; group: RunScoreAggregate } => point.group !== undefined);
+
+    if (points.length === 0) {
+      return null;
+    }
+
+    const domainMax = SCORE_KIND_MAX[identity.kind] ?? 100;
+    const xScale = scaleLinear([0, Math.max(points.length - 1, 1)], [0, plotWidth]);
+    const yScale = scaleLinear([0, domainMax], [plotHeight, 0]);
+
+    const dots = points.map((point, index) => ({ x: xScale(index), y: yScale(point.group.average ?? 0) }));
+
+    // A single point draws no visible line (linePath needs two); a dot per
+    // point keeps a one-bucket series from rendering as an empty box.
+    const path = linePath(dots);
+
+    const ticks = tickIndices(points.length, 6).flatMap((index) => {
+      const point = points[index];
+
+      return point === undefined ? [] : [{ index, x: xScale(index), label: bucketLabel(point.bucketStart) }];
+    });
+
+    return { path, dots, ticks };
+  }, [series, plotWidth, plotHeight]);
+
+  if (layout === null) {
+    return <EmptyChart height={height} />;
+  }
+
+  return (
+    <svg
+      role="img"
+      aria-label={t('charts.scoreTrendLabel')}
+      data-testid="score-trend-chart"
+      viewBox={`0 0 ${width} ${height}`}
+      width="100%"
+      height={height}
+      preserveAspectRatio="none"
+      className="max-w-full"
+    >
+      <g transform={`translate(${padding.left}, ${padding.top})`}>
+        <path d={layout.path} fill="none" stroke="var(--ap-violet)" strokeWidth={1.75} />
+
+        {layout.dots.map((dot, index) => (
+          <circle key={index} cx={dot.x} cy={dot.y} r={2.5} fill="var(--ap-violet)" />
+        ))}
+
+        {layout.ticks.map((tick) => (
+          <text
+            key={tick.index}
+            x={tick.x}
+            y={plotHeight + 16}
+            textAnchor="middle"
+            fill="var(--ap-subtle)"
+            className="text-[10px]"
+          >
+            {tick.label}
+          </text>
+        ))}
+      </g>
+    </svg>
+  );
 }
 
 /** Runs, tokens and cost per model, as horizontal bars ordered by run count. */

@@ -98,6 +98,7 @@ namespace AgentPrism.Client.Generated;
 [JsonSerializable(typeof(RunReplayRequest))]
 [JsonSerializable(typeof(RunReplayResponse))]
 [JsonSerializable(typeof(RunScore))]
+[JsonSerializable(typeof(RunScoreSummary))]
 [JsonSerializable(typeof(RunStatistics))]
 [JsonSerializable(typeof(RunTrace))]
 [JsonSerializable(typeof(SearchKnowledgeRequest))]

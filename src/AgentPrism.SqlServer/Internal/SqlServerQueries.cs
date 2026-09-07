@@ -1652,6 +1652,150 @@ internal sealed class SqlServerQueries : SqlQueriesBase
             VALUES (@id, @tenant_id, @run_id, @message_id, @kind, @value, @comment, @source, @author, @created_at, @name, @text_value);
             """;
 
+        // -------------------------------------------------------------------
+        // Phase 154 -- score summary (a query, not a counter; 154.1)
+        // -------------------------------------------------------------------
+
+        // Shared by every breakdown AND the series query below. `prefix` is
+        // the table alias with its trailing dot ("s." for the joined ByAgent
+        // query), or "" for the single-table ones.
+        static string ScoreFilter(string prefix) => $"""
+              AND (@from_ts IS NULL OR {prefix}created_at >= @from_ts)
+              AND (@to_ts IS NULL OR {prefix}created_at < @to_ts)
+              AND (@score_name IS NULL OR {prefix}name = @score_name)
+              AND (@source IS NULL OR {prefix}source = @source)
+              AND (@author IS NULL OR {prefix}author = @author)
+              AND (@target = 0
+                   OR (@target = 1 AND ({prefix}message_id IS NULL OR {prefix}message_id = N''))
+                   OR (@target = 2 AND {prefix}message_id IS NOT NULL AND {prefix}message_id <> N''))
+            """;
+
+        // The ByAgent query joins `runs` directly, so its agent filter is a
+        // plain column comparison; the other four have no such join and reach
+        // the agent name through a subquery instead.
+        var scoreAgentFilterViaSubquery = $"""
+              AND (@agent_name IS NULL OR run_id IN (SELECT id FROM {Schema}.runs WHERE tenant_id = @tenant_id AND agent_name = @agent_name))
+            """;
+
+        SelectRunScoreSummary = $"""
+            SELECT TOP (@max_rows)
+                   name,
+                   kind,
+                   CAST(COUNT(*) AS bigint),
+                   CAST(COUNT(*) - COUNT(value) AS bigint),
+                   AVG(value),
+                   MIN(value),
+                   MAX(value)
+            FROM {Schema}.run_scores
+            WHERE tenant_id = @tenant_id
+            {ScoreFilter(string.Empty)}
+            {scoreAgentFilterViaSubquery}
+            GROUP BY name, kind
+            ORDER BY COUNT(*) DESC, name;
+
+            -- Second result set: this breakdown's category counts. Fetched
+            -- UNBOUNDED (no TOP here) and capped per name in code, because the
+            -- cap is PER GROUP, not over the whole result set.
+            SELECT name,
+                   text_value,
+                   CAST(COUNT(*) AS bigint)
+            FROM {Schema}.run_scores
+            WHERE tenant_id = @tenant_id
+              AND kind = @kind_categorical
+              AND text_value IS NOT NULL
+            {ScoreFilter(string.Empty)}
+            {scoreAgentFilterViaSubquery}
+            GROUP BY name, text_value
+            ORDER BY name, COUNT(*) DESC;
+
+            -- Third result set: breakdown by author. Scores with no author
+            -- (an identity-less setup) are excluded.
+            SELECT TOP (@max_rows)
+                   author,
+                   kind,
+                   CAST(COUNT(*) AS bigint),
+                   CAST(COUNT(*) - COUNT(value) AS bigint),
+                   AVG(value),
+                   MIN(value),
+                   MAX(value)
+            FROM {Schema}.run_scores
+            WHERE tenant_id = @tenant_id
+              AND author IS NOT NULL AND author <> N''
+            {ScoreFilter(string.Empty)}
+            {scoreAgentFilterViaSubquery}
+            GROUP BY author, kind
+            ORDER BY COUNT(*) DESC, author;
+
+            -- Fourth result set: breakdown by source.
+            SELECT TOP (@max_rows)
+                   source,
+                   kind,
+                   CAST(COUNT(*) AS bigint),
+                   CAST(COUNT(*) - COUNT(value) AS bigint),
+                   AVG(value),
+                   MIN(value),
+                   MAX(value)
+            FROM {Schema}.run_scores
+            WHERE tenant_id = @tenant_id
+            {ScoreFilter(string.Empty)}
+            {scoreAgentFilterViaSubquery}
+            GROUP BY source, kind
+            ORDER BY COUNT(*) DESC, source;
+
+            -- Fifth result set: breakdown by the agent that produced the
+            -- scored run (a score itself carries no agent name).
+            SELECT TOP (@max_rows)
+                   r.agent_name,
+                   s.kind,
+                   CAST(COUNT(*) AS bigint),
+                   CAST(COUNT(*) - COUNT(s.value) AS bigint),
+                   AVG(s.value),
+                   MIN(s.value),
+                   MAX(s.value)
+            FROM {Schema}.run_scores AS s
+            JOIN {Schema}.runs AS r ON r.tenant_id = s.tenant_id AND r.id = s.run_id
+            WHERE s.tenant_id = @tenant_id
+            {ScoreFilter("s.")}
+              AND (@agent_name IS NULL OR r.agent_name = @agent_name)
+            GROUP BY r.agent_name, s.kind
+            ORDER BY COUNT(*) DESC, r.agent_name;
+            """;
+
+        // 1900-01-01 was a Monday, so DATEDIFF(day, 0, x) % 7 gives the number
+        // of days since the preceding Monday directly (ISO 8601), without a
+        // locale-dependent DATEFIRST/DATEPART(weekday, ...) computation --
+        // matching RunScoreBucketing.Truncate.
+        static string BucketExpr(string prefix) => $"""
+            CASE @bucket_unit
+                WHEN N'hour' THEN DATEADD(hour, DATEDIFF(hour, 0, CONVERT(datetime2(7), {prefix}created_at)), CONVERT(datetime2(7), '1900-01-01'))
+                WHEN N'day'  THEN DATEADD(day,  DATEDIFF(day,  0, CONVERT(datetime2(7), {prefix}created_at)), CONVERT(datetime2(7), '1900-01-01'))
+                ELSE DATEADD(day,
+                             DATEDIFF(day, 0, CONVERT(datetime2(7), {prefix}created_at)) - DATEDIFF(day, 0, CONVERT(datetime2(7), {prefix}created_at)) % 7,
+                             CONVERT(datetime2(7), '1900-01-01'))
+            END
+            """;
+
+        // A single result set, run only when RunScoreQuery.Bucket is given
+        // (154, open question 5: no cost when it is not). Buckets with no
+        // matching score are NOT produced -- a sparse series, unlike
+        // SelectRunTimeSeries.
+        SelectRunScoreSeries = $"""
+            SELECT TODATETIMEOFFSET({BucketExpr(string.Empty)}, 0),
+                   name,
+                   kind,
+                   CAST(COUNT(*) AS bigint),
+                   CAST(COUNT(*) - COUNT(value) AS bigint),
+                   AVG(value),
+                   MIN(value),
+                   MAX(value)
+            FROM {Schema}.run_scores
+            WHERE tenant_id = @tenant_id
+            {ScoreFilter(string.Empty)}
+            {scoreAgentFilterViaSubquery}
+            GROUP BY {BucketExpr(string.Empty)}, name, kind
+            ORDER BY 1, name;
+            """;
+
         // MERGE is not used (K-177). Two-branch pattern: first UPDATE (if we
         // are the owner or the lease expired), then INSERT only if the row is
         // absent. Both branches return the same single column (name) the

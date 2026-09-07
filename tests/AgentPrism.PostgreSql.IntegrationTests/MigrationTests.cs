@@ -259,7 +259,11 @@ public sealed class MigrationRunnerTests(PostgresFixture fixture)
                 ('{AgentPrismId.NewId()}', 'test', '{runId}', NULL, 3, 70, 'ok', 'judge:quality', 'judge:quality', '2026-01-01T00:00:00Z');
             """);
 
-        (await context.Migrations.ApplyAsync()).ShouldBe(1);
+        // Not hard-coded to 1: ApplyAsync() applies every pending migration,
+        // not just `upgrade`, and a later phase can add one that also lands
+        // after it (154 added an index migration right after this one).
+        var pendingFromUpgrade = migrations.Count(candidate => candidate.Id >= upgrade.Id);
+        (await context.Migrations.ApplyAsync()).ShouldBe(pendingFromUpgrade);
 
         (await context.ScalarAsync<long>($"SELECT COUNT(*) FROM {schemaName}.run_scores;")).ShouldBe(2);
 
@@ -296,6 +300,27 @@ public sealed class MigrationRunnerTests(PostgresFixture fixture)
 
         var exists = await context.ScalarAsync<bool>(
             $"SELECT EXISTS (SELECT 1 FROM information_schema.schemata WHERE schema_name = '{schemaName}');");
+
+        exists.ShouldBeTrue();
+    }
+
+    /// <summary>
+    /// Guards the index a score summary time-range query needs: without it,
+    /// that query is a sequential scan of the whole table.
+    /// </summary>
+    [Fact]
+    public async Task Score_summary_created_at_index_is_created()
+    {
+        var schemaName = PostgresTestContext.NewSchemaName();
+        await using var context = PostgresTestContext.Create(fixture, schemaName);
+
+        await context.Migrations.ApplyAsync();
+
+        var exists = await context.ScalarAsync<bool>($"""
+            SELECT EXISTS (
+                SELECT 1 FROM pg_indexes
+                WHERE schemaname = '{schemaName}' AND indexname = 'run_scores_created_at_idx');
+            """);
 
         exists.ShouldBeTrue();
     }

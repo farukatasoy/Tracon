@@ -5,6 +5,7 @@ import { count, money, percent, relativeTime } from '../lib/format';
 import { usePlural, useT } from '../lib/i18n';
 import {
   ModelBreakdownChart,
+  ScoreTrendChart,
   StatusDistributionChart,
   TimeSeriesChart,
   TokenBreakdownChart,
@@ -16,6 +17,7 @@ import type {
   ModelProviderHealth,
   OnlineEvaluationSummary,
   RunErrorStatistics,
+  RunScoreSummary,
   RunStatistics,
   TimeSeriesPoint,
 } from '../lib/server-types';
@@ -197,6 +199,9 @@ export function DashboardScreen({ meta }: { meta: Meta }): ReactNode {
 
         <Panel className="lg:col-span-2" title={t('onlineEval.title')}>
           <OnlineEvaluationSummaryPanel />
+          <div className="border-t border-line">
+            <PersistentScoreTrendPanel />
+          </div>
         </Panel>
       </div>
     </>
@@ -251,6 +256,41 @@ function OnlineEvaluationSummaryPanel(): ReactNode {
           <div className="text-[18px] font-semibold">{money(data.judgeCost, data.judgeCostCurrency)}</div>
         </div>
       )}
+    </div>
+  );
+}
+
+/**
+ * The persistent counterpart to the live panel above: reads
+ * `GET /api/evaluation/scores/summary`, which survives a server restart
+ * (unlike `OnlineEvaluationSummaryPanel`'s in-memory window).
+ */
+function PersistentScoreTrendPanel(): ReactNode {
+  const t = useT();
+  const summary = useQuery({
+    queryKey: ['score-summary-trend'],
+    queryFn: () =>
+      unwrap(
+        client.GET('/api/evaluation/scores/summary', { params: { query: { bucket: 'Day' } } }),
+      ) as Promise<RunScoreSummary>,
+  });
+
+  if (summary.isPending) {
+    return <Loading />;
+  }
+
+  if (summary.isError) {
+    return <ErrorNote error={summary.error} />;
+  }
+
+  if (summary.data.series.length === 0) {
+    return <p className="px-4 py-4 text-[12px] text-subtle">{t('onlineEval.noneYet')}</p>;
+  }
+
+  return (
+    <div className="px-4 py-3">
+      <div className="mb-1 text-[11px] text-subtle">{t('onlineEval.trendTitle')}</div>
+      <ScoreTrendChart series={summary.data.series} />
     </div>
   );
 }

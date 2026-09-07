@@ -5369,3 +5369,102 @@ virtual AgentPrism.AgentPrismException.ErrorType.get -> string!
 ~override AgentPrism.ConversationBranch.ToString() -> string
 ~override AgentPrism.McpRefreshOutcome.Equals(object obj) -> bool
 ~override AgentPrism.McpRefreshOutcome.ToString() -> string
+AgentPrism.IRunScoreStore.SummarizeAsync(AgentPrism.RunScoreQuery! query, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<AgentPrism.RunScoreSummary!>
+AgentPrism.RunScoreAggregate
+AgentPrism.RunScoreAggregate.<Clone>$() -> AgentPrism.RunScoreAggregate!
+AgentPrism.RunScoreAggregate.Average.get -> double?
+AgentPrism.RunScoreAggregate.Average.init -> void
+AgentPrism.RunScoreAggregate.Categories.get -> System.Collections.Generic.IReadOnlyDictionary<string!, long>!
+AgentPrism.RunScoreAggregate.Categories.init -> void
+AgentPrism.RunScoreAggregate.Count.get -> long
+AgentPrism.RunScoreAggregate.Count.init -> void
+AgentPrism.RunScoreAggregate.Equals(AgentPrism.RunScoreAggregate? other) -> bool
+AgentPrism.RunScoreAggregate.Key.get -> string!
+AgentPrism.RunScoreAggregate.Key.init -> void
+AgentPrism.RunScoreAggregate.Kind.get -> AgentPrism.RunScoreKind
+AgentPrism.RunScoreAggregate.Kind.init -> void
+AgentPrism.RunScoreAggregate.Maximum.get -> double?
+AgentPrism.RunScoreAggregate.Maximum.init -> void
+AgentPrism.RunScoreAggregate.Minimum.get -> double?
+AgentPrism.RunScoreAggregate.Minimum.init -> void
+AgentPrism.RunScoreAggregate.NoValueCount.get -> long
+AgentPrism.RunScoreAggregate.NoValueCount.init -> void
+AgentPrism.RunScoreAggregate.RunScoreAggregate() -> void
+AgentPrism.RunScoreAggregate.TruncatedCategoryCount.get -> long
+AgentPrism.RunScoreAggregate.TruncatedCategoryCount.init -> void
+AgentPrism.RunScoreBucket
+AgentPrism.RunScoreBucket.Day = 2 -> AgentPrism.RunScoreBucket
+AgentPrism.RunScoreBucket.Hour = 1 -> AgentPrism.RunScoreBucket
+AgentPrism.RunScoreBucket.Week = 3 -> AgentPrism.RunScoreBucket
+AgentPrism.RunScoreBucketAggregate
+AgentPrism.RunScoreBucketAggregate.<Clone>$() -> AgentPrism.RunScoreBucketAggregate!
+AgentPrism.RunScoreBucketAggregate.BucketStart.get -> System.DateTimeOffset
+AgentPrism.RunScoreBucketAggregate.BucketStart.init -> void
+AgentPrism.RunScoreBucketAggregate.Equals(AgentPrism.RunScoreBucketAggregate? other) -> bool
+AgentPrism.RunScoreBucketAggregate.Groups.get -> System.Collections.Generic.IReadOnlyList<AgentPrism.RunScoreAggregate!>!
+AgentPrism.RunScoreBucketAggregate.Groups.init -> void
+AgentPrism.RunScoreBucketAggregate.RunScoreBucketAggregate() -> void
+AgentPrism.RunScoreBucketing
+AgentPrism.RunScoreQuery
+AgentPrism.RunScoreQuery.<Clone>$() -> AgentPrism.RunScoreQuery!
+AgentPrism.RunScoreQuery.AgentName.get -> string?
+AgentPrism.RunScoreQuery.AgentName.init -> void
+AgentPrism.RunScoreQuery.Author.get -> string?
+AgentPrism.RunScoreQuery.Author.init -> void
+AgentPrism.RunScoreQuery.Bucket.get -> AgentPrism.RunScoreBucket?
+AgentPrism.RunScoreQuery.Bucket.init -> void
+AgentPrism.RunScoreQuery.Equals(AgentPrism.RunScoreQuery? other) -> bool
+AgentPrism.RunScoreQuery.From.get -> System.DateTimeOffset?
+AgentPrism.RunScoreQuery.From.init -> void
+AgentPrism.RunScoreQuery.MaxRows.get -> int
+AgentPrism.RunScoreQuery.MaxRows.init -> void
+AgentPrism.RunScoreQuery.RunScoreQuery() -> void
+AgentPrism.RunScoreQuery.ScoreName.get -> string?
+AgentPrism.RunScoreQuery.ScoreName.init -> void
+AgentPrism.RunScoreQuery.Source.get -> string?
+AgentPrism.RunScoreQuery.Source.init -> void
+AgentPrism.RunScoreQuery.Target.get -> AgentPrism.RunScoreTarget
+AgentPrism.RunScoreQuery.Target.init -> void
+AgentPrism.RunScoreQuery.TenantId.get -> string?
+AgentPrism.RunScoreQuery.TenantId.init -> void
+AgentPrism.RunScoreQuery.To.get -> System.DateTimeOffset?
+AgentPrism.RunScoreQuery.To.init -> void
+AgentPrism.RunScoreSummary
+AgentPrism.RunScoreSummary.<Clone>$() -> AgentPrism.RunScoreSummary!
+AgentPrism.RunScoreSummary.ByAgent.get -> System.Collections.Generic.IReadOnlyList<AgentPrism.RunScoreAggregate!>!
+AgentPrism.RunScoreSummary.ByAgent.init -> void
+AgentPrism.RunScoreSummary.ByAuthor.get -> System.Collections.Generic.IReadOnlyList<AgentPrism.RunScoreAggregate!>!
+AgentPrism.RunScoreSummary.ByAuthor.init -> void
+AgentPrism.RunScoreSummary.ByName.get -> System.Collections.Generic.IReadOnlyList<AgentPrism.RunScoreAggregate!>!
+AgentPrism.RunScoreSummary.ByName.init -> void
+AgentPrism.RunScoreSummary.BySource.get -> System.Collections.Generic.IReadOnlyList<AgentPrism.RunScoreAggregate!>!
+AgentPrism.RunScoreSummary.BySource.init -> void
+AgentPrism.RunScoreSummary.Equals(AgentPrism.RunScoreSummary? other) -> bool
+AgentPrism.RunScoreSummary.RunScoreSummary() -> void
+AgentPrism.RunScoreSummary.Series.get -> System.Collections.Generic.IReadOnlyList<AgentPrism.RunScoreBucketAggregate!>!
+AgentPrism.RunScoreSummary.Series.init -> void
+AgentPrism.RunScoreTarget
+AgentPrism.RunScoreTarget.Any = 0 -> AgentPrism.RunScoreTarget
+AgentPrism.RunScoreTarget.Message = 2 -> AgentPrism.RunScoreTarget
+AgentPrism.RunScoreTarget.Run = 1 -> AgentPrism.RunScoreTarget
+override AgentPrism.RunScoreAggregate.Equals(object? obj) -> bool
+override AgentPrism.RunScoreAggregate.GetHashCode() -> int
+override AgentPrism.RunScoreAggregate.ToString() -> string!
+override AgentPrism.RunScoreBucketAggregate.Equals(object? obj) -> bool
+override AgentPrism.RunScoreBucketAggregate.GetHashCode() -> int
+override AgentPrism.RunScoreBucketAggregate.ToString() -> string!
+override AgentPrism.RunScoreQuery.Equals(object? obj) -> bool
+override AgentPrism.RunScoreQuery.GetHashCode() -> int
+override AgentPrism.RunScoreQuery.ToString() -> string!
+override AgentPrism.RunScoreSummary.Equals(object? obj) -> bool
+override AgentPrism.RunScoreSummary.GetHashCode() -> int
+override AgentPrism.RunScoreSummary.ToString() -> string!
+static AgentPrism.RunScoreAggregate.operator !=(AgentPrism.RunScoreAggregate? left, AgentPrism.RunScoreAggregate? right) -> bool
+static AgentPrism.RunScoreAggregate.operator ==(AgentPrism.RunScoreAggregate? left, AgentPrism.RunScoreAggregate? right) -> bool
+static AgentPrism.RunScoreBucketAggregate.operator !=(AgentPrism.RunScoreBucketAggregate? left, AgentPrism.RunScoreBucketAggregate? right) -> bool
+static AgentPrism.RunScoreBucketAggregate.operator ==(AgentPrism.RunScoreBucketAggregate? left, AgentPrism.RunScoreBucketAggregate? right) -> bool
+static AgentPrism.RunScoreBucketing.Truncate(System.DateTimeOffset value, AgentPrism.RunScoreBucket bucket) -> System.DateTimeOffset
+static AgentPrism.RunScoreQuery.operator !=(AgentPrism.RunScoreQuery? left, AgentPrism.RunScoreQuery? right) -> bool
+static AgentPrism.RunScoreQuery.operator ==(AgentPrism.RunScoreQuery? left, AgentPrism.RunScoreQuery? right) -> bool
+static AgentPrism.RunScoreSummary.operator !=(AgentPrism.RunScoreSummary? left, AgentPrism.RunScoreSummary? right) -> bool
+static AgentPrism.RunScoreSummary.operator ==(AgentPrism.RunScoreSummary? left, AgentPrism.RunScoreSummary? right) -> bool

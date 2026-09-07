@@ -11,16 +11,24 @@ internal sealed class SqlRunScoreStore : IRunScoreStore
 {
     private readonly SqlStoreContext _context;
     private readonly SqlQueriesBase _sql;
+    private readonly ITenantContext _tenantContext;
 
     /// <summary>Creates a new score store.</summary>
     /// <param name="context">The store context.</param>
+    /// <param name="tenantContext">
+    /// Resolves the "current tenant" fallback of <see cref="RunScoreQuery.TenantId"/>
+    /// in <see cref="SummarizeAsync"/> -- every other member takes the tenant
+    /// as an explicit parameter and does not need it.
+    /// </param>
     /// <exception cref="ArgumentNullException"><paramref name="context"/> is <see langword="null"/>.</exception>
-    public SqlRunScoreStore(SqlStoreContext context)
+    public SqlRunScoreStore(SqlStoreContext context, ITenantContext tenantContext)
     {
         ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(tenantContext);
 
         _context = context;
         _sql = context.Sql;
+        _tenantContext = tenantContext;
     }
 
     private SqlDialect Dialect => _context.Dialect;
@@ -96,4 +104,194 @@ internal sealed class SqlRunScoreStore : IRunScoreStore
             Name = reader.GetString(10),
             TextValue = DbHelpers.GetNullableString(reader, 11),
         };
+
+    /// <inheritdoc />
+    public async ValueTask<RunScoreSummary> SummarizeAsync(RunScoreQuery query, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+
+        var maxRows = Math.Max(query.MaxRows, 0);
+
+        List<RunScoreAggregate> byName;
+        var categoriesByName = new Dictionary<string, List<(string Category, long Count)>>(StringComparer.Ordinal);
+        List<RunScoreAggregate> byAuthor;
+        List<RunScoreAggregate> bySource;
+        List<RunScoreAggregate> byAgent;
+
+        var summaryCommand = _context.CreateCommand(_sql.SelectRunScoreSummary);
+        AddFilterParameters(summaryCommand, query);
+        DbHelpers.Add(summaryCommand, "max_rows", maxRows);
+        DbHelpers.Add(summaryCommand, "kind_categorical", (short)RunScoreKind.Categorical);
+
+        await using (summaryCommand.ConfigureAwait(false))
+        {
+            var reader = await summaryCommand.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+
+            await using (reader.ConfigureAwait(false))
+            {
+                // First result set: the by-name breakdown.
+                byName = await ReadAggregatesAsync(reader, cancellationToken).ConfigureAwait(false);
+
+                // Second result set: category counts for Categorical names,
+                // unbounded -- capped per name below, since the cap is PER
+                // GROUP, not over the whole result set.
+                if (await reader.NextResultAsync(cancellationToken).ConfigureAwait(false))
+                {
+                    while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+                    {
+                        var name = reader.GetString(0);
+                        var category = reader.GetString(1);
+                        var count = reader.GetInt64(2);
+
+                        if (!categoriesByName.TryGetValue(name, out var list))
+                        {
+                            list = [];
+                            categoriesByName[name] = list;
+                        }
+
+                        list.Add((category, count));
+                    }
+                }
+
+                byName = [.. byName.Select(aggregate => ApplyCategories(aggregate, categoriesByName, maxRows))];
+
+                // Third result set: breakdown by author.
+                byAuthor = await reader.NextResultAsync(cancellationToken).ConfigureAwait(false)
+                    ? await ReadAggregatesAsync(reader, cancellationToken).ConfigureAwait(false)
+                    : [];
+
+                // Fourth result set: breakdown by source.
+                bySource = await reader.NextResultAsync(cancellationToken).ConfigureAwait(false)
+                    ? await ReadAggregatesAsync(reader, cancellationToken).ConfigureAwait(false)
+                    : [];
+
+                // Fifth result set: breakdown by agent.
+                byAgent = await reader.NextResultAsync(cancellationToken).ConfigureAwait(false)
+                    ? await ReadAggregatesAsync(reader, cancellationToken).ConfigureAwait(false)
+                    : [];
+            }
+        }
+
+        IReadOnlyList<RunScoreBucketAggregate> series = [];
+
+        // No cost is paid when no bucket was asked for (154, open question 5):
+        // the series command is never even created.
+        if (query.Bucket is { } bucket)
+        {
+            var seriesCommand = _context.CreateCommand(_sql.SelectRunScoreSeries);
+            AddFilterParameters(seriesCommand, query);
+            DbHelpers.Add(seriesCommand, "bucket_unit", BucketUnit(bucket));
+
+            var byBucket = new List<(DateTimeOffset BucketStart, List<RunScoreAggregate> Groups)>();
+
+            await using (seriesCommand.ConfigureAwait(false))
+            {
+                var reader = await seriesCommand.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+
+                await using (reader.ConfigureAwait(false))
+                {
+                    while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+                    {
+                        var bucketStart = DbHelpers.GetTimestamp(reader, 0);
+                        var aggregate = ReadAggregate(reader, keyOrdinal: 1, kindOrdinal: 2, countOrdinal: 3);
+
+                        if (byBucket.Count == 0 || byBucket[^1].BucketStart != bucketStart)
+                        {
+                            byBucket.Add((bucketStart, []));
+                        }
+
+                        byBucket[^1].Groups.Add(aggregate);
+                    }
+                }
+            }
+
+            // Each bucket's own groups are already ordered by count DESC (the
+            // SQL ORDER BY), so a per-bucket Take is enough -- the same
+            // ceiling that bounds every other breakdown (RunScoreQuery.MaxRows).
+            series = [.. byBucket.Select(entry => new RunScoreBucketAggregate
+            {
+                BucketStart = entry.BucketStart,
+                Groups = [.. entry.Groups
+                    .OrderByDescending(static aggregate => aggregate.Count)
+                    .ThenBy(static aggregate => aggregate.Key, StringComparer.Ordinal)
+                    .Take(maxRows)],
+            })];
+        }
+
+        return new RunScoreSummary
+        {
+            ByName = byName,
+            ByAuthor = byAuthor,
+            BySource = bySource,
+            ByAgent = byAgent,
+            Series = series,
+        };
+    }
+
+    private void AddFilterParameters(DbCommand command, RunScoreQuery query)
+    {
+        DbHelpers.Add(command, "tenant_id", query.TenantId ?? _tenantContext.TenantId);
+        Dialect.AddTimestamp(command, "from_ts", query.From);
+        Dialect.AddTimestamp(command, "to_ts", query.To);
+        Dialect.AddText(command, "score_name", query.ScoreName);
+        Dialect.AddText(command, "source", query.Source);
+        Dialect.AddText(command, "author", query.Author);
+        Dialect.AddText(command, "agent_name", query.AgentName);
+        DbHelpers.Add(command, "target", (short)query.Target);
+    }
+
+    private static string BucketUnit(RunScoreBucket bucket) => bucket switch
+    {
+        RunScoreBucket.Hour => "hour",
+        RunScoreBucket.Day => "day",
+        RunScoreBucket.Week => "week",
+        _ => throw new ArgumentOutOfRangeException(nameof(bucket), bucket, message: null),
+    };
+
+    /// <summary>Reads every remaining row of the current result set as a (key, kind) aggregate.</summary>
+    private static async ValueTask<List<RunScoreAggregate>> ReadAggregatesAsync(
+        DbDataReader reader, CancellationToken cancellationToken)
+    {
+        var result = new List<RunScoreAggregate>();
+
+        while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+        {
+            result.Add(ReadAggregate(reader, keyOrdinal: 0, kindOrdinal: 1, countOrdinal: 2));
+        }
+
+        return result;
+    }
+
+    private static RunScoreAggregate ReadAggregate(DbDataReader reader, int keyOrdinal, int kindOrdinal, int countOrdinal)
+        => new()
+        {
+            Key = reader.GetString(keyOrdinal),
+            Kind = (RunScoreKind)reader.GetInt16(kindOrdinal),
+            Count = reader.GetInt64(countOrdinal),
+            NoValueCount = reader.GetInt64(countOrdinal + 1),
+            Average = DbHelpers.GetNullableDouble(reader, countOrdinal + 2),
+            Minimum = DbHelpers.GetNullableDouble(reader, countOrdinal + 3),
+            Maximum = DbHelpers.GetNullableDouble(reader, countOrdinal + 4),
+        };
+
+    /// <summary>Attaches this name's category counts, capped at <paramref name="maxRows"/>.</summary>
+    private static RunScoreAggregate ApplyCategories(
+        RunScoreAggregate aggregate,
+        Dictionary<string, List<(string Category, long Count)>> categoriesByName,
+        int maxRows)
+    {
+        if (aggregate.Kind != RunScoreKind.Categorical || !categoriesByName.TryGetValue(aggregate.Key, out var categories))
+        {
+            return aggregate;
+        }
+
+        var kept = categories.Take(maxRows)
+            .ToDictionary(static pair => pair.Category, static pair => pair.Count, StringComparer.Ordinal);
+
+        return aggregate with
+        {
+            Categories = kept,
+            TruncatedCategoryCount = Math.Max(0, categories.Count - kept.Count),
+        };
+    }
 }
