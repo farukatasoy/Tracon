@@ -4901,3 +4901,46 @@ CA1305 bu sınıfı KAPATMAZ: format belirteçli bir interpolasyon `string.Forma
 ### K-723
 
 `capabilities.md` bir Markdown tablosudur ve bir hücrede alternatif yazmanın tek yolu kaçırılmış borudur (`<runId\|previous>`). `splitRow` her boruda bölüyordu: hücre kaçış noktasında kesiliyor ve sevk edilen haritaya sarkan bir ters bölü (`--baseline <runId\`) yazılıyordu. Tabloda kaçırılmış boru kullanan İLK satır bunu ortaya çıkardı — kusur o güne kadar görünmezdi çünkü hiçbir hücre buna ihtiyaç duymamıştı. Bölme artık ters bölü ile korunan boruyu atlar ve kaçışı hücre içinde çözer; `build-agent-map.test.mjs` hem bunu hem ayırıcı satırının hâlâ tanındığını kilitler.
+
+## Faz 90 damıtmasında taşınan gerekçeler
+
+### K-541 — devam (Faz 90 damıtması)
+
+👤
+
+### K-600 — devam (Faz 90 damıtması)
+
+Sıra bağlayıcıdır: önce kes-sonra taşı bir kesintide kalıcı kayıp bırakır. 👤🔁
+
+### K-710 — devam (Faz 90 damıtması)
+
+Yargıcın `author = judge:{ad}` kaçışı KALIR.
+
+### K-672 — devam (Faz 90 damıtması)
+
+`PatternContentGuard`'ın `Source`'u okumaması bilinçli bir sözleşmedir — yerleşik guard aynı desenleri her kaynakta uygular, `Unknown` dahil; kaynağa göre gevşeme isteyen bir tüketici kendi `IContentGuard`'ını yazar.
+
+### K-673 — devam (Faz 90 damıtması)
+
+Plan başlığındaki "migration yok" öncülü `faz-baslangic` araştırmasında YANLIŞ çıktı — `run_events.type` `smallint`/`INTEGER`'dır, metin değil; bu yüzden karar gerçek bir şema kararına dönüştü ve kullanıcıya soruldu.
+
+### K-674 — devam (Faz 90 damıtması)
+
+"Gözlemlenebilirlik işlevselliği bozmaz" ilkesiyle (K-089 ailesi) gerilim bilerek kabul edildi — o ilke AgentPrism'in KENDİ yazdığı olaylar için geçerlidir, tüketicinin kendi çağrısının geçerliliğini doğrulamak için değil. Doğrulama `Interlocked.Increment`'ten ÖNCE çalışır, reddedilen bir çağrı sequence numarası TÜKETMEZ.
+
+### K-675 — devam (Faz 90 damıtması)
+
+Üç migration (Postgres 0045, SqlServer/Sqlite 0032) — `jsonb`/`nvarchar(max)`/`TEXT`, hep en sona eklenen sütun deseni (`argument_conditions` emsali).
+
+### K-676 — devam (Faz 90 damıtması)
+
+Ham argümanlar (`PendingApproval.Arguments`) her durumda erişilebilir kalır. Varsayılan zaman aşımı 2 saniye (`AgentPrismToolOptions.ApprovalPresentationTimeout`) — çözümleyicinin tek bir hızlı, salt okunur arama yapması beklenir.
+
+### K-696 — devam (Faz 90 damıtması)
+
+⚠️ Handler kaydetmiş kurulumlarda davranış değişikliği (fail-closed).
+
+### K-702 — devam (Faz 90 damıtması)
+
+Ayırt edici iki tarafta da `nullable` annotation'ıdır.
+
