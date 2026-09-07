@@ -366,6 +366,7 @@ AgentPrism.Testing.Contracts.Storage.RunScoreStoreContract.Canceled_token_throws
 AgentPrism.Testing.Contracts.Storage.RunScoreStoreContract.Categorical_scores_report_category_counts_not_an_average() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.RunScoreStoreContract.Category_cardinality_beyond_MaxRows_is_truncated_and_reported() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.RunScoreStoreContract.Concurrent_writes_of_the_SAME_name_leave_exactly_one_row() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.Storage.RunScoreStoreContract.Concurrent_writes_with_null_and_empty_MessageId_leave_exactly_one_row() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.RunScoreStoreContract.Deleting_a_nonexistent_score_returns_false() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.RunScoreStoreContract.Different_authors_score_the_same_target_independently() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.RunScoreStoreContract.Different_kinds_of_the_same_name_are_not_averaged_together() -> System.Threading.Tasks.Task!

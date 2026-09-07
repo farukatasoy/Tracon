@@ -1633,9 +1633,16 @@ internal sealed class SqlServerQueries : SqlQueriesBase
         // is NULL (an identity-less setup) -- no row matches and the flow
         // falls through to INSERT. This is DELIBERATE: the uniqueness index
         // is filtered with `WHERE author IS NOT NULL` for the same reason
-        // (migration 0005). An ISNULL match is enough for message_id; in SQL
-        // Server a plain NULL comparison already treats NULLs as equal to
-        // each other.
+        // (migration 0005).
+        //
+        // 🚨 message_key, NOT ISNULL(message_id, N''), closes F-215
+        // (docs/hafiza/sql-server-tuzaklari.md): wrapping the COLUMN in
+        // ISNULL made the predicate non-sargable, so WITH (UPDLOCK,
+        // SERIALIZABLE) could not range-lock `run_scores_target_author_name_idx`
+        // and two concurrent upserts of the same target both inserted.
+        // `message_key` (migration 0037) is a PERSISTED computed column that
+        // carries the SAME normalization as a plain, indexed value -- the
+        // predicate wraps only the PARAMETER, which does not affect sargability.
         UpsertRunScore = $"""
             UPDATE {Schema}.run_scores WITH (UPDLOCK, SERIALIZABLE)
                SET kind       = @kind,
@@ -1647,7 +1654,7 @@ internal sealed class SqlServerQueries : SqlQueriesBase
              OUTPUT {runScoreOutput}
              WHERE tenant_id = @tenant_id
                AND run_id = @run_id
-               AND ISNULL(message_id, N'') = ISNULL(@message_id, N'')
+               AND message_key = ISNULL(@message_id, N'')
                AND author = @author
                AND name = @name;
 

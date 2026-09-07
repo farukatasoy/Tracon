@@ -143,6 +143,14 @@
 > izole koşumda da düşüyor. Bu turda **kapatılmadı** — çözümü migration
 > gerektirir (kullanıcı kararı). Kayıt aşağıdadır.
 >
+> **Ek (2026-09-07, kusur turu):** **F-215** ayrı bir `kusur-giderme` turunda
+> kapandı — `message_key` computed column + index taşıma (migration 0037) ve
+> `SqlRunScoreStore.UpsertAsync`'e eklenen yeniden deneme. Sınıf taraması üç
+> kardeş bulgu işaretledi (`quotas` · `skill_script_grants` ·
+> `tool_approval_rules`), ama hiçbiri canlı yarışı üretmedi (32 eşzamanlı
+> denemeyle doğrulandı) — düzeltilmediler. Karar: **K-724**. Tam kapanış kaydı
+> aşağıdadır.
+>
 > Faz durumu yalnız üretilen [`YOL-HARITASI.md`](YOL-HARITASI.md)'dedir.
 > Bir kusur bu dosyaya geri girmez; `kusur-giderme` kanalına gider. Kapatılmış
 > kararın yeniden açılması kullanıcı kararıdır. Ölçüm bekleyen iddia, kanıt
@@ -969,60 +977,35 @@ tüketici talebi olmadan yapılırsa geri alması pahalıdır.
 
 ---
 
-### F-215 · SQL Server'ın `run_scores` upsert'ü yarışıyor ve `NULL`/`''` semantiği kardeşlerinden sapıyor
+### F-215 · SQL Server'ın `run_scores` upsert'ü yarışıyor ve `NULL`/`''` semantiği kardeşlerinden sapıyor — ✅ KAPANDI (2026-09-07)
 
-> **Kusur kanalı, faz değil.** Çözümü **migration** gerektirir (kalıcı veri
-> kararı) ve bir `K-*` açar; bu yüzden kendi turunda kapanır.
-
-**Repro (kilitli, 2026-09-07):**
-`AgentPrism.SqlServer.IntegrationTests --filter-method "*Concurrent_writes_of_the_SAME_name*"`
-— **izole koşumda 3 turun 2'sinde** düşer:
-
-```
-SqlException : Cannot insert duplicate key row in object 't_….run_scores'
-with unique index 'run_scores_target_author_name_idx'.
-```
-
-Kırılgan test **değildir**: izole de düşer. Kusur 2026-08-24'ten
-(`102ab384`) beri sevk ediliyor. Postgres 767/767 ve SQLite 711/711 yeşil —
-sapma tek sağlayıcıdadır.
-
-**İki ayrı bulgu, tek kök:**
-
-| # | Bulgu | Ölçüm |
-|---|---|---|
-| 1 | **Yarış** | [`SqlServerQueries.cs:1650`](../src/AgentPrism.SqlServer/Internal/SqlServerQueries.cs#L1650) `ISNULL(message_id, N'') = ISNULL(@message_id, N'')` ile arıyor. Sarmalanmış sütun **sargable değildir**, yani `UPDATE ... WITH (UPDLOCK, SERIALIZABLE)` `run_scores_target_author_name_idx` üzerinde range lock **alamaz**; iki eşzamanlı oturum da `@@ROWCOUNT = 0` görüp `INSERT` eder |
-| 2 | **Sözleşme sapması** | SQL Server [`0035:45`](../src/AgentPrism.SqlServer/Migrations/0035_run_score_name_and_shape.sql#L45) **ham sütunu** indeksler → `NULL` ile `''` AYRI anahtarlardır. Postgres [`0048:54`](../src/AgentPrism.PostgreSql/Migrations/0048_run_score_name_and_shape.sql#L54) ve SQLite [`0035:44`](../src/AgentPrism.Sqlite/Migrations/0035_run_score_name_and_shape.sql#L44) **`COALESCE(message_id, '')` ifadesini** indeksler → aynıdırlar. Aynı `(run, author, name)` için `MessageId = null` ve `MessageId = ""` SQL Server'da **iki satır**, kardeşlerinde **bir satır** üretir |
-
-Upsert predicate'i (1) `NULL`/`''`'ü aynı sayar, indeks (2) ayrı sayar — kod
-kendi içinde de tutarsızdır.
-
-**Önerilen çözüm (ölçülmedi):** SQL Server'a `message_key AS ISNULL(message_id, N'') PERSISTED`
-computed column'u ve unique index'i o sütuna taşımak; predicate `message_key = ISNULL(@message_id, N'')`
-olur. Tek hamlede ikisini de kapatır: semantik kardeşlerine uyar **ve** predicate
-sargable olduğu için range lock gerçekten tutar. 🚨 Migration mevcut satırlarda
-`NULL` ile `''` çiftlerini birleştirmek zorunda kalabilir — yazılmadan önce
-üretimde böyle bir çift var mı ölçülmelidir.
-
-**Alternatif:** yalnız yarışı kapatan bir yeniden deneme (duplicate key
-`2601`/`2627` yakalanır, `UPDATE` tekrarlanır). Şemaya dokunmaz ama (2)'yi
-açık bırakır ve semptom tedavisidir.
-
-**Değer:** Sevk edilen bir sözleşme sağlayıcıya göre farklı davranıyor ve
-eşzamanlı bir yazar üretimde `500` alıyor.
-
-**Mercek:** 2, 3.
-
-**Hazırlık:** Repro kilitli, kök sebep ölçüldü, çözüm tasarlandı — ölçülmedi.
-
-**Maliyet:** Bir migration + bir sorgu + `RunScoreStoreContract`'a
-"`null` ile `\"\"` aynı hedeftir" case'i. Contract case'i **dört** store'da koşar.
-
-**Risk:** Migration kalıcı veriye dokunur; `K-*` gerektirir.
-
-**Bulunma yeri:** F-214 · F-211 · F-212 turunun **kendi kapanış kapısı**
-(F-206 emsali). F-214'ün sınıf taraması bunu KAÇIRDI: tarama `IS NULL` ve
-`= ''` desenlerini aradı, `ISNULL(` sarmalını aramadı.
+**Kapanış:** `kusur-giderme` faz dışı koşuldu. Önerilen çözüm (`message_key AS ISNULL(message_id, N'') PERSISTED`
++ index taşıma) [`0037_run_score_message_key.sql`](../src/AgentPrism.SqlServer/Migrations/0037_run_score_message_key.sql)
+ile uygulandı; migration mevcut `NULL`/`''` çiftlerini `0025_provider_name_case.sql`
+emsaliyle dedupe eder (en yeni `created_at` kalır). **Boşluk kaydın önerdiğinden
+büyüktü:** sargable predicate tek başına YETMEDİ — tam paket koşumunda (izole
+koşumda değil) `Concurrent_writes_with_null_and_empty_MessageId_leave_exactly_one_row`
+canlı bir `SqlException: Cannot insert duplicate key row` fırlattı, çünkü
+`UPDATE`-sonra-`INSERT` deseninin (K-177) dar bir yarış penceresi index
+sargable olsa bile kapanmıyor — repodaki her diğer iki dallı upsert
+(`SqlEvalStore.AddCaseAsync`, `SqlAuditLog.WriteAsync`) bu yüzden
+`Dialect.IsUniqueViolation` ile yeniden dener, `SqlRunScoreStore.UpsertAsync`
+bu deseni hiç taşımıyordu. Beşe kadar yeniden deneme eklendi. **Sınıf
+taraması** üç kardeş bulguyu (`quotas.agent_name`, `skill_script_grants.script_name`,
+`tool_approval_rules.{agent_name,arguments_hash,conditions_hash}`) aynı
+ISNULL-sarmalı/ham-sütun deseniyle işaretledi, ama 32 eşzamanlı doğrudan-analog
+denemesiyle DOĞRULANDI ki hiçbiri canlı yarışı üretmiyor — ayırt edici etken
+`run_scores`'un indeksinin **filtreli** olması (`WHERE author IS NOT NULL`);
+üç kardeşin indeksi filtresiz düz `UNIQUE` ve SQL Server o durumda kilidi doğru
+alıyor görünüyor. Üçü de düzeltilmedi — kanıtlanmış bir kusur değil, ölçülüp
+kapatılmış bir sanı. **Kapı:** `RunScoreStoreContract`'a **iki** yeni test —
+sıralı çağrı zaten `ISNULL` eşleşmesiyle toplandığı için (`Score_with_no_message_id_belongs_to_the_whole_run`
+gibi testler bunu kanıtlamaz) ikisi de **eşzamanlı**: orijinal repro
+(`Concurrent_writes_of_the_SAME_name_leave_exactly_one_row`, 3/3 izole koşumda
+düşüyordu, kayıt 2/3 diyordu) ve yeni `null`/`''` varyantı (3/3 düşüyordu).
+Düzeltmeden sonra SQL Server tam paketi (703/703) iki ayrı koşumda, Postgres
+(768/768) ve SQLite (712/712) yeşil. Karar: **K-724**. **Tuzak:**
+`docs/hafiza/sql-server-tuzaklari.md`.
 
 ---
 
