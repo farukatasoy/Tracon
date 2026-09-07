@@ -623,3 +623,32 @@ ikinci vakayı buldu; bedeli kaybolan bir denetim kaydıydı.
 - **🚨 Kiraciyi PARAMETRE olarak almayan depolar icin iki depo ornegi KURULAMAZ** (2026-08-07, Faz 41, K-282): bellek ici depolar durumu ornek icinde tasir; iki ornek ayni arka uca bakmaz. Cozum `MutableTenantContext`: tek depo ornegi, cagrilar arasinda degisen kiraci. Sozlesme kancasinin ilk satiri `AmbientTenant.TenantId = tenantId;` olur.
 - **🚨 Bellek ici depoyu kuran testte kiraci baglamini da ver** (2026-08-07, Faz 41): `new InMemoryRunStore()` varsayilan olarak `"default"` kiracisina baglanir. `RunRecordingAgent`'i baska bir `ITenantContext` ile kurup depoyu parametresiz olusturursan `QueryRunsAsync` BOS doner ve hata "test yanlis kurulmus" gibi degil "kayit yazilmamis" gibi gorunur. Faz 41'de 23 test bu sekilde kirildi; duzeltme `new InMemoryRunStore(tenantContext: ...)`.
 
+## CA1305 ve kultur bagimli sevk edilen metin (Faz 153, K-720)
+
+Kusur tr-TR bir makinede `agentprism eval`'in "in 3,7 s" yazmasiyla gorundu;
+gorunen yarisi buydu. Ayni sinif kalici bir `run` hatasina "0,004500" ve bir
+`ProblemDetails` govdesine "%50" yaziyordu — ayni dagitim, uretildigi makineye
+gore farkli okunuyor. Asimetri kusuru dogurmustu: GIRDI tarafi zaten
+`CultureInfo.InvariantCulture` ile ayristiriyordu (`ParseOptionalDouble`),
+cikti tarafi ortam kulturunu kullaniyordu.
+
+Sinif taramasi ONCE alti yer buldu, sonra OLCUM ucunu eledi. tr-TR'de:
+`0.0` → "3,7", `0.000000` → "1,500000", `P0` → "%50" (invariant "50 %") farkli;
+`F0` → "3600" ve `0` → "3600" AYNI — bu iki belirtec hicbir kulturde basamak
+gruplamaz. Bu yuzden ilk taramada "duzeltilen" uc `:F0` yeri
+(`TimeoutAIFunction`, `ModelProviderCircuitBreaker`, `ModelProviderHealthCache`)
+GERI ALINDI: orada kusur yoktu ve dokunmak gereksiz degisiklikti. Gercek uc yer
+`AgentRunBudget`, `PreflightGate` ve `EvalCommand`'dir.
+
+Analyzer bu sinifi kapatamaz. `.editorconfig`'e
+`dotnet_diagnostic.CA1305.severity = warning` yazip tum solution derlendi:
+sifir bulgu. Sebep, format belirtecli bir interpolasyonun `string.Format`
+cagrisina degil `DefaultInterpolatedStringHandler`'a derlenmesidir; CA1305
+"IFormatProvider'siz `string.Format`/`ToString`" arar ve boyle bir cagri yoktur.
+
+Guard bu yuzden davranissaldir ve TEK bir gercek vaka kilitler
+(`InvariantShippedTextTests`, `AgentRunBudget`'in maliyet dali; duzeltme geri
+alinarak testin kirmizi oldugu dogrulandi). Diger iki yer bir host ve bir surec
+sinirinin arkasindadir; onlari kapsayacak kultur kapsamli bir test yanindaki
+paralel testlere sizardi. Kapsanmadiklari testin kendi yorumunda ACIKCA
+yazilidir — hicbir sey kanitlamayan bir testle ortulmedi.
