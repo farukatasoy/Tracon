@@ -4742,3 +4742,96 @@ Tüketicinin F2 metni yalnız "kabul edilmeyen default çözülüyorsa" diyordu;
 ### K-504
 
 Plan dosya listesi `Tools/SpeakTool.cs`'i "değişir" diye işaretlemişti, dokunulmadı: tool sonucu modele düz metin özet döner (`attachmentId`/`type`/`size`/`duration`), hizalama verisini taşıyacak bir alan yok ve planın HTTP uç tablosu zaten yalnız operatör ucunu adlandırıyordu.
+
+
+### K-703
+
+Plan "bugün son değer `Custom = 29` (ölçüldü)" diyordu; `RunEventType.cs`
+okununca 30'un Faz 144'ten beri `ChildRunTimedOut` olduğu görüldü.
+`run_events.type` bir `smallint` sütunudur ve saklanan değer enum'un SAYISAL
+karşılığıdır — var olan bir üyeyi kaydırmak, o tipteki her kayıtlı olayı
+sessizce yeniden yorumlar. Yeni üye 31'dir ve `Custom = 29`'un ARKASINA
+eklenir; `RunEventTypeTests` hem tam kümeyi hem `Custom`'ın 29'da kalmasını
+kilitler. Bu, K-492'nin ("plandaki yeni enum değeri iddiası kod okunmadan
+güvenilmez") ikinci vakasıdır ve aynı dosyada geçti.
+
+### K-704
+
+Üç şey MAF 1.20.0'a karşı bir probe ile ÖLÇÜLDÜ (2026-09-07, sahte bir
+`IChatClient` ve loglayan evaluator'larla):
+
+1. **Kısa devre.** MAF, `Continue` diyen İLK evaluator'da durur; sıradaki
+   evaluator o iterasyonda **hiç çağrılmaz**. İki evaluator'lu koşumda birincisi
+   her turda `Continue` dedi ve ikincisinin logu **boş** kaldı.
+2. **İstisna sızar.** Bir evaluator `InvalidOperationException` attığında
+   istisna `RunAsync`'ten dışarı çıktı ve `run` düştü.
+3. **`LoopContext.Feedback` birikir** — `[]`, `[FB]`, `[FB, FB]`.
+
+Listeyi doğrudan `HarnessAgentOptions.LoopEvaluators`'a geçirmek üç şeyi
+imkânsız kılıyordu: iterasyon başına **tek** olay (ölçüt başına sarmalayıcı N
+olay yazardı ve tüketici iterasyon sayısını olay sayısından okuyamazdı), devam
+isteyen ölçütün **adı**, ve bir ölçütün istisnasının **kapsanması**.
+`RecordingLoopEvaluator` MAF'ın kısa devresini birebir yeniden üretir — yani
+ucuz bir `completionMarker`'ın arkasına konan pahalı bir `aiJudge` yine
+çağrılmaz — ve kazanan `LoopEvaluation`'ı **olduğu gibi** döndürür
+(`ContinueWithMessages` ile gelen mesajlar `Continue(feedback)` ile yeniden
+kurulsaydı düşerdi).
+
+### K-705
+
+Probe ölçtü: `LoopAgentOptions.MaxIterations = null` iken MAF **kendi**
+varsayılanıyla 10 iterasyonda duruyor — yani "sınırsız" değil. Ama o sayı MAF'ın
+belgelenmemiş bir iç varsayılanıdır ve sürümle sessizce değişebilir. AgentPrism
+aynı sayıyı `LoopSettings.DefaultMaxIterations = 10` olarak **açıkça** yazar:
+garanti tüketiciye AgentPrism tarafından verilir, üçüncü bir tarafın
+varsayılanından ödünç alınmaz. Sayı küçük seçildi çünkü yükseltmek geri
+alınabilir, indirmek kırıcıdır; ulaşılamayan bir ölçüt (modelin yazmadığı bir
+`marker`, ikna olmayan bir yargıç) böylece bir faturaya değil sınırlı bir
+`run`'a dönüşür.
+
+### K-706
+
+`aiJudge` **her iterasyonda** bir model çağırır. Agent'ın kendi binding'ine
+düşmek, döngünün maliyetini agent'ın modeline bağlar — pahalı bir modelde
+faturayı ikiye katlar ve tüketici bunu ancak faturada görür. `AddModelRunJudge`
+binding'i zaten bu iş için vardır: ayrı seçilir, ayrı fiyatlandırılır ve
+`ModelRunJudge` ile aynı sayıyı paylaşır, yani host **bir** yargıç modeli
+yapılandırır, iki değil. Yapılandırılmamışsa tanım **derlenmez**; sessizce
+agent'ın modeline düşmek K1'in (sıfır sürpriz) ihlali olurdu.
+
+### K-707
+
+Ölçüldü (K-704, madde 2): bir evaluator istisnası MAF'ın döngüsünden dışarı
+sızar ve `run`'ı düşürür. `aiJudge` bir ağ çağrısıdır; sağlayıcı ulaşılamazsa
+agent'ın **zaten bitirdiği iş** çöpe giderdi. `RecordingLoopEvaluator` istisnayı
+yakalar, döngüyü durdurur ve son yanıtı döndürür — `run` `Completed` kapanır.
+Hata yutulmaz: `LogError` ile loglanır ve iterasyon olayının `failedCriterion`
+alanında **adıyla** görünür, yani "hiç koşamayan ölçüt" ile "karşılanan ölçüt"
+kayıtta ayırt edilebilir kalır. `OperationCanceledException` bu koldan
+BİLEREK muaftır — iptal bir ölçüt arızası değildir ve öyle raporlanmamalıdır.
+
+### K-708
+
+`AddLoopEvaluator("aiJudge", ...)` kabul edilseydi, AYNI tanım iki uygulamada
+farklı anlama gelirdi — bildirimsel bir `kind` adının varlık sebebi tam olarak
+bunu engellemektir. Kayıt anında `AgentPrismException` ile reddedilir.
+`EvalCheckRegistry` yerleşik `kind`'leri bir `switch` ile önce eşleştirdiği için
+gölgelemeyi zaten sessizce yok sayıyordu; döngüde sessizlik yerine ret seçildi,
+çünkü burada gölgelenen şey bir **durma koşuludur**.
+
+### K-709
+
+Plan ve DoD, `LoopEvaluator` kaydını "sekizinci genişleme noktası" sayıp
+`AgentPrismExtensionPoints` tablosuna eklemeyi istiyordu. Tablo okununca iddia
+düştü: o tablo **DI'dan çözülen, tek örnekli, yerleşik varsayılanı olan**
+sözleşmeler içindir. İki çağıranı da bunu varsayar —
+`AgentPrismDiagnosticsCollector` `_tenantContext.GetType() ==
+BuiltInDefaultOf(...)` karşılaştırması yapar, `RequiredBindingValidator` bir
+`scope`'tan tipi çözer. `kind` ile anahtarlanmış bir kayıt kümesinin ne yerleşik
+varsayılan bir **tipi** vardır ne de `RequireCustomBinding<LoopEvaluator>()`
+anlamlıdır: tüketici `LoopEvaluator`'ı "bağlamaz", ada göre kaydeder.
+
+Emsal aynı repodadır: `AddEvalCheck` / `AgentPrismEvalCheckRegistration` de o
+tabloda **değildir** ve aynı sebeple değildir. Döngü onu izler. DoD'un o satırı
+karşılanmadı; kapsam bunun yerine `CapabilityCoverageTests` ile kapandı — yeni
+giriş noktası yetenek haritasında adıyla görünür.

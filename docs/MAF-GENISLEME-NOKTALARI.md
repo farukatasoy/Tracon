@@ -350,7 +350,8 @@ AgentSkill · AgentSkillsProvider                       → Faz 10 (F-09)
 BackgroundAgentsProvider · HarnessAgentOptions.BackgroundAgents → Faz 12 (F-10, K-062)
 ChatHistoryMemoryProvider · VectorStore                → planlanmadi (K-105 — VectorStore karari verilince)
 EvalItem · EvalCheck · LocalEvaluator · IAgentEvaluator → Faz 18 (F-14)
-AIJudgeLoopEvaluator · LoopAgent                       → planlanmadi (eval'den AYRI kavram)
+LoopAgent · LoopEvaluator (5 yerlesik)                 → Faz 151 TAMAMLANDI (F-192, K-704)
+  HarnessAgentOptions.{LoopEvaluators,LoopAgentOptions}  → HarnessSettings.Loop
 Microsoft.Agents.AI.Workflows                          → Faz 15 TAMAMLANDI (F-27, K-054)
   AgentWorkflowBuilder.Build{Sequential,Concurrent}      → hazir desen fabrikalari
   AgentWorkflowBuilder.Create{Handoff,GroupChat,Magentic}BuilderWith
@@ -375,7 +376,7 @@ Microsoft.Agents.AI.Workflows.Declarative               → ALINMADI (K-129: +19
 | `WorkflowVisualizer.ToMermaidString(workflow)` **var** | Graf metni MAF'tan gelir; arayüz onu **çizmez**, dışa aktarır — mermaid.js ~100 KB gzip eder (K-132) |
 | `AIAgent.Id` sanal değil ama arka alanı salt-okunur **değil** (Faz 16) | Kalıcı executor kimliği bu alana yazılarak kuruldu; kontrol noktaları süreç ömrünü aşar (K-127) |
 | Kontrol noktası bekleyen isteği taşır ve sürdürmede **aynı `RequestId` ile yeniden yayınlanır** (Faz 16) | Yanıt saklanan bir nesneyle değil, yeniden yayınlanan istekle eşleştirilir (K-128) |
-| `HarnessAgentOptions` üyeleri: `AgentSkillsSource`, `CompactionStrategy`, `FileMemoryStore`, `LoopEvaluators`, `BackgroundAgents` | Harness zaten bunları içeride kullanıyor; düz agent için açığa çıkarmak gerekir |
+| `HarnessAgentOptions` üyeleri: `AgentSkillsSource`, `CompactionStrategy`, `FileMemoryStore`, `BackgroundAgents` | Harness zaten bunları içeride kullanıyor; düz agent için açığa çıkarmak gerekir. `LoopEvaluators`/`LoopAgentOptions` Faz 151'de bağlandı — `LoopAgent` harness'in **içine** yerleşir (ölçüldü), düz agent'ta yoktur |
 | `ChatHistoryMemoryProvider` **`VectorStore` istiyor**, basit bellek değil (Faz 13) | Kapsam dışı bırakıldı (K-105); vektör deposu kararı verilince ayrı bir faz |
 | `CompactionProvider` **tokenizer parametresi almaz**, MAF içeride kendi çözer (Faz 13) | `Microsoft.ML.Tokenizers.Data.*` gibi bir veri paketi gerekmedi; gerçek çalıştırmayla doğrulandı |
 | `CompactionStrategy.CompactAsync` **public ve sanal değil**, `CompactCoreAsync` korumalı (Faz 13) | Bir sarmalayıcı iç stratejiyi ancak `CompactAsync` ile çağırabilir — C#'ta korumalı üyeye kardeş tip üzerinden erişilemez |

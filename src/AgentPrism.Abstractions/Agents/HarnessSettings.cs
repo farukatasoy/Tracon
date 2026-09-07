@@ -46,4 +46,17 @@ public sealed record HarnessSettings
 
     /// <summary>Gets a value that turns off the agent mode provider.</summary>
     public bool DisableAgentModeProvider { get; init; }
+
+    /// <summary>
+    /// Gets the loop (run-until-done) settings. <see langword="null"/>, the
+    /// default, leaves the loop off.
+    /// </summary>
+    /// <remarks>
+    /// Not to be confused with <c>MaximumIterationsPerRequest</c>, which
+    /// bounds the harness's INNER tool-calling loop within a single invocation.
+    /// <c>LoopSettings</c> bounds the OUTER loop that re-invokes the whole
+    /// agent until a stop criterion is satisfied. See <c>LoopSettings</c>
+    /// for the comparison in full.
+    /// </remarks>
+    public LoopSettings? Loop { get; init; }
 }

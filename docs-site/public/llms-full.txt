@@ -48,6 +48,7 @@ workflow, MCP, voice, and external protocol packages add their own explicit call
 | Structured output | Explicit text, JSON, or JSON Schema responses | `ModelBinding.ResponseFormat` | Provider support is validated or translated by that provider; an opt-in, fail-closed `IStructuredResponseValidator` seam can check the response before the run closes; a rejected response can get a bounded number of model-driven repair turns (`MaxRepairAttempts`), non-streaming runs only |
 | Agent graph | One agent can call registered agents as tools | `CallableAgentNames` | Shared limits bound call depth, total child runs, total token/cost spend, and wall-clock time — the token, cost, and time limits cut a run off mid-run, between model turns. Each call also has a two-layer wait limit (`SubAgentSettings`, or the installation-wide default): a cooperative deadline, then a hard cutoff that abandons a child that ignores cancellation |
 | Harness mode | Context and iteration limits plus todo, file-memory, web-search, skill, and mode providers | `AgentDefinition.Harness` | The harness extends the agent; it does not replace MAF types. Its providers are on by default — each has its own `Disable...` flag |
+| Harness loop | The agent is re-invoked until a declared stop criterion says the work is finished | `HarnessSettings.Loop`, plus `AddLoopEvaluator(kind, evaluator)` for a criterion written in code | Off unless the definition sets it. Four built-in criterion kinds take data only; an unknown kind is refused at compile time. The iteration ceiling is never open — an unset `MaxIterations` takes AgentPrism's own default — and every iteration writes a `LoopIterationCompleted` run event |
 | Context compaction | Trigger-based truncation or summarization with preserved turns and an optional utility model | `AgentDefinition.Compaction` and `AgentPrism:UtilityModel` | Compaction is per definition and can be disabled by harness settings |
 | Working memory | Todo state, file memory, text search, and vector search tools | `AgentDefinition.Memory` | Vector search also needs PostgreSQL and an embedding generator |
 | Response caching | A tenant-, provider-, and tool-set-aware cache; a hit spends no tokens and opens no new trace span | `ModelBinding.ResponseCache` | Needs a registered `IDistributedCache`, or the agent fails to compile |
@@ -305,8 +306,7 @@ template's `.gitignore` already covers it.
 | Integrated tests | `AgentPrismTestHost` builds a real catalog and in-memory stores |
 | Assertions | `RunAssertions` checks recorded runs without binding to a unit-test framework |
 
-In-memory stores make every contract usable before any database exists, and the
-consumer's own registration always wins over the built-in one.
+In-memory stores make every contract usable before any database exists.
 
 Use [Compatibility](/reference/compatibility/) before you choose packages
 for a target framework or native AOT application. Use
@@ -553,6 +553,86 @@ Five rules hold across the tree:
   naming which layer cut it.
 
 The whole tree is readable with `GET /api/runs/{runId}/tree`, from any member.
+
+## Run until the work is done
+
+A single agent invocation answers once. `HarnessSettings.Loop` re-invokes the
+agent until a declared stop criterion says the work is finished, and records
+every iteration in the run:
+
+```csharp
+new AgentDefinition
+{
+    Name = "researcher",
+    Harness = new HarnessSettings
+    {
+        Loop = new LoopSettings
+        {
+            Criteria = [new LoopCriterion { Kind = "completionMarker", Marker = "ALL DONE" }],
+            MaxIterations = 5,
+        },
+    },
+    // ...
+};
+```
+
+The loop is off while `Loop` is null, which is the default.
+
+**`MaxIterations` is not `MaximumIterationsPerRequest`.** The two bound
+different loops. `MaximumIterationsPerRequest` bounds the harness's *inner*
+tool-calling loop inside one invocation. `MaxIterations` bounds the *outer*
+loop that invokes the agent again after a criterion says the work is not
+finished.
+
+Four criterion kinds are built in, and each one takes data only:
+
+| Kind | What stops the loop | Fields it reads |
+|---|---|---|
+| `completionMarker` | The answer contains a marker text | `marker` (required) |
+| `todoCompletion` | The todo list has no open item left | `modes` |
+| `aiJudge` | A judge model decides the work is finished | `judgeCriteria` (required), `judgeInstructions` |
+| `backgroundTaskCompletion` | No background task is still running | — |
+
+A criterion whose logic is code is registered in code and referenced by name,
+the same boundary tools and eval checks live behind:
+
+```csharp
+// Microsoft Agent Framework marks the loop types for evaluation only, so
+// naming one in your own code needs this suppression.
+#pragma warning disable MAAI001
+agentPrism.AddLoopEvaluator("hasCitations", new DelegateLoopEvaluator((context, ct) =>
+    new ValueTask<LoopEvaluation>(
+        context.LastResponse?.Text?.Contains("[1]", StringComparison.Ordinal) == true
+            ? LoopEvaluation.Stop()
+            : LoopEvaluation.Continue("Add a numbered citation for every claim."))));
+#pragma warning restore MAAI001
+```
+
+A definition can then use `Kind = "hasCitations"`. A kind that is neither built
+in nor registered is refused when the definition is saved, with `400`. It is
+never ignored: a stop criterion that is silently dropped leaves a loop with no
+stop criterion.
+
+Four more rules are worth knowing before you turn the loop on:
+
+- **Criteria are evaluated in order, and the first one that asks for another
+  iteration wins.** The rest are not evaluated that iteration, so the loop stops
+  only when every criterion is satisfied. Put the cheapest criterion first — an
+  `aiJudge` placed after a `completionMarker` costs nothing on the iterations the
+  marker already keeps going.
+- **The iteration ceiling is never open.** An unset `MaxIterations` takes
+  AgentPrism's own default of 10. A criterion that can never be satisfied then
+  ends as a bounded run, not as an invoice.
+- **`aiJudge` calls a model on every iteration it reaches.** It runs on the
+  judge binding configured with `AddModelRunJudge(...)`, never on the agent's own
+  model. Without that binding the definition does not compile.
+- **A criterion that fails to evaluate stops the loop; it does not fail the
+  run.** The work already finished is returned, and the iteration event names the
+  criterion that failed.
+
+Each finished iteration writes a `LoopIterationCompleted` run event carrying the
+iteration number, whether another iteration follows, and which criterion asked
+for it. The criterion's feedback text is not carried in the event.
 
 ## Read next
 

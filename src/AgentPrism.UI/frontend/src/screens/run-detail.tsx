@@ -98,6 +98,10 @@ const EVENT_STYLE: Record<RunEventType, { label: string; hue: string }> = {
   // sub-agent call ran past its wait limit -- the tree kept going, but an
   // operator should notice which layer cut it (event payload's hardCutoff).
   ChildRunTimedOut: { label: 'child.timed-out', hue: 'var(--ap-amber)' },
+  // Phase 151. Muted, like the other structural markers: one harness loop
+  // iteration finished. It reports progress, not a problem -- the payload's
+  // continuedBy names the criterion that asked for another turn.
+  LoopIterationCompleted: { label: 'loop.iteration-completed', hue: 'var(--ap-muted)' },
 };
 
 /**

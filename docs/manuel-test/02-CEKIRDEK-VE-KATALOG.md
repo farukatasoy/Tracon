@@ -3336,3 +3336,168 @@ gözlendi — `functionCall`/`functionResult` çiftleri stdout'ta doğrulandı.
 > `ObjectToolAotPackageTests.An_object_parameter_tool_publishes_under_Native_AOT_without_a_trim_warning_and_runs`
 > (`tests/AgentPrism.Package.Tests/ObjectToolAotPackageTests.cs`) — koşuldu,
 > 2026-09-02, `osx-arm64`, 31 saniyede geçti.
+
+---
+
+### MT-CORE-123 — `harness.loop` verilmeyen bir agent bugünkü davranışını birebir korur (Faz 151)
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 151 |
+
+**Ön koşul:** `samples/AgentPrism.Api` ayakta; harness'li, döngüsüz bir agent
+tanımı kayıtlı.
+
+**Adımlar**
+1. Tanıma `harness.loop` **eklemeden** bir `run` at:
+   ```bash
+   curl -s -X POST http://localhost:5081/agentprism/api/agents/<ad>/run \
+     -H 'content-type: application/json' -d '{"message":"merhaba"}' | jq '.runId'
+   ```
+2. `curl -s "http://localhost:5081/agentprism/api/runs/<runId>/events" | jq -r '.[].type' | sort -u`
+
+**Beklenen sonuç**
+- Yanıt bugünküyle aynıdır; model **bir kez** çağrılır.
+- Olay akışında `LoopIterationCompleted` **yoktur**.
+
+> **Otomatik karşılığı:** `HarnessLoopTests.A_harness_without_loop_settings_writes_no_iteration_event`
+> ve `LoopCompilationTests.A_harness_without_loop_settings_gets_no_loop_at_all`.
+
+---
+
+### MT-CORE-124 — `completionMarker` ölçütü marker gelene kadar döner ve her iterasyonu kaydeder (Faz 151)
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 151 |
+
+**Ön koşul:** Aynı ortam. Agent talimatı modele "iş bitince `ALL DONE` yaz"
+demelidir; aksi hâlde ölçüt hiç karşılanmaz ve tavana kadar döner.
+
+**Adımlar**
+1. Tanıma ekle ve kaydet:
+   ```json
+   "harness": { "loop": { "criteria": [ { "kind": "completionMarker", "marker": "ALL DONE" } ], "maxIterations": 4 } }
+   ```
+2. Bir `run` at, sonra olayları oku:
+   ```bash
+   curl -s "http://localhost:5081/agentprism/api/runs/<runId>/events" \
+     | jq '[.[] | select(.type=="LoopIterationCompleted")] | length'
+   curl -s "http://localhost:5081/agentprism/api/runs/<runId>/events" \
+     | jq -r '.[] | select(.type=="LoopIterationCompleted") | .payload'
+   ```
+
+**Beklenen sonuç**
+- Model `ALL DONE` yazana kadar tekrar çağrılır, en çok 4 kez.
+- Her iterasyon için bir `LoopIterationCompleted` olayı vardır.
+- Son olayın payload'ında `continued: false`, `continuedBy: null` ve
+  `ceilingReached: false`; önceki olaylarda `continuedBy: "completionMarker"`.
+- Hiçbir payload ölçütün modele yazdığı geri bildirim **metnini** taşımaz.
+
+> **Otomatik karşılığı:** `HarnessLoopTests.A_marker_criterion_loops_until_the_marker_and_records_every_iteration`.
+
+---
+
+### MT-CORE-125 — Ulaşılamayan bir ölçüt AgentPrism'in kendi tavanında durur (Faz 151)
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 151 |
+
+**Ön koşul:** Aynı ortam. 🚨 Bu case **on model çağrısı** üretir; gerçek bir
+sağlayıcıya karşı koşarken ucuz bir model seç.
+
+**Adımlar**
+1. `maxIterations` **vermeden**, modelin yazmayacağı bir marker ver:
+   ```json
+   "harness": { "loop": { "criteria": [ { "kind": "completionMarker", "marker": "ZZZ-NEVER" } ] } }
+   ```
+2. Bir `run` at ve tamamlanmasını bekle.
+
+**Beklenen sonuç**
+- `run` **tamamlanır** (`Completed`), sınırsız çalışmaz.
+- Model **10 kez** çağrılır ama `LoopIterationCompleted` olay sayısı **9**'dur:
+  tavana ulaşan tur değerlendirilmez, çünkü karar verecek bir şey kalmamıştır.
+- Son olayın payload'ında `ceilingReached: true` vardır — döngüyü bitirenin
+  karşılanan bir ölçüt değil tavan olduğu kayıttan okunur.
+
+> **Otomatik karşılığı:** `HarnessLoopTests.An_unreachable_criterion_stops_at_the_AgentPrism_ceiling_instead_of_running_on`.
+
+---
+
+### MT-CORE-126 — Bilinmeyen bir ölçüt `kind`'i kayıtta `400` ile reddedilir (Faz 151)
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 151 |
+
+**Adımlar**
+1. `POST /api/agents` gövdesine
+   `"harness": { "loop": { "criteria": [ { "kind": "yok-boyle-bir-sey" } ] } }` koy.
+2. Aynı gövdeyi `POST /api/agents/validate` ile de gönder.
+
+**Beklenen sonuç**
+- İkisi de `400`; `detail` bilinmeyen `kind`'i ve `AddLoopEvaluator` çağrısını
+  adlandırır. Tanım **kaydedilmez**.
+- Aynı şey `marker`'sız `completionMarker` ve `judgeCriteria`'sız `aiJudge`
+  için de olur.
+
+> **Otomatik karşılığı:** `LoopEvaluatorRegistryTests` (yedi ret vakası) ve
+> `LoopCompilationTests.An_unusable_loop_setting_fails_compilation_rather_than_compiling_a_loop_that_never_stops`.
+
+---
+
+### MT-CORE-127 — Akışlı (`SSE`) `run` aynı iterasyon olaylarını yazar ve çerçeve adı stabildir (Faz 151)
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 151 |
+
+**Ön koşul:** MT-CORE-124'ün döngülü tanımı.
+
+**Adımlar**
+1. Akışlı uçtan bir `run` at ve çerçeveleri kaydet.
+2. Kayıtlı olay akışını oku:
+   `curl -s "http://localhost:5081/agentprism/api/runs/<runId>/events" | head -80`
+3. `GET /api/runs/<runId>/trace` ile `span` ağacına bak.
+
+**Beklenen sonuç**
+- Akışlı koşum akışsız koşumla **aynı sayıda** `LoopIterationCompleted` yazar.
+- Telde çerçeve adı `event: loop.iteration-completed`'dır; `event: unknown`
+  görünmez.
+- Kök `span` kopmaz; iterasyonların iç `span`'leri kökün altındadır.
+
+> **Otomatik karşılığı:** `HarnessLoopTests.The_streaming_path_records_the_same_iterations_and_names_the_frame_on_the_wire`.
+
+---
+
+### MT-CORE-128 — Bütçe tavanı dolunca döngü yeni iterasyon açmaz (Faz 151)
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 151 |
+
+**Ön koşul:** MT-CORE-125'in ulaşılamayan ölçütü, `maxIterations: 8`, ve
+`AgentGraph.MaxTotalTokens` bir tek turda dolacak kadar düşük.
+
+**Adımlar**
+1. Bir `run` at.
+
+**Beklenen sonuç**
+- `run` bütçe hatasıyla durur.
+- Model çağrısı sayısı `maxIterations`'tan **azdır** — döngü bütçe dolduktan
+  sonra yeni iterasyon açmaz.
+
+> **Otomatik karşılığı:** `HarnessLoopTests.An_exhausted_tree_budget_stops_the_loop_rather_than_letting_it_open_another_iteration`.
