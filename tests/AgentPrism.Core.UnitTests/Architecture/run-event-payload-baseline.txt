@@ -12,6 +12,7 @@ Custom | covered | tests/AgentPrism.AspNetCore.FunctionalTests/StreamingTests.cs
 DocumentAttached | covered | tests/AgentPrism.Core.UnitTests/Recording/RunRecordingAgentTests.cs
 ExecutorFailed | covered | tests/AgentPrism.Workflows.UnitTests/WorkflowEventMapperTests.cs
 HistoryCompacted | covered | tests/AgentPrism.Core.UnitTests/Recording/RunRecordingAgentTests.cs
+LoopIterationCompleted | covered | tests/AgentPrism.AspNetCore.FunctionalTests/HarnessLoopTests.cs
 ModelFallbackUsed | covered | tests/AgentPrism.Core.UnitTests/Recording/FallbackRecordingTests.cs
 RunAwaitingInput | covered | tests/AgentPrism.Core.UnitTests/Recording/RunRecordingAgentOutcomeMatrixTests.cs
 StructuredResponseRejected | covered | tests/AgentPrism.Core.UnitTests/Compilation/StructuredResponseValidatingAgentTests.cs

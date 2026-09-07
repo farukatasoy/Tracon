@@ -236,6 +236,92 @@ Five rules hold across the tree:
 
 The whole tree is readable with `GET /api/runs/{runId}/tree`, from any member.
 
+## Run until the work is done
+
+A single agent invocation answers once. `HarnessSettings.Loop` re-invokes the
+agent until a declared stop criterion says the work is finished, and records
+every iteration in the run:
+
+```csharp
+new AgentDefinition
+{
+    Name = "researcher",
+    Harness = new HarnessSettings
+    {
+        Loop = new LoopSettings
+        {
+            Criteria = [new LoopCriterion { Kind = "completionMarker", Marker = "ALL DONE" }],
+            MaxIterations = 5,
+        },
+    },
+    // ...
+};
+```
+
+The loop is off while `Loop` is null, which is the default.
+
+**`MaxIterations` is not `MaximumIterationsPerRequest`.** The two bound
+different loops. `MaximumIterationsPerRequest` bounds the harness's *inner*
+tool-calling loop inside one invocation. `MaxIterations` bounds the *outer*
+loop that invokes the agent again after a criterion says the work is not
+finished.
+
+Four criterion kinds are built in, and each one takes data only:
+
+| Kind | What stops the loop | Fields it reads |
+|---|---|---|
+| `completionMarker` | The answer contains a marker text | `marker` (required) |
+| `todoCompletion` | The todo list has no open item left | `modes` |
+| `aiJudge` | A judge model decides the work is finished | `judgeCriteria` (required), `judgeInstructions` |
+| `backgroundTaskCompletion` | No background task is still running | — |
+
+A criterion whose logic is code is registered in code and referenced by name,
+the same boundary tools and eval checks live behind:
+
+```csharp
+// Microsoft Agent Framework marks the loop types for evaluation only, so
+// naming one in your own code needs this suppression.
+#pragma warning disable MAAI001
+agentPrism.AddLoopEvaluator("hasCitations", new DelegateLoopEvaluator((context, ct) =>
+    new ValueTask<LoopEvaluation>(
+        context.LastResponse?.Text?.Contains("[1]", StringComparison.Ordinal) == true
+            ? LoopEvaluation.Stop()
+            : LoopEvaluation.Continue("Add a numbered citation for every claim."))));
+#pragma warning restore MAAI001
+```
+
+A definition can then use `Kind = "hasCitations"`. A kind that is neither built
+in nor registered is refused when the definition is saved, with `400`. It is
+never ignored: a stop criterion that is silently dropped leaves a loop with no
+stop criterion.
+
+Four more rules are worth knowing before you turn the loop on:
+
+- **Criteria are evaluated in order, and the first one that asks for another
+  iteration wins.** The rest are not evaluated that iteration, so the loop stops
+  only when every criterion is satisfied. Put the cheapest criterion first — an
+  `aiJudge` placed after a `completionMarker` costs nothing on the iterations the
+  marker already keeps going.
+- **The iteration ceiling is never open.** An unset `MaxIterations` takes
+  AgentPrism's own default of 10. A criterion that can never be satisfied then
+  ends as a bounded run, not as an invoice.
+- **`aiJudge` calls a model on every iteration it reaches.** It runs on the
+  judge binding configured with `AddModelRunJudge(...)`, never on the agent's own
+  model. Without that binding the definition does not compile.
+- **A criterion that fails to evaluate stops the loop; it does not fail the
+  run.** The work already finished is returned, and the iteration event names the
+  criterion that failed.
+
+Each evaluated iteration writes a `LoopIterationCompleted` run event carrying
+the iteration number, whether a criterion asked for another iteration, and which
+one. The criterion's feedback text is not carried in the event.
+
+The event marks an *evaluated* iteration, not a model turn. The turn that
+reaches `MaxIterations` is never evaluated — there is nothing left to decide —
+so a loop that ends at its ceiling writes one event fewer than it takes turns.
+Its last event carries `ceilingReached`, which is how the run record tells "the
+criterion was finally satisfied" apart from "we ran out of iterations".
+
 ## Read next
 
 - [Runs and recording](/concepts/runs/)

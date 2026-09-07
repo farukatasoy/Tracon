@@ -11,7 +11,7 @@ AgentPrism.AgentCallGraphProblem.Message.get -> string!
 AgentPrism.AgentCallGraphProblem.Message.init -> void
 AgentPrism.AgentDecoratorPipeline
 AgentPrism.AgentDefinitionCompiler
-AgentPrism.AgentDefinitionCompiler.AgentDefinitionCompiler(AgentPrism.IModelProviderRegistry! models, AgentPrism.IToolRegistry! tools, Microsoft.Extensions.Logging.ILoggerFactory? loggerFactory = null, System.IServiceProvider? services = null, Microsoft.Agents.AI.ChatHistoryProvider? chatHistoryProvider = null, AgentPrism.AgentSkillCatalog? skills = null, AgentPrism.SkillScriptSupport? scripts = null, AgentPrism.CallableAgentResolver? callableAgents = null, AgentPrism.ITenantContext? tenantContext = null, AgentPrism.ModelBinding? utilityModel = null, Microsoft.Agents.AI.AgentFileStore? fileStore = null, AgentPrism.IMcpResourceContextProviderFactory? mcpResources = null, AgentPrism.IVectorSearchStore? vectorSearchStore = null, Microsoft.Extensions.AI.IEmbeddingGenerator<string!, Microsoft.Extensions.AI.Embedding<float>!>? embeddingGenerator = null, int knowledgeMaxResults = 5, AgentPrism.IAgentDefinitionStore? definitionStore = null, AgentPrism.AgentPrismAgentGraphOptions? agentGraph = null, System.TimeProvider? timeProvider = null) -> void
+AgentPrism.AgentDefinitionCompiler.AgentDefinitionCompiler(AgentPrism.IModelProviderRegistry! models, AgentPrism.IToolRegistry! tools, Microsoft.Extensions.Logging.ILoggerFactory? loggerFactory = null, System.IServiceProvider? services = null, Microsoft.Agents.AI.ChatHistoryProvider? chatHistoryProvider = null, AgentPrism.AgentSkillCatalog? skills = null, AgentPrism.SkillScriptSupport? scripts = null, AgentPrism.CallableAgentResolver? callableAgents = null, AgentPrism.ITenantContext? tenantContext = null, AgentPrism.ModelBinding? utilityModel = null, Microsoft.Agents.AI.AgentFileStore? fileStore = null, AgentPrism.IMcpResourceContextProviderFactory? mcpResources = null, AgentPrism.IVectorSearchStore? vectorSearchStore = null, Microsoft.Extensions.AI.IEmbeddingGenerator<string!, Microsoft.Extensions.AI.Embedding<float>!>? embeddingGenerator = null, int knowledgeMaxResults = 5, AgentPrism.IAgentDefinitionStore? definitionStore = null, AgentPrism.AgentPrismAgentGraphOptions? agentGraph = null, System.TimeProvider? timeProvider = null, System.Collections.Generic.IEnumerable<AgentPrism.AgentPrismLoopEvaluatorRegistration!>? loopEvaluators = null, AgentPrism.ModelRunJudgeOptions? judgeOptions = null) -> void
 AgentPrism.AgentDefinitionCompiler.Compile(AgentPrism.AgentDefinition! definition) -> Microsoft.Agents.AI.AIAgent!
 AgentPrism.AgentDefinitionCompiler.Compile(AgentPrism.AgentDefinition! definition, AgentPrism.ResolvedCallableAgents callableAgents) -> Microsoft.Agents.AI.AIAgent!
 AgentPrism.AgentDefinitionCompiler.Compile(AgentPrism.AgentDefinition! definition, AgentPrism.ResolvedCallableAgents callableAgents, System.Func<Microsoft.Extensions.AI.AIFunction!, Microsoft.Extensions.AI.AIFunction!>? toolTransform, string? culture = null) -> Microsoft.Agents.AI.AIAgent!
@@ -43,8 +43,6 @@ AgentPrism.AgentPrismAgentGraphOptions
 AgentPrism.AgentPrismAgentGraphOptions.AgentPrismAgentGraphOptions() -> void
 AgentPrism.AgentPrismAgentGraphOptions.ChildDeadline.get -> System.TimeSpan
 AgentPrism.AgentPrismAgentGraphOptions.ChildDeadline.set -> void
-AgentPrism.AgentPrismAgentGraphOptions.WaitTimeout.get -> System.TimeSpan
-AgentPrism.AgentPrismAgentGraphOptions.WaitTimeout.set -> void
 AgentPrism.AgentPrismAgentGraphOptions.CreateBudget(System.TimeProvider! timeProvider) -> AgentPrism.AgentRunBudget!
 AgentPrism.AgentPrismAgentGraphOptions.MaxDepth.get -> int
 AgentPrism.AgentPrismAgentGraphOptions.MaxDepth.set -> void
@@ -56,6 +54,8 @@ AgentPrism.AgentPrismAgentGraphOptions.MaxTotalRuns.get -> int
 AgentPrism.AgentPrismAgentGraphOptions.MaxTotalRuns.set -> void
 AgentPrism.AgentPrismAgentGraphOptions.MaxTotalTokens.get -> long
 AgentPrism.AgentPrismAgentGraphOptions.MaxTotalTokens.set -> void
+AgentPrism.AgentPrismAgentGraphOptions.WaitTimeout.get -> System.TimeSpan
+AgentPrism.AgentPrismAgentGraphOptions.WaitTimeout.set -> void
 AgentPrism.AgentPrismApprovalOptions
 AgentPrism.AgentPrismApprovalOptions.AgentPrismApprovalOptions() -> void
 AgentPrism.AgentPrismApprovalOptions.DefaultExpiration.get -> System.TimeSpan
@@ -112,10 +112,6 @@ AgentPrism.AgentPrismDiagnostics
 AgentPrism.AgentPrismDiagnostics.Tags
 AgentPrism.AgentPrismDiagnosticsCollector
 AgentPrism.AgentPrismDiagnosticsCollector.AgentPrismDiagnosticsCollector(System.Collections.Generic.IEnumerable<AgentPrism.IModelProvider!>! providers, AgentPrism.ModelProviderHealthCache! healthCache, System.Collections.Generic.IEnumerable<AgentPrism.ISqlPersistenceDiagnostics!>! sqlDiagnostics, System.Collections.Generic.IEnumerable<AgentPrism.SqlPersistenceRegistrationMarker!>! sqlMarkers, AgentPrism.IAgentCatalog! agentCatalog, System.Collections.Generic.IEnumerable<AgentPrism.IAgentSource!>! agentSources, AgentPrism.IToolRegistry! toolRegistry, AgentPrism.ITenantContext! tenantContext, AgentPrism.IRunAttributionContext! runAttributionContext, AgentPrism.IToolAuthorizationHandler! toolAuthorizationHandler, AgentPrism.IRunAuthorizationHandler! runAuthorizationHandler, System.Collections.Generic.IEnumerable<AgentPrism.IRunEventSink!>! runEventSinks, AgentPrism.IToolApprovalPresenter! approvalPresenter, AgentPrism.IAttachmentStorage? attachmentStorage = null, AgentPrism.ModelProviderCircuitBreaker? circuitBreaker = null, Microsoft.Extensions.Logging.ILogger<AgentPrism.AgentPrismDiagnosticsCollector!>? logger = null) -> void
-AgentPrism.AgentRunScope.Labels.get -> System.Collections.Generic.IReadOnlyDictionary<string!, string!>?
-AgentPrism.AgentRunScope.Labels.init -> void
-AgentPrism.AgentRunScope.UserId.get -> string?
-AgentPrism.AgentRunScope.UserId.init -> void
 AgentPrism.AgentPrismDiagnosticsCollector.CollectAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<AgentPrism.AgentPrismDiagnosticsReport!>
 AgentPrism.AgentPrismDrainOptions
 AgentPrism.AgentPrismDrainOptions.AgentPrismDrainOptions() -> void
@@ -164,6 +160,15 @@ AgentPrism.AgentPrismKnowledgeOptions.Dimensions.get -> int
 AgentPrism.AgentPrismKnowledgeOptions.Dimensions.set -> void
 AgentPrism.AgentPrismKnowledgeOptions.MaxResults.get -> int
 AgentPrism.AgentPrismKnowledgeOptions.MaxResults.set -> void
+AgentPrism.AgentPrismLoopEvaluatorRegistration
+AgentPrism.AgentPrismLoopEvaluatorRegistration.<Clone>$() -> AgentPrism.AgentPrismLoopEvaluatorRegistration!
+AgentPrism.AgentPrismLoopEvaluatorRegistration.AgentPrismLoopEvaluatorRegistration(string! Kind, Microsoft.Agents.AI.LoopEvaluator! Evaluator) -> void
+AgentPrism.AgentPrismLoopEvaluatorRegistration.Deconstruct(out string! Kind, out Microsoft.Agents.AI.LoopEvaluator! Evaluator) -> void
+AgentPrism.AgentPrismLoopEvaluatorRegistration.Equals(AgentPrism.AgentPrismLoopEvaluatorRegistration? other) -> bool
+AgentPrism.AgentPrismLoopEvaluatorRegistration.Evaluator.get -> Microsoft.Agents.AI.LoopEvaluator!
+AgentPrism.AgentPrismLoopEvaluatorRegistration.Evaluator.init -> void
+AgentPrism.AgentPrismLoopEvaluatorRegistration.Kind.get -> string!
+AgentPrism.AgentPrismLoopEvaluatorRegistration.Kind.init -> void
 AgentPrism.AgentPrismMetrics
 AgentPrism.AgentPrismMetrics.AgentPrismMetrics(System.Diagnostics.Metrics.IMeterFactory? meterFactory = null, Microsoft.Extensions.Options.IOptionsMonitor<AgentPrism.AgentPrismOptions!>? options = null) -> void
 AgentPrism.AgentPrismMetrics.AgentSourceFailures.get -> System.Diagnostics.Metrics.Counter<long>!
@@ -175,6 +180,7 @@ AgentPrism.AgentPrismMetrics.JudgeScore.get -> System.Diagnostics.Metrics.Histog
 AgentPrism.AgentPrismMetrics.ModelCacheLookups.get -> System.Diagnostics.Metrics.Counter<long>!
 AgentPrism.AgentPrismMetrics.RecordAgentSourceFailure(string! sourceName, string! operation) -> void
 AgentPrism.AgentPrismMetrics.RecordCost(string! agentName, string? modelId, string! tenantId, decimal cost, string! currency) -> void
+AgentPrism.AgentPrismMetrics.RecordJob(string! lane, string! handlerKey, AgentPrism.JobStatus status, string? tenantId, System.TimeSpan duration) -> void
 AgentPrism.AgentPrismMetrics.RecordJudgeCost(string! judgeName, string? modelId, string! tenantId, decimal cost, string! currency) -> void
 AgentPrism.AgentPrismMetrics.RecordJudgeScore(string! judgeName, string! agentName, string! tenantId, int score) -> void
 AgentPrism.AgentPrismMetrics.RecordModelCacheLookup(string! provider, string! tenantId, bool hit) -> void
@@ -186,7 +192,6 @@ AgentPrism.AgentPrismMetrics.Runs.get -> System.Diagnostics.Metrics.Counter<long
 AgentPrism.AgentPrismMetrics.Tokens.get -> System.Diagnostics.Metrics.Counter<long>!
 AgentPrism.AgentPrismMetrics.ToolDuration.get -> System.Diagnostics.Metrics.Histogram<double>!
 AgentPrism.AgentPrismMetrics.ToolInvocations.get -> System.Diagnostics.Metrics.Counter<long>!
-AgentPrism.AgentPrismMetrics.RecordJob(string! lane, string! handlerKey, AgentPrism.JobStatus status, string? tenantId, System.TimeSpan duration) -> void
 AgentPrism.AgentPrismObservabilityOptions
 AgentPrism.AgentPrismObservabilityOptions.AgentPrismObservabilityOptions() -> void
 AgentPrism.AgentPrismObservabilityOptions.AlwaysPersistFailures.get -> bool
@@ -422,6 +427,8 @@ AgentPrism.AgentRunScope.Depth.init -> void
 AgentPrism.AgentRunScope.Equals(AgentPrism.AgentRunScope? other) -> bool
 AgentPrism.AgentRunScope.ExperimentId.get -> System.Guid?
 AgentPrism.AgentRunScope.ExperimentId.init -> void
+AgentPrism.AgentRunScope.Labels.get -> System.Collections.Generic.IReadOnlyDictionary<string!, string!>?
+AgentPrism.AgentRunScope.Labels.init -> void
 AgentPrism.AgentRunScope.RootRunId.get -> System.Guid
 AgentPrism.AgentRunScope.RootRunId.init -> void
 AgentPrism.AgentRunScope.RunId.get -> System.Guid
@@ -430,6 +437,8 @@ AgentPrism.AgentRunScope.SessionId.get -> string?
 AgentPrism.AgentRunScope.SessionId.init -> void
 AgentPrism.AgentRunScope.TenantId.get -> string?
 AgentPrism.AgentRunScope.TenantId.init -> void
+AgentPrism.AgentRunScope.UserId.get -> string?
+AgentPrism.AgentRunScope.UserId.init -> void
 AgentPrism.AgentRunScope.Variant.get -> string?
 AgentPrism.AgentRunScope.Variant.init -> void
 AgentPrism.AgentRunScope.Writer.get -> AgentPrism.RunEventWriter?
@@ -574,6 +583,7 @@ AgentPrism.IAgentPrismBuilder.AddAgentSource(AgentPrism.IAgentSource! source) ->
 AgentPrism.IAgentPrismBuilder.AddAgentSource(System.Func<System.IServiceProvider!, AgentPrism.IAgentSource!>! factory) -> AgentPrism.IAgentPrismBuilder!
 AgentPrism.IAgentPrismBuilder.AddAgentSource<TSource>() -> AgentPrism.IAgentPrismBuilder!
 AgentPrism.IAgentPrismBuilder.AddEvalCheck(string! kind, Microsoft.Agents.AI.EvalCheck! check) -> AgentPrism.IAgentPrismBuilder!
+AgentPrism.IAgentPrismBuilder.AddLoopEvaluator(string! kind, Microsoft.Agents.AI.LoopEvaluator! evaluator) -> AgentPrism.IAgentPrismBuilder!
 AgentPrism.IAgentPrismBuilder.AddModelProvider(AgentPrism.IModelProvider! provider) -> AgentPrism.IAgentPrismBuilder!
 AgentPrism.IAgentPrismBuilder.AddModelProvider(System.Func<System.IServiceProvider!, AgentPrism.IModelProvider!>! factory) -> AgentPrism.IAgentPrismBuilder!
 AgentPrism.IAgentPrismBuilder.AddModelProvider<TProvider>() -> AgentPrism.IAgentPrismBuilder!
@@ -791,10 +801,10 @@ AgentPrism.RetentionTargetOptions.MaxAgeDays.set -> void
 AgentPrism.RetentionTargetOptions.RetentionTargetOptions() -> void
 AgentPrism.RunErrorFingerprint
 AgentPrism.RunEventDraft
-AgentPrism.RunEventDraft.Deconstruct(out AgentPrism.RunEventType Type) -> void
-AgentPrism.RunEventDraft.Equals(AgentPrism.RunEventDraft other) -> bool
 AgentPrism.RunEventDraft.CustomType.get -> string?
 AgentPrism.RunEventDraft.CustomType.init -> void
+AgentPrism.RunEventDraft.Deconstruct(out AgentPrism.RunEventType Type) -> void
+AgentPrism.RunEventDraft.Equals(AgentPrism.RunEventDraft other) -> bool
 AgentPrism.RunEventDraft.Payload.get -> string?
 AgentPrism.RunEventDraft.Payload.init -> void
 AgentPrism.RunEventDraft.RunEventDraft() -> void
@@ -1061,6 +1071,7 @@ const AgentPrism.AgentPrismDiagnostics.Tags.Depth = "agentprism.run.depth" -> st
 const AgentPrism.AgentPrismDiagnostics.Tags.Direction = "agentprism.token.direction" -> string!
 const AgentPrism.AgentPrismDiagnostics.Tags.DurationMs = "agentprism.script.duration_ms" -> string!
 const AgentPrism.AgentPrismDiagnostics.Tags.ExitCode = "agentprism.script.exit_code" -> string!
+const AgentPrism.AgentPrismDiagnostics.Tags.JobHandlerKey = "agentprism.job.handler_key" -> string!
 const AgentPrism.AgentPrismDiagnostics.Tags.JobStatus = "agentprism.job.status" -> string!
 const AgentPrism.AgentPrismDiagnostics.Tags.JudgeName = "agentprism.judge.name" -> string!
 const AgentPrism.AgentPrismDiagnostics.Tags.Lane = "agentprism.job.lane" -> string!
@@ -1132,6 +1143,9 @@ override AgentPrism.AgentParameterValidationResult.ToString() -> string!
 override AgentPrism.AgentPrismEvalCheckRegistration.Equals(object? obj) -> bool
 override AgentPrism.AgentPrismEvalCheckRegistration.GetHashCode() -> int
 override AgentPrism.AgentPrismEvalCheckRegistration.ToString() -> string!
+override AgentPrism.AgentPrismLoopEvaluatorRegistration.Equals(object? obj) -> bool
+override AgentPrism.AgentPrismLoopEvaluatorRegistration.GetHashCode() -> int
+override AgentPrism.AgentPrismLoopEvaluatorRegistration.ToString() -> string!
 override AgentPrism.AgentRunScope.Equals(object? obj) -> bool
 override AgentPrism.AgentRunScope.GetHashCode() -> int
 override AgentPrism.AgentRunScope.ToString() -> string!
@@ -1200,14 +1214,16 @@ static AgentPrism.AgentPrismContentProtectionExtensions.AddContentProtection(thi
 static AgentPrism.AgentPrismContentProtectionExtensions.AddContentProtection<TProtector>(this AgentPrism.IAgentPrismBuilder! builder) -> AgentPrism.IAgentPrismBuilder!
 static AgentPrism.AgentPrismEvalCheckRegistration.operator !=(AgentPrism.AgentPrismEvalCheckRegistration? left, AgentPrism.AgentPrismEvalCheckRegistration? right) -> bool
 static AgentPrism.AgentPrismEvalCheckRegistration.operator ==(AgentPrism.AgentPrismEvalCheckRegistration? left, AgentPrism.AgentPrismEvalCheckRegistration? right) -> bool
+static AgentPrism.AgentPrismLoopEvaluatorRegistration.operator !=(AgentPrism.AgentPrismLoopEvaluatorRegistration? left, AgentPrism.AgentPrismLoopEvaluatorRegistration? right) -> bool
+static AgentPrism.AgentPrismLoopEvaluatorRegistration.operator ==(AgentPrism.AgentPrismLoopEvaluatorRegistration? left, AgentPrism.AgentPrismLoopEvaluatorRegistration? right) -> bool
 static AgentPrism.AgentPrismOnlineEvaluationBuilderExtensions.AddModelRunJudge(this AgentPrism.IAgentPrismBuilder! builder, System.Action<AgentPrism.ModelRunJudgeOptions!>! configure) -> AgentPrism.IAgentPrismBuilder!
 static AgentPrism.AgentPrismRunContext.Current.get -> AgentPrism.AgentRunScope?
 static AgentPrism.AgentPrismRunContext.CurrentRunId.get -> System.Guid?
 static AgentPrism.AgentPrismRunContext.SetCurrent(AgentPrism.AgentRunScope? scope) -> void
 static AgentPrism.AgentPrismServiceCollectionExtensions.AddAgentPrism(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, Microsoft.Extensions.Configuration.IConfiguration? configurationSection = null) -> AgentPrism.IAgentPrismBuilder!
 static AgentPrism.AgentPrismServiceCollectionExtensions.AddAgentPrism(this Microsoft.Extensions.Hosting.IHostApplicationBuilder! builder) -> AgentPrism.IAgentPrismBuilder!
-static AgentPrism.AgentPrismServiceCollectionExtensions.UseScheduling(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, System.Action<AgentPrism.AgentPrismSchedulingOptions!>? configure = null) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
 static AgentPrism.AgentPrismServiceCollectionExtensions.AddJobHandler<THandler>(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, string! handlerKey) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
+static AgentPrism.AgentPrismServiceCollectionExtensions.UseScheduling(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, System.Action<AgentPrism.AgentPrismSchedulingOptions!>? configure = null) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
 static AgentPrism.AgentPrismSkillScriptBuilderExtensions.UseSkillScripts(this AgentPrism.IAgentPrismBuilder! builder, System.Action<AgentPrism.AgentPrismSkillScriptOptions!>! configure) -> AgentPrism.IAgentPrismBuilder!
 static AgentPrism.AgentPrismToolApprovalPolicyExtensions.AddToolApprovalPolicy(this AgentPrism.IAgentPrismBuilder! builder, string! toolName, System.Func<AgentPrism.ToolApprovalContext!, AgentPrism.ToolApprovalPolicyDecision>! policy) -> AgentPrism.IAgentPrismBuilder!
 static AgentPrism.AgentPrismToolUsage.Report(AgentPrism.ToolCallUsage! usage) -> bool
@@ -1335,4 +1351,3 @@ static readonly AgentPrism.TruncatingAIFunction.MinimumEnvelopeBytes -> int
 ~override AgentPrism.RunEventDraft.ToString() -> string
 ~override AgentPrism.WebhookUrlVerdict.Equals(object obj) -> bool
 ~override AgentPrism.WebhookUrlVerdict.ToString() -> string
-const AgentPrism.AgentPrismDiagnostics.Tags.JobHandlerKey = "agentprism.job.handler_key" -> string!
