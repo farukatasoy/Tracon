@@ -137,3 +137,18 @@
 - **Sürüklenmeyi Dependabot bildirir**: NuGet ve iki npm dizini **haftalik**,
   GitHub Actions **aylik**. Gruplar surum hatti kisitini korur: MAF'in GA/preview/alpha katmanlari
   tek PR'da gelir (K-008), MCP `.Core` + `.AspNetCore` tek PR'da (K-334).
+- **🚨 CA1305 format belirtecli bir INTERPOLASYONU GORMEZ** (2026-09-07, Faz 153,
+  K-720): `$"... {x:0.0} ..."` `string.Format`'a degil
+  `DefaultInterpolatedStringHandler`'a derlenir, bu yuzden "Specify
+  IFormatProvider" kurali hic tetiklenmez. Olculdu: `.editorconfig`'e
+  `dotnet_diagnostic.CA1305.severity = warning` yazip tum solution derlendi —
+  **sifir** bulgu, o sirada surecten CIKAN metinde uc gercek ihlal dururken.
+  Hangi belirtecin riskli oldugu da ÖLÇÜLDÜ (tr-TR): `0.0` → "3,7",
+  `0.000000` → "1,500000", `P0` → "%50" (invariant "50 %") RISKLI;
+  **`F0` ve `0` DEGIL** — hicbir kulturde basamak gruplamazlar, yani
+  `{seconds:F0}` gormek tek basina bir bulgu DEGILDIR (ilk taramada uc `:F0`
+  yeri bosuna suphelenildi ve olcum sonrasi geri alindi). Kural: surecten
+  cikan (kalici, HTTP govdesi, tool sonucu, CLI satiri) ve ONDALIK ya da YUZDE
+  tasiyan her metin `string.Create(CultureInfo.InvariantCulture, $"...")` ile
+  kurulur. Girdi tarafi zaten invariant'ti — asimetri kusuru dogurmustu.
+  Guard davranissaldir: `InvariantShippedTextTests`; analyzer kurali yoktur.

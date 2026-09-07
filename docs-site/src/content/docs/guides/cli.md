@@ -64,7 +64,7 @@ agentprism --help
 | `agentprism migrate --provider <postgres\|sqlserver\|sqlite> --connection <connection-string>` | Database, directly | Applies pending migrations. Runs before the application ever starts, so a deployment pipeline can prepare the schema as its own step |
 | `agentprism migrate status --provider ... --connection ...` | Database, directly | Lists pending migration names. Writes nothing |
 | `agentprism health --url <base-url> [--token <token>] [--json]` | HTTP, through the typed client | Reads model provider health |
-| `agentprism eval --url <base-url> --suite <name> [--token <token>] [--agent-version <n>] [--min-pass-rate <0..1>] [--max-failures <n>] [--timeout <seconds>] [--poll-interval <seconds>] [--json]` | HTTP, through the typed client | Triggers a suite, polls it to completion, applies an optional quality gate |
+| `agentprism eval --url <base-url> --suite <name> [--token <token>] [--agent-version <n>] [--min-pass-rate <0..1>] [--max-failures <n>] [--baseline <runId\|previous>] [--max-regressions <n>] [--timeout <seconds>] [--poll-interval <seconds>] [--json]` | HTTP, through the typed client | Triggers a suite, polls it to completion, applies an optional quality gate — absolute, relative to an earlier run, or both |
 
 `--connection` and `--token` also accept the `AGENTPRISM_CONNECTION` and
 `AGENTPRISM_TOKEN` environment variables — useful in a CI/CD step where a literal
@@ -102,6 +102,27 @@ Triggering needs the `RunsWrite` API key scope; polling needs `EvalsRead`. A
 key carrying only one of the two gets exit `2`, with the missing scope named
 in the error message — the server's response body is never echoed.
 
+An absolute threshold cannot see a slide: with `--min-pass-rate 0.85` set, a
+drop from 95% to 90% passes. `--baseline` adds a **relative** gate that
+compares the finished run against an earlier run of the same suite, case by
+case (see [Comparing two runs](/concepts/evaluation/#comparing-two-runs)):
+
+```bash
+agentprism eval --url http://localhost:5081/agentprism --suite support \
+  --baseline previous --max-regressions 0
+```
+
+`--baseline` takes an eval run id or the word `previous` — the newest
+completed run of that suite before this one. Given alone it reports the
+comparison without ever failing the build; `--max-regressions` is what turns
+the report into a gate. Under `--json` the summary moves to stderr so stdout
+stays a single parseable document. `--max-regressions` says how many
+cases may break; cases added to or dropped from the suite are never counted as
+regressions. `--max-regressions` without `--baseline` is an argument error
+(`1`), never a silent no-op: a pipeline must not read a green exit code as "no
+regressions" when nothing was compared. On a suite's first run there is no
+earlier run; that is written to stderr and the gate is skipped, not failed.
+
 ### Exit codes
 
 | Code | Meaning |
@@ -110,10 +131,14 @@ in the error message — the server's response body is never echoed.
 | `1` | Argument error (missing/invalid flag, unknown command) |
 | `2` | Could not run: connection failed, HTTP error, timed out, or (`eval` only) the run itself ended `Failed`/`Cancelled` |
 | `3` | (`eval` only) Ran, but missed the quality gate |
+| `4` | (`eval` only) Ran, but could not be compared against `--baseline` |
 
 The distinction between `2` and `3` is operational: `2` is an infrastructure
 problem and worth retrying; `3` is a real quality signal and retrying it is
-the wrong move. `migrate`, `migrate status`, and `health` never return `3`.
+the wrong move. `4` is a third thing again — the baseline's per-case results
+have aged out of retention, it never completed, or it measures another suite.
+Folding it into `3` would send someone hunting for a regression that was never
+measured. `migrate`, `migrate status`, and `health` never return `3` or `4`.
 
 ## Read next
 

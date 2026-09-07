@@ -51,6 +51,7 @@ namespace AgentPrism.Client.Generated;
 [JsonSerializable(typeof(EvalCasePromotionRequest))]
 [JsonSerializable(typeof(EvalRun))]
 [JsonSerializable(typeof(EvalRunDetailResponse))]
+[JsonSerializable(typeof(EvalRunDiff))]
 [JsonSerializable(typeof(EvalRunTriggerRequest))]
 [JsonSerializable(typeof(EvalSuite))]
 [JsonSerializable(typeof(EvalSuiteSaveRequest))]

@@ -1,6 +1,6 @@
 # 17 — Eval, Deneyler (A/B), Kanarya Yayını ve Geri Bildirim (`EVAL`)
 
-> **Alan kodu:** `EVAL` · **Faz:** 18, 19, 31, 45, 49, 56, 100, 103, 118, 152
+> **Alan kodu:** `EVAL` · **Faz:** 18, 19, 31, 45, 49, 56, 100, 103, 118, 152, 153
 > **Kaynak:** `src/AgentPrism.Abstractions/Evaluation/` (tümü) ·
 > `src/AgentPrism.Abstractions/Experiments/` (tümü — `Experiment.cs`,
 > `ExperimentVariant.cs`, `ExperimentStatus.cs`, `CanaryPolicy.cs`,
@@ -2401,5 +2401,144 @@ Bkz. MT-EVAL-045 (aynı upsert davranışı). Buradaki ek iddia: yargıç
 - Kategorik skor "Diğer skorlar" başlığı altında adı ve metin değeriyle
   **salt okunur** görünür.
 - `Kaldır` (başparmağa ikinci tıklama) yalnız `overall` satırını siler.
+
+**Alan kodu:** `EVAL`
+
+---
+
+### EVAL-120 — İki koşumun farkı altı kümeyi ayırır
+
+**Ön koşul**
+- `samples/AgentPrism.Api` ayakta.
+- Bir suite iki kez koşulmuş: `$FIRST` (taban çizgisi) ve `$SECOND`. İkinci
+  koşumda bir case bozulmuş.
+
+**Adımlar**
+1. `GET /api/evals/runs/$SECOND/diff?baseline=$FIRST`
+2. Yanıttaki `cases[].kind` değerlerini kümele.
+
+**Beklenen sonuç**
+- `200`. Bozulan case `Regressed` kümesindedir ve listenin **başındadır**.
+- O kalem hem `baselineRunId` hem `candidateRunId` taşır — iki konuşmaya
+  doğrudan gidilir.
+- Sayaçlar (`regressedCount`, `fixedCount`, …) sayfalamadan bağımsızdır.
+
+**Alan kodu:** `EVAL`
+
+---
+
+### EVAL-121 — Fark ters çevrilince regresyon düzelmeye döner
+
+**Ön koşul**
+- EVAL-120'nin iki koşumu.
+
+**Adımlar**
+1. `GET /api/evals/runs/$FIRST/diff?baseline=$SECOND`
+
+**Beklenen sonuç**
+- Aynı case bu kez `Fixed` kümesindedir. Fark yönlüdür ve yönü yanıttaki
+  `baseline`/`candidate` alanlarından okunur.
+
+**Alan kodu:** `EVAL`
+
+---
+
+### EVAL-122 — Suite'e eklenen case regresyon SAYILMAZ
+
+**Ön koşul**
+- İkinci koşumdan önce suite'e yeni bir case eklenmiş ve o case düşüyor.
+
+**Adımlar**
+1. `GET /api/evals/runs/$SECOND/diff?baseline=$FIRST`
+
+**Beklenen sonuç**
+- Yeni case `Added` kümesindedir; `addedCount` 1.
+- `regressedCount` **0**'dır. Suite'i büyütmek kapıyı kırmızı yakmaz.
+
+**Alan kodu:** `EVAL`
+
+---
+
+### EVAL-123 — 🚨 Ayrıntısı silinmiş koşum BOŞ FARK değil `409` döner
+
+**Ön koşul**
+- Taban çizgisi koşumunun özeti duruyor ama `eval_case_results` satırları
+  saklama politikasıyla silinmiş (elle: o `eval_run_id`'nin satırlarını sil).
+
+**Adımlar**
+1. `GET /api/evals/runs/$SECOND/diff?baseline=$FIRST`
+
+**Beklenen sonuç**
+- `409 Conflict`. Gövde hangi tarafın (`baseline`) ayrıntısının eksik
+  olduğunu söyler.
+- 🚨 **`200` + boş `cases` DÖNMEZ.** Boş fark "hiçbir şey değişmedi" diye
+  okunur ve CI kapısını bir regresyonun üstünde yeşil yakar — bu ucun var
+  olma sebebi budur.
+
+**Alan kodu:** `EVAL`
+
+---
+
+### EVAL-124 — Tamamlanmamış koşum `400` döner, `409` değil
+
+**Ön koşul**
+- Bir `Pending` ya da `Running` durumunda eval koşumu (`$PENDING`).
+
+**Adımlar**
+1. `GET /api/evals/runs/$SECOND/diff?baseline=$PENDING`
+
+**Beklenen sonuç**
+- `400`. Gövde hangi tarafın hangi durumda olduğunu söyler.
+- `409` **değildir**: "bekle" ile "geçmişin gitti" iki ayrı arızadır ve
+  düzeltmeleri farklıdır.
+
+**Alan kodu:** `EVAL`
+
+---
+
+### EVAL-125 — Farklı suite'lerin koşumları `400` döner
+
+**Ön koşul**
+- İki ayrı suite'in birer tamamlanmış koşumu.
+
+**Adımlar**
+1. `GET /api/evals/runs/$A/diff?baseline=$B`
+
+**Beklenen sonuç**
+- `400`. İki suite'in case'leri hizalanmaz.
+
+**Alan kodu:** `EVAL`
+
+---
+
+### EVAL-126 — Başka kiracının koşumu `404` döner
+
+**Ön koşul**
+- Başka bir kiracıya ait bir eval koşum id'si.
+
+**Adımlar**
+1. `GET /api/evals/runs/$MINE/diff?baseline=$FOREIGN`
+
+**Beklenen sonuç**
+- `404` — "yok" ile "başkasının" aynı yanıtı verir; varlık sızmaz.
+
+**Alan kodu:** `EVAL`
+
+---
+
+### EVAL-127 — Arayüzde fark görünümü 👤
+
+**Ön koşul**
+- Konsol açık, `$SECOND` koşumunun detay ekranı.
+- Aynı suite'in en az bir başka **tamamlanmış** koşumu var.
+
+**Adımlar**
+1. "Compare with an earlier run" panelinde taban çizgisini seç.
+
+**Beklenen sonuç**
+- Altı küme ayrı ayrı listelenir.
+- `Regressed` en **üstte** ve **açık** gelir; diğerleri kapalıdır.
+- Seçicide izlenen koşumun kendisi ve tamamlanmamış koşumlar **yer almaz**.
+- Her satırdaki iki taraf rozeti ilgili `run` sayfasına bağlanır.
 
 **Alan kodu:** `EVAL`

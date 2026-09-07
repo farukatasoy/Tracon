@@ -852,6 +852,33 @@ AgentPrism.EvalCaseAddResult.Created.get -> bool
 AgentPrism.EvalCaseAddResult.Created.init -> void
 AgentPrism.EvalCaseAddResult.Equals(AgentPrism.EvalCaseAddResult? other) -> bool
 AgentPrism.EvalCaseAddResult.EvalCaseAddResult() -> void
+AgentPrism.EvalCaseDiff
+AgentPrism.EvalCaseDiff.<Clone>$() -> AgentPrism.EvalCaseDiff!
+AgentPrism.EvalCaseDiff.BaselineFailureReason.get -> string?
+AgentPrism.EvalCaseDiff.BaselineFailureReason.init -> void
+AgentPrism.EvalCaseDiff.BaselinePassed.get -> bool?
+AgentPrism.EvalCaseDiff.BaselinePassed.init -> void
+AgentPrism.EvalCaseDiff.BaselineRunId.get -> System.Guid?
+AgentPrism.EvalCaseDiff.BaselineRunId.init -> void
+AgentPrism.EvalCaseDiff.CandidateFailureReason.get -> string?
+AgentPrism.EvalCaseDiff.CandidateFailureReason.init -> void
+AgentPrism.EvalCaseDiff.CandidatePassed.get -> bool?
+AgentPrism.EvalCaseDiff.CandidatePassed.init -> void
+AgentPrism.EvalCaseDiff.CandidateRunId.get -> System.Guid?
+AgentPrism.EvalCaseDiff.CandidateRunId.init -> void
+AgentPrism.EvalCaseDiff.CaseId.get -> System.Guid
+AgentPrism.EvalCaseDiff.CaseId.init -> void
+AgentPrism.EvalCaseDiff.Equals(AgentPrism.EvalCaseDiff? other) -> bool
+AgentPrism.EvalCaseDiff.EvalCaseDiff() -> void
+AgentPrism.EvalCaseDiff.Kind.get -> AgentPrism.EvalCaseDiffKind
+AgentPrism.EvalCaseDiff.Kind.init -> void
+AgentPrism.EvalCaseDiffKind
+AgentPrism.EvalCaseDiffKind.Added = 4 -> AgentPrism.EvalCaseDiffKind
+AgentPrism.EvalCaseDiffKind.Fixed = 1 -> AgentPrism.EvalCaseDiffKind
+AgentPrism.EvalCaseDiffKind.Regressed = 2 -> AgentPrism.EvalCaseDiffKind
+AgentPrism.EvalCaseDiffKind.Removed = 5 -> AgentPrism.EvalCaseDiffKind
+AgentPrism.EvalCaseDiffKind.StillFailing = 3 -> AgentPrism.EvalCaseDiffKind
+AgentPrism.EvalCaseDiffKind.Unchanged = 0 -> AgentPrism.EvalCaseDiffKind
 AgentPrism.EvalCaseDraft
 AgentPrism.EvalCaseDraft.<Clone>$() -> AgentPrism.EvalCaseDraft!
 AgentPrism.EvalCaseDraft.Context.get -> string?
@@ -944,6 +971,56 @@ AgentPrism.EvalRunCompletion.Status.get -> AgentPrism.EvalRunStatus
 AgentPrism.EvalRunCompletion.Status.init -> void
 AgentPrism.EvalRunCompletion.Total.get -> int
 AgentPrism.EvalRunCompletion.Total.init -> void
+AgentPrism.EvalRunDiff
+AgentPrism.EvalRunDiff.<Clone>$() -> AgentPrism.EvalRunDiff!
+AgentPrism.EvalRunDiff.AddedCount.get -> int
+AgentPrism.EvalRunDiff.AddedCount.init -> void
+AgentPrism.EvalRunDiff.Baseline.get -> AgentPrism.EvalRun!
+AgentPrism.EvalRunDiff.Baseline.init -> void
+AgentPrism.EvalRunDiff.Candidate.get -> AgentPrism.EvalRun!
+AgentPrism.EvalRunDiff.Candidate.init -> void
+AgentPrism.EvalRunDiff.Cases.get -> System.Collections.Generic.IReadOnlyList<AgentPrism.EvalCaseDiff!>!
+AgentPrism.EvalRunDiff.Cases.init -> void
+AgentPrism.EvalRunDiff.Equals(AgentPrism.EvalRunDiff? other) -> bool
+AgentPrism.EvalRunDiff.EvalRunDiff() -> void
+AgentPrism.EvalRunDiff.FixedCount.get -> int
+AgentPrism.EvalRunDiff.FixedCount.init -> void
+AgentPrism.EvalRunDiff.RegressedCount.get -> int
+AgentPrism.EvalRunDiff.RegressedCount.init -> void
+AgentPrism.EvalRunDiff.RemovedCount.get -> int
+AgentPrism.EvalRunDiff.RemovedCount.init -> void
+AgentPrism.EvalRunDiff.StillFailingCount.get -> int
+AgentPrism.EvalRunDiff.StillFailingCount.init -> void
+AgentPrism.EvalRunDiff.TotalCases.get -> int
+AgentPrism.EvalRunDiff.TotalCases.init -> void
+AgentPrism.EvalRunDiff.UnchangedCount.get -> int
+AgentPrism.EvalRunDiff.UnchangedCount.init -> void
+AgentPrism.EvalRunDiffBuilder
+AgentPrism.EvalRunDiffQuery
+AgentPrism.EvalRunDiffQuery.<Clone>$() -> AgentPrism.EvalRunDiffQuery!
+AgentPrism.EvalRunDiffQuery.BaselineRunId.get -> System.Guid
+AgentPrism.EvalRunDiffQuery.BaselineRunId.init -> void
+AgentPrism.EvalRunDiffQuery.CandidateRunId.get -> System.Guid
+AgentPrism.EvalRunDiffQuery.CandidateRunId.init -> void
+AgentPrism.EvalRunDiffQuery.Equals(AgentPrism.EvalRunDiffQuery? other) -> bool
+AgentPrism.EvalRunDiffQuery.EvalRunDiffQuery() -> void
+AgentPrism.EvalRunDiffQuery.Skip.get -> int
+AgentPrism.EvalRunDiffQuery.Skip.init -> void
+AgentPrism.EvalRunDiffQuery.Take.get -> int
+AgentPrism.EvalRunDiffQuery.Take.init -> void
+AgentPrism.EvalRunDiffQuery.TenantId.get -> string!
+AgentPrism.EvalRunDiffQuery.TenantId.init -> void
+AgentPrism.EvalRunDiffUnavailableException
+AgentPrism.EvalRunDiffUnavailableException.EvalRunDiffUnavailableException() -> void
+AgentPrism.EvalRunDiffUnavailableException.EvalRunDiffUnavailableException(AgentPrism.EvalRunDiffUnavailableReason reason, string! message) -> void
+AgentPrism.EvalRunDiffUnavailableException.EvalRunDiffUnavailableException(string! message) -> void
+AgentPrism.EvalRunDiffUnavailableException.EvalRunDiffUnavailableException(string! message, System.Exception! innerException) -> void
+AgentPrism.EvalRunDiffUnavailableException.Reason.get -> AgentPrism.EvalRunDiffUnavailableReason
+AgentPrism.EvalRunDiffUnavailableReason
+AgentPrism.EvalRunDiffUnavailableReason.DetailsRemoved = 3 -> AgentPrism.EvalRunDiffUnavailableReason
+AgentPrism.EvalRunDiffUnavailableReason.DifferentSuites = 1 -> AgentPrism.EvalRunDiffUnavailableReason
+AgentPrism.EvalRunDiffUnavailableReason.RunNotCompleted = 2 -> AgentPrism.EvalRunDiffUnavailableReason
+AgentPrism.EvalRunDiffUnavailableReason.Unspecified = 0 -> AgentPrism.EvalRunDiffUnavailableReason
 AgentPrism.EvalRunQuery
 AgentPrism.EvalRunQuery.<Clone>$() -> AgentPrism.EvalRunQuery!
 AgentPrism.EvalRunQuery.Equals(AgentPrism.EvalRunQuery? other) -> bool
@@ -1198,6 +1275,7 @@ AgentPrism.IEvalStore.AddCaseAsync(System.Guid suiteId, AgentPrism.EvalCaseDraft
 AgentPrism.IEvalStore.CompleteRunAsync(AgentPrism.EvalRunCompletion! completion, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
 AgentPrism.IEvalStore.CreateRunAsync(AgentPrism.EvalRun! run, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<AgentPrism.EvalRun!>
 AgentPrism.IEvalStore.DeleteSuiteAsync(string! tenantId, string! name, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<bool>
+AgentPrism.IEvalStore.DiffRunsAsync(AgentPrism.EvalRunDiffQuery! query, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<AgentPrism.EvalRunDiff?>
 AgentPrism.IEvalStore.GetRunAsync(string! tenantId, System.Guid evalRunId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<AgentPrism.EvalRun?>
 AgentPrism.IEvalStore.GetRunByJobIdAsync(string! tenantId, System.Guid jobId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<AgentPrism.EvalRun?>
 AgentPrism.IEvalStore.GetSuiteAsync(string! tenantId, string! name, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<AgentPrism.EvalSuite?>
@@ -4164,6 +4242,7 @@ const AgentPrism.AgentPrismStructuredResponseException.StructuredResponseInvalid
 const AgentPrism.AgentPrismToolTimeoutException.ToolTimeoutErrorType = "tool_timeout" -> string!
 const AgentPrism.AgentSourcePriority.Code = 0 -> int
 const AgentPrism.AgentSourcePriority.Database = 100 -> int
+const AgentPrism.EvalRunDiffUnavailableException.EvalRunDiffUnavailableErrorType = "eval_run_diff_unavailable" -> string!
 const AgentPrism.JobErrorCodes.HandlerActivationFailed = "agentprism.job.handler-activation-failed" -> string!
 const AgentPrism.JobErrorCodes.UnknownHandlerKey = "agentprism.job.unknown-handler-key" -> string!
 const AgentPrism.JobHandlerKeys.AgentBatch = "agentprism.agent-batch" -> string!
@@ -4345,6 +4424,9 @@ override AgentPrism.EvalCase.ToString() -> string!
 override AgentPrism.EvalCaseAddResult.Equals(object? obj) -> bool
 override AgentPrism.EvalCaseAddResult.GetHashCode() -> int
 override AgentPrism.EvalCaseAddResult.ToString() -> string!
+override AgentPrism.EvalCaseDiff.Equals(object? obj) -> bool
+override AgentPrism.EvalCaseDiff.GetHashCode() -> int
+override AgentPrism.EvalCaseDiff.ToString() -> string!
 override AgentPrism.EvalCaseDraft.Equals(object? obj) -> bool
 override AgentPrism.EvalCaseDraft.GetHashCode() -> int
 override AgentPrism.EvalCaseDraft.ToString() -> string!
@@ -4357,6 +4439,13 @@ override AgentPrism.EvalRun.ToString() -> string!
 override AgentPrism.EvalRunCompletion.Equals(object? obj) -> bool
 override AgentPrism.EvalRunCompletion.GetHashCode() -> int
 override AgentPrism.EvalRunCompletion.ToString() -> string!
+override AgentPrism.EvalRunDiff.Equals(object? obj) -> bool
+override AgentPrism.EvalRunDiff.GetHashCode() -> int
+override AgentPrism.EvalRunDiff.ToString() -> string!
+override AgentPrism.EvalRunDiffQuery.Equals(object? obj) -> bool
+override AgentPrism.EvalRunDiffQuery.GetHashCode() -> int
+override AgentPrism.EvalRunDiffQuery.ToString() -> string!
+override AgentPrism.EvalRunDiffUnavailableException.ErrorType.get -> string!
 override AgentPrism.EvalRunQuery.Equals(object? obj) -> bool
 override AgentPrism.EvalRunQuery.GetHashCode() -> int
 override AgentPrism.EvalRunQuery.ToString() -> string!
@@ -4897,6 +4986,8 @@ static AgentPrism.EvalCase.operator !=(AgentPrism.EvalCase? left, AgentPrism.Eva
 static AgentPrism.EvalCase.operator ==(AgentPrism.EvalCase? left, AgentPrism.EvalCase? right) -> bool
 static AgentPrism.EvalCaseAddResult.operator !=(AgentPrism.EvalCaseAddResult? left, AgentPrism.EvalCaseAddResult? right) -> bool
 static AgentPrism.EvalCaseAddResult.operator ==(AgentPrism.EvalCaseAddResult? left, AgentPrism.EvalCaseAddResult? right) -> bool
+static AgentPrism.EvalCaseDiff.operator !=(AgentPrism.EvalCaseDiff? left, AgentPrism.EvalCaseDiff? right) -> bool
+static AgentPrism.EvalCaseDiff.operator ==(AgentPrism.EvalCaseDiff? left, AgentPrism.EvalCaseDiff? right) -> bool
 static AgentPrism.EvalCaseDraft.operator !=(AgentPrism.EvalCaseDraft? left, AgentPrism.EvalCaseDraft? right) -> bool
 static AgentPrism.EvalCaseDraft.operator ==(AgentPrism.EvalCaseDraft? left, AgentPrism.EvalCaseDraft? right) -> bool
 static AgentPrism.EvalCaseResult.operator !=(AgentPrism.EvalCaseResult? left, AgentPrism.EvalCaseResult? right) -> bool
@@ -4905,6 +4996,11 @@ static AgentPrism.EvalRun.operator !=(AgentPrism.EvalRun? left, AgentPrism.EvalR
 static AgentPrism.EvalRun.operator ==(AgentPrism.EvalRun? left, AgentPrism.EvalRun? right) -> bool
 static AgentPrism.EvalRunCompletion.operator !=(AgentPrism.EvalRunCompletion? left, AgentPrism.EvalRunCompletion? right) -> bool
 static AgentPrism.EvalRunCompletion.operator ==(AgentPrism.EvalRunCompletion? left, AgentPrism.EvalRunCompletion? right) -> bool
+static AgentPrism.EvalRunDiff.operator !=(AgentPrism.EvalRunDiff? left, AgentPrism.EvalRunDiff? right) -> bool
+static AgentPrism.EvalRunDiff.operator ==(AgentPrism.EvalRunDiff? left, AgentPrism.EvalRunDiff? right) -> bool
+static AgentPrism.EvalRunDiffBuilder.Build(AgentPrism.EvalRun! baseline, AgentPrism.EvalRun! candidate, System.Collections.Generic.IReadOnlyList<AgentPrism.EvalCaseResult!>! baselineResults, System.Collections.Generic.IReadOnlyList<AgentPrism.EvalCaseResult!>! candidateResults, int skip = 0, int take = 2147483647) -> AgentPrism.EvalRunDiff!
+static AgentPrism.EvalRunDiffQuery.operator !=(AgentPrism.EvalRunDiffQuery? left, AgentPrism.EvalRunDiffQuery? right) -> bool
+static AgentPrism.EvalRunDiffQuery.operator ==(AgentPrism.EvalRunDiffQuery? left, AgentPrism.EvalRunDiffQuery? right) -> bool
 static AgentPrism.EvalRunQuery.operator !=(AgentPrism.EvalRunQuery? left, AgentPrism.EvalRunQuery? right) -> bool
 static AgentPrism.EvalRunQuery.operator ==(AgentPrism.EvalRunQuery? left, AgentPrism.EvalRunQuery? right) -> bool
 static AgentPrism.EvalSuite.operator !=(AgentPrism.EvalSuite? left, AgentPrism.EvalSuite? right) -> bool

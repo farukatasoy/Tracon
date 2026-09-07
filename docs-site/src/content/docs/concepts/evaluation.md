@@ -78,6 +78,79 @@ curl -X POST http://localhost:5081/agentprism/api/evals/support/run
 curl http://localhost:5081/agentprism/api/evals/support/runs
 ```
 
+## Comparing two runs
+
+A pass rate is a poor regression signal. A suite that slides from 95% to 90% still
+clears a `0.85` threshold, and nothing in the run's own summary says which five cases
+stopped working. `GET /api/evals/runs/{id}/diff?baseline={runId}` aligns two runs of
+the same suite case by case instead:
+
+```bash
+curl "http://localhost:5081/agentprism/api/evals/runs/$SECOND/diff?baseline=$FIRST"
+```
+
+Every case lands in exactly one bucket:
+
+| Bucket | Meaning |
+|---|---|
+| `Regressed` | Passed on the baseline, fails now |
+| `Fixed` | Failed on the baseline, passes now |
+| `StillFailing` | Failed on both |
+| `Unchanged` | Passed on both |
+| `Added` | Only in the run being judged |
+| `Removed` | Only in the baseline run |
+
+`Added` and `Removed` are deliberately their own buckets. Adding a case to a suite
+moves the pass rate without anything having broken, and a gate that cannot tell those
+apart cries wolf every time someone extends a suite. Each entry names both sides'
+agent run, so a regression is one click from the two conversations that produced it.
+
+Two answers are refusals rather than results:
+
+- **`409`** — one of the runs holds results for fewer cases than its summary counts,
+  because they aged out of the `eval_case_results` retention window. Retention deletes
+  in batches and can leave a run partly trimmed, so the check counts rather than merely
+  looking for emptiness: comparing the survivors would report every deleted case as
+  `Removed` and quietly narrow the regression count to the rows that happen to remain.
+- **`400`** — the two runs measure different suites, or one of them never completed.
+
+Cases are aligned by identifier, and a case's content is not snapshotted per run. The
+shipped API makes that safe: `PUT /api/evals/{name}/cases` assigns fresh identifiers,
+so editing a case shows up as a `Removed` plus an `Added` entry rather than as a silent
+comparison of two different questions. Calling `IEvalStore.ReplaceCasesAsync` directly
+while preserving identifiers is the one path that can defeat this, and nothing detects
+it.
+
+### As a CI gate
+
+`agentprism eval` turns the same comparison into an exit code:
+
+```bash
+agentprism eval --url http://localhost:5081/agentprism --suite support \
+  --baseline previous --max-regressions 0
+```
+
+`--baseline` takes an eval run id or the word `previous`, which means the newest
+completed run of that suite before this one. `--max-regressions` says how many cases
+may break.
+
+Three rules keep the gate honest:
+
+- `--max-regressions` without `--baseline` is an **argument error** (exit `1`), never a
+  silent no-op. A pipeline must not read a green exit code as "no regressions" when
+  nothing was compared.
+- A comparison that cannot be made exits **`4`**, not `3`. A lost history needs a
+  different fix than a broken case.
+- On a suite's first run there is nothing to compare against. That is written to
+  stderr and the gate is **skipped**, not failed — otherwise every new suite's first
+  CI run goes red for no reason.
+
+The absolute thresholds still apply: `--min-pass-rate` and `--max-failures` are checked
+first, and the relative gate only ever adds a check.
+
+The eval run screen carries the same comparison, with a baseline picker and the
+`Regressed` group open by default.
+
 Cases can also be **promoted from a real run** — a production conversation that went
 wrong becomes a regression case in one request. The query comes from the run's
 `RunStarted` event, so failed and sessionless runs can be promoted. A run from a

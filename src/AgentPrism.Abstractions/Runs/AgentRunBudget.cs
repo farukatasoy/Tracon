@@ -1,3 +1,5 @@
+using System.Globalization;
+
 namespace AgentPrism;
 
 /// <summary>
@@ -257,7 +259,9 @@ public sealed class AgentRunBudget
 
         if (IsCostBudgetExhausted)
         {
-            return $"The run tree's cost budget is exhausted ({ConsumedCost:0.000000}/{MaxTotalCost:0.000000}). " +
+            return string.Create(
+                       CultureInfo.InvariantCulture,
+                       $"The run tree's cost budget is exhausted ({ConsumedCost:0.000000}/{MaxTotalCost:0.000000}). ") +
                    "Raise AgentPrism:AgentGraph:MaxTotalCost to allow more.";
         }
 

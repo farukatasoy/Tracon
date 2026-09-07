@@ -164,6 +164,8 @@ production behavior.
 | Custom checks | `AddEvalCheck(kind, check)` | Application code adds a named MAF `EvalCheck` |
 | Run judges | `IRunJudge` via `AddRunJudge<T>()`, instance, or factory, or the built-in `AddModelRunJudge()` | Manual or automatic scores with named criteria |
 | Online evaluation | Judge registration plus enabled sampling | A bounded sample of live runs is scored in the background |
+| Eval run comparison | `GET /api/evals/runs/{id}/diff` or `IEvalStore.DiffRunsAsync` | Two runs of a suite align case by case into six buckets; added and dropped cases are never counted as regressions |
+| Relative CI gate | `agentprism eval --baseline <runId\|previous> --max-regressions <n>` | A build fails on the cases that broke against an earlier run, not only on an absolute pass rate |
 | Experiments | Experiment API and console | Stable traffic assignment compares agent versions and reports each arm separately |
 | Canary rollback | Explicit canary policy | A background scan can stop or roll back a canary when its configured rule fails |
 
@@ -222,7 +224,7 @@ a failure to record one is logged and stepped over rather than raised to the cal
 | Management HTTP API | `MapAgentPrism()` | The embedded console, automation, or your own client |
 | Typed management client | `AgentPrism.Client`'s `AddAgentPrismClient()` | .NET code calling a running instance from outside the process that hosts it |
 | Typed TypeScript client | `@agentprism/client`'s `createAgentPrismClient()` | Browser or Node.js code calling a running instance from outside the process that hosts it |
-| CLI | `agentprism` global tool (`AgentPrism.Cli`) | Deployment pipelines: `migrate`/`migrate status` apply schema without starting the application, `health` checks model provider health, `eval` gates a build on agent quality |
+| CLI | `agentprism` global tool (`AgentPrism.Cli`) | Deployment pipelines: `migrate`/`migrate status` apply schema without starting the application, `health` checks model provider health, `eval` gates a build on agent quality, absolutely or against an earlier run |
 | OpenAPI | Your application's `AddOpenApi()` setup | Client generation and API exploration |
 | OpenAI compatibility | Included in `MapAgentPrism()` | Existing Chat Completions, Responses, and Conversations clients |
 | Embedded console | `AgentPrism.UI` and `UseUI()` | Operators, developers, evaluators, and security administrators |

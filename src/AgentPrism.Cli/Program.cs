@@ -60,6 +60,7 @@ internal static class Program
               agentprism eval --url <base-url> --suite <name>
                               [--token <token>] [--agent-version <n>]
                               [--min-pass-rate <0..1>] [--max-failures <n>]
+                              [--baseline <runId|previous>] [--max-regressions <n>]
                               [--timeout <seconds>] [--poll-interval <seconds>]
                               [--json]
 
@@ -74,11 +75,29 @@ internal static class Program
             eval triggers a suite, polls it to completion (default timeout 30
             minutes, poll interval 5 seconds), and applies an optional quality
             gate. With neither --min-pass-rate nor --max-failures, there is no
-            gate: exit 0 once the run finishes. With one or both given, ALL
-            given thresholds must hold or the command exits 3. Exit codes:
-            0 = ran and passed the gate (or no gate given), 1 = argument
-            error, 2 = could not run (transport, server, timeout, or the eval
-            itself ended Failed/Cancelled), 3 = ran but missed the gate.
+            absolute gate: exit 0 once the run finishes. With one or both
+            given, ALL given thresholds must hold or the command exits 3.
+
+            --baseline adds a RELATIVE gate on top, which is what catches a
+            slide an absolute threshold cannot see: with --min-pass-rate 0.85
+            set, a drop from 95% to 90% still passes. It names an earlier run
+            of the same suite, either by id or as the word 'previous' (the
+            newest completed run before this one), and --max-regressions says
+            how many cases may break against it. --baseline WITHOUT
+            --max-regressions reports the comparison and never fails the build;
+            the ceiling is what turns a report into a gate. Cases added to or dropped
+            from the suite are never counted as regressions. --max-regressions
+            without --baseline is an argument error, never a silent no-op. On
+            a suite's first run 'previous' finds nothing, says so on stderr,
+            and does NOT fail the gate.
+
+            Exit codes: 0 = ran and passed the gate (or no gate given),
+            1 = argument error, 2 = could not run (transport, server, timeout,
+            or the eval itself ended Failed/Cancelled), 3 = ran but missed the
+            gate, 4 = ran, but the comparison against the baseline was
+            impossible (its per-case results are gone, it never completed, or
+            it measures another suite). 4 is deliberately not 3: a lost
+            history needs a different fix than a broken case.
             """);
     }
 }

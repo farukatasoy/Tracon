@@ -331,6 +331,28 @@ internal sealed class InMemoryEvalStore : IEvalStore
         }
     }
 
+    /// <inheritdoc />
+    public async ValueTask<EvalRunDiff?> DiffRunsAsync(
+        EvalRunDiffQuery query,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var baseline = await GetRunAsync(query.TenantId, query.BaselineRunId, cancellationToken).ConfigureAwait(false);
+        var candidate = await GetRunAsync(query.TenantId, query.CandidateRunId, cancellationToken).ConfigureAwait(false);
+
+        if (baseline is null || candidate is null)
+        {
+            return null;
+        }
+
+        var baselineResults = await ListCaseResultsAsync(query.TenantId, baseline.Id, cancellationToken).ConfigureAwait(false);
+        var candidateResults = await ListCaseResultsAsync(query.TenantId, candidate.Id, cancellationToken).ConfigureAwait(false);
+
+        return EvalRunDiffBuilder.Build(baseline, candidate, baselineResults, candidateResults, query.Skip, query.Take);
+    }
+
     private static EvalSuite Create(EvalSuite suite)
     {
         var now = DateTimeOffset.UtcNow;

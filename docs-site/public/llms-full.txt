@@ -168,6 +168,8 @@ production behavior.
 | Custom checks | `AddEvalCheck(kind, check)` | Application code adds a named MAF `EvalCheck` |
 | Run judges | `IRunJudge` via `AddRunJudge<T>()`, instance, or factory, or the built-in `AddModelRunJudge()` | Manual or automatic scores with named criteria |
 | Online evaluation | Judge registration plus enabled sampling | A bounded sample of live runs is scored in the background |
+| Eval run comparison | `GET /api/evals/runs/{id}/diff` or `IEvalStore.DiffRunsAsync` | Two runs of a suite align case by case into six buckets; added and dropped cases are never counted as regressions |
+| Relative CI gate | `agentprism eval --baseline <runId\|previous> --max-regressions <n>` | A build fails on the cases that broke against an earlier run, not only on an absolute pass rate |
 | Experiments | Experiment API and console | Stable traffic assignment compares agent versions and reports each arm separately |
 | Canary rollback | Explicit canary policy | A background scan can stop or roll back a canary when its configured rule fails |
 
@@ -226,7 +228,7 @@ a failure to record one is logged and stepped over rather than raised to the cal
 | Management HTTP API | `MapAgentPrism()` | The embedded console, automation, or your own client |
 | Typed management client | `AgentPrism.Client`'s `AddAgentPrismClient()` | .NET code calling a running instance from outside the process that hosts it |
 | Typed TypeScript client | `@agentprism/client`'s `createAgentPrismClient()` | Browser or Node.js code calling a running instance from outside the process that hosts it |
-| CLI | `agentprism` global tool (`AgentPrism.Cli`) | Deployment pipelines: `migrate`/`migrate status` apply schema without starting the application, `health` checks model provider health, `eval` gates a build on agent quality |
+| CLI | `agentprism` global tool (`AgentPrism.Cli`) | Deployment pipelines: `migrate`/`migrate status` apply schema without starting the application, `health` checks model provider health, `eval` gates a build on agent quality, absolutely or against an earlier run |
 | OpenAPI | Your application's `AddOpenApi()` setup | Client generation and API exploration |
 | OpenAI compatibility | Included in `MapAgentPrism()` | Existing Chat Completions, Responses, and Conversations clients |
 | Embedded console | `AgentPrism.UI` and `UseUI()` | Operators, developers, evaluators, and security administrators |
@@ -721,6 +723,79 @@ conversation that produced it.
 curl -X POST http://localhost:5081/agentprism/api/evals/support/run
 curl http://localhost:5081/agentprism/api/evals/support/runs
 ```
+
+## Comparing two runs
+
+A pass rate is a poor regression signal. A suite that slides from 95% to 90% still
+clears a `0.85` threshold, and nothing in the run's own summary says which five cases
+stopped working. `GET /api/evals/runs/{id}/diff?baseline={runId}` aligns two runs of
+the same suite case by case instead:
+
+```bash
+curl "http://localhost:5081/agentprism/api/evals/runs/$SECOND/diff?baseline=$FIRST"
+```
+
+Every case lands in exactly one bucket:
+
+| Bucket | Meaning |
+|---|---|
+| `Regressed` | Passed on the baseline, fails now |
+| `Fixed` | Failed on the baseline, passes now |
+| `StillFailing` | Failed on both |
+| `Unchanged` | Passed on both |
+| `Added` | Only in the run being judged |
+| `Removed` | Only in the baseline run |
+
+`Added` and `Removed` are deliberately their own buckets. Adding a case to a suite
+moves the pass rate without anything having broken, and a gate that cannot tell those
+apart cries wolf every time someone extends a suite. Each entry names both sides'
+agent run, so a regression is one click from the two conversations that produced it.
+
+Two answers are refusals rather than results:
+
+- **`409`** — one of the runs holds results for fewer cases than its summary counts,
+  because they aged out of the `eval_case_results` retention window. Retention deletes
+  in batches and can leave a run partly trimmed, so the check counts rather than merely
+  looking for emptiness: comparing the survivors would report every deleted case as
+  `Removed` and quietly narrow the regression count to the rows that happen to remain.
+- **`400`** — the two runs measure different suites, or one of them never completed.
+
+Cases are aligned by identifier, and a case's content is not snapshotted per run. The
+shipped API makes that safe: `PUT /api/evals/{name}/cases` assigns fresh identifiers,
+so editing a case shows up as a `Removed` plus an `Added` entry rather than as a silent
+comparison of two different questions. Calling `IEvalStore.ReplaceCasesAsync` directly
+while preserving identifiers is the one path that can defeat this, and nothing detects
+it.
+
+### As a CI gate
+
+`agentprism eval` turns the same comparison into an exit code:
+
+```bash
+agentprism eval --url http://localhost:5081/agentprism --suite support \
+  --baseline previous --max-regressions 0
+```
+
+`--baseline` takes an eval run id or the word `previous`, which means the newest
+completed run of that suite before this one. `--max-regressions` says how many cases
+may break.
+
+Three rules keep the gate honest:
+
+- `--max-regressions` without `--baseline` is an **argument error** (exit `1`), never a
+  silent no-op. A pipeline must not read a green exit code as "no regressions" when
+  nothing was compared.
+- A comparison that cannot be made exits **`4`**, not `3`. A lost history needs a
+  different fix than a broken case.
+- On a suite's first run there is nothing to compare against. That is written to
+  stderr and the gate is **skipped**, not failed — otherwise every new suite's first
+  CI run goes red for no reason.
+
+The absolute thresholds still apply: `--min-pass-rate` and `--max-failures` are checked
+first, and the relative gate only ever adds a check.
+
+The eval run screen carries the same comparison, with a baseline picker and the
+`Regressed` group open by default.
 
 Cases can also be **promoted from a real run** — a production conversation that went
 wrong becomes a regression case in one request. The query comes from the run's
@@ -4180,7 +4255,7 @@ agentprism --help
 | `agentprism migrate --provider <postgres\|sqlserver\|sqlite> --connection <connection-string>` | Database, directly | Applies pending migrations. Runs before the application ever starts, so a deployment pipeline can prepare the schema as its own step |
 | `agentprism migrate status --provider ... --connection ...` | Database, directly | Lists pending migration names. Writes nothing |
 | `agentprism health --url <base-url> [--token <token>] [--json]` | HTTP, through the typed client | Reads model provider health |
-| `agentprism eval --url <base-url> --suite <name> [--token <token>] [--agent-version <n>] [--min-pass-rate <0..1>] [--max-failures <n>] [--timeout <seconds>] [--poll-interval <seconds>] [--json]` | HTTP, through the typed client | Triggers a suite, polls it to completion, applies an optional quality gate |
+| `agentprism eval --url <base-url> --suite <name> [--token <token>] [--agent-version <n>] [--min-pass-rate <0..1>] [--max-failures <n>] [--baseline <runId\|previous>] [--max-regressions <n>] [--timeout <seconds>] [--poll-interval <seconds>] [--json]` | HTTP, through the typed client | Triggers a suite, polls it to completion, applies an optional quality gate — absolute, relative to an earlier run, or both |
 
 `--connection` and `--token` also accept the `AGENTPRISM_CONNECTION` and
 `AGENTPRISM_TOKEN` environment variables — useful in a CI/CD step where a literal
@@ -4218,6 +4293,27 @@ Triggering needs the `RunsWrite` API key scope; polling needs `EvalsRead`. A
 key carrying only one of the two gets exit `2`, with the missing scope named
 in the error message — the server's response body is never echoed.
 
+An absolute threshold cannot see a slide: with `--min-pass-rate 0.85` set, a
+drop from 95% to 90% passes. `--baseline` adds a **relative** gate that
+compares the finished run against an earlier run of the same suite, case by
+case (see [Comparing two runs](/concepts/evaluation/#comparing-two-runs)):
+
+```bash
+agentprism eval --url http://localhost:5081/agentprism --suite support \
+  --baseline previous --max-regressions 0
+```
+
+`--baseline` takes an eval run id or the word `previous` — the newest
+completed run of that suite before this one. Given alone it reports the
+comparison without ever failing the build; `--max-regressions` is what turns
+the report into a gate. Under `--json` the summary moves to stderr so stdout
+stays a single parseable document. `--max-regressions` says how many
+cases may break; cases added to or dropped from the suite are never counted as
+regressions. `--max-regressions` without `--baseline` is an argument error
+(`1`), never a silent no-op: a pipeline must not read a green exit code as "no
+regressions" when nothing was compared. On a suite's first run there is no
+earlier run; that is written to stderr and the gate is skipped, not failed.
+
 ### Exit codes
 
 | Code | Meaning |
@@ -4226,10 +4322,14 @@ in the error message — the server's response body is never echoed.
 | `1` | Argument error (missing/invalid flag, unknown command) |
 | `2` | Could not run: connection failed, HTTP error, timed out, or (`eval` only) the run itself ended `Failed`/`Cancelled` |
 | `3` | (`eval` only) Ran, but missed the quality gate |
+| `4` | (`eval` only) Ran, but could not be compared against `--baseline` |
 
 The distinction between `2` and `3` is operational: `2` is an infrastructure
 problem and worth retrying; `3` is a real quality signal and retrying it is
-the wrong move. `migrate`, `migrate status`, and `health` never return `3`.
+the wrong move. `4` is a third thing again — the baseline's per-case results
+have aged out of retention, it never completed, or it measures another suite.
+Folding it into `3` would send someone hunting for a regression that was never
+measured. `migrate`, `migrate status`, and `health` never return `3` or `4`.
 
 ## Read next
 
@@ -10590,7 +10690,7 @@ public void All_tool_contracts_are_covered()
 
 # HTTP API
 
-163 operations across 126 paths. This page is the shape they all share; the groups in
+164 operations across 127 paths. This page is the shape they all share; the groups in
 the sidebar are the operations themselves, each with what it does and what it returns.
 
 The OpenAPI document is published as

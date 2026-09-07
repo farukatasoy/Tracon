@@ -31,6 +31,10 @@ internal static class EvalCommand
 {
     private static readonly TimeSpan DefaultTimeout = TimeSpan.FromMinutes(30);
     private static readonly TimeSpan DefaultPollInterval = TimeSpan.FromSeconds(5);
+
+    // How far back --baseline previous looks. Deep enough to step over a burst
+    // of failed or cancelled runs, shallow enough to stay one request.
+    private const int PreviousRunSearchWindow = 50;
     private static readonly JsonSerializerOptions PrettyJson = new() { WriteIndented = true };
 
     public static async Task<int> RunAsync(IReadOnlyList<string> args, CancellationToken cancellationToken)
@@ -42,6 +46,8 @@ internal static class EvalCommand
         var agentVersion = ParseOptionalInt(args, "--agent-version");
         var minPassRate = ParseOptionalDouble(args, "--min-pass-rate");
         var maxFailures = ParseOptionalInt(args, "--max-failures");
+        var baseline = CliArgs.GetOption(args, "--baseline");
+        var maxRegressions = ParseOptionalInt(args, "--max-regressions");
         var timeout = ParseOptionalSeconds(args, "--timeout") ?? DefaultTimeout;
         var pollInterval = ParseOptionalSeconds(args, "--poll-interval") ?? DefaultPollInterval;
 
@@ -58,6 +64,31 @@ internal static class EvalCommand
         if (maxFailures < 0)
         {
             throw new CliArgumentException("'--max-failures' must not be negative.");
+        }
+
+        if (maxRegressions < 0)
+        {
+            throw new CliArgumentException("'--max-regressions' must not be negative.");
+        }
+
+        // Silently ignoring the relative gate would be the worst outcome: the
+        // pipeline would read a green exit code as "no regressions" while
+        // nothing was ever compared.
+        if (maxRegressions is not null && baseline is null)
+        {
+            throw new CliArgumentException("'--max-regressions' needs '--baseline <runId|previous>'; without a baseline there is nothing to compare against.");
+        }
+
+        Guid? explicitBaseline = null;
+
+        if (baseline is not null && !string.Equals(baseline, "previous", StringComparison.Ordinal))
+        {
+            if (!Guid.TryParse(baseline, out var parsedBaseline))
+            {
+                throw new CliArgumentException("'--baseline' must be an eval run id, or the word 'previous'.");
+            }
+
+            explicitBaseline = parsedBaseline;
         }
 
         var services = new ServiceCollection();
@@ -165,8 +196,163 @@ internal static class EvalCommand
                 return 2;
             }
 
-            return PassesThreshold(detail.Run, minPassRate, maxFailures) ? 0 : 3;
+            if (!PassesThreshold(detail.Run, minPassRate, maxFailures))
+            {
+                return 3;
+            }
+
+            if (baseline is null)
+            {
+                return 0;
+            }
+
+            return await ApplyBaselineGateAsync(
+                    client,
+                    suiteName,
+                    detail.Run,
+                    explicitBaseline,
+                    maxRegressions,
+                    asJson,
+                    timeoutSource.Token)
+                .ConfigureAwait(false);
         }
+    }
+
+    /// <summary>
+    /// Judges the finished run against a baseline run of the same suite.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The absolute gate cannot see a slide: with <c>--min-pass-rate 0.85</c>
+    /// set, a drop from 95% to 90% passes. This gate compares case by case
+    /// instead, and it separates the two things a pipeline must never confuse -
+    /// "cases broke" (exit 3) and "the two runs could not be compared at all"
+    /// (exit 4).
+    /// </para>
+    /// <para>
+    /// With <c>--baseline</c> but no <c>--max-regressions</c>, the comparison is
+    /// reported and never fails the build: the ceiling is what turns a report
+    /// into a gate.
+    /// </para>
+    /// </remarks>
+    private static async Task<int> ApplyBaselineGateAsync(
+        AgentPrismApiClient client,
+        string suiteName,
+        AgentPrism.Client.Generated.EvalRun run,
+        Guid? explicitBaseline,
+        int? maxRegressions,
+        bool asJson,
+        CancellationToken cancellationToken)
+    {
+        Guid baselineRunId;
+
+        if (explicitBaseline is { } given)
+        {
+            baselineRunId = given;
+        }
+        else
+        {
+            var previous = await FindPreviousCompletedRunAsync(client, suiteName, run.Id, cancellationToken)
+                .ConfigureAwait(false);
+
+            if (previous is null)
+            {
+                // 🚨 Not a failure. A brand new suite has no history, and
+                // failing its first CI run would teach the team to delete the
+                // flag rather than to fix a regression.
+                Console.Error.WriteLine(
+                    $"No earlier completed run of suite '{suiteName}' to compare against; the relative gate was skipped.");
+                return 0;
+            }
+
+            baselineRunId = previous.Value;
+        }
+
+        AgentPrism.Client.Generated.EvalRunDiff diff;
+
+        try
+        {
+            diff = await client.AgentPrismDiffEvalRunsAsync(run.Id, baselineRunId, skip: null, take: null, cancellationToken)
+                .ConfigureAwait(false);
+        }
+        catch (AgentPrismApiException ex) when (ex.StatusCode is 400 or 404 or 409)
+        {
+            // 4, not 3: "could not compare" is a different fault with a
+            // different fix than "cases broke", and a pipeline that treats them
+            // alike hides a lost history behind a familiar red. Only the three
+            // codes the endpoint uses to REFUSE a comparison land here; an
+            // auth or server fault is a 2 like every other transport problem.
+            Console.Error.WriteLine(
+                $"Could not compare run {run.Id} against baseline {baselineRunId}: HTTP {ex.StatusCode}.");
+            return 4;
+        }
+        catch (AgentPrismApiException ex)
+        {
+            Console.Error.WriteLine($"Request failed: HTTP {ex.StatusCode}.");
+            return 2;
+        }
+        catch (OperationCanceledException)
+        {
+            Console.Error.WriteLine("Canceled.");
+            return 2;
+        }
+        catch (HttpRequestException ex)
+        {
+            Console.Error.WriteLine($"Connection failed: {ex.Message}");
+            return 2;
+        }
+
+        // 🚨 Under --json, stdout is ONE machine-readable document and nothing
+        // else may join it; a second, human-shaped line there turns `| jq` into
+        // a parse error. The summary still reaches the operator, on stderr.
+        var summary =
+            $"vs baseline {baselineRunId}: {diff.RegressedCount} regressed, {diff.FixedCount} fixed, " +
+            $"{diff.AddedCount} added, {diff.RemovedCount} removed.";
+
+        if (asJson)
+        {
+            Console.Error.WriteLine(summary);
+        }
+        else
+        {
+            Console.WriteLine(summary);
+        }
+
+        foreach (var entry in diff.Cases.Where(static entry => entry.Kind == AgentPrism.Client.Generated.EvalCaseDiffKind.Regressed))
+        {
+            Console.Error.WriteLine(
+                $"  regressed: case {entry.CaseId}" +
+                (string.IsNullOrEmpty(entry.CandidateFailureReason) ? string.Empty : $": {entry.CandidateFailureReason}"));
+        }
+
+        return maxRegressions is { } limit && diff.RegressedCount > limit ? 3 : 0;
+    }
+
+    /// <summary>
+    /// Finds the newest completed run of the suite other than the one just
+    /// made, which is what <c>--baseline previous</c> means.
+    /// </summary>
+    private static async Task<Guid?> FindPreviousCompletedRunAsync(
+        AgentPrismApiClient client,
+        string suiteName,
+        Guid currentRunId,
+        CancellationToken cancellationToken)
+    {
+        // The list endpoint answers newest first, so the first completed entry
+        // that is not the run we just made is the one wanted.
+        var runs = await client.AgentPrismListEvalRunsAsync(suiteName, skip: null, take: PreviousRunSearchWindow, cancellationToken)
+            .ConfigureAwait(false);
+
+        foreach (var candidate in runs)
+        {
+            if (candidate.Id != currentRunId &&
+                candidate.Status == AgentPrism.Client.Generated.EvalRunStatus.Completed)
+            {
+                return candidate.Id;
+            }
+        }
+
+        return null;
     }
 
     private static async Task<AgentPrism.Client.Generated.EvalRunDetailResponse> PollUntilTerminalAsync(
@@ -210,7 +396,7 @@ internal static class EvalCommand
 
         var run = detail.Run;
         var duration = run.CompletedAt is { } completedAt
-            ? $" in {(completedAt - run.StartedAt).TotalSeconds:0.0} s"
+            ? string.Create(CultureInfo.InvariantCulture, $" in {(completedAt - run.StartedAt).TotalSeconds:0.0} s")
             : string.Empty;
 
         Console.WriteLine($"{run.Status}: {run.Passed}/{run.Total} passed{duration}.");
