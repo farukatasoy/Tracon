@@ -5,10 +5,11 @@ namespace AgentPrism.Testing.Contracts.Storage;
 /// </summary>
 /// <remarks>
 /// The in-memory store and the three SQL providers must pass the same
-/// scenarios. Critical rule: when the same author scores the same target (a
-/// run or a message) a second time, the row is <strong>updated</strong>, not
-/// duplicated -- this rule does not apply when the author is empty (an
-/// anonymous setup).
+/// scenarios. Critical rule: when the same author writes the same
+/// <see cref="RunScore.Name"/> onto the same target (a run or a message) a
+/// second time, the row is <strong>updated</strong>, not duplicated -- a
+/// different name opens a new row, and neither rule applies when the author is
+/// empty (an anonymous setup).
 /// </remarks>
 public abstract class RunScoreStoreContract : TenantIsolationContract<IRunScoreStore>
 {
@@ -20,6 +21,8 @@ public abstract class RunScoreStoreContract : TenantIsolationContract<IRunScoreS
     /// </remarks>
     protected override async ValueTask<object> SeedAsync(string tenantId, string name)
     {
+        // `name` is the actor name here, not the score name: the isolation
+        // contract varies the author so two tenants' rows stay distinct.
         var saved = await Store.UpsertAsync(Score(IsolationRunId) with { TenantId = tenantId, Author = name });
         return saved.Id;
     }
@@ -55,8 +58,10 @@ public abstract class RunScoreStoreContract : TenantIsolationContract<IRunScoreS
         var loaded = (await Store.ListAsync(Tenant, runId)).ShouldHaveSingleItem();
 
         loaded.RunId.ShouldBe(runId);
+        loaded.Name.ShouldBe("helpfulness");
         loaded.Kind.ShouldBe(RunScoreKind.Binary);
         loaded.Value.ShouldBe(1);
+        loaded.TextValue.ShouldBeNull();
         loaded.Comment.ShouldBe("correct answer");
         loaded.Source.ShouldBe("human");
         loaded.Author.ShouldBe("operator@example");
@@ -85,6 +90,140 @@ public abstract class RunScoreStoreContract : TenantIsolationContract<IRunScoreS
         var loaded = (await Store.ListAsync(Tenant, runId)).ShouldHaveSingleItem();
         loaded.Value.ShouldBe(1);
         loaded.Comment.ShouldBe("updated");
+    }
+
+    [Fact]
+    public async Task Same_author_scoring_the_same_target_under_a_DIFFERENT_name_opens_a_new_row()
+    {
+        // The whole point of phase 152: one reviewer scores the same run for
+        // helpfulness AND accuracy, and neither write erases the other.
+        var runId = AgentPrismId.NewId();
+
+        await Store.UpsertAsync(Score(runId) with { Name = "helpfulness", Value = 1 });
+        await Store.UpsertAsync(Score(runId) with { Name = "accuracy", Value = 0 });
+
+        var loaded = await Store.ListAsync(Tenant, runId);
+
+        loaded.Count.ShouldBe(2);
+        loaded.Single(score => string.Equals(score.Name, "helpfulness", StringComparison.Ordinal)).Value.ShouldBe(1);
+        loaded.Single(score => string.Equals(score.Name, "accuracy", StringComparison.Ordinal)).Value.ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task Updating_ONE_name_leaves_the_authors_other_names_untouched()
+    {
+        var runId = AgentPrismId.NewId();
+
+        await Store.UpsertAsync(Score(runId) with { Name = "helpfulness", Value = 1 });
+        await Store.UpsertAsync(Score(runId) with { Name = "accuracy", Value = 0 });
+        await Store.UpsertAsync(Score(runId) with { Name = "helpfulness", Value = 0, Comment = "changed" });
+
+        var loaded = await Store.ListAsync(Tenant, runId);
+
+        loaded.Count.ShouldBe(2);
+        loaded.Single(score => string.Equals(score.Name, "helpfulness", StringComparison.Ordinal)).Comment.ShouldBe("changed");
+        loaded.Single(score => string.Equals(score.Name, "accuracy", StringComparison.Ordinal)).Comment.ShouldBe("correct answer");
+    }
+
+    [Fact]
+    public async Task A_decimal_value_is_NOT_rounded()
+    {
+        // The old column was `integer`; 0.87 used to become 1 -- or worse, 0.
+        var runId = AgentPrismId.NewId();
+
+        await Store.UpsertAsync(Score(runId) with
+        {
+            Name = "similarity",
+            Kind = RunScoreKind.Numeric,
+            Value = 0.87,
+        });
+
+        (await Store.ListAsync(Tenant, runId)).ShouldHaveSingleItem().Value.ShouldBe(0.87);
+    }
+
+    [Fact]
+    public async Task A_whole_number_value_is_read_back_as_a_number_not_an_integer()
+    {
+        // SQLite folds a lossless real into an INTEGER unless the column has
+        // REAL affinity; the reader asks for a double either way.
+        var runId = AgentPrismId.NewId();
+
+        await Store.UpsertAsync(Score(runId) with { Kind = RunScoreKind.Numeric, Value = 4 });
+
+        (await Store.ListAsync(Tenant, runId)).ShouldHaveSingleItem().Value.ShouldBe(4);
+    }
+
+    [Fact]
+    public async Task A_null_value_means_NO_MEASUREMENT_not_zero()
+    {
+        var runId = AgentPrismId.NewId();
+
+        await Store.UpsertAsync(Score(runId) with { Kind = RunScoreKind.Numeric, Value = null });
+
+        (await Store.ListAsync(Tenant, runId)).ShouldHaveSingleItem().Value.ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task A_categorical_score_is_stored_as_text()
+    {
+        var runId = AgentPrismId.NewId();
+
+        await Store.UpsertAsync(Score(runId) with
+        {
+            Name = "severity",
+            Kind = RunScoreKind.Categorical,
+            Value = null,
+            TextValue = "minor",
+        });
+
+        var loaded = (await Store.ListAsync(Tenant, runId)).ShouldHaveSingleItem();
+
+        loaded.Kind.ShouldBe(RunScoreKind.Categorical);
+        loaded.TextValue.ShouldBe("minor");
+        loaded.Value.ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task A_categorical_score_carrying_a_numeric_value_is_REJECTED()
+        => await Should.ThrowAsync<ArgumentException>(async () => await Store.UpsertAsync(Score(AgentPrismId.NewId()) with
+        {
+            Kind = RunScoreKind.Categorical,
+            Value = 1,
+            TextValue = "minor",
+        }));
+
+    [Fact]
+    public async Task A_numeric_score_carrying_a_text_value_is_REJECTED()
+        => await Should.ThrowAsync<ArgumentException>(async () => await Store.UpsertAsync(Score(AgentPrismId.NewId()) with
+        {
+            Kind = RunScoreKind.Numeric,
+            Value = 1,
+            TextValue = "minor",
+        }));
+
+    [Theory]
+    [InlineData("has space")]
+    [InlineData("")]
+    [InlineData("naïve")]
+    [InlineData("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")]
+    public async Task An_illegal_name_is_REJECTED(string name)
+        => await Should.ThrowAsync<ArgumentException>(
+            async () => await Store.UpsertAsync(Score(AgentPrismId.NewId()) with { Name = name }));
+
+    [Fact]
+    public async Task Repeated_writes_of_the_SAME_name_leave_exactly_one_row()
+    {
+        // Guards the new (…, author, name) uniqueness index against the failure
+        // it would show first: a key that no longer matches, so every write
+        // opens a row instead of updating one.
+        var runId = AgentPrismId.NewId();
+
+        for (var attempt = 0; attempt < 5; attempt++)
+        {
+            await Store.UpsertAsync(Score(runId) with { Value = attempt % 2 });
+        }
+
+        (await Store.ListAsync(Tenant, runId)).ShouldHaveSingleItem();
     }
 
     [Fact]
@@ -169,6 +308,7 @@ public abstract class RunScoreStoreContract : TenantIsolationContract<IRunScoreS
             TenantId = Tenant,
             RunId = runId,
             MessageId = "msg-1",
+            Name = "helpfulness",
             Kind = RunScoreKind.Binary,
             Value = 1,
             Comment = "correct answer",

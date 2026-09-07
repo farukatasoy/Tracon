@@ -111,6 +111,29 @@ Scores can be attached to a run, or to a single message in it. Human scores and 
 scores live in **one** list with a source field on each entry, not in separate
 endpoints, so "what do we think of this run" is one question.
 
+Every score carries a **name** — `helpfulness`, `accuracy`, `severity` — and the name
+is part of what makes a score unique. One reviewer can therefore score the same run
+several times over, once per name, and writing the same name again updates that row
+instead of opening another. A request that sends no name gets `overall`, so a client
+that never asks for names keeps a single score per reviewer.
+
+A name is a low-cardinality label matching `[A-Za-z0-9._-]{1,64}` — the same rule a
+judge name follows, because a judge writes its own name onto the score it produces.
+It is used as a metric tag, so a run id or a timestamp does not belong there.
+
+A score carries one of four shapes:
+
+| Kind | Carries | Example |
+|---|---|---|
+| `Binary` | `value` 0 or 1 | thumbs down / thumbs up |
+| `Stars` | `value` 1 to 5 | a star rating |
+| `Numeric` | `value` 0 to 100 | a judge's score, or a similarity of `0.87` |
+| `Categorical` | `textValue` | `minor`, `major`, `blocking` |
+
+`value` is a decimal, so `0.87` is stored as `0.87`. A **null** `value` means no
+measurement was made — not zero. Zero is a measurement; the absence of one is not,
+which is the same rule `RunJudgment.Score` follows when a judge cannot decide.
+
 Deleting a score is written to the audit trail: removing a judgement is itself
 traceable.
 

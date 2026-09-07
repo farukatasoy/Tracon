@@ -320,6 +320,84 @@ public sealed class MigrationRunnerTests(SqliteFixture fixture)
             },
             NullLogger<MigrationRunner>.Instance);
 
+    /// <summary>
+    /// A database populated BEFORE phase 152 upgrades without losing a row: the
+    /// judge rows keep their judge name, the human rows fall back to
+    /// <c>overall</c>, and the widened <c>value</c> column stops rounding.
+    /// </summary>
+    /// <remarks>
+    /// SQLite cannot alter a column in place, so 0035 adds <c>value_real</c>,
+    /// copies, drops <c>value</c> and renames. This test is the only place that
+    /// proves the copy carries the data across.
+    /// </remarks>
+    [Fact]
+    public async Task Populated_pre_152_run_scores_upgrade_without_data_loss()
+    {
+        var prefix = SqliteTestContext.NewTablePrefix();
+        await using var context = SqliteTestContext.Create(fixture, prefix);
+
+        var migrations = MigrationDescriptor
+            .Discover(typeof(MigrationRunner).Assembly, "AgentPrism.Sqlite.Migrations.");
+
+        var upgrade = migrations[^1];
+        upgrade.Name.ShouldBe("0035_run_score_name_and_shape");
+
+        await context.ExecuteAsync(context.StoreContext.Sql.CreateMigrationsTable);
+
+        foreach (var migration in migrations.Where(candidate => candidate.Id < upgrade.Id))
+        {
+            await context.ExecuteAsync(context.StoreContext.Sql.ApplySchema(migration.Sql));
+            await context.ExecuteAsync(
+                $"INSERT INTO {prefix}__migrations (set_name, id, name, checksum, applied_at) " +
+                $"VALUES ('core', {migration.Id}, '{migration.Name}', '{migration.Checksum}', '2026-01-01T00:00:00.0000000Z');");
+        }
+
+        // 🚨 uuids are stored UPPERCASE in this dialect (K-191).
+        var runId = AgentPrismId.NewId().ToString("D").ToUpperInvariant();
+        var humanId = AgentPrismId.NewId().ToString("D").ToUpperInvariant();
+        var judgeId = AgentPrismId.NewId().ToString("D").ToUpperInvariant();
+
+        await context.ExecuteAsync($"""
+            INSERT INTO {prefix}run_scores
+                (id, tenant_id, run_id, message_id, kind, value, comment, source, author, created_at)
+            VALUES
+                ('{humanId}', 'test', '{runId}', NULL, 1, 1, 'good', 'human', 'alice', '2026-01-01T00:00:00.0000000Z'),
+                ('{judgeId}', 'test', '{runId}', NULL, 3, 70, 'ok', 'judge:quality', 'judge:quality', '2026-01-01T00:00:00.0000000Z');
+            """);
+
+        (await context.Migrations.ApplyAsync()).ShouldBe(1);
+
+        var rows = await context.ScalarAsync<long>($"SELECT COUNT(*) FROM {prefix}run_scores;");
+        rows.ShouldBe(2);
+
+        var humanName = await context.ScalarAsync<string>(
+            $"SELECT name FROM {prefix}run_scores WHERE author = 'alice';");
+        humanName.ShouldBe("overall");
+
+        var judgeName = await context.ScalarAsync<string>(
+            $"SELECT name FROM {prefix}run_scores WHERE author = 'judge:quality';");
+        judgeName.ShouldBe("quality");
+
+        // The widened column now accepts a decimal the old integer column
+        // would have rounded away.
+        await context.ExecuteAsync(
+            $"UPDATE {prefix}run_scores SET value = 0.87 WHERE author = 'judge:quality';");
+
+        (await context.ScalarAsync<double>(
+            $"SELECT value FROM {prefix}run_scores WHERE author = 'judge:quality';")).ShouldBe(0.87);
+
+        // The old uniqueness index is gone: the same author can now hold two names.
+        await context.ExecuteAsync($"""
+            INSERT INTO {prefix}run_scores
+                (id, tenant_id, run_id, message_id, kind, value, comment, source, author, created_at, name, text_value)
+            VALUES
+                ('{AgentPrismId.NewId().ToString("D").ToUpperInvariant()}', 'test', '{runId}', NULL, 1, 0, NULL, 'human', 'alice', '2026-01-01T00:00:00.0000000Z', 'accuracy', NULL);
+            """);
+
+        (await context.ScalarAsync<long>(
+            $"SELECT COUNT(*) FROM {prefix}run_scores WHERE author = 'alice';")).ShouldBe(2);
+    }
+
     [Fact]
     public void Migration_runner_cannot_be_constructed_with_an_invalid_prefix()
     {

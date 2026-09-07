@@ -211,6 +211,13 @@ internal static class DbHelpers
     public static decimal? GetNullableDecimal(DbDataReader reader, int ordinal)
         => reader.IsDBNull(ordinal) ? null : reader.GetDecimal(ordinal);
 
+    /// <summary>Reads a nullable double-precision column.</summary>
+    /// <param name="reader">The reader.</param>
+    /// <param name="ordinal">The column ordinal.</param>
+    /// <returns>The value; <see langword="null"/> when it is <c>NULL</c>.</returns>
+    public static double? GetNullableDouble(DbDataReader reader, int ordinal)
+        => reader.IsDBNull(ordinal) ? null : reader.GetDouble(ordinal);
+
     /// <summary>Reads a nullable identifier column.</summary>
     /// <param name="reader">The reader.</param>
     /// <param name="ordinal">The column ordinal.</param>

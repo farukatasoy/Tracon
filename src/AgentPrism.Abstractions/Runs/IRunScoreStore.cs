@@ -28,12 +28,22 @@ public interface IRunScoreStore
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>The score written.</returns>
     /// <remarks>
-    /// When the same author (<see cref="RunScore.Author"/>) scores the same
-    /// target (a run or a message) a second time, the row is
-    /// <strong>updated</strong>, not opened as a new row. If
-    /// <see cref="RunScore.Author"/> is empty, this rule does not apply; every
+    /// <para>
+    /// When the same author (<see cref="RunScore.Author"/>) writes the same
+    /// <see cref="RunScore.Name"/> onto the same target (a run or a message) a
+    /// second time, the row is <strong>updated</strong>, not opened as a new
+    /// row. A different name from the same author opens a new row. If
+    /// <see cref="RunScore.Author"/> is empty, the rule does not apply; every
     /// call writes a new row.
+    /// </para>
+    /// <para>
+    /// The score is validated with <see cref="RunScoreRules.Validate"/> before
+    /// it is written; every implementation must do the same.
+    /// </para>
     /// </remarks>
+    /// <exception cref="ArgumentException">
+    /// <paramref name="score"/> breaks a <see cref="RunScoreRules"/> invariant.
+    /// </exception>
     ValueTask<RunScore> UpsertAsync(RunScore score, CancellationToken cancellationToken = default);
 
     /// <summary>Lists all of a run's scores.</summary>

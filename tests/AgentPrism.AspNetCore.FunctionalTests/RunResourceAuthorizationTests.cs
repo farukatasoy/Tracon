@@ -317,6 +317,7 @@ public sealed class RunResourceAuthorizationTests
         {
             TenantId = "default",
             RunId = runId,
+            Name = RunScoreRules.DefaultName,
             Kind = RunScoreKind.Binary,
             Value = 1,
             Source = "human",
@@ -529,6 +530,7 @@ public sealed class RunResourceAuthorizationTests
         {
             TenantId = "default",
             RunId = otherRun,
+            Name = RunScoreRules.DefaultName,
             Kind = RunScoreKind.Binary,
             Value = 1,
             Source = "human",

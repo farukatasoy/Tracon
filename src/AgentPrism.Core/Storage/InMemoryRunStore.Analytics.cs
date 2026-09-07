@@ -51,9 +51,12 @@ internal sealed partial class InMemoryRunStore
 
         foreach (var score in scores)
         {
-            if (score.Kind == RunScoreKind.Numeric && score.MessageId is null)
+            // A null Value records that no measurement was made; it must not
+            // be averaged in as a zero. The SQL side gets this for free —
+            // AVG ignores NULLs.
+            if (score.Kind == RunScoreKind.Numeric && score.MessageId is null && score.Value is { } value)
             {
-                sum += score.Value;
+                sum += value;
                 count++;
             }
         }

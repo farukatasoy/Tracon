@@ -1518,7 +1518,7 @@
           "Runs"
         ],
         "summary": "Writes a score for a run or for a single message.",
-        "description": "When the same author scores the same target (run or message) a second time, the row is UPDATED, not a new row opened. If \u0027messageId\u0027 is left blank, the score applies to the whole run.",
+        "description": "When the same author writes the same \u0027name\u0027 onto the same target (run or message) a second time, the row is UPDATED, not a new row opened; a different name opens a new row, so one reviewer can score a run for both \u0027helpfulness\u0027 and \u0027accuracy\u0027. A blank \u0027name\u0027 becomes \u0027overall\u0027. If \u0027messageId\u0027 is left blank, the score applies to the whole run. A \u0027categorical\u0027 score carries \u0027textValue\u0027 instead of \u0027value\u0027; every other kind carries \u0027value\u0027.",
         "operationId": "AgentPrismSaveRunFeedback",
         "parameters": [
           {
@@ -13475,23 +13475,37 @@
       },
       "RunFeedbackRequest": {
         "required": [
-          "kind",
-          "value"
+          "kind"
         ],
         "type": "object",
         "properties": {
+          "name": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The score\u0027s stable, low-cardinality name. Left blank it becomes\n\u0060overall\u0060."
+          },
           "kind": {
             "description": "The format of the score.",
             "$ref": "#/components/schemas/RunScoreKind"
           },
           "value": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?(?:[eE][\u002B-]?\\d\u002B)?$",
             "type": [
-              "integer",
+              "null",
+              "number",
               "string"
             ],
-            "description": "0/1 for RunScoreKind.Binary, 1.5 for RunScoreKind.Stars.",
-            "format": "int32"
+            "description": "0/1 for RunScoreKind.Binary, 1 to 5 for\nRunScoreKind.Stars, 0 to 100 for\nRunScoreKind.Numeric. Left out for\nRunScoreKind.Categorical, required otherwise.",
+            "format": "double"
+          },
+          "textValue": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The categorical label. Required for RunScoreKind.Categorical\nand rejected for every other kind."
           },
           "messageId": {
             "type": [
@@ -13985,8 +13999,8 @@
         "required": [
           "tenantId",
           "runId",
+          "name",
           "kind",
-          "value",
           "source"
         ],
         "type": "object",
@@ -14012,18 +14026,30 @@
             ],
             "description": "The identifier of the message being scored. If empty, the score belongs to the whole run."
           },
+          "name": {
+            "type": "string",
+            "description": "The score\u0027s stable, low-cardinality name \u2014 part of the uniqueness key."
+          },
           "kind": {
-            "description": "The shape of \u0060Value\u0060.",
+            "description": "The shape of the value.",
             "$ref": "#/components/schemas/RunScoreKind"
           },
           "value": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?(?:[eE][\u002B-]?\\d\u002B)?$",
             "type": [
-              "integer",
+              "null",
+              "number",
               "string"
             ],
-            "description": "The score value. 0/1 for RunScoreKind.Binary, 1.5 for RunScoreKind.Stars.",
-            "format": "int32"
+            "description": "The numeric value: 0/1 for RunScoreKind.Binary, 1 to 5 for\nRunScoreKind.Stars, 0 to 100 for\nRunScoreKind.Numeric.",
+            "format": "double"
+          },
+          "textValue": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The categorical value. Set only when RunScoreKind RunScore.Kind is RunScoreKind.Categorical."
           },
           "comment": {
             "type": [
@@ -14034,7 +14060,7 @@
           },
           "source": {
             "type": "string",
-            "description": "The score\u0027s source: \u0060human\u0060, \u0060api\u0060, or \u0060judge\u0060. Today\nonly \u0060human\u0060 is used; the column is set up from the start so\nonline evaluation can write a judge score into the same table as-is."
+            "description": "The score\u0027s source: \u0060human\u0060, \u0060api\u0060, or \u0060judge:{name}\u0060."
           },
           "author": {
             "type": [
@@ -14055,7 +14081,8 @@
         "enum": [
           "Binary",
           "Stars",
-          "Numeric"
+          "Numeric",
+          "Categorical"
         ],
         "description": "The shape of the value a RunScore carries."
       },

@@ -29,6 +29,7 @@ internal sealed class SqlRunScoreStore : IRunScoreStore
     public async ValueTask<RunScore> UpsertAsync(RunScore score, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(score);
+        RunScoreRules.Validate(score);
 
         var command = _context.CreateCommand(_sql.UpsertRunScore);
         DbHelpers.Add(command, "id", score.Id == Guid.Empty ? AgentPrismId.NewId() : score.Id);
@@ -36,7 +37,9 @@ internal sealed class SqlRunScoreStore : IRunScoreStore
         DbHelpers.Add(command, "run_id", score.RunId);
         Dialect.AddText(command, "message_id", score.MessageId);
         DbHelpers.Add(command, "kind", (short)score.Kind);
-        DbHelpers.Add(command, "value", score.Value);
+        Dialect.AddDouble(command, "value", score.Value);
+        DbHelpers.Add(command, "name", score.Name);
+        Dialect.AddText(command, "text_value", score.TextValue);
         Dialect.AddText(command, "comment", score.Comment);
         DbHelpers.Add(command, "source", score.Source);
         Dialect.AddText(command, "author", score.Author);
@@ -85,10 +88,12 @@ internal sealed class SqlRunScoreStore : IRunScoreStore
             RunId = reader.GetGuid(2),
             MessageId = DbHelpers.GetNullableString(reader, 3),
             Kind = (RunScoreKind)reader.GetInt16(4),
-            Value = reader.GetInt32(5),
+            Value = DbHelpers.GetNullableDouble(reader, 5),
             Comment = DbHelpers.GetNullableString(reader, 6),
             Source = reader.GetString(7),
             Author = DbHelpers.GetNullableString(reader, 8),
             CreatedAt = DbHelpers.GetTimestamp(reader, 9),
+            Name = reader.GetString(10),
+            TextValue = DbHelpers.GetNullableString(reader, 11),
         };
 }

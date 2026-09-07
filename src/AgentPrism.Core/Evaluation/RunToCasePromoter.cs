@@ -140,6 +140,8 @@ internal sealed class RunToCasePromoter
 
         var scores = await _scores.ListAsync(tenantId, run.Id, cancellationToken).ConfigureAwait(false);
 
+        // A null Value means no measurement was made, so neither lifted
+        // comparison holds and the run is not treated as negatively scored.
         var isNegative = scores.Any(static score =>
             (score.Kind == RunScoreKind.Binary && score.Value == 0) ||
             (score.Kind == RunScoreKind.Stars && score.Value <= 2));

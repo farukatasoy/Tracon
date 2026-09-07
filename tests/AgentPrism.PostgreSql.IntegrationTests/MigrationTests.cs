@@ -218,6 +218,72 @@ public sealed class MigrationRunnerTests(PostgresFixture fixture)
         exception.Message.ShouldContain("schema name");
     }
 
+    /// <summary>
+    /// A database populated BEFORE phase 152 upgrades without losing a row: the
+    /// judge rows keep their judge name, the human rows fall back to
+    /// <c>overall</c>, the widened <c>value</c> column stops rounding, and the
+    /// old uniqueness index no longer blocks a second name per author.
+    /// </summary>
+    [Fact]
+    public async Task Populated_pre_152_run_scores_upgrade_without_data_loss()
+    {
+        var schemaName = PostgresTestContext.NewSchemaName();
+        await using var context = PostgresTestContext.Create(fixture, schemaName, enableKnowledge: false);
+
+        var migrations = MigrationDescriptor
+            .Discover(typeof(MigrationRunner).Assembly, "AgentPrism.PostgreSql.Migrations.");
+
+        var upgrade = migrations[^1];
+        upgrade.Name.ShouldBe("0048_run_score_name_and_shape");
+
+        await context.ExecuteAsync($"CREATE SCHEMA IF NOT EXISTS {schemaName};");
+        await context.ExecuteAsync(context.StoreContext.Sql.CreateMigrationsTable);
+
+        foreach (var migration in migrations.Where(candidate => candidate.Id < upgrade.Id))
+        {
+            await context.ExecuteAsync(context.StoreContext.Sql.ApplySchema(migration.Sql));
+            await context.ExecuteAsync(
+                $"INSERT INTO {schemaName}.__migrations (set_name, id, name, checksum, applied_at) " +
+                $"VALUES ('core', {migration.Id}, '{migration.Name}', '{migration.Checksum}', '2026-01-01T00:00:00Z');");
+        }
+
+        var runId = AgentPrismId.NewId();
+
+        await context.ExecuteAsync($"""
+            INSERT INTO {schemaName}.run_scores
+                (id, tenant_id, run_id, message_id, kind, value, comment, source, author, created_at)
+            VALUES
+                ('{AgentPrismId.NewId()}', 'test', '{runId}', NULL, 1, 1, 'good', 'human', 'alice', '2026-01-01T00:00:00Z'),
+                ('{AgentPrismId.NewId()}', 'test', '{runId}', NULL, 3, 70, 'ok', 'judge:quality', 'judge:quality', '2026-01-01T00:00:00Z');
+            """);
+
+        (await context.Migrations.ApplyAsync()).ShouldBe(1);
+
+        (await context.ScalarAsync<long>($"SELECT COUNT(*) FROM {schemaName}.run_scores;")).ShouldBe(2);
+
+        (await context.ScalarAsync<string>(
+            $"SELECT name FROM {schemaName}.run_scores WHERE author = 'alice';")).ShouldBe("overall");
+
+        (await context.ScalarAsync<string>(
+            $"SELECT name FROM {schemaName}.run_scores WHERE author = 'judge:quality';")).ShouldBe("quality");
+
+        await context.ExecuteAsync(
+            $"UPDATE {schemaName}.run_scores SET value = 0.87 WHERE author = 'judge:quality';");
+
+        (await context.ScalarAsync<double>(
+            $"SELECT value FROM {schemaName}.run_scores WHERE author = 'judge:quality';")).ShouldBe(0.87);
+
+        await context.ExecuteAsync($"""
+            INSERT INTO {schemaName}.run_scores
+                (id, tenant_id, run_id, message_id, kind, value, comment, source, author, created_at, name, text_value)
+            VALUES
+                ('{AgentPrismId.NewId()}', 'test', '{runId}', NULL, 1, 0, NULL, 'human', 'alice', '2026-01-01T00:00:00Z', 'accuracy', NULL);
+            """);
+
+        (await context.ScalarAsync<long>(
+            $"SELECT COUNT(*) FROM {schemaName}.run_scores WHERE author = 'alice';")).ShouldBe(2);
+    }
+
     [Fact]
     public async Task Custom_schema_name_is_used()
     {

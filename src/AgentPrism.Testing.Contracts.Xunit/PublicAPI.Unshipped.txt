@@ -342,6 +342,16 @@ AgentPrism.Testing.Contracts.Storage.RunScoreStoreContract.Different_messages_ar
 AgentPrism.Testing.Contracts.Storage.RunScoreStoreContract.Empty_author_makes_EVERY_call_open_a_new_row() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.RunScoreStoreContract.RunScoreStoreContract() -> void
 AgentPrism.Testing.Contracts.Storage.RunScoreStoreContract.Same_author_scoring_the_same_target_twice_UPDATES_the_row() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.Storage.RunScoreStoreContract.Same_author_scoring_the_same_target_under_a_DIFFERENT_name_opens_a_new_row() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.Storage.RunScoreStoreContract.Updating_ONE_name_leaves_the_authors_other_names_untouched() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.Storage.RunScoreStoreContract.A_decimal_value_is_NOT_rounded() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.Storage.RunScoreStoreContract.A_whole_number_value_is_read_back_as_a_number_not_an_integer() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.Storage.RunScoreStoreContract.A_null_value_means_NO_MEASUREMENT_not_zero() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.Storage.RunScoreStoreContract.A_categorical_score_is_stored_as_text() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.Storage.RunScoreStoreContract.A_categorical_score_carrying_a_numeric_value_is_REJECTED() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.Storage.RunScoreStoreContract.A_numeric_score_carrying_a_text_value_is_REJECTED() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.Storage.RunScoreStoreContract.An_illegal_name_is_REJECTED(string! name) -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.Storage.RunScoreStoreContract.Repeated_writes_of_the_SAME_name_leave_exactly_one_row() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.RunScoreStoreContract.Score_is_deleted() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.RunScoreStoreContract.Score_with_no_message_id_belongs_to_the_whole_run() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.RunScoreStoreContract.Written_score_is_read_back() -> System.Threading.Tasks.Task!
