@@ -71,10 +71,14 @@ internal static class ApprovalEndpoints
             .Accepts<ApprovalDecisionRequest>("application/json")
             .WithDescription(
                 "The decision enqueues a NEW run (same sessionId, new RunId); the old run " +
-                "stays AwaitingApproval. A second decision on the same request gets 409. If a " +
-                "registered IRunAuthorizationHandler denies the caller, the response is 404, " +
-                "identical to an approval request that does not exist — the 409 is never reached, " +
-                "so a denial cannot reveal that the request was already decided.");
+                "stays AwaitingApproval. Do not start that run yourself. Repeating the SAME " +
+                "decision is safe and returns 200: the continuation run's identity is derived " +
+                "from the approval, so a repeat finishes a handoff that failed partway instead " +
+                "of creating a second run. A second decision asking for the OPPOSITE answer " +
+                "gets 409. If a registered IRunAuthorizationHandler denies the caller, the " +
+                "response is 404, identical to an approval request that does not exist — the " +
+                "409 is never reached, so a denial cannot reveal that the request was already " +
+                "decided.");
     }
 
     private static async Task<Results<Ok<IReadOnlyList<PendingApproval>>, ProblemHttpResult>> ListPendingAsync(
@@ -191,9 +195,24 @@ internal static class ApprovalEndpoints
             return authorizationProblem;
         }
 
+        // 🚨 An approval that is no longer pending is not automatically a
+        // conflict. Applying the decision and handing the run off to the worker
+        // are separate writes with nothing spanning them, so a crash in between
+        // leaves the approval decided with no run to carry it out. Answering
+        // 409 there strands the decision permanently: the caller is told the
+        // work is done when it never started, and nothing else recovers it
+        // (run reconciliation only claims runs already Running, and is off by
+        // default). Repeating the SAME decision therefore re-drives the
+        // handoff; only a repeat that asks for the opposite answer conflicts.
         if (approval.Status != ApprovalStatus.Pending)
         {
-            return AlreadyDecided(id);
+            if (approval.Status != DecisionStatus(request.Approved))
+            {
+                return AlreadyDecided(id);
+            }
+
+            return await ResumeAsync(
+                approval, runStore, jobStore, tenants, cancellationToken).ConfigureAwait(false);
         }
 
         var logger = loggerFactory.CreateLogger("AgentPrism.ApprovalEndpoints");
@@ -225,55 +244,99 @@ internal static class ApprovalEndpoints
             return AlreadyDecided(id);
         }
 
-        // Regardless of the decision (approve/reject) the run is RESUMED: the model
-        // must see a result or a rejection and proceed accordingly — the SAME
-        // behavior as ToolApprovalResolver on the synchronous path.
+        var decided = await approvals.GetAsync(id, cancellationToken).ConfigureAwait(false) ?? approval;
+
+        return await ResumeAsync(decided, runStore, jobStore, tenants, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>The status a decision leaves the approval in.</summary>
+    private static ApprovalStatus DecisionStatus(bool approved)
+        => approved ? ApprovalStatus.Approved : ApprovalStatus.Rejected;
+
+    /// <summary>
+    /// Creates the run that carries out a decision and queues it for the worker.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Regardless of the decision (approve/reject) the run is RESUMED: the model
+    /// must see a result or a rejection and proceed accordingly — the SAME
+    /// behavior as <c>ToolApprovalResolver</c> on the synchronous path.
+    /// </para>
+    /// <para>
+    /// <strong>Safe to call more than once for the same approval.</strong> The run identifier
+    /// is DERIVED from the approval rather than minted fresh, so a repeat lands
+    /// on the same run and the same job instead of creating a second pair; each
+    /// write is skipped when its row is already there. That is what lets a
+    /// decision whose handoff was interrupted be finished by simply repeating
+    /// it, with no table to remember the half-finished work.
+    /// </para>
+    /// <para>
+    /// Not a transaction: two callers repeating the same decision at the same
+    /// instant can both see a row missing and both try to write it, and one
+    /// gets a duplicate-key error. That caller can retry — the identifiers are
+    /// stable, so the state stays recoverable, which is the property the
+    /// previous code lacked entirely.
+    /// </para>
+    /// </remarks>
+    private static async Task<Results<Ok<PendingApproval>, ProblemHttpResult>> ResumeAsync(
+        PendingApproval approval,
+        IRunStore runStore,
+        IJobStore jobStore,
+        ITenantContext tenants,
+        CancellationToken cancellationToken)
+    {
         var originalRun = await runStore.GetRunAsync(approval.RunId, cancellationToken).ConfigureAwait(false)
             ?? throw new AgentPrismException(
                 $"There is no run with id '{approval.RunId}'; the 'pending_approvals.run_id' " +
                 "foreign key should have made this impossible.");
 
-        var newRunId = AgentPrismId.NewId();
+        // Both inputs are stored values, so every attempt derives the same id.
+        var newRunId = AgentPrismId.DeriveId(approval.CreatedAt, $"approval-resume:{approval.Id}");
+        var at = approval.DecidedAt ?? DateTimeOffset.UtcNow;
 
-        await runStore.StartRunAsync(
-            new RunStartInfo
-            {
-                RunId = newRunId,
-                AgentName = originalRun.AgentName,
-                Status = RunStatus.Queued,
-                StartedAt = now,
-                TenantId = tenants.TenantId,
+        if (await runStore.GetRunAsync(newRunId, cancellationToken).ConfigureAwait(false) is null)
+        {
+            await runStore.StartRunAsync(
+                new RunStartInfo
+                {
+                    RunId = newRunId,
+                    AgentName = originalRun.AgentName,
+                    Status = RunStatus.Queued,
+                    StartedAt = at,
+                    TenantId = tenants.TenantId,
 
-                // 🚨 Attribution is INHERITED from the run being resumed, not
-                // read from the current request: the person who approved the
-                // tool call is not the person whose budget the run spends. The
-                // approver is recorded in the audit trail, which is where "who
-                // decided" belongs.
-                UserId = originalRun.UserId,
-                Labels = originalRun.Labels,
-                SessionId = approval.SessionId,
-            },
-            cancellationToken).ConfigureAwait(false);
+                    // 🚨 Attribution is INHERITED from the run being resumed, not
+                    // read from the current request: the person who approved the
+                    // tool call is not the person whose budget the run spends. The
+                    // approver is recorded in the audit trail, which is where "who
+                    // decided" belongs.
+                    UserId = originalRun.UserId,
+                    Labels = originalRun.Labels,
+                    SessionId = approval.SessionId,
+                },
+                cancellationToken).ConfigureAwait(false);
+        }
 
-        await jobStore.EnqueueAsync(
-            new JobRecord
-            {
-                Id = newRunId,
-                TenantId = tenants.TenantId,
-                HandlerKey = JobHandlerKeys.ApprovalResume,
-                TargetName = originalRun.AgentName,
-                Status = JobStatus.Pending,
-                Payload = BuildResumePayload(newRunId, id, originalRun.AgentName),
-                MaxAttempts = 1,
-                ScheduledFor = now,
-                CreatedAt = now,
-            },
-            [],
-            cancellationToken).ConfigureAwait(false);
+        if (await jobStore.GetAsync(tenants.TenantId, newRunId, cancellationToken).ConfigureAwait(false) is null)
+        {
+            await jobStore.EnqueueAsync(
+                new JobRecord
+                {
+                    Id = newRunId,
+                    TenantId = tenants.TenantId,
+                    HandlerKey = JobHandlerKeys.ApprovalResume,
+                    TargetName = originalRun.AgentName,
+                    Status = JobStatus.Pending,
+                    Payload = BuildResumePayload(newRunId, approval.Id, originalRun.AgentName),
+                    MaxAttempts = 1,
+                    ScheduledFor = at,
+                    CreatedAt = at,
+                },
+                [],
+                cancellationToken).ConfigureAwait(false);
+        }
 
-        var decided = await approvals.GetAsync(id, cancellationToken).ConfigureAwait(false);
-
-        return TypedResults.Ok(decided!);
+        return TypedResults.Ok(approval);
     }
 
     /// <summary>Throws if the decision cannot be written to the audit trail; returns on a successful write.</summary>

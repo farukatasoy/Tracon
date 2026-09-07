@@ -158,3 +158,21 @@ sayfaysa (`Heaviest: troubleshooting/index.html`), yeni icerigi ayri bir
 sayfaya (ornek: `guides/`) tasimayi degerlendir.
 
 *(2026-09-07'de `dokumantasyon.md`'den butce icin tasindi — `check:weight` bir site kapisidir.)*
+
+## 🚨 Sayılabilir iddiayı TEK sayfada denetleyen kapı, kopyalarını kaçırır
+
+2026-09-07 (B02). `check-content.mjs` operasyon sayısını yalnız landing page ile
+`http-api.md`'de ölçüyordu. Üç elle yazılan sayfa 143/143/162 operasyon, biri de
+19 tag iddia ederken (gerçek: 165 ve 23) kapı YEŞİL kaldı. Bir kapı bir iddianın
+TEK ÖRNEĞİNİ değil, SINIFINI denetlemelidir: tarama artık her elle yazılan
+sayfayı gezer ve "sayı + en çok beş kelime + isim" kalıbını arar (satır sarması
+iddiayı bölmesin diye boşluk normalize edilir).
+
+Tarihli `release`/`changelog` sayfaları KAPSAM DIŞIDIR — oradaki sayı bir
+snapshot'tır; bugünkü değerle güncellemek kaydı düzeltmez, BOZAR.
+
+İkinci ders: **kapı, sayfanın İDDİA ETTİĞİ şeyi ölçmelidir.** Ekran sayısı
+`from './screens/…'` import MODÜLLERİNİ sayıyordu (28); sayfalar ise kullanıcının
+gördüğü Screen COMPONENT'ini söylüyordu (30) — `skills` ve `triggers` ikişer
+component export eder. Kapı, hiçbir sayfanın iddia etmediği bir sayıyı ölçtüğü
+sürece var olma sebebiyle kırmızı olamaz.

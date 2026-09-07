@@ -193,10 +193,15 @@ the MCP server apply.
 
 Both surfaces are configured in code, never from the console:
 `AgentPrismMcpServerOptions` for the MCP server and `AgentPrismA2AOptions` for A2A.
-Each starts empty — `ExposedAgents` names the agents you publish, and
-`ExposeAllAgents` opts out of naming them one by one. `ToolNamePrefix` keeps the
-published tool names from colliding with another server's, and `Budget` bounds what
-an external caller may spend.
+They do not carry the same settings.
+
+`ExposeAllAgents` and `ToolNamePrefix` are **MCP-server settings only**:
+`ExposeAllAgents` opts out of naming published agents one by one, and
+`ToolNamePrefix` keeps the published tool names from colliding with another
+server's. A2A has neither — its names are fixed at registration, which is why
+there is no expose-all switch for it.
+
+`Budget`, which bounds what an external caller may spend, is on both.
 
 ## Production checklist
 

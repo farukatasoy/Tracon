@@ -31,14 +31,14 @@ function main() {
 
   const releases = parseReleases(readFileSync(changelogPath, 'utf8'));
 
-  if (releases.length === 0) {
-    throw new Error(
-      'CHANGELOG.md declares no released version. Every published package links here by version.',
-    );
-  }
-
   mkdirSync(dirname(outputPath), { recursive: true });
-  writeFileSync(outputPath, render(releases));
+
+  // No released version is a legitimate state, not a broken changelog: nothing
+  // has been pushed to NuGet or npm yet. This used to throw, which is why the
+  // changelog kept a version section for a release that never happened - the
+  // build demanded one. The page now says so plainly instead of naming a
+  // version a reader cannot install.
+  writeFileSync(outputPath, releases.length === 0 ? renderUnreleased() : render(releases));
 }
 
 /**
@@ -86,6 +86,28 @@ function parseReleases(text) {
   }
 
   return releases;
+}
+
+function renderUnreleased() {
+  return `---
+title: Release notes
+description: AgentPrism has not been released yet; this page will carry the entry for each published version.
+---
+
+**AgentPrism has not been released yet.** No version has been published to
+NuGet or npm, and there is no release tag, so there is nothing here to install
+or pin. Development happens on \`main\`.
+
+The repository's \`CHANGELOG.md\` tracks what has landed there. When the first
+version ships, this page will carry its entry, and each package's release-notes
+metadata will link straight to it.
+
+## Read next
+
+- [Versions and upgrades](/reference/versioning/) — the pinning and upgrade rules the first release will follow
+- [Compatibility matrices](/reference/compatibility/) — the framework, runtime, and protocol versions supported
+- [Choosing packages](/packages/) — which packages you would take a version of
+`;
 }
 
 function render(releases) {

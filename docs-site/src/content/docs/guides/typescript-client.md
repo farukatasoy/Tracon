@@ -44,10 +44,12 @@ const client = createAgentPrismClient({
 ```
 
 `baseUrl` needs the prefix because `MapAgentPrism`'s mount point is a runtime
-parameter, not a fixed value — the document this package is generated from
-carries no prefix at all. If a request went to the document's bare path, a
-server mounted anywhere but the default `/agentprism` would answer every call
-with a silent `404`.
+parameter, not a fixed value. The published OpenAPI document does carry the
+default `/agentprism` prefix; generation strips it into a throwaway intermediate
+so the generated paths are mount-independent, and `baseUrl` supplies the mount
+back at run time. If a request went to a generated bare path with no `baseUrl`
+prefix, a server mounted anywhere but the default would answer every call with a
+silent `404`.
 
 `token` can be a function instead of a fixed string, so a caller whose token
 rotates or is read from storage per request never has to rebuild the client.

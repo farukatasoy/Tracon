@@ -13,7 +13,7 @@ import type {
   ModelProviderDescriptor,
   ToolDescriptor,
 } from '../../lib/server-types';
-import { emptyCompaction, emptyForm, emptyMemory, isValidJson, toRequest, withDefaultProvider, type FormState } from './model';
+import { emptyForm, fromDefinition, isValidJson, toRequest, withDefaultProvider, type FormState } from './model';
 
 export interface UseAgentEditorResult {
   editing: boolean;
@@ -107,37 +107,7 @@ export function useAgentEditor(name: string | undefined): UseAgentEditorResult {
       return;
     }
 
-    setForm({
-      name: definition.name,
-      displayName: definition.displayName ?? '',
-      description: definition.description ?? '',
-      instructions: definition.instructions ?? '',
-      instructionsByCulture: Object.entries(definition.instructionsByCulture ?? {}).map(([culture, text]) => ({
-        culture,
-        text,
-      })),
-      provider: definition.model.provider,
-      model: definition.model.model,
-      temperature: definition.model.temperature?.toString() ?? '',
-      maxOutputTokens: definition.model.maxOutputTokens?.toString() ?? '',
-      topP: definition.model.topP?.toString() ?? '',
-      reasoningEffort: definition.model.reasoningEffort ?? '',
-      responseFormatKind: definition.model.responseFormat?.kind ?? '',
-      responseFormatSchema:
-        definition.model.responseFormat?.schema !== undefined && definition.model.responseFormat?.schema !== null
-          ? JSON.stringify(definition.model.responseFormat.schema, null, 2)
-          : emptyForm.responseFormatSchema,
-      responseFormatSchemaName: definition.model.responseFormat?.schemaName ?? '',
-      responseFormatSchemaDescription: definition.model.responseFormat?.schemaDescription ?? '',
-      fallbacks: definition.model.fallbacks ?? [],
-      toolNames: [...definition.toolNames],
-      skillNames: [...definition.skillNames],
-      callableAgentNames: [...(definition.callableAgentNames ?? [])],
-      harnessEnabled: definition.harness !== null && definition.harness !== undefined,
-      harness: definition.harness ?? {},
-      compaction: definition.compaction ?? emptyCompaction,
-      memory: definition.memory ?? emptyMemory,
-    });
+    setForm(fromDefinition(definition));
     setReady(true);
   }, [editing, existing.isSuccess, existing.data, ready]);
 

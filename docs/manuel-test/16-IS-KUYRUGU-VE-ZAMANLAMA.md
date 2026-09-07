@@ -2803,3 +2803,41 @@ handler `acme.a` anahtarıyla kayıtlı.
 - Her satır `handlerKey` alanı taşır; `kind` alanı **yoktur**.
 - 2. adım yalnız o anahtarın işlerini döner.
 - 3. adım (o türde iş yoksa) boş dizi döner — süzgeç gerçekten uygulanır.
+
+---
+
+### MT-JOB-098 — Yarıda kalan approval handoff'u, AYNI kararı tekrarlayarak tamamlanır (B03)
+
+Regresyon. Karar uygulanıp resume run/job yazılamazsa, eski davranışta tekrar
+isteği `409 AlreadyDecided` alıyor ve onaylanmış tool çağrısı HİÇ çalışmıyordu;
+`RunReconciliationService` bunu kurtarmaz (yalnız `Running` claim eder, default
+kapalı). Resume run kimliği artık approval'dan türetilir, bu yüzden tekrar aynı
+satıra iner.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | — (faz dışı kusur giderme) |
+| **İlgili karar** | K-726 |
+
+**Ön koşul**
+- Onay isteyen bir tool ve `Prefer: respond-async` ile başlatılmış,
+  `AwaitingApproval` durumunda bir run.
+- Kuyruk yazımını bir kez düşürebilecek bir ortam (ör. `IJobStore`'u saran
+  hata enjekte eden bir dekoratör; otomatik karşılığı
+  `ApprovalResumeHandoffTests`).
+
+**Adımlar**
+1. `POST {prefix}/api/approvals/{id}/decide` `{"approved": true}` gönder;
+   enqueue adımı hata versin.
+2. AYNI gövdeyle (`{"approved": true}`) isteği TEKRARLA.
+3. Oturumdaki run'ları listele.
+
+**Beklenen sonuç**
+- İkinci istek `409` DEĞİL `200` döner ve approval kaydını verir.
+- Oturumda özgün run'ın yanında **tam bir** devam run'ı vardır — iki tane
+  değil; ikinci istek yeni kimlik üretmez.
+- Devam run'ı `Completed` olur.
+- Aynı approval'a `{"approved": false}` gönderilirse `409` döner: ters karar
+  hâlâ çatışmadır.

@@ -159,9 +159,11 @@ Every job and schedule shows its lane — a plain text tag that keeps unrelated 
 of work from blocking each other in the same queue. Filter the job list by lane to
 find work a worker is not currently scoped to pick up.
 
-The queue only drains in a process that opted in with `UseScheduling()`. A queue that
-never moves is almost always an API process with no worker behind it — see
-[Jobs, schedules, and queues](/guides/background-work/).
+The queue drains in any process whose worker is running. That is the default:
+`AgentPrismSchedulingOptions.Enabled` and `RunWorker` are both `true`, so calling
+`UseScheduling()` is about configuring the worker, not switching it on. A queue
+that never moves is almost always a deployment where every process sets
+`RunWorker` to `false` — see [Jobs, schedules, and queues](/guides/background-work/).
 
 ## Workflows
 

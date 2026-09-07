@@ -142,17 +142,24 @@ form. This matrix shows where a change can originate.
 
 ## HTTP surface compatibility
 
-The generated HTTP reference contains 143 management and OpenAI-compatible
-operations grouped under 19 tags. It does not include every conditional route:
+The generated HTTP reference contains 165 management and OpenAI-compatible
+operations grouped under 23 domain tags.
 
-- `GET /api/diagnostics` exists only when `EnableDiagnosticsEndpoint` is true.
-- The voice conversation route is a WebSocket and exists only after
-  `UseVoiceConversation()`.
-- MCP server and A2A routes use their own `MapAgentPrismMcpServer()` and
-  `MapAgentPrismA2A()` calls.
-- Health checks join the consumer's health-check system. You choose their route with
-  ASP.NET Core `MapHealthChecks()`.
-- UI assets and SPA fallback routes are not API operations.
+Being in the reference and being live in your process are different questions.
+The document is generated from one build profile; whether a route answers depends
+on how you called `MapAgentPrism()`:
+
+| Route | In the reference | Live in your process |
+|---|---|---|
+| `GET /api/diagnostics` | Yes | Only when `EnableDiagnosticsEndpoint` is true |
+| Voice conversation | No — a WebSocket, not an operation | Only after `UseVoiceConversation()` |
+| MCP server routes | No | Only after `MapAgentPrismMcpServer()` |
+| A2A routes | No | Only after `MapAgentPrismA2A()` |
+| Health checks | No — they join your own health-check system | Wherever you put `MapHealthChecks()` |
+| UI assets and SPA fallback | No — not API operations | Only after `UseUI()` |
+
+So a route present in the reference is not automatically enabled for you, and a
+route absent from it is not automatically unavailable.
 
 The documented paths are relative to the prefix passed to `MapAgentPrism()`. With
 the usual prefix, `GET /api/agents` means `GET /agentprism/api/agents`.

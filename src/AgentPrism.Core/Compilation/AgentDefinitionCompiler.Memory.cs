@@ -152,8 +152,8 @@ public sealed partial class AgentDefinitionCompiler
     /// </summary>
     /// <remarks>
     /// Searches over whichever concrete <see cref="AgentFileStore"/> is
-    /// registered (this phase: in-memory); if a persistent store is
-    /// registered, this falls through to persistent search without code changes.
+    /// registered (in-memory unless you register another); a persistent store
+    /// falls through to persistent search with no code change here.
     /// </remarks>
     private static async Task<IEnumerable<TextSearchProvider.TextSearchResult>> SearchFileStoreAsync(
         AgentFileStore fileStore,

@@ -21,10 +21,15 @@ public sealed record EvalCase
     public string? ExpectedOutput { get; init; }
 
     /// <summary>
-    /// The tool names looked up by the <c>toolCalled</c> check. An empty list
-    /// does not mean the check accepts any tool call — the check is still
-    /// defined separately in the suite's <c>checks</c> field.
+    /// The tool names this case is expected to exercise, recorded for reference.
     /// </summary>
+    /// <remarks>
+    /// <strong>Not read by any check.</strong> The <c>toolCalled</c> check takes
+    /// its tool names from its own <c>tools</c> field in the suite's
+    /// <c>checks</c> definition, so filling this in does not assert anything and
+    /// leaving it empty does not weaken a check. It exists so a case can carry
+    /// what it was written to cover.
+    /// </remarks>
     public IReadOnlyList<string> ExpectedTools { get; init; } = [];
 
     /// <summary>Text given to the model as extra context.</summary>

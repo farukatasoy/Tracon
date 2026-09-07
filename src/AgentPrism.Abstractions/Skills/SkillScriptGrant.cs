@@ -48,7 +48,7 @@ public sealed record SkillScriptGrant
     /// <returns><see langword="true"/> if the grant is active.</returns>
     /// <remarks>
     /// An expired grant is <strong>automatically</strong> invalid; the record
-    /// is not expected to be deleted. Cleanup is the retention phase's concern.
+    /// is not expected to be deleted. Removing the row is retention's concern.
     /// </remarks>
     public bool IsActiveAt(DateTimeOffset instant)
         => RevokedAt is null && (ExpiresAt is null || ExpiresAt > instant);

@@ -29,8 +29,8 @@ namespace AgentPrism;
 /// is not mandatory; this gauge only scans REGISTERED tenants. A quota rule for
 /// an unregistered tenant is still enforced correctly by
 /// <see cref="QuotaEnforcer"/>, it simply does NOT APPEAR on this dashboard.
-/// This is an accepted limitation given the phase's "no new table/endpoint"
-/// goal.
+/// This is an accepted limitation: reporting them would need its own table and
+/// endpoint, which this gauge deliberately avoids.
 /// </para>
 /// </remarks>
 internal sealed class QuotaUsageObserver : IHostedService, IDisposable

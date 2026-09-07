@@ -1,1 +1,1 @@
-\b(?:phase|faz)\s+\d+\b|\b(?:K|F)-\d{2,3}\b|\bK[1-4]\b|\bsection\s+\d+(?:\.\d+)?\b|\b(?:HATA|MT)-[A-Z0-9-]+\b|\bopen question\s+\d+\b|\bdecision reopening\b|(?:<code>|`)?(?<!https?://\S{0,200})docs/[^\s`<),"]+
+\b(?:phase|faz)\s+\d+\b|\b(?:this|that|the current|the next|a later|a future|the retention)\s+phase\b|\bphase's\b|\b(?:K|F)-\d{2,3}\b|\bK[1-4]\b|\bsection\s+\d+(?:\.\d+)?\b|\b(?:HATA|MT)-[A-Z0-9-]+\b|\bopen question\s+\d+\b|\bdecision reopening\b|(?:<code>|`)?(?<!https?://\S{0,200})docs/[^\s`<),"]+

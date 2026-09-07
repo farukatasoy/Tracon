@@ -32,7 +32,7 @@ internal sealed class ObservedCompactionStrategy : CompactionStrategy
     /// <summary>Initializes a new observed strategy.</summary>
     /// <param name="inner">The wrapped strategy.</param>
     /// <param name="trigger">The trigger that carries the actual user condition.</param>
-    /// <param name="target">The target trigger. It is unused in this phase and receives <see langword="null"/>.</param>
+    /// <param name="target">The target trigger. It is unused and receives <see langword="null"/>.</param>
     internal ObservedCompactionStrategy(CompactionStrategy inner, CompactionTrigger trigger, CompactionTrigger? target)
         : base(trigger, target)
     {

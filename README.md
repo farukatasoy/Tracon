@@ -6,7 +6,9 @@ AgentPrism is a .NET package family built on
 [Microsoft Agent Framework](https://learn.microsoft.com/en-us/agent-framework/overview/).
 You write the AI harness; you operate it at `/agentprism`.
 
-> **Status:** preview. AgentPrism is **operable**, its
+> **Status:** in development, **not yet published** — nothing is on NuGet or npm and
+> there is no release tag, so the install command below does not resolve yet. Build
+> from this repository. AgentPrism is **operable**, its
 > [product documentation is published](https://agentprism.doayen.web.tr), and the
 > **public API gate** (`EnablePublicApiTracking`) is on independently of any release
 > decision — an unrecorded surface change breaks the build. Start with
@@ -187,7 +189,7 @@ AgentPrism fills that gap. It does not replace DevUI — it continues where DevU
 | `AgentPrism.Testing.Contracts.Xunit` | The behavior-contract suites the shipped implementations run — derive from them to verify your own `IRunStore`, `IModelProvider`, `IRunJudge`, `IAgentSource`, `IJobHandler`, or custom tool. Not in the meta package |
 | `AgentPrism.Client` | Typed management client generated from the OpenAPI document — 162 operations, zero AgentPrism dependency, zero NuGet dependency beyond DI abstractions. Not in the meta package |
 | `AgentPrism.Cli` | The `agentprism` global tool (`dotnet tool install -g AgentPrism.Cli`) — `migrate`, `migrate status`, `health`. Not a library; not in the meta package |
-| [`@agentprism/client`](https://www.npmjs.com/package/@agentprism/client) | **npm, not NuGet** — the same 162 operations as `AgentPrism.Client`, generated from the same OpenAPI document with `openapi-typescript` + `openapi-fetch`. `npm install @agentprism/client` |
+| [`@agentprism/client`](https://www.npmjs.com/package/@agentprism/client) | **npm, not NuGet** — the same 165 operations as `AgentPrism.Client`, generated from the same OpenAPI document with `openapi-typescript` + `openapi-fetch`. `npm install @agentprism/client` |
 
 **Target frameworks:** `net8.0`, `net9.0`, `net10.0` · **License:** MIT
 
@@ -205,6 +207,9 @@ one of those two. Per-package reasons:
 ---
 
 ## Installation
+
+**Not published yet** — this is what installation will look like. Until the first
+release, reference the projects from a clone.
 
 ```bash
 dotnet add package AgentPrism --prerelease

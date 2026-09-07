@@ -44,6 +44,12 @@ internal sealed record AgentDefinitionPayload
     /// <summary>Gets the names of the other agents this agent can call.</summary>
     public IReadOnlyList<string> CallableAgentNames { get; init; } = [];
 
+    /// <summary>Gets how long this agent waits for the agents it calls.</summary>
+    public SubAgentSettings? SubAgents { get; init; }
+
+    /// <summary>Gets the MCP resources added to the run context.</summary>
+    public IReadOnlyList<string> McpResourceUris { get; init; } = [];
+
     /// <summary>Gets the harness settings.</summary>
     public HarnessSettings? Harness { get; init; }
 
@@ -78,6 +84,8 @@ internal sealed record AgentDefinitionPayload
             ToolNames = definition.ToolNames,
             SkillNames = definition.SkillNames,
             CallableAgentNames = definition.CallableAgentNames,
+            SubAgents = definition.SubAgents,
+            McpResourceUris = definition.McpResourceUris,
             Harness = definition.Harness,
             Compaction = definition.Compaction,
             Memory = definition.Memory,
@@ -106,6 +114,8 @@ internal sealed record AgentDefinitionPayload
             ToolNames = ToolNames,
             SkillNames = SkillNames,
             CallableAgentNames = CallableAgentNames,
+            SubAgents = SubAgents,
+            McpResourceUris = McpResourceUris,
             Harness = Harness,
             Compaction = Compaction,
             Memory = Memory,

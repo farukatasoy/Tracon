@@ -1795,7 +1795,7 @@ export interface paths {
         put?: never;
         /**
          * Decides a pending approval request.
-         * @description The decision enqueues a NEW run (same sessionId, new RunId); the old run stays AwaitingApproval. A second decision on the same request gets 409. If a registered IRunAuthorizationHandler denies the caller, the response is 404, identical to an approval request that does not exist — the 409 is never reached, so a denial cannot reveal that the request was already decided.
+         * @description The decision enqueues a NEW run (same sessionId, new RunId); the old run stays AwaitingApproval. Do not start that run yourself. Repeating the SAME decision is safe and returns 200: the continuation run's identity is derived from the approval, so a repeat finishes a handoff that failed partway instead of creating a second run. A second decision asking for the OPPOSITE answer gets 409. If a registered IRunAuthorizationHandler denies the caller, the response is 404, identical to an approval request that does not exist — the 409 is never reached, so a denial cannot reveal that the request was already decided.
          */
         post: operations["AgentPrismDecideApproval"];
         delete?: never;
@@ -2837,9 +2837,17 @@ export interface components {
             skillNames?: string[];
             /** @description Names of other agents this agent may call. */
             callableAgentNames?: string[];
+            subAgents?: null | components["schemas"]["SubAgentSettings"];
+            /**
+             * @description MCP resources added to the run context, each of the form
+             *     `"{server}:{uri}"`. See `AgentDefinition.McpResourceUris`.
+             */
+            mcpResourceUris?: string[];
             harness?: null | components["schemas"]["HarnessSettings"];
             compaction?: null | components["schemas"]["CompactionSettings"];
             memory?: null | components["schemas"]["MemorySettings"];
+            /** @description Free-form, application-specific metadata. See `AgentDefinition.Metadata`. */
+            metadata?: Record<string, never>;
             /** @description The parameter schema. See IReadOnlyList&lt;AgentParameter&gt; AgentDefinition.Parameters. */
             parameters?: components["schemas"]["AgentParameter"][];
             /** @description The referenced shared instructions block. See `AgentDefinition.SharedInstructionsName`. */
@@ -3907,11 +3915,7 @@ export interface components {
             query: string;
             /** @description The expected output. Referenced by the `containsExpected` check. */
             expectedOutput?: null | string;
-            /**
-             * @description The tool names looked up by the `toolCalled` check. An empty list
-             *     does not mean the check accepts any tool call — the check is still
-             *     defined separately in the suite's `checks` field.
-             */
+            /** @description The tool names this case is expected to exercise, recorded for reference. */
             expectedTools?: string[];
             /** @description Text given to the model as extra context. */
             context?: null | string;
@@ -4234,10 +4238,10 @@ export interface components {
             /** @description Gets the current experiment status. */
             status?: components["schemas"]["ExperimentStatus"];
             /**
-             * @description Gets a reserved value. Runtime assignment does <strong>not read</strong> it
-             *     in this phase. The assignment key is always the session identifier, or the
-             *     run identifier when no session exists. This property is reserved for future
-             *     strategies that assign outside a session.
+             * @description Gets a reserved value. Runtime assignment does <strong>not read</strong> it:
+             *     the assignment key is always the session identifier, or the run identifier
+             *     when no session exists. The property is reserved for future strategies that
+             *     assign outside a session, and setting it today changes nothing.
              */
             assignmentKey?: null | string;
             /**
@@ -5056,16 +5060,17 @@ export interface components {
         /** @description Determines the memory providers bound to an agent. */
         MemorySettings: {
             /**
-             * @description Gets a value that turns on file-based memory. In this phase it works only with
-             *     the in-memory store; the persistent version is left to a later phase.
+             * @description Gets a value that turns on file-based memory. It reads whichever
+             *     `AgentFileStore` is registered; the built-in store keeps files in
+             *     memory, so they do not survive a restart unless you register your own.
              */
             enableFileMemory?: boolean;
             /** @description Gets a value that turns on todo tracking. */
             enableTodo?: boolean;
             /**
              * @description Gets a value that turns on text search over the file store. The search runs over
-             *     the registered `AgentFileStore`, which in this phase is the in-memory store
-             *     by default.
+             *     the registered `AgentFileStore`, which is the in-memory store unless you
+             *     register another one.
              */
             enableTextSearch?: boolean;
             /**

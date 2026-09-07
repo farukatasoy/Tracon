@@ -13,8 +13,8 @@ namespace AgentPrism;
 /// <para>
 /// <strong>When a new query is added here, its counterpart must be written in
 /// every subclass.</strong> If it is not, the field stays <c>string.Empty</c> and
-/// the error appears at run time only. The phase that adds a new query must verify
-/// that the contract test runs on every provider.
+/// the error appears at run time only. Whoever adds a query must verify that the
+/// contract test runs on every provider.
 /// </para>
 /// <para>
 /// The schema name is an identifier and cannot be sent as a parameter; it is placed
@@ -433,7 +433,7 @@ internal abstract class SqlQueriesBase
     public string CreateMigrationsTable { get; protected set; } = string.Empty;
 
     /// <summary>
-    /// Gets the statement that upgrades a pre-phase-67 ledger (no <c>set_name</c>
+    /// Gets the statement that upgrades an older ledger (one with no <c>set_name</c>
     /// column) to the current shape. Empty when the provider does this in code
     /// instead (see <see cref="SqlDialect.UpgradeMigrationsTableAsync"/>).
     /// </summary>

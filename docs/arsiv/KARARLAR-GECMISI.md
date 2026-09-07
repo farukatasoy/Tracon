@@ -4988,3 +4988,53 @@ yerleşik `kind` listesini de sayar.
 
 WITH (UPDLOCK, SERIALIZABLE)` aralık kilidi alamıyordu ve eşzamanlı iki upsert aynı hedefe iki satır açabiliyordu. Aynı indeks ham sütunu tutuyordu (`NULL` ≠ `''`); Postgres/SQLite `COALESCE(message_id, '')` indeksliyordu (`NULL` = `''`) — benzersizlik sözleşmesi sağlayıcıya göre farklıydı. Computed column ikisini birden kapatır: sütun zaten normalize, predicate sargable. Dedupe adımı 0025_provider_name_case.sql emsalini izler.
 
+### K-725
+
+Ölçülen kayıp sekiz alandı ve üç ayrı katmanda yaşıyordu: HTTP DTO (`McpResourceUris`,
+`SubAgents`, `Metadata`), SQL payload (`McpResourceUris`, `SubAgents`) ve UI mapper
+(`parameters`, `sharedInstructionsName`, `model.providerSettings`,
+`model.responseCache`, `model.allowConcurrentToolCalls` ve yalnız vector search açık
+olan `memory`). In-memory store `definition with` kopyası aldığı için aynı kayıt iki
+backend'de farklı korunuyordu — kusur SQL'e özgü değil, mapper'a özgüydü.
+
+Üç seçenek tartışıldı. Sunucu taraflı merge (partial update) reddedildi: yokluk
+"koru" anlamına gelince bir koleksiyonu kasten boşaltmak ifade edilemez hâle gelir.
+Eksik alanda edit'i reddetmek reddedildi: her client'ı tam alan kümesine zorlar ve
+mevcut üretilmiş istemcileri kırar. Seçilen yol DTO'yu tamamlamaktır — PUT'un
+anlamı değişmez, gizli davranış eklenmez, ve kayıp yalnızca "DTO eksik" hâline
+indirgenir; o da ölçülebilir bir şeydir.
+
+Asıl kalıcı kısım kapıdır. İmza eklemek ile gövdeyi kullanmak iki ayrı adım olduğu
+için tek başına reflection eşliği yetmez: property her iki tipte de bulunup
+`ToDefinition()` gövdesinde atanmamış olabilir. Bu yüzden kapı çift: eşlik testi
+property'nin VARLIĞINI, round-trip testi ATANDIĞINI ölçer. Round-trip fixture'ı
+her alanı "unset'ten ayırt edilebilir" bir değere kurar, dolayısıyla yeni bir
+definition alanı eklendiğinde fixture da güncellenmek zorunda kalır — ratchet budur.
+
+UI tarafında alanlar `PreservedFields` içinde taşınır: korumak ile düzenlemek
+bilinçli olarak ayrıdır, veri korumak için her alana kontrol eklemek gerekmez.
+`memoryHasAnything` artık flag saymak yerine genel bir predicate'tir; flag sayan
+sürüm zaten bir kez bayatlamıştı.
+
+### K-726
+
+Pencere kaynakla ölçülmüştü, bu turda failure injection ile ÜRETİLDİ:
+`ApprovalResumeHandoffTests` ilk `EnqueueAsync` çağrısını düşürüyor, sonraki karar
+request'i `409 Decision already made` alıyor ve onaylanmış tool çağrısı hiç
+çalışmıyordu.
+
+Dört seçenek tartışıldı. Outbox (yeni tablo + üç dialect migration + yeni background
+service) bu kusur için orantısız bulundu ve A10 kapsamında bırakıldı. Sırayı ters
+çevirmek (önce run+job, sonra karar) handler sözleşmesini genişletir: job hâlâ
+`Pending` bir approval görebilir. Yalnız doğrulayıp ertelemek, kullanıcının
+kararıyla elendi.
+
+Seçilen yol kimliği rastgele olmaktan çıkarmaktır. `AgentPrismId.DeriveId` timestamp'i
+approval'ın saklanan `CreatedAt`'inden, kalan on baytı seed'in SHA-256 özetinden alır;
+sonuç hâlâ geçerli ve zaman sıralı bir UUIDv7'dir, yani `NewId`'nin seçilme sebebi
+olan indeks yerelliği korunur. Handoff artık iki koşullu yazımdır: satır yoksa yaz.
+
+Bu bir transaction değildir ve öyle sunulmaz. Aynı anda tekrarlanan iki karar
+duplicate-key alabilir; fark, kimliklerin sabit olması sayesinde durumun
+kurtarılabilir kalmasıdır — önceki kodda kurtarma yolu hiç yoktu.
+

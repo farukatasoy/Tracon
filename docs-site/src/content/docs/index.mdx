@@ -28,7 +28,7 @@ import { Card, CardGrid, Code } from '@astrojs/starlight/components';
 <div class="trust-strip" role="list" aria-label="Product characteristics">
   <span role="listitem"><strong>20</strong> NuGet packages</span>
   <span role="listitem"><strong>165</strong> generated HTTP operations</span>
-  <span role="listitem"><strong>28</strong> embedded console screens</span>
+  <span role="listitem"><strong>30</strong> embedded console screens</span>
   <span role="listitem"><strong>0</strong> required infrastructure to start</span>
 </div>
 
@@ -131,7 +131,11 @@ flowchart LR
 <div class="boundary-note">
   <strong>It is a library, not a hosted service.</strong> It runs inside your ASP.NET
   Core process, on your configuration, your authentication, and your database. There
-  is no account and no telemetry leaves your process. Four rules hold everywhere:
+  is no account, and AgentPrism sends no telemetry of its own — nothing is
+  reported back to AgentPrism or to any vendor. What does leave your process is
+  what you configure: an OpenTelemetry exporter you register, and the model
+  provider, MCP server, and webhook calls your agents make. Four rules hold
+  everywhere:
   <code>AddAgentPrism()</code> works with no infrastructure, tools are defined in code
   and never in the console, MAF objects are passed through rather than wrapped, and
   every extension point registers with <code>TryAdd</code> so your own implementation

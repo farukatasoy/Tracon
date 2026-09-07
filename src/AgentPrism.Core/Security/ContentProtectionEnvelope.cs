@@ -12,9 +12,8 @@ namespace AgentPrism;
 /// <remarks>
 /// <para>
 /// The text envelope is valid JSON on purpose: six of the ten protected
-/// columns enforce a JSON-validity constraint at the schema level (phase
-/// plan, decision 82.1) and changing their column type would need a data
-/// migration across three providers. Wrapping ciphertext in a small JSON
+/// columns enforce a JSON-validity constraint at the schema level, and changing
+/// their column type would need a data migration across three providers. Wrapping ciphertext in a small JSON
 /// object satisfies the constraint with no migration.
 /// </para>
 /// <para>

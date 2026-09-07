@@ -4912,6 +4912,7 @@ static AgentPrism.AgentPrismDiagnosticsReport.operator ==(AgentPrism.AgentPrismD
 static AgentPrism.AgentPrismGeneratedToolArguments.GetArray<T>(Microsoft.Extensions.AI.AIFunctionArguments! arguments, string! name, System.Func<System.Text.Json.JsonElement, T>! convert, bool required, System.Collections.Generic.IReadOnlyList<T>? defaultValue) -> System.Collections.Generic.IReadOnlyList<T>!
 static AgentPrism.AgentPrismGeneratedToolArguments.GetOptional<T>(Microsoft.Extensions.AI.AIFunctionArguments! arguments, string! name, System.Func<System.Text.Json.JsonElement, T>! convert, T defaultValue) -> T
 static AgentPrism.AgentPrismGeneratedToolArguments.GetRequired<T>(Microsoft.Extensions.AI.AIFunctionArguments! arguments, string! name, System.Func<System.Text.Json.JsonElement, T>! convert) -> T
+static AgentPrism.AgentPrismId.DeriveId(System.DateTimeOffset timestamp, string! seed) -> System.Guid
 static AgentPrism.AgentPrismId.GetTimestamp(System.Guid id) -> System.DateTimeOffset
 static AgentPrism.AgentPrismId.NewId() -> System.Guid
 static AgentPrism.AgentPrismId.NewId(System.DateTimeOffset timestamp) -> System.Guid

@@ -9,6 +9,12 @@ when you care about what enters your dependency graph.
 
 ## The meta package
 
+:::caution[Not published yet]
+No AgentPrism version has been pushed to NuGet or npm yet, so this command
+does not resolve. Until the first release, reference the projects from a
+clone of the repository.
+:::
+
 ```bash
 dotnet add package AgentPrism --prerelease
 ```

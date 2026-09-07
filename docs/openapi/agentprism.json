@@ -4718,7 +4718,7 @@
           "Approvals"
         ],
         "summary": "Decides a pending approval request.",
-        "description": "The decision enqueues a NEW run (same sessionId, new RunId); the old run stays AwaitingApproval. A second decision on the same request gets 409. If a registered IRunAuthorizationHandler denies the caller, the response is 404, identical to an approval request that does not exist \u2014 the 409 is never reached, so a denial cannot reveal that the request was already decided.",
+        "description": "The decision enqueues a NEW run (same sessionId, new RunId); the old run stays AwaitingApproval. Do not start that run yourself. Repeating the SAME decision is safe and returns 200: the continuation run\u0027s identity is derived from the approval, so a repeat finishes a handoff that failed partway instead of creating a second run. A second decision asking for the OPPOSITE answer gets 409. If a registered IRunAuthorizationHandler denies the caller, the response is 404, identical to an approval request that does not exist \u2014 the 409 is never reached, so a denial cannot reveal that the request was already decided.",
         "operationId": "AgentPrismDecideApproval",
         "parameters": [
           {
@@ -7138,6 +7138,24 @@
             },
             "description": "Names of other agents this agent may call."
           },
+          "subAgents": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "How long this agent waits for the agents it calls. See\n\u0060AgentDefinition.SubAgents\u0060. Ignored when\nIReadOnlyList\u0026lt;string\u0026gt; AgentDefinitionRequest.CallableAgentNames is empty.",
+                "$ref": "#/components/schemas/SubAgentSettings"
+              }
+            ]
+          },
+          "mcpResourceUris": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "MCP resources added to the run context, each of the form\n\u0060\u0022{server}:{uri}\u0022\u0060. See \u0060AgentDefinition.McpResourceUris\u0060."
+          },
           "harness": {
             "oneOf": [
               {
@@ -7170,6 +7188,10 @@
                 "$ref": "#/components/schemas/MemorySettings"
               }
             ]
+          },
+          "metadata": {
+            "type": "object",
+            "description": "Free-form, application-specific metadata. See \u0060AgentDefinition.Metadata\u0060."
           },
           "parameters": {
             "type": "array",
@@ -10074,7 +10096,7 @@
             "items": {
               "type": "string"
             },
-            "description": "The tool names looked up by the \u0060toolCalled\u0060 check. An empty list\ndoes not mean the check accepts any tool call \u2014 the check is still\ndefined separately in the suite\u0027s \u0060checks\u0060 field."
+            "description": "The tool names this case is expected to exercise, recorded for reference."
           },
           "context": {
             "type": [
@@ -10704,7 +10726,7 @@
               "null",
               "string"
             ],
-            "description": "Gets a reserved value. Runtime assignment does \u003Cstrong\u003Enot read\u003C/strong\u003E it\nin this phase. The assignment key is always the session identifier, or the\nrun identifier when no session exists. This property is reserved for future\nstrategies that assign outside a session."
+            "description": "Gets a reserved value. Runtime assignment does \u003Cstrong\u003Enot read\u003C/strong\u003E it:\nthe assignment key is always the session identifier, or the run identifier\nwhen no session exists. The property is reserved for future strategies that\nassign outside a session, and setting it today changes nothing."
           },
           "startedAt": {
             "type": [
@@ -12347,7 +12369,7 @@
         "properties": {
           "enableFileMemory": {
             "type": "boolean",
-            "description": "Gets a value that turns on file-based memory. In this phase it works only with\nthe in-memory store; the persistent version is left to a later phase."
+            "description": "Gets a value that turns on file-based memory. It reads whichever\n\u0060AgentFileStore\u0060 is registered; the built-in store keeps files in\nmemory, so they do not survive a restart unless you register your own."
           },
           "enableTodo": {
             "type": "boolean",
@@ -12355,7 +12377,7 @@
           },
           "enableTextSearch": {
             "type": "boolean",
-            "description": "Gets a value that turns on text search over the file store. The search runs over\nthe registered \u0060AgentFileStore\u0060, which in this phase is the in-memory store\nby default."
+            "description": "Gets a value that turns on text search over the file store. The search runs over\nthe registered \u0060AgentFileStore\u0060, which is the in-memory store unless you\nregister another one."
           },
           "enableVectorSearch": {
             "type": "boolean",

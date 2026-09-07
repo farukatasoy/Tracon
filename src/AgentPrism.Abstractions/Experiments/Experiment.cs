@@ -36,10 +36,10 @@ public sealed record Experiment
     public ExperimentStatus Status { get; init; } = ExperimentStatus.Draft;
 
     /// <summary>
-    /// Gets a reserved value. Runtime assignment does <strong>not read</strong> it
-    /// in this phase. The assignment key is always the session identifier, or the
-    /// run identifier when no session exists. This property is reserved for future
-    /// strategies that assign outside a session.
+    /// Gets a reserved value. Runtime assignment does <strong>not read</strong> it:
+    /// the assignment key is always the session identifier, or the run identifier
+    /// when no session exists. The property is reserved for future strategies that
+    /// assign outside a session, and setting it today changes nothing.
     /// </summary>
     public string? AssignmentKey { get; init; }
 

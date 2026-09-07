@@ -56,6 +56,12 @@ can be removed from the project file.
 
 ## By hand
 
+:::caution[Not published yet]
+No AgentPrism version has been pushed to NuGet or npm yet, so this command
+does not resolve. Until the first release, reference the projects from a
+clone of the repository.
+:::
+
 ```bash
 dotnet new web -o MyAgents
 cd MyAgents
