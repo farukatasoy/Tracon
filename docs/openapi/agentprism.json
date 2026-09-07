@@ -14049,7 +14049,7 @@
               "null",
               "string"
             ],
-            "description": "The categorical value. Set only when RunScoreKind RunScore.Kind is RunScoreKind.Categorical."
+            "description": "The categorical value. Set only for a RunScoreKind.Categorical score."
           },
           "comment": {
             "type": [

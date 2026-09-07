@@ -5954,7 +5954,7 @@ export interface components {
              *     RunScoreKind.Numeric.
              */
             value?: null | number | string;
-            /** @description The categorical value. Set only when RunScoreKind RunScore.Kind is RunScoreKind.Categorical. */
+            /** @description The categorical value. Set only for a RunScoreKind.Categorical score. */
             textValue?: null | string;
             /** @description A free-text comment. */
             comment?: null | string;
