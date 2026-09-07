@@ -4981,3 +4981,10 @@ Aynı turda aynı mesajda ikinci bir kusur çıktı ve düzeltildi:
 `EvalCheckRegistry`'nin *"unknown check kind"* metninin ikinci yarısı
 interpolasyonsuzdu (`$` yok) ve tüketiciye düz `{kind}` basıyordu. Mesaj artık
 yerleşik `kind` listesini de sayar.
+
+## Faz 90 damıtmasında taşınan gerekçeler
+
+### K-724
+
+WITH (UPDLOCK, SERIALIZABLE)` aralık kilidi alamıyordu ve eşzamanlı iki upsert aynı hedefe iki satır açabiliyordu. Aynı indeks ham sütunu tutuyordu (`NULL` ≠ `''`); Postgres/SQLite `COALESCE(message_id, '')` indeksliyordu (`NULL` = `''`) — benzersizlik sözleşmesi sağlayıcıya göre farklıydı. Computed column ikisini birden kapatır: sütun zaten normalize, predicate sargable. Dedupe adımı 0025_provider_name_case.sql emsalini izler.
+
