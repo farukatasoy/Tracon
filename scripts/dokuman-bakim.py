@@ -134,8 +134,20 @@ YONETIM_BUTCESI = {
     # bir sinirin asilmasi icindir; burada sinir ilk kez konuyor.
     # Faz 90: 475_000 -> 380_000. `karar-damit` 482 satirin gerekcesini
     # `KARARLAR-GECMISI.md`ye tasidi; olculen 321_691 (+%15 bosluk).
-    "docs/KARARLAR.md": 390_000,           # kapanista olculen 325_784
-                                           # (380_000 faz kararlari eklenmeden once olculmustu)
+    # Faz 153: 390_000 -> 420_000 (K-721). Sinir Faz 152 kapanisinda 389_987 B
+    # ile 13 BAYT bosluk birakmisti: BIR sonraki fazin ILK karari onu asiyordu.
+    # Once TASIMA denendi (AGENTS.md: "icerik silinmez -- taşınır"), tavani
+    # yukseltmek degil. `_karar_satiri_damit`'in "isaretcisi var, atla" kurali
+    # kaldirildi -- isaretci formati 376 satirda ELLE, kirpma olmadan
+    # uygulanmisti, yani isaretcili olmak "sinira indirilmis" demek degildi.
+    # Olculdu: duzeltme 10 satir daha damitti ve 1.527 B tasidi, 392.677 ->
+    # 391.150. Yetmedi ve YETMEZ -- kalan buyume satirin ISKELETINDEDIR
+    # (baslik + tarih + yeniden acilma kosulu) ve o parcalar kural geregi ASLA
+    # kesilmez. Faz basina ~2,5 KB'lik buyume boyle bir kalemdir.
+    # Ledger "yalnız aramada" katmanindadir ve oturum acilisinda HIC okunmaz;
+    # butcesi bir baglam kisiti degil, bir buyume alarmidir. Yeni sinir
+    # damitma SONRASI olculen degere ~%7 bosluk ekler.
+    "docs/KARARLAR.md": 420_000,           # Faz 153: damitma sonrasi 391_150
     "docs/ADAYLAR.md": 80_000,  # olculen 67_195
 }
 
@@ -1609,8 +1621,16 @@ def _karar_satiri_damit(satir: str, sinir: int = KARAR_SINIRI) -> tuple[str, str
         return satir, None, "gerekçe sütunu ayrıştırılamadı"
     gerekce = satir[m.end():onceki]
     kuyruk_sutun = satir[onceki:]
-    if _ISARETCI_METNI.format(k=k) in gerekce:
-        return satir, None, None                     # zaten damıtılmış
+
+    # Bir satirin ISARETCISI olmasi onun SINIRA indirildigi anlamina GELMEZ:
+    # isaretci formati 376 satirda elle uygulanmisti, kirpma olmadan. Faz 153'te
+    # olculdu -- isaretcili 720 satirin toplami 374 KB ve en uzunu 1.144 B'ydi;
+    # "zaten damitilmis" diye atlamak butcenin TAVANA dayanmasina ve bir
+    # sonraki fazin ilk kararinin onu asmasina yol acti. Isaretci gerekceden
+    # cikarilir, kalan metin sinira indirilir, isaretci geri yazilir.
+    # IDEMPOTENT kalir: ikinci gecipte kalan gerekce paya sigar ve `tasinan`
+    # bos doner (bkz. `test_IDEMPOTENT`).
+    gerekce = _TASIMA_OZ.sub("", gerekce)
 
     isaretci = " " + _ISARETCI_METNI.format(k=k) + " "
     pay = sinir - len(bas.encode()) - len(kuyruk_sutun.encode()) - len(isaretci.encode())

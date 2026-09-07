@@ -2967,7 +2967,7 @@
           "Evals"
         ],
         "summary": "Lists a suite\u0027s past runs.",
-        "description": "Each entry is one execution of the whole suite with its aggregate outcome; the per-case results live behind the single eval-run endpoint. Comparing entries over time is how a regression between agent versions is spotted. Paging is offset based, with \u0027skip\u0027 defaulting to 0 and \u0027take\u0027 to 50. An unknown suite name returns 404.",
+        "description": "Each entry is one execution of the whole suite with its aggregate outcome; the per-case results live behind the single eval-run endpoint. To find the regression between two of these entries, hand both to the eval-run diff endpoint: it aligns them case by case instead of leaving the comparison to the caller. Paging is offset based, with \u0027skip\u0027 defaulting to 0 and \u0027take\u0027 to 50. An unknown suite name returns 404.",
         "operationId": "AgentPrismListEvalRuns",
         "parameters": [
           {
@@ -3047,6 +3047,103 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/EvalRunDetailResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/agentprism/api/evals/runs/{id}/diff": {
+      "get": {
+        "tags": [
+          "AgentPrism",
+          "Evals"
+        ],
+        "summary": "Compares two eval runs of the same suite, case by case.",
+        "description": "The run in the path is the candidate; \u0027baseline\u0027 names the run it is judged against. Every case lands in exactly one bucket - Regressed, Fixed, StillFailing, Unchanged, Added or Removed - and each entry names both sides\u0027 agent run, so a regression is one click from the two conversations that produced it. Cases added to or dropped from the suite are their own buckets and are never counted as regressions. Paging is offset based over the aligned cases, regressions first; the counters always describe the whole comparison. Both runs must have completed and must measure the same suite, otherwise 400. If retention has removed either run\u0027s per-case results the answer is 409, never an empty diff: an empty diff would read as \u0027nothing changed\u0027. An unknown id, or one belonging to another tenant, returns 404.",
+        "operationId": "AgentPrismDiffEvalRuns",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "baseline",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "skip",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "take",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvalRunDiff"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }
@@ -9921,6 +10018,80 @@
         },
         "description": "A single test case inside an EvalSuite."
       },
+      "EvalCaseDiff": {
+        "required": [
+          "caseId",
+          "kind"
+        ],
+        "type": "object",
+        "properties": {
+          "caseId": {
+            "type": "string",
+            "description": "The identifier of the case being compared.",
+            "format": "uuid"
+          },
+          "kind": {
+            "description": "Which bucket this case falls into.",
+            "$ref": "#/components/schemas/EvalCaseDiffKind"
+          },
+          "baselinePassed": {
+            "type": [
+              "null",
+              "boolean"
+            ],
+            "description": "Whether the case passed on the baseline side.\n\u0060null\u0060 when the case is EvalCaseDiffKind.Added."
+          },
+          "candidatePassed": {
+            "type": [
+              "null",
+              "boolean"
+            ],
+            "description": "Whether the case passed on the candidate side.\n\u0060null\u0060 when the case is EvalCaseDiffKind.Removed."
+          },
+          "baselineRunId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The identifier of the agent run the baseline result came from, so a\nregression can be traced to the exact conversation.",
+            "format": "uuid"
+          },
+          "candidateRunId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The identifier of the agent run the candidate result came from.",
+            "format": "uuid"
+          },
+          "baselineFailureReason": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The baseline side\u0027s failure reason, when it failed."
+          },
+          "candidateFailureReason": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The candidate side\u0027s failure reason, when it failed."
+          }
+        },
+        "description": "One case\u0027s outcome on both sides of an EvalRunDiff."
+      },
+      "EvalCaseDiffKind": {
+        "enum": [
+          "Unchanged",
+          "Fixed",
+          "Regressed",
+          "StillFailing",
+          "Added",
+          "Removed"
+        ],
+        "description": "The bucket an aligned case falls into within an EvalRunDiff."
+      },
       "EvalCaseInput": {
         "required": [
           "query"
@@ -10172,6 +10343,102 @@
           }
         },
         "description": "Detailed view of a single eval run: summary and case results together."
+      },
+      "EvalRunDiff": {
+        "required": [
+          "baseline",
+          "candidate",
+          "cases",
+          "totalCases",
+          "unchangedCount",
+          "fixedCount",
+          "regressedCount",
+          "stillFailingCount",
+          "addedCount",
+          "removedCount"
+        ],
+        "type": "object",
+        "properties": {
+          "baseline": {
+            "description": "The run being compared against (the older, known-good side).",
+            "$ref": "#/components/schemas/EvalRun"
+          },
+          "candidate": {
+            "description": "The run being judged.",
+            "$ref": "#/components/schemas/EvalRun"
+          },
+          "cases": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EvalCaseDiff"
+            },
+            "description": "The requested page of aligned cases, ordered so that the buckets an\nengineer looks for come first: EvalCaseDiffKind.Regressed,\nEvalCaseDiffKind.StillFailing,\nEvalCaseDiffKind.Added, EvalCaseDiffKind.Fixed,\nEvalCaseDiffKind.Removed, then\nEvalCaseDiffKind.Unchanged; within a bucket by case\nidentifier."
+          },
+          "totalCases": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "The number of aligned cases across both runs, ignoring paging.",
+            "format": "int32"
+          },
+          "unchangedCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "The number of cases that passed on both sides.",
+            "format": "int32"
+          },
+          "fixedCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "The number of cases that failed on the baseline and pass now.",
+            "format": "int32"
+          },
+          "regressedCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "The number of cases that passed on the baseline and fail now.",
+            "format": "int32"
+          },
+          "stillFailingCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "The number of cases that failed on both sides.",
+            "format": "int32"
+          },
+          "addedCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "The number of cases present only in the candidate run.",
+            "format": "int32"
+          },
+          "removedCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "The number of cases present only in the baseline run.",
+            "format": "int32"
+          }
+        },
+        "description": "The case-by-case difference between two completed EvalRun\nrecords of the same suite."
       },
       "EvalRunStatus": {
         "enum": [

@@ -6119,7 +6119,7 @@ namespace AgentPrism.Client.Generated
         /// Lists a suite's past runs.
         /// </summary>
         /// <remarks>
-        /// Each entry is one execution of the whole suite with its aggregate outcome; the per-case results live behind the single eval-run endpoint. Comparing entries over time is how a regression between agent versions is spotted. Paging is offset based, with 'skip' defaulting to 0 and 'take' to 50. An unknown suite name returns 404.
+        /// Each entry is one execution of the whole suite with its aggregate outcome; the per-case results live behind the single eval-run endpoint. To find the regression between two of these entries, hand both to the eval-run diff endpoint: it aligns them case by case instead of leaving the comparison to the caller. Paging is offset based, with 'skip' defaulting to 0 and 'take' to 50. An unknown suite name returns 404.
         /// </remarks>
         /// <returns>OK</returns>
         /// <exception cref="AgentPrismApiException">A server side error occurred.</exception>
@@ -6266,6 +6266,132 @@ namespace AgentPrism.Client.Generated
                                 throw new AgentPrismApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
                             }
                             return objectResponse_.Object;
+                        }
+                        else
+                        {
+                            var responseData_ = response_.Content == null ? null : await response_.Content.ReadAsStringAsync().ConfigureAwait(false);
+                            throw new AgentPrismApiException("The HTTP status code of the response was not expected (" + status_ + ").", status_, responseData_, headers_, null);
+                        }
+                    }
+                    finally
+                    {
+                        if (disposeResponse_)
+                            response_.Dispose();
+                    }
+                }
+            }
+            finally
+            {
+                if (disposeClient_)
+                    client_.Dispose();
+            }
+        }
+
+        /// <param name="cancellationToken">A cancellation token that can be used by other objects or threads to receive notice of cancellation.</param>
+        /// <summary>
+        /// Compares two eval runs of the same suite, case by case.
+        /// </summary>
+        /// <remarks>
+        /// The run in the path is the candidate; 'baseline' names the run it is judged against. Every case lands in exactly one bucket - Regressed, Fixed, StillFailing, Unchanged, Added or Removed - and each entry names both sides' agent run, so a regression is one click from the two conversations that produced it. Cases added to or dropped from the suite are their own buckets and are never counted as regressions. Paging is offset based over the aligned cases, regressions first; the counters always describe the whole comparison. Both runs must have completed and must measure the same suite, otherwise 400. If retention has removed either run's per-case results the answer is 409, never an empty diff: an empty diff would read as 'nothing changed'. An unknown id, or one belonging to another tenant, returns 404.
+        /// </remarks>
+        /// <returns>OK</returns>
+        /// <exception cref="AgentPrismApiException">A server side error occurred.</exception>
+        public virtual async System.Threading.Tasks.Task<EvalRunDiff> AgentPrismDiffEvalRunsAsync(System.Guid id, System.Guid baseline, int? skip = null, int? take = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken))
+        {
+            if (id == null)
+                throw new System.ArgumentNullException("id");
+
+            if (baseline == null)
+                throw new System.ArgumentNullException("baseline");
+
+            var client_ = _httpClient;
+            var disposeClient_ = false;
+            try
+            {
+                using (var request_ = new System.Net.Http.HttpRequestMessage())
+                {
+                    request_.Method = new System.Net.Http.HttpMethod("GET");
+                    request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
+
+                    var urlBuilder_ = new System.Text.StringBuilder();
+                
+                    // Operation Path: "api/evals/runs/{id}/diff"
+                    urlBuilder_.Append("api/evals/runs/");
+                    urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(id, System.Globalization.CultureInfo.InvariantCulture)));
+                    urlBuilder_.Append("/diff");
+                    urlBuilder_.Append('?');
+                    urlBuilder_.Append(System.Uri.EscapeDataString("baseline")).Append('=').Append(System.Uri.EscapeDataString(ConvertToString(baseline, System.Globalization.CultureInfo.InvariantCulture))).Append('&');
+                    if (skip != null)
+                    {
+                        urlBuilder_.Append(System.Uri.EscapeDataString("skip")).Append('=').Append(System.Uri.EscapeDataString(ConvertToString(skip, System.Globalization.CultureInfo.InvariantCulture))).Append('&');
+                    }
+                    if (take != null)
+                    {
+                        urlBuilder_.Append(System.Uri.EscapeDataString("take")).Append('=').Append(System.Uri.EscapeDataString(ConvertToString(take, System.Globalization.CultureInfo.InvariantCulture))).Append('&');
+                    }
+                    urlBuilder_.Length--;
+
+                    PrepareRequest(client_, request_, urlBuilder_);
+
+                    var url_ = urlBuilder_.ToString();
+                    request_.RequestUri = new System.Uri(url_, System.UriKind.RelativeOrAbsolute);
+
+                    PrepareRequest(client_, request_, url_);
+
+                    var response_ = await client_.SendAsync(request_, System.Net.Http.HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
+                    var disposeResponse_ = true;
+                    try
+                    {
+                        var headers_ = new System.Collections.Generic.Dictionary<string, System.Collections.Generic.IEnumerable<string>>();
+                        foreach (var item_ in response_.Headers)
+                            headers_[item_.Key] = item_.Value;
+                        if (response_.Content != null && response_.Content.Headers != null)
+                        {
+                            foreach (var item_ in response_.Content.Headers)
+                                headers_[item_.Key] = item_.Value;
+                        }
+
+                        ProcessResponse(client_, response_);
+
+                        var status_ = (int)response_.StatusCode;
+                        if (status_ == 200)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<EvalRunDiff>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new AgentPrismApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            return objectResponse_.Object;
+                        }
+                        else
+                        if (status_ == 400)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<ProblemDetails>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new AgentPrismApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            throw new AgentPrismApiException<ProblemDetails>("Bad Request", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
+                        }
+                        else
+                        if (status_ == 404)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<ProblemDetails>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new AgentPrismApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            throw new AgentPrismApiException<ProblemDetails>("Not Found", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
+                        }
+                        else
+                        if (status_ == 409)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<ProblemDetails>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new AgentPrismApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            throw new AgentPrismApiException<ProblemDetails>("Conflict", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
                         }
                         else
                         {
@@ -17383,6 +17509,101 @@ namespace AgentPrism.Client.Generated
     }
 
     /// <summary>
+    /// One case's outcome on both sides of an EvalRunDiff.
+    /// </summary>
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.2.0.0 (NJsonSchema v11.1.0.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class EvalCaseDiff
+    {
+        /// <summary>
+        /// The identifier of the case being compared.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("caseId")]
+        public System.Guid CaseId { get; set; } = default!;
+
+        /// <summary>
+        /// Which bucket this case falls into.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("kind")]
+        public EvalCaseDiffKind Kind { get; set; } = default!;
+
+        /// <summary>
+        /// Whether the case passed on the baseline side.
+        /// <br/>`null` when the case is EvalCaseDiffKind.Added.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("baselinePassed")]
+        public bool? BaselinePassed { get; set; } = default!;
+
+        /// <summary>
+        /// Whether the case passed on the candidate side.
+        /// <br/>`null` when the case is EvalCaseDiffKind.Removed.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("candidatePassed")]
+        public bool? CandidatePassed { get; set; } = default!;
+
+        /// <summary>
+        /// The identifier of the agent run the baseline result came from, so a
+        /// <br/>regression can be traced to the exact conversation.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("baselineRunId")]
+        public System.Guid? BaselineRunId { get; set; } = default!;
+
+        /// <summary>
+        /// The identifier of the agent run the candidate result came from.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("candidateRunId")]
+        public System.Guid? CandidateRunId { get; set; } = default!;
+
+        /// <summary>
+        /// The baseline side's failure reason, when it failed.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("baselineFailureReason")]
+        public string? BaselineFailureReason { get; set; } = default!;
+
+        /// <summary>
+        /// The candidate side's failure reason, when it failed.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("candidateFailureReason")]
+        public string? CandidateFailureReason { get; set; } = default!;
+
+    }
+
+    /// <summary>
+    /// The bucket an aligned case falls into within an EvalRunDiff.
+    /// </summary>
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.2.0.0 (NJsonSchema v11.1.0.0 (Newtonsoft.Json v13.0.0.0))")]
+    [System.Text.Json.Serialization.JsonConverter(typeof(System.Text.Json.Serialization.JsonStringEnumConverter<EvalCaseDiffKind>))]
+    public enum EvalCaseDiffKind
+    {
+
+        [System.Runtime.Serialization.EnumMember(Value = @"Unchanged")]
+        Unchanged = 0,
+
+        [System.Runtime.Serialization.EnumMember(Value = @"Fixed")]
+        Fixed = 1,
+
+        [System.Runtime.Serialization.EnumMember(Value = @"Regressed")]
+        Regressed = 2,
+
+        [System.Runtime.Serialization.EnumMember(Value = @"StillFailing")]
+        StillFailing = 3,
+
+        [System.Runtime.Serialization.EnumMember(Value = @"Added")]
+        Added = 4,
+
+        [System.Runtime.Serialization.EnumMember(Value = @"Removed")]
+        Removed = 5,
+
+    }
+
+    /// <summary>
     /// Input shape of an eval case (in a request).
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.2.0.0 (NJsonSchema v11.1.0.0 (Newtonsoft.Json v13.0.0.0))")]
@@ -17637,6 +17858,91 @@ namespace AgentPrism.Client.Generated
 
         [System.Text.Json.Serialization.JsonPropertyName("results")]
         public System.Collections.Generic.ICollection<EvalCaseResult> Results { get; set; } = new System.Collections.Generic.List<EvalCaseResult>();
+
+    }
+
+    /// <summary>
+    /// The case-by-case difference between two completed EvalRun
+    /// <br/>records of the same suite.
+    /// </summary>
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.2.0.0 (NJsonSchema v11.1.0.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class EvalRunDiff
+    {
+        /// <summary>
+        /// The run being compared against (the older, known-good side).
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("baseline")]
+        public EvalRun Baseline { get; set; } = new EvalRun();
+
+        /// <summary>
+        /// The run being judged.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("candidate")]
+        public EvalRun Candidate { get; set; } = new EvalRun();
+
+        /// <summary>
+        /// The requested page of aligned cases, ordered so that the buckets an
+        /// <br/>engineer looks for come first: EvalCaseDiffKind.Regressed,
+        /// <br/>EvalCaseDiffKind.StillFailing,
+        /// <br/>EvalCaseDiffKind.Added, EvalCaseDiffKind.Fixed,
+        /// <br/>EvalCaseDiffKind.Removed, then
+        /// <br/>EvalCaseDiffKind.Unchanged; within a bucket by case
+        /// <br/>identifier.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("cases")]
+        public System.Collections.Generic.ICollection<EvalCaseDiff> Cases { get; set; } = new System.Collections.Generic.List<EvalCaseDiff>();
+
+        /// <summary>
+        /// The number of aligned cases across both runs, ignoring paging.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("totalCases")]
+        public int TotalCases { get; set; } = default!;
+
+        /// <summary>
+        /// The number of cases that passed on both sides.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("unchangedCount")]
+        public int UnchangedCount { get; set; } = default!;
+
+        /// <summary>
+        /// The number of cases that failed on the baseline and pass now.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("fixedCount")]
+        public int FixedCount { get; set; } = default!;
+
+        /// <summary>
+        /// The number of cases that passed on the baseline and fail now.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("regressedCount")]
+        public int RegressedCount { get; set; } = default!;
+
+        /// <summary>
+        /// The number of cases that failed on both sides.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("stillFailingCount")]
+        public int StillFailingCount { get; set; } = default!;
+
+        /// <summary>
+        /// The number of cases present only in the candidate run.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("addedCount")]
+        public int AddedCount { get; set; } = default!;
+
+        /// <summary>
+        /// The number of cases present only in the baseline run.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("removedCount")]
+        public int RemovedCount { get; set; } = default!;
 
     }
 

@@ -4854,3 +4854,50 @@ giriş noktası yetenek haritasında adıyla görünür.
 
 Bugün gözlemlenebilir bir yanlış davranış yoktu ve bunu yazmak dürüstlüktür: MAF'ın `EvalCheck` delegesi yalnız boolean üretiyor, yani `passed` `Value`'yu karşılıyordu; kusur ilk sayısal metrik geldiğinde görünürdü. `Metadata` bir KAPSAM SINIRIDIR, unutma değil: `EvaluationMetricExtensions.AddOrUpdateChatMetadata` oraya model yanıtı üstverisi koyabiliyor ve `EvalCaseResult.Scores` istemciye açıktır; `Context` aynı sebeple dışarıda (değerlendiricinin kendi girdisini taşır ve `run`'dan alıntı yapabilir). Yazım elle `Utf8JsonWriter` ile kalır ve somut tip `is BooleanMetric`/`is NumericMetric`/`is StringMetric` desen eşlemesiyle ayrılır — `EvaluationMetric` için kaynak üretilmiş `JsonSerializerContext` yoktur ve `JsonSerializer.Serialize` IL2026/IL3050 üretir. `EvaluationRating` kalıcı SÜTUN olmaz, yalnız bu JSON'da görünür.
 
+### K-714
+
+Üye eklemek üçüncü taraf uygulayıcıyı KIRAR ve bu bilerek `1.0` öncesi yapıldı (`PublicAPI.Shipped.txt` boş, K-603). Builder `Core`'a konsaydı üçüncü taraf onu göremez ve altı kümenin kurallarını yeniden yazardı; `Abstractions` her uygulayıcının zaten referans ettiği tek derlemedir.
+
+### K-715
+
+Boş bir fark "hiçbir şey değişmedi" diye okunur ve CI kapısını bir regresyonun üstünde YEŞİL yakar — bu fazın kapatmaya çalıştığı hata modunun ta kendisi. Bir dönüş değerindeki durum alanı sessizce yok sayılabilirdi; istisna çağıranı konuşmaya zorlar.
+
+### K-716
+
+Plan hash'i "bugünkü `EvalCase`'ten oku" diyordu; iki taraf aynı case'i okuduğu için bayrak HİÇBİR ZAMAN yanamazdı — plan kendisiyle çelişiyordu. Ölçüldü: `EvalCaseInput` `Id` taşımaz, `PUT /cases` her düzenlemede YENİ id atar, yani sevk edilen HTTP yüzeyinde içerik değişimi zaten `Added`+`Removed` olarak görünür. Risk yalnız `ReplaceCasesAsync`'i id koruyarak DOĞRUDAN çağıran .NET tüketicisindedir; tutulamayacak bir söz vermek yerine sınır `EvalRunDiff` XML dokümanına ve siteye yazıldı.
+
+### K-717
+
+Yarım bir koşumun HENÜZ koşulmamış case'leri `Removed` görünür ve sahte bir fark üretir. Ayrıca `Pending` bir koşumun `Total`'ı 0'dır: "ayrıntı silinmiş" sezgisi (`Total > 0` ama sonuç yok) onu yanlışlıkla `409` sayardı. Durum kapısı iki hata modunu birbirinden ayırır — `400` "bekle", `409` "geçmiş gitti".
+
+### K-718
+
+"Geçmiş gitti" ile "bir case bozuldu" farklı arızalardır ve düzeltmeleri farklıdır; ikisini `3`'te birleştirmek birini var olmayan bir regresyonu aramaya gönderir. Kod EKLENİR, mevcut kodların anlamı korunur, bu yüzden var olan CI script'leri kırılmaz. Aynı sebeple `--max-regressions`'ı `--baseline`'sız vermek SESSİZ bir no-op değil, argüman hatasıdır (`1`): yeşil bir çıkış kodu "regresyon yok" diye okunurken hiçbir şey karşılaştırılmamış olamaz.
+
+### K-719
+
+İki kaynak aynı şekli üretir: tekrarlı koşum (`numRepetitions`) ve `IJobHandler`'ın at-least-once yeniden teslimi (K-641). AND kuralı `EvalRun.Passed`'in tekrarlar için zaten kullandığı kuraldır, yani fark sayaçları koşum özetiyle uzlaşır; yeniden teslim durumunda GÜVENLİ yönde yanılır — bayat bir düşen satır olmayan bir bozulmayı gösterebilir, ama var olan bir bozulmayı ASLA gizleyemez. Sıraya güvenilmez: `eval_case_results` `ORDER BY id`'dir ve SQL Server'ın `uniqueidentifier` sıralaması bayt-sözlüksel DEĞİLDİR.
+
+### K-720
+
+tr-TR bir makinede `agentprism eval` "in 3,7 s" yazıyordu; görünen yarısı buydu, aynı sınıf kalıcı `run` hatasına "0,004500" ve bir `ProblemDetails` gövdesine "%50" yazıyor — aynı dağıtım hangi makinede üretildiğine göre farklı okunuyor. Girdi tarafı ZATEN `CultureInfo.InvariantCulture` ile ayrıştırıyordu (`ParseOptionalDouble`), yani girdi ve çıktı farklı kurallardaydı.
+
+Hangi belirtecin gerçekten riskli olduğu ÖLÇÜLDÜ, varsayılmadı (tr-TR): `0.0` → "3,7", `0.000000` → "1,500000", `P0` → "%50" (invariant "50 %"). `F0` ve `0` **riskli DEĞİL** — hiçbir kültürde basamak gruplamazlar. İlk taramada altı yer şüpheli görünmüştü; ölçüm üçünün (`TimeoutAIFunction`, `ModelProviderCircuitBreaker`, `ModelProviderHealthCache` — hepsi `:F0`) kusursuz olduğunu gösterdi ve o üç dosyaya dokunulmadı. Düzeltilen üç gerçek yer: `AgentRunBudget` (`0.000000`), `PreflightGate` (`P0`), `EvalCommand` (`0.0`).
+
+CA1305 bu sınıfı KAPATMAZ: format belirteçli bir interpolasyon `string.Format`'a değil `DefaultInterpolatedStringHandler`'a derlenir — ölçüldü, `warning`'e çekildiğinde ihlaller dururken SIFIR bulgu verdi. Guard bu yüzden davranışsaldır (`InvariantShippedTextTests`, `AgentRunBudget` dalı). Diğer iki yer bir host ve bir süreç sınırının arkasındadır; onları kapsayacak kültür kapsamlı bir test yanındaki paralel testlere sızardı, bu yüzden kaynakta düzeltildiler ve kapsanmadıkları AÇIKÇA yazıldı — hiçbir şey kanıtlamayan bir testle örtülmedi.
+
+### K-721
+
+`AGENTS.md` "bütçe aşılırsa içerik SİLİNMEZ — taşınır" der ve bu dosyanın kendi geçmişi (Faz 90: 475.000 → 380.000) tavanı damıtarak DÜŞÜRME emsalini kurar. Bu yüzden önce taşıma denendi. `_karar_satiri_damit` işaretçi taşıyan her satırı "zaten damıtılmış" sayıp atlıyordu; oysa işaretçi formatı 376 satırda ELLE, kırpma olmadan uygulanmıştı — işaretçisi olmak sınıra indirilmiş olmak değildi. Kural kaldırıldı (işaretçi gerekçeden çıkarılır, kalan sınıra indirilir, işaretçi geri yazılır) ve idempotanlık korundu: ikinci geçişte kalan gerekçe paya sığar, `tasinan` boş döner.
+
+Ölçüldü: düzeltme 10 satır daha damıttı, 1.527 B taşıdı (392.677 → 391.150). Yetmedi ve yetmeyecek — kalan büyüme satırın İSKELETİNDEDİR (başlık + tarih + yeniden açılma koşulu) ve bu üç parça kural gereği ASLA kesilmez; bir faz ~2,5 KB iskelet ekler. Tavan bu yüzden yükseltildi, ama önce taşımanın tükendiği ÖLÇÜLEREK gösterildi. Ledger "yalnız aramada" katmanındadır: oturum açılışında hiç okunmaz, bütçesi bir bağlam kısıtı değil bir büyüme alarmıdır. Alarm hâlâ çalışır, yalnız eşiği damıtma sonrası ölçüme göre yeniden kondu.
+
+### K-722
+
+`AgentPrism.AgentMap.md` tüketici repo'sunda HER oturum başında okunur, yani tavanı gerçek bir bağlam maliyetidir — "yalnız aramada" okunan karar defterinin (K-721) tersine. Bu yüzden yükseltmek ucuz değildir ve üretecin kendi yorumu "taşma kesilmez, bakımcı neyin `llms-full.txt`'ye taşınacağına karar verir" der.
+
+Ölçüldü: dosya Faz 148'de 10.239 B, Faz 151'den beri 10.240 B — tavanın TAM kendisi. Sıfır boşluk, yani bir sonraki fazın ekleyeceği HER yetenek satırı üretimi kırardı; bu fazınki en kısa hâlinde (64 B) bile kırdı. Alternatif — var olan bir yetenek satırını düşürmek — bir agent'ın kör noktasını başka bir agent'ın kör noktasıyla takas eder; haritanın işi var olanı listelemektir. +1 KiB ≈ +250 token ve yaklaşık on beş yetenek satırı. Tavan İKİNCİ kez yükseltilmez: bir daha dolarsa yol tanımları kısaltmaktır.
+
+### K-723
+
+`capabilities.md` bir Markdown tablosudur ve bir hücrede alternatif yazmanın tek yolu kaçırılmış borudur (`<runId\|previous>`). `splitRow` her boruda bölüyordu: hücre kaçış noktasında kesiliyor ve sevk edilen haritaya sarkan bir ters bölü (`--baseline <runId\`) yazılıyordu. Tabloda kaçırılmış boru kullanan İLK satır bunu ortaya çıkardı — kusur o güne kadar görünmezdi çünkü hiçbir hücre buna ihtiyaç duymamıştı. Bölme artık ters bölü ile korunan boruyu atlar ve kaçışı hücre içinde çözer; `build-agent-map.test.mjs` hem bunu hem ayırıcı satırının hâlâ tanındığını kilitler.

@@ -32,13 +32,22 @@ const repositoryRoot = resolve(siteRoot, '..');
 
 /**
  * The agent map is read at the start of every session in a consumer repository,
- * so it is budgeted rather than left to grow. 10 KiB is roughly 2500 tokens:
+ * so it is budgeted rather than left to grow. 11 KiB is roughly 2750 tokens:
  * cheap enough to always read, and far from the ~1.7M tokens of the generated
- * references. The complete map measures ~8.4 KB today, so the budget leaves
- * room for roughly twenty more capabilities. Overflow is not truncated —
- * generation fails, and the maintainer decides what moves to llms-full.txt.
+ * references. Overflow is not truncated — generation fails, and the maintainer
+ * decides what moves to llms-full.txt.
+ *
+ * Phase 153 raised the ceiling from 10 KiB (K-722, a user decision). It had run
+ * out: measured 10,239 B at phase 148 and 10,240 B — the ceiling exactly — from
+ * phase 151 on, so the next capability of any length broke generation, and the
+ * shortest possible line for this one (64 B) broke it too. The alternative the
+ * comment above offers, dropping an existing capability, trades one agent's
+ * blind spot for another's; the map's whole job is to list what exists. The
+ * +1 KiB buys roughly fifteen capability lines. This is a REAL context cost,
+ * unlike the search-only ledger budget (K-721): if it runs out again, the
+ * answer is to shorten definitions, not to raise it a second time.
  */
-export const agentMapBudgetBytes = 10240;
+export const agentMapBudgetBytes = 11264;
 
 /**
  * llms.txt is the same map plus one line per hand-written page, and it is
@@ -179,9 +188,21 @@ function parseCapabilities() {
   return { lead, sections: sections.filter((section) => section.rows.length > 0) };
 }
 
-/** Splits a table line into cells; returns null for the separator line. */
-function splitRow(line) {
-  const cells = line.replace(/^\|/, '').replace(/\|$/, '').split('|').map((cell) => cell.trim());
+/**
+ * Splits a table line into cells; returns null for the separator line.
+ *
+ * A cell may contain an ESCAPED pipe — `<runId\|previous>` is the only way to
+ * write an alternation inside a Markdown table — so the split honours the
+ * backslash and then removes it. Splitting on every pipe truncated the cell at
+ * the escape and shipped a dangling backslash into the agent map (measured on
+ * the first row that needed one).
+ */
+export function splitRow(line) {
+  const cells = line
+    .replace(/^\|/, '')
+    .replace(/(?<!\\)\|$/, '')
+    .split(/(?<!\\)\|/)
+    .map((cell) => cell.trim().replaceAll('\\|', '|'));
 
   return cells.every((cell) => /^:?-{2,}:?$/.test(cell)) ? null : cells;
 }

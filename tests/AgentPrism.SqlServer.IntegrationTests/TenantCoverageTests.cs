@@ -53,7 +53,7 @@ public sealed class TenantCoverageTests
         ["SqlDataSubjectStore"] = ["PreviewAsync", "ExportAsync", "EraseAsync"],
         ["SqlEvalStore"] =
             ["ListSuitesAsync", "GetSuiteAsync", "SaveSuiteAsync", "DeleteSuiteAsync", "CreateRunAsync",
-             "GetRunAsync", "GetRunByJobIdAsync", "ListCaseResultsAsync", "QueryRunsAsync"],
+             "GetRunAsync", "GetRunByJobIdAsync", "ListCaseResultsAsync", "QueryRunsAsync", "DiffRunsAsync"],
         ["SqlExperimentStore"] =
             ["ListAsync", "GetAsync", "SaveAsync", "DeleteAsync", "GetRunningAsync", "StartAsync", "StopAsync",
              "ListRunningWithCanaryAsync", "SetCanaryPolicyAsync", "AdvanceCanaryRampAsync", "RollbackCanaryAsync"],

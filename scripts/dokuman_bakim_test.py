@@ -902,6 +902,29 @@ class KararSatiriDamitmaTestleri(unittest.TestCase):
         self.assertEqual(bir, iki)
         self.assertIsNone(tasinan)
 
+    def test_ISARETCILI_ama_UZUN_satir_yine_damitilir(self):
+        # Faz 153: isaretci formati satirlarin cogunda ELLE, kirpma olmadan
+        # uygulanmisti; "isaretcisi var, atla" kurali 374 KB'lik bir gerekce
+        # yiginini damitma disinda birakiyordu.
+        uzun = "Bir cümle. " + "Dolgu cümlesi burada. " * 40
+        isaretci = ("**Tam gerekçe:** [`arsiv/KARARLAR-GECMISI.md`]"
+                    "(arsiv/KARARLAR-GECMISI.md) — K-100.")
+        s = self._satir(f"{uzun} {isaretci}")
+
+        yeni, tasinan, sebep = dokuman_bakim._karar_satiri_damit(s)
+
+        self.assertIsNone(sebep)
+        self.assertTrue(tasinan)
+        self.assertLess(len(yeni.encode()), len(s.encode()))
+        self.assertIn("Bir cümle.", yeni)
+        self.assertEqual(yeni.count("KARARLAR-GECMISI.md"), 2)  # tek isaretci: metin + link
+        self.assertNotIn("Tam gerekçe", tasinan)
+
+        # Ikinci gecis bir sey yapmaz.
+        iki, tasinan_iki, _ = dokuman_bakim._karar_satiri_damit(yeni)
+        self.assertEqual(yeni, iki)
+        self.assertIsNone(tasinan_iki)
+
     def test_uzun_iskelette_bile_ilk_cumle_durur(self):
         s = self._satir("Bir cümle. " + "Dolgu. " * 40,
                         baslik="K-100 — " + "çok uzun bir başlık " * 12,

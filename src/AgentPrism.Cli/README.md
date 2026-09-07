@@ -16,7 +16,7 @@ agentprism --help
 | `agentprism migrate --provider <postgres\|sqlserver\|sqlite> --connection <connection-string>` | Database, directly | Applies pending migrations. Runs before the application ever starts |
 | `agentprism migrate status --provider ... --connection ...` | Database, directly | Lists pending migration names. Writes nothing |
 | `agentprism health --url <base-url> [--token <token>] [--json]` | HTTP, through `AgentPrism.Client` | Reads model provider health |
-| `agentprism eval --url <base-url> --suite <name> [--token <token>] [--agent-version <n>] [--min-pass-rate <0..1>] [--max-failures <n>] [--timeout <seconds>] [--poll-interval <seconds>] [--json]` | HTTP, through `AgentPrism.Client` | Triggers a suite, polls it to completion, applies an optional quality gate |
+| `agentprism eval --url <base-url> --suite <name> [--token <token>] [--agent-version <n>] [--min-pass-rate <0..1>] [--max-failures <n>] [--baseline <runId\|previous>] [--max-regressions <n>] [--timeout <seconds>] [--poll-interval <seconds>] [--json]` | HTTP, through `AgentPrism.Client` | Triggers a suite, polls it to completion, applies an optional quality gate — absolute, relative to a baseline run, or both |
 
 `--connection` and `--token` can come from the `AGENTPRISM_CONNECTION` and
 `AGENTPRISM_TOKEN` environment variables instead — useful in a CI/CD step
@@ -51,6 +51,43 @@ Triggering needs the `RunsWrite` API key scope; polling needs `EvalsRead`. A
 key missing either one gets a `2` with the missing scope named in the error —
 never the server's response body.
 
+### The relative gate: `--baseline`
+
+An absolute threshold cannot see a slide. With `--min-pass-rate 0.85` set, a
+suite that drops from 95% to 90% still passes — nothing in the run's own
+summary says that five cases which used to work now do not.
+
+`--baseline` compares the finished run against an earlier run of the same
+suite, case by case, through `GET /api/evals/runs/{id}/diff`. It takes either
+an eval run id or the word `previous`, which means the newest **completed**
+run of that suite before this one. `--max-regressions <n>` then says how many
+cases may break: more than that and the command exits `3`, listing each
+broken case on stderr. Given `--baseline` alone, the comparison is reported and
+never fails the build — the ceiling is what turns a report into a gate.
+
+Under `--json`, stdout stays a single parseable document: the comparison
+summary goes to stderr alongside the broken-case lines.
+
+Cases added to or dropped from the suite are their own buckets and are never
+counted as regressions — adding a case moves the pass rate without anything
+having broken, and a gate that confuses the two teaches the team to ignore it.
+
+Two rules keep the gate honest:
+
+- `--max-regressions` without `--baseline` is an **argument error** (`1`), not
+  a silent no-op. A pipeline must never read a green exit code as "no
+  regressions" when nothing was compared.
+- If the comparison itself is impossible — the baseline's per-case results
+  have aged out of the `eval_case_results` retention window, it never
+  completed, or it measures a different suite — the command exits **`4`**, not
+  `3`. A lost history needs a different fix than a broken case, and the server
+  answers `409` there rather than an empty diff that would read as "nothing
+  changed".
+
+On a suite's very first run, `--baseline previous` finds nothing to compare
+against. That is written to stderr and the gate is **skipped**, not failed:
+otherwise every new suite's first CI run would go red for no reason.
+
 ## Exit codes
 
 | Code | Meaning |
@@ -59,8 +96,9 @@ never the server's response body.
 | `1` | Argument error (missing/invalid flag, unknown command) |
 | `2` | Could not run: connection failed, HTTP error, timed out, or (`eval` only) the run itself ended `Failed`/`Cancelled` |
 | `3` | (`eval` only) Ran, but missed the quality gate |
+| `4` | (`eval` only) Ran, but could not be compared against `--baseline` |
 
-`migrate`, `migrate status`, and `health` never return `3`.
+`migrate`, `migrate status`, and `health` never return `3` or `4`.
 
 ## Why `migrate` talks to the database directly, not over HTTP
 

@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Options;
+using System.Globalization;
 
 namespace AgentPrism;
 
@@ -69,7 +70,9 @@ internal static class PreflightGate
             detail: $"The prompt is estimated at {estimate.PromptTokens} tokens; the '{agentName}' agent's " +
                      $"model allows at most {estimate.AllowedPromptTokens} tokens for the prompt " +
                      $"(context window {estimate.ContextWindowTokens}, reserved for the answer: " +
-                     $"{optionsMonitor.CurrentValue.Preflight.ReserveRatio:P0}). No call was made to the provider.",
+                     string.Create(
+                         CultureInfo.InvariantCulture,
+                         $"{optionsMonitor.CurrentValue.Preflight.ReserveRatio:P0}). No call was made to the provider."),
             statusCode: StatusCodes.Status400BadRequest,
             extensions: new Dictionary<string, object?>(StringComparer.Ordinal)
             {

@@ -165,7 +165,7 @@ bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 | [150](arsiv/fazlar/150-ZORUNLU-BINDING-PROFILI.md) | Zorunlu Binding Profili | ✅ Tamamlandı |
 | [151](arsiv/fazlar/151-HARNESSIN-DONGU-YETENEGI.md) | Harness'in Döngü Yeteneği | ✅ Tamamlandı |
 | [152](arsiv/fazlar/152-SKORUN-ADI-VE-SEKLI.md) | Skorun Adı ve Şekli | ✅ Tamamlandı |
-| [153](153-EVAL-KOSUMLARI-ARASINDA-REGRESYON-FARKI.md) | Eval Koşumları Arasında Regresyon Farkı | 📋 Planlandı |
+| [153](153-EVAL-KOSUMLARI-ARASINDA-REGRESYON-FARKI.md) | Eval Koşumları Arasında Regresyon Farkı | ✅ Tamamlandı |
 | [154](154-SKOR-TRENDININ-KALICI-SORGUSU.md) | Skor Trendinin Kalıcı Sorgusu | 📋 Planlandı |
 
 Seçilmemiş adaylar: [`ADAYLAR.md`](ADAYLAR.md). Fazların hangi dalgada, hangi gerekçeyle sıralandığı (Faz 8–56, kapandı): [`arsiv/IKINCI-FAZ-YOL-HARITASI.md`](arsiv/IKINCI-FAZ-YOL-HARITASI.md) · [`arsiv/UCUNCU-FAZ-YOL-HARITASI.md`](arsiv/UCUNCU-FAZ-YOL-HARITASI.md).
