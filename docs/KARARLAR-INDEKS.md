@@ -53,10 +53,10 @@ Bul: `grep -n 'K-059\|jsonb' docs/KARARLAR.md`; oku: `sed -n 'N,Np' docs/KARARLA
 | K-707 | 716 | Değerlendirilemeyen bir döngü ölçütü döngüyü DURDURUR; `run`'ı düşürmez |
 | K-708 | 717 | `AddLoopEvaluator` yerleşik bir `kind`'i gölgeleyemez; kayıt anında reddedilir |
 | K-709 | 718 | Döngü ölçütü kaydı `AgentPrismExtensionPoints` tablosuna GİRMEZ; sekizinci bir genişleme noktası değildir |
-| K-710 | 719 | `RunScore.Name` tekillik anahtarına girer; `author` `COALESCE` EDİLMEZ ve yargıcın `author = judge:{ad}` kaçışı KALIR 👤 |
-| K-711 | 720 | `RunScore.Value` `required int` → `double?`; `null` "ölçüm yapılmadı" demektir, sıfır değil; `TextValue` ve `RunScoreKind.Categorical = 4` eklendi 👤 |
-| K-712 | 721 | `RunScoreRules` PUBLIC'tir; skor invariant'ı dört store'da da tek kaynaktan zorlanır |
-| K-713 | 722 | `EvalCaseResult.Scores` metriğin somut tipine göre `kind`/`value`/`rating`/`diagnostics` yazar; `Metadata` ve `Context` YAZILMAZ 👤 |
+| K-710 | 719 | `RunScore.Name` tekillik anahtarına girer, `author` `COALESCE` EDİLMEZ 👤 |
+| K-711 | 720 | `RunScore.Value` `required int` → `double?` (`null` = ölçüm yok); `TextValue` ve `Categorical` eklendi 👤 |
+| K-712 | 721 | `RunScoreRules` PUBLIC'tir; invariant tek kaynaktan zorlanır |
+| K-713 | 722 | `EvalCaseResult.Scores` değer/derece/tanı yazar; `Metadata` ve `Context` YAZILMAZ 👤 |
 | K-662 | 730 | `JobKind` KALDIRILDI; işin kimliği tek bir dizge alandır (`JobRecord.HandlerKey` / `JobSchedule.HandlerKey`), ikinci bir alan tutulmaz 👤 |
 | K-663 | 731 | Handler anahtarı KAYITTA verilir (`AddJobHandler<T>(key)`), handler SCOPED kaydedilir ve execution başına yeni bir DI scope'undan çözülür; dispatch tam anahtar eşleşmesidir, kayıt sırası sonucu DEĞİŞTİRMEZ 👤 |
 | K-664 | 732 | Kayıtsız handler anahtarı FAIL-CLOSED'dır: iş `Failed` kapanır, `ErrorMessage` kararlı `JobErrorCodes.UnknownHandlerKey` kodunu taşır ve HAM ANAHTARI TAŞIMAZ |

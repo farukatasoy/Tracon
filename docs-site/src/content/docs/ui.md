@@ -113,8 +113,11 @@ event — see [Writing your own event](/concepts/runs/#writing-your-own-event) �
 renders as a generic card named after that event's own type, with no console
 change required to show up.
 
-Two runs can be compared side by side, and any run can be scored — those scores sit
-next to the ones automatic judges write.
+Two runs can be compared side by side, and any run can be scored. The thumbs on the
+run screen write one named score — `overall` — as the person looking at it. Every
+other score on that run, whether a second name someone wrote through the API or one
+an automatic judge produced, is listed beside them read-only, with its name and its
+value.
 
 A run that continues one interrupted by a process crash names the run it continues,
 right next to the session and parent-run links, as a clickable id that opens the
