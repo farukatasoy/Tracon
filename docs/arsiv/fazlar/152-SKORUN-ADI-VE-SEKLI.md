@@ -1,8 +1,8 @@
 # Faz 152 — Skorun Adı ve Şekli
 
 > **Durum:** ✅ Tamamlandı (2026-09-07)
-> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-208**
-> **Önkoşul:** Yok. **Ardılı vardır:** [Faz 154](154-SKOR-TRENDININ-KALICI-SORGUSU.md) aynı tabloya dokunur ve **bu fazdan sonra** koşar.
+> **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-208**
+> **Önkoşul:** Yok. **Ardılı vardır:** [Faz 154](../../154-SKOR-TRENDININ-KALICI-SORGUSU.md) aynı tabloya dokunur ve **bu fazdan sonra** koşar.
 > **Paketler:** `AgentPrism.Abstractions`, `AgentPrism.Core`, `AgentPrism.AspNetCore`, `AgentPrism.PostgreSql`, `AgentPrism.Sqlite`, `AgentPrism.SqlServer`, `AgentPrism.Testing.Contracts.Xunit`, `AgentPrism.UI`
 > **Yeni paket:** Yok — karar 152.1'de ölçümle verildi · **Migration:** PostgreSQL `0048` · SQLite `0035` · SQL Server `0035` (K-178: numaralar sağlayıcı başına bağımsızdır)
 > **Public API:** 🔴 Büyüyor **ve kırıyor** — `RunScore.Value` tipi değişir. `wc -l src/*/PublicAPI.Shipped.txt` → her dosya **1 satır** (ölçüldü 2026-09-07): hiçbir yüzey sevk edilmemiştir, bu değişiklik **bugün bedava**, `1.0`'dan sonra **imkânsızdır**.
@@ -27,19 +27,19 @@
    (`JudgeTimeout` gerçek cutoff'tur — geç sonuç skor **yazmaz**), **K-638**
    (yargıç checkpoint'i **mevcut** `run_scores` satırlarından okunur — bu faz o
    okumayı bozmamalıdır).
-3. [`arsiv/fazlar/118-YARGIC-BASINA-CHECKPOINT.md`](arsiv/fazlar/118-YARGIC-BASINA-CHECKPOINT.md) — yalnız devir notu:
+3. [`arsiv/fazlar/118-YARGIC-BASINA-CHECKPOINT.md`](118-YARGIC-BASINA-CHECKPOINT.md) — yalnız devir notu:
    ```bash
    awk '/## Sonraki Faza Devir Notu/,0' docs/arsiv/fazlar/118-YARGIC-BASINA-CHECKPOINT.md
    ```
    Checkpoint mekanizması `author = "judge:{ad}"` satırlarının **varlığını**
    okur. Tekillik anahtarı bu fazda değişiyor; o okuma **yeniden yargılanmalıdır**.
 4. Alan hafızası (bu faz üç alana dokunuyor):
-   [`hafiza/sql-migration.md`](hafiza/sql-migration.md) (üç sağlayıcı, indeks
-   yeniden yazımı) · [`hafiza/sql-saglayicilari.md`](hafiza/sql-saglayicilari.md)
+   [`hafiza/sql-migration.md`](../../hafiza/sql-migration.md) (üç sağlayıcı, indeks
+   yeniden yazımı) · [`hafiza/sql-saglayicilari.md`](../../hafiza/sql-saglayicilari.md)
    (tip farkları — `double precision` ↔ `REAL` ↔ `float`) ·
-   [`hafiza/frontend.md`](hafiza/frontend.md) (skor gösterimi, `en.ts`/`tr.ts`)
+   [`hafiza/frontend.md`](../../hafiza/frontend.md) (skor gösterimi, `en.ts`/`tr.ts`)
 5. Gerektiğinde, tamamı değil ilgili bölümü:
-   [`MIMARI.md`](MIMARI.md) — veri modeli bölümü
+   [`MIMARI.md`](../../MIMARI.md) — veri modeli bölümü
 
 ---
 
@@ -63,12 +63,12 @@ kırıcıdır; `1.0`'dan sonra yapılamaz.
 
 | Kanıt | Gözlem |
 |---|---|
-| [`0017_run_scores.sql:47-48`](../src/AgentPrism.PostgreSql/Migrations/0017_run_scores.sql#L47) | Tekillik indeksi `(tenant_id, run_id, COALESCE(message_id,''), author)` — **`name` sütunu yok** |
-| [`0017_run_scores.sql:30`](../src/AgentPrism.PostgreSql/Migrations/0017_run_scores.sql#L30) | `value integer NOT NULL` — ondalık ve metin saklanamaz |
-| [`RunScoreKind.cs`](../src/AgentPrism.Abstractions/Runs/RunScoreKind.cs) | Üç değerli kapalı enum: `Binary=1` · `Stars=2` · `Numeric=3` |
-| [`ModelRunJudge.cs:75`](../src/AgentPrism.Core/Evaluation/ModelRunJudge.cs#L75) | Judge sınırı `author = "judge:{Name}"` ile aşıyor; insanın böyle bir kaçışı yok |
-| [`EvalJobHandler.cs:458-490`](../src/AgentPrism.Core/Evaluation/EvalJobHandler.cs#L458) | `SerializeScores` yalnız `name`/`passed`/`reason` yazıyor — `Value`, `Interpretation.Rating`, `Diagnostics`, `Metadata` **atılıyor** |
-| [`RunScore.cs`](../src/AgentPrism.Abstractions/Runs/RunScore.cs) | XML dokümanı *"1.5 for Stars"* diyor; SQL yorumu *"1..5 for Stars"* diyor. **Sevk edilen XML yanlış** |
+| [`0017_run_scores.sql:47-48`](../../../src/AgentPrism.PostgreSql/Migrations/0017_run_scores.sql#L47) | Tekillik indeksi `(tenant_id, run_id, COALESCE(message_id,''), author)` — **`name` sütunu yok** |
+| [`0017_run_scores.sql:30`](../../../src/AgentPrism.PostgreSql/Migrations/0017_run_scores.sql#L30) | `value integer NOT NULL` — ondalık ve metin saklanamaz |
+| [`RunScoreKind.cs`](../../../src/AgentPrism.Abstractions/Runs/RunScoreKind.cs) | Üç değerli kapalı enum: `Binary=1` · `Stars=2` · `Numeric=3` |
+| [`ModelRunJudge.cs:75`](../../../src/AgentPrism.Core/Evaluation/ModelRunJudge.cs#L75) | Judge sınırı `author = "judge:{Name}"` ile aşıyor; insanın böyle bir kaçışı yok |
+| [`EvalJobHandler.cs:458-490`](../../../src/AgentPrism.Core/Evaluation/EvalJobHandler.cs#L458) | `SerializeScores` yalnız `name`/`passed`/`reason` yazıyor — `Value`, `Interpretation.Rating`, `Diagnostics`, `Metadata` **atılıyor** |
+| [`RunScore.cs`](../../../src/AgentPrism.Abstractions/Runs/RunScore.cs) | XML dokümanı *"1.5 for Stars"* diyor; SQL yorumu *"1..5 for Stars"* diyor. **Sevk edilen XML yanlış** |
 
 > Kanıtlar 2026-09-07 tarihinde doğrulandı.
 
@@ -87,9 +87,9 @@ bağımlılığını almak mı, şekilleri kopyalamak mı? Karar **ölçümle** 
 | `AgentPrism.Abstractions` bugün ne referanslıyor | `Microsoft.Agents.AI.Abstractions` + **`Microsoft.Extensions.AI.Abstractions`** |
 | ⇒ `Abstractions`'a eklemenin maliyeti | **net 1 paket, geçişli ağırlık 0** |
 | `AgentPrism.Core`/`AspNetCore`/`Cli` grafiği | 🚨 `M.E.AI.Evaluation` 10.9.0 **zaten var** — `Microsoft.Agents.AI` 1.20.0 ve `.Harness` getiriyor |
-| Repo bu aileyi kullanıyor mu | 🚨 **Evet.** [`EvalJobHandler.cs:3`](../src/AgentPrism.Core/Evaluation/EvalJobHandler.cs#L3) `using Microsoft.Extensions.AI.Evaluation;`, `EvaluationMetric` `:432` ve `:458` |
+| Repo bu aileyi kullanıyor mu | 🚨 **Evet.** [`EvalJobHandler.cs:3`](../../../src/AgentPrism.Core/Evaluation/EvalJobHandler.cs#L3) `using Microsoft.Extensions.AI.Evaluation;`, `EvaluationMetric` `:432` ve `:458` |
 
-> Bu ölçüm [`kesif/2026-09-07-langfuse-esinli-tur.md:85`](kesif/2026-09-07-langfuse-esinli-tur.md)'in
+> Bu ölçüm [`kesif/2026-09-07-langfuse-esinli-tur.md:85`](../../kesif/2026-09-07-langfuse-esinli-tur.md)'in
 > *"🚨 Repo bu aileyi kullanmıyor"* cümlesini **çürütür**. Doğrudan referans
 > yoktur; grafikte ve kodda vardır.
 
@@ -117,7 +117,7 @@ zaten grafiktedir.
 
 `RunScore`'a `Name` eklenir ve **tekillik anahtarına girer**.
 
-- Kural: `[A-Za-z0-9._-]{1,64}` — [`IRunJudge.Name`](../src/AgentPrism.Abstractions/Evaluation/IRunJudge.cs)'in
+- Kural: `[A-Za-z0-9._-]{1,64}` — [`IRunJudge.Name`](../../../src/AgentPrism.Abstractions/Evaluation/IRunJudge.cs)'in
   bugünkü kuralının **birebir aynısı**. İki ad kuralı yazmak iki doğrulama yolu üretir.
 - Düşük kardinaliteli olmalıdır: metrik etiketi ve skor alanı olarak kullanılır.
 - Yeni indeks: `(tenant_id, run_id, COALESCE(message_id,''), author, name)`.
@@ -152,7 +152,7 @@ Değişiklikler:
 
 1. **`Value` `required int` → `double?`.** Kırıcıdır, bugün bedavadır.
    `null` yeni bir anlam **taşımaz, mevcut bir kuralı yayar**:
-   [`RunJudgment.Score`](../src/AgentPrism.Abstractions/Evaluation/IRunJudge.cs)
+   [`RunJudgment.Score`](../../../src/AgentPrism.Abstractions/Evaluation/IRunJudge.cs)
    zaten *"karar verilemediğinde `null` döner, `0` DEĞİL. Sıfır bir ölçümdür,
    ölçümün yokluğu değildir"* diyor. `EvaluationMetric<T>.Value` de nullable'dır.
 2. **`TextValue string?` eklenir.** `Categorical` skorlar için.
@@ -175,7 +175,7 @@ Kullanıcı kararı (2026-09-07): bu, ayrı bir kusur kaydı değil, **bu fazın
 kapsamıdır** — kayıplı yazım skorun şeklinin sonucudur ve ayrı açmak aynı kodu
 iki kez elden geçirtir.
 
-[`EvalJobHandler.cs:458`](../src/AgentPrism.Core/Evaluation/EvalJobHandler.cs#L458)
+[`EvalJobHandler.cs:458`](../../../src/AgentPrism.Core/Evaluation/EvalJobHandler.cs#L458)
 `SerializeScores` bugün `EvaluationMetric` başına yalnız üç alan yazıyor:
 
 ```json
@@ -189,7 +189,7 @@ Atılanlar: `Value` (`bool?`/`double?`/`string`), `Interpretation.Rating`
 MAF'ın `EvalCheck` delegesi `EvalCheckResult(bool Passed, string Reason, string CheckName)`
 döndürüyor (`maf-api-kesfi`, 2026-09-07), yani yerleşik altı check zaten yalnız
 boolean üretiyor ve `passed` alanı `Value`'yu **karşılıyor**. Kusur, ilk sayısal
-metrik geldiği anda ortaya çıkar — ki [Faz 154](154-SKOR-TRENDININ-KALICI-SORGUSU.md)
+metrik geldiği anda ortaya çıkar — ki [Faz 154](../../154-SKOR-TRENDININ-KALICI-SORGUSU.md)
 ve F-210 (`.Quality` katalogu) tam olarak onu getirir.
 
 Düzeltme: `SerializeScores` metriğin **somut tipine göre** değer yazar.
@@ -326,7 +326,7 @@ tests/
 
 > Seviyeyi plan seçer. Sınır geçen davranış (DI · HTTP · kiracı · akış · depo ·
 > paket) birim testiyle kanıtlanamaz —
-> [`.agents/ortak/test-seviyeleri.md`](../.agents/ortak/test-seviyeleri.md).
+> [`.agents/ortak/test-seviyeleri.md`](../../../.agents/ortak/test-seviyeleri.md).
 
 | Ne bozulabilir | Seviye | Test sınıfı |
 |---|---|---|
