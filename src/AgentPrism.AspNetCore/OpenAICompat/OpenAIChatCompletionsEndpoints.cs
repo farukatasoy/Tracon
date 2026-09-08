@@ -174,7 +174,11 @@ internal static class OpenAIChatCompletionsEndpoints
                 OpenAICompatSupport.JsonOptions,
                 statusCode: StatusCodes.Status200OK);
         }
-        catch (OperationCanceledException)
+        // 🚨 A provider timeout arrives as an OperationCanceledException while
+        // nobody cancelled anything (HttpClient's own deadline). Without this
+        // filter it skipped the 502 mapping below and the caller got a bare,
+        // empty success. Same class as AgentEndpoints; Phase 157.
+        catch (OperationCanceledException) when (httpContext.RequestAborted.IsCancellationRequested)
         {
             throw;
         }
@@ -340,7 +344,8 @@ internal static class OpenAIChatCompletionsEndpoints
                 // The OpenAI stream ends with this fixed marker; SDKs expect it.
                 await writer.WriteRawAsync("data: [DONE]\n\n", cancellationToken).ConfigureAwait(false);
             }
-            catch (OperationCanceledException)
+            // Same filter, same reason as the non-streaming branch above.
+            catch (OperationCanceledException) when (httpContext.RequestAborted.IsCancellationRequested)
             {
                 // The client disconnected.
             }

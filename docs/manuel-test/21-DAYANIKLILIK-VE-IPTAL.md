@@ -1934,3 +1934,173 @@ bu case'ler örnek uygulamada elle gözlem içindir.
   sessizce atılır (K-621 ile aynı sözleşme).
 
 ---
+
+### MT-RES-085 — Ölen worker'ın işi lease dolmadan DEVRALINMAZ (Faz 157)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 157 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- PostgreSQL (SQLite DEĞİL — tek process tavsiyelidir).
+- Aynı şemaya bağlı iki worker process; `Scheduling.LeaseDuration` kısa
+  (örn. `00:00:06`), `PollInterval` `00:00:00.250`.
+- Uzun süren bir job handler ve kuyruğa girmiş bir `job`.
+
+**Adımlar**
+1. Worker A'yı başlat; `job`'u lease ettiğini ve handler'a girdiğini doğrula
+   (`GET /agentprism/api/jobs/{id}` → `leaseOwner` dolu, `attempt = 1`).
+2. `lease_until` değerini not al.
+3. Worker B'yi başlat.
+4. Worker A'yı `kill -9 <pid>` ile öldür (zarif kapanış DEĞİL).
+5. `lease_until`'dan ÖNCE `job`'u oku.
+
+**Beklenen sonuç**
+- `leaseOwner` hâlâ A'dır, `attempt` hâlâ `1`'dir; B işi ALMAMIŞTIR.
+- Handler'a ikinci bir giriş olmamıştır — iki worker aynı anda ASLA aynı işi
+  yürütmez.
+
+**Otomatik karşılığı:** `TwoProcessLeaseTakeoverTests.A_dead_workers_job_is_not_taken_over_before_its_lease_expires`
+
+---
+
+### MT-RES-086 — Lease dolduktan sonra iş devralınır ve BİR KEZ tamamlanır (Faz 157)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 157 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- MT-RES-085'in kurulumu; worker A öldürülmüş durumda.
+
+**Adımlar**
+1. `LeaseDuration` süresi dolana kadar bekle.
+2. `job`'u tekrar oku ve durumu izle.
+
+**Beklenen sonuç**
+- Worker B işi devralır: `leaseOwner` B'ye döner, `attempt = 2` olur.
+- `job` `Completed` olur; `doneItems` madde sayısına EŞİTTİR (iki katı DEĞİL —
+  madde raporlaması idempotenttir).
+- B'nin handler'a giriş zamanı A'nın `lease_until` değerinden SONRADIR.
+- 🚨 A'nın yarım kalan denemesinin yan etkileri geri alınmaz; yürütme
+  **at-least-once**'tır. Geri dönüşü olmayan yan etkiler için idempotency
+  uygulamanın sorumluluğundadır.
+
+**Otomatik karşılığı:** `TwoProcessLeaseTakeoverTests.A_dead_workers_job_is_taken_over_after_the_lease_expires_and_never_runs_concurrently`
+
+---
+
+### MT-RES-087 — `RunWorker=false` process kuyruğa DOKUNMAZ (Faz 157)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 157 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- Tek bir process, `AgentPrism:Scheduling:RunWorker=false`; aynı SQL deposu.
+
+**Adımlar**
+1. Bir `job` kuyruğa gönder.
+2. Birkaç `PollInterval` kadar bekle.
+3. `job`'u oku.
+
+**Beklenen sonuç**
+- `status` `Pending` kalır, `leaseOwner` `null`, `attempt = 0`.
+- Bu bir kusur DEĞİLDİR: API node'unun tanımlı davranışıdır. Kuyruğun
+  ilerlemesi için bir worker node gerekir.
+
+**Otomatik karşılığı:** `TwoProcessLeaseTakeoverTests.An_api_node_leaves_the_queued_job_untouched`
+
+---
+
+### MT-RES-088 — Veritabanı düştüğünde worker AYAKTA kalır, `job` bozulmaz (Faz 157)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 157 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- Bir worker process ve kuyrukta bir `job`.
+
+**Adımlar**
+1. Veritabanını durdur (`docker stop <container>`).
+2. Birkaç `PollInterval` bekle; process listesini kontrol et.
+3. Veritabanını yeniden başlat.
+4. `job`'u oku.
+
+**Beklenen sonuç**
+- Worker process ÇIKMAMIŞTIR; başarısız tick loglanır ve döngü sürer.
+- Veritabanı dönünce `job` bulunduğu yerdedir; sessizce tamamlanmış
+  GÖRÜNMEZ (`doneItems = 0`).
+- Aynı kesinti sırasında bir okuma çağrısı **istisna fırlatır** — boş liste
+  dönmez.
+
+**Otomatik karşılığı:** `FailureManifests.DatabaseUnavailableTests`
+
+---
+
+### MT-RES-089 — Sağlayıcı zaman aşımı `Canceled` DEĞİL, `Timeout` olarak kaydedilir (Faz 157)
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 157 |
+| **İlgili karar** | K-737 |
+| **Regresyon** | Evet — Faz 157'de bulunan kusur |
+
+**Ön koşul**
+- Yanıt vermeyen bir sağlayıcı ucu (örn. paket düşüren bir adres) ve kısa bir
+  HTTP timeout'u; agent'ta fallback zinciri YOK.
+
+**Adımlar**
+1. `POST /agentprism/api/agents/{ad}/run` (`Idempotency-Key` başlığı ile —
+   akışsız yol).
+2. Yanıtı ve `GET /agentprism/api/runs` kaydını oku.
+
+**Beklenen sonuç**
+- HTTP `502` + `application/problem+json`; **200 + boş gövde DEĞİL**.
+- `run.status` `Failed`, `errorClass` `Timeout`'tur; `Canceled` DEĞİLDİR.
+- Sağlayıcının ham istisna metni yanıtta GÖRÜNMEZ.
+- Agent'a bir fallback eklendiğinde aynı senaryo `200` döner ve
+  `modelProvider` YANIT VEREN sağlayıcıdır.
+
+**Otomatik karşılığı:** `FailureManifests.ProviderTimeoutTests`
+
+---
+
+### MT-RES-090 — Yavaş bir `sink` `run`'ı YAVAŞLATIR, bozmaz (Faz 157)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 157 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- Her olayda ~200 ms bekleyen bir `IRunEventSink` kaydı.
+
+**Adımlar**
+1. Akışlı bir `run` başlat ve toplam süreyi ölç.
+2. `sink`'i istisna fırlatan bir uygulamayla değiştir ve tekrarla.
+
+**Beklenen sonuç**
+- Yavaş `sink`: `run` tamamlanır, ama süre olay sayısı × gecikme kadar UZAR —
+  dağıtım sıcak yolda `await` edilir, arka plana atılmaz.
+- Fırlatan `sink`: ilk hatadan sonra o `run` için devre dışı bırakılır, bir
+  kez daha çağrılmaz; `run` normal tamamlanır ve olaylar depoya yazılır.
+
+**Otomatik karşılığı:** `FailureManifests.SlowSinkTests`

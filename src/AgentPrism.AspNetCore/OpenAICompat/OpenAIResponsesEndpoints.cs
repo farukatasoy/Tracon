@@ -262,7 +262,11 @@ internal static class OpenAIResponsesEndpoints
                 AppendPendingApprovalOutputItems(responseJson, response.Messages),
                 statusCode: StatusCodes.Status200OK);
         }
-        catch (OperationCanceledException)
+        // 🚨 A provider timeout arrives as an OperationCanceledException while
+        // nobody cancelled anything (HttpClient's own deadline). Without this
+        // filter it skipped the 502 mapping below and the caller got a bare,
+        // empty success. Same class as AgentEndpoints; Phase 157.
+        catch (OperationCanceledException) when (httpContext.RequestAborted.IsCancellationRequested)
         {
             throw;
         }
@@ -457,7 +461,13 @@ internal static class OpenAIResponsesEndpoints
 
                 await sessionStore.SaveSessionAsync(agent, saveId, session, cancellationToken).ConfigureAwait(false);
             }
-            catch (OperationCanceledException)
+            // 🚨 `when (httpContext.RequestAborted.IsCancellationRequested)`,
+            // not a bare catch. HttpClient reports its own request timeout as a
+            // TaskCanceledException, so a provider that never answers raises one
+            // while the client is still connected and waiting; a bare catch
+            // ended the response as if the CLIENT had gone away, and the caller
+            // saw a clean, empty success. Measured in Phase 157.
+            catch (OperationCanceledException) when (httpContext.RequestAborted.IsCancellationRequested)
             {
                 // The client disconnected.
             }

@@ -174,3 +174,5 @@ bir senaryo sahte saatle sorunsuz çalışır; kuyruklu/arka-plan bir senaryoyu
 test ederken ya **gerçek saat + kısa gerçek süre** kullan (örnek: kısa bir
 `MaxDuration` + `Task.Delay` ile gerçekten geciken bir tool), ya da yalnız
 SENKRON yolu sahte saatle test et. Vaka: `RunDeadlineTests.Deadline_is_enforced_on_the_queued_durable_run_path_too`.
+
+- **Process testinde bekleme MUTLAK SÜRE değil KOŞUL olmalıdır** (Faz 157). Hazırlık için process'in stdout'a yazdığı bir satır (`HARNESS-READY`), devralma için veritabanının KENDİ `lease_until` değeri beklenir; `Task.Delay(sabit)` yüklü bir ajanda kırılgandır. `ManagedProcess.DisposeAsync` her yolda ağacı öldürür — düşen bir test öksüz worker bırakmaz.

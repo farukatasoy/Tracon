@@ -414,6 +414,109 @@ evidence at the cost of time, and no value of it turns the sample into a
 survey.
 :::
 
+## What a failure actually does
+
+The behaviours below are measured, not inferred. Each one has a failure manifest
+in the test suite that runs on every build, and each is stated as what was
+observed rather than as a guarantee.
+
+:::caution[Measured, not promised]
+These observations describe how one AgentPrism version behaves against one SQL
+store. They are not a statement that AgentPrism supports multiple nodes, and
+they set no service level. SQLite remains a single-process store; run the
+scenarios below on PostgreSQL or SQL Server.
+:::
+
+### A worker process dies mid-job
+
+The job stays leased to the dead worker until its lease expires. No other worker
+touches it before then — the lease is a database row, so a process that dies
+without releasing anything still holds it for the remainder of the term. Once
+`LeaseDuration` elapses, another worker leases the job, `Attempt` increments, and
+the job runs again from the start.
+
+Two consequences follow, and both are yours to design for:
+
+- **Recovery is not instant.** A job's worst-case stall after a crash is one full
+  `LeaseDuration`. That value is the trade: shorter recovers faster, longer
+  tolerates more pause, garbage collection, and network wobble before a live
+  worker's own job is stolen from underneath it.
+- **Execution is at-least-once, never exactly-once.** The crashed attempt's
+  side effects already happened. Item progress is idempotent — a re-reported item
+  does not double the job's counters — but nothing outside the database is.
+  Application-level idempotency for irreversible actions is not optional.
+
+What does **not** happen is two workers inside the same job at once. That is the
+guarantee the lease actually provides.
+
+### The database is unreachable
+
+Three different behaviours, deliberately:
+
+- **Reads and queue operations fail loudly.** A store call raises the provider's
+  exception. It never degrades into an empty list, because an empty answer is
+  indistinguishable from "no data" and would be read as success.
+- **Run recording fails quietly.** The recorder disables itself for that run,
+  logs, and the run continues. Observability must not break functionality.
+- **Worker processes stay up.** A failed queue tick is logged and the next tick
+  runs, and the process resumes when the database returns. Work in flight when
+  the database went away is lost the same way a crash loses it — the job is not
+  completed, and it becomes leasable again once its lease expires.
+
+### The provider times out
+
+A timeout moves to the next link of the model fallback chain, and the client sees
+an ordinary answer. Without a fallback the run is recorded as `Failed` with the
+`Timeout` error class and the endpoint answers `502`.
+
+:::note[Fixed in a recent version]
+Earlier versions recorded a provider timeout as a **cancelled** run and answered
+`200` with an empty body, because .NET reports an `HttpClient` timeout as a
+`TaskCanceledException`. If you have dashboards or alerts keyed on cancelled runs,
+expect timeouts to move out of that bucket and into `Timeout` after upgrading.
+:::
+
+### A run event sink is slow
+
+Sink dispatch is **inline** on the recording path. A failing sink is isolated —
+it is disabled for that run after its first failure and the run finishes normally
+— but a *slow* sink is not: its latency is added to every event the run produces.
+"Observability must not break functionality" means it cannot break a run; it does
+not mean it cannot slow one. A sink that talks to a network target must buffer
+internally and return immediately.
+
+### A retention pass deletes at volume
+
+A delete of the rows a retention pass targets takes row locks, not a table lock.
+Reads of the same table, and writes of rows the delete does not match, both run
+to completion while one is in flight — verified against PostgreSQL with the
+delete deliberately left uncommitted. Batch size is your lock-duration control:
+a pass deletes exactly its batch and leaves the rest for the next call, which is
+why cleanup never becomes one unbounded statement.
+
+### Many subscribers read one run's stream
+
+Every subscriber reads the same complete sequence from the store, from the
+beginning — a late subscriber has not missed anything, and an abandoned reader
+changes nothing for the others. The cost model to size for is therefore
+*subscribers x events* of database reads, not one read shared between them.
+(What is measured is the recorded stream of a finished run, which is the case
+where every subscriber must agree exactly; a live run's tail adds polling on top
+of the same per-subscriber reads.)
+
+### Two versions are up during a rolling upgrade
+
+Migrations are additive, so a process running the older version keeps reading and
+writing the tables it knows while the newer schema is already applied, and both
+lease from the same queue without collision. Verify the window before you open it
+with `agentprism state-check`, which reads and writes nothing. Keep the window
+short and planned; an indefinite dual-version deployment is not a supported shape.
+
+Unlike the other behaviours on this page, this one is measured with **one** build
+standing in for both sides — a process that enabled fewer optional migration sets
+than the schema has. Two released AgentPrism versions running side by side is not
+something we have measured, which is another reason to keep the window short.
+
 ## Release and capacity caveats
 
 AgentPrism and its Microsoft Agent Framework hosting dependencies are pre-release.
@@ -441,6 +544,8 @@ scaled without a matching quota.
 - [ ] Choose combined or split workers and calculate cluster-wide concurrency.
 - [ ] Enable singleton execution and orphan reconciliation only with shared SQL state.
 - [ ] Test direct and queued cancellation through the actual load balancer.
+- [ ] Size `LeaseDuration` deliberately: it is the worst-case stall after a worker crash.
+- [ ] Make every irreversible side effect idempotent; job execution is at-least-once.
 - [ ] Export the `AgentPrism` activity source and meter; alert on readiness and job age.
 - [ ] Define retention, privacy, backup, and restore procedures for every stored data class.
 - [ ] Run `agentprism state-check` with the new tool version against a copy of
@@ -468,6 +573,8 @@ irreversible action. Test the crash boundary, not only the successful path.
 | Startup reports missing role policies | Register all `AgentPrism.Reader`, `AgentPrism.Operator`, and `AgentPrism.Admin` policies or keep strict remote mapping disabled until they exist |
 | A direct run cannot be canceled | Route the request to the owning process or install a distributed `IRunCancellationRegistry`; a restarted owner no longer has the in-process registration |
 | Jobs do not move | Confirm a worker is enabled, shares the same SQL database, and passed the schema-ready gate |
+| A job restarted by itself | A worker holding its lease died or stalled past `LeaseDuration`; check `Attempt` and the worker's own liveness before suspecting the handler |
+| Runs are slow but the model is not | Check registered `IRunEventSink` implementations; sink dispatch is inline and its latency is paid per event |
 | Database volume grows without bound | Retention is off by default; create and preview policies, then verify cleanup history and archival behavior |
 | Cost dashboards are empty | Confirm the provider reported token usage and that the exact model has a price; unknown cost is not zero |
 

@@ -127,11 +127,20 @@ shows server text as it is.
 | `422` | A content guard blocked the content |
 | `429` | A quota or rate limit was exceeded |
 | `501` | The capability is not registered — the workflow engine, voice, or knowledge |
+| `502` | The model provider failed or never answered — including a request that timed out |
 | `503` | The process is draining in-flight runs before it stops; retry shortly |
 
 `501` is worth its own note: it means "this build does not have that package wired
 up", which is a different problem from a wrong address, and the API says so rather
 than answering `404`.
+
+**A provider that times out is a `502`, not an empty `200`.** .NET reports an
+`HttpClient` request timeout as a `TaskCanceledException`, and a run that ends
+because the caller cancelled has no error to report — so an implementation that
+reads the exception type alone answers a timed-out provider with a clean, empty
+success. AgentPrism decides from the request instead: unless the caller's
+connection actually went away, a run that ends this way is a failure, the status
+is `502`, and the run is recorded as `Failed` with the `Timeout` error class.
 
 **A `502`'s `detail` is deliberately shallow** — it never carries the failing
 provider's own error text, only its exception type and a correlation id you can
