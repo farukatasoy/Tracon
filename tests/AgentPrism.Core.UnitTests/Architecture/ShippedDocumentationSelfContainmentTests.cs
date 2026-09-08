@@ -217,6 +217,18 @@ public sealed class ShippedDocumentationSelfContainmentTests
             yield return ("README.md", readme, ScanKind.EveryLineKeepingDocumentationLinks);
         }
 
+        // PackageLicenseFile packs one of these into every package (Phase 160), so
+        // they reach a consumer exactly the way a package README does.
+        foreach (var licence in new[] { "LICENSE.md", "LICENSE-MIT.md" })
+        {
+            var path = Path.Combine(RepositoryRoot, licence);
+
+            if (File.Exists(path))
+            {
+                yield return (licence, path, ScanKind.EveryLine);
+            }
+        }
+
         // Packaged into AgentPrism.AspNetCore under buildTransitive/.
         var openApi = Path.Combine(RepositoryRoot, "docs", "openapi", "agentprism.json");
 

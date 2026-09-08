@@ -90,4 +90,6 @@ recorded in the repository's decision log before it is made.
 - Full documentation: <https://agentprism.eski-site.invalid>
 - API reference: <https://agentprism.eski-site.invalid/api/>
 
-License: MIT
+License: MIT - this package is deliberately permissive so that writing and testing an
+extension never needs a commercial licence. Most AgentPrism packages are PolyForm
+Small Business 1.0.0. Details: <https://agentprism.eski-site.invalid/reference/licensing/>

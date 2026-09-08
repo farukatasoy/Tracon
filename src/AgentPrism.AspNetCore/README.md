@@ -101,4 +101,6 @@ the hosting dependencies are not — while the runtime packages below it are.
 - Full documentation: <https://agentprism.eski-site.invalid>
 - HTTP API reference: <https://agentprism.eski-site.invalid/http-api/>
 
-License: MIT
+License: PolyForm Small Business 1.0.0 - free below 100 people and 1,000,000 USD
+(2019, inflation adjusted) revenue; a commercial licence applies above that. Terms
+ship in the package as LICENSE.md. Details: <https://agentprism.eski-site.invalid/reference/licensing/>

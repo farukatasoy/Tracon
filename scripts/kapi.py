@@ -802,6 +802,41 @@ def _package_profile(root: pathlib.Path, project_id: str) -> str:
     return "library"
 
 
+POLYFORM_LICENSE_FILE = "LICENSE.md"
+MIT_LICENSE_FILE = "LICENSE-MIT.md"
+LICENSE_FILES = (POLYFORM_LICENSE_FILE, MIT_LICENSE_FILE)
+
+# Faz 160. Her paketin lisansı BURADA açıkça yazılıdır; varsayılan yoktur.
+# Yeni bir paket eklendiğinde bu tabloya girmezse kapı hata verir - amaç tam
+# olarak budur: lisans bir sonuç değil, bilinçli bir karardır. Üç paket MIT'dir
+# ki üçüncü taraf ticari lisans almadan eklenti yazıp test edebilsin ve
+# `dotnet new`'in ürettiği koda sahip olsun. Agent çalıştıran her şey PolyForm.
+# Kaynak: src/Directory.Build.props (AgentPrismMitLicensed) - iki liste AYNI
+# olmalıdır; `PackageLicenseTests` bunu kilitler.
+PACKAGE_LICENSES: dict[str, str] = {
+    "AgentPrism": POLYFORM_LICENSE_FILE,
+    "AgentPrism.Abstractions": MIT_LICENSE_FILE,
+    "AgentPrism.Anthropic": POLYFORM_LICENSE_FILE,
+    "AgentPrism.AspNetCore": POLYFORM_LICENSE_FILE,
+    "AgentPrism.Azure": POLYFORM_LICENSE_FILE,
+    "AgentPrism.Cli": POLYFORM_LICENSE_FILE,
+    "AgentPrism.Client": POLYFORM_LICENSE_FILE,
+    "AgentPrism.Core": POLYFORM_LICENSE_FILE,
+    "AgentPrism.Google": POLYFORM_LICENSE_FILE,
+    "AgentPrism.Mcp": POLYFORM_LICENSE_FILE,
+    "AgentPrism.OpenAI": POLYFORM_LICENSE_FILE,
+    "AgentPrism.PostgreSql": POLYFORM_LICENSE_FILE,
+    "AgentPrism.SqlServer": POLYFORM_LICENSE_FILE,
+    "AgentPrism.Sqlite": POLYFORM_LICENSE_FILE,
+    "AgentPrism.Templates": MIT_LICENSE_FILE,
+    "AgentPrism.Testing": POLYFORM_LICENSE_FILE,
+    "AgentPrism.Testing.Contracts.Xunit": MIT_LICENSE_FILE,
+    "AgentPrism.UI": POLYFORM_LICENSE_FILE,
+    "AgentPrism.Voice": POLYFORM_LICENSE_FILE,
+    "AgentPrism.Workflows": POLYFORM_LICENSE_FILE,
+}
+
+
 TARGET_FRAMEWORKS_PATTERN = re.compile(r"<TargetFrameworks>([^<]+)</TargetFrameworks>")
 
 DEFAULT_TARGET_FRAMEWORKS = ("net8.0", "net9.0", "net10.0")
@@ -1074,8 +1109,28 @@ def _finish_release_rehearsal(
             errors.append(f"{project_id}: icon.png eksik")
         if "README.md" not in entries:
             errors.append(f"{project_id}: README.md eksik")
-        if '<license type="expression">MIT</license>' not in nuspec:
-            errors.append(f"{project_id}: MIT license expression eksik")
+        # Lisans üç yönden birden doğrulanır. Yalnız .nuspec'e bakmak yetmez:
+        # bir paketin BEYAN ettiği lisans ile İÇİNDEKİ dosya ayrışabilir, ve
+        # ayrıştığında tüketicinin eline geçen dosya kazanır.
+        expected_license = PACKAGE_LICENSES.get(project_id)
+        if expected_license is None:
+            errors.append(f"{project_id}: PACKAGE_LICENSES tablosunda yok - lisansı bilinçli olarak seçilmeli")
+        else:
+            if f'<license type="file">{expected_license}</license>' not in nuspec:
+                errors.append(f"{project_id}: .nuspec '<license type=\"file\">{expected_license}</license>' taşımıyor")
+            # Ölçüldü (Faz 160): NuGet requireLicenseAcceptance'ı yalnız TRUE
+            # iken yazar; false varsayılandır ve element hiç görünmez. Bu yüzden
+            # MIT tarafı elementin YOKLUĞU ile doğrulanır, "false" metniyle değil.
+            acceptance_declared = "<requireLicenseAcceptance>true</requireLicenseAcceptance>" in nuspec
+            if expected_license == MIT_LICENSE_FILE and acceptance_declared:
+                errors.append(f"{project_id}: MIT paketi requireLicenseAcceptance istememeli")
+            if expected_license == POLYFORM_LICENSE_FILE and not acceptance_declared:
+                errors.append(f"{project_id}: requireLicenseAcceptance 'true' olmalı")
+            if expected_license not in entries:
+                errors.append(f"{project_id}: {expected_license} paketin İÇİNDE yok")
+            for other in LICENSE_FILES:
+                if other != expected_license and other in entries:
+                    errors.append(f"{project_id}: yanlış lisans dosyası da paketlenmiş: {other}")
         if not REPOSITORY_COMMIT_PATTERN.search(nuspec):
             errors.append(f"{project_id}: repository/commit metaverisi eksik")
 
