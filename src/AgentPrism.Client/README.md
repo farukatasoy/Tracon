@@ -22,13 +22,47 @@ services.AddAgentPrismClient(options =>
 });
 ```
 
-Resolve `AgentPrismApiClient` from the container and call any of its 160
-generated methods:
+Resolve `AgentPrismApiClient` from the container and call any of its generated
+methods — one per operation in the document:
 
 ```csharp
 var client = provider.GetRequiredService<AgentPrismApiClient>();
 var agents = await client.AgentPrismListAgentsAsync(cancellationToken);
 ```
+
+## Streaming endpoints have a second method
+
+Some endpoints answer with Server-Sent Events rather than JSON. Each of them has
+a `...StreamAsync` sibling that hands you one raw SSE frame at a time, as the
+server flushes it:
+
+```csharp
+await foreach (var frame in client.AgentPrismRunAgentStreamAsync("support", request))
+{
+    Console.WriteLine(frame); // "id: 3\nevent: update\ndata: {...}"
+}
+```
+
+Leaving the loop early, or cancelling the token, stops the read and releases the
+connection. Comment-only keep-alive frames are skipped.
+
+The two OpenAI-compatible endpoints (`/v1/responses`, `/v1/chat/completions`)
+answer with **either** shape, chosen by the `stream` flag in the request body, so
+they have both methods and you pick one:
+
+```csharp
+var body = JsonSerializer.SerializeToElement(
+    new { model = "support", input = "Where is order 4182?", stream = true });
+
+await foreach (var frame in client.AgentPrismOpenAIResponsesStreamAsync(body))
+{
+    Console.WriteLine(frame);
+}
+```
+
+The body is sent exactly as written — the client never rewrites `stream` to match
+the method. If the two disagree, the call throws `AgentPrismApiException` with a
+message naming the fix, instead of failing obscurely later.
 
 ## Why the base address needs the prefix
 

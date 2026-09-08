@@ -55,7 +55,16 @@ internal static class OpenAIChatCompletionsEndpoints
             .WithName("AgentPrismOpenAIChatCompletions")
             .WithTags("AgentPrism", "OpenAI")
             .WithSummary("Run endpoint compatible with the OpenAI Chat Completions API.")
-            .Accepts<object>("application/json")
+            // 🚨 JsonElement, not object (Phase 159, MEASURED): an `object` body
+            // generates `object body` on the typed client, and the client
+            // serializes through a source-generated JsonSerializerContext - so
+            // any natural caller input (an anonymous type, a POCO) throws
+            // NotSupportedException at run time, because only the registered
+            // root types resolve. JsonElement IS one of them, and it is what a
+            // caller of an OpenAI-shaped endpoint holds anyway. The document is
+            // unchanged in meaning: JsonElement's own schema component is the
+            // same empty "any JSON" shape an `object` body produced inline.
+            .Accepts<JsonElement>("application/json")
             .WithDescription(
                 "Stateless: the client carries history. The agent is selected from the " +
                 "'model' field; if not found, 'metadata.entity_id' is tried. If a registered " +

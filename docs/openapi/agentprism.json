@@ -6412,7 +6412,9 @@
         "requestBody": {
           "content": {
             "application/json": {
-              "schema": {}
+              "schema": {
+                "$ref": "#/components/schemas/JsonElement"
+              }
             }
           },
           "required": true
@@ -6488,7 +6490,9 @@
         "requestBody": {
           "content": {
             "application/json": {
-              "schema": {}
+              "schema": {
+                "$ref": "#/components/schemas/JsonElement"
+              }
             }
           },
           "required": true

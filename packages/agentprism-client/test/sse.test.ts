@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { SseDecoder } from './sse';
+import { SseDecoder } from '../src/sse.js';
 
 describe('SseDecoder', () => {
   it('decodes a single frame', () => {

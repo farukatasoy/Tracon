@@ -10,3 +10,9 @@ export type Schemas = components['schemas'];
 // Hand-written — the thin layer described in docs/arsiv/fazlar/84-TYPESCRIPT-ISTEMCISI-VE-NPM.md, section 84.5.
 export { AgentPrismError } from './error.js';
 export { createAgentPrismClient, type AgentPrismClient, type AgentPrismClientOptions } from './client.js';
+
+// Streaming. A `text/event-stream` endpoint needs no special client method —
+// pass `parseAs: 'stream'`, or read the `response` every call returns — but it
+// does need a decoder, and writing one per consumer is how framing bugs get
+// duplicated (Phase 159).
+export { readSse, SseDecoder, type SseFrame } from './sse.js';
