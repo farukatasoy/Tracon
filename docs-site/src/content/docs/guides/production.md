@@ -356,6 +356,64 @@ value. Alternatively, widen the prefix through
 `AgentPrism:Webhooks:AllowedConfigurationPrefix` — but a prefix broad enough to cover
 an arbitrary key removes the boundary it exists to provide.
 
+## When the state preflight comes back red
+
+Run `agentprism state-check` with the **new** tool version against a copy of
+production data before every upgrade — see [the upgrade
+window](/reference/versioning/) for what the command reports and what its
+answer is worth. Exit code `3` means it found stored state the new build
+cannot read. This is what to do about it.
+
+The command itself never changes anything, so a red result costs you nothing
+but the time it took to run.
+
+**1. Read which of the two answers came back red.** They call for different
+actions:
+
+| What the output says | What it means | What to do |
+|---|---|---|
+| `... NOT readable by this build` on a generation line | Rows carry an AgentPrism envelope generation **newer** than the build you are installing. You are downgrading, or deploying a mixed package graph | Do not deploy. Install the version that wrote those rows, or newer. This is a version selection mistake, not a data problem |
+| `unreadable: session ...` on a sampled row | The AgentPrism envelope is fine; Microsoft Agent Framework cannot deserialize the body it wrote earlier. The message names both the recorded and the running framework version | Continue to step 2 |
+
+**2. Decide whether those sessions have to survive the upgrade.** They often do
+not — a session is a conversation, and most are minutes old. `state-check`'s
+generation counts tell you how many rows are in play; your own retention policy
+tells you how long they were going to live anyway.
+
+If they do not have to survive: clear the affected sessions and checkpoints
+before the upgrade, or let retention age them out and upgrade after. A run that
+starts after the upgrade opens a new session and is unaffected.
+
+**3. If they do have to survive, drain instead of cutting over.** Stop accepting
+new work, let in-flight runs finish under the **old** build, and only then
+deploy. Draining is a supported, tested shutdown path: the host stops taking new
+jobs, waits for running ones, and does not abandon them. The sessions that
+existed only for those runs are finished business by the time the new build
+starts.
+
+**4. Keep the old runtime available until you have a green preflight, and not
+longer.** "Roll back the application" does not roll back the database —
+migrations are forward-only, as [the migration
+strategy](#choose-a-migration-strategy) above says. The old runtime is a way to
+finish draining, not a permanent escape hatch, and the [supported upgrade
+window](/reference/versioning/) is what bounds how long an old version stays
+readable at all. Plan the drain window, not an indefinite dual-runtime setup.
+
+**5. If none of the above fits, treat it as a compatibility defect and report
+it** with the facts from [Record the version in incident
+reports](/reference/versioning/): the exact package versions, the recorded and
+running Microsoft Agent Framework versions from the failure line, and the
+generation counts. Do not attach the state payload itself — it is conversation
+content.
+
+:::caution[What a clean preflight does and does not promise]
+The generation count covers every row. The decode covers `--sample` rows of
+each generation, five by default. A clean run says the rows that were read came
+back readable; it does not say every row would. Raising `--sample` buys more
+evidence at the cost of time, and no value of it turns the sample into a
+survey.
+:::
+
 ## Release and capacity caveats
 
 AgentPrism and its Microsoft Agent Framework hosting dependencies are pre-release.
@@ -385,6 +443,8 @@ scaled without a matching quota.
 - [ ] Test direct and queued cancellation through the actual load balancer.
 - [ ] Export the `AgentPrism` activity source and meter; alert on readiness and job age.
 - [ ] Define retention, privacy, backup, and restore procedures for every stored data class.
+- [ ] Run `agentprism state-check` with the new tool version against a copy of
+      production data before every upgrade, and know what a `3` means (above).
 - [ ] Register `IDataSubjectResolver` if data subject export/erasure requests are part of your compliance posture.
 - [ ] Keep skill scripts and diagnostics disabled unless their operational need is explicit.
 - [ ] Decide private network egress deliberately, and move every stored configuration

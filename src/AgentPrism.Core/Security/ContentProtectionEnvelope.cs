@@ -71,6 +71,17 @@ internal static class ContentProtectionEnvelope
         return Encoding.UTF8.GetString(buffer.WrittenSpan);
     }
 
+    /// <summary>Reports whether an already-parsed payload carries the protection tag.</summary>
+    /// <param name="stored">The payload as read back from storage.</param>
+    /// <returns><see langword="true"/> when the payload is a protected envelope.</returns>
+    /// <remarks>
+    /// The tag check alone, with no attempt to unwrap: a reader that holds no
+    /// key still has to be able to tell "encrypted, and I cannot open it"
+    /// apart from "corrupt". The state preflight is that reader.
+    /// </remarks>
+    public static bool IsProtected(JsonElement stored) =>
+        stored.ValueKind is JsonValueKind.Object && stored.TryGetProperty(TagProperty, out _);
+
     /// <summary>Attempts to parse a stored text value as an envelope.</summary>
     /// <param name="stored">The value as read back from storage.</param>
     /// <param name="keyId">The key identifier, when parsing succeeds.</param>

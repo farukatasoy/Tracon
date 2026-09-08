@@ -57,6 +57,41 @@
 - **`GetSessionStoreId` = `conversation ?? previous_response_id ?? null`** (2026-08-02): ölçüldü. `OpenAIResponsesRunRequest` agent adı **taşımaz**; gövdeden kendimiz okuruz.
 - **🚨 MAF'in OpenAI `storage` arayuzleri `internal`** (2026-08-02): `IConversationStorage`, `IAgentConversationStore` vb. disaridan uygulanamaz — kendi kalicilik katmanini MAF'in depolama noktasina takamazsin. Ayrinti: [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
 
+## Durum ön kontrolü (Faz 156)
+
+- **🚨 `AIAgent.DeserializeSessionAsync` `IChatClient`'a HİÇ DOKUNMAZ** (2026-09-08,
+  ölçüldü): bu yüzden hiçbir sağlayıcı anahtarı olmayan bir süreç — CLI — bir
+  oturum durumunu gerçekten çözebilir. `StatePreflight` her çağrıyı reddeden bir
+  `IChatClient` üzerinde çıplak bir `ChatClientAgent` kurar. Stub'ın **fırlatması**
+  bilerekdir: MAF bir gün çözme yolunda istemciyi çağırmaya başlarsa sessiz bir
+  stub bunu yanlış bir "okunabilir" hükmüne çevirir.
+- **🚨 Çıplak probun SADAKATI bir teste bağlıdır.** Üretimdeki agent tool taşır ve
+  bir `ChatHistoryProvider` kuruludur; prob ikisini de taşımaz. Şekiller ayrışırsa
+  **her temiz veritabanı yanlış 🔴 raporlar**. Kilit:
+  `StatePreflightTests.A_session_written_by_a_fully_wired_agent_decodes_through_the_bare_probe`
+  — tam donanımlı bir agent iki gerçek tur koşar, `SaveSessionAsync` yazar, prob
+  okur. Kırmızıya dönerse çözüm fixture yenilemek değil, çözme yüzeyini daraltmaktır.
+- **Kuşak sabitleri artık TEK yerdedir**: `StateSchemaGenerations` (`AgentPrism.Abstractions`,
+  `internal`, Core ve Workflows'a görünür). `AgentSessionManager.CurrentStateSchemaVersion`
+  ve `AgentPrismCheckpointStore.CurrentStateSchemaVersion` oradan okur. Envelope'u
+  değiştiren faz sayıyı **orada** artırır; ön kontrol kendiliğinden doğru cevabı verir.
+  MAF sürüm metni de aynı şekilde `AssemblyVersionText.Read`'e toplandı — üçüncü
+  kopya açma (K-483 dersi).
+- **`workflow_checkpoints.state_schema_version` NULLABLE'dır, `sessions`'ınki değil**
+  (2026-09-08): damgasız checkpoint satırı **okunabilir** sayılır — damgalamadan
+  önce yazıldığı için gelecekten gelemez. `WorkflowRunner.cs:946` zaten aynı
+  null-toleranslı karşılaştırmayı yapar. Kuşak taşıyan her yeni tip `int?` olmalı.
+- **🚨 Şifreli oturum durumu ÇÖZÜLEMEZ ve bu bir kusur DEĞİLDİR** (2026-09-08, K-735):
+  `AgentPrismContentProtectionOptions.Columns` varsayılan olarak `sessions.state`'i
+  kapsar; CLI hiçbir anahtar tutmaz (K-059). `ContentProtectionEnvelope.IsProtected`
+  yalnız `$apEnc` etiketine bakar ve satır "yapı kontrolü" kovasına girer. Şifreli
+  zarf **geçerli JSON'dur** — `JsonDocument.Parse` başarılı olur, yani "ayrıştı, öyleyse
+  okunabilir" çıkarımı burada yanlıştır.
+- **Checkpoint payload'ının çalışan bir workflow dışında ÇÖZÜCÜSÜ YOKTUR** — Faz 126
+  devir notunun "executor kimliği süreç-yerel ve rastgele" tuzağının doğrudan sonucu.
+  Ön kontrol checkpoint tarafında yalnız sayar ve yapıyı doğrular; `DecodedSampleCount`
+  ile `StructureOnlySampleCount` bu yüzden ayrı sayaçlardır.
+
 ## Sahiplik: "henüz yok" ile "sahipsiz" ayrı satırlardır
 
 **🚨 Faz 149.** `SessionOwnershipGate`'in iki metodunda da üç dal vardır ve

@@ -1,6 +1,7 @@
 # 34 — Tipli Yönetim İstemcisi ve CLI (`CLI`)
 
-> **Alan kodu:** `CLI` · **Faz:** 83 · `eval` komutu Faz 115 · göreli kapı Faz 153
+> **Alan kodu:** `CLI` · **Faz:** 83 · `eval` komutu Faz 115 · göreli kapı Faz 153 ·
+> `state-check` komutu Faz 156
 > **Kaynak:** `src/AgentPrism.Client` · `src/AgentPrism.Cli` · `nswag.json` ·
 > `scripts/nswag-*.py`
 >
@@ -18,11 +19,15 @@
 
 ## Bu dosya neyi kanıtlar
 
-`agentprism` global tool'unun `migrate`/`migrate status`/`health`
+`agentprism` global tool'unun `migrate`/`migrate status`/`state-check`/`health`
 komutlarının **gerçek** bir veritabanına ve **gerçek** bir HTTP sunucusuna
 karşı çalıştığını, `secret`'ın hiçbir çıktıda görünmediğini ve
 `AgentPrism.Client`'ın `MapAgentPrism`'in özel önekiyle de doğru çalıştığını
 kanıtlar.
+
+`state-check` case'leri (32–37) ayrıca **yazmadığını** kanıtlar: tablo anlık
+görüntüsü öncesi ve sonrası birebir aynı olmalıdır. Bu, komutun tek sert
+sözüdür — canlı bir veritabanına karşı koşulabilmesi buna dayanır.
 
 ## Koşmadan önce
 
@@ -55,7 +60,7 @@ dotnet run -c Release --urls http://localhost:5081
 | 8 | `MT-CLI-008` | Sunucu **kapalı** | `agentprism health --url http://localhost:1/agentprism` | Bağlantı hatası okunur hataya çevrilir; komut **asılı kalmaz** (birkaç saniye içinde döner) |
 | 9 | `MT-CLI-009` | `samples/AgentPrism.Api`, `app.MapAgentPrism("control")` ile başlatılmış | `agentprism health --url http://localhost:5081/control` | Sağlık durumu yazılır — önek soyma tasarımı (§83.3) kanıtlanır |
 | 10 | `MT-CLI-010` | Herhangi bir komut, uydurma bir bağlantı dizesi/token ile | Çıktı ve varsa log dosyası okunur | Bağlantı dizesi ve token çıktıda **hiç geçmez** |
-| 11 | `MT-CLI-011` | Temiz makine | `dotnet tool install -g AgentPrism.Cli` sonra `agentprism --help` | Dört komut listelenir; kurulum ek adım istemez |
+| 11 | `MT-CLI-011` | Temiz makine | `dotnet tool install -g AgentPrism.Cli` sonra `agentprism --help` | Beş komut listelenir (`migrate`, `migrate status`, `state-check`, `health`, `eval`); kurulum ek adım istemez |
 | 12 | `MT-CLI-012` | 👤 insan gerekir | Yeni bir konsol uygulamasında `AgentPrism.Client` referanslanır, `AddAgentPrismClient` ile bir `AgentPrismApiClient` çözülür ve bir metot çağrılır | IntelliSense metot ve parametre adlarını gösterir; çağrı gerçek sunucudan yanıt döner |
 | 13 | `MT-CLI-013` | Çalışan sunucu, hepsi geçen bir takım | `agentprism eval --url … --suite ok --min-pass-rate 1.0` | Çıkış `0`; çıktı `Passed/Total` yazar |
 | 14 | `MT-CLI-014` | Bir vaka'sı düşen takım | Aynı komut | Çıkış **`3`**; çıktı **düşen vaka'nın kimliğini** yazar |
@@ -76,6 +81,46 @@ dotnet run -c Release --urls http://localhost:5081
 | 29 | `MT-CLI-029` | İkinci koşumdan önce takıma yeni vaka eklenmiş ve o vaka düşüyor | `--baseline previous --max-regressions 0` | Çıkış `0`; `1 added`, `0 regressed` — takımı büyütmek kapıyı kırmızı yakmaz |
 | 30 | `MT-CLI-030` | Regresyonlu iki koşum | `--json --baseline previous --max-regressions 0` | Çıkış `3`; `stdout` **tek başına ayrıştırılabilir JSON** (`\| jq .` çalışır); özet satırı `stderr`'dedir |
 | 31 | `MT-CLI-031` | Başka bir takımın koşum id'si taban çizgisi verilir | `--baseline <o runId>` | Çıkış `4`; `stderr` `400` der |
+| 32 | `MT-CLI-032` | Case 1 koştu; `sessions` tablosuna güncel kuşaklı iki satır elle eklenmiş | `agentprism state-check --provider sqlite --connection "Data Source=<dosya>"` | Çıkış `0`; `generation 1: 2 row(s), readable by this build` yazılır |
+| 33 | `MT-CLI-033` | Aynı veritabanında bir satırın `state_schema_version` değeri elle `99` yapılmış | Aynı komut | Çıkış **`3`**; `NOT readable by this build` ve okunamaz satır sayısı yazılır; satırın `state_schema_version` değeri **hâlâ `99`** |
+| 34 | `MT-CLI-034` | Yanlış bağlantı dizesi (`Data Source=/no/such/dir/x.db`) | Aynı komut | Çıkış `2`; tek satırlık hata; bağlantı dizesi **yazdırılmaz**; yığın izi **yok** |
+| 35 | `MT-CLI-035` | Dolu veritabanı, sekiz oturum satırı | `... --sample 5` | Çıktı `Sampled 5 row(s), at most 5 per generation` ve `This is a sample, not a survey` der; `all readable` / `every row` **demez** |
+| 36 | `MT-CLI-036` | Dolu veritabanı | `state-check` koşumu **öncesi** ve **sonrası** tam tablo anlık görüntüsü alınır | İki anlık görüntü **birebir aynı** — hiçbir sütun, `updated_at` ve `version` dahil, değişmemiş |
+| 37 | `MT-CLI-037` | 👤 insan gerekir | `docs-site` `reference/versioning` sayfasının "The supported upgrade window" bölümü okunur | Desteklenen atlama aralığı (aynı ana sürüm içinde her sürüm), dayanağı (gerçek koşumdan yakalanmış fixture'lar) ve **MAF sınırı** (gövde AgentPrism'in vaadi değildir) açıkça yazılıdır |
+
+### `state-check` case'leri için hazırlık (32–36)
+
+Satırlar elle eklenir; komutun kendisi hiçbir satır yazmaz, bu yüzden veriyi
+başka bir şey koymalıdır. SQLite tablo öneki varsayılan `agentprism_`'dir.
+
+```bash
+DB=/tmp/mt-cli-state-check.db
+agentprism migrate --provider sqlite --connection "Data Source=$DB"
+
+NOW=$(date -u +%Y-%m-%dT%H:%M:%S.0000000+00:00)
+for ID in a b; do
+  sqlite3 "$DB" "INSERT INTO agentprism_sessions
+    (id, tenant_id, agent_name, state, state_schema_version, state_maf_version, created_at, updated_at, version)
+    VALUES ('$ID', 'default', 'test-agent', '{}', 1, '1.18.0', '$NOW', '$NOW', 1);"
+done
+
+# Case 36'nın anlık görüntüsü
+snapshot() {
+  sqlite3 "$DB" "SELECT id||'|'||tenant_id||'|'||agent_name||'|'||state||'|'||state_schema_version
+                        ||'|'||COALESCE(state_maf_version,'')||'|'||created_at||'|'||updated_at
+                        ||'|'||version||'|'||COALESCE(owner_id,'')
+                 FROM agentprism_sessions ORDER BY id;"
+}
+snapshot > /tmp/before.txt
+agentprism state-check --provider sqlite --connection "Data Source=$DB"
+snapshot > /tmp/after.txt
+diff /tmp/before.txt /tmp/after.txt    # boş olmalı
+
+# Case 33
+sqlite3 "$DB" "UPDATE agentprism_sessions SET state_schema_version = 99 WHERE id = 'b';"
+```
+
+---
 
 ## Otomasyon karşılığı
 
@@ -100,3 +145,12 @@ kendisi bir `FakeModelProvider` (`AgentPrism.Testing`) ile çalışan bir kod
 agent'ı ölçer, gerçek bir LLM gerekmez. `External_cancellation_breaks_the_poll_loop_immediately_instead_of_waiting_out_the_timeout`
 case 22'nin dış iptal (Ctrl+C ile aynı token yolu) kısmını otomatik kanıtlar;
 gerçek bir `Ctrl+C` tuş vuruşu yalnız 👤 ile doğrulanır.
+
+Case 32–36, `tests/AgentPrism.Cli.FunctionalTests/StateCheckCommandTests.cs`
+içinde gerçek bir SQLite dosyasına karşı otomatikleştirilmiştir; case 36'nın
+"hiçbir şey yazmadı" iddiası orada da **tam tablo anlık görüntüsü**
+karşılaştırmasıdır, satır sayısı karşılaştırması değil — `updated_at` veya
+`version` sütununa dokunan bir ön kontrol satır sayısını yine korurdu.
+Sayımın kiracıdan bağımsız olduğu ve örneklemin kuşak başına sınırlandığı
+`tests/AgentPrism.Sqlite.IntegrationTests/StatePreflightTests.cs` içinde,
+gerçek SQL'e karşı ölçülür. Case 37 tek 👤 case'idir.

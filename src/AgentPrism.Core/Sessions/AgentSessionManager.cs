@@ -37,9 +37,11 @@ public sealed class AgentSessionManager
     /// row, never when the Microsoft Agent Framework version changes.
     /// Not public: a consumer never needs to compare against it directly —
     /// <see cref="SessionRecord.StateSchemaVersion"/> already tells them
-    /// what generation their own row was written with.
+    /// what generation their own row was written with. The value itself lives
+    /// in <see cref="StateSchemaGenerations"/>, so the state preflight reads
+    /// the same number this writer stamps.
     /// </remarks>
-    internal const int CurrentStateSchemaVersion = 1;
+    internal const int CurrentStateSchemaVersion = StateSchemaGenerations.Session;
 
     /// <summary>
     /// The running process's Microsoft Agent Framework package version,
@@ -518,20 +520,7 @@ public sealed class AgentSessionManager
     /// assembly that produces <c>SerializeSessionAsync</c> output.
     /// </summary>
     /// <remarks>Same technique as <c>MetaEndpoints.ReadVersion</c> uses for AgentPrism's own version.</remarks>
-    private static string ReadMafVersion()
-    {
-        var informational = typeof(AIAgent).Assembly
-            .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
-
-        if (string.IsNullOrEmpty(informational))
-        {
-            return typeof(AIAgent).Assembly.GetName().Version?.ToString() ?? "unknown";
-        }
-
-        var plus = informational.IndexOf('+', StringComparison.Ordinal);
-
-        return plus < 0 ? informational : informational[..plus];
-    }
+    private static string ReadMafVersion() => AssemblyVersionText.Read(typeof(AIAgent).Assembly);
 
     /// <summary>The record a restored session was read from.</summary>
     /// <param name="sessionId">The identity the state was read under.</param>
