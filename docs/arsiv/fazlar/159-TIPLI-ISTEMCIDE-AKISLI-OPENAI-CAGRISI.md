@@ -1,13 +1,13 @@
 # Faz 159 — Tipli İstemcide Akışlı OpenAI Çağrısı
 
 > **Durum:** ✅ Tamamlandı (2026-09-08)
-> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-198**
+> **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-198**
 > **Önkoşul:** Yok — ama 🚨 **gövde bildirimi kusuru bu plandan ÖNCE kapandı** (2026-09-08, `DeclaredRequestBodyTests`). Plan o düzeltilmiş imzanın üstüne yazılmıştır
 > **Paketler:** `AgentPrism.Client` (üretilen) · `@agentprism/client` (üretilen)
 > **Yeni paket:** Yok · **Migration:** Yok
 > **Public API:** Büyüyor — iki yeni üretilmiş metot. Yayımlanmamış olduğu için bugün ucuz
 > **Tüketici yüzeyi:** `docs-site/src/content/docs/guides/openai-api.md` · `guides/typescript-client.md` · sevk edilen: `AgentPrism.Client` README'si
-> **Manuel test alanı:** [`docs/manuel-test/34-ISTEMCI-VE-CLI.md`](manuel-test/34-ISTEMCI-VE-CLI.md)
+> **Manuel test alanı:** [`docs/manuel-test/34-ISTEMCI-VE-CLI.md`](../../manuel-test/34-ISTEMCI-VE-CLI.md)
 
 ---
 
@@ -24,9 +24,9 @@
    **K-633** (NSwag'in gölgeleyen POCO ürettiği tipler; `COLLIDING_ANY_TYPES`) ·
    **K-702** (üretilen istemcinin koleksiyon başlangıç değeri kusuru)
 3. Alan hafızası — 🚨 **ikisi de bu fazın tam merkezindedir**:
-   [`hafiza/nswag-istemci-uretimi.md`](hafiza/nswag-istemci-uretimi.md) —
+   [`hafiza/nswag-istemci-uretimi.md`](../../hafiza/nswag-istemci-uretimi.md) —
    **postprocess script'i IDEMPOTENT DEĞİLDİR**; yeni geçiş eklerken tam yeniden üretim yapılır ·
-   [`hafiza/aspnetcore-json.md`](hafiza/aspnetcore-json.md) — `requestBody` tuzağı ve yeni kapısı
+   [`hafiza/aspnetcore-json.md`](../../hafiza/aspnetcore-json.md) — `requestBody` tuzağı ve yeni kapısı
 4. Emsal geçiş — yeniden yazma, oku:
    `scripts/nswag-postprocess-client.py` **dördüncü geçiş** (`SSE_STRING_RESPONSE_PATTERN`);
    beş saf-SSE ucunu düzeltir ve **bu iki ucu neden atladığını** kendi docstring'inde yazar
@@ -48,9 +48,9 @@ yalnız JSON şeklini bilir. `stream: true` gönderen bir çağıran SSE gövdes
 | Kanıt | Gözlem |
 |---|---|
 | `docs/openapi/agentprism.json` | Her iki operasyonun 200 yanıtı: `['application/json', 'text/event-stream']` |
-| [`AgentPrismApiClient.g.cs:13760`](../src/AgentPrism.Client/Generated/AgentPrismApiClient.g.cs) | `AgentPrismOpenAIResponsesAsync(JsonElement body, …)` → `Task<JsonElement>` — yalnız JSON |
+| [`AgentPrismApiClient.g.cs:13760`](../../../src/AgentPrism.Client/Generated/AgentPrismApiClient.g.cs) | `AgentPrismOpenAIResponsesAsync(JsonElement body, …)` → `Task<JsonElement>` — yalnız JSON |
 | Aynı dosya `:13880` | `AgentPrismOpenAIChatCompletionsAsync(JsonElement body, …)` → `Task<ChatCompletion>` — yalnız JSON |
-| [`nswag-postprocess-client.py:76`](../scripts/nswag-postprocess-client.py) | Dördüncü geçiş beş saf-SSE ucunu düzeltiyor ve bu ikisini **bilerek** atlıyor: onlar `string` kök tipi üretmediği için eşleşen desen hiç oluşmuyor |
+| [`nswag-postprocess-client.py:76`](../../../scripts/nswag-postprocess-client.py) | Dördüncü geçiş beş saf-SSE ucunu düzeltiyor ve bu ikisini **bilerek** atlıyor: onlar `string` kök tipi üretmediği için eşleşen desen hiç oluşmuyor |
 | Kök kısıt | NSwag **çalışma anında koşullu dönüş tipi** ifade edemez |
 
 > Kanıtlar 2026-09-08 tarihinde doğrulandı. Gövde parametresi (`JsonElement body`)
