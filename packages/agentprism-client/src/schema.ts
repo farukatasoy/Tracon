@@ -12175,7 +12175,11 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": unknown;
+            };
+        };
         responses: {
             /** @description OK */
             200: {
@@ -12232,7 +12236,11 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": unknown;
+            };
+        };
         responses: {
             /** @description OK */
             200: {

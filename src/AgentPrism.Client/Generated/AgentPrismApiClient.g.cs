@@ -13757,15 +13757,21 @@ namespace AgentPrism.Client.Generated
         /// </remarks>
         /// <returns>OK</returns>
         /// <exception cref="AgentPrismApiException">A server side error occurred.</exception>
-        public virtual async System.Threading.Tasks.Task<System.Text.Json.JsonElement> AgentPrismOpenAIResponsesAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken))
+        public virtual async System.Threading.Tasks.Task<System.Text.Json.JsonElement> AgentPrismOpenAIResponsesAsync(object body, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken))
         {
+            if (body == null)
+                throw new System.ArgumentNullException("body");
+
             var client_ = _httpClient;
             var disposeClient_ = false;
             try
             {
                 using (var request_ = new System.Net.Http.HttpRequestMessage())
                 {
-                    request_.Content = new System.Net.Http.StringContent(string.Empty, System.Text.Encoding.UTF8, "application/json");
+                    var json_ = System.Text.Json.JsonSerializer.SerializeToUtf8Bytes(body, JsonSerializerSettings);
+                    var content_ = new System.Net.Http.ByteArrayContent(json_);
+                    content_.Headers.ContentType = System.Net.Http.Headers.MediaTypeHeaderValue.Parse("application/json");
+                    request_.Content = content_;
                     request_.Method = new System.Net.Http.HttpMethod("POST");
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
@@ -13871,15 +13877,21 @@ namespace AgentPrism.Client.Generated
         /// </remarks>
         /// <returns>OK</returns>
         /// <exception cref="AgentPrismApiException">A server side error occurred.</exception>
-        public virtual async System.Threading.Tasks.Task<ChatCompletion> AgentPrismOpenAIChatCompletionsAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken))
+        public virtual async System.Threading.Tasks.Task<ChatCompletion> AgentPrismOpenAIChatCompletionsAsync(object body, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken))
         {
+            if (body == null)
+                throw new System.ArgumentNullException("body");
+
             var client_ = _httpClient;
             var disposeClient_ = false;
             try
             {
                 using (var request_ = new System.Net.Http.HttpRequestMessage())
                 {
-                    request_.Content = new System.Net.Http.StringContent(string.Empty, System.Text.Encoding.UTF8, "application/json");
+                    var json_ = System.Text.Json.JsonSerializer.SerializeToUtf8Bytes(body, JsonSerializerSettings);
+                    var content_ = new System.Net.Http.ByteArrayContent(json_);
+                    content_.Headers.ContentType = System.Net.Http.Headers.MediaTypeHeaderValue.Parse("application/json");
+                    request_.Content = content_;
                     request_.Method = new System.Net.Http.HttpMethod("POST");
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 

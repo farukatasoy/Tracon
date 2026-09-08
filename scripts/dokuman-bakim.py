@@ -700,6 +700,134 @@ def dokuman_iddia_cakismalari(kok: pathlib.Path = ROOT) -> list[str]:
     return bulgular
 
 
+# Sevk edilen XML'de bir BAGIMLILIK SURUMUNU adiyla anip o surumde olculmus bir
+# davranis iddia eden yorumlar. Dosya -> hangi paketin pinini izledigi.
+# Yeni bir damga eklendiginde buraya da satir eklenir; kayitsiz damga kapiyi
+# kirar (asagidaki iki parcali kontrol).
+# Deger `None` ise: damga, repo'nun ALMADIGI bir paket hakkindadir ve pinle
+# karsilastirilamaz. Bu bir atlama degil, YAZILI bir karardir — damganin
+# kapinin disinda kalmasi bilerek olur.
+SURUM_DAMGASI_KAYDI: dict[str, str | None] = {
+    # Microsoft.Extensions.VectorData: repo bu paketi almiyor (iddia zaten
+    # "onu SARMALAMIYORUZ" diyor), dolayisiyla pin yok.
+    "src/AgentPrism.Abstractions/Knowledge/IVectorSearchStore.cs": None,
+    "src/AgentPrism.Mcp/Internal/McpTransportFactory.cs": "ModelContextProtocol.Core",
+    "src/AgentPrism.SqlServer/AgentPrismSqlServerOptions.cs": "Microsoft.Data.SqlClient",
+    "src/AgentPrism.AspNetCore/OpenAICompat/OpenAIResponsesEndpoints.cs": "Microsoft.Agents.AI.Hosting.OpenAI",
+    "src/AgentPrism.Core/Models/FallbackChatClient.cs": "OpenAI",
+    "src/AgentPrism.Core/Compilation/RecordingLoopEvaluator.cs": "Microsoft.Agents.AI",
+}
+
+_DAMGA = re.compile(r"(?i)measured[^\n]{0,90}?(\d+\.\d+\.\d+(?:-[A-Za-z0-9.]+)?)")
+
+
+def _pin_surumleri(kok: pathlib.Path) -> dict[str, str]:
+    """`Directory.Packages.props` icindeki pinler; MSBuild degiskeni cozulur."""
+    props = kok / "Directory.Packages.props"
+    if not props.exists():
+        return {}
+    metin = props.read_text(encoding="utf-8")
+    degiskenler = dict(re.findall(r"<(\w+Version)>([^<]+)</\1>", metin))
+    pinler: dict[str, str] = {}
+    for ad, surum in re.findall(
+            r'<PackageVersion\s+Include="([^"]+)"\s+Version="([^"]+)"', metin):
+        if (m := re.fullmatch(r"\$\((\w+)\)", surum.strip())):
+            surum = degiskenler.get(m.group(1), surum)
+        pinler[ad] = surum
+    return pinler
+
+
+def bagimlilik_surum_damgasi(kok: pathlib.Path = ROOT) -> list[str]:
+    """Sevk edilen XML'deki surum damgasi, o paketin pini ile ayni olmalidir.
+
+    Kusur sinifi (F-171'in ikinci yarisi, olculdu 2026-09-08): bir davranis
+    iddiasi koddan YENIDEN HESAPLANAMAZ, yalniz yeniden OLCULEBILIR. Kapinin
+    yapabilecegi sey daha dar: damgadaki surumu pinle karsilastirip saptiginda
+    kirmak. O zaman yukseltme yapan oturum iddiayi ya yeniden olcer ya damgayi
+    bilerek gunceller.
+
+    Ihtiyac gercek bir kacisla kanitli: MAF 1.18.0 -> 1.20.0 yukseltmesinde bu
+    damgalarin HICBIRI hicbir kapi tarafindan isaretlenmedi. Olcum sirasinda
+    `IVectorSearchStore` 10.8.0 diyordu, pin 10.9.0'di.
+
+    Iki parcalidir: (1) her damga kayitli olmali, (2) her kayitli damga pinle
+    ayni olmali. Birincisi olmadan yeni bir damga sessizce kapinin disinda kalir.
+    """
+    pinler = _pin_surumleri(kok)
+    if not pinler:
+        return []
+
+    bulgular: list[str] = []
+    for dosya in sorted((kok / "src").rglob("*.cs")):
+        goreli = dosya.relative_to(kok).as_posix()
+        if "Generated" in goreli:
+            continue
+        for satir_no, satir in enumerate(
+                dosya.read_text(encoding="utf-8").splitlines(), 1):
+            if not satir.lstrip().startswith("///"):
+                continue
+            eslesme = _DAMGA.search(satir)
+            if not eslesme:
+                continue
+            if goreli not in SURUM_DAMGASI_KAYDI:
+                bulgular.append(
+                    f"{goreli}:{satir_no}: surum damgasi KAYITSIZ "
+                    f"({eslesme.group(1)}) — SURUM_DAMGASI_KAYDI'na paket adi "
+                    f"ekle, ya da pinlenmeyen bir paketse `None` yaz")
+                continue
+            paket = SURUM_DAMGASI_KAYDI[goreli]
+            if paket is None:
+                continue
+            pin = pinler.get(paket)
+            if pin is None:
+                bulgular.append(
+                    f"{goreli}:{satir_no}: kayit '{paket}' diyor ama o paket "
+                    f"pinli degil — kayit bayat")
+            elif pin != eslesme.group(1):
+                bulgular.append(
+                    f"{goreli}:{satir_no}: damga {eslesme.group(1)} diyor, "
+                    f"{paket} pini {pin} — iddiayi yeniden olc veya damgayi guncelle")
+    return bulgular
+
+
+def manuel_test_sayim_kaymasi(kok: pathlib.Path = ROOT) -> list[str]:
+    """`00-INDEKS.md`nin yazdigi case sayisi aile dosyasindaki gercekle ayni olmali.
+
+    Kusur sinifi (olculdu 2026-09-08): indeks 1488 case yaziyordu, gercek 1597
+    idi — 36 ailenin 17'si bayat. Sapma birikmis bir temizlik isi DEGIL, kapisiz
+    bir siniftir: Faz 157 bir aile dosyasina 170 satir yeni case ekledi ve
+    indekse HIC dokunmadi. Her kapanan faz sapmayi biraz daha buyutur.
+
+    Ayni sinif `check-content.mjs`in sayac taramasidir: elle tekrarlanan bir
+    olcum, kaynagi degisince sessizce yanlisa doner.
+    """
+    indeks = kok / "docs" / "manuel-test" / "00-INDEKS.md"
+    if not indeks.exists():
+        return []
+
+    satirlar = re.findall(
+        r"^\| (\d+) \| \[`([^`]+)`\][^|]*\| `([A-Z]+)` \|[^|]*\|[^|]*\| \*\*(\d+)\*\* \|",
+        indeks.read_text(encoding="utf-8"), re.M)
+    if not satirlar:
+        return ["00-INDEKS.md icinden aile satiri okunamadi"]
+
+    bulgular: list[str] = []
+    for _, dosya_adi, kod, yazan in satirlar:
+        aile = kok / "docs" / "manuel-test" / dosya_adi
+        if not aile.exists():
+            continue
+        gercek = len(re.findall(
+            rf"^### MT-{kod}-", aile.read_text(encoding="utf-8"), re.M))
+        # Tablo bicimli aileler `### MT-` basligi kullanmaz; onlar kapsam disi.
+        if gercek == 0:
+            continue
+        if gercek != int(yazan):
+            bulgular.append(
+                f"00-INDEKS.md: {dosya_adi} {yazan} case yaziyor, "
+                f"dosyada {gercek} var ({gercek - int(yazan):+d})")
+    return bulgular
+
+
 def sevk_edilen_olay_anlatisi(kok: pathlib.Path = ROOT) -> list[str]:
     """Her `WebhookEvents` sabiti en az bir ANLATI sayfasinda gecmelidir.
 
@@ -2096,6 +2224,22 @@ def denetle() -> int:
     for s in iddia_bulgulari:
         print(f"  {s}")
     hata |= int(bool(iddia_bulgulari))
+
+    damga_bulgulari = bagimlilik_surum_damgasi()
+    print(f"\nBağımlılık sürüm damgası: "
+          f"{'❌ ' + str(len(damga_bulgulari)) + ' bulgu' if damga_bulgulari else '✅ temiz'}")
+    for s_ in damga_bulgulari:
+        print(f"  {s_}")
+    hata |= int(bool(damga_bulgulari))
+
+    sayim_bulgulari = manuel_test_sayim_kaymasi()
+    print(f"\nManuel kabul seti sayımı: "
+          f"{'❌ ' + str(len(sayim_bulgulari)) + ' bulgu' if sayim_bulgulari else '✅ temiz'}")
+    for s_ in sayim_bulgulari[:20]:
+        print(f"  {s_}")
+    if len(sayim_bulgulari) > 20:
+        print(f"  … +{len(sayim_bulgulari) - 20}")
+    hata |= int(bool(sayim_bulgulari))
 
     olay_bulgulari = sevk_edilen_olay_anlatisi()
     print(f"\nSevk edilen olayın anlatısı: "

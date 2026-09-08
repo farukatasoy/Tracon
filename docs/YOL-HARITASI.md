@@ -8,7 +8,7 @@
 Bir fazın durumu yanlış görünüyorsa **o fazın dokümanını** düzelt;
 bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 
-## Fazlar (158 kalem)
+## Fazlar (160 kalem)
 
 | Faz | Konu | Durum |
 |-----|------|-------|
@@ -170,5 +170,7 @@ bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 | [155](arsiv/fazlar/155-KALIBRE-EDILMIS-EVALUATOR-KATALOGU.md) | Kalibre Edilmiş Evaluator Kataloğu | ✅ Tamamlandı |
 | [156](arsiv/fazlar/156-DURUM-ON-KONTROLU-VE-UPGRADE-PENCERESI.md) | Durum Ön Kontrolü ve Upgrade Penceresi | ✅ Tamamlandı |
 | [157](arsiv/fazlar/157-SINIRLI-YUK-VE-IKI-PROCESS-ARIZA-KANITI.md) | Sınırlı Yük ve İki Process Arıza Kanıtı | ✅ Tamamlandı |
+| [158](158-DAVRANIS-IDDIALARININ-KAPISI.md) | Davranış İddialarının Kapısı | 📋 Planlandı |
+| [159](159-TIPLI-ISTEMCIDE-AKISLI-OPENAI-CAGRISI.md) | Tipli İstemcide Akışlı OpenAI Çağrısı | 📋 Planlandı |
 
 Seçilmemiş adaylar: [`ADAYLAR.md`](ADAYLAR.md). Fazların hangi dalgada, hangi gerekçeyle sıralandığı (Faz 8–56, kapandı): [`arsiv/IKINCI-FAZ-YOL-HARITASI.md`](arsiv/IKINCI-FAZ-YOL-HARITASI.md) · [`arsiv/UCUNCU-FAZ-YOL-HARITASI.md`](arsiv/UCUNCU-FAZ-YOL-HARITASI.md).

@@ -1342,3 +1342,87 @@ class SevkEdilenOlayAnlatisiTestleri(unittest.TestCase):
                 "http-api/schema-webhook.md": "quota.threshold şema sayfası",
             })
         self.assertEqual(1, len(dokuman_bakim.sevk_edilen_olay_anlatisi(kok)))
+
+
+class ManuelTestSayimKaymasiTestleri(unittest.TestCase):
+    """Indeksin yazdigi case sayisi ile aile dosyasindaki gercek (2026-09-08)."""
+
+    def _kok(self, yazan: int, case_sayisi: int, kod: str = "JOB") -> pathlib.Path:
+        kok = pathlib.Path(tempfile.mkdtemp())
+        mt = kok / "docs" / "manuel-test"
+        mt.mkdir(parents=True)
+        (mt / "00-INDEKS.md").write_text(
+            "| # | Dosya | Kod | Faz | Kaynak | Case | Spec | Koşum |\n"
+            "|---|---|---|---|---|---|---|---|\n"
+            f"| 16 | [`16-IS.md`](16-IS.md) | `{kod}` | 17 | `src/x` | **{yazan}** | ✅ | ✅ |\n",
+            encoding="utf-8")
+        govde = "".join(f"### MT-{kod}-{i:03d} — case {i}\n\nmetin\n\n" for i in range(1, case_sayisi + 1))
+        (mt / "16-IS.md").write_text("# 16 — Is\n\n" + govde, encoding="utf-8")
+        return kok
+
+    def test_bayat_sayim_kirmizidir(self):
+        bulgular = dokuman_bakim.manuel_test_sayim_kaymasi(self._kok(yazan=63, case_sayisi=98))
+        self.assertEqual(1, len(bulgular))
+        self.assertIn("+35", bulgular[0])
+
+    def test_dogru_sayim_yanlis_pozitif_uretmez(self):
+        self.assertEqual([], dokuman_bakim.manuel_test_sayim_kaymasi(self._kok(yazan=98, case_sayisi=98)))
+
+    def test_case_silinmesi_de_yakalanir(self):
+        # Ters yondeki sapma da bir bulgudur: eval ailesi 77 yaziyordu, 69 vardi.
+        bulgular = dokuman_bakim.manuel_test_sayim_kaymasi(self._kok(yazan=77, case_sayisi=69))
+        self.assertEqual(1, len(bulgular))
+        self.assertIn("-8", bulgular[0])
+
+    def test_tablo_bicimli_aile_KAPSAM_DISI(self):
+        # 31-36 aileleri `### MT-` basligi kullanmaz; sifir sayim bir bulgu degildir.
+        self.assertEqual([], dokuman_bakim.manuel_test_sayim_kaymasi(self._kok(yazan=24, case_sayisi=0)))
+
+
+class BagimlilikSurumDamgasiTestleri(unittest.TestCase):
+    """Sevk edilen XML'deki surum damgasi ile pin (F-171'in ikinci yarisi)."""
+
+    def _kok(self, xml_satiri: str, dosya: str) -> pathlib.Path:
+        kok = pathlib.Path(tempfile.mkdtemp())
+        (kok / "Directory.Packages.props").write_text(
+            "<Project>\n"
+            "  <PropertyGroup><MicrosoftAgentsAIVersion>1.20.0</MicrosoftAgentsAIVersion></PropertyGroup>\n"
+            '  <ItemGroup><PackageVersion Include="OpenAI" Version="2.12.0" />\n'
+            '  <PackageVersion Include="Microsoft.Agents.AI" Version="$(MicrosoftAgentsAIVersion)" /></ItemGroup>\n'
+            "</Project>\n", encoding="utf-8")
+        yol = kok / dosya
+        yol.parent.mkdir(parents=True, exist_ok=True)
+        yol.write_text(f"/// <summary>\n{xml_satiri}\n/// </summary>\npublic class X {{ }}\n", encoding="utf-8")
+        return kok
+
+    DOSYA = "src/AgentPrism.Core/Models/FallbackChatClient.cs"
+
+    def test_sapan_damga_kirmizidir(self):
+        kok = self._kok("/// Measured against the real OpenAI 2.11.0 client.", self.DOSYA)
+        bulgular = dokuman_bakim.bagimlilik_surum_damgasi(kok)
+        self.assertEqual(1, len(bulgular))
+        self.assertIn("2.12.0", bulgular[0])
+
+    def test_pinle_ayni_damga_yanlis_pozitif_uretmez(self):
+        kok = self._kok("/// Measured against the real OpenAI 2.12.0 client.", self.DOSYA)
+        self.assertEqual([], dokuman_bakim.bagimlilik_surum_damgasi(kok))
+
+    def test_msbuild_degiskeni_cozulur(self):
+        kok = self._kok("/// Measured against MAF 1.19.0 (2026-09-07).",
+                        "src/AgentPrism.Core/Compilation/RecordingLoopEvaluator.cs")
+        bulgular = dokuman_bakim.bagimlilik_surum_damgasi(kok)
+        self.assertEqual(1, len(bulgular))
+        self.assertIn("1.20.0", bulgular[0])
+
+    def test_KAYITSIZ_damga_kirmizidir(self):
+        # Sinifi kapatan parca: yeni bir damga sessizce kapinin disinda kalamaz.
+        kok = self._kok("/// Measured against Fake 9.9.9.", "src/AgentPrism.Core/Yeni.cs")
+        bulgular = dokuman_bakim.bagimlilik_surum_damgasi(kok)
+        self.assertEqual(1, len(bulgular))
+        self.assertIn("KAYITSIZ", bulgular[0])
+
+    def test_pinlenmeyen_paket_bilerek_atlanir(self):
+        # `None` kaydi: damga repo'nun ALMADIGI bir paket hakkinda.
+        kok = self._kok("/// Measured (10.8.0): that type requires an expression.",
+                        "src/AgentPrism.Abstractions/Knowledge/IVectorSearchStore.cs")
+        self.assertEqual([], dokuman_bakim.bagimlilik_surum_damgasi(kok))

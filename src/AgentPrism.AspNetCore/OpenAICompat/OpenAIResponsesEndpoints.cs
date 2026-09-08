@@ -83,6 +83,7 @@ internal static class OpenAIResponsesEndpoints
             .WithName("AgentPrismOpenAIResponses")
             .WithTags("AgentPrism", "OpenAI")
             .WithSummary("Run endpoint compatible with the OpenAI Responses API.")
+            .Accepts<object>("application/json")
             .WithDescription(
                 "The agent is selected from the 'model' field; if not found, 'metadata.entity_id' is tried. " +
                 "If 'conversation' is given the session is stored under that identifier; if not, under the " +
