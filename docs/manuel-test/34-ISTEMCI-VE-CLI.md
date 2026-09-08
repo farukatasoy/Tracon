@@ -87,6 +87,15 @@ dotnet run -c Release --urls http://localhost:5081
 | 35 | `MT-CLI-035` | Dolu veritabanı, sekiz oturum satırı | `... --sample 5` | Çıktı `Sampled 5 row(s), at most 5 per generation` ve `This is a sample, not a survey` der; `all readable` / `every row` **demez** |
 | 36 | `MT-CLI-036` | Dolu veritabanı | `state-check` koşumu **öncesi** ve **sonrası** tam tablo anlık görüntüsü alınır | İki anlık görüntü **birebir aynı** — hiçbir sütun, `updated_at` ve `version` dahil, değişmemiş |
 | 37 | `MT-CLI-037` | 👤 insan gerekir | `docs-site` `reference/versioning` sayfasının "The supported upgrade window" bölümü okunur | Desteklenen atlama aralığı (aynı ana sürüm içinde her sürüm), dayanağı (gerçek koşumdan yakalanmış fixture'lar) ve **MAF sınırı** (gövde AgentPrism'in vaadi değildir) açıkça yazılıdır |
+| 38 | `MT-CLI-038` | Örnek uygulama ayakta, bir agent kayıtlı | `AgentPrismOpenAIResponsesStreamAsync` gövdesi `stream: true` ile çağrılır | Çerçeveler **sırayla** gelir (`response.created` → `response.completed`); her eleman TEK bir ham SSE çerçevesidir, tüm gövde değil; çökme yok |
+| 39 | `MT-CLI-039` | Aynı | `AgentPrismOpenAIChatCompletionsStreamAsync` gövdesi `stream: true` ile çağrılır | İlk çerçeve `chat.completion.chunk` taşır; **son** çerçeve `data: [DONE]`'dur |
+| 40 | `MT-CLI-040` | Aynı | `AgentPrismOpenAIResponsesAsync` gövdesi `stream: false` ile çağrılır | JSON belge döner (`object=response`, `status=completed`) — Faz 159 öncesi davranış **birebir** korunur |
+| 41 | `MT-CLI-041` | Aynı | `AgentPrismOpenAIResponsesAsync` gövdesi **`stream: true`** ile çağrılır | `AgentPrismApiException`; mesaj `text/event-stream` aldığını söyler ve **`AgentPrismOpenAIResponsesStreamAsync`**'i adıyla önerir. Opak "could not deserialize" **değil** |
+| 42 | `MT-CLI-042` | Aynı | `AgentPrismOpenAIResponsesStreamAsync` gövdesi **`stream: false`** ile çağrılır | `AgentPrismApiException`; mesaj `application/json` aldığını söyler ve **`AgentPrismOpenAIResponsesAsync`**'i adıyla önerir. **Sessiz boş akış değil** |
+| 43 | `MT-CLI-043` | Aynı | `AgentPrismOpenAIResponsesAsync(default)` — atanmamış `JsonElement` gövdesi | `ArgumentException`; `ParamName` = `body`; mesaj "uninitialized JsonElement" der. Serilestirici içindeki opak `InvalidOperationException` **değil** |
+| 44 | `MT-CLI-044` | Aynı | `AgentPrismRunAgentStreamAsync` çağrılır, **iki çerçeve sonra `break`** edilir | Akış durur; sonraki çerçeve gelmez; istisna yok; süreç asılı kalmaz (bağlantı serbest bırakılır) |
+| 45 | `MT-CLI-045` | Aynı | `AgentPrismRunAgentStreamAsync(...).WithCancellation(iptalEdilmişToken)` | `OperationCanceledException`; istek hiç gönderilmez — `[EnumeratorCancellation]` bağı çalışıyor |
+| 46 | `MT-CLI-046` | Node.js veya tarayıcı; `@agentprism/client` kurulu | `client.POST('/api/agents/{name}/run', { parseAs: 'stream' })` sonucu `readSse(response)` ile okunur | Çerçeveler `{ id, event, data }` olarak gelir; `: keep-alive` yorum blokları görünmez; çok satırlı `data` satır sonlarıyla birleşiktir |
 
 ### `state-check` case'leri için hazırlık (32–36)
 
@@ -154,3 +163,11 @@ karşılaştırmasıdır, satır sayısı karşılaştırması değil — `updat
 Sayımın kiracıdan bağımsız olduğu ve örneklemin kuşak başına sınırlandığı
 `tests/AgentPrism.Sqlite.IntegrationTests/StatePreflightTests.cs` içinde,
 gerçek SQL'e karşı ölçülür. Case 37 tek 👤 case'idir.
+
+Case 38–45, `tests/AgentPrism.AspNetCore.FunctionalTests/GeneratedClientSseTests.cs`
+içinde gerçek bir sunucuya karşı otomatikleştirilmiştir; çerçeveleme kurallarının
+kendisi (parçalanmış okuma, `\r\n` sınırı, keep-alive, sonlandırıcısız son çerçeve,
+akış ortasında iptal) `tests/AgentPrism.Client.UnitTests/AgentPrismApiClientSseTests.cs`
+içindedir — bir `TestServer` düşmanca parçalama üretemez, o yüzden iki seviye de
+gereklidir. Case 46, `packages/agentprism-client/test/sse.test.ts` içinde çözücü
+seviyesinde otomatiktir; **gerçek bir tarayıcıda** koşumu tek 👤 case'idir.

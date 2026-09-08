@@ -1376,7 +1376,7 @@ sağlayıcı istisnasının (`ClientResultException`, `AnthropicApiException`)
 `AgentRunStream.ExecuteStreamingAsync`'in o zamanki dar `catch` bloğuna
 uymadığını ve bağlantının `error` çerçevesi ÜRETMEDEN kapandığını ölçmüştü.
 Bu case, o boşluğun **arayüzde nasıl göründüğünü** ölçmek için yazılmıştı:
-`lib/sse.ts`'in `readSse`'si akış sonunu (`reader.read()`'in `done: true`
+`@agentprism/client`'ın `readSse`'si akış sonunu (`reader.read()`'in `done: true`
 dönmesi) bir HATA olarak değil, normal bir bitiş olarak ele alır — istisna
 fırlatmaz; `error` çerçevesi hiç gelmezse `playground.tsx`'in `for await`
 döngüsü sessizce sonlanırdı. Backend'deki dar filtre kaldırıldığı için artık

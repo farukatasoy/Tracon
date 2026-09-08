@@ -10,8 +10,11 @@ Koşum: python3 -m unittest discover -s scripts -p "*_test.py"
 """
 from __future__ import annotations
 
+import contextlib
 import importlib.util
+import json
 import pathlib
+import tempfile
 import unittest
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
@@ -274,6 +277,217 @@ class NswagPostprocessClientTestleri(unittest.TestCase):
 
         self.assertEqual(count, 0)
         self.assertEqual(source, nested)
+
+
+# A whole generated operation method, in the shape the sixth pass matches
+# (Faz 159): NSwag's XML doc block, the signature, the uniform 200 branch and
+# the invariant `finally` tail that ends every operation method.
+def sample_operation(name: str = "AgentPrismOpenAIResponses", body_type: str = "System.Text.Json.JsonElement",
+                     return_type: str = "System.Text.Json.JsonElement", null_check: bool = False) -> str:
+    check = ""
+    if null_check:
+        check = (
+            "                            if (objectResponse_.Object == null)\n"
+            "                            {\n"
+            '                                throw new AgentPrismApiException("Response was null which was not expected.", '
+            "status_, objectResponse_.Text, headers_, null);\n"
+            "                            }\n")
+
+    return f"""\
+        /// <param name="cancellationToken">A cancellation token.</param>
+        /// <summary>
+        /// Run endpoint compatible with the OpenAI Responses API.
+        /// </summary>
+        /// <returns>OK</returns>
+        public virtual async System.Threading.Tasks.Task<{return_type}> {name}Async({body_type} body, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken))
+        {{
+            var client_ = _httpClient;
+            var disposeClient_ = false;
+            try
+            {{
+                using (var request_ = new System.Net.Http.HttpRequestMessage())
+                {{
+                    request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
+
+                    var response_ = await client_.SendAsync(request_, System.Net.Http.HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
+                    var disposeResponse_ = true;
+                    try
+                    {{
+                        var status_ = (int)response_.StatusCode;
+                        if (status_ == 200)
+                        {{
+                            var objectResponse_ = await ReadObjectResponseAsync<{return_type}>(response_, headers_, cancellationToken).ConfigureAwait(false);
+{check}                            return objectResponse_.Object;
+                        }}
+                        else
+                        {{
+                            throw new AgentPrismApiException("Unexpected.", status_, null, headers_, null);
+                        }}
+                    }}
+                    finally
+                    {{
+                        if (disposeResponse_)
+                            response_.Dispose();
+                    }}
+                }}
+            }}
+            finally
+            {{
+                if (disposeClient_)
+                    client_.Dispose();
+            }}
+        }}
+
+"""
+
+
+@contextlib.contextmanager
+def document(content: dict):
+    """A throwaway OpenAPI document with one operation, deleted on exit."""
+    with tempfile.TemporaryDirectory() as directory:
+        path = pathlib.Path(directory) / "agentprism.json"
+        path.write_text(json.dumps({"paths": {"/v1/responses": {"post": {
+            "operationId": "AgentPrismOpenAIResponses",
+            "responses": {"200": {"content": content}},
+        }}}}), encoding="utf-8")
+
+        yield str(path)
+
+
+class StreamingSiblingTests(unittest.TestCase):
+    """The sixth pass (Faz 159): a `<operation>StreamAsync` per SSE operation."""
+
+    def test_the_document_reports_which_operations_stream_and_which_are_dual(self):
+        with document({"application/json": {}, "text/event-stream": {}}) as path:
+            dual = nswag_postprocess_client.read_event_stream_operations(path)
+        with document({"text/event-stream": {}}) as path:
+            pure = nswag_postprocess_client.read_event_stream_operations(path)
+        with document({"application/json": {}}) as path:
+            json_only = nswag_postprocess_client.read_event_stream_operations(path)
+
+        self.assertEqual(dual, [("AgentPrismOpenAIResponses", True)])
+        self.assertEqual(pure, [("AgentPrismOpenAIResponses", False)])
+
+        # A JSON-only operation gets no sibling at all - the pass must not
+        # widen to every operation in the document.
+        self.assertEqual(json_only, [])
+
+    def test_a_sibling_streams_frames_and_asks_for_the_event_stream(self):
+        added, guarded, source = nswag_postprocess_client.rewrite_streaming_siblings(
+            sample_operation(), [("AgentPrismOpenAIResponses", True)])
+
+        self.assertEqual(added, 1)
+        self.assertEqual(guarded, 1)
+        self.assertIn(
+            "public virtual async System.Collections.Generic.IAsyncEnumerable<string> "
+            "AgentPrismOpenAIResponsesStreamAsync(System.Text.Json.JsonElement body, "
+            "[System.Runtime.CompilerServices.EnumeratorCancellation] System.Threading.CancellationToken",
+            source)
+        self.assertIn('Parse("text/event-stream")', source)
+        self.assertIn("yield return frame_;", source)
+        self.assertIn("yield break;", source)
+
+        # The ORIGINAL keeps its own shape: same return type, same Accept.
+        self.assertIn(
+            "public virtual async System.Threading.Tasks.Task<System.Text.Json.JsonElement> "
+            "AgentPrismOpenAIResponsesAsync(",
+            source)
+        self.assertIn('Parse("application/json")', source)
+
+    def test_both_methods_of_a_dual_operation_name_the_other_one(self):
+        _, _, source = nswag_postprocess_client.rewrite_streaming_siblings(
+            sample_operation(), [("AgentPrismOpenAIResponses", True)])
+
+        self.assertIn("call AgentPrismOpenAIResponsesStreamAsync for the streaming shape.", source)
+        self.assertIn("call AgentPrismOpenAIResponsesAsync for the JSON shape.", source)
+        self.assertEqual(source.count("await EnsureContentTypeAsync("), 2)
+
+    def test_a_pure_SSE_operation_gets_a_sibling_but_no_guard_on_the_original(self):
+        added, guarded, source = nswag_postprocess_client.rewrite_streaming_siblings(
+            sample_operation(name="AgentPrismRunAgent", body_type="AgentRunRequest",
+                             return_type="string", null_check=True),
+            [("AgentPrismRunAgent", False)])
+
+        self.assertEqual(added, 1)
+
+        # There is no JSON sibling to point at, so the original is untouched
+        # and the message says the mismatch is the server's doing.
+        self.assertEqual(guarded, 0)
+        self.assertEqual(source.count("await EnsureContentTypeAsync("), 1)
+        self.assertIn("always answers with Server-Sent Events", source)
+
+    def test_the_pure_SSE_pass_no_longer_sees_a_rewritten_sibling(self):
+        # The ORDERING invariant `main` asserts: the sixth pass runs first, and
+        # its siblings' 200 branches must not look like anything the fourth
+        # pass matches - otherwise it would rewrite them back into a buffered
+        # read and silently undo this phase.
+        _, _, source = nswag_postprocess_client.rewrite_streaming_siblings(
+            sample_operation(name="AgentPrismRunAgent", body_type="AgentRunRequest",
+                             return_type="string", null_check=True),
+            [("AgentPrismRunAgent", False)])
+
+        _, count = nswag_postprocess_client.rewrite_sse_string_responses(source)
+
+        self.assertEqual(count, 1)
+
+    def test_a_second_run_is_refused_rather_than_duplicating_the_sibling(self):
+        _, _, once = nswag_postprocess_client.rewrite_streaming_siblings(
+            sample_operation(), [("AgentPrismOpenAIResponses", True)])
+
+        with self.assertRaises(SystemExit):
+            nswag_postprocess_client.rewrite_streaming_siblings(
+                once, [("AgentPrismOpenAIResponses", True)])
+
+    def test_a_missing_operation_method_is_refused(self):
+        with self.assertRaises(SystemExit):
+            nswag_postprocess_client.rewrite_streaming_siblings(
+                sample_operation(), [("AgentPrismNoSuchOperation", True)])
+
+    def test_an_unrecognizable_200_branch_is_refused(self):
+        # If NJsonSchema's template changes, the pass must fail loudly rather
+        # than emit a sibling whose 200 branch still deserializes JSON.
+        mangled = sample_operation().replace("if (status_ == 200)", "if (status_ == 201)")
+
+        with self.assertRaises(SystemExit):
+            nswag_postprocess_client.rewrite_streaming_siblings(
+                mangled, [("AgentPrismOpenAIResponses", True)])
+
+
+class ValueTypeBodyGuardTests(unittest.TestCase):
+    """The third pass's body-argument axis (Faz 159)."""
+
+    SOURCE = """\
+        public virtual async System.Threading.Tasks.Task<JsonElement> AgentPrismOpenAIResponsesAsync(JsonElement body, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken))
+        {
+            if (body == null)
+                throw new System.ArgumentNullException("body");
+
+            var client_ = _httpClient;
+        }
+"""
+
+    def test_a_struct_body_gets_a_guard_that_names_the_mistake(self):
+        source, _ = nswag_postprocess_client.rewrite_colliding_any_types(self.SOURCE)
+
+        # `body == null` on a struct is CS0019; dropping it outright would let
+        # a default(JsonElement) fail deep inside the serializer with
+        # "Operation is not valid due to the current state of the object".
+        self.assertNotIn("if (body == null)", source)
+        self.assertIn("if (body.ValueKind == System.Text.Json.JsonValueKind.Undefined)", source)
+        self.assertIn("uninitialized JsonElement", source)
+        self.assertIn('"body");', source)
+
+    def test_a_reference_type_body_keeps_its_null_check(self):
+        source = """\
+        public virtual async System.Threading.Tasks.Task<string> AgentPrismRunAgentAsync(AgentRunRequest body, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken))
+        {
+            if (body == null)
+                throw new System.ArgumentNullException("body");
+        }
+"""
+        rewritten, _ = nswag_postprocess_client.rewrite_colliding_any_types(source)
+
+        self.assertEqual(rewritten, source)
 
 
 if __name__ == "__main__":

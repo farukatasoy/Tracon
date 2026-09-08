@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { client, openStream, unwrap } from '../../lib/api';
-import { readSse } from '../../lib/sse';
+import { readSse } from '@agentprism/client';
 import {
   applyApprovalPresentations,
   emptyTranscript,
