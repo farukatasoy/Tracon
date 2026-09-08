@@ -99,4 +99,7 @@ build otherwise.
 - `AgentPrism.Client` (the .NET counterpart, same document, same shape): <https://agentprism.eski-site.invalid/api/>
 - Capability map: <https://agentprism.eski-site.invalid/capabilities/>
 
-License: MIT
+License: PolyForm Small Business 1.0.0, the same terms as its .NET counterpart
+`AgentPrism.Client` - free below 100 people and 1,000,000 USD (2019, inflation
+adjusted) revenue; a commercial licence applies above that. The text ships in this
+package as LICENSE.md. Details: <https://agentprism.eski-site.invalid/reference/licensing/>

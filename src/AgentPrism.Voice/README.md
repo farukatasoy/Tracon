@@ -102,3 +102,7 @@ source generator; the package is AOT-compatible.
 - Guide: <https://agentprism.eski-site.invalid/guides/voice/>
 - Capability map: <https://agentprism.eski-site.invalid/capabilities/>
 - API reference: <https://agentprism.eski-site.invalid/api/>
+
+Licence: PolyForm Small Business 1.0.0 - free below 100 people and 1,000,000 USD
+(2019, inflation adjusted) revenue; a commercial licence applies above that. Terms
+ship in the package as LICENSE.md. Details: <https://agentprism.eski-site.invalid/reference/licensing/>
