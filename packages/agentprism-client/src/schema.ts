@@ -12177,7 +12177,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": unknown;
+                "application/json": components["schemas"]["JsonElement"];
             };
         };
         responses: {
@@ -12238,7 +12238,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": unknown;
+                "application/json": components["schemas"]["JsonElement"];
             };
         };
         responses: {

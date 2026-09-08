@@ -91,16 +91,43 @@ try {
 and are shown exactly as the server wrote them — this client does not
 translate them, the same rule the server itself follows for error text.
 
-## What this client does not cover
+## Streaming responses
 
-**Server-Sent Events.** Six operations answer `text/event-stream`, not JSON:
-agent `run`, workflow `run`/`resume`/`respond`, and the OpenAI-compatible
-`responses` and `chat/completions` endpoints. A `fetch`-based typed client
-reads a response body as JSON, so none of these can go through
-`createAgentPrismClient`. Call them with your own `EventSource` or a
-`fetch` plus `ReadableStream` reader instead — this package's exported path
-types still describe their request shape, even though the client cannot make
-the call itself.
+Seven operations answer `text/event-stream` instead of JSON: agent `run`, the
+run event stream, workflow `run`/`resume`/`respond`, and the OpenAI-compatible
+`responses` and `chat/completions` endpoints.
+
+These go through the same typed client. Pass `parseAs: 'stream'` so the body is
+not parsed as JSON, then decode the frames with `readSse`:
+
+```ts
+import { createAgentPrismClient, readSse } from '@agentprism/client';
+
+const { response } = await client.POST('/api/agents/{name}/run', {
+  params: { path: { name: 'support' } },
+  body: { message: 'Where is order 4182?' },
+  parseAs: 'stream',
+});
+
+for await (const frame of readSse(response)) {
+  console.log(frame.id, frame.event, frame.data);
+}
+```
+
+`readSse` yields one `SseFrame` per event — `{ id, event, data }`, with
+multi-line `data` joined by newlines and comment keep-alives skipped. It decodes
+incrementally, so a frame split across network chunks is reassembled rather than
+mis-parsed. `SseDecoder` is exported too, for a transport that is not a `fetch`
+`Response`.
+
+`EventSource` is deliberately not used here: it cannot send an `Authorization`
+header and cannot issue a `POST`, and these endpoints need both.
+
+The two OpenAI-compatible endpoints choose JSON or SSE from the `stream` flag in
+the request body, so send `stream: true` when you read them this way — see
+[the OpenAI-compatible API guide](/guides/openai-api/).
+
+## What this client does not cover
 
 **Token storage.** This client reads the token you supply on every request —
 it never reads or writes `localStorage`, a cookie, or anything else. Store it

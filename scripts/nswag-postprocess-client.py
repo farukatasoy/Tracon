@@ -103,9 +103,57 @@ This pass fixes the TYPED CLIENT only - a raw HTTP caller can still send an
 explicit null, which the server rejects with a 400 instead of a 500
 (`RequestBodyBinding`'s RespectNullableAnnotations, same class, K-694).
 
-Usage: nswag-postprocess-client.py <generated-client.cs>
+A sixth pass fixes a CONDITIONAL-SHAPE class of defect (Faz 159). Seven
+operations answer 200 with `text/event-stream`; NSwag can express only ONE
+return type per operation, so all seven are callable in exactly one shape:
+the five pure-SSE ones buffer the WHOLE stream into a `Task<string>` (the
+fourth pass above made that at least work), and the two dual ones -
+`/v1/responses` and `/v1/chat/completions`, whose 200 declares BOTH
+`application/json` and `text/event-stream` - generate only the JSON shape, so
+a caller sending `"stream": true` hands an SSE body to a JSON deserializer.
+No OpenAPI document can describe a response shape chosen at run time from a
+flag in the REQUEST BODY, and no single generated signature can enforce one.
+
+The fix gives every such operation a SIBLING method, `<operation>StreamAsync`,
+returning `IAsyncEnumerable<string>` - one raw SSE frame per element, yielded
+as the server flushes it - so the choice is made at COMPILE time by which
+method is called, and a wrong choice fails at the call site rather than
+turning into a runtime surprise. The sibling is a copy of the generated
+method, so it keeps NSwag's own URL building, body serialization,
+PrepareRequest/ProcessResponse hooks and every typed error branch; only three
+things change: the signature, the `Accept` header (`text/event-stream`), and
+the 200 branch. Framing and the content-type guard are NOT emitted here - they
+are hand-written in src/AgentPrism.Client/AgentPrismApiClient.Sse.cs, where
+they can be unit tested and where a regeneration cannot alter them.
+
+Method and body can still disagree (`...StreamAsync` with `"stream": false`,
+or the JSON method with `"stream": true`). The client does NOT rewrite the
+caller's body - silently changing what was asked for is a worse surprise than
+a clear failure - so both methods instead check what the server ACTUALLY
+answered and throw a named AgentPrismApiException. MEASURED (2026-09-08):
+before this, `...StreamAsync`'s mismatch would have been a silently EMPTY
+stream (an SSE parser finds no frames in a JSON document), and the JSON
+method's was an opaque "Could not deserialize the response body stream as
+System.Text.Json.JsonElement".
+
+Which operations are dual cannot be read off the generated file: NSwag emits
+only the FIRST content type as the `Accept` header, so a dual operation looks
+exactly like a plain JSON one (verified 2026-09-08). This pass therefore reads
+the OpenAPI document itself, which is why the script now takes it as a second
+argument - required, not defaulted, so a forgotten path fails loudly instead
+of silently generating no siblings.
+
+🚨 ORDERING: this pass runs BEFORE the fourth one, even though it is the sixth
+written. Before the fourth pass rewrites them, all seven 200 branches still
+have NJsonSchema's single uniform shape (`ReadObjectResponseAsync<T>` +
+optional null check + return), so one pattern matches all seven. The fourth
+pass then still finds its five - the siblings' 200 branches no longer look
+like anything it matches - which `main` asserts.
+
+Usage: nswag-postprocess-client.py <generated-client.cs> <openapi-document.json>
 """
 
+import json
 import re
 import sys
 
@@ -150,6 +198,38 @@ def bare_reference_re(short_name: str) -> re.Pattern[str]:
     # reference (property types, generic type arguments, method return types)
     # after the bogus class above is deleted.
     return re.compile(rf"(?<!\.)\b{re.escape(short_name)}\b")
+
+
+# NJsonSchema guards a REQUIRED request body with `if (body == null)`, which
+# stops compiling (CS0019) the moment the third pass turns that body's type
+# into a struct - the same defect class as the root-response null check below,
+# on a different axis (Faz 159, when /v1/responses and /v1/chat/completions
+# started declaring a JsonElement body).
+#
+# Here the guard is REPLACED rather than dropped, unlike the response side.
+# `default(JsonElement)` is a real caller mistake, and MEASURED (2026-09-08) it
+# otherwise fails deep inside the serializer with "InvalidOperationException:
+# Operation is not valid due to the current state of the object" - naming
+# neither the parameter, nor the method, nor the cause.
+VALUE_TYPE_BODY_GUARDS = {
+    "System.Text.Json.JsonElement": (
+        "            if (body.ValueKind == System.Text.Json.JsonValueKind.Undefined)\n"
+        "                throw new System.ArgumentException(\"The request body is an uninitialized "
+        "JsonElement. Build one first, for example with "
+        "System.Text.Json.JsonSerializer.SerializeToElement(value).\", \"body\");\n"),
+}
+
+
+def body_null_check_re(qualified_name: str) -> re.Pattern[str]:
+    return re.compile(
+        # `[(, ]`, not a bare space: the body is the FIRST parameter of the two
+        # dual operations, so the character before its type is "(", while a
+        # method with a route parameter first has ", " there instead.
+        r"(?P<signature>[ ]{8}public virtual async [^\r\n]*?[(, ]"
+        + re.escape(qualified_name)
+        + r" body[,)][^\r\n]*\r?\n[ ]{8}\{\r?\n)"
+        r"[ ]{12}if \(body == null\)\r?\n"
+        r'[ ]{16}throw new System\.ArgumentNullException\("body"\);\r?\n')
 
 
 def null_check_re(qualified_name: str) -> re.Pattern[str]:
@@ -236,6 +316,17 @@ def rewrite_colliding_any_types(source: str) -> tuple[str, int]:
         if is_value_type:
             source, _ = null_check_re(qualified_name).subn(r"\1", source)
 
+            guard = VALUE_TYPE_BODY_GUARDS.get(qualified_name)
+
+            if guard is None:
+                raise SystemExit(
+                    f"'{qualified_name}' is a value type with no entry in VALUE_TYPE_BODY_GUARDS. If it "
+                    "is ever used as a REQUIRED request body, NJsonSchema's `if (body == null)` guard "
+                    "will not compile (CS0019) - add the guard that names an uninitialized value.")
+
+            source, _ = body_null_check_re(qualified_name).subn(
+                lambda match: match.group("signature") + guard, source)
+
         if class_count and reference_count == 0:
             raise SystemExit(
                 f"The '{short_name}' wrapper class was removed but no reference was left to "
@@ -319,9 +410,275 @@ def rewrite_null_collection_defaults(source: str) -> tuple[str, int]:
     return NULL_COLLECTION_PATTERN.subn(replace, source)
 
 
+EVENT_STREAM_MEDIA_TYPE = "text/event-stream"
+JSON_MEDIA_TYPE = "application/json"
+
+HTTP_METHODS = ("get", "put", "post", "delete", "options", "head", "patch", "trace")
+
+
+def read_event_stream_operations(document_path: str) -> list[tuple[str, bool]]:
+    """(operationId, is_dual) for every operation whose 200 declares SSE.
+
+    `is_dual` means the SAME 200 also declares application/json - the shape is
+    then chosen at run time by the request body's "stream" flag, and the JSON
+    method needs the reverse guard as well.
+    """
+    with open(document_path, encoding="utf-8") as f:
+        document = json.load(f)
+
+    operations = []
+
+    for path, path_item in document.get("paths", {}).items():
+        for method, operation in path_item.items():
+            if method.lower() not in HTTP_METHODS or not isinstance(operation, dict):
+                continue
+
+            content = operation.get("responses", {}).get("200", {}).get("content", {})
+
+            if EVENT_STREAM_MEDIA_TYPE not in content:
+                continue
+
+            operation_id = operation.get("operationId")
+
+            if not operation_id:
+                raise SystemExit(
+                    f"Operation {method.upper()} {path} declares {EVENT_STREAM_MEDIA_TYPE} but has no "
+                    "operationId, so its generated method name cannot be derived "
+                    "(ClientCoverageTests asserts every operation has one).")
+
+            operations.append((operation_id, JSON_MEDIA_TYPE in content))
+
+    return operations
+
+
+# One whole generated operation method, from its XML doc block to the closing
+# brace. The terminator is NSwag's own invariant tail - the outer `finally`
+# that disposes the client - which every operation method ends with and
+# nothing else in the file contains, so a lazy `.*?` up to it cannot run past
+# the method it started in. A change to NJsonSchema's template should make
+# this stop matching rather than silently match something else.
+def operation_method_re(method_name: str) -> re.Pattern[str]:
+    return re.compile(
+        r"(?P<doc>(?:[ ]{8}///[^\r\n]*\r?\n)+)"
+        r"[ ]{8}public virtual async (?P<returns>[^\r\n]+?) " + re.escape(method_name)
+        + r"\((?P<params>[^\r\n]*)\)\r?\n"
+        r"(?P<body>[ ]{8}\{\r?\n"
+        r".*?"
+        r"[ ]{12}finally\r?\n"
+        r"[ ]{12}\{\r?\n"
+        r"[ ]{16}if \(disposeClient_\)\r?\n"
+        r"[ ]{20}client_\.Dispose\(\);\r?\n"
+        r"[ ]{12}\}\r?\n"
+        r"[ ]{8}\}\r?\n)",
+        re.DOTALL,
+    )
+
+
+# The `Accept` header NSwag emits from the operation's FIRST declared response
+# content type. The streaming sibling has to ask for the other one.
+ACCEPT_HEADER_RE = re.compile(
+    r'request_\.Headers\.Accept\.Add\(System\.Net\.Http\.Headers\.'
+    r'MediaTypeWithQualityHeaderValue\.Parse\("[^"]*"\)\);')
+
+# NJsonSchema's uniform 200 branch, before the fourth pass rewrites the
+# pure-SSE ones. The null check is absent when the root response type is a
+# value type (the third pass strips it - JsonElement), so it is optional here.
+JSON_200_BRANCH_RE = re.compile(
+    r"(?P<open>(?P<indent>[ ]*)if \(status_ == 200\)\r?\n[ ]*\{\r?\n)"
+    r"(?P<read>[ ]*var objectResponse_ = await ReadObjectResponseAsync<(?P<type>[\w\.]+)>"
+    r"\(response_, headers_, cancellationToken\)\.ConfigureAwait\(false\);\r?\n)"
+    r"(?P<nullcheck>[ ]*if \(objectResponse_\.Object == null\)\r?\n"
+    r"[ ]*\{\r?\n"
+    r'[ ]*throw new AgentPrismApiException\("Response was null which was not expected\.", '
+    r"status_, objectResponse_\.Text, headers_, null\);\r?\n"
+    r"[ ]*\}\r?\n)?"
+    r"(?P<ret>[ ]*return objectResponse_\.Object;\r?\n[ ]*\}\r?\n)")
+
+CANCELLATION_PARAMETER = "System.Threading.CancellationToken cancellationToken"
+ENUMERATOR_CANCELLATION = "[System.Runtime.CompilerServices.EnumeratorCancellation] "
+
+
+def _hint_argument(indent: str, sentences: list[str]) -> str:
+    """Renders a C# string-literal argument split across lines, `+`-joined."""
+    return ("\n" + f"{indent}    ").join(
+        f'"{sentence}"' + (" +" if index < len(sentences) - 1 else "")
+        for index, sentence in enumerate(sentences))
+
+
+def _ensure_content_type_call(indent: str, expect_sse: str, sentences: list[str]) -> str:
+    return (
+        f"{indent}await EnsureContentTypeAsync(\n"
+        f"{indent}    response_,\n"
+        f"{indent}    {expect_sse},\n"
+        f"{indent}    status_,\n"
+        f"{indent}    headers_,\n"
+        f"{indent}    {_hint_argument(indent, sentences)},\n"
+        f"{indent}    cancellationToken).ConfigureAwait(false);\n")
+
+
+def _streaming_200_branch(indent: str, json_method: str | None) -> str:
+    if json_method is None:
+        sentences = [
+            "This endpoint always answers with Server-Sent Events, so a different content type "
+            "means the server or an intermediary changed the response.",
+        ]
+    else:
+        sentences = [
+            "This endpoint chooses its response shape from the \\\"stream\\\" flag in the request "
+            "body at run time, which no OpenAPI document can describe. ",
+            f"Send \\\"stream\\\": true, or call {json_method} for the JSON shape.",
+        ]
+
+    return (
+        f"{indent}if (status_ == 200)\n"
+        f"{indent}{{\n"
+        f"{indent}    // Phase 159: the STREAMING sibling. The body is Server-Sent Events, not\n"
+        f"{indent}    // JSON. Framing and this guard are hand-written in\n"
+        f"{indent}    // AgentPrismApiClient.Sse.cs so a regeneration cannot change them.\n"
+        + _ensure_content_type_call(f"{indent}    ", "true", sentences)
+        + "\n"
+        f"{indent}    await foreach (var frame_ in ReadServerSentEventFramesConfigured(response_, cancellationToken))\n"
+        f"{indent}    {{\n"
+        f"{indent}        yield return frame_;\n"
+        f"{indent}    }}\n"
+        "\n"
+        f"{indent}    yield break;\n"
+        f"{indent}}}\n")
+
+
+def _json_200_guard(indent: str, stream_method: str) -> str:
+    sentences = [
+        "This endpoint chooses its response shape from the \\\"stream\\\" flag in the request "
+        "body at run time, which no OpenAPI document can describe. ",
+        f"Send \\\"stream\\\": false, or call {stream_method} for the streaming shape.",
+    ]
+
+    return (
+        f"{indent}// Phase 159: with \"stream\": true in the body this endpoint answers with\n"
+        f"{indent}// Server-Sent Events, and the JSON read below would fail with an opaque\n"
+        f"{indent}// \"could not deserialize\" message. Name the real cause instead.\n"
+        + _ensure_content_type_call(indent, "false", sentences)
+        + "\n")
+
+
+def _streaming_doc(doc: str, method_name: str) -> str:
+    """The sibling's XML doc: the operation's own text, with the streaming note."""
+    note = (
+        "        /// Streaming form: the 200 body is read as Server-Sent Events. Each element is\n"
+        "        /// one raw frame; comment-only keep-alive blocks are skipped. Throws\n"
+        "        /// <see cref=\"AgentPrismApiException\"/> if the server answers with a different\n"
+        "        /// content type - see the AgentPrism docs, \"OpenAI-compatible API\".\n")
+
+    if "        /// </summary>\n" not in doc:
+        raise SystemExit(
+            f"The generated XML doc for '{method_name}' has no </summary> line to append the "
+            "streaming note to (NSwag's doc-comment template changed - inspect the generated file).")
+
+    doc = doc.replace("        /// </summary>\n", note + "        /// </summary>\n", 1)
+
+    return doc.replace(
+        "        /// <returns>OK</returns>\n",
+        "        /// <returns>The Server-Sent Events frames the server writes, one raw frame per element.</returns>\n",
+        1)
+
+
+def rewrite_streaming_siblings(source: str, operations: list[tuple[str, bool]]) -> tuple[int, int, str]:
+    """Adds a `<operation>StreamAsync` sibling for every SSE-declaring operation.
+
+    Also guards the JSON method of a DUAL operation against an SSE answer.
+    Returns (siblings added, JSON methods guarded, source).
+    """
+    siblings = 0
+    guarded = 0
+
+    for operation_id, is_dual in sorted(operations):
+        json_method = f"{operation_id}Async"
+        stream_method = f"{operation_id}StreamAsync"
+
+        # The script as a whole is not idempotent (see the module docstring),
+        # and a second run here would append a DUPLICATE sibling - caught only
+        # later, by the compiler, as CS0111. Fail where the cause is visible.
+        if f"{stream_method}(" in source:
+            raise SystemExit(
+                f"'{stream_method}' already exists. This script is NOT idempotent: run it once on a "
+                "FRESHLY generated client (dotnet nswag run nswag.json), never on its own output.")
+
+        matches = list(operation_method_re(json_method).finditer(source))
+
+        if len(matches) != 1:
+            raise SystemExit(
+                f"Expected exactly one generated '{json_method}' method, found {len(matches)} "
+                "(the OpenAPI document or NSwag's template changed - inspect the generated file).")
+
+        match = matches[0]
+        params, body = match.group("params"), match.group("body")
+
+        if CANCELLATION_PARAMETER not in params:
+            raise SystemExit(
+                f"'{json_method}' has no '{CANCELLATION_PARAMETER}' parameter to mark with "
+                "[EnumeratorCancellation] (inspect the generated file).")
+
+        stream_body, accept_count = ACCEPT_HEADER_RE.subn(
+            'request_.Headers.Accept.Add(System.Net.Http.Headers.'
+            f'MediaTypeWithQualityHeaderValue.Parse("{EVENT_STREAM_MEDIA_TYPE}"));',
+            body)
+
+        if accept_count != 1:
+            raise SystemExit(
+                f"Expected exactly one Accept header in '{json_method}', found {accept_count} "
+                "(inspect the generated file).")
+
+        branch = JSON_200_BRANCH_RE.search(stream_body)
+
+        if branch is None:
+            raise SystemExit(
+                f"'{json_method}' has no recognizable 200 branch to turn into a stream. This pass "
+                "must run BEFORE the pure-SSE pass, while all seven branches still share "
+                "NJsonSchema's uniform shape (see the module docstring's ORDERING note).")
+
+        stream_body = (
+            stream_body[:branch.start()]
+            + _streaming_200_branch(branch.group("indent"), json_method if is_dual else None)
+            + stream_body[branch.end():])
+
+        # The leading blank line separates the sibling from the method above it;
+        # the blank line NSwag already emits after that method's closing brace
+        # follows the sibling instead, so spacing stays exactly as generated.
+        sibling = (
+            "\n"
+            + _streaming_doc(match.group("doc"), json_method)
+            + "        public virtual async System.Collections.Generic.IAsyncEnumerable<string> "
+            + stream_method
+            + "(" + params.replace(
+                CANCELLATION_PARAMETER, ENUMERATOR_CANCELLATION + CANCELLATION_PARAMETER, 1) + ")\n"
+            + stream_body)
+
+        if is_dual:
+            guard = JSON_200_BRANCH_RE.search(body)
+
+            if guard is None:
+                raise SystemExit(
+                    f"'{json_method}' is a dual JSON/SSE operation with no recognizable 200 branch "
+                    "to guard (inspect the generated file).")
+
+            body = (
+                body[:guard.start()]
+                + guard.group("open")
+                + _json_200_guard(guard.group("indent") + "    ", stream_method)
+                + guard.group("read") + (guard.group("nullcheck") or "") + guard.group("ret")
+                + body[guard.end():])
+
+            guarded += 1
+
+        source = source[:match.start("body")] + body + sibling + source[match.end("body"):]
+        siblings += 1
+
+    return siblings, guarded, source
+
+
 def main() -> int:
-    if len(sys.argv) != 2:
-        print(f"Usage: {sys.argv[0]} <generated-client.cs>", file=sys.stderr)
+    if len(sys.argv) != 3:
+        print(f"Usage: {sys.argv[0]} <generated-client.cs> <openapi-document.json>", file=sys.stderr)
         return 1
 
     path = sys.argv[1]
@@ -339,7 +696,23 @@ def main() -> int:
 
     source, enum_count = rewrite_enum_declarations(source)
     source, any_type_reference_count = rewrite_colliding_any_types(source)
+
+    # BEFORE the pure-SSE pass on purpose - see the module docstring's ORDERING
+    # note: all seven 200 branches still share one shape at this point.
+    operations = read_event_stream_operations(sys.argv[2])
+    sibling_count, guarded_count, source = rewrite_streaming_siblings(source, operations)
+
     source, sse_string_count = rewrite_sse_string_responses(source)
+
+    pure_sse_count = len(operations) - guarded_count
+
+    if sse_string_count != pure_sse_count:
+        raise SystemExit(
+            f"The pure-SSE pass rewrote {sse_string_count} response(s) but the document declares "
+            f"{pure_sse_count} pure-SSE operation(s). The streaming siblings must not be visible "
+            "to that pass, and every pure-SSE method must still be fixed by it "
+            "(inspect the generated file).")
+
     source, null_collection_count = rewrite_null_collection_defaults(source)
 
     with open(path, "w", encoding="utf-8") as f:
@@ -349,8 +722,9 @@ def main() -> int:
         f"Rewrote {property_count} JsonStringEnumConverter property attribute(s), added "
         f"{enum_count} type-level JsonConverter attribute(s) to enum declarations, qualified "
         f"{any_type_reference_count} colliding any-type reference(s) "
-        f"({', '.join(COLLIDING_ANY_TYPES)}), fixed {sse_string_count} pure-SSE "
-        f"200 response(s) to read plain text instead of JSON, and gave "
+        f"({', '.join(COLLIDING_ANY_TYPES)}), added {sibling_count} streaming sibling method(s) "
+        f"and guarded {guarded_count} dual JSON/SSE method(s) against the other shape, fixed "
+        f"{sse_string_count} pure-SSE 200 response(s) to read plain text instead of JSON, and gave "
         f"{null_collection_count} non-nullable collection property(ies) an empty "
         f"default instead of null in {path}"
     )

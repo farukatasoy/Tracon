@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { client, openStream, unwrap } from '../lib/api';
-import { readSse } from '../lib/sse';
+import { readSse } from '@agentprism/client';
 import { Link, useNavigate } from '../lib/router';
 import { shortId } from '../lib/format';
 import { useT, type MessageKey } from '../lib/i18n';

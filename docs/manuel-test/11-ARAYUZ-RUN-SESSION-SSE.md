@@ -10,7 +10,7 @@
 > `screens/session-detail.tsx` (geçmiş/durum sekmeleri, dallandırma) ·
 > destek bileşenleri: `components/cancel-run-button.tsx` (Faz 32),
 > `components/replay-panel.tsx` (Faz 47), `components/run-comparison.tsx`
-> (Faz 47), `components/branch-button.tsx` (Faz 47) · `lib/sse.ts`
+> (Faz 47), `components/branch-button.tsx` (Faz 47) · `@agentprism/client`'ın `sse.ts`'i (Faz 159'da `src/lib/`'ten taşındı)
 > (`SseDecoder`/`readSse`) · `lib/transcript.ts` (`foldRunEvents`/`foldMessage`) ·
 > `lib/api.ts` (`api.runs/run/runTree/cancelRun/replayRun/compareRuns/
 > sessions/session/deleteSession/branchSession/stats`, `openStream`).

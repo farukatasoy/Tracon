@@ -62,7 +62,8 @@
   FullyQualifiedName~OpenApiSnapshotTests` → `docs/openapi/agentprism.json`;
   (2) `packages/agentprism-client` icinde `npm run generate` → `src/schema.ts`;
   (3) `dotnet tool restore && python3 scripts/nswag-prepare-document.py ... &&
-  dotnet nswag run nswag.json && python3 scripts/nswag-postprocess-client.py ...
+  dotnet nswag run nswag.json && python3 scripts/nswag-postprocess-client.py
+  <uretilen.cs> docs/openapi/agentprism.json
   && python3 scripts/generate-client-json-context.py ...` → `AgentPrismApiClient.g.cs`;
   (4) **`packages/agentprism-client` icinde `npm run build`**. Dorduncu adim
   kolayca unutulur: `src/AgentPrism.UI/frontend` tiplerini `@agentprism/client`'tan
@@ -135,5 +136,33 @@
   `dotnet nswag run nswag.json` → `nswag-postprocess-client.py` →
   `generate-client-json-context.py`. Belge degismediyse cikti yalniz yeni
   gecisin deltasi kadar farkli olmalidir; `diff` ile DOGRULA (F-197'de
-  100 satir = 50 cift, baska kayma yok).
+  100 satir = 50 cift, baska kayma yok; Faz 159'da 1003 ekleme, JSON context
+  DEGISMEDI). Faz 159'dan beri ALTINCI gecis bunu kendisi de yakalar: uretilecek
+  `<operation>StreamAsync` zaten varsa `SystemExit` atar — ikinci kosum sessizce
+  CS0111 uretmez.
+
+- **🚨 `text/event-stream` ilan eden bir 200 yaniti UC yerde birden karsilik
+  ister** (2026-09-08, Faz 159). Sunucuda `.Produces<string>(200, contentType:
+  "text/event-stream")`, uretilen C# istemcide bir `<operation>StreamAsync`
+  kardesi (ALTINCI gecis), TypeScript'te `parseAs: 'stream'` + `readSse`.
+  Ucu de belgeden TURETILIR, elle listelenmez. Kapi `ClientCoverageTests`'in
+  iki yeni testidir: SSE ilan eden her operasyonun `StreamAsync`'i olmali VE
+  her `StreamAsync` `IAsyncEnumerable<string>` donmeli — ikincisi olmadan bir
+  `Task<string>` kardes ad kontrolunu gecer ama govdeyi TAMPONLAR.
+
+- **🚨 NSwag'in URETTIGI metot adi tek basina "cagrilabilir" demek DEGILDIR —
+  govde parametresinin TIPI de kaynak-uretilmis context'te KAYITLI olmalidir**
+  (2026-09-08, Faz 159, olculdu). `.Accepts<object>(...)` bos sema uretir,
+  NSwag `object body` yazar ve istemci `JsonSerializer.SerializeToUtf8Bytes`'i
+  kaynak-uretilmis `AgentPrismClientJsonContext` ile cagirir: anonim tip ya da
+  POCO gecen HER cagiran `NotSupportedException` alir ("JsonTypeInfo metadata
+  for type ... was not provided"). Yalniz kayitli kok tipler serilesir. Cozum
+  `.Accepts<JsonElement>(...)`: belge anlamca AYNI kalir (JsonElement'in kendi
+  sema bileseni de bos "her turlu JSON"dur), TypeScript ciktisi BIREBIR ayni
+  kalir (`JsonElement` = `unknown`), ama C# imzasi artik gercegi soyler.
+  🚨 Yan etki: `JsonElement` bir STRUCT oldugu icin NJsonSchema'nin
+  `if (body == null)` govde muhafizi CS0019 verir — ucuncu gecis onu
+  `ValueKind == Undefined` muhafizina CEVIRIR, silmez: `default(JsonElement)`
+  aksi halde serilestiricinin icinde "Operation is not valid due to the current
+  state of the object" ile duser (parametre adi yok, metot adi yok).
 

@@ -59,7 +59,7 @@ export function sseFixture(method: FixtureRoute['method'], pattern: string, text
   return { method, pattern, handler: () => sseResponse(text) };
 }
 
-/** One SSE frame in the shape `readSse` (`lib/sse.ts`) expects. */
+/** One SSE frame in the shape `readSse` (`@agentprism/client`) expects. */
 export function sseFrame(event: string, data: unknown): string {
   return `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
 }

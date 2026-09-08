@@ -4,7 +4,8 @@
     <Description>Typed management client for AgentPrism, generated from the OpenAPI document published at https://agentprism.doayen.web.tr/openapi/agentprism.json. Covers every /api/* management operation. Takes no AgentPrism package and no NuGet package.</Description>
     <PackageTags>$(CommonPackageTags);client;openapi;http</PackageTags>
     <!--
-      The public surface (160 generated operations, ~250 DTOs) is DERIVED
+      The public surface (one method per operation in the document, plus a
+      streaming sibling for every SSE one, and ~250 DTOs) is DERIVED
       from docs/openapi/agentprism.json, which already has its own drift gate
       (OpenApiSnapshotTests server-side, ClientCoverageTests here). Tracking
       it a second time through PublicApiAnalyzers would turn every

@@ -166,6 +166,70 @@ print(completion.choices[0].message.content)
 AgentPrism does not open a server session for this endpoint. Send the full history on
 every call; otherwise the next turn has no previous context.
 
+## Calling these endpoints from a typed client
+
+Both endpoints answer with **either** JSON **or** SSE, and the `stream` flag in the
+request body decides which — at request time. An OpenAPI document cannot describe a
+response shape chosen that way, so a generated client cannot pick one signature that
+covers both. Each endpoint therefore has **two methods**, and you choose by calling
+one of them:
+
+| You want | .NET method | Returns |
+|---|---|---|
+| One complete answer | `AgentPrismOpenAIResponsesAsync` | `Task<JsonElement>` |
+| Frames as they arrive | `AgentPrismOpenAIResponsesStreamAsync` | `IAsyncEnumerable<string>` |
+
+```csharp
+var body = JsonSerializer.SerializeToElement(
+    new { model = "support", input = "Where is order 4182?", stream = true });
+
+await foreach (var frame in client.AgentPrismOpenAIResponsesStreamAsync(body))
+{
+    // One raw SSE frame per element, e.g.
+    // "event: response.output_text.delta\ndata: {...}"
+    Console.WriteLine(frame);
+}
+```
+
+The frame is handed over **as the server flushes it**, so a `break` or a cancelled
+token stops the read and releases the connection. Comment-only keep-alive blocks are
+skipped. The element is the raw frame rather than a parsed event type: the payload
+follows OpenAI's schema, not AgentPrism's, so parsing it is yours to control.
+
+`AgentPrismRunAgentStreamAsync` and the other `*StreamAsync` methods give the
+management API's streaming endpoints the same shape.
+
+:::caution[The method and the body must agree]
+The client sends your body **exactly as written** — it never rewrites `stream` to
+match the method you called. If the two disagree, the call fails with a message that
+names the fix rather than failing obscurely later:
+
+> The server answered 200 with content type `application/json`, not
+> `text/event-stream`. Send `"stream": true`, or call
+> `AgentPrismOpenAIResponsesAsync` for the JSON shape.
+:::
+
+In TypeScript no special method is needed — ask for the raw stream and decode it with
+the reader the package ships:
+
+```ts
+import { createAgentPrismClient, readSse } from '@agentprism/client';
+
+const client = createAgentPrismClient({
+  baseUrl: 'https://agents.example.com/agentprism',
+  token: process.env.AGENTPRISM_API_KEY,
+});
+
+const { response } = await client.POST('/v1/responses', {
+  body: { model: 'support', input: 'Where is order 4182?', stream: true },
+  parseAs: 'stream',
+});
+
+for await (const frame of readSse(response)) {
+  console.log(frame.event, frame.data);
+}
+```
+
 ## Compatibility matrix
 
 | Capability | Responses | Chat Completions | AgentPrism behavior |

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { client, unwrap, openStream, AgentPrismError } from '../lib/api';
 import { formatDateTime, useT } from '../lib/i18n';
-import { readSse } from '../lib/sse';
+import { readSse } from '@agentprism/client';
 import { foldRunEvents } from '../lib/transcript';
 import { Link } from '../lib/router';
 import { absoluteTime, count, duration, money, prettyJson, relativeTime, shortId } from '../lib/format';

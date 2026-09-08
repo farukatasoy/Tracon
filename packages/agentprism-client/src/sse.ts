@@ -1,3 +1,12 @@
+/**
+ * Server-Sent Events framing for AgentPrism's streaming endpoints.
+ *
+ * `openapi-fetch` can already hand back the raw stream (`parseAs: 'stream'`,
+ * or the `response` every call returns), so streaming needs no special client
+ * method — but every consumer would then have to write this decoder again.
+ * It ships here instead: the AgentPrism UI is one consumer of it, not its
+ * owner (Phase 159).
+ */
 /** One Server-Sent Events frame. */
 export interface SseFrame {
   /** Value of the `id:` field, when present. */

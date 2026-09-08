@@ -41,9 +41,58 @@ public sealed class ClientCoverageTests
                             "AgentPrismApiClient. Regenerate the client: dotnet tool restore && " +
                             "python3 scripts/nswag-prepare-document.py docs/openapi/agentprism.json " +
                             "artifacts/openapi/agentprism.client-input.json && dotnet nswag run nswag.json && " +
-                            "python3 scripts/nswag-postprocess-client.py src/AgentPrism.Client/Generated/AgentPrismApiClient.g.cs && " +
+                            "python3 scripts/nswag-postprocess-client.py src/AgentPrism.Client/Generated/AgentPrismApiClient.g.cs " +
+                            "docs/openapi/agentprism.json && " +
                             "python3 scripts/generate-client-json-context.py src/AgentPrism.Client/Generated/AgentPrismApiClient.g.cs " +
                             "src/AgentPrism.Client/Generated/AgentPrismClientJsonContext.g.cs");
+    }
+
+    [Fact]
+    public void Every_streaming_operation_has_a_matching_StreamAsync_method()
+    {
+        // The ratchet for nswag-postprocess-client.py's sixth pass (Phase 159).
+        // A new text/event-stream endpoint is otherwise callable in exactly one
+        // shape - the whole body buffered into a string, or, for a dual
+        // JSON/SSE operation, not callable in its streaming shape at all - and
+        // the test above would still pass, because the JSON method exists.
+        var streamingOperationIds = ReadStreamingOperationIds();
+
+        streamingOperationIds.ShouldNotBeEmpty();
+
+        var clientMethodNames = typeof(AgentPrismApiClient)
+            .GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
+            .Select(method => method.Name)
+            .ToHashSet(StringComparer.Ordinal);
+
+        var missing = streamingOperationIds
+            .Where(operationId => !clientMethodNames.Contains($"{operationId}StreamAsync"))
+            .Order(StringComparer.Ordinal)
+            .ToList();
+
+        missing.ShouldBeEmpty(
+            customMessage: $"{missing.Count} operation(s) declare a text/event-stream 200 response but have " +
+                            "no '<operationId>StreamAsync' method. Regenerate the client with the document " +
+                            "argument the sixth pass needs: python3 scripts/nswag-postprocess-client.py " +
+                            "src/AgentPrism.Client/Generated/AgentPrismApiClient.g.cs docs/openapi/agentprism.json");
+    }
+
+    [Fact]
+    public void Every_StreamAsync_method_streams_frames_rather_than_buffering_the_body()
+    {
+        // The shape is the contract: IAsyncEnumerable<string> is what makes a
+        // frame reach the caller as the server flushes it, and what makes an
+        // early break or a cancelled token stop the read. A Task<string>
+        // sibling would satisfy the name check above while buffering the whole
+        // run - which is exactly the limitation phase 159 removed.
+        var wrongShape = typeof(AgentPrismApiClient)
+            .GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
+            .Where(method => method.Name.EndsWith("StreamAsync", StringComparison.Ordinal))
+            .Where(method => method.ReturnType != typeof(IAsyncEnumerable<string>))
+            .Select(method => $"{method.Name} -> {method.ReturnType.Name}")
+            .Order(StringComparer.Ordinal)
+            .ToList();
+
+        wrongShape.ShouldBeEmpty();
     }
 
     [Fact]
@@ -60,6 +109,21 @@ public sealed class ClientCoverageTests
         // 83.2's coverage gate has no exemption list; this documents WHY -
         // if this ever fails, ClientCoverageTests above needs one.
         operationsWithoutId.ShouldBe(0);
+    }
+
+    private static List<string> ReadStreamingOperationIds()
+    {
+        using var document = JsonDocument.Parse(File.ReadAllText(DocumentPath));
+
+        return document.RootElement.GetProperty("paths").EnumerateObject()
+            .SelectMany(path => path.Value.EnumerateObject())
+            .Where(method => HttpMethods.Contains(method.Name, StringComparer.Ordinal))
+            .Where(method => method.Value.TryGetProperty("responses", out var responses)
+                && responses.TryGetProperty("200", out var ok)
+                && ok.TryGetProperty("content", out var content)
+                && content.TryGetProperty("text/event-stream", out _))
+            .Select(method => method.Value.GetProperty("operationId").GetString()!)
+            .ToList();
     }
 
     private static List<string> ReadOperationIds()

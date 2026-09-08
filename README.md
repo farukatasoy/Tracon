@@ -346,7 +346,7 @@ cd src/AgentPrism.UI/frontend && npm run dev
 
 **The user-facing product documentation is a separate site:**
 <https://agentprism.doayen.web.tr> — installation, your first agent, concepts, a
-console tour, the HTTP API (160 operations), and an API reference for 671 public types.
+console tour, the HTTP API (165 operations), and an API reference for 671 public types.
 Its source is [`docs-site/`](docs-site/); [`scripts/site-deploy.sh`](scripts/site-deploy.sh)
 builds it, runs the four site gates, and publishes it. The serving stack is in
 [`docs-site/deploy/`](docs-site/deploy/) — an nginx container behind Traefik — so the

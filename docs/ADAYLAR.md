@@ -294,40 +294,12 @@ Dört planlama turu on üç adayın on birini faza çevirdi:
 
 Kalan ikisi § *Bekleyen Kalemler*'dedir ve **sıralamaya girmez**.
 
-### F-198 · The two dual JSON/SSE client operations never call the streaming shape
+### F-198 · ✅ Plana dönüştü → [Faz 159](159-TIPLI-ISTEMCIDE-AKISLI-OPENAI-CAGRISI.md)
 
-**Sorun:** `/v1/responses` and `/v1/chat/completions` report BOTH
-`application/json` and `text/event-stream` for their 200 response (the
-request body's `stream` flag picks one at runtime); NSwag's generated
-`AgentPrismOpenAIResponsesAsync`/`AgentPrismOpenAIChatCompletionsAsync`
-methods generate ONLY the JSON shape (`Task<JsonElement>`/`Task<ChatCompletion>`)
-and have no way to read the streaming shape at all — a caller who sets
-`stream: true` through the typed client gets a JSON-deserialization crash
-against a raw SSE body, the same class of defect Faz 145 fixed for the five
-pure-SSE operations (F-193's `nswag-postprocess-client.py` fourth pass
-explicitly does not touch these two, noted in its own docstring).
-
-**Kapsam:** Design a shape for a dual-response typed client method — most
-likely two separate generated methods (`...Async` for JSON,
-`...StreamAsync` for SSE) selected by an explicit parameter, since NSwag
-itself cannot express a runtime-conditional return type. Needs either a
-`nswag.json`/postprocess change or acceptance that this pair stays
-JSON-only in the typed client (with `HttpClient` as the documented escape
-hatch for streaming OpenAI-compatible calls).
-
-**Değer:** Closes the last two operations in the family still silently
-broken for their streaming mode through the typed client.
-
-**Mercek:** 1, 2.
-
-**Hazırlık:** Not started — needs a design decision (two methods vs. one
-with a runtime branch) before any code.
-
-**Maliyet:** Ölçülmedi.
-
-**Risk:** A wrong design here (e.g., silently picking JSON always) leaves
-the streaming OpenAI-compatible path permanently unreachable from the typed
-client without a clear error explaining why.
+Kapandı 2026-09-08. Tasarım kararı iki metottu (`...Async` JSON, `...StreamAsync`
+SSE) ve kapsam yalnız iki dual uçtan **SSE ilan eden yedi ucun tamamına**
+genişledi — iki uçla sınırlamak ailede iki farklı akış sözleşmesi bırakırdı.
+Kanıt ve tasarım faz dokümanındadır; aday listesine geri dönmez.
 
 ### Sıralamayı Değiştiren Ölçümler
 
@@ -375,6 +347,8 @@ dönüşebilmeleri için burada duruyor.
 | **F-203** | ✅ **KAPANDI (2026-09-06)** — `kusur-giderme` faz dışı. 🚨 Kaydın öncülü YANLIŞTI: hedef `docs-site/src/content/docs/http-api.md` **izleniyor** ve `.gitignore`'da değil; gitignore'lu olan `http-api/` **dizinidir**. Gerçek kusur farklıydı ve tarihe karşı ölçüldü: o sayfa API'nin elle yazılmış **şeklidir** (kimlik doğrulama, akış, sayfalama, hata gövdesi) ve bir uç eklenmesi onu değiştirmez, yani kural son 40 commit'te **7 kez tetiklendi, 5'i kırmızı** döndü ve hepsi `--site-gerekce-yazildi` ile geçildi — sürekli kırmızı bir kapı insanları onu susturmaya eğitir. Kaydın önerdiği **çözüm** yine de doğruydu: `docs/openapi/agentprism.json` (üretilen ama izlenen ve commit edilen) alternatif hedef olarak eklendi ve `docs/` ile başlayan hedef artık depo köküne göre çözülür. Aynı tarihte yeniden ölçüldü: **5 kırmızı → 3**. Kalan üçü uç dosyasının değişip HTTP yüzeyinin değişmediği commit'lerdir (XML yorum düzeltmesi, MAF yükseltmesi) — gerekçe yazma yolu tam olarak onlar içindir. Kapı: `dokuman_bakim_test.py`'a dört test (depo kökü hedefinin site kökü altında ARANMADIĞI dahil). Tuzak: `docs/hafiza/dokumantasyon.md` |
 | **F-204** | ✅ **KAPANDI (2026-09-06)** — `kusur-giderme` faz dışı. Boşluk kaydın söylediğinden **büyüktü**: kayıt yalnız `OpenAIConversationsEndpoints.cs`'in üç çağrısını anıyordu, ölçüm `RunEndpoints.cs`'in **12** `CheckRunResourceAsync` çağrısı taşıdığını buldu — on birinin silinmesi kapıyı yeşil bırakırdı. Kapı varlıktan (`IsMatch`) **tam sayı eşitliğine** çevrildi (kullanıcı kararı); taban değil, çünkü taban bir eklemenin bir silmeyi ödemesine ve net sıfırda sessiz geçmesine izin verirdi. 22 (dosya, marker) çiftinin sayısı ölçülüp yazıldı. Düzeltmeden **önce** kırmızı olduğu kanıtlandı: bir `CheckSessionAsync` çağrısı silinince *"expected 3, found 2"* — eski kapı bunu göremiyordu. Taramanın kendi regresyon testi de sayma davranışını kanıtlar. Tuzak: `docs/hafiza/test-altyapisi.md` |
 | **F-206** | ✅ **KAPANDI (2026-09-06)** — `kusur-giderme` faz dışı. Kapanış turunun kendi kapı koşumunda bulundu: `denetim-paketi.py:17`'nin test tiyatrosu tarayıcısı `\bShould\b` arıyordu ve bu depodaki **7488** Shouldly iddiasının **hiçbirini** eşleştirmiyordu (`Should`'dan sonra kelime karakteri gelir, `\b` sınır oluşturmaz); `Assert.` yalnız **6** yerde geçiyor. Yani tarayıcı pratikte her yeni testi aday sayıyordu — bu turda 5 yanlış pozitif, düzeltmeden sonra **0**. Çıkış kodunu kırmadığı için gürültü olarak yaşamıştı; F-203'ün sınıfı. Kök sebep testtedir: var olan tek test yalnız POZİTİF yönü ("iddiasız test yakalanır") kanıtlıyordu. Düzeltme `Should\w*` + **iki yönlü** üç test (Shouldly tanınır · altı biçim ayrı ayrı · gerçekten iddiasız test HÂLÂ aday). Eski regex'e karşı kırmızı olduğu ölçüldü. Tuzak: `docs/hafiza/test-altyapisi.md` |
+| **F-221** | `text/event-stream` içerik tipinin **şeması** hâlâ JSON şeklini ilan ediyor (`ChatCompletion`/`JsonElement`); saf-SSE uçlar doğru biçimde `type: string` diyor. Üretilen istemci etkilenmiyor (altıncı geçiş içerik tipinin VARLIĞINA bakar), ama belgeden kod üreten üçüncü taraf yanlış bilgilenir | ASP.NET Core'un üstveri modeli aynı statü kodu için iki şema ifade edemiyor ve K-039 gereği kütüphane `Microsoft.AspNetCore.OpenApi`'ye bağımlı değil — bir `OpenApiOperationTransformer` kütüphanede yaşayamaz. Üçüncü taraf bir üreteç bu yüzden kırılırsa ([Faz 159](159-TIPLI-ISTEMCIDE-AKISLI-OPENAI-CAGRISI.md) denetim bulgusu 🟢 3) |
+| **F-222** | Site ağırlık kapısının marjı daraldı: en ağır sayfa 56 651 B, tavan 57 000 B (%0,6). Kalite sözleşmesinde yazılı taban **49 376 B** — kayıt bayat | Tavanı yükseltmek ölçüm ister ve taban yalnız iyileşir; önce `troubleshooting` sayfası küçültülmeli. Bir sonraki sayfa büyümesi kapıyı kırdığında ([Faz 159](159-TIPLI-ISTEMCIDE-AKISLI-OPENAI-CAGRISI.md) denetim bulgusu 🟢 2) |
 | **F-205** | `/v1/conversations/{id}` varlık asimetrisi: kullanılmamış kimlik `200`, reddedilen kimlik `404`. Katı modda bir çağıran hangi id'lerin sahipsiz SATIR olduğunu sayabilir — erişim kapalı, yalnız varlık görünür. `/api/sessions/{id}` bu sızıntıyı taşımaz | Davranış ucun rezervasyon semantiğinden miras (Faz 4); kapatmak OpenAI uyumluluğunu bozar. Tüketici varlık gizliliği talep ederse ([Faz 149](arsiv/fazlar/149-SAHIPSIZ-OTURUMUN-KATI-REDDI.md) denetim bulgusu) |
 
 
