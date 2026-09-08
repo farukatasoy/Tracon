@@ -359,6 +359,29 @@ class KodBloguSoymaTestleri(unittest.TestCase):
         self.assertIn("[a](yok.md)", cikti)
         self.assertEqual(cikti.split("\n")[-1], "son")
 
+    def test_kendi_satirinda_girintili_fence_blok_ACAR(self):
+        # Faz 157: bu deponun faz sablonu numarali liste ICINDE, kendi satirinda,
+        # uc bosluk girintili fence kullanir. Sutun 0 isteyen bir regex onu hic
+        # gormuyordu: blok soyulmuyor, icindeki `## ...` gercek bir bolum
+        # basligi saniliyordu. `faz-damit` bu yuzden Faz 157'nin kaydini IKIYE
+        # KATLADI. Kardes test (`3. ```bash`) fence'in liste isaretcisiyle ayni
+        # satirda oldugu bicimi korur; ikisi de ACMALI.
+        metin = "2. Kararlar:\n   ```bash\n   awk '/## Sonraki/,0' x.md\n   ```\n[a](yok.md)\nson"
+        cikti = dokuman_bakim._kod_bloklarini_soy(metin)
+        self.assertNotIn("## Sonraki", cikti)
+        self.assertIn("[a](yok.md)", cikti)
+        self.assertEqual(cikti.split("\n")[-1], "son")
+
+    def test_alintili_fence_girintili_desenle_de_kapatmaz(self):
+        # Acilis girintiye izin verince kapanisin da izin vermesi CEKICIDIR ve
+        # YANLISTIR: ```markdown blogu icindeki `> ```bash` ornegi dis blogu
+        # kapatirdi. Kapanis deseni liste isaretcisi TANIMAZ ve `>` ile
+        # baslayan satiri hic eslemez.
+        metin = "```markdown\n> ```bash\n> git show x\n> ```\n[a](../../b.md)\n```\nson"
+        cikti = dokuman_bakim._kod_bloklarini_soy(metin)
+        self.assertNotIn("b.md", cikti)
+        self.assertEqual(cikti.split("\n")[-1], "son")
+
     def test_kapanmamis_fence_dosya_sonuna_kadar_yutar(self):
         cikti = dokuman_bakim._kod_bloklarini_soy("a\n```\n[x](b.md)\nc")
         self.assertNotIn("b.md", cikti)

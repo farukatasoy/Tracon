@@ -1028,7 +1028,23 @@ def _site_slug_haritasi(kok: pathlib.Path) -> dict[str, pathlib.Path]:
 # (yanlis pozitif olabilir, guvenli yon), hicbir sey denetim disi kalmaz.
 # Olculdu 2026-08-23: `^ {0,3}` ile 2 dosya dengesiz, sutun 0 ile 1 (o da
 # zaten denetim disi olan `sablonu.md`).
-_FENCE = re.compile(r"^(`{3,}|~{3,})(.*)$")
+# 🚨 ACILIS ve KAPANIS fence'leri AYNI desen DEGILDIR, ve ikisini tek regex'e
+# sikistirmak iki yonde de bir kusur uretir.
+#
+# Acilis: CommonMark en fazla uc bosluk girinti tanir, VE bu deponun kendi faz
+# sablonu numarali listelerin icinde fence kullanir -- hem `3. ```bash` (fence
+# liste isaretcisiyle AYNI satirda) hem `\n   ```bash` (fence kendi satirinda,
+# uc bosluk girintili) bicimi gecer. Ikincisi sutun 0 isteyen bir regex'le
+# hic yakalanmiyordu: blok SOYULMUYOR, icindeki `## ` bir baslik saniliyordu.
+# Olculdu (Faz 157): faz kaydinin okuma listesindeki
+# `awk '/## Sonraki Faza Devir Notu/,0' ...` ornegi `faz-damit`'e uydurma bir
+# bolum siniri verdi ve belge IKIYE KATLANDI (54 KB, butce disi).
+#
+# Kapanis: yalniz girinti tanir, liste isaretcisi TANIMAZ. Alintili bir fence
+# (`> ```bash`) bu yuzden ne acar ne kapatir -- ```markdown blogu icindeki
+# ornekler bozulmadan kalir.
+_FENCE_ACILIS = re.compile(r"^(?: {0,3}|\s*(?:\d{1,9}[.)]|[-*+])\s+)(`{3,}|~{3,})(.*)$")
+_FENCE_KAPANIS = re.compile(r"^ {0,3}(`{3,}|~{3,})(.*)$")
 
 
 def _kod_bloklarini_soy(metin: str) -> str:
@@ -1041,8 +1057,8 @@ def _kod_bloklarini_soy(metin: str) -> str:
     cikti: list[str] = []
     acik: str | None = None
     for satir in metin.split("\n"):
-        m = _FENCE.match(satir)
         if acik is None:
+            m = _FENCE_ACILIS.match(satir)
             if m:
                 acik = m.group(1)
                 cikti.append("")
@@ -1050,6 +1066,7 @@ def _kod_bloklarini_soy(metin: str) -> str:
             cikti.append(satir)
         else:
             # Kapanis: ayni karakter, en az ayni uzunluk, arkasinda bilgi dizesi yok.
+            m = _FENCE_KAPANIS.match(satir)
             if m and m.group(1)[0] == acik[0] and len(m.group(1)) >= len(acik) \
                     and not m.group(2).strip():
                 acik = None
