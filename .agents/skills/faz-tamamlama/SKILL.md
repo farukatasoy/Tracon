@@ -150,8 +150,17 @@ Case'ler **alan dosyasına** eklenir, faz başına yeni dosya açılmaz:
 1. Fazın konusuna karşılık gelen dosyayı bul (`docs/manuel-test/<NN>-<ALAN>.md`)
 2. Case'leri o dosyanın biçimiyle ekle — mevcut numaralandırmayı sürdür
 3. Dosya başlığındaki **`Faz:`** satırına fazın numarasını ekle
-4. Alan dosyası yoksa (gerçekten yeni bir alan) yenisini aç ve
-   [`00-INDEKS.md`](../../../docs/manuel-test/00-INDEKS.md) durum tablosuna satır ekle
+4. 🚨 [`00-INDEKS.md`](../../../docs/manuel-test/00-INDEKS.md)'deki **case sayısını
+   güncelle** — dosya yeni olmasa da. Yeni alan dosyası açtıysan ayrıca satır ekle
+
+> 🚨 **Adım 4 atlanırsa sapma her fazda büyür.** Ölçüldü (2026-09-08): indeks
+> 1488 case yazıyordu, gerçek 1597 idi — 36 ailenin **17'si** bayat. Sebep tek
+> bir cümleydi: bu adım eskiden yalnız "alan dosyası yoksa" indekse dokunuyordu,
+> yani mevcut bir aileye case eklemek sayacı hiç güncellemiyordu. Faz 157 bir
+> aile dosyasına 170 satır ekledi ve indekse dokunmadı.
+>
+> Sayım artık `dokuman-bakim.py --denetle` içinde **kapıdır**
+> (`manuel_test_sayim_kaymasi`); unutulursa kapanış kapısı kırmızı döner.
 
 Her case dört alan taşır: **ön koşul · adımlar · beklenen sonuç · alan kodu**.
 Beklenen sonuç ölçülebilir olmalıdır — "çalışır" değil, "`429` ve `Retry-After`

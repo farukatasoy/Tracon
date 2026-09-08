@@ -4,6 +4,9 @@
 
 **İlk üç aksiyon önerisi:** Definition round-trip kusurunu kapat; davranış ve yayın durumu anlatımını düzelt; mevcut F-171'i doküman iddialarının kapsamlı doğrulamasına taşı. Bunlardan sonra state upgrade kanıtı ve iki node'lu işletim senaryolarını seç.
 
+> **Tura verilen yanıt:** [Bulgu Kapanış Raporu](2026-09-07-tuketici-analizi-yanit-raporu.md)
+> — tüketiciye giden özet; ne yapıldığı ve yapılmayanların gerekçesi.
+
 ## 1. Kapsam, zemin ve kanıt sınırı
 
 - Girdi: [AgentPrism — Kapsamlı Teknik ve Ürün Analizi](2026-09-07-tuketici-analizi-girdi-raporu.md), 1005 satır. SHA-256: `5127dd2a98ad24792c8de8c57baafae9bf70151a428c2402e14c7101f22aec1c`.
