@@ -13,4 +13,22 @@
     <None Include="Baselines/**" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
+  <!--
+    Phase 157 moved ProcessRunner out of this project and into
+    tests/Shared/Infrastructure, where the two-process failure proof can use it
+    too. It is LINKED, not copied: one source file, compiled into both
+    assemblies. A second copy is the synchronization-copy class this repository
+    has paid for five times (K-411).
+  -->
+  <ItemGroup>
+    <Compile Include="../Shared/Infrastructure/ProcessResult.cs" Link="Infrastructure/Shared/ProcessResult.cs" />
+    <Compile Include="../Shared/Infrastructure/ProcessRunner.cs" Link="Infrastructure/Shared/ProcessRunner.cs" />
+    <Compile Include="../Shared/Infrastructure/ManagedProcess.cs" Link="Infrastructure/Shared/ManagedProcess.cs" />
+    <Compile Include="../Shared/Infrastructure/RepoRoot.cs" Link="Infrastructure/Shared/RepoRoot.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="AgentPrism.Tests.Common" />
+  </ItemGroup>
+
 </Project>

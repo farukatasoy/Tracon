@@ -110,3 +110,5 @@ cagirir.
 Faz 91 taban/sonrası wall-clock ve proje-başına sonuç tabloları
 [`test-kosum-olcumleri.md`](test-kosum-olcumleri.md)'ye taşındı (Faz 101 —
 bu dosya bütçeyi aştı). Aktif tuzak değil, tarihsel ölçüm kaydıdır.
+
+- **🚨 `tests/` altındaki test OLMAYAN bir proje `IsTestProject=false` demekle yetinmez** (2026-09-08, Faz 157, ölçüldü). `AgentPrism.WorkerHarness` yalnız `IsTestProject` koşullandırıldığında `dotnet test AgentPrism.slnx` onu VSTest'e veriyordu ve TÜM koşum `testhost.dll bulunamadı` ile ABORT oluyordu — tek bir proje yüzünden hiçbir test sonucu alınamaz. Gereken: csproj'da AÇIKÇA `<IsTestProject>false</IsTestProject>` **ve** `<IsTestingPlatformApplication>false</IsTestingPlatformApplication>`.

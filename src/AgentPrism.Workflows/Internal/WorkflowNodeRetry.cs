@@ -38,8 +38,17 @@ internal static class WorkflowNodeRetry
                 {
                     return await handler(input, context, cancellationToken).ConfigureAwait(false);
                 }
+                // 🚨 `!cancellationToken.IsCancellationRequested`, not
+                // `is not OperationCanceledException`. Timeout is in
+                // TransientClasses above - it is one of the four things a retry
+                // can plausibly fix - but HttpClient reports its own request
+                // timeout as a TaskCanceledException, so the old filter threw
+                // away exactly the failure this policy exists for. The node ran
+                // once and gave up. Same class as K-737, found by the phase 157
+                // audit; the caller's token is what says whether anything was
+                // actually cancelled.
                 catch (Exception exception) when (
-                    exception is not OperationCanceledException &&
+                    !cancellationToken.IsCancellationRequested &&
                     attempt < policy.MaxAttempts &&
                     IsTransient(classifier, exception))
                 {

@@ -297,7 +297,16 @@ public sealed partial class RunRecordingAgent : DelegatingAIAgent
 
             return response;
         }
-        catch (OperationCanceledException)
+        // 🚨 `when (cancellationSource.IsCancellationRequested)`, not a bare
+        // catch. HttpClient reports its OWN request timeout as a
+        // TaskCanceledException, so every provider SDK can raise one while
+        // NOTHING was cancelled. A bare catch recorded such a run as Canceled
+        // with a null error - and a cancelled run is not a failure, so the
+        // endpoint answered 200 with an empty body and the operator saw no
+        // outage at all. Measured in Phase 157. Anything not cancelled by this
+        // run's own source falls through to the failure path below and is
+        // classified there.
+        catch (OperationCanceledException) when (cancellationSource.IsCancellationRequested)
         {
             await CompleteAsync(scope, RunStatus.Canceled, null, null, CancellationToken.None).ConfigureAwait(false);
             throw;
@@ -408,7 +417,10 @@ public sealed partial class RunRecordingAgent : DelegatingAIAgent
 
                     update = enumerator.Current;
                 }
-                catch (OperationCanceledException)
+                // Same filter, same reason as RunCoreAsync above: an
+                // OperationCanceledException raised while nothing was
+                // cancelled is a provider failure, not a cancelled run.
+                catch (OperationCanceledException) when (cancellationSource.IsCancellationRequested)
                 {
                     completedByCatch = true;
                     await CompleteAsync(scope, RunStatus.Canceled, null, null, CancellationToken.None).ConfigureAwait(false);

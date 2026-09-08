@@ -25,6 +25,16 @@ public sealed class DefaultRunErrorClassifierTests
     [InlineData("System.Exception", "the operation has timed out", RunErrorClass.Timeout)]
     [InlineData("System.OperationCanceledException", "canceled", RunErrorClass.Canceled)]
     [InlineData("System.Threading.Tasks.TaskCanceledException", "canceled", RunErrorClass.Canceled)]
+    // 🚨 Phase 157 (K-737): the SAME type, classified differently by its
+    // message. TaskCanceledException is what HttpClient raises on ITS OWN
+    // request timeout, so the type alone cannot separate "the caller pressed
+    // stop" from "the provider never answered". These two rows pin the ORDER
+    // of the checks - move the timeout check back below the cancelled-type
+    // check and the first one goes red, which is the whole point: before the
+    // fix, every provider timeout was filed as Canceled and vanished from the
+    // failure numbers.
+    [InlineData("System.Threading.Tasks.TaskCanceledException", "The request to https://api.example/v1 timed out after 30s.", RunErrorClass.Timeout)]
+    [InlineData("System.OperationCanceledException", "A task was canceled.", RunErrorClass.Canceled)]
     // Phase 69: a tool timeout must NOT fall into Canceled (its wrapper races
     // the call using its own linked cancellation, which looks identical to a
     // user cancellation at the exception-type level) nor into the run-level

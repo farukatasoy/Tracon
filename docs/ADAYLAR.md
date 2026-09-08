@@ -735,3 +735,58 @@ migration ister (K-711'in emsali).
 şimdilik tek bir risk satırıdır, ölçülmüş bir tüketici şikâyeti değil.
 
 ---
+
+### F-219 · `ChildAgentInvoker` sağlayıcı zaman aşımını KENDİ deadline'ı sanıyor
+
+**Kaynak:** [Faz 157](157-SINIRLI-YUK-VE-IKI-PROCESS-ARIZA-KANITI.md) denetimi — 🟢 bulgu.
+
+**Gözlem:** `ChildAgentInvoker.cs:208,329` bir `OperationCanceledException`'ı
+alt-agent'ın `ChildDeadline`'ının dolduğu varsayımıyla `TimeoutRefusal`'a
+çeviriyor. K-737'den sonra biliyoruz ki bu istisna sağlayıcının KENDİ istek
+zaman aşımından da gelebilir; o zaman çağırana "alt-agent süresi doldu" denir,
+oysa doğru cümle "sağlayıcı yanıt vermedi"dir.
+
+**Kapsam:** İki `catch`'i `deadline.IsCancellationRequested` ile ayırmak;
+ayrılmayan durumda mevcut sınıflandırmaya düşürmek.
+
+**Değer:** Alt-agent bekleme sınırının kendi metriği ile sağlayıcı kesintisi
+karışmaz; operatör hangi kadranı büyüteceğini bilir.
+
+**Mercek:** 3.
+
+**Hazırlık:** K-737 kuralı ve emsal filtreler hazır.
+
+**Maliyet:** Küçük — iki filtre, iki test.
+
+**Risk:** Düşük. Sonuç bugün de bir zaman aşımı mesajıdır; sessiz başarı
+üretmiyor, yalnız yanlış SEBEBİ söylüyor.
+
+---
+
+### F-220 · Yük raporundaki CPU/RAM alanları makineyi değil süreci anlatıyor
+
+**Kaynak:** [Faz 157](157-SINIRLI-YUK-VE-IKI-PROCESS-ARIZA-KANITI.md) denetimi — 🟢 bulgu.
+
+**Gözlem:** Rapor "Available memory" olarak
+`GC.GetGCMemoryInfo().TotalAvailableMemoryBytes` (GC/container limiti),
+"Logical processors" olarak `Environment.ProcessorCount` yazıyor. İkisi de
+sürecin gördüğü değerdir; makinenin gerçek belleği ve işlemci modeli raporda
+yok. İki koşumu karşılaştıran biri farkı donanıma bağlayamaz.
+
+**Kapsam:** Platforma göre gerçek donanım bilgisini okumak (`sysctl -n
+hw.model`, `/proc/cpuinfo`), bulunamazsa bugünkü değerlerle "process-visible"
+etiketiyle yetinmek.
+
+**Değer:** Rapor K-738'in vaat ettiği "ortamıyla birlikte" sözünü tam karşılar.
+
+**Mercek:** 6.
+
+**Hazırlık:** Rapor iskeleti hazır; yalnız alan eklenir.
+
+**Maliyet:** Küçük.
+
+**Risk:** Düşük — rapor bir kapı değildir (K-738), yanlış bir alan hiçbir
+koşumu kırmızıya çevirmez.
+
+---
+

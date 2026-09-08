@@ -388,12 +388,23 @@ types. What that means when you write a provider:
 
 | Failure | Next fallback link is tried |
 |---|---|
-| `OperationCanceledException` anywhere in the graph | No |
+| A timeout — a `TimeoutException` in the graph, or a message that says it timed out | Yes |
+| `OperationCanceledException` with no timeout signal, while the caller's token is cancelled | No — the caller asked to stop |
 | Message carries `HTTP 401` or `HTTP 403` | No — switching providers would hide a configuration mistake |
 | Message carries `429`, `too many requests`, or `rate limit` | Yes |
 | Message carries `HTTP 5xx` | Yes |
 | A transport/SDK-client type with no HTTP status in the message | Yes — treated as a connection failure |
 | Anything else | No — the retry set is closed and positive |
+
+:::caution[A timeout is not a cancellation]
+.NET reports an `HttpClient` request timeout as a `TaskCanceledException`, which
+derives from `OperationCanceledException`. Do not let your own provider or retry
+classifier take that type at face value: a timeout with nobody cancelling is a
+failure, and treating it as a cancellation makes a provider outage look like a
+user pressing stop. AgentPrism separates them by looking for a timeout signal in
+the exception graph and, where a token is in scope, by asking whether that token
+was actually cancelled.
+:::
 
 Two consequences are worth stating plainly. A provider-side safety filter is
 **not** an exception here: return an ordinary `ChatResponse` with

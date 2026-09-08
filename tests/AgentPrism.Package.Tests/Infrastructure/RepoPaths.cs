@@ -4,12 +4,11 @@ namespace AgentPrism.Package.Tests.Infrastructure;
 internal static class RepoPaths
 {
     /// <summary>
-    /// The repository root. Walked upward from <c>AppContext.BaseDirectory</c>
-    /// until <c>AgentPrism.slnx</c> is found; because of <c>UseArtifactsOutput</c>,
-    /// the test assembly's output lands under an <c>artifacts/bin/...</c> path
-    /// far from the repository root.
+    /// The repository root. The upward walk lives in <see cref="RepoRoot"/>
+    /// (tests/Shared/Infrastructure), shared with the other test projects that
+    /// need a repository-relative path.
     /// </summary>
-    public static string Root { get; } = FindRoot();
+    public static string Root => RepoRoot.Path;
 
     public static string TemplatesProjectDirectory => Path.Combine(Root, "src", "AgentPrism.Templates");
 
@@ -24,22 +23,4 @@ internal static class RepoPaths
     public static string PackableSolutionFilter => Path.Combine(Root, "AgentPrism.src.slnf");
 
     public static string PackageReleaseDirectory => Path.Combine(Root, "artifacts", "package", "release");
-
-    private static string FindRoot()
-    {
-        var dir = new DirectoryInfo(AppContext.BaseDirectory);
-
-        while (dir is not null && !File.Exists(Path.Combine(dir.FullName, "AgentPrism.slnx")))
-        {
-            dir = dir.Parent;
-        }
-
-        if (dir is null)
-        {
-            throw new InvalidOperationException(
-                $"AgentPrism.slnx was not found. The search walked upward from '{AppContext.BaseDirectory}'.");
-        }
-
-        return dir.FullName;
-    }
 }

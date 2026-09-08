@@ -7,7 +7,13 @@
     <IsPackable>false</IsPackable>
     <!-- Suppress the warning NuGet emits for non-packable projects when `dotnet pack` runs on the solution. -->
     <WarnOnPackingNonPackableProject>false</WarnOnPackingNonPackableProject>
-    <IsTestProject>true</IsTestProject>
+    <!--
+      Phase 157: AgentPrism.WorkerHarness lives under tests/ but is not a test
+      project - it is the SUBJECT of the two-process failure proof, the worker
+      the test kills. It sets IsTestHarnessProject=true and therefore gets none
+      of the xunit/MTP wiring below.
+    -->
+    <IsTestProject Condition=" '$(IsTestHarnessProject)' != 'true' ">true</IsTestProject>
     <OutputType>Exe</OutputType>
     <!-- XML documentation is noise in test projects; nothing requires it. -->
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
@@ -21,20 +27,20 @@
     otherwise VSTest takes over and fails with "The argument ... is invalid".
     Microsoft.NET.Test.Sdk and xunit.runner.visualstudio are therefore NOT referenced.
   -->
-  <PropertyGroup Label="Microsoft Testing Platform">
+  <PropertyGroup Label="Microsoft Testing Platform" Condition=" '$(IsTestHarnessProject)' != 'true' ">
     <UseMicrosoftTestingPlatformRunner>true</UseMicrosoftTestingPlatformRunner>
     <TestingPlatformDotnetTestSupport>true</TestingPlatformDotnetTestSupport>
     <TestingPlatformCaptureOutput>false</TestingPlatformCaptureOutput>
   </PropertyGroup>
 
-  <ItemGroup>
+  <ItemGroup Condition=" '$(IsTestHarnessProject)' != 'true' ">
     <PackageReference Include="xunit.v3" />
     <PackageReference Include="Microsoft.Testing.Extensions.TrxReport" />
     <PackageReference Include="NSubstitute" />
     <PackageReference Include="Shouldly" />
   </ItemGroup>
 
-  <ItemGroup>
+  <ItemGroup Condition=" '$(IsTestHarnessProject)' != 'true' ">
     <Using Include="Xunit" />
     <Using Include="Shouldly" />
   </ItemGroup>

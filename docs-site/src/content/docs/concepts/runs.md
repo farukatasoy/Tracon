@@ -78,6 +78,14 @@ One writer producing the numbers is what makes the live stream and a later repla
 identical, and it is what lets a client resume with `Last-Event-ID` after a dropped
 connection.
 
+A run ends **once**, and which ending it gets is decided by what actually happened
+rather than by the exception type that surfaced. `Canceled` means somebody asked
+for the run to stop — the caller's request went away, or a cancel request reached
+the process that owns the run. A model call that simply never came back is
+`Failed` with the `Timeout` error class, even though .NET reports an `HttpClient`
+timeout as a `TaskCanceledException`. The distinction matters when you alert on
+these: cancellations are user behaviour, timeouts are an outage.
+
 ```bash
 curl -N http://localhost:5081/agentprism/api/runs/{runId}/events
 ```

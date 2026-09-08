@@ -332,9 +332,34 @@ internal sealed class PostgresTestContext : IAsyncDisposable
     {
         ArgumentNullException.ThrowIfNull(fixture);
 
+        return Create(fixture.ConnectionString, schemaName, tenantContext, vectorDimensions, enableKnowledge, enableReadViews);
+    }
+
+    /// <summary>Setup against a server this assembly's shared fixture does not own.</summary>
+    /// <param name="connectionString">The server to connect to.</param>
+    /// <param name="schemaName">The schema name to use.</param>
+    /// <param name="tenantContext">The tenant context the stores will read; the default tenant when omitted.</param>
+    /// <param name="vectorDimensions">The embedding dimension the knowledge set's 0001_vector migration applies.</param>
+    /// <param name="enableKnowledge">Whether the "knowledge" migration set applies.</param>
+    /// <param name="enableReadViews">Whether the "views" migration set applies.</param>
+    /// <returns>A new context pointing at that server.</returns>
+    /// <remarks>
+    /// Phase 157: the failure manifests start a container of their OWN and stop
+    /// it on purpose, so they cannot go through <see cref="PostgresFixture"/> -
+    /// stopping the shared container would fail every other class in the
+    /// assembly for a reason that has nothing to do with them.
+    /// </remarks>
+    public static PostgresTestContext Create(
+        string connectionString,
+        string schemaName,
+        ITenantContext? tenantContext = null,
+        int vectorDimensions = DefaultVectorDimensions,
+        bool enableKnowledge = true,
+        bool enableReadViews = false)
+    {
         var options = new AgentPrismPostgreSqlOptions
         {
-            ConnectionString = fixture.ConnectionString,
+            ConnectionString = connectionString,
             SchemaName = schemaName,
             AutoApplyMigrations = false,
             CommandTimeoutSeconds = 30,
@@ -344,7 +369,13 @@ internal sealed class PostgresTestContext : IAsyncDisposable
 
         var dataSource = new NpgsqlDataSourceBuilder(options.ConnectionString).Build();
 
-        return new PostgresTestContext(dataSource, options, tenantContext, vectorDimensions, enableKnowledge, enableReadViews);
+        return new PostgresTestContext(
+            dataSource,
+            options,
+            tenantContext ?? new FixedTenantContext("default"),
+            vectorDimensions,
+            enableKnowledge,
+            enableReadViews);
     }
 
     /// <summary>Collects the optional migration sets the given flags turn on.</summary>

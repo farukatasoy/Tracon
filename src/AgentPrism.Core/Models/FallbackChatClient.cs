@@ -163,7 +163,16 @@ internal sealed class FallbackChatClient : DelegatingChatClient
 
                 return response;
             }
-            catch (OperationCanceledException)
+            // 🚨 `when (cancellationToken.IsCancellationRequested)`, not a bare
+            // catch. Every official provider SDK calls through HttpClient, and
+            // HttpClient reports its OWN request timeout as a
+            // TaskCanceledException wrapping a TimeoutException - with nobody
+            // having cancelled anything. A bare catch here rethrew that as a
+            // cancellation, so a provider timeout never reached the next link:
+            // the one failure a fallback chain exists for was the one it
+            // skipped. Measured in Phase 157. CircuitBreakingChatClient already
+            // used this filter; this client did not.
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
                 throw;
             }
@@ -256,7 +265,9 @@ internal sealed class FallbackChatClient : DelegatingChatClient
 
                         update = enumerator.Current;
                     }
-                    catch (OperationCanceledException)
+                    // Same filter, same reason as GetResponseAsync above: a
+                    // provider timeout is not a cancellation.
+                    catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
                     {
                         throw;
                     }
@@ -571,6 +582,15 @@ internal enum FallbackSkipReason
     /// retry a failure the built-in rules do not recognize.
     /// </summary>
     Classifier = 5,
+
+    /// <summary>The provider did not answer within its own deadline.</summary>
+    /// <remarks>
+    /// Distinct from <see cref="TransportError"/>: the call DID reach the
+    /// provider, it just never came back. An operator reading the fallback
+    /// event needs to tell "the provider is unreachable" from "the provider is
+    /// overloaded", because the two have different responses.
+    /// </remarks>
+    Timeout = 6,
 }
 
 /// <summary>Maps <see cref="FallbackSkipReason"/> to its stable wire value.</summary>
@@ -586,6 +606,7 @@ internal static class FallbackSkipReasonExtensions
         FallbackSkipReason.HttpError => "http_error",
         FallbackSkipReason.TransportError => "transport_error",
         FallbackSkipReason.Classifier => "classifier",
+        FallbackSkipReason.Timeout => "timeout",
 
         // Unreachable through FallbackChatClient (an event is only written
         // once a link was actually skipped), but a total switch keeps the
@@ -663,6 +684,14 @@ internal static partial class FallbackRetryClassifier
             return FallbackSkipReason.None;
         }
 
+        // Checked before the message patterns below: a timed-out call carries
+        // no HTTP status to recognize, and its own exception type is the only
+        // signal there is.
+        if (IsTimeout(exception))
+        {
+            return FallbackSkipReason.Timeout;
+        }
+
         foreach (var candidate in Flatten(exception))
         {
             if (candidate is AgentPrismProviderUnavailableException)
@@ -728,9 +757,50 @@ internal static partial class FallbackRetryClassifier
     /// </remarks>
     internal static bool IsCancellation(Exception exception)
     {
+        // 🚨 A timeout is NOT a cancellation, even though .NET reports it as
+        // one. HttpClient raises TaskCanceledException with an inner
+        // TimeoutException when ITS OWN deadline elapses - the exception type
+        // alone cannot tell that apart from a caller pressing stop, so the
+        // graph is asked for a timeout signal first. Without this, a provider
+        // timeout was recorded as a cancelled run and returned to the client
+        // as an empty success. Measured in Phase 157.
+        if (IsTimeout(exception))
+        {
+            return false;
+        }
+
         foreach (var candidate in Flatten(exception))
         {
             if (candidate is OperationCanceledException)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Determines whether a timeout is buried anywhere in
+    /// <paramref name="exception"/>'s graph.
+    /// </summary>
+    /// <remarks>
+    /// Two signals, because SDKs differ: a <see cref="TimeoutException"/> frame
+    /// (what <c>HttpClient</c> attaches) or a message that says so (what an SDK
+    /// wrapping its own transport tends to produce). The message pattern is the
+    /// same one <c>DefaultRunErrorClassifier</c> uses, so a failure cannot be a
+    /// timeout to one and not to the other.
+    /// </remarks>
+    internal static bool IsTimeout(Exception exception)
+    {
+        foreach (var candidate in Flatten(exception))
+        {
+            if (candidate is TimeoutException)
+            {
+                return true;
+            }
+
+            if (TimeoutPattern().IsMatch(candidate.Message))
             {
                 return true;
             }
@@ -765,6 +835,17 @@ internal static partial class FallbackRetryClassifier
 
     [GeneratedRegex(@"\bHTTP\s+40[13]\b", RegexOptions.CultureInvariant, matchTimeoutMilliseconds: 1000)]
     private static partial Regex AuthenticationStatusPattern();
+
+    // 🚨 Kept character-for-character identical to DefaultRunErrorClassifier's
+    // TimeoutPattern. The two answer the same question at two layers - "should
+    // the next link be tried" and "which error class is recorded" - and a
+    // failure that is a timeout to one but not to the other would produce a
+    // run recorded as something the fallback chain never treated as a timeout.
+    [GeneratedRegex(
+        @"timeoutexception|\btimed?[\s_-]?out\b",
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant,
+        matchTimeoutMilliseconds: 1000)]
+    private static partial Regex TimeoutPattern();
 
     [GeneratedRegex(
         @"\b429\b|toomanyrequests|\brate[\s_-]?limit(?:ed|ing)?\b",

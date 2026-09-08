@@ -70,14 +70,22 @@ public sealed partial class DefaultRunErrorClassifier : IRunErrorClassifier
             return stable;
         }
 
-        if (CanceledTypePattern().IsMatch(runError.Type))
-        {
-            return RunErrorClass.Canceled;
-        }
-
+        // 🚨 The timeout check runs BEFORE the cancelled-type check, and the
+        // order is the whole point. TaskCanceledException is what HttpClient
+        // raises on its own request timeout, so the TYPE alone cannot separate
+        // "the caller pressed stop" from "the provider never answered"; the
+        // message can, and a genuine cancellation's message ("A task was
+        // canceled.") does not match the timeout pattern. Reversed, every
+        // provider timeout was filed as Canceled and disappeared from the
+        // failure dashboards. Measured in Phase 157.
         if (TimeoutPattern().IsMatch(runError.Type) || TimeoutPattern().IsMatch(runError.Message))
         {
             return RunErrorClass.Timeout;
+        }
+
+        if (CanceledTypePattern().IsMatch(runError.Type))
+        {
+            return RunErrorClass.Canceled;
         }
 
         if (RateLimitPattern().IsMatch(runError.Message) || RateLimitPattern().IsMatch(runError.Type))

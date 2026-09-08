@@ -149,22 +149,28 @@ public sealed class StructuredResponseEndpointTests
     }
 
     [Fact]
-    public async Task Cancellation_during_validation_closes_the_run_as_canceled_not_as_a_validation_error()
+    public async Task A_validator_that_throws_a_cancellation_nobody_requested_fails_the_run()
     {
         await using var host = await StartAsync(
             "{\"answer\":42}", configureServices: static services => services.AddSingleton<IStructuredResponseValidator>(new SelfCancelingValidator()));
 
         using var response = await PostBufferedAsync(host);
 
-        // No "error" case matches: RunRecordingAgent's OperationCanceledException
-        // branch re-throws after closing the run, and the endpoint's own
-        // OperationCanceledException handler writes NOTHING (treats it like a
-        // client disconnect) - the response keeps ASP.NET Core's default 200.
-        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        // 🚨 Phase 157 changed this. The validator throws an
+        // OperationCanceledException while NOTHING was cancelled - the same
+        // shape HttpClient produces on its own request timeout. It used to be
+        // taken at face value: the run closed as Canceled, the endpoint's
+        // cancellation handler wrote nothing, and the caller got ASP.NET
+        // Core's default 200 with an empty body - a failure that looked like a
+        // success. The status now comes from the run's own token, not from the
+        // exception type, so this is a failure and says so.
+        response.StatusCode.ShouldBe(HttpStatusCode.BadGateway);
 
         var run = await SingleRunAsync(host);
 
-        run.Status.ShouldBe(RunStatus.Canceled);
+        run.Status.ShouldBe(RunStatus.Failed);
+
+        // Still not a validation error: the validator never returned a verdict.
         run.Error?.Class.ShouldNotBe(RunErrorClass.StructuredResponseInvalid);
     }
 

@@ -51,6 +51,7 @@
     <Project Path="tests/AgentPrism.Testing.Contracts.Xunit.UnitTests/AgentPrism.Testing.Contracts.Xunit.UnitTests.csproj" />
     <Project Path="tests/AgentPrism.Client.UnitTests/AgentPrism.Client.UnitTests.csproj" />
     <Project Path="tests/AgentPrism.Cli.FunctionalTests/AgentPrism.Cli.FunctionalTests.csproj" />
+    <Project Path="tests/AgentPrism.WorkerHarness/AgentPrism.WorkerHarness.csproj" />
   </Folder>
 
   <Folder Name="/bench/">

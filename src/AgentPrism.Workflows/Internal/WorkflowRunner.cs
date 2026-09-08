@@ -631,7 +631,13 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         {
             run = await StartAsync(workflow, execution, linked.Token).ConfigureAwait(false);
         }
-        catch (OperationCanceledException)
+        // 🚨 `when (linked.IsCancellationRequested)`. An
+        // OperationCanceledException raised while neither the caller nor the
+        // workflow timeout cancelled anything is a provider failure - most
+        // often HttpClient reporting its own deadline - and recording it as a
+        // cancelled workflow hid a real outage behind a user action.
+        // Phase 157.
+        catch (OperationCanceledException) when (linked.IsCancellationRequested)
         {
             startupFailure = PumpedEvent.FromCancellation(timeout.IsCancellationRequested);
         }
@@ -720,7 +726,8 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
                                 workflowEvent = enumerator.Current;
                             }
                         }
-                        catch (OperationCanceledException)
+                        // Same filter, same reason as StartAsync above.
+                        catch (OperationCanceledException) when (linked.IsCancellationRequested)
                         {
                             stepFailure = PumpedEvent.FromCancellation(timeout.IsCancellationRequested);
                         }
