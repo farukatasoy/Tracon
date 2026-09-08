@@ -281,7 +281,7 @@ image prices.
 
 ### Images
 
-`AgentPrism:Images` is off by default. When `Enabled` is `true`, `Provider` and
+`AgentPrism:Images` is off by default (`false`).<!-- claim:option AgentPrismImageOptions.Enabled=false --> When `Enabled` is `true`, `Provider` and
 `Model` are required and `MaxImagesPerRequest` must be at least one. Enabling it adds
 the `generate_image` tool and maps `POST /api/images/generate`.
 
@@ -321,7 +321,7 @@ registers more than one image provider or a custom keyed generator.
 | Section and key | Default |
 |---|---:|
 | `Scheduling:Enabled` | `true` |
-| `Scheduling:RunWorker` | `true` |
+| `Scheduling:RunWorker` | `true`<!-- claim:option AgentPrismSchedulingOptions.RunWorker=true --> |
 | `Scheduling:MaxConcurrentJobs` | `2` |
 | `Scheduling:PollInterval` | 10 seconds |
 | `Scheduling:LeaseDuration` | 5 minutes |
@@ -408,7 +408,7 @@ embedding generator exist.
 
 | Key relative to `AgentPrism:Egress` | Default |
 |---|---:|
-| `AllowPrivateNetworkTargets` | `false` |
+| `AllowPrivateNetworkTargets` | `false`<!-- claim:option AgentPrismEgressOptions.AllowPrivateNetworkTargets=false --> |
 
 Covers all three surfaces that reach the network: webhook delivery, MCP server
 connections, and per-tenant model provider endpoints. While it is off, a target that
@@ -463,7 +463,7 @@ for the full key setup and its limits.
 
 <p class="reads-this">Read by <code>AgentPrism.Core</code>. Deletion needs a persistence package; the in-memory stores have nothing to retain across a restart.</p>
 
-`AgentPrism:Retention:Enabled` defaults to `false`. `BatchSize` defaults to `5000`
+`AgentPrism:Retention:Enabled` defaults to `false`<!-- claim:option AgentPrismRetentionOptions.Enabled=false -->. `BatchSize` defaults to `5000`
 and `BatchDelay` to 100 ms. The following ages become configuration-based defaults
 only after retention is enabled. A database policy for a target takes precedence.
 
@@ -647,7 +647,7 @@ app.MapAgentPrism("/agentprism", options =>
 });
 ```
 
-`MapOpenAIConversations` is the only one that starts on. Setting it to `false`
+`MapOpenAIConversations` is the only one that starts on (`true`).<!-- claim:option AgentPrismEndpointOptions.MapOpenAIConversations=true --> Setting it to `false`
 leaves the four `/v1/conversations` routes unmapped: they answer `404` and
 disappear from the OpenAPI document, while `/v1/responses` and
 `/v1/chat/completions` are unaffected. It shrinks the surface a deployment that
@@ -679,7 +679,7 @@ freeze an exposure allowlist at registration, or define request-resolution polic
   | `AllowHeaderResolution` | `false` | Whether `X-AgentPrism-Tenant` may name the tenant. **Leave this off in production** unless a trusted gateway sets the header and strips any client copy |
   | `HeaderName` | `X-AgentPrism-Tenant` | The header consulted when header resolution is on |
   | `AllowedTenants` | empty | When populated, an allowlist: a resolved tenant outside it is rejected rather than served |
-- `UseMcpServer(AgentPrismMcpServerOptions)` exposes no agent by default.
+- `UseMcpServer(AgentPrismMcpServerOptions)` exposes no agent by default (`false`).<!-- claim:option AgentPrismMcpServerOptions.ExposeAllAgents=false -->
 - `UseA2A(AgentPrismA2AOptions)` exposes no agent by default.
 - `AddModelRunJudge(ModelRunJudgeOptions)` defines the judge model and its
   `Criteria`: the plain-language standard the judge scores a run against.
