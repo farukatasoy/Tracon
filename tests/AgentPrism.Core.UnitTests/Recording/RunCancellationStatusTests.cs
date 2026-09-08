@@ -1,4 +1,5 @@
 using AgentPrism.Core.UnitTests.Fakes;
+using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace AgentPrism.Core.UnitTests.Recording;
@@ -64,6 +65,42 @@ public sealed class RunCancellationStatusTests
         registry.ActiveCount.ShouldBe(0);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task An_uncancelled_OperationCanceledException_writes_Failed_not_Canceled(bool streaming)
+    {
+        var store = new InMemoryRunStore(tenantContext: new FixedTenantContext());
+        var registry = new RunCancellationRegistry();
+        var agent = CreateAgent(store, new TimingOutChatClient(), registry);
+
+        if (streaming)
+        {
+            await Should.ThrowAsync<OperationCanceledException>(async () =>
+            {
+                await foreach (var _ in agent.RunStreamingAsync("write a long piece of text"))
+                {
+                    // The client throws before producing a first frame.
+                }
+            });
+        }
+        else
+        {
+            await Should.ThrowAsync<OperationCanceledException>(async () => await agent.RunAsync("write a long piece of text"));
+        }
+
+        var run = (await store.QueryRunsAsync(new RunQuery())).ShouldHaveSingleItem();
+
+        // 🚨 Nobody cancelled this run. HttpClient reports its OWN request
+        // timeout as a TaskCanceledException, so the exception TYPE cannot
+        // decide the run's status - only the run's own token can. Recorded as
+        // Canceled, a provider outage would vanish from the failure numbers and
+        // the caller would be handed an empty success. Measured in Phase 157.
+        run.Status.ShouldBe(RunStatus.Failed);
+        run.Error.ShouldNotBeNull();
+        registry.ActiveCount.ShouldBe(0);
+    }
+
     private static async Task WaitUntilAsync(Func<bool> condition)
     {
         using var timeout = new CancellationTokenSource(WaitTimeout);
@@ -75,7 +112,7 @@ public sealed class RunCancellationStatusTests
         }
     }
 
-    private static RunRecordingAgent CreateAgent(IRunStore store, BlockingChatClient client, IRunCancellationRegistry registry)
+    private static RunRecordingAgent CreateAgent(IRunStore store, IChatClient client, IRunCancellationRegistry registry)
     {
         var compiler = new AgentDefinitionCompiler(
             TestData.Providers(new FakeModelProvider(client)),
@@ -93,5 +130,39 @@ public sealed class RunCancellationStatusTests
     private sealed class FixedTenantContext : ITenantContext
     {
         public string TenantId => "test";
+    }
+
+    /// <summary>
+    /// A chat client that fails the way <c>HttpClient</c> does when its own
+    /// deadline elapses: a <see cref="TaskCanceledException"/> wrapping a
+    /// <see cref="TimeoutException"/>, with no token cancelled anywhere.
+    /// </summary>
+    private sealed class TimingOutChatClient : IChatClient
+    {
+        public Task<ChatResponse> GetResponseAsync(
+            IEnumerable<ChatMessage> messages,
+            ChatOptions? options = null,
+            CancellationToken cancellationToken = default)
+            => throw Timeout();
+
+        public IAsyncEnumerable<ChatResponseUpdate> GetStreamingResponseAsync(
+            IEnumerable<ChatMessage> messages,
+            ChatOptions? options = null,
+            CancellationToken cancellationToken = default)
+            => throw Timeout();
+
+        public object? GetService(Type serviceType, object? serviceKey = null) => null;
+
+        public void Dispose()
+        {
+            // Nothing to release.
+        }
+
+        private static TaskCanceledException Timeout()
+        {
+            const string Message = "The request to https://api.example/v1 timed out after 30s.";
+
+            return new TaskCanceledException(Message, new TimeoutException(Message));
+        }
     }
 }

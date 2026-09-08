@@ -159,6 +159,12 @@ run](/concepts/runs/#the-error-message-is-safe-to-display-not-safe-to-debug-from
 node failure from your own code keeps its message, a failure from a provider,
 library, or transport carries only its exception type and a correlation id.
 
+A workflow run ends `Canceled` only when the run was actually cancelled — the
+caller's request going away, or the workflow's own `MaxDuration` elapsing. A node
+whose model or tool call never came back ends the run `Failed` instead, even
+though .NET surfaces an `HttpClient` timeout as a `TaskCanceledException`. Alert
+on the two separately: one is a person stopping, the other is an outage.
+
 A workflow's root run shares the same call-tree budget every agent run does
 (`AgentGraph.MaxTotalTokens`/`MaxTotalCost`/`MaxDuration` — see [Reliable
 runs](/guides/reliability/#bound-multi-agent-trees)): every agent node the

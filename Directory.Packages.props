@@ -102,6 +102,13 @@
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="$(MicrosoftExtensionsVersion)" />
     <PackageVersion Include="Microsoft.Extensions.Diagnostics.Abstractions" Version="$(MicrosoftExtensionsVersion)" />
     <PackageVersion Include="Microsoft.Extensions.Hosting.Abstractions" Version="$(MicrosoftExtensionsVersion)" />
+    <!--
+      Faz 157: yalnizca tests/AgentPrism.WorkerHarness kullanir. Sevk edilen
+      hicbir paket bu satira bagli DEGILDIR - AgentPrism kutuphaneleri
+      Hosting.Abstractions ile yetinir; tam generic host yalnizca iki process
+      ariza kanitinin OLDURULEN worker'i icin gerekir.
+    -->
+    <PackageVersion Include="Microsoft.Extensions.Hosting" Version="$(MicrosoftExtensionsVersion)" />
     <PackageVersion Include="Microsoft.Extensions.Logging" Version="$(MicrosoftExtensionsVersion)" />
     <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="$(MicrosoftExtensionsVersion)" />
     <PackageVersion Include="Microsoft.Extensions.Options" Version="$(MicrosoftExtensionsVersion)" />

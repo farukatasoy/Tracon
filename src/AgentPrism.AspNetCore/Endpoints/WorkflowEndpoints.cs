@@ -765,7 +765,13 @@ internal static class WorkflowEndpoints
                     JsonSerializer.Serialize(new WorkflowRunCompleted(runId), JsonOptions),
                     cancellationToken).ConfigureAwait(false);
             }
-            catch (OperationCanceledException)
+            // 🚨 `when (httpContext.RequestAborted.IsCancellationRequested)`,
+            // not a bare catch. HttpClient reports its own request timeout as a
+            // TaskCanceledException, so a provider that never answers raises one
+            // while the client is still connected and waiting; a bare catch
+            // ended the response as if the CLIENT had gone away, and the caller
+            // saw a clean, empty success. Measured in Phase 157.
+            catch (OperationCanceledException) when (httpContext.RequestAborted.IsCancellationRequested)
             {
                 // The client disconnected. There is no one left to write to.
             }

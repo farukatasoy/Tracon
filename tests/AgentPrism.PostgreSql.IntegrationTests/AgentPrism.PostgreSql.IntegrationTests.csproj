@@ -14,6 +14,34 @@
     <ProjectReference Include="../../src/AgentPrism.Testing.Contracts.Xunit/AgentPrism.Testing.Contracts.Xunit.csproj" />
   </ItemGroup>
 
+  <!--
+    Phase 157: the two-process failure proof starts tests/AgentPrism.WorkerHarness
+    as a real, separate host and kills it. ReferenceOutputAssembly=false because
+    the harness is a SUBJECT, not a library: the test only needs it BUILT, and
+    linking its assembly here would let a test reach into the harness's own types
+    instead of observing it the way an operator would - from the database and
+    from its output.
+  -->
+  <ItemGroup>
+    <ProjectReference Include="../AgentPrism.WorkerHarness/AgentPrism.WorkerHarness.csproj"
+                      ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
+  <!-- Shared process infrastructure. Linked, not copied (K-411). -->
+  <ItemGroup>
+    <Compile Include="../Shared/Infrastructure/ProcessResult.cs" Link="Infrastructure/Shared/ProcessResult.cs" />
+    <Compile Include="../Shared/Infrastructure/ProcessRunner.cs" Link="Infrastructure/Shared/ProcessRunner.cs" />
+    <Compile Include="../Shared/Infrastructure/ManagedProcess.cs" Link="Infrastructure/Shared/ManagedProcess.cs" />
+    <Compile Include="../Shared/Infrastructure/RepoRoot.cs" Link="Infrastructure/Shared/RepoRoot.cs" />
+    <Compile Include="../Shared/Infrastructure/WorkerProcessHost.cs" Link="Infrastructure/Shared/WorkerProcessHost.cs" />
+    <Compile Include="../Shared/Infrastructure/WorkerHarnessContract.cs" Link="Infrastructure/Shared/WorkerHarnessContract.cs" />
+    <Compile Include="../Shared/Infrastructure/HarnessExecutionLog.cs" Link="Infrastructure/Shared/HarnessExecutionLog.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="AgentPrism.Tests.Common" />
+  </ItemGroup>
+
   <ItemGroup>
     <PackageReference Include="Testcontainers.PostgreSql" />
     <!-- Pins to the patched version for GHSA-q939-rpr3-3284 (SSH.NET, a transitive dependency of Testcontainers). -->

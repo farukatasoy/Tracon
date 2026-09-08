@@ -172,7 +172,7 @@ public sealed class WorkflowNodeRetryTests
     }
 
     [Fact]
-    public async Task Cancellation_is_never_retried_even_if_the_classifier_would_call_it_transient()
+    public async Task A_real_cancellation_is_never_retried_even_if_the_classifier_would_call_it_transient()
     {
         var attempts = 0;
 
@@ -189,10 +189,50 @@ public sealed class WorkflowNodeRetryTests
             new FixedClassifier(RunErrorClass.ProviderUnavailable),
             TimeProvider.System);
 
+        // 🚨 Phase 157 (K-737): the token is ACTUALLY cancelled. It used to be
+        // enough for the exception to be an OperationCanceledException, and
+        // that is what made this policy useless for the one failure it lists as
+        // transient - HttpClient reports its own request timeout as a
+        // TaskCanceledException, so "any cancellation type stops the retry"
+        // stopped every provider timeout too. Cancellation is now read from the
+        // token; the sibling test below is the other half of that split.
+        using var cancelled = new CancellationTokenSource();
+        await cancelled.CancelAsync();
+
         await Should.ThrowAsync<OperationCanceledException>(
-            () => wrapped("hello", null!, TestContext.Current.CancellationToken).AsTask());
+            () => wrapped("hello", null!, cancelled.Token).AsTask());
 
         attempts.ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task A_provider_timeout_is_retried_even_though_its_type_is_a_cancellation()
+    {
+        var attempts = 0;
+
+        Func<string, Microsoft.Agents.AI.Workflows.IWorkflowContext, CancellationToken, ValueTask<string>> handler =
+            (_, _, _) =>
+            {
+                attempts++;
+
+                // Exactly what HttpClient raises when ITS OWN deadline elapses.
+                throw new TaskCanceledException(
+                    "The request to https://api.example/v1 timed out after 30s.",
+                    new TimeoutException("The request timed out."));
+            };
+
+        var wrapped = WorkflowNodeRetry.Wrap(
+            handler,
+            new WorkflowNodeRetryPolicy { MaxAttempts = 3, InitialDelay = TimeSpan.FromMilliseconds(1) },
+            new FixedClassifier(RunErrorClass.Timeout),
+            TimeProvider.System);
+
+        await Should.ThrowAsync<TaskCanceledException>(
+            () => wrapped("hello", null!, TestContext.Current.CancellationToken).AsTask());
+
+        // Timeout is in the policy's transient set; nothing was cancelled, so
+        // the node gets its configured attempts.
+        attempts.ShouldBe(3);
     }
 
     [Fact]

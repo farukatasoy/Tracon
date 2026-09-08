@@ -18,6 +18,24 @@ public sealed class FallbackRetryRegressionTests
             false,
             "a cancellation buried in an AggregateException never retries",
         ];
+        // 🚨 Phase 157 (K-737). The two rows above and the two below share the
+        // same exception FAMILY and split on whether a timeout is in the graph.
+        // HttpClient reports its own request timeout as a
+        // TaskCanceledException, so the old "any OperationCanceledException is
+        // a cancellation" rule made a timed-out provider the one failure a
+        // fallback chain never routed around.
+        yield return [
+            new TaskCanceledException(
+                "The request to https://api.example/v1 timed out after 30s.",
+                new TimeoutException("The request timed out.")),
+            true,
+            "an HttpClient timeout retries the next link, even though its type is a cancellation",
+        ];
+        yield return [
+            new AggregateException("wrapped", new TimeoutException("the operation timed out")),
+            true,
+            "a timeout buried in an AggregateException retries",
+        ];
         yield return [new InvalidOperationException("HTTP 401 (invalid_api_key)"), false, "401 is never retried"];
         yield return [new InvalidOperationException("HTTP 403 (forbidden)"), false, "403 is never retried"];
         yield return [
