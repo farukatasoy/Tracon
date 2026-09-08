@@ -30,6 +30,23 @@ fixed to the artifacts it actually ships.
 
 ### Changed
 
+- **Licence.** AgentPrism now ships under the **PolyForm Small Business License
+  1.0.0** instead of MIT. Use is free of charge for an individual, an open source
+  project, and any company with fewer than 100 total individuals working as
+  employees and independent contractors and less than 1,000,000 USD (2019,
+  inflation adjusted) revenue in the prior tax year; above that threshold a
+  commercial licence applies (hfarukatasoy@gmail.com). Three packages stay MIT so
+  that writing an extension, proving it against the behaviour contracts, and
+  owning the code `dotnet new` generates never need one: `AgentPrism.Abstractions`,
+  `AgentPrism.Testing.Contracts.Xunit` and `AgentPrism.Templates`. The npm client
+  `@agentprism/client` follows its NuGet twin and is PolyForm. No package contains
+  a licence key, an activation call or a feature gate, and the licence of a
+  published version never changes. Because PolyForm is not OSI approved, packages
+  now declare `<license type="file">` and carry the text inside the `.nupkg`
+  rather than naming an SPDX expression. Nothing was published under MIT, so no
+  existing consumer is affected. See
+  <https://agentprism.doayen.web.tr/reference/licensing/>.
+
 - **The `/v1/conversations` read and delete routes now go through your
   registered `IRunAuthorizationHandler`.** `GET /v1/conversations/{id}`,
   `GET /v1/conversations/{id}/items` and `DELETE /v1/conversations/{id}` ask

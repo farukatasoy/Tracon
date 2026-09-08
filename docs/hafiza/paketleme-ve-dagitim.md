@@ -89,3 +89,37 @@
   hesaba katmalıdır — `ProtectedValue.Read` sessizce ham zarfı döndürür ve zarf
   geçerli JSON'dur (`$apEnc`). Vaka: K-735.
 
+
+## Lisans dosyasi paketleme (Faz 160)
+
+🚨 **`Directory.Build.props` icindeki bir `ItemGroup`, hicbir `csproj` govdesini
+gormez.** MSBuild degerlendirme sirasi dosya sirasidir ve `Directory.Build.props`
+`csproj`'un **basinda** import edilir. Yani:
+
+```xml
+<!-- src/Directory.Build.props -->
+<None Include="$(RepositoryRootPath)$(PackageLicenseFile)" Pack="true" ... />
+```
+
+satirindaki `$(PackageLicenseFile)`, o an props icinde ne ise odur. Bir `csproj`
+sonradan `<PackageLicenseFile>LICENSE-MIT.md</PackageLicenseFile>` yazarsa
+**`.nuspec` dogru, paketlenen dosya yanlis** olur — ikisi sessizce ayrisir ve
+`unzip -l` disinda hicbir sey bunu gostermez.
+
+Cozum: paket bazli farki `MSBuildProjectName` ile **props icinde**, `ItemGroup`'un
+ustunde coz. `src/Directory.Build.targets` acmak cazip gorunur ama koktekini
+sessizce devre disi birakir (MSBuild yalnizca EN YAKIN dosyayi import eder).
+
+**`requireLicenseAcceptance` `false` iken `.nuspec`'e hic yazilmaz.** NuGet yalniz
+`true` degerini yazar. Bir kapi bu elementi "false" metniyle aramamali; yoklugunu
+kontrol etmeli. Olculdu: `AgentPrism.Abstractions` (MIT) nuspec'inde element yok,
+`AgentPrism.Core` (PolyForm) nuspec'inde `true` var.
+
+**PolyForm OSI onayli degildir**, bu yuzden `<PackageLicenseExpression>` kabul
+etmez — NuGet orada yalniz kendi izin listesini alir. `<PackageLicenseFile>`
+kullanilir, ve bunun yan faydasi lisansin bir URL'ye bagli olmamasidir (K-659).
+
+Lisans dosyalari her pakette sevk edildigi icin `SourceLanguageTests` ve
+`ShippedDocumentationSelfContainmentTests` kapsamindadir. Matris uc yerde
+yazilidir — `src/Directory.Build.props`, `scripts/kapi.py` (`PACKAGE_LICENSES`) ve
+npm `package.json` — ucunu `PackageLicenseTests` birbirine kilitler.

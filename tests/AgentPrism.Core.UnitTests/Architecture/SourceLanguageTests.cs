@@ -55,13 +55,19 @@ public sealed class SourceLanguageTests
         TimeSpan.FromSeconds(5));
 
     /// <summary>
-    /// Root files that face outward: the repository's own front page and the two
-    /// files a contributor reads first. They are English for the same reason a
-    /// package README is, and nothing under <see cref="ScanRoots"/> covers them.
-    /// Markdown is otherwise out of scope, so only these are matched.
+    /// Root files that face outward: the repository's own front page, the two
+    /// files a contributor reads first, and the two licence files. They are
+    /// English for the same reason a package README is, and nothing under
+    /// <see cref="ScanRoots"/> covers them. Markdown is otherwise out of scope,
+    /// so only these are matched.
     /// </summary>
+    /// <remarks>
+    /// The licence files are not merely outward facing — <c>PackageLicenseFile</c>
+    /// packs one of them into every published package (Phase 160), which makes
+    /// them shipped artifacts in the same sense a package README is.
+    /// </remarks>
     private static readonly string[] ScannedRootFiles =
-        ["README.md", "CONTRIBUTING.md", "ARCHITECTURE.md"];
+        ["README.md", "CONTRIBUTING.md", "ARCHITECTURE.md", "LICENSE.md", "LICENSE-MIT.md"];
 
     private static readonly string[] SkippedDirectorySegments =
         ["obj", "bin", "node_modules", "artifacts", "dist", "wwwroot"];

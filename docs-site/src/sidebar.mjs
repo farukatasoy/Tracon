@@ -111,6 +111,7 @@ export const sidebar = [
       { label: 'Read contract views', slug: 'reference/read-views' },
       { label: 'Versions and upgrades', slug: 'reference/versioning' },
       { label: 'Release notes', slug: 'reference/changelog' },
+      { label: 'Licensing', slug: 'reference/licensing' },
       { label: 'Choosing packages', slug: 'packages' },
       { label: 'Glossary', slug: 'reference/glossary' },
     ],

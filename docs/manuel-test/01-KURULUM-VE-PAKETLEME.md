@@ -608,7 +608,10 @@ cat AgentPrism.Core.nuspec
 
 ~~Eski beklenti: `<requireLicenseAcceptance>false</requireLicenseAcceptance>`
 vardır.~~
-- `<license type="expression">MIT</license>` vardır.
+- `<license type="file">LICENSE.md</license>` vardır (Faz 160). PolyForm OSI
+  onaylı olmadığı için `expression` kullanılamaz; lisans dosya olarak gömülür.
+- `<requireLicenseAcceptance>true</requireLicenseAcceptance>` vardır — PolyForm
+  lisanslı paketlerde element **yazılır**. MIT üçlüsünde yazılmaz (üstteki not).
 - `<readme>README.md</readme>` vardır.
 - `<authors>Faruk Atasoy</authors>` ve `<projectUrl>` /
   `<repository type="git" url="https://github.com/farukatasoy/AgentPrism">` vardır.
@@ -3125,3 +3128,135 @@ print(d['packages'][0])
 - `20 1.0.0-preview.1 False`.
 - İlk paket kaydı `id`, `file`, `sha256` alanlarını taşır (kütüphane
   profilindeyse `symbolsFile`/`symbolsSha256` de dolu).
+
+---
+
+### MT-PKG-118 — Lisans matrisi: her paket tam olarak bir lisans dosyası taşır
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 160 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- `/tmp/ap-pack` dolu (`MT-PKG-020` çalıştırıldı).
+
+**Adımlar**
+1. Üretilen her `.nupkg` içinde lisans dosyalarını ara.
+2. Sayının paket başına **bir** olduğunu doğrula.
+
+**Girilecek veri**
+```bash
+for f in /tmp/ap-pack/*.nupkg; do
+  id=$(basename "$f" | sed 's/\.[0-9].*//')
+  echo "$id -> $(unzip -l "$f" | grep -oE 'LICENSE(-MIT)?\.md' | sort -u | tr '\n' ' ')"
+done
+```
+
+**Beklenen sonuç**
+- 20 satır döner.
+- `AgentPrism.Abstractions`, `AgentPrism.Testing.Contracts.Xunit` ve
+  `AgentPrism.Templates` yalnız `LICENSE-MIT.md` taşır.
+- Kalan 17 paket yalnız `LICENSE.md` taşır.
+- 🚨 Hiçbir paket **iki** lisans dosyasını birden taşımaz. Taşısaydı tüketicinin
+  eline hangi şartların geçtiği belirsiz olurdu.
+
+---
+
+### MT-PKG-119 — Beyan edilen lisans ile paketlenen dosya aynı
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 160 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- `/tmp/ap-pack` dolu.
+
+**Adımlar**
+1. Bir MIT paketinin ve bir PolyForm paketinin nuspec'ini oku.
+2. `<license>` değerini paket içeriğiyle karşılaştır.
+
+**Girilecek veri**
+```bash
+for id in AgentPrism.Abstractions AgentPrism.Core; do
+  f=$(ls /tmp/ap-pack/$id.*.nupkg | head -1)
+  echo "== $id"
+  unzip -p "$f" "$id.nuspec" | grep -E "<license |requireLicenseAcceptance"
+done
+```
+
+**Beklenen sonuç**
+- `AgentPrism.Abstractions`: `<license type="file">LICENSE-MIT.md</license>`,
+  `requireLicenseAcceptance` elementi **yok** (NuGet `false` değerini yazmaz).
+- `AgentPrism.Core`: `<license type="file">LICENSE.md</license>` ve
+  `<requireLicenseAcceptance>true</requireLicenseAcceptance>`.
+- Her iki pakette beyan edilen dosya adı, paketin içindeki dosya adıyla aynıdır.
+
+---
+
+### MT-PKG-120 — PolyForm gövdesi kanonik metinden sapmamış
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 160 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- Ağ erişimi var.
+
+**Adımlar**
+1. SPDX'ten kanonik metni indir.
+2. `LICENSE.md`'nin başlık bloğundan sonraki gövdesiyle karşılaştır.
+
+**Girilecek veri**
+```bash
+curl -sS -L -o /tmp/polyform.canonical \
+  https://raw.githubusercontent.com/spdx/license-list-data/main/text/PolyForm-Small-Business-1.0.0.txt
+awk '/^# PolyForm Small Business License 1\.0\.0$/{f=1} f' LICENSE.md > /tmp/polyform.ours
+diff /tmp/polyform.canonical /tmp/polyform.ours && echo "BIREBIR"
+```
+
+**Beklenen sonuç**
+- `diff` çıktısı boştur, `BIREBIR` yazar.
+- 🚨 Bir fark çıkarsa lisans **tanınmaz** hâle gelmiştir: tüketicinin lisans
+  tarayıcısı adı eşleştiremez, ve bu modelin tahsilat mekanizması tam olarak o
+  eşleşmedir. Metin düzeltilmez — kanonik hâline geri alınır.
+
+---
+
+### MT-PKG-121 — 👤 npm istemcisi NuGet ikiziyle aynı şartları taşır
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 160 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- `npm` kurulu.
+
+**Adımlar**
+1. npm paketinin lisans alanını ve içerdiği dosyaları listele.
+
+**Girilecek veri**
+```bash
+cd packages/agentprism-client
+grep '"license"' package.json
+npm pack --dry-run 2>&1 | grep -i license
+diff LICENSE.md ../../LICENSE.md && echo "KOPYA BIREBIR"
+```
+
+**Beklenen sonuç**
+- `"license": "PolyForm-Small-Business-1.0.0"`.
+- `npm pack` çıktısında `LICENSE.md` görünür.
+- Paket içindeki kopya kök `LICENSE.md` ile birebir aynıdır.
+- 👤 İnsan doğrulaması: npmjs.com'da yayınlandıktan sonra lisans rozetinin
+  `PolyForm-Small-Business-1.0.0` gösterdiği gözle kontrol edilir.

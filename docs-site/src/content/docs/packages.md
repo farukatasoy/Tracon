@@ -7,6 +7,14 @@ slug: packages
 Twenty packages. Take the meta package for the common set, or pick individually
 when you care about what enters your dependency graph.
 
+## Licensing in one line
+
+`AgentPrism.Abstractions`, `AgentPrism.Testing.Contracts.Xunit` and
+`AgentPrism.Templates` are MIT; every other package is PolyForm Small Business
+1.0.0, which is free below 100 people and 1,000,000 USD revenue. Writing an
+extension, testing it, and owning what `dotnet new` generates therefore never
+needs a commercial licence. Details and the reasoning: [Licensing](/reference/licensing/).
+
 ## The meta package
 
 :::caution[Not published yet]

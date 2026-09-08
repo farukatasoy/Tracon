@@ -169,31 +169,39 @@ AgentPrism fills that gap. It does not replace DevUI — it continues where DevU
 
 ## Packages
 
-| Package | What it does |
-|---------|--------------|
-| `AgentPrism` | Meta package — brings everything in with one reference |
-| `AgentPrism.Abstractions` | Contracts; enough on its own if you write your own implementations |
-| `AgentPrism.Core` | Runtime, catalog, definition compiler, tool registry, session management. **No database required.** |
-| `AgentPrism.PostgreSql` | Persistence — embedded SQL migrations, separate `agentprism` schema |
-| `AgentPrism.SqlServer` | SQL Server 2019+ and Azure SQL persistence — same schema, its own migration set. **Not in the meta package.** Contract tests run against a real `mssql/server` |
-| `AgentPrism.Sqlite` | SQLite persistence — one file, table prefix, its own migration set. **Not in the meta package.** Single-writer; not for a multi-instance deployment |
-| `AgentPrism.OpenAI` | OpenAI provider adapter — Chat Completions and Responses, tool calling, OpenTelemetry |
-| `AgentPrism.Anthropic` | Anthropic (Claude) provider adapter — official SDK, prompt caching, extended thinking. **Not in the meta package** |
-| `AgentPrism.Google` | Google Gemini provider adapter — official SDK, safety thresholds, thinking budget. **Not in the meta package**; brings a transitive `Google.Apis.Auth` chain |
-| `AgentPrism.Azure` | Azure OpenAI provider adapter — deployment-based model resolution, API key or Entra identity. **Not in the meta package**; `Azure.Identity` is **not** a dependency, the credential factory comes from you |
-| `AgentPrism.Voice` | Speech tools: `speak`, `transcribe`, `list_voices`, measured into `tool_invocations`. **Zero NuGet dependencies**; not in the meta package. Live conversation lives in `Core`: `UseVoiceConversation()` |
-| `AgentPrism.Mcp` | Tool discovery from remote MCP servers — HTTP only, approval by default |
-| `AgentPrism.Workflows` | Workflow execution — five patterns, checkpoints, resume, human-in-the-loop |
-| `AgentPrism.AspNetCore` | HTTP layer — management API, OpenAI-compatible endpoints, multi-tenancy |
-| `AgentPrism.UI` | Embedded React console — 30 screens across 36 routes, zero JavaScript dependencies |
-| `AgentPrism.Templates` | The `dotnet new agentprism-api` template — not in the meta package |
-| `AgentPrism.Testing` | `FakeModelProvider`, `AgentPrismTestHost`, `RunAssertions`; test-framework neutral, not in the meta package |
-| `AgentPrism.Testing.Contracts.Xunit` | The behavior-contract suites the shipped implementations run — derive from them to verify your own `IRunStore`, `IModelProvider`, `IRunJudge`, `IAgentSource`, `IJobHandler`, or custom tool. Not in the meta package |
-| `AgentPrism.Client` | Typed management client generated from the OpenAPI document — 162 operations, zero AgentPrism dependency, zero NuGet dependency beyond DI abstractions. Not in the meta package |
-| `AgentPrism.Cli` | The `agentprism` global tool (`dotnet tool install -g AgentPrism.Cli`) — `migrate`, `migrate status`, `health`. Not a library; not in the meta package |
-| [`@agentprism/client`](https://www.npmjs.com/package/@agentprism/client) | **npm, not NuGet** — the same 165 operations as `AgentPrism.Client`, generated from the same OpenAPI document with `openapi-typescript` + `openapi-fetch`. `npm install @agentprism/client` |
+| Package | Licence | What it does |
+|---------|---------|--------------|
+| `AgentPrism` | PolyForm | Meta package — brings everything in with one reference |
+| `AgentPrism.Abstractions` | MIT | Contracts; enough on its own if you write your own implementations |
+| `AgentPrism.Core` | PolyForm | Runtime, catalog, definition compiler, tool registry, session management. **No database required.** |
+| `AgentPrism.PostgreSql` | PolyForm | Persistence — embedded SQL migrations, separate `agentprism` schema |
+| `AgentPrism.SqlServer` | PolyForm | SQL Server 2019+ and Azure SQL persistence — same schema, its own migration set. **Not in the meta package.** Contract tests run against a real `mssql/server` |
+| `AgentPrism.Sqlite` | PolyForm | SQLite persistence — one file, table prefix, its own migration set. **Not in the meta package.** Single-writer; not for a multi-instance deployment |
+| `AgentPrism.OpenAI` | PolyForm | OpenAI provider adapter — Chat Completions and Responses, tool calling, OpenTelemetry |
+| `AgentPrism.Anthropic` | PolyForm | Anthropic (Claude) provider adapter — official SDK, prompt caching, extended thinking. **Not in the meta package** |
+| `AgentPrism.Google` | PolyForm | Google Gemini provider adapter — official SDK, safety thresholds, thinking budget. **Not in the meta package**; brings a transitive `Google.Apis.Auth` chain |
+| `AgentPrism.Azure` | PolyForm | Azure OpenAI provider adapter — deployment-based model resolution, API key or Entra identity. **Not in the meta package**; `Azure.Identity` is **not** a dependency, the credential factory comes from you |
+| `AgentPrism.Voice` | PolyForm | Speech tools: `speak`, `transcribe`, `list_voices`, measured into `tool_invocations`. **Zero NuGet dependencies**; not in the meta package. Live conversation lives in `Core`: `UseVoiceConversation()` |
+| `AgentPrism.Mcp` | PolyForm | Tool discovery from remote MCP servers — HTTP only, approval by default |
+| `AgentPrism.Workflows` | PolyForm | Workflow execution — five patterns, checkpoints, resume, human-in-the-loop |
+| `AgentPrism.AspNetCore` | PolyForm | HTTP layer — management API, OpenAI-compatible endpoints, multi-tenancy |
+| `AgentPrism.UI` | PolyForm | Embedded React console — 30 screens across 36 routes, zero JavaScript dependencies |
+| `AgentPrism.Templates` | MIT | The `dotnet new agentprism-api` template — not in the meta package |
+| `AgentPrism.Testing` | PolyForm | `FakeModelProvider`, `AgentPrismTestHost`, `RunAssertions`; test-framework neutral, not in the meta package |
+| `AgentPrism.Testing.Contracts.Xunit` | MIT | The behavior-contract suites the shipped implementations run — derive from them to verify your own `IRunStore`, `IModelProvider`, `IRunJudge`, `IAgentSource`, `IJobHandler`, or custom tool. Not in the meta package |
+| `AgentPrism.Client` | PolyForm | Typed management client generated from the OpenAPI document — 162 operations, zero AgentPrism dependency, zero NuGet dependency beyond DI abstractions. Not in the meta package |
+| `AgentPrism.Cli` | PolyForm | The `agentprism` global tool (`dotnet tool install -g AgentPrism.Cli`) — `migrate`, `migrate status`, `health`. Not a library; not in the meta package |
+| [`@agentprism/client`](https://www.npmjs.com/package/@agentprism/client) | PolyForm | **npm, not NuGet** — the same 165 operations as `AgentPrism.Client`, generated from the same OpenAPI document with `openapi-typescript` + `openapi-fetch`. `npm install @agentprism/client` |
 
-**Target frameworks:** `net8.0`, `net9.0`, `net10.0` · **License:** MIT
+**Target frameworks:** `net8.0`, `net9.0`, `net10.0`
+
+**Licence:** PolyForm Small Business 1.0.0 — free for an individual, an open source
+project, and any company with fewer than 100 people and under 1,000,000 USD (2019,
+inflation adjusted) revenue in the prior tax year. Above that, a commercial licence
+applies. Three packages are MIT instead, so that writing and testing an extension,
+and owning what `dotnet new` generates, never needs one. Full terms: [LICENSE.md](LICENSE.md)
+and [LICENSE-MIT.md](LICENSE-MIT.md); the reasoning behind the split is on the
+[licensing page](https://agentprism.doayen.web.tr/reference/licensing/).
 
 ### AOT compatibility
 
@@ -362,7 +370,19 @@ site — `docs/` is the journal, `docs-site/` is the product documentation.
 
 ---
 
-## License
+## Licence
 
-MIT — see [COMMERCIAL.md](COMMERCIAL.md) for the commercial-tier plan and the promise
-that nothing which is MIT today will become paid.
+**PolyForm Small Business 1.0.0**, except for `AgentPrism.Abstractions`,
+`AgentPrism.Testing.Contracts.Xunit` and `AgentPrism.Templates`, which are MIT.
+
+Use is free of charge if your company has fewer than 100 total individuals working
+as employees and independent contractors, and less than 1,000,000 USD (2019, adjusted
+for inflation) total revenue in the prior tax year. An individual, a student and an
+open source project are all under that threshold. Above it, write to
+hfarukatasoy@gmail.com for a commercial licence.
+
+No package contains a licence key, an activation call or a feature gate, and the
+licence of a version already published never changes.
+
+Terms: [LICENSE.md](LICENSE.md) · [LICENSE-MIT.md](LICENSE-MIT.md) · which package is
+which, and why: <https://agentprism.doayen.web.tr/reference/licensing/>

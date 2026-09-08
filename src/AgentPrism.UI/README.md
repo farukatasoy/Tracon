@@ -61,4 +61,6 @@ the UI under the same prefix; the prefix is written in one place.
 - Full documentation: <https://agentprism.doayen.web.tr>
 - Console guide: <https://agentprism.doayen.web.tr/ui/>
 
-License: MIT
+License: PolyForm Small Business 1.0.0 - free below 100 people and 1,000,000 USD
+(2019, inflation adjusted) revenue; a commercial licence applies above that. Terms
+ship in the package as LICENSE.md. Details: <https://agentprism.doayen.web.tr/reference/licensing/>

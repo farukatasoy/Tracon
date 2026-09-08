@@ -88,9 +88,11 @@ checkpoints are limited to the lifetime of the process.
 This package is **not AOT compatible**: the execution engine uses reflection.
 Other AgentPrism packages are not affected.
 
-## License
+## Licence
 
-MIT
+PolyForm Small Business 1.0.0 - free below 100 people and 1,000,000 USD
+(2019, inflation adjusted) revenue; a commercial licence applies above that. Terms
+ship in the package as LICENSE.md. Details: <https://agentprism.doayen.web.tr/reference/licensing/>
 
 ## Links
 

@@ -39,10 +39,32 @@
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageIcon>icon.png</PackageIcon>
-    <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+    <!--
+      PolyForm Small Business 1.0.0 is not OSI approved, so it cannot be named in
+      <PackageLicenseExpression> - NuGet accepts only its own allow list there.
+      <PackageLicenseFile> embeds the text in the package instead, which also
+      means the licence needs no URL to resolve while the repository is private.
+    -->
+    <!--
+      🚨 The matrix lives HERE and not in the three csproj files, because the
+      <None Include="...$(PackageLicenseFile)"> item below is in this same file:
+      an ItemGroup is evaluated in file order, before any csproj body runs, so a
+      csproj-level override would set the nuspec correctly and still pack the
+      WRONG file. Resolving the matrix above the ItemGroup keeps the two in step.
+      Three packages are MIT so that a third party can write and test an
+      extension, and own the code `dotnet new` generates, without a commercial
+      licence. Everything that actually runs an agent is PolyForm.
+    -->
+    <AgentPrismMitLicensed Condition=" '$(MSBuildProjectName)' == 'AgentPrism.Abstractions'
+                                    Or '$(MSBuildProjectName)' == 'AgentPrism.Testing.Contracts.Xunit'
+                                    Or '$(MSBuildProjectName)' == 'AgentPrism.Templates' ">true</AgentPrismMitLicensed>
+    <PackageLicenseFile Condition=" '$(AgentPrismMitLicensed)' == 'true' ">LICENSE-MIT.md</PackageLicenseFile>
+    <PackageLicenseFile Condition=" '$(PackageLicenseFile)' == '' ">LICENSE.md</PackageLicenseFile>
+    <PackageRequireLicenseAcceptance Condition=" '$(AgentPrismMitLicensed)' == 'true' ">false</PackageRequireLicenseAcceptance>
+    <PackageRequireLicenseAcceptance Condition=" '$(PackageRequireLicenseAcceptance)' == '' ">true</PackageRequireLicenseAcceptance>
     <Authors>Faruk Atasoy</Authors>
-    <Company>Intelera</Company>
+    <!-- Copyright stays with the author; Atanova is the entity that licenses and invoices. -->
+    <Company>Atanova</Company>
     <Product>AgentPrism</Product>
     <Copyright>Copyright (c) Faruk Atasoy</Copyright>
     <!--
@@ -119,12 +141,17 @@
     SDK's default None glob applies only in the INNER (TFM-specific) builds,
     while `dotnet pack` collects package files in the OUTER cross-targeting
     build. Include is the working form - this is why README.md is packed the
-    same way. Verify with: unzip -l <nupkg> | grep icon.png (all 19 packages).
+    same way. Verify with: unzip -l <nupkg> | grep icon.png (all 20 packages).
     Rationale: docs/hafiza/paketleme-ve-dagitim.md.
   -->
   <ItemGroup Label="Package files">
     <None Include="README.md" Pack="true" PackagePath="\" Visible="true" />
     <None Include="$(RepositoryRootPath)assets/icon.png" Pack="true" PackagePath="\" Visible="false" />
+    <!--
+      The licence file the package declares, and only that one: a package must
+      never carry both, or the file inside it stops answering which terms apply.
+    -->
+    <None Include="$(RepositoryRootPath)$(PackageLicenseFile)" Pack="true" PackagePath="\" Visible="false" />
   </ItemGroup>
 
   <!--

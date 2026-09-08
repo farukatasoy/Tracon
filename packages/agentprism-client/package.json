@@ -2,7 +2,7 @@
   "name": "@agentprism/client",
   "version": "0.0.0",
   "description": "Typed TypeScript client for the AgentPrism management API, generated from its OpenAPI document.",
-  "license": "MIT",
+  "license": "PolyForm-Small-Business-1.0.0",
   "type": "module",
   "homepage": "https://agentprism.doayen.web.tr",
   "main": "./dist/index.js",
@@ -14,7 +14,8 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "LICENSE.md"
   ],
   "engines": {
     "node": ">=20"

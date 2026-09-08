@@ -230,3 +230,8 @@ nothing is itself reported — a stale exemption must not pass quietly.
 - [`IModelProvider` reference](https://agentprism.doayen.web.tr/api/agentprism.imodelprovider/) —
   the full contract: lifetime, threading, naming, catalog semantics,
   failure classification, and who owns the returned client.
+
+Licence: MIT - deliberately permissive, so that proving your own implementation
+correct never needs a commercial licence. It depends only on `AgentPrism.Abstractions`,
+which is MIT for the same reason. Most AgentPrism packages are PolyForm Small Business
+1.0.0. Details: <https://agentprism.doayen.web.tr/reference/licensing/>

@@ -526,7 +526,7 @@ beyan edilmeli.
 > yalnız `src|packages/*/README.md` tarar); faz regex'i genişletir.
 
 Tüm mimari bilgi Türkçe `docs/` ağacına ve tek bir kişinin oturum akışına kilitli.
-Süreç insan katkıcıya değil AI oturumuna optimize. [`COMMERCIAL.md`](../../../COMMERCIAL.md)
+Süreç insan katkıcıya değil AI oturumuna optimize. ``COMMERCIAL.md``
 36 satır — lisans/ticari model var, topluluk katkısı alacak giriş rampası
 (`CONTRIBUTING.md`, İngilizce mimari özeti, "good first issue") yok.
 

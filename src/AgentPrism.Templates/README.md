@@ -35,3 +35,8 @@ dotnet new agentprism-api -n My.Agent --persistence postgres --provider anthropi
 The generated `appsettings.json` carries only empty placeholders — it never contains a `secret`. The connection string and API key are set with `dotnet user-secrets`; the generated `README.md` describes this as the first step.
 
 Details: <https://agentprism.doayen.web.tr/getting-started/first-agent/>
+
+Licence: MIT - the code this template generates is yours, under no obligation to
+AgentPrism's terms. The packages it references carry their own licence; most are
+PolyForm Small Business 1.0.0, which is free below 100 people and 1,000,000 USD (2019,
+inflation adjusted) revenue. Details: <https://agentprism.doayen.web.tr/reference/licensing/>
