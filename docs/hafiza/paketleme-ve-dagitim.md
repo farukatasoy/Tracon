@@ -75,3 +75,17 @@
 - **🚨 Tuketicinin agacina yazilan uretilmis dosya PROJE basina yazilir, depo koküne degil** (2026-08-20, Faz 74 denetim bulgusu 3, olculdu): bir cozumdeki iki proje FARKLI paket kumesi referanslar (`src/Web` meta paket, `src/Worker` yalniz `AgentPrism.Core`) ve tek paylasilan dosya iki cevabi birden tasiyamaz — son derlenen proje kazanir, Web HTTP belgesini KAYBEDER, icerik her derlemede degisir. Birlestirme (merge) COZMEZ: projeler PARALEL derlenir ve okuma-yazma yarisir. `$(MSBuildProjectDirectory)` yapisal olarak dogrudur. `AGENTS.md` istisnadir cunku HIC ezilmez ve icerigi projeye gore degismez.
 - **Proje dizinine yazan bir hedefi "salt-okunur dizin" ile test etme**: proje dizini `bin/`/`obj/` icin zaten yazilabilir olmali; salt-okunur yapilinca DERLEMENIN KENDISI `MSB3021` ile kirilir ve test urunu degil kendini olcer. Tasinabilir bicim: dosyanin yerine bir **dizin** koy. Gercek CI sekli (`UseArtifactsOutput` ile cikti baska yere, kaynak agaci salt-okunur) elle dogrulanir: `warning MSB3491`, `exit=0`.
 
+## CLI komut ekleme (Faz 156)
+
+- **Bir CLI komutu eklerken beş yüzey birlikte değişir** (2026-09-08): `Program.cs`
+  yönlendirmesi, `Program.PrintHelp` metni, `src/AgentPrism.Cli/README.md` (pakete
+  `Include` ile girer), `AgentPrism.Cli.csproj`'un `<Description>`'ı (nuget.org'da
+  görünen metin) ve `docs-site/guides/cli.md`. Beşinden birini atlamak derlemeyi
+  kırmaz; yalnız `MT-CLI-011` ("kaç komut listeleniyor") ile yakalanır.
+- **`SqlProviderSelector.BuildProvider` `AddAgentPrism()` + `Use*` koşar, yani
+  content protector NO-OP'tur** (2026-09-08): CLI hiçbir zaman
+  `AddContentProtection(...)` çağırmaz. Veritabanındaki şifreli sütun bu yüzden
+  CLI'ya **zarfıyla** gelir. Bir CLI komutu korumalı bir sütunu okuyacaksa bunu
+  hesaba katmalıdır — `ProtectedValue.Read` sessizce ham zarfı döndürür ve zarf
+  geçerli JSON'dur (`$apEnc`). Vaka: K-735.
+

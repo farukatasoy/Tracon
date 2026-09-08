@@ -7,6 +7,8 @@ CompleteEvalRun	UPDATE agentprism_eval_runs\n   SET status = @status, completed_
 CompleteIdempotencyKey	UPDATE agentprism_idempotency_keys\n   SET state = 2, status_code = @status_code, content_type = @content_type,\n       body = @body, run_id = @run_id, headers = @headers, completed_at = @completed_at\n WHERE tenant_id = @tenant_id AND "key" = @key;
 CompleteJob	UPDATE agentprism_jobs\n   SET status = @status, completed_at = @completed_at, error_message = @error_message,\n       lease_owner = NULL, lease_until = NULL\n WHERE id = @id;
 CompleteRetentionRun	UPDATE agentprism_retention_runs\n   SET completed_at = @completed_at,\n       error        = @error\n WHERE id = @id;
+CountCheckpointStateGenerations	SELECT state_schema_version, CAST(COUNT(*) AS BIGINT)\nFROM agentprism_workflow_checkpoints\nGROUP BY state_schema_version;
+CountSessionStateGenerations	SELECT state_schema_version, CAST(COUNT(*) AS BIGINT)\nFROM agentprism_sessions\nGROUP BY state_schema_version;
 CreateMigrationsTable	CREATE TABLE IF NOT EXISTS agentprism___migrations (\n    set_name   TEXT    NOT NULL DEFAULT 'core',\n    id         INTEGER NOT NULL,\n    name       TEXT    NOT NULL,\n    checksum   TEXT    NOT NULL,\n    applied_at TEXT    NOT NULL,\n    PRIMARY KEY (set_name, id)\n);
 CreateSchema	SELECT 1;
 DecidePendingApproval	UPDATE agentprism_pending_approvals\n   SET status = @status, decided_by = @decided_by, decided_at = @decided_at\n WHERE id = @id AND tenant_id = @tenant_id AND status = @status_pending;
@@ -75,6 +77,8 @@ ReportJobItem	UPDATE agentprism_job_items\n   SET status = @status, run_id = @ru
 RevokeApiKey	UPDATE agentprism_api_keys\n   SET revoked_at = @revoked_at\n WHERE tenant_id = @tenant_id AND id = @id AND revoked_at IS NULL;
 RevokeSkillScriptGrant	UPDATE agentprism_skill_script_grants\nSET revoked_at = @revoked_at\nWHERE tenant_id = @tenant_id\n  AND skill_name = @skill_name\n  AND COALESCE(script_name, '') = COALESCE(@script_name, '')\n  AND revoked_at IS NULL;
 RollbackExperimentCanary	UPDATE agentprism_experiments\nSET variants = @variants, status = 2, ended_at = @now, rollback_reason = @rollback_reason, updated_at = @now\nWHERE tenant_id = @tenant_id AND name = @name AND status = 1\nRETURNING id;
+SampleCheckpointStates	SELECT id, state_schema_version, state_maf_version, state\nFROM (\n    SELECT id, state_schema_version, state_maf_version, state,\n           ROW_NUMBER() OVER (PARTITION BY state_schema_version ORDER BY created_at DESC, id) AS ap_rn\n    FROM agentprism_workflow_checkpoints\n) ap_sample\nWHERE ap_rn <= @per_generation\nORDER BY state_schema_version, id;
+SampleSessionStates	SELECT id, state_schema_version, state_maf_version, state\nFROM (\n    SELECT id, state_schema_version, state_maf_version, state,\n           ROW_NUMBER() OVER (PARTITION BY state_schema_version ORDER BY updated_at DESC, id) AS ap_rn\n    FROM agentprism_sessions\n) ap_sample\nWHERE ap_rn <= @per_generation\nORDER BY state_schema_version, id;
 Schema	agentprism_
 SelectActiveSkillScriptGrant	SELECT id, tenant_id, skill_name, script_name, granted_by, granted_at, expires_at, revoked_at\nFROM agentprism_skill_script_grants\nWHERE tenant_id = @tenant_id\n  AND skill_name = @skill_name\n  AND (script_name IS NULL OR script_name = @script_name)\n  AND revoked_at IS NULL\n  AND (expires_at IS NULL OR expires_at > @instant)\nORDER BY (script_name IS NULL)\nLIMIT 1;
 SelectAgentDefinition	SELECT definition, version, updated_at\nFROM agentprism_agent_definitions\nWHERE tenant_id = @tenant_id AND name = @name;

@@ -34,9 +34,11 @@ internal sealed class AgentPrismCheckpointStore : ICheckpointStore<JsonElement>
     /// </summary>
     /// <remarks>
     /// Advances only when AgentPrism changes how it structures the stored
-    /// row, never when the Microsoft Agent Framework version changes.
+    /// row, never when the Microsoft Agent Framework version changes. The
+    /// value itself lives in <see cref="StateSchemaGenerations"/>, so the
+    /// state preflight reads the same number this writer stamps.
     /// </remarks>
-    internal const int CurrentStateSchemaVersion = 1;
+    internal const int CurrentStateSchemaVersion = StateSchemaGenerations.WorkflowCheckpoint;
 
     /// <summary>
     /// The running process's Microsoft Agent Framework Workflows package
@@ -93,20 +95,7 @@ internal sealed class AgentPrismCheckpointStore : ICheckpointStore<JsonElement>
     /// Workflows assembly that produces checkpoint state.
     /// </summary>
     /// <remarks>Same technique as <c>AgentSessionManager.ReadMafVersion</c> uses for the session-serializing assembly.</remarks>
-    private static string ReadMafVersion()
-    {
-        var informational = typeof(CheckpointInfo).Assembly
-            .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
-
-        if (string.IsNullOrEmpty(informational))
-        {
-            return typeof(CheckpointInfo).Assembly.GetName().Version?.ToString() ?? "unknown";
-        }
-
-        var plus = informational.IndexOf('+', StringComparison.Ordinal);
-
-        return plus < 0 ? informational : informational[..plus];
-    }
+    private static string ReadMafVersion() => AssemblyVersionText.Read(typeof(CheckpointInfo).Assembly);
 
     /// <inheritdoc />
     public async ValueTask<JsonElement> RetrieveCheckpointAsync(string sessionId, CheckpointInfo key)

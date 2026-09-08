@@ -27,6 +27,8 @@ internal static class Program
                     await MigrateStatusCommand.RunAsync(args[2..], cancellation.Token).ConfigureAwait(false),
                 "migrate" =>
                     await MigrateCommand.RunAsync(args[1..], cancellation.Token).ConfigureAwait(false),
+                "state-check" =>
+                    await StateCheckCommand.RunAsync(args[1..], cancellation.Token).ConfigureAwait(false),
                 "health" =>
                     await HealthCommand.RunAsync(args[1..], cancellation.Token).ConfigureAwait(false),
                 "eval" =>
@@ -56,6 +58,8 @@ internal static class Program
             Usage:
               agentprism migrate --provider <postgres|sqlserver|sqlite> --connection <connection-string>
               agentprism migrate status --provider <postgres|sqlserver|sqlite> --connection <connection-string>
+              agentprism state-check --provider <postgres|sqlserver|sqlite> --connection <connection-string>
+                                     [--sample <n>] [--json]
               agentprism health --url <base-url> [--token <token>] [--json]
               agentprism eval --url <base-url> --suite <name>
                               [--token <token>] [--agent-version <n>]
@@ -71,6 +75,19 @@ internal static class Program
 
             --url is the application root PLUS the MapAgentPrism prefix, for
             example http://localhost:5080/agentprism for the default prefix.
+
+            state-check answers "can this build read the state already in the
+            database" BEFORE the upgrade, without starting the application and
+            without writing anything - no row, no migration, no lock. It counts
+            the stored schema generations across every tenant and compares them
+            against what this build writes, then tries to decode at most
+            --sample rows of EACH generation (default 5; 0 counts only).
+
+            The count covers every row. The decode is a SAMPLE: a run with no
+            failures says the rows that were read came back readable, never
+            that all of them would. Exit codes: 0 = nothing found that blocks
+            reading, 1 = argument error, 2 = could not run, 3 = ran and found
+            state this build cannot read.
 
             eval triggers a suite, polls it to completion (default timeout 30
             minutes, poll interval 5 seconds), and applies an optional quality

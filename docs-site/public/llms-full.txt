@@ -230,7 +230,7 @@ a failure to record one is logged and stepped over rather than raised to the cal
 | Management HTTP API | `MapAgentPrism()` | The embedded console, automation, or your own client |
 | Typed management client | `AgentPrism.Client`'s `AddAgentPrismClient()` | .NET code calling a running instance from outside the process that hosts it |
 | Typed TypeScript client | `@agentprism/client`'s `createAgentPrismClient()` | Browser or Node.js code calling a running instance from outside the process that hosts it |
-| CLI | `agentprism` global tool (`AgentPrism.Cli`) | Deployment pipelines: `migrate`/`migrate status` apply schema without starting the application, `health` checks model provider health, `eval` gates a build on agent quality, absolutely or against an earlier run |
+| CLI | `agentprism` global tool (`AgentPrism.Cli`) | Deployment pipelines: `migrate`/`migrate status` apply schema without starting the application, `state-check` reports read-only whether this build can still read the stored session and checkpoint state before an upgrade, `health` checks model provider health, `eval` gates a build on agent quality, absolutely or against an earlier run |
 | OpenAPI | Your application's `AddOpenApi()` setup | Client generation and API exploration |
 | OpenAI compatibility | Included in `MapAgentPrism()` | Existing Chat Completions, Responses, and Conversations clients |
 | Embedded console | `AgentPrism.UI` and `UseUI()` | Operators, developers, evaluators, and security administrators |
@@ -4386,6 +4386,7 @@ agentprism --help
 |---|---|---|
 | `agentprism migrate --provider <postgres\|sqlserver\|sqlite> --connection <connection-string>` | Database, directly | Applies pending migrations. Runs before the application ever starts, so a deployment pipeline can prepare the schema as its own step |
 | `agentprism migrate status --provider ... --connection ...` | Database, directly | Lists pending migration names. Writes nothing |
+| `agentprism state-check --provider <postgres\|sqlserver\|sqlite> --connection <connection-string> [--sample <n>] [--json]` | Database, directly | Reports whether this build can read the session and workflow checkpoint state already in the database. Writes nothing |
 | `agentprism health --url <base-url> [--token <token>] [--json]` | HTTP, through the typed client | Reads model provider health |
 | `agentprism eval --url <base-url> --suite <name> [--token <token>] [--agent-version <n>] [--min-pass-rate <0..1>] [--max-failures <n>] [--baseline <runId\|previous>] [--max-regressions <n>] [--timeout <seconds>] [--poll-interval <seconds>] [--json]` | HTTP, through the typed client | Triggers a suite, polls it to completion, applies an optional quality gate — absolute, relative to an earlier run, or both |
 
@@ -4397,9 +4398,50 @@ Neither is ever read from a configuration file, and neither is ever printed back
 `migrate` talks to the database directly instead of over HTTP because the moment
 it matters most is before the application has ever started — there is no endpoint
 to call yet, and adding one would open a database-writing operation to the network
-for no reason. The tool bundles all three database provider packages so it works
-against whichever one you run; that weight lands on the tool's own installation,
-never on your application's dependency graph.
+for no reason. `state-check` is the same argument from the other side: its whole
+point is to ask a question while the new build is *not* running. The tool bundles
+all three database provider packages so it works against whichever one you run;
+that weight lands on the tool's own installation, never on your application's
+dependency graph.
+
+### `state-check`: asking the upgrade question before the upgrade
+
+"Will my pending sessions still be readable after I upgrade?" normally gets
+answered in production, after the fact. Run this with the **new** tool version
+against a copy of production data instead:
+
+```bash
+agentprism state-check --provider postgres --connection "$AGENTPRISM_CONNECTION"
+```
+
+It reports two different things, and the difference is the whole point:
+
+- **A count of every row**, grouped by the AgentPrism envelope generation
+  stamped on it, across **every tenant** — an upgrade replaces the process for
+  all of them at once. Each generation is marked readable or not by the build
+  running the command. This part is complete.
+- **A decode of a sample**: at most `--sample` rows of *each* generation
+  (default 5, `0` counts only), deserialized through Microsoft Agent Framework.
+  This part is a sample. A clean run says the rows that were read came back
+  readable — never that all of them would.
+
+The sample is taken per generation rather than "the newest N rows overall",
+because the newest rows are the ones the current build just wrote and prove
+nothing; the risk sits in the older generations.
+
+`state-check` **writes nothing** — no row, no migration table entry, no lock —
+so it is safe against a live database, and Ctrl+C leaves nothing half-done.
+
+Two kinds of row come back as checked for structure only, and neither is a
+failure: workflow checkpoints, whose payload has no decoder outside a running
+workflow, and sessions encrypted at rest, which the CLI holds no key for.
+Calling either one unreadable would raise a false alarm about a row the
+application reads perfectly well.
+
+Exit `0` means nothing was found that blocks reading; `3` means it found state
+this build cannot read. See [the supported upgrade
+window](/reference/versioning/) for what the promise covers, and [Production
+deployment](/guides/production/) for what to do about a `3`.
 
 ### `eval`: gating a build on agent quality
 
@@ -4453,7 +4495,7 @@ earlier run; that is written to stderr and the gate is skipped, not failed.
 | `0` | Ran and passed the gate (or no gate was given) |
 | `1` | Argument error (missing/invalid flag, unknown command) |
 | `2` | Could not run: connection failed, HTTP error, timed out, or (`eval` only) the run itself ended `Failed`/`Cancelled` |
-| `3` | (`eval` only) Ran, but missed the quality gate |
+| `3` | Ran, but the answer is bad: (`eval`) missed the quality gate, or (`state-check`) found state this build cannot read |
 | `4` | (`eval` only) Ran, but could not be compared against `--baseline` |
 
 The distinction between `2` and `3` is operational: `2` is an infrastructure
@@ -4461,7 +4503,8 @@ problem and worth retrying; `3` is a real quality signal and retrying it is
 the wrong move. `4` is a third thing again — the baseline's per-case results
 have aged out of retention, it never completed, or it measures another suite.
 Folding it into `3` would send someone hunting for a regression that was never
-measured. `migrate`, `migrate status`, and `health` never return `3` or `4`.
+measured. `migrate`, `migrate status`, and `health` never return `3` or `4`;
+`state-check` never returns `4`.
 
 ## Read next
 
@@ -8224,6 +8267,64 @@ value. Alternatively, widen the prefix through
 `AgentPrism:Webhooks:AllowedConfigurationPrefix` — but a prefix broad enough to cover
 an arbitrary key removes the boundary it exists to provide.
 
+## When the state preflight comes back red
+
+Run `agentprism state-check` with the **new** tool version against a copy of
+production data before every upgrade — see [the upgrade
+window](/reference/versioning/) for what the command reports and what its
+answer is worth. Exit code `3` means it found stored state the new build
+cannot read. This is what to do about it.
+
+The command itself never changes anything, so a red result costs you nothing
+but the time it took to run.
+
+**1. Read which of the two answers came back red.** They call for different
+actions:
+
+| What the output says | What it means | What to do |
+|---|---|---|
+| `... NOT readable by this build` on a generation line | Rows carry an AgentPrism envelope generation **newer** than the build you are installing. You are downgrading, or deploying a mixed package graph | Do not deploy. Install the version that wrote those rows, or newer. This is a version selection mistake, not a data problem |
+| `unreadable: session ...` on a sampled row | The AgentPrism envelope is fine; Microsoft Agent Framework cannot deserialize the body it wrote earlier. The message names both the recorded and the running framework version | Continue to step 2 |
+
+**2. Decide whether those sessions have to survive the upgrade.** They often do
+not — a session is a conversation, and most are minutes old. `state-check`'s
+generation counts tell you how many rows are in play; your own retention policy
+tells you how long they were going to live anyway.
+
+If they do not have to survive: clear the affected sessions and checkpoints
+before the upgrade, or let retention age them out and upgrade after. A run that
+starts after the upgrade opens a new session and is unaffected.
+
+**3. If they do have to survive, drain instead of cutting over.** Stop accepting
+new work, let in-flight runs finish under the **old** build, and only then
+deploy. Draining is a supported, tested shutdown path: the host stops taking new
+jobs, waits for running ones, and does not abandon them. The sessions that
+existed only for those runs are finished business by the time the new build
+starts.
+
+**4. Keep the old runtime available until you have a green preflight, and not
+longer.** "Roll back the application" does not roll back the database —
+migrations are forward-only, as [the migration
+strategy](#choose-a-migration-strategy) above says. The old runtime is a way to
+finish draining, not a permanent escape hatch, and the [supported upgrade
+window](/reference/versioning/) is what bounds how long an old version stays
+readable at all. Plan the drain window, not an indefinite dual-runtime setup.
+
+**5. If none of the above fits, treat it as a compatibility defect and report
+it** with the facts from [Record the version in incident
+reports](/reference/versioning/): the exact package versions, the recorded and
+running Microsoft Agent Framework versions from the failure line, and the
+generation counts. Do not attach the state payload itself — it is conversation
+content.
+
+:::caution[What a clean preflight does and does not promise]
+The generation count covers every row. The decode covers `--sample` rows of
+each generation, five by default. A clean run says the rows that were read came
+back readable; it does not say every row would. Raising `--sample` buys more
+evidence at the cost of time, and no value of it turns the sample into a
+survey.
+:::
+
 ## Release and capacity caveats
 
 AgentPrism and its Microsoft Agent Framework hosting dependencies are pre-release.
@@ -8253,6 +8354,8 @@ scaled without a matching quota.
 - [ ] Test direct and queued cancellation through the actual load balancer.
 - [ ] Export the `AgentPrism` activity source and meter; alert on readiness and job age.
 - [ ] Define retention, privacy, backup, and restore procedures for every stored data class.
+- [ ] Run `agentprism state-check` with the new tool version against a copy of
+      production data before every upgrade, and know what a `3` means (above).
 - [ ] Register `IDataSubjectResolver` if data subject export/erasure requests are part of your compliance posture.
 - [ ] Keep skill scripts and diagnostics disabled unless their operational need is explicit.
 - [ ] Decide private network egress deliberately, and move every stored configuration
@@ -12773,6 +12876,72 @@ flowchart LR
   identity, or clear old sessions and checkpoints before the upgrade if you
   do not need them to survive it.
 
+### The supported upgrade window
+
+Until now this page said what happens when a stored body cannot be read, but
+not which upgrades are supposed to work in the first place. This is that
+promise:
+
+**Any AgentPrism version can read the envelope written by any earlier version
+in the same major version line.** You are never required to step through
+intermediate releases. Going from `1.0.0-preview.3` straight to
+`1.0.0-preview.19` is supported; so is any `1.x` to any later `1.x`.
+
+A change that would break this is, by definition, a major version bump — the
+envelope generation (`StateSchemaVersion`) advances, and a build that meets a
+generation newer than it understands refuses with a defined error rather than
+guessing.
+
+What the promise rests on: the repository keeps session and checkpoint state
+captured from real runs of earlier versions and reads it back with today's
+code on every build. That is a test, not an intention — when it goes red, a
+release is blocked rather than shipped with a footnote.
+
+:::caution[The window covers AgentPrism's envelope, not Microsoft Agent Framework's body]
+The table above splits ownership for a reason. AgentPrism promises its own
+envelope stays readable across the window. It cannot promise the same for the
+**state body**, which Microsoft Agent Framework writes and owns: a Microsoft
+Agent Framework version bump inside an AgentPrism upgrade can make older
+bodies unreadable, and that is Microsoft's compatibility surface, not
+AgentPrism's.
+
+This is exactly why the preflight below decodes a sample instead of only
+comparing version numbers — and why a failure names both the recorded and the
+running Microsoft Agent Framework version.
+:::
+
+### Check before you upgrade, not after
+
+`agentprism state-check` asks the question while the old build is still
+serving traffic. It reads the database directly, so it needs no running
+application:
+
+```bash
+agentprism state-check --provider postgres --connection "$AGENTPRISM_CONNECTION"
+```
+
+Run it **with the new version of the tool** against a copy of production data.
+It writes nothing — no row, no migration table entry, no lock — so it is also
+safe against the live database.
+
+It reports two different things, and reads them out separately:
+
+- **A count of every row**, grouped by the envelope generation stamped on it,
+  across every tenant. Each generation is marked readable or not by the build
+  running the command. This part is complete.
+- **A decode of a sample**, at most `--sample` rows of *each* generation
+  (default 5), deserialized through Microsoft Agent Framework. This part is a
+  sample. A clean run says the rows that were read came back readable — it
+  never says all of them would.
+
+Exit code `0` means nothing was found that blocks reading; `3` means it found
+state this build cannot read. Two kinds of row are reported as checked for
+structure only and are never counted as failures: workflow checkpoints (whose
+payload has no decoder outside a running workflow) and sessions encrypted at
+rest (the CLI holds no content protection key). See the
+[CLI guide](/guides/cli/) for the full command surface, and [Production
+deployment](/guides/production/) for what to do when it comes back red.
+
 ## Upgrade safely
 
 1. Create a branch and update all AgentPrism packages together.
@@ -12781,13 +12950,15 @@ flowchart LR
    Framework version moved, which affects persisted session and checkpoint
    bodies (above).
 3. Build with warnings as errors and run the full test suite.
-4. Start a disposable environment against a copy of production-shaped data.
-5. Inspect `/api/meta`, health checks, provider health, and migration diagnostics.
-6. Exercise one synchronous run, one streamed run, every enabled background service, and
+4. Run `agentprism state-check` with the new tool version against a copy of
+   production data (above). A `3` here is a stop sign, not a warning.
+5. Start a disposable environment against a copy of production-shaped data.
+6. Inspect `/api/meta`, health checks, provider health, and migration diagnostics.
+7. Exercise one synchronous run, one streamed run, every enabled background service, and
    your approval and guard paths.
-7. Back up the database before the production migration. Deploy API and worker processes
+8. Back up the database before the production migration. Deploy API and worker processes
    from the same artifact.
-8. Watch run failures, provider latency, queue depth, webhook delivery, and cost after the
+9. Watch run failures, provider latency, queue depth, webhook delivery, and cost after the
    rollout.
 
 Database migrations are forward-only. Do not assume that rolling back the application

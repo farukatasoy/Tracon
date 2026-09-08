@@ -554,6 +554,30 @@ internal abstract class SqlQueriesBase
     /// <summary>Gets the query that reads the sessions with a filter.</summary>
     public string SelectSessions { get; protected set; } = string.Empty;
 
+    /// <summary>
+    /// Gets the read-only query that counts the sessions per stored schema
+    /// generation, across every tenant.
+    /// </summary>
+    /// <remarks>
+    /// An upgrade is not a per-tenant event, so this one deliberately carries
+    /// NO tenant predicate — unlike <see cref="SelectSessions"/>, which always
+    /// filters. It is a single aggregate and never reads the state payload.
+    /// </remarks>
+    public string CountSessionStateGenerations { get; protected set; } = string.Empty;
+
+    /// <summary>Gets the read-only query that counts the workflow checkpoints per stored schema generation.</summary>
+    /// <remarks>Same reasoning as <see cref="CountSessionStateGenerations"/>.</remarks>
+    public string CountCheckpointStateGenerations { get; protected set; } = string.Empty;
+
+    /// <summary>
+    /// Gets the read-only query that reads at most <c>@per_generation</c>
+    /// sessions of EACH stored generation, newest first.
+    /// </summary>
+    public string SampleSessionStates { get; protected set; } = string.Empty;
+
+    /// <summary>Gets the read-only query that samples workflow checkpoints the same way.</summary>
+    public string SampleCheckpointStates { get; protected set; } = string.Empty;
+
     /// <summary>Gets the query that opens a new run record.</summary>
     public string InsertRun { get; protected set; } = string.Empty;
 
@@ -1026,6 +1050,50 @@ internal abstract class SqlQueriesBase
     private void BuildSharedQueries()
     {
         SelectAppliedMigrations = $"SELECT set_name, id, name, checksum FROM {Table("__migrations")} ORDER BY set_name, id;";
+
+        // --- State preflight (Phase 156): read-only, tenant-agnostic ---
+        //
+        // COUNT(*) is int on SQL Server and bigint on PostgreSQL; the CAST
+        // makes all three providers hand back the same CLR type, so the
+        // reader needs no per-provider branch.
+        //
+        // The row-limited samples use ROW_NUMBER(), which every supported
+        // provider has (SQLite since 3.25; the bundled build is far newer).
+        // That keeps LIMIT/TOP/FETCH out of this text entirely, which is the
+        // only reason these two can live here instead of per dialect.
+        CountSessionStateGenerations = $"""
+            SELECT state_schema_version, CAST(COUNT(*) AS BIGINT)
+            FROM {Table("sessions")}
+            GROUP BY state_schema_version;
+            """;
+
+        CountCheckpointStateGenerations = $"""
+            SELECT state_schema_version, CAST(COUNT(*) AS BIGINT)
+            FROM {Table("workflow_checkpoints")}
+            GROUP BY state_schema_version;
+            """;
+
+        SampleSessionStates = $"""
+            SELECT id, state_schema_version, state_maf_version, state
+            FROM (
+                SELECT id, state_schema_version, state_maf_version, state,
+                       ROW_NUMBER() OVER (PARTITION BY state_schema_version ORDER BY updated_at DESC, id) AS ap_rn
+                FROM {Table("sessions")}
+            ) ap_sample
+            WHERE ap_rn <= @per_generation
+            ORDER BY state_schema_version, id;
+            """;
+
+        SampleCheckpointStates = $"""
+            SELECT id, state_schema_version, state_maf_version, state
+            FROM (
+                SELECT id, state_schema_version, state_maf_version, state,
+                       ROW_NUMBER() OVER (PARTITION BY state_schema_version ORDER BY created_at DESC, id) AS ap_rn
+                FROM {Table("workflow_checkpoints")}
+            ) ap_sample
+            WHERE ap_rn <= @per_generation
+            ORDER BY state_schema_version, id;
+            """;
 
         InsertMigration = $"""
             INSERT INTO {Table("__migrations")} (set_name, id, name, checksum, applied_at)

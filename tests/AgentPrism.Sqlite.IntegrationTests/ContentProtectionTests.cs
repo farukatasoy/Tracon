@@ -20,7 +20,7 @@ namespace AgentPrism.Sqlite.IntegrationTests;
 #pragma warning disable MAAI001 // AgentFileStore is "evaluation purposes only" — same rationale as the product code.
 public sealed class ContentProtectionTests(SqliteFixture fixture)
 {
-    private static readonly string TestKey = Convert.ToBase64String(Enumerable.Range(0, 32).Select(static i => (byte)i).ToArray());
+    private static readonly string TestKey = ProtectingStoreContext.TestKey;
 
     [Fact]
     public async Task Session_state_is_encrypted_at_rest_when_protection_is_on()
@@ -297,8 +297,7 @@ public sealed class ContentProtectionTests(SqliteFixture fixture)
 
         var options = new AgentPrismContentProtectionOptions { Enabled = true, ActiveKeyId = "k1" };
         options.Keys["k1"] = "Keys:k1";
-        var configuration = new FakeConfiguration(new Dictionary<string, string>(StringComparer.Ordinal) { ["Keys:k1"] = TestKey });
-        var protector = new AesGcmContentProtector(new StaticMonitor(options), configuration);
+        var protector = ProtectingStoreContext.CreateProtector(options);
 
         var onContext = new SqlStoreContext
         {
@@ -336,48 +335,6 @@ public sealed class ContentProtectionTests(SqliteFixture fixture)
 
 
     private static SqlStoreContext BuildProtectingContext(SqliteTestContext baseContext, string activeKeyId, IReadOnlySet<ProtectedColumn> columns)
-    {
-        var options = new AgentPrismContentProtectionOptions { Enabled = true, ActiveKeyId = activeKeyId };
-        options.Keys[activeKeyId] = $"Keys:{activeKeyId}";
-
-        var configuration = new FakeConfiguration(
-            new Dictionary<string, string>(StringComparer.Ordinal) { [$"Keys:{activeKeyId}"] = TestKey });
-
-        var protector = new AesGcmContentProtector(new StaticMonitor(options), configuration);
-
-        return new SqlStoreContext
-        {
-            DataSource = baseContext.StoreContext.DataSource,
-            Dialect = baseContext.StoreContext.Dialect,
-            CommandTimeoutSeconds = baseContext.StoreContext.CommandTimeoutSeconds,
-            ProviderName = baseContext.StoreContext.ProviderName,
-            ContentProtector = protector,
-            ProtectedColumns = columns,
-        };
-    }
-
-    private sealed class StaticMonitor(AgentPrismContentProtectionOptions value) : IOptionsMonitor<AgentPrismContentProtectionOptions>
-    {
-        public AgentPrismContentProtectionOptions CurrentValue => value;
-
-        public AgentPrismContentProtectionOptions Get(string? name) => value;
-
-        public IDisposable? OnChange(Action<AgentPrismContentProtectionOptions, string?> listener) => null;
-    }
-
-    private sealed class FakeConfiguration(IReadOnlyDictionary<string, string> values) : Microsoft.Extensions.Configuration.IConfiguration
-    {
-        public string? this[string key]
-        {
-            get => values.GetValueOrDefault(key);
-            set => throw new NotSupportedException();
-        }
-
-        public IEnumerable<Microsoft.Extensions.Configuration.IConfigurationSection> GetChildren() => [];
-
-        public Microsoft.Extensions.Primitives.IChangeToken GetReloadToken() => throw new NotSupportedException();
-
-        public Microsoft.Extensions.Configuration.IConfigurationSection GetSection(string key) => throw new NotSupportedException();
-    }
+        => ProtectingStoreContext.Build(baseContext, activeKeyId, columns);
 }
 #pragma warning restore MAAI001

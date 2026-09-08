@@ -1,8 +1,9 @@
 # AgentPrism.Cli
 
 The `agentprism` global tool. Applies migrations as a separate deployment
-step, reads model provider health over HTTP, and runs an eval suite as a CI
-quality gate.
+step, checks whether this build can still read the state already in the
+database, reads model provider health over HTTP, and runs an eval suite as a
+CI quality gate.
 
 ```bash
 dotnet tool install -g AgentPrism.Cli
@@ -15,6 +16,7 @@ agentprism --help
 |---|---|---|
 | `agentprism migrate --provider <postgres\|sqlserver\|sqlite> --connection <connection-string>` | Database, directly | Applies pending migrations. Runs before the application ever starts |
 | `agentprism migrate status --provider ... --connection ...` | Database, directly | Lists pending migration names. Writes nothing |
+| `agentprism state-check --provider <postgres\|sqlserver\|sqlite> --connection <connection-string> [--sample <n>] [--json]` | Database, directly | Reports whether this build can read the stored session and workflow checkpoint state. Writes nothing |
 | `agentprism health --url <base-url> [--token <token>] [--json]` | HTTP, through `AgentPrism.Client` | Reads model provider health |
 | `agentprism eval --url <base-url> --suite <name> [--token <token>] [--agent-version <n>] [--min-pass-rate <0..1>] [--max-failures <n>] [--baseline <runId\|previous>] [--max-regressions <n>] [--timeout <seconds>] [--poll-interval <seconds>] [--json]` | HTTP, through `AgentPrism.Client` | Triggers a suite, polls it to completion, applies an optional quality gate — absolute, relative to a baseline run, or both |
 
@@ -28,6 +30,45 @@ is ever printed back.
 example `http://localhost:5080/agentprism` for the default prefix, or
 `http://localhost:5080/control` for an app that called
 `MapAgentPrism("/control")`.
+
+## `state-check`: asking the upgrade question before the upgrade
+
+"Will my pending sessions still be readable after I upgrade?" is normally
+answered in production, after the fact. `state-check` moves it earlier: it
+runs against the database directly, so the new build can be pointed at a
+production copy while the old one is still serving traffic.
+
+It does two different things, and the difference matters:
+
+- **It counts.** One aggregate query per table groups the rows by the
+  AgentPrism schema generation stamped on them, across **every tenant** — an
+  upgrade replaces the process for all of them at once. Each generation is
+  then marked readable or not by the build running the command. This count
+  covers every row.
+- **It samples.** It then reads at most `--sample` rows of *each* generation
+  (default 5) and tries to deserialize them through Microsoft Agent Framework.
+  This is a **sample, not a survey**: a run with no failures says the rows
+  that were read came back readable, never that all of them would.
+
+Two kinds of row are reported as checked for structure only, and neither is a
+failure:
+
+- **Workflow checkpoints.** Their payload is Microsoft Agent Framework's own
+  opaque blob with no decoder outside a running workflow, so only its stored
+  shape is verified.
+- **Sessions encrypted at rest.** With `AddContentProtection(...)` on, the CLI
+  holds no key. Calling that unreadable would raise a false alarm about a row
+  the application reads perfectly well.
+
+`state-check` **writes nothing** — no row, no migration table entry, no lock.
+It is safe against a live database, and interrupting it with Ctrl+C leaves
+nothing half-done.
+
+Note what the promise covers: this is about **AgentPrism's own envelope**
+around the state. Whether one Microsoft Agent Framework version can read what
+another wrote is Microsoft's compatibility surface, not AgentPrism's — which
+is exactly why the decode step exists and why a failure names both the
+recorded and the running framework version.
 
 ## `eval`: running a suite as a CI gate
 
@@ -95,17 +136,20 @@ otherwise every new suite's first CI run would go red for no reason.
 | `0` | Ran and passed the gate (or no gate was given) |
 | `1` | Argument error (missing/invalid flag, unknown command) |
 | `2` | Could not run: connection failed, HTTP error, timed out, or (`eval` only) the run itself ended `Failed`/`Cancelled` |
-| `3` | (`eval` only) Ran, but missed the quality gate |
+| `3` | Ran, but the answer is bad: (`eval`) missed the quality gate, or (`state-check`) found state this build cannot read |
 | `4` | (`eval` only) Ran, but could not be compared against `--baseline` |
 
-`migrate`, `migrate status`, and `health` never return `3` or `4`.
+`migrate`, `migrate status`, and `health` never return `3` or `4`;
+`state-check` never returns `4`.
 
-## Why `migrate` talks to the database directly, not over HTTP
+## Why `migrate` and `state-check` talk to the database directly, not over HTTP
 
 The moment `migrate` matters most is before the application has ever started
 — there is no HTTP endpoint to call yet, and adding one would open a new,
 unauthenticated-by-necessity attack surface for a database-writing operation.
-`migrate` and `migrate status` reference `AgentPrism.PostgreSql`,
+`state-check` is the same story from the other side: the whole point is to ask
+the question while the new build is *not* running.
+`migrate`, `migrate status`, and `state-check` reference `AgentPrism.PostgreSql`,
 `AgentPrism.SqlServer`, and `AgentPrism.Sqlite` directly instead. This adds
 weight to the **tool's own** package, not to a consumer's dependency graph —
 a global tool is not referenced, it is installed and run standalone.
