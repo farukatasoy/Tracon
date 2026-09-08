@@ -1,13 +1,13 @@
 # Faz 160 — Lisans Modeli ve Paket Metaverisi
 
 > **Durum:** ✅ Tamamlandı (2026-09-08)
-> **Kaynak:** `nuget-danismani` turu (2026-09-08) — bu kalem [ADAYLAR.md](ADAYLAR.md) içinde hiç bulunmadı; yayın danışmanlığı üretti
-> **Önkoşul:** Yok — ama yayın kapısını Faz 97 kurdu: [`arsiv/fazlar/97-SURUM-POLITIKASI-VE-YAYIN-PROVASI.md`](arsiv/fazlar/97-SURUM-POLITIKASI-VE-YAYIN-PROVASI.md)
+> **Kaynak:** `nuget-danismani` turu (2026-09-08) — bu kalem [ADAYLAR.md](../../ADAYLAR.md) içinde hiç bulunmadı; yayın danışmanlığı üretti
+> **Önkoşul:** Yok — ama yayın kapısını Faz 97 kurdu: [`arsiv/fazlar/97-SURUM-POLITIKASI-VE-YAYIN-PROVASI.md`](97-SURUM-POLITIKASI-VE-YAYIN-PROVASI.md)
 > **Paketler:** 20 paketlenebilir projenin **tamamı** — yalnız metaveri ve lisans dosyası
 > **Yeni paket:** Yok · **Migration:** Yok
 > **Public API:** Büyümüyor — tek satır C# değişmez. `wc -l src/*/PublicAPI.Shipped.txt` = 17 satır, hepsi `#nullable enable` (ölçüldü 2026-09-08); taban çizgisi boştur
 > **Tüketici yüzeyi:** `docs-site/src/content/docs/reference/licensing.md` (**yeni**) · `packages.md` · `docs-site/src/sidebar.mjs` · sevk edilen: kök `README.md` (pakete girer), `LICENSE.md`, `LICENSE-MIT.md`
-> **Manuel test alanı:** [`docs/manuel-test/01-KURULUM-VE-PAKETLEME.md`](manuel-test/01-KURULUM-VE-PAKETLEME.md)
+> **Manuel test alanı:** [`docs/manuel-test/01-KURULUM-VE-PAKETLEME.md`](../../manuel-test/01-KURULUM-VE-PAKETLEME.md)
 
 ---
 
@@ -26,12 +26,12 @@
    ağaçta reddeder) · **K-007** / **K-008** (paket ekleme ve ön sürüm sınırı — bu faz
    ihlal etmez, paket eklemez)
 3. Alan hafızası — ikisi de doğrudan bu fazın konusudur:
-   [`hafiza/paketleme-ve-dagitim.md`](hafiza/paketleme-ve-dagitim.md) (paket metaverisi ve
-   `pack` tuzakları) · [`hafiza/yayin-ve-surumleme.md`](hafiza/yayin-ve-surumleme.md)
+   [`hafiza/paketleme-ve-dagitim.md`](../../hafiza/paketleme-ve-dagitim.md) (paket metaverisi ve
+   `pack` tuzakları) · [`hafiza/yayin-ve-surumleme.md`](../../hafiza/yayin-ve-surumleme.md)
    (`kapi.py yayin` ne doğrular, ne doğrulamaz)
 4. Site tarafı için, yalnız gerekince:
-   [`hafiza/dokumantasyon.md`](hafiza/dokumantasyon.md) (dil sınırı ve site yayın hattı) ·
-   [`hafiza/site-uretim-kapilari.md`](hafiza/site-uretim-kapilari.md)
+   [`hafiza/dokumantasyon.md`](../../hafiza/dokumantasyon.md) (dil sınırı ve site yayın hattı) ·
+   [`hafiza/site-uretim-kapilari.md`](../../hafiza/site-uretim-kapilari.md)
 5. Emsal — yeniden yazma, oku: `scripts/kapi.py` içindeki `yayin` alt komutunun paket
    kimliği ve metaveri doğrulaması (bugün `1077-1078` satırlarında lisansı sabit MIT sanar)
 
@@ -76,13 +76,13 @@ Bugün üç koşul birden geçerlidir ve **üçü de tek yönlüdür**:
 | `COMMERCIAL.md:9-10` | Dosya kendi başlığıyla "açık bir taahhüt"tür ve **"MIT olarak listelenen her paket sonsuza dek MIT kalır"** der. Seçilen modeli doğrudan yasaklar |
 | `COMMERCIAL.md:9` | Taahhüt "README.md'deki **Paketler tablosunda MIT olarak listelenen**" pakete atıf yapar. `README.md:172` tablosunun sütunları `\| Package \| What it does \|` — **lisans sütunu yoktur**. Atıf var olmayan bir şeye bakar |
 | `COMMERCIAL.md` tamamı | Türkçe. Pakete giren İngilizce README ondan link verir — dil sınırı ihlali |
-| [`README.md:367`](../README.md) | `[COMMERCIAL.md](COMMERCIAL.md)` **göreli** linktir. nuget.org'da render edilen README'de göreli link ölüdür; depo `private` olduğu için GitHub'da da açılmaz. K-659'un aynı sınıfı |
-| [`src/Directory.Build.props:42`](../src/Directory.Build.props) | `<PackageLicenseExpression>MIT</PackageLicenseExpression>` — 20 paketin hepsi MIT ilan eder |
-| [`src/Directory.Build.props:43`](../src/Directory.Build.props) | `<PackageRequireLicenseAcceptance>false</...>` |
-| [`src/Directory.Build.props:45`](../src/Directory.Build.props) | `<Company>Intelera</Company>` — kullanıcının şirketi **Atanova**. Yanlış tüzel kişilik 20 pakette dağıtılır |
-| [`scripts/kapi.py:1077-1078`](../scripts/kapi.py) | Yayın kapısı `'<license type="expression">MIT</license>' not in nuspec` diye arar. Lisans değişince **her `kapi.py yayin` koşumu kırmızı olur** |
+| [`README.md:367`](../../../README.md) | `[COMMERCIAL.md](../../COMMERCIAL.md)` **göreli** linktir. nuget.org'da render edilen README'de göreli link ölüdür; depo `private` olduğu için GitHub'da da açılmaz. K-659'un aynı sınıfı |
+| [`src/Directory.Build.props:42`](../../../src/Directory.Build.props) | `<PackageLicenseExpression>MIT</PackageLicenseExpression>` — 20 paketin hepsi MIT ilan eder |
+| [`src/Directory.Build.props:43`](../../../src/Directory.Build.props) | `<PackageRequireLicenseAcceptance>false</...>` |
+| [`src/Directory.Build.props:45`](../../../src/Directory.Build.props) | `<Company>Intelera</Company>` — kullanıcının şirketi **Atanova**. Yanlış tüzel kişilik 20 pakette dağıtılır |
+| [`scripts/kapi.py:1077-1078`](../../../scripts/kapi.py) | Yayın kapısı `'<license type="expression">MIT</license>' not in nuspec` diye arar. Lisans değişince **her `kapi.py yayin` koşumu kırmızı olur** |
 | `LICENSE` (kök) | Dosyanın **uzantısı yok**. NuGet paket içi lisans dosyası için `.txt` veya `.md` ister |
-| [`src/AgentPrism.Testing.Contracts.Xunit/…csproj:26`](../src/AgentPrism.Testing.Contracts.Xunit/AgentPrism.Testing.Contracts.Xunit.csproj) | `ProjectReference: AgentPrism.Abstractions`. Abstractions kısıtlı kalırsa sözleşme paketinin MIT olması eklenti yazarına kapı açmaz |
+| [`src/AgentPrism.Testing.Contracts.Xunit/…csproj:26`](../../../src/AgentPrism.Testing.Contracts.Xunit/AgentPrism.Testing.Contracts.Xunit.csproj) | `ProjectReference: AgentPrism.Abstractions`. Abstractions kısıtlı kalırsa sözleşme paketinin MIT olması eklenti yazarına kapı açmaz |
 | `docs-site/src/content/docs/` | Lisans sayfası **yok** (`ls` ile ölçüldü). `reference/` altında `changelog · compatibility · configuration · glossary · read-views · versioning` var |
 | `src/*/*.csproj` | **21** proje dosyası; `AgentPrism.Generators` `IsPackable=false`. Paketlenebilir: **20**. `AgentPrism.Sql.Shared` bir `.csproj` içermez — paylaşılan kaynak dizinidir |
 
@@ -311,7 +311,7 @@ docs/manuel-test/01-KURULUM-VE-PAKETLEME.md (kabul case'leri)
 
 > Mutlu yoldan değil, **ne bozulabilir**den türetilir. Seviyeyi plan seçer.
 > Sınır geçen davranış (DI · HTTP · kiracı · akış · depo · **paket**) birim
-> testiyle kanıtlanamaz — [`.agents/ortak/test-seviyeleri.md`](../.agents/ortak/test-seviyeleri.md).
+> testiyle kanıtlanamaz — [`.agents/ortak/test-seviyeleri.md`](../../../.agents/ortak/test-seviyeleri.md).
 
 | Ne bozulabilir | Seviye | Test |
 |---|---|---|
@@ -336,7 +336,7 @@ yok · **boş/aşırı girdi** yok · **başka kiracı** yok · **alt sistem hat
 
 ## Manuel Kabul Case'leri
 
-> Kapanışta [`docs/manuel-test/01-KURULUM-VE-PAKETLEME.md`](manuel-test/01-KURULUM-VE-PAKETLEME.md)
+> Kapanışta [`docs/manuel-test/01-KURULUM-VE-PAKETLEME.md`](../../manuel-test/01-KURULUM-VE-PAKETLEME.md)
 > içine eklenir.
 
 | # | Ön koşul | Adımlar | Beklenen sonuç |
@@ -571,7 +571,7 @@ Bu faz lisansı seçti; **ürünü yayınlamadı**. Sırasıyla açık kalanlar:
 - **`Directory.Build.props` içindeki `ItemGroup` hiçbir `csproj` gövdesini görmez.**
   Paket bazlı bir `pack` farkı `MSBuildProjectName` ile props içinde, `ItemGroup`'un
   üstünde çözülmelidir. `src/Directory.Build.targets` açmak köktekini sessizce
-  devre dışı bırakır. Tam kayıt: [`hafiza/paketleme-ve-dagitim.md`](hafiza/paketleme-ve-dagitim.md)
+  devre dışı bırakır. Tam kayıt: [`hafiza/paketleme-ve-dagitim.md`](../../hafiza/paketleme-ve-dagitim.md)
 - **`requireLicenseAcceptance` `false` iken `.nuspec`'e hiç yazılmaz.** Kapı
   elementin yokluğunu kontrol eder, `"false"` metnini değil.
 - **Lisans iddiası taşıyan yüzey yalnız `.nuspec` değildir.** Sevk edilen README
@@ -584,7 +584,7 @@ Bu faz lisansı seçti; **ürünü yayınlamadı**. Sırasıyla açık kalanlar:
 - **Bu fazın kapı koşumlarında iki bilinen kırılgan çıktı:**
   `Playground_voice_mode_opens_microphone_and_shows_transcript` ve
   `ModelHealthSingletonTests.Health_check_runs_on_only_one_instance`. İkisi de
-  izole koşumda geçti ve ikisi de [`hafiza/test-yalitimi.md`](hafiza/test-yalitimi.md)'de
+  izole koşumda geçti ve ikisi de [`hafiza/test-yalitimi.md`](../../hafiza/test-yalitimi.md)'de
   kayıtlı altı vakadan. Kapının kendi teşhisi doğru davranışı söylüyor: *"Hepsi
   izole geçti → tam paketi TEKRAR koş."* Test atlanmaz, devre dışı bırakılmaz
 - **`kapi.py yayin --kuru` `CHANGELOG` kapısını yalnız sürüm `1.0.0-preview.N`
