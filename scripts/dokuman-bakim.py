@@ -1380,6 +1380,11 @@ _FAZ_KAL = {
     # Olculdu: 90 fazda TEK vaka (Faz 29) ama tam olarak AGENTS.md'nin
     # "plandan sapma gizlenmez -- en degerli bilgi odur" kuralinin somut hali.
     "Sağlanamayan Şeyler (dürüstlük bölümü)", "Sağlanamayan Şeyler",
+    # `tuketici-dokuman-senkronu` Adim 1 bunu ZORUNLU kilar ("Envanteri yazmadan
+    # duzenlemeye baslama... yazilmayan yuzey unutulan yuzeydir") ve tuketici
+    # yuzeyine dokunan HER fazda tekrar eder. Koddan yeniden uretilemez: hangi
+    # sayfanin neden degistigi bir karardir, bir dosya listesi degil.
+    "Tüketici Yüzeyi Envanteri",
 }
 # `NN.x` kalani bunlardan biriyse de kalir (DoD bazi fazlarda numaralanmis).
 _FAZ_DOD_KALICI = {"Bitiş Ölçütleri", "Bitiş Ölçütleri (DoD)"}
