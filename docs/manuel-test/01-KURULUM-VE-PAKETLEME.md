@@ -3260,3 +3260,40 @@ diff LICENSE.md ../../LICENSE.md && echo "KOPYA BIREBIR"
 - Paket içindeki kopya kök `LICENSE.md` ile birebir aynıdır.
 - 👤 İnsan doğrulaması: npmjs.com'da yayınlandıktan sonra lisans rozetinin
   `PolyForm-Small-Business-1.0.0` gösterdiği gözle kontrol edilir.
+
+---
+
+### MT-PKG-122 — Sevk edilen README'nin lisans iddiası nuspec ile aynı
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 160 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- `/tmp/ap-pack` dolu.
+
+**Adımlar**
+1. Her paketin İÇİNDEKİ `README.md`'yi çıkar.
+2. README'nin lisans cümlesini aynı paketin `.nuspec` beyanıyla karşılaştır.
+
+**Girilecek veri**
+```bash
+for f in /tmp/ap-pack/*.nupkg; do
+  id=$(basename "$f" | sed 's/\.[0-9].*//')
+  ns=$(unzip -p "$f" "$id.nuspec" | grep -oE 'LICENSE(-MIT)?\.md' | head -1)
+  rd=$(unzip -p "$f" README.md | grep -iE "^Licen[sc]e: " | head -1)
+  echo "$id | nuspec=$ns | readme=$rd"
+done
+```
+
+**Beklenen sonuç**
+- `nuspec=LICENSE-MIT.md` olan her pakette README **MIT** der.
+- `nuspec=LICENSE.md` olan her pakette README **PolyForm** der.
+- 🚨 Hiçbir pakette README ile nuspec çelişmez. Bu case Faz 160 denetiminin
+  bulduğu 🔴'nın sınıfıdır: `packages/agentprism-client/README.md` `package.json`
+  PolyForm'a geçtikten sonra MIT demeye devam etmişti. README, nuget.org'un ve
+  npmjs.com'un render ettiği sayfadır — çeliştiğinde tüketici ona inanır.
+- npm tarafı `MT-PKG-121` ile ayrıca ölçülür.

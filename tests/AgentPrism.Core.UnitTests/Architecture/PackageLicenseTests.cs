@@ -66,16 +66,25 @@ public sealed class PackageLicenseTests
         // from the same OpenAPI document, so they carry the same terms. npm needs
         // its own copy of the text inside the package directory; this pins that
         // copy to the root file rather than letting the two drift.
+        // The expected SPDX id is DERIVED from what AgentPrism.Client carries, not
+        // written down again: if that package is ever moved to MIT, this test has to
+        // fail rather than leave npm quietly on the restricted licence.
+        var twinLicence = ReleaseGateLicences()["AgentPrism.Client"];
+        var expectedSpdx = string.Equals(twinLicence, MitLicenseFile, StringComparison.Ordinal)
+            ? "MIT"
+            : "PolyForm-Small-Business-1.0.0";
+
         var manifest = File.ReadAllText(
             Path.Combine(RepositoryRoot, "packages", "agentprism-client", "package.json"));
 
         manifest.ShouldContain(
-            "\"license\": \"PolyForm-Small-Business-1.0.0\"",
-            customMessage: "packages/agentprism-client/package.json no longer declares the family licence.");
+            $"\"license\": \"{expectedSpdx}\"",
+            customMessage: $"packages/agentprism-client/package.json must declare '{expectedSpdx}', " +
+                           "the same terms as its NuGet twin AgentPrism.Client.");
 
-        var rootText = File.ReadAllText(Path.Combine(RepositoryRoot, PolyFormLicenseFile));
+        var rootText = File.ReadAllText(Path.Combine(RepositoryRoot, twinLicence));
         var npmText = File.ReadAllText(
-            Path.Combine(RepositoryRoot, "packages", "agentprism-client", PolyFormLicenseFile));
+            Path.Combine(RepositoryRoot, "packages", "agentprism-client", twinLicence));
 
         npmText.ShouldBe(
             rootText,
