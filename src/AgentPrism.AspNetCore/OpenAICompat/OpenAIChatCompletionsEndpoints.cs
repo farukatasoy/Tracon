@@ -55,6 +55,7 @@ internal static class OpenAIChatCompletionsEndpoints
             .WithName("AgentPrismOpenAIChatCompletions")
             .WithTags("AgentPrism", "OpenAI")
             .WithSummary("Run endpoint compatible with the OpenAI Chat Completions API.")
+            .Accepts<object>("application/json")
             .WithDescription(
                 "Stateless: the client carries history. The agent is selected from the " +
                 "'model' field; if not found, 'metadata.entity_id' is tried. If a registered " +

@@ -6409,6 +6409,14 @@
         "summary": "Run endpoint compatible with the OpenAI Responses API.",
         "description": "The agent is selected from the \u0027model\u0027 field; if not found, \u0027metadata.entity_id\u0027 is tried. If \u0027conversation\u0027 is given the session is stored under that identifier; if not, under the generated response identifier, so chaining with \u0027previous_response_id\u0027 works. If a registered IRunAuthorizationHandler denies the caller, the response is 403. When session ownership is turned on, a \u0027conversation\u0027 or \u0027previous_response_id\u0027 that belongs to another user is refused the same way, and so is opening a NEW conversation when no authenticated identity can be resolved to own it.",
         "operationId": "AgentPrismOpenAIResponses",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {}
+            }
+          },
+          "required": true
+        },
         "responses": {
           "200": {
             "description": "OK",
@@ -6477,6 +6485,14 @@
         "summary": "Run endpoint compatible with the OpenAI Chat Completions API.",
         "description": "Stateless: the client carries history. The agent is selected from the \u0027model\u0027 field; if not found, \u0027metadata.entity_id\u0027 is tried. If a registered IRunAuthorizationHandler denies the caller, the response is 403 on BOTH the streaming and the non-streaming path.",
         "operationId": "AgentPrismOpenAIChatCompletions",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {}
+            }
+          },
+          "required": true
+        },
         "responses": {
           "200": {
             "description": "OK",
