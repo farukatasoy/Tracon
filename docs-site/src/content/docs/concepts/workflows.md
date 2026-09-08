@@ -192,6 +192,13 @@ by one Microsoft Agent Framework version can be resumed by a different one. See
 [Versions and upgrades](/reference/versioning/#persisted-session-and-checkpoint-state)
 for the compatibility policy.
 
+`agentprism state-check` counts stored checkpoints by the AgentPrism envelope
+generation stamped on them and says which of those the build running the
+command understands. That is as far as it can go for a checkpoint: the state
+inside has no decoder outside a running workflow, so the command reports a
+sampled checkpoint as checked for structure only and never claims to have
+resumed it.
+
 ## Asking a human
 
 A workflow can stop and wait for input:

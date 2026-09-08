@@ -2918,6 +2918,13 @@ by one Microsoft Agent Framework version can be resumed by a different one. See
 [Versions and upgrades](/reference/versioning/#persisted-session-and-checkpoint-state)
 for the compatibility policy.
 
+`agentprism state-check` counts stored checkpoints by the AgentPrism envelope
+generation stamped on them and says which of those the build running the
+command understands. That is as far as it can go for a checkpoint: the state
+inside has no decoder outside a running workflow, so the command reports a
+sampled checkpoint as checked for structure only and never claims to have
+resumed it.
+
 ## Asking a human
 
 A workflow can stop and wait for input:
@@ -3402,6 +3409,18 @@ from the schema migrations above: AgentPrism's envelope around the row, and the
 Microsoft Agent Framework version that wrote the opaque state inside it. See
 [Versions and upgrades](/reference/versioning/#persisted-session-and-checkpoint-state)
 for what that stamp promises and what happens when an old row can no longer be read.
+
+Durable state is also state an upgrade has to keep being able to read, and the
+stamp is what makes that answerable ahead of time rather than in production:
+
+```bash
+agentprism state-check --provider postgres --connection "$AGENTPRISM_CONNECTION"
+```
+
+Run with the **new** version of the tool, it counts your stored rows by stamp,
+says which of them the new build understands, and decodes a sample of each. It
+writes nothing, so it is safe against the live database. See [the supported
+upgrade window](/reference/versioning/#the-supported-upgrade-window).
 
 ## Keeping it from growing forever
 
@@ -11249,7 +11268,7 @@ AgentPrism instance, from a separate application or from a terminal.
 | Package | What it does |
 |---|---|
 | `AgentPrism.Client` | A typed HTTP client for the management API, generated from the OpenAPI document. Takes no AgentPrism package and no NuGet package beyond `Microsoft.Extensions.DependencyInjection.Abstractions` |
-| `AgentPrism.Cli` | The `agentprism` global tool (`dotnet tool install -g AgentPrism.Cli`): `migrate` and `migrate status` apply pending migrations without starting the application; `health` reads model provider health over HTTP through `AgentPrism.Client`; `eval` triggers an eval suite, polls it to completion, and gates a build on the result |
+| `AgentPrism.Cli` | The `agentprism` global tool (`dotnet tool install -g AgentPrism.Cli`): `migrate` and `migrate status` apply pending migrations without starting the application; `state-check` reports read-only whether this build can still read the session and checkpoint state already stored; `health` reads model provider health over HTTP through `AgentPrism.Client`; `eval` triggers an eval suite, polls it to completion, and gates a build on the result |
 
 See the [CLI guide](/guides/cli/) for setup and every command.
 

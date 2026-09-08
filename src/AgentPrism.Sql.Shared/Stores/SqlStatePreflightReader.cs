@@ -113,17 +113,20 @@ internal sealed class SqlStatePreflightReader : IStatePreflightReader
     /// <param name="stored">The value as read back from storage.</param>
     /// <returns>The plaintext, or the protected envelope itself when it cannot be opened.</returns>
     /// <remarks>
-    /// 🚨 <c>ProtectedValue.Read</c> THROWS when the row carries an envelope
-    /// this process holds no key for — <c>NullContentProtector.Unprotect</c>
-    /// does exactly that, and <c>AddAgentPrism()</c> registers it whenever the
-    /// consumer never called <c>AddContentProtection(...)</c>. A preflight run
-    /// from the CLI is precisely that process, so letting the exception through
-    /// turns "your data is encrypted" into a crash. Handing the envelope back
-    /// instead lets <c>StatePreflight</c> recognise it and report the row as
-    /// checked for structure only.
+    /// <c>ProtectedValue.Read</c> throws when the row carries an envelope this
+    /// process holds no key for, so a preflight — which normally runs from the
+    /// CLI, holding none — has to absorb that rather than crash on it.
     /// </remarks>
     private string Unprotect(string stored)
     {
+        // 🚨 NullContentProtector.Unprotect THROWS on an envelope, and
+        // AddAgentPrism() registers it whenever the consumer never called
+        // AddContentProtection(...). Measured: with this try/catch removed,
+        // `agentprism state-check` against the sample application's own
+        // database exits 134 with a stack trace instead of reporting that the
+        // rows are encrypted. Leaving the protector null in a test does NOT
+        // reproduce it — a null one short-circuits and hands the envelope
+        // back, which is the opposite behaviour.
         try
         {
             return ProtectedValue.Read(_context, stored)!;

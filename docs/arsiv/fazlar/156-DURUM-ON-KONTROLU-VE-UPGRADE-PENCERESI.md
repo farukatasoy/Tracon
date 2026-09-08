@@ -6,256 +6,29 @@
 > **Paketler:** `AgentPrism.Cli`, `AgentPrism.Core` (salt okunur ön kontrol mantığı)
 > **Yeni paket:** Yok · **Migration:** Yok — bu faz **hiçbir şey yazmaz**
 > **Public API:** Büyüyor — yeni CLI komutu ve onun okuduğu ön kontrol tipi. Faz 7'den önce ucuz
-> **Tüketici yüzeyi:** `docs-site/src/content/docs/reference/versioning.md` (upgrade penceresi) · `docs-site/src/content/docs/guides/production.md` (başarısız restore prosedürü) · sevk edilen: `AgentPrism.Cli` README'si, `capabilities.md` satırı
+> **Tüketici yüzeyi (gerçekleşen — plan ikisini öngörmüştü, altı sayfa değişti):** `reference/versioning.md` (upgrade penceresi + ön kontrol) · `guides/production.md` (ön kontrol kırmızı dönünce prosedürü) · `guides/cli.md` (komutun kendisi) · `capabilities.md` (CLI satırı) · `packages.md` (`AgentPrism.Cli` tanımı) · `getting-started/persistence.md` ve `concepts/workflows.md` (site senkron denetiminin tetiklediği iki hedef) · sevk edilen: `AgentPrism.Cli` README'si ve paket `<Description>`'ı
 > **Manuel test alanı:** [`docs/manuel-test/34-ISTEMCI-VE-CLI.md`](../../manuel-test/34-ISTEMCI-VE-CLI.md) — plan `25`'i işaret ediyordu; `state-check` bir CLI komutudur (bkz. *Plandan Sapmalar* §6)
 
 ---
 
-## Bu Faza Başlarken
-
-> `faz-baslangic` skill'ini uygula. Aşağıdaki liste o skill'in 2. adımıdır —
-> **tamamını değil, yalnız işaret edilen bölümleri oku.**
-
-1. Bu doküman
-2. Kararlar — dosyanın tamamını **okuma**, yalnız bu kalemleri grep'le:
-   ```bash
-   grep -n "K-649\|K-059" docs/KARARLAR.md
-   ```
-   **K-649** (kalıcı payload sürüm sözleşmesi: `state_schema_version` ve `state_maf_version`) ·
-   **K-059** (`secret` dosyaya **ve veritabanına** yazılmaz — bu faz bağlantı dizesi işler)
-3. [Faz 126](126-KALICI-PAYLOAD-SURUM-SOZLESMESI.md) — yalnız devir notu:
-   ```bash
-   awk '/## Sonraki Faza Devir Notu/,0' docs/arsiv/fazlar/126-KALICI-PAYLOAD-SURUM-SOZLESMESI.md
-   ```
-   🚨 **Bu faz o fazın üstüne biner.** Faz 126 corpus'u ve testi kurdu; bu faz onu operatörün **kendi verisine** taşır. Devir notunu okumadan başlama.
-4. Alan hafızası (bu faz iki alana dokunuyor):
-   [`hafiza/maf-oturum.md`](../../hafiza/maf-oturum.md) (oturum durumu ve envelope) ·
-   [`hafiza/paketleme-ve-dagitim.md`](../../hafiza/paketleme-ve-dagitim.md) (CLI aracı sevkiyatı)
-5. Fixture sözleşmesi — **okunmadan fixture'a dokunulmaz**:
-   `tests/AgentPrism.Core.UnitTests/Fixtures/README.md`
+> ### ⚗️ Damıtılmış kayıt
+> Bu dosya fazın **planını** değil, fazın bıraktığı **kalıcı bilgiyi**
+> taşır. Plan gövdesi, planlanan/gerçekleşen API, dosya listesi, risk ve
+> açık soru bölümleri kapanışta düştü — **silinmedi, git geçmişindedir.**
+>
+> Tam metin — kopyala, çalıştır:
+>
+> ```bash
+> git show 038591d5:docs/arsiv/fazlar/156-DURUM-ON-KONTROLU-VE-UPGRADE-PENCERESI.md
+> ```
+>
+> Damıtıldı 2026-09-08 · `scripts/dokuman-bakim.py faz-damit`
 
 ---
 
 ## Amaç
 
-Bugün "yükselttiğimde bekleyen oturumlarım okunabilir mi" sorusunun cevabı
-**yalnız CI'da** vardır. Operatörün kendi veritabanına sorabileceği bir şey
-yoktur; öğrenme yeri üretimdir. Bu faz o soruyu yükseltmeden **önce**
-sorulabilir hâle getirir ve cevabın ne anlama geldiğini yazıya döker.
-
-- **F-216** — salt okunur durum ön kontrolü (CLI), yazılı upgrade penceresi ve
-  başarısız restore prosedürü.
-
-### 🚨 Aday doğrulamada daraldı — ne DÜŞTÜ
-
-F-216'nın merkezî iddiası *"önceki artifact'in ürettiği durum corpus'u test
-ağacında yok"* idi. **Yanlış.** [Faz 126](126-KALICI-PAYLOAD-SURUM-SOZLESMESI.md)
-bunu zaten yapmıştır ve 2026-09-07'de doğrulandı:
-
-| Bugün **var** | Kanıt |
-|---|---|
-| Gerçek koşumdan yakalanmış oturum corpus'u | `tests/AgentPrism.Core.UnitTests/Fixtures/session-state-1.18.0.json` |
-| Gerçek koşumdan yakalanmış checkpoint corpus'u | `tests/AgentPrism.Workflows.UnitTests/Fixtures/workflow-checkpoint-1.18.0.json` |
-| Çapraz sürüm okuma kapısı | [`PersistedPayloadUpgradeTests.cs:24`](../../../tests/AgentPrism.Core.UnitTests/Sessions/PersistedPayloadUpgradeTests.cs#L24) — 1.18.0 fixture'ını **bugünkü 1.20.0** koduyla okur |
-| Bilinmeyen kuşağın tanımlı hatası | Aynı dosya `:36` — gelecekteki `StateSchemaVersion` tanımlı hata verir, oturum **silinmez** |
-| Fixture yenileme yasağı | `Fixtures/README.md` — "kırmızı olduğu için yenileme"; `nuget-danismani`'ye götür |
-
-**Bu yüzden corpus yazma işi bu fazın kapsamında DEĞİLDİR.** Faz 126'nın
-fixture'larına ve yenileme kuralına dokunulmaz.
-
-### Bugün ne çalışmıyor — doğrulanmış kanıt
-
-| Kanıt | Gözlem |
-|---|---|
-| `ls src/AgentPrism.Cli/Commands/` | Yalnız `Eval` · `Health` · `Migrate` · `MigrateStatus`. Durumu ön kontrol eden komut **yok** |
-| `grep -rl "upgrade window" docs-site/` | **Sıfır sonuç** — desteklenen upgrade penceresi hiçbir tüketici sayfasında yazılı değil |
-| [`production.md:387`](../../../docs-site/src/content/docs/guides/production.md) | Yalnız bir kontrol listesi satırı: "restore prosedürlerini tanımla". Başarısız restore için **adım yok** |
-| [`AgentSessionManager.cs:42`](../../../src/AgentPrism.Core/Sessions/AgentSessionManager.cs#L42) · [`AgentPrismCheckpointStore.cs:39`](../../../src/AgentPrism.Workflows/Internal/AgentPrismCheckpointStore.cs#L39) | `CurrentStateSchemaVersion = 1` — ikisi de `internal const`; dışarıdan okunamaz |
-| [`ISessionStore.cs:175`](../../../src/AgentPrism.Abstractions/Sessions/ISessionStore.cs#L175) | ~~`QueryAsync(SessionQuery)` var — salt okunur sayım için yeterli~~ **🚨 ÇÜRÜDÜ (2026-09-08).** Kiracı filtreler, sayfalar, tam payload okur — bkz. *Plandan Sapmalar* §1 |
-| [`IWorkflowCheckpointStore.cs:64`](../../../src/AgentPrism.Abstractions/Workflows/IWorkflowCheckpointStore.cs#L64) | ~~`ListAsync` var — checkpoint tarafı için aynı~~ **🚨 ÇÜRÜDÜ.** `tenantId` **ve** `sessionId` ister; veritabanı çapında kullanılamaz |
-| [`MigrateCommand.cs:11`](../../../src/AgentPrism.Cli/Commands/MigrateCommand.cs#L11) | Doğrudan veritabanına bağlanan CLI deseni: `--provider` + `--connection` |
-
-> Kanıtlar 2026-09-07 tarihinde doğrulandı.
-
----
-
-## 156.1 — Salt okunur durum ön kontrolü
-
-Yeni komut: `agentprism state-check`. `migrate` desenini izler (doğrudan
-veritabanı, HTTP değil) — çünkü ön kontrol **yükseltmeden önce**, uygulama
-ayakta değilken de koşabilmelidir.
-
-```mermaid
-flowchart TD
-    accTitle: Durum ön kontrolünün akışı
-    accDescr: Komut oturum ve checkpoint kayıtlarını sayar, kuşak numaralarını bu build'in anladığıyla karşılaştırır ve örneklem üzerinde salt okunur bir çözme denemesi yapar.
-    A["agentprism state-check<br/>--provider --connection"] --> B["kuşak sayımı<br/>state_schema_version başına"]
-    B --> C{"bu build'in<br/>anladığından<br/>büyük mü?"}
-    C -->|evet| D["🔴 okunamaz kayıt<br/>sayısı raporlanır"]
-    C -->|hayır| E["örneklem üzerinde<br/>SALT OKUNUR çözme"]
-    E --> F{"çözüldü mü?"}
-    F -->|hayır| G["🔴 MAF sürüm çifti<br/>raporlanır"]
-    F -->|evet| H["✅ örneklem temiz"]
-```
-
-🚨 **Üç sert kural.**
-
-1. **Hiçbir şey yazmaz.** Ne oturum, ne checkpoint, ne migration tablosu.
-   Kanıtı bir testtir, yorum değil (§*Hata Modları*).
-2. **Örneklemdir, kanıt değildir.** Komut "örneklem temiz" der, "her kayıt
-   okunabilir" **demez**. Çıktı bu ayrımı kelimeyle kurar; yoksa operatör
-   yanlış güven kazanır.
-3. **Bağlantı dizesi yazdırılmaz** (K-059). `MigrateCommand.cs:37`'nin emsali:
-   sağlayıcı istisnası bağlantı dizesi taşımadığı için `ex.Message` güvenlidir;
-   yeni kod bu varsayımı **kendi** hata yolları için tekrar doğrulamalıdır.
-
-Örneklem büyüklüğü ve seçimi **Açık Soru 1**'dir.
-
-## 156.2 — Kuşak numaralarının okunabilir olması
-
-`CurrentStateSchemaVersion` bugün iki yerde `internal const`. Ön kontrol onu
-okumak zorundadır. Seçenek **Açık Soru 2**'dir: sabiti public yapmak mı, yoksa
-ön kontrolü `Core` içinde tutup CLI'a yalnız sonucu vermek mi.
-
-Tercih edilen yön: **ikincisi**. Sabit bir uygulama ayrıntısıdır; public
-yüzeye çıkarmak onu bir söz hâline getirir ve sonradan değiştirmeyi kırıcı
-yapar. CLI, `Core`'un ürettiği bir rapor tipini okur.
-
-## 156.3 — Yazılı upgrade penceresi
-
-`reference/versioning.md`'ye yeni bir bölüm: **hangi sürümden hangisine
-yükseltmek destekleniyor** ve bu sözün neye dayandığı. Bugün bu söz hiç
-verilmemiştir; verilmediği için de tutulup tutulmadığı ölçülemez.
-
-Bölüm üç şeyi söyler:
-
-1. Desteklenen atlama aralığı (bir sürüm mü, N sürüm mü) — **Açık Soru 3**.
-2. Sözün dayanağı: Faz 126'nın fixture'ları ve `PersistedPayloadUpgradeTests`.
-   🚨 Söz **AgentPrism'in kendi envelope'u** içindir; MAF'ın kendi
-   uyumluluğu AgentPrism'in vaadi değildir ve bu cümle sayfada durur.
-3. Ön kontrolün nasıl koşulacağı ve çıktısının nasıl okunacağı.
-
-## 156.4 — Başarısız restore prosedürü
-
-`guides/production.md`'ye adım listesi: ön kontrol kırmızı döndüğünde ne
-yapılır. Drain (mevcut `DrainTests`'in kanıtladığı davranış), eski runtime'ı
-ne kadar tutmak gerektiği, ve kararın `nuget-danismani`'ye ne zaman gideceği.
-
-🚨 Bu bölüm **eski runtime'ı süresiz tutma** beklentisi yaratmamalıdır. Pencere
-yazılı olduğu için sınırlıdır; sınırın kendisi §156.3'te durur.
-
----
-
-## Planlanan Public API
-
-> Taslak imzalardır. Gerçekleşen imzalar kapanışta ayrı bir bölüme yazılır.
-
-```csharp
-// AgentPrism.Core — salt okunur ön kontrol sonucu
-public sealed record StatePreflightReport
-{
-    public required IReadOnlyList<StateGenerationCount> Sessions { get; init; }
-    public required IReadOnlyList<StateGenerationCount> Checkpoints { get; init; }
-    public required int SampledCount { get; init; }
-    public required int SampleFailureCount { get; init; }
-    public required bool HasUnreadableGeneration { get; init; }
-}
-
-public sealed record StateGenerationCount
-{
-    public required int SchemaGeneration { get; init; }
-    public required long RecordCount { get; init; }
-    public required bool ReadableByThisBuild { get; init; }
-}
-```
-
-### CLI yüzeyi
-
-| Komut | Argümanlar | Ne yapar |
-|---|---|---|
-| `agentprism state-check` | `--provider` · `--connection` (veya `AGENTPRISM_CONNECTION`) · `--sample` · `--json` | Kuşakları sayar, örneklem üzerinde salt okunur çözme dener, rapor yazar |
-
-Çıkış kodu: `0` temiz · `3` okunamaz kayıt veya örneklem hatası bulundu
-(`EvalCommand`'ın regresyon için `3` kullanma emsali).
-
-### HTTP `endpoint`'leri
-
-Yeni uç **yok**. Ön kontrol uygulama ayakta değilken de koşmalıdır.
-
-### Arayüz payı
-
-Yok — bu faz arayüze dokunmuyor.
-
----
-
-## Planlanan Dosya Listesi
-
-```
-src/AgentPrism.Core/Diagnostics/
-├── StatePreflight.cs              (yeni — salt okunur sayım ve örneklem)
-└── StatePreflightReport.cs        (yeni)
-
-src/AgentPrism.Cli/Commands/
-└── StateCheckCommand.cs           (yeni)
-
-src/AgentPrism.Cli/
-└── Program.cs                     (değişir — komut yönlendirmesi)
-
-tests/AgentPrism.Sqlite.IntegrationTests/
-└── StatePreflightTests.cs         (yeni — yazmadığını da kanıtlar)
-
-tests/AgentPrism.Cli.FunctionalTests/
-└── StateCheckCommandTests.cs      (yeni)
-```
-
----
-
-## Hata Modları ve Testler
-
-> Mutlu yoldan değil, **ne bozulabilir**den türetilir. Seviyeyi plan seçer.
-
-| Ne bozulabilir | Seviye | Test sınıfı |
-|---|---|---|
-| Ön kontrol **yazar** (satır günceller, migration koşar) | Fonksiyonel (depo sınırı) | `StatePreflightTests` — öncesi/sonrası tam tablo karşılaştırması |
-| Okunamaz kuşak var ama komut `0` döner | Fonksiyonel | `StateCheckCommandTests` |
-| Bağlantı dizesi hata çıktısına sızar (K-059) | Fonksiyonel | `StateCheckCommandTests` |
-| Başka kiracının oturumu sayıma girer | Sözleşme (`TenantIsolationContract`) | dört koşumda birden |
-| Örneklem "temiz" der, operatör "hepsi okunabilir" anlar | Manuel | kabul case 4 |
-| Veritabanı erişilemez; komut yığın izi basar | Fonksiyonel | `StateCheckCommandTests` |
-| Boş veritabanı; komut hata verir | Fonksiyonel | `StateCheckCommandTests` |
-| Çok büyük tabloda tam tarama yapar ve üretimi yavaşlatır | Fonksiyonel | `StatePreflightTests` — sorgu sınırlı olmalı |
-
-Beş soru: **iptal** — `Ctrl+C` yarıda kesince yazım olmadığı için durum
-bozulmaz (test) · **eşzamanlılık** — canlı yazan uygulama varken okuma
-(salt okunur, kilit almaz) · **boş/aşırı girdi** — boş veritabanı ve
-`--sample 0` · **başka kiracı** — sözleşme testi · **alt sistem hatası** —
-veritabanı erişilemez.
-
----
-
-## Manuel Kabul Case'leri
-
-| # | Ön koşul | Adımlar | Beklenen sonuç |
-|---|---|---|---|
-| 1 | Dolu bir veritabanı, güncel sürüm | `agentprism state-check --provider postgres --connection …` | Çıkış `0`; kuşak başına sayım listelenir |
-| 2 | Bir oturum satırının `state_schema_version` değeri elle büyütülmüş | Aynı komut | Çıkış `3`; okunamaz kayıt sayısı raporlanır; satır **değişmemiştir** |
-| 3 | Yanlış bağlantı dizesi | Aynı komut | Tek satırlık hata; bağlantı dizesi **yazdırılmaz**; yığın izi yok |
-| 4 | Dolu veritabanı, `--sample 5` | Aynı komut | Çıktı "5 kayıt örneklendi" der; "tümü okunabilir" **demez** |
-| 5 | Komut koşmadan ve koştuktan sonra tablo anlık görüntüsü | `state-check` koş, iki anlık görüntüyü karşılaştır | **Birebir aynı** — hiçbir satır değişmemiş |
-| 6 | 👤 insan gerekir | `versioning.md` upgrade penceresi bölümünü oku | Desteklenen atlama aralığı, dayanağı ve MAF sınırı açıkça yazılı |
-
----
-
-## Açık Sorular
-
-| # | Soru | Seçenekler | Öneri |
-|---|---|---|---|
-| 1 | Örneklem nasıl seçilir? | A: En yeni N kayıt · B: Kuşak başına N kayıt · C: Rastgele N | **Kapandı: B** — risk kuşakta yoğunlaşır; en yeni kayıtlar zaten güncel kuşaktadır ve hiçbir şey kanıtlamaz. `ROW_NUMBER() OVER (PARTITION BY state_schema_version ...)` ile uygulandı |
-| 2 | `CurrentStateSchemaVersion` public mi olsun? | A: Public sabit · B: `Core` içinde kalsın, CLI rapor tipini okusun | **Kapandı: B** — sabit `internal` kaldı. Tek fark: değeri artık `StateSchemaGenerations`'ta (bkz. *Plandan Sapmalar* §7), hâlâ `internal` |
-| 3 | Desteklenen atlama aralığı ne olsun? | A: Yalnız bir önceki sürüm · B: Aynı ana sürüm içinde her sürüm | **Kapandı (2026-09-08, kullanıcı kararı): B.** Bugünkü kanıt bunu destekliyor — envelope kuşağı 1'den beri değişmedi ve Faz 126 fixture'ı çapraz sürüm okumayı her build'de kanıtlıyor. K-734 |
-| 4 | Checkpoint tarafı ilk turda kapsam içinde mi? | A: Oturum + checkpoint birlikte · B: Yalnız oturum, checkpoint sonraya | **Kapandı: A** — sayım tarafı birlikte. Çözme tarafı checkpoint için **mümkün değil** (bkz. *Plandan Sapmalar* §4); rapor ikisini ayrı sayar |
-
----
+Bugün "yükselttiğimde bekleyen oturumlarım okunabilir mi" sorusunun cevabı **yalnız CI'da** vardır. Operatörün kendi veritabanına sorabileceği bir şey yoktur; öğrenme yeri üretimdir. Bu faz o soruyu yükseltmeden **önce** sorulabilir hâle getirir ve cevabın ne anlama geldiğini yazıya döker.
 
 ## Bitiş Ölçütleri (DoD)
 
@@ -274,36 +47,26 @@ veritabanı erişilemez.
 
 ### Doğrulama komutları
 
+🚨 SQLite'ın tek nesne ad alanı vardır; AgentPrism şema yerine **tablo öneki**
+kullanır ve varsayılanı `agentprism_`'dir. Plan bu bloğu öneksiz yazmıştı ve
+öyle koşulamıyordu.
+
 ```bash
 # Temiz veritabanı
 agentprism state-check --provider sqlite --connection "Data Source=./test.db" --json
 
-# Hiçbir şey yazmadığının kanıtı
-sqlite3 test.db "SELECT id, state_schema_version FROM sessions ORDER BY id" > before.txt
+# Hiçbir şey yazmadığının kanıtı — sayı değil, TAM SATIR karşılaştırması.
+# Yalnız id/kuşak karşılaştıran bir kontrol, updated_at veya version
+# sütununa dokunan bir ön kontrolü göremezdi.
+SNAP="SELECT id||'|'||state_schema_version||'|'||updated_at||'|'||version
+      FROM agentprism_sessions ORDER BY id;"
+sqlite3 test.db "$SNAP" > before.txt
 agentprism state-check --provider sqlite --connection "Data Source=./test.db"
-sqlite3 test.db "SELECT id, state_schema_version FROM sessions ORDER BY id" > after.txt
+sqlite3 test.db "$SNAP" > after.txt
 diff before.txt after.txt   # boş olmalı
 ```
 
 ---
-
-## Riskler
-
-| Risk | Önlem |
-|------|-------|
-| Ön kontrol veriyi değiştirir | Salt okunur tasarım; kanıtı bir testtir (öncesi/sonrası karşılaştırma), yorum değil |
-| Örneklem "temiz" der, operatör "hepsi okunabilir" anlar | Çıktı kelimesi bu ayrımı kurar; manuel kabul case 4 bunu doğrular |
-| Büyük tabloda tam tarama üretimi yavaşlatır | Sayım toplulaştırılmış sorgudur; çözme yalnız örneklem üzerindedir |
-| Upgrade penceresi tutulamayacak bir söz verir | Aralık, Faz 126'nın kanıtladığından geniş yazılmaz. Açık Soru 3 ilk yayın içeriğine bağlıdır |
-| Yazılan pencere MAF'ın uyumluluğu sanılır | Sayfa AgentPrism envelope'u ile MAF sınırını ayrı cümlelerle söyler |
-| Faz 126'nın fixture'ları yanlışlıkla yenilenir | DoD `git diff` ile bunu şart koşar; `Fixtures/README.md` okuma listesindedir |
-
----
-
-<!-- ============================================================
-     AŞAĞISI KAPANIŞTA DOLDURULUR — `faz-tamamlama` skill'i.
-     Plan anında boş kalır. Başlıkları SİLME.
-     ============================================================ -->
 
 ## Plandan Sapmalar
 
@@ -364,8 +127,43 @@ durumdadır, yani ilk gerçek koşumda görülecekti.
 
 Çözüm: `ContentProtectionEnvelope.IsProtected(JsonElement)` eklendi (yalnız
 `$apEnc` etiketine bakar, açmayı denemez) ve böyle bir satır **yapı kontrolü**
-olarak raporlanır, hata olarak değil. İki testle kilitlendi (birim + SQLite
-entegrasyon).
+olarak raporlanır, hata olarak değil.
+
+#### 🚨 …ve bu tasarım yetmedi. Kusuru YALNIZ örnek uygulama koşumu buldu
+
+`IsProtected` guard'ı yazıldı, iki test yeşildi (birim + SQLite entegrasyon),
+dört kapı yeşildi. Sonra `samples/AgentPrism.Api` gerçekten koşuldu ve komut
+**yığın iziyle çöktü**, `EXIT=134`:
+
+```
+Unhandled exception. AgentPrism.AgentPrismException: A value protected with content
+protection key 'sample' was read, but content protection is not configured in this
+process.
+   at AgentPrism.NullContentProtector.Unprotect(...)
+   at AgentPrism.ProtectedValue.Read(...)
+```
+
+Sebep: `NullContentProtector.Unprotect` bir zarf görünce **FIRLATIR**. `IsProtected`
+kontrolü `StatePreflight`'ta, yani okuma zaten yapıldıktan **sonra** çalışıyordu;
+payload oraya hiç ulaşmıyordu.
+
+**Testler bunu neden kaçırdı:** `SqliteTestContext` `ContentProtector`'ı hiç
+atamaz, yani `null` bırakır. `ProtectedValue.Read` `null` protector'da `?.` ile
+kısa devre yapar ve ham zarfı döndürür. Üretimde ise `AddAgentPrism()` bir
+`NullContentProtector` **kaydeder** — davranış tam tersidir. Test, ölçmek
+istediği şeyi taklitle devre dışı bırakmıştı.
+
+İki düzeltme: (1) okuma `try/catch (AgentPrismException)` ile sarıldı ve
+çözülemeyen satır **zarfıyla** geri döner; (2) test altyapısına
+`ProtectingStoreContext.Keyless` eklendi — üretimin kaydettiği protector'ı
+kullanır. Yeni testler düzeltme olmadan kırmızı olduğu ölçüldü. İkinci bir test
+rotasyona uğramış anahtar hâlini de kapatır (`AesGcmContentProtector` bilinmeyen
+`kid` için aynı istisnayı atar).
+
+**Ders:** `MEMORY.md`'nin "birim testi yetmez — örnek uygulamayı gerçekten
+çalıştır" kuralı dokuzuncu kez bedel ödetti. Bu vakada spesifik olan şu: bir
+sahte (`null`) ile gerçek bir no-op uygulaması (`NullContentProtector`)
+**aynı şey değildir**, ve fark tam olarak hata yolundadır.
 
 ### 4. Checkpoint çözmesi mümkün değil — rapor bunu söylüyor
 
@@ -445,160 +243,11 @@ olmadığı için bir sonraki dokunuş yeniden karıştırabilir; düzeltilmedi,
 |---|---|---|---|
 | **K-733 — Durum ön kontrolü için AYRI bir salt okunur SQL yüzeyi: `IStatePreflightReader`** *(kullanıcı kararı)* | 2026-09-08 | `ISessionStore.QueryAsync` ölçüldü ve yetersiz çıktı: her zaman kiracı filtreler, sayfalar ve tam `state` payload'ını okur; `IWorkflowCheckpointStore.ListAsync` ayrıca `sessionId` ister. Yükseltme kiracı başına bir olay değildir, bu yüzden ön kontrol yüzeyi **kiracıdan bağımsızdır** ve yalnız `SELECT` koşar. Sorgular `SqlQueriesBase.BuildSharedQueries` içinde tek yerdedir (ANSI; `ROW_NUMBER()` sayesinde dialect kopyası yok). | Hayır — kiracı filtresi eklemek ön kontrolün ürettiği tek sayıyı anlamsızlaştırır |
 | **K-734 — Desteklenen upgrade penceresi: aynı ana sürüm içinde HER sürümden HER sürüme** *(kullanıcı kararı)* | 2026-09-08 | Ara sürümlerden geçme zorunluluğu yoktur. Söz **yalnız AgentPrism'in kendi envelope'u** içindir; MAF'ın gövde uyumluluğu AgentPrism'in vaadi değildir ve sayfa bunu ayrı cümlelerle söyler. Dayanak Faz 126'nın gerçek koşumdan yakalanmış fixture'ları ve `PersistedPayloadUpgradeTests`'tir — bir niyet değil, her build'de koşan bir test. Envelope'u kıran değişiklik tanımı gereği ana sürüm artışıdır. | Ana sürüm politikası değişirse |
-| **K-735 — Ön kontrol çözemediği şifreli satırı HATA saymaz** | 2026-09-08 | `AgentPrismContentProtectionOptions.Columns` varsayılan olarak `sessions.state`'i kapsar; CLI hiçbir anahtar tutmaz. Şifreli satır `$apEnc` etiketiyle tanınır (`ContentProtectionEnvelope.IsProtected`) ve **yapı kontrolü** olarak raporlanır. Aksi hâli, uygulamanın sorunsuz okuduğu bir satır hakkında yanlış alarmdır — ve `samples/AgentPrism.Api`'nin kendi kurulumu tam olarak bu durumdadır. | Hayır |
+| **K-735 — Ön kontrol çözemediği şifreli satırı HATA saymaz; okuma yolu da sarılır** | 2026-09-08 | `AgentPrismContentProtectionOptions.Columns` varsayılan olarak `sessions.state`'i kapsar; CLI hiçbir anahtar tutmaz. Şifreli satır `$apEnc` etiketiyle tanınır (`ContentProtectionEnvelope.IsProtected`) ve **yapı kontrolü** olarak raporlanır. Aksi hâli, uygulamanın sorunsuz okuduğu bir satır hakkında yanlış alarmdır — ve `samples/AgentPrism.Api`'nin kendi kurulumu tam olarak bu durumdadır. 🚨 Tanıma tek başına YETMEDİ: `NullContentProtector.Unprotect` zarf görünce **fırlatır** ve okuma, tanıma sırası gelmeden çöküyordu (gerçek koşumda `EXIT=134`). Okuma bu yüzden `try/catch (AgentPrismException)` ile sarılıdır. Bkz. *Plandan Sapmalar* §3. | Hayır |
 | **K-736 — Örneklem "temiz" der, "hepsi okunabilir" DEMEZ; ayrım kelimeyle kurulur** | 2026-09-08 | Kuşak **sayımı** her satırı kapsar (toplulaştırılmış sorgu); **çözme** kuşak başına `--sample` satırı kapsar. Çıktı `This is a sample, not a survey` satırını her koşumda yazar ve `all readable` / `every row` ifadelerini hiç kullanmaz; bir fonksiyonel test bu iki ifadenin yokluğunu sınar. Rapor `SamplePerGeneration`'ı taşır, çünkü ne kadar bakıldığını görmeyen okuyucu hatanın yokluğunu yargılayamaz. | Hayır |
 
 > `K-733`–`K-736` numaraları kapanışta alındı; `docs/KARARLAR.md` ve
 > `docs/KARARLAR-INDEKS.md` güncellendi.
-
----
-
-## Gerçekleşen Public API
-
-### `AgentPrism.Abstractions`
-
-```csharp
-public interface IStatePreflightReader
-{
-    string ProviderName { get; }
-
-    ValueTask<IReadOnlyList<StateGenerationTally>> TallyAsync(
-        StatePreflightTarget target, CancellationToken cancellationToken = default);
-
-    ValueTask<IReadOnlyList<StateSample>> SampleAsync(
-        StatePreflightTarget target, int perGeneration, CancellationToken cancellationToken = default);
-}
-
-public enum StatePreflightTarget { Sessions = 0, WorkflowCheckpoints = 1 }
-
-public sealed record StateGenerationTally
-{
-    public required int? SchemaGeneration { get; init; }
-    public required long RecordCount { get; init; }
-}
-
-public sealed record StateSample
-{
-    public required string Id { get; init; }
-    public required int? SchemaGeneration { get; init; }
-    public string? MafVersion { get; init; }
-    public required JsonElement State { get; init; }   // Undefined = stored text is not JSON
-}
-```
-
-### `AgentPrism.Core`
-
-```csharp
-public sealed class StatePreflight
-{
-    public StatePreflight(IStatePreflightReader reader);
-
-    public ValueTask<StatePreflightReport> RunAsync(
-        int samplePerGeneration = 5, CancellationToken cancellationToken = default);
-}
-
-public sealed record StatePreflightReport
-{
-    public required string ProviderName { get; init; }
-    public required IReadOnlyList<StateGenerationCount> Sessions { get; init; }
-    public required IReadOnlyList<StateGenerationCount> Checkpoints { get; init; }
-    public required int SamplePerGeneration { get; init; }
-    public required int DecodedSampleCount { get; init; }
-    public required int StructureOnlySampleCount { get; init; }
-    public required IReadOnlyList<StateSampleFailure> SampleFailures { get; init; }
-    public required string RunningMafVersion { get; init; }
-
-    public int SampledCount { get; }                 // hesaplanan
-    public int SampleFailureCount { get; }           // hesaplanan
-    public bool HasUnreadableGeneration { get; }     // hesaplanan
-    public long UnreadableRecordCount { get; }       // hesaplanan
-    public bool IsClean { get; }                     // hesaplanan
-}
-
-public sealed record StateGenerationCount
-{
-    public required StatePreflightTarget Target { get; init; }
-    public required int? SchemaGeneration { get; init; }
-    public required long RecordCount { get; init; }
-    public required bool ReadableByThisBuild { get; init; }
-}
-
-public sealed record StateSampleFailure
-{
-    public required StatePreflightTarget Target { get; init; }
-    public required string Id { get; init; }
-    public required int? SchemaGeneration { get; init; }
-    public required string? RecordedMafVersion { get; init; }
-    public required string Reason { get; init; }
-}
-```
-
-`internal` kalanlar (bilerek): `StateSchemaGenerations`, `AssemblyVersionText`,
-`SqlStatePreflightReader`, `StateCheckCommand`.
-
-### CLI yüzeyi
-
-| Komut | Argümanlar | Çıkış kodları |
-|---|---|---|
-| `agentprism state-check` | `--provider` · `--connection` (veya `AGENTPRISM_CONNECTION`) · `--sample <n>` (varsayılan 5, `0` yalnız sayar) · `--json` | `0` temiz · `1` argüman hatası · `2` koşulamadı · `3` okunamaz durum bulundu |
-
-### HTTP `endpoint`'leri
-
-Yeni uç **yok** (planlandığı gibi). Arayüz payı yok.
-
----
-
-## Dosya Listesi (gerçekleşen)
-
-```
-src/AgentPrism.Abstractions/Diagnostics/
-├── IStatePreflightReader.cs        (yeni — sözleşme + StateGenerationTally + StateSample)
-├── StateSchemaGenerations.cs       (yeni — internal, iki kuşak sabitinin TEK kaynağı)
-└── AssemblyVersionText.cs          (yeni — internal, MAF sürüm okumasının TEK kaynağı)
-
-src/AgentPrism.Abstractions/
-└── AgentPrism.Abstractions.csproj  (değişti — InternalsVisibleTo: AgentPrism.Workflows)
-
-src/AgentPrism.Sql.Shared/
-├── Stores/SqlStatePreflightReader.cs   (yeni)
-└── Internal/SqlQueriesBase.cs          (değişti — dört paylaşılan salt okunur sorgu)
-
-src/AgentPrism.{PostgreSql,SqlServer,Sqlite}/
-└── AgentPrism*BuilderExtensions.cs     (değişti — IStatePreflightReader kaydı)
-
-src/AgentPrism.Core/
-├── Diagnostics/StatePreflight.cs           (yeni — yorumlama + çözme probu)
-├── Diagnostics/StatePreflightReport.cs     (yeni)
-├── Security/ContentProtectionEnvelope.cs   (değişti — IsProtected)
-└── Sessions/AgentSessionManager.cs         (değişti — iki sabit tek kaynağa bağlandı)
-
-src/AgentPrism.Workflows/
-└── Internal/AgentPrismCheckpointStore.cs   (değişti — aynı)
-
-src/AgentPrism.Cli/
-├── Commands/StateCheckCommand.cs   (yeni)
-├── Program.cs                      (değişti — yönlendirme + yardım metni)
-├── README.md                       (değişti)
-└── AgentPrism.Cli.csproj           (değişti — paket açıklaması)
-
-tests/
-├── AgentPrism.Core.UnitTests/Diagnostics/StatePreflightTests.cs        (yeni, 11 test)
-├── AgentPrism.Core.UnitTests/Fakes/FakeStatePreflightReader.cs         (yeni)
-├── AgentPrism.Sqlite.IntegrationTests/StatePreflightTests.cs           (yeni, 8 test)
-├── AgentPrism.PostgreSql.IntegrationTests/StatePreflightTests.cs       (yeni, 4 test — denetim bulgusu 2)
-├── AgentPrism.Sqlite.IntegrationTests/Infrastructure/ProtectingStoreContext.cs (yeni — ContentProtectionTests'ten çıkarıldı)
-├── AgentPrism.Sqlite.IntegrationTests/ContentProtectionTests.cs        (değişti — aynı yardımcıyı kullanır)
-├── AgentPrism.Cli.FunctionalTests/StateCheckCommandTests.cs            (yeni, 13 test)
-└── AgentPrism.SqlServer.IntegrationTests/TenantCoverageTests.cs        (değişti — kapı IStatePreflightReader'ı görür)
-
-docs-site/src/content/docs/
-├── reference/versioning.md   (değişti — upgrade penceresi + ön kontrol)
-├── guides/production.md      (değişti — ön kontrol kırmızı dönünce prosedürü)
-├── guides/cli.md             (değişti — state-check bölümü)
-└── capabilities.md           (değişti — CLI satırı)
-
-docs/manuel-test/34-ISTEMCI-VE-CLI.md   (değişti — MT-CLI-032..037)
-```
 
 ---
 

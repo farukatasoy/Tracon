@@ -219,6 +219,18 @@ Microsoft Agent Framework version that wrote the opaque state inside it. See
 [Versions and upgrades](/reference/versioning/#persisted-session-and-checkpoint-state)
 for what that stamp promises and what happens when an old row can no longer be read.
 
+Durable state is also state an upgrade has to keep being able to read, and the
+stamp is what makes that answerable ahead of time rather than in production:
+
+```bash
+agentprism state-check --provider postgres --connection "$AGENTPRISM_CONNECTION"
+```
+
+Run with the **new** version of the tool, it counts your stored rows by stamp,
+says which of them the new build understands, and decodes a sample of each. It
+writes nothing, so it is safe against the live database. See [the supported
+upgrade window](/reference/versioning/#the-supported-upgrade-window).
+
 ## Keeping it from growing forever
 
 A recorded run is data, and recorded runs accumulate. Retention policies set an age
