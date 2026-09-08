@@ -1,10 +1,11 @@
 # 32 — Doküman Kalitesi ve Görsel Kimlik (`DKL`)
 
-> **Alan kodu:** `DKL` · **Faz:** 76
+> **Alan kodu:** `DKL` · **Faz:** 76, 158
 > **Kaynak:** `docs-site/src/styles/site.css` · `docs-site/astro.config.mjs` ·
 > `docs-site/src/sidebar.mjs` · `docs-site/src/starlightRouteData.mjs` ·
 > `docs-site/scripts/check-content.mjs` · `docs-site/scripts/check-weight.mjs` ·
-> `docs-site/scripts/build-social-images.mjs` · `docs-site/public/social/*.png`
+> `docs-site/scripts/build-social-images.mjs` · `docs-site/public/social/*.png` ·
+> `tests/AgentPrism.AspNetCore.FunctionalTests/DocumentedPolicyTests.cs`
 >
 > Ortam kurulumu ve reset yordamı [`00-INDEKS.md`](00-INDEKS.md)'dedir.
 > Bu alan [`31-DOKUMAN-DOGRULUGU.md`](31-DOKUMAN-DOGRULUGU.md)'nün **üstüne**
@@ -69,6 +70,10 @@ düğmesi sağ üsttedir; koyu ve açık temanın **ikisi de** denenir.
 | 18 | `MT-DKL-018` | — | Bir sayfaya `K-382` yazılır, `npm run check:content` | Kızarır: `internal development history leaked into a public page` |
 | 19 | `MT-DKL-019` | — | Muafiyet listesindeki bir sayfaya diyagram eklenir | Kızarır: `listed as a table page but now shows a figure; drop the exemption` |
 | 20 | `MT-DKL-020` | — | `npm run check` (dört adım) | Dördü de temiz; kontrast tabanı ve en ağır sayfa çıktıya yazılır |
+| 21 | `MT-DKL-021` | — | Bir sayfadaki `<!-- claim:option ... -->` işaretinin tipini var olmayan bir tipe değiştir, `npm run check:content` | Kızarır: `claim names '…', which is not a public sealed Options type` |
+| 22 | `MT-DKL-022` | — | `reference/configuration.md`'de `Scheduling:RunWorker` satırındaki **görünür** `true` değerini `false` yap, işareti (`<!-- claim:… -->`) değiştirme | `npm run check:content` kızarır: `does not state that value as a backtick-quoted literal` — görünür metin ile işaret birbirinden sürüklendi |
+| 23 | `MT-DKL-023` | — | `AgentPrismSchedulingOptions.RunWorker`'ın `= true` başlatıcısını sil | `dotnet test … Every_marked_option_default_matches_the_real_type` kızarır: `claims AgentPrismSchedulingOptions.RunWorker=true, but the real default is false` |
+| 24 | `MT-DKL-024` | — | `OpenAIChatCompletionsEndpoints`'te `RequireApiKeyScope(ApiKeyScope.RunsWrite)`'ı `RunsRead` yap | `dotnet test … Every_marked_endpoint_policy_claim_is_actually_enforced` kızarır: yalnız `RunsRead` taşıyan anahtar reddedilmiyor |
 
 ---
 
@@ -95,6 +100,12 @@ done                                                 # beklenen: dort farkli dos
 
 # 16, 20 - kapilar
 npm run check:content && npm run build && npm run check:links && npm run check:weight
+
+# 22-24 - isaretli davranis iddialari (F-171, Faz 158)
+cd ..
+dotnet build tests/AgentPrism.AspNetCore.FunctionalTests -c Release
+./artifacts/bin/AgentPrism.AspNetCore.FunctionalTests/release/AgentPrism.AspNetCore.FunctionalTests \
+  --filter-method "*DocumentedPolicyTests*"
 ```
 
 ## Bilinen sınırlar

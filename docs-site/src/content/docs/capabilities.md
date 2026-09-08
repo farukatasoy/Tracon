@@ -118,7 +118,7 @@ claim to provide an operating-system sandbox.
 | Replay | Recorded run input and replay service | Re-run against the current or selected definition, with tool replay modes and mismatch protection |
 | Compare and score | HTTP API, console, or a custom `IRunJudge` | Compare two runs, attach human scores, or score completed runs automatically; a score carries a name, so one reviewer can rate the same run on several criteria; an online judge uses its provider setup credential and still obeys tenant egress policy |
 | Sessions | `AgentSessionManager` and session endpoints | Durable conversation identity and readable history when the store supports it |
-| Session ownership | `AgentPrism:SessionOwnership` | Off by default; records which user opened a session, narrows the session list to that user **before** paging, and answers `404` for another user's session — sessions written before it was turned on stay unowned and appear only in the management listing, and `RefuseUnownedSessions` refuses those too once they no longer matter |
+| Session ownership | `AgentPrism:SessionOwnership` | Off by default (`false`)<!-- claim:option AgentPrismSessionOwnershipOptions.Enabled=false -->; records which user opened a session, narrows the session list to that user **before** paging, and answers `404` for another user's session — sessions written before it was turned on stay unowned and appear only in the management listing, and `RefuseUnownedSessions` refuses those too once they no longer matter |
 | Branching | Session branch API | Fork a durable conversation from an addressable item; SQL storage is required |
 | Attachments | Attachment API and message references | Image, audio, PDF, and text uploads use size limits and magic-byte validation |
 | Document channel | A run's `documents` field | Reference text kept apart from instructions in the message list and the run record; a convention and an audit trail, not a security guarantee |
@@ -184,7 +184,7 @@ experiment, and automatic rollback is off until you configure it.
 | Reader, Operator, Admin roles | Endpoint groups | Optional policy names; production can require all three at startup |
 | API keys | HTTP API and stores | Hashed, revocable, expiring, tenant-bound, and narrowed by a closed scope enum |
 | Multi-tenancy | `UseTenancy()` | Single tenant by default; a verified key outranks a claim or header |
-| Session ownership | `AgentPrism:SessionOwnership` | A second boundary drawn under the tenant; off by default, and while off nothing changes. The owner comes from `IRunAttributionContext` and is never read from a request body. `RefuseUnownedSessions` extends it to the rows that predate it, while a session that does not exist yet is still opened by its first turn |
+| Session ownership | `AgentPrism:SessionOwnership` | A second boundary drawn under the tenant; off by default (`false`)<!-- claim:option AgentPrismSessionOwnershipOptions.Enabled=false -->, and while off nothing changes. The owner comes from `IRunAttributionContext` and is never read from a request body. `RefuseUnownedSessions` extends it to the rows that predate it, while a session that does not exist yet is still opened by its first turn |
 | Quotas | Run admission | Enabled with an empty rule set, so no run is rejected until a rule exists; a crossed threshold can also be written into the triggering run's own event stream, off by default |
 | Rate limiting | HTTP requests | Off by default; partition by tenant, key, or remote address |
 | Approvals | Tool execution and queued resume | Expiring requests, explicit decisions, and revocable standing rules |
@@ -193,7 +193,7 @@ experiment, and automatic rollback is off until you configure it.
 | Outbound network guard | `AgentPrism:Egress` | One guard for webhook delivery, MCP connections, and provider endpoints; private network targets refused by default, checked inside the socket connect callback |
 | Configuration key prefixes | Stored secret references | A record stores a key **name**, never a value, and each name must sit under an allowed prefix |
 | At-rest content protection | `AddContentProtection(...)` | Off by default; AES-256-GCM encrypts session state, chat history, run inputs and events, tool arguments/results, agent files, and attachments before they reach the database |
-| Retention and archive | Stored operational data | Deletion defaults are off; preview and jobs make cleanup explicit |
+| Retention and archive | Stored operational data | Deletion defaults are off (`false`)<!-- claim:option AgentPrismRetentionOptions.Enabled=false -->; preview and jobs make cleanup explicit |
 | Content inspection | Model input and output | No guard cost until a guard is registered |
 | External surface guard | MCP server and A2A | Requires the `ExternalInvoke` scope and refuses an unsafe remote-access combination |
 | Cross-origin access | `AgentPrismEndpointOptions.AllowedOrigins` | Empty by default; no `Access-Control-Allow-Origin` header is ever sent until an exact origin is added — there is no wildcard option |
