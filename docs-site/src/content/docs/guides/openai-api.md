@@ -188,7 +188,7 @@ definition is authoritative.
 ## Authentication and authorization
 
 Use the bearer token configured on `MapAgentPrism`, or a tenant-bound AgentPrism API
-key with `RunsWrite` — these routes start runs, so they take the same scope the
+key with `RunsWrite`<!-- claim:policy POST /agentprism/v1/chat/completions scope=RunsWrite --> — these routes start runs, so they take the same scope the
 management run endpoints take. `GET /v1/conversations/{id}` and its items route
 take `RunsRead` instead. `ExternalInvoke` is the scope for the MCP and A2A
 surfaces and does **not** authorize these routes: a key issued with only

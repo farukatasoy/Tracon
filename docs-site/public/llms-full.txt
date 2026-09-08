@@ -122,7 +122,7 @@ claim to provide an operating-system sandbox.
 | Replay | Recorded run input and replay service | Re-run against the current or selected definition, with tool replay modes and mismatch protection |
 | Compare and score | HTTP API, console, or a custom `IRunJudge` | Compare two runs, attach human scores, or score completed runs automatically; a score carries a name, so one reviewer can rate the same run on several criteria; an online judge uses its provider setup credential and still obeys tenant egress policy |
 | Sessions | `AgentSessionManager` and session endpoints | Durable conversation identity and readable history when the store supports it |
-| Session ownership | `AgentPrism:SessionOwnership` | Off by default; records which user opened a session, narrows the session list to that user **before** paging, and answers `404` for another user's session — sessions written before it was turned on stay unowned and appear only in the management listing, and `RefuseUnownedSessions` refuses those too once they no longer matter |
+| Session ownership | `AgentPrism:SessionOwnership` | Off by default (`false`)<!-- claim:option AgentPrismSessionOwnershipOptions.Enabled=false -->; records which user opened a session, narrows the session list to that user **before** paging, and answers `404` for another user's session — sessions written before it was turned on stay unowned and appear only in the management listing, and `RefuseUnownedSessions` refuses those too once they no longer matter |
 | Branching | Session branch API | Fork a durable conversation from an addressable item; SQL storage is required |
 | Attachments | Attachment API and message references | Image, audio, PDF, and text uploads use size limits and magic-byte validation |
 | Document channel | A run's `documents` field | Reference text kept apart from instructions in the message list and the run record; a convention and an audit trail, not a security guarantee |
@@ -188,7 +188,7 @@ experiment, and automatic rollback is off until you configure it.
 | Reader, Operator, Admin roles | Endpoint groups | Optional policy names; production can require all three at startup |
 | API keys | HTTP API and stores | Hashed, revocable, expiring, tenant-bound, and narrowed by a closed scope enum |
 | Multi-tenancy | `UseTenancy()` | Single tenant by default; a verified key outranks a claim or header |
-| Session ownership | `AgentPrism:SessionOwnership` | A second boundary drawn under the tenant; off by default, and while off nothing changes. The owner comes from `IRunAttributionContext` and is never read from a request body. `RefuseUnownedSessions` extends it to the rows that predate it, while a session that does not exist yet is still opened by its first turn |
+| Session ownership | `AgentPrism:SessionOwnership` | A second boundary drawn under the tenant; off by default (`false`)<!-- claim:option AgentPrismSessionOwnershipOptions.Enabled=false -->, and while off nothing changes. The owner comes from `IRunAttributionContext` and is never read from a request body. `RefuseUnownedSessions` extends it to the rows that predate it, while a session that does not exist yet is still opened by its first turn |
 | Quotas | Run admission | Enabled with an empty rule set, so no run is rejected until a rule exists; a crossed threshold can also be written into the triggering run's own event stream, off by default |
 | Rate limiting | HTTP requests | Off by default; partition by tenant, key, or remote address |
 | Approvals | Tool execution and queued resume | Expiring requests, explicit decisions, and revocable standing rules |
@@ -197,7 +197,7 @@ experiment, and automatic rollback is off until you configure it.
 | Outbound network guard | `AgentPrism:Egress` | One guard for webhook delivery, MCP connections, and provider endpoints; private network targets refused by default, checked inside the socket connect callback |
 | Configuration key prefixes | Stored secret references | A record stores a key **name**, never a value, and each name must sit under an allowed prefix |
 | At-rest content protection | `AddContentProtection(...)` | Off by default; AES-256-GCM encrypts session state, chat history, run inputs and events, tool arguments/results, agent files, and attachments before they reach the database |
-| Retention and archive | Stored operational data | Deletion defaults are off; preview and jobs make cleanup explicit |
+| Retention and archive | Stored operational data | Deletion defaults are off (`false`)<!-- claim:option AgentPrismRetentionOptions.Enabled=false -->; preview and jobs make cleanup explicit |
 | Content inspection | Model input and output | No guard cost until a guard is registered |
 | External surface guard | MCP server and A2A | Requires the `ExternalInvoke` scope and refuses an unsafe remote-access combination |
 | Cross-origin access | `AgentPrismEndpointOptions.AllowedOrigins` | Empty by default; no `Access-Control-Allow-Origin` header is ever sent until an exact origin is added — there is no wildcard option |
@@ -7917,7 +7917,7 @@ definition is authoritative.
 ## Authentication and authorization
 
 Use the bearer token configured on `MapAgentPrism`, or a tenant-bound AgentPrism API
-key with `RunsWrite` — these routes start runs, so they take the same scope the
+key with `RunsWrite`<!-- claim:policy POST /agentprism/v1/chat/completions scope=RunsWrite --> — these routes start runs, so they take the same scope the
 management run endpoints take. `GET /v1/conversations/{id}` and its items route
 take `RunsRead` instead. `ExternalInvoke` is the scope for the MCP and A2A
 surfaces and does **not** authorize these routes: a key issued with only
@@ -12079,7 +12079,7 @@ image prices.
 
 ### Images
 
-`AgentPrism:Images` is off by default. When `Enabled` is `true`, `Provider` and
+`AgentPrism:Images` is off by default (`false`).<!-- claim:option AgentPrismImageOptions.Enabled=false --> When `Enabled` is `true`, `Provider` and
 `Model` are required and `MaxImagesPerRequest` must be at least one. Enabling it adds
 the `generate_image` tool and maps `POST /api/images/generate`.
 
@@ -12119,7 +12119,7 @@ registers more than one image provider or a custom keyed generator.
 | Section and key | Default |
 |---|---:|
 | `Scheduling:Enabled` | `true` |
-| `Scheduling:RunWorker` | `true` |
+| `Scheduling:RunWorker` | `true`<!-- claim:option AgentPrismSchedulingOptions.RunWorker=true --> |
 | `Scheduling:MaxConcurrentJobs` | `2` |
 | `Scheduling:PollInterval` | 10 seconds |
 | `Scheduling:LeaseDuration` | 5 minutes |
@@ -12206,7 +12206,7 @@ embedding generator exist.
 
 | Key relative to `AgentPrism:Egress` | Default |
 |---|---:|
-| `AllowPrivateNetworkTargets` | `false` |
+| `AllowPrivateNetworkTargets` | `false`<!-- claim:option AgentPrismEgressOptions.AllowPrivateNetworkTargets=false --> |
 
 Covers all three surfaces that reach the network: webhook delivery, MCP server
 connections, and per-tenant model provider endpoints. While it is off, a target that
@@ -12261,7 +12261,7 @@ for the full key setup and its limits.
 
 <p class="reads-this">Read by <code>AgentPrism.Core</code>. Deletion needs a persistence package; the in-memory stores have nothing to retain across a restart.</p>
 
-`AgentPrism:Retention:Enabled` defaults to `false`. `BatchSize` defaults to `5000`
+`AgentPrism:Retention:Enabled` defaults to `false`<!-- claim:option AgentPrismRetentionOptions.Enabled=false -->. `BatchSize` defaults to `5000`
 and `BatchDelay` to 100 ms. The following ages become configuration-based defaults
 only after retention is enabled. A database policy for a target takes precedence.
 
@@ -12445,7 +12445,7 @@ app.MapAgentPrism("/agentprism", options =>
 });
 ```
 
-`MapOpenAIConversations` is the only one that starts on. Setting it to `false`
+`MapOpenAIConversations` is the only one that starts on (`true`).<!-- claim:option AgentPrismEndpointOptions.MapOpenAIConversations=true --> Setting it to `false`
 leaves the four `/v1/conversations` routes unmapped: they answer `404` and
 disappear from the OpenAPI document, while `/v1/responses` and
 `/v1/chat/completions` are unaffected. It shrinks the surface a deployment that
@@ -12477,7 +12477,7 @@ freeze an exposure allowlist at registration, or define request-resolution polic
   | `AllowHeaderResolution` | `false` | Whether `X-AgentPrism-Tenant` may name the tenant. **Leave this off in production** unless a trusted gateway sets the header and strips any client copy |
   | `HeaderName` | `X-AgentPrism-Tenant` | The header consulted when header resolution is on |
   | `AllowedTenants` | empty | When populated, an allowlist: a resolved tenant outside it is rejected rather than served |
-- `UseMcpServer(AgentPrismMcpServerOptions)` exposes no agent by default.
+- `UseMcpServer(AgentPrismMcpServerOptions)` exposes no agent by default (`false`).<!-- claim:option AgentPrismMcpServerOptions.ExposeAllAgents=false -->
 - `UseA2A(AgentPrismA2AOptions)` exposes no agent by default.
 - `AddModelRunJudge(ModelRunJudgeOptions)` defines the judge model and its
   `Criteria`: the plain-language standard the judge scores a run against.
@@ -12758,7 +12758,7 @@ builder.AddAgentPrism()
 ```
 
 The equivalent setting exists on `AgentPrismSqlServerOptions.EnableReadViews` and
-`AgentPrismSqliteOptions.EnableReadViews`. It defaults to `false`: a deployment
+`AgentPrismSqliteOptions.EnableReadViews`. It defaults to `false`<!-- claim:option AgentPrismSqliteOptions.EnableReadViews=false -->: a deployment
 that never turns it on pays nothing for it, and never sees a `runs_v1` object in
 its database.
 

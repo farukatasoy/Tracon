@@ -175,6 +175,20 @@ yazimda gevsekti ve hicbir sey yakalamadi:
 Kapiyi yazdiktan sonra **kirmizi oldugunu gor**: bir ekrani yeniden adlandir,
 bir adi degistir, bir sayiyi bozar. Gormeden yesil kabul etme.
 
+## Bir davranış iddiasının ŞEKLİ burada, DEĞERİ dotnet test'te (Faz 158)
+
+Bu dosyanın en üstteki tuzağıyla aynı sebep: `check-content.mjs` derlemeden
+ÖNCE koşar, yani reflection için derlenmiş assembly, gerçek deny/allow için
+çalışan bir host yoktur. İşaretli bir davranış iddiasının (`<!-- claim:option
+Tip.Ozellik=deger -->` / `<!-- claim:policy METOD /yol scope=Kapsam -->`)
+burada denetlenebilecek TEK şey şeklidir — tip/özellik gerçekten var mı, scope
+adı `ApiKeyScope`'un bir üyesi mi. Gerçek DEĞERİ (gerçek varsayılan, gerçek
+izin/red) yalnız `tests/AgentPrism.AspNetCore.FunctionalTests/
+DocumentedPolicyTests.cs` ölçer — o dosya `dotnet test` içinde koşar ve
+derlenmiş tipi `Activator.CreateInstance` ile örnekleyebilir. İkisini tek
+dosyada birleştirmek bu kapıyı temiz checkout'ta `ERR_MODULE_NOT_FOUND`
+tuzağıyla aynı şekilde kırar.
+
 ## Sunum kapilari (Faz 76)
 
 `check-content.mjs` artik icerigin yaninda **sunumu** da olcer: kapanis bolumu

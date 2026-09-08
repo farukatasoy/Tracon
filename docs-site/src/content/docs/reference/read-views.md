@@ -35,7 +35,7 @@ builder.AddAgentPrism()
 ```
 
 The equivalent setting exists on `AgentPrismSqlServerOptions.EnableReadViews` and
-`AgentPrismSqliteOptions.EnableReadViews`. It defaults to `false`: a deployment
+`AgentPrismSqliteOptions.EnableReadViews`. It defaults to `false`<!-- claim:option AgentPrismSqliteOptions.EnableReadViews=false -->: a deployment
 that never turns it on pays nothing for it, and never sees a `runs_v1` object in
 its database.
 

@@ -510,6 +510,133 @@ for (const file of manualContent) {
   }
 }
 
+// 🚨 Marked BEHAVIOR claims (F-171, phase 158). A count can be recomputed from
+// the code; a sentence like "off by default" cannot - it can only be
+// re-measured. This gate runs BEFORE the solution is built (a clean checkout
+// has no compiled assembly to reflect on - see the ERR_MODULE_NOT_FOUND trap
+// this file already works around above), so it does only the part that needs
+// no build: it finds every marked claim and checks that it still names a real
+// property or a real scope. The claim's actual VALUE - the real default, the
+// real allow/deny behavior - is proved by DocumentedPolicyTests.cs, which runs
+// after the build, inside `dotnet test`. Two mechanisms, not one gate, because
+// an option default and an endpoint policy are measured by two different means
+// (158.1): a reflected object versus a real request.
+const optionsMembers = new Map();
+
+for (const file of collect(sourceRoot).filter((entry) => entry.endsWith('Options.cs'))) {
+  if (['obj', 'bin'].some((segment) => file.includes(`/${segment}/`))) continue;
+
+  const text = readFileSync(file, 'utf8');
+
+  for (const [, owner] of text.matchAll(/public sealed class (\w+)/g)) {
+    optionsMembers.set(
+      owner,
+      new Set([...text.matchAll(/public\s+[\w<>?,[\]. ]+?\s+(\w+)\s*\{\s*get/g)].map(([, name]) => name)),
+    );
+  }
+}
+
+const validApiKeyScopes = new Set(
+  [...readFileSync(join(sourceRoot, 'AgentPrism.Abstractions/Security/ApiKeyScope.cs'), 'utf8').matchAll(
+    /^\s{4}(\w+)\s*=\s*\d+,?\s*$/gm,
+  )].map(([, name]) => name),
+);
+
+// A marker sits right next to the sentence it measures, as an HTML comment -
+// invisible on the rendered page, readable from the source both by a human
+// editing the sentence and by this scan (Open Question 1). The value after
+// the property is a fixed string today because every claim in this first
+// round is a bool (158.3); DocumentedPolicyTests.cs is the one that actually
+// evaluates it against the real code.
+//
+// 🚨 That alone is not enough (denetim, 158, finding 1): DocumentedPolicyTests
+// reads the marker's value, never the READER'S sentence, so a page could say
+// "off by default" while its marker still claims `false` after the real
+// default flipped to `true` and BOTH gates would stay green - the marker and
+// the prose would have drifted apart from each other, silently, which is the
+// exact failure this phase exists to prevent. So every marked sentence must
+// also state its value as a literal, backtick-quoted token immediately before
+// the marker (only closing punctuation allowed between them), and this gate
+// checks that literal against the marker's own value - closing the triangle:
+// prose == marker (here) and marker == real code (DocumentedPolicyTests.cs).
+const adjacentLiteralPattern = /`([^`]*)`[)\].,;:\s]*$/;
+const claimPattern = /<!--\s*claim:(option|policy)\s+(.+?)\s*-->/g;
+let markedClaims = 0;
+
+for (const file of manualContent) {
+  const label = relative(docsRoot, file);
+  const text = readFileSync(file, 'utf8');
+
+  for (const match of text.matchAll(claimPattern)) {
+    const [whole, kind, payload] = match;
+    markedClaims += 1;
+
+    const before = adjacentLiteralPattern.exec(text.slice(0, match.index));
+
+    if (kind === 'option') {
+      const optionMatch = /^([A-Za-z0-9_]+)\.([A-Za-z0-9_]+)=(\S+)$/.exec(payload);
+
+      if (!optionMatch) {
+        errors.push(`${label}: malformed option claim '${whole}'`);
+        continue;
+      }
+
+      const [, type, property, value] = optionMatch;
+      const properties = optionsMembers.get(type);
+
+      if (!properties) {
+        errors.push(`${label}: claim names '${type}', which is not a public sealed Options type`);
+      } else if (!properties.has(property)) {
+        errors.push(`${label}: claim names '${type}.${property}', which is not one of its properties`);
+      }
+
+      if (!before || before[1].toLowerCase() !== value.toLowerCase()) {
+        errors.push(
+          `${label}: claim says ${type}.${property}=${value}, but the sentence right before the marker ` +
+            `does not state that value as a backtick-quoted literal (found: ${before ? `'${before[1]}'` : 'none'})`,
+        );
+      }
+    } else {
+      const policyMatch = /^([A-Z]+)\s+(\S+)\s+scope=(\S+)$/.exec(payload);
+
+      if (!policyMatch) {
+        errors.push(`${label}: malformed policy claim '${whole}'`);
+        continue;
+      }
+
+      const [, , , scope] = policyMatch;
+
+      if (!validApiKeyScopes.has(scope)) {
+        errors.push(`${label}: claim names scope '${scope}', which is not a member of ApiKeyScope`);
+      }
+
+      if (!before || before[1] !== scope) {
+        errors.push(
+          `${label}: claim says scope=${scope}, but the sentence right before the marker does not state ` +
+            `that scope as a backtick-quoted literal (found: ${before ? `'${before[1]}'` : 'none'})`,
+        );
+      }
+    }
+  }
+}
+
+// Reported, not enforced (158.2): forcing every "by default" sentence under a
+// marker on day one would turn 147 lines red at once instead of the nine this
+// round measured (158.3), and a gate nobody can make green gets silenced. The
+// two counts are printed at the bottom of this file on every run, so the gap
+// stays visible without blocking on it.
+let defaultPhraseMentions = 0;
+
+for (const file of manualContent) {
+  const slug = relative(docsRoot, file);
+
+  if (slug.startsWith('release') || slug.includes('changelog')) continue;
+
+  defaultPhraseMentions += [
+    ...readFileSync(file, 'utf8').matchAll(/\bdefaults? to\b|\bby default\b/gi),
+  ].length;
+}
+
 const httpApiPage = readFileSync(join(docsRoot, 'http-api.md'), 'utf8');
 const declared = /(\d+) operations across (\d+) paths/.exec(httpApiPage);
 
@@ -937,6 +1064,11 @@ console.log(
 console.log(
   `Contrast floor: text ${floors[4.5].ratio.toFixed(2)}:1 (${floors[4.5].pair}); ` +
     `non-text ${floors[3].ratio.toFixed(2)}:1 (${floors[3].pair}).`,
+);
+console.log(
+  `Behavior claims: ${markedClaims} marked and verified by DocumentedPolicyTests.cs; ` +
+    `${defaultPhraseMentions} sentence(s) across manual pages match "by default" or "defaults to" ` +
+    '(marked or not - see 158.2).',
 );
 
 function collect(directory) {
