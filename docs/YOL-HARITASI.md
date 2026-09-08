@@ -168,7 +168,7 @@ bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 | [153](arsiv/fazlar/153-EVAL-KOSUMLARI-ARASINDA-REGRESYON-FARKI.md) | Eval Koşumları Arasında Regresyon Farkı | ✅ Tamamlandı |
 | [154](arsiv/fazlar/154-SKOR-TRENDININ-KALICI-SORGUSU.md) | Skor Trendinin Kalıcı Sorgusu | ✅ Tamamlandı |
 | [155](arsiv/fazlar/155-KALIBRE-EDILMIS-EVALUATOR-KATALOGU.md) | Kalibre Edilmiş Evaluator Kataloğu | ✅ Tamamlandı |
-| [156](156-DURUM-ON-KONTROLU-VE-UPGRADE-PENCERESI.md) | Durum Ön Kontrolü ve Upgrade Penceresi | ✅ Tamamlandı |
+| [156](arsiv/fazlar/156-DURUM-ON-KONTROLU-VE-UPGRADE-PENCERESI.md) | Durum Ön Kontrolü ve Upgrade Penceresi | ✅ Tamamlandı |
 | [157](157-SINIRLI-YUK-VE-IKI-PROCESS-ARIZA-KANITI.md) | Sınırlı Yük ve İki Process Arıza Kanıtı | 📋 Planlandı |
 
 Seçilmemiş adaylar: [`ADAYLAR.md`](ADAYLAR.md). Fazların hangi dalgada, hangi gerekçeyle sıralandığı (Faz 8–56, kapandı): [`arsiv/IKINCI-FAZ-YOL-HARITASI.md`](arsiv/IKINCI-FAZ-YOL-HARITASI.md) · [`arsiv/UCUNCU-FAZ-YOL-HARITASI.md`](arsiv/UCUNCU-FAZ-YOL-HARITASI.md).

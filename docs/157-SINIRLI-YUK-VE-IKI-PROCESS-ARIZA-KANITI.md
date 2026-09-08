@@ -122,7 +122,7 @@ beklenen davranışın **yazılı** hâlidir — test onu doğrular, tanımlamaz
 | Streaming fan-out | Çok abonede SSE davranışı |
 | Rolling upgrade | Eski ve yeni process aynı anda ayakta |
 
-🚨 **Rolling upgrade manifesti [Faz 156](156-DURUM-ON-KONTROLU-VE-UPGRADE-PENCERESI.md)
+🚨 **Rolling upgrade manifesti [Faz 156](arsiv/fazlar/156-DURUM-ON-KONTROLU-VE-UPGRADE-PENCERESI.md)
 ile çakışır.** İkisi aynı soruyu iki ucundan sorar: 156 "yükseltmeden önce
 veri okunabilir mi", 157 "yükseltme sırasında iki sürüm aynı anda ne yapar".
 Sıra bağlayıcı değildir; ama 157 sonra koşarsa 156'nın penceresini girdi
