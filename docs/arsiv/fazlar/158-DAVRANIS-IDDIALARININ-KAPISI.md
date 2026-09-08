@@ -1,13 +1,13 @@
 # Faz 158 — Davranış İddialarının Kapısı
 
 > **Durum:** ✅ Tamamlandı (2026-09-08)
-> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-171** (kalan yarısı)
+> **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-171** (kalan yarısı)
 > **Önkoşul:** Yok. Sayı yarısı ve sürüm damgası yarısı **kapandı** — aşağıya bak
 > **Paketler:** Yok — kapı `docs-site/scripts/` ve `scripts/` içinde yaşar
 > **Yeni paket:** Yok · **Migration:** Yok
 > **Public API:** Büyümüyor
 > **Tüketici yüzeyi:** Doğrudan yok; kapı yanlış yazılmış tüketici sayfasını kırar
-> **Manuel test alanı:** [`docs/manuel-test/32-DOKUMAN-KALITESI.md`](manuel-test/32-DOKUMAN-KALITESI.md)
+> **Manuel test alanı:** [`docs/manuel-test/32-DOKUMAN-KALITESI.md`](../../manuel-test/32-DOKUMAN-KALITESI.md)
 
 ---
 
@@ -24,10 +24,10 @@
    **K-228** (arayüz metni sözlükten; eksik anahtar derleme hatası) ·
    **K-232** (sunucu yanıtları çevrilmez)
 3. Alan hafızası (bu faz iki alana dokunuyor):
-   [`hafiza/dokumantasyon.md`](hafiza/dokumantasyon.md) — 🚨 **iki tuzak doğrudan bu fazındır**:
+   [`hafiza/dokumantasyon.md`](../../hafiza/dokumantasyon.md) — 🚨 **iki tuzak doğrudan bu fazındır**:
    kapı sapmayı yakalar ama sapmayı üreten protokol düzeltilmezse sınıf kapanmaz;
    ve yeni bir kapının ilk bulgusu bir kanıttır, emir değil ·
-   [`hafiza/site-uretim-kapilari.md`](hafiza/site-uretim-kapilari.md) — kapı, sayfanın
+   [`hafiza/site-uretim-kapilari.md`](../../hafiza/site-uretim-kapilari.md) — kapı, sayfanın
    **iddia ettiği** şeyi ölçmelidir
 4. Mevcut kapı gövdesi — yeniden yazma, üstüne ekle:
    `docs-site/scripts/check-content.mjs` (`countedClaims` taraması) ·
@@ -59,7 +59,7 @@ otomatikleştirir.
 |---|---|
 | Sitede `by default` / `defaults to` geçen satır | **147** — hiçbiri kapı altında değil |
 | Bunlardan bir options tipi veya konfigürasyon anahtarı anan | **9** — mekanik olarak hedeflenebilir olan bu altküme |
-| [`check-content.mjs:438`](../docs-site/scripts/check-content.mjs) | Bir seçeneğin **adının** sayfada geçtiğini doğruluyor; **varsayılan değerinin** doğru anlatıldığını değil |
+| [`check-content.mjs:438`](../../../docs-site/scripts/check-content.mjs) | Bir seçeneğin **adının** sayfada geçtiğini doğruluyor; **varsayılan değerinin** doğru anlatıldığını değil |
 | Bu turda elle düzeltilen | **4** — kiracılık varsayılanı · worker varsayılanı · OpenAI scope'u · approval devam tarifi. Dördü de tüketiciyi yanlış davranışa yönlendiriyordu ve dördünü de kapı değil insan buldu |
 
 > Kanıtlar 2026-09-08 tarihinde doğrulandı.
