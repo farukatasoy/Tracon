@@ -1,13 +1,13 @@
 # Faz 157 — Sınırlı Yük ve İki Process Arıza Kanıtı
 
 > **Durum:** ✅ Tamamlandı (2026-09-08)
-> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-217**
-> **Önkoşul:** Yok. [Faz 116](arsiv/fazlar/116-PERFORMANS-TAHSIS-KAPISI.md) tahsis kapısını ve bench projesini kurdu; kapalıdır
+> **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-217**
+> **Önkoşul:** Yok. [Faz 116](116-PERFORMANS-TAHSIS-KAPISI.md) tahsis kapısını ve bench projesini kurdu; kapalıdır
 > **Paketler:** Yok — bu faz **sevk edilen hiçbir pakete dokunmaz**. Yalnız `bench/` ve `tests/`
 > **Yeni paket:** Yok · **Migration:** Yok
 > **Public API:** Büyümüyor
 > **Tüketici yüzeyi:** `docs-site/src/content/docs/guides/production.md` (arıza davranışı ve dağıtım örnekleri) · sevk edilen: Yok
-> **Manuel test alanı:** [`docs/manuel-test/21-DAYANIKLILIK-VE-IPTAL.md`](manuel-test/21-DAYANIKLILIK-VE-IPTAL.md)
+> **Manuel test alanı:** [`docs/manuel-test/21-DAYANIKLILIK-VE-IPTAL.md`](../../manuel-test/21-DAYANIKLILIK-VE-IPTAL.md)
 
 ---
 
@@ -23,15 +23,15 @@
    ```
    **K-354** (şema hazır olmadan SQL denemesi yapılmaz — arıza senaryolarında
    başlatma sırası bu kurala takılır)
-3. [Faz 116](arsiv/fazlar/116-PERFORMANS-TAHSIS-KAPISI.md) — yalnız devir notu:
+3. [Faz 116](116-PERFORMANS-TAHSIS-KAPISI.md) — yalnız devir notu:
    ```bash
    awk '/## Sonraki Faza Devir Notu/,0' docs/arsiv/fazlar/116-PERFORMANS-TAHSIS-KAPISI.md
    ```
    Bench projesinin sözleşmesini ve **neden yalnız tahsisin kapı olduğunu**
    oradan devralıyorsun. Bu faz o kararı değiştirmez, üstüne ekler.
 4. Alan hafızası (bu faz iki alana dokunuyor):
-   [`hafiza/test-kosum-tuzaklari.md`](hafiza/test-kosum-tuzaklari.md) (kırılgan koşum ve yalıtım) ·
-   [`hafiza/cekirdek-calistirma.md`](hafiza/cekirdek-calistirma.md) (lease, reconciliation, iptal)
+   [`hafiza/test-kosum-tuzaklari.md`](../../hafiza/test-kosum-tuzaklari.md) (kırılgan koşum ve yalıtım) ·
+   [`hafiza/cekirdek-calistirma.md`](../../hafiza/cekirdek-calistirma.md) (lease, reconciliation, iptal)
 5. Emsal kod — **yeniden yazma, oku**:
    `tests/AgentPrism.Package.Tests/Infrastructure/ProcessRunner.cs` (ayrı process başlatma)
 
@@ -64,9 +64,9 @@ SQLite'ın tek process tavsiyesi **korunur**.
 | Kanıt | Gözlem |
 |---|---|
 | `ls bench/AgentPrism.Benchmarks/*.cs` | Üç benchmark: `CompiledAgentCache` · `RunEventWriter` · `RunStoreQuery`. Yük senaryosu **yok** |
-| [`RunEventWriterBenchmarks.cs:21`](../bench/AgentPrism.Benchmarks/RunEventWriterBenchmarks.cs#L21) | `new NoOpRunStore()` — ölçüm gerçek SQL'e **hiç dokunmuyor** |
-| [`NoOpRunStore.cs:5`](../bench/AgentPrism.Benchmarks/NoOpRunStore.cs#L5) | Kendi dokümanı bunu açıkça söylüyor: "yazma maliyetinden ayırmak için" |
-| [`Program.cs:19`](../bench/AgentPrism.Benchmarks/Program.cs#L19) | `scripts/kapi.py performans` yalnız `BytesAllocatedPerOperation` okuyor — kapı **tahsistir**, süre değil |
+| [`RunEventWriterBenchmarks.cs:21`](../../../bench/AgentPrism.Benchmarks/RunEventWriterBenchmarks.cs#L21) | `new NoOpRunStore()` — ölçüm gerçek SQL'e **hiç dokunmuyor** |
+| [`NoOpRunStore.cs:5`](../../../bench/AgentPrism.Benchmarks/NoOpRunStore.cs#L5) | Kendi dokümanı bunu açıkça söylüyor: "yazma maliyetinden ayırmak için" |
+| [`Program.cs:19`](../../../bench/AgentPrism.Benchmarks/Program.cs#L19) | `scripts/kapi.py performans` yalnız `BytesAllocatedPerOperation` okuyor — kapı **tahsistir**, süre değil |
 | `grep -rl "Kill\|Process.Start" tests/` | Yalnız `Package.Tests` (şablon koşumu). Ürün yolunda process öldüren test **yok** |
 | `tests/AgentPrism.Package.Tests/Infrastructure/ProcessRunner.cs:27` | Ayrı process başlatma altyapısı **var** — yeniden yazılmaz, yeniden kullanılır |
 
@@ -122,7 +122,7 @@ beklenen davranışın **yazılı** hâlidir — test onu doğrular, tanımlamaz
 | Streaming fan-out | Çok abonede SSE davranışı |
 | Rolling upgrade | Eski ve yeni process aynı anda ayakta |
 
-🚨 **Rolling upgrade manifesti [Faz 156](arsiv/fazlar/156-DURUM-ON-KONTROLU-VE-UPGRADE-PENCERESI.md)
+🚨 **Rolling upgrade manifesti [Faz 156](156-DURUM-ON-KONTROLU-VE-UPGRADE-PENCERESI.md)
 ile çakışır.** İkisi aynı soruyu iki ucundan sorar: 156 "yükseltmeden önce
 veri okunabilir mi", 157 "yükseltme sırasında iki sürüm aynı anda ne yapar".
 Sıra bağlayıcı değildir; ama 157 sonra koşarsa 156'nın penceresini girdi
@@ -421,7 +421,7 @@ Sekiz 🟡 bulgunun **tamamı kapatıldı**:
 
 İki 🟢 bulgu (`ChildAgentInvoker`'ın zaman aşımını kendi deadline'ı sanması ·
 yük raporundaki RAM/CPU alanlarının GC/container değerleri olması)
-[`ADAYLAR.md`](ADAYLAR.md)'ye yazıldı.
+[`ADAYLAR.md`](../../ADAYLAR.md)'ye yazıldı.
 
 🔴 olmadığı için kapılar bir kez daha koşuldu; 🟡 düzeltmeleri sevk edilen koda
 (`WorkflowNodeRetry`) dokunduğu için tam kapanış kapısı tekrarlandı.
@@ -431,8 +431,8 @@ yük raporundaki RAM/CPU alanlarının GC/container değerleri olması)
    Bench projesinin sözleşmesini ve **neden yalnız tahsisin kapı olduğunu**
    oradan devralıyorsun. Bu faz o kararı değiştirmez, üstüne ekler.
 4. Alan hafızası (bu faz iki alana dokunuyor):
-   [`hafiza/test-kosum-tuzaklari.md`](hafiza/test-kosum-tuzaklari.md) (kırılgan koşum ve yalıtım) ·
-   [`hafiza/cekirdek-calistirma.md`](hafiza/cekirdek-calistirma.md) (lease, reconciliation, iptal)
+   [`hafiza/test-kosum-tuzaklari.md`](../../hafiza/test-kosum-tuzaklari.md) (kırılgan koşum ve yalıtım) ·
+   [`hafiza/cekirdek-calistirma.md`](../../hafiza/cekirdek-calistirma.md) (lease, reconciliation, iptal)
 5. Emsal kod — **yeniden yazma, oku**:
    `tests/AgentPrism.Package.Tests/Infrastructure/ProcessRunner.cs` (ayrı process başlatma)
 
@@ -465,9 +465,9 @@ SQLite'ın tek process tavsiyesi **korunur**.
 | Kanıt | Gözlem |
 |---|---|
 | `ls bench/AgentPrism.Benchmarks/*.cs` | Üç benchmark: `CompiledAgentCache` · `RunEventWriter` · `RunStoreQuery`. Yük senaryosu **yok** |
-| [`RunEventWriterBenchmarks.cs:21`](../bench/AgentPrism.Benchmarks/RunEventWriterBenchmarks.cs#L21) | `new NoOpRunStore()` — ölçüm gerçek SQL'e **hiç dokunmuyor** |
-| [`NoOpRunStore.cs:5`](../bench/AgentPrism.Benchmarks/NoOpRunStore.cs#L5) | Kendi dokümanı bunu açıkça söylüyor: "yazma maliyetinden ayırmak için" |
-| [`Program.cs:19`](../bench/AgentPrism.Benchmarks/Program.cs#L19) | `scripts/kapi.py performans` yalnız `BytesAllocatedPerOperation` okuyor — kapı **tahsistir**, süre değil |
+| [`RunEventWriterBenchmarks.cs:21`](../../../bench/AgentPrism.Benchmarks/RunEventWriterBenchmarks.cs#L21) | `new NoOpRunStore()` — ölçüm gerçek SQL'e **hiç dokunmuyor** |
+| [`NoOpRunStore.cs:5`](../../../bench/AgentPrism.Benchmarks/NoOpRunStore.cs#L5) | Kendi dokümanı bunu açıkça söylüyor: "yazma maliyetinden ayırmak için" |
+| [`Program.cs:19`](../../../bench/AgentPrism.Benchmarks/Program.cs#L19) | `scripts/kapi.py performans` yalnız `BytesAllocatedPerOperation` okuyor — kapı **tahsistir**, süre değil |
 | `grep -rl "Kill\|Process.Start" tests/` | Yalnız `Package.Tests` (şablon koşumu). Ürün yolunda process öldüren test **yok** |
 | `tests/AgentPrism.Package.Tests/Infrastructure/ProcessRunner.cs:27` | Ayrı process başlatma altyapısı **var** — yeniden yazılmaz, yeniden kullanılır |
 
@@ -523,7 +523,7 @@ beklenen davranışın **yazılı** hâlidir — test onu doğrular, tanımlamaz
 | Streaming fan-out | Çok abonede SSE davranışı |
 | Rolling upgrade | Eski ve yeni process aynı anda ayakta |
 
-🚨 **Rolling upgrade manifesti [Faz 156](arsiv/fazlar/156-DURUM-ON-KONTROLU-VE-UPGRADE-PENCERESI.md)
+🚨 **Rolling upgrade manifesti [Faz 156](156-DURUM-ON-KONTROLU-VE-UPGRADE-PENCERESI.md)
 ile çakışır.** İkisi aynı soruyu iki ucundan sorar: 156 "yükseltmeden önce
 veri okunabilir mi", 157 "yükseltme sırasında iki sürüm aynı anda ne yapar".
 Sıra bağlayıcı değildir; ama 157 sonra koşarsa 156'nın penceresini girdi
