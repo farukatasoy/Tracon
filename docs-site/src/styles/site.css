@@ -335,10 +335,31 @@
   border: 1px solid var(--ap-border);
   border-radius: 0.75rem;
   background-color: var(--ap-diagram-plate);
+  box-shadow: 0 0.5rem 1.5rem rgb(4 10 22 / 6%);
 }
 
 .sl-markdown-content pre.mermaid[data-processed][data-processed] {
   background-color: var(--ap-diagram-plate);
+}
+
+/* Mermaid paints every box with a hard 0-radius rect and a flat fill — read as a
+ * wireframe rather than a finished figure. Both are pure presentation attributes
+ * (`rx`/`ry`, no shadow at all), so CSS overrides them for every node in every
+ * diagram without touching a single .md fence: a plain selector beats a
+ * presentation attribute in the cascade with no !important needed. `.node` covers
+ * flowchart, state, and class diagrams alike; `.actor` is the sequence-diagram
+ * equivalent, which draws its box as its own rect rather than inside a `.node`.
+ * Diamond/circle nodes have no `rect` to match, so they are untouched by design —
+ * `rx`/`ry` apply only to `rect` and `ellipse` per the SVG spec, never `polygon`. */
+.sl-markdown-content pre.mermaid .node rect,
+.sl-markdown-content pre.mermaid .actor {
+  rx: 6px;
+  ry: 6px;
+}
+
+.sl-markdown-content pre.mermaid .node,
+.sl-markdown-content pre.mermaid .actor {
+  filter: drop-shadow(0 1px 2px rgb(38 48 65 / 14%));
 }
 
 /* The generated API pages open with "Namespace … · Assembly …". It is provenance,
