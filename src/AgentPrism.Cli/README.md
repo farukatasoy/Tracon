@@ -158,3 +158,7 @@ a global tool is not referenced, it is installed and run standalone.
 
 - Guide: <https://agentprism.doayen.web.tr/guides/cli/>
 - `AgentPrism.Client` (the package `health` and `eval` are built on): <https://agentprism.doayen.web.tr/api/>
+
+Licence: PolyForm Small Business 1.0.0 - free below 100 people and 1,000,000 USD
+(2019, inflation adjusted) revenue; a commercial licence applies above that. Terms
+ship in the package as LICENSE.md. Details: <https://agentprism.doayen.web.tr/reference/licensing/>

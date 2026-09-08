@@ -172,6 +172,6 @@ bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 | [157](arsiv/fazlar/157-SINIRLI-YUK-VE-IKI-PROCESS-ARIZA-KANITI.md) | Sınırlı Yük ve İki Process Arıza Kanıtı | ✅ Tamamlandı |
 | [158](arsiv/fazlar/158-DAVRANIS-IDDIALARININ-KAPISI.md) | Davranış İddialarının Kapısı | ✅ Tamamlandı |
 | [159](159-TIPLI-ISTEMCIDE-AKISLI-OPENAI-CAGRISI.md) | Tipli İstemcide Akışlı OpenAI Çağrısı | 📋 Planlandı |
-| [160](160-LISANS-MODELI-VE-PAKET-METAVERISI.md) | Lisans Modeli ve Paket Metaverisi | 📋 Planlandı |
+| [160](160-LISANS-MODELI-VE-PAKET-METAVERISI.md) | Lisans Modeli ve Paket Metaverisi | ✅ Tamamlandı |
 
 Seçilmemiş adaylar: [`ADAYLAR.md`](ADAYLAR.md). Fazların hangi dalgada, hangi gerekçeyle sıralandığı (Faz 8–56, kapandı): [`arsiv/IKINCI-FAZ-YOL-HARITASI.md`](arsiv/IKINCI-FAZ-YOL-HARITASI.md) · [`arsiv/UCUNCU-FAZ-YOL-HARITASI.md`](arsiv/UCUNCU-FAZ-YOL-HARITASI.md).

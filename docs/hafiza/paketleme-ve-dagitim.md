@@ -90,36 +90,45 @@
   geçerli JSON'dur (`$apEnc`). Vaka: K-735.
 
 
-## Lisans dosyasi paketleme (Faz 160)
+## Lisans dosyası paketleme (Faz 160)
 
-🚨 **`Directory.Build.props` icindeki bir `ItemGroup`, hicbir `csproj` govdesini
-gormez.** MSBuild degerlendirme sirasi dosya sirasidir ve `Directory.Build.props`
-`csproj`'un **basinda** import edilir. Yani:
+🚨 **`Directory.Build.props` içindeki bir `ItemGroup`, hiçbir `csproj` gövdesini
+görmez.** MSBuild değerlendirme sırası dosya sırasıdır ve `Directory.Build.props`
+`csproj`'un **başında** import edilir. Yani:
 
 ```xml
 <!-- src/Directory.Build.props -->
 <None Include="$(RepositoryRootPath)$(PackageLicenseFile)" Pack="true" ... />
 ```
 
-satirindaki `$(PackageLicenseFile)`, o an props icinde ne ise odur. Bir `csproj`
+satırındaki `$(PackageLicenseFile)`, o an props içinde ne ise odur. Bir `csproj`
 sonradan `<PackageLicenseFile>LICENSE-MIT.md</PackageLicenseFile>` yazarsa
-**`.nuspec` dogru, paketlenen dosya yanlis** olur — ikisi sessizce ayrisir ve
-`unzip -l` disinda hicbir sey bunu gostermez.
+**`.nuspec` doğru, paketlenen dosya yanlış** olur — ikisi sessizce ayrışır ve
+`unzip -l` dışında hiçbir şey bunu gösterir.
 
-Cozum: paket bazli farki `MSBuildProjectName` ile **props icinde**, `ItemGroup`'un
-ustunde coz. `src/Directory.Build.targets` acmak cazip gorunur ama koktekini
-sessizce devre disi birakir (MSBuild yalnizca EN YAKIN dosyayi import eder).
+Çözüm: paket bazlı farkı `MSBuildProjectName` ile **props içinde**, `ItemGroup`'un
+üstünde çöz. `src/Directory.Build.targets` açmak cazip görünür ama köktekini
+sessizce devre dışı bırakır (MSBuild yalnızca EN YAKIN dosyayı import eder).
 
-**`requireLicenseAcceptance` `false` iken `.nuspec`'e hic yazilmaz.** NuGet yalniz
-`true` degerini yazar. Bir kapi bu elementi "false" metniyle aramamali; yoklugunu
-kontrol etmeli. Olculdu: `AgentPrism.Abstractions` (MIT) nuspec'inde element yok,
+**`requireLicenseAcceptance` `false` iken `.nuspec`'e hiç yazılmaz.** NuGet yalnız
+`true` değerini yazar. Bir kapı bu elementi "false" metniyle aramamalı; yokluğunu
+kontrol etmeli. Ölçüldü: `AgentPrism.Abstractions` (MIT) nuspec'inde element yok,
 `AgentPrism.Core` (PolyForm) nuspec'inde `true` var.
 
-**PolyForm OSI onayli degildir**, bu yuzden `<PackageLicenseExpression>` kabul
-etmez — NuGet orada yalniz kendi izin listesini alir. `<PackageLicenseFile>`
-kullanilir, ve bunun yan faydasi lisansin bir URL'ye bagli olmamasidir (K-659).
+**PolyForm OSI onaylı değildir**, bu yüzden `<PackageLicenseExpression>` kabul
+etmez — NuGet orada yalnız kendi izin listesini alır. `<PackageLicenseFile>`
+kullanılır, ve bunun yan faydası lisansın bir URL'ye bağlı olmamasıdır (K-659).
 
-Lisans dosyalari her pakette sevk edildigi icin `SourceLanguageTests` ve
-`ShippedDocumentationSelfContainmentTests` kapsamindadir. Matris uc yerde
-yazilidir — `src/Directory.Build.props`, `scripts/kapi.py` (`PACKAGE_LICENSES`) ve
-npm `package.json` — ucunu `PackageLicenseTests` birbirine kilitler.
+🚨 **Lisans iddiası taşıyan yüzey yalnız `.nuspec` değildir.** Sevk edilen README
+de lisans söyler ve nuget.org ile npmjs.com **onu render eder**. Faz 160'ın
+denetimi tam olarak burada bir 🔴 buldu: `packages/agentprism-client/README.md`,
+`package.json` PolyForm'a geçtikten sonra `License: MIT` demeye devam etti. Bir
+lisans değişikliğinde taranacak küme `src/*/README.md` **ve** `packages/*/README.md`
+ve `package.json` ve `.nuspec`'tir; biri unutulursa tüketici çelişkiyi görür ve
+kendisine daha geniş hak veren metne inanır. Kapı: `MT-PKG-122`.
+
+Lisans dosyaları her pakette sevk edildiği için `SourceLanguageTests` ve
+`ShippedDocumentationSelfContainmentTests` kapsamındadır. Matris üç yerde
+yazılıdır — `src/Directory.Build.props`, `scripts/kapi.py` (`PACKAGE_LICENSES`) ve
+npm `package.json` — üçünü `PackageLicenseTests` birbirine kilitler; npm beklentisi
+sabit dizge değil, `AgentPrism.Client`'ın tablodaki lisansından **türetilir**.
