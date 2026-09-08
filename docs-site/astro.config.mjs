@@ -48,6 +48,14 @@ export default defineConfig({
       theme: 'base',
       autoTheme: false,
       mermaidConfig: {
+        // `curve` and `look` are left at mermaid's own defaults ('basis' and
+        // 'classic'): measured against this palette, neither moved a pixel that
+        // mattered. Only the spacing knobs below did, so only they are set.
+        flowchart: {
+          padding: 20,
+          nodeSpacing: 55,
+          rankSpacing: 70,
+        },
         themeVariables: {
           darkMode: false,
           fontFamily:
@@ -74,6 +82,10 @@ export default defineConfig({
           textColor: token('ap-diagram-ink'),
           labelColor: token('ap-diagram-ink'),
           lineColor: token('ap-diagram-line'),
+          // Left unset, the base theme derives it by inverting `background`,
+          // which lands near-black — a darker, off-palette mark next to the
+          // line it terminates. Measured: #110e09 against our #5b6472 line.
+          arrowheadColor: token('ap-diagram-line'),
           edgeLabelBackground: token('ap-diagram-plate'),
           labelBackgroundColor: token('ap-diagram-plate'),
           actorBkg: token('ap-diagram-node'),
