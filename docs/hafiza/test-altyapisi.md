@@ -154,6 +154,28 @@ tekrarlanmalı — ve `.editorconfig`'in `[tests/**/*.cs]` bölümü (CA1707 alt
   geçersiz JSON'dur. `RespondsWith(sabitMetin)` ile sabit bir yanıt kuyruklamak
   gerekir (`FakeModelProvider("...").RespondsWith(...)`).
 
+## Sahte `null` bagimlilik ile gercek NO-OP uygulamasi AYNI SEY DEGILDIR (Faz 156)
+
+🚨 **Fark tam olarak hata yolundadir ve testi olcmek istedigi seyden koparir.**
+
+`SqlStoreContext.ContentProtector` test altyapisinda `null` birakiliyordu;
+`ProtectedValue.Read` `?.` ile kisa devre yapip ham zarfi donduruyordu. Uretimde
+`AddAgentPrism()` bir `NullContentProtector` **kaydeder** ve onun `Unprotect`'i
+sifreli bir zarf gorunce **FIRLATIR**.
+
+Sonuc: Faz 156'nin ön kontrolu iki yesil test ve dort yesil kapiyla `EXIT=134`
+verdi — yigin iziyle. Kusuru yalniz `samples/AgentPrism.Api` kosumu gosterdi.
+
+**Kural:** bir "bos/varsayilan" bagimliligi test ederken **DI'in gercekten
+kaydettigini** kullan. `null` birakmak yalnizca daha az kod degildir; farkli bir
+kod yolu secer. Bu depodaki hazir yardimci:
+`tests/AgentPrism.Sqlite.IntegrationTests/Infrastructure/ProtectingStoreContext.Keyless`
+— uretimin kaydettigi protector'i verir, `null` degil.
+
+Ayni sinifin diger yuzu: bir istisna atan no-op'u `try/catch` ile sarmak
+yetmez, testin o yolu GERCEKTEN gormesi gerekir. Duzeltmenin kaniti iki testin
+duzeltme olmadan kirmizi oldugunun olculmesidir.
+
 ## Yalitim ve tam kosum kirilganligi
 
 Tek basina gecip tam kosumda dusen test AYRI dosyadadir:

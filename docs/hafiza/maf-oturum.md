@@ -81,7 +81,9 @@
   (2026-09-08): damgasız checkpoint satırı **okunabilir** sayılır — damgalamadan
   önce yazıldığı için gelecekten gelemez. `WorkflowRunner.cs:946` zaten aynı
   null-toleranslı karşılaştırmayı yapar. Kuşak taşıyan her yeni tip `int?` olmalı.
-- **🚨 Şifreli oturum durumu ÇÖZÜLEMEZ ve bu bir kusur DEĞİLDİR** (2026-09-08, K-735):
+- **🚨 Şifreli oturum durumu ÇÖZÜLEMEZ ve bu bir kusur DEĞİLDİR** (2026-09-08, K-735;
+  ön kontrolün bu yüzden nasıl çöktüğü ve testin bunu neden kaçırdığı
+  [`test-altyapisi.md`](test-altyapisi.md) § *Sahte `null` bağımlılık*'tadır):
   `AgentPrismContentProtectionOptions.Columns` varsayılan olarak `sessions.state`'i
   kapsar; CLI hiçbir anahtar tutmaz (K-059). `ContentProtectionEnvelope.IsProtected`
   yalnız `$apEnc` etiketine bakar ve satır "yapı kontrolü" kovasına girer. Şifreli
