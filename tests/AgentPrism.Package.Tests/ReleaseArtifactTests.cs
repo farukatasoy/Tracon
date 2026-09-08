@@ -111,9 +111,43 @@ public sealed class ReleaseArtifactTests(ReleaseArtifactFixture fixture) : IClas
                 failures.Add($"{id}: missing README.md");
             }
 
-            if (!nuspec.Contains("""<license type="expression">MIT</license>""", StringComparison.Ordinal))
+            // PolyForm is not OSI approved, so NuGet will not take it as a license
+            // EXPRESSION; the text is embedded as a file instead. Declaring one file
+            // and packing another would leave the consumer holding terms the package
+            // never claimed, so both halves are checked, and so is the absence of the
+            // other licence.
+            var licence = PackableProjects.LicenceFileOf(id);
+
+            if (!nuspec.Contains($"""<license type="file">{licence}</license>""", StringComparison.Ordinal))
             {
-                failures.Add($"{id}: missing MIT license expression");
+                failures.Add($"{id}: nuspec does not declare '<license type=\"file\">{licence}</license>'");
+            }
+
+            if (!entries.Contains(licence))
+            {
+                failures.Add($"{id}: {licence} is not inside the package");
+            }
+
+            foreach (var other in new[] { "LICENSE.md", "LICENSE-MIT.md" })
+            {
+                if (!string.Equals(other, licence, StringComparison.Ordinal) && entries.Contains(other))
+                {
+                    failures.Add($"{id}: also packs the wrong licence file {other}");
+                }
+            }
+
+            // Measured: NuGet writes requireLicenseAcceptance only when it is true.
+            var acceptanceDeclared = nuspec.Contains(
+                "<requireLicenseAcceptance>true</requireLicenseAcceptance>", StringComparison.Ordinal);
+
+            if (string.Equals(licence, "LICENSE-MIT.md", StringComparison.Ordinal) && acceptanceDeclared)
+            {
+                failures.Add($"{id}: an MIT package must not require licence acceptance");
+            }
+
+            if (string.Equals(licence, "LICENSE.md", StringComparison.Ordinal) && !acceptanceDeclared)
+            {
+                failures.Add($"{id}: requireLicenseAcceptance must be true");
             }
 
             if (!RepositoryCommit.IsMatch(nuspec))
