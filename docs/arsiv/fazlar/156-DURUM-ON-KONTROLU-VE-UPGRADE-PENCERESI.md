@@ -1,13 +1,13 @@
 # Faz 156 — Durum Ön Kontrolü ve Upgrade Penceresi
 
 > **Durum:** ✅ Tamamlandı (2026-09-08)
-> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-216** (doğrulamada **daraltıldı** — aşağıya bak)
-> **Önkoşul:** Yok. [Faz 126](arsiv/fazlar/126-KALICI-PAYLOAD-SURUM-SOZLESMESI.md) bu fazın dayandığı sözleşmeyi kurdu; kapalıdır
+> **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-216** (doğrulamada **daraltıldı** — aşağıya bak)
+> **Önkoşul:** Yok. [Faz 126](126-KALICI-PAYLOAD-SURUM-SOZLESMESI.md) bu fazın dayandığı sözleşmeyi kurdu; kapalıdır
 > **Paketler:** `AgentPrism.Cli`, `AgentPrism.Core` (salt okunur ön kontrol mantığı)
 > **Yeni paket:** Yok · **Migration:** Yok — bu faz **hiçbir şey yazmaz**
 > **Public API:** Büyüyor — yeni CLI komutu ve onun okuduğu ön kontrol tipi. Faz 7'den önce ucuz
 > **Tüketici yüzeyi:** `docs-site/src/content/docs/reference/versioning.md` (upgrade penceresi) · `docs-site/src/content/docs/guides/production.md` (başarısız restore prosedürü) · sevk edilen: `AgentPrism.Cli` README'si, `capabilities.md` satırı
-> **Manuel test alanı:** [`docs/manuel-test/34-ISTEMCI-VE-CLI.md`](manuel-test/34-ISTEMCI-VE-CLI.md) — plan `25`'i işaret ediyordu; `state-check` bir CLI komutudur (bkz. *Plandan Sapmalar* §6)
+> **Manuel test alanı:** [`docs/manuel-test/34-ISTEMCI-VE-CLI.md`](../../manuel-test/34-ISTEMCI-VE-CLI.md) — plan `25`'i işaret ediyordu; `state-check` bir CLI komutudur (bkz. *Plandan Sapmalar* §6)
 
 ---
 
@@ -23,14 +23,14 @@
    ```
    **K-649** (kalıcı payload sürüm sözleşmesi: `state_schema_version` ve `state_maf_version`) ·
    **K-059** (`secret` dosyaya **ve veritabanına** yazılmaz — bu faz bağlantı dizesi işler)
-3. [Faz 126](arsiv/fazlar/126-KALICI-PAYLOAD-SURUM-SOZLESMESI.md) — yalnız devir notu:
+3. [Faz 126](126-KALICI-PAYLOAD-SURUM-SOZLESMESI.md) — yalnız devir notu:
    ```bash
    awk '/## Sonraki Faza Devir Notu/,0' docs/arsiv/fazlar/126-KALICI-PAYLOAD-SURUM-SOZLESMESI.md
    ```
    🚨 **Bu faz o fazın üstüne biner.** Faz 126 corpus'u ve testi kurdu; bu faz onu operatörün **kendi verisine** taşır. Devir notunu okumadan başlama.
 4. Alan hafızası (bu faz iki alana dokunuyor):
-   [`hafiza/maf-oturum.md`](hafiza/maf-oturum.md) (oturum durumu ve envelope) ·
-   [`hafiza/paketleme-ve-dagitim.md`](hafiza/paketleme-ve-dagitim.md) (CLI aracı sevkiyatı)
+   [`hafiza/maf-oturum.md`](../../hafiza/maf-oturum.md) (oturum durumu ve envelope) ·
+   [`hafiza/paketleme-ve-dagitim.md`](../../hafiza/paketleme-ve-dagitim.md) (CLI aracı sevkiyatı)
 5. Fixture sözleşmesi — **okunmadan fixture'a dokunulmaz**:
    `tests/AgentPrism.Core.UnitTests/Fixtures/README.md`
 
@@ -49,14 +49,14 @@ sorulabilir hâle getirir ve cevabın ne anlama geldiğini yazıya döker.
 ### 🚨 Aday doğrulamada daraldı — ne DÜŞTÜ
 
 F-216'nın merkezî iddiası *"önceki artifact'in ürettiği durum corpus'u test
-ağacında yok"* idi. **Yanlış.** [Faz 126](arsiv/fazlar/126-KALICI-PAYLOAD-SURUM-SOZLESMESI.md)
+ağacında yok"* idi. **Yanlış.** [Faz 126](126-KALICI-PAYLOAD-SURUM-SOZLESMESI.md)
 bunu zaten yapmıştır ve 2026-09-07'de doğrulandı:
 
 | Bugün **var** | Kanıt |
 |---|---|
 | Gerçek koşumdan yakalanmış oturum corpus'u | `tests/AgentPrism.Core.UnitTests/Fixtures/session-state-1.18.0.json` |
 | Gerçek koşumdan yakalanmış checkpoint corpus'u | `tests/AgentPrism.Workflows.UnitTests/Fixtures/workflow-checkpoint-1.18.0.json` |
-| Çapraz sürüm okuma kapısı | [`PersistedPayloadUpgradeTests.cs:24`](../tests/AgentPrism.Core.UnitTests/Sessions/PersistedPayloadUpgradeTests.cs#L24) — 1.18.0 fixture'ını **bugünkü 1.20.0** koduyla okur |
+| Çapraz sürüm okuma kapısı | [`PersistedPayloadUpgradeTests.cs:24`](../../../tests/AgentPrism.Core.UnitTests/Sessions/PersistedPayloadUpgradeTests.cs#L24) — 1.18.0 fixture'ını **bugünkü 1.20.0** koduyla okur |
 | Bilinmeyen kuşağın tanımlı hatası | Aynı dosya `:36` — gelecekteki `StateSchemaVersion` tanımlı hata verir, oturum **silinmez** |
 | Fixture yenileme yasağı | `Fixtures/README.md` — "kırmızı olduğu için yenileme"; `nuget-danismani`'ye götür |
 
@@ -69,11 +69,11 @@ fixture'larına ve yenileme kuralına dokunulmaz.
 |---|---|
 | `ls src/AgentPrism.Cli/Commands/` | Yalnız `Eval` · `Health` · `Migrate` · `MigrateStatus`. Durumu ön kontrol eden komut **yok** |
 | `grep -rl "upgrade window" docs-site/` | **Sıfır sonuç** — desteklenen upgrade penceresi hiçbir tüketici sayfasında yazılı değil |
-| [`production.md:387`](../docs-site/src/content/docs/guides/production.md) | Yalnız bir kontrol listesi satırı: "restore prosedürlerini tanımla". Başarısız restore için **adım yok** |
-| [`AgentSessionManager.cs:42`](../src/AgentPrism.Core/Sessions/AgentSessionManager.cs#L42) · [`AgentPrismCheckpointStore.cs:39`](../src/AgentPrism.Workflows/Internal/AgentPrismCheckpointStore.cs#L39) | `CurrentStateSchemaVersion = 1` — ikisi de `internal const`; dışarıdan okunamaz |
-| [`ISessionStore.cs:175`](../src/AgentPrism.Abstractions/Sessions/ISessionStore.cs#L175) | ~~`QueryAsync(SessionQuery)` var — salt okunur sayım için yeterli~~ **🚨 ÇÜRÜDÜ (2026-09-08).** Kiracı filtreler, sayfalar, tam payload okur — bkz. *Plandan Sapmalar* §1 |
-| [`IWorkflowCheckpointStore.cs:64`](../src/AgentPrism.Abstractions/Workflows/IWorkflowCheckpointStore.cs#L64) | ~~`ListAsync` var — checkpoint tarafı için aynı~~ **🚨 ÇÜRÜDÜ.** `tenantId` **ve** `sessionId` ister; veritabanı çapında kullanılamaz |
-| [`MigrateCommand.cs:11`](../src/AgentPrism.Cli/Commands/MigrateCommand.cs#L11) | Doğrudan veritabanına bağlanan CLI deseni: `--provider` + `--connection` |
+| [`production.md:387`](../../../docs-site/src/content/docs/guides/production.md) | Yalnız bir kontrol listesi satırı: "restore prosedürlerini tanımla". Başarısız restore için **adım yok** |
+| [`AgentSessionManager.cs:42`](../../../src/AgentPrism.Core/Sessions/AgentSessionManager.cs#L42) · [`AgentPrismCheckpointStore.cs:39`](../../../src/AgentPrism.Workflows/Internal/AgentPrismCheckpointStore.cs#L39) | `CurrentStateSchemaVersion = 1` — ikisi de `internal const`; dışarıdan okunamaz |
+| [`ISessionStore.cs:175`](../../../src/AgentPrism.Abstractions/Sessions/ISessionStore.cs#L175) | ~~`QueryAsync(SessionQuery)` var — salt okunur sayım için yeterli~~ **🚨 ÇÜRÜDÜ (2026-09-08).** Kiracı filtreler, sayfalar, tam payload okur — bkz. *Plandan Sapmalar* §1 |
+| [`IWorkflowCheckpointStore.cs:64`](../../../src/AgentPrism.Abstractions/Workflows/IWorkflowCheckpointStore.cs#L64) | ~~`ListAsync` var — checkpoint tarafı için aynı~~ **🚨 ÇÜRÜDÜ.** `tenantId` **ve** `sessionId` ister; veritabanı çapında kullanılamaz |
+| [`MigrateCommand.cs:11`](../../../src/AgentPrism.Cli/Commands/MigrateCommand.cs#L11) | Doğrudan veritabanına bağlanan CLI deseni: `--provider` + `--connection` |
 
 > Kanıtlar 2026-09-07 tarihinde doğrulandı.
 
