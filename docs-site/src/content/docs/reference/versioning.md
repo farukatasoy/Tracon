@@ -160,6 +160,72 @@ flowchart LR
   identity, or clear old sessions and checkpoints before the upgrade if you
   do not need them to survive it.
 
+### The supported upgrade window
+
+Until now this page said what happens when a stored body cannot be read, but
+not which upgrades are supposed to work in the first place. This is that
+promise:
+
+**Any AgentPrism version can read the envelope written by any earlier version
+in the same major version line.** You are never required to step through
+intermediate releases. Going from `1.0.0-preview.3` straight to
+`1.0.0-preview.19` is supported; so is any `1.x` to any later `1.x`.
+
+A change that would break this is, by definition, a major version bump — the
+envelope generation (`StateSchemaVersion`) advances, and a build that meets a
+generation newer than it understands refuses with a defined error rather than
+guessing.
+
+What the promise rests on: the repository keeps session and checkpoint state
+captured from real runs of earlier versions and reads it back with today's
+code on every build. That is a test, not an intention — when it goes red, a
+release is blocked rather than shipped with a footnote.
+
+:::caution[The window covers AgentPrism's envelope, not Microsoft Agent Framework's body]
+The table above splits ownership for a reason. AgentPrism promises its own
+envelope stays readable across the window. It cannot promise the same for the
+**state body**, which Microsoft Agent Framework writes and owns: a Microsoft
+Agent Framework version bump inside an AgentPrism upgrade can make older
+bodies unreadable, and that is Microsoft's compatibility surface, not
+AgentPrism's.
+
+This is exactly why the preflight below decodes a sample instead of only
+comparing version numbers — and why a failure names both the recorded and the
+running Microsoft Agent Framework version.
+:::
+
+### Check before you upgrade, not after
+
+`agentprism state-check` asks the question while the old build is still
+serving traffic. It reads the database directly, so it needs no running
+application:
+
+```bash
+agentprism state-check --provider postgres --connection "$AGENTPRISM_CONNECTION"
+```
+
+Run it **with the new version of the tool** against a copy of production data.
+It writes nothing — no row, no migration table entry, no lock — so it is also
+safe against the live database.
+
+It reports two different things, and reads them out separately:
+
+- **A count of every row**, grouped by the envelope generation stamped on it,
+  across every tenant. Each generation is marked readable or not by the build
+  running the command. This part is complete.
+- **A decode of a sample**, at most `--sample` rows of *each* generation
+  (default 5), deserialized through Microsoft Agent Framework. This part is a
+  sample. A clean run says the rows that were read came back readable — it
+  never says all of them would.
+
+Exit code `0` means nothing was found that blocks reading; `3` means it found
+state this build cannot read. Two kinds of row are reported as checked for
+structure only and are never counted as failures: workflow checkpoints (whose
+payload has no decoder outside a running workflow) and sessions encrypted at
+rest (the CLI holds no content protection key). See the
+[CLI guide](/guides/cli/) for the full command surface, and [Production
+deployment](/guides/production/) for what to do when it comes back red.
+
 ## Upgrade safely
 
 1. Create a branch and update all AgentPrism packages together.
@@ -168,13 +234,15 @@ flowchart LR
    Framework version moved, which affects persisted session and checkpoint
    bodies (above).
 3. Build with warnings as errors and run the full test suite.
-4. Start a disposable environment against a copy of production-shaped data.
-5. Inspect `/api/meta`, health checks, provider health, and migration diagnostics.
-6. Exercise one synchronous run, one streamed run, every enabled background service, and
+4. Run `agentprism state-check` with the new tool version against a copy of
+   production data (above). A `3` here is a stop sign, not a warning.
+5. Start a disposable environment against a copy of production-shaped data.
+6. Inspect `/api/meta`, health checks, provider health, and migration diagnostics.
+7. Exercise one synchronous run, one streamed run, every enabled background service, and
    your approval and guard paths.
-7. Back up the database before the production migration. Deploy API and worker processes
+8. Back up the database before the production migration. Deploy API and worker processes
    from the same artifact.
-8. Watch run failures, provider latency, queue depth, webhook delivery, and cost after the
+9. Watch run failures, provider latency, queue depth, webhook delivery, and cost after the
    rollout.
 
 Database migrations are forward-only. Do not assume that rolling back the application

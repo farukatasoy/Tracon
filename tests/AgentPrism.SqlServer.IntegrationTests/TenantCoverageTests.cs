@@ -100,6 +100,10 @@ public sealed class TenantCoverageTests
         // used to be listed here instead, which meant the gate passed on an
         // assertion no contract actually made.
         ["SqlPendingApprovalStore"] = ["CreateAsync", "ListPendingAsync", "GetAsync", "DecideAsync"],
+        // Every method is [TenantAgnostic] by design (Phase 156): an upgrade
+        // replaces the process for every tenant at once, so a tenant-filtered
+        // preflight would under-report the risk.
+        ["SqlStatePreflightReader"] = [],
     };
 
     [Fact]
@@ -250,7 +254,12 @@ public sealed class TenantCoverageTests
         return type.GetInterfaces().Any(static contract =>
             string.Equals(contract.Namespace, "AgentPrism", StringComparison.Ordinal)
             && (contract.Name.EndsWith("Store", StringComparison.Ordinal)
-                || string.Equals(contract.Name, "IAuditLog", StringComparison.Ordinal)));
+                || string.Equals(contract.Name, "IAuditLog", StringComparison.Ordinal)
+                // Phase 156: a read-only surface over the SAME tenant-bearing
+                // tables. It is named "Reader" rather than "Store" precisely
+                // because it never writes, which is exactly how a persistence
+                // surface would otherwise slip out of this gate.
+                || string.Equals(contract.Name, "IStatePreflightReader", StringComparison.Ordinal)));
     }
 
     /// <summary>The public instance methods a store declares itself.</summary>

@@ -136,6 +136,13 @@ public static class AgentPrismSqliteBuilderExtensions
         services.Replace(ServiceDescriptor.Singleton<IMigrationApplier>(
             static provider => provider.GetRequiredService<MigrationRunner>()));
 
+        // State preflight (Phase 156): read-only, tenant-agnostic counting of
+        // the stored schema generations. A separate seam from ISessionStore on
+        // purpose - that one always filters by tenant, pages, and pulls the
+        // whole state payload, none of which a whole-database preflight wants.
+        services.Replace(ServiceDescriptor.Singleton<IStatePreflightReader>(
+            static provider => new SqlStatePreflightReader(provider.GetRequiredService<SqlStoreContext>())));
+
         services.Replace(ServiceDescriptor.Singleton<IAuditLog, SqlAuditLog>());
 
         services.Replace(ServiceDescriptor.Singleton<IAgentDefinitionStore, AuditingAgentDefinitionStore>(

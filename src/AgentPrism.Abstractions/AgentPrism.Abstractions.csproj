@@ -18,8 +18,9 @@
     <PackageReference Include="Microsoft.Extensions.AI.Abstractions" />
   </ItemGroup>
 
-  <ItemGroup Label="Internal visibility - Core reads the ProviderSettingsValidationException marker">
+  <ItemGroup Label="Internal visibility - Core reads the ProviderSettingsValidationException marker; both Core and Workflows read StateSchemaGenerations">
     <InternalsVisibleTo Include="AgentPrism.Core" />
+    <InternalsVisibleTo Include="AgentPrism.Workflows" />
   </ItemGroup>
 
 </Project>
