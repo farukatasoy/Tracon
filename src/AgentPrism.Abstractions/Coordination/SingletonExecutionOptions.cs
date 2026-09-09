@@ -21,6 +21,13 @@ public sealed class SingletonExecutionOptions
     /// Gets or sets the lease duration. Renewal happens at ONE THIRD of this duration; at
     /// half of it, a single missed renewal would drop the lease.
     /// </summary>
+    /// <remarks>
+    /// While <see cref="Enabled"/> is <see langword="true"/> this must be at least
+    /// THREE SECONDS, and startup fails otherwise. Renewal never runs faster than once
+    /// a second, so below that the renewal would land on or after the expiry: the lease
+    /// would look expired while its owner is alive, and a second instance would take
+    /// over work that has to run on one.
+    /// </remarks>
     public TimeSpan LeaseDuration { get; set; } = TimeSpan.FromSeconds(60);
 
     /// <summary>

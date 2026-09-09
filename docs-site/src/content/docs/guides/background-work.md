@@ -317,7 +317,11 @@ per-job SQL leasing, which is unaffected by this setting.
 ```
 
 Renewal happens at one third of `LeaseDuration`, so a single missed renewal
-still leaves two more attempts before another instance can take over.
+still leaves two more attempts before another instance can take over. Renewal
+never runs more than once a second, which puts a floor of **three seconds**
+under `LeaseDuration`: a shorter lease would expire between two renewals while
+its owner is alive and working, so startup fails rather than letting two
+instances alternate on work that has to run on one.
 `OwnerId` defaults to the machine name, process id, and a random suffix; set
 it explicitly only to force a specific instance to hold the lease.
 
@@ -370,7 +374,7 @@ too. A store having lease semantics is not a cluster-support guarantee.
 | `AsyncRun.MaxAttempts` | `1` | Controls queued agent-run retries |
 | Job list page | 50 records | `skip` defaults to `0`; `take` defaults to `50` |
 | `SingletonExecution.Enabled` | `false` | `true` elects one instance for the singleton services above |
-| `SingletonExecution.LeaseDuration` | 60 seconds | Renewal at one third of this duration |
+| `SingletonExecution.LeaseDuration` | 60 seconds | Renewal at one third of this duration; at least 3 seconds while enabled |
 | `RunReconciliation.Enabled` | `false` | `true` closes orphaned `Running` rows after a crash |
 | `RunReconciliation.HeartbeatInterval` | 30 seconds | How often an active run's process signals it is alive |
 | `RunReconciliation.OrphanThreshold` | 5 minutes | Silence beyond this marks a run orphaned |

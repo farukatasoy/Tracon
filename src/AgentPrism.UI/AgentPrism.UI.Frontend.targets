@@ -9,16 +9,28 @@
 
     The steps are incremental. `npm ci` does not run if package-lock.json has
     not changed; `npm run build` does not run if the frontend sources have not
-    changed. The stamp files live under BaseIntermediateOutputPath - that is
-    independent of the target framework, so this package, which builds for
-    three target frameworks, runs npm only once.
+    changed. The stamps of those steps live under BaseIntermediateOutputPath,
+    which is independent of the target framework: the work behind them is done
+    once for the whole build, no matter how many frameworks this package
+    builds for. A shared stamp does NOT make them exclusive on its own - it
+    turns fresh only after the step finishes - so exclusivity is arranged
+    separately, see AgentPrismFrontendInnerBuild.
   -->
 
   <PropertyGroup>
     <AgentPrismNpmInstallStamp>$(BaseIntermediateOutputPath)agentprism-npm-install.stamp</AgentPrismNpmInstallStamp>
     <AgentPrismNodeDetectionStamp>$(BaseIntermediateOutputPath)agentprism-node-detection.stamp</AgentPrismNodeDetectionStamp>
     <AgentPrismFrontendStamp>$(BaseIntermediateOutputPath)agentprism-frontend.stamp</AgentPrismFrontendStamp>
-    <AgentPrismFrontendAssetsStamp>$(BaseIntermediateOutputPath)agentprism-frontend-assets.stamp</AgentPrismFrontendAssetsStamp>
+    <!--
+      PER TARGET FRAMEWORK, unlike every stamp above it. The chain those guard
+      runs once for the whole build; collecting the assets is work each inner
+      build has to do for ITSELF, because it adds the EmbeddedResource items of
+      that one assembly. Under the shared path the first inner build to finish
+      made the stamp fresh and the other two skipped the target - and an
+      assembly whose collection was skipped before it ever saw wwwroot/ ships
+      with no UI at all.
+    -->
+    <AgentPrismFrontendAssetsStamp>$(IntermediateOutputPath)agentprism-frontend-assets.stamp</AgentPrismFrontendAssetsStamp>
     <AgentPrismShellFile>$(AgentPrismFrontendOutput)/index.html</AgentPrismShellFile>
 
     <!--
@@ -31,6 +43,13 @@
     <AgentPrismClientPackageRoot>$(RepositoryRootPath)packages/agentprism-client</AgentPrismClientPackageRoot>
     <AgentPrismClientNpmInstallStamp>$(BaseIntermediateOutputPath)agentprism-client-npm-install.stamp</AgentPrismClientNpmInstallStamp>
     <AgentPrismClientBuildStamp>$(BaseIntermediateOutputPath)agentprism-client-build.stamp</AgentPrismClientBuildStamp>
+
+    <!--
+      The node probe writes a stamp that every instance shares, so only the
+      TFM-less instance runs it; an inner build READS the file the chain it
+      just waited for has written. See AgentPrismFrontendInnerBuild.
+    -->
+    <AgentPrismNodeProbeDependsOn Condition=" '$(TargetFramework)' == '' ">AgentPrismDetectNode</AgentPrismNodeProbeDependsOn>
   </PropertyGroup>
 
   <ItemGroup Condition=" '$(AgentPrismFrontendEnabled)' == 'true' ">
@@ -100,7 +119,7 @@
     Condition; otherwise a hot build would silently treat Node.js as absent.
   -->
   <Target Name="AgentPrismReadNodeAvailability"
-          DependsOnTargets="AgentPrismDetectNode"
+          DependsOnTargets="$(AgentPrismNodeProbeDependsOn)"
           Condition=" '$(AgentPrismFrontendEnabled)' == 'true' AND Exists('$(AgentPrismNodeDetectionStamp)') ">
     <ReadLinesFromFile File="$(AgentPrismNodeDetectionStamp)">
       <Output TaskParameter="Lines" ItemName="AgentPrismNodeAvailabilityLine" />
@@ -173,39 +192,69 @@
   </Target>
 
   <!--
+    The whole frontend chain, named once. npm, the client build and Vite all
+    write into directories that every instance of this project shares
+    (frontend/node_modules, packages/agentprism-client/dist, wwwroot/), so this
+    chain must run EXACTLY ONCE per build, no matter how many instances want
+    its output.
+
+    WARNING: the order is expressed with DependsOnTargets HERE, not between the
+    targets themselves. MSBuild evaluates a target's Condition BEFORE its
+    DependsOnTargets; with the dependencies declared on the targets instead,
+    AgentPrismNpmInstall's condition (on the as-yet-empty
+    AgentPrismNodeAvailable) would evaluate false and AgentPrismDetectNode
+    would never run. Measured: the UI was silently not being built.
+  -->
+  <Target Name="AgentPrismFrontendChain"
+          DependsOnTargets="AgentPrismDetectNode;AgentPrismReadNodeAvailability;AgentPrismNpmInstall;AgentPrismBuildClientPackage;AgentPrismBuildFrontend"
+          Condition=" '$(AgentPrismFrontendEnabled)' == 'true' " />
+
+  <!--
+    Runs the chain before the inner builds are dispatched, so the work is done
+    once and early.
+  -->
+  <Target Name="AgentPrismFrontendOuterBuild"
+          BeforeTargets="DispatchToInnerBuilds"
+          DependsOnTargets="AgentPrismFrontendChain"
+          Condition=" '$(AgentPrismFrontendEnabled)' == 'true' " />
+
+  <!--
+    An inner build NEVER runs the chain itself: it asks the single instance
+    that carries no TargetFramework to run it, and blocks until that is done.
+
+    A stamp file alone cannot make the chain exclusive. The stamp only turns
+    fresh AFTER the chain finishes, while an inner build starts as soon as
+    something else asks for it - and every project that references this one
+    (the AgentPrism meta package for each of its three frameworks, the E2E and
+    generator test projects) asks for an inner build directly, scheduled
+    independently of the outer build. Measured (2026-09-09, cold stamp,
+    `dotnet build AgentPrism.slnx`): FOUR instances - [], net8.0, net9.0,
+    net10.0 - entered `npm ci` within two seconds of each other and stayed
+    inside together. On Windows that ends the build:
+    "npm error ENOTEMPTY: directory not empty, rmdir ...\node_modules\react-refresh"
+    - one process was extracting into the directory the other was deleting.
+
+    Handing the work to one instance makes MSBuild itself the lock: a target
+    runs at most once per (project, global properties) pair, and a second
+    request for it waits for the first to finish instead of running beside it.
+    RemoveProperties strips TargetFramework, which is what tells the two apart.
+  -->
+  <Target Name="AgentPrismFrontendInnerBuild"
+          Condition=" '$(AgentPrismFrontendEnabled)' == 'true' AND '$(TargetFramework)' != '' ">
+    <MSBuild Projects="$(MSBuildProjectFullPath)"
+             Targets="AgentPrismFrontendChain"
+             RemoveProperties="TargetFramework" />
+  </Target>
+
+  <!--
     Adds the produced assets as embedded resources.
 
     Runs before AssignTargetPaths; resource names are fixed after that point.
     The logical name is given the "AgentPrism.UI.wwwroot/" prefix, so the
     directory structure can be restored at runtime.
   -->
-  <!--
-    In a multi-targeted project, the inner builds (net8.0 / net9.0 / net10.0)
-    run in PARALLEL. The frontend build writes into a single wwwroot/
-    directory, and Vite clears that directory first; if the three inner builds
-    start at the same time, they delete each other's files. Measured:
-    "ENOENT: no such file or directory, unlink .../index-*.js".
-
-    That is why the chain runs in the OUTER build, BEFORE the inner builds are
-    dispatched. The inner builds find the stamp up to date and skip the step.
-    When building with a single target (e.g., -f net10.0) there is no outer
-    build; in that case, the aggregate target below runs the chain itself.
-  -->
-  <Target Name="AgentPrismFrontendOuterBuild"
-          BeforeTargets="DispatchToInnerBuilds"
-          DependsOnTargets="AgentPrismDetectNode;AgentPrismReadNodeAvailability;AgentPrismNpmInstall;AgentPrismBuildClientPackage;AgentPrismBuildFrontend"
-          Condition=" '$(AgentPrismFrontendEnabled)' == 'true' " />
-
-  <!--
-    WARNING: The chain is set up here with DependsOnTargets, not between the
-    targets themselves. MSBuild evaluates a target's Condition BEFORE
-    DependsOnTargets; if the dependency chain were set up on that target
-    instead, AgentPrismNpmInstall's condition (on the as-yet-empty
-    AgentPrismNodeAvailable) would evaluate false, and AgentPrismDetectNode
-    would never run. Measured: the UI was silently not being built.
-  -->
   <Target Name="AgentPrismCollectFrontendAssets"
-          DependsOnTargets="AgentPrismDetectNode;AgentPrismReadNodeAvailability;AgentPrismNpmInstall;AgentPrismBuildClientPackage;AgentPrismBuildFrontend"
+          DependsOnTargets="AgentPrismFrontendInnerBuild;AgentPrismReadNodeAvailability"
           BeforeTargets="AssignTargetPaths"
           Condition=" '$(AgentPrismFrontendEnabled)' == 'true' "
           Inputs="$(AgentPrismFrontendStamp);$(AgentPrismClientBuildStamp);$(AgentPrismFrontendOutput)/index.html;@(AgentPrismFrontendAsset)"

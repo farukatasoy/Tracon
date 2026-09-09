@@ -1,4 +1,6 @@
 using System.IO.Compression;
+using System.Reflection.Metadata;
+using System.Reflection.PortableExecutable;
 using System.Text.RegularExpressions;
 using AgentPrism.Package.Tests.Infrastructure;
 
@@ -186,6 +188,61 @@ public sealed class ReleaseArtifactTests(ReleaseArtifactFixture fixture) : IClas
         }
 
         failures.ShouldBeEmpty(string.Join("\n", failures));
+    }
+
+    /// <summary>
+    /// EVERY framework of AgentPrism.UI carries the UI, not just the one the
+    /// browser tests happen to run on.
+    /// </summary>
+    /// <remarks>
+    /// The Vite output is produced once per build, but embedding it is work each
+    /// inner build does for its OWN assembly. An inner build that skipped that
+    /// step still produces a perfectly loadable AgentPrism.UI.dll - with no UI
+    /// inside it, and no other fact in this suite would notice: the E2E tests
+    /// exercise a single framework. Measured (2026-09-09): the stamp that gated
+    /// the collection was shared by all three inner builds, so whichever
+    /// finished first could silence the other two.
+    /// </remarks>
+    [Fact]
+    public void EveryFrameworkOfTheUiPackageEmbedsTheUi()
+    {
+        const string Id = "AgentPrism.UI";
+
+        using var package = ZipFile.OpenRead(NupkgPath(Id));
+
+        var assemblies = package.Entries
+            .Where(entry => entry.FullName.StartsWith("lib/", StringComparison.Ordinal)
+                && entry.FullName.EndsWith($"/{Id}.dll", StringComparison.Ordinal))
+            .ToList();
+
+        assemblies.Count.ShouldBe(
+            PackableProjects.TargetFrameworksOf(Id).Count,
+            $"Expected one {Id}.dll per target framework, found: [{string.Join(", ", assemblies.Select(entry => entry.FullName))}]");
+
+        var withoutUi = assemblies.Where(entry => !EmbedsUi(entry)).Select(entry => entry.FullName).ToList();
+
+        withoutUi.ShouldBeEmpty(
+            $"These frameworks ship {Id}.dll without a single 'AgentPrism.UI.wwwroot/' resource, "
+            + $"so MapAgentPrism binds no UI on them: [{string.Join(", ", withoutUi)}]");
+    }
+
+    private static bool EmbedsUi(ZipArchiveEntry entry)
+    {
+        using var buffer = new MemoryStream();
+
+        using (var stream = entry.Open())
+        {
+            stream.CopyTo(buffer);
+        }
+
+        buffer.Position = 0;
+
+        using var portableExecutable = new PEReader(buffer);
+        var metadata = portableExecutable.GetMetadataReader();
+
+        return metadata.ManifestResources
+            .Select(handle => metadata.GetString(metadata.GetManifestResource(handle).Name))
+            .Any(name => name.StartsWith("AgentPrism.UI.wwwroot/", StringComparison.Ordinal));
     }
 
     private static string NupkgPath(string id) => Path.Combine(RepoPaths.PackageReleaseDirectory, $"{id}.{ReleaseArtifactFixture.Version}.nupkg");
