@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using AgentPrism.AspNetCore.FunctionalTests.Infrastructure;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
@@ -47,6 +48,40 @@ public sealed class OpenApiSnapshotTests
         {
             throw new ShouldAssertException(DescribeDifference(current, committed));
         }
+    }
+
+    /// <summary>
+    /// Guards the Windows leg: a multi-line XML doc comment reaches the document as
+    /// CRLF there, because the compiler writes the documentation file with
+    /// <c>Environment.NewLine</c>. The escaped '\r' sits inside the JSON string value,
+    /// so the outer <c>ReplaceLineEndings()</c> call never sees it and the committed
+    /// LF snapshot failed on windows-latest while Ubuntu stayed green.
+    /// </summary>
+    [Fact]
+    public void Normalization_rewrites_carriage_returns_inside_string_values()
+    {
+        var document = JsonNode.Parse(
+            """
+            {
+              "paths": {
+                "/api/agents": {
+                  "get": {
+                    "description": "First line.\r\nSecond line.\rThird line.",
+                    "tags": [ "Agents\r\nsecond" ],
+                    "deprecated": false
+                  }
+                }
+              }
+            }
+            """)!;
+
+        NormalizeStringLineEndings(document);
+
+        document["paths"]!["/api/agents"]!["get"]!["description"]!.GetValue<string>()
+            .ShouldBe("First line.\nSecond line.\nThird line.");
+        document["paths"]!["/api/agents"]!["get"]!["tags"]![0]!.GetValue<string>()
+            .ShouldBe("Agents\nsecond");
+        document["paths"]!["/api/agents"]!["get"]!["deprecated"]!.GetValue<bool>().ShouldBeFalse();
     }
 
     private static string DescribeDifference(string current, string committed)
@@ -112,14 +147,89 @@ public sealed class OpenApiSnapshotTests
 
         response.EnsureSuccessStatusCode();
 
-        var document = await AgentPrismTestHost.ReadJsonAsync(response);
+        var document = JsonNode.Parse(await response.Content.ReadAsStringAsync())
+            ?? throw new InvalidOperationException("The OpenAPI endpoint returned a JSON null.");
+
+        // Descriptions come from XML doc comments, and the compiler writes the
+        // documentation file with Environment.NewLine. A multi-line <summary> on
+        // Windows therefore reaches the document as CRLF and is escaped as '\r\n'
+        // INSIDE the JSON string value -- which the ReplaceLineEndings() call below
+        // cannot reach, because it only sees the escape characters. Canonicalize the
+        // values themselves before serializing.
+        NormalizeStringLineEndings(document);
 
         // LF, NOT Environment.NewLine: the committed file is LF on every platform
         // ('.gitattributes' pins '* text=auto eol=lf'), and System.Text.Json's
         // indented writer defaults its line break to Environment.NewLine -- on
         // Windows that made EVERY line differ (4278 differences, measured on the
         // windows-latest CI leg) for a document that had not changed at all.
-        return JsonSerializer.Serialize(document, WriteOptions).ReplaceLineEndings("\n") + "\n";
+        return document.ToJsonString(WriteOptions).ReplaceLineEndings("\n") + "\n";
+    }
+
+    /// <summary>
+    /// Rewrites CRLF and lone CR to LF in every string value of <paramref name="node"/>.
+    /// </summary>
+    /// <param name="node">The node to normalize in place.</param>
+    private static void NormalizeStringLineEndings(JsonNode node)
+    {
+        switch (node)
+        {
+            case JsonObject document:
+                foreach (var (name, child) in document.ToArray())
+                {
+                    if (child is null)
+                    {
+                        continue;
+                    }
+
+                    if (Normalized(child) is { } value)
+                    {
+                        document[name] = value;
+                    }
+                    else
+                    {
+                        NormalizeStringLineEndings(child);
+                    }
+                }
+
+                break;
+
+            case JsonArray array:
+                for (var index = 0; index < array.Count; index++)
+                {
+                    if (array[index] is not { } child)
+                    {
+                        continue;
+                    }
+
+                    if (Normalized(child) is { } value)
+                    {
+                        array[index] = value;
+                    }
+                    else
+                    {
+                        NormalizeStringLineEndings(child);
+                    }
+                }
+
+                break;
+        }
+
+        // Returns the LF form when the node is a string that carries a CR, null otherwise.
+        // Only CR is touched: ReplaceLineEndings() would also rewrite form feed, vertical
+        // tab and the Unicode separators, which are content rather than a platform artifact.
+        static string? Normalized(JsonNode node)
+        {
+            if (node is not JsonValue value ||
+                !value.TryGetValue<string>(out var text) ||
+                !text.Contains('\r', StringComparison.Ordinal))
+            {
+                return null;
+            }
+
+            return text.Replace("\r\n", "\n", StringComparison.Ordinal)
+                .Replace("\r", "\n", StringComparison.Ordinal);
+        }
     }
 
     private static string RepositoryRoot { get; } = FindRepositoryRoot();
