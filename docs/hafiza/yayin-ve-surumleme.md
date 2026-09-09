@@ -27,6 +27,11 @@
   ACIK bir `MinVerVersionOverride` ister (`0.0.0-dirty.<ad>`, her zaman temiz
   surumun ALTINDA sıralanır) ve CI'da (`CI=true` veya
   `ContinuousIntegrationBuild=true`) HIC calismaz.
+- **🚨 Kirli GIRDILER hata mesajinda durur** (2026-09-09): `git status` cikti
+  onemi `low`'dur, yani loga HIC girmez, ve kapi her paketlenebilir proje icin
+  bir kez koşar. Girdiler mesajda olmazsa CI'da yirmi ayni cumle gorunur ve
+  hangi dosyanin kirlendigi OGRENILEMEZ. `AgentPrismDirtyEntries` bunu tasir;
+  `PackCleanlinessGateTests` marker adinin mesajda gorundugunu kilitler.
 - **🚨 Bu kapı, iterasyon için commit isteyen çağıranları da yakalar** (Faz
   136, bağımsız denetim 🔴#1). `kapi.py kapanis`'in kendi pack adımı ve
   `AgentPrism.Package.Tests`'in `TemplateFixture`/`ReleaseArtifactFixture`'ı
