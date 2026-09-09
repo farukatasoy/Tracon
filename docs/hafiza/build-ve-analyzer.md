@@ -70,6 +70,16 @@
   C# dosyalarını `CRLF` olarak çıkarabilir ve `dotnet format` her satırı
   `WHITESPACE` hatası sayar. Root `.gitattributes` içindeki
   `* text=auto eol=lf` sözleşmesini kaldırma veya daraltma.
+- **🚨 `.gitattributes` XML doküman dosyasını KAPSAMAZ** (2026-09-09, Windows CI):
+  kaynak LF olsa da derleyici `GenerateDocumentationFile` çıktısını
+  `Environment.NewLine` ile yazar. Windows'ta çok satırlı bir `<summary>` oradan
+  `CRLF` olarak akar; `AddOpenApi()` onu `description` değerine koyar ve JSON
+  bunu string'in **içinde** `\r\n` kaçışı olarak yazar. Dış
+  `ReplaceLineEndings("\n")` çağrısı buna erişemez — o yalnız satır sonu
+  karakterlerini görür, kaçış dizisini değil. `OpenApiSnapshotTests` bu yüzden
+  Ubuntu'da yeşilken Windows'ta düştü. Kural: derleyici çıktısını gömen her
+  commit'li artefakt, karşılaştırmadan önce string DEĞERLERİ içindeki `CR`'yi de
+  normalleştirir (`SqlTextSnapshotTests` aynı işi zaten yapar).
 - **AOT kacis merdiveni** (AGENTS.md'den, Faz 77): `reflection` yerine sirayla dene —
   (1) elle yaz; (2) `source generator`; (3) kacinilmazsa `[RequiresUnreferencedCode]` +
   `[RequiresDynamicCode]` isaretle; uyariyi **bastirma**, cagirana ilet.
