@@ -17,10 +17,19 @@ public sealed class ModelHealthSingletonTests
     public async Task Health_check_runs_on_only_one_instance()
     {
         var leaseStore = new InMemorySingletonLeaseStore();
+        // 🚨 The lease MUST NOT be able to expire inside the test window. With
+        // a 1-second lease this test used to pass only because the window
+        // stayed under a second: renewal runs at one third of the lease but
+        // never faster than SingletonGuard.MinimumRenewInterval, so the lease
+        // expired under its live owner and instance B took the work over.
+        // Under CI load the 500 ms wait overran, the takeover happened, and
+        // this test went red. That configuration is rejected outright now
+        // (SingletonExecutionOptionsValidator); here a lease that cannot expire
+        // keeps the assertion about ONE instance free of the wall clock.
         var singletonOptions = Options(new SingletonExecutionOptions
         {
             Enabled = true,
-            LeaseDuration = TimeSpan.FromSeconds(1),
+            LeaseDuration = TimeSpan.FromMinutes(5),
         });
 
         var healthOptions = Options(new AgentPrismOptions

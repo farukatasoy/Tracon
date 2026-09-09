@@ -24,11 +24,10 @@ namespace AgentPrism;
 /// exactly.
 /// </para>
 /// <para>
-/// This type is NOT <c>internal</c>, it is <c>public</c>: it needs to be
-/// usable from a separate assembly such as <c>AgentPrism.Mcp</c>, and
-/// <c>InternalsVisibleTo</c> covers only its own test projects, not sibling
-/// packages. This is why the plan's suggestion of an "internal helper" could
-/// not be implemented.
+/// This type stays <c>internal</c>. A sibling package that needs it, such as
+/// <c>AgentPrism.Mcp</c>, reaches it through the explicit
+/// <c>InternalsVisibleTo</c> entries in <c>Properties/AssemblyInfo.cs</c>, so
+/// the guard never becomes part of the public surface.
 /// </para>
 /// </remarks>
 internal sealed class SingletonGuard
@@ -40,6 +39,26 @@ internal sealed class SingletonGuard
     private readonly ILogger? _logger;
 
     private volatile bool _holding;
+
+    /// <summary>
+    /// The shortest interval at which the lease is renewed. It keeps a very
+    /// short <see cref="SingletonExecutionOptions.LeaseDuration"/> from turning
+    /// the renewal loop into an unreasonably frequent round-trip to the store.
+    /// </summary>
+    internal static readonly TimeSpan MinimumRenewInterval = TimeSpan.FromSeconds(1);
+
+    /// <summary>
+    /// The shortest lease a validated configuration may set. It is THREE TIMES
+    /// <see cref="MinimumRenewInterval"/>, because renewal happens at one third
+    /// of the lease: below this value the renewal floor would push the renewal
+    /// onto or past the expiry, and another instance would take the lease over
+    /// while its owner is alive and working.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="SingletonExecutionOptionsValidator"/> rejects anything shorter
+    /// while selection is on.
+    /// </remarks>
+    internal static readonly TimeSpan MinimumLeaseDuration = MinimumRenewInterval * 3;
 
     /// <summary>Creates a new single-executor guard.</summary>
     /// <param name="store">Lease store.</param>
@@ -95,8 +114,7 @@ internal sealed class SingletonGuard
             return;
         }
 
-        var leaseDuration = _optionsMonitor.CurrentValue.LeaseDuration;
-        var renewInterval = TimeSpan.FromTicks(Math.Max(leaseDuration.Ticks / 3, TimeSpan.FromSeconds(1).Ticks));
+        var renewInterval = ComputeRenewInterval(_optionsMonitor.CurrentValue.LeaseDuration);
 
         using var timer = new PeriodicTimer(renewInterval);
 
@@ -131,6 +149,21 @@ internal sealed class SingletonGuard
             }
         }
     }
+
+    /// <summary>
+    /// Computes the renewal interval of a lease: one third of its duration, but
+    /// never shorter than <see cref="MinimumRenewInterval"/>.
+    /// </summary>
+    /// <param name="leaseDuration">The lease duration.</param>
+    /// <returns>The interval between two renewal attempts.</returns>
+    /// <remarks>
+    /// The result MUST stay strictly shorter than <paramref name="leaseDuration"/>;
+    /// otherwise the lease expires under a live owner. The floor holds only for
+    /// a lease shorter than <see cref="MinimumLeaseDuration"/>, which
+    /// <see cref="SingletonExecutionOptionsValidator"/> rejects.
+    /// </remarks>
+    internal static TimeSpan ComputeRenewInterval(TimeSpan leaseDuration)
+        => TimeSpan.FromTicks(Math.Max(leaseDuration.Ticks / 3, MinimumRenewInterval.Ticks));
 
     /// <summary>Performs a single lease/renew attempt.</summary>
     internal async ValueTask TickAsync(CancellationToken cancellationToken)

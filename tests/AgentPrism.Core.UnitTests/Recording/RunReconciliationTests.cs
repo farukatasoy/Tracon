@@ -181,10 +181,16 @@ public sealed class RunReconciliationTests
         });
 
         var leaseStore = new InMemorySingletonLeaseStore();
+        // 🚨 The lease MUST NOT be able to expire inside the test window:
+        // renewal runs at one third of the lease but never faster than
+        // SingletonGuard.MinimumRenewInterval, so a 1-second lease used to
+        // expire under its live owner and the second instance took over -
+        // this assertion then depended on the window staying under a second.
+        // SingletonExecutionOptionsValidator rejects that configuration now (K-743).
         var singletonOptions = Options(new SingletonExecutionOptions
         {
             Enabled = true,
-            LeaseDuration = TimeSpan.FromSeconds(1),
+            LeaseDuration = TimeSpan.FromMinutes(5),
         });
 
         var options = Options(new RunReconciliationOptions

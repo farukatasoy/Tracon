@@ -171,7 +171,13 @@ public sealed class CanaryEvaluationServiceTests
         await SeedRunsAsync(runs, experiment.Id, "control", completed: 10, failed: 0);
 
         var leaseStore = new InMemorySingletonLeaseStore();
-        var singletonOptions = Options(new SingletonExecutionOptions { Enabled = true, LeaseDuration = TimeSpan.FromSeconds(1) });
+        // 🚨 The lease MUST NOT be able to expire inside the test window:
+        // renewal runs at one third of the lease but never faster than
+        // SingletonGuard.MinimumRenewInterval, so a 1-second lease used to
+        // expire under its live owner and the second instance took over -
+        // this assertion then depended on the window staying under a second.
+        // SingletonExecutionOptionsValidator rejects that configuration now (K-743).
+        var singletonOptions = Options(new SingletonExecutionOptions { Enabled = true, LeaseDuration = TimeSpan.FromMinutes(5) });
 
         var storeA = new CountingExperimentStore(innerExperiments);
         var storeB = new CountingExperimentStore(innerExperiments);
