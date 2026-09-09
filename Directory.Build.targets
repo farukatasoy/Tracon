@@ -112,13 +112,21 @@
       <Output TaskParameter="ConsoleOutput" ItemName="AgentPrismGitStatusLine" />
     </Exec>
 
+    <!--
+      The dirty ENTRIES travel with the error. Without them the message says only
+      "something changed", repeated once per packable project, and a failure on a
+      machine the reader cannot inspect (a CI runner) is undiagnosable: the
+      `git status` output above is deliberately low-importance, so it never
+      reaches the log. Faz 136 built the gate; this carries its evidence.
+    -->
     <PropertyGroup Condition=" '$(AgentPrismInsideGitWorkTree)' == 'true' AND '@(AgentPrismGitStatusLine->Count())' != '0' ">
       <AgentPrismWorkingTreeDirty>true</AgentPrismWorkingTreeDirty>
+      <AgentPrismDirtyEntries>@(AgentPrismGitStatusLine, ' | ')</AgentPrismDirtyEntries>
     </PropertyGroup>
 
     <Error Condition=" '$(AgentPrismWorkingTreeDirty)' == 'true' AND '$(AgentPrismAllowDirtyPack)' != 'true' "
            Code="AGENTPRISM0004"
-           Text="Working tree is not clean ('git status --porcelain' reported changes) for package '$(MSBuildProjectName)'. A packed artifact whose content cannot be traced back to a commit has no provenance; commit or stash first. For local experimentation only, set AgentPrismAllowDirtyPack=true together with an explicit MinVerVersionOverride carrying 'dirty' (e.g. 0.0.0-dirty.&lt;name&gt;) - never in CI." />
+           Text="Working tree is not clean ('git status --porcelain' reported changes) for package '$(MSBuildProjectName)'. A packed artifact whose content cannot be traced back to a commit has no provenance; commit or stash first. Reported entries: $(AgentPrismDirtyEntries). For local experimentation only, set AgentPrismAllowDirtyPack=true together with an explicit MinVerVersionOverride carrying 'dirty' (e.g. 0.0.0-dirty.&lt;name&gt;) - never in CI." />
 
     <Error Condition=" '$(AgentPrismWorkingTreeDirty)' == 'true' AND '$(AgentPrismAllowDirtyPack)' == 'true' AND ( '$(ContinuousIntegrationBuild)' == 'true' OR '$(CI)' == 'true' ) "
            Code="AGENTPRISM0005"

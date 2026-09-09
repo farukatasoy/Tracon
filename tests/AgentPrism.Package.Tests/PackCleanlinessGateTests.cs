@@ -31,6 +31,13 @@ public sealed class PackCleanlinessGateTests
 
         result.ExitCode.ShouldNotBe(0);
         result.Combined.ShouldContain("AGENTPRISM0004");
+
+        // The code alone is not a usable failure. The gate runs once per packable
+        // project, so a dirty tree prints the same sentence ~20 times, and the
+        // `git status` output that produced it is low-importance and never reaches
+        // the log. On a machine the reader cannot inspect - a CI runner - that
+        // leaves nothing to act on. The entries must travel WITH the error.
+        result.Combined.ShouldContain(".agentprism-pack-cleanliness-test-marker");
     }
 
     [Fact]
