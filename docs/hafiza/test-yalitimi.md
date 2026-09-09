@@ -18,7 +18,8 @@
   koşumu ara sıra flaky kırılır — izole koşumda hep geçer (Faz 103).** Beş ayrı
   koşumda beş FARKLI test kırıldı: `ImageAttachmentWriterTests` (port çakışması,
   "Address already in use"), `SqliteDialectTests.Polymorphic_JSON_round_trips_intact`
-  (`ON CONFLICT` unique constraint hatası), `ModelHealthSingletonTests.Health_check_runs_on_only_one_instance`,
+  (`ON CONFLICT` unique constraint hatası), `ModelHealthSingletonTests.Health_check_runs_on_only_one_instance` (**bu vaka 2026-09-09'da
+  ÜRÜN KUSURU çıktı — aşağıya bak; sınıfa yanlış yazılmıştı**),
   `OnlineEvalJobHandlerTests.Judge_timeout_cuts_off_the_wait_when_the_judge_ignores_cancellation`
   (20ms iç timeout'a karşı 1s dış test sınırı — thread-pool starvation altında
   50x marj bile tükeniyor), `AgentPrism.Ui.E2ETests.UiTests.Playground_voice_mode_opens_microphone_and_shows_transcript`
@@ -139,6 +140,17 @@
   Uc adim da kosuldu: tam kosumda dustu, izolasyonda 1/1, ikinci tam kosumda 56/56 gecti.
   Aday: **F-130**. Iki vaka ayni sinif -- `Ui.E2ETests` tam kosumda kaynak cekismesine acik.
   **Ucuncu vaka (2026-08-23, Faz 90 kapanisi): AYNI test** (`Eval_suite_is_created_case_added_and_run_passes`). Uc adim yine kosuldu: tam kosumda 4956/4957 (bu tek test dustu), izolasyonda 1/1 (7,7 sn), ikinci tam kosum cikis kodu 0. **Kapanış (2026-08-26):** kök yarış bulundu: ilk `GET /cases` pending iken kullanıcı `Add case`e basabiliyor, sonra gelen boş yanıt yeni satırı siliyordu. UI ilk yükleme bitene kadar `Add case` ve `Save cases`i kapatır; frontend regression testi önce kırmızı, düzeltmeden sonra yeşildir. F-130 açık kayıt değildir.
+- **🚨 "Yük altında kırılgan" hükmü, testin GEÇME sebebi bir zamanlama eşiğinin ALTINDA kalmaksa YANLIŞTIR** (2026-09-09, K-743). `ModelHealthSingletonTests.Health_check_runs_on_only_one_instance` bu dosyada Faz 103'ten beri kırılgan
+  listesindeydi. Değildi: `LeaseDuration=1 sn` ile `SingletonGuard`'ın yenileme aralığı kiranın süresine EŞİTTİ, kira t≈1 sn'de
+  sahibi çalışırken düşüyor ve ikinci örnek devralıyordu. Test yalnız 500 ms'lik penceresi o ana ULAŞMADIĞI için geçiyordu; CI'da
+  yük altında pencere taşınca (test süresi 1,24 sn) gerçek kusur ortaya çıktı. **Ayırt etme yöntemi**: testi tekrar koşmak yetmez —
+  testin geçmesini sağlayan zamanlama varsayımını bul ve onu BÜYÜT. Pencere 1500 ms yapılınca 3/3 kırmızı, aynı sayılarla
+  (`providerA=16, providerB=9`): deterministik, yani kırılgan değil. Düzeltme ürün tarafındaydı (validator kısa kirayı reddediyor);
+  test artık saatten bağımsız (kira 5 dk, süresi testin içinde dolamaz). Gerçek zamanlı pencere kullanan bir test yazarken kural:
+  **pencere uzarsa iddia hâlâ doğru kalmalı**; yalnız pencere kısa olduğu için doğruysa o test bir kusuru saklıyordur.
+  Sınıf taraması aynı kurgudan üç tane daha buldu — `McpDiscoverySingletonTests` (birebir aynı: 1 sn kira + 500 ms pencere + XOR),
+  `CanaryEvaluationServiceTests`, `RunReconciliationTests` — dördü de 5 dk'lık kiraya geçti. Bir XOR iddiası kurulurken sorulacak soru:
+  **bu iddiayı yanlışlayabilecek bir zamanlayıcı var mı, ve testin süresi ona ulaşabilir mi?**
 - **Kaynak nedenselliğini ölçme yolu değişmedi.** Bir tam koşum kırılması faz
   değişikliğinden şüphe ettiriyorsa `git stash push -u` → tabanı derle → tam
   koşum → `git stash pop` uygula. Worktree kullanma; extension sample'ları yerel
