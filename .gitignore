@@ -36,6 +36,12 @@ artifacts/
 project.lock.json
 project.fragment.lock.json
 .packages/
+
+## CI, NUGET_PACKAGES'i is alani ICINE alir (.github/workflows/ci.yml, `env`):
+## `${{ github.workspace }}/.nuget/packages`. Paket onbellegi kaynak degildir ve
+## ignore EDILMEZSE `dotnet pack`'in temiz-agac kapisi (AGENTPRISM0004) her
+## paketi durdurur - kapi untracked dosyayi da kirli sayar.
+.nuget/
 BenchmarkDotNet.Artifacts/
 TestResults/
 coverage*.json

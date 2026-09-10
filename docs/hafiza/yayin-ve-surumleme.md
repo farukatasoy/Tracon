@@ -27,6 +27,15 @@
   ACIK bir `MinVerVersionOverride` ister (`0.0.0-dirty.<ad>`, her zaman temiz
   surumun ALTINDA sıralanır) ve CI'da (`CI=true` veya
   `ContinuousIntegrationBuild=true`) HIC calismaz.
+- **🚨 CI'nin is alani ICINE yazdigi her yol `.gitignore`'da olmalidir**
+  (2026-09-09): `ci.yml`'in `env` blogu `NUGET_PACKAGES`'i
+  `${{ github.workspace }}/.nuget/packages` yapar, yani `restore` repo kokunde
+  `.nuget/` uretir. `.nuget/` ignore EDILMIYORDU; kapi untracked dosyayi da
+  kirli saydigi icin `pack` ve `yayin provasi` isleri yirmi `AGENTPRISM0004` ile
+  dustu. Gelistirici makinesinde `NUGET_PACKAGES` repo DISINDA oldugu icin
+  hata yerelde HIC gorunmez - Linux'ta, `CI=true` ile, taze klonda bile.
+  `WorkflowWorkspacePathsTests` artik `ci.yml`'i okuyup her
+  `${{ github.workspace }}/...` yolunu `git check-ignore` ile dogrular.
 - **🚨 Kirli GIRDILER hata mesajinda durur** (2026-09-09): `git status` cikti
   onemi `low`'dur, yani loga HIC girmez, ve kapi her paketlenebilir proje icin
   bir kez koşar. Girdiler mesajda olmazsa CI'da yirmi ayni cumle gorunur ve
