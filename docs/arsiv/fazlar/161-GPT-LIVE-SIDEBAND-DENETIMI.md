@@ -1,13 +1,13 @@
 # Faz 161 — GPT-Live Sideband Denetimi
 
 > **Durum:** ✅ Tamamlandı (2026-09-11)
-> **Kaynak:** Kullanıcı isteği (2026-09-11) — bu kalem [ADAYLAR.md](ADAYLAR.md) içinde hiç bulunmadı. OpenAI GPT-Live'ı 2026-09-10'da API'ye açtı
-> **Önkoşul:** [Faz 29](arsiv/fazlar/29-KONUSMA-KATMANI.md) — `VoiceSessionRecord`'u, uç kapılarını ve bağlantı limitleyicisini devralır
+> **Kaynak:** Kullanıcı isteği (2026-09-11) — bu kalem [ADAYLAR.md](../../ADAYLAR.md) içinde hiç bulunmadı. OpenAI GPT-Live'ı 2026-09-10'da API'ye açtı
+> **Önkoşul:** [Faz 29](29-KONUSMA-KATMANI.md) — `VoiceSessionRecord`'u, uç kapılarını ve bağlantı limitleyicisini devralır
 > **Paketler:** `AgentPrism.Abstractions`, `.Core`, `.OpenAI`, `.AspNetCore`, `.Sql.Shared`, `.PostgreSql`, `.SqlServer`, `.Sqlite`, `.Testing.Contracts.Xunit`
 > **Yeni paket:** Yok — ham `ClientWebSocket` ve `HttpClient` (K-216 emsali) · **Migration:** Gerekli — üç set; numaralar uygulama anında alınır
 > **Public API:** Büyüyor — `AgentPrism.Abstractions`'a iki arayüz, beş `record`, üç `enum`. `wc -l src/*/PublicAPI.Shipped.txt` = 17 satır (ölçüldü 2026-09-11); taban çizgisi **boştur**, bugün eklemek ucuzdur
-> **Tüketici yüzeyi:** [`docs-site/src/content/docs/guides/voice.md`](../docs-site/src/content/docs/guides/voice.md) — canlı mod bölümü **ve kayıp/gizlilik listesi** · üretilen `api/` + `http-api/` sayfaları · sevk edilen: XML `<example>` blokları
-> **Manuel test alanı:** [`docs/manuel-test/19-COK-MODLULUK-VE-SES.md`](manuel-test/19-COK-MODLULUK-VE-SES.md)
+> **Tüketici yüzeyi:** [`docs-site/src/content/docs/guides/voice.md`](../../../docs-site/src/content/docs/guides/voice.md) — canlı mod bölümü **ve kayıp/gizlilik listesi** · üretilen `api/` + `http-api/` sayfaları · sevk edilen: XML `<example>` blokları
+> **Manuel test alanı:** [`docs/manuel-test/19-COK-MODLULUK-VE-SES.md`](../../manuel-test/19-COK-MODLULUK-VE-SES.md)
 
 ---
 
@@ -26,17 +26,17 @@
    maliyeti token maliyetiyle toplanmaz) · **K-215/K-216** (sözleşme Abstractions'ta,
    ses paketi NuGet almaz) · **K-320** (yapısal iddiayı grep'le ölç) · **K-483**
    (toplama alan `record`'a `Total()` ver) · **K-687** (yetki reddi 404)
-3. [`arsiv/fazlar/29-KONUSMA-KATMANI.md`](arsiv/fazlar/29-KONUSMA-KATMANI.md) —
+3. [`arsiv/fazlar/29-KONUSMA-KATMANI.md`](29-KONUSMA-KATMANI.md) —
    yalnız devir notu:
    ```bash
    awk '/## Sonraki Faza Devir Notu/,0' docs/arsiv/fazlar/29-KONUSMA-KATMANI.md
    ```
 4. Alan hafızası (üç alan):
-   [`hafiza/ses-ve-konusma.md`](hafiza/ses-ve-konusma.md) ·
-   [`hafiza/cekirdek-calistirma.md`](hafiza/cekirdek-calistirma.md)
+   [`hafiza/ses-ve-konusma.md`](../../hafiza/ses-ve-konusma.md) ·
+   [`hafiza/cekirdek-calistirma.md`](../../hafiza/cekirdek-calistirma.md)
    (`Activity`/`AsyncLocal` akışı — bu fazın en büyük tuzağı burada) ·
-   [`hafiza/openai-saglayici.md`](hafiza/openai-saglayici.md)
-5. Gerektiğinde: [`MIMARI-GUVENLIK.md`](MIMARI-GUVENLIK.md) — ses satırı
+   [`hafiza/openai-saglayici.md`](../../hafiza/openai-saglayici.md)
+5. Gerektiğinde: [`MIMARI-GUVENLIK.md`](../../MIMARI-GUVENLIK.md) — ses satırı
 
 ---
 
@@ -143,12 +143,12 @@ için Seçenek A doğru seçimdir ve bu fazda ona **dokunulmaz**.
 | Kanıt | Gözlem |
 |---|---|
 | `grep -rln ClientWebSocket src tests samples` → boş | Repo'da **hiç** giden WebSocket yoktur; bu fazınki ilkidir |
-| [`ConversationContracts.cs:18`](../src/AgentPrism.Abstractions/Voice/ConversationContracts.cs) | `VoiceSessionRecord` maliyet, `Provider` ve `Model` alanı **taşımaz** |
-| [`AgentPrismOptions.cs:715`](../src/AgentPrism.Core/AgentPrismOptions.cs) | `VoicePriceOverride.PerMinute` **zaten vardır ve bağlanır** — fiyat şeması değişmez |
-| [`SpeechContracts.cs`](../src/AgentPrism.Abstractions/Voice/SpeechContracts.cs) | `IVoicePricingReader` yüzeyinde süre fiyatlaması yoktur |
-| [`SqlVoiceSessionStore.cs:71`](../src/AgentPrism.Sql.Shared/Stores/SqlVoiceSessionStore.cs) | `Read` **çıplak ordinal** kullanır (0–10) |
-| [`EgressSocketGuard.cs:109`](../src/AgentPrism.Core/Egress/EgressSocketGuard.cs) | `ValidateAsync(Uri, ct)` bağımsız çağrılabilir — `ClientWebSocket`'in `ConnectCallback`'i yoktur |
-| [`AmbientTenantScope.cs`](../src/AgentPrism.Abstractions/Tenancy/AmbientTenantScope.cs) · `AgentRunJobHandler.cs:68` | İstek dışında kiracı bağlamanın sevk edilmiş yolu budur |
+| [`ConversationContracts.cs:18`](../../../src/AgentPrism.Abstractions/Voice/ConversationContracts.cs) | `VoiceSessionRecord` maliyet, `Provider` ve `Model` alanı **taşımaz** |
+| [`AgentPrismOptions.cs:715`](../../../src/AgentPrism.Core/AgentPrismOptions.cs) | `VoicePriceOverride.PerMinute` **zaten vardır ve bağlanır** — fiyat şeması değişmez |
+| [`SpeechContracts.cs`](../../../src/AgentPrism.Abstractions/Voice/SpeechContracts.cs) | `IVoicePricingReader` yüzeyinde süre fiyatlaması yoktur |
+| [`SqlVoiceSessionStore.cs:71`](../../../src/AgentPrism.Sql.Shared/Stores/SqlVoiceSessionStore.cs) | `Read` **çıplak ordinal** kullanır (0–10) |
+| [`EgressSocketGuard.cs:109`](../../../src/AgentPrism.Core/Egress/EgressSocketGuard.cs) | `ValidateAsync(Uri, ct)` bağımsız çağrılabilir — `ClientWebSocket`'in `ConnectCallback`'i yoktur |
+| [`AmbientTenantScope.cs`](../../../src/AgentPrism.Abstractions/Tenancy/AmbientTenantScope.cs) · `AgentRunJobHandler.cs:68` | İstek dışında kiracı bağlamanın sevk edilmiş yolu budur |
 | `wc -l src/*/PublicAPI.Shipped.txt` = 17 | Taban çizgisi on yedi pakette de boştur |
 
 > Kanıtlar 2026-09-11 tarihinde doğrulandı.
@@ -173,7 +173,7 @@ yazılır; 161.3 ve 161.5 ona göre düzeltilir.
 
 **MAF için `maf-api-kesfi` gerekmez.** Kullanılan her MAF tipi mevcut sürücüde
 zaten var (ölçüldü): `AgentSessionManager`
-([`:60`](../src/AgentPrism.Core/Voice/VoiceConversationDriver.cs)),
+([`:60`](../../../src/AgentPrism.Core/Voice/VoiceConversationDriver.cs)),
 `ChatHistoryProvider` (`:63`), `AgentSession` (`:211`), `RunStreamingAsync` +
 `ChatMessage` + `AgentPrismRunOptions` (`:643`),
 `ChatHistoryProvider.InvokedContext` + `MAAI001` (`:759`).
@@ -472,7 +472,7 @@ Bu ikisi `docs-site/guides/voice.md` içine de girer.
 ### Fiyat şeması hiçbir şey gerektirmiyor
 
 `AgentPrism:Pricing:Voice:openai:gpt-live-1:PerMinute` **bugün zaten bağlanıyor**
-([`AgentPrismOptions.cs:715`](../src/AgentPrism.Core/AgentPrismOptions.cs)); elle
+([`AgentPrismOptions.cs:715`](../../../src/AgentPrism.Core/AgentPrismOptions.cs)); elle
 yazılmış AOT binder'ı zaten okur. **Sıfır options değişikliği.**
 
 ### `IVoicePricingReader.ForDuration` EKLENMEZ
@@ -545,7 +545,7 @@ bildirir.** Doğru gösterim ses maliyeti **artı** oturumun run maliyetleridir.
 Üç migration seti (numaralar uygulama anında alınır). Sütunlar: `provider`,
 `model`, `live_seconds`, `duration_cost`, `character_cost`, `currency`.
 
-🚨 [`SqlVoiceSessionStore.cs:71`](../src/AgentPrism.Sql.Shared/Stores/SqlVoiceSessionStore.cs)
+🚨 [`SqlVoiceSessionStore.cs:71`](../../../src/AgentPrism.Sql.Shared/Stores/SqlVoiceSessionStore.cs)
 **çıplak ordinal 0–10** kullanır. Yeni sütunlar üç lehçenin `SelectVoiceSessions`
 metninde **SONA** eklenir; `UpsertVoiceSession` üçünde de güncellenir.
 `SqlTextSnapshotTests` kırılacaktır — `AGENTPRISM_SQL_SNAPSHOT_REFRESH=1` ile
@@ -643,11 +643,11 @@ kalır. İki elle yazılmış kopya bekleyen bir K-687 ihlalidir.
 
 🚨 Repo'nun **ilk giden soketi**. `EgressSocketGuard`
 `SocketsHttpHandler.ConnectCallback` etrafında tasarlanmıştır
-([`:13`](../src/AgentPrism.Core/Egress/EgressSocketGuard.cs)) ve
+([`:13`](../../../src/AgentPrism.Core/Egress/EgressSocketGuard.cs)) ve
 `ClientWebSocket`'in böyle bir kancası **yoktur** — politika sessizce atlanır.
 
 Kanca `EgressSocketGuard.ValidateAsync(Uri, ct)`
-([`:109`](../src/AgentPrism.Core/Egress/EgressSocketGuard.cs)):
+([`:109`](../../../src/AgentPrism.Core/Egress/EgressSocketGuard.cs)):
 `ClientWebSocket.ConnectAsync`'ten **önce** çağrılır. REST çağrısı (`CreateSessionAsync`)
 ise `EgressSocketGuard.CreateHandler()` ile kurulan `HttpClient`'ı kullanır.
 
@@ -1042,7 +1042,7 @@ denetçinin işaret ettiği "belge → istemciler → site" zincirinin doğrulan
 `dokuman-bakim.py --site-denetle` dört kural tetikledi. İkisi gerçek tüketici
 bilgisi taşıyordu ve **yazıldı**:
 
-- `cekirdek-kavram` → [`concepts/sessions.md`](../docs-site/src/content/docs/concepts/sessions.md):
+- `cekirdek-kavram` → [`concepts/sessions.md`](../../../docs-site/src/content/docs/concepts/sessions.md):
   canlı oturumun transcript'i **aynı oturum geçmişine** yazılıyor; bu okuma
   yüzeyini değiştiren bir gerçektir ve gizlilik bölümüne bağlandı.
 - `buildtransitive` → `capabilities.md`: yeni yetenek ve giriş noktaları eklendi.
@@ -1062,7 +1062,7 @@ bilgisi taşıyordu ve **yazıldı**:
   ayağa kaldıran yürüyüştür ve tek bir sohbet modeli kaydeder; saniye bazlı
   faturalanan bir canlı ses bağlantısını oraya koymak yeni başlayan okuru
   yanlış yere götürürdü. Sağlayıcı kaydının gerçek yeri
-  [`guides/model-providers.md`](../docs-site/src/content/docs/guides/model-providers.md)'dir
+  [`guides/model-providers.md`](../../../docs-site/src/content/docs/guides/model-providers.md)'dir
   ve oraya **"Live voice providers" bölümü eklendi** — görüntü kaydının
   (`UseOpenAIImages`) yanına, aynı gerekçeyle: "bu ayrı bir kayıt çünkü sohbet
   modelinden çıkarsanamaz".
@@ -1087,11 +1087,11 @@ muafiyet listesi veya taban çizgisi büyümedi.
 ## Sonraki Faza Devir Notu/,0' docs/arsiv/fazlar/29-KONUSMA-KATMANI.md
    ```
 4. Alan hafızası (üç alan):
-   [`hafiza/ses-ve-konusma.md`](hafiza/ses-ve-konusma.md) ·
-   [`hafiza/cekirdek-calistirma.md`](hafiza/cekirdek-calistirma.md)
+   [`hafiza/ses-ve-konusma.md`](../../hafiza/ses-ve-konusma.md) ·
+   [`hafiza/cekirdek-calistirma.md`](../../hafiza/cekirdek-calistirma.md)
    (`Activity`/`AsyncLocal` akışı — bu fazın en büyük tuzağı burada) ·
-   [`hafiza/openai-saglayici.md`](hafiza/openai-saglayici.md)
-5. Gerektiğinde: [`MIMARI-GUVENLIK.md`](MIMARI-GUVENLIK.md) — ses satırı
+   [`hafiza/openai-saglayici.md`](../../hafiza/openai-saglayici.md)
+5. Gerektiğinde: [`MIMARI-GUVENLIK.md`](../../MIMARI-GUVENLIK.md) — ses satırı
 
 ---
 
@@ -1198,12 +1198,12 @@ için Seçenek A doğru seçimdir ve bu fazda ona **dokunulmaz**.
 | Kanıt | Gözlem |
 |---|---|
 | `grep -rln ClientWebSocket src tests samples` → boş | Repo'da **hiç** giden WebSocket yoktur; bu fazınki ilkidir |
-| [`ConversationContracts.cs:18`](../src/AgentPrism.Abstractions/Voice/ConversationContracts.cs) | `VoiceSessionRecord` maliyet, `Provider` ve `Model` alanı **taşımaz** |
-| [`AgentPrismOptions.cs:715`](../src/AgentPrism.Core/AgentPrismOptions.cs) | `VoicePriceOverride.PerMinute` **zaten vardır ve bağlanır** — fiyat şeması değişmez |
-| [`SpeechContracts.cs`](../src/AgentPrism.Abstractions/Voice/SpeechContracts.cs) | `IVoicePricingReader` yüzeyinde süre fiyatlaması yoktur |
-| [`SqlVoiceSessionStore.cs:71`](../src/AgentPrism.Sql.Shared/Stores/SqlVoiceSessionStore.cs) | `Read` **çıplak ordinal** kullanır (0–10) |
-| [`EgressSocketGuard.cs:109`](../src/AgentPrism.Core/Egress/EgressSocketGuard.cs) | `ValidateAsync(Uri, ct)` bağımsız çağrılabilir — `ClientWebSocket`'in `ConnectCallback`'i yoktur |
-| [`AmbientTenantScope.cs`](../src/AgentPrism.Abstractions/Tenancy/AmbientTenantScope.cs) · `AgentRunJobHandler.cs:68` | İstek dışında kiracı bağlamanın sevk edilmiş yolu budur |
+| [`ConversationContracts.cs:18`](../../../src/AgentPrism.Abstractions/Voice/ConversationContracts.cs) | `VoiceSessionRecord` maliyet, `Provider` ve `Model` alanı **taşımaz** |
+| [`AgentPrismOptions.cs:715`](../../../src/AgentPrism.Core/AgentPrismOptions.cs) | `VoicePriceOverride.PerMinute` **zaten vardır ve bağlanır** — fiyat şeması değişmez |
+| [`SpeechContracts.cs`](../../../src/AgentPrism.Abstractions/Voice/SpeechContracts.cs) | `IVoicePricingReader` yüzeyinde süre fiyatlaması yoktur |
+| [`SqlVoiceSessionStore.cs:71`](../../../src/AgentPrism.Sql.Shared/Stores/SqlVoiceSessionStore.cs) | `Read` **çıplak ordinal** kullanır (0–10) |
+| [`EgressSocketGuard.cs:109`](../../../src/AgentPrism.Core/Egress/EgressSocketGuard.cs) | `ValidateAsync(Uri, ct)` bağımsız çağrılabilir — `ClientWebSocket`'in `ConnectCallback`'i yoktur |
+| [`AmbientTenantScope.cs`](../../../src/AgentPrism.Abstractions/Tenancy/AmbientTenantScope.cs) · `AgentRunJobHandler.cs:68` | İstek dışında kiracı bağlamanın sevk edilmiş yolu budur |
 | `wc -l src/*/PublicAPI.Shipped.txt` = 17 | Taban çizgisi on yedi pakette de boştur |
 
 > Kanıtlar 2026-09-11 tarihinde doğrulandı.
@@ -1228,7 +1228,7 @@ yazılır; 161.3 ve 161.5 ona göre düzeltilir.
 
 **MAF için `maf-api-kesfi` gerekmez.** Kullanılan her MAF tipi mevcut sürücüde
 zaten var (ölçüldü): `AgentSessionManager`
-([`:60`](../src/AgentPrism.Core/Voice/VoiceConversationDriver.cs)),
+([`:60`](../../../src/AgentPrism.Core/Voice/VoiceConversationDriver.cs)),
 `ChatHistoryProvider` (`:63`), `AgentSession` (`:211`), `RunStreamingAsync` +
 `ChatMessage` + `AgentPrismRunOptions` (`:643`),
 `ChatHistoryProvider.InvokedContext` + `MAAI001` (`:759`).
@@ -1527,7 +1527,7 @@ Bu ikisi `docs-site/guides/voice.md` içine de girer.
 ### Fiyat şeması hiçbir şey gerektirmiyor
 
 `AgentPrism:Pricing:Voice:openai:gpt-live-1:PerMinute` **bugün zaten bağlanıyor**
-([`AgentPrismOptions.cs:715`](../src/AgentPrism.Core/AgentPrismOptions.cs)); elle
+([`AgentPrismOptions.cs:715`](../../../src/AgentPrism.Core/AgentPrismOptions.cs)); elle
 yazılmış AOT binder'ı zaten okur. **Sıfır options değişikliği.**
 
 ### `IVoicePricingReader.ForDuration` EKLENMEZ
@@ -1600,7 +1600,7 @@ bildirir.** Doğru gösterim ses maliyeti **artı** oturumun run maliyetleridir.
 Üç migration seti (numaralar uygulama anında alınır). Sütunlar: `provider`,
 `model`, `live_seconds`, `duration_cost`, `character_cost`, `currency`.
 
-🚨 [`SqlVoiceSessionStore.cs:71`](../src/AgentPrism.Sql.Shared/Stores/SqlVoiceSessionStore.cs)
+🚨 [`SqlVoiceSessionStore.cs:71`](../../../src/AgentPrism.Sql.Shared/Stores/SqlVoiceSessionStore.cs)
 **çıplak ordinal 0–10** kullanır. Yeni sütunlar üç lehçenin `SelectVoiceSessions`
 metninde **SONA** eklenir; `UpsertVoiceSession` üçünde de güncellenir.
 `SqlTextSnapshotTests` kırılacaktır — `AGENTPRISM_SQL_SNAPSHOT_REFRESH=1` ile
@@ -1698,11 +1698,11 @@ kalır. İki elle yazılmış kopya bekleyen bir K-687 ihlalidir.
 
 🚨 Repo'nun **ilk giden soketi**. `EgressSocketGuard`
 `SocketsHttpHandler.ConnectCallback` etrafında tasarlanmıştır
-([`:13`](../src/AgentPrism.Core/Egress/EgressSocketGuard.cs)) ve
+([`:13`](../../../src/AgentPrism.Core/Egress/EgressSocketGuard.cs)) ve
 `ClientWebSocket`'in böyle bir kancası **yoktur** — politika sessizce atlanır.
 
 Kanca `EgressSocketGuard.ValidateAsync(Uri, ct)`
-([`:109`](../src/AgentPrism.Core/Egress/EgressSocketGuard.cs)):
+([`:109`](../../../src/AgentPrism.Core/Egress/EgressSocketGuard.cs)):
 `ClientWebSocket.ConnectAsync`'ten **önce** çağrılır. REST çağrısı (`CreateSessionAsync`)
 ise `EgressSocketGuard.CreateHandler()` ile kurulan `HttpClient`'ı kullanır.
 
