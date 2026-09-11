@@ -163,6 +163,15 @@ public static class AgentPrismEndpointRouteBuilderExtensions
         ModelHealthEndpoints.Map(group, roles);
         VoiceEndpoints.Map(group, roles);
 
+        // 🚨 Mapped only while UseLiveVoice() registered the launcher. A capability
+        // that changes the hosting model must not appear as "present but off": with
+        // the call absent the address does not exist (404), and only a missing
+        // PROVIDER produces the 501.
+        if (services.GetService<LiveVoiceSessionLauncher>() is not null)
+        {
+            LiveVoiceEndpoints.Map(group, roles);
+        }
+
         if (services.GetRequiredService<IOptions<AgentPrismImageOptions>>().Value.Enabled)
         {
             // Resolve eagerly: enabled image generation without a provider must

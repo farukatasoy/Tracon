@@ -78,6 +78,72 @@ public abstract class VoiceSessionStoreContract : TenantIsolationContract<IVoice
     }
 
     [Fact]
+    public async Task Live_session_provider_model_and_cost_round_trip()
+    {
+        await Store.SaveAsync(Record() with
+        {
+            Provider = "openai",
+            Model = "gpt-live-1",
+            LiveSeconds = 28.500m,
+            Cost = new VoiceSessionCost
+            {
+                DurationCost = 0.00475000m,
+                CharacterCost = null,
+                Currency = "USD",
+            },
+        });
+
+        var loaded = (await Store.QueryAsync(Tenant, new VoiceSessionQuery())).ShouldHaveSingleItem();
+
+        loaded.Provider.ShouldBe("openai");
+        loaded.Model.ShouldBe("gpt-live-1");
+        loaded.LiveSeconds.ShouldBe(28.500m);
+        loaded.Cost.ShouldNotBeNull();
+        loaded.Cost.DurationCost.ShouldBe(0.00475000m);
+        loaded.Cost.CharacterCost.ShouldBeNull();
+        loaded.Cost.Currency.ShouldBe("USD");
+        loaded.Cost.Total().ShouldBe(0.00475000m);
+    }
+
+    [Fact]
+    public async Task Unpriced_live_session_reads_back_with_a_null_cost_NOT_a_zero()
+    {
+        // 🚨 A session nobody priced must not claim it was free. The record is
+        // null, not a cost object full of zeroes.
+        await Store.SaveAsync(Record() with
+        {
+            Provider = "openai",
+            Model = "gpt-live-1",
+            LiveSeconds = 28.500m,
+            Cost = null,
+        });
+
+        var loaded = (await Store.QueryAsync(Tenant, new VoiceSessionQuery())).ShouldHaveSingleItem();
+
+        loaded.LiveSeconds.ShouldBe(28.500m);
+        loaded.Cost.ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task The_two_new_end_reasons_round_trip()
+    {
+        // Abandoned and Provider were added in phase 161 and must survive the
+        // smallint round trip like the five before them.
+        var abandoned = Record() with { Id = AgentPrismId.NewId(), EndReason = VoiceSessionEndReason.Abandoned };
+        var byProvider = Record() with { Id = AgentPrismId.NewId(), EndReason = VoiceSessionEndReason.Provider };
+
+        await Store.SaveAsync(abandoned);
+        await Store.SaveAsync(byProvider);
+
+        var loaded = await Store.QueryAsync(Tenant, new VoiceSessionQuery());
+
+        loaded.Single(record => record.Id == abandoned.Id).EndReason
+            .ShouldBe(VoiceSessionEndReason.Abandoned);
+        loaded.Single(record => record.Id == byProvider.Id).EndReason
+            .ShouldBe(VoiceSessionEndReason.Provider);
+    }
+
+    [Fact]
     public async Task Second_write_with_the_same_id_UPDATES_the_record()
     {
         // A call is first opened (turns = 0), then closed. If two rows were

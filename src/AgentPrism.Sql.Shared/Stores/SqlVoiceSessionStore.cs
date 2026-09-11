@@ -42,6 +42,12 @@ internal sealed class SqlVoiceSessionStore : IVoiceSessionStore
         Dialect.AddInt64(command, "output_chars", record.OutputChars);
         Dialect.AddInt16(command, "end_reason", (short?)record.EndReason);
         Dialect.AddText(command, "created_by", record.CreatedBy);
+        Dialect.AddText(command, "provider", record.Provider);
+        Dialect.AddText(command, "model", record.Model);
+        Dialect.AddDecimal(command, "live_seconds", record.LiveSeconds);
+        Dialect.AddDecimal(command, "duration_cost", record.Cost?.DurationCost);
+        Dialect.AddDecimal(command, "character_cost", record.Cost?.CharacterCost);
+        Dialect.AddText(command, "currency", record.Cost?.Currency);
 
         await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false);
     }
@@ -68,8 +74,20 @@ internal sealed class SqlVoiceSessionStore : IVoiceSessionStore
         return await DbHelpers.ReadListAsync(command, Read, cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>Reads one record.</summary>
+    /// <remarks>
+    /// The ordinals are bare and must track the column list in every dialect's
+    /// <c>SelectVoiceSessions</c>. New columns are appended at the END for exactly
+    /// this reason: inserting one in the middle shifts every field below it and the
+    /// compiler says nothing.
+    /// </remarks>
     private static VoiceSessionRecord Read(DbDataReader reader)
-        => new()
+    {
+        var durationCost = DbHelpers.GetNullableDecimal(reader, 14);
+        var characterCost = DbHelpers.GetNullableDecimal(reader, 15);
+        var currency = DbHelpers.GetNullableString(reader, 16);
+
+        return new VoiceSessionRecord
         {
             Id = reader.GetGuid(0),
             TenantId = reader.GetString(1),
@@ -82,5 +100,20 @@ internal sealed class SqlVoiceSessionStore : IVoiceSessionStore
             OutputChars = DbHelpers.GetNullableInt64(reader, 8),
             EndReason = reader.IsDBNull(9) ? null : (VoiceSessionEndReason)reader.GetInt16(9),
             CreatedBy = DbHelpers.GetNullableString(reader, 10),
+            Provider = DbHelpers.GetNullableString(reader, 11),
+            Model = DbHelpers.GetNullableString(reader, 12),
+            LiveSeconds = DbHelpers.GetNullableDecimal(reader, 13),
+
+            // 🚨 A cost of null is not a cost of zero: an unpriced session must not
+            // claim it was free, so the record stays null unless an addend was priced.
+            Cost = durationCost is null && characterCost is null
+                ? null
+                : new VoiceSessionCost
+                {
+                    DurationCost = durationCost,
+                    CharacterCost = characterCost,
+                    Currency = currency,
+                },
         };
+    }
 }

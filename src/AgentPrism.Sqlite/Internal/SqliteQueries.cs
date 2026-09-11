@@ -1379,19 +1379,27 @@ internal sealed class SqliteQueries : SqlQueriesBase
             LIMIT @take OFFSET @skip;
             """;
         const string voiceSessionColumns =
-            "id, tenant_id, session_id, agent_name, started_at, ended_at, turns, input_seconds, output_chars, end_reason, created_by";
+            "id, tenant_id, session_id, agent_name, started_at, ended_at, turns, input_seconds, output_chars, end_reason, created_by, "
+            + "provider, model, live_seconds, duration_cost, character_cost, currency";
 
         UpsertVoiceSession = $"""
             INSERT INTO {Schema}voice_sessions
                 ({voiceSessionColumns})
             VALUES
-                (@id, @tenant_id, @session_id, @agent_name, @started_at, @ended_at, @turns, @input_seconds, @output_chars, @end_reason, @created_by)
+                (@id, @tenant_id, @session_id, @agent_name, @started_at, @ended_at, @turns, @input_seconds, @output_chars, @end_reason, @created_by,
+                 @provider, @model, @live_seconds, @duration_cost, @character_cost, @currency)
             ON CONFLICT (id) DO UPDATE
-               SET ended_at      = excluded.ended_at,
-                   turns         = excluded.turns,
-                   input_seconds = excluded.input_seconds,
-                   output_chars  = excluded.output_chars,
-                   end_reason    = excluded.end_reason;
+               SET ended_at       = excluded.ended_at,
+                   turns          = excluded.turns,
+                   input_seconds  = excluded.input_seconds,
+                   output_chars   = excluded.output_chars,
+                   end_reason     = excluded.end_reason,
+                   provider       = excluded.provider,
+                   model          = excluded.model,
+                   live_seconds   = excluded.live_seconds,
+                   duration_cost  = excluded.duration_cost,
+                   character_cost = excluded.character_cost,
+                   currency       = excluded.currency;
             """;
 
         SelectVoiceSessions = $"""

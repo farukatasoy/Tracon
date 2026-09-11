@@ -135,7 +135,12 @@ public sealed class RunAuthorizationCoverageTests
         ("src/AgentPrism.AspNetCore/Endpoints/SessionEndpoints.cs", ResourceMarker, 4),
         ("src/AgentPrism.AspNetCore/Endpoints/WorkflowEndpoints.cs", ResourceMarker, 2),
         ("src/AgentPrism.AspNetCore/Endpoints/EvalEndpoints.cs", ResourceMarker, 2),
-        ("src/AgentPrism.AspNetCore/Voice/VoiceConversationEndpoint.cs", ResourceMarker, 1),
+        // 🚨 Phase 161 moved the voice surface's gate calls into a SHARED helper so
+        // that the conversation endpoint and the live endpoints deny with the same
+        // bytes (K-687). The call did not disappear — it is now made once, here, on
+        // behalf of both. A future voice endpoint that hand-rolls its own gate is
+        // the regression this list still catches.
+        ("src/AgentPrism.AspNetCore/Voice/VoiceEndpointGates.cs", ResourceMarker, 1),
         ("src/AgentPrism.AspNetCore/OpenAICompat/OpenAIConversationsEndpoints.cs", ResourceMarker, 3),
     ];
 
@@ -167,7 +172,7 @@ public sealed class RunAuthorizationCoverageTests
         ("src/AgentPrism.AspNetCore/Endpoints/WorkflowEndpoints.cs", OwnershipRunMarker, 1),
         ("src/AgentPrism.AspNetCore/OpenAICompat/OpenAIResponsesEndpoints.cs", OwnershipRunMarker, 1),
         ("src/AgentPrism.AspNetCore/Endpoints/SessionEndpoints.cs", OwnershipResourceMarker, 4),
-        ("src/AgentPrism.AspNetCore/Voice/VoiceConversationEndpoint.cs", OwnershipResourceMarker, 1),
+        ("src/AgentPrism.AspNetCore/Voice/VoiceEndpointGates.cs", OwnershipResourceMarker, 1),
         ("src/AgentPrism.AspNetCore/OpenAICompat/OpenAIConversationsEndpoints.cs", OwnershipResourceMarker, 3),
     ];
 

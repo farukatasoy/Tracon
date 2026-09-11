@@ -56,6 +56,74 @@ public sealed record VoiceSessionRecord
 
     /// <summary>The actor who opened the connection.</summary>
     public string? CreatedBy { get; init; }
+
+    /// <summary>
+    /// The provider that hosted the conversation, e.g. <c>openai</c>;
+    /// <see langword="null"/> when AgentPrism ran the conversation itself.
+    /// </summary>
+    public string? Provider { get; init; }
+
+    /// <summary>The model the conversation ran on; <see langword="null"/> when unknown.</summary>
+    public string? Model { get; init; }
+
+    /// <summary>
+    /// The billable wall-clock duration of a provider-hosted live session, in seconds.
+    /// </summary>
+    /// <remarks>
+    /// This is <strong>not</strong> <see cref="InputSeconds"/>. That field is the
+    /// resolved duration of audio AgentPrism transcribed; this one is how long the
+    /// provider hosted the session. Different quantities, different fields. The number
+    /// is the provider's — AgentPrism does not see the media of a live session and does
+    /// not invent a duration, so it stays <see langword="null"/> when the provider
+    /// reports none.
+    /// </remarks>
+    public decimal? LiveSeconds { get; init; }
+
+    /// <summary>What the conversation cost; <see langword="null"/> when nothing was priced.</summary>
+    public VoiceSessionCost? Cost { get; init; }
+}
+
+/// <summary>What one voice conversation cost.</summary>
+/// <remarks>
+/// <para>
+/// The total has two addends because the two voice paths bill differently: a
+/// provider-hosted live session bills by duration, while the conversation layer
+/// AgentPrism runs itself bills the synthesized characters.
+/// </para>
+/// <para>
+/// The sum lives in <see cref="Total"/> and nowhere else. A bare
+/// <c>decimal?</c> forces every caller to decide which addend it meant, and a sum
+/// spelled out by hand in several places silently loses a term the day a third one
+/// arrives.
+/// </para>
+/// <para>
+/// This is the cost of the <em>voice</em> connection only. Each delegated task
+/// also produces an ordinary <c>runs</c> row with its own token cost, which is
+/// deliberately not repeated here. A display that shows only this number
+/// <strong>under-reports</strong>; the honest figure is this cost plus the session's
+/// run costs.
+/// </para>
+/// </remarks>
+public sealed record VoiceSessionCost
+{
+    /// <summary>What the session's duration cost.</summary>
+    public decimal? DurationCost { get; init; }
+
+    /// <summary>What the synthesized characters cost.</summary>
+    public decimal? CharacterCost { get; init; }
+
+    /// <summary>The currency the amounts are in.</summary>
+    public string? Currency { get; init; }
+
+    /// <summary>Adds every priced addend.</summary>
+    /// <returns>
+    /// The total, or <see langword="null"/> when nothing was priced — never
+    /// <c>0</c>, which would claim the conversation was free.
+    /// </returns>
+    public decimal? Total()
+        => this is { DurationCost: null, CharacterCost: null }
+            ? null
+            : (DurationCost ?? 0m) + (CharacterCost ?? 0m);
 }
 
 /// <summary>The reason a voice connection closed.</summary>
@@ -80,6 +148,19 @@ public enum VoiceSessionEndReason
 
     /// <summary>The server is shutting down.</summary>
     ServerShutdown = 4,
+
+    /// <summary>
+    /// The session was created but nothing ever connected to it, and it timed out.
+    /// </summary>
+    /// <remarks>
+    /// Deliberately not <see cref="Error"/>: an abandoned session is not a failure,
+    /// and folding the two together would hide how often callers create sessions they
+    /// never use.
+    /// </remarks>
+    Abandoned = 5,
+
+    /// <summary>The provider closed the session.</summary>
+    Provider = 6,
 }
 
 /// <summary>The filter for listing voice session records.</summary>

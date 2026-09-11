@@ -237,6 +237,29 @@ if (openAiEnabled)
     // and "openai-responses" (Responses API). An agent definition chooses
     // between them through ModelBinding.Provider.
     agentPrism.UseOpenAI(openAi);
+
+    // Provider-hosted live voice. ⚠️ CHANGES THE HOSTING MODEL and opens an
+    // outbound connection billed BY THE SECOND, which is why it is a separate
+    // call rather than a flag on UseOpenAI: an application opts into the spend
+    // explicitly.
+    //
+    // The provider runs the conversation and carries the audio straight to the
+    // browser over WebRTC. AgentPrism stands in two places: it creates the
+    // session — so tenancy, role and concurrency gates apply and the raw API key
+    // never reaches the browser — and it attaches a server-side control
+    // connection that turns the work the model delegates into ORDINARY runs,
+    // with the same tools, guards, quota, cost and audit trail as
+    // POST /api/agents/{name}/run.
+    //
+    // This is independent of UseVoiceConversation() above: that layer has
+    // AgentPrism transcribe, run and synthesize for providers with no realtime
+    // API. Both can be on at once.
+    agentPrism.UseOpenAILive(
+        builder.Configuration.GetSection(OpenAILiveOptions.SectionName));
+
+    agentPrism.UseLiveVoice(
+        builder.Configuration.GetSection(VoiceLiveOptions.SectionName));
+
     // Image generation is separately enabled by AgentPrism:Images. Registering
     // this keyed adapter alone does not expose generate_image or map its endpoint.
     agentPrism.UseOpenAIImages();
@@ -888,6 +911,11 @@ app.UseStatusCodePages();
 // Three states: Healthy / Degraded / Unhealthy. For a detailed summary:
 // GET /agentprism/api/diagnostics (Admin, turned on below with EnableDiagnosticsEndpoint).
 app.MapHealthChecks("/health");
+
+// wwwroot/live-test.html: the smallest page that proves the provider-hosted live
+// voice path end to end — getUserMedia, one RTCPeerConnection, one fetch. It is a
+// SAMPLE asset and is not packaged; the AgentPrism.UI panel is a separate concern.
+app.UseStaticFiles();
 
 app.MapOpenApi();
 

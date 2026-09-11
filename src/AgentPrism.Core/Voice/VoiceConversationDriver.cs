@@ -67,6 +67,7 @@ internal sealed class VoiceConversationDriver
     private readonly VoiceConversationOptions _options;
     private readonly ILogger<VoiceConversationDriver> _logger;
     private readonly TimeProvider _timeProvider;
+    private readonly VoiceHistoryWriter _history;
 
     /// <summary>Initializes a new instance of the <see cref="VoiceConversationDriver"/> class.</summary>
     /// <param name="catalog">The agent catalog.</param>
@@ -117,6 +118,7 @@ internal sealed class VoiceConversationDriver
         _transcriber = transcriber;
         _synthesizer = synthesizer;
         _timeProvider = timeProvider ?? TimeProvider.System;
+        _history = new VoiceHistoryWriter(chatHistory, sessions, logger);
 
         Limiter = new VoiceConnectionLimiter(_options.MaxConcurrentConnectionsPerTenant);
     }
@@ -592,7 +594,7 @@ internal sealed class VoiceConversationDriver
 
             if (cancelled)
             {
-                await RecordInterruptionAsync(spoken.ToString()).ConfigureAwait(false);
+                await driver._history.RecordInterruptionAsync(_agent!, _session!, spoken.ToString()).ConfigureAwait(false);
             }
 
             FinishTurn(counted: true);
@@ -726,56 +728,6 @@ internal sealed class VoiceConversationDriver
             }).ConfigureAwait(false);
 
             return spokenCharacters + segment.Length;
-        }
-
-        /// <summary>
-        /// Writes the partial answer of an interrupted turn to the session history.
-        /// </summary>
-        /// <remarks>
-        /// This step cannot be skipped. When a streaming run is cancelled the
-        /// Microsoft Agent Framework does not write the history; on the next turn the
-        /// model DOES NOT SEE its own half sentence, and the conversation breaks the
-        /// moment the user says "what you said a moment ago". The record states
-        /// <strong>explicitly</strong> that the answer was interrupted.
-        /// </remarks>
-        private async Task RecordInterruptionAsync(string partial)
-        {
-            if (_agent is null || _session is null)
-            {
-                return;
-            }
-
-            var trimmed = partial.Trim();
-
-            var text = trimmed.Length > 0
-                ? trimmed + "\n\n[The response was interrupted by the user.]"
-                : "[The response was interrupted by the user before it started.]";
-
-            try
-            {
-                // The MAAI001 rationale is the same as in ChatHistoryReader: there is
-                // no other public way to write to the history (StoreChatHistoryAsync
-                // is protected).
-#pragma warning disable MAAI001
-                var context = new ChatHistoryProvider.InvokedContext(
-                    _agent,
-                    _session,
-                    [],
-                    [new ChatMessage(ChatRole.Assistant, text)]);
-#pragma warning restore MAAI001
-
-                await driver._chatHistory.InvokedAsync(context, CancellationToken.None).ConfigureAwait(false);
-
-                await driver._sessions
-                    .SaveSessionAsync(_agent, _session, CancellationToken.None)
-                    .ConfigureAwait(false);
-            }
-            catch (Exception exception) when (exception is AgentPrismException or InvalidOperationException or NotSupportedException or JsonException)
-            {
-                // Observability does not break functionality: when the history cannot
-                // be written the conversation still continues.
-                driver._logger.LogWarning(exception, "The interrupted response could not be written to the session history.");
-            }
         }
 
         /// <summary>Stores the spoken response as an attachment.</summary>
