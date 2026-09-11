@@ -142,7 +142,7 @@ form. This matrix shows where a change can originate.
 
 ## HTTP surface compatibility
 
-The generated HTTP reference contains 165 management and OpenAI-compatible
+The generated HTTP reference contains 168 management and OpenAI-compatible
 operations grouped under 23 domain tags.
 
 Being in the reference and being live in your process are different questions.

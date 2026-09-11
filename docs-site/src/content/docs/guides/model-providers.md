@@ -63,6 +63,24 @@ Each options type validates at startup. Missing required configuration stops the
 before the first run. A named compatible endpoint can be keyless, and Azure can use a
 credential factory instead of an API key.
 
+## Live voice providers
+
+OpenAI can also register an `ILiveVoiceProvider`, which is a different kind of
+registration again: it opens an outbound connection billed by the second, so it is a
+separate call rather than a flag on `UseOpenAI()`.
+
+```csharp title="Program.cs"
+agentPrism
+    .UseOpenAI(builder.Configuration.GetSection(OpenAIProviderOptions.SectionName))
+    .UseOpenAILive(builder.Configuration.GetSection(OpenAILiveOptions.SectionName))
+    .UseLiveVoice();
+```
+
+The provider runs the whole spoken conversation and carries the audio straight to the
+browser; your agents handle the work it delegates. The API key stays on the server.
+See [provider-hosted live voice](/guides/voice/#provider-hosted-live-voice) for what
+that trade gives up.
+
 ## Image generation providers
 
 OpenAI, Azure OpenAI, and Google can also register an `IImageGenerator`. These are

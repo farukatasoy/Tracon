@@ -8,7 +8,7 @@
 Bir fazın durumu yanlış görünüyorsa **o fazın dokümanını** düzelt;
 bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 
-## Fazlar (161 kalem)
+## Fazlar (162 kalem)
 
 | Faz | Konu | Durum |
 |-----|------|-------|
@@ -173,5 +173,6 @@ bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 | [158](arsiv/fazlar/158-DAVRANIS-IDDIALARININ-KAPISI.md) | Davranış İddialarının Kapısı | ✅ Tamamlandı |
 | [159](arsiv/fazlar/159-TIPLI-ISTEMCIDE-AKISLI-OPENAI-CAGRISI.md) | Tipli İstemcide Akışlı OpenAI Çağrısı | ✅ Tamamlandı |
 | [160](arsiv/fazlar/160-LISANS-MODELI-VE-PAKET-METAVERISI.md) | Lisans Modeli ve Paket Metaverisi | ✅ Tamamlandı |
+| [161](161-GPT-LIVE-SIDEBAND-DENETIMI.md) | GPT-Live Sideband Denetimi | ✅ Tamamlandı |
 
 Seçilmemiş adaylar: [`ADAYLAR.md`](ADAYLAR.md). Fazların hangi dalgada, hangi gerekçeyle sıralandığı (Faz 8–56, kapandı): [`arsiv/IKINCI-FAZ-YOL-HARITASI.md`](arsiv/IKINCI-FAZ-YOL-HARITASI.md) · [`arsiv/UCUNCU-FAZ-YOL-HARITASI.md`](arsiv/UCUNCU-FAZ-YOL-HARITASI.md).

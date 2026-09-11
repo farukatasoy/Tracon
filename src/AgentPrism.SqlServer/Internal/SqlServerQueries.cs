@@ -1586,23 +1586,31 @@ internal sealed class SqlServerQueries : SqlQueriesBase
             {Paging}
             """;
         const string voiceSessionColumns =
-            "id, tenant_id, session_id, agent_name, started_at, ended_at, turns, input_seconds, output_chars, end_reason, created_by";
+            "id, tenant_id, session_id, agent_name, started_at, ended_at, turns, input_seconds, output_chars, end_reason, created_by, "
+            + "provider, model, live_seconds, duration_cost, character_cost, currency";
 
         // 🚨 MERGE IS NOT USED (K-177): first a locked UPDATE, then INSERT if no row exists.
         UpsertVoiceSession = $"""
             UPDATE {Schema}.voice_sessions WITH (UPDLOCK, SERIALIZABLE)
-               SET ended_at      = @ended_at,
-                   turns         = @turns,
-                   input_seconds = @input_seconds,
-                   output_chars  = @output_chars,
-                   end_reason    = @end_reason
+               SET ended_at       = @ended_at,
+                   turns          = @turns,
+                   input_seconds  = @input_seconds,
+                   output_chars   = @output_chars,
+                   end_reason     = @end_reason,
+                   provider       = @provider,
+                   model          = @model,
+                   live_seconds   = @live_seconds,
+                   duration_cost  = @duration_cost,
+                   character_cost = @character_cost,
+                   currency       = @currency
              WHERE id = @id;
 
             IF @@ROWCOUNT = 0
             INSERT INTO {Schema}.voice_sessions
                 ({voiceSessionColumns})
             VALUES
-                (@id, @tenant_id, @session_id, @agent_name, @started_at, @ended_at, @turns, @input_seconds, @output_chars, @end_reason, @created_by);
+                (@id, @tenant_id, @session_id, @agent_name, @started_at, @ended_at, @turns, @input_seconds, @output_chars, @end_reason, @created_by,
+                 @provider, @model, @live_seconds, @duration_cost, @character_cost, @currency);
             """;
 
         SelectVoiceSessions = $"""

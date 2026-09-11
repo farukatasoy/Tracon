@@ -97,6 +97,12 @@ With a SQL provider the history is stored as ordered items, so messages come bac
 sequence order. That ordering is not cosmetic: the index of a message **is** the
 sequence number the branch endpoint takes.
 
+A provider-hosted live voice session writes into this same history: when it closes,
+the conversation's transcript is appended as ordinary user and assistant messages, so
+`GET /api/sessions/{sessionId}` shows what was actually said. That write is a
+retention decision and can be switched off — see
+[voice privacy and retention](/guides/voice/#privacy-and-retention).
+
 ## Branching
 
 `POST /api/sessions/{sessionId}/branch` copies items up to and including a sequence

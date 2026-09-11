@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AgentPrism live voice proof</title>
+  <style>
+    :root { color-scheme: light dark; }
+    body { font: 14px/1.5 system-ui, sans-serif; margin: 0; padding: 24px; max-width: 720px; }
+    h1 { font-size: 18px; margin: 0 0 4px; }
+    p { margin: 0 0 16px; color: #666; }
+    label { display: block; margin: 8px 0 2px; font-weight: 600; }
+    input { width: 100%; padding: 6px 8px; box-sizing: border-box; }
+    button { margin: 16px 8px 16px 0; padding: 8px 16px; }
+    pre { background: #1113; padding: 12px; border-radius: 6px; overflow-x: auto; white-space: pre-wrap; }
+  </style>
+</head>
+<body>
+  <h1>AgentPrism live voice proof</h1>
+  <p>
+    The browser talks to the provider over WebRTC. The API key stays on the server:
+    this page sends only an SDP offer and receives an SDP answer.
+  </p>
+
+  <label for="token">Bearer token</label>
+  <input id="token" placeholder="AgentPrism:Ui:AuthToken">
+
+  <label for="agent">Agent</label>
+  <input id="agent" value="support">
+
+  <label for="session">Session id</label>
+  <input id="session" value="live-proof-1">
+
+  <button id="start">Start</button>
+  <button id="stop" disabled>Stop</button>
+
+  <pre id="log"></pre>
+  <audio id="speaker" autoplay></audio>
+
+  <script>
+    const logEl = document.getElementById('log');
+    const log = m => { logEl.textContent += m + '\n'; console.log('[live] ' + m); };
+
+    let pc = null;
+    let stream = null;
+    let voiceSessionId = null;
+
+    const auth = () => {
+      const token = document.getElementById('token').value.trim();
+      return token ? { Authorization: 'Bearer ' + token } : {};
+    };
+
+    document.getElementById('start').onclick = async () => {
+      document.getElementById('start').disabled = true;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        log('microphone granted');
+
+        pc = new RTCPeerConnection();
+        pc.oniceconnectionstatechange = () => log('ice: ' + pc.iceConnectionState);
+        pc.onconnectionstatechange = () => log('connection: ' + pc.connectionState);
+        pc.ontrack = e => { document.getElementById('speaker').srcObject = e.streams[0]; log('remote audio track'); };
+        stream.getTracks().forEach(t => pc.addTrack(t, stream));
+
+        await pc.setLocalDescription(await pc.createOffer());
+
+        // Wait for ICE gathering so the offer carries candidates.
+        await new Promise(resolve => {
+          if (pc.iceGatheringState === 'complete') return resolve();
+          const onChange = () => {
+            if (pc.iceGatheringState === 'complete') {
+              pc.removeEventListener('icegatheringstatechange', onChange);
+              resolve();
+            }
+          };
+          pc.addEventListener('icegatheringstatechange', onChange);
+          setTimeout(resolve, 3000);
+        });
+
+        log('offer ready, asking AgentPrism to create the session');
+
+        const response = await fetch('/agentprism/api/voice/live/sessions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...auth() },
+          body: JSON.stringify({
+            sessionId: document.getElementById('session').value,
+            agent: document.getElementById('agent').value,
+            sdp: pc.localDescription.sdp,
+          }),
+        });
+
+        const text = await response.text();
+
+        if (!response.ok) {
+          log('AgentPrism refused: ' + response.status + ' ' + text);
+          document.getElementById('start').disabled = false;
+          return;
+        }
+
+        const body = JSON.parse(text);
+        voiceSessionId = body.voiceSessionId;
+
+        log('session ' + voiceSessionId + ' on ' + body.model);
+        log('transcript persisted: ' + body.persistTranscript);
+
+        await pc.setRemoteDescription({ type: 'answer', sdp: body.sdp });
+        log('answer applied — speak now');
+
+        document.getElementById('stop').disabled = false;
+      } catch (error) {
+        log('failed: ' + error);
+        document.getElementById('start').disabled = false;
+      }
+    };
+
+    document.getElementById('stop').onclick = async () => {
+      document.getElementById('stop').disabled = true;
+      try {
+        if (voiceSessionId) {
+          const response = await fetch('/agentprism/api/voice/live/sessions/' + voiceSessionId, {
+            method: 'DELETE',
+            headers: auth(),
+          });
+          log('close: ' + response.status);
+        }
+      } finally {
+        stream?.getTracks().forEach(t => t.stop());
+        pc?.close();
+        document.getElementById('start').disabled = false;
+      }
+    };
+  </script>
+</body>
+</html>

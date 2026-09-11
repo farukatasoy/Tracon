@@ -107,7 +107,9 @@ internal static class VoiceConversationEndpoint
         var tenantContext = services.GetRequiredService<ITenantContext>();
         var tenantId = tenantContext.TenantId;
 
-        if (!await OwnsSessionAsync(services, sessionId, tenantId, context.RequestAborted).ConfigureAwait(false))
+        if (!await VoiceEndpointGates
+                .OwnsSessionAsync(services, sessionId, tenantId, context.RequestAborted)
+                .ConfigureAwait(false))
         {
             // 🚨 sessionId is untrusted input. Another tenant's session is
             // answered as if it "does not exist"; reporting its existence would leak information.
@@ -116,42 +118,9 @@ internal static class VoiceConversationEndpoint
             return;
         }
 
-        // 🚨 The handler is asked even when the session does not exist yet:
-        // K-283 keeps a fresh voice session openable, and only the consumer can
-        // say whether THIS caller may open one under THIS id. The gate's own
-        // 404 body is deliberately discarded and this endpoint's own wording is
-        // written instead, so a denial stays byte for byte identical to the
-        // "does not belong to this tenant" answer a few lines above.
-        if (await RunAuthorizationGate
-                .CheckSessionAsync(
-                    services.GetService<IRunAuthorizationHandler>(),
-                    tenantContext,
-                    sessionId,
-                    services.GetService<IRunAttributionContext>(),
-                    SessionAccess.Voice,
-                    context.RequestAborted)
-                .ConfigureAwait(false) is not null)
-        {
-            await WriteSessionNotFoundAsync(context, sessionId).ConfigureAwait(false);
-
-            return;
-        }
-
-        // 🚨 Ownership is checked with the SAME "does not exist" answer, for
-        // the same reason as the tenant check above. A voice socket writes to
-        // the session it opens, so leaving this path ungated would let one user
-        // speak into another user's conversation while every HTTP route to it
-        // answered 404. K-283 survives: a session nothing has written yet
-        // carries no owner and is not refused here.
-        if (await SessionOwnershipGate
-                .DeniesAsync(
-                    services.GetService<IOptionsMonitor<AgentPrismSessionOwnershipOptions>>(),
-                    services.GetService<IRunAttributionContext>(),
-                    services.GetRequiredService<ISessionStore>(),
-                    sessionId,
-                    context,
-                    context.RequestAborted)
-                .ConfigureAwait(false))
+        // Both consumer gates live in VoiceEndpointGates so that every voice
+        // endpoint denies with the SAME body (K-687).
+        if (await VoiceEndpointGates.DeniesSessionAsync(context, sessionId, tenantContext).ConfigureAwait(false))
         {
             await WriteSessionNotFoundAsync(context, sessionId).ConfigureAwait(false);
 
@@ -267,57 +236,16 @@ internal static class VoiceConversationEndpoint
         return null;
     }
 
-    /// <summary>Checks whether the session belongs to this tenant.</summary>
-    /// <returns>
-    /// <see langword="true"/> if the session belongs to this tenant or does not exist yet.
-    /// </returns>
-    /// <remarks>
-    /// A session that does not yet exist is accepted: the first conversation turn
-    /// opens it. A session that exists but belongs to another tenant is rejected.
-    /// </remarks>
-    private static async ValueTask<bool> OwnsSessionAsync(
-        IServiceProvider services,
-        string sessionId,
-        string tenantId,
-        CancellationToken cancellationToken)
-    {
-        if (string.IsNullOrWhiteSpace(sessionId))
-        {
-            return false;
-        }
-
-        // 🚨 K-283 (phase 41) removed the "someone else's session" rejection HERE
-        // ON PURPOSE, and the branch below is deliberately unreachable as a
-        // result. GetAsync is scoped to the ambient tenant, so another tenant's
-        // record returns null, the connection opens a FRESH session in the
-        // caller's own tenant, and the other tenant's record is never touched.
-        // That removes an existence oracle: a caller can no longer learn from the
-        // status code which session ids exist for another tenant.
-        //
-        // Do NOT "fix" this into GetOwnerTenantIdAsync without reopening K-283 --
-        // the OpenAI-compatible endpoints answer 404 instead, and the difference
-        // between the two surfaces is a decision, not an oversight.
-        var store = services.GetRequiredService<ISessionStore>();
-        var record = await store.GetAsync(sessionId, cancellationToken).ConfigureAwait(false);
-
-        return record is null || string.Equals(record.TenantId, tenantId, StringComparison.Ordinal);
-    }
-
     /// <summary>
     /// Writes the single 404 this endpoint uses for "no such session", whether
     /// the session belongs to another tenant or the handler denied the caller.
     /// </summary>
+    /// <remarks>
+    /// Delegated so the live endpoints and this one answer with the SAME bytes.
+    /// </remarks>
     private static Task WriteSessionNotFoundAsync(HttpContext context, string sessionId)
-        => WriteProblemAsync(
-            context,
-            StatusCodes.Status404NotFound,
-            "Session not found",
-            $"There is no session with id '{sessionId}', or it does not belong to this tenant.");
+        => VoiceEndpointGates.WriteSessionNotFoundAsync(context, sessionId);
 
-    private static async Task WriteProblemAsync(HttpContext context, int statusCode, string title, string detail)
-    {
-        var result = Results.Problem(title: title, detail: detail, statusCode: statusCode);
-
-        await result.ExecuteAsync(context).ConfigureAwait(false);
-    }
+    private static Task WriteProblemAsync(HttpContext context, int statusCode, string title, string detail)
+        => VoiceEndpointGates.WriteProblemAsync(context, statusCode, title, detail);
 }

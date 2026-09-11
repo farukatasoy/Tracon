@@ -132,6 +132,14 @@ public sealed class OpenApiSnapshotTests
         await using var host = await AgentPrismTestHost.StartAsync(
             withOpenApi: true,
             configureEndpoints: options => options.EnableDiagnosticsEndpoint = true,
+            // 🚨 The live voice routes are mapped only when UseLiveVoice() registered
+            // the layer, so the document would silently omit three endpoints — and
+            // with them the .NET client, the TypeScript client and the http-api/
+            // site pages, all of which are generated from this one file.
+            configureAgentPrism: static builder => builder
+                .UseOpenAI(options => options.ApiKey = "openapi-placeholder-key")
+                .UseOpenAILive()
+                .UseLiveVoice(),
             configureServices: static services =>
             {
                 services.Configure<AgentPrismImageOptions>(options =>

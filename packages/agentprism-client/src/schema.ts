@@ -2096,6 +2096,50 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/voice/live/sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Creates a provider-hosted live voice session.
+         * @description Relays the media peer's SDP offer to the provider and returns its answer, so the raw API key never reaches the browser. AgentPrism attaches a server-side control connection to the same session and turns the work the model delegates into ordinary runs. Returns 501 when no live voice provider is registered.
+         */
+        post: operations["AgentPrismLiveVoiceCreate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/voice/live/sessions/{voiceSessionId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Reports a live voice session's state and measurement.
+         * @description The state is 'pending' until media is observed, then 'active', then 'ended'. The duration is the provider's own number: AgentPrism does not carry a live session's media and does not invent a duration.
+         */
+        get: operations["AgentPrismLiveVoiceStatus"];
+        put?: never;
+        post?: never;
+        /**
+         * Closes a live voice session and writes its record.
+         * @description Cancels any delegation still running, writes the session record with its measured duration and cost, and drops the provider connection. A session another tenant owns answers 404, byte for byte the answer a session that does not exist gets.
+         */
+        delete: operations["AgentPrismLiveVoiceClose"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/images/generate": {
         parameters: {
             query?: never;
@@ -4799,6 +4843,61 @@ export interface components {
             /** @description The normalized failures reported by judges. */
             failures?: components["schemas"]["JudgeFailure"][];
         };
+        /** @description The request that opens a provider-hosted live voice session. */
+        LiveVoiceSessionCreateRequest: {
+            /** @description Gets the agent session the conversation runs in. */
+            sessionId: string;
+            /** @description Gets the agent to talk to. */
+            agent: string;
+            /** @description Gets the media peer's SDP offer. */
+            sdp: string;
+            /** @description Gets the requested output voice; `null` leaves the configured default. */
+            voice?: null | string;
+        };
+        /** @description The answer that opens a provider-hosted live voice session. */
+        LiveVoiceSessionCreateResponse: {
+            /**
+             * Format: uuid
+             * @description Gets AgentPrism's identifier for the session.
+             */
+            voiceSessionId: string;
+            /** @description Gets the SDP answer to hand to the media peer. */
+            sdp: string;
+            /** @description Gets the model the session is bound to. */
+            model?: null | string;
+            /**
+             * @description Gets whether the conversation's transcript will be written to the session's
+             *     durable history.
+             */
+            persistTranscript: boolean;
+        };
+        /** @description The status of a provider-hosted live voice session. */
+        LiveVoiceSessionStatusResponse: {
+            /**
+             * Format: uuid
+             * @description Gets AgentPrism's identifier for the session.
+             */
+            voiceSessionId: string;
+            /** @description Gets the lifecycle state: `pending`, `active` or `ended`. */
+            state: string;
+            /** @description Gets the model the session is bound to. */
+            model?: null | string;
+            /**
+             * Format: date-time
+             * @description Gets when the session was created.
+             */
+            startedAt: string;
+            /**
+             * Format: double
+             * @description Gets the billable duration the provider has reported so far.
+             */
+            liveSeconds?: null | number | string;
+            /**
+             * Format: int32
+             * @description Gets how many delegations have become runs.
+             */
+            turns: number | string;
+        };
         /** @description One declarative stop criterion of the harness loop (see `LoopSettings`). */
         LoopCriterion: {
             /**
@@ -7314,8 +7413,23 @@ export interface components {
              */
             voiceCount?: null | number | string;
         };
+        /** @description What one voice conversation cost. */
+        VoiceSessionCost: {
+            /**
+             * Format: double
+             * @description What the session's duration cost.
+             */
+            durationCost?: null | number | string;
+            /**
+             * Format: double
+             * @description What the synthesized characters cost.
+             */
+            characterCost?: null | number | string;
+            /** @description The currency the amounts are in. */
+            currency?: null | string;
+        };
         /** @enum {unknown} */
-        VoiceSessionEndReason: "Client" | "IdleTimeout" | "DurationLimit" | "Error" | "ServerShutdown" | null;
+        VoiceSessionEndReason: "Client" | "IdleTimeout" | "DurationLimit" | "Error" | "ServerShutdown" | "Abandoned" | "Provider" | null;
         /** @description The summary record of a real-time voice connection. */
         VoiceSessionRecord: {
             /**
@@ -7362,6 +7476,19 @@ export interface components {
             endReason?: null | components["schemas"]["VoiceSessionEndReason"];
             /** @description The actor who opened the connection. */
             createdBy?: null | string;
+            /**
+             * @description The provider that hosted the conversation, e.g. `openai`;
+             *     `null` when AgentPrism ran the conversation itself.
+             */
+            provider?: null | string;
+            /** @description The model the conversation ran on; `null` when unknown. */
+            model?: null | string;
+            /**
+             * Format: double
+             * @description The billable wall-clock duration of a provider-hosted live session, in seconds.
+             */
+            liveSeconds?: null | number | string;
+            cost?: null | components["schemas"]["VoiceSessionCost"];
         };
         /** @description A single delivery record. */
         WebhookDelivery: {
@@ -7935,6 +8062,9 @@ export type JobTriggerRequest = components['schemas']['JobTriggerRequest'];
 export type JsonElement = components['schemas']['JsonElement'];
 export type JudgeFailure = components['schemas']['JudgeFailure'];
 export type JudgeRunResponse = components['schemas']['JudgeRunResponse'];
+export type LiveVoiceSessionCreateRequest = components['schemas']['LiveVoiceSessionCreateRequest'];
+export type LiveVoiceSessionCreateResponse = components['schemas']['LiveVoiceSessionCreateResponse'];
+export type LiveVoiceSessionStatusResponse = components['schemas']['LiveVoiceSessionStatusResponse'];
 export type LoopCriterion = components['schemas']['LoopCriterion'];
 export type LoopSettings = components['schemas']['LoopSettings'];
 export type McpOAuthAuthorizationMode = components['schemas']['McpOAuthAuthorizationMode'];
@@ -8056,6 +8186,7 @@ export type ValidationMessage = components['schemas']['ValidationMessage'];
 export type ValidationSeverity = components['schemas']['ValidationSeverity'];
 export type VoiceDescriptor = components['schemas']['VoiceDescriptor'];
 export type VoiceHealth = components['schemas']['VoiceHealth'];
+export type VoiceSessionCost = components['schemas']['VoiceSessionCost'];
 export type VoiceSessionEndReason = components['schemas']['VoiceSessionEndReason'];
 export type VoiceSessionRecord = components['schemas']['VoiceSessionRecord'];
 export type WebhookDelivery = components['schemas']['WebhookDelivery'];
@@ -11551,6 +11682,135 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SpeakResponse"];
+                };
+            };
+        };
+    };
+    AgentPrismLiveVoiceCreate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LiveVoiceSessionCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LiveVoiceSessionCreateResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Implemented */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    AgentPrismLiveVoiceStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                voiceSessionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LiveVoiceSessionStatusResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    AgentPrismLiveVoiceClose: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                voiceSessionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
         };

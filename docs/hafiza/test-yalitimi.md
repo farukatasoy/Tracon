@@ -188,3 +188,21 @@ test ederken ya **gerçek saat + kısa gerçek süre** kullan (örnek: kısa bir
 SENKRON yolu sahte saatle test et. Vaka: `RunDeadlineTests.Deadline_is_enforced_on_the_queued_durable_run_path_too`.
 
 - **Process testinde bekleme MUTLAK SÜRE değil KOŞUL olmalıdır** (Faz 157). Hazırlık için process'in stdout'a yazdığı bir satır (`HARNESS-READY`), devralma için veritabanının KENDİ `lease_until` değeri beklenir; `Task.Delay(sabit)` yüklü bir ajanda kırılgandır. `ManagedProcess.DisposeAsync` her yolda ağacı öldürür — düşen bir test öksüz worker bırakmaz.
+
+## Playwright E2E'de yuk kaynakli gezinme zaman asimi (Faz 161)
+
+`AgentPrism.Ui.E2ETests` tam paket kosumunda **her seferinde baska bir test**
+30 sn'lik `GotoAsync` zaman asimiyla dusebiliyor (olculdu 2026-09-11:
+`Tools_screen_shows_call_count`, sonra `Skill_created_from_UI_is_listed`,
+ucuncu kosumda 58/58 yesil). Ucu de izole kosumda geciyor.
+
+**Siniflandirma yontemi** — "tek basina geciyor" TEK BASINA yeterli degil
+(MEMORY.md kurali). Uc kanit birlikte arandi:
+
+1. Degisiklik o yuzeye **hic dokunmuyor** mu? `git status --porcelain | grep -E
+   "AgentPrism.UI|frontend"` bos.
+2. Dusen test **degisiyor** mu? Kod kaynakli bir kusur ayni testi dusurur.
+3. E2E host'u yeni yetenegi **kaydediyor** mu? `grep -rn "UseLiveVoice"
+   tests/AgentPrism.Ui.E2ETests/` bos — rota o host'ta hic maplenmiyor.
+
+Ucu de dogrulanmadan "kirilgan" denmez; biri bile tutmuyorsa kod yolu okunur.

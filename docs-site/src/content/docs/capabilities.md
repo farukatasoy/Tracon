@@ -126,6 +126,7 @@ claim to provide an operating-system sandbox.
 | Image generation | `UseOpenAIImages()`, `UseAzureOpenAIImages()`, or `UseGoogleImages()` plus `AgentPrism:Images` | Optional `generate_image` tool stores a verified attachment and records image or token usage |
 | Speech tools | `AgentPrism.Voice` and `UseVoice()` | ElevenLabs synthesis and transcription, or consumer implementations of the speech contracts |
 | Live voice conversation | `UseVoiceConversation()` plus `MapAgentPrism()` | A long-lived WebSocket joins transcription, an agent session, and synthesis; it is absent until registered |
+| Provider-hosted live voice | `UseLiveVoice()` plus a provider such as `UseOpenAILive()` | The provider hosts the conversation and carries the media directly to the browser; AgentPrism creates the session so the key never leaves the server, and turns the work the model delegates into ordinary runs |
 
 A run is the unit of evidence. Everything that happened is recorded against a run id,
 and a store failure never gets permission to stop the run itself.
@@ -235,11 +236,12 @@ a failure to record one is logged and stepped over rather than raised to the cal
 | MCP server | `UseMcpServer()` and `MapAgentPrismMcpServer()` | External MCP clients that invoke explicitly exposed agents as tools |
 | A2A server | `UseA2A()` and `MapAgentPrismA2A()` | External agents that invoke an explicit allowlist of AgentPrism agents |
 | Voice WebSocket | `UseVoiceConversation()` and `MapAgentPrism()` | Browser or native real-time audio clients |
+| Live voice sessions | `UseLiveVoice()`, a live provider, and `MapAgentPrism()` | Browsers that speak to a provider-hosted model over WebRTC while AgentPrism supervises the session |
 
 `MapAgentPrism()` exposes the documented management and OpenAI operations. The
 diagnostics endpoint, voice WebSocket, health route, MCP server, and A2A routes are
 conditional or separately mapped, so they are not all represented by the generated
-165-operation HTTP reference.
+168-operation HTTP reference.
 
 ## Embedding points
 
