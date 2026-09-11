@@ -191,18 +191,13 @@ SENKRON yolu sahte saatle test et. Vaka: `RunDeadlineTests.Deadline_is_enforced_
 
 ## Playwright E2E'de yuk kaynakli gezinme zaman asimi (Faz 161)
 
-`AgentPrism.Ui.E2ETests` tam paket kosumunda **her seferinde baska bir test**
-30 sn'lik `GotoAsync` zaman asimiyla dusebiliyor (olculdu 2026-09-11:
+`AgentPrism.Ui.E2ETests` tam kosumda **her seferinde baska bir test** 30 sn'lik
+`GotoAsync` zaman asimiyla dusebiliyor (olculdu 2026-09-11: once
 `Tools_screen_shows_call_count`, sonra `Skill_created_from_UI_is_listed`,
-ucuncu kosumda 58/58 yesil). Ucu de izole kosumda geciyor.
+ucuncu kosum 58/58 yesil). Ucu de izole gecti.
 
-**Siniflandirma yontemi** — "tek basina geciyor" TEK BASINA yeterli degil
-(MEMORY.md kurali). Uc kanit birlikte arandi:
-
-1. Degisiklik o yuzeye **hic dokunmuyor** mu? `git status --porcelain | grep -E
-   "AgentPrism.UI|frontend"` bos.
-2. Dusen test **degisiyor** mu? Kod kaynakli bir kusur ayni testi dusurur.
-3. E2E host'u yeni yetenegi **kaydediyor** mu? `grep -rn "UseLiveVoice"
-   tests/AgentPrism.Ui.E2ETests/` bos — rota o host'ta hic maplenmiyor.
-
-Ucu de dogrulanmadan "kirilgan" denmez; biri bile tutmuyorsa kod yolu okunur.
+🚨 "Tek basina geciyor" TEK BASINA yeterli DEGIL. Uc kanit birlikte arandi:
+degisiklik o yuzeye hic dokunmuyor (`git status | grep AgentPrism.UI` bos) ·
+dusen test **degisiyor** (kod kusuru ayni testi dusurur) · E2E host'u yeni
+yetenegi hic kaydetmiyor (`grep -rn "UseLiveVoice" tests/...E2ETests/` bos).
+Biri tutmuyorsa kod yolu okunur.
