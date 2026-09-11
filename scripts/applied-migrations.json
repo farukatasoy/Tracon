@@ -39,6 +39,9 @@
     "src/AgentPrism.PostgreSql/Migrations/0049_run_scores_created_at_index.sql": "3487d8203b4ac4aad454227d58c289fee4f73034",
     "src/AgentPrism.SqlServer/Migrations/0036_run_scores_created_at_index.sql": "3487d8203b4ac4aad454227d58c289fee4f73034",
     "src/AgentPrism.Sqlite/Migrations/0036_run_scores_created_at_index.sql": "3487d8203b4ac4aad454227d58c289fee4f73034",
-    "src/AgentPrism.SqlServer/Migrations/0037_run_score_message_key.sql": "8ecbfb4c25078c672f9c5c5c9cefe336f16e78c3"
+    "src/AgentPrism.SqlServer/Migrations/0037_run_score_message_key.sql": "8ecbfb4c25078c672f9c5c5c9cefe336f16e78c3",
+    "src/AgentPrism.PostgreSql/Migrations/0050_voice_session_cost.sql": "931c0b754cc89f462663097fce9f057dcfc7e1bb",
+    "src/AgentPrism.SqlServer/Migrations/0038_voice_session_cost.sql": "931c0b754cc89f462663097fce9f057dcfc7e1bb",
+    "src/AgentPrism.Sqlite/Migrations/0037_voice_session_cost.sql": "931c0b754cc89f462663097fce9f057dcfc7e1bb"
   }
 }
