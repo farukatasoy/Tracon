@@ -12253,6 +12253,316 @@ namespace AgentPrism.Client.Generated
 
         /// <param name="cancellationToken">A cancellation token that can be used by other objects or threads to receive notice of cancellation.</param>
         /// <summary>
+        /// Creates a provider-hosted live voice session.
+        /// </summary>
+        /// <remarks>
+        /// Relays the media peer's SDP offer to the provider and returns its answer, so the raw API key never reaches the browser. AgentPrism attaches a server-side control connection to the same session and turns the work the model delegates into ordinary runs. Returns 501 when no live voice provider is registered.
+        /// </remarks>
+        /// <returns>OK</returns>
+        /// <exception cref="AgentPrismApiException">A server side error occurred.</exception>
+        public virtual async System.Threading.Tasks.Task<LiveVoiceSessionCreateResponse> AgentPrismLiveVoiceCreateAsync(LiveVoiceSessionCreateRequest body, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken))
+        {
+            if (body == null)
+                throw new System.ArgumentNullException("body");
+
+            var client_ = _httpClient;
+            var disposeClient_ = false;
+            try
+            {
+                using (var request_ = new System.Net.Http.HttpRequestMessage())
+                {
+                    var json_ = System.Text.Json.JsonSerializer.SerializeToUtf8Bytes(body, JsonSerializerSettings);
+                    var content_ = new System.Net.Http.ByteArrayContent(json_);
+                    content_.Headers.ContentType = System.Net.Http.Headers.MediaTypeHeaderValue.Parse("application/json");
+                    request_.Content = content_;
+                    request_.Method = new System.Net.Http.HttpMethod("POST");
+                    request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
+
+                    var urlBuilder_ = new System.Text.StringBuilder();
+                
+                    // Operation Path: "api/voice/live/sessions"
+                    urlBuilder_.Append("api/voice/live/sessions");
+
+                    PrepareRequest(client_, request_, urlBuilder_);
+
+                    var url_ = urlBuilder_.ToString();
+                    request_.RequestUri = new System.Uri(url_, System.UriKind.RelativeOrAbsolute);
+
+                    PrepareRequest(client_, request_, url_);
+
+                    var response_ = await client_.SendAsync(request_, System.Net.Http.HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
+                    var disposeResponse_ = true;
+                    try
+                    {
+                        var headers_ = new System.Collections.Generic.Dictionary<string, System.Collections.Generic.IEnumerable<string>>();
+                        foreach (var item_ in response_.Headers)
+                            headers_[item_.Key] = item_.Value;
+                        if (response_.Content != null && response_.Content.Headers != null)
+                        {
+                            foreach (var item_ in response_.Content.Headers)
+                                headers_[item_.Key] = item_.Value;
+                        }
+
+                        ProcessResponse(client_, response_);
+
+                        var status_ = (int)response_.StatusCode;
+                        if (status_ == 200)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<LiveVoiceSessionCreateResponse>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new AgentPrismApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            return objectResponse_.Object;
+                        }
+                        else
+                        if (status_ == 400)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<ProblemDetails>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new AgentPrismApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            throw new AgentPrismApiException<ProblemDetails>("Bad Request", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
+                        }
+                        else
+                        if (status_ == 404)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<ProblemDetails>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new AgentPrismApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            throw new AgentPrismApiException<ProblemDetails>("Not Found", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
+                        }
+                        else
+                        if (status_ == 429)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<ProblemDetails>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new AgentPrismApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            throw new AgentPrismApiException<ProblemDetails>("Too Many Requests", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
+                        }
+                        else
+                        if (status_ == 501)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<ProblemDetails>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new AgentPrismApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            throw new AgentPrismApiException<ProblemDetails>("Not Implemented", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
+                        }
+                        else
+                        if (status_ == 502)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<ProblemDetails>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new AgentPrismApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            throw new AgentPrismApiException<ProblemDetails>("Bad Gateway", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
+                        }
+                        else
+                        {
+                            var responseData_ = response_.Content == null ? null : await response_.Content.ReadAsStringAsync().ConfigureAwait(false);
+                            throw new AgentPrismApiException("The HTTP status code of the response was not expected (" + status_ + ").", status_, responseData_, headers_, null);
+                        }
+                    }
+                    finally
+                    {
+                        if (disposeResponse_)
+                            response_.Dispose();
+                    }
+                }
+            }
+            finally
+            {
+                if (disposeClient_)
+                    client_.Dispose();
+            }
+        }
+
+        /// <param name="cancellationToken">A cancellation token that can be used by other objects or threads to receive notice of cancellation.</param>
+        /// <summary>
+        /// Closes a live voice session and writes its record.
+        /// </summary>
+        /// <remarks>
+        /// Cancels any delegation still running, writes the session record with its measured duration and cost, and drops the provider connection. A session another tenant owns answers 404, byte for byte the answer a session that does not exist gets.
+        /// </remarks>
+        /// <returns>No Content</returns>
+        /// <exception cref="AgentPrismApiException">A server side error occurred.</exception>
+        public virtual async System.Threading.Tasks.Task AgentPrismLiveVoiceCloseAsync(System.Guid voiceSessionId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken))
+        {
+            if (voiceSessionId == null)
+                throw new System.ArgumentNullException("voiceSessionId");
+
+            var client_ = _httpClient;
+            var disposeClient_ = false;
+            try
+            {
+                using (var request_ = new System.Net.Http.HttpRequestMessage())
+                {
+                    request_.Method = new System.Net.Http.HttpMethod("DELETE");
+
+                    var urlBuilder_ = new System.Text.StringBuilder();
+                
+                    // Operation Path: "api/voice/live/sessions/{voiceSessionId}"
+                    urlBuilder_.Append("api/voice/live/sessions/");
+                    urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(voiceSessionId, System.Globalization.CultureInfo.InvariantCulture)));
+
+                    PrepareRequest(client_, request_, urlBuilder_);
+
+                    var url_ = urlBuilder_.ToString();
+                    request_.RequestUri = new System.Uri(url_, System.UriKind.RelativeOrAbsolute);
+
+                    PrepareRequest(client_, request_, url_);
+
+                    var response_ = await client_.SendAsync(request_, System.Net.Http.HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
+                    var disposeResponse_ = true;
+                    try
+                    {
+                        var headers_ = new System.Collections.Generic.Dictionary<string, System.Collections.Generic.IEnumerable<string>>();
+                        foreach (var item_ in response_.Headers)
+                            headers_[item_.Key] = item_.Value;
+                        if (response_.Content != null && response_.Content.Headers != null)
+                        {
+                            foreach (var item_ in response_.Content.Headers)
+                                headers_[item_.Key] = item_.Value;
+                        }
+
+                        ProcessResponse(client_, response_);
+
+                        var status_ = (int)response_.StatusCode;
+                        if (status_ == 204)
+                        {
+                            return;
+                        }
+                        else
+                        if (status_ == 404)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<ProblemDetails>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new AgentPrismApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            throw new AgentPrismApiException<ProblemDetails>("Not Found", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
+                        }
+                        else
+                        {
+                            var responseData_ = response_.Content == null ? null : await response_.Content.ReadAsStringAsync().ConfigureAwait(false);
+                            throw new AgentPrismApiException("The HTTP status code of the response was not expected (" + status_ + ").", status_, responseData_, headers_, null);
+                        }
+                    }
+                    finally
+                    {
+                        if (disposeResponse_)
+                            response_.Dispose();
+                    }
+                }
+            }
+            finally
+            {
+                if (disposeClient_)
+                    client_.Dispose();
+            }
+        }
+
+        /// <param name="cancellationToken">A cancellation token that can be used by other objects or threads to receive notice of cancellation.</param>
+        /// <summary>
+        /// Reports a live voice session's state and measurement.
+        /// </summary>
+        /// <remarks>
+        /// The state is 'pending' until media is observed, then 'active', then 'ended'. The duration is the provider's own number: AgentPrism does not carry a live session's media and does not invent a duration.
+        /// </remarks>
+        /// <returns>OK</returns>
+        /// <exception cref="AgentPrismApiException">A server side error occurred.</exception>
+        public virtual async System.Threading.Tasks.Task<LiveVoiceSessionStatusResponse> AgentPrismLiveVoiceStatusAsync(System.Guid voiceSessionId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken))
+        {
+            if (voiceSessionId == null)
+                throw new System.ArgumentNullException("voiceSessionId");
+
+            var client_ = _httpClient;
+            var disposeClient_ = false;
+            try
+            {
+                using (var request_ = new System.Net.Http.HttpRequestMessage())
+                {
+                    request_.Method = new System.Net.Http.HttpMethod("GET");
+                    request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
+
+                    var urlBuilder_ = new System.Text.StringBuilder();
+                
+                    // Operation Path: "api/voice/live/sessions/{voiceSessionId}"
+                    urlBuilder_.Append("api/voice/live/sessions/");
+                    urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(voiceSessionId, System.Globalization.CultureInfo.InvariantCulture)));
+
+                    PrepareRequest(client_, request_, urlBuilder_);
+
+                    var url_ = urlBuilder_.ToString();
+                    request_.RequestUri = new System.Uri(url_, System.UriKind.RelativeOrAbsolute);
+
+                    PrepareRequest(client_, request_, url_);
+
+                    var response_ = await client_.SendAsync(request_, System.Net.Http.HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
+                    var disposeResponse_ = true;
+                    try
+                    {
+                        var headers_ = new System.Collections.Generic.Dictionary<string, System.Collections.Generic.IEnumerable<string>>();
+                        foreach (var item_ in response_.Headers)
+                            headers_[item_.Key] = item_.Value;
+                        if (response_.Content != null && response_.Content.Headers != null)
+                        {
+                            foreach (var item_ in response_.Content.Headers)
+                                headers_[item_.Key] = item_.Value;
+                        }
+
+                        ProcessResponse(client_, response_);
+
+                        var status_ = (int)response_.StatusCode;
+                        if (status_ == 200)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<LiveVoiceSessionStatusResponse>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new AgentPrismApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            return objectResponse_.Object;
+                        }
+                        else
+                        if (status_ == 404)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<ProblemDetails>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new AgentPrismApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            throw new AgentPrismApiException<ProblemDetails>("Not Found", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
+                        }
+                        else
+                        {
+                            var responseData_ = response_.Content == null ? null : await response_.Content.ReadAsStringAsync().ConfigureAwait(false);
+                            throw new AgentPrismApiException("The HTTP status code of the response was not expected (" + status_ + ").", status_, responseData_, headers_, null);
+                        }
+                    }
+                    finally
+                    {
+                        if (disposeResponse_)
+                            response_.Dispose();
+                    }
+                }
+            }
+            finally
+            {
+                if (disposeClient_)
+                    client_.Dispose();
+            }
+        }
+
+        /// <param name="cancellationToken">A cancellation token that can be used by other objects or threads to receive notice of cancellation.</param>
+        /// <summary>
         /// Generates images and saves them as attachments.
         /// </summary>
         /// <remarks>
@@ -20537,6 +20847,129 @@ namespace AgentPrism.Client.Generated
     }
 
     /// <summary>
+    /// The request that opens a provider-hosted live voice session.
+    /// </summary>
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.2.0.0 (NJsonSchema v11.1.0.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class LiveVoiceSessionCreateRequest
+    {
+        /// <summary>
+        /// Gets the agent session the conversation runs in.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("sessionId")]
+        public string SessionId { get; set; } = default!;
+
+        /// <summary>
+        /// Gets the agent to talk to.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("agent")]
+        public string Agent { get; set; } = default!;
+
+        /// <summary>
+        /// Gets the media peer's SDP offer.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("sdp")]
+        public string Sdp { get; set; } = default!;
+
+        /// <summary>
+        /// Gets the requested output voice; `null` leaves the configured default.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("voice")]
+        public string? Voice { get; set; } = default!;
+
+    }
+
+    /// <summary>
+    /// The answer that opens a provider-hosted live voice session.
+    /// </summary>
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.2.0.0 (NJsonSchema v11.1.0.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class LiveVoiceSessionCreateResponse
+    {
+        /// <summary>
+        /// Gets AgentPrism's identifier for the session.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("voiceSessionId")]
+        public System.Guid VoiceSessionId { get; set; } = default!;
+
+        /// <summary>
+        /// Gets the SDP answer to hand to the media peer.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("sdp")]
+        public string Sdp { get; set; } = default!;
+
+        /// <summary>
+        /// Gets the model the session is bound to.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("model")]
+        public string? Model { get; set; } = default!;
+
+        /// <summary>
+        /// Gets whether the conversation's transcript will be written to the session's
+        /// <br/>durable history.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("persistTranscript")]
+        public bool PersistTranscript { get; set; } = default!;
+
+    }
+
+    /// <summary>
+    /// The status of a provider-hosted live voice session.
+    /// </summary>
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.2.0.0 (NJsonSchema v11.1.0.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class LiveVoiceSessionStatusResponse
+    {
+        /// <summary>
+        /// Gets AgentPrism's identifier for the session.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("voiceSessionId")]
+        public System.Guid VoiceSessionId { get; set; } = default!;
+
+        /// <summary>
+        /// Gets the lifecycle state: `pending`, `active` or `ended`.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("state")]
+        public string State { get; set; } = default!;
+
+        /// <summary>
+        /// Gets the model the session is bound to.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("model")]
+        public string? Model { get; set; } = default!;
+
+        /// <summary>
+        /// Gets when the session was created.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("startedAt")]
+        public System.DateTimeOffset StartedAt { get; set; } = default!;
+
+        /// <summary>
+        /// Gets the billable duration the provider has reported so far.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("liveSeconds")]
+        public double? LiveSeconds { get; set; } = default!;
+
+        /// <summary>
+        /// Gets how many delegations have become runs.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("turns")]
+        public int Turns { get; set; } = default!;
+
+    }
+
+    /// <summary>
     /// One declarative stop criterion of the harness loop (see `LoopSettings`).
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.2.0.0 (NJsonSchema v11.1.0.0 (Newtonsoft.Json v13.0.0.0))")]
@@ -25785,6 +26218,35 @@ namespace AgentPrism.Client.Generated
 
     }
 
+    /// <summary>
+    /// What one voice conversation cost.
+    /// </summary>
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.2.0.0 (NJsonSchema v11.1.0.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class VoiceSessionCost
+    {
+        /// <summary>
+        /// What the session's duration cost.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("durationCost")]
+        public double? DurationCost { get; set; } = default!;
+
+        /// <summary>
+        /// What the synthesized characters cost.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("characterCost")]
+        public double? CharacterCost { get; set; } = default!;
+
+        /// <summary>
+        /// The currency the amounts are in.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("currency")]
+        public string? Currency { get; set; } = default!;
+
+    }
+
     [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.2.0.0 (NJsonSchema v11.1.0.0 (Newtonsoft.Json v13.0.0.0))")]
     [System.Text.Json.Serialization.JsonConverter(typeof(System.Text.Json.Serialization.JsonStringEnumConverter<VoiceSessionEndReason>))]
     public enum VoiceSessionEndReason
@@ -25804,6 +26266,12 @@ namespace AgentPrism.Client.Generated
 
         [System.Runtime.Serialization.EnumMember(Value = @"ServerShutdown")]
         ServerShutdown = 4,
+
+        [System.Runtime.Serialization.EnumMember(Value = @"Abandoned")]
+        Abandoned = 5,
+
+        [System.Runtime.Serialization.EnumMember(Value = @"Provider")]
+        Provider = 6,
 
     }
 
@@ -25888,6 +26356,31 @@ namespace AgentPrism.Client.Generated
 
         [System.Text.Json.Serialization.JsonPropertyName("createdBy")]
         public string? CreatedBy { get; set; } = default!;
+
+        /// <summary>
+        /// The provider that hosted the conversation, e.g. `openai`;
+        /// <br/>`null` when AgentPrism ran the conversation itself.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("provider")]
+        public string? Provider { get; set; } = default!;
+
+        /// <summary>
+        /// The model the conversation ran on; `null` when unknown.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("model")]
+        public string? Model { get; set; } = default!;
+
+        /// <summary>
+        /// The billable wall-clock duration of a provider-hosted live session, in seconds.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("liveSeconds")]
+        public double? LiveSeconds { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("cost")]
+        public VoiceSessionCost? Cost { get; set; } = default!;
 
     }
 

@@ -597,10 +597,13 @@ AgentPrism.Testing.Contracts.Storage.VoiceSessionStoreContract.Agent_and_session
 AgentPrism.Testing.Contracts.Storage.VoiceSessionStoreContract.Another_tenants_record_is_not_visible() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.VoiceSessionStoreContract.Duration_does_NOT_lose_its_decimal_fraction() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.VoiceSessionStoreContract.List_is_ordered_newest_to_oldest() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.Storage.VoiceSessionStoreContract.Live_session_provider_model_and_cost_round_trip() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.VoiceSessionStoreContract.Missing_measurement_stays_null_NOT_zero() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.VoiceSessionStoreContract.Paging_is_applied() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.VoiceSessionStoreContract.Saved_call_is_read_back() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.VoiceSessionStoreContract.Second_write_with_the_same_id_UPDATES_the_record() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.Storage.VoiceSessionStoreContract.The_two_new_end_reasons_round_trip() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.Storage.VoiceSessionStoreContract.Unpriced_live_session_reads_back_with_a_null_cost_NOT_a_zero() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.VoiceSessionStoreContract.VoiceSessionStoreContract() -> void
 AgentPrism.Testing.Contracts.Storage.WebhookStoreContract
 AgentPrism.Testing.Contracts.Storage.WebhookStoreContract.Another_tenants_subscription_is_not_visible() -> System.Threading.Tasks.Task!

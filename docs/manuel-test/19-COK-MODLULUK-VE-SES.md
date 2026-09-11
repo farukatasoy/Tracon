@@ -2352,3 +2352,246 @@ curl -s -o /dev/null -w '%{http_code}\n' -X POST "$APU/api/images/generate" \
 **Beklenen sonuç**
 - Proje **hiçbir kod değişikliği olmadan** derlenir: `Attributes` varsayılanlı
   bir alan olduğu için mevcut nesne başlatıcılar etkilenmez.
+
+### MT-MM-108 — `UseOpenAILive()` çağrılmadan canlı oturum ucu 501 döner
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 161 |
+| **İlgili karar** | K-705 |
+
+**Ön koşul**
+- `UseLiveVoice()` çağrılmış, hiçbir `ILiveVoiceProvider` kayıtlı değil.
+
+**Adımlar**
+1. `POST /agentprism/api/voice/live/sessions` gövde `{"sessionId":"s1","agent":"support","sdp":"v=0\r\n"}`.
+
+**Beklenen sonuç**
+- `501`; `detail` metni eksik olan çağrının adını (`UseOpenAILive`) söyler.
+
+### MT-MM-109 — `UseLiveVoice()` da çağrılmadan adres hiç yoktur
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 161 |
+
+**Ön koşul**
+- Ne `UseLiveVoice()` ne de bir canlı sağlayıcı kayıtlı.
+
+**Adımlar**
+1. Aynı adrese `POST` at.
+
+**Beklenen sonuç**
+- `404` — rota hiç açılmamıştır. Barındırma modelini değiştiren bir yetenek
+  "var ama kapalı" görünmez.
+
+### MT-MM-110 — Gerçek GPT-Live oturumu açılır ve sesli yanıt duyulur
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 161 |
+
+**Ön koşul**
+- Gerçek `AgentPrism:Providers:OpenAI:ApiKey`, `support` agent'ı tanımlı,
+  `samples/AgentPrism.Api` ayakta.
+
+**Adımlar**
+1. `http://localhost:5080/live-test.html` aç.
+2. Bearer token'ı gir, **Start**'a bas, mikrofona izin ver.
+3. Bir sipariş durumu sor.
+
+**Beklenen sonuç**
+- Sayfa `ice=connected` ve `remote track` yazar; sesli yanıt duyulur.
+- 👤 İnsan gerekir — ya da sentetik mikrofon: `say` ile üretilen WAV'ın
+  **sonuna sessizlik eklenmeli**, yoksa sağlayıcının VAD'i tur sonunu hiç
+  görmez ve model sıra alamaz.
+
+### MT-MM-111 — Devredilen iş gerçek bir `runs` satırı üretir
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 161 |
+| **İlgili karar** | K-704 |
+
+**Ön koşul**
+- MT-MM-110 sürüyor.
+
+**Adımlar**
+1. Agent'ın bir tool'unu gerektiren bir soru sor ("442 numaralı siparişin durumu ne?").
+2. `GET /agentprism/api/runs?take=5`.
+
+**Beklenen sonuç**
+- Gerçek bir satır: `agentName` oturumu açan agent, `sessionId` istekteki değer,
+  `usage` token sayıları dolu, tool çağrısı kayıtta.
+- Yanıt sesli döner.
+
+### MT-MM-112 — Konuşma dökümü oturum geçmişinde görünür
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 161 |
+| **İlgili karar** | K-706 |
+
+**Ön koşul**
+- MT-MM-111 tamamlandı, `PersistTranscript` açık (varsayılan).
+
+**Adımlar**
+1. Oturumu kapat (`DELETE .../voice/live/sessions/{id}`).
+2. `GET /agentprism/api/sessions/{sessionId}`.
+
+**Beklenen sonuç**
+- Konuşmanın dökümü geçmişte durur; devredilen run'ın girdisi etiketli
+  transcript kesimidir.
+
+### MT-MM-113 — `PersistTranscript=false` iken geçmişe yazılmaz ama delegation çalışır
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 161 |
+| **İlgili karar** | K-706 |
+
+**Ön koşul**
+- `AgentPrism:Voice:Live:PersistTranscript=false`.
+
+**Adımlar**
+1. MT-MM-111'i tekrarla.
+
+**Beklenen sonuç**
+- Oturum yaratma yanıtı `"persistTranscript": false` bildirir.
+- Delegation yine çalışır ve sesli yanıt gelir.
+- Geçmişte transcript **yoktur**.
+
+### MT-MM-114 — Kapanan oturumun kaydı süreyi ve maliyeti taşır
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 161 |
+| **İlgili karar** | K-701 · K-702 |
+
+**Ön koşul**
+- `AgentPrism:Pricing:Voice:openai:gpt-live-1:PerMinute` tanımlı,
+  `AgentPrism:Pricing:Currency` tanımlı.
+
+**Adımlar**
+1. Bir canlı oturum aç, kapat.
+2. `GET /agentprism/api/voice/sessions`.
+
+**Beklenen sonuç**
+- `provider`, `model`, `liveSeconds` ve `cost.durationCost` dolu.
+- `liveSeconds` sağlayıcının bildirdiği sayıdır, duvar saati değil.
+- `cost.durationCost` = `liveSeconds / 60 × PerMinute`.
+
+### MT-MM-115 — Fiyat yapılandırması yokken `cost` `null` döner
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 161 |
+| **İlgili karar** | K-702 |
+
+**Ön koşul**
+- `AgentPrism:Pricing:Voice` altında `gpt-live-1` **yok**.
+
+**Adımlar**
+1. MT-MM-114'ü tekrarla.
+
+**Beklenen sonuç**
+- `cost` **`null`** — `0` değil. Sıfır, konuşmanın ücretsiz olduğunu iddia ederdi.
+- `liveSeconds` yine doludur.
+
+### MT-MM-116 — Hiç bağlanılmayan oturum TTL'de `Abandoned` ile kapanır
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 161 |
+
+**Ön koşul**
+- `AgentPrism:Voice:Live:PendingSessionTimeout` kısa bir değere çekilmiş
+  (ör. `00:00:30`).
+
+**Adımlar**
+1. Geçerli bir SDP ile oturum yarat, tarayıcıyı **hiç bağlama**.
+2. TTL kadar bekle, `GET /agentprism/api/voice/sessions`.
+
+**Beklenen sonuç**
+- Kayıt `endReason: "Abandoned"` ile kapanmıştır — `Error` değil. Terk edilmiş
+  bir oturum hata değildir.
+
+### MT-MM-117 — Başka kiracının canlı oturumu erişilemez oturumla aynı 404'ü alır
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 161 |
+| **İlgili karar** | K-708 · K-687 |
+
+**Ön koşul**
+- Çok kiracılı kurulum (`UseTenancy`, `AllowHeaderResolution`).
+
+**Adımlar**
+1. `tenant-a` ile bir canlı oturum aç, `voiceSessionId`'yi al.
+2. `X-AgentPrism-Tenant: tenant-b` ile aynı kimliğe `DELETE` ve `GET` at.
+3. `tenant-b` ile **rastgele** bir kimliğe `GET` at.
+
+**Beklenen sonuç**
+- Üçü de `404`.
+- 2. ve 3. adımın gövdeleri kimlik dışında **bayt bayt aynıdır**.
+
+### MT-MM-118 — Eşzamanlılık limiti sağlayıcıya gitmeden reddeder
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 161 |
+| **İlgili karar** | K-705 |
+
+**Ön koşul**
+- `AgentPrism:Voice:Live:MaxConcurrentSessionsPerTenant=1`.
+
+**Adımlar**
+1. Bir oturum aç (açık kalsın).
+2. İkinci bir oturum açmayı dene.
+3. Sağlayıcının kullanım panelinden oturum sayısına bak.
+
+**Beklenen sonuç**
+- İkinci istek `429`.
+- Sağlayıcıda **tek** oturum yaratılmıştır: reddedilen istek faturalanan bir
+  oturum bırakmaz.
+
+### MT-MM-119 — Seçenek A regresyon çiti
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 161 |
+| **İlgili karar** | K-222 |
+
+**Ön koşul**
+- `UseVoiceConversation()` açık (canlı katmandan bağımsız).
+
+**Adımlar**
+1. `/agentprism/api/voice/sessions/{id}/stream` üzerinde tam bir tur yap.
+
+**Beklenen sonuç**
+- Faz 29 davranışı **değişmemiştir**: `ready` → ses → `transcript` → `done`.
+- İki katman birbirini gerektirmez; ayrı ayrı da açılabilirler.

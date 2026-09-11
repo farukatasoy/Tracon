@@ -166,3 +166,21 @@
   aksi halde serilestiricinin icinde "Operation is not valid due to the current
   state of the object" ile duser (parametre adi yok, metot adi yok).
 
+
+## HttpContext uzerinden yazan uclar (Faz 161)
+
+- **🚨 `HttpContext` uzerinden yazan bir uc `.Produces<T>` USTVERISI TASIMAZSA
+  uretilen istemci metodu `Task` doner, `Task<T>` degil** — cagiran yanit
+  govdesine **hic ulasamaz**. `TypedResults.Ok<T>` donen uclar sekli kendi
+  bildirir; `Results.Ok(...).ExecuteAsync(context)` yazan bir handler hicbir sey
+  bildirmez ve OpenAPI belgesi de, iki istemci de, `http-api/` sayfalari da o
+  bosluktan uretilir. Faz 161'in uc canli ses ucu tam bu tuzaga dustu ve yalniz
+  `ClientDescriptionBaselineTests` sayaci degistigi icin fark edildi.
+- **Kosullu maplenen bir uc `OpenApiSnapshotTests.GenerateAsync`'e ACIKCA
+  eklenmelidir.** Uretec "her opsiyonel ucu acik" uretmeyi taahhut eder ama
+  bunu kendiliginden yapmaz: `UseLiveVoice()` cagrilmadigi icin uc yol belgeye
+  hic girmemisti (`grep -c "voice/live"` → 0) ve kimse fark etmemisti.
+- **`$ref` tipli bir ozellik NSwag'da ACIKLAMA TASIMAZ.** `VoiceSessionCost? Cost`,
+  `RunCost? Cost`, `RunTreeCost? TreeCost` — dordu de
+  `client-description-baseline.txt` sayacina girer. Sayac bir artiyorsa once
+  "kaybolan aciklama mi, yeni `$ref` ozelligi mi" sorusunu ayir.

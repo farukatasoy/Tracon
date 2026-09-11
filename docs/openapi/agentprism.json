@@ -5435,6 +5435,168 @@
         }
       }
     },
+    "/agentprism/api/voice/live/sessions": {
+      "post": {
+        "tags": [
+          "AgentPrism",
+          "Voice"
+        ],
+        "summary": "Creates a provider-hosted live voice session.",
+        "description": "Relays the media peer\u0027s SDP offer to the provider and returns its answer, so the raw API key never reaches the browser. AgentPrism attaches a server-side control connection to the same session and turns the work the model delegates into ordinary runs. Returns 501 when no live voice provider is registered.",
+        "operationId": "AgentPrismLiveVoiceCreate",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LiveVoiceSessionCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LiveVoiceSessionCreateResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Not Implemented",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Bad Gateway",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/agentprism/api/voice/live/sessions/{voiceSessionId}": {
+      "delete": {
+        "tags": [
+          "AgentPrism",
+          "Voice"
+        ],
+        "summary": "Closes a live voice session and writes its record.",
+        "description": "Cancels any delegation still running, writes the session record with its measured duration and cost, and drops the provider connection. A session another tenant owns answers 404, byte for byte the answer a session that does not exist gets.",
+        "operationId": "AgentPrismLiveVoiceClose",
+        "parameters": [
+          {
+            "name": "voiceSessionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "AgentPrism",
+          "Voice"
+        ],
+        "summary": "Reports a live voice session\u0027s state and measurement.",
+        "description": "The state is \u0027pending\u0027 until media is observed, then \u0027active\u0027, then \u0027ended\u0027. The duration is the provider\u0027s own number: AgentPrism does not carry a live session\u0027s media and does not invent a duration.",
+        "operationId": "AgentPrismLiveVoiceStatus",
+        "parameters": [
+          {
+            "name": "voiceSessionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LiveVoiceSessionStatusResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/agentprism/api/images/generate": {
       "post": {
         "tags": [
@@ -11916,6 +12078,119 @@
         },
         "description": "The result of manually scoring a run."
       },
+      "LiveVoiceSessionCreateRequest": {
+        "required": [
+          "sessionId",
+          "agent",
+          "sdp"
+        ],
+        "type": "object",
+        "properties": {
+          "sessionId": {
+            "type": "string",
+            "description": "Gets the agent session the conversation runs in."
+          },
+          "agent": {
+            "type": "string",
+            "description": "Gets the agent to talk to."
+          },
+          "sdp": {
+            "type": "string",
+            "description": "Gets the media peer\u0027s SDP offer."
+          },
+          "voice": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Gets the requested output voice; \u0060null\u0060 leaves the configured default."
+          }
+        },
+        "description": "The request that opens a provider-hosted live voice session."
+      },
+      "LiveVoiceSessionCreateResponse": {
+        "required": [
+          "voiceSessionId",
+          "sdp",
+          "persistTranscript"
+        ],
+        "type": "object",
+        "properties": {
+          "voiceSessionId": {
+            "type": "string",
+            "description": "Gets AgentPrism\u0027s identifier for the session.",
+            "format": "uuid"
+          },
+          "sdp": {
+            "type": "string",
+            "description": "Gets the SDP answer to hand to the media peer."
+          },
+          "model": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Gets the model the session is bound to."
+          },
+          "persistTranscript": {
+            "type": "boolean",
+            "description": "Gets whether the conversation\u0027s transcript will be written to the session\u0027s\ndurable history."
+          }
+        },
+        "description": "The answer that opens a provider-hosted live voice session."
+      },
+      "LiveVoiceSessionStatusResponse": {
+        "required": [
+          "voiceSessionId",
+          "state",
+          "startedAt",
+          "turns"
+        ],
+        "type": "object",
+        "properties": {
+          "voiceSessionId": {
+            "type": "string",
+            "description": "Gets AgentPrism\u0027s identifier for the session.",
+            "format": "uuid"
+          },
+          "state": {
+            "type": "string",
+            "description": "Gets the lifecycle state: \u0060pending\u0060, \u0060active\u0060 or \u0060ended\u0060."
+          },
+          "model": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Gets the model the session is bound to."
+          },
+          "startedAt": {
+            "type": "string",
+            "description": "Gets when the session was created.",
+            "format": "date-time"
+          },
+          "liveSeconds": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "description": "Gets the billable duration the provider has reported so far.",
+            "format": "double"
+          },
+          "turns": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "Gets how many delegations have become runs.",
+            "format": "int32"
+          }
+        },
+        "description": "The status of a provider-hosted live voice session."
+      },
       "LoopCriterion": {
         "required": [
           "kind"
@@ -17005,6 +17280,39 @@
         },
         "description": "The voice provider\u0027s reachability status."
       },
+      "VoiceSessionCost": {
+        "type": "object",
+        "properties": {
+          "durationCost": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "description": "What the session\u0027s duration cost.",
+            "format": "double"
+          },
+          "characterCost": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "description": "What the synthesized characters cost.",
+            "format": "double"
+          },
+          "currency": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The currency the amounts are in."
+          }
+        },
+        "description": "What one voice conversation cost."
+      },
       "VoiceSessionEndReason": {
         "enum": [
           "Client",
@@ -17012,6 +17320,8 @@
           "DurationLimit",
           "Error",
           "ServerShutdown",
+          "Abandoned",
+          "Provider",
           null
         ]
       },
@@ -17101,6 +17411,41 @@
               "string"
             ],
             "description": "The actor who opened the connection."
+          },
+          "provider": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The provider that hosted the conversation, e.g. \u0060openai\u0060;\n\u0060null\u0060 when AgentPrism ran the conversation itself."
+          },
+          "model": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The model the conversation ran on; \u0060null\u0060 when unknown."
+          },
+          "liveSeconds": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "description": "The billable wall-clock duration of a provider-hosted live session, in seconds.",
+            "format": "double"
+          },
+          "cost": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "What the conversation cost; \u0060null\u0060 when nothing was priced.",
+                "$ref": "#/components/schemas/VoiceSessionCost"
+              }
+            ]
           }
         },
         "description": "The summary record of a real-time voice connection."

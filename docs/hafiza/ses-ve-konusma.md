@@ -116,3 +116,68 @@
   (`error.Message.ShouldContain("404")`); gövde birebirliği ise yapısal olarak,
   tek bir yardımcıyı paylaşarak sağlanır.
 
+
+## Saglayici barindirmali canli ses (Faz 161)
+
+- **Canli katman `Core/Voice/` altinda, Secenek A'dan TAMAMEN ayri** (2026-09-11,
+  Faz 161): `LiveVoiceSessionHost` (sideband pump + delegation sozlugu + kapanis
+  sirasi), `LiveVoiceSessionLauncher` (limit → agent coz → yarat → attach → kayit
+  sirasinin TEK yeri), `LiveVoiceSessionRegistry` (kimlik → host, TTL supurgesi),
+  `LiveVoiceDelegationRunner` (delegation → `run`), `LiveTranscriptLedger` (saf,
+  agsiz), `LiveVoiceAppendBudget`, `VoiceDurationPricing`. Saglayici
+  `OpenAI/Live/`. Uclar `AspNetCore/Voice/LiveVoiceEndpoints.cs`, ortak kapilar
+  `VoiceEndpointGates.cs`. `VoiceConversationDriver`'a DOKUNULMADI — yalniz
+  `VoiceHistoryWriter` cikarildi.
+
+### Olculen GPT-Live protokolu (2026-09-11, gercek oturum)
+
+🚨 **Bu satirlar dokumantasyondan degil, gercek bir oturumun ham dokumunden
+alindi.** Saglayicinin kendi hata mesaji kabul ettigi olay listesini veriyor —
+yeni bir olay eklemeden once bilerek gecersiz bir `type` gonderip listeyi
+tazele.
+
+- **Yalniz `webrtc` transport'u var.** `websocket`/`ws` → `400 "Only the webrtc
+  transport is supported."` Sunucu tarafli bir medya koprusu **yapilamaz**;
+  AgentPrism SDP araciligi yapar.
+- **`/v1/live/client_secrets` → 404.** Ephemeral token ucu YOK ve gerekmiyor:
+  oturumu AgentPrism kendi anahtariyla yaratir.
+- **Append alani `content`, `text` DEGIL** ve `delegation_id` **uc kanalda da
+  zorunlu** (`session.thinking|commentary|instructions.append`).
+- **Transcript'te `is_final` YOK** — yalniz `start_ms`/`end_ms` tasiyan delta.
+  🚨 Defter bu yuzden `TimeProvider` KULLANMAZ: zamani saglayici veriyor ve
+  delegation kesimi (`offset_ms`) o zamana gore yapiliyor; yerel saat kayar.
+- **`session.delegation.created`**: `offset_ms` + `delegation:{id, type, target}`.
+  Kimlik `delegation.id`'dedir ve `item_` onekini tasir — `deleg_` DEGIL.
+  `offset_ms`, delegation'dan onceki SON transcript segmentinin **baslangicidir**;
+  kesim `StartMs <= offsetMs` ile o segmenti dahil eder.
+- **`session.usage.updated` VAR** ve `usage.seconds` tasir; `session.closed` de
+  ayni alani tasir. Faturalanan sure budur (K-745).
+- **Append tavani 500 TOKEN**: `"Context append text must not exceed 500 tokens."`
+  Karakter donusumu tek yerde (`OpenAILiveOptions.ConservativeCharactersPerToken`).
+- **`session.interrupt` YOK.** Sideband konusmayi kesemez.
+- 🚨 **Sideband sesi AYNALIYOR** (`session.input_audio.append` ve
+  `session.output_audio.delta`, base64). Faz 161 bu frame'leri yok sayar.
+
+### Tuzaklar
+
+- **🚨 Sentetik mikrofonla test ederken ses dosyasinin SONUNA sessizlik ekle.**
+  Chromium `--use-file-for-fake-audio-capture` dosyayi DONGUDE calar; sessizlik
+  yoksa kullanici hic susmaz, saglayicinin VAD'i tur sonunu hic gormez ve model
+  **hic sira alamaz**. Ilk denemede 117 transcript delta geldi, tek delegation
+  gelmedi. 14-20 sn sessizlik yeterli.
+- **🚨 Giden WebSocket egress politikasini elde cagirmak zorundadir** (K-751).
+  `ClientWebSocket`'in `ConnectCallback`'i yoktur. Ayrica: politika reddi REST
+  yolunda `HttpRequestException` **icine sarili** gelir — yalniz
+  `AgentPrismException` yakalayan bir uc sirali bir reddi yakalanmamis 500
+  olarak kacirir (gercek kosumda bulundu).
+- **🚨 Sideband pump'i HTTP isteginin disinda kosar.** Ambient kiraci ve
+  attribution pump'in KENDI govdesinde, ilk olay islenmeden once acilir; her
+  delegation gorevi onlari devralir. Acilmazsa delegation `run`'lari **varsayilan
+  kiraciya** duser ve tek kiracili her test yesil kalir.
+- **Giden soket `TestServer`'dan taklit EDILEMEZ.** `FakeGptLiveServer` gercek
+  bir `WebApplication`'dir (`http://127.0.0.1:0` + `UseWebSockets()`).
+  Loopback'i egress politikasi varsayilan olarak reddeder — testler
+  `AllowPrivateNetworkTargets = true` kurar, `LiveVoiceEgressTests` ise reddin
+  kendisini olcer.
+- **`LiveTranscriptLedger` is parcacigi guvenli DEGIL.** Pump yazarken delegation
+  gorevi `Cut` cagirir. `MaxConcurrentDelegations` yukseltilecekse once kilit.
