@@ -5038,3 +5038,117 @@ Bu bir transaction değildir ve öyle sunulmaz. Aynı anda tekrarlanan iki karar
 duplicate-key alabilir; fark, kimliklerin sabit olması sayesinde durumun
 kurtarılabilir kalmasıdır — önceki kodda kurtarma yolu hiç yoktu.
 
+## Faz 90 damıtmasında taşınan gerekçeler
+
+### K-286 — devam (Faz 90 damıtması)
+
+Tabanın bilinen tuzağını (çok kısa kirada yenileme kiranın dışına taşar) K-743 kapatır.
+
+### K-725 — devam (Faz 90 damıtması)
+
+`McpResourceUris`/`SubAgents`/`Metadata` DTO'da, `McpResourceUris`/`SubAgents` SQL payload'ında yoktu; açıklama düzenleyen bir edit onları düşürüyordu. Sunucu taraflı merge reddedildi: "gönderilmedi" ile "boşalt" ayrımını yok eder, bir listeyi kasten boşaltmak ifade edilemez olur. Kapı: `AgentDefinitionRoundTripTests` (reflection eşliği + `ToDefinition()` gövde ölçümü) ve `AgentDefinitionPayloadRoundTripTests` (gerçek SQL round-trip). Server-owned küme `Origin/Version/TenantId/UpdatedAt` ile SINIRLI.
+
+### K-726 — devam (Faz 90 damıtması)
+
+`RunReconciliationService` kurtarmıyor: yalnız `Running` run'ları claim eder (`WHERE status = @status_running`) ve default kapalıdır. Deterministik id, tekrarın AYNI run/job satırına inmesini sağlar; şema değişikliği ve migration gerekmez. Transaction değil, tekrar sürülebilirlik: eşzamanlı iki tekrar duplicate-key alabilir, fakat kimlikler sabit olduğu için durum kurtarılabilir kalır.
+
+### K-727
+
+`Microsoft.Extensions.AI.Evaluation` 10.9.0 `Core`/`AspNetCore`/`Cli` grafiğinde **zaten vardı** — `Microsoft.Agents.AI` 1.20.0 onu getiriyordu (ölçüldü 2026-09-07). Referansı açık hale getirmek geçişli ağırlığı **0** artırır (benzersiz geçişli paket sayısı 42, değişmedi) ve MAF onu bir gün bırakırsa köprü sessizce kırılmaz. Planın önerisi (`.Quality`'yi `Core`'a koymak) reddedildi: katalogu kullanmayan her tüketici de onu indirirdi ve sevk edilen grafiğe giren yeni bir paket AOT kapısını gerçek yayın koşumuyla yeniden doğrulatırdı. Katalogu isteyen tüketici `dotnet add package` ile kendisi ekler; `.Quality` yalnız `tests/AgentPrism.AspNetCore.FunctionalTests` (gerçek `RelevanceEvaluator` uçtan uca) ve `tests/AgentPrism.Generators.UnitTests` (`ExampleCompilationTests` sevk edilen `<example>` bloğunu derler) projelerindedir.
+
+### K-728
+
+Alternatif (ikisini yan yana tutmak) reddedildi: iki doğruluk kaynağı her okuma yolunda "ikisi de doluysa hangisi kazanır" sorusunu tekrarlatırdı. **Boş liste** = karar yok, satır yazılmaz; `null` `Value` = ölçüm yok. Etkilenen yargıç sayısı ikiydi (`ModelRunJudge` ve `samples/AgentPrism.Samples.CustomRunJudge`).
+
+### K-729
+
+Planın önerdiği `{judge}:{metrik}` biçimi **çalışmaz**: `RunScoreRules.IsValidName` yalnız `[A-Za-z0-9._-]` kabul eder ve `:` yazma anında `ArgumentException` üretirdi (`OnlineEvalCheckpointTests` `"a:b"` adını zaten reddediyordu). Kararın özü — çakışmayı yapısal olarak imkânsız kılmak — korundu, ayırıcı `.` oldu.
+
+### K-730
+
+Kalibre evaluator'lar ise **1-5** verir. Köprü skorları o pencereye girseydi 4 puanlık sağlıklı bir koşum eşiğin altına düşer ve `run.score.low` webhook'u **sürekli yanlış** çalardı. Kural bir ölçek tahmini DEĞİL, bir ad karşılaştırmasıdır: `ModelRunJudge` skorunu kendi adıyla (`model`) yazar ⇒ pencereye girer, bugünkü davranış birebir korunur; köprü `{judge}.{metrik}` yazar ⇒ ad asla yargıcın adına eşit olmaz, girmez. Skorlar yine saklanır ve `GET /api/evaluation/scores/summary` onları `(name, kind)` kırılımıyla raporlar — Faz 152'nin ölçek ayrımı kuralı bu işi zaten yapıyor.
+
+### K-731
+
+Ölçüldü: bir suite `Checks` alanını beyan eder ve `EvalJobHandler` check'siz bir suite'i **reddeder**; DI'dan gelen çıplak bir `IAgentEvaluator` singleton'ı o check'leri constructor'ında alamaz ve onları **sessizce yok sayardı** — K1'in (sıfır sürpriz) doğrudan ihlali. Fabrika suite'in derlenmiş check'lerini argüman olarak alır: yok sayması artık bir kaza değil, açık bir tercihtir. `TryAdd` ile kayıtlıdır (K4), yani tüketicinin kaydı kazanır ve hiçbir şey kaydedilmezse davranış birebir bugünküdür (`new LocalEvaluator([.. checks])`). Ayrıca ölçüldü: `IAgentEvaluator` `Microsoft.Extensions.AI.Evaluation`'da değil `Microsoft.Agents.AI`'dedir — seam hiçbir yeni paket istemez.
+
+### K-732
+
+Bir yargıç artık N satır yazdığı için bu iki kat kötüdür: üçüncü skorun ihlali ilk ikisi yazıldıktan sonra patlar ve **yarım bir küme** bırakırdı. Yeni davranış: `TryValidate` ad geçerliliğini (`RunScoreRules`), kind başına sayısal aralığı ve **judgment içi ad tekilliğini** ilk yazmadan önce toplu denetler; ihlal `judge_contract` (retryable: false) olarak `JudgeRunResponse.Failures`'a girer. `POST /api/runs/{id}/judge` çağıranı böylece 500 yerine hangi yargıcın bozuk olduğunu görür ve diğer yargıçların skorları yazılır — Manuel case EVAL-140 ile aynı kural. `RunJudgeSet` başlangıç kapısı yerinde durur; bu yol yalnız DI dışında kurulmuş bir yargıç için erişilebilir.
+
+### K-733
+
+`IWorkflowCheckpointStore.ListAsync` ayrıca `sessionId` ister, yani veritabanı çapında hiç kullanılamaz. Yükseltme kiracı başına bir olay DEĞİLDİR — süreci hepsi için birden değiştirir — bu yüzden ön kontrol yüzeyi kiracıdan bağımsızdır ve yalnız `SELECT` koşar. Dört sorgunun dördü de ANSI çıktı ve `SqlQueriesBase.BuildSharedQueries` içinde tek yerde yaşıyor; örneklem `ROW_NUMBER() OVER (PARTITION BY ...)` kullandığı için `LIMIT`/`TOP`/`FETCH` farkı metne hiç girmiyor ve dialect kopyası gerekmiyor. Yorumlama `AgentPrism.Core`'da kaldı, `CurrentStateSchemaVersion` public OLMADI.
+
+### K-734
+
+Operatör ara sürümlerden geçmek zorunda değildir. Dayanak bir niyet değil bir testtir: Faz 126'nın gerçek koşumdan yakalanmış fixture'ları (`session-state-1.18.0.json`) `PersistedPayloadUpgradeTests` ile her build'de bugünkü kodla okunur. Envelope'u kıran bir değişiklik tanımı gereği ana sürüm artışıdır; kuşağı (`StateSchemaVersion`) ilerletir ve daha yeni bir kuşakla karşılaşan build tahmin etmek yerine tanımlı hatayla reddeder. 🚨 Söz **gövdeyi kapsamaz**: `SessionRecord.State`'i MAF yazar ve sahibi Microsoft'tur; bir MAF sürüm sıçraması eski gövdeyi okunamaz yapabilir ve bu AgentPrism'in vaadi değildir. `reference/versioning.md` iki katmanı ayrı cümlelerle söyler.
+
+### K-735
+
+Böyle bir satırı "okunamaz" saymak, uygulamanın sorunsuz okuduğu bir satır hakkında **yanlış alarm** üretirdi; `samples/AgentPrism.Api`'nin kendi kurulumu tam olarak bu durumdadır, yani ilk gerçek koşumda görülecekti. Satır `$apEnc` etiketiyle tanınır (`ContentProtectionEnvelope.IsProtected` — yalnız etikete bakar, açmayı DENEMEZ) ve `StructureOnlySampleCount`'a girer. 🚨 Bu tanıma tek başına YETMEDİ: `NullContentProtector.Unprotect` bir zarf görünce **fırlatır** ve okuma, tanıma sırası gelmeden çöküyordu — iki yeşil test ve dört yeşil kapıya rağmen komut gerçek örnek uygulamada `EXIT=134` verdi. Testler kaçırdı çünkü test altyapısı protector'ı `null` bırakıyordu (`?.` kısa devresi), üretim ise gerçek bir no-op uygulaması KAYDEDER. Okuma bu yüzden `try/catch (AgentPrismException)` ile sarılır ve çözülemeyen satır zarfıyla döner; aynı kural rotasyona uğramış `kid` için de geçerlidir. Aynı kova workflow checkpoint'lerini de taşır: onların payload'ının çalışan bir workflow dışında çözücüsü yoktur.
+
+### K-736
+
+İkisini tek cümlede birleştiren bir çıktı, operatöre hiç toplanmamış bir kanıta dayanarak yükseltme yaptırır. Komut bu yüzden her koşumda `This is a sample, not a survey: rows outside it were not read.` satırını yazar ve `all readable` / `every row` ifadelerini hiç kullanmaz; `StateCheckCommandTests.The_output_says_it_sampled_rather_than_claiming_every_row_is_readable` bu iki ifadenin YOKLUĞUNU sınar. Rapor `SamplePerGeneration`'ı taşır — ne kadar bakıldığını görmeyen okuyucu hatanın yokluğunu yargılayamaz. Örneklem kuşak başına alınır, "en yeni N satır" değil: en yeni satırları zaten çalışan build yazmıştır ve hiçbir şey kanıtlamaz.
+
+### K-737
+
+Çıplak `catch (OperationCanceledException)` bu yüzden bir sağlayıcı zaman aşımını kullanıcı iptali sanıyordu: `run` `Canceled` + `error: null` yazılıyor, uç `200` + **boş gövde** dönüyor ve kesinti hiçbir arıza panosunda görünmüyordu. Fallback zinciri de aynı sebeple bir sonraki halkayı DENEMİYORDU — zincirin var olma sebebi olan arıza, atladığı tek arızaydı. Kural: iptal kararı istisnanın TİPİNDEN değil, o kapsamın kendi token'ından okunur (`when (<token>.IsCancellationRequested)`). `RunRecordingAgent` çalıştırmanın kendi kaynağına, HTTP uçları `HttpContext.RequestAborted`'a, `WorkflowRunner` `linked` kaynağına bakar. Token'ın olmadığı sınıflandırma yolunda (`FallbackRetryClassifier`, `DefaultRunErrorClassifier`) ayrım token yerine **zaman aşımı sinyaliyle** kurulur: graf içinde bir `TimeoutException` ya da zaman aşımı deseniyle eşleşen bir mesaj. Regresyon: `RunCancellationStatusTests.An_uncancelled_OperationCanceledException_writes_Failed_not_Canceled`.
+
+### K-738
+
+Sınırlı SQL yükü `AGENTPRISM_LOAD=1` ile elle koşar ve `artifacts/load/` altına ortamıyla birlikte (CPU · RAM · veritabanı sürümü · payload · eşzamanlılık · commit) bir rapor yazar; hiçbir sayı kırmızı/yeşil üretmez. 🚨 Dış model gecikmesi kontrol düzlemi süresinden AYRI ölçülür ve ikisi tek bir "saniyede kaç `run`" sayısına toplanmaz — modeli içeren bir verim sayısı AgentPrism'i değil modeli ölçer. Arıza manifestleri ise kapıdadır: onlar süre değil DAVRANIŞ ölçer (devralma oldu mu, çift yürütme var mı, process ayakta mı) ve bekleme koşulları mutlak süre değil veritabanının kendi `lease_until` saatidir.
+
+### K-739
+
+Bu yüzden faz "AgentPrism çok node destekler" cümlesini hiçbir yerde kurmaz; kurduğu cümle "bir process ölünce lease şu sürede düşer, iş şöyle devralınır ve iki worker aynı işte ASLA aynı anda bulunmaz"dır. SQLite'ın tek process tavsiyesi korunur ve senaryo yalnız PostgreSQL'de koşar. Yürütme sözleşmesi **at-least-once**'tır ve öyle kalır: çöken denemenin yan etkileri geri alınmaz, yalnız madde sayaçları idempotenttir. `production.md` bu ayrımı "measured, not promised" başlığıyla açıkça kurar.
+
+### K-740
+
+Karar bugün ücretsizdi: hiç NuGet sürümü yayınlanmamış, depo `private` (K-659) ve `git shortlog` tek yazar gösteriyor (696 commit + 9 `dependabot`) — üçü de tek yönlüdür. Eşik `<100 kişi VE <1.000.000 USD (2019)`. MIT kalan üç paket `Abstractions`, `Testing.Contracts.Xunit`, `Templates`: ayrım ölçütü "üçüncü tarafın AgentPrism'i ÇALIŞTIRMADAN eklenti yazması ve kendi kodunu üretmesi için gerekli olan her şey MIT, çalıştırma düzleminin tamamı PolyForm". Ölçüldü: `Testing.Contracts.Xunit → ProjectReference: Abstractions`, yani Abstractions kısıtlı kalsa sözleşme paketinin MIT olması hiçbir kapı açmazdı. npm `@agentprism/client` NuGet ikizi `AgentPrism.Client`'ı izler.
+
+### K-741
+
+Tahsilat mekanizması bunun yerine kurumsal lisans tarayıcılarıdır (FOSSA, Black Duck, Snyk): OSI onaylı olmayan bir lisans build'i otomatik durdurur ve hukuk ekibini devreye sokar. Bu mekanizmanın ÖN KOŞULU lisansın TANINMASIDIR — kanonik PolyForm gövdesi bu yüzden birebir sevk edilir ve `PackageLicenseTests` + `MT-PKG-120` bunu kilitler; metni "iyileştirmek" tahsilat mekanizmasını yok eder.
+
+### K-742
+
+Ölçüldü: `Directory.Build.props` içindeki `ItemGroup` `csproj` gövdesinden ÖNCE değerlendirilir, yani bir `csproj` override'ı `.nuspec`'i doğru yazıp YANLIŞ dosyayı paketlerdi; matris bu yüzden `MSBuildProjectName` ile props içinde çözülür. `PackableProjects.LicenceFileOf` ve npm beklentisi kopya değil, bu iki kaynaktan TÜRETİLİR.
+
+### K-743
+
+Yenileme aralığı `max(lease/3, 1 sn)`'dir; 1 sn'lik kirada yenileme kiranın SÜRESİNE eşit olur, kira sahibi hâlâ çalışırken düşer ve ikinci örnek onu devralır — tek örnekte koşması gereken iş iki örnek arasında sırayla koşar. Test 500 ms'lik pencere t=1 sn'ye hiç ulaşmadığı için yeşil görünüyordu ve `test-yalitimi.md`'ye "yük altında kırılgan" diye yazılmıştı. CI'da pencere taştı (test süresi 1,24 sn) ve düştü. Ölçüldü (2026-09-09): pencere 1500 ms'ye çıkarıldığında **3/3 kırmızı, aynı sayılarla** (`providerA=16, providerB=9`) — kira t≈1 sn'de el değiştiriyor; kırılgan test değil, ürün kusuru. Kural: **bir yenileme aralığı, yenilediği geçerlilik penceresinin içinde KALMALIDIR**; tabanı o pencereyi karşılayabiliyorsa bu bir kusurdur. K-286'nın 1 sn'lik tabanı korunur (sebebi hâlâ geçerli: çok kısa bir kira yenileme döngüsünü mantıksız sıklıkta döndürür), kabul edilen en kısa kira onun ÜÇ KATIDIR. Kapı `SingletonExecutionOptionsValidator` + `ValidateOnStart`'tır ve yalnız `Enabled` iken kurar — kapalıyken yenileme döngüsü hiç başlamaz, kısa kira zararsızdır. İki sabit tek yerde durur (`SingletonGuard.MinimumRenewInterval` · `MinimumLeaseDuration = 3 ×`) ve `Renewal_stays_strictly_inside_the_shortest_accepted_lease` onları birbirine kilitler: taban düşürülmeden minimum düşürülemez. Sınıf taraması yapıldı. **Ürün kodunda ikinci vaka yok**: `JobWorkerBackgroundService` yenilemesi `lease/2` ve tabansız (pencerenin içinde kalıyor), `RunReconciliationOptionsValidator` aynı kontrolü zaten yapıyor (`OrphanThreshold >= HeartbeatInterval`, "A running job would be declared orphaned") — bu karar o desenin singleton tarafındaki eksiğini kapatır. **Testlerde üç vaka daha bulundu ve aynı düzeltmeyi aldı** (kira 5 dk): `McpDiscoverySingletonTests` (birebir aynı kurgu: 1 sn kira + 500 ms pencere + XOR), `CanaryEvaluationServiceTests` ve `RunReconciliationTests`. Dördü de artık saatten bağımsızdır.
+
+### K-744
+
+Bu varsayım yanlıştır: damga ancak adım BİTTİKTEN sonra tazedir, oysa iç derlemeler dış derleme henüz `npm ci`'nin içindeyken başlar — ve onları dış derleme değil, bu projeye bağlanan BAŞKA projeler (üç çerçevesiyle `AgentPrism` meta paketi, E2E ve üreteç test projeleri) kendi `ProjectReference`'larıyla, dış derlemeden bağımsız olarak sıraya koyar. Ölçüldü (2026-09-09, soğuk damga, `dotnet build AgentPrism.slnx`, probe ile): **dört** örnek — `[]`, `net8.0`, `net9.0`, `net10.0` — iki saniye içinde aynı kritik bölüme girdi ve 25 saniye boyunca birlikte kaldı. Windows CI bunu build'i düşürerek gösterdi: `npm error ENOTEMPTY: directory not empty, rmdir ...node_modules\react-refresh` — bir süreç, diğerinin sildiği dizine dosya açıyordu. Linux aynı yarışta çoğu zaman hayatta kalıyordu; kusur bu yüzden yalnız Windows'ta göründü. Kural: **paylaşılan bir dizine yazan adım, TFM taşımayan tek örneğe `<MSBuild ... RemoveProperties="TargetFramework">` ile devredilir**; MSBuild bir hedefi (proje, global özellik) çifti başına bir kez koşturur ve ikinci isteği BEKLETİR — dışlama zamanlamaya değil motora dayanır. Doğrulandı: aynı probe ile tek giriş/çıkış; dış derlemesi olmayan tek proje derlemesinde (E2E) de zincir devredilerek bir kez koştu ve arayüz boş kalmadı. Sınıf taraması aynı dosyada ikinci vakayı buldu: `agentprism-frontend-assets.stamp` da paylaşımlıydı, ama gate ettiği iş (her assembly'nin KENDİ `EmbeddedResource`'unu eklemesi) örnek başınadır — ilk biten iç derleme damgayı tazeleyince diğer iki çerçeve arayüzü GÖMMEDEN derlenebilirdi. O damga `IntermediateOutputPath`'e (TFM'e özgü) taşındı ve `EveryFrameworkOfTheUiPackageEmbedsTheUi` kapısı eklendi: paketlenen her `lib/<tfm>/AgentPrism.UI.dll` en az bir `AgentPrism.UI.wwwroot/` kaynağı taşımalıdır — E2E testleri tek çerçeve koştuğu için bu boşluğu başka hiçbir test görmüyordu.
+
+### K-745
+
+Faz planı bu olayı **modellememeyi** öngörüyordu ("doğrulanmadı ve AgentPrism ölçüm uydurmaz") ve Açık Soru 2 iki duvar saati adayı arasında seçim yaptırıyordu; ölçüm ikisini de geçersiz kıldı. Gerekçe: canlı yolda medya tarayıcı ile sağlayıcı arasında akar, AgentPrism onu **hiç taşımaz** — yerel bir kronometre bağlantı kurulma gecikmesini, ICE yeniden anlaşmasını ve sağlayıcının kendi yuvarlamasını göremez ve faturayla çelişir. Gerçek koşumda sağlayıcı 57,0 sn bildirdi; oturumun duvar saati ömrü 73 sn idi. Sağlayıcı hiçbir şey bildirmezse `LiveSeconds` `null` kalır — sıfır değil (K-032). `VoiceSessionRecord.LiveSeconds` bilerek `InputSeconds`'tan AYRI bir alandır: ikincisi AgentPrism'in çözdüğü ses süresidir, farklı niceliktir.
+
+### K-746
+
+İki ses yolu farklı fatura eder: canlı oturum SÜREYİ, `UseVoiceConversation()` sentezlenen KARAKTERİ. K-483'ün sınıfı burada birebir tekrarlanabilirdi — orada `InputCost + OutputCost` yedi yerde elle yazılıydı, üçüncü terim (cache ücreti) eklenince yalnız SQL düzeltildi ve maliyet tavanı olan bir kiracı tavanı **aşabiliyordu**; 4241 test yakalamadı. Toplama alan bir `record` `Total()` taşır ve çağıran terimleri elle toplamaz. 🚨 Hiçbir terim fiyatlanmadıysa `Total()` **`null`** döner, `0m` değil: sıfır, konuşmanın ücretsiz olduğunu İDDİA ederdi. Aynı kural depoda da geçerlidir — `SqlVoiceSessionStore.Read` iki terim de `NULL` ise `Cost` nesnesini hiç kurmaz. ⚠️ Bu maliyet yalnız SES bağlantısınındır; devredilen her işin `runs` satırındaki token maliyeti buraya **tekrarlanmaz** (K-219) ve yalnız bu sayıyı gösteren bir arayüz **eksik bildirir** — sözleşme bunu XML dokümanında açıkça söyler.
+
+### K-747
+
+Ölçüldü (2026-09-11): sağlayıcı üç kanalın üçünde de `Missing required parameter: 'delegation_id'` döndürüyor. Sözleşme bu yüzden alanı `required` yapar — opsiyonel bırakmak, derleyicinin izin verdiği ama sağlayıcının her seferinde reddedeceği bir çağrıyı mümkün kılardı ve hata yalnız çalışma anında görülürdü. Canlı modelin kendi yönergesi oturum YARATILIRKEN (`session.instructions`) verilir; `Instructions` kanalı yalnız devredilen bir işin sunumunu yönlendirir ve **yalnız yapılandırmadan** beslenir, asla bir run'ın çıktısından: bir modelin ürettiği metin başka bir modelin uyduğu yönerge olamaz.
+
+### K-748
+
+Olayın agent adı taşımasına izin vermek, konuşmaya sızdırılmış bir yönergeyle (prompt injection) ayrıcalıklı bir agent'ı çağırtmak demektir — üstelik çağıranın o agent'a erişim hakkı hiç sorgulanmadan, çünkü yetkilendirme kapıları oturum YARATILIRKEN koşmuştur. Agent `IAgentCatalog.ResolveAsync` ile bir kez, çağıranın istediği adla çözülür ve oturum boyunca sabittir; aynı sebeple `AgentSession` de aynı kalır. Bu, kiracının oturum boyunca sabitlenmesiyle (Faz 29, `VoiceConversationRequest`) aynı kuraldır: uzun ömürlü bir bağlantıda yetkilendirmeden SONRA kimlik değiştirmek, yetkilendirmeyi hiç yapmamaktır.
+
+### K-749
+
+Limit sağlayıcı çağrısından sonra kontrol edilseydi, reddedilen her istek tüketiciye para harcatırdı — ve bu, limitin var olma sebebinin tam tersidir. Sıra (`limit → agent çöz → oturum yarat → attach → kayıt`) `LiveVoiceSessionLauncher`'da tek yerde durur; planda bu sınıf yoktu ve HTTP katmanında kurulacaktı. Gerekçe: **sıra bir iddiadır ve iddia HTTP katmanına dağılırsa kaybolur** — ikinci bir canlı ses ucu eklendiğinde sırayı elle tekrar kurmak zorunda kalan geliştirici onu yanlış kurar. Oturum sağlayıcı çağrısından ÖNCE kayıt defterine eklenir, böylece yavaş bir yaratma boyunca da bir slot işgal eder; aksi hâlde eşzamanlı bir istek patlaması limitin tamamını birlikte geçerdi. Kapı: `LiveVoiceAuthorizationTests.The_concurrency_limit_answers_BEFORE_the_provider_is_called` — sağlayıcı çağrı sayısının **1** olduğunu ölçer.
+
+### K-751
+
+`EgressSocketGuard` `SocketsHttpHandler.ConnectCallback` etrafında tasarlanmıştır ve `ClientWebSocket`'in böyle bir kancası **yoktur** — politika sessizce atlanır ve sonuç çalışır görünen bir SSRF deliğidir. Kanca `EgressSocketGuard.ValidateAsync(Uri, ct)`'dir ve `ConnectAsync`'ten ÖNCE çağrılır. 🚨 REST yarısı ile soket yarısı AYRI AYRI test edilir: REST çağrısı politikayı handler üzerinden devralır, yani onu kanıtlamak soket hakkında hiçbir şey söylemez (`LiveVoiceEgressTests`). Gerçek koşumda bu kapı bir kusur da üretti: politika reddi `HttpRequestException` **içine sarılı** geliyor ve yalnız `AgentPrismException` yakalayan uç, sıradan bir reddi yakalanmamış 500 olarak kaçırıyordu.
+
+### K-752
+
+İki elle yazılmış kopya bu ihlali bekleyen bir kusurdur — metinler zamanla ayrışır ve kimse fark etmez. Kapılar (kiracı sahipliği · `IRunAuthorizationGate` · `SessionOwnershipGate`) ve tek 404 yazarı bu yüzden `VoiceConversationEndpoint`'ten ortak bir `VoiceEndpointGates` sınıfına çıkarıldı; konuşma ucu ve canlı uçlar aynı yardımcıyı çağırır. 🚨 Kimlik katmanı ORTAK DEĞİLDİR: konuşma ucu token'ı `Sec-WebSocket-Protocol` alt protokolünde okur çünkü tarayıcı bir el sıkışmaya `Authorization` başlığı **ekleyemez** (K-224); canlı uçlar düz HTTP'dir ve sıradan bearer katmanını kullanır. O muafiyet el sıkışmaya özgüdür ve ödünç alınmaz. `RunAuthorizationCoverageTests` beklenti haritası yeni dosyaya taşındı — gevşetilmedi.
+
