@@ -1,8 +1,8 @@
 using System.Reflection;
+using Microsoft.Extensions.DependencyInjection;
 using Tracon.Core.UnitTests.Fakes;
 using Tracon.Testing.Contracts;
 using Tracon.Testing.Contracts.AgentSources;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace Tracon.Core.UnitTests.Catalog;
 

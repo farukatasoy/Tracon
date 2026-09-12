@@ -1,9 +1,9 @@
 using System.Diagnostics;
 using System.Globalization;
 using System.Text;
+using Microsoft.Extensions.Logging.Abstractions;
 using Tracon.PostgreSql.IntegrationTests.Infrastructure;
 using Tracon.Testing.Contracts.Storage;
-using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Tracon.PostgreSql.IntegrationTests.Load;
 

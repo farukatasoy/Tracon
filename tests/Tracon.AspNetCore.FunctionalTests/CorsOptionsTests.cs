@@ -1,6 +1,6 @@
 using System.Net;
-using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 using Microsoft.AspNetCore.Builder;
+using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 
 namespace Tracon.AspNetCore.FunctionalTests;
 

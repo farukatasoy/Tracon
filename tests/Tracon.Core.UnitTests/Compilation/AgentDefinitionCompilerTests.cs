@@ -1,7 +1,7 @@
-using Tracon.Core.UnitTests.Fakes;
 using Microsoft.Agents.AI;
 using Microsoft.Agents.AI.Compaction;
 using Microsoft.Extensions.AI;
+using Tracon.Core.UnitTests.Fakes;
 
 namespace Tracon.Core.UnitTests.Compilation;
 

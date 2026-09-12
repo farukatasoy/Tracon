@@ -1,10 +1,10 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
-using Tracon.AspNetCore.FunctionalTests.Infrastructure;
-using Tracon.Testing;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
+using Tracon.AspNetCore.FunctionalTests.Infrastructure;
+using Tracon.Testing;
 using TraconTestHost = Tracon.AspNetCore.FunctionalTests.Infrastructure.TraconTestHost;
 
 namespace Tracon.AspNetCore.FunctionalTests;

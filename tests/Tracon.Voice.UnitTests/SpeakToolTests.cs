@@ -1,8 +1,8 @@
-using Tracon.Voice.UnitTests.Infrastructure;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Shouldly;
+using Tracon.Voice.UnitTests.Infrastructure;
 
 namespace Tracon.Voice.UnitTests;
 

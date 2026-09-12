@@ -1,5 +1,5 @@
-using Tracon.Anthropic.UnitTests.Infrastructure;
 using Microsoft.Extensions.AI;
+using Tracon.Anthropic.UnitTests.Infrastructure;
 
 namespace Tracon.Anthropic.UnitTests;
 

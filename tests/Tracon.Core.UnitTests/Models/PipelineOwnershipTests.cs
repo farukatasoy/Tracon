@@ -1,6 +1,6 @@
 using System.Runtime.CompilerServices;
-using Tracon.Core.UnitTests.Fakes;
 using Microsoft.Extensions.AI;
+using Tracon.Core.UnitTests.Fakes;
 
 namespace Tracon.Core.UnitTests.Models;
 

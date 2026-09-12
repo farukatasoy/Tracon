@@ -1,8 +1,8 @@
 using System.Collections.Concurrent;
 using System.Text.RegularExpressions;
-using Tracon.Core.UnitTests.Fakes;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using Tracon.Core.UnitTests.Fakes;
 
 namespace Tracon.Core.UnitTests.Scheduling;
 

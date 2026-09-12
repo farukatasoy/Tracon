@@ -1,9 +1,9 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
-using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 using Microsoft.Agents.AI;
 using Microsoft.Extensions.DependencyInjection;
+using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 using FakeModelProvider = Tracon.Testing.FakeModelProvider;
 
 namespace Tracon.AspNetCore.FunctionalTests;

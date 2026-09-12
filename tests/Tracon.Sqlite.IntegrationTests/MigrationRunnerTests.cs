@@ -1,6 +1,6 @@
-using Tracon.Sqlite.IntegrationTests.Infrastructure;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Logging.Abstractions;
+using Tracon.Sqlite.IntegrationTests.Infrastructure;
 
 namespace Tracon.Sqlite.IntegrationTests;
 

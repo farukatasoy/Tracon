@@ -1,7 +1,7 @@
-using Tracon.Anthropic.UnitTests.Infrastructure;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
+using Tracon.Anthropic.UnitTests.Infrastructure;
 
 namespace Tracon.Anthropic.UnitTests;
 

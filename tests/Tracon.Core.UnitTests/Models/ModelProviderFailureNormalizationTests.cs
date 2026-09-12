@@ -1,8 +1,8 @@
 using System.Collections.Concurrent;
 using System.Runtime.CompilerServices;
-using Tracon.Core.UnitTests.Fakes;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging;
+using Tracon.Core.UnitTests.Fakes;
 
 namespace Tracon.Core.UnitTests.Models;
 

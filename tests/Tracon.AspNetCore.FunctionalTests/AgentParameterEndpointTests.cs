@@ -1,9 +1,9 @@
 using System.Net;
 using System.Net.Http.Json;
-using Tracon.AspNetCore.FunctionalTests.Infrastructure;
-using Tracon.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
+using Tracon.AspNetCore.FunctionalTests.Infrastructure;
+using Tracon.Testing;
 
 namespace Tracon.AspNetCore.FunctionalTests;
 

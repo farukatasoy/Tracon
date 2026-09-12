@@ -1,9 +1,9 @@
 using System.Data.Common;
 using System.Globalization;
-using Tracon.SqlServer.IntegrationTests.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
+using Tracon.SqlServer.IntegrationTests.Infrastructure;
 
 namespace Tracon.SqlServer.IntegrationTests;
 

@@ -1,6 +1,6 @@
-using Tracon.Core.UnitTests.Fakes;
 using Microsoft.Agents.AI;
 using Microsoft.Extensions.Options;
+using Tracon.Core.UnitTests.Fakes;
 
 namespace Tracon.Core.UnitTests.Compilation;
 

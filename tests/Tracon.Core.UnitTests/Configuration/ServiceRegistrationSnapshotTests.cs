@@ -1,5 +1,5 @@
-using Tracon;
 using Microsoft.Extensions.DependencyInjection;
+using Tracon;
 
 namespace Tracon.Core.UnitTests.Configuration;
 

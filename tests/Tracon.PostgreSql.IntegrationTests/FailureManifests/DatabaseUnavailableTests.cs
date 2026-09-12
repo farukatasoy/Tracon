@@ -1,8 +1,8 @@
-using Tracon.PostgreSql.IntegrationTests.Infrastructure;
-using Tracon.Testing.Contracts.Storage;
 using Microsoft.Extensions.Logging.Abstractions;
 using Npgsql;
 using Testcontainers.PostgreSql;
+using Tracon.PostgreSql.IntegrationTests.Infrastructure;
+using Tracon.Testing.Contracts.Storage;
 
 namespace Tracon.PostgreSql.IntegrationTests.FailureManifests;
 

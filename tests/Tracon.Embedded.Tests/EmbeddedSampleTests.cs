@@ -1,8 +1,8 @@
 using System.Net.Http.Json;
 using System.Text.Json;
+using Microsoft.Extensions.DependencyInjection;
 using Tracon;
 using Tracon.Embedded.Tests.Infrastructure;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace Tracon.Embedded.Tests;
 

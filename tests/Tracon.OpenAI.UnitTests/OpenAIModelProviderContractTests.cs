@@ -1,8 +1,8 @@
 using System.Collections;
 using System.Reflection;
+using Microsoft.Extensions.AI;
 using Tracon.Testing.Contracts;
 using Tracon.Testing.Contracts.Providers;
-using Microsoft.Extensions.AI;
 
 namespace Tracon.OpenAI.UnitTests;
 

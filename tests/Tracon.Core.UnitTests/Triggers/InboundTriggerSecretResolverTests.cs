@@ -1,5 +1,5 @@
-using Tracon.Core.UnitTests.Fakes;
 using Microsoft.Extensions.Configuration;
+using Tracon.Core.UnitTests.Fakes;
 
 namespace Tracon.Core.UnitTests.Triggers;
 

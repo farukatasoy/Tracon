@@ -1,8 +1,8 @@
 using System.Net.Http;
 using System.Net.Http.Json;
 using System.Text.Json;
-using Tracon.Ui.E2ETests.Infrastructure;
 using Microsoft.Playwright;
+using Tracon.Ui.E2ETests.Infrastructure;
 
 namespace Tracon.Ui.E2ETests;
 

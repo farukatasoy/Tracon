@@ -1,6 +1,6 @@
-using Tracon.Workflows.UnitTests.Fakes;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using Tracon.Workflows.UnitTests.Fakes;
 
 namespace Tracon.Workflows.UnitTests;
 

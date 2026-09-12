@@ -1,7 +1,7 @@
 using System.Globalization;
 using System.Text.Json;
-using Tracon.Cli.FunctionalTests.Infrastructure;
 using Microsoft.Data.Sqlite;
+using Tracon.Cli.FunctionalTests.Infrastructure;
 
 namespace Tracon.Cli.FunctionalTests;
 

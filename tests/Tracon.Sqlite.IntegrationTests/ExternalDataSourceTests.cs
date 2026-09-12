@@ -1,9 +1,9 @@
 using System.Data.Common;
 using System.Globalization;
-using Tracon.Sqlite.IntegrationTests.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
+using Tracon.Sqlite.IntegrationTests.Infrastructure;
 
 namespace Tracon.Sqlite.IntegrationTests;
 

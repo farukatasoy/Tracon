@@ -1,8 +1,8 @@
 using System.Net;
 using System.Net.Http.Json;
+using Microsoft.Extensions.AI;
 using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 using Tracon.Testing;
-using Microsoft.Extensions.AI;
 
 namespace Tracon.AspNetCore.FunctionalTests;
 

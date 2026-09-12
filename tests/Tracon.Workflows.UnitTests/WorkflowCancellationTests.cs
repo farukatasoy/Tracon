@@ -1,8 +1,8 @@
 using System.Runtime.CompilerServices;
 using System.Text.Json;
-using Tracon.Workflows.UnitTests.Fakes;
 using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
+using Tracon.Workflows.UnitTests.Fakes;
 
 namespace Tracon.Workflows.UnitTests;
 

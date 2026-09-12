@@ -1,5 +1,5 @@
-using Tracon.Google.UnitTests.Infrastructure;
 using Microsoft.Extensions.AI;
+using Tracon.Google.UnitTests.Infrastructure;
 
 namespace Tracon.Google.UnitTests;
 

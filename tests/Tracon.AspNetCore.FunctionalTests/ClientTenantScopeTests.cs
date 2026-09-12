@@ -1,6 +1,6 @@
+using Microsoft.Extensions.DependencyInjection;
 using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 using Tracon.Client.Generated;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace Tracon.AspNetCore.FunctionalTests;
 

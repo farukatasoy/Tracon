@@ -1,8 +1,8 @@
-using Tracon.PostgreSql.IntegrationTests.Infrastructure;
-using Tracon.Testing.Contracts.Storage;
 using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Options;
+using Tracon.PostgreSql.IntegrationTests.Infrastructure;
+using Tracon.Testing.Contracts.Storage;
 
 namespace Tracon.PostgreSql.IntegrationTests;
 

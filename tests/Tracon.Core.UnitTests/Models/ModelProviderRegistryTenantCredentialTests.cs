@@ -1,7 +1,7 @@
-using Tracon.Core.UnitTests.Fakes;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Options;
+using Tracon.Core.UnitTests.Fakes;
 
 namespace Tracon.Core.UnitTests.Models;
 

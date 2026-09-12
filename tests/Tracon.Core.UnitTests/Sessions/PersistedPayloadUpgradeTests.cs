@@ -1,7 +1,7 @@
 using System.Globalization;
 using System.Text.Json;
-using Tracon.Core.UnitTests.Fakes;
 using Microsoft.Agents.AI;
+using Tracon.Core.UnitTests.Fakes;
 
 namespace Tracon.Core.UnitTests.Sessions;
 

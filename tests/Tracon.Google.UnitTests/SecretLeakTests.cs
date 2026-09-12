@@ -1,9 +1,9 @@
 using System.Text.Json;
-using Tracon.Google.UnitTests.Infrastructure;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Tracon.Google.UnitTests.Infrastructure;
 
 namespace Tracon.Google.UnitTests;
 

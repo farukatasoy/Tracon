@@ -1,7 +1,7 @@
 using System.Collections.Concurrent;
-using Tracon.Core.UnitTests.Fakes;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
+using Tracon.Core.UnitTests.Fakes;
 
 namespace Tracon.Core.UnitTests.Scheduling;
 

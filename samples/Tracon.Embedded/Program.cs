@@ -33,11 +33,11 @@
 // samples/Tracon.Api, where the points it never binds still report
 // Tracon's own defaults.
 
-using Tracon;
-using Tracon.Embedded;
 using Microsoft.Agents.AI;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
+using Tracon;
+using Tracon.Embedded;
 
 var builder = WebApplication.CreateBuilder(args);
 

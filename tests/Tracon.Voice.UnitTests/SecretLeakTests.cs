@@ -1,7 +1,7 @@
 using System.Text.Json;
-using Tracon.Voice.UnitTests.Infrastructure;
 using Microsoft.Extensions.Logging;
 using Shouldly;
+using Tracon.Voice.UnitTests.Infrastructure;
 
 namespace Tracon.Voice.UnitTests;
 

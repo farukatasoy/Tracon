@@ -1,10 +1,10 @@
 using System.Reflection;
-using Tracon.Core.UnitTests.Fakes;
-using Tracon.Testing.Contracts;
-using Tracon.Testing.Contracts.Judges;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using Tracon.Core.UnitTests.Fakes;
+using Tracon.Testing.Contracts;
+using Tracon.Testing.Contracts.Judges;
 
 namespace Tracon.Core.UnitTests.Evaluation;
 

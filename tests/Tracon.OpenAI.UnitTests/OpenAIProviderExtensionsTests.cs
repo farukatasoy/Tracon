@@ -1,8 +1,8 @@
-using Tracon.OpenAI.UnitTests.Infrastructure;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
+using Tracon.OpenAI.UnitTests.Infrastructure;
 
 namespace Tracon.OpenAI.UnitTests;
 

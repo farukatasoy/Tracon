@@ -1,10 +1,10 @@
 using System.Net.Http.Json;
 using System.Text.Json;
-using Tracon.Testing.Internal;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Tracon.Testing.Internal;
 
 namespace Tracon.Testing;
 

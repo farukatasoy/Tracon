@@ -1,8 +1,8 @@
 using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json;
-using Tracon.Testing.Contracts.Tools;
 using Microsoft.Extensions.AI;
+using Tracon.Testing.Contracts.Tools;
 
 namespace Tracon.Testing.Contracts.Xunit.UnitTests;
 

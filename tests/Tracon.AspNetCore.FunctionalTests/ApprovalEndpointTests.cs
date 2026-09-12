@@ -1,8 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
-using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
-
+using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 // The rationale is the same as in RunReplayEndpointTests.cs (K-269): the
 // package's Tracon.Testing.TraconTestHost and this project's own
 // TraconTestHost SHARE the same name; a blanket `using Tracon.Testing;`

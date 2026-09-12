@@ -14,12 +14,12 @@
 // It prints HARNESS-READY once the host is running. The test waits for that
 // LINE, not for a duration - a fixed sleep is what makes a process test flaky
 // on a loaded agent.
-using Tracon;
-using Tracon.Tests.Common;
-using Tracon.WorkerHarness;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Tracon;
+using Tracon.Tests.Common;
+using Tracon.WorkerHarness;
 
 var settings = WorkerHarnessSettings.FromEnvironment();
 

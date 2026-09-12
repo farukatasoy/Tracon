@@ -1,7 +1,7 @@
 using System.Diagnostics;
+using Microsoft.Extensions.Logging.Abstractions;
 using Tracon.PostgreSql.IntegrationTests.Infrastructure;
 using Tracon.Testing.Contracts.Storage;
-using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Tracon.PostgreSql.IntegrationTests.FailureManifests;
 

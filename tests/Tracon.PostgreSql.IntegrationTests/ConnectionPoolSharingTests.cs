@@ -1,5 +1,5 @@
-using Tracon.PostgreSql.IntegrationTests.Infrastructure;
 using Npgsql;
+using Tracon.PostgreSql.IntegrationTests.Infrastructure;
 
 namespace Tracon.PostgreSql.IntegrationTests;
 

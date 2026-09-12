@@ -1,6 +1,6 @@
-using Tracon.Workflows.UnitTests.Fakes;
 using Microsoft.Agents.AI.Workflows;
 using Microsoft.Extensions.AI;
+using Tracon.Workflows.UnitTests.Fakes;
 
 namespace Tracon.Workflows.UnitTests;
 
