@@ -8,7 +8,7 @@
 Bir fazın durumu yanlış görünüyorsa **o fazın dokümanını** düzelt;
 bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 
-## Fazlar (162 kalem)
+## Fazlar (163 kalem)
 
 | Faz | Konu | Durum |
 |-----|------|-------|
@@ -17,7 +17,7 @@ bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 | [2](arsiv/fazlar/02-POSTGRESQL-KALICILIK.md) | PostgreSQL Kalıcılık Katmanı | ✅ Tamamlandı |
 | [3](arsiv/fazlar/03-SAGLAYICI-VE-DERLEYICI.md) | Sağlayıcı Katmanı ve Agent Derleyici | ✅ Tamamlandı |
 | [4](arsiv/fazlar/04-HTTP-API.md) | HTTP API Katmanı | ✅ Tamamlandı |
-| [5](arsiv/fazlar/05-AGENTPRISM-UI.md) | AgentPrism.UI | ✅ Tamamlandı |
+| [5](arsiv/fazlar/05-TRACON-UI.md) | Tracon.UI | ✅ Tamamlandı |
 | [6](arsiv/fazlar/06-GOZLEMLENEBILIRLIK.md) | Gözlemlenebilirlik, Tool Onayı, MCP ve Çok Kiracılılık | ✅ Tamamlandı |
 | [7](arsiv/fazlar/07-SAGLAMLASTIRMA-VE-YAYIN.md) | Sağlamlaştırma ve Yayın | ⏸ Beklemede |
 | [8](arsiv/fazlar/08-SAGLAYICI-GENISLEMESI.md) | Sağlayıcı Genişlemesi ve Sağlık Denetimi | ✅ Tamamlandı |
@@ -51,7 +51,7 @@ bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 | [36](arsiv/fazlar/36-SAKLAMA-HACIM-SINIRI.md) | Saklama Hacim Sınırı (`MaxRows`) | ✅ Tamamlandı |
 | [37](arsiv/fazlar/37-PROJE-SABLONU.md) | `dotnet new` Proje Şablonu | ✅ Tamamlandı |
 | [38](arsiv/fazlar/38-YAPILANDIRILMIS-CIKTI.md) | Yapılandırılmış Çıktı (JSON Şeması) | ✅ Tamamlandı |
-| [39](arsiv/fazlar/39-TEST-PAKETI.md) | `AgentPrism.Testing` Paketi | ✅ Tamamlandı |
+| [39](arsiv/fazlar/39-TEST-PAKETI.md) | `Tracon.Testing` Paketi | ✅ Tamamlandı |
 | [40](arsiv/fazlar/40-OPENAPI-YAYINI.md) | OpenAPI Belgesinin Yayımlanması | ✅ Tamamlandı |
 | [41](arsiv/fazlar/41-KIRACI-YALITIMININ-ZORLANMASI.md) | Kiracı Yalıtımının Zorlanması | ✅ Tamamlandı |
 | [42](arsiv/fazlar/42-TEK-YURUTUCU-SECIMI.md) | Tek Yürütücü Seçimi (Çok Örnekli Koordinasyon) | ✅ Tamamlandı |
@@ -174,5 +174,6 @@ bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 | [159](arsiv/fazlar/159-TIPLI-ISTEMCIDE-AKISLI-OPENAI-CAGRISI.md) | Tipli İstemcide Akışlı OpenAI Çağrısı | ✅ Tamamlandı |
 | [160](arsiv/fazlar/160-LISANS-MODELI-VE-PAKET-METAVERISI.md) | Lisans Modeli ve Paket Metaverisi | ✅ Tamamlandı |
 | [161](arsiv/fazlar/161-GPT-LIVE-SIDEBAND-DENETIMI.md) | GPT-Live Sideband Denetimi | ✅ Tamamlandı |
+| [162](162-TRACON-YENIDEN-ADLANDIRMA.md) | Tracon Yeniden Adlandırma | 🚧 Sürüyor |
 
 Seçilmemiş adaylar: [`ADAYLAR.md`](ADAYLAR.md). Fazların hangi dalgada, hangi gerekçeyle sıralandığı (Faz 8–56, kapandı): [`arsiv/IKINCI-FAZ-YOL-HARITASI.md`](arsiv/IKINCI-FAZ-YOL-HARITASI.md) · [`arsiv/UCUNCU-FAZ-YOL-HARITASI.md`](arsiv/UCUNCU-FAZ-YOL-HARITASI.md).

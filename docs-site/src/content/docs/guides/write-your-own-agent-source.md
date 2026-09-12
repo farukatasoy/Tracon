@@ -1,6 +1,6 @@
 ---
 title: Write your own agent source
-description: Add agents from Git, another database, or an external runtime through IAgentSource without bypassing AgentPrism's catalog and run pipeline.
+description: Add agents from Git, another database, or an external runtime through IAgentSource without bypassing Tracon's catalog and run pipeline.
 ---
 
 `IAgentSource` is the catalog extension point. Use it when agent definitions do not
@@ -9,7 +9,7 @@ Register it through `AddAgentSource()`; the catalog keeps the normal decorator c
 so recording, telemetry, and approval behavior still apply.
 
 A complete, buildable definition source lives in
-`samples/AgentPrism.Samples.CustomAgentSource` — it reads `AgentDefinition` JSON files
+`samples/Tracon.Samples.CustomAgentSource` — it reads `AgentDefinition` JSON files
 from a directory, uses only published packages (`PackageReference`, not a
 project-internal type), and its test project runs the official contract suite plus a
 real agent run. Read its source alongside this guide.
@@ -19,7 +19,7 @@ constructor dependencies (including its own settings, registered separately) thr
 
 ```csharp
 builder.Services.AddSingleton(new GitAgentSourceOptions { RepositoryUrl = url });
-builder.AddAgentPrism()
+builder.AddTracon()
        .AddAgentSource<GitAgentSource>();
 ```
 
@@ -27,7 +27,7 @@ Pass a ready instance, or a factory, when the source needs something that does n
 belong in the container as its own singleton:
 
 ```csharp
-builder.AddAgentPrism().AddAgentSource(sp => new GitAgentSource(repositoryPath, sp.GetRequiredService<AgentDefinitionCompiler>()));
+builder.AddTracon().AddAgentSource(sp => new GitAgentSource(repositoryPath, sp.GetRequiredService<AgentDefinitionCompiler>()));
 ```
 
 All three register the source as a **singleton**; calling the generic overload twice
@@ -57,7 +57,7 @@ public async ValueTask<AIAgent?> ResolveAsync(string name, string? culture = nul
 
 Sources are singleton and calls can run concurrently. Keep no request or run state in
 fields, and do not capture scoped services. `ListAsync()` is on the run path: it must
-be repeatable and side-effect free. AgentPrism does not add a global snapshot, timeout,
+be repeatable and side-effect free. Tracon does not add a global snapshot, timeout,
 retry, or circuit breaker for a source.
 
 `ListAsync()` and `ResolveAsync()` must describe the same agent set: a name
@@ -67,7 +67,7 @@ catalog defensively copies each descriptor at its own boundary too, but that is
 belt-and-suspenders, not a license to violate the contract; a source that shares a
 mutable list with the catalog is still a bug the copy merely contains.
 
-Honor the `CancellationToken` you are given — AgentPrism adds no timeout of its own, so
+Honor the `CancellationToken` you are given — Tracon adds no timeout of its own, so
 an uncancellable source blocks its caller indefinitely. A genuine
 `OperationCanceledException` must propagate; do not catch and convert it into anything
 else.
@@ -78,7 +78,7 @@ must include the tenant identity. Startup and background calls see the default t
 ## Priority and management API
 
 Smaller priority values win a name collision. `AgentSourcePriority.Code` (`0`) and
-`AgentSourcePriority.Database` (`100`) are the values AgentPrism's own built-in sources
+`AgentSourcePriority.Database` (`100`) are the values Tracon's own built-in sources
 use, not values a custom source is barred from choosing. Pick `1` through `99` to run
 between code and database definitions, or `101` or greater to run after the database.
 Choosing `0` or `100` ties with the matching built-in source instead, and DI
@@ -91,7 +91,7 @@ source owns.
 ## Prove the implementation
 
 ```csharp
-using AgentPrism.Testing.Contracts.AgentSources;
+using Tracon.Testing.Contracts.AgentSources;
 
 public sealed class GitAgentSourceTests : AgentSourceContract
 {
@@ -111,11 +111,11 @@ integrity, and list/resolve consistency without a network call.
 `GET /api/agents` is not paged. Resolution also scans the winning source's list, and
 version resolution can list each source until it finds the owner. A source holding many
 definitions should keep its own correctly invalidated cache. Source failures appear in
-logs, diagnostics, and the `agentprism.agent_source.failures` metric. List failures are
+logs, diagnostics, and the `tracon.agent_source.failures` metric. List failures are
 isolated; resolution failures stop so a lower-priority agent cannot run by mistake.
 
 ## Read next
 
 - [Agents](/concepts/agents/) — the catalog and agent-definition model
 - [Model providers](/guides/model-providers/) — write a custom model provider
-- [Reference: IAgentSource](/api/agentprism.iagentsource/) — full API contract
+- [Reference: IAgentSource](/api/tracon.iagentsource/) — full API contract

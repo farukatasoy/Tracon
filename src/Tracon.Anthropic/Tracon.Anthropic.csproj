@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Description>Anthropic (Claude) provider adapter for Tracon. Model catalog, IChatClient production, prompt caching and extended thinking settings.</Description>
+    <PackageTags>$(CommonPackageTags);anthropic;claude;provider</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../Tracon.Core/Tracon.Core.csproj" />
+  </ItemGroup>
+
+  <!--
+    Anthropic's OFFICIAL .NET SDK (owner: Anthropic, MIT). It carries its own
+    `AsIChatClient` adapter, so message mapping/streaming/tool calling is not
+    written in Tracon. Its transitive dependencies are Microsoft/System
+    packages only. Rationale: docs/KARARLAR.md, decision K-204.
+  -->
+  <ItemGroup>
+    <PackageReference Include="Anthropic" />
+  </ItemGroup>
+
+</Project>

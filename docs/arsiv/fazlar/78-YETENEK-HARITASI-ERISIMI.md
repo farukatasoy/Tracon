@@ -2,12 +2,12 @@
 
 > **Durum:** ✅ Tamamlandı (2026-08-21)
 > **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-135**
-> **Önkoşul:** [Faz 73](73-TUKETICI-AGENT-DESTEGI.md) — haritayı ve `APG01xx`–`APG0401` ailesini kurar · [Faz 74](74-YEREL-REFERANS-YUZEYI.md) — bu fazın genişlettiği `AgentPrism.LocalReference.md`'yi kurar
-> **Paketler:** `AgentPrism.Core` (targets), `AgentPrism.Generators` (analyzer)
+> **Önkoşul:** [Faz 73](73-TUKETICI-AGENT-DESTEGI.md) — haritayı ve `APG01xx`–`APG0401` ailesini kurar · [Faz 74](74-YEREL-REFERANS-YUZEYI.md) — bu fazın genişlettiği `Tracon.LocalReference.md`'yi kurar
+> **Paketler:** `Tracon.Core` (targets), `Tracon.Generators` (analyzer)
 > **Yeni paket:** Yok · **Migration:** Yok
 > **Public API:** Büyümüyor — değişiklik MSBuild target'ı, `internal` bir tanı tanımı ve bir Node üretecidir; hiçbir C# public üye eklenmez
 > **Tüketici yüzeyi:** site: [`guides/coding-agents.md`](../../../docs-site/src/content/docs/guides/coding-agents.md) (§"`AGENTS.md` — the capability map" yanlış tavsiye veriyor), `capabilities.md` (tanı tablosu satırı)
-> · sevk edilen: `AgentPrism.LocalReference.md` gövdesi (targets içinde), `AgentPrism.AgentMap.md` alt bölümü, `APG0402` tanı metni, `llms.txt`
+> · sevk edilen: `Tracon.LocalReference.md` gövdesi (targets içinde), `Tracon.AgentMap.md` alt bölümü, `APG0402` tanı metni, `llms.txt`
 > **Manuel test alanı:** [`docs/manuel-test/30-YEREL-REFERANS.md`](../../manuel-test/30-YEREL-REFERANS.md) — case'ler oraya eklenir
 
 ---
@@ -29,18 +29,18 @@
 
 ## Amaç
 
-AgentPrism yetenek haritasını **`AGENTS.md` olarak** teslim ediyor. O dosya adı tüketicinindir; bir kütüphane onu ancak **boş repo'da** kazanabilir — yani yalnız `dotnet new agentprism-api` durumunda.
+Tracon yetenek haritasını **`AGENTS.md` olarak** teslim ediyor. O dosya adı tüketicinindir; bir kütüphane onu ancak **boş repo'da** kazanabilir — yani yalnız `dotnet new tracon-api` durumunda.
 
 ## Capability map — read this first
 
-- <$(AgentPrismAgentMapFile) degeri>
+- <$(TraconAgentMapFile) degeri>
 
-Every capability AgentPrism ships, with the call that turns it on. Read it
+Every capability Tracon ships, with the call that turns it on. Read it
 before you write agent, run, tool, or evaluation code by hand.
 ```
 
-Bölüm `Condition="Exists('$(AgentPrismAgentMapFile)')"` ile yazılır. Gerekçe:
-`ProjectReference` ile derleyen bir repo (AgentPrism'in kendisi) zaten hiçbir
+Bölüm `Condition="Exists('$(TraconAgentMapFile)')"` ile yazılır. Gerekçe:
+`ProjectReference` ile derleyen bir repo (Tracon'in kendisi) zaten hiçbir
 satır üretmez, ama koşul yolun var olmadığı her durumu da kapatır — ölü bir yol
 yazmak, hiç yazmamaktan kötüdür.
 
@@ -50,12 +50,12 @@ yeniden yazılır. Bu beklenen davranıştır, bir kusur değildir.
 
 ## Bitiş Ölçütleri (DoD)
 
-- [x] Temiz bir tüketici projesinde `dotnet build` sonrası `AgentPrism.LocalReference.md` "Capability map" bölümüyle **başlar**; yazılan yol diskte vardır ve harita işaretini taşır — `LocalReferenceTests.The_first_section_is_the_capability_map_and_the_path_it_names_is_real`
-- [x] `AGENTS.md`'si `AgentPrism.LocalReference.md`'den söz etmeyen bir depoda `dotnet build` `APG0402` üretir; tek satır işaretçi eklenince uyarı kaybolur — `TemplateAgentsFileTests.Instructions_that_never_name_the_local_reference_are_reported`. 🚨 **Denetim bunu daralttı:** yalnız yerel referans dosyası gerçekten yazılırken (Sapma 5)
-- [x] `AgentPrismUsageDiagnostics=false` `APG0402` dahil **yedi** kodun tamamını susturur — plan "altı" diyordu, aile yedi koda çıktı
+- [x] Temiz bir tüketici projesinde `dotnet build` sonrası `Tracon.LocalReference.md` "Capability map" bölümüyle **başlar**; yazılan yol diskte vardır ve harita işaretini taşır — `LocalReferenceTests.The_first_section_is_the_capability_map_and_the_path_it_names_is_real`
+- [x] `AGENTS.md`'si `Tracon.LocalReference.md`'den söz etmeyen bir depoda `dotnet build` `APG0402` üretir; tek satır işaretçi eklenince uyarı kaybolur — `TemplateAgentsFileTests.Instructions_that_never_name_the_local_reference_are_reported`. 🚨 **Denetim bunu daralttı:** yalnız yerel referans dosyası gerçekten yazılırken (Sapma 5)
+- [x] `TraconUsageDiagnostics=false` `APG0402` dahil **yedi** kodun tamamını susturur — plan "altı" diyordu, aile yedi koda çıktı
 - [x] Üretilmiş (işaretli) `AGENTS.md` taşıyan depoda `APG0402` **ötmez** — `UsageAnalyzerTests.APG0402_is_silent_for_a_generated_agents_file`
 - [x] Dört doğrulama kapısı sıfır uyarı verir. 🚨 `dotnet build` yeşilken `dotnet format` bir `IDE1006` verdi (`_` öneki eksik alan) — dördü de koşmanın sebebi tam olarak budur
-- [x] `samples/AgentPrism.Api` derlenir ve **yeni uyarı üretmez** — çözüm derlemesi 0 uyarı
+- [x] `samples/Tracon.Api` derlenir ve **yeni uyarı üretmez** — çözüm derlemesi 0 uyarı
 - [x] `secret` taraması bu fazın dosyalarında boş döndü (eşleşenler `docs/arsiv/` ve `.agents/` içindeki yerel Docker kapsayıcı parolalarıdır, faz öncesinden)
 - [x] Manuel kabul case'leri eklendi: `MT-YRF-020`…`027` (8 case, 19 → 27). `MT-YRF-026` ve `027` `👤 insan gerekir` işaretlidir (planın 9 ve 10 numaralı case'leri)
 - [x] `faz-denetim` koşuldu; bir 🔴 bulundu ve **kapatıldı**, altı 🟡 kapandı, iki 🟢 devredildi
@@ -70,23 +70,23 @@ yeniden yazılır. Bu beklenen davranıştır, bir kusur değildir.
 
 ```bash
 # Harita yolu yerel referansa girdi mi, ve yol yasiyor mu
-grep -A 2 "Capability map" <tuketici-proje>/AgentPrism.LocalReference.md
-head -1 "$(grep -m1 -o '/.*AgentPrism\.AgentMap\.md' <tuketici-proje>/AgentPrism.LocalReference.md)"
+grep -A 2 "Capability map" <tuketici-proje>/Tracon.LocalReference.md
+head -1 "$(grep -m1 -o '/.*Tracon\.AgentMap\.md' <tuketici-proje>/Tracon.LocalReference.md)"
 
 # APG0402 oter mi
 dotnet build <tuketici>.slnx 2>&1 | grep APG0402
 
 # Aile tamamen susuyor mu
-dotnet build <tuketici>.slnx -p:AgentPrismUsageDiagnostics=false 2>&1 | grep -c APG0
+dotnet build <tuketici>.slnx -p:TraconUsageDiagnostics=false 2>&1 | grep -c APG0
 
 # Indeks eksiksiz mi ve iki butce de tutuyor mu
 node docs-site/scripts/build-agent-map.mjs --check
 grep -c '^- \[' docs-site/public/llms.txt                                  # 38
-wc -c src/AgentPrism.Core/buildTransitive/AgentPrism.AgentMap.md           # <= 10240
+wc -c src/Tracon.Core/buildTransitive/Tracon.AgentMap.md           # <= 10240
 wc -c docs-site/public/llms.txt                                            # <= 16384
 
 # llms-full satiri iki kopyada da var mi
-grep -c "llms-full.txt" src/AgentPrism.Core/buildTransitive/AgentPrism.AgentMap.md docs-site/public/llms.txt
+grep -c "llms-full.txt" src/Tracon.Core/buildTransitive/Tracon.AgentMap.md docs-site/public/llms.txt
 ```
 
 ---
@@ -162,7 +162,7 @@ bağlı değil, bu bilerek böyle), yani `APG0402` ötüyordu — ve önerdiği 
 kötüdür.
 
 İki seçenek kullanıcıya soruldu; **opt-in'e bağlama** seçildi. Mekanizma
-`CompilerVisibleProperty` ile `AgentPrismWriteLocalReference`'ı analyzer'a
+`CompilerVisibleProperty` ile `TraconWriteLocalReference`'ı analyzer'a
 akıtmaktır (`build_property.` öneki). Kazanılan: paketi kurmak hâlâ **hiçbir
 uyarı üretmez** — targets'ın kendi sözü ve K1 korunur. Bedeli: hiç opt-in
 yapmamış bir depo bir dürtme almaz; site bu yüzden reçeteyi **iki adımlı** yazar
@@ -213,8 +213,8 @@ dışı public API), 3.7 (repo kuralları — sevk edilen metinde iç referans y
 | Kova | Ne değişti | Üretilen mi |
 |---|---|---|
 | `docs-site/` | `guides/coding-agents.md` (yanlış tavsiye kalktı, iki adımlı reçete, diyagram, `llms.txt` anlatısı) · `troubleshooting.md` (`APG0402` satırı + bölümü) · `capabilities.md` (aile tarifi + anlatı) | Elle |
-| Sevk edilen metin | `AgentPrism.Core.targets` (harita bölümü · `NoWarn` · `CompilerVisibleProperty`) · `APG0402` tanı metni · `AnalyzerReleases.Unshipped.md` | Elle |
-| Yerel referans ve harita | `AgentPrism.LocalReference.md` gövdesi **dört bölüm** oldu · `AgentPrism.AgentMap.md` iki "Where to look" satırı kazandı · `llms.txt` 38 satırlık indeks kazandı | Üretilir, commit edilir |
+| Sevk edilen metin | `Tracon.Core.targets` (harita bölümü · `NoWarn` · `CompilerVisibleProperty`) · `APG0402` tanı metni · `AnalyzerReleases.Unshipped.md` | Elle |
+| Yerel referans ve harita | `Tracon.LocalReference.md` gövdesi **dört bölüm** oldu · `Tracon.AgentMap.md` iki "Where to look" satırı kazandı · `llms.txt` 38 satırlık indeks kazandı | Üretilir, commit edilir |
 
 Dokunulmayanlar: `api/` · `http-api/` · `public/openapi/` · `ui.md` · ekran
 görüntüleri · paket `README.md`'leri · `sidebar.mjs` (yeni sayfa yok).
@@ -244,7 +244,7 @@ yalnız **iddia kazandı** (iki yeni kapı), eşik kaybetmedi.
    ne elde eder?* Yeni bir tanı yazarken bu soruyu **her yapılandırmada** sor,
    yalnız mutlu yolda değil.
 2. 🚨 **`AdditionalFiles` opt-in'e bağlı değildir; tanının kendisi bağlanmalıdır.**
-   `AgentPrism.Core.targets:78` iki dosyayı **her zaman** analyzer'a akıtır (bu
+   `Tracon.Core.targets:78` iki dosyayı **her zaman** analyzer'a akıtır (bu
    bilerek: bir kez açıp kapatan tüketicinin dosyası hâlâ bayatlayabilir). Yani
    bir tanı "tüketici bunu açtı mı" bilgisine ihtiyaç duyuyorsa onu
    `CompilerVisibleProperty` ile **ayrıca** almalıdır. Desen:
@@ -254,7 +254,7 @@ yalnız **iddia kazandı** (iki yeni kapı), eşik kaybetmedi.
    `Order(...)` + liste karşılaştırması kullan, ya da her öğe için ayrı
    `ShouldContain(predicate)`. `ShouldContain("dize")` bir `HashSet<string>`
    üzerinde `MA0002` ile **derlemeyi kırar** — karşılaştırıcı ister.
-4. **Devralınan sözleşme: `AgentPrism.LocalReference.md` dört bölümlüdür** ve
+4. **Devralınan sözleşme: `Tracon.LocalReference.md` dört bölümlüdür** ve
    ilki `## Capability map - read this first`. Yeni bir bölüm eklenirse sıra
    soruların sırasını korumalıdır: ne var → nasıl çağrılır → HTTP yüzeyi → nasıl
    okunur. `LocalReferenceTests` ilk bölümü **adıyla** sabitler.
@@ -278,7 +278,7 @@ yalnız **iddia kazandı** (iki yeni kapı), eşik kaybetmedi.
    | `Ui.E2ETests` tek başına, bu çalışma kopyası | **5/5 düştü** |
    | Yalnız o test, izole, aynı kopya | 1/1 geçti |
    | `/private/tmp` altında `git worktree`, aynı `HEAD`, tam set | 2/2 geçti |
-   | `dotnet test AgentPrism.slnx` içinde | 1 düştü, 1 geçti |
+   | `dotnet test Tracon.slnx` içinde | 1 düştü, 1 geçti |
 
    Yani **deterministik değil**, ama tek başına koşan sette bu yolda neredeyse
    her zaman düşüyor. Fark diff değil, **yol/ortam** kaynaklıdır. Bir sonraki

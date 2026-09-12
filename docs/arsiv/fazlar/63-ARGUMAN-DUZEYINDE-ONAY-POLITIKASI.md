@@ -3,7 +3,7 @@
 > **Durum:** ✅ Tamamlandı (2026-08-18)
 > **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-61**
 > **Önkoşul:** [Faz 6](06-GOZLEMLENEBILIRLIK.md) — onay kuralı tablosu ve değerlendirici oradan gelir · [Faz 48](48-GUARDRAILS.md) — tool **argümanı** denetimini bilerek kapsam dışı bıraktı; bu faz o boşluğun sahibidir · [Faz 55](55-ASENKRON-ONAY-KUTUSU.md) — asenkron onay kutusu bu kuralların tüketicisidir
-> **Paketler:** `AgentPrism.Abstractions`, `AgentPrism.Core`, `AgentPrism.Sql.Shared`, `AgentPrism.PostgreSql`, `AgentPrism.SqlServer`, `AgentPrism.Sqlite`, `AgentPrism.AspNetCore`, `AgentPrism.UI`
+> **Paketler:** `Tracon.Abstractions`, `Tracon.Core`, `Tracon.Sql.Shared`, `Tracon.PostgreSql`, `Tracon.SqlServer`, `Tracon.Sqlite`, `Tracon.AspNetCore`, `Tracon.UI`
 > **Yeni paket:** Yok · **Migration:** **gerekli — üç set** (PostgreSQL + SQL Server + SQLite). Numara uygulama anında alınır (K-178)
 > **Public API:** **büyüyor** — `ToolApprovalRule`'a bir alan, iki yeni tip, bir kayıt uzantısı. `PublicAPI.Shipped.txt` bugün **boş**; ekleme **bugün bedava**
 > **Site etkisi:** `concepts/governance.md`, `concepts/tools.md`
@@ -40,7 +40,7 @@ Onay kuralları bugün **tool düzeyindedir**. `refund_order` ya **hep** onay is
 - [x] Üç sağlayıcıda da migration uygulanır ve sözleşme testleri geçer (PostgreSQL 0030, SQL Server 0017, SQLite 0017 — üçü de izole koşumda geçti)
 - [x] Arayüzde serbest ifade kutusu **yoktur**; operatör açılır listedir (`mcp.tsx` `<Select>`, `UiTests.Approval_rule_with_condition_is_created_and_shown`)
 - [x] Dört doğrulama kapısı sıfır uyarı verir (build/test/pack/format — kanıt bölümü aşağıda)
-- [x] `samples/AgentPrism.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı (aşağıda — CRUD; gerçek model çağrısıyla onay senaryosu yapılmadı, bkz. sapma notu)
+- [x] `samples/Tracon.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı (aşağıda — CRUD; gerçek model çağrısıyla onay senaryosu yapılmadı, bkz. sapma notu)
 - [x] `secret` taraması boş döndü (yalnız önceden bilinen, dokunulmamış yanlış pozitifler)
 - [x] Manuel kabul case'leri `docs/manuel-test/13-KIRACI-VE-GUVENLIK.md` içine eklendi (MT-SEC-100…108); otomatikleştirilebilenler (100-104, 106-107) canlı `curl` ile koşuldu, sonuç aşağıda
 - [x] `faz-denetim` koşuldu; 🔴 bulgu kalmadı (bkz. "Denetim Bulguları")
@@ -49,11 +49,11 @@ Onay kuralları bugün **tool düzeyindedir**. `refund_order` ya **hep** onay is
 
 ### Doğrulama komutları (gerçek çıktı)
 
-`samples/AgentPrism.Api` kalıcı yerel PostgreSQL'e (`Host=localhost;Port=55432`) karşı ayağa kaldırıldı; migration `0030_approval_conditions` gerçekten uygulandı ("AgentPrism applied 1 migration(s)"). Kimlik doğrulama bu örnekte API anahtarı bekliyordu; manuel test setinin sabit test anahtarı kullanıldı.
+`samples/Tracon.Api` kalıcı yerel PostgreSQL'e (`Host=localhost;Port=55432`) karşı ayağa kaldırıldı; migration `0030_approval_conditions` gerçekten uygulandı ("Tracon applied 1 migration(s)"). Kimlik doğrulama bu örnekte API anahtarı bekliyordu; manuel test setinin sabit test anahtarı kullanıldı.
 
 ```bash
 # Kosullu kural yaz
-curl -s -X POST http://localhost:5081/agentprism/api/approvals/rules \
+curl -s -X POST http://localhost:5081/tracon/api/approvals/rules \
   -H 'Content-Type: application/json' -H 'Authorization: Bearer manuel-test-token-2026' \
   -d '{"toolName":"refund_order","argumentConditions":[{"path":"amount","operator":"LessThanOrEqual","value":100}]}'
 # → 201, gövde: {"id":"01a0159c-...","toolName":"refund_order","argumentConditions":[{"path":"amount","operator":"LessThanOrEqual","value":100}],...}
@@ -75,7 +75,7 @@ curl -s -X POST http://localhost:5081/agentprism/api/approvals/rules \
 
 1. **🚨 `POST /api/approvals/rules` planın "mevcut uç" iddiasının aksine YOKTU — yeni yazıldı (K-451).**
    Plan kanıt tablosu `GET`/`DELETE`'in var olduğunu doğru ölçmüştü ama `POST`'un
-   varlığını ölçmeden varsaydı. `grep -rn "approvals/rules" src/AgentPrism.AspNetCore/`
+   varlığını ölçmeden varsaydı. `grep -rn "approvals/rules" src/Tracon.AspNetCore/`
    yalnız `MapGet` ve `MapDelete` buluyordu. Bu, `faz-uygulama` Adım 1'in tam
    uyardığı sınıftan bir kusurdu ve kod yazmadan önce yakalandı.
 2. **`ToolApprovalRuleRequest` gövdesi `argumentsHash` alanı TAŞIMAZ (K-452).**
@@ -85,12 +85,12 @@ curl -s -X POST http://localhost:5081/agentprism/api/approvals/rules \
    ayrı bir doğrulama koduna gerek kalmadı — iki oluşturma yolu (agent onay akışı
    vs. admin ekranı) HTTP katmanında zaten ayrık.
 3. **`ToolApprovalDecision` planlanan adı `ToolApprovalPolicyDecision` oldu (K-453).**
-   `AgentPrism.AspNetCore.Contracts.GovernanceContracts.cs` içinde Faz 6'dan beri
+   `Tracon.AspNetCore.Contracts.GovernanceContracts.cs` içinde Faz 6'dan beri
    aynı isimde BAŞKA bir public tip vardı (arayüzden gelen onay/red kararı). İsim
    çakışması `CS0436` ile ölçülerek yakalandı, yeniden adlandırıldı.
 4. **`ToolApprovalRuleEvaluator`'ın kurucusu `internal` DEĞİL, `public` kaldı; `ToolApprovalPolicyRegistry` de `internal` yerine `public` oldu.**
    İlk denemede ikisi de `internal` yapılmıştı (yalnız DI'dan çözülüyorlar,
-   dışarıdan `new` edilmiyorlar diye) — bu, tüm `AgentPrism.AspNetCore.FunctionalTests`
+   dışarıdan `new` edilmiyorlar diye) — bu, tüm `Tracon.AspNetCore.FunctionalTests`
    koşumunu (19/19) `InvalidOperationException: A suitable constructor... could not
    be located` ile kırdı: yerleşik `IServiceProvider`'ın reflection tabanlı
    etkinleştiricisi yalnız PUBLIC kurucuları görür. `public` bir kurucu `internal`
@@ -112,7 +112,7 @@ curl -s -X POST http://localhost:5081/agentprism/api/approvals/rules \
    onay içeriği zaten yalnız `governance.md`'ye işaret eden bir "Read next"
    satırıydı, kendi derinliği yoktu — ikinci bir kopya içerik üretmek yerine
    tek kaynağı güncellemek tercih edildi.
-8. **`samples/AgentPrism.Api` doğrulaması CRUD ile sınırlı kaldı; gerçek bir model
+8. **`samples/Tracon.Api` doğrulaması CRUD ile sınırlı kaldı; gerçek bir model
    çağrısıyla "koşul eşleşince otomatik geçer" senaryosu koşulmadı.** Örnek
    uygulamada onay isteyen, `amount` argümanlı hazır bir tool yoktu ve gerçek bir
    sağlayıcı API anahtarı bu oturumda mevcut değildi. Davranışın kendisi
@@ -169,7 +169,7 @@ Tam gerekçeler: `docs/KARARLAR.md`, K-451–K-455 (Bölüm 2) ve deadlock karar
 - **`conditions_hash` yalnız `SqlToolApprovalRuleStore` içinde, private olarak
   hesaplanır — `ToolApprovalRule` domain modelinde YOKTUR.** Bilerek: yalnız SQL
   benzersizlik anahtarı için var olan bir depolama detayı.
-- **Yarım kalan:** `samples/AgentPrism.Api`'de gerçek bir model çağrısıyla
+- **Yarım kalan:** `samples/Tracon.Api`'de gerçek bir model çağrısıyla
   "koşul eşleşince otomatik geçer" senaryosu koşulmadı (bkz. Plandan Sapmalar 8).
   Bir sonraki oturum bunu tamamlamak isterse `AddToolApprovalPolicy` çağrısı ve
   `amount` argümanlı bir tool örnek uygulamaya eklenmeli.

@@ -1,6 +1,6 @@
 ---
 name: faz-planlama
-description: Bir aday yeteneği (F-NN) uygulanabilir bir faz dokümanına (docs/NN-*.md) dönüştürür — kanıt doğrulama, kapsam sınırları, açık soruların sorulması, devir teslim kalitesinde plan yazımı ve yol haritasına kaydetme. AgentPrism'de fazlar ayrı oturumlarda uygulanır; plan dokümanı tek başına yeterli değilse o oturum yanlış kod yazar. Aday listesi hazırlamak için değil, seçilmiş bir adayı plana çevirmek için kullanılır.
+description: Bir aday yeteneği (F-NN) uygulanabilir bir faz dokümanına (docs/NN-*.md) dönüştürür — kanıt doğrulama, kapsam sınırları, açık soruların sorulması, devir teslim kalitesinde plan yazımı ve yol haritasına kaydetme. Tracon'de fazlar ayrı oturumlarda uygulanır; plan dokümanı tek başına yeterli değilse o oturum yanlış kod yazar. Aday listesi hazırlamak için değil, seçilmiş bir adayı plana çevirmek için kullanılır.
 ---
 
 # Faz Planlama Protokolü
@@ -15,7 +15,7 @@ aday listesi (F-NN) → [faz-planlama] → docs/NN-*.md → [faz-baslangic] → 
 ```
 
 Amaç tek şeydir: **plan dokümanı, onu hiç görmemiş bir oturumda tek başına
-yeterli olsun.** AgentPrism fazları ayrı sohbetlerde uygulanır. Plan eksikse o
+yeterli olsun.** Tracon fazları ayrı sohbetlerde uygulanır. Plan eksikse o
 oturum ya yanlış kod yazar ya durup sorar; ikisi de pahalıdır.
 
 **Bu skill kod yazmaz.** Tek çıktı bir dokümandır.
@@ -33,7 +33,7 @@ Kullanıcıdan üç şey gelmeli. Gelmediyse **sor**, varsayma:
 | Bu tur bir yol haritasına mı bağlanacak? | Bağlanacaksa yol haritası dosyası da güncellenir |
 
 İki kalem tek fazda ancak **aynı altyapıyı** paylaşıyorsa birleşir. Faz 21
-(kota + webhook) böyle yapıldı; ikisi de "AgentPrism'i dış dünyayla sözleşmeye
+(kota + webhook) böyle yapıldı; ikisi de "Tracon'i dış dünyayla sözleşmeye
 bağlar" işiydi. Ortak yanı olmayan iki kalemi tek faza koymak DoD'yi bulanık
 yapar.
 
@@ -103,11 +103,11 @@ plan yanlıştır.
 | Konu | Kural |
 |---|---|
 | **Yeni NuGet paketi** | K-007 gerekçesi ister. Geçişli ağırlığı **say** (Faz 27: 37 paket → ertelendi, K-212) |
-| **Yeni AgentPrism paketi** | `faz-tamamlama`'daki paket kontrol listesi: README, slnx, meta paket, `DependencyDirectionTests` |
-| **Ön sürüm MAF paketi** | Yalnız `AgentPrism.AspNetCore` içinde (K-008). Başka yere koyacaksan bu bir karardır |
+| **Yeni Tracon paketi** | `faz-tamamlama`'daki paket kontrol listesi: README, slnx, meta paket, `DependencyDirectionTests` |
+| **Ön sürüm MAF paketi** | Yalnız `Tracon.AspNetCore` içinde (K-008). Başka yere koyacaksan bu bir karardır |
 | **Yeni tablo** | **Üç migration seti** — PostgreSQL + SqlServer + Sqlite. Numaralar sağlayıcı başına bağımsızdır (K-178) |
 | **Migration numarası** | Plan numara **rezerve etmez**. Uygulama anında bir sonraki boş numara alınır |
-| **Arayüz işi** | Bundle payını **gzip KB olarak** yaz. Bütçe 250 KB; bugünkü kullanımı ölç: `ls -l src/AgentPrism.UI/wwwroot/assets/` |
+| **Arayüz işi** | Bundle payını **gzip KB olarak** yaz. Bütçe 250 KB; bugünkü kullanımı ölç: `ls -l src/Tracon.UI/wwwroot/assets/` |
 | **Yeni ekran metni** | `locales/en.ts` + `tr.ts`. Eksik anahtar **derleme hatasıdır** (K-228) |
 | **Sunucu yanıtı** | Çevrilmez; API sözleşmesi tek dillidir (K-232) |
 | **Kullanıcıya dönük yüzey** | Plan başlığındaki **Tüketici yüzeyi** satırı iki eksende yazılır: hangi `docs-site/` sayfası değişecek **ve** hangi sevk edilen yapıt (XML `<example>`, paket `README.md`'si, `capabilities.md` satırı). `api/` ve `http-api/` üretilir — orada iş XML dokümanı ve `.WithTags`/`.Produces` üstverisidir. Sözleşme: [`tuketici-dokuman-senkronu`](../tuketici-dokuman-senkronu/SKILL.md) |
@@ -210,12 +210,12 @@ eşzamanlılık · boş/aşırı girdi · başka kiracı · alt sistem hatası.
 
 - [ ] `POST /api/agents/x/run` kota dolduğunda `429` ve `Retry-After` döner
 - [ ] Dört doğrulama kapısı sıfır uyarı
-- [ ] `samples/AgentPrism.Api` üzerinde gerçek çıktı alındı (komut + beklenen yanıt)
+- [ ] `samples/Tracon.Api` üzerinde gerçek çıktı alındı (komut + beklenen yanıt)
 
 Her faz DoD'sinde şu **beş** satır her zaman bulunur:
 
 1. Dört doğrulama kapısı sıfır uyarı
-2. `samples/AgentPrism.Api` ile gerçek `run` — çıktı belgeye yazıldı
+2. `samples/Tracon.Api` ile gerçek `run` — çıktı belgeye yazıldı
 3. `secret` taraması boş döndü
 4. Fazın manuel kabul case'leri `docs/manuel-test/<alan>` içine eklendi ve otomatikleştirilebilenler koşuldu
 5. `faz-denetim` koşuldu; 🔴 bulgu kalmadı

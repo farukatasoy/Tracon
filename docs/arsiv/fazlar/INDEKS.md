@@ -12,6 +12,9 @@
 > Faz durumu ve bağlantılar **üretilir**: [`../../YOL-HARITASI.md`](../../YOL-HARITASI.md).
 > Yalnız açık veya planlanan fazlar `docs/` kökünde kalır.
 
+> **Ad değişikliği (Faz 162).** Faz 162'ye kadar ürünün adı AgentPrism'di.
+> Arşiv metinleri yeni ada göre yeniden yazıldı; tam metin git geçmişindedir.
+
 ## Neden burada
 
 `docs/**.md` dizin bütçesi (5 MB) her fazda ~41 KB büyüyordu ve Faz 76

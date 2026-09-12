@@ -3,11 +3,11 @@
 > **Durum:** ✅ Tamamlandı (2026-08-28)
 > **Kaynak:** [YAYIN-HAZIRLIK.md](../../YAYIN-HAZIRLIK.md) §13 — **kulvar 2** (BL-008 · BL-019 · BL-034 · BL-050 · 🟢 BL-016) + **kulvar 6** (BL-018 · BL-033 · BL-039 · BL-051)
 > **Önkoşul:** [Faz 121](121-SEAM-SOZLESME-DOKUMANI.md) — seam sözleşme standardını ve metin kapısı desenini kurdu; bu faz aynı kapıyı bir boyut daha ile genişletir
-> **Paketler:** `AgentPrism.Core` (birincil), `AgentPrism.Workflows`, `AgentPrism.Abstractions` (yalnız XML)
+> **Paketler:** `Tracon.Core` (birincil), `Tracon.Workflows`, `Tracon.Abstractions` (yalnız XML)
 > **Yeni paket:** Yok · **Migration:** Yok
 > **Public API:** **Büyüdü** — 6 yeni kayıt overload'ı (`AddAgentDecorator` üçlüsü, `AddContentGuard` instance/factory ikilisi, `AddModelProvider<T>()`). Ölçüldü: `PublicAPI.Shipped.txt` **0 satır** (17 dosya), yani bugün eklemek ucuz, GA'dan sonra kırıcı
-> **Tüketici yüzeyi:** `docs-site/src/content/docs/guides/write-your-own-agent-decorator.md` (yeni — plan `extend/` diyordu, gerçek konvansiyon `guides/write-your-own-*` idi, bkz. Plandan Sapmalar) · `api/*` **üretildi** · sevk edilen: `IAgentPrismBuilder`'ın XML `<example>`'ı **düzeltildi**
-> **Manuel test alanı:** [`docs/manuel-test/`](../../manuel-test/00-INDEKS.md) — başlangıç uyarısı case'leri (MT-DIAG-055..057) gerçek `samples/AgentPrism.Api`'ye karşı koşuldu
+> **Tüketici yüzeyi:** `docs-site/src/content/docs/guides/write-your-own-agent-decorator.md` (yeni — plan `extend/` diyordu, gerçek konvansiyon `guides/write-your-own-*` idi, bkz. Plandan Sapmalar) · `api/*` **üretildi** · sevk edilen: `ITraconBuilder`'ın XML `<example>`'ı **düzeltildi**
+> **Manuel test alanı:** [`docs/manuel-test/`](../../manuel-test/00-INDEKS.md) — başlangıç uyarısı case'leri (MT-DIAG-055..057) gerçek `samples/Tracon.Api`'ye karşı koşuldu
 
 ---
 
@@ -28,22 +28,22 @@
 
 ## Amaç
 
-Bu faz iki soruyu birlikte cevaplar, çünkü ikisi de **kayıt anına** bakar: 1. Üçüncü taraf bir tüketici, AgentPrism'in bir servisini nasıl **değiştirir**? Bugün bu desteklenen yol vardır ve çalışır, ama keşfedilemez — ve dokümanın kendi örneği kuralıyla çelişir. 2. Bir tüketici bir genişleme noktasını **kaydetmediğinde** ne olur?
+Bu faz iki soruyu birlikte cevaplar, çünkü ikisi de **kayıt anına** bakar: 1. Üçüncü taraf bir tüketici, Tracon'in bir servisini nasıl **değiştirir**? Bugün bu desteklenen yol vardır ve çalışır, ama keşfedilemez — ve dokümanın kendi örneği kuralıyla çelişir. 2. Bir tüketici bir genişleme noktasını **kaydetmediğinde** ne olur?
 
 ## Bitiş Ölçütleri (DoD)
 
 - [x] `AddAgentDecorator` üçlüsü var; üç decorator kaydedildiğinde **üçü de** zincirde ve `Order` sırasına uyuyor (fonksiyonel testle ölçüldü — `AgentDecoratorRegistrationTests.Three_registered_decorators_all_run_in_order_order`)
 - [x] `AddContentGuard` instance/factory ve `AddModelProvider<T>()` var; hepsi `TryAddEnumerable`/`TryAdd*` kullanıyor
-- [x] [`IAgentPrismBuilder.cs`](../../../src/AgentPrism.Core/IAgentPrismBuilder.cs)'ın `<example>`'ı **önce** kaydeden hâle geldi; iki sıranın farkı XML'de yazılı
+- [x] [`ITraconBuilder.cs`](../../../src/Tracon.Core/ITraconBuilder.cs)'ın `<example>`'ı **önce** kaydeden hâle geldi; iki sıranın farkı XML'de yazılı
 - [x] Metin kapısına yeni satır eklendi ve **kasıtlı bozmayla kırmızı verdiği ölçüldü**; çıktı belgeye yazıldı (K-642 tuzağı) — `OrderingContractDocumentationTests`
 - [x] Override sözleşmesi bölümü var; tekil/çoklu seam farkı tablo olarak anlatılıyor — `docs-site/guides/write-your-own-agent-decorator.md` (plan `extend/` diyordu, bkz. Plandan Sapmalar)
-- [x] Production'da `IContentGuard` kayıtsızken **bir kez** uyarı; Development'ta ve ortam yokken **sessiz** — üçü de testle ölçüldü (`SilentGapWarningTests` x2 + `SilentGapWarningRegistrationTests`) + gerçek `samples/AgentPrism.Api`'de doğrulandı (MT-DIAG-055/056)
-- [x] Retention kapalı/politikasızken Production uyarısı var — gerçek `samples/AgentPrism.Api`'de doğrulandı (MT-DIAG-057)
+- [x] Production'da `IContentGuard` kayıtsızken **bir kez** uyarı; Development'ta ve ortam yokken **sessiz** — üçü de testle ölçüldü (`SilentGapWarningTests` x2 + `SilentGapWarningRegistrationTests`) + gerçek `samples/Tracon.Api`'de doğrulandı (MT-DIAG-055/056)
+- [x] Retention kapalı/politikasızken Production uyarısı var — gerçek `samples/Tracon.Api`'de doğrulandı (MT-DIAG-057)
 - [x] Uyarı servisi hiçbir koşulda host'u durdurmuyor (store çözümlemesi fırlatsa bile) — `A_throwing_content_guard_enumeration_does_not_stop_the_host`, `A_throwing_retention_options_read_does_not_stop_the_host`
 - [x] BL-033 **sınıf taramasıyla** kapandı: `CompositeAgentCatalog` (iki decorate döngüsü), `AgentDecoratorPipeline` ve DÖRT tüketicisi (`RunReplayService`, `RunContinuationJobHandler`, `EvalJobHandler`, `AgentEndpoints.cs`'in parametreli-run yolu — denetimin bulduğu 4.'sü) ayrı ayrı tarandı; bulunan her yer aynı düzeltmeyi ve testi aldı
-- [x] Duplicate workflow adı `AgentPrismException` veriyor; ham `ArgumentException` yolu kapandı — `WorkflowCatalogTests`
+- [x] Duplicate workflow adı `TraconException` veriyor; ham `ArgumentException` yolu kapandı — `WorkflowCatalogTests`
 - [x] Dört doğrulama kapısı sıfır uyarı verir — build/test/format/secret taraması ayrı ayrı koşuldu, bağımsız denetim kendi izole worktree'sinde build+test'i tekrar doğruladı
-- [x] `samples/AgentPrism.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı — `AddAgentDecorator` geçici bir decorator ile gerçek bir `run`a karşı doğrulandı (`MT-BL008-VERIFY: decorated 'support'` log satırı), üç uyarı case'i (MT-DIAG-055/056/057) gerçek host'a karşı koşuldu
+- [x] `samples/Tracon.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı — `AddAgentDecorator` geçici bir decorator ile gerçek bir `run`a karşı doğrulandı (`MT-BL008-VERIFY: decorated 'support'` log satırı), üç uyarı case'i (MT-DIAG-055/056/057) gerçek host'a karşı koşuldu
 - [x] `secret` taraması boş döndü
 - [x] Manuel kabul case'leri `docs/manuel-test/` içine eklendi; MT-DIAG-055/056/057 ve MT-WF-119 gerçek/otomatik koşuldu
 - [x] `faz-denetim` koşuldu; 🔴 bulgu kalmadı (2 🟡 bulundu, ikisi de düzeltildi; 1 🟢 düzeltildi)
@@ -54,12 +54,12 @@ Bu faz iki soruyu birlikte cevaplar, çünkü ikisi de **kayıt anına** bakar: 
 
 ```bash
 # Uc decorator da zincirde mi
-./artifacts/bin/AgentPrism.Core.UnitTests/release/AgentPrism.Core.UnitTests \
+./artifacts/bin/Tracon.Core.UnitTests/release/Tracon.Core.UnitTests \
   --filter-class "*AgentDecoratorRegistrationTests*"
 
 # Retention uyarisi (MT-DIAG-057) — ornek uygulama Retention:Enabled'i hic acmaz,
 # kod degisikligi GEREKMEZ
-ASPNETCORE_ENVIRONMENT=Production dotnet run --project samples/AgentPrism.Api 2>&1 | grep -i "retention disabled"
+ASPNETCORE_ENVIRONMENT=Production dotnet run --project samples/Tracon.Api 2>&1 | grep -i "retention disabled"
 
 # Content guard uyarisi (MT-DIAG-055) — ornek uygulama VARSAYILAN olarak
 # .AddPatternContentGuard() cagirir; bu case'i gormek icin o cagriyi Program.cs'te
@@ -94,7 +94,7 @@ git diff -- 'src/*/PublicAPI.Unshipped.txt' | grep -c '^+[^+]'
   mantığı üç yerde ayrı ayrı yazılırdı). Davranış değişmedi, yalnız kod paylaşıldı.
 - **`WorkflowCatalog`'un kurucusu `_codeWorkflows` alanını artık `ToDictionary`
   yerine elle bir döngüyle dolduruyor** (plan yalnız "duplicate ad
-  `AgentPrismException` versin" diyordu, mekanizmayı belirtmiyordu) —
+  `TraconException` versin" diyordu, mekanizmayı belirtmiyordu) —
   `WorkflowFunctionRegistry.cs:48`'in zaten kanıtlanmış deseni birebir kopyalandı.
 - **Bağımsız denetim iki 🟡 buldu, ikisi de bu fazda kapandı** (aşağıya bkz.);
   plan bunları öngörmüyordu çünkü ikisi de uygulama sırasında ortaya çıkan
@@ -103,7 +103,7 @@ git diff -- 'src/*/PublicAPI.Unshipped.txt' | grep -c '^+[^+]'
 ## Bu Fazda Verilen Kararlar
 
 - **K-645** — 60 tekil-registrasyon seam'ine dedicated `Add*()`/`Use*()`
-  metodu eklenmez; `IAgentPrismBuilder.Services`'in XML dokümanına bağlı bir
+  metodu eklenmez; `ITraconBuilder.Services`'in XML dokümanına bağlı bir
   metin kapısı sözleşmesi yeterli sayıldı (122.1(c)'nin planda "kapanışta
   K-NNN olarak yazılır" dediği karar).
 
@@ -115,7 +115,7 @@ worktree`'de kendi derleme+test koşumuyla doğruladı): **🔴 yok.**
 | # | Seviye | Bulgu | Sonuç |
 |---|---|---|---|
 | 1 | 🟡 | BL-033'ün sınıf taraması `CompositeAgentCatalog`'un versiyonlu `ResolveAsync(name, version, culture, token)` overload'ındaki ikinci decorate döngüsünü de düzeltti, ama yeni testler yalnız versiyonsuz overload'ı kanıtlıyordu | **Düzeltildi** — `AgentSourceFaultIsolationTests`'e `HealthyVersionedSource` + 2 yeni case eklendi (normalize + iptal geçirimi), versiyonlu overload'a karşı |
-| 2 | 🟡 | `AgentDecoratorPipeline.Wrap`, kardeşi `CompositeAgentCatalog.HandleSourceFailure`'ın aksine hiç log/metrik yazmıyor; `AgentEndpoints.cs:748`'deki parametreli-run yolu (4. tüketici, `IAgentCatalog`'u tamamen atlar) bir decorator hatasını artık temiz bir `400`'e çeviriyor ama sunucu tarafında hiç iz bırakmadan | **Düzeltildi** — `AgentEndpoints.cs`'in `catch (AgentPrismException ex)` bloğu, istisna `AgentPrismAgentSourceException` ise `ILoggerFactory` üzerinden bir `LogError` yazıyor. `RunReplayService`/`RunContinuationJobHandler`/`EvalJobHandler` yolları zaten kendi dış `catch`'leri üzerinden logluyordu (davranış öncesinden bu yana değişmedi) — yalnız bu tek yol boştu |
+| 2 | 🟡 | `AgentDecoratorPipeline.Wrap`, kardeşi `CompositeAgentCatalog.HandleSourceFailure`'ın aksine hiç log/metrik yazmıyor; `AgentEndpoints.cs:748`'deki parametreli-run yolu (4. tüketici, `IAgentCatalog`'u tamamen atlar) bir decorator hatasını artık temiz bir `400`'e çeviriyor ama sunucu tarafında hiç iz bırakmadan | **Düzeltildi** — `AgentEndpoints.cs`'in `catch (TraconException ex)` bloğu, istisna `TraconAgentSourceException` ise `ILoggerFactory` üzerinden bir `LogError` yazıyor. `RunReplayService`/`RunContinuationJobHandler`/`EvalJobHandler` yolları zaten kendi dış `catch`'leri üzerinden logluyordu (davranış öncesinden bu yana değişmedi) — yalnız bu tek yol boştu |
 | 3 | 🟢 | Faz dokümanının başlık satırı "5 yeni kayıt overload'ı" diyordu, gerçek sayı 6 (`AddAgentDecorator` üçlüsü + `AddContentGuard` ikilisi + `AddModelProvider<T>()`) | **Düzeltildi** — başlık satırı ve "Gerçekleşen Public API" bölümü düzeltildi |
 
 Düzeltmelerden sonra dört kapı yeniden koşuldu: `dotnet build` (0 uyarı),
@@ -128,9 +128,9 @@ dışı public API yok), 3.7 (repo kuralları), 3.8 (ürün yüzeyi).
 
 🚨 **Bağımsız denetimin kendi build+test koşumu YALNIZ üç projeyi kapsıyordu**
 (`Core.UnitTests`, `Workflows.UnitTests`, `AspNetCore.FunctionalTests`) — tam
-`python3 scripts/kapi.py kapanis` ilk gerçek koşumunda `AgentPrism.Generators.
-UnitTests` kırmızı verdi: `IAgentPrismBuilder.cs`'in yeni `<example>`'ı
-(`AuditingAgentDecorator`) `tests/AgentPrism.Generators.UnitTests/Examples/
+`python3 scripts/kapi.py kapanis` ilk gerçek koşumunda `Tracon.Generators.
+UnitTests` kırmızı verdi: `ITraconBuilder.cs`'in yeni `<example>`'ı
+(`AuditingAgentDecorator`) `tests/Tracon.Generators.UnitTests/Examples/
 ExamplePrelude.cs`'e stub olarak eklenmemişti (kardeş `GitAgentSource`/
 `ResponseQualityJudge` deseni). Düzeltildi, 194/194 yeşil. **Ders:** bir
 XML `<example>`'a yeni bir illüstratif tip adı (gerçekte var olmayan bir

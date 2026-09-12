@@ -3,7 +3,7 @@
 > **Durum:** ✅ Tamamlandı (2026-09-01)
 > **Kaynak:** [kesif/2026-09-01-tuketici-feature-talepleri.md](../../kesif/2026-09-01-tuketici-feature-talepleri.md) — **F-173**
 > **Önkoşul:** Yok
-> **Paketler:** `AgentPrism.Generators` (tek paket)
+> **Paketler:** `Tracon.Generators` (tek paket)
 > **Yeni paket:** Yok · **Migration:** Yok
 > **Public API:** büyümüyor — üretilen şema metni değişir, C# yüzeyi değişmez. Yeni bir analyzer diagnostic kodu eklenir (`APG0010`)
 > **Tüketici yüzeyi:** `docs-site/`: `guides/write-your-own-tool.md`, `concepts/tools.md`, `capabilities.md` (diagnostic bağlantısının hedef bölümü) · sevk edilen: `APG0003` metni, yeni `APG0010` metni, `AnalyzerReleases.Unshipped.md`
@@ -40,7 +40,7 @@ Generator bugün tipi ifade eder, **kısıtı** ifade etmez. Model `count` param
 - [x] `AnalyzerReleases.Unshipped.md` `APG0010` satırını taşır
 - [x] `DiagnosticIntegrityTests` yeşil (yardım bağlantısı siteyle uyumlu)
 - [x] Dört doğrulama kapısı sıfır uyarı verir
-- [x] Kısıtlı tool ile gerçek `run` yapıldı, çıktı belgeye yazıldı (case 5 — `AgentPrism.Package.Tests` üzerinden, bkz. Plandan Sapmalar #1)
+- [x] Kısıtlı tool ile gerçek `run` yapıldı, çıktı belgeye yazıldı (case 5 — `Tracon.Package.Tests` üzerinden, bkz. Plandan Sapmalar #1)
 - [x] `secret` taraması boş döndü
 - [x] Manuel kabul case'leri `docs/manuel-test/02-CEKIRDEK-VE-KATALOG.md` içine eklendi; otomatikleştirilebilenler koşuldu
 - [x] `faz-denetim` koşuldu; 🔴 bulgu kalmadı (1 🔴 + 2 🟡 bulundu ve kapatıldı, bkz. Denetim Bulguları)
@@ -48,7 +48,7 @@ Generator bugün tipi ifade eder, **kısıtı** ifade etmez. Model `count` param
 
 ### Gerçek run kanıtı (case 5)
 
-Paketlenmiş `AgentPrism`/`AgentPrism.Testing` (yerel NuGet feed, sürüm
+Paketlenmiş `Tracon`/`Tracon.Testing` (yerel NuGet feed, sürüm
 `0.0.0-preview.0.508`) referans alan bağımsız bir `PackageReference`
 tüketicisinde, `[Range(1, 10)] int priority` taşıyan bir tool ile gerçek
 `run` yapıldı (`ConstrainedToolPackageTests`'in aynı adımlarının elle tekrarı):
@@ -69,21 +69,21 @@ dotnet build samples/... -p:EmitCompilerGeneratedFiles=true
 grep -r "minimum" obj/**/generated/
 
 # Yerel bağımsızlığı
-LANG=tr_TR.UTF-8 dotnet build tests/AgentPrism.Generators.UnitTests
+LANG=tr_TR.UTF-8 dotnet build tests/Tracon.Generators.UnitTests
 ```
 
 ---
 
 ## Plandan Sapmalar
 
-1. **Manuel kabul case 5'in mekanizması `samples/AgentPrism.Api` yerine `AgentPrism.Package.Tests`'e taşındı.** Plan "samples/AgentPrism.Api üzerinde tool çağırt" diyordu, ama bu proje `AgentPrism`'e `ProjectReference` ile bağlıdır (`ConsumerRunTests`'in kendi belgesi) — paketlenmiş `analyzers/dotnet/cs/` DLL'inin gerçekten bir `PackageReference` tüketicisine ulaştığını KANITLAYAMAZ, ki DoD'nin kendi paket-seviyesi satırı tam olarak bunu istiyordu ("Kısıtlı tool gerçekten paketten çıkmaz | Paket | `AgentPrism.Package.Tests`"). `ConsumerRunTests`'in aynı deseni (yerel NuGet feed → dış tüketici projesi yaz → derle → çalıştır) tekrarlanarak `ConstrainedToolConsumerProject`/`ConstrainedToolPackageTests` eklendi; `samples/AgentPrism.Api`'nin paylaşılan `OrderTools.cs`'i (onlarca başka manuel test dokümanı ve fonksiyonel testin referans verdiği `list_recent_orders`/`get_order_status`/`cancel_order` imzaları) dokunulmadan bırakıldı. Manuel case MT-CORE-112 bu gerçek mekanizmayı anlatacak şekilde güncellendi.
+1. **Manuel kabul case 5'in mekanizması `samples/Tracon.Api` yerine `Tracon.Package.Tests`'e taşındı.** Plan "samples/Tracon.Api üzerinde tool çağırt" diyordu, ama bu proje `Tracon`'e `ProjectReference` ile bağlıdır (`ConsumerRunTests`'in kendi belgesi) — paketlenmiş `analyzers/dotnet/cs/` DLL'inin gerçekten bir `PackageReference` tüketicisine ulaştığını KANITLAYAMAZ, ki DoD'nin kendi paket-seviyesi satırı tam olarak bunu istiyordu ("Kısıtlı tool gerçekten paketten çıkmaz | Paket | `Tracon.Package.Tests`"). `ConsumerRunTests`'in aynı deseni (yerel NuGet feed → dış tüketici projesi yaz → derle → çalıştır) tekrarlanarak `ConstrainedToolConsumerProject`/`ConstrainedToolPackageTests` eklendi; `samples/Tracon.Api`'nin paylaşılan `OrderTools.cs`'i (onlarca başka manuel test dokümanı ve fonksiyonel testin referans verdiği `list_recent_orders`/`get_order_status`/`cancel_order` imzaları) dokunulmadan bırakıldı. Manuel case MT-CORE-112 bu gerçek mekanizmayı anlatacak şekilde güncellendi.
 2. **`ParameterTypeValidator.TryCreate`'e planın taslağında olmayan bir `out EquatableArray<string> unsupportedConstraintAttributes` parametresi eklendi.** Plan yalnız `ParameterModel`e `Constraints` alanı eklenmesini gösteriyordu; APG0010'u raporlamak için "hangi attribute uyumsuzdu" bilgisinin `ToolCandidate.Create`'e taşınması gerekti — `ParameterModel`in kendisine eklemek (incremental modelin bir PARÇASI hâline getirmek) kapsam dışıydı, çünkü bu bilgi yalnız tek seferlik bir tanı raporlamak için var, şemaya asla girmiyor. `out` parametresi bunu `ParameterModel`in değer eşitliğinin dışında tutar.
 3. **Kapanış kapısını koşarken, bu fazla TAMAMEN ilgisiz iki bayat taban çizgisi bulundu ve düzeltildi** (kullanıcı talimatı: "konuyla alakasız bug/defect'lerle karşılaşırsan onları da çöz"):
-   - `tests/AgentPrism.Core.UnitTests/Architecture/PlaywrightLocatorTests` — Faz 129 `tests/AgentPrism.Ui.E2ETests/UiTests.cs`'e `GetByPlaceholder("default")` (ne `Exact = true` ne `.First`/`.Nth`) ekledi ama `playwright-locator-baseline.txt`'i hiç yenilemedi (dosyanın son commit'i Faz 93'ten kalıyordu, `UiTests.cs`'inki Faz 129'dandı). `Exact = true` eklendi — placeholder metni `jobs.tsx`'te tam olarak `"default"` ve sayfada tek örnek, bu yüzden davranış değişmedi, yalnız riskli sayım düştü.
-   - `tests/AgentPrism.Sql.Shared.UnitTests/SqlTextSnapshotTests` — Faz 129'un `lane` sütunu (job kuyruğu lane'leri) on bir sorgu metnini değiştirdi ama üç `sql-text-baseline.*.txt` dosyası hiç yenilenmedi (son commit'leri Faz 126'dan kalıyordu). `AGENTPRISM_SQL_SNAPSHOT_REFRESH=1` ile yenilendi; `git diff` yalnız `lane` sütunu/parametresi ekleyen satırları gösterdi, üç dialekt arasında tutarlı — beklenmedik hiçbir fark yok.
-   - İkisi de Faz 129'un KENDİ kapanışında `dotnet test AgentPrism.slnx` tam koşumunun (ya da onun sonucunun) gözden kaçtığını gösteriyor; bu faz onları kapattı.
+   - `tests/Tracon.Core.UnitTests/Architecture/PlaywrightLocatorTests` — Faz 129 `tests/Tracon.Ui.E2ETests/UiTests.cs`'e `GetByPlaceholder("default")` (ne `Exact = true` ne `.First`/`.Nth`) ekledi ama `playwright-locator-baseline.txt`'i hiç yenilemedi (dosyanın son commit'i Faz 93'ten kalıyordu, `UiTests.cs`'inki Faz 129'dandı). `Exact = true` eklendi — placeholder metni `jobs.tsx`'te tam olarak `"default"` ve sayfada tek örnek, bu yüzden davranış değişmedi, yalnız riskli sayım düştü.
+   - `tests/Tracon.Sql.Shared.UnitTests/SqlTextSnapshotTests` — Faz 129'un `lane` sütunu (job kuyruğu lane'leri) on bir sorgu metnini değiştirdi ama üç `sql-text-baseline.*.txt` dosyası hiç yenilenmedi (son commit'leri Faz 126'dan kalıyordu). `TRACON_SQL_SNAPSHOT_REFRESH=1` ile yenilendi; `git diff` yalnız `lane` sütunu/parametresi ekleyen satırları gösterdi, üç dialekt arasında tutarlı — beklenmedik hiçbir fark yok.
+   - İkisi de Faz 129'un KENDİ kapanışında `dotnet test Tracon.slnx` tam koşumunun (ya da onun sonucunun) gözden kaçtığını gösteriyor; bu faz onları kapattı.
 4. **Ek: kendi eklediğim bir XML doküman satırı `ShippedDocumentationSelfContainmentTests`'i kırdı** — `ParameterTypeValidator.ReadConstraints`'in doc yorumunda "(Open Question 3)" ifadesi vardı; bu, tüketicinin hiç görmediği plan dokümanına içsel bir referanstı ve `internal-history.pattern`'in `\bopen question\s+\d+\b` kuralına takıldı. Cümle referans olmadan yeniden yazıldı.
-5. **`dotnet test AgentPrism.slnx -c Release --no-build -maxcpucount:1` koşumunda `AgentPrism.Ui.E2ETests.UiTests.Playground_voice_mode_opens_microphone_and_shows_transcript` bir kez zaman aşımına uğradı, izole koşumda hemen geçti.** Bu fazın değişikliği ses/mikrofon kodına hiç dokunmuyor; `docs/hafiza/test-altyapisi.md`'nin zaten belgelediği "tam koşum ara sıra flaky kırılır" sınıfının beşinci örneği olarak not edildi, kod değişikliği gerekmedi.
+5. **`dotnet test Tracon.slnx -c Release --no-build -maxcpucount:1` koşumunda `Tracon.Ui.E2ETests.UiTests.Playground_voice_mode_opens_microphone_and_shows_transcript` bir kez zaman aşımına uğradı, izole koşumda hemen geçti.** Bu fazın değişikliği ses/mikrofon kodına hiç dokunmuyor; `docs/hafiza/test-altyapisi.md`'nin zaten belgelediği "tam koşum ara sıra flaky kırılır" sınıfının beşinci örneği olarak not edildi, kod değişikliği gerekmedi.
 
 ## Bu Fazda Verilen Kararlar
 
@@ -139,7 +139,7 @@ koşuldu — sıfır uyarı.
   belgelenen desen) iyi bir başlangıç noktasıdır.
 - **Faz 129'un kapanışı iki baseline'ı (Playwright locator, SQL text
   snapshot) yenilemeden bitmiş** — bu faz ikisini de düzeltti (Plandan
-  Sapmalar #3). Sonraki fazın kapanışı `dotnet test AgentPrism.slnx`'in TAM
+  Sapmalar #3). Sonraki fazın kapanışı `dotnet test Tracon.slnx`'in TAM
   ve KIRMIZI SATIR OLMADAN bittiğini `tail`'siz bir log dosyasından teyit
   etmeli; `| tail -200` bir önceki fazda erken proje sonuçlarını (alfabetik
   sırada `Core.UnitTests`, `Sql.Shared.UnitTests`) görünmez kılmıştı.

@@ -3,7 +3,7 @@
 > **Durum:** ✅ Tamamlandı (2026-08-03)
 > **Kaynak:** [BEYIN-FIRTINASI.md](../BEYIN-FIRTINASI.md) · **F-15**, **F-24**
 > **Önkoşul:** [Faz 18](18-DEGERLENDIRME.md) — "hangisi daha iyi" sorusu ölçüm ister
-> **Paketler:** `AgentPrism.Abstractions`, `.Core`, `.PostgreSql`, `.AspNetCore`, `.UI`
+> **Paketler:** `Tracon.Abstractions`, `.Core`, `.PostgreSql`, `.AspNetCore`, `.UI`
 > **Yeni paket:** Yok · **Migration:** 0010 (`0010_experiments.sql`)
 
 ---
@@ -38,7 +38,7 @@ Altyapının yarısı hazırdı: tanım sürümleri ve geri alma Faz 1'den beri 
    `Variant` eval çalıştırmalarına hiç yazılmaz (bilinçli ayrım, bkz. karar
    K-133 aşağıda).
 3. **Sürüm bazlı metrik etiketi varsayılan açık mı?** → **Evet**,
-   `AgentPrismObservabilityOptions.IncludeAgentVersionTag = true`, kapatılabilir.
+   `TraconObservabilityOptions.IncludeAgentVersionTag = true`, kapatılabilir.
 
 ---
 
@@ -70,7 +70,7 @@ Altyapının yarısı hazırdı: tanım sürümleri ve geri alma Faz 1'den beri 
 - 🚨 **`IVersionedAgentSource` yalnızca `DefinitionStoreAgentSource` uygular.**
   Yeni bir `IAgentSource` eklerken (örn. MAF hosting kaynağı) sürüm geçmişi
   yoksa bu arayüzü uygulama — `CompositeAgentCatalog` otomatik olarak
-  `AgentPrismException` fırlatır, bu doğru davranıştır.
+  `TraconException` fırlatır, bu doğru davranıştır.
 - `Experiment.AssignmentKey` alanı hâlâ rezerve. Bir sonraki fazda kullanıcı
   bazlı atama gerekirse, önce bu alanın nasıl okunacağına dair bir karar
   gerekir (K-003'e benzer bir tartışma: tüketici kimliği taşımıyor).

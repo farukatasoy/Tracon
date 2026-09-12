@@ -3,8 +3,8 @@
 > **Durum:** ✅ Tamamlandı (2026-08-08)
 > **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-31**, **F-33** (birleşti)
 > **Önkoşul:** Yok. Faz 12'nin `ChildAgentInvoker` sınır denetimleri **yeniden kullanılır**
-> **Paketler:** `AgentPrism.AspNetCore` (yeni bağımlılıklar **yalnız burada**), `.Abstractions`, `.Core`
-> **Yeni paket:** Yok (AgentPrism paketi) · **Yeni NuGet:** `ModelContextProtocol.AspNetCore` (GA) + Açık Soru 1'e bağlı olarak A2A · **Migration:** Yok
+> **Paketler:** `Tracon.AspNetCore` (yeni bağımlılıklar **yalnız burada**), `.Abstractions`, `.Core`
+> **Yeni paket:** Yok (Tracon paketi) · **Yeni NuGet:** `ModelContextProtocol.AspNetCore` (GA) + Açık Soru 1'e bağlı olarak A2A · **Migration:** Yok
 > **Public API:** büyüyor — iki eşleme metodu, iki ayar sınıfı. Faz 7'den önce ucuz
 
 ---
@@ -26,13 +26,13 @@
 
 ## Amaç
 
-[Faz 22](22-MCP-DERINLESMESI.md) AgentPrism'i MCP **istemcisi** yaptı: uzak sunucuların tool'ları katalogda görünüyor. Aynanın diğer yüzü yok — AgentPrism'in agent'ları dışarıya **hiç** açılmıyor. Bu faz o yüzü açar. Claude Code, Copilot, Cursor veya başka bir agent, AgentPrism'deki bir agent'ı doğrudan çağırabilir. Kontrol düzlemi iddiası böylece iki yönlü olur.
+[Faz 22](22-MCP-DERINLESMESI.md) Tracon'i MCP **istemcisi** yaptı: uzak sunucuların tool'ları katalogda görünüyor. Aynanın diğer yüzü yok — Tracon'in agent'ları dışarıya **hiç** açılmıyor. Bu faz o yüzü açar. Claude Code, Copilot, Cursor veya başka bir agent, Tracon'deki bir agent'ı doğrudan çağırabilir. Kontrol düzlemi iddiası böylece iki yönlü olur.
 
 ## Bitiş Ölçütleri (DoD)
 
 - [x] 🚨 Beyaz liste boşken `tools/list` **boş** döner — hiçbir agent
       varsayılan olarak açık değildir (`Bos_beyaz_liste_hicbir_tool_dondurmez`)
-- [x] Beyaz listedeki agent `tools/list`'te `agentprism_{ad}` olarak görünür
+- [x] Beyaz listedeki agent `tools/list`'te `tracon_{ad}` olarak görünür
 - [x] `tools/call` agent'ı çalıştırır ve normal bir `runs` satırı üretir
 - [x] 🚨 Çalışma anında eklenen bir agent (beyaz listede) MCP'de **yeni sunucu
       kurulmadan** görünür (`Dinamik_katalog_yeni_agent_sunucu_yeniden_kurulmadan_gorunur`)
@@ -52,7 +52,7 @@
       `{prefix}/{agent}/.well-known/agent-card.json`'unda
 - [x] 🚨 A2A'nın dinamik kısıtı **test edilerek** belgelenmiştir
       (`Calisma_aninda_eklenen_agent_A2Ada_gorunmez`)
-- [x] 🚨 `DependencyDirectionTests`: `AgentPrism.Mcp` sunucu paketlerine bağımlı
+- [x] 🚨 `DependencyDirectionTests`: `Tracon.Mcp` sunucu paketlerine bağımlı
       **değildir** (`Mcp_istemci_paketi_sunucu_paketlerine_bagli_degildir`)
 - [x] Gerçek bir MCP istemcisiyle (Claude Code) **uçtan uca** çağrı yapıldı ve
       çıktı bu belgeye yazıldı — bkz. [Gerçek Doğrulama](#gerçek-doğrulama)
@@ -60,7 +60,7 @@
       [Gerçek Doğrulama](#gerçek-doğrulama) (SqlServer.IntegrationTests hariç:
       bu makinede ARM64/amd64 imaj uyuşmazlığı nedeniyle ortam kaynaklı, faza
       ilişkisiz — ayrıntı orada)
-- [x] `samples/AgentPrism.Api` ile gerçek `run` yapıldı, çıktı bu belgeye
+- [x] `samples/Tracon.Api` ile gerçek `run` yapıldı, çıktı bu belgeye
       yazıldı — bkz. [Gerçek Doğrulama](#gerçek-doğrulama)
 - [x] `secret` taraması boş döndü (tek eşleşme `docs/hafiza/sql-server-yerel-test.md`
       içinde önceden var olan, gerçek olmayan bir değişken referansı — bu
@@ -68,14 +68,14 @@
 
 ## Gerçek Doğrulama
 
-`samples/AgentPrism.Api` çalıştırıldı (`.UseMcpServer(o => o.ExposedAgents.Add("ozetleyici"))`,
+`samples/Tracon.Api` çalıştırıldı (`.UseMcpServer(o => o.ExposedAgents.Add("ozetleyici"))`,
 `.UseA2A(o => o.ExposedAgents.Add("ozetleyici"))`; "ozetleyici" bilerek seçildi
 çünkü tool taşımaz, onay sınırına hiç dokunmaz).
 
 **MCP `tools/list`:**
 
 ```json
-{"result":{"tools":[{"name":"agentprism_ozetleyici","description":"Gelen metni uc maddede ozetler.","inputSchema":{"type":"object","properties":{"message":{"type":"string","description":"Agent'a gonderilecek kullanici mesaji."}},"required":["message"]}}]},"id":1,"jsonrpc":"2.0"}
+{"result":{"tools":[{"name":"tracon_ozetleyici","description":"Gelen metni uc maddede ozetler.","inputSchema":{"type":"object","properties":{"message":{"type":"string","description":"Agent'a gonderilecek kullanici mesaji."}},"required":["message"]}}]},"id":1,"jsonrpc":"2.0"}
 ```
 
 **MCP `tools/call`:**
@@ -84,10 +84,10 @@
 {"result":{"content":[{"type":"text","text":"- Bugün hava çok güzeldi.\n- İş yerinde her şey yolunda gitti.\n- Toplantılar verimliydi."}]},"id":2,"jsonrpc":"2.0"}
 ```
 
-**A2A agent kartı** (`GET /agentprism/a2a/ozetleyici/.well-known/agent-card.json`):
+**A2A agent kartı** (`GET /tracon/a2a/ozetleyici/.well-known/agent-card.json`):
 
 ```json
-{"name":"ozetleyici","description":"Gelen metni uc maddede ozetler.","version":"1","supportedInterfaces":[{"url":"/agentprism/a2a/ozetleyici","protocolBinding":"JSONRPC","protocolVersion":"1.0"}],"capabilities":{"streaming":false,"pushNotifications":false},"defaultInputModes":["text/plain"],"defaultOutputModes":["text/plain"]}
+{"name":"ozetleyici","description":"Gelen metni uc maddede ozetler.","version":"1","supportedInterfaces":[{"url":"/tracon/a2a/ozetleyici","protocolBinding":"JSONRPC","protocolVersion":"1.0"}],"capabilities":{"streaming":false,"pushNotifications":false},"defaultInputModes":["text/plain"],"defaultOutputModes":["text/plain"]}
 ```
 
 **A2A `SendMessage`:**
@@ -97,33 +97,33 @@
 ```
 
 **Her ikisi de gerçek bir `runs` satırı ve `external.call` denetim kaydı üretti**
-(`GET /agentprism/api/runs`, `GET /agentprism/api/audit?action=external.call`
+(`GET /tracon/api/runs`, `GET /tracon/api/audit?action=external.call`
 ile doğrulandı — sırasıyla 2 satır, `protocol` alanı `mcp`/`a2a`).
 
 **Gerçek MCP istemcisi — Claude Code CLI:**
 
 ```
-$ claude mcp add --transport http agentprism-test http://localhost:5080/agentprism/mcp -s local
-Added HTTP MCP server agentprism-test with URL: http://localhost:5080/agentprism/mcp to local config
+$ claude mcp add --transport http tracon-test http://localhost:5080/tracon/mcp -s local
+Added HTTP MCP server tracon-test with URL: http://localhost:5080/tracon/mcp to local config
 
-$ claude mcp get agentprism-test
-agentprism-test:
+$ claude mcp get tracon-test
+tracon-test:
   Scope: Local config (private to you in this project)
   Status: ✔ Connected
   Type: http
-  URL: http://localhost:5080/agentprism/mcp
+  URL: http://localhost:5080/tracon/mcp
 ```
 
 `✔ Connected`, gerçek MCP `initialize` el sıkışması geçti (basit bir HTTP `200`
-değil). Doğrulama sonrası `claude mcp remove agentprism-test -s local` ile
+değil). Doğrulama sonrası `claude mcp remove tracon-test -s local` ile
 temizlendi.
 
-**Dört doğrulama kapısı** (2026-08-08, `AgentPrism.slnx`, tam çözüm):
+**Dört doğrulama kapısı** (2026-08-08, `Tracon.slnx`, tam çözüm):
 
 | Kapı | Sonuç |
 |---|---|
 | `dotnet build -c Release` | 0 uyarı, 0 hata |
-| `dotnet test -c Release --no-build` | Tüm derlemeler yeşil **SqlServer.IntegrationTests hariç** — `SqlServerFixture` Testcontainers ile mssql imajını başlatırken `TimeoutException` veriyor; kök sebep `WARNING: The requested image's platform (linux/amd64) does not match the detected host platform (linux/arm64/v8)` (bu oturumun makinesi Apple Silicon). İzole tekrar (`dotnet test tests/AgentPrism.SqlServer.IntegrationTests`) aynı sonucu verdi; bu fazda `AgentPrism.SqlServer`'a hiçbir dosya dokunulmadı — ortam kısıtı, kod regresyonu değil |
+| `dotnet test -c Release --no-build` | Tüm derlemeler yeşil **SqlServer.IntegrationTests hariç** — `SqlServerFixture` Testcontainers ile mssql imajını başlatırken `TimeoutException` veriyor; kök sebep `WARNING: The requested image's platform (linux/amd64) does not match the detected host platform (linux/arm64/v8)` (bu oturumun makinesi Apple Silicon). İzole tekrar (`dotnet test tests/Tracon.SqlServer.IntegrationTests`) aynı sonucu verdi; bu fazda `Tracon.SqlServer`'a hiçbir dosya dokunulmadı — ortam kısıtı, kod regresyonu değil |
 | `dotnet pack -c Release --no-build` | 236 `.nupkg`/`.snupkg`, 16 paketin `.52` sürümü dahil sıfır hata |
 | `dotnet format --verify-no-changes` | Sıfır fark |
 | `secret` taraması | Tek eşleşme, bu fazdan önce var olan gerçek olmayan bir değişken referansı (yukarı bakınız) |
@@ -132,54 +132,54 @@ temizlendi.
 
 ```bash
 # 1) Beyaz liste bos — HICBIR tool gorunmemeli
-curl -s -X POST http://localhost:5081/agentprism/mcp \
+curl -s -X POST http://localhost:5081/tracon/mcp \
   -H "content-type: application/json" \
-  -H "Authorization: Bearer $AGENTPRISM_TOKEN" \
+  -H "Authorization: Bearer $TRACON_TOKEN" \
   -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | jq '.result.tools | length'
 #    beklenen: 0
 
 # --- ornek uygulamada acilir: ExposedAgents = ["asistan"] ---
 
 # 2) Tool listesi
-curl -s -X POST http://localhost:5081/agentprism/mcp \
+curl -s -X POST http://localhost:5081/tracon/mcp \
   -H "content-type: application/json" \
-  -H "Authorization: Bearer $AGENTPRISM_TOKEN" \
+  -H "Authorization: Bearer $TRACON_TOKEN" \
   -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' \
   | jq '.result.tools[] | {name, description}'
 
 # 3) Tool cagrisi -> gercek bir runs satiri
-BEFORE=$(psql -tA "$AGENTPRISM_CONN" -c "SELECT count(*) FROM agentprism.runs;")
-curl -s -X POST http://localhost:5081/agentprism/mcp \
+BEFORE=$(psql -tA "$TRACON_CONN" -c "SELECT count(*) FROM tracon.runs;")
+curl -s -X POST http://localhost:5081/tracon/mcp \
   -H "content-type: application/json" \
-  -H "Authorization: Bearer $AGENTPRISM_TOKEN" \
+  -H "Authorization: Bearer $TRACON_TOKEN" \
   -d '{"jsonrpc":"2.0","id":2,"method":"tools/call",
-       "params":{"name":"agentprism_asistan","arguments":{"message":"merhaba"}}}' | jq
-AFTER=$(psql -tA "$AGENTPRISM_CONN" -c "SELECT count(*) FROM agentprism.runs;")
+       "params":{"name":"tracon_asistan","arguments":{"message":"merhaba"}}}' | jq
+AFTER=$(psql -tA "$TRACON_CONN" -c "SELECT count(*) FROM tracon.runs;")
 echo "runs: $BEFORE -> $AFTER  (bir artmali)"
 
 # 4) 🚨 Dinamik katalog — yeni agent, sunucu yeniden kurulmadan gorunmeli
-curl -s -X POST http://localhost:5081/agentprism/api/agents \
+curl -s -X POST http://localhost:5081/tracon/api/agents \
   -H "content-type: application/json" \
   -d '{"name":"yeni-agent","instructions":"...","model":{"provider":"openai","modelId":"gpt-5-mini"}}'
 #    (ExposedAgents listesine eklendikten sonra)
-curl -s -X POST http://localhost:5081/agentprism/mcp \
-  -H "content-type: application/json" -H "Authorization: Bearer $AGENTPRISM_TOKEN" \
+curl -s -X POST http://localhost:5081/tracon/mcp \
+  -H "content-type: application/json" -H "Authorization: Bearer $TRACON_TOKEN" \
   -d '{"jsonrpc":"2.0","id":3,"method":"tools/list"}' | jq '.result.tools | length'
 
 # 5) Kimliksiz istek reddedilmeli
-curl -s -o /dev/null -w "%{http_code}\n" -X POST http://localhost:5081/agentprism/mcp \
+curl -s -o /dev/null -w "%{http_code}\n" -X POST http://localhost:5081/tracon/mcp \
   -H "content-type: application/json" \
   -d '{"jsonrpc":"2.0","id":4,"method":"tools/list"}'
 
 # 6) A2A agent karti
-curl -s http://localhost:5081/agentprism/a2a/.well-known/agent-card.json \
-  -H "Authorization: Bearer $AGENTPRISM_TOKEN" | jq
+curl -s http://localhost:5081/tracon/a2a/.well-known/agent-card.json \
+  -H "Authorization: Bearer $TRACON_TOKEN" | jq
 
 # 7) Denetim izi
-curl -s "http://localhost:5081/agentprism/api/audit?action=external.call" | jq 'length'
+curl -s "http://localhost:5081/tracon/api/audit?action=external.call" | jq 'length'
 
-# 8) 🚨 Bagimlilik yonu — AgentPrism.Mcp sunucu paketi ALMAMALI
-dotnet list src/AgentPrism.Mcp/AgentPrism.Mcp.csproj package --include-transitive \
+# 8) 🚨 Bagimlilik yonu — Tracon.Mcp sunucu paketi ALMAMALI
+dotnet list src/Tracon.Mcp/Tracon.Mcp.csproj package --include-transitive \
   | grep -i "ModelContextProtocol.AspNetCore" || echo "TEMIZ"
 
 # 9) Gercek istemci — Claude Code MCP yapilandirmasi ile
@@ -191,7 +191,7 @@ dotnet list src/AgentPrism.Mcp/AgentPrism.Mcp.csproj package --include-transitiv
 ## Plandan Sapmalar
 
 Plan ile gerçek arasındaki fark gizlenmez — beşi de gerçek koşumda (fonksiyonel
-test veya `samples/AgentPrism.Api`) ortaya çıktı, plan taslağının ölçümünde
+test veya `samples/Tracon.Api`) ortaya çıktı, plan taslağının ölçümünde
 görünmüyordu:
 
 1. **MCP sunucu kaydı üçüncü bir çağrı ister: `WithHttpTransport()`.** Plan
@@ -221,7 +221,7 @@ görünmüyordu:
    Varsayılan yine de 1 bırakıldı (Açık Soru 6'nın gerekçesi geçerli); test
    `MaxDepth=0` ile gerçek "hiç alt çağrı yok" sınırını doğruladı. K-340.
 
-Ayrıca: `MapAgentPrismMcpServer`/`MapAgentPrismA2A` planın taslak imzasından
+Ayrıca: `MapTraconMcpServer`/`MapTraconA2A` planın taslak imzasından
 (`Action<TOptions>? configure` parametreli) SAPTI — MCP'de `configure`
 kaldırıldı (ayarlar `UseMcpServer()`'da, IServiceCollection zamanında
 sabitlenir; K-251 deseni: `Map...` yalnız zaten kurulmuş servisleri HTTP'ye
@@ -239,19 +239,19 @@ grep -n "K-334\|K-335\|K-336\|K-337\|K-338\|K-339\|K-340" docs/KARARLAR.md
 
 | Karar | Ne |
 |---|---|
-| K-334 | K-057 güncellendi: AgentPrism artık MCP istemcisi VE sunucusu; `WithHttpTransport()` zorunluluğu ölçüldü |
+| K-334 | K-057 güncellendi: Tracon artık MCP istemcisi VE sunucusu; `WithHttpTransport()` zorunluluğu ölçüldü |
 | K-335 | A2A'nın gerçek ek maliyeti 4 paket (2 değil); `A2A.AspNetCore` + `Microsoft.Agents.AI.Hosting.AspNetCore` plan taslağında yoktu |
 | K-336 | A2A agent başına ayrı alt yol + ayrı kart; tekil kart varsayımı terk edildi |
 | K-337 | Dış çağrı `ChildAgentInvoker` kullanmaz; her zaman YENİ bir kök çalıştırma (`CatalogToolCallHandler`/`ExternalAgentProxy`) |
-| K-338 | Erişim ayarları `IApplicationBuilder.Properties` ile `MapAgentPrism`'den devralınır; `MapAgentPrism` önce çağrılmalı |
+| K-338 | Erişim ayarları `IApplicationBuilder.Properties` ile `MapTracon`'den devralınır; `MapTracon` önce çağrılmalı |
 | K-339 | `ChildRunApproval` public yapıldı — üçüncü tüketici MCP/A2A dış çağrı katmanı |
 | K-340 | `MaxDepth=N` → N seviye devire izin verir (0 değil); DoD cümlesi düzeltildi, davranış (Faz 12) değişmedi |
 
 ## Sonraki Faza Devir Notu
 
 **Devralınan sözleşmeler:**
-- `MapAgentPrismMcpServer(pattern)` ve `MapAgentPrismA2A(pattern)` —
-  `MapAgentPrism(...)`'den **SONRA** çağrılmalı (`RequireSharedEndpointOptions`
+- `MapTraconMcpServer(pattern)` ve `MapTraconA2A(pattern)` —
+  `MapTracon(...)`'den **SONRA** çağrılmalı (`RequireSharedEndpointOptions`
   aksi halde `InvalidOperationException` fırlatır).
 - `builder.UseMcpServer(o => ...)` / `builder.UseA2A(o => ...)` —
   `IServiceCollection` zamanında (Build() öncesi) çağrılmalı.
@@ -274,7 +274,7 @@ grep -n "K-334\|K-335\|K-336\|K-337\|K-338\|K-339\|K-340" docs/KARARLAR.md
 3. **MCP kaynak ve istem yayını** (`resources`, `prompts`) yeni bir aday kalemidir.
 4. **Akışlı MCP/A2A yanıtı ölçülmedi** (Açık Soru 4). `AgentCapabilities.Streaming = false`
    olarak bırakıldı; ileride ölçülürse taahhüt buraya yazılır.
-5. **A2A agent kartının `Url` alanı GÖRELİ yol taşır** (`/agentprism/a2a/{agent}`),
+5. **A2A agent kartının `Url` alanı GÖRELİ yol taşır** (`/tracon/a2a/{agent}`),
    mutlak değil — çalışma anında uygulamanın genel host adresi (ters vekil
    arkasında olabilir) bilinmiyor. Gerçek bir A2A istemcisi mutlak URL
    beklerse tüketici kendi kartını üretmelidir; bu bir aday kalemi olabilir.

@@ -3,7 +3,7 @@
 > **Durum:** ✅ Tamamlandı (2026-09-04)
 > **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-188** (tüketici turu 3, A3)
 > **Önkoşul:** Yok
-> **Paketler:** `AgentPrism.Abstractions`, `AgentPrism.Core`, `AgentPrism.AspNetCore`, `AgentPrism.UI`
+> **Paketler:** `Tracon.Abstractions`, `Tracon.Core`, `Tracon.AspNetCore`, `Tracon.UI`
 > **Yeni paket:** Yok · **Migration:** Gerekli olabilir — sunum alanları kalıcı mı, Açık Soru 1. Numara uygulama anında alınır
 > **Public API:** Büyüyor — yeni kontrat + `PendingApproval`'a alanlar
 > **Tüketici yüzeyi:** `docs-site/`: `concepts/tools.md` (onay bölümü), `concepts/governance.md`, `guides/embedding.md` · sevk edilen: XML `<example>`, konsol onay ekranı + ekran görüntüsü
@@ -28,7 +28,7 @@
 
 ## Amaç
 
-Bir onay diyaloğu bugün şuna dönüşüyor: *"`delete_skill` tool'unu `{ "skillId": "8f14e45f-…" }` argümanıyla çalıştırmak istiyor. Onaylıyor musunuz?"* Bu, kullanıcının bilinçli bir karar vermesini sağlamaz. Aynı sorun **AgentPrism'in kendi konsolunda da** vardır.
+Bir onay diyaloğu bugün şuna dönüşüyor: *"`delete_skill` tool'unu `{ "skillId": "8f14e45f-…" }` argümanıyla çalıştırmak istiyor. Onaylıyor musunuz?"* Bu, kullanıcının bilinçli bir karar vermesini sağlamaz. Aynı sorun **Tracon'in kendi konsolunda da** vardır.
 
 ## Bitiş Ölçütleri (DoD)
 
@@ -55,7 +55,7 @@ Bir onay diyaloğu bugün şuna dönüşüyor: *"`delete_skill` tool'unu `{ "ski
   yok denecek kadar küçük; bu fazın kendi JS eklentisi `<1 KB`).
 - [x] Dört doğrulama kapısı sıfır uyarı verir — aşağıdaki "Doğrulama Kapıları
   Çıktısı" bölümü.
-- [x] `samples/AgentPrism.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı
+- [x] `samples/Tracon.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı
   — aşağıda.
 - [x] `secret` taraması boş döndü — `python3 scripts/kapi.py tarama`'nın
   `olası secret` bölümü boş (yalnız migration-manifest sıralama boşluğu
@@ -69,10 +69,10 @@ Bir onay diyaloğu bugün şuna dönüşüyor: *"`delete_skill` tool'unu `{ "ski
   `check-links.mjs` temiz — `npm run check` (check:content · build ·
   check:links · check:weight) dördü de yeşil;
   `docs-site/public/screenshots/approvals.png`
-  `AGENTPRISM_UI_SCREENSHOTS=1` ile yenilendi (gerçek bir `IToolApprovalPresenter`
+  `TRACON_UI_SCREENSHOTS=1` ile yenilendi (gerçek bir `IToolApprovalPresenter`
   kayıtlı E2E host'ta, artık boş liste değil `Order ORD-7` satırı gösteriyor).
 
-### Gerçek koşum kanıtı (`samples/AgentPrism.Api`, gerçek OpenAI sağlayıcısı)
+### Gerçek koşum kanıtı (`samples/Tracon.Api`, gerçek OpenAI sağlayıcısı)
 
 Kuyruklu yol — `Prefer: respond-async` ile `ORD-1001` iptali:
 
@@ -137,12 +137,12 @@ tam olarak 142.2'nin dört-durum tablosunun vaat ettiği gibi.
 
 ### Doğrulama Kapıları Çıktısı
 
-- `dotnet build AgentPrism.slnx -c Release` — 0 uyarı, 0 hata (temiz `artifacts/`
+- `dotnet build Tracon.slnx -c Release` — 0 uyarı, 0 hata (temiz `artifacts/`
   ile üç kez doğrulandı; ilk iki koşumun kırmızıları bu oturumun kendi eşzamanlı
   ad-hoc `dotnet pack`/`dotnet build` çağrılarının `artifacts/package/`'ı
   kirletmesinden kaynaklanıyordu — kod kusuru değildi, `rm -rf artifacts` + tek
   seferlik temiz koşumla doğrulandı).
-- `dotnet test AgentPrism.slnx --no-build` — Core (2341), AspNetCore.FunctionalTests
+- `dotnet test Tracon.slnx --no-build` — Core (2341), AspNetCore.FunctionalTests
   (766), Workflows.UnitTests (107), Sql.Shared.UnitTests (20),
   PostgreSql/SqlServer/Sqlite.IntegrationTests (gerçek Testcontainers ile),
   Generators.UnitTests (271, `<example>` blokları dahil), Ui.E2ETests
@@ -179,11 +179,11 @@ tam olarak 142.2'nin dört-durum tablosunun vaat ettiği gibi.
    önerdiği gibi: onay kuyruktan sürdürülüyor ve çözümleyici o an başka bir
    süreçte/pencerede olabilir; yeniden çözmek tutarsız bir "aynı istek farklı
    anda farklı ad" riski taşırdı.
-4. **Açık Soru 3 → 2 saniye, `AgentPrismToolOptions.ApprovalPresentationTimeout`
+4. **Açık Soru 3 → 2 saniye, `TraconToolOptions.ApprovalPresentationTimeout`
    ile ayarlanabilir.** Gerekçe: çözümleyici tek bir hızlı, salt okunur arama
    (birincil anahtarla nokta okuma) yapmalı — gerçek iş değil; kısa varsayılan
    yalnız bir isim kaybettirir, onayın kendisini asla geciktirmez.
-5. **🚨 `AgentPrismRunOptions.Clone()` sessizce `BeforePendingApprovalIsPublished`'ı
+5. **🚨 `TraconRunOptions.Clone()` sessizce `BeforePendingApprovalIsPublished`'ı
    düşürüyordu — fazın kapsamı dışında, K-103 döneminden kalma bir kusur, bu
    fazda dokunulan aynı satırda bulunup düzeltildi.** Private copy ctor bu
    alanı hiç kopyalamıyordu; `Clone()`'un kendi XML dokümanı "tüm alanları
@@ -200,7 +200,7 @@ tam olarak 142.2'nin dört-durum tablosunun vaat ettiği gibi.
    diğer altı genişleme noktasıyla (TryAdd + fail-open, tüketici override
    kazanır) aynı ailede olduğu hâlde ne `GET /api/diagnostics`'e ne
    `capabilities.md`'ye eklenmişti; ikisi de düzeltildi
-   (`AgentPrismDiagnosticsCollector`, `docs-site/.../capabilities.md`).
+   (`TraconDiagnosticsCollector`, `docs-site/.../capabilities.md`).
 8. **`guides/embedding.md`'nin "six points" listesine 7. madde EKLENMEDİ —
    bilinçli kapsam kararı.** O liste embedding noktalarının GENEL ailesi
    değil, bir widget'ı BAŞKA bir uygulamaya gömmenin altyapı-yapıştırma
@@ -224,8 +224,8 @@ Bağımsız denetim ([`faz-denetim`](../../../.agents/skills/faz-denetim/SKILL.m
 | # | Seviye | Bulgu | Sonuç |
 |---|---|---|---|
 | 1 | 🟡 | Kuyruk yolunun (`AgentRunJobHandler`) `IToolApprovalPresenter`'ı gerçekten `PendingApproval.Presentation`'a yazdığını kanıtlayan hızlı/izole bir test yoktu — yalnız E2E ekran görüntüsü testi. | **Düzeltildi**: `AgentRunJobHandlerTests.A_registered_presenter_reaches_the_persisted_PendingApproval_row` — gerçek `RunRecordingAgent` + `AgentRunJobHandler` + `InMemoryPendingApprovalStore` zincirini DI/HTTP olmadan koşar. |
-| 2 | 🟡 | `IToolApprovalPresenter` diğer altı "TryAdd + fail-open" genişleme noktasıyla aynı ailede olduğu hâlde `capabilities.md`'ye ve `AgentPrismDiagnosticsCollector`'a (`GET /api/diagnostics`) eklenmemişti. | **Düzeltildi**: yedinci nokta olarak ikisine de eklendi; `DiagnosticsCollectorTests` ve `DiagnosticsEndpointTests`'in "altı"ya sabit sayıları "yedi"ye güncellendi. |
-| 3 | 🟡 | `AgentPrismRunOptions.Clone()`'un `BeforePendingApprovalIsPublished`'ı kopyalamaması (K-103 döneminden kalma, bu fazda dokunulan satırda bulunan) hiçbir yerde açıkça kayıt altına alınmamıştı. | **Gerekçelendi/kayıt altına alındı**: Plandan Sapmalar #5. |
+| 2 | 🟡 | `IToolApprovalPresenter` diğer altı "TryAdd + fail-open" genişleme noktasıyla aynı ailede olduğu hâlde `capabilities.md`'ye ve `TraconDiagnosticsCollector`'a (`GET /api/diagnostics`) eklenmemişti. | **Düzeltildi**: yedinci nokta olarak ikisine de eklendi; `DiagnosticsCollectorTests` ve `DiagnosticsEndpointTests`'in "altı"ya sabit sayıları "yedi"ye güncellendi. |
+| 3 | 🟡 | `TraconRunOptions.Clone()`'un `BeforePendingApprovalIsPublished`'ı kopyalamaması (K-103 döneminden kalma, bu fazda dokunulan satırda bulunan) hiçbir yerde açıkça kayıt altına alınmamıştı. | **Gerekçelendi/kayıt altına alındı**: Plandan Sapmalar #5. |
 | 🟢 | 🟢 | `ChildRunApproval.Describe`/`CollectRequests` neredeyse aynı döngüyü iki kez yürütüyor. | **Devredildi**: ayrı bir temizlik fazına değecek kadar önemli değil; birleştirilmedi, kod tekrarı davranışı etkilemiyor. |
 | 🟢 | 🟢 | `ToolApprovalPresenterRunner.ResolveAllAsync` N>1 bekleyen istekte sıralı çözer. | **Devredildi**: mantık N>1 için de doğru (paylaşılan mutable state yok); performans optimizasyonu, DoD veya güvenlik sınırı değil. |
 
@@ -233,13 +233,13 @@ Denetimin "temiz" bulduğu başlıklar: 3.2 (test tiyatrosu), 3.6 (plan dışı 
 
 ## Sonraki Faza Devir Notu
 
-- **`IToolApprovalPresenter` artık AgentPrism'in yedinci embedding noktasıdır.**
+- **`IToolApprovalPresenter` artık Tracon'in yedinci embedding noktasıdır.**
   Yeni bir genişleme noktası eklerken bu ikili kontrolü unutma:
-  `AgentPrismDiagnosticsCollector.CollectExtensionPoints()` (kod) VE
+  `TraconDiagnosticsCollector.CollectExtensionPoints()` (kod) VE
   `docs-site/.../capabilities.md`'nin "Embedding points" tablosu (doküman) —
   ikisi de elle senkron tutulur, hiçbir kapı bu boşluğu otomatik yakalamaz
   (bağımsız denetimin bu fazda bulduğu tam boşluk buydu).
-- **`AgentPrismRunOptions.BeforePendingApprovalIsPublished`'ın imzası
+- **`TraconRunOptions.BeforePendingApprovalIsPublished`'ın imzası
   ikinci bir parametre kazandı** (`IReadOnlyDictionary<string,
   ToolApprovalPresentation?>`). Bu hook'u okuyan/yazan başka bir yer varsa
   (bugün yalnız `AgentRunJobHandler` ve `AgentEndpoints.cs` var) imza-gövde

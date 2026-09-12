@@ -55,7 +55,7 @@
 (`"title":"An error occurred while processing your request."`), `valid` alanı
 yok — bu kısmı beklenene uyuyor ama durum kodu yanlış. Uygulama logu
 (`Unhandled exception`) kök nedeni gösteriyor: `System.Text.Json.JsonException:
-The JSON value could not be converted to AgentPrism.CompactionStrategyKind.`
+The JSON value could not be converted to Tracon.CompactionStrategyKind.`
 istisnası ASP.NET Core'un JSON body binding aşamasında fırlıyor ve hiçbir yerde
 yakalanmıyor — global exception handler'a düşüp genel `500`'e dönüşüyor.
 `ValidateAgentAsync`'in kendi XML dokümanının vaat ettiği "gövde
@@ -95,7 +95,7 @@ tekrarlanan denemelerde de (aynı oturumda ve yeni bir oturumda) hep aynı
 sonuç. Uygulama logu kök nedeni gösteriyor:
 `System.NotSupportedException: JsonTypeInfo metadata for type
 'Microsoft.Agents.AI.AgentRequestMessageSourceAttribution' was not provided
-by TypeInfoResolver of type 'AgentPrism.AgentPrismJsonContext'` — model
+by TypeInfoResolver of type 'Tracon.TraconJsonContext'` — model
 mesajının `AdditionalProperties`'ine MAF'ın eklediği bir "attribution"
 (kaynak bilgisi) nesnesi, AOT kaynak-üretimli JSON context'inde
 kayıtlı değil; HTTP yanıtı serileştirilirken patlıyor. Run kendisi
@@ -154,7 +154,7 @@ Sapma: kiracılık `Tenancy:Enabled`/`AllowHeaderResolution` açıldığında
 agent'lar da kiracıya özgü olduğu için (önceki `default` kiracıda kayıtlı
 `manuel-dosya-bellek`/`manuel-dosya-arama` `kiraci-alfa`/`kiraci-beta`'da
 `404` verdi) her iki agent önce `POST /api/agents` ile ilgili
-`X-AgentPrism-Tenant` başlığı altında AYRICA kaydedildi — dokümanın
+`X-Tracon-Tenant` başlığı altında AYRICA kaydedildi — dokümanın
 atladığı bir ön adım. Sonrasında: yazma turu `HTTP 200`. Arama turunun
 yanıtı `SIZINTI-9902` dizgisini İÇERMEDİ — beklenen sonuçla eşleşiyor GİBİ
 görünüyor, ama `MT-MEM-013`'ün bulgusuna göre (`HATA-S1-009`) arama zaten
@@ -232,9 +232,9 @@ hatayı `UpsertAsync` çağrılmadan ATIYOR — `EmbedMissingAsync` sonrası,
 
 **Gerçek sonuç**
 Sapma: `user-secrets remove` yerine (§2.2, şerit izolasyonu)
-`AgentPrism__PostgreSql__ConnectionString=""` ortam değişkeni kullanıldı.
+`Tracon__PostgreSql__ConnectionString=""` ortam değişkeni kullanıldı.
 **Önemli bulgu (kendi kendine düzeltildi):** ilk denemede bu değişkeni
-`unset` ile kaldırdım — bu, `user-secrets`'taki paylaşılan (ve `agentprism`
+`unset` ile kaldırdım — bu, `user-secrets`'taki paylaşılan (ve `tracon`
 şemasına işaret eden) değere GERİ DÜŞTÜ, `mt_s1` yerine paylaşılan şemaya
 4 istek gitti (upload/search embedding hatasından 500 oldu, list boş `[]`
 döndü, delete 0 satır etkiledi — SQL ile doğrulandı, paylaşılan şemada

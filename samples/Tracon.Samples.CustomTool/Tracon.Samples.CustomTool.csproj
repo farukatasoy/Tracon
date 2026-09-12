@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>Tracon.Samples.CustomTool</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!--
+      Package references, not source-project references: this sample is a
+      third-party tool author. Tracon.Core carries the tool generator in
+      its analyzer folder, so this one reference supports both a hand-built
+      AIFunction and [TraconTool] source generation.
+    -->
+    <PackageReference Include="Tracon.Core" VersionOverride="$(TraconSamplePackageVersion)" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+  </ItemGroup>
+
+</Project>

@@ -4,7 +4,7 @@
 > **Kaynak:** [BEYIN-FIRTINASI.md](../BEYIN-FIRTINASI.md) · **F-14**
 > **Önkoşul:** [Faz 17](17-TOPLU-VE-ZAMANLANMIS-CALISTIRMA.md) — iş kuyruğu
 > **Sonraki bağımlı:** [Faz 19](19-SURUM-KARSILASTIRMA-VE-AB.md) — "v3 v2'den iyi mi?"
-> **Paketler:** `AgentPrism.Abstractions`, `.Core`, `.PostgreSql`, `.AspNetCore`, `.UI`
+> **Paketler:** `Tracon.Abstractions`, `.Core`, `.PostgreSql`, `.AspNetCore`, `.UI`
 > **Yeni paket:** Yok — bkz. K-139 · **Migration:** 0009 (`0009_eval.sql`)
 
 ---
@@ -28,7 +28,7 @@
 
 1. **Yeni paket hiç gerekmedi (K-139).** 18.2'nin öngördüğü ölçüm yapıldığında
    `EvalItem`/`EvalCheck`/`LocalEvaluator` gibi tiplerin `Microsoft.Extensions.AI.Evaluation`
-   değil **`Microsoft.Agents.AI`** ad alanında olduğu görüldü — `AgentPrism.Core`
+   değil **`Microsoft.Agents.AI`** ad alanında olduğu görüldü — `Tracon.Core`
    zaten o pakete doğrudan referans veriyor. Destek tipleri (`EvaluationMetric` vb.)
    geçişli olarak geldi. Planlanandan da kolay çıktı.
 2. **`LocalEvaluator.DetailedItems` boş döner (K-142, 🚨).** Plan bu alanı okuma

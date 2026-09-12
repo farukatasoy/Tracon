@@ -3,7 +3,7 @@
 > **Durum:** ✅ Tamamlandı (2026-08-06)
 > **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-73**
 > **Önkoşul:** [Faz 25](25-VERI-SAKLAMA-VE-ARSIVLEME.md) — saklama altyapısı, üç diyalekt şablonu
-> **Paketler:** `AgentPrism.Abstractions`, `.Core`, `.Sql.Shared`
+> **Paketler:** `Tracon.Abstractions`, `.Core`, `.Sql.Shared`
 > **Yeni paket:** Yok · **Migration:** Yok — sütun **zaten var**
 > **Public API:** büyümüyor — var olan alan **çalışır hâle gelir**
 
@@ -47,33 +47,33 @@
       Faz 25'in bilinen sınırı — bkz. Plandan Sapmalar)
 - [x] `RetentionTypes.cs`'teki *"henüz UYGULANMAZ"* cümlesi **silindi**
 - [x] Dört doğrulama kapısı sıfır uyarı verir
-- [x] `samples/AgentPrism.Api` ile gerçek saklama koşusu yapıldı, çıktı bu
+- [x] `samples/Tracon.Api` ile gerçek saklama koşusu yapıldı, çıktı bu
       belgeye yazıldı
 - [x] `secret` taraması boş döndü
 
-### Doğrulama komutları — gerçek çıktı (2026-08-06, SQLite, `samples/AgentPrism.Api`, port 5080)
+### Doğrulama komutları — gerçek çıktı (2026-08-06, SQLite, `samples/Tracon.Api`, port 5080)
 
 `run_events` tablosuna doğrudan SQL ile 150 satır (tek `run`'a bağlı) yazıldı,
 uygulama `Data Source=.../f36.db` ile başlatıldı:
 
 ```bash
-$ curl -s -X PUT http://localhost:5080/agentprism/api/retention/run_events \
+$ curl -s -X PUT http://localhost:5080/tracon/api/retention/run_events \
   -H 'content-type: application/json' -d '{"maxRows":100,"enabled":true}'
 {"id":"019fd77f-...","tenantId":"default","target":"run_events",
  "maxAgeDays":null,"maxRows":100,"archive":false,"enabled":true, ...}
 
-$ curl -s "http://localhost:5080/agentprism/api/retention/preview?target=run_events"
+$ curl -s "http://localhost:5080/tracon/api/retention/preview?target=run_events"
 [{"target":"run_events","maxAgeDays":null,"enabled":true,
   "cutoff":"2026-08-06T12:54:59.006895+00:00","matchingRows":50}]
 
-$ curl -s -X POST "http://localhost:5080/agentprism/api/retention/run?target=run_events"
+$ curl -s -X POST "http://localhost:5080/tracon/api/retention/run?target=run_events"
 {"jobId":"019fd780-...","target":"run_events"}
 
-$ curl -s "http://localhost:5080/agentprism/api/retention/history?target=run_events"
+$ curl -s "http://localhost:5080/tracon/api/retention/history?target=run_events"
 [{"id":"019fd780-...","target":"run_events","deletedRows":50,"archivedRows":0,
   "completedAt":"2026-08-06T14:35:22.163635+00:00","error":null}]
 
-$ sqlite3 f36.db "SELECT count(*) FROM agentprism_run_events;"
+$ sqlite3 f36.db "SELECT count(*) FROM tracon_run_events;"
 100
 ```
 
@@ -134,7 +134,7 @@ satır sayısı tam `100`'dür. Bu, DoD'nin 🚨 satırının doğrudan kanıtı
    Kod yazıldı, derlendi, SQL üretimi `RetentionMaxRowsDialectTests`
    (canlı DB gerektirmeyen kısım) ile doğrulandı. Gerçek `mssql/server`'a
    karşı koşu Linux/amd64 bir makinede veya CI'da yapılmalı.
-6. **`AgentPrism.Ui.E2ETests`'e Playwright senaryosu eklenmedi** (Faz 25'in
+6. **`Tracon.Ui.E2ETests`'e Playwright senaryosu eklenmedi** (Faz 25'in
    aynı sapması) — arayüz değişikliği küçük bir form alanı eklemekti,
    `tsc --noEmit`, Vitest (141/141) ve gerçek Vite build/bundle bütçesi
    (155,2 KB gzip / 250 KB) ile doğrulandı.
@@ -163,9 +163,9 @@ ertelendi) bu fazda **kapandı** (K-258'e atıfla).
 - **Yarım kalanlar:**
   - SQL Server: `MaxRows` kodu hazır, gerçek `mssql/server`'a karşı bu
     oturumda koşmadı (ortam kısıtı — Faz 25'in aynı sınırı). Linux/amd64 bir
-    makinede veya CI'da `dotnet test tests/AgentPrism.SqlServer.IntegrationTests`
+    makinede veya CI'da `dotnet test tests/Tracon.SqlServer.IntegrationTests`
     çalıştırılmalı.
-  - `AgentPrism.Ui.E2ETests`'e Playwright senaryosu eklenmedi (Faz 25'in aynı
+  - `Tracon.Ui.E2ETests`'e Playwright senaryosu eklenmedi (Faz 25'in aynı
     sapması, hâlâ kapatılmadı).
   - `RetentionTargetRegistry`'nin `WherePredicate`'i genelinde (bu fazın 3
     düzelttiği hedef dışında kalan) tenant_id filtresi YOKTUR — Faz 25'ten

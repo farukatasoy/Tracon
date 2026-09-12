@@ -57,8 +57,8 @@ doküman yanlıştır.
 çevrilir:
 
 ```bash
-export AgentPrism__PostgreSql__ConnectionString="..."
-export AgentPrism__Sqlite__ConnectionString=""      # remove = bos deger
+export Tracon__PostgreSql__ConnectionString="..."
+export Tracon__Sqlite__ConnectionString=""      # remove = bos deger
 ```
 
 Ortam değişkeni `user-secrets`'ı **ezer** (ASP.NET Core yapılandırma sırası).
@@ -72,9 +72,9 @@ serbesttir; anahtar hiçbir dosyaya, hiçbir loga yazılmaz.
 | Kaynak | Kural |
 |---|---|
 | Senaryo dosyaları | Bir dosya **tek** şeride aittir. Başka şeridin dosyasına yazma. |
-| PostgreSQL | Yalnız kendi şemanı düşür (`mt_s<N>`) — **asla** `agentprism` şemasını değil. |
+| PostgreSQL | Yalnız kendi şemanı düşür (`mt_s<N>`) — **asla** `tracon` şemasını değil. |
 | SQLite | Yalnız kendi worktree'ndeki `.db` dosyası. |
-| SQL Server | Yalnız kendi veritabanın (`AgentPrism_S<N>`). |
+| SQL Server | Yalnız kendi veritabanın (`Tracon_S<N>`). |
 | Docker container | **Durdurma, silme, yeniden başlatma yok.** Paylaşılırlar. |
 | Küresel kayıt (`dotnet new install`, yerel NuGet feed) | Yalnız o dosyayı koşan ajan dokunur. |
 | Port | Yalnız kendi portun. |
@@ -87,7 +87,7 @@ Ajan şu durumlarda **durur ve sorar** — varsayım yapmaz:
 2. Bir case fiziksel eylem ister: mikrofon, hoparlör, göz denetimi.
    → Önce fiziksel eylem listesine ekle; oturum sonunda topluca sor.
 3. Bir case paylaşılan bir kaynağı bozacak: container durdurma, küresel şablon
-   kaydı, `agentprism` şeması, repo'nun `NuGet.config` dosyası.
+   kaydı, `tracon` şeması, repo'nun `NuGet.config` dosyası.
 4. Beklenen sonuç iki farklı biçimde okunabiliyor ve hangisinin doğru olduğu
    koddan çıkmıyor.
 5. **Kritik** bir kusur bulundu ve aynı kök neden sonraki 5+ case'i bloklayacak.

@@ -45,8 +45,8 @@ zorunda kalıyordu. Üçü de bu turda ölçüldü ve **hiçbiri açık değil**
 
 | Numarasız kalem | Ölçüm | Sonuç |
 |---|---|---|
-| `AgentPrismMcpOptions`'ı `IConfiguration`'a bağlamak | `AgentPrismMcpBuilderExtensions.cs:183` `Bind(IConfiguration, AgentPrismMcpOptions)`; `UseMcp(section, configure)` aşırı yüklemesi var | ✅ Kapalı |
-| `BackgroundService` başlatma sırası migration'la yarışır | `src/AgentPrism.Abstractions/Diagnostics/SchemaReadyGate.cs` — kayıt sırasından **bağımsız** hazır sinyali; SQL sağlayıcı yoksa kendiliğinden açılıyor | ✅ Kapalı |
+| `TraconMcpOptions`'ı `IConfiguration`'a bağlamak | `TraconMcpBuilderExtensions.cs:183` `Bind(IConfiguration, TraconMcpOptions)`; `UseMcp(section, configure)` aşırı yüklemesi var | ✅ Kapalı |
+| `BackgroundService` başlatma sırası migration'la yarışır | `src/Tracon.Abstractions/Diagnostics/SchemaReadyGate.cs` — kayıt sırasından **bağımsız** hazır sinyali; SQL sağlayıcı yoksa kendiliğinden açılıyor | ✅ Kapalı |
 | Çalıştırmanın alt yazmalarında açık kiracı (K-280) | `RunEvent.cs:85` `public string? TenantId { get; init; }`; XML dokümanı "NOT filled from the ambient tenant" diyor (K-355) | ✅ Kapalı |
 
 ---
@@ -79,7 +79,7 @@ Faz 7 **ertelenmeye devam** eder. Küme D önerildiği gibi düşürüldü.
 
 ## 3. Ekosistem taraması (Aşama 3.2)
 
-| Kaynak | Bakılan tarih | Ne değişti | AgentPrism'e etkisi |
+| Kaynak | Bakılan tarih | Ne değişti | Tracon'e etkisi |
 |---|---|---|---|
 | `Microsoft.Extensions.AI` 10.8.3 (pinli) | **2026-08-21** (reflection) | `DistributedCachingChatClient`, `CachingChatClient`, `FunctionInvokingChatClient` imzaları çıkarıldı | Küme B'nin tamamı pinlenmiş sürümde **var**; sürüm yükseltmesi gerekmiyor |
 | MAF 1.16.0 (pinli) · 1.18.0 yayında | 2026-08-20 (devralındı) | 1.18.0 agent seviyesinde eşzamanlı tool çağrısını öne çıkardı | F-134'ün MEAI yarısı bugün mümkün; **agent-seviyesi harness entegrasyonu doğrulanmadı** |
@@ -97,8 +97,8 @@ Tam gövdeler [`ADAYLAR.md`](../../ADAYLAR.md)'dedir. Burada yalnız bu turda
 ### Küme A — F-125 · `<example>` derleme kapısı
 
 **Kanıt seviyesi:** Ölçüldü. 49 `<example>` bloğu; **2**'si elipsis (`...`)
-taşıyor (`AgentPrismToolAttribute.cs`, `AgentPrismMcpServerBuilderExtensions.cs`);
-prelüd yer tutucusu **iki**: `app` (6 blok) ve `agentPrism` (1 blok). `options`,
+taşıyor (`TraconToolAttribute.cs`, `TraconMcpServerBuilderExtensions.cs`);
+prelüd yer tutucusu **iki**: `app` (6 blok) ve `tracon` (1 blok). `options`,
 `o`, `context`, `services` blok içinde **lambda parametresi olarak bağlanıyor**,
 prelüd istemiyor. `capability-example-baseline.txt` **boş** (0 muafiyet).
 **Mercek:** 1, 5. **Eleyici sınır:** yok — test projesi, public yüzey büyümüyor.
@@ -109,13 +109,13 @@ prelüd istemiyor. `capability-example-baseline.txt` **boş** (0 muafiyet).
 
 **Kanıt seviyesi:** Ölçüldü. Kaydın iddiası şuydu: *"`capabilities.md`'yi kodla
 karşılaştıran hiçbir kapı yoktur."* **Yanlış.**
-`tests/AgentPrism.Core.UnitTests/Architecture/CapabilityCoverageTests.cs`
+`tests/Tracon.Core.UnitTests/Architecture/CapabilityCoverageTests.cs`
 `CapabilityEntryPoints.Names`'i `PublicAPI` dosyalarından okuyup her giriş
 noktasının haritada **adlandırıldığını** kanıtlıyor; `CapabilityExampleTests` de
 her giriş noktasının bir örnek gösterdiğini. **53** giriş noktası, **iki taban
 çizgisi de boş** — yani sıfır muafiyet.
 Ayakta kalan iki dar boşluk: (1) `scripts/dokuman-bakim.py` içinde
-`capabilities.md` **sıfır kez** geçiyor, yani `src/AgentPrism.Core/buildTransitive/`
+`capabilities.md` **sıfır kez** geçiyor, yani `src/Tracon.Core/buildTransitive/`
 değişimi hiçbir sayfaya eşlenmiyor (giriş noktası değil, bu yüzden var olan kapı
 da görmüyor); (2) kalan dokuz `SITE_KURALLARI` deseni "değişti"yi "doğru" sayıyor.
 **Mercek:** 1. **Karşı görüş:** kalan boşluk, var olan kapının yanında **küçük**;
@@ -138,12 +138,12 @@ Kapının yokluğu **zaten bedel ödetmiş**.
 
 **Kanıt seviyesi:** Ölçüldü (reflection, 2026-08-21).
 `DistributedCachingChatClient(IChatClient innerClient, IDistributedCache storage)`
-— 🚨 **`IDistributedCache` bugün AgentPrism'de hiç kullanılmıyor**
+— 🚨 **`IDistributedCache` bugün Tracon'de hiç kullanılmıyor**
 (`grep -rn "IDistributedCache" src` → boş). Tüketici bir cache uygulaması seçmek
 zorunda kalır; bellek içi olan çok örnekli kurulumda **sessizce işe yaramaz**.
 `CacheKeyAdditionalValues { get; set; }` (`IReadOnlyList<Object>`) var — kiracı
 anahtara **yapısal** olarak karışır, elle string birleştirme gerekmez (K-525 sağlanır).
-`GetCacheKey` ve `EnableCaching` `protected virtual` — AgentPrism kiracı
+`GetCacheKey` ve `EnableCaching` `protected virtual` — Tracon kiracı
 anahtarlamasını yapılandırmaya güvenmek yerine **zorlayabilir**.
 **Mercek:** 8. **Eleyici sınır:** yeni geçişli bağımlılık kararı (K1 — sıfır sürpriz).
 **Karşı görüş:** `CacheKeyAdditionalValues` **örnek başına** bir özelliktir; kiracı
@@ -153,9 +153,9 @@ başına anahtarlama kiracı başına istemci örneği demektir.
 ### Küme B — F-134 · 🚨 Gerçek risk ölçüldü: eşzamanlılık + ambient bağlam
 
 **Kanıt seviyesi:** Ölçüldü. `FunctionInvokingChatClient.AllowConcurrentInvocation`
-`{ get; set; }` doğrulandı. Asıl bulgu şudur: AgentPrism'in tool katmanı
+`{ get; set; }` doğrulandı. Asıl bulgu şudur: Tracon'in tool katmanı
 **ambient** `FunctionInvokingChatClient.CurrentContext`'e bağlıdır —
-`AuthorizingAIFunction.cs:107` ve `AgentPrismToolUsage.cs:56`. Bayrak açılınca
+`AuthorizingAIFunction.cs:107` ve `TraconToolUsage.cs:56`. Bayrak açılınca
 tool gövdeleri eşzamanlı koşar ve bu ambient'ın çağrı başına doğru çözülüp
 çözülmediği **ölçülmemiştir**. Bu depo aynı sınıf tuzağı **beş kez** yaşadı
 (`MEMORY.md`).
@@ -176,7 +176,7 @@ kullanıcı bu gecikmeyi bildirmedi; ilk adım benchmark'tır, bayrak değil.
 | `RunToCasePromoter` | `Evaluation/RunToCasePromoter.cs:175` `_runs.ReadEventsAsync`, `:97` `ListToolInvocationsAsync` | Eval vakası `run_events` ve `tool_invocations` ham metninden üretilir |
 | Dosya araması | `Sql.Shared/Stores/SqlAgentFileStore.cs:212` `CollectMatches(Regex regex, string content)` | Regex **düz metin** üzerinde koşar; şifreleme dosya aramasını tamamen bitirir |
 
-Ayrıca `AgentPrismServiceCollectionExtensions.cs:870` açıkça yazıyor: *"RunStarted
+Ayrıca `TraconServiceCollectionExtensions.cs:870` açıkça yazıyor: *"RunStarted
 event and IRunInputStore never passes through the guards."* — F-87'nin öncülü
 koddan doğrulandı.
 **Mercek:** 3. **Eleyici sınır:** public yüzey (`IContentProtector`, yeni tip — ucuz).
@@ -187,14 +187,14 @@ korunmaz; Faz 73'ün "opt-in kararının bedeli benimseme oranıdır" cümlesi g
 ### Küme E — F-50 + F-93 · İki iddia düzeltildi
 
 **Kanıt seviyesi:** Ölçüldü.
-1. **OpenAPI belgesi üretim kaynağı olarak yeterli:** `docs/openapi/agentprism.json`
+1. **OpenAPI belgesi üretim kaynağı olarak yeterli:** `docs/openapi/tracon.json`
    — OpenAPI **3.1.1**, **123** yol, **160** operasyon, **250** şema,
    `operationId` eksik operasyon **0**.
 2. 🚨 **F-50'nin "ikinci bir üreteç projesi açılmamalıdır" kısıtı KONUSUZ.**
-   `AgentPrism.Client`'ın kaynak üretilmiş JSON'u `JsonSerializerContext`'tir —
+   `Tracon.Client`'ın kaynak üretilmiş JSON'u `JsonSerializerContext`'tir —
    **derleyicinin kendi** üreteci. Depo bunu zaten on'dan fazla yerde kullanıyor
-   (`AgentPrismCoreJsonContext.cs`, `AgentPrismJsonContext.cs`, …).
-   `AgentPrism.Generators` bir Roslyn analyzer projesidir (`netstandard2.0`,
+   (`TraconCoreJsonContext.cs`, `TraconJsonContext.cs`, …).
+   `Tracon.Generators` bir Roslyn analyzer projesidir (`netstandard2.0`,
    `EnforceExtendedAnalyzerRules`) ve bu işe hiç karışmaz.
 3. **npm gerçekten yeni bir kanaldır:** `ci.yml:154` `publish` işi yalnız
    **NuGet.org**'a yayınlar, `v*` etiketiyle tetiklenir, `nuget` environment'ı

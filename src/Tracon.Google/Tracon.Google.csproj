@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Description>Google Gemini provider adapter for Tracon. Model catalog, IChatClient production, safety thresholds, and thinking budget settings.</Description>
+    <PackageTags>$(CommonPackageTags);google;gemini;provider</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../Tracon.Core/Tracon.Core.csproj" />
+  </ItemGroup>
+
+  <!--
+    Google's OFFICIAL .NET SDK (owner: Google LLC, Apache-2.0). Carries its own
+    `AsIChatClient` adapter.
+
+    🚨 This package transitively pulls Newtonsoft.Json, System.Management, and
+    System.CodeDom via Google.Apis.Auth. The weight was accepted KNOWINGLY: the
+    dependency lives only in this package, and a consumer who does not use
+    Gemini pulls none of it. The alternative (a single-maintainer, pre-1.0
+    community package) was judged a bigger long-term risk. Rationale:
+    docs/KARARLAR.md, decision K-205.
+  -->
+  <ItemGroup>
+    <PackageReference Include="Google.GenAI" />
+  </ItemGroup>
+
+</Project>

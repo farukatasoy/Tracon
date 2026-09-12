@@ -241,7 +241,7 @@ ordering/reconnect/usage/privacy state'i gelir. **Sec:** Server-side socket; cli
 E12. **İ:** Kararı tersine çevirme; Option A default, Option B yalnız POC/benchmark.
 **D:** Hosted ElevenAgents LLM/tools ve MAF run bypass. **S:** Her transcript yine
 `AIAgent.RunStreamingAsync`; media protocol ElevenLabs-specific. **Alt:** C1+A1 ile
-AgentPrism-managed realtime. **T/API:** Daha düşük latency potansiyeli; lock-in, inbound
+Tracon-managed realtime. **T/API:** Daha düşük latency potansiyeli; lock-in, inbound
 WS/JWT, double history ve correlation riski. **Sec:** Tek kullanımlık durable tenant/session
 ↔ conversation binding gerekir. **ERÖ:** XL/yüksek/P1. **Y:** Yalnız karar/benchmark;
 latency, parity, correlation ve failover kanıtlanmadan feature değildir.

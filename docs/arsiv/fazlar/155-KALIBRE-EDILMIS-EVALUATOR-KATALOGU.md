@@ -3,7 +3,7 @@
 > **Durum:** ✅ Tamamlandı (2026-09-08)
 > **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-210**
 > **Önkoşul:** [Faz 152](152-SKORUN-ADI-VE-SEKLI.md) — adlı ve tipli skor kaydını (`RunScore.Name`/`Kind`/`Value`) getirir. 🚨 Yalnız **kayıt** şeklini açtı; yargıcın **dönüş** şeklini açmadı — bu fazın ilk işi odur.
-> **Paketler:** `AgentPrism.Abstractions`, `AgentPrism.Core`
+> **Paketler:** `Tracon.Abstractions`, `Tracon.Core`
 > **Yeni paket:** `Microsoft.Extensions.AI.Evaluation.Quality` 10.9.0 — K-007 gerekçesi §155.4'te; net 1 paket, geçişli ağırlık 0 (ölçüldü 2026-09-07) · **Migration:** Yok — `run_scores` şekli yeterlidir
 > **Public API:** Büyüyor **ve bir sözleşmeyi değiştiriyor** — `RunJudgment`. Bugün ucuz: `wc -l src/*/PublicAPI.Shipped.txt` = **17 satır** (yalnız `#nullable enable` başlıkları), yani hiçbir yüzey yayımlanmadı. İlk yayından sonra aynı değişiklik **kırıcıdır**.
 > **Tüketici yüzeyi:** `docs-site/src/content/docs/concepts/evaluation.md` (yargıç bölümü) · sevk edilen: `IRunJudge`/`RunJudgment` XML dokümanı, `capabilities.md` satırı
@@ -28,7 +28,7 @@
 
 ## Amaç
 
-AgentPrism'in bugün **tek** yerleşik yargıcı var ve o da elle yazılmış tek bir genel kalite prompt'u. Microsoft on bir kalibre edilmiş evaluator sevk ediyor; üçü doğrudan agent işidir. Bu faz o kataloğu bağlanabilir kılar. Tüketici "cevap alakalı mı", "tool doğru çağrıldı mı", "görev yerine getirildi mi" sorularını **kendi prompt'unu yazmadan** ölçer.
+Tracon'in bugün **tek** yerleşik yargıcı var ve o da elle yazılmış tek bir genel kalite prompt'u. Microsoft on bir kalibre edilmiş evaluator sevk ediyor; üçü doğrudan agent işidir. Bu faz o kataloğu bağlanabilir kılar. Tüketici "cevap alakalı mı", "tool doğru çağrıldı mı", "görev yerine getirildi mi" sorularını **kendi prompt'unu yazmadan** ölçer.
 
 ## Bitiş Ölçütleri (DoD)
 
@@ -38,7 +38,7 @@ AgentPrism'in bugün **tek** yerleşik yargıcı var ve o da elle yazılmış te
 - [x] `maf-api-kesfi` koşuldu; `IEvaluator`/`IAgentEvaluator` gerçek imzaları belgeye yazıldı (§ *Ölçülen MAF imzaları*) — üç tespit planı değiştirdi
 - [x] Yeni paketin geçişli ağırlığı **gerçek restore** ile sayıldı ve belgeye yazıldı (§ *Yeni paketin gerçek ağırlığı*) — sevk edilen grafiğe giren yeni paket: **0**
 - [x] Dört doğrulama kapısı sıfır uyarı verir — `python3 scripts/kapi.py kapanis --taban 628d3c71`
-- [x] `samples/AgentPrism.Api` ile gerçek `run` yapıldı (gerçek OpenAI modeli), çıktı belgeye yazıldı (§ *Gerçek koşum kanıtı*)
+- [x] `samples/Tracon.Api` ile gerçek `run` yapıldı (gerçek OpenAI modeli), çıktı belgeye yazıldı (§ *Gerçek koşum kanıtı*)
 - [x] `secret` taraması boş döndü — `python3 scripts/kapi.py tarama` → `Tarama: ✅ temiz`
 - [x] Manuel kabul case'leri `docs/manuel-test/17-EVAL-VE-DENEYLER.md` içine eklendi (**EVAL-136…142**); otomatikleştirilebilenlerin tamamı `EvaluatorJudgeEndToEndTests` olarak koşuldu
 - [x] `faz-denetim` koşuldu; **iki 🔴 bulundu ve kapatıldı** (§ *Denetim Bulguları*), her ikisi de düşen testle kanıtlandı
@@ -48,10 +48,10 @@ AgentPrism'in bugün **tek** yerleşik yargıcı var ve o da elle yazılmış te
 
 ```bash
 # Metrik başına ayrı skor satırı (🚨 uç `/scores` DEĞİL `/feedback`'tir)
-curl -s http://localhost:5081/agentprism/api/runs/$RUN_ID/feedback | jq '[.[] | {name, kind, value}]'
+curl -s http://localhost:5081/tracon/api/runs/$RUN_ID/feedback | jq '[.[] | {name, kind, value}]'
 
 # Yeni paketin gerçek geçişli ağırlığı
-dotnet list src/AgentPrism.Core package --include-transitive | grep -c Evaluation
+dotnet list src/Tracon.Core package --include-transitive | grep -c Evaluation
 ```
 
 ---
@@ -65,7 +65,7 @@ dotnet list src/AgentPrism.Core package --include-transitive | grep -c Evaluatio
 | **`AddAgentEvaluator<T>() where T : IAgentEvaluator`** | `AddEvalEvaluatorFactory` + yeni public `IEvalEvaluatorFactory` | 🚨 Çıplak bir `IAgentEvaluator` singleton'ı suite'in `Checks` alanını **sessizce yok sayardı** — `EvalJobHandler` check'siz suite'i zaten reddediyor. Fabrika suite'in derlenmiş check'lerini alır; yok sayması artık kaza değil, tercih. K1 (sıfır sürpriz) bunu gerektirdi |
 | **`.Quality` `Core`'a referans olur** (Açık Soru 4, öneri A) | Hiçbir sevk edilen pakete girmedi; `Core` yalnız `.Evaluation`'ı **açık** referansladı | Kullanıcı kararı. Köprü yalnız `IEvaluator` arayüzüne bağlıdır; katalog isteyen tüketici paketi kendisi ekler. Katalog kullanmayanın grafiği büyümez |
 | Plan `JudgeScore.Comment` için bir kural yazmıyordu | `Interpretation`/`Diagnostics` yorumu besliyor | Ölçüm üretmeyen bir metrik `Value = null` yazıyor; **neden** ölçemediği yalnız `Diagnostics` içindedir. Onsuz `null` satır okuyucuya açıklamasız ulaşırdı |
-| Plan yargıç metrik ölçümüne değinmiyordu | 🚨 **Manşet skor kuralı** eklendi | Kalibre evaluator'lar **1-5** ölçeğinde puan verir; `RecordScoreAsync`/`agentprism.judge.score` **0-100** tanımlıdır. Köprü skorları o ortalamaya girseydi 4 puanlık sağlıklı bir koşum `LowScoreThreshold`'un altına düşer ve `run.score.low` alarmı **sürekli** yanlış çalardı. Kural yapısaldır: yalnız adı yargıcın adına **eşit** olan skor pencereye girer |
+| Plan yargıç metrik ölçümüne değinmiyordu | 🚨 **Manşet skor kuralı** eklendi | Kalibre evaluator'lar **1-5** ölçeğinde puan verir; `RecordScoreAsync`/`tracon.judge.score` **0-100** tanımlıdır. Köprü skorları o ortalamaya girseydi 4 puanlık sağlıklı bir koşum `LowScoreThreshold`'un altına düşer ve `run.score.low` alarmı **sürekli** yanlış çalardı. Kural yapısaldır: yalnız adı yargıcın adına **eşit** olan skor pencereye girer |
 | Plan `A_judge_name_..._is_refused_at_the_score_write` davranışını korumayı öngörmüyordu | Davranış **bilerek** değişti: `ArgumentException` fırlatmak yerine `judge_contract` `JudgeFailure`'ı raporlanıyor | Tek bozuk yargıç tüm işi düşürmemelidir (Manuel case 5 ile aynı kural). Ayrıca doğrulama **ilk yazmadan önce** toplu yapılıyor: yarım yazılmış bir skor kümesi hiç yazılmamış olandan kötüdür |
 | `RecordJudgeScore`/`RecordScoreAsync` `int` alıyordu | `double` | `JudgeScore.Value` `double?` (K-711). Histogram zaten `Histogram<double>` idi; `int` imzası tek daraltma noktasıydı |
 | Plan `EvaluatorRunJudge` için ayrı bir çağrı bütçesi bağlaması öngörüyordu | Ek kod **gerekmedi** | Ölçüldü: `OnlineEvalJobHandler.JudgeOneAsync` `CancellationTokenSource.CreateLinkedTokenSource(cancellationToken)` + `CancelAfter(JudgeTimeout)` ile bütçeyi zaten kuruyor ve `budget.Token`'ı yargıca geçiriyor. Köprünün tek görevi o token'ı `EvaluateAsync`'e iletmekti |
@@ -73,7 +73,7 @@ dotnet list src/AgentPrism.Core package --include-transitive | grep -c Evaluatio
 ### 🚨 Denetimde çıkan bir kapı tuzağı
 
 `ExampleCompilationTests` sevk edilen her `<example>` bloğunu **gerçekten
-derler**. `RelevanceEvaluator`'ı örnekte anmak, `tests/AgentPrism.Generators.UnitTests`
+derler**. `RelevanceEvaluator`'ı örnekte anmak, `tests/Tracon.Generators.UnitTests`
 projesine `.Quality` referansı eklemeyi gerektirdi — referans kümesi o projenin
 `TRUSTED_PLATFORM_ASSEMBLIES`'inden geliyor. Sevk edilen bir paket hâlâ katalogu
 referanslamıyor; yalnız iki test projesi referanslıyor.
@@ -89,7 +89,7 @@ XML dokümanında 🚨 ile `K-NNN` referansını reddeder. Taban çizgisi tazele
 | **K-727 — `.Quality` katalogu sevk edilen HİÇBİR pakete girmez; `Core` yalnız `Microsoft.Extensions.AI.Evaluation`'ı açık referanslar** (kullanıcı kararı) | Köprü yalnız `IEvaluator` arayüzüne bağlıdır. `M.E.AI.Evaluation` 10.9.0 `Core` grafiğinde **zaten vardı** (`Microsoft.Agents.AI` 1.20.0 üzerinden, ölçüldü 2026-09-07); referansı açık hale getirmek geçişli ağırlığı **0** artırır ve MAF onu bir gün bırakırsa köprü kırılmaz. Katalogu isteyen tüketici `.Quality`'yi kendisi ekler; istemeyenin grafiği büyümez. AOT duruşu da korunur — sevk edilen grafiğe yeni bir paket girmediği için ölçülecek yeni bir AOT yüzeyi yoktur |
 | **K-728 — `RunJudgment.Score`/`Reason` KALDIRILDI; bir yargıç `IReadOnlyList<JudgeScore>` döndürür** (kullanıcı kararı) | 🔴 KIRICI ve bilerek şimdi yapıldı: `PublicAPI.Shipped.txt` toplamı 17 satırdır ve hepsi `#nullable enable` başlığıdır — hiçbir yüzey yayımlanmamıştır. İki doğruluk kaynağı (`Score` yanında `Scores`) her okuma yolunda "hangisi kazanır" sorusunu tekrarlardı. Etkilenen yargıç sayısı ikiydi (`ModelRunJudge` + örnek) |
 | **K-729 — Köprü metrik adını `{judge}.{metrik}` olarak önekler; `:` KULLANILAMAZ** (kullanıcı kararı) | `RunScore.Name` tekillik anahtarına girer (K-710); önek olmadan iki evaluator'ın aynı `Relevance` metriği birbirini ezerdi. Planın önerdiği `:` ayırıcısı `RunScoreRules.IsValidName`'den geçmez |
-| **K-730 — Yalnız MANŞET skor (adı yargıcın adına eşit olan) online değerlendirme penceresine ve `agentprism.judge.score` histogramına girer** | İkisi de **0-100** ölçeğinde tanımlıdır; kalibre evaluator'lar 1-5 verir. Köprü skorları ortalamaya girseydi 4 puanlık sağlıklı bir koşum `LowScoreThreshold`'un altına düşer ve alarm yanlış çalardı. Kural yapısaldır (ad karşılaştırması), sezgisel değil — bir ölçek tahmini içermez. Skorlar yine de saklanır ve `GET /api/evaluation/scores/summary` onları `(name, kind)` kırılımıyla raporlar |
+| **K-730 — Yalnız MANŞET skor (adı yargıcın adına eşit olan) online değerlendirme penceresine ve `tracon.judge.score` histogramına girer** | İkisi de **0-100** ölçeğinde tanımlıdır; kalibre evaluator'lar 1-5 verir. Köprü skorları ortalamaya girseydi 4 puanlık sağlıklı bir koşum `LowScoreThreshold`'un altına düşer ve alarm yanlış çalardı. Kural yapısaldır (ad karşılaştırması), sezgisel değil — bir ölçek tahmini içermez. Skorlar yine de saklanır ve `GET /api/evaluation/scores/summary` onları `(name, kind)` kırılımıyla raporlar |
 | **K-731 — `IEvalEvaluatorFactory` public'tir; seam çıplak bir `IAgentEvaluator` DEĞİL bir FABRİKADIR** | Suite `Checks` alanını beyan eder ve `EvalJobHandler` check'siz suite'i reddeder. Çıplak bir singleton o check'leri sessizce yok sayardı (K1 ihlali). Fabrika onları argüman olarak alır; yok sayması artık açık bir tercihtir |
 | **K-732 — Sözleşmeyi ihlal eden bir yargıç FIRLATMAZ; `judge_contract` `JudgeFailure` olarak raporlanır ve doğrulama İLK YAZMADAN ÖNCE toplu yapılır** | Tek bozuk yargıç tüm online eval işini düşürmemelidir. Toplu doğrulama, tekrarlanan bir adın kendi kümesinin önceki satırını ezmesini de engeller: yarım yazılmış bir küme hiç yazılmamış olandan kötüdür |
 
@@ -156,7 +156,7 @@ public sealed record JudgeScore
 
 - **Manşet skor kuralı bir AD KARŞILAŞTIRMASIDIR** (K-730). `score.Name == judge.Name`
   ise skor `OnlineEvalSummaryService.RecordScoreAsync` ve
-  `AgentPrismMetrics.RecordJudgeScore`'a gider; değilse **gitmez**. Bu iki yol
+  `TraconMetrics.RecordJudgeScore`'a gider; değilse **gitmez**. Bu iki yol
   **0-100** tanımlıdır. Yeni bir yargıç ekliyorsan manşet skorunu bu ölçekte ver;
   başka bir ölçek kullanacaksan ona **başka bir ad** ver. Kural
   `OnlineEvalJobHandler.JudgeOneAsync` içindedir, tek yerde.
@@ -176,7 +176,7 @@ public sealed record JudgeScore
   anmak isteyen her yerin (örnek, test, `<example>` bloğu) paketi **kendisi**
   referanslaması gerekir. `ExampleCompilationTests` sevk edilen her `<example>`
   bloğunu gerçekten derler ve referans kümesini
-  `tests/AgentPrism.Generators.UnitTests`'ten alır.
+  `tests/Tracon.Generators.UnitTests`'ten alır.
 - **`ShippedDocumentationSelfContainmentTests` bir cırcırdır.** XML dokümanına
   (`///`) 🚨 veya `K-NNN` yazma; uygulama yorumunda (`//`) meşrudur.
 - **`IEvalEvaluatorFactory` suite'in check'lerini argüman alır.** Eval

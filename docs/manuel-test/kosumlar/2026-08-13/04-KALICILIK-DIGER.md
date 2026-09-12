@@ -56,12 +56,12 @@
 
 **Gerçek sonuç**
 > **Test yöntemi bu senaryoyu tetikleyemiyor — kod kusuru DEĞİL.**
-> `samples/AgentPrism.Api/Program.cs:632` `IsNullOrWhiteSpace(sqlite["ConnectionString"])`
+> `samples/Tracon.Api/Program.cs:632` `IsNullOrWhiteSpace(sqlite["ConnectionString"])`
 > kontrolüyle boş bağlantı dizesini "sağlayıcı yapılandırılmamış" sayıp
 > `UseSqlite(...)`'ı hiç çağırmıyor; uygulama bunun yerine sorunsuz açılıyor
 > ve bellek içi izleğe düşüyor (`/health` → `Degraded`, HTTP 200, konsolda
-> hata yok). `AgentPrismSqliteOptionsValidator.cs:21-27` doğrudan okunarak
-> doğrulandı: validator gerçekten `"AgentPrismSqliteOptions.ConnectionString
+> hata yok). `TraconSqliteOptionsValidator.cs:21-27` doğrudan okunarak
+> doğrulandı: validator gerçekten `"TraconSqliteOptions.ConnectionString
 > bos olamaz..."` mesajıyla reddediyor — ama yalnızca `UseSqlite("")` fiilen
 > çağrılırsa. Bu örnek uygulamanın kasıtlı "boş = yapılandırılmamış" tasarımı
 > yüzünden bu case'i bu harness üzerinden koşmanın yolu yok; doğrulamak için
@@ -71,7 +71,7 @@
 
 **Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☑ Atlandı (yöntem geçersiz — bkz. not)
 
-> **Temizlik:** `dotnet user-secrets set "AgentPrism:Sqlite:ConnectionString" "Data Source=agentprism-manuel.db"`
+> **Temizlik:** `dotnet user-secrets set "Tracon:Sqlite:ConnectionString" "Data Source=tracon-manuel.db"`
 
 ---
 
@@ -81,21 +81,21 @@
 - Üç deneme de başlamayı reddetti. Hiçbirinde `Now listening` satırı yazılmadı
   (`grep -c` → 0); süreç `OptionsValidationException` ile sonlandı.
 - Mesaj beklenen metni birebir taşıyor ve reddedilen değeri de yazıyor:
-  `AgentPrismSqliteOptions.TablePrefix gecerli bir AgentPrism tablo oneki
+  `TraconSqliteOptions.TablePrefix gecerli bir Tracon tablo oneki
   degil. Kucuk harf veya alt cizgi ile baslamali; kucuk harf, rakam ve alt
   cizgi icermeli; en cok 63 karakter olmalidir. Gelen deger: '<deger>'.`
-- Doğrulama sorgusu: `agentprism_tenants` hâlâ `.tables` listesinde — 3.
+- Doğrulama sorgusu: `tracon_tenants` hâlâ `.tables` listesinde — 3.
   denemedeki `DROP TABLE` çalışmadı. Doğrulama `UseSqlite` içinde `IOptions<T>`
-  ilk çözüldüğü anda olur (`AgentPrismSqliteBuilderExtensions.cs:80`), yani
+  ilk çözüldüğü anda olur (`TraconSqliteBuilderExtensions.cs:80`), yani
   hiçbir SQL metni kurulmadan önce.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
-> **Temizlik:** `dotnet user-secrets set "AgentPrism:Sqlite:TablePrefix" "agentprism_"`
+> **Temizlik:** `dotnet user-secrets set "Tracon:Sqlite:TablePrefix" "tracon_"`
 >
 > ⚠️ **Koşum notu:** Bu temizlik önceki oturumda **uygulanmamış**. Şerit
-> açılırken paylaşılan `user-secrets` deposu `AgentPrism:Sqlite:TablePrefix` =
-> `x_; DROP TABLE agentprism_tenants;--` taşıyordu ve uygulamanın açılmasını
+> açılırken paylaşılan `user-secrets` deposu `Tracon:Sqlite:TablePrefix` =
+> `x_; DROP TABLE tracon_tenants;--` taşıyordu ve uygulamanın açılmasını
 > engelledi. KOSUM-PLANI §2.2 gereği depoya yazılmadı; şerit kendi ortam
 > değişkenlerini açıkça sabitleyerek ilerledi. Bkz. `HATA-S1-001`.
 
@@ -104,7 +104,7 @@
 ## MT-SQL-004 — `AutoApplyMigrations=false` migration uygulamaz, sorumluluk operatöre kalır
 
 **Gerçek sonuç**
-- Bilgi satırı beklendiği gibi çıktı: `AgentPrism migration'lari otomatik
+- Bilgi satırı beklendiği gibi çıktı: `Tracon migration'lari otomatik
   uygulanmiyor (AutoApplyMigrations kapali). Semanin guncel olmasi cagiranin
   sorumlulugundadir.`
 - `.db` dosyası oluştu (4096 bayt) ama boş: `count(*)` **0**.
@@ -113,11 +113,11 @@
   isteği bağlantı kuramadı (`HTTP:000`), yani beklenen `Unhealthy` yanıtı
   **hiç okunamıyor**.
 - Kapatmayı iki dış yüzey denetimi tetikledi:
-  - `crit: AgentPrism.A2AApprovalGuardFilter — A2A disa acik yuzey denetimi
+  - `crit: Tracon.A2AApprovalGuardFilter — A2A disa acik yuzey denetimi
     basarisiz oldu; uygulama durduruluyor.` →
-    `SqliteException: no such table: agentprism_agent_definitions`
+    `SqliteException: no such table: tracon_agent_definitions`
     (`A2AApprovalGuardFilter.cs:58`)
-  - `crit: AgentPrism.McpApprovalGuardFilter` — aynı hata
+  - `crit: Tracon.McpApprovalGuardFilter` — aynı hata
     (`McpApprovalGuardFilter.cs:86`)
 - Kök neden: `MigrationHostedService.StartAsync` `AutoApplyMigrations` kapalıyken
   `SchemaReadyGate`'i **bilerek açar** ("semanin hazir olmasi tuketicinin
@@ -140,7 +140,7 @@
 
  **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı → `HATA-S1-002` (Yüksek) — S1-8'de düzeltmesiyle (K-393) yeniden koşuldu: ayrı sunucu + boş şema ile uygulama açık kaldı, /health→Unhealthy. Bkz. SONUCLAR-S1-2026-08-13.md.
 
-> **Temizlik:** `dotnet user-secrets set "AgentPrism:Sqlite:AutoApplyMigrations" "true"`, reset yordamı.
+> **Temizlik:** `dotnet user-secrets set "Tracon:Sqlite:AutoApplyMigrations" "true"`, reset yordamı.
 
 ---
 
@@ -152,43 +152,43 @@
   tamamlayamıyor. Her iki açılış denemesinde de süreç sonlandı; `POST`/`GET`
   istekleri bağlantı kuramadı (`HTTP:000`).
 - Log sırası:
-  1. `AgentPrism 15 migration uyguladi. Sema: agentprism_.` — migration'lar
+  1. `Tracon 15 migration uyguladi. Sema: tracon_.` — migration'lar
      gerçekten uygulandı.
   2. `fail: Microsoft.Extensions.Hosting.Internal.Host[11] — Hosting failed to start`
-     `SqliteException: no such table: agentprism_tenants`
+     `SqliteException: no such table: tracon_tenants`
   3. `Unhandled exception` → süreç ölür.
 - Kök neden: `SqliteDataSource.CreateDbConnection()` her çağrıda **yeni** bir
   `SqliteConnection` üretir (`Internal/SqliteDataSource.cs:44`). Çıplak
   `:memory:` veritabanı **bağlantıya özeldir**: `MigrationRunner` kendi
   bağlantısında 15 migration uygular, bağlantı kapanır, o veritabanı yok olur.
   Hemen ardından `EnsureDefaultTenantAsync` YENİ bir bağlantı açar — bu boş bir
-  in-memory veritabanıdır ve `agentprism_tenants` orada yoktur
+  in-memory veritabanıdır ve `tracon_tenants` orada yoktur
   (`MigrationHostedService.StartAsync`). Yani `:memory:`, bağlantı başına
   bağlantı açan bir `DbDataSource` ile yapısal olarak bağdaşmıyor.
 - **Doğrulanan çalışan biçim:** `Data Source=file:apmem?mode=memory&cache=shared`
   ile uygulama sorunsuz açıldı (15 migration, `/health` → HTTP 200). Paylaşımlı
   önbellek aynı süreçteki tüm bağlantılara tek bir in-memory veritabanı verir.
 - Bu bir **public API doküman kusurudur** ve tüketiciye IntelliSense'te
-  gösterilir: `AgentPrismSqliteOptions.ConnectionString` XML dokümanı
-  (`AgentPrismSqliteOptions.cs:17-18`) `Data Source=:memory: desteklenir ama
+  gösterilir: `TraconSqliteOptions.ConnectionString` XML dokümanı
+  (`TraconSqliteOptions.cs:17-18`) `Data Source=:memory: desteklenir ama
   kalici DEGILDIR: baglanti kapaninca veri gider` diyor. Gerçekte çıplak
   `:memory:` hiç desteklenmiyor. Doküman ya `cache=shared` biçimini önermeli ya
   da `:memory:` desteği kaldırılmalı.
 
  **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı → `HATA-S1-003` (Yüksek) — S1-8'de düzeltmesiyle yeniden koşuldu: validator artik ciplak :memory:'yi acik bir OptionsValidationException ile reddediyor. Bkz. SONUCLAR-S1-2026-08-13.md.
 
-> **Temizlik:** `dotnet user-secrets set "AgentPrism:Sqlite:ConnectionString" "Data Source=agentprism-manuel.db"`
+> **Temizlik:** `dotnet user-secrets set "Tracon:Sqlite:ConnectionString" "Data Source=tracon-manuel.db"`
 
 ---
 
 ## MT-SQL-007 — Üç `UseSqlite` aşırı yüklemesi aynı sonucu üretir
 
 **Gerçek sonuç**
-- `AgentPrismSqliteBuilderExtensions.cs:20-26` — `UseSqlite(string)` gövdesi
+- `TraconSqliteBuilderExtensions.cs:20-26` — `UseSqlite(string)` gövdesi
   `builder.UseSqlite(options => options.ConnectionString = connectionString)`.
-- `AgentPrismSqliteBuilderExtensions.cs:38-46` — `UseSqlite(IConfiguration)`
+- `TraconSqliteBuilderExtensions.cs:38-46` — `UseSqlite(IConfiguration)`
   gövdesi `builder.UseSqlite(options => Bind(configurationSection, options))`.
-- `AgentPrismSqliteBuilderExtensions.cs:58` — `UseSqlite(Action<Options>)` tek
+- `TraconSqliteBuilderExtensions.cs:58` — `UseSqlite(Action<Options>)` tek
   gerçek kayıt yoludur; DI kaydını yalnız o yapar.
 - Üç aşırı yükleme tek kayıt yolunda buluşuyor; sözleşme doğrulandı.
 
@@ -198,7 +198,7 @@
 
 # 2 — SQL Server: Bağlantı, ayarlar ve doğrulama
 
-Bu bölüm `AgentPrismSqlServerOptions`, `AgentPrismSqlServerOptionsValidator` ve
+Bu bölüm `TraconSqlServerOptions`, `TraconSqlServerOptionsValidator` ve
 `SqlServerDataSourceFactory`'yi sınar. SQL Server, PostgreSQL'in `public` şema
 yasağına birebir denk düşen bir `dbo` yasağı taşır (K-013).
 
@@ -208,11 +208,11 @@ yasağına birebir denk düşen bir `dbo` yasağı taşır (K-013).
 > orada kaydedilen ikame imajla devam et.
 
 > ✅ **`HATA-S1-004` ÇÖZÜLDÜ (2026-08-13, Şerit 1).** Bu bölüm ve §3 önce
-> koşulamadı: `samples/AgentPrism.Api/AgentPrism.Api.csproj:6`
+> koşulamadı: `samples/Tracon.Api/Tracon.Api.csproj:6`
 > `<InvariantGlobalization>true</InvariantGlobalization>` taşıyordu ve
 > `Microsoft.Data.SqlClient` bu modu desteklemediği için `SqlConnection.Open`
 > anında `System.NotSupportedException` fırlıyordu — uygulama SQL Server ile hiç
-> açılmıyordu. Aynı satır `AgentPrism.Starter` şablonundaydı; şablon
+> açılmıyordu. Aynı satır `Tracon.Starter` şablonundaydı; şablon
 > `UseSqlServer` seçeneği sunduğu için kusur doğrudan tüketiciye gidiyordu.
 > Ayar **karar K-392** ile hem örnekten hem şablondan kaldırıldı, dört doğrulama
 > kapısı yeşil koştu ve bu bölümün tüm case'leri gerçek bağlantıyla yeniden
@@ -224,7 +224,7 @@ yasağına birebir denk düşen bir `dbo` yasağı taşır (K-013).
 
 **Gerçek sonuç**
 > **Test yöntemi bu senaryoyu tetikleyemiyor — kod kusuru DEĞİL.** MT-SQL-001'in
-> birebir aynısı, SQL Server tarafında. `samples/AgentPrism.Api/Program.cs:635`
+> birebir aynısı, SQL Server tarafında. `samples/Tracon.Api/Program.cs:635`
 > `IsNullOrWhiteSpace(sqlServer["ConnectionString"])` kontrolüyle boş değeri
 > "sağlayıcı yapılandırılmamış" sayıp `UseSqlServer(...)`'ı hiç çağırmıyor.
 > Koşuldu: üç bağlantı dizesi de boşken uygulama sorunsuz açıldı
@@ -236,7 +236,7 @@ yasağına birebir denk düşen bir `dbo` yasağı taşır (K-013).
 
 **Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☑ Atlandı (yöntem geçersiz — bkz. not)
 
-> **Temizlik:** `dotnet user-secrets set "AgentPrism:SqlServer:ConnectionString" "Server=localhost,51433;Database=AgentPrism;User Id=sa;Password=AgentPrism!2026;TrustServerCertificate=true"`
+> **Temizlik:** `dotnet user-secrets set "Tracon:SqlServer:ConnectionString" "Server=localhost,51433;Database=Tracon;User Id=sa;Password=Tracon!2026;TrustServerCertificate=true"`
 
 ---
 
@@ -245,7 +245,7 @@ yasağına birebir denk düşen bir `dbo` yasağı taşır (K-013).
 **Gerçek sonuç**
 - Uygulama başlamayı reddetti; `Now listening` yazılmadı.
 - Mesaj beklenen iki ifadeyi de taşıyor:
-  `AgentPrismSqlServerOptions.SchemaName 'dbo' olamaz. AgentPrism tuketicinin
+  `TraconSqlServerOptions.SchemaName 'dbo' olamaz. Tracon tuketicinin
   varsayilan semasina dokunmaz. Gerekce: docs/KARARLAR.md, karar K-013.`
 - Doğrulama sorgusu: `dbo` şemasındaki tablo sayısı **0** — denemeden önceki
   değerle aynı, `dbo`'ya hiçbir tablo yazılmadı.
@@ -254,44 +254,44 @@ yasağına birebir denk düşen bir `dbo` yasağı taşır (K-013).
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
-> **Temizlik:** `dotnet user-secrets set "AgentPrism:SqlServer:SchemaName" "agentprism"`
+> **Temizlik:** `dotnet user-secrets set "Tracon:SqlServer:SchemaName" "tracon"`
 
 ---
 
 ## MT-SQL-014 — `AutoApplyMigrations=false` migration uygulamaz
 
 **Gerçek sonuç**
-- Bilgi satırı çıktı: `AgentPrism migration'lari otomatik uygulanmiyor
+- Bilgi satırı çıktı: `Tracon migration'lari otomatik uygulanmiyor
   (AutoApplyMigrations kapali). Semanin guncel olmasi cagiranin
   sorumlulugundadir.`
-- `agentprism` şemasındaki tablo sayısı **0** — şema bile oluşmadı.
+- `tracon` şemasındaki tablo sayısı **0** — şema bile oluşmadı.
 - **Uygulama açılmadı — kendini kapattı.** `Now listening` yazıldı, hemen
   ardından `Application is shutting down...` geldi. `/health` bağlantı kuramadı
   (`HTTP:000`), yani beklenen `Unhealthy` yanıtı **okunamıyor**.
-- `crit: AgentPrism.A2AApprovalGuardFilter — A2A disa acik yuzey denetimi
+- `crit: Tracon.A2AApprovalGuardFilter — A2A disa acik yuzey denetimi
   basarisiz oldu; uygulama durduruluyor.` →
-  `SqlException: Invalid object name 'agentprism.agent_definitions'.`
-  (öncesinde `Invalid object name 'agentprism.tenants'` uyarısı).
+  `SqlException: Invalid object name 'tracon.agent_definitions'.`
+  (öncesinde `Invalid object name 'tracon.tenants'` uyarısı).
 - **SQLite karşılığı MT-SQL-004 ile birebir aynı davranış.** İki sağlayıcıda da
   aynı kök neden: `MigrationHostedService.StartAsync` `AutoApplyMigrations`
   kapalıyken `SchemaReadyGate`'i açıyor, onay denetimleri hazır olmayan şemayı
-  sorguluyor ve uygulama iniyor. Kök neden `AgentPrism.Sql.Shared` içinde
+  sorguluyor ve uygulama iniyor. Kök neden `Tracon.Sql.Shared` içinde
   ortak olduğu için sağlayıcıdan bağımsız — bu koşum onu **doğruladı**.
 
  **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı → `HATA-S1-002` (Yüksek) — S1-8'de düzeltmesiyle (K-393) yeniden koşuldu, SQL Server'da da aynı sonuç. Bkz. SONUCLAR-S1-2026-08-13.md.
 
-> **Temizlik:** `dotnet user-secrets set "AgentPrism:SqlServer:AutoApplyMigrations" "true"`, reset yordamı.
+> **Temizlik:** `dotnet user-secrets set "Tracon:SqlServer:AutoApplyMigrations" "true"`, reset yordamı.
 
 ---
 
 ## MT-SQL-016 — Üç `UseSqlServer` aşırı yüklemesi aynı sonucu üretir
 
 **Gerçek sonuç**
-- `AgentPrismSqlServerBuilderExtensions.cs:21-27` — `UseSqlServer(string)`
+- `TraconSqlServerBuilderExtensions.cs:21-27` — `UseSqlServer(string)`
   gövdesi `builder.UseSqlServer(options => options.ConnectionString = connectionString)`.
-- `AgentPrismSqlServerBuilderExtensions.cs:39-46` — `UseSqlServer(IConfiguration)`
+- `TraconSqlServerBuilderExtensions.cs:39-46` — `UseSqlServer(IConfiguration)`
   gövdesi `builder.UseSqlServer(options => Bind(configurationSection, options))`.
-- `AgentPrismSqlServerBuilderExtensions.cs:68` — `UseSqlServer(Action<Options>)`
+- `TraconSqlServerBuilderExtensions.cs:68` — `UseSqlServer(Action<Options>)`
   tek gerçek kayıt yoludur.
 - MT-SQL-007 ile birebir aynı desen; iki sağlayıcı da tek kayıt yolunda
   buluşuyor. Kod okuması olduğu için `HATA-S1-004`'ten etkilenmedi.
@@ -302,7 +302,7 @@ yasağına birebir denk düşen bir `dbo` yasağı taşır (K-013).
 
 # 3 — Migration'lar
 
-`MigrationRunner` her üç sağlayıcıda ORTAKTIR (`AgentPrism.Sql.Shared`);
+`MigrationRunner` her üç sağlayıcıda ORTAKTIR (`Tracon.Sql.Shared`);
 kilit biçimi (`SqliteDialect`/`SqlServerDialect`) ve migration kaynak öneki
 diyalekt üzerinden değişir. **Ölçüldü:** SQLite ve SQL Server her ikisi de
 **15** migration dosyası taşır (`0001_initial`'dan `0015_experiment_canary`'e);
@@ -317,11 +317,11 @@ dâhil, yalnız `pgvector`), SQLite ve SQL Server'da **44** tablodur. Üçü de 
 ## MT-SQL-020 — SQLite: boş DB'de 15 migration sırayla uygulanır
 
 **Gerçek sonuç**
-- Konsol tam olarak `AgentPrism 15 migration uyguladi. Sema: agentprism_.` yazdı.
-- `agentprism___migrations` içinde **15** satır, sırayla `0001_initial` → `0015_experiment_canary`.
+- Konsol tam olarak `Tracon 15 migration uyguladi. Sema: tracon_.` yazdı.
+- `tracon___migrations` içinde **15** satır, sırayla `0001_initial` → `0015_experiment_canary`.
 - `sqlite_master` tablo sayısı **45**, doküman iddiası olan 44 ile ÇELİŞİYOR.
   Kök sebep kod kusuru değil, dokümanın kendi sorgusuyla tutarsız beklentisi:
-  `SELECT count(*) FROM sqlite_master WHERE type='table'` `agentprism___migrations`
+  `SELECT count(*) FROM sqlite_master WHERE type='table'` `tracon___migrations`
   defter tablosunu da sayar (44 özellik tablosu + 1 migration defteri = 45).
   `/api/diagnostics`: `persistenceProvider`="SQLite", `registeredPersistenceProviders`=1,
   `canConnect`=true, `migrationsUpToDate`=true, `pendingMigrations`=[] — hepsi doğru.
@@ -337,7 +337,7 @@ dâhil, yalnız `pgvector`), SQLite ve SQL Server'da **44** tablodur. Üçü de 
 **Gerçek sonuç**
 - Uygulama başlamayı reddetti; `Now listening` yazılmadı.
 - Mesaj beklenen metni taşıyor, üstelik iki özeti de karşılaştırmalı veriyor:
-  `AgentPrismException: '0001_initial' migration'i veritabaninda uygulanmis
+  `TraconException: '0001_initial' migration'i veritabaninda uygulanmis
   ancak dosyanin icerigi degismis. Veritabanindaki ozet: bozuk, dosyanin ozeti:
   13CEA2CB…149A6. Uygulanmis bir migration duzenlenmez; degisiklik icin yeni bir
   migration dosyasi ekleyin.`
@@ -353,9 +353,9 @@ dâhil, yalnız `pgvector`), SQLite ve SQL Server'da **44** tablodur. Üçü de 
 ## MT-SQL-024 — SQL Server: boş DB'de 15 migration sırayla uygulanır
 
 **Gerçek sonuç**
-- Konsol `AgentPrism 15 migration uyguladi. Sema: agentprism.` yazdı.
-- `agentprism.__migrations` **15** satır; sıra `0001_initial` → `0015_experiment_canary`.
-- `sys.tables` içinde `agentprism` şemasına ait **45** tablo — doküman iddiası
+- Konsol `Tracon 15 migration uyguladi. Sema: tracon.` yazdı.
+- `tracon.__migrations` **15** satır; sıra `0001_initial` → `0015_experiment_canary`.
+- `sys.tables` içinde `tracon` şemasına ait **45** tablo — doküman iddiası
   olan 44 ile ÇELİŞİYOR. Kök sebep kod kusuru değil, dokümanın kendi
   doğrulama sorgusuyla tutarsız beklentisi: sorgu `__migrations` defter
   tablosunu da sayar (44 özellik tablosu + 1 defter = 45). SQLite tarafında
@@ -380,13 +380,13 @@ dâhil, yalnız `pgvector`), SQLite ve SQL Server'da **44** tablodur. Üçü de 
   `decimal` hassasiyeti ÖLÇÜLEMEZ.
 - Bu yüzden fiyat **yapılandırmadan** verildi (kod değişikliği değil, komut
   satırı yapılandırması) ve case'in asıl amacı ölçüldü:
-  `--AgentPrism:Pricing:openai:gpt-5.4-mini:Input=12345.6789`
-  `--AgentPrism:Pricing:openai:gpt-5.4-mini:Output=98765.4321`
-  ⚠️ Doğru anahtar yolu `AgentPrism:Pricing:<saglayici>:<model>:Input`'tur —
+  `--Tracon:Pricing:openai:gpt-5.4-mini:Input=12345.6789`
+  `--Tracon:Pricing:openai:gpt-5.4-mini:Output=98765.4321`
+  ⚠️ Doğru anahtar yolu `Tracon:Pricing:<saglayici>:<model>:Input`'tur —
   `Providers` ara anahtarı **yoktur** (sınıf üyesi `Providers` olsa da
   `BindPricing` doğrudan `Pricing`'in çocuklarını dolaşır) ve alan adı
   `InputCostPerMillionTokens` değil **`Input`**'tur
-  (`AgentPrismServiceCollectionExtensions.cs:807-861`).
+  (`TraconServiceCollectionExtensions.cs:807-861`).
 - Sonuç — 211 girdi / 13 çıktı token ile:
 
   | | API yanıtı | SQL'den okunan | Beklenen (elle hesap) |
@@ -417,7 +417,7 @@ dâhil, yalnız `pgvector`), SQLite ve SQL Server'da **44** tablodur. Üçü de 
 - ⚠️ **`/health` açılışta `Healthy` DEĞİL, `Degraded` döner** — gerekçe
   `Henuz saglikli oldugu dogrulanmis bir model saglayicisi yok.` Bu bir kusur
   değil, ama case'in eksik yazdığı bir ön koşul var: sağlayıcı durumu
-  `AgentPrismDiagnosticsCollector.cs:97` içinde `_healthCache.TryPeek(...)` ile
+  `TraconDiagnosticsCollector.cs:97` içinde `_healthCache.TryPeek(...)` ile
   okunur ve bu önbellek **yalnız `GET /api/models/health` çağrılınca dolar**.
   Başarılı bir gerçek agent çalıştırması onu doldurmaz — bir OpenAI çağrısı
   yapıldıktan sonra bile beş sağlayıcının beşi de `Unknown` kaldı ve `/health`
@@ -436,7 +436,7 @@ dâhil, yalnız `pgvector`), SQLite ve SQL Server'da **44** tablodur. Üçü de 
 ## MT-SQL-060 — Üç sağlayıcının migration/tablo sayısı ölçümü tutarlıdır
 
 **Gerçek sonuç**
-Üçü de temiz kurulumdan ölçüldü (SQLite sıfırdan, SQL Server `agentprism`
+Üçü de temiz kurulumdan ölçüldü (SQLite sıfırdan, SQL Server `tracon`
 şeması, PostgreSQL şerit şeması `mt_s1`):
 
 | Sağlayıcı | Migration | Tablo |
@@ -450,7 +450,7 @@ dâhil, yalnız `pgvector`), SQLite ve SQL Server'da **44** tablodur. Üçü de 
   `> document_embeddings`. Başka hiçbir tablo bir sağlayıcıda olup diğerinde
   eksik değil.
 - **SQLite ile SQL Server tablo kümeleri BİREBİR AYNI** — `diff` boş döndü
-  (SQLite adları `agentprism_` öneki soyularak karşılaştırıldı). Granülerlik
+  (SQLite adları `tracon_` öneki soyularak karşılaştırıldı). Granülerlik
   farkı yalnız migration dosya sayısındadır (15'e karşı 28), nihai şemada
   değil; SQLite/SQL Server'da eksik bir yetenek YOK.
 - ⚠️ Mutlak sayılar doküman iddiasından (**44/44/45**) 1 fazla: doğrulama
@@ -523,7 +523,7 @@ kapsanıyor ve orada beklendiği gibi başlatma reddediliyor.
 - ⚠️ **Koşum notu — ilk denemede yanlış "Kaldı" alınabilirdi.** `docker start`
   hemen ardından yapılan sorgu **500** döndü ve hata
   `A connection was successfully established with the server, but then an error
-  occurred during the pre-login handshake.` idi. Bu AgentPrism kusuru değil:
+  occurred during the pre-login handshake.` idi. Bu Tracon kusuru değil:
   container TCP'yi kabul ediyor ama SQL Server motoru henüz açılmamış oluyor.
   Dokümandaki `sleep 15` bu makinede **yetersiz**; hazırlık `sqlcmd -Q "SELECT 1;"`
   başarılı olana kadar döngüyle beklenmelidir.
@@ -580,7 +580,7 @@ Server bağlantısıyla yeniden koşuldu. Tüm SQL Server case'leri gerçek
 | `MT-SQL-020`, `024`, `041`, `060` | tablo sayısı **44** (PostgreSQL 45) | **45** (PostgreSQL **46**) — doğrulama sorgusu `__migrations` defterini de sayar |
 | `MT-SQL-050` adımları | ön koşul yok | "`GET /api/models/health` çağır" adımı eklenmeli; önbellek ısıtılmadan `/health` `Degraded` döner |
 | `MT-SQL-073` adım 3 | `sleep 15` | `until docker exec ... sqlcmd -Q "SELECT 1;"` hazırlık yoklaması — `sleep 15` yetersiz |
-| `MT-SQL-040` | fiyatın katalogdan geleceği varsayılıyor | `gpt-5.4-mini` katalogda fiyatsız; `AgentPrism:Pricing:<saglayici>:<model>:Input` ile verilmeli (`Providers` ara anahtarı YOK, alan adı `Input`/`Output`) |
+| `MT-SQL-040` | fiyatın katalogdan geleceği varsayılıyor | `gpt-5.4-mini` katalogda fiyatsız; `Tracon:Pricing:<saglayici>:<model>:Input` ile verilmeli (`Providers` ara anahtarı YOK, alan adı `Input`/`Output`) |
 
 Ayrıntı ve hata kayıtları: [`SONUCLAR-S1-2026-08-13.md`](../../../arsiv/manuel-test-kosum-2026-08/SONUCLAR-S1-2026-08-13.md).
 

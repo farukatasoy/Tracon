@@ -3,7 +3,7 @@
 > **Durum:** ✅ Tamamlandı (2026-08-02)
 > **Önkoşul:** [02-POSTGRESQL-KALICILIK.md](02-POSTGRESQL-KALICILIK.md) — tamamlandı
 > **Sonraki:** [04-HTTP-API.md](04-HTTP-API.md)
-> **Paket:** `AgentPrism.OpenAI` (+ `Core` ve `Abstractions`'a küçük eklemeler)
+> **Paket:** `Tracon.OpenAI` (+ `Core` ve `Abstractions`'a küçük eklemeler)
 
 ---
 
@@ -48,24 +48,24 @@ System.InvalidOperationException: Only ConversationId or ChatHistoryProvider may
 
 `UsePostgreSql()` her derlenen agent'a bir `ChatHistoryProvider` bağlar (Faz 2). İki yol aynı anda çalışamaz. Bu hata **yalnızca PostgreSQL açıkken** ortaya çıkar; bellek içi kurulumda sessizce çalışır.
 
-**Yapılan:** `AsIChatClientWithStoredOutputDisabled(model)` kullanılıyor. Geçmiş AgentPrism'in PostgreSQL'inde kalır; denetim izi, kiracı yalıtımı ve replay vaadi korunur. Doğrulandı (aşağıdaki çıktı, adım 7).
+**Yapılan:** `AsIChatClientWithStoredOutputDisabled(model)` kullanılıyor. Geçmiş Tracon'in PostgreSQL'inde kalır; denetim izi, kiracı yalıtımı ve replay vaadi korunur. Doğrulandı (aşağıdaki çıktı, adım 7).
 
 ### S3 — Yerleşik model kataloğu **yok** *(kullanıcı kararı)*
 
 **Plan:** "`ModelProviderDescriptor` her model için: ad, context penceresi, ... fiyat metadata'sı."
 **Ölçüm:** Faz 3 sırasında bilgiye dayanarak yazılan yerleşik liste (`gpt-5.1`, `gpt-5`, `gpt-4.1`, `gpt-4o`, `o3`, `o4-mini`) gerçek bir hesabın erişebildiği modellerin **hiçbirini** içermiyordu. `gpt-4.1-mini` çağrısı `HTTP 403 model_not_found` döndü. Gerçek liste: `gpt-5.4-mini`, `gpt-5.6-luna`, `gpt-5.6-terra`.
 
-**Yapılan:** `OpenAIModelCatalog.Models` kaldırıldı. Katalog tamamen `AgentPrism:Providers:OpenAI:Models` ayarından gelir. Bir NuGet paketi model listesini güncel tutamaz — OpenAI modelleri sürümlerden hızlı değişir. Karar K-032.
+**Yapılan:** `OpenAIModelCatalog.Models` kaldırıldı. Katalog tamamen `Tracon:Providers:OpenAI:Models` ayarından gelir. Bir NuGet paketi model listesini güncel tutamaz — OpenAI modelleri sürümlerden hızlı değişir. Karar K-032.
 
 ### S4 — `ReasoningEffort` derleyiciye bağlandı *(kullanıcı kararı)*
 
-`ModelBinding.ReasoningEffort` Faz 1'den beri hiçbir yerde okunmuyordu. Artık `AgentDefinitionCompiler.BuildChatOptions` içinde `ChatOptions.Reasoning`'e çevriliyor. Geçersiz değer sessizce yok sayılmaz; `AgentPrismCompilationException` ile reddedilir ve geçerli değerler listelenir.
+`ModelBinding.ReasoningEffort` Faz 1'den beri hiçbir yerde okunmuyordu. Artık `AgentDefinitionCompiler.BuildChatOptions` içinde `ChatOptions.Reasoning`'e çevriliyor. Geçersiz değer sessizce yok sayılmaz; `TraconCompilationException` ile reddedilir ve geçerli değerler listelenir.
 
 ### S5 — `AddToolsFrom` iki aşırı yükleme + attribute *(kullanıcı kararı)*
 
 **Plan:** `AddToolsFrom<T>()`.
 **Sorun:** C# statik sınıfları tür argümanı olarak kabul etmez (`CS0718`). Plandaki `OrderTools` örneği tam olarak bir `static class`.
-**Yapılan:** `AddToolsFrom(Type)` aşırı yüklemesi eklendi. Ayrıca tarama `[AgentPrismTool]` ile açık işaretleme ister; işaretsiz metotlar tool olmaz. Bu, K2 güvenlik sınırının doğal devamıdır — bir sınıfa metot eklemek onu kazara agent'a açmaz.
+**Yapılan:** `AddToolsFrom(Type)` aşırı yüklemesi eklendi. Ayrıca tarama `[TraconTool]` ile açık işaretleme ister; işaretsiz metotlar tool olmaz. Bu, K2 güvenlik sınırının doğal devamıdır — bir sınıfa metot eklemek onu kazara agent'a açmaz.
 
 ---
 
@@ -76,7 +76,7 @@ Her sağlayıcı aynı hattı kurar:
 ```csharp
 inner.AsBuilder()
      .UseFunctionInvocation(loggerFactory)                                    // tool dongusu MAF'ta
-     .UseOpenTelemetry(loggerFactory, AgentPrismDiagnostics.ActivitySourceName)  // Faz 6'nin kaynagi
+     .UseOpenTelemetry(loggerFactory, TraconDiagnostics.ActivitySourceName)  // Faz 6'nin kaynagi
      .Build();
 ```
 
@@ -84,8 +84,8 @@ inner.AsBuilder()
 
 | Yüzey | Çağrı | Geçmiş nerede |
 |-------|-------|---------------|
-| `openai` | `GetChatClient(model).AsIChatClient()` | AgentPrism (PostgreSQL veya bellek) |
-| `openai-responses` | `GetResponsesClient().AsIChatClientWithStoredOutputDisabled(model)` | AgentPrism (aynı) |
+| `openai` | `GetChatClient(model).AsIChatClient()` | Tracon (PostgreSQL veya bellek) |
+| `openai-responses` | `GetResponsesClient().AsIChatClientWithStoredOutputDisabled(model)` | Tracon (aynı) |
 
 İki yüzey de **tek** `OpenAIClient` örneğini, dolayısıyla tek HTTP bağlantı havuzunu paylaşır.
 
@@ -120,7 +120,7 @@ Elle doğrulama: PostgreSQL 18 (Docker) + gerçek OpenAI anahtarı, model `gpt-5
    seq=5 tip=RunCompleted
 5) Beklenen hata: 'db-bozuk' agent'i su tool'lara isaret ediyor ancak bunlar kodda kayitli degil:
    silinmis_tool. Kayitli tool'lar: get_order_status. Tool'lar yalnizca kodda tanimlanir;
-   `builder.AddAgentPrism().AddTool(...)` ile kaydedin.
+   `builder.AddTracon().AddTool(...)` ile kaydedin.
 6) Beklenen hata: 'db-saglayicisiz' agent'i derlenemedi: 'yok-boyle' adinda bir model saglayicisi
    kayitli degil. Kayitli saglayicilar: openai, openai-responses.
 7) Responses API yaniti: Ankara
@@ -150,15 +150,15 @@ $ curl -s localhost:5085/tools
   "requiresApproval":false}, ...]
 ```
 
-Paket bağımlılıkları (nuspec, `net8.0`): `AgentPrism.Core`, `Microsoft.Agents.AI.OpenAI`, `Microsoft.Extensions.AI.OpenAI`, `OpenAI` — **4 doğrudan bağımlılık**, geçişli sızıntı yok.
+Paket bağımlılıkları (nuspec, `net8.0`): `Tracon.Core`, `Microsoft.Agents.AI.OpenAI`, `Microsoft.Extensions.AI.OpenAI`, `OpenAI` — **4 doğrudan bağımlılık**, geçişli sızıntı yok.
 
 ---
 
 ## Kullanım
 
 ```csharp
-builder.AddAgentPrism()
-       .AddToolsFrom(typeof(OrderTools))                    // [AgentPrismTool] ile isaretli metotlar
+builder.AddTracon()
+       .AddToolsFrom(typeof(OrderTools))                    // [TraconTool] ile isaretli metotlar
        .UseOpenAI(configuration.GetSection(OpenAIProviderOptions.SectionName))
        .UsePostgreSql(connectionString)
        .AddAgent(new AgentDefinition
@@ -177,7 +177,7 @@ builder.AddAgentPrism()
 
 ```json
 {
-  "AgentPrism": {
+  "Tracon": {
     "Providers": {
       "OpenAI": {
         "ApiKey": "",
@@ -205,12 +205,12 @@ builder.AddAgentPrism()
 
 **2. 🚨 Responses API ile `ChatHistoryProvider` birlikte kullanılamaz.** Faz 4 `/v1/responses` uçlarını kuracak ve `IConversationStorage` / `IResponsesService` implementasyonlarını yazacak. O katman kendi konuşma durumunu PostgreSQL'de tutacağı için `openai-responses` sağlayıcısı ile aynı çatışmayı yaşayabilir. `OpenAIChatClientFactory.CreateInnerChatClient` içindeki `AsIChatClientWithStoredOutputDisabled` çağrısı bu yüzden vardır — kaldırmadan önce sapma S2'yi okuyun.
 
-**3. Model kataloğu kodda yok.** `/api/models` ucu (Faz 4) boş liste dönebilir; bu bir hata değildir. Arayüz (Faz 5) boş kataloğu ele almalı ve kullanıcıyı `AgentPrism:Providers:OpenAI:Models` ayarına yönlendirmelidir.
+**3. Model kataloğu kodda yok.** `/api/models` ucu (Faz 4) boş liste dönebilir; bu bir hata değildir. Arayüz (Faz 5) boş kataloğu ele almalı ve kullanıcıyı `Tracon:Providers:OpenAI:Models` ayarına yönlendirmelidir.
 
 **4. `OpenAIProviderOptions` bir `class`, `record` değil.** Bilinçlidir: `record`'un ürettiği `ToString` tüm özellikleri yazar ve API anahtarını ilk günlük satırında ifşa ederdi. `SecretLeakTests` bunu korur. Yeni ayar sınıfları için aynı kural geçerlidir.
 
 **5. Yeni ayar eklerken üç yer güncellenir:** `OpenAIProviderOptions`, `OpenAIProviderExtensions.Bind`, `OpenAIProviderOptionsValidator`. Elle bağlama karar K-021'in bedelidir.
 
-**6. `AgentPrism.OpenAI` AOT uyumlu kaldı.** Chat Completions yolu `IsAotCompatible=true` ile sıfır uyarı verir. `AddToolsFrom` yansıma kullanır ama `AgentPrism.Core` içindedir ve `[RequiresUnreferencedCode]` + `[RequiresDynamicCode]` ile işaretlidir — uyarı bastırılmaz, çağırana iletilir.
+**6. `Tracon.OpenAI` AOT uyumlu kaldı.** Chat Completions yolu `IsAotCompatible=true` ile sıfır uyarı verir. `AddToolsFrom` yansıma kullanır ama `Tracon.Core` içindedir ve `[RequiresUnreferencedCode]` + `[RequiresDynamicCode]` ile işaretlidir — uyarı bastırılmaz, çağırana iletilir.
 
 ---

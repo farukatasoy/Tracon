@@ -3,7 +3,7 @@
 > **Durum:** ✅ Tamamlandı (2026-08-07)
 > **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-53**
 > **Önkoşul:** [Faz 31](31-GERI-BILDIRIM-VE-PUANLAMA.md) — puan bazlı terfi `run_scores` tablosunu ister. Durum bazlı terfi Faz 31 olmadan da çalışır ([45.1](#451--faz-31-ne-kadar-önkoşul))
-> **Paketler:** `AgentPrism.Abstractions`, `.Core`, `.Sql.Shared`, `.PostgreSql`, `.SqlServer`, `.Sqlite`, `.AspNetCore`, `.UI`
+> **Paketler:** `Tracon.Abstractions`, `.Core`, `.Sql.Shared`, `.PostgreSql`, `.SqlServer`, `.Sqlite`, `.AspNetCore`, `.UI`
 > **Yeni paket:** Yok · **Migration:** **gerekli** — `eval_cases`'e üç sütun, üç set (K-178). Gerekçe [45.5](#455--terfi-eden-vakanın-kökeni-izlenir)
 > **Public API:** büyüyor — `IEvalStore`'a bir metot, bir kayıt tipi. 🚨 Faz 7'den önce ucuz, sonra **kırıcı**
 
@@ -37,7 +37,7 @@ Faz 18 eval altyapısını **verdi**: `eval_suites`, `eval_cases`, `eval_runs` v
 - [x] Başarılı bir çalıştırma referans olarak terfi edilir; `expectedOutput` ve
       `expectedTools` doğru dolar.
       `RunToCasePromotionEndpointTests.Basarili_calistirma_referans_olarak_terfi_edilir_ve_denetim_kaydi_yazilir`
-      + `samples/AgentPrism.Api` ile canlı doğrulandı (bkz. Doğrulama komutları çıktısı)
+      + `samples/Tracon.Api` ile canlı doğrulandı (bkz. Doğrulama komutları çıktısı)
 - [x] Aynı çalıştırma ikinci kez terfi edilirse `200` döner ve **ikinci vaka
       oluşmaz**. `RunToCasePromotionEndpointTests.Ayni_calistirma_ikinci_kez_terfi_edilirse_200_doner_ve_ikinci_vaka_olusmaz`
       + `AddCaseAsync_ayni_source_run_id_ikinci_kez_mevcut_vakayi_doner` (`EvalStoreContract`)
@@ -49,7 +49,7 @@ Faz 18 eval altyapısını **verdi**: `eval_suites`, `eval_cases`, `eval_runs` v
       ihlal edilmez. `EvalStoreContract.AddCaseAsync_es_zamanli_terfiler_farkli_seq_uretir`
       (8 eşzamanlı `AddCaseAsync`), bellek içi + PostgreSQL + SQLite'ta geçti
 - [x] Terfi edilen vaka gerçek bir eval koşusunda kullanılır ve sonuç üretir.
-      `samples/AgentPrism.Api` ile canlı doğrulandı: `passed: 1, failed: 0`
+      `samples/Tracon.Api` ile canlı doğrulandı: `passed: 1, failed: 0`
       (bkz. Doğrulama komutları çıktısı)
 - [x] `source_run_id` yabancı anahtar **taşımaz**; kaynak çalıştırma silinse
       bile vaka okunabilir kalır. Migration `0022_eval_case_source.sql` (ve
@@ -63,13 +63,13 @@ Faz 18 eval altyapısını **verdi**: `eval_suites`, `eval_cases`, `eval_runs` v
       SQL Server `0010`, SQLite `0010`
 - [x] Dört doğrulama kapısı sıfır uyarı verir. `build`/`test`/`pack`/`format`
       dördü de yeşil (SQL Server testleri hariç, ortam kısıtı)
-- [x] `samples/AgentPrism.Api` ile gerçek `run` → terfi → eval koşusu zinciri
+- [x] `samples/Tracon.Api` ile gerçek `run` → terfi → eval koşusu zinciri
       **uçtan uca** çalıştı; çıktı bu belgeye yazıldı (bkz. aşağı)
 - [x] `secret` taraması boş döndü
 - [x] `en.ts` ve `tr.ts` eksiksiz; bundle payı **ölçüldü**: 157,0 KB gzip / 250 KB
       bütçe (önceki taban 151,3 KB — bu faz +5,7 KB ekledi)
 
-### Gerçek sunucuyla doğrulama (samples/AgentPrism.Api, port 5091, SQLite + echo sağlayıcı)
+### Gerçek sunucuyla doğrulama (samples/Tracon.Api, port 5091, SQLite + echo sağlayıcı)
 
 ```
 $ curl -N -X POST .../agents/support/run -d '{"message":"12345 numarali siparisimin durumu ne?"}'
@@ -104,35 +104,35 @@ $ curl .../evals/runs/$EVAL_RUN_ID
 
 ```bash
 # Basarisiz bir calistirma uret ve kimligini al
-RUN_ID=$(curl -s -X POST http://localhost:5081/agentprism/api/agents/kirik/run \
+RUN_ID=$(curl -s -X POST http://localhost:5081/tracon/api/agents/kirik/run \
   -H 'content-type: application/json' \
   -d '{"messages":[{"role":"user","text":"merhaba"}]}' | jq -r '.runId')
 
 # Takim olustur
-curl -s -X PUT http://localhost:5081/agentprism/api/evals/regresyon \
+curl -s -X PUT http://localhost:5081/tracon/api/evals/regresyon \
   -H 'content-type: application/json' \
   -d '{"agentName":"asistan","description":"uretimden toplanan"}' | jq
 
 # Terfi et — 201 gelmeli
 curl -s -X POST \
-  "http://localhost:5081/agentprism/api/evals/regresyon/cases/from-run/$RUN_ID" \
+  "http://localhost:5081/tracon/api/evals/regresyon/cases/from-run/$RUN_ID" \
   -i | head -10
 
 # 🚨 expectedOutput BOS olmali
-curl -s http://localhost:5081/agentprism/api/evals/regresyon/cases \
+curl -s http://localhost:5081/tracon/api/evals/regresyon/cases \
   | jq '.[] | {seq, query, expectedOutput, sourceRunId, sourceKind}'
 
 # Ikinci terfi — 200 gelmeli, vaka sayisi ARTMAMALI
 curl -s -X POST \
-  "http://localhost:5081/agentprism/api/evals/regresyon/cases/from-run/$RUN_ID" \
+  "http://localhost:5081/tracon/api/evals/regresyon/cases/from-run/$RUN_ID" \
   -i | head -3
-curl -s http://localhost:5081/agentprism/api/evals/regresyon/cases | jq 'length'
+curl -s http://localhost:5081/tracon/api/evals/regresyon/cases | jq 'length'
 
 # Denetim kaydi yazildi mi
-curl -s "http://localhost:5081/agentprism/api/audit?action=eval.case.promoted" | jq
+curl -s "http://localhost:5081/tracon/api/audit?action=eval.case.promoted" | jq
 
 # Terfi eden vaka gercek bir kosuda kullaniliyor mu
-curl -s -X POST http://localhost:5081/agentprism/api/evals/regresyon/run | jq
+curl -s -X POST http://localhost:5081/tracon/api/evals/regresyon/run | jq
 ```
 
 ---
@@ -222,7 +222,7 @@ Tam gerekçeler `docs/KARARLAR.md`'de.
    isteğinde `checks` alanı gövdeden atlanırsa (varsayılan `JsonElement` →
    `ValueKind = Undefined`) uç `500` döner (K-166'nın aynı deseni,
    `JsonElementConverter.Write` `InvalidOperationException` fırlatır).
-   `samples/AgentPrism.Api` ile gerçek bir çağrıda ölçüldü, düzeltilmedi
+   `samples/Tracon.Api` ile gerçek bir çağrıda ölçüldü, düzeltilmedi
    (Faz 18'in ucu, Faz 45'in kapsamı dışında). `EvalSuiteSaveRequest.Checks`'e
    bir varsayılan (`= default` yerine boş dizi) veya doğrulama eklenmeli.
 6. **SQL Server entegrasyon testleri bu oturumda koşulamadı** — `docs/hafiza/sql-saglayicilari.md`'de

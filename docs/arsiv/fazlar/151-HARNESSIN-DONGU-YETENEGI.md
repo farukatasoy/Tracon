@@ -3,10 +3,10 @@
 > **Durum:** ✅ Tamamlandı (2026-09-07)
 > **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-192**
 > **Önkoşul:** Yok. MAF 1.20.0 yeterlidir; yükseltme beklemez.
-> **Paketler:** `AgentPrism.Abstractions`, `AgentPrism.Core`, `AgentPrism.AspNetCore`
+> **Paketler:** `Tracon.Abstractions`, `Tracon.Core`, `Tracon.AspNetCore`
 > **Yeni paket:** Yok — `LoopAgent` ve beş evaluator `Microsoft.Agents.AI` çekirdeğindedir · **Migration:** Yok
 > **Public API:** Büyüyor — `HarnessSettings`'e bir üye, bir yeni `sealed record`, bir builder metodu, bir `RunEventType` değeri. `wc -l src/*/PublicAPI.Shipped.txt` → her dosya **1 satır** (ölçüldü 2026-09-07): hiçbir yüzey sevk edilmemiştir, bugün eklemek **bedavadır**.
-> **Tüketici yüzeyi:** site: `docs-site/src/content/docs/concepts/agents.md` (harness bölümü) · sevk edilen: `HarnessSettings` XML dokümanı, `AgentPrism.Core/README.md`
+> **Tüketici yüzeyi:** site: `docs-site/src/content/docs/concepts/agents.md` (harness bölümü) · sevk edilen: `HarnessSettings` XML dokümanı, `Tracon.Core/README.md`
 > **Manuel test alanı:** `docs/manuel-test/29-AGENT-DESTEGI.md`
 
 ---
@@ -28,33 +28,33 @@
 
 ## Amaç
 
-Bugün AgentPrism bir agent'a "bitene kadar çalış" diyemez. Tüketici bunu kendi dış döngüsüyle yazmak zorundadır ve o döngü `run` kanıtının **dışında** kalır: kaç iterasyon koştuğu, hangi ölçütün durdurduğu ve kaç token harcandığı AgentPrism'in kayıtlarında görünmez.
+Bugün Tracon bir agent'a "bitene kadar çalış" diyemez. Tüketici bunu kendi dış döngüsüyle yazmak zorundadır ve o döngü `run` kanıtının **dışında** kalır: kaç iterasyon koştuğu, hangi ölçütün durdurduğu ve kaç token harcandığı Tracon'in kayıtlarında görünmez.
 
 ## Bitiş Ölçütleri (DoD)
 
 - [x] `harness.loop` **verilmeyen** agent tanımının derlenmiş `HarnessAgentOptions`'ında `LoopEvaluators` ve `LoopAgentOptions` **atanmamıştır** — `LoopCompilationTests.A_harness_without_loop_settings_gets_no_loop_at_all` (`GetService<LoopAgent>()` null) ve `HarnessLoopTests.A_harness_without_loop_settings_writes_no_iteration_event` (tek model çağrısı, sıfır olay)
 - [x] `completionMarker` ölçütüyle bir `run`, marker gelene kadar döner ve her iterasyon `LoopIterationCompleted` olayı yazar — `HarnessLoopTests` + gerçek koşum 1
-- [x] `maxIterations` verilmeyen bir döngü AgentPrism varsayılanında durur — `An_unreachable_criterion_stops_at_the_AgentPrism_ceiling_instead_of_running_on`; gerçek koşum 2 tavan yolunu ayrıca ölçtü
+- [x] `maxIterations` verilmeyen bir döngü Tracon varsayılanında durur — `An_unreachable_criterion_stops_at_the_Tracon_ceiling_instead_of_running_on`; gerçek koşum 2 tavan yolunu ayrıca ölçtü
 - [x] Bilinmeyen `kind` taşıyan tanım `400` ile reddedilir — `An_unknown_criterion_kind_is_refused_with_400_when_the_definition_is_saved` (HTTP seviyesinde; denetim bulgusu 2)
 - [x] `AddLoopEvaluator` ile kaydedilen kod tarafı evaluator bildirimsel `kind` adıyla çözülür — `LoopCompilationTests` + `LoopEvaluatorRegistryTests`
-- [x] ~~Sekizinci genişleme noktası `AgentPrismExtensionPoints` tablosundadır~~ — **bu satır ölçülerek düşürüldü (K-709, sapma 3).** O tablo DI'dan çözülen sözleşmeler içindir; emsal `AddEvalCheck` de orada değildir. Yerine kapsam `CapabilityCoverageTests` ile kapandı: `AddLoopEvaluator` yetenek haritasında adıyla görünür
+- [x] ~~Sekizinci genişleme noktası `TraconExtensionPoints` tablosundadır~~ — **bu satır ölçülerek düşürüldü (K-709, sapma 3).** O tablo DI'dan çözülen sözleşmeler içindir; emsal `AddEvalCheck` de orada değildir. Yerine kapsam `CapabilityCoverageTests` ile kapandı: `AddLoopEvaluator` yetenek haritasında adıyla görünür
 - [x] Dört doğrulama kapısı sıfır uyarı verir
-- [x] `samples/AgentPrism.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı — üç koşum, ayrı bölümde
+- [x] `samples/Tracon.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı — üç koşum, ayrı bölümde
 - [x] `secret` taraması boş döndü (`kapi.py tarama`)
 - [x] Manuel kabul case'leri eklendi — **`02-CEKIRDEK-VE-KATALOG.md`**, `29-AGENT-DESTEGI.md` değil (sapma 7): MT-CORE-123..128
 - [x] `faz-denetim` koşuldu; 🔴 bulgu kapatıldı
 - [x] `docs-site/` güncellendi (`concepts/agents.md` yeni bölüm, `capabilities.md` yeni satır); `npm run check` dört kapıyı da koştu
-- [x] OpenAPI → NSwag → TypeScript zinciri yeniden üretildi; `@agentprism/client` `tsc` temiz, üretilen `AgentPrismApiClient.g.cs` derleniyor
+- [x] OpenAPI → NSwag → TypeScript zinciri yeniden üretildi; `@tracon/client` `tsc` temiz, üretilen `TraconApiClient.g.cs` derleniyor
 
 ### Doğrulama komutları
 
 ```bash
 # Döngü kapalıyken bugünkü davranış korunuyor mu
-curl -s -X POST http://localhost:5081/agentprism/api/agents/demo/run \
+curl -s -X POST http://localhost:5081/tracon/api/agents/demo/run \
   -H 'content-type: application/json' -d '{"message":"merhaba"}' | jq '.runId'
 
 # Döngü açıkken iterasyon olayları yazılıyor mu
-curl -s "http://localhost:5081/agentprism/api/runs/<runId>/events" \
+curl -s "http://localhost:5081/tracon/api/runs/<runId>/events" \
   | jq '[.[] | select(.type=="LoopIterationCompleted")] | length'
 ```
 
@@ -93,16 +93,16 @@ Fonksiyonel test bunu ölçer.
 
 ### 3. 🚨 Döngü **sekizinci bir genişleme noktası DEĞİLDİR**
 
-Plan ve DoD, `LoopEvaluator` kaydının `AgentPrismExtensionPoints` tablosuna
+Plan ve DoD, `LoopEvaluator` kaydının `TraconExtensionPoints` tablosuna
 satır eklemesini istiyordu. Tablo grep'lendi: o tablo **DI'dan çözülen, tek
 örnekli, yerleşik varsayılanı olan yedi sözleşme** içindir —
-`AgentPrismDiagnosticsCollector` "hangi uygulama bağlı" diye sorar,
+`TraconDiagnosticsCollector` "hangi uygulama bağlı" diye sorar,
 `RequiredBindingValidator` "hâlâ yerleşik varsayılan mı" diye sorar.
 `kind` ile anahtarlanmış bir kayıt kümesinin ne yerleşik varsayılanı ne de
 `RequireCustomBinding<LoopEvaluator>()` karşılığı vardır.
 
 Emsal aynı repodadır ve birebir aynı şekildedir: `AddEvalCheck` /
-`AgentPrismEvalCheckRegistration` de o tabloda **değildir**. Döngü onu izler
+`TraconEvalCheckRegistration` de o tabloda **değildir**. Döngü onu izler
 (K-709). DoD'un o satırı **karşılanmadı ve karşılanmamalıydı**; yerine kapsam
 `CapabilityCoverageTests` (yetenek haritası) ile kapandı.
 
@@ -114,7 +114,7 @@ yan yana koyuyordu. Public API'de kırıcı değişiklik pahalıdır ve bu ad
 karışıklığı okuyanın kafasında bir kez oluşup kalır. İki alan da yalnız
 `aiJudge` tarafından okunur; ön ek bunu adın kendisine taşır.
 
-### 5. AgentPrism MAF'a **TEK** evaluator verir, listeyi değil
+### 5. Tracon MAF'a **TEK** evaluator verir, listeyi değil
 
 Plan `LoopEvaluators`'a ölçüt listesini geçirmeyi ima ediyordu. Probe ile üç şey
 ölçüldü (MAF 1.20.0):
@@ -133,8 +133,8 @@ dâhil, yani `aiJudge` maliyeti artmaz) ve bu üçünü kazandırır (K-704).
 ### 6. `todoCompletion.Modes` **doğrulanmaz** (Açık Soru 4'ün B'si uygulanamaz)
 
 Açık Soru 4 "bilinmeyen mod adını doğrula" diyordu. `grep -rn "AgentMode"
-src/AgentPrism.Abstractions/Agents/` **sıfır** döndü:
-`HarnessAgentOptions.AgentModeProviderOptions` AgentPrism tarafından **hiç
+src/Tracon.Abstractions/Agents/` **sıfır** döndü:
+`HarnessAgentOptions.AgentModeProviderOptions` Tracon tarafından **hiç
 atanmıyor**, yani doğrulanacak bir mod adı kümesi **yok**. Alan geçirilir; XML
 dokümanı bunu açıkça yazar ve zorunlu `MaxIterations` tavanı "hiç durmayan
 ölçüt" riskini zaten sınırlar.
@@ -143,7 +143,7 @@ dokümanı bunu açıkça yazar ve zorunlu `MaxIterations` tavanı "hiç durmaya
 
 Plan `29-AGENT-DESTEGI.md`'yi gösteriyordu; o dosyanın alanı tüketici kod
 agent'ı desteğidir (analyzer + yetenek haritası). `00-INDEKS.md` §7'ye göre
-`src/AgentPrism.Core/Compilation/` ve `src/AgentPrism.Abstractions`
+`src/Tracon.Core/Compilation/` ve `src/Tracon.Abstractions`
 `02-CEKIRDEK-VE-KATALOG.md` (`CORE`) alanındadır. Case'ler oraya yazıldı:
 **MT-CORE-123..128**.
 
@@ -152,15 +152,15 @@ agent'ı desteğidir (analyzer + yetenek haritası). `00-INDEKS.md` §7'ye göre
 | # | Karar | Gerekçe |
 |---|---|---|
 | 1 | **B** (öneri) | `aiJudge`, `AddModelRunJudge` binding'ini kullanır. Yapılandırılmamışsa **derleme hatası** — agent'ın kendi modeline sessizce düşmez (K-706) |
-| 2 | **A (10)** — ve ölçüldü | Probe: `MaxIterations = null` iken MAF **kendi** varsayılanı olarak 10 iterasyonda duruyor. AgentPrism aynı sayıyı **açıkça** yazar; garanti MAF'ın belgelenmemiş varsayılanına değil AgentPrism'e ait olur (K-705) |
-| 3 | **B** — ve ölçüldü | Probe: MAF varsayılanı zaten `false`. AgentPrism yine de **açıkça** `false` atar (Faz 144.4 deseni) |
+| 2 | **A (10)** — ve ölçüldü | Probe: `MaxIterations = null` iken MAF **kendi** varsayılanı olarak 10 iterasyonda duruyor. Tracon aynı sayıyı **açıkça** yazar; garanti MAF'ın belgelenmemiş varsayılanına değil Tracon'e ait olur (K-705) |
+| 3 | **B** — ve ölçüldü | Probe: MAF varsayılanı zaten `false`. Tracon yine de **açıkça** `false` atar (Faz 144.4 deseni) |
 | 4 | **A**, zorunlu olarak | Bkz. sapma 6 |
 
 ## Bu Fazda Verilen Kararlar
 
 K-703 … K-709. Tam metin `docs/KARARLAR.md`'dedir.
 
-## Gerçek Koşum (`samples/AgentPrism.Api`, gerçek OpenAI çağrısı, 2026-09-07)
+## Gerçek Koşum (`samples/Tracon.Api`, gerçek OpenAI çağrısı, 2026-09-07)
 
 Üç koşum yapıldı. İkisi döngüyü kanıtladı, biri **Faz 151'e ait olmayan** bir
 kusuru ortaya çıkardı.
@@ -195,13 +195,13 @@ with 'tool_calls'"*. Üç ölçüm bunun bu fazla ilgisiz olduğunu gösteriyor:
 |---|---|
 | Döngülü agent, harness tool sağlayıcıları açık | ❌ `ProviderInvocationException` |
 | **Birebir aynı agent, `loop` alanı kaldırılmış** | ❌ **aynı hata** |
-| `samples/AgentPrism.Api`'nin kendi `researcher`'ı (bu fazda hiç dokunulmadı) | ❌ aynı hata (aynı agent bir önceki çağrıda geçmişti — model davranışına bağlı, deterministik değil) |
+| `samples/Tracon.Api`'nin kendi `researcher`'ı (bu fazda hiç dokunulmadı) | ❌ aynı hata (aynı agent bir önceki çağrıda geçmişti — model davranışına bağlı, deterministik değil) |
 | Harness tool sağlayıcıları kapalı + döngü | ✅ 1 ve 2 numaralı koşumlar |
 
 Kusur MAF harness'inin **içindedir** ve `docs/hafiza/maf-api.md`'de K-053 olarak
 zaten kayıtlıdır (*"harness akisli yolda tool turlarini dogru tasimaz"*);
-`samples/AgentPrism.Api`'nin kendi yorumu da alt-agent seçerken bunu gerekçe
-gösteriyor. AgentPrism tarafında düzeltilebilir bir yeri yoktur. Yeni kayıt
+`samples/Tracon.Api`'nin kendi yorumu da alt-agent seçerken bunu gerekçe
+gösteriyor. Tracon tarafında düzeltilebilir bir yeri yoktur. Yeni kayıt
 açılmadı — var olan kayıt doğru ve bu koşum onu gerçek bir sağlayıcıyla
 doğruladı.
 
@@ -230,7 +230,7 @@ ve kiracı damgası (`RunEventWriter`) olay tipinden **bağımsızdır**, yani d
 
 ## Sonraki Faza Devir Notu
 
-- **🚨 `AgentPrism.AgentMap.md` şu anda bütçesinin TAM ÜSTÜNDE: 10 240 / 10 240 B.**
+- **🚨 `Tracon.AgentMap.md` şu anda bütçesinin TAM ÜSTÜNDE: 10 240 / 10 240 B.**
   `capabilities.md`'ye yetenek satırı ekleyen bir sonraki faz **önce yer açmak
   zorundadır** — harita o dosyadan üretilir ve üreteç bütçeyi aşınca kırpmaz,
   kırılır. Bu faz yeri bir cümlelik tekrarı silerek açtı; sıradaki fazın aynı

@@ -71,7 +71,7 @@ step "Checking $SITE_HOST"
 # The console assets are not part of the documentation site, and building them
 # would add the whole npm/Vite chain to a run that has no use for it.
 step "Building the solution (DocFX reads its output)"
-dotnet build AgentPrism.slnx -c Release -p:AgentPrismFrontendEnabled=false
+dotnet build Tracon.slnx -c Release -p:TraconFrontendEnabled=false
 
 step "Restoring DocFX"
 dotnet tool restore
@@ -132,6 +132,6 @@ if [[ -n "$dry_run" ]]; then
   printf '\nDry run: nothing was published.\n'
 else
   printf '\nPublished. Verify:\n'
-  printf '  curl -sI https://agentprism.eski-site.invalid/ | head -1\n'
+  printf '  curl -sI https://tracon.dev/ | head -1\n'
   printf '  curl -sI https://eski-site.invalid/ | head -1   # the app at the apex, untouched\n'
 fi

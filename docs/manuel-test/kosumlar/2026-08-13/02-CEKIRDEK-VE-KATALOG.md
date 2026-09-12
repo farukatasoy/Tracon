@@ -80,7 +80,7 @@ hiç tetiklemez).
 ## MT-CORE-006 — `Inconclusive`: erişilemeyen MCP sunucusu `Valid`'i düşürmez
 
 **Gerçek sonuç**
-Doküman scriptinde İKİ ayrı hata bulundu: (1) endpoint yolu yanlış — `POST $APU/api/mcp/servers` 405 döner, doğrusu `PUT $APU/api/mcp-servers/{name}`; (2) gövde alanı yanlış — `"url"` değil `"endpoint"` olmalı (`McpServerRequest.Endpoint` `required`). Doğru endpoint+gövdeyle kayıt başarılı. Ardından doğrulama: doküman scriptinin adresi (`127.0.0.1:59999`, dinleyen yok) "connection refused" ile HIZLI döner; `McpToolCatalog.RefreshAsync` (`src/AgentPrism.Mcp/Internal/McpToolCatalog.cs:187`) sunucu bazlı istisnaları içeride yutuyor (log: "MCP sunucusu 'olu-mcp' baglanamadi"), bu yüzden `TryRefreshMcpAsync`'e istisna hiç ulaşmıyor, refresh "başarılı" sayılıyor → sonuç sade `unknown_tool` (`mcp_unreachable` DEĞİL). Yanıt vermeyen bir adresle (`192.0.2.1`, TEST-NET black-hole) TEKRARLANDI: 5.02 saniyede TAM beklenen sonuç alındı — `valid:true`, `inconclusive:true`, `mcp_unreachable`/`Warning`. SONUÇ: `mcp_unreachable` mekanizması doğru çalışıyor ama yalnız GERÇEK zaman aşımında (`OperationCanceledException`) tetikleniyor; aktif red ("connection refused") sessizce `unknown_tool`'a düşüyor — kullanıcı için iki "erişilemez" alt durumu farklı davranıyor. Hem doküman adresi yanlış hem de bu ince sözleşme boşluğu ayrı bir HATA adayı olarak not edildi.
+Doküman scriptinde İKİ ayrı hata bulundu: (1) endpoint yolu yanlış — `POST $APU/api/mcp/servers` 405 döner, doğrusu `PUT $APU/api/mcp-servers/{name}`; (2) gövde alanı yanlış — `"url"` değil `"endpoint"` olmalı (`McpServerRequest.Endpoint` `required`). Doğru endpoint+gövdeyle kayıt başarılı. Ardından doğrulama: doküman scriptinin adresi (`127.0.0.1:59999`, dinleyen yok) "connection refused" ile HIZLI döner; `McpToolCatalog.RefreshAsync` (`src/Tracon.Mcp/Internal/McpToolCatalog.cs:187`) sunucu bazlı istisnaları içeride yutuyor (log: "MCP sunucusu 'olu-mcp' baglanamadi"), bu yüzden `TryRefreshMcpAsync`'e istisna hiç ulaşmıyor, refresh "başarılı" sayılıyor → sonuç sade `unknown_tool` (`mcp_unreachable` DEĞİL). Yanıt vermeyen bir adresle (`192.0.2.1`, TEST-NET black-hole) TEKRARLANDI: 5.02 saniyede TAM beklenen sonuç alındı — `valid:true`, `inconclusive:true`, `mcp_unreachable`/`Warning`. SONUÇ: `mcp_unreachable` mekanizması doğru çalışıyor ama yalnız GERÇEK zaman aşımında (`OperationCanceledException`) tetikleniyor; aktif red ("connection refused") sessizce `unknown_tool`'a düşüyor — kullanıcı için iki "erişilemez" alt durumu farklı davranıyor. Hem doküman adresi yanlış hem de bu ince sözleşme boşluğu ayrı bir HATA adayı olarak not edildi.
 
 ---
 Kapanış oturumu (Aile T, `docs/manuel-test/KAPANIS-PLANI.md`): kök neden
@@ -110,10 +110,10 @@ bayrağı da döner), `McpToolCatalog.cs` (`RefreshAsync`/`EnsureConnectionAsync
 `GovernanceEndpoints.cs` (çağrı yerleri yeni dönüş tipine uyarlandı),
 `AgentDefinitionValidator.cs` (`TryRefreshMcpAsync` yeni bayrağı okur).
 
-**Regresyon testleri:** `tests/AgentPrism.Mcp.UnitTests/McpToolCatalogReachabilityTests.cs`
+**Regresyon testleri:** `tests/Tracon.Mcp.UnitTests/McpToolCatalogReachabilityTests.cs`
 (gerçek "connection refused" ile `McpToolCatalog.RefreshAsync` seviyesinde,
 kayıtlı sunucu yokken negatif kontrol) ·
-`tests/AgentPrism.Core.UnitTests/Compilation/AgentDefinitionValidatorTests.cs`
+`tests/Tracon.Core.UnitTests/Compilation/AgentDefinitionValidatorTests.cs`
 `Aktif_red_ile_erisilemeyen_MCP_sunucusu_da_inconclusive_uretir`.
 
 **Case:** `MT-CORE-006` ✅. Doküman düzeltmesi de yapıldı: yukarıdaki
@@ -131,7 +131,7 @@ doğru alan adını (`endpoint`) kullanıyor.
 
 ---
 
-**Yeniden koşum (Aile G, 2026-08-14).** `/api/agents/validate` artık `AgentEndpoints.BindAgentDefinitionRequestAsync` ile govdeyi elle okuyor (önceki dalgada kapanmış, HATA-S1-007) — bu case zaten kapalıydı, yalnız yeniden doğrulandı: 2) `name` alanı JSON'da HİÇ YOK → **HTTP 400**, `{"title":"Gecersiz istek govdesi","detail":"JSON deserialization for type 'AgentPrism.AgentDefinitionRequest' was missing required properties including: 'name'."}`. Sistemik bulgunun geri kalanı (Aile G, `KAPANIS-PLANI.md` §6) `AgentPrism.AspNetCore`'da genel bir `RequestBodyBinding.ReadAsync<T>` yardımcı metoduyla kapatıldı — kütüphanenin tüm govde-baglayan uçları artık aynı elle-okuma desenini kullanıyor, ortamdan (Development/Production) bağımsız.
+**Yeniden koşum (Aile G, 2026-08-14).** `/api/agents/validate` artık `AgentEndpoints.BindAgentDefinitionRequestAsync` ile govdeyi elle okuyor (önceki dalgada kapanmış, HATA-S1-007) — bu case zaten kapalıydı, yalnız yeniden doğrulandı: 2) `name` alanı JSON'da HİÇ YOK → **HTTP 400**, `{"title":"Gecersiz istek govdesi","detail":"JSON deserialization for type 'Tracon.AgentDefinitionRequest' was missing required properties including: 'name'."}`. Sistemik bulgunun geri kalanı (Aile G, `KAPANIS-PLANI.md` §6) `Tracon.AspNetCore`'da genel bir `RequestBodyBinding.ReadAsync<T>` yardımcı metoduyla kapatıldı — kütüphanenin tüm govde-baglayan uçları artık aynı elle-okuma desenini kullanıyor, ortamdan (Development/Production) bağımsız.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
@@ -151,7 +151,7 @@ c1 (`strategy:"Summarize"`, TriggerTokens yok) → **HTTP 500**. c2 (`strategy:"
 
 ---
 
-**Yeniden koşum (Aile G, 2026-08-14).** Aile G'nin `RequestBodyBinding.ReadAsync<T>` düzeltmesi sonrası: c1 → **HTTP 400** (`"The JSON value could not be converted to AgentPrism.CompactionStrategyKind..."`). c2 → **HTTP 400**, aynı mesaj şekli. Beklenen sonuç düzeltmesi (doküman koda göre): c1'in "Summarize" değeri zaten DOKÜMAN TİPOSU (doğrusu `Summarization`) — bu adımda gerçek bir hata YOKTUR, düzeltilmiş adla test edilmeli. c2'nin "mesaj bilinmeyen strateji adını AYNEN taşır" beklentisi HTTP API üzerinden hiçbir zaman gerçekleşemez (JSON ayrıştırma katmanı validator'a hiç ulaşmadan patlar); doğru beklenti `HTTP 400` + JSON dönüştürme hatası mesajıdır — bu artık karşılanıyor.
+**Yeniden koşum (Aile G, 2026-08-14).** Aile G'nin `RequestBodyBinding.ReadAsync<T>` düzeltmesi sonrası: c1 → **HTTP 400** (`"The JSON value could not be converted to Tracon.CompactionStrategyKind..."`). c2 → **HTTP 400**, aynı mesaj şekli. Beklenen sonuç düzeltmesi (doküman koda göre): c1'in "Summarize" değeri zaten DOKÜMAN TİPOSU (doğrusu `Summarization`) — bu adımda gerçek bir hata YOKTUR, düzeltilmiş adla test edilmeli. c2'nin "mesaj bilinmeyen strateji adını AYNEN taşır" beklentisi HTTP API üzerinden hiçbir zaman gerçekleşemez (JSON ayrıştırma katmanı validator'a hiç ulaşmadan patlar); doğru beklenti `HTTP 400` + JSON dönüştürme hatası mesajıdır — bu artık karşılanıyor.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
@@ -160,7 +160,7 @@ c1 (`strategy:"Summarize"`, TriggerTokens yok) → **HTTP 500**. c2 (`strategy:"
 ## MT-CORE-023 — Skill kataloğu kayıtlı değilken skill isteyen tanım
 
 **Gerçek sonuç**
-İstisna atıldı (`AgentPrismCompilationException`, `AgentName="skill-isteyen"`
+İstisna atıldı (`TraconCompilationException`, `AgentName="skill-isteyen"`
 doğru), mesaj metni düzeltilmiş beklentiyle **tam örtüşüyor**: `"'skill-isteyen'
 agent'i 'olmayan-skill' skill'ine isaret ediyor ancak skill bulunamadi."`
 Davranış tutarlı (eksik skill'e işaret eden tanım her koşulda reddediliyor);
@@ -185,7 +185,7 @@ projesinde basit bir yerel `IModelProvider` uygulamasıyla telafi edilip
 koşuldu. Mekanizma KANITLANDI çalışıyor: istisna doğru atıldı, `tool-eksik`
 agent adı mesajda var, eksik tool adı (`hayali_tool`) mesajda var, kayıtlı
 tool `"Var"` olarak listelendi (düzeltilmiş beklentiyle örtüşüyor),
-`builder.AddAgentPrism().AddTool(...)` yönlendirmesi mesajda var. Ürün
+`builder.AddTracon().AddTool(...)` yönlendirmesi mesajda var. Ürün
 kusuru yok — API tasarımı belgelenmiş şekilde çalışıyor.
 
 ---
@@ -234,7 +234,7 @@ Oturum oluştu, ikinci çalıştırmada geçmiş GERÇEKTEN yüklendi/kullanıld
 **GERÇEK VE KRİTİK ürün kusuru — doğrulandı, kanıtlandı.** Aynı YENİ oturum kimliğine ("manuel-yaris") iki eşzamanlı İLK istek gönderildi. İkisi de başarıyla tamamlandı (SSE `event: done`), hiçbiri hata dönmedi. Beklenen: 4 mesaj (sessiz kayıp kabul edilemez). Gerçekleşen: oturumda yalnız **2 mesaj**. KÖK NEDEN (veritabanından birebir kanıtlandı): İKİ AYRI `conversation` satırı oluştu (aynı saniyede, mikrosaniye farkla: `...6880-7137` ve `...6880-700e`) — "bu oturum için conversation var mı" kontrolü ile "yoksa oluştur" arasında klasik check-then-create yarışı var. Oturumun `state->stateBag` alanındaki `conversationId` işaretçisi SON YAZAN istek tarafından ezildi (last-write-wins); kaybeden isteğin conversation'ı ("Ikinci istek." + yanıtı — DOĞRULANDI: veri fiziksel olarak kayıp değil, `seq 0-1` orada) oturumun `state`'inden artık erişilemez durumda — `GET /api/sessions/manuel-yaris` bu mesajları ASLA göstermez, sessizce orphan kaldı. Etki: aynı oturuma HENÜZ hiç mesaj gönderilmemişken eşzamanlı iki istek gelirse (çift tıkla gönder, ağ retry'i, iki sekme) ikinci konuşmanın tamamı SESSİZCE kaybolur. Ayrı bir HATA-NNN kaydı olarak raporlanmalı (Kritik).
 
 ---
-**2026-08-14 yeniden koşum (düzeltme sonrası — HATA-004, `AgentSessionManager` + `ISessionStore.TryCreateAsync`):** Aynı senaryo canlı Postgres'e (`mt_fin`, temiz şema) karşı yeniden koşuldu. Birinci istek `event: done` ile normal tamamlandı. İkinci istek TAM modelini çalıştırdı (gerçek maliyet — bu kabul edilen taviz) ama kaydetme anında açık bir `event: error` çerçevesi aldı: `{"type":"AgentPrismSessionConflictException","message":"'manuel-yaris' oturumunu ayni anda baska bir istek de acti ve bizden once kaydetti. Kisa bir sure sonra yeniden deneyin."}` — **hiçbiri 500 dönmedi**. DB doğrulaması: `sessions.state->stateBag->AgentPrism.ChatHistory->conversationId` kazanan `conversation_id`'yi taşıyor; o `conversation_id` altında tam 2 mesaj var (kaybeden istek fiziksel olarak yazdığı 2 mesajla birlikte ayrı, artık hiçbir sessiondan referanslanmayan bir `conversation_id`'de kalıyor — orphan, ama SESSİZCE DEĞİL: istemci açıkça bilgilendirildi). Yeniden deneme (`Ikinci istek (yeniden deneme).`) normal yoldan geçti ve kazanan konuşmaya doğru şekilde eklendi (toplam 4 mesaj). Beklenen sonucun 3. maddesi ("Bir çakışma denetimi varsa isteklerden biri açık bir çakışma hatası döner; bu da kabul edilebilir") tam olarak gerçekleşti — sessiz kayıp yok. Kök neden ve düzeltme karar defterine kapanışta yazılacak (KAPANIS-PLANI.md §11 sırası).
+**2026-08-14 yeniden koşum (düzeltme sonrası — HATA-004, `AgentSessionManager` + `ISessionStore.TryCreateAsync`):** Aynı senaryo canlı Postgres'e (`mt_fin`, temiz şema) karşı yeniden koşuldu. Birinci istek `event: done` ile normal tamamlandı. İkinci istek TAM modelini çalıştırdı (gerçek maliyet — bu kabul edilen taviz) ama kaydetme anında açık bir `event: error` çerçevesi aldı: `{"type":"TraconSessionConflictException","message":"'manuel-yaris' oturumunu ayni anda baska bir istek de acti ve bizden once kaydetti. Kisa bir sure sonra yeniden deneyin."}` — **hiçbiri 500 dönmedi**. DB doğrulaması: `sessions.state->stateBag->Tracon.ChatHistory->conversationId` kazanan `conversation_id`'yi taşıyor; o `conversation_id` altında tam 2 mesaj var (kaybeden istek fiziksel olarak yazdığı 2 mesajla birlikte ayrı, artık hiçbir sessiondan referanslanmayan bir `conversation_id`'de kalıyor — orphan, ama SESSİZCE DEĞİL: istemci açıkça bilgilendirildi). Yeniden deneme (`Ikinci istek (yeniden deneme).`) normal yoldan geçti ve kazanan konuşmaya doğru şekilde eklendi (toplam 4 mesaj). Beklenen sonucun 3. maddesi ("Bir çakışma denetimi varsa isteklerden biri açık bir çakışma hatası döner; bu da kabul edilebilir") tam olarak gerçekleşti — sessiz kayıp yok. Kök neden ve düzeltme karar defterine kapanışta yazılacak (KAPANIS-PLANI.md §11 sırası).
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
@@ -250,7 +250,7 @@ ayar hatası üretimde bulunur.
 ## MT-CORE-064 — Yapılandırmadan gelen negatif fiyat reddedilir
 
 **Gerçek sonuç**
-Mesaj "beklenen red:" ile başlıyor: "AgentPrismPricingOptions: 'echo:echo-1' icin fiyat negatif olamaz." — hangi sağlayıcı/model için sorun olduğu açık. "🚨 negatif fiyat KABUL EDILDI" satırı görünmedi.
+Mesaj "beklenen red:" ile başlıyor: "TraconPricingOptions: 'echo:echo-1' icin fiyat negatif olamaz." — hangi sağlayıcı/model için sorun olduğu açık. "🚨 negatif fiyat KABUL EDILDI" satırı görünmedi.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
@@ -259,10 +259,10 @@ Mesaj "beklenen red:" ile başlıyor: "AgentPrismPricingOptions: 'echo:echo-1' i
 ## MT-CORE-065 — `Pricing` altındaki rezerve anahtarlar sağlayıcı sayılmaz
 
 **Gerçek sonuç**
-Doküman'ın scripti aynen koşulduğunda `Saglayici sayisi: 0` döndü (beklenen 1). İKİ AYRI, ÜST ÜSTE binen doküman hatası bulundu: (1) `services.AddAgentPrism()` ARGÜMANSIZ çağrılıp AYRICA `services.Configure<AgentPrismOptions>(config.GetSection(...))` çağrılmış — bu standart/reflection-tabanlı binder'ı kullanır. `AgentPrismOptions` ise AOT gerekçesiyle KENDİ elle yazılmış `Bind()` metoduyla bağlanıyor (doğru kullanım: `AddAgentPrism(configSection)`, K-021). Düzeltilip tekrar koşuldu, YİNE 0 döndü. (2) BAĞIMSIZ ikinci kök neden: manuel `BindPricing` (`AgentPrismServiceCollectionExtensions.cs:841-842`) her model için `ReadDecimal(modelSection, "Input")`/`"Output"` KISA anahtarlarını okuyor; doküman'ın JSON'ı ise `"InputCostPerMillionTokens"`/`"OutputCostPerMillionTokens"` (C# özellik adlı UZUN anahtarlar) kullanıyor — hiç eşleşmiyor, `ReadDecimal` sessizce `null` dönüyor, provider HİÇ eklenmiyor, ne hata ne log. İki kök neden de düzeltilip (doğru API + kısa anahtar adları) tekrar koşuldu: TAM beklenen sonuç alındı (Currency=USD, sağlayıcı sayısı=1, yalnız "echo", Ses sağlayıcıları="elevenlabs"). AYRICA ürün-düzeyi bulgu (Orta): yanlış anahtar adıyla yazılan bir `Pricing` girdisi TAMAMEN SESSİZCE düşüyor (istisna/log/uyarı yok) — bu, projenin "bilinmeyen ayar sessizce yok sayılmaz" ilkesiyle (K-034) çelişiyor. Ayrı bir HATA adayı (Orta) + doküman düzeltmesi önerilir.
+Doküman'ın scripti aynen koşulduğunda `Saglayici sayisi: 0` döndü (beklenen 1). İKİ AYRI, ÜST ÜSTE binen doküman hatası bulundu: (1) `services.AddTracon()` ARGÜMANSIZ çağrılıp AYRICA `services.Configure<TraconOptions>(config.GetSection(...))` çağrılmış — bu standart/reflection-tabanlı binder'ı kullanır. `TraconOptions` ise AOT gerekçesiyle KENDİ elle yazılmış `Bind()` metoduyla bağlanıyor (doğru kullanım: `AddTracon(configSection)`, K-021). Düzeltilip tekrar koşuldu, YİNE 0 döndü. (2) BAĞIMSIZ ikinci kök neden: manuel `BindPricing` (`TraconServiceCollectionExtensions.cs:841-842`) her model için `ReadDecimal(modelSection, "Input")`/`"Output"` KISA anahtarlarını okuyor; doküman'ın JSON'ı ise `"InputCostPerMillionTokens"`/`"OutputCostPerMillionTokens"` (C# özellik adlı UZUN anahtarlar) kullanıyor — hiç eşleşmiyor, `ReadDecimal` sessizce `null` dönüyor, provider HİÇ eklenmiyor, ne hata ne log. İki kök neden de düzeltilip (doğru API + kısa anahtar adları) tekrar koşuldu: TAM beklenen sonuç alındı (Currency=USD, sağlayıcı sayısı=1, yalnız "echo", Ses sağlayıcıları="elevenlabs"). AYRICA ürün-düzeyi bulgu (Orta): yanlış anahtar adıyla yazılan bir `Pricing` girdisi TAMAMEN SESSİZCE düşüyor (istisna/log/uyarı yok) — bu, projenin "bilinmeyen ayar sessizce yok sayılmaz" ilkesiyle (K-034) çelişiyor. Ayrı bir HATA adayı (Orta) + doküman düzeltmesi önerilir.
 
 ---
-**2026-08-14 yeniden koşum (Aile P).** Kalan Orta bulgu ("sessizce düşme") düzeltildi. `BindPricing`/`BindVoicePricing` artık `Input`/`Output` (veya `PerMillionCharacters`/`PerMinute`) hiç eşleşmese bile modeli `continue` ile atlamıyor — ikisi de boş bir `ModelPriceOverride`/`VoicePriceOverride` kaydı olarak `Providers`/`Voice`'a giriyor. `AgentPrismOptionsValidator.ValidatePricing` bu "ikisi de boş" durumunu artık açıkça reddediyor. Canlı doğrulama (gerçek PostgreSQL'e karşı, `mt_fin_p` şeması): `AgentPrism__Pricing__echo__echo-1__InputCostPerMillionTokens=0.25` (yanlış/uzun anahtar) ile uygulama **başlamayı reddetti** — `Microsoft.Extensions.Options.OptionsValidationException: AgentPrismPricingOptions: 'echo:echo-1' ne 'Input' ne 'Output' tasiyor — anahtar adini kontrol edin.` Doğru kısa anahtarla (`Input`/`Output`) aynı uygulama sorunsuz başladı. Regresyon testleri: `tests/AgentPrism.Core.UnitTests/Configuration/AgentPrismPricingBindingTests.cs` (Bind() çıktısını dogrulayıcıdan izole reflection ile inceleyen `BindOnly` testleri + tam DI üzerinden acilis reddini dogrulayan testler).
+**2026-08-14 yeniden koşum (Aile P).** Kalan Orta bulgu ("sessizce düşme") düzeltildi. `BindPricing`/`BindVoicePricing` artık `Input`/`Output` (veya `PerMillionCharacters`/`PerMinute`) hiç eşleşmese bile modeli `continue` ile atlamıyor — ikisi de boş bir `ModelPriceOverride`/`VoicePriceOverride` kaydı olarak `Providers`/`Voice`'a giriyor. `TraconOptionsValidator.ValidatePricing` bu "ikisi de boş" durumunu artık açıkça reddediyor. Canlı doğrulama (gerçek PostgreSQL'e karşı, `mt_fin_p` şeması): `Tracon__Pricing__echo__echo-1__InputCostPerMillionTokens=0.25` (yanlış/uzun anahtar) ile uygulama **başlamayı reddetti** — `Microsoft.Extensions.Options.OptionsValidationException: TraconPricingOptions: 'echo:echo-1' ne 'Input' ne 'Output' tasiyor — anahtar adini kontrol edin.` Doğru kısa anahtarla (`Input`/`Output`) aynı uygulama sorunsuz başladı. Regresyon testleri: `tests/Tracon.Core.UnitTests/Configuration/TraconPricingBindingTests.cs` (Bind() çıktısını dogrulayıcıdan izole reflection ile inceleyen `BindOnly` testleri + tam DI üzerinden acilis reddini dogrulayan testler).
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 

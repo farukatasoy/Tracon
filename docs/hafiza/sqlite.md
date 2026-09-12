@@ -1,6 +1,6 @@
 # SQLite Tuzaklari — Indeks Ad Alani ve Upsert
 
-> `AgentPrism.Sqlite`'a ozgu davranis. Paylasilan katman ve SQL Server icin:
+> `Tracon.Sqlite`'a ozgu davranis. Paylasilan katman ve SQL Server icin:
 > [`sql-saglayicilari.md`](sql-saglayicilari.md). PostgreSQL icin:
 > [`postgresql.md`](postgresql.md).
 >

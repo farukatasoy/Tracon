@@ -1,6 +1,6 @@
 ---
 name: kusur-giderme
-description: Bir kusur bulunduğunda (üretimde, manuel koşumda, denetimde veya kullanıcı bildiriminde) uygulanacak protokol — repro sabitleme, kırılgan testten ayırma, düşen test yazma, düzeltme ve SINIF TARAMASI. AgentPrism'de aynı kusur sınıfı defalarca tekrarladı (AsyncLocal dört kez, senkronizasyon kopyası beş kez); bu skill tek vakayı değil sınıfı kapatır.
+description: Bir kusur bulunduğunda (üretimde, manuel koşumda, denetimde veya kullanıcı bildiriminde) uygulanacak protokol — repro sabitleme, kırılgan testten ayırma, düşen test yazma, düzeltme ve SINIF TARAMASI. Tracon'de aynı kusur sınıfı defalarca tekrarladı (AsyncLocal dört kez, senkronizasyon kopyası beş kez); bu skill tek vakayı değil sınıfı kapatır.
 ---
 
 # Kusur Giderme Protokolü
@@ -33,7 +33,7 @@ Yaz: hangi komut · hangi yapılandırma · hangi girdi · gözlenen çıktı ·
 çıktı. Yapılandırma önemlidir — **varsayılan dışı** yol en az test edilen yoldur.
 
 ```bash
-AgentPrism__Observability__SuccessSampleRatio=1 dotnet run --no-build -c Release
+Tracon__Observability__SuccessSampleRatio=1 dotnet run --no-build -c Release
 ```
 
 ---
@@ -46,7 +46,7 @@ pahalıdır: gerçek kusuru "kırılgan" saymak onu üretime taşır, kırılgan
 
 ```bash
 # 1. Tam paketi BIR KEZ DAHA koştur — yük altında kırılgan olabilir
-dotnet test AgentPrism.slnx -c Release --no-build
+dotnet test Tracon.slnx -c Release --no-build
 
 # 2. Tek başına koştur (MTP; --filter-query YOKTUR)
 ./artifacts/bin/<Proje>/release/<Proje> --filter-method "*Ad*"
@@ -105,7 +105,7 @@ Kusuru bir cümlelik **desene** çevir, sonra o deseni ara:
 | Alan atanmadı | Kayıt üretimi birden çok yerde | `grep -rn "new <Kayıt>\b" src/` |
 | Locator alt dize eşliyor | `GetByText`/`GetByPlaceholder` `Exact` yok | `grep -rn "GetByText(\|GetByPlaceholder(" tests/` |
 | Tool bağımlılığı `null` | Tool çalışma anında servis çözüyor | `grep -rn "AIFunctionArguments\|Services.GetService" src/` |
-| Kiracı süzgeci yok | Depo sorgusu `TenantId` almıyor | `grep -rn "WHERE" src/AgentPrism.Sql.Shared/` |
+| Kiracı süzgeci yok | Depo sorgusu `TenantId` almıyor | `grep -rn "WHERE" src/Tracon.Sql.Shared/` |
 
 Bulduğun her ikinci vaka **aynı düzeltmeyi ve aynı testi alır**. Bulamazsan
 "tarandı, başka vaka yok" diye yaz — tarama yapıldığı görünsün.

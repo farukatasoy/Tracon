@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/Tracon.Cli/Tracon.Cli.csproj" />
+    <!--
+      A REAL listening port (Kestrel), not TraconTestHost's in-memory
+      TestServer: the CLI opens its own HttpClient against a URL string, so
+      the in-memory short-circuit TestServer normally uses never applies here.
+    -->
+    <ProjectReference Include="../../src/Tracon.AspNetCore/Tracon.AspNetCore.csproj" />
+    <ProjectReference Include="../../src/Tracon.Sqlite/Tracon.Sqlite.csproj" />
+    <!-- FakeModelProvider: an eval suite needs a real (non-networked) agent to measure. -->
+    <ProjectReference Include="../../src/Tracon.Testing/Tracon.Testing.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -3,7 +3,7 @@
 > **Durum:** ✅ Tamamlandı (2026-08-09)
 > **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-69**
 > **Önkoşul:** [Faz 46](46-DAYANIKLI-CALISTIRMA.md) — bu kalemi kolaylıktan **eksiğe** çeviren faz · [Faz 9](09-YONETISIM-VE-DENETIM-IZI.md) — rol politikaları
-> **Paketler:** `AgentPrism.Abstractions`, `AgentPrism.Core`, `AgentPrism.AspNetCore`, `AgentPrism.Sql.Shared`, `AgentPrism.UI`
+> **Paketler:** `Tracon.Abstractions`, `Tracon.Core`, `Tracon.AspNetCore`, `Tracon.Sql.Shared`, `Tracon.UI`
 > **Yeni paket:** Yok · **Migration:** gerekli — `pending_approvals` tablosu, numara uygulama anında alınır
 > **Public API:** büyüyor — yeni tipler, bir depo arayüzü, üç uç. Faz 7'den önce ucuz
 
@@ -31,7 +31,7 @@ Tool onayı bugün yalnız **aynı istemcinin bir sonraki turunda** verilebilir.
 ## Plandan Sapmalar
 
 1. **Faza başlamadan önce ayrı bir çöküş düzeltildi (K-367).** Kullanıcı isteği
-   fazı `MapAgentPrismMcpServer()`'ın tamamen boş bir veritabanında (migration'lar
+   fazı `MapTraconMcpServer()`'ın tamamen boş bir veritabanında (migration'lar
    koşmadan önce) çökmesini önce çözüp sonra bu fazı geliştirmeyi istedi.
    Düzeltme bu fazın kapsamı değildir (Faz 50'nin MCP/A2A yüzeyine ait bir
    hatadır) ama aynı oturumda yapıldığı ve `IEndpointFilter` deseni onay
@@ -68,20 +68,20 @@ Tam gerekçeler: `docs/KARARLAR.md`, K-367–K-372.
 
 ## Testler ve doğrulama kapıları (kanıt)
 
-- `dotnet build AgentPrism.slnx -c Release` → **0 uyarı, 0 hata**
-- `dotnet test AgentPrism.slnx -c Release --no-build` → **3057/3057 geçti**
-  (`AgentPrism.SqlServer.IntegrationTests`in 471 testi bu makinede Docker
+- `dotnet build Tracon.slnx -c Release` → **0 uyarı, 0 hata**
+- `dotnet test Tracon.slnx -c Release --no-build` → **3057/3057 geçti**
+  (`Tracon.SqlServer.IntegrationTests`in 471 testi bu makinede Docker
   ARM64 kısıtı yüzünden **koşamadı** — önceden bilinen, bu fazdan bağımsız
   bir yerel kısıt; SQLite ve PostgreSQL sözleşme testleri aynı sözleşmeyi
   eksiksiz doğruladı)
-- `dotnet pack AgentPrism.slnx -c Release --no-build` → 51 `.nupkg`, hata yok (yeni paket yok, sayı sabit)
-- `dotnet format AgentPrism.slnx --verify-no-changes --no-restore` → değişiklik yok
+- `dotnet pack Tracon.slnx -c Release --no-build` → 51 `.nupkg`, hata yok (yeni paket yok, sayı sabit)
+- `dotnet format Tracon.slnx --verify-no-changes --no-restore` → değişiklik yok
 - `secret` taraması → boş (iki eşleşme `docs/51-*.md` ve `docs/hafiza/sql-server-yerel-test.md`'de,
   bu fazda dokunulmamış, önceden bilinen değişken-adı yanlış pozitifi)
 
 ## Bitiş Ölçütleri (DoD) — kapanış
 
-- [x] Kuyruğa alınan bir çalıştırma onay ister, konsoldan onaylanır ve tamamlanır — `samples/AgentPrism.Api` üzerinde gerçek OpenAI modeliyle uçtan uca doğrulandı: kuyruğa alınan `run` gerçek `cancel_order` tool çağrısıyla `AwaitingApproval`'a düştü, `GET /api/approvals/pending` görünür oldu, `POST /decide` sonrası yeni bir `run` otomatik kuyruğa girdi ve `Completed`'a ulaştı, olay akışında tool'un gerçekten çalıştığı görüldü
+- [x] Kuyruğa alınan bir çalıştırma onay ister, konsoldan onaylanır ve tamamlanır — `samples/Tracon.Api` üzerinde gerçek OpenAI modeliyle uçtan uca doğrulandı: kuyruğa alınan `run` gerçek `cancel_order` tool çağrısıyla `AwaitingApproval`'a düştü, `GET /api/approvals/pending` görünür oldu, `POST /decide` sonrası yeni bir `run` otomatik kuyruğa girdi ve `Completed`'a ulaştı, olay akışında tool'un gerçekten çalıştığı görüldü
 - [x] `GET /api/approvals/pending` yalnız çağıranın kiracısının onaylarını döner — `ApprovalEndpointTests.Baska_kiracinin_onayi_gorunmez`, `PendingApprovalStoreContract` kiracı testleri
 - [x] `Reader` rolü karar veremez (`403`) — `ApprovalEndpointTests.Reader_rolu_karar_veremez`
 - [x] Aynı onaya ikinci karar `409` alır — `ApprovalEndpointTests.Ayni_onaya_ikinci_karar_409_alir`, live doğrulamada tekrarlandı
@@ -90,7 +90,7 @@ Tam gerekçeler: `docs/KARARLAR.md`, K-367–K-372.
 - [x] Senkron Playground onay akışı hiç değişmeden çalışır — `ToolApprovalResolver` dokunulmadı; `SuspendOnApproval` yalnız kuyruk yolunda `true` (K-372)
 - [x] Süre sonu servisi `SchemaReadyGate`'i bekler (K-354) — `ApprovalExpirationService`, `RunReconciliationService` deseni birebir kopyalandı
 - [x] Dört doğrulama kapısı sıfır uyarı verir — yukarıdaki kanıt bölümü
-- [x] `samples/AgentPrism.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı — bu bölüm
+- [x] `samples/Tracon.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı — bu bölüm
 - [x] `secret` taraması boş döndü — yukarıdaki kanıt bölümü
 - [x] `en.ts` ve `tr.ts` eksiksiz; bundle payı ölçüldü ve yazıldı — 162,6 KB gzip / 250 KB (87,4 KB kalan)
 
@@ -108,7 +108,7 @@ Tam gerekçeler: `docs/KARARLAR.md`, K-367–K-372.
   bu iki dosya karşılaştırılmalı: `Internal/ToolApprovalResolver.cs` ve
   `Core/Approvals/ApprovalResumeJobHandler.cs`.
 - **F-87 (kayıtlarda redaksiyon) ile örtüşme var.** `PendingApproval.Arguments`
-  bugün yalnız `RunReconciliationOptions`/`AgentPrismRunRecordingOptions.RecordToolPayloads`
+  bugün yalnız `RunReconciliationOptions`/`TraconRunRecordingOptions.RecordToolPayloads`
   ayarına uyuyor; F-87 karara bağlanırsa bu alan da onun kapsamına girmeli.
 - **Bir sonraki faz henüz seçilmedi** — `docs/ADAYLAR.md`'den
   seçim yapılacaksa `faz-planlama` skill'i uygulanır; bu doküman kendi

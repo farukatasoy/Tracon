@@ -6,7 +6,7 @@ sidebar:
 ---
 
 A **run** is one execution of an agent. Recording is on by default for agents resolved
-through the AgentPrism catalog, whether the call came from HTTP, the console, a
+through the Tracon catalog, whether the call came from HTTP, the console, a
 workflow, an eval, or your code. You can disable it. A failed store write also leaves
 the agent running, so recording is best-effort rather than an availability dependency.
 
@@ -87,7 +87,7 @@ timeout as a `TaskCanceledException`. The distinction matters when you alert on
 these: cancellations are user behaviour, timeouts are an outage.
 
 ```bash
-curl -N http://localhost:5081/agentprism/api/runs/{runId}/events
+curl -N http://localhost:5081/tracon/api/runs/{runId}/events
 ```
 
 ### Two SSE contracts, not one
@@ -112,7 +112,7 @@ into `MessageDelta`. It is off by default — reasoning output can run far longe
 the answer, and it can restate user input in a form the final answer never shows:
 
 ```csharp
-services.Configure<AgentPrismOptions>(options =>
+services.Configure<TraconOptions>(options =>
     options.RunRecording.RecordReasoningDeltas = true);
 ```
 
@@ -127,10 +127,10 @@ is the one deliberate escape hatch: your own tool writes it directly, through th
 writer your run already carries:
 
 ```csharp
-[AgentPrismTool("mark_preview_ready", "Marks an order's preview as ready to review.")]
+[TraconTool("mark_preview_ready", "Marks an order's preview as ready to review.")]
 public static async Task<string> MarkPreviewReady(string orderId)
 {
-    var writer = AgentPrismRunContext.Current?.Writer;
+    var writer = TraconRunContext.Current?.Writer;
 
     if (writer is not null)
     {
@@ -149,19 +149,19 @@ public static async Task<string> MarkPreviewReady(string orderId)
 digits, `.`, `_`, or `-`. It is required on a `Custom` event and rejected
 (`ArgumentException`) on every other type: a caller who sets it on a built-in
 event type gets told immediately, rather than having it silently dropped by
-every store. The `agentprism.` prefix is reserved, so a future built-in
-custom type can never collide with your own — `agentprism.quota.threshold`
+every store. The `tracon.` prefix is reserved, so a future built-in
+custom type can never collide with your own — `tracon.quota.threshold`
 (the [quota threshold notice](/concepts/governance/#quotas-and-rate-limits))
 is the one built-in use of it today; `AppendAsync` rejects any value under
 that prefix, so a `Custom` event carrying it can only have come from
-AgentPrism itself. `Payload` is yours too — AgentPrism makes no claim about
+Tracon itself. `Payload` is yours too — Tracon makes no claim about
 its shape and never reads it.
 
 The console draws an unrecognized `CustomType` with a single generic card —
 its own name as the title, `Payload` pretty-printed as the body — so a new
 custom type never needs a console change to show up. When a built-in event
 type already fits what happened, use that instead; `Custom` is for events
-AgentPrism has no name for.
+Tracon has no name for.
 
 ## Observing events beyond the store
 
@@ -189,7 +189,7 @@ public sealed class QueueRunEventSink : IRunEventSink
 services.AddSingleton<IRunEventSink, QueueRunEventSink>();
 ```
 
-A sink runs on the hot path — AgentPrism awaits `OnEventAsync` directly and holds no
+A sink runs on the hot path — Tracon awaits `OnEventAsync` directly and holds no
 queue of its own in front of it, so the buffer above is yours to own. Queue and
 return; do not publish to a message bus inline. One instance serves every concurrent
 run, so it must be thread-safe. A sink that throws is disabled for the rest of that
@@ -221,7 +221,7 @@ public sealed class ClaimsRunAttributionContext(IHttpContextAccessor accessor)
             : null;
 }
 
-// Registered BEFORE AddAgentPrism(); AgentPrism uses TryAdd, so yours wins.
+// Registered BEFORE AddTracon(); Tracon uses TryAdd, so yours wins.
 builder.Services.AddSingleton<IRunAttributionContext, ClaimsRunAttributionContext>();
 ```
 
@@ -236,7 +236,7 @@ using (AmbientRunAttributionScope.Begin("user-42", labels: null))
 }
 ```
 
-The user id is an **opaque string**. AgentPrism neither resolves nor validates
+The user id is an **opaque string**. Tracon neither resolves nor validates
 what it means and stores no personal detail of its own — the same stance the
 data-subject erasure flow takes, which covers this column too.
 
@@ -247,17 +247,17 @@ complete measurement to whoever queries the report later.
 
 :::caution
 Labels and user ids are **query** dimensions, not **metric** dimensions. They
-live in the `runs` table and are never added to `agentprism.tokens` or
-`agentprism.run.cost` — promoting a free-form label set to a metric tag has no
+live in the `runs` table and are never added to `tracon.tokens` or
+`tracon.run.cost` — promoting a free-form label set to a metric tag has no
 upper bound on time-series cardinality.
 :::
 
 Both are filters on the run list and breakdowns in the summary:
 
 ```bash
-curl "http://localhost:5081/agentprism/api/runs?userId=user-42"
-curl "http://localhost:5081/agentprism/api/runs?label=team:payments"
-curl "http://localhost:5081/agentprism/api/stats" | jq '.byUser, .byLabel'
+curl "http://localhost:5081/tracon/api/runs?userId=user-42"
+curl "http://localhost:5081/tracon/api/runs?label=team:payments"
+curl "http://localhost:5081/tracon/api/stats" | jq '.byUser, .byLabel'
 ```
 
 `byLabel` rows do **not** sum to `totalRuns`: a run carrying three labels appears
@@ -266,7 +266,7 @@ in three of them. A label set is not a partition of the runs.
 ## Who is allowed to start it
 
 Attribution answers "who did this, for the cost report"; it does not by
-itself stop anyone from starting a run. AgentPrism draws ownership at the
+itself stop anyone from starting a run. Tracon draws ownership at the
 **tenant** level, so by default any caller with the `Operator` role in a
 tenant can start any agent in that tenant, regardless of `UserId`.
 
@@ -314,13 +314,13 @@ produces.
 
 ### Starting a run from .NET with explicit identity
 
-`AgentPrismRunOptions` is the .NET-side counterpart of the run request. It is not a
+`TraconRunOptions` is the .NET-side counterpart of the run request. It is not a
 configuration section: it is passed per call, and all but the last property answer
 "which run is this, and where does it sit in a larger story".
 
 | Property | What it sets |
 |---|---|
-| `RunId` | The identifier to record this run under. Supply your own when the caller already has one; otherwise AgentPrism generates it |
+| `RunId` | The identifier to record this run under. Supply your own when the caller already has one; otherwise Tracon generates it |
 | `ParentRunId` · `RootRunId` · `Depth` | The run's place in a call tree. The child-agent invoker fills these in; set them yourself only when you drive a tree by hand |
 | `AgentVersion` | The definition version this run used, when you resolved a specific one |
 | `ExperimentId` | The experiment this run is a sample of, so results group correctly |
@@ -330,7 +330,7 @@ configuration section: it is passed per call, and all but the last property answ
 | `Kind` · `Variant` · `Budget` | The run's kind, its experiment variant, and the shared budget a call tree draws from |
 | `BeforePendingApprovalIsPublished` | A callback that runs immediately before a run closes as `AwaitingApproval`, on the streaming and the buffered path alike. Record the approval request here |
 
-Leave every property unset for an ordinary run: AgentPrism then records a root run with
+Leave every property unset for an ordinary run: Tracon then records a root run with
 a generated id, and the values above are filled in by the components that own them.
 
 The last one is a hook rather than an identity, and it exists because the status and the
@@ -382,7 +382,7 @@ replace or compose with your own rules — see
 
 ### The error message is safe to display, not safe to debug from
 
-`error.message` is deliberately shallow. When the failure is AgentPrism's own —
+`error.message` is deliberately shallow. When the failure is Tracon's own —
 a content filter, a blocked guard, a quota — the message is the same stable text
 you'd write in a UI. When the failure comes from somewhere else (a provider SDK,
 a webhook target, an MCP connection), the message carries only the exception's
@@ -399,7 +399,7 @@ body of the HTTP, SSE, and MCP endpoints, all follow the same rule.
 
 A failure the queue itself produces — rather than a handler — carries a stable
 code instead of prose. A job queued for a handler key nobody registered fails
-with `agentprism.job.unknown-handler-key`, and the key itself is written to the
+with `tracon.job.unknown-handler-key`, and the key itself is written to the
 log rather than to `errorMessage`, for the same reason a foreign exception's
 text is: the key may have come from an untrusted source, and that field is read
 back over HTTP. Match on the code, never on the sentence around it.

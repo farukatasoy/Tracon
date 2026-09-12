@@ -3,8 +3,8 @@
 > **Durum:** ✅ Tamamlandı (2026-08-05)
 > **Kaynak:** [BEYIN-FIRTINASI.md](../BEYIN-FIRTINASI.md) · **F-01**, **F-02**
 > **Önkoşul:** [Faz 8](08-SAGLAYICI-GENISLEMESI.md) — sağlık denetimi ve devre kesici hazırdı
-> **Paketler:** **`AgentPrism.Anthropic` (YENİ)**, **`AgentPrism.Google` (YENİ)** ·
-> genişleyen: `AgentPrism.Abstractions`, `.Core`
+> **Paketler:** **`Tracon.Anthropic` (YENİ)**, **`Tracon.Google` (YENİ)** ·
+> genişleyen: `Tracon.Abstractions`, `.Core`
 > **Migration:** Yok
 
 ---
@@ -44,17 +44,17 @@ Ağırlık **bilerek** kabul edildi ve tek pakette izole edildi; Gemini kullanma
 tüketici hiçbirini almaz. Alternatif (tek bakımcılı, 1.0 öncesi bir topluluk
 paketi) daha büyük bir uzun vadeli risk sayıldı. Karar K-205.
 
-### S2 — Paket adı `AgentPrism.Google`, sağlayıcı adı `google` *(kullanıcı kararı)*
+### S2 — Paket adı `Tracon.Google`, sağlayıcı adı `google` *(kullanıcı kararı)*
 
 **Plan:** `.UseGemini(...)` örneği. **Yapılan:** `UseGoogle(...)` ve sağlayıcı adı
 `google`. Vertex AI aynı pakete eklenebilir; `gemini` adı paketi tek bir model
-ailesine kilitlerdi. Yapılandırma bölümü `AgentPrism:Providers:Google`. Karar K-207.
+ailesine kilitlerdi. Yapılandırma bölümü `Tracon:Providers:Google`. Karar K-207.
 
 ### S3 — İçerik filtresi tespiti `Core`'da ortak dekoratördür *(kullanıcı kararı)*
 
-**Plan:** "AgentPrism bunu `RunRecord.ErrorType = "content_filtered"` olarak
+**Plan:** "Tracon bunu `RunRecord.ErrorType = "content_filtered"` olarak
 kaydetmelidir" — nerede yapılacağı açık değildi.
-**Yapılan:** `AgentPrism.Core` içinde `ContentFilterDetectingChatClient`; devre
+**Yapılan:** `Tracon.Core` içinde `ContentFilterDetectingChatClient`; devre
 kesiciyle **aynı desen** (Faz 8). Üç sağlayıcı da korumayı tek yerden alır ve
 Faz 27 kural yazmadan devralır.
 
@@ -67,7 +67,7 @@ kapatırdı. Test: `ContentFilterDetectingChatClientTests.Devre_kesici_filtreyi_
 kesildiyse kullanıcının elinde kısmi bir cevap vardır; onu silmek bilgi kaybıdır.
 
 `RunRecord` şeması **değişmedi**: `RunError.Type` alanı zaten vardı. `ErrorType`
-`AgentPrismException` üzerinde `virtual` bir üye oldu ve varsayılanı tipin tam
+`TraconException` üzerinde `virtual` bir üye oldu ve varsayılanı tipin tam
 adıdır — mevcut kayıtların biçimi değişmedi. Karar K-206.
 
 ### S4 — Sağlayıcıya özgü ayarlar `RawRepresentationFactory` ile taşınır
@@ -75,7 +75,7 @@ adıdır — mevcut kayıtların biçimi değişmedi. Karar K-206.
 **Ölçüldü (2026-08-05):** Her iki SDK adaptörü de
 `ChatOptions.RawRepresentationFactory` okur (metadata üye referansıyla doğrulandı,
 sonra gerçek çağrıyla kanıtlandı). Bu, `Microsoft.Extensions.AI`'ın sağlayıcıya
-özgü alanlar için resmî kaçış kapısıdır; AgentPrism ham HTTP yazmaz.
+özgü alanlar için resmî kaçış kapısıdır; Tracon ham HTTP yazmaz.
 
 🚨 **Anthropic adaptörü bizim yazdığımız alanları KORUR ve üzerine yazmaz.**
 Ölçüldü: yer tutucu `Model = "PLACEHOLDER-MODEL"` ile gönderilen bir istek gerçekten
@@ -142,7 +142,7 @@ uygulamada iki farklı Gemini ucu kullanılamaz hale gelirdi.
 
 ## Bitiş Ölçütleri (DoD)
 
-Elle doğrulama: gerçek Anthropic + Google anahtarı, `samples/AgentPrism.Api`,
+Elle doğrulama: gerçek Anthropic + Google anahtarı, `samples/Tracon.Api`,
 `ASPNETCORE_ENVIRONMENT=Development`, 2026-08-05.
 
 | Ölçüt | Durum | Kanıt |
@@ -169,7 +169,7 @@ $ curl -s localhost:5080/health
 {"status":"healthy", ... ,"openRouter":true,"anthropic":true,"google":true}
 
 # 3) Saglik denetimi — ucret uretmez, GET {endpoint}/models
-$ curl -s "localhost:5080/agentprism/api/models/health?refresh=true"
+$ curl -s "localhost:5080/tracon/api/models/health?refresh=true"
   anthropic            Healthy    gecikme=00:00:00.593  model=10  ornek=['claude-fable-5', 'claude-haiku-4-5-20251001']
   google               Healthy    gecikme=00:00:00.336  model=50  ornek=['antigravity-preview-05-2026', 'aqa']
   openai               Healthy    gecikme=00:00:00.678  model=3
@@ -247,7 +247,7 @@ $ curl -s "localhost:5080/agentprism/api/models/health?refresh=true"
 ## Kullanım
 
 ```csharp
-builder.AddAgentPrism()
+builder.AddTracon()
        .UseAnthropic(configuration.GetSection(AnthropicProviderOptions.SectionName))
        .UseGoogle(configuration.GetSection(GoogleProviderOptions.SectionName))
        .AddAgent(new AgentDefinition
@@ -277,7 +277,7 @@ Karar defterine yazıldı (`docs/KARARLAR.md`, **K-204 – K-209**):
 1. **K-204** — İki resmî SDK kullanıldı, topluluk paketleri değil.
 2. **K-205** — `Google.GenAI`'ın geçişli ağırlığı bilerek kabul edildi ve izole edildi.
 3. **K-206** — İçerik filtresi tespiti `Core`'da ortak dekoratördür; devre kesicinin dışındadır.
-4. **K-207** — Paket `AgentPrism.Google`, sağlayıcı adı `google`.
+4. **K-207** — Paket `Tracon.Google`, sağlayıcı adı `google`.
 5. **K-208** — `ModelBinding.ProviderSettings` sözleşmeye eklendi; bilinmeyen anahtar derleme hatasıdır.
 6. **K-209** — Meta paket iki yeni sağlayıcıyı **içermez** (K-185 deseni).
 
@@ -296,11 +296,11 @@ Karar defterine yazıldı (`docs/KARARLAR.md`, **K-204 – K-209**):
   adla gitti. Varsayım yerine bir yer tutucu değerle gerçek çağrı yapın.
 - **Anthropic'in prompt caching sayaçları `RunUsage`'a yansımıyor.** SDK
   `UsageDetails.AdditionalCounts` içinde `CacheCreationInputTokens` /
-  `CacheReadInputTokens` veriyor; AgentPrism'in `RunUsage` kaydı yalnız
+  `CacheReadInputTokens` veriyor; Tracon'in `RunUsage` kaydı yalnız
   giriş/çıkış/toplam taşıyor. Maliyet raporu önbellekli girdiyi normal girdi
   fiyatından sayıyor — Faz 20'nin fiyat çözümlemesi için açık bir kalem.
-- **`DependencyDirectionTests.AllowedReferences` `AgentPrism.SqlServer`,
-  `AgentPrism.Sqlite` ve `AgentPrism.Sql.Shared` paketlerini içermiyor** (Faz 23/24'ten
+- **`DependencyDirectionTests.AllowedReferences` `Tracon.SqlServer`,
+  `Tracon.Sqlite` ve `Tracon.Sql.Shared` paketlerini içermiyor** (Faz 23/24'ten
   kalan boşluk). Bu fazda iki yeni sağlayıcı eklendi; SQL paketleri hâlâ açık.
 - **Gemini'nin model adları hızlı eskir.** `gemini-2.5-flash` ölçüm sırasında
   *"no longer available to new users"* döndü. K-032 burada somut bir bedel olarak

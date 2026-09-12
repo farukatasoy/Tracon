@@ -190,7 +190,7 @@ API'si olmayan extension point · anlamı belirsiz duplicate registration ·
 uygulanmayan public options alanı · XML sözü ile çelişen runtime.
 
 Emsal: Faz 96 yaprak olup başka public imzada geçmeyen **96 tipi** `internal`
-yaptı (K-601). Faz 103 kullanılmayan `AgentPrismJudgeException`'ı kaldırdı.
+yaptı (K-601). Faz 103 kullanılmayan `TraconJudgeException`'ı kaldırdı.
 
 ### 4.2 SemVer ve compatibility
 Her değişikliği sınıflandır: `patch-safe` · `minor/additive` · `source-breaking`
@@ -295,7 +295,7 @@ rehber sayfasıyla senkrondur. Derlenen 20 satırlık implementation sample
 değildir — sample bir **consumer acceptance test**'idir.
 
 Bu depoda kapı hazırdır: `scripts/release_extension_samples.py` wildcard
-`VersionOverride`'ı ve `src/AgentPrism` `ProjectReference`'ını **reddeder**.
+`VersionOverride`'ı ve `src/Tracon` `ProjectReference`'ını **reddeder**.
 
 ---
 

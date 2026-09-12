@@ -53,7 +53,7 @@ seçilmemiş kalem · en büyük numara F-133 (kusur kalemi, bu turdan önce).
 | 8 | MAF eşzamanlı tool çağrısı | Performans | 1.18 notu bunu öne çıkardı | ✅ derinleşti → F-134 |
 | 9 | Semantic Kernel bakım modu teyidi | Dokümantasyon | MAF/SK birleşmesi resmî | ⏸ ertelendi — yalnız teyit, aksiyon yok |
 | 10 | CodeAct (alpha) | Düşük öncelik | Python/Hyperlight odaklı | ❌ elendi — .NET'e gelmedi, izlemeye bile gerek yok |
-| 11 | GitHub Copilot SDK entegrasyonu | Kapsam belirsiz | BUILD 2026 duyurusu | ❌ elendi — AgentPrism'in kapsamı dışı (kod-odaklı agent, kütüphane değil) |
+| 11 | GitHub Copilot SDK entegrasyonu | Kapsam belirsiz | BUILD 2026 duyurusu | ❌ elendi — Tracon'in kapsamı dışı (kod-odaklı agent, kütüphane değil) |
 | 12 | Handoff orchestration resmi MAF deseni | Teyit | Zaten `CreateHandoffBuilderWith` var mı | ⏸ ertelendi — kullanıcı elemedi, ayrı tur gerektirir |
 | 13 | `Workflows.Declarative` sürüm kontrolü | K-129 teyidi | Sürüm hizalanmış olabilir | ✅ derinleşti — K-129 teyit edildi, kalem değil |
 | 14 | Cosmos vektör bellek eklentileri | RAG ekibi | 1.18 notu | ⏸ ertelendi — kullanıcı elemedi |
@@ -71,7 +71,7 @@ doğrulama olan asılı kalem).
 
 ## 3. Ekosistem taraması (Aşama 3.2)
 
-| Kaynak | Bakılan tarih | Ne değişti | AgentPrism'e etkisi |
+| Kaynak | Bakılan tarih | Ne değişti | Tracon'e etkisi |
 |---|---|---|---|
 | NuGet `microsoft.agents.ai` | 2026-08-20 | Son stabil 1.18.0 (repo 1.16.0) | İki minor sürüm gerisinde — kusur kanalı |
 | NuGet `microsoft.extensions.ai` | 2026-08-20 | Son stabil 10.9.0 (repo 10.8.3) | Küçük fark — kusur kanalı |
@@ -81,7 +81,7 @@ doğrulama olan asılı kalem).
 | `github.com/microsoft/agent-framework` sürüm 1.0 GA duyurusu | 2026-08-20 | MAF 2026-04-02'de 1.0 GA'ya çıktı; AutoGen + Semantic Kernel'i birleştirdi | K-341 (SK connector reddi) doğrulandı, değişmiyor |
 | `github.com/microsoft/agent-framework` — Semantic Kernel destek durumu | 2026-08-20 | SK bakım moduna alındı; yeni özellik yatırımı yalnız MAF'a gidiyor, SK en az GA'dan bir yıl kritik yama alacak | Aksiyon gerektirmiyor — mevcut duruşu güçlendiriyor |
 | `dotnet-1.17.0`/`dotnet-1.18.0` release notes | 2026-08-20 | "Allow agents to opt into concurrent tool invocation" (1.18.0); Harness+streaming tool kırıklığına dair AÇIK bir "fixed" notu YOK | F-134'ün kaynağı; K-053'ün davranışsal düzelmesi kanıtlanmadı |
-| Reflection: `Microsoft.Agents.AI.Harness` 1.16.0 (pinlenmiş, GA) | 2026-08-20 | `OpenTelemetryAgent`, `ToolApprovalAgentOptions`/`UseToolApproval` tipleri zaten pinlenmiş sürümde mevcut | AgentPrism'in `OpenTelemetryAgentDecorator`/`ToolApprovalAgentDecorator`'ı bunları ZATEN SARIYOR (K-055, kaynak dosya doğrulandı) — "yinelenen kod" hipotezi ÇÜRÜTÜLDÜ |
+| Reflection: `Microsoft.Agents.AI.Harness` 1.16.0 (pinlenmiş, GA) | 2026-08-20 | `OpenTelemetryAgent`, `ToolApprovalAgentOptions`/`UseToolApproval` tipleri zaten pinlenmiş sürümde mevcut | Tracon'in `OpenTelemetryAgentDecorator`/`ToolApprovalAgentDecorator`'ı bunları ZATEN SARIYOR (K-055, kaynak dosya doğrulandı) — "yinelenen kod" hipotezi ÇÜRÜTÜLDÜ |
 | Reflection: `ModelContextProtocol.Core` 2.0.0 vs 2.2.0 (ikisi de indirilip karşılaştırıldı) | 2026-08-20 | `IdentityAssertionGrantProvider` iki sürümde de birebir aynı sembollerle var | `docs/hafiza/maf-api.md:51`'in "etkileşimsiz akış YOKTUR" notu netleştirilmeli — IAG "var olan bir IdP kimliğinin token değişimi"dir, saf `client_credentials` (kimliksiz servis-servis) DEĞİL. Not yanlış değil ama eksik |
 | Reflection: `Microsoft.Extensions.AI` 10.8.3 (pinlenmiş) | 2026-08-20 | `DistributedCachingChatClient`, `AllowConcurrentInvocation` ikisi de mevcut | F-45'i kapattı, F-134'ü doğdurdu |
 
@@ -123,11 +123,11 @@ doğrulama olan asılı kalem).
 
 ### OpenTelemetryAgent/ToolApprovalAgent "yinelenmesi" hipotezi
 
-**Kanıt seviyesi:** Ölçüldü — Harness 1.16.0 reflection'ı `OpenTelemetryAgent` ve `ToolApprovalAgentOptions`/`UseToolApproval` sembollerini gösterdi; ama `docs/KARARLAR.md` K-055 ve `ToolApprovalAgentDecorator.cs` kaynağı bu tiplerin **zaten** AgentPrism'in `IAgentDecorator` sarmalayıcıları (K-024) İÇİNDE kullanıldığını gösterdi — `OpenTelemetryAgentDecorator` MAF'ın `OpenTelemetryAgent`'ını tek dosyada `MAAI001` bastırarak sarıyor.
+**Kanıt seviyesi:** Ölçüldü — Harness 1.16.0 reflection'ı `OpenTelemetryAgent` ve `ToolApprovalAgentOptions`/`UseToolApproval` sembollerini gösterdi; ama `docs/KARARLAR.md` K-055 ve `ToolApprovalAgentDecorator.cs` kaynağı bu tiplerin **zaten** Tracon'in `IAgentDecorator` sarmalayıcıları (K-024) İÇİNDE kullanıldığını gösterdi — `OpenTelemetryAgentDecorator` MAF'ın `OpenTelemetryAgent`'ını tek dosyada `MAAI001` bastırarak sarıyor.
 **Mercek:** —
 **Eleyici sınır kontrolü:** —
 **Karşı görüş:** —
-**Sonuç:** Aday dosyasına yazılmadı — hipotez yanlıştı. Blog'un "yeni" diye tanıttığı tipler zaten 1.16.0'da vardı ve AgentPrism zaten sarıyordu.
+**Sonuç:** Aday dosyasına yazılmadı — hipotez yanlıştı. Blog'un "yeni" diye tanıttığı tipler zaten 1.16.0'da vardı ve Tracon zaten sarıyordu.
 
 ### K-053 yeniden açma önerisi
 
@@ -179,7 +179,7 @@ doğrulama olan asılı kalem).
 | AgentSkillsProvider/BackgroundAgentsProvider'ı Harness'a taşıma | Zaten `AIContextProvider` yoluyla (K-097) kullanılıyor; taşımanın hiçbir gerekçesi yok | Kalıcı değil — konu kapalı | Yalnız bu keşif notunda |
 | OpenTelemetryAgent/ToolApprovalAgent "yinelenmiş kod" | Hipotez çürütüldü — zaten sarılıyor (K-055) | Kalıcı değil — konu kapalı | Yalnız bu keşif notunda |
 | CodeAct (alpha) izlemeye alma | Python/Hyperlight odaklı, .NET yüzeyi yok, izlemeye bile değmez | Bu turda | Yalnız bu keşif notunda |
-| GitHub Copilot SDK entegrasyonu | Kod-odaklı agent senaryosu; AgentPrism bir kütüphane kontrol düzlemi, IDE/kod ajanı değil | Bu turda | Yalnız bu keşif notunda |
+| GitHub Copilot SDK entegrasyonu | Kod-odaklı agent senaryosu; Tracon bir kütüphane kontrol düzlemi, IDE/kod ajanı değil | Bu turda | Yalnız bu keşif notunda |
 
 ---
 

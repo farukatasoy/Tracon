@@ -41,32 +41,32 @@ cannot compile, or debug the console while the API returns `401`.
 The optional diagnostics report is useful after the access boundary is correct:
 
 ```csharp
-app.MapAgentPrism("/agentprism", options =>
+app.MapTracon("/tracon", options =>
 {
     options.EnableDiagnosticsEndpoint = true;
 });
 ```
 
-Then call `GET /agentprism/api/diagnostics`. The route is absent by default, so a
+Then call `GET /tracon/api/diagnostics`. The route is absent by default, so a
 `404` without this option is expected.
 
 ## Installation and startup
 
 ### NuGet says no stable version exists
 
-AgentPrism has not been published yet: no version exists on NuGet at all, stable
+Tracon has not been published yet: no version exists on NuGet at all, stable
 or pre-release. Build from a clone of the repository until the first release.
 
 Once it is published, it will be a preview package, so select pre-release
 versions explicitly:
 
 ```bash
-dotnet add package AgentPrism --prerelease
+dotnet add package Tracon --prerelease
 ```
 
 For reproducible builds, pin the exact preview version instead. Install the template
 with the same rule, for example
-`dotnet new install AgentPrism.Templates@1.0.0-preview.N` after replacing `N` with a
+`dotnet new install Tracon.Templates@1.0.0-preview.N` after replacing `N` with a
 published version.
 
 ### The generated project rejects a template option
@@ -77,13 +77,13 @@ The persistence choices are `memory`, `postgres`, `sqlite`, and `sqlserver`.
 
 ### A package will not target my test project
 
-Runtime packages target .NET 8, 9, and 10. `AgentPrism.Testing` targets .NET 10 only,
+Runtime packages target .NET 8, 9, and 10. `Tracon.Testing` targets .NET 10 only,
 and the template generates a .NET 10 application. See
 [Compatibility](/reference/compatibility/).
 
 ### Startup reports an option-validation failure
 
-Treat it as a configuration error. AgentPrism validates required addresses, secrets,
+Treat it as a configuration error. Tracon validates required addresses, secrets,
 positive limits, ranges, incompatible flags, and provider-specific settings during
 startup or agent compilation. Read the option type named in the message in the
 [API reference](/api/); do not suppress the validation.
@@ -123,8 +123,8 @@ An agent can still use an unlisted model name.
 
 ### The model works but cost is blank
 
-AgentPrism never guesses prices. Add input and output prices to the model catalog or
-`AgentPrism:Pricing`. Runs from models with no price remain counted as unknown-price
+Tracon never guesses prices. Add input and output prices to the model catalog or
+`Tracon:Pricing`. Runs from models with no price remain counted as unknown-price
 runs instead of receiving a false zero.
 
 ### Azure returns `404` for a known model
@@ -135,7 +135,7 @@ resource endpoint.
 
 ### Anthropic rejects the output-token request
 
-Anthropic requires `max_tokens`. AgentPrism uses `DefaultMaxOutputTokens=4096` when
+Anthropic requires `max_tokens`. Tracon uses `DefaultMaxOutputTokens=4096` when
 the model binding has no limit. Set a value suitable for the selected model and your
 provider account. A very high bound can also fail an upstream budget check before
 generation starts.
@@ -150,7 +150,7 @@ network failure.
 
 `UseOpenAICompatible()` registers the Chat Completions surface by default.
 `EnableResponsesSurface` is off because many compatible servers do not implement
-`/v1/responses`. Enable it only when the server documents that surface; AgentPrism
+`/v1/responses`. Enable it only when the server documents that surface; Tracon
 then adds `{name}-responses` as a second provider name.
 
 ## Tools, approvals, and guards
@@ -159,9 +159,9 @@ then adds `{name}-responses` as a second provider name.
 
 Confirm all three requirements:
 
-1. The method has `[AgentPrismTool]`.
-2. The consuming project references `AgentPrism.Core` so the generator runs.
-3. Startup calls `AddGeneratedTools()` on the AgentPrism builder.
+1. The method has `[TraconTool]`.
+2. The consuming project references `Tracon.Core` so the generator runs.
+3. Startup calls `AddGeneratedTools()` on the Tracon builder.
 
 A helper method without the attribute is intentionally ignored.
 
@@ -196,7 +196,7 @@ same decision can return a normal Problem Details response with `422`.
 
 ### A pattern guard seems to do nothing
 
-`AgentPrism:ContentGuard` controls pipeline behavior, but it does not invent a guard.
+`Tracon:ContentGuard` controls pipeline behavior, but it does not invent a guard.
 Register `AddPatternContentGuard()` or provide the Pattern section. The built-in guard
 also starts with no denied terms and no PII patterns, so select the rules you need.
 
@@ -208,10 +208,10 @@ Remote access is off by default. Turn it on only with a bearer token, API key, o
 ASP.NET Core authorization policy:
 
 ```csharp
-app.MapAgentPrism("/agentprism", options =>
+app.MapTracon("/tracon", options =>
 {
     options.AllowRemoteAccess = true;
-    options.AuthToken = builder.Configuration["AgentPrism:AuthToken"];
+    options.AuthToken = builder.Configuration["Tracon:AuthToken"];
 });
 ```
 
@@ -241,7 +241,7 @@ such as `RunsWrite`, not `runs:write`. Keys are managed under `/api/api-keys`.
 
 External protocol surfaces require `ExternalInvoke`. An internal automation key with
 `RunsWrite` does not open them. Also confirm the agent is on the explicit exposure
-allowlist and that the main `MapAgentPrism()` call ran before the separate external
+allowlist and that the main `MapTracon()` call ran before the separate external
 mapping call.
 
 ### `/api/meta` does not ask for authentication
@@ -256,12 +256,12 @@ tenant data, agents, or secret values.
 
 Check three cases:
 
-- `AgentPrism:RunRecording:Enabled` can be false.
+- `Tracon:RunRecording:Enabled` can be false.
 - Recording is best-effort; a store failure is logged but does not stop the model
   response.
 - In-memory history disappears when the process stops.
 
-The catalog applies the recording decorator by default, but AgentPrism does not trade
+The catalog applies the recording decorator by default, but Tracon does not trade
 application availability for an observability write.
 
 ### The event stream has completed messages but no text deltas
@@ -277,7 +277,7 @@ matching retry. Reusing a key with a different request is rejected.
 
 ### `Prefer: respond-async` stays pending
 
-Confirm `AgentPrism:AsyncRun:Enabled`, `AgentPrism:Scheduling:Enabled`, and
+Confirm `Tracon:AsyncRun:Enabled`, `Tracon:Scheduling:Enabled`, and
 `Scheduling:RunWorker`. In a split deployment, at least one process must run the
 worker. Then inspect the job state, lease owner, attempts, and error in the Jobs
 screen or scheduling API.
@@ -307,33 +307,33 @@ reconciliation rather than an in-process signal.
 
 ### Everything disappears after restart
 
-No SQL provider is active. `AddAgentPrism()` deliberately supplies in-memory stores.
+No SQL provider is active. `AddTracon()` deliberately supplies in-memory stores.
 Add exactly the provider you intend to own the data path with `UsePostgreSql()`,
 `UseSqlServer()`, or `UseSqlite()`.
 
 ### SQLite reports `no such table` with `Data Source=:memory:`
 
-Bare SQLite in-memory databases belong to one connection. AgentPrism opens more than
+Bare SQLite in-memory databases belong to one connection. Tracon opens more than
 one connection, so the migration connection and store connection see different
 databases. Use a shared URI:
 
 ```text
-Data Source=file:agentprism?mode=memory&cache=shared
+Data Source=file:tracon?mode=memory&cache=shared
 ```
 
 For durable local work, use a file instead.
 
 ### PostgreSQL or SQL Server objects appear in the wrong place
 
-Those providers use `SchemaName`, default `agentprism`. SQLite has no schema and uses
-`TablePrefix`, default `agentprism_`. Do not configure a SQLite prefix as though it
+Those providers use `SchemaName`, default `tracon`. SQLite has no schema and uses
+`TablePrefix`, default `tracon_`. Do not configure a SQLite prefix as though it
 were a schema.
 
 ### Startup reports a migration checksum mismatch
 
 An already-applied embedded migration changed. Do not edit an applied migration,
 including its comments. Restore the shipped file and add a new migration. Recreate a
-schema only when losing that environment's AgentPrism data is acceptable.
+schema only when losing that environment's Tracon data is acceptable.
 
 ### Migrations wait or fail to acquire a lock
 
@@ -387,7 +387,7 @@ durable item graph.
 ### Remote MCP tools never appear
 
 Confirm `UseMcp()` ran, the server record is enabled for the current tenant, and the
-server uses remote HTTP transport. AgentPrism does not start local stdio MCP
+server uses remote HTTP transport. Tracon does not start local stdio MCP
 processes. Then check connection timeout, authentication configuration-key name,
 tool-count limit, and the latest refresh result.
 
@@ -396,19 +396,19 @@ approval by default.
 
 ### MCP OAuth returns to the wrong address
 
-Set `AgentPrism:Mcp:OAuthCallbackBaseUri` when proxy or public routing makes the
+Set `Tracon:Mcp:OAuthCallbackBaseUri` when proxy or public routing makes the
 inferred address wrong. The callback must still use the prefix and access layers of
 the mapped application.
 
-### `MapAgentPrismMcpServer()` says services are missing
+### `MapTraconMcpServer()` says services are missing
 
-Call `UseMcpServer()` before `builder.Build()`. Then call `MapAgentPrism()` before
-`MapAgentPrismMcpServer()`, because the external surface reuses the main endpoint
+Call `UseMcpServer()` before `builder.Build()`. Then call `MapTracon()` before
+`MapTraconMcpServer()`, because the external surface reuses the main endpoint
 access settings. Expose at least one agent explicitly.
 
 ### A2A startup or first request rejects an exposed agent
 
-A2A cannot suspend a remote request for AgentPrism's human approval flow. Do not
+A2A cannot suspend a remote request for Tracon's human approval flow. Do not
 expose an agent whose reachable tools require approval. Use an internal run surface
 for that agent or expose a purpose-built agent with an approval-free tool set.
 
@@ -423,7 +423,7 @@ All gates must pass:
 - stored scripts are separately allowed when the script came from the database;
 - concurrency, argument, output, and timeout limits permit the call.
 
-AgentPrism limits the process it starts but does not isolate the operating system.
+Tracon limits the process it starts but does not isolate the operating system.
 Use a container, an unprivileged user, a restricted filesystem, and restricted
 network access.
 
@@ -432,13 +432,13 @@ network access.
 ### The voice WebSocket route returns `404`
 
 Call `UseVoiceConversation()` before `builder.Build()`. The route is conditional and
-does not exist without that registration. `MapAgentPrism()` maps it; there is no
+does not exist without that registration. `MapTracon()` maps it; there is no
 separate voice mapping call.
 
 ### The WebSocket request returns `400`
 
 The request did not complete a WebSocket upgrade. Use a WebSocket client and the
-mapped route `/api/voice/sessions/{sessionId}/stream`. `MapAgentPrism()` installs the
+mapped route `/api/voice/sessions/{sessionId}/stream`. `MapTracon()` installs the
 required middleware when voice conversation is registered.
 
 ### The WebSocket request returns `401`
@@ -450,7 +450,7 @@ URLs reach browser, server, and proxy logs.
 ### Voice conversation reports `501`
 
 The conversation driver exists, but transcription or synthesis does not. Register
-both `ISpeechTranscriber` and `ISpeechSynthesizer`. `AgentPrism.Voice.UseVoice()`
+both `ISpeechTranscriber` and `ISpeechSynthesizer`. `Tracon.Voice.UseVoice()`
 provides the built-in ElevenLabs pair when its key and model settings are valid.
 
 ### Synthesized audio is rejected as an attachment
@@ -478,7 +478,7 @@ the subscription.
 
 ### Retention preview shows nothing
 
-Configuration defaults do not apply until `AgentPrism:Retention:Enabled=true`, and a
+Configuration defaults do not apply until `Tracon:Retention:Enabled=true`, and a
 target with no database policy or enabled configuration default has no deletion rule.
 User-data targets such as sessions, conversations, and document embeddings have no
 default age even when the subsystem is enabled.
@@ -487,10 +487,10 @@ default age even when the subsystem is enabled.
 
 They use different integration points:
 
-- diagnostics is an optional AgentPrism endpoint controlled by
+- diagnostics is an optional Tracon endpoint controlled by
   `EnableDiagnosticsEndpoint`;
-- provider health is available through the AgentPrism model-health API;
-- ASP.NET Core health checks need `AddAgentPrismHealthChecks()` and your own
+- provider health is available through the Tracon model-health API;
+- ASP.NET Core health checks need `AddTraconHealthChecks()` and your own
   `MapHealthChecks()` route.
 
 ## Console
@@ -515,7 +515,7 @@ different feature with separate isolation and grant gates.
 
 ### A deep link returns the app but not the expected data
 
-Keep the same prefix in the browser, reverse proxy, and `MapAgentPrism()` call. The SPA
+Keep the same prefix in the browser, reverse proxy, and `MapTracon()` call. The SPA
 fallback can load the shell while a mismatched proxy rewrite sends its API calls to a
 different path. Inspect the failing request in the browser network panel.
 
@@ -527,7 +527,7 @@ First identify the package or call:
 
 - `AddTool(Delegate)` and `AddToolsFrom*()` are explicit reflection paths.
 - AspNetCore, UI, MCP, Workflows, SQLite, and SQL Server do not make an AOT promise.
-- `AgentPrism.Testing` does not make an AOT promise.
+- `Tracon.Testing` does not make an AOT promise.
 
 Use [Compatibility](/reference/compatibility/) to choose an AOT-safe
 package set. Do not silence a warning from a public API; select a generated or
@@ -537,31 +537,31 @@ source-generated path, or accept and document that the application is not AOT-sa
 
 ### The build reports an APG diagnostic
 
-`AgentPrism.Core` ships an analyzer with two families.
+`Tracon.Core` ships an analyzer with two families.
 
 | Ids | Category | What it reports |
 |---|---|---|
-| `APG0001`–`APG0012` | `AgentPrism.Tools` | A method marked `[AgentPrismTool]` cannot be generated, a parameter has no description, or a constraint attribute does not apply. Errors: fix the method. `APG0009` and `APG0010` are warnings. |
-| `APG0101`, `APG0102` | `AgentPrism.Usage` | A registration this compilation never makes. The application fails at run time. |
-| `APG0201` | `AgentPrism.Usage` | A definition carries a literal secret instead of the name of a configuration key. |
-| `APG0301`, `APG0302` | `AgentPrism.Usage` | Code written by hand for behaviour the package already ships. |
-| `APG0401` | `AgentPrism.Usage` | `AGENTS.md` was generated from an older capability map. |
-| `APG0402` | `AgentPrism.Usage` | The local reference file is written, and your own `AGENTS.md` never names it, so the map is unreachable. |
-| `APG0501` | `AgentPrism.Usage` | An async iterator writes ambient state once but a loop advances the enumeration without repeating it. |
-| `APG0502` | `AgentPrism.Usage` | An ambient scope's `Begin(...)` result is discarded, so it is never restored. |
+| `APG0001`–`APG0012` | `Tracon.Tools` | A method marked `[TraconTool]` cannot be generated, a parameter has no description, or a constraint attribute does not apply. Errors: fix the method. `APG0009` and `APG0010` are warnings. |
+| `APG0101`, `APG0102` | `Tracon.Usage` | A registration this compilation never makes. The application fails at run time. |
+| `APG0201` | `Tracon.Usage` | A definition carries a literal secret instead of the name of a configuration key. |
+| `APG0301`, `APG0302` | `Tracon.Usage` | Code written by hand for behaviour the package already ships. |
+| `APG0401` | `Tracon.Usage` | `AGENTS.md` was generated from an older capability map. |
+| `APG0402` | `Tracon.Usage` | The local reference file is written, and your own `AGENTS.md` never names it, so the map is unreachable. |
+| `APG0501` | `Tracon.Usage` | An async iterator writes ambient state once but a loop advances the enumeration without repeating it. |
+| `APG0502` | `Tracon.Usage` | An ambient scope's `Begin(...)` result is discarded, so it is never restored. |
 
 Each message names the API that resolves it, and each diagnostic links to the
 section of the [capability map](/capabilities/) that documents it.
 
 ### A tool name is invalid (APG0002)
 
-A method marked `[AgentPrismTool]` has a name — the attribute argument, or the method
+A method marked `[TraconTool]` has a name — the attribute argument, or the method
 name when none is given — outside the range a tool name may use. A tool name must be
 1-64 characters and contain only letters, digits, `_`, or `-`.
 
 The name reaches the model as-is, and a model's own tool-calling protocol rejects
-names outside this range before the call ever reaches AgentPrism. Rename the method,
-or give an explicit name to `[AgentPrismTool("valid-name")]`.
+names outside this range before the call ever reaches Tracon. Rename the method,
+or give an explicit name to `[TraconTool("valid-name")]`.
 
 ### A tool parameter type is unsupported (APG0003)
 
@@ -586,10 +586,10 @@ its own context. There is no partial path beyond this boundary: a parameter
 either gets an exact schema within it, or it needs the escape route below.
 
 Change the parameter to a supported type, or register the tool by hand instead of
-through `[AgentPrismTool]`:
+through `[TraconTool]`:
 
 ```csharp
-builder.AddAgentPrism()
+builder.AddTracon()
        .AddTool(AIFunctionFactory.Create(MyMethod));
 ```
 
@@ -604,7 +604,7 @@ public sealed record OrderFilter(string Status, int MinAmount);
 [JsonSerializable(typeof(OrderFilter))]
 internal partial class OrderFilterJsonContext : JsonSerializerContext;
 
-builder.AddAgentPrism()
+builder.AddTracon()
        .AddTool(AIFunctionFactory.Create(
            (OrderFilter filter) => SearchOrders(filter),
            "search_orders",
@@ -614,7 +614,7 @@ builder.AddAgentPrism()
 
 ### A generic method is marked as a tool (APG0004)
 
-`[AgentPrismTool]` was put on a generic method. A tool call carries a name and a
+`[TraconTool]` was put on a generic method. A tool call carries a name and a
 JSON argument object; there is no call syntax that supplies a type argument, so the
 generator has nothing to generate. Write a concrete, non-generic wrapper method and
 mark that one instead.
@@ -622,7 +622,7 @@ mark that one instead.
 ### AddGeneratedTools() finds nothing to register (APG0005)
 
 `AddGeneratedTools()` was called, but this compilation has no method marked with
-`[AgentPrismTool]`. Either the mark was forgotten on the method meant to become a
+`[TraconTool]`. Either the mark was forgotten on the method meant to become a
 tool, or the call is left over from a tool set that was since removed. Mark a
 method, or remove the call.
 
@@ -634,7 +634,7 @@ which is not enough for names that are not entirely self-explanatory. Give a
 description:
 
 ```csharp
-[AgentPrismTool("get_order_status", "Returns an order's current shipping status.")]
+[TraconTool("get_order_status", "Returns an order's current shipping status.")]
 public static string GetOrderStatus(string orderId) => "shipped";
 ```
 
@@ -642,14 +642,14 @@ public static string GetOrderStatus(string orderId) => "shipped";
 
 Generated tools return complex results as canonical JSON. Declare a
 source-generated `JsonSerializerContext` in your own source and give its type
-to the tool attribute. A context emitted by the AgentPrism generator itself is
+to the tool attribute. A context emitted by the Tracon generator itself is
 too late for the JSON generator to process.
 
 ```csharp
 [JsonSerializable(typeof(OrderPreview))]
 internal partial class ToolJsonContext : JsonSerializerContext;
 
-[AgentPrismTool(
+[TraconTool(
     "preview_order",
     "Returns an order preview.",
     JsonSerializerContext = typeof(ToolJsonContext))]
@@ -673,7 +673,7 @@ name, which a model reads but was never written for this purpose. `System.Compon
 reaches the schema:
 
 ```csharp
-[AgentPrismTool("submit_order", "Submits an order to the fulfillment system.")]
+[TraconTool("submit_order", "Submits an order to the fulfillment system.")]
 public static Task<OrderReceipt> SubmitOrderAsync(
     [Description("The identifier of the order to submit.")] string orderId,
     CancellationToken cancellationToken)
@@ -699,10 +699,10 @@ public static void SetCode([Range(1, 10)] string code) { }
 
 This is a warning, not an error — existing code keeps compiling, minus the one
 constraint. Remove the attribute, or register the tool by hand instead of through
-`[AgentPrismTool]`:
+`[TraconTool]`:
 
 ```csharp
-builder.AddAgentPrism()
+builder.AddTracon()
        .AddTool(AIFunctionFactory.Create(MyMethod));
 ```
 
@@ -710,7 +710,7 @@ builder.AddAgentPrism()
 
 A tool has an object parameter (or a parameter whose type contains a nested
 object), and the type in the message is not declared with `[JsonSerializable]`
-on the `JsonSerializerContext` that `AgentPrismTool.JsonSerializerContext` points
+on the `JsonSerializerContext` that `TraconTool.JsonSerializerContext` points
 at. The generator never emits its own context for a nested type — the same rule
 `APG0008` enforces for a complex result: binding a nested object requires its
 metadata, and that metadata comes only from a context the tool owner wrote.
@@ -727,7 +727,7 @@ public sealed record Rubric(string Title, IReadOnlyList<Criterion> Criteria);
 [JsonSerializable(typeof(Criterion))]
 internal partial class ToolJsonContext : JsonSerializerContext;
 
-[AgentPrismTool("score_submission", "Scores a submission against a rubric.", JsonSerializerContext = typeof(ToolJsonContext))]
+[TraconTool("score_submission", "Scores a submission against a rubric.", JsonSerializerContext = typeof(ToolJsonContext))]
 public static string ScoreSubmission(Rubric rubric) => "scored";
 ```
 
@@ -743,22 +743,22 @@ generator that recurses forever, or a schema the model's own error rate rises
 against once it gets this deep.
 
 Flatten the type so it needs fewer nested levels, break the cycle, or register
-the tool by hand instead of through `[AgentPrismTool]`:
+the tool by hand instead of through `[TraconTool]`:
 
 ```csharp
-builder.AddAgentPrism()
+builder.AddTracon()
        .AddTool(AIFunctionFactory.Create(MyMethod));
 ```
 
 ### APG0101 or APG0102 fires although the registration exists
 
-An analyzer sees a single compilation. When `AddAgentPrism()` or a provider
+An analyzer sees a single compilation. When `AddTracon()` or a provider
 registration lives in another assembly, the diagnostic cannot see it. Turn the
 whole usage family off with one property:
 
 ```xml
 <PropertyGroup>
-  <AgentPrismUsageDiagnostics>false</AgentPrismUsageDiagnostics>
+  <TraconUsageDiagnostics>false</TraconUsageDiagnostics>
 </PropertyGroup>
 ```
 
@@ -769,7 +769,7 @@ To keep the rest, silence one rule in `.editorconfig` instead:
 dotnet_diagnostic.APG0101.severity = none
 ```
 
-The `AgentPrism.Tools` family is unaffected by either switch; those diagnostics
+The `Tracon.Tools` family is unaffected by either switch; those diagnostics
 report a tool that cannot be generated at all.
 
 ### AGENTS.md does not appear
@@ -779,13 +779,13 @@ your repository:
 
 ```xml
 <PropertyGroup>
-  <AgentPrismWriteAgentsFile>true</AgentPrismWriteAgentsFile>
+  <TraconWriteAgentsFile>true</TraconWriteAgentsFile>
 </PropertyGroup>
 ```
 
 The next build writes the capability map to `AGENTS.md` at the root of the
 repository, next to the project when there is no repository. A project created
-with `dotnet new agentprism-api` sets the property already.
+with `dotnet new tracon-api` sets the property already.
 
 ### AGENTS.md is out of date (APG0401)
 
@@ -804,19 +804,19 @@ documentation page, with every hand-written page concatenated at
 ### I keep my own AGENTS.md, so the map never arrives (APG0402)
 
 Expected: your file is never overwritten. The map still ships inside the package,
-and `AgentPrism.LocalReference.md` carries its absolute path on this machine. Ask
+and `Tracon.LocalReference.md` carries its absolute path on this machine. Ask
 for that file — it lands beside each project and leaves your repository root alone:
 
 ```xml
 <PropertyGroup>
-  <AgentPrismWriteLocalReference>true</AgentPrismWriteLocalReference>
+  <TraconWriteLocalReference>true</TraconWriteLocalReference>
 </PropertyGroup>
 ```
 
 Then point your own file at it, in one line:
 
 ```markdown
-AgentPrism: read AgentPrism.LocalReference.md beside each project for the capability
+Tracon: read Tracon.LocalReference.md beside each project for the capability
 map and the API documentation of the installed version.
 ```
 
@@ -827,7 +827,7 @@ a generated map already names it.
 
 ### An ambient write does not survive a streaming loop (APG0501)
 
-`AgentPrismRunContext.SetCurrent`, `AmbientTenantScope.Begin`, `AmbientRunAttributionScope.Begin`,
+`TraconRunContext.SetCurrent`, `AmbientTenantScope.Begin`, `AmbientRunAttributionScope.Begin`,
 and `ActivitySource.StartActivity` all write through an `AsyncLocal<T>`. An assignment
 made inside an `async` iterator's body does not cross a `yield return`: the driver
 restores the execution context, and the next step of the loop starts with a null or
@@ -835,7 +835,7 @@ stale scope, so a nested call inside it reads the wrong tenant, run, or span.
 
 ```csharp
 // Wrong: the write happens once, before the loop starts.
-AgentPrismRunContext.SetCurrent(scope);
+TraconRunContext.SetCurrent(scope);
 
 while (true)
 {
@@ -853,7 +853,7 @@ while (true)
 // enumeration.
 while (true)
 {
-    AgentPrismRunContext.SetCurrent(scope);
+    TraconRunContext.SetCurrent(scope);
 
     if (!await enumerator.MoveNextAsync())
     {
@@ -887,17 +887,17 @@ using var scope = AmbientTenantScope.Begin(tenantId);
 ### The agent knows a capability exists but not how to call it
 
 The map names every entry point; it explains none of them. The explanation is
-already on your disk, and `AgentPrism.LocalReference.md` names where. The same
-property writes it, beside each project that references AgentPrism:
+already on your disk, and `Tracon.LocalReference.md` names where. The same
+property writes it, beside each project that references Tracon:
 
 ```xml
 <PropertyGroup>
-  <AgentPrismWriteAgentsFile>true</AgentPrismWriteAgentsFile>
+  <TraconWriteAgentsFile>true</TraconWriteAgentsFile>
 </PropertyGroup>
 ```
 
 The file lists one XML documentation file per referenced package, and — when you
-reference `AgentPrism.AspNetCore` — the OpenAPI document that describes the HTTP
+reference `Tracon.AspNetCore` — the OpenAPI document that describes the HTTP
 surface. Every entry point in those files carries a worked example, so an agent
 answers a call-shape question with a search rather than a guess:
 
@@ -910,8 +910,8 @@ splits a web host from a worker gives each project a different set of packages,
 and only the web host's file names the HTTP API document. The paths are specific
 to your machine and to the versions that project restored, so the file is
 regenerated on every build and belongs in `.gitignore`; a project created with
-`dotnet new agentprism-api` already ignores it. To write the map but not the
-pointer file, set `AgentPrismWriteLocalReference` to `false`.
+`dotnet new tracon-api` already ignores it. To write the map but not the
+pointer file, set `TraconWriteLocalReference` to `false`.
 
 ## Read next
 

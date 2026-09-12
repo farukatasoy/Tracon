@@ -34,7 +34,7 @@ sed -n '120,121p' docs/KARARLAR.md   # satır numarasıyla tam gerekçe
 | L32 | MAF'ın `MapOpenAIResponses()` / `MapOpenAIConversations()` uçları kullanılmadı 👤 |
 | L33 | `/v1/conversations` ucu Faz 4'te yazılmadı 👤🔁 |
 | L34 | `/api/stats` maliyet döndürmüyor |
-| L35 | OpenAPI paketi `AgentPrism.AspNetCore` bağımlılığı yapılmadı |
+| L35 | OpenAPI paketi `Tracon.AspNetCore` bağımlılığı yapılmadı |
 | L36 | `run_events` gerçekten partition'lanmadı |
 | L37 | Arayüzden tool istatistiği ve model sağlık kontrolü Faz 5'te gösterilmedi 👤 |
 | L38 | Arayüz i18n altyapısı kurulmadı; dil İngilizce 👤🔁 |

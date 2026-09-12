@@ -19,8 +19,8 @@ Registration yolu olmayan public arayüz, "extension point" diye dokümante
 edilmişse 🔴'dır.
 
 ```bash
-grep -rn "public interface I" src/AgentPrism.Abstractions/ | wc -l
-grep -rn "public static IAgentPrismBuilder Add" src/ | sed 's/.*Add/Add/' | sort -u
+grep -rn "public interface I" src/Tracon.Abstractions/ | wc -l
+grep -rn "public static ITraconBuilder Add" src/ | sed 's/.*Add/Add/' | sort -u
 ```
 
 ## Yirmi iki sütun

@@ -3,11 +3,11 @@
 > **Durum:** ✅ Tamamlandı (2026-08-27)
 > **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-167** (yalnız **Tasks dilimi**; MRTR ve elicitation bu fazda **değil** — § 117.7)
 > **Önkoşul:** Faz 50 (dışa açılan agent yüzeyi) ve Faz 46 (dayanıklı çalıştırma, `JobKind.AgentRun`) — ikisi de arşivde
-> **Paketler:** `AgentPrism.AspNetCore` (yalnız `McpServer/`)
+> **Paketler:** `Tracon.AspNetCore` (yalnız `McpServer/`)
 > **Yeni paket:** `ModelContextProtocol.Extensions.Tasks` 2.2.0 — **net yeni geçişli paket: 0** (ölçüldü, § 117.5) · **Migration:** **Yok** (§ 117.3)
-> **Public API:** Büyüyor — `AgentPrismMcpServerOptions` üzerinde bir opt-in alanı. Faz 7'den önce ucuz: `wc -l src/*/PublicAPI.Shipped.txt` toplamı **17** satır, hepsi başlık (K-603)
+> **Public API:** Büyüyor — `TraconMcpServerOptions` üzerinde bir opt-in alanı. Faz 7'den önce ucuz: `wc -l src/*/PublicAPI.Shipped.txt` toplamı **17** satır, hepsi başlık (K-603)
 > **Tüketici yüzeyi:** `docs-site/src/content/docs/guides/external-agents.md`, `capabilities.md`
-> · sevk edilen: `AgentPrismMcpServerOptions` XML dokümanı, `src/AgentPrism.AspNetCore/README.md`
+> · sevk edilen: `TraconMcpServerOptions` XML dokümanı, `src/Tracon.AspNetCore/README.md`
 > **Manuel test alanı:** `docs/manuel-test/18-MCP-VE-A2A.md`
 
 ---
@@ -29,23 +29,23 @@
 
 ## Amaç
 
-AgentPrism'i MCP sunucusu olarak tüketen bir ekip, uzun süren bir agent çağrısı boyunca **bağlantıyı açık tutmak** zorundadır: bugünkü handler agent'ı satır içinde `await` eder ve `tools/call` yanıtı run bitene kadar gelmez. MCP 2026-07-28 bunun için resmî bir uzantı tanımladı ve C# SDK'sı onu ayrı bir pakette gönderdi.
+Tracon'i MCP sunucusu olarak tüketen bir ekip, uzun süren bir agent çağrısı boyunca **bağlantıyı açık tutmak** zorundadır: bugünkü handler agent'ı satır içinde `await` eder ve `tools/call` yanıtı run bitene kadar gelmez. MCP 2026-07-28 bunun için resmî bir uzantı tanımladı ve C# SDK'sı onu ayrı bir pakette gönderdi.
 
 ## Bitiş Ölçütleri (DoD)
 
 - [x] `EnableTasks=false` (varsayılan) iken MCP davranışı **bit-bit bugünküyle aynı** — `McpTasksEndpointTests.EnableTasks_false_still_answers_synchronously` + `McpServerEndpointTests`'in 15 var olan testi (regresyon) yeşil
-- [x] `EnableTasks=true` iken uzun run `CreateTaskResult` döner, bağlantı kapanır, `TaskId` **run kimliğine eşittir** — fonksiyonel test + `samples/AgentPrism.Api`'de gerçek koşum (aşağıda)
+- [x] `EnableTasks=true` iken uzun run `CreateTaskResult` döner, bağlantı kapanır, `TaskId` **run kimliğine eşittir** — fonksiyonel test + `samples/Tracon.Api`'de gerçek koşum (aşağıda)
 - [x] `tasks/get` `RunStatus`'u doğru `McpTaskStatus`'a eşler — `Queued`/`Running`→`Working`, `Completed`→`Completed`, `Failed`→`Failed`, `Canceled`→`Cancelled`, `AwaitingApproval`→`Completed` (K-103, test edildi) hepsi test edilir; `AwaitingInput` yalnız `RunKind.Workflow` satırlarında görülür ve `CatalogToolCallHandler` yalnız agent çalıştırdığı için bu koddan **pratikte hiç üretilemez** — eşleme yine de savunmacı olarak `AwaitingApproval` ile aynı dalda durur, testi yok
 - [x] `tasks/cancel` mevcut run iptalini tetikler; ikinci bir iptal modeli **yoktur** — `Tasks_cancel_cancels_the_underlying_run` + gerçek sunucuda `CancelTaskAsync` sonrası `Cancelled` görüldü
 - [x] Başka kiracının task id'si okunamaz — `McpTaskTenantIsolationTests` (2 senaryo: `tasks/get`, `tasks/cancel`'ın müdahale-ama-asla-okuma özelliği). **Sapma:** planın "dört koşumda" ifadesi dört SQL sağlayıcısını kastediyordu; bu izolasyon `IRunStore.GetRunAsync`'in AYNEN kullanılmasına dayanır, yeni bir kiracı filtresi eklenmedi — dört sağlayıcı güvencesi zaten Faz 41'in `TenantCoverageTests`'idir, burada yeniden kanıtlanmadı
 - [x] 🚨 K-103 kontrolü yeni yola **taşındı**: onay isteyen tool taşıyan agent task modunda `Failed` değil **`Completed` (IsError=true)** döner, mesaj bugünkü inline metinle aynı. **Sapma:** plan `Failed` öngörüyordu; ölçüldü ki SDK, `CatalogToolCallHandler`'ın ürettiği hata `CallToolResult`'ını `SetCompletedAsync` ile taşır (`SetFailedAsync` değil) — bkz. Plandan Sapmalar §2
 - [x] `AwaitingApproval`/`AwaitingInput` **hiçbir koşulda** `InputRequired`'a eşlenmiyor — `Approval_requiring_tool_added_after_exposure_rejects_the_task_with_todays_inline_message` bunu doğrudan denetler
-- [x] Yeni tablo **yok**, migration **yok** — `ls src/AgentPrism.PostgreSql/Migrations/` bu fazdan önceki son dosyada duruyor
+- [x] Yeni tablo **yok**, migration **yok** — `ls src/Tracon.PostgreSql/Migrations/` bu fazdan önceki son dosyada duruyor
 - [x] `dotnet list package --include-transitive` net yeni geçişli paket **0** gösteriyor — ölçüldü, aşağıdaki komut çıktısı
-- [x] `AgentPrism.Mcp` uzantı paketini **görmüyor** (K-057 korunuyor); `DependencyDirectionTests` yeşil
-- [x] İki örnekli kurulumda task ikinci örnekten okunuyor — **Sapma:** plan bunu 👤 elle koşulacak bir case sayıyordu; `McpTaskCrossInstanceTests` iki gerçek `AgentPrismTestHost`'u AYNI SQLite dosyasına bağlayarak otomatikleştirdi — ikinci host'un `RunBackedMcpTaskStore`'u ilkinin cache'ini hiç görmez, bu yüzden `McpTaskStatusMapping`'in yeniden-inşa yolunu da GERÇEKTEN test eder (`faz-denetim`'in 🔴#3 bulgusu)
+- [x] `Tracon.Mcp` uzantı paketini **görmüyor** (K-057 korunuyor); `DependencyDirectionTests` yeşil
+- [x] İki örnekli kurulumda task ikinci örnekten okunuyor — **Sapma:** plan bunu 👤 elle koşulacak bir case sayıyordu; `McpTaskCrossInstanceTests` iki gerçek `TraconTestHost`'u AYNI SQLite dosyasına bağlayarak otomatikleştirdi — ikinci host'un `RunBackedMcpTaskStore`'u ilkinin cache'ini hiç görmez, bu yüzden `McpTaskStatusMapping`'in yeniden-inşa yolunu da GERÇEKTEN test eder (`faz-denetim`'in 🔴#3 bulgusu)
 - [x] Dört doğrulama kapısı sıfır uyarı verir — `python3 scripts/kapi.py kapanis --taban 2ca326e`
-- [x] `samples/AgentPrism.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı — § "Gerçek sunucu koşumu"
+- [x] `samples/Tracon.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı — § "Gerçek sunucu koşumu"
 - [x] `secret` taraması boş döndü — `python3 scripts/kapi.py tarama`
 - [x] Manuel kabul case'leri `docs/manuel-test/18-MCP-VE-A2A.md` içine eklendi; otomatikleştirilebilenler koşuldu
 - [x] `faz-denetim` koşuldu; 🔴 bulgu kalmadı — bkz. Denetim Bulguları
@@ -54,7 +54,7 @@ AgentPrism'i MCP sunucusu olarak tüketen bir ekip, uzun süren bir agent çağr
 ### Doğrulama komutları — gerçek çıktı
 
 ```text
-$ dotnet list src/AgentPrism.AspNetCore/AgentPrism.AspNetCore.csproj package --include-transitive --framework net10.0 | grep -i modelcontextprotocol
+$ dotnet list src/Tracon.AspNetCore/Tracon.AspNetCore.csproj package --include-transitive --framework net10.0 | grep -i modelcontextprotocol
    > ModelContextProtocol.AspNetCore                2.2.0                     2.2.0
    > ModelContextProtocol.Extensions.Tasks          2.2.0                     2.2.0
    > ModelContextProtocol                              2.2.0
@@ -62,18 +62,18 @@ $ dotnet list src/AgentPrism.AspNetCore/AgentPrism.AspNetCore.csproj package --i
 # 2.2.0'ın kendisi zaten .AspNetCore uzerinden grafikteydi; net yeni paket yalniz
 # ModelContextProtocol.Extensions.Tasks'in kendisi — sifir yeni GECISLI paket.
 
-$ dotnet list src/AgentPrism.Mcp/AgentPrism.Mcp.csproj package --include-transitive --framework net10.0 | grep -i modelcontextprotocol
+$ dotnet list src/Tracon.Mcp/Tracon.Mcp.csproj package --include-transitive --framework net10.0 | grep -i modelcontextprotocol
    > ModelContextProtocol.Core                      2.2.0       2.2.0
 # Extensions.Tasks hic gorunmuyor — K-057 korunuyor.
 
-$ ls src/AgentPrism.PostgreSql/Migrations/ | tail -3
+$ ls src/Tracon.PostgreSql/Migrations/ | tail -3
 0017_read_views.sql
 0018_...   # (bu fazdan once) — bu faz hicbir yeni dosya eklemedi
 ```
 
 ### Gerçek sunucu koşumu
 
-`samples/AgentPrism.Api`'ye `EnableTasks = true` eklendi (kalıcı, demonstratif — diğer
+`samples/Tracon.Api`'ye `EnableTasks = true` eklendi (kalıcı, demonstratif — diğer
 yeteneklerle aynı desen). Gerçek PostgreSQL + gerçek model sağlayıcısına karşı,
 gerçek `ModelContextProtocol.Client.McpClient` ile (2026-07-28 protokolü,
 `io.modelcontextprotocol/tasks` capability'si açık) çalıştırıldı:
@@ -118,7 +118,7 @@ $ curl -s "$APU/api/runs/01a0417e-37d2-7ef7-9de8-779cb99b981c" -H "$APB"
    `tools/call`'un parametrelerine erişebileceğini varsayıyordu; paket
    decompile edilerek ölçüldü (2.2.0) ve YANLIŞ çıktı — metot yalnız bir
    `CancellationToken` alır, SDK asıl tool çağrısını KENDİ `Task.Run(...)`'ıyla
-   arka planda çalıştırır, AgentPrism'in kuyruğuna hiç dokunmaz. Gerçek
+   arka planda çalıştırır, Tracon'in kuyruğuna hiç dokunmaz. Gerçek
    mekanizma: `.WithTasks(...)`'tan ÖNCE kayıtlı kendi `CallToolWithAlternateFilters`
    girdimiz (`McpTaskRunProvisioningFilter`) `RunId`+`AgentName`+`TenantId`'yi
    orijinal istekte üretip `AsyncLocal` (`McpTaskRunAmbient`) ile aşağı akıtır —
@@ -142,7 +142,7 @@ $ curl -s "$APU/api/runs/01a0417e-37d2-7ef7-9de8-779cb99b981c" -H "$APB"
    varsayıyordu. Fonksiyonel testle bulundu (statik incelemeyle değil):
    `ModelContextProtocol.Extensions.Tasks`'in `_cancellationSources` sözlüğü
    YALNIZ taskId ile anahtarlanır ve `HandleCancelTask`, `IMcpTaskStore.SetCancelledAsync`'in
-   dönüşünü HİÇ okumadan bu sözlüğü koşulsuz iptal eder — AgentPrism'in bu
+   dönüşünü HİÇ okumadan bu sözlüğü koşulsuz iptal eder — Tracon'in bu
    sözlüğe erişimi yok, kapatılamaz. Kabul edilen sınır: bir kiracı BAŞKA
    kiracının task id'sini bilerek onu iptal EDEBİLİR (SDK'nin kusuru), ama
    ASLA okuyamaz (`GetTaskAsync` yalnız çağıranın ambient kiracısını kullanır —
@@ -180,8 +180,8 @@ $ curl -s "$APU/api/runs/01a0417e-37d2-7ef7-9de8-779cb99b981c" -H "$APB"
 ## Bu Fazda Verilen Kararlar
 
 - **K-636** — `ModelContextProtocol.Extensions.Tasks` 2.2.0 yalnız
-  `AgentPrism.AspNetCore`'a eklendi; net yeni geçişli paket sıfır.
-- **K-637** — MCP task kimliği AgentPrism'in run kimliğidir; SDK'nın
+  `Tracon.AspNetCore`'a eklendi; net yeni geçişli paket sıfır.
+- **K-637** — MCP task kimliği Tracon'in run kimliğidir; SDK'nın
   `CreateTaskAsync()`'i bağlamsız olduğu için bu eşleşme `AsyncLocal`
   sağlayıcı filtresiyle kurulur; arka plan yürütmesi kendi
   `AmbientTenantScope` sarmalını taşır; kiracı-oblivious SDK-içi
@@ -201,7 +201,7 @@ karşılaştırdığı taban commit değişmedi, yalnız çalışma ağacı değ
 | 3 | 🔴 | `McpTaskStatusMapping`'in cache-miss dalı (yeniden-inşa) hiç test edilmemişti; DoD'nin "iki örnek" satırı kanıtsızdı | Düzeltildi: `McpTaskCrossInstanceTests` (iki gerçek host, tek SQLite dosyası) — bu sırada `run.Status`'a önbellek varken bile bakan ayrı bir kusur bulundu ve düzeltildi (bkz. Plandan Sapmalar §6) |
 | 4 | 🔴 | Tek iptal testi, iptal TAM BİR NO-OP olduğunda da geçiyordu (echo çağrısı iptal ulaşmadan bitiyordu) | Düzeltildi: gerçek engelleyen tool + `SemaphoreSlim` senkronizasyonu (Task.Delay YOK) ile deterministik test; ayrıca `CancelRunEndpointTests`'in seed deseniyle `Queued` dalı ayrı test edildi |
 | 5 | 🟡 | K-103 fallback metni (cache-miss) bugünkü tam metinle AYNI değil (tool adı eksik) — DoD "aynı" iddiasını ihlal ediyordu | Kod DEĞİŞTİRİLMEDİ (tool adı `IRunStore`'dan kurtarılamaz — bilinçli); DoD satırı ve test bunu açıkça "genel/farklı" olarak işaretler |
-| 6 | 🟡 | `AmbientWriteSiteTests`'in marker listesi `McpTaskRunAmbient.Current = ...`'ı görmüyordu — kusur sınıfının kendi ratchet'i yeni yazım yerini kaçırıyordu | Düzeltildi: `McpTaskRunAmbient` `SetCurrent(...)` metoduna çevrildi (mevcut `AgentPrismRunContext.SetCurrent` deseniyle aynı ad) |
+| 6 | 🟡 | `AmbientWriteSiteTests`'in marker listesi `McpTaskRunAmbient.Current = ...`'ı görmüyordu — kusur sınıfının kendi ratchet'i yeni yazım yerini kaçırıyordu | Düzeltildi: `McpTaskRunAmbient` `SetCurrent(...)` metoduna çevrildi (mevcut `TraconRunContext.SetCurrent` deseniyle aynı ad) |
 | 7 | 🟡 | `docs/hafiza/mcp-a2a-sunucu.md`'nin bir maddesi "hiçbir şey yazmaz" diyordu, kod (owning-tenant düzeltmesi sonrası) YAZAR | Düzeltildi: not güncellendi |
 | 8 | 🟡 | `EnableTasks=false` + tenancy açık kombinasyonu hiç test edilmemişti — yeni `AmbientTenantScope` sarmalı senkron yolu da etkiliyor | Düzeltildi: `EnableTasks_false_still_resolves_the_real_tenant_when_tenancy_is_on` |
 | 9 | 🟡 | Kapanış adımları (site, manuel test, faz dokümanı) henüz açıktı | Bu, denetimin KENDİSİNİN ÖNCESİNDE koştuğu paralel kulvarın (Adım 2-3/7) parçasıydı — kapanışta tamamlandı |
@@ -216,16 +216,16 @@ karşılaştırdığı taban commit değişmedi, yalnız çalışma ağacı değ
 üçü de bu faz için YANLIŞ ALARM — hedef sayfalar açıldı ve içerik gerçekten
 etkilenmediği doğrulandı:
 
-- **`http-api` → `http-api.md`** (`AgentPrismMcpServerBuilderExtensions.cs`
+- **`http-api` → `http-api.md`** (`TraconMcpServerBuilderExtensions.cs`
   tetikledi): sayfa GENEL bir kılavuzdur (kimlik doğrulama, akış, sayfalama,
   hatalar), tek tek `endpoint` listelemez — o iş üretilen `api/` referansı ve
-  `agentprism.json`'undur. Bu faz **hiçbir yeni HTTP `endpoint`'i açmadı**
-  ("Yeni AgentPrism ucu yok" — § Planlanan Public API); `tasks/get`/`tasks/cancel`
+  `tracon.json`'undur. Bu faz **hiçbir yeni HTTP `endpoint`'i açmadı**
+  ("Yeni Tracon ucu yok" — § Planlanan Public API); `tasks/get`/`tasks/cancel`
   mevcut MCP transport'unun İÇİNDEKİ protokol metotlarıdır, OpenAPI belgesine
   hiç girmez. Güncellenecek bir şey yok.
 - **`paket-tanimi`/`paket-readme` → `packages.md`** (`.csproj` + `README.md`
   değişti): sayfa PAKET BAŞINA tek satırlık bir açıklama taşır
-  (`AgentPrism.AspNetCore` → "The HTTP API and the access layers"); bu faz
+  (`Tracon.AspNetCore` → "The HTTP API and the access layers"); bu faz
   paketin AMACINI değiştirmedi, yalnız İÇİNE bir `PackageReference` ve
   `README.md`'ye bir cümle ekledi. Açıklama hâlâ doğru.
 
@@ -248,7 +248,7 @@ etkilenmediği doğrulandı:
   EKLEMEDEN, mevcut onay/input modeliyle nasıl örtüştüğü ölçülmeli.
   `İki örnekli kurulum` testinin (bu fazda eklenen `McpTaskCrossInstanceTests`)
   deseni MRTR testleri için de yeniden kullanılabilir.
-- **SDK'nın kiracı-oblivious `tasks/cancel` davranışı** (K-637) AgentPrism
+- **SDK'nın kiracı-oblivious `tasks/cancel` davranışı** (K-637) Tracon
   tarafından kapatılamaz bir SDK sınırıdır; gelecekteki bir SDK sürümü
   `_cancellationSources`'a kiracı farkındalığı eklerse bu not ve
   `McpTaskTenantIsolationTests`'in ilgili testi gözden geçirilmeli.

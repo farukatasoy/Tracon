@@ -1,7 +1,7 @@
 # 09 — Arayüz Genel (`UI`)
 
 > **Alan kodu:** `UI` · **Faz:** 5, 30
-> **Kaynak:** `src/AgentPrism.UI/frontend/src/app.tsx` (kabuk, rota tablosu) ·
+> **Kaynak:** `src/Tracon.UI/frontend/src/app.tsx` (kabuk, rota tablosu) ·
 > `components/access-gate.tsx` (kimlik doğrulama akışı) · `components/layout.tsx`
 > (gezinme, tema/dil düğmeleri, klavye bağlamaları) · `components/command-palette.tsx`
 > (⌘K paleti, kısayol yardımı) · `lib/router.tsx` (elle yazılmış yönlendirici) ·
@@ -25,7 +25,7 @@ Arayüzün **kesişen** (cross-cutting) altyapısı: kabuk açılışı ve kimli
 kapısı, gezinme ve rol-bazlı görünürlük (ve bunun bir güvenlik sınırı OLMADIĞI),
 komut paleti ve klavye kısayolları, tema, dil (i18n) ve sunucu metninin
 **çevrilmediği** tasarım kararı, genel hata/yükleniyor/boş durum bileşenleri,
-elle yazılmış yönlendiricinin tuhaflıkları (`/agentprism` ile `/agentprism/`
+elle yazılmış yönlendiricinin tuhaflıkları (`/tracon` ile `/tracon/`
 aynı sayfa, 404 durumu). Ayrıca sahibi olmayan iki basit katalog ekranı
 (Modeller, Araçlar) ve Ayarlar ekranının genel (domain'e özgü olmayan) kısmı.
 
@@ -59,13 +59,13 @@ flowchart TD
 ## Koşmadan önce
 
 1. [`00-INDEKS.md`](00-INDEKS.md) §4 reset yordamı uygulanır.
-2. Örnek uygulama çalışır, `AgentPrism:Ui:AuthToken` `manuel-test-token-2026`'dır.
+2. Örnek uygulama çalışır, `Tracon:Ui:AuthToken` `manuel-test-token-2026`'dır.
 3. Tarayıcı: Chrome (tam), sonra §8'de Safari (kısa) ve dar ekran (kısa).
 4. DevTools açık tutulur — birçok case DOM/`localStorage`/`sessionStorage`
    içeriğini incelemeyi gerektirir.
 
 ```
-http://localhost:5080/agentprism/
+http://localhost:5080/tracon/
 ```
 
 > Bu dosyada gerçek para harcayan hiçbir case **yoktur** — tamamı arayüz
@@ -90,16 +90,16 @@ olabilmesinin tek sebebi budur: konsolun hangi erişim katmanının açık oldu�
 | **İlgili karar** | K-010 |
 
 **Ön koşul**
-- `AgentPrism:Ui:AuthToken` ayarlı.
-- Tarayıcının `sessionStorage`'ında `agentprism.token` anahtarı **yok**
+- `Tracon:Ui:AuthToken` ayarlı.
+- Tarayıcının `sessionStorage`'ında `tracon.token` anahtarı **yok**
   (yeni bir gizli sekme kullanın veya DevTools → Application → Session Storage
   → temizleyin).
 
 **Adımlar**
-1. `http://localhost:5080/agentprism/` adresini aç.
+1. `http://localhost:5080/tracon/` adresini aç.
 
 **Beklenen sonuç**
-- "AgentPrism" başlığı ve bir token giriş kartı görünür (`access.token.title`).
+- "Tracon" başlığı ve bir token giriş kartı görünür (`access.token.title`).
 - Giriş alanı `type="password"`, otomatik odaklanmıştır (`autoFocus`).
 - Boş alanla "Devam et" butonu **devre dışıdır**.
 
@@ -123,7 +123,7 @@ olabilmesinin tek sebebi budur: konsolun hangi erişim katmanının açık oldu�
 
 **Beklenen sonuç**
 - Kabuk (kenar çubuğu + üst çubuk) görünür.
-- `sessionStorage['agentprism.token'] = "manuel-test-token-2026"` — `localStorage`
+- `sessionStorage['tracon.token'] = "manuel-test-token-2026"` — `localStorage`
   **DEĞİL** (K-047: token bir sırdır, sekme ömrüyle sınırlıdır).
 
 ---
@@ -147,7 +147,7 @@ Negatif senaryo.
 
 **Beklenen sonuç**
 - Kart kapanmaz; `role="alert"` taşıyan kırmızı bir satır görünür
-  (`access.token.rejected` — `AgentPrismEndpointOptions.AuthToken` ayar adını
+  (`access.token.rejected` — `TraconEndpointOptions.AuthToken` ayar adını
   metne gömer).
 - Giriş alanı hâlâ etkileşimlidir; doğru tokenla yeniden denemek kabuğu açar.
 
@@ -165,7 +165,7 @@ Sınır durumu.
 | **İlgili karar** | — |
 
 **Ön koşul**
-- `dotnet user-secrets remove "AgentPrism:Ui:AuthToken"`, uygulama yeniden başlatıldı.
+- `dotnet user-secrets remove "Tracon:Ui:AuthToken"`, uygulama yeniden başlatıldı.
 
 **Adımlar**
 1. Konsolu aç.
@@ -241,7 +241,7 @@ Sınır durumu — tasarım kararının doğrulaması.
 1. Ayarlar ekranına git, "Erişim" panelinde "Bu sekme" satırındaki "Unut"a tıkla.
 
 **Beklenen sonuç**
-- `sessionStorage['agentprism.token']` silinir.
+- `sessionStorage['tracon.token']` silinir.
 - Sayfa yeniden token kartını gösterir (herhangi bir arka plan sorgusu 401
   aldığı an `AccessGate` yeniden `TokenPrompt`'a düşer).
 
@@ -263,7 +263,7 @@ yalnız arayüzün 403'ü **nasıl gösterdiği** doğrulanır.
 
 **Ön koşul**
 - `AllowRemoteAccess = false` (varsayılan) — konsolu loopback DIŞI bir adresten
-  açmak gerekir (örnek: makinenin LAN IP'si, `http://<lan-ip>:5080/agentprism/`).
+  açmak gerekir (örnek: makinenin LAN IP'si, `http://<lan-ip>:5080/tracon/`).
 
 **Adımlar**
 1. Loopback dışı bir adresten konsolu aç.
@@ -345,7 +345,7 @@ durmalı.
 - MT-UI-010'un `Reader` oturumu.
 
 **Adımlar**
-1. Adres çubuğuna doğrudan `http://localhost:5080/agentprism/audit` yaz, Enter'a bas.
+1. Adres çubuğuna doğrudan `http://localhost:5080/tracon/audit` yaz, Enter'a bas.
 
 **Beklenen sonuç**
 - Rota istemci tarafında **eşleşir** (`AuditScreen` render edilir — rota
@@ -444,7 +444,7 @@ Negatif senaryo.
 - Kabuk açık.
 
 **Adımlar**
-1. Adres çubuğuna `http://localhost:5080/agentprism/hic-boyle-bir-rota` yaz.
+1. Adres çubuğuna `http://localhost:5080/tracon/hic-boyle-bir-rota` yaz.
 
 **Beklenen sonuç**
 - Kabuk (kenar çubuğu, üst çubuk) **normal görünür** — yalnız içerik alanı
@@ -479,7 +479,7 @@ Negatif senaryo.
 
 ---
 
-### MT-UI-017 — `/agentprism` ile `/agentprism/` aynı sayfayı gösterir
+### MT-UI-017 — `/tracon` ile `/tracon/` aynı sayfayı gösterir
 
 Sınır durumu.
 
@@ -497,7 +497,7 @@ Sınır durumu.
 - Kabuk açık.
 
 **Adımlar**
-1. Adres çubuğuna sondaki `/` OLMADAN `http://localhost:5080/agentprism` yaz.
+1. Adres çubuğuna sondaki `/` OLMADAN `http://localhost:5080/tracon` yaz.
 
 **Beklenen sonuç**
 - Dashboard (kök rota) görünür — `hic-boyle-bir-rota`'nın aksine (MT-UI-015)
@@ -708,7 +708,7 @@ Negatif senaryo / sınır durumu.
 
 **Ön koşul**
 - İşletim sisteminin görünüm tercihi **karanlık**.
-- `localStorage['agentprism.theme']` **temiz** (hiç ayarlanmamış → `system`).
+- `localStorage['tracon.theme']` **temiz** (hiç ayarlanmamış → `system`).
 
 **Adımlar**
 1. Sayfayı sıfırdan yükle, ilk kareyi gözlemle.
@@ -739,7 +739,7 @@ Negatif senaryo / sınır durumu.
 **Beklenen sonuç**
 - Adım 1: `<html data-theme>` değeri anında değişir, düğme ikonu (güneş/ay) da
   değişir.
-- `localStorage['agentprism.theme']` yeni tercihi taşır (`light` veya `dark` —
+- `localStorage['tracon.theme']` yeni tercihi taşır (`light` veya `dark` —
   `system` **değil**, bkz. MT-UI-029).
 - Adım 2: tema, yeniden yükleme sonrası da **korunur**.
 
@@ -794,7 +794,7 @@ da `localStorage` temizliği geri döndürebilir.
 2. Tekrar tıkla, tekrar tıkla — düğmeyi birkaç kez daha kullan.
 
 **Beklenen sonuç**
-- İlk tıklamadan sonra `localStorage['agentprism.theme']` artık `system`
+- İlk tıklamadan sonra `localStorage['tracon.theme']` artık `system`
   **değildir** — kalıcı olarak `light`/`dark` arasında sabitlenir. Hiçbir
   tıklama sayısı üst çubuktan `system`'e geri dönmez.
 
@@ -817,7 +817,7 @@ da `localStorage` temizliği geri döndürebilir.
 - Tüm görünür metin (nav etiketleri, sayfa başlığı) **anında** Türkçeye döner
   — tam sayfa yenilemesi yoktur.
 - `<html lang="tr">` güncellenir.
-- `localStorage['agentprism.locale'] = "tr"`.
+- `localStorage['tracon.locale'] = "tr"`.
 - İki dil olduğu için düğme bir açılır menü **değil**, doğrudan diğer dile
   geçen bir buton olarak çalışır.
 
@@ -833,7 +833,7 @@ da `localStorage` temizliği geri döndürebilir.
 | **İlgili karar** | — |
 
 **Ön koşul**
-- `localStorage['agentprism.locale']` **temiz**.
+- `localStorage['tracon.locale']` **temiz**.
 - Tarayıcının dil tercihi listesinin başında `tr` veya `tr-TR` var
   (Chrome → Ayarlar → Diller).
 
@@ -946,7 +946,7 @@ metin yoğunluğu en yüksek beş genel ekran.
 
 **Girilecek veri**
 ```bash
-curl -s "http://localhost:5080/agentprism/api/meta" | python3 -m json.tool
+curl -s "http://localhost:5080/tracon/api/meta" | python3 -m json.tool
 ```
 
 **Beklenen sonuç**
@@ -1013,7 +1013,7 @@ Sınır durumu.
 | **İlgili faz** | Faz 5 |
 | **İlgili karar** | K-032 |
 
-Ekranın kendi yorumu: *"An empty catalogue is not an error... AgentPrism ships
+Ekranın kendi yorumu: *"An empty catalogue is not an error... Tracon ships
 no built-in model list."*
 
 **Ön koşul**
@@ -1027,7 +1027,7 @@ no built-in model list."*
 - Kırmızı bir hata **değil**, `UseOpenAI(apiKey)` / `UseOpenAICompatible(...)`
   örnek kodunu içeren nötr bir boş durum kartı görünür.
 - Kayıtlı ama modelsiz tek bir sağlayıcı varsa o sağlayıcının panelinde ayrıca
-  `AgentPrism:Providers:OpenAI:Models` ayar anahtarını gösteren ikinci bir
+  `Tracon:Providers:OpenAI:Models` ayar anahtarını gösteren ikinci bir
   boş durum görünür (`models.noModels`).
 
 ---

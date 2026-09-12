@@ -1,6 +1,6 @@
 ---
 title: HTTP API
-description: Use the AgentPrism management and OpenAI-compatible APIs with clear rules for auth, streaming, paging, errors, and schemas.
+description: Use the Tracon management and OpenAI-compatible APIs with clear rules for auth, streaming, paging, errors, and schemas.
 slug: http-api
 sidebar:
   order: 1
@@ -10,16 +10,16 @@ sidebar:
 the sidebar are the operations themselves, each with what it does and what it returns.
 
 The OpenAPI document is published as
-[`/openapi/agentprism.json`](/openapi/agentprism.json) — load it into
+[`/openapi/tracon.json`](/openapi/tracon.json) — load it into
 Scalar, Swagger UI, Postman, or a client generator.
 
 ## The prefix is yours
 
 Generated operation pages use `{prefix}`. Replace it with the value passed to
-`MapAgentPrism`; the project template uses `/agentprism`.
+`MapTracon`; the project template uses `/tracon`.
 
 ```csharp
-app.MapAgentPrism("/agentprism");
+app.MapTracon("/tracon");
 ```
 
 ## Two surfaces
@@ -49,7 +49,7 @@ Run endpoints answer with `text/event-stream`, one frame per run event, and the 
 frame reports the run id.
 
 ```bash
-curl -N -X POST http://localhost:5081/agentprism/api/agents/support/run \
+curl -N -X POST http://localhost:5081/tracon/api/agents/support/run \
      -H 'Content-Type: application/json' \
      -d '{"message":"Where is order 4182?"}'
 ```
@@ -138,7 +138,7 @@ than answering `404`.
 `HttpClient` request timeout as a `TaskCanceledException`, and a run that ends
 because the caller cancelled has no error to report — so an implementation that
 reads the exception type alone answers a timed-out provider with a clean, empty
-success. AgentPrism decides from the request instead: unless the caller's
+success. Tracon decides from the request instead: unless the caller's
 connection actually went away, a run that ends this way is a failure, the status
 is `502`, and the run is recorded as `Failed` with the `Timeout` error class.
 
@@ -158,7 +158,7 @@ constraints from the OpenAPI snapshot.
 
 ## About the published document
 
-The AgentPrism packages do not generate the OpenAPI document themselves — they carry
+The Tracon packages do not generate the OpenAPI document themselves — they carry
 route metadata, and your own `AddOpenApi()` call produces the document. Taking an
 OpenAPI dependency would force it, and its transitive CVE exposure, onto every
 consumer.
@@ -167,32 +167,32 @@ The consequence: the title, version, and server list in the published snapshot c
 from the host that generated it. In **your** document they come from your application.
 The paths, schemas, and descriptions are the same.
 
-Because AgentPrism maps plain minimal API endpoints on your own
+Because Tracon maps plain minimal API endpoints on your own
 `IEndpointRouteBuilder`, they are also picked up by **your** OpenAPI/Swagger
-generator, right alongside your own endpoints — no separate setup on AgentPrism's
+generator, right alongside your own endpoints — no separate setup on Tracon's
 side turns this on or off.
 
 ```mermaid
 flowchart LR
-    accTitle: How AgentPrism endpoints reach your OpenAPI document
-    accDescr: AgentPrism endpoints and your own endpoints both sit in your route table and both flow into your OpenAPI generator; a ShouldInclude or DocInclusionPredicate filter on the AgentPrism tag decides what reaches the document it produces.
+    accTitle: How Tracon endpoints reach your OpenAPI document
+    accDescr: Tracon endpoints and your own endpoints both sit in your route table and both flow into your OpenAPI generator; a ShouldInclude or DocInclusionPredicate filter on the Tracon tag decides what reaches the document it produces.
     subgraph routes["Your route table"]
-        agentprism["AgentPrism endpoints<br/>(tag: AgentPrism)"]
+        tracon["Tracon endpoints<br/>(tag: Tracon)"]
         yours["Your own endpoints"]
     end
     generator["Your AddOpenApi() /<br/>AddSwaggerGen() call"]
     doc["Document your generator<br/>produces"]
 
-    agentprism --> generator
+    tracon --> generator
     yours --> generator
     generator -->|"ShouldInclude /<br/>DocInclusionPredicate"| doc
 ```
 
-### Excluding AgentPrism from your document
+### Excluding Tracon from your document
 
-Every AgentPrism endpoint carries the `AgentPrism` tag. If your document should not
-describe AgentPrism's operations — for example, one you publish to external
-partners — filter on that tag in your own OpenAPI setup; AgentPrism has no
+Every Tracon endpoint carries the `Tracon` tag. If your document should not
+describe Tracon's operations — for example, one you publish to external
+partners — filter on that tag in your own OpenAPI setup; Tracon has no
 built-in switch for this.
 
 With `Microsoft.AspNetCore.OpenApi`:
@@ -205,7 +205,7 @@ builder.Services.AddOpenApi(options =>
     options.ShouldInclude = description =>
         !description.ActionDescriptor.EndpointMetadata
             .OfType<ITagsMetadata>()
-            .Any(tags => tags.Tags.Contains("AgentPrism"));
+            .Any(tags => tags.Tags.Contains("Tracon"));
 });
 ```
 
@@ -217,11 +217,11 @@ builder.Services.AddSwaggerGen(options =>
     options.DocInclusionPredicate((_, apiDescription) =>
         !apiDescription.ActionDescriptor.EndpointMetadata
             .OfType<ITagsMetadata>()
-            .Any(tags => tags.Tags.Contains("AgentPrism")));
+            .Any(tags => tags.Tags.Contains("Tracon")));
 });
 ```
 
-The filter only changes what your document *describes*. AgentPrism's endpoints stay
+The filter only changes what your document *describes*. Tracon's endpoints stay
 reachable; they just stop appearing in your Swagger UI or generated document.
 
 ## Read next

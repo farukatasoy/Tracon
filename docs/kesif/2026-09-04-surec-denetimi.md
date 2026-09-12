@@ -32,7 +32,7 @@
 
 | Ön ölçüm | Ölçülen | Komut |
 |---|---|---|
-| "29 test projesi" | **21** (`AgentPrism.slnx`) + `slnx` dışı 6 `samples/*.Tests` | `grep -oE 'Path="[^"]+\.csproj"' AgentPrism.slnx` |
+| "29 test projesi" | **21** (`Tracon.slnx`) + `slnx` dışı 6 `samples/*.Tests` | `grep -oE 'Path="[^"]+\.csproj"' Tracon.slnx` |
 | "~3747 `[Fact]`/`[Theory]`" | **3245** (`tests/` altında) | `grep -rho '\[Fact\]\|\[Theory\]' tests/ --include='*.cs' \| wc -l` |
 | "609 commit, ~44'ü `fix`" | 609 commit ✅ · `fix`+`kusur`+`security` = **44** ✅ | `git log --grep` |
 
@@ -79,10 +79,10 @@ metnindeki tablonun her satırı birebir tuttu.
 
 | Komut | Koşum | Toplam sn | Koşum başına | pay |
 |---|---:|---:|---:|---:|
-| `dotnet test AgentPrism.slnx -c Release --no-build -maxcpucount:1` | 5 | 2677,7 | **535,5** | **%70,6** |
-| `dotnet format AgentPrism.slnx --verify-no-changes` | 5 | 498,4 | 99,7 | %13,1 |
+| `dotnet test Tracon.slnx -c Release --no-build -maxcpucount:1` | 5 | 2677,7 | **535,5** | **%70,6** |
+| `dotnet format Tracon.slnx --verify-no-changes` | 5 | 498,4 | 99,7 | %13,1 |
 | `kapi.py performans` (yol tetiklemeli) | 2 | 203,9 | 102,0 | %13,4 |
-| `dotnet build AgentPrism.slnx -c Release` | 5 | 200,5 | 40,1 | %5,3 |
+| `dotnet build Tracon.slnx -c Release` | 5 | 200,5 | 40,1 | %5,3 |
 | `docs-site npm run check` | 4 | 98,2 | 24,5 | %3,2 |
 | `dotnet pack` | 5 | 34,8 | 7,0 | %0,9 |
 | `python3 -m unittest discover -s scripts` | 5 | 32,5 | 6,5 | %0,9 |
@@ -180,7 +180,7 @@ gibi kaçışların da en pahalı kanalı odur. İkisi aynı yeri gösteriyor.
 
 ### A3. Proje başına test süresi — YENİ ölçüm
 
-Taban koşum: `dotnet test AgentPrism.slnx -c Release --no-build -maxcpucount:1
+Taban koşum: `dotnet test Tracon.slnx -c Release --no-build -maxcpucount:1
 -- --report-trx`, `MSBUILDDISABLENODEREUSE=1`. Wall-clock **557 sn**; TRX
 sürelerinin toplamı 531,4 sn (aradaki 25,6 sn MSBuild düzenleme yüküdür).
 
@@ -219,12 +219,12 @@ sürelerinin toplamı 531,4 sn (aradaki 25,6 sn MSBuild düzenleme yüküdür).
 Taban koşum `exit 1` verdi:
 
 ```
-failed AgentPrism.Ui.E2ETests.UiTests.Playground_voice_mode_opens_microphone_and_shows_transcript (30s 951ms)
+failed Tracon.Ui.E2ETests.UiTests.Playground_voice_mode_opens_microphone_and_shows_transcript (30s 951ms)
 System.TimeoutException : Timeout 30000ms exceeded.
 Call log: - waiting for GetByTestId("voice-transcript") to be visible
 ```
 
-**İzole koşum yeşil:** `./artifacts/bin/AgentPrism.Ui.E2ETests/release/AgentPrism.Ui.E2ETests
+**İzole koşum yeşil:** `./artifacts/bin/Tracon.Ui.E2ETests/release/Tracon.Ui.E2ETests
 --filter-method "*Playground_voice_mode*"` → **1/1, 2,5 sn.**
 
 İmza F-180'in kaydıyla **birebir** aynıdır (`docs/ADAYLAR.md` § F-180: yük
@@ -308,7 +308,7 @@ mantığında değil:
 | ID | Ne | Sınıf | Neden iç test görmedi |
 |---|---|---|---|
 | F-182 | Paket kimliğinin tekilliği zorlanmıyordu | 1 | Paket sınırı; `ProjectReference` ile koşan test bu sınıfı hiç görmez |
-| F-183 | Sevk edilen `CustomJobHandler` örneği **gerçek worker'da hiç çalışmıyor** — `AddAgentPrism()`'den SONRA kaydoluyor | 2 | Örneğin testi yalnız **DI kaydını** ölçüyordu (test tiyatrosu) |
+| F-183 | Sevk edilen `CustomJobHandler` örneği **gerçek worker'da hiç çalışmıyor** — `AddTracon()`'den SONRA kaydoluyor | 2 | Örneğin testi yalnız **DI kaydını** ölçüyordu (test tiyatrosu) |
 | F-184 | `VoiceDescriptor` sağlayıcı üstverisi yok | 5 | Plan bu davranışı hiç istememişti |
 | TU3-1 | `embedding.md`'nin öznesiz cümlesi tüketiciye **var olmayan bir kanal** anlattı | 9 | Mekanik denetlenemez; kapısı **bugün de yok** |
 | TU3-2 | `quota.threshold` hiçbir anlatı sayfasında yok → tüketici **var olan özelliği yeniden önerdi** | 9 | `sevk_edilen_olay_anlatisi()` kapısı BU vakadan sonra yazıldı |
@@ -325,16 +325,16 @@ Denetimin en verimli başlığı da (§A6) **3.8 Ürün yüzeyi**'ydi (15/53 bul
 
 #### KUSUR-A1 · Sevk edilen örnek "altı genişleme noktası" diyor, yedi var
 
-`AgentPrismDiagnosticsCollector.CollectExtensionPoints()` **yedi** nokta
+`TraconDiagnosticsCollector.CollectExtensionPoints()` **yedi** nokta
 döndürüyor (Faz 142 `IToolApprovalPresenter`'ı ekledi). Sevk edilen metin
 takip etmedi:
 
 | Yüzey | Ne diyor | Gerçek |
 |---|---|---|
-| `samples/AgentPrism.Embedded/Program.cs:42-43` | "AddAgentPrism() below calls `TryAdd*` for all **six**" | **yedi** |
-| `samples/AgentPrism.Embedded/Program.cs:11` | "The **six** embedding points" | yedi nokta var, örnek altısını bağlıyor |
-| `samples/AgentPrism.Embedded/README.md:35,41` | "Confirm all **six** took over" · "**Every** entry reads `isBuiltInDefault: false` here" | 7. nokta bağlı değil → `true` okur. Testin kendi adı zaten `Six_of_the_seven_...` |
-| `samples/AgentPrism.Embedded/README.md:42` | "`samples/AgentPrism.Api`, which reports `true` for **five of the six**" | Api artık `IToolApprovalPresenter`'ı da bağlıyor (`Program.cs:145`) |
+| `samples/Tracon.Embedded/Program.cs:42-43` | "AddTracon() below calls `TryAdd*` for all **six**" | **yedi** |
+| `samples/Tracon.Embedded/Program.cs:11` | "The **six** embedding points" | yedi nokta var, örnek altısını bağlıyor |
+| `samples/Tracon.Embedded/README.md:35,41` | "Confirm all **six** took over" · "**Every** entry reads `isBuiltInDefault: false` here" | 7. nokta bağlı değil → `true` okur. Testin kendi adı zaten `Six_of_the_seven_...` |
+| `samples/Tracon.Embedded/README.md:42` | "`samples/Tracon.Api`, which reports `true` for **five of the six**" | Api artık `IToolApprovalPresenter`'ı da bağlıyor (`Program.cs:145`) |
 
 **Sınıf 6, ÜÇÜNCÜ tekrar.** Faz 139 altıncı noktayı ekledi → örnek geride
 kaldı (`a377106e`). Faz 142 yedinciyi ekledi → denetim `capabilities.md` +
@@ -385,7 +385,7 @@ yoksa restore birkaç saniyedir.
 
 ### C1. Taban ölçümü — 3 koşum
 
-`dotnet test AgentPrism.slnx -c Release --no-build -maxcpucount:1`
+`dotnet test Tracon.slnx -c Release --no-build -maxcpucount:1`
 
 | Koşum | Süre | Sonuç |
 |---|---:|---|
@@ -399,22 +399,22 @@ yoksa restore birkaç saniyedir.
 
 | Değişen yol | ÖNCE seçilen | SONRA seçilen | Bağlı kaçış |
 |---|---|---|---|
-| `src/AgentPrism.Core/Builder/IAgentPrismBuilder.cs` | `AspNetCore.FunctionalTests`, `Core.UnitTests` | + **`Generators.UnitTests`** | `9433efe4` |
-| `samples/AgentPrism.Embedded/Program.cs` | **hiçbiri** | **`Embedded.Tests`** | `a377106e` |
-| `samples/AgentPrism.Samples.CustomJobHandler/Program.cs` | hiçbiri, **sessizce** | hiçbiri + **uyarı** | F-183 |
+| `src/Tracon.Core/Builder/ITraconBuilder.cs` | `AspNetCore.FunctionalTests`, `Core.UnitTests` | + **`Generators.UnitTests`** | `9433efe4` |
+| `samples/Tracon.Embedded/Program.cs` | **hiçbiri** | **`Embedded.Tests`** | `a377106e` |
+| `samples/Tracon.Samples.CustomJobHandler/Program.cs` | hiçbiri, **sessizce** | hiçbiri + **uyarı** | F-183 |
 
 **Kanıt 1.** `ExampleExtractor.SourceFiles` = `Directory.EnumerateFiles(root/src,
 "*.cs", AllDirectories)` — `Generators.UnitTests` `src/`'nin **tamamındaki**
-`<example>` bloklarını derler. Harita ise yalnız `src/AgentPrism.Generators` ve
-`src/AgentPrism.OpenAI`'ı oraya yönlendiriyordu. `9433efe4`'ün commit gövdesi
+`<example>` bloklarını derler. Harita ise yalnız `src/Tracon.Generators` ve
+`src/Tracon.OpenAI`'ı oraya yönlendiriyordu. `9433efe4`'ün commit gövdesi
 bunu kendisi yazmış: *"caught only by the full solution test run, not by
-AgentPrism.Core.UnitTests alone"*.
+Tracon.Core.UnitTests alone"*.
 
-**Kanıt 2.** `tests/AgentPrism.Embedded.Tests` `ProjectReference` ile
-`samples/AgentPrism.Embedded`'a bağlıdır, ama `affected_test_projects` bir
+**Kanıt 2.** `tests/Tracon.Embedded.Tests` `ProjectReference` ile
+`samples/Tracon.Embedded`'a bağlıdır, ama `affected_test_projects` bir
 `samples/` yolunda hiçbir dala girmiyordu — `needs_full` bile kurulmuyordu.
 
-**Kanıt 3.** `samples/AgentPrism.Samples.*` çözümde değildir; hiçbir kapanış
+**Kanıt 3.** `samples/Tracon.Samples.*` çözümde değildir; hiçbir kapanış
 koşumu onları kapsamaz, yalnız `kapi.py yayin`. Seçim yine boş kalır ama
 **sessiz değildir** — F-183 tam olarak burada kaçtı.
 
@@ -501,7 +501,7 @@ kapandı, sınıf açık"** yaz — "kapandı" deme.
 
 ### D3. Düzeltilen — `.agents/ortak/kapilar.md` · `ic-dongu` kapsamı
 
-`samples/AgentPrism.Samples.*`'ın çözümde olmadığı ve yalnız `kapi.py yayin`
+`samples/Tracon.Samples.*`'ın çözümde olmadığı ve yalnız `kapi.py yayin`
 tarafından kapsandığı yazıldı (C2, F-183).
 
 ### D4. Düzeltilen — `faz-denetim` 3.8'in artık YANLIŞ olan cümlesi
@@ -602,7 +602,7 @@ denetim turu bunları ölçer; her satırın kontrol komutu yanındadır.
 | # | Revizyon | Başarısızlık koşulu | Kontrol |
 |---|---|---|---|
 | 1 | Genişleme noktası kapısı (C1) | Sevk edilen bir metin kodun bildirdiğinden **farklı** sayıda genişleme noktası ilan eder ve bunu bir insan/tüketici bulur | `python3 scripts/dokuman-bakim.py --denetle` → "Sevk edilen genişleme noktası" |
-| 2 | İç döngü haritası (C2) | Bir `src/` veya `samples/AgentPrism.Embedded/` değişikliği yine **yalnız tam koşumda** yakalanır | `git log --grep='caught only by the full solution'` boş kalmalı |
+| 2 | İç döngü haritası (C2) | Bir `src/` veya `samples/Tracon.Embedded/` değişikliği yine **yalnız tam koşumda** yakalanır | `git log --grep='caught only by the full solution'` boş kalmalı |
 | 3 | İzole yeniden koşum (C3) | Bir faz kaydı yine "kırılgan mı, gerçek mi" ayrımı için **ikinci bir tam koşum** yapar | faz kayıtlarında "iki tam koşum" ifadesi |
 | 4 | `kusur-giderme` #4 (D2) | Bir kusur kaydı "✅ KAPANDI" işaretlenir ve **aynı repro** ile tekrarlar | `docs/ADAYLAR.md`'de "YENİDEN DÜŞTÜ" |
 | 5 | `-maxcpucount:1` kararı (C4) | Biri ölçmeden paralellik açar ve `SqlServer` migration timeout'u geri gelir | `full_solution_test_command()` docstring'i |
@@ -613,7 +613,7 @@ denetim turu bunları ölçer; her satırın kontrol komutu yanındadır.
 |---|---|
 | **KUSUR-A2'nin kök nedeni** (F-180 sınıfı, 7. vaka) | Kök neden avı `kusur-giderme`'nin işidir ve bu denetimin kapsamı süreçtir. Bu tur sınıfa **teşhis kapısı** verdi (C3) ve kaydı düzeltti; kök neden hâlâ açık. |
 | Sınıf 9'un "öznesiz cümle" alt sınıfı | Tek vaka; kaydın kendi kuralı ikinci vakayı bekliyor (D5). |
-| `samples/AgentPrism.Samples.*`'ın kapanış kapsamı | Çözümde olmamaları bilinçli bir karardır (paketlenmiş tüketiciyi taklit ederler). `ic-dongu` artık **uyarıyor**; kapsamı genişletmek yayın provasını her fazda koşmak demektir ve ayrı bir maliyet kararıdır. |
+| `samples/Tracon.Samples.*`'ın kapanış kapsamı | Çözümde olmamaları bilinçli bir karardır (paketlenmiş tüketiciyi taklit ederler). `ic-dongu` artık **uyarıyor**; kapsamı genişletmek yayın provasını her fazda koşmak demektir ve ayrı bir maliyet kararıdır. |
 
 ### C5. H2 — `dotnet format` kapsamı: **DARALTILMADI, gerekçesi ölçüldü**
 
@@ -675,8 +675,8 @@ büyük olasılıkla `end_of_line` ve `charset` de) Roslyn'in IDE0055'inde
 | `python3 -m unittest discover -s scripts` (221 test) | 6,15 sn | ✅ |
 | `build-agent-map.mjs --check` | 0,09 sn | ✅ |
 | `denetim-paketi.py --taban e599259f` | 0,25 sn | ✅ |
-| `dotnet build AgentPrism.slnx -c Release` | 19,43 sn | ✅ 0 uyarı |
-| `dotnet test AgentPrism.slnx ... -- --report-trx` | 497,48 sn | ✅ |
+| `dotnet build Tracon.slnx -c Release` | 19,43 sn | ✅ 0 uyarı |
+| `dotnet test Tracon.slnx ... -- --report-trx` | 497,48 sn | ✅ |
 | `dotnet pack` | 6,07 sn | ✅ |
 | `dotnet format --verify-no-changes` | 90,30 sn | ✅ |
 | `docs-site npm run check` | 27,95 sn | ✅ |
@@ -718,13 +718,13 @@ yapılan üç doğrulama artık kapıdır.
 | Değişiklik | Bağlı bulgu | Kanıt |
 |---|---|---|
 | `dokuman-bakim.py` → `sevk_edilen_genisleme_noktasi()` + 6 test | **KUSUR-A1** (sınıf 6, 3. tekrar) | Kapı düzeltmeden önce **3 gerçek bulgu** verdi, sonra temiz (§B5) |
-| `samples/AgentPrism.Embedded/{Program.cs,README.md}` · `docs-site/guides/embedding.md` | KUSUR-A1 | Kod 7 nokta bildiriyordu, metin 6 diyordu |
+| `samples/Tracon.Embedded/{Program.cs,README.md}` · `docs-site/guides/embedding.md` | KUSUR-A1 | Kod 7 nokta bildiriyordu, metin 6 diyordu |
 | `kapi.py` → `affected_test_projects()` + 3 test | `9433efe4` · `a377106e` · F-183 (sınıf 4) | Önce/sonra seçim tablosu (§C2) |
 | `kapi.py` → `failed_tests_from_trx()` · `isolate_failed_tests()` + 5 test | Sınıf 11, **7 vaka** | §C3; çıkış kodu değişmez |
 | `kapi.py` → tam test komutuna `-- --report-trx` | Yukarıdakinin ön koşulu | `ci.yml:183` ile birebir aynı oldu |
 | `faz-tamamlama` Adım 1 — ayrı `tarama` ön koşumu **silindi** | Ölçüm-D1 | `closing_commands()[0]` zaten `tarama`, ilk kırmızıda durur |
 | `kusur-giderme` kapanış kontrolü #4 | **KUSUR-A2** | F-180 "✅ KAPANDI" işaretli, bir gün sonra aynı imzayla düştü |
-| `ortak/kapilar.md` — `ic-dongu` kapsam sınırı | F-183 | `samples/AgentPrism.Samples.*` çözümde değil |
+| `ortak/kapilar.md` — `ic-dongu` kapsam sınırı | F-183 | `samples/Tracon.Samples.*` çözümde değil |
 | `faz-denetim` 3.8 — "hiçbir kapı yakalamıyor" düzeltildi | C1'in sonucu | Artık yarı yanlıştı |
 | `docs/hafiza/test-yalitimi.md` **yeni** | Sınıf 11 | `test-altyapisi.md` 17.337/16.000 B'yi aşmıştı; konu ayrımı yapıldı |
 | `docs/ADAYLAR.md` F-180 başlığı → "VAKA KAPANDI, SINIF AÇIK" | KUSUR-A2 | §A7 |

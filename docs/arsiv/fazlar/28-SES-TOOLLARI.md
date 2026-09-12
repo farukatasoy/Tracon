@@ -4,7 +4,7 @@
 > **Kaynak:** [BEYIN-FIRTINASI.md](../BEYIN-FIRTINASI.md) · **F-13** (1/2)
 > **Önkoşul:** [Faz 14](14-COK-MODLULUK.md) — ses çıktısı `attachments` deposunu kullanır
 > **Sonraki:** [Faz 29](29-KONUSMA-KATMANI.md) — gerçek zamanlı konuşma katmanı
-> **Paketler:** **`AgentPrism.Voice` (YENİ)**
+> **Paketler:** **`Tracon.Voice` (YENİ)**
 > **Migration:** 0015 (Postgres) / 0003 (SqlServer, Sqlite) — planda "yok" deniyordu, **gerekli çıktı**
 
 ---
@@ -30,13 +30,13 @@ Kullanıcı cevabı **konuştuğunu duysun** — ama henüz gerçek zamanlı bir
 
 ## Bitiş Ölçütleri (DoD)
 
-Elle doğrulama: `samples/AgentPrism.Api`, 2026-08-05. Model çağrıları **gerçek
+Elle doğrulama: `samples/Tracon.Api`, 2026-08-05. Model çağrıları **gerçek
 OpenAI**'a gitti; ses sağlayıcısı ElevenLabs'in veri düzlemi sözleşmesini birebir
 taklit eden yerel bir uçtu (Faz 27'nin deseni).
 
 | Ölçüt | Durum | Kanıt |
 |---|---|---|
-| `AgentPrism.Voice` paketi üretiliyor | ✅ | **15 paket**; 1 doğrudan bağımlılık, **0 NuGet** |
+| `Tracon.Voice` paketi üretiliyor | ✅ | **15 paket**; 1 doğrudan bağımlılık, **0 NuGet** |
 | `speak` gerçek bir çalıştırmada çalışıyor | ✅ | aşağıdaki çıktı, 3 |
 | Ses `attachments`'a yazılıyor, `session_id` **dolu** | ✅ | çıktı 4 — G1 |
 | `transcribe` ses ekini metne çeviriyor | ✅ | çıktı 5 |
@@ -80,7 +80,7 @@ $ curl .../api/tools
 
 # 3) GERCEK CALISTIRMA — OpenAI modeli speak tool'unu cagirdi
   toolName   : speak
-  arguments  : text=AgentPrism ses testi tamamlandi.
+  arguments  : text=Tracon ses testi tamamlandi.
   result     : Ses uretildi. attachmentId=019fd236-a208-…, tur=audio/mpeg, boyut=2062 bayt
   duration   : 00:00:00.0309
   usage      : {unit: characters, quantity: 37, cost: 0.00407, currency: USD, isEstimated: false}
@@ -99,7 +99,7 @@ $ curl .../api/tools
 # 6) Saglayici ucuna ULASAN istekler
   POST /v1/text-to-speech/ses-tr-1?output_format=mp3_44100_128
        xi-api-key=SAHTE-SES-ANAHTARI-xyz789   Authorization=None   content-type=application/json
-       govde={"text":"AgentPrism ses testi tamamlandi.","model_id":"eleven_multilingual_v2"}
+       govde={"text":"Tracon ses testi tamamlandi.","model_id":"eleven_multilingual_v2"}
   GET  /v2/voices
        xi-api-key=SAHTE-SES-ANAHTARI-xyz789
 
@@ -114,7 +114,7 @@ $ curl .../api/tools
 ## Kullanım
 
 ```csharp
-builder.AddAgentPrism()
+builder.AddTracon()
        .UseVoice(configuration.GetSection(VoiceOptions.SectionName))
        .AddAgent(new AgentDefinition
        {
@@ -126,7 +126,7 @@ builder.AddAgentPrism()
 ```
 
 ```bash
-dotnet user-secrets set "AgentPrism:Voice:ApiKey" "..."
+dotnet user-secrets set "Tracon:Voice:ApiKey" "..."
 ```
 
 ---
@@ -135,8 +135,8 @@ dotnet user-secrets set "AgentPrism:Voice:ApiKey" "..."
 
 Karar defterine yazıldı (`docs/KARARLAR.md`, **K-215 – K-221**):
 
-1. **K-215** — Ses sözleşmeleri `AgentPrism.Abstractions`'ta; ElevenLabs bir uygulamadır.
-2. **K-216** — Ham `HttpClient`; `AgentPrism.Voice` hiçbir NuGet paketi almaz.
+1. **K-215** — Ses sözleşmeleri `Tracon.Abstractions`'ta; ElevenLabs bir uygulamadır.
+2. **K-216** — Ham `HttpClient`; `Tracon.Voice` hiçbir NuGet paketi almaz.
 3. **K-217** — `AgentRunScope.SessionId` eklendi; oturumsuz ek saklama tarafından silinir.
 4. **K-218** — 🚨 Tool bağımlılıkları **kurulum anında** alınır; `AIFunctionArguments.Services` MAF boru hattında boştur.
 5. **K-219** — `tool_invocations` beş ölçüm sütunu taşır; ses maliyeti token maliyetiyle toplanmaz.
@@ -167,7 +167,7 @@ Karar defterine yazıldı (`docs/KARARLAR.md`, **K-215 – K-221**):
 - **Operatör yolunun ölçümü kalıcı değildir** (K-220). Kalıcılık isteniyorsa
   `tool_invocations.run_id`'nin nullable yapılması veya operatör eylemleri için
   ayrı bir tablo gerekir; ikisi de bu fazın kapsamı dışındaydı.
-- **`DependencyDirectionTests.AllowedReferences` hâlâ `AgentPrism.SqlServer`,
-  `AgentPrism.Sqlite` ve `AgentPrism.Sql.Shared` paketlerini içermiyor**
+- **`DependencyDirectionTests.AllowedReferences` hâlâ `Tracon.SqlServer`,
+  `Tracon.Sqlite` ve `Tracon.Sql.Shared` paketlerini içermiyor**
   (Faz 23/24'ten kalan boşluk; Faz 26 ve 27'de de açıktı). Bu fazda
-  `AgentPrism.Voice` eklendi.
+  `Tracon.Voice` eklendi.

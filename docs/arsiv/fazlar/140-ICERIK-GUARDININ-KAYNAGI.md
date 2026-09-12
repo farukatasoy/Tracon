@@ -3,7 +3,7 @@
 > **Durum:** ✅ Tamamlandı (2026-09-04)
 > **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-186** (tüketici turu 3, A4)
 > **Önkoşul:** Yok
-> **Paketler:** `AgentPrism.Abstractions`, `AgentPrism.Core`
+> **Paketler:** `Tracon.Abstractions`, `Tracon.Core`
 > **Yeni paket:** Yok · **Migration:** Yok
 > **Public API:** Büyüyor — `ContentGuardContext`'e iki `init` alan + yeni enum. Additive; `Unknown = 0` geriye dönük uyumludur
 > **Tüketici yüzeyi:** `docs-site/`: `concepts/governance.md` (content guard bölümü), `guides/reliability.md` · sevk edilen: XML `<example>`
@@ -35,7 +35,7 @@ Guard bugün denetlediği metnin bir **tool sonucu** mu, bir **kullanıcı mesaj
 - [x] Guard bir tool sonucunu kullanıcı mesajından ayırt eder (case 2 kanıt) —
       `ContentGuardSourceTests.Tool_result_is_classified_as_ToolResult_with_its_resolved_tool_name`,
       gerçek `FunctionInvokingChatClient` ikinci turuyla; ayrıca gerçek
-      `samples/AgentPrism.Api` koşumuyla da doğrulandı (aşağıda)
+      `samples/Tracon.Api` koşumuyla da doğrulandı (aşağıda)
 - [x] `ToolName` çözülemediğinde `Source` yine `ToolResult` kalır —
       `ContentGuardSourceTests.Tool_result_keeps_ToolResult_source_even_when_the_call_id_cannot_be_resolved`
 - [x] `Unknown` en sıkı kuralı alır; testle kilitlenir —
@@ -52,7 +52,7 @@ Guard bugün denetlediği metnin bir **tool sonucu** mu, bir **kullanıcı mesaj
       guard hattı o listede zaten yoktu, yeni bir kayıt açılmadı (kapsam dışı,
       bkz. Denetim Bulguları 🟢)
 - [x] Dört doğrulama kapısı sıfır uyarı verir — `kapi.py kapanis --taban c77b4d3c`
-- [x] `samples/AgentPrism.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı —
+- [x] `samples/Tracon.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı —
       aşağıda
 - [x] `secret` taraması boş döndü — `kapi.py tarama` ✅ temiz
 - [x] Manuel kabul case'leri `docs/manuel-test/22-GUARDRAIL-VE-YAPISAL-CIKTI.md`
@@ -61,7 +61,7 @@ Guard bugün denetlediği metnin bir **tool sonucu** mu, bir **kullanıcı mesaj
 - [x] `docs-site/` güncellendi; `npm run check` (content, build, links, weight)
       dördü de temiz
 
-### Gerçek `samples/AgentPrism.Api` koşumu (2026-09-04)
+### Gerçek `samples/Tracon.Api` koşumu (2026-09-04)
 
 Development ortamında (`ASPNETCORE_ENVIRONMENT=Development`, gerçek OpenAI
 anahtarı `dotnet user-secrets`'ten) `support` agent'ına `get_order_status`
@@ -150,7 +150,7 @@ baktı. **🔴 yok.**
   kaynağı guard'a bugün `UserMessage`/`Unknown` gibi geçiyor olabilir —
   ölçülmedi. Bu kaynakları gerçekten dolduracak bir faz önce `ContentGuardMessageMasker`'ın
   hangi mesaj/`AIContent` şeklinin doküman/skill içeriğini taşıdığını
-  `grep -rn "documents" src/AgentPrism.Core/` ile ölçmeli — tahmin etmemeli
+  `grep -rn "documents" src/Tracon.Core/` ile ölçmeli — tahmin etmemeli
   (K-320 sınıfı bir hata riski taşır).
   Devraldığı sözleşme: `ContentGuardMessageMasker.RewriteContentAsync`'in
   `ChatRole? role` parametresi zaten var; yeni bir kaynak eklemek

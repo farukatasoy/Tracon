@@ -3,7 +3,7 @@
 > **Durum:** ✅ Tamamlandı (2026-09-02)
 > **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) — **F-176**
 > **Önkoşul:** [Faz 130](130-URETILEN-SEMANIN-KISITLARI.md) — kısıt üretim yolu ve `ParameterConstraints` bu fazın üstüne oturur
-> **Paketler:** `AgentPrism.Generators` (tek paket)
+> **Paketler:** `Tracon.Generators` (tek paket)
 > **Yeni paket:** Yok · **Migration:** Yok
 > **Public API:** büyümüyor — üretilen şema metni ve derleme anı davranışı değişir. İki yeni analyzer diagnostic kodu eklenir (`APG0011`, `APG0012`)
 > **Tüketici yüzeyi:** `docs-site/`: `guides/write-your-own-tool.md`, `concepts/tools.md`, `capabilities.md` (diagnostic bağlantısının hedef bölümü) · sevk edilen: `APG0003` metni, yeni `APG0011`/`APG0012` metinleri, `AnalyzerReleases.Unshipped.md`
@@ -42,12 +42,12 @@ Generator bugün skalerleri ve onların dizilerini ifade edebiliyor, kısıtlar�
 - [x] 🚨 Dış tüketici projesinde `PublishAot` derlemesi **uyarısız** ve tool çalışma anında çağrılabiliyor (case 8) — `ObjectToolAotPackageTests`, `osx-arm64`, 2026-09-02
 - [x] `AnalyzerReleases.Unshipped.md` iki yeni kodu taşıyor; `DiagnosticIntegrityTests` yeşil
 - [x] Dört doğrulama kapısı sıfır uyarı verir — `python3 scripts/kapi.py kapanis --taban b411d5b`, 2026-09-02
-- [x] `samples/AgentPrism.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı (case 7) — bkz. MT-CORE-121, gerçek OpenAI (`gpt-5.4-mini`) çağrısı
+- [x] `samples/Tracon.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı (case 7) — bkz. MT-CORE-121, gerçek OpenAI (`gpt-5.4-mini`) çağrısı
 - [x] `secret` taraması boş döndü
 - [x] Manuel kabul case'leri `docs/manuel-test/02-CEKIRDEK-VE-KATALOG.md` içine eklendi (MT-CORE-115..122); otomatikleştirilebilenler koşuldu
 - [x] `faz-denetim` koşuldu; 🔴 bulgu kalmadı — bkz. "Denetim Bulguları"
 - [x] `docs-site/` güncellendi (`write-your-own-tool.md`, `concepts/tools.md`, `capabilities.md`, `troubleshooting.md`); `npm run check` (dört kapı) temiz
-- [x] 🚨 `dotnet test AgentPrism.slnx` TAM log dosyasından teyit edildi — `| tail` ile **değil**; `kapi-kapanis-4.log`, 2026-09-02
+- [x] 🚨 `dotnet test Tracon.slnx` TAM log dosyasından teyit edildi — `| tail` ile **değil**; `kapi-kapanis-4.log`, 2026-09-02
 
 ### Doğrulama komutları
 
@@ -95,17 +95,17 @@ dotnet publish <dış tüketici projesi> -r <rid> -p:PublishAot=true
    bağımsız denetimin 🟡 bulgusu. Ölçülmeden bir çözüm yazmak yerine
    `guides/write-your-own-tool.md`'ye açık bir uyarı eklendi: context'in
    adlandırma politikası varsayılanda kalmalı. Açık Soru 2 hâlâ kapanmadı.
-5. **`samples/AgentPrism.Api`'ye planın öngördüğünden fazlası eklendi:**
+5. **`samples/Tracon.Api`'ye planın öngördüğünden fazlası eklendi:**
    `estimate_shipping_cost` demo tool'u ve `ShippingAddress` record'u kalıcı
    olarak eklendi, `support` agent'ının `ToolNames`'i genişletildi. Gerekçe:
    manuel case 7'yi gerçek bir OpenAI çağrısıyla kanıtlamak için gerçek bir
    tool gerekiyordu; kalıcı bırakmak (geçici bir test-only tool yerine) diğer
    fazların örnek-uygulama zenginleştirme konvansiyonuyla tutarlı.
-6. **`AgentPrism.Package.Tests`'e planın dosya listesinde adı geçmeyen iki yeni
+6. **`Tracon.Package.Tests`'e planın dosya listesinde adı geçmeyen iki yeni
    dosya eklendi** (`ObjectToolAotConsumerProject.cs`,
    `ObjectToolAotPackageTests.cs`) — planın Riskler tablosunun kendisi bu
    koşumu zorunlu kılıyordu ("DoD'de ayrı bir `PublishAot` satırı;
-   `AgentPrism.Package.Tests` derleyip **koşar**"), yalnız dosya adları
+   `Tracon.Package.Tests` derleyip **koşar**"), yalnız dosya adları
    önceden yazılmamıştı.
 
 ## Bu Fazda Verilen Kararlar
@@ -129,12 +129,12 @@ Bağımsız denetim (`faz-denetim`, taze bağlamlı ayrı agent) 2026-09-02'de
 | 5 | Dizi üzerinden kendine referans veren bir cycle'ı (`record Node(IReadOnlyList<Node> Children)`) doğrudan hedefleyen bir test yok | 🟢 | Aday listesine alınmadı — mekanizma zaten paylaşılan `TryCreateObjectType`/`ObjectGraphState` yolunu kullanıyor (kod okunarak doğrulandı), yalnız ek kapsama testi. Küçük bir F-NN açmaya değecek kadar büyük bulunmadı |
 
 **Temiz çıkan başlıklar:** 3.1 (derinlik/cycle algoritması satır satır izlendi),
-3.3 (AOT/trim seviyesi doğru — `AgentPrism.Package.Tests`), 3.5 (imza-gövde
+3.3 (AOT/trim seviyesi doğru — `Tracon.Package.Tests`), 3.5 (imza-gövde
 kayması yok), 3.6 (plan dışı public API yok), APG0011'in graf hatası
 durumunda yanlışlıkla tetiklenmediği doğrulandı.
 
-🔴 bulgular kapandıktan sonra dört kapı yeniden koşuldu (`tests/AgentPrism.Generators.UnitTests`
-269/269, `tests/AgentPrism.Core.UnitTests` 2285/2285, `tests/AgentPrism.Package.Tests`
+🔴 bulgular kapandıktan sonra dört kapı yeniden koşuldu (`tests/Tracon.Generators.UnitTests`
+269/269, `tests/Tracon.Core.UnitTests` 2285/2285, `tests/Tracon.Package.Tests`
 ilgili testler yeşil).
 
 ## Sonraki Faza Devir Notu

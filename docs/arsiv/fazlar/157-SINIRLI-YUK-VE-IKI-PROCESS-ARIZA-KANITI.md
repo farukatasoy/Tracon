@@ -40,7 +40,7 @@ Bugün ölçtüğümüz şey **tahsis**tir, işletim değil. "İki process çal�
 - [x] `ProcessRunner` kopyalanmadı; `tests/Shared/Infrastructure/`'a taşındı ve iki projeye LINK'lendi, `WorkerProcessHost` onu kullanıyor
 - [x] Faz 116'nın tahsis kapısı **değişmedi**; süre kapıya dönmedi (K-738)
 - [x] Dört doğrulama kapısı sıfır uyarı verir
-- [x] `samples/AgentPrism.Api` ile gerçek `run` yapıldı — akışsız `run` `Completed` (`echo`/`echo-1`, 13 token), akışlı SSE `run`/`update` çerçeveleri üretti, `jobs`/`health`/`workflows` uçları `200`; host log'unda hata yok
+- [x] `samples/Tracon.Api` ile gerçek `run` yapıldı — akışsız `run` `Completed` (`echo`/`echo-1`, 13 token), akışlı SSE `run`/`update` çerçeveleri üretti, `jobs`/`health`/`workflows` uçları `200`; host log'unda hata yok
 - [x] `secret` taraması boş döndü (`kapi.py tarama`)
 - [x] Manuel kabul case'leri eklendi: **MT-RES-085…090**; altısının da otomatik karşılığı koşuluyor
 - [x] `faz-denetim` koşuldu; 🔴 bulgu kalmadı
@@ -51,7 +51,7 @@ Bugün ölçtüğümüz şey **tahsis**tir, işletim değil. "İki process çal�
 
 ```bash
 # İki process devralma senaryosu
-dotnet test tests/AgentPrism.PostgreSql.IntegrationTests -c Release \
+dotnet test tests/Tracon.PostgreSql.IntegrationTests -c Release \
   -- --filter-class "*TwoProcessLeaseTakeoverTests*"
 
 # Tahsis kapısı hâlâ yerinde
@@ -64,11 +64,11 @@ python3 scripts/kapi.py performans
 
 | Plan ne diyordu | Ne yapıldı | Neden |
 |---|---|---|
-| Dosya listesi: yük senaryosu `bench/AgentPrism.Benchmarks/SqlRunStoreLoadBenchmarks.cs` | `tests/AgentPrism.PostgreSql.IntegrationTests/Load/BoundedSqlLoadTests.cs` | Planın **kendi** Açık Soru 4'ü B'yi öneriyordu (BenchmarkDotNet'in istatistik modeli uzun süren, dış kaynak isteyen bir koşuma uymaz). Dosya listesi bayattı; öneri izlendi. |
-| Dosya listesi: arıza testleri `tests/AgentPrism.Sqlite.IntegrationTests/` | `tests/AgentPrism.PostgreSql.IntegrationTests/` | Aynı çelişki: Açık Soru 1 ve DoD'nin doğrulama komutu PostgreSQL diyordu, dosya listesi SQLite. SQLite'ın tek process tavsiyesi senaryoyu anlamsız kılar. |
-| "üçüncüsü … `MaxAttempts = 1` varsayılanının anlamıdır" | Cümle kullanılmadı | Ölçüldü: varsayılan `MaxAttempts` **3**'tür (`AgentPrismSchedulingOptions`). Ölçülen iddia yeniden yazıldı: çift yürütme **eşzamanlı** olamaz; çökmeden sonra yeniden yürütme sözleşmenin kendisidir (`IJobHandler` "at-least-once" der). |
+| Dosya listesi: yük senaryosu `bench/Tracon.Benchmarks/SqlRunStoreLoadBenchmarks.cs` | `tests/Tracon.PostgreSql.IntegrationTests/Load/BoundedSqlLoadTests.cs` | Planın **kendi** Açık Soru 4'ü B'yi öneriyordu (BenchmarkDotNet'in istatistik modeli uzun süren, dış kaynak isteyen bir koşuma uymaz). Dosya listesi bayattı; öneri izlendi. |
+| Dosya listesi: arıza testleri `tests/Tracon.Sqlite.IntegrationTests/` | `tests/Tracon.PostgreSql.IntegrationTests/` | Aynı çelişki: Açık Soru 1 ve DoD'nin doğrulama komutu PostgreSQL diyordu, dosya listesi SQLite. SQLite'ın tek process tavsiyesi senaryoyu anlamsız kılar. |
+| "üçüncüsü … `MaxAttempts = 1` varsayılanının anlamıdır" | Cümle kullanılmadı | Ölçüldü: varsayılan `MaxAttempts` **3**'tür (`TraconSchedulingOptions`). Ölçülen iddia yeniden yazıldı: çift yürütme **eşzamanlı** olamaz; çökmeden sonra yeniden yürütme sözleşmenin kendisidir (`IJobHandler` "at-least-once" der). |
 | "Yavaş sink: kayıt gecikmesi işlevi bozmaz (mevcut kural)" | Kural **daraltıldı**: bozmaz ama YAVAŞLATIR | `RunEventWriter.DispatchToSinksAsync` sıcak yolda `await` edilir. Fırlatan `sink` izole edilir; GECİKME edilmez ve olay başına ödenir. `SlowSinkTests` bunu alt sınır olarak ölçer, `production.md` ve `hafiza/cekirdek-calistirma.md` yazar. |
-| Yeni proje yok varsayımı (yalnız `bench/` ve `tests/`) | `tests/AgentPrism.WorkerHarness` eklendi (👤 kullanıcı kararı) | `ProcessRunner` ölçüldü: tamamlanmayı bekleyen `static` bir yardımcı, öldürülebilir uzun ömürlü bir host başlatamaz. Öldürülecek gerçek bir AgentPrism host'u gerekiyordu; `samples/AgentPrism.Api` (956 satır, HTTP portu, frontend varlıkları, kontrollü uzun handler yok) bu iş için ağırdı. Sevk edilen paketlere dokunulmadı. |
+| Yeni proje yok varsayımı (yalnız `bench/` ve `tests/`) | `tests/Tracon.WorkerHarness` eklendi (👤 kullanıcı kararı) | `ProcessRunner` ölçüldü: tamamlanmayı bekleyen `static` bir yardımcı, öldürülebilir uzun ömürlü bir host başlatamaz. Öldürülecek gerçek bir Tracon host'u gerekiyordu; `samples/Tracon.Api` (956 satır, HTTP portu, frontend varlıkları, kontrollü uzun handler yok) bu iş için ağırdı. Sevk edilen paketlere dokunulmadı. |
 | `WorkerProcessHost` `ProcessRunner`'ı kullanır | Kullanıyor — ama `ProcessRunner` `tests/Shared/Infrastructure/`'a **taşındı** ve iki projeye LINK'lendi | Kopyalanmadı (DoD'nin şartı). `ProcessRunner`'a `StartAsync` eklendi; MSBuild `nodeReuse` deadlock düzeltmesi tek bir `CreateStartInfo` gövdesinde kaldı. |
 | Faz kapsamı yalnız ölçüm | **Sevk edilen kodda bir kusur bulundu ve düzeltildi** (K-737) | Aşağıda. |
 
@@ -171,12 +171,12 @@ yük raporundaki RAM/CPU alanlarının GC/container değerleri olması)
   bırakıldı — orada zaman aşımı zaten bir zaman aşımı mesajına dönüşüyor,
   sessiz başarı üretmiyor; `ADAYLAR.md`'de F kalemi olarak duruyor.
 - **Yük raporu bir kapı DEĞİLDİR ve öyle olması ayrı bir karardır** (K-738).
-  `AGENTPRISM_LOAD=1` ile koşar, `artifacts/load/` altına yazar. Bu makinede
+  `TRACON_LOAD=1` ile koşar, `artifacts/load/` altına yazar. Bu makinede
   ölçülen ilk değerler: 8 eşzamanlı, 200 `run` × 20 olay, 256 karakter payload
   → kontrol düzlemi `run` başına ~17,7 ms / olay başına ~0,88 ms
   (macOS arm64, PostgreSQL 18.4 container, commit `a3ec7527`).
 - **Rolling upgrade manifesti "eski sürüm" olarak DAHA AZ opsiyonel migration
-  seti açan bir context kullanır** — ikinci bir AgentPrism ikilisi değil. İki
+  seti açan bir context kullanır** — ikinci bir Tracon ikilisi değil. İki
   gerçek sürümü yan yana koşturmak ölçülmedi; `production.md` bunu vaat etmez.
   Gerçek iki-ikili ölçümü isteyen bir faz `nuget-danismani` ile yayınlanmış iki
   paket sürümü üzerinden kurmalıdır.
@@ -185,7 +185,7 @@ yük raporundaki RAM/CPU alanlarının GC/container değerleri olması)
   `test-yalitimi.md` (%16 boş) kardeşleridir.
 - **`tests/Shared/Infrastructure/` bir csproj DEĞİLDİR**, LINK'lenen kaynak
   dosyalardır. Yeni bir tüketici projesi `<Compile Include=... Link=.../>`
-  satırlarını ve `<Using Include="AgentPrism.Tests.Common" />` girdisini
+  satırlarını ve `<Using Include="Tracon.Tests.Common" />` girdisini
   kendi csproj'una ekler. İkinci bir kopya açma (K-411).
 - **Arıza manifestleri kapıdadır, yük raporu değildir.** `TwoProcessFailureProof`
   koleksiyonu process başlatan sınıfları birbirine karşı seri hâle getirir;

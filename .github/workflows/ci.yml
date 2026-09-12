@@ -57,8 +57,8 @@ jobs:
           node-version: '22'
           cache: npm
           cache-dependency-path: |
-            src/AgentPrism.UI/frontend/package-lock.json
-            packages/agentprism-client/package-lock.json
+            src/Tracon.UI/frontend/package-lock.json
+            packages/tracon-client/package-lock.json
 
       # `scripts/dokuman-bakim.py` icin. Windows runner'inda `python3` komutu
       # garanti degildir (yalniz `python`); acikca kurmak iki isletim sisteminde
@@ -82,13 +82,13 @@ jobs:
           restore-keys: ${{ runner.os }}-nuget-
 
       - name: Bagimliliklari geri yukle
-        run: dotnet restore AgentPrism.slnx
+        run: dotnet restore Tracon.slnx
 
       - name: Kod bicimini dogrula
-        # Bicim sapmasi build'i kirar. Duzeltmek icin: dotnet format AgentPrism.slnx
-        run: dotnet format AgentPrism.slnx --verify-no-changes --no-restore
+        # Bicim sapmasi build'i kirar. Duzeltmek icin: dotnet format Tracon.slnx
+        run: dotnet format Tracon.slnx --verify-no-changes --no-restore
 
-      # Agent haritasi (buildTransitive/AgentPrism.AgentMap.md) capabilities.md'den
+      # Agent haritasi (buildTransitive/Tracon.AgentMap.md) capabilities.md'den
       # URETILIR ama COMMIT edilir: `dotnet pack` onu okur, bu yuzden Node zinciri
       # `dotnet build`e baglanmaz. Bedeli sudur - kaynak degisip uretec kosulmazsa
       # dort kapinin dordu de yesil kalir ve nupkg BAYAT harita sevk eder. Bu adim
@@ -123,20 +123,20 @@ jobs:
       - name: Dokuman kapilari testleri
         run: python3 -m unittest discover -s scripts -p "*_test.py" -v
 
-      # @agentprism/client'in kendi kapisi (docs/arsiv/fazlar/84-TYPESCRIPT-ISTEMCISI-VE-NPM.md,
+      # @tracon/client'in kendi kapisi (docs/arsiv/fazlar/84-TYPESCRIPT-ISTEMCISI-VE-NPM.md,
       # bolum 84.10): schema-drift + paths-coverage + error-mapping + prefix +
       # client testleri. `npm test`'e baglidir, `dotnet test`'e degil -- dort
       # kapinin suresi uretec/paket surumune baglanmaz.
       - name: TypeScript istemcisi bagimliliklari
-        working-directory: packages/agentprism-client
+        working-directory: packages/tracon-client
         run: npm ci
 
       - name: TypeScript istemcisi testleri
-        working-directory: packages/agentprism-client
+        working-directory: packages/tracon-client
         run: npm test
 
       - name: Derle
-        run: dotnet build AgentPrism.slnx -c Release --no-restore
+        run: dotnet build Tracon.slnx -c Release --no-restore
 
       # Faz 116: tahsis kapısı yalnız üç sıcak yoldan biri (veya bench/ kendisi)
       # değiştiyse koşar - `kapi.py performans`'ın kendi mantığı
@@ -175,14 +175,14 @@ jobs:
       - name: Playwright sistem bagimliliklari
         if: runner.os == 'Linux'
         run: |
-          pwsh artifacts/bin/AgentPrism.Ui.E2ETests/release/playwright.ps1 install --with-deps chromium
+          pwsh artifacts/bin/Tracon.Ui.E2ETests/release/playwright.ps1 install --with-deps chromium
 
-      # AgentPrism.PostgreSql.IntegrationTests ve AgentPrism.SqlServer.IntegrationTests
+      # Tracon.PostgreSql.IntegrationTests ve Tracon.SqlServer.IntegrationTests
       # Testcontainers uzerinden Linux container'i baslatir. `windows-latest`
       # runner'inin Docker kurulumu Windows container icindir - Linux image
       # baslatamaz; tum solution tek `dotnet test` cagrisiyla kosulursa bu iki
       # proje Windows'ta ya sessizce atlanir ya da kirilir (Kesif 2026-08-23,
-      # kalem 6). AgentPrism.no-docker.slnf ayni 41 projeden bu ikisini
+      # kalem 6). Tracon.no-docker.slnf ayni 41 projeden bu ikisini
       # cikarir - geri kalan her sey (Sqlite entegrasyonu dahil, o Docker
       # istemez) Windows'ta da gercekten kosar.
       - name: Test et (tum projeler)
@@ -190,11 +190,11 @@ jobs:
         # xunit.v3 Microsoft Testing Platform kullanir; rapor bayraklari VSTest'ten farklidir.
         # `--` sonrasi gelen argumanlar dogrudan test uygulamasina gecer.
         # TRX ciktisi test ikilisinin yanindaki TestResults klasorune yazilir.
-        run: dotnet test AgentPrism.slnx -c Release --no-build -maxcpucount:1 -- --report-trx
+        run: dotnet test Tracon.slnx -c Release --no-build -maxcpucount:1 -- --report-trx
 
       - name: Test et (Docker gerektirmeyenler)
         if: matrix.os == 'windows-latest'
-        run: dotnet test AgentPrism.no-docker.slnf -c Release --no-build -maxcpucount:1 -- --report-trx
+        run: dotnet test Tracon.no-docker.slnf -c Release --no-build -maxcpucount:1 -- --report-trx
 
       - name: Test sonuclarini yukle
         if: always()
@@ -220,21 +220,21 @@ jobs:
         with:
           global-json-file: global.json
 
-      # Arayuz varliklari pack sirasinda gerekir; yoksa AGENTPRISM0003 hatasi verir.
+      # Arayuz varliklari pack sirasinda gerekir; yoksa TRACON0003 hatasi verir.
       - name: Node.js kur
         uses: actions/setup-node@v4
         with:
           node-version: '22'
           cache: npm
           cache-dependency-path: |
-            src/AgentPrism.UI/frontend/package-lock.json
-            packages/agentprism-client/package-lock.json
+            src/Tracon.UI/frontend/package-lock.json
+            packages/tracon-client/package-lock.json
 
       - name: Paketleri uret
         run: |
-          dotnet restore AgentPrism.slnx
-          dotnet build AgentPrism.slnx -c Release --no-restore
-          dotnet pack  AgentPrism.slnx -c Release --no-build
+          dotnet restore Tracon.slnx
+          dotnet build Tracon.slnx -c Release --no-restore
+          dotnet pack  Tracon.slnx -c Release --no-build
 
       - name: Paketleri yukle
         uses: actions/upload-artifact@v4
@@ -274,20 +274,20 @@ jobs:
         with:
           global-json-file: global.json
 
-      # Arayuz varliklari pack sirasinda gerekir (AGENTPRISM0003).
+      # Arayuz varliklari pack sirasinda gerekir (TRACON0003).
       - name: Node.js kur
         uses: actions/setup-node@v4
         with:
           node-version: '22'
           cache: npm
           cache-dependency-path: |
-            src/AgentPrism.UI/frontend/package-lock.json
-            packages/agentprism-client/package-lock.json
+            src/Tracon.UI/frontend/package-lock.json
+            packages/tracon-client/package-lock.json
 
       # `npm publish --dry-run`'in kendi `prepublishOnly` -> `npm run build`
       # adimi icin gerekir; kapi.py'nin npm adimi bu dizinde kosar.
       - name: TypeScript istemcisi bagimliliklari
-        working-directory: packages/agentprism-client
+        working-directory: packages/tracon-client
         run: npm ci
 
       - name: Python kur
@@ -301,7 +301,7 @@ jobs:
   # ---------------------------------------------------------------------------
   # `npm-publish`'ten SONRA kosar (RK-011). Iki kanal PARALEL kostugu surece
   # npm tarafi kirilirsa 20 NuGet paketi KALICI olarak yayinlanmis olur ve
-  # sevk edilen dokuman (`docs-site` -> `npm install @agentprism/client`) var
+  # sevk edilen dokuman (`docs-site` -> `npm install @tracon/client`) var
   # olmayan bir paketi tarif eder. NuGet'te geri donus yoktur; npm'in kisitli
   # bir unpublish penceresi vardir -- bu yuzden ucuz olan kanal ONCE basar ve
   # basarisiz olursa NuGet HIC basmaz. `npm-publish` var olan surumu atlar,
@@ -344,7 +344,7 @@ jobs:
           --skip-duplicate
 
   # ---------------------------------------------------------------------------
-  # @agentprism/client -> npm.org (docs/arsiv/fazlar/84-TYPESCRIPT-ISTEMCISI-VE-NPM.md, bolum 84.11)
+  # @tracon/client -> npm.org (docs/arsiv/fazlar/84-TYPESCRIPT-ISTEMCISI-VE-NPM.md, bolum 84.11)
   #
   # NuGet yayiniyla AYNI 'v*' etiketinde tetiklenir ve surumu AYNI etiketten
   # turetir -- iki kanal boylece YAPISAL olarak eslesir, ayri bir surum dosyasi
@@ -369,10 +369,10 @@ jobs:
           node-version: '22'
           registry-url: https://registry.npmjs.org
           cache: npm
-          cache-dependency-path: packages/agentprism-client/package-lock.json
+          cache-dependency-path: packages/tracon-client/package-lock.json
 
       - name: Bagimliliklari geri yukle
-        working-directory: packages/agentprism-client
+        working-directory: packages/tracon-client
         run: npm ci
 
       # MinVer .NET surumunu ayni etiketten turetir (K-007 deseni); npm'in boyle
@@ -382,13 +382,13 @@ jobs:
         run: echo "value=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_OUTPUT"
 
       - name: package.json surumunu yaz
-        working-directory: packages/agentprism-client
+        working-directory: packages/tracon-client
         run: npm version "${{ steps.version.outputs.value }}" --no-git-tag-version --allow-same-version
 
       # `npm run generate` burada KOSMAZ -- src/schema.ts commit'lidir ve
       # `build` isindeki schema-drift testi onu zaten dogruladi. Yalniz derleme.
       - name: Paketle
-        working-directory: packages/agentprism-client
+        working-directory: packages/tracon-client
         run: npm run build
 
       # npm'de NuGet'in --skip-duplicate karsiligi yoktur; ayni surum ikinci kez
@@ -396,20 +396,20 @@ jobs:
       # kontrol edilir; bulunursa yayinlama adimi ATLANIR, is KIRILMAZ.
       - name: Surum zaten yayinlanmis mi
         id: exists
-        working-directory: packages/agentprism-client
+        working-directory: packages/tracon-client
         run: |
-          if npm view "@agentprism/client@${{ steps.version.outputs.value }}" version >/dev/null 2>&1; then
+          if npm view "@tracon/client@${{ steps.version.outputs.value }}" version >/dev/null 2>&1; then
             echo "already published — atlaniyor"
             echo "value=true" >> "$GITHUB_OUTPUT"
           else
             echo "value=false" >> "$GITHUB_OUTPUT"
           fi
 
-      # @agentprism kapsamli bir paket varsayilan PRIVATE'tir; --access public
+      # @tracon kapsamli bir paket varsayilan PRIVATE'tir; --access public
       # unutulursa paket yayinlanir ama kimse kuramaz (Kabul case 8).
       - name: Yayinla
         if: steps.exists.outputs.value == 'false'
-        working-directory: packages/agentprism-client
+        working-directory: packages/tracon-client
         run: npm publish --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
@@ -498,7 +498,7 @@ jobs:
   # Site AYRI bir yayin hattidir: `dotnet build`'e baglanmaz ve pakete girmez.
   # Yine de .NET derlemesine ihtiyac duyar -- API referansi DocFX ile derlenmis
   # assembly + XML dokumanindan uretilir (MSBuild devrede degil, K-4xx).
-  # Arayuz varliklari gerekmez, bu yuzden AgentPrismFrontendEnabled=false ile
+  # Arayuz varliklari gerekmez, bu yuzden TraconFrontendEnabled=false ile
   # npm/Vite adimlari atlanir.
   #
   # Ekran goruntuleri docs-site/public/screenshots altinda COMMIT'LIDIR; E2E
@@ -548,8 +548,8 @@ jobs:
 
       - name: Assembly ve XML dokumanini uret
         run: |
-          dotnet restore AgentPrism.slnx
-          dotnet build AgentPrism.slnx -c Release --no-restore -p:AgentPrismFrontendEnabled=false
+          dotnet restore Tracon.slnx
+          dotnet build Tracon.slnx -c Release --no-restore -p:TraconFrontendEnabled=false
 
       - name: DocFX aracini geri yukle
         run: dotnet tool restore

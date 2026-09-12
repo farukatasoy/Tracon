@@ -3,7 +3,7 @@
 > **Durum:** ✅ Tamamlandı (2026-09-02)
 > **Kaynak:** [kesif/2026-09-01-tuketici-feature-talepleri.md](../../kesif/2026-09-01-tuketici-feature-talepleri.md) — **F-175**
 > **Önkoşul:** Yok
-> **Paketler:** `AgentPrism.Abstractions`, `.Core`, `.Sql.Shared`, `.PostgreSql`, `.SqlServer`, `.Sqlite`, `.AspNetCore`, `.UI`
+> **Paketler:** `Tracon.Abstractions`, `.Core`, `.Sql.Shared`, `.PostgreSql`, `.SqlServer`, `.Sqlite`, `.AspNetCore`, `.UI`
 > **Yeni paket:** Yok · **Migration:** gerekli — üç set (`runs` tablosuna dört sütun) + üç `MigrationsViews` güncellemesi; numara uygulama anında alınır
 > **Public API:** büyüyor (`RunCost` alanları, `RunRecord.ModelProvider`) **ve bir uç davranışı daralıyor**. `wc -l src/*/PublicAPI.Shipped.txt` → her dosya 1 satır; shipped giriş sıfır, bugün eklemek ucuz
 > **Tüketici yüzeyi:** `docs-site/`: `guides/observability.md`, `reference/read-views.md`, `concepts/runs.md`, `http-api.md` · sevk edilen: `RunCost` ve `IRunPricingResolver` XML dokümanı, `runs_v1` sütun tablosu
@@ -45,13 +45,13 @@ Bu faz iki işi birlikte yapar: bir **çelişkiyi** kapatır ve bir **kanıt bo�
       `RunStoreContract.Unit_prices_stay_null_when_the_model_price_is_unknown` +
       `RunPricingResolverTests.Cost_is_null_not_zero_when_no_price_exists_anywhere`
 - [x] `RunCost.Total()` birim fiyatları **toplamaz**; `RunCostTotalTests` bunu ölçer —
-      `tests/AgentPrism.Core.UnitTests/Models/RunCostTotalTests.cs` (3 test, yeşil)
+      `tests/Tracon.Core.UnitTests/Models/RunCostTotalTests.cs` (3 test, yeşil)
 - [x] `runs_v1` dört yeni sütunu taşır; `ReadViewColumnSetTests` ve `ReadViewCostTermTests` yeşil —
-      `AgentPrism.Sql.Shared.UnitTests`: 20/20 yeşil
+      `Tracon.Sql.Shared.UnitTests`: 20/20 yeşil
 - [x] `RunStoreContract` dört koşumun dördünde de yeşil —
       InMemory (Core.UnitTests içinde) · SQLite 634/634 · PostgreSQL 690/690 · SQL Server 620/620
 - [x] Dört doğrulama kapısı sıfır uyarı verir — bkz. Doğrulama Kapıları çıktısı, kapanışta koşuldu
-- [x] `samples/AgentPrism.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı — aşağıda
+- [x] `samples/Tracon.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı — aşağıda
 - [x] `secret` taraması boş döndü — `python3 scripts/kapi.py tarama` temiz
 - [x] Manuel kabul case'leri `docs/manuel-test/12-GOZLEMLENEBILIRLIK-MALIYET.md` içine eklendi; otomatikleştirilebilenler koşuldu —
       MT-OBS-059 eklendi (`modelProvider`/birim fiyat/snapshot/`runsSkipped`
@@ -67,14 +67,14 @@ Bu faz iki işi birlikte yapar: bir **çelişkiyi** kapatır ve bir **kanıt bo�
 
 ```bash
 # Snapshot alanları
-curl -s http://localhost:5081/agentprism/api/runs/<id> \
+curl -s http://localhost:5081/tracon/api/runs/<id> \
   | jq '{provider: .modelProvider, cost: .cost}'
 
 # Daralan uç
-curl -s -X POST http://localhost:5081/agentprism/api/stats/recalculate-costs | jq
+curl -s -X POST http://localhost:5081/tracon/api/stats/recalculate-costs | jq
 
 # Görünüm sütunları
-psql -c "SELECT model_provider, input_price_per_mtok FROM agentprism.runs_v1 LIMIT 1"
+psql -c "SELECT model_provider, input_price_per_mtok FROM tracon.runs_v1 LIMIT 1"
 ```
 
 ---
@@ -115,8 +115,8 @@ psql -c "SELECT model_provider, input_price_per_mtok FROM agentprism.runs_v1 LIM
   aynı desende iki `string?` parametre olsaydı SESSİZCE yanlış değere
   bağlanabilirdi). Çağrı adlandırılmış argümanlara çevrildi — tam olarak
   `faz-uygulama` Adım 4'ün uyardığı imza-gövde kayması tuzağı.
-- **`samples/AgentPrism.Api` ile gerçek run doğrulaması fiyatsız (`Unknown`)
-  yolla yapıldı.** Yerel makinede `AgentPrism__Pricing__Providers__echo__echo-1__*`
+- **`samples/Tracon.Api` ile gerçek run doğrulaması fiyatsız (`Unknown`)
+  yolla yapıldı.** Yerel makinede `Tracon__Pricing__Providers__echo__echo-1__*`
   ortam değişkeniyle `EchoModelProvider`'a fiyat tanımlamak denendi ama
   seçenek bağlama bir hata verdi (kapsam dışı, bu fazın kodunu etkilemiyor);
   gerçek katalog/yapılandırma fiyatlama yolu zaten `RunPricingResolverTests`
@@ -163,8 +163,8 @@ sızıyordu (K-517 ihlali).** `RunCost.InputPricePerMillionTokens` /
 `RunRecord`/`RunStartInfo`/`RunCompletion.ModelProvider` ile
 `RunCostRecalculationResult.RunsConsidered`'ın `<summary>`'sindeki yedi
 `<see cref>` `<c>ÜyeAdı</c>`'ya çevrildi (`<remarks>` içindekiler zaten
-sorunsuzdu, dokunulmadı). `docs/openapi/agentprism.json` ve
-`packages/agentprism-client/src/schema.ts` yeniden üretildi; ham imza
+sorunsuzdu, dokunulmadı). `docs/openapi/tracon.json` ve
+`packages/tracon-client/src/schema.ts` yeniden üretildi; ham imza
 sızıntısı doğrulanarak kapatıldı (`grep` ile önce/sonra karşılaştırıldı).
 **Düzeltildi.**
 
@@ -207,7 +207,7 @@ beklenen bedeli. `python3 scripts/kapi.py performans --guncelle` ile
   (rate, addend değil) üç alan ekleyince test kırmızı oldu — testin niyeti
   doğruydu, filtresi dardı. Böyle bir testi genişletirken filtrenin GERÇEKTEN
   ne ayırt ettiğini (isim deseni, öznitelik, vb.) düşün.
-- **`samples/AgentPrism.Api`'de `AgentPrism__Pricing__Providers__<sağlayıcı>__<model>__*`
+- **`samples/Tracon.Api`'de `Tracon__Pricing__Providers__<sağlayıcı>__<model>__*`
   ortam değişkeniyle fiyat tanımlamak bu oturumda denenmedi/başarısız oldu**
   (seçenek bağlama hatası verdi, kök neden araştırılmadı — kapsam dışı
   bırakıldı). Gerçek katalog/yapılandırma fiyatlama yolunu örnek uygulamada

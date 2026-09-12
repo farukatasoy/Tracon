@@ -1,0 +1,116 @@
+using Microsoft.Extensions.AI;
+
+namespace Tracon;
+
+/// <summary>
+/// Accumulates token usage produced by a model call that runs OUTSIDE the
+/// agent's normal request/response flow during a run.
+/// </summary>
+/// <remarks>
+/// Two sources feed it today. Context compaction (summarization) issues its own
+/// side-channel <see cref="IChatClient"/> call, fully separate from the agent's
+/// <c>AgentResponse</c> (<see cref="CompactionUsageTrackingChatClient"/>). A
+/// bounded structured-response repair turn issues its own <c>AgentResponse</c>
+/// that is then discarded — either replaced by a further repair attempt or, on
+/// final failure, never returned to the caller at all
+/// (<see cref="StructuredResponseValidatingAgent"/>). Neither source's tokens
+/// enter the normal flow on their own, so this accumulator is available through
+/// <see cref="TraconRunContext"/>. At run completion, <see cref="RunRecordingAgent"/>
+/// adds its value to the final <see cref="RunUsage"/>, so both cost reports and
+/// the graph budget include it.
+/// </remarks>
+internal sealed class SideChannelUsageAccumulator
+{
+    private long _inputTokens;
+    private long _outputTokens;
+    private long _totalTokens;
+
+    // 🚨 The breakdown counters carry their own "was this ever reported" flag
+    // instead of leaning on "the sum is still zero". A provider that reports
+    // CachedInputTokenCount = 0 has MEASURED a cache miss; one that reports
+    // nothing has measured nothing, and the two must not collapse into the same
+    // record (the null-not-zero rule of RunUsage).
+    private long _cachedInputTokens;
+    private long _reasoningTokens;
+    private long _audioInputTokens;
+    private long _audioOutputTokens;
+    private int _cachedInputReported;
+    private int _reasoningReported;
+    private int _audioInputReported;
+    private int _audioOutputReported;
+
+    /// <summary>Adds usage from one side-channel call to the accumulator.</summary>
+    /// <param name="usage">The call usage details. Ignores <see langword="null"/>.</param>
+    public void Add(UsageDetails? usage)
+    {
+        if (usage is null)
+        {
+            return;
+        }
+
+        if (usage.InputTokenCount is { } input)
+        {
+            Interlocked.Add(ref _inputTokens, input);
+        }
+
+        if (usage.OutputTokenCount is { } output)
+        {
+            Interlocked.Add(ref _outputTokens, output);
+        }
+
+        if (usage.TotalTokenCount is { } total)
+        {
+            Interlocked.Add(ref _totalTokens, total);
+        }
+
+        AddReported(UsageBreakdown.CachedInputTokens(usage), ref _cachedInputTokens, ref _cachedInputReported);
+        AddReported(UsageBreakdown.ReasoningTokens(usage), ref _reasoningTokens, ref _reasoningReported);
+        AddReported(UsageBreakdown.AudioInputTokens(usage), ref _audioInputTokens, ref _audioInputReported);
+        AddReported(UsageBreakdown.AudioOutputTokens(usage), ref _audioOutputTokens, ref _audioOutputReported);
+    }
+
+    /// <summary>Converts the accumulated usage to <see cref="RunUsage"/>.</summary>
+    /// <returns><see langword="null"/> when no usage was accumulated.</returns>
+    public RunUsage? ToRunUsage()
+    {
+        var input = Interlocked.Read(ref _inputTokens);
+        var output = Interlocked.Read(ref _outputTokens);
+        var total = Interlocked.Read(ref _totalTokens);
+
+        var cachedInput = ReadReported(ref _cachedInputTokens, ref _cachedInputReported);
+        var reasoning = ReadReported(ref _reasoningTokens, ref _reasoningReported);
+        var audioInput = ReadReported(ref _audioInputTokens, ref _audioInputReported);
+        var audioOutput = ReadReported(ref _audioOutputTokens, ref _audioOutputReported);
+
+        if (input == 0 && output == 0 && total == 0 &&
+            cachedInput is null && reasoning is null && audioInput is null && audioOutput is null)
+        {
+            return null;
+        }
+
+        return new RunUsage
+        {
+            InputTokens = input == 0 ? null : input,
+            OutputTokens = output == 0 ? null : output,
+            TotalTokens = total == 0 ? null : total,
+            CachedInputTokens = cachedInput,
+            ReasoningTokens = reasoning,
+            AudioInputTokens = audioInput,
+            AudioOutputTokens = audioOutput,
+        };
+    }
+
+    private static void AddReported(long? value, ref long counter, ref int reported)
+    {
+        if (value is not { } amount)
+        {
+            return;
+        }
+
+        Interlocked.Add(ref counter, amount);
+        Interlocked.Exchange(ref reported, 1);
+    }
+
+    private static long? ReadReported(ref long counter, ref int reported)
+        => Interlocked.CompareExchange(ref reported, 0, 0) == 0 ? null : Interlocked.Read(ref counter);
+}

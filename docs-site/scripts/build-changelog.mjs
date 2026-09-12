@@ -91,10 +91,10 @@ function parseReleases(text) {
 function renderUnreleased() {
   return `---
 title: Release notes
-description: AgentPrism has not been released yet; this page will carry the entry for each published version.
+description: Tracon has not been released yet; this page will carry the entry for each published version.
 ---
 
-**AgentPrism has not been released yet.** No version has been published to
+**Tracon has not been released yet.** No version has been published to
 NuGet or npm, and there is no release tag, so there is nothing here to install
 or pin. Development happens on \`main\`.
 
@@ -121,10 +121,10 @@ function render(releases) {
 
   return `---
 title: Release notes
-description: What changed in every published AgentPrism version, with the entry each package's release-notes link points to.
+description: What changed in every published Tracon version, with the entry each package's release-notes link points to.
 ---
 
-Every AgentPrism package is cut from one version line, so a release below covers
+Every Tracon package is cut from one version line, so a release below covers
 all 20 NuGet packages and the npm client at once. Each package's release-notes
 metadata links straight to the entry for the version you installed.
 

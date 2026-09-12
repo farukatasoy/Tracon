@@ -3,7 +3,7 @@
 > **Durum:** ✅ Tamamlandı (2026-08-02)
 > **Önkoşul:** [01-CEKIRDEK-SOYUTLAMALAR.md](01-CEKIRDEK-SOYUTLAMALAR.md) — tamamlandı
 > **Sonraki:** [03-SAGLAYICI-VE-DERLEYICI.md](03-SAGLAYICI-VE-DERLEYICI.md)
-> **Paketler:** `AgentPrism.PostgreSql` (dolduruldu), `AgentPrism.Core` (oturum yönetimi eklendi)
+> **Paketler:** `Tracon.PostgreSql` (dolduruldu), `Tracon.Core` (oturum yönetimi eklendi)
 
 ---
 
@@ -32,8 +32,8 @@ Sapmalar gizlenmez; gerekçesi en değerli bilgidir.
 
 | # | Plan ne diyordu | Ne yapıldı | Gerekçe |
 |---|-----------------|------------|---------|
-| 1 | Ayarlar `AgentPrismOptions` altına eklenecek; örnek `appsettings.json` `AgentPrism:ConnectionString` gösteriyordu | Ayrı `AgentPrism:PostgreSql` bölümü *(kullanıcı kararı)* | Faz 3'teki `AgentPrism:Providers:OpenAI` ile aynı desen; ileride `AgentPrism.SqlServer` eklenirse ad çakışması olmaz. `SchemaName` ve `CommandTimeoutSeconds` için kökte yer yoktu. |
-| 2 | Oturum kalıcılığının nasıl bağlanacağı yazılmamıştı; MAF'ın `AgentSessionStore` sınıfı K-008 gereği Faz 4'e bırakılmıştı | `AgentPrism.Core` içine `AgentSessionManager` eklendi *(kullanıcı kararı)* | `ISessionStore`'un çağıranı olmadan faz DoD'u kapanmazdı. Yönetici sağlayıcıdan bağımsızdır; Faz 4'teki `AgentSessionStore` uygulaması buna delege eder. Karar K-026. |
+| 1 | Ayarlar `TraconOptions` altına eklenecek; örnek `appsettings.json` `Tracon:ConnectionString` gösteriyordu | Ayrı `Tracon:PostgreSql` bölümü *(kullanıcı kararı)* | Faz 3'teki `Tracon:Providers:OpenAI` ile aynı desen; ileride `Tracon.SqlServer` eklenirse ad çakışması olmaz. `SchemaName` ve `CommandTimeoutSeconds` için kökte yer yoktu. |
+| 2 | Oturum kalıcılığının nasıl bağlanacağı yazılmamıştı; MAF'ın `AgentSessionStore` sınıfı K-008 gereği Faz 4'e bırakılmıştı | `Tracon.Core` içine `AgentSessionManager` eklendi *(kullanıcı kararı)* | `ISessionStore`'un çağıranı olmadan faz DoD'u kapanmazdı. Yönetici sağlayıcıdan bağımsızdır; Faz 4'teki `AgentSessionStore` uygulaması buna delege eder. Karar K-026. |
 | 3 | `PostgresChatHistoryProvider` dosya listesindeydi ama bağlanacağı yer yazılmamıştı | Derleyici DI'daki `ChatHistoryProvider`'ı her agent'a otomatik bağlar *(kullanıcı kararı)* | Bağlanmayan bir sağlayıcı ölü koddur. Sohbet geçmişi `conversation_items` tablosunda yaşar; oturum satırı küçük kalır ve geçmiş SQL ile sorgulanabilir. |
 | 4 | "Serbest yapılı alanlar `jsonb`" | `sessions.state` ve `conversation_items.item` **`json`** oldu | 🚨 PostgreSQL `jsonb` nesne anahtarlarını yeniden sıralar. System.Text.Json'ın polimorfik `$type` ayracı ilk özellik olmak zorundadır; `jsonb` bunu bozar ve okuma `JsonException` verir. Ölçüldü: `Sohbet_gecmisi_oturumlar_arasi_surer` testi bu yüzden kırıldı. Karar K-027. |
 | 5 | `run_events.payload` için tip belirtilmemişti | `text` | `RunEventWriter` tool argümanlarını AOT uyumlu kalmak için elle biçimlendirir (`key=value`); çıktı geçerli JSON değildir. `jsonb` sütunu çalıştırmayı kesen bir hata üretirdi. |
@@ -46,7 +46,7 @@ Sapmalar gizlenmez; gerekçesi en değerli bilgidir.
 
 ## Şema
 
-`agentprism` şeması (karar K-013). Tüketicinin `public` şemasına **hiç dokunulmaz** — test ile doğrulandı.
+`tracon` şeması (karar K-013). Tüketicinin `public` şemasına **hiç dokunulmaz** — test ile doğrulandı.
 
 | Tablo | Anahtar alanlar | Not |
 |-------|----------------|-----|
@@ -73,7 +73,7 @@ Toplam 13 tablo + `__migrations` = 14.
 ## Migration Runner
 
 ```
-src/AgentPrism.PostgreSql/Migrations/
+src/Tracon.PostgreSql/Migrations/
 ├── MigrationDescriptor.cs      (gömülü kaynak keşfi + SHA-256 checksum)
 ├── MigrationRunner.cs          (advisory lock + checksum doğrulama + uygulama)
 ├── MigrationHostedService.cs   (AutoApplyMigrations + varsayılan kiracı satırı)
@@ -99,23 +99,23 @@ Tüm adımlar **tek bir bağlantı** üzerinde yürür — advisory lock oturum 
 | Ölçüt | Durum |
 |-------|-------|
 | `UsePostgreSql(...)` zincire eklenir ve `Replace` ile depoları değiştirir | ✅ `ServiceRegistrationTests` |
-| Uygulama başlar, migration'lar uygulanır, `agentprism` şeması oluşur | ✅ `AgentPrism 1 migration uyguladi. Sema: agentprism.` |
+| Uygulama başlar, migration'lar uygulanır, `tracon` şeması oluşur | ✅ `Tracon 1 migration uyguladi. Sema: tracon.` |
 | Örnek API yeniden başlatılır — agent tanımı ve çalıştırma geçmişi yerinde durur | ✅ aşağıdaki çıktı |
 | `public` şemasının değişmediği doğrulanır | ✅ `Did not find any tables named "public.*"` |
 | 5 eşzamanlı başlangıçta migration tek kez uygulanır | ✅ `Bes_es_zamanli_kosuda_migration_tek_kez_uygulanir` (1 uygulama, 4 atlama) |
 | `InMemory*` ile `Postgres*` aynı davranış testlerini geçer | ✅ ortak sözleşme sınıfları |
 | `dotnet build -c Release` — 0 uyarı (AOT dahil) | ✅ `0 Warning(s) / 0 Error(s)` |
 | `dotnet test` — mevcut 42 test + yeni entegrasyon testleri | ✅ 42 + 88 = **130** |
-| `dotnet pack` — 0 uyarı | ✅ `AgentPrism.PostgreSql` nuspec'inde **2** doğrudan bağımlılık (`AgentPrism.Core`, `Npgsql`) |
+| `dotnet pack` — 0 uyarı | ✅ `Tracon.PostgreSql` nuspec'inde **2** doğrudan bağımlılık (`Tracon.Core`, `Npgsql`) |
 | `dotnet format --verify-no-changes` | ✅ değişiklik yok |
 | Sır taraması | ✅ boş |
 
 ### Manuel doğrulama — gerçek çıktı
 
 ```bash
-docker run -d --name pg -e POSTGRES_PASSWORD=... -e POSTGRES_DB=agentprism_demo -p 55432:5432 postgres:18-alpine
-cd samples/AgentPrism.Api
-AgentPrism__PostgreSql__ConnectionString="Host=localhost;Port=55432;..." dotnet run -c Release
+docker run -d --name pg -e POSTGRES_PASSWORD=... -e POSTGRES_DB=tracon_demo -p 55432:5432 postgres:18-alpine
+cd samples/Tracon.Api
+Tracon__PostgreSql__ConnectionString="Host=localhost;Port=55432;..." dotnet run -c Release
 ```
 
 ```
@@ -131,20 +131,20 @@ POST /agents/support/run  {"message":"tesekkurler","sessionId":"musteri-7"}
 
 GET /sessions
 [{"id":"musteri-7","agentName":"support",
-  "state":{"stateBag":{"AgentPrism.SessionId":"musteri-7",
-                       "AgentPrism.ChatHistory":{"conversationId":"019fbfa1-2ca1-7712-8df9-ab8695893871"}}},
+  "state":{"stateBag":{"Tracon.SessionId":"musteri-7",
+                       "Tracon.ChatHistory":{"conversationId":"019fbfa1-2ca1-7712-8df9-ab8695893871"}}},
   "createdAt":"...","updatedAt":"...","tenantId":"default"}]
 
 --- uygulama durduruldu ve yeniden başlatıldı ---
 
 GET /runs        → 2 çalıştırma, ikisi de session=musteri-7, eventCount=4, status=Completed
 POST .../run     → {"text":"Echo: tekrar merhaba","sessionId":"musteri-7"}    (aynı oturum sürdü)
-psql -c "SELECT count(*) FROM agentprism.conversation_items"   → 6      (3 tur × 2 mesaj)
+psql -c "SELECT count(*) FROM tracon.conversation_items"   → 6      (3 tur × 2 mesaj)
 psql -c "\dt public.*"                                         → Did not find any tables named "public.*"
-psql -c "SELECT count(*) ... table_schema='agentprism'"        → 14
+psql -c "SELECT count(*) ... table_schema='tracon'"        → 14
 ```
 
-Oturum durumundaki `stateBag` iki şeyi kanıtlıyor: oturum kimliği damgası (`AgentPrism.SessionId`) ve sohbet geçmişi sağlayıcısının konuşma kimliği (`AgentPrism.ChatHistory`) oturumla birlikte kalıcılaşıyor.
+Oturum durumundaki `stateBag` iki şeyi kanıtlıyor: oturum kimliği damgası (`Tracon.SessionId`) ve sohbet geçmişi sağlayıcısının konuşma kimliği (`Tracon.ChatHistory`) oturumla birlikte kalıcılaşıyor.
 
 ---
 
@@ -177,5 +177,5 @@ Oturum durumundaki `stateBag` iki şeyi kanıtlıyor: oturum kimliği damgası (
 | `AgentSession` serileştirme formatı MAF sürümleri arasında değişebilir | `sessions.schema_version` sütunu yazılıyor; ileri sürüm okunursa anlaşılır hata veriliyor. `AgentSessionManager` ayrıca `DeserializeSessionAsync` hatalarını sarmalayıp hangi agent'a ait olduğunu söylüyor. |
 | Uzun süren migration üretimde başlangıcı kilitler | `AutoApplyMigrations=false` seçeneği var; `MigrationRunner` public. |
 | `Replace` yerine `TryAdd` yazılması | `ServiceRegistrationTests` üç depoyu da denetliyor. |
-| `jsonb` serileştirmede yansıma kullanılması | `AgentPrismJsonContext` kaynak üreteci; build AOT analyzer'ları ile temiz. |
+| `jsonb` serileştirmede yansıma kullanılması | `TraconJsonContext` kaynak üreteci; build AOT analyzer'ları ile temiz. |
 | **YENİ:** `jsonb` anahtar sırasını bozar | `json` sütununa geçildi (karar K-027); sözleşme testi ham metni karşılaştırıyor. |

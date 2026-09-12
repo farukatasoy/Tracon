@@ -1,4 +1,4 @@
-# AgentPrism — AGENTS.md
+# Tracon — AGENTS.md
 
 > **Merkezi agent talimat dosyası** — her AI kod agent'ı için tek kaynak budur.
 > `CLAUDE.md` buna symlink'tir; platform-spesifik ayrı talimat dosyası oluşturma.
@@ -59,7 +59,7 @@ durumu tarif ederek kullanıcıya sor. Plan modundaysan en küçüğünü bile s
 
 ## Bu Proje Nedir
 
-AgentPrism, Microsoft Agent Framework (MAF) üzerine kurulu bir **NuGet paket
+Tracon, Microsoft Agent Framework (MAF) üzerine kurulu bir **NuGet paket
 ailesidir** — bir uygulama değil, başkalarının bağımlı olacağı bir kütüphane.
 Kalite eşiğini bu belirler:
 
@@ -178,7 +178,7 @@ Geliştirme aparatı (`docs/`, `.agents/skills/`, `scripts/`) Türkçe kalır;
 [`docs/hafiza/dokumantasyon.md`](docs/hafiza/dokumantasyon.md).
 
 **MAF tiplerini sarmalama.** `AIAgent`, `AgentSession`, `ChatMessage`,
-`AIFunction` doğrudan kullanılır. AgentPrism bir kontrol düzlemidir, bir
+`AIFunction` doğrudan kullanılır. Tracon bir kontrol düzlemidir, bir
 soyutlama katmanı değil.
 
 **`Activity.Current` ve `AsyncLocal` async yardımcı metotta açılmaz.** Yazım
@@ -193,7 +193,7 @@ ve akışlı yolda her `MoveNextAsync` öncesi tekrarlanır. Vaka kaydı:
 doğrula. `reflection` kullanma; kaçış merdiveni:
 [`docs/hafiza/build-ve-analyzer.md`](docs/hafiza/build-ve-analyzer.md).
 
-**Ön sürüm MAF paketleri yalnızca `AgentPrism.AspNetCore` içinde** (K-008).
+**Ön sürüm MAF paketleri yalnızca `Tracon.AspNetCore` içinde** (K-008).
 
 **`secret` veritabanına da yazılmaz** (K-059). Kayıtta yalnızca değerin
 okunacağı **yapılandırma anahtarının adı** durur; değer çalışma anında

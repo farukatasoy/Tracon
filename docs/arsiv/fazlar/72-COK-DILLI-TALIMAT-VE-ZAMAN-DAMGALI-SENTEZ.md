@@ -3,10 +3,10 @@
 > **Durum:** ✅ Tamamlandı (2026-08-19)
 > **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-117**, **F-118**
 > **Önkoşul:** [Faz 19](19-SURUM-KARSILASTIRMA-VE-AB.md) — agent sürümleme ve diff · [Faz 28](28-SES-TOOLLARI.md) — ses tool'ları ve ElevenLabs istemcisi
-> **Paketler:** `AgentPrism.Abstractions`, `AgentPrism.Core`, `AgentPrism.Voice`, `AgentPrism.Sql.Shared`, `AgentPrism.AspNetCore`, `AgentPrism.UI`
+> **Paketler:** `Tracon.Abstractions`, `Tracon.Core`, `Tracon.Voice`, `Tracon.Sql.Shared`, `Tracon.AspNetCore`, `Tracon.UI`
 > **Yeni paket:** Yok · **Migration:** **YOK** — plan yanlıştı, bkz. Plandan Sapmalar ve K-499
 > **Public API:** **büyüdü** — `AgentDefinition.InstructionsByCulture`, `AgentDefinitionRequest.InstructionsByCulture`, `AgentRunRequest.Culture`, `IAgentSource`/`IAgentCatalog`/`IVersionedAgentSource` imzalarına `culture`, `CompiledAgentCache`'e culture'lı aşırı yükler, `InstructionCultureResolver` (yeni tip), `SpeechRequest.IncludeTimestamps`, `SpeechAudio.Alignment`, `SpeechAlignment` (yeni tip), `SpeakRequest.IncludeTimestamps`, `SpeakResponse.Alignment`. `PublicAPI.Shipped.txt` hâlâ boş — bedavaydı.
-> **Site etkisi:** `concepts/agents.md`, `guides/voice.md` güncellendi. `reference/configuration.md`'ye dokunulmadı — gerekçe: bu faz `AgentPrismOptions`/`VoiceOptions`'a yeni bir yapılandırma anahtarı eklemedi (`culture`/`includeTimestamps` istek başına alan, config değil)
+> **Site etkisi:** `concepts/agents.md`, `guides/voice.md` güncellendi. `reference/configuration.md`'ye dokunulmadı — gerekçe: bu faz `TraconOptions`/`VoiceOptions`'a yeni bir yapılandırma anahtarı eklemedi (`culture`/`includeTimestamps` istek başına alan, config değil)
 > **Manuel test alanı:** [`docs/manuel-test/19-COK-MODLULUK-VE-SES.md`](../../manuel-test/19-COK-MODLULUK-VE-SES.md) (MT-MM-091..094) · [`docs/manuel-test/02-CEKIRDEK-VE-KATALOG.md`](../../manuel-test/02-CEKIRDEK-VE-KATALOG.md) (MT-CORE-075..081)
 
 ---
@@ -51,7 +51,7 @@ uygulanabilir ve bağımsız olarak iptal edilebilir.
 ### F-117
 
 - [x] Kültür sözlüğü boşken hiçbir davranış değişmez — `InstructionCultureResolutionTests`,
-      MT-CORE-075 (gerçek `samples/AgentPrism.Api` koşumu)
+      MT-CORE-075 (gerçek `samples/Tracon.Api` koşumu)
 - [x] `tr-TR` → `tr` → varsayılan geri düşüş zinciri çalışır; eşleşmeyen kültür
       **hata vermez** — `InstructionCultureResolutionTests`, MT-CORE-076..078
       (gerçek Anthropic Claude'a karşı koşuldu, bkz. Doğrulama komutları)
@@ -85,7 +85,7 @@ uygulanabilir ve bağımsız olarak iptal edilebilir.
 
 - [x] Dört doğrulama kapısı sıfır uyarı verir — `dotnet build`/`test`/`pack`/`format`
       tüm çözümde 0 uyarı/0 hata (bu kapanıştan hemen önce yeniden koşuldu)
-- [x] `samples/AgentPrism.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı —
+- [x] `samples/Tracon.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı —
       aşağıdaki Doğrulama komutları bölümü gerçek çıktı taşır
 - [x] `secret` taraması boş döndü — bu fazın eklediği hiçbir dosyada eşleşme yok
       (taramanın gösterdiği tüm satırlar önceki fazlardan kalma, yerel dev
@@ -106,7 +106,7 @@ uygulanabilir ve bağımsız olarak iptal edilebilir.
       (araya giren fazların küçültmesi bu fazın payını maskeliyor; ayrı
       ölçülemedi)
 
-### Doğrulama komutları — gerçek çıktı (2026-08-19, `samples/AgentPrism.Api`, gerçek Anthropic + ElevenLabs)
+### Doğrulama komutları — gerçek çıktı (2026-08-19, `samples/Tracon.Api`, gerçek Anthropic + ElevenLabs)
 
 ```bash
 # Kültür çözümlemesi — agent instructionsByCulture={"tr": "..."} ile oluşturuldu
@@ -189,9 +189,9 @@ Bağımsız denetim taze bağlamlı bir alt agent ile koşuldu (`.agents/skills/
   yeni bir istek-bazlı boyut eklerken bu deseni tekrarla (bkz. K-380'in aynı
   dersi tenant için verdiği).
 - **`SpeechAlignment` karakter bazlıdır.** Bir tüketici kelime/cümle
-  granülerliği isterse (altyazı üretimi gibi) bu AgentPrism'in işi değil —
+  granülerliği isterse (altyazı üretimi gibi) bu Tracon'in işi değil —
   `docs/72`'nin kapsam dışı tablosu ve `docs-site/guides/voice.md` bunu açıkça
-  söylüyor. Yanlışlıkla "AgentPrism SRT üretsin" gibi bir işe girişilmesin.
+  söylüyor. Yanlışlıkla "Tracon SRT üretsin" gibi bir işe girişilmesin.
 - **Akışlı zaman damgalı sentez YAZILMADI (K-502).** ElevenLabs'ın
   `/stream/with-timestamps` ucu ayrı bir JSON-parça protokolü konuşur; bugünkü
   `ISpeechSynthesizer.SynthesizeStreamingAsync` imzası bunu taşıyamaz. Gerçek

@@ -92,7 +92,7 @@
 ## MT-COMPAT-027 — Akışsız yolda sağlayıcı hatası `502` döner
 
 **Gerçek sonuç**
-**KALDI - HATA-S2-003 (Yuksek).** Once azure-destek hic kayitli DEGILDI (bu ortamda Azure kimligi tanimsizdi -> agentPrism.AddAgent yalniz azureOpenAIEnabled true ise cagriliyor, Program.cs:556-578) - bu kismi doküman duzeltmesidir (asagida). Gecici sahte Azure Endpoint+ApiKey+DefaultDeployment ile agent kayitli hale getirilip GERCEK bir sağlayici hatasi (DNS cozulemedi) tetiklendi. Beklenen HTTP 502 + error.type: upstream_error (OpenAICompatSupport.Error), GERCEKLESEN: HTTP 500, govde ASP.NET Core'un GENEL ProblemDetails sayfasi ({"type":"...","title":"An error occurred while processing your request.","status":500}) - OpenAI hata zarfi DEGIL. Kok neden: OpenAIResponsesEndpoints.cs:213 akissiz yolun catch filtresi hala K-296 ONCESI dar listeyi tasiyor (catch (Exception ex) when (ex is AgentPrismException or InvalidOperationException or HttpRequestException)) - gercek saglayici istisnasi (System.AggregateException, DNS hatasi) bu filtreden GECMIYOR, yakalanmadan ASP.NET Core'un varsayilan isleyicisine sizip 500 ProblemDetails uretiyor. Kapsam: OpenAIChatCompletionsEndpoints.cs:145 (/v1/chat/completions akissiz yolu) AYNI dar filtreyi tasiyor - iki compat ucunun da akissiz yollari etkileniyor. K-296'nin duzeltmesi yalniz akisli varyantlari (ResponsesStream, ChatCompletionsStream) kapsamis, kardes akissiz yollari KACIRMIS.
+**KALDI - HATA-S2-003 (Yuksek).** Once azure-destek hic kayitli DEGILDI (bu ortamda Azure kimligi tanimsizdi -> tracon.AddAgent yalniz azureOpenAIEnabled true ise cagriliyor, Program.cs:556-578) - bu kismi doküman duzeltmesidir (asagida). Gecici sahte Azure Endpoint+ApiKey+DefaultDeployment ile agent kayitli hale getirilip GERCEK bir sağlayici hatasi (DNS cozulemedi) tetiklendi. Beklenen HTTP 502 + error.type: upstream_error (OpenAICompatSupport.Error), GERCEKLESEN: HTTP 500, govde ASP.NET Core'un GENEL ProblemDetails sayfasi ({"type":"...","title":"An error occurred while processing your request.","status":500}) - OpenAI hata zarfi DEGIL. Kok neden: OpenAIResponsesEndpoints.cs:213 akissiz yolun catch filtresi hala K-296 ONCESI dar listeyi tasiyor (catch (Exception ex) when (ex is TraconException or InvalidOperationException or HttpRequestException)) - gercek saglayici istisnasi (System.AggregateException, DNS hatasi) bu filtreden GECMIYOR, yakalanmadan ASP.NET Core'un varsayilan isleyicisine sizip 500 ProblemDetails uretiyor. Kapsam: OpenAIChatCompletionsEndpoints.cs:145 (/v1/chat/completions akissiz yolu) AYNI dar filtreyi tasiyor - iki compat ucunun da akissiz yollari etkileniyor. K-296'nin duzeltmesi yalniz akisli varyantlari (ResponsesStream, ChatCompletionsStream) kapsamis, kardes akissiz yollari KACIRMIS.
 
 ---
 
@@ -113,7 +113,7 @@ provided...)","type":"upstream_error"}}` — beklenen sonuçla BIREBIR eslesiyor
 `POST /api/agents/azure-destek/run` (`Idempotency-Key` ile akissiz yol,
 ucuncu kok neden alani) da ayrica dogrulandi: `HTTP 502`,
 `title: "Agent calistirilamadi"`, `application/problem+json`. Regresyon testi:
-`tests/AgentPrism.AspNetCore.FunctionalTests/ProviderOutageErrorHandlingTests.cs`
+`tests/Tracon.AspNetCore.FunctionalTests/ProviderOutageErrorHandlingTests.cs`
 — gercek saglayici SDK istisnalarini (`Exception`'dan DOGRUDAN turer, whitelist'e
 UYMAZ) taklit eden `ThrowingModelProvider` ile ucu de (akissiz run, `/v1/responses`,
 `/v1/chat/completions`) kapsar; fix geri alinip calistirildiginda ucu de KIRMIZI
@@ -144,7 +144,7 @@ bağımsız kök neden bulundu ve ikisi de düzeltildi:
 
 1. **Durum etiketi.** `RunRecordingAgent`'ta kök (`Depth == 0`) bir
    çalıştırmanın `AwaitingApproval` olarak kapanması eskiden yalnız kuyruktan
-   koşan çalıştırmalarda (`AgentPrismRunOptions.SuspendOnApproval == true`)
+   koşan çalıştırmalarda (`TraconRunOptions.SuspendOnApproval == true`)
    uygulanıyordu; senkron/compat/MCP/A2A yolu bu bayrağı hiç ayarlamıyordu ve
    onay bekleyen bir tool çağrısı taşıyan bir çalıştırma her zaman `Completed`
    olarak kapanıyordu. `SuspendOnApproval` kaldırıldı (artık `Depth == 0` ve
@@ -249,7 +249,7 @@ bu case'ler insan tarafından **yeniden** koşulur.
 ## MT-COMPAT-049 — Yanlış bearer token `401`
 
 **Gerçek sonuç**
-HTTP: 401. AgentPrismEndpointFilter compat uclarina da uygulaniyor.
+HTTP: 401. TraconEndpointFilter compat uclarina da uygulaniyor.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
@@ -263,7 +263,7 @@ Bu bölüm bir kusur listesi değildir — koşum aşamasında doğrulanacak
 - **MT-COMPAT-029**: `cancel_order` gibi onay gerektiren bir tool çağrısının
   `/v1/responses` üzerinden tam olarak nasıl serileştiği (`OpenAIResponses
   .WriteResponse`'un `ToolApprovalRequestContent`'i nasıl işlediği) MAF'ın
-  kendi kaynağından **doğrulanmadı** — yalnız AgentPrism tarafındaki
+  kendi kaynağından **doğrulanmadı** — yalnız Tracon tarafındaki
   `agent.RunAsync` çağrısının hiçbir onay-özel dallanma taşımadığı görüldü.
   Olası sonuçlar: boş `output`, yarım metin veya MAF'ın kendi hata fırlatması.
   Koşum gerçek değeri kaydeder; tutarsızlık çıkarsa HATA şablonuyla kaydedilir.

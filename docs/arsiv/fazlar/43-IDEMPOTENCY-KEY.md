@@ -3,7 +3,7 @@
 > **Durum:** ✅ Tamamlandı (2026-08-07)
 > **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-37**
 > **Önkoşul:** Yok. Ama [Faz 25](25-VERI-SAKLAMA-VE-ARSIVLEME.md)'in saklama hedef kayıt defteri **kullanılır**
-> **Paketler:** `AgentPrism.Abstractions`, `.Core`, `.Sql.Shared`, `.PostgreSql`, `.SqlServer`, `.Sqlite`, `.AspNetCore`
+> **Paketler:** `Tracon.Abstractions`, `.Core`, `.Sql.Shared`, `.PostgreSql`, `.SqlServer`, `.Sqlite`, `.AspNetCore`
 > **Yeni paket:** Yok · **Migration:** **gerekli** — bir tablo, üç set, numaralar uygulama anında alınır (K-178)
 > **Public API:** büyüyor — bir arayüz, bir ayar, bir kayıt tipi. Faz 7'den önce ucuz
 
@@ -26,7 +26,7 @@
 
 ## Amaç
 
-Bir istemci ağ hatası aldığında isteği yeniden gönderir. AgentPrism bugün bunu **ikinci bir çalıştırma** olarak görür: agent ikinci kez koşar, tool'lar ikinci kez yan etki üretir ve model faturası ikinci kez yazılır. Bu faz, standart `Idempotency-Key` başlığını destekler: aynı anahtarla gelen ikinci istek **yeniden çalıştırmaz**, ilk yanıtı döndürür.
+Bir istemci ağ hatası aldığında isteği yeniden gönderir. Tracon bugün bunu **ikinci bir çalıştırma** olarak görür: agent ikinci kez koşar, tool'lar ikinci kez yan etki üretir ve model faturası ikinci kez yazılır. Bu faz, standart `Idempotency-Key` başlığını destekler: aynı anahtarla gelen ikinci istek **yeniden çalıştırmaz**, ilk yanıtı döndürür.
 
 ## Bitiş Ölçütleri (DoD)
 
@@ -58,10 +58,10 @@ Bir istemci ağ hatası aldığında isteği yeniden gönderir. AgentPrism bugü
 - [x] Dört doğrulama kapısı sıfır uyarı verir — `dotnet build`/`pack`/`format`
       temiz; `dotnet test` SqlServer.IntegrationTests DIŞINDA tüm projelerde
       yeşil (env kısıtı, kod hatası değil)
-- [x] `samples/AgentPrism.Api` ile gerçek `run` yapıldı, çıktı bu belgeye yazıldı
+- [x] `samples/Tracon.Api` ile gerçek `run` yapıldı, çıktı bu belgeye yazıldı
 - [x] `secret` taraması boş döndü
 
-### Doğrulama komutları — gerçek çıktı (2026-08-07, `samples/AgentPrism.Api`, echo sağlayıcı, "support" agent)
+### Doğrulama komutları — gerçek çıktı (2026-08-07, `samples/Tracon.Api`, echo sağlayıcı, "support" agent)
 
 🚨 Planın taslak `curl`'leri `/api/agents/{name}/run` için `{"messages":[...]}`
 gövdesi varsayıyordu; gerçek şema `AgentRunRequest.Message` (tekil metin) ve
@@ -72,37 +72,37 @@ akış seçimi `?stream=true` **DEĞİL**, `Idempotency-Key` başlığının ken
 KEY=$(uuidgen)
 
 # Ilk istek
-curl -s -D - -X POST http://localhost:5081/agentprism/api/agents/support/run \
+curl -s -D - -X POST http://localhost:5081/tracon/api/agents/support/run \
   -H "content-type: application/json" -H "Idempotency-Key: $KEY" \
   -d '{"message":"merhaba"}'
 # -> HTTP/1.1 200 OK (Idempotency-Replayed YOK)
 # {"runId":"019fdac7-f3b8-7a40-9154-5397b05a0026","response":{"messages":[{"authorName":"support","role":"assistant","contents":[{"$type":"text","text":"Merhaba! Size nasıl yardımcı olabilirim?"}],...}],...}}
 
 # Ikinci istek — AYNI govde.
-curl -s -D - -X POST http://localhost:5081/agentprism/api/agents/support/run \
+curl -s -D - -X POST http://localhost:5081/tracon/api/agents/support/run \
   -H "content-type: application/json" -H "Idempotency-Key: $KEY" \
   -d '{"message":"merhaba"}'
 # -> HTTP/1.1 200 OK, Idempotency-Replayed: true
 # runId ve response BIREBIR AYNI (ayni messageId, ayni createdAt) — agent IKINCI KEZ CALISMADI
 
 # /api/runs sayisi TEK olmali
-curl -s http://localhost:5081/agentprism/api/runs | python3 -c "import json,sys;print(len(json.load(sys.stdin)))"
+curl -s http://localhost:5081/tracon/api/runs | python3 -c "import json,sys;print(len(json.load(sys.stdin)))"
 # -> 1
 
 # Farkli govde — 422 gelmeli
-curl -s -o /dev/null -w "%{http_code}\n" -X POST http://localhost:5081/agentprism/api/agents/support/run \
+curl -s -o /dev/null -w "%{http_code}\n" -X POST http://localhost:5081/tracon/api/agents/support/run \
   -H "content-type: application/json" -H "Idempotency-Key: $KEY" \
   -d '{"message":"BASKA"}'
 # -> 422
 
 # Akisli istek (stream:true govdede) + anahtar — 400 gelmeli (/v1/responses)
-curl -s -o /dev/null -w "%{http_code}\n" -X POST http://localhost:5081/agentprism/v1/responses \
+curl -s -o /dev/null -w "%{http_code}\n" -X POST http://localhost:5081/tracon/v1/responses \
   -H "content-type: application/json" -H "Idempotency-Key: $(uuidgen)" \
   -d '{"model":"support","input":"merhaba","stream":true}'
 # -> 400
 
 # Saklama hedefi taniniyor mu — PUT ile politika kaydi (GET, DB'de kayit yoksa 404 doner; bu NORMALDIR)
-curl -s -o /dev/null -w "%{http_code}\n" -X PUT http://localhost:5081/agentprism/api/retention/idempotency_keys \
+curl -s -o /dev/null -w "%{http_code}\n" -X PUT http://localhost:5081/tracon/api/retention/idempotency_keys \
   -H "content-type: application/json" -d '{"maxAgeDays":1,"enabled":true}'
 # -> 200
 ```
@@ -130,16 +130,16 @@ Plan ile gerçek arasındaki fark burada **gizlenmeden** yazılıdır.
    `Idempotency-Key` birlikteliği artık HİÇ oluşamaz (başlık varlığı zaten
    akışsızlığı seçiyor); 43.4'ün "akışlı istek+anahtar→400" kuralı yalnız
    `/v1/responses` ve `/v1/chat/completions` üzerinde gözlemlenir.
-2. **`AgentPrismIdempotencyOptions` `AgentPrism.Core`'da, plandaki gibi
-   `AgentPrism.AspNetCore`'da değil (K-289).** `AgentPrismRateLimitOptions`
-   (Faz 21) ve `AgentPrismRetentionOptions` (Faz 25) emsali izlendi.
-3. **`AgentPrismIdempotencyOptions.Retention: TimeSpan` planı terk edildi
+2. **`TraconIdempotencyOptions` `Tracon.Core`'da, plandaki gibi
+   `Tracon.AspNetCore`'da değil (K-289).** `TraconRateLimitOptions`
+   (Faz 21) ve `TraconRetentionOptions` (Faz 25) emsali izlendi.
+3. **`TraconIdempotencyOptions.Retention: TimeSpan` planı terk edildi
    (K-290).** Bunun yerine `idempotency_keys` standart
-   `RetentionTargets`/`RetentionTargetRegistry`/`AgentPrismRetentionOptions`
+   `RetentionTargets`/`RetentionTargetRegistry`/`TraconRetentionOptions`
    üçlüsüne `MaxAgeDays = 1` varsayılanıyla eklendi — Faz 25'in devir notunun
-   zorunlu kıldığı desen. `AgentPrismIdempotencyOptions` yalnız `Enabled` ve
+   zorunlu kıldığı desen. `TraconIdempotencyOptions` yalnız `Enabled` ve
    `MaxKeyLength` taşır.
-4. **Ham gövde tamponlaması için `MapAgentPrism`'e koşullu bir ara yazılım
+4. **Ham gövde tamponlaması için `MapTracon`'e koşullu bir ara yazılım
    eklendi — planda hiç yoktu (K-292).** Minimal API'nin `[FromBody]` bağlaması
    `/api/agents/{name}/run` gövdesini `IEndpointFilter.InvokeAsync`
    çağrılmadan ÖNCE tüketiyor; filtrenin kendi içinde `EnableBuffering()`
@@ -187,8 +187,8 @@ K-288 — K-292. Tam metin: `docs/KARARLAR.md`.
   `SqlIdempotencyStore` kodu üç sağlayıcı için TEK yoldan yazıldı (aynı
   `IsUniqueViolation` deseni), ama `mssql/server` konteyneri bu makinede hiç
   çalışmadı. Linux/amd64 bir makinede veya CI'da
-  `dotnet test tests/AgentPrism.SqlServer.IntegrationTests` çalıştırılmalı.
-- **`idempotency_keys` saklama hedefi `AgentPrismRetentionOptions.IdempotencyKeys`
+  `dotnet test tests/Tracon.SqlServer.IntegrationTests` çalıştırılmalı.
+- **`idempotency_keys` saklama hedefi `TraconRetentionOptions.IdempotencyKeys`
   ile `MaxAgeDays = 1` varsayılanı taşır** ama `RetentionExecutor`'ın gerçek
   bir üretim koşusunda ne kadar hacim sildiği ÖLÇÜLMEDİ (Faz 43 planının Açık
   Soru 4'ü — "hacim ölçülmeli" hâlâ açık).

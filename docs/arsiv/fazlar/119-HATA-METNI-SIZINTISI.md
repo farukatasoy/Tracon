@@ -3,7 +3,7 @@
 > **Durum:** ✅ Tamamlandı (2026-08-27)
 > **Kaynak:** [YAYIN-HAZIRLIK.md](../../YAYIN-HAZIRLIK.md) §16 — BL-027 · BL-037 (yayın denetimi bulgusu, aday listesinden değil)
 > **Önkoşul:** Yok
-> **Paketler:** `AgentPrism.Abstractions`, `.Core`, `.Workflows`, `.AspNetCore`, `.Mcp`
+> **Paketler:** `Tracon.Abstractions`, `.Core`, `.Workflows`, `.AspNetCore`, `.Mcp`
 > **Yeni paket:** Yok · **Migration:** **Yok** — korelasyon kimliği mevcut metin alanına gömülür (bkz. 119.3)
 > **Public API:** Büyüyor — `PublicAPI.Shipped.txt` boş (`wc -l src/*/PublicAPI.Shipped.txt` = 0), yüzey bugün ucuz
 > **Tüketici yüzeyi:** `docs-site/` — hata sözleşmesini anlatan sayfa (`concepts/runs.md` ve HTTP hata bölümü) · sevk edilen: `RunError.Message`'ın XML dokümanı, `IJobHandler`/`IWebhookStore` hata alanlarının XML'i
@@ -34,12 +34,12 @@ Ham `exception.Message` metni bugün **21 ayrı yoldan** kalıcı duruma veya d�
 
 - [x] §16'daki **21 vakanın tamamı** kapatıldı; her biri için `dosya:satır` ile kapanış kaydı yazıldı — ayrıca uygulama sırasında **5 ek vaka** bulunup kapatıldı (toplam 26): `EgressAddressValidator.cs:290`, `ConversationBranchService.cs:146`, `RetentionJobHandler.cs:35`, `RetentionExecutor.cs:202`, `ModelRunJudge.cs:255`
 - [x] Yargı gerektiren 5 kalem (§16 sonu) ölçüldü; her biri "düzeltildi" veya "gerekçeyle kapsam dışı" olarak kaydedildi — bkz. [`YAYIN-HAZIRLIK.md`](../../YAYIN-HAZIRLIK.md) §16 sonu, sonuç tablosu
-- [x] `RawExceptionTextSiteTests` cırcır kapısı yeşil; taban çizgisi dosyası repo'da (`tests/AgentPrism.Core.UnitTests/Architecture/raw-exception-text-baseline.txt`, tek gerekçeli girdi: `OpenAIResponsesEndpoints.cs:HandleAsync`); gerçek bir sızıntı eklenip kapının kırdığı elle doğrulandı (MT-OBS-058)
+- [x] `RawExceptionTextSiteTests` cırcır kapısı yeşil; taban çizgisi dosyası repo'da (`tests/Tracon.Core.UnitTests/Architecture/raw-exception-text-baseline.txt`, tek gerekçeli girdi: `OpenAIResponsesEndpoints.cs:HandleAsync`); gerçek bir sızıntı eklenip kapının kırdığı elle doğrulandı (MT-OBS-058)
 - [x] Fırlatan sahte handler/exception ile: `jobs.error_message` ham metin taşımıyor, log tam detayı **aynı korelasyon kimliğiyle** taşıyor — `JobWorkerBackgroundServiceTests.A_throwing_handlers_own_message_never_reaches_jobs_error_message` (gerçek `InMemoryJobStore` + gerçek arka plan döngüsü + gerçek `ILoggerProvider` yakalayıcı, aynı `(ref: ...)` hem `jobs.error_message`'ta hem log kaydında bulundu)
 - [x] Webhook payload'ı dış uçta yakalandı; ham provider metni içermediği doğrulandı — `WebhookDeliveryRedactionTests` (gövde + `HttpRequestException` iki ayrı vaka, gerçek `WebhookHttpClient`/`HttpMessageHandler` boru hattı)
-- [x] `AgentPrismException` mesajlarının korunduğu doğrulandı (aşırı düzeltme yok) — `SafeErrorTextTests.An_AgentPrismException_own_message_is_preserved` + mevcut `RunRecordingAgentTests` (ör. `ProviderInvocationException` mesajı `"The model provider request failed."` aynen kalıyor)
+- [x] `TraconException` mesajlarının korunduğu doğrulandı (aşırı düzeltme yok) — `SafeErrorTextTests.An_TraconException_own_message_is_preserved` + mevcut `RunRecordingAgentTests` (ör. `ProviderInvocationException` mesajı `"The model provider request failed."` aynen kalıyor)
 - [x] Dört doğrulama kapısı sıfır uyarı verir — `python3 scripts/kapi.py kapanis --taban 6e82c21` tamamı ✅ (bkz. Doğrulama komutları)
-- [x] `samples/AgentPrism.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı — bkz. altta "Örnek uygulama koşumu"
+- [x] `samples/Tracon.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı — bkz. altta "Örnek uygulama koşumu"
 - [x] `secret` taraması boş döndü — `kapi.py tarama` ✅ temiz (ayrıca bu turda pre-existing bir migration-manifest kaydı boşluğu bulundu ve kapatıldı, bkz. Plandan Sapmalar)
 - [x] Manuel kabul case'leri `docs/manuel-test/` içine eklendi; otomatikleştirilebilenler koşuldu — `12-GOZLEMLENEBILIRLIK-MALIYET.md`'ye MT-OBS-054..058 eklendi; MT-OBS-058 gerçekten koşuldu (2026-08-27), 054-057 gerçek sağlayıcı anahtarı/webhook hedefi gerektirdiği için 👤 koşulmadı
 - [x] `faz-denetim` koşuldu; 🔴 bulgu kalmadı — bkz. Denetim Bulguları
@@ -50,11 +50,11 @@ Ham `exception.Message` metni bugün **21 ayrı yoldan** kalıcı duruma veya d�
 
 ```bash
 # Ham exception metni kalan var mı — cırcır kapısı
-./artifacts/bin/AgentPrism.Core.UnitTests/release/AgentPrism.Core.UnitTests \
+./artifacts/bin/Tracon.Core.UnitTests/release/Tracon.Core.UnitTests \
   --filter-method "*RawExceptionTextSite*"
 
 # Kalıcı hata alanında ham metin var mı
-curl -s http://localhost:5081/agentprism/api/runs/<id> | jq '.error'
+curl -s http://localhost:5081/tracon/api/runs/<id> | jq '.error'
 ```
 
 ---
@@ -72,7 +72,7 @@ curl -s http://localhost:5081/agentprism/api/runs/<id> | jq '.error'
    yeni vakalar buldu.
 2. **`ConversationBranchService` ve `RetentionJobHandler`'a yeni opsiyonel
    `ILogger` parametresi eklendi** (ikisi de önceden logsuzdu). İkisi de DI
-   kayıt fabrikasında (`AgentPrismServiceCollectionExtensions.Registration.*`)
+   kayıt fabrikasında (`TraconServiceCollectionExtensions.Registration.*`)
    güncellendi. Planda öngörülmemişti — 119.4'ün kapı bulgusuydu.
 3. **`WorkflowRunner.ToRunError` instance metoda çevrildi** (`private static` →
    `private`), çünkü korelasyon kimliği üretimi ve loglama `_logger`'a erişim
@@ -108,13 +108,13 @@ curl -s http://localhost:5081/agentprism/api/runs/<id> | jq '.error'
 
 | K | Karar özeti |
 |---|---|
-| K-640 | Yabancı bir exception'ın mesajı hiçbir zaman kalıcı alana veya dışa açık yanıta yazılmaz; kural `AgentPrism.SafeErrorText` olarak public'tir; mimari cırcır kapısı 22. sızıntı yerini yakalar. Tam gerekçe: `docs/KARARLAR.md` K-640. |
+| K-640 | Yabancı bir exception'ın mesajı hiçbir zaman kalıcı alana veya dışa açık yanıta yazılmaz; kural `Tracon.SafeErrorText` olarak public'tir; mimari cırcır kapısı 22. sızıntı yerini yakalar. Tam gerekçe: `docs/KARARLAR.md` K-640. |
 
 ## Denetim Bulguları
 
 `faz-denetim` taze bağlamlı bir agent ile koşuldu (taban `6e82c21`). Özet: 🔴
 yok, 4 🟡, 0 🟢. Tam çözüm derlendi, `RawExceptionTextSiteTests` yeşildi,
-`AgentPrism.Core.UnitTests` (2068/2068) ve `AgentPrism.AspNetCore.FunctionalTests`
+`Tracon.Core.UnitTests` (2068/2068) ve `Tracon.AspNetCore.FunctionalTests`
 (691/691) tam koşumu geçti — regresyon yok.
 
 | # | Bulgu | Seviye | Sonuç |
@@ -143,7 +143,7 @@ bu fazdan sonra gelir ve AYNI dosyalara dokunur** — `IJobHandler.cs`,
   — bir `RunId` parametresi alıyor. Faz 120 bu metoda dokunursa imza budur.
 - Mimari cırcır kapısının taban çizgisi (`raw-exception-text-baseline.txt`)
   Faz 120'de yeni bir `catch (Exception` + `.Message` sitesi açılırsa
-  KIRILACAKTIR — bu beklenen davranıştır, `AGENTPRISM_RAW_EXCEPTION_TEXT_REFRESH=1`
+  KIRILACAKTIR — bu beklenen davranıştır, `TRACON_RAW_EXCEPTION_TEXT_REFRESH=1`
   ile kapatma, önce `SafeErrorText` ile düzelt.
 - BL-041'in "gerçek kusur" tanımı zaten dar: `IJobHandler`'ın XML dokümanına
   at-least-once notu + `JobHandlerContract` + `JobLeaseExpiryTests`. Faz 119

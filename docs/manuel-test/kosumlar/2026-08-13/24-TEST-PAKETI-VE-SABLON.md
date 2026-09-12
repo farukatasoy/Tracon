@@ -31,13 +31,13 @@
 | MT-TEST-003 | ☑ | En dolu birleşim (`sqlserver`+`azure`+`ui:true`) sıfır uyarıyla derlenir |
 | MT-TEST-004 | ☑ | Üretilen `appsettings.json` yalnız boş placeholder taşır, hiçbir dosyada `secret` görünümlü değer yok |
 | MT-TEST-005 | ☑ | Üretilen `Program.cs` hiçbir sağlayıcı için sabit bir model adı taşımaz |
-| MT-TEST-006 | ☑ | `-n` ile yeniden adlandırma: `AgentPrism.Starter` dizesi hiçbir dosyada/dosya adında kalmaz |
+| MT-TEST-006 | ☑ | `-n` ile yeniden adlandırma: `Tracon.Starter` dizesi hiçbir dosyada/dosya adında kalmaz |
 | MT-TEST-007 | ☑ | Varsayılan (`memory`) birleşim kurulumsuz `dotnet run` ile ayağa kalkar |
 | MT-TEST-009 | ☑ | `--skip-restore` restore adımını atlar |
-| MT-TEST-010 | ☑ | `--AgentPrismVersion` belirli bir sürüme sabitler |
+| MT-TEST-010 | ☑ | `--TraconVersion` belirli bir sürüme sabitler |
 | MT-TEST-011 | ☑ | Tanınmayan bir `--persistence` değeri reddedilir |
-| MT-TEST-012 | ☑ | `-h` çıktısında üç bayrak görünür, `AgentPrismVersion` gizlidir |
-| MT-TEST-013 | ☑ | Şablon paketi derlenmez; üretilen proje `AgentPrism.Templates`'e hiç referans vermez |
+| MT-TEST-012 | ☑ | `-h` çıktısında üç bayrak görünür, `TraconVersion` gizlidir |
+| MT-TEST-013 | ☑ | Şablon paketi derlenmez; üretilen proje `Tracon.Templates`'e hiç referans vermez |
 | MT-TEST-021 | ☑ | `EchoesUserMessage()` son kullanıcı mesajını `Echo: ` öneki ile yankılar |
 | MT-TEST-022 | ☑ | `RespondsWith(...)` yanıtları sırayla tüketir |
 | MT-TEST-023 | ☑ | Kuyruk tükendikten sonra `EchoesUserMessage()` fallback'i devreye girer |
@@ -48,18 +48,18 @@
 | MT-TEST-028 | ☑ | `RespondsWith(text, inputTokens, outputTokens)` bildirilen kullanım gerçek boru hattında `RunRecord.Usage`'a yansır |
 | MT-TEST-029 | ☑ | `Requests` listesi gönderilen mesaj geçmişini ve `ChatOptions.Tools`'u kaydeder |
 | MT-TEST-030 | ☑ | `Models` kataloğunda olmayan bir model adı agent kaydını ENGELLEMEZ |
-| MT-TEST-040 | ☑ | `StartAsync()` hiçbir yapılandırma olmadan ayağa kalkar, `/agentprism/api/meta` `200` döner |
+| MT-TEST-040 | ☑ | `StartAsync()` hiçbir yapılandırma olmadan ayağa kalkar, `/tracon/api/meta` `200` döner |
 | MT-TEST-041 | ☑ | Özel `Prefix` yalnız o önekten yanıt verir, varsayılan önek artık yanıt vermez |
 | MT-TEST-042 | ☑ | `DisposeAsync()` sonrası `Client` kullanılırsa `ObjectDisposedException` fırlatılır |
-| MT-TEST-043 | ☑ | `RunAsync` var olmayan bir agent adıyla çağrılırsa `AgentPrismAssertionException` fırlatılır |
-| MT-TEST-045 | ☑ | `ConfigureServices`, `AddAgentPrism()` çağrısından ÖNCE çalışır |
+| MT-TEST-043 | ☑ | `RunAsync` var olmayan bir agent adıyla çağrılırsa `TraconAssertionException` fırlatılır |
+| MT-TEST-045 | ☑ | `ConfigureServices`, `AddTracon()` çağrısından ÖNCE çalışır |
 | MT-TEST-050 | ☑ | `ShouldHaveCompleted()` geçer; başarısız bir çalıştırmada beklenen/bulunan durumu yazan mesajla düşer |
 | MT-TEST-051 | ☑ | `ShouldHaveFailedWith(errorType)` kararlı bir hata tipini doğrular |
 | MT-TEST-052 | ☑ | `ShouldHaveCalledTool(name, times:)` sayı uyuşmazsa beklenen/bulunan sayıyı yazan mesajla düşer |
 | MT-TEST-053 | ☑ | `ShouldNotHaveCalledTool(name)` çağrılmış bir tool için düşer |
 | MT-TEST-055 | ☑ | Zincirleme iddialar art arda çalışır |
 | MT-TEST-060 | ☑ | Paketlenmiş `.nuspec` hiçbir test çerçevesi bağımlılığı taşımaz |
-| MT-TEST-061 | ☑ | Meta paket (`AgentPrism`) `AgentPrism.Testing`'e referans VERMEZ |
+| MT-TEST-061 | ☑ | Meta paket (`Tracon`) `Tracon.Testing`'e referans VERMEZ |
 | MT-TEST-064 | ☑ | Depo dışı tüketici: gerçek model çağırmadan uçtan uca bir agent testi |
 
 ## Ayrıntı taşıyan case'ler (6)
@@ -73,7 +73,7 @@
   rastgele üretilen `UserSecretsId` GUID'ini kaçınılmaz olarak
   değiştiriyor, `diff` bu iki satırda fark gösteriyor (doğrulandı).
   Asıl doğrulanmak istenen özdeş iddia bu değil: her iki `.csproj`
-  dosyası da yalnız TEK bir `<PackageReference Include="AgentPrism"
+  dosyası da yalnız TEK bir `<PackageReference Include="Tracon"
   Version="0.0.0-preview.0.107" />` satırı taşıyor, `postgres` seçmek
   EK bir `PackageReference` satırı EKLEMİYOR — bu, doğrulanmak istenen
   gerçek iddia, ve doğru. Kod kusuru değil, doküman ifadesi düzeltmeli
@@ -88,8 +88,8 @@
 **Gerçek sonuç**
 - **Doküman düzeltmesi**: verilen kod aynen yapıştırılınca `CS0246:
   'ModelBinding' bulunamadı` ile derlenmedi — `ModelBinding` tipi
-  `AgentPrism` ad alanındadır, doküman yalnız `using AgentPrism.Testing;`
-  yazmış, `using AgentPrism;` eksik. `using AgentPrism;` eklenince: çıktı
+  `Tracon` ad alanındadır, doküman yalnız `using Tracon.Testing;`
+  yazmış, `using Tracon;` eksik. `using Tracon;` eklenince: çıktı
   `Models.Count: 1`, `Model adi: fake-model`, `Yanit: fake response` —
   beklenenle birebir eşleşti.
 
@@ -139,7 +139,7 @@ kalıyor.
 
 ---
 
-## MT-TEST-062 — `AgentPrism.Testing` yalnız `net10.0` hedefler — `net8.0` projeden kullanılamaz
+## MT-TEST-062 — `Tracon.Testing` yalnız `net10.0` hedefler — `net8.0` projeden kullanılamaz
 
 **Gerçek sonuç**
 - **Ortam uyarlaması**: kurulu SDK'nın `dotnet new console --framework`
@@ -147,8 +147,8 @@ kalıyor.
   bir seçenek DEĞİL (SDK sürümüyle ilgili, kod kusuru değil) — bunun yerine
   `net9.0` kullanıldı; paketin `TargetFrameworks`'ü yalnız `net10.0`
   olduğu için `net9.0` de aynı derecede uyumsuz, iddia geçerliliğini
-  korur. `dotnet add package AgentPrism.Testing` → `error NU1202: Package
-  AgentPrism.Testing 0.0.0-preview.0.107 is not compatible with net9.0
+  korur. `dotnet add package Tracon.Testing` → `error NU1202: Package
+  Tracon.Testing 0.0.0-preview.0.107 is not compatible with net9.0
   (.NETCoreApp,Version=v9.0). ... supports: net10.0`. `.csproj` kontrol
   edildi: `PackageReference` satırı EKLENMEDİ (CLI restore-zamanı
   uyumsuzluğu algılayıp değişikliği geri aldı). Sonraki `dotnet build`
@@ -163,8 +163,8 @@ kalıyor.
 ## MT-TEST-063 — AOT publish denemesi trim/AOT analiz uyarısı üretir (koşumda ölçülecek)
 
 **Gerçek sonuç**
-- Yeni bağımsız bir konsol projesi (`~/agentprism-manuel/aot-deneme`),
-  `AgentPrism.Testing` eklendi, `.csproj`'a elle `<PublishAot>true</PublishAot>`
+- Yeni bağımsız bir konsol projesi (`~/tracon-manuel/aot-deneme`),
+  `Tracon.Testing` eklendi, `.csproj`'a elle `<PublishAot>true</PublishAot>`
   eklendi. İlk denemede `Program.cs` yalnız `new FakeModelProvider()` ve
   `.Models.Count` kullanıyordu — `CallsTool`'un kendisi hiç çağrılmadığı
   için anlamlı olmayabilir diye, `Program.cs` doküman kodunun `.CallsTool
@@ -178,11 +178,11 @@ kalıyor.
   olmadan ham istemci tool sonucunu metne çevirmiyor, MT-TEST-027'de
   zaten gözlenen davranış) yazdırdı. **Ölçülen sonuç, dokümanın kendi
   öngördüğü alternatif senaryodur**: sıfır uyarı çıktı — kod yorumu
-  (`AgentPrism.Testing.csproj:21`) muhtemelen güncelliğini yitirmiş ya
+  (`Tracon.Testing.csproj:21`) muhtemelen güncelliğini yitirmiş ya
   da trimmer, `IsAotCompatible`/`IsTrimmable` işaretlenmemiş bir
   paketin İÇİNİ derinlemesine analiz etmiyor (yalnız işaretli 8 paket
   derin analiz ediliyor — bkz. `MEMORY.md`'nin "sekiz paket uyumludur"
-  notu), bu yüzden `AgentPrism.Testing`'in kendi reflection kullanımı
+  notu), bu yüzden `Tracon.Testing`'in kendi reflection kullanımı
   hiç taranmıyor olabilir. Bu koşumda ne pozitif ne negatif "kusur"
   olarak işaretlenmiyor — dokümanın kendi talimatı gereği yalnız ölçüm
   kaydediliyor ve not düşülüyor.

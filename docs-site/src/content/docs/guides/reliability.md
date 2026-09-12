@@ -5,7 +5,7 @@ description: Configure circuit breaking, idempotency, singleton execution, cance
 
 Reliable agent execution is not one retry switch. Provider calls, HTTP submissions,
 background leases, live cancellation, and multi-agent trees fail at different
-boundaries. AgentPrism gives each boundary a separate control so recovery stays
+boundaries. Tracon gives each boundary a separate control so recovery stays
 explicit.
 
 ```mermaid
@@ -30,7 +30,7 @@ A useful production baseline is:
 
 ```json
 {
-  "AgentPrism": {
+  "Tracon": {
     "CircuitBreaker": {
       "Enabled": true,
       "FailureThreshold": 5,
@@ -71,11 +71,11 @@ idempotency as cluster-wide. Their in-memory stores coordinate only one process.
 The circuit breaker is maintained per provider name and per process. After five
 consecutive counted failures by default, it opens for 30 seconds. Calls rejected by
 an open circuit do not reach the provider and throw
-`AgentPrismProviderUnavailableException`; its `ProviderName` and `RetryAfter` tell an
+`TraconProviderUnavailableException`; its `ProviderName` and `RetryAfter` tell an
 HTTP or job caller when recovery can be tried.
 
 A successful provider call resets the consecutive failure count. Caller cancellation
-and `AgentPrismContentBlockedException` do not count as provider failures. Other
+and `TraconContentBlockedException` do not count as provider failures. Other
 provider-client failures do. After the break duration, new calls can probe recovery;
 a successful probe closes the circuit.
 
@@ -174,8 +174,8 @@ this setting exists to prevent.
 Add a unique `Idempotency-Key` to a non-streaming request:
 
 ```bash
-curl -i https://agents.example.com/agentprism/api/agents/support/run \
-  -H "Authorization: Bearer $AGENTPRISM_API_KEY" \
+curl -i https://agents.example.com/tracon/api/agents/support/run \
+  -H "Authorization: Bearer $TRACON_API_KEY" \
   -H 'Content-Type: application/json' \
   -H 'Idempotency-Key: support-ticket-4182-v1' \
   -d '{"message":"Prepare the customer-safe status for ticket 4182."}'
@@ -225,11 +225,11 @@ Request cancellation with:
 
 ```bash
 curl -i -X POST \
-  -H "Authorization: Bearer $AGENTPRISM_API_KEY" \
-  https://agents.example.com/agentprism/api/runs/$RUN_ID/cancel
+  -H "Authorization: Bearer $TRACON_API_KEY" \
+  https://agents.example.com/tracon/api/runs/$RUN_ID/cancel
 ```
 
-For a registered live run, AgentPrism returns `202 Accepted`. This confirms that the
+For a registered live run, Tracon returns `202 Accepted`. This confirms that the
 request reached the owner, not that execution already stopped. Poll the run until it
 reaches a terminal status. Providers and tools must observe and pass on the
 cancellation token.
@@ -272,7 +272,7 @@ run — instead of staying `Failed` for good.
 
 ```json
 {
-  "AgentPrism": {
+  "Tracon": {
     "RunContinuation": {
       "Enabled": true,
       "MaxAttempts": 1
@@ -306,7 +306,7 @@ run tree can see that a run continued another rather than starting fresh.
 
 ## Elect one owner for periodic services
 
-`SingletonExecution.Enabled` adds lease-based cluster election to AgentPrism's
+`SingletonExecution.Enabled` adds lease-based cluster election to Tracon's
 periodic model-health refresh, MCP discovery, run reconciliation, approval expiry,
 and canary evaluation. It is off by default and uses a 60-second lease. Renewal runs
 at one third of the lease duration. An empty `OwnerId` becomes a
@@ -362,7 +362,7 @@ from. `Drain` makes a graceful stop wait instead:
 
 ```json
 {
-  "AgentPrism": {
+  "Tracon": {
     "Drain": {
       "Enabled": true,
       "Timeout": "00:00:30"
@@ -385,7 +385,7 @@ value, so raise both together for the full wait to take effect.
 
 ## Failure boundaries at a glance
 
-| Failure | AgentPrism response | Your responsibility |
+| Failure | Tracon response | Your responsibility |
 |---|---|---|
 | Consecutive provider errors | Open the local provider circuit and fail fast | Choose whether the whole business operation is safe to retry |
 | Primary provider unavailable, transiently | Try the next `ModelBinding.Fallbacks` link and record which one answered | Configure a fallback chain for agents where availability matters more than a fixed model |
@@ -415,7 +415,7 @@ age, orphaned runs, open circuits, and `409` cancellation responses.
 | The same idempotency key returns `422` | Method, path, or raw JSON bytes changed; reuse the original serialization or issue a new key for a new operation |
 | A duplicate request returns `409` | The first reservation is still in progress; wait and query the original operation instead of starting another |
 | An idempotent request returns `400` | Remove streaming or shorten the key to `MaxKeyLength` |
-| An idempotent request returns `501` | Re-enable `AgentPrism:Idempotency` or omit the header and accept normal execution semantics |
+| An idempotent request returns `501` | Re-enable `Tracon:Idempotency` or omit the header and accept normal execution semantics |
 | A run stays `Running` after a process crash | Enable reconciliation, use shared SQL state, and confirm singleton election permits a scanner to run |
 | Healthy long runs become `orphaned` | Increase `OrphanThreshold`; inspect heartbeat-store latency and failures |
 | Two nodes perform the same periodic scan | Confirm singleton execution is enabled and backed by the same SQL database; in-memory leases are process-local |

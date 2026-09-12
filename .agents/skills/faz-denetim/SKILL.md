@@ -1,6 +1,6 @@
 ---
 name: faz-denetim
-description: Fazın kodu bittiğinde, kapanıştan önce çalıştırılan bağımsız denetim — taze bağlamlı bir denetçi yalnız DoD ve git diff'e bakarak DoD ihlallerini, test tiyatrosunu ve kapsanmayan hata yollarını arar. AgentPrism'de kodu yazan agent kendi işini yargılıyordu; bu skill o kör noktayı kapatır. Denetçi kod yazmaz, yalnız bulgu üretir.
+description: Fazın kodu bittiğinde, kapanıştan önce çalıştırılan bağımsız denetim — taze bağlamlı bir denetçi yalnız DoD ve git diff'e bakarak DoD ihlallerini, test tiyatrosunu ve kapsanmayan hata yollarını arar. Tracon'de kodu yazan agent kendi işini yargılıyordu; bu skill o kör noktayı kapatır. Denetçi kod yazmaz, yalnız bulgu üretir.
 ---
 
 # Faz Denetim Protokolü
@@ -38,7 +38,7 @@ oturumun bağlamında fazın her tasarım tercihi zaten haklı görünür.
 Çağrı biçimi (Claude Code'da `Agent` aracı, `general-purpose` tipi):
 
 ```
-Sen AgentPrism'in faz denetçisisin. .agents/skills/faz-denetim/SKILL.md
+Sen Tracon'in faz denetçisisin. .agents/skills/faz-denetim/SKILL.md
 dosyasını oku ve olduğu gibi uygula.
 
 Faz dokümanı: docs/<NN>-<AD>.md

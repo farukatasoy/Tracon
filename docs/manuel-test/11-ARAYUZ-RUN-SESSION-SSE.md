@@ -4,17 +4,17 @@
 > (çalıştırma iptali), 47 (yeniden oynatma, karşılaştırma, dallandırma), 70
 > (`ReasoningDelta` olayı, `IRunEventSink`), 141 (`RunEventType.Custom` ve
 > `CustomType`)
-> **Kaynak:** `src/AgentPrism.UI/frontend/src/screens/runs.tsx` (liste) ·
+> **Kaynak:** `src/Tracon.UI/frontend/src/screens/runs.tsx` (liste) ·
 > `screens/run-detail.tsx` (tek çalıştırma: özet, canlı/geçmiş SSE, olay
 > zaman çizelgesi, çağrı ağacı) · `screens/sessions.tsx` (liste) ·
 > `screens/session-detail.tsx` (geçmiş/durum sekmeleri, dallandırma) ·
 > destek bileşenleri: `components/cancel-run-button.tsx` (Faz 32),
 > `components/replay-panel.tsx` (Faz 47), `components/run-comparison.tsx`
-> (Faz 47), `components/branch-button.tsx` (Faz 47) · `@agentprism/client`'ın `sse.ts`'i (Faz 159'da `src/lib/`'ten taşındı)
+> (Faz 47), `components/branch-button.tsx` (Faz 47) · `@tracon/client`'ın `sse.ts`'i (Faz 159'da `src/lib/`'ten taşındı)
 > (`SseDecoder`/`readSse`) · `lib/transcript.ts` (`foldRunEvents`/`foldMessage`) ·
 > `lib/api.ts` (`api.runs/run/runTree/cancelRun/replayRun/compareRuns/
 > sessions/session/deleteSession/branchSession/stats`, `openStream`).
-> Sunucu tarafı: `src/AgentPrism.AspNetCore/Endpoints/RunEndpoints.cs`
+> Sunucu tarafı: `src/Tracon.AspNetCore/Endpoints/RunEndpoints.cs`
 > (`/api/runs/{id}/events` + `RunEventStream`, `/cancel`, `/replay`,
 > `/compare/{a}/{b}`) · `Endpoints/SessionEndpoints.cs` (`/branch`, silme,
 > okuma) · `Streaming/SseWriter.cs` (`ReadResumeSequence` — `Last-Event-ID`) ·
@@ -78,13 +78,13 @@ flowchart TD
 ## Koşmadan önce
 
 1. [`00-INDEKS.md`](00-INDEKS.md) §4 reset yordamı uygulanır.
-2. Örnek uygulama çalışır (`cd samples/AgentPrism.Api && dotnet run`),
-   `http://localhost:5080/agentprism/` açık, `manuel-test-token-2026` ile
+2. Örnek uygulama çalışır (`cd samples/Tracon.Api && dotnet run`),
+   `http://localhost:5080/tracon/` açık, `manuel-test-token-2026` ile
    giriş yapılmıştır.
-3. `AgentPrism:Providers:OpenAI:ApiKey` tanımlıdır — bu dosyanın çoğu case'i
+3. `Tracon:Providers:OpenAI:ApiKey` tanımlıdır — bu dosyanın çoğu case'i
    gerçek bir OpenAI çağrısı yapar (`support`/`yonlendirici`/`ozetleyici`,
    model `gpt-5.4-mini`). Gerçek para harcanır.
-4. `AgentPrism:PostgreSql:ConnectionString` tanımlıdır — oturum geçmişi ve
+4. `Tracon:PostgreSql:ConnectionString` tanımlıdır — oturum geçmişi ve
    dallandırma yalnız kalıcı bir SQL sağlayıcısıyla anlamlı çalışır (bkz. § 8,
    bellek içi izlek ayrıca ve BİLEREK test edilir).
 5. DevTools açık tutulur — birçok case ağ sekmesinden SSE çerçevelerini,
@@ -189,7 +189,7 @@ Sınır durumu — hiç çalıştırma yokken.
 
 Kod tanımlı `yonlendirici` agent'ı (Faz 12) siparişle ilgili istekleri
 `support`'a devreder; devir her zaman AYRI bir `runs` satırı açar
-(`CallableAgentNames`, `samples/AgentPrism.Api/Program.cs`).
+(`CallableAgentNames`, `samples/Tracon.Api/Program.cs`).
 
 | | |
 |---|---|
@@ -234,7 +234,7 @@ Sınır durumu — `PAGE_SIZE = 50`.
 
 ```bash
 for i in $(seq 1 51); do
-  curl -s -X POST "http://localhost:5080/agentprism/api/agents/manuel-bos/run" \
+  curl -s -X POST "http://localhost:5080/tracon/api/agents/manuel-bos/run" \
     -H "Authorization: Bearer manuel-test-token-2026" \
     -H "Content-Type: application/json" \
     -d '{"message":"Merhaba"}' -o /dev/null
@@ -445,10 +445,10 @@ ulaşır ve çalıştırma deterministik biçimde `AwaitingInput` ile kapanır.
    alanını not al:
 
 ```bash
-curl -N -s -X POST "http://localhost:5080/agentprism/api/workflows/ozetle-ve-onayla/run" \
+curl -N -s -X POST "http://localhost:5080/tracon/api/workflows/ozetle-ve-onayla/run" \
   -H "Authorization: Bearer manuel-test-token-2026" \
   -H "Content-Type: application/json" \
-  -d '{"message":"AgentPrism yayin oncesi manuel kabul testi yaziyoruz."}'
+  -d '{"message":"Tracon yayin oncesi manuel kabul testi yaziyoruz."}'
 ```
 
 2. `runs/{runId}` sayfasını arayüzde aç.
@@ -481,7 +481,7 @@ Sınır durumu — `record.kind === 'Agent'` şartı.
 - Kabuk açık.
 
 **Adımlar**
-1. `curl -N -s -X POST "http://localhost:5080/agentprism/api/workflows/ozetle-ve-cevir/run" -H "Authorization: Bearer manuel-test-token-2026" -H "Content-Type: application/json" -d '{"message":"AgentPrism, Microsoft Agent Framework uzerine kurulu bir NuGet paket ailesidir."}'` ile bitmiş bir workflow çalıştırması üret, `runId`'yi not al.
+1. `curl -N -s -X POST "http://localhost:5080/tracon/api/workflows/ozetle-ve-cevir/run" -H "Authorization: Bearer manuel-test-token-2026" -H "Content-Type: application/json" -d '{"message":"Tracon, Microsoft Agent Framework uzerine kurulu bir NuGet paket ailesidir."}'` ile bitmiş bir workflow çalıştırması üret, `runId`'yi not al.
 2. `runs/{runId}` sayfasını aç, sayfayı sonuna kadar tara.
 
 **Beklenen sonuç**
@@ -750,7 +750,7 @@ Hafif yük senaryosu ([`PROMPT.md`](../arsiv/manuel-test-kosum-2026-08/PROMPT.md
 
 **Doğrulama sorgusu**
 ```sql
-SELECT status, completed_at FROM agentprism.runs WHERE id = '<runId>';
+SELECT status, completed_at FROM tracon.runs WHERE id = '<runId>';
 ```
 
 ---
@@ -770,7 +770,7 @@ Negatif senaryo — düğme zaten gizli olduğu için `curl` ile tetiklenir.
 - `MT-UIRUN-002`'nin bitmiş (`Completed`) çalıştırmasının `id`'si elde.
 
 **Adımlar**
-1. `curl -i -X POST "http://localhost:5080/agentprism/api/runs/<runId>/cancel" -H "Authorization: Bearer manuel-test-token-2026"` çalıştır.
+1. `curl -i -X POST "http://localhost:5080/tracon/api/runs/<runId>/cancel" -H "Authorization: Bearer manuel-test-token-2026"` çalıştır.
 
 **Beklenen sonuç**
 - Yanıt `409`; gövde `"Calistirma zaten sonlanmis"` başlığını ve mevcut
@@ -799,14 +799,14 @@ konusudur; burada yalnız bu ekranın gördüğü SONUÇ ölçülür.
 1. Kuyruğa alınmış bir çalıştırma başlat:
 
 ```bash
-curl -i -X POST "http://localhost:5080/agentprism/api/agents/support/run" \
+curl -i -X POST "http://localhost:5080/tracon/api/agents/support/run" \
   -H "Authorization: Bearer manuel-test-token-2026" \
   -H "Content-Type: application/json" -H "Prefer: respond-async" \
   -d '{"message":"Merhaba"}'
 ```
 
 2. Yanıt gövdesindeki `id`'yi al, HEMEN (aynı saniye) iptal isteği gönder:
-   `curl -i -X POST "http://localhost:5080/agentprism/api/runs/<id>/cancel" -H "Authorization: Bearer manuel-test-token-2026"`.
+   `curl -i -X POST "http://localhost:5080/tracon/api/runs/<id>/cancel" -H "Authorization: Bearer manuel-test-token-2026"`.
 3. Arayüzde `runs/<id>` sayfasını aç.
 
 **Beklenen sonuç**
@@ -833,7 +833,7 @@ Negatif senaryo.
 | **İlgili karar** | — |
 
 **Adımlar**
-1. `curl -i -X POST "http://localhost:5080/agentprism/api/runs/00000000-0000-0000-0000-000000000000/cancel" -H "Authorization: Bearer manuel-test-token-2026"`.
+1. `curl -i -X POST "http://localhost:5080/tracon/api/runs/00000000-0000-0000-0000-000000000000/cancel" -H "Authorization: Bearer manuel-test-token-2026"`.
 
 **Beklenen sonuç**
 - `404`, gövde `"'...' kimlikli bir calistirma yok."` taşır.
@@ -890,12 +890,12 @@ Negatif senaryo.
 
 **Doğrulama sorgusu**
 ```sql
-SELECT id, replay_of_run_id FROM agentprism.runs WHERE id = '<yeniRunId>';
+SELECT id, replay_of_run_id FROM tracon.runs WHERE id = '<yeniRunId>';
 ```
 
 **Doküman düzeltmesi (KOSUM-PLANI §2.1 istisnası)**
 `support` KOD kökenlidir (`origin: Code`). `RunReplayService.PrepareFromCatalogAsync`
-(`src/AgentPrism.Core/Replay/RunReplayService.cs:174-196`) kod kökenli bir
+(`src/Tracon.Core/Replay/RunReplayService.cs:174-196`) kod kökenli bir
 agent için `ReplayTools`/`NoTools` isteklerini KOŞULSUZ `400` ile reddeder —
 "kalici bir tanimi yok, model bindirmesi ve NoTools/ReplayTools modlari
 tanimi yeniden derlemeyi gerektirir... yalnizca LiveTools ile oynatilabilir."
@@ -945,7 +945,7 @@ tool'suz cevaplar. Yalnız talimat değişikliğinin etkisini ölçer.") ama
 
 ### MT-UIRUN-029 — `LiveTools` modu tool'u GERÇEKTEN çalıştırır; Admin-rol denetimi bu ekranda gözlenemez
 
-Bu dosyada tek bir bearer token (`AgentPrism:Ui:AuthToken`) kullanılır ve o
+Bu dosyada tek bir bearer token (`Tracon:Ui:AuthToken`) kullanılır ve o
 token her zaman tam rol taşır — `LiveTools`'un istediği Admin/Operator
 ayrımı yalnız [`13-KIRACI-VE-GUVENLIK.md`](13-KIRACI-VE-GUVENLIK.md)'nin
 üreteceği kapsamlı bir API anahtarıyla gözlenebilir (`MT-UIAG-002` ile aynı
@@ -1062,13 +1062,13 @@ Sınır durumu.
 | **İlgili karar** | — |
 
 **Ön koşul**
-- `dotnet user-secrets set "AgentPrism:RunRecording:RecordRunInput" "false"`
+- `dotnet user-secrets set "Tracon:RunRecording:RecordRunInput" "false"`
   ile uygulama yeniden başlatılmış.
 
 **Adımlar**
 1. `playground/support` aç, `FIX-PROMPT-02` gönder, tur tamamlansın.
 2. Çalıştırma sayfasını aç, sayfayı sonuna kadar tara.
-3. `dotnet user-secrets remove "AgentPrism:RunRecording:RecordRunInput"` ile
+3. `dotnet user-secrets remove "Tracon:RunRecording:RecordRunInput"` ile
    ayarı geri al, uygulamayı yeniden başlat.
 
 **Beklenen sonuç**
@@ -1092,7 +1092,7 @@ Negatif senaryo.
 | **İlgili karar** | — |
 
 **Adımlar**
-1. `curl -i -X POST "http://localhost:5080/agentprism/api/runs/00000000-0000-0000-0000-000000000000/replay" -H "Authorization: Bearer manuel-test-token-2026" -H "Content-Type: application/json" -d '{"toolMode":"ReplayTools"}'`.
+1. `curl -i -X POST "http://localhost:5080/tracon/api/runs/00000000-0000-0000-0000-000000000000/replay" -H "Authorization: Bearer manuel-test-token-2026" -H "Content-Type: application/json" -d '{"toolMode":"ReplayTools"}'`.
 
 **Beklenen sonuç**
 - `404`, `"Calistirma bulunamadi"` başlığı.
@@ -1132,7 +1132,7 @@ kullanılır.
 
 **Doğrulama sorgusu**
 ```bash
-curl -s "http://localhost:5080/agentprism/api/runs/<kaynakId>/compare/<yeniId>" \
+curl -s "http://localhost:5080/tracon/api/runs/<kaynakId>/compare/<yeniId>" \
   -H "Authorization: Bearer manuel-test-token-2026" | python3 -m json.tool
 ```
 
@@ -1154,7 +1154,7 @@ Negatif senaryo — sunucu "yok" ile "başka kiracıya ait"i AYNI 404'la örtüy
 - Geçerli bir `<runId>` var.
 
 **Adımlar**
-1. `curl -i "http://localhost:5080/agentprism/api/runs/<runId>/compare/00000000-0000-0000-0000-000000000000" -H "Authorization: Bearer manuel-test-token-2026"`.
+1. `curl -i "http://localhost:5080/tracon/api/runs/<runId>/compare/00000000-0000-0000-0000-000000000000" -H "Authorization: Bearer manuel-test-token-2026"`.
 
 **Beklenen sonuç**
 - `404`, `"Calistirma bulunamadi"` — hangi taraf (`a` mı `b` mi) eksikse onun
@@ -1225,7 +1225,7 @@ Negatif senaryo.
 | **İlgili karar** | — |
 
 **Adımlar**
-1. `curl -i -X DELETE "http://localhost:5080/agentprism/api/sessions/yok-boyle-bir-oturum" -H "Authorization: Bearer manuel-test-token-2026"`.
+1. `curl -i -X DELETE "http://localhost:5080/tracon/api/sessions/yok-boyle-bir-oturum" -H "Authorization: Bearer manuel-test-token-2026"`.
 
 **Beklenen sonuç**
 - `404`, `"Oturum bulunamadi"`.
@@ -1240,7 +1240,7 @@ Negatif senaryo.
 | **İlgili karar** | — |
 
 **Ön koşul**
-- PostgreSQL bağlı (`AgentPrism:PostgreSql:ConnectionString` tanımlı),
+- PostgreSQL bağlı (`Tracon:PostgreSql:ConnectionString` tanımlı),
   `playground/support` ile `FIX-PROMPT-01` gönderilmiş bir oturum var.
 
 **Adımlar**
@@ -1274,7 +1274,7 @@ dokümantasyonu) ve bu yoldan okunamaz.
 | **İlgili karar** | — |
 
 **Ön koşul**
-- `dotnet user-secrets remove "AgentPrism:PostgreSql:ConnectionString"`
+- `dotnet user-secrets remove "Tracon:PostgreSql:ConnectionString"`
   uygulanmış (hiçbir SQL sağlayıcısı bağlı DEĞİL — 00-INDEKS §2.4 "bellek
   içi izlek").
 - `playground/support` ile `FIX-PROMPT-02` gönderilmiş yeni bir oturum var.
@@ -1283,7 +1283,7 @@ dokümantasyonu) ve bu yoldan okunamaz.
 1. O oturumun `sessions/{id}` sayfasını aç, "Geçmiş" sekmesine bak.
 2. Herhangi bir mesaj satırındaki "Dallandır" düğmesine tıkla (varsa) —
    yoksa `curl -i -X POST ".../branch" -d '{}'` ile aynı isteği elle gönder.
-3. Sonra: `dotnet user-secrets set "AgentPrism:PostgreSql:ConnectionString" "Host=localhost;Port=55432;Database=agentprism;Username=postgres;Password=agentprism"`
+3. Sonra: `dotnet user-secrets set "Tracon:PostgreSql:ConnectionString" "Host=localhost;Port=55432;Database=tracon;Username=postgres;Password=tracon"`
    ile bağlantıyı GERİ KUR — dosyanın geri kalanı PostgreSQL gerektirir.
 
 **Beklenen sonuç**
@@ -1298,17 +1298,17 @@ dokümantasyonu) ve bu yoldan okunamaz.
 **Doküman düzeltmesi (KOSUM-PLANI §2.1 istisnası)**
 Adım 1'in `detail.messages === null` iddiası bu ortamda YANLIŞ çıktı.
 `support` (kod kökenli, MAF `InMemoryChatHistoryProvider` kullanan) bir
-agent'la üretilen oturum, AgentPrism'in `PostgreSql:ConnectionString` boş
+agent'la üretilen oturum, Tracon'in `PostgreSql:ConnectionString` boş
 olsa BİLE `GET /api/sessions/{id}` üzerinden mesajlarını TAM olarak
 döndürdü (`sourceId:"Microsoft.Agents.AI.InMemoryChatHistoryProvider"`).
-Kök neden: "bellek içi" iki BAĞIMSIZ eksendir — (1) AgentPrism'in KENDİ
-`ISessionStore`/`IRunStore` seçimi (bu case'in kastettiği, `AgentPrism:
+Kök neden: "bellek içi" iki BAĞIMSIZ eksendir — (1) Tracon'in KENDİ
+`ISessionStore`/`IRunStore` seçimi (bu case'in kastettiği, `Tracon:
 PostgreSql:ConnectionString` boşken In-Memory'e düşen taraf) ve (2) MAF
 agent'ının KENDİ `ChatHistoryProvider`'ı (`support` her koşulda —
 PostgreSQL bağlıyken de, boşken de — MAF'ın kendi bellek içi sağlayıcısını
 kullanıyor, `ChatHistoryReader` bu ikinciyi okuyor). Doküman ikisini
 karıştırmış: `ChatHistoryReader.ReadAsync`'in `null` dönme koşulları
-(agent silinmiş/serileştirme uyumsuz/`NotSupportedException`) AgentPrism'in
+(agent silinmiş/serileştirme uyumsuz/`NotSupportedException`) Tracon'in
 SQL/bellek-içi seçimiyle DOĞRUDAN bağlı değil. `Beklenen sonuç` KOSUM-PLANI
 §2.1 istisnasına göre düzeltildi.
 
@@ -1367,7 +1367,7 @@ SQL/bellek-içi seçimiyle DOĞRUDAN bağlı değil. `Beklenen sonuç` KOSUM-PLA
 **Doğrulama sorgusu**
 ```sql
 SELECT id, parent_session_id, branch_from_sequence, copied_item_count
-FROM agentprism.sessions WHERE id = '<yeniId>';
+FROM tracon.sessions WHERE id = '<yeniId>';
 ```
 
 **Doküman düzeltmesi (KOSUM-PLANI §2.1 istisnası)**
@@ -1426,7 +1426,7 @@ bunu `null` olarak GÖNDERMEZ.
 - `MT-UIRUN-042`'nin oturumu (üç turluk) açık.
 
 **Adımlar**
-1. `session-detail.tsx` sayfasını (kod: `git grep -n "BranchButton" src/AgentPrism.UI/frontend/src/screens/session-detail.tsx`)
+1. `session-detail.tsx` sayfasını (kod: `git grep -n "BranchButton" src/Tracon.UI/frontend/src/screens/session-detail.tsx`)
    baştan sona tara — sayfa başlığında, sekme çubuğunda veya başka bir
    yerde `upToSequence` PARAMETRESİZ bir "Dallandır" düğmesi ara.
 2. Aynı işlevi `curl` ile dene:
@@ -1471,7 +1471,7 @@ Negatif senaryo — yalnız `curl` ile erişilebilir (arayüz kimliği hiç sorm
 - Geçerli bir `<sessionId>` var.
 
 **Adımlar**
-1. `curl -i -X POST "http://localhost:5080/agentprism/api/sessions/<sessionId>/branch" -H "Authorization: Bearer manuel-test-token-2026" -H "Content-Type: application/json" -d '{"newSessionId":"manuel-dal-cakisma-01"}'`.
+1. `curl -i -X POST "http://localhost:5080/tracon/api/sessions/<sessionId>/branch" -H "Authorization: Bearer manuel-test-token-2026" -H "Content-Type: application/json" -d '{"newSessionId":"manuel-dal-cakisma-01"}'`.
 2. AYNI isteği İKİNCİ kez, DEĞİŞTİRMEDEN tekrar gönder.
 
 **Beklenen sonuç**
@@ -1492,7 +1492,7 @@ Negatif senaryo.
 | **İlgili karar** | — |
 
 **Adımlar**
-1. `curl -i -X POST "http://localhost:5080/agentprism/api/sessions/yok-boyle-bir-oturum/branch" -H "Authorization: Bearer manuel-test-token-2026" -H "Content-Type: application/json" -d '{}'`.
+1. `curl -i -X POST "http://localhost:5080/tracon/api/sessions/yok-boyle-bir-oturum/branch" -H "Authorization: Bearer manuel-test-token-2026" -H "Content-Type: application/json" -d '{}'`.
 
 **Beklenen sonuç**
 - `404`, `"Oturum bulunamadi"`.
@@ -1512,15 +1512,15 @@ Sınır durumu — F-115'in K1 uyumu: seçenek kapalıyken sıcak yol Faz 70'ten
 | **İlgili karar** | K-493 |
 
 **Ön koşul**
-- Örnek uygulama `AgentPrism:RunRecording:RecordReasoningDeltas` AYARLANMADAN
-  (veya açıkça `false` ile) çalışır — `samples/AgentPrism.Api/appsettings.json`
+- Örnek uygulama `Tracon:RunRecording:RecordReasoningDeltas` AYARLANMADAN
+  (veya açıkça `false` ile) çalışır — `samples/Tracon.Api/appsettings.json`
   bunu `true` yapar, bu case için geçici olarak kaldırılır ya da
-  `AgentPrism__RunRecording__RecordReasoningDeltas=false` ortam değişkeniyle
+  `Tracon__RunRecording__RecordReasoningDeltas=false` ortam değişkeniyle
   ezilir.
 
 **Adımlar**
-1. `curl -N -s -X POST "http://localhost:5080/agentprism/api/agents/claude-thinking/run/stream" -H "Authorization: Bearer manuel-test-token-2026" -H "Content-Type: application/json" -d '{"message":"17 çarpı 24 kaç eder? Adım adım düşün."}'` ile akışı izle, `runId`'yi not al.
-2. `curl -N -s "http://localhost:5080/agentprism/api/runs/<runId>/events" -H "Authorization: Bearer manuel-test-token-2026" | grep -c "ReasoningDelta"`.
+1. `curl -N -s -X POST "http://localhost:5080/tracon/api/agents/claude-thinking/run/stream" -H "Authorization: Bearer manuel-test-token-2026" -H "Content-Type: application/json" -d '{"message":"17 çarpı 24 kaç eder? Adım adım düşün."}'` ile akışı izle, `runId`'yi not al.
+2. `curl -N -s "http://localhost:5080/tracon/api/runs/<runId>/events" -H "Authorization: Bearer manuel-test-token-2026" | grep -c "ReasoningDelta"`.
 
 **Beklenen sonuç**
 - Adım 1: canlı akışta `$type: "reasoning"` içerikli `update` çerçeveleri YİNE
@@ -1533,7 +1533,7 @@ Sınır durumu — F-115'in K1 uyumu: seçenek kapalıyken sıcak yol Faz 70'ten
 ### MT-UIRUN-048 — `RecordReasoningDeltas` açıkken düşünme içeriği ayrı ve boşluksuz sıra numaralı `ReasoningDelta` olayları üretir
 
 Gerçek bir Anthropic extended-thinking çağrısıyla ölçüldü (2026-08-19,
-`claude-thinking` agent'ı, `samples/AgentPrism.Api/Program.cs`).
+`claude-thinking` agent'ı, `samples/Tracon.Api/Program.cs`).
 
 | | |
 |---|---|
@@ -1543,13 +1543,13 @@ Gerçek bir Anthropic extended-thinking çağrısıyla ölçüldü (2026-08-19,
 | **İlgili karar** | K-493 |
 
 **Ön koşul**
-- Örnek uygulama `AgentPrism:RunRecording:RecordReasoningDeltas = true` ile
+- Örnek uygulama `Tracon:RunRecording:RecordReasoningDeltas = true` ile
   çalışır (bu, örnek uygulamanın kendi `appsettings.json`'undaki varsayılandır
   — sample bilinçli olarak açık gösterir).
 
 **Adımlar**
-1. `curl -s -X POST "http://localhost:5080/agentprism/api/agents/claude-thinking/run" -H "Authorization: Bearer manuel-test-token-2026" -H "Content-Type: application/json" -d '{"message":"17 çarpı 24 kaç eder? Adım adım düşün."}'` ile `runId`'yi al.
-2. `curl -N -s "http://localhost:5080/agentprism/api/runs/<runId>/events" -H "Authorization: Bearer manuel-test-token-2026" > /tmp/events.txt`.
+1. `curl -s -X POST "http://localhost:5080/tracon/api/agents/claude-thinking/run" -H "Authorization: Bearer manuel-test-token-2026" -H "Content-Type: application/json" -d '{"message":"17 çarpı 24 kaç eder? Adım adım düşün."}'` ile `runId`'yi al.
+2. `curl -N -s "http://localhost:5080/tracon/api/runs/<runId>/events" -H "Authorization: Bearer manuel-test-token-2026" > /tmp/events.txt`.
 3. `grep -o '"type":"[A-Za-z]*"' /tmp/events.txt | sort | uniq -c` ile olay tipi dağılımına bak.
 4. Olayların `sequence` alanlarının boşluksuz olduğunu doğrula.
 
@@ -1608,14 +1608,14 @@ case iki yolun gerçek bir sunucuda hâlâ aynı sonuca vardığını doğrular.
 | **İlgili karar** | — |
 
 **Ön koşul**
-- `samples/AgentPrism.Api` yapılandırma olmadan (echo sağlayıcı, bellek içi
+- `samples/Tracon.Api` yapılandırma olmadan (echo sağlayıcı, bellek içi
   store) ayakta.
 
 **Adımlar**
-1. `POST /agentprism/api/agents/support/run` — `Idempotency-Key` başlığıyla
+1. `POST /tracon/api/agents/support/run` — `Idempotency-Key` başlığıyla
    (akışsız, tek JSON gövde).
 2. Aynı `message` ile `Idempotency-Key` OLMADAN aynı uca istek at (akışlı, SSE).
-3. `GET /agentprism/api/runs?agentName=support&limit=2` ile iki kaydı incele.
+3. `GET /tracon/api/runs?agentName=support&limit=2` ile iki kaydı incele.
 
 **Beklenen sonuç**
 - İki run da `status: "Completed"` ile kapanır.
@@ -1624,7 +1624,7 @@ case iki yolun gerçek bir sunucuda hâlâ aynı sonuca vardığını doğrular.
   — ikisi de `Completed`.
 - **Sapma:** akışlı kaydın `usage` alanı `null` döner, akışsızınki dolu. Kök
   neden `RunRecordingAgent` DEĞİL — örnek uygulamanın `EchoModelProvider`'ı
-  (`samples/AgentPrism.Api/EchoModelProvider.cs:67`) akışlı yolda hiç
+  (`samples/Tracon.Api/EchoModelProvider.cs:67`) akışlı yolda hiç
   `UsageDetails` üretmez, yalnız akışsız `GetResponseAsync` üretir. Gerçek bir
   sağlayıcıda (OpenAI, vb.) ikisi de usage döner; bu yalnız demo sağlayıcının
   bilinen basitleştirmesidir.
@@ -1641,7 +1641,7 @@ case iki yolun gerçek bir sunucuda hâlâ aynı sonuca vardığını doğrular.
 | **İlgili karar** | — |
 
 **Ön koşul**
-- `samples/AgentPrism.Api` ayakta (bkz. MT-UIRUN-050).
+- `samples/Tracon.Api` ayakta (bkz. MT-UIRUN-050).
 
 **Adımlar**
 1. Uzun bir `message` ile akışlı `POST .../support/run` başlat (echo
@@ -1663,7 +1663,7 @@ case iki yolun gerçek bir sunucuda hâlâ aynı sonuca vardığını doğrular.
 ### MT-UIRUN-052 — Tüketicinin yazdığı `Custom` olayı canlı akışta ve geçmiş okumada `customType` taşır (Faz 141)
 
 Gerçek bir OpenAI çağrısıyla ölçüldü (2026-09-04, `support` agent'ı, gerçek
-`mark_preview_ready` tool'u — `samples/AgentPrism.Api/OrderTools.cs`).
+`mark_preview_ready` tool'u — `samples/Tracon.Api/OrderTools.cs`).
 
 | | |
 |---|---|
@@ -1673,13 +1673,13 @@ Gerçek bir OpenAI çağrısıyla ölçüldü (2026-09-04, `support` agent'ı, g
 | **İlgili karar** | — |
 
 **Ön koşul**
-- `samples/AgentPrism.Api` gerçek bir tool-çağıran sağlayıcıyla (ör. OpenAI,
-  `AgentPrism:Providers:OpenAI:ApiKey` `user-secrets` ile ayarlı) ayakta —
+- `samples/Tracon.Api` gerçek bir tool-çağıran sağlayıcıyla (ör. OpenAI,
+  `Tracon:Providers:OpenAI:ApiKey` `user-secrets` ile ayarlı) ayakta —
   `support` agent'ı `mark_preview_ready`'i `ToolNames` listesinde taşır.
 
 **Adımlar**
-1. `curl -s -X POST "http://localhost:5080/agentprism/api/agents/support/run" -H "Authorization: Bearer manuel-test-token-2026" -H "Content-Type: application/json" -d '{"message":"Please call mark_preview_ready for order ORD-7 so the customer can review it."}'` ile akışı izle, `runId`'yi not al.
-2. `curl -s "http://localhost:5080/agentprism/api/runs/<runId>/events" -H "Authorization: Bearer manuel-test-token-2026" | grep -A1 "\"type\":\"Custom\""`.
+1. `curl -s -X POST "http://localhost:5080/tracon/api/agents/support/run" -H "Authorization: Bearer manuel-test-token-2026" -H "Content-Type: application/json" -d '{"message":"Please call mark_preview_ready for order ORD-7 so the customer can review it."}'` ile akışı izle, `runId`'yi not al.
+2. `curl -s "http://localhost:5080/tracon/api/runs/<runId>/events" -H "Authorization: Bearer manuel-test-token-2026" | grep -A1 "\"type\":\"Custom\""`.
 
 **Beklenen sonuç — gerçek koşumda ölçülen**
 - Adım 1: model `mark_preview_ready` tool'unu `orderId: "ORD-7"` argümanıyla
@@ -1700,7 +1700,7 @@ Gerçek bir OpenAI çağrısıyla ölçüldü (2026-09-04, `support` agent'ı, g
 
 MT-UIRUN-052'nin devamı — aynı `runId` konsolda açılır. Görsel doğrulama
 gerektirir; alan sözleşmesi (satır adının `customType` olması) E2E testiyle
-otomasyonla da koşulur: `AgentPrism.Ui.E2ETests.UiTests.
+otomasyonla da koşulur: `Tracon.Ui.E2ETests.UiTests.
 Custom_run_event_renders_as_a_generic_card_named_after_its_CustomType`.
 
 | | |
@@ -1714,7 +1714,7 @@ Custom_run_event_renders_as_a_generic_card_named_after_its_CustomType`.
 - MT-UIRUN-052 tamamlanmış, `runId` elde.
 
 **Adımlar**
-1. Konsolda `/agentprism/runs/<runId>` sayfasını aç.
+1. Konsolda `/tracon/runs/<runId>` sayfasını aç.
 2. Olay Zaman Çizelgesi'nde `Custom` tipli satırı bul.
 
 **Beklenen sonuç**
@@ -1727,7 +1727,7 @@ Custom_run_event_renders_as_a_generic_card_named_after_its_CustomType`.
 
 ---
 
-### MT-UIRUN-054 — `agentprism.` önekli `CustomType` yazan tool çağrısı reddedilir; run devam eder
+### MT-UIRUN-054 — `tracon.` önekli `CustomType` yazan tool çağrısı reddedilir; run devam eder
 
 | | |
 |---|---|
@@ -1738,7 +1738,7 @@ Custom_run_event_renders_as_a_generic_card_named_after_its_CustomType`.
 
 **Ön koşul**
 - `AgentRunScope.Writer.AppendAsync(new RunEventDraft(RunEventType.Custom) {
-  CustomType = "agentprism.internal" })` çağıran bir tool (geçici olarak eklenir
+  CustomType = "tracon.internal" })` çağıran bir tool (geçici olarak eklenir
   veya birim testle doğrulanır — bkz. `RunEventDraftValidationTests`).
 
 **Adımlar**
@@ -1749,7 +1749,7 @@ Custom_run_event_renders_as_a_generic_card_named_after_its_CustomType`.
   reddedilir. `RunEventWriter` bu istisnayı YUTMAZ (yalnız `store` hatalarını
   yutar) — istisna tool'un kendi çağrı zincirine düşer ve MAF onu bir `ToolFailed`
   olayına çevirir; run kendisi `Failed` olmaz, tool çağrısı başarısız sayılır.
-- Otomatik test kanıtı: `RunEventDraftValidationTests.A_Custom_event_under_the_reserved_agentprism_prefix_is_rejected`.
+- Otomatik test kanıtı: `RunEventDraftValidationTests.A_Custom_event_under_the_reserved_tracon_prefix_is_rejected`.
 
 ---
 
@@ -1787,7 +1787,7 @@ olarak gidiyordu.
 | **İlgili karar** | K-273 |
 
 **Ön koşul**
-- `samples/AgentPrism.Api` ayakta; `AddPatternContentGuard`'ın maskeleme
+- `samples/Tracon.Api` ayakta; `AddPatternContentGuard`'ın maskeleme
   kuralı `MT-UIRUN-010`'daki gibi etkin.
 
 **Adımlar**

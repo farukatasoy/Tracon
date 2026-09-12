@@ -1,0 +1,26 @@
+#nullable enable
+Tracon.TraconPostgreSqlBuilderExtensions
+Tracon.TraconPostgreSqlOptions
+Tracon.TraconPostgreSqlOptions.TraconPostgreSqlOptions() -> void
+Tracon.TraconPostgreSqlOptions.AutoApplyMigrations.get -> bool
+Tracon.TraconPostgreSqlOptions.AutoApplyMigrations.set -> void
+Tracon.TraconPostgreSqlOptions.CommandTimeoutSeconds.get -> int
+Tracon.TraconPostgreSqlOptions.CommandTimeoutSeconds.set -> void
+Tracon.TraconPostgreSqlOptions.ConnectionString.get -> string?
+Tracon.TraconPostgreSqlOptions.ConnectionString.set -> void
+Tracon.TraconPostgreSqlOptions.DataSource.get -> System.Data.Common.DbDataSource?
+Tracon.TraconPostgreSqlOptions.DataSource.set -> void
+Tracon.TraconPostgreSqlOptions.EnableKnowledge.get -> bool
+Tracon.TraconPostgreSqlOptions.EnableKnowledge.set -> void
+Tracon.TraconPostgreSqlOptions.EnableReadViews.get -> bool
+Tracon.TraconPostgreSqlOptions.EnableReadViews.set -> void
+Tracon.TraconPostgreSqlOptions.SchemaName.get -> string!
+Tracon.TraconPostgreSqlOptions.SchemaName.set -> void
+Tracon.MigrationRunner
+Tracon.MigrationRunner.ApplyAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<int>
+Tracon.MigrationRunner.GetSnapshotAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Tracon.SqlPersistenceDiagnosticsSnapshot!>
+Tracon.MigrationRunner.ProviderName.get -> string!
+const Tracon.TraconPostgreSqlOptions.SectionName = "Tracon:PostgreSql" -> string!
+static Tracon.TraconPostgreSqlBuilderExtensions.UsePostgreSql(this Tracon.ITraconBuilder! builder, Microsoft.Extensions.Configuration.IConfiguration! configurationSection) -> Tracon.ITraconBuilder!
+static Tracon.TraconPostgreSqlBuilderExtensions.UsePostgreSql(this Tracon.ITraconBuilder! builder, string! connectionString) -> Tracon.ITraconBuilder!
+static Tracon.TraconPostgreSqlBuilderExtensions.UsePostgreSql(this Tracon.ITraconBuilder! builder, System.Action<Tracon.TraconPostgreSqlOptions!>! configure) -> Tracon.ITraconBuilder!

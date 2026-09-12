@@ -24,7 +24,7 @@
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
-WORK_DIR="${TMPDIR:-/tmp}/agentprism-maf-apidump"
+WORK_DIR="${TMPDIR:-/tmp}/tracon-maf-apidump"
 PROPS="$REPO_ROOT/Directory.Packages.props"
 
 # Surumleri tek kaynaktan al: Directory.Packages.props.

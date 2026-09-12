@@ -1,6 +1,6 @@
 ---
 name: faz-baslangic
-description: Bir faza (docs/NN-*.md) başlarken uygulanacak açılış protokolü — minimum okuma kümesi, sıralı keşif ve bütçe farkındalığı. AgentPrism'in dokümanları birikimlidir; hepsini okumak oturumun bütçesini bitirir. Bu skill ne okunacağını ve neyin okunmayacağını söyler.
+description: Bir faza (docs/NN-*.md) başlarken uygulanacak açılış protokolü — minimum okuma kümesi, sıralı keşif ve bütçe farkındalığı. Tracon'in dokümanları birikimlidir; hepsini okumak oturumun bütçesini bitirir. Bu skill ne okunacağını ve neyin okunmayacağını söyler.
 ---
 
 # Faz Başlangıç Protokolü
@@ -70,12 +70,12 @@ Nerede yaşadığını bilmediğin bir şey için `docs/hafiza/kod-haritasi.md`.
 Doküman değil, **kod** gerçektir. Ama kodu da taramayla değil, adresli oku:
 
 ```bash
-grep -rn "IRunStore" src/AgentPrism.Abstractions/   # sözleşme
+grep -rn "IRunStore" src/Tracon.Abstractions/   # sözleşme
 grep -rn "class PostgresRunStore" src/              # uygulama
 ```
 
 Bir sözleşmeyi değiştireceksen önce sözleşme testine bak —
-`tests/AgentPrism.PostgreSql.IntegrationTests/Contracts/` altındaki soyut sınıflar
+`tests/Tracon.PostgreSql.IntegrationTests/Contracts/` altındaki soyut sınıflar
 hem bellek içi hem PostgreSQL uygulamasında koşar.
 
 ---
@@ -94,8 +94,8 @@ Kapılar ucuzdur (sıcak build ~5 sn, 1070 test ~32 sn). İlk anlamlı değişik
 sonra hemen çalıştır; faz sonuna biriktirme.
 
 ```bash
-dotnet build AgentPrism.slnx -c Release -p:AgentPrismFrontendEnabled=false
-dotnet test tests/AgentPrism.Core.UnitTests -c Release --no-build
+dotnet build Tracon.slnx -c Release -p:TraconFrontendEnabled=false
+dotnet test tests/Tracon.Core.UnitTests -c Release --no-build
 ```
 
 ---

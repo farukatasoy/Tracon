@@ -3,7 +3,7 @@
 > **Durum:** ✅ Tamamlandı (2026-08-06)
 > **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-38** · **F-62**
 > **Önkoşul:** Yok
-> **Paketler:** `AgentPrism.Abstractions`, `.Core`, `.AspNetCore`, `.UI`
+> **Paketler:** `Tracon.Abstractions`, `.Core`, `.AspNetCore`, `.UI`
 > **Yeni paket:** Yok — `Microsoft.Extensions.Diagnostics.HealthChecks` paylaşılan çerçevededir · **Migration:** Yok
 > **Public API:** büyüyor — Faz 7'den önce ucuz
 
@@ -30,9 +30,9 @@
 
 ## Bitiş Ölçütleri (DoD)
 
-- [x] `AddAgentPrismHealthChecks()` + `MapHealthChecks("/health")` kurulumunda
+- [x] `AddTraconHealthChecks()` + `MapHealthChecks("/health")` kurulumunda
       `GET /health` `200 Healthy` döner — model sağlığı ısıtıldıktan sonra
-      gerçek `samples/AgentPrism.Api` ile doğrulandı (aşağıda çıktı)
+      gerçek `samples/Tracon.Api` ile doğrulandı (aşağıda çıktı)
 - [x] Veritabanı durdurulduğunda `GET /health` `503 Unhealthy` döner —
       `HealthCheckTests.Baglanti_kurulamayan_SQL_saglayicisi_503_Unhealthy_doner`
       ile doğrulandı (fonksiyonel test; gerçek Postgres kapatma manuel
@@ -48,15 +48,15 @@
 - [x] 🚨 `secret` sızıntı testi: bilinen bir API anahtarı yapılandırmaya konur;
       teşhis yanıtının tamamında **hiçbir yerde** geçmez —
       `DiagnosticsEndpointTests.Bilinen_API_anahtari_yanitin_hicbir_yerinde_gecmez`
-      VE gerçek `samples/AgentPrism.Api`'de `dotnet user-secrets`'taki gerçek
+      VE gerçek `samples/Tracon.Api`'de `dotnet user-secrets`'taki gerçek
       OpenAI anahtarıyla elle doğrulandı (aşağıda)
 - [x] Sağlık denetimi çağrısı hiçbir model isteği üretmez (sahte sağlayıcı
       sayacı sıfır) — `ModelHealthEndpointsTests` zaten bunu `ModelProviderHealthCache`
-      üzerinde kanıtlıyordu; `AgentPrismDiagnosticsCollector` aynı önbellekten
+      üzerinde kanıtlıyordu; `TraconDiagnosticsCollector` aynı önbellekten
       `TryPeek` ile okur, `HealthCheckTests`'in tamamı hiçbir `FakeOpenAiCompatibleServer`
       çağrı sayacını artırmadan geçti
 - [x] Dört doğrulama kapısı sıfır uyarı verir — bu kapanışta tekrar çalıştırıldı
-- [x] `samples/AgentPrism.Api` ile gerçek `run` yapıldı, `/health` ve
+- [x] `samples/Tracon.Api` ile gerçek `run` yapıldı, `/health` ve
       `/api/diagnostics` çıktısı bu belgeye yazıldı (aşağıda)
 - [x] `secret` taraması boş döndü
 - [x] `en.ts` ve `tr.ts` eksiksiz; bundle payı ölçüldü ve yazıldı — **+3,3 KB gzip**
@@ -70,7 +70,7 @@ Degraded
 ```
 
 Model sağlığı hiç yoklanmamışken (uygulama yeni açılmış) beklenen durum budur —
-bkz. bölüm 33.3. `GET /agentprism/api/models/health?refresh=true` ile bir
+bkz. bölüm 33.3. `GET /tracon/api/models/health?refresh=true` ile bir
 sağlayıcı ısıtıldıktan sonra:
 
 ```bash
@@ -79,7 +79,7 @@ Healthy
 ```
 
 ```bash
-$ curl -s http://localhost:5080/agentprism/api/diagnostics | jq
+$ curl -s http://localhost:5080/tracon/api/diagnostics | jq
 {
   "persistenceProvider": "InMemory",
   "registeredPersistenceProviders": 0,
@@ -94,9 +94,9 @@ $ curl -s http://localhost:5080/agentprism/api/diagnostics | jq
     { "name": "google", "status": "Unknown", "circuitOpen": false }
   ],
   "configuration": [
-    { "key": "AgentPrism:Providers:OpenAI:ApiKey", "resolved": true, "hint": null },
-    { "key": "AgentPrism:Providers:Anthropic:ApiKey", "resolved": true, "hint": null },
-    { "key": "AgentPrism:Providers:Google:ApiKey", "resolved": true, "hint": null }
+    { "key": "Tracon:Providers:OpenAI:ApiKey", "resolved": true, "hint": null },
+    { "key": "Tracon:Providers:Anthropic:ApiKey", "resolved": true, "hint": null },
+    { "key": "Tracon:Providers:Google:ApiKey", "resolved": true, "hint": null }
   ],
   "uiEmbedded": true,
   "toolCount": 6,
@@ -106,9 +106,9 @@ $ curl -s http://localhost:5080/agentprism/api/diagnostics | jq
 
 ```bash
 # 🚨 Sizinti denetimi — gercek OpenAI anahtariyla, dev makinesindeki user-secrets'tan
-$ KEY=$(dotnet user-secrets list --project samples/AgentPrism.Api \
+$ KEY=$(dotnet user-secrets list --project samples/Tracon.Api \
       | grep -i 'OpenAI:ApiKey' | cut -d= -f2- | tr -d ' ')
-$ curl -s http://localhost:5080/agentprism/api/diagnostics | grep -F "$KEY" && echo "SIZINTI VAR" || echo "temiz"
+$ curl -s http://localhost:5080/tracon/api/diagnostics | grep -F "$KEY" && echo "SIZINTI VAR" || echo "temiz"
 temiz
 ```
 
@@ -135,25 +135,25 @@ raporlamak yerine hiç raporlanmaz.
    Plan `Configuration` alanını "yalnız kayıtlı sağlayıcıların beklediği anahtarlar"
    diye tarif ediyordu ama `UseOpenAICompatible()`'ın sabit bir bölüm yolu
    OLMADIĞINI (kod içinde serbestçe yapılandırılır) hesaba katmıyordu. İlk taslak
-   hep `AgentPrism:Providers:OpenAI` raporlardı — yanlış olurdu. Çözüm: parametre
+   hep `Tracon:Providers:OpenAI` raporlardı — yanlış olurdu. Çözüm: parametre
    `null` ise hiç raporlanmaz.
-4. **`AgentPrismDiagnosticsReport` genel bir `Status` alanı taşımaz (K-250).**
+4. **`TraconDiagnosticsReport` genel bir `Status` alanı taşımaz (K-250).**
    Taslak API zaten böyleydi (sapma değil) ama gerekçesi kapanışta netleşti:
-   `HealthStatus` yalnız `AgentPrism.AspNetCore`'da görünür (paylaşılan çerçeve),
-   `AgentPrism.Core` bu tipi hiç göremez. Üç durumlu karar tamamen
-   `AgentPrismHealthCheck` içindedir.
-5. **`AddAgentPrismHealthChecks()` `AddAgentPrism()`'in önceden çağrıldığını
-   denetlemez (K-251).** İlk taslak `MapAgentPrism`'in `IAgentCatalog` kontrolünü
+   `HealthStatus` yalnız `Tracon.AspNetCore`'da görünür (paylaşılan çerçeve),
+   `Tracon.Core` bu tipi hiç göremez. Üç durumlu karar tamamen
+   `TraconHealthCheck` içindedir.
+5. **`AddTraconHealthChecks()` `AddTracon()`'in önceden çağrıldığını
+   denetlemez (K-251).** İlk taslak `MapTracon`'in `IAgentCatalog` kontrolünü
    taklit ediyordu; kayıt anında (Build() öncesi) bu kontrol sıraya bağımlı yanlış
    sonuç üretirdi (`docs/hafiza/aspnetcore-di.md`).
-6. **`samples/AgentPrism.Api`'nin Faz 3'ten kalma elle yazılmış `GET /health`'i
-   söküldü.** Yeni standart `AddAgentPrismHealthChecks()` + `MapHealthChecks("/health")`
+6. **`samples/Tracon.Api`'nin Faz 3'ten kalma elle yazılmış `GET /health`'i
+   söküldü.** Yeni standart `AddTraconHealthChecks()` + `MapHealthChecks("/health")`
    onun yerini aldı; `persistenceEnabled` yerel değişkeni de kaldırıldı (artık
    `/api/diagnostics` bu bilgiyi taşıyor). Plan bunu açıkça söylemiyordu ama
    iki paralel "kurulum sağlıklı mı" yüzeyi tutmak DoD'un "tek yer" amacına aykırıydı.
-7. **`AgentPrismTestHost`'a (`AspNetCore.FunctionalTests`) `configureApp` kancası
+7. **`TraconTestHost`'a (`AspNetCore.FunctionalTests`) `configureApp` kancası
    eklendi.** Health check testleri `app.MapHealthChecks("/health")`'i
-   `MapAgentPrism`'den önce çağırmak zorundaydı; mevcut test altyapısında bu yol
+   `MapTracon`'den önce çağırmak zorundaydı; mevcut test altyapısında bu yol
    yoktu.
 8. **Açık Soru 1 (SQL sağlık denetimi gerçek sorgu mu atsın) — A seçildi, plandaki
    gibi.** `GetSnapshotAsync` bağlantı açar + (varsa) `__migrations` okur; hiçbir
@@ -172,8 +172,8 @@ K-247 — K-251. Tam gerekçe: `docs/KARARLAR.md`.
 | K-247 | K-183 işareti Abstractions'a taşındı; linked-source cross-assembly kimlik hatasını da düzeltti |
 | K-248 | `MigrationRunner` `ISqlPersistenceDiagnostics`'i doğrudan uygular |
 | K-249 | `UseOpenAICompatible()` hiçbir `ConfigurationDiagnostic` bildirmez |
-| K-250 | Genel sağlık kararı yalnız `AgentPrismHealthCheck`'te (AspNetCore), raporda değil |
-| K-251 | `AddAgentPrismHealthChecks()` kayıt anında `AddAgentPrism()` kontrolü yapmaz |
+| K-250 | Genel sağlık kararı yalnız `TraconHealthCheck`'te (AspNetCore), raporda değil |
+| K-251 | `AddTraconHealthChecks()` kayıt anında `AddTracon()` kontrolü yapmaz |
 
 ## Sonraki Faza Devir Notu
 
@@ -184,7 +184,7 @@ K-247 — K-251. Tam gerekçe: `docs/KARARLAR.md`.
   `/api/diagnostics` onu otomatik toplar; uygulamazsa sessizce atlanır (K4 uyumlu,
   hata değil).
 - **🚨 `IServiceCollection` sırası kayıt-anı kontrollerini bozar (K-251)**: yeni
-  bir `Add*()` uzantısı yazarken `MapAgentPrism`'in `app.Build()` sonrası kontrol
+  bir `Add*()` uzantısı yazarken `MapTracon`'in `app.Build()` sonrası kontrol
   desenini kayıt anında TEKRARLAMA — `docs/hafiza/aspnetcore-di.md`.
 - **🚨 Linked-source (K-176) `internal` bir tipi `IEnumerable<T>` ile SAYMAK
   istiyorsan T Abstractions'da olmalı** — aksi halde her sağlayıcı derlemesi

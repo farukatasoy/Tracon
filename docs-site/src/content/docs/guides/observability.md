@@ -3,7 +3,7 @@ title: Observability
 description: Record and inspect runs, export OpenTelemetry signals, configure health checks, and diagnose storage, provider, and pricing failures.
 ---
 
-AgentPrism exposes four complementary views of a running system:
+Tracon exposes four complementary views of a running system:
 
 1. **Run records and events** preserve the product-level history.
 2. **OpenTelemetry traces and metrics** feed your existing observability backend.
@@ -16,8 +16,8 @@ flowchart LR
     accTitle: Where each observability signal comes from and where it goes
     accDescr: One run emits events, spans, and measurements. Events go to the run store that the console and replay read. Spans go both to your OpenTelemetry exporter and, when sampling selects them, to the internal trace store. Measurements go to the meter. Health checks read storage and providers separately.
     RUN["One run"] --> EV["Run events<br/>RunRecording"]
-    RUN --> SPAN["Spans<br/>agentprism.run"]
-    RUN --> MET["Measurements<br/>meter AgentPrism"]
+    RUN --> SPAN["Spans<br/>tracon.run"]
+    RUN --> MET["Measurements<br/>meter Tracon"]
     EV --> STORE[("Run store")]
     STORE --> UI["Console · replay · tool history"]
     SPAN --> OTLP["Your OpenTelemetry exporter"]
@@ -34,47 +34,47 @@ persistence does not stop an exporter from receiving spans.
 
 ## Export traces and metrics
 
-AgentPrism does not choose an exporter. Add its stable source and meter to the
+Tracon does not choose an exporter. Add its stable source and meter to the
 OpenTelemetry pipeline that your application owns:
 
 ```csharp
-using AgentPrism;
+using Tracon;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Trace;
 
 builder.Services.AddOpenTelemetry()
     .WithTracing(tracing => tracing
-        .AddSource(AgentPrismDiagnostics.ActivitySourceName)
+        .AddSource(TraconDiagnostics.ActivitySourceName)
         .AddOtlpExporter())
     .WithMetrics(metrics => metrics
-        .AddMeter(AgentPrismDiagnostics.MeterName)
+        .AddMeter(TraconDiagnostics.MeterName)
         .AddOtlpExporter());
 ```
 
 Set the OTLP address, headers, protocol, sampling, and resource attributes through
-the OpenTelemetry packages and configuration used by your application. AgentPrism's
-activity source and meter are both named `AgentPrism`. The root run span is
-`agentprism.run`.
+the OpenTelemetry packages and configuration used by your application. Tracon's
+activity source and meter are both named `Tracon`. The root run span is
+`tracon.run`.
 
 ### Stable metric names
 
 | Instrument | Meaning |
 |---|---|
-| `agentprism.runs` | Completed run count by status |
-| `agentprism.run.duration` | Run duration in seconds |
-| `agentprism.tokens` | Reported input and output token count |
-| `agentprism.tool.invocations` | Tool invocation count |
-| `agentprism.tool.duration` | Tool duration in seconds |
-| `agentprism.run.cost` | Calculated run cost when a price is known |
-| `agentprism.quota.usage` | Current quota usage gauge when enabled |
-| `agentprism.quota.limit` | Current quota limit gauge when enabled |
-| `agentprism.judge.cost` | Cost reported for evaluation judges |
-| `agentprism.judge.score` | Judge score distribution |
-| `agentprism.model.cache` | Response-cache lookups, tagged hit or miss |
-| `agentprism.agent_source.failures` | Agent-source failure and contract-violation count |
-| `agentprism.job.executions` | Background jobs that reached a terminal status |
-| `agentprism.job.duration` | Duration of a single background-job attempt, in seconds |
-| `agentprism.job.queue.depth` | Outstanding jobs per lane and open status, when enabled |
+| `tracon.runs` | Completed run count by status |
+| `tracon.run.duration` | Run duration in seconds |
+| `tracon.tokens` | Reported input and output token count |
+| `tracon.tool.invocations` | Tool invocation count |
+| `tracon.tool.duration` | Tool duration in seconds |
+| `tracon.run.cost` | Calculated run cost when a price is known |
+| `tracon.quota.usage` | Current quota usage gauge when enabled |
+| `tracon.quota.limit` | Current quota limit gauge when enabled |
+| `tracon.judge.cost` | Cost reported for evaluation judges |
+| `tracon.judge.score` | Judge score distribution |
+| `tracon.model.cache` | Response-cache lookups, tagged hit or miss |
+| `tracon.agent_source.failures` | Agent-source failure and contract-violation count |
+| `tracon.job.executions` | Background jobs that reached a terminal status |
+| `tracon.job.duration` | Duration of a single background-job attempt, in seconds |
+| `tracon.job.queue.depth` | Outstanding jobs per lane and open status, when enabled |
 
 ### The attribute names
 
@@ -84,55 +84,55 @@ metric names above.
 
 | Attribute | Carried by | Value |
 |---|---|---|
-| `agentprism.agent.name` | Every run signal | The agent's registered name |
-| `agentprism.agent.version` | Run signals for a versioned definition | The definition version that ran |
-| `agentprism.run.status` | `agentprism.runs`, run span | `Completed`, `Failed`, `Canceled`, and the other run statuses |
-| `agentprism.run.streaming` | Run signals | Whether the caller asked for a stream |
-| `agentprism.model.id` | Run and cost signals | The model the run was bound to |
-| `agentprism.tenant.id` | Every signal in a multi-tenant setup | The resolved tenant |
-| `agentprism.tool.name` | `agentprism.tool.invocations`, `agentprism.tool.duration` | The invoked tool |
-| `agentprism.token.direction` | `agentprism.tokens` | `input` or `output`, and nothing else |
-| `agentprism.cost.currency` | `agentprism.run.cost` | The currency the configured price is expressed in |
-| `agentprism.quota.scope` · `agentprism.quota.period` · `agentprism.quota.metric` | Quota gauges | Which quota the gauge reports |
-| `agentprism.judge.name` | `agentprism.judge.cost`, `agentprism.judge.score` | The judge that produced the score |
-| `agentprism.model.provider` | `agentprism.model.cache` | The model provider name |
-| `agentprism.model.cache.result` | `agentprism.model.cache` | `hit` or `miss` |
-| `agentprism.skill.name` | Skill signals | The loaded skill |
-| `agentprism.script.name` · `agentprism.script.exit_code` · `agentprism.script.duration_ms` | Skill-script span | The script, how it ended, and how long it took |
-| `agentprism.compaction.input_tokens` · `agentprism.compaction.output_tokens` | Compaction span | What the summarization call itself cost |
-| `agentprism.agent_source.name` | `agentprism.agent_source.failures` | The failing `IAgentSource`'s name |
-| `agentprism.agent_source.operation` | `agentprism.agent_source.failures` | `list`, `resolve`, or `consistency` |
-| `agentprism.job.lane` | Every job signal | The lane the job was queued in |
-| `agentprism.job.handler_key` | `agentprism.job.executions`, `agentprism.job.duration` | The key of the handler that ran the job |
-| `agentprism.job.status` | Every job signal | A terminal status on the counter and the histogram; an open one on the gauge |
+| `tracon.agent.name` | Every run signal | The agent's registered name |
+| `tracon.agent.version` | Run signals for a versioned definition | The definition version that ran |
+| `tracon.run.status` | `tracon.runs`, run span | `Completed`, `Failed`, `Canceled`, and the other run statuses |
+| `tracon.run.streaming` | Run signals | Whether the caller asked for a stream |
+| `tracon.model.id` | Run and cost signals | The model the run was bound to |
+| `tracon.tenant.id` | Every signal in a multi-tenant setup | The resolved tenant |
+| `tracon.tool.name` | `tracon.tool.invocations`, `tracon.tool.duration` | The invoked tool |
+| `tracon.token.direction` | `tracon.tokens` | `input` or `output`, and nothing else |
+| `tracon.cost.currency` | `tracon.run.cost` | The currency the configured price is expressed in |
+| `tracon.quota.scope` · `tracon.quota.period` · `tracon.quota.metric` | Quota gauges | Which quota the gauge reports |
+| `tracon.judge.name` | `tracon.judge.cost`, `tracon.judge.score` | The judge that produced the score |
+| `tracon.model.provider` | `tracon.model.cache` | The model provider name |
+| `tracon.model.cache.result` | `tracon.model.cache` | `hit` or `miss` |
+| `tracon.skill.name` | Skill signals | The loaded skill |
+| `tracon.script.name` · `tracon.script.exit_code` · `tracon.script.duration_ms` | Skill-script span | The script, how it ended, and how long it took |
+| `tracon.compaction.input_tokens` · `tracon.compaction.output_tokens` | Compaction span | What the summarization call itself cost |
+| `tracon.agent_source.name` | `tracon.agent_source.failures` | The failing `IAgentSource`'s name |
+| `tracon.agent_source.operation` | `tracon.agent_source.failures` | `list`, `resolve`, or `consistency` |
+| `tracon.job.lane` | Every job signal | The lane the job was queued in |
+| `tracon.job.handler_key` | `tracon.job.executions`, `tracon.job.duration` | The key of the handler that ran the job |
+| `tracon.job.status` | Every job signal | A terminal status on the counter and the histogram; an open one on the gauge |
 
 Three spans and one tool name are not metrics at all, and are named here because a
 trace search needs them: `execute_skill_script` (a skill script's own span, carrying
-the three `agentprism.script.*` attributes), `compact_history` (the summarization
-call, carrying the two `agentprism.compaction.*` attributes), and the tool name
+the three `tracon.script.*` attributes), `compact_history` (the summarization
+call, carrying the two `tracon.compaction.*` attributes), and the tool name
 `skill_script`, which is what a script-backed skill appears as in
-`agentprism.tool.invocations`.
+`tracon.tool.invocations`.
 
 :::caution
 Four of these are **span attributes only** and are deliberately not metric tags:
-`agentprism.run.id`, `agentprism.session.id`, `agentprism.run.parent_id`, and
-`agentprism.run.depth`. Each is unbounded, and promoting one to a metric tag creates a
+`tracon.run.id`, `tracon.session.id`, `tracon.run.parent_id`, and
+`tracon.run.depth`. Each is unbounded, and promoting one to a metric tag creates a
 new time series per run. Use them to find a trace, not to group a chart.
 :::
 
 ### What the job metrics count
 
-`agentprism.job.executions` counts jobs that **finished**. Only a terminal status
+`tracon.job.executions` counts jobs that **finished**. Only a terminal status
 reaches it — `Completed`, `Failed`, or `Cancelled`. When an attempt fails and the
 job is released for another try, nothing is counted; a job configured with three
 attempts that ultimately fails is counted **once**, not three times.
 
-`agentprism.job.duration` follows the same rule and measures **one attempt**, not
+`tracon.job.duration` follows the same rule and measures **one attempt**, not
 the job's whole lifetime. For a job that failed twice before succeeding, the
 single recorded measurement covers the last attempt. It is taken from a monotonic
 clock, so a clock correction during the job cannot produce a negative duration.
 
-`agentprism.job.queue.depth` is **off by default**, because it reads the database
+`tracon.job.queue.depth` is **off by default**, because it reads the database
 on every scrape. Turn it on with `Observability:EnableJobQueueDepthGauge`, and the
 reads are cached for `Observability:JobQueueDepthRefreshInterval`. It reports only
 the open statuses — `Pending`, `Leased`, and `Running` — so its cost tracks the
@@ -142,7 +142,7 @@ the worker pool leases across every tenant, so queue depth is a signal about the
 pool, not about one tenant's work.
 
 :::caution
-A lane name is chosen by you, and AgentPrism does not bound how many exist. To keep
+A lane name is chosen by you, and Tracon does not bound how many exist. To keep
 the metric backend safe from a deployment that derives a lane per user, only the
 first `Observability:MaxJobLaneCardinality` distinct lanes a process sees (64 by
 default) get a series of their own; every further lane is reported as `other`. A
@@ -151,7 +151,7 @@ sees the same lane move between its own series and `other`.
 :::
 
 Token and cost data depend on the provider response. Missing usage remains unknown;
-it is not converted to zero. AgentPrism also does not invent a price. A run can have
+it is not converted to zero. Tracon also does not invent a price. A run can have
 token metrics but no cost metric when neither the model catalog nor your pricing
 configuration supplies a price.
 
@@ -166,12 +166,12 @@ a known cost.
 This tag set is **fixed**, and run attribution is deliberately absent from it.
 Neither the user id nor the labels of a run become metric tags: both are
 unbounded key spaces, and promoting either would multiply the time series of
-`agentprism.tokens` and `agentprism.run.cost` without limit. Attribution is a
+`tracon.tokens` and `tracon.run.cost` without limit. Attribution is a
 query dimension — break costs down with `GET /api/stats` instead, which returns
 `byUser` and `byLabel`.
 :::
 
-`agentprism.tokens` reports only two `direction` values, `input` and `output`.
+`tracon.tokens` reports only two `direction` values, `input` and `output`.
 The finer counters a provider may report — prompt-cache hits, reasoning tokens,
 audio tokens — are counted **inside** those two totals and are recorded on the
 `runs` row rather than emitted as extra metric series, for the same reason:
@@ -180,7 +180,7 @@ adding them would double count every token on the dashboard.
 Where the tokens actually went is a query:
 
 ```bash
-curl -s "http://localhost:5081/agentprism/api/runs?take=1" | jq '.[0].usage'
+curl -s "http://localhost:5081/tracon/api/runs?take=1" | jq '.[0].usage'
 ```
 
 ```json
@@ -204,7 +204,7 @@ The internal trace store keeps a sampled copy for run-level inspection:
 
 ```json
 {
-  "AgentPrism": {
+  "Tracon": {
     "Observability": {
       "Enabled": true,
       "PersistSpans": true,
@@ -229,8 +229,8 @@ Read a retained trace with the root run ID:
 
 ```bash
 curl -sS \
-  -H "Authorization: Bearer $AGENTPRISM_API_KEY" \
-  https://agents.example.com/agentprism/api/runs/$RUN_ID/trace
+  -H "Authorization: Bearer $TRACON_API_KEY" \
+  https://agents.example.com/tracon/api/runs/$RUN_ID/trace
 ```
 
 Child spans are collected into the root run's tree. A `404` can mean that the run was
@@ -246,7 +246,7 @@ Other useful views are `GET /api/runs/{runId}/tools` and
 | Setting | Default | Effect |
 |---|---:|---|
 | `Observability.Enabled` | `true` | Controls the MAF telemetry decorator and internal span collector; run recording remains separate |
-| `PersistSpans` | `true` | Writes sampled spans to the AgentPrism trace store |
+| `PersistSpans` | `true` | Writes sampled spans to the Tracon trace store |
 | `SuccessSampleRatio` | `0.1` | `0` persists no successful trace; `1` persists all successful traces |
 | `AlwaysPersistFailures` | `true` | Keeps failed traces independent of the success sample |
 | `MaxSpansPerRun` | `200` | Bounds the in-memory trace buffer; excess spans are dropped |
@@ -269,7 +269,7 @@ run inspection:
 
 ```json
 {
-  "AgentPrism": {
+  "Tracon": {
     "RunRecording": {
       "Enabled": true,
       "RecordMessageDeltas": true,
@@ -304,13 +304,13 @@ the data that your agents process.
 
 ## Add readiness and provider health
 
-Register AgentPrism in ASP.NET Core health checks, then choose the route yourself:
+Register Tracon in ASP.NET Core health checks, then choose the route yourself:
 
 ```csharp
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 
 builder.Services.AddHealthChecks()
-    .AddAgentPrismHealthChecks(tags: ["ready"]);
+    .AddTraconHealthChecks(tags: ["ready"]);
 
 var app = builder.Build();
 
@@ -334,7 +334,7 @@ provider that has no health implementation reports `Unknown`. Read the cache wit
 `GET /api/models/health`; add `?refresh=true` to request a fresh probe.
 
 Health results are cached for 60 seconds by default. No background refresh timer runs
-unless `AgentPrism:Health:BackgroundInterval` is set. A deployment can therefore be
+unless `Tracon:Health:BackgroundInterval` is set. A deployment can therefore be
 degraded until the first provider refresh fills the cache.
 
 ## Enable setup diagnostics deliberately
@@ -342,7 +342,7 @@ degraded until the first provider refresh fills the cache.
 The setup report is not mapped by default:
 
 ```csharp
-app.MapAgentPrism("/agentprism", options =>
+app.MapTracon("/tracon", options =>
 {
     options.EnableDiagnosticsEndpoint = true;
     options.RequireRolePolicies = true;
@@ -352,7 +352,7 @@ app.MapAgentPrism("/agentprism", options =>
 `GET /api/diagnostics` reports selected storage, migration state, provider setup, and
 whether expected configuration keys resolve. It never returns secret values. It
 performs a light SQL probe and does not run a migration or call a model. The endpoint
-requires the AgentPrism Admin role when role policies are registered.
+requires the Tracon Admin role when role policies are registered.
 
 :::caution[Production caveat]
 Tenant, agent, model, and version tags create time series. Review cardinality before
@@ -367,12 +367,12 @@ operational information.
 
 | Symptom | Check |
 |---|---|
-| No AgentPrism telemetry reaches the backend | Add both `AgentPrismDiagnostics.ActivitySourceName` and `MeterName`; then verify the consumer exporter, endpoint, and sampler |
+| No Tracon telemetry reaches the backend | Add both `TraconDiagnostics.ActivitySourceName` and `MeterName`; then verify the consumer exporter, endpoint, and sampler |
 | A run exists but `/trace` returns `404` | Check `PersistSpans`, success sampling, failure override, retention, and that you used the root run ID |
 | A trace is incomplete | Look for the one-per-run span-limit warning and raise `MaxSpansPerRun` only after checking memory cost |
 | Run cost is absent | Confirm that the provider reported tokens and that the exact provider/model has a catalog or configured price |
 | Replay says input is unavailable | Keep `RecordRunInput=true`; inspect logs for an input-store failure or retention deletion |
-| The run succeeded but events stopped | Inspect the first run-store write error; AgentPrism disables later event writes for that run so execution can continue |
+| The run succeeded but events stopped | Inspect the first run-store write error; Tracon disables later event writes for that run so execution can continue |
 | A reasoning model's thinking never appears in recorded events | Set `RunRecording.RecordReasoningDeltas = true`; the live stream shows it either way, only recording is gated |
 | A registered `IRunEventSink` stops receiving events partway through a run | Check the warning log for that sink's exception; it is disabled for the rest of that run only, other sinks and the store are unaffected |
 | Readiness starts as `Degraded` | Refresh `/api/models/health?refresh=true` or configure a background health interval |

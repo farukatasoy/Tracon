@@ -28,17 +28,17 @@
 
 ## Amaç
 
-AgentPrism 17 NuGet paketi yayınlayacak bir kütüphane ailesidir. Bir tüketici için **kırıcı API değişikliği bir üretim kusurudur** — kodun kendisi doğru olsa bile. Bugün böyle bir değişikliği hiçbir kapı yakalamaz: `EnablePublicApiTracking` `false`'tur ve dokuz `RS` kuralı `NoWarn` listesindedir. Bu faz kapıyı kurar.
+Tracon 17 NuGet paketi yayınlayacak bir kütüphane ailesidir. Bir tüketici için **kırıcı API değişikliği bir üretim kusurudur** — kodun kendisi doğru olsa bile. Bugün böyle bir değişikliği hiçbir kapı yakalamaz: `EnablePublicApiTracking` `false`'tur ve dokuz `RS` kuralı `NoWarn` listesindedir. Bu faz kapıyı kurar.
 
 ## Bitiş Ölçütleri (DoD)
 
 - [x] `EnablePublicApiTracking` `true`; `NoWarn` koşullu satırı silindi
-- [x] `PublicAPI.Unshipped.txt` 16 pakette dolu (meta `AgentPrism` kendi derlenmiş üyesi olmadığı için boş — beklenen); 17. paket olan `Templates` K-424 gereği dosya almıyor (kasıtlı hariç tutma); `Shipped.txt` boş
+- [x] `PublicAPI.Unshipped.txt` 16 pakette dolu (meta `Tracon` kendi derlenmiş üyesi olmadığı için boş — beklenen); 17. paket olan `Templates` K-424 gereği dosya almıyor (kasıtlı hariç tutma); `Shipped.txt` boş
 - [x] `RS0026`'nın 10 kalemi kapandı; her biri için seçim ve gerekçe dokümanda (K-422, "Plandan Sapmalar" §4)
 - [x] `RS0041` ya kapandı ya gerekçesiyle **tek başına** bastırıldı (karar defterinde — K-423)
 - [x] Manuel case 2: yeni bir public üye derlemeyi **kırıyor** (gerçek çıktı yazıldı — `MT-PKG-091`)
 - [x] Dört doğrulama kapısı sıfır uyarı verir
-- [x] `samples/AgentPrism.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı
+- [x] `samples/Tracon.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı
 - [x] `secret` taraması boş döndü
 - [x] Manuel kabul case'leri `PKG` alanına eklendi; otomatikleştirilebilenler koşuldu (`MT-PKG-090..093`, dördü de koşuldu)
 - [x] `faz-denetim` koşuldu; 🔴 bulgu kalmadı
@@ -48,7 +48,7 @@ AgentPrism 17 NuGet paketi yayınlayacak bir kütüphane ailesidir. Bir tüketic
 
 ```bash
 # Kapı gerçekten kapalı mı: kayıtsız üye derlemeyi kırmalı
-dotnet build AgentPrism.slnx -c Release 2>&1 | grep -c "RS0016"   # 0 beklenir
+dotnet build Tracon.slnx -c Release 2>&1 | grep -c "RS0016"   # 0 beklenir
 
 # Sonra bir public üye ekleyip tekrar: sıfırdan büyük olmalı
 ```
@@ -89,8 +89,8 @@ dotnet build AgentPrism.slnx -c Release 2>&1 | grep -c "RS0016"   # 0 beklenir
 
 - **K-421** — Public API takibi Faz 60'ta, yayından bağımsız açıldı (K-016/K-068'i günceller).
 - **K-422** — RS0026'nın 10 kalemi dört stratejiyle çözüldü (birleştir · varsayılan kaldır · sıfır-opsiyonel üçlü bölünme · `private` ctor + `FromClient`).
-- **K-423** — RS0041, tek kaynağa (üretilmiş `WebhookEventPayloadJsonContext`) izlenip `AgentPrism.Abstractions.csproj`'da tek satırla bastırıldı.
-- **K-424** — `Generators`/`Templates`, yeni `AgentPrismPublicApiTrackingEnabled` MSBuild özelliğiyle takipten hariç tutuldu.
+- **K-423** — RS0041, tek kaynağa (üretilmiş `WebhookEventPayloadJsonContext`) izlenip `Tracon.Abstractions.csproj`'da tek satırla bastırıldı.
+- **K-424** — `Generators`/`Templates`, yeni `TraconPublicApiTrackingEnabled` MSBuild özelliğiyle takipten hariç tutuldu.
 
 Tam gerekçeler: `docs/KARARLAR.md`, K-421 – K-424.
 
@@ -119,7 +119,7 @@ bağımsızca yeniden koştu/doğruladı.
    ağacında commit edilmemiş olarak zaten duruyordu (bu fazın konusu değil,
    dokunulmadı — birinci denetçinin `worktree` izolasyonu bunu ayırt edemedi).
 2. İkinci denetçi, bu diff'in dışında, `QuotaUsageObserverTests`'te
-   (`AgentPrism.Core.UnitTests`, son değişikliği Faz 57) ara sıra görülen bir
+   (`Tracon.Core.UnitTests`, son değişikliği Faz 57) ara sıra görülen bir
    `ObjectDisposedException` (SemaphoreSlim) yarışını gözlemledi — iki yeniden
    koşumda geçti. Faz 60'ın diff'inde yok, bu fazı bloklamaz; ayrı bir kusur
    olarak `docs/ADAYLAR.md`'ye değil, doğrudan bir sonraki
@@ -135,7 +135,7 @@ Denetim sonrası dört kapı yeniden koşuldu: `dotnet build` 0/0, `dotnet forma
 adımdır — bugün `Shipped.txt` her pakette bilerek boş bırakıldı (K-421).
 
 Diğer notlar:
-- `AgentPrismPublicApiTrackingEnabled` özelliği yalnız `Generators`/`Templates`'te
+- `TraconPublicApiTrackingEnabled` özelliği yalnız `Generators`/`Templates`'te
   `false`; yeni bir paket eklenirse varsayılan (`true`) otomatik uygulanır —
   hariç tutma gerekiyorsa bilinçli eklenmeli.
 - `UseMcp`'nin `IConfiguration` aşırı yüklemesi artık `configure`'ı zorunlu

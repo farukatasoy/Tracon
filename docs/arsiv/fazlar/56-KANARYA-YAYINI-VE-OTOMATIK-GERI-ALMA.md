@@ -3,7 +3,7 @@
 > **Durum:** ✅ Tamamlandı (2026-08-09)
 > **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-74**
 > **Önkoşul:** [Faz 19](19-SURUM-KARSILASTIRMA-VE-AB.md) (deney altyapısı) · [Faz 31](31-GERI-BILDIRIM-VE-PUANLAMA.md) · [Faz 44](44-HATA-SINIFLANDIRMA.md) · [Faz 49](49-CEVRIMICI-DEGERLENDIRME.md) — üçü de **tamamlandı**
-> **Paketler:** `AgentPrism.Abstractions`, `AgentPrism.Core`, `AgentPrism.AspNetCore`, `AgentPrism.Sql.Shared`, `AgentPrism.UI`
+> **Paketler:** `Tracon.Abstractions`, `Tracon.Core`, `Tracon.AspNetCore`, `Tracon.Sql.Shared`, `Tracon.UI`
 > **Yeni paket:** Yok · **Migration:** gerekli — `experiments` tablosuna eşik alanları, numara uygulama anında alınır
 > **Public API:** büyüyor — `Experiment`'a alanlar + bir ayar sınıfı. 🚨 `Experiment` bir `sealed record`; Faz 7'den **sonra** alan eklemek sürüm kararı olurdu
 
@@ -55,7 +55,7 @@ alan hiç açılmadı, `MinSampleSize` yeniden kullanıldı.
 - [x] Değerlendirme iki örnekli kurulumda yalnız birinde koşar — `CanaryEvaluationServiceTests.Iki_ornekte_degerlendirme_yalniz_birinde_kosar`
 - [x] Değerlendirici `SchemaReadyGate`'i bekler (K-354) — `CanaryEvaluationService.ExecuteAsync`, `ApprovalExpirationService` ile birebir aynı desen
 - [x] Dört doğrulama kapısı sıfır uyarı verir — `dotnet build`/`test`/`pack`/`format --verify-no-changes` hepsi temiz (2026-08-09)
-- [x] `samples/AgentPrism.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı — bkz. aşağı, gerçek `gpt-5.4-mini` çağrılarıyla
+- [x] `samples/Tracon.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı — bkz. aşağı, gerçek `gpt-5.4-mini` çağrılarıyla
 - [x] `secret` taraması boş döndü (bu fazın dokunduğu dosyalarda; iki ön-var eşleşme `MsSqlBuilder.DefaultPassword` kod-örneğidir, Faz 56'dan bağımsız)
 - [x] `en.ts` ve `tr.ts` eksiksiz; bundle payı **ölçüldü** ve yazıldı — `javascript: 164.4 KB gzipped (budget 250 KB)`, `embedded: 141.5 KB brotli`; `i18n.test.ts` (identicalOnPurpose listesi dahil) yeşil
 
@@ -63,18 +63,18 @@ alan hiç açılmadı, `MinSampleSize` yeniden kullanıldı.
 
 ```bash
 # Kanarya kurali tanimla
-curl -s -X PUT http://localhost:5080/agentprism/api/experiments/yeni-talimat/canary \
+curl -s -X PUT http://localhost:5080/tracon/api/experiments/yeni-talimat/canary \
   -H "Content-Type: application/json" \
   -d '{"canaryVariant":"treatment","maxErrorRateDelta":0.10,"minSampleSize":20,"rampSteps":[5,25,50,100]}'
 
 # Deneyin durumu ve geri alma nedeni
-curl -s http://localhost:5080/agentprism/api/experiments/yeni-talimat | jq '.status, .rollbackReason'
+curl -s http://localhost:5080/tracon/api/experiments/yeni-talimat | jq '.status, .rollbackReason'
 
 # Denetim izinde karar (ucta bir zarf YOKTUR, duz dizi doner)
-curl -s "http://localhost:5080/agentprism/api/audit?action=experiment.auto_rollback" | jq '.[0]'
+curl -s "http://localhost:5080/tracon/api/audit?action=experiment.auto_rollback" | jq '.[0]'
 ```
 
-**Gerçek koşum (2026-08-09, `samples/AgentPrism.Api`, bellek içi depolar, gerçek `openai`/`gpt-5.4-mini` çağrıları):**
+**Gerçek koşum (2026-08-09, `samples/Tracon.Api`, bellek içi depolar, gerçek `openai`/`gpt-5.4-mini` çağrıları):**
 
 ```
 PUT /api/experiments/demo-canary/canary  -> 200, canary.canaryVariant = "canary"

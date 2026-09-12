@@ -3,7 +3,7 @@
 > **Durum:** ✅ **Tamamlandı (2026-08-05)**
 > **Kaynak:** [BEYIN-FIRTINASI.md](../BEYIN-FIRTINASI.md) · **F-08**
 > **Önkoşul:** [Faz 17](17-TOPLU-VE-ZAMANLANMIS-CALISTIRMA.md) — temizleme işi kuyruğu kullanır
-> **Paketler:** `AgentPrism.Abstractions`, `.Core`, `.PostgreSql` (+ varsa `.SqlServer`, `.Sqlite`), `.AspNetCore`, `.UI`
+> **Paketler:** `Tracon.Abstractions`, `.Core`, `.PostgreSql` (+ varsa `.SqlServer`, `.Sqlite`), `.AspNetCore`, `.UI`
 > **Yeni paket:** Yok · **Migration:** 0014 (planlanan sırada)
 
 ---
@@ -81,7 +81,7 @@ karar defterine yazıldı (K-198…K-203, bkz. `docs/KARARLAR.md`).
 3. **Arşiv yazılamıyorsa silme yapılmaz.**
 4. **Parti silme, toplu `DELETE` değil** — üç sağlayıcı üç farklı teknik kullanır (K-200).
 5. **K-063 kapandı** — ölçümle: partition **açılmadı** (K-199).
-6. **`IArchiveSink` genişleme noktasıdır; bulut SDK bağımlılığı yok** (K-007); `samples/AgentPrism.Api/FileSystemArchiveSink.cs` şablon örnektir.
+6. **`IArchiveSink` genişleme noktasıdır; bulut SDK bağımlılığı yok** (K-007); `samples/Tracon.Api/FileSystemArchiveSink.cs` şablon örnektir.
 
 ---
 
@@ -117,19 +117,19 @@ karar defterine yazıldı (K-198…K-203, bkz. `docs/KARARLAR.md`).
   dosya paylaşmaz, "Bu Faza Başlarken" listesi değişmedi.
 - **Yeni tablo ekleyen her faz, saklama hedef listesine kendi tablosunu
   eklemekle yükümlüdür** — `RetentionTargets` (Abstractions) +
-  `RetentionTargetRegistry` (Sql.Shared) + `AgentPrismRetentionOptions`
+  `RetentionTargetRegistry` (Sql.Shared) + `TraconRetentionOptions`
   (Core) üçlüsüne bir kayıt. Bu kural `faz-tamamlama` skill'ine eklenmelidir
   (henüz eklenmedi — bu oturumun kendi kapsamı dışında bırakıldı).
 - **Yarım kalanlar:**
   - `MaxRows` (hacim bazlı kırpma) depoda var, yürütülmüyor.
   - SQL Server: kod hazır, gerçek `mssql/server`'a karşı bu oturumda
     koşmadı (ortam kısıtı, Plandan Sapmalar #7). Linux/amd64 bir makinede
-    veya CI'da `dotnet test tests/AgentPrism.SqlServer.IntegrationTests`
+    veya CI'da `dotnet test tests/Tracon.SqlServer.IntegrationTests`
     çalıştırılmalı.
-  - `AgentPrism.Ui.E2ETests`'e Playwright senaryosu eklenmedi; panel yalnız
+  - `Tracon.Ui.E2ETests`'e Playwright senaryosu eklenmedi; panel yalnız
     örnek uygulamaya karşı `curl` ile ve `tsc`/Vitest ile doğrulandı.
   - Arşiv sink'i yalnız dosya sistemi örneğiyle test edildi (birim testinde
-    sahte sink ile); gerçek bir S3/Blob sink'i AgentPrism'in kapsamında
+    sahte sink ile); gerçek bir S3/Blob sink'i Tracon'in kapsamında
     değildir (K-007).
 - **`docs/KARARLAR-INDEKS.md` bütçesi ilk kez aşıldı, 24 KB → 25 KB'ye
   çıkarıldı** (`scripts/dokuman-bakim.py`). 203 karar + 24 reddedilen işle
