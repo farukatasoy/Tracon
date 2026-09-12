@@ -1,6 +1,6 @@
 # Faz 162 — Tracon Yeniden Adlandırma
 
-> **Durum:** 🚧 Sürüyor (kapılar yeşil; denetim ve kapanış kaldı)
+> **Durum:** 🚧 Sürüyor
 > **Kaynak:** Kullanıcı kararı (2026-09-12) — ürün adı değişti. Bu kalem [ADAYLAR.md](ADAYLAR.md) içinde hiç bulunmadı
 > **Önkoşul:** Yok. Dış kimlikler faz öncesi alındı: npm org `tracon`, `tracon.dev` DNS, iki GitHub reposu
 > **Paketler:** 21'inin tamamı — kök ad alanı, paket kimliği, assembly adı
