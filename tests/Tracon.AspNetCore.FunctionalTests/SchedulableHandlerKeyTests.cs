@@ -1,10 +1,10 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
-using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 
 namespace Tracon.AspNetCore.FunctionalTests;
 

@@ -1,5 +1,5 @@
-using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 using Microsoft.Agents.AI;
+using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 
 namespace Tracon.AspNetCore.FunctionalTests;
 

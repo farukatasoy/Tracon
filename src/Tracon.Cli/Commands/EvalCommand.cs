@@ -1,9 +1,9 @@
 using System.Globalization;
 using System.Net.Http;
 using System.Text.Json;
+using Microsoft.Extensions.DependencyInjection;
 using Tracon.Client;
 using Tracon.Client.Generated;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace Tracon.Cli.Commands;
 

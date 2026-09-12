@@ -1,7 +1,7 @@
 using System.Text.Json;
+using Microsoft.Data.Sqlite;
 using Tracon.Sqlite.IntegrationTests.Infrastructure;
 using Tracon.Testing.Contracts.Storage;
-using Microsoft.Data.Sqlite;
 
 namespace Tracon.Sqlite.IntegrationTests;
 

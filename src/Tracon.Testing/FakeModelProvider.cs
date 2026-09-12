@@ -1,5 +1,5 @@
-using Tracon.Testing.Internal;
 using Microsoft.Extensions.AI;
+using Tracon.Testing.Internal;
 
 namespace Tracon.Testing;
 

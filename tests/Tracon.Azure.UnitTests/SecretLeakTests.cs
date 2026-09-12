@@ -1,9 +1,9 @@
 using System.Text.Json;
-using Tracon.Azure.UnitTests.Infrastructure;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Tracon.Azure.UnitTests.Infrastructure;
 
 namespace Tracon.Azure.UnitTests;
 

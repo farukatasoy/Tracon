@@ -1,6 +1,6 @@
-using Tracon.Core.UnitTests.Fakes;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using Tracon.Core.UnitTests.Fakes;
 
 namespace Tracon.Core.UnitTests.Audit;
 

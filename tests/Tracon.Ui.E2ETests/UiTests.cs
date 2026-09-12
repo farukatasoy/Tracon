@@ -3,12 +3,12 @@ using System.Net.Http;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.RegularExpressions;
-using Tracon.Ui.E2ETests.Infrastructure;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Playwright;
+using Tracon.Ui.E2ETests.Infrastructure;
 
 namespace Tracon.Ui.E2ETests;
 

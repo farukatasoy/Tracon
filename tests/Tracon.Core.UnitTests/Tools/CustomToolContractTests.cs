@@ -1,7 +1,7 @@
 using System.Reflection;
+using Microsoft.Extensions.AI;
 using Tracon.Testing.Contracts;
 using Tracon.Testing.Contracts.Tools;
-using Microsoft.Extensions.AI;
 
 namespace Tracon.Core.UnitTests.Tools;
 

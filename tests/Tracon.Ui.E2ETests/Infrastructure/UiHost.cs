@@ -1,8 +1,8 @@
-using Tracon.Testing;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Tracon.Testing;
 
 namespace Tracon.Ui.E2ETests.Infrastructure;
 

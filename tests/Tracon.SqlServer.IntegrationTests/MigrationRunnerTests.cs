@@ -1,6 +1,6 @@
-using Tracon.SqlServer.IntegrationTests.Infrastructure;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Logging.Abstractions;
+using Tracon.SqlServer.IntegrationTests.Infrastructure;
 
 namespace Tracon.SqlServer.IntegrationTests;
 

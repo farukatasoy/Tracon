@@ -1,6 +1,6 @@
 using System.Net;
-using Tracon.Voice.UnitTests.Infrastructure;
 using Shouldly;
+using Tracon.Voice.UnitTests.Infrastructure;
 
 namespace Tracon.Voice.UnitTests;
 

@@ -1,7 +1,7 @@
-using Tracon.PostgreSql.IntegrationTests.Infrastructure;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Npgsql;
+using Tracon.PostgreSql.IntegrationTests.Infrastructure;
 
 namespace Tracon.PostgreSql.IntegrationTests;
 

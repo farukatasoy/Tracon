@@ -1,9 +1,9 @@
 using System.Net.WebSockets;
 using System.Text.Json;
-using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 
 namespace Tracon.AspNetCore.FunctionalTests;
 

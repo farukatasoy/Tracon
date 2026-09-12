@@ -1,9 +1,8 @@
 using System.Net;
 using System.Net.Http.Json;
-using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
-
+using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 // 🚨 `using Tracon.Testing;` is NOT WRITTEN: the package's TraconTestHost
 // and this project's own (TestServer-based) TraconTestHost have the SAME
 // name, and CS0104 fires when both are visible (K-269). Only the type is

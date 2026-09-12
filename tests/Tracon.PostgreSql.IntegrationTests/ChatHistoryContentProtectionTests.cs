@@ -1,7 +1,7 @@
-using Tracon.PostgreSql.IntegrationTests.Infrastructure;
-using Tracon.Testing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Tracon.PostgreSql.IntegrationTests.Infrastructure;
+using Tracon.Testing;
 
 namespace Tracon.PostgreSql.IntegrationTests;
 

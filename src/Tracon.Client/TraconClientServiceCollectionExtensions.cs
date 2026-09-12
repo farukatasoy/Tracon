@@ -1,7 +1,7 @@
 using System.Net.Http.Headers;
-using Tracon.Client.Generated;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Tracon.Client.Generated;
 
 namespace Tracon.Client;
 

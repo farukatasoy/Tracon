@@ -1,6 +1,6 @@
 using System.Runtime.CompilerServices;
-using Tracon;
 using Microsoft.Extensions.AI;
+using Tracon;
 
 namespace Tracon.Api;
 

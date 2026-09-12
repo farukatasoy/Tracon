@@ -1,7 +1,7 @@
 using System.Collections.Immutable;
-using Tracon.Generators;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
+using Tracon.Generators;
 
 namespace Tracon.Generators.UnitTests;
 

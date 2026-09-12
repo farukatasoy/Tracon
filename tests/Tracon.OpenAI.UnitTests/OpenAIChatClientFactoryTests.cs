@@ -1,5 +1,5 @@
-using Tracon.OpenAI.UnitTests.Infrastructure;
 using Microsoft.Extensions.AI;
+using Tracon.OpenAI.UnitTests.Infrastructure;
 
 namespace Tracon.OpenAI.UnitTests;
 

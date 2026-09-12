@@ -2,8 +2,8 @@ using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
-using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
+using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 
 namespace Tracon.AspNetCore.FunctionalTests;
 

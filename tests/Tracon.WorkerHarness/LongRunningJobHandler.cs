@@ -1,5 +1,5 @@
-using Tracon.Tests.Common;
 using Microsoft.Extensions.Options;
+using Tracon.Tests.Common;
 
 namespace Tracon.WorkerHarness;
 

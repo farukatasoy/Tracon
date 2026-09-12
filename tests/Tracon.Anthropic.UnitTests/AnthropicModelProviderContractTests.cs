@@ -1,10 +1,10 @@
 using System.Collections;
 using System.Reflection;
 using System.Text.Json;
+using Microsoft.Extensions.AI;
 using Tracon.Anthropic.UnitTests.Infrastructure;
 using Tracon.Testing.Contracts;
 using Tracon.Testing.Contracts.Providers;
-using Microsoft.Extensions.AI;
 
 namespace Tracon.Anthropic.UnitTests;
 
