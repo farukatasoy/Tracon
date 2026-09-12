@@ -31,10 +31,32 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=reverse-proxy"
+
+      # Apex serves the site.
       - "traefik.http.routers.tracon.rule=Host(`${SITE_HOST}`)"
       - "traefik.http.routers.tracon.entrypoints=websecure"
       - "traefik.http.routers.tracon.tls=true"
       - "traefik.http.routers.tracon.tls.certresolver=le"
+      - "traefik.http.routers.tracon.service=tracon"
+
+      # www is not a second home for the content: it redirects to the apex so
+      # there is one canonical address. The router still needs its own
+      # certresolver, or the certificate would not cover the www name and the
+      # handshake fails before any redirect can happen.
+      - "traefik.http.routers.tracon-www.rule=Host(`www.${SITE_HOST}`)"
+      - "traefik.http.routers.tracon-www.entrypoints=websecure"
+      - "traefik.http.routers.tracon-www.tls=true"
+      - "traefik.http.routers.tracon-www.tls.certresolver=le"
+      - "traefik.http.routers.tracon-www.service=tracon"
+      - "traefik.http.routers.tracon-www.middlewares=tracon-www-to-apex"
+      # $$ is a literal $ after compose interpolation: a single $ would let
+      # compose eat the capture group and send the reader to https:// itself.
+      - "traefik.http.middlewares.tracon-www-to-apex.redirectregex.regex=^https://www\\.(.+)"
+      - "traefik.http.middlewares.tracon-www-to-apex.redirectregex.replacement=https://$${1}"
+      - "traefik.http.middlewares.tracon-www-to-apex.redirectregex.permanent=true"
+
+      # Named explicitly on both routers: with two routers on one container
+      # Traefik's automatic service assignment is ambiguous.
       - "traefik.http.services.tracon.loadbalancer.server.port=8080"
 
 networks:
