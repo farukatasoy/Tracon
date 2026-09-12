@@ -659,62 +659,57 @@ docs/hafiza/{frontend,frontend-tasarim-katmani,00-INDEKS}.md  fazın tuzakları
 ## Denetim Bulguları
 
 Bağımsız denetim (taze bağlamlı ayrı agent) 2026-09-12'de koştu: **5 🔴 · 7 🟡 ·
-3 🟢**. Denetimin en değerli işi, **kendi sertleştirmemin kırdığı iki testi**
-bulmaktı — locator'lara `Exact = true` ekledikten sonra o iki olguyu yeniden
-koşmamıştım.
+3 🟢**. En değerli bulgusu, **kendi sertleştirmemin kırdığı iki testti** —
+locator'lara `Exact = true` ekledikten sonra o iki olguyu yeniden koşmamıştım.
 
 ### 🔴 — hepsi kapatıldı
 
 | # | Bulgu | Sonuç |
 |---|---|---|
-| 1 | **İki yeni E2E olgusu hiç yeşil olmadı.** `PlaywrightLocatorTests` tabanını korumak için locator'lara `Exact = true` ekledim ve **yeniden koşmadım**: sekmenin adı `History` değil `Chat history`, hata metni de `title` değil `"<title>: <detail>"` (`TraconError` böyle kuruyor). | **Düzeltildi.** Gerçek metinler kullanıldı; sunucu cümlesi `ServerFailureText` sabitine alındı ve **tam cümle** iddia ediliyor — yalnız başlığı eşlemek, olgunun iddia ettiğinden azını kanıtlıyordu. |
-| 2 | **İki kapanış kapısı kırmızı:** `ui.md` değişti ama türevi `llms-full.txt` üretilmedi (`build-agent-map.mjs --check` ve docs-site `check:content`). | **Düzeltildi.** `build-agent-map.mjs` koşuldu. |
-| 3 | **19 ekran görüntüsü yeniden üretilmedi** — sevk edilen site hâlâ Faz 164'ün konsolunu gösteriyordu. | **Düzeltildi.** `TRACON_UI_SCREENSHOTS=1` ile 19 PNG yeniden üretildi ve gözle bakıldı. |
-| 4 | **"`Button`/`Link` üzerinde `title` = 0" yanlış — altı tane duruyordu**, hepsi "kontrol açıklaması" sınıfından; ikisi **ikon-only** ve `ariaLabel` taşımıyordu, yani erişilebilir adları yalnız `title`'dan geliyordu. Grep'im tek satırlıydı, bunlar çok satırlı. | **Düzeltildi ve kural YAPIYA bağlandı:** altısı `Tooltip`'e taşındı (ikisine `ariaLabel` eklendi), sonra `Button` ve `Link`'ten **`title` prop'u kaldırıldı**. Artık bir sonraki çağrı yeri ona uzanamaz — derleme hatası. Kabuktaki üç kullanım da kapandı: iki tanesi `aria-label`'ı tekrar ediyordu (silindi), tema düğmesinin mevcut tercihi söyleyen metni `Tooltip`'e geçti. `19 → 0`. |
-| 5 | **DoD'nin "`samples/Tracon.Api` ile gerçek `run`" satırı karşılıksız.** | **Düzeltildi.** Koşum yapıldı ve çıktısı aşağıdaki "Örnek uygulama koşumu" bölümünde. |
+| 1 | İki yeni E2E olgusu **hiç yeşil olmadı**: sekmenin adı `History` değil `Chat history`, hata metni `title` değil `"<title>: <detail>"` (`TraconError` böyle kurar). | Gerçek metinler kullanıldı; sunucu cümlesi `ServerFailureText` sabitine alındı ve **tam cümle** iddia ediliyor — yalnız başlığı eşlemek, olgunun iddia ettiğinden azını kanıtlıyordu. |
+| 2 | `ui.md` değişti ama türevi `llms-full.txt` üretilmedi → iki kapanış kapısı kırmızı. | `build-agent-map.mjs` koşuldu. |
+| 3 | 19 ekran görüntüsü yeniden üretilmedi; sevk edilen site Faz 164'ün konsolunu gösteriyordu. | `TRACON_UI_SCREENSHOTS=1` ile üretildi ve gözle incelendi. |
+| 4 | "`Button`/`Link` üzerinde `title` = 0" **yanlıştı, altı tane duruyordu** (grep'im tek satırlıydı); ikisi ikon-only ve `ariaLabel` taşımıyordu, yani adları yalnız `title`'dan geliyordu. | Altısı `Tooltip`'e taşındı (+`ariaLabel`), sonra **prop kaldırıldı** — kusur listesi #1 ve devir notu #2. Kabuktaki üç kullanım da kapandı. **19 → 0.** |
+| 5 | DoD'nin "`samples/Tracon.Api` ile gerçek `run`" satırı karşılıksız. | Koşuldu; çıktı "Örnek uygulama koşumu"nda. |
 
 ### 🟡
 
 | # | Bulgu | Sonuç |
 |---|---|---|
-| 6 | `<Loading />` varsayılan satır sayısıyla **iki** yerde daha çağrılıyordu (`access-gate.tsx`); grep'im `<Loading label={...} />` biçimini görmemişti. | **Düzeltildi:** `rows={1}` ve gerekçesi kodda — bu tam sayfa bağlanma durumudur, arkasında yüksekliği tutulacak bir liste yok. |
-| 7 | Tooltip kırpması `useEffect` ile ölçüyordu; passive effect **boyamadan sonra** koşar, yani balon bir kare kırpılmamış çizilir. Görünürken pencere yeniden boyutlanırsa da yeniden hesaplanmıyordu. | **Düzeltildi:** `useLayoutEffect` + `resize` dinleyicisi. |
-| 8 | 375 px gezintisi 14 ekranın sekizinde **satırsız** koşuyordu — "boş ekran taşmaz" kuralının tam ihlali. | **Düzeltildi:** `SeedEveryListAsync` her listeye bir satır yazıyor (skill · trigger · MCP server · schedule + job · eval seti · deney; denetim izi bunların **yan etkisi** olarak doluyor). Tohumlama iki gerçek sözleşmeyi de ortaya çıkardı: bir deney **kayıtlı** agent ister (kodda tanımlı olanın sürüm geçmişi yoktur) ve `PUT /api/agents/{ad}` günceller, oluşturmak `POST /api/agents`'tır. `diagnostics`'in kendi listesi yoktur; bu yorum olarak yazıldı. |
-| 9 | `identicalOnPurpose` muafiyet listesi **+2 büyüdü**; skill'e göre bu gerekçeli olsa bile 🔴'dır. | **Bilinçli olarak kapatıldı, gerekçe aşağıda** — büyüme iki teknik terimdir ve alternatifi **daha güçlü bir kuralı ihlal etmek**. Ayrıntı: "Muafiyet listesinin büyümesi". Diğer üç taban çizgisi (`SourceLanguageTests`, `PlaywrightLocatorTests` 119, kontrast 5,22/3,56) **dokunulmadı**. |
-| 10 | **"Ölçülen sonuç" tablosunun beş sayısı yeniden üretilemiyordu** — `Empty` sayımı `<EmptyChart` çağrılarını da sayıyordu, sözlük/case/test sayıları yanlıştı, `aria` sayısı hiçbir desenle çıkmıyordu. | **Düzeltildi:** tablo yeniden yazıldı ve her satır **aynı betikle** iki kez ölçüldü — taban ağacı `git archive 18a3d6f2` ile çıkarılıp aynı sayım koşuldu. Artık iki kolon karşılaştırılabilir. |
-| 11 | Sevk edilen dokümandaki bundle sayısı yanlıştı (189,9 vs 190,2). | **Düzeltildi:** son ölçüm **190,3 KB**; `ui.md` ve faz dokümanı ikisi de bu sayıyı taşıyor. |
-| 12 | Üretilen `docs/YOL-HARITASI.md` kaynağıyla aynı değil. | **Düzeltildi** kapanışta (`faz-arsivle` + `dokuman-bakim.py`). |
+| 6 | `<Loading />` iki yerde daha varsayılan satır sayısıyla (`access-gate.tsx`); grep'im `<Loading label={…} />` biçimini görmemişti. | Kusur listesi #11. |
+| 7 | Tooltip kırpması `useEffect` ile ölçüyordu (passive effect boyamadan **sonra** koşar) ve `resize`'da yeniden hesaplamıyordu. | Kusur listesi #10. |
+| 8 | 375 px gezintisi 14 ekranın sekizinde **satırsız** koşuyordu — "boş ekran taşmaz" kuralının ihlali. | `SeedEveryListAsync` her listeye bir satır yazıyor; denetim izi yan etki olarak doluyor. Tohumlama iki sözleşmeyi ortaya çıkardı: bir deney **kayıtlı** agent ister (kodda tanımlının sürüm geçmişi yoktur) ve `PUT /api/agents/{ad}` günceller, oluşturmak `POST /api/agents`'tır. `diagnostics`'in listesi yoktur; yorum olarak yazıldı. |
+| 9 | `identicalOnPurpose` muafiyeti **+2 büyüdü**; skill'e göre gerekçeli olsa bile 🔴. | **Bilinçli kapatıldı** — aşağıdaki bölüm. Diğer üç taban çizgisi dokunulmadı. |
+| 10 | "Ölçülen sonuç"un beş sayısı **yeniden üretilemiyordu** (`Empty` sayımı `<EmptyChart`'ı da sayıyordu; `aria` sayısı hiçbir desenle çıkmıyordu). | Tablo yeniden yazıldı; her satır taban ağacı `git archive 18a3d6f2` ile çıkarılıp **aynı betikle** iki kez ölçüldü. |
+| 11 | Sevk edilen bundle sayısı yanlıştı. | Son ölçüm **190,3 KB**; `ui.md` ve bu doküman aynı sayıyı taşıyor. |
+| 12 | Üretilen `YOL-HARITASI.md` kaynağıyla aynı değil. | Kapanışta düzeltildi. |
 
 **Denetim sonrası dört kapı yeniden koştu ve bir KARARSIZLIK buldu** — skill'in
-"🔴 kapandıktan sonra dört kapı yeniden koşar; düzeltme yeni kusur üretebilir"
-kuralının tam karşılığı. `Proof_slice_screens_...` üç koşumda bir düşüyordu ve
-izole her zaman geçiyordu; sebebi `Mono`'nun `min-w-0`'ı olmayan `copy`
-sarmalayıcısıydı (kusur listesi #14). İlk hipotez yanlıştı; doğru cevabı taşma
-probunun bastığı suçlu listesi verdi. Düzeltme sonrası set **altı kez** üst
-üste 71/71 koştu.
+"🔴 kapandıktan sonra kapılar yeniden koşar; düzeltme yeni kusur üretebilir"
+kuralının karşılığı. Ayrıntı: kusur listesi #14 ve devir notu #4. Düzeltme
+sonrası set **altı kez** üst üste 71/71 koştu.
 
 ### 🟢 — ikisi yine de kapatıldı
 
 | # | Bulgu | Sonuç |
 |---|---|---|
-| 13 | `triggers.tsx`: kiracı sorgusu düştüğünde kabul URL'i `…` ile sessizce **yanlış** üretiliyordu. Bu, fazın `settings.tsx`'te kapattığı kusurun aynı sınıfıdır. | **Düzeltildi** (sınıf taraması): kiracı kimliği, harici bir sistemin imzalayacağı adresin parçasıdır; artık `isSuccess` olmadan URL üretilmiyor, yükleme/hata durumu görünüyor ve URL `copy` taşıyor. |
-| 14 | `audit.tsx`: `aria-controls` yalnız genişletildiğinde var olan bir `id`'ye işaret ediyordu. | **Düzeltildi:** detay satırı her zaman render ediliyor, `hidden` ile gizleniyor. |
-| 15 | `Reader_role_is_refused_...` audit'in boş-durum metnini `diagnostics` için de arıyor; orada o metin hiç yok. | **Gerekçelendi, devredilmedi:** ikinci iddia gereksiz ama zararsız değil — yanlış güven verir. Olgu `unauthorized` testid'siyle her iki ekranı zaten kanıtlıyor; metin kontrolü audit için anlamlı olduğu yerde kalıyor ve yorumu bunu söylüyor. |
+| 13 | `triggers.tsx`: kiracı sorgusu düştüğünde kabul URL'i `…` ile sessizce **yanlış** üretiliyordu — fazın `settings.tsx`'te kapattığı kusurun aynı sınıfı. | Kusur listesi #12 (sınıf taraması). |
+| 14 | `audit.tsx`: `aria-controls` yalnız genişletilmişken var olan bir `id`'ye işaret ediyordu. | Kusur listesi #13. |
+| 15 | `Reader_role_is_refused_…` audit'in boş-durum metnini `diagnostics` için de arıyor; orada o metin yok. | **Gerekçelendi:** ikinci iddia gereksiz ama zararsız değil, yanlış güven verir. Olgu `unauthorized` testid'siyle her iki ekranı kanıtlıyor; metin kontrolü anlamlı olduğu yerde kaldı ve yorumu bunu söylüyor. |
 
 ### Muafiyet listesinin büyümesi — bilinçli karar
 
-`lib/i18n.test.ts`'in `identicalOnPurpose` listesi iki anahtar büyüdü:
-`waterfall.traceIdLabel` ve `waterfall.spanIdLabel`, ikisi de `'W3C trace id'` /
-`'W3C span id'`. Bunlar **tamamen** İngilizce kalan terimlerden oluşur —
-`AGENTS.md` dil kuralı `trace`, `span` ve `id`'nin çevrilmemesini şart koşar —
-dolayısıyla Türkçe karşılığı İngilizcesidir.
+`identicalOnPurpose` iki anahtar büyüdü: `waterfall.traceIdLabel` ve
+`waterfall.spanIdLabel` (`'W3C trace id'` / `'W3C span id'`). İkisi de
+**tamamen** İngilizce kalan terimlerden oluşur — dil kuralı `trace`, `span` ve
+`id`'nin çevrilmemesini şart koşar — dolayısıyla Türkçesi İngilizcesidir.
 
 Alternatif **daha kötüdür**: değiştirdikleri iki `title` anahtarı bu terimleri
-gerçekten çevirmişti ("W3C iz kimliği"), yani o dil kuralını ihlal ediyordu ve
-bunu kimsenin ulaşamadığı bir `title` özniteliğinin içinde yapıyordu. Listeyi
-büyütmemek için tek yol terimleri yeniden çevirmek olurdu. **Net sonuç: iki
-muafiyet kazanıldı, iki dil kuralı ihlali kaldırıldı, iki açıklama görünür
-etikete dönüştü.** Diğer üç taban çizgisi büyümedi.
+gerçekten çevirmişti ("W3C iz kimliği"), yani o kuralı ihlal ediyordu ve bunu
+kimsenin ulaşamadığı bir `title` özniteliğinin içinde yapıyordu. Listeyi
+büyütmemenin tek yolu terimleri yeniden çevirmekti. **Net: iki muafiyet
+kazanıldı, iki dil kuralı ihlali kaldırıldı, iki açıklama görünür etikete
+dönüştü.**
 
 ## Örnek uygulama koşumu
 
