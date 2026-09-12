@@ -5,7 +5,7 @@
 
 En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek bölünme). Yeni kararlar için: [`KARARLAR-INDEKS.md`](../KARARLAR-INDEKS.md).
 
-## Arşivlenen Kararlar (666 kalem)
+## Arşivlenen Kararlar (667 kalem)
 
 | K | Satır | Karar |
 |---|---|---|
@@ -675,3 +675,4 @@ En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek böl
 | K-705 | 714 | `LoopSettings.MaxIterations` `null` iken Tracon'in kendi `DefaultMaxIterations = 10` sabiti uygulanır |
 | K-706 | 715 | `aiJudge` ölçütü `AddModelRunJudge` binding'ini kullanır; yoksa DERLEME HATASI verir, agent'ın modeline düşmez |
 | K-707 | 716 | Değerlendirilemeyen bir döngü ölçütü döngüyü DURDURUR; `run`'ı düşürmez |
+| K-708 | 717 | `AddLoopEvaluator` yerleşik bir `kind`'i gölgeleyemez; kayıt anında reddedilir |
