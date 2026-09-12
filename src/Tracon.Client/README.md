@@ -19,6 +19,11 @@ services.AddTraconClient(options =>
     // needs "https://example.com/control/" instead.
     options.BaseAddress = new Uri("https://example.com/tracon/");
     options.Token = configuration["Tracon:Token"]; // a secret - read it, don't hard-code it
+
+    // Optional. HttpClient caps every request at 100 seconds by default, which
+    // applies underneath any longer budget you set yourself. Timeout.InfiniteTimeSpan
+    // leaves the budget entirely to the cancellation token you pass in.
+    options.Timeout = TimeSpan.FromSeconds(30);
 });
 ```
 

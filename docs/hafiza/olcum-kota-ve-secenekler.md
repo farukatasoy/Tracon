@@ -87,3 +87,24 @@ guvenlidir). Iki ayrinti:
 **Sinif taramasi:** "N kayit yaz, sonra bir checkpoint'e guven" deseni her yerde
 ayni tuzagi tasir. Checkpoint kismi bir kumeyi tam bir kumeden ayirt edemiyorsa,
 ya telafi yaz ya da checkpoint'e tamlik bilgisi ekle.
+
+## 🚨 Süreç API'si makineyi anlatmaz — bir rapor alanı ne okuduğunu söyler (F-220)
+
+2026-09-12. Sınırlı yük raporu (`BoundedSqlLoadTests`) "Available memory" olarak
+`GC.GetGCMemoryInfo().TotalAvailableMemoryBytes`, "Logical processors" olarak
+`Environment.ProcessorCount` yazıyordu. İkisi de **sürecin gördüğü** değerdir:
+birincisi GC/container tavanı, ikincisi sürece verilen CPU sayısı. Makinenin
+gerçek belleği ve işlemci modeli raporda hiç yoktu, dolayısıyla iki koşumu
+karşılaştıran biri farkı donanıma bağlayamıyordu — üstelik alan adları bunu
+yapabileceğini **ima ediyordu**.
+
+Kural: bir rapor alanı makine büyüklüğü iddia ediyorsa donanımı okur
+(`sysctl -n machdep.cpu.brand_string`/`hw.memsize`, `/proc/cpuinfo`
+`model name` + `/proc/meminfo` `MemTotal`); okuyamıyorsa alan adında
+`(process-visible)` etiketiyle ne olduğunu söyler. Okuma yolu **yumuşak düşer**
+— rapor bir kapı değildir (K-738), eksik satır koşumu kırmaz.
+
+**Sınıf taraması:** `grep -rn "Environment.ProcessorCount\|GetGCMemoryInfo"
+src/ tests/` — başka vaka yok. `Environment.MachineName`'in `SingletonGuard` ve
+`JobWorkerBackgroundService`'teki kullanımları bir **sahip kimliğidir**, makine
+kapasitesi iddiası değil; vaka sayılmaz.

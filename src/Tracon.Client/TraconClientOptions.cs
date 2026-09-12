@@ -30,4 +30,20 @@ public sealed class TraconClientOptions
     /// secret store, not a literal.
     /// </summary>
     public string? Token { get; set; }
+
+    /// <summary>
+    /// The budget for one request, or <see langword="null"/> to leave
+    /// <see cref="HttpClient"/> on its own default of 100 seconds.
+    /// </summary>
+    /// <remarks>
+    /// Set this whenever a caller bounds a call with its own longer
+    /// cancellation budget. The transport cap applies underneath that budget,
+    /// so a 30-minute caller budget over the 100-second default can never be
+    /// reached; worse, the transport reports its own cap as an
+    /// <see cref="OperationCanceledException"/> with nothing cancelled, which a
+    /// caller then reads as its own limit elapsing. Use
+    /// <see cref="System.Threading.Timeout.InfiniteTimeSpan"/> to make the
+    /// caller's cancellation token the single authority.
+    /// </remarks>
+    public TimeSpan? Timeout { get; set; }
 }

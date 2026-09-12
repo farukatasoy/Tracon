@@ -184,3 +184,22 @@
   `RunCost? Cost`, `RunTreeCost? TreeCost` — dordu de
   `client-description-baseline.txt` sayacina girer. Sayac bir artiyorsa once
   "kaybolan aciklama mi, yeni `$ref` ozelligi mi" sorusunu ayir.
+
+## 🚨 Bir bütçe, altındaki transport tavanı ölçülmeden bütçe değildir (F-219, K-760)
+
+2026-09-12. `AddTraconClient` `new HttpClient { BaseAddress = … }` üretiyordu,
+yani her istek .NET varsayılanı **100 saniye** ile sınırlıydı.
+`CancellationTokenSource.CancelAfter(budget)` ile kurulan her üst sınır ancak o
+tavan kadar geçerlidir — ve tavan dolduğunda ortaya çıkan şey yine bir
+`OperationCanceledException`'dır, yani üstteki kod onu **kendi bütçesi** sanır.
+
+Ölçüldü (`TraconClientTimeoutTests`, yanıt vermeyen bir `TcpListener`'a karşı):
+`tracon eval --timeout` 30 dakika vaat ediyordu, çağrı **100,03 sn**'de bitti ve
+CLI *"Timed out after 1800 s"* yazdı. Düzeltmeden sonra **0,57 sn**.
+
+Kural: kendi bütçesini kuran çağıran `TraconClientOptions.Timeout`'u
+`Timeout.InfiniteTimeSpan` yapar ve iptal token'ını tek otorite bırakır. Alan
+additive'dir; `null` bırakıldığında davranış değişmez (100 sn varsayılanı kalır),
+sıfır veya negatif değer `ArgumentException` atar. `tracon eval` ve
+`tracon health` bunu yapar. Sebep tarafı: `cekirdek-calistirma.md`, K-759.
+

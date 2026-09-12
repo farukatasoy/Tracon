@@ -43,6 +43,7 @@
 | Test **yazımı** (xunit, Shouldly, sözleşme, Playwright) | [test-altyapisi](test-altyapisi.md) |
 | Test **koşumu** asılı/eksik (`dotnet test`, MSBuild) | [test-kosum-tuzaklari](test-kosum-tuzaklari.md) |
 | Test tek başına geçip **tam koşumda** düşüyor | [test-yalitimi](test-yalitimi.md) |
+| Bir testin tek başına geçip tam koşumda düştüğü **ölçülmüş vakalar** | [test-yalitimi-vakalari](test-yalitimi-vakalari.md) |
 | Kapanış kapısı taban ölçümü (wall-clock, proje sonucu) | [test-kosum-olcumleri](test-kosum-olcumleri.md) |
 | Arayüz (Vite, SPA rota, TS, ekran) | [frontend](frontend.md) |
 | Arayüz tasarım katmanı (token, tema, yoğunluk, primitif, erişilebilirlik) | [frontend-tasarim-katmani](frontend-tasarim-katmani.md) |
