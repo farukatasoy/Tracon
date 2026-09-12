@@ -11,9 +11,9 @@
 
 ---
 
-# AgentPrism → ProdigyEnabler · Rapor Yanıtı
+# Tracon → ProdigyEnabler · Rapor Yanıtı
 
-> **Kimden:** AgentPrism geliştirme tarafı · **Tarih:** 2026-08-21
+> **Kimden:** Tracon geliştirme tarafı · **Tarih:** 2026-08-21
 > **Neye yanıt:** [`2026-08-21-tuketici-raporu.md`](../../kesif/2026-08-21-tuketici-raporu.md)
 > (Y1…Y9 · §4 · §5) ve [`2026-08-21-uygulanabilirlik-raporu.md`](2026-08-21-uygulanabilirlik-raporu.md)
 > (§7 · §10 · §12)
@@ -27,7 +27,7 @@ Rapor **işe yaradı** ve dört kalem doğurdu. Ama raporun 19 iddiasının **be
 ölçümle yanlış çıktı** ve bunların ikisi bugün geçişinizi doğrudan
 kolaylaştırıyor — §3'ü okumadan Faz C'yi planlamayın.
 
-Sizin tarafınızdaki en önemli tek cümle şudur: **`AgentPrismRunContext` public
+Sizin tarafınızdaki en önemli tek cümle şudur: **`TraconRunContext` public
 bir tiptir ve tool gövdenize `SessionId` verir.** §7.7'de "planlanmalıdır"
 dediğiniz iş bugün çözülüdür.
 
@@ -45,9 +45,9 @@ kendi kopyanızda doğrulanabilir.
 | **Y2** kesilen tur kurtarılmıyor | `SqlRunStore.cs:263` öksüz koşuyu `Failed` kapatır ve **kuyruğa koymaz** · `RunReconciliationService.cs:91` yalnız kapatır |
 | **Y3** görsel üretimi yok | `src/` içinde **0 eşleşme** |
 | **Y4** gömme örneği yok | `samples/` **tek proje** taşıyor ve o yeşil alan kurulumudur |
-| **Y5** düğüm retry yok | `src/AgentPrism.Workflows` içinde retry/backoff **0 eşleşme** |
+| **Y5** düğüm retry yok | `src/Tracon.Workflows` içinde retry/backoff **0 eşleşme** |
 | **Y6** sink örneği yok | Kayıt düz `GetServices<IRunEventSink>()`; tampon sarmalayıcısı yok |
-| **Y7** çıktı boyutu yok | `AgentPrismToolRegistration.cs:63-84` altı alan taşır, boyut yok |
+| **Y7** çıktı boyutu yok | `TraconToolRegistration.cs:63-84` altı alan taşır, boyut yok |
 | **Y8** belge kanalı yok | Yapısal "veri ≠ talimat" ayrımı yok |
 
 §2'de kendi düşürdüğünüz **altı iddianın altısı da doğrudur**; kapalı kalıyorlar.
@@ -64,16 +64,16 @@ Beş iddia ölçüldü ve düştü. Üçü bugün elinizde olan yeteneklerdir.
 | İddia | Gerçek |
 |---|---|
 | **Y9** — `PiiPatterns` Kuzey Amerika biçimlerine göre kurulmuş | ❌ `PiiPatterns.cs:20` **`Iban`** · `:38` **`TurkishNationalId`** — ikincisi **kontrol hanesi doğruluyor**, rastgele 11 haneli değer maskelenmiyor. Eksik olan yalnız TR **telefon** biçimi |
-| **§7.7** — tool gövdesi oturumu göremez | ❌ `AgentPrismRunContext.cs:35` **public**. `AgentRunScope` şunları taşır: `RunId`, `RootRunId`, `Depth`, `AgentName`, `TenantId`, **`SessionId`**, `Budget`, `AgentVersion`, `ExperimentId`, `Variant` |
+| **§7.7** — tool gövdesi oturumu göremez | ❌ `TraconRunContext.cs:35` **public**. `AgentRunScope` şunları taşır: `RunId`, `RootRunId`, `Depth`, `AgentName`, `TenantId`, **`SessionId`**, `Budget`, `AgentVersion`, `ExperimentId`, `Variant` |
 | **§4.4** — koşu ağacı maliyet toplamı (ölçmediniz) | ❌ `RunRecord.TreeCost` · `RunTreeCost` — `InputCost`, `OutputCost`, **`CachedInputCost`** (üçüncü toplanan, alt küme değil), `Currency` ve fiyatı bilinmeyen koşu sayısı |
-| **§4.2** — kota eşik olayı (ölçmediniz) | ❌ `AgentPrismQuotaOptions.ThresholdPercents` varsayılan `[80, 100]` · `WebhookEvents.QuotaThreshold` webhook tetikliyor |
+| **§4.2** — kota eşik olayı (ölçmediniz) | ❌ `TraconQuotaOptions.ThresholdPercents` varsayılan `[80, 100]` · `WebhookEvents.QuotaThreshold` webhook tetikliyor |
 | **§4.5** — CI için doğrulayıcı | ❌ `AgentDefinitionCompiler` **public**. Kalan iş tipli istemci/CLI'dır ve planlandı (Faz 83) |
 
 ### 2.1 Bunlar geçiş planınızı nasıl değiştirir
 
 1. **Faz C adım 10'u sadeleştirin.** `ChatToolCallCoordinator.EnrichWithSessionContext`'in
    `_sessionId` yarısı için yeni bir mekanizma planlamayın:
-   `AgentPrismRunContext.Current?.SessionId` okuyun. Kalan yarı
+   `TraconRunContext.Current?.SessionId` okuyun. Kalan yarı
    (`DynamicParametersJson`) F-34'tür ve o hâlâ açıktır.
    🚨 **Ek üreten tool'lar için bu zorunludur:** `attachments` satırına yazılan
    içerik `session_id` **taşımalıdır**; boş `session_id` taşıyan ek, saklama
@@ -110,7 +110,7 @@ henüz belli değildir — bir kalemin aday olması, yakında geleceği anlamın
 |---|---|---|
 | 1 | Y1 ve Y8 tek fazda mı? | **Evet, tek kalem.** İkisi de "talimata ne girer" sorusudur; ayrı planlanırsa ikincisi birincinin kararını bozar |
 | 2 | Y2 ve Y5 tek fazda mı? | **Evet, tek kalem.** Ortak sözleşme: devam kaydı, deneme sayısı, yan etki kısıtı |
-| 3 | Devam koşusu varsayılan kapalı mı? | **Kapalı.** "Sıfır sürpriz" kuralı bir tercih değil, bir tasarım kuralıdır; `AddAgentPrism()` hiçbir davranışı kendiliğinden açmaz. Özelliğin görünürlüğü doküman işidir, varsayılan işi değil |
+| 3 | Devam koşusu varsayılan kapalı mı? | **Kapalı.** "Sıfır sürpriz" kuralı bir tercih değil, bir tasarım kuralıdır; `AddTracon()` hiçbir davranışı kendiliğinden açmaz. Özelliğin görünürlüğü doküman işidir, varsayılan işi değil |
 | 4 | Görsel üretimi ayrı paket mi? | **Ölçülmedi ve tahmin edilmeyecek.** Geçişli bağımlılık ağırlığı planlama turunda sayılacak; Azure AI Foundry 37 pakette bu yüzden düşmüştü |
 | 5 | Tampon sarmalayıcısı paket sınırına girer mi? | **Hayır — yalnız örnek.** S3/Azure Blob emsali korunuyor: genişleme noktası varsa somut uygulama tüketicinindir. Örnek deseni verir: sınırlı kanal, arka plan tüketici, dolulukta **düşürme** (bloklama değil) |
 
@@ -152,7 +152,7 @@ Bu turun en değerli çıktısı yeni kalemler değil, **beş yanlış iddiaydı
 şuydu: rapor XML dokümanı ve OpenAPI çıktısı okunarak yazıldı, kaynak kod
 okunarak değil.
 
-🚨 **Bunun kusuru sizde değil, bizde.** `AgentPrismRunContext`, `ITenantContext`,
+🚨 **Bunun kusuru sizde değil, bizde.** `TraconRunContext`, `ITenantContext`,
 `AmbientTenantScope` ve `IAttachmentStore` sevk ettiğimiz yetenek haritasında
 **hiç geçmiyor**; `ITenantContext` hiçbir anlatı sayfamızda yok. Kod agent'ınız
 6.100 üye okudu ve yine bulamadı, çünkü **hangi soruyu soracağını bilmiyordu**.

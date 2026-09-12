@@ -1,0 +1,22 @@
+#nullable enable
+Tracon.TraconMcpBuilderExtensions
+Tracon.TraconMcpOptions
+Tracon.TraconMcpOptions.TraconMcpOptions() -> void
+Tracon.TraconMcpOptions.ConnectionTimeout.get -> System.TimeSpan
+Tracon.TraconMcpOptions.ConnectionTimeout.set -> void
+Tracon.TraconMcpOptions.Enabled.get -> bool
+Tracon.TraconMcpOptions.Enabled.set -> void
+Tracon.TraconMcpOptions.MaxResourceBytesPerResource.get -> int
+Tracon.TraconMcpOptions.MaxResourceBytesPerResource.set -> void
+Tracon.TraconMcpOptions.MaxResourceBytesTotal.get -> int
+Tracon.TraconMcpOptions.MaxResourceBytesTotal.set -> void
+Tracon.TraconMcpOptions.MaxToolsPerServer.get -> int
+Tracon.TraconMcpOptions.MaxToolsPerServer.set -> void
+Tracon.TraconMcpOptions.OAuthCallbackBaseUri.get -> System.Uri?
+Tracon.TraconMcpOptions.OAuthCallbackBaseUri.set -> void
+Tracon.TraconMcpOptions.RefreshInterval.get -> System.TimeSpan
+Tracon.TraconMcpOptions.RefreshInterval.set -> void
+const Tracon.TraconMcpOptions.SectionName = "Tracon:Mcp" -> string!
+static Tracon.TraconMcpBuilderExtensions.UseMcp(this Tracon.ITraconBuilder! builder) -> Tracon.ITraconBuilder!
+static Tracon.TraconMcpBuilderExtensions.UseMcp(this Tracon.ITraconBuilder! builder, Microsoft.Extensions.Configuration.IConfiguration! configurationSection, System.Action<Tracon.TraconMcpOptions!>? configure) -> Tracon.ITraconBuilder!
+static Tracon.TraconMcpBuilderExtensions.UseMcp(this Tracon.ITraconBuilder! builder, System.Action<Tracon.TraconMcpOptions!>! configure) -> Tracon.ITraconBuilder!

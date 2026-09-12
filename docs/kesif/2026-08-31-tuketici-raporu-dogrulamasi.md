@@ -1,8 +1,8 @@
 # Tüketici Uygulanabilirlik Raporunun Doğrulanması
 
-> **Kimden:** AgentPrism geliştirme tarafı · **Tarih:** 2026-08-31 · **Güncellendi:** 2026-09-01
-> **Neye yanıt:** `agentprism-uygulanabilirlik-analizi-2026-08-31.md`
-> (ProdigyEnabler Backend · "AgentPrism merkezli dönüşüm önerilir")
+> **Kimden:** Tracon geliştirme tarafı · **Tarih:** 2026-08-31 · **Güncellendi:** 2026-09-01
+> **Neye yanıt:** `tracon-uygulanabilirlik-analizi-2026-08-31.md`
+> (ProdigyEnabler Backend · "Tracon merkezli dönüşüm önerilir")
 > **Ölçüm tabanı:** `8105c00` · her iddia kaynak kodda yeniden ölçüldü
 > **§8 tabanı:** bugünkü `main` — raporunuz sonucunda sevk edilen iş oradadır
 
@@ -10,7 +10,7 @@
 
 ## 0. Kısa cevap
 
-Rapor iyi yazılmış ve çoğu yerde doğru. Ana kararı ("generic runtime AgentPrism,
+Rapor iyi yazılmış ve çoğu yerde doğru. Ana kararı ("generic runtime Tracon,
 domain orchestration ProdigyEnabler") bizim kendi mimari duruşumuzla birebir
 örtüşür. Bu doküman o kararı tartışmaz; **ölçümle çürüyen 11 iddiayı** (§2) ve
 **raporun kaçırdığı 3 riski** (§3) sayar.
@@ -27,25 +27,25 @@ edildi**:
 Ayrıca raporunuzun doğru çıkan beş iddiası **sevk edildi** (§8): üretilen tool
 şemasında parametre açıklaması, kalıcı payload sürüm sözleşmesi, argüman
 doğrulama halkası, kapsamlı tool kaydı ve run ağacı süre bütçesi. Gap
-listenizin beş satırı artık "AgentPrism'de yok" değil, **"AgentPrism'de var"**
+listenizin beş satırı artık "Tracon'de yok" değil, **"Tracon'de var"**
 — ADR'nizi buna göre yazın.
 
 **İkisi sizin tarafınızda iş çıkarabilir** ve §8'de ayrıntısı var: yeni bir
 üreteç uyarısı (APG0009) `TreatWarningsAsErrors` taşıyan bir derlemeyi
-kırabilir, ve `AgentPrismAgentGraphOptions.CreateBudget()` imzası kırıldı.
+kırabilir, ve `TraconAgentGraphOptions.CreateBudget()` imzası kırıldı.
 
 Sizin tarafınızda en çok işe yarayacak üç cümle:
 
 1. **`IRunStore.ReadEventsAsync(runId, fromSequence)` public'tir.** "Yüksek
    öncelikli gap" dediğiniz transport-nötr olay imleci bugün vardır. SignalR
    köprünüz için yeni bir API beklemeyin.
-2. **Hangfire job'ının içinden AgentPrism çalıştırmak için yeni bir API
+2. **Hangfire job'ının içinden Tracon çalıştırmak için yeni bir API
    gerekmiyor.** `IAgentCatalog.ResolveAsync` + `AmbientTenantScope` +
-   `AmbientRunAttributionScope` bugün yeterlidir; AgentPrism kuyruğu tek satır
+   `AmbientRunAttributionScope` bugün yeterlidir; Tracon kuyruğu tek satır
    yapılandırma ile kapanır (`Scheduling:RunWorker = false`).
 3. **Tool şeması iddianız ters yöndeydi — ve kapatıldı.** Ölçüm sırasında
    üreteç `description` alanını **hiç** yazmıyordu; sizin `BackendToolRegistry`
-   yazıyordu. O eksende AgentPrism daha zayıftı. Faz 125 bunu kapattı (§8);
+   yazıyordu. O eksende Tracon daha zayıftı. Faz 125 bunu kapattı (§8);
    üstüne parametre açıklaması olmayan tool'lar için bir uyarı da geldi.
 
 Raporun "Doğrulanamadı" etiketli yedi kaleminin **üçü aslında dokümante
@@ -56,7 +56,7 @@ sonunda kalan üç gerçek belirsizliğe ayırın.
 
 ## 1. Sürüm etiketi — ölçüm tabanı hakkında bir düzeltme
 
-Rapor "İncelenen AgentPrism sürümü: `0.0.0-preview.0.486`" diyor ve aynı
+Rapor "İncelenen Tracon sürümü: `0.0.0-preview.0.486`" diyor ve aynı
 bölümde repository commit'ini `8105c005…` olarak kaydediyor. Bu ikisi aynı
 şeyin iki adıdır: `0.0.0-preview.0.486` **yayımlanmış bir sürüm değil**, o
 commit'ten üretilmiş yerel bir CI derlemesidir. Yayımlanmış aile
@@ -86,7 +86,7 @@ Her satır kendi kopyanızda `dosya:satır` ile doğrulanabilir.
 İstenen API vardır, adı farklıdır:
 
 ```csharp
-// src/AgentPrism.Abstractions/Runs/IRunStore.cs:191
+// src/Tracon.Abstractions/Runs/IRunStore.cs:191
 IAsyncEnumerable<RunEvent> ReadEventsAsync(
     Guid runId,
     long fromSequence = 0,
@@ -97,7 +97,7 @@ IAsyncEnumerable<RunEvent> ReadEventsAsync(
 *"Live streaming and historical replay take the same path."* Sıra numarası
 sözleşmesi de yazılıdır: `RunEvent.Sequence` tek yazardan gelir ve run içinde
 0'dan artar (`RunEvent.cs:11`); `AppendEventAsync` aynı sıra numarasının ikinci
-kez yazılmasını `AgentPrismException` ile **reddetmek zorundadır**
+kez yazılmasını `TraconException` ile **reddetmek zorundadır**
 (`IRunStore.cs:139-152`).
 
 SignalR köprünüzün ihtiyacı olan şey budur:
@@ -117,8 +117,8 @@ SignalR köprünüzün ihtiyacı olan şey budur:
 
 | İddia | Ölçüm |
 |---|---|
-| "AgentPrism kuyruğu eklemek zorundayız" | Hayır. `AgentPrismSchedulingOptions.RunWorker = false` → `JobWorkerBackgroundService` hiç iş kiralamaz (`JobWorkerBackgroundService.cs:45`). Kuyruk ve zamanlama depoları çalışır, **bu süreçte hiçbir job yürütülmez**. Üçüncü kuyruk bir varsayılan değil, bir tercihtir; anahtar `guides/background-work.md` § *Configure the worker* ve § *Separate API and worker processes* içinde dokümante edilmiştir |
-| "Run kaydı için AgentPrism'in kendi kuyruğundan geçmek gerekir" | Hayır. `IAgentCatalog.ResolveAsync` **zaten kayıt sarmalayıcısıyla sarılmış** bir `AIAgent` döndürür (`IAgentCatalog.cs:20-22`, `:32`). Hangfire job'ının gövdesinde `RunAsync`/`RunStreamingAsync` çağırmak run kaydı, olaylar, usage, cost, hata sınıflandırması, telemetri, bütçe ve iptal kaydını üretir |
+| "Tracon kuyruğu eklemek zorundayız" | Hayır. `TraconSchedulingOptions.RunWorker = false` → `JobWorkerBackgroundService` hiç iş kiralamaz (`JobWorkerBackgroundService.cs:45`). Kuyruk ve zamanlama depoları çalışır, **bu süreçte hiçbir job yürütülmez**. Üçüncü kuyruk bir varsayılan değil, bir tercihtir; anahtar `guides/background-work.md` § *Configure the worker* ve § *Separate API and worker processes* içinde dokümante edilmiştir |
+| "Run kaydı için Tracon'in kendi kuyruğundan geçmek gerekir" | Hayır. `IAgentCatalog.ResolveAsync` **zaten kayıt sarmalayıcısıyla sarılmış** bir `AIAgent` döndürür (`IAgentCatalog.cs:20-22`, `:32`). Hangfire job'ının gövdesinde `RunAsync`/`RunStreamingAsync` çağırmak run kaydı, olaylar, usage, cost, hata sınıflandırması, telemetri, bütçe ve iptal kaydını üretir |
 | "Correlation, attribution ve cancellation boilerplate yazmamız gerekir" | Kısmen. İkisi hazır: `AmbientTenantScope.Begin(tenantId)` ve `AmbientRunAttributionScope.Begin(userId, labels)`. İkisinin de XML dokümanı bu senaryoyu adıyla anar: *"a queued job, a scheduled run or a direct .NET API call has no request to resolve from"* |
 
 **🚨 Tek gerçek tuzak** — ve rapor bunu kaçırmış: `AmbientRunAttributionScope`
@@ -149,7 +149,7 @@ Desen dokümante edilmiştir ve reçetesi verilmiştir:
 > (çalışan kod örneğiyle birlikte)
 
 Ayrıca tool gövdesi **run bağlamını zaten görür**:
-`AgentPrismRunContext.Current` public'tir ve `RunId`, `RootRunId`, `Depth`,
+`TraconRunContext.Current` public'tir ve `RunId`, `RootRunId`, `Depth`,
 `AgentName`, **`TenantId`**, `SessionId`, `Budget`, `AgentVersion` taşır.
 Eyleyen kullanıcı da okunabilir: `AmbientRunAttributionScope.CurrentUserId`.
 
@@ -181,7 +181,7 @@ Bulunmayanlar:
   açıklama okur (`ToolCandidate.cs:187-217`). Sizin `BackendToolRegistry`
   raporunuza göre *"property tipi, açıklama ve required"* üretiyor. Modelin
   hangi tool'u ve hangi argümanı seçtiğini en çok etkileyen alan budur; bu
-  eksende **AgentPrism bugün sizin sisteminizden geridedir**.
+  eksende **Tracon bugün sizin sisteminizden geridedir**.
 - `minimum` / `maximum` / `pattern` yok.
 - **İç içe nesne ifade edilemez.** `ParameterTypeValidator` skaler, enum ve
   bunların dizisi dışındaki her parametreyi APG0003 ile **derleme anında
@@ -203,7 +203,7 @@ planlandı: parametre açıklaması ve ifade sınırının ilanı.
 `CachedInputTokens` sağlayıcıdan bağımsız okunur:
 
 ```csharp
-// src/AgentPrism.Core/Recording/UsageBreakdown.cs:36
+// src/Tracon.Core/Recording/UsageBreakdown.cs:36
 public static long? CachedInputTokens(UsageDetails usage) => usage.CachedInputTokenCount;
 ```
 
@@ -213,12 +213,12 @@ otomatik önbelleği hiçbir ayar açmadan ölçülür ve fiyatlanır.
 
 `anthropic.promptCaching` ayarının var olmasının sebebi, Anthropic'in
 önbelleğinin **API'de opt-in** olmasıdır. Bu bir sağlayıcı özelliğidir, bir
-AgentPrism sınırı değil. B26'yı "yalnız Claude" diye planlamayın — cache
+Tracon sınırı değil. B26'yı "yalnız Claude" diye planlamayın — cache
 kazancınız OpenAI yollarında da ölçülür.
 
 ### Y-6 · "B15 — guard'lar tek dilli" — **YANLIŞ ÖNCÜL**
 
-AgentPrism **hiçbir dile bağlı hazır kural seti sevk etmez.**
+Tracon **hiçbir dile bağlı hazır kural seti sevk etmez.**
 `PatternContentGuardOptions` iki alan taşır: `DeniedTerms` (varsayılan **boş**,
 tüketici doldurur, `:37`) ve `MaskedPii` (varsayılan `PiiPatterns.None`, `:43`).
 
@@ -228,7 +228,7 @@ basamak kuralı doğrulamalı) · `ProviderApiKey`. Beş aileden biri zaten
 Türkçe'ye özeldir.
 
 "Dil kapsamı" sorusu tamamen sizin `DeniedTerms` listenizin ve kendi
-`IContentGuard`'ınızın sorusudur. Ölçülecek bir AgentPrism davranışı yok.
+`IContentGuard`'ınızın sorusudur. Ölçülecek bir Tracon davranışı yok.
 
 ### Y-7 · "B27 — domain idempotency otomatik değildir" — **EKSİK ÖLÇÜM**
 
@@ -272,13 +272,13 @@ Sizin tek örnekli kurulumunuzda bugün gereksizdir.
 ### Y-9 · `SseWriter.ReadResumeSequence` kanıt olarak gösterildi — **PUBLIC DEĞİL**
 
 ```csharp
-// src/AgentPrism.AspNetCore/Streaming/SseWriter.cs:21
+// src/Tracon.AspNetCore/Streaming/SseWriter.cs:21
 internal sealed class SseWriter
 ```
 
 Gösterdiği davranış (SSE `Last-Event-ID` ile devam) gerçektir, ama **tip
 tüketiciden referanslanamaz**. Bu, raporun kanıt sütununda tekrarlanan bir
-sınıf hatasıdır: `RunRecordingAgent` ve `AgentPrismMetrics` public'tir,
+sınıf hatasıdır: `RunRecordingAgent` ve `TraconMetrics` public'tir,
 `SseWriter` değildir. Ayrım önemlidir — yalnız public yüzey uyumluluk sözü
 taşır (`reference/compatibility.md`).
 
@@ -346,7 +346,7 @@ Bu, azaltmanızı doğrudan değiştirir: **kusur yalnız akışsız
 `GetResponseAsync` yolundadır. Akışlı yol bugün zaten kapalıdır.**
 
 ```csharp
-// src/AgentPrism.Core/Models/FallbackChatClient.cs:200-206
+// src/Tracon.Core/Models/FallbackChatClient.cs:200-206
 // 🚨 A stream cannot be retried past its first frame: once a chunk
 // reached the caller, falling back would either duplicate it or
 // corrupt the sequence.
@@ -399,7 +399,7 @@ Yani bu sınıfta açık kalan başka bir yol yok.
 `AgentSessionManager.SaveSessionAsync` iki farklı yol izler:
 
 - **İlk kayıt** atomiktir: `ISessionStore.TryCreateAsync`, kaybeden
-  `AgentPrismSessionConflictException` alır.
+  `TraconSessionConflictException` alır.
 - **Sonraki her kayıt** koşulsuzdur: *"Subsequent saves (and EVERY save of a
   session that was already found existing) continue, unchanged, to use the
   unconditional `ISessionStore.SaveAsync`."* (`AgentSessionManager.cs:157-161`)
@@ -410,7 +410,7 @@ alanı yoktur.
 
 Sizin `ChatHub` → job → processor zinciriniz bir oturumda birden çok iş
 kuyruğa alabiliyor (`ChatToolCallCoordinator` tool sonrası **yeniden enqueue**
-ediyor). §15.2'de "AgentPrism session concurrent turn conflict davranışı"nı
+ediyor). §15.2'de "Tracon session concurrent turn conflict davranışı"nı
 prototip listesine almanız doğruydu; **cevabı budur ve prototip gerekmez.**
 Faz 4'ün tasarımı oturum başına tek uçuşta tur garantisi vermelidir.
 
@@ -422,8 +422,8 @@ Faz 4'ün tasarımı oturum başına tek uçuşta tur garantisi vermelidir.
   `version` sütunu aldı. Koşul ve artırım **aynı `UPDATE` ifadesindedir**, yani
   kontrol ile yazım bölünemez.
 - Var olan bir oturumda eşzamanlı ikinci tur artık
-  `AgentPrismSessionConflictException` alıyor — retry **çağırana** düşüyor.
-  AgentPrism'in içeride sessizce retry denemesi reddedildi: kaybeden turun
+  `TraconSessionConflictException` alıyor — retry **çağırana** düşüyor.
+  Tracon'in içeride sessizce retry denemesi reddedildi: kaybeden turun
   hangi kararla düştüğünü sizden gizlerdi.
 - Sözleşme testi (`SessionStoreContract`) bunu dört depoda birden zorluyor:
   PostgreSQL, SQL Server, SQLite ve bellek içi.
@@ -545,15 +545,15 @@ dönüşenler kardeş dokümandadır.
 
 | Rapordaki kalem | Ölçüm |
 |---|---|
-| Yerel JSON Schema tool argümanı doğrulaması yok | Doğru. Üretilen sarmalayıcı **tip binding + required** yapar (`AgentPrismGeneratedToolArguments.cs`); `enum` dışında hiçbir schema keyword'ü yerel doğrulanmaz. **→ ✅ Sevk edildi:** `IToolArgumentsValidator` (`AgentPrism.Abstractions`, `TryAddSingleton`, varsayılan no-op); halka kod, üretilmiş **ve MCP** tool'larının hepsini kapsar |
+| Yerel JSON Schema tool argümanı doğrulaması yok | Doğru. Üretilen sarmalayıcı **tip binding + required** yapar (`TraconGeneratedToolArguments.cs`); `enum` dışında hiçbir schema keyword'ü yerel doğrulanmaz. **→ ✅ Sevk edildi:** `IToolArgumentsValidator` (`Tracon.Abstractions`, `TryAddSingleton`, varsayılan no-op); halka kod, üretilmiş **ve MCP** tool'larının hepsini kapsar |
 | Yanıtın yerel şema doğrulaması yok | Doğru ve yazılı (§4) |
 | Kalıcı session/checkpoint payload'ının sürümler arası uyum sözü yok | Doğru. `reference/versioning.md` yükseltme adımı olarak *"read the source diff"* der; `WorkflowCheckpointState` ve `SessionRecord` payload'ında sürüm damgası **yoktur**. **→ ✅ Sevk edildi:** `reference/versioning.md` § *Persisted session and checkpoint state* + `StateSchemaVersion`/`StateMafVersion` + fixture kapısı. **Ölçüm bir öncülü düzeltti:** `sessions` zaten damgalıydı (`schema_version`, `0001_initial.sql`'den beri); gerçekte eksik olan MAF sürümüydü |
 | Tarihsel/effective-dated fiyat yok | Doğru. `IRunPricingResolver.Resolve(provider, model, usage)` zamandan bağımsız saf bir fonksiyondur; `PricingSource` yalnız `Catalog`/`Configuration`/`Unknown` ayrımı yapar. `EffectiveFrom/To`, para birimi sürümü ve uygulanmış fiyat anlık görüntüsü yok |
-| Bütün run ağacı için süre bütçesi (`MaxDuration`) yok | Doğru. `AgentRunBudget` token/cost/run sayısı/derinlik taşır; **süre taşımaz**. **→ ✅ Sevk edildi:** `AgentRunBudget.MaxDuration` + `Deadline` ve `AgentPrismAgentGraphOptions.MaxDuration`; kesme iki model turu arasındadır |
+| Bütün run ağacı için süre bütçesi (`MaxDuration`) yok | Doğru. `AgentRunBudget` token/cost/run sayısı/derinlik taşır; **süre taşımaz**. **→ ✅ Sevk edildi:** `AgentRunBudget.MaxDuration` + `Deadline` ve `TraconAgentGraphOptions.MaxDuration`; kesme iki model turu arasındadır |
 | Varsayılan tool yetkilendirmesi allow-all | Doğru ve bilinçli (`AllowAllToolAuthorizationHandler`, `TryAdd` — "no-surprises" kuralı). Sizin tarafınızda startup'ta fail-fast koymanız doğru bir karardır. **→ ✅ Doküman senkronu yapıldı** (Faz 127): tool kaydını anlatan üç sayfa güncellendi |
 | Sağlayıcı deneme ayrıntısı (gecikme, retry indeksi, sağlayıcı istek kimliği) kayıtlı değil | **Yarısı doğruydu, yarısı düzeltildi.** Yedeklemenin **sebebi** artık payload'da (§5). Kalan yarısı **reddedildi**: sağlayıcı istek kimliği bir exception'ın içinde jenerik olarak yoktur; onu çıkarmak beş sağlayıcı paketinde ayrı SDK'ya özel kod ister. Somut bir olay analizi gösterirseniz gecikme ve retry indeksi o kimlik olmadan planlanır |
 | MCP stdio yok | Doğru ve **bilinçli**: *"Local process (stdio) transport is deliberately not supported."* (`McpConnection.cs:184`). Bir güvenlik sınırıdır; talep bu eksende yargılanır |
-| AgentPrism domain state, ABP UoW, Hangfire orchestration, SignalR kontratı ve billing domain'i devralmaz | Doğru. Bu bizim de yazılı duruşumuzdur |
+| Tracon domain state, ABP UoW, Hangfire orchestration, SignalR kontratı ve billing domain'i devralmaz | Doğru. Bu bizim de yazılı duruşumuzdur |
 | `QAGenerationJob`'ın ilk dikey dilim olması | Katılıyoruz. Chat döngüsünü ilk faz yapmama gerekçeniz (R-1 ve R-2 ışığında) daha da güçlü |
 
 ---
@@ -587,7 +587,7 @@ Sırayla, ADR yazmadan önce:
    ve argüman doğrulaması için sarmalayacak bir seam var. §8'in ilk üç satırı
    doğrudan o fazın kapsamını değiştirir.
 
-### Bu raporun sonucunda değişen AgentPrism davranışı
+### Bu raporun sonucunda değişen Tracon davranışı
 
 | Değişiklik | Sizi nerede etkiler |
 |---|---|
@@ -609,24 +609,24 @@ her imza koddan okundu, plandan değil.
 
 | Ne | Sevk edilen yüzey | Sizin raporunuzdaki karşılığı |
 |---|---|---|
-| Üretilen tool şemasında parametre açıklaması | `System.ComponentModel.DescriptionAttribute` okunur; şemaya `description` yazılır. **AgentPrism yeni bir attribute sevk etmedi** | Y-4 · B10 |
+| Üretilen tool şemasında parametre açıklaması | `System.ComponentModel.DescriptionAttribute` okunur; şemaya `description` yazılır. **Tracon yeni bir attribute sevk etmedi** | Y-4 · B10 |
 | Üreteç şemasının ifade sınırının ilanı | `guides/write-your-own-tool.md` + APG0003 metni + `troubleshooting.md`; nesne parametresi için çalışan AOT-güvenli kaçış örneği | Faz 3 test planınızdaki *"nested schema"* case'i |
 | Kalıcı payload sürüm sözleşmesi | `reference/versioning.md` § *Persisted session and checkpoint state* — katman katman söz; `SessionRecord.StateSchemaVersion` (`int`) · `WorkflowCheckpointRecord.StateSchemaVersion` (`int?`) · her ikisinde `StateMafVersion` (`string?`) | §17.1 "kritik doğrulanamayan" |
 | Argüman doğrulama halkası | `IToolArgumentsValidator.ValidateAsync(ToolDescriptor, AIFunctionArguments, CancellationToken)` → `ToolArgumentsValidationResult` (`Valid` / `Invalid(reason)`); `ValidatingAIFunction` sarmalayıcısı | §11 "Kritik" gap |
-| Kapsamlı tool kaydı | `IAgentPrismBuilder.AddScopedTool(AIFunction)` ve `AddScopedTool(AIFunction, Action<ToolRegistrationOptions>)` | §8.1 · §11 "Yüksek" gap |
-| Run ağacı süre bütçesi | `AgentRunBudget.MaxDuration` (`TimeSpan?`) + `Deadline` (`DateTimeOffset?`); `AgentPrismAgentGraphOptions.MaxDuration` (`TimeSpan`, varsayılan sıfır = sınırsız) | §11 "Yüksek" gap |
+| Kapsamlı tool kaydı | `ITraconBuilder.AddScopedTool(AIFunction)` ve `AddScopedTool(AIFunction, Action<ToolRegistrationOptions>)` | §8.1 · §11 "Yüksek" gap |
+| Run ağacı süre bütçesi | `AgentRunBudget.MaxDuration` (`TimeSpan?`) + `Deadline` (`DateTimeOffset?`); `TraconAgentGraphOptions.MaxDuration` (`TimeSpan`, varsayılan sıfır = sınırsız) | §11 "Yüksek" gap |
 
 ### 8.2 🚨 Sizin tarafınızda iş çıkarabilecek üç şey
 
 **1. Yeni üreteç uyarısı APG0009 — derlemenizi kırabilir.**
-`[AgentPrismTool]` taşıyan bir metodun `[Description]`'sız her parametresi
-artık **uyarı** üretiyor. Bizim kendi `samples/AgentPrism.Api`'miz
+`[TraconTool]` taşıyan bir metodun `[Description]`'sız her parametresi
+artık **uyarı** üretiyor. Bizim kendi `samples/Tracon.Api`'miz
 `TreatWarningsAsErrors=true` taşıdığı için **derleme hatası** verdi ve dört
-dosyaya `[Description]` eklendi. Sizde `[AgentPrismTool]` kullanan kod
+dosyaya `[Description]` eklendi. Sizde `[TraconTool]` kullanan kod
 varsa aynı şey olacaktır. Ya açıklamaları ekleyin (tavsiyemiz — modelin
 argüman seçimini en çok etkileyen alan budur) ya da o kuralı bastırın.
 
-**2. `AgentPrismAgentGraphOptions.CreateBudget()` imzası kırıldı** →
+**2. `TraconAgentGraphOptions.CreateBudget()` imzası kırıldı** →
 `CreateBudget(TimeProvider timeProvider)`. `Deadline`'ın tek bir saat
 üzerinden bir kez hesaplanması bunu zorunlu kıldı. Bu metodu çağırıyorsanız
 çağrı yerinizi güncelleyin. Pre-1.0 `Unshipped` yüzeyde olduğu için
@@ -634,7 +634,7 @@ uyumluluk sözü kapsamında değildi.
 
 **3. Reddedilen argüman `ToolFailed` üretir, `ToolSucceeded` değil.**
 Bilinçli bir asimetri: `AuthorizingAIFunction` bir reddi normal bir sonuç
-olarak **döner**, `ValidatingAIFunction` ise `AgentPrismException`
+olarak **döner**, `ValidatingAIFunction` ise `TraconException`
 **fırlatır** ve MAF'ın kendi dönüşümü onu `ToolFailed`'a çevirir. Hata
 sınıflandırmanızda yetkilendirme reddi ile argüman reddini ayrı ayrı ele alın.
 
@@ -651,7 +651,7 @@ entegrasyon paketi, `RunStructuredAsync<T>`, effective-dated fiyat, outbox
 kancası, SQL tabanlı dağıtık iptal ve `UseMcpStdio` için duruşumuz değişmedi;
 gerekçeleri §2 ve §4'tedir.
 
-Sürüm numarasını AgentPrism tarafı ayrıca bildirecek.
+Sürüm numarasını Tracon tarafı ayrıca bildirecek.
 
 Sorularınız için: §2–§6'daki her `dosya:satır` referansı `8105c00` üzerinde,
 §8'deki her imza bugünkü `main` üzerinde doğrulanabilir.

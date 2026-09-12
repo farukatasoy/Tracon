@@ -3,10 +3,10 @@
 > **Durum:** ✅ Tamamlandı (2026-09-01)
 > **Kaynak:** [kesif/2026-08-31-tuketici-raporu-faz-adaylari.md](../../kesif/2026-08-31-tuketici-raporu-faz-adaylari.md) · **T-1**, **T-2**
 > **Önkoşul:** [Faz 52](52-KAYNAK-URETECI.md) (kaynak üreteci ve derleme anı doğrulama) — arşivde; yalnız grep'le okunur
-> **Paketler:** `AgentPrism.Generators`
+> **Paketler:** `Tracon.Generators`
 > **Yeni paket:** Yok · **Migration:** Yok
-> **Public API:** Büyümüyor. Açıklama `System.ComponentModel.DescriptionAttribute`'tan okunur — AgentPrism yeni bir attribute **sevk etmez**
-> **Tüketici yüzeyi:** `docs-site/src/content/docs/guides/write-your-own-tool.md`, `troubleshooting.md` (APG0003 bölümü) · sevk edilen: `AnalyzerReleases.Unshipped.md` (yeni APG kuralı), `[AgentPrismTool]` XML dokümanı
+> **Public API:** Büyümüyor. Açıklama `System.ComponentModel.DescriptionAttribute`'tan okunur — Tracon yeni bir attribute **sevk etmez**
+> **Tüketici yüzeyi:** `docs-site/src/content/docs/guides/write-your-own-tool.md`, `troubleshooting.md` (APG0003 bölümü) · sevk edilen: `AnalyzerReleases.Unshipped.md` (yeni APG kuralı), `[TraconTool]` XML dokümanı
 > **Manuel test alanı:** `docs/manuel-test/24-TEST-PAKETI-VE-SABLON.md`
 
 ---
@@ -28,7 +28,7 @@
 
 ## Amaç
 
-Bir tüketici ölçtü: kendi basit reflection şeması **parametre açıklaması üretiyor**, AgentPrism'in kaynak üreteci üretmiyor. Modelin hangi argümanı neyle dolduracağını en çok etkileyen alan budur ve bu eksende AgentPrism bugün geridedir. Aynı üreteç yolu, rehberde *"the AOT-safe path"* diye **önerilen** yoldur; önerdiğimiz yolun daha zayıf olması kabul edilemez.
+Bir tüketici ölçtü: kendi basit reflection şeması **parametre açıklaması üretiyor**, Tracon'in kaynak üreteci üretmiyor. Modelin hangi argümanı neyle dolduracağını en çok etkileyen alan budur ve bu eksende Tracon bugün geridedir. Aynı üreteç yolu, rehberde *"the AOT-safe path"* diye **önerilen** yoldur; önerdiğimiz yolun daha zayıf olması kabul edilemez.
 
 ## Bitiş Ölçütleri (DoD)
 
@@ -39,7 +39,7 @@ Bir tüketici ölçtü: kendi basit reflection şeması **parametre açıklamas�
 - [x] `guides/write-your-own-tool.md` üretecin sınırını ilan eder
 - [x] Açıklama değişince üreteç yeni şema üretir (`Changing_only_the_description_produces_a_fresh_schema_not_a_stale_cached_one`)
 - [x] Dört doğrulama kapısı sıfır uyarı verir (`dotnet build`/`test`/`pack`/`format --verify-no-changes`, 2026-09-01)
-- [x] `samples/AgentPrism.Api` ile gerçek `run` yapıldı; modelin gördüğü şema çıktısı belgeye yazıldı (§125.1 "Gerçek çıktı")
+- [x] `samples/Tracon.Api` ile gerçek `run` yapıldı; modelin gördüğü şema çıktısı belgeye yazıldı (§125.1 "Gerçek çıktı")
 - [x] `secret` taraması boş döndü (`python3 scripts/kapi.py tarama` → `✅ temiz`)
 - [x] Manuel kabul case'leri `docs/manuel-test/24-TEST-PAKETI-VE-SABLON.md` içine eklendi (MT-TEST-087/088/089)
 - [x] `faz-denetim` koşuldu; 🔴 bulgu kalmadı (bkz. Denetim Bulguları)
@@ -49,10 +49,10 @@ Bir tüketici ölçtü: kendi basit reflection şeması **parametre açıklamas�
 
 ```bash
 # Üretilen şemayı gerçekten gör
-curl -s http://localhost:5080/agentprism/api/tools -H "Authorization: Bearer manuel-test-token-2026" | python3 -m json.tool
+curl -s http://localhost:5080/tracon/api/tools -H "Authorization: Bearer manuel-test-token-2026" | python3 -m json.tool
 
 # Üreteç testleri
-dotnet build AgentPrism.slnx -c Release
+dotnet build Tracon.slnx -c Release
 ```
 
 ---
@@ -68,20 +68,20 @@ dotnet build AgentPrism.slnx -c Release
   raporlanmadı**; yalnız tanıyı bizzat arayan bir test (`ToolSchemaDescriptionTests`)
   bunu yakaladı. Aynı kusur sınıfının bir daha yaşanmaması için
   `DiagnosticIntegrityTests.Every_DiagnosticInfo_routed_tool_diagnostic_is_wired_into_the_generators_dispatch_table`
-  eklendi — reflection ile private tabloyu okuyup her `AgentPrism.Tools` tanısının
+  eklendi — reflection ile private tabloyu okuyup her `Tracon.Tools` tanısının
   (doğrudan raporlanan `DuplicateName`/`NoToolsFound` hariç) orada olduğunu
   doğrular. Not: `docs/hafiza/analyzer-yazimi.md`.
-- **`node.Substring(1)`, plandaki `node[1..]` değil.** `AgentPrism.Generators`
+- **`node.Substring(1)`, plandaki `node[1..]` değil.** `Tracon.Generators`
   `netstandard2.0`'ı hedefliyor; bu TFM'de `System.Range`/`System.Index` yok,
   dizin aralığı operatörü `CS0518` veriyor. Aynı sınıftan bir tuzak zaten
   `IsExternalInit` için biliniyordu (Faz 52); bu faz onu dizin aralığı
   operatörüne genişletti. Not: `docs/hafiza/analyzer-yazimi.md`.
 - **Örnek/şablon/paket-testi dosyaları planda yoktu, dogfooding için değişti.**
-  `samples/AgentPrism.Api/OrderTools.cs`, `samples/AgentPrism.Samples.CustomTool/OrderPreviewTools.cs`,
-  `src/AgentPrism.Templates/content/AgentPrism.Starter/Tools/OrderTools.cs`,
-  `tests/AgentPrism.Package.Tests/Infrastructure/ConsumerProject.cs` —
+  `samples/Tracon.Api/OrderTools.cs`, `samples/Tracon.Samples.CustomTool/OrderPreviewTools.cs`,
+  `src/Tracon.Templates/content/Tracon.Starter/Tools/OrderTools.cs`,
+  `tests/Tracon.Package.Tests/Infrastructure/ConsumerProject.cs` —
   APG0009 devreye girince bu dosyalardaki parametreler uyarı üretmeye başladı;
-  ana repo `TreatWarningsAsErrors=true` taşıdığından `samples/AgentPrism.Api`
+  ana repo `TreatWarningsAsErrors=true` taşıdığından `samples/Tracon.Api`
   için bu gerçek bir **derleme hatasıydı**. Dördüne de `[Description]` eklendi;
   ayrıca beş mevcut üreteç testi (`GeneratedOutputTests`, `IncrementalityTests`)
   aynı sebeple güncellendi.
@@ -115,7 +115,7 @@ Bağımsız denetim (taze bağlamlı `general-purpose` agent), taban `9621eeb`,
 (Generators, 208/208), `dotnet format --verify-no-changes`, `build-agent-map.mjs --check`,
 `npm run check`, `secret` taraması, imza-gövde takibi (`ParameterModel.Description`
 üç üretim + iki tüketim noktası, kayma yok), `DescriptorsById` düzeltmesinin
-kalıcılığı. Ayrıca doğrulandı: `AgentPrism.Ui.E2ETests`'teki tek düşen test
+kalıcılığı. Ayrıca doğrulandı: `Tracon.Ui.E2ETests`'teki tek düşen test
 (`Playground_voice_mode_opens_microphone_and_shows_transcript`, paralel koşumda
 30s timeout) bu fazın dokunmadığı dosyalarda — izole koşumda geçti, önceden var
 olan kırılganlık, bu fazın kapsamı dışı.

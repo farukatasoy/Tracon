@@ -1,0 +1,32 @@
+#nullable enable
+Tracon.VoiceBuilderExtensions
+Tracon.VoiceOptions
+Tracon.VoiceOptions.ApiKey.get -> string?
+Tracon.VoiceOptions.ApiKey.set -> void
+Tracon.VoiceOptions.DefaultVoiceId.get -> string?
+Tracon.VoiceOptions.DefaultVoiceId.set -> void
+Tracon.VoiceOptions.Endpoint.get -> System.Uri?
+Tracon.VoiceOptions.Endpoint.set -> void
+Tracon.VoiceOptions.MaxCharactersPerRequest.get -> int
+Tracon.VoiceOptions.MaxCharactersPerRequest.set -> void
+Tracon.VoiceOptions.MaxConcurrentRequests.get -> int
+Tracon.VoiceOptions.MaxConcurrentRequests.set -> void
+Tracon.VoiceOptions.OutputFormat.get -> string!
+Tracon.VoiceOptions.OutputFormat.set -> void
+Tracon.VoiceOptions.Provider.get -> string!
+Tracon.VoiceOptions.Provider.set -> void
+Tracon.VoiceOptions.RequireApproval.get -> bool
+Tracon.VoiceOptions.RequireApproval.set -> void
+Tracon.VoiceOptions.SynthesisModelId.get -> string?
+Tracon.VoiceOptions.SynthesisModelId.set -> void
+Tracon.VoiceOptions.Timeout.get -> System.TimeSpan?
+Tracon.VoiceOptions.Timeout.set -> void
+Tracon.VoiceOptions.TranscriptionModelId.get -> string?
+Tracon.VoiceOptions.TranscriptionModelId.set -> void
+Tracon.VoiceOptions.VoiceOptions() -> void
+Tracon.VoiceProviderNames
+const Tracon.VoiceOptions.DefaultOutputFormat = "mp3_44100_128" -> string!
+const Tracon.VoiceOptions.SectionName = "Tracon:Voice" -> string!
+const Tracon.VoiceProviderNames.ElevenLabs = "elevenlabs" -> string!
+static Tracon.VoiceBuilderExtensions.UseVoice(this Tracon.ITraconBuilder! builder, Microsoft.Extensions.Configuration.IConfiguration! configurationSection, System.Action<Tracon.VoiceOptions!>? configure = null) -> Tracon.ITraconBuilder!
+static Tracon.VoiceBuilderExtensions.UseVoice(this Tracon.ITraconBuilder! builder, System.Action<Tracon.VoiceOptions!>! configure) -> Tracon.ITraconBuilder!

@@ -22,7 +22,7 @@
   Yasak: faz numarasi, `K-NNN`, `F-NN`, `K1`–`K4`, `MT-*`/`HATA-*`,
   `section N.N`, `open question N`, `docs/NN-*.md`. Serbest: paketin kendi
   tipleri, yapilandirma anahtarlari, HTTP yollari, MSBuild ozellikleri ve
-  `agentprism.doayen.web.tr`.
+  `tracon.dev`.
 - **Kural sesi de kapsar**: 🚨/⚠️, `Rationale:` acilisi, `Measured (2026-…)`.
   Site ureteci bunlari zaten siliyordu — yani proje bu sesi tuketiciye uygun
   bulmuyordu, yalniz paket tarafinda zorlamiyordu.
@@ -70,7 +70,7 @@ mu" diye bir kez kontrol et.
 
 ## Ekran goruntusu ureteci
 
-- `AGENTPRISM_UI_SCREENSHOTS=1 dotnet test tests/AgentPrism.Ui.E2ETests -c Release`
+- `TRACON_UI_SCREENSHOTS=1 dotnet test tests/Tracon.Ui.E2ETests -c Release`
   ile uretilir; liste `DocumentationScreenshotTests.Screens` icindedir ve her
   girdi bir **landmark** tasir — render olmayan ekran testi dusurur, spinner
   fotografi uretmez.
@@ -79,7 +79,7 @@ mu" diye bir kez kontrol et.
   `sessionId` paylasir. Tohumlama iki sozlesmeyi de ortaya cikardi:
   `JobScheduleSaveRequest.Payload` atanmazsa uc **500** doner (`JsonElement`
   `Undefined` tuzagi) ve tetikleyici imzalama anahtari
-  `AgentPrism:TriggerSecrets:` onekini ZORUNLU tutar.
+  `Tracon:TriggerSecrets:` onekini ZORUNLU tutar.
 
 ## 🚨 Karar numarasını tablonun SONUNA bakarak seçme (K-539)
 
@@ -161,7 +161,7 @@ söyledi ("a lower value wraps *inside*", oysa düşük değer **dışta** sarar
   yanında bu **yüksek sayı** gibi okunur, oysa düşük sayı kazanır. Sıralama
   dokümanında "higher/lower priority" yazma — **"lower value"** yaz.
 
-Kapı: `OrderingContractDocumentationTests` (`tests/AgentPrism.Core.UnitTests/
+Kapı: `OrderingContractDocumentationTests` (`tests/Tracon.Core.UnitTests/
 Architecture/`). Yeni bir sayısal sıralama/öncelik yüzeyi eklersen `Contracts()`
 tablosuna satır ekle (K-642).
 
@@ -201,12 +201,12 @@ satiri davranisi anlatmaz; uretilen referansa adini **zaten bilen** bakar.
 Kapi: `sevk_edilen_olay_anlatisi()`.
 
 Ayni tur: **oznesiz cumle.** "A channel that reaches capacity drops the event"
-tuketicinin KENDI kanalini tarif ediyordu, AgentPrism'inki gibi okundu —
-AgentPrism'in kanali yoktur. Sorumlulugu anlatan cumle oznesini yazsin.
+tuketicinin KENDI kanalini tarif ediyordu, Tracon'inki gibi okundu —
+Tracon'in kanali yoktur. Sorumlulugu anlatan cumle oznesini yazsin.
 
 ## 🚨 Bir çalışma anı şartını ÜYE ÜYE anlatmak, şartı üyeye özgü gösterir (2026-09-07, F-212)
 
-`RunEventWriter`, `AgentPrismRunRecordingOptions.RecordToolPayloads` kapalıyken
+`RunEventWriter`, `TraconRunRecordingOptions.RecordToolPayloads` kapalıyken
 her olayın `Payload` alanını `null` bırakır. `RunEventType`'ın **32 üyesinin
 ~18'i** payload iddiası taşıyordu ve bu şartı yalnız **3'ü** anıyordu. Tüketici
 kuralı üyeden üyeye öğreniyor, anmayan üyede kuralın geçerli olmadığını

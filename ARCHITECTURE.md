@@ -1,10 +1,10 @@
 # Architecture
 
-A short map of AgentPrism for people who want to change it. If you only want to
-*use* it, read the [product documentation](https://agentprism.doayen.web.tr)
+A short map of Tracon for people who want to change it. If you only want to
+*use* it, read the [product documentation](https://tracon.dev)
 instead — this file is about the inside.
 
-AgentPrism is a **control plane over the Microsoft Agent Framework (MAF)**, not
+Tracon is a **control plane over the Microsoft Agent Framework (MAF)**, not
 a framework of its own and not an application. It is a family of NuGet packages
 that other people take a dependency on, and that one fact sets the quality bar:
 a breaking change in a public API is expensive, every public member carries XML
@@ -18,15 +18,15 @@ package to what that package depends on.
 
 ```mermaid
 flowchart TD
-    accTitle: AgentPrism package dependency direction
+    accTitle: Tracon package dependency direction
     accDescr: The console and the HTTP layer depend on Core, providers and persistence packages depend on Core, Core depends on Abstractions, and Abstractions depends on the Microsoft Agent Framework. No arrow points back.
-    APP["Consumer application (ASP.NET Core)<br/>AddAgentPrism().UsePostgreSql(..).UseOpenAI(..)<br/>app.MapAgentPrism(&quot;/agentprism&quot;)"]
-    UI["AgentPrism.UI<br/>embedded React console"]
-    HTTP["AgentPrism.AspNetCore<br/>management API · OpenAI-compatible endpoints · SSE"]
+    APP["Consumer application (ASP.NET Core)<br/>AddTracon().UsePostgreSql(..).UseOpenAI(..)<br/>app.MapTracon(&quot;/tracon&quot;)"]
+    UI["Tracon.UI<br/>embedded React console"]
+    HTTP["Tracon.AspNetCore<br/>management API · OpenAI-compatible endpoints · SSE"]
     PROV["Providers and persistence<br/>OpenAI · Anthropic · Google · Azure · Voice<br/>PostgreSql · SqlServer · Sqlite"]
     OPT["Optional packages<br/>Mcp · Workflows"]
-    CORE["AgentPrism.Core<br/>catalog · definition compiler · tool registry<br/>session management · decorator pipeline · in-memory stores"]
-    ABS["AgentPrism.Abstractions<br/>contracts only"]
+    CORE["Tracon.Core<br/>catalog · definition compiler · tool registry<br/>session management · decorator pipeline · in-memory stores"]
+    ABS["Tracon.Abstractions<br/>contracts only"]
     MAF["Microsoft Agent Framework<br/>AIAgent · AgentSession · ChatClientAgent"]
 
     APP --> HTTP
@@ -41,7 +41,7 @@ flowchart TD
 ```
 
 At run time the HTTP layer does reach the console and the optional packages, but
-it never references them: it finds them through `IAgentPrismUiProvider`,
+it never references them: it finds them through `ITraconUiProvider`,
 `IMcpToolRefresher`, and `IWorkflowRunner`, which live in `Abstractions`. That is
 what keeps each of them an optional package.
 
@@ -51,9 +51,9 @@ points at `AspNetCore`. There is no reverse edge, and
 `DependencyDirectionTests` turns a violation into a failing build — this is a
 rule you cannot break by accident.
 
-`AgentPrism.Client` references no AgentPrism package at all: its types are
+`Tracon.Client` references no Tracon package at all: its types are
 generated from the published OpenAPI document, so it talks to a running
-AgentPrism over HTTP rather than compiling against it.
+Tracon over HTTP rather than compiling against it.
 
 The full picture, including the data model and every extension point, is in
 `docs/MIMARI.md` (Turkish).
@@ -66,7 +66,7 @@ The full picture, including the data model and every extension point, is in
    tool *code* can never be. This is a security boundary, not a convenience —
    it is why the console can be exposed to an operator at all.
 3. **MAF objects are passed through, not wrapped.** `AIAgent`, `AgentSession`,
-   `ChatMessage` and `AIFunction` are used directly. AgentPrism adds a control
+   `ChatMessage` and `AIFunction` are used directly. Tracon adds a control
    plane; it does not add a parallel type hierarchy you would have to learn.
 4. **Every extension point is replaceable.** Registration uses `TryAdd*`, so a
    consumer's own registration always wins.
@@ -106,25 +106,25 @@ Two traps live on this path and have each cost real defects:
 
 Storage is a contract (`IRunStore`, `ISessionStore`, `IAgentDefinitionStore`, and
 others), and there are four implementations: in-memory plus PostgreSQL, SQL
-Server, and SQLite. The SQL logic lives in `AgentPrism.Sql.Shared` as **shared
+Server, and SQLite. The SQL logic lives in `Tracon.Sql.Shared` as **shared
 source** — it is not its own assembly and carries no `.csproj`; each provider
 package compiles it in. Migrations are embedded SQL, numbered per provider.
 
 Anything you add to a store has to behave identically everywhere. That is what
-the contract suite in `AgentPrism.Testing.Contracts.Xunit` is for: the same
+the contract suite in `Tracon.Testing.Contracts.Xunit` is for: the same
 abstract test classes run against the in-memory store and against all three
 databases.
 
 Tenant isolation lives in the application layer, enforced by those contract tests
 in both directions, with a coverage gate that makes an untested public store
-method a build failure. AgentPrism does not create database row level security
+method a build failure. Tracon does not create database row level security
 policies; the reasoning is recorded in the decision ledger.
 
 ## Where things live
 
 | Path | What it holds |
 |---|---|
-| `src/` | The 20 packable projects, plus `AgentPrism.Generators` (analyzers, `IsPackable=false`) and `AgentPrism.Sql.Shared`, which is shared source with no project file of its own |
+| `src/` | The 20 packable projects, plus `Tracon.Generators` (analyzers, `IsPackable=false`) and `Tracon.Sql.Shared`, which is shared source with no project file of its own |
 | `tests/` | Unit, contract, functional, integration, and Playwright end-to-end suites |
 | `samples/` | Runnable applications, including the ones the release gate builds against packed NuGet packages |
 | `docs/` | The development journal — **Turkish**, and never the product documentation |

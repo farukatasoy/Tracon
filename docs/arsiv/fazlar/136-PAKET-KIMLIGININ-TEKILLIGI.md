@@ -30,40 +30,40 @@
 
 ## Amaç
 
-Bir NuGet paketinin kimliği `<id, version>` çiftidir. Bugün AgentPrism aynı çifti **birden fazla farklı içerik** için üretebiliyor. Tüketici bunu üretimde ölçtü: aynı sürüm ve aynı repository commit'i bildiren iki paket ailesi, farklı SHA-256 değerleri taşıdı.
+Bir NuGet paketinin kimliği `<id, version>` çiftidir. Bugün Tracon aynı çifti **birden fazla farklı içerik** için üretebiliyor. Tüketici bunu üretimde ölçtü: aynı sürüm ve aynı repository commit'i bildiren iki paket ailesi, farklı SHA-256 değerleri taşıdı.
 
 ## Bitiş Ölçütleri (DoD)
 
-- [x] Kirli ağaçta `dotnet pack` `AGENTPRISM0004` verir; **hiçbir** `.nupkg` üretilmez — doğrulandı elle (`AgentPrism.Abstractions`) ve `PackCleanlinessGateTests.DirtyWorkingTreeStopsPackWithAgentPrism0004`
-- [x] Aynı kirli ağaçta `dotnet build` ve `dotnet test` **başarılı** kalır — `PackCleanlinessGateTests.DirtyWorkingTreeDoesNotStopBuild`; `dotnet test AgentPrism.slnx` (51/51 `AgentPrism.Package.Tests`) `AgentPrismSkipCleanWorkingTreeCheck` ile dirty ağaçta yeşil koştu (bkz. Denetim Bulguları #1)
+- [x] Kirli ağaçta `dotnet pack` `TRACON0004` verir; **hiçbir** `.nupkg` üretilmez — doğrulandı elle (`Tracon.Abstractions`) ve `PackCleanlinessGateTests.DirtyWorkingTreeStopsPackWithTracon0004`
+- [x] Aynı kirli ağaçta `dotnet build` ve `dotnet test` **başarılı** kalır — `PackCleanlinessGateTests.DirtyWorkingTreeDoesNotStopBuild`; `dotnet test Tracon.slnx` (51/51 `Tracon.Package.Tests`) `TraconSkipCleanWorkingTreeCheck` ile dirty ağaçta yeşil koştu (bkz. Denetim Bulguları #1)
 - [x] Untracked dosya da kapıyı tetikler (kabul case 4 koşuldu) — `DirtMarker` HER `PackCleanlinessGateTests` fact'inde untracked bir dosya kullanır (tracked dosya değil), 6/6 geçti
-- [x] `AgentPrismAllowDirtyPack=true` yalnız `dirty` taşıyan açık `MinVerVersionOverride` ile geçer; CI'da hiç geçmez — elle + `OverrideWithoutDirtyVersionStopsPackWithAgentPrism0006` (`AGENTPRISM0006`) + `OverrideInCiStopsPackWithAgentPrism0005` (`AGENTPRISM0005`) + `OverrideWithDirtyVersionPacksSuccessfully`
+- [x] `TraconAllowDirtyPack=true` yalnız `dirty` taşıyan açık `MinVerVersionOverride` ile geçer; CI'da hiç geçmez — elle + `OverrideWithoutDirtyVersionStopsPackWithTracon0006` (`TRACON0006`) + `OverrideInCiStopsPackWithTracon0005` (`TRACON0005`) + `OverrideWithDirtyVersionPacksSuccessfully`
 - [x] Aynı ID+sürüm, farklı SHA-256 → `kapi.py yayin` durur ve mevcut artifact **yerinde kalır** — gerçek koşumda KAZARA yeniden üretildi (bir önceki commit'in artifact'leri yeni commit'e karşı 20/20 reddedildi, hiçbiri değişmedi) + `test_farkli_icerik_koşumu_durdurur_ve_mevcut_artifacti_korur`
 - [x] Aynı ID+sürüm, aynı SHA-256 → koşum deterministik no-op olarak geçer — **plan yanlıştı, düzeltildi** (bkz. Plandan Sapmalar): gerçek "aynı commit, aynı sürüm, iki ardışık koşum" `EXIT=0` ve sıfır ❌ verdi (`/tmp/yayin7a.out`, `/tmp/yayin7b.out`); `test_ayni_icerik_parmak_izi_deterministik_no_op_olarak_gecer` + `test_farkli_opc_rastgele_adi_tek_basina_konflikt_saymaz`
 - [x] `package-manifest.json` 20 paketin ID · sürüm · commit · dirty state · SHA-256 değerlerini taşır — gerçek koşumdan: `20 1.0.0-preview.1 False`, commit `2fd0c3ab...`, her paket `symbolsFile`/`symbolsSha256` dahil
 - [x] `_clean_stale_packages` kaldırıldı; onun yerine geçen davranışın testi yeşil — `grep -c _clean_stale_packages scripts/kapi.py` → `0`; `_promote_staged_packages` dört testle kilitli
 - [x] `python3 scripts/kapi.py yayin --kuru --surum 1.0.0-preview.1` → `EXIT=0` — gerçek koşum, 20 paket + npm dry-run + 6 sample + Native AOT smoke (`provider/source/generated-tool AOT smoke passed`)
 - [x] Dört doğrulama kapısı sıfır uyarı verir — `kapi.py kapanis --taban 8b21cf9f` → `EXIT=0` (dil sınırı regresyonu bulundu ve düzeltildi, bkz. Denetim Bulguları)
-- [x] `samples/AgentPrism.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı — aşağıda
+- [x] `samples/Tracon.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı — aşağıda
 - [x] `secret` taraması boş döndü — `kapi.py tarama` → `✅ temiz`
 - [x] Manuel kabul case'leri `docs/manuel-test/01-KURULUM-VE-PAKETLEME.md` içine eklendi; otomatikleştirilebilenler koşuldu — MT-PKG-108..115, 117 elle/testle koşuldu; MT-PKG-116 senaryosu gerçek koşumda kazara tekrarlandı (yukarı bakınız)
 - [x] `faz-denetim` koşuldu; 🔴 bulgu kalmadı — 1× 🔴 bulundu ve kapandı (aşağıda)
 - [x] `docs-site/reference/versioning.md` artifact kimliği politikasını anlatır; `npm run build` + bağlantı kontrolü temiz — `npm run check` (content+build+links+weight) `EXIT=0`, 154653 iç bağlantı, 0 kırık
 - [x] `docs/kesif/2026-09-03-tuketici-gap-yaniti.md` AP-REQ-002 bölümü §9 şablonuyla dolduruldu
 
-### `samples/AgentPrism.Api` gerçek koşum kanıtı
+### `samples/Tracon.Api` gerçek koşum kanıtı
 
 Bu faz çalışma anı davranışına dokunmuyor (yalnız paketleme sözleşmesi); koşum
 bir **regresyon** denetimidir.
 
 ```
-$ curl -s http://localhost:5081/agentprism/api/meta
-{"version":"0.0.0-preview.0.536","prefix":"/agentprism","authentication":{"allowRemoteAccess":false,"requiresBearerToken":true,...},"storage":{"persistent":false,...},"roles":{"canRead":true,"canOperate":true,"canAdminister":true}}
+$ curl -s http://localhost:5081/tracon/api/meta
+{"version":"0.0.0-preview.0.536","prefix":"/tracon","authentication":{"allowRemoteAccess":false,"requiresBearerToken":true,...},"storage":{"persistent":false,...},"roles":{"canRead":true,"canOperate":true,"canAdminister":true}}
 
 $ curl -s -o /dev/null -w "%{http_code}\n" http://localhost:5081/health
 200
 
-$ curl -s http://localhost:5081/agentprism/api/agents
+$ curl -s http://localhost:5081/tracon/api/agents
 {"type":"...","title":"Authentication failed","status":401,"detail":"A valid 'Authorization: Bearer <token>' header is required."}
 ```
 
@@ -75,12 +75,12 @@ yetkisiz `/api/agents` çağrısı `401` ile reddediliyor. Regresyon yok.
 ```bash
 # Kapı: kirli ağaç pack'i durdurur
 printf '\n' >> src/Directory.Build.props
-dotnet pack src/AgentPrism.Abstractions/AgentPrism.Abstractions.csproj -c Release   # AGENTPRISM0004 beklenir
+dotnet pack src/Tracon.Abstractions/Tracon.Abstractions.csproj -c Release   # TRACON0004 beklenir
 git checkout -- src/Directory.Build.props
 
 # Kapı build'i kırmaz
 printf '\n' >> src/Directory.Build.props
-dotnet build src/AgentPrism.Abstractions/AgentPrism.Abstractions.csproj -c Release  # başarılı beklenir
+dotnet build src/Tracon.Abstractions/Tracon.Abstractions.csproj -c Release  # başarılı beklenir
 git checkout -- src/Directory.Build.props
 
 # Manifest
@@ -95,10 +95,10 @@ python3 -c "import json;d=json.load(open('artifacts/package/release/package-mani
 Plan `_clean_stale_packages`'ın kaldırılması ve staging+promote akışı dışında
 büyük bir yapısal sapma öngörmüyordu; bağımsız denetim bir tane buldu:
 
-- **Yeni MSBuild özelliği `AgentPrismSkipCleanWorkingTreeCheck` plandan
-  YOKTU.** Bağımsız denetim (Adım 4, 🔴#1) `AgentPrismValidateCleanWorkingTree`
+- **Yeni MSBuild özelliği `TraconSkipCleanWorkingTreeCheck` plandan
+  YOKTU.** Bağımsız denetim (Adım 4, 🔴#1) `TraconValidateCleanWorkingTree`
   kapısının yalnız `kapi.py yayin`'i değil, `kapi.py kapanis`'in kendi pack
-  adımını ve `AgentPrism.Package.Tests`'in gerçek `dotnet pack` çalıştıran
+  adımını ve `Tracon.Package.Tests`'in gerçek `dotnet pack` çalıştıran
   `ReleaseArtifactFixture`/`TemplateFixture`'ını da bloke ettiğini buldu — bu
   ikisi paketleme SÖZLEŞMESİNİ (README, icon, K-008) doğrular, bir yayın adayı
   üretmez, ama bu repo commit'i yalnız kullanıcı isteyince atar; yeni kapı
@@ -139,9 +139,9 @@ buldu; ikisi de aynı fazda kapandı.
 
 | # | Seviye | Bulgu | Sonuç |
 |---|---|---|---|
-| 1 | 🔴 | Yeni kapı `kapi.py kapanis`'in kendi pack adımını ve `AgentPrism.Package.Tests`'in `ReleaseArtifactFixture`/`TemplateFixture`'ını da kapsıyor — bunlar iterasyon sırasında paketleme sözleşmesini doğrular, commit'lenmemiş bir ağaçta çalışmaları gerekir | **Düzeltildi** — `AgentPrismSkipCleanWorkingTreeCheck` eklendi, üç iç araç noktasına (kapanis pack adımı, iki fixture) bağlandı; regresyon testi `PackCleanlinessGateTests.SkipCleanWorkingTreeCheckBypassesTheGateOnADirtyTree` |
+| 1 | 🔴 | Yeni kapı `kapi.py kapanis`'in kendi pack adımını ve `Tracon.Package.Tests`'in `ReleaseArtifactFixture`/`TemplateFixture`'ını da kapsıyor — bunlar iterasyon sırasında paketleme sözleşmesini doğrular, commit'lenmemiş bir ağaçta çalışmaları gerekir | **Düzeltildi** — `TraconSkipCleanWorkingTreeCheck` eklendi, üç iç araç noktasına (kapanis pack adımı, iki fixture) bağlandı; regresyon testi `PackCleanlinessGateTests.SkipCleanWorkingTreeCheckBypassesTheGateOnADirtyTree` |
 | 2 | 🟡 | Yeni manuel case'ler "K-661" diyor ama karar henüz yoktu | **Düzeltildi** — K-661 kaydedildi |
-| 3 | 🟡 | DoD "kirli ağaçta `dotnet test` başarılı kalır" satırı bulgu #1 giderilmeden yanlıştı | **Düzeltildi** — bulgu #1'in çözümüyle birlikte; tam `AgentPrism.Package.Tests` koşumu (51/51) dirty ağaçta yeşil koştu, kanıt aşağıda |
+| 3 | 🟡 | DoD "kirli ağaçta `dotnet test` başarılı kalır" satırı bulgu #1 giderilmeden yanlıştı | **Düzeltildi** — bulgu #1'in çözümüyle birlikte; tam `Tracon.Package.Tests` koşumu (51/51) dirty ağaçta yeşil koştu, kanıt aşağıda |
 
 Temiz çıkan başlıklar: 3.2 (test tiyatrosu), 3.5 (imza-gövde kayması), 3.6
 (public API planla uyumlu), 3.7 (dil sınırı), CI algılama sırası,
@@ -155,10 +155,10 @@ collection kablolaması.
   içerikli bir artifact'i asla sessizce ezmez.
 - **🚨 `dotnet pack` artık koşulsuz commit ister.** Bu repoyu ilk kez gören
   bir oturum, kod değiştirip HEMEN `dotnet pack`/`kapi.py kapanis` koşarsa
-  `AGENTPRISM0004` görebilir — bu bir kusur değildir; `docs/hafiza/paketleme-ve-dagitim.md`'yi
-  oku. `AgentPrism.Package.Tests`'e dokunan bir faz, kendi gerçek `dotnet pack`
-  çağrısına (varsa) `AgentPrismSkipCleanWorkingTreeCheck=true` eklemeyi
-  UNUTMAMALIDIR — aksi hâlde iterasyon sırasında AGENTPRISM0004 ile kırılır.
+  `TRACON0004` görebilir — bu bir kusur değildir; `docs/hafiza/paketleme-ve-dagitim.md`'yi
+  oku. `Tracon.Package.Tests`'e dokunan bir faz, kendi gerçek `dotnet pack`
+  çağrısına (varsa) `TraconSkipCleanWorkingTreeCheck=true` eklemeyi
+  UNUTMAMALIDIR — aksi hâlde iterasyon sırasında TRACON0004 ile kırılır.
 - **`artifacts/package/release/`, `kapi.py yayin` koşumları arasında artık
   OTOMATİK temizlenmiyor.** Eski sürümlerin dosyaları elde kalır (bilinçli,
   bkz. `docs/hafiza/paketleme-ve-dagitim.md`); gerekirse elle `rm -rf`.

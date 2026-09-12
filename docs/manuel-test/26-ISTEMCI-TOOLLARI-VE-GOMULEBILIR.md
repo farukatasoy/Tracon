@@ -1,15 +1,15 @@
 # 26 — İstemci Tool'ları ve Gömülebilir Sohbet (`IST`)
 
 > **Alan kodu:** `IST` · **Faz:** 61, 112
-> **Kaynak:** `src/AgentPrism.Core/Tools/AgentPrismClientToolExtensions.cs` ·
-> `src/AgentPrism.Core/Tools/ToolRegistry.cs` ·
-> `src/AgentPrism.AspNetCore/Internal/ClientToolResultResolver.cs` ·
-> `src/AgentPrism.AspNetCore/Internal/AgentPrismCorsMiddleware.cs` ·
-> `src/AgentPrism.AspNetCore/Endpoints/AgentEndpoints.cs` (`toolResults`
-> handling) · `src/AgentPrism.AspNetCore/AgentPrismEndpointOptions.cs`
-> (`AllowedOrigins`) · `src/AgentPrism.UI/frontend/src/embed/` (widget) ·
-> `samples/AgentPrism.Api/Program.cs` (`read_shopping_cart`) ·
-> `src/AgentPrism.Core/Replay/RunReplayService.cs` (`FindClientTool`, Faz 112).
+> **Kaynak:** `src/Tracon.Core/Tools/TraconClientToolExtensions.cs` ·
+> `src/Tracon.Core/Tools/ToolRegistry.cs` ·
+> `src/Tracon.AspNetCore/Internal/ClientToolResultResolver.cs` ·
+> `src/Tracon.AspNetCore/Internal/TraconCorsMiddleware.cs` ·
+> `src/Tracon.AspNetCore/Endpoints/AgentEndpoints.cs` (`toolResults`
+> handling) · `src/Tracon.AspNetCore/TraconEndpointOptions.cs`
+> (`AllowedOrigins`) · `src/Tracon.UI/frontend/src/embed/` (widget) ·
+> `samples/Tracon.Api/Program.cs` (`read_shopping_cart`) ·
+> `src/Tracon.Core/Replay/RunReplayService.cs` (`FindClientTool`, Faz 112).
 >
 > Ortam kurulumu, fixture verisi ve reset yordamı [`00-INDEKS.md`](00-INDEKS.md)'dedir.
 
@@ -26,7 +26,7 @@ kendi sayfasındaki veriyi (sepet, DOM, seçili öğe) agent'a vermesini sağlar
 ```mermaid
 sequenceDiagram
     participant B as Tarayici (embed widget)
-    participant S as AgentPrism
+    participant S as Tracon
 
     B->>S: POST /run {"message":"sepetimde ne var?"}
     S->>S: Model read_shopping_cart cagirir
@@ -48,10 +48,10 @@ sequenceDiagram
 ## Koşmadan önce
 
 1. [`00-INDEKS.md`](00-INDEKS.md) §4 reset yordamı uygulanır.
-2. Örnek uygulama çalışır: `cd samples/AgentPrism.Api && dotnet run` → `http://localhost:5080`.
+2. Örnek uygulama çalışır: `cd samples/Tracon.Api && dotnet run` → `http://localhost:5080`.
    ```bash
    export APB="Authorization: Bearer manuel-test-token-2026"
-   export APU="http://localhost:5080/agentprism"
+   export APU="http://localhost:5080/tracon"
    ```
 3. `support` agent'ı örnek uygulamada `read_shopping_cart` istemci tool'unu
    zaten taşır (Faz 61 kapanışında eklendi) — ayrı bir kayıt gerekmez.
@@ -225,7 +225,7 @@ curl -s -D - -o /dev/null "$APU/api/meta" -H "Origin: https://baska-site.example
 
 ### MT-IST-011 — `AllowedOrigins` açıldığında izin verilen origin geçer
 
-**Ön koşul:** `samples/AgentPrism.Api/appsettings.json` → `AgentPrism:Ui:AllowedOrigins`'e `https://baska-site.example.com` eklenir, uygulama yeniden başlatılır.
+**Ön koşul:** `samples/Tracon.Api/appsettings.json` → `Tracon:Ui:AllowedOrigins`'e `https://baska-site.example.com` eklenir, uygulama yeniden başlatılır.
 
 **Adımlar:** MT-IST-010'un aynısını tekrarla.
 
@@ -246,11 +246,11 @@ curl -s -D - -o /dev/null "$APU/api/meta" -H "Origin: https://baska-site.example
 - `RunsWrite` kapsamlı bir kiracı API anahtarı üretildi (`13-KIRACI-VE-GUVENLIK.md`).
 - Basit bir statik HTML dosyası hazırlanır (farklı bir origin/porttan sunulur, örn. `python3 -m http.server 8099`):
   ```html
-  <script src="http://localhost:5080/agentprism/embed/embed.js"
-    data-server="http://localhost:5080" data-prefix="/agentprism"
+  <script src="http://localhost:5080/tracon/embed/embed.js"
+    data-server="http://localhost:5080" data-prefix="/tracon"
     data-agent="support" data-api-key="<uretilen anahtar>"></script>
   <script>
-    window.AgentPrismEmbed.registerTool('read_shopping_cart', () => '3x Klavye');
+    window.TraconEmbed.registerTool('read_shopping_cart', () => '3x Klavye');
   </script>
   ```
 

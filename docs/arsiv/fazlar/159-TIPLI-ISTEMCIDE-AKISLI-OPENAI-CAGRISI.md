@@ -3,10 +3,10 @@
 > **Durum:** ✅ Tamamlandı (2026-09-08)
 > **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-198**
 > **Önkoşul:** Yok — ama 🚨 **gövde bildirimi kusuru bu plandan ÖNCE kapandı** (2026-09-08, `DeclaredRequestBodyTests`). Plan o düzeltilmiş imzanın üstüne yazılmıştır
-> **Paketler:** `AgentPrism.Client` (üretilen) · `@agentprism/client` (üretilen)
+> **Paketler:** `Tracon.Client` (üretilen) · `@tracon/client` (üretilen)
 > **Yeni paket:** Yok · **Migration:** Yok
 > **Public API:** Büyüyor — iki yeni üretilmiş metot. Yayımlanmamış olduğu için bugün ucuz
-> **Tüketici yüzeyi:** `docs-site/src/content/docs/guides/openai-api.md` · `guides/typescript-client.md` · sevk edilen: `AgentPrism.Client` README'si
+> **Tüketici yüzeyi:** `docs-site/src/content/docs/guides/openai-api.md` · `guides/typescript-client.md` · sevk edilen: `Tracon.Client` README'si
 > **Manuel test alanı:** [`docs/manuel-test/34-ISTEMCI-VE-CLI.md`](../../manuel-test/34-ISTEMCI-VE-CLI.md)
 
 ---
@@ -38,7 +38,7 @@
 - [x] Postprocess tam yeniden üretimle koşuldu ve delta `diff` ile doğrulandı — yalnız yeni geçişin farkı
 - [x] TypeScript istemcisi için ölçüm yapıldı ve Açık Soru 3 karara bağlandı
 - [x] Dört doğrulama kapısı sıfır uyarı verir
-- [x] `samples/AgentPrism.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı
+- [x] `samples/Tracon.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı
 - [x] `secret` taraması boş döndü
 - [x] Manuel kabul case'leri `docs/manuel-test/34-ISTEMCI-VE-CLI.md` içine eklendi ve **`00-INDEKS.md` sayımı güncellendi**
 - [x] `faz-denetim` koşuldu; 🔴 bulgu kalmadı
@@ -48,10 +48,10 @@
 
 ```bash
 # Tam yeniden üretim ve delta doğrulaması
-python3 scripts/nswag-prepare-document.py docs/openapi/agentprism.json artifacts/openapi/agentprism.client-input.json
+python3 scripts/nswag-prepare-document.py docs/openapi/tracon.json artifacts/openapi/tracon.client-input.json
 dotnet nswag run nswag.json
-python3 scripts/nswag-postprocess-client.py src/AgentPrism.Client/Generated/AgentPrismApiClient.g.cs
-git diff --stat src/AgentPrism.Client/Generated/
+python3 scripts/nswag-postprocess-client.py src/Tracon.Client/Generated/TraconApiClient.g.cs
+git diff --stat src/Tracon.Client/Generated/
 ```
 
 ---
@@ -76,15 +76,15 @@ Kullanıcı "konuyla alakasız kusurları da çöz" dedi; yol üstünde bulunanl
 | `typescript-client.md` "Server-Sent Events **desteklenmiyor**" diyordu | Sevk edilen site sayfası | Artık destekleniyor — bölüm `## Streaming responses` olarak yeniden yazıldı |
 | Aynı sayfa "**Six** operations answer `text/event-stream`" diyordu | Aynı | **Yedi**; `GET /api/runs/{runId}/events` sayımdan düşmüştü |
 | Kök `README.md` "HTTP API (**160** operations)" diyordu | Sevk edilen metin | **165**. `http-api.md`'nin aynı iddiası kapılıydı ve doğruydu; kök README'ninki değildi |
-| `AgentPrism.Client` README'si "**160** generated methods" diyordu | Paket README'si | Sabit sayı kaldırıldı — "one per operation in the document" |
-| `AgentPrism.Client.csproj` yorumu "160 generated operations" diyordu | Kaynak yorumu | Aynı düzeltme |
+| `Tracon.Client` README'si "**160** generated methods" diyordu | Paket README'si | Sabit sayı kaldırıldı — "one per operation in the document" |
+| `Tracon.Client.csproj` yorumu "160 generated operations" diyordu | Kaynak yorumu | Aynı düzeltme |
 
 ## Bu Fazda Verilen Kararlar
 
 Karar defterine **yeni `K-*` kaydı girmedi.** Üç aday tartıldı ve üçü de
 `AGENTS.md`'nin ölçütünü karşılamadı:
 
-- **İki metotlu tasarım** — `AgentPrism.Client` public API takibinin dışındadır
+- **İki metotlu tasarım** — `Tracon.Client` public API takibinin dışındadır
   (K-566) ve yüzey belgeden türetilir; bu bir üretim kuralıdır, bir contract
   kararı değil. Kural `nswag-postprocess-client.py`'nin docstring'inde ve
   `docs/hafiza/nswag-istemci-uretimi.md`'de yaşar.
@@ -95,51 +95,51 @@ Karar defterine **yeni `K-*` kaydı girmedi.** Üç aday tartıldı ve üçü de
   kapsıyor: yeni bir opak değer tipi keşfedilirse tabloya eklenir, yeni karar
   gerekmez.
 - **`readSse`'nin pakete taşınması** — paket içi bir modül yerleşimi; public
-  npm yüzeyi büyür ama `@agentprism/client` yayımlanmamıştır ve yüzeyi zaten
+  npm yüzeyi büyür ama `@tracon/client` yayımlanmamıştır ve yüzeyi zaten
   belgeden türetilir.
 
 ## Gerçek Koşum Kanıtı
 
-`samples/AgentPrism.Api` ayağa kaldırıldı (`EchoModelProvider`, ağ çağrısı yok)
+`samples/Tracon.Api` ayağa kaldırıldı (`EchoModelProvider`, ağ çağrısı yok)
 ve üretilen istemciyle **gerçek** çağrılar yapıldı:
 
 ```
-## 1. AgentPrismOpenAIResponsesStreamAsync  (stream: true)
+## 1. TraconOpenAIResponsesStreamAsync  (stream: true)
   [0] event: response.created | data: {"type":"response.created",...
   [1] event: response.in_progress | data: {...
   [2] event: response.output_item.added | data: {...
   [18] event: response.completed | data: {...
   -> 19 frames
 
-## 2. AgentPrismOpenAIChatCompletionsStreamAsync  (stream: true)
+## 2. TraconOpenAIChatCompletionsStreamAsync  (stream: true)
   first: data: {"id":"chatcmpl-...","object":"chat.completion.chunk",...
   last : data: [DONE]
   -> 4 frames
 
-## 3. AgentPrismOpenAIResponsesAsync  (stream: false)
+## 3. TraconOpenAIResponsesAsync  (stream: false)
   object=response status=completed
   text=Merhaba! Size nasıl yardımcı olabilirim?
 
 ## 4. JSON method + stream:true
-  AgentPrismApiException: The server answered 200 with content type
+  TraconApiException: The server answered 200 with content type
   'text/event-stream', not 'application/json'. ... Send "stream": false, or call
-  AgentPrismOpenAIResponsesStreamAsync for the streaming shape.
+  TraconOpenAIResponsesStreamAsync for the streaming shape.
 
 ## 5. Streaming method + stream:false
-  AgentPrismApiException: The server answered 200 with content type
+  TraconApiException: The server answered 200 with content type
   'application/json', not 'text/event-stream'. ... Send "stream": true, or call
-  AgentPrismOpenAIResponsesAsync for the JSON shape.
+  TraconOpenAIResponsesAsync for the JSON shape.
 
 ## 6. default(JsonElement) body
   ArgumentException (body): The request body is an uninitialized JsonElement.
 
-## 7. AgentPrismRunAgentStreamAsync + early break
+## 7. TraconRunAgentStreamAsync + early break
   [0] id: 0 | event: run | data: {"runId":"01a081fb-...
   [1] id: 1 | event: update | data: { | data:   "authorName": "cached-support",...
   -> break after 2 frames (stream released)
 ```
 
-🚨 Örnek uygulamanın `secret`'ına **dokunulmadı**: `AgentPrism__Ui__AuthToken`
+🚨 Örnek uygulamanın `secret`'ına **dokunulmadı**: `Tracon__Ui__AuthToken`
 ortam değişkeni yalnız bu koşum için verildi (ortam değişkeni user-secrets'ı
 ezer), böylece kullanıcının kendi token'ı ne okundu ne yazdırıldı.
 
@@ -147,20 +147,20 @@ ezer), böylece kullanıcının kendi token'ı ne okundu ne yazdırıldı.
 
 Taban doğrulaması **önce** yapıldı: değiştirilmemiş script tam zinciri koşunca
 `git diff` **boş** döndü — hat güvenilir. Altıncı geçişten sonra delta yalnız
-`AgentPrismApiClient.g.cs`'te **+1003 satır** (7 kardeş metot + 2 guard);
-`AgentPrismClientJsonContext.g.cs` **değişmedi** (153 kök tip, aynı), yani yeni
+`TraconApiClient.g.cs`'te **+1003 satır** (7 kardeş metot + 2 guard);
+`TraconClientJsonContext.g.cs` **değişmedi** (153 kök tip, aynı), yani yeni
 metotlar hiçbir yeni serilestirme kökü getirmedi.
 
 ## Site Senkronu
 
 `tuketici-dokuman-senkronu` koşuldu. Dört kural tetiklendi; üçü hedefiyle
-karşılandı (`http-api` → `docs/openapi/agentprism.json` · `paket-tanimi` ve
+karşılandı (`http-api` → `docs/openapi/tracon.json` · `paket-tanimi` ve
 `paket-readme` → `packages.md`). Dördüncüsü **gerekçeyle** geçildi:
 
 > **`arayuz` → `ui.md` güncellenmedi.** Tetikleyen üç dosya
 > (`screens/run-detail.tsx`, `screens/workflow-detail.tsx`,
 > `screens/playground/use-playground-run.ts`) yalnız **import kaynağını**
-> değiştirdi: `../lib/sse` → `@agentprism/client`. Aynı `readSse`, aynı
+> değiştirdi: `../lib/sse` → `@tracon/client`. Aynı `readSse`, aynı
 > çağrı, aynı çerçeveler. Hiçbir ekran, hiçbir metin, hiçbir davranış
 > değişmedi; ekran görüntüsü de bayatlamadı. `ui.md`'ye yazılacak bir şey
 > yoktur ve uydurmak sayfayı yanlış yapardı.
@@ -175,9 +175,9 @@ Bağımsız denetçi (taze bağlam, yalnız DoD + `git diff 9539b670`) koştu.
 | # | Sev. | Bulgu | Sonuç |
 |---|---|---|---|
 | 1 | 🔴 | `llms-full.txt` kaynağından geride: agent haritası `packages.md`'nin **son** düzenlemesinden ÖNCE üretilmişti; `build-agent-map.mjs --check` ve `check:content` kırmızıydı | **Düzeltildi** — `build-agent-map.mjs` yeniden koşuldu, dört site kapısı yeşil. 🚨 Ders: harita üretimi doküman düzenlemelerinin **sonuncusu** olmalıdır, ortası değil |
-| 2 | 🟡 | Yeni dışa açılan `readSse`'nin HTTP sınırında hiç testi yoktu; iki sayfanın "`parseAs: 'stream'` + `readSse`" vaadini hiçbir test kanıtlamıyordu (`sse.test.ts` yalnız çözücüyü test ediyor) | **Düzeltildi** — `packages/agentprism-client/test/streaming.test.ts` (3 test): sahte `fetch` ile gerçek `client.POST(..., parseAs: 'stream')` → `readSse`; parçalanmış çerçeve; ve **403'ün hâlâ `AgentPrismError` fırlattığı** (akış modu hata ara yazılımını atlatmıyor) |
-| 3 | 🟡 | `guides/openai-api.md`'deki TypeScript örneği çalışmıyordu: `client` tanımsızdı | **Düzeltildi** — `createAgentPrismClient(...)` çağrısı örneğe eklendi |
-| 4 | 🟡 | Taşınan `src/lib/sse.ts`'e beş bayat referans kaldı; `kapi.py tarama` ve `dokuman-bakim.py` ikisi de temiz döndü (dizin öneki taşımayan yol iddiası kapıların deliğinden geçiyor) | **Düzeltildi** — beşi de `@agentprism/client`'ı gösteriyor. `docs/guvenlik-tarama/BULGULAR.md`'deki altıncı referans **bilerek** bırakıldı: tarihli bir bulgu kaydıdır, ledger geçmişi yeniden yazılmaz |
+| 2 | 🟡 | Yeni dışa açılan `readSse`'nin HTTP sınırında hiç testi yoktu; iki sayfanın "`parseAs: 'stream'` + `readSse`" vaadini hiçbir test kanıtlamıyordu (`sse.test.ts` yalnız çözücüyü test ediyor) | **Düzeltildi** — `packages/tracon-client/test/streaming.test.ts` (3 test): sahte `fetch` ile gerçek `client.POST(..., parseAs: 'stream')` → `readSse`; parçalanmış çerçeve; ve **403'ün hâlâ `TraconError` fırlattığı** (akış modu hata ara yazılımını atlatmıyor) |
+| 3 | 🟡 | `guides/openai-api.md`'deki TypeScript örneği çalışmıyordu: `client` tanımsızdı | **Düzeltildi** — `createTraconClient(...)` çağrısı örneğe eklendi |
+| 4 | 🟡 | Taşınan `src/lib/sse.ts`'e beş bayat referans kaldı; `kapi.py tarama` ve `dokuman-bakim.py` ikisi de temiz döndü (dizin öneki taşımayan yol iddiası kapıların deliğinden geçiyor) | **Düzeltildi** — beşi de `@tracon/client`'ı gösteriyor. `docs/guvenlik-tarama/BULGULAR.md`'deki altıncı referans **bilerek** bırakıldı: tarihli bir bulgu kaydıdır, ledger geçmişi yeniden yazılmaz |
 | 5 | 🟡 | `A_matching_content_type_passes_in_both_directions` hiçbir şey iddia etmiyordu (yalnız "patlamadı") | **Düzeltildi** — `Should.NotThrowAsync` ile niyet görünür |
 | 6 | 🟡 | Fazın kendi listelediği beş sorudan **alt sistem hatası** (sunucu akış ortasında bağlantıyı keser) iki seviyede de test edilmemişti | **Düzeltildi** — `A_connection_that_drops_mid_stream_surfaces_the_error_rather_than_ending_quietly`: `FailingStream` okuma ortasında `IOException` atar; istisna `MoveNextAsync`'ten çıkar ve o ana kadarki çerçeveler teslim edilmiş olur. Sessizce bitmek "run tamamlandı" diye okunurdu |
 | 7 | 🟡 | `YOL-HARITASI.md` fazı hâlâ `📋 Planlandı` gösteriyordu | **Düzeltildi** — üretildi (K-413: elle yazılmaz) |
@@ -192,14 +192,14 @@ kayması) · 3.6 (plan dışı public API) · 3.7 (repo kuralları).
 
 Denetçi izole bir probe koştu: `HttpClient.Timeout = 3s` ile
 `ResponseHeadersRead` üzerinden **10 saniyelik** bir SSE akışı .NET 10'da
-**kesilmiyor** ("COMPLETED normally after 10,1s"). Yani `AddAgentPrismClient`'ın
+**kesilmiyor** ("COMPLETED normally after 10,1s"). Yani `AddTraconClient`'ın
 varsayılan 100 sn `Timeout`'u uzun akışlar için bir tuzak **değildir** — bu faz
 için ayrı bir timeout ayarı gerekmedi.
 
 ### Denetim sonrası kapı koşumu
 
 🔴 kapandıktan sonra kapılar yeniden koşuldu (düzeltme yeni kusur üretebilir):
-`AgentPrism.Client.UnitTests` 18/18 · `@agentprism/client` 34/34 ·
+`Tracon.Client.UnitTests` 18/18 · `@tracon/client` 34/34 ·
 `python -m unittest discover -s scripts` 257/257 · `build-agent-map --check` ✅ ·
 `npm run check` (dördü) ✅.
 
@@ -214,7 +214,7 @@ için ayrı bir timeout ayarı gerekmedi.
   dördüncüden önce koşar; yeni bir geçiş eklerken bu iddiayı bozma.
 - **Script hâlâ idempotent değil**, ama altıncı geçiş bunu artık kendisi
   yakalar (`SystemExit`, CS0111 beklemeden).
-- **`readSse` artık `@agentprism/client`'ta yaşıyor.** Frontend onu paketten
+- **`readSse` artık `@tracon/client`'ta yaşıyor.** Frontend onu paketten
   alır ve import **`dist/`'i** çözer — K-627'nin dördüncü adımı (`npm run build`)
   bu yüzden hâlâ zorunludur.
 - **Açık kalan:** `text/event-stream` içerik tipinin **şeması** hâlâ JSON
@@ -227,7 +227,7 @@ için ayrı bir timeout ayarı gerekmedi.
   varlığına bakar, şemasına değil), ama belgeyi okuyan bir üçüncü taraf üreteci
   yanlış bilgilenir. Aday olarak yazılmaya değer.
 - **Örnek uygulamada bağlantısız bir gürültü var:** açılışta
-  `SqliteException: no such table: agentprism_agent_definitions` loglanıyor —
+  `SqliteException: no such table: tracon_agent_definitions` loglanıyor —
   katalog, migration'lar tamamlanmadan listeliyor. Zararsız (migration hemen
   ardından koşuyor ve uygulama çalışıyor) ve bu fazın kapsamı dışında; ayrı bir
   kusur kalemi olarak açılmalı.

@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/Tracon.Anthropic/Tracon.Anthropic.csproj" />
+    <ProjectReference Include="../../src/Tracon.Testing.Contracts.Xunit/Tracon.Testing.Contracts.Xunit.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- In-memory configuration provider for settings-from-configuration read tests. -->
+    <PackageReference Include="Microsoft.Extensions.Configuration" />
+  </ItemGroup>
+
+</Project>

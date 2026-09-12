@@ -29,14 +29,14 @@ class KuralEslesmesiTestleri(unittest.TestCase):
     """`_kural_eslesmesi` saf fonksiyonu — git veya dosya sistemi istemez."""
 
     def test_karsilanmayan_kural_kirmizidir(self):
-        degisen = ["src/AgentPrism.Workflows/Foo.cs", "docs-site/src/content/docs/packages.md"]
+        degisen = ["src/Tracon.Workflows/Foo.cs", "docs-site/src/content/docs/packages.md"]
         eslesme = dokuman_bakim._kural_eslesmesi(degisen)
         workflow = next(e for e in eslesme if e[0] == "workflow")
         self.assertFalse(workflow[3])
 
     def test_karsilanan_kural_yanlis_pozitif_uretmez(self):
         degisen = [
-            "src/AgentPrism.Workflows/Foo.cs",
+            "src/Tracon.Workflows/Foo.cs",
             "docs-site/src/content/docs/concepts/workflows.md",
         ]
         eslesme = dokuman_bakim._kural_eslesmesi(degisen)
@@ -45,7 +45,7 @@ class KuralEslesmesiTestleri(unittest.TestCase):
 
     def test_dizin_hedefi_alt_sayfayla_karsilanir(self):
         degisen = [
-            "src/AgentPrism.Abstractions/IFoo.cs",
+            "src/Tracon.Abstractions/IFoo.cs",
             "docs-site/src/content/docs/concepts/agents.md",
         ]
         eslesme = dokuman_bakim._kural_eslesmesi(degisen)
@@ -54,7 +54,7 @@ class KuralEslesmesiTestleri(unittest.TestCase):
 
     def test_dizin_hedefi_baska_sayfayla_karsilanmaz(self):
         degisen = [
-            "src/AgentPrism.Abstractions/IFoo.cs",
+            "src/Tracon.Abstractions/IFoo.cs",
             "docs-site/src/content/docs/packages.md",
         ]
         eslesme = dokuman_bakim._kural_eslesmesi(degisen)
@@ -66,7 +66,7 @@ class KuralEslesmesiTestleri(unittest.TestCase):
         # eder; `_kural_eslesmesi` girdiyi olduğu gibi kabul eder, kaynağını
         # sormaz -- yeni bir site sayfası henüz commit edilmemiş olabilir.
         degisen = [
-            "src/AgentPrism.UI/frontend/src/screens/Yeni.tsx",
+            "src/Tracon.UI/frontend/src/screens/Yeni.tsx",
             "docs-site/src/content/docs/ui.md",
         ]
         eslesme = dokuman_bakim._kural_eslesmesi(degisen)
@@ -74,7 +74,7 @@ class KuralEslesmesiTestleri(unittest.TestCase):
         self.assertTrue(arayuz[3])
 
     def test_buildtransitive_capabilities_hedefler(self):
-        degisen = ["src/AgentPrism.Core/buildTransitive/AgentPrism.Core.targets"]
+        degisen = ["src/Tracon.Core/buildTransitive/Tracon.Core.targets"]
         eslesme = dokuman_bakim._kural_eslesmesi(degisen)
         adlar = {e[0] for e in eslesme}
         self.assertIn("buildtransitive", adlar)
@@ -89,8 +89,8 @@ class KuralEslesmesiTestleri(unittest.TestCase):
         # elle yazilmis sekil sayfasi degil, uretilip commit edilen OpenAPI
         # belgesidir. Hedef depo koku'ne gore cozulur.
         degisen = [
-            "src/AgentPrism.AspNetCore/Endpoints/AgentEndpoints.cs",
-            "docs/openapi/agentprism.json",
+            "src/Tracon.AspNetCore/Endpoints/AgentEndpoints.cs",
+            "docs/openapi/tracon.json",
         ]
         eslesme = dokuman_bakim._kural_eslesmesi(degisen)
         http = next(e for e in eslesme if e[0] == "http-api")
@@ -100,7 +100,7 @@ class KuralEslesmesiTestleri(unittest.TestCase):
         # Iki alternatif hedef: belge yeniden uretilmediyse SEKIL sayfasinin
         # elle guncellenmesi de kurali karsilar.
         degisen = [
-            "src/AgentPrism.AspNetCore/OpenAICompat/Foo.cs",
+            "src/Tracon.AspNetCore/OpenAICompat/Foo.cs",
             "docs-site/src/content/docs/http-api.md",
         ]
         eslesme = dokuman_bakim._kural_eslesmesi(degisen)
@@ -109,17 +109,17 @@ class KuralEslesmesiTestleri(unittest.TestCase):
 
     def test_http_api_kurali_hicbir_hedef_degismezse_kirmizidir(self):
         eslesme = dokuman_bakim._kural_eslesmesi(
-            ["src/AgentPrism.AspNetCore/Endpoints/AgentEndpoints.cs"])
+            ["src/Tracon.AspNetCore/Endpoints/AgentEndpoints.cs"])
         http = next(e for e in eslesme if e[0] == "http-api")
         self.assertFalse(http[3])
 
     def test_depo_koku_hedefi_site_koku_altinda_ARANMAZ(self):
-        # `docs/openapi/agentprism.json` site icerik koku ile ONEKLENMEMELIDIR;
+        # `docs/openapi/tracon.json` site icerik koku ile ONEKLENMEMELIDIR;
         # oneklenirse hicbir zaman eslesmez ve kural kalici kirmizi kalir --
         # F-203'un tam olarak duzelttigi kusur.
         degisen = [
-            "src/AgentPrism.AspNetCore/Endpoints/AgentEndpoints.cs",
-            "docs-site/src/content/docs/docs/openapi/agentprism.json",
+            "src/Tracon.AspNetCore/Endpoints/AgentEndpoints.cs",
+            "docs-site/src/content/docs/docs/openapi/tracon.json",
         ]
         eslesme = dokuman_bakim._kural_eslesmesi(degisen)
         http = next(e for e in eslesme if e[0] == "http-api")
@@ -132,7 +132,7 @@ class KuralEslesmesiTestleri(unittest.TestCase):
         # SITE_KURALLARI boşalırsa hiçbir kural tetiklenmez ve kapı SESSİZCE
         # yeşil kalır. Gerçek sabiti kullanır (mock değil) -- boşalırsa düşer.
         self.assertGreater(len(dokuman_bakim.SITE_KURALLARI), 0)
-        eslesme = dokuman_bakim._kural_eslesmesi(["src/AgentPrism.AspNetCore/Endpoints/Foo.cs"])
+        eslesme = dokuman_bakim._kural_eslesmesi(["src/Tracon.AspNetCore/Endpoints/Foo.cs"])
         self.assertGreater(len(eslesme), 0)
 
 
@@ -184,7 +184,7 @@ class KirikBaglantilarTestleri(unittest.TestCase):
             self.assertEqual(kirik, [])
 
     def test_uretilmeyen_openapi_dosyasi_hedef_olarak_denetim_disi(self):
-        # `docs-site/public/openapi/agentprism.json` `.gitignore`'dadir ve
+        # `docs-site/public/openapi/tracon.json` `.gitignore`'dadir ve
         # yalniz `site` isinin `npm run build` -> `prebuild` zincirinde uretilir;
         # `build` isinde HENUZ yoktur. Bagimsiz denetimin buldugu kalici yanlis
         # pozitif: dosya gercekten yokken bile bu baglanti kirik SAYILMAMALI.
@@ -193,7 +193,7 @@ class KirikBaglantilarTestleri(unittest.TestCase):
             self._kok_kur(tmp)
             self.assertFalse((tmp / "docs-site" / "public" / "openapi").exists())
             (tmp / "docs-site" / "src" / "content" / "docs" / "index.mdx").write_text(
-                "[openapi](/openapi/agentprism.json)\n"
+                "[openapi](/openapi/tracon.json)\n"
             )
             kirik = dokuman_bakim.kirik_baglantilar(tmp)
             self.assertEqual(kirik, [])
@@ -624,10 +624,10 @@ class Faz91DokumanKapilariTestleri(unittest.TestCase):
             (tmp / ".github" / "workflows" / "ci.yml").write_text(
                 "find src tests samples docs .agents -name '* 2.*'", encoding="utf-8")
             (tmp / "AGENTS.md").write_text(
-                "dotnet build  AgentPrism.slnx\n"
-                "dotnet test   AgentPrism.slnx\n"
-                "dotnet pack   AgentPrism.slnx\n"
-                "dotnet format AgentPrism.slnx\n",
+                "dotnet build  Tracon.slnx\n"
+                "dotnet test   Tracon.slnx\n"
+                "dotnet pack   Tracon.slnx\n"
+                "dotnet format Tracon.slnx\n",
                 encoding="utf-8")
             completion = tmp / ".agents" / "skills" / "faz-tamamlama"
             completion.mkdir(parents=True)
@@ -649,7 +649,7 @@ class Faz91DokumanKapilariTestleri(unittest.TestCase):
 FAZ_ORNEK = """# Faz 42 — Örnek
 
 > **Durum:** ✅ Tamamlandı (2026-08-07)
-> **Paketler:** `AgentPrism.Core`
+> **Paketler:** `Tracon.Core`
 
 ## Bu Faza Başlarken
 
@@ -1101,7 +1101,7 @@ class DenetimBulgulariTestleri(unittest.TestCase):
         # 🔴 Bulgu 1: ön denetim dar bir yol listesine bakıyordu ama geri alma
         # `git reset --hard` idi — `src/` altındaki düzenleme yok olurdu.
         with mock.patch.object(dokuman_bakim, "_git",
-                               return_value=[" M src/AgentPrism.Core/X.cs"]):
+                               return_value=[" M src/Tracon.Core/X.cs"]):
             self.assertIsNotNone(dokuman_bakim._izlenen_degisiklik_var_mi())
 
     def test_temiz_agac_gecer(self):
@@ -1231,9 +1231,9 @@ class SevkEdilenGenislemeNoktasiTestleri(unittest.TestCase):
 
     def _kok(self, tablo: str, sevk: dict[str, str] | None = None) -> pathlib.Path:
         kok = pathlib.Path(tempfile.mkdtemp())
-        kaynak = kok / "src" / "AgentPrism.Core" / "Diagnostics"
+        kaynak = kok / "src" / "Tracon.Core" / "Diagnostics"
         kaynak.mkdir(parents=True)
-        (kaynak / "AgentPrismDiagnosticsCollector.cs").write_text(self.KOD, encoding="utf-8")
+        (kaynak / "TraconDiagnosticsCollector.cs").write_text(self.KOD, encoding="utf-8")
         icerik = kok / "docs-site" / "src" / "content" / "docs"
         icerik.mkdir(parents=True)
         (icerik / "capabilities.md").write_text(
@@ -1284,7 +1284,7 @@ class SevkEdilenGenislemeNoktasiTestleri(unittest.TestCase):
 
     def test_uretilen_api_referansi_SAYILMAZ(self):
         kok = self._kok(self.IKI_SATIR, {
-            "api/AgentPrism.Report.md": "one entry per embedding point\n",
+            "api/Tracon.Report.md": "one entry per embedding point\n",
             "http-api/schema-report.md": "nine embedding points\n"})
         self.assertEqual([], dokuman_bakim.sevk_edilen_genisleme_noktasi(kok))
 
@@ -1294,7 +1294,7 @@ class SevkEdilenOlayAnlatisiTestleri(unittest.TestCase):
 
     def _kok(self, olaylar: str, anlati: dict[str, str]) -> pathlib.Path:
         kok = pathlib.Path(tempfile.mkdtemp())
-        sabit = kok / "src" / "AgentPrism.Abstractions" / "Webhooks"
+        sabit = kok / "src" / "Tracon.Abstractions" / "Webhooks"
         sabit.mkdir(parents=True)
         (sabit / "WebhookTypes.cs").write_text(olaylar, encoding="utf-8")
         icerik = kok / "docs-site" / "src" / "content" / "docs"
@@ -1328,7 +1328,7 @@ class SevkEdilenOlayAnlatisiTestleri(unittest.TestCase):
             self.SABITLER,
             {
                 "concepts/governance.md": "run.completed anlatısı",
-                "api/AgentPrism.WebhookEvents.md": "quota.threshold burada üretildi",
+                "api/Tracon.WebhookEvents.md": "quota.threshold burada üretildi",
             })
         bulgular = dokuman_bakim.sevk_edilen_olay_anlatisi(kok)
         self.assertEqual(1, len(bulgular))
@@ -1395,7 +1395,7 @@ class BagimlilikSurumDamgasiTestleri(unittest.TestCase):
         yol.write_text(f"/// <summary>\n{xml_satiri}\n/// </summary>\npublic class X {{ }}\n", encoding="utf-8")
         return kok
 
-    DOSYA = "src/AgentPrism.Core/Models/FallbackChatClient.cs"
+    DOSYA = "src/Tracon.Core/Models/FallbackChatClient.cs"
 
     def test_sapan_damga_kirmizidir(self):
         kok = self._kok("/// Measured against the real OpenAI 2.11.0 client.", self.DOSYA)
@@ -1409,14 +1409,14 @@ class BagimlilikSurumDamgasiTestleri(unittest.TestCase):
 
     def test_msbuild_degiskeni_cozulur(self):
         kok = self._kok("/// Measured against MAF 1.19.0 (2026-09-07).",
-                        "src/AgentPrism.Core/Compilation/RecordingLoopEvaluator.cs")
+                        "src/Tracon.Core/Compilation/RecordingLoopEvaluator.cs")
         bulgular = dokuman_bakim.bagimlilik_surum_damgasi(kok)
         self.assertEqual(1, len(bulgular))
         self.assertIn("1.20.0", bulgular[0])
 
     def test_KAYITSIZ_damga_kirmizidir(self):
         # Sinifi kapatan parca: yeni bir damga sessizce kapinin disinda kalamaz.
-        kok = self._kok("/// Measured against Fake 9.9.9.", "src/AgentPrism.Core/Yeni.cs")
+        kok = self._kok("/// Measured against Fake 9.9.9.", "src/Tracon.Core/Yeni.cs")
         bulgular = dokuman_bakim.bagimlilik_surum_damgasi(kok)
         self.assertEqual(1, len(bulgular))
         self.assertIn("KAYITSIZ", bulgular[0])
@@ -1424,5 +1424,5 @@ class BagimlilikSurumDamgasiTestleri(unittest.TestCase):
     def test_pinlenmeyen_paket_bilerek_atlanir(self):
         # `None` kaydi: damga repo'nun ALMADIGI bir paket hakkinda.
         kok = self._kok("/// Measured (10.8.0): that type requires an expression.",
-                        "src/AgentPrism.Abstractions/Knowledge/IVectorSearchStore.cs")
+                        "src/Tracon.Abstractions/Knowledge/IVectorSearchStore.cs")
         self.assertEqual([], dokuman_bakim.bagimlilik_surum_damgasi(kok))

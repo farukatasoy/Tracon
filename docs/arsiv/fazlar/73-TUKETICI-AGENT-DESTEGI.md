@@ -3,7 +3,7 @@
 > **Durum:** ✅ Tamamlandı (2026-08-19)
 > **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-120**
 > **Önkoşul:** [Faz 52](52-KAYNAK-URETECI.md) — generator paketleme borusu ve `APG` tanı deseni oradan devralınır · [Faz 59](59-URUN-DOKUMANTASYONU.md) — `capabilities.md` ve `docs-site/scripts/` üreteç deseni
-> **Paketler:** `AgentPrism.Generators`, `AgentPrism.Core` (yalnız paketleme), `AgentPrism.Templates` · `docs-site/`
+> **Paketler:** `Tracon.Generators`, `Tracon.Core` (yalnız paketleme), `Tracon.Templates` · `docs-site/`
 > **Yeni paket:** Yok · **Migration:** Yok
 > **Public API:** **Büyümüyor.** Analyzer, MSBuild target ve üretilen dosyalar public API yüzeyi değildir; `PublicAPI.*.txt` bu fazda değişmez. Ölçüldü: `wc -l src/*/PublicAPI.Shipped.txt` her paket için 1 satır (hepsi boş)
 > **Site etkisi:** `capabilities.md` **kaynak rolü kazanır** · yeni üretilen `docs-site/public/llms.txt` ve `llms-full.txt` · yeni üreteç `docs-site/scripts/build-agent-map.mjs` · `check-content.mjs` genişler
@@ -28,19 +28,19 @@
 
 ## Amaç
 
-AgentPrism'i entegre eden back-end uygulamalarının **kod agent'ları** paketin yeteneklerine hâkim değildir. Var olduğunu bilmedikleri yeteneği kullanmazlar; onun yerine elle yeniden yazarlar. Bu faz o boşluğu iki mekanizmayla kapatır ve mekanizmaların kod ile hizada kalmasını bir teste bağlar.
+Tracon'i entegre eden back-end uygulamalarının **kod agent'ları** paketin yeteneklerine hâkim değildir. Var olduğunu bilmedikleri yeteneği kullanmazlar; onun yerine elle yeniden yazarlar. Bu faz o boşluğu iki mekanizmayla kapatır ve mekanizmaların kod ile hizada kalmasını bir teste bağlar.
 
 ## Bitiş Ölçütleri (DoD)
 
-- [x] `AgentPrismWriteAgentsFile` kapalıyken `dotnet build` hiçbir dosya yazmaz — `Property_unset_writes_no_file`, gerçek paket
+- [x] `TraconWriteAgentsFile` kapalıyken `dotnet build` hiçbir dosya yazmaz — `Property_unset_writes_no_file`, gerçek paket
 - [x] Özellik açıkken git kökünde ≤ 10 KB `AGENTS.md` oluşur; var olan dosya ezilmez — ölçüldü: **7763 bayt**; elle düzenlenen dosya iki build sonra bayt bayt aynı
-- [x] `dotnet new agentprism-api` ile oluşan projede `AGENTS.md` kendiliğinden gelir — `A_generated_project_gets_the_map_without_being_asked`
+- [x] `dotnet new tracon-api` ile oluşan projede `AGENTS.md` kendiliğinden gelir — `A_generated_project_gets_the_map_without_being_asked`
 - [x] Altı tanının altısı da gerçek bir tüketici projesinde tetiklendi; çıktı aşağıda
 - [x] `CapabilityCoverageTests` yeşil; taban çizgisi **boş**; iki yönde de kızardığı gösterildi (üye haritadan silinince, API'ye yeni üye eklenince)
-- [x] `DiagnosticIntegrityTests` yeşil — ve denetimden sonra **gerçekten** kızardığı gösterildi (mesajdaki `AddAgentPrism()` yeniden adlandırıldı → kırmızı)
+- [x] `DiagnosticIntegrityTests` yeşil — ve denetimden sonra **gerçekten** kızardığı gösterildi (mesajdaki `AddTracon()` yeniden adlandırıldı → kırmızı)
 - [x] `llms.txt` (7861 B) ve `llms-full.txt` (356 KB) üretildi; `check-content.mjs` diff'i boş buldu
 - [x] Dört doğrulama kapısı sıfır uyarı verir — denetim düzeltmelerinden sonra tekrarlandı: **4394 test, 0 başarısız**. İlk koşumdaki tek Playwright düşüşü ikinci koşumda tekrarlamadı (F-102/F-122 sınıfı kırılganlık; bu fazın kodu arayüze dokunmuyor)
-- [x] `samples/AgentPrism.Api` ile gerçek `run` yapıldı — `claude-support`, `Completed`, SSE akışı (çıktı aşağıda)
+- [x] `samples/Tracon.Api` ile gerçek `run` yapıldı — `claude-support`, `Completed`, SSE akışı (çıktı aşağıda)
 - [x] `secret` taraması boş döndü — `src/`, `tests/`, `samples/` içinde sıfır eşleşme
 - [x] Manuel kabul case'leri `docs/manuel-test/29-AGENT-DESTEGI.md` içine eklendi (15 case); on birinin tamamı otomatik testte de koşuyor
 - [x] `faz-denetim` koşuldu; 3 🔴 + 4 🟡 bulgu **kapatıldı**, 🔴 kalmadı
@@ -49,25 +49,25 @@ AgentPrism'i entegre eden back-end uygulamalarının **kod agent'ları** paketin
 ### Gerçek çıktı — altı tanı, tek tüketici derlemesi
 
 ```text
-Program.cs(7,1):   warning APG0101: 'MapAgentPrism()' is called, but this compilation never calls 'AddAgentPrism()'. ...
+Program.cs(7,1):   warning APG0101: 'MapTracon()' is called, but this compilation never calls 'AddTracon()'. ...
 Program.cs(16,47): warning APG0102: The model binding names provider 'anthropic', but this compilation never calls 'UseAnthropic()'. ...
 Program.cs(53,41): warning APG0201: 'McpServerDefinition.AuthorizationConfigurationKey' carries a literal secret value. ...
 Program.cs(22,21): warning APG0301: 'RetryingChatClient' retries a chat client call by hand. ...
 Program.cs(20,21): warning APG0302: 'LoggingAgent' wraps another agent, but this compilation implements no 'IAgentDecorator'. ...
-AGENTS.md(1,1):    warning APG0401: 'AGENTS.md' was generated from capability map revision '00000000', but the installed AgentPrism ships revision 'e4c7b05b'. ...
+AGENTS.md(1,1):    warning APG0401: 'AGENTS.md' was generated from capability map revision '00000000', but the installed Tracon ships revision 'e4c7b05b'. ...
 ```
 
 `rm AGENTS.md && dotnet build` sonrası: `APG0401` sayısı **0**, dosya yeniden
 yazıldı (`revision: e4c7b05b`, 7763 bayt).
-`-p:AgentPrismUsageDiagnostics=false` ile: altı tanının **hiçbiri** çıkmıyor.
+`-p:TraconUsageDiagnostics=false` ile: altı tanının **hiçbiri** çıkmıyor.
 
 ### Gerçek çıktı — örnek uygulama
 
 ```text
-POST /agentprism/api/agents/claude-support/run   → SSE
+POST /tracon/api/agents/claude-support/run   → SSE
   event: run     {"runId":"01a01b53-2f08-7801-a45a-83e01e93f464"}
   event: update  ... (Anthropic gercek yaniti)
-GET  /agentprism/api/runs?limit=1
+GET  /tracon/api/runs?limit=1
   {"id":"01a01b53-...","agentName":"claude-support","status":"Completed"}
 ```
 
@@ -81,11 +81,11 @@ kullanır, `buildTransitive` yalnız paket tüketicisine akar.
 dotnet build /tmp/tuketici/Tuketici.csproj && test ! -f /tmp/tuketici/AGENTS.md && echo OK
 
 # Acik iken olusur ve butcede kalir
-dotnet build /tmp/tuketici/Tuketici.csproj -p:AgentPrismWriteAgentsFile=true
+dotnet build /tmp/tuketici/Tuketici.csproj -p:TraconWriteAgentsFile=true
 wc -c /tmp/tuketici/AGENTS.md   # <= 10240
 
 # Kapinin gercekten yakaladigi gosterilir
-python3 scripts/kapi.py test --proje AgentPrism.Core.UnitTests --sinif "*CapabilityCoverageTests*"
+python3 scripts/kapi.py test --proje Tracon.Core.UnitTests --sinif "*CapabilityCoverageTests*"
 ```
 
 ---
@@ -114,8 +114,8 @@ derleme o sağlayıcıyı hiç kaydetmiyor. `AddModelProvider` veya
 `UseOpenAICompatible` varsa tanı susar — tüketici sağlayıcısı her adı
 karşılayabilir.
 
-**4 — `APG0302` daraltıldı; plan hâli AgentPrism'in kendisini yakaladı.** İlk
-uygulama "`AIAgent` sarmalayıcısı" diyordu. `dotnet pack` `AgentPrism.Core`'un
+**4 — `APG0302` daraltıldı; plan hâli Tracon'in kendisini yakaladı.** İlk
+uygulama "`AIAgent` sarmalayıcısı" diyordu. `dotnet pack` `Tracon.Core`'un
 **kendi** `RunRecordingAgent` ve `ReplayMismatchGuard` sınıflarında hata verdi
 (Core, üreteç projesini `OutputItemType=Analyzer` ile referanslar, yani kendi
 analyzer'ını kendi üzerinde koşturur). Sarmalayıcı kusur değildir —
@@ -133,13 +133,13 @@ hiçbir ayrıntı seviyesinde düşmüyor** — `-v:normal` ve `-t:Rebuild` ile 
 `.editorconfig` ile `warning`e çıkarılınca üçü de görünüyor. Katman 0'ın tek
 okuru o çıktı olduğu için `Info` pratikte tanıyı kapatmak demekti. Altısı da
 `Warning` oldu ve tek satırlık kaçış eklendi:
-`AgentPrismUsageDiagnostics=false` → hedef aileyi `$(NoWarn)`'a ekler.
+`TraconUsageDiagnostics=false` → hedef aileyi `$(NoWarn)`'a ekler.
 
 **6 — `CapabilityCoverageTests` kapsamı genişletildi** *(kullanıcı kararı)*.
-Plandaki filtre (`IAgentPrismBuilder` üyeleri + `Use*`/`Map*`)
+Plandaki filtre (`ITraconBuilder` üyeleri + `Use*`/`Map*`)
 `AddToolApprovalPolicy` ve `AddWorkflowFunction`'ı dışarıda bırakıyordu;
 `Configure` ve `Services` ise kapsanmadığı için taban çizgisi boş doğamazdı.
-Kapsam **tüm kayıt giriş noktaları** oldu: alıcısı `IAgentPrismBuilder`,
+Kapsam **tüm kayıt giriş noktaları** oldu: alıcısı `ITraconBuilder`,
 `IServiceCollection`, `IHostApplicationBuilder`, `IHealthChecksBuilder` veya
 `IEndpointRouteBuilder` olan her `Add*`/`Use*`/`Map*` — ölçülen **39 üye**.
 Dört üye `capabilities.md`'ye eklendi; taban çizgisi DoD'nin istediği gibi
@@ -171,7 +171,7 @@ hiçbir şeyle eşleşmiyor ve dosyalar **uyarısız** pakete girmiyor. Çözüm
 | # | Karar |
 |---|---|
 | **K-505** | Yetenek haritası `capabilities.md`'den üretilir, commit edilir ve `dotnet pack` onu okur; Node zinciri `dotnet build`'e bağlanmaz |
-| **K-506** | `AgentPrism.Usage` tanıları `Warning`'dir; `Info` `dotnet build` çıktısına düşmez (ölçüldü). Kaçış tek MSBuild özelliğidir |
+| **K-506** | `Tracon.Usage` tanıları `Warning`'dir; `Info` `dotnet build` çıktısına düşmez (ölçüldü). Kaçış tek MSBuild özelliğidir |
 | **K-507** | Harita sürüm işareti **içerik revizyonudur**, paket sürümü değil |
 | **K-508** | `APG0302` sarmalayıcıyı değil, **dekoratörsüz ve fabrikasız** sarmalayıcıyı bildirir |
 | **K-509** | `CapabilityCoverageTests` kapsamı tüm kayıt giriş noktalarıdır (39 üye), yalnız `Use*`/`Map*` değil |
@@ -185,9 +185,9 @@ buldu. Üç 🔴'ın üçü de gerçekti.
 
 | # | Seviye | Bulgu | Sonuç |
 |---|---|---|---|
-| 1 | 🔴 | `DiagnosticIntegrityTests`'in API kapısı 13 tanının 11'inde **hiçbir şey doğrulamıyordu**: desen `'Ad()'` biçimini reddediyor, yani `MapAgentPrism()`/`AddAgentPrism()` hiç denetlenmiyordu | **Düzeltildi.** Eşleşme artık tırnağın **içinde** arıyor; iç içe çağrı (`AddTool(AIFunctionFactory.Create(...))`) iki ad üretir, dosya adı (`AGENTS.md`) elenir. Kanıt: mesajdaki `AddAgentPrism()` yeniden adlandırıldı → test kızardı |
+| 1 | 🔴 | `DiagnosticIntegrityTests`'in API kapısı 13 tanının 11'inde **hiçbir şey doğrulamıyordu**: desen `'Ad()'` biçimini reddediyor, yani `MapTracon()`/`AddTracon()` hiç denetlenmiyordu | **Düzeltildi.** Eşleşme artık tırnağın **içinde** arıyor; iç içe çağrı (`AddTool(AIFunctionFactory.Create(...))`) iki ad üretir, dosya adı (`AGENTS.md`) elenir. Kanıt: mesajdaki `AddTracon()` yeniden adlandırıldı → test kızardı |
 | 2 | 🔴 | Analyzer XML dokümanı hâlâ "`Info` … can never break a build" diyordu; kod `Warning` | **Düzeltildi.** Doküman ölçümü ve kaçış özelliğini yazıyor |
-| 3 | 🔴 | Faz dokümanının DoD'si ve doğrulama komutu `≤ 6 KB` / `6144` diyordu; paketlenen dosya 7763 bayt. Ayrıca `28-AGENT-DESTEGI.md`, `dotnet new agentprism`, "bilgi satırı" kalıntıları | **Düzeltildi.** Gövdenin tamamı gerçekleşene göre hizalandı |
+| 3 | 🔴 | Faz dokümanının DoD'si ve doğrulama komutu `≤ 6 KB` / `6144` diyordu; paketlenen dosya 7763 bayt. Ayrıca `28-AGENT-DESTEGI.md`, `dotnet new tracon`, "bilgi satırı" kalıntıları | **Düzeltildi.** Gövdenin tamamı gerçekleşene göre hizalandı |
 | 4 | 🟡 | `Copy` görevi `ContinueOnError` taşımıyordu: salt-okunur depo kökü (yaygın CI mount'u) tüketicinin build'ini `MSB3021` ile kırardı — üstelik şablon özelliği varsayılan açar | **Düzeltildi.** `ContinueOnError="WarnAndContinue"`; kolaylık dosyası build'i kıramaz |
 | 5 | 🟡 | Harita↔kaynak sapma kapısı **hiçbir otomatik yolda değildi**: dört kapı Node'u koşmaz, `check:content` CI'da hiç çağrılmıyordu → bayat harita sevk edilebilirdi | **Düzeltildi.** CI `build` işine bağımlılıksız `build-agent-map.mjs --check` adımı eklendi |
 | 6 | 🟡 | `APG0302`, dokümante edilmiş fabrika kaçış kapısına (`AddAgent(name, factory)`) yanlış pozitif veriyordu | **Düzeltildi + test.** Fabrika çağrısı olan derlemede tanı susar |
@@ -211,8 +211,8 @@ koşuyor) · 3.5 (imza-gövde kayması yok) · 3.6 (plan dışı public API yok)
    Ölçüldü (bu faz): `-v:normal` ve `-t:Rebuild` ile de görünmez; yalnız IDE'de
    ve `.editorconfig` ile seviye yükseltilirse çıkar. Bir agent'ın okumasını
    istediğin her tanı `Warning` olmalıdır. Kaçış mekanizmasını **aynı fazda**
-   ver — AgentPrism'de bu `AgentPrismUsageDiagnostics` özelliğidir.
-2. 🚨 **`AgentPrism.Core` kendi analyzer'ını KENDİ ÜZERİNDE koşturur**
+   ver — Tracon'de bu `TraconUsageDiagnostics` özelliğidir.
+2. 🚨 **`Tracon.Core` kendi analyzer'ını KENDİ ÜZERİNDE koşturur**
    (`OutputItemType=Analyzer` ProjectReference'ı). Yeni bir `APG` tanısı
    yazarken Core'un kendi kodunu da tarayacağını hesaba kat; `APG0302`'nin ilk
    hâli `dotnet pack`'i kırdı. Diğer paketler etkilenmez — analyzer referansı
@@ -227,10 +227,10 @@ koşuyor) · 3.5 (imza-gövde kayması yok) · 3.6 (plan dışı public API yok)
    `node docs-site/scripts/build-agent-map.mjs` koş. Yazmazsan
    `CapabilityCoverageTests` üyeyi adıyla söyleyerek kızarır; koşmazsan CI'ın
    sapma adımı kızarır. Üretilen üç dosya **commit edilir**.
-5. **`AgentPrism.Generators` ikinci bir analyzer'ı ucuza alır.** Tanı deseni
+5. **`Tracon.Generators` ikinci bir analyzer'ı ucuza alır.** Tanı deseni
    (`UsageDiagnostics` + `AnalyzerReleases.Unshipped.md` + `HelpLinkUri` →
    `capabilities.md` başlığı) ve test altyapısı (`AnalyzerTestHelper`, gerçek
-   AgentPrism sembolleriyle) kurulu. Yeni tanı `DiagnosticIntegrityTests`'e
+   Tracon sembolleriyle) kurulu. Yeni tanı `DiagnosticIntegrityTests`'e
    kendiliğinden dahil olur — mesajdaki her API adı tırnak içinde yazılmalıdır.
 6. **Katman 2 (geliştirici MCP sunucusu) hâlâ açık:** `ADAYLAR.md` **F-121**.
    Bu faz Katman 0 ve 1'i kapattı.

@@ -20,7 +20,7 @@
 - **🚨 `AgentDefinitionCompiler.Compile` TAMAMEN senkron; kiraci kimlik bilgisi cozumlemesi async `store` gerektirir — ikisi celisince YENI paralel async yol acildi, mevcut sync yol DEGISTIRILMEDI** (Faz 65). Vaka: [`arsiv/HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
 - **`AgentRunScope.SessionId` tool'un urettigi icerigin sahibidir** (Faz 28, K-217): oturumsuz yazilan ek, saklama politikasinca **sahipsiz** sayilip silinir (`session_id IS NULL`). Kimlik `runs.session_id`'den GENIS: alt calistirma MAF oturumu almaz, icerik yine kok oturuma aittir. Ayrinti: [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
 <!-- MEMORY.md'de kisa ozet var (Her Oturumda Gecerli); ayrinti buradaki tek konsolide maddededir. -->
-- **🚨 `AsyncLocal` (span/`run scope`) yazimi ASYNC METOTTAN cagirana geri akmaz — uc vaka** (2026-08-02, Faz 6/11/12): (1) `Activity.Current`: kok span `async BeginRunAsync` icinde acilinca ic span'ler (`invoke_agent`, `chat`) kok'un cocugu degil **kardesi** oldu; span cagiranin **kendi govdesinde** acilmali (`RunRecordingAgent.PrepareRun` bu yuzden essenkron). (2) `run scope`: `AgentPrismRunContext.SetCurrent` ayni sebeple `RunRecordingAgent`'in kendi govdesinde cagrilir. (3) **`async IAsyncEnumerable` govdesinde `yield return` siniri da asilmaz**: `RunCoreStreamingAsync` icinde bir kez yazilan `scope` ic cagrida `null` goruluyordu (`"calistirma kaydi kapali"` reddi) — cagri driver'a donunce `ExecutionContext` geri alinir. Cozum: akisli yolda `scope` **her `MoveNextAsync`'ten hemen once** yeniden yazilir. Regresyon: `Ic_spanler_kok_spanin_cocugu_olur`.
+- **🚨 `AsyncLocal` (span/`run scope`) yazimi ASYNC METOTTAN cagirana geri akmaz — uc vaka** (2026-08-02, Faz 6/11/12): (1) `Activity.Current`: kok span `async BeginRunAsync` icinde acilinca ic span'ler (`invoke_agent`, `chat`) kok'un cocugu degil **kardesi** oldu; span cagiranin **kendi govdesinde** acilmali (`RunRecordingAgent.PrepareRun` bu yuzden essenkron). (2) `run scope`: `TraconRunContext.SetCurrent` ayni sebeple `RunRecordingAgent`'in kendi govdesinde cagrilir. (3) **`async IAsyncEnumerable` govdesinde `yield return` siniri da asilmaz**: `RunCoreStreamingAsync` icinde bir kez yazilan `scope` ic cagrida `null` goruluyordu (`"calistirma kaydi kapali"` reddi) — cagri driver'a donunce `ExecutionContext` geri alinir. Cozum: akisli yolda `scope` **her `MoveNextAsync`'ten hemen once** yeniden yazilir. Regresyon: `Ic_spanler_kok_spanin_cocugu_olur`.
 - **🚨 İmza+gövde iki ayrı adım vakası: `RunEventWriter.CompleteAsync`** (2026-08-03, Faz 20, K-157): `RunCost? cost` parametresi eklendi ama `new RunCompletion { ... }`'a `Cost = cost` yazılmadı — 1068 test yakalamadı (hiçbiri `RunRecordingAgent → RunEventWriter → Store` zincirinin ORTASINI uçtan uca sınamıyordu), yalnız örnek uygulamada gerçek bir çağrıyla (`cost: null`) ortaya çıktı. Genel kural AGENTS.md'de.
 - **🚨 Disaridan iptal, `RunRecordingAgent`'in KENDI `CancellationTokenSource`'una guvenir, gelen `cancellationToken`'a DEGIL** (Faz 32): gelen token'in KENDISI iptal edilemez — `CreateLinkedTokenSource(cancellationToken)` ile kendi kaynagi kurulur, deftere O yazilir. Aksi halde defterin `Cancel()`'i hicbir seyi etkilemezdi. `WorkflowRunner.ExecuteAsync` ayni deseni tekrarlar.
 - **Dogrulanamayan workflow iptal tuzagi** (2026-08-06, Faz 32, terk edildi) — `docs/arsiv/FAZ-GECMISI.md`, "Faz 32".
@@ -43,14 +43,14 @@
   zaten var olsa da, `valueFactory` hiç ÇAĞRILMASA da. `CompiledAgentCache.GetOrAdd`
   bunu yapıyordu; `GetOrAddAsync` kardeşi zaten `TryGetValue`-önce desenini
   kullanıyordu, sync taraf kullanmıyordu. Ölçüldü (BenchmarkDotNet,
-  `bench/AgentPrism.Benchmarks`): düzeltme öncesi isabet başına 88 B, sonrası
+  `bench/Tracon.Benchmarks`): düzeltme öncesi isabet başına 88 B, sonrası
   24 B — kalan 24 B `ConcurrentDictionary<CacheKey,AIAgent>.TryGetValue`'nun
   kendi maliyeti (izole ölçüldü, kaynağı bulunamadı; her koşumda sabit ve
   deterministik). Kural: `GetOrAdd(key, _ => ...)` yazarken önce
   `TryGetValue(key, out var existing)` dene, yalnız KAÇIRINCA `GetOrAdd`'a düş.
 - **🚨 `RunRecordingAgent.ToRunError`'un `Message = exception.Message` satırı
   yıllarca "zaten redakte ediyor" sanılan ama redakte ETMEYEN bir kod yoluydu**
-  (2026-08-27, Faz 119, K-640). `Type` alanı `AgentPrismException.ErrorType`
+  (2026-08-27, Faz 119, K-640). `Type` alanı `TraconException.ErrorType`
   ile zaten stabil bir kod taşıyordu — bu, okuyana "hata sınıflandırması
   yapılıyor, güvenli" izlenimi veriyordu, ama `Message` alanı HER ZAMAN ham
   `exception.Message`'ı yazıyordu, `Type` ayrımından bağımsız. Bir alanın

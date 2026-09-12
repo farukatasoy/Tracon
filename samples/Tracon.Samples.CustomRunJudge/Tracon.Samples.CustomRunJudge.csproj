@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>Tracon.Samples.CustomRunJudge</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Tracon.Core" VersionOverride="$(TraconSamplePackageVersion)" />
+  </ItemGroup>
+
+</Project>

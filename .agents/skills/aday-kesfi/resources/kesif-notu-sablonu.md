@@ -35,7 +35,7 @@
 
 ## 3. Ekosistem taraması (Aşama 3.2)
 
-| Kaynak | Bakılan tarih | Ne değişti | AgentPrism'e etkisi |
+| Kaynak | Bakılan tarih | Ne değişti | Tracon'e etkisi |
 |---|---|---|---|
 
 ---

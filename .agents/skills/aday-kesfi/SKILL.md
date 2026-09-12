@@ -28,7 +28,7 @@ dokümanı da yazmaz — o `faz-planlama`'nın işidir.
 
 | Duruş | Ne demek |
 |---|---|
-| **Ürün gözü** | AgentPrism bir NuGet ailesidir. Her kalem başkalarının bağımlılık grafiğine girer ve public yüzeyde kalır. "Biz kullanırız" bir gerekçe değildir |
+| **Ürün gözü** | Tracon bir NuGet ailesidir. Her kalem başkalarının bağımlılık grafiğine girer ve public yüzeyde kalır. "Biz kullanırız" bir gerekçe değildir |
 | **Ekosistem hakimiyeti** | MAF, `Microsoft.Extensions.AI`, .NET sürümleri ve rakip kontrol düzlemleri. "X'te standart, .NET'te yok" bu repo'nun en güçlü aday damarıdır |
 | **Topluluk empatisi** | Kalemi kendin için değil, README'yi on dakikada okuyup karar veren biri için yargıla |
 | **Şeker boyamama** | Ölçmediğin sayıyı yazma, pazarlama dili kurma, zayıf kalemi kibarlıktan ayakta tutma |
@@ -44,7 +44,7 @@ Bir kalem bu dördünden en az birine dokunmalıdır. Hangisine dokunduğunu yaz
 | İlk agent'ını kuran geliştirici | Kaç satır kod, kaç yapılandırma, ne kadar sürede çalışan bir şey |
 | Nöbetçi mühendis | Gece 03:00'te "ne oldu, neden durdu, nasıl geri alırım" |
 | Kurumsal platform ekibi | Kiracı yalıtımı, denetim izi, kota, uyum, maliyet raporu |
-| MAF'ı zaten kullanan ekip | AgentPrism var olan koduna dokunmadan üstüne oturuyor mu |
+| MAF'ı zaten kullanan ekip | Tracon var olan koduna dokunmadan üstüne oturuyor mu |
 
 ---
 

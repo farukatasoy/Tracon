@@ -9,12 +9,12 @@
 // outside this file.
 //
 // `base` is '/' on purpose and is meant to stay there. A sub-path base is a
-// property of the host, not of the site: it was '/AgentPrism/' only because a
+// property of the host, not of the site: it was '/Tracon/' only because a
 // GitHub Pages project site forces the repository name into the path. Pages link
 // to each other with plain root-absolute paths, so moving hosts changes `site`
 // alone. Moving back under a sub-path would also mean rewriting those links —
 // check-links.mjs walks the built output and reports every one of them.
-export const site = 'https://agentprism.doayen.web.tr';
+export const site = 'https://tracon.dev';
 export const base = '/';
 
 /** `site` + `base`, for the places that have to emit an absolute address. */
@@ -47,5 +47,5 @@ export const formerHosts = ['farukatasoy.github.io'];
  * `editLink` / `social` blocks in astro.config.mjs are worth restoring at the same
  * time.
  */
-export const repositoryUrl = 'https://github.com/farukatasoy/AgentPrism';
+export const repositoryUrl = 'https://github.com/farukatasoy/Tracon';
 export const repositoryIsPublic = false;

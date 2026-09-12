@@ -45,7 +45,7 @@
   DI konteyneri tamamen kurulduktan COK SONRA — GEC (lazy) cozer; o anda
   `ModelProviderRegistry` singleton'i zaten onbellege alindigi icin dongu kirilir
   (K-631). **Kural: yeni bir kurucu parametresi eklemeden once, o servisin
-  KENDI bagimlilik grafigini `grep -rn "IModelProviderRegistry" src/AgentPrism.Core/<YeniServis>.cs`
+  KENDI bagimlilik grafigini `grep -rn "IModelProviderRegistry" src/Tracon.Core/<YeniServis>.cs`
   ile bir kez tara** — dogrudan parametre DI'nin coz(emey)ecegi bir seyi
   build zamanina degil calisma zamanina tasir, hata mesaji "circular dependency"
   gibi acik olabilir ama DAHA COK sessizce StackOverflow'a da donusebilir.

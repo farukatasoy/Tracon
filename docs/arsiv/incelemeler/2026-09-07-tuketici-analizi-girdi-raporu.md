@@ -1,5 +1,12 @@
 # AgentPrism — Kapsamlı Teknik ve Ürün Analizi
 
+> **Bu dosya bilerek eski adla durur (Faz 162).** Ürün adı Faz 162'de Tracon
+> oldu ve arşivin geri kalanı yeni ada göre yeniden yazıldı. Bu rapor bir
+> ölçüm kaydıdır: 7 Eylül 2026'da hangi adreste ne yanıt alındığını gösterir
+> (aşağıdaki doğrulama envanteri). Adresleri yeni ada çevirmek, kimsenin
+> bakmadığı bir adres hakkında tarihli bir ölçüm iddia ederdi. Rapor ayrıca
+> iki üçüncü taraf projesini kendi adıyla anar.
+
 **İncelenen proje:** [agentprism.doayen.web.tr](https://agentprism.doayen.web.tr/)  
 **İnceleme tarihi:** 7 Eylül 2026  
 **Kapsam:** Mimari, public sözleşmeler, operasyon, güvenlik, geliştirici deneyimi, dokümantasyon tutarlılığı ve 1.0 yol haritası  

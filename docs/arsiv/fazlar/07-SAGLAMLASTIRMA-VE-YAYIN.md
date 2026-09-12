@@ -52,8 +52,8 @@
 
 **Faz 6'da eklenen ve Faz 7'yi doğrudan etkileyen şeyler:**
 
-- `AgentPrism.Mcp` yeni bir **yayınlanabilir pakettir**; ikon, README, sürüm
-  politikası ve yayın zinciri onu da kapsamalıdır. `AgentPrismAotCompatible` **false**.
+- `Tracon.Mcp` yeni bir **yayınlanabilir pakettir**; ikon, README, sürüm
+  politikası ve yayın zinciri onu da kapsamalıdır. `TraconAotCompatible` **false**.
 - Public API yüzeyi ciddi büyüdü — `PublicAPI.Shipped.txt` dosyaları faz 5 sonuna
   göre belirgin biçimde uzun olacaktır. Tam liste faz 6 dokümanının
   "Gerçekleşen Public API" bölümündedir.
@@ -63,7 +63,7 @@
 
 ## Amaç
 
-Paketi gerçekten yayınlanabilir hâle getirmek. Faz 6 sonunda AgentPrism çalışır ve işletilebilir; bu faz sonunda **başkalarının güvenle bağımlı olabileceği** bir paket olur. ---
+Paketi gerçekten yayınlanabilir hâle getirmek. Faz 6 sonunda Tracon çalışır ve işletilebilir; bu faz sonunda **başkalarının güvenle bağımlı olabileceği** bir paket olur. ---
 
 ## Bitiş Ölçütleri (DoD)
 
@@ -75,17 +75,17 @@ Paketi gerçekten yayınlanabilir hâle getirmek. Faz 6 sonunda AgentPrism çal�
 - [ ] Benchmark sonuçları kayıtlı
 - [ ] XML doküman kapsamı tam
 - [ ] `v1.0.0-preview.1` etiketi NuGet.org'a yayınlanıyor
-- [ ] Temiz bir makinede `dotnet add package AgentPrism` → örnek çalışıyor
+- [ ] Temiz bir makinede `dotnet add package Tracon` → örnek çalışıyor
 
 ### Son doğrulama
 
 ```bash
 # Temiz makine simülasyonu
-dotnet new web -o /tmp/agentprism-smoke
-cd /tmp/agentprism-smoke
-dotnet add package AgentPrism --prerelease
+dotnet new web -o /tmp/tracon-smoke
+cd /tmp/tracon-smoke
+dotnet add package Tracon --prerelease
 # Program.cs'e iki satır eklenir, uygulama çalıştırılır
-# http://localhost:5xxx/agentprism açılır
+# http://localhost:5xxx/tracon açılır
 ```
 
 ---

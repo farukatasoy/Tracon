@@ -7,12 +7,12 @@
 
 ## Ortam
 
-- Ana kopya (`/Users/farukatasoy/Desktop/projects/AgentPrism`) üzerinde,
+- Ana kopya (`/Users/farukatasoy/Desktop/projects/Tracon`) üzerinde,
   worktree/dal açılmadan doğrudan `main` üzerinde koşuldu (kullanıcı talimatı).
 - Port `5080`, kalıcılık **bellek içi** (varsayılan — üç bağlantı dizesi de
   boş) — dosya 14/15/17'nin çoğu case'i sağlayıcıdan bağımsız; PostgreSQL
   gerektiren case'ler kendi notunda işaretlenir.
-- `dotnet user-secrets` deposu paylaşılan `agentprism-sample-api` kimliğini
+- `dotnet user-secrets` deposu paylaşılan `tracon-sample-api` kimliğini
   kullanır; okuma serbest, geçici config değişiklikleri (`MaxSkillsPerAgent`
   vb.) her seferinde case sonunda `remove` ile temizlendi.
 - Sağlayıcı modeli: OpenAI `gpt-5.4-mini` (§2.5 maliyet kuralı).
@@ -32,8 +32,8 @@
   K-1'i bloklamadı — bellek içi ile koşuldu, `rm -f` (SQLite silme) zaten
   sınıflandırıcı tarafından engellenmiyordu.
 - **Süreç yönetimi hatası (K-1 içinde, MT-SKILL-021 ilk denemesi).** `pkill -f
-  "dotnet.*AgentPrism.Api.dll"` deseni apphost ikili adını (`AgentPrism.Api`,
-  `dotnet AgentPrism.Api.dll` DEĞİL) yakalamadı; "yeniden başlatma" aslında
+  "dotnet.*Tracon.Api.dll"` deseni apphost ikili adını (`Tracon.Api`,
+  `dotnet Tracon.Api.dll` DEĞİL) yakalamadı; "yeniden başlatma" aslında
   eski süreci hiç durdurmadı, yeni `dotnet run` "address already in use" ile
   sessizce başarısız oldu ve `MaxSkillsPerAgent=1` hiç uygulanmadı. PID ile
   `kill -9` edilip doğru ortam değişkenleriyle yeniden başlatıldıktan sonra
@@ -80,8 +80,8 @@
 2. Yanıt `201`, gövdede kaydedilen tanım aynen döner.
 
 **Kanıt**
-- `src/AgentPrism.AspNetCore/Endpoints/AgentEndpoints.cs:247-283` (`CreateAgentAsync`) yalnız `Validate(request)` (temel şekil) ve `ValidateCallGraphAsync`'i çağırıyor.
-- `src/AgentPrism.AspNetCore/Endpoints/AgentEndpoints.cs:340-372` (`UpdateAgentAsync`) aynı desende — `AgentDefinitionValidator` hiç çağrılmıyor.
+- `src/Tracon.AspNetCore/Endpoints/AgentEndpoints.cs:247-283` (`CreateAgentAsync`) yalnız `Validate(request)` (temel şekil) ve `ValidateCallGraphAsync`'i çağırıyor.
+- `src/Tracon.AspNetCore/Endpoints/AgentEndpoints.cs:340-372` (`UpdateAgentAsync`) aynı desende — `AgentDefinitionValidator` hiç çağrılmıyor.
 - `AgentDefinitionValidator.ValidateAsync` (skill/tool/callable-agent varlık denetimini içeren, `CheckSkillsAsync` dahil, `AgentDefinitionValidator.cs:97`) yalnız ayrı `POST /api/agents/validate` ucundan (`ValidateAgentAsync`, `AgentEndpoints.cs:300-320`) çağrılıyor — bu uç bir şey KAYDETMEZ, istemci ayrıca çağırmadıkça hiçbir etkisi yok.
 - Canlı istekle doğrulandı: yukarıdaki `curl` `201` döndü.
 
@@ -129,13 +129,13 @@ beklenen sonucu zaten kanıtladı.
 Script içeren HERHANGİ bir skill gerçekten etkinleştirildiğinde (`UseSkillScripts()` + `AllowStoredScripts=true`), o skill'e sahip agent'a gönderilen HER istek, model hiç çağrılmadan, şu hatayla çöküyor: `InvalidOperationException: JsonSerializerOptions instance must specify a TypeInfoResolver setting before being marked as read-only.`
 
 **Yeniden üretme**
-1. `agentPrism.UseSkillScripts(o => o.PlatformIsolationAcknowledged = true);` (geçici kod), `Interpreters:sh`, `AllowStoredScripts=true` ayarla, yeniden başlat.
+1. `tracon.UseSkillScripts(o => o.PlatformIsolationAcknowledged = true);` (geçici kod), `Interpreters:sh`, `AllowStoredScripts=true` ayarla, yeniden başlat.
 2. `sh` script'i taşıyan bir skill oluştur, o skille agent bağla, script'e izin ver.
 3. O agent'a HERHANGİ bir mesaj gönder (Playground veya `POST /api/agents/{name}/run`).
 4. `run` `Failed` durumuna düşer, hata `error.message` alanında görünür.
 
 **Kanıt**
-- `src/AgentPrism.Core/Skills/AgentPrismSkillsSource.cs:10`: `private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web);` — resolver hiç ayarlanmamış.
+- `src/Tracon.Core/Skills/TraconSkillsSource.cs:10`: `private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web);` — resolver hiç ayarlanmamış.
 - Aynı dosya `:71-81`: `_scripts is { StoredScriptsEnabled: true }` iken bu `SerializerOptions` MAF'ın `skill.AddScript(script.Name, delegate, description, SerializerOptions)` çağrısına geçiriliyor; MAF içeride `MakeReadOnly()` çağırıyor (resolver popüle edilmeden), .NET'in "TypeInfoResolver olmadan salt-okunur işaretlenemez" korumasını tetikliyor.
 - `StoredScriptsEnabled: false` iken (script kaydı/izin katmanı, §4/§5) bu kod yolu (`skill.AddScript`) hiç çağrılmadığı için sorun gizli kalıyor — bu yüzden 14 case (§4+§5) sorunsuz geçti ama ÇALIŞTIRMA katmanının tamamı (§6) çöküyor.
 - İki ayrı yoldan doğrulandı: Playground üzerinden (gerçek kullanıcı akışı) ve doğrudan `POST /api/agents/{name}/run` — ikisi de aynı, tam belirlenimli hatayı üretti.
@@ -144,7 +144,7 @@ Script içeren HERHANGİ bir skill gerçekten etkinleştirildiğinde (`UseSkillS
 Faz 11'in "gerçek çalıştırma" özelliği (script'lerin sandbox'ta çalıştırılması) yayınlanan hâlde TAMAMEN işlevsizdir. `UseSkillScripts()` çağıran ve saklı script'i olan HER tüketici aynı çökmeyi yaşar — bu bir kenar durum değil, özelliğin ana yoludur. Script kaydı/izin (grant) katmanı (§4/§5, K-2'de 14/14 geçti) etkilenmez çünkü o katman `skill.AddScript`'i hiç çağırmaz.
 
 **Düzeltme (2026-08-14, K-400)**
-İki ayrı kök neden kodlandı: (1) `AgentPrismSkillsSource`'a kaynak-üretilen `AgentPrismSkillsJsonContext` (`string`/`JsonElement`/`object`) `TypeInfoResolver` olarak bağlandı — yansıma yok, AOT korunuyor. (2) Düzeltme #1 TEK BAŞINA yetmedi — MAF'ın kendi kodunda (`Microsoft.Agents.AI.AgentSkillsProvider`) İKİNCİ bir çöküş ortaya çıktı: `CreateStoredScriptDelegate`'in `string?` (nullable) parametresini MAF (nullable olsa bile) "required" işaretliyor, modelin argümansız bir script için doğru biçimde gönderdiği JSON `null`'ini "değer eksik" sayıp reddediyordu. `SkillScriptSupport.CreateStoredScriptDelegate` parametresi `string arguman = ""` (varsayılan değerli) yapılarak MAF'ın alanı "required değil" yayınlaması sağlandı. MT-SKILL-058 yeniden koşulup uçtan uca doğrulandı: `load_skill` onayı → `merhaba` script onayı → gerçek çalıştırma → `exit_code: 0\nstdout:\nmerhaba-agentprism\n` → model nihai yanıtında doğru metin. Dört doğrulama kapısı (build/test/pack/format) temiz. MT-SKILL-059..063/070 bu düzeltme oturumunda tek tek yeniden koşulmadı (kapsam dışı bırakıldı) — engel kalktı, gelecek bir koşumda normal şekilde tekrar denenebilir. Ayrıca (ilgisiz, aynı koşumda bulundu): `SSH.NET` `GHSA-q939-rpr3-3284` (`NU1903`, tüm çözümün restore'unu kırıyordu) `Directory.Packages.props`'a yama sürümüyle (`2026.0.0`) sabitlendi.
+İki ayrı kök neden kodlandı: (1) `TraconSkillsSource`'a kaynak-üretilen `TraconSkillsJsonContext` (`string`/`JsonElement`/`object`) `TypeInfoResolver` olarak bağlandı — yansıma yok, AOT korunuyor. (2) Düzeltme #1 TEK BAŞINA yetmedi — MAF'ın kendi kodunda (`Microsoft.Agents.AI.AgentSkillsProvider`) İKİNCİ bir çöküş ortaya çıktı: `CreateStoredScriptDelegate`'in `string?` (nullable) parametresini MAF (nullable olsa bile) "required" işaretliyor, modelin argümansız bir script için doğru biçimde gönderdiği JSON `null`'ini "değer eksik" sayıp reddediyordu. `SkillScriptSupport.CreateStoredScriptDelegate` parametresi `string arguman = ""` (varsayılan değerli) yapılarak MAF'ın alanı "required değil" yayınlaması sağlandı. MT-SKILL-058 yeniden koşulup uçtan uca doğrulandı: `load_skill` onayı → `merhaba` script onayı → gerçek çalıştırma → `exit_code: 0\nstdout:\nmerhaba-tracon\n` → model nihai yanıtında doğru metin. Dört doğrulama kapısı (build/test/pack/format) temiz. MT-SKILL-059..063/070 bu düzeltme oturumunda tek tek yeniden koşulmadı (kapsam dışı bırakıldı) — engel kalktı, gelecek bir koşumda normal şekilde tekrar denenebilir. Ayrıca (ilgisiz, aynı koşumda bulundu): `SSH.NET` `GHSA-q939-rpr3-3284` (`NU1903`, tüm çözümün restore'unu kırıyordu) `Directory.Packages.props`'a yama sürümüyle (`2026.0.0`) sabitlendi.
 
 ---
 
@@ -182,18 +182,18 @@ Plan onaylandıktan (MT-WF-071) veya düzeltme metniyle reddedildikten (MT-WF-07
 - Tam olay dizisi ve hata metinleri MT-WF-071/073'ün `Gerçek sonuç` alanlarında kayıtlı.
 
 **Kapsam**
-Faz 16'nın Magentic plan onayı özelliği, `maxIterations` sınırının plan+onay+yürütme döngüsü için yetersiz kaldığı durumlarda zarif bir "sınıra ulaşıldı" mesajı yerine bir iç hata zincirine (`ExecutorFailed`/`RunFailed`, `TargetInvocationException`) düşüyor. Bunun (a) yalnızca `maxIterations` ayarlama sorumluluğu tüketiciye ait bir sınır durumu mu, yoksa (b) MAF'ın/AgentPrism'in round-limit'e ulaşıldığında akışı sonlandırma mantığındaki bir kod kusuru mu olduğu ayrı bir kod incelemesi gerektirir — kod bu koşumda değiştirilmedi.
+Faz 16'nın Magentic plan onayı özelliği, `maxIterations` sınırının plan+onay+yürütme döngüsü için yetersiz kaldığı durumlarda zarif bir "sınıra ulaşıldı" mesajı yerine bir iç hata zincirine (`ExecutorFailed`/`RunFailed`, `TargetInvocationException`) düşüyor. Bunun (a) yalnızca `maxIterations` ayarlama sorumluluğu tüketiciye ait bir sınır durumu mu, yoksa (b) MAF'ın/Tracon'in round-limit'e ulaşıldığında akışı sonlandırma mantığındaki bir kod kusuru mu olduğu ayrı bir kod incelemesi gerektirir — kod bu koşumda değiştirilmedi.
 
 **Düzeltme (2026-08-14, K-401) — kısmi**
-Kod incelemesi tamamlandı: `WorkflowRunner.cs`'de `TargetInvocationException`/`InnerException` soyan HİÇBİR kod yoktu — `ToRunError(Exception)` sarmalayıcının kendi anlamsız `.Message`'ını yazıyordu. Bu (b)'nin "opak hata" yarısıydı ve AgentPrism'in KENDİ kodundaki bir eksiklikti; düzeltildi (`ToRunError` artık `TargetInvocationException`/tek-elemanlı `AggregateException`'ı soyup gerçek nedeni yazıyor). `MT-WF-071` birebir tekrarlanıp doğrulandı: `RunFailed.Text` artık `"This Magentic orchestration has already terminated. To process new messages, create a new workflow instance."` — eskiden opak `"Error invoking handler for Microsoft.Agents.AI.Workflows.TurnToken"`. Çalıştırmanın KENDİSİ hâlâ `RunFailed` ile bitiyor (bu doğru — plan gerçekten tamamlanmadı, gizlemek yanlış olurdu). MAF'ın round-limit-sonrası fazla çağrısını ÖNCEDEN kestirip akışı zarif bir `Completed`'e çevirmek ((a)/(b)'nin geri kalanı, raporun "zarif durdurma" beklentisi) MAF'ın kapalı-kutu orkestrasyon durumuna bağımlı, daha kapsamlı bir tasarım kararı gerektiriyor — `F-106` olarak `docs/ADAYLAR.md`'ye yazıldı, kodlanmadı. Dört doğrulama kapısı temiz.
+Kod incelemesi tamamlandı: `WorkflowRunner.cs`'de `TargetInvocationException`/`InnerException` soyan HİÇBİR kod yoktu — `ToRunError(Exception)` sarmalayıcının kendi anlamsız `.Message`'ını yazıyordu. Bu (b)'nin "opak hata" yarısıydı ve Tracon'in KENDİ kodundaki bir eksiklikti; düzeltildi (`ToRunError` artık `TargetInvocationException`/tek-elemanlı `AggregateException`'ı soyup gerçek nedeni yazıyor). `MT-WF-071` birebir tekrarlanıp doğrulandı: `RunFailed.Text` artık `"This Magentic orchestration has already terminated. To process new messages, create a new workflow instance."` — eskiden opak `"Error invoking handler for Microsoft.Agents.AI.Workflows.TurnToken"`. Çalıştırmanın KENDİSİ hâlâ `RunFailed` ile bitiyor (bu doğru — plan gerçekten tamamlanmadı, gizlemek yanlış olurdu). MAF'ın round-limit-sonrası fazla çağrısını ÖNCEDEN kestirip akışı zarif bir `Completed`'e çevirmek ((a)/(b)'nin geri kalanı, raporun "zarif durdurma" beklentisi) MAF'ın kapalı-kutu orkestrasyon durumuna bağımlı, daha kapsamlı bir tasarım kararı gerektiriyor — `F-106` olarak `docs/ADAYLAR.md`'ye yazıldı, kodlanmadı. Dört doğrulama kapısı temiz.
 
 ---
 
-Diğer bulgular: MT-WF-020/053/072'de olduğu gibi, workflow içi hatalar (`AgentPrismException` akışın İÇİNDE oluşursa) `event: error` DEĞİL, normal `event: event` içinde `type: RunFailed` olarak geliyor; yalnız akış BAŞLAMADAN (senkron ön-kontrol, ör. MT-WF-064/065) fırlatılan istisnalar gerçek `event: error` çerçevesi üretiyor. Bu, dört case'de (020, 053, 072'de "kod kusuru değil" + 064/065'te "beklendiği gibi") tutarlı biçimde doğrulandı — genel bir kural olarak not edilir, ayrı ayrı `HATA` açılmadı.
+Diğer bulgular: MT-WF-020/053/072'de olduğu gibi, workflow içi hatalar (`TraconException` akışın İÇİNDE oluşursa) `event: error` DEĞİL, normal `event: event` içinde `type: RunFailed` olarak geliyor; yalnız akış BAŞLAMADAN (senkron ön-kontrol, ör. MT-WF-064/065) fırlatılan istisnalar gerçek `event: error` çerçevesi üretiyor. Bu, dört case'de (020, 053, 072'de "kod kusuru değil" + 064/065'te "beklendiği gibi") tutarlı biçimde doğrulandı — genel bir kural olarak not edilir, ayrı ayrı `HATA` açılmadı.
 
 MT-WF-042'nin "`$type` ilk 40 baytta başlar" iddiası da düzeltildi — K-027'nin asıl iddiası (sütun tipi `json`, `jsonb` değil) doğru, yalnız `$type` üst nesnede değil, iç içe bir polimorfik dizide (`edges`) görünüyor.
 
-**Sapma:** MT-WF-066'da ilk deneme yanlış sonuç verdi (kiracı yalıtımı "kırılmış" gibi göründü) çünkü `AgentPrism:Tenancy:Enabled` kapalıydı — bu benim test kurulum hatamdı, §5'in ön koşulunu (13-KIRACI-VE-GUVENLIK.md MT-SEC-021'in header çözümlemesi) atlamıştım. Doğru config ile tekrarlanıp gerçek sonuç doğrulandı (bkz. case notu).
+**Sapma:** MT-WF-066'da ilk deneme yanlış sonuç verdi (kiracı yalıtımı "kırılmış" gibi göründü) çünkü `Tracon:Tenancy:Enabled` kapalıydı — bu benim test kurulum hatamdı, §5'in ön koşulunu (13-KIRACI-VE-GUVENLIK.md MT-SEC-021'in header çözümlemesi) atlamıştım. Doğru config ile tekrarlanıp gerçek sonuç doğrulandı (bkz. case notu).
 
 ---
 
@@ -201,7 +201,7 @@ MT-WF-042'nin "`$type` ilk 40 baytta başlar" iddiası da düzeltildi — K-027'
 
 ### 15 §7–9 (14 case): 8 Geçti, 6 Kaldı — **dosya `15` (WORKFLOWS) TAMAMEN BİTTİ (60/60)** — kapanışta MT-WF-091/092/093 (K-402), MT-WF-095/096 (K-403) ve MT-WF-100 (K-405) düzeltilip yeniden koşuldu, güncel: 14 Geçti, 0 Kaldı
 
-### HATA-K-004 — 🚨 KRİTİK: `AgentPrismWorkflowOptions` hiçbir konfigürasyon kaynağına bağlı değil — ✅ DÜZELTİLDİ (2026-08-14, K-402)
+### HATA-K-004 — 🚨 KRİTİK: `TraconWorkflowOptions` hiçbir konfigürasyon kaynağına bağlı değil — ✅ DÜZELTİLDİ (2026-08-14, K-402)
 
 - **Case:** MT-WF-091 (Orta), MT-WF-092 (Orta), MT-WF-093 (Orta) — üçü de aynı kök neden
 - **Önem:** Kritik
@@ -209,19 +209,19 @@ MT-WF-042'nin "`$type` ilk 40 baytta başlar" iddiası da düzeltildi — K-027'
 - **Ortam:** macOS arm64 · net10 · PostgreSQL
 
 **Beklenen**
-`AgentPrism:Workflows:Enabled`/`MaxSuperSteps`/`EnableCheckpointing` gibi `dotnet user-secrets`/`appsettings.json` ile verilen değerler, uygulama yeniden başlatıldığında `AgentPrismWorkflowOptions`'a yansır.
+`Tracon:Workflows:Enabled`/`MaxSuperSteps`/`EnableCheckpointing` gibi `dotnet user-secrets`/`appsettings.json` ile verilen değerler, uygulama yeniden başlatıldığında `TraconWorkflowOptions`'a yansır.
 
 **Gerçekleşen**
 Üç ayrı alan (`Enabled=false`, `MaxSuperSteps=2`, `EnableCheckpointing=false`) ayrı ayrı denendi, üçü de HİÇBİR ETKİ göstermedi — çalıştırmalar sanki ayar hiç verilmemiş gibi normal şekilde tamamlandı (gerçek model çağrıları dahil, gerçek ücret oluşarak).
 
 **Kanıt**
-`src/AgentPrism.Workflows/AgentPrismWorkflowsBuilderExtensions.cs:52` — `UseWorkflows()` yalnızca `services.AddOptions<AgentPrismWorkflowOptions>();` çağırıyor. `AgentPrismWorkflowOptions.SectionName` sabiti (`"AgentPrism:Workflows"`) tanımlı ama `grep -rn "AgentPrismWorkflowOptions.SectionName"` sıfır sonuç veriyor — hiçbir yerde `IConfiguration`'a bağlanmıyor. Diğer tüm `Use*()` uzantıları (`UseOpenAI`, `UsePostgreSql`, `UseSkillScripts` vb.) config bölümünü açıkça `Bind()` ederken, `UseWorkflows()` yalnızca kod-içi `configure` lambda parametresini destekliyor.
+`src/Tracon.Workflows/TraconWorkflowsBuilderExtensions.cs:52` — `UseWorkflows()` yalnızca `services.AddOptions<TraconWorkflowOptions>();` çağırıyor. `TraconWorkflowOptions.SectionName` sabiti (`"Tracon:Workflows"`) tanımlı ama `grep -rn "TraconWorkflowOptions.SectionName"` sıfır sonuç veriyor — hiçbir yerde `IConfiguration`'a bağlanmıyor. Diğer tüm `Use*()` uzantıları (`UseOpenAI`, `UsePostgreSql`, `UseSkillScripts` vb.) config bölümünü açıkça `Bind()` ederken, `UseWorkflows()` yalnızca kod-içi `configure` lambda parametresini destekliyor.
 
 **Kapsam**
-`AgentPrismWorkflowOptions`'ın YEDİ alanının TAMAMI (`Enabled`, `EnableCheckpointing`, `MaxConcurrentRuns`, `RunTimeout`, `MaxSuperSteps`, `KeepCheckpointsAfterCompletion`) etkilenir. Sonsuz döngü koruması (`MaxSuperSteps`), motor kapatma anahtarı (`Enabled`) ve checkpoint kontrolü (`EnableCheckpointing`) gibi üretim-kritik güvenlik sınırlarının HİÇBİRİ konfigürasyonla ayarlanamaz — yalnızca `Program.cs`'te `UseWorkflows(o => ...)` ile kodda sabitlenebilir.
+`TraconWorkflowOptions`'ın YEDİ alanının TAMAMI (`Enabled`, `EnableCheckpointing`, `MaxConcurrentRuns`, `RunTimeout`, `MaxSuperSteps`, `KeepCheckpointsAfterCompletion`) etkilenir. Sonsuz döngü koruması (`MaxSuperSteps`), motor kapatma anahtarı (`Enabled`) ve checkpoint kontrolü (`EnableCheckpointing`) gibi üretim-kritik güvenlik sınırlarının HİÇBİRİ konfigürasyonla ayarlanamaz — yalnızca `Program.cs`'te `UseWorkflows(o => ...)` ile kodda sabitlenebilir.
 
 **Düzeltme (2026-08-14, K-402)**
-`UseWorkflows()` artık `OptionsBuilder<AgentPrismWorkflowOptions>.BindConfiguration("AgentPrism:Workflows")` çağırıyor (`Microsoft.Extensions.Options.ConfigurationExtensions`, yeni bağımlılık — `AgentPrism.Workflows` zaten `AgentPrismAotCompatible=false` olduğu için reflection tabanlı bağlama burada kabul edilebilir). `configure` lambda'sı bağlamadan SONRA çalışır, kod hâlâ üzerine yazabilir. Üç alan ayrı ayrı yeniden koşulup doğrulandı: `Enabled=false` → çalıştırma doğru `AgentPrismException` ile reddedildi; `MaxSuperSteps=2` → 3 süper-step üreten gerçek bir workflow doğru mesajla `RunFailed`/`status:Failed` oldu; `EnableCheckpointing=false` → hiç checkpoint yazılmadı (`count=0`), `resume` denemesi doğru "kontrol noktası yok" hatasını (checkpointing'in kapalı olduğunu da açıklayan bir varyantla) verdi. MT-WF-091/092/093 üçü de yeniden koşulup `Geçti`'ye çevrildi. Dört doğrulama kapısı temiz.
+`UseWorkflows()` artık `OptionsBuilder<TraconWorkflowOptions>.BindConfiguration("Tracon:Workflows")` çağırıyor (`Microsoft.Extensions.Options.ConfigurationExtensions`, yeni bağımlılık — `Tracon.Workflows` zaten `TraconAotCompatible=false` olduğu için reflection tabanlı bağlama burada kabul edilebilir). `configure` lambda'sı bağlamadan SONRA çalışır, kod hâlâ üzerine yazabilir. Üç alan ayrı ayrı yeniden koşulup doğrulandı: `Enabled=false` → çalıştırma doğru `TraconException` ile reddedildi; `MaxSuperSteps=2` → 3 süper-step üreten gerçek bir workflow doğru mesajla `RunFailed`/`status:Failed` oldu; `EnableCheckpointing=false` → hiç checkpoint yazılmadı (`count=0`), `resume` denemesi doğru "kontrol noktası yok" hatasını (checkpointing'in kapalı olduğunu da açıklayan bir varyantla) verdi. MT-WF-091/092/093 üçü de yeniden koşulup `Geçti`'ye çevrildi. Dört doğrulama kapısı temiz.
 
 ---
 
@@ -238,7 +238,7 @@ Geçersiz `sessionId` (128 karakter sınırı aşımı veya izin verilmeyen kara
 Hiçbir SSE çerçevesi gelmiyor — istemci düz, generic bir `HTTP 500` (`{"title":"An error occurred while processing your request."}`, detay YOK) alıyor. Sunucu logunda doğru hata mesajı görülüyor ama istemciye hiç ulaşmıyor.
 
 **Kanıt**
-`src/AgentPrism.Workflows/Internal/WorkflowRunner.cs:186` — `RunStreamingAsync` bir `async IAsyncEnumerable` yineleyicisi DEĞİL, düz bir metottur; `WorkflowSessionId.Require(request.SessionId)` çağrısı nesne başlatıcısının içinde SENKRON çalışır ve metot gövdesi `ExecuteAsync(...)`'in ürettiği `IAsyncEnumerable`'ı yalnızca DÖNDÜRÜR. İstisna bu yüzden `WorkflowEventStream`'in (SSE yazıcısı, `event: error` üreten `catch` bloğunu taşıyan sınıf) hiç devreye girmesine fırsat kalmadan doğrudan `WorkflowEndpoints.RunAsync`'ten fırlar, ASP.NET'in genel `ExceptionHandlerMiddleware`'ine düşer. Sunucu logu: `fail: Microsoft.AspNetCore.Diagnostics.ExceptionHandlerMiddleware[1] An unhandled exception has occurred while executing the request.` Karşılaştırma: `RespondStreamingAsync`/`ResumeStreamingAsync` gerçek `async IAsyncEnumerable` yineleyicileridir (MT-WF-064/065/094'te doğru `event: error` üretirler) — yalnız `RunStreamingAsync`'in bu yapısal farkı bu boşluğu yaratır.
+`src/Tracon.Workflows/Internal/WorkflowRunner.cs:186` — `RunStreamingAsync` bir `async IAsyncEnumerable` yineleyicisi DEĞİL, düz bir metottur; `WorkflowSessionId.Require(request.SessionId)` çağrısı nesne başlatıcısının içinde SENKRON çalışır ve metot gövdesi `ExecuteAsync(...)`'in ürettiği `IAsyncEnumerable`'ı yalnızca DÖNDÜRÜR. İstisna bu yüzden `WorkflowEventStream`'in (SSE yazıcısı, `event: error` üreten `catch` bloğunu taşıyan sınıf) hiç devreye girmesine fırsat kalmadan doğrudan `WorkflowEndpoints.RunAsync`'ten fırlar, ASP.NET'in genel `ExceptionHandlerMiddleware`'ine düşer. Sunucu logu: `fail: Microsoft.AspNetCore.Diagnostics.ExceptionHandlerMiddleware[1] An unhandled exception has occurred while executing the request.` Karşılaştırma: `RespondStreamingAsync`/`ResumeStreamingAsync` gerçek `async IAsyncEnumerable` yineleyicileridir (MT-WF-064/065/094'te doğru `event: error` üretirler) — yalnız `RunStreamingAsync`'in bu yapısal farkı bu boşluğu yaratır.
 
 **Kapsam**
 `POST /api/workflows/{name}/run` ucuna gönderilen HERHANGİ bir geçersiz `sessionId`, istemciye hiçbir teşhis bilgisi vermeyen bir 500 üretir — hata ayıklaması yalnızca sunucu logu erişimi olan biri için mümkündür.
@@ -267,7 +267,7 @@ Yalnız `RunsRead` kapsamlı bir anahtarla: `PUT /api/workflows/{name}` → `200
 Yalnız-okuma niyetiyle üretilmiş bir otomasyon anahtarı, workflow tanımlarını yazabilir/silebilir ve gerçek para harcayan bir Magentic çalıştırmasını başlatabilir — API anahtarı kapsam modelinin ciddi bir ihlali.
 
 **Düzeltme (2026-08-14, K-405)**
-`ApiKeyScope`'a iki yeni üye eklendi: `WorkflowsRead`, `WorkflowsAdmin` (`AgentsRead`/`AgentsAdmin` deseniyle birebir). `WorkflowEndpoints`'in TÜM uçlarına `RequireApiKeyScope` eklendi — tanım yönetimi (`GET`/`PUT`/`DELETE` `/api/workflows*`) yeni `WorkflowsRead`/`WorkflowsAdmin` kapsamlarını, çalıştırma/run-durumu uçları (`run`/`resume`/`respond`, checkpoint/istek listeleme) `AgentEndpoints`'in `POST /api/agents/{name}/run`'un `AgentsAdmin` değil `RunsWrite` istediği presedansını izleyerek var olan `RunsRead`/`RunsWrite`'ı aldı. Ampirik doğrulama (raporun senaryosu birebir tekrarlandı, gerçek sunucuya karşı): yalnız `RunsRead` taşıyan anahtarla `GET /api/workflows` → `403 "WorkflowsRead kapsamini gerektiriyor"`; `PUT /api/workflows/{name}` → `403 "WorkflowsAdmin kapsamini gerektiriyor"`; `POST /api/workflows/{name}/run` → `403 "RunsWrite kapsamini gerektiriyor"`. Regresyon: dört kapsamın TAMAMINI taşıyan bir anahtarla aynı üç uç `200`. `docs/openapi/agentprism.json` tazelendi (`ApiKeyScope` enum listesine iki değer eklendi). Frontend `api-key-panel.tsx`'teki sabit `SCOPES` dizisi henüz bu iki değeri (ve önceden eklenmiş `KnowledgeRead`/`KnowledgeAdmin`'i) içermiyor — ayrı, bu düzeltmenin kapsamı dışında bir boşluk. Dört doğrulama kapısı temiz.
+`ApiKeyScope`'a iki yeni üye eklendi: `WorkflowsRead`, `WorkflowsAdmin` (`AgentsRead`/`AgentsAdmin` deseniyle birebir). `WorkflowEndpoints`'in TÜM uçlarına `RequireApiKeyScope` eklendi — tanım yönetimi (`GET`/`PUT`/`DELETE` `/api/workflows*`) yeni `WorkflowsRead`/`WorkflowsAdmin` kapsamlarını, çalıştırma/run-durumu uçları (`run`/`resume`/`respond`, checkpoint/istek listeleme) `AgentEndpoints`'in `POST /api/agents/{name}/run`'un `AgentsAdmin` değil `RunsWrite` istediği presedansını izleyerek var olan `RunsRead`/`RunsWrite`'ı aldı. Ampirik doğrulama (raporun senaryosu birebir tekrarlandı, gerçek sunucuya karşı): yalnız `RunsRead` taşıyan anahtarla `GET /api/workflows` → `403 "WorkflowsRead kapsamini gerektiriyor"`; `PUT /api/workflows/{name}` → `403 "WorkflowsAdmin kapsamini gerektiriyor"`; `POST /api/workflows/{name}/run` → `403 "RunsWrite kapsamini gerektiriyor"`. Regresyon: dört kapsamın TAMAMINI taşıyan bir anahtarla aynı üç uç `200`. `docs/openapi/tracon.json` tazelendi (`ApiKeyScope` enum listesine iki değer eklendi). Frontend `api-key-panel.tsx`'teki sabit `SCOPES` dizisi henüz bu iki değeri (ve önceden eklenmiş `KnowledgeRead`/`KnowledgeAdmin`'i) içermiyor — ayrı, bu düzeltmenin kapsamı dışında bir boşluk. Dört doğrulama kapısı temiz.
 
 ---
 
@@ -325,7 +325,7 @@ Binary/Stars puan geçerlilik denetimi (`400` sınır değerlerde); `DELETE` + a
 
 `GET .../compare/{a}/{b}` iki run'ı ham döndürüyor, tüm alanlar mevcut. `POST .../replay`: `support` kod-kökenli olduğu için yalnız `LiveTools` destekliyor (dokümante edilmemiş ama tutarlı ek kısıt); `agentVersion` belirtilmezse replay GÜNCEL sürümü kullanıyor (kod okumasıyla doğrulandı, `RunReplayRequest.AgentVersion` XML dokümanında zaten yazılı — kusur değil, ama bu koşumda ilk denemede `502` üretti çünkü ortamdaki "güncel sürüm" MT-EVAL-074'ün bozuk v5'iydi); `agentVersion` sabitlenerek hem `ReplayTools` hem `LiveTools` doğru çalıştığı doğrulandı.
 
-**HATA-K-007 (Yüksek) — MT-EVAL-092 KALDI:** `AgentPrism:RunRecording:RecordRunInput=false` HİÇBİR ETKİ yapmıyor; `GET /api/runs/{id}/input` beklenen `404` yerine `200` ve tam girdiyi döndürdü. Ayrıntı aşağıda.
+**HATA-K-007 (Yüksek) — MT-EVAL-092 KALDI:** `Tracon:RunRecording:RecordRunInput=false` HİÇBİR ETKİ yapmıyor; `GET /api/runs/{id}/input` beklenen `404` yerine `200` ve tam girdiyi döndürdü. Ayrıntı aşağıda.
 
 ### 17 §11 — Güvenlik: Eval/Deney API Anahtarı Kapsamı (MT-EVAL-100..101), 2 case: 0 Geçti, 2 Kaldı — kapanışta HATA-K-008/K-407 düzeltilip ikisi de yeniden koşuldu, güncel: 2 Geçti, 0 Kaldı
 
@@ -333,26 +333,26 @@ Binary/Stars puan geçerlilik denetimi (`400` sınır değerlerde); `DELETE` + a
 
 ---
 
-### HATA-K-007 — Yüksek: `AgentPrism:RunRecording:RecordRunInput` config'ten HİÇBİR ZAMAN okunmuyor — çalıştırma girdisi kapatılamıyor — ✅ DÜZELTİLDİ (2026-08-14, K-406)
+### HATA-K-007 — Yüksek: `Tracon:RunRecording:RecordRunInput` config'ten HİÇBİR ZAMAN okunmuyor — çalıştırma girdisi kapatılamıyor — ✅ DÜZELTİLDİ (2026-08-14, K-406)
 
 - **Case:** MT-EVAL-092
 - **Önem:** Yüksek
 - **İzlek:** B
 
 **Beklenen**
-`AgentPrism:RunRecording:RecordRunInput=false` set edilip uygulama yeniden başlatıldığında, yeni run'ların girdisi kaydedilmez; `GET /api/runs/{id}/input` `404` döner.
+`Tracon:RunRecording:RecordRunInput=false` set edilip uygulama yeniden başlatıldığında, yeni run'ların girdisi kaydedilmez; `GET /api/runs/{id}/input` `404` döner.
 
 **Gerçekleşen**
 `RecordRunInput=false` `user-secrets`'a yazılıp uygulama yeniden başlatıldı, yeni bir run gönderildi, `GET .../input` → `HTTP 200`, tam girdi (`messages: [...]`) döndü. Bayrak hiçbir etki yapmadı.
 
 **Kanıt**
-`AgentPrismServiceCollectionExtensions.cs:1769-1795`'teki `BindRunRecording` metodu `Enabled`, `RecordMessageDeltas`, `RecordToolPayloads`, `MaxPayloadLength`'i config'ten okuyor (`TryReadBool`/`int.TryParse` çağrılarıyla) AMA `RecordRunInput`'u (`AgentPrismOptions.cs:461`, varsayılan `true`) HİÇ okumuyor — ilgili `TryReadBool` çağrısı eksik. `RunRecordingAgent`'ın kendisi `!_options.RecordRunInput` kontrolünü DOĞRU yapıyor (~satır 593); `GET /input` ucu da depoda girdi VARSA `200`/YOKSA `404` mantığını DOĞRU uyguluyor (`RunEndpoints.cs:254-286`) — sorun yalnız bağlama (binding) katmanında, bayrak config/`user-secrets`/ortam değişkeninden asla `false` olamıyor.
+`TraconServiceCollectionExtensions.cs:1769-1795`'teki `BindRunRecording` metodu `Enabled`, `RecordMessageDeltas`, `RecordToolPayloads`, `MaxPayloadLength`'i config'ten okuyor (`TryReadBool`/`int.TryParse` çağrılarıyla) AMA `RecordRunInput`'u (`TraconOptions.cs:461`, varsayılan `true`) HİÇ okumuyor — ilgili `TryReadBool` çağrısı eksik. `RunRecordingAgent`'ın kendisi `!_options.RecordRunInput` kontrolünü DOĞRU yapıyor (~satır 593); `GET /input` ucu da depoda girdi VARSA `200`/YOKSA `404` mantığını DOĞRU uyguluyor (`RunEndpoints.cs:254-286`) — sorun yalnız bağlama (binding) katmanında, bayrak config/`user-secrets`/ortam değişkeninden asla `false` olamıyor.
 
 **Kapsam**
 Kullanıcı girdisi hassas veri (PII/gizli bilgi) içerebilir; bu bayrak tam da bunu kapatmak için var. Operatör kapattığını sanırken girdi hâlâ kaydediliyor — sessiz bir gizlilik kontrolü kaçağı.
 
 **Düzeltme (2026-08-14, K-406)**
-`BindRunRecording`'e eksik `TryReadBool(recording, nameof(AgentPrismRunRecordingOptions.RecordRunInput), ...)` çağrısı eklendi — diğer beş alanla (`Enabled`, `RecordMessageDeltas`, `RecordToolPayloads`, `MaxPayloadLength`) birebir aynı desen. Ampirik doğrulama (gerçek sunucuya karşı, MT-EVAL-092'nin birebir tekrarı): `RecordRunInput=false` iken yeni bir çalıştırmanın `GET /input`'u artık `HTTP: 404`, `"Girdi kaydi yok"`. Regresyon: ayar kaldırılıp (varsayılan `true`) yeniden başlatılınca aynı uç `HTTP: 200` + tam girdi. Aynı kök neden bu Ortak Kuyruk koşumundan ÖNCE de iki AYRI serit sonucunda bağımsız olarak bulunmuştu (`HATA-S2-002`/`MT-API-064`, `HATA-S4-015`/`MT-UIRUN-032`) — her iki serit sonuç dosyasına da bu karara işaret eden kapanış notu eklendi. Dört doğrulama kapısı temiz.
+`BindRunRecording`'e eksik `TryReadBool(recording, nameof(TraconRunRecordingOptions.RecordRunInput), ...)` çağrısı eklendi — diğer beş alanla (`Enabled`, `RecordMessageDeltas`, `RecordToolPayloads`, `MaxPayloadLength`) birebir aynı desen. Ampirik doğrulama (gerçek sunucuya karşı, MT-EVAL-092'nin birebir tekrarı): `RecordRunInput=false` iken yeni bir çalıştırmanın `GET /input`'u artık `HTTP: 404`, `"Girdi kaydi yok"`. Regresyon: ayar kaldırılıp (varsayılan `true`) yeniden başlatılınca aynı uç `HTTP: 200` + tam girdi. Aynı kök neden bu Ortak Kuyruk koşumundan ÖNCE de iki AYRI serit sonucunda bağımsız olarak bulunmuştu (`HATA-S2-002`/`MT-API-064`, `HATA-S4-015`/`MT-UIRUN-032`) — her iki serit sonuç dosyasına da bu karara işaret eden kapanış notu eklendi. Dört doğrulama kapısı temiz.
 
 ---
 
@@ -375,7 +375,7 @@ Yalnız `RunsRead` kapsamlı bir anahtarla: `PUT /api/evals/{name}` → `200` (t
 `MT-JOB-090` (`16-IS-KUYRUGU-VE-ZAMANLAMA.md`) ve `MT-WF-100` (`15-WORKFLOWS.md`) ile AYNI kök nedenin DÖRDÜNCÜ bağımsız tekrarı. Salt-okunur niyetiyle üretilmiş bir anahtar eval takımı/deney oluşturup gerçek para harcayan çalıştırmaları dolaylı tetikleyebilir, ayrıca herhangi bir run'a keyfi geri bildirim yazabilir.
 
 **Düzeltme (2026-08-14, K-407)**
-`ApiKeyScope`'a dört yeni üye eklendi: `EvalsRead`, `EvalsAdmin`, `ExperimentsRead`, `ExperimentsAdmin` (Eval/Experiment ayrı kaynak türleri olduğu için `WorkflowsRead`/`WorkflowsAdmin` deseniyle birebir, ayrı çiftler). `EvalEndpoints`/`ExperimentEndpoints`'in TÜM uçlarına `RequireApiKeyScope` eklendi — tanım/veri yönetimi yeni kaynak-özel kapsamları, gerçek model çağırıp para harcayan uçlar (`POST /api/evals/{name}/run`, `POST /api/runs/{runId}/judge`) var olan `RunsWrite`'ı aldı (`AgentEndpoints`'in kendi `run` ucunun `AgentsAdmin` değil `RunsWrite` istemesiyle aynı mantık). `RunEndpoints`'in `feedback`(yaz)/`input`/`compare`(oku) uçlarına da eksik `RequireApiKeyScope(RunsWrite|RunsRead)` çağrıları eklendi. Ampirik doğrulama (raporun senaryosu birebir tekrarlandı, gerçek sunucuya karşı): yalnız `RunsRead` taşıyan anahtarla `PUT /api/evals/{name}` → `403 "EvalsAdmin kapsamini gerektiriyor"`; `PUT /api/experiments/{name}` → `403 "ExperimentsAdmin kapsamini gerektiriyor"`; `GET /api/evals` → `403 "EvalsRead kapsamini gerektiriyor"`; `POST /api/runs/{id}/feedback` → `403 "RunsWrite kapsamini gerektiriyor"` (kontrast: aynı anahtarla `GET /api/runs/{id}/input` hâlâ `200`, çünkü bu uç yalnız `RunsRead` istiyor). Regresyon: ilgili kapsamları taşıyan bir anahtarla eval takımı oluşturma ve feedback yazma `200`. `docs/openapi/agentprism.json` tazelendi (dört yeni enum değeri). `SchedulingEndpoints` (`MT-JOB-090`) ve `GovernanceEndpoints` bu düzeltmenin kapsamı DIŞINDA bırakıldı — bu koşumun konfirme ettiği HATA-K-NNN listesine dahil değillerdi. Dört doğrulama kapısı temiz.
+`ApiKeyScope`'a dört yeni üye eklendi: `EvalsRead`, `EvalsAdmin`, `ExperimentsRead`, `ExperimentsAdmin` (Eval/Experiment ayrı kaynak türleri olduğu için `WorkflowsRead`/`WorkflowsAdmin` deseniyle birebir, ayrı çiftler). `EvalEndpoints`/`ExperimentEndpoints`'in TÜM uçlarına `RequireApiKeyScope` eklendi — tanım/veri yönetimi yeni kaynak-özel kapsamları, gerçek model çağırıp para harcayan uçlar (`POST /api/evals/{name}/run`, `POST /api/runs/{runId}/judge`) var olan `RunsWrite`'ı aldı (`AgentEndpoints`'in kendi `run` ucunun `AgentsAdmin` değil `RunsWrite` istemesiyle aynı mantık). `RunEndpoints`'in `feedback`(yaz)/`input`/`compare`(oku) uçlarına da eksik `RequireApiKeyScope(RunsWrite|RunsRead)` çağrıları eklendi. Ampirik doğrulama (raporun senaryosu birebir tekrarlandı, gerçek sunucuya karşı): yalnız `RunsRead` taşıyan anahtarla `PUT /api/evals/{name}` → `403 "EvalsAdmin kapsamini gerektiriyor"`; `PUT /api/experiments/{name}` → `403 "ExperimentsAdmin kapsamini gerektiriyor"`; `GET /api/evals` → `403 "EvalsRead kapsamini gerektiriyor"`; `POST /api/runs/{id}/feedback` → `403 "RunsWrite kapsamini gerektiriyor"` (kontrast: aynı anahtarla `GET /api/runs/{id}/input` hâlâ `200`, çünkü bu uç yalnız `RunsRead` istiyor). Regresyon: ilgili kapsamları taşıyan bir anahtarla eval takımı oluşturma ve feedback yazma `200`. `docs/openapi/tracon.json` tazelendi (dört yeni enum değeri). `SchedulingEndpoints` (`MT-JOB-090`) ve `GovernanceEndpoints` bu düzeltmenin kapsamı DIŞINDA bırakıldı — bu koşumun konfirme ettiği HATA-K-NNN listesine dahil değillerdi. Dört doğrulama kapısı temiz.
 
 ---
 
@@ -383,21 +383,21 @@ Yalnız `RunsRead` kapsamlı bir anahtarla: `PUT /api/evals/{name}` → `200` (t
 
 ## K-8 — 24 §1–2 (MT-TEST-001..013, 020..030), 24 case
 
-**Sonuç:** 24 Geçti, 0 Kaldı, 2 doküman düzeltmesi. Kusur bulunmadı. 🔒 Küresel kilit altında koşuldu (`~/agentprism-local-feed`/`dotnet new install`) — tek ajan.
+**Sonuç:** 24 Geçti, 0 Kaldı, 2 doküman düzeltmesi. Kusur bulunmadı. 🔒 Küresel kilit altında koşuldu (`~/tracon-local-feed`/`dotnet new install`) — tek ajan.
 
 Yerel NuGet feed'i taze bir `dotnet pack` (`MSBUILDDISABLENODEREUSE=1`) ile tazelendi; feed'in önceki içeriği eski sürümlere (`0.60`–`0.78`) kadardı, koşum sürümü `0.0.0-preview.0.107`.
 
-### 24 §1 — Şablon: `dotnet new agentprism-api` (MT-TEST-001..013), 13 case: 13 Geçti, 0 Kaldı
+### 24 §1 — Şablon: `dotnet new tracon-api` (MT-TEST-001..013), 13 case: 13 Geçti, 0 Kaldı
 
-Şablon paketten kurulup listeleniyor; en yalın (`memory`+`openai`+`ui:false`) ve en dolu (`sqlserver`+`azure`+`ui:true`) birleşimler sıfır uyarıyla derleniyor, en dolu birleşim doğru paket referanslarını taşıyor; üretilen `appsettings.json`'da `secret` yok, tüm alanlar boş; dört sağlayıcının (`openai`/`anthropic`/`google`/`azure`) hiçbiri sabit model adı taşımıyor; `-n` ile yeniden adlandırma hiçbir `AgentPrism.Starter` kalıntısı bırakmıyor; varsayılan (`memory`) birleşim `secret`'siz `dotnet run` ile ayağa kalkıyor; `--skip-restore` `obj/`'yi tamamen atlıyor; `--AgentPrismVersion` tam sürümü sabitliyor; geçersiz `--persistence` `127` ile reddediliyor; `-h` çıktısında dört bayrak görünüyor, `AgentPrismVersion` gizli; şablon paketinde `.dll` yok, üretilen proje `AgentPrism.Templates`'e hiç referans vermiyor.
+Şablon paketten kurulup listeleniyor; en yalın (`memory`+`openai`+`ui:false`) ve en dolu (`sqlserver`+`azure`+`ui:true`) birleşimler sıfır uyarıyla derleniyor, en dolu birleşim doğru paket referanslarını taşıyor; üretilen `appsettings.json`'da `secret` yok, tüm alanlar boş; dört sağlayıcının (`openai`/`anthropic`/`google`/`azure`) hiçbiri sabit model adı taşımıyor; `-n` ile yeniden adlandırma hiçbir `Tracon.Starter` kalıntısı bırakmıyor; varsayılan (`memory`) birleşim `secret`'siz `dotnet run` ile ayağa kalkıyor; `--skip-restore` `obj/`'yi tamamen atlıyor; `--TraconVersion` tam sürümü sabitliyor; geçersiz `--persistence` `127` ile reddediliyor; `-h` çıktısında dört bayrak görünüyor, `TraconVersion` gizli; şablon paketinde `.dll` yok, üretilen proje `Tracon.Templates`'e hiç referans vermiyor.
 
-**Doküman düzeltmesi — MT-TEST-008:** "İki `.csproj` birebir aynıdır (`diff` boş döner)" iddiası case'in KENDİ girilecek-veri adımlarıyla çelişiyor — iki proje farklı adlarla (`Meta.Kontrol`/`Meta.Kontrol2`) üretiliyor, bu da `RootNamespace`/`UserSecretsId`'yi kaçınılmaz olarak değiştiriyor. Asıl doğrulanmak istenen iddia (postgres seçmek ek `PackageReference` eklemiyor) doğru — her iki `.csproj` da tek satır `<PackageReference Include="AgentPrism" .../>` taşıyor. Kod kusuru değil.
+**Doküman düzeltmesi — MT-TEST-008:** "İki `.csproj` birebir aynıdır (`diff` boş döner)" iddiası case'in KENDİ girilecek-veri adımlarıyla çelişiyor — iki proje farklı adlarla (`Meta.Kontrol`/`Meta.Kontrol2`) üretiliyor, bu da `RootNamespace`/`UserSecretsId`'yi kaçınılmaz olarak değiştiriyor. Asıl doğrulanmak istenen iddia (postgres seçmek ek `PackageReference` eklemiyor) doğru — her iki `.csproj` da tek satır `<PackageReference Include="Tracon" .../>` taşıyor. Kod kusuru değil.
 
 ### 24 §2 — `FakeModelProvider` (MT-TEST-020..030), 11 case: 11 Geçti, 0 Kaldı
 
 Varsayılan kurulum sabit `"fake response"` dönüyor; `EchoesUserMessage()` son mesajı `Echo: ` önekiyle yankılıyor; `RespondsWith(...)` yanıtları sırayla tüketiyor; kuyruk+`EchoesUserMessage()` fallback karışımında önce kuyruktan sonra güncel mesajın yankısından dönüyor; fallback tanımlanmamışsa kuyruk sonrası sabit `"fake response"` tekrarlanıyor; `CallsTool(...)` `FunctionCallContent` üretiyor, anonim tip argümanları doğru kopyalanıyor; `ForModel(...)` modeller arası bağımsız kuyruk tutuyor; `EchoesLastToolResult` `ModelProviderRegistry` üzerinden gerçek tool-çağrı döngüsünde çalışıyor, HAM istemcide (defter olmadan) tool hiç çalıştırılmıyor (kontrast doğrulandı); `RespondsWith(text,inputTokens,outputTokens)` gerçek boru hattında `RunRecord.Usage`'a birebir yansıyor; `Requests` listesi her isteğin kendi `ChatOptions`'ını ayrı saklıyor; katalogda olmayan model adı agent kaydını engellemiyor (K-032 kasıtlı tasarım).
 
-**Doküman düzeltmesi — MT-TEST-020/022/023/024 (tekrarlanan):** dört case'in de kod örneği yalnız `using AgentPrism.Testing;` yazıyor ama `ModelBinding` tipi `AgentPrism` ad alanındadır — `using AgentPrism;` eksik, verilen kod aynen yapıştırılınca `CS0246` ile derlenmiyor. Ekleyince tüm case'ler beklenen çıktıyı üretti. Kod kusuru değil.
+**Doküman düzeltmesi — MT-TEST-020/022/023/024 (tekrarlanan):** dört case'in de kod örneği yalnız `using Tracon.Testing;` yazıyor ama `ModelBinding` tipi `Tracon` ad alanındadır — `using Tracon;` eksik, verilen kod aynen yapıştırılınca `CS0246` ile derlenmiyor. Ekleyince tüm case'ler beklenen çıktıyı üretti. Kod kusuru değil.
 
 **K-8 toplam: 24 case, 24 Geçti, 0 Kaldı.**
 
@@ -405,9 +405,9 @@ Varsayılan kurulum sabit `"fake response"` dönüyor; `EchoesUserMessage()` son
 
 **Sonuç:** 16 Geçti, 1 Kaldı (doküman düzeltmesi). Kusur bulunmadı. 🔒 Aynı küresel kilit altında koşuldu.
 
-### 24 §3 — `AgentPrismTestHost` (MT-TEST-040..045), 6 case: 5 Geçti, 1 Kaldı
+### 24 §3 — `TraconTestHost` (MT-TEST-040..045), 6 case: 5 Geçti, 1 Kaldı
 
-`StartAsync()` `secret`'siz ayağa kalkıyor, `/meta` `200` dönüyor (`version`/`prefix` alanları mevcut). Özel `Prefix` yalnız kendinden yanıt veriyor, eski önek `404`. `DisposeAsync()` sonrası `Client` kullanımı `ObjectDisposedException` fırlatıyor. Olmayan agent'la `RunAsync` `AgentPrismAssertionException` fırlatıyor, mesaj beklenen/bulunan durumu (`404`) taşıyor. `ConfigureServices` `AddAgentPrism()`'den önce çalışıyor, kayıt `host.Services`'ten erişilebiliyor.
+`StartAsync()` `secret`'siz ayağa kalkıyor, `/meta` `200` dönüyor (`version`/`prefix` alanları mevcut). Özel `Prefix` yalnız kendinden yanıt veriyor, eski önek `404`. `DisposeAsync()` sonrası `Client` kullanımı `ObjectDisposedException` fırlatıyor. Olmayan agent'la `RunAsync` `TraconAssertionException` fırlatıyor, mesaj beklenen/bulunan durumu (`404`) taşıyor. `ConfigureServices` `AddTracon()`'den önce çalışıyor, kayıt `host.Services`'ten erişilebiliyor.
 
 **Doküman düzeltmesi — MT-TEST-044:** Case'in kendi sınama kodu (`args.Services is null`) HER ZAMAN `false` — MAF `Services`'i asla gerçek `null` göndermiyor, daima boş-ama-`null`-olmayan bir `EmptyServiceProvider` gönderiyor (`ToolMethodScanner.cs:22,93` yorumları). Düzeltilmiş sınamayla (`args.Services?.GetService(typeof(...))` ile gerçek bir DI kaydı çözmeye çalışmak) K-218'in ASIL iddiası (kayıt çözülemez) doğrulandı: `GetService(...)` `NULL` döndü. `AgentDefinitionCompiler.cs:945`'teki üretim bağlama kodu K-218 yazıldığından beri hiç değişmedi (git log doğrulandı) — üretim davranışında hiçbir regresyon/düzelme yok, yalnızca doküman örneğinin sınama koşulu yanlıştı.
 
@@ -417,6 +417,6 @@ Varsayılan kurulum sabit `"fake response"` dönüyor; `EchoesUserMessage()` son
 
 ### 24 §5 — Paket kalitesi ve sınırlar (MT-TEST-060..064), 5 case: 5 Geçti, 0 Kaldı
 
-`AgentPrism.Testing.nuspec`'in bağımlılık bloğu yalnız 3 gerçek bağımlılık listeliyor, test çerçevesi yok (paketin kendi `<description>`'ındaki "xunit'e bağlı değildir" açıklaması yanlış eşleşme olarak not edildi, gerçek bağımlılık değil). Meta paket `Testing`'e hiç referans vermiyor. `net8.0` (kurulu SDK'da artık desteklenmiyor, `net9.0` kullanıldı — aynı derecede uyumsuz) projeden paket eklemek `NU1202` ile başarısız oluyor, `PackageReference` hiç eklenmiyor. **MT-TEST-063** (önceden iddia edilmez, koşumda ölçülür): gerçek `PublishAot=true` denemesi (`CallsTool`'un yansıma yolunu tetikleyen kodla) **`0` uyarı** üretti — dokümanın kendi öngördüğü alternatif senaryo ("sıfır uyarı çıkması kod yorumunun güncelliğini yitirdiği anlamına gelebilir"), kusur olarak işaretlenmedi, yalnız ölçüm kaydedildi. Depo dışı taze bir tüketici projesinde README'nin zincirleme örneği hiçbir `secret` olmadan başarıyla çalıştı; `FakeChatClient.cs`'te ağ kullanımı olmadığı kod okumasıyla da doğrulandı.
+`Tracon.Testing.nuspec`'in bağımlılık bloğu yalnız 3 gerçek bağımlılık listeliyor, test çerçevesi yok (paketin kendi `<description>`'ındaki "xunit'e bağlı değildir" açıklaması yanlış eşleşme olarak not edildi, gerçek bağımlılık değil). Meta paket `Testing`'e hiç referans vermiyor. `net8.0` (kurulu SDK'da artık desteklenmiyor, `net9.0` kullanıldı — aynı derecede uyumsuz) projeden paket eklemek `NU1202` ile başarısız oluyor, `PackageReference` hiç eklenmiyor. **MT-TEST-063** (önceden iddia edilmez, koşumda ölçülür): gerçek `PublishAot=true` denemesi (`CallsTool`'un yansıma yolunu tetikleyen kodla) **`0` uyarı** üretti — dokümanın kendi öngördüğü alternatif senaryo ("sıfır uyarı çıkması kod yorumunun güncelliğini yitirdiği anlamına gelebilir"), kusur olarak işaretlenmedi, yalnız ölçüm kaydedildi. Depo dışı taze bir tüketici projesinde README'nin zincirleme örneği hiçbir `secret` olmadan başarıyla çalıştı; `FakeChatClient.cs`'te ağ kullanımı olmadığı kod okumasıyla da doğrulandı.
 
 **K-9 toplam: 17 case, 16 Geçti, 1 Kaldı.**

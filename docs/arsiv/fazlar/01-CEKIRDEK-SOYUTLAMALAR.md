@@ -3,7 +3,7 @@
 > **Durum:** Tamamlandı (2026-08-02)
 > **Önkoşul:** [00-ALTYAPI.md](00-ALTYAPI.md)
 > **Sonraki:** [02-POSTGRESQL-KALICILIK.md](02-POSTGRESQL-KALICILIK.md)
-> **Paketler:** `AgentPrism.Abstractions`, `AgentPrism.Core`
+> **Paketler:** `Tracon.Abstractions`, `Tracon.Core`
 
 ---
 
@@ -24,7 +24,7 @@
 
 ## Amaç
 
-AgentPrism'in sözleşmelerini ve MAF'a bağlanma noktalarını kurmak. **Bu faz veritabanı olmadan tam çalışır.** Bir geliştirici `AddAgentPrism()` yazar, agent tanımlar, çalıştırır ve çalıştırma kaydını okur — hiçbir altyapı kurmadan. Bu, tasarım kuralı K1'in ("sıfır sürpriz") somut karşılığıdır.
+Tracon'in sözleşmelerini ve MAF'a bağlanma noktalarını kurmak. **Bu faz veritabanı olmadan tam çalışır.** Bir geliştirici `AddTracon()` yazar, agent tanımlar, çalıştırır ve çalıştırma kaydını okur — hiçbir altyapı kurmadan. Bu, tasarım kuralı K1'in ("sıfır sürpriz") somut karşılığıdır.
 
 ## Uygulama Sırasında Alınan Kararlar
 
@@ -32,15 +32,15 @@ Bu kararlar plan yazılırken bilinmiyordu; gerçek MAF API yüzeyi incelenince 
 
 ### `IAgentSource` — plandaki "MAF `AddAIAgent` kayıtlarını oku" yerine
 
-Plan, katalogun MAF'ın `AddAIAgent` kayıtlarını okumasını öngörüyordu. Ancak `AddAIAgent`, ön sürüm durumundaki `Microsoft.Agents.AI.Hosting` paketindedir ve **K-008 gereği `AgentPrism.Core` o pakete bağımlı olamaz**.
+Plan, katalogun MAF'ın `AddAIAgent` kayıtlarını okumasını öngörüyordu. Ancak `AddAIAgent`, ön sürüm durumundaki `Microsoft.Agents.AI.Hosting` paketindedir ve **K-008 gereği `Tracon.Core` o pakete bağımlı olamaz**.
 
 Çözüm: `IAgentSource` soyutlaması. Katalog, önceliğe göre sıralanmış kaynaklardan agent toplar.
 
 | Kaynak | Öncelik | Paket | Faz |
 |--------|---------|-------|-----|
-| `CodeAgentSource` | 0 | `AgentPrism.Core` | 1 |
-| MAF barındırma köprüsü | 10 | `AgentPrism.AspNetCore` | 4 |
-| `DefinitionStoreAgentSource` | 100 | `AgentPrism.Core` | 1 |
+| `CodeAgentSource` | 0 | `Tracon.Core` | 1 |
+| MAF barındırma köprüsü | 10 | `Tracon.AspNetCore` | 4 |
+| `DefinitionStoreAgentSource` | 100 | `Tracon.Core` | 1 |
 
 Sonuç: Core yalnız GA paketlere bağlı kaldı ve mimari genişletilebilir hale geldi. Karar: **K-019**.
 
@@ -50,19 +50,19 @@ Sonuç: Core yalnız GA paketlere bağlı kaldı ve mimari genişletilebilir hal
 
 Bu, tasarım kuralı K4'ün ("her genişleme noktası değiştirilebilir") uygulanmasıdır.
 
-### `AgentPrismId` — kendi UUIDv7 üretecimiz
+### `TraconId` — kendi UUIDv7 üretecimiz
 
-`Guid.CreateVersion7()` yalnızca .NET 9+ içindedir; paket `net8.0` da hedefliyor. Depolama anahtarlarının tüm hedeflerde aynı üretilmesi gerektiği için RFC 9562 uygulamasını kendimiz yazdık (`AgentPrismId.NewId()`).
+`Guid.CreateVersion7()` yalnızca .NET 9+ içindedir; paket `net8.0` da hedefliyor. Depolama anahtarlarının tüm hedeflerde aynı üretilmesi gerektiği için RFC 9562 uygulamasını kendimiz yazdık (`TraconId.NewId()`).
 
-Ek kazanç: `AgentPrismId.GetTimestamp(id)` ile kimlikten zaman damgası okunabiliyor.
+Ek kazanç: `TraconId.GetTimestamp(id)` ile kimlikten zaman damgası okunabiliyor.
 
 ### AOT uyumluluğu üç yerde ödün istedi
 
-`AgentPrism.Core` AOT uyumlu olarak işaretli (K-006). Üç nokta buna uyarlandı:
+`Tracon.Core` AOT uyumlu olarak işaretli (K-006). Üç nokta buna uyarlandı:
 
 | Sorun | Çözüm |
 |-------|-------|
-| `ValidateDataAnnotations()` → `IL2026` | Elle yazılmış `AgentPrismOptionsValidator` |
+| `ValidateDataAnnotations()` → `IL2026` | Elle yazılmış `TraconOptionsValidator` |
 | `optionsBuilder.Bind()` → `IL2026` + `IL3050` | `EnableConfigurationBindingGenerator=true` |
 | Tool argümanlarını JSON'a çevirme | Elle biçimlendirme (`ad=deger`), yansıma yok |
 
@@ -85,7 +85,7 @@ Attribute taramalı tool kaydı yansıma gerektirir. Faz 1'de iki aşırı yükl
 
 | Ölçüt | Durum |
 |-------|-------|
-| `AddAgentPrism()` tek başına, yapılandırmasız çalışır | ✅ |
+| `AddTracon()` tek başına, yapılandırmasız çalışır | ✅ |
 | Bellek içi store'larla agent tanımlanır → çalıştırılır → kayıt okunur | ✅ |
 | Bilinmeyen tool adı anlaşılır hata verir (kayıtlı tool'ları listeler) | ✅ |
 | Mimari testi bağımlılık yönünü zorlar | ✅ |
@@ -93,7 +93,7 @@ Attribute taramalı tool kaydı yansıma gerektirir. Faz 1'de iki aşırı yükl
 | `dotnet test` — 42/42 | ✅ |
 | Örnek API uçtan uca çalışıyor | ✅ |
 
-Örnek API doğrulaması (`samples/AgentPrism.Api`, port 5081):
+Örnek API doğrulaması (`samples/Tracon.Api`, port 5081):
 
 ```
 GET  /agents            → support agent'ı, kaynak "code", 2 tool

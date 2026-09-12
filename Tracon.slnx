@@ -1,0 +1,88 @@
+<Solution>
+
+  <Folder Name="/src/">
+    <Project Path="src/Tracon.Abstractions/Tracon.Abstractions.csproj" />
+    <Project Path="src/Tracon.Core/Tracon.Core.csproj" />
+    <Project Path="src/Tracon.Generators/Tracon.Generators.csproj" />
+    <Project Path="src/Tracon.PostgreSql/Tracon.PostgreSql.csproj" />
+    <Project Path="src/Tracon.SqlServer/Tracon.SqlServer.csproj" />
+    <Project Path="src/Tracon.Sqlite/Tracon.Sqlite.csproj" />
+    <Project Path="src/Tracon.OpenAI/Tracon.OpenAI.csproj" />
+    <Project Path="src/Tracon.Anthropic/Tracon.Anthropic.csproj" />
+    <Project Path="src/Tracon.Google/Tracon.Google.csproj" />
+    <Project Path="src/Tracon.Azure/Tracon.Azure.csproj" />
+    <Project Path="src/Tracon.Voice/Tracon.Voice.csproj" />
+    <Project Path="src/Tracon.Mcp/Tracon.Mcp.csproj" />
+    <Project Path="src/Tracon.Workflows/Tracon.Workflows.csproj" />
+    <Project Path="src/Tracon.AspNetCore/Tracon.AspNetCore.csproj" />
+    <Project Path="src/Tracon.UI/Tracon.UI.csproj" />
+    <Project Path="src/Tracon/Tracon.csproj" />
+    <Project Path="src/Tracon.Templates/Tracon.Templates.csproj" />
+    <Project Path="src/Tracon.Testing/Tracon.Testing.csproj" />
+    <Project Path="src/Tracon.Testing.Contracts.Xunit/Tracon.Testing.Contracts.Xunit.csproj" />
+    <Project Path="src/Tracon.Client/Tracon.Client.csproj" />
+    <Project Path="src/Tracon.Cli/Tracon.Cli.csproj" />
+  </Folder>
+
+  <Folder Name="/samples/">
+    <Project Path="samples/Tracon.Api/Tracon.Api.csproj" />
+    <Project Path="samples/Tracon.Embedded/Tracon.Embedded.csproj" />
+  </Folder>
+
+  <Folder Name="/tests/">
+    <Project Path="tests/Tracon.AspNetCore.FunctionalTests/Tracon.AspNetCore.FunctionalTests.csproj" />
+    <Project Path="tests/Tracon.Embedded.Tests/Tracon.Embedded.Tests.csproj" />
+    <Project Path="tests/Tracon.Core.UnitTests/Tracon.Core.UnitTests.csproj" />
+    <Project Path="tests/Tracon.Generators.UnitTests/Tracon.Generators.UnitTests.csproj" />
+    <Project Path="tests/Tracon.Mcp.UnitTests/Tracon.Mcp.UnitTests.csproj" />
+    <Project Path="tests/Tracon.OpenAI.UnitTests/Tracon.OpenAI.UnitTests.csproj" />
+    <Project Path="tests/Tracon.Anthropic.UnitTests/Tracon.Anthropic.UnitTests.csproj" />
+    <Project Path="tests/Tracon.Google.UnitTests/Tracon.Google.UnitTests.csproj" />
+    <Project Path="tests/Tracon.Azure.UnitTests/Tracon.Azure.UnitTests.csproj" />
+    <Project Path="tests/Tracon.Voice.UnitTests/Tracon.Voice.UnitTests.csproj" />
+    <Project Path="tests/Tracon.PostgreSql.IntegrationTests/Tracon.PostgreSql.IntegrationTests.csproj" />
+    <Project Path="tests/Tracon.SqlServer.IntegrationTests/Tracon.SqlServer.IntegrationTests.csproj" />
+    <Project Path="tests/Tracon.Sqlite.IntegrationTests/Tracon.Sqlite.IntegrationTests.csproj" />
+    <Project Path="tests/Tracon.Sql.Shared.UnitTests/Tracon.Sql.Shared.UnitTests.csproj" />
+    <Project Path="tests/Tracon.Workflows.UnitTests/Tracon.Workflows.UnitTests.csproj" />
+    <Project Path="tests/Tracon.Ui.E2ETests/Tracon.Ui.E2ETests.csproj" />
+    <Project Path="tests/Tracon.Package.Tests/Tracon.Package.Tests.csproj" />
+    <Project Path="tests/Tracon.Testing.UnitTests/Tracon.Testing.UnitTests.csproj" />
+    <Project Path="tests/Tracon.Testing.Contracts.Xunit.UnitTests/Tracon.Testing.Contracts.Xunit.UnitTests.csproj" />
+    <Project Path="tests/Tracon.Client.UnitTests/Tracon.Client.UnitTests.csproj" />
+    <Project Path="tests/Tracon.Cli.FunctionalTests/Tracon.Cli.FunctionalTests.csproj" />
+    <Project Path="tests/Tracon.WorkerHarness/Tracon.WorkerHarness.csproj" />
+  </Folder>
+
+  <Folder Name="/bench/">
+    <Project Path="bench/Tracon.Benchmarks/Tracon.Benchmarks.csproj" />
+  </Folder>
+
+  <Folder Name="/solution-items/">
+    <File Path="Directory.Build.props" />
+    <File Path="Directory.Build.targets" />
+    <File Path="Directory.Packages.props" />
+    <File Path="NuGet.config" />
+    <File Path="global.json" />
+    <File Path=".editorconfig" />
+    <File Path=".gitignore" />
+    <File Path="README.md" />
+    <File Path="AGENTS.md" />
+    <File Path="MEMORY.md" />
+  </Folder>
+
+  <Folder Name="/docs/">
+    <File Path="docs/MIMARI.md" />
+    <File Path="docs/MAF-GENISLEME-NOKTALARI.md" />
+    <File Path="docs/KARARLAR-INDEKS.md" />
+    <File Path="docs/KARARLAR-INDEKS-ARSIV.md" />
+    <File Path="docs/KARARLAR-INDEKS-REDDEDILEN.md" />
+    <File Path="docs/KARARLAR.md" />
+    <File Path="docs/IKINCI-FAZ-YOL-HARITASI.md" />
+    <File Path="docs/UCUNCU-FAZ-YOL-HARITASI.md" />
+    <File Path="docs/UCUNCU-FAZ-ADAYLARI.md" />
+    <File Path="docs/BEYIN-FIRTINASI.md" />
+    <File Path="docs/DEGERLENDIRME-RAPORU-2026-08.md" />
+  </Folder>
+
+</Solution>

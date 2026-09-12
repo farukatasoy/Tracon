@@ -30,7 +30,7 @@
 | MT-MM-002 | ☑ | İstemcinin bildirdiği yanlış `Content-Type` sihirli bayt tarafından GEÇERSİZ kılınır |
 | MT-MM-003 | ☑ | Yürütülebilir/tanınmayan içerik reddedilir |
 | MT-MM-004 | ☑ | Boş dosya reddedilir |
-| MT-MM-005 | ☑ | `AgentPrismAttachmentOptions.MaxBytes` (varsayılan 20 MB) aşımı reddedilir |
+| MT-MM-005 | ☑ | `TraconAttachmentOptions.MaxBytes` (varsayılan 20 MB) aşımı reddedilir |
 | MT-MM-006 | ☑ | MP3 çerçeve senkronu BİT MASKESİYLE tanınır — beş geçerli varyant kabul, iki `reserved` varyant ret |
 | MT-MM-010 | ☑ | İndirme doğru başlıklarla ve bayt-bayt eşleşmeyle döner |
 | MT-MM-011 | ☑ | Listeleme `sessionId` ile filtreler; `skip`/`take` sınırlanır |
@@ -82,10 +82,10 @@
 
 **Gerçek sonuç**
 İlk deneme (yanlış `X-Tenant-Id` başlığıyla, çok kiracılık kapalı) `HTTP: 200`
-döndü — sapma değil, doküman kusuruydu: gerçek başlık adı `X-AgentPrism-Tenant`
+döndü — sapma değil, doküman kusuruydu: gerçek başlık adı `X-Tracon-Tenant`
 (`HttpTenantContext.cs:50`), `X-Tenant-Id` sunucu tarafından hiç okunmuyor ve
 sessizce yok sayılıyor. Girilecek veri düzeltildi (yukarıda not edildi),
-çok kiracılık `AgentPrism:Tenancy:Enabled`/`AllowHeaderResolution` ile açılıp
+çok kiracılık `Tracon:Tenancy:Enabled`/`AllowHeaderResolution` ile açılıp
 doğru başlıkla tekrar koşuldu: `HTTP: 404` — beklenen davranış doğrulandı.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
@@ -95,14 +95,14 @@ doğru başlıkla tekrar koşuldu: `HTTP: 404` — beklenen davranış doğrulan
 ## MT-MM-022 — Başka kiracının eki çalıştırmada kullanılamaz
 
 **Gerçek sonuç**
-`HTTP: 400`, `title:"Ek bulunamadi"` (doğru başlık `X-AgentPrism-Tenant` ile,
+`HTTP: 400`, `title:"Ek bulunamadi"` (doğru başlık `X-Tracon-Tenant` ile,
 bkz. MT-MM-013 doküman düzeltmesi).
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
-## MT-MM-031 — `AgentPrism:Voice:ApiKey` yoksa `/api/voice/*` `501`, konuşma ucu `404` döner
+## MT-MM-031 — `Tracon:Voice:ApiKey` yoksa `/api/voice/*` `501`, konuşma ucu `404` döner
 
 **Gerçek sonuç**
 Birinci istek beklendiği gibi `HTTP: 501`. İkinci istek (`$APB` ile, dokümanın
@@ -115,13 +115,13 @@ gerçekten kayıtlı değil (kod beklendiği gibi çalışıyor), istek
 `api/`-önekli yollar için `UiEndpoints.ServeAsync`'in yakalayıcı (`{**path}`)
 rotasına düşüyor (`UiEndpoints.cs:44-46,66-74`) ve orada `NotFound` (404)
 üretiliyor — AMA yalnız `Authorization` başlığı BOŞSA. Bu grup
-`AgentPrismEndpointFilter(options, requireBearerToken: false)` ile korunuyor
-(`AgentPrismEndpointRouteBuilderExtensions.cs:294`); `requireBearerToken: false`
-olunca `_authToken` `null` olarak ayarlanıyor (`AgentPrismEndpointFilter.cs:57`).
+`TraconEndpointFilter(options, requireBearerToken: false)` ile korunuyor
+(`TraconEndpointRouteBuilderExtensions.cs:294`); `requireBearerToken: false`
+olunca `_authToken` `null` olarak ayarlanıyor (`TraconEndpointFilter.cs:57`).
 Başlık BOŞ değilse filtre statik `AuthToken`'ı HİÇ karşılaştırmıyor
 (`_authToken is {Length: >0}` `false` olduğu için `93. satır` atlanıyor),
 doğrudan `IApiKeyStore` üzerinden bir API anahtarı arıyor
-(`AgentPrismEndpointFilter.cs:100-131`); statik bearer token kayıtlı bir API
+(`TraconEndpointFilter.cs:100-131`); statik bearer token kayıtlı bir API
 anahtarı OLMADIĞI için arama boş dönüyor ve `134. satır`daki genel
 `Unauthorized()` tetikleniyor — mesaj "gecerli bir token gerekiyor" der ama
 tam olarak geçerli olan statik token zaten sağlanmıştı. Doğrulama: aynı
@@ -133,7 +133,7 @@ değil. **Kusur — HATA-S1-014, Önem: Orta** (bkz. şerit sonuç dosyası).
 `/api/voice/sessions` (§8 doğrulaması, aynı ön koşulda) beklendiği gibi
 `HTTP: 200`, `[]` döndü — MT-MM-043 bu adımla birleştirildi ve GEÇTİ.
 
-**Ön koşulu geri aldım:** `AgentPrism__Voice__ApiKey` gerçek ElevenLabs
+**Ön koşulu geri aldım:** `Tracon__Voice__ApiKey` gerçek ElevenLabs
 anahtarıyla ayarlanıp uygulama yeniden başlatıldı (bkz. koşum notu).
 
  **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı — S1-8'de HATA-S1-014 düzeltmesiyle (K-395) yeniden koşuldu: doğru statik token artık 404, yanlış token 401. Bkz. SONUCLAR-S1-2026-08-13.md.
@@ -154,12 +154,12 @@ anahtarıyla ayarlanıp uygulama yeniden başlatıldı (bkz. koşum notu).
 
 **Gerçek sonuç**
 İlk denemede `speak` tool çağrısı `Error: Function failed.` ile başarısız
-oldu — sunucu logunda kök neden: `AgentPrismException: Ses uretilemedi:
+oldu — sunucu logunda kök neden: `TraconException: Ses uretilemedi:
 HTTP 400.` Sebep bu ortama özgüydü: paylaşılan makine-geneli `user-secrets`
-deposundaki `AgentPrism:Voice:DefaultVoiceId` değeri (başka/eski bir
+deposundaki `Tracon:Voice:DefaultVoiceId` değeri (başka/eski bir
 ElevenLabs anahtarına ait, bu şeridin env değişkeni bunu hiç override
 etmemişti) bu anahtarın hesabında GEÇERSİZ bir ses kimliği taşıyordu.
-`AgentPrism__Voice__DefaultVoiceId` ortam değişkeni MT-MM-038'de doğrulanmış
+`Tracon__Voice__DefaultVoiceId` ortam değişkeni MT-MM-038'de doğrulanmış
 gerçek bir kimlikle (`hpp4J3VqNfWAUOO0d1Us`) override edilip yeniden
 başlatıldıktan sonra: akış tamamlandı, `speak` çağrıldı, sonuç
 `"Ses uretildi. attachmentId=019ffa0e-cebd-7274-9547-8cdb2a2ede54, ..."`
@@ -202,7 +202,7 @@ doğrulandı — kapsanan davranış orada kanıtlandı.
 Dokümandaki komut (statik `Authorization: Bearer` başlığıyla, `-H "$APB"`)
 `HTTP 401` ("Kimlik dogrulanamadi") döndürdü, `400` DEĞİL — `HATA-S1-014`
 ile AYNI kök nedene çarpıyor: `voiceGroup` de `requireBearerToken: false`
-ile kurulu (`AgentPrismEndpointRouteBuilderExtensions.cs:253` — WebSocket
+ile kurulu (`TraconEndpointRouteBuilderExtensions.cs:253` — WebSocket
 el sıkışması sırasında tarayıcı `Authorization` başlığı ekleyemediği için
 bilinçli tasarım, token yerine WS alt protokolüyle taşınır), bu yüzden
 BOŞ OLMAYAN bir `Authorization` başlığı statik token ile hiç
@@ -224,7 +224,7 @@ notuna eklendi.
 **Gerçek sonuç**
 `BAGLANTI REDDEDILDI: server rejected WebSocket connection: HTTP 401` —
 sorgu dizesindeki token tamamen yok sayıldı, alt protokolde
-`agentprism.token.*` girdisi olmayınca bağlantı reddedildi. Beklendiği gibi.
+`tracon.token.*` girdisi olmayınca bağlantı reddedildi. Beklendiği gibi.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
@@ -233,13 +233,13 @@ sorgu dizesindeki token tamamen yok sayıldı, alt protokolde
 ## MT-MM-067 — Başka kiracının oturumuna bağlanmak o kaydı GÖRMEZ; kendi kiracısında taze bir oturum açılır
 
 **Gerçek sonuç**
-İlk denemede `AgentPrism__Tenancy__AllowHeaderResolution` bu şeridin
-ortamında AÇIK DEĞİLDİ — `X-AgentPrism-Tenant: kiraci-alfa` başlığı hiç
+İlk denemede `Tracon__Tenancy__AllowHeaderResolution` bu şeridin
+ortamında AÇIK DEĞİLDİ — `X-Tracon-Tenant: kiraci-alfa` başlığı hiç
 okunmadı, hem ön koşul POST'u hem WebSocket bağlantısı aynı `default`
 kiracısına, aynı oturum kimliğine yazdı (kirlenme: 6 mesaj tek oturumda
 karıştı, `paylasilan-oturum-id` artık `default` kiracısında bu kirli
 durumda duruyor — zararsız, başka case ona bağlı değil). Düzeltme: sunucu
-`AgentPrism__Tenancy__Enabled=true` + `AgentPrism__Tenancy__AllowHeaderResolution=true`
+`Tracon__Tenancy__Enabled=true` + `Tracon__Tenancy__AllowHeaderResolution=true`
 ile yeniden başlatıldı (S1-3'ün `23` dosyasında uyguladığı aynı desen) ve
 case TEMİZ bir oturum kimliğiyle (`paylasilan-oturum-id-2`) tekrarlandı.
 İkinci denemede: `kiraci-alfa` oturumu doğru tenant'ta oluştu
@@ -287,14 +287,14 @@ asistan mesajı `[Yanit kullanici tarafindan kesildi.]` dizgisini içeriyordu.
 `completedAt: null`, `eventCount: 0`, `usage: null` döndürdü — run KALICI
 OLARAK "Running" durumunda asılı kaldı, `Canceled`'a HİÇ geçmedi. Kök neden
 kod okumasıyla bulundu: `RunRecordingAgent.RunCoreStreamingAsync`
-(`src/AgentPrism.Core/Recording/RunRecordingAgent.cs:255-370`) `CompleteAsync`
+(`src/Tracon.Core/Recording/RunRecordingAgent.cs:255-370`) `CompleteAsync`
 çağrısını (hem `Completed` yolu satır 366 hem `Canceled` yakalayıcısı satır
 323-327) yalnız İKİ yerde tetikler: (a) `enumerator.MoveNextAsync()`
 `OperationCanceledException` fırlatırsa (satır 304-333'teki iç try/catch),
 (b) döngü doğal olarak biterse (satır 353'ten SONRA, 355-358'deki
 `finally`'nin dışında, satır 360-370). Ses turunda kesinti tam bu ikisinin
 ARASINDA oluyor: `VoiceConversationDriver.RespondAsync`
-(`src/AgentPrism.Core/Voice/VoiceConversationDriver.cs:606-632`) her
+(`src/Tracon.Core/Voice/VoiceConversationDriver.cs:606-632`) her
 `update` alındıktan SONRA (RunRecordingAgent `yield return` ile kontrolü
 DRIVER'a devrettikten sonra) `SpeakAsync` (ElevenLabs TTS ağ çağrısı,
 satır 629) çağırıyor — kesinti tam bu TTS çağrısı SÜRERKEN geliyor
@@ -322,7 +322,7 @@ zorlarsa aynı sessiz kayıp oluşur.
 ## MT-MM-089 — Güvenli bağlam yoksa panel açılmaz, açık bir mesaj gösterilir
 
 **Gerçek sonuç**
-Doğrulandı: `samples/AgentPrism.Api/appsettings.json:31` içinde
+Doğrulandı: `samples/Tracon.Api/appsettings.json:31` içinde
 `"AllowRemoteAccess": false` — bu şeritte hiç açılmadı. Doküman kendi
 belirttiği ⏭ ATLA yoluna göre işaretlendi; geçici olarak açıp tekrar
 denemek §2.1'in "kod değiştirilmez" kapsamı DIŞINDA (yalnız config, kod

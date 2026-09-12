@@ -4,8 +4,8 @@ Ortak çerçeve: [`00-INDEKS.md`](00-INDEKS.md). Bu oturum onu uygular.
 
 ## Kapsam
 
-`src/AgentPrism.Sql.Shared/Stores/*.cs`,
-`src/AgentPrism.PostgreSql|SqlServer|Sqlite/`.
+`src/Tracon.Sql.Shared/Stores/*.cs`,
+`src/Tracon.PostgreSql|SqlServer|Sqlite/`.
 
 ## Bilinen tasarım
 

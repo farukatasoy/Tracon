@@ -3,7 +3,7 @@ title: Context and memory
 description: Control conversation history, compaction, working memory, MCP resources, and persistent knowledge without mixing their responsibilities.
 ---
 
-“Memory” is not one store. AgentPrism separates conversation continuity, context
+“Memory” is not one store. Tracon separates conversation continuity, context
 budgeting, working state, fixed resources, and semantic knowledge. Choose each layer
 for the question it answers.
 
@@ -46,13 +46,13 @@ A run with no `sessionId` is sessionless. The next request does not receive its 
 history. Reuse a session id when turns must build on each other:
 
 ```bash
-curl -N -X POST http://localhost:5081/agentprism/api/agents/research/run \
-  -H "Authorization: Bearer $AGENTPRISM_TOKEN" \
+curl -N -X POST http://localhost:5081/tracon/api/agents/research/run \
+  -H "Authorization: Bearer $TRACON_TOKEN" \
   -H 'Content-Type: application/json' \
   -d '{"sessionId":"case-4182","message":"Summarize the customer request."}'
 
-curl -N -X POST http://localhost:5081/agentprism/api/agents/research/run \
-  -H "Authorization: Bearer $AGENTPRISM_TOKEN" \
+curl -N -X POST http://localhost:5081/tracon/api/agents/research/run \
+  -H "Authorization: Bearer $TRACON_TOKEN" \
   -H 'Content-Type: application/json' \
   -d '{"sessionId":"case-4182","message":"Now list the unresolved questions."}'
 ```
@@ -66,7 +66,7 @@ Compaction and memory work on a plain chat agent. A `HarnessSettings` value is n
 required. Add the harness only when you also need its execution policy.
 
 ```csharp
-agentPrism.AddAgent(new AgentDefinition
+tracon.AddAgent(new AgentDefinition
 {
     Name = "research",
     Instructions = "Investigate the request. Keep a concise evidence trail.",
@@ -137,13 +137,13 @@ Defaults are explicit:
 | Summarization model | Agent setting, then application `UtilityModel`, then the agent model |
 
 :::caution[No compaction can become a run failure]
-When `Compaction` is absent or uses `None`, AgentPrism sends no compaction strategy.
+When `Compaction` is absent or uses `None`, Tracon sends no compaction strategy.
 A long session eventually exceeds the provider's context window. Set a measured
 trigger below the real model limit and leave room for output and tool results.
 :::
 
 MAF currently marks its compaction and `AgentFileStore` APIs as evaluation features.
-AgentPrism keeps the integration in one compiler boundary, but you should still test
+Tracon keeps the integration in one compiler boundary, but you should still test
 context behavior when upgrading MAF packages.
 
 ## Understand the memory flags
@@ -185,7 +185,7 @@ invocation. Those instructions apply to every substantive request, including sho
 factual questions — a harness agent in `plan` mode can answer a simple question with
 questions of its own.
 
-You cannot define your own modes today. AgentPrism passes no mode options to MAF, so
+You cannot define your own modes today. Tracon passes no mode options to MAF, so
 you get these two. Set `Harness.DisableAgentModeProvider = true` to turn the provider
 off, together with both of its tools.
 
@@ -194,7 +194,7 @@ off, together with both of its tools.
 Code-defined agents can name resources in `{server}:{uri}` form:
 
 ```csharp
-agentPrism.AddAgent(new AgentDefinition
+tracon.AddAgent(new AgentDefinition
 {
     Name = "release-reviewer",
     Instructions = "Review the release against the supplied policy.",
@@ -210,9 +210,9 @@ agentPrism.AddAgent(new AgentDefinition
 });
 ```
 
-Call `UseMcp()` before compiling an agent that uses this field. AgentPrism reads these
+Call `UseMcp()` before compiling an agent that uses this field. Tracon reads these
 resources at the start of each run. The defaults are 64 KiB per resource and 256 KiB
-in total. Configure them with `AgentPrismMcpOptions.MaxResourceBytesPerResource` and
+in total. Configure them with `TraconMcpOptions.MaxResourceBytesPerResource` and
 `MaxResourceBytesTotal`.
 
 The current `AgentDefinitionRequest` management contract does not expose
@@ -229,8 +229,8 @@ The validation endpoint compiles the same definition without writing it and with
 calling a model:
 
 ```bash
-curl -sS -X POST http://localhost:5081/agentprism/api/agents/validate \
-  -H "Authorization: Bearer $AGENTPRISM_TOKEN" \
+curl -sS -X POST http://localhost:5081/tracon/api/agents/validate \
+  -H "Authorization: Bearer $TRACON_TOKEN" \
   -H 'Content-Type: application/json' \
   -d '{
     "name": "research",
@@ -266,7 +266,7 @@ instructions, tool schemas, tool results, skills, and resources. A provider's no
 window is not all available to conversation history.
 
 **Summarization costs more than expected.** It is another model call. Set the agent's
-`SummarizationModel`, or configure the application-wide `AgentPrismOptions.UtilityModel`.
+`SummarizationModel`, or configure the application-wide `TraconOptions.UtilityModel`.
 
 **File memory disappears after restart.** The default `AgentFileStore` is in memory.
 Register PostgreSQL, SQL Server, or SQLite for a built-in persistent implementation.
@@ -289,10 +289,10 @@ PostgreSQL.
 ## In the reference
 
 - [Agent management HTTP API](/http-api/agents/)
-- [`HarnessSettings` API](/api/agentprism.harnesssettings/)
-- [`CompactionSettings` API](/api/agentprism.compactionsettings/)
-- [`MemorySettings` API](/api/agentprism.memorysettings/)
-- [`AgentPrismMcpOptions` API](/api/agentprism.agentprismmcpoptions/)
+- [`HarnessSettings` API](/api/tracon.harnesssettings/)
+- [`CompactionSettings` API](/api/tracon.compactionsettings/)
+- [`MemorySettings` API](/api/tracon.memorysettings/)
+- [`TraconMcpOptions` API](/api/tracon.traconmcpoptions/)
 
 ## Read next
 

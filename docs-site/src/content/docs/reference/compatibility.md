@@ -13,9 +13,9 @@ capability does not apply; it does not mean “probably works.”
 | Artifact | Target | Notes |
 |---|---|---|
 | Runtime packages | `net8.0`, `net9.0`, `net10.0` | This includes Core, all providers, all SQL packages, AspNetCore, MCP, Workflows, UI, and Voice |
-| `AgentPrism.Testing` | `net10.0` | The test host follows the current MAF test surface |
-| `AgentPrism.Templates` | Generates `net10.0` | It is a content package, not a runtime assembly |
-| Embedded source generator | `netstandard2.0` | It ships through `AgentPrism.Core`; `AgentPrism.Generators` is not a separate public NuGet package |
+| `Tracon.Testing` | `net10.0` | The test host follows the current MAF test surface |
+| `Tracon.Templates` | Generates `net10.0` | It is a content package, not a runtime assembly |
+| Embedded source generator | `netstandard2.0` | It ships through `Tracon.Core`; `Tracon.Generators` is not a separate public NuGet package |
 
 The packages are still pre-release. Install them with an explicit preview version or
 the CLI's pre-release option. The template package also needs a preview version or
@@ -23,33 +23,33 @@ pre-release selection.
 
 ## The 20 packages
 
-“Meta” shows whether `dotnet add package AgentPrism` brings the package into the
+“Meta” shows whether `dotnet add package Tracon` brings the package into the
 dependency graph. `AOT` states the promise made by the package itself.
 
 | Package | Meta | Frameworks | Native AOT | Purpose or limit |
 |---|---:|---|---:|---|
-| `AgentPrism` | — | net8/9/10 dependency groups | No | Meta package; it carries no assembly and includes packages that do not promise AOT |
-| `AgentPrism.Abstractions` | Yes | net8/9/10 | Yes | Contracts and data types only |
-| `AgentPrism.Core` | Yes | net8/9/10 | Yes | Catalog, compiler, decorators, in-memory stores, jobs, evaluation, and governance services |
-| `AgentPrism.PostgreSql` | Yes | net8/9/10 | Yes | Durable stores and the only built-in vector-search store |
-| `AgentPrism.OpenAI` | Yes | net8/9/10 | Yes | OpenAI Chat Completions, Responses, and named compatible endpoints |
-| `AgentPrism.AspNetCore` | Yes | net8/9/10 | No | Minimal API delegate routing uses reflection |
-| `AgentPrism.Workflows` | Yes | net8/9/10 | No | The MAF workflow engine uses reflection |
-| `AgentPrism.Mcp` | Yes | net8/9/10 | No | Runtime MCP schemas and the MCP SDK use reflection for JSON handling |
-| `AgentPrism.UI` | Yes | net8/9/10 | No | Embedded asset discovery plus its ASP.NET Core dependency |
-| `AgentPrism.SqlServer` | No | net8/9/10 | No promise | Measured clean, but no live-query AOT guarantee is made |
-| `AgentPrism.Sqlite` | No | net8/9/10 | No | `SQLitePCLRaw` carries a native library |
-| `AgentPrism.Anthropic` | No | net8/9/10 | Yes | Claude provider |
-| `AgentPrism.Google` | No | net8/9/10 | Yes | Gemini provider |
-| `AgentPrism.Azure` | No | net8/9/10 | Yes | Azure OpenAI provider; managed identity stays consumer-selected |
-| `AgentPrism.Voice` | No | net8/9/10 | Yes | ElevenLabs speech tools and reusable speech contracts |
-| `AgentPrism.Testing` | No | net10 | No promise | Assertions use reflection and the test host uses runtime JSON serialization |
-| `AgentPrism.Testing.Contracts.Xunit` | No | net8/9/10 | No promise | Behavior contract suite for five extension families — storage (`IRunStore` and 32 other store interfaces), model providers, run judges, agent sources, and custom tools — as xunit.v3 fixtures; uses reflection for a build-time coverage check |
-| `AgentPrism.Templates` | No | net10 output | N/A | `dotnet new agentprism-api` content package |
-| `AgentPrism.Client` | No | net8/9/10 | No | Typed management client generated from the OpenAPI document; every request/response call is hand-wired to a generic `JsonSerializer` overload the trim/AOT analyzer cannot prove type coverage for |
-| `AgentPrism.Cli` | No | net10 (`DotnetTool`) | No | The `agentprism` global tool; wraps `AgentPrism.Client` and ships as IL, not native code |
+| `Tracon` | — | net8/9/10 dependency groups | No | Meta package; it carries no assembly and includes packages that do not promise AOT |
+| `Tracon.Abstractions` | Yes | net8/9/10 | Yes | Contracts and data types only |
+| `Tracon.Core` | Yes | net8/9/10 | Yes | Catalog, compiler, decorators, in-memory stores, jobs, evaluation, and governance services |
+| `Tracon.PostgreSql` | Yes | net8/9/10 | Yes | Durable stores and the only built-in vector-search store |
+| `Tracon.OpenAI` | Yes | net8/9/10 | Yes | OpenAI Chat Completions, Responses, and named compatible endpoints |
+| `Tracon.AspNetCore` | Yes | net8/9/10 | No | Minimal API delegate routing uses reflection |
+| `Tracon.Workflows` | Yes | net8/9/10 | No | The MAF workflow engine uses reflection |
+| `Tracon.Mcp` | Yes | net8/9/10 | No | Runtime MCP schemas and the MCP SDK use reflection for JSON handling |
+| `Tracon.UI` | Yes | net8/9/10 | No | Embedded asset discovery plus its ASP.NET Core dependency |
+| `Tracon.SqlServer` | No | net8/9/10 | No promise | Measured clean, but no live-query AOT guarantee is made |
+| `Tracon.Sqlite` | No | net8/9/10 | No | `SQLitePCLRaw` carries a native library |
+| `Tracon.Anthropic` | No | net8/9/10 | Yes | Claude provider |
+| `Tracon.Google` | No | net8/9/10 | Yes | Gemini provider |
+| `Tracon.Azure` | No | net8/9/10 | Yes | Azure OpenAI provider; managed identity stays consumer-selected |
+| `Tracon.Voice` | No | net8/9/10 | Yes | ElevenLabs speech tools and reusable speech contracts |
+| `Tracon.Testing` | No | net10 | No promise | Assertions use reflection and the test host uses runtime JSON serialization |
+| `Tracon.Testing.Contracts.Xunit` | No | net8/9/10 | No promise | Behavior contract suite for five extension families — storage (`IRunStore` and 32 other store interfaces), model providers, run judges, agent sources, and custom tools — as xunit.v3 fixtures; uses reflection for a build-time coverage check |
+| `Tracon.Templates` | No | net10 output | N/A | `dotnet new tracon-api` content package |
+| `Tracon.Client` | No | net8/9/10 | No | Typed management client generated from the OpenAPI document; every request/response call is hand-wired to a generic `JsonSerializer` overload the trim/AOT analyzer cannot prove type coverage for |
+| `Tracon.Cli` | No | net10 (`DotnetTool`) | No | The `tracon` global tool; wraps `Tracon.Client` and ships as IL, not native code |
 
-`AgentPrism.Core` remains AOT-compatible because reflection-based convenience calls
+`Tracon.Core` remains AOT-compatible because reflection-based convenience calls
 carry `[RequiresUnreferencedCode]` and `[RequiresDynamicCode]`. For AOT, prefer
 `AddGeneratedTools()` or register an already-built `AIFunction`.
 
@@ -65,17 +65,17 @@ tests. The registration and provider-specific configuration still change.
 | Run, event, session, job, eval, workflow, audit, and governance stores | Process lifetime | Durable | Durable | Durable |
 | Conversation branching | No | Yes | Yes | Yes |
 | Vector knowledge search | No | Yes, with pgvector | No; knowledge answers `501` | No; knowledge answers `501` |
-| Object isolation | Process | Schema, default `agentprism` | Schema, default `agentprism` | Table prefix, default `agentprism_` |
+| Object isolation | Process | Schema, default `tracon` | Schema, default `tracon` | Table prefix, default `tracon_` |
 | Migration lock | None | PostgreSQL advisory lock | `sp_getapplock` | Sidecar file lock scoped to the database file and table prefix |
 | Auto-apply migrations | N/A | On by default | On by default | On by default |
 | Read contract view (`runs_v1`) | No | Yes, opt-in (`EnableReadViews`) | Yes, opt-in (`EnableReadViews`) | Yes, opt-in (`EnableReadViews`) |
 | ORM | None | None | None | None |
 | AOT promise | Yes through Core | Yes | No promise | No |
 
-SQLite has no schema. Do not use bare `Data Source=:memory:` with AgentPrism. The
+SQLite has no schema. Do not use bare `Data Source=:memory:` with Tracon. The
 library opens more than one connection, so each bare in-memory connection would see a
 different database. Use a shared URI such as
-`Data Source=file:agentprism?mode=memory&cache=shared` when a SQLite in-memory test is
+`Data Source=file:tracon?mode=memory&cache=shared` when a SQLite in-memory test is
 required.
 
 PostgreSQL knowledge search also needs an
@@ -87,9 +87,9 @@ not a live configuration change.
 
 | Payload | Owner | Compatible across a Microsoft Agent Framework version bump? |
 |---|---|---|
-| `SessionRecord` envelope (id, tenant, timestamps, `Version`, `StateSchemaVersion`, `StateMafVersion`) | AgentPrism | Yes — a minor AgentPrism version only adds envelope fields |
+| `SessionRecord` envelope (id, tenant, timestamps, `Version`, `StateSchemaVersion`, `StateMafVersion`) | Tracon | Yes — a minor Tracon version only adds envelope fields |
 | `SessionRecord.State` | Microsoft Agent Framework | No promise |
-| `WorkflowCheckpointRecord` envelope | AgentPrism | Yes |
+| `WorkflowCheckpointRecord` envelope | Tracon | Yes |
 | `WorkflowCheckpointRecord.State` | Microsoft Agent Framework | No promise |
 
 See [Versions and upgrades](/reference/versioning/#persisted-session-and-checkpoint-state)
@@ -102,12 +102,12 @@ calculation; it never rejects an unlisted model or deployment.
 
 | Provider package | Stable name | Default endpoint | Authentication | Compatibility notes |
 |---|---|---|---|---|
-| `AgentPrism.OpenAI` | `openai` | OpenAI | API key | Chat Completions surface |
-| `AgentPrism.OpenAI` | `openai-responses` | OpenAI | API key | Responses surface; registered with the official provider |
-| `AgentPrism.OpenAI` compatible registration | Caller-chosen name | Required or explicitly set by the caller | Optional for a local server | A second `{name}-responses` surface is opt-in because many compatible servers do not implement Responses |
-| `AgentPrism.Anthropic` | `anthropic` | Anthropic | API key | `max_tokens` is mandatory upstream; AgentPrism defaults the output limit to 4,096 |
-| `AgentPrism.Google` | `google` | Gemini Developer API | API key | Supports Google-specific safety and thinking settings in `ModelBinding.ProviderSettings` |
-| `AgentPrism.Azure` | `azure-openai` | No global default; resource endpoint is required | API key or consumer `TokenCredential` factory | `ModelBinding.Model` contains an Azure deployment name, not the underlying model name |
+| `Tracon.OpenAI` | `openai` | OpenAI | API key | Chat Completions surface |
+| `Tracon.OpenAI` | `openai-responses` | OpenAI | API key | Responses surface; registered with the official provider |
+| `Tracon.OpenAI` compatible registration | Caller-chosen name | Required or explicitly set by the caller | Optional for a local server | A second `{name}-responses` surface is opt-in because many compatible servers do not implement Responses |
+| `Tracon.Anthropic` | `anthropic` | Anthropic | API key | `max_tokens` is mandatory upstream; Tracon defaults the output limit to 4,096 |
+| `Tracon.Google` | `google` | Gemini Developer API | API key | Supports Google-specific safety and thinking settings in `ModelBinding.ProviderSettings` |
+| `Tracon.Azure` | `azure-openai` | No global default; resource endpoint is required | API key or consumer `TokenCredential` factory | `ModelBinding.Model` contains an Azure deployment name, not the underlying model name |
 
 The OpenAI-compatible path covers services such as OpenRouter and Groq and local
 servers such as Ollama, LM Studio, and vLLM. Compatibility means the selected server
@@ -136,8 +136,8 @@ form. This matrix shows where a change can originate.
 | Agent exposure as MCP or A2A | No | No | Explicit allowlist in `UseMcpServer()` or `UseA2A()` | External exposure is a deployment decision |
 | Quota, API key, webhook, and retention policy | Settings panels | Manage | Supply defaults and secrets | Stored secrets are always references to configuration keys |
 | Tenant | Show current tenant | Register and manage | Select resolver with `UseTenancy()` | There is no tenant-management screen |
-| Authorization policy and role binding | Reflect effective access | No | ASP.NET Core configuration | AgentPrism stores no users or role assignments |
-| Diagnostics endpoint | Use when present | Read when present | Enable in `MapAgentPrism()` options | Off by default |
+| Authorization policy and role binding | Reflect effective access | No | ASP.NET Core configuration | Tracon stores no users or role assignments |
+| Diagnostics endpoint | Use when present | Read when present | Enable in `MapTracon()` options | Off by default |
 | Theme and language | Change locally | N/A | N/A | Browser preference; server messages stay English |
 
 ## HTTP surface compatibility
@@ -147,22 +147,22 @@ operations grouped under 23 domain tags.
 
 Being in the reference and being live in your process are different questions.
 The document is generated from one build profile; whether a route answers depends
-on how you called `MapAgentPrism()`:
+on how you called `MapTracon()`:
 
 | Route | In the reference | Live in your process |
 |---|---|---|
 | `GET /api/diagnostics` | Yes | Only when `EnableDiagnosticsEndpoint` is true |
 | Voice conversation | No — a WebSocket, not an operation | Only after `UseVoiceConversation()` |
-| MCP server routes | No | Only after `MapAgentPrismMcpServer()` |
-| A2A routes | No | Only after `MapAgentPrismA2A()` |
+| MCP server routes | No | Only after `MapTraconMcpServer()` |
+| A2A routes | No | Only after `MapTraconA2A()` |
 | Health checks | No — they join your own health-check system | Wherever you put `MapHealthChecks()` |
 | UI assets and SPA fallback | No — not API operations | Only after `UseUI()` |
 
 So a route present in the reference is not automatically enabled for you, and a
 route absent from it is not automatically unavailable.
 
-The documented paths are relative to the prefix passed to `MapAgentPrism()`. With
-the usual prefix, `GET /api/agents` means `GET /agentprism/api/agents`.
+The documented paths are relative to the prefix passed to `MapTracon()`. With
+the usual prefix, `GET /api/agents` means `GET /tracon/api/agents`.
 
 ## API-key scopes
 

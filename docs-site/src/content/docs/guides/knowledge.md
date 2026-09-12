@@ -3,7 +3,7 @@ title: Knowledge and RAG
 description: Ingest, chunk, embed, search, and bind tenant-scoped knowledge so agents can retrieve evidence through a controlled tool.
 ---
 
-AgentPrism knowledge is retrieval, not hidden prompt injection. Operators ingest
+Tracon knowledge is retrieval, not hidden prompt injection. Operators ingest
 documents into a named collection. An agent gets a code-defined
 `search_knowledge` tool for one collection and asks for relevant chunks when needed.
 
@@ -37,20 +37,20 @@ The sample below uses the OpenAI embedding adapter already used by the repositor
 sample host:
 
 ```csharp title="Program.cs"
-using AgentPrism;
+using Tracon;
 using Microsoft.Extensions.AI;
 using OpenAI;
 
-var openAiKey = builder.Configuration["AgentPrism:Providers:OpenAI:ApiKey"]
+var openAiKey = builder.Configuration["Tracon:Providers:OpenAI:ApiKey"]
     ?? throw new InvalidOperationException("The OpenAI API key is missing.");
 
-var agentPrism = builder.AddAgentPrism()
+var tracon = builder.AddTracon()
     .UsePostgreSql(builder.Configuration.GetSection(
-        AgentPrismPostgreSqlOptions.SectionName))
+        TraconPostgreSqlOptions.SectionName))
     .UseOpenAI(builder.Configuration.GetSection(
         OpenAIProviderOptions.SectionName));
 
-builder.Services.Configure<AgentPrismKnowledgeOptions>(options =>
+builder.Services.Configure<TraconKnowledgeOptions>(options =>
 {
     options.Dimensions = 1_536;
     options.ChunkSize = 1_000;
@@ -64,14 +64,14 @@ builder.Services.AddSingleton<IEmbeddingGenerator<string, Embedding<float>>>(
         .AsIEmbeddingGenerator());
 ```
 
-A third setting is required: `AgentPrismPostgreSqlOptions.EnableKnowledge` is `false`
+A third setting is required: `TraconPostgreSqlOptions.EnableKnowledge` is `false`
 by default (a managed PostgreSQL instance without permission to install extensions
 should never see `pgvector` unless it asked for it). Turn it on wherever
 `PostgreSql` is configured:
 
 ```json title="appsettings.json"
 {
-  "AgentPrism": {
+  "Tracon": {
     "PostgreSql": {
       "EnableKnowledge": true
     }
@@ -89,7 +89,7 @@ set first runs**.
 
 :::caution[Dimensions are schema, not a live tuning knob]
 PostgreSQL creates `document_embeddings.embedding` as `vector({dimension})`. Changing
-`AgentPrismKnowledgeOptions.Dimensions` after the knowledge set has applied does not
+`TraconKnowledgeOptions.Dimensions` after the knowledge set has applied does not
 alter the existing column. Plan a new database migration and re-embed every document.
 :::
 
@@ -102,7 +102,7 @@ while the option stays off, none of this runs and no permission is needed.
 ## Give an agent access to one collection
 
 ```csharp
-agentPrism.AddAgent(new AgentDefinition
+tracon.AddAgent(new AgentDefinition
 {
     Name = "support",
     Instructions =
@@ -122,7 +122,7 @@ agentPrism.AddAgent(new AgentDefinition
 
 The compiler adds `search_knowledge` automatically. Do not add it to `ToolNames`.
 When `VectorCollection` is empty, the agent name is used. The tool returns at most
-`AgentPrismKnowledgeOptions.MaxResults` chunks.
+`TraconKnowledgeOptions.MaxResults` chunks.
 
 The console does not currently provide a knowledge-management screen or vector-memory
 fields in the agent editor. Use the knowledge HTTP API for ingestion and calibration,
@@ -139,8 +139,8 @@ is split and embedded on the server:
 
 ```bash
 curl -sS -X POST \
-  http://localhost:5081/agentprism/api/knowledge/support-policies/documents \
-  -H "Authorization: Bearer $AGENTPRISM_TOKEN" \
+  http://localhost:5081/tracon/api/knowledge/support-policies/documents \
+  -H "Authorization: Bearer $TRACON_TOKEN" \
   -H 'Content-Type: application/json' \
   -d '{
     "sourceId": "refund-policy-v3",
@@ -167,7 +167,7 @@ For a pre-chunked pipeline, send `chunks`:
 ```
 
 When a chunk has no `embedding`, the server embeds its `content`. When an embedding
-is supplied, AgentPrism writes it as-is after checking its length against the store
+is supplied, Tracon writes it as-is after checking its length against the store
 dimension.
 
 ## Calibrate retrieval before blaming the prompt
@@ -177,8 +177,8 @@ the agent tool:
 
 ```bash
 curl -sS -X POST \
-  http://localhost:5081/agentprism/api/knowledge/support-policies/search \
-  -H "Authorization: Bearer $AGENTPRISM_TOKEN" \
+  http://localhost:5081/tracon/api/knowledge/support-policies/search \
+  -H "Authorization: Bearer $TRACON_TOKEN" \
   -H 'Content-Type: application/json' \
   -d '{"query":"Can an unused order be returned after two weeks?","top":3}'
 ```
@@ -195,12 +195,12 @@ latency and cost of that provider call.
 
 ```bash
 # Source ids only. An unknown collection returns an empty array.
-curl -H "Authorization: Bearer $AGENTPRISM_TOKEN" \
-  http://localhost:5081/agentprism/api/knowledge/support-policies/documents
+curl -H "Authorization: Bearer $TRACON_TOKEN" \
+  http://localhost:5081/tracon/api/knowledge/support-policies/documents
 
 # Deletes all chunks of the source. Repeating it still returns 204.
-curl -X DELETE -H "Authorization: Bearer $AGENTPRISM_TOKEN" \
-  http://localhost:5081/agentprism/api/knowledge/support-policies/documents/refund-policy-v3
+curl -X DELETE -H "Authorization: Bearer $TRACON_TOKEN" \
+  http://localhost:5081/tracon/api/knowledge/support-policies/documents/refund-policy-v3
 ```
 
 Deletion is immediate. Restoring a source requires another upload and another round
@@ -239,7 +239,7 @@ with `EnableVectorSearch = true` fails compilation instead of receiving an empty
 - Use stable, URL-safe source ids. Re-upload is replacement, not an appended version.
 - Separate collections when access or retrieval domains differ. Tenant scoping is
   automatic, but collection design is yours.
-- Keep raw source documents outside AgentPrism if you need document version history.
+- Keep raw source documents outside Tracon if you need document version history.
   The knowledge table stores chunks and embeddings, not an immutable source archive.
 
 ## Troubleshooting
@@ -272,12 +272,12 @@ fresh embeddings. Avoid unstable source ids that cause unnecessary full replacem
 ## In the reference
 
 - [Knowledge HTTP API](/http-api/knowledge/)
-- [`AgentPrismKnowledgeOptions` API](/api/agentprism.agentprismknowledgeoptions/)
-- [`MemorySettings` API](/api/agentprism.memorysettings/)
-- [`IVectorSearchStore` API](/api/agentprism.ivectorsearchstore/)
-- [`UploadDocumentRequest` API](/api/agentprism.uploaddocumentrequest/)
-- [`SearchKnowledgeRequest` API](/api/agentprism.searchknowledgerequest/)
-- [`UsePostgreSql` API](/api/agentprism.agentprismpostgresqlbuilderextensions/)
+- [`TraconKnowledgeOptions` API](/api/tracon.traconknowledgeoptions/)
+- [`MemorySettings` API](/api/tracon.memorysettings/)
+- [`IVectorSearchStore` API](/api/tracon.ivectorsearchstore/)
+- [`UploadDocumentRequest` API](/api/tracon.uploaddocumentrequest/)
+- [`SearchKnowledgeRequest` API](/api/tracon.searchknowledgerequest/)
+- [`UsePostgreSql` API](/api/tracon.traconpostgresqlbuilderextensions/)
 
 ## Read next
 

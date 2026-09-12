@@ -2,8 +2,8 @@
 
 > **Durum:** ✅ Tamamlandı (2026-08-02)
 > **Önkoşul:** [03-SAGLAYICI-VE-DERLEYICI.md](03-SAGLAYICI-VE-DERLEYICI.md) — tamamlandı
-> **Sonraki:** [05-AGENTPRISM-UI.md](05-AGENTPRISM-UI.md)
-> **Paket:** `AgentPrism.AspNetCore`
+> **Sonraki:** [05-TRACON-UI.md](05-TRACON-UI.md)
+> **Paket:** `Tracon.AspNetCore`
 
 ---
 
@@ -27,7 +27,7 @@
 Bu imzalar **tamamlandı ve testli**. Faz 4 bunları değiştirmez, kullanır.
 
 ```csharp
-// AgentPrism.Core — katalog ve calistirma
+// Tracon.Core — katalog ve calistirma
 IAgentCatalog        : ListAsync(ct) · ResolveAsync(name, ct)
 AgentDefinitionCompiler.Compile(AgentDefinition) → AIAgent
 AgentSessionManager  : GetOrCreateSessionAsync · SaveSessionAsync · DeleteSessionAsync · QuerySessionsAsync
@@ -35,25 +35,25 @@ IRunStore            : QueryRunsAsync(RunQuery) · ReadEventsAsync(runId, ...)
 IToolRegistry        : List() → IReadOnlyList<ToolDescriptor> · TryGet(name, out AIFunction)
 IModelProviderRegistry : List() → IReadOnlyList<ModelProviderDescriptor> · CreateChatClient(ModelBinding)
 
-// AgentPrism.OpenAI — Faz 3
+// Tracon.OpenAI — Faz 3
 OpenAIProviderNames.ChatCompletions = "openai"
 OpenAIProviderNames.Responses       = "openai-responses"
 UseOpenAI(apiKey | IConfiguration | Action<OpenAIProviderOptions>)
 
-// AgentPrism.Abstractions — Faz 3
-[AgentPrismTool(name, description)] · IAgentPrismBuilder.AddToolsFrom<T>() / AddToolsFrom(Type)
+// Tracon.Abstractions — Faz 3
+[TraconTool(name, description)] · ITraconBuilder.AddToolsFrom<T>() / AddToolsFrom(Type)
 ```
 
 Davranış sözleşmeleri (mevcut testlerin zorladığı kurallar):
 
 | Kural | Nerede doğrulanıyor |
 |-------|--------------------|
-| Bilinmeyen tool adı `AgentPrismCompilationException` atar ve kayıtlı tool'ları listeler | `AgentDefinitionCompilerTests` |
+| Bilinmeyen tool adı `TraconCompilationException` atar ve kayıtlı tool'ları listeler | `AgentDefinitionCompilerTests` |
 | Bilinmeyen sağlayıcı adı derleme hatası verir ve kayıtlı sağlayıcıları listeler | `ModelProviderRegistryTests` |
 | `UseOpenAI()` iki sağlayıcı kaydeder; ikinci çağrı çoğaltmaz | `OpenAIProviderExtensionsTests` |
 | API anahtarı hiçbir serileştirme, günlük veya istisna çıktısında görünmez | `SecretLeakTests` |
 | `UsePostgreSql()` bellek içi depoların yerini `Replace` ile alır | `ServiceRegistrationTests` |
-| Kayıtlar `TryAdd*` ile yapılır; tüketicinin kaydı kazanır | `AgentPrismServiceCollectionExtensions` |
+| Kayıtlar `TryAdd*` ile yapılır; tüketicinin kaydı kazanır | `TraconServiceCollectionExtensions` |
 
 ---
 
@@ -69,7 +69,7 @@ Bu fazın dayandığı, **tamamlanmış ve testli** parçalar:
 | `AgentSessionIdentity` | `Core/Sessions/` | Oturum kimliği `AgentSession.StateBag` içinde. `AgentSessionStore.sessionStoreId` bu damgayla eşleşmelidir. |
 | Kiracı yalıtımı | `Postgres*Store` + `ITenantContext` | Depolar zaten `ITenantContext.TenantId` ile sınırlı. HTTP katmanı yalnız doğru `ITenantContext`'i kaydetmekle yükümlü. |
 | `/api/meta` için depo tipi bilgisi | — | Örnek API `/health` içinde `runStore.GetType().Name` döndürüyor; aynı desen `/api/meta` için kullanılabilir (karar K-018). |
-| Geçici HTTP uçları | `samples/AgentPrism.Api/Program.cs` | **Kaldırıldı.** `app.MapAgentPrism("/agentprism")` yerlerini aldı. |
+| Geçici HTTP uçları | `samples/Tracon.Api/Program.cs` | **Kaldırıldı.** `app.MapTracon("/tracon")` yerlerini aldı. |
 
 ---
 
@@ -91,30 +91,30 @@ System.InvalidOperationException: Only ConversationId or ChatHistoryProvider may
 
 **5. `MA0004` (ConfigureAwait) kütüphane kodunda hata seviyesindedir** ve `await using` ifadelerini de kapsar. Kalıp: `var x = ...; await using (x.ConfigureAwait(false)) { ... }`.
 
-**6. Ayar sınıfları `record` OLMAMALIDIR.** `record`'un ürettiği `ToString` tüm özellikleri yazar ve sırları günlüğe ifşa eder. `AgentPrismEndpointOptions.AuthToken` bir sırdır; `SecretLeakTests` desenini bu faza taşıyın.
+**6. Ayar sınıfları `record` OLMAMALIDIR.** `record`'un ürettiği `ToString` tüm özellikleri yazar ve sırları günlüğe ifşa eder. `TraconEndpointOptions.AuthToken` bir sırdır; `SecretLeakTests` desenini bu faza taşıyın.
 
-**7. Model kataloğu boş olabilir.** AgentPrism yerleşik model listesi taşımaz (K-032). `/api/models` boş liste dönebilir; bu bir hata değildir.
+**7. Model kataloğu boş olabilir.** Tracon yerleşik model listesi taşımaz (K-032). `/api/models` boş liste dönebilir; bu bir hata değildir.
 
 ---
 
 ## Amaç
 
-Arayüzün ve dış istemcilerin konuşacağı yüzeyi kurmak. Tek giriş noktası: `app.MapAgentPrism()`. ---
+Arayüzün ve dış istemcilerin konuşacağı yüzeyi kurmak. Tek giriş noktası: `app.MapTracon()`. ---
 
 ## Giriş Noktası
 
 ```csharp
-app.MapAgentPrism("/agentprism", options =>
+app.MapTracon("/tracon", options =>
 {
-    options.RequireAuthorization("AgentPrismAdmin");
+    options.RequireAuthorization("TraconAdmin");
 });
 ```
 
-Varsayılan prefix `/agentprism`. Herhangi bir prefix'e bağlanabilir; arayüz bunu çalışma anında öğrenir.
+Varsayılan prefix `/tracon`. Herhangi bir prefix'e bağlanabilir; arayüz bunu çalışma anında öğrenir.
 
-Ek kayıt adımı **yoktur**: `MapAgentPrism()` ihtiyaç duyduğu her şeyi `AddAgentPrism()`
+Ek kayıt adımı **yoktur**: `MapTracon()` ihtiyaç duyduğu her şeyi `AddTracon()`
 kayıtlarından çözer. Dönen `IEndpointConventionBuilder` yalnızca **korumalı grubu**
-temsil eder — böylece `MapAgentPrism(...).RequireAuthorization()` yazmak `/api/meta`
+temsil eder — böylece `MapTracon(...).RequireAuthorization()` yazmak `/api/meta`
 ucunu kazara kilitleyemez.
 
 ---
@@ -132,10 +132,10 @@ DELETE {prefix}/v1/conversations/{id}
 GET    {prefix}/v1/conversations/{id}/items
 ```
 
-Bu sayede mevcut OpenAI SDK'ları (Python, JavaScript, .NET) AgentPrism'e doğrudan bağlanır:
+Bu sayede mevcut OpenAI SDK'ları (Python, JavaScript, .NET) Tracon'e doğrudan bağlanır:
 
 ```python
-client = OpenAI(base_url="https://app.example.com/agentprism/v1", api_key="...")
+client = OpenAI(base_url="https://app.example.com/tracon/v1", api_key="...")
 response = client.responses.create(model="support", input="Merhaba")
 ```
 
@@ -150,7 +150,7 @@ kayıtlı agent'lar listelenir.
 sequenceDiagram
     autonumber
     participant SDK as OpenAI SDK
-    participant F as AgentPrismEndpointFilter
+    participant F as TraconEndpointFilter
     participant E as OpenAIResponsesEndpoints
     participant Cat as IAgentCatalog
     participant SS as AgentSessionStore
@@ -214,12 +214,12 @@ Minimal API + typed results. `ProblemDetails` ile tek tip hata sözleşmesi. `Mi
 
 ---
 
-## Güvenlik — `AgentPrismEndpointFilter`
+## Güvenlik — `TraconEndpointFilter`
 
 Üç katman, sırayla:
 
 ```csharp
-public sealed class AgentPrismEndpointOptions
+public sealed class TraconEndpointOptions
 {
     public bool AllowRemoteAccess { get; set; }          // varsayılan: false
     public string? AuthToken { get; set; }               // varsayılan: null
@@ -305,7 +305,7 @@ derleme bu tipleri **adlandıramaz**; kayıt sırası ne olursa olsun üzerine y
 
 **Alınan karar:** uçları kendimiz yazdık. Paketin *public* yardımcısı `OpenAIResponses`
 gövde çözümlemeyi ve OpenAI biçimli yanıt üretimini sağlar; agent çözümleme, kalıcılık,
-kiracı yalıtımı ve çalıştırma kaydı AgentPrism'e aittir. Kablo biçimi MAF'tan geldiği için
+kiracı yalıtımı ve çalıştırma kaydı Tracon'e aittir. Kablo biçimi MAF'tan geldiği için
 stok SDK uyumu korunur. Karar K-036.
 
 **Sonuç:** MAF'ın `MapOpenAIConversations()` ucu da aynı internal depoyu kullandığı için
@@ -324,14 +324,14 @@ Faz kapanışından sonra stok Python SDK'sı ile ölçüldü:
 | `responses.create(conversation="uydurma-id")` | ✅ çalışıyor |
 
 Çalışan tek yol istemcinin konuşma kimliğini **kendisi uydurmasıydı**; bu gerçek
-OpenAI'de yoktur, dolayısıyla AgentPrism'e göre yazılan kod gerçek OpenAI'ye
+OpenAI'de yoktur, dolayısıyla Tracon'e göre yazılan kod gerçek OpenAI'ye
 taşınamazdı. "Stok SDK doğrudan bağlanır" vaadi eksik kalıyordu.
 
 S1'deki engel burada **geçerli değildi**: o engel MAF'ın internal
 `IConversationStorage`'ını değiştirmekle ilgiliydi; kendi uçlarımızı kendi oturum
 soyutlamamız üzerine yazmak serbesttir. Uçlar eklendi. Karar K-043.
 
-### S2 — `AgentPrismUiOptions` → `AgentPrismEndpointOptions`
+### S2 — `TraconUiOptions` → `TraconEndpointOptions`
 
 Ayar nesnesi yalnız arayüzü değil, `/v1/responses` dahil tüm HTTP yüzeyini yönetiyor.
 "Ui" adı Faz 5'te de yanlış kalacaktı ve public API'de yeniden adlandırma kırıcıdır.
@@ -355,7 +355,7 @@ Ayrıca özet **depoda** hesaplanıyor: `IRunStore.GetStatisticsAsync` eklendi.
 `QueryRunsAsync` üzerinden bellekte toplamak yalnız sayfalanmış bir alt kümeyi
 kapsardı ve yanlış sonuç verirdi.
 
-### S5 — `ChatHistoryProvider` artık `AddAgentPrism()` içinde de kayıtlı
+### S5 — `ChatHistoryProvider` artık `AddTracon()` içinde de kayıtlı
 
 Plan `/api/sessions/{id}` için "mesaj geçmişi" diyordu. Geçmişi okumanın public yolu
 `ChatHistoryProvider.InvokingAsync` + `InvokingContext` kurucusudur (ikisi de public,
@@ -368,15 +368,15 @@ okunabilirdi. Açık kayıt iki modda da aynı okuma yolunu verir. Durum oturumu
 ### S6 — Faz 0'dan gelen `IsAotCompatible` hatası düzeltildi
 
 `src/Directory.Build.props` içindeki `IsAotCompatible` türetmesi csproj gövdesinden
-**önce** çalışıyordu; `AgentPrism.AspNetCore` csproj'unda yazan
-`<AgentPrismAotCompatible>false</AgentPrismAotCompatible>` hiçbir işe yaramıyordu.
+**önce** çalışıyordu; `Tracon.AspNetCore` csproj'unda yazan
+`<TraconAotCompatible>false</TraconAotCompatible>` hiçbir işe yaramıyordu.
 Sonuç: minimal API yönlendirmesi için onlarca `IL2026`/`IL3050` hatası.
 Türetme `Directory.Build.targets` içine taşındı (csproj okunduktan sonra çalışır).
 Karar K-006 bu gerekçeyle güncellendi.
 
 ### S7 — Test altyapısı `Mvc.Testing` yerine `TestHost`
 
-`WebApplicationFactory<T>` bir **giriş noktası derlemesi** ister; AgentPrism bir
+`WebApplicationFactory<T>` bir **giriş noktası derlemesi** ister; Tracon bir
 kütüphanedir. Testleri örnek uygulamaya bağlamak, kütüphane davranışını örneğin
 yapılandırmasına bağımlı kılardı. `Microsoft.AspNetCore.TestHost` ile her test kendi
 barındırıcısını kurar. `Microsoft.AspNetCore.Mvc.Testing` paket sürümü kaldırıldı.
@@ -392,8 +392,8 @@ dokunulmaz. Güvenli: hiçbir enum JSON olarak kalıcı değildir — `RunStatus
 
 Uçlar paylaşılan çerçeveden gelen üstveriyi (`WithName`, `WithTags`, `WithSummary`,
 `WithDescription`) taşır; tüketici `AddOpenApi()` çağırdığında belge kendiliğinden
-oluşur. `AgentPrism.AspNetCore` nuspec'i **3 doğrudan bağımlılık** taşıyor
-(`AgentPrism.Core`, `Hosting`, `Hosting.OpenAI`). Karar K-039.
+oluşur. `Tracon.AspNetCore` nuspec'i **3 doğrudan bağımlılık** taşıyor
+(`Tracon.Core`, `Hosting`, `Hosting.OpenAI`). Karar K-039.
 
 ---
 
@@ -401,7 +401,7 @@ oluşur. `AgentPrism.AspNetCore` nuspec'i **3 doğrudan bağımlılık** taşıy
 
 | Ölçüt | Durum | Kanıt |
 |-------|-------|-------|
-| `MapAgentPrism()` her iki uç grubunu bağlar | ✅ | OpenAPI belgesinde 16 AgentPrism yolu |
+| `MapTracon()` her iki uç grubunu bağlar | ✅ | OpenAPI belgesinde 16 Tracon yolu |
 | Üç güvenlik katmanı ayrı ayrı test edilir | ✅ | `SecurityTests` — 16 test |
 | OpenAI Python SDK ile `/v1/responses` çağrısı çalışır | ✅ | Gerçek `openai` 2.52.0 ile ölçüldü, aşağıda |
 | `StorageOverrideTests` PostgreSQL store'larının kazandığını doğrular | ⚠️ | Kapsam değişti — bkz. sapma S1. `UsePostgreSql()` üzerine yazma `ServiceRegistrationTests` (Faz 2) ile korunuyor; `/api/meta` aktif depo tipini bildiriyor ve `MetaEndpointTests` bunu doğruluyor |
@@ -413,7 +413,7 @@ oluşur. `AgentPrism.AspNetCore` nuspec'i **3 doğrudan bağımlılık** taşıy
 ### Gerçek çıktı — stok Python OpenAI SDK'sı
 
 ```python
-client = OpenAI(base_url="http://localhost:5080/agentprism/v1", api_key="yok-onemli-degil")
+client = OpenAI(base_url="http://localhost:5080/tracon/v1", api_key="yok-onemli-degil")
 ```
 
 ```
@@ -463,13 +463,13 @@ output[2] type=message role=assistant
 > fazlar (17, 43, 53) `storage.jobStore`/`jobWorkerEnabled` ve üst düzey
 > `roles` alanlarını ekledi — aşağıdaki gövde **güncel** şekli yansıtır
 > (2026-08-10, `07-HTTP-YONETIM-API.md` üretilirken `MetaEndpoints.cs` ve
-> `AgentPrismMetaResponse.cs`'ten ölçüldü). Faz dokümanlarındaki "gerçek
+> `TraconMetaResponse.cs`'ten ölçüldü). Faz dokümanlarındaki "gerçek
 > çıktı" örnekleri o fazın kapanış anına aittir; sonraki fazlarda sessizce
 > eskiyebilirler.
 
 ```bash
-$ curl -s localhost:5080/agentprism/api/meta
-{"version":"0.0.0-preview.0.60","prefix":"/agentprism",
+$ curl -s localhost:5080/tracon/api/meta
+{"version":"0.0.0-preview.0.60","prefix":"/tracon",
  "authentication":{"allowRemoteAccess":false,"requiresBearerToken":false,
                    "requiresAuthorizationPolicy":false},
  "storage":{"persistent":false,"agentDefinitionStore":"InMemoryAgentDefinitionStore",
@@ -477,7 +477,7 @@ $ curl -s localhost:5080/agentprism/api/meta
             "jobStore":"InMemoryJobStore","jobWorkerEnabled":true},
  "roles":{"canRead":true,"canOperate":true,"canAdminister":true}}
 
-$ curl -s localhost:5080/agentprism/api/stats
+$ curl -s localhost:5080/tracon/api/stats
 {"totalRuns":8,"completedRuns":8,"failedRuns":0,"canceledRuns":0,"runningRuns":0,
  "inputTokens":2754,"outputTokens":188,"totalTokens":2942,
  "byAgent":[{"agentName":"support","totalRuns":8,"failedRuns":0,"totalTokens":2942}],
@@ -487,7 +487,7 @@ $ curl -s localhost:5080/agentprism/api/stats
 ### Gerçek çıktı — SSE ve `Last-Event-ID`
 
 ```bash
-$ curl -sN localhost:5080/agentprism/api/runs/{id}/events
+$ curl -sN localhost:5080/tracon/api/runs/{id}/events
 id: 0
 event: run.started
 data: {"runId":"019fc02e-...","sequence":0,"type":"RunStarted","timestamp":"...", ...}
@@ -496,7 +496,7 @@ id: 1
 event: message.delta
 data: {"runId":"019fc02e-...","sequence":1,"type":"MessageDelta","text":"1", ...}
 
-$ curl -sN -H 'Last-Event-ID: 2' localhost:5080/agentprism/api/runs/{id}/events
+$ curl -sN -H 'Last-Event-ID: 2' localhost:5080/tracon/api/runs/{id}/events
 id: 3      # 0-2 tekrar gonderilmedi
 event: message.delta
 ```
@@ -528,15 +528,15 @@ PostgreSQL `LISTEN`/`NOTIFY` ile gecikmeyi düşürmek Faz 6'nın işidir.
 "Faz 6" olarak işaretlemelidir.
 
 **5. Model kataloğu boş olabilir.** `/api/models` boş liste dönebilir; arayüz kullanıcıyı
-`AgentPrism:Providers:OpenAI:Models` ayarına yönlendirmelidir.
+`Tracon:Providers:OpenAI:Models` ayarına yönlendirmelidir.
 
 **6. `IsEditable` alanına güvenin.** Kodda tanımlı agent'lar için yazma uçları `409`
 döner. Arayüz düzenleme düğmesini bu alana göre kapatmalıdır.
 
 **7. Arayüz `/api/meta` ile başlamalıdır.** Prefix, sürüm ve kimlik yöntemi oradan gelir;
-bu uç kimlik doğrulaması gerektirmez. `MapAgentPrism`'in döndürdüğü convention builder
+bu uç kimlik doğrulaması gerektirmez. `MapTracon`'in döndürdüğü convention builder
 korumalı grubu temsil eder, dolayısıyla tüketici `RequireAuthorization()` eklese bile
 meta ucu açık kalır.
 
-**8. `AgentPrism.UI` hâlâ iskelettir.** `AgentPrismAotCompatible=false` yazan csproj'lar
+**8. `Tracon.UI` hâlâ iskelettir.** `TraconAotCompatible=false` yazan csproj'lar
 artık gerçekten AOT analyzer'sız derleniyor (S6); Faz 5 bu düzeltmeden yararlanır.

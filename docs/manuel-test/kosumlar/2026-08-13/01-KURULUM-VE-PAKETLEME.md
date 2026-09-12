@@ -40,7 +40,7 @@
 | MT-PKG-027 | ☑ | Sürüm git etiketinden gelir |
 | MT-PKG-030 | ☑ | Meta paket yalnız altı bileşen getirir |
 | MT-PKG-031 | ☑ | Geçişli sabitleme kapalı: grafik kirlenmiyor |
-| MT-PKG-032 | ☑ | Önsürüm MAF paketleri yalnız `AgentPrism.AspNetCore`'da |
+| MT-PKG-032 | ☑ | Önsürüm MAF paketleri yalnız `Tracon.AspNetCore`'da |
 | MT-PKG-040 | ☑ | Üreteç işaretli statik metodu kaydeder |
 | MT-PKG-041 | ☑ | Üretilen kod `dotnet format` kapısını geçer |
 | MT-PKG-042 | ☑ | `APG0001`: aynı tool adı iki metotta |
@@ -68,9 +68,9 @@
 ```
 1) dotnet build  -> 40,5 sn · Build succeeded · 0 Warning(s) · 0 Error(s)
 2) dotnet test   -> 1m 37s (97,7 sn) · toplam koşum başarısız
-   - AgentPrism.SqlServer.IntegrationTests      : 480/480 geçti
-   - AgentPrism.AspNetCore.FunctionalTests      : 447/447 geçti
-   - AgentPrism.Ui.E2ETests                     : 41/42 geçti, 1 KALDI
+   - Tracon.SqlServer.IntegrationTests      : 480/480 geçti
+   - Tracon.AspNetCore.FunctionalTests      : 447/447 geçti
+   - Tracon.Ui.E2ETests                     : 41/42 geçti, 1 KALDI
      -> Playground_konusma_modu_mikrofonu_acar_ve_transkript_gosterir
         Timeout 30000ms: GetByTestId("voice-transcript") görünür olmadı.
    - (diğer tüm test projeleri geçti)
@@ -83,8 +83,8 @@
 - Aynı test **izole çalıştırıldığında da 3/3 denemede tutarlı şekilde
   başarısız oldu** — rastgele/yük kaynaklı bir kırılganlık (flaky) değil,
   bu makinede **deterministik** bir arıza.
-- Son üç commit (`9182202`, `458c485`, `419981b`) `src/AgentPrism.UI` veya
-  `src/AgentPrism.Voice` dosyalarına dokunmuyor — bu bir gerileme (regresyon)
+- Son üç commit (`9182202`, `458c485`, `419981b`) `src/Tracon.UI` veya
+  `src/Tracon.Voice` dosyalarına dokunmuyor — bu bir gerileme (regresyon)
   gibi görünmüyor, bu ortama özgü bir sorun olabilir.
 - `docs/hafiza/test-altyapisi.md` sahte ses cihazının (Chromium
   `--use-fake-device-for-media-stream`) sürekli ton ürettiğini ve elle kapatma
@@ -110,9 +110,9 @@ Dört kapı bu koşumda baştan çalıştırıldı:
 ```
 1) dotnet build  -> 58,4 sn · Build succeeded · 0 Warning(s) · 0 Error(s)
 2) dotnet test   -> 1m 54s (114 sn) · toplam koşum başarılı
-   - AgentPrism.SqlServer.IntegrationTests      : 490/490 geçti
-   - AgentPrism.AspNetCore.FunctionalTests      : 479/479 geçti
-   - AgentPrism.Ui.E2ETests                     : 49/49 geçti (önceki
+   - Tracon.SqlServer.IntegrationTests      : 490/490 geçti
+   - Tracon.AspNetCore.FunctionalTests      : 479/479 geçti
+   - Tracon.Ui.E2ETests                     : 49/49 geçti (önceki
      koşumda kaldı işaretli ses testi dahil — artık geçiyor)
    - (diğer tüm test projeleri geçti) — toplam failed: 0
 3) dotnet pack (--no-build) -> ~4 sn · exit 0 · 238 .nupkg üretildi
@@ -160,21 +160,21 @@ güvenli (build kendisi yakalıyor), yalnız case'in kurgusu geçersiz.
 
 **Gerçek sonuç**
 ```
-1. adım find: src/AgentPrism.UI/wwwroot/index 2.html   (BEKLENEN: boş)
-dotnet build src/AgentPrism.Abstractions -c Release -> cikis kodu: 1
-CS0101: The namespace 'AgentPrism' already contains a definition for
-        'AgentPrismToolAttribute' (üç TFM için tekrarlanır)
+1. adım find: src/Tracon.UI/wwwroot/index 2.html   (BEKLENEN: boş)
+dotnet build src/Tracon.Abstractions -c Release -> cikis kodu: 1
+CS0101: The namespace 'Tracon' already contains a definition for
+        'TraconToolAttribute' (üç TFM için tekrarlanır)
 4. adım find (kopya silindikten sonra): boş
-dotnet build src/AgentPrism.Abstractions -c Release -> Build succeeded, 0/0
+dotnet build src/Tracon.Abstractions -c Release -> Build succeeded, 0/0
 ```
 
 🚨 **Bulgu (zararsız).** 1. adımdaki `find`, doküman'ın "boş olmalı" beklentisinin
-aksine `src/AgentPrism.UI/wwwroot/index 2.html` döndürdü — tam olarak
+aksine `src/Tracon.UI/wwwroot/index 2.html` döndürdü — tam olarak
 projenin `MEMORY.md`'de belgelediği bulut senkronizasyon kopyası deseni.
 Zararsız çıktı: `.gitignore:57` bu tam adı zaten hariç tutuyor, dosya git'e
 hiç girmemiş, ve arayüz derlenen bir `.cs` değil statik bir varlık olduğu
 için `CS0101` riski yok. Dosya bu koşumda silindi (`find` artık boş).
-`AgentPrismToolAttribute.cs` kopyası ile asıl senaryo beklendiği gibi çalıştı:
+`TraconToolAttribute.cs` kopyası ile asıl senaryo beklendiği gibi çalıştı:
 derleme `CS0101` ile kırıldı, kopya silinince temiz geçti.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
@@ -193,7 +193,7 @@ cozum-nobuild    1
 DLL boyutu (tek-nobuild): 53248 bayt (≈ 52 KB, "~53 KB" beklentisine yakın)
 ```
 Dört satırın dördü de `1` — üreteç DLL'i her dört senaryoda da
-`analyzers/dotnet/cs/AgentPrism.Generators.dll` yolunda pakete girmiş.
+`analyzers/dotnet/cs/Tracon.Generators.dll` yolunda pakete girmiş.
 Doküman'ın atıfta bulunduğu önceki üretim ölçümünde `tek-nobuild` için `0`
 bekleniyordu (K-348'in tetiklediği şüphe); bugünkü koşumda bu **doğrulanmadı**
 — dördü de geçiyor, kapsam kesinleşmiş durumda ve yayın engeli yok.
@@ -210,9 +210,9 @@ bekleniyordu (K-348'in tetiklediği şüphe); bugünkü koşumda bu **doğrulanm
 <requireLicenseAcceptance>false</requireLicenseAcceptance>   -> YOK (element hiç yazılmamış)
 <readme>README.md</readme>                                   -> var
 <authors>Faruk Atasoy</authors>                               -> var
-<projectUrl>https://github.com/farukatasoy/AgentPrism</projectUrl> -> var
-<repository type="git" url="...AgentPrism" branch="..." commit="9182202..."/> -> var, commit boş değil
-<tags>agentprism ai agents microsoft-agent-framework llm dotnet runtime catalog harness</tags> -> beklenen alt dizgiyi içeriyor
+<projectUrl>https://github.com/farukatasoy/Tracon</projectUrl> -> var
+<repository type="git" url="...Tracon" branch="..." commit="9182202..."/> -> var, commit boş değil
+<tags>tracon ai agents microsoft-agent-framework llm dotnet runtime catalog harness</tags> -> beklenen alt dizgiyi içeriyor
 TODO/placeholder/boş dize -> yok
 ```
 
@@ -239,7 +239,7 @@ AYNI
 ```
 İki bağımsız paketleme aynı SHA-256 özetini üretti — build deterministik.
 
-🚨 Yan not: bu case sırasında `git status` `src/AgentPrism.Voice/README 2.md`
+🚨 Yan not: bu case sırasında `git status` `src/Tracon.Voice/README 2.md`
 adlı izlenmeyen bir dosya gösterdi — MT-PKG-016'da README.md hızlıca taşınıp
 geri konurken bulut senkronizasyonunun (muhtemelen iCloud Drive) ürettiği bir
 çakışma kopyası. İçerik orijinaliyle birebir aynıydı (`diff` sıfır fark);
@@ -267,13 +267,13 @@ bağımlılık olarak görünmüyor.
 
 **Gerçek sonuç**
 ```
-AgentPrism.Anthropic  : Anthropic 12.39.0
-AgentPrism.Google     : Google.GenAI 1.16.0
-AgentPrism.OpenAI     : OpenAI 2.12.0
-AgentPrism.PostgreSql : Npgsql 10.0.3
-AgentPrism.SqlServer  : Microsoft.Data.SqlClient 7.0.2
+Tracon.Anthropic  : Anthropic 12.39.0
+Tracon.Google     : Google.GenAI 1.16.0
+Tracon.OpenAI     : OpenAI 2.12.0
+Tracon.PostgreSql : Npgsql 10.0.3
+Tracon.SqlServer  : Microsoft.Data.SqlClient 7.0.2
 ```
-Her sağlayıcı yalnız kendi paketinde görünüyor; meta pakette (`AgentPrism`)
+Her sağlayıcı yalnız kendi paketinde görünüyor; meta pakette (`Tracon`)
 hiçbiri yok.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
@@ -287,12 +287,12 @@ repo'nun `ProjectReference` zinciri sonucu bulandırmaz.
 
 > **Bölüm ön koşulu (bir kez uygulanır):**
 > ```bash
-> cd /Users/farukatasoy/Desktop/projects/AgentPrism
+> cd /Users/farukatasoy/Desktop/projects/Tracon
 > rm -rf /tmp/ap-pack && mkdir -p /tmp/ap-pack
-> MSBUILDDISABLENODEREUSE=1 dotnet pack AgentPrism.slnx -c Release -o /tmp/ap-pack
+> MSBUILDDISABLENODEREUSE=1 dotnet pack Tracon.slnx -c Release -o /tmp/ap-pack
 >
-> rm -rf ~/agentprism-manuel/uretec && mkdir -p ~/agentprism-manuel/uretec
-> cd ~/agentprism-manuel/uretec
+> rm -rf ~/tracon-manuel/uretec && mkdir -p ~/tracon-manuel/uretec
+> cd ~/tracon-manuel/uretec
 > dotnet new console -o . --force
 > cat > nuget.config <<'EOF'
 > <?xml version="1.0" encoding="utf-8"?>
@@ -304,10 +304,10 @@ repo'nun `ProjectReference` zinciri sonucu bulandırmaz.
 >   </packageSources>
 > </configuration>
 > EOF
-> SURUM=$(ls /tmp/ap-pack/AgentPrism.Core.*.nupkg | sed 's#.*AgentPrism.Core\.##;s#\.nupkg##')
-> dotnet add package AgentPrism.Core --version "$SURUM"
+> SURUM=$(ls /tmp/ap-pack/Tracon.Core.*.nupkg | sed 's#.*Tracon.Core\.##;s#\.nupkg##')
+> dotnet add package Tracon.Core --version "$SURUM"
 > ```
-> 🚨 `AgentPrism.Core` **doğrudan** `PackageReference` ile alınır. MT-PKG-021
+> 🚨 `Tracon.Core` **doğrudan** `PackageReference` ile alınır. MT-PKG-021
 > bunun neden önemli olduğunu ölçer.
 
 ---
@@ -349,7 +349,7 @@ Birinci derleme (record parametre):
 🚨 **Kritik kusur — doğrulandı, tekrar üretilebilir.** Üretecin beyaz listesi
 `T[]` dizi tipini desteklenen bir parametre tipi olarak ilan ediyor
 (`APG0003` mesajının kendisi de "bunlarin dizisi" der), ama üretilen sarmalayıcı
-kod **her zaman** `AgentPrismGeneratedToolArguments.GetArray(...)` çağırıyor —
+kod **her zaman** `TraconGeneratedToolArguments.GetArray(...)` çağırıyor —
 bu her koşulda `IReadOnlyList<T>` döndürür ve hedef parametre `T[]` ise
 doğrudan atanamaz (`IReadOnlyList<T>` → `T[]` örtük dönüşümü yoktur).
 
@@ -363,9 +363,9 @@ Etki: dokümantasyonda ve `APG0003` hata mesajında "desteklenir" denen bir
 tip, pratikte **her zaman** derlemeyi kırıyor. Bu bir kaçış yolu değil —
 `T[]` parametreli hiçbir tool metodu bu üreteçle asla derlenemez. `Kritik`
 önemde bir kod kusuru bildirimi açılmalıdır (izlek: Faz 52 kaynak üreteci,
-`AgentPrismGeneratedToolArguments.GetArray` / dizi-tipi kod üretimi).
+`TraconGeneratedToolArguments.GetArray` / dizi-tipi kod üretimi).
 
-Kök neden bulundu: `src/AgentPrism.Generators/ParameterTypeValidator.cs:98-111`
+Kök neden bulundu: `src/Tracon.Generators/ParameterTypeValidator.cs:98-111`
 (`TryGetArrayElementType`) hem `T[]` hem `IReadOnlyList<T>`/`IList<T>`/
 `IEnumerable<T>`/`List<T>` biçimlerini aynı `ParameterShape.Array`'e
 daraltıyor — orijinal şeklin çıplak dizi mi arayüz mü olduğu bilgisi
@@ -380,13 +380,13 @@ düzeltme dalgasında (commit `75990fd`) zaten kapanmış — sonuç dosyası
 güncellenmemişti. `ParameterModel.IsConcreteArray` alanı ve
 `SourceWriter.cs:147` `.ToArray()` sarmalaması kod tabanında hâlihazırda
 mevcut. Regresyon testi zaten var:
-`tests/AgentPrism.Generators.UnitTests/GeneratedOutputTests.cs`
+`tests/Tracon.Generators.UnitTests/GeneratedOutputTests.cs`
 `Ciplak_dizi_parametresi_ToArray_ile_cevrilir_ve_uretilen_kod_derlenir` —
 `int[]`, `string[]` ve `IReadOnlyList<int>` parametreli tool'ları gerçek
 Roslyn derlemesinden geçirip `GetDiagnostics()` ile sıfır hata doğruluyor.
 
-Canlı doğrulama: case'in adımları tazelenmiş `AgentPrism.0.0.0-preview.0.138`
-paketine karşı `~/agentprism-manuel/uretec`'te aynen koşuldu.
+Canlı doğrulama: case'in adımları tazelenmiş `Tracon.0.0.0-preview.0.138`
+paketine karşı `~/tracon-manuel/uretec`'te aynen koşuldu.
 1. Adım (`record` parametreli tool) → yine `APG0003` verdi, beklendiği gibi.
 2. Adım (beyaz liste + ayrıca izole `int[]` tool'u `SayilariTopla`) → `APG0003`
    sayısı **0**, derleme **0 Error(s)** ile bitti — `CS1503` **yok**.
@@ -403,9 +403,9 @@ değişikliği gerekmedi.
 **Gerçek sonuç**
 ```
 Bayrağı false yapan projeler (10):
-  AgentPrism, AgentPrism.AspNetCore, AgentPrism.Generators, AgentPrism.Mcp,
-  AgentPrism.SqlServer, AgentPrism.Sqlite, AgentPrism.Templates,
-  AgentPrism.Testing, AgentPrism.UI, AgentPrism.Workflows
+  Tracon, Tracon.AspNetCore, Tracon.Generators, Tracon.Mcp,
+  Tracon.SqlServer, Tracon.Sqlite, Tracon.Templates,
+  Tracon.Testing, Tracon.UI, Tracon.Workflows
   -> beklenen liste ile birebir eşleşiyor.
 
 Geriye kalan (AOT uyumlu, Sql.Shared paket olmadığı için hariç, 8 adet):
@@ -418,7 +418,7 @@ Geriye kalan (AOT uyumlu, Sql.Shared paket olmadığı için hariç, 8 adet):
 kümeyle (Abstractions, Anthropic, Azure, Core, Google, OpenAI, PostgreSql,
 Voice) birebir örtüşüyor. `README.md`'de AOT'a dair hiçbir iddia yok (arama
 sıfır sonuç döndürdü). Kod ↔ `AGENTS.md` **uyumlu**; düzeltilmiş beklentiyle
-de örtüşüyor. 2026-08-15'te `grep -l "AgentPrismAotCompatible>false"
+de örtüşüyor. 2026-08-15'te `grep -l "TraconAotCompatible>false"
 src/*/*.csproj` yeniden koşuldu, aynı 10'lu küme doğrulandı.
 
 ---
@@ -438,7 +438,7 @@ src/*/*.csproj` yeniden koşuldu, aynı 10'lu küme doğrulandı.
 
 **Gerçek sonuç**
 ```
-dotnet new agentprism-api -o . --AgentPrismVersion 0.0.0-preview.0.63
+dotnet new tracon-api -o . --TraconVersion 0.0.0-preview.0.63
   -> "template ... created successfully", restore succeeded
 Üretilen: .gitignore, Program.cs, Properties/, README.md, Tools/OrderTools.cs,
   appsettings.Development.json, appsettings.json, varsayilan.csproj
@@ -448,7 +448,7 @@ dotnet run -> "Now listening on: http://localhost:5081"
 curl .../api/meta -> HTTP 200
   {"version":"0.0.0-preview.0.63", ... "storage":{"persistent":false,
    "agentDefinitionStore":"InMemoryAgentDefinitionStore", ...}}
-curl .../agentprism (arayüz kökü) -> HTTP 200
+curl .../tracon (arayüz kökü) -> HTTP 200
 curl .../api/agents -> [{"name":"support", "displayName":"Destek Asistani",
    "model":{"provider":"openai","model":"MODEL_ADINI_BURAYA_YAZIN"},
    "toolNames":["get_order_status"], ...}]
@@ -480,12 +480,12 @@ varyantları için geçerli.
    saglayicisi kayitli degil. ... OpenAI icin 'UseOpenAI(apiKey)' cagirin."
    Uygulama ÇÖKMEDİ.
 2-3) Model adı gpt-5.4-mini olarak düzeltildi, API anahtarı
-   `dotnet user-secrets set "AgentPrism:Providers:OpenAI:ApiKey" ...` ile verildi.
+   `dotnet user-secrets set "Tracon:Providers:OpenAI:ApiKey" ...` ile verildi.
 4) Yeniden derleme + çalıştırma sonrası run:
    HTTP 200, SSE akışı; get_order_status tool'u TAM BİR KEZ çağrıldı
    (orderId: "ORD-1001"), yanıt metni parça parça "ORD-1001 numarali siparis
    kargoya verildi..." içeriyor.
-   /agentprism/api/runs -> status: "Completed", modelId: "gpt-5.4-mini",
+   /tracon/api/runs -> status: "Completed", modelId: "gpt-5.4-mini",
    usage.totalTokens: 255
 ```
 
@@ -548,7 +548,7 @@ Log (iki kez, ÇELİŞKİLİ):
         Son kayit kazanir ve su an PostgreSQL kullaniliyor. ...
 
 Gerçek etki (log'un altında, Npgsql komut izinde):
-  CREATE SCHEMA IF NOT EXISTS agentprism / CREATE TABLE __migrations / ...
+  CREATE SCHEMA IF NOT EXISTS tracon / CREATE TABLE __migrations / ...
   -> PostgreSQL şeması gerçekten oluşturuldu.
 Ayrıca: manuel-cift.db (SQLite dosyası) da proje dizininde OLUŞTU (4096 bayt,
   şema yazılmış) — bu koşumda tespit edildi, sonra silindi.
@@ -560,7 +560,7 @@ gerçekte **her iki sağlayıcı da tam olarak devreye giriyor** — hem Postgre
 şeması hem SQLite dosyası bu koşumda oluştu. "Son kayıt kazanır" yalnızca
 tekil servis kayıtları (`IRunStore` vb., `TryAdd`/son-kayıt-kazanır DI deseni)
 için doğru; ama migration'ı tetikleyen `MigrationHostedService`
-(`src/AgentPrism.Sql.Shared/Migrations/MigrationHostedService.cs`) her
+(`src/Tracon.Sql.Shared/Migrations/MigrationHostedService.cs`) her
 `Use*Sql()` çağrısında **ayrı bir `IHostedService` örneği** olarak kaydediliyor
 (`AddHostedService` katkılıdır, `TryAdd` değil — .NET tüm kayıtlı hosted
 servisleri çalıştırır). Sonuç: iki bağımsız `MigrationHostedService` örneği
@@ -586,12 +586,12 @@ kusuru `MT-PKG-082` adıyla anıyor ve `IsWinningProvider()` artık paylaşılan
 `_registrations` listesindeki **son kaydı** (tüm sağlayıcılar arası, yalnız
 kendi tipi değil) kazanan sayıyor; kaybeden `StartAsync` içinde erkenden
 çıkıp migration'a hiç dokunmuyor. İki entegrasyon testi zaten repoda
-(`tests/AgentPrism.PostgreSql.IntegrationTests/ServiceRegistrationTests.cs`
+(`tests/Tracon.PostgreSql.IntegrationTests/ServiceRegistrationTests.cs`
 `Kaybeden_saglayici_migration_uygulamaz`, `Kazanan_saglayici_migration_uygular`)
 — ikisi de gerçek PostgreSQL'e karşı koşuyor ve kaybedenin şemayı
 **hiç** oluşturmadığını doğruluyor.
 
-Canlı doğrulama: `samples/AgentPrism.Api/Program.cs`'e case'in öngördüğü
+Canlı doğrulama: `samples/Tracon.Api/Program.cs`'e case'in öngördüğü
 gibi geçici bir `UseSqlite(...)` çağrısı `UsePostgreSql(...)`'in altına
 eklendi (MT-PG-034 deseni), örnek çalıştırıldı, sonra değişiklik
 `git checkout` ile geri alındı.
@@ -620,11 +620,11 @@ geçici satır geri alındı, `git status` temiz).
 ## Koşum sonrası temizlik
 
 ```bash
-dotnet new uninstall AgentPrism.Templates
-dotnet nuget remove source agentprism-local
-rm -rf ~/agentprism-manuel ~/agentprism-local-feed
+dotnet new uninstall Tracon.Templates
+dotnet nuget remove source tracon-local
+rm -rf ~/tracon-manuel ~/tracon-local-feed
 rm -rf /tmp/ap-*
-cd /Users/farukatasoy/Desktop/projects/AgentPrism && git status
+cd /Users/farukatasoy/Desktop/projects/Tracon && git status
 ```
 
 `git status` yalnız `docs/manuel-test/` göstermelidir. Başka bir değişiklik

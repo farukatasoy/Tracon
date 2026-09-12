@@ -3,7 +3,7 @@
 > **Durum:** ✅ Tamamlandı (2026-08-06)
 > **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-42**
 > **Önkoşul:** Yok. Kalem önkoşulsuzdur ve bugün yapılabilir
-> **Paketler:** `AgentPrism.Abstractions`, `.Core`, `.OpenAI`, `.Anthropic`, `.Google`, `.Azure`, `.AspNetCore`, `.UI`
+> **Paketler:** `Tracon.Abstractions`, `.Core`, `.OpenAI`, `.Anthropic`, `.Google`, `.Azure`, `.AspNetCore`, `.UI`
 > **Yeni paket:** Yok · **Migration:** Yok — gerekçe [38.5](#385--neden-migration-yok)
 > **Public API:** büyüyor — 🚨 **Faz 7'den önce bedava, sonra kırıcı**
 
@@ -33,7 +33,7 @@ Bir agent bugün yalnızca **metin** döndürebilir. Çağıran taraf, cevabı a
 - [x] `responseFormat.kind = "JsonSchema"` taşıyan bir agent tanımı kaydedilir,
       okunur ve çalıştırılır; yanıt **şemaya uyan** bir JSON belgesidir —
       gerçek OpenAI çağrısı `{"total":1250,"currency":"TL"}` döndürdü (aşağıda)
-- [x] `Kind = JsonSchema` ama şema boş olan tanım `AgentPrismCompilationException`
+- [x] `Kind = JsonSchema` ama şema boş olan tanım `TraconCompilationException`
       ile reddedilir; hata mesajı `Schema` alanını adlandırır
 - [x] `SupportsStructuredOutput = false` olan bir modelde derleme reddedilir
 - [x] 🚨 `responseFormat` anahtarı olmayan **eski** bir `agent_definitions`
@@ -41,7 +41,7 @@ Bir agent bugün yalnızca **metin** döndürebilir. Çağıran taraf, cevabı a
 - [x] `ForJsonSchema(Type, …)` çağrısı kaynak ağacında **yoktur**; AOT uyarısı
       üretilmez
 - [x] Dört doğrulama kapısı sıfır uyarı verir
-- [x] `samples/AgentPrism.Api` ile gerçek `run` yapıldı, çıktı bu belgeye yazıldı
+- [x] `samples/Tracon.Api` ile gerçek `run` yapıldı, çıktı bu belgeye yazıldı
 - [x] `secret` taraması boş döndü
 - [x] `en.ts` ve `tr.ts` eksiksiz; bundle payı **ölçüldü** ve buraya yazıldı
       (156,0 KB gzip / 250 KB bütçe; önceki ölçüm 151,3 KB'ydi — bu faz ~4,7 KB ekledi)
@@ -53,11 +53,11 @@ Bir agent bugün yalnızca **metin** döndürebilir. Çağıran taraf, cevabı a
 > `string`** taşır (bkz. [Plandan Sapmalar](#plandan-sapmalar)). Aşağıdaki
 > komutlar düzeltilmiş, gerçekten çalıştırılmış hâlidir. Model adı da
 > `gpt-5`'ten `gpt-5.4-mini`'ye düzeltildi — K-032 gereği katalogdaki gerçek
-> model budur (`samples/AgentPrism.Api/appsettings.json`).
+> model budur (`samples/Tracon.Api/appsettings.json`).
 
 ```bash
 # Semali agent tanimi kaydet
-curl -s -X POST http://localhost:5081/agentprism/api/agents \
+curl -s -X POST http://localhost:5081/tracon/api/agents \
   -H 'content-type: application/json' \
   -d '{
         "name":"fatura-okuyucu",
@@ -76,7 +76,7 @@ curl -s -X POST http://localhost:5081/agentprism/api/agents \
 # → 201 Created; model.responseFormat kaydedilmis sekliyle geri dondu.
 
 # Calistir (SSE akisli) — cikti gecerli JSON olmali ve semaya uymali
-curl -s -N -X POST http://localhost:5081/agentprism/api/agents/fatura-okuyucu/run \
+curl -s -N -X POST http://localhost:5081/tracon/api/agents/fatura-okuyucu/run \
   -H 'content-type: application/json' \
   -d '{"message":"Toplam 1250 TL, para birimi Turk Lirasi."}'
 # → text delta parcalari birlestiginde: {"total":1250,"currency":"TL"}
@@ -84,7 +84,7 @@ curl -s -N -X POST http://localhost:5081/agentprism/api/agents/fatura-okuyucu/ru
 
 # Gecersiz tanim SAVE aninda REDDEDILMEZ (derleme validasyonu Faz 38.2'de
 # BILINCLI olarak calisma/derleme anina birakildi) — 201 doner:
-curl -s -X POST http://localhost:5081/agentprism/api/agents \
+curl -s -X POST http://localhost:5081/tracon/api/agents \
   -d '{"name":"kirik","instructions":"x",
        "model":{"provider":"openai","model":"gpt-5.4-mini",
                 "responseFormat":{"kind":"JsonSchema"}}}' \
@@ -92,7 +92,7 @@ curl -s -X POST http://localhost:5081/agentprism/api/agents \
 # → 201 Created
 
 # ...ama CALISTIRMA (derleme) aninda reddedilir:
-curl -s -X POST http://localhost:5081/agentprism/api/agents/kirik/run \
+curl -s -X POST http://localhost:5081/tracon/api/agents/kirik/run \
   -H 'content-type: application/json' -d '{"message":"merhaba"}' -i | head -8
 # → 400 Bad Request
 #   {"title":"Agent derlenemedi","detail":"'kirik' agent'i JsonSchema cikti
@@ -106,7 +106,7 @@ curl -s -X POST http://localhost:5081/agentprism/api/agents/kirik/run \
 - **🚨 `AgentResponseFormatKind` enum'ında `[JsonConverter(typeof(JsonStringEnumConverter<T>))]`
   eksik yazılmıştı — planda bu ayrıntı yoktu.** Faz içi sözleşme testleri (C#
   nesne round-trip) bunu yakalamadı çünkü hem yazma hem okuma aynı varsayılan
-  (sayısal) temsili kullanıyordu; **yalnızca** `samples/AgentPrism.Api`'ye
+  (sayısal) temsili kullanıyordu; **yalnızca** `samples/Tracon.Api`'ye
   gerçek bir HTTP isteği (`"kind":"JsonSchema"` dize değeri) atıldığında
   `System.Text.Json.JsonException` olarak ortaya çıktı. `CompactionStrategyKind`
   ve depodaki diğer tüm dize-seri hâle gelen enum'lar bu özniteliği taşıyor —
@@ -125,7 +125,7 @@ curl -s -X POST http://localhost:5081/agentprism/api/agents/kirik/run \
   (tekil `string`) taşır ve `gpt-5` katalogda hiç yok (K-032 — gerçek liste
   `gpt-5.4-mini`/`gpt-5.6-luna`/`gpt-5.6-terra`). Düzeltilmiş komutlar DoD
   bölümünde.
-- **`samples/AgentPrism.Api/appsettings.json`'a `SupportsStructuredOutput: true`
+- **`samples/Tracon.Api/appsettings.json`'a `SupportsStructuredOutput: true`
   eklendi** (üç OpenAI modeli için) — planda yoktu ama gerçek bir uçtan uca
   koşum için zorunluydu: bayrak varsayılan `false`'tur (K1) ve örnek uygulamanın
   kendi model kataloğu bunu açıkça söylemeden `JsonSchema` kipi her zaman

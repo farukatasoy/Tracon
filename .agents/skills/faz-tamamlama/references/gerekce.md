@@ -22,7 +22,7 @@ edildi ve `main`'i derlenmez bıraktı.
   `2026-08-13 2/` dizini tam bu yüzden aylarca durdu. Komut ikisini de arar.
 
 Kopyaları sil (`git rm` gerekebilir), sonra `wwwroot`'u ve
-`agentprism-frontend.stamp` damgasını da kaldır — damga durursa arayüz yeniden
+`tracon-frontend.stamp` damgasını da kaldır — damga durursa arayüz yeniden
 gömülmez.
 
 ## `secret` taraması

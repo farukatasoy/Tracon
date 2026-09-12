@@ -38,10 +38,10 @@ Six concerns belong to the registry and its pipeline, never to a tool body:
 | Approval (does a person need to say yes this time) | The registry's approval wrapper |
 | Timeout | The registry's timeout wrapper |
 | Output truncation | The registry's truncation wrapper |
-| Tenant scoping | `AgentPrismRunContext.Current` |
+| Tenant scoping | `TraconRunContext.Current` |
 | Audit (what ran, with what result) | Run recording, driven from the registry |
 
-A tool body reads `AgentPrismRunContext.Current` when it needs the tenant, run, or
+A tool body reads `TraconRunContext.Current` when it needs the tenant, run, or
 session — it never re-implements any of the other five; they already ran before the
 body was ever invoked.
 
@@ -110,10 +110,10 @@ Unlike a denial, a **rejected** call is recorded as `ToolFailed`, not as an ordi
 result — see [argument validation](/guides/write-your-own-tool/#argument-validation)
 for the full mechanism, including the fail-closed behavior on a throwing validator.
 
-`[AgentPrismTool]` also carries an effect class and a per-tool timeout:
+`[TraconTool]` also carries an effect class and a per-tool timeout:
 
 ```csharp
-[AgentPrismTool(
+[TraconTool(
     "cancel_order",
     "Cancels an order.",
     RequiresApproval = true,
@@ -142,9 +142,9 @@ timelines that are easy to conflate:
 - **Within one turn:** Microsoft Agent Framework retries a throwing tool call up to
   `MaximumConsecutiveErrorsPerRequest` (3 by default) times before giving up and
   re-throwing to the caller. A tool that is not safe to call twice in a row needs its
-  own idempotency guard, regardless of any AgentPrism setting.
+  own idempotency guard, regardless of any Tracon setting.
 - **Across an interrupted run:** `SafeToRepeat` (only read for `Destructive`/`External`
-  tools) tells AgentPrism whether resuming a run that was cut off mid-call may repeat
+  tools) tells Tracon whether resuming a run that was cut off mid-call may repeat
   that call. It says nothing about the in-turn retries above.
 
 The one case that does **not** repeat a completed call is a provider fallback: if a call
@@ -154,12 +154,12 @@ time — see [Fall back to a secondary provider](/guides/reliability/#fall-back-
 
 ### Result representation and persistence
 
-Whatever a tool returns, AgentPrism turns it into one **canonical text form** before
+Whatever a tool returns, Tracon turns it into one **canonical text form** before
 anything else — a content guard, the output limit — inspects it. `null`, `string`, and
 `JsonElement` each have one stable text form; a primitive, `Guid`, or date value is
 serialized the same, culture-independent way every time. A collection, record, or class
 result is only canonicalized when the tool's generated declaration carries a consumer
-`JsonSerializerContext` for it — code-defined tools using the `[AgentPrismTool]`
+`JsonSerializerContext` for it — code-defined tools using the `[TraconTool]`
 attribute (see [Write your own tool](/guides/write-your-own-tool/)) require one for
 any result type beyond a plain string or primitive. That context, not reflection, is
 what turns it into JSON, which is also what keeps the guard AOT-safe. A raw CLR object
@@ -176,7 +176,7 @@ written into the run's permanent record and streamed to the console over SSE. Ne
 one is written into a telemetry span. A tool that would otherwise return a secret —
 a connection string, an access token — must redact it before returning, because both
 of those surfaces keep it in full. A tool exception is treated more carefully: only
-AgentPrism's own exception types keep their message; everything else is replaced with
+Tracon's own exception types keep their message; everything else is replaced with
 a generic `Tool failed with <ExceptionType>.` before it reaches the record or the
 stream, and the original message goes only to your log.
 
@@ -191,11 +191,11 @@ is not one. The one exception is `AIContent` (an attachment, such as the id
 `generate_image` returns): it is never inline output and is never subject to this limit.
 
 ```csharp
-services.AddSingleton(new AgentPrismToolRegistration(
+services.AddSingleton(new TraconToolRegistration(
     AIFunctionFactory.Create(GetReport, "get_report", "Fetches a report."),
     maxOutputBytes: 4096));
 
-services.Configure<AgentPrismOptions>(o => o.Tools.DefaultMaxOutputBytes = 4096);
+services.Configure<TraconOptions>(o => o.Tools.DefaultMaxOutputBytes = 4096);
 ```
 
 No change is required to keep today's behavior: the default is unlimited, and a tool
@@ -219,7 +219,7 @@ already fits is returned exactly as the tool produced it, never wrapped.
 
 ### Concurrent tool calls
 
-By default, when a model turn calls several independent tools at once, AgentPrism
+By default, when a model turn calls several independent tools at once, Tracon
 runs them one after another. Set `ModelBinding.AllowConcurrentToolCalls` to run them
 at the same time instead — each call still gets its own authorization decision, its
 own recorded result, and its own entry in the tool-usage metrics; none of that mixes
@@ -234,8 +234,8 @@ setting lives on `ModelBinding`.
 
 ### Built-in image generation
 
-When `AgentPrism:Images:Enabled` is true and a supported image provider is
-registered, AgentPrism adds `generate_image` as an `External` tool. It accepts a
+When `Tracon:Images:Enabled` is true and a supported image provider is
+registered, Tracon adds `generate_image` as an `External` tool. It accepts a
 prompt and returns attachment ids, never base64 image data. Generation can spend money
 and sends a prompt to an external provider, so the normal authorization, timeout, run
 recording, and continuation rules apply. In particular, an interrupted run does not
@@ -288,7 +288,7 @@ flowchart LR
 ```
 
 :::danger[Gate five is an exception to an exception]
-Everywhere else in AgentPrism an audit-trail write failure is swallowed, because
+Everywhere else in Tracon an audit-trail write failure is swallowed, because
 observability must not break function. Here it is not: a script execution that cannot
 be written to the audit trail would be remote code execution with no record of it, so
 the run is refused.
@@ -298,7 +298,7 @@ Grants are visible and revocable at `GET /api/skill-script-grants`. A grant with
 script name covers every script in a skill; one with a name covers only that script.
 Grants can expire.
 
-:::caution[AgentPrism does not sandbox]
+:::caution[Tracon does not sandbox]
 It provides **no** filesystem jail, network restriction, memory or CPU quota, or
 privilege dropping. All four belong to the hosting environment — a container, cgroups,
 and an unprivileged user. The acknowledgement flag exists so the feature cannot be
@@ -310,7 +310,7 @@ at **startup**.
 
 Registering a remote MCP server means accepting tool definitions from outside, which
 is the first deliberate exception to the code-only rule. The process runs elsewhere;
-AgentPrism is only a client. Five guards:
+Tracon is only a client. Five guards:
 
 1. **`http` and `https` only — there is no stdio transport.** Starting a local process
    would break the rule outright.

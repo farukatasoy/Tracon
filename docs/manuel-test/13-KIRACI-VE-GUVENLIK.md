@@ -1,41 +1,41 @@
 # 13 — Kiracı ve Güvenlik (`SEC`)
 
 > **Alan kodu:** `SEC` · **Faz:** 6, 9, 41, 50, 53, 63, 65, 69, 82, 139, 147, 148, 149
-> **Kaynak:** `src/AgentPrism.AspNetCore/Security/` (tümü: `AgentPrismEndpointFilter`,
+> **Kaynak:** `src/Tracon.AspNetCore/Security/` (tümü: `TraconEndpointFilter`,
 > `LoopbackGuard`, `BearerTokenValidator`, `ApiKeyAuthenticator`, `ApiKeyRequestContext`,
-> `ApiKeyScopeRequirement`, `ExternalSurfaceGuard`, `ExternalCallAudit`, `AgentPrismPolicies`,
-> `AgentPrismRolePolicies`, `RoleEndpointConventionBuilderExtensions`) ·
-> `src/AgentPrism.AspNetCore/Tenancy/` (tümü) ·
-> `src/AgentPrism.AspNetCore/AgentPrismEndpointOptions.cs` ·
-> `src/AgentPrism.AspNetCore/AgentPrismEndpointRouteBuilderExtensions.cs` (yalnız erişim
-> katmanlaması — genel `MapAgentPrism` sözleşmesi `07`'nin işi) ·
-> `src/AgentPrism.AspNetCore/Endpoints/ApiKeyEndpoints.cs`, `AuditEndpoints.cs`,
+> `ApiKeyScopeRequirement`, `ExternalSurfaceGuard`, `ExternalCallAudit`, `TraconPolicies`,
+> `TraconRolePolicies`, `RoleEndpointConventionBuilderExtensions`) ·
+> `src/Tracon.AspNetCore/Tenancy/` (tümü) ·
+> `src/Tracon.AspNetCore/TraconEndpointOptions.cs` ·
+> `src/Tracon.AspNetCore/TraconEndpointRouteBuilderExtensions.cs` (yalnız erişim
+> katmanlaması — genel `MapTracon` sözleşmesi `07`'nin işi) ·
+> `src/Tracon.AspNetCore/Endpoints/ApiKeyEndpoints.cs`, `AuditEndpoints.cs`,
 > `GovernanceEndpoints.cs` (yalnız `MapTenants` + `MapApprovalRules` — MCP sunucu
 > bölümleri `18`'in işi), `TenantProviderEndpoints.cs` (Faz 65 — kiracı sağlayıcı
 > bağlamaları/BYOK ve egress politikası) ·
-> `src/AgentPrism.Abstractions/Options/AgentPrismTenantProviderOptions.cs` (Faz 65) ·
-> `src/AgentPrism.Core/Models/ProviderCredentialClientCache.cs` (Faz 65) ·
-> `src/AgentPrism.Abstractions/Approvals/` (tümü — `ToolArgumentCondition`,
+> `src/Tracon.Abstractions/Options/TraconTenantProviderOptions.cs` (Faz 65) ·
+> `src/Tracon.Core/Models/ProviderCredentialClientCache.cs` (Faz 65) ·
+> `src/Tracon.Abstractions/Approvals/` (tümü — `ToolArgumentCondition`,
 > `ToolArgumentOperator`, `ToolApprovalPolicyDecision`, `ToolApprovalContext`) ·
-> `src/AgentPrism.Core/Approvals/` (tümü — `ToolArgumentConditionMatcher`,
+> `src/Tracon.Core/Approvals/` (tümü — `ToolArgumentConditionMatcher`,
 > `ToolApprovalPolicyRegistry`, `ToolApprovalRuleEvaluator`) ·
-> `src/AgentPrism.UI/frontend/src/screens/mcp.tsx` (yalnız "Remembered approvals"
+> `src/Tracon.UI/frontend/src/screens/mcp.tsx` (yalnız "Remembered approvals"
 > paneli — sunucu CRUD kısmı `18`'in işi) ·
-> `src/AgentPrism.Abstractions/Security/` (tümü) · `src/AgentPrism.Abstractions/Audit/` (tümü) ·
-> `src/AgentPrism.Abstractions/Tenancy/` (tümü) ·
-> `src/AgentPrism.Core/Security/` (tümü) · `src/AgentPrism.Core/Audit/` (tümü) ·
-> `src/AgentPrism.Core/Tenancy/` (tümü) ·
-> `src/AgentPrism.Abstractions/Tools/ToolEffect.cs`, `ToolAuthorizationTypes.cs` (Faz 69) ·
-> `src/AgentPrism.Core/Tools/AuthorizingAIFunction.cs`, `TimeoutAIFunction.cs`,
+> `src/Tracon.Abstractions/Security/` (tümü) · `src/Tracon.Abstractions/Audit/` (tümü) ·
+> `src/Tracon.Abstractions/Tenancy/` (tümü) ·
+> `src/Tracon.Core/Security/` (tümü) · `src/Tracon.Core/Audit/` (tümü) ·
+> `src/Tracon.Core/Tenancy/` (tümü) ·
+> `src/Tracon.Abstractions/Tools/ToolEffect.cs`, `ToolAuthorizationTypes.cs` (Faz 69) ·
+> `src/Tracon.Core/Tools/AuthorizingAIFunction.cs`, `TimeoutAIFunction.cs`,
 > `AllowAllToolAuthorizationHandler.cs`, `ToolRegistry.cs` (Faz 69) ·
-> `src/AgentPrism.Abstractions/Security/IContentProtector.cs`, `ProtectedColumn.cs`,
-> `src/AgentPrism.Core/Security/` (`AesGcmContentProtector`, `NullContentProtector`,
-> `ContentProtectionEnvelope`, `AgentPrismContentProtectionOptions`,
-> `AgentPrismContentProtectionOptionsValidator`), `AgentPrismContentProtectionExtensions.cs`,
-> `src/AgentPrism.Sql.Shared/Internal/ProtectedValue.cs` (Faz 82 — at-rest içerik koruması) ·
-> `src/AgentPrism.Abstractions/Runs/RunAuthorizationTypes.cs` (Faz 139 — `IRunAuthorizationHandler`),
-> `src/AgentPrism.Core/Runs/AllowAllRunAuthorizationHandler.cs`,
-> `src/AgentPrism.AspNetCore/RateLimiting/RunAuthorizationGate.cs` (Faz 139 · 147 —
+> `src/Tracon.Abstractions/Security/IContentProtector.cs`, `ProtectedColumn.cs`,
+> `src/Tracon.Core/Security/` (`AesGcmContentProtector`, `NullContentProtector`,
+> `ContentProtectionEnvelope`, `TraconContentProtectionOptions`,
+> `TraconContentProtectionOptionsValidator`), `TraconContentProtectionExtensions.cs`,
+> `src/Tracon.Sql.Shared/Internal/ProtectedValue.cs` (Faz 82 — at-rest içerik koruması) ·
+> `src/Tracon.Abstractions/Runs/RunAuthorizationTypes.cs` (Faz 139 — `IRunAuthorizationHandler`),
+> `src/Tracon.Core/Runs/AllowAllRunAuthorizationHandler.cs`,
+> `src/Tracon.AspNetCore/RateLimiting/RunAuthorizationGate.cs` (Faz 139 · 147 —
 > Faz 147 `CheckRunResourceAsync`'i ve `RunAccess`/`SessionAccess.Voice` üyelerini ekledi;
 > çağrı yerleri `Endpoints/RunEndpoints.cs`, `ObservabilityEndpoints.cs`,
 > `AttachmentEndpoints.cs`, `ApprovalEndpoints.cs`,
@@ -51,18 +51,18 @@
 
 ## Bu dosya neyi kanıtlar
 
-`app.MapAgentPrism()`'in kurduğu **üç katmanlı erişim koruması** (loopback →
+`app.MapTracon()`'in kurduğu **üç katmanlı erişim koruması** (loopback →
 bearer/API anahtarı → authorization policy), **kiracı çözümlemesi ve izolasyonu**
 (Faz 41), **kiracı bazlı API anahtarları** (Faz 53: kapsam, kiracı bağı, yaşam
 döngüsü) ve **denetim izi** (Faz 9: eylemler, sır süzgeci, değiştirilemezlik).
-Rol tabanlı yetkilendirme (`AgentPrismPolicies`) da burada — AgentPrism kullanıcı
+Rol tabanlı yetkilendirme (`TraconPolicies`) da burada — Tracon kullanıcı
 veya rol saklamaz; roller tüketicinin kimlik sisteminden gelir, bu yüzden bazı
 case'ler geçici bir test kimlik doğrulama şeması gerektirir (aşağıda §8).
 
 > 🚨 **§8 artık ELLE KOD YAZMAYI gerektirmez (2026-08-18, K-431).** Örnek
-> uygulama gösterim amaçlı bir rol şeması taşıyor: `AgentPrism:Demo:Roles:Enabled`
+> uygulama gösterim amaçlı bir rol şeması taşıyor: `Tracon:Demo:Roles:Enabled`
 > `true` yapılır (ortam değişkeni yeter:
-> `AgentPrism__Demo__Roles__Enabled=true`), rol `X-AgentPrism-Demo-Role:
+> `Tracon__Demo__Roles__Enabled=true`), rol `X-Tracon-Demo-Role:
 > reader|operator|admin` başlığıyla gönderilir. Bayrak açıkken üç politika
 > kaydedilir **ve** `RequireRolePolicies` açılır. §8'in `RoleTestAuthHandler.cs`
 > yazma adımları bu yüzden bayrağı açıp kapamaya iner; aşağıdaki case'lerde
@@ -98,16 +98,16 @@ flowchart TD
 | Kalıcı onay kuralları (`ToolApprovalRule`) CRUD'u | `18-MCP-VE-A2A.md`'nin GovernanceEndpoints bölümü ile birlikte (`MapApprovalRules`) |
 | `PatternContentGuard`/`DeniedTerms` içerik engeli (`content.blocked` denetim kaydının KENDİSİ değil, guard'ın karar mantığı) | `22-GUARDRAIL-VE-YAPISAL-CIKTI.md` |
 | PostgreSQL/SQLite/SQL Server'a özgü şema, migration, satır düzeyi kiracı sütunu | `03-KALICILIK-POSTGRESQL.md` · `04-KALICILIK-DIGER.md` (zaten üretildi) |
-| Hız sınırlama (`AgentPrismRateLimitFilter`, varsayılan kapalı) | **Hiçbir dosyaya atanmamış** — bkz. `00-INDEKS.md` §8 düşen not |
+| Hız sınırlama (`TraconRateLimitFilter`, varsayılan kapalı) | **Hiçbir dosyaya atanmamış** — bkz. `00-INDEKS.md` §8 düşen not |
 | Ses WebSocket el sıkışması (`Sec-WebSocket-Protocol` token taşıma) | `19-COK-MODLULUK-VE-SES.md` |
 | `/api/diagnostics`'in genel şekli ve alanları | `25-SAGLIK-TESHIS-OPENAPI.md` — burada yalnız rol koruması bir örnek uç olarak kullanılır |
 
 ## Koşmadan önce
 
 1. [`00-INDEKS.md`](00-INDEKS.md) §4 reset yordamı uygulanır.
-2. `AgentPrism:Ui:AuthToken` sırrı `manuel-test-token-2026`'dır (`FIX-TOKEN-01`).
-3. Örnek uygulama çalışır: `cd samples/AgentPrism.Api && dotnet run` →
-   `http://localhost:5080/agentprism`.
+2. `Tracon:Ui:AuthToken` sırrı `manuel-test-token-2026`'dır (`FIX-TOKEN-01`).
+3. Örnek uygulama çalışır: `cd samples/Tracon.Api && dotnet run` →
+   `http://localhost:5080/tracon`.
 4. Makinenin LAN adresini önceden öğrenin — "loopback dışı" case'ler AYNI
    makineden, yalnızca `127.0.0.1` yerine bu adres üzerinden bağlanarak
    yapılır (ikinci bir cihaz gerekmez):
@@ -119,13 +119,13 @@ flowchart TD
 5. Kestrel yalnızca loopback'e değil bu arayüze de dinlemelidir; `dotnet run`
    yerine:
    ```bash
-   cd samples/AgentPrism.Api && dotnet run --urls "http://0.0.0.0:5080"
+   cd samples/Tracon.Api && dotnet run --urls "http://0.0.0.0:5080"
    ```
 
 ```bash
 export APB="Authorization: Bearer manuel-test-token-2026"
-export APU="http://localhost:5080/agentprism"
-export APULAN="http://$LANIP:5080/agentprism"
+export APU="http://localhost:5080/tracon"
+export APULAN="http://$LANIP:5080/tracon"
 ```
 
 > **Gerçek para uyarısı.** §4 (kiracı izolasyonu) `FIX-AGENT-01` ile gerçek bir
@@ -134,16 +134,16 @@ export APULAN="http://$LANIP:5080/agentprism"
 > hiçbir model çağırmaz.
 >
 > **Doküman düzeltmesi (koşumda, 2026-08-13).** Yukarıdaki not artık YANLIŞ:
-> `AgentPrism:Ui:AllowRemoteAccess` anahtarı 2026-08-11'de `Program.cs`'e
+> `Tracon:Ui:AllowRemoteAccess` anahtarı 2026-08-11'de `Program.cs`'e
 > bağlandı (commit `419981b`, satır 708-715 —
-> `builder.Configuration.GetValue<bool?>("AgentPrism:Ui:AllowRemoteAccess")`).
+> `builder.Configuration.GetValue<bool?>("Tracon:Ui:AllowRemoteAccess")`).
 > §7'deki `MT-SEC-070`/`071` artık **geçici kod değişikliği GEREKTİRMİYOR**;
-> `AgentPrism__Ui__AllowRemoteAccess` ortam değişkeni/`user-secrets` anahtarı
+> `Tracon__Ui__AllowRemoteAccess` ortam değişkeni/`user-secrets` anahtarı
 > yeterli. Koşum bu şekilde (yalnız yapılandırma ile) yapıldı ve doğrulandı.
 
 ---
 
-# 1 — Üç katmanlı erişim koruması (Faz 4/50, `AgentPrismEndpointFilter`)
+# 1 — Üç katmanlı erişim koruması (Faz 4/50, `TraconEndpointFilter`)
 
 ### MT-SEC-001 — Loopback'ten doğru token ile istek geçer
 
@@ -332,7 +332,7 @@ curl -s -w "\nHTTP: %{http_code}\n" "$APULAN/api/meta"
 ```
 
 **Beklenen sonuç**
-- `HTTP: 200` — `AgentPrismEndpointRouteBuilderExtensions.cs:82-84`'teki
+- `HTTP: 200` — `TraconEndpointRouteBuilderExtensions.cs:82-84`'teki
   `metaGroup` hiçbir `AddEndpointFilter` taşımaz; loopback kısıtı da bearer
   denetimi de bu gruba uygulanmaz.
 - Aynı anda MT-SEC-002'nin AYNI koşullar altında (aynı `$LANIP`, aynı eksik
@@ -393,7 +393,7 @@ curl -s -o /dev/null -w "lan:      %{http_code}\n" "$APULAN/"
 
 **Beklenen sonuç**
 - `loopback: 200` — `MapUi`'nin grubu `requireBearerToken: false` ile kurulur
-  (`AgentPrismEndpointRouteBuilderExtensions.cs:294`); tarayıcı bir
+  (`TraconEndpointRouteBuilderExtensions.cs:294`); tarayıcı bir
   `<script src>` isteğine `Authorization` ekleyemeyeceği için bu katman
   bilerek atlanır.
 - `lan: 403` — loopback kısıtı bu grup için de geçerlidir, yalnız bearer
@@ -411,7 +411,7 @@ Bu case §3'ün ön koşulu UYGULANMADAN, temiz durumda koşulur.
 | **İlgili karar** | — |
 
 **Ön koşul**
-- `AgentPrism:Tenancy:Enabled` AYARLANMAMIŞ (varsayılan kapalı).
+- `Tracon:Tenancy:Enabled` AYARLANMAMIŞ (varsayılan kapalı).
 
 **Adımlar**
 1. `GET /api/tenants/current` çağır.
@@ -422,11 +422,11 @@ curl -s "$APU/api/tenants/current" -H "$APB"
 ```
 
 **Beklenen sonuç**
-- `{"tenantId":"default"}` — `AgentPrismOptions.DefaultTenantId` varsayılanı.
+- `{"tenantId":"default"}` — `TraconOptions.DefaultTenantId` varsayılanı.
 
 ---
 
-### MT-SEC-021 — `AllowHeaderResolution` açıkken `X-AgentPrism-Tenant` başlığı kiracıyı belirler
+### MT-SEC-021 — `AllowHeaderResolution` açıkken `X-Tracon-Tenant` başlığı kiracıyı belirler
 
 | | |
 |---|---|
@@ -439,11 +439,11 @@ curl -s "$APU/api/tenants/current" -H "$APB"
 - §3 ön koşulu uygulandı (Tenancy açık, header çözümü açık).
 
 **Adımlar**
-1. `X-AgentPrism-Tenant: kiraci-alfa` (`FIX-TENANT-01`) başlığıyla iste.
+1. `X-Tracon-Tenant: kiraci-alfa` (`FIX-TENANT-01`) başlığıyla iste.
 
 **Girilecek veri**
 ```bash
-curl -s "$APU/api/tenants/current" -H "$APB" -H "X-AgentPrism-Tenant: kiraci-alfa"
+curl -s "$APU/api/tenants/current" -H "$APB" -H "X-Tracon-Tenant: kiraci-alfa"
 ```
 
 **Beklenen sonuç**
@@ -464,8 +464,8 @@ Negatif senaryo.
 
 **Ön koşul**
 ```bash
-dotnet user-secrets set "AgentPrism:Tenancy:Enabled" "true"
-dotnet user-secrets remove "AgentPrism:Tenancy:AllowHeaderResolution"
+dotnet user-secrets set "Tracon:Tenancy:Enabled" "true"
+dotnet user-secrets remove "Tracon:Tenancy:AllowHeaderResolution"
 ```
 Uygulama yeniden başlatılır.
 
@@ -474,7 +474,7 @@ Uygulama yeniden başlatılır.
 
 **Girilecek veri**
 ```bash
-curl -s "$APU/api/tenants/current" -H "$APB" -H "X-AgentPrism-Tenant: kiraci-alfa"
+curl -s "$APU/api/tenants/current" -H "$APB" -H "X-Tracon-Tenant: kiraci-alfa"
 ```
 
 **Beklenen sonuç**
@@ -503,7 +503,7 @@ Negatif senaryo, sınır durumu.
 **Girilecek veri**
 ```bash
 curl -s -w "\nHTTP: %{http_code}\n" "$APU/api/tenants/current" -H "$APB" \
-     -H "X-AgentPrism-Tenant: kiraci alfa/beta"
+     -H "X-Tracon-Tenant: kiraci alfa/beta"
 ```
 
 **Beklenen sonuç**
@@ -522,7 +522,7 @@ dönüşü, çağıran zincirde (`TenantId => ... ?? Resolve() ?? DefaultTenantI
 sessizce varsayılan kiracıya düşüyordu — `AllowedTenants`'ın kendi XML
 belgesiyle ("listede olmayan bir değer varsayılan kiracıya düşmez") doğrudan
 çelişen bir davranıştı. Kod okumasıyla doğrulandı ve düzeltildi:
-`AgentPrismEndpointFilter`'a `CheckTenancyWhitelist` eklendi — istek artık
+`TraconEndpointFilter`'a `CheckTenancyWhitelist` eklendi — istek artık
 endpoint'e ulaşmadan ÖNCE 403 ile reddedilir. Bu case artık DÜZELTİLMİŞ
 davranışı doğrular.
 
@@ -535,12 +535,12 @@ davranışı doğrular.
 
 **Ön koşul**
 ```bash
-dotnet user-secrets set "AgentPrism:Tenancy:Enabled" "true"
-dotnet user-secrets set "AgentPrism:Tenancy:AllowHeaderResolution" "true"
+dotnet user-secrets set "Tracon:Tenancy:Enabled" "true"
+dotnet user-secrets set "Tracon:Tenancy:AllowHeaderResolution" "true"
 ```
 `Program.cs`'in `UseTenancy` bloğu `AllowedTenants`'ı okumaz (yalnız
 `Enabled`/`ClaimType`/`AllowHeaderResolution`) — bu yüzden bu case'i
-koşabilmek için `agentPrism.UseTenancy(...)` çağrısına GEÇİCİ olarak
+koşabilmek için `tracon.UseTenancy(...)` çağrısına GEÇİCİ olarak
 `options.AllowedTenants.Add("kiraci-alfa");` satırı eklenir (Program.cs
 satır ~666-672 civarı), test bitince kaldırılır.
 
@@ -549,7 +549,7 @@ satır ~666-672 civarı), test bitince kaldırılır.
 
 **Girilecek veri**
 ```bash
-curl -s "$APU/api/tenants/current" -H "$APB" -H "X-AgentPrism-Tenant: kiraci-gamma"
+curl -s "$APU/api/tenants/current" -H "$APB" -H "X-Tracon-Tenant: kiraci-gamma"
 ```
 
 **Beklenen sonuç**
@@ -573,7 +573,7 @@ curl -s "$APU/api/tenants/current" -H "$APB" -H "X-AgentPrism-Tenant: kiraci-gam
 **Girilecek veri**
 ```bash
 curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/agents" -H "$APB" \
-     -H "X-AgentPrism-Tenant: kiraci-alfa" -H "content-type: application/json" -d '{
+     -H "X-Tracon-Tenant: kiraci-alfa" -H "content-type: application/json" -d '{
   "name": "manuel-destek",
   "instructions": "Sen bir siparis destek asistanisin. Kisa yanit ver.",
   "model": { "provider": "openai", "model": "gpt-5.4-mini" },
@@ -604,7 +604,7 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/agents" -H "$APB" \
 **Girilecek veri**
 ```bash
 curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/agents" -H "$APB" \
-     -H "X-AgentPrism-Tenant: kiraci-beta" -H "content-type: application/json" -d '{
+     -H "X-Tracon-Tenant: kiraci-beta" -H "content-type: application/json" -d '{
   "name": "manuel-destek",
   "instructions": "Sen bir siparis destek asistanisin. Kisa yanit ver.",
   "model": { "provider": "openai", "model": "gpt-5.4-mini" },
@@ -619,7 +619,7 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/agents" -H "$APB" \
 
 **Doğrulama sorgusu** *(PostgreSQL izleğinde)*
 ```sql
-SELECT tenant_id, name, version FROM agentprism.agent_definitions
+SELECT tenant_id, name, version FROM tracon.agent_definitions
 WHERE name = 'manuel-destek' ORDER BY tenant_id;
 ```
 
@@ -642,7 +642,7 @@ WHERE name = 'manuel-destek' ORDER BY tenant_id;
 
 **Girilecek veri**
 ```bash
-curl -s "$APU/api/agents" -H "$APB" -H "X-AgentPrism-Tenant: kiraci-alfa" | python3 -m json.tool
+curl -s "$APU/api/agents" -H "$APB" -H "X-Tracon-Tenant: kiraci-alfa" | python3 -m json.tool
 ```
 
 **Beklenen sonuç**
@@ -670,7 +670,7 @@ curl -s "$APU/api/agents" -H "$APB" -H "X-AgentPrism-Tenant: kiraci-alfa" | pyth
 **Girilecek veri**
 ```bash
 curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/agents/manuel-destek/run" \
-     -H "$APB" -H "X-AgentPrism-Tenant: kiraci-alfa" -H "content-type: application/json" \
+     -H "$APB" -H "X-Tracon-Tenant: kiraci-alfa" -H "content-type: application/json" \
      -d '{ "message": "Merhaba" }'
 ```
 
@@ -697,7 +697,7 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/agents/manuel-destek/run" 
 **Girilecek veri**
 ```bash
 curl -s -w "\nHTTP: %{http_code}\n" "$APU/api/runs/$RUNID" -H "$APB" \
-     -H "X-AgentPrism-Tenant: kiraci-alfa"
+     -H "X-Tracon-Tenant: kiraci-alfa"
 ```
 
 **Beklenen sonuç**
@@ -727,7 +727,7 @@ Negatif senaryo. `RunEndpoints.GetRunInputAsync`/benzeri her yerde "yok" ile
 **Girilecek veri**
 ```bash
 curl -s -w "\nHTTP: %{http_code}\n" "$APU/api/runs/$RUNID" -H "$APB" \
-     -H "X-AgentPrism-Tenant: kiraci-beta"
+     -H "X-Tracon-Tenant: kiraci-beta"
 ```
 
 **Beklenen sonuç**
@@ -755,9 +755,9 @@ curl -s -w "\nHTTP: %{http_code}\n" "$APU/api/runs/$RUNID" -H "$APB" \
 **Girilecek veri**
 ```bash
 curl -s -w "\nHTTP: %{http_code}\n" -X DELETE "$APU/api/agents/manuel-destek" \
-     -H "$APB" -H "X-AgentPrism-Tenant: kiraci-beta"
+     -H "$APB" -H "X-Tracon-Tenant: kiraci-beta"
 curl -s -w "\nHTTP: %{http_code}\n" "$APU/api/agents/manuel-destek" \
-     -H "$APB" -H "X-AgentPrism-Tenant: kiraci-alfa"
+     -H "$APB" -H "X-Tracon-Tenant: kiraci-alfa"
 ```
 
 **Beklenen sonuç**
@@ -788,7 +788,7 @@ curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/tenants/kiraci-alfa" -H "$A
 
 **Doğrulama sorgusu**
 ```sql
-SELECT slug, display_name FROM agentprism.tenants WHERE slug = 'kiraci-alfa';
+SELECT slug, display_name FROM tracon.tenants WHERE slug = 'kiraci-alfa';
 ```
 
 ---
@@ -893,7 +893,7 @@ curl -s "$APU/api/tenants" -H "$APB" | python3 -m json.tool
 ```bash
 curl -s -w "\nHTTP: %{http_code}\n" -X DELETE "$APU/api/tenants/kiraci-alfa" -H "$APB"
 curl -s -w "\nHTTP: %{http_code}\n" "$APU/api/agents/manuel-destek" -H "$APB" \
-     -H "X-AgentPrism-Tenant: kiraci-alfa"
+     -H "X-Tracon-Tenant: kiraci-alfa"
 ```
 
 **Beklenen sonuç**
@@ -1145,7 +1145,7 @@ curl -s -w "\nHTTP: %{http_code}\n" "$APU/api/runs" -H "Authorization: Bearer $A
 
 **Doğrulama sorgusu**
 ```sql
-SELECT id, revoked_at FROM agentprism.api_keys WHERE id = '<APIKEY_READ_ID>';
+SELECT id, revoked_at FROM tracon.api_keys WHERE id = '<APIKEY_READ_ID>';
 -- satir hala vardir, revoked_at doludur.
 ```
 
@@ -1212,7 +1212,7 @@ curl -s -w "\nHTTP: %{http_code}\n" "$APU/api/runs" -H "Authorization: Bearer $A
 
 ---
 
-### MT-SEC-060 — `X-AgentPrism-Tenant` başlığı, anahtarın kiracısıyla ÇELİŞİRSE `403`
+### MT-SEC-060 — `X-Tracon-Tenant` başlığı, anahtarın kiracısıyla ÇELİŞİRSE `403`
 
 Negatif senaryo. `bölüm 53.5`.
 
@@ -1225,30 +1225,30 @@ Negatif senaryo. `bölüm 53.5`.
 
 **Ön koşul**
 ```bash
-dotnet user-secrets set "AgentPrism:Tenancy:Enabled" "true"
-dotnet user-secrets set "AgentPrism:Tenancy:AllowHeaderResolution" "true"
+dotnet user-secrets set "Tracon:Tenancy:Enabled" "true"
+dotnet user-secrets set "Tracon:Tenancy:AllowHeaderResolution" "true"
 ```
 Uygulama yeniden başlatılır (anahtarlar sıfırlanır — yeniden üretin, bu
 kez `kiraci-alfa` kiracısı için `AgentsRead` kapsamlı bir anahtar):
 ```bash
-curl -s -X POST "$APU/api/api-keys" -H "$APB" -H "X-AgentPrism-Tenant: kiraci-alfa" \
+curl -s -X POST "$APU/api/api-keys" -H "$APB" -H "X-Tracon-Tenant: kiraci-alfa" \
      -H "content-type: application/json" -d '{ "name": "alfa-anahtar", "scopes": ["AgentsRead"] }'
 # plaintextKey -> $APIKEY_ALFA
 ```
 
 **Adımlar**
-1. Bu anahtarla, `X-AgentPrism-Tenant: kiraci-beta` başlığı EKLEYEREK
+1. Bu anahtarla, `X-Tracon-Tenant: kiraci-beta` başlığı EKLEYEREK
    (anahtarın kiracısıyla çelişen bir değer) istek at.
 
 **Girilecek veri**
 ```bash
 curl -s -w "\nHTTP: %{http_code}\n" "$APU/api/agents" \
-     -H "Authorization: Bearer $APIKEY_ALFA" -H "X-AgentPrism-Tenant: kiraci-beta"
+     -H "Authorization: Bearer $APIKEY_ALFA" -H "X-Tracon-Tenant: kiraci-beta"
 ```
 
 **Beklenen sonuç**
 - `HTTP: 403`. `title: "Kiraci uyusmuyor"`, `detail`
-  `'X-AgentPrism-Tenant' basligi API anahtarinin baglandigi kiraciyi EZEMEZ...`
+  `'X-Tracon-Tenant' basligi API anahtarinin baglandigi kiraciyi EZEMEZ...`
 
 ---
 
@@ -1265,7 +1265,7 @@ curl -s -w "\nHTTP: %{http_code}\n" "$APU/api/agents" \
 - MT-SEC-060'ın ön koşulu (Tenancy açık, `$APIKEY_ALFA`).
 
 **Adımlar**
-1. `X-AgentPrism-Tenant` başlığı VERMEDEN `GET /api/tenants/current` çağır.
+1. `X-Tracon-Tenant` başlığı VERMEDEN `GET /api/tenants/current` çağır.
 
 **Girilecek veri**
 ```bash
@@ -1326,7 +1326,7 @@ Negatif senaryo.
 **Ön koşul**
 - Reset sonrası temiz durum — sistemde HİÇ `ExternalInvoke` kapsamlı anahtar
   yok.
-- `samples/AgentPrism.Api/Program.cs`'te `app.MapAgentPrism("/agentprism", options => { ... })`
+- `samples/Tracon.Api/Program.cs`'te `app.MapTracon("/tracon", options => { ... })`
   bloğuna (satır ~701-712, `options.AuthToken = ...` bloğunun hemen altına)
   GEÇİCİ olarak şu satır eklenir:
   ```csharp
@@ -1338,7 +1338,7 @@ Negatif senaryo.
 
 **Girilecek veri**
 ```bash
-cd samples/AgentPrism.Api && dotnet run
+cd samples/Tracon.Api && dotnet run
 ```
 
 **Beklenen sonuç**
@@ -1410,7 +1410,7 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/agents" -H "$APB" \
 ```
 
 **Beklenen sonuç**
-- `HTTP: 201` — hiçbir `AgentPrism.*` policy'si kayıtlı olmadığından
+- `HTTP: 201` — hiçbir `Tracon.*` policy'si kayıtlı olmadığından
   `RequireRole` hiçbir şey eklemez (K-042'nin aynı gerekçesi: rol modeli
   yükseltmeyi kırmaz).
 
@@ -1514,7 +1514,7 @@ curl -s -w "\nHTTP: %{http_code}\n" -X DELETE "$APU/api/api-keys/00000000-0000-0
 
 Negatif senaryo. §8'in kurulumu (1-4) GERİ ALINIR (yalnız bu case için) —
 `AddAuthentication`/`AddAuthorization` çağrıları KALDIRILIR, yalnız
-`options.RequireRolePolicies = true;` `MapAgentPrism` lambda'sına eklenir.
+`options.RequireRolePolicies = true;` `MapTracon` lambda'sına eklenir.
 
 | | |
 |---|---|
@@ -1526,7 +1526,7 @@ Negatif senaryo. §8'in kurulumu (1-4) GERİ ALINIR (yalnız bu case için) —
 **Ön koşul**
 - `RoleTestAuthHandler.cs` silinmiş, `AddAuthentication`/`AddAuthorization`
   eklemeleri geri alınmış (temiz `Program.cs`).
-- `MapAgentPrism("/agentprism", options => { ... options.RequireRolePolicies = true; })`
+- `MapTracon("/tracon", options => { ... options.RequireRolePolicies = true; })`
   satırı eklenmiş.
 
 **Adımlar**
@@ -1534,13 +1534,13 @@ Negatif senaryo. §8'in kurulumu (1-4) GERİ ALINIR (yalnız bu case için) —
 
 **Girilecek veri**
 ```bash
-cd samples/AgentPrism.Api && dotnet run
+cd samples/Tracon.Api && dotnet run
 ```
 
 **Beklenen sonuç**
 - Açılışta `InvalidOperationException`. Mesaj üç policy adını da içerir:
-  `AgentPrism.Reader`, `AgentPrism.Operator`, `AgentPrism.Admin`
-  (`AgentPrismRolePolicies.cs:82-87`).
+  `Tracon.Reader`, `Tracon.Operator`, `Tracon.Admin`
+  (`TraconRolePolicies.cs:82-87`).
 
 ---
 
@@ -1896,7 +1896,7 @@ curl -s -X POST "$APU/api/approvals/rules" -H "$APB" -H "content-type: applicati
 | **İlgili karar** | K-451 |
 
 **Ön koşul**
-- Örnek uygulamada `AddToolApprovalPolicy("refund_order", ctx => ToolApprovalPolicyDecision.Required)` kayıtlı bir agent VAR (`samples/AgentPrism.Api` içinde bu tool için ayrı bir sabit politika örneği kurulmalı; yoksa 👤 insan gerekir — kodda geçici olarak eklenip test edilir, kalıcı örnek şart değil).
+- Örnek uygulamada `AddToolApprovalPolicy("refund_order", ctx => ToolApprovalPolicyDecision.Required)` kayıtlı bir agent VAR (`samples/Tracon.Api` içinde bu tool için ayrı bir sabit politika örneği kurulmalı; yoksa 👤 insan gerekir — kodda geçici olarak eklenip test edilir, kalıcı örnek şart değil).
 - MT-SEC-100'ün koşulsuz kuralı (her çağrıyı otomatik onaylayan) kayıtlı.
 
 **Adımlar**
@@ -1905,7 +1905,7 @@ curl -s -X POST "$APU/api/approvals/rules" -H "$APB" -H "content-type: applicati
 **Beklenen sonuç**
 - Çağrı onay İSTER — veri kuralı otomatik onaylardı ama kod politikası `Required` döndüğü için kod kazanır (`IsAutoApprovedAsync`, politika `Required`/`NotRequired` dalı veri kurallarından ÖNCE değerlendirilir).
 
-**Not:** 👤 insan gerekir — `samples/AgentPrism.Api`'ye geçici bir `AddToolApprovalPolicy` çağrısı eklemeden koşulamaz.
+**Not:** 👤 insan gerekir — `samples/Tracon.Api`'ye geçici bir `AddToolApprovalPolicy` çağrısı eklemeden koşulamaz.
 
 ---
 
@@ -2003,7 +2003,7 @@ curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/tenants/acme/providers/open
 ```
 
 **Beklenen sonuç**
-- `HTTP: 400`, `title: "Invalid request"`; gövde "AgentPrism:ProviderKeys:" önekini anar.
+- `HTTP: 400`, `title: "Invalid request"`; gövde "Tracon:ProviderKeys:" önekini anar.
   Kayıt hiç oluşmaz — `GET /api/tenants/acme/providers` boş liste döner.
 
 ---
@@ -2018,13 +2018,13 @@ curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/tenants/acme/providers/open
 | **İlgili karar** | K-059, K-467 |
 
 **Adımlar**
-1. `dotnet user-secrets set "AgentPrism:ProviderKeys:Acme:OpenAI" "sk-..." --project samples/AgentPrism.Api`
+1. `dotnet user-secrets set "Tracon:ProviderKeys:Acme:OpenAI" "sk-..." --project samples/Tracon.Api`
 2. Bağlamayı kaydet, sonra listele.
 
 **Girilecek veri**
 ```bash
 curl -s -X PUT "$APU/api/tenants/acme/providers/openai" -H "$APB" -H "content-type: application/json" -d '{
-  "apiKeyConfigurationName": "AgentPrism:ProviderKeys:Acme:OpenAI"
+  "apiKeyConfigurationName": "Tracon:ProviderKeys:Acme:OpenAI"
 }'
 
 curl -s "$APU/api/tenants/acme/providers" -H "$APB"
@@ -2050,12 +2050,12 @@ curl -s "$APU/api/tenants/acme/providers" -H "$APB"
 | **İlgili karar** | K-467 |
 
 **Adımlar**
-1. `dotnet user-secrets remove "AgentPrism:ProviderKeys:Acme:OpenAI" --project samples/AgentPrism.Api` (değeri sil, bağlama kaydı DURSUN).
+1. `dotnet user-secrets remove "Tracon:ProviderKeys:Acme:OpenAI" --project samples/Tracon.Api` (değeri sil, bağlama kaydı DURSUN).
 2. `acme` kiracısı olarak bir `run` başlat.
 
 **Beklenen sonuç**
-- Çalıştırma **global anahtarla devam ETMEZ**; `AgentPrismException` kaynaklı
-  anlaşılır bir hata alınır ve mesaj `AgentPrism:ProviderKeys:Acme:OpenAI`
+- Çalıştırma **global anahtarla devam ETMEZ**; `TraconException` kaynaklı
+  anlaşılır bir hata alınır ve mesaj `Tracon:ProviderKeys:Acme:OpenAI`
   adını ve `dotnet user-secrets set` ipucunu içerir. Otomatikleştirilmiş
   karşılığı: `ModelProviderRegistryTenantCredentialTests.A_binding_that_exists_but_resolves_to_no_value_does_not_fall_back_silently`.
 
@@ -2098,11 +2098,11 @@ curl -s "$APU/api/tenants/acme/providers" -H "$APB"
 
 **Girilecek veri**
 ```bash
-psql "$PG_CONN" -c "SELECT tenant_id, provider_name, api_key_configuration_name, endpoint FROM agentprism.tenant_provider_bindings;"
+psql "$PG_CONN" -c "SELECT tenant_id, provider_name, api_key_configuration_name, endpoint FROM tracon.tenant_provider_bindings;"
 ```
 
 **Beklenen sonuç**
-- `api_key_configuration_name` sütunu yalnız ADI taşır (`AgentPrism:ProviderKeys:...`);
+- `api_key_configuration_name` sütunu yalnız ADI taşır (`Tracon:ProviderKeys:...`);
   hiçbir satırda `sk-` ile başlayan bir metin veya gerçek anahtar değeri YOKTUR.
 
 ---
@@ -2172,7 +2172,7 @@ curl -s -X PUT "$APU/api/tenants/acme/egress" -H "$APB" -H "content-type: applic
 ```
 
 **Beklenen sonuç**
-- `AgentPrismCompilationException` kaynaklı bir hata; mesaj `openai` adını ve
+- `TraconCompilationException` kaynaklı bir hata; mesaj `openai` adını ve
   izinli listeyi (`anthropic`) anar. Gerçek bir model çağrısı YAPILMAZ — hata
   ağa hiç çıkmadan, derleme adımında oluşur. Otomatikleştirilmiş karşılığı:
   `AgentDefinitionCompilerEgressTests.Compiling_an_agent_bound_to_a_forbidden_provider_throws_a_compilation_exception`.
@@ -2194,7 +2194,7 @@ curl -s -X PUT "$APU/api/tenants/acme/egress" -H "$APB" -H "content-type: applic
 **Girilecek veri**
 ```bash
 curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/tenants/acme/providers/openai" -H "$APB" -H "content-type: application/json" -d '{
-  "apiKeyConfigurationName": "AgentPrism:ProviderKeys:Acme:OpenAI"
+  "apiKeyConfigurationName": "Tracon:ProviderKeys:Acme:OpenAI"
 }'
 ```
 
@@ -2266,7 +2266,7 @@ curl -s -w "\nHTTP: %{http_code}\n" -X DELETE "$APU/api/tenants/acme/egress" -H 
 
 **Ön koşul**
 `Program.cs`'de özel bir `IToolAuthorizationHandler` KAYITLI DEĞİL —
-`AddAgentPrism()`'in varsayılan `AllowAllToolAuthorizationHandler`'ı geçerli.
+`AddTracon()`'in varsayılan `AllowAllToolAuthorizationHandler`'ı geçerli.
 
 **Adımlar**
 1. `get_order_status` tool'unu çağıran bir `run` başlat (gerçek bir model
@@ -2338,8 +2338,8 @@ curl -s "$APU/api/runs/$RUN_ID/tools" -H "$APB" | python3 -m json.tool
 | **İlgili karar** | — |
 
 **Ön koşul**
-`samples/AgentPrism.Api`'nin `get_slow_report` tool'u (1 sn timeout, 5 sn
-uyuyan gövde) kayıtlı — bkz. `samples/AgentPrism.Api/OrderTools.cs`.
+`samples/Tracon.Api`'nin `get_slow_report` tool'u (1 sn timeout, 5 sn
+uyuyan gövde) kayıtlı — bkz. `samples/Tracon.Api/OrderTools.cs`.
 
 **Adımlar**
 1. `get_slow_report` tool'unu çağıran bir `run` başlat, süreyi ölç.
@@ -2456,21 +2456,21 @@ ayarlanmış bir kopyası — bkz. faz dokümanı) çağıran bir `run`.
 | **İlgili faz** | Faz 77 |
 | **İlgili karar** | K-530 |
 
-**Ön koşul** Varsayılan ayarlar (`AgentPrism:Egress:AllowPrivateNetworkTargets`
+**Ön koşul** Varsayılan ayarlar (`Tracon:Egress:AllowPrivateNetworkTargets`
 tanımlı DEĞİL). Örnek uygulama ayakta.
 
 **Adımlar**
 ```bash
 curl -s -X PUT "$APU/api/tenants/acme/providers/anthropic" -H "$APB" \
   -H 'Content-Type: application/json' \
-  -d '{"apiKeyConfigurationName":"AgentPrism:ProviderKeys:acme","endpoint":"http://10.0.0.5/"}' \
+  -d '{"apiKeyConfigurationName":"Tracon:ProviderKeys:acme","endpoint":"http://10.0.0.5/"}' \
   | jq -r '.detail'
 ```
 
 **Beklenen sonuç**
 - `400`. `detail` şu metni içerir:
   `The target resolves to a private network address (10.0.0.5); set
-  'AgentPrism:Egress:AllowPrivateNetworkTargets' to true to allow it.`
+  'Tracon:Egress:AllowPrivateNetworkTargets' to true to allow it.`
 - Mesaj ayarın **adını** yazar — iç ağda gerçekten sağlayıcı proxy'si olan bir
   operatörün yolu kapanmaz.
 - `endpoint` alanı hiç verilmezse istek `200` döner: kısıt yalnız override'a uygulanır.
@@ -2499,8 +2499,8 @@ curl -s -X PUT "$APU/api/webhooks/orders" -H "$APB" \
 **Beklenen sonuç**
 - `400`. `detail`: `'ConnectionStrings:Default' is outside the allowed prefix.
   'secretConfigurationKey' may only reference a configuration key under
-  'AgentPrism:WebhookSecrets:'.`
-- Aynı istek `"secretConfigurationKey":"AgentPrism:WebhookSecrets:orders"` ile
+  'Tracon:WebhookSecrets:'.`
+- Aynı istek `"secretConfigurationKey":"Tracon:WebhookSecrets:orders"` ile
   `200` döner.
 - `secretConfigurationKey` hiç verilmezse `200` — alan opsiyoneldir.
 
@@ -2519,15 +2519,15 @@ curl -s -X PUT "$APU/api/webhooks/orders" -H "$APB" \
 veya bir webhook echo servisi) ve ona işaret eden etkin bir abonelik.
 
 **Adımlar**
-1. Aboneliğe `headers` içinde `{"X-AgentPrism-Signature":"sahte"}` ekle.
+1. Aboneliğe `headers` içinde `{"X-Tracon-Signature":"sahte"}` ekle.
 2. Bir `run` tamamlanmasını tetikle ve alıcının aldığı ham isteği incele.
 3. Sunucu loglarını oku.
 
 **Beklenen sonuç**
-- Alıcıya **tek bir** `X-AgentPrism-Signature` başlığı ulaşır ve değeri
-  AgentPrism'in hesapladığı imzadır — `sahte` değildir.
+- Alıcıya **tek bir** `X-Tracon-Signature` başlığı ulaşır ve değeri
+  Tracon'in hesapladığı imzadır — `sahte` değildir.
 - Sunucu logunda uyarı: `Webhook subscription 'orders' carries the reserved
-  header 'X-AgentPrism-Signature'; it was not sent.`
+  header 'X-Tracon-Signature'; it was not sent.`
 - Sıradan adlı bir ek başlık (örn. `X-Tenant`) normal şekilde iletilir.
 
 ---
@@ -2541,9 +2541,9 @@ veya bir webhook echo servisi) ve ona işaret eden etkin bir abonelik.
 | **İlgili faz** | Faz 82 |
 | **İlgili karar** | K-561, K-562 |
 
-**Ön koşul** `samples/AgentPrism.Api`, bir SQL sağlayıcısı (`UsePostgreSql`/
-`UseSqlServer`/`UseSqlite`) yapılandırılmış, `AgentPrism:ContentProtection:Enabled`
-`true` ve `dotnet user-secrets set "AgentPrism:ContentProtection:RawKeys:sample"
+**Ön koşul** `samples/Tracon.Api`, bir SQL sağlayıcısı (`UsePostgreSql`/
+`UseSqlServer`/`UseSqlite`) yapılandırılmış, `Tracon:ContentProtection:Enabled`
+`true` ve `dotnet user-secrets set "Tracon:ContentProtection:RawKeys:sample"
 "$(openssl rand -base64 32)"` ile 32 baytlık bir anahtar tanımlanmış
 (`appsettings.json`'daki `ContentProtection` bölümünün `Keys:sample` girdisi bu
 anahtarın **adını** gösterir, değerini değil).
@@ -2557,8 +2557,8 @@ curl -s -X POST "$APU/api/agents/support/run" -H "$APB" \
 ```
 Sonra veritabanını doğrudan sorgula (PostgreSQL örneği):
 ```sql
-SELECT messages FROM agentprism.run_inputs WHERE run_id = '<runId>';
-SELECT state FROM agentprism.sessions WHERE id = 'cp-demo';
+SELECT messages FROM tracon.run_inputs WHERE run_id = '<runId>';
+SELECT state FROM tracon.sessions WHERE id = 'cp-demo';
 ```
 
 **Beklenen sonuç**
@@ -2611,7 +2611,7 @@ kapalı**.
 `sample` kid'i ile şifrelenmiş olmalı.
 
 **Adımlar**
-1. `AgentPrism:ContentProtection:Keys:sample` girdisini `appsettings.json`'dan
+1. `Tracon:ContentProtection:Keys:sample` girdisini `appsettings.json`'dan
    kaldır (`ActiveKeyId`'yi DEĞİL — o zaten `sample2`).
 2. Uygulamayı yeniden başlat. Başlangıç **başarılıdır**: doğrulayıcı yalnız
    `ActiveKeyId`'nin (`sample2`) `Keys`'te karşılığı olduğunu ister,
@@ -2623,7 +2623,7 @@ kapalı**.
 - Uygulama **açılır** — eksik olan `sample`, `ActiveKeyId` değildir.
 - Adım 3'teki istek bir sunucu hatası döner ve mesaj **`sample`'ı adıyla**
   söyler — örn. `Content protection key 'sample' is not configured. Add it to
-  AgentPrismContentProtectionOptions.Keys, ...`
+  TraconContentProtectionOptions.Keys, ...`
 - Hata sessiz bir `null`/boş yanıt DEĞİLDİR; okunamayan veri fark edilir hâlde
   kalır.
 - `sample2` ile yazılmış YENİ bir satır aynı anda sorunsuz okunur.
@@ -2640,14 +2640,14 @@ kapalı**.
 | **İlgili faz** | Faz 82 |
 | **İlgili karar** | K-559 |
 
-**Ön koşul** `samples/AgentPrism.Api`, bir SQL sağlayıcısı yapılandırılmış,
+**Ön koşul** `samples/Tracon.Api`, bir SQL sağlayıcısı yapılandırılmış,
 `AddContentProtection()` kayıtlı ama `appsettings.json`'da `ContentProtection:Enabled`
 `false` (varsayılan).
 
 **Adımlar**
 1. Bir `run` yap, `run_inputs`/`sessions` satırlarını `psql`/`sqlcmd`/`sqlite3`
    ile doğrudan oku.
-2. `AgentPrism:ContentProtection` bölümünü `appsettings.json`'dan tamamen
+2. `Tracon:ContentProtection` bölümünü `appsettings.json`'dan tamamen
    kaldırıp uygulamayı yeniden başlat, aynı isteği tekrar gönder.
 
 **Beklenen sonuç**
@@ -2685,7 +2685,7 @@ bir agent.
 
 # 2 — Çalıştırma ve Oturum Yetkilendirmesi (Faz 139, F-185, `IRunAuthorizationHandler`)
 
-AgentPrism sahipliği kiracı düzeyinde çizer; kiracı **içindeki** kullanıcıyı
+Tracon sahipliği kiracı düzeyinde çizer; kiracı **içindeki** kullanıcıyı
 hiçbir yerde ayırmaz. Bu bölüm, tüketicinin kendi `IRunAuthorizationHandler`
 kaydının run başlatmayı ve session erişimini (Read/List/Delete/Branch)
 doğru reddettiğini/izin verdiğini kanıtlar. Otomatikleştirilmiş karşılığın
@@ -2739,7 +2739,7 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/agents/support/run" \
 
 **Ön koşul**
 - Örnek uygulamaya GEÇİCİ olarak `UserId == "a"` dışını reddeden bir
-  `IRunAuthorizationHandler` kaydı eklenir (`Program.cs`, `AddAgentPrism()`
+  `IRunAuthorizationHandler` kaydı eklenir (`Program.cs`, `AddTracon()`
   zincirine `services.Replace(...)`); `IRunAttributionContext` sabit `"a"` veya
   `"b"` döner.
 
@@ -2958,7 +2958,7 @@ unutulmuşsa bu case onu yakalar.
 2. Tool'un ürettiği sonucu (veya modelin yankıladığı metni) incele.
 
 **Beklenen sonuç**
-- Tool `AgentPrismRunContext.Current?.UserId` üzerinden `"ada"`yı görür — yeni
+- Tool `TraconRunContext.Current?.UserId` üzerinden `"ada"`yı görür — yeni
   bir kavram değil, `IRunAttributionContext`'in run kaydı için zaten okuduğu
   değerin tool'a açılan aynı kopyasıdır.
 - Otomatikleştirilmiş karşılığı: `Allowed_user_id_reaches_the_tool_via_scope`.
@@ -3045,7 +3045,7 @@ diff <(curl -s "$APU/api/runs/$OTHER_RUN" -H "$APB" | sed "s/$OTHER_RUN/{id}/g")
 
 **Beklenen sonuç**
 - İkisi de `404`; `diff` **boş**. `403` dönseydi `run`'ın varlığını doğrulardı.
-- **Koşuldu (2026-09-05):** `samples/AgentPrism.Embedded` üzerinde koşuldu, iki
+- **Koşuldu (2026-09-05):** `samples/Tracon.Embedded` üzerinde koşuldu, iki
   gövde birebir aynı çıktı (`title: "Run not found"`).
 - Otomatikleştirilmiş karşılığı:
   `Denied_run_read_is_indistinguishable_from_a_missing_run`.
@@ -3169,7 +3169,7 @@ curl -s -o /dev/null -w '%{http_code}\n' -X POST "$APU/../v1/chat/completions" \
 
 **Beklenen sonuç**
 - İkisi de `403`; akışlı dalda yanıt `text/event-stream` **değil**.
-- **Koşuldu (2026-09-05):** `samples/AgentPrism.Embedded` üzerinde bilinmeyen
+- **Koşuldu (2026-09-05):** `samples/Tracon.Embedded` üzerinde bilinmeyen
   kiracıyla `403` alındı.
 - Otomatikleştirilmiş karşılıkları:
   `Denied_chat_completions_returns_403_on_the_non_streaming_path`,
@@ -3336,12 +3336,12 @@ curl -s -o /dev/null -w '%{http_code}\n' -X POST "$APU/../v1/chat/completions" \
 | **İlgili karar** | K1 |
 
 **Ön koşul**
-- `AgentPrism:SessionOwnership` bölümü **hiç yok** (varsayılan kurulum).
+- `Tracon:SessionOwnership` bölümü **hiç yok** (varsayılan kurulum).
 - `IRunAttributionContext` bir kullanıcı çözüyor.
 
 **Adımlar**
 1. Bir oturum aç, listele, oku, dallandır, sil.
-2. Veritabanında `SELECT owner_id FROM agentprism.sessions;` koştur.
+2. Veritabanında `SELECT owner_id FROM tracon.sessions;` koştur.
 
 **Beklenen sonuç**
 - Dört işlem de bu fazdan önceki davranışı birebir verir.
@@ -3359,7 +3359,7 @@ curl -s -o /dev/null -w '%{http_code}\n' -X POST "$APU/../v1/chat/completions" \
 | **İlgili faz** | Faz 148 |
 
 **Ön koşul**
-- `AgentPrism:SessionOwnership:Enabled=true`.
+- `Tracon:SessionOwnership:Enabled=true`.
 - A ve B kullanıcısının birer oturumu var.
 
 **Adımlar**
@@ -3487,7 +3487,7 @@ curl -s -o /dev/null -w '%{http_code}\n' -X POST "$APU/../v1/chat/completions" \
 | **İlgili faz** | Faz 148 |
 
 **Ön koşul**
-- Mod açık. `AgentPrismPolicies.Operator` politikası **kayıtlı**.
+- Mod açık. `TraconPolicies.Operator` politikası **kayıtlı**.
 - A'nın bir oturumu ve mod açılmadan önce yazılmış bir **sahipsiz** oturum var.
 
 **Adımlar**
@@ -3616,7 +3616,7 @@ curl -s -o /dev/null -w '%{http_code}\n' -X POST "$APU/../v1/chat/completions" \
 | **İnsan gerekir** | Hayır |
 
 **Ön koşul**
-- `AgentPrism:SessionOwnership:Enabled=false`, `RefuseUnownedSessions=true`.
+- `Tracon:SessionOwnership:Enabled=false`, `RefuseUnownedSessions=true`.
 - Sahipsiz (`owner_id IS NULL`) bir oturum var.
 
 **Adımlar**
@@ -3733,7 +3733,7 @@ curl -s -o /dev/null -w '%{http_code}\n' -X POST "$APU/../v1/chat/completions" \
 
 **Ön koşul**
 - `Enabled=true`, `RefuseUnownedSessions=true`.
-- `AgentPrism.Operator` politikası kayıtlı; sahipsiz `legacy` oturumu.
+- `Tracon.Operator` politikası kayıtlı; sahipsiz `legacy` oturumu.
 
 **Adımlar**
 1. Yönetim payı taşıyan token ile `GET /api/sessions/legacy`.
@@ -3792,7 +3792,7 @@ curl -s -o /dev/null -w '%{http_code}\n' -X POST "$APU/../v1/chat/completions" \
 | **İnsan gerekir** | Hayır |
 
 **Ön koşul**
-- `app.MapAgentPrism(prefix, options => options.MapOpenAIConversations = false);`
+- `app.MapTracon(prefix, options => options.MapOpenAIConversations = false);`
 - Var olan bir oturum (`conv-1`).
 
 **Adımlar**

@@ -1,9 +1,9 @@
 ---
 title: Write your own tool
-description: Build a safe custom tool without bypassing AgentPrism's authorization, approval, timeout, and output boundaries.
+description: Build a safe custom tool without bypassing Tracon's authorization, approval, timeout, and output boundaries.
 ---
 
-Use `[AgentPrismTool]` with `AddGeneratedTools()` for a custom tool. It is the AOT-safe
+Use `[TraconTool]` with `AddGeneratedTools()` for a custom tool. It is the AOT-safe
 path. Tool instances are singletons and can run concurrently for different tenants and
 runs. Keep no mutable run state in fields.
 
@@ -18,7 +18,7 @@ public sealed record OrderReceipt(string OrderId, string Status);
 
 public static class OrderTools
 {
-    [AgentPrismTool(
+    [TraconTool(
         "submit_order",
         "Submits an order to the fulfillment system.",
         Effect = ToolEffect.External,
@@ -44,7 +44,7 @@ A standard `System.ComponentModel.DataAnnotations` attribute reaches the schema 
 constraint the model sees before it ever calls the tool:
 
 ```csharp
-[AgentPrismTool("search_orders_by_text", "Searches orders by free text.")]
+[TraconTool("search_orders_by_text", "Searches orders by free text.")]
 public static string[] SearchOrdersByText(
     [Description("The search text.")] [MinLength(1)] [MaxLength(200)] string query,
     [Description("The maximum number of results.")] [Range(1, 100)] int limit = 20,
@@ -90,7 +90,7 @@ public sealed record Rubric([Description("The rubric's title.")] string Title, [
 [JsonSerializable(typeof(Criterion))]
 internal partial class ScoringJsonContext : JsonSerializerContext;
 
-[AgentPrismTool("score_submission", "Scores a submission against a rubric.", JsonSerializerContext = typeof(ScoringJsonContext))]
+[TraconTool("score_submission", "Scores a submission against a rubric.", JsonSerializerContext = typeof(ScoringJsonContext))]
 public static string ScoreSubmission([Description("The rubric to score against.")] Rubric rubric)
     => $"Scored against '{rubric.Title}'.";
 ```
@@ -127,7 +127,7 @@ public sealed record OrderFilter(string Status, int MinAmount);
 [JsonSerializable(typeof(OrderFilter))]
 internal partial class OrderFilterJsonContext : JsonSerializerContext;
 
-agentPrism.Services.AddSingleton<AgentPrismToolRegistration>(provider =>
+tracon.Services.AddSingleton<TraconToolRegistration>(provider =>
     new(AIFunctionFactory.Create(
         (OrderFilter filter) => SearchOrders(filter),
         "search_orders",
@@ -148,7 +148,7 @@ above.
 
 ```csharp
 var repository = provider.GetRequiredService<IOrderRepository>();
-agentPrism.AddTool(AIFunctionFactory.Create(
+tracon.AddTool(AIFunctionFactory.Create(
     (string orderId) => repository.Find(orderId), "get_order", "Fetches an order."));
 ```
 
@@ -156,12 +156,12 @@ agentPrism.AddTool(AIFunctionFactory.Create(
 `RequiredPermission`, `Timeout`, `SafeToRepeat`, `MaxOutputBytes`, and `Source`.
 Code-defined tools normally leave `Source` unset.
 
-Do not replace `IToolRegistry`. It is AgentPrism's immutable startup snapshot and owns
+Do not replace `IToolRegistry`. It is Tracon's immutable startup snapshot and owns
 authorization, timeout, approval, and output truncation. Startup rejects an unverified
 replacement unless `Tools.AllowUnverifiedToolRegistry` is explicitly enabled.
 
 Timeout is not a forced abort: the model stops waiting, but a tool body can still have
-started an external side effect. Make external calls idempotent. AgentPrism records and
+started an external side effect. Make external calls idempotent. Tracon records and
 streams controlled error text, but arguments and successful results can be persisted;
 never return a secret.
 
@@ -197,7 +197,7 @@ exactly this: every call opens its own dependency-injection scope, exposes it th
 `AIFunctionArguments.Services`, and closes it as soon as the call ends.
 
 ```csharp
-agentPrism.AddScopedTool(
+tracon.AddScopedTool(
     AIFunctionFactory.Create(
         async (string orderId, AIFunctionArguments arguments) =>
         {
@@ -220,7 +220,7 @@ agentPrism.AddScopedTool(
 `AIFunctionArguments.Services` is real inside a tool registered this way — the empty
 provider MAF otherwise supplies is only ever seen by a plain `AddTool`/`AddToolsFrom`
 registration. Two concurrent calls to the same scoped tool never share a scope. An
-instance method marked `[AgentPrismTool]` still cannot be a tool (the source generator
+instance method marked `[TraconTool]` still cannot be a tool (the source generator
 rejects it at scan time) — the rejection message points here.
 
 ## Argument validation
@@ -260,7 +260,7 @@ cleanly. `ToolArgumentValidationContract` fuzzes your validator against one of
 your own tools:
 
 ```csharp
-using AgentPrism.Testing.Contracts.Tools;
+using Tracon.Testing.Contracts.Tools;
 using Microsoft.Extensions.AI;
 
 public sealed class NoExtraFieldsValidatorTests : ToolArgumentValidationContract
@@ -286,18 +286,18 @@ below asks for the tool's expected result.
 
 ## Prove the registration
 
-The `AgentPrism.Testing.Contracts.Xunit` package ships `CustomToolContract`.
+The `Tracon.Testing.Contracts.Xunit` package ships `CustomToolContract`.
 Derive it in your test project to check the registration name, metadata, and concurrent
 server-side invocation.
 
 ```csharp
-using AgentPrism.Testing.Contracts;
-using AgentPrism.Testing.Contracts.Tools;
+using Tracon.Testing.Contracts;
+using Tracon.Testing.Contracts.Tools;
 
 public sealed class OrderToolTests : CustomToolContract
 {
-    protected override ValueTask<AgentPrismToolRegistration> CreateRegistrationAsync()
-        => new(new AgentPrismToolRegistration(MyOrderTool));
+    protected override ValueTask<TraconToolRegistration> CreateRegistrationAsync()
+        => new(new TraconToolRegistration(MyOrderTool));
 }
 
 [Fact]

@@ -73,7 +73,7 @@
 | MT-JOB-075 | ☑ | Başlık GÖNDERİLMEYEN istekte davranış DEĞİŞMEZ (K1) |
 | MT-JOB-076 | ☑ | Boş `message` ile `Prefer: respond-async` → `400` |
 | MT-JOB-077 | ☑ | Ek (`attachmentIds`) veya onay kararı ile birlikte `respond-async` → `400` |
-| MT-JOB-078 | ☑ | `AgentPrism:AsyncRun:Enabled = false` → başlık taşıyan istek `501` alır |
+| MT-JOB-078 | ☑ | `Tracon:AsyncRun:Enabled = false` → başlık taşıyan istek `501` alır |
 | MT-JOB-079 | ☑ | Kota dolu iken kuyruğa alma `429` alır, iş AÇILMAZ |
 | MT-JOB-080 | ☑ | `Queued` durumdaki bir çalıştırma iptal edilebilir |
 | MT-JOB-081 | ☑ | İptal edilmiş bir kuyruk çalıştırmasını TEKRAR iptal etmek → `409` |
@@ -101,10 +101,10 @@ hata, öge döngüsüne hiç girilmedi).
 ## MT-JOB-052 — `PollInterval <= 0` ayarlanırsa işçi hiçbir tur atmadan hemen döner
 
 **Gerçek sonuç**
-`AgentPrism__Scheduling__PollInterval=00:00:00` env var ile yeniden
+`Tracon__Scheduling__PollInterval=00:00:00` env var ile yeniden
 başlatma denendi. Uygulama **başlamadı**:
 `Unhandled exception. Microsoft.Extensions.Options.OptionsValidationException:
-AgentPrismSchedulingOptions.PollInterval sifirdan buyuk olmalidir. Gelen
+TraconSchedulingOptions.PollInterval sifirdan buyuk olmalidir. Gelen
 deger: 00:00:00.` Kaynak doğrulandı (yukarıdaki not). Bu, ürün kusuru
 DEĞİL — doğrulayıcı doğru çalışıyor; asıl kusur dokümanın yanlış
 varsayımıydı (yukarıda düzeltildi). Ayar kaldırılıp normal başlatıldı.
@@ -175,7 +175,7 @@ ilk istekle birebir aynı, `Idempotency-Replayed: true` başlığı var. AMA
 ikinci yanıtta **`Location` HTTP başlığı hiç yok** (ve `Preference-Applied`
 de yok) — yalnızca gövdedeki JSON `location` alanı doğru. Kök neden
 doğrulandı: **`HATA-S3-008`** — `IdempotencyResponse` kaydı
-(`src/AgentPrism.Abstractions/Idempotency/IdempotencyTypes.cs:45-56`)
+(`src/Tracon.Abstractions/Idempotency/IdempotencyTypes.cs:45-56`)
 yalnız `StatusCode`, `ContentType`, `Body`, `RunId` taşıyor; hiçbir HTTP
 başlığı saklamıyor. `IdempotencyReplayResult.ExecuteAsync`
 (`IdempotencyResults.cs:12-19`) yalnız `StatusCode`/`ContentType`/

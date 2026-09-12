@@ -14,7 +14,7 @@ without one.
 ```mermaid
 sequenceDiagram
     accTitle: Session conversation lifecycle
-    accDescr: A caller sends a session id, AgentPrism loads conversation history, invokes the agent, appends new items, and returns the response.
+    accDescr: A caller sends a session id, Tracon loads conversation history, invokes the agent, appends new items, and returns the response.
     autonumber
     participant Caller
     participant Manager as AgentSessionManager
@@ -43,7 +43,7 @@ sequenceDiagram
     end
 ```
 
-The caller drives it. AgentPrism does not decide when a conversation starts or ends.
+The caller drives it. Tracon does not decide when a conversation starts or ends.
 
 The identity stamp matters: the session id is written into the session's own state
 bag, so it survives serialization. A restored session knows which session it is, which
@@ -55,8 +55,8 @@ Neither save is unconditional, and both refuse rather than overwrite.
 
 | Situation | What the store is asked | If another writer got there first |
 |---|---|---|
-| First save of a new session | `TryCreateAsync` | `AgentPrismSessionConflictException` |
-| Every later save of that session | `TryUpdateAsync(record, versionRead)` | `AgentPrismSessionConflictException` |
+| First save of a new session | `TryCreateAsync` | `TraconSessionConflictException` |
+| Every later save of that session | `TryUpdateAsync(record, versionRead)` | `TraconSessionConflictException` |
 
 `SessionRecord.Version` is the record's write generation. A save replaces the exact
 generation it read; if another turn advanced it meanwhile, the write is refused and
@@ -78,8 +78,8 @@ unconditional.
 ## Persisted payload compatibility
 
 `SessionRecord.State` is the Microsoft Agent Framework's own serialized
-format; AgentPrism does not interpret it. `SessionRecord.StateSchemaVersion`
-(AgentPrism's own envelope generation) and `StateMafVersion` (the Microsoft
+format; Tracon does not interpret it. `SessionRecord.StateSchemaVersion`
+(Tracon's own envelope generation) and `StateMafVersion` (the Microsoft
 Agent Framework package version that wrote `State`) are stamped on every
 save so that a failed restore can report exactly what was recorded instead
 of guessing. See [Versions and upgrades](/reference/versioning/#persisted-session-and-checkpoint-state)
@@ -153,12 +153,12 @@ the decision to your own policy.
 
 ### Session ownership
 
-Turning ownership on makes AgentPrism record which user a session belongs to,
+Turning ownership on makes Tracon record which user a session belongs to,
 and narrow the session list to that user:
 
 ```json
 {
-  "AgentPrism": {
+  "Tracon": {
     "SessionOwnership": {
       "Enabled": true
     }
@@ -182,13 +182,13 @@ client open a session under someone else's name.
 Three properties are worth knowing before you turn it on:
 
 - **It is not retroactive.** Sessions written before you enabled it have no
-  owner. AgentPrism cannot invent one for a conversation it did not watch being
+  owner. Tracon cannot invent one for a conversation it did not watch being
   opened. Those sessions stay readable by id, so nothing that was live at the
   moment of the flip breaks — but they no longer appear in any user's list. Once
   they no longer matter, `RefuseUnownedSessions` closes that door too; see
   below.
 - **Someone still needs the whole list.** A caller who satisfies
-  `AgentPrism:SessionOwnership:ManagementPolicy` (default: the `Operator` role
+  `Tracon:SessionOwnership:ManagementPolicy` (default: the `Operator` role
   policy) gets the unfiltered tenant listing, including those unowned rows. If
   the policy is not registered, *nobody* gets the unfiltered list — the failure
   direction is deliberate. Set it to `""` to state that outright.
@@ -210,7 +210,7 @@ default it is still readable by anyone in the tenant who knows its id.
 
 ```json
 {
-  "AgentPrism": {
+  "Tracon": {
     "SessionOwnership": {
       "Enabled": true,
       "RefuseUnownedSessions": true

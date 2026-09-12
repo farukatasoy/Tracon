@@ -10,7 +10,7 @@
 > dokümanı geçerlidir**; bu belge o günkü düşünceyi kaydeder.
 >
 > **Referans çerçevesi:** Hedef, OpenRouter ve OpenAI'ın konsol/arayüz
-> deneyimlerinin sunduğu her şeyi AgentPrism'de sunabilmektir.
+> deneyimlerinin sunduğu her şeyi Tracon'de sunabilmektir.
 
 ## Kalem → Faz Haritası
 
@@ -40,7 +40,7 @@ Her kalem dört soruyla ölçülür:
 
 | Ölçüt | Soru |
 |-------|------|
-| **Değer** | Bu olmadan AgentPrism'i kim kullanamaz? |
+| **Değer** | Bu olmadan Tracon'i kim kullanamaz? |
 | **Maliyet** | Kaç paket, kaç yeni public tip, kaç migration? |
 | **Risk** | Bir tasarım kuralını (K1–K4) zorluyor mu? Bundle bütçesini? |
 | **Hazırlık** | MAF veya .NET ekosisteminde hazır mı, sıfırdan mı? |
@@ -53,11 +53,11 @@ Bundle bütçesi bugün **92,4 / 250 KB gzip** — arayüz tarafı için 157 KB 
 
 ### F-01 · Anthropic (Claude) sağlayıcısı 🔥
 
-**Değer:** Yüksek. Bugün AgentPrism tek sağlayıcılı; "kontrol düzlemi" iddiası
+**Değer:** Yüksek. Bugün Tracon tek sağlayıcılı; "kontrol düzlemi" iddiası
 tek bir satıcıya bağlıyken zayıf kalır.
 **Hazırlık:** `Anthropic.SDK` (topluluk) veya `Microsoft.Extensions.AI` üzerinden
-`IChatClient`. MAF zaten `IChatClient` konuşuyor — adaptör `AgentPrism.OpenAI` ile
-**birebir aynı şekli** alır: `AgentPrism.Anthropic` paketi, `IModelProvider`,
+`IChatClient`. MAF zaten `IChatClient` konuşuyor — adaptör `Tracon.OpenAI` ile
+**birebir aynı şekli** alır: `Tracon.Anthropic` paketi, `IModelProvider`,
 `UseAnthropic(apiKey)`.
 **Maliyet:** Bir paket, ~6 dosya. `OpenAIChatClientFactory` iyi bir şablon.
 **Dikkat:** Model kataloğu **yapılandırmadan** gelmeli (karar K-032 aynen geçerli);
@@ -75,7 +75,7 @@ gündeme gelir — bkz. F-12.
 
 ### F-03 · OpenAI uyumlu genel sağlayıcı (OpenRouter, Groq, Ollama, vLLM…)
 
-**Değer:** Çok yüksek / maliyet çok düşük. `AgentPrism.OpenAI` zaten
+**Değer:** Çok yüksek / maliyet çok düşük. `Tracon.OpenAI` zaten
 `OpenAIClientOptions.Endpoint` alıyor; tek gereken **taban adresin
 yapılandırmadan verilebilmesi** ve sağlayıcı adının serbest olması.
 **Not:** Bu muhtemelen tüm listenin en iyi değer/maliyet oranı. F-01 ve F-02'den
@@ -87,9 +87,9 @@ davranışı sağlayıcı bazında farklılaşır. Sağlık denetimi ucu (F-16) 
 
 **Değer:** Orta-yüksek; kurumsal .NET dünyasının varsayılan yolu.
 **Hazırlık:** `Microsoft.Agents.AI.Foundry` paketi **var** (1.5.0). Managed identity
-ile kimlik doğrulama AgentPrism'in "sır saklamama" duruşuyla iyi örtüşür.
+ile kimlik doğrulama Tracon'in "sır saklamama" duruşuyla iyi örtüşür.
 
-**Sonuç (2026-08-05):** Azure OpenAI `AgentPrism.Azure` olarak yapıldı; managed
+**Sonuç (2026-08-05):** Azure OpenAI `Tracon.Azure` olarak yapıldı; managed
 identity `Azure.Identity` bağımlılığı **olmadan** çalışıyor (K-210). **Foundry
 ertelendi** — sürüm uyumu vardı, ama 37 geçişli paket ve doğrulanamazlık kabul
 edilmedi (K-212).
@@ -106,7 +106,7 @@ edilmedi (K-212).
 ### F-06 · SQL Server desteği 🔥
 
 **Değer:** Yüksek — kurumsal .NET'in en yaygın veritabanı.
-**Maliyet:** `AgentPrism.SqlServer` paketi. `AgentPrism.PostgreSql` iyi bir şablon
+**Maliyet:** `Tracon.SqlServer` paketi. `Tracon.PostgreSql` iyi bir şablon
 ama **SQL birebir taşınmaz**:
 
 | PostgreSQL | SQL Server karşılığı |
@@ -196,7 +196,7 @@ harici mi) tasarım kararıdır.
    gerçek zamanlı ses boru hattıdır (WebRTC/WebSocket), bundle bütçesini ve
    barındırma modelini ciddi etkiler.
 **Öneri:** Önce (1). (2) ayrı bir faz ve muhtemelen ayrı bir paket
-(`AgentPrism.Voice`).
+(`Tracon.Voice`).
 
 ### F-14 · Değerlendirme (eval) altyapısı
 
@@ -214,7 +214,7 @@ iyi?" sorusu doğal devam.
 
 **Değer:** Yüksek. Altyapının yarısı hazır: tanım sürümleri ve geri alma var.
 **Eksik:** İki sürümü **aynı anda** çalıştırıp karşılaştırma (trafiği bölme),
-sürüm bazlı metrik kırılımı. Faz 6'nın metrikleri buna `agentprism.agent.version`
+sürüm bazlı metrik kırılımı. Faz 6'nın metrikleri buna `tracon.agent.version`
 etiketi eklemekle hazır hâle gelir.
 
 ### F-16 · Sağlayıcı sağlık denetimi ve devre kesici
@@ -231,7 +231,7 @@ yapmadı.
 **Durum:** Faz 6 token kırılımını model bazında verdi (`RunStatistics.ByModel`).
 Eksik olan tek şey **fiyat**. Sağlayıcılar makinece okunabilir fiyat yayınlamadığı
 için (K-032) fiyat listesi **yapılandırmadan** gelmelidir:
-`AgentPrism:Pricing:{provider}:{model}:{Input|Output}`. Böylece AgentPrism yanlış
+`Tracon:Pricing:{provider}:{model}:{Input|Output}`. Böylece Tracon yanlış
 fiyat uydurmaz, kullanıcı kendi anlaşmasını yazar.
 
 ### F-18 · Hız sınırı ve kota

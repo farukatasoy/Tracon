@@ -1,0 +1,22 @@
+<Project>
+
+  <!--
+    Tells the local reference target where the packaged OpenAPI document is.
+    The document describes the HTTP surface that MapTracon exposes, so it
+    only makes sense for a consumer that references this package; a consumer
+    that uses Tracon.Core alone gets no HTTP section at all.
+
+    The property is read inside a target in Tracon.Core.targets, not during
+    evaluation, so the order in which NuGet imports the two files does not
+    matter.
+
+    The file name is a contract: NuGet imports buildTransitive/<PackageId>.props
+    and buildTransitive/<PackageId>.targets by itself and nothing else. A file
+    under any other name is packed and then silently ignored.
+  -->
+
+  <PropertyGroup>
+    <TraconOpenApiDocumentFile>$(MSBuildThisFileDirectory)tracon.json</TraconOpenApiDocumentFile>
+  </PropertyGroup>
+
+</Project>

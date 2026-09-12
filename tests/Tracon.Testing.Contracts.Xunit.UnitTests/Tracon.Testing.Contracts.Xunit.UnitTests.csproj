@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    The only test project with InternalsVisibleTo access to
+    Tracon.Testing.Contracts.Xunit's internal types (src/Directory.Build.props:
+    "$(MSBuildProjectName).UnitTests"). SchemaArgumentGenerator (143.2) is
+    internal on purpose - it is fuzzing plumbing, not a shipped extension
+    point - so its own determinism/skip-reason behavior is tested here
+    directly. The two contract classes it backs
+    (ToolArgumentValidationContract, ToolAuthorizationContract) only need
+    PUBLIC/protected access and are derived and dogfooded in
+    tests/Tracon.Core.UnitTests/Tools/ instead, alongside every other
+    Tracon.Testing.Contracts.Xunit contract.
+  -->
+  <ItemGroup>
+    <ProjectReference Include="../../src/Tracon.Testing.Contracts.Xunit/Tracon.Testing.Contracts.Xunit.csproj" />
+  </ItemGroup>
+
+</Project>

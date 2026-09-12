@@ -3,7 +3,7 @@
 > **Durum:** ✅ Tamamlandı (2026-08-19)
 > **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-115**
 > **Önkoşul:** [Faz 6](06-GOZLEMLENEBILIRLIK.md) — `RunRecordingAgent` ve olay yazımı · [Faz 61](61-ISTEMCI-TOOLLARI-VE-GOMULEBILIR-SOHBET.md) — gömülebilir bileşen, taşıyıcı tarafının istemci yarısı
-> **Paketler:** `AgentPrism.Abstractions`, `AgentPrism.Core`, `AgentPrism.UI`
+> **Paketler:** `Tracon.Abstractions`, `Tracon.Core`, `Tracon.UI`
 > **Yeni paket:** Yok · **Migration:** Yok
 > **Public API:** **büyüyor (küçük)** — bir arayüz ve `RunEventType`'a **bir ekleme**. Enum sonuna ekleme K-040 ile serbesttir. `PublicAPI.Shipped.txt` bugün **boş** — şimdi bedava
 > **Site etkisi:** `concepts/runs.md`, `guides/observability.md`, `concepts/agents.md` (reasoning)
@@ -28,7 +28,7 @@
 
 ## Amaç
 
-AgentPrism'in olay akışı zengindir ama **tek bir tüketicisi** vardır: veritabanı. Kendi gerçek zamanlı arayüzüne gömen bir tüketici bu akışa ancak kendi HTTP sunucusuna SSE ile bağlanarak ya da `IRunStore`'u dekore ederek ulaşır. İkisi de yanlış yerdir. Bu faz, olayları süreç içinde dinlenebilir kılar.
+Tracon'in olay akışı zengindir ama **tek bir tüketicisi** vardır: veritabanı. Kendi gerçek zamanlı arayüzüne gömen bir tüketici bu akışa ancak kendi HTTP sunucusuna SSE ile bağlanarak ya da `IRunStore`'u dekore ederek ulaşır. İkisi de yanlış yerdir. Bu faz, olayları süreç içinde dinlenebilir kılar.
 
 ## Bitiş Ölçütleri (DoD)
 
@@ -55,7 +55,7 @@ AgentPrism'in olay akışı zengindir ama **tek bir tüketicisi** vardır: verit
       tanımlanmadığı bağımsız boşluğunu ortaya çıkardı (bkz. Plandan Sapmalar)
 - [x] Dört doğrulama kapısı sıfır uyarı verir — `dotnet build`/`test`/`pack`/
       `format --verify-no-changes`, hepsi temiz
-- [x] `samples/AgentPrism.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı
+- [x] `samples/Tracon.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı
       — bkz. MT-UIRUN-048, gerçek Anthropic extended-thinking çağrısı: 7
       `ReasoningDelta` + 2 `MessageDelta` + `RunStarted` + `RunCompleted` = 11
       olay, sıra `0..10` boşluksuz, düşünme metni 253 karakter / yanıt 143
@@ -80,14 +80,14 @@ AgentPrism'in olay akışı zengindir ama **tek bir tüketicisi** vardır: verit
 
 ```bash
 # Reasoning olayı ayrı akıyor mu — claude-thinking zaten örnek uygulamada var
-# (extended thinking, samples/AgentPrism.Api/Program.cs), "thinker" değil.
-curl -N -s http://localhost:5080/agentprism/api/agents/claude-thinking/run/stream \
+# (extended thinking, samples/Tracon.Api/Program.cs), "thinker" değil.
+curl -N -s http://localhost:5080/tracon/api/agents/claude-thinking/run/stream \
   -H "Authorization: Bearer manuel-test-token-2026" \
   -H 'content-type: application/json' -d '{"message":"think step by step"}' \
   | grep -c "ReasoningDelta"
 
 # Sıra numaraları boşluksuz mu
-curl -s http://localhost:5081/agentprism/api/runs/$RUN/events | jq '[.[].sequence] | . as $s | ($s|length) == ($s|max)'
+curl -s http://localhost:5081/tracon/api/runs/$RUN/events | jq '[.[].sequence] | . as $s | ($s|length) == ($s|max)'
 ```
 
 ---
@@ -102,11 +102,11 @@ curl -s http://localhost:5081/agentprism/api/runs/$RUN/events | jq '[.[].sequenc
 
 2. **Doğrulama komutlarındaki `thinker` agent'ı hiç var olmadı.** Plan
    `curl .../agents/thinker/run/stream` örneği veriyordu. Gerçekte
-   `samples/AgentPrism.Api/Program.cs` zaten `claude-thinking` adında,
+   `samples/Tracon.Api/Program.cs` zaten `claude-thinking` adında,
    Anthropic extended thinking açık bir agent taşıyordu (Faz 62'den kalma
    `ProviderSettings[ThinkingBudgetTokensSetting]` örneği). Yeni bir agent
    eklemek yerine bu doğrulama koşumu `claude-thinking`'i kullandı ve
-   `samples/AgentPrism.Api/appsettings.json`'a `RunRecording.RecordReasoningDeltas: true`
+   `samples/Tracon.Api/appsettings.json`'a `RunRecording.RecordReasoningDeltas: true`
    eklendi (sample'ın kendi bilinçli demonstrasyon deseni — `EnableKnowledge`,
    `PersistAudio` gibi diğer alanlarla aynı stil). Doğrulama komutu düzeltildi.
 

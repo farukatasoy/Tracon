@@ -59,17 +59,17 @@
 
 **Gerçek sonuç**
 > **Kaldı — ama kök neden ürün kusuru değil, case'in İzlek B ile test edilemez olması.**
-> `samples/AgentPrism.Api/Program.cs:639` şu korumayı taşır:
-> `else if (!string.IsNullOrWhiteSpace(postgreSql["ConnectionString"])) { agentPrism.UsePostgreSql(postgreSql); }`.
+> `samples/Tracon.Api/Program.cs:639` şu korumayı taşır:
+> `else if (!string.IsNullOrWhiteSpace(postgreSql["ConnectionString"])) { tracon.UsePostgreSql(postgreSql); }`.
 > Bağlantı dizesi boş bırakıldığında bu koşul `false` döner ve `UsePostgreSql()`
 > **hiç çağrılmaz** — validator'a hiçbir zaman ulaşılmaz. Uygulama normal
 > başladı (`Now listening on: http://localhost:5080`), `OptionsValidationException`
-> ATILMADI. `GET /agentprism/api/diagnostics`: `"persistenceProvider": "InMemory"`,
+> ATILMADI. `GET /tracon/api/diagnostics`: `"persistenceProvider": "InMemory"`,
 > `"registeredPersistenceProviders": 0`. `/health` **200 Degraded** döndü (kalıcılık
 > değil, model sağlayıcı sağlığı nedeniyle — bkz. `25-SAGLIK-TESHIS-OPENAPI.md`).
 >
 > Ayrı bir yardımcı harness ile (bu case'in adımı DEĞİL, doğrulama amaçlı,
-> `src/AgentPrism.PostgreSql`'e `ProjectReference` veren bir konsol) doğrudan
+> `src/Tracon.PostgreSql`'e `ProjectReference` veren bir konsol) doğrudan
 > `UsePostgreSql(...)` çağrıldığında validator'ın TAM DA belgelenen gibi
 > çalıştığı doğrulandı:
 > - `UsePostgreSql("")` (string aşırı yüklemesi) çağrı ANINDA
@@ -77,12 +77,12 @@
 >   entirely of whitespace. (Parameter 'connectionString')` fırlatır — belgelenenden
 >   daha erken/sert bir hata.
 > - `UsePostgreSql(IConfiguration)` (örnek uygulamanın kullandığı aşırı yükleme)
->   çağrının kendisinde atmaz, ama `IOptions<AgentPrismPostgreSqlOptions>.Value`
+>   çağrının kendisinde atmaz, ama `IOptions<TraconPostgreSqlOptions>.Value`
 >   erişiminde TAM OLARAK belgelenen mesajı taşıyan
 >   `Microsoft.Extensions.Options.OptionsValidationException` fırlatır:
->   `"AgentPrismPostgreSqlOptions.ConnectionString bos olamaz. ..."`.
+>   `"TraconPostgreSqlOptions.ConnectionString bos olamaz. ..."`.
 >
-> **Sonuç:** `AgentPrismPostgreSqlOptionsValidator` doğru çalışıyor. Kusur,
+> **Sonuç:** `TraconPostgreSqlOptionsValidator` doğru çalışıyor. Kusur,
 > bu case'in İzlek B (örnek uygulama) üzerinden yazılmış olmasında — örnek
 > uygulamanın kasıtlı "bağlantı dizesi yoksa bellek içi çalış" davranışı
 > (`Program.cs:622` yorumu) bu senaryoyu YAPISAL OLARAK erişilemez kılıyor.
@@ -93,13 +93,13 @@
 ---
 
 **Doküman düzeltmesi (2026-08-15, KAPANIS-PLANI §8):** Ürün kusuru yok —
-`AgentPrismPostgreSqlOptionsValidator` İzlek A/C harness'ında belgelenen
+`TraconPostgreSqlOptionsValidator` İzlek A/C harness'ında belgelenen
 davranışı tam olarak sergiliyor. Beklenti yukarıda koda göre düzeltildi.
 Case'in İzlek A/C'ye taşınması ayrı bir doküman görevi olarak açık kalır.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
-> **Temizlik:** `dotnet user-secrets set "AgentPrism:PostgreSql:ConnectionString" "Host=localhost;Port=55432;Database=agentprism;Username=postgres;Password=agentprism"` — uygulandı.
+> **Temizlik:** `dotnet user-secrets set "Tracon:PostgreSql:ConnectionString" "Host=localhost;Port=55432;Database=tracon;Username=postgres;Password=tracon"` — uygulandı.
 
 ---
 
@@ -116,7 +116,7 @@ Case'in İzlek A/C'ye taşınması ayrı bir doküman görevi olarak açık kal�
 
 # 2 — Migration'lar
 
-`MigrationRunner`/`MigrationHostedService` `AgentPrism.Sql.Shared` içinde
+`MigrationRunner`/`MigrationHostedService` `Tracon.Sql.Shared` içinde
 yaşar ama davranışları PostgreSQL diyalektinin (`pg_advisory_lock`, gömülü
 `.sql` dosyaları) üzerinden gözlenir. Kapsam kararı (bkz.
 [`PROMPT.md`](../../../arsiv/manuel-test-kosum-2026-08/PROMPT.md) §3): migration üç
@@ -127,7 +127,7 @@ yoldan test edilir — boş DB, yeniden çalıştırma (idempotent), var olan ş
 > `0029_idempotency_response_headers.sql` o koşumdan sonra eklendi (bugün
 > **29**). Sayı kaydı bozmamak için değiştirilmedi. **İkinci koşumda sayı
 > yeniden türetilir**, ezberden alınmaz:
-> `ls src/AgentPrism.PostgreSql/Migrations/*.sql | wc -l`
+> `ls src/Tracon.PostgreSql/Migrations/*.sql | wc -l`
 
 ---
 
@@ -135,14 +135,14 @@ yoldan test edilir — boş DB, yeniden çalıştırma (idempotent), var olan ş
 
 **Gerçek sonuç**
 > **Kaldı — gerçek, iki bağımsız denemede TUTARLI biçimde tekrar üretildi.**
-> Log beklenen `AgentPrism migration'lari otomatik uygulanmiyor (AutoApplyMigrations
+> Log beklenen `Tracon migration'lari otomatik uygulanmiyor (AutoApplyMigrations
 > kapali). Semanin guncel olmasi cagiranin sorumlulugundadir.` satırını taşıdı
 > ve `Now listening on: http://localhost:5080` bile yazdı — ama birkaç saniye
 > içinde uygulama KENDİ KENDİNİ KAPATTI:
 > ```
-> crit: AgentPrism.A2AApprovalGuardFilter[0]
+> crit: Tracon.A2AApprovalGuardFilter[0]
 >       A2A disa acik yuzey denetimi basarisiz oldu; uygulama durduruluyor.
->       Npgsql.PostgresException (0x80004005): 42P01: relation "agentprism.agent_definitions" does not exist
+>       Npgsql.PostgresException (0x80004005): 42P01: relation "tracon.agent_definitions" does not exist
 > info: Microsoft.Hosting.Lifetime[0]
 >       Application is shutting down...
 > ```
@@ -151,15 +151,15 @@ yoldan test edilir — boş DB, yeniden çalıştırma (idempotent), var olan ş
 > `/health` ve agent kaydı isteklerine ULAŞILAMADI (`HTTP: 000`) çünkü süreç
 > çökme sürecindeydi.
 >
-> **Kök neden** (`src/AgentPrism.AspNetCore/A2A/A2AApprovalGuardFilter.cs`,
-> `src/AgentPrism.Abstractions/Diagnostics/SchemaReadyGate.cs`): örnek uygulama
+> **Kök neden** (`src/Tracon.AspNetCore/A2A/A2AApprovalGuardFilter.cs`,
+> `src/Tracon.Abstractions/Diagnostics/SchemaReadyGate.cs`): örnek uygulama
 > `UseA2A(o => o.ExposedAgents.Add("ozetleyici"))` çağırıyor (`Program.cs:99`,
 > VARSAYILAN yapılandırma). `SchemaReadyGate.MarkReady()`, `AutoApplyMigrations`
 > kapalıyken de `MigrationHostedService` tarafından BİLEREK hemen çağrılıyor
 > (kod yorumu: "o durumda semanin hazir olmasi tuketicinin sorumlulugundadir").
 > Kapı açılır açılmaz `A2AApprovalGuardFilter`'ın arka plan denetimi
 > `IAgentCatalog.ListAsync()` çağırıyor, bu da var olmayan
-> `agentprism.agent_definitions` tablosuna çarpıyor, `catch (Exception)` bloğu
+> `tracon.agent_definitions` tablosuna çarpıyor, `catch (Exception)` bloğu
 > bunu `LogCritical` + `lifetime.StopApplication()` ile karşılıyor. Aynı desen
 > `McpApprovalGuardFilter`'da da var (kod yorumu: "AYNI gerekce ve AYNI
 > tasarim") — A2A kapalı olsa MCP'nin de aynı şekilde çökertmesi beklenir.
@@ -195,7 +195,7 @@ yoldan test edilir — boş DB, yeniden çalıştırma (idempotent), var olan ş
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
-> **Temizlik:** `dotnet user-secrets remove "AgentPrism:PostgreSql:AutoApplyMigrations"`, reset yordamı — uygulandı.
+> **Temizlik:** `dotnet user-secrets remove "Tracon:PostgreSql:AutoApplyMigrations"`, reset yordamı — uygulandı.
 
 ---
 
@@ -206,7 +206,7 @@ yoldan test edilir — boş DB, yeniden çalıştırma (idempotent), var olan ş
 > kaydı var. `runs`/`tool_invocations` için `count(*) = 0`.
 >
 > **Yan not (ortam, kusur değil):** `echo` sağlayıcısı yalnız OpenAI anahtarı
-> BOŞ olduğunda kayıtlı oluyor (`samples/AgentPrism.Api/Program.cs:128,149` —
+> BOŞ olduğunda kayıtlı oluyor (`samples/Tracon.Api/Program.cs:128,149` —
 > `openAiEnabled = !string.IsNullOrWhiteSpace(...)`). Bu makinenin
 > `user-secrets`'ında gerçek bir OpenAI anahtarı zaten tanımlıydı; ilk deneme
 > bu yüzden `'echo' adinda bir model saglayicisi kayitli degil` ile 400 döndü.
@@ -226,8 +226,8 @@ yoldan test edilir — boş DB, yeniden çalıştırma (idempotent), var olan ş
 > gibi, script iki noktada düzeltme gerektirdi (imza sürüklenmesi, kanıtlanan
 > davranışı etkilemiyor): gerçek imza `BranchAsync(...)`/`ConversationBranch?`
 > (`CreateBranchAsync`/`ConversationBranchInfo` DEĞİL), ve `UsePostgreSql(...)`
-> `IServiceCollection` üzerinde değil `IAgentPrismBuilder` üzerinde bir
-> extension — `var builder = services.AddAgentPrism();` yakalanıp
+> `IServiceCollection` üzerinde değil `ITraconBuilder` üzerinde bir
+> extension — `var builder = services.AddTracon();` yakalanıp
 > `builder.UsePostgreSql(...)` çağrılması gerekti (`builder.Services` alttaki
 > AYNI `IServiceCollection`'ı taşıyor, bu yüzden `TryAddSingleton` `services`
 > üzerinden önce çağrılabiliyor).
@@ -251,11 +251,11 @@ yoldan test edilir — boş DB, yeniden çalıştırma (idempotent), var olan ş
 
 **Gerçek sonuç**
 > **Kaldı — uyarı satırı doğru çıktı ama uygulama sonra çöktü; iki bağımsız
-> denemede TUTARLI.** Log beklenen uyarıyı verdi: `AgentPrism'de birden fazla
+> denemede TUTARLI.** Log beklenen uyarıyı verdi: `Tracon'de birden fazla
 > kalicilik saglayicisi kayitli: PostgreSQL, SQLite. Son kayit kazanir ve su an
 > SQLite kullaniliyor. Yalnizca birini cagirin.` Ama birkaç saniye sonra AYNI
 > `MT-PG-025` kusuruyla (`A2AApprovalGuardFilter`/`McpApprovalGuardFilter`)
-> çöktü — `SQLite Error 1: 'no such table: agentprism_agent_definitions'` ile
+> çöktü — `SQLite Error 1: 'no such table: tracon_agent_definitions'` ile
 > `crit` + `Application is shutting down...`. `Now listening` yazıldıktan hemen
 > sonra süreç öldüğü için `/api/diagnostics` ve `/health` isteklerine hiç
 > ULAŞILAMADI (`HTTP: 000`).
@@ -265,7 +265,7 @@ yoldan test edilir — boş DB, yeniden çalıştırma (idempotent), var olan ş
 > zaten TAM güncel olduğu için o sağlayıcının `MigrationHostedService`'i
 > saniyeler içinde biter ve `SchemaReadyGate.MarkReady()`'yi HEMEN çağırır.
 > Ama kazanan depo uygulamaları (`Replace` deseniyle) SQLite'a ait ve SQLite'ın
-> KENDİ migration'ı (15 tablo, `agentprism_` şeması, sıfırdan) henüz
+> KENDİ migration'ı (15 tablo, `tracon_` şeması, sıfırdan) henüz
 > BİTMEMİŞTİR — `SchemaReadyGate` tek, PAYLAŞILAN bir kapı, hangi sağlayıcının
 > "gerçekten kazanan" olduğunu bilmiyor. Kapı, EN HIZLI biten sağlayıcı
 > (burada zaten migrasyonlu PostgreSQL) tarafından açılıyor, ama guard filter'ın
@@ -294,7 +294,7 @@ yoldan test edilir — boş DB, yeniden çalıştırma (idempotent), var olan ş
 >
 > Ampirik (geçici `UseSqlite` satırı `UsePostgreSql`'den SONRA, PostgreSQL
 > şeması zaten güncel):
-> - Uyarı satırı birebir beklendiği gibi: `AgentPrism'de birden fazla kalicilik
+> - Uyarı satırı birebir beklendiği gibi: `Tracon'de birden fazla kalicilik
 >   saglayicisi kayitli: PostgreSQL, SQLite. Son kayit kazanir ve su an SQLite
 >   kullaniliyor. Yalnizca birini cagirin.`
 > - `registeredPersistenceProviders`: **2** · `persistenceProvider`: **SQLite**
@@ -316,8 +316,8 @@ yoldan test edilir — boş DB, yeniden çalıştırma (idempotent), var olan ş
 > `/health` **200**'e döndü — Npgsql havuzu kendiliğinden toparlandı, bu
 > case'in asıl kanıtladığı şey budur.
 >
-> Ama gövde `Healthy` DEĞİL, `Degraded` gösterdi. Kök neden: `AgentPrismHealthCheck`
-> (`src/AgentPrism.AspNetCore/Health/AgentPrismHealthCheck.cs:70-77`) `Healthy`
+> Ama gövde `Healthy` DEĞİL, `Degraded` gösterdi. Kök neden: `TraconHealthCheck`
+> (`src/Tracon.AspNetCore/Health/TraconHealthCheck.cs:70-77`) `Healthy`
 > için `report.ModelProviders.Any(status == Healthy)` şartını arıyor — ve
 > `echo` sağlayıcısı (bu dosyanın tamamında ağa çıkmamak için kullanılan tek
 > sağlayıcı) `ModelProviders` listesinde HİÇ YER ALMIYOR (yalnız
@@ -341,7 +341,7 @@ kendiliğinden toparlanması) doğrulandı.
 
 ---
 
-## MT-PG-051 — `/agentprism/api/diagnostics` bekleyen migration'ları listeler, hiçbir `secret` taşımaz
+## MT-PG-051 — `/tracon/api/diagnostics` bekleyen migration'ları listeler, hiçbir `secret` taşımaz
 
 **Gerçek sonuç**
 > _(2026-08-13 koşumu: Kaldı — `MT-PG-025` uygulamayı çökertiyordu, istek hiç
@@ -352,7 +352,7 @@ kendiliğinden toparlanması) doğrulandı.
 >    `ListCatalogWithRetryAsync` ile katalog sorgusunu üstel geri çekilmeyle
 >    yeniden dener, uygulamayı durdurmaz. Ampirik: `shutdown` satırı **0**,
 >    `Now listening` yazıldı, süreç ayakta.
-> 2. Ama uç yine de **HTTP 500** dönüyordu — `AgentPrismDiagnosticsCollector`
+> 2. Ama uç yine de **HTTP 500** dönüyordu — `TraconDiagnosticsCollector`
 >    `_agentCatalog.ListAsync`'i korumasız çağırıyor ve hata, YUKARIDA
 >    toplanmış migration bilgisini de çöpe atıyordu. Teşhis ucunun birincil
 >    kullanım anı tam da budur. Düzeltildi: katalog sorgusu artık `try/catch`
@@ -365,7 +365,7 @@ kendiliğinden toparlanması) doğrulandı.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
-> **Temizlik:** `dotnet user-secrets remove "AgentPrism:PostgreSql:AutoApplyMigrations"`, reset yordamı — uygulandı.
+> **Temizlik:** `dotnet user-secrets remove "Tracon:PostgreSql:AutoApplyMigrations"`, reset yordamı — uygulandı.
 
 ---
 

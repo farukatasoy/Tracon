@@ -7,7 +7,7 @@ sidebar:
 
 Governance is explicit and visible. Tenancy, quotas, rate limits, retention cleanup,
 and content guards need configuration. Audit decorators and their default store are
-registered by `AddAgentPrism()`; authentication only changes which actor name they
+registered by `AddTracon()`; authentication only changes which actor name they
 can record.
 
 ## Multi-tenancy
@@ -17,7 +17,7 @@ Off by default. Turned on, the tenant is resolved in a fixed order:
 ```mermaid
 flowchart TD
     accTitle: Tenant resolution order
-    accDescr: AgentPrism first uses an API key tenant, then configured claim or header tenancy, and otherwise resolves the built-in default tenant.
+    accDescr: Tracon first uses an API key tenant, then configured claim or header tenancy, and otherwise resolves the built-in default tenant.
     K{"authenticated with an API key?"} -->|yes| KT["the key's tenant"]
     K -->|no| S{"tenancy enabled?"}
     S -->|no| D["default tenant"]
@@ -49,15 +49,15 @@ in-memory store and all three SQL providers, with a coverage gate requiring ever
 public store method to be either tested or exempted with a documented reason.
 
 Isolation lives in the application layer, and that is a deliberate choice. Every
-query carries the resolved tenant; AgentPrism does not create database row level
+query carries the resolved tenant; Tracon does not create database row level
 security policies, and it does not assume your database has them. Two reasons: the
 coverage gate above already makes an untested store method a build failure, and
 SQLite has no row level security at all, so adding it would make the three
 providers behave differently. You are free to add such policies in your own
-database. If you do, keep the tenant that AgentPrism resolves and the tenant your
+database. If you do, keep the tenant that Tracon resolves and the tenant your
 policy binds to the connection in agreement — they are two separate mechanisms.
 
-Rate limits are not an isolation boundary. `AgentPrism:RateLimit` and the inbound
+Rate limits are not an isolation boundary. `Tracon:RateLimit` and the inbound
 trigger limit count in the memory of one process, so a `Tenant` partition splits
 that instance's own window per tenant rather than a window shared across the
 deployment. What binds a tenant's total consumption is a quota, and quotas are
@@ -76,13 +76,13 @@ write spend against another user's name and forge the cost record outright, so
 the body is not a source of attribution at all — the server resolves it from your
 identity pipeline, and a `userId` sent in the body is ignored.
 
-The recorded user id is an **opaque string**. AgentPrism does not resolve it,
+The recorded user id is an **opaque string**. Tracon does not resolve it,
 does not validate it, and stores no personal detail of its own; what it
 identifies is your application's decision.
 
 :::caution
 Erasure does **not** match on `runs.user_id`. `IDataSubjectResolver` is the only
-thing that knows which subject a value belongs to — AgentPrism deliberately
+thing that knows which subject a value belongs to — Tracon deliberately
 holds no mapping — so a resolver must return those runs itself. Find them with
 `GET /api/runs?userId={id}&includeChildren=true` and include their ids in the
 scope's `RunIds`. Erasing a run row removes its `user_id` along with everything
@@ -91,9 +91,9 @@ else on it.
 
 ### Below the tenant: session ownership
 
-The tenant is the data boundary, and it is the only one AgentPrism draws by
+The tenant is the data boundary, and it is the only one Tracon draws by
 default: inside a tenant, every `Reader` sees every session. Turning on
-`AgentPrism:SessionOwnership` adds a second, narrower line under it — a session
+`Tracon:SessionOwnership` adds a second, narrower line under it — a session
 records which user opened it, and the session list narrows to that user. It
 governs sessions only, and it never crosses the tenant: the same person in two
 tenants still has two independent data spaces.
@@ -111,7 +111,7 @@ Every one of these handlers has a permissive built-in default, and a host that b
 nothing starts silently on it. Where that silence is unacceptable, declare the
 binding required with
 [`RequireCustomBinding<T>()`](/guides/embedding/#make-a-binding-required): the host
-then refuses to start while AgentPrism's default is what resolves. It gates
+then refuses to start while Tracon's default is what resolves. It gates
 composition, not the decision the handler goes on to make.
 
 ## Per-tenant provider credentials and egress
@@ -168,8 +168,8 @@ replaced with `***`. Plural `tokens` — count fields like `maxOutputTokens` —
 deliberately excluded.
 
 ```bash
-curl 'http://localhost:5081/agentprism/api/audit?action=agent.update'
-curl 'http://localhost:5081/agentprism/api/audit/quota:{id}'
+curl 'http://localhost:5081/tracon/api/audit?action=agent.update'
+curl 'http://localhost:5081/tracon/api/audit/quota:{id}'
 ```
 
 ### Tamper detection
@@ -187,7 +187,7 @@ outcomes:
 `Broken` and `Gap` both name the first entry where the chain fails.
 
 ```bash
-curl 'http://localhost:5081/agentprism/api/audit/verify'
+curl 'http://localhost:5081/tracon/api/audit/verify'
 # {"status":"Valid","entriesChecked":42,"firstFailingEntryId":null}
 ```
 
@@ -250,7 +250,7 @@ through an injected `IServiceScopeFactory` — the same rule as
 [the empty service provider mistake](/getting-started/tools/#the-rule-that-trips-people-up),
 because this runs on the same tool-call path. Unlike authorization and validation, a
 presenter is not a gate: it fails **open**. Not registered, resolves nothing, throws, or
-runs past its timeout (`AgentPrismToolOptions.ApprovalPresentationTimeout`, 2 seconds
+runs past its timeout (`TraconToolOptions.ApprovalPresentationTimeout`, 2 seconds
 by default) — the approval request publishes either way, with the raw arguments still
 there. A presentation is decoration for a decision a human still has to make from the
 real call, never a replacement for it.
@@ -329,7 +329,7 @@ tenant or to one agent. Exceeding one returns `429` with which quota was hit and
 the counter resets.
 
 You are told **before** the wall, not only at it. As the counter crosses each
-percentage in `Quotas:ThresholdPercents` (`80` and `100` by default) AgentPrism posts
+percentage in `Quotas:ThresholdPercents` (`80` and `100` by default) Tracon posts
 a [`quota.threshold`](#webhooks) webhook carrying the metric, the period, the limit,
 the consumption, the threshold crossed, and when the counter resets. Each threshold
 fires **once per period**, so a counter that keeps climbing past `80` does not
@@ -340,7 +340,7 @@ remains the only thing that refuses a run.
 
 Turning on `Quotas:PublishThresholdToRunStream` (off by default) also writes the
 crossed threshold into the *triggering run's own* event stream — a `custom` frame
-carrying `agentprism.quota.threshold` before the run's terminal event, so a client
+carrying `tracon.quota.threshold` before the run's terminal event, so a client
 already watching that one run's SSE stream sees the warning without a separate
 webhook subscription. The frame's payload carries a `noticeId` (stable across a
 reconnect, for dedup), the run and user the threshold belongs to, and the same
@@ -370,7 +370,7 @@ events, tool calls, traces, jobs, webhook deliveries, eval results, checkpoints,
 attachments, sessions, and more.
 
 A database policy takes precedence. When none exists and retention is enabled in
-configuration, AgentPrism falls back to its target defaults, including 30 days for
+configuration, Tracon falls back to its target defaults, including 30 days for
 run events and 14 days for spans. With retention disabled, nothing is removed. A
 policy with `enabled: false` is configured but paused.
 
@@ -382,9 +382,9 @@ No endpoint deletes synchronously. Preview first — it is the only way to see t
 of a deletion before it happens — then run, which queues a job.
 
 ```bash
-curl 'http://localhost:5081/agentprism/api/retention/preview'
-curl -X POST 'http://localhost:5081/agentprism/api/retention/run'
-curl 'http://localhost:5081/agentprism/api/retention/history'
+curl 'http://localhost:5081/tracon/api/retention/preview'
+curl -X POST 'http://localhost:5081/tracon/api/retention/run'
+curl 'http://localhost:5081/tracon/api/retention/history'
 ```
 
 The history of what was deleted is itself never cleaned up.
@@ -395,7 +395,7 @@ Retention removes data by **age**. Export and erasure remove it by **identity** 
 data subject's own sessions, runs, and conversations, on request (a GDPR-style
 "right to erasure").
 
-AgentPrism does not store personal identity itself: `sessions.id` is a value your own
+Tracon does not store personal identity itself: `sessions.id` is a value your own
 application chose, and only your application knows which session, run, or
 conversation belongs to which end user. You supply that mapping by registering an
 `IDataSubjectResolver`:
@@ -420,9 +420,9 @@ Without a resolver registered, both endpoints return `409` — never a silent em
 result that could be misread as "already erased".
 
 ```bash
-curl 'http://localhost:5081/agentprism/api/data-subjects/user-42/export'
-curl -X DELETE 'http://localhost:5081/agentprism/api/data-subjects/user-42'
-curl -X DELETE 'http://localhost:5081/agentprism/api/data-subjects/user-42?dryRun=false'
+curl 'http://localhost:5081/tracon/api/data-subjects/user-42/export'
+curl -X DELETE 'http://localhost:5081/tracon/api/data-subjects/user-42'
+curl -X DELETE 'http://localhost:5081/tracon/api/data-subjects/user-42?dryRun=false'
 ```
 
 :::caution[`dryRun` defaults to `true`]
@@ -490,7 +490,7 @@ at all: the same denied-term and PII patterns apply everywhere, including `Unkno
 
 :::note[Masked content stays masked]
 Input preview runs before the recording path. When a guard returns `Mask`, the model,
-recorded input, and run events receive the masked value. AgentPrism does not retain a
+recorded input, and run events receive the masked value. Tracon does not retain a
 hidden raw copy for later inspection.
 :::
 
@@ -524,7 +524,7 @@ everything else.
 
 ## Webhooks
 
-Subscribe to events and AgentPrism posts them to your endpoint.
+Subscribe to events and Tracon posts them to your endpoint.
 
 | Event | Fires when |
 |---|---|

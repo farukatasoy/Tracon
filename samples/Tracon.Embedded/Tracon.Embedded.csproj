@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <RootNamespace>Tracon.Embedded</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/Tracon/Tracon.csproj" />
+    <!--
+      🚨 Needed only for THIS repo, same reason as samples/Tracon.Api:
+      OutputItemType=Analyzer does NOT propagate across multi-hop
+      ProjectReference chains (Embedded -> Tracon -> Core -> Generators).
+      A real external consumer only takes Tracon.Core via PackageReference
+      and does not need this line.
+    -->
+    <ProjectReference Include="../../src/Tracon.Generators/Tracon.Generators.csproj"
+                       PrivateAssets="all"
+                       ReferenceOutputAssembly="false"
+                       OutputItemType="Analyzer" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!--
+      Phase 110: the host's OWN schema, entirely optional (see Program.cs and
+      docs-site/.../guides/ef-core.md). Tracon itself does not use EF Core
+      (L16, L29) and no package it ships depends on this one — it is scoped to
+      this sample only, to run the "one NpgsqlDataSource, two consumers"
+      pattern end to end.
+    -->
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
+  </ItemGroup>
+
+</Project>

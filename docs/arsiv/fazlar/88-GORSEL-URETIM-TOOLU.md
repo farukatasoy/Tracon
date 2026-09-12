@@ -3,11 +3,11 @@
 > **Durum:** ✅ Tamamlandı (2026-08-23)
 > **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-142** — Dalga 14 Küme Ö
 > **Önkoşul:** [Faz 28](28-SES-TOOLLARI.md) (ses tool'ları — yapı emsali) · [Faz 14](14-COK-MODLULUK.md) (ekler ve `IAttachmentStorage`) · [Faz 68](68-CALISTIRMA-KIMLIGI-VE-TOKEN-KIRILIMI.md) (`ToolCallUsage` ve token kırılımı)
-> **Paketler:** `AgentPrism.Abstractions`, `AgentPrism.Core`, `AgentPrism.OpenAI`, `AgentPrism.Azure`, `AgentPrism.Google`
+> **Paketler:** `Tracon.Abstractions`, `Tracon.Core`, `Tracon.OpenAI`, `Tracon.Azure`, `Tracon.Google`
 > **Yeni paket:** 🚨 **Yok — ÖLÇÜLDÜ (2026-08-21).** Aday listesinin "ÖLÇÜLMEDİ" satırı kapandı: hiçbir yeni NuGet paketi gerekmiyor (88.1) · **Migration:** Yok — ölçüm `tool_invocations` satırına `ToolCallUsage` olarak yazılır ve o yol Faz 68'de açıldı
 > **Public API:** Büyüyor — 1 ayar tipi, 2 `ToolUsageUnits` sabiti, sağlayıcı başına 1 kayıt uzantısı. `PublicAPI.Shipped.txt` toplamı **16 satır** (yalnız başlıklar; ölçüldü 2026-08-21) → Faz 7'den önce eklemek **bedava**
 > **Tüketici yüzeyi:** `docs-site/` → `guides/multimodal.md`, `guides/model-providers.md`, `reference/configuration.md`, `capabilities.md`, `concepts/tools.md`
-> · sevk edilen: tool ve fiyat ayarının XML dokümanı, `src/AgentPrism.Core/README.md`, sağlayıcı paketlerinin `README.md`'leri. `api/` ve `http-api/` **üretilir**
+> · sevk edilen: tool ve fiyat ayarının XML dokümanı, `src/Tracon.Core/README.md`, sağlayıcı paketlerinin `README.md`'leri. `api/` ve `http-api/` **üretilir**
 > **Manuel test alanı:** [`docs/manuel-test/19-COK-MODLULUK-VE-SES.md`](../../manuel-test/19-COK-MODLULUK-VE-SES.md) · [`docs/manuel-test/12-GOZLEMLENEBILIRLIK-MALIYET.md`](../../manuel-test/12-GOZLEMLENEBILIRLIK-MALIYET.md)
 
 ---
@@ -29,7 +29,7 @@
 
 ## Amaç
 
-AgentPrism görsel **üretemiyor**. Faz 14 çok modluluğu **girdi** tarafında çözdü (görsel, ses, dosya girdisi); çıktı tarafında karşılığı yoktur. Ölçüldü (2026-08-21): `src/` içinde görsel üretimi için **0 eşleşme**. Bu bir **ölçüm bütünlüğü** kalemidir.
+Tracon görsel **üretemiyor**. Faz 14 çok modluluğu **girdi** tarafında çözdü (görsel, ses, dosya girdisi); çıktı tarafında karşılığı yoktur. Ölçüldü (2026-08-21): `src/` içinde görsel üretimi için **0 eşleşme**. Bu bir **ölçüm bütünlüğü** kalemidir.
 
 ## Bitiş Ölçütleri (DoD)
 
@@ -42,9 +42,9 @@ AgentPrism görsel **üretemiyor**. Faz 14 çok modluluğu **girdi** tarafında 
 - [x] 🚨 Fiyat kaydı yoksa `cost` **`null`** döner — hiçbir koşulda uydurulmaz.
 - [x] Hem `PerImage` hem token fiyatı doluysa başlangıçta yapılandırma hatası verilir.
 - [x] **Yeni NuGet paketi alınmadı** — `dotnet list package --include-transitive` farkı sıfır.
-- [x] `AgentPrism.OpenAI` AOT uyumlu kaldı.
+- [x] `Tracon.OpenAI` AOT uyumlu kaldı.
 - [x] Dört doğrulama kapısı sıfır uyarı ile geçti: build, test, pack ve format.
-- [x] `samples/AgentPrism.Api` ile gerçek istek yapıldı. İlk turda yetkisiz `gpt-image-1` çağrısı kontrollü `502` ve alt `403 model_not_found` döndü; yetki tanındıktan sonra (2026-08-23) hem operatör ucu hem `generate_image` tool yolu **gerçek** `gpt-image-1` görseli üretti ve doğru PNG olarak ek deposuna yazıldı — bkz. üçüncü denetim turu.
+- [x] `samples/Tracon.Api` ile gerçek istek yapıldı. İlk turda yetkisiz `gpt-image-1` çağrısı kontrollü `502` ve alt `403 model_not_found` döndü; yetki tanındıktan sonra (2026-08-23) hem operatör ucu hem `generate_image` tool yolu **gerçek** `gpt-image-1` görseli üretti ve doğru PNG olarak ek deposuna yazıldı — bkz. üçüncü denetim turu.
 - [x] Bu fazın değiştirdiği ve eklediği dosyalarda `secret` taraması boş döndü. Repo genelindeki eski manuel-test örnekleri ve Astro cache'i bu kapsam dışındadır.
 - [x] Manuel kabul case'leri `docs/manuel-test/19-*` ve `12-*` içine eklendi; otomatikleştirilebilenler koşuldu.
 - [x] `faz-denetim` üç kez koşuldu (üçüncüsü gerçek `gpt-image-1` ile canlı manuel koşum); 🔴 bulgu kalmadı.
@@ -55,14 +55,14 @@ AgentPrism görsel **üretemiyor**. Faz 14 çok modluluğu **girdi** tarafında 
 
 ```bash
 # Yeni gecisli paket alinmadi mi (fazdan ONCE ve SONRA ayni cikti)
-dotnet list AgentPrism.slnx package --include-transitive | sort > /tmp/paketler.txt
+dotnet list Tracon.slnx package --include-transitive | sort > /tmp/paketler.txt
 
 # Tool sonucu ek kimligi mi tasiyor
-curl -s http://localhost:5081/agentprism/api/runs/$RUN_ID/tools \
+curl -s http://localhost:5081/tracon/api/runs/$RUN_ID/tools \
   | jq '.[] | select(.toolName=="generate_image") | .result'
 
 # Olcum ve maliyet
-curl -s http://localhost:5081/agentprism/api/runs/$RUN_ID/tools \
+curl -s http://localhost:5081/tracon/api/runs/$RUN_ID/tools \
   | jq '.[] | select(.toolName=="generate_image") | .usage'
 ```
 
@@ -116,8 +116,8 @@ curl -s http://localhost:5081/agentprism/api/runs/$RUN_ID/tools \
 | Operatör request/response tipleri plan API'sinde yoktu | 🟡 | Gerçekleşen API bölümüne eklendi. |
 | Rollback cleanup hatası için garanti ve test belirsizdi | 🟡 | Cleanup best-effort olarak ürün dokümanına yazıldı; delete hatası asıl hatayı koruyan test eklendi. |
 | Shipped agent map Google image giriş noktasını içermiyordu | 🟡 | `capabilities.md` kaynağından map yeniden üretildi; `UseGoogleImages()` artık sevk edilen map'te. |
-| 🚨 `.UseMcp(...)` etkinken `generate_image` derlemeye hiç girmiyordu | 🔴 | Üçüncü denetim turu — gerçek `gpt-image-1` çağrısıyla canlı koşumda bulundu. `AgentPrismMcpBuilderExtensions.UseMcpCore` `IToolRegistry`'yi `McpToolRegistry` ile REPLACE ederken iç registry'yi `ToolRegistry.Create(provider)` üzerinden değil, kayıtları elle yeniden toplayan ikinci bir inşa yoluyla kuruyordu; bu ikinci yol 88.1'in `images.Enabled` kapısını hiç çalıştırmıyordu. Ayar açık, sağlayıcı kayıtlı olsa bile `GET /api/tools` ve agent derlemesi tool'u hiç görmüyordu — hata da vermiyordu. Düzeltme: `AgentPrism.Core`'un `InternalsVisibleTo`'suna `AgentPrism.Mcp` eklendi, `UseMcpCore` artık `ToolRegistry.Create(provider)`'ı çağırıyor (K3/K1 ile aynı kapıyı paylaşıyor). `McpToolRegistryImageGateTests` (`tests/AgentPrism.Mcp.UnitTests/`) eski koda karşı doğrulanmış: fix'siz kırmızı, fix'li yeşil. |
-| `GenerateImageTool`'un kendi `MaxImagesPerRequest` reddi yalnız HTTP operatör ucunun kopya kontrolüyle test ediliyordu, tool yolu hiç değil | 🟡 | `GenerateImageToolTests` (`tests/AgentPrism.Core.UnitTests/Images/`) eklendi: sayım sınırı, yalnız-ek-kimliği sonucu, sağlayıcı hatasının yutulmadığı, eksik run scope/tenant durumları, `size` ayrıştırması — tool'un kendi gövdesi üzerinden, HTTP'siz. |
+| 🚨 `.UseMcp(...)` etkinken `generate_image` derlemeye hiç girmiyordu | 🔴 | Üçüncü denetim turu — gerçek `gpt-image-1` çağrısıyla canlı koşumda bulundu. `TraconMcpBuilderExtensions.UseMcpCore` `IToolRegistry`'yi `McpToolRegistry` ile REPLACE ederken iç registry'yi `ToolRegistry.Create(provider)` üzerinden değil, kayıtları elle yeniden toplayan ikinci bir inşa yoluyla kuruyordu; bu ikinci yol 88.1'in `images.Enabled` kapısını hiç çalıştırmıyordu. Ayar açık, sağlayıcı kayıtlı olsa bile `GET /api/tools` ve agent derlemesi tool'u hiç görmüyordu — hata da vermiyordu. Düzeltme: `Tracon.Core`'un `InternalsVisibleTo`'suna `Tracon.Mcp` eklendi, `UseMcpCore` artık `ToolRegistry.Create(provider)`'ı çağırıyor (K3/K1 ile aynı kapıyı paylaşıyor). `McpToolRegistryImageGateTests` (`tests/Tracon.Mcp.UnitTests/`) eski koda karşı doğrulanmış: fix'siz kırmızı, fix'li yeşil. |
+| `GenerateImageTool`'un kendi `MaxImagesPerRequest` reddi yalnız HTTP operatör ucunun kopya kontrolüyle test ediliyordu, tool yolu hiç değil | 🟡 | `GenerateImageToolTests` (`tests/Tracon.Core.UnitTests/Images/`) eklendi: sayım sınırı, yalnız-ek-kimliği sonucu, sağlayıcı hatasının yutulmadığı, eksik run scope/tenant durumları, `size` ayrıştırması — tool'un kendi gövdesi üzerinden, HTTP'siz. |
 
 🔴 ve 🟡 açık bulgu yoktur.
 
@@ -133,7 +133,7 @@ curl -s http://localhost:5081/agentprism/api/runs/$RUN_ID/tools \
   toplayan bir kopya inşa yoluyla kuruyordu. Bu kopya 88.1'in `images.Enabled`
   kapısını atlıyordu: ayar açık ve sağlayıcı kayıtlı olsa bile `generate_image`
   MCP açıkken (sample'da her zaman) derlemeye hiç girmiyordu — hatasız, sessizce.
-  Düzeltme `AgentPrism.Core` → `InternalsVisibleTo("AgentPrism.Mcp")` ekleyip
+  Düzeltme `Tracon.Core` → `InternalsVisibleTo("Tracon.Mcp")` ekleyip
   `UseMcpCore`'u `ToolRegistry.Create(provider)`'ı çağıracak şekilde değiştirdi.
   **Ders:** `IToolRegistry`'yi REPLACE/sarmalayan her yeni yer `ToolRegistry.Create`
   üzerinden inşa etmelidir — kayıtları elle yeniden toplamak, `Create`'e sonradan

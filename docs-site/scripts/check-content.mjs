@@ -93,17 +93,17 @@ const sourceRoot = join(repositoryRoot, 'src');
 const packageCount = readdirSync(sourceRoot, { withFileTypes: true }).filter(
   (entry) =>
     entry.isDirectory() &&
-    entry.name.startsWith('AgentPrism') &&
-    entry.name !== 'AgentPrism.Generators' &&
+    entry.name.startsWith('Tracon') &&
+    entry.name !== 'Tracon.Generators' &&
     existsSync(join(sourceRoot, entry.name, `${entry.name}.csproj`)),
 ).length;
-const openApi = JSON.parse(readFileSync(join(repositoryRoot, 'docs/openapi/agentprism.json'), 'utf8'));
+const openApi = JSON.parse(readFileSync(join(repositoryRoot, 'docs/openapi/tracon.json'), 'utf8'));
 const operationCount = Object.values(openApi.paths ?? {}).reduce(
   (total, item) =>
     total + ['get', 'post', 'put', 'patch', 'delete'].filter((method) => item[method]).length,
   0,
 );
-const uiRoutes = readFileSync(join(sourceRoot, 'AgentPrism.UI/frontend/src/app.tsx'), 'utf8');
+const uiRoutes = readFileSync(join(sourceRoot, 'Tracon.UI/frontend/src/app.tsx'), 'utf8');
 
 // A "screen" is what the reader sees, so this counts the Screen COMPONENTS the
 // route table renders, not the modules they are imported from. Two modules
@@ -139,7 +139,7 @@ for (const [value, label] of [
 const compatibility = readFileSync(join(docsRoot, 'reference/compatibility.md'), 'utf8');
 const packagesHeading = compatibility.match(/^## The (\d+) packages$/m);
 const packagesSection = compatibility.split(/^## /m).find((section) => /^The \d+ packages\b/.test(section)) ?? '';
-const packageRowCount = [...packagesSection.matchAll(/^\| `AgentPrism[^`]*` \|/gm)].length;
+const packageRowCount = [...packagesSection.matchAll(/^\| `Tracon[^`]*` \|/gm)].length;
 
 if (!packagesHeading || Number(packagesHeading[1]) !== packageCount) {
   errors.push(
@@ -229,14 +229,14 @@ for (const file of manualContent) {
     const trimmed = line.trim();
 
     if (
-      /^dotnet add package AgentPrism(?:\s|$)/.test(trimmed) &&
+      /^dotnet add package Tracon(?:\s|$)/.test(trimmed) &&
       !trimmed.includes('--prerelease') &&
       !trimmed.includes('--version')
     ) {
-      errors.push(`${label}:${lineIndex + 1}: AgentPrism is preview; add --prerelease or --version`);
+      errors.push(`${label}:${lineIndex + 1}: Tracon is preview; add --prerelease or --version`);
     }
 
-    if (/^dotnet new install AgentPrism\.Templates(?:\s|$)/.test(trimmed)) {
+    if (/^dotnet new install Tracon\.Templates(?:\s|$)/.test(trimmed)) {
       errors.push(`${label}:${lineIndex + 1}: preview templates require an explicit @version`);
     }
   }
@@ -297,8 +297,8 @@ if (existsSync(apiRoot)) {
     }
 
 
-    if (/github\.com\/farukatasoy\/AgentPrism\/blob\/[^)]+\/src\/[^)]+\.cs/.test(text)) {
-      errors.push(`${label}: internal AgentPrism type links to source instead of the local reference`);
+    if (/github\.com\/farukatasoy\/Tracon\/blob\/[^)]+\/src\/[^)]+\.cs/.test(text)) {
+      errors.push(`${label}: internal Tracon type links to source instead of the local reference`);
     }
 
     if (
@@ -391,7 +391,7 @@ for (const url of indexed) {
 // ---------------------------------------------------------------------------
 
 const consoleLocales = readFileSync(
-  join(sourceRoot, 'AgentPrism.UI/frontend/src/locales/en.ts'),
+  join(sourceRoot, 'Tracon.UI/frontend/src/locales/en.ts'),
   'utf8',
 );
 const uiGuide = readFileSync(join(docsRoot, 'ui.md'), 'utf8');
@@ -409,7 +409,7 @@ for (const [, key, label] of consoleLocales.matchAll(/'nav\.([A-Za-z]+)':\s*'([^
   if (!existsSync(join(screenshotRoot, `${key}.png`))) {
     errors.push(
       `public/screenshots/${key}.png is missing; regenerate with ` +
-        'AGENTPRISM_UI_SCREENSHOTS=1 dotnet test tests/AgentPrism.Ui.E2ETests -c Release',
+        'TRACON_UI_SCREENSHOTS=1 dotnet test tests/Tracon.Ui.E2ETests -c Release',
     );
   }
 }
@@ -417,18 +417,18 @@ for (const [, key, label] of consoleLocales.matchAll(/'nav\.([A-Za-z]+)':\s*'([^
 const manualProse = manualContent.map((file) => readFileSync(file, 'utf8')).join('\n');
 
 const diagnostics = readFileSync(
-  join(sourceRoot, 'AgentPrism.Core/Diagnostics/AgentPrismDiagnostics.cs'),
+  join(sourceRoot, 'Tracon.Core/Diagnostics/TraconDiagnostics.cs'),
   'utf8',
 );
 
 const telemetryNames = [...diagnostics.matchAll(/public const string \w+ = "([^"]+)"/g)]
   .map(([, value]) => value)
-  // The meter and activity-source name is just "AgentPrism"; it is documented as
+  // The meter and activity-source name is just "Tracon"; it is documented as
   // prose, not as an identifier, and matching it would accept any page.
-  .filter((value) => value !== 'AgentPrism');
+  .filter((value) => value !== 'Tracon');
 
 for (const name of telemetryNames) {
-  // Whole name: 'agentprism.tenant.id' is a prefix of 'agentprism.tenant.identifier',
+  // Whole name: 'tracon.tenant.id' is a prefix of 'tracon.tenant.identifier',
   // so a substring test would accept a renamed attribute as documented.
   if (!new RegExp(`${name.replace(/\./g, '\\.')}(?![\\w.])`).test(manualProse)) {
     errors.push(`Telemetry name '${name}' appears on no hand-written page`);
@@ -537,7 +537,7 @@ for (const file of collect(sourceRoot).filter((entry) => entry.endsWith('Options
 }
 
 const validApiKeyScopes = new Set(
-  [...readFileSync(join(sourceRoot, 'AgentPrism.Abstractions/Security/ApiKeyScope.cs'), 'utf8').matchAll(
+  [...readFileSync(join(sourceRoot, 'Tracon.Abstractions/Security/ApiKeyScope.cs'), 'utf8').matchAll(
     /^\s{4}(\w+)\s*=\s*\d+,?\s*$/gm,
   )].map(([, name]) => name),
 );
@@ -652,15 +652,15 @@ if (!declared) {
   );
 }
 
-// The packaged copy, which AgentPrism.AspNetCore ships under buildTransitive/.
+// The packaged copy, which Tracon.AspNetCore ships under buildTransitive/.
 // The site copy below is sanitised; this one reaches the consumer unedited.
-const packagedOpenApi = join(repositoryRoot, 'docs/openapi/agentprism.json');
+const packagedOpenApi = join(repositoryRoot, 'docs/openapi/tracon.json');
 
 if (existsSync(packagedOpenApi)) {
   const text = readFileSync(packagedOpenApi, 'utf8');
 
   if (hasInternalHistory(text)) {
-    errors.push('docs/openapi/agentprism.json: internal development history is packaged into AgentPrism.AspNetCore');
+    errors.push('docs/openapi/tracon.json: internal development history is packaged into Tracon.AspNetCore');
   }
 
   // Two shapes: a nullable member ("string? X.Y") and a plain one ("string X.Y").
@@ -670,23 +670,23 @@ if (existsSync(packagedOpenApi)) {
 
   if (signatureLeak.test(text)) {
     errors.push(
-      'docs/openapi/agentprism.json: a <see cref> rendered as a full CLR signature; ' +
+      'docs/openapi/tracon.json: a <see cref> rendered as a full CLR signature; ' +
         'use <c>MemberName</c> in the contract documentation instead',
     );
   }
 }
 
-const publishedOpenApi = join(siteRoot, 'public/openapi/agentprism.json');
+const publishedOpenApi = join(siteRoot, 'public/openapi/tracon.json');
 if (existsSync(publishedOpenApi)) {
   const text = readFileSync(publishedOpenApi, 'utf8');
   if (hasInternalHistory(text)) {
-    errors.push('public/openapi/agentprism.json: internal development history leaked into OpenAPI');
+    errors.push('public/openapi/tracon.json: internal development history leaked into OpenAPI');
   }
   if (/\brationale\b|\b(?:int|long|decimal|double|string|float\[\])\?\s+[A-Z][A-Za-z0-9_.]+/i.test(text)) {
-    errors.push('public/openapi/agentprism.json: malformed source prose leaked into OpenAPI');
+    errors.push('public/openapi/tracon.json: malformed source prose leaked into OpenAPI');
   }
   if (/\/api\/keys\b/.test(text)) {
-    errors.push('public/openapi/agentprism.json: API key routes use /api/api-keys');
+    errors.push('public/openapi/tracon.json: API key routes use /api/api-keys');
   }
 
   const document = JSON.parse(text);
@@ -699,19 +699,19 @@ if (existsSync(publishedOpenApi)) {
         anonymousOperations.push(operation.operationId);
         continue;
       }
-      if (!operation['x-agentprism-role']) {
+      if (!operation['x-tracon-role']) {
         errors.push(`public OpenAPI operation ${operation.operationId} has no role metadata`);
       }
       if (
-        !operation['x-agentprism-api-key-scope'] &&
-        operation.operationId !== 'AgentPrismCurrentTenant'
+        !operation['x-tracon-api-key-scope'] &&
+        operation.operationId !== 'TraconCurrentTenant'
       ) {
         errors.push(`public OpenAPI operation ${operation.operationId} has no API-key scope metadata`);
       }
     }
   }
 
-  const expectedAnonymous = ['AgentPrismAcceptInboundTrigger', 'AgentPrismMcpOAuthCallback', 'AgentPrismMeta'];
+  const expectedAnonymous = ['TraconAcceptInboundTrigger', 'TraconMcpOAuthCallback', 'TraconMeta'];
   if (anonymousOperations.sort().join(',') !== expectedAnonymous.join(',')) {
     errors.push(`public OpenAPI anonymous-operation drift: ${anonymousOperations.join(', ')}`);
   }
@@ -989,7 +989,7 @@ const siteHost = new URL(site).host;
 
 const declaresTheAddress = [
   join(siteRoot, 'site.config.mjs'),
-  join(sourceRoot, 'AgentPrism.Generators', 'DocumentationLinks.cs'),
+  join(sourceRoot, 'Tracon.Generators', 'DocumentationLinks.cs'),
 ];
 
 const derivedFromConfig = [
@@ -1016,7 +1016,7 @@ const packagesRoot = join(repositoryRoot, 'packages');
 const handWritten = [
   ...derivedFromConfig,
   ...collectSources(sourceRoot).filter((file) => basename(file) === 'README.md'),
-  // packages/agentprism-client/README.md ships to npm the same way a NuGet
+  // packages/tracon-client/README.md ships to npm the same way a NuGet
   // README does (Phase 84) — same blind spot, same fix.
   ...(existsSync(packagesRoot) ? collectSources(packagesRoot) : []).filter(
     (file) => basename(file) === 'README.md',

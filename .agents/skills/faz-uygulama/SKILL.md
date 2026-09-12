@@ -1,6 +1,6 @@
 ---
 name: faz-uygulama
-description: Bir fazın kodu yazılırken uygulanacak protokol — planın yapısal iddiasını ölçme, davranış başına test seviyesi seçimi, imza-gövde takibi, tuzak kontrol listesi ve erken kapı koşumu. AgentPrism'de kusurların tamamı bu adımda doğar; faz-baslangic okuma protokolüdür, faz-tamamlama kapanış protokolüdür, bu ikisinin arasındaki iş buradadır.
+description: Bir fazın kodu yazılırken uygulanacak protokol — planın yapısal iddiasını ölçme, davranış başına test seviyesi seçimi, imza-gövde takibi, tuzak kontrol listesi ve erken kapı koşumu. Tracon'de kusurların tamamı bu adımda doğar; faz-baslangic okuma protokolüdür, faz-tamamlama kapanış protokolüdür, bu ikisinin arasındaki iş buradadır.
 ---
 
 # Faz Uygulama Protokolü
@@ -33,7 +33,7 @@ Kod yazmadan önce planın her yapısal cümlesini bir komuta çevir:
 ```bash
 # "X, Y'nin dışında/içinde/öncesinde çalışır" -> gerçekten orada mı?
 grep -rn "class RunRecordingAgent" src/
-grep -rn "await agent.RunStreamingAsync\|MoveNextAsync" src/AgentPrism.Core/
+grep -rn "await agent.RunStreamingAsync\|MoveNextAsync" src/Tracon.Core/
 ```
 
 İddia düşerse **kod yazma**; plandan sapmayı fazın dokümanına yaz ve devam et.
@@ -86,11 +86,11 @@ Kapılar ucuzdur (sıcak build ~5 sn). İlk anlamlı değişiklikten sonra koş;
 sonuna biriktirme.
 
 ```bash
-dotnet build AgentPrism.slnx -c Release -p:AgentPrismFrontendEnabled=false
-dotnet test tests/AgentPrism.Core.UnitTests -c Release --no-build
+dotnet build Tracon.slnx -c Release -p:TraconFrontendEnabled=false
+dotnet test tests/Tracon.Core.UnitTests -c Release --no-build
 ```
 
-Arayüze dokunuyorsan `-p:AgentPrismFrontendEnabled=false` **kullanma** — E2E
+Arayüze dokunuyorsan `-p:TraconFrontendEnabled=false` **kullanma** — E2E
 testleri gömülü varlıkları arar ve koşum asılı kalır.
 
 `dotnet test` dakikalarca asılı kalıyorsa öksüz MSBuild düğümlerine bak

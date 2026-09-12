@@ -59,8 +59,8 @@ iterasyon yap, sütun metnini gözle kısaltıp tahmin etme.
 ## 🚨 Agent map package adı path separator'a bağlanamaz
 
 `projectPath.split('/')` macOS/Linux'ta package adını verdi, Windows'ta ise tam
-`D:\\a\\...\\AgentPrism.Core.csproj` yolunu verdi. Haritadaki her package satırı
-büyüdü; `AgentPrism.AgentMap.md` ve onu içeren `llms.txt` aynı anda hem bayat
+`D:\\a\\...\\Tracon.Core.csproj` yolunu verdi. Haritadaki her package satırı
+büyüdü; `Tracon.AgentMap.md` ve onu içeren `llms.txt` aynı anda hem bayat
 hem budget üstünde göründü. Path bileşenini `node:path` `basename()` ile çıkar.
 `build-agent-map.test.mjs`, `win32.basename` ile bu sınırı macOS'ta da doğrular;
 test `npm run check:content` kapısının parçasıdır.
@@ -76,7 +76,7 @@ doğrular.
 `docfx metadata --logLevel verbose` kök nedeni gösterdi. `src`, API üretilecek
 18 assembly'yi açıkça seçiyordu. `references` ise `artifacts/bin` altındaki test,
 örnek ve paket çıktılarının tüm DLL'lerini yüklüyordu. Bu dizinler aynı
-AgentPrism assembly'sinin çok sayıda kopyasını taşır. Roslyn aynı basit adlı
+Tracon assembly'sinin çok sayıda kopyasını taşır. Roslyn aynı basit adlı
 assembly'leri birlikte görünce **360 `CS1704`** üretti. Hatanın çalışma ağacı
 tabanında da görülmesinin nedeni birikmiş çıktı ağacıydı.
 
@@ -112,7 +112,7 @@ kapılarından ÖNCE hem `-c Release` hem `-c Debug` ile bir kez derle.
   goremez. Sonuc olculdu: son 40 commit'te kural 7 kez tetiklendi, **5'i
   kirmizi** dondu ve hepsi `--site-gerekce-yazildi` ile gecildi. Surekli
   kirmizi bir kapi, kapi degildir; insanlari onu susturmaya egitir. Hedef
-  `docs/openapi/agentprism.json` (uretilen ama IZLENEN ve COMMIT EDILEN)
+  `docs/openapi/tracon.json` (uretilen ama IZLENEN ve COMMIT EDILEN)
   eklendikten sonra 5 → 3. **Ders: bir kural yazarken "bu hedef, yuzey
   degisince gercekten degisir mi ve `git` onu gorebilir mi" sorusunu
   TARIHE KARSI olc** — `_kural_eslesmesi` saf fonksiyondur, `git log`
@@ -169,8 +169,8 @@ yazimda gevsekti ve hicbir sey yakalamadi:
 - Bir ekranin anlatildigini "sayfada adi geciyor" ile olcme — `Jobs` kelimesi
   o ekrani hic anlatmayan bir capraz baglantida da gecer. **Baslik ara**:
   `^#{2,3} .*\bJobs\b`.
-- Bir adin belgelendigini `includes()` ile olcme — `agentprism.tenant.id`,
-  `agentprism.tenant.identifier`'in ON EKIDIR. **Kelime siniri kullan**.
+- Bir adin belgelendigini `includes()` ile olcme — `tracon.tenant.id`,
+  `tracon.tenant.identifier`'in ON EKIDIR. **Kelime siniri kullan**.
 
 Kapiyi yazdiktan sonra **kirmizi oldugunu gor**: bir ekrani yeniden adlandir,
 bir adi degistir, bir sayiyi bozar. Gormeden yesil kabul etme.
@@ -183,7 +183,7 @@ Bu dosyanın en üstteki tuzağıyla aynı sebep: `check-content.mjs` derlemeden
 Tip.Ozellik=deger -->` / `<!-- claim:policy METOD /yol scope=Kapsam -->`)
 burada denetlenebilecek TEK şey şeklidir — tip/özellik gerçekten var mı, scope
 adı `ApiKeyScope`'un bir üyesi mi. Gerçek DEĞERİ (gerçek varsayılan, gerçek
-izin/red) yalnız `tests/AgentPrism.AspNetCore.FunctionalTests/
+izin/red) yalnız `tests/Tracon.AspNetCore.FunctionalTests/
 DocumentedPolicyTests.cs` ölçer — o dosya `dotnet test` içinde koşar ve
 derlenmiş tipi `Activator.CreateInstance` ile örnekleyebilir. İkisini tek
 dosyada birleştirmek bu kapıyı temiz checkout'ta `ERR_MODULE_NOT_FOUND`

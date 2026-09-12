@@ -11,12 +11,12 @@
 
 Rapor `.504` yüzeyleri için on beş iddia yazdı. On beşi de doğru çıktı:
 `IRunStore.ReadEventsAsync`, `ISessionStore.TryUpdateAsync` + `SessionRecord.Version`,
-`IAgentPrismBuilder.AddScopedTool`, `IToolArgumentsValidator`,
+`ITraconBuilder.AddScopedTool`, `IToolArgumentsValidator`,
 `AgentRunBudget.MaxDuration`, `AgentResponseFormat` + `AgentResponseFormatKind.JsonSchema`,
 `RunEventType.ModelFallbackUsed`, `IRunPricingResolver` + `PricingSource`,
-`AgentPrismSchedulingOptions`'ın global oluşu. Yanlış iddia bulunmadı.
+`TraconSchedulingOptions`'ın global oluşu. Yanlış iddia bulunmadı.
 
-Raporun **kaçırdığı** tek ölçüm Talep 5'i güçlendirir: AgentPrism bugün
+Raporun **kaçırdığı** tek ölçüm Talep 5'i güçlendirir: Tracon bugün
 `POST /api/stats/recalculate-costs` ile tarihsel maliyetleri yeniden yazıyor;
 yani raporun "eski kayıt yeni fiyatla tekrar hesaplanmaz" kabul kriteri bugün
 sağlanmıyor. Ayrıntı Faz 132'dedir.
@@ -48,7 +48,7 @@ sıralanma gerekçesi tüketicinin önceliği değil, bu penceredir. Kullanıcı
 
 **Talep 3B (nested object).** K-615 generator'ın kendi `JsonSerializerContext`'ini
 kullanmamasını karara bağladı; tool sahibi kendi context'ini
-`AgentPrismToolAttribute.JsonSerializerContext` ile verir, vermezse derleme
+`TraconToolAttribute.JsonSerializerContext` ile verir, vermezse derleme
 `APG0008` ile durur. Nested object şeması + AOT metadata bu kararla uzlaştırılmalıdır.
 Faz 130 bunu beklemez ama aynı faza da girmez.
 
@@ -66,15 +66,15 @@ additive'dir; bugün alınan hiçbir karar onu kapatmıyor. Tüketicinin tek ist
 ### Lane metrikleri neden Faz 129'a girmedi
 
 Raporun 4.5 kabul kriteri lane başına queued/leased/succeeded/failed/duration
-metriği istiyor. Ölçüm: `AgentPrismMetrics` bugün run, token, cost, tool, judge,
+metriği istiyor. Ölçüm: `TraconMetrics` bugün run, token, cost, tool, judge,
 model cache ve agent source sayıyor — **hiç job metriği yok**. "Lane metriği"
 istemek, olmayan bir metrik ailesini sıfırdan kurmak demektir. Bu ayrı bir
 fazdır ve Faz 129'un lane kimliğine bağlıdır.
 
 ## Raporun kendi fallback planı
 
-Tüketici her talep için AgentPrism gelmezse ne yapacağını yazdı. Bu, taleplerin
+Tüketici her talep için Tracon gelmezse ne yapacağını yazdı. Bu, taleplerin
 **bloklayıcı olmadığını** gösterir: entegrasyon bugün başlayabilir. Feature'ların
 değeri tüketiciyi kurtarmak değil, aynı runtime politikasının her tüketicide
 yeniden yazılmasını önlemektir. Dört fazın hepsi bu ölçütü geçti — dördü de
-AgentPrism'in kendi içinde bugün gerçek bir boşluk veya çelişki kapatıyor.
+Tracon'in kendi içinde bugün gerçek bir boşluk veya çelişki kapatıyor.

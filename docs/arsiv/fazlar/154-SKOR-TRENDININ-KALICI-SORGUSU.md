@@ -3,10 +3,10 @@
 > **Durum:** ✅ Tamamlandı (2026-09-07)
 > **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-209**
 > **Önkoşul:** 🚨 [Faz 152](152-SKORUN-ADI-VE-SEKLI.md) — aynı tabloya (`run_scores`) dokunur ve **önce koşmalıdır**. 152 skora bir **ad** getiriyor; kırılım o adı içermelidir, aksi hâlde kırılım iki kez elden geçer.
-> **Paketler:** `AgentPrism.Abstractions`, `AgentPrism.Core`, `AgentPrism.AspNetCore`, `AgentPrism.PostgreSql`, `AgentPrism.Sqlite`, `AgentPrism.SqlServer`, `AgentPrism.Testing.Contracts.Xunit`, `AgentPrism.UI`
+> **Paketler:** `Tracon.Abstractions`, `Tracon.Core`, `Tracon.AspNetCore`, `Tracon.PostgreSql`, `Tracon.Sqlite`, `Tracon.SqlServer`, `Tracon.Testing.Contracts.Xunit`, `Tracon.UI`
 > **Yeni paket:** Yok · **Migration:** 🚨 **gerekli, üç sağlayıcıda** — yalnız indeks; numaralar uygulama anında alınır (K-178). Yeni tablo **yok**
 > **Public API:** Büyüyor — `IRunScoreStore`'a bir okuma üyesi + bir sorgu/sonuç tipi çifti. `wc -l src/*/PublicAPI.Shipped.txt` → her dosya **1 satır** (ölçüldü 2026-09-07): depo arayüzüne üye eklemek üçüncü taraf uygulayıcıyı kırar ve **`1.0` öncesi** yapılmalıdır.
-> **Tüketici yüzeyi:** site: `docs-site/src/content/docs/concepts/evaluation.md` · üretilen: `http-api/`, `api/agentprism.irunscorestore` · sevk edilen: `EvalEndpoints` online özet metni (bugün tüketiciyi **kendi tablomuza** yönlendiriyor), `IRunScoreStore` XML dokümanı
+> **Tüketici yüzeyi:** site: `docs-site/src/content/docs/concepts/evaluation.md` · üretilen: `http-api/`, `api/tracon.irunscorestore` · sevk edilen: `EvalEndpoints` online özet metni (bugün tüketiciyi **kendi tablomuza** yönlendiriyor), `IRunScoreStore` XML dokümanı
 > **Manuel test alanı:** `docs/manuel-test/17-EVAL-VE-DENEYLER.md` · `docs/manuel-test/12-GOZLEMLENEBILIRLIK-MALIYET.md`
 
 ---
@@ -32,7 +32,7 @@ Skor özeti süreç yeniden başlayınca **sıfırlanıyor** ve ürün bunu tük
 
 ## Bitiş Ölçütleri (DoD)
 
-- [x] `GET /api/evaluation/scores/summary` sunucu yeniden başladıktan **sonra** aynı sonucu döner — `samples/AgentPrism.Api` + SQLite ile gerçek yeniden başlatmayla doğrulandı
+- [x] `GET /api/evaluation/scores/summary` sunucu yeniden başladıktan **sonra** aynı sonucu döner — `samples/Tracon.Api` + SQLite ile gerçek yeniden başlatmayla doğrulandı
 - [x] `GET /api/evaluation/online` davranışı **değişmemiştir** (canlı gösterge hâlâ sıfırlanır) — regresyon: mevcut `OnlineEvaluationTests`
 - [x] Farklı `RunScoreKind`'lar aynı ortalamaya girmez; kova anahtarı `(name, kind)`'dır — `RunScoreStoreContract` dört store'da
 - [x] `Value = null` sayıma girer, ortalamaya girmez ve `noValueCount` ile raporlanır
@@ -41,7 +41,7 @@ Skor özeti süreç yeniden başlayınca **sıfırlanıyor** ve ürün bunu tük
 - [x] Yeni tablo **açılmadı**; "no durable counter store" kuralı korundu
 - [x] `EvalEndpoints.cs`'teki *"the 'run_scores' table can be queried directly"* cümlesi **kalktı**
 - [x] Dört doğrulama kapısı sıfır uyarı verir — bkz. "Doğrulama komutları" çıktısı
-- [x] `samples/AgentPrism.Api` ile gerçek skor yazımı + yeniden başlatma sonrası özet alındı, çıktı belgeye yazıldı
+- [x] `samples/Tracon.Api` ile gerçek skor yazımı + yeniden başlatma sonrası özet alındı, çıktı belgeye yazıldı
 - [x] `secret` taraması boş döndü
 - [x] Manuel kabul case'leri `17-EVAL-VE-DENEYLER.md` (EVAL-128..135) ve `12-GOZLEMLENEBILIRLIK-MALIYET.md` (MT-OBS-060) içine eklendi
 - [x] `faz-denetim` koşuldu; 🔴 bulgu **yok** — 🟡 bulgular Denetim Bulguları'nda kapatıldı
@@ -53,12 +53,12 @@ Skor özeti süreç yeniden başlayınca **sıfırlanıyor** ve ürün bunu tük
 
 ```bash
 # Yeniden başlatmadan sağ çıkıyor mu
-curl -s "http://localhost:5081/agentprism/api/evaluation/scores/summary?from=2026-09-01T00:00:00Z" | jq '.byName'
+curl -s "http://localhost:5081/tracon/api/evaluation/scores/summary?from=2026-09-01T00:00:00Z" | jq '.byName'
 # ... sunucuyu yeniden başlat ...
-curl -s "http://localhost:5081/agentprism/api/evaluation/scores/summary?from=2026-09-01T00:00:00Z" | jq '.byName'
+curl -s "http://localhost:5081/tracon/api/evaluation/scores/summary?from=2026-09-01T00:00:00Z" | jq '.byName'
 
 # Canlı gösterge hâlâ sıfırlanıyor mu (değişmemeli)
-curl -s http://localhost:5081/agentprism/api/evaluation/online | jq '.sampleCount'
+curl -s http://localhost:5081/tracon/api/evaluation/online | jq '.sampleCount'
 
 # İndeks kuruldu mu (PostgreSQL)
 psql -c "\di+ *run_scores*"
@@ -70,8 +70,8 @@ psql -c "\di+ *run_scores*"
 
 1. **`RunScoreBucketing` (public, plan dışı).** Plan yalnız `RunScoreBucket`'ı
    listeliyordu; kova sınırını hesaplayan `Truncate` mantığı ayrı bir public
-   statik sınıfa çıkarıldı. Gerekçe: `AgentPrism.Abstractions`'ta tanımlı
-   (`RunScoreBucket`'ın yanı) ama `AgentPrism.Core.InMemoryRunScoreStore`
+   statik sınıfa çıkarıldı. Gerekçe: `Tracon.Abstractions`'ta tanımlı
+   (`RunScoreBucket`'ın yanı) ama `Tracon.Core.InMemoryRunScoreStore`
    ondan **başka derlemeden** çağırıyor — `internal` olamaz. Üç SQL sağlayıcı
    aynı kuralı kendi `date_trunc`/`strftime`/`DATEADD` SQL'inde ayrıca
    uyguluyor (bkz. sınıfın kendi `<remarks>`'ı); paylaşılan sözleşme testi
@@ -105,7 +105,7 @@ psql -c "\di+ *run_scores*"
      dolayısıyla middleware'den kaçıp tüketicinin genel `500` işleyicisine
      düşüyordu. Sınıf taraması **altı** ucu etkilediğini gösterdi (yeni
      `scores/summary` dahil, ama esasen ÖNCEDEN VAR OLAN `stats/timeseries`,
-     `runs`, `quota` uçları). Düzeltme: middleware artık AgentPrism etiketli
+     `runs`, `quota` uçları). Düzeltme: middleware artık Tracon etiketli
      her `BadHttpRequestException`'ı yakalıyor, gövde/parametre ayrımını
      `InnerException is JsonException`'a göre başlık metninde yapıyor.
      Regresyon: `JsonBindingProblemMiddlewareTests.Miscased_enum_query_parameter_returns_400_not_500`.
@@ -118,7 +118,7 @@ psql -c "\di+ *run_scores*"
      de uygulandı. Regresyon: `Hour_buckets_group_scores_within_the_same_hour`
      ve `Week_buckets_start_on_Monday_and_group_the_whole_week` — gerçek
      PostgreSQL/SQL Server konteynerlerinde (Testcontainers) koşuyor.
-   - **`samples/AgentPrism.Samples.FileRunStore` derlenmiyordu.** Bu örnek
+   - **`samples/Tracon.Samples.FileRunStore` derlenmiyordu.** Bu örnek
      çözümde değildir (`kapi.py yayin`'in dışında hiçbir kapanış kapısı onu
      derlemez); yerel `dotnet pack` + dirty override ile gerçek tüketici
      paketine karşı derlenince `FileRunStore.cs`'te `sum += score.Value`
@@ -154,7 +154,7 @@ sözün uygulanmasıdır.
 | 1 | Seri için varsayılan pencere/tavan yok — `bucket` verilip `from` verilmezse sorgu sınırsız | 🟡 | **Düzeltildi** — 90 günlük varsayılan (`MaxRunScoreSeriesDays`), sapma 3 |
 | 2 | Boş-string `MessageId`/`Author` SQL'de (`IS NULL`) ile bellek içinde (`{Length:>0}`) farklı sınıflandırılıyordu | 🟡 | **Düzeltildi** — üç SQL sağlayıcının `ScoreFilter`/`ByAuthor` sorgusu `''`'i `NULL` ile eşitledi; regresyon: `An_empty_string_MessageId_is_treated_the_same_as_no_message`, `An_empty_string_Author_is_excluded_from_the_author_breakdown_like_no_author` (dört store'da da yeşil) |
 | 3 | *(orijinal denetimde numaralanmadı / erken kapandı)* | — | — |
-| 4 | Sample'ın agent-adı çözücüsü `_runs`'ı kendi `_gate` kilidi DIŞINDA okuyor | 🟡 | **Düzeltildi** — okuma `lock (_gate)` içine alındı; `AgentPrism.Samples.FileRunStore.Tests` (93 test) yeşil |
+| 4 | Sample'ın agent-adı çözücüsü `_runs`'ı kendi `_gate` kilidi DIŞINDA okuyor | 🟡 | **Düzeltildi** — okuma `lock (_gate)` içine alındı; `Tracon.Samples.FileRunStore.Tests` (93 test) yeşil |
 | 5 | `RunScoreBucketing` planın "Planlanan Public API" listesinde yok | 🟡 | **Gerekçelendi** — bkz. Plandan Sapmalar #1 |
 | 6 | `ScoreTrendChart` bir kovada bir (ad, kind), başka kovada farklı bir (ad, kind) çizebilir — çizgi iki farklı metriği birleştirir | 🟡 | **Düzeltildi** — `primaryScoreIdentity` artık TÜM seri için TEK bir (ad, kind) kimliği seçiyor (`overall` varsa o, yoksa en çok kovada geçen); `lib/chart.ts`'e taşındı ve 5 birim testiyle kanıtlandı |
 | 7 | Sekiz yeni dosya `git add` edilmemiş | 🟡 | **Düzeltildi** — commit ile birlikte eklendi |
@@ -178,13 +178,13 @@ sözün uygulanmasıdır.
   ayarına bağımlıdır — yeni bir zaman-kovalı sorgu yazarken
   `PostgresQueries.cs`'teki `TruncateUtc` yerel fonksiyonunu kopyala, çıplak
   `date_trunc` kullanma.
-- 🚨 `samples/AgentPrism.Samples.FileRunStore(.Tests)` hiçbir çözüm dosyasında
-  değildir ve kapanış kapısı onu **derlemez**. `AgentPrism.Abstractions`'a
+- 🚨 `samples/Tracon.Samples.FileRunStore(.Tests)` hiçbir çözüm dosyasında
+  değildir ve kapanış kapısı onu **derlemez**. `Tracon.Abstractions`'a
   (veya bağımlı olduğu başka bir pakete) dokunan bir faz, sample'ı gerçekten
   denemek isterse: `dotnet pack src/<Paket> -c Release
-  -p:AgentPrismAllowDirtyPack=true -p:MinVerVersionOverride=0.0.0-dirty.<ad>`
+  -p:TraconAllowDirtyPack=true -p:MinVerVersionOverride=0.0.0-dirty.<ad>`
   ile yerel feed'e bas, sonra `dotnet build
-  -p:AgentPrismSamplePackageVersion=0.0.0-dirty.<ad>` ile sample'ı derle —
+  -p:TraconSamplePackageVersion=0.0.0-dirty.<ad>` ile sample'ı derle —
   varsayılan `*-*` joker karakteri her zaman en YÜKSEK sürümü seçer, bu yüzden
   dirty sürüm açıkça verilmelidir.
 - `F-214` (`docs/ADAYLAR.md`) deneyler özelliğinde aynı boş-string/`NULL`

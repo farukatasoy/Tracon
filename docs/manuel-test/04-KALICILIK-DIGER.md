@@ -1,18 +1,18 @@
 # 04 — Kalıcılık: SQLite, SQL Server ve Bellek İçi (`SQL`)
 
 > **Alan kodu:** `SQL` · **Faz:** 23 (SQL Server), 24 (SQLite)
-> **Kaynak:** `src/AgentPrism.Sqlite` (`AgentPrismSqliteBuilderExtensions.cs` ·
-> `AgentPrismSqliteOptions.cs` · `AgentPrismSqliteOptionsValidator.cs` ·
+> **Kaynak:** `src/Tracon.Sqlite` (`TraconSqliteBuilderExtensions.cs` ·
+> `TraconSqliteOptions.cs` · `TraconSqliteOptionsValidator.cs` ·
 > `Internal/SqliteDataSource.cs` · `Internal/SqliteDataSourceFactory.cs` ·
 > `Internal/SqliteDialect.cs` · `Internal/SqliteQueries.cs` · `Migrations/*.sql`) ·
-> `src/AgentPrism.SqlServer` (aynı dosya kümesi, `SqlServer` önekiyle) ·
-> `src/AgentPrism.Sql.Shared` (`Migrations/MigrationRunner.cs` ·
+> `src/Tracon.SqlServer` (aynı dosya kümesi, `SqlServer` önekiyle) ·
+> `src/Tracon.Sql.Shared` (`Migrations/MigrationRunner.cs` ·
 > `Internal/SqlIdentifier.cs` · `Internal/SqlStoreContext.cs`) ·
-> `src/AgentPrism.Abstractions/Diagnostics/SchemaReadyGate.cs` ·
-> `src/AgentPrism.Core/Diagnostics/AgentPrismDiagnosticsCollector.cs` ·
-> `src/AgentPrism.AspNetCore/Health/AgentPrismHealthCheck.cs`
+> `src/Tracon.Abstractions/Diagnostics/SchemaReadyGate.cs` ·
+> `src/Tracon.Core/Diagnostics/TraconDiagnosticsCollector.cs` ·
+> `src/Tracon.AspNetCore/Health/TraconHealthCheck.cs`
 >
-> `AgentPrism.Sql.Shared` PostgreSQL ile de ORTAKTIR ve bu dosyayla
+> `Tracon.Sql.Shared` PostgreSQL ile de ORTAKTIR ve bu dosyayla
 > [`03-KALICILIK-POSTGRESQL.md`](03-KALICILIK-POSTGRESQL.md) arasında paylaşılır;
 > depo kayıt deseni (`Replace`/`TryAdd`), denetim izi dekoratörleri ve
 > `MigrationRunner`'ın genel akışı orada tek sefer derinlemesine test edildi ve
@@ -36,15 +36,15 @@ yaşar. Bu dosya üç şeyi kanıtlar: (1) SQLite ve SQL Server'ın kendi ayar
 doğrulama/migration kilit mekanizmaları PostgreSQL ile aynı garantiyi verir,
 (2) iki sağlayıcının diyalekt farkları (dosya kilidi vs `sp_getapplock`,
 `decimal` hassasiyeti, `:memory:` kalıcısızlığı) doğru yerde ortaya çıkar,
-(3) **hiçbir** kalıcılık sağlayıcısı kayıtlı değilken AgentPrism'in tasarım
+(3) **hiçbir** kalıcılık sağlayıcısı kayıtlı değilken Tracon'in tasarım
 kuralı #1'i ("sıfır sürpriz") doğrudur — uygulama sorunsuz açılır, yalnızca
 veri süreçle birlikte biter.
 
 ```mermaid
 flowchart TD
-    A["Use*() hic cagrilmadi"] --> B["Bellek ici store'lar (AddAgentPrism varsayilani)"]
-    C["UseSqlite(connectionString)"] --> D["AgentPrismSqliteOptions + Validator"]
-    E["UseSqlServer(connectionString)"] --> F["AgentPrismSqlServerOptions + Validator"]
+    A["Use*() hic cagrilmadi"] --> B["Bellek ici store'lar (AddTracon varsayilani)"]
+    C["UseSqlite(connectionString)"] --> D["TraconSqliteOptions + Validator"]
+    E["UseSqlServer(connectionString)"] --> F["TraconSqlServerOptions + Validator"]
     D --> G["SqliteDataSource + dosya kilidi"]
     F --> H["SqlServerDataSource + sp_getapplock"]
     G --> I["SqlStoreContext (SqliteDialect)"]
@@ -55,7 +55,7 @@ flowchart TD
     B --> L
     I --> M["Depo kayitlari: Replace / TryAdd (03'te test edildi)"]
     J --> M
-    L --> N["/health, /agentprism/api/diagnostics"]
+    L --> N["/health, /tracon/api/diagnostics"]
 ```
 
 ## Sınır: bu dosya nerede biter
@@ -78,26 +78,26 @@ flowchart TD
    kapalıysa `mcr.microsoft.com/mssql/server` başlamaz — bkz. **MT-SQL-042**.
 3. SQLite bölümü hiçbir container istemez; `sqlite3` komut satırı aracı gerekir
    (macOS'ta önceden kuruludur; yoksa `brew install sqlite`).
-4. `AgentPrism:Ui:AuthToken` `manuel-test-token-2026`'dır.
+4. `Tracon:Ui:AuthToken` `manuel-test-token-2026`'dır.
 5. Bu dosyanın her case'i **kendi kalıcılık sağlayıcısını** açıkça seçer —
    `00-INDEKS.md` §2.4'teki kural geçerlidir: aynı anda yalnız BİR sağlayıcının
-   bağlantı dizesi tanımlı olmalıdır (`samples/AgentPrism.Api/Program.cs`
+   bağlantı dizesi tanımlı olmalıdır (`samples/Tracon.Api/Program.cs`
    `SqlServer → PostgreSQL → SQLite` sırasıyla İLK doluyu seçer, satır 635–646).
 
 Kısaltmalar — bu dosyadaki her `curl`/`sqlite3`/`sqlcmd` şunları kullanır:
 
 ```bash
 export APB="Authorization: Bearer manuel-test-token-2026"
-export APU="http://localhost:5080/agentprism"
-export SQLITEDB="samples/AgentPrism.Api/agentprism-manuel.db"
-export MSSQL="docker exec -i ap-mssql /opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P AgentPrism!2026 -d AgentPrism"
+export APU="http://localhost:5080/tracon"
+export SQLITEDB="samples/Tracon.Api/tracon-manuel.db"
+export MSSQL="docker exec -i ap-mssql /opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P Tracon!2026 -d Tracon"
 ```
 
 ---
 
 # 1 — SQLite: Bağlantı, ayarlar ve doğrulama
 
-Bu bölüm `AgentPrismSqliteOptions`, `AgentPrismSqliteOptionsValidator` ve
+Bu bölüm `TraconSqliteOptions`, `TraconSqliteOptionsValidator` ve
 `SqliteDataSourceFactory`'yi sınar. `03-KALICILIK-POSTGRESQL.md`'nin MT-PG-001–007
 ile aynı garanti seviyesi; farklar yalnız SQLite'ın şema kavramının olmaması
 (`TablePrefix` `SchemaName`'in yerini alır) ve dosya tabanlı olmasıdır.
@@ -120,14 +120,14 @@ ile aynı garanti seviyesi; farklar yalnız SQLite'ın şema kavramının olmama
 
 **Girilecek veri**
 ```bash
-dotnet user-secrets set "AgentPrism:Sqlite:ConnectionString" ""
-cd samples/AgentPrism.Api && dotnet run
+dotnet user-secrets set "Tracon:Sqlite:ConnectionString" ""
+cd samples/Tracon.Api && dotnet run
 ```
 
 **Beklenen sonuç**
 - Uygulama başlamayı **reddeder** (`ValidateOnStart`); konsolda
   `OptionsValidationException` görünür, mesaj
-  `AgentPrismSqliteOptions.ConnectionString bos olamaz` metnini taşır.
+  `TraconSqliteOptions.ConnectionString bos olamaz` metnini taşır.
 - `/health` hiçbir zaman yanıt vermez.
 
 ---
@@ -156,24 +156,24 @@ olamaz); PostgreSQL'in şema adı kuralıyla BİREBİR aynı doğrulamadan geçe
 **Girilecek veri**
 ```bash
 # 1) Buyuk harf
-dotnet user-secrets set "AgentPrism:Sqlite:TablePrefix" "Agentprism_"
-cd samples/AgentPrism.Api && dotnet run
+dotnet user-secrets set "Tracon:Sqlite:TablePrefix" "Tracon_"
+cd samples/Tracon.Api && dotnet run
 # Ctrl+C ile durdur
 
 # 2) Bosluk
-dotnet user-secrets set "AgentPrism:Sqlite:TablePrefix" "agent prism_"
+dotnet user-secrets set "Tracon:Sqlite:TablePrefix" "agent prism_"
 dotnet run
 # Ctrl+C ile durdur
 
 # 3) Enjeksiyon denemesi
-dotnet user-secrets set "AgentPrism:Sqlite:TablePrefix" "x_; DROP TABLE agentprism_tenants;--"
+dotnet user-secrets set "Tracon:Sqlite:TablePrefix" "x_; DROP TABLE tracon_tenants;--"
 dotnet run
 # Ctrl+C ile durdur
 ```
 
 **Beklenen sonuç**
 - Üçü de başlamayı reddeder; hata mesajı
-  `AgentPrismSqliteOptions.TablePrefix gecerli bir AgentPrism tablo oneki degil`
+  `TraconSqliteOptions.TablePrefix gecerli bir Tracon tablo oneki degil`
   metnini taşır.
 - 3. denemede `DROP TABLE` **hiçbir zaman çalıştırılmaz**.
 
@@ -182,7 +182,7 @@ dotnet run
 sqlite3 "$SQLITEDB" ".tables"
 ```
 ```
--- Beklenen: 'agentprism_tenants' hala listede.
+-- Beklenen: 'tracon_tenants' hala listede.
 ```
 
 ---
@@ -206,15 +206,15 @@ sqlite3 "$SQLITEDB" ".tables"
 
 **Girilecek veri**
 ```bash
-dotnet user-secrets set "AgentPrism:Sqlite:CommandTimeoutSeconds" "-1"
-cd samples/AgentPrism.Api && dotnet run
+dotnet user-secrets set "Tracon:Sqlite:CommandTimeoutSeconds" "-1"
+cd samples/Tracon.Api && dotnet run
 # Ctrl+C ile durdur
 
-dotnet user-secrets set "AgentPrism:Sqlite:CommandTimeoutSeconds" "3601"
+dotnet user-secrets set "Tracon:Sqlite:CommandTimeoutSeconds" "3601"
 dotnet run
 # Ctrl+C ile durdur
 
-dotnet user-secrets set "AgentPrism:Sqlite:CommandTimeoutSeconds" "0"
+dotnet user-secrets set "Tracon:Sqlite:CommandTimeoutSeconds" "0"
 dotnet run
 ```
 
@@ -244,8 +244,8 @@ dotnet run
 
 **Girilecek veri**
 ```bash
-dotnet user-secrets set "AgentPrism:Sqlite:AutoApplyMigrations" "false"
-cd samples/AgentPrism.Api && dotnet run
+dotnet user-secrets set "Tracon:Sqlite:AutoApplyMigrations" "false"
+cd samples/Tracon.Api && dotnet run
 ```
 ```bash
 sqlite3 "$SQLITEDB" "SELECT count(*) FROM sqlite_master WHERE type='table';"
@@ -253,7 +253,7 @@ sqlite3 "$SQLITEDB" "SELECT count(*) FROM sqlite_master WHERE type='table';"
 
 **Beklenen sonuç**
 - Uygulama **açılır** (migration eksikliği başlatmayı engellemez).
-- Konsolda "AgentPrism migration'lari otomatik uygulanmiyor" bilgi satırı görünür.
+- Konsolda "Tracon migration'lari otomatik uygulanmiyor" bilgi satırı görünür.
 - SQLite dosyası ya hiç oluşmaz ya da boştur — `count(*)` **0** döner.
 - `/health` bu durumda `Unhealthy` döner (bekleyen migration listesi dolu).
 
@@ -268,7 +268,7 @@ sqlite3 "$SQLITEDB" "SELECT count(*) FROM sqlite_master WHERE type='table';"
 | **İlgili faz** | Faz 24 |
 | **İlgili karar** | — |
 
-Negatif/sınır senaryosu. `AgentPrismSqliteOptions.ConnectionString`'in XML
+Negatif/sınır senaryosu. `TraconSqliteOptions.ConnectionString`'in XML
 dokümanı açıktır: `:memory:` desteklenir ama bağlantı kapanınca veri gider.
 Bu case iddiayı doğrular ve migration kilidinin `:memory:`'de ATLANDIĞINI
 (dosya kilidi kurulamaz çünkü dosya yoktur) doğrular.
@@ -285,8 +285,8 @@ Bu case iddiayı doğrular ve migration kilidinin `:memory:`'de ATLANDIĞINI
 
 **Girilecek veri**
 ```bash
-dotnet user-secrets set "AgentPrism:Sqlite:ConnectionString" "Data Source=:memory:"
-cd samples/AgentPrism.Api && dotnet run
+dotnet user-secrets set "Tracon:Sqlite:ConnectionString" "Data Source=:memory:"
+cd samples/Tracon.Api && dotnet run
 ```
 ```bash
 curl -s -X POST "$APU/api/agents" -H "$APB" -H "content-type: application/json" \
@@ -295,14 +295,14 @@ curl -s "$APU/api/agents/manuel-bellek-test" -H "$APB" -w "\nHTTP: %{http_code}\
 ```
 ```bash
 # Ctrl+C, sonra yeniden:
-cd samples/AgentPrism.Api && dotnet run
+cd samples/Tracon.Api && dotnet run
 ```
 ```bash
 curl -s "$APU/api/agents/manuel-bellek-test" -H "$APB" -w "\nHTTP: %{http_code}\n"
 ```
 
 **Beklenen sonuç**
-- Uygulama migration'ları normal uygular (konsolda "AgentPrism 15 migration
+- Uygulama migration'ları normal uygular (konsolda "Tracon 15 migration
   uyguladi." görünür — kilit atlanır ama migration'lar YİNE çalışır).
 - İlk sorgu agent'ı **bulur** (HTTP 200).
 - Yeniden başlatma SONRASI aynı sorgu **404** döner — veri süreçle birlikte
@@ -332,11 +332,11 @@ hatayla başlatmayı durdurmalıdır.
 
 **Girilecek veri**
 ```bash
-mkdir -p /tmp/agentprism-salt-okunur
-chmod 555 /tmp/agentprism-salt-okunur
-dotnet user-secrets set "AgentPrism:Sqlite:ConnectionString" \
-  "Data Source=/tmp/agentprism-salt-okunur/agentprism.db"
-cd samples/AgentPrism.Api && dotnet run
+mkdir -p /tmp/tracon-salt-okunur
+chmod 555 /tmp/tracon-salt-okunur
+dotnet user-secrets set "Tracon:Sqlite:ConnectionString" \
+  "Data Source=/tmp/tracon-salt-okunur/tracon.db"
+cd samples/Tracon.Api && dotnet run
 ```
 
 **Beklenen sonuç**
@@ -361,15 +361,15 @@ gerektirmez, izlek **C** işaretlenmiştir çünkü tek doğrulama kaynağı kay
 kodun kendisidir.
 
 **Ön koşul**
-- `src/AgentPrism.Sqlite/AgentPrismSqliteBuilderExtensions.cs` açık.
+- `src/Tracon.Sqlite/TraconSqliteBuilderExtensions.cs` açık.
 
 **Adımlar**
 1. Üç aşırı yüklemenin gövdesini karşılaştır.
 
 **Girilecek veri**
 ```bash
-grep -n "public static IAgentPrismBuilder UseSqlite" -A5 \
-  src/AgentPrism.Sqlite/AgentPrismSqliteBuilderExtensions.cs
+grep -n "public static ITraconBuilder UseSqlite" -A5 \
+  src/Tracon.Sqlite/TraconSqliteBuilderExtensions.cs
 ```
 
 **Beklenen sonuç**
@@ -394,13 +394,13 @@ grep -n "public static IAgentPrismBuilder UseSqlite" -A5 \
 
 **Girilecek veri**
 ```bash
-dotnet user-secrets set "AgentPrism:SqlServer:ConnectionString" ""
-cd samples/AgentPrism.Api && dotnet run
+dotnet user-secrets set "Tracon:SqlServer:ConnectionString" ""
+cd samples/Tracon.Api && dotnet run
 ```
 
 **Beklenen sonuç**
 - Uygulama başlamayı reddeder; hata mesajı
-  `AgentPrismSqlServerOptions.ConnectionString bos olamaz` metnini taşır.
+  `TraconSqlServerOptions.ConnectionString bos olamaz` metnini taşır.
 
 ---
 
@@ -414,7 +414,7 @@ cd samples/AgentPrism.Api && dotnet run
 | **İlgili karar** | K-013 |
 
 PostgreSQL'in `public` yasağının SQL Server karşılığı. `dbo`, SQL Server'ın
-varsayılan tüketici şemasıdır; AgentPrism ona hiçbir koşulda dokunmaz.
+varsayılan tüketici şemasıdır; Tracon ona hiçbir koşulda dokunmaz.
 
 **Ön koşul**
 - `ap-mssql` container'ı çalışıyor, bağlantı dizesi geçerli.
@@ -425,8 +425,8 @@ varsayılan tüketici şemasıdır; AgentPrism ona hiçbir koşulda dokunmaz.
 
 **Girilecek veri**
 ```bash
-dotnet user-secrets set "AgentPrism:SqlServer:SchemaName" "dbo"
-cd samples/AgentPrism.Api && dotnet run
+dotnet user-secrets set "Tracon:SqlServer:SchemaName" "dbo"
+cd samples/Tracon.Api && dotnet run
 ```
 
 **Beklenen sonuç**
@@ -453,7 +453,7 @@ $MSSQL -Q "SELECT COUNT(*) FROM sys.tables WHERE schema_id = SCHEMA_ID('dbo');"
 | **İlgili karar** | K-029, K-179 |
 
 Negatif senaryo. SQL Server tanımlayıcıları için PostgreSQL'den daha geniş bir
-karakter kümesine izin verir, ama AgentPrism taşınabilirlik için **aynı katı
+karakter kümesine izin verir, ama Tracon taşınabilirlik için **aynı katı
 kuralı** (`SqlIdentifier`, paylaşılan kod) her iki sağlayıcıda da uygular.
 
 **Ön koşul**
@@ -467,24 +467,24 @@ kuralı** (`SqlIdentifier`, paylaşılan kod) her iki sağlayıcıda da uygular.
 **Girilecek veri**
 ```bash
 # 1) Buyuk harf
-dotnet user-secrets set "AgentPrism:SqlServer:SchemaName" "Agentprism"
-cd samples/AgentPrism.Api && dotnet run
+dotnet user-secrets set "Tracon:SqlServer:SchemaName" "Tracon"
+cd samples/Tracon.Api && dotnet run
 # Ctrl+C ile durdur
 
 # 2) Bosluk
-dotnet user-secrets set "AgentPrism:SqlServer:SchemaName" "agent prism"
+dotnet user-secrets set "Tracon:SqlServer:SchemaName" "agent prism"
 dotnet run
 # Ctrl+C ile durdur
 
 # 3) Enjeksiyon denemesi
-dotnet user-secrets set "AgentPrism:SqlServer:SchemaName" "agentprism]; DROP TABLE sys.tables;--"
+dotnet user-secrets set "Tracon:SqlServer:SchemaName" "tracon]; DROP TABLE sys.tables;--"
 dotnet run
 # Ctrl+C ile durdur
 ```
 
 **Beklenen sonuç**
 - Üçü de başlamayı reddeder; hata mesajı
-  `AgentPrismSqlServerOptions.SchemaName gecerli bir AgentPrism sema adi degil`
+  `TraconSqlServerOptions.SchemaName gecerli bir Tracon sema adi degil`
   metnini taşır.
 - 3. denemede hiçbir DDL **çalıştırılmaz**.
 
@@ -508,11 +508,11 @@ dotnet run
 
 **Girilecek veri**
 ```bash
-dotnet user-secrets set "AgentPrism:SqlServer:CommandTimeoutSeconds" "-1"
-cd samples/AgentPrism.Api && dotnet run
+dotnet user-secrets set "Tracon:SqlServer:CommandTimeoutSeconds" "-1"
+cd samples/Tracon.Api && dotnet run
 # Ctrl+C ile durdur
 
-dotnet user-secrets set "AgentPrism:SqlServer:CommandTimeoutSeconds" "3601"
+dotnet user-secrets set "Tracon:SqlServer:CommandTimeoutSeconds" "3601"
 dotnet run
 ```
 
@@ -532,7 +532,7 @@ dotnet run
 | **İlgili karar** | — |
 
 **Ön koşul**
-- Reset yordamı uygulanmış, `AgentPrism` veritabanı boş.
+- Reset yordamı uygulanmış, `Tracon` veritabanı boş.
 
 **Adımlar**
 1. `AutoApplyMigrations`'ı kapat.
@@ -541,11 +541,11 @@ dotnet run
 
 **Girilecek veri**
 ```bash
-dotnet user-secrets set "AgentPrism:SqlServer:AutoApplyMigrations" "false"
-cd samples/AgentPrism.Api && dotnet run
+dotnet user-secrets set "Tracon:SqlServer:AutoApplyMigrations" "false"
+cd samples/Tracon.Api && dotnet run
 ```
 ```bash
-$MSSQL -Q "SELECT COUNT(*) FROM sys.tables WHERE schema_id = SCHEMA_ID('agentprism');"
+$MSSQL -Q "SELECT COUNT(*) FROM sys.tables WHERE schema_id = SCHEMA_ID('tracon');"
 ```
 
 **Beklenen sonuç**
@@ -578,9 +578,9 @@ bağımsızdır: "Hata uygulamayi baslatmaz" — bkz. `03-KALICILIK-POSTGRESQL.m
 
 **Girilecek veri**
 ```bash
-dotnet user-secrets set "AgentPrism:SqlServer:ConnectionString" \
-  "Server=localhost,1;Database=AgentPrism;User Id=sa;Password=AgentPrism!2026;TrustServerCertificate=true;Connect Timeout=5"
-cd samples/AgentPrism.Api && dotnet run
+dotnet user-secrets set "Tracon:SqlServer:ConnectionString" \
+  "Server=localhost,1;Database=Tracon;User Id=sa;Password=Tracon!2026;TrustServerCertificate=true;Connect Timeout=5"
+cd samples/Tracon.Api && dotnet run
 ```
 ```bash
 # Baska bir terminalde, uygulama hala "baslarken":
@@ -606,15 +606,15 @@ MT-SQL-007'nin SQL Server karşılığı — kod okuma ile doğrulanır, koşum
 gerektirmez.
 
 **Ön koşul**
-- `src/AgentPrism.SqlServer/AgentPrismSqlServerBuilderExtensions.cs` açık.
+- `src/Tracon.SqlServer/TraconSqlServerBuilderExtensions.cs` açık.
 
 **Adımlar**
 1. Üç aşırı yüklemenin gövdesini karşılaştır.
 
 **Girilecek veri**
 ```bash
-grep -n "public static IAgentPrismBuilder UseSqlServer" -A5 \
-  src/AgentPrism.SqlServer/AgentPrismSqlServerBuilderExtensions.cs
+grep -n "public static ITraconBuilder UseSqlServer" -A5 \
+  src/Tracon.SqlServer/TraconSqlServerBuilderExtensions.cs
 ```
 
 **Beklenen sonuç**
@@ -640,15 +640,15 @@ grep -n "public static IAgentPrismBuilder UseSqlServer" -A5 \
 
 **Girilecek veri**
 ```bash
-cd samples/AgentPrism.Api && dotnet run
+cd samples/Tracon.Api && dotnet run
 ```
 ```bash
-sqlite3 "$SQLITEDB" "SELECT count(*) FROM agentprism___migrations;"
-sqlite3 "$SQLITEDB" "SELECT name FROM agentprism___migrations ORDER BY id;"
+sqlite3 "$SQLITEDB" "SELECT count(*) FROM tracon___migrations;"
+sqlite3 "$SQLITEDB" "SELECT name FROM tracon___migrations ORDER BY id;"
 ```
 
 **Beklenen sonuç**
-- Konsol `AgentPrism 15 migration uyguladi.` yazar.
+- Konsol `Tracon 15 migration uyguladi.` yazar.
 - `count(*)` **15** döner.
 - Ad listesi `0001_initial`'dan `0015_experiment_canary`'e sırayla gider.
 - `sqlite_master`'daki tablo sayısı **44**'tür.
@@ -679,13 +679,13 @@ sqlite3 "$SQLITEDB" "SELECT count(*) FROM sqlite_master WHERE type='table';"
 
 **Girilecek veri**
 ```bash
-cd samples/AgentPrism.Api && dotnet run
+cd samples/Tracon.Api && dotnet run
 ```
 
 **Beklenen sonuç**
 - Konsolda migration uygulama satırı **görünmez** (0 migration uygulanır,
   bilgi satırı yalnızca `count > 0` iken yazılır).
-- `sqlite3 "$SQLITEDB" "SELECT count(*) FROM agentprism___migrations;"` hâlâ **15** döner.
+- `sqlite3 "$SQLITEDB" "SELECT count(*) FROM tracon___migrations;"` hâlâ **15** döner.
 
 ---
 
@@ -710,12 +710,12 @@ bir özet ile korunur.
 
 **Girilecek veri**
 ```bash
-sqlite3 "$SQLITEDB" "UPDATE agentprism___migrations SET checksum = 'bozuk' WHERE id = 1;"
-cd samples/AgentPrism.Api && dotnet run
+sqlite3 "$SQLITEDB" "UPDATE tracon___migrations SET checksum = 'bozuk' WHERE id = 1;"
+cd samples/Tracon.Api && dotnet run
 ```
 
 **Beklenen sonuç**
-- Uygulama başlamayı reddeder; `AgentPrismException` mesajı
+- Uygulama başlamayı reddeder; `TraconException` mesajı
   `'0001_initial' migration'i veritabaninda uygulanmis ancak dosyanin icerigi
   degismis` metnini taşır.
 
@@ -731,7 +731,7 @@ cd samples/AgentPrism.Api && dotnet run
 | **İlgili karar** | K-192 |
 
 Sınır senaryosu. SQLite'ta `pg_advisory_lock`/`sp_getapplock` karşılığı
-yoktur; kilit `<veritabani>.agentprism-migration-lock` adlı bir sidecar dosya
+yoktur; kilit `<veritabani>.tracon-migration-lock` adlı bir sidecar dosya
 üzerinden alınır (`FileShare.None`).
 
 **Ön koşul**
@@ -745,17 +745,17 @@ yoktur; kilit `<veritabani>.agentprism-migration-lock` adlı bir sidecar dosya
 **Girilecek veri**
 ```bash
 # Terminal 1
-cd samples/AgentPrism.Api && dotnet run
+cd samples/Tracon.Api && dotnet run
 
 # Terminal 2 (mumkun oldugunca ayni anda)
-cd samples/AgentPrism.Api && dotnet run --urls http://localhost:5090
+cd samples/Tracon.Api && dotnet run --urls http://localhost:5090
 ```
 ```bash
-sqlite3 "$SQLITEDB" "SELECT count(*) FROM agentprism___migrations;"
+sqlite3 "$SQLITEDB" "SELECT count(*) FROM tracon___migrations;"
 ```
 
 **Beklenen sonuç**
-- Yalnız BİR terminalin logu `AgentPrism 15 migration uyguladi.` yazar; diğeri
+- Yalnız BİR terminalin logu `Tracon 15 migration uyguladi.` yazar; diğeri
   kilidi ikinci sırada alır ve 0 migration uygular.
 - Hiçbir terminalde checksum hatası veya çökme olmaz.
 - `count(*)` tam olarak **15** döner (30 değil).
@@ -772,7 +772,7 @@ sqlite3 "$SQLITEDB" "SELECT count(*) FROM agentprism___migrations;"
 | **İlgili karar** | — |
 
 **Ön koşul**
-- Reset yordamı uygulanmış, `AgentPrism` veritabanı boş.
+- Reset yordamı uygulanmış, `Tracon` veritabanı boş.
 
 **Adımlar**
 1. Uygulamayı başlat.
@@ -781,21 +781,21 @@ sqlite3 "$SQLITEDB" "SELECT count(*) FROM agentprism___migrations;"
 
 **Girilecek veri**
 ```bash
-cd samples/AgentPrism.Api && dotnet run
+cd samples/Tracon.Api && dotnet run
 ```
 ```bash
-$MSSQL -Q "SELECT COUNT(*) FROM agentprism.__migrations;"
-$MSSQL -Q "SELECT name FROM agentprism.__migrations ORDER BY id;"
+$MSSQL -Q "SELECT COUNT(*) FROM tracon.__migrations;"
+$MSSQL -Q "SELECT name FROM tracon.__migrations ORDER BY id;"
 ```
 
 **Beklenen sonuç**
-- Konsol `AgentPrism 15 migration uyguladi.` yazar.
+- Konsol `Tracon 15 migration uyguladi.` yazar.
 - Sorgu **15** döner, `0001_initial`'dan `0015_experiment_canary`'e sırayla.
-- `sys.tables` içinde `agentprism` şemasına ait **44** tablo vardır.
+- `sys.tables` içinde `tracon` şemasına ait **44** tablo vardır.
 
 **Doğrulama sorgusu**
 ```bash
-$MSSQL -Q "SELECT COUNT(*) FROM sys.tables WHERE schema_id = SCHEMA_ID('agentprism');"
+$MSSQL -Q "SELECT COUNT(*) FROM sys.tables WHERE schema_id = SCHEMA_ID('tracon');"
 ```
 
 ---
@@ -819,12 +819,12 @@ $MSSQL -Q "SELECT COUNT(*) FROM sys.tables WHERE schema_id = SCHEMA_ID('agentpri
 
 **Girilecek veri**
 ```bash
-cd samples/AgentPrism.Api && dotnet run
+cd samples/Tracon.Api && dotnet run
 ```
 
 **Beklenen sonuç**
 - Konsolda migration uygulama satırı görünmez.
-- `$MSSQL -Q "SELECT COUNT(*) FROM agentprism.__migrations;"` hâlâ **15** döner.
+- `$MSSQL -Q "SELECT COUNT(*) FROM tracon.__migrations;"` hâlâ **15** döner.
 
 ---
 
@@ -848,12 +848,12 @@ Negatif senaryo. MT-SQL-022'nin SQL Server karşılığı.
 
 **Girilecek veri**
 ```bash
-$MSSQL -Q "UPDATE agentprism.__migrations SET checksum = 'bozuk' WHERE id = 1;"
-cd samples/AgentPrism.Api && dotnet run
+$MSSQL -Q "UPDATE tracon.__migrations SET checksum = 'bozuk' WHERE id = 1;"
+cd samples/Tracon.Api && dotnet run
 ```
 
 **Beklenen sonuç**
-- Uygulama başlamayı reddeder; `AgentPrismException` mesajı
+- Uygulama başlamayı reddeder; `TraconException` mesajı
   `'0001_initial' migration'i veritabaninda uygulanmis ancak dosyanin icerigi
   degismis` metnini taşır.
 
@@ -869,11 +869,11 @@ cd samples/AgentPrism.Api && dotnet run
 | **İlgili karar** | — |
 
 Sınır senaryosu. `sp_getapplock` oturum kapsamlı **Exclusive** kilit alır;
-dönüş değeri negatifse kilit alınamamış demektir ve `AgentPrismException`
+dönüş değeri negatifse kilit alınamamış demektir ve `TraconException`
 fırlatılır (bkz. `SqlServerDialect.AcquireMigrationLockAsync`).
 
 **Ön koşul**
-- Reset yordamı uygulanmış, `AgentPrism` veritabanı boş.
+- Reset yordamı uygulanmış, `Tracon` veritabanı boş.
 
 **Adımlar**
 1. İki terminalde uygulamayı EŞ ZAMANLI başlat.
@@ -883,13 +883,13 @@ fırlatılır (bkz. `SqlServerDialect.AcquireMigrationLockAsync`).
 **Girilecek veri**
 ```bash
 # Terminal 1
-cd samples/AgentPrism.Api && dotnet run
+cd samples/Tracon.Api && dotnet run
 
 # Terminal 2 (mumkun oldugunca ayni anda)
-cd samples/AgentPrism.Api && dotnet run --urls http://localhost:5090
+cd samples/Tracon.Api && dotnet run --urls http://localhost:5090
 ```
 ```bash
-$MSSQL -Q "SELECT COUNT(*) FROM agentprism.__migrations;"
+$MSSQL -Q "SELECT COUNT(*) FROM tracon.__migrations;"
 ```
 
 **Beklenen sonuç**
@@ -923,7 +923,7 @@ okuyucu kısıtını gevşetir ve kısa süreli kilitlenmelerde hata yerine bekl
 
 **Girilecek veri**
 ```bash
-ls -la samples/AgentPrism.Api/*.db-wal samples/AgentPrism.Api/*.db-shm
+ls -la samples/Tracon.Api/*.db-wal samples/Tracon.Api/*.db-shm
 ```
 ```bash
 for i in $(seq 1 20); do
@@ -935,7 +935,7 @@ done
 wait
 ```
 ```bash
-sqlite3 "$SQLITEDB" "SELECT count(*) FROM agentprism_agent_definitions WHERE name LIKE 'manuel-sqlite-esz-%';"
+sqlite3 "$SQLITEDB" "SELECT count(*) FROM tracon_agent_definitions WHERE name LIKE 'manuel-sqlite-esz-%';"
 ```
 
 **Beklenen sonuç**
@@ -978,14 +978,14 @@ curl -s -X PUT "$APU/api/agents/manuel-fk-test" -H "$APB" -H "content-type: appl
   -d '{"name":"manuel-fk-test","model":{"provider":"echo","model":"echo-1"},"description":"guncellendi"}'
 ```
 ```bash
-AGENT_ID=$(sqlite3 "$SQLITEDB" "SELECT id FROM agentprism_agent_definitions WHERE name='manuel-fk-test';")
-sqlite3 "$SQLITEDB" "SELECT count(*) FROM agentprism_agent_definition_versions WHERE agent_id='$AGENT_ID';"
+AGENT_ID=$(sqlite3 "$SQLITEDB" "SELECT id FROM tracon_agent_definitions WHERE name='manuel-fk-test';")
+sqlite3 "$SQLITEDB" "SELECT count(*) FROM tracon_agent_definition_versions WHERE agent_id='$AGENT_ID';"
 ```
 ```bash
 curl -s -X DELETE "$APU/api/agents/manuel-fk-test" -H "$APB" -w "\nHTTP: %{http_code}\n"
 ```
 ```bash
-sqlite3 "$SQLITEDB" "SELECT count(*) FROM agentprism_agent_definition_versions WHERE agent_id='$AGENT_ID';"
+sqlite3 "$SQLITEDB" "SELECT count(*) FROM tracon_agent_definition_versions WHERE agent_id='$AGENT_ID';"
 ```
 
 **Beklenen sonuç**
@@ -1011,7 +1011,7 @@ güvenle paylaşabilmelidir çünkü her migration dosyasındaki İNDEKS adları
 tablo önekini taşır (K-193).
 
 **Ön koşul**
-- MT-SQL-020 geçti (varsayılan `agentprism_` öneki tabloları var).
+- MT-SQL-020 geçti (varsayılan `tracon_` öneki tabloları var).
 
 **Adımlar**
 1. Öneki değiştir.
@@ -1020,19 +1020,19 @@ tablo önekini taşır (K-193).
 
 **Girilecek veri**
 ```bash
-dotnet user-secrets set "AgentPrism:Sqlite:TablePrefix" "ikinci_"
-cd samples/AgentPrism.Api && dotnet run
+dotnet user-secrets set "Tracon:Sqlite:TablePrefix" "ikinci_"
+cd samples/Tracon.Api && dotnet run
 ```
 ```bash
-sqlite3 "$SQLITEDB" ".tables" | tr ' ' '\n' | grep -c "^agentprism_tenants$"
+sqlite3 "$SQLITEDB" ".tables" | tr ' ' '\n' | grep -c "^tracon_tenants$"
 sqlite3 "$SQLITEDB" ".tables" | tr ' ' '\n' | grep -c "^ikinci_tenants$"
 ```
 
 **Beklenen sonuç**
-- Uygulama açılır, `ikinci_` önekli 44 tabloyu oluşturur; `AgentPrism 15
+- Uygulama açılır, `ikinci_` önekli 44 tabloyu oluşturur; `Tracon 15
   migration uyguladi.` tekrar görünür (bu, öneke göre AYRI bir migration
   defteridir — `ikinci___migrations`).
-- İki sorgu da **1** döner: eski (`agentprism_`) ve yeni (`ikinci_`) tablo
+- İki sorgu da **1** döner: eski (`tracon_`) ve yeni (`ikinci_`) tablo
   setleri aynı dosyada ÇAKIŞMADAN bir arada durur.
 
 ### MT-SQL-040 — Maliyet ondalık hassasiyeti kesilmeden geri döner
@@ -1069,7 +1069,7 @@ curl -s "$APU/api/runs?agentName=support&sessionId=musteri-42&take=1" -H "$APB" 
   "import json,sys; r=json.load(sys.stdin)[0]; print(r['id']); print(r['cost'])"
 ```
 ```bash
-$MSSQL -Q "SELECT input_cost, output_cost FROM agentprism.runs WHERE id = '<yukaridaki id>';"
+$MSSQL -Q "SELECT input_cost, output_cost FROM tracon.runs WHERE id = '<yukaridaki id>';"
 ```
 
 **Beklenen sonuç**
@@ -1095,7 +1095,7 @@ Server şemasıdır (`CREATE SCHEMA`), SQLite'ın tek ad alanını paylaşan ön
 deseninden FARKLIDIR.
 
 **Ön koşul**
-- MT-SQL-024 geçti (varsayılan `agentprism` şeması var).
+- MT-SQL-024 geçti (varsayılan `tracon` şeması var).
 
 **Adımlar**
 1. Şema adını değiştir.
@@ -1104,17 +1104,17 @@ deseninden FARKLIDIR.
 
 **Girilecek veri**
 ```bash
-dotnet user-secrets set "AgentPrism:SqlServer:SchemaName" "ikinci"
-cd samples/AgentPrism.Api && dotnet run
+dotnet user-secrets set "Tracon:SqlServer:SchemaName" "ikinci"
+cd samples/Tracon.Api && dotnet run
 ```
 ```bash
-$MSSQL -Q "SELECT COUNT(*) FROM sys.tables WHERE schema_id = SCHEMA_ID('agentprism');"
+$MSSQL -Q "SELECT COUNT(*) FROM sys.tables WHERE schema_id = SCHEMA_ID('tracon');"
 $MSSQL -Q "SELECT COUNT(*) FROM sys.tables WHERE schema_id = SCHEMA_ID('ikinci');"
 ```
 
 **Beklenen sonuç**
 - Uygulama açılır, `ikinci` şemasını oluşturur ve 15 migration uygular.
-- İki sorgu da **44** döner — eski (`agentprism`) ve yeni (`ikinci`) şemalar
+- İki sorgu da **44** döner — eski (`tracon`) ve yeni (`ikinci`) şemalar
   birbirinden bağımsız, tam tablo setleri taşır.
 
 ---
@@ -1132,7 +1132,7 @@ $MSSQL -Q "SELECT COUNT(*) FROM sys.tables WHERE schema_id = SCHEMA_ID('ikinci')
 > Docker Desktop (4.29.0) host macOS için çok eskiydi, Rosetta VM'e hiç
 > kurulmuyordu. `brew install --cask docker` ile 4.86.0'a güncellendikten
 > sonra gerçek `mcr.microsoft.com/mssql/server:2022-latest` bu makinede
-> BAŞARIYLA çalışıyor (`AgentPrism.SqlServer.IntegrationTests` 479/479).
+> BAŞARIYLA çalışıyor (`Tracon.SqlServer.IntegrationTests` 479/479).
 > **Beklenen sonuç artık `mssql/server`'dır** — aşağıdaki adımlar hâlâ
 > geçerlidir (Docker Desktop güncel değilse veya başka bir makinede tekrar
 > `exit 133` görülürse `azure-sql-edge` ikamesine düşülür). Ayrıntı:
@@ -1164,7 +1164,7 @@ docker inspect ap-mssql --format '{{.State.Status}} {{.State.ExitCode}}'
 # Basarisizsa (exit 133 veya benzeri):
 docker rm -f ap-mssql
 docker run -d --name ap-mssql -p 51433:1433 \
-  -e ACCEPT_EULA=Y -e MSSQL_SA_PASSWORD='AgentPrism!2026' \
+  -e ACCEPT_EULA=Y -e MSSQL_SA_PASSWORD='Tracon!2026' \
   mcr.microsoft.com/azure-sql-edge:latest
 ```
 
@@ -1196,10 +1196,10 @@ docker run -d --name ap-mssql -p 51433:1433 \
 
 **Girilecek veri**
 ```bash
-dotnet user-secrets remove "AgentPrism:PostgreSql:ConnectionString"
-dotnet user-secrets remove "AgentPrism:SqlServer:ConnectionString"
-dotnet user-secrets remove "AgentPrism:Sqlite:ConnectionString"
-cd samples/AgentPrism.Api && dotnet run
+dotnet user-secrets remove "Tracon:PostgreSql:ConnectionString"
+dotnet user-secrets remove "Tracon:SqlServer:ConnectionString"
+dotnet user-secrets remove "Tracon:Sqlite:ConnectionString"
+cd samples/Tracon.Api && dotnet run
 ```
 ```bash
 curl -s -w "\nHTTP: %{http_code}\n" "http://localhost:5080/health"
@@ -1208,7 +1208,7 @@ curl -s "$APU/api/diagnostics" -H "$APB" | python3 -m json.tool
 
 **Beklenen sonuç**
 - Uygulama normal açılır — hiçbir `OptionsValidationException` görünmez
-  (hiçbir `AgentPrismSqlite/SqlServer/PostgreSqlOptionsValidator` tetiklenmez,
+  (hiçbir `TraconSqlite/SqlServer/PostgreSqlOptionsValidator` tetiklenmez,
   çünkü hiçbiri kayıtlı değildir).
 - `/health` **Healthy** döner (en az bir model sağlayıcısı sağlıklıysa).
 - `/api/diagnostics`: `persistenceProvider` = `"InMemory"`,
@@ -1278,7 +1278,7 @@ curl -s "$APU/api/agents/manuel-gecici" -H "$APB" -w "\nHTTP: %{http_code}\n"
 ```
 ```bash
 # Ctrl+C, sonra yeniden:
-cd samples/AgentPrism.Api && dotnet run
+cd samples/Tracon.Api && dotnet run
 ```
 ```bash
 curl -s "$APU/api/agents/manuel-gecici" -H "$APB" -w "\nHTTP: %{http_code}\n"
@@ -1300,7 +1300,7 @@ curl -s "$APU/api/agents/manuel-gecici" -H "$APB" -w "\nHTTP: %{http_code}\n"
 | **İlgili karar** | — |
 
 Negatif senaryo. `ConversationBranchService.BranchAsync`
-(`src/AgentPrism.Core/Sessions/ConversationBranchService.cs:87`)
+(`src/Tracon.Core/Sessions/ConversationBranchService.cs:87`)
 `IConversationBranchStore is null` denetimini oturumun VAR OLUP OLMADIĞINI
 kontrol etmeden ÖNCE yapar — bellek içi izlekte bu depo hiç kayıtlı değildir
 (`ConversationBranchService`'in kurucusu `IConversationBranchStore? = null`
@@ -1353,9 +1353,9 @@ Bu case koşum sırasında bu ölçümü ÜÇ canlı veritabanına karşı doğr
 **Girilecek veri**
 ```bash
 sqlite3 "$SQLITEDB" "SELECT count(*) FROM sqlite_master WHERE type='table';"
-$MSSQL -Q "SELECT COUNT(*) FROM sys.tables WHERE schema_id = SCHEMA_ID('agentprism');"
-docker exec -i ap-pg psql -U postgres -d agentprism -t -c \
-  "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'agentprism';"
+$MSSQL -Q "SELECT COUNT(*) FROM sys.tables WHERE schema_id = SCHEMA_ID('tracon');"
+docker exec -i ap-pg psql -U postgres -d tracon -t -c \
+  "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'tracon';"
 ```
 
 **Beklenen sonuç**
@@ -1377,7 +1377,7 @@ docker exec -i ap-pg psql -U postgres -d agentprism -t -c \
 | **İlgili karar** | K-029, K-179 |
 
 Kod okuma ile doğrulanan bir sözleşme — `SqlIdentifier.IsValidUnquoted`
-`AgentPrism.Sql.Shared` içinde TEK bir yerde tanımlıdır ve üç `*OptionsValidator`
+`Tracon.Sql.Shared` içinde TEK bir yerde tanımlıdır ve üç `*OptionsValidator`
 sınıfı da onu çağırır. Bu case MT-SQL-002/012'nin ve `MT-PG-003`'ün AYNI kod
 yoluna gittiğini teyit eder.
 
@@ -1390,9 +1390,9 @@ yoluna gittiğini teyit eder.
 **Girilecek veri**
 ```bash
 grep -n "SqlIdentifier.IsValidUnquoted" \
-  src/AgentPrism.Sqlite/AgentPrismSqliteOptionsValidator.cs \
-  src/AgentPrism.SqlServer/AgentPrismSqlServerOptionsValidator.cs \
-  src/AgentPrism.PostgreSql/AgentPrismPostgreSqlOptionsValidator.cs
+  src/Tracon.Sqlite/TraconSqliteOptionsValidator.cs \
+  src/Tracon.SqlServer/TraconSqlServerOptionsValidator.cs \
+  src/Tracon.PostgreSql/TraconPostgreSqlOptionsValidator.cs
 ```
 
 **Beklenen sonuç**
@@ -1452,13 +1452,13 @@ karşılığı.
 
 **Girilecek veri**
 ```bash
-grep -rn "Password=AgentPrism\|Password=agentprism" samples/AgentPrism.Api/appsettings*.json
+grep -rn "Password=Tracon\|Password=tracon" samples/Tracon.Api/appsettings*.json
 ```
 ```bash
-sqlite3 "$SQLITEDB" "SELECT count(*) FROM agentprism_audit_log WHERE before LIKE '%Password=%' OR after LIKE '%Password=%';"
+sqlite3 "$SQLITEDB" "SELECT count(*) FROM tracon_audit_log WHERE before LIKE '%Password=%' OR after LIKE '%Password=%';"
 ```
 ```sql
-SELECT COUNT(*) FROM agentprism.audit_log WHERE before LIKE '%Password=%' OR [after] LIKE '%Password=%';
+SELECT COUNT(*) FROM tracon.audit_log WHERE before LIKE '%Password=%' OR [after] LIKE '%Password=%';
 ```
 
 **Beklenen sonuç**
@@ -1496,7 +1496,7 @@ done
 wait
 ```
 ```bash
-sqlite3 "$SQLITEDB" "SELECT count(*) FROM agentprism_agent_definitions WHERE name LIKE 'manuel-sqlite-yuk-%';"
+sqlite3 "$SQLITEDB" "SELECT count(*) FROM tracon_agent_definitions WHERE name LIKE 'manuel-sqlite-yuk-%';"
 ```
 
 **Beklenen sonuç**
@@ -1581,7 +1581,7 @@ done
 wait
 ```
 ```bash
-$MSSQL -Q "SELECT COUNT(*) FROM agentprism.agent_definitions WHERE name LIKE 'manuel-mssql-yuk-%';"
+$MSSQL -Q "SELECT COUNT(*) FROM tracon.agent_definitions WHERE name LIKE 'manuel-mssql-yuk-%';"
 ```
 
 **Beklenen sonuç**
@@ -1644,20 +1644,20 @@ curl -s -w "\nHTTP: %{http_code}\n" "$APU/api/agents/manuel-mssql-yuk-1" -H "$AP
 Faz 94, `SqlDialect.QualifyTable`'ı `SqlQueriesBase.Table(name)`'e devretti;
 SQLite bunu `protected override string Table(string name) => $"{Schema}{name}"`
 ile (noktasız) ezer. 115 taşınan sorgu `{Table("...")}` çağrısı üretir — yanlış
-uygulanırsa SQLite'ta `agentprism_.runs` gibi geçersiz bir ad üretilirdi.
+uygulanırsa SQLite'ta `tracon_.runs` gibi geçersiz bir ad üretilirdi.
 
 **Adımlar**
-1. `AgentPrism.Sqlite.IntegrationTests` tam sözleşme koşumunu çalıştır.
-2. `AgentPrism.Sql.Shared.UnitTests`'teki SQLite metin anlık görüntüsünü
+1. `Tracon.Sqlite.IntegrationTests` tam sözleşme koşumunu çalıştır.
+2. `Tracon.Sql.Shared.UnitTests`'teki SQLite metin anlık görüntüsünü
    (`sql-text-baseline.sqlite.txt`) aç, taşınan bir sorguda (`SelectMcpServers`
    gibi) tablo adını kontrol et.
 
 **Beklenen sonuç**
-- Anlık görüntüde `agentprism_mcp_servers` gibi noktasız bir ad görülür,
-  `agentprism_.mcp_servers` DEĞİL.
+- Anlık görüntüde `tracon_mcp_servers` gibi noktasız bir ad görülür,
+  `tracon_.mcp_servers` DEĞİL.
 - Sözleşme koşumu davranış değişikliği olmadan geçer.
 
-**Gerçek koşum kanıtı (2026-08-24, kapanış)**: `AgentPrism.Sqlite.IntegrationTests`
+**Gerçek koşum kanıtı (2026-08-24, kapanış)**: `Tracon.Sqlite.IntegrationTests`
 592/592, gerçek dosya veritabanına karşı; anlık görüntü dosyası elle kontrol
 edildi, tüm tablo adları noktasız.
 
@@ -1681,7 +1681,7 @@ yapar) TEK belgeli istisnadır.
 1. `SqliteQueries.cs`'te dialekt'e özgü kalan bir sorguyu (`UpgradeMigrationsTable`
    HARİÇ — bu, K-475 gerekçesiyle tek belgeli istisnadır) geçici olarak
    `string.Empty` yap.
-2. `dotnet test tests/AgentPrism.Sql.Shared.UnitTests -c Release` çalıştır.
+2. `dotnet test tests/Tracon.Sql.Shared.UnitTests -c Release` çalıştır.
 3. Değişikliği geri al.
 
 **Beklenen sonuç**
@@ -1691,7 +1691,7 @@ yapar) TEK belgeli istisnadır.
 
 **Gerçek koşum kanıtı (2026-08-24, kapanış)**: `UpsertMcpServer`'ı elle
 `string.Empty` yaptım — test `["UpsertMcpServer"]` mesajıyla düştü; geri
-alınınca `AgentPrism.Sql.Shared.UnitTests` 8/8.
+alınınca `Tracon.Sql.Shared.UnitTests` 8/8.
 
 ---
 
@@ -1704,10 +1704,10 @@ alınınca `AgentPrism.Sql.Shared.UnitTests` 8/8.
 | **İlgili faz** | Faz 110 |
 | **İlgili karar** | — |
 
-`AgentPrismSqlServerOptions.DataSource`/`AgentPrismSqliteOptions.DataSource`:
+`TraconSqlServerOptions.DataSource`/`TraconSqliteOptions.DataSource`:
 PostgreSQL'deki alanın simetriği. `Microsoft.Data.SqlClient` (7.0.2 ölçüldü)
 ve `Microsoft.Data.Sqlite` kendi `DbDataSource` uygulamalarını sunmaz; alan
-tüketicinin kendi yazdığı bir adaptör içindir (AgentPrism'in kendi
+tüketicinin kendi yazdığı bir adaptör içindir (Tracon'in kendi
 `SqlServerDataSource`/`SqliteDataSource`'u da tam olarak böyle bir adaptördür
 — testler bunu doğrudan kullanır).
 
@@ -1725,18 +1725,18 @@ tüketicinin kendi yazdığı bir adaptör içindir (AgentPrism'in kendi
 - Adım 3: `ObjectDisposedException` **yok** — `Microsoft.Data.SqlClient`/
   `Microsoft.Data.Sqlite` sürücüsünün havuzu bu ince adaptöre değil, sürücünün
   kendisine ait olduğu için zaten böyle davranırdı; asıl kanıt
-  `SqlStoreContext.OwnsDataSource`'un `false` kalmasıdır (AgentPrism'in
+  `SqlStoreContext.OwnsDataSource`'un `false` kalmasıdır (Tracon'in
   KENDİ kurduğu bir data source için aynı senaryoda `OwnsDataSource` `true`
   olur — dispose mantığının kendisi PostgreSQL tarafında bir spy ile izole
   kanıtlanmıştır, `MT-PG-070`).
 
-**Gerçek koşum kanıtı (2026-08-26, kapanış)**: `AgentPrism.SqlServer
+**Gerçek koşum kanıtı (2026-08-26, kapanış)**: `Tracon.SqlServer
 .IntegrationTests.ExternalDataSourceTests` 4/4 (gerçek SQL Server 2022
 konteynerine karşı: `DataSource_and_ConnectionString_together_is_rejected` ·
 `DataSource_alone_does_not_require_a_connection_string` ·
 `External_data_source_is_not_disposed_when_the_host_stops` — migration'lar
 gerçekten uygulandı, `__migrations` satır sayısı > 0 — ·
-`Own_data_source_is_marked_as_owned`). `AgentPrism.Sqlite.IntegrationTests
+`Own_data_source_is_marked_as_owned`). `Tracon.Sqlite.IntegrationTests
 .ExternalDataSourceTests` 4/4, aynı dört senaryo, gerçek dosya veritabanına
 karşı.
 
@@ -1777,7 +1777,7 @@ Server konteynerine ve gerçek bir SQLite dosyasına karşı otomatik koştu.
   çakışmaz.
 
 **Gerçek koşum kanıtı (2026-08-26, kapanış)**: `ReadViewContractTests`
-(`AgentPrism.SqlServer.IntegrationTests`, gerçek SQL Server konteynerine
+(`Tracon.SqlServer.IntegrationTests`, gerçek SQL Server konteynerine
 karşı) 4/4 — toplam maliyet eşleşmesi, `NULL` koruması, `status_name`
 eşlemesi ve kiracı filtresizliği. Ayrıca tam paket koşumu (586/586) migration
 uygulamasının hiçbir yan etki bırakmadığını doğruladı.
@@ -1808,7 +1808,7 @@ uygulamasının hiçbir yan etki bırakmadığını doğruladı.
 - Adım 3: `NULL`, `0` değil.
 
 **Gerçek koşum kanıtı (2026-08-26, kapanış)**: `ReadViewContractTests`
-(`AgentPrism.Sqlite.IntegrationTests`, gerçek dosya veritabanına karşı) 4/4.
+(`Tracon.Sqlite.IntegrationTests`, gerçek dosya veritabanına karşı) 4/4.
 Ayrı bir kusur bu case'in geliştirilmesi sırasında bulundu ve düzeltildi:
 `SqliteTestContext.DisposeAsync()` yalnız tabloları siliyordu, `runs_v1`
 görünümünü SİLMİYORDU — sarkan görünüm bir SONRAKİ, ilgisiz testin

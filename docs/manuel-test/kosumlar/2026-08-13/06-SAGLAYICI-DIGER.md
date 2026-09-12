@@ -55,7 +55,7 @@ Yerel feed'de sürüm `0.0.0-preview.0.78` bulundu, üç paket başarıyla
 kuruldu. **Doküman notu:** `dotnet new console` şablonu `Host` sınıfını
 sağlayan `Microsoft.Extensions.Hosting` paketini içermez — proje
 `dotnet add package Microsoft.Extensions.Hosting` ile eklenmeden derlenmez
-(`CS0103: The name 'Host' does not exist`). Bu bir AgentPrism kusuru
+(`CS0103: The name 'Host' does not exist`). Bu bir Tracon kusuru
 değil, doküman eksik bir kurulum adımı taşıyor. Ekleme sonrası: Anthropic
 çalıştırması `AnthropicProviderOptions.ApiKey bos olamaz. Anahtari
 UseAnthropic(apiKey) cagrisinda verin veya...` ile bitti; Google
@@ -101,15 +101,15 @@ kalıbını taşıyor — `else` dalı yok. Yeni kayıt: `HATA-S3-003`.
 (OpenAI, Anthropic, Google) `Bind()`'ı artık `Uri.TryCreate(endpoint,
 UriKind.RelativeOrAbsolute, out var endpointUri)` kullanıyor; göreli bir
 değer de atanıyor, `IsAbsoluteUri: false` denetimi artık tetikleniyor. Aynı
-adım (`AgentPrism__Providers__Google__Endpoint=sadece-bir-yol`, temiz
+adım (`Tracon__Providers__Google__Endpoint=sadece-bir-yol`, temiz
 `mt_fin_o` şeması, gerçek Postgres'e karşı) yeniden koşuldu: uygulama artık
 **başlamıyor**, konsolda birebir beklenen metin görüldü:
 `Unhandled exception. Microsoft.Extensions.Options.OptionsValidationException:
 GoogleProviderOptions.Endpoint mutlak bir adres olmalidir. Gelen deger:
 'sadece-bir-yol'.` Regresyon testi:
-`tests/AgentPrism.Google.UnitTests/GoogleProviderExtensionsTests.cs`
+`tests/Tracon.Google.UnitTests/GoogleProviderExtensionsTests.cs`
 `Yapilandirmadan_gelen_goreli_adres_reddedilir` (Anthropic için eşdeğeri
-`tests/AgentPrism.Anthropic.UnitTests/AnthropicProviderExtensionsTests.cs`'de
+`tests/Tracon.Anthropic.UnitTests/AnthropicProviderExtensionsTests.cs`'de
 — fix geri alınıp koşulduğunda ikisi de KIRMIZI verdiği ampirik olarak
 doğrulandı).
 
@@ -141,7 +141,7 @@ doğrulandı. Yeni kayıt: `HATA-S3-004`.
 **tek** bir `OptionsValidationException` görüldü —
 `AnthropicProviderOptions.Models[3] icin model adi bos olamaz.` — Google'ın
 kendi hatası hiç yazdırılmadı. Kök neden: `AddModelProvider` her sağlayıcıyı
-ayrı bir `IModelProvider` fabrikası olarak kaydediyor; `MapAgentPrism`
+ayrı bir `IModelProvider` fabrikası olarak kaydediyor; `MapTracon`
 `IEnumerable<IModelProvider>`'ı çözerken Anthropic'in fabrikası (kayıt
 sırasında önce gelir) istisna atınca .NET DI'nin `IEnumerable` çözümü orada
 durur, Google'ın fabrikası hiç çağrılmaz. Bu, Aile O'nun kök nedeniyle
@@ -149,9 +149,9 @@ durur, Google'ın fabrikası hiç çağrılmaz. Bu, Aile O'nun kök nedeniyle
 case'in kendi kabul kriteri buna zaten izin veriyordu ("iki ayrı ... **veya**
 birleşik hata listesi"); burada gözlenen üçüncü bir örüntü (yalnız ilki)
 olsa da temel iddia ("uygulama sessizce başlamaz") doğrulandı. Değişiklik
-`git checkout -- samples/AgentPrism.Api/appsettings.json` ile geri alındı.
-Regresyon testleri: `tests/AgentPrism.Anthropic.UnitTests/AnthropicProviderExtensionsTests.cs`
-ve `tests/AgentPrism.Google.UnitTests/GoogleProviderExtensionsTests.cs`
+`git checkout -- samples/Tracon.Api/appsettings.json` ile geri alındı.
+Regresyon testleri: `tests/Tracon.Anthropic.UnitTests/AnthropicProviderExtensionsTests.cs`
+ve `tests/Tracon.Google.UnitTests/GoogleProviderExtensionsTests.cs`
 `Yapilandirmadan_gelen_adsiz_model_reddedilir` (ikisi ayrı ayrı, kendi
 sağlayıcı ayarında; fix geri alınıp koşulduğunda ikisi de KIRMIZI verdiği
 ampirik olarak doğrulandı).
@@ -194,7 +194,7 @@ denetiminde keşfedildi, appsettings'teki 3 modelin dışında) tekrarlandı:
 çalıştırma **başarıyla tamamlandı**, konsolda beklenen log satırı birebir
 göründü: `'claude-sonnet-4-6' modeli 'anthropic' katalogunda yok; istek
 yine de gonderiliyor. Model bilgisini kataloga eklemek icin
-AgentPrism:Providers:Anthropic:Models ayarini kullanin.` Tam beklendiği
+Tracon:Providers:Anthropic:Models ayarini kullanin.` Tam beklendiği
 gibi.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
@@ -255,7 +255,7 @@ biriydi, bu koşumda gerçekleşti.
 İki çalıştırma da `Completed` oldu. `cachedInputTokenCount: 0` iki
 çalıştırmada da — istem (~1000 karakter talimat) Haiku'nun önbellek
 eşiğinin altında kaldı. Bu, dokümanın öngördüğü "eşiğin altında" dalıdır,
-AgentPrism kusuru değil.
+Tracon kusuru değil.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
@@ -306,7 +306,7 @@ Gemini 3.6 Flash `BLOCK_LOW_AND_ABOVE` eşiğinde filtrelemedi; model
 isteği kendi metniyle reddetti (birincide) veya kısa/nötr yanıt üretti
 (ikincide), ikisi de `status:Completed`, `error:null`. **Bu, dokümanın
 öngördüğü ikinci dal:** "beklenen tetikleyici artık filtrelemiyor" —
-model davranışı sürüm bağımlı, AgentPrism kusuru değil.
+model davranışı sürüm bağımlı, Tracon kusuru değil.
 `ContentFilterDetectingChatClient` mekanizması bu koşumda tetiklenemedi
 (00-INDEKS.md'ye not düşülmesi gerekiyor — bu oturumda düşürülmedi,
 takip: toplama oturumunda). Case içeriği bu sonucu kayıt altına alır.

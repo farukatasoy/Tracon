@@ -3,10 +3,10 @@
 > **Durum:** ✅ Tamamlandı (2026-09-05)
 > **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-195** (tüketici turu 4, A1 · kapsam yarısı)
 > **Önkoşul:** Yok — [Faz 139](139-CALISTIRMA-VE-OTURUM-YETKILENDIRMESI.md) sözleşmeyi zaten sevk etti; bu faz onun kapsamını tamamlar
-> **Paketler:** `AgentPrism.Abstractions`, `AgentPrism.AspNetCore`
+> **Paketler:** `Tracon.Abstractions`, `Tracon.AspNetCore`
 > **Yeni paket:** Yok · **Migration:** Yok
 > **Public API:** Büyüyor — iki enum'a üye, bir request record. `wc -l src/*/PublicAPI.Shipped.txt` → 17 satır / 17 dosya (yalnız başlık), **shipped giriş sıfır**: bugün eklemek bedava, Faz 7'den sonra bir sürüm kararı
-> **Tüketici yüzeyi:** `docs-site/`: `guides/embedding.md`, `concepts/governance.md`, `concepts/runs.md`, `guides/voice.md`, `capabilities.md` · sevk edilen: `IRunAuthorizationHandler` XML `<example>`, `src/AgentPrism.Abstractions/README.md`
+> **Tüketici yüzeyi:** `docs-site/`: `guides/embedding.md`, `concepts/governance.md`, `concepts/runs.md`, `guides/voice.md`, `capabilities.md` · sevk edilen: `IRunAuthorizationHandler` XML `<example>`, `src/Tracon.Abstractions/README.md`
 > **Manuel test alanı:** [`docs/manuel-test/13-KIRACI-VE-GUVENLIK.md`](../../manuel-test/13-KIRACI-VE-GUVENLIK.md)
 
 ---
@@ -43,9 +43,9 @@ Faz 139 `IRunAuthorizationHandler`'ı sevk etti ve **run başlatan** yüzeyleri 
 - [x] `RunAccess`/`SessionAccess` XML'i sayısal değerin bir persistence sözleşmesi **olmadığını** açıkça söyler
 - [x] `OpenApiSnapshotTests` yeşil; hiçbir ucun `200` yanıtı sessizce düşmedi
 - [x] Dört doğrulama kapısı sıfır uyarı verir — `python3 scripts/kapi.py kapanis --taban <faz öncesi commit>`
-- [x] `samples/AgentPrism.Api` ile gerçek `run` yapıldı ve reddeden bir handler'la ret çıktısı belgeye yazıldı
+- [x] `samples/Tracon.Api` ile gerçek `run` yapıldı ve reddeden bir handler'la ret çıktısı belgeye yazıldı
 - [x] `secret` taraması boş döndü
-- [x] Manuel kabul case'leri `docs/manuel-test/13-KIRACI-VE-GUVENLIK.md` içine eklendi (MT-SEC-151 … MT-SEC-163). On üçünün de otomatikleştirilmiş karşılığı yeşil; ikisi (MT-SEC-152 · MT-SEC-157) ayrıca `samples/AgentPrism.Embedded` üzerinde elle koşuldu ve sonuç case'e yazıldı
+- [x] Manuel kabul case'leri `docs/manuel-test/13-KIRACI-VE-GUVENLIK.md` içine eklendi (MT-SEC-151 … MT-SEC-163). On üçünün de otomatikleştirilmiş karşılığı yeşil; ikisi (MT-SEC-152 · MT-SEC-157) ayrıca `samples/Tracon.Embedded` üzerinde elle koşuldu ve sonuç case'e yazıldı
 - [x] `faz-denetim` koşuldu; 🔴 bulgu kalmadı
 - [x] `docs-site/` güncellendi (`guides/embedding.md` genişleme noktası anlatısı, `concepts/governance.md`, `guides/voice.md`); `npm run build` + `check-links.mjs` temiz
 
@@ -57,7 +57,7 @@ for f in Endpoints/RunEndpoints Endpoints/ObservabilityEndpoints \
          Endpoints/AttachmentEndpoints Endpoints/ApprovalEndpoints \
          OpenAICompat/OpenAIChatCompletionsEndpoints Voice/VoiceConversationEndpoint; do
   printf '%-55s %s\n' "$f" \
-    "$(grep -cE 'RunAuthorizationGate\s*\.\s*Check' "src/AgentPrism.AspNetCore/$f.cs")"
+    "$(grep -cE 'RunAuthorizationGate\s*\.\s*Check' "src/Tracon.AspNetCore/$f.cs")"
 done
 
 # Reddedilen run okuması, var olmayan run ile AYNI gövdeyi döndürmeli
@@ -115,7 +115,7 @@ sorusunun cevabıydı, yani tam olarak bu fazın işi. Hepsi kapatıldı.
 | 4 | `A_cancelled_request_is_not_swallowed_into_a_denial` hiçbir şey ayırt etmiyordu: `EnsureSuccessStatusCode()` her 2xx-dışı yanıtta patladığı için `OperationCanceledException` yutulsa da test **yeşil kalırdı** | İddia ayırt edici hâle getirildi: yanıt `404` **olmamalı** (yutulsaydı tam olarak o gelirdi) ve `200` de olmamalı |
 | 5 | DoD 1 ("21 ucun hepsi için kanıt") 21 değil **16** uç için kanıtlıydı — `replay`, `/v1/chat/completions`, `DELETE .../feedback/{scoreId}` ve HTTP ek yükleme testte hiç çağrılmıyordu | Dördü de `Every_resource_endpoint_is_unchanged_when_no_handler_is_registered`'a eklendi. Ayrıca workflow devam uçları için ayrı bir kanıt yazıldı: `Workflow_continuation_is_unchanged_when_no_handler_is_registered` |
 | 6 | Planın "alt sistem hatası: `IRunStore` hata verir" satırının karşılığı yoktu | `A_failing_run_store_does_not_turn_into_an_allow`: okunamayan bir `run` handler'a **hiç ulaşmıyor** ve istek yetkilendirilmiş bir okuma değil `404` ile bitiyor. Depo canlı host'ta değiştirilebilir olmadığı için ulaşılabilir en yakın eşdeğer ölçüldü — sınır bu, dokümanda açık |
-| 7 | `docs/openapi/agentprism.json` yeni `403`/`404` yanıtları kazandı ama `src/AgentPrism.Client/Generated/AgentPrismApiClient.g.cs` yeniden üretilmemişti; drift kapısı yalnız `operationId` ↔ metot adı karşılaştırdığı için bunu göremiyordu | İstemci reçeteyle yeniden üretildi (`nswag-prepare` → `nswag run` → `postprocess` → `json-context`). Eşlenmiş dalda tüketici artık `AgentPrismApiException<ProblemDetails>` alıyor, ham `string` değil |
+| 7 | `docs/openapi/tracon.json` yeni `403`/`404` yanıtları kazandı ama `src/Tracon.Client/Generated/TraconApiClient.g.cs` yeniden üretilmemişti; drift kapısı yalnız `operationId` ↔ metot adı karşılaştırdığı için bunu göremiyordu | İstemci reçeteyle yeniden üretildi (`nswag-prepare` → `nswag run` → `postprocess` → `json-context`). Eşlenmiş dalda tüketici artık `TraconApiException<ProblemDetails>` alıyor, ham `string` değil |
 | 8 | Aynı sınıftan üç **yalnız okuyan** yüzey daha kapısızdı: `GET /api/workflows/runs/{id}/checkpoints`, `.../requests`, `POST /api/evals/{name}/cases/from-run/{runId}` | Üçü de `RunAccess.Read`'e bağlandı; ret `404`. `EvalEndpoints.cs` ve `WorkflowEndpoints.cs` kapsam kapısının **kaynak** listesine eklendi. Kanıt: `Denied_workflow_checkpoints_and_requests_return_404` |
 
 ### 🟢 Aday listesine devredildi
@@ -140,7 +140,7 @@ doğruladı ve `OpenApiSnapshotTests` riskinin gerçekleşmediğini ölçtü.
 [Faz 148](148-OTURUM-SAHIPLIGININ-KALICILIGI.md) bu fazın hemen üstüne biniyor:
 Faz 147 kapıyı **her kaynağa** ulaştırdı ama sahipliği hâlâ **öğretmiyor** —
 `IRunAuthorizationHandler` tüketicinin kendi kaydına soruyor. Faz 148 o kaydı
-AgentPrism'in içine taşıyacak. Devreden dört gerçek bilgi:
+Tracon'in içine taşıyacak. Devreden dört gerçek bilgi:
 
 - 🚨 **Yeni bir run başlatan VEYA run kaynağına dokunan HTTP yüzeyi eklenirse**
   iki şey birden yapılmalıdır: yüzey kapıyı **kendi gövdesinde** çağırır ve

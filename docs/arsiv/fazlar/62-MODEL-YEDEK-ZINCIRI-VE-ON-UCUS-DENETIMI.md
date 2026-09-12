@@ -3,7 +3,7 @@
 > **Durum:** ✅ Tamamlandı (2026-08-18)
 > **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-44**, **F-59**
 > **Önkoşul:** [Faz 8](08-SAGLAYICI-GENISLEMESI.md) — devre kesici ve sağlayıcı sağlığı bu fazın yarısını kurdu · [Faz 13](13-BAGLAM-SIKISTIRMA-VE-BELLEK.md) — `MaxContextWindowTokens`'ın bugünkü tek tüketicisi
-> **Paketler:** `AgentPrism.Abstractions`, `AgentPrism.Core`, `AgentPrism.AspNetCore`, `AgentPrism.UI`
+> **Paketler:** `Tracon.Abstractions`, `Tracon.Core`, `Tracon.AspNetCore`, `Tracon.UI`
 > **Yeni paket:** Yok · **Migration:** Yok — yedek zinciri agent tanımının içindedir, tanım zaten `jsonb` olarak saklanır
 > **Public API:** **büyüyor** — `ModelBinding`'e bir alan. `PublicAPI.Shipped.txt` bugün **boş** (ölçüldü: 1 satır), `EnablePublicApiTracking` `true`. `sealed record`'a alan eklemek **bugün bedava**, ilk yayından sonra bir sürüm kararıdır
 > **Site etkisi:** `guides/model-providers.md`, `guides/reliability.md`, `reference/configuration.md`
@@ -41,7 +41,7 @@ Bu faz model çağrısının **iki ucunu** kapatır: çağrıdan **önce** paray
 - [x] Ön uçuş **kapalı** varsayılandır; açıkken aşan istem model çağrısı **yapılmadan** `400` döner — `PreflightEndpointTests` (gerçek HTTP host üzerinden)
 - [x] `POST /api/agents/{name}/estimate` sağlayıcıya istek **göndermeden** sayı döner — `PreflightEndpointTests`, `ContextWindowEstimatorTests`
 - [x] Dört doğrulama kapısı sıfır uyarı verir — `dotnet build`/`test`/`pack`/`format` tüm çözüm genelinde yeşil (bu turda birden fazla kez koşuldu)
-- `samples/AgentPrism.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı — **YAPILAMADI**, bu ortamda gerçek sağlayıcı kimlik bilgisi yok (bkz. Plandan Sapmalar #7). Yerine: gerçek OpenAI SDK'sına karşı canlı bir bağlantı-hatası testi koşuldu (bkz. Denetim Bulguları #1) ve dört gerçek SQL/HTTP entegrasyon paketi (Postgres/Sqlite/SqlServer/AspNetCore.FunctionalTests) baştan sona koşuldu.
+- `samples/Tracon.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı — **YAPILAMADI**, bu ortamda gerçek sağlayıcı kimlik bilgisi yok (bkz. Plandan Sapmalar #7). Yerine: gerçek OpenAI SDK'sına karşı canlı bir bağlantı-hatası testi koşuldu (bkz. Denetim Bulguları #1) ve dört gerçek SQL/HTTP entegrasyon paketi (Postgres/Sqlite/SqlServer/AspNetCore.FunctionalTests) baştan sona koşuldu.
 - [x] `secret` taraması boş döndü
 - [x] Manuel kabul case'leri `docs/manuel-test/27-MODEL-YEDEK-VE-ON-UCUS.md` içine eklendi (9 case); otomatikleştirilebilen KISMI (gerçek kimlik bilgisi gerektirmeyenler) otomatik testlerle zaten kapsanıyor — dosyanın kendisi gerçek kimlik bilgisiyle **henüz koşulmadı** (§7 `⬜`)
 - [x] `faz-denetim` koşuldu; 🔴 bulgu **kapandı** (K-450)
@@ -52,13 +52,13 @@ Bu faz model çağrısının **iki ucunu** kapatır: çağrıdan **önce** paray
 
 ```bash
 # Kestirim - model cagrisi YAPILMAZ
-curl -s -X POST http://localhost:5081/agentprism/api/agents/demo/estimate \
+curl -s -X POST http://localhost:5081/tracon/api/agents/demo/estimate \
   -H 'Content-Type: application/json' \
   -d '{"message":"..."}'
 
 # On ucus acikken asan istem reddedilir
 curl -s -o /dev/null -w '%{http_code}\n' -X POST \
-  http://localhost:5081/agentprism/api/agents/demo/run \
+  http://localhost:5081/tracon/api/agents/demo/run \
   -H 'Content-Type: application/json' \
   -d '{"message":"<pencereden buyuk istem>"}'
 ```
@@ -78,7 +78,7 @@ curl -s -o /dev/null -w '%{http_code}\n' -X POST \
 2. **Tokenizer sabit bir referans kodlama kullanır (`o200k_base`/`gpt-4o`),
    bağlanan sağlayıcıdan BAĞIMSIZ.** Açık Soru 1 seçenek A'yı seçti ama
    "hangi model için hangi tokenizer" sorusunu açık bıraktı. Anthropic/Google
-   çevrimdışı bir tokenizer paketi yayınlamadığı için AgentPrism TEK bir sabit
+   çevrimdışı bir tokenizer paketi yayınlamadığı için Tracon TEK bir sabit
    kodlamayla her sağlayıcıyı yaklaşık sayar — K-448.
 3. **`Microsoft.Bcl.Memory` CVE zorlaması plan dışıydı.** Tokenizer veri
    paketi (`Microsoft.ML.Tokenizers.Data.O200kBase`) ölçülene kadar
@@ -100,7 +100,7 @@ curl -s -o /dev/null -w '%{http_code}\n' -X POST \
    hata durumları) ayrı bir iş parçası olarak KAPSAM DIŞI bırakıldı — zaman
    bütçesi kararı. Yedek listesi editörü (add/remove, provider/model alanları,
    E2E ile kanıtlanmış kayıt/geri-okuma) TAM uygulandı.
-7. **DoD'nin "`samples/AgentPrism.Api` ile gerçek `run` yapıldı" satırı
+7. **DoD'nin "`samples/Tracon.Api` ile gerçek `run` yapıldı" satırı
    TAMAMLANAMADI.** Bu ortamda gerçek OpenAI/Anthropic kimlik bilgisi yok;
    davranış bunun yerine gerçek bir Postgres/Sqlite/SqlServer konteynerine
    karşı koşan sözleşme testleriyle VE `FallbackChatClientTests`/

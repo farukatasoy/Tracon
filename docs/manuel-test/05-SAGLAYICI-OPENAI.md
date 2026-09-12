@@ -1,12 +1,12 @@
 # 05 — Sağlayıcı: OpenAI (`OAI`)
 
 > **Alan kodu:** `OAI` · **Faz:** 3, 8
-> **Kaynak:** `src/AgentPrism.OpenAI` (tümü — `OpenAIProviderOptions*`,
+> **Kaynak:** `src/Tracon.OpenAI` (tümü — `OpenAIProviderOptions*`,
 > `OpenAIProviderExtensions`, `OpenAICompatibleProviderExtensions`,
 > `OpenAIChatClientFactory`, `OpenAIModelProvider`, `OpenAIModelCatalog`,
 > `OpenAIProviderHealthCheck`, `OpenAINamedChatClientFactoryCache`). Devre kesici
-> ve sağlık önbelleği `AgentPrism.OpenAI`'de YAŞAMAZ — paylaşılan bir dekoratör
-> katmanıdır: `src/AgentPrism.Core/Models/ModelProviderCircuitBreaker.cs` ·
+> ve sağlık önbelleği `Tracon.OpenAI`'de YAŞAMAZ — paylaşılan bir dekoratör
+> katmanıdır: `src/Tracon.Core/Models/ModelProviderCircuitBreaker.cs` ·
 > `CircuitBreakingChatClient.cs` · `ModelProviderHealthCache.cs` ·
 > `ModelProviderRegistry.cs`. [`02-CEKIRDEK-VE-KATALOG.md`](02-CEKIRDEK-VE-KATALOG.md)'ün
 > sınır tablosu bu makinenin ("devre kesici, sağlık, akış") kanıtını bu dosyaya
@@ -55,7 +55,7 @@ flowchart TD
 | Agent tanımı derleme/katalog genel davranışı, `unknown_model`/`unknown_tool` doğrulama, `ReasoningEffort` reddi | [`02-CEKIRDEK-VE-KATALOG.md`](02-CEKIRDEK-VE-KATALOG.md) (zaten üretildi — burada tekrarlanmaz) |
 | HTTP durum kodu sözleşmesi, sayfalama, genel `/api/agents/*` gövde şekli | [`07-HTTP-YONETIM-API.md`](07-HTTP-YONETIM-API.md) |
 | `/v1/chat/completions`, `/v1/responses` (OpenAI uyumlu dış yüzey) | [`08-OPENAI-UYUMLU-UCLAR.md`](08-OPENAI-UYUMLU-UCLAR.md) |
-| `/api/diagnostics` ucunun genel sözleşmesi, `AgentPrismHealthCheck`, tüm sağlayıcıların OpenAPI görünürlüğü | [`25-SAGLIK-TESHIS-OPENAPI.md`](25-SAGLIK-TESHIS-OPENAPI.md) |
+| `/api/diagnostics` ucunun genel sözleşmesi, `TraconHealthCheck`, tüm sağlayıcıların OpenAPI görünürlüğü | [`25-SAGLIK-TESHIS-OPENAPI.md`](25-SAGLIK-TESHIS-OPENAPI.md) |
 | Maliyet hesabı (`InputCostPerMillionTokens` kullanımı), `/api/stats` | [`12-GOZLEMLENEBILIRLIK-MALIYET.md`](12-GOZLEMLENEBILIRLIK-MALIYET.md) |
 | Kiracı/rol/API anahtarı HTTP güvenlik sınırları | [`13-KIRACI-VE-GUVENLIK.md`](13-KIRACI-VE-GUVENLIK.md) |
 | AOT publish smoke testi, paket bağımlılık grafiği | [`01-KURULUM-VE-PAKETLEME.md`](01-KURULUM-VE-PAKETLEME.md) |
@@ -63,26 +63,26 @@ flowchart TD
 ## Koşmadan önce
 
 1. [`00-INDEKS.md`](00-INDEKS.md) §4 reset yordamı uygulanır.
-2. PostgreSQL container'ı (`ap-pg`) çalışır ve `AgentPrism:PostgreSql:ConnectionString`
+2. PostgreSQL container'ı (`ap-pg`) çalışır ve `Tracon:PostgreSql:ConnectionString`
    tanımlıdır. Bu dosya kalıcılık davranışını sınamaz ama §4'teki "Responses API +
    kalıcılık çatışması yok" kanıtı PostgreSQL'in **açık** olmasını gerektirir.
 3. **Gerçek bir OpenAI API anahtarı** tanımlıdır:
-   `dotnet user-secrets set "AgentPrism:Providers:OpenAI:ApiKey" "<ANAHTARINIZ>"`.
+   `dotnet user-secrets set "Tracon:Providers:OpenAI:ApiKey" "<ANAHTARINIZ>"`.
    Anahtar yoksa `Program.cs`'deki `openAiEnabled` bayrağı `false` kalır,
    `UseOpenAI` hiç çağrılmaz ve sağlayıcı adı `echo` olur — bu dosyadaki
    case'lerin **hiçbiri** o durumda geçerli değildir (MT-OAI-001 hariç, o da
    yalnız kayıt sayısını sayar).
 4. **Gerçek bir OpenRouter API anahtarı** tanımlıdır (§6 için):
-   `dotnet user-secrets set "AgentPrism:Providers:OpenAICompatible:openrouter:ApiKey" "<OPENROUTER_ANAHTARINIZ>"`.
-5. `AgentPrism:Ui:AuthToken` `manuel-test-token-2026`'dır.
-6. Örnek uygulama çalışır: `cd samples/AgentPrism.Api && dotnet run` →
+   `dotnet user-secrets set "Tracon:Providers:OpenAICompatible:openrouter:ApiKey" "<OPENROUTER_ANAHTARINIZ>"`.
+5. `Tracon:Ui:AuthToken` `manuel-test-token-2026`'dır.
+6. Örnek uygulama çalışır: `cd samples/Tracon.Api && dotnet run` →
    `http://localhost:5080`
 
 Kısaltmalar — bu dosyadaki her `curl` şu başlıkları kullanır:
 
 ```bash
 export APB="Authorization: Bearer manuel-test-token-2026"
-export APU="http://localhost:5080/agentprism"
+export APU="http://localhost:5080/tracon"
 ```
 
 > **Gerçek para uyarısı.** Bu dosyadaki E2E case'leri (§5, §6.5, §8) gerçek
@@ -172,7 +172,7 @@ curl -s -X POST "$APU/api/agents/manuel-yok-boyle-saglayici/run" -H "$APB" \
   ayrılmış gerçek liste gelir (`openai, openai-responses, openrouter,
   anthropic, google`).
 - `type` alanı standart ProblemDetails RFC 9110 bağlantısıdır
-  (`.../section-15.5.1`), `AgentPrismException` DEĞİLDİR — orijinal beklenti
+  (`.../section-15.5.1`), `TraconException` DEĞİLDİR — orijinal beklenti
   SSE akışı varsayıyordu, kodda böyle değil.
 
 ---
@@ -234,12 +234,12 @@ Negatif/sınır senaryosu. **Geçici kod değişikliği** — adım 4'te geri al
 - Uygulama durdurulmuş.
 
 **Adımlar**
-1. `samples/AgentPrism.Api/Program.cs`'de `agentPrism.UseOpenAI(openAi);`
+1. `samples/Tracon.Api/Program.cs`'de `tracon.UseOpenAI(openAi);`
    satırından (yaklaşık 135. satır) hemen SONRA şu satırı geçici olarak ekle:
-   `agentPrism.UseOpenAI(openAi);` (aynı çağrı, ikinci kez).
+   `tracon.UseOpenAI(openAi);` (aynı çağrı, ikinci kez).
 2. Uygulamayı başlat.
 3. `/api/models`'i çağır.
-4. Değişikliği geri al: `git checkout -- samples/AgentPrism.Api/Program.cs`
+4. Değişikliği geri al: `git checkout -- samples/Tracon.Api/Program.cs`
 
 **Girilecek veri**
 ```bash
@@ -274,12 +274,12 @@ Negatif senaryo.
 
 **Girilecek veri**
 ```bash
-dotnet user-secrets set "AgentPrism:Providers:OpenAI:Endpoint" "sadece-bir-yol"
-cd samples/AgentPrism.Api && dotnet run
+dotnet user-secrets set "Tracon:Providers:OpenAI:Endpoint" "sadece-bir-yol"
+cd samples/Tracon.Api && dotnet run
 ```
 ```bash
 # Temizlik:
-dotnet user-secrets remove "AgentPrism:Providers:OpenAI:Endpoint"
+dotnet user-secrets remove "Tracon:Providers:OpenAI:Endpoint"
 ```
 
 **Beklenen sonuç**
@@ -310,12 +310,12 @@ Negatif senaryo.
 
 **Girilecek veri**
 ```bash
-dotnet user-secrets set "AgentPrism:Providers:OpenAI:Timeout" "00:00:00"
-cd samples/AgentPrism.Api && dotnet run
+dotnet user-secrets set "Tracon:Providers:OpenAI:Timeout" "00:00:00"
+cd samples/Tracon.Api && dotnet run
 ```
 ```bash
 # Temizlik:
-dotnet user-secrets remove "AgentPrism:Providers:OpenAI:Timeout"
+dotnet user-secrets remove "Tracon:Providers:OpenAI:Timeout"
 ```
 
 **Beklenen sonuç**
@@ -341,14 +341,14 @@ eklemek gerektiği için **geçici dosya değişikliği** ister.
 - Uygulama durdurulmuş.
 
 **Adımlar**
-1. `samples/AgentPrism.Api/appsettings.json`'da `AgentPrism:Providers:OpenAI:Models`
+1. `samples/Tracon.Api/appsettings.json`'da `Tracon:Providers:OpenAI:Models`
    dizisine `{"Name": ""}` ekle (dizinin sonuna, virgülle ayırarak).
 2. Uygulamayı başlat.
-3. Değişikliği geri al: `git checkout -- samples/AgentPrism.Api/appsettings.json`
+3. Değişikliği geri al: `git checkout -- samples/Tracon.Api/appsettings.json`
 
 **Girilecek veri**
 ```bash
-cd samples/AgentPrism.Api && dotnet run
+cd samples/Tracon.Api && dotnet run
 ```
 
 **Beklenen sonuç**
@@ -367,18 +367,18 @@ cd samples/AgentPrism.Api && dotnet run
 | **İlgili faz** | Faz 3 |
 | **İlgili karar** | K-006 |
 
-Negatif senaryo. **`samples/AgentPrism.Api` bu case'i tetikleyemez**: `Program.cs`
+Negatif senaryo. **`samples/Tracon.Api` bu case'i tetikleyemez**: `Program.cs`
 `openAiEnabled` bayrağı `false` ise `UseOpenAI` hiç çağrılmaz (bkz. Program.cs,
 satır ~130), dolayısıyla `ApiKey` boşken doğrulayıcı asla devreye girmez. Bu,
-gerçek bir MAF/AgentPrism davranışıdır, kod değiştirilmez — yerine [`01-KURULUM-VE-PAKETLEME.md`](01-KURULUM-VE-PAKETLEME.md)
+gerçek bir MAF/Tracon davranışıdır, kod değiştirilmez — yerine [`01-KURULUM-VE-PAKETLEME.md`](01-KURULUM-VE-PAKETLEME.md)
 `MT-PKG-070`'in kurduğu yerel NuGet feed'i ile bağımsız bir konsol uygulaması
 kurulur.
 
 **Ön koşul**
-- `MT-PKG-070` geçti (`~/agentprism-local-feed` dolu).
+- `MT-PKG-070` geçti (`~/tracon-local-feed` dolu).
 
 **Adımlar**
-1. Boş bir konsol projesi oluştur, `AgentPrism.Core` ve `AgentPrism.OpenAI`
+1. Boş bir konsol projesi oluştur, `Tracon.Core` ve `Tracon.OpenAI`
    paketlerini yerel feed'den ekle.
 2. `UseOpenAI(o => { })` çağıran (ApiKey vermeyen) bir gövde yaz.
 3. Çalıştır.
@@ -388,18 +388,18 @@ kurulur.
 rm -rf /tmp/ap-oai-apikey-test && mkdir -p /tmp/ap-oai-apikey-test
 cd /tmp/ap-oai-apikey-test
 dotnet new console -o . --force
-dotnet nuget add source ~/agentprism-local-feed -n agentprism-local 2>/dev/null || true
-SURUM=$(ls ~/agentprism-local-feed/AgentPrism.OpenAI.0.*.nupkg | sed 's#.*/AgentPrism\.OpenAI\.##;s#\.nupkg##')
-dotnet add package AgentPrism.Core --version "$SURUM" --source ~/agentprism-local-feed
-dotnet add package AgentPrism.OpenAI --version "$SURUM" --source ~/agentprism-local-feed
+dotnet nuget add source ~/tracon-local-feed -n tracon-local 2>/dev/null || true
+SURUM=$(ls ~/tracon-local-feed/Tracon.OpenAI.0.*.nupkg | sed 's#.*/Tracon\.OpenAI\.##;s#\.nupkg##')
+dotnet add package Tracon.Core --version "$SURUM" --source ~/tracon-local-feed
+dotnet add package Tracon.OpenAI --version "$SURUM" --source ~/tracon-local-feed
 
 cat > Program.cs <<'EOF'
-using AgentPrism;
+using Tracon;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
 var builder = Host.CreateApplicationBuilder(args);
-builder.Services.AddAgentPrism().UseOpenAI(o => { });
+builder.Services.AddTracon().UseOpenAI(o => { });
 using var app = builder.Build();
 await app.StartAsync();
 EOF
@@ -498,7 +498,7 @@ Sınır senaryosu. **Geçici dosya değişikliği**.
 - Uygulama durdurulmuş.
 
 **Adımlar**
-1. `samples/AgentPrism.Api/appsettings.json`'da `Models` dizisine, mevcut
+1. `samples/Tracon.Api/appsettings.json`'da `Models` dizisine, mevcut
    `gpt-5.4-mini` girdisinden SONRA, aynı adla ama farklı `DisplayName` taşıyan
    ikinci bir girdi ekle: `{"Name": "gpt-5.4-mini", "DisplayName": "IKINCI TANIM"}`.
 2. Uygulamayı başlat, `/api/models`'i oku.
@@ -515,7 +515,7 @@ print(len(oa['models']), [m['displayName'] for m in oa['models'] if m['name']=='
 ```
 ```bash
 # Temizlik:
-git checkout -- samples/AgentPrism.Api/appsettings.json
+git checkout -- samples/Tracon.Api/appsettings.json
 ```
 
 **Beklenen sonuç**
@@ -537,8 +537,8 @@ kaldırılırsa (`AsIChatClientWithStoredOutputDisabled` yerine düz
 `AsIChatClient(defaultModelId)` kullanılırsa) bu case **kaldı** vermelidir.
 
 **Ön koşul**
-- PostgreSQL container'ı çalışıyor, `AgentPrism:PostgreSql:ConnectionString`
-  tanımlı, `samples/AgentPrism.Api/Program.cs`'de `UsePostgreSql` açık.
+- PostgreSQL container'ı çalışıyor, `Tracon:PostgreSql:ConnectionString`
+  tanımlı, `samples/Tracon.Api/Program.cs`'de `UsePostgreSql` açık.
 
 **Adımlar**
 1. `openai-responses` yüzeyini kullanan bir agent tanımı kaydet.
@@ -566,7 +566,7 @@ curl -s -X POST "$APU/api/agents/manuel-responses-yuzeyi/run" -H "$APB" \
 - İki çalıştırma da SSE `error` çerçevesi üretmeden `done` ile tamamlanır —
   özellikle `InvalidOperationException: Only ConversationId or
   ChatHistoryProvider may be used, but not both.` hatası **görülmez**.
-- İkinci yanıt `47` dizgisini içerir — geçmiş AgentPrism'in PostgreSQL
+- İkinci yanıt `47` dizgisini içerir — geçmiş Tracon'in PostgreSQL
   kalıcılığında (OpenAI'ın kendi konuşma kimliğinde değil) tutulmuştur.
 
 ---
@@ -798,7 +798,7 @@ print([p['name'] for p in d])
 | **İlgili karar** | K-072 |
 
 Negatif senaryo, üç alt deneme. Her denemede **geçici kod değişikliği** —
-`agentPrism.UseOpenAICompatible("openrouter", openRouter);` satırından
+`tracon.UseOpenAICompatible("openrouter", openRouter);` satırından
 (yaklaşık 160. satır) hemen ÖNCE tek satır eklenir, uygulama başlatılır, konsol
 okunur, satır kaldırılır. Üçü de C# derleme zamanında değil, **çalışma
 zamanında** (`ArgumentException`, açılış sırasında) patlar.
@@ -807,15 +807,15 @@ zamanında** (`ArgumentException`, açılış sırasında) patlar.
 - Uygulama durdurulmuş.
 
 **Adımlar (deneme 1 — rezerve ad)**
-1. Ekle: `agentPrism.UseOpenAICompatible("openai", o => o.Endpoint = new Uri("http://localhost:9"));`
+1. Ekle: `tracon.UseOpenAICompatible("openai", o => o.Endpoint = new Uri("http://localhost:9"));`
 2. `dotnet run`, konsolu oku, satırı kaldır.
 
 **Adımlar (deneme 2 — geçersiz desen, büyük harf)**
-1. Ekle: `agentPrism.UseOpenAICompatible("OpenRouter2", o => o.Endpoint = new Uri("http://localhost:9"));`
+1. Ekle: `tracon.UseOpenAICompatible("OpenRouter2", o => o.Endpoint = new Uri("http://localhost:9"));`
 2. `dotnet run`, konsolu oku, satırı kaldır.
 
 **Adımlar (deneme 3 — 33 karakter, sınır aşımı)**
-1. Ekle: `agentPrism.UseOpenAICompatible("a0000000000000000000000000000000x", o => o.Endpoint = new Uri("http://localhost:9"));`
+1. Ekle: `tracon.UseOpenAICompatible("a0000000000000000000000000000000x", o => o.Endpoint = new Uri("http://localhost:9"));`
    (**düzeltildi 2026-08-13**: dokümanın önceki örneği `a234567890123456789012345678901x`
    `len()` ile ölçülünce fiilen 32 karakterdi — sınırda ve geçerli, 33 değil.
    Yukarıdaki dizgi gerçek 33 karakterdir.)
@@ -823,11 +823,11 @@ zamanında** (`ArgumentException`, açılış sırasında) patlar.
 
 **Girilecek veri**
 ```bash
-cd samples/AgentPrism.Api && dotnet run
+cd samples/Tracon.Api && dotnet run
 ```
 ```bash
 # Her denemeden sonra temizlik:
-git checkout -- samples/AgentPrism.Api/Program.cs
+git checkout -- samples/Tracon.Api/Program.cs
 ```
 
 **Beklenen sonuç**
@@ -858,19 +858,19 @@ Negatif senaryo. **Geçici kod değişikliği.**
 - Uygulama durdurulmuş.
 
 **Adımlar**
-1. `agentPrism.UseOpenAICompatible("openrouter", openRouter);` satırından
+1. `tracon.UseOpenAICompatible("openrouter", openRouter);` satırından
    (yaklaşık 160. satır) hemen SONRA şu satırı ekle:
-   `agentPrism.UseOpenAICompatible("test-eksik-endpoint", o => o.ApiKey = "sk-test");`
+   `tracon.UseOpenAICompatible("test-eksik-endpoint", o => o.ApiKey = "sk-test");`
 2. `dotnet run`, konsolu oku.
 3. Satırı kaldır.
 
 **Girilecek veri**
 ```bash
-cd samples/AgentPrism.Api && dotnet run
+cd samples/Tracon.Api && dotnet run
 ```
 ```bash
 # Temizlik:
-git checkout -- samples/AgentPrism.Api/Program.cs
+git checkout -- samples/Tracon.Api/Program.cs
 ```
 
 **Beklenen sonuç**
@@ -909,13 +909,13 @@ curl -s -m 2 http://localhost:11434/api/tags && echo "OLLAMA_VAR" || echo "OLLAM
 ```
 ```bash
 # Ollama VARSA:
-# Program.cs satir ~239-246'daki agentPrism.UseOpenAICompatible("ollama", ...) blogunu ac.
-cd samples/AgentPrism.Api && dotnet run
+# Program.cs satir ~239-246'daki tracon.UseOpenAICompatible("ollama", ...) blogunu ac.
+cd samples/Tracon.Api && dotnet run
 curl -s "$APU/api/models" -H "$APB" | python3 -c "import json,sys; print([p['name'] for p in json.load(sys.stdin)])"
 ```
 ```bash
 # Temizlik:
-git checkout -- samples/AgentPrism.Api/Program.cs
+git checkout -- samples/Tracon.Api/Program.cs
 ```
 
 **Beklenen sonuç**
@@ -970,9 +970,9 @@ print('openrouter-responses' in [p['name'] for p in d])
 - Uygulama durdurulmuş, gerçek OpenRouter API anahtarı tanımlı.
 
 **Adımlar**
-1. `agentPrism.UseOpenAICompatible("openrouter", openRouter);` satırını
+1. `tracon.UseOpenAICompatible("openrouter", openRouter);` satırını
    (yaklaşık 160. satır) geçici olarak şuna değiştir:
-   `agentPrism.UseOpenAICompatible("openrouter", o => { OpenAIProviderExtensions.Bind(openRouter, o); o.EnableResponsesSurface = true; });`
+   `tracon.UseOpenAICompatible("openrouter", o => { OpenAIProviderExtensions.Bind(openRouter, o); o.EnableResponsesSurface = true; });`
    (not: `OpenAIProviderExtensions.Bind` `internal`'dır; bu satır derlenmezse
    yerine `openRouter.Bind(o)`'yu manuel alan kopyalamayla değiştirip yalnız
    `o.EnableResponsesSurface = true;` eklemek yeterlidir — asıl kanıtlanan şey
@@ -989,7 +989,7 @@ print('openrouter-responses' in [p['name'] for p in json.load(sys.stdin)])
 ```
 ```bash
 # Temizlik:
-git checkout -- samples/AgentPrism.Api/Program.cs
+git checkout -- samples/Tracon.Api/Program.cs
 ```
 
 **Beklenen sonuç**
@@ -1038,7 +1038,7 @@ curl -s -X POST "$APU/api/agents/openrouter-destek/run" -H "$APB" \
 | **İlgili karar** | — |
 
 Negatif senaryo — Faz 8'in ölçtüğü S6 sapmasının tekrar üretilmesi. **Bu
-AgentPrism'in hatası değildir**: OpenRouter'ın kredi kontrolü `max_tokens`'i
+Tracon'in hatası değildir**: OpenRouter'ın kredi kontrolü `max_tokens`'i
 "en kötü durum" maliyeti sayar; MAF/OpenAI istemcisi `MaxOutputTokens`
 verilmezse varsayılan olarak `max_tokens=65536` gönderir.
 
@@ -1210,9 +1210,9 @@ Negatif senaryo. **Geçici kod değişikliği.**
 - Uygulama durdurulmuş.
 
 **Adımlar**
-1. `agentPrism.UseOpenAICompatible("openrouter", openRouter);` satırından
+1. `tracon.UseOpenAICompatible("openrouter", openRouter);` satırından
    (yaklaşık 160. satır) hemen SONRA ekle:
-   `agentPrism.UseOpenAICompatible("kapali-port-testi", o => { o.Endpoint = new Uri("http://127.0.0.1:59999/v1"); o.ApiKey = "sk-cok-gizli-test-anahtari-12345"; });`
+   `tracon.UseOpenAICompatible("kapali-port-testi", o => { o.Endpoint = new Uri("http://127.0.0.1:59999/v1"); o.ApiKey = "sk-cok-gizli-test-anahtari-12345"; });`
 2. Başlat, sağlığı sorgula.
 3. Satırı kaldır.
 
@@ -1222,7 +1222,7 @@ curl -s "$APU/api/models/health/kapali-port-testi" -H "$APB" | python3 -m json.t
 ```
 ```bash
 # Temizlik:
-git checkout -- samples/AgentPrism.Api/Program.cs
+git checkout -- samples/Tracon.Api/Program.cs
 ```
 
 **Beklenen sonuç**
@@ -1297,9 +1297,9 @@ Negatif senaryo. Eşik koşum hızını artırmak için `2`'ye düşürülür.
 
 **Girilecek veri**
 ```bash
-dotnet user-secrets set "AgentPrism:CircuitBreaker:FailureThreshold" "2"
-dotnet user-secrets set "AgentPrism:CircuitBreaker:BreakDuration" "00:00:20"
-cd samples/AgentPrism.Api && dotnet run
+dotnet user-secrets set "Tracon:CircuitBreaker:FailureThreshold" "2"
+dotnet user-secrets set "Tracon:CircuitBreaker:BreakDuration" "00:00:20"
+cd samples/Tracon.Api && dotnet run
 ```
 ```bash
 for i in 1 2 3; do
@@ -1311,15 +1311,15 @@ done
 ```
 ```bash
 # Temizlik:
-dotnet user-secrets remove "AgentPrism:CircuitBreaker:FailureThreshold"
-dotnet user-secrets remove "AgentPrism:CircuitBreaker:BreakDuration"
+dotnet user-secrets remove "Tracon:CircuitBreaker:FailureThreshold"
+dotnet user-secrets remove "Tracon:CircuitBreaker:BreakDuration"
 ```
 
 **Beklenen sonuç**
 - Deneme 1 ve 2: gerçek OpenAI'a gider (birkaç yüz ms–birkaç saniye sürer);
   başarısız olur (bkz. MT-OAI-043'ün gözlemi).
 - Deneme 3: **anında** başarısız olur (network gecikmesi olmadan, < 100ms) —
-  `event: error` çerçevesinde `type: AgentPrismProviderUnavailableException`,
+  `event: error` çerçevesinde `type: TraconProviderUnavailableException`,
   `message` alanı `saglayicisi devre kesici tarafindan gecici olarak
   durduruldu (2 ardisik hata)` dizgisini içerir. `AgentRunStream`'in `catch`
   bloğu artık (2026-08-10'dan beri) HER istisnayı yakalar — bu istisna da
@@ -1409,9 +1409,9 @@ curl -s -X POST "$APU/api/agents/support/run" -H "$APB" \
 
 **Girilecek veri**
 ```bash
-dotnet user-secrets set "AgentPrism:CircuitBreaker:Enabled" "false"
-dotnet user-secrets set "AgentPrism:CircuitBreaker:FailureThreshold" "1"
-cd samples/AgentPrism.Api && dotnet run
+dotnet user-secrets set "Tracon:CircuitBreaker:Enabled" "false"
+dotnet user-secrets set "Tracon:CircuitBreaker:FailureThreshold" "1"
+cd samples/Tracon.Api && dotnet run
 ```
 ```bash
 for i in 1 2 3; do
@@ -1422,12 +1422,12 @@ done
 ```
 ```bash
 # Temizlik:
-dotnet user-secrets remove "AgentPrism:CircuitBreaker:Enabled"
-dotnet user-secrets remove "AgentPrism:CircuitBreaker:FailureThreshold"
+dotnet user-secrets remove "Tracon:CircuitBreaker:Enabled"
+dotnet user-secrets remove "Tracon:CircuitBreaker:FailureThreshold"
 ```
 
 **Beklenen sonuç**
-- **Üçü de** gerçek OpenAI'a gider (`AgentPrismProviderUnavailableException`
+- **Üçü de** gerçek OpenAI'a gider (`TraconProviderUnavailableException`
   hiçbir zaman görünmez) — `FailureThreshold=1` olmasına rağmen devre hiç
   açılmaz çünkü `IsEnabled` kontrolü `EnsureRequestAllowed`/`RecordFailure`'ı
   baştan devre dışı bırakır.
@@ -1478,7 +1478,7 @@ curl -s -X POST "$APU/api/agents/support/run" -H "$APB" \
   boru hattında `CircuitBreaker.Wrap`'ten ÖNCE durur).
 - Altıncı (geçerli) çağrı **normal şekilde başarıyla tamamlanır** — beş
   engellemenin devre kesiciyi açtığına dair hiçbir belirti yoktur
-  (`AgentPrismContentBlockedException` `CircuitBreakingChatClient`'ın özel
+  (`TraconContentBlockedException` `CircuitBreakingChatClient`'ın özel
   `catch` bloğunda yakalanıp hata sayılmadan yeniden fırlatılır).
 
 ### MT-OAI-090 — API anahtarı hiçbir HTTP çıktısında görünmez
@@ -1498,7 +1498,7 @@ curl -s -X POST "$APU/api/agents/support/run" -H "$APB" \
 
 **Girilecek veri**
 ```bash
-ANAHTAR=$(dotnet user-secrets list --project samples/AgentPrism.Api | grep "OpenAI:ApiKey" | cut -d= -f2 | tr -d ' ')
+ANAHTAR=$(dotnet user-secrets list --project samples/Tracon.Api | grep "OpenAI:ApiKey" | cut -d= -f2 | tr -d ' ')
 
 for uc in "/api/models" "/api/models/health" "/api/models/health/openai" "/api/tools"; do
   echo "--- $uc ---"
@@ -1523,7 +1523,7 @@ done
 Negatif senaryo. MT-OAI-010–013 ve MT-OAI-043/052/073'ün ürettiği tüm hata
 mesajları burada topluca gözden geçirilir: hiçbirinde gerçek `ApiKey` değeri
 (ne OpenAI ne OpenRouter) geçmez — yalnız **ayar anahtarının adı**
-(`AgentPrism:Providers:OpenAI:ApiKey` gibi) geçer. Bu case ayrı bir çağrı
+(`Tracon:Providers:OpenAI:ApiKey` gibi) geçer. Bu case ayrı bir çağrı
 yapmaz, önceki case'lerin koşum kayıtlarını bu açıdan yeniden okur.
 
 **Ön koşul**
@@ -1556,7 +1556,7 @@ Bu ucun genel sözleşmesi ve kimlik doğrulaması
 case yalnız **OpenAI'a özgü** iki davranışı doğrular: (1) `UseOpenAI()`
 tarafından kaydedilen sağlayıcı bir `ConfigurationDiagnostic` bildirir, (2)
 `UseOpenAICompatible()` tarafından kaydedilen sağlayıcı **bildirmez** (K-249).
-`MapAgentPrism`'in çağrı imzası (`Action<AgentPrismEndpointOptions>`) kod-only'dir,
+`MapTracon`'in çağrı imzası (`Action<TraconEndpointOptions>`) kod-only'dir,
 `IConfiguration`'dan bağlanmaz — ama örnek uygulama ucu zaten açık kaydeder
 (`Program.cs`, satır ~711: `options.EnableDiagnosticsEndpoint = true;`), hiçbir
 ayar değişikliği gerekmez.
@@ -1577,11 +1577,11 @@ python3 -m json.tool < /tmp/ap-oai-diag.json | grep -A4 -i "openai"
 ```
 
 **Beklenen sonuç**
-- Rapordaki `configuration` dizisinde `key: "AgentPrism:Providers:OpenAI:ApiKey"`
+- Rapordaki `configuration` dizisinde `key: "Tracon:Providers:OpenAI:ApiKey"`
   taşıyan **tam olarak bir** girdi vardır, `resolved: true`, `hint: null`
   (gerçek anahtar tanımlı olduğu için). Tek girdidir çünkü `openai` VE
   `openai-responses` aynı `OpenAIProviderOptions` örneğini, dolayısıyla aynı
-  anahtarı bildirir — `AgentPrismDiagnosticsCollector` bu anahtarı
+  anahtarı bildirir — `TraconDiagnosticsCollector` bu anahtarı
   `seenConfigurationKeys` ile tekilleştirir, ikinci girdi eklenmez.
 - `key` alanının değeri **gerçek anahtar dizgisini içermez**, yalnız ayar
   yolunun adını taşır.
@@ -1610,8 +1610,8 @@ python3 -m json.tool < /tmp/ap-oai-diag.json | grep -A4 -i "openai"
 
 **Girilecek veri**
 ```bash
-ANAHTAR=$(dotnet user-secrets list --project samples/AgentPrism.Api | grep "OpenAI:ApiKey" | cut -d= -f2 | tr -d ' ')
-cd samples/AgentPrism.Api && dotnet run > /tmp/ap-oai-log.txt 2>&1 &
+ANAHTAR=$(dotnet user-secrets list --project samples/Tracon.Api | grep "OpenAI:ApiKey" | cut -d= -f2 | tr -d ' ')
+cd samples/Tracon.Api && dotnet run > /tmp/ap-oai-log.txt 2>&1 &
 sleep 5
 curl -s -X POST "$APU/api/agents/support/run" -H "$APB" -H "content-type: application/json" \
      -d '{"message":"Merhaba, sadece \"tamam\" yaz."}' > /dev/null

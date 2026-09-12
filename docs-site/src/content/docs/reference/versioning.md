@@ -1,12 +1,12 @@
 ---
 title: Versions and upgrades
-description: Understand which AgentPrism release these docs describe, pin preview packages safely, and upgrade the full package family without drift.
+description: Understand which Tracon release these docs describe, pin preview packages safely, and upgrade the full package family without drift.
 ---
 
-AgentPrism is a pre-1.0 package family. Treat version selection as part of your
+Tracon is a pre-1.0 package family. Treat version selection as part of your
 application architecture, not as a restore detail.
 
-AgentPrism ships 20 NuGet packages and one npm package (`@agentprism/client`), all
+Tracon ships 20 NuGet packages and one npm package (`@tracon/client`), all
 cut from the same `v*` tag and sharing one version line: there is no split between
 a stable subset and a preview subset. The public surface carries no compatibility
 promise for as long as that line stays pre-1.0 - a narrowing or a reshaped type is
@@ -43,7 +43,7 @@ carries a content hash (`<id>.<version>.nupkg.sha512` next to it in your local
 package cache — find the cache path with `dotnet nuget locals global-packages
 --list`), and nuget.org publishes the same hash for the version it lists. If
 those two ever disagree, something between the registry and your machine
-changed the bytes — that check exists independently of anything AgentPrism
+changed the bytes — that check exists independently of anything Tracon
 does, and applies to any NuGet package, not only this family.
 
 ## Which version do these docs describe?
@@ -54,12 +54,12 @@ the OpenAPI snapshot in that source tree.
 
 That makes the site the best description of the next build. It can also document a public
 API that is newer than the preview package you installed. When exact reproducibility
-matters, pin every AgentPrism package and check the [Release
+matters, pin every Tracon package and check the [Release
 notes](/reference/changelog/) entry for the version you installed before you rely on
 anything this site describes.
 
 :::caution[Preview contract]
-AgentPrism has not shipped `1.0`. Public APIs, migrations, configuration keys, and
+Tracon has not shipped `1.0`. Public APIs, migrations, configuration keys, and
 provider behavior can change between previews. Review the [Release
 notes](/reference/changelog/) and this site's compatibility matrices before each
 upgrade.
@@ -70,21 +70,21 @@ upgrade.
 Use NuGet's pre-release selection explicitly:
 
 ```bash
-dotnet add package AgentPrism --prerelease
+dotnet add package Tracon --prerelease
 ```
 
 The project template resolves pre-release packages by default, but pinning it makes a
 team build reproducible:
 
 ```bash
-AGENTPRISM_VERSION=1.0.0-preview.N # replace N with the published preview
-dotnet new install "AgentPrism.Templates@$AGENTPRISM_VERSION"
-dotnet new agentprism-api --AgentPrismVersion "$AGENTPRISM_VERSION"
+TRACON_VERSION=1.0.0-preview.N # replace N with the published preview
+dotnet new install "Tracon.Templates@$TRACON_VERSION"
+dotnet new tracon-api --TraconVersion "$TRACON_VERSION"
 ```
 
 ## Pin the whole package family
 
-Do not mix AgentPrism preview versions. The packages share public contracts, DI
+Do not mix Tracon preview versions. The packages share public contracts, DI
 registrations, database migrations, and generated code. A mixed graph can restore but
 fail during startup or at runtime.
 
@@ -92,10 +92,10 @@ With Central Package Management, keep the versions in one place:
 
 ```xml
 <ItemGroup>
-  <PackageVersion Include="AgentPrism" Version="1.0.0-preview.N" />
-  <PackageVersion Include="AgentPrism.PostgreSql" Version="1.0.0-preview.N" />
-  <PackageVersion Include="AgentPrism.OpenAI" Version="1.0.0-preview.N" />
-  <PackageVersion Include="AgentPrism.UI" Version="1.0.0-preview.N" />
+  <PackageVersion Include="Tracon" Version="1.0.0-preview.N" />
+  <PackageVersion Include="Tracon.PostgreSql" Version="1.0.0-preview.N" />
+  <PackageVersion Include="Tracon.OpenAI" Version="1.0.0-preview.N" />
+  <PackageVersion Include="Tracon.UI" Version="1.0.0-preview.N" />
 </ItemGroup>
 ```
 
@@ -104,16 +104,16 @@ floating ranges in production.
 
 ### The typed client and the server it calls
 
-`AgentPrism.Client` is generated from the exact same OpenAPI document the server
+`Tracon.Client` is generated from the exact same OpenAPI document the server
 build carries — both come from the same repository build, so they cannot drift
 apart at a given version the way a hand-written client could. A caller on a
 newer preview than the server it targets sees only the operations the server
 actually serves; calling one the server does not yet have returns a `404`.
-`AgentPrism.Cli` follows the same version family, since it wraps `AgentPrism.Client`.
+`Tracon.Cli` follows the same version family, since it wraps `Tracon.Client`.
 
-The npm package `@agentprism/client` is cut from the same `v*` git tag as every
-NuGet package above — there is no separate npm version scheme. `@agentprism/client
-1.0.0-preview.N` and `AgentPrism.Client 1.0.0-preview.N` always describe the
+The npm package `@tracon/client` is cut from the same `v*` git tag as every
+NuGet package above — there is no separate npm version scheme. `@tracon/client
+1.0.0-preview.N` and `Tracon.Client 1.0.0-preview.N` always describe the
 identical OpenAPI document.
 
 ## Persisted session and checkpoint state
@@ -124,13 +124,13 @@ split by who owns each layer:
 
 | Layer | Owner | Promise |
 |---|---|---|
-| Record envelope (id, tenant, timestamps, generation, schema version) | AgentPrism | A minor version only *adds* envelope fields; it never removes one. An envelope written by an older AgentPrism version is still readable |
+| Record envelope (id, tenant, timestamps, generation, schema version) | Tracon | A minor version only *adds* envelope fields; it never removes one. An envelope written by an older Tracon version is still readable |
 | Session state body (`SessionRecord.State`) | Microsoft Agent Framework | **No promise.** A Microsoft Agent Framework minor version bump can make an older body unreadable |
 | Checkpoint state body (`WorkflowCheckpointRecord.State`) | Microsoft Agent Framework | Same as the session body — no promise |
 
 `SessionRecord.StateSchemaVersion` (always stamped, never `null`) and
 `WorkflowCheckpointRecord.StateSchemaVersion` (`null` on a row written before
-this field existed) record AgentPrism's own envelope generation.
+this field existed) record Tracon's own envelope generation.
 `StateMafVersion` on both records (`null` on an older row) records the
 Microsoft Agent Framework package version that wrote the body — this is what
 lets a failure message name the exact recorded and running versions instead
@@ -166,7 +166,7 @@ Until now this page said what happens when a stored body cannot be read, but
 not which upgrades are supposed to work in the first place. This is that
 promise:
 
-**Any AgentPrism version can read the envelope written by any earlier version
+**Any Tracon version can read the envelope written by any earlier version
 in the same major version line.** You are never required to step through
 intermediate releases. Going from `1.0.0-preview.3` straight to
 `1.0.0-preview.19` is supported; so is any `1.x` to any later `1.x`.
@@ -181,13 +181,13 @@ captured from real runs of earlier versions and reads it back with today's
 code on every build. That is a test, not an intention — when it goes red, a
 release is blocked rather than shipped with a footnote.
 
-:::caution[The window covers AgentPrism's envelope, not Microsoft Agent Framework's body]
-The table above splits ownership for a reason. AgentPrism promises its own
+:::caution[The window covers Tracon's envelope, not Microsoft Agent Framework's body]
+The table above splits ownership for a reason. Tracon promises its own
 envelope stays readable across the window. It cannot promise the same for the
 **state body**, which Microsoft Agent Framework writes and owns: a Microsoft
-Agent Framework version bump inside an AgentPrism upgrade can make older
+Agent Framework version bump inside an Tracon upgrade can make older
 bodies unreadable, and that is Microsoft's compatibility surface, not
-AgentPrism's.
+Tracon's.
 
 This is exactly why the preflight below decodes a sample instead of only
 comparing version numbers — and why a failure names both the recorded and the
@@ -196,12 +196,12 @@ running Microsoft Agent Framework version.
 
 ### Check before you upgrade, not after
 
-`agentprism state-check` asks the question while the old build is still
+`tracon state-check` asks the question while the old build is still
 serving traffic. It reads the database directly, so it needs no running
 application:
 
 ```bash
-agentprism state-check --provider postgres --connection "$AGENTPRISM_CONNECTION"
+tracon state-check --provider postgres --connection "$TRACON_CONNECTION"
 ```
 
 Run it **with the new version of the tool** against a copy of production data.
@@ -228,13 +228,13 @@ deployment](/guides/production/) for what to do when it comes back red.
 
 ## Upgrade safely
 
-1. Create a branch and update all AgentPrism packages together.
+1. Create a branch and update all Tracon packages together.
 2. Read the [Release notes](/reference/changelog/) for public API,
    configuration, and migration changes — and whether the Microsoft Agent
    Framework version moved, which affects persisted session and checkpoint
    bodies (above).
 3. Build with warnings as errors and run the full test suite.
-4. Run `agentprism state-check` with the new tool version against a copy of
+4. Run `tracon state-check` with the new tool version against a copy of
    production data (above). A `3` here is a stop sign, not a warning.
 5. Start a disposable environment against a copy of production-shaped data.
 6. Inspect `/api/meta`, health checks, provider health, and migration diagnostics.
@@ -253,7 +253,7 @@ for the migration and backup contract.
 
 Include these facts when you report a defect:
 
-- the exact AgentPrism package versions from `dotnet list package`;
+- the exact Tracon package versions from `dotnet list package`;
 - the .NET target framework and deployment runtime;
 - the model provider, model or Azure deployment name, and provider SDK version;
 - the storage engine and migration state;

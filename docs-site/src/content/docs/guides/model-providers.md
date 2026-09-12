@@ -25,14 +25,14 @@ the database or the console.
 
 | Package | Registration | Provider name in `ModelBinding` | Surface |
 |---|---|---|---|
-| `AgentPrism.OpenAI` | `UseOpenAI()` | `openai` | OpenAI Chat Completions |
-| `AgentPrism.OpenAI` | `UseOpenAI()` | `openai-responses` | OpenAI Responses |
-| `AgentPrism.OpenAI` | `UseOpenAICompatible(name, …)` | your `name` | Compatible Chat Completions |
-| `AgentPrism.Anthropic` | `UseAnthropic()` | `anthropic` | Anthropic Messages |
-| `AgentPrism.Google` | `UseGoogle()` | `google` | Gemini Developer API |
-| `AgentPrism.Azure` | `UseAzureOpenAI()` | `azure-openai` | Azure OpenAI Chat Completions |
+| `Tracon.OpenAI` | `UseOpenAI()` | `openai` | OpenAI Chat Completions |
+| `Tracon.OpenAI` | `UseOpenAI()` | `openai-responses` | OpenAI Responses |
+| `Tracon.OpenAI` | `UseOpenAICompatible(name, …)` | your `name` | Compatible Chat Completions |
+| `Tracon.Anthropic` | `UseAnthropic()` | `anthropic` | Anthropic Messages |
+| `Tracon.Google` | `UseGoogle()` | `google` | Gemini Developer API |
+| `Tracon.Azure` | `UseAzureOpenAI()` | `azure-openai` | Azure OpenAI Chat Completions |
 
-The `AgentPrism` meta package includes `AgentPrism.OpenAI`. Add the Anthropic, Google,
+The `Tracon` meta package includes `Tracon.OpenAI`. Add the Anthropic, Google,
 or Azure package only when the host uses it.
 
 ## Register providers
@@ -41,18 +41,18 @@ Read credentials from configuration. Put their values in user-secrets, environme
 variables, or a secret manager.
 
 ```bash
-dotnet user-secrets set "AgentPrism:Providers:OpenAI:ApiKey" "<key>"
-dotnet user-secrets set "AgentPrism:Providers:Anthropic:ApiKey" "<key>"
-dotnet user-secrets set "AgentPrism:Providers:Google:ApiKey" "<key>"
-dotnet user-secrets set "AgentPrism:Providers:AzureOpenAI:ApiKey" "<key>"
+dotnet user-secrets set "Tracon:Providers:OpenAI:ApiKey" "<key>"
+dotnet user-secrets set "Tracon:Providers:Anthropic:ApiKey" "<key>"
+dotnet user-secrets set "Tracon:Providers:Google:ApiKey" "<key>"
+dotnet user-secrets set "Tracon:Providers:AzureOpenAI:ApiKey" "<key>"
 ```
 
 Register only the providers for which your host has complete configuration:
 
 ```csharp title="Program.cs"
-using AgentPrism;
+using Tracon;
 
-var agentPrism = builder.AddAgentPrism()
+var tracon = builder.AddTracon()
     .UseOpenAI(builder.Configuration.GetSection(OpenAIProviderOptions.SectionName))
     .UseAnthropic(builder.Configuration.GetSection(AnthropicProviderOptions.SectionName))
     .UseGoogle(builder.Configuration.GetSection(GoogleProviderOptions.SectionName))
@@ -70,7 +70,7 @@ registration again: it opens an outbound connection billed by the second, so it 
 separate call rather than a flag on `UseOpenAI()`.
 
 ```csharp title="Program.cs"
-agentPrism
+tracon
     .UseOpenAI(builder.Configuration.GetSection(OpenAIProviderOptions.SectionName))
     .UseOpenAILive(builder.Configuration.GetSection(OpenAILiveOptions.SectionName))
     .UseLiveVoice();
@@ -88,7 +88,7 @@ separate from chat-model registrations because an image model or Azure deploymen
 not safely inferred from an agent's chat model.
 
 ```csharp title="Program.cs"
-agentPrism
+tracon
     .UseOpenAIImages(options =>
     {
         options.Enabled = true;
@@ -96,16 +96,16 @@ agentPrism
     });
 
 // Azure uses an image deployment name.
-// agentPrism.UseAzureOpenAIImages(options => options.Model = "image-deployment");
+// tracon.UseAzureOpenAIImages(options => options.Model = "image-deployment");
 
 // Google uses a provider image model. It does not support WIDTHxHEIGHT in this surface.
-// agentPrism.UseGoogleImages(options => options.Model = "your-imagen-model");
+// tracon.UseGoogleImages(options => options.Model = "your-imagen-model");
 ```
 
 Each extension shares the authenticated client factory already created by `UseOpenAI`,
 `UseAzureOpenAI`, or `UseGoogle`; it adds no second credential path or package. The
 extensions register generators by provider name. When more than one is registered,
-set `AgentPrism:Images:Provider` to `openai`, `azure-openai`, or `google` to select
+set `Tracon:Images:Provider` to `openai`, `azure-openai`, or `google` to select
 the generator and matching price table. An unkeyed `IImageGenerator` that your
 application registers remains the fallback for a custom provider.
 
@@ -115,7 +115,7 @@ extension only after you verify that its provider API supports the selected mode
 Then bind an agent to one stable provider name:
 
 ```csharp
-agentPrism.AddAgent(new AgentDefinition
+tracon.AddAgent(new AgentDefinition
 {
     Name = "support",
     Instructions = "Resolve support requests. State uncertainty clearly.",
@@ -128,7 +128,7 @@ agentPrism.AddAgent(new AgentDefinition
 });
 ```
 
-Use a current model name from the provider. AgentPrism does not pin one for you.
+Use a current model name from the provider. Tracon does not pin one for you.
 
 Provider registration is host configuration, not a console operation. The console
 never accepts or displays provider secrets. Its Models screen shows the catalog and
@@ -143,7 +143,7 @@ vendor-specific keys in code or through the management HTTP API.
 That option applies only to compatible endpoints.
 
 ```csharp
-agentPrism.UseOpenAICompatible("ollama", options =>
+tracon.UseOpenAICompatible("ollama", options =>
 {
     options.Endpoint = new Uri("http://localhost:11434/v1");
     // A local server can run without an API key.
@@ -156,14 +156,14 @@ second provider is then named `{name}-responses`.
 
 The name must match `[a-z0-9][a-z0-9-]{0,31}`. The names `openai` and
 `openai-responses` are reserved. An absolute `Endpoint` is required. A compatible
-server with no key is valid; AgentPrism supplies only the fixed placeholder required
+server with no key is valid; Tracon supplies only the fixed placeholder required
 by the OpenAI client library.
 
 :::caution[Compatibility is measured per server and model]
 A successful health check proves reachability. It does not prove tool calling,
 structured output, streaming usage, or Responses API compatibility. Some compatible
 servers omit usage from streamed responses. In that case token count and cost stay
-`null`; AgentPrism does not fabricate them.
+`null`; Tracon does not fabricate them.
 :::
 
 ## Provider-specific settings
@@ -234,7 +234,7 @@ both are present.
 // Add Azure.Identity to the consumer project for DefaultAzureCredential.
 using Azure.Identity;
 
-agentPrism.UseAzureOpenAI(options =>
+tracon.UseAzureOpenAI(options =>
 {
     options.Endpoint = new Uri("https://my-resource.openai.azure.com/");
     options.CredentialFactory = static () => new DefaultAzureCredential();
@@ -242,7 +242,7 @@ agentPrism.UseAzureOpenAI(options =>
 });
 ```
 
-`AgentPrism.Azure` depends on `Azure.Core`, not `Azure.Identity`. The consumer chooses
+`Tracon.Azure` depends on `Azure.Core`, not `Azure.Identity`. The consumer chooses
 the credential implementation. Azure OpenAI Responses, On Your Data, and Azure AI
 Foundry Agents are not exposed by this provider.
 
@@ -256,7 +256,7 @@ BYOK is an **optional** provider capability, not a universal contract. A provide
 opts in by implementing `ITenantCredentialModelProvider` in addition to
 `IModelProvider`; the four built-in providers (OpenAI, Anthropic, Google, Azure
 OpenAI) all do. A provider that does not implement it simply never sees a tenant
-credential, and AgentPrism never falls back to the setup-time key on its behalf: a
+credential, and Tracon never falls back to the setup-time key on its behalf: a
 tenant binding saved against a provider that does not support BYOK fails **every**
 run with a stable `provider_credential_unsupported` error instead of silently
 billing the tenant's traffic to the host's own account.
@@ -264,17 +264,17 @@ billing the tenant's traffic to the host's own account.
 A tenant's binding stores only the **name** of a configuration key, never the value:
 
 ```bash
-dotnet user-secrets set "AgentPrism:ProviderKeys:Acme:OpenAI" "<acme's key>"
+dotnet user-secrets set "Tracon:ProviderKeys:Acme:OpenAI" "<acme's key>"
 ```
 
 ```bash
-curl -X PUT "http://localhost:5081/agentprism/api/tenants/acme/providers/openai" \
-  -H "Authorization: Bearer $AGENTPRISM_TOKEN" \
+curl -X PUT "http://localhost:5081/tracon/api/tenants/acme/providers/openai" \
+  -H "Authorization: Bearer $TRACON_TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"apiKeyConfigurationName": "AgentPrism:ProviderKeys:Acme:OpenAI"}'
+  -d '{"apiKeyConfigurationName": "Tracon:ProviderKeys:Acme:OpenAI"}'
 ```
 
-The name must sit under the configured prefix (default `AgentPrism:ProviderKeys:`); a
+The name must sit under the configured prefix (default `Tracon:ProviderKeys:`); a
 name outside it is rejected with `400` both when it is saved and again when it is
 resolved. `GET /api/tenants/acme/providers` reports whether the name currently
 resolves to a value (`resolved: true`/`false`) — never the value itself. A tenant with
@@ -286,8 +286,8 @@ so a misconfigured tenant is never billed to the wrong account.
 Restrict which providers a tenant's agents may call with an egress policy:
 
 ```bash
-curl -X PUT "http://localhost:5081/agentprism/api/tenants/acme/egress" \
-  -H "Authorization: Bearer $AGENTPRISM_TOKEN" \
+curl -X PUT "http://localhost:5081/tracon/api/tenants/acme/egress" \
+  -H "Authorization: Bearer $TRACON_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"allowedProviders": ["openai", "anthropic"]}'
 ```
@@ -301,14 +301,14 @@ credential value, only a configuration key name and an optional endpoint overrid
 
 ## A provider without a package
 
-`AddModelProvider()` registers a provider AgentPrism does not ship a package for.
+`AddModelProvider()` registers a provider Tracon does not ship a package for.
 Implement `IModelProvider` — a stable `Name`, a `Models` catalog, and
 `CreateChatClient(ModelBinding)` returning a raw `IChatClient` — and register it. If
 the provider should also accept a per-tenant credential (see [Per-tenant
 credentials](#per-tenant-credentials-byok) above), additionally implement
 `ITenantCredentialModelProvider`, whose `CreateChatClient(ModelBinding,
 ModelProviderCredential)` takes a non-null credential; a provider that does not
-implement it is never called with one — AgentPrism fails the run instead of
+implement it is never called with one — Tracon fails the run instead of
 falling back to the setup-time key on its behalf:
 
 ```csharp
@@ -329,7 +329,7 @@ public sealed class ContosoModelProvider(HttpClient httpClient, string setupApiK
 
 services.AddHttpClient();
 
-agentPrism.AddModelProvider(services =>
+tracon.AddModelProvider(services =>
     new ContosoModelProvider(services.GetRequiredService<HttpClient>(), setupApiKey));
 ```
 
@@ -338,7 +338,7 @@ and stops there — it still works with the setup-time credential for every tena
 
 A complete, runnable version of this provider — including per-tenant credentials
 and provider-settings validation — lives in the repository at
-`samples/AgentPrism.Samples.CustomModelProvider`. It takes AgentPrism by
+`samples/Tracon.Samples.CustomModelProvider`. It takes Tracon by
 `PackageReference` only, which is what makes it a proof rather than an
 illustration.
 
@@ -348,7 +348,7 @@ The rules below are what the registry and the compile path actually rely on. An
 implementation that breaks one still compiles and still passes its own unit
 tests; it misbehaves under a real deployment. Verify them by deriving
 `ModelProviderContract` from the
-[`AgentPrism.Testing.Contracts.Xunit`](/packages/) package rather than by reading carefully.
+[`Tracon.Testing.Contracts.Xunit`](/packages/) package rather than by reading carefully.
 If your provider supports BYOK, derive its opt-in
 `ModelProviderCredentialContract` too. Its required assertion must inspect the
 provider request boundary (for example a recording transport), not merely a
@@ -372,7 +372,7 @@ your own inner loop, the turn that carries a tool result back into the model run
 beneath the guard — the exact path prompt injection takes — while the reply text
 and the tool-call count stay identical, so nothing else reveals it.
 
-**AgentPrism never disposes the client you return.** It is built once per
+**Tracon never disposes the client you return.** It is built once per
 compiled agent and held by it; the compiled agent implements neither
 `IDisposable` nor `IAsyncDisposable`, and evicting one from the compile cache
 drops the reference without disposing. You own the lifetime of what you return,
@@ -388,7 +388,7 @@ section](#model-catalog-is-metadata-not-permission).
 
 **Credentials.** `CreateChatClient(ModelBinding, ModelProviderCredential)` — the
 `ITenantCredentialModelProvider` overload — is called only when a tenant supplies a
-credential **and** your provider implements that interface; without it, AgentPrism
+credential **and** your provider implements that interface; without it, Tracon
 never calls your provider with a tenant credential at all, and it does not fall back
 to calling the plain `CreateChatClient(ModelBinding)` overload with the tenant's
 request either — the run fails closed with `provider_credential_unsupported`
@@ -399,7 +399,7 @@ applies when a tenant overrides only its key.
 
 ### How failures are classified
 
-AgentPrism decides whether to move to the next `Fallbacks` link by reading the
+Tracon decides whether to move to the next `Fallbacks` link by reading the
 exception's type **name** and message **text** across the whole exception graph,
 because the core holds no compile-time reference to any provider SDK's exception
 types. What that means when you write a provider:
@@ -419,16 +419,16 @@ types. What that means when you write a provider:
 derives from `OperationCanceledException`. Do not let your own provider or retry
 classifier take that type at face value: a timeout with nobody cancelling is a
 failure, and treating it as a cancellation makes a provider outage look like a
-user pressing stop. AgentPrism separates them by looking for a timeout signal in
+user pressing stop. Tracon separates them by looking for a timeout signal in
 the exception graph and, where a token is in scope, by asking whether that token
 was actually cancelled.
 :::
 
 Two consequences are worth stating plainly. A provider-side safety filter is
 **not** an exception here: return an ordinary `ChatResponse` with
-`ChatFinishReason.ContentFilter` and AgentPrism raises
-`AgentPrismContentFilteredException` itself. Throwing instead makes the circuit
-breaker count a healthy provider as failing. And an `AgentPrismException` thrown
+`ChatFinishReason.ContentFilter` and Tracon raises
+`TraconContentFilteredException` itself. Throwing instead makes the circuit
+breaker count a healthy provider as failing. And an `TraconException` thrown
 from `CreateChatClient` is wrapped as a compilation error naming the agent, while
 every other exception propagates raw — so use it for configuration or binding
 problems the host author can act on.
@@ -454,7 +454,7 @@ inaccurate catalog misleads a human even where it cannot fail a run.
 
 ## Response caching
 
-Enable it per agent. AgentPrism forces the cache key with three inputs beyond the
+Enable it per agent. Tracon forces the cache key with three inputs beyond the
 messages and options themselves: the tenant, the sorted tool names, and the provider
 — a hit never crosses a tenant boundary and never lands on an agent with a different
 tool set, even when the prompt and instructions are otherwise identical.
@@ -462,7 +462,7 @@ tool set, even when the prompt and instructions are otherwise identical.
 ```csharp
 builder.Services.AddDistributedMemoryCache(); // or a real distributed cache: Redis, SQL Server, ...
 
-agentPrism.AddAgent(new AgentDefinition
+tracon.AddAgent(new AgentDefinition
 {
     Name = "cached-support",
     Instructions = "Resolve support requests. State uncertainty clearly.",
@@ -478,7 +478,7 @@ agentPrism.AddAgent(new AgentDefinition
 A hit skips the model call entirely: no token usage, no cost, and no new trace span
 for that turn. It does **not** skip the tool-call loop — if the cached response
 carries a tool call, the tool still runs; a hit is not a shortcut around side
-effects. A run's own `usage` field reports `null` for a hit, not `0`: AgentPrism
+effects. A run's own `usage` field reports `null` for a hit, not `0`: Tracon
 distinguishes "not measured" from "measured as zero" everywhere it reports usage.
 
 Turning `ResponseCache.Enabled` on without an `IDistributedCache` registered fails
@@ -510,13 +510,13 @@ synchronization should not opt in.
 
 ## Check a prompt against the context window before running it
 
-The pre-flight check is `AgentPrismPreflightOptions`, bound from
-`AgentPrism:Preflight`. It is off until `Enabled` is set, and `ReserveRatio` decides
+The pre-flight check is `TraconPreflightOptions`, bound from
+`Tracon:Preflight`. It is off until `Enabled` is set, and `ReserveRatio` decides
 how much of the window is held back for the answer.
 
-Outgoing concurrency is `AgentPrismModelConcurrencyOptions`, bound from
-`AgentPrism:ModelConcurrency`: `MaxConcurrentCallsPerProvider` caps how many calls
-AgentPrism has in flight against one provider at a time.
+Outgoing concurrency is `TraconModelConcurrencyOptions`, bound from
+`Tracon:ModelConcurrency`: `MaxConcurrentCallsPerProvider` caps how many calls
+Tracon has in flight against one provider at a time.
 
 `ContextWindowTokens` on a catalog `ModelDescriptor` powers two features:
 derivation for `ContextWindow` compaction, and an optional pre-flight check on
@@ -525,7 +525,7 @@ provider is called.
 
 ```json
 {
-  "AgentPrism": {
+  "Tracon": {
     "Preflight": {
       "Enabled": true,
       "ReserveRatio": 0.2
@@ -546,8 +546,8 @@ equivalent offline tokenizer. Diagnose the estimate for any agent, independent
 of whether the check is enabled, with:
 
 ```bash
-curl -X POST "http://localhost:5081/agentprism/api/agents/support/estimate" \
-  -H "Authorization: Bearer $AGENTPRISM_TOKEN" \
+curl -X POST "http://localhost:5081/tracon/api/agents/support/estimate" \
+  -H "Authorization: Bearer $TRACON_TOKEN" \
   -H 'Content-Type: application/json' \
   -d '{"message":"..."}'
 ```
@@ -572,7 +572,7 @@ as a rejection, since there is nothing to compare the prompt against.
 | Fallback chain | Empty; an unavailable primary throws, same as before this feature existed |
 | Tenant provider binding | None; every tenant uses the global setup-time credential until one is saved |
 | Tenant egress policy | Unrestricted; saving one is an additive restriction, never a default wall |
-| Allowed configuration prefix for a binding | `AgentPrism:ProviderKeys:`; a name outside it is rejected with `400` |
+| Allowed configuration prefix for a binding | `Tracon:ProviderKeys:`; a name outside it is rejected with `400` |
 | Response cache | Off; a binding with `ResponseCache.Enabled = true` and no registered `IDistributedCache` fails to compile |
 | Response cache lifetime | 10 minutes, when caching is enabled |
 | Concurrent tool calls | Off; independent tool calls in one turn run one after another |
@@ -580,8 +580,8 @@ as a rejection, since there is nothing to compare the prompt against.
 Force a current, cost-free reachability check with:
 
 ```bash
-curl -H "Authorization: Bearer $AGENTPRISM_TOKEN" \
-  "http://localhost:5081/agentprism/api/models/health/openai?refresh=true"
+curl -H "Authorization: Bearer $TRACON_TOKEN" \
+  "http://localhost:5081/tracon/api/models/health/openai?refresh=true"
 ```
 
 The health call reads a model list. It does not run a completion.
@@ -617,13 +617,13 @@ counted value against the model's real `ContextWindowTokens` before deciding.
 ## In the reference
 
 - [Model health HTTP API](/http-api/models/)
-- [`ModelBinding` API](/api/agentprism.modelbinding/)
-- [`ResponseCacheSettings` API](/api/agentprism.responsecachesettings/)
-- [`UseOpenAI` API](/api/agentprism.openaiproviderextensions/)
-- [`UseOpenAICompatible` API](/api/agentprism.openaicompatibleproviderextensions/)
-- [`UseAnthropic` API](/api/agentprism.anthropicproviderextensions/)
-- [`UseGoogle` API](/api/agentprism.googleproviderextensions/)
-- [`UseAzureOpenAI` API](/api/agentprism.azureopenaiproviderextensions/)
+- [`ModelBinding` API](/api/tracon.modelbinding/)
+- [`ResponseCacheSettings` API](/api/tracon.responsecachesettings/)
+- [`UseOpenAI` API](/api/tracon.openaiproviderextensions/)
+- [`UseOpenAICompatible` API](/api/tracon.openaicompatibleproviderextensions/)
+- [`UseAnthropic` API](/api/tracon.anthropicproviderextensions/)
+- [`UseGoogle` API](/api/tracon.googleproviderextensions/)
+- [`UseAzureOpenAI` API](/api/tracon.azureopenaiproviderextensions/)
 
 ## Read next
 

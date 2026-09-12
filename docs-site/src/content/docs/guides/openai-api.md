@@ -1,9 +1,9 @@
 ---
 title: OpenAI-compatible API
-description: Point OpenAI clients at AgentPrism, choose an agent with model, stream responses, and understand the exact compatibility boundary.
+description: Point OpenAI clients at Tracon, choose an agent with model, stream responses, and understand the exact compatibility boundary.
 ---
 
-AgentPrism exposes the two OpenAI request styles most application clients already
+Tracon exposes the two OpenAI request styles most application clients already
 understand:
 
 - `POST {prefix}/v1/responses`
@@ -13,33 +13,33 @@ understand:
 ```mermaid
 flowchart TD
     accTitle: The two compatible surfaces and who owns the conversation
-    accDescr: Responses keeps conversation state on the server, reached either by previous_response_id or by an explicitly reserved conversation. Chat Completions carries its history in the request. Both resolve the model field to an AgentPrism agent, which then chooses its own provider model.
-    RESP["POST /v1/responses"] --> SRV["AgentPrism owns the session"]
+    accDescr: Responses keeps conversation state on the server, reached either by previous_response_id or by an explicitly reserved conversation. Chat Completions carries its history in the request. Both resolve the model field to an Tracon agent, which then chooses its own provider model.
+    RESP["POST /v1/responses"] --> SRV["Tracon owns the session"]
     CONV["POST /v1/conversations"] --> SRV
     PREV["previous_response_id"] --> SRV
     CHAT["POST /v1/chat/completions"] --> CLI["The client owns the message list"]
-    SRV --> PICK["model selects an AgentPrism agent"]
+    SRV --> PICK["model selects an Tracon agent"]
     CLI --> PICK
     PICK --> AGENT["Agent: instructions · tools · skills<br/>memory · guards · budgets"]
     AGENT --> MODEL["The provider model the agent binds to"]
 ```
 
 This is an **agent surface**, not a transparent model proxy. The request's `model`
-selects an AgentPrism agent. That agent then selects its provider model, instructions,
+selects an Tracon agent. That agent then selects its provider model, instructions,
 tools, skills, memory, guards, and budgets on the server.
 
 ## Responses API: recommended for stateful clients
 
 The official OpenAI SDK uses `client.responses.create(model=..., input=...)`; point
-the same client shape at AgentPrism and use an AgentPrism credential:
+the same client shape at Tracon and use an Tracon credential:
 
 ```python
 import os
 from openai import OpenAI
 
 client = OpenAI(
-    api_key=os.environ["AGENTPRISM_API_KEY"],
-    base_url="https://agents.example.com/agentprism/v1",
+    api_key=os.environ["TRACON_API_KEY"],
+    base_url="https://agents.example.com/tracon/v1",
 )
 
 response = client.responses.create(
@@ -51,14 +51,14 @@ print(response.output_text)
 ```
 
 If your generated SDK version expects the base URL without `/v1`, follow that SDK's
-base-URL rule. The request that reaches AgentPrism must end at
+base-URL rule. The request that reaches Tracon must end at
 `{prefix}/v1/responses`.
 
 The same call without an SDK is unambiguous:
 
 ```bash
-curl -sS https://agents.example.com/agentprism/v1/responses \
-  -H "Authorization: Bearer $AGENTPRISM_API_KEY" \
+curl -sS https://agents.example.com/tracon/v1/responses \
+  -H "Authorization: Bearer $TRACON_API_KEY" \
   -H 'Content-Type: application/json' \
   -d '{"model":"support","input":"Where is order 4182?"}'
 ```
@@ -84,7 +84,7 @@ for event in stream:
         print(event.delta, end="", flush=True)
 ```
 
-This follows the official Responses streaming model. AgentPrism still creates its own
+This follows the official Responses streaming model. Tracon still creates its own
 run and ordered event history behind the compatible stream.
 
 ## Conversation state
@@ -99,19 +99,19 @@ Use either mechanism supported by Responses:
 }
 ```
 
-AgentPrism stores the session under the first response identifier, so
+Tracon stores the session under the first response identifier, so
 `previous_response_id` finds its history. Or reserve and reuse an explicit
 conversation:
 
 ```bash
 CONVERSATION_ID=$(curl -sS -X POST \
-  https://agents.example.com/agentprism/v1/conversations \
-  -H "Authorization: Bearer $AGENTPRISM_API_KEY" \
+  https://agents.example.com/tracon/v1/conversations \
+  -H "Authorization: Bearer $TRACON_API_KEY" \
   -H 'Content-Type: application/json' \
   -d '{}' | jq -r .id)
 
-curl -sS https://agents.example.com/agentprism/v1/responses \
-  -H "Authorization: Bearer $AGENTPRISM_API_KEY" \
+curl -sS https://agents.example.com/tracon/v1/responses \
+  -H "Authorization: Bearer $TRACON_API_KEY" \
   -H 'Content-Type: application/json' \
   -d "{\"model\":\"support\",\"conversation\":\"$CONVERSATION_ID\",\"input\":\"Hello\"}"
 ```
@@ -125,7 +125,7 @@ by another tenant returns `404`, not evidence that the resource exists.
 `GET`, `DELETE` and `GET …/items` reach the same sessions `/api/sessions/{id}`
 reaches, so they pass the same two checks before answering:
 
-- **Session ownership**, when `AgentPrism:SessionOwnership` is on — including
+- **Session ownership**, when `Tracon:SessionOwnership` is on — including
   `RefuseUnownedSessions`. See
   [Sessions: session ownership](/concepts/sessions/#session-ownership).
 - **Your registered `IRunAuthorizationHandler`**, with `SessionAccess.Read` on
@@ -141,7 +141,7 @@ gated: it reserves an identifier and writes nothing.
 If your deployment does not use these routes at all, leave them unmapped:
 
 ```csharp
-app.MapAgentPrism("/agentprism", options => options.MapOpenAIConversations = false);
+app.MapTracon("/tracon", options => options.MapOpenAIConversations = false);
 ```
 
 The four paths then answer `404` and disappear from the OpenAPI document.
@@ -163,7 +163,7 @@ print(completion.choices[0].message.content)
 ```
 
 `stream=True` returns `chat.completion.chunk` frames and ends with `[DONE]`.
-AgentPrism does not open a server session for this endpoint. Send the full history on
+Tracon does not open a server session for this endpoint. Send the full history on
 every call; otherwise the next turn has no previous context.
 
 ## Calling these endpoints from a typed client
@@ -176,14 +176,14 @@ one of them:
 
 | You want | .NET method | Returns |
 |---|---|---|
-| One complete answer | `AgentPrismOpenAIResponsesAsync` | `Task<JsonElement>` |
-| Frames as they arrive | `AgentPrismOpenAIResponsesStreamAsync` | `IAsyncEnumerable<string>` |
+| One complete answer | `TraconOpenAIResponsesAsync` | `Task<JsonElement>` |
+| Frames as they arrive | `TraconOpenAIResponsesStreamAsync` | `IAsyncEnumerable<string>` |
 
 ```csharp
 var body = JsonSerializer.SerializeToElement(
     new { model = "support", input = "Where is order 4182?", stream = true });
 
-await foreach (var frame in client.AgentPrismOpenAIResponsesStreamAsync(body))
+await foreach (var frame in client.TraconOpenAIResponsesStreamAsync(body))
 {
     // One raw SSE frame per element, e.g.
     // "event: response.output_text.delta\ndata: {...}"
@@ -194,9 +194,9 @@ await foreach (var frame in client.AgentPrismOpenAIResponsesStreamAsync(body))
 The frame is handed over **as the server flushes it**, so a `break` or a cancelled
 token stops the read and releases the connection. Comment-only keep-alive blocks are
 skipped. The element is the raw frame rather than a parsed event type: the payload
-follows OpenAI's schema, not AgentPrism's, so parsing it is yours to control.
+follows OpenAI's schema, not Tracon's, so parsing it is yours to control.
 
-`AgentPrismRunAgentStreamAsync` and the other `*StreamAsync` methods give the
+`TraconRunAgentStreamAsync` and the other `*StreamAsync` methods give the
 management API's streaming endpoints the same shape.
 
 :::caution[The method and the body must agree]
@@ -206,18 +206,18 @@ names the fix rather than failing obscurely later:
 
 > The server answered 200 with content type `application/json`, not
 > `text/event-stream`. Send `"stream": true`, or call
-> `AgentPrismOpenAIResponsesAsync` for the JSON shape.
+> `TraconOpenAIResponsesAsync` for the JSON shape.
 :::
 
 In TypeScript no special method is needed — ask for the raw stream and decode it with
 the reader the package ships:
 
 ```ts
-import { createAgentPrismClient, readSse } from '@agentprism/client';
+import { createTraconClient, readSse } from '@tracon/client';
 
-const client = createAgentPrismClient({
-  baseUrl: 'https://agents.example.com/agentprism',
-  token: process.env.AGENTPRISM_API_KEY,
+const client = createTraconClient({
+  baseUrl: 'https://agents.example.com/tracon',
+  token: process.env.TRACON_API_KEY,
 });
 
 const { response } = await client.POST('/v1/responses', {
@@ -232,27 +232,27 @@ for await (const frame of readSse(response)) {
 
 ## Compatibility matrix
 
-| Capability | Responses | Chat Completions | AgentPrism behavior |
+| Capability | Responses | Chat Completions | Tracon behavior |
 |---|---|---|---|
 | Text input and output | yes | yes | Runs the selected agent and records the run |
 | SSE streaming | yes | yes | Uses surface-specific OpenAI frame names |
-| Server conversation | `conversation` or `previous_response_id` | no | Maps to AgentPrism sessions |
+| Server conversation | `conversation` or `previous_response_id` | no | Maps to Tracon sessions |
 | Client-carried history | input items | `messages` | Resolved attachments reach the provider |
 | Agent tool loop | yes | yes | Tools are defined and executed server-side |
 | Pending approval visibility | yes | provider-shaped output | The call cannot supply an interactive approval turn |
 | Usage | when provider reports it | when provider reports it | Missing usage remains unknown, not zero |
-| OpenAI hosted tools | not a pass-through | not a pass-through | Configure AgentPrism tools/MCP instead |
+| OpenAI hosted tools | not a pass-through | not a pass-through | Configure Tracon tools/MCP instead |
 | Background Responses mode | no | no | Use `Prefer: respond-async` on the management run endpoint |
 
 Fields understood by the OpenAI parser can be accepted without becoming an
-AgentPrism feature. Do not assume every OpenAI hosted tool, storage flag, service
+Tracon feature. Do not assume every OpenAI hosted tool, storage flag, service
 tier, or retrieval surface is forwarded to the agent's provider. The server-side
 definition is authoritative.
 
 ## Authentication and authorization
 
-Use the bearer token configured on `MapAgentPrism`, or a tenant-bound AgentPrism API
-key with `RunsWrite`<!-- claim:policy POST /agentprism/v1/chat/completions scope=RunsWrite --> — these routes start runs, so they take the same scope the
+Use the bearer token configured on `MapTracon`, or a tenant-bound Tracon API
+key with `RunsWrite`<!-- claim:policy POST /tracon/v1/chat/completions scope=RunsWrite --> — these routes start runs, so they take the same scope the
 management run endpoints take. `GET /v1/conversations/{id}` and its items route
 take `RunsRead` instead. `ExternalInvoke` is the scope for the MCP and A2A
 surfaces and does **not** authorize these routes: a key issued with only
@@ -270,18 +270,18 @@ your architecture permits.
 | `400` with listed agents | No valid `model` or `metadata.entity_id` selected an agent |
 | `401` | Bearer token or API key is missing, invalid, revoked, or expired |
 | `403` | Role, scope, loopback, or tenant rule refused the call |
-| `404 model_not_found` | The selected AgentPrism agent does not resolve |
-| `422` | An AgentPrism content guard or idempotency contract rejected the request |
+| `404 model_not_found` | The selected Tracon agent does not resolve |
+| `422` | An Tracon content guard or idempotency contract rejected the request |
 | `429` | A rate or quota boundary was reached |
 | `502` | The configured upstream provider failed |
 
-Use the management run API when you need AgentPrism-specific controls such as
+Use the management run API when you need Tracon-specific controls such as
 queued execution, idempotent non-streaming responses, explicit replay, cancellation,
 or complete run diagnostics.
 
 The client method and streaming examples follow the
 [official OpenAI Responses documentation](https://developers.openai.com/api/docs/guides/text).
-The behavior and compatibility limits above are AgentPrism's own contract.
+The behavior and compatibility limits above are Tracon's own contract.
 
 ## Read next
 

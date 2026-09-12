@@ -4,7 +4,7 @@ Ortak çerçeve: [`00-INDEKS.md`](00-INDEKS.md). Bu oturum onu uygular.
 
 ## Kapsam
 
-`src/AgentPrism.UI/frontend/src` (React/TS), `docs-site/src` (Astro),
+`src/Tracon.UI/frontend/src` (React/TS), `docs-site/src` (Astro),
 `EmbeddedUiProvider.cs` (gömülü varlık sunumu).
 
 ## Bilinen tasarım

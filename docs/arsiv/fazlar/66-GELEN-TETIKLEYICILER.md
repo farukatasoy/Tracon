@@ -3,7 +3,7 @@
 > **Durum:** ✅ Tamamlandı (2026-08-19)
 > **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-65**
 > **Önkoşul:** [Faz 17](17-TOPLU-VE-ZAMANLANMIS-CALISTIRMA.md) — iş kuyruğu · [Faz 21](21-KOTA-VE-OLAY-YAYINI.md) — `WebhookSigner` ters yönde kullanılır · [Faz 43](43-IDEMPOTENCY-KEY.md) — tekrar koruması oradan gelir · [Faz 46](46-DAYANIKLI-CALISTIRMA.md) — `JobKind.AgentRun` tetikleyicinin hedefidir · [Faz 53](53-KIRACI-API-ANAHTARLARI.md) — kapsam modeli
-> **Paketler:** `AgentPrism.Abstractions`, `AgentPrism.Core`, `AgentPrism.Sql.Shared`, `AgentPrism.PostgreSql`, `AgentPrism.SqlServer`, `AgentPrism.Sqlite`, `AgentPrism.AspNetCore`, `AgentPrism.UI`
+> **Paketler:** `Tracon.Abstractions`, `Tracon.Core`, `Tracon.Sql.Shared`, `Tracon.PostgreSql`, `Tracon.SqlServer`, `Tracon.Sqlite`, `Tracon.AspNetCore`, `Tracon.UI`
 > **Yeni paket:** Yok · **Migration:** **gerekli — üç set** (yeni `inbound_triggers` tablosu). Numara uygulama anında alınır (K-178)
 > **Public API:** **büyüyor** — bir kayıt tipi, bir depo arayüzü, uç ailesi. `PublicAPI.Shipped.txt` bugün **boş**; ekleme **bugün bedava**
 > **Site etkisi:** `guides/background-work.md`, `concepts/runs.md`, yeni `guides/inbound-triggers.md`
@@ -28,11 +28,11 @@
 
 ## Amaç
 
-Faz 21 **giden** webhook'u verdi: AgentPrism dış dünyaya olay yollar. Tersi yoktur. Bir Slack mesajı, bir e-posta, bir kuyruk olayı bir çalıştırma başlatamaz. Agent yalnız **sorulunca** konuşur; olaya tepki veremez. - **F-65** — İmzalı gelen uç, olay → agent eşlemesi ve Faz 17'nin kuyruğuna düşürme.
+Faz 21 **giden** webhook'u verdi: Tracon dış dünyaya olay yollar. Tersi yoktur. Bir Slack mesajı, bir e-posta, bir kuyruk olayı bir çalıştırma başlatamaz. Agent yalnız **sorulunca** konuşur; olaya tepki veremez. - **F-65** — İmzalı gelen uç, olay → agent eşlemesi ve Faz 17'nin kuyruğuna düşürme.
 
 ## Bitiş Ölçütleri (DoD)
 
-- [x] Doğru imzalı istek `202` + `Location` döner ve çalıştırma kuyruktan koşar — `samples/AgentPrism.Api`'de doğrulandı: `202`, `Location: /agentprism/api/runs/{runId}`, run birkaç saniyede `Completed`
+- [x] Doğru imzalı istek `202` + `Location` döner ve çalıştırma kuyruktan koşar — `samples/Tracon.Api`'de doğrulandı: `202`, `Location: /tracon/api/runs/{runId}`, run birkaç saniyede `Completed`
 - [x] İmzasız, yanlış imzalı ve pencere dışı istek `401` döner — `TriggerEndpointTests` + `InboundTriggerDispatcherTests`
 - [x] Aynı istek ikinci kez `409` döner; ikinci çalıştırma açılmaz — `A_replayed_request_is_rejected_the_second_time`
 - [x] Bilinmeyen kiracı `401` alır (**K-472**, plandaki `404` değil), varsayılana **düşmez** — `An_unknown_tenant_does_not_fall_back_to_the_default_tenant`
@@ -44,41 +44,41 @@ Faz 21 **giden** webhook'u verdi: AgentPrism dış dünyaya olay yollar. Tersi y
 - [x] Başka kiracının tetikleyicisi ne görünür ne çalışır (sözleşme testi, dört koşum) — `InboundTriggerStoreContract`, InMemory + 3 SQL sağlayıcısı
 - [x] Tetikleyici yazımı denetim izine mutasyondan **önce** yazılır — `Save_writes_an_audit_trail_entry_before_the_definition_is_readable`; kodda `ApprovalEndpoints`/K-370 ile birebir aynı desen
 - [x] Dört doğrulama kapısı sıfır uyarı verir — build/test/pack/format hepsi temiz
-- [x] `samples/AgentPrism.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı — aşağıdaki "Doğrulama komutları" bölümü gerçek çıktıyla güncellendi
+- [x] `samples/Tracon.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı — aşağıdaki "Doğrulama komutları" bölümü gerçek çıktıyla güncellendi
 - [x] `secret` taraması boş döndü
-- [x] Manuel kabul case'leri `docs/manuel-test/16-IS-KUYRUGU-VE-ZAMANLAMA.md` içine eklendi (MT-JOB-091..102); otomatikleştirilebilenler (091-101) `samples/AgentPrism.Api`'ye karşı koşuldu, 102 (arayüz) 👤 insan gerekir
+- [x] Manuel kabul case'leri `docs/manuel-test/16-IS-KUYRUGU-VE-ZAMANLAMA.md` içine eklendi (MT-JOB-091..102); otomatikleştirilebilenler (091-101) `samples/Tracon.Api`'ye karşı koşuldu, 102 (arayüz) 👤 insan gerekir
 - [x] `faz-denetim` koşuldu; 🔴 bulgu kalmadı — bkz. Denetim Bulguları
 - [x] `docs-site/` güncellendi (`guides/background-work.md`, `guides/inbound-triggers.md`, `concepts/runs.md`); `npm run build` + `check-links.mjs` temiz — 970 sayfa, 122628 iç bağlantı, kırık yok
 - [x] `en.ts` ve `tr.ts` eksiksiz; bundle payı ölçüldü ve yazıldı — 165,4 KB → **171,3 KB** gzip / 250 KB (+5,9 KB)
 
 ### Doğrulama komutları
 
-Gerçek koşum çıktısı (2026-08-19, `samples/AgentPrism.Api`, gerçek PostgreSQL + gerçek `support` agent):
+Gerçek koşum çıktısı (2026-08-19, `samples/Tracon.Api`, gerçek PostgreSQL + gerçek `support` agent):
 
 ```bash
-dotnet user-secrets set "AgentPrism:TriggerSecrets:Slack" "whsec_manual_test_66" \
-  --project samples/AgentPrism.Api
+dotnet user-secrets set "Tracon:TriggerSecrets:Slack" "whsec_manual_test_66" \
+  --project samples/Tracon.Api
 
-curl -s -X PUT http://localhost:5000/agentprism/api/triggers/slack \
+curl -s -X PUT http://localhost:5000/tracon/api/triggers/slack \
   -H 'Authorization: Bearer manuel-test-token-2026' -H 'Content-Type: application/json' \
-  -d '{"targetKind":"agent","targetName":"support","signingSecretConfigurationName":"AgentPrism:TriggerSecrets:Slack","payloadMode":"path","payloadPath":"event.text"}'
+  -d '{"targetKind":"agent","targetName":"support","signingSecretConfigurationName":"Tracon:TriggerSecrets:Slack","payloadMode":"path","payloadPath":"event.text"}'
 # -> {"name":"slack",...,"resolved":true,...}
 
-# imzali istek (X-AgentPrism-Timestamp/-Signature hesabi WebhookSigner.Sign ile)
-curl -s -i -X POST http://localhost:5000/agentprism/api/triggers/default/slack \
-  -H 'Content-Type: application/json' -H "X-AgentPrism-Timestamp: $TS" -H "X-AgentPrism-Signature: $SIG" \
+# imzali istek (X-Tracon-Timestamp/-Signature hesabi WebhookSigner.Sign ile)
+curl -s -i -X POST http://localhost:5000/tracon/api/triggers/default/slack \
+  -H 'Content-Type: application/json' -H "X-Tracon-Timestamp: $TS" -H "X-Tracon-Signature: $SIG" \
   --data-binary @body.json
 # -> HTTP/1.1 202 Accepted
-#    Location: /agentprism/api/runs/01a01890-1652-7183-9d50-6efd430644a3
+#    Location: /tracon/api/runs/01a01890-1652-7183-9d50-6efd430644a3
 #    {"runId":"01a01890-...","jobId":"01a01890-...", "location":"...","eventsLocation":".../events"}
 
-curl -s http://localhost:5000/agentprism/api/runs/01a01890-1652-7183-9d50-6efd430644a3 -H "$AUTH"
+curl -s http://localhost:5000/tracon/api/runs/01a01890-1652-7183-9d50-6efd430644a3 -H "$AUTH"
 # -> "status":"Completed", modelId gpt-5.4-mini, usage.totalTokens 246
 
 # ayni imza tekrar -> 409; imzasiz -> 401; bilinmeyen kiraci -> 401; bilinmeyen isim -> 401
 # path cozulmezse -> 400 detail: "The payload path 'event.text' did not resolve..."
 
-pg_dump -U postgres -d agentprism --schema=agentprism | grep -c "whsec_manual_test_66"
+pg_dump -U postgres -d tracon --schema=tracon | grep -c "whsec_manual_test_66"
 # -> 0
 ```
 
@@ -103,8 +103,8 @@ pg_dump -U postgres -d agentprism --schema=agentprism | grep -c "whsec_manual_te
    seviyesinde (`run` → `Failed`) yakalanır. Bağımsız denetimde sorgulandı, emsal
    ile doğrulanıp onaylandı.
 4. **Rate limiter `System.Threading.RateLimiting` yerine elle yazıldı.** Plan
-   Faz 21'in `AgentPrismRateLimitFilter`'ıyla aynı altyapıyı ima ediyordu, ama o
-   tip ASP.NET Core paylaşılan çerçevesinden gelir ve `AgentPrism.Core` (düz sınıf
+   Faz 21'in `TraconRateLimitFilter`'ıyla aynı altyapıyı ima ediyordu, ama o
+   tip ASP.NET Core paylaşılan çerçevesinden gelir ve `Tracon.Core` (düz sınıf
    kütüphanesi, web bağımlılığı yok) onu göremez. `InboundTriggerRateLimiter`
    bağımsız, sabit pencereli bir sayaçla yazıldı (K1: dispatcher'ın bir web
    çerçevesine bağımlı olmaması).
@@ -151,11 +151,11 @@ Düzeltmelerden sonra dört doğrulama kapısı yeniden koşuldu — hepsi temiz
   `docs-site/scripts/build-http-api.mjs`'in `readEndpointAuthorization`
   fonksiyonundaki `anonymous` kontrolüne VE `check-content.mjs`'in
   `expectedAnonymous` listesine eklenmelidir — yoksa `npm run generate`/`npm run
-  check:content` kırılır (`AgentPrismAcceptInboundTrigger` örneği).
-- 🚨 `tests/AgentPrism.AspNetCore.FunctionalTests/ApiKeyScopeCoverageTests.cs`'in
+  check:content` kırılır (`TraconAcceptInboundTrigger` örneği).
+- 🚨 `tests/Tracon.AspNetCore.FunctionalTests/ApiKeyScopeCoverageTests.cs`'in
   `ExemptRoutePatterns`'ı da aynı şekilde her yeni kimlik doğrulamasız/kapsamsız
   uç için güncellenmelidir.
-- 🚨 `AgentPrism.Core`'da `System.Threading.RateLimiting` KULLANILAMAZ (ASP.NET
+- 🚨 `Tracon.Core`'da `System.Threading.RateLimiting` KULLANILAMAZ (ASP.NET
   Core paylaşılan çerçevesinden gelir); host-agnostic bir sınırlayıcı gerekiyorsa
   elle yazılmalıdır (`InboundTriggerRateLimiter` örneği).
 - 🚨 Bir kaynağın "yok" durumuyla "yetkisiz" durumunu birleştirmek isteyen her

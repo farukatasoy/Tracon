@@ -1,20 +1,20 @@
 ---
 title: Connect and expose agents
-description: Consume MCP tools and context, or publish selected AgentPrism agents through MCP and A2A with explicit security boundaries.
+description: Consume MCP tools and context, or publish selected Tracon agents through MCP and A2A with explicit security boundaries.
 ---
 
-AgentPrism supports three different external-agent directions. Keep them separate:
+Tracon supports three different external-agent directions. Keep them separate:
 
 | Direction | Purpose | Registration | HTTP surface |
 |---|---|---|---|
-| MCP client | Bring remote tools, prompts, and resources into AgentPrism | `UseMcp()` | Managed through `/api/mcp-servers/*` |
-| MCP server | Publish an AgentPrism agent as an MCP tool | `UseMcpServer()` | `/agentprism/mcp` by default |
-| A2A server | Publish an agent through the agent-to-agent protocol | `UseA2A()` | `/agentprism/a2a/{agent}` by default |
+| MCP client | Bring remote tools, prompts, and resources into Tracon | `UseMcp()` | Managed through `/api/mcp-servers/*` |
+| MCP server | Publish an Tracon agent as an MCP tool | `UseMcpServer()` | `/tracon/mcp` by default |
+| A2A server | Publish an agent through the agent-to-agent protocol | `UseA2A()` | `/tracon/a2a/{agent}` by default |
 
 ```mermaid
 flowchart LR
     accTitle: The three external-agent directions
-    accDescr: As an MCP client AgentPrism calls remote servers to gain tools. As an MCP server and as an A2A server AgentPrism is called by outside callers, and each of those directions has its own allowlist, budget, and credential requirement.
+    accDescr: As an MCP client Tracon calls remote servers to gain tools. As an MCP server and as an A2A server Tracon is called by outside callers, and each of those directions has its own allowlist, budget, and credential requirement.
     subgraph Inbound["Who can call your agents"]
         MCPC["MCP caller"] --> MCPS["UseMcpServer<br/>allowlist · run budget · ExternalInvoke key"]
         A2AC["A2A caller"] --> A2AS["UseA2A<br/>one agent card per exposed agent"]
@@ -30,10 +30,10 @@ call your agents. They have different trust boundaries and must be enabled separ
 
 ## Consume a remote MCP server
 
-Add the non-AOT `AgentPrism.Mcp` package and register discovery:
+Add the non-AOT `Tracon.Mcp` package and register discovery:
 
 ```csharp
-var agentPrism = builder.AddAgentPrism()
+var tracon = builder.AddTracon()
     .UseOpenAI(builder.Configuration.GetSection(OpenAIProviderOptions.SectionName))
     .UsePostgreSql(connectionString)
     .UseMcp(options =>
@@ -50,12 +50,12 @@ key name is persisted; the credential value stays in your secret provider:
 ```json
 {
   "endpoint": "https://mcp.example.com/mcp",
-  "authorizationConfigurationKey": "AgentPrism:Mcp:ExampleToken"
+  "authorizationConfigurationKey": "Tracon:Mcp:ExampleToken"
 }
 ```
 
 ```bash
-dotnet user-secrets set "AgentPrism:Mcp:ExampleToken" "Bearer ..."
+dotnet user-secrets set "Tracon:Mcp:ExampleToken" "Bearer ..."
 ```
 
 Discovery is asynchronous and does not block startup. Refresh immediately after a
@@ -64,7 +64,7 @@ server loses its discovered tools and produces a warning; other servers continue
 
 ### The MCP client security boundary
 
-- Only HTTP and HTTPS transports are accepted. AgentPrism does not start MCP `stdio`
+- Only HTTP and HTTPS transports are accepted. Tracon does not start MCP `stdio`
   processes on the host.
 - Discovered tool names are `{server}_{tool}`. A code-defined tool with the same name
   wins, so a remote server cannot replace it.
@@ -83,7 +83,7 @@ Choose the allowlist before the application is built, then map the management AP
 before the MCP endpoint:
 
 ```csharp
-var agentPrism = builder.AddAgentPrism()
+var tracon = builder.AddTracon()
     .UseOpenAI(builder.Configuration.GetSection(OpenAIProviderOptions.SectionName))
     .UsePostgreSql(connectionString)
     .UseMcpServer(options =>
@@ -100,12 +100,12 @@ var agentPrism = builder.AddAgentPrism()
 
 var app = builder.Build();
 
-app.MapAgentPrism("/agentprism", options =>
+app.MapTracon("/tracon", options =>
 {
     options.AllowRemoteAccess = true;
     options.RequireRolePolicies = true;
 });
-app.MapAgentPrismMcpServer();
+app.MapTraconMcpServer();
 ```
 
 No agent is exposed by default. `ExposeAllAgents` exists, but an allowlist is safer
@@ -114,7 +114,7 @@ default maximum depth is one, so an external caller cannot open an unbounded age
 tree.
 
 The endpoint inherits the loopback, bearer, and authorization settings from
-`MapAgentPrism`. Remote exposure also requires at least one active, unexpired API key
+`MapTracon`. Remote exposure also requires at least one active, unexpired API key
 with the exact `ExternalInvoke` scope. A static bearer token alone is rejected at
 startup. Create the key before enabling remote access.
 
@@ -155,7 +155,7 @@ caller cannot act as the missing human.
 A2A exposes a distinct identity and agent card for each selected agent:
 
 ```csharp
-var agentPrism = builder.AddAgentPrism()
+var tracon = builder.AddTracon()
     .UseOpenAI(builder.Configuration.GetSection(OpenAIProviderOptions.SectionName))
     .UsePostgreSql(connectionString)
     .UseA2A(options =>
@@ -170,16 +170,16 @@ var agentPrism = builder.AddAgentPrism()
 
 var app = builder.Build();
 
-app.MapAgentPrism("/agentprism", options =>
+app.MapTracon("/tracon", options =>
 {
     options.AllowRemoteAccess = true;
     options.RequireRolePolicies = true;
 });
-app.MapAgentPrismA2A();
+app.MapTraconA2A();
 ```
 
-The invocation URL is `/agentprism/a2a/support`; its card is under
-`/agentprism/a2a/support/.well-known/agent-card.json`.
+The invocation URL is `/tracon/a2a/support`; its card is under
+`/tracon/a2a/support/.well-known/agent-card.json`.
 
 A2A names are frozen during service registration because the underlying hosting API
 registers one server per name. The agent implementation is still resolved from the
@@ -187,12 +187,12 @@ catalog on every call, so updating a database definition changes later behavior,
 adding a new name requires an application restart and registration change. There is
 no expose-all switch.
 
-AgentPrism declares streaming, push notifications, and background A2A runs as
+Tracon declares streaming, push notifications, and background A2A runs as
 unsupported. The same `ExternalInvoke`, approval, tenant, and budget boundaries as
 the MCP server apply.
 
 Both surfaces are configured in code, never from the console:
-`AgentPrismMcpServerOptions` for the MCP server and `AgentPrismA2AOptions` for A2A.
+`TraconMcpServerOptions` for the MCP server and `TraconA2AOptions` for A2A.
 They do not carry the same settings.
 
 `ExposeAllAgents` and `ToolNamePrefix` are **MCP-server settings only**:

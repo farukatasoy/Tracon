@@ -29,7 +29,7 @@ Sıra sabittir: **oturum → onay satırı → durum.** Ortadakini atlarsan kara
 Tamamlamayı çağırana devretme. `CompleteAsync` yalnız durum yazmaz: bitmemiş
 tool'ları boşaltır, compaction usage'ını birleştirir, fallback atfını çözer,
 maliyeti ve metriği yazar. Doğru dikiş, durum yazılmadan hemen önce koşan bir
-kancadır — `AgentPrismRunOptions.BeforePendingApprovalIsPublished`. Kanca akışlı
+kancadır — `TraconRunOptions.BeforePendingApprovalIsPublished`. Kanca akışlı
 yolda da koşar; bir genişleme noktası yola göre sessizce farklı davranmamalıdır.
 
 - **🚨 Uretilemeyen bir `enum` uyesi sessiz bir YANLIS BEYANDIR ve tum sevk

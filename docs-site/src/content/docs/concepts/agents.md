@@ -120,10 +120,10 @@ flowchart LR
 ```
 
 `AddAgent(name, factory)` is a code registration too — the factory returns a MAF
-`AIAgent` directly, built however you want, and the catalog still applies AgentPrism's
+`AIAgent` directly, built however you want, and the catalog still applies Tracon's
 decorators (recording, telemetry, approval) when it resolves the agent.
 
-An application can add an `IAgentSource` for definitions stored outside AgentPrism or
+An application can add an `IAgentSource` for definitions stored outside Tracon or
 for agents owned by another runtime. Custom-source agents are visible in the console
 but remain read-only in the management API. See [write your own agent
 source](/guides/write-your-own-agent-source/) for the lifecycle, priority, tenancy,
@@ -282,7 +282,7 @@ the same boundary tools and eval checks live behind:
 // Microsoft Agent Framework marks the loop types for evaluation only, so
 // naming one in your own code needs this suppression.
 #pragma warning disable MAAI001
-agentPrism.AddLoopEvaluator("hasCitations", new DelegateLoopEvaluator((context, ct) =>
+tracon.AddLoopEvaluator("hasCitations", new DelegateLoopEvaluator((context, ct) =>
     new ValueTask<LoopEvaluation>(
         context.LastResponse?.Text?.Contains("[1]", StringComparison.Ordinal) == true
             ? LoopEvaluation.Stop()
@@ -303,7 +303,7 @@ Four more rules are worth knowing before you turn the loop on:
   `aiJudge` placed after a `completionMarker` costs nothing on the iterations the
   marker already keeps going.
 - **The iteration ceiling is never open.** An unset `MaxIterations` takes
-  AgentPrism's own default of 10. A criterion that can never be satisfied then
+  Tracon's own default of 10. A criterion that can never be satisfied then
   ends as a bounded run, not as an invoice.
 - **`aiJudge` calls a model on every iteration it reaches.** It runs on the
   judge binding configured with `AddModelRunJudge(...)`, never on the agent's own

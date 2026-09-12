@@ -1,0 +1,24 @@
+#nullable enable
+Tracon.TraconSqlServerBuilderExtensions
+Tracon.TraconSqlServerOptions
+Tracon.TraconSqlServerOptions.TraconSqlServerOptions() -> void
+Tracon.TraconSqlServerOptions.AutoApplyMigrations.get -> bool
+Tracon.TraconSqlServerOptions.AutoApplyMigrations.set -> void
+Tracon.TraconSqlServerOptions.CommandTimeoutSeconds.get -> int
+Tracon.TraconSqlServerOptions.CommandTimeoutSeconds.set -> void
+Tracon.TraconSqlServerOptions.ConnectionString.get -> string?
+Tracon.TraconSqlServerOptions.ConnectionString.set -> void
+Tracon.TraconSqlServerOptions.DataSource.get -> System.Data.Common.DbDataSource?
+Tracon.TraconSqlServerOptions.DataSource.set -> void
+Tracon.TraconSqlServerOptions.EnableReadViews.get -> bool
+Tracon.TraconSqlServerOptions.EnableReadViews.set -> void
+Tracon.TraconSqlServerOptions.SchemaName.get -> string!
+Tracon.TraconSqlServerOptions.SchemaName.set -> void
+Tracon.MigrationRunner
+Tracon.MigrationRunner.ApplyAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<int>
+Tracon.MigrationRunner.GetSnapshotAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Tracon.SqlPersistenceDiagnosticsSnapshot!>
+Tracon.MigrationRunner.ProviderName.get -> string!
+const Tracon.TraconSqlServerOptions.SectionName = "Tracon:SqlServer" -> string!
+static Tracon.TraconSqlServerBuilderExtensions.UseSqlServer(this Tracon.ITraconBuilder! builder, Microsoft.Extensions.Configuration.IConfiguration! configurationSection) -> Tracon.ITraconBuilder!
+static Tracon.TraconSqlServerBuilderExtensions.UseSqlServer(this Tracon.ITraconBuilder! builder, string! connectionString) -> Tracon.ITraconBuilder!
+static Tracon.TraconSqlServerBuilderExtensions.UseSqlServer(this Tracon.ITraconBuilder! builder, System.Action<Tracon.TraconSqlServerOptions!>! configure) -> Tracon.ITraconBuilder!

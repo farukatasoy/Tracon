@@ -13,9 +13,9 @@
 
 ---
 
-# AgentPrism → ProdigyEnabler · Tüketici Turu 2 Rapor Yanıtı
+# Tracon → ProdigyEnabler · Tüketici Turu 2 Rapor Yanıtı
 
-> **Kimden:** AgentPrism geliştirme tarafı · **Tarih:** 2026-09-03
+> **Kimden:** Tracon geliştirme tarafı · **Tarih:** 2026-09-03
 > **Neye yanıt:** Tüketici raporu AP-REQ-001/002/003 (ProdigyEnabler,
 > 2026-09-03) · §9 şablonu
 > **Kaynak kayıt:** [`docs/ADAYLAR.md`](../../ADAYLAR.md), "Ek (2026-09-03,
@@ -55,11 +55,11 @@ Aşağıdakiler faz dokümanlarının iddiası değil, bu yanıtı hazırlarken 
 
 | Ölçüm | Sonuç |
 |---|---|
-| Kirli ağaçta `dotnet pack` | ❌ `AGENTPRISM0004` — paket üretilmedi |
+| Kirli ağaçta `dotnet pack` | ❌ `TRACON0004` — paket üretilmedi |
 | Kirli ağaçta `dotnet build` | ✅ `0 Error(s)` — kapı yalnız pack yolunda |
-| Override, `dirty` sürümü verilmeden | ❌ `AGENTPRISM0006` |
-| Override, `CI=true` ile | ❌ `AGENTPRISM0005` |
-| Override + `MinVerVersionOverride=0.0.0-dirty.olcum` | ✅ `AgentPrism.Abstractions.0.0.0-dirty.olcum.nupkg` |
+| Override, `dirty` sürümü verilmeden | ❌ `TRACON0006` |
+| Override, `CI=true` ile | ❌ `TRACON0005` |
+| Override + `MinVerVersionOverride=0.0.0-dirty.olcum` | ✅ `Tracon.Abstractions.0.0.0-dirty.olcum.nupkg` |
 | `kapi.py yayin --kuru --surum 1.0.0-preview.1` | ✅ `EXIT=0` — 20 paket · manifest · `npm publish --dry-run` · 6 exact-sürüm sample · Native AOT smoke koştu ve geçti |
 | Aynı commit'in **ikinci** yayın koşumu | ✅ Sahte çakışma yok — OPC parmak izi düzeltmesi gerçek koşulda doğrulandı |
 | `package-manifest.json` | ✅ 20 paket · `1.0.0-preview.1` · commit `b6711737` · `dirty: false` · her paket için `sha256` **ve** `symbolsSha256` |
@@ -88,7 +88,7 @@ farklıdır ve ikisi de tek tek aşağıda yazılıdır.
 
 Yanıt dokümanınız seçimi bize bıraktı: *"`HandlerKey` alanının bütün job'lar
 için required olması ve built-in canonical key'leri de taşıması da kabul
-edilir. Bu seçim AgentPrism'in iç tutarlılık kararıdır."* O seçim kullanıldı:
+edilir. Bu seçim Tracon'in iç tutarlılık kararıdır."* O seçim kullanıldı:
 **`JobKind` enum'u tamamen kaldırıldı**, `HandlerKey` hem sınıflandırma hem
 dispatch kimliğidir. `JobKind.Custom` + `HandlerKey` ikilisi kurulmadı.
 
@@ -98,7 +98,7 @@ dispatch kimliğidir. `JobKind.Custom` + `HandlerKey` ikilisi kurulmadı.
 custom işler için `HandlerKey` sorgulanır ve ikisi zamanla birbirinden kayar.
 Yanıt dokümanınızın 7. ve 8. kuralları bunu zaten kabul ediyordu — panolar
 yerleşikte `Kind`, custom'da `HandlerKey` kullanacaktı. Tek alan bu ayrımı
-ortadan kaldırır; gruplama ad alanı önekiyle korunur (`agentprism.*` ↔
+ortadan kaldırır; gruplama ad alanı önekiyle korunur (`tracon.*` ↔
 `prodigy.*`).
 
 Maliyet ölçüldü ve küçük değildi: **132 dosya, 174 geçiş**, üç sağlayıcıda
@@ -107,8 +107,8 @@ ve arayüz. `preview` aşamasında olduğumuz ve kırıcı değişikliği açık
 ettiğiniz için bugün yapıldı; 1.0'dan sonra aynı iş çok daha pahalı olurdu.
 
 **Raporunuzun görmediği bulgu — kanıtınız olduğundan güçlüydü.** Sevk
-ettiğimiz `IJobHandler` örneği (`samples/AgentPrism.Samples.CustomJobHandler`)
-`JobKind.AgentBatch` bildiriyor ve `AddAgentPrism()`'den **sonra** kaydoluyordu;
+ettiğimiz `IJobHandler` örneği (`samples/Tracon.Samples.CustomJobHandler`)
+`JobKind.AgentBatch` bildiriyor ve `AddTracon()`'den **sonra** kaydoluyordu;
 yerleşik `AgentBatchJobHandler` her zaman önce kayıtlı olduğu için bu örnek
 **gerçek bir worker'da hiç çalışmıyordu**. Testi yalnız DI kaydını ölçüyordu,
 dispatch'i hiç ölçmüyordu — yani genişleme noktasının kendi kanıtı boştu.
@@ -131,22 +131,22 @@ public interface IJobHandler
 
 public static class JobHandlerKeys
 {
-    public const string ReservedPrefix    = "agentprism.";
-    public const string AgentBatch        = "agentprism.agent-batch";
-    public const string Workflow          = "agentprism.workflow";
-    public const string Eval              = "agentprism.eval";
-    public const string WebhookDelivery   = "agentprism.webhook-delivery";
-    public const string Retention         = "agentprism.retention";
-    public const string AgentRun          = "agentprism.agent-run";
-    public const string OnlineEval        = "agentprism.online-eval";
-    public const string ApprovalResume    = "agentprism.approval-resume";
-    public const string RunContinuation   = "agentprism.run-continuation";
+    public const string ReservedPrefix    = "tracon.";
+    public const string AgentBatch        = "tracon.agent-batch";
+    public const string Workflow          = "tracon.workflow";
+    public const string Eval              = "tracon.eval";
+    public const string WebhookDelivery   = "tracon.webhook-delivery";
+    public const string Retention         = "tracon.retention";
+    public const string AgentRun          = "tracon.agent-run";
+    public const string OnlineEval        = "tracon.online-eval";
+    public const string ApprovalResume    = "tracon.approval-resume";
+    public const string RunContinuation   = "tracon.run-continuation";
 }
 
 public static class JobErrorCodes
 {
-    public const string UnknownHandlerKey        = "agentprism.job.unknown-handler-key";
-    public const string HandlerActivationFailed  = "agentprism.job.handler-activation-failed";
+    public const string UnknownHandlerKey        = "tracon.job.unknown-handler-key";
+    public const string HandlerActivationFailed  = "tracon.job.handler-activation-failed";
 }
 
 public interface IJobDispatcher
@@ -154,7 +154,7 @@ public interface IJobDispatcher
     ValueTask<JobRecord> EnqueueAsync(JobRequest request, CancellationToken cancellationToken = default);
 }
 
-// AgentPrism.Core
+// Tracon.Core
 public static IServiceCollection AddJobHandler<THandler>(this IServiceCollection services, string handlerKey)
     where THandler : class, IJobHandler;
 ```
@@ -168,10 +168,10 @@ da o eşlemeyi kullanır.
 |---:|---|---|---|
 | 1 | Enum'dan bağımsız kararlı handler anahtarı | ✅ | `JobRecord.HandlerKey` (required string) |
 | 2 | Worker tam eşleşmeyle seçer | ✅ | `JobHandlerRegistry`, `FrozenDictionary` + `StringComparer.Ordinal` |
-| 3 | Kayıt sırası sonucu değiştirmez | ✅ | `Registration_order_does_not_change_the_outcome` — kayıt `AddAgentPrism()` öncesine alınıp aynı sonuç ölçülür |
+| 3 | Kayıt sırası sonucu değiştirmez | ✅ | `Registration_order_does_not_change_the_outcome` — kayıt `AddTracon()` öncesine alınıp aynı sonuç ölçülür |
 | 4 | Duplicate anahtar startup'ta durdurur | ⚠️ **Farklı ayrıntı** | İki **farklı tip** aynı anahtarda → host açılmaz. **Aynı** tipin aynı anahtarla ikinci kaydı no-op'tur (K-667); `AddX()` çağrısını iki kez yazmak hata değildir |
 | 5 | Kayıtsız anahtar fail-closed, job `Failed` | ✅ | `A_job_whose_key_nobody_registered_fails_without_leaking_the_key` |
-| 6 | Kararlı error code + redacted mesaj | ✅ | `agentprism.job.unknown-handler-key` + correlation id; **ham anahtar yalnız log'da** |
+| 6 | Kararlı error code + redacted mesaj | ✅ | `tracon.job.unknown-handler-key` + correlation id; **ham anahtar yalnız log'da** |
 | 7 | Execution başına yeni DI scope | ✅ | `CreateAsyncScope()`, `ExecuteAsync` dönene kadar açık |
 | 8 | Handler scope içinden çözülür | ✅ | Kayıt `Scoped`; `ServiceRegistrationSnapshotTests` dokuz handler için kilitler |
 | 9 | Scoped repository/DbContext/service | ✅ | Constructor injection; `JobContext`'e `IServiceProvider` **eklenmedi** (talebiniz) |
@@ -213,12 +213,12 @@ ancak tüm kayıtlar toplandıktan sonra bilinebildiği için — registry'de ka
 İkisi de host'u açtırmaz.
 
 **6. Metrik etiketi kardinalite için sertleştirildi.** Etiket
-`agentprism.job.handler_key`'dir. Kayıtlı anahtar kümesi host başlangıcında
+`tracon.job.handler_key`'dir. Kayıtlı anahtar kümesi host başlangıcında
 sabittir, ama **kayıtsız** anahtar yolu o kümenin dışındaydı ve ham anahtarı
 etikete yazıyordu; bağımsız denetim bunu buldu. O yol artık sabit
 `"unregistered"` yazar.
 
-**7. Handler kurucusu çözülemezse** iş `agentprism.job.handler-activation-failed`
+**7. Handler kurucusu çözülemezse** iş `tracon.job.handler-activation-failed`
 ile kapanır ve **yeniden denenmez** (K-668) — yapılandırma hatası retry ile
 düzelmez.
 
@@ -233,7 +233,7 @@ Evet, geniş. `preview` aşamasında kabul ettiğiniz kapsamdadır:
 | Handler yaşam süresi | `Singleton` | `Scoped` |
 | Lane eşlemesi | `LaneByKind` | `LaneByHandlerKey` |
 | HTTP/istemci alanı | `kind` (enum) | `handlerKey` (string) |
-| Metrik etiketi | `agentprism.job.kind` | `agentprism.job.handler_key` |
+| Metrik etiketi | `tracon.job.kind` | `tracon.job.handler_key` |
 | DB sütunu | `jobs.kind`, `job_schedules.kind` (`smallint`) | `handler_key` (metin) |
 
 ### Store migration davranışı
@@ -265,26 +265,26 @@ düşürüldü (K-666); testi bu veri kaybını da ölçer.
 - `JobHandlerKeyMigrationTests` — **üç sağlayıcıda** eski şemaya satır yazıp migration koşar; dokuz eşleme + satır sayısı + SQLite `job_items` korunumu
 - `JobStoreContract` — 39/39, dört uygulamada; üç yeni `handlerKey` süzgeç case'i
 - `SchedulableHandlerKeyTests` — 9 case, HTTP izin listesi
-- `samples/AgentPrism.Samples.CustomJobHandler.Tests` — **paketlenmiş** pakete karşı 10/10: gerçek host'ta iş koşumu, ters kayıt sırası, kayıtsız anahtar sızıntısı, rezerve önek, duplicate host durdurma
+- `samples/Tracon.Samples.CustomJobHandler.Tests` — **paketlenmiş** pakete karşı 10/10: gerçek host'ta iş koşumu, ters kayıt sırası, kayıtsız anahtar sızıntısı, rezerve önek, duplicate host durdurma
 - `docs/manuel-test/16-IS-KUYRUGU-VE-ZAMANLAMA.md` — MT-JOB-122…131 (10 elle kabul case'i)
 
 ### Tüketici upgrade adımları
 
 1. `IJobHandler` uygulamalarınızdan `Kind` özelliğini **silin** — arayüzde artık yok.
 2. Kaydı anahtarla yapın: `services.AddJobHandler<PodcastAudioHandler>("prodigy.podcast-audio");`
-   Anahtar `^[a-z0-9][a-z0-9._-]{0,127}$` desenine uymalı ve `agentprism.` ile **başlamamalıdır**.
+   Anahtar `^[a-z0-9][a-z0-9._-]{0,127}$` desenine uymalı ve `tracon.` ile **başlamamalıdır**.
 3. Handler'larınız artık **`Scoped`**'tır. Scoped `DbContext`/repository'yi doğrudan
    constructor'dan alabilirsiniz. Handler'da süreç ömrü boyunca yaşayan alan
    tutuyorsanız o varsayım artık geçersizdir.
 4. İş yaratmayı `IJobDispatcher.EnqueueAsync(new JobRequest { … HandlerKey = "prodigy.podcast-audio" … })`
    üzerinden yapın. `IJobStore.EnqueueAsync` duruyor ama anahtarın kayıtlı olduğunu doğrulamaz.
-5. Yapılandırmada `AgentPrism:Scheduling:LaneByKind` → `LaneByHandlerKey`, anahtarlar artık dizge.
+5. Yapılandırmada `Tracon:Scheduling:LaneByKind` → `LaneByHandlerKey`, anahtarlar artık dizge.
 6. Bir custom anahtarı **HTTP'den** zamanlanabilir yapmak istiyorsanız
-   `AgentPrism:Scheduling:HttpSchedulableHandlerKeys` listesine ekleyin —
+   `Tracon:Scheduling:HttpSchedulableHandlerKeys` listesine ekleyin —
    varsayılan yalnız yerleşik anahtarlardır ve izinsiz anahtar `400` alır.
 7. Kendi istemci/pano kodunuzda `kind` → `handlerKey`; enum değil dizge.
 8. Migration ilk açılışta otomatik koşar. Önce **yedek alın**; `kind` sütunu düşürülür.
-9. Panolarda gruplama için anahtar önekini kullanın (`agentprism.` = AgentPrism'in kendi işleri).
+9. Panolarda gruplama için anahtar önekini kullanın (`tracon.` = Tracon'in kendi işleri).
 
 ---
 
@@ -300,7 +300,7 @@ farklı içerikli iki artifact adlandırabiliyordu.
 ### Gerekçe
 
 Repro bu oturumda kilitlendi: temiz bir ağaçta `dotnet pack
-src/AgentPrism.Abstractions` ile üretilen paket ve `src/Directory.Build.props`'a
+src/Tracon.Abstractions` ile üretilen paket ve `src/Directory.Build.props`'a
 commit'siz bir satır eklendikten sonra üretilen paket **aynı** sürümü ve
 **aynı** `<repository commit="...">` iddiasını taşıdı, ama farklı SHA-256
 değerleriyle. Kök neden üç katmandı: MinVer sürümü yalnız git yüksekliğinden
@@ -312,14 +312,14 @@ overwrite bir kaza değil, mevcut tasarımın kendisiydi.
 
 ### Uygulanan sözleşme
 
-- **`AgentPrismValidateCleanWorkingTree`** (`Directory.Build.targets`,
+- **`TraconValidateCleanWorkingTree`** (`Directory.Build.targets`,
   `BeforeTargets="GenerateNuspec"`): `git status --porcelain` boş değilse
-  (untracked dosya dahil) pack `AGENTPRISM0004` ile durur. Yalnız pack
+  (untracked dosya dahil) pack `TRACON0004` ile durur. Yalnız pack
   yolundadır — `dotnet build`/`dotnet test` etkilenmez. Yerel deneme için
-  `AgentPrismAllowDirtyPack=true` **ve** `dirty` taşıyan açık bir
+  `TraconAllowDirtyPack=true` **ve** `dirty` taşıyan açık bir
   `MinVerVersionOverride` (`0.0.0-dirty.<ad>`) birlikte gerekir; CI'da
   (`CI=true`/`ContinuousIntegrationBuild=true`) bu override tamamen
-  reddedilir (`AGENTPRISM0005`), sürüm verilmeden istenirse `AGENTPRISM0006`
+  reddedilir (`TRACON0005`), sürüm verilmeden istenirse `TRACON0006`
   verilir.
 - **`scripts/kapi.py yayin`**: pack'ten önce koşulsuz bir `git status
   --porcelain` denetimi yapar (kirli ağaçta hiçbir override yoktur — bir
@@ -338,7 +338,7 @@ overwrite bir kaza değil, mevcut tasarımın kendisiydi.
 
 Raporunuz tanı kodu olarak `APREL001` öneriyordu; **kullanılmadı**. Repo
 private olduğu için hiçbir tüketici bu tanıyı göremez — repodaki mevcut
-konvansiyon `AGENTPRISM000N`'dir (bugün `0001`–`0003` kullanımda) ve bu faz
+konvansiyon `TRACON000N`'dir (bugün `0001`–`0003` kullanımda) ve bu faz
 `0004`–`0006`'yı aldı. İkinci bir kod ailesi açmak yalnız kendi
 konvansiyonumuzu bölerdi.
 
@@ -392,8 +392,8 @@ Yok.
 
 ### Eklenen testler
 
-- `tests/AgentPrism.Package.Tests/PackCleanlinessGateTests.cs` — gerçek
-  `dotnet pack`/`dotnet build` ile `AGENTPRISM0004`/`0005`/`0006` ve başarılı
+- `tests/Tracon.Package.Tests/PackCleanlinessGateTests.cs` — gerçek
+  `dotnet pack`/`dotnet build` ile `TRACON0004`/`0005`/`0006` ve başarılı
   override yolu (paket sınırı, `RepositoryTreeGate` koleksiyonuyla izole).
 - `scripts/kapi_test.py`, `YayinTestleri` — `_promote_staged_packages` (yeni
   paket promote edilir, aynı SHA-256 no-op, farklı SHA-256 koşumu durdurur ve
@@ -403,9 +403,9 @@ Yok.
 ### Tüketici upgrade adımları
 
 Yok — bu faz tüketicinin bağımlılık grafiğini veya kod yüzeyini değiştirmez.
-Etkisi yalnız AgentPrism'in kendi yayın sürecindedir: `1.0.0-preview.1`'den
+Etkisi yalnız Tracon'in kendi yayın sürecindedir: `1.0.0-preview.1`'den
 itibaren her yayınlanan paket artık bu kapıdan geçmiş olur. Tüketici tarafında
-tek pratik fayda: [`versioning.md`](https://agentprism.doayen.web.tr/reference/versioning/)
+tek pratik fayda: [`versioning.md`](https://tracon.dev/reference/versioning/)
 "Package identity" bölümü, NuGet.org'un kendi SHA-512 hash'ini kendi restore'unuzla
 karşılaştırma adımını anlatır.
 
@@ -513,24 +513,24 @@ Yok — `VoiceDescriptor` hiç kalıcılaştırılmaz.
 
 ### Eklenen testler
 
-- `tests/AgentPrism.Voice.UnitTests/VoiceAttributeMapperTests.cs` — 15 birim
+- `tests/Tracon.Voice.UnitTests/VoiceAttributeMapperTests.cs` — 15 birim
   testi: bilinen etiketler, `null`/nesne/dizi/sayısal değer güvenli atlama,
   32/64/256 sınırları, case-insensitive + `_`→`-` kanonikleştirme,
   `verified_languages` birleştirme.
-- `tests/AgentPrism.Voice.UnitTests/ElevenLabsSpeechClientTests.cs` — yeni:
+- `tests/Tracon.Voice.UnitTests/ElevenLabsSpeechClientTests.cs` — yeni:
   `labels`+`verified_languages` uçtan uca eşleme, boş `labels` → boş
   koleksiyon, `has_more`/`next_page_token` sayfalama takibi, 500 sınırında
   durma.
-- `tests/AgentPrism.Voice.UnitTests/SecretLeakTests.cs` — yeni:
+- `tests/Tracon.Voice.UnitTests/SecretLeakTests.cs` — yeni:
   `preview_url`'in `VoiceDescriptor`'a hiçbir koşulda ulaşmadığının tam alan
   taraması.
-- `tests/AgentPrism.Voice.UnitTests/ListVoicesToolTests.cs` — yeni: İngilizce
+- `tests/Tracon.Voice.UnitTests/ListVoicesToolTests.cs` — yeni: İngilizce
   mesajlar, gender gösterimi.
-- `tests/AgentPrism.Core.UnitTests/Architecture/SourceLanguageTests.cs` —
+- `tests/Tracon.Core.UnitTests/Architecture/SourceLanguageTests.cs` —
   kelime listesi genişletildi (`yok`, `ses`, `kullanilabilir`, `daha`); aynı
-  turda beş `AgentPrism.AspNetCore.FunctionalTests` dosyasındaki benzer
+  turda beş `Tracon.AspNetCore.FunctionalTests` dosyasındaki benzer
   Türkçe test verisi (`"yok-boyle"`, `"merhaba"`, ...) İngilizce'ye çevrildi.
-- `src/AgentPrism.UI/frontend/src/lib/voice.test.ts` — `voiceOptionMeta` için
+- `src/Tracon.UI/frontend/src/lib/voice.test.ts` — `voiceOptionMeta` için
   4 yeni test.
 
 ### 🚨 Aynı fazda kapatılan, sizi doğrudan etkileyen bir kusur
@@ -548,8 +548,8 @@ takibiyle düzeltildi; sınır artık gerçek 500'dür.
 
 ### Tüketici upgrade adımları
 
-Kod tarafında yok — kaynak uyumlu bir büyüme. `AgentPrism.Voice`/
-`AgentPrism.Abstractions`'ı güncelleyen bir tüketici `VoiceDescriptor.Attributes`'a
+Kod tarafında yok — kaynak uyumlu bir büyüme. `Tracon.Voice`/
+`Tracon.Abstractions`'ı güncelleyen bir tüketici `VoiceDescriptor.Attributes`'a
 hemen erişebilir; erişmeyen kod değişmeden çalışmaya devam eder.
 
 Davranış tarafında **bir şeyi doğrulayın**: yukarıdaki 10-ses kusuru yüzünden

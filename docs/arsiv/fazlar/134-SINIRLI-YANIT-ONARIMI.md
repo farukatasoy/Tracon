@@ -3,10 +3,10 @@
 > **Durum:** ✅ Tamamlandı (2026-09-02)
 > **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) — **F-177**
 > **Önkoşul:** [Faz 131](131-YAPISAL-YANIT-DOGRULAMA-SEAMI.md) — onarım, doğrulama seam'i olmadan tanımsızdır
-> **Paketler:** `AgentPrism.Abstractions`, `.Core`, `.UI` (olay etiketi)
+> **Paketler:** `Tracon.Abstractions`, `.Core`, `.UI` (olay etiketi)
 > **Yeni paket:** Yok · **Migration:** Yok — yeni `RunEventType` değeri mevcut `smallint` sütuna yazılır
 > **Public API:** büyüyor — bir options alanı, bir `RunEventType` değeri. `wc -l src/*/PublicAPI.Shipped.txt` → her dosya 1 satır; shipped giriş **sıfır**
-> **Tüketici yüzeyi:** `docs-site/`: `guides/structured-output.md`, `concepts/runs.md` (olay listesi), `reference/configuration.md`, `capabilities.md` · sevk edilen: `AgentPrismStructuredResponseOptions` XML dokümanı, `en.ts`/`tr.ts` olay etiketi
+> **Tüketici yüzeyi:** `docs-site/`: `guides/structured-output.md`, `concepts/runs.md` (olay listesi), `reference/configuration.md`, `capabilities.md` · sevk edilen: `TraconStructuredResponseOptions` XML dokümanı, `en.ts`/`tr.ts` olay etiketi
 > **Manuel test alanı:** [`docs/manuel-test/22-GUARDRAIL-VE-YAPISAL-CIKTI.md`](../../manuel-test/22-GUARDRAIL-VE-YAPISAL-CIKTI.md) — 🚨 Faz 133'ün **133.0** kalibrasyonu uygulanmamışsa case yazılamaz
 
 ---
@@ -41,23 +41,23 @@ Faz 131 geçersiz yapısal yanıtı **yakalıyor** ama tek yapabildiği `run`'ı
 - [x] Onarım mesajları oturuma yazılmaz — `Repair_messages_are_not_written_to_the_callers_own_session` (repair turu `session: null` ile çağrılır; ORİJİNAL turun kendi reddedilen yanıtı yine de oturuma yazılır, bu Faz 131'in değişmeyen davranışıdır — bkz. Plandan Sapmalar)
 - [x] Onarım hakkı tükenince `run` `StructuredResponseInvalid` ile biter — **yeni hata sınıfı eklenmedi** — `Repair_attempts_are_capped_then_the_run_fails_exactly_like_an_unrepaired_rejection`; `RunErrorClass.cs` diff'i yeni üye eklemediğini gösterir
 - [x] Dört doğrulama kapısı sıfır uyarı verir — `python3 scripts/kapi.py kapanis --taban f510c94` tamamı ✅ (tarama, doküman denetimi, script birim testleri, agent-map, denetim-paketi, `dotnet build`, `dotnet test` (735+2282+… tüm projeler, 0 başarısız), `dotnet pack`, `dotnet format --verify-no-changes`, `docs-site` `npm run check`)
-- [x] `samples/AgentPrism.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı — `docs/manuel-test/22-GUARDRAIL-VE-YAPISAL-CIKTI.md` §11 başlığındaki "Gerçek sonuç" bloğu (2026-09-02, `order-summary` agent'ı, `MaxRepairAttempts: 2` açıkken geçerli-ilk-denemeli gerçek bir `gpt-5.4-mini` çağrısı — sıfır sürpriz kanıtı)
+- [x] `samples/Tracon.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı — `docs/manuel-test/22-GUARDRAIL-VE-YAPISAL-CIKTI.md` §11 başlığındaki "Gerçek sonuç" bloğu (2026-09-02, `order-summary` agent'ı, `MaxRepairAttempts: 2` açıkken geçerli-ilk-denemeli gerçek bir `gpt-5.4-mini` çağrısı — sıfır sürpriz kanıtı)
 - [x] `secret` taraması boş döndü — `python3 scripts/kapi.py tarama` ✅
 - [x] Manuel kabul case'leri `docs/manuel-test/22-GUARDRAIL-VE-YAPISAL-CIKTI.md` içine eklendi; otomatikleştirilebilenler koşuldu — MT-GUARD-100..106, hepsinin otomatik karşılığı koşuldu (106 hariç, 👤 gerekir)
 - [x] `faz-denetim` koşuldu; 🔴 bulgu kalmadı — 5 🟡 bulgu, tamamı kapandı (bkz. Denetim Bulguları)
 - [x] `docs-site/` güncellendi (`structured-output.md`, `reference/configuration.md`, `capabilities.md`); `npm run build` + `check-links.mjs` temiz — `concepts/runs.md`'ye **bilerek** dokunulmadı (bkz. Plandan Sapmalar); `npm run check` (`check:content` + `build` + `check:links` + `check:weight`) tamamı ✅
 - [x] `en.ts` ve `tr.ts` eksiksiz — plandan sapma: bu olay etiketi de Faz 131'deki gibi sözlükten **gelmiyor** (bkz. Plandan Sapmalar); `run-event.ts`/`run-detail.tsx` güncellendi, `tsc --noEmit` ve `vitest run` (222/222) temiz
-- [x] 🚨 `dotnet test AgentPrism.slnx` TAM log dosyasından teyit edildi — `| tail` ile **değil** (Faz 130 devir notu) — `grep -n "failed \|Failed:" <tam-log> | grep -v "Failed: 0"` boş döndü, `EXIT:0`
+- [x] 🚨 `dotnet test Tracon.slnx` TAM log dosyasından teyit edildi — `| tail` ile **değil** (Faz 130 devir notu) — `grep -n "failed \|Failed:" <tam-log> | grep -v "Failed: 0"` boş döndü, `EXIT:0`
 
 ### Doğrulama komutları
 
 ```bash
 # Onarım olayları
-curl -s http://localhost:5081/agentprism/api/runs/<id>/events \
+curl -s http://localhost:5081/tracon/api/runs/<id>/events \
   | jq '[.[] | select(.type | startswith("StructuredResponse"))]'
 
 # Token toplamı iki turu da içeriyor mu
-curl -s http://localhost:5081/agentprism/api/runs/<id> | jq '.usage'
+curl -s http://localhost:5081/tracon/api/runs/<id> | jq '.usage'
 ```
 
 ---
@@ -84,7 +84,7 @@ curl -s http://localhost:5081/agentprism/api/runs/<id> | jq '.usage'
    tutmuyor — basitleştirilmiş Mermaid diyagramı bile `ModelFallbackUsed`,
    `ContentMasked`, `StructuredResponseRejected` gibi tekil-amaçlı olayları
    hiç içermiyor (aynı emsal Faz 62/48/131'de de uygulandı). Tam liste zaten
-   otomatik üretilen `docs-site/src/content/docs/api/AgentPrism.RunEventType.md`
+   otomatik üretilen `docs-site/src/content/docs/api/Tracon.RunEventType.md`
    sayfasındadır (`npm run generate`, XML dokümanından). `guides/structured-output.md`'ye
    yeni bir "Let the model repair a rejected response" bölümü eklenmesi
    yeterli görüldü.
@@ -102,13 +102,13 @@ curl -s http://localhost:5081/agentprism/api/runs/<id> | jq '.usage'
    üzerinden hand-written `run-event.ts` tipiyle okunur
    (`RunEventType.cs`'in kendi dokümanının söylediği gibi, `RunErrorClass`'ın
    aksine — o, `RunError.Class` JSON alanı olduğu için OpenAPI'ye
-   girer ve zaten hiç değişmedi). `docs/openapi/agentprism.json`'da
+   girer ve zaten hiç değişmedi). `docs/openapi/tracon.json`'da
    `grep -c StructuredResponseRejected` **sıfır** döner; ölçüldü, dokunulmadı.
 5. **Bağımsız denetimin bulduğu, konuyla alakasız bir test-izolasyon kusuru
-   düzeltildi.** `tests/AgentPrism.AspNetCore.FunctionalTests/JobMetricEndToEndTests.cs`
+   düzeltildi.** `tests/Tracon.AspNetCore.FunctionalTests/JobMetricEndToEndTests.cs`
    process-wide bir `MeterListener` kullanıyordu ve "bu isimli İLK ölçüm
    benimdir" varsayıyordu; bu fazın eklediği kuyruklu-run cancel testi
-   eşzamanlı bir "default" lane'li `agentprism.job.executions` ölçümü
+   eşzamanlı bir "default" lane'li `tracon.job.executions` ölçümü
    yayınlayınca test 3/3 tekrarda kırıldı, taban commit'te (worktree ile
    izole edildi) 1/1 yeşildi. Kök sebep düzeltildi:
    `JobMetricCollector.WaitForAsync` artık isteğe bağlı bir etiket süzgeci
@@ -149,7 +149,7 @@ kendisi koda girmedi (yalnızca kararın gerekçesidir), yalnız
 |---|---|---|
 | 1 | `MaxRepairAttempts=0` iken bile reddedilen ilk yanıtın token kullanımı `ExtraUsage`'a ekleniyor; DoD'nin "birebir aynı" iddiasını usage boyutunda değiştiriyor, hiçbir testte doğrulanmıyordu | **Gerekçelendi + test eklendi.** Davranış doğru kabul edildi (bkz. Plandan Sapmalar §1); `MaxRepairAttempts_unset_defaults_to_zero_and_behaves_exactly_like_no_repair` artık `run.Usage`'ı da doğruluyor |
 | 2 | `JobMetricEndToEndTests.cs`'nin yeni koduna eklenen yorum ("no other test in this project uses this lane") yanlıştı; aynı kusur sınıfı `RunCostMetricEndToEndTests.cs`'de gizil olarak duruyordu | **Düzeltildi.** Yorum, gerçek koşulu (`RecordJob` yalnız gerçek worker'dan yayınlanır) doğru anlatacak şekilde yeniden yazıldı; `RunCostMetricEndToEndTests.cs`'nin gizil kırılganlığı `docs/ADAYLAR.md`'ye F-181 olarak devredildi (bu fazın nedensel kapsamı dışında) |
-| 3 | Negatif `MaxRepairAttempts` reddini doğrudan doğrulayan birim testi yoktu | **Düzeltildi.** `AgentPrismStructuredResponseOptionsValidatorTests.cs` eklendi (3 test) |
+| 3 | Negatif `MaxRepairAttempts` reddini doğrudan doğrulayan birim testi yoktu | **Düzeltildi.** `TraconStructuredResponseOptionsValidatorTests.cs` eklendi (3 test) |
 | 4 | Onarım turunda `Deadline` (wall-clock) zorlamasını doğrudan ölçen bir test yoktu | **Düzeltildi.** `The_trees_deadline_still_applies_to_a_repair_turn_and_stops_it_from_looping` eklendi (`ClockAdvancingModelProvider` + `ManualTimeProvider`) |
 | 5 | DoD/plan `concepts/runs.md`'nin güncellenmesini istiyordu; dosyaya dokunulmamıştı ve gerekçe hiçbir yerde yazılı değildi | **Gerekçelendi.** Plandan Sapmalar §2'ye yazıldı |
 

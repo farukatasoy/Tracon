@@ -1,5 +1,5 @@
 name: Bug report
-description: A defect in a published AgentPrism package.
+description: A defect in a published Tracon package.
 labels: [bug]
 body:
   - type: markdown
@@ -11,8 +11,8 @@ body:
   - type: input
     id: version
     attributes:
-      label: AgentPrism version
-      description: From `dotnet list package`. All AgentPrism packages share one version line.
+      label: Tracon version
+      description: From `dotnet list package`. All Tracon packages share one version line.
       placeholder: 1.0.0-preview.1
     validations:
       required: true

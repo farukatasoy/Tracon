@@ -1,12 +1,12 @@
 ---
 title: Write your own job handler
-description: Implement a safe IJobHandler for the durable job queue and verify it with AgentPrism's executable contract suite.
+description: Implement a safe IJobHandler for the durable job queue and verify it with Tracon's executable contract suite.
 ---
 
 `IJobHandler` executes a durable job under one **handler key** — a stable
 string such as `contoso.nightly-report`. The key is the job's identity: it is
 both how the job is classified and how the background worker picks the handler
-that runs it. AgentPrism's own handlers live under the reserved `agentprism.`
+that runs it. Tracon's own handlers live under the reserved `tracon.`
 prefix; you pick a prefix of your own.
 
 ```csharp
@@ -45,7 +45,7 @@ builder.Services.AddJobHandler<NightlyReportJobHandler>("contoso.nightly-report"
 ```
 
 The worker looks the key up by exact match, so **this call may come before or
-after `AddAgentPrism()`** — registration order never decides which handler
+after `AddTracon()`** — registration order never decides which handler
 runs, and no handler can shadow another. The handler is registered *scoped*
 and resolved from a fresh scope for every execution, so it may take scoped
 dependencies in its constructor: two jobs running in parallel, and two attempts
@@ -70,7 +70,7 @@ flowchart TD
 Three mistakes stop the host from starting rather than failing quietly later:
 
 - **Two handlers under one key.** A key identifies exactly one handler.
-- **A key inside the `agentprism.` namespace.** That prefix is reserved.
+- **A key inside the `tracon.` namespace.** That prefix is reserved.
 - **A malformed key.** 1-128 characters: lowercase ASCII letters, digits,
   `.`, `_`, or `-`, starting with a letter or digit. Uppercase is rejected
   rather than normalized, so one key can never become two.
@@ -104,8 +104,8 @@ untrusted source.
 
 :::note[Scheduling from outside is opt-in]
 `PUT /api/schedules/{name}` accepts only the keys listed in
-`AgentPrismSchedulingOptions.HttpSchedulableHandlerKeys`, which defaults to
-AgentPrism's own built-in keys. A handler key is a dispatch identity, so an
+`TraconSchedulingOptions.HttpSchedulableHandlerKeys`, which defaults to
+Tracon's own built-in keys. A handler key is a dispatch identity, so an
 unrestricted endpoint would turn every registered handler — including internal
 ones you registered for your own background work — into an externally callable
 surface. Name your key there only when you want it schedulable over HTTP.
@@ -163,11 +163,11 @@ item failed completes as `Failed`.
 Add the contract package to your test project:
 
 ```bash
-dotnet add package AgentPrism.Testing.Contracts.Xunit --prerelease
+dotnet add package Tracon.Testing.Contracts.Xunit --prerelease
 ```
 
 ```csharp
-using AgentPrism.Testing.Contracts.Scheduling;
+using Tracon.Testing.Contracts.Scheduling;
 
 public sealed class NightlyReportJobHandlerTests : JobHandlerContract
 {
@@ -186,7 +186,7 @@ that a retry with mixed item statuses only processes the `Pending` ones, and
 that cancellation is observed between items. They do not test the queue
 itself — leasing, retry scheduling, or persistence; see
 [Reliable runs](/guides/reliability/) for that.
-`samples/AgentPrism.Samples.CustomJobHandler` in the repository runs this same
+`samples/Tracon.Samples.CustomJobHandler` in the repository runs this same
 contract as a package consumer, and also boots a real host to prove the sample
 handler actually receives a queued job.
 

@@ -1,0 +1,31 @@
+#nullable enable
+Tracon.TraconWorkflowOptions
+Tracon.TraconWorkflowOptions.TraconWorkflowOptions() -> void
+Tracon.TraconWorkflowOptions.EnableCheckpointing.get -> bool
+Tracon.TraconWorkflowOptions.EnableCheckpointing.set -> void
+Tracon.TraconWorkflowOptions.Enabled.get -> bool
+Tracon.TraconWorkflowOptions.Enabled.set -> void
+Tracon.TraconWorkflowOptions.KeepCheckpointsAfterCompletion.get -> bool
+Tracon.TraconWorkflowOptions.KeepCheckpointsAfterCompletion.set -> void
+Tracon.TraconWorkflowOptions.MaxConcurrentRuns.get -> int
+Tracon.TraconWorkflowOptions.MaxConcurrentRuns.set -> void
+Tracon.TraconWorkflowOptions.MaxSuperSteps.get -> int
+Tracon.TraconWorkflowOptions.MaxSuperSteps.set -> void
+Tracon.TraconWorkflowOptions.RunTimeout.get -> System.TimeSpan
+Tracon.TraconWorkflowOptions.RunTimeout.set -> void
+Tracon.TraconWorkflowFunctionExtensions
+Tracon.TraconWorkflowsBuilderExtensions
+Tracon.WorkflowAgentBinding
+const Tracon.TraconWorkflowOptions.SectionName = "Tracon:Workflows" -> string!
+static Tracon.TraconWorkflowFunctionExtensions.AddWorkflowFunction<TInput, TOutput>(this Tracon.ITraconBuilder! builder, string! name, System.Func<System.IServiceProvider!, System.Func<TInput, Microsoft.Agents.AI.Workflows.IWorkflowContext!, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<TOutput>>!>! factory, string? description = null, Tracon.WorkflowNodeRetryPolicy? retryPolicy = null) -> Tracon.ITraconBuilder!
+Tracon.WorkflowNodeRetryPolicy
+Tracon.WorkflowNodeRetryPolicy.WorkflowNodeRetryPolicy() -> void
+Tracon.WorkflowNodeRetryPolicy.MaxAttempts.get -> int
+Tracon.WorkflowNodeRetryPolicy.MaxAttempts.set -> void
+Tracon.WorkflowNodeRetryPolicy.InitialDelay.get -> System.TimeSpan
+Tracon.WorkflowNodeRetryPolicy.InitialDelay.set -> void
+Tracon.WorkflowNodeRetryPolicy.BackoffMultiplier.get -> double
+Tracon.WorkflowNodeRetryPolicy.BackoffMultiplier.set -> void
+static Tracon.TraconWorkflowsBuilderExtensions.AddWorkflow(this Tracon.ITraconBuilder! builder, string! name, System.Func<System.IServiceProvider!, Microsoft.Agents.AI.Workflows.Workflow!>! factory, string? description = null) -> Tracon.ITraconBuilder!
+static Tracon.TraconWorkflowsBuilderExtensions.UseWorkflows(this Tracon.ITraconBuilder! builder, System.Action<Tracon.TraconWorkflowOptions!>? configure = null) -> Tracon.ITraconBuilder!
+static Tracon.WorkflowAgentBinding.GetWorkflowAgent(this System.IServiceProvider! services, string! workflowName, string! agentName, string? description = null) -> Microsoft.Agents.AI.AIAgent!

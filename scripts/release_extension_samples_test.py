@@ -26,7 +26,7 @@ def _write_clean_tree(root: pathlib.Path) -> None:
         project_dir.mkdir(parents=True)
         (project_dir / f"{project}.csproj").write_text(
             f'<Project Sdk="Microsoft.NET.Sdk">'
-            f'<ItemGroup><PackageReference Include="AgentPrism" VersionOverride="$(AgentPrismSamplePackageVersion)" /></ItemGroup>'
+            f'<ItemGroup><PackageReference Include="Tracon" VersionOverride="$(TraconSamplePackageVersion)" /></ItemGroup>'
             f'</Project>',
             encoding="utf-8",
         )
@@ -49,7 +49,7 @@ class ReleaseExtensionSamplesTestleri(unittest.TestCase):
 
             errors = release_extension_samples.validate_sample_contract(root, "")
 
-        self.assertTrue(any("exact AgentPrism sample package version" in error for error in errors))
+        self.assertTrue(any("exact Tracon sample package version" in error for error in errors))
 
     def test_wildcard_surum_reddedilir(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -58,7 +58,7 @@ class ReleaseExtensionSamplesTestleri(unittest.TestCase):
 
             errors = release_extension_samples.validate_sample_contract(root, "1.0.0-preview.*")
 
-        self.assertTrue(any("exact AgentPrism sample package version" in error for error in errors))
+        self.assertTrue(any("exact Tracon sample package version" in error for error in errors))
 
     def test_eksik_sample_listesi_ogesi_yakalanir(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -81,7 +81,7 @@ class ReleaseExtensionSamplesTestleri(unittest.TestCase):
             csproj = root / "samples" / project / f"{project}.csproj"
             csproj.write_text(
                 '<Project Sdk="Microsoft.NET.Sdk">'
-                '<ItemGroup><PackageReference Include="AgentPrism" VersionOverride="*-*" /></ItemGroup>'
+                '<ItemGroup><PackageReference Include="Tracon" VersionOverride="*-*" /></ItemGroup>'
                 '</Project>',
                 encoding="utf-8",
             )
@@ -90,7 +90,7 @@ class ReleaseExtensionSamplesTestleri(unittest.TestCase):
 
         self.assertTrue(any("wildcard VersionOverride" in error for error in errors))
 
-    def test_agentprism_kaynak_projectreference_yakalanir(self):
+    def test_tracon_kaynak_projectreference_yakalanir(self):
         with tempfile.TemporaryDirectory() as directory:
             root = pathlib.Path(directory)
             _write_clean_tree(root)
@@ -98,14 +98,14 @@ class ReleaseExtensionSamplesTestleri(unittest.TestCase):
             csproj = root / "samples" / project / f"{project}.csproj"
             csproj.write_text(
                 '<Project Sdk="Microsoft.NET.Sdk">'
-                '<ItemGroup><ProjectReference Include="../../src/AgentPrism.Core/AgentPrism.Core.csproj" /></ItemGroup>'
+                '<ItemGroup><ProjectReference Include="../../src/Tracon.Core/Tracon.Core.csproj" /></ItemGroup>'
                 '</Project>',
                 encoding="utf-8",
             )
 
             errors = release_extension_samples.validate_sample_contract(root, EXACT_VERSION)
 
-        self.assertTrue(any("references AgentPrism source" in error for error in errors))
+        self.assertTrue(any("references Tracon source" in error for error in errors))
 
     def test_stale_feed_paketi_reddedilir(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -113,7 +113,7 @@ class ReleaseExtensionSamplesTestleri(unittest.TestCase):
             _write_clean_tree(root)
             release_dir = root / "release"
             release_dir.mkdir()
-            (release_dir / "AgentPrism.Core.1.0.0-preview.0.nupkg").write_bytes(b"")
+            (release_dir / "Tracon.Core.1.0.0-preview.0.nupkg").write_bytes(b"")
 
             result = release_extension_samples.verify(root, release_dir, EXACT_VERSION)
 
@@ -126,14 +126,14 @@ class ReleaseExtensionSamplesTestleri(unittest.TestCase):
             # A new sample test project directory exists but was never added
             # to SAMPLE_TEST_PROJECTS or SAMPLE_TEST_EXCLUSIONS — the exact
             # drift that let CustomJobHandler.Tests go unrun for three phases.
-            stray = root / "samples" / "AgentPrism.Samples.Deneme.Tests"
+            stray = root / "samples" / "Tracon.Samples.Deneme.Tests"
             stray.mkdir(parents=True)
-            (stray / "AgentPrism.Samples.Deneme.Tests.csproj").write_text(
+            (stray / "Tracon.Samples.Deneme.Tests.csproj").write_text(
                 '<Project Sdk="Microsoft.NET.Sdk" />', encoding="utf-8")
 
             errors = release_extension_samples.validate_sample_inventory(root)
 
-        self.assertTrue(any("AgentPrism.Samples.Deneme.Tests" in error for error in errors))
+        self.assertTrue(any("Tracon.Samples.Deneme.Tests" in error for error in errors))
 
     def test_var_olmayan_sample_listede_kalirsa_yakalanir(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -151,13 +151,13 @@ class ReleaseExtensionSamplesTestleri(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = pathlib.Path(directory)
             _write_clean_tree(root)
-            extra = root / "samples" / "AgentPrism.Samples.Muaf.Tests"
+            extra = root / "samples" / "Tracon.Samples.Muaf.Tests"
             extra.mkdir(parents=True)
-            (extra / "AgentPrism.Samples.Muaf.Tests.csproj").write_text(
+            (extra / "Tracon.Samples.Muaf.Tests.csproj").write_text(
                 '<Project Sdk="Microsoft.NET.Sdk" />', encoding="utf-8")
 
             original = dict(release_extension_samples.SAMPLE_TEST_EXCLUSIONS)
-            release_extension_samples.SAMPLE_TEST_EXCLUSIONS["AgentPrism.Samples.Muaf.Tests"] = "   "
+            release_extension_samples.SAMPLE_TEST_EXCLUSIONS["Tracon.Samples.Muaf.Tests"] = "   "
             try:
                 errors = release_extension_samples.validate_sample_inventory(root)
             finally:
@@ -175,12 +175,12 @@ class ReleaseExtensionSamplesTestleri(unittest.TestCase):
         self.assertNotIn(".nuget/packages", source)
 
     def test_ana_solution_packed_consumer_samplelarini_icermez(self):
-        solution = ElementTree.parse(ROOT / "AgentPrism.slnx")
+        solution = ElementTree.parse(ROOT / "Tracon.slnx")
         projects = {node.attrib["Path"] for node in solution.iter("Project")}
 
         packed_consumers = {
             str(path.relative_to(ROOT)).replace("\\", "/")
-            for path in (ROOT / "samples").glob("AgentPrism.Samples.*/*.csproj")
+            for path in (ROOT / "samples").glob("Tracon.Samples.*/*.csproj")
         }
 
         self.assertTrue(packed_consumers)

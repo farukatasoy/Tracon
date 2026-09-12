@@ -3,9 +3,9 @@
 > **Durum:** ✅ Tamamlandı (2026-09-11)
 > **Kaynak:** Kullanıcı isteği (2026-09-11) — bu kalem [ADAYLAR.md](../../ADAYLAR.md) içinde hiç bulunmadı. OpenAI GPT-Live'ı 2026-09-10'da API'ye açtı
 > **Önkoşul:** [Faz 29](29-KONUSMA-KATMANI.md) — `VoiceSessionRecord`'u, uç kapılarını ve bağlantı limitleyicisini devralır
-> **Paketler:** `AgentPrism.Abstractions`, `.Core`, `.OpenAI`, `.AspNetCore`, `.Sql.Shared`, `.PostgreSql`, `.SqlServer`, `.Sqlite`, `.Testing.Contracts.Xunit`
+> **Paketler:** `Tracon.Abstractions`, `.Core`, `.OpenAI`, `.AspNetCore`, `.Sql.Shared`, `.PostgreSql`, `.SqlServer`, `.Sqlite`, `.Testing.Contracts.Xunit`
 > **Yeni paket:** Yok — ham `ClientWebSocket` ve `HttpClient` (K-216 emsali) · **Migration:** Gerekli — üç set; numaralar uygulama anında alınır
-> **Public API:** Büyüyor — `AgentPrism.Abstractions`'a iki arayüz, beş `record`, üç `enum`. `wc -l src/*/PublicAPI.Shipped.txt` = 17 satır (ölçüldü 2026-09-11); taban çizgisi **boştur**, bugün eklemek ucuzdur
+> **Public API:** Büyüyor — `Tracon.Abstractions`'a iki arayüz, beş `record`, üç `enum`. `wc -l src/*/PublicAPI.Shipped.txt` = 17 satır (ölçüldü 2026-09-11); taban çizgisi **boştur**, bugün eklemek ucuzdur
 > **Tüketici yüzeyi:** [`docs-site/src/content/docs/guides/voice.md`](../../../docs-site/src/content/docs/guides/voice.md) — canlı mod bölümü **ve kayıp/gizlilik listesi** · üretilen `api/` + `http-api/` sayfaları · sevk edilen: XML `<example>` blokları
 > **Manuel test alanı:** [`docs/manuel-test/19-COK-MODLULUK-VE-SES.md`](../../manuel-test/19-COK-MODLULUK-VE-SES.md)
 
@@ -33,20 +33,20 @@ OpenAI, 2026-09-10'da **GPT-Live**'ı API'ye açtı: `gpt-live-1`, tam çift yö
 saniye bazlı faturalama. Model konuşmayı yürütür ve ağır işi **delegation** ile
 arkaya devreder.
 
-Bu faz, AgentPrism'i o delegation'ın **arkasına** koyar. Medyayı tarayıcı ile
-OpenAI doğrudan WebRTC üzerinden taşır; AgentPrism iki yerde durur:
+Bu faz, Tracon'i o delegation'ın **arkasına** koyar. Medyayı tarayıcı ile
+OpenAI doğrudan WebRTC üzerinden taşır; Tracon iki yerde durur:
 
 1. **Oturumu o yaratır** — SDP aracılığı yapar, böylece kiracı, rol, eşzamanlılık
    ve oturum kaydı kapıları uygulanabilir ve **ham API anahtarı tarayıcıya hiç
    gitmez**.
 2. **Sideband ile bağlanır** — `session.delegation.created` olayını sıradan bir
-   AgentPrism `run`'ına çevirir: tool registry, content guard, kota, maliyet ve
+   Tracon `run`'ına çevirir: tool registry, content guard, kota, maliyet ve
    denetim izi tam devrede.
 
-Konuşmayı OpenAI yürütür, işi AgentPrism yapar.
+Konuşmayı OpenAI yürütür, işi Tracon yapar.
 
 - **Kapsam** — sunucu yeteneği. Gerçek koşum kanıtı için `samples/` altında küçük
-  bir WebRTC test sayfası yazılır. `AgentPrism.UI` canlı paneli **Faz 162'dedir**.
+  bir WebRTC test sayfası yazılır. `Tracon.UI` canlı paneli **Faz 162'dedir**.
 
 ### 🚨 161.0 Spike — ölçüldü, doküman yanlıştı
 
@@ -68,7 +68,7 @@ gerçek anahtarıyla `api.openai.com` üzerinde ölçülen sonuçlar (2026-09-11
 **Sonuç:** OpenAI, `gpt-live-1` için **sunucu taraflı ses transport'u sunmuyor.**
 Dokümandaki "WebSockets for server-side audio integrations" ifadesi
 `gpt-realtime-2.1` için doğrudur, `gpt-live-1` için değildir. Bir sunucu köprüsü
-(AgentPrism'in sesi geçirmesi) **yapılamaz**.
+(Tracon'in sesi geçirmesi) **yapılamaz**.
 
 Buna karşılık **sunucu sideband'i resmen desteklenir**:
 `wss://api.openai.com/v1/live/sessions/{session_id}/attach`, oturumu yaratan
@@ -76,12 +76,12 @@ projenin API anahtarıyla. Doküman: *"Both connections share one session while
 WebRTC or SIP carries the primary audio."*
 
 Bu, güvenlik hikâyesini **iyileştirdi**: ephemeral token'a gerek yok, çünkü oturumu
-AgentPrism kendi anahtarıyla yaratır.
+Tracon kendi anahtarıyla yaratır.
 
 ```mermaid
 sequenceDiagram
     participant B as Tarayıcı
-    participant A as AgentPrism
+    participant A as Tracon
     participant O as OpenAI
     B->>A: POST /api/voice/live/sessions (SDP offer)
     A->>A: kiracı · rol · limit · kayıt aç
@@ -91,7 +91,7 @@ sequenceDiagram
     B<<->>O: WebRTC medya (ses)
     A->>O: wss .../{session.id}/attach
     O-->>A: transcript · delegation.created
-    A->>A: delegation → AgentPrism run
+    A->>A: delegation → Tracon run
     A->>O: session.commentary.append
 ```
 
@@ -113,11 +113,11 @@ içine de girer.
 
 | Kayıp | Ayrıntı |
 |---|---|
-| **Ses AgentPrism'e hiç uğramaz** | Medya tarayıcı ile OpenAI arasında akar. Content guard konuşulanı **görmez**; model, AgentPrism'in hiç denetlemediği bir cümle söyleyebilir |
+| **Ses Tracon'e hiç uğramaz** | Medya tarayıcı ile OpenAI arasında akar. Content guard konuşulanı **görmez**; model, Tracon'in hiç denetlemediği bir cümle söyleyebilir |
 | **Her tur bir `run` değildir** | Yalnız **delegation'lar** run üretir. Token muhasebesi, kota ve guard yalnız **devredilen işi** kapsar |
-| **`PersistAudio` bu yolda anlamsızdır** | Saklanacak ses AgentPrism'den geçmiyor. Seçenek A'da kalır, canlı yolda yok sayılır |
+| **`PersistAudio` bu yolda anlamsızdır** | Saklanacak ses Tracon'den geçmiyor. Seçenek A'da kalır, canlı yolda yok sayılır |
 | **Kullanıcının sesi üçüncü tarafa gider** | K-225 saklamayı yasaklar; bu bir **iletim** değişikliğidir ama kullanıcıya görünür olmalıdır |
-| **🚨 Konuşma metni AgentPrism deposunda kalıcı olur** | Kullanıcı kararı (2026-09-11): transcript'ler `AgentSession` geçmişine yazılır. K-225 sesi korur, **metni değil**. Bu yeni bir gizlilik kararıdır ve 161.4'te ele alınır |
+| **🚨 Konuşma metni Tracon deposunda kalıcı olur** | Kullanıcı kararı (2026-09-11): transcript'ler `AgentSession` geçmişine yazılır. K-225 sesi korur, **metni değil**. Bu yeni bir gizlilik kararıdır ve 161.4'te ele alınır |
 | **Kendi STT/TTS sağlayıcımız devre dışı** | `ISpeechTranscriber`/`ISpeechSynthesizer` bu yolda çağrılmaz |
 | **Harcama tavanı yalnız süre/bağlantı limitidir** | K-227 ses dakikasını kota birimi saymaz. `QuotaEnforcer` değil, `MaxConnectionDuration` ve `MaxConcurrentConnectionsPerTenant` sınırlar |
 | **Telefon (SIP) kapsam dışı** | Spike'ta `403 outbound_sip_not_enabled` ölçüldü — organizasyonda etkin değil |
@@ -130,12 +130,12 @@ için Seçenek A doğru seçimdir ve bu fazda ona **dokunulmaz**.
 | Kanıt | Gözlem |
 |---|---|
 | `grep -rln ClientWebSocket src tests samples` → boş | Repo'da **hiç** giden WebSocket yoktur; bu fazınki ilkidir |
-| [`ConversationContracts.cs:18`](../../../src/AgentPrism.Abstractions/Voice/ConversationContracts.cs) | `VoiceSessionRecord` maliyet, `Provider` ve `Model` alanı **taşımaz** |
-| [`AgentPrismOptions.cs:715`](../../../src/AgentPrism.Core/AgentPrismOptions.cs) | `VoicePriceOverride.PerMinute` **zaten vardır ve bağlanır** — fiyat şeması değişmez |
-| [`SpeechContracts.cs`](../../../src/AgentPrism.Abstractions/Voice/SpeechContracts.cs) | `IVoicePricingReader` yüzeyinde süre fiyatlaması yoktur |
-| [`SqlVoiceSessionStore.cs:71`](../../../src/AgentPrism.Sql.Shared/Stores/SqlVoiceSessionStore.cs) | `Read` **çıplak ordinal** kullanır (0–10) |
-| [`EgressSocketGuard.cs:109`](../../../src/AgentPrism.Core/Egress/EgressSocketGuard.cs) | `ValidateAsync(Uri, ct)` bağımsız çağrılabilir — `ClientWebSocket`'in `ConnectCallback`'i yoktur |
-| [`AmbientTenantScope.cs`](../../../src/AgentPrism.Abstractions/Tenancy/AmbientTenantScope.cs) · `AgentRunJobHandler.cs:68` | İstek dışında kiracı bağlamanın sevk edilmiş yolu budur |
+| [`ConversationContracts.cs:18`](../../../src/Tracon.Abstractions/Voice/ConversationContracts.cs) | `VoiceSessionRecord` maliyet, `Provider` ve `Model` alanı **taşımaz** |
+| [`TraconOptions.cs:715`](../../../src/Tracon.Core/TraconOptions.cs) | `VoicePriceOverride.PerMinute` **zaten vardır ve bağlanır** — fiyat şeması değişmez |
+| [`SpeechContracts.cs`](../../../src/Tracon.Abstractions/Voice/SpeechContracts.cs) | `IVoicePricingReader` yüzeyinde süre fiyatlaması yoktur |
+| [`SqlVoiceSessionStore.cs:71`](../../../src/Tracon.Sql.Shared/Stores/SqlVoiceSessionStore.cs) | `Read` **çıplak ordinal** kullanır (0–10) |
+| [`EgressSocketGuard.cs:109`](../../../src/Tracon.Core/Egress/EgressSocketGuard.cs) | `ValidateAsync(Uri, ct)` bağımsız çağrılabilir — `ClientWebSocket`'in `ConnectCallback`'i yoktur |
+| [`AmbientTenantScope.cs`](../../../src/Tracon.Abstractions/Tenancy/AmbientTenantScope.cs) · `AgentRunJobHandler.cs:68` | İstek dışında kiracı bağlamanın sevk edilmiş yolu budur |
 | `wc -l src/*/PublicAPI.Shipped.txt` = 17 | Taban çizgisi on yedi pakette de boştur |
 
 > Kanıtlar 2026-09-11 tarihinde doğrulandı.
@@ -160,9 +160,9 @@ yazılır; 161.3 ve 161.5 ona göre düzeltilir.
 
 **MAF için `maf-api-kesfi` gerekmez.** Kullanılan her MAF tipi mevcut sürücüde
 zaten var (ölçüldü): `AgentSessionManager`
-([`:60`](../../../src/AgentPrism.Core/Voice/VoiceConversationDriver.cs)),
+([`:60`](../../../src/Tracon.Core/Voice/VoiceConversationDriver.cs)),
 `ChatHistoryProvider` (`:63`), `AgentSession` (`:211`), `RunStreamingAsync` +
-`ChatMessage` + `AgentPrismRunOptions` (`:643`),
+`ChatMessage` + `TraconRunOptions` (`:643`),
 `ChatHistoryProvider.InvokedContext` + `MAAI001` (`:759`).
 
 ---
@@ -198,10 +198,10 @@ ve orada yaşar: bir sonraki oturum onu alan dosyasında arar, faz kaydında de�
 |---|---|---|---|
 | 1 | Append alanı `text` | **`content`** | Sözleşmede `Text`, telde `content`. |
 | 2 | `Instructions`'ta `delegation_id` null = oturum geneli | **Üç kanalda da zorunlu** (`Missing required parameter: 'delegation_id'`) | `LiveVoiceAppend.DelegationId` **`required`** oldu. |
-| 3 | `Usage` olayı **modellenmez** ("AgentPrism ölçüm uydurmaz") | `session.usage.updated` **var** ve saniyeyi sağlayıcı bildiriyor | 🚨 En değerli sapma. `LiveSeconds` **duvar saati değil**, sağlayıcının sayısı. Açık Soru 2 hem A'yı hem B'yi geçersiz kıldı. |
+| 3 | `Usage` olayı **modellenmez** ("Tracon ölçüm uydurmaz") | `session.usage.updated` **var** ve saniyeyi sağlayıcı bildiriyor | 🚨 En değerli sapma. `LiveSeconds` **duvar saati değil**, sağlayıcının sayısı. Açık Soru 2 hem A'yı hem B'yi geçersiz kıldı. |
 | 4 | Transcript'te `IsFinal` | **`is_final` yok** — yalnız `start_ms`/`end_ms` taşıyan delta | `IsFinal` düştü; `StartMilliseconds`/`EndMilliseconds` geldi. Defter `TimeProvider` kullanmıyor: sağlayıcı zamanı veriyor, yerel saat **kayardı**. |
 | 5 | `ResponseStarted`/`ResponseCompleted` kind'ları | Böyle olay **yok** | Modellenmedi. Gözlenmeyen olay sözleşmeye girmez. |
-| 6 | "Ses AgentPrism'e **hiç** uğramaz" | Sideband sesi **aynalıyor** | Kayıp listesi düzeltildi: ses görünür ama bu faz tüketmiyor — imkânsızlık değil, **tasarım tercihi**. |
+| 6 | "Ses Tracon'e **hiç** uğramaz" | Sideband sesi **aynalıyor** | Kayıp listesi düzeltildi: ses görünür ama bu faz tüketmiyor — imkânsızlık değil, **tasarım tercihi**. |
 | 7 | `MaxAppendCharacters` "belgelenmiş sınır × oran" | Sınır ölçüldü: **500 token** (`"Context append text must not exceed 500 tokens."`) | Oran tek yerde: `ProviderAppendTokenLimit × ConservativeCharactersPerToken` = 1000 karakter. |
 
 Ayrıca planda olmayan bir dosya eklendi: **`LiveVoiceSessionLauncher`**. Uç
@@ -224,7 +224,7 @@ Mimari kapıları üç gerçek bulgu üretti:
 
 ### Gerçek koşumda bulunan kusur
 
-`LiveVoiceEndpoints.CreateAsync` yalnız `AgentPrismException` yakalıyordu. Egress
+`LiveVoiceEndpoints.CreateAsync` yalnız `TraconException` yakalıyordu. Egress
 politikası reddi **`HttpRequestException` içine sarılı** geliyor; sıradan ve
 çağıran kaynaklı bir ret **yakalanmamış 500** olarak kaçıyordu.
 `LiveVoiceEgressTests` bunu üretti, `catch` genişletildi ve `Describe` iç istisnayı
@@ -234,7 +234,7 @@ açıp operatöre değiştirmesi gereken ayarın adını veriyor.
 
 | # | Karar |
 |---|---|
-| K-745 | **Canlı oturumun faturalanan süresi sağlayıcının bildirdiği sayıdır.** AgentPrism canlı yolda medyayı taşımaz; duvar saati faturayla çelişir. Sağlayıcı bildirmezse `LiveSeconds` `null` kalır — sıfır değil. |
+| K-745 | **Canlı oturumun faturalanan süresi sağlayıcının bildirdiği sayıdır.** Tracon canlı yolda medyayı taşımaz; duvar saati faturayla çelişir. Sağlayıcı bildirmezse `LiveSeconds` `null` kalır — sıfır değil. |
 | K-746 | **`VoiceSessionCost` iki terimli bir `record`'dur ve toplamı yalnız `Total()` yapar.** Düz `decimal?` her çağıranı "hangi terim?" kararına zorlar; elle tekrarlanan toplam üçüncü terimde sessizce kaybolur (K-483 sınıfı). Hiçbir terim fiyatlanmadıysa `Total()` `null` döner. |
 | K-747 | **Canlı ses append'i her kanalda bir `delegation_id` taşır.** Ölçüldü: sağlayıcı oturum geneli append'i reddediyor. Canlı modelin kendi yönergesi oturum yaratılırken verilir. |
 | K-748 | **Delegation olayı agent seçemez.** Agent oturum yaratılırken bir kez çözülür. Olay sağlayıcıdan gelir, kiracı sınırını geçer ve güvenilmez girdidir; agent seçtirmek prompt injection ile ayrıcalıklı bir agent'a erişim demektir. |
@@ -252,7 +252,7 @@ Dördü de gerçekti; hiçbiri gerekçelenerek kapatılmadı, hepsi düzeltildi.
 
 | # | Bulgu | Düzeltme |
 |---|---|---|
-| 1 | **Üç yeni HTTP ucu sevk edilen OpenAPI belgesinde yoktu.** Snapshot üreteci "her opsiyonel ucu açık" üretmeyi taahhüt ediyor ama `UseLiveVoice()` çağırmıyordu; `grep -c "voice/live" docs/openapi/agentprism.json` → **0**. .NET/TypeScript istemcileri ve `http-api/` sayfaları üç ucu hiç görmezdi — üstelik `guides/voice.md` "In the reference" diyerek oraya işaret ediyordu. | `OpenApiSnapshotTests.GenerateAsync` artık `UseOpenAI` + `UseOpenAILive` + `UseLiveVoice` kuruyor; snapshot yenilendi. |
+| 1 | **Üç yeni HTTP ucu sevk edilen OpenAPI belgesinde yoktu.** Snapshot üreteci "her opsiyonel ucu açık" üretmeyi taahhüt ediyor ama `UseLiveVoice()` çağırmıyordu; `grep -c "voice/live" docs/openapi/tracon.json` → **0**. .NET/TypeScript istemcileri ve `http-api/` sayfaları üç ucu hiç görmezdi — üstelik `guides/voice.md` "In the reference" diyerek oraya işaret ediyordu. | `OpenApiSnapshotTests.GenerateAsync` artık `UseOpenAI` + `UseOpenAILive` + `UseLiveVoice` kuruyor; snapshot yenilendi. |
 | 2 | **Transcript'in geçmişe yazıldığını (ya da yazılmadığını) kanıtlayan tek bir test yoktu.** Üç gizlilik testi yalnız yanıttaki `persistTranscript` alanını okuyordu. `FlushHistoryAsync`'i gövdesiz bırakmak hiçbir testi kırmazdı — 161.4'ün tamamı test edilmemişti. | `LiveVoiceLifecycleTests` iki yönü de oturum geçmişini **okuyarak** doğruluyor. |
 | 3 | **`CloseAsync` süpürge ve sunucu kapanışı yolunda ambient kiracısız koşuyordu.** Kiracı yalnız `PumpAsync`'in gövdesinde açılıyordu; `SweepAsync` ve `LiveVoiceShutdownService` host'u pump'ın **dışından** kapatıyor ve `FlushHistoryAsync` orada `_tenantContext.TenantId` okuyor. Çok kiracılı bir kurulumda `MaxSessionDuration` ile biten oturumun geçmişi `default` kiracıya yazılır, kiracı kapsamlı güncelleme satırı bulamaz, `VoiceHistoryWriter` istisnayı yutar ve **transcript sessizce kaybolur**. 🚨 Fazın kendi "en olası sessiz kusuru" ile aynı sınıf, başka yol. | `CloseAsync` kendi gövdesinde de `AmbientTenantScope.Begin` açıyor. |
 | 4 | **`VoiceSessionEndReason.Abandoned` üretilemezdi.** `AttachAsync` durumu hemen `Active` yapıyordu, yani `Pending` yalnız sağlayıcı çağrısı süresince yaşıyordu ve süpürge terk edilmiş bir oturumu asla göremezdi. XML dokümanı, `docs-site` ve **MT-MM-116** gerçekleşemeyecek bir davranış vaat ediyordu. | Attach artık durumu değiştirmiyor: ölçüldü, `session.started` tarayıcı hiç bağlanmasa da geliyor. Durum yalnız **medya kanıtı** olan bir olayda (`InputTranscript` · `OutputTranscript` · `DelegationCreated`) `Active` olur; medya akmadan gelen sağlayıcı kapanışı `Abandoned` yazılır. İki dal da test edildi. |
@@ -278,7 +278,7 @@ denetçinin işaret ettiği "belge → istemciler → site" zincirinin doğrulan
    istemcilerde karşılığı yoktu. Dört adımlı yeniden üretim koşuldu
    (`nswag-prepare-document.py` → `dotnet nswag run` →
    `nswag-postprocess-client.py` → `generate-client-json-context.py`) ve
-   `@agentprism/client` şeması yenilendi.
+   `@tracon/client` şeması yenilendi.
 2. **🚨 Üretilen istemci metotları `Task` dönüyordu, `Task<T>` değil.** Uçlar
    `HttpContext` üzerinden yazdığı için hiçbir şey yanıt şeklini çıkarmıyordu ve
    `.Produces<T>` üstverisi yoktu — yani **çağıran SDP yanıtına hiç ulaşamıyordu**.
@@ -311,7 +311,7 @@ bilgisi taşıyordu ve **yazıldı**:
   referansının yeri `http-api/` üretilen sayfalarıdır — `VoiceSessionRecord`'un
   yeni alanları oraya **zaten girdi**.
 - **`model-saglayici` → `getting-started/first-agent.md`.** Kural
-  `src/AgentPrism.OpenAI/Live/` yeni olduğu için tetiklendi. O sayfa ilk agent'ı
+  `src/Tracon.OpenAI/Live/` yeni olduğu için tetiklendi. O sayfa ilk agent'ı
   ayağa kaldıran yürüyüştür ve tek bir sohbet modeli kaydeder; saniye bazlı
   faturalanan bir canlı ses bağlantısını oraya koymak yeni başlayan okuru
   yanlış yere götürürdü. Sağlayıcı kaydının gerçek yeri
@@ -339,7 +339,7 @@ muafiyet listesi veya taban çizgisi büyümedi.
 
 ## Sonraki Faza Devir Notu
 
-**Gerçek koşum kanıtı (2026-09-11).** `samples/AgentPrism.Api` + sentetik mikrofon:
+**Gerçek koşum kanıtı (2026-09-11).** `samples/Tracon.Api` + sentetik mikrofon:
 WebRTC bağlandı, model sesli yanıt verdi, iki delegation gerçek `runs` satırı
 üretti (biri `get_order_status` tool'unu `orderId: 442` ile çağırdı, yanıt sesli
 döndü). Kayıt: `provider: openai · model: gpt-live-1 · liveSeconds: 57.0 ·
@@ -351,12 +351,12 @@ kaldırılınca `cost` `null` döndü.
 - **`Responses` delegation modu.** Sözleşmede var, `NotSupportedException` atıyor.
   Sağlayıcı `session.delegation.type` için `responses` değerini kabul ediyor
   (ölçüldü); uygulaması yapılmadı.
-- **`AgentPrism.UI` canlı paneli.** Bu fazda arayüz payı yok; `live-test.html`
+- **`Tracon.UI` canlı paneli.** Bu fazda arayüz payı yok; `live-test.html`
   bir örnek varlığıdır, paketlenmez.
-- **`agentprism.voice.session.cost` metriği.** Kayıt maliyeti taşıyor, metrik yok.
+- **`tracon.voice.session.cost` metriği.** Kayıt maliyeti taşıyor, metrik yok.
 - **🚨 Sideband sesi aynalıyor** (`session.input_audio.append` /
   `session.output_audio.delta`). Bu faz frame'leri yok sayıyor. Content guard'ın
-  konuşulanı görmesi istenirse giriş **buradadır** — ama o zaman ses AgentPrism'e
+  konuşulanı görmesi istenirse giriş **buradadır** — ama o zaman ses Tracon'e
   uğrar ve K-225'in saklama yasağı yeniden ele alınmalıdır.
 - **`response.item.create` / `response.create`** kabul ediliyor ama kullanılmıyor.
   Delegation sonucunu `commentary.append` yerine konuşma öğesi olarak enjekte etmek
@@ -380,7 +380,7 @@ kaldırılınca `cost` `null` döndü.
 - [x] Mevcut `VoiceConversationTests` **değiştirilmeden** yeşil (Seçenek A regresyon çiti)
 - [x] `EgressSocketGuard` hem giden sokette hem REST çağrısında devrede — testle kanıtlandı
 - [x] Dört doğrulama kapısı sıfır uyarı verir
-- [x] `samples/AgentPrism.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı
+- [x] `samples/Tracon.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı
 - [x] `secret` taraması boş döndü
 - [x] Manuel kabul case'leri `docs/manuel-test/19-COK-MODLULUK-VE-SES.md` içine eklendi; otomatikleştirilebilenler koşuldu
 - [x] `faz-denetim` koşuldu; 🔴 bulgu kalmadı
@@ -392,11 +392,11 @@ kaldırılınca `cost` `null` döndü.
 python3 scripts/kapi.py kapanis --taban f7fc7cb9
 MSBUILDDISABLENODEREUSE=1 dotnet build -c Release
 
-./artifacts/bin/AgentPrism.AspNetCore.FunctionalTests/release/AgentPrism.AspNetCore.FunctionalTests \
+./artifacts/bin/Tracon.AspNetCore.FunctionalTests/release/Tracon.AspNetCore.FunctionalTests \
   --filter-method "*LiveVoice*"
 
-AGENTPRISM_SQL_SNAPSHOT_REFRESH=1 dotnet test
-curl -s http://localhost:5081/agentprism/api/voice/sessions -H "Authorization: Bearer $TOKEN"
+TRACON_SQL_SNAPSHOT_REFRESH=1 dotnet test
+curl -s http://localhost:5081/tracon/api/voice/sessions -H "Authorization: Bearer $TOKEN"
 python3 scripts/dokuman-bakim.py --denetle
 ```
 

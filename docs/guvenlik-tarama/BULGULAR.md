@@ -1,4 +1,4 @@
-# AgentPrism — Güvenlik Tarama Bulguları
+# Tracon — Güvenlik Tarama Bulguları
 
 > **Defter.** 10 konu oturumunun ürettiği bulgular tek yerde, `dosya:satır`
 > kanıtıyla. Bir bulgu kapandığında **satır silinmez**; durum sütunu güncellenir
@@ -91,10 +91,10 @@ Kalan on bulgu sınıfsızdır ve tek tek kapatılır.
 
 ### B01-1 · MCP/A2A dış yüzeyinde `external:invoke` kapsamı istek anında zorlanmaz · CONFIRMED · **KAPANDI**
 
-**Yer:** `src/AgentPrism.AspNetCore/Security/AgentPrismEndpointFilter.cs:95-105`
-ve `:288-301` · `src/AgentPrism.AspNetCore/Security/ExternalSurfaceGuard.cs:122-148`
-· `src/AgentPrism.AspNetCore/McpServer/AgentPrismMcpServerExtensions.cs:87` ·
-`src/AgentPrism.AspNetCore/A2A/AgentPrismA2AExtensions.cs:113`
+**Yer:** `src/Tracon.AspNetCore/Security/TraconEndpointFilter.cs:95-105`
+ve `:288-301` · `src/Tracon.AspNetCore/Security/ExternalSurfaceGuard.cs:122-148`
+· `src/Tracon.AspNetCore/McpServer/TraconMcpServerExtensions.cs:87` ·
+`src/Tracon.AspNetCore/A2A/TraconA2AExtensions.cs:113`
 
 **Mekanizma.** Üç halka birlikte açığı üretir:
 
@@ -111,23 +111,23 @@ ve `:288-301` · `src/AgentPrism.AspNetCore/Security/ExternalSurfaceGuard.cs:122
 
 **Senaryo.** Operatör `AllowRemoteAccess=true` yapar, hata mesajının istediği
 gibi bir `external:invoke` anahtarı üretir, `AuthToken` ve `AuthorizationPolicy`
-tanımlamaz. Açılış geçer. `POST /agentprism/mcp` (veya `/a2a/{agent}`) hiçbir
+tanımlamaz. Açılış geçer. `POST /tracon/mcp` (veya `/a2a/{agent}`) hiçbir
 kimlik bilgisi taşımadan `200` alır. İnternete açık bir agent çağırma yüzeyi
 kimlik doğrulamasız kalır.
 
 **Mevcut test bu davranışı sabitlemiş:**
-`tests/AgentPrism.AspNetCore.FunctionalTests/ApiKeyAuthenticationTests.cs:279-303`
+`tests/Tracon.AspNetCore.FunctionalTests/ApiKeyAuthenticationTests.cs:279-303`
 token'sız `tools/list` çağrısı için `HttpStatusCode.OK` bekler.
-`Infrastructure/AgentPrismTestHost.cs:130` varsayılanı `AuthToken` kurmaz.
+`Infrastructure/TraconTestHost.cs:130` varsayılanı `AuthToken` kurmaz.
 Düzeltme bu testi de değiştirir.
 
 **Sevk edilen doküman çelişiyor** — üçü de istek anında zorlanmıyor:
-`A2A/AgentPrismA2AExtensions.cs:138` ("A valid API key carrying the
+`A2A/TraconA2AExtensions.cs:138` ("A valid API key carrying the
 `external:invoke` scope is required") · `ExternalSurfaceGuard.cs:145` ("A single
 static bearer token is not enough…") · [`MIMARI-GUVENLIK.md`](../MIMARI-GUVENLIK.md) satır 41.
 
 **Tek telafi:** `AuthorizationPolicy` tanımlıysa `RequireAuthorization(policy)`
-devreye girer (`AgentPrismMcpServerExtensions.cs:89-92`). Varsayılan kurulumda yoktur.
+devreye girer (`TraconMcpServerExtensions.cs:89-92`). Varsayılan kurulumda yoktur.
 
 **İlgili karar:** K-360.
 
@@ -135,20 +135,20 @@ devreye girer (`AgentPrismMcpServerExtensions.cs:89-92`). Varsayılan kurulumda 
 
 ### B02-1 · `WorkflowAgentCache` anahtarında `TenantId` yok — K-380'in birebir tekrarı · CONFIRMED · **KAPANDI**
 
-**Yer:** `src/AgentPrism.Workflows/Internal/WorkflowAgentCache.cs:110`, kullanım `:83`
+**Yer:** `src/Tracon.Workflows/Internal/WorkflowAgentCache.cs:110`, kullanım `:83`
 
 ```csharp
 private readonly record struct AgentKey(string WorkflowName, string AgentName);
 ```
 
 **Senaryo.** Workflow benzersizliği kiracı içindedir
-(`UNIQUE (tenant_id, name)`, `src/AgentPrism.PostgreSql/Migrations/0007_workflows.sql:34`);
+(`UNIQUE (tenant_id, name)`, `src/Tracon.PostgreSql/Migrations/0007_workflows.sql:34`);
 agent adları da yalnız kiracı içinde benzersizdir. Kiracı A `"triage"`
 workflow'unu `"support"` agent'ıyla koşar; `WorkflowDefinitionCompiler.Wrap`
-(`src/AgentPrism.Workflows/Internal/WorkflowDefinitionCompiler.cs:313`) A'nın
+(`src/Tracon.Workflows/Internal/WorkflowDefinitionCompiler.cs:313`) A'nın
 katalogdan gelen `info.Description`'ını cache'e yazar. Kiracı B aynı adlarla
 koşunca `ConcurrentDictionary.GetOrAdd` **A'nın örneğini** döndürür.
-`ChildAgentInvoker.Description` (`src/AgentPrism.Core/Graph/ChildAgentInvoker.cs:71`)
+`ChildAgentInvoker.Description` (`src/Tracon.Core/Graph/ChildAgentInvoker.cs:71`)
 kurucu anında dondurulmuştur. Sınıfın kendi XML dokümanı, description'ın
 `GroupChat` ve `Magentic` desenlerinde **modele giden katılımcı listesine**
 ulaştığını yazar. Yani A'nın serbest metni B'nin modeline gider.
@@ -184,10 +184,10 @@ reddeder (`:217`). Sızan yalnız `Description`'dır.
 
 | Yer | Yol | Ayırıcı |
 |---|---|---|
-| `src/AgentPrism.Mcp/Internal/McpOAuthTokenCacheRegistry.cs:23` | token cache | ✅ vardı |
-| `src/AgentPrism.Mcp/Internal/McpToolCatalog.cs:139` | connection **yazma** | ✅ vardı |
-| `src/AgentPrism.Core/Storage/InMemoryApprovalAndMcpStores.cs:190` | in-memory store | ✅ vardı |
-| `src/AgentPrism.Mcp/Internal/McpToolCatalog.cs:102` | connection **okuma** | ❌ **yoktu** |
+| `src/Tracon.Mcp/Internal/McpOAuthTokenCacheRegistry.cs:23` | token cache | ✅ vardı |
+| `src/Tracon.Mcp/Internal/McpToolCatalog.cs:139` | connection **yazma** | ✅ vardı |
+| `src/Tracon.Core/Storage/InMemoryApprovalAndMcpStores.cs:190` | in-memory store | ✅ vardı |
+| `src/Tracon.Mcp/Internal/McpToolCatalog.cs:102` | connection **okuma** | ❌ **yoktu** |
 
 `TryGetConnection` `"acmeprod"` arıyordu; refresh döngüsü `"acme␟prod"` yazmıştı.
 Arama **hiçbir zaman** tutmuyordu. Sonuç: `McpResourceContextProvider.cs:97`
@@ -199,9 +199,9 @@ kaynağı bağlama eklemeden geçiyordu. Yani **MCP kaynak enjeksiyonu (Mod A) h
 için test **yoktu** (`grep -rn "TryGetConnection" tests/` → boş).
 
 **Düzeltme.** Anahtar tipli bir değere dönüştürüldü
-(`src/AgentPrism.Mcp/Internal/McpTenantServerKey.cs`). Okuma ile yazmanın farklı
+(`src/Tracon.Mcp/Internal/McpTenantServerKey.cs`). Okuma ile yazmanın farklı
 biçim kullanması artık **derleme zamanında imkânsızdır**; görünmez karakter
-tamamen kalktı. `AgentPrism.Mcp` altında kontrol karakteri taşıyan kaynak kalmadı.
+tamamen kalktı. `Tracon.Mcp` altında kontrol karakteri taşıyan kaynak kalmadı.
 
 **Sınıf taraması.** Repo genelinde görünmez kontrol karakteri taşıyan kaynak
 dosyalar tarandı (`grep -rlP '[\x00-\x08\x0B\x0C\x0E-\x1F]' src/`): yalnız
@@ -216,8 +216,8 @@ ayrışır. Tipli anahtar bunu belgelemek yerine **ortadan kaldırır**.
 
 ### B05-2 · MCP `AuthorizationConfigurationKey`'de prefix kısıtı yok; `secret` ağdan çıkar · CONFIRMED · **KAPANDI (Faz 77)**
 
-**Yer:** doğrulama `src/AgentPrism.AspNetCore/Endpoints/GovernanceEndpoints.cs:774-826`
-· kullanım `src/AgentPrism.Mcp/Internal/McpTransportFactory.cs:110`, `:60`, `:64`
+**Yer:** doğrulama `src/Tracon.AspNetCore/Endpoints/GovernanceEndpoints.cs:774-826`
+· kullanım `src/Tracon.Mcp/Internal/McpTransportFactory.cs:110`, `:60`, `:64`
 
 Doğrulama yalnız üç şeye bakar: ad boş mu, URI mutlak mı, şema `http`/`https` mi.
 Sonra `headers["Authorization"] = configuration[key]` çalışır ve bu başlıklar
@@ -226,7 +226,7 @@ Sonra `headers["Authorization"] = configuration[key]` çalışır ve bu başlık
 **Senaryo.** `AgentsAdmin` kapsamlı bir çağrı `PUT /api/mcp-servers/x` ile
 `endpoint = "https://attacker.example/"` ve
 `authorizationConfigurationKey = "ConnectionStrings:Default"` yazar. Sonraki
-`McpDiscoveryService` turunda AgentPrism bağlantı isteğini o sunucuya atar ve
+`McpDiscoveryService` turunda Tracon bağlantı isteğini o sunucuya atar ve
 bağlantı dizesini `Authorization` başlığında gönderir.
 
 **K-059 ihlal edilmez ama yetmez.** K-059'un vaadi — değer veritabanına, denetim
@@ -234,8 +234,8 @@ izine ve API yanıtına girmez — burada geçerlidir. Değer **ağdan çıkar**
 
 **Karşıt desen aynı repodadır.** İki yerde `AllowedConfigurationPrefix` uygulanır
 ve kod bunu "bu bir güvenlik sınırıdır" diye adlandırır:
-`src/AgentPrism.Core/Triggers/InboundTriggerSecretResolver.cs:43-57` ·
-`src/AgentPrism.Core/Tenancy/TenantProviderCredentialResolver.cs:47-62`.
+`src/Tracon.Core/Triggers/InboundTriggerSecretResolver.cs:43-57` ·
+`src/Tracon.Core/Tenancy/TenantProviderCredentialResolver.cs:47-62`.
 MCP ve webhook bu korumayı almamıştır.
 
 **İlgili karar:** K-058, K-059.
@@ -246,7 +246,7 @@ MCP ve webhook bu korumayı almamıştır.
 
 ### B01-2 · Konuşma WebSocket el sıkışması API anahtarını hiç denemez · CONFIRMED · **KAPANDI**
 
-**Yer:** `src/AgentPrism.AspNetCore/Voice/VoiceConversationEndpoint.cs:161-184`
+**Yer:** `src/Tracon.AspNetCore/Voice/VoiceConversationEndpoint.cs:161-184`
 
 ```csharp
 if (options.AuthToken is not { Length: > 0 } expected) return true;
@@ -254,11 +254,11 @@ if (options.AuthToken is not { Length: > 0 } expected) return true;
 
 `ApiKeyAuthenticator`'ın XML dokümanı (`:4-8`) bu tipin tam olarak "bir WebSocket
 el sıkışması" için ortaklaştırıldığını söyler; tek çağıranı
-`AgentPrismEndpointFilter`'dır.
+`TraconEndpointFilter`'dır.
 
 **Senaryo.** Kiracı API anahtarı kullanan bir kurulum `AuthToken` tanımlamaz.
 Voice grubu `requireBearerToken: false` ile bağlıdır
-(`AgentPrismEndpointRouteBuilderExtensions.cs:277`). Tarayıcı el sıkışmaya
+(`TraconEndpointRouteBuilderExtensions.cs:277`). Tarayıcı el sıkışmaya
 `Authorization` başlığı ekleyemediği için filtre başlıksız yolu izler ve geçirir.
 Uçtaki `IsTokenValid` de `AuthToken` boş olduğu için **her** alt protokol
 değerini kabul eder. `Operator` policy'si kayıtlı değilse (varsayılan,
@@ -267,7 +267,7 @@ agent çalıştırır.
 
 **Ters yön aynı kusurdan doğar.** `AuthToken` tanımlıyken arayüzden API anahtarı
 giren kullanıcının anahtarı statik token ile karşılaştırılır, eşleşmez ve `401`
-alır (`src/AgentPrism.UI/frontend/src/lib/voice.ts:54-57`, `lib/auth.ts:14`).
+alır (`src/Tracon.UI/frontend/src/lib/voice.ts:54-57`, `lib/auth.ts:14`).
 
 **Doküman çelişkisi:** [`MIMARI-GUVENLIK.md`](../MIMARI-GUVENLIK.md) satır 54
 tablosu "Bearer token · Konuşma WebSocket'i ✅ alt protokolde" der.
@@ -278,7 +278,7 @@ tablosu "Bearer token · Konuşma WebSocket'i ✅ alt protokolde" der.
 
 ### B02-2 · ~~Ses WebSocket'inin oturum sahipliği denetimi ölü koddur~~ → **YANLIŞ POZİTİF (K-283)**
 
-**Yer:** `src/AgentPrism.AspNetCore/Voice/VoiceConversationEndpoint.cs:206`, karar `:208`
+**Yer:** `src/Tracon.AspNetCore/Voice/VoiceConversationEndpoint.cs:206`, karar `:208`
 
 > 🚨 **Bu bulgu bir kusur DEĞİLDİR.** Ölü kod **bilinçlidir**: K-283 (Faz 41)
 > "Görünmeyen bir oturum YOK sayılır; 'başkasının oturumu' reddi **kaldırıldı**"
@@ -295,7 +295,7 @@ tablosu "Bearer token · Konuşma WebSocket'i ✅ alt protokolde" der.
 `sessionId` ile kiracı A bağlanınca `record` `null` döner ve
 `return record is null || ...` **true** olur — 404 dalı hiç çalışmaz.
 
-**Bu hata zaten yazılıdır.** `src/AgentPrism.Abstractions/Sessions/ISessionStore.cs:69-77`:
+**Bu hata zaten yazılıdır.** `src/Tracon.Abstractions/Sessions/ISessionStore.cs:69-77`:
 "`GetAsync` is filtered by the ambient tenant … This is exactly why the
 OpenAI-compatible endpoints' cross-tenant ownership check was dead code."
 Düzeltme `OpenAICompatSupport.cs:117`'de yapılmış, ses ucuna taşınmamıştır.
@@ -310,20 +310,20 @@ kiracı sahipliğini doğrular" iddiası karşılanmaz.
 
 ### B02-3 · `ModelProviderCircuitBreaker` yalnız `providerName` ile anahtarlanır · CONFIRMED · **KAPANDI**
 
-**Yer:** `src/AgentPrism.Core/Models/ModelProviderCircuitBreaker.cs:88`, `:150` ·
-sarmalama `src/AgentPrism.Core/Models/ModelProviderRegistry.cs:333`
+**Yer:** `src/Tracon.Core/Models/ModelProviderCircuitBreaker.cs:88`, `:150` ·
+sarmalama `src/Tracon.Core/Models/ModelProviderRegistry.cs:333`
 
 Varsayılan `Enabled = true`, `FailureThreshold = 5`
-(`src/AgentPrism.Core/AgentPrismOptions.cs:315`, `:320`).
+(`src/Tracon.Core/TraconOptions.cs:315`, `:320`).
 
 **Senaryo.** Kiracı A, `tenant_provider_bindings`'e geçersiz veya iptal edilmiş
 bir anahtar adı yazar (Faz 65). A'nın 5 ardışık başarısız `run`'ı
 `_states["openai"]`'i `Open`'a çeker. `BreakDuration` boyunca kiracı B'nin her
-`run`'ı `AgentPrismProviderUnavailableException` alır. Kiracı boyutu anahtarda
+`run`'ı `TraconProviderUnavailableException` alır. Kiracı boyutu anahtarda
 yoktur; BYOK yolu da aynı `BuildPipeline`'dan geçer.
 
 **Aynı sınıf, daha düşük etki:**
-`src/AgentPrism.Core/Models/ProviderConcurrencyLimiter.cs:72` semaphore'u da
+`src/Tracon.Core/Models/ProviderConcurrencyLimiter.cs:72` semaphore'u da
 sağlayıcı adıyla paylaşılır — ama `MaxConcurrentCallsPerProvider` varsayılanı
 `null`'dır (kapalı).
 
@@ -331,8 +331,8 @@ sağlayıcı adıyla paylaşılır — ama `MaxConcurrentCallsPerProvider` varsa
 
 ### B02-4 · `GET /api/tenants` kurulumdaki her kiracıyı `Reader` rolüne döndürür · CONFIRMED · **KAPANDI**
 
-**Yer:** `src/AgentPrism.AspNetCore/Endpoints/GovernanceEndpoints.cs:114-119` ·
-muafiyet metni `src/AgentPrism.Sql.Shared/Stores/SqlApprovalAndMcpStores.cs:380-382`
+**Yer:** `src/Tracon.AspNetCore/Endpoints/GovernanceEndpoints.cs:114-119` ·
+muafiyet metni `src/Tracon.Sql.Shared/Stores/SqlApprovalAndMcpStores.cs:380-382`
 
 Uç `.RequireRole(roles.Reader)` + `RequireApiKeyScope(ApiKeyScope.PlatformRead)`
 taşır. `SqlTenantStore.ListAsync` kiracı süzgeci taşımaz ve tüm kurulumun `slug`
@@ -349,7 +349,7 @@ ister; yalnız listeleme düşmüştür.
 
 ### B03-1 · `AuditSecretFilter` ayraçlı varyantları kaçırır · CONFIRMED · **KAPANDI**
 
-**Yer:** `src/AgentPrism.Core/Audit/AuditSecretFilter.cs:24-31` (liste:
+**Yer:** `src/Tracon.Core/Audit/AuditSecretFilter.cs:24-31` (liste:
 `apikey`, `authorization`, `token`, `password`, `secret`) ve `:110-134`
 (`IsSecretKey`, `Contains` ile alt dize eşleşmesi)
 
@@ -365,11 +365,11 @@ düz metin anahtar `audit_log.after`'a yazılır ve `GET /api/audit`
 (`AuditEndpoints.cs:20`) ile döner.
 
 **Bu adlar kod tabanında gerçektir:**
-`src/AgentPrism.Anthropic/AnthropicProviderHealthCheck.cs:57` (`x-api-key`) ·
-`tests/AgentPrism.Voice.UnitTests/SecretLeakTests.cs:124` (`xi-api-key`).
+`src/Tracon.Anthropic/AnthropicProviderHealthCheck.cs:57` (`x-api-key`) ·
+`tests/Tracon.Voice.UnitTests/SecretLeakTests.cs:124` (`xi-api-key`).
 
 **İkinci yol.** `AgentDefinition.Metadata`
-(`src/AgentPrism.Abstractions/Agents/AgentDefinition.cs:123-125`, "free-form") ve
+(`src/Tracon.Abstractions/Agents/AgentDefinition.cs:123-125`, "free-form") ve
 skill script argümanları (`SandboxedSkillScriptRunner.cs:299-304`, şemayı skill
 yazarı tanımlar; snake_case `api_key` yaygındır) serbest anahtar taşır ve aynı
 filtreden geçer.
@@ -383,7 +383,7 @@ are stored as-is" der. Bu bir **doküman** kuralıdır, kodda zorlanmaz.
 
 ### B03-2 · Kaçışsız interpolation, PostgreSQL'de denetim kaydını sessizce düşürür · CONFIRMED · **KAPANDI**
 
-**Yer:** `src/AgentPrism.AspNetCore/Endpoints/TenantProviderEndpoints.cs:263`
+**Yer:** `src/Tracon.AspNetCore/Endpoints/TenantProviderEndpoints.cs:263`
 
 **Zincir.** Gövde `{"allowedProviders":["open\"ai"]}`. `allowedProviders` hiç
 doğrulanmaz (`:404-408`; `:251-253` doğrudan `UpsertAsync`'e gider).
@@ -393,7 +393,7 @@ doğrulanmaz (`:404-408`; `:251-253` doğrudan `UpsertAsync`'e gider).
 3. `AuditSecretFilter.Redact` `JsonException` yakalar ve metni **değiştirmeden
    döner** (`AuditSecretFilter.cs:49-54`) — redaksiyon da atlanır.
 4. `after` sütunu PostgreSQL'de `jsonb`'dir
-   (`src/AgentPrism.PostgreSql/Migrations/0001_initial.sql:234-235`), parametre
+   (`src/Tracon.PostgreSql/Migrations/0001_initial.sql:234-235`), parametre
    `text` gider (`PostgresQueries.cs:1355-1358`), atama cast'i `22P02` verir.
 5. `AuditRecorder.WriteAsync` hatayı yutar, yalnız `LogWarning` yazar
    (`AuditRecorder.cs:53-60`).
@@ -414,8 +414,8 @@ kayıt yazılır ama saldırganın seçtiği JSON alanlarını taşır.
 
 ### B03-3 · API anahtarıyla doğrulanmış her istek denetim izine `Actor = null` yazar · CONFIRMED · **KAPANDI**
 
-**Yer:** `src/AgentPrism.Core/Audit/AmbientAuditActorResolver.cs:30-34` ·
-`src/AgentPrism.AspNetCore/Security/AgentPrismEndpointFilter.cs:157`, `:177`
+**Yer:** `src/Tracon.Core/Audit/AmbientAuditActorResolver.cs:30-34` ·
+`src/Tracon.AspNetCore/Security/TraconEndpointFilter.cs:157`, `:177`
 
 `ApiKeyAuthenticator` kaydı doğrular ve `ApiKeyRequestContext`'e koyar, ama
 `httpContext.User`'a hiçbir yerde atama yapılmaz — kod tabanında
@@ -433,16 +433,16 @@ zenginleştirmesi"ni açıkça adlandırır.
 
 ### B04-1 · Saklanan script adı yol karakteri için doğrulanmaz · CONFIRMED · **KAPANDI**
 
-**Yer:** yazım `src/AgentPrism.Core/Skills/Scripts/SandboxedSkillScriptRunner.cs:318-319`
-· doğrulama boşluğu `src/AgentPrism.AspNetCore/Endpoints/SkillEndpoints.cs:213-219`
+**Yer:** yazım `src/Tracon.Core/Skills/Scripts/SandboxedSkillScriptRunner.cs:318-319`
+· doğrulama boşluğu `src/Tracon.AspNetCore/Endpoints/SkillEndpoints.cs:213-219`
 
 **Senaryo.** Admin (`AgentsAdmin` kapsamı) `PUT /api/skills/{name}` ile
-`scripts:[{ name: "/etc/cron.d/agentprism", extension: "py", content: "..." }]`
+`scripts:[{ name: "/etc/cron.d/tracon", extension: "py", content: "..." }]`
 kaydeder. `ValidateScripts` yalnız "boş değil + benzersiz" bakar; `Extension`
 allow-list'ten geçer ama `Name` serbesttir. Skill'e ait geniş bir izin
 (`ScriptName = null`, `SkillScriptGrantEndpoints.cs:115`) zaten varsa çalıştırma
 ikinci kapıdan geçer. `ExecuteAsync`
-`Path.Combine(scratch.FullName, "/etc/cron.d/agentprism.py")` üretir; .NET'te
+`Path.Combine(scratch.FullName, "/etc/cron.d/tracon.py")` üretir; .NET'te
 ikinci parça mutlak yol olduğunda `Path.Combine` doğrudan onu döndürür, `../../..`
 biçimi de normalize edilmediği için işletim sisteminde çözülür.
 `File.WriteAllTextAsync` içeriği oraya yazar, süreç orayı çalıştırır ve
@@ -463,14 +463,14 @@ yol** arayüzden gelir).
 
 ### B04-2 · `Interpreters`, `SkillRoots` ve `AllowStoredScripts` konfigürasyondan genişletilebilir · CONFIRMED · **KAPANDI**
 
-**Yer:** `src/AgentPrism.Core/AgentPrismServiceCollectionExtensions.cs:1327-1330`
+**Yer:** `src/Tracon.Core/TraconServiceCollectionExtensions.cs:1327-1330`
 (`AllowStoredScripts`), `:1371` (`SkillRoots`), `:1375-1381` (`Interpreters`) ·
-birleşme sırası `src/AgentPrism.Core/AgentPrismBuilder.cs:23`
+birleşme sırası `src/Tracon.Core/TraconBuilder.cs:23`
 
 **Senaryo.** Kod `UseSkillScripts(o => { o.PlatformIsolationAcknowledged = true;
 o.Interpreters["py"] = "python3"; })` çağırır. Ortam değişkenleri
-`AgentPrism__Skills__Scripts__Interpreters__sh=/bin/sh` ve
-`AgentPrism__Skills__Scripts__AllowStoredScripts=true` eklenir. Binding
+`Tracon__Skills__Scripts__Interpreters__sh=/bin/sh` ve
+`Tracon__Skills__Scripts__AllowStoredScripts=true` eklenir. Binding
 `Configure`'ı önce, `UseSkillScripts`'in `Configure`'ı sonra koşar; ikisi de aynı
 sözlüğe **ekler** ve kod hiçbir zaman temizlemez. Sonuç: kodun hiç tanımadığı
 `sh` yorumlayıcısı allow-list'e girer ve kodun bilinçli kapalı bıraktığı
@@ -492,9 +492,9 @@ gerekçelendirilmemiş üç alanı hedefler.
 
 ### B04-3 · Tek "bir daha sorma" onayı `run_skill_script` için argümandan bağımsız kalıcı kural yazar · CONFIRMED · **KAPANDI**
 
-**Yer:** `src/AgentPrism.AspNetCore/Internal/ToolApprovalResolver.cs:100-103`,
+**Yer:** `src/Tracon.AspNetCore/Internal/ToolApprovalResolver.cs:100-103`,
 `:160-176` · etki
-`src/AgentPrism.Core/Approvals/ToolApprovalRuleEvaluator.cs:165-166`
+`src/Tracon.Core/Approvals/ToolApprovalRuleEvaluator.cs:165-166`
 
 **Ayrıcalık yükseltme.** Kuralı doğrudan yazan uç `Admin` + `SecurityAdmin`
 ister (`GovernanceEndpoints.cs:629-631`). Aynı kuralı dolaylı yazan yol
@@ -512,14 +512,14 @@ bile, kullanıcıya sorulmadan onaylanır.
 stays active … every script call waits for user approval first" der.
 
 **MAF tarafı doğrudur.** `DisableRunSkillScriptApproval` hiçbir yerde set
-edilmez; boşluk AgentPrism'in kural katmanındadır.
+edilmez; boşluk Tracon'in kural katmanındadır.
 
 ---
 
 ### B04-4 · `script.grant` denetim kaydı yutulabilir · CONFIRMED · **KAPANDI**
 
-**Yer:** `src/AgentPrism.Core/Audit/AuditingSkillScriptGrantStore.cs:69-78` →
-`src/AgentPrism.Core/Audit/AuditRecorder.cs:53-60`
+**Yer:** `src/Tracon.Core/Audit/AuditingSkillScriptGrantStore.cs:69-78` →
+`src/Tracon.Core/Audit/AuditRecorder.cs:53-60`
 
 **Senaryo.** `audit_log` yazımı hata verir (B03-2'nin `22P02` sınıfı, bağlantı
 kopması vb.). `_inner.GrantAsync` `:67`'de **zaten** kalıcılaşmıştır; audit
@@ -542,8 +542,8 @@ uygular; grant store uygulamaz.
 
 ### B05-3 · MCP sunucu adresi hiçbir SSRF denetiminden geçmez · CONFIRMED · **KAPANDI (Faz 77)**
 
-**Yer:** `src/AgentPrism.AspNetCore/Endpoints/GovernanceEndpoints.cs:784-803` ·
-`src/AgentPrism.Mcp/Internal/McpTransportFactory.cs:19-23`
+**Yer:** `src/Tracon.AspNetCore/Endpoints/GovernanceEndpoints.cs:784-803` ·
+`src/Tracon.Mcp/Internal/McpTransportFactory.cs:19-23`
 
 `endpoint = "http://169.254.169.254/"` veya `"http://10.0.0.5:8080/"` kabul
 edilir. `McpClient.CreateAsync` iç ağa TCP bağlantısı açar. Yanıt MCP protokolüne
@@ -558,10 +558,10 @@ gömdü. MCP transport'u ayrı bir `HttpClientTransport` kullanır.
 
 ### B05-4 · Kiracı model sağlayıcı `Endpoint` override'ı doğrulanmadan saklanır · CONFIRMED · **KAPANDI (Faz 77)**
 
-**Yer:** `src/AgentPrism.AspNetCore/Endpoints/TenantProviderEndpoints.cs:163` ·
-kullanım `src/AgentPrism.Anthropic/AnthropicModelProvider.cs:107` ·
-`src/AgentPrism.Azure/AzureOpenAIModelProvider.cs:116` ·
-`src/AgentPrism.Google/GoogleModelProvider.cs:107`
+**Yer:** `src/Tracon.AspNetCore/Endpoints/TenantProviderEndpoints.cs:163` ·
+kullanım `src/Tracon.Anthropic/AnthropicModelProvider.cs:107` ·
+`src/Tracon.Azure/AzureOpenAIModelProvider.cs:116` ·
+`src/Tracon.Google/GoogleModelProvider.cs:107`
 
 `ApiKeyConfigurationName` için prefix denetimi vardır; `Endpoint` için hiçbir
 denetim yoktur.
@@ -578,7 +578,7 @@ değildi.
 
 ### B10-1 · `error.message` span alanı kendi secret filtresini atlar · CONFIRMED · **KAPANDI**
 
-**Yer:** `src/AgentPrism.Core/Diagnostics/RunTraceCollector.cs:266-269`
+**Yer:** `src/Tracon.Core/Diagnostics/RunTraceCollector.cs:266-269`
 
 ```csharp
 foreach (var tag in activity.TagObjects) {
@@ -618,7 +618,7 @@ okunabilir. `RecordSensitiveData=false` güvenli varsayılanı bu alanı **korum
 
 | Kimlik | Özet | Yer | Doğrulama yolu |
 |---|---|---|---|
-| B01-3 | MCP/A2A onay muhafızı filtresi kimlik filtresinden **önce** koşar; şema hazır değilse süresiz bekler | `McpServer/AgentPrismMcpServerExtensions.cs:85-86` · `McpApprovalGuardFilter.cs:70-75` · `ExternalSurfaceGuard.cs:63-88` | Kaynak tüketimini ölç; sıra ve sınırsız bekleme koddan kesindir |
+| B01-3 | MCP/A2A onay muhafızı filtresi kimlik filtresinden **önce** koşar; şema hazır değilse süresiz bekler | `McpServer/TraconMcpServerExtensions.cs:85-86` · `McpApprovalGuardFilter.cs:70-75` · `ExternalSurfaceGuard.cs:63-88` | Kaynak tüketimini ölç; sıra ve sınırsız bekleme koddan kesindir |
 | B02-7 | `IEvalStore.QueryRunsAsync` `TenantId = null` iken tüm kiracıları döner; kardeş `IRunStore` ambient kiracıya düşer | `SqlEvalStore.cs:339` · `PostgresQueries.cs:1731` · `InMemoryEvalStore.cs:272` | Repo içi tek çağıran `TenantId`'yi verir; risk **public API** tüketicisindedir |
 | B03-7 | Canlı `secret` değeri taşıyan üç `record` tipi `SecretLeakTests` kapsamı dışındadır | `ModelProviderCredential.cs:13-16` · `ApiKeyRecord.cs:54-64` · `ApiKeyGenerator.cs:85-95` | Bugün hiçbir kod bunları loglamaz; koruma boşluğu doğrulandı, sızıntı doğrulanmadı |
 
@@ -636,8 +636,8 @@ kapsam **elle tutulan bir listedir**. `tests/` altında `GetTypes()` yalnız
 | Kimlik | Doküman ne diyor | Kod ne yapıyor |
 |---|---|---|
 | B03-5 | [`MIMARI-GUVENLIK.md`](../MIMARI-GUVENLIK.md):164-168 "Yazma `store` decorator'larında yapılır, endpoint katmanında değil" | `AuditRecorder.WriteAsync` **12 endpoint dosyasından** çağrılır; `DataSubjectEndpoints.cs:123` ve `TriggerEndpoints.cs:486` doğrudan `IAuditLog`'a yazar |
-| B04-5 | [`MIMARI-GUVENLIK.md`](../MIMARI-GUVENLIK.md):219-222 6. kapı "süreç hiç başlamaz, `AgentPrismException` atılır" | `SkillScriptConcurrencyLimiter.cs:25-42` reddetmez, **süresiz bekletir**. `SandboxedSkillScriptRunner` XML'i (`:25-31`) bu kapıyı zaten saymaz — **beş** kapı listeler |
-| B01-5 | `AgentPrismEndpointOptions.cs:169-178` `AllowedOrigins` "yanıtı okumak geçerli bir kimlik ister" | `AuthToken` ve policy tanımsızken kimlik gerekmez |
+| B04-5 | [`MIMARI-GUVENLIK.md`](../MIMARI-GUVENLIK.md):219-222 6. kapı "süreç hiç başlamaz, `TraconException` atılır" | `SkillScriptConcurrencyLimiter.cs:25-42` reddetmez, **süresiz bekletir**. `SandboxedSkillScriptRunner` XML'i (`:25-31`) bu kapıyı zaten saymaz — **beş** kapı listeler |
+| B01-5 | `TraconEndpointOptions.cs:169-178` `AllowedOrigins` "yanıtı okumak geçerli bir kimlik ister" | `AuthToken` ve policy tanımsızken kimlik gerekmez |
 | B02-10 | `HttpTenantContext.cs:134-136` "kümenin dışındaki değer varsayılan kiracıya **düşmez**" | Kod `null` döner; `:75`'teki `?? DefaultTenantId` onu düşürür. Gerçek koruma `CheckTenancyWhitelist`'tedir (K-382) |
 | B06-3 | [`06-veri-katmani.md`](06-veri-katmani.md):15-16 "`IContentProtector` genişleme noktası **var**" | `rg -n 'IContentProtector' src/` → **sıfır sonuç**. Tip hiçbir yerde tanımlı değildir. **Bu taramanın kendi plan dosyasındaki hatadır** |
 | B06-1 | Tüketiciye dönük hiçbir belge at-rest açık metin sınırını yazmaz | `docs-site/.../security.md`, [`MIMARI-GUVENLIK.md`](../MIMARI-GUVENLIK.md), [`README.md`](../../README.md) → `rg -in 'at.rest\|encrypt'` = 0 hit |
@@ -662,20 +662,20 @@ metninin ölçülmüş hâlle uyuşmadığının kaydıdır.
 |---|---|---|
 | B02-5 | `SqlPendingApprovalStore.ExpireAsync` tüm kiracıları tarar ama `[TenantAgnostic]` **taşımaz**; bunun yerine `Covered` listesine yazılarak K-281 kapısı susturulmuştur. Arayüz belgesi (`IPendingApprovalStore.cs:58-61`) attribute'ü açıkça vaat eder | `SqlPendingApprovalStore.cs:102-113` · `tests/Shared/Contracts/TenantCoverageTests.cs:92` |
 | B02-6 | `TenantCoverageTests` yalnız adı `Sql` ile başlayan tipleri tarar; `PgVectorSearchStore` kapının tamamen dışındadır. Kodu bugün temizdir — bulgu **kapının kendisindedir** | `tests/Shared/Contracts/TenantCoverageTests.cs:200` · `PgVectorSearchStore.cs:53,123,173,193` |
-| B05-6 · **KAPANDI (Faz 77)** | K-164'ün gerçek zorlama noktası `WebhookSocketGuard`'ın testi yoktur (`grep -rl "WebhookSocketGuard" tests` boş). Guard, çözüm+denetim döngüsünü `ValidateResolvedAsync`'ten **kopyalar** | `src/AgentPrism.Core/Webhooks/WebhookSocketGuard.cs` → `EgressSocketGuard`; kopya döngü silindi, `EgressAddressValidatorTests` + `EgressGuardTests` |
-| B06-6 | Kötücül tanımlayıcı testi yalnız PostgreSQL'dedir. SQL Server `SchemaName` ve SQLite `TablePrefix` karşılığı yoktur | `tests/AgentPrism.PostgreSql.IntegrationTests/MigrationTests.cs:196-215` |
-| B09-1 | `EmbeddedUiProvider` path traversal koruması **kod yapısından** gelir (dictionary-only lookup), testle kilitlenmemiştir | `src/AgentPrism.UI/Internal/EmbeddedUiProvider.cs:91` |
+| B05-6 · **KAPANDI (Faz 77)** | K-164'ün gerçek zorlama noktası `WebhookSocketGuard`'ın testi yoktur (`grep -rl "WebhookSocketGuard" tests` boş). Guard, çözüm+denetim döngüsünü `ValidateResolvedAsync`'ten **kopyalar** | `src/Tracon.Core/Webhooks/WebhookSocketGuard.cs` → `EgressSocketGuard`; kopya döngü silindi, `EgressAddressValidatorTests` + `EgressGuardTests` |
+| B06-6 | Kötücül tanımlayıcı testi yalnız PostgreSQL'dedir. SQL Server `SchemaName` ve SQLite `TablePrefix` karşılığı yoktur | `tests/Tracon.PostgreSql.IntegrationTests/MigrationTests.cs:196-215` |
+| B09-1 | `EmbeddedUiProvider` path traversal koruması **kod yapısından** gelir (dictionary-only lookup), testle kilitlenmemiştir | `src/Tracon.UI/Internal/EmbeddedUiProvider.cs:91` |
 
 ### Diğer sağlamlaştırma
 
 | Kimlik | Bulgu | Yer |
 |---|---|---|
-| B01-4 | Bearer'dan muaf tetikleyici grubu, ilgisiz bir `Authorization` başlığı taşıyan **geçerli imzalı** webhook'u `401` ile reddeder; HMAC hiç değerlendirilmez. Güvenliği gevşetmez, kapatır | `AgentPrismEndpointFilter.cs:115-130` |
+| B01-4 | Bearer'dan muaf tetikleyici grubu, ilgisiz bir `Authorization` başlığı taşıyan **geçerli imzalı** webhook'u `401` ile reddeder; HMAC hiç değerlendirilmez. Güvenliği gevşetmez, kapatır | `TraconEndpointFilter.cs:115-130` |
 | B03-4 | Aynı interpolation sınıfı iki yerde daha vardır; orada sonuç `500`'dür (fail-closed). Düz metin sütunlu sağlayıcılarda yük yine sahtelenebilir | `TenantProviderEndpoints.cs:340` · `TriggerEndpoints.cs:461-465` |
 | B03-6 | Tek bir doğrudan `IAuditLog` yazımı `AuditSecretFilter`'ı hiç çağırmaz. Bugünkü yük secret taşımaz; sapma tutarlılık boşluğudur | `DataSubjectEndpoints.cs:123-131` |
 | B04-6 | `script.run` kaydı hiç başlamayan çalıştırmalar için de yazılır. Yön güvenlidir (fazla kayıt), ama "kim ne çalıştırdı" cevabını kirletir | `SandboxedSkillScriptRunner.cs:299-307` |
 | B04-7 | Kapı zinciri `DenyAsync`'in her zaman fırlatmasına bağlıdır; `[DoesNotReturn]` yoktur, tip sistemi zorlamaz | `SandboxedSkillScriptRunner.cs:267-276`, `:196-214` |
-| B05-5 · **KAPANDI (Faz 77)** | Webhook aboneliğinin ek başlıkları hiç doğrulanmaz ve sayı/boyut sınırı yoktur. `X-AgentPrism-Signature` adlı bir giriş alıcının doğrulamasını bozar | `WebhookSigner.IsReservedHeader` + `AgentPrismWebhookOptions.MaxExtraHeaders`; `WebhookDeliveryHeaderTests` |
+| B05-5 · **KAPANDI (Faz 77)** | Webhook aboneliğinin ek başlıkları hiç doğrulanmaz ve sayı/boyut sınırı yoktur. `X-Tracon-Signature` adlı bir giriş alıcının doğrulamasını bozar | `WebhookSigner.IsReservedHeader` + `TraconWebhookOptions.MaxExtraHeaders`; `WebhookDeliveryHeaderTests` |
 | B07-2 | Üç pin'in üst paketleri CVE'yi kendi floor'una gömmüştür (`Microsoft.AspNetCore.OpenApi` 10.0.11, `Testcontainers` 4.14.0). Pin şu an gereklidir; üst sürüme geçilirse düşer | `Directory.Packages.props:207`, `:238-239` |
 
 ### 🟢 PLAUSIBLE
@@ -689,7 +689,7 @@ metninin ölçülmüş hâlle uyuşmadığının kaydıdır.
 | B06-4 | Saklama arşivi ek dosyaların ham baytlarını `SELECT *` ile dışarı yazar; veri konusu ihracı aynı sütunu bilerek dışlar. Dışlama gerekçesi **boyut**tur, gizlilik değil | `SqlDialect.cs:286` · `SqlJsonRowWriter.cs:112-113` |
 | B06-5 | Sunucu tarafı regex ön-süzgecinde zaman sınırı yoktur; istemci tarafında 2 saniyedir. `CommandTimeoutSeconds = 0` kabul edilir ve **sınırsız** belgelenir → o durumda ciddiyet 🟡'ye çıkar | `PostgresQueries.cs:1285` · `SqlAgentFileStore.cs:191` |
 | B07-3 | `Microsoft.Bcl.Memory` pin'i muhtemelen zaten gereksizdir (`Microsoft.Agents.AI` 1.16.0 kendisi `>= 10.0.5` ister). `dotnet restore` koşulmadı | `Directory.Packages.props:71` |
-| B10-2 | `SuccessSampleRatio=1` × `RecordSensitiveData=true` kesişimi belgelenmemiştir. Retention varsayılan kapalıdır → iki ayar birlikte açılırsa tam prompt/completion içeriği süresiz birikir | `docs-site/.../production.md:217-229` · `AgentPrismOptions.cs:374-383` |
+| B10-2 | `SuccessSampleRatio=1` × `RecordSensitiveData=true` kesişimi belgelenmemiştir. Retention varsayılan kapalıdır → iki ayar birlikte açılırsa tam prompt/completion içeriği süresiz birikir | `docs-site/.../production.md:217-229` · `TraconOptions.cs:374-383` |
 
 ---
 
@@ -708,7 +708,7 @@ yalnız ilgili kod değiştiğinde yeniden bak.
   `==`/`StartsWith` ile token karşılaştırması yoktur.
 - **K-431 (`RequireRole(null)`) sınıfı temiz.** Tüm çağrılar
   `roles.Reader/Operator/Admin` sabitlerini kullanır; elle yazılan policy adı
-  yoktur (`Security/AgentPrismRolePolicies.cs:58-60`).
+  yoktur (`Security/TraconRolePolicies.cs:58-60`).
 - **Muafiyet listesi temiz.** `Endpoints/`, `OpenAICompat/`, `Voice/` altındaki
   her `MapGet/MapPost/MapPut/MapDelete/MapMethods` ya korumalı gruba ya bilinen
   dört muafiyete bağlıdır: `/api/meta` (`MetaEndpoints.cs:25`), arayüz kabuğu
@@ -741,9 +741,9 @@ yalnız ilgili kod değiştiğinde yeniden bak.
   `CompiledAgentCache`'i tamamen atlar (`DefinitionStoreAgentSource.cs:95-98`,
   `CodeAgentSource.cs:114-118`).
 - **Header/claim önceliği her yolda tutarlıdır.** Kiracı header'ı yalnız iki
-  yerde okunur (`HttpTenantContext.cs:119`, `AgentPrismEndpointFilter.cs:223/270`).
+  yerde okunur (`HttpTenantContext.cs:119`, `TraconEndpointFilter.cs:223/270`).
   `ClaimType` tanımlıysa header hiç okunmaz. WebSocket, UI, OAuth callback ve
-  inbound trigger gruplarının dördü de `AgentPrismEndpointFilter` taşır, yani
+  inbound trigger gruplarının dördü de `TraconEndpointFilter` taşır, yani
   `CheckTenancyWhitelist` dört yolda da koşar.
 - **K-355 ambient süzme meşru yazmayı düşürmez.** Dört yazma yolu beklenen
   kiracıyı taşır; üç lehçede `(@tenant_id IS NULL OR ...)` sayısı aynıdır (5/5/5).
@@ -754,7 +754,7 @@ yalnız ilgili kod değiştiğinde yeniden bak.
 - **K-081 tekil/çoğul `token` ayrımı temizdir.** `maxOutputTokens` gibi sayım
   alanları `:124-128`'de dışlanır.
 - **`AsyncLocal` tuzağı yoktur.** `AuditActorContext.Current`'a tek üretim yazımı
-  `AgentPrismEndpointFilter.cs:177`'dedir ve onu taşıyan `Proceed` **bilerek
+  `TraconEndpointFilter.cs:177`'dedir ve onu taşıyan `Proceed` **bilerek
   `async` değildir** (`:168-179`), bu yüzden yazım çağırana akar. Diğer dört
   `AsyncLocal` yazımı kendi metot gövdesindedir veya senkron kapsam
   sarmalayıcısıdır; akışlı yollarda her adımda tekrarlanmıştır.
@@ -778,7 +778,7 @@ yalnız ilgili kod değiştiğinde yeniden bak.
 - **Kota sayacı atomiktir, yarış yoktur.** İki katmanlı `SemaphoreSlim`;
   read-modify-write sayacı yoktur. `Lease.Dispose` `Interlocked.Exchange` ile
   çift bırakmayı engeller.
-- **Yorumlayıcı allow-list varsayılan boştur** (`AgentPrismOptions.cs:216-217`).
+- **Yorumlayıcı allow-list varsayılan boştur** (`TraconOptions.cs:216-217`).
   Kod yolu varsayılan eklemez. (Config genişletebilir → B04-2.)
 - **`PlatformIsolationAcknowledged` kapısı çalışır ve metni doğrudur.** Dosya
   sistemi, ağ, CPU ve hak düşürme yokluğunu dört yerde açıkça sayar. K-086
@@ -822,7 +822,7 @@ yalnız ilgili kod değiştiğinde yeniden bak.
 - **Reflection disiplini temizdir.** Tek "isimden tip yükleme"
   (`WorkflowResponseFactory.cs:91`) beş halka geriye izlendi: tip adı HTTP
   gövdesinden değil, MAF motorundan ve nihayetinde workflow yazarının koddaki
-  generic parametresinden gelir. AgentPrism'in DB kaynaklı `WorkflowDefinition`
+  generic parametresinden gelir. Tracon'in DB kaynaklı `WorkflowDefinition`
   tipi serbest tip-adı alanı **taşımaz**; `Workflows.Declarative` referans
   alınmaz. `Activator.CreateInstance`, `Assembly.LoadFrom`, `AssemblyLoadContext`,
   `MakeGenericType` → repo genelinde **sıfır** eşleşme.
@@ -831,7 +831,7 @@ yalnız ilgili kod değiştiğinde yeniden bak.
 - **CSP vardır** (`EmbeddedUiProvider.cs:48-58`, `default-src 'none'` tabanlı) ve
   **CORS varsayılan kapalıdır**; `AllowAnyOrigin` seçeneği API'de hiç yoktur.
 - **K-008 ihlali yoktur.** Preview/alpha MAF paketleri yalnız
-  `AgentPrism.AspNetCore.csproj:51-55`'tedir.
+  `Tracon.AspNetCore.csproj:51-55`'tedir.
 - **Frontend'de kritik/yüksek CVE yoktur.** `vite@7.3.6`, `esbuild@0.28.1`,
   `tailwindcss@4.3.3`, `react@19.2.8`, `typescript@5.9.3` — bilinen Vite/esbuild
   CVE'lerinin hepsinden yenidir.
@@ -877,7 +877,7 @@ Bu tarama aşağıdakilere bakmadı veya kanıtlayamadı. Sonraki tur bunlarla b
 
 | Boşluk | Neden | Kapatma yolu |
 |---|---|---|
-| **Gelen MCP/A2A sunucusu** (`src/AgentPrism.AspNetCore/McpServer/`, `/A2A/`) kodu | Konu 05'in "Kapsam" listesinde yoktu; yalnız `docs/hafiza/` üzerinden okundu | Ayrı bir konu oturumu |
+| **Gelen MCP/A2A sunucusu** (`src/Tracon.AspNetCore/McpServer/`, `/A2A/`) kodu | Konu 05'in "Kapsam" listesinde yoktu; yalnız `docs/hafiza/` üzerinden okundu | Ayrı bir konu oturumu |
 | Hiçbir bulgu **çalıştırılarak** doğrulanmadı | Salt-okunur kısıt; `dotnet build`/`test` yasaktı | `kusur-giderme` her bulgu için düşen test yazar |
 | MAF `InMemoryAgentFileStore.NormalizeRelativePath` `..` davranışı | DLL gövdesi okunamadı | `maf-api-kesfi` veya tek satırlık sözleşme testi (B02-8) |
 | MAF `RequestPort`/`TypeId`/`PortableValue` iç kodu | Üçüncü taraf; yalnız XML dokümanı okundu | Checkpoint'ten tip adı geri kurulurken MAF allow-list yapıyor mu |
@@ -961,7 +961,7 @@ bulduğu B02-11 de doğrulanıp kapatıldı.
 
 **B02-11 [PLAUSIBLE] [🟡] `RunTraceCollector._buffers` `traceId` ile anahtarlı;
 `traceId` gelen `traceparent`'tan devralınır.** Yer:
-`src/AgentPrism.Core/Diagnostics/RunTraceCollector.cs:41`, `:101` ·
+`src/Tracon.Core/Diagnostics/RunTraceCollector.cs:41`, `:101` ·
 `WorkflowRunner.cs:449` · `RunRecordingAgent.cs:506`. Aynı `traceId`'yi paylaşan
 eşzamanlı iki `run` tek tamponu paylaşır; ilk tamamlanan, tamponun tamamını kendi
 `tenantId`'siyle yazar. İstismar, kurbanın `traceId`'sini eşzamanlı bilmeyi

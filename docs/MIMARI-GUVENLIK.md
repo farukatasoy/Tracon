@@ -54,7 +54,7 @@ veri taşımaz. Loopback kısıtı ve authorization policy kabuğa da uygulanır
 | Bearer token | ❌ | ❌ | ✅ **alt protokolde** | ✅ başlıkta |
 
 🚨 **Konuşma WebSocket'i token'ı `Sec-WebSocket-Protocol` alt protokolünde alır**
-(`agentprism.token.<token>`) ve sabit zamanda kendisi doğrular (K-224). Tarayıcı
+(`tracon.token.<token>`) ve sabit zamanda kendisi doğrular (K-224). Tarayıcı
 bir el sıkışmaya `Authorization` başlığı ekleyemez; sorgu dizesi ise sunucu ve
 ters vekil günlüklerine yazılacağı için **kabul edilmez**. Uç ayrıca `Operator`
 rolü ister, oturumun kiracı sahipliğini doğrular, kiracı başına eşzamanlı
@@ -134,7 +134,7 @@ derinliği reddi değil, bir sıralama kararıdır. Üç maddelik gerekçe K-623
 tüketiciye dönük karşılığı `docs-site/`'ın governance sayfasındadır.
 
 **Hız sınırı bir yalıtım sınırı DEĞİLDİR (Faz 104).**
-`AgentPrismRateLimitOptions` ve `InboundTriggerRateLimiter` süreç belleğinde
+`TraconRateLimitOptions` ve `InboundTriggerRateLimiter` süreç belleğinde
 sayar; `Partition = Tenant` her örneğin **kendi** penceresini böler, paylaşılan
 bir pencereyi değil. Kiracının toplam tüketimini bağlayan şey kotadır — o
 veritabanında sayılır ve örnek sayısından etkilenmez.
@@ -167,12 +167,12 @@ olmadığı: [`hafiza/maf-oturum.md`](hafiza/maf-oturum.md).
 
 ## Roller ve denetim izi
 
-**Rol modeli.** Üç policy adı — `AgentPrismPolicies.Reader` / `.Operator` / `.Admin`
-— tanımlanır. AgentPrism rol veya kullanıcı **saklamaz**; tüketici bu adları kendi
+**Rol modeli.** Üç policy adı — `TraconPolicies.Reader` / `.Operator` / `.Admin`
+— tanımlanır. Tracon rol veya kullanıcı **saklamaz**; tüketici bu adları kendi
 `AddAuthorization(...)` çağrısında kendi claim'lerine bağlar. Bir policy tüketicide
 **kayıtlı değilse** ilgili uç grubu yalnızca yukarıdaki üç katmanlı korumadan geçer
-— sürüm yükseltmesi mevcut kurulumları kırmaz. `AgentPrismEndpointOptions.RequireRolePolicies`
-açılırsa eksik bir policy `MapAgentPrism()` çağrısını **açılışta** hataya çevirir.
+— sürüm yükseltmesi mevcut kurulumları kırmaz. `TraconEndpointOptions.RequireRolePolicies`
+açılırsa eksik bir policy `MapTracon()` çağrısını **açılışta** hataya çevirir.
 
 | Rol | Kapsam |
 |-----|--------|
@@ -187,7 +187,7 @@ kayıtlı değilse karşılık gelen alan her zaman `true` döner (rol kısıtı
 **Denetim izi.** `audit_log` tablosuna agent, MCP sunucusu, kiracı ve onay kuralı
 yazmaları ile tool onay kararları düşer — **çalıştırmalar düşmez** (`runs` tablosu
 zaten tam kaydı tutar). Yazma **iki yerde** olur: `store` decorator'ları (`Auditing*Store` —
-`AgentPrism.Core`) ve **`endpoint` katmanı**. Endpoint yazması istisna değildir,
+`Tracon.Core`) ve **`endpoint` katmanı**. Endpoint yazması istisna değildir,
 kuraldır: bir `store` yazmasına karşılık gelmeyen her eylem (`mcp.refresh`,
 `tenant_egress.save`, `stats.recalculate-costs`, onay kararı, eval koşumu,
 veri konusu silme…) uçta yazılır. On iki uç dosyası `AuditRecorder.WriteAsync`
@@ -205,8 +205,8 @@ elle kurulan JSON, içinde tırnak taşıyan bir değerde bozulur, `AuditSecretF
 `jsonb` cast'i düşer — mutasyon uygulanmış, kayıt yazılmamış olur.
 
 Aktör `AuditActorContext` adlı bir `AsyncLocal` köprüsünden okunur:
-`AgentPrismEndpointFilter`, her korumalı istekte `HttpContext.User`'ı oraya yazar;
-`AgentPrism.Core`'daki `AmbientAuditActorResolver` onu okur. Bu, `AgentPrism.Core`'a
+`TraconEndpointFilter`, her korumalı istekte `HttpContext.User`'ı oraya yazar;
+`Tracon.Core`'daki `AmbientAuditActorResolver` onu okur. Bu, `Tracon.Core`'a
 ASP.NET Core bağımlılığı eklemeden "kim yaptı" sorusunu yanıtlamanın yoludur —
 `ClaimsPrincipal` temel .NET kütüphanesindedir. Kimlik doğrulaması yoksa aktör
 `null`'dur ve bu gizlenmez.
@@ -224,7 +224,7 @@ alanları — hariç). Denetim izi yazma hatası **çalıştırmayı kesmez**;
 zincirlenir. `IAuditLog.VerifyChainAsync` (`GET /api/audit/verify`) zinciri baştan
 sona yürür ve üç durumdan birini döner: `Valid`, `Broken` (bir satır değiştirildi)
 veya `Gap` (bir satır silindi ya da hiç yazılmadı). Kanonik biçim ve doğrulama
-mantığı tek bir yerdedir (`AgentPrism.Core.AuditChainHasher`/`AuditChainWalker`) —
+mantığı tek bir yerdedir (`Tracon.Core.AuditChainHasher`/`AuditChainWalker`) —
 `InMemoryAuditLog` ve üç SQL sağlayıcısı aynı kodu çağırır. Eşzamanlı yazım,
 `(tenant_id, prev_hash)` üzerindeki benzersiz bir dizinin doğal olarak
 serileştirmesiyle çözülür; kaybeden yazıcı yeniden dener (oturum/advisory kilit
@@ -232,7 +232,7 @@ serileştirmesiyle çözülür; kaybeden yazıcı yeniden dener (oturum/advisory
 Bu özellikten ÖNCE yazılmış satırlar `hash` taşımaz ve zincire dahil edilmez;
 geriye dönük uyumluluk bu şekilde sağlanır.
 
-**Veri konusu hakları.** AgentPrism kişisel kimlik saklamaz. Bir tüketici
+**Veri konusu hakları.** Tracon kişisel kimlik saklamaz. Bir tüketici
 `IDataSubjectResolver` kaydederse (`subjectId → sessions/runs/conversations`),
 `GET /api/data-subjects/{id}/export` ve `DELETE /api/data-subjects/{id}` uçları
 açılır; kayıtlı bir çözümleyici yoksa ikisi de `409` döner. Silme
@@ -246,14 +246,14 @@ silme eylemi ise yeni bir denetim kaydı olarak eklenir.
 ## Skill script çalıştırma
 
 K2'nin (**"tool'lar yalnız kodda tanımlanır"**) ikinci bilinçli istisnası —
-birincisi MCP (uzakta çalışır), bu **AgentPrism'in kendi makinesinde** çalışır.
+birincisi MCP (uzakta çalışır), bu **Tracon'in kendi makinesinde** çalışır.
 Varsayılan **kapalıdır**; yalnız kodda açılır ve yürütülebilir yüzeyi genişleten
 alanlar (`Interpreters`, `SkillRoots`, `AllowStoredScripts`) yapılandırmadan
 OKUNMAZ. Her çalıştırma beş sıralı kapıdan geçer (Enabled · kiracı izni ·
 yorumlayıcı beyaz listesi · argüman doğrulama · denetim izi yazımı) ve denetim
 izi kapısı Faz 9 kuralının tek istisnasıdır: yazılamazsa çalıştırma da durur
 (K-089). `PlatformIsolationAcknowledged` dosya/ağ/kota/hak düşürme sınırlarının
-barındırma ortamında (container+cgroup) kurulduğunu KABUL ETTİRİR — AgentPrism
+barındırma ortamında (container+cgroup) kurulduğunu KABUL ETTİRİR — Tracon
 bunları sağlamaz (K-086).
 
 K2 istisnasının tam gerekçesi, beş kapının akış şeması, koruma tablosu (ortam

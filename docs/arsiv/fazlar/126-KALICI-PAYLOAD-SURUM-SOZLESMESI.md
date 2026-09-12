@@ -3,7 +3,7 @@
 > **Durum:** ✅ Tamamlandı (2026-09-01)
 > **Kaynak:** [kesif/2026-08-31-tuketici-raporu-faz-adaylari.md](../../kesif/2026-08-31-tuketici-raporu-faz-adaylari.md) · **T-5**
 > **Önkoşul:** [Faz 97](97-SURUM-POLITIKASI-VE-YAYIN-PROVASI.md) (sürüm politikası ve yayın provası) — arşivde; yalnız grep'le okunur
-> **Paketler:** `AgentPrism.Abstractions` (`Sessions/`, `Workflows/`), `AgentPrism.Core`, `AgentPrism.PostgreSql`, `.SqlServer`, `.Sqlite`, `AgentPrism.Sql.Shared`
+> **Paketler:** `Tracon.Abstractions` (`Sessions/`, `Workflows/`), `Tracon.Core`, `Tracon.PostgreSql`, `.SqlServer`, `.Sqlite`, `Tracon.Sql.Shared`
 > **Yeni paket:** Yok · **Migration:** **Gerekli — üç set** (PostgreSQL + SqlServer + Sqlite). Numaralar uygulama anında alınır (K-178)
 > **Public API:** Büyüyor — iki kayıt tipine birer alan. Faz 7'den önce ucuz: `wc -l src/*/PublicAPI.Shipped.txt` toplamı **17** satır ve her dosya yalnız başlık taşıyor (K-603). Aynı alanı `1.0.0` sonrası eklemek **kırıcıdır**
 > **Tüketici yüzeyi:** `docs-site/src/content/docs/reference/versioning.md` (yeni bölüm), `reference/compatibility.md`, `concepts/sessions.md`, `concepts/workflows.md` · sevk edilen: `SessionRecord.State` ve `WorkflowCheckpointRecord.State` XML dokümanları
@@ -28,18 +28,18 @@
 
 ## Amaç
 
-Bir tüketici üretimde oturum ve workflow checkpoint'i biriktirdikten sonra AgentPrism sürümünü yükseltirse, bugün elimizde ona verilecek **hiçbir söz yok**.
+Bir tüketici üretimde oturum ve workflow checkpoint'i biriktirdikten sonra Tracon sürümünü yükseltirse, bugün elimizde ona verilecek **hiçbir söz yok**.
 
 ## Bitiş Ölçütleri (DoD)
 
 - [x] `reference/versioning.md` kalıcı payload uyumluluk politikasını taşır: ne garanti edilir, ne edilmez, okunamayan payload'ta davranış ne
 - [x] `sessions` ve `workflow_checkpoints` tablolarında `state_schema_version` sütunu var; üç sağlayıcıda migration koşuyor — **sapma:** `sessions.schema_version` zaten vardı (hep dolu), YENİDEN ADLANDIRILDI; bkz. Plandan Sapmalar
 - [x] Damgasız (`NULL`) eski satır okunabiliyor — `SessionStoreContract`/`WorkflowCheckpointStoreContract` dört depoda geçiyor (sessions'ta yalnız `StateMafVersion` gerçekten NULL olabilir, `StateSchemaVersion` hiçbir zaman değildi — bkz. sapma)
-- [x] Tanınmayan damgada hata mesajı kayıtlı ve bugünkü nesli **adıyla** söylüyor; oturum silinmiyor — gerçek `samples/AgentPrism.Api` + SQLite'a karşı doğrulandı
+- [x] Tanınmayan damgada hata mesajı kayıtlı ve bugünkü nesli **adıyla** söylüyor; oturum silinmiyor — gerçek `samples/Tracon.Api` + SQLite'a karşı doğrulandı
 - [x] Fixture kapısı kuruldu; bugünkü MAF sürümünde yazılmış payload bugünkü kodla okunuyor — **sapma:** checkpoint tarafı TAM `ResumeStreamingAsync` kanıtlayamıyor (MAF executor kimliği süreç başına rastgele); round-trip + `$type` sırası kanıtlanıyor, bkz. sapma
 - [x] Fixture'ın **yenilenme kuralı** yazıldı: kırıldığı için yeniden üretilmez — her iki `Fixtures/README.md`'de
 - [x] Dört doğrulama kapısı sıfır uyarı verir — `kapi.py tarama` temiz; tam çözüm build + 2278+ test yeşil (bkz. Denetim Bulguları)
-- [x] `samples/AgentPrism.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı — bkz. "Gerçek Koşum Kanıtı"
+- [x] `samples/Tracon.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı — bkz. "Gerçek Koşum Kanıtı"
 - [x] `secret` taraması boş döndü — `kapi.py tarama`
 - [x] Manuel kabul case'leri `docs/manuel-test/21-DAYANIKLILIK-VE-IPTAL.md` içine eklendi — MT-RES-069..072, ilk üçü gerçek koşuldu
 - [x] `faz-denetim` koşuldu; 🔴 bulgu kalmadı — 2 🟡 bulgu düzeltildi (bkz. Denetim Bulguları)
@@ -49,25 +49,25 @@ Bir tüketici üretimde oturum ve workflow checkpoint'i biriktirdikten sonra Age
 
 ```bash
 # Damga gerçekten yazılıyor mu
-psql -c "SELECT id, state_schema_version FROM agentprism.sessions LIMIT 5;"
+psql -c "SELECT id, state_schema_version FROM tracon.sessions LIMIT 5;"
 
 # Sözleşme dört depoda
-./artifacts/bin/AgentPrism.Sqlite.IntegrationTests/release/AgentPrism.Sqlite.IntegrationTests --filter-method "*SessionStore*"
+./artifacts/bin/Tracon.Sqlite.IntegrationTests/release/Tracon.Sqlite.IntegrationTests --filter-method "*SessionStore*"
 
 # Fixture kapısı
-./artifacts/bin/AgentPrism.Core.UnitTests/release/AgentPrism.Core.UnitTests --filter-method "*PersistedPayloadUpgrade*"
+./artifacts/bin/Tracon.Core.UnitTests/release/Tracon.Core.UnitTests --filter-method "*PersistedPayloadUpgrade*"
 ```
 
-### Gerçek Koşum Kanıtı (2026-09-01, `samples/AgentPrism.Api`, SQLite, echo sağlayıcı)
+### Gerçek Koşum Kanıtı (2026-09-01, `samples/Tracon.Api`, SQLite, echo sağlayıcı)
 
-`ASPNETCORE_ENVIRONMENT` `Production`; `AgentPrism:Sqlite:ConnectionString`
-ortam değişkeniyle geçici bir dosyaya (`/tmp/agentprism-phase126-demo.db`)
+`ASPNETCORE_ENVIRONMENT` `Production`; `Tracon:Sqlite:ConnectionString`
+ortam değişkeniyle geçici bir dosyaya (`/tmp/tracon-phase126-demo.db`)
 verildi, üç gerçek model sağlayıcı anahtarı boşaltılarak `EchoModelProvider`
 zorlandı (ağ çağrısı yok, gerçek para harcanmadı). Başlangıç günlüğü:
 
 ```
-info: AgentPrism.MigrationRunner[0]
-      AgentPrism applied 27 migration(s). Schema: agentprism_.
+info: Tracon.MigrationRunner[0]
+      Tracon applied 27 migration(s). Schema: tracon_.
 ```
 
 **Yeni oturum, gerçek tur:**
@@ -80,7 +80,7 @@ event: update … "text": "Echo: hello, what is my order status?" (parça parça
 
 **Ham satır (`sqlite3`):**
 ```
-$ sqlite3 agentprism-phase126-demo.db "SELECT id, state_schema_version, state_maf_version FROM agentprism_sessions ..."
+$ sqlite3 tracon-phase126-demo.db "SELECT id, state_schema_version, state_maf_version FROM tracon_sessions ..."
 phase126-demo-...|1|1.18.0
 ```
 — `state_maf_version` `Directory.Packages.props`'taki `MicrosoftAgentsAIVersion`
@@ -96,7 +96,7 @@ phase126-demo-...|1|1.18.0
 **Tanımlı hata senaryosu (MT-RES-071) — `state_schema_version`'ı elle 999999 yap, yeni tur dene:**
 ```
 event: error
-data: {"type":"AgentPrismException","message":"Session 'phase126-demo-...' was written with AgentPrism schema generation 999999; this AgentPrism version can read up to generation 1. Update the AgentPrism packages."}
+data: {"type":"TraconException","message":"Session 'phase126-demo-...' was written with Tracon schema generation 999999; this Tracon version can read up to generation 1. Update the Tracon packages."}
 ```
 Satır sorgulandı: hâlâ `999999` — silinmedi, sıfırlanmadı. Değer `1`'e geri
 alındıktan sonra aynı oturumla üçüncü bir tur normal çalıştı (kurtarma
@@ -147,7 +147,7 @@ VEREMEZ — ölçülmüş bir yapısal kısıt.** MAF'ın executor kimliği
 bir checkpoint başka bir süreçte (fixture'ı üreten throwaway test farklı bir
 `dotnet test` çalıştırmasıydı) asla aynı kimlikle eşleşmez — `InvalidDataException`
 ("not compatible with the workflow") HER ZAMAN atar, gerçek MAF-sürüm uyumsuzluğundan
-BAĞIMSIZ olarak. Bu yüzden `AgentPrism.Workflows.UnitTests/PersistedPayloadUpgradeTests.cs`
+BAĞIMSIZ olarak. Bu yüzden `Tracon.Workflows.UnitTests/PersistedPayloadUpgradeTests.cs`
 tam resume DENEMEZ; bunun yerine fixture'ın gerçekten ayrıştığını, `$type`
 ayracının hâlâ ilk sırada olduğunu ve `InMemoryWorkflowCheckpointStore` üzerinden
 bayt-bayt round-trip ettiğini kanıtlar. Sınırlama testin kendi XML yorumunda
@@ -156,11 +156,11 @@ ajan ADINA bakar, süreç-yerel bir kimliğe değil) ve tam bir "todays MAF payl
 readable by todays code" kanıtı verir.
 
 **Fixture'lar iki AYRI test projesinde yaşıyor**, plan Açık Soru 3'ün "A: tek
-proje (`AgentPrism.Core.UnitTests`)" cevabının aksine. Ölçüm: `AgentPrism.Core.UnitTests`
-`AgentPrism.Workflows`'a referans VERMİYOR (yapısal — Core, Workflows'a bağımlı
+proje (`Tracon.Core.UnitTests`)" cevabının aksine. Ölçüm: `Tracon.Core.UnitTests`
+`Tracon.Workflows`'a referans VERMİYOR (yapısal — Core, Workflows'a bağımlı
 değil), dolayısıyla bir workflow checkpoint'ini gerçekten OKUYAN bir test oradan
-yazılamaz. Session fixture'ı `AgentPrism.Core.UnitTests/Fixtures/`'ta,
-checkpoint fixture'ı `AgentPrism.Workflows.UnitTests/Fixtures/`'ta.
+yazılamaz. Session fixture'ı `Tracon.Core.UnitTests/Fixtures/`'ta,
+checkpoint fixture'ı `Tracon.Workflows.UnitTests/Fixtures/`'ta.
 
 **`AgentSessionManager`'daki "gelecekteki şema nesli" ön-denetimi ek bir I/O
 turu açmadı** — `record` zaten `GetAsync`'ten elde tutuluyordu, yalnız
@@ -171,7 +171,7 @@ tarafında ise metadata sorgusu (`ListAsync`) yalnız BAŞARISIZLIK yolunda
 ## Bu Fazda Verilen Kararlar
 
 - **Kalıcı payload uyumluluk politikası** (`reference/versioning.md`): zarf
-  AgentPrism'in, gövde MAF'ın sözüdür; MAF'a hiçbir uyumluluk sözü verilmez.
+  Tracon'in, gövde MAF'ın sözüdür; MAF'a hiçbir uyumluluk sözü verilmez.
   Okunamayan payload'ta davranış tanımlıdır — tahmin etmez, ölçer; satır
   silinmez/sıfırlanmaz.
 - **`sessions.schema_version` → `state_schema_version` yeniden adlandırıldı**
@@ -206,15 +206,15 @@ Düzeltmelerden sonra dört kapı yeniden koşuldu (aşağıda).
   (`string?`, `null` = Faz 126 öncesi satır) — SQL store'lar bunları
   HESAPLAMAZ, yalnız taşır. Damgalama `AgentSessionManager.SaveSessionAsync`'te.
 - `WorkflowCheckpointRecord.StateSchemaVersion`/`StateMafVersion` — ikisi de
-  `?`, ikisi de `AgentPrismCheckpointStore.CreateCheckpointAsync`'te damgalanır.
-- Okunamayan bir payload artık HER ZAMAN tanımlı bir `AgentPrismException`
+  `?`, ikisi de `TraconCheckpointStore.CreateCheckpointAsync`'te damgalanır.
+- Okunamayan bir payload artık HER ZAMAN tanımlı bir `TraconException`
   fırlatır (`AgentSessionManager.GetOrCreateSessionAsync`,
   `WorkflowRunner.StartAsync`'in resume dalı) — kayıt asla silinmez/sıfırlanmaz.
 
 **🚨 Bilinen tuzaklar:**
 - SQL store'lara yeni bir "damga" alanı eklerken store'un kendisi
   DOĞRULAMAZ — doğrulama/hesaplama her zaman `AgentSessionManager` (ya da
-  checkpoint'in eşdeğeri `AgentPrismCheckpointStore`) seviyesinde olmalı.
+  checkpoint'in eşdeğeri `TraconCheckpointStore`) seviyesinde olmalı.
   Store'a "akıllı" mantık koymak, in-memory store ile SQL store arasında
   davranış farkı açar (bu faz bunu tam tersinden kapattı).
 - MAF'ın executor kimliği süreç-yerel ve rastgele — checkpoint'i içeren

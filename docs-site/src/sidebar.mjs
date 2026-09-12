@@ -26,7 +26,7 @@ export const sidebar = [
   {
     label: 'Start here',
     items: [
-      { label: 'What AgentPrism is', slug: 'getting-started', badge: 'Preview' },
+      { label: 'What Tracon is', slug: 'getting-started', badge: 'Preview' },
       { label: 'Your first agent', slug: 'getting-started/first-agent' },
       { label: 'Complete capability map', slug: 'capabilities' },
       { label: 'Architecture', slug: 'concepts' },
@@ -91,7 +91,7 @@ export const sidebar = [
       { label: 'TypeScript client', slug: 'guides/typescript-client' },
       { label: 'Production deployment', slug: 'guides/production' },
       { label: 'Embedding into a host application', slug: 'guides/embedding' },
-      { label: 'Two connection planes: EF Core and AgentPrism', slug: 'guides/ef-core' },
+      { label: 'Two connection planes: EF Core and Tracon', slug: 'guides/ef-core' },
       { label: 'Troubleshooting', slug: 'troubleshooting' },
     ],
   },

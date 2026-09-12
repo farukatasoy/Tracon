@@ -1,6 +1,6 @@
-# AgentPrism — Bulgu Kapanış Raporu
+# Tracon — Bulgu Kapanış Raporu
 
-**Yanıt verilen belge:** [AgentPrism — Kapsamlı Teknik ve Ürün Analizi](2026-09-07-tuketici-analizi-girdi-raporu.md) (1005 satır)
+**Yanıt verilen belge:** [Tracon — Kapsamlı Teknik ve Ürün Analizi](2026-09-07-tuketici-analizi-girdi-raporu.md) (1005 satır)
 **Girdi SHA-256:** `5127dd2a98ad24792c8de8c57baafae9bf70151a428c2402e14c7101f22aec1c`
 **Ölçüm zemini:** `2a3f5cff0f43078d7c41d5faf24ad45cb7131a8e`; son kapalı faz 154
 **Ölçüm tarihi:** 7 Eylül 2026 · **Sevkiyat:** 8 Eylül 2026
@@ -121,9 +121,9 @@ yakalıyordu; kapı numarasız biçimi de yakalayacak şekilde genişletildi.
 | **D11** | ✅ Düzeltildi | Paket kimliği tekilliği **resmî** yayın hattı için geçerlidir. Yerel veya harici bir build aynı sürüm dizesini farklı içerikle taşıyabilir; iki sayfa artık aynı şeyi söylüyor |
 | **D12** | ⚠️ **Çürüdü** | Kod kusuru bulunmadı; ayrıntı §5'te. Yalnız anlatım netleştirildi |
 | **D13** | ✅ Düzeltildi | Karar sonrası **ikinci bir çalıştırma başlatmayın**. Karar ucu devam çalıştırmasını kendisi kurar. Üç ayrı akış (dayanıklı kutu · in-band · workflow) ayrı ayrı yazıldı. B03 bu davranışı ayrıca sağlamlaştırdı |
-| **D14** | ➖ Zaten doğru | Site sınırı zaten doğru anlatıyordu: iki istisnayı adlandırıyor, altı kapıyı sayıyor ve "AgentPrism sandbox uygulamaz" cümlesini açıkça kuruyor. Değişiklik yapılmadı |
+| **D14** | ➖ Zaten doğru | Site sınırı zaten doğru anlatıyordu: iki istisnayı adlandırıyor, altı kapıyı sayıyor ve "Tracon sandbox uygulamaz" cümlesini açıkça kuruyor. Değişiklik yapılmadı |
 | **D15** | ✅ Düzeltildi | SQLite lease sözleşmesini uygular, ama **cross-instance backend değildir**. Çok node örneği artık yalnız PostgreSQL/SQL Server ile yazılıyor |
-| **D16** | ✅ Düzeltildi | "Telemetri çıkmaz" mutlak ifadesi daraltıldı: AgentPrism kendi telemetrisini göndermez; sizin kaydettiğiniz exporter ile sağlayıcı/MCP/webhook çağrıları elbette ağ kullanır |
+| **D16** | ✅ Düzeltildi | "Telemetri çıkmaz" mutlak ifadesi daraltıldı: Tracon kendi telemetrisini göndermez; sizin kaydettiğiniz exporter ile sağlayıcı/MCP/webhook çağrıları elbette ağ kullanır |
 | **D17** | ✅ Düzeltildi | "Tek satırda konsol" ayrıldı: tek satır **çalışma zamanını** ayağa kaldırır; konsol ayrı paket ve ayrı iki çağrıdır |
 | **D18** | ✅ Düzeltildi | Sıra numarası yalnız görüntüleme sırasıdır; koşumlar **kimlikle** karşılaştırılır. Yeniden sıralamak eski sonucu başka bir soruya hizalamaz |
 
@@ -154,7 +154,7 @@ durumu karar günündekiyle aynı, ekosistem değişmedi, ve HTTP yolu zaten
 değiştirilmiş bir case'i yeni kimlikle işaretliyor — yani sessiz yanlış eşleşme
 üretmiyor, fark `Added`/`Removed` olarak görünüyor.
 
-**MCP token'ının şifrelenerek AgentPrism veritabanına yazılması** reddedildi:
+**MCP token'ının şifrelenerek Tracon veritabanına yazılması** reddedildi:
 `secret` değerinin bu veritabanına yazılmaması bir güvenlik sınırıdır ve
 şifreleme onu kaldırmaz. Host'a ait bir token store seam'i bu sınırı korurken
 aynı ihtiyacı karşılayabilir; o seçenek açıktır.
@@ -166,7 +166,7 @@ script izolasyonu — dördü de **alan sahibinin** sözleşmesidir. Bir kontrol
 düzlemi bunları taklit ederse ikinci bir hakikat kaynağı yaratır ve host'un
 kendi denetimini zayıflatır.
 
-AgentPrism'in verebileceği şey dar bir seam'dir, genel bir çözüm değil. Somut
+Tracon'in verebileceği şey dar bir seam'dir, genel bir çözüm değil. Somut
 bir kullanım ölçüldüğünde o seam tasarlanır.
 
 ### 4.4 Talep kanıtı yok — A03 · A06 · A08 · A10 · A11 · A13 · A15
@@ -235,7 +235,7 @@ tamamlandı**; aşağıdaki satırlar plan değil, teslim edilen iştir.
 | Faz | Kaynak | Teslim edilen |
 |---|---|---|
 | **155** — Kalibre Edilmiş Evaluator Kataloğu | A18'in dar dilimi | Yargıç sözleşmesi çok adlı skora genişletildi; kayıtlı bir evaluator artık **metrik başına** ayrı skor satırı yazıyor. Ölçüm üretmeyen metrik `null` yazar, `0` değil. Hiçbir evaluator kaydedilmediğinde davranış birebir aynı kalır. MAF imzaları `maf-api-kesfi` ile ölçüldü ve **üç tespit planı değiştirdi** |
-| **156** — Durum Ön Kontrolü ve Upgrade Penceresi | A04 (daraltıldı) | `agentprism state-check` komutu sevk edildi: operatör, yükseltmeden önce **kendi veritabanına** kuşak sayımı ve salt okunur çözme denemesi sorabiliyor. Okunamaz kuşakta çıkış kodu `3`. Hiçbir şey yazmadığı öncesi/sonrası karşılaştırmayla, iki sağlayıcıda ve gerçek koşumda kanıtlandı. Upgrade penceresi ve başarısız restore prosedürü yayımlandı |
+| **156** — Durum Ön Kontrolü ve Upgrade Penceresi | A04 (daraltıldı) | `tracon state-check` komutu sevk edildi: operatör, yükseltmeden önce **kendi veritabanına** kuşak sayımı ve salt okunur çözme denemesi sorabiliyor. Okunamaz kuşakta çıkış kodu `3`. Hiçbir şey yazmadığı öncesi/sonrası karşılaştırmayla, iki sağlayıcıda ve gerçek koşumda kanıtlandı. Upgrade penceresi ve başarısız restore prosedürü yayımlandı |
 | **157** — Sınırlı Yük ve İki Process Arıza Kanıtı | A16 | Gerçek SQL yükü, iki process kill/devralma senaryosu ve **altı arıza manifesti** (veritabanı · yavaş sink · sağlayıcı zaman aşımı · retention hacmi · streaming fan-out · rolling upgrade) koşuldu. Dış model gecikmesi kontrol düzlemi overhead'inden ayrı raporlanıyor |
 
 ### 6.1 A16 önerisi kapsam dışı bir kusur ortaya çıkardı
@@ -335,6 +335,6 @@ tarafında kırık bağlantı sıfır, üretilen dosyalar taze.
 
 ---
 
-**AgentPrism · Bulgu kapanış raporu · 7 Eylül 2026**
+**Tracon · Bulgu kapanış raporu · 7 Eylül 2026**
 Ölçüm zemini `2a3f5cff` · Girdi raporu SHA-256 `5127dd2a…22aec1c`
 Ürün yayımlanmamış geliştirme sürümüdür.

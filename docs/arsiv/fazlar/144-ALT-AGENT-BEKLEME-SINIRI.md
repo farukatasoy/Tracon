@@ -3,7 +3,7 @@
 > **Durum:** ✅ Tamamlandı (2026-09-05)
 > **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-191**
 > **Önkoşul:** Yok. Kalemin tek bağımlılığı MAF 1.20.0 yükseltmesiydi; 2026-09-05'te yapıldı ve HEAD'dedir (`Directory.Packages.props:19`).
-> **Paketler:** `AgentPrism.Abstractions`, `AgentPrism.Core`
+> **Paketler:** `Tracon.Abstractions`, `Tracon.Core`
 > **Yeni paket:** Yok · **Migration:** Yok — yeni bir `RunEventType` üyesi şema değiştirmez (`run_events.type` zaten `smallint`)
 > **Public API:** Büyüyor — Faz 7'den önce ucuz. Ölçüldü (2026-09-05): `wc -l src/*/PublicAPI.Shipped.txt` → tüm paketlerde **17 satır** (dosyalar boş). Aynı yüzeyi Faz 7'den sonra eklemek kırıcı olurdu
 > **Tüketici yüzeyi:** `docs-site/src/content/docs/concepts/agents.md` (alt-agent bölümü) · `capabilities.md` (bir satır) · sevk edilen: `SubAgentSettings` XML `<example>`'ı
@@ -28,7 +28,7 @@
 
 ## Amaç
 
-AgentPrism bir agent'ın başka bir agent'ı çağırmasına izin verir. Bugün o çağrının ne kadar bekleyeceğine dair **AgentPrism'in seçtiği** hiçbir sınır yoktur. Bu faz sınırı iki katmanda kurar, sayıyı AgentPrism'e seçtirir ve zaman aşımını `run` kanıtına yazar.
+Tracon bir agent'ın başka bir agent'ı çağırmasına izin verir. Bugün o çağrının ne kadar bekleyeceğine dair **Tracon'in seçtiği** hiçbir sınır yoktur. Bu faz sınırı iki katmanda kurar, sayıyı Tracon'e seçtirir ve zaman aşımını `run` kanıtına yazar.
 
 ## Bitiş Ölçütleri (DoD)
 
@@ -38,16 +38,16 @@ AgentPrism bir agent'ın başka bir agent'ı çağırmasına izin verir. Bugün 
 - [x] Zaman aşımından sonra tamamlanan çocuk hiçbir olay, metrik veya unobserved exception üretmez — aynı test dosyası, `Release` çağrısından sonra olay sayısı sabit kaldığı ölçüldü
 - [x] `(int)RunEventType.Custom == 29` testi yeşil — `RunEventTypeTests.Custom_stays_29`
 - [x] Dört doğrulama kapısı sıfır uyarı verir — `python3 scripts/kapi.py kapanis --taban 3a729fd0` (bkz. Denetim Bulguları'ndaki iki tur)
-- [x] `samples/AgentPrism.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı — bkz. "Gerçek koşum" altında
+- [x] `samples/Tracon.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı — bkz. "Gerçek koşum" altında
 - [x] `secret` taraması boş döndü — `kapi.py tarama` içinde (kapanışın ilk adımı)
 - [x] Manuel kabul case'leri `docs/manuel-test/21-DAYANIKLILIK-VE-IPTAL.md` içine eklendi; otomatikleştirilebilenler koşuldu — `MT-RES-080`..`084`
 - [x] `faz-denetim` koşuldu; 🔴 bulgu kalmadı — **bağımsız değil, uygulayan oturumun kendi kendine denetimi** (bkz. Denetim Bulguları'ndaki uyarı); yedi bulgunun hepsi kapatıldı
 - [x] `docs-site/concepts/agents.md` ve `capabilities.md` güncellendi; `npm run build` + `check-links.mjs` temiz — `npm run check` (dördü de: content/build/links/weight) temiz
 
-### Gerçek koşum (`samples/AgentPrism.Api`, gerçek OpenRouter anahtarı, 2026-09-05)
+### Gerçek koşum (`samples/Tracon.Api`, gerçek OpenRouter anahtarı, 2026-09-05)
 
 Varsayılan `ChildDeadline` (2 dk) ile router→support zinciri normal tamamlandı
-(`ChildRunStarted`/`ChildRunCompleted`, `~2.3` sn). `AgentPrism__AgentGraph__ChildDeadline=00:00:00.500`
+(`ChildRunStarted`/`ChildRunCompleted`, `~2.3` sn). `Tracon__AgentGraph__ChildDeadline=00:00:00.500`
 ile YENİDEN başlatılıp AYNI istek gönderildiğinde gerçek bir OpenAI HTTP
 çağrısı 500 ms'de kesildi:
 
@@ -64,13 +64,13 @@ başarısız olmadı (Açık Soru 3 seçeneği B).
 
 ```bash
 # Zaman asimi olayi kanita girdi mi
-curl -s http://localhost:5080/agentprism/api/runs/<id>/events -H "Authorization: Bearer <token>" | grep -i timedout
+curl -s http://localhost:5080/tracon/api/runs/<id>/events -H "Authorization: Bearer <token>" | grep -i timedout
 
 # Custom'in sayisal degeri kaymadi
-./artifacts/bin/AgentPrism.Core.UnitTests/release/AgentPrism.Core.UnitTests --filter-class "*RunEventTypeTests*"
+./artifacts/bin/Tracon.Core.UnitTests/release/Tracon.Core.UnitTests --filter-class "*RunEventTypeTests*"
 
 # Iki katman + harness parity, gercek background_agents_* akisiyla
-./artifacts/bin/AgentPrism.AspNetCore.FunctionalTests/release/AgentPrism.AspNetCore.FunctionalTests --filter-class "*SubAgentTimeoutTests*"
+./artifacts/bin/Tracon.AspNetCore.FunctionalTests/release/Tracon.AspNetCore.FunctionalTests --filter-class "*SubAgentTimeoutTests*"
 ```
 
 ---
@@ -79,7 +79,7 @@ curl -s http://localhost:5080/agentprism/api/runs/<id>/events -H "Authorization:
 
 - **🚨 Katman 2'nin uygulaması plandan tamamen farklı çıktı.** Plan katman 2'yi
   (sert kesme) MAF'ın `BackgroundAgentsProviderOptions.WaitTimeout`'una
-  bırakıyordu — AgentPrism yalnız sayıyı kurup MAF'ın beklemesini varsayacaktı.
+  bırakıyordu — Tracon yalnız sayıyı kurup MAF'ın beklemesini varsayacaktı.
   Gerçek bir fonksiyonel test (`SubAgentTimeoutTests`, gerçek
   `background_agents_*` tool akışı) bunun YANLIŞ olduğunu ölçtü: tek bir
   `wait_for_first_completion` çağrısı, görev hâlâ çalışırken, configured
@@ -88,10 +88,10 @@ curl -s http://localhost:5080/agentprism/api/runs/<id>/events -H "Authorization:
   yarışıyla (`invocation`/`waitTimeoutTask`/`callerCancellation`) uygular;
   `BackgroundAgentsProviderOptions.WaitTimeout` yalnız tutarlılık için kurulur,
   davranış garantisi ondan beklenmez. Karar kaydı: K-677.
-- Test dosyaları planın önerdiği `tests/AgentPrism.Core.FunctionalTests/`
+- Test dosyaları planın önerdiği `tests/Tracon.Core.FunctionalTests/`
   projesinde DEĞİL — böyle bir proje yok. Gerçek MAF tool akışını gerektiren
-  testler `tests/AgentPrism.AspNetCore.FunctionalTests/SubAgentTimeoutTests.cs`
-  içine, saf çözümleme/doğrulama testleri `tests/AgentPrism.Core.UnitTests/`
+  testler `tests/Tracon.AspNetCore.FunctionalTests/SubAgentTimeoutTests.cs`
+  içine, saf çözümleme/doğrulama testleri `tests/Tracon.Core.UnitTests/`
   altına (`Compilation/SubAgentSettingsResolutionTests.cs`,
   `Graph/AgentGraphWaitLimitValidationTests.cs`, `Graph/ChildAgentInvokerTests.cs`
   eklemeleri, `Runs/RunEventTypeTests.cs`) yazıldı.
@@ -102,7 +102,7 @@ curl -s http://localhost:5080/agentprism/api/runs/<id>/events -H "Authorization:
   hem `ChildAgentInvoker` listesini hem çözümlenen `WaitTimeout`'u TEK
   çağrıda üretip iki çağırana (düz agent + harness) aktarması için eklendi.
 - **Kendi bulduğumuz iki gerçek kusur, uygulama sırasında düzeltildi** (bkz.
-  Denetim Bulguları): `AgentPrismAgentGraphOptions.WaitTimeout`'un türetilen
+  Denetim Bulguları): `TraconAgentGraphOptions.WaitTimeout`'un türetilen
   değeri `ChildDeadline = TimeSpan.MaxValue`'da taşabiliyordu (okumada bile,
   doğrulamadan önce); ve gerçek bir çağıran iptali, katman 2'nin "terk et"
   yarışını KAZANIRSA `ChildRunCompleted` olayı YAZILMIYORDU (davranış
@@ -139,13 +139,13 @@ Kendi kendine denetimde bulunanlar (hepsi bu fazda kapatıldı):
 
 | # | Bulgu | Seviye | Sonuç |
 |---|---|---|---|
-| 1 | `AgentPrismAgentGraphOptions.WaitTimeout`'un türetilen değeri (`ChildDeadline + 30sn`) `ChildDeadline = TimeSpan.MaxValue`'da `OverflowException` fırlatabiliyordu — doğrulama çalışmadan, salt OKUMADA | 🔴 | Düzeltildi: taşma `TimeSpan.MaxValue`'ya kelepçelenir (`AgentRunBudget`'ın aynı sözleşmesi); `A_ChildDeadline_near_TimeSpanMaxValue_does_not_overflow_the_derived_WaitTimeout` testiyle kilitlendi |
+| 1 | `TraconAgentGraphOptions.WaitTimeout`'un türetilen değeri (`ChildDeadline + 30sn`) `ChildDeadline = TimeSpan.MaxValue`'da `OverflowException` fırlatabiliyordu — doğrulama çalışmadan, salt OKUMADA | 🔴 | Düzeltildi: taşma `TimeSpan.MaxValue`'ya kelepçelenir (`AgentRunBudget`'ın aynı sözleşmesi); `A_ChildDeadline_near_TimeSpanMaxValue_does_not_overflow_the_derived_WaitTimeout` testiyle kilitlendi |
 | 2 | Gerçek çağıran iptali, katman 2'nin "terk et" yarışını (`callerCancellation` vs `invocation`) KAZANIRSA `ChildRunCompleted` olayı YAZILMIYORDU — Faz 144 öncesi her zaman yazılırdı (davranış regresyonu) | 🔴 | Düzeltildi: hem `RunCoreAsync` hem `AdvanceAsync`, `winner != invocation/moveNext`'i yalnız `!cancellationToken.IsCancellationRequested` iken "sert kesme" sayar; gerçek iptal normal `try/finally` yoluna düşer. `Callers_own_cancellation_still_propagates_when_no_timeout_fires` testiyle kilitlendi |
 | 3 | DoD'nin hata modu tablosundaki "birden çok çocuk aynı anda; ilki zaman aşımına uğrarken diğeri tamamlanır" satırı hiçbir testte yoktu | 🟡 | Düzeltildi: `One_child_timing_out_does_not_affect_a_sibling_call_that_completes_normally` eklendi |
 | 4 | DoD "İki davranış harness yolunda da kanıtlanır" diyordu ama harness yolu yalnız sert kesme için test edilmişti, kooperatif katman için değil | 🟡 | Düzeltildi: `Harness_path_produces_the_same_cooperative_layer_behavior` eklendi |
 | 5 | `SubAgentSettings.cs`'in ilk `<example>`'ı derlenmiyordu (`Model` required alanı eksik) | 🔴 | Düzeltildi — `ExampleCompilationTests` (regresyon kapısı zaten vardı) yakaladı |
 | 6 | `WaitTimeout`'un `<summary>`'sindeki bir `<see cref="ChildDeadline"/>`, OpenAPI şemasına TAM CLR imzası olarak sızıyordu | 🔴 | Düzeltildi — `docs-site`'ın `check:content` kapısı yakaladı; `<c>ChildDeadline</c>`'a çevrildi, OpenAPI/istemci zinciri yeniden üretildi |
-| 7 | `samples/AgentPrism.Api`'de gerçek run KANITLANMAMIŞTI (yalnız otomatik testler) | 🔴 | Düzeltildi: gerçek OpenRouter anahtarıyla iki gerçek koşum yapıldı — biri varsayılan (2 dk) sınırla normal tamamlanan router→support zinciri, biri 500 ms `ChildDeadline` ile GERÇEK bir OpenAI HTTP çağrısını ortasından kesen kooperatif zaman aşımı (`ChildRunTimedOut`, `hardCutoff:false`, model "I can try again." diyerek zarifçe devam etti) |
+| 7 | `samples/Tracon.Api`'de gerçek run KANITLANMAMIŞTI (yalnız otomatik testler) | 🔴 | Düzeltildi: gerçek OpenRouter anahtarıyla iki gerçek koşum yapıldı — biri varsayılan (2 dk) sınırla normal tamamlanan router→support zinciri, biri 500 ms `ChildDeadline` ile GERÇEK bir OpenAI HTTP çağrısını ortasından kesen kooperatif zaman aşımı (`ChildRunTimedOut`, `hardCutoff:false`, model "I can try again." diyerek zarifçe devam etti) |
 
 **🔴 ve 🟡 kalmadı** (yukarıdaki yedisi de kapatıldı) — ama madde 0'daki
 bağımsızlık eksikliği açık bir devir notu olarak kalıyor.
@@ -157,7 +157,7 @@ bağımsızlık eksikliği açık bir devir notu olarak kalıyor.
   `BackgroundAgentsProviderOptions.WaitTimeout` yalnız MAF'ın kendi iç
   mekanizmasıyla tutarlılık için kurulur, davranış garantisi ondan
   beklenmemelidir (K-677). MAF bir sonraki sürümde `WaitTimeout`'un anlamını
-  değiştirse bile AgentPrism'in garantisi etkilenmez.
+  değiştirse bile Tracon'in garantisi etkilenmez.
 - **🚨 Bilinen tuzak:** `background_agents_wait_for_first_completion` tek
   çağrıda configured `WaitTimeout` kadar BEKLEMEZ — kısa bir yoklama gibi
   davranır (ölçüldü, `docs/hafiza/maf-api.md`). MAF'ın background-agent

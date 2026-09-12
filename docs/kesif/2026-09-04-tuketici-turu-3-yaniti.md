@@ -1,7 +1,7 @@
-# AgentPrism → ProdigyEnabler · Tüketici Turu 3 Yanıtı
+# Tracon → ProdigyEnabler · Tüketici Turu 3 Yanıtı
 
-> **Kimden:** AgentPrism geliştirme tarafı · **Tarih:** 2026-09-04
-> **Neye yanıt:** "AgentPrism — Feature Talepleri ve Fikirler" (ProdigyEnabler
+> **Kimden:** Tracon geliştirme tarafı · **Tarih:** 2026-09-04
+> **Neye yanıt:** "Tracon — Feature Talepleri ve Fikirler" (ProdigyEnabler
 > backend ekibi, 2026-09-03) · Bölüm A (A1–A9) ve Bölüm B (B1–B10)
 > **Ölçüm kaydı:** [`2026-09-03-tuketici-turu-3-olcumu.md`](2026-09-03-tuketici-turu-3-olcumu.md)
 
@@ -45,11 +45,11 @@ Aşağıdakiler faz dokümanlarının iddiası değil, bu yanıtı hazırlarken
 
 | Ölçüm | Sonuç |
 |---|---|
-| `dotnet build AgentPrism.slnx -c Release` | ✅ **0 Warning · 0 Error** |
+| `dotnet build Tracon.slnx -c Release` | ✅ **0 Warning · 0 Error** |
 | `dotnet format --verify-no-changes` | ✅ temiz |
 | `dotnet pack -c Release` | ✅ uyarısız |
-| `dotnet test AgentPrism.slnx` (tüm çözüm) | ⚠️ **3 test düştü** — üçü de MCP Tasks, aşağıda |
-| `AgentPrism.AspNetCore.FunctionalTests` tek başına | ✅ **766/766** |
+| `dotnet test Tracon.slnx` (tüm çözüm) | ⚠️ **3 test düştü** — üçü de MCP Tasks, aşağıda |
+| `Tracon.AspNetCore.FunctionalTests` tek başına | ✅ **766/766** |
 | Genişleme noktası sayısı | 5 → **7** |
 | OpenAPI yüzeyi | **163 operasyon / 126 path — değişmedi** (yeni uç yok) |
 | Yeni migration | **6** (üç SQL sağlayıcı × 2) |
@@ -158,16 +158,16 @@ yazıyordu; o hâliyle `List` çağrısı anlamsız bir değer taşımak zorunda
 ### A8 — scope'ta çağıran kimliği
 
 `AgentRunScope` artık `UserId` **ve** `Labels` taşıyor
-(`AgentPrismRunContext.cs:93,102`). Duruşumuz aynen korundu: opak string,
+(`TraconRunContext.cs:93,102`). Duruşumuz aynen korundu: opak string,
 çözülmez, doğrulanmaz, yorumlanmaz. Tool gövdeleriniz `SessionId` üzerinden
 ikinci bir okuma yapmak zorunda değil.
 
 ### Entegrasyonunuz için
 
 Chat fazınızı bekleten kalem buydu. **SSE proxy'si yazmanız artık gerekmiyor.**
-`IRunAuthorizationHandler`'ı ABP izin hattınıza bağlayın; AgentPrism'in HTTP
+`IRunAuthorizationHandler`'ı ABP izin hattınıza bağlayın; Tracon'in HTTP
 API'sini front-end'e doğrudan açabilirsiniz. 163 operasyonun tamamı kapalı
-kalmaz, ve yeni bir AgentPrism yeteneği için proxy'ye geçit yazmanız gerekmez —
+kalmaz, ve yeni bir Tracon yeteneği için proxy'ye geçit yazmanız gerekmez —
 kaçınmak istediğiniz maliyet buydu.
 
 ---
@@ -256,7 +256,7 @@ public sealed record RunEvent { public string? CustomType { get; init; } }
 ```
 
 `JobHandlerKeys` doğrulama kuralı birebir tekrarlandı: 1–128 karakter, küçük
-harf ASCII + rakam + `.` `_` `-`, `agentprism.` öneki **rezerve ve reddedilir**.
+harf ASCII + rakam + `.` `_` `-`, `tracon.` öneki **rezerve ve reddedilir**.
 
 **Doğrulama iki yönlüdür** ve bu sizin önerinize eklediğimiz tek şey:
 `Custom` iken `CustomType` boşsa **ve** `Custom` değilken `CustomType` doluysa
@@ -274,7 +274,7 @@ Mutasyon tool listesini front-end'de tutmanız gerekmiyor; o bilgi backend'de te
 bir yerde kalır.
 
 **Migration gerekiyor:** `run_events` tablosuna `custom_type` sütunu eklendi
-(üç SQL sağlayıcı için ayrı ayrı). Sütun nullable'dır; AgentPrism'in kendi
+(üç SQL sağlayıcı için ayrı ayrı). Sütun nullable'dır; Tracon'in kendi
 yazdığı her olayda `NULL` kalır.
 
 ---
@@ -322,7 +322,7 @@ olurdu. Bir sunum hatası, güvenlik gerektiren bir onayı engellememelidir.
 | Zaman aşımı | Aynı |
 
 Zaman aşımı eklendi ve ayarlanabilir:
-`AgentPrismToolOptions.ApprovalPresentationTimeout`, **varsayılan 2 saniye**.
+`TraconToolOptions.ApprovalPresentationTimeout`, **varsayılan 2 saniye**.
 Sınırsız bekleme onay isteğini asardı.
 
 ### 🚨 Kayıt biçimi — dikkat edin
@@ -378,7 +378,7 @@ yirmi iki tool'un yedisi yıkıcı olan bir kurulumda ağır basıyor.
 
 ### Sevk edilen
 
-`AgentPrism.Testing.Contracts.Xunit` içinde iki yeni `abstract` suite:
+`Tracon.Testing.Contracts.Xunit` içinde iki yeni `abstract` suite:
 
 ```csharp
 public abstract class ToolArgumentValidationContract : IAsyncLifetime
@@ -417,7 +417,7 @@ Talebiniz *"eşiğe yaklaşma bildirimi üretmiyor"* diyordu. **Üretiyor.**
 
 | Ne | Nerede |
 |---|---|
-| Eşik yüzdeleri | `AgentPrismQuotaOptions.ThresholdPercents`, **varsayılan `[80, 100]`** |
+| Eşik yüzdeleri | `TraconQuotaOptions.ThresholdPercents`, **varsayılan `[80, 100]`** |
 | Periyot başına bir kez | `QuotaEnforcer.cs:296` — tam olarak sizin önerdiğiniz semantik |
 | Yayım | `quota.threshold` webhook'u, `WebhookQuotaSummary` ile |
 | Payload | `Metric`, `AgentName`, `Period`, `ThresholdPercent`, `Limit`, `Used`, `ResetsAt` |
@@ -452,15 +452,15 @@ Alıntıladığınız cümle bizimdi: *"A channel that reaches capacity **drops*
 event and logs it; it does not block."*
 
 O cümle **sizin kendi kanalınızı** tarif ediyordu — sink'inizin içinde kurmanız
-gereken kuyruğu. AgentPrism'in **kanalı yoktur**: `RunEventWriter.cs:203`
-sink'i doğrudan `await` eder. Dolayısıyla `AgentPrismRunEventSinkOptions`
+gereken kuyruğu. Tracon'in **kanalı yoktur**: `RunEventWriter.cs:203`
+sink'i doğrudan `await` eder. Dolayısıyla `TraconRunEventSinkOptions`
 önerisi bir metrik eklemek değil, **var olmayan bir kanalı inşa etmek**
 olurdu — istediğinizden çok daha büyük bir değişiklik.
 
 Cümlenin **öznesi yoktu** ve bu yüzden bizim davranışımız gibi okundu. Sizin
 okuma hatanız değil.
 
-**Düzeltildi.** Metin artık açıkça yazıyor: *"AgentPrism holds no queue of its
+**Düzeltildi.** Metin artık açıkça yazıyor: *"Tracon holds no queue of its
 own in front of your sink, so the buffer is yours to own."* Ayrıca sınıf
 taraması **ikinci bir vaka** buldu: `concepts/runs.md`'deki sink örneği kendi
 kuralını çiğniyordu — `await queue.PublishAsync(...)`, "do not block on further
@@ -493,7 +493,7 @@ kendi arka plan okuyucunuz. Düşme sayımı da o kuyruğun sahibi olarak sizde 
 
 ## 🚨 Bilinen sorun — kapanış kapısı tam çözüm koşumunda kırmızı
 
-Dürüst olalım: `dotnet test AgentPrism.slnx` (tüm çözüm birlikte) bugün **üç
+Dürüst olalım: `dotnet test Tracon.slnx` (tüm çözüm birlikte) bugün **üç
 testte kırmızı**. Üçü de MCP Tasks tarafında:
 
 - `McpTasksEndpointTests.Unknown_task_id_is_reported_as_a_protocol_error_not_a_500`
@@ -505,7 +505,7 @@ testte kırmızı**. Üçü de MCP Tasks tarafında:
 | Koşum | Sonuç |
 |---|---|
 | Tüm çözüm | ❌ 3 düştü |
-| Yalnız `AgentPrism.AspNetCore.FunctionalTests` | ✅ 766/766 |
+| Yalnız `Tracon.AspNetCore.FunctionalTests` | ✅ 766/766 |
 | Yalnız `*McpTask*` filtresi (bugün, HEAD) | ✅ 12/12 |
 | Yalnız `*McpTask*` filtresi (Faz 139 **öncesi** temel commit) | ✅ 12/12 |
 
@@ -525,7 +525,7 @@ geçmeyiz.
 **Değişen kararlar:**
 
 1. **SSE proxy'si yazmayın.** A1 geldi. `IRunAuthorizationHandler`'ı ABP izin
-   hattınıza bağlayın, front-end'i doğrudan AgentPrism'e bağlayın. Chat fazınızı
+   hattınıza bağlayın, front-end'i doğrudan Tracon'e bağlayın. Chat fazınızı
    bekleten tek kalem buydu.
 2. **Kota sayacınızı kurmayın.** `quota.threshold` webhook'una abone olun.
    İkinci bir sayaç üretmeyin.
@@ -541,7 +541,7 @@ geçmeyiz.
 
 7. **Delta tamponunu siz yazın** (A6) — `MaxDelay`'i unutmayın.
 8. **Endpoint'i konfigürasyona taşıyın** (A7).
-9. **Sink kullanacaksanız kuyruğu siz kurun** (A9) — AgentPrism'in kuyruğu yok.
+9. **Sink kullanacaksanız kuyruğu siz kurun** (A9) — Tracon'in kuyruğu yok.
 
 **Dağıtım notları:**
 

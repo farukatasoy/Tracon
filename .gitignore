@@ -39,7 +39,7 @@ project.fragment.lock.json
 
 ## CI, NUGET_PACKAGES'i is alani ICINE alir (.github/workflows/ci.yml, `env`):
 ## `${{ github.workspace }}/.nuget/packages`. Paket onbellegi kaynak degildir ve
-## ignore EDILMEZSE `dotnet pack`'in temiz-agac kapisi (AGENTPRISM0004) her
+## ignore EDILMEZSE `dotnet pack`'in temiz-agac kapisi (TRACON0004) her
 ## paketi durdurur - kapi untracked dosyayi da kirli sayar.
 .nuget/
 BenchmarkDotNet.Artifacts/
@@ -51,7 +51,7 @@ coverage*.info
 *.coveragexml
 
 ## ---------------------------------------------------------------------------
-## Node / frontend (src/AgentPrism.UI/frontend)
+## Node / frontend (src/Tracon.UI/frontend)
 ## ---------------------------------------------------------------------------
 node_modules/
 .vite/
@@ -66,7 +66,7 @@ playwright/.cache/
 test-results/
 
 ## Vite build ciktisi. Pakete gomulur, kaynak agacinda tutulmaz.
-src/AgentPrism.UI/wwwroot/
+src/Tracon.UI/wwwroot/
 
 ## ---------------------------------------------------------------------------
 ## packages/ (npm paketleri, Faz 84)

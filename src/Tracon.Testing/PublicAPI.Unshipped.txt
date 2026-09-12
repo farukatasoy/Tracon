@@ -1,0 +1,64 @@
+#nullable enable
+Tracon.Testing.TraconAssertionException
+Tracon.Testing.TraconAssertionException.TraconAssertionException() -> void
+Tracon.Testing.TraconAssertionException.TraconAssertionException(string! message) -> void
+Tracon.Testing.TraconAssertionException.TraconAssertionException(string! message, System.Exception! innerException) -> void
+Tracon.Testing.TraconTestHost
+Tracon.Testing.TraconTestHost.Client.get -> System.Net.Http.HttpClient!
+Tracon.Testing.TraconTestHost.DisposeAsync() -> System.Threading.Tasks.ValueTask
+Tracon.Testing.TraconTestHost.RunAsync(string! agentName, string! message, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Tracon.Testing.RunAssertions!>
+Tracon.Testing.TraconTestHost.Services.get -> System.IServiceProvider!
+Tracon.Testing.TraconTestHostOptions
+Tracon.Testing.TraconTestHostOptions.TraconTestHostOptions() -> void
+Tracon.Testing.TraconTestHostOptions.ConfigureTracon.get -> System.Action<Tracon.ITraconBuilder!>?
+Tracon.Testing.TraconTestHostOptions.ConfigureTracon.set -> void
+Tracon.Testing.TraconTestHostOptions.ConfigureEndpoints.get -> System.Action<Tracon.TraconEndpointOptions!>?
+Tracon.Testing.TraconTestHostOptions.ConfigureEndpoints.set -> void
+Tracon.Testing.TraconTestHostOptions.ConfigureServices.get -> System.Action<Microsoft.Extensions.DependencyInjection.IServiceCollection!>?
+Tracon.Testing.TraconTestHostOptions.ConfigureServices.set -> void
+Tracon.Testing.TraconTestHostOptions.ModelProvider.get -> Tracon.Testing.FakeModelProvider!
+Tracon.Testing.TraconTestHostOptions.ModelProvider.set -> void
+Tracon.Testing.TraconTestHostOptions.Prefix.get -> string!
+Tracon.Testing.TraconTestHostOptions.Prefix.set -> void
+Tracon.Testing.FakeModelProvider
+Tracon.Testing.FakeModelProvider.CallsTool(string! toolName, object? arguments = null) -> Tracon.Testing.FakeModelProvider!
+Tracon.Testing.FakeModelProvider.CallsTools(params (string! ToolName, object? Arguments)[]! calls) -> Tracon.Testing.FakeModelProvider!
+Tracon.Testing.FakeModelProvider.CreateChatClient(Tracon.ModelBinding! binding) -> Microsoft.Extensions.AI.IChatClient!
+Tracon.Testing.FakeModelProvider.CreateChatClient(Tracon.ModelBinding! binding, Tracon.ModelProviderCredential! credential) -> Microsoft.Extensions.AI.IChatClient!
+Tracon.Testing.FakeModelProvider.Dispose() -> void
+Tracon.Testing.FakeModelProvider.EchoesLastToolResult(string! prefix = "", int? inputTokens = null, int? outputTokens = null) -> Tracon.Testing.FakeModelProvider!
+Tracon.Testing.FakeModelProvider.EchoesUserMessage() -> Tracon.Testing.FakeModelProvider!
+Tracon.Testing.FakeModelProvider.FakeModelProvider(string! name = "fake") -> void
+Tracon.Testing.FakeModelProvider.ForModel(string! modelId, System.Action<Tracon.Testing.FakeModelProvider!>! configure) -> Tracon.Testing.FakeModelProvider!
+Tracon.Testing.FakeModelProvider.Models.get -> System.Collections.Generic.IReadOnlyList<Tracon.ModelDescriptor!>!
+Tracon.Testing.FakeModelProvider.Name.get -> string!
+Tracon.Testing.FakeModelProvider.Requests.get -> System.Collections.Generic.IReadOnlyList<Tracon.Testing.FakeModelRequest!>!
+Tracon.Testing.FakeModelProvider.RespondsWith(params string![]! responses) -> Tracon.Testing.FakeModelProvider!
+Tracon.Testing.FakeModelProvider.RespondsWith(string! response, int inputTokens, int outputTokens) -> Tracon.Testing.FakeModelProvider!
+Tracon.Testing.FakeModelProvider.WithModel(Tracon.ModelDescriptor! descriptor) -> Tracon.Testing.FakeModelProvider!
+Tracon.Testing.FakeModelRequest
+Tracon.Testing.FakeModelRequest.<Clone>$() -> Tracon.Testing.FakeModelRequest!
+Tracon.Testing.FakeModelRequest.Equals(Tracon.Testing.FakeModelRequest? other) -> bool
+Tracon.Testing.FakeModelRequest.FakeModelRequest() -> void
+Tracon.Testing.FakeModelRequest.IsStreaming.get -> bool
+Tracon.Testing.FakeModelRequest.IsStreaming.init -> void
+Tracon.Testing.FakeModelRequest.Messages.get -> System.Collections.Generic.IReadOnlyList<Microsoft.Extensions.AI.ChatMessage!>!
+Tracon.Testing.FakeModelRequest.Messages.init -> void
+Tracon.Testing.FakeModelRequest.Options.get -> Microsoft.Extensions.AI.ChatOptions?
+Tracon.Testing.FakeModelRequest.Options.init -> void
+Tracon.Testing.RunAssertions
+Tracon.Testing.RunAssertions.Events.get -> System.Collections.Generic.IReadOnlyList<Tracon.RunEvent!>!
+Tracon.Testing.RunAssertions.Record.get -> Tracon.RunRecord!
+Tracon.Testing.RunAssertions.ShouldHaveCalledTool(string! toolName, int? times = null) -> Tracon.Testing.RunAssertions!
+Tracon.Testing.RunAssertions.ShouldHaveCompleted() -> Tracon.Testing.RunAssertions!
+Tracon.Testing.RunAssertions.ShouldHaveFailed() -> Tracon.Testing.RunAssertions!
+Tracon.Testing.RunAssertions.ShouldHaveFailedWith(string! errorType) -> Tracon.Testing.RunAssertions!
+Tracon.Testing.RunAssertions.ShouldHaveOutputContaining(string! text) -> Tracon.Testing.RunAssertions!
+Tracon.Testing.RunAssertions.ShouldNotHaveCalledTool(string! toolName) -> Tracon.Testing.RunAssertions!
+Tracon.Testing.RunAssertions.ToolInvocations.get -> System.Collections.Generic.IReadOnlyList<Tracon.ToolInvocationRecord!>!
+override Tracon.Testing.FakeModelRequest.Equals(object? obj) -> bool
+override Tracon.Testing.FakeModelRequest.GetHashCode() -> int
+override Tracon.Testing.FakeModelRequest.ToString() -> string!
+static Tracon.Testing.TraconTestHost.StartAsync(System.Action<Tracon.Testing.TraconTestHostOptions!>? configure = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Tracon.Testing.TraconTestHost!>
+static Tracon.Testing.FakeModelRequest.operator !=(Tracon.Testing.FakeModelRequest? left, Tracon.Testing.FakeModelRequest? right) -> bool
+static Tracon.Testing.FakeModelRequest.operator ==(Tracon.Testing.FakeModelRequest? left, Tracon.Testing.FakeModelRequest? right) -> bool

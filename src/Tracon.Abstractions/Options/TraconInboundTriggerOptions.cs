@@ -1,0 +1,28 @@
+namespace Tracon;
+
+/// <summary>Options that constrain inbound triggers.</summary>
+/// <remarks>
+/// <see cref="AllowedConfigurationPrefix"/> is a security boundary, not a
+/// convenience default — the same rationale as
+/// <see cref="TraconTenantProviderOptions.AllowedConfigurationPrefix"/>
+/// Without it, a trigger definition could reference an
+/// unrelated configuration key as its "signing secret".
+/// </remarks>
+public sealed class TraconInboundTriggerOptions
+{
+    /// <summary>Gets or sets how far the request's <c>X-Tracon-Timestamp</c> may drift. Default five minutes.</summary>
+    public TimeSpan TimestampTolerance { get; set; } = TimeSpan.FromMinutes(5);
+
+    /// <summary>Gets or sets the maximum accepted body size, in bytes. Default 256 KB.</summary>
+    public int MaxBodyBytes { get; set; } = 256 * 1024;
+
+    /// <summary>Gets or sets the maximum accepted requests per trigger per minute. Default 60.</summary>
+    public int MaxRequestsPerMinute { get; set; } = 60;
+
+    /// <summary>
+    /// Gets or sets the only prefix under which a configuration key may be
+    /// referenced as a trigger's signing secret. Default is
+    /// <c>"Tracon:TriggerSecrets:"</c>.
+    /// </summary>
+    public string AllowedConfigurationPrefix { get; set; } = "Tracon:TriggerSecrets:";
+}

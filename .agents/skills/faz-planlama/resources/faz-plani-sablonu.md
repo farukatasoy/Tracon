@@ -18,7 +18,7 @@
 > **Durum:** 📋 Planlandı (<YYYY-AA-GG>)
 > **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-<NN>**<, **F-<NN>**>
 > **Önkoşul:** [Faz <N>](<N>-<AD>.md) — <neden gerekli> · <yoksa "Yok">
-> **Paketler:** `AgentPrism.<X>`, `.<Y>`
+> **Paketler:** `Tracon.<X>`, `.<Y>`
 > **Yeni paket:** <Yok · veya ad + K-007 gerekçesi> · **Migration:** <Yok · veya "gerekli — numara uygulama anında alınır">
 > **Public API:** <Büyümüyor · veya "büyüyor — Faz 7'den önce ucuz">
 > **Tüketici yüzeyi:** <Yok · veya site sayfaları: `concepts/runs.md`, `packages.md`, `ui.md` + ekran görüntüsü>
@@ -84,7 +84,7 @@ Doğrulama tarihini yaz.>
 > Taslak imzalardır. Gerçekleşen imzalar kapanışta ayrı bir bölüme yazılır.
 
 ```csharp
-// AgentPrism.Abstractions
+// Tracon.Abstractions
 public interface I<Ad>
 {
     ValueTask<T> <Metot>Async(<parametreler>, CancellationToken cancellationToken = default);
@@ -106,7 +106,7 @@ public interface I<Ad>
 ## Planlanan Dosya Listesi
 
 ```
-src/AgentPrism.<Paket>/
+src/Tracon.<Paket>/
 ├── <Klasor>/
 │   ├── <Dosya>.cs
 │   └── <Dosya>.cs
@@ -159,7 +159,7 @@ hem üç SQL sağlayıcısı üzerinde koşar.
 
 - [ ] <ölçülebilir davranış: komut → beklenen çıktı>
 - [ ] Dört doğrulama kapısı sıfır uyarı verir
-- [ ] `samples/AgentPrism.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı
+- [ ] `samples/Tracon.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı
 - [ ] `secret` taraması boş döndü
 - [ ] Manuel kabul case'leri `docs/manuel-test/<NN>-<ALAN>.md` içine eklendi; otomatikleştirilebilenler koşuldu
 - [ ] `faz-denetim` koşuldu; 🔴 bulgu kalmadı
@@ -170,7 +170,7 @@ hem üç SQL sağlayıcısı üzerinde koşar.
 
 ```bash
 # <ne doğrulanıyor>
-curl -s http://localhost:5081/agentprism/api/<yol>
+curl -s http://localhost:5081/tracon/api/<yol>
 ```
 
 ---

@@ -49,13 +49,13 @@ Bir NuGet paket ailesinin ihtiyaç duyduğu build, kalite ve sürümleme altyap�
 
 `Microsoft.Agents.AI` kendisi `net8.0`, `net9.0`, `net10.0`, `netstandard2.0` ve `net472` hedefler. Bugün üretimdeki .NET projelerinin büyük kısmı `net8.0` (LTS) üzerindedir. Tek `net10.0` hedefi, paketin erişimini gereksiz yere daraltırdı.
 
-`netstandard2.0` ve `net472` **dahil edilmedi**: AgentPrism'in gerçek çalışma yeri modern ASP.NET Core'dur ve bu iki hedef `IAsyncEnumerable`, `System.Text.Json` kaynak üreteçleri gibi yapılarda ciddi ek yük getirir.
+`netstandard2.0` ve `net472` **dahil edilmedi**: Tracon'in gerçek çalışma yeri modern ASP.NET Core'dur ve bu iki hedef `IAsyncEnumerable`, `System.Text.Json` kaynak üreteçleri gibi yapılarda ciddi ek yük getirir.
 
 Doğrulandı: tüm bağımlılıklar (`Npgsql 10.0.3` dahil) üç hedefi de destekler.
 
 ### Modüler paketleme
 
-Yedi paket, tek meta paket. Gerekçe: PostgreSQL kullanmayan bir tüketici `Npgsql`'i çekmemelidir. İleride `AgentPrism.SqlServer` veya `AgentPrism.Anthropic` eklemek breaking change olmaz.
+Yedi paket, tek meta paket. Gerekçe: PostgreSQL kullanmayan bir tüketici `Npgsql`'i çekmemelidir. İleride `Tracon.SqlServer` veya `Tracon.Anthropic` eklemek breaking change olmaz.
 
 ### Geçişli sabitleme kapalı
 
@@ -63,7 +63,7 @@ Yedi paket, tek meta paket. Gerekçe: PostgreSQL kullanmayan bir tüketici `Npgs
 
 Açık olduğunda NuGet, geçişli bağımlılıkları üretilen `.nuspec` dosyasına **doğrudan** bağımlılık olarak yazar. Bir uygulamada bu istenen davranıştır; bir kütüphanede tüketicinin bağımlılık grafiğini kirletir.
 
-Ölçüldü: bayrak açıkken `AgentPrism.PostgreSql` 13 doğrudan bağımlılık bildiriyordu. Kapalıyken 2 (`AgentPrism.Core`, `Npgsql`).
+Ölçüldü: bayrak açıkken `Tracon.PostgreSql` 13 doğrudan bağımlılık bildiriyordu. Kapalıyken 2 (`Tracon.Core`, `Npgsql`).
 
 ### Trim/AOT analyzer'ları katman bazlı
 
@@ -80,13 +80,13 @@ Gerekçe: Faz 1–6 boyunca API yüzeyi hızla değişecek. Her değişikliği m
 
 ### Test projeleri fazına göre eklenir
 
-Faz 0 yalnız `AgentPrism.Core.UnitTests` projesini oluşturur. Diğer üçü test edecekleri şeyle birlikte gelir:
+Faz 0 yalnız `Tracon.Core.UnitTests` projesini oluşturur. Diğer üçü test edecekleri şeyle birlikte gelir:
 
 | Proje | Faz |
 |-------|-----|
-| `AgentPrism.PostgreSql.IntegrationTests` | 2 |
-| `AgentPrism.AspNetCore.FunctionalTests` | 4 |
-| `AgentPrism.Ui.E2ETests` | 5 |
+| `Tracon.PostgreSql.IntegrationTests` | 2 |
+| `Tracon.AspNetCore.FunctionalTests` | 4 |
+| `Tracon.Ui.E2ETests` | 5 |
 
 Gerekçe: `dotnet test` sıfır testli bir projede hata verir ve CI'ı kırar. Sahte bir test eklemek çözüm değil — test etmediği bir şeyi test ediyormuş gibi görünen kod üretir. Proje, gerçek testiyle birlikte oluşturulur.
 
@@ -97,7 +97,7 @@ Faz 0'ın kendi testi vardır ve gerçektir: `DependencyDirectionTests` katman m
 `xunit.v3` artık Microsoft Testing Platform üzerinde çalışır; test projesi kendi başına çalıştırılabilir bir uygulamadır. `Microsoft.NET.Test.Sdk` ve `xunit.runner.visualstudio` **bilerek referans edilmez** — bunlar VSTest içindir ve birlikte kullanıldıklarında `dotnet test` şu hatayı verir:
 
 ```
-The argument ...AgentPrism.Core.UnitTests.dll is invalid.
+The argument ...Tracon.Core.UnitTests.dll is invalid.
 ```
 
 `tests/Directory.Build.props` içinde:
@@ -119,13 +119,13 @@ Elle sürüm düzenlemesi yok. `v1.0.0-preview.1` etiketi atıldığında paketl
 
 | Paket | Doğrudan bağımlılık |
 |-------|--------------------|
-| `AgentPrism.Abstractions` | 2 |
-| `AgentPrism.Core` | 10 |
-| `AgentPrism.PostgreSql` | 2 |
-| `AgentPrism.OpenAI` | 4 |
-| `AgentPrism.AspNetCore` | 3 |
-| `AgentPrism.UI` | 1 |
-| `AgentPrism` (meta) | 4 |
+| `Tracon.Abstractions` | 2 |
+| `Tracon.Core` | 10 |
+| `Tracon.PostgreSql` | 2 |
+| `Tracon.OpenAI` | 4 |
+| `Tracon.AspNetCore` | 3 |
+| `Tracon.UI` | 1 |
+| `Tracon` (meta) | 4 |
 
 Grafik tek yönlüdür ve döngü içermez.
 
@@ -137,7 +137,7 @@ Grafik tek yönlüdür ve döngü içermez.
 
 `EnableAotAnalyzer` kök seviyede açıktı. `app.MapGet(...)` çağrısı `IL2026` ve `IL3050` üretti ve `TreatWarningsAsErrors` build'i kırdı.
 
-**Çözüm:** Analyzer'lar `src/Directory.Build.props`'a taşındı; `AgentPrismAotCompatible` özelliği ile paket bazlı kapatılabilir hale getirildi.
+**Çözüm:** Analyzer'lar `src/Directory.Build.props`'a taşındı; `TraconAotCompatible` özelliği ile paket bazlı kapatılabilir hale getirildi.
 
 ### 2. `dotnet pack` paketlenmeyen projeler için uyarı üretti
 
@@ -182,7 +182,7 @@ from assembly 'Microsoft.Testing.Platform, Version=2.3.3.0'
 
 | Ölçüt | Durum |
 |-------|-------|
-| `dotnet restore AgentPrism.slnx` başarılı | ✅ |
+| `dotnet restore Tracon.slnx` başarılı | ✅ |
 | `dotnet build -c Release` — 0 uyarı, 0 hata | ✅ |
 | `dotnet pack -c Release` — 0 uyarı, 7 `.nupkg` + 7 `.snupkg` | ✅ |
 | `dotnet test -c Release` — 4 test geçiyor | ✅ |
@@ -195,10 +195,10 @@ from assembly 'Microsoft.Testing.Platform, Version=2.3.3.0'
 Doğrulama komutu:
 
 ```bash
-dotnet build  AgentPrism.slnx -c Release
-dotnet test   AgentPrism.slnx -c Release --no-build
-dotnet pack   AgentPrism.slnx -c Release --no-build
-dotnet format AgentPrism.slnx --verify-no-changes
+dotnet build  Tracon.slnx -c Release
+dotnet test   Tracon.slnx -c Release --no-build
+dotnet pack   Tracon.slnx -c Release --no-build
+dotnet format Tracon.slnx --verify-no-changes
 ```
 
 ---
@@ -209,5 +209,5 @@ dotnet format AgentPrism.slnx --verify-no-changes
 |------|------|-------|
 | `Microsoft.Agents.AI.Hosting` preview, `.Hosting.OpenAI` alpha | Kararlı 1.0 verilemez | Faz 4'te izole edildi; Faz 7'de sürüm politikası uygulanır |
 | Paket ikonu yok | NuGet sayfası eksik görünür | Faz 7 |
-| `PackageProjectUrl` / `RepositoryUrl` varsayım (`github.com/farukatasoy/AgentPrism`) | Yanlış bağlantı | Gerçek depo adresi belli olunca `src/Directory.Build.props` güncellenir |
+| `PackageProjectUrl` / `RepositoryUrl` varsayım (`github.com/farukatasoy/Tracon`) | Yanlış bağlantı | Gerçek depo adresi belli olunca `src/Directory.Build.props` güncellenir |
 | Faz 0'da yalnız mimari testi var | Ürün mantığı henüz test edilmiyor | Faz 1'den itibaren birim testleri eklenir |

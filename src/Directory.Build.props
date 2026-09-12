@@ -17,20 +17,20 @@
     Trim and AOT compatibility.
     On by default, so we get a library that works in trimmed and native AOT
     applications. ASP.NET Core minimal API routing and the embedded UI's asset
-    scanning inherently use reflection, so AgentPrism.AspNetCore and
-    AgentPrism.UI disable it in their own csproj files by writing
-    AgentPrismAotCompatible=false.
+    scanning inherently use reflection, so Tracon.AspNetCore and
+    Tracon.UI disable it in their own csproj files by writing
+    TraconAotCompatible=false.
     Rationale: docs/KARARLAR.md, decision K-006.
   -->
   <!--
     NOTE: IsAotCompatible is NOT assigned here. This file loads BEFORE the
-    csproj body; the <AgentPrismAotCompatible>false</...> value written in the
+    csproj body; the <TraconAotCompatible>false</...> value written in the
     csproj has not been read yet, and IsAotCompatible would stay true
     irreversibly. The derivation happens in Directory.Build.targets, AFTER the
     csproj is read.
   -->
   <PropertyGroup Label="Trim / AOT">
-    <AgentPrismAotCompatible Condition=" '$(AgentPrismAotCompatible)' == '' ">true</AgentPrismAotCompatible>
+    <TraconAotCompatible Condition=" '$(TraconAotCompatible)' == '' ">true</TraconAotCompatible>
   </PropertyGroup>
 
   <PropertyGroup Label="Packaging">
@@ -55,17 +55,17 @@
       extension, and own the code `dotnet new` generates, without a commercial
       licence. Everything that actually runs an agent is PolyForm.
     -->
-    <AgentPrismMitLicensed Condition=" '$(MSBuildProjectName)' == 'AgentPrism.Abstractions'
-                                    Or '$(MSBuildProjectName)' == 'AgentPrism.Testing.Contracts.Xunit'
-                                    Or '$(MSBuildProjectName)' == 'AgentPrism.Templates' ">true</AgentPrismMitLicensed>
-    <PackageLicenseFile Condition=" '$(AgentPrismMitLicensed)' == 'true' ">LICENSE-MIT.md</PackageLicenseFile>
+    <TraconMitLicensed Condition=" '$(MSBuildProjectName)' == 'Tracon.Abstractions'
+                                    Or '$(MSBuildProjectName)' == 'Tracon.Testing.Contracts.Xunit'
+                                    Or '$(MSBuildProjectName)' == 'Tracon.Templates' ">true</TraconMitLicensed>
+    <PackageLicenseFile Condition=" '$(TraconMitLicensed)' == 'true' ">LICENSE-MIT.md</PackageLicenseFile>
     <PackageLicenseFile Condition=" '$(PackageLicenseFile)' == '' ">LICENSE.md</PackageLicenseFile>
-    <PackageRequireLicenseAcceptance Condition=" '$(AgentPrismMitLicensed)' == 'true' ">false</PackageRequireLicenseAcceptance>
+    <PackageRequireLicenseAcceptance Condition=" '$(TraconMitLicensed)' == 'true' ">false</PackageRequireLicenseAcceptance>
     <PackageRequireLicenseAcceptance Condition=" '$(PackageRequireLicenseAcceptance)' == '' ">true</PackageRequireLicenseAcceptance>
     <Authors>Faruk Atasoy</Authors>
     <!-- Copyright stays with the author; Atanova is the entity that licenses and invoices. -->
     <Company>Atanova</Company>
-    <Product>AgentPrism</Product>
+    <Product>Tracon</Product>
     <Copyright>Copyright (c) Faruk Atasoy</Copyright>
     <!--
       🚨 Measured (HTTP 404, anonymous): the GitHub repository is private, so any
@@ -79,22 +79,22 @@
       down rather than hidden - Source Link cannot resolve sources for a third
       party while the repository is private.
     -->
-    <PackageProjectUrl>https://agentprism.doayen.web.tr</PackageProjectUrl>
-    <RepositoryUrl>https://github.com/farukatasoy/AgentPrism</RepositoryUrl>
+    <PackageProjectUrl>https://tracon.dev</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/farukatasoy/Tracon</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
     <EmbedUntrackedSources>true</EmbedUntrackedSources>
     <!--
       TFM-vs-TFM API compatibility, checked on every `dotnet pack` (net8.0 vs
       net9.0 vs net10.0 assemblies of the SAME package). A baseline against the
-      previous PUBLISHED version is deliberately not set here - AgentPrism has
+      previous PUBLISHED version is deliberately not set here - Tracon has
       not shipped yet, so there is no previous version to compare against; a
       future phase adds PackageValidationBaselineVersion after the first
       release. Rationale: docs/arsiv/fazlar/97-SURUM-POLITIKASI-VE-YAYIN-PROVASI.md, 97.4.
     -->
     <EnablePackageValidation>true</EnablePackageValidation>
     <!-- Shared tags; projects use $(CommonPackageTags) inside PackageTags. -->
-    <CommonPackageTags>agentprism;ai;agents;microsoft-agent-framework;llm;dotnet</CommonPackageTags>
+    <CommonPackageTags>tracon;ai;agents;microsoft-agent-framework;llm;dotnet</CommonPackageTags>
   </PropertyGroup>
 
   <PropertyGroup Label="Versioning (MinVer - from git tag)">
@@ -117,7 +117,7 @@
     BeforeTargets="GenerateNuspec" is the last point `dotnet pack` accepts a
     property change before the .nuspec is written.
   -->
-  <Target Name="AgentPrismSetPackageReleaseNotes" BeforeTargets="GenerateNuspec">
+  <Target Name="TraconSetPackageReleaseNotes" BeforeTargets="GenerateNuspec">
     <PropertyGroup>
       <!--
         Anchored to the version, not embedded release-note text: 20 packages
@@ -132,7 +132,7 @@
         carries the resolved version, not its reachability (K-604 keeps the
         gate network-free).
       -->
-      <PackageReleaseNotes>https://agentprism.doayen.web.tr/reference/changelog/#v$(Version)</PackageReleaseNotes>
+      <PackageReleaseNotes>https://tracon.dev/reference/changelog/#v$(Version)</PackageReleaseNotes>
     </PropertyGroup>
   </Target>
 
@@ -156,19 +156,19 @@
 
   <!--
     Public API tracking applies to every src/ project by default. Four
-    projects opt out by setting AgentPrismPublicApiTrackingEnabled=false in
-    their own csproj: AgentPrism.Generators and AgentPrism.Templates (neither
+    projects opt out by setting TraconPublicApiTrackingEnabled=false in
+    their own csproj: Tracon.Generators and Tracon.Templates (neither
     ships a consumer-facing API surface - Generators' "API" is its
     diagnostic/source output, Templates' is `dotnet new` content), and
-    AgentPrism.Client and AgentPrism.Cli (their surface is generated from the
+    Tracon.Client and Tracon.Cli (their surface is generated from the
     OpenAPI document, which already has its own drift gate). Rationale: docs/KARARLAR.md.
   -->
   <PropertyGroup Label="Public API takibi katilimi">
-    <AgentPrismPublicApiTrackingEnabled Condition=" '$(AgentPrismPublicApiTrackingEnabled)' == '' ">true</AgentPrismPublicApiTrackingEnabled>
+    <TraconPublicApiTrackingEnabled Condition=" '$(TraconPublicApiTrackingEnabled)' == '' ">true</TraconPublicApiTrackingEnabled>
   </PropertyGroup>
 
   <ItemGroup Label="Extra analyzers in publishable packages">
-    <PackageReference Include="Microsoft.CodeAnalysis.PublicApiAnalyzers" Condition=" '$(AgentPrismPublicApiTrackingEnabled)' == 'true' " PrivateAssets="all" IncludeAssets="runtime; build; native; contentfiles; analyzers; buildtransitive" />
+    <PackageReference Include="Microsoft.CodeAnalysis.PublicApiAnalyzers" Condition=" '$(TraconPublicApiTrackingEnabled)' == 'true' " PrivateAssets="all" IncludeAssets="runtime; build; native; contentfiles; analyzers; buildtransitive" />
     <PackageReference Include="Microsoft.CodeAnalysis.BannedApiAnalyzers" PrivateAssets="all" IncludeAssets="runtime; build; native; contentfiles; analyzers; buildtransitive" />
     <PackageReference Include="MinVer" PrivateAssets="all" IncludeAssets="runtime; build; native; contentfiles; analyzers; buildtransitive" />
   </ItemGroup>

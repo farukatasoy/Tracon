@@ -1,12 +1,12 @@
 ---
-title: What AgentPrism is
+title: What Tracon is
 description: What the packages give you, what they deliberately do not, and how to decide whether it fits.
 slug: getting-started
 sidebar:
   order: 1
 ---
 
-AgentPrism is a **control plane** for agents built with the Microsoft Agent
+Tracon is a **control plane** for agents built with the Microsoft Agent
 Framework (MAF). You bring the agents; it gives you the layer around them — a place
 to define them, an HTTP API to drive them, a record of every run, and a console to
 look at all of it.
@@ -21,7 +21,7 @@ process, using your configuration, your authentication, and your database.
 | **Definitions** | An agent as data: model, prompt, tools, skills, callable agents. Versioned, with rollback |
 | **Runs** | Default-on recording — status, timings, tokens, cost, tool calls, traces, and an ordered event stream |
 | **HTTP API** | 168 generated operations, plus OpenAI-compatible Responses and Chat Completions surfaces |
-| **Console** | 30 screens embedded when you add `AgentPrism.UI` and call `UseUI()` |
+| **Console** | 30 screens embedded when you add `Tracon.UI` and call `UseUI()` |
 | **Workflows** | Multi-agent execution with checkpoints and human-in-the-loop |
 | **Evaluation** | Suites, cases, automatic judges, and A/B experiments between agent versions |
 | **Governance** | Roles, scoped API keys, tenancy, approvals, guards, quotas, retention, webhooks, and audit |
@@ -51,7 +51,7 @@ provider](/packages/#picking-a-model-provider).
 
 These hold everywhere in the codebase, and knowing them explains most of the API.
 
-1. **No surprises.** `AddAgentPrism()` works alone. Without a database every store
+1. **No surprises.** `AddTracon()` works alone. Without a database every store
    falls back to memory, so the first thing you write runs without infrastructure.
 2. **Tools are code only.** The console selects from registered tools; it never
    defines them.

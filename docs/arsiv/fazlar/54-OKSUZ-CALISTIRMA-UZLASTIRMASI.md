@@ -3,7 +3,7 @@
 > **Durum:** ✅ Tamamlandı (2026-08-09)
 > **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-36**
 > **Önkoşul:** [Faz 42](42-TEK-YURUTUCU-SECIMI.md) — `ISingletonLeaseStore` · [Faz 46](46-DAYANIKLI-CALISTIRMA.md) — bu fazın kapsamını **daraltan** faz
-> **Paketler:** `AgentPrism.Abstractions`, `AgentPrism.Core`, `AgentPrism.Sql.Shared`
+> **Paketler:** `Tracon.Abstractions`, `Tracon.Core`, `Tracon.Sql.Shared`
 > **Yeni paket:** Yok · **Migration:** gerekli — `runs` tablosuna heartbeat sütunu, numara uygulama anında alınır
 > **Public API:** büyüyor — bir ayar sınıfı ve `IRunStore`'a iki metot. Faz 7'den önce ucuz
 
@@ -30,7 +30,7 @@ Süreç düşerse `runs` satırı sonsuza dek `Running` kalır. Arayüzde asla b
 
 ## Bitiş Ölçütleri (DoD)
 
-- [x] Eşiği aşan bir `Running` satır `Failed` + `error_type = orphaned` olarak kapanır — `RunStoreContract.ClaimOrphanedRunsAsync_esigi_asan_Running_satiri_Failed_yapar` (InMemory + PostgreSQL + SQLite + SQL Server), ayrıca `samples/AgentPrism.Api` ile gerçek kanıt (aşağıda)
+- [x] Eşiği aşan bir `Running` satır `Failed` + `error_type = orphaned` olarak kapanır — `RunStoreContract.ClaimOrphanedRunsAsync_esigi_asan_Running_satiri_Failed_yapar` (InMemory + PostgreSQL + SQLite + SQL Server), ayrıca `samples/Tracon.Api` ile gerçek kanıt (aşağıda)
 - [x] Eşiği **aşmayan** bir `Running` satıra dokunulmaz (yanlış pozitif yok) — `ClaimOrphanedRunsAsync_esigi_asmayan_Running_satira_dokunmaz`
 - [x] `Queued` satır hiçbir koşulda uzlaştırılmaz — `ClaimOrphanedRunsAsync_Queued_satira_hicbir_kosulda_dokunmaz`
 - [x] `Enabled = false` (varsayılan) iken hiçbir uzlaştırma sorgusu atılmaz — `RunReconciliationTests.Devre_disiyken_uzlastirma_hicbir_sorgu_atmadan_hemen_doner` / `...heartbeat_yazici...` (bilerek kayıtlı-ama-`MarkReady`-çağrılmamış bir `SchemaReadyGate` ile test edildi: erken çıkış gate'i beklemeden gerçekleşiyor)
@@ -39,12 +39,12 @@ Süreç düşerse `runs` satırı sonsuza dek `Running` kalır. Arayüzde asla b
 - [x] Kapatılan çalıştırmanın olay akışında bir `RunFailed` olayı görünür — sözleşme testi + gerçek `run`'da doğrulandı
 - [x] Uzlaştırıcı `SchemaReadyGate`'i bekler (K-354) — `RunReconciliationService`/`RunHeartbeatWriter` `ExecuteAsync` ilk satırında `WaitAsync`
 - [x] Dört doğrulama kapısı sıfır uyarı verir — build/test/pack/format hepsi yeşil
-- [x] `samples/AgentPrism.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı — bkz. "Gerçek Çalıştırma Kanıtı" altında
+- [x] `samples/Tracon.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı — bkz. "Gerçek Çalıştırma Kanıtı" altında
 - [x] `secret` taraması boş döndü
 
 ### Gerçek Çalıştırma Kanıtı
 
-`samples/AgentPrism.Api`, SQLite (`AgentPrism:Sqlite:ConnectionString`) ve kısa
+`samples/Tracon.Api`, SQLite (`Tracon:Sqlite:ConnectionString`) ve kısa
 aralıklarla (`HeartbeatInterval=1sn`, `OrphanThreshold=3sn`, `ScanInterval=1sn`)
 gerçekten çalıştırıldı. Önce normal bir `run` (`support` agent'ı) uçtan uca
 SSE ile tamamlandı (mevcut davranış bozulmadı). Ardından **çökmüş bir sürecin
@@ -53,7 +53,7 @@ bıraktığı** satırı taklit etmek için `runs` tablosuna doğrudan `started_
 yolunun kullandığı BÜYÜK harfli uuid biçimiyle — K-191). ~4 saniye sonra:
 
 ```
-$ curl -s http://localhost:5080/agentprism/api/runs/$RUN_ID | jq '.status, .error'
+$ curl -s http://localhost:5080/tracon/api/runs/$RUN_ID | jq '.status, .error'
 "Failed"
 {
   "type": "orphaned",
@@ -62,21 +62,21 @@ $ curl -s http://localhost:5080/agentprism/api/runs/$RUN_ID | jq '.status, .erro
   "fingerprint": "orphaned"
 }
 
-$ curl -s "http://localhost:5080/agentprism/api/runs?status=Running" | jq
+$ curl -s "http://localhost:5080/tracon/api/runs?status=Running" | jq
 []
 ```
 
-Log: `warn: AgentPrism.RunReconciliationService[0] 1 oksuz calistirma kapatildi
+Log: `warn: Tracon.RunReconciliationService[0] 1 oksuz calistirma kapatildi
 (esik: ...)`. `eventCount: 1` ve olay akışında tek bir `RunFailed` (tip 7) kaydı
 oluştu.
 
-🚨 **Bu doğrulama, `samples/AgentPrism.Api`'de Faz 54'ten TAMAMEN bağımsız,
-önceden var olan bir kusuru tesadüfen ortaya çıkardı**: `app.MapAgentPrismMcpServer()`
+🚨 **Bu doğrulama, `samples/Tracon.Api`'de Faz 54'ten TAMAMEN bağımsız,
+önceden var olan bir kusuru tesadüfen ortaya çıkardı**: `app.MapTraconMcpServer()`
 `app.Run()`'dan ÖNCE senkron `catalog.ListAsync()` çağırır ama migration'lar
 yalnız `host.StartAsync()` (yani `app.Run()`) içinde çalışır; tamamen boş bir
 veritabanı dosyasıyla ilk açılış `SqliteException: no such table` ile çöker.
 Bu fazın kapsamı DIŞINDA olduğu için düzeltilmedi; doğrulama için yerel
-`Program.cs`'te `MapAgentPrismMcpServer()`/`MapAgentPrismA2A()` çağrıları
+`Program.cs`'te `MapTraconMcpServer()`/`MapTraconA2A()` çağrıları
 GEÇİCİ olarak yorum satırına alınıp test sonrası `git checkout` ile geri
 alındı (K-186/K-317'nin izlediği "geçici değiştir, doğrula, geri al" yöntemi).
 Ayrıntı ve olası düzeltme yönü: `docs/hafiza/mcp-a2a-sunucu.md`.
@@ -84,11 +84,11 @@ Ayrıntı ve olası düzeltme yönü: `docs/hafiza/mcp-a2a-sunucu.md`.
 ### Doğrulama komutları
 
 ```bash
-curl -s "http://localhost:5080/agentprism/api/runs?status=Running" | jq 'length'
+curl -s "http://localhost:5080/tracon/api/runs?status=Running" | jq 'length'
 # uzlastirma turundan sonra 0 beklenir (uc bir dizi doner, {items:[...]} DEGIL —
 # plan taslaginin `.items | length` varsayimi yanlisti, gercek cikti ile duzeltildi)
 
-curl -s http://localhost:5080/agentprism/api/runs/$RUN_ID | jq '.status, .error.type'
+curl -s http://localhost:5080/tracon/api/runs/$RUN_ID | jq '.status, .error.type'
 # "Failed", "orphaned" beklenir
 ```
 
@@ -99,9 +99,9 @@ curl -s http://localhost:5080/agentprism/api/runs/$RUN_ID | jq '.status, .error.
 1. **`TouchHeartbeatAsync` imzası `Guid runId` değil `IReadOnlyCollection<Guid> runIds` aldı** — Açık Soru 1'in kendi önerisiyle (toplu `UPDATE`) taslak imza çelişiyordu; öneri esas alındı, taslak düzeltildi (K-362).
 2. **`ClaimOrphanedRunsAsync`'in `RunFailed` olayını KİM yazar sorusu, "uzlaştırıcı" ifadesinin `RunReconciliationService` mi yoksa `IRunStore` uygulaması mı olduğu belirsizdi.** Karar: `IRunStore` uygulamasının kendisi yazar (`runs` UPDATE'i ile aynı çağrıda) — `RunReconciliationService`'i olay şemasından habersiz tutar ve store'un tenant-agnostic sınırını tek yerde toplar (K-366).
 3. **`error_class` için "Infrastructure" değeri plan taslağının varsaydığı gibi hazır DEĞİLDİ**; `RunErrorClass` enum'ı okununca yoktu. Yeni değer sona eklendi (K-014'ün "sayısal değer yeniden numaralanmaz" kuralıyla) — K-363.
-4. **Hata parmak izi `ErrorFingerprint.Compute` ile DEĞİL, sabit `"orphaned"` dizesiyle üretildi** — o sınıf `AgentPrism.Core`'da `internal`'dır ve `AgentPrism.Sql.Shared` (ayrı derleme) ona erişemez; sabit dize hem daha basit hem üç uygulama arasında davranış eşitliğini garantiler (K-364).
+4. **Hata parmak izi `ErrorFingerprint.Compute` ile DEĞİL, sabit `"orphaned"` dizesiyle üretildi** — o sınıf `Tracon.Core`'da `internal`'dır ve `Tracon.Sql.Shared` (ayrı derleme) ona erişemez; sabit dize hem daha basit hem üç uygulama arasında davranış eşitliğini garantiler (K-364).
 5. **Dizi tabanlı `WHERE id IN (@array)` sorgusu HİÇBİR yerde kullanılmadı** — `AddUuidArray`'in SQL Server/SQLite'ta ürettiği küçük harfli JSON, `runs.id`'nin büyük harfli metniyle (K-191) sessizce uyuşmayabilirdi. `TouchHeartbeatAsync` tekil `UPDATE` döngüsüne, `ClaimOrphanedRunsAsync` ise salt-okunur bir alt sorguya (id eşitliği hiç gerekmez) yazıldı (K-365).
-6. **`samples/AgentPrism.Api` ile gerçek doğrulama, fazın kapsamı dışında önceden var olan bir kusur ortaya çıkardı** (`MapAgentPrismMcpServer`'in migration'lardan önce senkron sorgu atması) — düzeltilmedi, `docs/hafiza/mcp-a2a-sunucu.md`'ye not düşüldü.
+6. **`samples/Tracon.Api` ile gerçek doğrulama, fazın kapsamı dışında önceden var olan bir kusur ortaya çıkardı** (`MapTraconMcpServer`'in migration'lardan önce senkron sorgu atması) — düzeltilmedi, `docs/hafiza/mcp-a2a-sunucu.md`'ye not düşüldü.
 
 ## Bu Fazda Verilen Kararlar
 
@@ -116,7 +116,7 @@ K-362, K-363, K-364, K-365, K-366 — tam gerekçeler `docs/KARARLAR.md`'de.
 2. **Elle tetikleme ucu (`POST /api/runs/reconcile`) hâlâ yok** (Açık Soru 2, YAGNI).
    Faz 33'ün teşhis ucu "kaç öksüz satır var" sorusunu `SELECT` ile cevaplayabilir
    ama kapatmaz; gerçek bir operasyonel talep gelirse eklenir.
-3. **🚨 `samples/AgentPrism.Api`'de `MapAgentPrismMcpServer()`/`MapAgentPrismA2A()`
+3. **🚨 `samples/Tracon.Api`'de `MapTraconMcpServer()`/`MapTraconA2A()`
    tamamen boş bir veritabanında acilista COKER** (Faz 54'ten bağımsız, bu fazın
    doğrulamasında tesadüfen bulundu). Ayrıntı ve olası düzeltme yönü:
    `docs/hafiza/mcp-a2a-sunucu.md`. Bir sonraki fazda MCP/A2A yüzeyine dokunuluyorsa

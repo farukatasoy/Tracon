@@ -1,4 +1,4 @@
-# AgentPrism — Manuel Kabul Testi İndeksi
+# Tracon — Manuel Kabul Testi İndeksi
 
 > Yayın öncesi elle koşulan kabul testi setinin giriş noktası. Ortam kurulumu,
 > ortak fixture verisi, reset yordamı, hata bildirim şablonu ve dosya durum
@@ -55,12 +55,12 @@ farklı davranış üretebilir.
 ```bash
 # PostgreSQL — pgvector uzantisi ZORUNLU (RAG izlegi icin).
 docker run -d --name ap-pg -p 55432:5432 \
-  -e POSTGRES_PASSWORD=agentprism -e POSTGRES_DB=agentprism \
+  -e POSTGRES_PASSWORD=tracon -e POSTGRES_DB=tracon \
   pgvector/pgvector:pg18
 
 # SQL Server — ~2 GB bellek ister.
 docker run -d --name ap-mssql -p 51433:1433 \
-  -e ACCEPT_EULA=Y -e MSSQL_SA_PASSWORD='AgentPrism!2026' \
+  -e ACCEPT_EULA=Y -e MSSQL_SA_PASSWORD='Tracon!2026' \
   mcr.microsoft.com/mssql/server:2022-latest
 ```
 
@@ -71,15 +71,15 @@ SQLite dosya tabanlıdır, container istemez.
 Temiz tüketici izleği, paketleri **nuget.org'dan değil** yerel dizinden alır.
 
 ```bash
-cd /Users/farukatasoy/Desktop/projects/AgentPrism
+cd /Users/farukatasoy/Desktop/projects/Tracon
 
-MSBUILDDISABLENODEREUSE=1 dotnet pack AgentPrism.slnx -c Release
+MSBUILDDISABLENODEREUSE=1 dotnet pack Tracon.slnx -c Release
 
-mkdir -p ~/agentprism-local-feed
-find artifacts -name "*.nupkg" -exec cp {} ~/agentprism-local-feed/ \;
+mkdir -p ~/tracon-local-feed
+find artifacts -name "*.nupkg" -exec cp {} ~/tracon-local-feed/ \;
 
-dotnet nuget add source ~/agentprism-local-feed -n agentprism-local
-dotnet new install AgentPrism.Templates::*-* --add-source ~/agentprism-local-feed
+dotnet nuget add source ~/tracon-local-feed -n tracon-local
+dotnet new install Tracon.Templates::*-* --add-source ~/tracon-local-feed
 ```
 
 > 🚨 `MSBUILDDISABLENODEREUSE=1` **atlanmaz.** Öksüz MSBuild düğümleri boruyu açık
@@ -94,39 +94,39 @@ Yerel feed **repo dışında** oluşturulan tüketici projesinde kullanılır; r
 Hiçbir değer dosyaya yazılmaz. Tümü `dotnet user-secrets` içinde yaşar.
 
 ```bash
-cd samples/AgentPrism.Api
+cd samples/Tracon.Api
 
-dotnet user-secrets set "AgentPrism:PostgreSql:ConnectionString" \
-  "Host=localhost;Port=55432;Database=agentprism;Username=postgres;Password=agentprism"
+dotnet user-secrets set "Tracon:PostgreSql:ConnectionString" \
+  "Host=localhost;Port=55432;Database=tracon;Username=postgres;Password=tracon"
 
-dotnet user-secrets set "AgentPrism:Providers:OpenAI:ApiKey"    "<OPENAI_ANAHTARINIZ>"
-dotnet user-secrets set "AgentPrism:Providers:Anthropic:ApiKey" "<ANTHROPIC_ANAHTARINIZ>"
-dotnet user-secrets set "AgentPrism:Providers:Google:ApiKey"    "<GOOGLE_ANAHTARINIZ>"
-dotnet user-secrets set "AgentPrism:Providers:OpenAICompatible:openrouter:ApiKey" "<OPENROUTER_ANAHTARINIZ>"
-dotnet user-secrets set "AgentPrism:Voice:ApiKey"               "<ELEVENLABS_ANAHTARINIZ>"
-dotnet user-secrets set "AgentPrism:Ui:AuthToken"               "manuel-test-token-2026"
+dotnet user-secrets set "Tracon:Providers:OpenAI:ApiKey"    "<OPENAI_ANAHTARINIZ>"
+dotnet user-secrets set "Tracon:Providers:Anthropic:ApiKey" "<ANTHROPIC_ANAHTARINIZ>"
+dotnet user-secrets set "Tracon:Providers:Google:ApiKey"    "<GOOGLE_ANAHTARINIZ>"
+dotnet user-secrets set "Tracon:Providers:OpenAICompatible:openrouter:ApiKey" "<OPENROUTER_ANAHTARINIZ>"
+dotnet user-secrets set "Tracon:Voice:ApiKey"               "<ELEVENLABS_ANAHTARINIZ>"
+dotnet user-secrets set "Tracon:Ui:AuthToken"               "manuel-test-token-2026"
 ```
 
 Diğer kalıcılık sağlayıcıları **aynı anda verilmez** — biri denenirken diğerinin
 kaydı silinir:
 
 ```bash
-dotnet user-secrets remove "AgentPrism:PostgreSql:ConnectionString"
-dotnet user-secrets set    "AgentPrism:Sqlite:ConnectionString"   "Data Source=agentprism-manuel.db"
-dotnet user-secrets set    "AgentPrism:SqlServer:ConnectionString" \
-  "Server=localhost,51433;Database=AgentPrism;User Id=sa;Password=AgentPrism!2026;TrustServerCertificate=true"
+dotnet user-secrets remove "Tracon:PostgreSql:ConnectionString"
+dotnet user-secrets set    "Tracon:Sqlite:ConnectionString"   "Data Source=tracon-manuel.db"
+dotnet user-secrets set    "Tracon:SqlServer:ConnectionString" \
+  "Server=localhost,51433;Database=Tracon;User Id=sa;Password=Tracon!2026;TrustServerCertificate=true"
 ```
 
 ### 2.5 Uygulamayı çalıştırma
 
 ```bash
-cd samples/AgentPrism.Api && dotnet run     # http://localhost:5080/agentprism
+cd samples/Tracon.Api && dotnet run     # http://localhost:5080/tracon
 ```
 
 Yalnız arayüz üzerinde çalışırken Vite dev sunucusu:
 
 ```bash
-cd src/AgentPrism.UI/frontend && npm run dev   # http://localhost:5173
+cd src/Tracon.UI/frontend && npm run dev   # http://localhost:5173
 ```
 
 ---
@@ -199,21 +199,21 @@ Bir dosyaya başlamadan önce sistem temiz duruma alınır. Kirli durum, yanlı�
 ```bash
 # 1. Uygulamayi durdur (Ctrl+C).
 
-# 2. PostgreSQL semasini dusur — yalniz agentprism semasi.
-docker exec -i ap-pg psql -U postgres -d agentprism \
-  -c "DROP SCHEMA IF EXISTS agentprism CASCADE;"
+# 2. PostgreSQL semasini dusur — yalniz tracon semasi.
+docker exec -i ap-pg psql -U postgres -d tracon \
+  -c "DROP SCHEMA IF EXISTS tracon CASCADE;"
 
 # 3. SQLite dosyasini sil.
-rm -f samples/AgentPrism.Api/agentprism-manuel.db*
+rm -f samples/Tracon.Api/tracon-manuel.db*
 
 # 4. SQL Server veritabanini dusur.
 docker exec -i ap-mssql /opt/mssql-tools18/bin/sqlcmd -C -S localhost \
-  -U sa -P 'AgentPrism!2026' -Q "DROP DATABASE IF EXISTS AgentPrism;"
+  -U sa -P 'Tracon!2026' -Q "DROP DATABASE IF EXISTS Tracon;"
 
 # 5. Tarayici deposunu temizle: DevTools → Application → Clear site data.
 
 # 6. Uygulamayi yeniden baslat.
-cd samples/AgentPrism.Api && dotnet run
+cd samples/Tracon.Api && dotnet run
 ```
 
 Şema düşürüldükten sonra migration'lar açılışta yeniden uygulanır
@@ -285,42 +285,42 @@ Bu eşleme bir başlangıçtır; üretim oturumu grep ile doğrular ve gerekirse
 
 | # | Dosya | Alan kodu | Faz | Kaynak | Hedef case | Üretim | Koşum |
 |---|---|---|---|---|---|---|---|
-| 01 | [`01-KURULUM-VE-PAKETLEME.md`](01-KURULUM-VE-PAKETLEME.md) | `PKG` | 0, 52, 97, 160 | `Directory.Build.props` · `Directory.Build.targets` · `src/Directory.Build.props` · `*.csproj` · `src/AgentPrism.Generators` · `scripts/kapi.py` (`yayin`) | **81** | ✅ | ✅ 48/48 · 4 🆕 (Faz 97: MT-PKG-097..099 koşuldu, MT-PKG-100 👤 gerekir) |
-| 02 | [`02-CEKIRDEK-VE-KATALOG.md`](02-CEKIRDEK-VE-KATALOG.md) | `CORE` | 1, 3, 72, 86, 101, 127, 130, 135 | `src/AgentPrism.Core` (`Compilation/` · `Catalog/` · `Tools/` · `Sessions/`) · `src/AgentPrism.Abstractions` | **96** | ✅ | ✅ 42/42 (2026-08-13) · MT-CORE-075..080 Faz 72 kapanışında koşuldu, 081 👤 gerekir · MT-CORE-082/086 Faz 86 kapanışında `samples/AgentPrism.Api`'ye karşı koşuldu (2026-08-22, gerçek OpenAI çağrısı) · MT-CORE-083/084/085 henüz koşulmadı · MT-CORE-087..096 Faz 101'de eklendi: 096 otomatik koşuldu (15/15), 087-094 `samples/AgentPrism.Api`'nin PostgreSQL bağımlılığı bu ortamda kurulmadığı için koşulmadı, 095 👤 gerekir (kiracıya duyarlı örnek kaynak yok) · MT-CORE-107..108 Faz 127'de eklendi, otomatik karşılıkları (`ScopedToolLifetimeTests`, `ToolMethodScanner` testleri) koştu, 👤 elle koşulmadı · MT-CORE-109..114 Faz 130'da eklendi (satır bu kapanışa kadar güncellenmemişti — düzeltildi) · MT-CORE-115..122 Faz 135'te eklendi: otomatik karşılıkları koştu, 121/122 gerçek koşumla da doğrulandı (2026-09-02, gerçek OpenAI çağrısı ve `PublishAot` yayını) |
-| 03 | [`03-KALICILIK-POSTGRESQL.md`](03-KALICILIK-POSTGRESQL.md) | `PG` | 2, 51, 110 | `src/AgentPrism.PostgreSql` | **50** | ✅ | ✅ 40/40 (Faz 110: MT-PG-068..071 kapanışta koşuldu) |
-| 04 | [`04-KALICILIK-DIGER.md`](04-KALICILIK-DIGER.md) | `SQL` | 23, 24, 110 | `src/AgentPrism.Sqlite` · `src/AgentPrism.SqlServer` · `src/AgentPrism.Sql.Shared` | **45** | ✅ | ✅ 38/41 · 3 ⏭ (Faz 110: MT-SQL-076 kapanışta koşuldu) |
-| 05 | [`05-SAGLAYICI-OPENAI.md`](05-SAGLAYICI-OPENAI.md) | `OAI` | 3, 8 | `src/AgentPrism.OpenAI` (tümü) · devre kesici/sağlık için `src/AgentPrism.Core/Models/ModelProviderCircuitBreaker.cs` · `CircuitBreakingChatClient.cs` · `ModelProviderHealthCache.cs` · `ModelProviderRegistry.cs` | **40** | ✅ | ✅ 39/40 · 1 ⏭ |
-| 06 | [`06-SAGLAYICI-DIGER.md`](06-SAGLAYICI-DIGER.md) | `PROV` | 8, 26, 27 | `src/AgentPrism.Anthropic` · `src/AgentPrism.Google` · `src/AgentPrism.Azure` | **39** | ✅ | ✅ 30/39 · 9 ⏭ |
-| 07 | [`07-HTTP-YONETIM-API.md`](07-HTTP-YONETIM-API.md) | `API` | 4, 34, 43, 44 | `src/AgentPrism.AspNetCore/Endpoints` (kısmi — bkz. dosyanın kaynak başlığı) | **43** | ✅ | ✅ 43/43 |
-| 08 | [`08-OPENAI-UYUMLU-UCLAR.md`](08-OPENAI-UYUMLU-UCLAR.md) | `COMPAT` | 50 | `src/AgentPrism.AspNetCore/OpenAICompat/` (gerçek klasör adı — bkz. not) | **50** | ✅ | ✅ 49/49 |
-| 09 | [`09-ARAYUZ-GENEL.md`](09-ARAYUZ-GENEL.md) | `UI` | 5, 30 | `src/AgentPrism.UI/frontend/src` (kabuk, `access-gate`, `layout`, `command-palette`, `router`, `i18n`, `theme`, `auth`, `shortcuts`, `ui`; `settings`/`models`/`tools` ekranları yalnız genel kısım) | **43** | ✅ | ✅ 35/43 · 1 ☒ · 7 ⏭ |
+| 01 | [`01-KURULUM-VE-PAKETLEME.md`](01-KURULUM-VE-PAKETLEME.md) | `PKG` | 0, 52, 97, 160 | `Directory.Build.props` · `Directory.Build.targets` · `src/Directory.Build.props` · `*.csproj` · `src/Tracon.Generators` · `scripts/kapi.py` (`yayin`) | **81** | ✅ | ✅ 48/48 · 4 🆕 (Faz 97: MT-PKG-097..099 koşuldu, MT-PKG-100 👤 gerekir) |
+| 02 | [`02-CEKIRDEK-VE-KATALOG.md`](02-CEKIRDEK-VE-KATALOG.md) | `CORE` | 1, 3, 72, 86, 101, 127, 130, 135 | `src/Tracon.Core` (`Compilation/` · `Catalog/` · `Tools/` · `Sessions/`) · `src/Tracon.Abstractions` | **96** | ✅ | ✅ 42/42 (2026-08-13) · MT-CORE-075..080 Faz 72 kapanışında koşuldu, 081 👤 gerekir · MT-CORE-082/086 Faz 86 kapanışında `samples/Tracon.Api`'ye karşı koşuldu (2026-08-22, gerçek OpenAI çağrısı) · MT-CORE-083/084/085 henüz koşulmadı · MT-CORE-087..096 Faz 101'de eklendi: 096 otomatik koşuldu (15/15), 087-094 `samples/Tracon.Api`'nin PostgreSQL bağımlılığı bu ortamda kurulmadığı için koşulmadı, 095 👤 gerekir (kiracıya duyarlı örnek kaynak yok) · MT-CORE-107..108 Faz 127'de eklendi, otomatik karşılıkları (`ScopedToolLifetimeTests`, `ToolMethodScanner` testleri) koştu, 👤 elle koşulmadı · MT-CORE-109..114 Faz 130'da eklendi (satır bu kapanışa kadar güncellenmemişti — düzeltildi) · MT-CORE-115..122 Faz 135'te eklendi: otomatik karşılıkları koştu, 121/122 gerçek koşumla da doğrulandı (2026-09-02, gerçek OpenAI çağrısı ve `PublishAot` yayını) |
+| 03 | [`03-KALICILIK-POSTGRESQL.md`](03-KALICILIK-POSTGRESQL.md) | `PG` | 2, 51, 110 | `src/Tracon.PostgreSql` | **50** | ✅ | ✅ 40/40 (Faz 110: MT-PG-068..071 kapanışta koşuldu) |
+| 04 | [`04-KALICILIK-DIGER.md`](04-KALICILIK-DIGER.md) | `SQL` | 23, 24, 110 | `src/Tracon.Sqlite` · `src/Tracon.SqlServer` · `src/Tracon.Sql.Shared` | **45** | ✅ | ✅ 38/41 · 3 ⏭ (Faz 110: MT-SQL-076 kapanışta koşuldu) |
+| 05 | [`05-SAGLAYICI-OPENAI.md`](05-SAGLAYICI-OPENAI.md) | `OAI` | 3, 8 | `src/Tracon.OpenAI` (tümü) · devre kesici/sağlık için `src/Tracon.Core/Models/ModelProviderCircuitBreaker.cs` · `CircuitBreakingChatClient.cs` · `ModelProviderHealthCache.cs` · `ModelProviderRegistry.cs` | **40** | ✅ | ✅ 39/40 · 1 ⏭ |
+| 06 | [`06-SAGLAYICI-DIGER.md`](06-SAGLAYICI-DIGER.md) | `PROV` | 8, 26, 27 | `src/Tracon.Anthropic` · `src/Tracon.Google` · `src/Tracon.Azure` | **39** | ✅ | ✅ 30/39 · 9 ⏭ |
+| 07 | [`07-HTTP-YONETIM-API.md`](07-HTTP-YONETIM-API.md) | `API` | 4, 34, 43, 44 | `src/Tracon.AspNetCore/Endpoints` (kısmi — bkz. dosyanın kaynak başlığı) | **43** | ✅ | ✅ 43/43 |
+| 08 | [`08-OPENAI-UYUMLU-UCLAR.md`](08-OPENAI-UYUMLU-UCLAR.md) | `COMPAT` | 50 | `src/Tracon.AspNetCore/OpenAICompat/` (gerçek klasör adı — bkz. not) | **50** | ✅ | ✅ 49/49 |
+| 09 | [`09-ARAYUZ-GENEL.md`](09-ARAYUZ-GENEL.md) | `UI` | 5, 30 | `src/Tracon.UI/frontend/src` (kabuk, `access-gate`, `layout`, `command-palette`, `router`, `i18n`, `theme`, `auth`, `shortcuts`, `ui`; `settings`/`models`/`tools` ekranları yalnız genel kısım) | **43** | ✅ | ✅ 35/43 · 1 ☒ · 7 ⏭ |
 | 10 | [`10-ARAYUZ-AGENT-PLAYGROUND.md`](10-ARAYUZ-AGENT-PLAYGROUND.md) | `UIAG` | 5, 19 | `screens/agent*.tsx` · `playground.tsx` | **55** | ✅ | ✅ 49/51 · 2 ⏭ · 2 🆕 (B01, koşulmadı) |
 | 11 | [`11-ARAYUZ-RUN-SESSION-SSE.md`](11-ARAYUZ-RUN-SESSION-SSE.md) | `UIRUN` | 5, 32, 47 | `screens/run*.tsx` · `session*.tsx` · `components/cancel-run-button.tsx` · `replay-panel.tsx` · `run-comparison.tsx` · `branch-button.tsx` | **61** | ✅ | ✅ 44/46 · 1 ⏭ · 1 ☐ |
-| 12 | [`12-GOZLEMLENEBILIRLIK-MALIYET.md`](12-GOZLEMLENEBILIRLIK-MALIYET.md) | `OBS` | 6, 20, 35, 68, 89, 119, 132, 154 | `src/AgentPrism.Core` · `screens/dashboard.tsx` · `screens/run-detail.tsx` | **60** | ✅ | ✅ 35/37 · 2 ⏭ · 9 🆕 (Faz 68, koşulmadı) · 2 🆕 (Faz 89, koşulmadı) · 4 🆕 (Faz 119: MT-OBS-054..057, gerçek `samples/AgentPrism.Api` + sağlayıcı anahtarı gerekir, koşulmadı) — MT-OBS-058 koşuldu (2026-08-27) · 1 🆕 (Faz 132: MT-OBS-059, `samples/AgentPrism.Api` gerekir, koşulmadı) · 1 🆕 (Faz 154: MT-OBS-060, otomatik karşılığı `Score_summary_created_at_index_is_created` üç sağlayıcıda da koştu; psql `EXPLAIN` ile elle koşulmadı) |
-| 13 | [`13-KIRACI-VE-GUVENLIK.md`](13-KIRACI-VE-GUVENLIK.md) | `SEC` | 6, 9, 41, 50, 53, 82, 139, 147, 148, 149 | `src/AgentPrism.AspNetCore/Security` · `Tenancy/` · `AgentPrismEndpointOptions.cs` · `Endpoints/ApiKeyEndpoints.cs`/`AuditEndpoints.cs`/`GovernanceEndpoints.cs` (yalnız `MapTenants`) · `AgentPrism.Abstractions/Security`, `Audit`, `Tenancy` · `AgentPrism.Core/Security`, `Audit`, `Tenancy` · `Abstractions/Runs/RunAuthorizationTypes.cs`, `Core/Runs/AllowAllRunAuthorizationHandler.cs`, `AspNetCore/RateLimiting/RunAuthorizationGate.cs` (Faz 139) · `AspNetCore/Security/SessionOwnershipGate.cs`, `Abstractions/Options/AgentPrismSessionOwnershipOptions.cs` (Faz 148 · 149) | **132** | ✅ | ✅ 54/54 · 4 🆕 elle koşuldu (Faz 82: 131-134, gerçek `samples/AgentPrism.Api` + PostgreSQL), 135 otomasyonla kanıtlandı (`ContentProtectionTests`, koşulmadı) · 11 🆕 (Faz 139: 140-150, tamamı `RunAuthorizationEndpointTests`/`RunAuthorizationResultTests` ile otomatikleştirildi ve koşuldu; MT-SEC-140 ayrıca `samples/AgentPrism.Api`'de gerçek run ile elle doğrulandı) |
-| 14 | [`14-SKILL-VE-SCRIPT.md`](14-SKILL-VE-SCRIPT.md) | `SKILL` | 10, 11 | `src/AgentPrism.Abstractions/Skills` · `src/AgentPrism.Core/Skills` (tümü) · `src/AgentPrism.Core/Storage/InMemoryAgentSkillStore.cs`/`InMemorySkillScriptGrantStore.cs` · `src/AgentPrism.AspNetCore/Endpoints/SkillEndpoints.cs`/`SkillScriptGrantEndpoints.cs` · `src/AgentPrism.UI/frontend/src/screens/skills.tsx` | **47** | ✅ | ✅ 45/46 · 1 ⬜ |
-| 15 | [`15-WORKFLOWS.md`](15-WORKFLOWS.md) | `WF` | 15, 16, 71, 87, 122 | `src/AgentPrism.Workflows` · `screens/workflow*.tsx` | **70** | ✅ | ✅ 58/60 · 2 ☒ (Faz 87'nin 2 case'i koşum bekliyor) · 1 🆕 (Faz 122: MT-WF-119, `WorkflowCatalogTests` ile otomatik ölçüldü) |
-| 16 | [`16-IS-KUYRUGU-VE-ZAMANLAMA.md`](16-IS-KUYRUGU-VE-ZAMANLAMA.md) | `JOB` | 17, 42, 46, 120 | `src/AgentPrism.Core` (job) · `screens/job*.tsx` | **98** | ✅ | ✅ 61/61 · 2 🆕 (Faz 120, koşulmadı) · 1 🆕 (B03, koşulmadı) |
-| 17 | [`17-EVAL-VE-DENEYLER.md`](17-EVAL-VE-DENEYLER.md) | `EVAL` | 18, 19, 31, 45, 49, 56, 154 | `src/AgentPrism.Abstractions/Evaluation`, `Experiments` · `src/AgentPrism.Core/Evaluation`, `Experiments`, `Audit/AuditingExperimentStore.cs` · `src/AgentPrism.AspNetCore/Endpoints/EvalEndpoints.cs`, `ExperimentEndpoints.cs`, `RunEndpoints.cs` (yalnız feedback/compare/input/replay) · `screens/eval*.tsx` · `experiment*.tsx` · `promote-to-eval-case.tsx` · `feedback-control.tsx` | **69** | ✅ | ✅ 69/69 · 8 🆕 (Faz 154: EVAL-128..134 otomatik karşılıkları — `RunScoreStoreContract`, `RunScoreSummaryEndpointTests` — koştu; EVAL-129/EVAL-135 `samples/AgentPrism.Api` + gerçek tarayıcıya karşı elle de koşuldu 2026-09-07, gerçek OpenAI çağrısı) |
-| 18 | [`18-MCP-VE-A2A.md`](18-MCP-VE-A2A.md) | `MCP` | 6, 22, 50, 89, 127 | `src/AgentPrism.Mcp` · `src/AgentPrism.AspNetCore/McpServer` · `A2A` · `Endpoints/GovernanceEndpoints.cs` (yalnız `/api/mcp-servers/*`) | **58** | ✅ | ✅ 42/43 · 1 ☒ · 1 🆕 (Faz 89, koşulmadı) · 1 🆕 (Faz 127: MT-MCP-068, otomatik karşılığı koştu, 👤 elle koşulmadı) |
-| 19 | [`19-COK-MODLULUK-VE-SES.md`](19-COK-MODLULUK-VE-SES.md) | `MM` | 14, 28, 29, 72, 138, 161 | `src/AgentPrism.Abstractions/Attachments`, `Voice` · `src/AgentPrism.Core/Attachments`, `Voice` · `src/AgentPrism.Voice` (tümü) · `src/AgentPrism.AspNetCore/Endpoints/AttachmentEndpoints.cs`, `VoiceEndpoints.cs` · `src/AgentPrism.AspNetCore/Voice/VoiceConversationEndpoint.cs`, `LiveVoiceEndpoints.cs`, `VoiceEndpointGates.cs` · `src/AgentPrism.OpenAI/Live` · `src/AgentPrism.AspNetCore/OpenAICompat/AttachmentIngestion.cs` | **90** | ✅ | ✅ 59/61 · 2 ⏭ (2026-08-13) · MT-MM-091..094 Faz 72 kapanışında gerçek ElevenLabs'a karşı koşuldu · 8 🆕 (Faz 138: MT-MM-100..107, MT-MM-100/101/102 gerçek ElevenLabs anahtarı gerekir, koşulmadı) · 12 🆕 (Faz 161: MT-MM-108..119; MT-MM-108/109/117/118 otomatikleştirildi, MT-MM-110/111/112/114 gerçek anahtarla koşuldu) |
-| 20 | [`20-BELLEK-RAG-BAGLAM.md`](20-BELLEK-RAG-BAGLAM.md) | `MEM` | 13, 51 | `src/AgentPrism.Abstractions/Agents/{Compaction,Memory}Settings.cs` · `Knowledge/*.cs` · `src/AgentPrism.Core/Compilation/AgentDefinitionCompiler.cs` (bellek/sıkıştırma/vektör bağlama kısmı), `ObservedCompactionStrategy.cs` · `src/AgentPrism.Core/Knowledge/*.cs` · `src/AgentPrism.PostgreSql/MigrationsKnowledge/0001_vector.sql`, `Stores/PgVectorSearchStore.cs` · `src/AgentPrism.AspNetCore/Endpoints/KnowledgeEndpoints.cs`, `Contracts/KnowledgeContracts.cs` | **31** | ✅ | ✅ 31/31 |
-| 21 | [`21-DAYANIKLILIK-VE-IPTAL.md`](21-DAYANIKLILIK-VE-IPTAL.md) | `RES` | 32, 54, 55, 87, 126, 144 (44/46/47 yalnız kesişim) | `src/AgentPrism.Abstractions/Runs/IRunCancellationRegistry.cs`, `RunReconciliationOptions.cs` · `src/AgentPrism.Abstractions/Approvals/` · `src/AgentPrism.Core/Recording/{RunCancellationRegistry,RunHeartbeatWriter,RunReconciliationService}.cs` · `src/AgentPrism.Core/Approvals/` · `src/AgentPrism.Core/Hosting/AgentPrismDrainService.cs` · `src/AgentPrism.Core/Scheduling/RunContinuationJobHandler.cs` · `src/AgentPrism.AspNetCore/Endpoints/{RunEndpoints.cs (yalnız CancelRunAsync),ApprovalEndpoints.cs}` · `src/AgentPrism.Core/Sessions/AgentSessionManager.cs` (Faz 126: `StateSchemaVersion`/`StateMafVersion`) · `src/AgentPrism.Core/Graph/ChildAgentInvoker.cs`, `Compilation/AgentDefinitionCompiler.Agents.cs`, `AgentPrismOptions.cs` (`AgentGraph.ChildDeadline`/`WaitTimeout`, Faz 144) · `screens/approvals.tsx`, `run-detail.tsx` | **53** | ✅ | ✅ 26/28 · 2 ⏭ (Faz 87'nin 9 case'i koşum bekliyor) · MT-RES-069..071 Faz 126 kapanışında `samples/AgentPrism.Api` + gerçek SQLite'a karşı koşuldu (2026-09-01); 072 👤 gerekir (gerçek MAF sürüm yükseltmesi elde varken) · 5 🆕 (Faz 144: MT-RES-080..084, otomatik karşılıkları `SubAgentTimeoutTests`/`SubAgentSettingsResolutionTests` ile gerçek `background_agents_*` tool akışına karşı koştu; 👤 elle koşulmadı) |
-| 22 | [`22-GUARDRAIL-VE-YAPISAL-CIKTI.md`](22-GUARDRAIL-VE-YAPISAL-CIKTI.md) | `GUARD` | 38, 48, 86, 127, 131, 134 | `src/AgentPrism.Abstractions/Guards`, `Agents/ResponseFormat.cs`, `Agents/IStructuredResponseValidator.cs` · `src/AgentPrism.Core/Guards` (tümü), `Compilation/AgentDefinitionCompiler.cs`, `Compilation/StructuredResponseValidatingAgent*.cs`, `Models/ModelProviderRegistry.cs` · `src/AgentPrism.Core/Runs/DocumentChannelMessageBuilder.cs` · `src/AgentPrism.AspNetCore/Endpoints/AgentEndpoints.cs` · `src/AgentPrism.UI/frontend/src/screens/{agent-editor,agent-detail,models,run-detail}.tsx` | **56** | ✅ | ✅ 35/35 · MT-GUARD-075/076 Faz 86 kapanışında `samples/AgentPrism.Api`'ye karşı koşuldu (2026-08-22, gerçek OpenAI çağrısı — belge içeriği hiçbir olayda görünmedi, sahte sınırlayıcı `(escaped)` etiketiyle değiştirildi) · 2 🆕 (Faz 127: MT-GUARD-080/081, otomatik karşılıkları koştu, 👤 elle koşulmadı — gerçek sağlayıcı anahtarı bu ortamda yoktu) · 7 🆕 (Faz 131: MT-GUARD-090..096, geçerli-yanıt kolu `order-summary` demo agent'ıyla gerçek OpenAI çağrısına karşı koşuldu 2026-09-01; geçersiz-yanıt kolu OpenAI'nin `response_format` sözdizimsel garantisi yüzünden gerçek sağlayıcıyla üretilemez — otomatik karşılıkları koştu, 095 👤 gerekir) · 7 🆕 (Faz 134: MT-GUARD-100..106, onarımı TETİKLEYEN her case aynı sözdizimsel garanti yüzünden gerçek sağlayıcıyla üretilemez — otomatik karşılıkları koştu, 106 👤 gerekir) |
-| 23 | [`23-SAKLAMA-ARSIV-KOTA.md`](23-SAKLAMA-ARSIV-KOTA.md) | `RET` | 21 (yalnız kota), 25, 36, 114, 128, 146 | `src/AgentPrism.Abstractions/Retention`, `Quotas`, `Runs/AgentRunBudget.cs` · `src/AgentPrism.Core/Retention`, `Quotas`, `Recording/RunRecordingAgent.cs`, `Models/RunBudgetChatClient.cs`, `AgentPrismOptions.cs` (`AgentGraph.MaxDuration`) · `src/AgentPrism.Sql.Shared/Internal/RetentionTargetRegistry.cs` · `src/AgentPrism.AspNetCore/Endpoints/{Retention,Quota}Endpoints.cs` · `samples/AgentPrism.Api/FileSystemArchiveSink.cs` | **45** | ✅ | ✅ 26/26 · 6 🆕 (Faz 114, koşulmadı — gerçek OpenAI çağrısı gerektirir) · MT-RET-060..063 Faz 128 kapanışında `samples/AgentPrism.Api` + gerçek OpenAI çağrısına karşı koşuldu (2026-09-01); 064 elle güvenilir tetiklenemez, otomatik `RunDeadlineTests`'e bırakıldı · 7 🆕 (Faz 146: MT-RET-070..076, `samples/AgentPrism.Api` + gerçek OpenAI çağrısına karşı koşuldu 2026-09-05 — 070/071/072 gerçek çıktıyla doğrulandı, 073..076 otomatik karşılıkları (`QuotaRunNoticeTests`, dört `QuotaStoreContract` koşumu) ile kanıtlandı, elle tekrarlanmadı) |
-| 24 | [`24-TEST-PAKETI-VE-SABLON.md`](24-TEST-PAKETI-VE-SABLON.md) | `TEST` | 37, 39, 95, 98, 99, 143 | `src/AgentPrism.Testing` · `src/AgentPrism.Templates` · `src/AgentPrism.Testing.Contracts.Xunit` · `samples/AgentPrism.Samples.FileRunStore(.Tests)` · `tests/AgentPrism.Package.Tests` · `samples/AgentPrism.Samples.CustomModelProvider(.Tests)` | **66** | ✅ | ✅ 44/44 (2026-08-24) · MT-TEST-073..076 Faz 98 kapanışında koşuldu (2026-08-24); 077 👤 gerekir · MT-TEST-078..082 Faz 99 kapanışında koşuldu (2026-08-25); 083 👤 gerekir · MT-TEST-090..094 Faz 143 kapanışında koşuldu (2026-09-04) |
-| 25 | [`25-SAGLIK-TESHIS-OPENAPI.md`](25-SAGLIK-TESHIS-OPENAPI.md) | `DIAG` | 33, 40, 85, 122, 150 | `src/AgentPrism.AspNetCore` (health, diagnostics, OpenAPI) · `src/AgentPrism.Core/Diagnostics/{SilentGapWarningService,AgentPrismExtensionPoints,RequiredBindingValidator}.cs` | **45** | ✅ | ✅ 37/37 (Faz 122: MT-DIAG-055..057 kapanışta gerçek `samples/AgentPrism.Api`'ye karşı koşuldu, 2026-08-28) · 8 🆕 (Faz 150: MT-DIAG-058..065, kapanışta gerçek `samples/AgentPrism.Api` ve `samples/AgentPrism.Embedded`'e karşı koşuldu 2026-09-06) · ⚠️ sayaç 31'de kalmıştı; 45'e düzeltildi (Faz 150) |
-| 26 | [`26-ISTEMCI-TOOLLARI-VE-GOMULEBILIR.md`](26-ISTEMCI-TOOLLARI-VE-GOMULEBILIR.md) | `IST` | 61 | `src/AgentPrism.Core/Tools/AgentPrismClientToolExtensions.cs` · `src/AgentPrism.AspNetCore/Internal/{ClientToolResultResolver,AgentPrismCorsMiddleware}.cs` · `Endpoints/AgentEndpoints.cs` (`toolResults`) · `AgentPrismEndpointOptions.cs` (`AllowedOrigins`) · `src/AgentPrism.UI/frontend/src/embed/` | **16** | ✅ | ⬜ henüz koşulmadı |
-| 27 | [`27-MODEL-YEDEK-VE-ON-UCUS.md`](27-MODEL-YEDEK-VE-ON-UCUS.md) | `MYU` | 62 · 81 · 113 · 124 | `src/AgentPrism.Abstractions/Agents/{ModelBinding,ModelFallback,ResponseCacheSettings}.cs` · `Options/{AgentPrismPreflightOptions,AgentPrismModelConcurrencyOptions}.cs` · `src/AgentPrism.Core/Models/{FallbackChatClient,ProviderConcurrencyLimiter,ContextWindowEstimator,AgentPrismResponseCachingChatClient,ModelProviderRegistry}.cs` · `Replay/RecordedToolPlayback.cs` · `Compilation/AgentDefinitionCompiler.cs` (yalnız `BuildContextWindowStrategy`) · `src/AgentPrism.AspNetCore/Endpoints/AgentEndpoints.cs` (yalnız `EstimateAsync`) · `RateLimiting/PreflightGate.cs` | **17** | ✅ | ⬜ henüz koşulmadı (010/011/012 gerçek `openai` çağrısıyla 2026-08-22'de elle doğrulandı, kayıt altına alınmadı) |
-| 28 | [`28-DENETIM-ZINCIRI-VE-VERI-HAKLARI.md`](28-DENETIM-ZINCIRI-VE-VERI-HAKLARI.md) | `DVR` | 64 | `src/AgentPrism.Abstractions/Audit`, `Privacy` · `src/AgentPrism.Core/Audit/{AuditChainHasher,AuditChainWalker}.cs`, `Privacy/NullDataSubjectStore.cs` · `src/AgentPrism.Sql.Shared/Stores/{SqlAuditLog,SqlDataSubjectStore}.cs`, `Internal/DataSubjectTargetRegistry.cs` · `src/AgentPrism.AspNetCore/Endpoints/{AuditEndpoints,DataSubjectEndpoints}.cs` | **10** | ✅ | ⬜ henüz koşulmadı |
-| 29 | [`29-AGENT-DESTEGI.md`](29-AGENT-DESTEGI.md) | `AGD` | 73 | `src/AgentPrism.Generators/{AgentPrismUsageAnalyzer,UsageDiagnostics}.cs` · `src/AgentPrism.Core/buildTransitive/` · `src/AgentPrism.Templates/content/AgentPrism.Starter/AgentPrism.Starter.csproj` · `docs-site/scripts/build-agent-map.mjs` · `docs-site/src/content/docs/capabilities.md` · `tests/AgentPrism.Core.UnitTests/Architecture/CapabilityCoverageTests.cs` | **21** | ✅ | ⬜ henüz koşulmadı |
-| 30 | [`30-YEREL-REFERANS.md`](30-YEREL-REFERANS.md) | `YRF` | 74 · 78 | `src/AgentPrism.Core/buildTransitive/AgentPrism.Core.targets` · `src/AgentPrism.AspNetCore/buildTransitive/AgentPrism.AspNetCore.targets` · `src/AgentPrism.AspNetCore/AgentPrism.AspNetCore.csproj` (OpenAPI paketlemesi) · `src/AgentPrism.Templates/content/AgentPrism.Starter/.gitignore` · `docs-site/scripts/build-agent-map.mjs` · `tests/AgentPrism.Core.UnitTests/Architecture/{CapabilityEntryPoints,CapabilityExampleTests}.cs` · `src/AgentPrism.Generators/UsageDiagnostics.cs` (`APG0402`) | **27** | ✅ | ⬜ henüz koşulmadı |
-| 31 | [`31-DOKUMAN-DOGRULUGU.md`](31-DOKUMAN-DOGRULUGU.md) | `DDG` | 75 | `tests/AgentPrism.Core.UnitTests/Architecture/ShippedDocumentationSelfContainmentTests.cs` · `docs-site/scripts/check-content.mjs` · `docs-site/scripts/build-agent-map.mjs` · `docs-site/scripts/{build-api-reference,build-http-api}.mjs` · `tests/AgentPrism.Ui.E2ETests/DocumentationScreenshotTests.cs` · `README.md` · `src/*/README.md` · `docs-site/site.config.mjs` | **24** | ✅ | ⬜ henüz koşulmadı |
-| 32 | [`32-DOKUMAN-KALITESI.md`](32-DOKUMAN-KALITESI.md) | `DKL` | 76, 158 | `docs-site/src/styles/site.css` · `docs-site/astro.config.mjs` · `docs-site/src/sidebar.mjs` · `docs-site/src/starlightRouteData.mjs` · `docs-site/scripts/check-content.mjs` · `docs-site/scripts/check-weight.mjs` · `docs-site/scripts/build-social-images.mjs` · `tests/AgentPrism.AspNetCore.FunctionalTests/DocumentedPolicyTests.cs` | **24** | ✅ | ⬜ henüz koşulmadı |
+| 12 | [`12-GOZLEMLENEBILIRLIK-MALIYET.md`](12-GOZLEMLENEBILIRLIK-MALIYET.md) | `OBS` | 6, 20, 35, 68, 89, 119, 132, 154 | `src/Tracon.Core` · `screens/dashboard.tsx` · `screens/run-detail.tsx` | **60** | ✅ | ✅ 35/37 · 2 ⏭ · 9 🆕 (Faz 68, koşulmadı) · 2 🆕 (Faz 89, koşulmadı) · 4 🆕 (Faz 119: MT-OBS-054..057, gerçek `samples/Tracon.Api` + sağlayıcı anahtarı gerekir, koşulmadı) — MT-OBS-058 koşuldu (2026-08-27) · 1 🆕 (Faz 132: MT-OBS-059, `samples/Tracon.Api` gerekir, koşulmadı) · 1 🆕 (Faz 154: MT-OBS-060, otomatik karşılığı `Score_summary_created_at_index_is_created` üç sağlayıcıda da koştu; psql `EXPLAIN` ile elle koşulmadı) |
+| 13 | [`13-KIRACI-VE-GUVENLIK.md`](13-KIRACI-VE-GUVENLIK.md) | `SEC` | 6, 9, 41, 50, 53, 82, 139, 147, 148, 149 | `src/Tracon.AspNetCore/Security` · `Tenancy/` · `TraconEndpointOptions.cs` · `Endpoints/ApiKeyEndpoints.cs`/`AuditEndpoints.cs`/`GovernanceEndpoints.cs` (yalnız `MapTenants`) · `Tracon.Abstractions/Security`, `Audit`, `Tenancy` · `Tracon.Core/Security`, `Audit`, `Tenancy` · `Abstractions/Runs/RunAuthorizationTypes.cs`, `Core/Runs/AllowAllRunAuthorizationHandler.cs`, `AspNetCore/RateLimiting/RunAuthorizationGate.cs` (Faz 139) · `AspNetCore/Security/SessionOwnershipGate.cs`, `Abstractions/Options/TraconSessionOwnershipOptions.cs` (Faz 148 · 149) | **132** | ✅ | ✅ 54/54 · 4 🆕 elle koşuldu (Faz 82: 131-134, gerçek `samples/Tracon.Api` + PostgreSQL), 135 otomasyonla kanıtlandı (`ContentProtectionTests`, koşulmadı) · 11 🆕 (Faz 139: 140-150, tamamı `RunAuthorizationEndpointTests`/`RunAuthorizationResultTests` ile otomatikleştirildi ve koşuldu; MT-SEC-140 ayrıca `samples/Tracon.Api`'de gerçek run ile elle doğrulandı) |
+| 14 | [`14-SKILL-VE-SCRIPT.md`](14-SKILL-VE-SCRIPT.md) | `SKILL` | 10, 11 | `src/Tracon.Abstractions/Skills` · `src/Tracon.Core/Skills` (tümü) · `src/Tracon.Core/Storage/InMemoryAgentSkillStore.cs`/`InMemorySkillScriptGrantStore.cs` · `src/Tracon.AspNetCore/Endpoints/SkillEndpoints.cs`/`SkillScriptGrantEndpoints.cs` · `src/Tracon.UI/frontend/src/screens/skills.tsx` | **47** | ✅ | ✅ 45/46 · 1 ⬜ |
+| 15 | [`15-WORKFLOWS.md`](15-WORKFLOWS.md) | `WF` | 15, 16, 71, 87, 122 | `src/Tracon.Workflows` · `screens/workflow*.tsx` | **70** | ✅ | ✅ 58/60 · 2 ☒ (Faz 87'nin 2 case'i koşum bekliyor) · 1 🆕 (Faz 122: MT-WF-119, `WorkflowCatalogTests` ile otomatik ölçüldü) |
+| 16 | [`16-IS-KUYRUGU-VE-ZAMANLAMA.md`](16-IS-KUYRUGU-VE-ZAMANLAMA.md) | `JOB` | 17, 42, 46, 120 | `src/Tracon.Core` (job) · `screens/job*.tsx` | **98** | ✅ | ✅ 61/61 · 2 🆕 (Faz 120, koşulmadı) · 1 🆕 (B03, koşulmadı) |
+| 17 | [`17-EVAL-VE-DENEYLER.md`](17-EVAL-VE-DENEYLER.md) | `EVAL` | 18, 19, 31, 45, 49, 56, 154 | `src/Tracon.Abstractions/Evaluation`, `Experiments` · `src/Tracon.Core/Evaluation`, `Experiments`, `Audit/AuditingExperimentStore.cs` · `src/Tracon.AspNetCore/Endpoints/EvalEndpoints.cs`, `ExperimentEndpoints.cs`, `RunEndpoints.cs` (yalnız feedback/compare/input/replay) · `screens/eval*.tsx` · `experiment*.tsx` · `promote-to-eval-case.tsx` · `feedback-control.tsx` | **69** | ✅ | ✅ 69/69 · 8 🆕 (Faz 154: EVAL-128..134 otomatik karşılıkları — `RunScoreStoreContract`, `RunScoreSummaryEndpointTests` — koştu; EVAL-129/EVAL-135 `samples/Tracon.Api` + gerçek tarayıcıya karşı elle de koşuldu 2026-09-07, gerçek OpenAI çağrısı) |
+| 18 | [`18-MCP-VE-A2A.md`](18-MCP-VE-A2A.md) | `MCP` | 6, 22, 50, 89, 127 | `src/Tracon.Mcp` · `src/Tracon.AspNetCore/McpServer` · `A2A` · `Endpoints/GovernanceEndpoints.cs` (yalnız `/api/mcp-servers/*`) | **58** | ✅ | ✅ 42/43 · 1 ☒ · 1 🆕 (Faz 89, koşulmadı) · 1 🆕 (Faz 127: MT-MCP-068, otomatik karşılığı koştu, 👤 elle koşulmadı) |
+| 19 | [`19-COK-MODLULUK-VE-SES.md`](19-COK-MODLULUK-VE-SES.md) | `MM` | 14, 28, 29, 72, 138, 161 | `src/Tracon.Abstractions/Attachments`, `Voice` · `src/Tracon.Core/Attachments`, `Voice` · `src/Tracon.Voice` (tümü) · `src/Tracon.AspNetCore/Endpoints/AttachmentEndpoints.cs`, `VoiceEndpoints.cs` · `src/Tracon.AspNetCore/Voice/VoiceConversationEndpoint.cs`, `LiveVoiceEndpoints.cs`, `VoiceEndpointGates.cs` · `src/Tracon.OpenAI/Live` · `src/Tracon.AspNetCore/OpenAICompat/AttachmentIngestion.cs` | **90** | ✅ | ✅ 59/61 · 2 ⏭ (2026-08-13) · MT-MM-091..094 Faz 72 kapanışında gerçek ElevenLabs'a karşı koşuldu · 8 🆕 (Faz 138: MT-MM-100..107, MT-MM-100/101/102 gerçek ElevenLabs anahtarı gerekir, koşulmadı) · 12 🆕 (Faz 161: MT-MM-108..119; MT-MM-108/109/117/118 otomatikleştirildi, MT-MM-110/111/112/114 gerçek anahtarla koşuldu) |
+| 20 | [`20-BELLEK-RAG-BAGLAM.md`](20-BELLEK-RAG-BAGLAM.md) | `MEM` | 13, 51 | `src/Tracon.Abstractions/Agents/{Compaction,Memory}Settings.cs` · `Knowledge/*.cs` · `src/Tracon.Core/Compilation/AgentDefinitionCompiler.cs` (bellek/sıkıştırma/vektör bağlama kısmı), `ObservedCompactionStrategy.cs` · `src/Tracon.Core/Knowledge/*.cs` · `src/Tracon.PostgreSql/MigrationsKnowledge/0001_vector.sql`, `Stores/PgVectorSearchStore.cs` · `src/Tracon.AspNetCore/Endpoints/KnowledgeEndpoints.cs`, `Contracts/KnowledgeContracts.cs` | **31** | ✅ | ✅ 31/31 |
+| 21 | [`21-DAYANIKLILIK-VE-IPTAL.md`](21-DAYANIKLILIK-VE-IPTAL.md) | `RES` | 32, 54, 55, 87, 126, 144 (44/46/47 yalnız kesişim) | `src/Tracon.Abstractions/Runs/IRunCancellationRegistry.cs`, `RunReconciliationOptions.cs` · `src/Tracon.Abstractions/Approvals/` · `src/Tracon.Core/Recording/{RunCancellationRegistry,RunHeartbeatWriter,RunReconciliationService}.cs` · `src/Tracon.Core/Approvals/` · `src/Tracon.Core/Hosting/TraconDrainService.cs` · `src/Tracon.Core/Scheduling/RunContinuationJobHandler.cs` · `src/Tracon.AspNetCore/Endpoints/{RunEndpoints.cs (yalnız CancelRunAsync),ApprovalEndpoints.cs}` · `src/Tracon.Core/Sessions/AgentSessionManager.cs` (Faz 126: `StateSchemaVersion`/`StateMafVersion`) · `src/Tracon.Core/Graph/ChildAgentInvoker.cs`, `Compilation/AgentDefinitionCompiler.Agents.cs`, `TraconOptions.cs` (`AgentGraph.ChildDeadline`/`WaitTimeout`, Faz 144) · `screens/approvals.tsx`, `run-detail.tsx` | **53** | ✅ | ✅ 26/28 · 2 ⏭ (Faz 87'nin 9 case'i koşum bekliyor) · MT-RES-069..071 Faz 126 kapanışında `samples/Tracon.Api` + gerçek SQLite'a karşı koşuldu (2026-09-01); 072 👤 gerekir (gerçek MAF sürüm yükseltmesi elde varken) · 5 🆕 (Faz 144: MT-RES-080..084, otomatik karşılıkları `SubAgentTimeoutTests`/`SubAgentSettingsResolutionTests` ile gerçek `background_agents_*` tool akışına karşı koştu; 👤 elle koşulmadı) |
+| 22 | [`22-GUARDRAIL-VE-YAPISAL-CIKTI.md`](22-GUARDRAIL-VE-YAPISAL-CIKTI.md) | `GUARD` | 38, 48, 86, 127, 131, 134 | `src/Tracon.Abstractions/Guards`, `Agents/ResponseFormat.cs`, `Agents/IStructuredResponseValidator.cs` · `src/Tracon.Core/Guards` (tümü), `Compilation/AgentDefinitionCompiler.cs`, `Compilation/StructuredResponseValidatingAgent*.cs`, `Models/ModelProviderRegistry.cs` · `src/Tracon.Core/Runs/DocumentChannelMessageBuilder.cs` · `src/Tracon.AspNetCore/Endpoints/AgentEndpoints.cs` · `src/Tracon.UI/frontend/src/screens/{agent-editor,agent-detail,models,run-detail}.tsx` | **56** | ✅ | ✅ 35/35 · MT-GUARD-075/076 Faz 86 kapanışında `samples/Tracon.Api`'ye karşı koşuldu (2026-08-22, gerçek OpenAI çağrısı — belge içeriği hiçbir olayda görünmedi, sahte sınırlayıcı `(escaped)` etiketiyle değiştirildi) · 2 🆕 (Faz 127: MT-GUARD-080/081, otomatik karşılıkları koştu, 👤 elle koşulmadı — gerçek sağlayıcı anahtarı bu ortamda yoktu) · 7 🆕 (Faz 131: MT-GUARD-090..096, geçerli-yanıt kolu `order-summary` demo agent'ıyla gerçek OpenAI çağrısına karşı koşuldu 2026-09-01; geçersiz-yanıt kolu OpenAI'nin `response_format` sözdizimsel garantisi yüzünden gerçek sağlayıcıyla üretilemez — otomatik karşılıkları koştu, 095 👤 gerekir) · 7 🆕 (Faz 134: MT-GUARD-100..106, onarımı TETİKLEYEN her case aynı sözdizimsel garanti yüzünden gerçek sağlayıcıyla üretilemez — otomatik karşılıkları koştu, 106 👤 gerekir) |
+| 23 | [`23-SAKLAMA-ARSIV-KOTA.md`](23-SAKLAMA-ARSIV-KOTA.md) | `RET` | 21 (yalnız kota), 25, 36, 114, 128, 146 | `src/Tracon.Abstractions/Retention`, `Quotas`, `Runs/AgentRunBudget.cs` · `src/Tracon.Core/Retention`, `Quotas`, `Recording/RunRecordingAgent.cs`, `Models/RunBudgetChatClient.cs`, `TraconOptions.cs` (`AgentGraph.MaxDuration`) · `src/Tracon.Sql.Shared/Internal/RetentionTargetRegistry.cs` · `src/Tracon.AspNetCore/Endpoints/{Retention,Quota}Endpoints.cs` · `samples/Tracon.Api/FileSystemArchiveSink.cs` | **45** | ✅ | ✅ 26/26 · 6 🆕 (Faz 114, koşulmadı — gerçek OpenAI çağrısı gerektirir) · MT-RET-060..063 Faz 128 kapanışında `samples/Tracon.Api` + gerçek OpenAI çağrısına karşı koşuldu (2026-09-01); 064 elle güvenilir tetiklenemez, otomatik `RunDeadlineTests`'e bırakıldı · 7 🆕 (Faz 146: MT-RET-070..076, `samples/Tracon.Api` + gerçek OpenAI çağrısına karşı koşuldu 2026-09-05 — 070/071/072 gerçek çıktıyla doğrulandı, 073..076 otomatik karşılıkları (`QuotaRunNoticeTests`, dört `QuotaStoreContract` koşumu) ile kanıtlandı, elle tekrarlanmadı) |
+| 24 | [`24-TEST-PAKETI-VE-SABLON.md`](24-TEST-PAKETI-VE-SABLON.md) | `TEST` | 37, 39, 95, 98, 99, 143 | `src/Tracon.Testing` · `src/Tracon.Templates` · `src/Tracon.Testing.Contracts.Xunit` · `samples/Tracon.Samples.FileRunStore(.Tests)` · `tests/Tracon.Package.Tests` · `samples/Tracon.Samples.CustomModelProvider(.Tests)` | **66** | ✅ | ✅ 44/44 (2026-08-24) · MT-TEST-073..076 Faz 98 kapanışında koşuldu (2026-08-24); 077 👤 gerekir · MT-TEST-078..082 Faz 99 kapanışında koşuldu (2026-08-25); 083 👤 gerekir · MT-TEST-090..094 Faz 143 kapanışında koşuldu (2026-09-04) |
+| 25 | [`25-SAGLIK-TESHIS-OPENAPI.md`](25-SAGLIK-TESHIS-OPENAPI.md) | `DIAG` | 33, 40, 85, 122, 150 | `src/Tracon.AspNetCore` (health, diagnostics, OpenAPI) · `src/Tracon.Core/Diagnostics/{SilentGapWarningService,TraconExtensionPoints,RequiredBindingValidator}.cs` | **45** | ✅ | ✅ 37/37 (Faz 122: MT-DIAG-055..057 kapanışta gerçek `samples/Tracon.Api`'ye karşı koşuldu, 2026-08-28) · 8 🆕 (Faz 150: MT-DIAG-058..065, kapanışta gerçek `samples/Tracon.Api` ve `samples/Tracon.Embedded`'e karşı koşuldu 2026-09-06) · ⚠️ sayaç 31'de kalmıştı; 45'e düzeltildi (Faz 150) |
+| 26 | [`26-ISTEMCI-TOOLLARI-VE-GOMULEBILIR.md`](26-ISTEMCI-TOOLLARI-VE-GOMULEBILIR.md) | `IST` | 61 | `src/Tracon.Core/Tools/TraconClientToolExtensions.cs` · `src/Tracon.AspNetCore/Internal/{ClientToolResultResolver,TraconCorsMiddleware}.cs` · `Endpoints/AgentEndpoints.cs` (`toolResults`) · `TraconEndpointOptions.cs` (`AllowedOrigins`) · `src/Tracon.UI/frontend/src/embed/` | **16** | ✅ | ⬜ henüz koşulmadı |
+| 27 | [`27-MODEL-YEDEK-VE-ON-UCUS.md`](27-MODEL-YEDEK-VE-ON-UCUS.md) | `MYU` | 62 · 81 · 113 · 124 | `src/Tracon.Abstractions/Agents/{ModelBinding,ModelFallback,ResponseCacheSettings}.cs` · `Options/{TraconPreflightOptions,TraconModelConcurrencyOptions}.cs` · `src/Tracon.Core/Models/{FallbackChatClient,ProviderConcurrencyLimiter,ContextWindowEstimator,TraconResponseCachingChatClient,ModelProviderRegistry}.cs` · `Replay/RecordedToolPlayback.cs` · `Compilation/AgentDefinitionCompiler.cs` (yalnız `BuildContextWindowStrategy`) · `src/Tracon.AspNetCore/Endpoints/AgentEndpoints.cs` (yalnız `EstimateAsync`) · `RateLimiting/PreflightGate.cs` | **17** | ✅ | ⬜ henüz koşulmadı (010/011/012 gerçek `openai` çağrısıyla 2026-08-22'de elle doğrulandı, kayıt altına alınmadı) |
+| 28 | [`28-DENETIM-ZINCIRI-VE-VERI-HAKLARI.md`](28-DENETIM-ZINCIRI-VE-VERI-HAKLARI.md) | `DVR` | 64 | `src/Tracon.Abstractions/Audit`, `Privacy` · `src/Tracon.Core/Audit/{AuditChainHasher,AuditChainWalker}.cs`, `Privacy/NullDataSubjectStore.cs` · `src/Tracon.Sql.Shared/Stores/{SqlAuditLog,SqlDataSubjectStore}.cs`, `Internal/DataSubjectTargetRegistry.cs` · `src/Tracon.AspNetCore/Endpoints/{AuditEndpoints,DataSubjectEndpoints}.cs` | **10** | ✅ | ⬜ henüz koşulmadı |
+| 29 | [`29-AGENT-DESTEGI.md`](29-AGENT-DESTEGI.md) | `AGD` | 73 | `src/Tracon.Generators/{TraconUsageAnalyzer,UsageDiagnostics}.cs` · `src/Tracon.Core/buildTransitive/` · `src/Tracon.Templates/content/Tracon.Starter/Tracon.Starter.csproj` · `docs-site/scripts/build-agent-map.mjs` · `docs-site/src/content/docs/capabilities.md` · `tests/Tracon.Core.UnitTests/Architecture/CapabilityCoverageTests.cs` | **21** | ✅ | ⬜ henüz koşulmadı |
+| 30 | [`30-YEREL-REFERANS.md`](30-YEREL-REFERANS.md) | `YRF` | 74 · 78 | `src/Tracon.Core/buildTransitive/Tracon.Core.targets` · `src/Tracon.AspNetCore/buildTransitive/Tracon.AspNetCore.targets` · `src/Tracon.AspNetCore/Tracon.AspNetCore.csproj` (OpenAPI paketlemesi) · `src/Tracon.Templates/content/Tracon.Starter/.gitignore` · `docs-site/scripts/build-agent-map.mjs` · `tests/Tracon.Core.UnitTests/Architecture/{CapabilityEntryPoints,CapabilityExampleTests}.cs` · `src/Tracon.Generators/UsageDiagnostics.cs` (`APG0402`) | **27** | ✅ | ⬜ henüz koşulmadı |
+| 31 | [`31-DOKUMAN-DOGRULUGU.md`](31-DOKUMAN-DOGRULUGU.md) | `DDG` | 75 | `tests/Tracon.Core.UnitTests/Architecture/ShippedDocumentationSelfContainmentTests.cs` · `docs-site/scripts/check-content.mjs` · `docs-site/scripts/build-agent-map.mjs` · `docs-site/scripts/{build-api-reference,build-http-api}.mjs` · `tests/Tracon.Ui.E2ETests/DocumentationScreenshotTests.cs` · `README.md` · `src/*/README.md` · `docs-site/site.config.mjs` | **24** | ✅ | ⬜ henüz koşulmadı |
+| 32 | [`32-DOKUMAN-KALITESI.md`](32-DOKUMAN-KALITESI.md) | `DKL` | 76, 158 | `docs-site/src/styles/site.css` · `docs-site/astro.config.mjs` · `docs-site/src/sidebar.mjs` · `docs-site/src/starlightRouteData.mjs` · `docs-site/scripts/check-content.mjs` · `docs-site/scripts/check-weight.mjs` · `docs-site/scripts/build-social-images.mjs` · `tests/Tracon.AspNetCore.FunctionalTests/DocumentedPolicyTests.cs` | **24** | ✅ | ⬜ henüz koşulmadı |
 | 33 | [`33-DOKUMAN-KAPILARI.md`](33-DOKUMAN-KAPILARI.md) | `DKP` | 80, 90 | `scripts/dokuman-bakim.py` · `scripts/dokuman_bakim_test.py` · `.github/workflows/ci.yml` | **15** | ✅ | ⬜ henüz koşulmadı |
-| 34 | [`34-ISTEMCI-VE-CLI.md`](34-ISTEMCI-VE-CLI.md) | `CLI` | 83, 115, 153, 156, 159 | `src/AgentPrism.Client` · `src/AgentPrism.Cli` · `nswag.json` · `scripts/nswag-*.py` | **46** | ✅ | ✅ 10/11 otomasyonla + 11 elle koşuldu (Faz 83 kapanışı); 13-21 `EvalCommandTests.cs` ile otomasyonla koşuldu (Faz 115 kapanışı); 23-31 `EvalBaselineGateTests.cs` (Faz 153); 32-36 `StateCheckCommandTests.cs` (Faz 156); 38-45 `GeneratedClientSseTests.cs` + `AgentPrismApiClientSseTests.cs`, 46 `sse.test.ts` (Faz 159); 12, 22, 37 ve 46'nın tarayıcı koşumu 👤 koşulmadı |
-| 35 | [`35-TYPESCRIPT-ISTEMCISI.md`](35-TYPESCRIPT-ISTEMCISI.md) | `TSC` | 84 | `packages/agentprism-client` · `src/AgentPrism.UI/frontend/src/lib/{api.ts,server-types.ts}` · `src/AgentPrism.UI/AgentPrism.UI.Frontend.targets` · `.github/workflows/ci.yml` | **11** | ✅ | ✅ 8/11 otomasyonla veya elle koşuldu (Faz 84 kapanışı); 5 elle koşulmadı (E2E boşluğu, F-145); 8-9 👤 koşulmadı |
-| 36 | [`36-GELISTIRME-KAPILARI.md`](36-GELISTIRME-KAPILARI.md) | `GDK` | 91, 116 | `scripts/kapi.py` · `scripts/denetim-paketi.py` · `scripts/*_test.py` · `src/AgentPrism.UI/AgentPrism.UI.Frontend.targets` · `docfx/docfx.json` · `DocfxConfigurationTests.cs` · `CanaryEvaluationServiceTests.cs` · `RunReconciliationTests.cs` · `bench/AgentPrism.Benchmarks/` | **25** | ✅ | ✅ otomatik kapılar koşuldu (19-23, 25 Faz 116 kapanışında); UI Playwright 57/57, browser connector görsel koşumu ve 24 (iki işletim sistemi) 👤 insan gerekir |
+| 34 | [`34-ISTEMCI-VE-CLI.md`](34-ISTEMCI-VE-CLI.md) | `CLI` | 83, 115, 153, 156, 159 | `src/Tracon.Client` · `src/Tracon.Cli` · `nswag.json` · `scripts/nswag-*.py` | **46** | ✅ | ✅ 10/11 otomasyonla + 11 elle koşuldu (Faz 83 kapanışı); 13-21 `EvalCommandTests.cs` ile otomasyonla koşuldu (Faz 115 kapanışı); 23-31 `EvalBaselineGateTests.cs` (Faz 153); 32-36 `StateCheckCommandTests.cs` (Faz 156); 38-45 `GeneratedClientSseTests.cs` + `TraconApiClientSseTests.cs`, 46 `sse.test.ts` (Faz 159); 12, 22, 37 ve 46'nın tarayıcı koşumu 👤 koşulmadı |
+| 35 | [`35-TYPESCRIPT-ISTEMCISI.md`](35-TYPESCRIPT-ISTEMCISI.md) | `TSC` | 84 | `packages/tracon-client` · `src/Tracon.UI/frontend/src/lib/{api.ts,server-types.ts}` · `src/Tracon.UI/Tracon.UI.Frontend.targets` · `.github/workflows/ci.yml` | **11** | ✅ | ✅ 8/11 otomasyonla veya elle koşuldu (Faz 84 kapanışı); 5 elle koşulmadı (E2E boşluğu, F-145); 8-9 👤 koşulmadı |
+| 36 | [`36-GELISTIRME-KAPILARI.md`](36-GELISTIRME-KAPILARI.md) | `GDK` | 91, 116 | `scripts/kapi.py` · `scripts/denetim-paketi.py` · `scripts/*_test.py` · `src/Tracon.UI/Tracon.UI.Frontend.targets` · `docfx/docfx.json` · `DocfxConfigurationTests.cs` · `CanaryEvaluationServiceTests.cs` · `RunReconciliationTests.cs` · `bench/Tracon.Benchmarks/` | **25** | ✅ | ✅ otomatik kapılar koşuldu (19-23, 25 Faz 116 kapanışında); UI Playwright 57/57, browser connector görsel koşumu ve 24 (iki işletim sistemi) 👤 insan gerekir |
 
 ### 7.1 Açık kalemler — 2026-08-13 turundan devreden
 
@@ -402,14 +402,14 @@ değildir — koşum aşamasında doğrulanacak **şüphelerdir**.
 > 3. **`HttpTenantContext.AllowedTenants` beyaz listesi gerçekten atlanıyordu**
 >    (bu turda notlarda "ölçüldü, KOŞULMADI" diye kaydedilmişti — kod okumasıyla
 >    doğrulandı, deterministik bir mantık hatası, koşum gerektirmiyordu).
->    `AgentPrismEndpointFilter`'a `CheckTenancyWhitelist` eklendi: beyaz listede
+>    `TraconEndpointFilter`'a `CheckTenancyWhitelist` eklendi: beyaz listede
 >    olmayan bir aday artık 403 ile reddedilir, varsayılan kiracıya sessizce
 >    düşmez.
-> 4. **`--no-build` ile paketlenen `AgentPrism.Core` kaynak üretecini
->    TAŞIMIYORDU** (Kritik olarak işaretlenmişti). `AgentPrism.Core.csproj`
+> 4. **`--no-build` ile paketlenen `Tracon.Core` kaynak üretecini
+>    TAŞIMIYORDU** (Kritik olarak işaretlenmişti). `Tracon.Core.csproj`
 >    artık `@(Analyzer)` yerine Generators projesinin `GetTargetPath` hedefini
 >    kullanıyor — `dotnet pack --no-build` sonrası doğrulandı
->    (`analyzers/dotnet/cs/AgentPrism.Generators.dll` artık var).
+>    (`analyzers/dotnet/cs/Tracon.Generators.dll` artık var).
 > 5. **SSE `error` çerçevesi boşluğu (K-296)** — `AgentEndpoints.ExecuteStreamingAsync`,
 >    `OpenAIResponsesEndpoints.ResponsesStream`, `OpenAIChatCompletionsEndpoints.ChatCompletionsStream`
 >    üçünde de dar `catch` filtresi kaldırıldı; artık `OperationCanceledException`
@@ -427,11 +427,11 @@ değildir — koşum aşamasında doğrulanacak **şüphelerdir**.
 >    (yalnız `speak` tool'u denetliyordu). `ISpeechSynthesizer`'a
 >    `MaxCharactersPerRequest` eklendi; HTTP ucu artık aynı sınırı uygular.
 > 9. **Şablon hâlâ `AddToolsFrom` (yansıma) öğretiyordu** — `AddGeneratedTools()`'a
->    geçirildi (`src/AgentPrism.Templates/content/AgentPrism.Starter/Program.cs`).
+>    geçirildi (`src/Tracon.Templates/content/Tracon.Starter/Program.cs`).
 >    İzlek A ile UÇTAN UCA doğrulandı (`dotnet pack` → yerel feed → `dotnet new`
 >    → `dotnet build`, sıfır uyarı).
-> 10. **`AgentPrism:Ui:AllowRemoteAccess` ölü config anahtarıydı** —
->     `samples/AgentPrism.Api/Program.cs`'in `MapAgentPrism` çağrısına bağlandı.
+> 10. **`Tracon:Ui:AllowRemoteAccess` ölü config anahtarıydı** —
+>     `samples/Tracon.Api/Program.cs`'in `MapTracon` çağrısına bağlandı.
 > 11. **AOT bayrağı `AGENTS.md` ile çelişiyordu** — dört değil sekiz paket
 >     (Anthropic, Google, Azure, Voice eklendi) olacak şekilde düzeltildi.
 > 12. **`/api/meta`'nın "gerçek çıktı" örneği Faz 4'ten kalma, güncel değildi**
@@ -474,8 +474,8 @@ değildir — koşum aşamasında doğrulanacak **şüphelerdir**.
 > `Unknown`'a düşmesi, skill sayısı sınırının save/run asimetrisi,
 > `WorkflowSaveRequest.Kind` zorunlu olmaması, `pending_approvals`/`quota_usage`
 > retention hedefi eksikliği, `PatternContentGuard`'ın boş bölümde bile
-> kaydolması, `RunEvent.Payload` JSON olmaması, `AgentPrismDiagnosticsReport`
-> plan sapması (Faz 33 doc), `AgentPrismTestHost`'un auth middleware eklemediği
+> kaydolması, `RunEvent.Payload` JSON olmaması, `TraconDiagnosticsReport`
+> plan sapması (Faz 33 doc), `TraconTestHost`'un auth middleware eklemediği
 > — bunların hiçbiri kiracı yalıtımı veya veri kaybı sınıfında değil (Orta/Düşük
 > önem), bu yüzden bu turun bütçesi içinde ele alınmadı. Hız sınırı ve
 > webhook/olay yayını için hâlâ hiçbir senaryo dosyası yok — bu bir kod
@@ -501,15 +501,15 @@ değildir — koşum aşamasında doğrulanacak **şüphelerdir**.
   `MT-SQL-042` bu ortam kısıtını koşum sırasında kaydeden bir case olarak
   eklendi; dosyanın SQL Server bölümündeki her case, hangi imajla koşulduğunu
   ayrıca not eder.
-- 🚨 **`--no-build` ile paketlenen `AgentPrism.Core` kaynak üretecini TAŞIMIYOR
+- 🚨 **`--no-build` ile paketlenen `Tracon.Core` kaynak üretecini TAŞIMIYOR
   (2026-08-09, ÖLÇÜLDÜ).** Aynı proje, aynı yapılandırma, tek fark `--no-build`:
-  - `dotnet pack src/AgentPrism.Core -c Release -o <dizin>` →
-    `analyzers/dotnet/cs/AgentPrism.Generators.dll` **var** (53 248 bayt)
-  - `dotnet pack src/AgentPrism.Core -c Release --no-build -o <dizin>` → **yok**
+  - `dotnet pack src/Tracon.Core -c Release -o <dizin>` →
+    `analyzers/dotnet/cs/Tracon.Generators.dll` **var** (53 248 bayt)
+  - `dotnet pack src/Tracon.Core -c Release --no-build -o <dizin>` → **yok**
 
-  `artifacts/package/release/` altındaki son dört `AgentPrism.Core` paketinin
+  `artifacts/package/release/` altındaki son dört `Tracon.Core` paketinin
   (`preview.0.56`–`preview.0.59`, 8–9 Ağustos) **dördünde de** analyzer girdisi
-  yoktur. Doğrulama kapısı `dotnet pack AgentPrism.slnx -c Release --no-build`
+  yoktur. Doğrulama kapısı `dotnet pack Tracon.slnx -c Release --no-build`
   komutunu kullanır; Faz 52'nin DoD'si ise `--no-build` **olmadan** tek proje
   paketleyerek doğrulamıştı (K-348). Muhtemel sebep: `--no-build`,
   `@(Analyzer)` item grubunu dolduran `ResolveReferences` geçişini atlar ve
@@ -520,26 +520,26 @@ değildir — koşum aşamasında doğrulanacak **şüphelerdir**.
   Ölçüm ve kapsam netleştirmesi `MT-PKG-021`; meta paket üzerinden akış
   `MT-PKG-050`. **Kod değiştirilmedi.**
 - **`EchoModelProvider` izleği yanlış yerde tarif edilmişti (2026-08-09, düzeltildi).**
-  [`PROMPT.md`](../arsiv/manuel-test-kosum-2026-08/PROMPT.md) §3 onu izlek C'nin (`AgentPrism.Testing`) parçası
+  [`PROMPT.md`](../arsiv/manuel-test-kosum-2026-08/PROMPT.md) §3 onu izlek C'nin (`Tracon.Testing`) parçası
   sayıyordu. Ölçüm: paket böyle bir tip taşımıyor; sınıf örnek uygulamanın
-  kendisindedir (`samples/AgentPrism.Api/EchoModelProvider.cs`, sağlayıcı adı
+  kendisindedir (`samples/Tracon.Api/EchoModelProvider.cs`, sağlayıcı adı
   `echo`, model `echo-1`) ve OpenAI anahtarı yokken kaydedilir. Yani `echo`
   **izlek B**'nin ağa çıkmayan yoludur. `PROMPT.md` düzeltildi;
   `02-CEKIRDEK-VE-KATALOG.md` bu ayrımla yazıldı.
 - **AOT bayrağı doküman ile çelişiyor (2026-08-09).** `AGENTS.md` ve `README.md`
   AOT uyumlu paket olarak dördünü sayar (`Abstractions`, `Core`, `PostgreSql`,
   `OpenAI`). Kod sekiz paketi uyumlu bırakıyor: bunlara ek olarak `Anthropic`,
-  `Google`, `Azure`, `Voice` (`grep -l "AgentPrismAotCompatible>false" src/*/*.csproj`
+  `Google`, `Azure`, `Voice` (`grep -l "TraconAotCompatible>false" src/*/*.csproj`
   ile ölçüldü). Doküman koddan **az** iddia ediyor. `MT-PKG-062` bunu ölçer.
 - **Şablon hâlâ yansıma yolunu öğretiyor (2026-08-09).**
-  `src/AgentPrism.Templates/content/AgentPrism.Starter/Program.cs`
+  `src/Tracon.Templates/content/Tracon.Starter/Program.cs`
   `AddToolsFrom(typeof(OrderTools))` kullanıyor. Faz 52 önerilen yolu
   `AddGeneratedTools()` yaptı ve örnek uygulama ona geçti; şablon geçmedi.
   Yeni bir tüketicinin gördüğü ilk desen, AOT uyarısı üreten desendir.
   Bu bir **kusur değil, eksik**tir — koşumda `MT-PKG-071` ile birlikte
   değerlendirilir.
-- **Faz 7 için iki eksik yüzey (2026-08-09).** `AgentPrism.Mcp` ve
-  `AgentPrism.Workflows` yayınlanabilir paketlerdir ama `PublicAPI.Shipped.txt` /
+- **Faz 7 için iki eksik yüzey (2026-08-09).** `Tracon.Mcp` ve
+  `Tracon.Workflows` yayınlanabilir paketlerdir ama `PublicAPI.Shipped.txt` /
   `PublicAPI.Unshipped.txt` dosyaları **yoktur** (diğer 12 paketin vardır).
   Ayrıca `Microsoft.CodeAnalysis.BannedApiAnalyzers` her yayınlanabilir pakette
   referanslıdır ama repo'da hiç `BannedSymbols.txt` yoktur — analyzer yüklü,
@@ -561,7 +561,7 @@ değildir — koşum aşamasında doğrulanacak **şüphelerdir**.
   `MT-SQL-060` bu ölçümü koşum sırasında üç canlı veritabanına karşı
   doğrulayan bir case olarak eklendi.
 - **`NpgsqlDataSourceFactory`'nin boş bağlantı dizesi kontrolü normal DI akışında
-  ULAŞILAMAZ olabilir (2026-08-09).** `AgentPrismPostgreSqlOptionsValidator`
+  ULAŞILAMAZ olabilir (2026-08-09).** `TraconPostgreSqlOptionsValidator`
   `ConnectionString`'i her `IOptions<T>.Value` erişiminde doğrular (`ValidateOnStart`'tan
   bağımsız — bu, `IValidateOptions<T>`'nin genel davranışıdır). `UsePostgreSql()`'in
   `NpgsqlDataSource` fabrikası da `IOptions<T>.Value`'yu okuyarak `Create()`'i çağırır;
@@ -591,7 +591,7 @@ değildir — koşum aşamasında doğrulanacak **şüphelerdir**.
   `error` çerçevesiyle bildirmeyebilir (2026-08-09, `05-SAGLAYICI-OPENAI.md`
   üretilirken koddan ölçüldü, koşulmadı).** `AgentEndpoints.AgentRunStream
   .ExecuteStreamingAsync` yalnız `catch (Exception ex) when (ex is
-  AgentPrismException or InvalidOperationException or HttpRequestException)`
+  TraconException or InvalidOperationException or HttpRequestException)`
   yakalar ve `event: error` çerçevesi yazar. K-296'nın ölçtüğü gerçek OpenAI
   SDK istisnası (`System.ClientModel.ClientResultException`, örnek: geçersiz
   model adı → HTTP 404) bu üç tipten HİÇBİRİNE uymaz — `DefaultRunErrorClassifier`
@@ -604,17 +604,17 @@ değildir — koşum aşamasında doğrulanacak **şüphelerdir**.
   `Failed`/`ProviderError` olarak kayıtlı olduğu görülür. Kod değiştirilmedi;
   `05-SAGLAYICI-OPENAI.md` `MT-OAI-043` bu tam senaryoyu koşumda kaydeden bir
   case olarak eklendi ve devre kesicinin AÇIK olduğu durumla (`MT-OAI-080`,
-  `AgentPrismProviderUnavailableException` `AgentPrismException`'dan türediği
+  `TraconProviderUnavailableException` `TraconException`'dan türediği
   için doğru şekilde yakalanır) tam tersini kanıtlar.
-- **`AgentPrismEndpointOptions`/`EnableDiagnosticsEndpoint` `IConfiguration`'dan
-  bağlanmaz, yalnız `MapAgentPrism(prefix, configure)` lambda'sı ile
+- **`TraconEndpointOptions`/`EnableDiagnosticsEndpoint` `IConfiguration`'dan
+  bağlanmaz, yalnız `MapTracon(prefix, configure)` lambda'sı ile
   açılır (2026-08-09, ölçüldü).** `05-SAGLAYICI-OPENAI.md` üretilirken önce
   bunun bir ayar anahtarı (`dotnet user-secrets`) olduğu varsayılmıştı; kod
   okumasıyla düzeltildi. Örnek uygulama ucu zaten `Program.cs` satır ~711'de
   `options.EnableDiagnosticsEndpoint = true;` ile açık kaydeder — koşum
   sırasında hiçbir ayar değişikliği gerekmez. Bu tuzak (Action-tabanlı endpoint
   seçenekleri, `IConfiguration` beklentisiyle karıştırılabilir) sonraki bir
-  manuel test dosyası `AgentPrismEndpointOptions`'a dokunursa yeniden
+  manuel test dosyası `TraconEndpointOptions`'a dokunursa yeniden
   hatırlanmalıdır.
 - 🚨 **OpenAI'nin SSE `error` çerçevesi boşluğu (K-296, `MT-OAI-043`) Anthropic'te
   de var; Google'da YOK — decompile ile ölçüldü (2026-08-09,
@@ -627,7 +627,7 @@ değildir — koşum aşamasında doğrulanacak **şüphelerdir**.
   (`ClientError -> HttpRequestException -> Exception`, ilspycmd ile
   `Google.GenAI.HttpApiClient.ThrowFromErrorResponse` da doğrulandı).
   `AgentEndpoints.AgentRunStream.ExecuteStreamingAsync`'in `error` çerçevesi
-  üreten `catch` bloğu yalnız `AgentPrismException`, `InvalidOperationException`,
+  üreten `catch` bloğu yalnız `TraconException`, `InvalidOperationException`,
   `HttpRequestException` yakaladığı için: Anthropic'in gerçek API hataları
   OpenAI ile **aynı** boşluğa düşer (SSE'de `error` çerçevesi üretilmeyebilir),
   Google'ınki düşmez (`ClientError` yakalanır). Kod değiştirilmedi;
@@ -653,7 +653,7 @@ değildir — koşum aşamasında doğrulanacak **şüphelerdir**.
   DEĞİL, iki farklı açı (2026-08-09, `07-HTTP-YONETIM-API.md` üretilirken
   netleştirildi).** İndeks tablosunda 07 (`4, 34, 43, 44`) ile 21
   (`32, 43, 44, 46, 47, 54, 55`) aynı faz numaralarını paylaşıyor. Ölçüldü:
-  `src/AgentPrism.AspNetCore/Endpoints/` altındaki gerçek yüzey ikiye ayrılıyor
+  `src/Tracon.AspNetCore/Endpoints/` altındaki gerçek yüzey ikiye ayrılıyor
   — `AgentEndpoints.cs`/`RunEndpoints.cs`'in CRUD/liste/idempotency/HTTP-zarf
   kısmı `07`'nin konusu (kanıtlandı); aynı dosyalardaki `cancel` (iptal),
   `feedback`/`compare`/`replay` (skorlama/karşılaştırma/yeniden oynatma,
@@ -675,14 +675,14 @@ değildir — koşum aşamasında doğrulanacak **şüphelerdir**.
 - **`RunStatistics`in altı sayacının (`totalRuns`, `completedRuns`,
   `failedRuns`, `canceledRuns`, `runningRuns`, `awaitingInputRuns`) toplama
   ilişkisi doğrulanmadı (2026-08-09, `07-HTTP-YONETIM-API.md` üretilirken).**
-  Alan adları `src/AgentPrism.Abstractions/Runs/RunStatistics.cs`'ten okundu
+  Alan adları `src/Tracon.Abstractions/Runs/RunStatistics.cs`'ten okundu
   ama `IRunStore.GetStatisticsAsync` uygulamasının gövdesi (toplamanın gerçek
   mantığı) okunmadı — `totalRuns`'ın beş alt sayacın toplamına tam eşit olup
   olmadığı (özellikle `Queued` durumundaki satırların hangi kovaya girdiği)
   bilinmiyor. `MT-API-042` bunu koşumda gerçek sayılarla sınar.
 - **08 tablo satırının kaynak sütunu YANLIŞTI, düzeltildi (2026-08-09,
-  `08-OPENAI-UYUMLU-UCLAR.md` üretilirken ölçüldü).** Satır `src/AgentPrism.AspNetCore`
-  (`v1/*`) yazıyordu; böyle bir `v1/` klasörü yok (`find src/AgentPrism.AspNetCore
+  `08-OPENAI-UYUMLU-UCLAR.md` üretilirken ölçüldü).** Satır `src/Tracon.AspNetCore`
+  (`v1/*`) yazıyordu; böyle bir `v1/` klasörü yok (`find src/Tracon.AspNetCore
   -iname "*v1*"` boş döndü). Gerçek klasör `OpenAICompat/`'tır — `v1/` yalnızca
   `MapPost("/v1/chat/completions", ...)` gibi çağrılardaki HTTP yol önekidir,
   dosya sistemi yolu değildir. §7 tablosu düzeltildi.
@@ -693,7 +693,7 @@ değildir — koşum aşamasında doğrulanacak **şüphelerdir**.
   ve `06-SAGLAYICI-DIGER.md` (`MT-PROV-036`/`042`) aynı boşluğu
   `AgentEndpoints.AgentRunStream.ExecuteStreamingAsync` (yönetim API'si) için
   ölçmüştü. Bu iki compat uç noktasının akışlı yolları da **birebir aynı** dar
-  `catch (Exception ex) when (ex is AgentPrismException or InvalidOperationException
+  `catch (Exception ex) when (ex is TraconException or InvalidOperationException
   or HttpRequestException)` desenini taşıyor — üç ayrı dosyada, üç ayrı yerde
   kopyalanmış aynı desen. Kod değiştirilmedi; `08-OPENAI-UYUMLU-UCLAR.md`
   `MT-COMPAT-028` bunu compat uçları için ayrıca kaydeder.
@@ -709,7 +709,7 @@ değildir — koşum aşamasında doğrulanacak **şüphelerdir**.
   (2026-08-09, `10-ARAYUZ-AGENT-PLAYGROUND.md` üretilirken kod okumasıyla,
   koşulmadı).** `05`/`06`'nın ölçtüğü boşluk (bir sağlayıcı istisnası
   `AgentRunStream.ExecuteStreamingAsync`'in dar `catch`'ine uymayınca bağlantı
-  `error` çerçevesi ÜRETMEDEN kapanır) `@agentprism/client`'ın `readSse`'sinde bir
+  `error` çerçevesi ÜRETMEDEN kapanır) `@tracon/client`'ın `readSse`'sinde bir
   İSTİSNA olarak GÖRÜNMEZ — akış sonu (`reader.read()` → `done: true`) normal
   bir bitiştir. `playground.tsx`'in `run()` fonksiyonu bu yüzden `catch`
   bloğuna hiç girmeden döngü sonrası satırda turu `done` işaretler. Sonuç:
@@ -769,8 +769,8 @@ değildir — koşum aşamasında doğrulanacak **şüphelerdir**.
   kota KURAL MOTORUdur (`QuotaEnforcer`, `QuotaGate`, `QuotaEndpoints.cs`,
   `429` zorlaması) ve §7 tablosunda `23-SAKLAMA-ARSIV-KOTA.md`'ye atanmıştır.
   Faz 35 bu motoru GÖZLEMLEYEN iki OpenTelemetry enstrümanıdır
-  (`AgentPrismMetrics.RunCost` sayacı, `QuotaUsageObserver`'ın
-  `agentprism.quota.usage`/`.limit` ölçerleri) ve **arayüzü yoktur**
+  (`TraconMetrics.RunCost` sayacı, `QuotaUsageObserver`'ın
+  `tracon.quota.usage`/`.limit` ölçerleri) ve **arayüzü yoktur**
   (`docs/arsiv/fazlar/35-MALIYET-VE-KOTA-METRIKLERI.md`: "arayüz işi yok") — yalnız
   `dotnet-counters` gibi bir OTel tüketicisiyle gözlemlenebilir; örnek
   uygulama hiçbir metrik exporter'ı (`AddOpenTelemetry()`) kaydetmez.
@@ -795,18 +795,18 @@ değildir — koşum aşamasında doğrulanacak **şüphelerdir**.
   yedek yolu YOKTUR. `23-SAKLAMA-ARSIV-KOTA.md` üretilirken bu, `MaxCost`
   kuralının fiyatsız bir modelde etkisiz kaldığını doğrulayan bir negatif
   case olarak eklenebilir. Kod değiştirilmedi.
-- **Örnek uygulama (`samples/AgentPrism.Api/Program.cs`) hiçbir model fiyatı
+- **Örnek uygulama (`samples/Tracon.Api/Program.cs`) hiçbir model fiyatı
   tanımlamaz (2026-08-09, ölçüldü).** `grep -rn "InputCostPerMillionTokens\|Pricing"
-  samples/AgentPrism.Api/Program.cs` boş döner — reset sonrası HER
+  samples/Tracon.Api/Program.cs` boş döner — reset sonrası HER
   çalıştırma `RunCost.Source = Unknown`'dur. Bu, sonraki bir "maliyet"
   odaklı manuel test dosyası fiyatlı bir senaryo yazacaksa önce
-  `dotnet user-secrets set "AgentPrism:Pricing:openai:gpt-5.4-mini:Input/
+  `dotnet user-secrets set "Tracon:Pricing:openai:gpt-5.4-mini:Input/
   Output"` ile fiyat tanımlaması GEREKTİĞİ anlamına gelir; `12-GOZLEMLENEBILIRLIK-MALIYET.md`
   bunu her ilgili case'in ön koşuluna yazdı.
 - 🚨 **`HttpTenantContext`'in `AllowedTenants` beyaz listesi koddaki KENDİ
   yorumuyla ÇELİŞİYOR OLABİLİR (2026-08-10, kod okumasıyla ölçüldü,
   `13-KIRACI-VE-GUVENLIK.md` üretilirken bulundu, KOŞULMADI).**
-  `HttpTenantContext.Accept` (`src/AgentPrism.AspNetCore/Tenancy/HttpTenantContext.cs:133-135`)
+  `HttpTenantContext.Accept` (`src/Tracon.AspNetCore/Tenancy/HttpTenantContext.cs:133-135`)
   şu yorumu taşır: *"Beyaz liste doluysa dışındaki bir değer varsayılan
   kiracıya DÜŞMEZ; düşmek, yetkisiz bir isteğin varsayılan kiracının
   verisini görmesi demekti."* Ama aynı metot bu durumda `null` döner ve
@@ -816,39 +816,39 @@ değildir — koşum aşamasında doğrulanacak **şüphelerdir**.
   görünüyor: `Accept`'in döndürdüğü `null`, `Resolve()`'dan `null` olarak
   çıkar ve üst zincirdeki `??` operatörü bunu varsayılan kiracıyla doldurur.
   Eğer bu okuma doğruysa, `AllowedTenants` beyaz listesinde OLMAYAN bir
-  `X-AgentPrism-Tenant` değeri isteği REDDETMEK yerine sessizce varsayılan
+  `X-Tracon-Tenant` değeri isteği REDDETMEK yerine sessizce varsayılan
   kiracının verisine yönlendirir — yorumun açıkça önlemeye çalıştığı tam o
   senaryo. Kod değiştirilmedi; `13-KIRACI-VE-GUVENLIK.md` `MT-SEC-024` bunu
   koşumda doğrulayan/çürüten bir case olarak eklendi ve doğrulanırsa
   **Kusur, Önem: Yüksek** olarak işaretlenmesi gerektiğini not düşer.
-- **`appsettings.json`'daki `AgentPrism:Ui:AllowRemoteAccess` anahtarı ÖLÜDÜR
+- **`appsettings.json`'daki `Tracon:Ui:AllowRemoteAccess` anahtarı ÖLÜDÜR
   (2026-08-10, ölçüldü, `13-KIRACI-VE-GUVENLIK.md` üretilirken).**
-  `samples/AgentPrism.Api/Program.cs`'in `MapAgentPrism` çağrısı yalnız
+  `samples/Tracon.Api/Program.cs`'in `MapTracon` çağrısı yalnız
   `AuthToken` ve `EnableDiagnosticsEndpoint`'i `builder.Configuration`'dan
-  okur; `grep -n "AllowRemoteAccess" samples/AgentPrism.Api/Program.cs` boş
-  döner. `appsettings.json`'daki `AgentPrism:Ui:AllowRemoteAccess: false`
+  okur; `grep -n "AllowRemoteAccess" samples/Tracon.Api/Program.cs` boş
+  döner. `appsettings.json`'daki `Tracon:Ui:AllowRemoteAccess: false`
   değeri hiçbir zaman `options.AllowRemoteAccess`'e bağlanmaz — değeri
   `true` yapan bir tüketici hiçbir etki görmez, sessizce. Varsayılan
   değer güvenli (`false`) olduğu için bu bir GÜVENLİK KUSURU değil, bir
   DOKÜMANTASYON/ŞEMA tutarsızlığıdır. `13-KIRACI-VE-GUVENLIK.md`'nin uzak
   erişim case'leri (`MT-SEC-070`/`071`) bu yüzden `dotnet user-secrets` değil
   GEÇİCİ bir `Program.cs` kod değişikliği ister. Kod değiştirilmedi.
-- **Hız sınırlama (`AgentPrismRateLimitFilter`, `src/AgentPrism.AspNetCore/RateLimiting/`)
+- **Hız sınırlama (`TraconRateLimitFilter`, `src/Tracon.AspNetCore/RateLimiting/`)
   hiçbir manuel test dosyasına atanmamış (2026-08-10, `13-KIRACI-VE-GUVENLIK.md`
-  üretilirken fark edildi).** Filtre `AgentPrismEndpointRouteBuilderExtensions.cs:116-119`'da
-  koşullu eklenir (`IOptionsMonitor<AgentPrismRateLimitOptions>` kayıtlıysa) ve
+  üretilirken fark edildi).** Filtre `TraconEndpointRouteBuilderExtensions.cs:116-119`'da
+  koşullu eklenir (`IOptionsMonitor<TraconRateLimitOptions>` kayıtlıysa) ve
   varsayılan kapalıdır (K-165). §7 tablosundaki 25 satırın hiçbiri bu dosyayı
   veya bir "hız sınırlama" alan kodunu taşımıyor. `13-KIRACI-VE-GUVENLIK.md`
   bunu KASITLI OLARAK içermedi (kaynak eşlemesi `Security/` klasörüyle sınırlı,
   `RateLimiting/` değil) — sonraki bir üretim oturumu bu boşluğu bir dosyaya
   (muhtemelen mevcut bir alanın faz listesine eklenerek) kapatmalı.
-- **Rol matrisi (`AgentPrismPolicies.Reader`/`.Admin`) hiçbir manuel test
+- **Rol matrisi (`TraconPolicies.Reader`/`.Admin`) hiçbir manuel test
   dosyasına atanmamış (2026-08-10, `14-SKILL-VE-SCRIPT.md` üretilirken
   ölçüldü).** `RoleEndpointConventionBuilderExtensions.RequireRole`
   (`RoleEndpointConventionBuilderExtensions.cs:24-29`) policy adı `null` ise
-  NO-OP'tur; `AgentPrismPolicies.Reader`/`.Admin` örnek uygulamanın
+  NO-OP'tur; `TraconPolicies.Reader`/`.Admin` örnek uygulamanın
   `AuthorizationOptions`'ında hiç kayıtlı değildir (`grep -rn
-  "AgentPrismPolicies\." samples/AgentPrism.Api/Program.cs` boş döner). Sonuç:
+  "TraconPolicies\." samples/Tracon.Api/Program.cs` boş döner). Sonuç:
   `SkillEndpoints`/`SkillScriptGrantEndpoints` DAHİL, `RequireRole` çağıran
   HİÇBİR uç varsayılan kurulumda rol kısıtlaması UYGULAMAZ — statik bearer
   token her role açık uçlara erişir. `13-KIRACI-VE-GUVENLIK.md` bu mekanizmayı
@@ -859,17 +859,17 @@ değildir — koşum aşamasında doğrulanacak **şüphelerdir**.
   almalı.
 - 🚨 **Skill script'lerinde "kayıt" ile "çalıştırma" iki ayrı DI kapısı —
   config TEK BAŞINA script'i asla çalıştırılabilir yapmaz (2026-08-10, ölçüldü,
-  `14-SKILL-VE-SCRIPT.md` üretilirken).** `AgentPrismSkillScriptOptions`'ın
+  `14-SKILL-VE-SCRIPT.md` üretilirken).** `TraconSkillScriptOptions`'ın
   TÜM alanları (`Enabled`, `PlatformIsolationAcknowledged`,
   `AllowStoredScripts`, `Interpreters`, `SkillRoots`, `Timeout`, ...)
-  `IConfiguration`'dan bağlanır (`AgentPrismServiceCollectionExtensions.cs:1063-1142`,
-  `AddAgentPrism()` her zaman çalıştırır) — bu, `11-SKILL-SCRIPT-CALISTIRMA.md`'nin
+  `IConfiguration`'dan bağlanır (`TraconServiceCollectionExtensions.cs:1063-1142`,
+  `AddTracon()` her zaman çalıştırır) — bu, `11-SKILL-SCRIPT-CALISTIRMA.md`'nin
   "kökler KODDA, arayüzden DEĞİL" ifadesinden daha gevşektir. Ama
   `SkillScriptSupport`/`SandboxedSkillScriptRunner` YALNIZ
   `UseSkillScripts(...)` builder çağrısıyla DI'a eklenir
-  (`AgentPrismSkillScriptBuilderExtensions.cs:47-78`); bu çağrı hiç
-  yapılmazsa `AgentPrismSkillsSource._scripts` her zaman `null`'dır ve
-  `_scripts is { StoredScriptsEnabled: true }` koşulu (`AgentPrismSkillsSource.cs:71`)
+  (`TraconSkillScriptBuilderExtensions.cs:47-78`); bu çağrı hiç
+  yapılmazsa `TraconSkillsSource._scripts` her zaman `null`'dır ve
+  `_scripts is { StoredScriptsEnabled: true }` koşulu (`TraconSkillsSource.cs:71`)
   asla sağlanmaz — config'te `Enabled=true`/`AllowStoredScripts=true`/geçerli
   bir `Interpreters` girişi olsa BİLE model script'i hiçbir zaman bir tool
   olarak görmez, sessizce. Kod değiştirilmedi; `14-SKILL-VE-SCRIPT.md`
@@ -898,12 +898,12 @@ değildir — koşum aşamasında doğrulanacak **şüphelerdir**.
   (2026-08-10, ölçüldü, `15-WORKFLOWS.md` üretilirken).** Karşılaştırma:
   `AgentEndpoints.cs`/`RunEndpoints.cs` her CRUD/çalıştırma ucuna
   `RequireApiKeyScope(ApiKeyScope.AgentsAdmin/RunsWrite/...)` ekler;
-  `WorkflowEndpoints.Map` (`src/AgentPrism.AspNetCore/Endpoints/WorkflowEndpoints.cs`)
-  hiçbirini eklemez. `AgentPrismEndpointFilter.CheckScope`
-  (`AgentPrismEndpointFilter.cs:190-203`) şu satırı taşır: `if (requirement is
+  `WorkflowEndpoints.Map` (`src/Tracon.AspNetCore/Endpoints/WorkflowEndpoints.cs`)
+  hiçbirini eklemez. `TraconEndpointFilter.CheckScope`
+  (`TraconEndpointFilter.cs:190-203`) şu satırı taşır: `if (requirement is
   null || record.Scopes.Contains(requirement.Scope)) return null;` — uçta
   metadata YOKSA denetim koşulsuz geçer. Rol politikaları (`RequireRole`) zaten
-  no-op olduğu için (bkz. yukarıdaki `AgentPrismPolicies` notu), bu ölçüm
+  no-op olduğu için (bkz. yukarıdaki `TraconPolicies` notu), bu ölçüm
   doğrularsa yalnız `RunsRead` taşıyan bir OKUMA-amaçlı otomasyon anahtarının
   workflow tanımlarını yazabildiği/silebildiği VE gerçek para harcayan bir
   Magentic çalıştırmasını başlatabildiği anlamına gelir. Kod değiştirilmedi;
@@ -944,8 +944,8 @@ değildir — koşum aşamasında doğrulanacak **şüphelerdir**.
 - 🚨 **`SchedulingEndpoints` de (tıpkı `WorkflowEndpoints` gibi) hiçbir ucunda
   `RequireApiKeyScope(...)` çağırmaz — ÜÇÜNCÜ bağımsız tekrar (2026-08-10,
   ölçüldü, `16-IS-KUYRUGU-VE-ZAMANLAMA.md` üretilirken).**
-  `grep -n "RequireApiKeyScope" src/AgentPrism.AspNetCore/Endpoints/SchedulingEndpoints.cs`
-  boş döner; `AgentPrismEndpointFilter.CheckScope` metadata yoksa denetimi
+  `grep -n "RequireApiKeyScope" src/Tracon.AspNetCore/Endpoints/SchedulingEndpoints.cs`
+  boş döner; `TraconEndpointFilter.CheckScope` metadata yoksa denetimi
   koşulsuz geçirir (aynı kalıp `15-WORKFLOWS.md`'nin `MT-WF-100` bulgusuyla
   birebir). Rol politikaları zaten no-op olduğu için, doğrularsa yalnız
   `RunsRead` taşıyan bir OKUMA-amaçlı anahtar zamanlama silebilir, iş iptal
@@ -960,7 +960,7 @@ değildir — koşum aşamasında doğrulanacak **şüphelerdir**.
 - 🚨 **`ApiKeyScope` enum'ında Eval/Experiment için hiçbir kapsam değeri
   tanımlanmamış — Workflow/Scheduling/Governance boşluğundan FARKLI bir
   kök neden (2026-08-10, ölçüldü, `17-EVAL-VE-DENEYLER.md` üretilirken).**
-  `src/AgentPrism.Abstractions/Security/ApiKeyScope.cs` yalnız beş üye
+  `src/Tracon.Abstractions/Security/ApiKeyScope.cs` yalnız beş üye
   taşır: `RunsRead=0, RunsWrite=1, AgentsRead=2, AgentsAdmin=3,
   ExternalInvoke=4`. Önceki bulgular (`WorkflowEndpoints`,
   `SchedulingEndpoints`, aşağıdaki `GovernanceEndpoints`) var olan bir
@@ -988,14 +988,14 @@ değildir — koşum aşamasında doğrulanacak **şüphelerdir**.
   listesine almıyor — bu, kasıtlı bir "kapsamsız uç" kararı değil,
   gözden kaçmış bir boşluk gibi görünüyor. Kod değiştirilmedi;
   `18-MCP-VE-A2A.md` `MT-MCP-051`/`052` bunu bir pozitif kontrolle
-  (`MT-MCP-050`: dış yüzeyin — `/agentprism/mcp` — kendisi kapsamı DOĞRU
+  (`MT-MCP-050`: dış yüzeyin — `/tracon/mcp` — kendisi kapsamı DOĞRU
   uyguluyor) yan yana koyarak koşumda doğrular.
 - 🚨 **`POST /api/voice/speak`, kendi XML belgesinin iddiasının aksine
   `MaxCharactersPerRequest`'i YEREL OLARAK denetlemiyor gibi görünüyor
   (2026-08-10, ölçüldü, `19-COK-MODLULUK-VE-SES.md` üretilirken).**
   `VoiceEndpoints.cs`'in `SpeakAsync` üzerindeki XML yorumu "ayrica uc
   ...tool ile ayni karakter sinirina uyar" diyor, ama gövde okunduğunda
-  (`grep -n "MaxCharactersPerRequest" src/AgentPrism.AspNetCore/Endpoints/VoiceEndpoints.cs`
+  (`grep -n "MaxCharactersPerRequest" src/Tracon.AspNetCore/Endpoints/VoiceEndpoints.cs`
   → sıfır sonuç) tek kontrol `string.IsNullOrWhiteSpace(request.Text)`'tir;
   ardından `synthesizer.SynthesizeAsync` DOĞRUDAN çağrılır. Sınırı uygulayan
   tek kod yolu `SpeakTool.InvokeCoreAsync`'tir (agent tool çağrısı) — HTTP
@@ -1006,11 +1006,11 @@ değildir — koşum aşamasında doğrulanacak **şüphelerdir**.
   notuna yazılacak.
 - **20 tablo satırının kaynak sütunu EKSİKTİ, düzeltildi (2026-08-10,
   `20-BELLEK-RAG-BAGLAM.md` üretilirken ölçüldü).** Satır yalnız
-  `src/AgentPrism.Core` (memory) ve `Migrations/0024_vector.sql` yazıyordu.
+  `src/Tracon.Core` (memory) ve `Migrations/0024_vector.sql` yazıyordu.
   Bu iki yol olmadan dosyanın ana kanıtı (belge yükleme, arama, HTTP hata
   gövdeleri) hiç test edilemezdi: Faz 51'in yönetim yüzeyi
   (`KnowledgeEndpoints.cs`, `KnowledgeContracts.cs`) ve Faz 13/51'in
-  sözleşme tipleri (`AgentPrism.Abstractions/Agents/{Compaction,Memory}Settings.cs`,
+  sözleşme tipleri (`Tracon.Abstractions/Agents/{Compaction,Memory}Settings.cs`,
   `Knowledge/*.cs`) hiçbir dosyanın kaynak eşlemesinde yoktu. §7 tablosu ve
   dosyanın kendi üst bilgisi düzeltildi.
 - 🚨 **KRİTİK ŞÜPHE: `TextSearchProvider`'ın (Faz 13) arama callback'i
@@ -1023,7 +1023,7 @@ değildir — koşum aşamasında doğrulanacak **şüphelerdir**.
   HER ZAMAN kök `"/"`dir ve callback imzası (`Func<string,CancellationToken,...>`)
   arayanın kim olduğunu (tenant/agent/session) hiç bilmez. Depo tek bir
   süreç-çapında `TryAddSingleton<AgentFileStore>`dir
-  (`AgentPrismServiceCollectionExtensions.cs:300-301`) — TÜM kiracılar, TÜM
+  (`TraconServiceCollectionExtensions.cs:300-301`) — TÜM kiracılar, TÜM
   agent'lar, TÜM oturumlar AYNI depoyu paylaşır. MAF reflection'ı
   (`FileMemoryState.WorkingFolder` alanı) `FileMemoryProvider`'ın yazma
   tarafını oturum başına bir çalışma klasörüne ayırdığını düşündürüyor, ama
@@ -1044,7 +1044,7 @@ değildir — koşum aşamasında doğrulanacak **şüphelerdir**.
   çağırmıyor — `WorkflowEndpoints`/`SchedulingEndpoints`/Eval-Experiment
   yüzeyi/`GovernanceEndpoints`'ten sonra bilinen BEŞİNCİ örnek (2026-08-10,
   ölçüldü, `20-BELLEK-RAG-BAGLAM.md` üretilirken).**
-  `grep -n "RequireApiKeyScope" src/AgentPrism.AspNetCore/Endpoints/KnowledgeEndpoints.cs`
+  `grep -n "RequireApiKeyScope" src/Tracon.AspNetCore/Endpoints/KnowledgeEndpoints.cs`
   boş döner. Kod değiştirilmedi; `20-BELLEK-RAG-BAGLAM.md` `MT-MEM-031` bunu
   bir kontrol grubuyla (aynı anahtarla `AgentsAdmin` gerektiren bir agent
   ucuna yazmayı deneyip `403` beklentisiyle) birlikte koşumda doğrulayan bir
@@ -1058,7 +1058,7 @@ değildir — koşum aşamasında doğrulanacak **şüphelerdir**.
   üretilirken `conversation_items` şemasını doğrularken yan bulgu olarak
   ölçüldü, KOŞULMADI).** `02-CEKIRDEK-VE-KATALOG.md` birden çok yerde
   `ci.session_id` ve `s.external_id` sütunlarını kullanıyor
-  (`JOIN agentprism.sessions s ON s.id = ci.session_id`,
+  (`JOIN tracon.sessions s ON s.id = ci.session_id`,
   `WHERE s.external_id = '...'`). Ölçüldü: `0001_initial.sql`'e göre
   `sessions`'ın birincil anahtarı `id` (text)'tir, `external_id` diye bir
   sütun YOKTUR; `conversation_items`'ın yabancı anahtarı `conversation_id`dir
@@ -1072,7 +1072,7 @@ değildir — koşum aşamasında doğrulanacak **şüphelerdir**.
   bir oturum `02`'yi bu ölçümle karşılaştırıp gerekirse düzeltmelidir.
   🔧 **KOŞUMDA DOĞRULANDI (2026-08-12).** `02-CEKIRDEK-VE-KATALOG.md` koşuldu; MT-CORE-053 tam olarak
   bu şüpheyi doğruladı — `s.external_id` ve `ci.session_id` gerçekten yok, çalışan sorgu
-  `sessions.state->'stateBag'->'AgentPrism.ChatHistory'->>'conversationId'` üzerinden `conversations`'a
+  `sessions.state->'stateBag'->'Tracon.ChatHistory'->>'conversationId'` üzerinden `conversations`'a
   bağlanmak zorunda kaldı. MT-CORE-033/054'ün sorguları da aynı sorunu taşıyor (`runs.agent_version`
   alanı doğru ama JOIN'ler kontrol edilmeli). `02`'nin SQL sorguları henüz düzeltilmedi; düzeltme
   sonraki bir üretim/bakım oturumuna kalıyor.
@@ -1102,7 +1102,7 @@ değildir — koşum aşamasında doğrulanacak **şüphelerdir**.
   `Workflow`/`Scheduling`/`Eval-Experiment`/`Governance`/`Knowledge`'tan
   sonra bilinen ailenin YENİ bir örneği (2026-08-10, ölçüldü,
   `21-DAYANIKLILIK-VE-IPTAL.md` üretilirken).**
-  `grep -n "RequireApiKeyScope" src/AgentPrism.AspNetCore/Endpoints/
+  `grep -n "RequireApiKeyScope" src/Tracon.AspNetCore/Endpoints/
   ApprovalEndpoints.cs` boş döner; karşılaştırma olarak `RunEndpoints.cs`'in
   `/cancel` ucu `RequireApiKeyScope(ApiKeyScope.RunsWrite)` TAŞIR (kod
   okumasıyla doğrulandı — bu uç ailede DEĞİL). Kod değiştirilmedi;
@@ -1115,8 +1115,8 @@ değildir — koşum aşamasında doğrulanacak **şüphelerdir**.
   kutusu uçlarında da DOĞRULANDI (2026-08-10, ölçüldü,
   `21-DAYANIKLILIK-VE-IPTAL.md` üretilirken).** `ApprovalEndpoints.Map`
   `/decide` ucuna `.RequireRole(roles.Operator)` ekliyor ama
-  `samples/AgentPrism.Api/Program.cs`'te `AgentPrismPolicies.Reader/Operator/
-  Admin` hiç kayıtlı değil (`grep` boş) — `AgentPrismRolePolicies.Resolve`
+  `samples/Tracon.Api/Program.cs`'te `TraconPolicies.Reader/Operator/
+  Admin` hiç kayıtlı değil (`grep` boş) — `TraconRolePolicies.Resolve`
   `Operator`'ü `null` çözer, `RequireRole` hiçbir yetkilendirme eklemez. Bu
   ortamda "Reader karar veremez" DoD iddiası (Faz 55'in kendi izole
   fonksiyonel test host'unda doğrulanmıştı) GÖZLEMLENEMEZ — örnek uygulamada
@@ -1139,7 +1139,7 @@ değildir — koşum aşamasında doğrulanacak **şüphelerdir**.
 - **`pending_approvals` (Faz 55) `RetentionTargets.cs`'te bir hedef olarak
   YOKTUR — süresi dolan onaylar SİLİNMEZ, yalnız `Expired` işaretlenir
   (2026-08-10, ölçüldü, `21-DAYANIKLILIK-VE-IPTAL.md` üretilirken).**
-  `grep -n "IdempotencyKeys\|RunInputs" src/AgentPrism.Abstractions/
+  `grep -n "IdempotencyKeys\|RunInputs" src/Tracon.Abstractions/
   Retention/RetentionTargets.cs` iki sonuç döner, `PendingApprovals` diye bir
   sabit yoktur. `ApprovalExpirationService` yalnız durumu değiştirir, satırı
   silmez — tablo süresiz büyüyebilir. Kod değiştirilmedi; bu bir hacim
@@ -1148,7 +1148,7 @@ değildir — koşum aşamasında doğrulanacak **şüphelerdir**.
   `docs/arsiv/fazlar/48-GUARDRAILS.md`'nin plan aşamasındaki doğrulama komutu (§"Doğrulama
   komutları", madde 5) gerçekleşmeyen bir filtreye dayanıyor (2026-08-10,
   ölçüldü, `22-GUARDRAIL-VE-YAPISAL-CIKTI.md` üretilirken).**
-  `src/AgentPrism.AspNetCore/Endpoints/RunEndpoints.cs:42-53`'teki
+  `src/Tracon.AspNetCore/Endpoints/RunEndpoints.cs:42-53`'teki
   `MapGet("/api/runs", ...)` imzası yalnız `agentName`, `status`, `kind`,
   `sessionId`, `startedAfter`, `includeChildren`, `parentRunId`, `rootRunId`,
   `skip`, `take` parametrelerini bağlar; `errorType` bunların hiçbirinde yok.
@@ -1163,7 +1163,7 @@ değildir — koşum aşamasında doğrulanacak **şüphelerdir**.
   gibi GERÇEKTEN bağlı bir parametreyle kontrol grubu oluşturarak) koşumda
   doğrulayan bir case olarak ekledi.
 - 🚨 **`RegexMatchTimeoutException`, guard'ın çalıştığı uç noktaların yakaladığı
-  üç istisna tipinden (`AgentPrismException`/`InvalidOperationException`/
+  üç istisna tipinden (`TraconException`/`InvalidOperationException`/
   `HttpRequestException`) HİÇBİRİNE uymuyor — potansiyel yakalanmamış `500`
   (2026-08-10, kod okumasıyla ölçüldü, `22-GUARDRAIL-VE-YAPISAL-CIKTI.md`
   üretilirken, KOŞULMADI).** `PatternContentGuard.cs`'deki beş
@@ -1174,7 +1174,7 @@ değildir — koşum aşamasında doğrulanacak **şüphelerdir**.
   motorunu 1000 ms sınırına zorlayabilir. Bu durumda fırlayan
   `RegexMatchTimeoutException` (`TimeoutException`'dan türer)
   `AgentEndpoints.cs`'in `ExecuteBufferedAsync`/`ExecuteStreamingAsync`
-  bloklarındaki `catch (Exception ex) when (ex is AgentPrismException or
+  bloklarındaki `catch (Exception ex) when (ex is TraconException or
   InvalidOperationException or HttpRequestException)` deseninin HİÇBİR dalına
   uymuyor gibi görünüyor — bu da SSE `error` boşluğu ailesinin (K-296, bkz.
   05/06/08 dosyalarındaki notlar) BEŞİNCİ bağımsız kök nedeni olabilir, ama bu
@@ -1183,11 +1183,11 @@ değildir — koşum aşamasında doğrulanacak **şüphelerdir**.
   kodunun döndüğünü İDDİA ETMİYOR. Kod değiştirilmedi; `MT-GUARD-054` bunu
   koşumda ÖLÇEN (doğrulamayan — sonuç önceden bilinmiyor) bir case olarak
   eklendi.
-- **`AgentPrism:ContentGuard:Pattern` bölümünde TEK bir alakasız anahtar
+- **`Tracon:ContentGuard:Pattern` bölümünde TEK bir alakasız anahtar
   (örn. yalnız `MaskReplacement`) bile `PatternContentGuard`'ı DI'a kaydeder
   — K1'in "kayıt = sıfır maliyet" denklemi incelmiş bir sınır taşır
   (2026-08-10, ölçüldü, `22-GUARDRAIL-VE-YAPISAL-CIKTI.md` üretilirken).**
-  `AgentPrismServiceCollectionExtensions.cs:178-185`'teki
+  `TraconServiceCollectionExtensions.cs:178-185`'teki
   `if (patternSection.Exists()) { services.TryAddEnumerable(...) }` kontrolü
   bölümün HERHANGİ bir alt anahtarının varlığına bakar, `DeniedTerms`/
   `MaskedPii`'nin DOLU olup olmadığına değil. Davranış aynı görünür (guard
@@ -1202,7 +1202,7 @@ değildir — koşum aşamasında doğrulanacak **şüphelerdir**.
   (2026-08-10, ölçüldü, `23-SAKLAMA-ARSIV-KOTA.md` üretilirken).** Aynı aile
   daha önce Workflow/Scheduling/Eval-Experiment/Governance/Knowledge/Approval
   uçlarında bulunmuştu (bkz. yukarıdaki notlar). `grep -n
-  "RequireApiKeyScope" src/AgentPrism.AspNetCore/Endpoints/{Retention,Quota}
+  "RequireApiKeyScope" src/Tracon.AspNetCore/Endpoints/{Retention,Quota}
   Endpoints.cs` sıfır sonuç döner — ikisi de yalnız `RequireRole(roles.Admin/
   .Reader)` taşır, ve rol politikaları örnek uygulamada hiç kayıtlı değildir.
   Bu örnek özellikle belirgin: `Retention`'ın `run` ucu gerçek bir **silme**
@@ -1232,7 +1232,7 @@ değildir — koşum aşamasında doğrulanacak **şüphelerdir**.
   yalnız `docs/manuel-test/`'i kapsar) — sonraki bir doküman bakım turu
   `36-SAKLAMA-HACIM-SINIRI.md`'nin K-260 bölümünü düzeltmelidir. `MT-RET-023`
   güncel (doğru) davranışı iki kiracıyla koşumda doğrular.
-- 🚨 **Faz 21'in hız sınırı (`AgentPrismRateLimitFilter`, 21.1) VE webhook/olay
+- 🚨 **Faz 21'in hız sınırı (`TraconRateLimitFilter`, 21.1) VE webhook/olay
   yayını (`WebhookEndpoints`, `IWebhookPublisher`, 21.3) dilimleri hiçbir
   manuel test dosyasına atanmamıştır (2026-08-10, `23-SAKLAMA-ARSIV-KOTA.md`
   üretilirken doğrulandı).** `23-SAKLAMA-ARSIV-KOTA.md` yalnız Faz 21'in
@@ -1249,12 +1249,12 @@ değildir — koşum aşamasında doğrulanacak **şüphelerdir**.
   kapatmalıdır.
 - 🚨 **`content_filtered` ile `content_blocked` farklı istisna sınıflarıdır ve
   karıştırılması kolaydır (2026-08-10, `24-TEST-PAKETI-VE-SABLON.md`
-  üretilirken ölçüldü).** `AgentPrismContentFilteredException` (`content_filtered`)
+  üretilirken ölçüldü).** `TraconContentFilteredException` (`content_filtered`)
   yalnız SAĞLAYICININ yanıtı kestiğini bildirir (Anthropic `refusal`, Gemini
   `SAFETY` — Faz 26); bir `IContentGuard`ın (örn. `PatternContentGuard`/`DeniedTerms`)
   içeriği kendi politikasıyla engellemesi **ayrı** bir tip olan
-  `AgentPrismContentBlockedException` (`content_blocked`) fırlatır
-  (`AgentPrism.Abstractions/AgentPrismException.cs:97,154`). İkisi kasıtlı
+  `TraconContentBlockedException` (`content_blocked`) fırlatır
+  (`Tracon.Abstractions/TraconException.cs:97,154`). İkisi kasıtlı
   ayrı tutulmuş (kod yorumu: "operatörün 'model reddetti' ile 'biz reddettik'
   arasındaki ayrımı kaybetmesine yol açardı") ama isim benzerliği yüzünden bir
   senaryo yazarının yanlış sabiti kullanması kolaydır — `MT-TEST-051` bu
@@ -1272,12 +1272,12 @@ değildir — koşum aşamasında doğrulanacak **şüphelerdir**.
   yalnız `string` dönen tool'lar kullandığı için bu belirsizliği tetiklemez.
   Kod değiştirilmedi; XML dokümanı ile gerçek davranış arasındaki bu küçük
   tutarsızlık ayrı bir not olarak bırakıldı.
-- **`AgentPrismDiagnosticsReport`nin GERÇEKLEŞEN API'si, Faz 33 planının 33.2
+- **`TraconDiagnosticsReport`nin GERÇEKLEŞEN API'si, Faz 33 planının 33.2
   tablosunda vaat ettiği bağlantı dizesi ayrıştırmasını (Host/Database alanları)
   TAŞIMAZ (2026-08-10, ölçüldü, `25-SAGLIK-TESHIS-OPENAPI.md` üretilirken).**
   Plan tablosu "Bağlantı dizesinin `Host` ve `Database` alanları YAZILIR,
-  `Password`/`User Id` YAZILMAZ" diyordu; gerçekleşen `AgentPrismDiagnosticsReport`
-  (`src/AgentPrism.Abstractions/Diagnostics/AgentPrismDiagnosticsReport.cs`)
+  `Password`/`User Id` YAZILMAZ" diyordu; gerçekleşen `TraconDiagnosticsReport`
+  (`src/Tracon.Abstractions/Diagnostics/TraconDiagnosticsReport.cs`)
   yalnız `PersistenceProvider` (düz sağlayıcı adı, örn. `"PostgreSQL"`) taşır —
   bağlantı dizesinin hiçbir alanı (Host dahil) ayrıştırılıp raporlanmaz. Bu bir
   `secret` sızıntısı DEĞİLDİR (daha az bilgi sızdırıyor, plandan sapma yönü
@@ -1285,26 +1285,26 @@ değildir — koşum aşamasında doğrulanacak **şüphelerdir**.
   sapmayı hiç yazmamış — plan metniyle gerçekleşen API arasında sessiz bir
   fark. Kod değiştirilmedi; `25-SAGLIK-TESHIS-OPENAPI.md` bu yüzden yalnız
   gerçekleşen alanları (`persistenceProvider` dahil) sınayan case'ler yazdı.
-- 🚨 **`AgentPrism.Testing.AgentPrismTestHost` `app.UseAuthentication()`/`UseAuthorization()`
+- 🚨 **`Tracon.Testing.TraconTestHost` `app.UseAuthentication()`/`UseAuthorization()`
   middleware'ini HİÇ eklemez (2026-08-10, kod okumasıyla ölçüldü,
-  `25-SAGLIK-TESHIS-OPENAPI.md` üretilirken).** `AgentPrismTestHost.cs`'in
-  `StartAsync`'i `builder.Build()` → `app.MapAgentPrism(...)` → `app.StartAsync()`
+  `25-SAGLIK-TESHIS-OPENAPI.md` üretilirken).** `TraconTestHost.cs`'in
+  `StartAsync`'i `builder.Build()` → `app.MapTracon(...)` → `app.StartAsync()`
   sırasını izler; ikisi arasında kimlik doğrulama/yetkilendirme middleware'i
   kurulmaz. `RequireRole(...)` çağrıları nihayetinde ASP.NET Core'un yerleşik
-  `RequireAuthorization(policy)`'sine dayanır (`AgentPrismEndpointRouteBuilderExtensions.cs:123`)
+  `RequireAuthorization(policy)`'sine dayanır (`TraconEndpointRouteBuilderExtensions.cs:123`)
   ve bu, adı geçen middleware'ler pipeline'da OLMADAN etkisizdir. Sonuç:
-  `AgentPrismTestHost` üzerinden rol tabanlı yetkilendirme (`Admin`/`Reader`/`Operator`)
-  **anlamlı biçimde test edilemez** — yalnız gerçek `samples/AgentPrism.Api` +
+  `TraconTestHost` üzerinden rol tabanlı yetkilendirme (`Admin`/`Reader`/`Operator`)
+  **anlamlı biçimde test edilemez** — yalnız gerçek `samples/Tracon.Api` +
   `13-KIRACI-VE-GUVENLIK.md` §8'in geçici `RoleTestAuthHandler` kurulumu bunu
   kanıtlayabilir. `25-SAGLIK-TESHIS-OPENAPI.md`'nin MT-DIAG-022 case'i bu
-  yüzden izlek B kullanır, izlek C değil. Bu, `AgentPrism.Testing`in KENDİ bir
+  yüzden izlek B kullanır, izlek C değil. Bu, `Tracon.Testing`in KENDİ bir
   kusuru değildir (bilinçli bir tasarım kapsam sınırı gibi görünüyor — fixture
-  HTTP boru hattını değil AgentPrism'in kendi zincirini test etmeyi
+  HTTP boru hattını değil Tracon'in kendi zincirini test etmeyi
   hedefliyor) ama paketin dokümanında/README'sinde şu an açıkça YAZILI
   DEĞİL; ileride bir tüketici bu sınırla karşılaşabilir.
   `ADAYLAR.md`'ye küçük bir doküman notu olarak eklenebilir
   (kodlama değil, bu oturumun kapsamı dışı).
-- **`docs/openapi/agentprism.json`'daki gerçek operasyon sayısı BUGÜN 143'tür,
+- **`docs/openapi/tracon.json`'daki gerçek operasyon sayısı BUGÜN 143'tür,
   Faz 40'ın kapanışta kaydettiği 121/123/124 değil (2026-08-10, ölçüldü,
   `25-SAGLIK-TESHIS-OPENAPI.md` üretilirken, Python ile `paths` sayıldı).**
   Bu beklenen bir kaymadır — Faz 40'tan (2026-08-07) bu yana 16 faz (41-56)

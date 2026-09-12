@@ -3,7 +3,7 @@
 > **Durum:** ✅ Tamamlandı (2026-08-07)
 > **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-32**
 > **Önkoşul:** Yok. Faz 8'in model boru hattı ve Faz 26'nın `ContentFilterDetectingChatClient`'ı **kullanılır**
-> **Paketler:** `AgentPrism.Abstractions`, `.Core`, `.AspNetCore`
+> **Paketler:** `Tracon.Abstractions`, `.Core`, `.AspNetCore`
 > **Yeni paket:** Yok — Azure adaptörü bilerek kapsam dışıdır ([48.6](#486--azure-ai-content-safety-bu-fazda-yok)) · **Migration:** Yok
 > **Public API:** büyüyor — bir arayüz, üç kayıt tipi, iki enum, bir ayar, bir kararlı hata tipi. Faz 7'den önce ucuz
 
@@ -26,7 +26,7 @@
 
 ## Amaç
 
-AgentPrism bugün içeriği **denetlemiyor**. Modele giden istem hiç süzülmüyor; modelden gelen yanıt yalnız sağlayıcının kendi filtresi kestiyse fark ediliyor. Regüle bir sektörde bu, satın almanın önündeki kapıdır. Bu faz bir **genişleme noktası** verir: `IContentGuard`.
+Tracon bugün içeriği **denetlemiyor**. Modele giden istem hiç süzülmüyor; modelden gelen yanıt yalnız sağlayıcının kendi filtresi kestiyse fark ediliyor. Regüle bir sektörde bu, satın almanın önündeki kapıdır. Bu faz bir **genişleme noktası** verir: `IContentGuard`.
 
 ## Plandan Sapmalar
 
@@ -41,7 +41,7 @@ AgentPrism bugün içeriği **denetlemiyor**. Modele giden istem hiç süzülmü
 
 | Kanıt | Ölçüm (2026-08-07) |
 |---|---|
-| `grep -rn "UseFunctionInvocation" src/` | Dört sağlayıcı fabrikası bunu **kendi içinde** kuruyordu: [OpenAI:78](../../../src/AgentPrism.OpenAI/OpenAIChatClientFactory.cs), Anthropic:129, Google:122, Azure:112 — artı `AgentPrism.Testing/FakeModelProvider:221` |
+| `grep -rn "UseFunctionInvocation" src/` | Dört sağlayıcı fabrikası bunu **kendi içinde** kuruyordu: [OpenAI:78](../../../src/Tracon.OpenAI/OpenAIChatClientFactory.cs), Anthropic:129, Google:122, Azure:112 — artı `Tracon.Testing/FakeModelProvider:221` |
 | Sonuç | `ModelProviderRegistry`'nin sardığı **her halka** tool çağrı döngüsünün DIŞINDA kalıyordu |
 
 Planın "en dışta" dediği yer bir agent turu başına **tek** model çağrısı görür.
@@ -94,7 +94,7 @@ tool döngüsü aynı eki beş kez okurdu.
 Guard artık döngünün içinde, devre kesici ise dışında. Bir engelleme
 `CircuitBreakingChatClient`'ın `catch (Exception)` bloğuna ulaşıyordu ve
 **ardışık hata sayılıyordu** — planın "engelleme devre kesiciyi tetiklemez"
-gereksinimi düşerdi. Çözüm bir `catch (AgentPrismContentBlockedException)`
+gereksinimi düşerdi. Çözüm bir `catch (TraconContentBlockedException)`
 ayıklamasıdır; gerekçe `ContentFilterDetectingChatClient`'ı devre kesicinin
 dışında tutan gerekçenin aynısıdır: bir politika kararı sağlayıcı arızası
 değildir.
@@ -106,10 +106,10 @@ ile **her zaman** kaydedilsin, (b) hiç guard kayıtlı değilken maliyet **tam
 sıfır** olsun. Yerleşik guard her zaman kayıtlıysa `IEnumerable<IContentGuard>`
 asla boş olmaz ve (b) **ölçülemez**.
 
-**👤 Kullanıcı kararı: kayıt opt-in oldu.** `AddAgentPrism()` hiçbir guard
+**👤 Kullanıcı kararı: kayıt opt-in oldu.** `AddTracon()` hiçbir guard
 kaydetmez. `PatternContentGuardOptions.Enabled` bayrağı **hiç yazılmadı**:
 kaydın kendisi kapıdır. İki açma yolu vardır ve ikisi de açık tercihtir —
-`builder.AddPatternContentGuard(...)` veya `AgentPrism:ContentGuard:Pattern`
+`builder.AddPatternContentGuard(...)` veya `Tracon:ContentGuard:Pattern`
 bölümünü doldurmak.
 
 Guard'ı kayıtlı bırakıp etkisizleştirmek gerekirse `DeniedTerms` boşaltılır ve
@@ -147,7 +147,7 @@ her engelleme `Unknown` kovasına düşerdi — Faz 44'ün panosunda sessiz bir 
 | Kusur | Nasıl bulundu | Düzeltme |
 |---|---|---|
 | 🚨 Sarmalayıcı **iç istemcinin nesnelerini yerinde değiştiriyordu** (`ChatResponseUpdate.Contents`, `ChatMessage.Contents`) | `ContentGuardStreamingTests` iki testte paylaşılan statik bir çerçeve listesi kullandı; maskeleme testi listeyi kalıcı olarak bozdu ve engelleme testi bir sonraki koşumda düştü | Artık her şey `Clone()` ile kopyalanır: sahibi olmadığımız nesne değiştirilmez. Önbellekleyen bir `IChatClient` aynı örneği yeniden verebilir; yerinde değiştirme o örneği kalıcı olarak bozardı |
-| TC kimlik kontrol basamağı **onuncu basamağı da toplamlara katıyordu** | `PatternGuardTurkishIdTests` — geçerli bir numara maskelenmedi | Yalnız ilk **dokuz** basamak tek/çift toplamlarına girer; onuncu basamak kendi formülünün girdisi olamaz ([`CheckDigits.cs`](../../../src/AgentPrism.Core/Guards/CheckDigits.cs)) |
+| TC kimlik kontrol basamağı **onuncu basamağı da toplamlara katıyordu** | `PatternGuardTurkishIdTests` — geçerli bir numara maskelenmedi | Yalnız ilk **dokuz** basamak tek/çift toplamlarına girer; onuncu basamak kendi formülünün girdisi olamaz ([`CheckDigits.cs`](../../../src/Tracon.Core/Guards/CheckDigits.cs)) |
 
 ### S7 — Küçük sapmalar
 
@@ -160,13 +160,13 @@ her engelleme `Unknown` kovasına düşerdi — Faz 44'ün panosunda sessiz bir 
   Yazılan alanlar: guard adı, kural adı, yön, karar, çalıştırma kimliği, kiracı.
 - **`PatternContentGuardOptions.MaskReplacement` eklendi** (planda yoktu). Maske
   metnini sabitlemek, `[redacted]` dizesini bekleyen bir tüketiciyi kilitlerdi.
-- **`AgentPrismContentGuardOptions` ayrı bir sınıf oldu.** Plan
+- **`TraconContentGuardOptions` ayrı bir sınıf oldu.** Plan
   `InspectInput`/`InspectOutput`/`BufferStreamingOutput`'u
   `PatternContentGuardOptions` içine koyuyordu; bunlar **boru hattı** ayarlarıdır
   ve yerleşik guard'a değil sarmalayıcıya aittir. Özel bir guard yazan tüketici de
   onlara tabidir.
-- **`AgentPrismContentBlockedException.GuardName`/`Direction` `required` DEĞİL.**
-  Kardeş istisnalarla (`AgentPrismContentFilteredException.ProviderName`) aynı
+- **`TraconContentBlockedException.GuardName`/`Direction` `required` DEĞİL.**
+  Kardeş istisnalarla (`TraconContentFilteredException.ProviderName`) aynı
   desen korundu; `required` üye, `CA1032`'nin istediği üç kurucunun hepsini
   çağrılamaz hâle getirirdi.
 
@@ -181,7 +181,7 @@ Numaralar `docs/KARARLAR.md`'ye yazıldı: **K-320 … K-326**.
 | K-320 | Model boru hattının tamamını `ModelProviderRegistry` kurar | `IModelProvider` ham istemci döndürür. Ölçüldü: `UseFunctionInvocation()` dört sağlayıcı paketinin içindeydi ve defterin sardığı hiçbir halka tool turlarını göremiyordu |
 | K-321 | Guard `IChatClient` katmanındadır ve tool döngüsünün **içindedir** | Bir tool sonucu modele ikinci çağrıda girer; `IAgentDecorator` ve döngü dışı bir halka onu görmez |
 | K-322 | Devre kesici içerik engellemesini hata **saymaz** | Engelleme sağlayıcı arızası değildir; istek ağa hiç çıkmadı. `ContentFilterDetectingChatClient`'ın gerekçesinin aynısı |
-| K-323 | 👤 K1'in kapısı **kayıttır**, bir `Enabled` bayrağı değil | `AddAgentPrism()` hiç guard kaydetmez → sarmalayıcı eklenmez → ölçülen maliyet farkı sıfır (736 B temel). Faz 43/46'nın "açık" yorumundan farkı: orada başlığı göndermeyen istemcinin maliyeti sıfırdı; burada guard **her istekte** çalışır ve davranışı değiştirir |
+| K-323 | 👤 K1'in kapısı **kayıttır**, bir `Enabled` bayrağı değil | `AddTracon()` hiç guard kaydetmez → sarmalayıcı eklenmez → ölçülen maliyet farkı sıfır (736 B temel). Faz 43/46'nın "açık" yorumundan farkı: orada başlığı göndermeyen istemcinin maliyeti sıfırdı; burada guard **her istekte** çalışır ve davranışı değiştirir |
 | K-324 | 👤 `422` yalnızca akışsız dalda döner | SSE başlıkları çalıştırma başlamadan gönderilir; akışlı yolda durum kodu değiştirilemez |
 | K-325 | Engellenen içerik hiçbir yere yazılmaz | Denetim izi ve olay yükü yalnız guard/kural/yön taşır. K-059'un ruhu; iki ayrı test `grep -c` = 0 doğrular |
 | K-326 | `RunErrorClass.ContentBlocked` `ContentFiltered`'dan ayrıdır | "Model reddetti" ile "bizim politikamız reddetti" farklı sebepler ve farklı eylemlerdir |
@@ -227,10 +227,10 @@ denetimin kendi kurulumudur.
 - [x] Geçersiz Luhn kontrollü 16 haneli sayı **maskelenmez** (gerçek koşumda
       `ContentMasked` olay sayısı = 0)
 - [x] Patolojik girdi `matchTimeout` ile durur
-- [x] 🚨 `AgentPrism.Core` AOT uyarısı üretmez; her desen `[GeneratedRegex]`
+- [x] 🚨 `Tracon.Core` AOT uyarısı üretmez; her desen `[GeneratedRegex]`
 - [x] **Tahsis ölçümü yapıldı** — dört yapılandırma, yukarıdaki tabloda
 - [x] Dört doğrulama kapısı sıfır uyarı verir (iki bilinen istisna aşağıda)
-- [x] `samples/AgentPrism.Api` ile gerçek `run` yapıldı — çıktılar aşağıda
+- [x] `samples/Tracon.Api` ile gerçek `run` yapıldı — çıktılar aşağıda
 - [x] `secret` taraması boş döndü
 - [x] `en.ts` ve `tr.ts` eksiksiz; bundle payı **+0,1 KB gzip** (159,3 → 159,4 KB;
       bütçe 250 KB, kalan **90,6 KB**)
@@ -241,11 +241,11 @@ Hiçbiri bu fazın kodundan kaynaklanmıyor; ikisi de kanıtla doğrulandı.
 
 | İstisna | Kanıt |
 |---|---|
-| `AgentPrism.SqlServer.IntegrationTests` — 22 test, fixture `mssql/server` konteynerini başlatamıyor (`TimeoutException`) | Faz 23'ten miras **açık kalem** (K-186), [`docs/arsiv/fazlar/23-SQL-SERVER.md`](23-SQL-SERVER.md#açık-kalan--gerçek-mssqlserver-hâlâ-koşturulamadı) |
+| `Tracon.SqlServer.IntegrationTests` — 22 test, fixture `mssql/server` konteynerini başlatamıyor (`TimeoutException`) | Faz 23'ten miras **açık kalem** (K-186), [`docs/arsiv/fazlar/23-SQL-SERVER.md`](23-SQL-SERVER.md#açık-kalan--gerçek-mssqlserver-hâlâ-koşturulamadı) |
 | `PostgresEvalStoreContractTests.AddCaseAsync_es_zamanli_terfiler_farkli_seq_uretir` — `5 denemede sira numarasi atanamadi` | 🚨 **Faz 45 kusuru, HEAD'de de var.** `e48fb03` için ayrı bir worktree kuruldu; aynı test **izole koşumda orada da düşüyor** (`--filter-method "*AddCaseAsync_es_zamanli*"`). Tam takımda geçip geçmemesi zamanlamaya bağlıdır. `SqlEvalStore.AddCaseAsync`'in 5 denemelik yeniden deneme sınırı gerçek eş zamanlılıkta meşru olarak tükeniyor |
-| `UiTests.Playground_konusma_modu_mikrofonu_acar_ve_transkript_gosterir` — `waiting for GetByTestId("voice-transcript")` 30 sn zaman aşımı | 🚨 **Bayat test, bu fazın kodundan bağımsız.** Ölçüm: yalnız `src/AgentPrism.UI/frontend` HEAD'e alınıp arayüz yeniden derlendiğinde test **üç denemeden ikisinde yine düşüyor**. Aynı takım bu oturumda daha önce 41/41 geçmişti. Chromium'un sahte medya cihazı sürekli ton üretir; commit ile sunucunun transkript yanıtı arasında bir yarış var |
+| `UiTests.Playground_konusma_modu_mikrofonu_acar_ve_transkript_gosterir` — `waiting for GetByTestId("voice-transcript")` 30 sn zaman aşımı | 🚨 **Bayat test, bu fazın kodundan bağımsız.** Ölçüm: yalnız `src/Tracon.UI/frontend` HEAD'e alınıp arayüz yeniden derlendiğinde test **üç denemeden ikisinde yine düşüyor**. Aynı takım bu oturumda daha önce 41/41 geçmişti. Chromium'un sahte medya cihazı sürekli ton üretir; commit ile sunucunun transkript yanıtı arasında bir yarış var |
 
-### Gerçek koşum çıktıları (`samples/AgentPrism.Api`, gerçek OpenAI modeli)
+### Gerçek koşum çıktıları (`samples/Tracon.Api`, gerçek OpenAI modeli)
 
 ```bash
 # guard ayari: MaskedPii = CreditCard | Email | ProviderApiKey, DeniedTerms = ["gizli-proje"]
@@ -296,7 +296,7 @@ $ curl -s ".../api/audit?action=content.blocked" | grep -c "gizli-proje"
 # 10) AKISLI (varsayilan SSE) yolda engelleme -> error olayi
 event: run
 event: error
-data: {"type":"AgentPrismContentBlockedException","message":"Icerik 'pattern' guard'i tarafindan engellendi…"}
+data: {"type":"TraconContentBlockedException","message":"Icerik 'pattern' guard'i tarafindan engellendi…"}
 ```
 
 ---
@@ -317,7 +317,7 @@ data: {"type":"AgentPrismContentBlockedException","message":"Icerik 'pattern' gu
   dışında mı** olacağına karar verir. Karar ölçütü: her model çağrısını görmesi
   gerekiyorsa içeri (guard gibi), agent turu başına bir kez yeterliyse dışarı
   (devre kesici, ek çözme gibi).
-- **`AgentPrismContentBlockedException`** `content_blocked` kararlı kimliğini ve
+- **`TraconContentBlockedException`** `content_blocked` kararlı kimliğini ve
   `RunErrorClass.ContentBlocked` sınıfını taşır.
 
 ### Bilinen tuzaklar
@@ -352,7 +352,7 @@ ID'ler `ADAYLAR.md` içinde **F-87'den** devam eder.
 
 | Kapsam dışı iş | Neden ayrı bir kalem |
 |---|---|
-| **Azure AI Content Safety adaptörü** | Ölçüldü: `Azure.AI.ContentSafety` 1.0.0 → **4 geçişli paket**. Erteleme gerekçesi ağırlık **değil**, doğrulanamazlıktır (K-212 emsali): gerçek bir Azure kaynağı olmadan sahte istemciden öteye test edilemez. Ayrı paket olacaktır: `AgentPrism.ContentSafety`. Kanca doğru olduğu için adaptör otuz satırdır |
+| **Azure AI Content Safety adaptörü** | Ölçüldü: `Azure.AI.ContentSafety` 1.0.0 → **4 geçişli paket**. Erteleme gerekçesi ağırlık **değil**, doğrulanamazlıktır (K-212 emsali): gerçek bir Azure kaynağı olmadan sahte istemciden öteye test edilemez. Ayrı paket olacaktır: `Tracon.ContentSafety`. Kanca doğru olduğu için adaptör otuz satırdır |
 | 🚨 **Kayıtlardaki hassas verinin redaksiyonu** | Guard model sınırındadır; `run_events.RunStarted`, `run_inputs` ve oturum geçmişi ham metni saklar. Bu **ayrı bir sözleşmedir**: hangi kayıt, hangi anda ve geri alınamaz biçimde mi temizlenecek? Faz 45'in eval terfisi ve Faz 47'nin yeniden oynatması ham girdiye **bağımlıdır**; redaksiyon ikisini de bozar ve önce o çatışma karara bağlanmalıdır |
 | **Tool argümanı denetimi** | Guard model sınırındadır; bir tool'un **argümanını** çağrıdan önce denetlemek **F-61**'in işidir ve o kalem listede duruyor |
 | **Guard kararının transcript'te gösterilmesi** | Bu faz iki olay tipini ham olay akışına ekledi; katlanmış transcript görünümü (`transcript.ts`) onları göstermiyor. `compaction` için var olan "sistem konuşmayı değiştirdi" öğesinin kardeşi gerekir — yeni bir öğe tipi, bileşen ve sözlük anahtarları |

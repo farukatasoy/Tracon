@@ -28,7 +28,7 @@
 
 ## Amaç
 
-AgentPrism'in doküman disiplini **bütçeli bölgede çalışıyor, muaf bölgede çalışmıyor.** Bir oturum `AGENTS.md` (228 satır) + `MEMORY.md` (103) + faz dokümanı ile başlıyor; `docs/hafiza/` alan bazlı ve çakışmasız. Buna karşılık `docs/`'un **%62'si (89.569 satır)** hiçbir tavana tabi değil.
+Tracon'in doküman disiplini **bütçeli bölgede çalışıyor, muaf bölgede çalışmıyor.** Bir oturum `AGENTS.md` (228 satır) + `MEMORY.md` (103) + faz dokümanı ile başlıyor; `docs/hafiza/` alan bazlı ve çakışmasız. Buna karşılık `docs/`'un **%62'si (89.569 satır)** hiçbir tavana tabi değil.
 
 ## Bitiş Ölçütleri (DoD)
 
@@ -73,7 +73,7 @@ python3 scripts/dokuman-bakim.py && diff /tmp/yh-once.md docs/YOL-HARITASI.md
 git show $(git log -1 --format=%H -- docs/arsiv/fazlar/00-ALTYAPI.md):docs/arsiv/fazlar/00-ALTYAPI.md | head -20
 
 # Sürüm kayması yok
-dotnet build AgentPrism.slnx -c Release
+dotnet build Tracon.slnx -c Release
 ```
 
 ---

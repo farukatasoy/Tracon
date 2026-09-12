@@ -17,13 +17,13 @@
   farkli icerik AYNI `<id, version>` ciftini adlandirir. Olculdu (2026-09-03):
   `src/Directory.Build.props`'a commit'siz bir satir eklemek `.nuspec`'te
   YALNIZ `<projectUrl>`'i degistirdi, `<repository commit="...">` AYNI kaldi.
-  Cozum `Directory.Build.targets`'teki `AgentPrismValidateCleanWorkingTree`
-  hedefi (`BeforeTargets="GenerateNuspec"`, aynen `AgentPrismValidatePackageReadme`
+  Cozum `Directory.Build.targets`'teki `TraconValidateCleanWorkingTree`
+  hedefi (`BeforeTargets="GenerateNuspec"`, aynen `TraconValidatePackageReadme`
   gibi - yalniz `pack` yolunda kosar, `build`/`test`'i KIRMAZ): `git status
-  --porcelain` bos degilse `AGENTPRISM0004` ile durur. **Untracked dosya da
+  --porcelain` bos degilse `TRACON0004` ile durur. **Untracked dosya da
   kirli sayilir** - SDK'nin varsayilan `Compile` glob'u `**/*.cs` oldugu icin
   takip edilmeyen bir `.cs` dosyasi PAKETE GIREBILIR. Override
-  (`AgentPrismAllowDirtyPack=true`) surumu OTOMATIK turetmez - `dirty` tasiyan
+  (`TraconAllowDirtyPack=true`) surumu OTOMATIK turetmez - `dirty` tasiyan
   ACIK bir `MinVerVersionOverride` ister (`0.0.0-dirty.<ad>`, her zaman temiz
   surumun ALTINDA sıralanır) ve CI'da (`CI=true` veya
   `ContinuousIntegrationBuild=true`) HIC calismaz.
@@ -31,7 +31,7 @@
   (2026-09-09): `ci.yml`'in `env` blogu `NUGET_PACKAGES`'i
   `${{ github.workspace }}/.nuget/packages` yapar, yani `restore` repo kokunde
   `.nuget/` uretir. `.nuget/` ignore EDILMIYORDU; kapi untracked dosyayi da
-  kirli saydigi icin `pack` ve `yayin provasi` isleri yirmi `AGENTPRISM0004` ile
+  kirli saydigi icin `pack` ve `yayin provasi` isleri yirmi `TRACON0004` ile
   dustu. Gelistirici makinesinde `NUGET_PACKAGES` repo DISINDA oldugu icin
   hata yerelde HIC gorunmez - Linux'ta, `CI=true` ile, taze klonda bile.
   `WorkflowWorkspacePathsTests` artik `ci.yml`'i okuyup her
@@ -39,15 +39,15 @@
 - **🚨 Kirli GIRDILER hata mesajinda durur** (2026-09-09): `git status` cikti
   onemi `low`'dur, yani loga HIC girmez, ve kapi her paketlenebilir proje icin
   bir kez koşar. Girdiler mesajda olmazsa CI'da yirmi ayni cumle gorunur ve
-  hangi dosyanin kirlendigi OGRENILEMEZ. `AgentPrismDirtyEntries` bunu tasir;
+  hangi dosyanin kirlendigi OGRENILEMEZ. `TraconDirtyEntries` bunu tasir;
   `PackCleanlinessGateTests` marker adinin mesajda gorundugunu kilitler.
 - **🚨 Bu kapı, iterasyon için commit isteyen çağıranları da yakalar** (Faz
   136, bağımsız denetim 🔴#1). `kapi.py kapanis`'in kendi pack adımı ve
-  `AgentPrism.Package.Tests`'in `TemplateFixture`/`ReleaseArtifactFixture`'ı
-  gerçek `dotnet pack "AgentPrism.src.slnf"` çalıştırır - bunlar paketleme
+  `Tracon.Package.Tests`'in `TemplateFixture`/`ReleaseArtifactFixture`'ı
+  gerçek `dotnet pack "Tracon.src.slnf"` çalıştırır - bunlar paketleme
   SÖZLEŞMESİNİ (README, icon, K-008) doğrular, bir yayın adayı üretmez, ama
   repo commit'i yalnız kullanıcı isteyince atılır. **Çözüm:**
-  `AgentPrismSkipCleanWorkingTreeCheck=true` - kapıyı TAMAMEN atlar, yalnız bu
+  `TraconSkipCleanWorkingTreeCheck=true` - kapıyı TAMAMEN atlar, yalnız bu
   üç iç araç noktasının kendi `dotnet pack` çağrısına eklenmiştir (K-661). Yeni
   bir çağıran noktasına eklemek (insanın DOĞRUDAN kullanması dahil) bu kararı
   ihlal eder. `PackCleanlinessGateTests` (aynı test projesinde) gerçek kapıyı
@@ -95,7 +95,7 @@
   sürüm yayınlanan hiçbir sürümle çakışmaz. Tüketiciyi hızlandırmak için
   fazladan `v*` etiketi **atılmamalıdır**: nuget.org'a giden sürüm kalıcıdır
   (unlist edilir, silinmez) ve 20 paketin public sürüm listesini kirletir.
-- **🚨 Tüketicinin `packageSourceMapping`'i opsiyonel DEĞİLDİR.** `AgentPrism*`
+- **🚨 Tüketicinin `packageSourceMapping`'i opsiyonel DEĞİLDİR.** `Tracon*`
   yerel feed'e map'lenmezse aile yayınlandığı gün nuget.org'daki sürüm
   **sessizce** kazanır ve tüketici yerel değişikliği görmeyi bırakır — hiçbir
   uyarı çıkmaz.
@@ -107,7 +107,7 @@
   yolunda zaten reddeder.
 - **Feed yolu tüketicinin `NuGet.config`'ine GÖRELİ yazılır** — mutlak yol
   commit edilirse tüketici başka makinede restore edilemez.
-- **İterasyon komutu `dotnet pack AgentPrism.src.slnf -c Release`'tir**; çıktı
+- **İterasyon komutu `dotnet pack Tracon.src.slnf -c Release`'tir**; çıktı
   `UseArtifactsOutput` ile doğrudan `artifacts/package/release/`'e düşer.
   `kapi.py yayin` bu döngünün aracı **değildir** (yayın provasıdır). Çözüm
   dosyası seçimi ve kirli ağaç kapısı yukarıda kayıtlıdır.

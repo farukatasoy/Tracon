@@ -29,22 +29,22 @@
 
 ## Amaç
 
-AgentPrism'in doküman kapıları yeşil rapor veriyor ama iddia ettikleri şeyi kanıtlamıyor. Üç yerde ölçüldü: senkron kapısı **herhangi** bir sayfanın değişmesini **tüm** kuralların karşılığı sayıyor, bir kural yanlış sayfaya yönlendiriyor, ve sevk edilen sayfalardaki site bağlantılarını hiçbir şey çözmüyor.
+Tracon'in doküman kapıları yeşil rapor veriyor ama iddia ettikleri şeyi kanıtlamıyor. Üç yerde ölçüldü: senkron kapısı **herhangi** bir sayfanın değişmesini **tüm** kuralların karşılığı sayıyor, bir kural yanlış sayfaya yönlendiriyor, ve sevk edilen sayfalardaki site bağlantılarını hiçbir şey çözmüyor.
 
 ## Bitiş Ölçütleri (DoD)
 
 - [x] `--site-denetle` **kural başına** eşleşir: tetiklenen her kuralın hedefi değişenler arasında yoksa çıkış kodu **1** — `_kural_eslesmesi`; Case 1/2 elle doğrulandı (aşağıda)
 - [x] Rapor karşılanmayan her kuralı **adıyla, hedefiyle ve tetikleyen dosyasıyla** yazar
 - [x] `--site-gerekce-yazildi` ile geçilen kurallar rapora **tek tek** yazılır
-- [x] `src/AgentPrism.Core/buildTransitive/` değişimi **`capabilities.md`**'yi ister — Case 3 elle doğrulandı
-- [x] `kirik_baglantilar()` `.mdx` okur ve site-mutlak (`/...`) bağlantıları çözer; frontmatter `slug:` dikkate alınır — **plan `/AgentPrism/` öneki varsayıyordu, bu artık geçersiz** (bkz. Plandan Sapmalar, K-549)
+- [x] `src/Tracon.Core/buildTransitive/` değişimi **`capabilities.md`**'yi ister — Case 3 elle doğrulandı
+- [x] `kirik_baglantilar()` `.mdx` okur ve site-mutlak (`/...`) bağlantıları çözer; frontmatter `slug:` dikkate alınır — **plan `/Tracon/` öneki varsayıyordu, bu artık geçersiz** (bkz. Plandan Sapmalar, K-549)
 - [x] Bugünkü depoda çözülemeyen site bağlantısı **0** — ölçüldü: 201 site-mutlak bağlantı (40'ı `api`/`http-api` içine, denetim dışı), kalan 161'i (156 slug + 5 dosya) **0 kırık**
 - [x] `scripts/dokuman_bakim_test.py` yazıldı (ALT ÇİZGİ — bkz. Plandan Sapmalar, K-550); `python3 -m unittest discover -s scripts -p "*_test.py"` → **23/23 yeşil**
 - [x] Eşleme mantığı **saf fonksiyona** ayrıldı (`_kural_eslesmesi`, `_slug_hesapla`); testi `git` veya dosya sistemi istemez
 - [x] `ci.yml`'nin **`build`** işine `--denetle` ve `unittest` eklendi; `site` işine (bu repoda `pages` diye bir iş yok, K-542'den beri `site`) **eklenmedi**
 - [x] `tuketici-dokuman-senkronu` SKILL.md Adım 5 güncellendi
 - [x] Dört doğrulama kapısı sıfır uyarı verir — build/format/test/pack, aşağıda
-- [x] `samples/AgentPrism.Api` ile gerçek `run` yapıldı — bu faz `src/`'a hiç dokunmadı, HTTP davranışı değişmedi; smoke-test: `GET /openapi/v1.json` → `200`, uygulama sorunsuz kapandı
+- [x] `samples/Tracon.Api` ile gerçek `run` yapıldı — bu faz `src/`'a hiç dokunmadı, HTTP davranışı değişmedi; smoke-test: `GET /openapi/v1.json` → `200`, uygulama sorunsuz kapandı
 - [x] `secret` taraması boş döndü — bu fazın dokunduğu dosyalarda; repodaki önceden var olan yerel test `Password=`/`sk-` literalleri bu fazdan bağımsızdır (Faz 79 emsaliyle aynı kapsam)
 - [x] Manuel kabul case'leri `docs/manuel-test/33-DOKUMAN-KAPILARI.md` içine eklendi (**`31-DOKUMAN-DOGRULUGU.md` DEĞİL** — bkz. Plandan Sapmalar); Case 1–4 koşuldu, Case 5 👤
 - [x] `faz-denetim` koşuldu; 3× 🔴 bulundu ve **kapatıldı**, 4× 🟡 gerekçelendi/kapatıldı — bkz. Denetim Bulguları
@@ -62,10 +62,10 @@ OK
 $ awk '/^  build:/{j="build"} /^  site:/{j="site"} /dokuman-bakim/{print j": "$0}' .github/workflows/ci.yml
 build:         run: python3 scripts/dokuman-bakim.py --denetle
 
-$ dotnet build AgentPrism.slnx -c Release   # 0 Warning(s), 0 Error(s)
-$ dotnet format AgentPrism.slnx --verify-no-changes --no-restore   # exit 0
-$ dotnet test AgentPrism.slnx -c Release --no-build   # tüm projeler yeşil (bu fazdan önce koşuldu, src/ değişmedi)
-$ dotnet pack AgentPrism.slnx -c Release --no-build   # 119 nupkg üretildi
+$ dotnet build Tracon.slnx -c Release   # 0 Warning(s), 0 Error(s)
+$ dotnet format Tracon.slnx --verify-no-changes --no-restore   # exit 0
+$ dotnet test Tracon.slnx -c Release --no-build   # tüm projeler yeşil (bu fazdan önce koşuldu, src/ değişmedi)
+$ dotnet pack Tracon.slnx -c Release --no-build   # 119 nupkg üretildi
 ```
 
 ---
@@ -82,14 +82,14 @@ $ dotnet pack AgentPrism.slnx -c Release --no-build   # 119 nupkg üretildi
    alan-başına kapanış varsayımını bozardı. Yeni dosya `33-DOKUMAN-KAPILARI.md`
    (`DKP`, Faz 80) açıldı, `00-INDEKS.md`'nin durum tablosuna satır eklendi.
 
-2. **`docs-site/site.config.mjs`'in `base`'i artık `/AgentPrism/` DEĞİL, `/`.**
-   Plan §80.3 site-mutlak bağlantıları `/AgentPrism/...` öneki varsayarak
+2. **`docs-site/site.config.mjs`'in `base`'i artık `/Tracon/` DEĞİL, `/`.**
+   Plan §80.3 site-mutlak bağlantıları `/Tracon/...` öneki varsayarak
    tarif ediyordu. Ölçüldü: `base` K-542'de (bu fazdan önce, aynı gün) kalıcı
    olarak `/` yapılmıştı — özel repo GitHub Pages'i kullanamadığı için site
-   artık `agentprism.doayen.web.tr`'de kendi sunucusunda barınıyor ve alt yol
+   artık `tracon.dev`'de kendi sunucusunda barınıyor ve alt yol
    barındırıcının değil, hedefin özelliği değil. Uygulama bu gerçeğe göre
    yapıldı: `/reference/compatibility/`, `/capabilities/` gibi bare kök-mutlak
-   yollar çözülüyor, `/AgentPrism/` öneki hiçbir yerde aranmıyor (zaten yok).
+   yollar çözülüyor, `/Tracon/` öneki hiçbir yerde aranmıyor (zaten yok).
 
 3. **Test dosyası `dokuman_bakim_test.py` (ALT ÇİZGİ), plandaki
    `dokuman-bakim_test.py` (TİRE) DEĞİL.** Ölçüldü: `unittest discover`'ın
@@ -136,12 +136,12 @@ $ dotnet pack AgentPrism.slnx -c Release --no-build   # 119 nupkg üretildi
 | # | Bulgu | Seviye | Sonuç |
 |---|---|---|---|
 | 1 | `denetle()` içinde `kirik_baglantilar()` sonucu `hata`'ya hiç katılmıyordu — kırık bağlantı sayısından bağımsız olarak `--denetle` çıkış kodu 0 kalıyordu (Faz 77'den kalma, bu faz CI'ya bağladığı için canlıya taşıyordu) | 🔴 | **Düzeltildi** — `hata \|= int(bool(kirik))` eklendi, düzeltmeyi kanıtlayan test (`test_kirik_baglanti_varsa_cikis_kodu_1`) eklendi |
-| 2 | `kirik_baglantilar()`'ın uzantılı-hedef dalı `http-api.md`'deki `/openapi/agentprism.json` bağlantısını `docs-site/public/openapi/agentprism.json` dosya varlığıyla çözüyordu — bu dosya `.gitignore`'da ve yalnız `site` işinin `npm run build` zincirinde üretiliyor; `build` işinde her zaman kalıcı yanlış pozitif üretecekti (Bulgu #1 düzeltilince ortaya çıkacaktı) | 🔴 | **Düzeltildi** — `openapi` `SITE_URETILEN_HEDEF`'e eklendi, kanıtlayan test (`test_uretilmeyen_openapi_dosyasi_hedef_olarak_denetim_disi`) eklendi |
+| 2 | `kirik_baglantilar()`'ın uzantılı-hedef dalı `http-api.md`'deki `/openapi/tracon.json` bağlantısını `docs-site/public/openapi/tracon.json` dosya varlığıyla çözüyordu — bu dosya `.gitignore`'da ve yalnız `site` işinin `npm run build` zincirinde üretiliyor; `build` işinde her zaman kalıcı yanlış pozitif üretecekti (Bulgu #1 düzeltilince ortaya çıkacaktı) | 🔴 | **Düzeltildi** — `openapi` `SITE_URETILEN_HEDEF`'e eklendi, kanıtlayan test (`test_uretilmeyen_openapi_dosyasi_hedef_olarak_denetim_disi`) eklendi |
 | 3 | Yeni `33-DOKUMAN-KAPILARI.md`'nin Case 4 satırı kod-span içinde gerçek bir Markdown bağlantı sözdizimi (görünen metin "kırık", hedef `/yok-boyle-sayfa/`) yazmıştı; `kirik_baglantilar()`'ın regex'i kod-span'dan habersiz olduğu için kendi belgesi kendi "0 kırık" iddiasını çürütüyordu | 🔴 | **Düzeltildi** — satır prose'a çevrildi, gerçek bağlantı sözdizimi kalmadı; `--denetle` yeniden koşuldu, 0 kırık |
 | 4 | Faz dokümanının üst metadata satırı ve DoD checkbox metni hâlâ `31-DOKUMAN-DOGRULUGU.md`'yi gösteriyordu (gerçek hedef `33-DOKUMAN-KAPILARI.md`) | 🟡 | **Düzeltildi** — üst metadata, "Manuel Kabul Case'leri" bölümü ve DoD satırı gerçek dosyayı gösterecek şekilde güncellendi; Plandan Sapmalar #1'e yazıldı |
 | 5 | "Planlanan Dosya Listesi" `dokuman-bakim_test.py` (tire) diyordu, gerçek dosya `dokuman_bakim_test.py` (alt çizgi) — sapma gerekçeli ve doğru (planın önerdiği adla test hiç koşmazdı) | 🟡 | **Gerekçelendi** — Plandan Sapmalar #3'e ve K-550'ye yazıldı; "Planlanan Dosya Listesi" plan bölümü olduğu için değiştirilmedi, "Dosya Listesi (gerçekleşen)" gerçek adı taşır |
 | 6 | Site-mutlak bağlantı çözümü tüm repodaki `.md`/`.mdx` dosyalarına uygulanıyor, plan metni kapsamı "yalnız elle yazılan sayfalardan çıkan bağlantılar" diye sınırlıyordu (§80.3) | 🟡 | **Gerekçelendi** — bugün kanıtlanmış bir hasar yok (0 kırık, repo genelinde); `docs/` dosyalarının `/`-önekli bir yol yazması durumunda gelecekte yanlış pozitif riski düşük ve ölçülmedi. `docs/ADAYLAR.md`'ye taşınmadı çünkü bugün gözlemlenen bir sorun değil |
-| 7 | DoD satırı "`samples/AgentPrism.Api` ile gerçek `run`" için kanıt eksikti (faz `src/`'a dokunmuyor) | 🟡 | **Gerekçelendi** — smoke-test koşuldu (`GET /openapi/v1.json` → 200), DoD satırına gerçek çıktı yazıldı |
+| 7 | DoD satırı "`samples/Tracon.Api` ile gerçek `run`" için kanıt eksikti (faz `src/`'a dokunmuyor) | 🟡 | **Gerekçelendi** — smoke-test koşuldu (`GET /openapi/v1.json` → 200), DoD satırına gerçek çıktı yazıldı |
 
 **🔴 ve 🟡 kalmadı.** Düzeltmelerden sonra dört kapı yeniden koşuldu (build 0
 uyarı, format exit 0; test ve pack bu fazın öncesinde zaten yeşildi ve

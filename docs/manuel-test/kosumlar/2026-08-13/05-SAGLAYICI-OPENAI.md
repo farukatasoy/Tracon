@@ -63,7 +63,7 @@
 
 **Gerçek sonuç**
 `POST /api/agents` `201`. `POST .../run` → `HTTP/1.1 400`,
-`Content-Type: application/problem+json`, gövde: `{"type":"https://tools.ietf.org/html/rfc9110#section-15.5.1","title":"Agent derlenemedi","status":400,"detail":"'manuel-yok-boyle-saglayici' agent'i derlenemedi: 'yok-boyle-bir-saglayici' adinda bir model saglayicisi kayitli degil. Kayitli saglayicilar: openai, openai-responses, openrouter, anthropic, google. OpenAI icin \`builder.AddAgentPrism().UseOpenAI(apiKey)\` cagirin.",...}`.
+`Content-Type: application/problem+json`, gövde: `{"type":"https://tools.ietf.org/html/rfc9110#section-15.5.1","title":"Agent derlenemedi","status":400,"detail":"'manuel-yok-boyle-saglayici' agent'i derlenemedi: 'yok-boyle-bir-saglayici' adinda bir model saglayicisi kayitli degil. Kayitli saglayicilar: openai, openai-responses, openrouter, anthropic, google. OpenAI icin \`builder.AddTracon().UseOpenAI(apiKey)\` cagirin.",...}`.
 Mesaj metni tam eşleşti. Delivery mekanizması (SSE değil, senkron 400) ve
 `type` alanı dokümanın orijinal beklentisinden farklıydı — yukarıda düzeltildi.
 
@@ -87,12 +87,12 @@ anı mesajı) koddan farklı çıktı; yukarıda düzeltildi.
 ## MT-OAI-010 — Göreli (relative) `Endpoint` reddedilir
 
 **Gerçek sonuç**
-`AgentPrism:Providers:OpenAI:Endpoint=sadece-bir-yol` (env değişkeni,
+`Tracon:Providers:OpenAI:Endpoint=sadece-bir-yol` (env değişkeni,
 şerit izolasyonu — bkz. §2.2) ile uygulama **sorunsuz başladı**,
 `http://localhost:5083`'te dinlemeye geçti, `/api/models` normal yanıt verdi.
 `OptionsValidationException` **hiç fırlatılmadı**.
 
-Kök neden bulundu: `src/AgentPrism.OpenAI/OpenAIProviderExtensions.cs:164-168`
+Kök neden bulundu: `src/Tracon.OpenAI/OpenAIProviderExtensions.cs:164-168`
 `Bind()` metodu `Uri.TryCreate(endpoint, UriKind.Absolute, out var endpointUri)`
 kullanıyor — `"sadece-bir-yol"` mutlak URI olarak ayrıştırılamadığı için
 `TryCreate` `false` döner ve `options.Endpoint` HİÇ ATANMAZ (varsayılanında
@@ -111,13 +111,13 @@ Kayıt: `HATA-S3-001`.
 var endpointUri)` kullanıyor — göreli bir değer de `options.Endpoint`'e
 atanıyor, `IsAbsoluteUri: false` denetimi artık gerçekten tetikleniyor.
 Aynı env değişkeni yeniden verildi
-(`AgentPrism__Providers__OpenAI__Endpoint=sadece-bir-yol`, temiz
+(`Tracon__Providers__OpenAI__Endpoint=sadece-bir-yol`, temiz
 `mt_fin_o` şeması, gerçek Postgres'e karşı): uygulama artık **başlamıyor**,
 konsolda birebir beklenen metin görüldü:
 `Unhandled exception. Microsoft.Extensions.Options.OptionsValidationException:
 OpenAIProviderOptions.Endpoint mutlak bir adres olmalidir. Gelen deger:
 'sadece-bir-yol'.` Regresyon testi:
-`tests/AgentPrism.OpenAI.UnitTests/OpenAIProviderExtensionsTests.cs`
+`tests/Tracon.OpenAI.UnitTests/OpenAIProviderExtensionsTests.cs`
 `Yapilandirmadan_gelen_goreli_adres_reddedilir` (fix geri alınıp koşulduğunda
 KIRMIZI verdiği ampirik olarak doğrulandı).
 
@@ -144,7 +144,7 @@ Boş (veya yok) `Name` alanı taşıyan bir model girdisi `options.Models`
 listesine **hiç eklenmiyor** — sessizce atlanıyor. `OpenAIProviderOptionsValidator`'ın
 `Models[index]` döngüsü (satır 70-78) bu yüzden asla boş isimli bir öge
 görmüyor; doğrulama dalı ölü koddur. Değişiklik
-`git checkout -- samples/AgentPrism.Api/appsettings.json` ile geri alındı
+`git checkout -- samples/Tracon.Api/appsettings.json` ile geri alındı
 (`git diff` boş doğrulandı). Kayıt: `HATA-S3-002`.
 
 ---
@@ -157,9 +157,9 @@ eklendi, temiz `mt_fin_o` şeması, gerçek Postgres'e karşı) yeniden koşuldu
 uygulama artık **başlamıyor**, konsolda birebir beklenen metin görüldü:
 `Unhandled exception. Microsoft.Extensions.Options.OptionsValidationException:
 OpenAIProviderOptions.Models[3] icin model adi bos olamaz.` (dizin `3`,
-beklenen gibi). Değişiklik `git checkout -- samples/AgentPrism.Api/appsettings.json`
+beklenen gibi). Değişiklik `git checkout -- samples/Tracon.Api/appsettings.json`
 ile geri alındı. Regresyon testi:
-`tests/AgentPrism.OpenAI.UnitTests/OpenAIProviderExtensionsTests.cs`
+`tests/Tracon.OpenAI.UnitTests/OpenAIProviderExtensionsTests.cs`
 `Yapilandirmadan_gelen_adsiz_model_reddedilir` (fix geri alınıp koşulduğunda
 KIRMIZI verdiği ampirik olarak doğrulandı).
 
@@ -170,13 +170,13 @@ KIRMIZI verdiği ampirik olarak doğrulandı).
 ## MT-OAI-013 — `ApiKey` boşken `UseOpenAI()` çağrılırsa doğrulama hata verir
 
 **Gerçek sonuç**
-`~/agentprism-local-feed`'den (`AgentPrism.Core`/`AgentPrism.OpenAI`
+`~/tracon-local-feed`'den (`Tracon.Core`/`Tracon.OpenAI`
 0.0.0-preview.0.78, `01-KURULUM-VE-PAKETLEME.md` tarafından hazırlanmış,
 yalnız okundu — küresel kurulum adımına dokunulmadı) bağımsız bir konsol
 projesi kuruldu, `UseOpenAI(o => { })` çağrıldı. `dotnet run` şununla
 çöktü: `Microsoft.Extensions.Options.OptionsValidationException:
 OpenAIProviderOptions.ApiKey bos olamaz. Anahtari \`UseOpenAI(apiKey)\`
-cagrisinda verin veya 'AgentPrism:Providers:OpenAI:ApiKey' ayarini
+cagrisinda verin veya 'Tracon:Providers:OpenAI:ApiKey' ayarini
 \`dotnet user-secrets\` icinde tanimlayin.` — mesaj birebir eşleşti. Bu
 kod-yolu (`Action<OpenAIProviderOptions>` overload'u) HATA-S3-001/002'nin
 sessiz-eleme sorununu taşımıyor çünkü hiç `Bind()`/`BindModels()`'tan
@@ -191,7 +191,7 @@ temizlendi.
 
 # 3 — Model kataloğu (`OpenAIModelCatalog`)
 
-AgentPrism yerleşik model listesi taşımaz (K-032). Katalog tamamen
+Tracon yerleşik model listesi taşımaz (K-032). Katalog tamamen
 yapılandırmadan gelir ve bir **doğrulama listesi değildir**.
 
 ---
@@ -212,7 +212,7 @@ does not have access to model 'gpt-4o-mini'` (`/tmp/ap-s3.log:292`).
 `GET https://api.openai.com/v1/models` ile doğrulandı: bu hesabın
 erişebildiği TÜM modeller `gpt-5.4-mini`, `gpt-5.6-luna`, `gpt-5.6-terra`
 (üçü de zaten katalogda) artı iki embedding modeli — hesapta kataloğun
-DIŞINDA erişilebilir hiçbir sohbet modeli yok. Bu bir AgentPrism kusuru
+DIŞINDA erişilebilir hiçbir sohbet modeli yok. Bu bir Tracon kusuru
 değil, hesabın model erişim kapsamı sınırlı; ürün davranışının kendisi
 (engellemeden iletme + log uyarısı) log kanıtıyla doğrulandı.
 

@@ -100,7 +100,7 @@ export default defineConfig({
       },
     }),
     starlight({
-      title: 'AgentPrism',
+      title: 'Tracon',
       favicon: '/favicon.svg',
       logo: { src: './public/favicon.svg', alt: '' },
       description:
@@ -129,7 +129,7 @@ export default defineConfig({
         { tag: 'meta', attrs: { name: 'twitter:card', content: 'summary_large_image' } },
       ],
       // No `social` GitHub icon and no `editLink`. Both pointed at the repository,
-      // which is private: measured 2026-08-21, github.com/farukatasoy/AgentPrism
+      // which is private: measured 2026-08-21, github.com/farukatasoy/Tracon
       // answers 404 to an anonymous reader, and Starlight put an "Edit page" link on
       // all 39 hand-written pages. A link that every visitor can only fail to follow
       // is worse than no link. Restore both blocks if the repository is ever made

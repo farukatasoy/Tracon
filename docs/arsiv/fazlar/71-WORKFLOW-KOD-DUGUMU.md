@@ -3,7 +3,7 @@
 > **Durum:** ✅ Tamamlandı (2026-08-19)
 > **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-116**
 > **Önkoşul:** [Faz 15](15-WORKFLOWS-YURUTME.md) — workflow yürütme ve kalıcılık · [Faz 16](16-WORKFLOWS-ARAYUZ.md) — graf, arayüz, human-in-the-loop
-> **Paketler:** `AgentPrism.Abstractions`, `AgentPrism.Workflows`, `AgentPrism.Core`, `AgentPrism.AspNetCore`, `AgentPrism.UI`
+> **Paketler:** `Tracon.Abstractions`, `Tracon.Workflows`, `Tracon.Core`, `Tracon.AspNetCore`, `Tracon.UI`
 > **Yeni paket:** Yok · **Migration:** Yok (düğüm tanımı var olan workflow tanımında yaşar) · **Doğrulanacak:** tanım sütununun şeması değişiyorsa üç set gerekir
 > **Public API:** **büyüyor** — `WorkflowNodeKind` enum'una **ekleme**, `WorkflowDefinition`'a alan, bir kayıt yüzeyi. `PublicAPI.Shipped.txt` bugün **boş** — şimdi bedava
 > **Site etkisi:** `concepts/workflows.md` (`guides/background-work.md` PLANDA
@@ -29,7 +29,7 @@
 
 ## Amaç
 
-AgentPrism Workflows bugün yalnız **agent zinciri** kurabiliyor. Gerçek bir üretim hattında ise AI çağırmayan adımlar vardır: dosya indirme, biçim dönüştürme, ses sentezi, veritabanı yazımı. Bunlar grafiğe giremediği için tüketici workflow'u yalnız hattının AI kısmı için kullanabiliyor; kalanını kendi kuyruğunda tutuyor.
+Tracon Workflows bugün yalnız **agent zinciri** kurabiliyor. Gerçek bir üretim hattında ise AI çağırmayan adımlar vardır: dosya indirme, biçim dönüştürme, ses sentezi, veritabanı yazımı. Bunlar grafiğe giremediği için tüketici workflow'u yalnız hattının AI kısmı için kullanabiliyor; kalanını kendi kuyruğunda tutuyor.
 
 ## Bitiş Ölçütleri (DoD)
 
@@ -49,13 +49,13 @@ AgentPrism Workflows bugün yalnız **agent zinciri** kurabiliyor. Gerçek bir �
       olan, hiç kapanmamış bir kırılganlık, Faz 16'dan beri). Çözüm:
       `KIND_STYLE[node.kind] ?? KIND_STYLE.Unknown` — tanımadığı her `kind`
       artık `Unknown`'ın stiline düşer, çökmez
-      (`src/AgentPrism.UI/frontend/src/components/workflow-graph.tsx`).
+      (`src/Tracon.UI/frontend/src/components/workflow-graph.tsx`).
       .NET tarafı için iddia geçerli DEĞİLDİR: `WorkflowNodeKind` düz
       `JsonStringEnumConverter<T>` kullanır ve tanımadığı bir adı
       **fırlatarak** reddeder — bu yalnız arayüz (TypeScript, çalışma-anında
       tip denetimi olmayan) tarafı için bir gereklilikti.
 - Dört doğrulama kapısı sıfır uyarı verir
-- `samples/AgentPrism.Api` ile gerçek workflow koşumu yapıldı, çıktı belgeye yazıldı
+- `samples/Tracon.Api` ile gerçek workflow koşumu yapıldı, çıktı belgeye yazıldı
 - `secret` taraması boş döndü
 - Manuel kabul case'leri [`docs/manuel-test/15-WORKFLOWS.md`](../../manuel-test/15-WORKFLOWS.md)
       içine eklendi; otomatikleştirilebilenler koşuldu
@@ -67,10 +67,10 @@ AgentPrism Workflows bugün yalnız **agent zinciri** kurabiliyor. Gerçek bir �
 
 ```bash
 # Kayıtlı kod düğümleri
-curl -s http://localhost:5081/agentprism/api/workflows/functions | jq
+curl -s http://localhost:5081/tracon/api/workflows/functions | jq
 
 # Graf yeni tipi taşıyor mu
-curl -s http://localhost:5081/agentprism/api/workflows/mixed/graph | jq '.nodes[].kind'
+curl -s http://localhost:5081/tracon/api/workflows/mixed/graph | jq '.nodes[].kind'
 ```
 
 ---
@@ -95,7 +95,7 @@ curl -s http://localhost:5081/agentprism/api/workflows/mixed/graph | jq '.nodes[
    kendi testimle yakalandı ve düzeltildi** — ilk tasarımda hem agent hem
    fonksiyon düğümü `FunctionExecutor`-türetilmiş olduğu için ikisi de
    `Function` olarak çiziliyordu (manuel doğrulama sırasında, gerçek
-   `samples/AgentPrism.Api` koşumunda görüldü). Çözüm `WorkflowAgentStepExecutor`
+   `samples/Tracon.Api` koşumunda görüldü). Çözüm `WorkflowAgentStepExecutor`
    tip adını `AgentNameOf`'a tanıtmaktı; bkz. K-495.
 4. **Fonksiyon zaman aşımı (Açık Soru 2) çözülmedi** — plan zaten bunu
    "Kapsam dışı" işaretlemişti; K-497 bu durumu resmileştirdi.
@@ -116,7 +116,7 @@ curl -s http://localhost:5081/agentprism/api/workflows/mixed/graph | jq '.nodes[
    bugün yalnız `PUT /api/workflows/{name}` ile (doğrudan HTTP çağrısı)
    oluşturulabilir. Bağımsız denetimde bulunan yanlış bir kod yorumu
    (editörün bunu desteklediğini iddia eden) düzeltildi;
-   `samples/AgentPrism.Api/Program.cs`'teki not artık bu boşluğu açıkça
+   `samples/Tracon.Api/Program.cs`'teki not artık bu boşluğu açıkça
    söylüyor. **Sonraki faz için aday**, `docs/ADAYLAR.md`'ye eklenmeli.
 7. **`ChatForwardingExecutor` ve elle `TurnToken` gönderme denendi, ikisi de
    terk edildi** — plan bu ayrıntı düzeyine inmemişti (§71.2 mermaid'i tek
@@ -150,7 +150,7 @@ Bağımsız denetim `general-purpose` alt-agent ile taze bağlamda koşuldu
 
 | # | Seviye | Bulgu | Sonuç |
 |---|---|---|---|
-| 1 | 🟡 | `samples/AgentPrism.Api/Program.cs`'teki yorum, karışık düğümlü bir workflow'un UI'nin workflow editöründen de oluşturulabildiğini YANLIŞ iddia ediyordu — editör hiç güncellenmedi. | **Düzeltildi.** Yorum artık editörün fonksiyon seçici taşımadığını açıkça söylüyor; bkz. Plandan Sapmalar #6. |
+| 1 | 🟡 | `samples/Tracon.Api/Program.cs`'teki yorum, karışık düğümlü bir workflow'un UI'nin workflow editöründen de oluşturulabildiğini YANLIŞ iddia ediyordu — editör hiç güncellenmedi. | **Düzeltildi.** Yorum artık editörün fonksiyon seçici taşımadığını açıkça söylüyor; bkz. Plandan Sapmalar #6. |
 | 2 | 🟡 | `AddWorkflowFunction`'ın işleyicisi thread-safe olmak ZORUNDA (tek kayıt, paylaşılan kapanış) ama bu hiçbir yerde yazılı değildi — planın kendi "Beş soru" listesi bunu açıkça istiyordu. | **Düzeltildi.** XML belgesine ve `docs-site/concepts/workflows.md`'ye eklendi. |
 | 3 | 🟡 | DoD satırı "Bilinmeyen düğüm tipi eski istemcide yok sayılır" hiçbir zaman doğru değildi: `KIND_STYLE[node.kind]` tanımadığı bir `kind` için `undefined` döner, `style.stroke` erişimi TypeError ile ÇÖKER — Faz 16'dan beri var olan, hiç kapanmamış bir kırılganlık. | **Düzeltildi.** `KIND_STYLE[node.kind] ?? KIND_STYLE.Unknown` düşümü eklendi (`workflow-graph.tsx`); DoD satırı gerçekleşen davranışı yansıtacak şekilde güncellendi. |
 | 4 | 🟢 | `WorkflowGraphReader.AgentNameOf`'un hex-suffix sezgiseli, adı tesadüfen `{ad}_{32-hex}` biçimine denk gelen bir fonksiyon düğümünü yanlışlıkla `Agent` sınıflandırabilir. | **Gerekçelendi, aday eklenmedi.** Aşırı uç durum; `Concurrent` deseninin `Batcher` düğümleri için Faz 16'dan beri kabul edilen AYNI sınıf kısıtlama — Faz 71 bunu kötüleştirmiyor. |

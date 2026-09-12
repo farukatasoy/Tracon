@@ -3,10 +3,10 @@
 > **Durum:** ✅ Tamamlandı (2026-09-06)
 > **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-201** (tüketici turu 4 yanıtı, §8 soru 1)
 > **Önkoşul:** [Faz 148](148-OTURUM-SAHIPLIGININ-KALICILIGI.md) — sahiplik sütunu, `SessionOwnershipGate` ve seçenek sınıfı oradan gelir
-> **Paketler:** `AgentPrism.Abstractions`, `AgentPrism.AspNetCore`
+> **Paketler:** `Tracon.Abstractions`, `Tracon.AspNetCore`
 > **Yeni paket:** Yok · **Migration:** Yok — `owner_id` sütunu Faz 148'de açıldı
 > **Public API:** Büyüyor — bir seçenek alanı + bir uç haritalama bayrağı. `wc -l src/*/PublicAPI.Shipped.txt` → 17 satır / 17 dosya (yalnız başlık), **shipped giriş sıfır**: bugün eklemek bedava, Faz 7'den sonra bir sürüm kararı
-> **Tüketici yüzeyi:** `docs-site/`: `concepts/sessions.md`, `concepts/governance.md`, `guides/openai-api.md`, `guides/embedding.md`, `capabilities.md` · sevk edilen: `AgentPrismSessionOwnershipOptions` XML `<example>`, `AgentPrismEndpointOptions` XML, `src/AgentPrism.Abstractions/README.md`
+> **Tüketici yüzeyi:** `docs-site/`: `concepts/sessions.md`, `concepts/governance.md`, `guides/openai-api.md`, `guides/embedding.md`, `capabilities.md` · sevk edilen: `TraconSessionOwnershipOptions` XML `<example>`, `TraconEndpointOptions` XML, `src/Tracon.Abstractions/README.md`
 > **Manuel test alanı:** [`docs/manuel-test/13-KIRACI-VE-GUVENLIK.md`](../../manuel-test/13-KIRACI-VE-GUVENLIK.md)
 
 ---
@@ -43,7 +43,7 @@ Faz 148 sahipliği sevk etti ve bilinçli bir taviz verdi (K-693): **sahipsiz es
 - [x] Haritalama kapatıldığında dört uç `404` döner ve OpenAPI'de **görünmez** — `Turning_the_surface_off_removes_all_four_routes` · `..._from_the_OpenAPI_document`
 - [x] Haritalama bayrağının varsayılanı bugünkü davranıştır (yüzey haritalanır) — `The_conversations_surface_is_mapped_by_default`
 - [x] Dört doğrulama kapısı sıfır uyarı verir — `python3 scripts/kapi.py kapanis --taban <faz öncesi commit>` — `--taban dc196ff6`; `dotnet format` bir kez kırmızı oldu (import sırası) ve düzeltildi
-- [x] `samples/AgentPrism.Api` ile gerçek `run` yapıldı; katı mod çıktısı belgeye yazıldı — sonuçlar "Örnek Uygulama Koşumu" bölümünde
+- [x] `samples/Tracon.Api` ile gerçek `run` yapıldı; katı mod çıktısı belgeye yazıldı — sonuçlar "Örnek Uygulama Koşumu" bölümünde
 - [x] `secret` taraması boş döndü — `scripts/kapi.py tarama` ✅
 - [x] Manuel kabul case'leri `docs/manuel-test/13-KIRACI-VE-GUVENLIK.md` içine eklendi; on biri de koşuldu — `MT-SEC-175` … `181` (yedi case, on bir iddia); hepsinin otomatik karşılığı var ve koşuldu
 - [x] `faz-denetim` koşuldu; 🔴 bulgu kalmadı — kod tarafında hiç doğmadı; tek 🔴 zamanlama kaynaklıydı, beş 🟡'nin dördü düzeltildi
@@ -75,7 +75,7 @@ curl -s "$APU/openapi/v1.json" | jq '.paths | keys | map(select(startswith("/v1/
 | # | Plan ne diyordu | Ne oldu | Neden |
 |---|---|---|---|
 | 1 | **Akışlı yolda ret bir SSE `error` çerçevesidir** (K-324; hata modu tablosu ve manuel case 4) | Ret **gerçek `403`'tür**, akışlı ve akışsız dalın ikisinde de | Plan bayattı. Faz 148'in devir notu bunu zaten yazmıştı: `CheckRunSessionAsync` uç gövdesinde `SseWriter.StartAsync`'ten **önce** koşar, bu yüzden başlıklar henüz gitmemiştir. Ölçüldü — `AgentEndpoints.cs:234` guard'ı `RunAsync`/`RunQueuedAsync` dallanmasından öncedir. K-324 bu fazın kapsamına hiç girmedi; `POST …/run` varsayılan olarak SSE'dir ve `Running_against_another_owners_session_is_refused` zaten `403` bekliyordu. Akışsız dal `Idempotency-Key` ile ayrı test edildi |
-| 2 | Kapsam kapısına `OpenAIConversationsEndpoints.cs` **eklenir** | Ownership listesinde **zaten vardı** (Faz 148 onu eklemişti); eklenen yer `ExpectedResourceFiles`, yani `RunAuthorizationGate` listesi | Ölçüm: `ExpectedSessionOwnershipFiles` dosyayı taşıyordu, `ExpectedResourceFiles` taşımıyordu. Aynı dosya iki listeye ait; biri AgentPrism'in kendi sahiplik sınırı, diğeri tüketicinin handler'ı. Bir yüzey **yarım kapılı** olabilir |
+| 2 | Kapsam kapısına `OpenAIConversationsEndpoints.cs` **eklenir** | Ownership listesinde **zaten vardı** (Faz 148 onu eklemişti); eklenen yer `ExpectedResourceFiles`, yani `RunAuthorizationGate` listesi | Ölçüm: `ExpectedSessionOwnershipFiles` dosyayı taşıyordu, `ExpectedResourceFiles` taşımıyordu. Aynı dosya iki listeye ait; biri Tracon'in kendi sahiplik sınırı, diğeri tüketicinin handler'ı. Bir yüzey **yarım kapılı** olabilir |
 | 3 | Yönetim payı "değişmez" (§149.3) | Yönetim muafiyeti **yeni** bir davranıştır ve tek noktaya eklendi | `DeniesAsync` bugüne kadar `ManagementPolicy`'ye **hiç bakmıyordu** (K-691 bilinçli kararı). "Değişmez" ancak yeni bir muafiyetle sağlanabilirdi. Kullanıcı kararı: muafiyet yalnız okuma/silme kapısında (`DeniesAsync`), `run` başlatmada **yok** → K-694 |
 | 4 | `DeniesAsync` imzası değişmez | `HttpContext` parametresi eklendi (**yedi** çağrı yeri güncellendi: `SessionEndpoints` 3 · `OpenAIConversationsEndpoints` 3 · ses 1) | Yönetim politikası istek başına değerlendirilir; `SatisfiesManagementPolicyAsync` `HttpContext.User` ve `RequestServices` ister. Üç endpoint handler'ı da `HttpContext` parametresi kazandı — rota ve OpenAPI'yi etkilemez |
 | 5 | Manuel case tablosu 11 kalem | 7 kalem (`MT-SEC-175`–`181`), aynı 11 iddiayı kapsıyor | Plan tablosu her satırı ayrı case sayıyordu; kabul seti biçimi her case'e birden çok adım verir. Sayı düştü, kapsam düşmedi — her case otomatik karşılığını adıyla sayar |
@@ -99,7 +99,7 @@ düzeltmedi; aday olarak açık.
 
 ## Örnek Uygulama Koşumu
 
-`samples/AgentPrism.Api`, `AgentPrism__SessionOwnership__Enabled=true`,
+`samples/Tracon.Api`, `Tracon__SessionOwnership__Enabled=true`,
 `RequireAuthenticatedOwner=false` (sahipsiz satır **üretebilmek** için),
 `RefuseUnownedSessions=true`, `Demo__Roles__Enabled=true`. Bellek içi `store`,
 `echo` sağlayıcı — gerçek `run`, gerçek HTTP.
@@ -120,7 +120,7 @@ düzeltmedi; aday olarak açık.
 | Yönetim listesi | `[('legacy-1', None)]` — satır her reddin ardından **yerinde** |
 | `GET /openapi/v1.json` (varsayılan) | Üç `/v1/conversations` yolu **var** |
 
-Demo rolleri **kapalıyken** aynı `OPERATOR` okuması `404` verdi — `AgentPrism.Operator`
+Demo rolleri **kapalıyken** aynı `OPERATOR` okuması `404` verdi — `Tracon.Operator`
 politikası kayıtlı değilse muafiyet **yoktur** (fail-closed, ayrıca ölçüldü).
 
 ## Denetim Bulguları
@@ -158,7 +158,7 @@ gerçek sayı yedi (`SessionEndpoints` üç, ses bir, conversations üç).
 |---|---|---|
 | 1 | `ExpectedResourceFiles` dosya seviyesinde eşleşir: conversations'ın üç `CheckSessionAsync` çağrısından ikisi silinse tarama yeşil kalır | **F-204** |
 | 2 | `/v1/conversations/{id}` varlık asimetrisi: yok → `200`, reddedildi → `404`; katı modda bir çağıran hangi id'lerin sahipsiz **satır** olduğunu sayabilir | **F-205** |
-| 3 | `AgentPrismSessionOwnershipOptions` `<example>` taşımıyor | Kalite sözleşmesinin `<example>` kuralı giriş noktaları (`Add*`/`Use*`/`Map*`) içindir; bu bir property. **Kayda geçmez** |
+| 3 | `TraconSessionOwnershipOptions` `<example>` taşımıyor | Kalite sözleşmesinin `<example>` kuralı giriş noktaları (`Add*`/`Use*`/`Map*`) içindir; bu bir property. **Kayda geçmez** |
 
 ## Sonraki Faza Devir Notu
 
@@ -170,7 +170,7 @@ Katı mod sevk edildi ve K-693 kapandı. Devreden beş gerçek bilgi:
   Yeni bir oturum yüzeyi eklerken üç şey birden gerekir: kapıyı **kendi gövdesinde**
   çağır, `HttpContext`'i geçir (yönetim politikası istek başına
   değerlendirilir) ve dosyayı `RunAuthorizationCoverageTests`'in **iki**
-  listesine birden ekle — `ExpectedSessionOwnershipFiles` (AgentPrism'in kendi
+  listesine birden ekle — `ExpectedSessionOwnershipFiles` (Tracon'in kendi
   sınırı) ve `ExpectedResourceFiles` (tüketicinin handler'ı). Faz 148 birinciyi
   ekledi, ikincisini atladı; bu faz onu bulmak için geri gelmek zorunda kaldı.
   **Bir yüzey yarım kapılı olabilir ve bir kapıyı bulmak diğeri hakkında kanıt
@@ -186,8 +186,8 @@ Katı mod sevk edildi ve K-693 kapandı. Devreden beş gerçek bilgi:
   "tek yardımcıda toplamak" isteyen bir sonraki faz bu asimetriyi silmeye
   eğilimlidir; `The_management_exemption_does_not_extend_to_starting_a_run`
   onu tutar.
-- **`AgentPrismEndpointOptions` yapılandırmadan bağlanmaz.** `MapOpenAIConversations`
-  yalnız `MapAgentPrism(prefix, options => ...)` ile ayarlanır. Bu bilinçlidir
+- **`TraconEndpointOptions` yapılandırmadan bağlanmaz.** `MapOpenAIConversations`
+  yalnız `MapTracon(prefix, options => ...)` ile ayarlanır. Bu bilinçlidir
   (`AuthToken` aynı tipte yaşıyor, bkz. tipin `record` olmama gerekçesi); bir
   uç ailesini `appsettings` ile kapatılabilir yapmak isteyen faz önce bunu
   ölçmelidir.

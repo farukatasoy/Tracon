@@ -1,4 +1,4 @@
-# AgentPrism Özellik Envanteri
+# Tracon Özellik Envanteri
 
 > Bu liste, mevcut kod tabanında doğrulanan özellikleri içerir. Planlanan özellikler dahil değildir.
 
@@ -46,7 +46,7 @@
 
 - **Tool kayıt seçenekleri:** `AIFunction`, delegate, attributed type scanning ve source-generated kayıt yolları desteklenir.
 - **Scoped tool çalıştırma:** `AddScopedTool`, her tool çağrısı için ayrı DI scope açar ve scope'u çağrı sonunda kapatır.
-- **Build-time tool generation:** `[AgentPrismTool]` metotları reflection ve dynamic code olmadan compile sırasında keşfedilip kaydedilebilir.
+- **Build-time tool generation:** `[TraconTool]` metotları reflection ve dynamic code olmadan compile sırasında keşfedilip kaydedilebilir.
 - **Generated tool schema:** Generator, `[Description]`, standard DataAnnotations constraint'leri ve en fazla üç seviyeli object parameter graph'ını JSON Schema'ya aktarır.
 - **Tool governance metadata:** Tool bazında effect, permission, approval, timeout, output limiti ve `SafeToRepeat` policy'si tanımlanabilir.
 - **Tool authorization:** `IToolAuthorizationHandler`, mevcut caller ve run context için her tool çağrısını izin veya ret ile sonuçlandırabilir.
@@ -154,8 +154,8 @@
 
 ## Persistence ve storage
 
-- **In-memory varsayılanlar:** `AddAgentPrism()` gerekli core store contract'ları için database gerektirmeyen in-memory implementation'lar kaydeder.
-- **PostgreSQL persistence:** AgentPrism verileri embedded migration'larla ayrı schema altında saklanır; optional `pgvector` ve read view setleri vardır.
+- **In-memory varsayılanlar:** `AddTracon()` gerekli core store contract'ları için database gerektirmeyen in-memory implementation'lar kaydeder.
+- **PostgreSQL persistence:** Tracon verileri embedded migration'larla ayrı schema altında saklanır; optional `pgvector` ve read view setleri vardır.
 - **SQL Server persistence:** SQL Server 2019+ ve Azure SQL için aynı durable store contract'ları ayrı migration setiyle uygulanır.
 - **SQLite persistence:** Tek dosyalı, table-prefix destekli SQL persistence sağlanır; single-writer sınırı nedeniyle multi-instance kullanım hedeflenmez.
 - **Migration yönetimi:** Migration'lar startup'ta otomatik veya `MigrationRunner` ve CLI ile ayrı deployment adımı olarak uygulanabilir ve status bilgisi okunabilir.
@@ -176,7 +176,7 @@
 - **Cost recalculation:** Management endpoint, yalnız fiyatı bilinmeyen geçmiş run'ları hesaplar ve önceden fiyatlandırılmış snapshot'ları değiştirmez.
 - **Provider health:** Provider health check sonuçları cache'lenir ve isteğe bağlı background polling ile yenilenir.
 - **Circuit breaker:** Tekrarlanan provider hataları closed, open ve half-open durumlarıyla yeni çağrıları durdurur; tenant BYOK credential'ları ayrı state taşır.
-- **ASP.NET Core health check:** AgentPrism durumu consumer'ın `IHealthChecksBuilder` pipeline'ına eklenebilir.
+- **ASP.NET Core health check:** Tracon durumu consumer'ın `IHealthChecksBuilder` pipeline'ına eklenebilir.
 - **Diagnostics report:** Explicit opt-in endpoint, active store'ları, extension point'leri, provider configuration'ını ve schema readiness durumunu raporlar.
 - **Run analytics:** Summary, time series, agent/version/label/user kırılımları, error rate ve bounded failure cluster sorguları sağlanır.
 - **Tool usage analytics:** Tool çağrı sayısı, başarı, süre ve provider-specific usage bilgileri run ve aggregate düzeyinde izlenir.
@@ -185,7 +185,7 @@
 
 ## ASP.NET Core, protokoller ve client araçları
 
-- **Management HTTP API:** `MapAgentPrism()` agent, run, session, workflow, job, eval, governance, storage ve operations endpoint'lerini seçilebilir prefix altında yayınlar.
+- **Management HTTP API:** `MapTracon()` agent, run, session, workflow, job, eval, governance, storage ve operations endpoint'lerini seçilebilir prefix altında yayınlar.
 - **OpenAPI metadata:** Management endpoint'leri operation id, tag, summary, response schema ve security metadata'sı üretir.
 - **OpenAI Responses compatibility:** `/v1/responses`, streaming, conversation chaining, tool loop ve attachment input ile mevcut OpenAI client'larına hizmet verir.
 - **OpenAI Chat Completions compatibility:** `/v1/chat/completions`, streaming ve non-streaming chat completion contract'ını agent run'larına dönüştürür.
@@ -193,16 +193,16 @@
 - **MCP server:** Explicit allowlist'teki agent'lar remote MCP client'larına tool olarak sunulabilir.
 - **MCP task mode:** Uzun MCP çağrıları run-backed task olarak başlatılabilir, poll edilebilir ve tenant sınırında saklanabilir.
 - **A2A server:** Explicit allowlist'teki agent'lar Agent-to-Agent protokolü üzerinden dış agent'lara sunulabilir.
-- **Typed .NET client:** `AgentPrism.Client`, management API için DI ile kaydedilen generated client ve DTO yüzeyi sağlar.
-- **Typed TypeScript client:** `@agentprism/client`, browser ve Node.js için aynı OpenAPI kaynağından generated operation ve error mapping sunar.
-- **CLI:** `agentprism` global tool migration apply/status, provider health ve threshold tabanlı eval quality gate komutlarını çalıştırır.
+- **Typed .NET client:** `Tracon.Client`, management API için DI ile kaydedilen generated client ve DTO yüzeyi sağlar.
+- **Typed TypeScript client:** `@tracon/client`, browser ve Node.js için aynı OpenAPI kaynağından generated operation ve error mapping sunar.
+- **CLI:** `tracon` global tool migration apply/status, provider health ve threshold tabanlı eval quality gate komutlarını çalıştırır.
 - **Embeddable chat widget:** `embed.js`, başka origin'deki sayfaya agent chat, streaming ve client-side tool desteği ekleyebilir.
 - **Voice WebSocket protocol:** Browser veya native client'lar için version'lanmış audio/message frame contract'ı yayınlanır.
 
 ## Dashboard ve kullanıcı arayüzü
 
 - **Embedded console:** React ve TypeScript SPA, Brotli-compressed asset olarak assembly içinden servis edilir ve consumer projesine JavaScript bağımlılığı eklemez.
-- **Runtime base path:** Console `/agentprism`, `/panel` veya consumer'ın seçtiği başka bir prefix altında çalışır.
+- **Runtime base path:** Console `/tracon`, `/panel` veya consumer'ın seçtiği başka bir prefix altında çalışır.
 - **Dashboard:** Run, token, cost, error ve agent activity özetleri chart ve time series görünümüyle sunulur.
 - **Agent ve skill yönetimi:** Agent ve skill listeleri, editor'ları, validation raporu, version diff ve rollback işlemleri arayüzden kullanılabilir.
 - **Playground:** Streaming run, parameter, attachment, client-side tool, speech ve conversation devamı tek test ekranında kullanılabilir.
@@ -216,27 +216,27 @@
 ## Paketleme, DI ve genişletilebilirlik
 
 - **Modüler NuGet ailesi:** Core, provider, persistence, HTTP, UI, workflow, voice, testing, client ve template yetenekleri ayrı paketlerden seçilebilir.
-- **Meta package:** `AgentPrism` paketi OpenAI, PostgreSQL, MCP, workflow, ASP.NET Core ve UI bileşenlerini tek reference ile getirir.
+- **Meta package:** `Tracon` paketi OpenAI, PostgreSQL, MCP, workflow, ASP.NET Core ve UI bileşenlerini tek reference ile getirir.
 - **Target framework desteği:** Runtime paketleri `net8.0`, `net9.0` ve `net10.0` hedeflerini destekler.
 - **Package bazlı AOT contract'ı:** Abstractions, Core, PostgreSQL, OpenAI, Anthropic, Google, Azure ve Voice trimming ve Native AOT uyumluluğunu bildirir.
 - **Consumer-first DI:** Servisler `TryAdd*` ile kaydedilir; tüketicinin önceden verdiği implementation korunur.
-- **MAF type passthrough:** `AIAgent`, `AgentSession`, `ChatMessage` ve `AIFunction` yeni bir AgentPrism abstraction'ı ile sarılmaz.
+- **MAF type passthrough:** `AIAgent`, `AgentSession`, `ChatMessage` ve `AIFunction` yeni bir Tracon abstraction'ı ile sarılmaz.
 - **Agent decorator seam:** Custom `IAgentDecorator` type, instance veya factory olarak kayıt ve telemetry/recording pipeline'ına sıralı biçimde katılabilir.
 - **Zorunlu binding profili:** `RequireCustomBinding<T>()` ile ilan edilen genişleme noktası yerleşik varsayılanla çözülüyorsa host başlamaz; hata mesajı hangi sözleşmenin, hangi tiple çözüldüğünü ve nasıl düzeltileceğini söyler.
-- **Project template:** `dotnet new agentprism-api`, çalışan bir control plane, sample tool, boş secret placeholder'ları ve README üretir.
-- **Pre-release dependency isolation:** Preview MAF hosting bağımlılıkları yalnız `AgentPrism.AspNetCore` paketinde tutulur.
+- **Project template:** `dotnet new tracon-api`, çalışan bir control plane, sample tool, boş secret placeholder'ları ve README üretir.
+- **Pre-release dependency isolation:** Preview MAF hosting bağımlılıkları yalnız `Tracon.AspNetCore` paketinde tutulur.
 - **Package artifact kimliği:** Pack gate, aynı version için farklı içerikli package üretimini ve mevcut release artifact'ının overwrite edilmesini reddeder.
 
 ## Test, kalite ve coding-agent desteği
 
 - **Fake model provider:** `FakeModelProvider`, network çağrısı yapmadan deterministic text, usage ve tool-call turn'leri script edebilir.
-- **Integrated test host:** `AgentPrismTestHost`, gerçek catalog, HTTP endpoint'leri ve in-memory store'larla test uygulaması başlatır.
+- **Integrated test host:** `TraconTestHost`, gerçek catalog, HTTP endpoint'leri ve in-memory store'larla test uygulaması başlatır.
 - **Framework-neutral assertions:** `RunAssertions`, run status, output ve tool invocation sonuçlarını xUnit, NUnit veya MSTest bağımlılığı olmadan denetler.
-- **Extension contract suites:** `AgentPrism.Testing.Contracts.Xunit`, custom store, provider, judge, source, tool, tool validator, tool authorization ve job handler implementation'larına ortak davranış testleri verir.
+- **Extension contract suites:** `Tracon.Testing.Contracts.Xunit`, custom store, provider, judge, source, tool, tool validator, tool authorization ve job handler implementation'larına ortak davranış testleri verir.
 - **Source generator diagnostics:** Tool generator; ad, signature, parameter, description, instance method ve JSON serialization hatalarını build sırasında raporlar.
 - **Usage analyzer diagnostics:** Eksik registration, literal secret, el yapımı retry/decorator, stale agent map ve hatalı ambient scope kullanımını build sırasında bildirir.
-- **Generated agent map:** Opt-in build target, mevcut dosyayı ezmeden repository için AgentPrism capability map içeren `AGENTS.md` üretebilir.
-- **Local reference üretimi:** Build, restore edilen exact package version'larının XML API ve OpenAPI dosyalarına işaret eden `AgentPrism.LocalReference.md` yazabilir.
+- **Generated agent map:** Opt-in build target, mevcut dosyayı ezmeden repository için Tracon capability map içeren `AGENTS.md` üretebilir.
+- **Local reference üretimi:** Build, restore edilen exact package version'larının XML API ve OpenAPI dosyalarına işaret eden `Tracon.LocalReference.md` yazabilir.
 - **Web-agent doküman yüzeyi:** Documentation build'i capability index içeren `llms.txt` ve tam metinli `llms-full.txt` üretir.
 - **Public API tracking:** Shipped ve unshipped baseline dosyaları kayıtsız public contract değişikliğini build hatasına dönüştürür.
 - **Packed-consumer doğrulaması:** Testler gerçek `.nupkg`, dependency graph, template, embedded UI ve generated tool kullanımını consumer proje üzerinden doğrular.

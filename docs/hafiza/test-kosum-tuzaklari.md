@@ -14,7 +14,7 @@
 
 ## Alt surec ve MSBuild
 
-- **🚨 Yonlendirilmis bir alt surecte MSBuild DUGUM YENIDEN KULLANIMI `WaitForExitAsync`'i ~15 DAKIKA bloke eder** (2026-08-07, Faz 47): `dotnet test AgentPrism.slnx` hicbir test kosmadan on dakikalarca asili kaldi. Kok sebep `AgentPrism.Package.Tests` fikstürüdür (Faz 95'e kadar `AgentPrism.Templates.Tests` adını taşıyordu): `ProcessRunner` `dotnet pack`/`build`'i `RedirectStandardOutput`/`Error` ile calistirir; `dotnet pack` MSBuild isci dugumlerini `nodeReuse:true` ile baslatir ve o dugumler komut bittikten sonra da yasar (varsayilan ~15 dk). Dugumler ebeveynin yonlendirilmis boru taniticilarini MIRAS ALIR, boru hicbir zaman EOF gormez ve .NET'in `Process.WaitForExitAsync` cagrisi cikis kodunu degil **asenkron okuyucularin bitmesini** de bekledigi icin alt surec saniyeler once cikmis olsa bile bloke kalir. **Belirti**: `ps` ciktisinda tek bir `dotnet pack` sureci yoktur, yalnizca oksuz (`ppid = 1`) `MSBuild.dll … /nodeReuse:true` dugumleri durur; dugumler `pkill` ile oldurulunce fikstür ANINDA devam eder (olculdu). **Cozum**: `ProcessRunner` her alt surece `MSBUILDDISABLENODEREUSE=1` verir. Komut satiri anahtari (`-nodeReuse:false`) yetmez — `dotnet new` gibi MSBuild'i DOLAYLI cagiran komutlar onu tasiyamaz. Olcum: 8 dk+ (asili) → **18,5 sn**. **Kural**: MSBuild cagiran her alt sureci yonlendirirken bu degisken verilir.
+- **🚨 Yonlendirilmis bir alt surecte MSBuild DUGUM YENIDEN KULLANIMI `WaitForExitAsync`'i ~15 DAKIKA bloke eder** (2026-08-07, Faz 47): `dotnet test Tracon.slnx` hicbir test kosmadan on dakikalarca asili kaldi. Kok sebep `Tracon.Package.Tests` fikstürüdür (Faz 95'e kadar `Tracon.Templates.Tests` adını taşıyordu): `ProcessRunner` `dotnet pack`/`build`'i `RedirectStandardOutput`/`Error` ile calistirir; `dotnet pack` MSBuild isci dugumlerini `nodeReuse:true` ile baslatir ve o dugumler komut bittikten sonra da yasar (varsayilan ~15 dk). Dugumler ebeveynin yonlendirilmis boru taniticilarini MIRAS ALIR, boru hicbir zaman EOF gormez ve .NET'in `Process.WaitForExitAsync` cagrisi cikis kodunu degil **asenkron okuyucularin bitmesini** de bekledigi icin alt surec saniyeler once cikmis olsa bile bloke kalir. **Belirti**: `ps` ciktisinda tek bir `dotnet pack` sureci yoktur, yalnizca oksuz (`ppid = 1`) `MSBuild.dll … /nodeReuse:true` dugumleri durur; dugumler `pkill` ile oldurulunce fikstür ANINDA devam eder (olculdu). **Cozum**: `ProcessRunner` her alt surece `MSBUILDDISABLENODEREUSE=1` verir. Komut satiri anahtari (`-nodeReuse:false`) yetmez — `dotnet new` gibi MSBuild'i DOLAYLI cagiran komutlar onu tasiyamaz. Olcum: 8 dk+ (asili) → **18,5 sn**. **Kural**: MSBuild cagiran her alt sureci yonlendirirken bu degisken verilir.
 
 ## 🚨 `sed -i.bak` + `mv .bak dosya` ESKI mtime'i geri getirir, `dotnet build` DERLEMEZ (Faz 94)
 
@@ -28,7 +28,7 @@ kalir). `dotnet build` artimli derleme icin mtime karsilastirir, "kaynak
 DLL'den eski" gorunce **YENIDEN DERLEMEZ** ve bir onceki (SAHTE KUSURLU)
 derlemeyi sessizce kullanmaya devam eder — sonraki `dotnet test` calistirmasi
 YESIL doner ama gercekte hala BOZUK derlemeyi test etmektedir. Bu depoda
-`AGENTPRISM_SQL_SNAPSHOT_REFRESH=1` ile checked-in bir taban cizgisi dosyasi
+`TRACON_SQL_SNAPSHOT_REFRESH=1` ile checked-in bir taban cizgisi dosyasi
 BU SEKILDE bir kez BOZULMUS (sahte terim iceren cikti taban cizgisine
 yazilmis) ve fark edilene kadar 4 test sahte SUCCESS/FAILURE dongusu
 uretti. **Kural**: bir kaynak dosyayi geri aldiktan (`mv`, `git checkout`,
@@ -39,7 +39,7 @@ supheli bir derlemeden HEMEN sonra calistirmadan once bu adimi atlama.
 ## 🚨 `dotnet test --filter` SESSIZCE YUTULUR (Faz 77)
 
 - **`--filter` MTP'de YOKTUR ve hata da vermez — tum paketi kosar.** 2026-08-20'de
-  olculdu: `dotnet test tests/AgentPrism.Core.UnitTests -c Release --no-build
+  olculdu: `dotnet test tests/Tracon.Core.UnitTests -c Release --no-build
   --filter CapabilityExampleTests` **1004 testin tamamini** kosar ve yesil doner.
   Daralttigini sanirsin; kosum suresi seni yanilmaz cunku paket zaten hizlidir.
   Tehlike yesil bir yanlistir: bir kapiyi "kostum" diye isaretlersin ama aslinda
@@ -60,10 +60,10 @@ supheli bir derlemeden HEMEN sonra calistirmadan once bu adimi atlama.
   **dosyaya yaz**, sonra dosyayi filtrele.
 
 - **🚨 `| tail -200` erken KESMEZ ama alfabetik olarak ONCE gelen projelerin
-  sonucunu GORUNMEZ kilar** (2026-09-01, Faz 130). `AgentPrism.slnx`'teki
-  projeler alfabetik kosar; `AgentPrism.Core.UnitTests` ve
-  `AgentPrism.Sql.Shared.UnitTests` `Ui.E2ETests`/`Voice.UnitTests`'ten CIDDI
-  ONCE biter. `dotnet test AgentPrism.slnx ... | tail -200` komple kosumu
+  sonucunu GORUNMEZ kilar** (2026-09-01, Faz 130). `Tracon.slnx`'teki
+  projeler alfabetik kosar; `Tracon.Core.UnitTests` ve
+  `Tracon.Sql.Shared.UnitTests` `Ui.E2ETests`/`Voice.UnitTests`'ten CIDDI
+  ONCE biter. `dotnet test Tracon.slnx ... | tail -200` komple kosumu
   BEKLER (SIGPIPE yok, yukaridaki tuzaktan farkli) ama yalniz SON 200 satiri
   saklar — erken projelerdeki gercek KIRMIZI satirlar sessizce disaridadir,
   koşum "temiz" GORUNUR. Faz 130'da tam bu sekilde iki bagimsiz kusur
@@ -74,13 +74,13 @@ supheli bir derlemeden HEMEN sonra calistirmadan once bu adimi atlama.
   (`> log.txt 2>&1`), `tail`'i yalniz o dosyayi SONRADAN okurken kullan —
   komutun kendisine asla `| tail` ekleme.
 
-- **🚨 Tüketici testleri GLOBAL NuGet önbelleğine takılır — değişiklik görünmez olur** (2026-08-19, Faz 73): MinVer sürümü git yüksekliğinden türediği için iki commit arasındaki her `dotnet pack` **aynı** sürüm dizesini üretir (`0.0.0-preview.0.271`). NuGet bir sürümü global paket klasörüne BİR KEZ açar ve sonra hep onu kullanır; yeniden paketlenen `.nupkg` hiç açılmaz. Belirti: kodda yaptığın değişiklik `TemplateFixture` tabanlı testlerde **hiç görünmez** ve teşhis yanlış yere gider (Faz 73'te bir analyzer değişikliği üç koşum boyunca yok sanıldı). Çözüm fixture'a girdi: `TemplateFixture.ClearGlobalPackageCache` paketlenen sürümün `~/.nuget/packages/agentprism*/<sürüm>` dizinlerini siler. **Depo dışında elle bir tüketici denerken aynı dizini sen de sil.**
+- **🚨 Tüketici testleri GLOBAL NuGet önbelleğine takılır — değişiklik görünmez olur** (2026-08-19, Faz 73): MinVer sürümü git yüksekliğinden türediği için iki commit arasındaki her `dotnet pack` **aynı** sürüm dizesini üretir (`0.0.0-preview.0.271`). NuGet bir sürümü global paket klasörüne BİR KEZ açar ve sonra hep onu kullanır; yeniden paketlenen `.nupkg` hiç açılmaz. Belirti: kodda yaptığın değişiklik `TemplateFixture` tabanlı testlerde **hiç görünmez** ve teşhis yanlış yere gider (Faz 73'te bir analyzer değişikliği üç koşum boyunca yok sanıldı). Çözüm fixture'a girdi: `TemplateFixture.ClearGlobalPackageCache` paketlenen sürümün `~/.nuget/packages/tracon*/<sürüm>` dizinlerini siler. **Depo dışında elle bir tüketici denerken aynı dizini sen de sil.**
 
 ## 🚨 Paralel test SINIFLARI migration deadlock'u uretir (Faz 76)
 
 - **🚨 Ayni sinifin YENI belirtisi: cekisme test GOVDESINDE degil FIXTURE ACILISINDA patlar** (2026-09-06, Faz 148): SQL Server tam kosumda 13/655 dustu, hepsi `SqlServerSchemaFixture.InitializeAsync` icinde `Migration '0001_initial' … Execution Timeout Expired`. Dusen testlerin fazla hic ilgisi yoktu — yeni migration'i sanik sanmak icin her sebep vardi. Ayirt eden iki sey: `kapi.py`'nin kendi izole kosumu 13/13 gecti, paket tek basina 655/655 verdi. `mssql/server` burada amd64 emulasyonundadir (K-386), fixture acilisi zaten yavastir. **Kural**: migration ekledigin fazda SQL Server dusuyorsa once paketi TEK BASINA kosur — `0001_initial`'in timeout'u seninkiyle ilgili degildir.
 
-- **🚨 Full solution test run'inda test PROJELERI sinirsiz paralel kosmaz** (2026-08-25, Faz 100 sonrasi): `dotnet test AgentPrism.slnx` 24 test executable'i ayni anda baslatinca Docker container'lari, Playwright, functional host'lar ve `AgentPrism.Package.Tests` icindeki `dotnet pack` ayni CPU/RAM butcesine saldirir. Belirti urun hatasi degildir: `SourceLanguageTests` 5 sn Regex timeout'u ve CLI'nin 10 sn HTTP timeout'u yalniz tam run'da duser; ikisi de izolasyonda saniyeler icinde gecer. **Uc** worker bile Package build, PostgreSQL ve functional host'lari birlikte dakikalara iterdi. Cozum: gate ve CI tam run'lari **`-maxcpucount:1`** ile kosar. Bu, toplam wall-clock suresini artirir; ancak Docker ve package testi ayni anda makineyi doyurmadigi icin kaynak cekismesinden uzayan tekil testleri ve sahte timeout'lari kaldirir.
+- **🚨 Full solution test run'inda test PROJELERI sinirsiz paralel kosmaz** (2026-08-25, Faz 100 sonrasi): `dotnet test Tracon.slnx` 24 test executable'i ayni anda baslatinca Docker container'lari, Playwright, functional host'lar ve `Tracon.Package.Tests` icindeki `dotnet pack` ayni CPU/RAM butcesine saldirir. Belirti urun hatasi degildir: `SourceLanguageTests` 5 sn Regex timeout'u ve CLI'nin 10 sn HTTP timeout'u yalniz tam run'da duser; ikisi de izolasyonda saniyeler icinde gecer. **Uc** worker bile Package build, PostgreSQL ve functional host'lari birlikte dakikalara iterdi. Cozum: gate ve CI tam run'lari **`-maxcpucount:1`** ile kosar. Bu, toplam wall-clock suresini artirir; ancak Docker ve package testi ayni anda makineyi doyurmadigi icin kaynak cekismesinden uzayan tekil testleri ve sahte timeout'lari kaldirir.
 
 - **🚨 `dotnet new sln` varsayilan uzantisi SDK'ya gore degisir** (2026-08-28):
   Yerel SDK `.sln`, CI SDK'si `.slnx` uretebilir. Sonraki `dotnet sln` veya
@@ -111,4 +111,4 @@ Faz 91 taban/sonrası wall-clock ve proje-başına sonuç tabloları
 [`test-kosum-olcumleri.md`](test-kosum-olcumleri.md)'ye taşındı (Faz 101 —
 bu dosya bütçeyi aştı). Aktif tuzak değil, tarihsel ölçüm kaydıdır.
 
-- **🚨 `tests/` altındaki test OLMAYAN bir proje `IsTestProject=false` demekle yetinmez** (2026-09-08, Faz 157, ölçüldü). `AgentPrism.WorkerHarness` yalnız `IsTestProject` koşullandırıldığında `dotnet test AgentPrism.slnx` onu VSTest'e veriyordu ve TÜM koşum `testhost.dll bulunamadı` ile ABORT oluyordu — tek bir proje yüzünden hiçbir test sonucu alınamaz. Gereken: csproj'da AÇIKÇA `<IsTestProject>false</IsTestProject>` **ve** `<IsTestingPlatformApplication>false</IsTestingPlatformApplication>`.
+- **🚨 `tests/` altındaki test OLMAYAN bir proje `IsTestProject=false` demekle yetinmez** (2026-09-08, Faz 157, ölçüldü). `Tracon.WorkerHarness` yalnız `IsTestProject` koşullandırıldığında `dotnet test Tracon.slnx` onu VSTest'e veriyordu ve TÜM koşum `testhost.dll bulunamadı` ile ABORT oluyordu — tek bir proje yüzünden hiçbir test sonucu alınamaz. Gereken: csproj'da AÇIKÇA `<IsTestProject>false</IsTestProject>` **ve** `<IsTestingPlatformApplication>false</IsTestingPlatformApplication>`.

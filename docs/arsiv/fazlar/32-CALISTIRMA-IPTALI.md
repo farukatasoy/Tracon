@@ -3,7 +3,7 @@
 > **Durum:** ✅ Tamamlandı (2026-08-06)
 > **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-35**
 > **Önkoşul:** Yok. **Kapsam bilerek tek örnekle sınırlıdır** — gerekçe aşağıda
-> **Paketler:** `AgentPrism.Abstractions`, `.Core`, `.AspNetCore`, `.UI`
+> **Paketler:** `Tracon.Abstractions`, `.Core`, `.AspNetCore`, `.UI`
 > **Yeni paket:** Yok · **Migration:** Yok
 > **Public API:** büyüyor — Faz 7'den önce ucuz
 
@@ -48,13 +48,13 @@ Bir çalıştırmayı **dışarıdan** durdurmanın yolu yoktur. Kaçak bir agen
       `RunCancellationLeakTests` (3 senaryo); dışarıdan tetiklenen iptalden
       sonra da sıfıra döndüğü `RunCancellationStatusTests`'te ayrıca doğrulandı
 - [x] Dört doğrulama kapısı sıfır uyarı verir — `dotnet build`/`test`/`pack`/
-      `format` hepsi yeşil. **İstisna:** `AgentPrism.SqlServer.IntegrationTests`
+      `format` hepsi yeşil. **İstisna:** `Tracon.SqlServer.IntegrationTests`
       bu makinede (Apple Silicon) Testcontainers'ın `sqlcmd` ikili dosyasını
       mssql imajında bulamaması yüzünden 236/236 başarısız — önceden
       belgelenmiş, bu fazdan bağımsız bir ortam kısıtı
       (`docs/hafiza/sql-saglayicilari.md`). Bu fazda SQL Server koduna
       dokunulmadı.
-- [x] `samples/AgentPrism.Api` ile gerçek `run` iptal edildi, çıktı bu belgeye
+- [x] `samples/Tracon.Api` ile gerçek `run` iptal edildi, çıktı bu belgeye
       yazıldı — bkz. aşağı
 - [x] `secret` taraması boş döndü
 - [x] `en.ts` ve `tr.ts` eksiksiz (4 yeni anahtar: `runDetail.cancel.button`,
@@ -62,43 +62,43 @@ Bir çalıştırmayı **dışarıdan** durdurmanın yolu yoktur. Kaçak bir agen
       **152,9 KB gzip / 250 KB** (önceki ölçüm 151,3 KB — bu fazın payı
       **~1,6 KB gzip**, tahminin altında)
 
-### Gerçek çıktı — `samples/AgentPrism.Api` (2026-08-06, `ASPNETCORE_ENVIRONMENT=Production`, echo sağlayıcı)
+### Gerçek çıktı — `samples/Tracon.Api` (2026-08-06, `ASPNETCORE_ENVIRONMENT=Production`, echo sağlayıcı)
 
 ```
-$ curl -s -N -X POST http://localhost:5080/agentprism/api/agents/support/run \
+$ curl -s -N -X POST http://localhost:5080/tracon/api/agents/support/run \
     -H 'content-type: application/json' -d '{"message":"lorem ipsum ... (1000 sözcük)"}'
 id: 0
 event: run
 data: {"runId":"019fd678-8b4b-7ed7-af89-a4d11bb7d36c","sessionId":null}
 ...
 
-$ curl -s "http://localhost:5080/agentprism/api/runs?status=Running"
+$ curl -s "http://localhost:5080/tracon/api/runs?status=Running"
 [{"id":"019fd678-8b4b-7ed7-af89-a4d11bb7d36c","status":"Running", ...}]
 
-$ curl -s -i -X POST http://localhost:5080/agentprism/api/runs/019fd678-8b4b-7ed7-af89-a4d11bb7d36c/cancel
+$ curl -s -i -X POST http://localhost:5080/tracon/api/runs/019fd678-8b4b-7ed7-af89-a4d11bb7d36c/cancel
 HTTP/1.1 202 Accepted
 Location: /api/runs/019fd678-8b4b-7ed7-af89-a4d11bb7d36c
 {"id":"019fd678-8b4b-7ed7-af89-a4d11bb7d36c","status":"Running", ...}
 
-$ curl -s http://localhost:5080/agentprism/api/runs/019fd678-8b4b-7ed7-af89-a4d11bb7d36c | jq -r .status
+$ curl -s http://localhost:5080/tracon/api/runs/019fd678-8b4b-7ed7-af89-a4d11bb7d36c | jq -r .status
 Canceled
 
 # Ayni calistirma tekrar iptal edilmeye calisilinca:
-$ curl -s -i -X POST http://localhost:5080/agentprism/api/runs/019fd678-8b4b-7ed7-af89-a4d11bb7d36c/cancel
+$ curl -s -i -X POST http://localhost:5080/tracon/api/runs/019fd678-8b4b-7ed7-af89-a4d11bb7d36c/cancel
 HTTP/1.1 409 Conflict
 {"title":"Calistirma zaten sonlanmis","detail":"'019fd678-...' kimlikli calistirma zaten 'Completed' durumunda."}
 
 # Olmayan bir calistirma:
-$ curl -s -X POST http://localhost:5080/agentprism/api/runs/00000000-0000-0000-0000-000000000000/cancel -w "\n%{http_code}\n"
+$ curl -s -X POST http://localhost:5080/tracon/api/runs/00000000-0000-0000-0000-000000000000/cancel -w "\n%{http_code}\n"
 {"title":"Calistirma bulunamadi", ...}
 404
 
 # Denetim izi:
-$ curl -s http://localhost:5080/agentprism/api/audit?take=5
+$ curl -s http://localhost:5080/tracon/api/audit?take=5
 [{"action":"run.cancel","entity":"run:019fd678-8b4b-7ed7-af89-a4d11bb7d36c", ...}]
 ```
 
-Sunucu günlüğünde hata/uyarı yoktu. `AgentPrismRunOptions` gerektiği için ilk
+Sunucu günlüğünde hata/uyarı yoktu. `TraconRunOptions` gerektiği için ilk
 denemede gerçek OpenAI sağlayıcısı (kısa yanıt, saniyeden az) yakalandı; ikinci
 denemede `--no-launch-profile` ile `user-secrets` devre dışı bırakılıp echo
 sağlayıcısına (kelime başına 30 ms akış) geçilerek `Running` penceresi elde
@@ -108,21 +108,21 @@ edildi.
 
 ```bash
 # Uzun surecek bir calistirma baslat (arka planda)
-curl -s -X POST http://localhost:5081/agentprism/api/agents/slow/run \
+curl -s -X POST http://localhost:5081/tracon/api/agents/slow/run \
   -H 'content-type: application/json' \
   -d '{"messages":[{"role":"user","content":"uzun bir metin yaz"}]}' &
 
 # Suren calistirmayi bul
-RUN=$(curl -s 'http://localhost:5081/agentprism/api/runs?status=Running' | jq -r '.[0].id')
+RUN=$(curl -s 'http://localhost:5081/tracon/api/runs?status=Running' | jq -r '.[0].id')
 
 # Iptal et — 202 beklenir
-curl -s -i -X POST http://localhost:5081/agentprism/api/runs/$RUN/cancel | head -1
+curl -s -i -X POST http://localhost:5081/tracon/api/runs/$RUN/cancel | head -1
 
 # Durum Canceled olmali
-curl -s http://localhost:5081/agentprism/api/runs/$RUN | jq -r '.status'
+curl -s http://localhost:5081/tracon/api/runs/$RUN | jq -r '.status'
 
 # Ayni cagriyi tekrarla — 409 beklenir
-curl -s -i -X POST http://localhost:5081/agentprism/api/runs/$RUN/cancel | head -1
+curl -s -i -X POST http://localhost:5081/tracon/api/runs/$RUN/cancel | head -1
 ```
 
 ---
@@ -160,7 +160,7 @@ curl -s -i -X POST http://localhost:5081/agentprism/api/runs/$RUN/cancel | head 
 ## Bu Fazda Verilen Kararlar
 
 | **K-243 — Her çalıştırma (kök VE alt) kendi `CancellationTokenSource`'unu üretir; defter ağaç cascade'ini kendi mantığıyla uygular, akan `CancellationToken`'ın doğal yayılımına GÜVENMEZ** | 2026-08-06 | `RunRecordingAgent.RunCoreAsync`/`RunCoreStreamingAsync` gelen `cancellationToken`'dan `CancellationTokenSource.CreateLinkedTokenSource` ile KENDİ kaynağını kurar ve deftere onu kaydeder. `IRunCancellationRegistry.TryCancel` bir kökü iptal ederken aynı `RootRunId`'yi taşıyan TÜM kayıtların kaynağını tek tek `Cancel()` eder — çocuğun kendi `cancellationToken`'ının kökten türetilip türetilmediğine bakmaz. Gerekçe: alt çalıştırma çağrısı MAF'ın arka plan görev tool'u üzerinden gelir ve bu zincirin gerçek çalışma anında token'ı nasıl ilettiği garanti edilebilir bir sözleşme değildir (bkz. Plandan Sapmalar'daki workflow testi). Kayıt bazlı cascade, token zincirinin gerçekte nasıl kurulduğundan bağımsız çalışır. | — |
-| **K-244 — `IRunCancellationRegistry` varsayılan AÇIK kaydedilir; ayrı bir `Use...()` çağrısı yok** | 2026-08-06 | Açık soru 4'ün önerisi (A) benimsendi: defter yalnız bellekte bir `ConcurrentDictionary` tutar, hiçbir isteği reddetmez, hiçbir yan etki üretmez — K-165'in "yeni davranış varsayılan kapalı gelir" kuralı gözlemlenebilir bir davranış değişikliğini hedefler, bu defter bir davranış değiştirmez. `AddAgentPrism()` içinde koşulsuz `TryAddSingleton<IRunCancellationRegistry, RunCancellationRegistry>()`. | Dağıtık bir defter isteyen bir kurulum arayüzü kendi uygulamasıyla `TryAddSingleton`'dan önce değiştirebilir |
+| **K-244 — `IRunCancellationRegistry` varsayılan AÇIK kaydedilir; ayrı bir `Use...()` çağrısı yok** | 2026-08-06 | Açık soru 4'ün önerisi (A) benimsendi: defter yalnız bellekte bir `ConcurrentDictionary` tutar, hiçbir isteği reddetmez, hiçbir yan etki üretmez — K-165'in "yeni davranış varsayılan kapalı gelir" kuralı gözlemlenebilir bir davranış değişikliğini hedefler, bu defter bir davranış değiştirmez. `AddTracon()` içinde koşulsuz `TryAddSingleton<IRunCancellationRegistry, RunCancellationRegistry>()`. | Dağıtık bir defter isteyen bir kurulum arayüzü kendi uygulamasıyla `TryAddSingleton`'dan önce değiştirebilir |
 | **K-245 — `WorkflowRunner` aynı deftere kendi kök kaydını yazar; `ExecuteAsync`'in zaten kurduğu `timeout`+istek `CancellationTokenSource` birleşimi (`linked`) yeniden kullanılır** | 2026-08-06 | Açık soru 3'ün önerisi (A) benimsendi: `WorkflowRunner.ExecuteAsync` içindeki `linked = CreateLinkedTokenSource(cancellationToken, timeout.Token)` zaten vardı (Faz 15); yeni bir kaynak kurmak yerine bu ikisi birleştirilmiş kaynak doğrudan `registry.Register(execution.RunId, execution.RunId, tenantId, linked)` ile kaydedilir. Workflow satırı kendi ağacının köküdür (`RunId == RootRunId`). | — |
 | **K-246 — İptal isteği `run.cancel` eylemiyle denetim izine yazılır** | 2026-08-06 | Açık soru 2'nin önerisi (A) benimsendi: iptal bir operatör eylemidir, "kim durdurdu" sorusu Faz 9'un denetim izi altyapısıyla (`AuditRecorder.WriteAsync`) aynı yoldan cevaplanır. `entity` alanı `run:{runId}` biçimindedir; `before`/`after` boş bırakılır (çalıştırma satırı zaten `GET /api/runs/{id}` ile okunabilir). | — |
 
@@ -181,7 +181,7 @@ curl -s -i -X POST http://localhost:5081/agentprism/api/runs/$RUN/cancel | head 
   Sapmalar). `WorkflowRunner`'ın kayıt/bırakma teli `RunRecordingAgent` ile
   birebir aynı desendedir ve derleniyor, ama gerçek bir workflow
   çalıştırmasıyla kanıtlanmadı. Bu alana dönen bir faz önce
-  `samples/AgentPrism.Api`'de kayıtlı bir workflow'u gerçekten iptal ederek
+  `samples/Tracon.Api`'de kayıtlı bir workflow'u gerçekten iptal ederek
   bunu kapatmalı (bu doküman bunun yerine `RunCancellationRegistry`'nin ağaç
   cascade'ini registry seviyesinde doğrulayan testlerle kapandı).
 - **Kayıt/bırakma deseni artık üç yerde tekrarlanıyor**:
@@ -191,7 +191,7 @@ curl -s -i -X POST http://localhost:5081/agentprism/api/runs/$RUN/cancel | head 
   `using var registration = _cancellationRegistry?.Register(...)` deseni
   tekrarlanmalıdır — aksi halde o yol dışarıdan iptal edilemez ve bu sessiz
   bir eksikliktir (hata vermez, yalnızca `/cancel` `409` döner).
-- **`AgentPrismRunOptions`'a yeni alan eklenmedi.** İptal, çalıştırma
+- **`TraconRunOptions`'a yeni alan eklenmedi.** İptal, çalıştırma
   seçeneklerinden değil doğrudan `IRunCancellationRegistry`'den okunur; bu
-  yüzden Faz 12'nin `AgentPrismRunOptions`/`AgentRunScope` sözleşmesi
+  yüzden Faz 12'nin `TraconRunOptions`/`AgentRunScope` sözleşmesi
   değişmedi ve gelecekte de değişmesi gerekmez.

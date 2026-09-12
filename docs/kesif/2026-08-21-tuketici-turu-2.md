@@ -62,7 +62,7 @@ ayrı tutuldu.
 | R13 | Koşu ağacı maliyet toplamı (§4.4) | — | ❌ **zaten var** (§3) |
 | R14 | Kütüphane içi tanım doğrulayıcı (§4.5) | — | ❌ **zaten var** (§3) |
 | Ö1 | Yetenek haritasına gömme ekseni | Tüketicinin kod agent'ı | ✅ → **F-140** |
-| Ö2 | `AgentPrismRunContext` anlatıya girsin | Tool yazan tüketici | ✅ → **F-140** içinde |
+| Ö2 | `TraconRunContext` anlatıya girsin | Tool yazan tüketici | ✅ → **F-140** içinde |
 | Ö3 | Bağlanmamış genişleme noktası tanısı (`APG`) | Gömen ekip | ✅ → **F-140** içinde |
 | Ö4 | `/api/diagnostics` bağlı noktaları raporlasın | Nöbetçi | ✅ → **F-140** içinde |
 | Ö5 | Kiracı senkronizasyonu **sözleşmesi** (kanca) | Çok kiracılı gömme | ⏸ bu turda değil — F-140 yalnız **belgeliyor** |
@@ -86,11 +86,11 @@ Bu turun en değerli çıktısı budur. Beş iddia ölçüldü ve **yanlış** �
 
 | İddia | Ölçüm | Sonuç |
 |---|---|---|
-| **Y9** — `PiiPatterns` Kuzey Amerika biçimlerine göre kurulmuş; TR kimlik/IBAN yok | [`PiiPatterns.cs:20`](../../src/AgentPrism.Core/Guards/PiiPatterns.cs#L20) `Iban`, [`:38`](../../src/AgentPrism.Core/Guards/PiiPatterns.cs#L38) `TurkishNationalId` — ikincisi **kontrol hanesi doğruluyor**, rastgele 11 haneli değer maskelenmiyor | ❌ Öncül yanlış. Eksik olan yalnız TR telefon biçimi; tek başına kalem değil |
-| **§7.7** — tool gövdesi oturumu/koşuyu göremez, `_sessionId` enjeksiyonunun karşılığı planlanmalı | [`AgentPrismRunContext.cs:35`](../../src/AgentPrism.Core/Recording/AgentPrismRunContext.cs#L35) **public**; `AgentRunScope` `RunId`·`RootRunId`·`Depth`·`AgentName`·`TenantId`·`SessionId`·`Budget`·`AgentVersion`·`ExperimentId`·`Variant` taşır. XML dokümanı: *"A tool cannot access `AgentSession`, so this is the only place it can read the session identity from"* | ❌ Yarısı **bugün çözülü**. Kalan yarı (çalışma anı parametresi) F-34'tür |
-| **§4.4** — koşu ağacı maliyet toplamı API'de var mı, ölçmedim | [`RunRecord.cs:121,137`](../../src/AgentPrism.Abstractions/Runs/RunRecord.cs) `TreeUsage`/`TreeCost` · [`RunSupportTypes.cs:155`](../../src/AgentPrism.Abstractions/Runs/RunSupportTypes.cs#L155) `RunTreeCost` — `InputCost`·`OutputCost`·`CachedInputCost`·`Currency` ve fiyatı bilinmeyen koşu sayısı | ❌ Zaten var |
-| **§4.2** — kota %80 eşik olayı yayınlanıyor mu, ölçmedim | `AgentPrismQuotaOptions.ThresholdPercents` (varsayılan `[80, 100]`) · `WebhookEvents.QuotaThreshold`. F-100 bunu **2026-08-18'de kapattı** | ❌ Zaten var |
-| **§4.5** — CI için kütüphane içinden çağrılabilir doğrulayıcı gerekir; `AgentDefinitionCompiler` public mi? | [`AgentDefinitionCompiler.cs:35`](../../src/AgentPrism.Core/Compilation/AgentDefinitionCompiler.cs#L35) `public sealed class` | ❌ Zaten public. Kalan iş F-50 → [Faz 83](../arsiv/fazlar/83-TIPLI-ISTEMCI-VE-CLI.md) |
+| **Y9** — `PiiPatterns` Kuzey Amerika biçimlerine göre kurulmuş; TR kimlik/IBAN yok | [`PiiPatterns.cs:20`](../../src/Tracon.Core/Guards/PiiPatterns.cs#L20) `Iban`, [`:38`](../../src/Tracon.Core/Guards/PiiPatterns.cs#L38) `TurkishNationalId` — ikincisi **kontrol hanesi doğruluyor**, rastgele 11 haneli değer maskelenmiyor | ❌ Öncül yanlış. Eksik olan yalnız TR telefon biçimi; tek başına kalem değil |
+| **§7.7** — tool gövdesi oturumu/koşuyu göremez, `_sessionId` enjeksiyonunun karşılığı planlanmalı | [`TraconRunContext.cs:35`](../../src/Tracon.Core/Recording/TraconRunContext.cs#L35) **public**; `AgentRunScope` `RunId`·`RootRunId`·`Depth`·`AgentName`·`TenantId`·`SessionId`·`Budget`·`AgentVersion`·`ExperimentId`·`Variant` taşır. XML dokümanı: *"A tool cannot access `AgentSession`, so this is the only place it can read the session identity from"* | ❌ Yarısı **bugün çözülü**. Kalan yarı (çalışma anı parametresi) F-34'tür |
+| **§4.4** — koşu ağacı maliyet toplamı API'de var mı, ölçmedim | [`RunRecord.cs:121,137`](../../src/Tracon.Abstractions/Runs/RunRecord.cs) `TreeUsage`/`TreeCost` · [`RunSupportTypes.cs:155`](../../src/Tracon.Abstractions/Runs/RunSupportTypes.cs#L155) `RunTreeCost` — `InputCost`·`OutputCost`·`CachedInputCost`·`Currency` ve fiyatı bilinmeyen koşu sayısı | ❌ Zaten var |
+| **§4.2** — kota %80 eşik olayı yayınlanıyor mu, ölçmedim | `TraconQuotaOptions.ThresholdPercents` (varsayılan `[80, 100]`) · `WebhookEvents.QuotaThreshold`. F-100 bunu **2026-08-18'de kapattı** | ❌ Zaten var |
+| **§4.5** — CI için kütüphane içinden çağrılabilir doğrulayıcı gerekir; `AgentDefinitionCompiler` public mi? | [`AgentDefinitionCompiler.cs:35`](../../src/Tracon.Core/Compilation/AgentDefinitionCompiler.cs#L35) `public sealed class` | ❌ Zaten public. Kalan iş F-50 → [Faz 83](../arsiv/fazlar/83-TIPLI-ISTEMCI-VE-CLI.md) |
 
 ### 3.1 Raporun kendi düşürdüğü altı iddia — hepsi doğrulandı
 
@@ -99,10 +99,10 @@ Rapor §2'de altı iddiayı kendisi düşürmüştü. Altısı da bizim tarafım
 
 | § | Ölçüm |
 |---|---|
-| 2.1 `IRunEventSink` | [`IRunEventSink.cs`](../../src/AgentPrism.Abstractions/Runs/IRunEventSink.cs) — sıcak yol, sink hatası koşuyu düşürmez, tek örnek tüm koşulara hizmet eder, `RunEvent.TenantId` ile kiracı ayrımı |
-| 2.2 `IToolAuthorizationHandler` | [`ToolAuthorizationTypes.cs`](../../src/AgentPrism.Abstractions/Tools/ToolAuthorizationTypes.cs) + [`AllowAllToolAuthorizationHandler.cs`](../../src/AgentPrism.Core/Tools/AllowAllToolAuthorizationHandler.cs) |
-| 2.3 Örnekleme ayarları | [`ModelBinding.cs:18,21,24,36`](../../src/AgentPrism.Abstractions/Agents/ModelBinding.cs) `Temperature`·`MaxOutputTokens`·`TopP`·`ReasoningEffort`, sürümlenen tanımın içinde. **Koşu isteği bunları geçersiz kılamaz** — `AgentRunRequest` böyle bir alan taşımıyor. Yedek model devreye girerse `RunRecord.ModelId` gerçek modeli yazar. Ayrı kolon gereksiz |
-| 2.4 Toplu üretim | [`JobHandlerKeys.cs`](../../src/AgentPrism.Abstractions/Scheduling/JobHandlerKeys.cs) `AgentBatch` (Faz 137 öncesi `JobKind.AgentBatch`) · [`JobRecord.cs:33-39`](../../src/AgentPrism.Abstractions/Scheduling/JobRecord.cs) `TotalItems`/`DoneItems`/`FailedItems` |
+| 2.1 `IRunEventSink` | [`IRunEventSink.cs`](../../src/Tracon.Abstractions/Runs/IRunEventSink.cs) — sıcak yol, sink hatası koşuyu düşürmez, tek örnek tüm koşulara hizmet eder, `RunEvent.TenantId` ile kiracı ayrımı |
+| 2.2 `IToolAuthorizationHandler` | [`ToolAuthorizationTypes.cs`](../../src/Tracon.Abstractions/Tools/ToolAuthorizationTypes.cs) + [`AllowAllToolAuthorizationHandler.cs`](../../src/Tracon.Core/Tools/AllowAllToolAuthorizationHandler.cs) |
+| 2.3 Örnekleme ayarları | [`ModelBinding.cs:18,21,24,36`](../../src/Tracon.Abstractions/Agents/ModelBinding.cs) `Temperature`·`MaxOutputTokens`·`TopP`·`ReasoningEffort`, sürümlenen tanımın içinde. **Koşu isteği bunları geçersiz kılamaz** — `AgentRunRequest` böyle bir alan taşımıyor. Yedek model devreye girerse `RunRecord.ModelId` gerçek modeli yazar. Ayrı kolon gereksiz |
+| 2.4 Toplu üretim | [`JobHandlerKeys.cs`](../../src/Tracon.Abstractions/Scheduling/JobHandlerKeys.cs) `AgentBatch` (Faz 137 öncesi `JobKind.AgentBatch`) · [`JobRecord.cs:33-39`](../../src/Tracon.Abstractions/Scheduling/JobRecord.cs) `TotalItems`/`DoneItems`/`FailedItems` |
 | 2.5 Fatura üretimi | *Bilerek Önerilmeyenler*'de kalır; tüketici de itiraz etmiyor |
 | 2.6 EF Core köprü paketi | L16 · L29. Paket **önerilmedi** |
 
@@ -115,13 +115,13 @@ kanıt seviyesi ve eleyici sınır kontrolü durur.
 
 ### F-140 · Gömme ekseni
 
-**Kanıt seviyesi:** **Ölçüldü.** Sevk edilen `AgentPrism.AgentMap.md` içinde
+**Kanıt seviyesi:** **Ölçüldü.** Sevk edilen `Tracon.AgentMap.md` içinde
 `IRunEventSink`·`IToolAuthorizationHandler`·`ITenantContext`·`IRunAttributionContext`·
-`ITenantStore`·`AmbientTenantScope`·`AgentPrismRunContext`·`IAttachmentStore`
+`ITenantStore`·`AmbientTenantScope`·`TraconRunContext`·`IAttachmentStore`
 adlarının **hepsi 0 kez** geçiyor. `docs-site` elle yazılan sayfalarında
-`ITenantContext`, `ITenantStore`, `AmbientTenantScope`, `AgentPrismRunContext`
+`ITenantContext`, `ITenantStore`, `AmbientTenantScope`, `TraconRunContext`
 ve `IAttachmentStore` **0** sayfada geçiyor. `samples/` **tek proje** taşıyor.
-`AgentPrismDiagnosticsReport` on alan taşıyor, hiçbiri bağlı genişleme noktası
+`TraconDiagnosticsReport` on alan taşıyor, hiçbiri bağlı genişleme noktası
 değil. `APG` tanı ailesinde (`APG0001`…`APG0402`) karşılığı yok.
 **Mercek:** 1, 3, 6.
 **Eleyici sınır:** K2 ⟶ konusuz · K3 ⟶ konusuz · yeni paket **yok** · AOT
@@ -135,8 +135,8 @@ bulamadı, çünkü **hangi soruyu soracağını bilmiyordu**.
 
 ### F-34 · Talimatın girdi yüzeyi (yeniden yargı)
 
-**Kanıt seviyesi:** **Ölçüldü.** [`AgentDefinition.cs:33,41`](../../src/AgentPrism.Abstractions/Agents/AgentDefinition.cs)
-· [`AgentContracts.cs:212-282`](../../src/AgentPrism.AspNetCore/Contracts/AgentContracts.cs)
+**Kanıt seviyesi:** **Ölçüldü.** [`AgentDefinition.cs:33,41`](../../src/Tracon.Abstractions/Agents/AgentDefinition.cs)
+· [`AgentContracts.cs:212-282`](../../src/Tracon.AspNetCore/Contracts/AgentContracts.cs)
 — parametre alanı yok. [Faz 82](../arsiv/fazlar/82-ICERIK-KORUMASI.md) belge/talimat ayrımını
 **kapsamıyor** (at-rest şifreleme).
 **Mercek:** 1, 5, 7 (dolaylı 3).
@@ -144,19 +144,19 @@ bulamadı, çünkü **hangi soruyu soracağını bilmiyordu**.
 Scriban gibi bir motor alınmaz (hem K2 hem AOT). Public API **büyür** → Faz
 7'den önce ucuz, sonra sürüm kararı.
 **Karşı görüş:** Tüketici bu işi bugün kendi tarafında yapabiliyor; engellenen
-şey parametreleme değil, parametreli agent'ın AgentPrism **tanımında** yaşaması.
+şey parametreleme değil, parametreli agent'ın Tracon **tanımında** yaşaması.
 Kalem "yapamıyor" değil, "sürümleme kazanımını alamıyor" kalemidir.
 **Sonuç:** Yeni numara **açılmadı**; F-34'ün gövdesi yeniden yazıldı, sınıfı
 düzeltildi, R8 kapsamına katıldı.
 
 ### F-141 · Kesilen işin devamı
 
-**Kanıt seviyesi:** **Ölçüldü.** [`SqlRunStore.cs:263`](../../src/AgentPrism.Sql.Shared/Stores/SqlRunStore.cs#L263)
+**Kanıt seviyesi:** **Ölçüldü.** [`SqlRunStore.cs:263`](../../src/Tracon.Sql.Shared/Stores/SqlRunStore.cs#L263)
 öksüz koşuyu `Failed` kapatır ve kuyruğa koymaz ·
-[`RunReconciliationService.cs:91`](../../src/AgentPrism.Core/Recording/RunReconciliationService.cs#L91)
-yalnız kapatır · `src/AgentPrism.Workflows` içinde retry/backoff **0 eşleşme** ·
-[`AgentPrismWorkflowOptions.cs:25,49,60`](../../src/AgentPrism.Workflows/AgentPrismWorkflowOptions.cs)
-· [`RecordedToolPlayback.cs`](../../src/AgentPrism.Core/Replay/RecordedToolPlayback.cs)
+[`RunReconciliationService.cs:91`](../../src/Tracon.Core/Recording/RunReconciliationService.cs#L91)
+yalnız kapatır · `src/Tracon.Workflows` içinde retry/backoff **0 eşleşme** ·
+[`TraconWorkflowOptions.cs:25,49,60`](../../src/Tracon.Workflows/TraconWorkflowOptions.cs)
+· [`RecordedToolPlayback.cs`](../../src/Tracon.Core/Replay/RecordedToolPlayback.cs)
 **internal**, `(tool adı, argümanlar)` çiftiyle eşleştiriyor ·
 `AgentSessionManager.SaveSessionAsync` **açık** çağrıdır (kesilen tur oturumu
 tur öncesi hâlinde bırakır).
@@ -175,9 +175,9 @@ gerekçesi hâlâ geçerlidir, çünkü F-141 farklı bir mekanizmadır.
 ### F-142 · Görsel üretim tool'u
 
 **Kanıt seviyesi:** **Ölçüldü.** `src/` içinde görsel üretimi **0 eşleşme**.
-Emsal: [`SpeakTool.cs`](../../src/AgentPrism.Voice/Tools/SpeakTool.cs) ·
-[`VoicePricing.cs:62`](../../src/AgentPrism.Voice/Internal/VoicePricing.cs#L62)
-`VoicePriceOverride` · [`IAttachmentStore.cs:69`](../../src/AgentPrism.Abstractions/Attachments/IAttachmentStore.cs#L69)
+Emsal: [`SpeakTool.cs`](../../src/Tracon.Voice/Tools/SpeakTool.cs) ·
+[`VoicePricing.cs:62`](../../src/Tracon.Voice/Internal/VoicePricing.cs#L62)
+`VoicePriceOverride` · [`IAttachmentStore.cs:69`](../../src/Tracon.Abstractions/Attachments/IAttachmentStore.cs#L69)
 `IAttachmentStorage`.
 **Mercek:** 1, 3, 8.
 **Eleyici sınır:** 🚨 **Paket ağırlığı ÖLÇÜLMEDİ** — ayrı paket mi, sağlayıcı
@@ -190,7 +190,7 @@ kötüdür.
 
 ### F-143 · Tool çıktısı boyut sınırı
 
-**Kanıt seviyesi:** **Ölçüldü.** [`AgentPrismToolRegistration.cs:63-84`](../../src/AgentPrism.Abstractions/Tools/AgentPrismToolRegistration.cs)
+**Kanıt seviyesi:** **Ölçüldü.** [`TraconToolRegistration.cs:63-84`](../../src/Tracon.Abstractions/Tools/TraconToolRegistration.cs)
 altı alan taşır ve çıktı boyutu yoktur.
 **Mercek:** 8, 2, 5.
 **Eleyici sınır:** Hepsi konusuz. Public API 2 alan büyür; migration yok.
@@ -246,7 +246,7 @@ ekosistem değişimi bulunmadı. Temas eden dört karar ve durumları:
 | Koşu ağacı maliyet toplamı (§4.4) | `RunRecord.TreeCost` var | Evet — konusuz | Yalnız burada |
 | Kota eşik bildirimi (§4.2) | F-100 kapattı (2026-08-18) | Evet — konusuz | Yalnız burada |
 | Kütüphane içi tanım doğrulayıcı (§4.5) | `AgentDefinitionCompiler` public; kalanı F-50 → Faz 83 | Evet — konusuz | Yalnız burada |
-| Tool bağlamı enjeksiyonu (§7.7) | `AgentPrismRunContext` public ve `SessionId` taşıyor | Kısmen — kalan yarı F-34 | Yalnız burada |
+| Tool bağlamı enjeksiyonu (§7.7) | `TraconRunContext` public ve `SessionId` taşıyor | Kısmen — kalan yarı F-34 | Yalnız burada |
 | ABP / EF Core köprü **paketi** (§10.1) | L16 + "genişleme noktası varsa somut uygulama tüketicinin işidir" emsali. `Volo.Abp` bağımlılığı paket ailesine girmemeli | Evet | Yalnız burada; ihtiyacın örnek+doküman hâli **F-140**'tır |
 | Agent tanımı `Deprecated` durumu (§4.1) | Gerçek ama küçük; ölçülmüş bir engel yok | Hayır — zamanlama | Yalnız burada |
 | `Metadata` şema desteği (§4.3) | Tüketici de "bugün gerek yok" diyor | Hayır — zamanlama | Yalnız burada |

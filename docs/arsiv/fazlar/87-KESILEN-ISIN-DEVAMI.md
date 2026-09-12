@@ -3,11 +3,11 @@
 > **Durum:** ✅ Tamamlandı (2026-08-23)
 > **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-141** — Dalga 14 Küme D
 > **Önkoşul:** [Faz 46](46-DAYANIKLI-CALISTIRMA.md) — iş kuyruğu ve `202 Accepted` sözleşmesi · [Faz 47](47-YENIDEN-OYNATMA-VE-DALLANDIRMA.md) — `RecordedToolPlayback` defteri · [Faz 54](54-OKSUZ-CALISTIRMA-UZLASTIRMASI.md) — öksüz uzlaştırma, tetikleyicinin takılacağı yer · [Faz 55](55-ASENKRON-ONAY-KUTUSU.md) — `ApprovalResume` emsali · [Faz 44](44-HATA-SINIFLANDIRMA.md) — tipli sağlayıcı hataları (geçici/kalıcı ayrımı metin eşleştirmesi **gerektirmez**)
-> **Paketler:** `AgentPrism.Abstractions`, `AgentPrism.Core`, `AgentPrism.Workflows`, `AgentPrism.Sql.Shared` (linked-source, K-176), `AgentPrism.AspNetCore`
+> **Paketler:** `Tracon.Abstractions`, `Tracon.Core`, `Tracon.Workflows`, `Tracon.Sql.Shared` (linked-source, K-176), `Tracon.AspNetCore`
 > **Yeni paket:** Yok · **Migration:** **Gerekli** — `runs` tablosuna nullable bir "hangi koşudan devam" kolonu. Üç set (PostgreSQL · SQL Server · SQLite); numaralar uygulama anında alınır (K-178)
 > **Public API:** Büyüyor — 1 enum üyesi, 1 ayar bölümü, 1 tool alanı, 1 workflow retry politikası. `PublicAPI.Shipped.txt` toplamı **16 satır** (yalnız başlıklar; ölçüldü 2026-08-21) → Faz 7'den önce eklemek **bedava**
 > **Tüketici yüzeyi:** `docs-site/` → `guides/reliability.md`, `guides/background-work.md`, `concepts/runs.md`, `concepts/workflows.md`, `reference/configuration.md`, `capabilities.md`
-> · sevk edilen: yeni ayar ve tool alanının XML dokümanı, `src/AgentPrism.Core/README.md`. `api/` ve `http-api/` **üretilir**
+> · sevk edilen: yeni ayar ve tool alanının XML dokümanı, `src/Tracon.Core/README.md`. `api/` ve `http-api/` **üretilir**
 > **Manuel test alanı:** [`docs/manuel-test/21-DAYANIKLILIK-VE-IPTAL.md`](../../manuel-test/21-DAYANIKLILIK-VE-IPTAL.md) · [`docs/manuel-test/15-WORKFLOWS.md`](../../manuel-test/15-WORKFLOWS.md)
 
 ---
@@ -33,7 +33,7 @@ Dayanıklılık bugün **elle bir düğmeye** bağlıdır. Süreç yeniden başl
 
 ## Bitiş Ölçütleri (DoD)
 
-- [x] **Drain önce teslim edilir**: `AgentPrismDrainService` en son hosted-service olarak kayıtlı (ters sırada durma), `JobWorkerBackgroundService` ve `DrainGate` yeni işi reddeder, `Timeout` sonunda kapanır. `AgentPrismDrainServiceTests` (5) + `DrainTests` (4, gerçek HTTP host) + örnek uygulamada gerçek `SIGTERM` ile doğrulandı (temiz kapanış, hata yok)
+- [x] **Drain önce teslim edilir**: `TraconDrainService` en son hosted-service olarak kayıtlı (ters sırada durma), `JobWorkerBackgroundService` ve `DrainGate` yeni işi reddeder, `Timeout` sonunda kapanır. `TraconDrainServiceTests` (5) + `DrainTests` (4, gerçek HTTP host) + örnek uygulamada gerçek `SIGTERM` ile doğrulandı (temiz kapanış, hata yok)
 - [x] Ayar **kapalıyken** hiçbir davranış değişmez — `Disabled_by_default_orphaned_run_stays_Failed_with_no_continuation` bunu HTTP seviyesinde kanıtlıyor
 - [x] Ayar açıkken oturumlu bir öksüz koşu `JobKind.RunContinuation` olarak kuyruğa girer — `Continuation_replays_the_completed_call_and_runs_the_new_one_live`
 - [x] Devam koşusunda kesintiden **önceki** tool çağrıları yeniden çalışmaz; **sonrakiler** canlı çalışır — aynı testte `ContinuationProbeTools.Calls == 1` (yalnız kesinti sonrası çağrı) ölçüldü; `RecordedToolPlaybackTests` (5) mekanizmayı izole doğruluyor
@@ -45,7 +45,7 @@ Dayanıklılık bugün **elle bir düğmeye** bağlıdır. Süreç yeniden başl
 - [x] Üç migration seti yazıldı; `RunStoreContract` üçünde geçti — `ContinuedFromRunId_round_trips` ve `ClaimOrphanedRunsAsync_reports_ContinuedFromRunId` dört depoda (bellek-içi + üç SQL) geçti
 - [x] Devam bağı koşu ağacında görünür — API (`continuedFromRunId`, OpenAPI'de doğrulandı) ve arayüz (`run-detail.tsx`, `MT-RES-067`, 57 E2E testi geçti)
 - [x] Dört doğrulama kapısı sıfır uyarı verir — `dotnet build`/`test`/`pack`/`format`, arayüz DAHİL, tekrar tekrar koşuldu
-- [x] `samples/AgentPrism.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı — aşağıdaki "Örnek Uygulama Doğrulaması" bölümü
+- [x] `samples/Tracon.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı — aşağıdaki "Örnek Uygulama Doğrulaması" bölümü
 - [x] `secret` taraması boş döndü — bu fazın dokunduğu dosyalarda; repodaki önceden var olan yerel test `Password=`/`sk-` literalleri bu fazdan bağımsızdır (Faz 79/80/81 emsaliyle aynı kapsam)
 - [x] Manuel kabul case'leri `docs/manuel-test/21-*` ve `15-*` içine eklendi (`MT-RES-060`–`068`, `MT-WF-117`–`118`); otomatikleştirilebilir olanlar (birim/fonksiyonel test karşılıkları) koşuldu, tam elle koşum ayrı bir `manuel-test-kosumu` oturumunu bekliyor
 - [x] `faz-denetim` koşuldu; 🔴 bulgu (arayüz bağı eksikti) **kapatıldı** — bkz. Denetim Bulguları
@@ -56,10 +56,10 @@ Dayanıklılık bugün **elle bir düğmeye** bağlıdır. Süreç yeniden başl
 
 ```bash
 # Devam kosusu kaynagi gosteriyor mu
-curl -s http://localhost:5081/agentprism/api/runs/$RUN_ID | jq '.continuedFromRunId'
+curl -s http://localhost:5081/tracon/api/runs/$RUN_ID | jq '.continuedFromRunId'
 
 # Kesinti sonrasi tool cagrilarinin hangisi oynatildi
-curl -s http://localhost:5081/agentprism/api/runs/$RUN_ID/tools | jq '.[] | {toolName, source}'
+curl -s http://localhost:5081/tracon/api/runs/$RUN_ID/tools | jq '.[] | {toolName, source}'
 
 # Drain: SIGTERM sonrasi acik kosu tamamlaniyor mu
 kill -TERM $PID && sleep 1 && curl -s .../api/runs/$RUN_ID | jq -r '.status'
@@ -67,14 +67,14 @@ kill -TERM $PID && sleep 1 && curl -s .../api/runs/$RUN_ID | jq -r '.status'
 
 ### Örnek Uygulama Doğrulaması (2026-08-23, gerçek koşum)
 
-`samples/AgentPrism.Api`, gerçek PostgreSQL'e (`AutoApplyMigrations: true`)
+`samples/Tracon.Api`, gerçek PostgreSQL'e (`AutoApplyMigrations: true`)
 karşı `dotnet run -c Release` ile ayağa kaldırıldı:
 
-- Açılış günlüğünde `AgentPrism applied 1 migration(s). Schema: agentprism.` —
+- Açılış günlüğünde `Tracon applied 1 migration(s). Schema: tracon.` —
   `0037_run_continuation.sql` gerçek bir veritabanına GERÇEKTEN uygulandı
   (sözdizimi/izin hatası yok).
-- `GET /agentprism/api/meta` → `200`.
-- Arka plan iş işçisi gerçekten çalışıyor: günlükte `agentprism.jobs` üzerinde
+- `GET /tracon/api/meta` → `200`.
+- Arka plan iş işçisi gerçekten çalışıyor: günlükte `tracon.jobs` üzerinde
   gerçek `UPDATE ... FOR UPDATE SKIP LOCKED` sorguları görüldü.
 - `kill -TERM $PID` ile temiz kapanış doğrulandı: `Application is shutting
   down...` yazıldı, hata/istisna YOK (Drain varsayılan kapalı — süreç anında
@@ -106,7 +106,7 @@ karşı `dotnet run -c Release` ile ayağa kaldırıldı:
   Faz 68 alanları (`cached_input_tokens` vb.) o aralığı ZATEN dolduruyordu.
   Gerçek boş ordinal **52**'ydi — `SqlRunStore.cs`'yi okuyarak (varsaymadan)
   bulundu. `docs/hafiza/sql-saglayicilari.md` güncellendi.
-- **`AgentPrismDrainService`'in "yeni koşu kabul edilmez" kapsamı, plandakinden
+- **`TraconDrainService`'in "yeni koşu kabul edilmez" kapsamı, plandakinden
   DAR tutuldu — bilinçli bir kapsam sınırlaması, eksiklik değil.** Doğrudan
   HTTP çalıştırma uçları (senkron/akışlı ve kuyruklu) ve arka plan iş
   işçisinin yeni iş kiralaması kapsanır. Workflow/toplu/tetikleyici giriş
@@ -116,10 +116,10 @@ karşı `dotnet run -c Release` ile ayağa kaldırıldı:
   yalnız süreç yeniden başlayana kadar bekler — bu, DoD'un asıl ölçtüğü acıyı
   (senkron/akışlı bir isteğin sunucu kapanınca bağlantısının KOPMASI) zaten
   kapatır.
-- **`AgentPrismDrainService`'in hosted-service DURMA sırası ölçülmedi, yalnız
+- **`TraconDrainService`'in hosted-service DURMA sırası ölçülmedi, yalnız
   belgelenen .NET davranışına DAYANDIRILDI** (jenerik host, hosted service'leri
-  KAYIT sırasının TERSİNDE durdurur). Kayıt `AddAgentPrism()`'in son satırıdır;
-  bu, `AgentPrismDrainService.StopAsync`'in `JobWorkerBackgroundService`'ten
+  KAYIT sırasının TERSİNDE durdurur). Kayıt `AddTracon()`'in son satırıdır;
+  bu, `TraconDrainService.StopAsync`'in `JobWorkerBackgroundService`'ten
   ÖNCE çalışmasını GARANTİ eder ama gerçek bir çok-servisli entegrasyon testiyle
   ÖLÇÜLMEDİ (yalnız kod okumasıyla doğrulandı). Gerçek bir davranış sapması
   bulunursa `docs/hafiza/aspnetcore-di.md`'ye not düşülür.
@@ -151,7 +151,7 @@ Tam gerekçeler: `docs/KARARLAR.md` K-583–K-587.
 | 2 | `ClaimOrphanedRunsAsync`'in okuma yolu (`ReadOrphanedRun`, ordinal 23) hiç test edilmemiş — `MaxAttempts` zincir-sayımının dayandığı alan | 🟡 | **Düzeltildi** — `RunStoreContract.ClaimOrphanedRunsAsync_reports_ContinuedFromRunId_on_the_claimed_record`, dört depoda geçti |
 | 3 | `RunContinuationStoreFailureTests` (kuyruk yazamazsa devam durur, koşu Failed kapanır) yazılmamış | 🟡 | **Düzeltildi** — `RunReconciliationTests.Continuation_store_failure_is_logged_and_the_placeholder_closes_to_Failed` |
 | 4 | `RunContinuationConcurrencyTests` (iki uzlaştırıcı örneği aynı öksüz koşuyu görebilir) yazılmamış | 🟡 | **Düzeltildi** — `RunReconciliationTests.The_same_orphaned_run_is_never_continued_twice_by_two_concurrent_reconcilers`, 5 kez tekrar koşularak kırılganlık denetlendi |
-| 5 | `IAgentPrismDrainState` planın "Planlanan Public API" bölümünde yoktu | 🟡 | **Gerekçelendi** — bu bölümde ve K-583–587'de kaydedildi; mimari olarak gerekli (Core'daki drain durumunu AspNetCore'a taşımanın tek yolu, `IRunCancellationRegistry` emsaliyle tutarlı) |
+| 5 | `ITraconDrainState` planın "Planlanan Public API" bölümünde yoktu | 🟡 | **Gerekçelendi** — bu bölümde ve K-583–587'de kaydedildi; mimari olarak gerekli (Core'daki drain durumunu AspNetCore'a taşımanın tek yolu, `IRunCancellationRegistry` emsaliyle tutarlı) |
 | 6 | `ToolEffect.External`'ın `Destructive` ile aynı kod yolunu paylaştığına dair ayrı bir test yok | 🟢 | **Devredilmedi** — kapsam çok dar (`Effect is Destructive or External` tek satırlık `or`); gerekli görülürse gelecekte eklenir |
 
 Denetimden sonra dört kapı (`build`/`test`/`pack`/`format`, arayüz dahil)
@@ -159,15 +159,15 @@ yeniden koşuldu; 🔴 kalmadı.
 
 ## Sonraki Faza Devir Notu
 
-- **Devraldığı sözleşmeler** (birebir imza): `IAgentPrismDrainState.IsDraining`
-  (`AgentPrism.Abstractions`) — yeni bir HTTP giriş noktası "yeni koşu"
+- **Devraldığı sözleşmeler** (birebir imza): `ITraconDrainState.IsDraining`
+  (`Tracon.Abstractions`) — yeni bir HTTP giriş noktası "yeni koşu"
   sayılıyorsa `DrainGate.Check(drainState)`'i kendi kontrol noktasına ekle.
   `WorkflowNodeRetryPolicy` — yalnız `AddWorkflowFunction`'a bağlıdır, diğer
   dört workflow desenine (Concurrent/Handoff/GroupChat/Magentic) UYGULANAMAZ.
-  `AgentPrismToolRegistration.SafeToRepeat`/`AgentPrismToolAttribute.SafeToRepeat`
+  `TraconToolRegistration.SafeToRepeat`/`TraconToolAttribute.SafeToRepeat`
   — yalnız `Destructive`/`External` etkili tool'larda anlamlıdır.
 - **🚨 Bilinen tuzaklar:**
-  - `RunRecord`/`RunStartInfo`/`AgentPrismRunOptions` üçlüsüne yeni bir lineage
+  - `RunRecord`/`RunStartInfo`/`TraconRunOptions` üçlüsüne yeni bir lineage
     alanı eklenirken (`ReplayOfRunId`/`ContinuedFromRunId` deseni) üçü de
     GÜNCELLENMELİDİR — `RunRecordingAgent.WriteRunStartAsync`'in `RunStart`
     positional record'u dördüncü bir taşıyıcıdır, unutulması sessizce alanı
@@ -184,7 +184,7 @@ yeniden koşuldu; 🔴 kalmadı.
 - **Yarım kalan işler:** Skill/alt-agent replay'i genişletmesi (K-586'nın
   bıraktığı boşluk) `docs/ADAYLAR.md`'ye aday olarak yazılabilir. Diğer dört
   workflow deseni için retry (K-587'nin bıraktığı boşluk) ayrı bir araştırma
-  gerektirir. `AgentPrismDrainService`'in hosted-service durma sırası yalnız
+  gerektirir. `TraconDrainService`'in hosted-service durma sırası yalnız
   kod okumasıyla doğrulandı — gerçek bir çoklu-servis entegrasyon testi
   yazılmadı (Plandan Sapmalar'da not düşüldü).
 - **Sıradaki faz:** [Faz 88 — Görsel Üretim Tool'u](88-GORSEL-URETIM-TOOLU.md).

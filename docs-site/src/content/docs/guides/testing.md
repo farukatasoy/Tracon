@@ -3,7 +3,7 @@ title: Test agents without model calls
 description: Test agents without network model calls by using the in-memory host, scripted fake provider, recorded requests, and run assertions.
 ---
 
-`AgentPrism.Testing` runs your agent through the real AgentPrism HTTP, catalog, tool,
+`Tracon.Testing` runs your agent through the real Tracon HTTP, catalog, tool,
 recording, and streaming pipeline without a database or network model call. You
 control the provider response, then assert against the durable run model rather than
 mocking internal services.
@@ -11,8 +11,8 @@ mocking internal services.
 ```mermaid
 flowchart TD
     accTitle: What each test level proves
-    accDescr: FakeModelProvider scripts the model turn, AgentPrismTestHost runs the real HTTP, catalog, tool, recording, and streaming pipeline over in-memory stores, and RunAssertions reads the recorded run. Live providers and SQL behaviour are outside this host and need their own tests.
-    FAKE["FakeModelProvider<br/>scripted model turns"] --> HOST["AgentPrismTestHost<br/>real pipeline, in-memory stores"]
+    accDescr: FakeModelProvider scripts the model turn, TraconTestHost runs the real HTTP, catalog, tool, recording, and streaming pipeline over in-memory stores, and RunAssertions reads the recorded run. Live providers and SQL behaviour are outside this host and need their own tests.
+    FAKE["FakeModelProvider<br/>scripted model turns"] --> HOST["TraconTestHost<br/>real pipeline, in-memory stores"]
     HOST --> ASSERT["RunAssertions<br/>read the recorded run"]
     HOST -.->|not proved| LIVE["A live provider:<br/>instructions · features · token counts · tool schema"]
     HOST -.->|not proved| SQL["SQL behaviour:<br/>migrations · transactions · leases · collation"]
@@ -23,7 +23,7 @@ flowchart TD
 Add it to the test project only:
 
 ```bash
-dotnet add package AgentPrism.Testing --prerelease
+dotnet add package Tracon.Testing --prerelease
 ```
 
 The meta package does not include it. The package targets .NET 10, has no Native AOT
@@ -35,8 +35,8 @@ This xUnit example scripts one tool call and then makes the final model response
 depend on the real tool result:
 
 ```csharp
-using AgentPrism;
-using AgentPrism.Testing;
+using Tracon;
+using Tracon.Testing;
 
 public sealed class SupportAgentTests
 {
@@ -47,10 +47,10 @@ public sealed class SupportAgentTests
             .CallsTool("get_order_status", new { orderId = "ORD-7" })
             .EchoesLastToolResult("Agent: ");
 
-        await using var host = await AgentPrismTestHost.StartAsync(options =>
+        await using var host = await TraconTestHost.StartAsync(options =>
         {
             options.ModelProvider = provider;
-            options.ConfigureAgentPrism = agentPrism => agentPrism
+            options.ConfigureTracon = tracon => tracon
                 .AddToolsFrom(typeof(OrderTools))
                 .AddAgent(new AgentDefinition
                 {
@@ -75,7 +75,7 @@ public sealed class SupportAgentTests
 
     private static class OrderTools
     {
-        [AgentPrismTool(
+        [TraconTool(
             "get_order_status",
             "Returns the current shipping status of an order.")]
         public static string GetOrderStatus(string orderId)
@@ -87,7 +87,7 @@ public sealed class SupportAgentTests
 `RunAsync()` posts to the real management run endpoint, drains its SSE stream, reads
 the final run record and events, and returns `RunAssertions`. A missing agent, rejected
 request, missing run frame, or missing run record throws
-`AgentPrismAssertionException` with the observed response.
+`TraconAssertionException` with the observed response.
 
 ## Script deterministic model behavior
 
@@ -155,7 +155,7 @@ internal message can become brittle when the framework changes harmless formatti
 ## Use framework-neutral run assertions
 
 `RunAssertions` exposes `Record`, ordered `Events`, and `ToolInvocations`. Its fluent
-methods throw `AgentPrismAssertionException` on a mismatch:
+methods throw `TraconAssertionException` on a mismatch:
 
 ```csharp
 run.ShouldHaveCompleted();
@@ -175,11 +175,11 @@ Use the raw host when a scenario needs an endpoint the convenience method does n
 cover:
 
 ```csharp
-await using var host = await AgentPrismTestHost.StartAsync(options =>
+await using var host = await TraconTestHost.StartAsync(options =>
 {
     options.Prefix = "/control";
     options.ModelProvider = new FakeModelProvider().EchoesUserMessage();
-    options.ConfigureAgentPrism = agentPrism => agentPrism.AddAgent(agent);
+    options.ConfigureTracon = tracon => tracon.AddAgent(agent);
 });
 
 using var response = await host.Client.GetAsync("/control/api/agents");
@@ -191,30 +191,30 @@ stores and services.
 
 ## Host defaults and limits
 
-`AgentPrismTestHostOptions` is the host's configuration: `Prefix` sets the mapped
+`TraconTestHostOptions` is the host's configuration: `Prefix` sets the mapped
 path, `ModelProvider` swaps in your own fake, and `ConfigureServices`,
-`ConfigureAgentPrism`, and `ConfigureEndpoints` are the three hooks that let a test
+`ConfigureTracon`, and `ConfigureEndpoints` are the three hooks that let a test
 reach the real registration chain.
 
 | Host behavior | Default or limit |
 |---|---|
 | ASP.NET Core host | `WebApplication.CreateSlimBuilder()` with `UseTestServer()` |
 | Persistence | In-memory stores; no database or migration |
-| Route prefix | `/agentprism` |
+| Route prefix | `/tracon` |
 | Model provider | `new FakeModelProvider().EchoesUserMessage()` |
 | External model traffic | None |
 | Test framework dependency | None |
 | Target framework | .NET 10 only |
 | Native AOT | Not supported by the testing package |
 
-`ConfigureServices` runs before `AddAgentPrism()`. `ConfigureAgentPrism` runs after
-the fake provider is registered. `ConfigureEndpoints` changes `MapAgentPrism()`
+`ConfigureServices` runs before `AddTracon()`. `ConfigureTracon` runs after
+the fake provider is registered. `ConfigureEndpoints` changes `MapTracon()`
 options. This order lets a test register its dependencies, then agents and tools,
 then endpoint behavior without replacing the host.
 
 ## Know what this test does not prove
 
-The host proves AgentPrism integration with your definitions and code tools. It does
+The host proves Tracon integration with your definitions and code tools. It does
 not prove that a live provider follows instructions, supports a requested model
 feature, returns the same token counts, or accepts the same tool schema. Keep a small
 separate smoke-test suite for each real provider and model you deploy.
@@ -224,7 +224,7 @@ leases, database collation, or provider-specific query behavior. Test those boun
 against the real PostgreSQL, SQL Server, or SQLite package in integration tests.
 
 :::caution[Production caveat]
-Never reference `AgentPrism.Testing` from the production application. It transitively
+Never reference `Tracon.Testing` from the production application. It transitively
 depends on the ASP.NET Core test host, uses reflection for anonymous tool arguments,
 and makes no AOT promise. A deterministic fake is a test oracle, not evidence of model
 quality or production-provider compatibility.
@@ -246,7 +246,7 @@ mistake instead of hiding it.
 | `RunAsync()` throws before assertions | Read the embedded status and body; confirm the agent name, provider/model binding, tool names, and endpoint policy |
 | The second run returns an unexpected response | Script queues are consumed once; set the intended lasting fallback or create a fresh provider per test |
 | Two models consume each other's steps | Give each binding a `ForModel()` queue and use the exact model ID |
-| The tool never runs | Match `CallsTool()` and `ToolNames` to the registered `AgentPrismTool` name, including case |
+| The tool never runs | Match `CallsTool()` and `ToolNames` to the registered `TraconTool` name, including case |
 | A tool dependency is null | Capture it in the tool instance or registration factory; do not resolve it from `AIFunctionArguments.Services` |
 | Output assertion misses text that appeared in the stream | Inspect `run.Events`; verify message-delta recording is enabled for the host scenario |
 | Tests affect one another | Do not share a mutable `FakeModelProvider`; its queue and `Requests` last for its lifetime |
@@ -257,4 +257,4 @@ mistake instead of hiding it.
 
 - [Your first agent](/getting-started/first-agent/) — the application these tests are written against
 - [Runs and recording](/concepts/runs/) — the record a test reads to prove what happened
-- [Write your own tool](/guides/write-your-own-tool/) — fuzz-test your own `IToolArgumentsValidator` or `IToolAuthorizationHandler` with `AgentPrism.Testing.Contracts.Xunit`
+- [Write your own tool](/guides/write-your-own-tool/) — fuzz-test your own `IToolArgumentsValidator` or `IToolAuthorizationHandler` with `Tracon.Testing.Contracts.Xunit`

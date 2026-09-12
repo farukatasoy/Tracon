@@ -15,7 +15,7 @@ JsonStringEnumConverter<TEnum> (docs/arsiv/fazlar/83-TIPLI-ISTEMCI-VE-CLI.md, se
 
 Every OTHER enum (the ~37 plain business enums: RunStatus, ApiKeyScope, ...)
 carries no per-property attribute at all. MEASURED (2026-08-22): registering
-them globally via the Converters list on AgentPrismClientJsonContext's
+them globally via the Converters list on TraconClientJsonContext's
 [JsonSourceGenerationOptions] does NOT take effect for property-reachable
 enum types - the source generator still bakes in the default numeric
 EnumConverter<T> for them, so a wire value like "Running" throws a
@@ -35,7 +35,7 @@ component named after the type's own short name (System.Text.Json.JsonElement
 applies to schemas it INLINES; a NAMED component with inlineNamedAny: false
 instead gets its own generated POCO class, using the component's name
 verbatim, which then SHADOWS the real type in the SAME namespace
-(AgentPrism.Client.Generated) - every property typed this way deserializes
+(Tracon.Client.Generated) - every property typed this way deserializes
 against a bogus empty class ([JsonExtensionData]-backed, object-only) instead
 of the real one. MEASURED (2026-08-26): discovered via JsonElement, whose 16
 affected properties throw JsonException on any wire value that is not a JSON
@@ -49,10 +49,10 @@ POCO can still never hold a JSON array or scalar, or apply the real type's own
 converter. Each bogus class is deleted outright and every reference to it
 qualified to the real type instead (COLLIDING_ANY_TYPES below).
 
-If a FUTURE domain type gets exposed through AgentPrism's API and also has
+If a FUTURE domain type gets exposed through Tracon's API and also has
 its own opaque [JsonConverter], detect it the same way this class of defect
-was found: after regenerating docs/openapi/agentprism.json, run
-`python3 -c "import json; s = json.load(open('docs/openapi/agentprism.json'))
+was found: after regenerating docs/openapi/tracon.json, run
+`python3 -c "import json; s = json.load(open('docs/openapi/tracon.json'))
 ['components']['schemas']; print([k for k, v in s.items() if v == {}])"` -
 add every name beyond JsonElement/ChatRole to COLLIDING_ANY_TYPES.
 
@@ -123,14 +123,14 @@ method, so it keeps NSwag's own URL building, body serialization,
 PrepareRequest/ProcessResponse hooks and every typed error branch; only three
 things change: the signature, the `Accept` header (`text/event-stream`), and
 the 200 branch. Framing and the content-type guard are NOT emitted here - they
-are hand-written in src/AgentPrism.Client/AgentPrismApiClient.Sse.cs, where
+are hand-written in src/Tracon.Client/TraconApiClient.Sse.cs, where
 they can be unit tested and where a regeneration cannot alter them.
 
 Method and body can still disagree (`...StreamAsync` with `"stream": false`,
 or the JSON method with `"stream": true`). The client does NOT rewrite the
 caller's body - silently changing what was asked for is a worse surprise than
 a clear failure - so both methods instead check what the server ACTUALLY
-answered and throw a named AgentPrismApiException. MEASURED (2026-09-08):
+answered and throw a named TraconApiException. MEASURED (2026-09-08):
 before this, `...StreamAsync`'s mismatch would have been a silently EMPTY
 stream (an SSE parser finds no frames in a JSON document), and the JSON
 method's was an opaque "Could not deserialize the response body stream as
@@ -165,7 +165,7 @@ NON_GENERIC_USAGE = f"[{JSON_CONVERTER_ATTR}(typeof({FACTORY}))]"
 # replaced by everywhere, whether that type is a VALUE type). JsonElement maps
 # to the real BCL type directly - System.Text.Json is already referenced.
 # ChatRole maps to "string" instead of the real Microsoft.Extensions.AI.ChatRole:
-# AgentPrism.Client deliberately carries NO dependency on Microsoft.Extensions.AI
+# Tracon.Client deliberately carries NO dependency on Microsoft.Extensions.AI
 # (a typed HTTP client has no reason to reference the agent-framework
 # package), and ChatRole's own [JsonConverter] serializes it as a plain JSON
 # string ("assistant", "user", ...) - confirmed by round-tripping it directly
@@ -250,7 +250,7 @@ def null_check_re(qualified_name: str) -> re.Pattern[str]:
         rf"(var objectResponse_ = await ReadObjectResponseAsync<{escaped}>\([^;]*;\r?\n)"
         r"[ \t]*if \(objectResponse_\.Object == null\)\r?\n"
         r"[ \t]*\{\r?\n"
-        r"[ \t]*throw new AgentPrismApiException\(\"Response was null which was not expected\.\", status_, objectResponse_\.Text, headers_, null\);\r?\n"
+        r"[ \t]*throw new TraconApiException\(\"Response was null which was not expected\.\", status_, objectResponse_\.Text, headers_, null\);\r?\n"
         r"[ \t]*\}\r?\n"
     )
 
@@ -350,7 +350,7 @@ SSE_STRING_RESPONSE_PATTERN = re.compile(
     r" *var objectResponse_ = await ReadObjectResponseAsync<string>\(response_, headers_, cancellationToken\)\.ConfigureAwait\(false\);\r?\n"
     r" *if \(objectResponse_\.Object == null\)\r?\n"
     r" *\{\r?\n"
-    r' *throw new AgentPrismApiException\("Response was null which was not expected\.", status_, objectResponse_\.Text, headers_, null\);\r?\n'
+    r' *throw new TraconApiException\("Response was null which was not expected\.", status_, objectResponse_\.Text, headers_, null\);\r?\n'
     r" *\}\r?\n"
     r" *return objectResponse_\.Object;\r?\n"
     r" *\}\r?\n"
@@ -489,7 +489,7 @@ JSON_200_BRANCH_RE = re.compile(
     r"\(response_, headers_, cancellationToken\)\.ConfigureAwait\(false\);\r?\n)"
     r"(?P<nullcheck>[ ]*if \(objectResponse_\.Object == null\)\r?\n"
     r"[ ]*\{\r?\n"
-    r'[ ]*throw new AgentPrismApiException\("Response was null which was not expected\.", '
+    r'[ ]*throw new TraconApiException\("Response was null which was not expected\.", '
     r"status_, objectResponse_\.Text, headers_, null\);\r?\n"
     r"[ ]*\}\r?\n)?"
     r"(?P<ret>[ ]*return objectResponse_\.Object;\r?\n[ ]*\}\r?\n)")
@@ -534,7 +534,7 @@ def _streaming_200_branch(indent: str, json_method: str | None) -> str:
         f"{indent}{{\n"
         f"{indent}    // Phase 159: the STREAMING sibling. The body is Server-Sent Events, not\n"
         f"{indent}    // JSON. Framing and this guard are hand-written in\n"
-        f"{indent}    // AgentPrismApiClient.Sse.cs so a regeneration cannot change them.\n"
+        f"{indent}    // TraconApiClient.Sse.cs so a regeneration cannot change them.\n"
         + _ensure_content_type_call(f"{indent}    ", "true", sentences)
         + "\n"
         f"{indent}    await foreach (var frame_ in ReadServerSentEventFramesConfigured(response_, cancellationToken))\n"
@@ -566,8 +566,8 @@ def _streaming_doc(doc: str, method_name: str) -> str:
     note = (
         "        /// Streaming form: the 200 body is read as Server-Sent Events. Each element is\n"
         "        /// one raw frame; comment-only keep-alive blocks are skipped. Throws\n"
-        "        /// <see cref=\"AgentPrismApiException\"/> if the server answers with a different\n"
-        "        /// content type - see the AgentPrism docs, \"OpenAI-compatible API\".\n")
+        "        /// <see cref=\"TraconApiException\"/> if the server answers with a different\n"
+        "        /// content type - see the Tracon docs, \"OpenAI-compatible API\".\n")
 
     if "        /// </summary>\n" not in doc:
         raise SystemExit(

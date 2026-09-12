@@ -17,9 +17,9 @@ flowchart LR
     KOD["src/**<br/>/// XML · WithTags · Produces"]
     CAP["docs-site/capabilities.md"]
     SITE["docs-site/<br/>yayinlanir"]
-    PKG["nupkg<br/>lib/*.xml · README · agentprism.json"]
-    YEREL["AgentPrism.LocalReference.md<br/>tuketicinin diskinde uretilir"]
-    MAP["AgentPrism.AgentMap.md<br/>nupkg'de sevk edilir"]
+    PKG["nupkg<br/>lib/*.xml · README · tracon.json"]
+    YEREL["Tracon.LocalReference.md<br/>tuketicinin diskinde uretilir"]
+    MAP["Tracon.AgentMap.md<br/>nupkg'de sevk edilir"]
     LLM["llms.txt · llms-full.txt"]
     KOD --> SITE
     KOD --> PKG
@@ -49,11 +49,11 @@ git diff --name-only <faz öncesi commit>
 | Değişen yol | Tetiklenen yüzey |
 |---|---|
 | `src/**/*.cs` içinde **public** üye | Sevk edilen metin · `api/` · yerel referans |
-| `src/AgentPrism.AspNetCore/{Endpoints,OpenAICompat,A2A,McpServer}/` | `http-api/` · `http-api.md` sayısı · paketlenen `agentprism.json` |
-| `src/AgentPrism.UI/frontend/src/{screens,components}/` | `ui.md` + ekran görüntüsü |
+| `src/Tracon.AspNetCore/{Endpoints,OpenAICompat,A2A,McpServer}/` | `http-api/` · `http-api.md` sayısı · paketlenen `tracon.json` |
+| `src/Tracon.UI/frontend/src/{screens,components}/` | `ui.md` + ekran görüntüsü |
 | Yeni `src/<Paket>/` | `packages.md` · `capabilities.md` `## Packages` · paket `README.md` |
 | `src/*/README.md` · kök `README.md` | Sevk edilen metin |
-| `src/AgentPrism.Core/buildTransitive/` | Yerel referans · agent haritası |
+| `src/Tracon.Core/buildTransitive/` | Yerel referans · agent haritası |
 | Yeni yetenek veya davranış değişimi | `concepts/<alan>.md` · `capabilities.md` |
 
 **Hiçbiri tutmuyorsa skill koşmaz.** Gerekçesini faz dokümanına yaz ve
@@ -69,7 +69,7 @@ dokümanına girer; sonraki oturum onu okur.
 
 1. **`docs-site/`** — hangi sayfalar, elle mi üretilen mi
 2. **Sevk edilen metin** — hangi `///` blokları, hangi paket `README.md`'si,
-   `agentprism.json` değişti mi
+   `tracon.json` değişti mi
 3. **Yerel referans ve agent haritası** — `capabilities.md` satırı gerekiyor mu
 
 Envanteri yazmadan düzenlemeye başlama. Ölçüldü: yazılmayan yüzey unutulan
@@ -86,12 +86,12 @@ sonraki `npm run generate` ile silinir.**
 |---|---|---|
 | `docs-site/src/content/docs/api/` | **Üretilir** (DocFX) — iş koddadır: XML dokümanı eksiksiz mi | ❌ |
 | `docs-site/src/content/docs/http-api/` | **Üretilir** (OpenAPI) — iş koddadır: `.WithTags`/`.Produces` üstverisi var mı | ❌ |
-| `docs-site/public/openapi/agentprism.json` | **Üretilir** (sanitize kopya) | ❌ |
+| `docs-site/public/openapi/tracon.json` | **Üretilir** (sanitize kopya) | ❌ |
 | Elle yazılan sayfalar (`concepts/`, `guides/`, `getting-started/`, `reference/`, kök) | **Elle** | ✅ |
 | `docs-site/src/sidebar.mjs` | **Elle** — Starlight `autogenerate` kullanılmıyor | ✅ |
-| `AgentPrism.AgentMap.md` · `llms.txt` · `llms-full.txt` | **Üretilir** (`capabilities.md`'den) ama **commit edilir** | ✅ |
+| `Tracon.AgentMap.md` · `llms.txt` · `llms-full.txt` | **Üretilir** (`capabilities.md`'den) ama **commit edilir** | ✅ |
 | `docs-site/public/screenshots/*.png` | E2E koşumundan üretilir | ✅ |
-| `AgentPrism.LocalReference.md` | **Üretilir** — tüketicinin diskinde, her build'de | ❌ (tüketicinin `.gitignore`'unda) |
+| `Tracon.LocalReference.md` | **Üretilir** — tüketicinin diskinde, her build'de | ❌ (tüketicinin `.gitignore`'unda) |
 
 Yeni bir elle yazılan sayfa **sidebar'a elle eklenir**. Eklemezsen kapı kırılır:
 `check-content.mjs` her elle yazılan sayfanın kenar çubuğundan erişilebilir
@@ -107,7 +107,7 @@ ve dokunduğun her yüzey için ilgili bölümü uygula:
 | Dokunduğun yüzey | Sözleşme bölümü |
 |---|---|
 | Elle yazılan site sayfası | **A** sayfa sözleşmesi · **C** diyagram kuralı · **D** erişilebilirlik |
-| `///` XML dokümanı, paket `README.md`'si, kök `README.md`, `agentprism.json` | **B** kendi kendine yeterlik |
+| `///` XML dokümanı, paket `README.md`'si, kök `README.md`, `tracon.json` | **B** kendi kendine yeterlik |
 | Yeni paket, yeni yetenek | **E** yerel referans ve agent haritası |
 | Herhangi bir muafiyet listesi veya taban çizgisi | **F** cırcır |
 
@@ -115,8 +115,8 @@ ve dokunduğun her yüzey için ilgili bölümü uygula:
 
 ## Adım 4 — Yerel referans yüzeyi
 
-`AgentPrism.LocalReference.md` **tamamen üretilir**
-([`AgentPrism.Core.targets`](../../../src/AgentPrism.Core/buildTransitive/AgentPrism.Core.targets)).
+`Tracon.LocalReference.md` **tamamen üretilir**
+([`Tracon.Core.targets`](../../../src/Tracon.Core/buildTransitive/Tracon.Core.targets)).
 Elle düzenlenmez ve repoda durmaz. Bayatlaması bu yüzden **dolaylıdır** — üç yol:
 
 1. **XML dokümanı eksikse `grep` reçetesi boş döner.** Dosyanın en değerli yeri
@@ -126,11 +126,11 @@ Elle düzenlenmez ve repoda durmaz. Bayatlaması bu yüzden **dolaylıdır** —
    `Use*` ve `Map*` bir `<example>` taşır" diye söz verir; `CapabilityExampleTests`
    bu sözü zorlar. Yeni bir giriş noktası eklediysen örneği **şimdi** yaz.
 3. **Agent haritası yerel referansa adıyla işaret eder.** Dosyanın adı veya
-   konumu değişirse `AgentPrism.AgentMap.md`'nin `## Where to look` bölümü de
+   konumu değişirse `Tracon.AgentMap.md`'nin `## Where to look` bölümü de
    değişir.
 
 Yeni paket XML satırını **otomatik** kazanır (`@(ReferencePath)` süzgeci
-`%(NuGetPackageId)` değeri `AgentPrism` ile başlayan her referansı alır). Ama
+`%(NuGetPackageId)` değeri `Tracon` ile başlayan her referansı alır). Ama
 `capabilities.md`'nin `## Packages` satırını **elle** kazanır — ve harita yalnız
 o dosyadan üretilir.
 
@@ -146,9 +146,9 @@ Ucuzdan pahalıya sıralıdır. Bir tanesi kırmızıysa sonrakini koşma, önce
 
 ```bash
 # 1 — Sevk edilen metin kapıları (.NET, ölçüldü: 15 test / ~2 sn)
-python3 scripts/kapi.py test --proje AgentPrism.Core.UnitTests \
+python3 scripts/kapi.py test --proje Tracon.Core.UnitTests \
   --sinif "*ShippedDocumentationSelfContainmentTests*" "*CapabilityExampleTests*" "*SourceLanguageTests*"
-python3 scripts/kapi.py test --proje AgentPrism.Package.Tests \
+python3 scripts/kapi.py test --proje Tracon.Package.Tests \
   --sinif "*LocalReferenceTests*"
 
 # 2 — Sevk edilen agent haritası ve llms dosyaları bayat mı
@@ -188,7 +188,7 @@ senin makinendedir. Siteyi sunucuya `scripts/site-deploy.sh` taşır ve o
 dışında) yayını da sen koşmalısın — yoksa düzelttiğin sayfa canlıda eski kalır.
 
 🚨 **Yeni ekran varsa ekran görüntüsü E2E'den üretilir ve commit edilir:**
-`AGENTPRISM_UI_SCREENSHOTS=1`. Ekran görüntüsünün **dosya olarak var olduğunu**
+`TRACON_UI_SCREENSHOTS=1`. Ekran görüntüsünün **dosya olarak var olduğunu**
 `check-content.mjs` denetler; **doğru ekranı gösterdiğini** `DocumentationScreenshotTests`
 kanıtlar. İki kapı iki ayrı şey söyler ve ikisi de gereklidir. Yeni bir ekran
 eklerken tohumu da büyüt (`SeedCatalogAsync`) — boş bir ekran görüntüsü kılavuzda

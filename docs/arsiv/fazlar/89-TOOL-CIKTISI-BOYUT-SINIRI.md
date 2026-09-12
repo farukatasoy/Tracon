@@ -3,11 +3,11 @@
 > **Durum:** ✅ Tamamlandı (2026-08-23)
 > **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-143** — Dalga 14 Küme Ö
 > **Önkoşul:** [Faz 69](69-TOOL-YETKILENDIRMESI-VE-TIMEOUT.md) — `Timeout` alanı ve sarmalayıcı zinciri; yeni alan onun **kardeşidir** ve aynı yerde yaşar · [Faz 13](13-BAGLAM-SIKISTIRMA-VE-BELLEK.md) (compaction — **tamamlayıcıdır, rakip değil**)
-> **Paketler:** `AgentPrism.Abstractions`, `AgentPrism.Core`, `AgentPrism.Mcp`
+> **Paketler:** `Tracon.Abstractions`, `Tracon.Core`, `Tracon.Mcp`
 > **Yeni paket:** Yok · **Migration:** Yok — kırpma olayı `RunEventType`'a bir üye ekler ve `run_events.type` bir `smallint`'tir (ölçüldü)
 > **Public API:** Büyüyor — 1 tool alanı, 1 kurulum ayarı, 1 olay tipi üyesi, 1 taşınan yardımcı. `PublicAPI.Shipped.txt` toplamı **16 satır** (yalnız başlıklar; ölçüldü 2026-08-21) → Faz 7'den önce eklemek **bedava**
 > **Tüketici yüzeyi:** `docs-site/` → `concepts/tools.md`, `guides/context-and-memory.md`, `reference/configuration.md`, `capabilities.md`
-> · sevk edilen: yeni alan ve ayarın XML dokümanı, `src/AgentPrism.Core/README.md`. `api/` ve `http-api/` **üretilir**
+> · sevk edilen: yeni alan ve ayarın XML dokümanı, `src/Tracon.Core/README.md`. `api/` ve `http-api/` **üretilir**
 > **Manuel test alanı:** [`docs/manuel-test/12-GOZLEMLENEBILIRLIK-MALIYET.md`](../../manuel-test/12-GOZLEMLENEBILIRLIK-MALIYET.md) · [`docs/manuel-test/20-BELLEK-RAG-BAGLAM.md`](../../manuel-test/20-BELLEK-RAG-BAGLAM.md)
 
 ---
@@ -37,7 +37,7 @@
 | `IImageGenerator` MEAI001 deneysel yüzeyidir | Faz 89 bunu kullanmaz. `ToolRegistry`teki mevcut dar pragma'yı genişletme. |
 
 🚨 Faz 89 sarmalayıcı zincirini değiştirirken `ToolRegistry`teki conditional
-image registration'ı normal `AgentPrismToolRegistration` gibi ele almalıdır.
+image registration'ı normal `TraconToolRegistration` gibi ele almalıdır.
 Kayıt yalnız factory aşamasında eklenir; sarmalayıcı iki ayrı yola bölünürse
 Faz 88'in `External`/kayıt/ölçüm sözleşmesi sessizce kayar.
 
@@ -60,7 +60,7 @@ Bir tool'un döndürdüğü metin **sınırsızdır** ve doğrudan bağlama gire
 - [x] Tool alanı kurulum varsayılanını ezer (`Timeout` emsali) — `A_registration_level_output_limit_overrides_the_installation_default`
 - [x] Sınır yokken sıcak yolda ek tahsis **yok** — sarmalayıcı hiç kurulmaz (K1 testi `GetService<TruncatingAIFunction>()` `null` döner)
 - [x] Dört doğrulama kapısı sıfır uyarı verir — build/test/pack/format, tam koşum + frontend dahil
-- [x] `samples/AgentPrism.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı (aşağıda)
+- [x] `samples/Tracon.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı (aşağıda)
 - [x] `secret` taraması boş döndü (bu fazın dokunduğu dosyalarda; repodaki önceden var olan `Password=`/`sk-` test literalleri kapsam dışı — Faz 79/80/81/87 emsaliyle aynı)
 - [x] Manuel kabul case'leri `docs/manuel-test/12-*` ve `18-*` içine eklendi (MT-OBS-048/049, MT-MCP-059); otomatikleştirilebilenler (048/049) gerçek koşuda doğrulandı, 059 👤 insan gerekir işaretiyle
 - [x] `faz-denetim` koşuldu; 🔴 bulgu kalmadı (üç 🔴 bulundu ve kapandı, ayrıntı aşağıda)
@@ -69,13 +69,13 @@ Bir tool'un döndürdüğü metin **sınırsızdır** ve doğrudan bağlama gire
 
 ### Doğrulama komutları — gerçek koşum (2026-08-23)
 
-`samples/AgentPrism.Api`, gerçek bir OpenAI anahtarıyla, `AgentPrism__Tools__DefaultMaxOutputBytes=100`
+`samples/Tracon.Api`, gerçek bir OpenAI anahtarıyla, `Tracon__Tools__DefaultMaxOutputBytes=100`
 ile başlatıldı. `support` agent'ına `get_order_status`'un doğal çıktısını
 100 baytın üstüne çıkaracak uzunlukta bir sipariş numarasıyla soru soruldu.
 
 ```bash
 # Kirpilan cikti gecerli JSON mu ve zarf 100 baytin altinda mi
-curl -s -X POST http://localhost:5081/agentprism/api/agents/support/run \
+curl -s -X POST http://localhost:5081/tracon/api/agents/support/run \
   -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
   -d '{"message":"What is the status of order ORD-0000000000000000000000000000000000000000000000000000-LONG?"}'
 # -> functionResult.result =
@@ -83,7 +83,7 @@ curl -s -X POST http://localhost:5081/agentprism/api/agents/support/run \
 #    (tam 100 UTF-8 bayt — python3 -c "print(len(s.encode()))" ile ölçüldü)
 
 # Kirpma olayi yazildi mi
-curl -s http://localhost:5081/agentprism/api/runs/$RUN_ID/events -H "Authorization: Bearer $TOKEN" \
+curl -s http://localhost:5081/tracon/api/runs/$RUN_ID/events -H "Authorization: Bearer $TOKEN" \
   | jq '.[] | select(.type=="ToolOutputTruncated")'
 # -> {"type":"ToolOutputTruncated","text":"57 byte(s) omitted (limit 100)",
 #     "toolName":"get_order_status","toolCallId":"call_6jX9qDFfy53VvPyfJqWHn1B4",
@@ -95,8 +95,8 @@ curl -s http://localhost:5081/agentprism/api/runs/$RUN_ID/events -H "Authorizati
 #    "Order ORD-1 has shipped. Estimated delivery: 2 days." (52 bayt, zarf yok)
 
 # Iki sarmalama zinciri de halkayi tasiyor mu
-grep -n "TruncatingAIFunction" src/AgentPrism.Core/Tools/ToolRegistry.cs \
-                               src/AgentPrism.Mcp/Internal/McpTenantTools.cs
+grep -n "TruncatingAIFunction" src/Tracon.Core/Tools/ToolRegistry.cs \
+                               src/Tracon.Mcp/Internal/McpTenantTools.cs
 ```
 
 ---
@@ -124,8 +124,8 @@ grep -n "TruncatingAIFunction" src/AgentPrism.Core/Tools/ToolRegistry.cs \
    `ModelFallbackUsed` gibi kardeş olay tiplerinin hiçbirini rozet düzeyinde
    belgelemiyor — tutarlılık için aynı kapsam dışı bırakıldı.
    `--site-gerekce-yazildi` ile geçildi.
-5. **`[AgentPrismTool]`/`AddTool`'a `MaxOutputBytes` eklenmedi** — `SafeToRepeat`
-   (Faz 87) emsaliyle aynı, kasıtlı boşluk: bugün yalnız `AgentPrismToolRegistration`'ın
+5. **`[TraconTool]`/`AddTool`'a `MaxOutputBytes` eklenmedi** — `SafeToRepeat`
+   (Faz 87) emsaliyle aynı, kasıtlı boşluk: bugün yalnız `TraconToolRegistration`'ın
    DI kurucusundan set edilebilir. Sonraki faza devir notuna yazıldı.
 
 ## Bu Fazda Verilen Kararlar
@@ -154,7 +154,7 @@ kanıtlanmış üç 🔴 ve üç 🟡 bulgu üretti:
 | 2 | `budget <= 0` erken çıkışı zarfın gerçekten sığdığını kontrol etmiyordu; `maxOutputBytes=10` iken zarf 51 bayt üretiyordu | 🔴 | **Düzeltildi** — `MinimumEnvelopeBytes` kurucuda garanti eder (K-595); `Constructor_throws_for_a_positive_limit_too_small_to_ever_hold_an_envelope`, `Even_the_smallest_accepted_limit_never_produces_an_oversized_envelope` |
 | 3 | `dotnet test` kırmızıydı — test dosyasındaki Türkçe literal (`çığöşü`) `SourceLanguageTests` taban çizgisini kırıyordu | 🔴 | **Düzeltildi** — CJK örneğe (`你好世界`) çevrildi |
 | 4 | Fonksiyonel `ToolTruncationRecordingTests` ("store hatası koşuyu durdurmaz") planlanmış ama yazılmamıştı | 🟡 | **Düzeltildi** — `A_store_failure_while_recording_the_truncation_event_does_not_change_the_returned_result` eklendi |
-| 5 | `AgentPrismOptionsValidator`'ın yeni `DefaultMaxOutputBytes` dalı testsizdi | 🟡 | **Düzeltildi** — `AgentPrismToolOptionsValidationTests` eklendi |
+| 5 | `TraconOptionsValidator`'ın yeni `DefaultMaxOutputBytes` dalı testsizdi | 🟡 | **Düzeltildi** — `TraconToolOptionsValidationTests` eklendi |
 | 6 | `docs-site/` bu diff'te hiç dokunulmamıştı | 🟡 | **Düzeltildi** — `tuketici-dokuman-senkronu` uygulandı (dört yüzey güncellendi, dört kapı yeşil) |
 
 🔴 bulgular kapandıktan sonra dört doğrulama kapısı **yeniden koşuldu** ve
@@ -169,18 +169,18 @@ yeşil çıktı (tam koşum, frontend dahil).
 - 🚨 **`TruncatingAIFunction` yalnız `string`/`JsonElement` sonuçları
   kırpar.** Kod üreticisinin ham CLR nesnesi döndüren bir tool'u (POCO/record)
   bu sınırı hiç görmez — alanın belgelenmiş sınırıdır (K-594), kusur değil.
-  Bu kapsamı genişletmek reflection gerektirir ve `AgentPrism.Core`'un AOT
+  Bu kapsamı genişletmek reflection gerektirir ve `Tracon.Core`'un AOT
   sözleşmesini bozar; önce tip-güvenli bir serileştirme yolu (kaynak üretilen
   `JsonSerializerContext`) gerekir.
 - 🚨 **`TruncatingAIFunction.MinimumEnvelopeBytes` (bugün 57 bayt) bir
-  taban, öneri değildir.** Hem `AgentPrismToolRegistration.MaxOutputBytes`
-  hem `AgentPrismOptions.Tools.DefaultMaxOutputBytes` bunun altında kurucuda/
-  `AgentPrismOptionsValidator`'da reddedilir. Manuel test/demo yazarken bu
+  taban, öneri değildir.** Hem `TraconToolRegistration.MaxOutputBytes`
+  hem `TraconOptions.Tools.DefaultMaxOutputBytes` bunun altında kurucuda/
+  `TraconOptionsValidator`'da reddedilir. Manuel test/demo yazarken bu
   tabanın üstünde bir değer seçilmeli (bkz. MT-OBS-048'in 100 baytlık örneği).
-- **`[AgentPrismTool]` ve `AddTool()` hâlâ `MaxOutputBytes` taşımıyor** —
+- **`[TraconTool]` ve `AddTool()` hâlâ `MaxOutputBytes` taşımıyor** —
   `SafeToRepeat`'in aynı, kasıtlı boşluğu (Faz 87). Bugün tek yol
-  `services.AddSingleton(new AgentPrismToolRegistration(..., maxOutputBytes: N))`.
-  Ayrıca `SafeToRepeat` de `AgentPrismGeneratedTools.Create()`'in ürettiği
+  `services.AddSingleton(new TraconToolRegistration(..., maxOutputBytes: N))`.
+  Ayrıca `SafeToRepeat` de `TraconGeneratedTools.Create()`'in ürettiği
   kayda hâlâ hiç yazılmıyor — kaynak üreteciye (`ToolCandidate.cs`,
   `SourceWriter.cs`) her iki alanı BİRLİKTE eklemek ayrı bir aday olarak
   değerlendirilmeli.

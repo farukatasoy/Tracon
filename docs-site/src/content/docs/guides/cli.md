@@ -1,53 +1,53 @@
 ---
 title: Typed client and CLI
-description: Call the management API from a typed client, and apply migrations or check health without starting the application, using the agentprism CLI.
+description: Call the management API from a typed client, and apply migrations or check health without starting the application, using the tracon CLI.
 ---
 
-Two packages let you reach a running AgentPrism instance from outside the process
+Two packages let you reach a running Tracon instance from outside the process
 that hosts it: a typed HTTP client for your own code, and a command-line tool for
 scripts and deployment pipelines.
 
 ```mermaid
 flowchart LR
-    accTitle: Two ways to reach a running AgentPrism instance
-    accDescr: A separate application references AgentPrism.Client directly over HTTP. The agentprism CLI wraps that same client for its health command, and talks to the database directly for migrate, because the application has not started yet at that point.
-    APP["Your application"] -->|"references"| CLIENT["AgentPrism.Client<br/>typed HTTP client"]
-    CLIENT -->|"HTTP: /api/*"| SERVER["Running AgentPrism instance"]
-    CLI["agentprism CLI<br/>health / eval"] -->|"uses"| CLIENT
-    CLI2["agentprism CLI<br/>migrate / migrate status"] -.->|"direct connection<br/>no HTTP"| DB[("Database")]
+    accTitle: Two ways to reach a running Tracon instance
+    accDescr: A separate application references Tracon.Client directly over HTTP. The tracon CLI wraps that same client for its health command, and talks to the database directly for migrate, because the application has not started yet at that point.
+    APP["Your application"] -->|"references"| CLIENT["Tracon.Client<br/>typed HTTP client"]
+    CLIENT -->|"HTTP: /api/*"| SERVER["Running Tracon instance"]
+    CLI["tracon CLI<br/>health / eval"] -->|"uses"| CLIENT
+    CLI2["tracon CLI<br/>migrate / migrate status"] -.->|"direct connection<br/>no HTTP"| DB[("Database")]
 ```
 
 ## The typed client
 
 ```bash
-dotnet add package AgentPrism.Client --prerelease
+dotnet add package Tracon.Client --prerelease
 ```
 
-`AddAgentPrismClient` builds settings from `AgentPrismClientOptions`:
+`AddTraconClient` builds settings from `TraconClientOptions`:
 
 ```csharp
-services.AddAgentPrismClient(options =>
+services.AddTraconClient(options =>
 {
-    // The application root PLUS the MapAgentPrism prefix. The default is
-    // "/agentprism"; an app that called MapAgentPrism("/control") needs
+    // The application root PLUS the MapTracon prefix. The default is
+    // "/tracon"; an app that called MapTracon("/control") needs
     // "https://example.com/control/" instead.
-    options.BaseAddress = new Uri("https://example.com/agentprism/");
-    options.Token = configuration["AgentPrism:Token"];
+    options.BaseAddress = new Uri("https://example.com/tracon/");
+    options.Token = configuration["Tracon:Token"];
 });
 ```
 
 ```csharp
-var client = provider.GetRequiredService<AgentPrismApiClient>();
-var agents = await client.AgentPrismListAgentsAsync(cancellationToken);
+var client = provider.GetRequiredService<TraconApiClient>();
+var agents = await client.TraconListAgentsAsync(cancellationToken);
 ```
 
-`AgentPrismApiClient` is generated from the same OpenAPI document that
-`AgentPrism.AspNetCore` serves, so it covers every management operation — agents,
+`TraconApiClient` is generated from the same OpenAPI document that
+`Tracon.AspNetCore` serves, so it covers every management operation — agents,
 runs, sessions, evals, workflows, tenants, and the rest. Its request and response
 types are separate from the server's own types: same shape, but the client never
 takes on server-side abstractions it does not need.
 
-The client takes no AgentPrism package and only one NuGet package
+The client takes no Tracon package and only one NuGet package
 (`Microsoft.Extensions.DependencyInjection.Abstractions`, for the
 `IServiceCollection` extension); an `HttpClient` is built once and kept for the
 container's lifetime rather than going through `IHttpClientFactory`.
@@ -55,20 +55,20 @@ container's lifetime rather than going through `IHttpClientFactory`.
 ## The CLI
 
 ```bash
-dotnet tool install -g AgentPrism.Cli --prerelease
-agentprism --help
+dotnet tool install -g Tracon.Cli --prerelease
+tracon --help
 ```
 
 | Command | Reaches | What it does |
 |---|---|---|
-| `agentprism migrate --provider <postgres\|sqlserver\|sqlite> --connection <connection-string>` | Database, directly | Applies pending migrations. Runs before the application ever starts, so a deployment pipeline can prepare the schema as its own step |
-| `agentprism migrate status --provider ... --connection ...` | Database, directly | Lists pending migration names. Writes nothing |
-| `agentprism state-check --provider <postgres\|sqlserver\|sqlite> --connection <connection-string> [--sample <n>] [--json]` | Database, directly | Reports whether this build can read the session and workflow checkpoint state already in the database. Writes nothing |
-| `agentprism health --url <base-url> [--token <token>] [--json]` | HTTP, through the typed client | Reads model provider health |
-| `agentprism eval --url <base-url> --suite <name> [--token <token>] [--agent-version <n>] [--min-pass-rate <0..1>] [--max-failures <n>] [--baseline <runId\|previous>] [--max-regressions <n>] [--timeout <seconds>] [--poll-interval <seconds>] [--json]` | HTTP, through the typed client | Triggers a suite, polls it to completion, applies an optional quality gate — absolute, relative to an earlier run, or both |
+| `tracon migrate --provider <postgres\|sqlserver\|sqlite> --connection <connection-string>` | Database, directly | Applies pending migrations. Runs before the application ever starts, so a deployment pipeline can prepare the schema as its own step |
+| `tracon migrate status --provider ... --connection ...` | Database, directly | Lists pending migration names. Writes nothing |
+| `tracon state-check --provider <postgres\|sqlserver\|sqlite> --connection <connection-string> [--sample <n>] [--json]` | Database, directly | Reports whether this build can read the session and workflow checkpoint state already in the database. Writes nothing |
+| `tracon health --url <base-url> [--token <token>] [--json]` | HTTP, through the typed client | Reads model provider health |
+| `tracon eval --url <base-url> --suite <name> [--token <token>] [--agent-version <n>] [--min-pass-rate <0..1>] [--max-failures <n>] [--baseline <runId\|previous>] [--max-regressions <n>] [--timeout <seconds>] [--poll-interval <seconds>] [--json]` | HTTP, through the typed client | Triggers a suite, polls it to completion, applies an optional quality gate — absolute, relative to an earlier run, or both |
 
-`--connection` and `--token` also accept the `AGENTPRISM_CONNECTION` and
-`AGENTPRISM_TOKEN` environment variables — useful in a CI/CD step where a literal
+`--connection` and `--token` also accept the `TRACON_CONNECTION` and
+`TRACON_TOKEN` environment variables — useful in a CI/CD step where a literal
 secret on the command line would show up in shell history and process listings.
 Neither is ever read from a configuration file, and neither is ever printed back.
 
@@ -88,12 +88,12 @@ answered in production, after the fact. Run this with the **new** tool version
 against a copy of production data instead:
 
 ```bash
-agentprism state-check --provider postgres --connection "$AGENTPRISM_CONNECTION"
+tracon state-check --provider postgres --connection "$TRACON_CONNECTION"
 ```
 
 It reports two different things, and the difference is the whole point:
 
-- **A count of every row**, grouped by the AgentPrism envelope generation
+- **A count of every row**, grouped by the Tracon envelope generation
   stamped on it, across **every tenant** — an upgrade replaces the process for
   all of them at once. Each generation is marked readable or not by the build
   running the command. This part is complete.
@@ -130,7 +130,7 @@ seconds) runs out.
 
 With neither `--min-pass-rate` nor `--max-failures` given, there is no quality
 gate: the command exits `0` as soon as the run finishes, whatever the result.
-AgentPrism does not impose a default quality bar. With one or both given,
+Tracon does not impose a default quality bar. With one or both given,
 **all** given thresholds must hold — a suite that satisfies `--max-failures`
 but not `--min-pass-rate` still fails the gate.
 
@@ -150,7 +150,7 @@ compares the finished run against an earlier run of the same suite, case by
 case (see [Comparing two runs](/concepts/evaluation/#comparing-two-runs)):
 
 ```bash
-agentprism eval --url http://localhost:5081/agentprism --suite support \
+tracon eval --url http://localhost:5081/tracon --suite support \
   --baseline previous --max-regressions 0
 ```
 

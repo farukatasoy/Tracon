@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Description>Workflow execution engine for Tracon. Agents from the catalog are chained together with the Sequential, Concurrent, Handoff, GroupChat, and Magentic patterns; every execution is recorded in the runs table and can be resumed from checkpoints.</Description>
+    <PackageTags>$(CommonPackageTags);workflow;orchestration;multi-agent</PackageTags>
+    <!--
+      The Microsoft.Agents.AI.Workflows execution engine uses reflection
+      (ReflectingExecutor, TypeId, PortableValue); no AOT guarantee can be made.
+    -->
+    <TraconAotCompatible>false</TraconAotCompatible>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../Tracon.Core/Tracon.Core.csproj" />
+    <!--
+      OutputItemType=Analyzer does not propagate across a multi-hop
+      ProjectReference chain (measured, docs/hafiza/analyzer-yazimi.md): Core
+      already references Tracon.Generators this way, but that reference is
+      not transitive, so Workflows needs its own. A real (package) consumer is
+      unaffected - the analyzer reaches them through analyzers/dotnet/cs/ in
+      Core's nupkg, which IS transitive.
+    -->
+    <ProjectReference Include="../Tracon.Generators/Tracon.Generators.csproj"
+                       PrivateAssets="all"
+                       ReferenceOutputAssembly="false"
+                       OutputItemType="Analyzer" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Agents.AI.Workflows" />
+    <!-- So UseWorkflows() can bind TraconWorkflowOptions to IConfiguration (K-402). -->
+    <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" />
+  </ItemGroup>
+
+</Project>

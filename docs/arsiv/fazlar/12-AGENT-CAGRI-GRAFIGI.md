@@ -2,7 +2,7 @@
 
 > **Durum:** ✅ Tamamlandı (2026-08-02)
 > **Kaynak:** [BEYIN-FIRTINASI.md](../BEYIN-FIRTINASI.md) · **F-10**
-> **Paketler:** `AgentPrism.Abstractions`, `.Core`, `.PostgreSql`, `.AspNetCore`, `.UI`
+> **Paketler:** `Tracon.Abstractions`, `.Core`, `.PostgreSql`, `.AspNetCore`, `.UI`
 > **Yeni paket:** Yok · **Migration:** 0005
 
 ---
@@ -44,7 +44,7 @@ Bir agent, kataloğdaki başka bir agent'ı çağırabilsin. MAF'ta hazırdır v
 
 ## Gerçek Model Kanıtı
 
-`samples/AgentPrism.Api`, `gpt-5.4-mini`, `yonlendirici → support`:
+`samples/Tracon.Api`, `gpt-5.4-mini`, `yonlendirici → support`:
 
 ```
 $ curl -sN -X POST .../api/agents/yonlendirici/run \
@@ -62,11 +62,11 @@ yonlendirici   depth=0 parent=None     root=None     tokens=904 status=Completed
    1 run.completed        1 run.started          4 tool.invoked / 4 tool.invoking
 
 === SPAN AGACI (kok calistirmanin /trace ucu, 16 span) ===
-agentprism.run
+tracon.run
   invoke_agent yonlendirici(yonlendirici)
     chat gpt-5.4-mini
     execute_tool background_agents_start_task
-      agentprism.run                          <-- ALT CALISTIRMA, IC ICE
+      tracon.run                          <-- ALT CALISTIRMA, IC ICE
         invoke_agent support(support)
           chat gpt-5.4-mini
           execute_tool get_order_status
@@ -86,7 +86,7 @@ HTTP 404   (beklenen: trace'in sahibi koktur — K-099)
 Derinlik sınırı gerçek yapılandırmayla da doğrulandı:
 
 ```
-$ AgentPrism__AgentGraph__MaxDepth=0 dotnet run ...
+$ Tracon__AgentGraph__MaxDepth=0 dotnet run ...
 "'support' agent'i cagirilamadi: cagri derinligi siniri asildi
  (izin verilen en fazla derinlik 0). Isi kendin tamamla veya
  daha az katmanli bir cagri zinciri kur."
@@ -101,9 +101,9 @@ calistirma sayisi: 1  [('yonlendirici', 0)]   # alt satir HIC olusmadi
 | # | Sapma | Gerekçe |
 |---|-------|---------|
 | S1 | `RunRecord`'a planda olmayan `ChildRunCount` ve `TreeUsage` eklendi | §12.5 "3 alt çalıştırma rozeti" ve "ağaç maliyeti ayrı sütun" gereksinimleri bu iki alan olmadan karşılanamıyordu. İkisi de okumada `LATERAL` alt sorguyla hesaplanır, saklanmaz. |
-| S2 | `AgentPrismRunOptions`'a planda olmayan `RootRunId` eklendi | Plan `root_run_id` sütununu öngörüyordu ama değerin ağaç boyunca **nasıl taşınacağını** yazmamıştı. Ayarlarda taşınmasa her alt çalıştırma kökü kendisi sanardı. |
+| S2 | `TraconRunOptions`'a planda olmayan `RootRunId` eklendi | Plan `root_run_id` sütununu öngörüyordu ama değerin ağaç boyunca **nasıl taşınacağını** yazmamıştı. Ayarlarda taşınmasa her alt çalıştırma kökü kendisi sanardı. |
 | S3 | Alt agent **geç** çözülür; derleme anında değil | Plan "her ad için `IAgentCatalog.ResolveAsync`" diyordu. Derleme anında çözmek DI dairesi kurardı ve alt agent güncellendiğinde çağıranın önbelleği bayatlardı (K-098). |
-| S4 | `AgentPrismRunContext.SetCurrentRunId` **kaldırıldı** | Kimlik tek başına yetmiyordu; kapsam derinlik, bütçe, kiracı ve olay yazıcısını da taşımak zorunda. Faz 11'in tek çağıranı (`SandboxedSkillScriptRunner`) `CurrentRunId` özelliğini okumaya devam ediyor, değişiklik gerekmedi. |
+| S4 | `TraconRunContext.SetCurrentRunId` **kaldırıldı** | Kimlik tek başına yetmiyordu; kapsam derinlik, bütçe, kiracı ve olay yazıcısını da taşımak zorunda. Faz 11'in tek çağıranı (`SandboxedSkillScriptRunner`) `CurrentRunId` özelliğini okumaya devam ediyor, değişiklik gerekmedi. |
 | S5 | Trace sahipliği kısıtı (K-099) planda yoktu | Gerçek çağrıda ortaya çıktı: kökün `/trace` ucu 404 dönüyordu. Yalnız birim testleriyle yakalanamazdı. |
 | S6 | Akışlı yolda `AsyncLocal` yeniden yazımı planda yoktu | Ölçüldü; §12.2'de belgelendi. Faz 11'in skill script kimliğini de onardı. |
 | S7 | Örnek uygulamada yönlendirici `arastirmaci`'yı değil `support`'u çağırıyor | `arastirmaci` harness kullanır ve K-053'te belgelenen harness kusuru alt çalıştırmayı da vururdu. Örneğin çalışır olması, mimariyi anlatmasından önce gelir. |
@@ -116,7 +116,7 @@ calistirma sayisi: 1  [('yonlendirici', 0)]   # alt satir HIC olusmadi
 | Ölçüt | Durum |
 |-------|-------|
 | Bir agent başka bir agent'ı çağırıyor; iki ayrı `runs` satırı oluşuyor | ✅ Gerçek modelle doğrulandı: `yonlendirici` 904 token, `support` 598 token, ayrı satırlar |
-| Waterfall'da alt çalıştırma iç içe görünüyor | ✅ 16 span, `agentprism.run` → `execute_tool background_agents_start_task` → `agentprism.run` |
+| Waterfall'da alt çalıştırma iç içe görünüyor | ✅ 16 span, `tracon.run` → `execute_tool background_agents_start_task` → `tracon.run` |
 | Döngülü tanım kaydedilemiyor | ✅ `400 Bad Request`, hata mesajı yolu yazıyor (`a -> b -> c -> a`) |
 | Derinlik sınırı çalışma anında da tutuyor | ✅ `MaxDepth=0` ile gerçek çalıştırmada alt satır hiç oluşmadı |
 | Bütçe aşımında yeni alt çağrı başlamıyor, hata anlaşılır | ✅ `DescribeExhaustion()` hangi sınırın dolduğunu sayıyla yazıyor |

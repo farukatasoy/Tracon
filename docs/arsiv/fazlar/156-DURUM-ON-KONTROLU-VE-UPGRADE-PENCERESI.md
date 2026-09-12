@@ -3,10 +3,10 @@
 > **Durum:** ✅ Tamamlandı (2026-09-08)
 > **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-216** (doğrulamada **daraltıldı** — aşağıya bak)
 > **Önkoşul:** Yok. [Faz 126](126-KALICI-PAYLOAD-SURUM-SOZLESMESI.md) bu fazın dayandığı sözleşmeyi kurdu; kapalıdır
-> **Paketler:** `AgentPrism.Cli`, `AgentPrism.Core` (salt okunur ön kontrol mantığı)
+> **Paketler:** `Tracon.Cli`, `Tracon.Core` (salt okunur ön kontrol mantığı)
 > **Yeni paket:** Yok · **Migration:** Yok — bu faz **hiçbir şey yazmaz**
 > **Public API:** Büyüyor — yeni CLI komutu ve onun okuduğu ön kontrol tipi. Faz 7'den önce ucuz
-> **Tüketici yüzeyi (gerçekleşen — plan ikisini öngörmüştü, altı sayfa değişti):** `reference/versioning.md` (upgrade penceresi + ön kontrol) · `guides/production.md` (ön kontrol kırmızı dönünce prosedürü) · `guides/cli.md` (komutun kendisi) · `capabilities.md` (CLI satırı) · `packages.md` (`AgentPrism.Cli` tanımı) · `getting-started/persistence.md` ve `concepts/workflows.md` (site senkron denetiminin tetiklediği iki hedef) · sevk edilen: `AgentPrism.Cli` README'si ve paket `<Description>`'ı
+> **Tüketici yüzeyi (gerçekleşen — plan ikisini öngörmüştü, altı sayfa değişti):** `reference/versioning.md` (upgrade penceresi + ön kontrol) · `guides/production.md` (ön kontrol kırmızı dönünce prosedürü) · `guides/cli.md` (komutun kendisi) · `capabilities.md` (CLI satırı) · `packages.md` (`Tracon.Cli` tanımı) · `getting-started/persistence.md` ve `concepts/workflows.md` (site senkron denetiminin tetiklediği iki hedef) · sevk edilen: `Tracon.Cli` README'si ve paket `<Description>`'ı
 > **Manuel test alanı:** [`docs/manuel-test/34-ISTEMCI-VE-CLI.md`](../../manuel-test/34-ISTEMCI-VE-CLI.md) — plan `25`'i işaret ediyordu; `state-check` bir CLI komutudur (bkz. *Plandan Sapmalar* §6)
 
 ---
@@ -32,36 +32,36 @@ Bugün "yükselttiğimde bekleyen oturumlarım okunabilir mi" sorusunun cevabı 
 
 ## Bitiş Ölçütleri (DoD)
 
-- [x] `agentprism state-check` dolu bir veritabanında kuşak sayımı üretir; çıktı aşağıda (*Gerçek Koşum Çıktısı*)
+- [x] `tracon state-check` dolu bir veritabanında kuşak sayımı üretir; çıktı aşağıda (*Gerçek Koşum Çıktısı*)
 - [x] Okunamaz kuşak varken çıkış kodu `3`, temizken `0` — gerçek veritabanında ölçüldü, aşağıda
 - [x] Komutun **hiçbir şey yazmadığı** öncesi/sonrası tablo karşılaştırmasıyla kanıtlandı (SQLite + PostgreSQL entegrasyon testi **ve** gerçek koşum: `diff` boş)
-- [x] Hata yolunda bağlantı dizesi yazdırılmıyor (K-059); `kapi.py tarama` temiz döndü. İki fonksiyonel test (`--connection` ve `AGENTPRISM_CONNECTION` yolu)
+- [x] Hata yolunda bağlantı dizesi yazdırılmıyor (K-059); `kapi.py tarama` temiz döndü. İki fonksiyonel test (`--connection` ve `TRACON_CONNECTION` yolu)
 - [x] `reference/versioning.md` upgrade penceresi bölümü yayımlandı; MAF sınırı ayrı bir `:::caution` bloğunda yazılı
 - [x] `guides/production.md` başarısız restore prosedürü yayımlandı (beş adım + kontrol listesi satırı)
 - [x] Faz 126'nın fixture'ları ve yenileme kuralı **değişmedi** — `git diff --stat` `tests/**/Fixtures/` altında sıfır satır gösteriyor
 - [x] Dört doğrulama kapısı sıfır uyarı verir
-- [x] `samples/AgentPrism.Api` ile gerçek `run` yapıldı (iki tur, gerçek OpenAI), çıktı aşağıda
+- [x] `samples/Tracon.Api` ile gerçek `run` yapıldı (iki tur, gerçek OpenAI), çıktı aşağıda
 - [x] Manuel kabul case'leri **`docs/manuel-test/34-ISTEMCI-VE-CLI.md`** içine eklendi (`MT-CLI-032`–`037`; plan `25`'i işaret ediyordu — *Plandan Sapmalar* §6); 32–36 otomatikleştirildi ve koşuldu
 - [x] `faz-denetim` koşuldu; 🔴 bulgu kapatıldı (*Denetim Bulguları*)
 - [x] `docs-site/` güncellendi; `npm run check` dördü de temiz
 
 ### Doğrulama komutları
 
-🚨 SQLite'ın tek nesne ad alanı vardır; AgentPrism şema yerine **tablo öneki**
-kullanır ve varsayılanı `agentprism_`'dir. Plan bu bloğu öneksiz yazmıştı ve
+🚨 SQLite'ın tek nesne ad alanı vardır; Tracon şema yerine **tablo öneki**
+kullanır ve varsayılanı `tracon_`'dir. Plan bu bloğu öneksiz yazmıştı ve
 öyle koşulamıyordu.
 
 ```bash
 # Temiz veritabanı
-agentprism state-check --provider sqlite --connection "Data Source=./test.db" --json
+tracon state-check --provider sqlite --connection "Data Source=./test.db" --json
 
 # Hiçbir şey yazmadığının kanıtı — sayı değil, TAM SATIR karşılaştırması.
 # Yalnız id/kuşak karşılaştıran bir kontrol, updated_at veya version
 # sütununa dokunan bir ön kontrolü göremezdi.
 SNAP="SELECT id||'|'||state_schema_version||'|'||updated_at||'|'||version
-      FROM agentprism_sessions ORDER BY id;"
+      FROM tracon_sessions ORDER BY id;"
 sqlite3 test.db "$SNAP" > before.txt
-agentprism state-check --provider sqlite --connection "Data Source=./test.db"
+tracon state-check --provider sqlite --connection "Data Source=./test.db"
 sqlite3 test.db "$SNAP" > after.txt
 diff before.txt after.txt   # boş olmalı
 ```
@@ -88,9 +88,9 @@ Bu, planın *"Sayım toplulaştırılmış sorgudur"* riskiyle doğrudan çeliş
 o yüzeyden çıkan bir sayım kaçınılmaz olarak tam tarama olurdu.
 
 **Karar (kullanıcı onaylı):** salt okunur sayım SQL katmanına indi. Yeni public
-sözleşme `IStatePreflightReader` (`AgentPrism.Abstractions`), uygulaması
-`SqlStatePreflightReader` (`AgentPrism.Sql.Shared`, üç sağlayıcıya bağlantılı
-kaynak olarak derlenir). Yorumlama `AgentPrism.Core`'da kaldı — Açık Soru 2'nin
+sözleşme `IStatePreflightReader` (`Tracon.Abstractions`), uygulaması
+`SqlStatePreflightReader` (`Tracon.Sql.Shared`, üç sağlayıcıya bağlantılı
+kaynak olarak derlenir). Yorumlama `Tracon.Core`'da kaldı — Açık Soru 2'nin
 **B** cevabı korundu, `CurrentStateSchemaVersion` public olmadı.
 
 **Beklenmedik kazanç:** dört sorgunun dördü de ANSI çıktı ve
@@ -118,11 +118,11 @@ döner.
 
 ### 3. 🚨 Planda olmayan hata modu: at-rest şifreli oturum yanlış 🔴 üretiyordu
 
-`AgentPrismContentProtectionOptions.Columns` **varsayılan olarak tüm sütunları**
+`TraconContentProtectionOptions.Columns` **varsayılan olarak tüm sütunları**
 kapsar ve `sessions.state` bunlardan biridir. CLI hiçbir content protection
 anahtarı tutmaz, dolayısıyla şifreli bir satırı **çözemez**. Bunu "okunamaz"
 saymak, uygulamanın gayet iyi okuduğu bir satır hakkında **yanlış alarm**
-üretirdi — üstelik `samples/AgentPrism.Api`'nin kendi yapılandırması tam da bu
+üretirdi — üstelik `samples/Tracon.Api`'nin kendi yapılandırması tam da bu
 durumdadır, yani ilk gerçek koşumda görülecekti.
 
 Çözüm: `ContentProtectionEnvelope.IsProtected(JsonElement)` eklendi (yalnız
@@ -132,15 +132,15 @@ olarak raporlanır, hata olarak değil.
 #### 🚨 …ve bu tasarım yetmedi. Kusuru YALNIZ örnek uygulama koşumu buldu
 
 `IsProtected` guard'ı yazıldı, iki test yeşildi (birim + SQLite entegrasyon),
-dört kapı yeşildi. Sonra `samples/AgentPrism.Api` gerçekten koşuldu ve komut
+dört kapı yeşildi. Sonra `samples/Tracon.Api` gerçekten koşuldu ve komut
 **yığın iziyle çöktü**, `EXIT=134`:
 
 ```
-Unhandled exception. AgentPrism.AgentPrismException: A value protected with content
+Unhandled exception. Tracon.TraconException: A value protected with content
 protection key 'sample' was read, but content protection is not configured in this
 process.
-   at AgentPrism.NullContentProtector.Unprotect(...)
-   at AgentPrism.ProtectedValue.Read(...)
+   at Tracon.NullContentProtector.Unprotect(...)
+   at Tracon.ProtectedValue.Read(...)
 ```
 
 Sebep: `NullContentProtector.Unprotect` bir zarf görünce **FIRLATIR**. `IsProtected`
@@ -149,11 +149,11 @@ payload oraya hiç ulaşmıyordu.
 
 **Testler bunu neden kaçırdı:** `SqliteTestContext` `ContentProtector`'ı hiç
 atamaz, yani `null` bırakır. `ProtectedValue.Read` `null` protector'da `?.` ile
-kısa devre yapar ve ham zarfı döndürür. Üretimde ise `AddAgentPrism()` bir
+kısa devre yapar ve ham zarfı döndürür. Üretimde ise `AddTracon()` bir
 `NullContentProtector` **kaydeder** — davranış tam tersidir. Test, ölçmek
 istediği şeyi taklitle devre dışı bırakmıştı.
 
-İki düzeltme: (1) okuma `try/catch (AgentPrismException)` ile sarıldı ve
+İki düzeltme: (1) okuma `try/catch (TraconException)` ile sarıldı ve
 çözülemeyen satır **zarfıyla** geri döner; (2) test altyapısına
 `ProtectingStoreContext.Keyless` eklendi — üretimin kaydettiği protector'ı
 kullanır. Yeni testler düzeltme olmadan kırmızı olduğu ölçüldü. İkinci bir test
@@ -192,11 +192,11 @@ zaten yaşadığı yerdir. Case'ler `MT-CLI-032`–`MT-CLI-037` olarak oraya ekl
 
 ### 7. Planda olmayan iki tekilleştirme — ikisi de bu fazın ihtiyacından doğdu
 
-- **`StateSchemaGenerations`** (`AgentPrism.Abstractions`, `internal`): kuşak
-  sayısı `AgentSessionManager` ve `AgentPrismCheckpointStore`'da **iki ayrı
+- **`StateSchemaGenerations`** (`Tracon.Abstractions`, `internal`): kuşak
+  sayısı `AgentSessionManager` ve `TraconCheckpointStore`'da **iki ayrı
   `internal const 1`** olarak duruyordu. Ön kontrol ikisini birden okumak
   zorunda; üçüncü bir kopya açmak yerine tek kaynağa bağlandı.
-  `AgentPrism.Workflows` için `InternalsVisibleTo` eklendi.
+  `Tracon.Workflows` için `InternalsVisibleTo` eklendi.
 - **`AssemblyVersionText.Read`** (aynı yer): MAF sürümünü okuyan
   dokuz satırlık algoritma iki yerde birebir kopyaydı. Ön kontrol üçüncü
   kopya olacaktı. `MEMORY.md`'nin "elle tekrarlanan ifade bir kusur SINIFI
@@ -242,8 +242,8 @@ olmadığı için bir sonraki dokunuş yeniden karıştırabilir; düzeltilmedi,
 | Karar | Tarih | Özet | Yeniden açılır mı? |
 |---|---|---|---|
 | **K-733 — Durum ön kontrolü için AYRI bir salt okunur SQL yüzeyi: `IStatePreflightReader`** *(kullanıcı kararı)* | 2026-09-08 | `ISessionStore.QueryAsync` ölçüldü ve yetersiz çıktı: her zaman kiracı filtreler, sayfalar ve tam `state` payload'ını okur; `IWorkflowCheckpointStore.ListAsync` ayrıca `sessionId` ister. Yükseltme kiracı başına bir olay değildir, bu yüzden ön kontrol yüzeyi **kiracıdan bağımsızdır** ve yalnız `SELECT` koşar. Sorgular `SqlQueriesBase.BuildSharedQueries` içinde tek yerdedir (ANSI; `ROW_NUMBER()` sayesinde dialect kopyası yok). | Hayır — kiracı filtresi eklemek ön kontrolün ürettiği tek sayıyı anlamsızlaştırır |
-| **K-734 — Desteklenen upgrade penceresi: aynı ana sürüm içinde HER sürümden HER sürüme** *(kullanıcı kararı)* | 2026-09-08 | Ara sürümlerden geçme zorunluluğu yoktur. Söz **yalnız AgentPrism'in kendi envelope'u** içindir; MAF'ın gövde uyumluluğu AgentPrism'in vaadi değildir ve sayfa bunu ayrı cümlelerle söyler. Dayanak Faz 126'nın gerçek koşumdan yakalanmış fixture'ları ve `PersistedPayloadUpgradeTests`'tir — bir niyet değil, her build'de koşan bir test. Envelope'u kıran değişiklik tanımı gereği ana sürüm artışıdır. | Ana sürüm politikası değişirse |
-| **K-735 — Ön kontrol çözemediği şifreli satırı HATA saymaz; okuma yolu da sarılır** | 2026-09-08 | `AgentPrismContentProtectionOptions.Columns` varsayılan olarak `sessions.state`'i kapsar; CLI hiçbir anahtar tutmaz. Şifreli satır `$apEnc` etiketiyle tanınır (`ContentProtectionEnvelope.IsProtected`) ve **yapı kontrolü** olarak raporlanır. Aksi hâli, uygulamanın sorunsuz okuduğu bir satır hakkında yanlış alarmdır — ve `samples/AgentPrism.Api`'nin kendi kurulumu tam olarak bu durumdadır. 🚨 Tanıma tek başına YETMEDİ: `NullContentProtector.Unprotect` zarf görünce **fırlatır** ve okuma, tanıma sırası gelmeden çöküyordu (gerçek koşumda `EXIT=134`). Okuma bu yüzden `try/catch (AgentPrismException)` ile sarılıdır. Bkz. *Plandan Sapmalar* §3. | Hayır |
+| **K-734 — Desteklenen upgrade penceresi: aynı ana sürüm içinde HER sürümden HER sürüme** *(kullanıcı kararı)* | 2026-09-08 | Ara sürümlerden geçme zorunluluğu yoktur. Söz **yalnız Tracon'in kendi envelope'u** içindir; MAF'ın gövde uyumluluğu Tracon'in vaadi değildir ve sayfa bunu ayrı cümlelerle söyler. Dayanak Faz 126'nın gerçek koşumdan yakalanmış fixture'ları ve `PersistedPayloadUpgradeTests`'tir — bir niyet değil, her build'de koşan bir test. Envelope'u kıran değişiklik tanımı gereği ana sürüm artışıdır. | Ana sürüm politikası değişirse |
+| **K-735 — Ön kontrol çözemediği şifreli satırı HATA saymaz; okuma yolu da sarılır** | 2026-09-08 | `TraconContentProtectionOptions.Columns` varsayılan olarak `sessions.state`'i kapsar; CLI hiçbir anahtar tutmaz. Şifreli satır `$apEnc` etiketiyle tanınır (`ContentProtectionEnvelope.IsProtected`) ve **yapı kontrolü** olarak raporlanır. Aksi hâli, uygulamanın sorunsuz okuduğu bir satır hakkında yanlış alarmdır — ve `samples/Tracon.Api`'nin kendi kurulumu tam olarak bu durumdadır. 🚨 Tanıma tek başına YETMEDİ: `NullContentProtector.Unprotect` zarf görünce **fırlatır** ve okuma, tanıma sırası gelmeden çöküyordu (gerçek koşumda `EXIT=134`). Okuma bu yüzden `try/catch (TraconException)` ile sarılıdır. Bkz. *Plandan Sapmalar* §3. | Hayır |
 | **K-736 — Örneklem "temiz" der, "hepsi okunabilir" DEMEZ; ayrım kelimeyle kurulur** | 2026-09-08 | Kuşak **sayımı** her satırı kapsar (toplulaştırılmış sorgu); **çözme** kuşak başına `--sample` satırı kapsar. Çıktı `This is a sample, not a survey` satırını her koşumda yazar ve `all readable` / `every row` ifadelerini hiç kullanmaz; bir fonksiyonel test bu iki ifadenin yokluğunu sınar. Rapor `SamplePerGeneration`'ı taşır, çünkü ne kadar bakıldığını görmeyen okuyucu hatanın yokluğunu yargılayamaz. | Hayır |
 
 > `K-733`–`K-736` numaraları kapanışta alındı; `docs/KARARLAR.md` ve
@@ -253,7 +253,7 @@ olmadığı için bir sonraki dokunuş yeniden karıştırabilir; düzeltilmedi,
 
 ## Gerçek Koşum Çıktısı
 
-`samples/AgentPrism.Api`, SQLite kalıcılığıyla ve **gerçek OpenAI** anahtarıyla
+`samples/Tracon.Api`, SQLite kalıcılığıyla ve **gerçek OpenAI** anahtarıyla
 ayağa kaldırıldı; `order-summary` agent'ına aynı oturumda iki tur koşuldu
 (`POST /api/agents/order-summary/run`, ikisi de `200`). Uygulama durduruldu ve
 ön kontrol o veritabanına karşı koşuldu.
@@ -300,7 +300,7 @@ gerçekten deserialize etti.
 Sessions:
   generation 99: 1 row(s), NOT readable by this build
 ...
-1 row(s) carry a schema generation this build cannot read. Upgrade the AgentPrism packages
+1 row(s) carry a schema generation this build cannot read. Upgrade the Tracon packages
 before starting this build against this database.
 
 Result: unreadable state found. Nothing was changed; see the lines above.
@@ -320,7 +320,7 @@ bir 🟢 çıktı; hepsi kapatıldı.
 | # | Seviye | Bulgu | Sonuç |
 |---|---|---|---|
 | 1 | 🔴 | `SampleAsync` checkpoint `id`'sini `reader.GetString(0)` ile okuyor; sütun PostgreSQL'de `uuid`, SQL Server'da `uniqueidentifier` — ikisi de `InvalidCastException` verir. `state-check` o iki sağlayıcıda **hiç çalışmıyordu** ve `catch` bloklarının hiçbiri bunu yakalamadığı için operatöre yığın izi düşerdi | **Düzeltildi.** `isSessions ? GetString(0) : DbHelpers.ToGuid(GetValue(0))`. Düzeltmenin kanıtı bulgu 2'nin testidir: attribute'suz sürümle PostgreSQL testi `InvalidCastException` ile kırmızıya döndü, düzeltmeyle yeşil |
-| 2 | 🟡 | Ön kontrolün hiçbir sağlayıcı testi PostgreSQL veya SQL Server'da koşmuyordu; bulgu 1'i geçiren boşluk buydu. SQLite'ta `id TEXT` olduğu için tek entegrasyon testi yeşil kalıyordu | **Düzeltildi.** `tests/AgentPrism.PostgreSql.IntegrationTests/StatePreflightTests.cs` (4 test): oturum **ve** checkpoint örneklemesi, kiracıdan bağımsız sayım, "hiçbir şey yazmadı" anlık görüntüsü, okunamaz kuşak. Kırmızı-yeşil çifti yukarıda ölçüldü |
+| 2 | 🟡 | Ön kontrolün hiçbir sağlayıcı testi PostgreSQL veya SQL Server'da koşmuyordu; bulgu 1'i geçiren boşluk buydu. SQLite'ta `id TEXT` olduğu için tek entegrasyon testi yeşil kalıyordu | **Düzeltildi.** `tests/Tracon.PostgreSql.IntegrationTests/StatePreflightTests.cs` (4 test): oturum **ve** checkpoint örneklemesi, kiracıdan bağımsız sayım, "hiçbir şey yazmadı" anlık görüntüsü, okunamaz kuşak. Kırmızı-yeşil çifti yukarıda ölçüldü |
 | 3 | 🟡 | `samplePerGeneration == 0` iken `probe` `null` kalıyor ama `DecodeSessionAsync(probe!, …)` çağrılıyor; `IStatePreflightReader` **public** olduğu için sözleşmeye uymayan bir üçüncü taraf uygulaması `NullReferenceException` alırdı | **Düzeltildi.** Prob artık istenen örneklem boyutuna değil, **gerçekten dönen satır sayısına** bakılarak kuruluyor (`sessionSamples.Count > 0`) |
 | 4 | 🟡 | Doküman `✅ Tamamlandı` diyor ama on iki DoD kutusu işaretsiz; iki satırın istediği "çıktı belgeye yazıldı" yoktu ve DoD hâlâ manuel test dosyası olarak `25`'i gösteriyordu | **Düzeltildi.** Kutular işaretlendi, gerçek koşum çıktısı yukarıdaki bölüme yazıldı, `25` → `34` düzeltildi |
 | 5 | 🟢 | İki `PublicAPI.Unshipped.txt` dosyası fazla ilgisiz ~200 satırlık **yalnız yer değiştirme** gürültüsü taşıyor (ordinal → büyük/küçük harf duyarsız sıralama) | **Kaydedildi**, düzeltilmedi. Denetçi sıralı karşılaştırmayla doğruladı: hiçbir API sessizce düşmemiş, ekleme yalnız faza ait. Sebebi *Plandan Sapmalar* §11'dedir; sıralamayı zorlayan bir kapı yok, dolayısıyla bir sonraki dokunuş yeniden karıştırabilir |
@@ -339,7 +339,7 @@ bir 🟢 çıktı; hepsi kapatıldı.
   ister. Kapı ölçülerek doğrulandı; sessizce geçmez.
 - **Kuşak sabitleri artık `StateSchemaGenerations`'tadır.** Envelope'u
   değiştiren bir faz sayıyı **orada** artırır; `AgentSessionManager` ve
-  `AgentPrismCheckpointStore` oradan okur ve ön kontrol otomatik doğru cevabı
+  `TraconCheckpointStore` oradan okur ve ön kontrol otomatik doğru cevabı
   verir. İki yere ayrı ayrı yazmaya dönme.
 - **MAF sürüm metni `AssemblyVersionText.Read`'dedir.** Üçüncü bir kopya açma.
 - **`StatePreflightReport`'un dört alanı hesaplanandır.** Yeni bir hata sınıfı

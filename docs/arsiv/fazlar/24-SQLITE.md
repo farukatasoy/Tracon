@@ -3,7 +3,7 @@
 > **Durum:** ✅ Kod tamam · 205/205 sözleşme+diyalekt testi yeşil · AOT ölçülmedi (bkz. "Açık Kalan")
 > **Kaynak:** [BEYIN-FIRTINASI.md](../BEYIN-FIRTINASI.md) · **F-07**
 > **Önkoşul:** [Faz 23](23-SQL-SERVER.md) — ortak SQL soyutlaması orada olgunlaşır
-> **Paketler:** **`AgentPrism.Sqlite` (YENİ)** · `AgentPrism.Abstractions`
+> **Paketler:** **`Tracon.Sqlite` (YENİ)** · `Tracon.Abstractions`
 > **Migration:** Kendi migration seti — `0001_initial.sql`
 > **Kararlar:** K-190 … K-197
 
@@ -40,14 +40,14 @@ Tek dosyalık kurulum. Değeri üç yerdedir: - **Demo ve deneme** — `dotnet r
 
 ## Bitiş Ölçütleri (DoD)
 
-- [x] `AgentPrism.Sqlite` paketi üretiliyor (`dotnet pack` sayısı arttı)
+- [x] `Tracon.Sqlite` paketi üretiliyor (`dotnet pack` sayısı arttı)
 - [x] Tüm store sözleşme testleri SQLite üzerinde yeşil (205/205)
 - [x] WAL ve `busy_timeout` bağlantı açılışında ayarlanıyor (test)
 - [x] Örnek uygulama tek dosyalık veritabanıyla uçtan uca çalışıyor (elle doğrulandı, yukarıda)
 - [x] Uygulama kapatılıp açıldığında veri duruyor (gerçek çıktı — aynı tenant kimliği)
 - Sınırlar README ve `/api/meta`'da bildiriliyor — **README tamam**, `/api/meta`'da `:memory:` ayrımı eksik (Açık Soru 1)
 - AOT durumu ölçüldü ve `MIMARI.md` güncellendi — **ölçülmedi**, K-196
-- [x] Dört doğrulama kapısı sıfır uyarı (build, format, pack, `AgentPrism.Core.UnitTests`; PostgreSQL 416/416 ve SQL Server 204/204 regresyonsuz)
+- [x] Dört doğrulama kapısı sıfır uyarı (build, format, pack, `Tracon.Core.UnitTests`; PostgreSQL 416/416 ve SQL Server 204/204 regresyonsuz)
 
 ---
 

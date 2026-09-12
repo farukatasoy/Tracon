@@ -5,7 +5,7 @@
 > `docs-site/src/sidebar.mjs` · `docs-site/src/starlightRouteData.mjs` ·
 > `docs-site/scripts/check-content.mjs` · `docs-site/scripts/check-weight.mjs` ·
 > `docs-site/scripts/build-social-images.mjs` · `docs-site/public/social/*.png` ·
-> `tests/AgentPrism.AspNetCore.FunctionalTests/DocumentedPolicyTests.cs`
+> `tests/Tracon.AspNetCore.FunctionalTests/DocumentedPolicyTests.cs`
 >
 > Ortam kurulumu ve reset yordamı [`00-INDEKS.md`](00-INDEKS.md)'dedir.
 > Bu alan [`31-DOKUMAN-DOGRULUGU.md`](31-DOKUMAN-DOGRULUGU.md)'nün **üstüne**
@@ -35,13 +35,13 @@ flowchart LR
 ## Koşmadan önce
 
 ```bash
-cd /Users/farukatasoy/Desktop/projects/AgentPrism/docs-site
+cd /Users/farukatasoy/Desktop/projects/Tracon/docs-site
 npm ci            # bir kez; Node 22.12+ gerekir
 npm run check     # content -> build -> links -> weight
 npx astro preview --port 4321
 ```
 
-Görsel case'ler `http://localhost:4321/AgentPrism/` üzerinde koşulur. Tema
+Görsel case'ler `http://localhost:4321/Tracon/` üzerinde koşulur. Tema
 düğmesi sağ üsttedir; koyu ve açık temanın **ikisi de** denenir.
 
 ---
@@ -72,7 +72,7 @@ düğmesi sağ üsttedir; koyu ve açık temanın **ikisi de** denenir.
 | 20 | `MT-DKL-020` | — | `npm run check` (dört adım) | Dördü de temiz; kontrast tabanı ve en ağır sayfa çıktıya yazılır |
 | 21 | `MT-DKL-021` | — | Bir sayfadaki `<!-- claim:option ... -->` işaretinin tipini var olmayan bir tipe değiştir, `npm run check:content` | Kızarır: `claim names '…', which is not a public sealed Options type` |
 | 22 | `MT-DKL-022` | — | `reference/configuration.md`'de `Scheduling:RunWorker` satırındaki **görünür** `true` değerini `false` yap, işareti (`<!-- claim:… -->`) değiştirme | `npm run check:content` kızarır: `does not state that value as a backtick-quoted literal` — görünür metin ile işaret birbirinden sürüklendi |
-| 23 | `MT-DKL-023` | — | `AgentPrismSchedulingOptions.RunWorker`'ın `= true` başlatıcısını sil | `dotnet test … Every_marked_option_default_matches_the_real_type` kızarır: `claims AgentPrismSchedulingOptions.RunWorker=true, but the real default is false` |
+| 23 | `MT-DKL-023` | — | `TraconSchedulingOptions.RunWorker`'ın `= true` başlatıcısını sil | `dotnet test … Every_marked_option_default_matches_the_real_type` kızarır: `claims TraconSchedulingOptions.RunWorker=true, but the real default is false` |
 | 24 | `MT-DKL-024` | — | `OpenAIChatCompletionsEndpoints`'te `RequireApiKeyScope(ApiKeyScope.RunsWrite)`'ı `RunsRead` yap | `dotnet test … Every_marked_endpoint_policy_claim_is_actually_enforced` kızarır: yalnız `RunsRead` taşıyan anahtar reddedilmiyor |
 
 ---
@@ -80,7 +80,7 @@ düğmesi sağ üsttedir; koyu ve açık temanın **ikisi de** denenir.
 ## Doğrulama komutları
 
 ```bash
-cd /Users/farukatasoy/Desktop/projects/AgentPrism/docs-site
+cd /Users/farukatasoy/Desktop/projects/Tracon/docs-site
 
 # 5 - kapanis sozlesmesi
 # 🚨 Filtre `^` ile baglanir: `grep -v '/http-api/'` uretilen sayfalari
@@ -94,7 +94,7 @@ cd ../../..
 
 # 7 - bolum basina paylasim gorseli
 for p in "" ui guides/production reference/glossary; do
-  curl -s "http://localhost:4321/AgentPrism/${p}${p:+/}" \
+  curl -s "http://localhost:4321/Tracon/${p}${p:+/}" \
     | grep -o 'og:image" content="[^"]*"' | head -1
 done                                                 # beklenen: dort farkli dosya
 
@@ -103,8 +103,8 @@ npm run check:content && npm run build && npm run check:links && npm run check:w
 
 # 22-24 - isaretli davranis iddialari (F-171, Faz 158)
 cd ..
-dotnet build tests/AgentPrism.AspNetCore.FunctionalTests -c Release
-./artifacts/bin/AgentPrism.AspNetCore.FunctionalTests/release/AgentPrism.AspNetCore.FunctionalTests \
+dotnet build tests/Tracon.AspNetCore.FunctionalTests -c Release
+./artifacts/bin/Tracon.AspNetCore.FunctionalTests/release/Tracon.AspNetCore.FunctionalTests \
   --filter-method "*DocumentedPolicyTests*"
 ```
 

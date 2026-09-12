@@ -3,11 +3,11 @@
 > **Durum:** ✅ Tamamlandı (2026-08-25)
 > **Kaynak:** Doğrudan kullanıcı isteği — aday listesinden gelmedi, aday listesine kalem eklemez (Faz 101 ile aynı yol)
 > **Önkoşul:** [Faz 101](101-KAYNAK-SOZLESMESININ-YAYINI.md) — sözleşme yayını deseni (contract suite + sample + XML) buradan devralınır
-> **Paketler:** `AgentPrism.Abstractions`, `.Core`, `.Generators`, `.Testing.Contracts.Xunit`
+> **Paketler:** `Tracon.Abstractions`, `.Core`, `.Generators`, `.Testing.Contracts.Xunit`
 > **Yeni paket:** Yok · **Migration:** Yok
 > **Public API:** Büyüyor — `PublicAPI.Shipped.txt` **boştur** (`wc -l src/*/PublicAPI.Shipped.txt` → tümü `0`), bu yüzden bugün eklemek ve kırmak **bedavadır**; preview.1'den sonra ikisi de sürüm kararıdır
 > **Tüketici yüzeyi:** site: `getting-started/tools.md`, `concepts/tools.md`, **yeni** `guides/write-your-own-tool.md`, `capabilities.md`
-> · sevk edilen: `AgentPrismToolRegistration` / `AgentPrismToolAttribute` / `IToolRegistry` / `TimeoutAIFunction` / `TruncatingAIFunction` XML'leri, `src/AgentPrism.Testing.Contracts.Xunit/README.md`
+> · sevk edilen: `TraconToolRegistration` / `TraconToolAttribute` / `IToolRegistry` / `TimeoutAIFunction` / `TruncatingAIFunction` XML'leri, `src/Tracon.Testing.Contracts.Xunit/README.md`
 > **Manuel test alanı:** [`docs/manuel-test/02-CEKIRDEK-VE-KATALOG.md`](../../manuel-test/02-CEKIRDEK-VE-KATALOG.md)
 
 ---
@@ -42,30 +42,30 @@ Bir üçüncü taraf geliştirici bugün **basit** bir tool yazabilir; **üretim
 - [x] `MaxOutputBytes` altı sonuç tipinde de uygulanır: `string` · `JsonElement` ·
       primitive · record/class · collection · `null`. `AIContent` istisnası XML'de yazılı —
       `TruncatingAIFunctionTests`, `ToolRegistryWrapperOrderTests`
-- [x] `[AgentPrismTool(SafeToRepeat = true)]` üç kayıt yolunda **aynı**
-      `AgentPrismToolRegistration` üretir — `ToolRegistrationTests` (parity, sekiz alan)
+- [x] `[TraconTool(SafeToRepeat = true)]` üç kayıt yolunda **aynı**
+      `TraconToolRegistration` üretir — `ToolRegistrationTests` (parity, sekiz alan)
 - [x] `AddTool` sekiz knob'un **hepsine** `configure` üzerinden erişir; ham
-      `services.AddSingleton(new AgentPrismToolRegistration(...))` artık tek yol değil —
-      `ToolRegistrationOptions` + `IAgentPrismBuilder.AddTool` gerçekleşen imzada
+      `services.AddSingleton(new TraconToolRegistration(...))` artık tek yol değil —
+      `ToolRegistrationOptions` + `ITraconBuilder.AddTool` gerçekleşen imzada
 - [x] Geçersiz ve duplicate tool adı **startup'ta** durur (Manuel Case 5, 6) —
       `ToolRegistrationValidationServiceTests`
 - [x] Tanınmayan `IToolRegistry` startup'ta reddedilir; opt-out bayrağı çalışır;
       `.UseMcp()` **geçer** (Manuel Case 7, 8, 9) — gerçek host/DI sınırında kanıtlı:
       `ToolRegistryVerificationEndpointTests`, `McpToolRegistryVerificationTests`
 - [x] Ham istisna mesajı SSE ve HTTP yüzeyinden çıkmaz, `ILogger`'da tam kalır;
-      AgentPrism'in kendi istisnaları korunur (Manuel Case 10, 11) — `ToolFailureText.Get`
+      Tracon'in kendi istisnaları korunur (Manuel Case 10, 11) — `ToolFailureText.Get`
 - [x] `ContractCoverage.ToolContracts` ailesi var; dört mevcut aile
       (Storage · Providers · Judges · AgentSources) **yeşil** kalır — `ContractCoverageTests`,
       `ToolContractCoverageTests` (Core + sample), tam kapanış koşumunda doğrulandı
-- [x] `samples/AgentPrism.Samples.CustomTool.Tests` yalnız `PackageReference`
-      ile AgentPrism'e bağlanır ve yeşil koşar — 9/9 (ContractCoverage dahil)
-- [x] `AgentPrism.Core` ve `.Abstractions` AOT uyumlu kalır
+- [x] `samples/Tracon.Samples.CustomTool.Tests` yalnız `PackageReference`
+      ile Tracon'e bağlanır ve yeşil koşar — 9/9 (ContractCoverage dahil)
+- [x] `Tracon.Core` ve `.Abstractions` AOT uyumlu kalır
       (`grep -l "AotCompatible>false" src/*/*.csproj` çıktısı değişmedi) —
       taban commit `8929903` ile birebir karşılaştırıldı, aynı 11 proje
 - [x] Dört doğrulama kapısı sıfır uyarı verir — `python3 scripts/kapi.py kapanis --taban 8929903`
       tam yeşil (build · test · pack · format · `docs-site npm run check`); 20 paket,
       tek sürüm hattı, `kapi.py yayin --kuru` temiz
-- [x] `samples/AgentPrism.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı —
+- [x] `samples/Tracon.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı —
       Sqlite + gerçek OpenAI `gpt-5.4-mini` ile `support` agent'ı, `get_order_status`
       tool çağrısı; `GET /api/tools`, `POST .../run`, `GET .../tools` hepsi doğrulandı
       (bkz. Sonraki Faza Devir Notu → "Yarım kalan iş")
@@ -83,14 +83,14 @@ Bir üçüncü taraf geliştirici bugün **basit** bir tool yazabilir; **üretim
 
 ```bash
 # Faz 101'in tuzağı — samples derlemeden ÖNCE
-rm -rf ~/.nuget/packages/agentprism*
+rm -rf ~/.nuget/packages/tracon*
 python3 scripts/kapi.py yayin --kuru
 
 # Parity ve sonuç sınırı
-dotnet test tests/AgentPrism.Core.UnitTests --filter "ToolRegistrationParity|ToolOutputBudgetMatrix|ContentGuardComplexToolResult"
+dotnet test tests/Tracon.Core.UnitTests --filter "ToolRegistrationParity|ToolOutputBudgetMatrix|ContentGuardComplexToolResult"
 
 # Sözleşme ailesi ve sample
-dotnet test samples/AgentPrism.Samples.CustomTool.Tests
+dotnet test samples/Tracon.Samples.CustomTool.Tests
 
 # AOT kapısı
 grep -l "AotCompatible>false" src/*/*.csproj
@@ -108,7 +108,7 @@ python3 scripts/kapi.py kapanis --taban <faz öncesi commit>
 
 - Complex sonuç için generator'ın kendi ürettiği `JsonSerializerContext` kullanılmadı.
   Roslyn generator'ları birbirlerinin ürettiği kaynağı aynı compilation'da görmez;
-  gerçek consumer build'i bu yaklaşımı `CS0534` ile kırdı. `AgentPrismToolAttribute`
+  gerçek consumer build'i bu yaklaşımı `CS0534` ile kırdı. `TraconToolAttribute`
   içine `JsonSerializerContext` eklendi ve complex sonuçta `APG0008` ile tool sahibinin
   kendi `[JsonSerializable(typeof(TResult))]` context'ini vermesi zorunlu kılındı.
   Bu AOT-safe'tir ve rehber/sample bunu çalışır biçimde kanıtlar.
@@ -159,7 +159,7 @@ python3 scripts/kapi.py kapanis --taban <faz öncesi commit>
   `AllowUnverifiedToolRegistry` bilerek yapan için opt-out'tur.
 - **K-615** — Generator kendi ürettiği `JsonSerializerContext`'i kullanmaz;
   complex tool sonucu için tool sahibi kendi context'ini
-  `AgentPrismToolAttribute.JsonSerializerContext`'e verir, aksi hâlde derleme
+  `TraconToolAttribute.JsonSerializerContext`'e verir, aksi hâlde derleme
   `APG0008` ile durur.
 - **K-616** — `CustomToolContract` yalnız implementer'ın tek başına
   sağlayabileceği isim/metadata/eşzamanlı çağrı sözleşmesini taşır;
@@ -217,15 +217,15 @@ Taban `8929903`, kapsam `git diff 8929903` (commit'lenmiş + çalışma ağacı)
   `ToolRegistrationParityTests`, `McpToolRegistryVerificationTests`,
   `ToolRegistryVerificationTests` vb.) hiç yazılmamıştı; devir notu tablosu
   bu adları var olmayan/ilgisiz dosyalara bağlıyordu. Kapatıldı:
-  `samples/AgentPrism.Samples.CustomTool.Tests`'e generator yolundan geçen bir
-  `[AgentPrismTool]` (`preview_order`) + gerçek `PatternContentGuard` ile uçtan
+  `samples/Tracon.Samples.CustomTool.Tests`'e generator yolundan geçen bir
+  `[TraconTool]` (`preview_order`) + gerçek `PatternContentGuard` ile uçtan
   uca kanıt eklendi (`A_generated_complex_results_field_value_is_seen_by_the_content_guard`,
   red→green doğrulandı: guard'sız koşum modelin cevabında ham
   `{"OrderId":"...","Status":"ready"}` JSON'unu gösterdi). Ayrıca gerçek host/DI
   sınırında iki yeni test eklendi: `ToolRegistryVerificationEndpointTests`
-  (`AgentPrism.AspNetCore.FunctionalTests`, foreign `IToolRegistry` gerçek
+  (`Tracon.AspNetCore.FunctionalTests`, foreign `IToolRegistry` gerçek
   `WebApplication.StartAsync()` ile reddediliyor + opt-out çalışıyor) ve
-  `McpToolRegistryVerificationTests` (`AgentPrism.Mcp.UnitTests`, `.UseMcp()`
+  `McpToolRegistryVerificationTests` (`Tracon.Mcp.UnitTests`, `.UseMcp()`
   gerçek DI-çözülen `IHostedService` zincirinden geçiyor).
 - 🟡 **DÜZELTİLDİ.** `CustomToolContract.Concurrent_server_calls_complete`
   hiçbir `Should*` taşımıyordu. `calls.ShouldAllBe(RanToCompletion)` eklendi;
@@ -234,8 +234,8 @@ Taban `8929903`, kapsam `git diff 8929903` (commit'lenmiş + çalışma ağacı)
 - 🟡 **DÜZELTİLDİ.** `TruncatingAIFunctionTests.cs`'in sınıf yorumu, generator'ın
   complex tipte de artık (102.2 sonrası) ham CLR nesnesi değil `JsonElement`
   döndürdüğünü yansıtmıyordu — güncellendi.
-- 🟡 **GEREKÇELENDİ.** `samples/AgentPrism.Samples.CustomTool` hiçbir tool'da
-  `AgentPrismRunContext.Current`'i okumuyor ve ayrı bir istisna-yönetimi
+- 🟡 **GEREKÇELENDİ.** `samples/Tracon.Samples.CustomTool` hiçbir tool'da
+  `TraconRunContext.Current`'i okumuyor ve ayrı bir istisna-yönetimi
   rehberi taşımıyor (102.11'in listesindeki iki madde). Sample'ın asıl kanıt
   yükü (singleton, scoped bağımlılık, complex sonuç, `SafeToRepeat`,
   sekiz knob) zaten karşılanıyor; bu ikisi kapsamı büyütmeden sonraki bir
@@ -253,8 +253,8 @@ doküman, `TryAdd*`, K1/K3/K-059/`ConfigureAwait(false)` ihlali yok).
 
 ## Sonraki Faza Devir Notu
 
-**Devralınan sözleşme.** Tool genişleme yüzeyi artık `AgentPrismToolAttribute`,
-`AgentPrismToolRegistration` ve `IToolRegistry`'nin kendi XML'inde tam yazılı
+**Devralınan sözleşme.** Tool genişleme yüzeyi artık `TraconToolAttribute`,
+`TraconToolRegistration` ve `IToolRegistry`'nin kendi XML'inde tam yazılı
 (102.9'daki 18 invariant). Yeni bir kayıt yolu veya wrapper eklerken artık
 kaynağı okumak zorunlu değil.
 
@@ -262,14 +262,14 @@ kaynağı okumak zorunlu değil.
 
 | Kural | Testi |
 |---|---|
-| Complex tool sonucu content guard'a alan değerleriyle görünür, tip adı olarak değil — generator yolundan uçtan uca | `samples/AgentPrism.Samples.CustomTool.Tests` → `OrderFulfillmentToolTests.A_generated_complex_results_field_value_is_seen_by_the_content_guard` |
+| Complex tool sonucu content guard'a alan değerleriyle görünür, tip adı olarak değil — generator yolundan uçtan uca | `samples/Tracon.Samples.CustomTool.Tests` → `OrderFulfillmentToolTests.A_generated_complex_results_field_value_is_seen_by_the_content_guard` |
 | Normalize edilemeyen tool sonucu **koşulsuz** maskelenir (fail-closed), guard deseni yer tutucuyla eşleşmese bile | `ContentGuardMaskTests.Tool_result_that_cannot_be_normalized_is_masked_even_when_no_guard_pattern_matches` |
 | `MaxOutputBytes` altı sonuç tipinde de (complex dahil) uygulanır; `AIContent` muaf | `TruncatingAIFunctionTests`, `ToolRegistryWrapperOrderTests` |
-| Üç kayıt yolu (`[AgentPrismTool]`+generator · `AddToolsFrom` · `AddTool(AIFunction)`) aynı sekiz alanlı `AgentPrismToolRegistration` üretir | `ToolRegistrationTests` (parity) |
+| Üç kayıt yolu (`[TraconTool]`+generator · `AddToolsFrom` · `AddTool(AIFunction)`) aynı sekiz alanlı `TraconToolRegistration` üretir | `ToolRegistrationTests` (parity) |
 | Geçersiz/duplicate tool adı **startup'ta** durur | `ToolRegistrationValidationServiceTests` |
-| Tanınmayan `IToolRegistry` gerçek host/DI başlangıcında reddedilir; `AllowUnverifiedToolRegistry` opt-out çalışır | `ToolRegistrationValidationServiceTests` (marker: `IVerifiedToolRegistry`, elle çağrı) + `ToolRegistryVerificationEndpointTests` (`AgentPrism.AspNetCore.FunctionalTests`, gerçek `WebApplication.StartAsync()`) |
-| `McpToolRegistry` aynı doğrulamadan geçer, tanınmayan sayılmaz | `McpToolRegistryVerificationTests` (`AgentPrism.Mcp.UnitTests`, gerçek DI-çözülen `IHostedService`) |
-| Ham istisna mesajı SSE/HTTP'ye çıkmaz; AgentPrism'in kendi istisnaları korunur | `ToolFailureText.Get` + `ToolGovernanceEndpointTests` |
+| Tanınmayan `IToolRegistry` gerçek host/DI başlangıcında reddedilir; `AllowUnverifiedToolRegistry` opt-out çalışır | `ToolRegistrationValidationServiceTests` (marker: `IVerifiedToolRegistry`, elle çağrı) + `ToolRegistryVerificationEndpointTests` (`Tracon.AspNetCore.FunctionalTests`, gerçek `WebApplication.StartAsync()`) |
+| `McpToolRegistry` aynı doğrulamadan geçer, tanınmayan sayılmaz | `McpToolRegistryVerificationTests` (`Tracon.Mcp.UnitTests`, gerçek DI-çözülen `IHostedService`) |
+| Ham istisna mesajı SSE/HTTP'ye çıkmaz; Tracon'in kendi istisnaları korunur | `ToolFailureText.Get` + `ToolGovernanceEndpointTests` |
 | `CustomToolContract`/`RepeatableToolContract` dört mevcut aileyi kırmaz | `ContractCoverageTests` |
 
 **🚨 Bilinen tuzaklar (bu fazda ölçüldü):**
@@ -277,14 +277,14 @@ kaynağı okumak zorunlu değil.
 - **`AIFunction.InvokeAsync`'in ham dönüş TİPİ, `FunctionInvokingChatClient`'ın
   GERÇEK döngüsünde gözlenen `FunctionResultContent.Result` tipiyle her zaman
   AYNI olmayabilir — izole probe entegre davranışı kanıtlamaz (MEMORY.md'nin
-  tekrarlayan uyarısı, bu fazda yeniden doğrulandı).** `AgentPrism.AddTool((Func<Task<string>>)...)`
-  ile kayıtlı bir tool, GERÇEK `AgentPrism.AspNetCore.FunctionalTests` koşumunda
+  tekrarlayan uyarısı, bu fazda yeniden doğrulandı).** `Tracon.AddTool((Func<Task<string>>)...)`
+  ile kayıtlı bir tool, GERÇEK `Tracon.AspNetCore.FunctionalTests` koşumunda
   (`ConcurrentToolInvocationTests`) tel üzerinde **tırnaklı** gitti — kanıt:
   `ilspycmd` ile decompile edilen `OpenAIChatClient.ToOpenAIChatMessages`,
   `Result` ham `string` değilse `JsonSerializer.Serialize(Result, object-typeinfo)`
   çağırıyor ve isolate bir `AIFunctionFactory.Create(...).InvokeAsync(...)`
   probu bu delegate için runtime tipin `JsonElement` olduğunu doğruladı.
-  Ama kapanışta `samples/AgentPrism.Api`'yi GERÇEK bir OpenAI anahtarıyla
+  Ama kapanışta `samples/Tracon.Api`'yi GERÇEK bir OpenAI anahtarıyla
   çalıştırıp `AddToolsFrom(typeof(OrderTools))` ile kayıtlı `get_order_status`
   (yine `string` dönen, ama `MethodInfo`-tabanlı) çağrıldığında,
   `GET /api/runs/{id}/tools` üzerinden okunan **ham** (`hex`/escape kontrolü
@@ -304,12 +304,12 @@ kaynağı okumak zorunlu değil.
   yazar). Bir üreteç ileride benzer bir "üret ve aynı taramada tüket" deseni
   denerse önce bunu ölçsün.
 - **Faz 101'in `dotnet format --no-restore` tuzağı BİREBİR tekrarlandı.**
-  `dotnet format AgentPrism.slnx --verify-no-changes --no-restore` (kapı
+  `dotnet format Tracon.slnx --verify-no-changes --no-restore` (kapı
   koşucusunun kendi komutu) `samples/`'ın `VersionOverride="*-*"` + yerel
   `NuGet.config` kombinasyonuyla workspace'i yükleyemedi (`CS0246` —
-  `AgentPrismToolRegistration`, `FactAttribute` gibi tipler "bulunamadı",
-  `AgentPrism.Samples.CustomTool.Tests` VE ilgisiz `AgentPrism.Samples.FileRunStore.Tests`
-  ikisinde birden). `--no-restore`'u düşürmek (`dotnet format AgentPrism.slnx
+  `TraconToolRegistration`, `FactAttribute` gibi tipler "bulunamadı",
+  `Tracon.Samples.CustomTool.Tests` VE ilgisiz `Tracon.Samples.FileRunStore.Tests`
+  ikisinde birden). `--no-restore`'u düşürmek (`dotnet format Tracon.slnx
   --verify-no-changes`) sorunu aynen 101'deki gibi çözdü. `kapi.py`'nin
   `closing_commands` listesi hâlâ `--no-restore` taşıyor — samples'a dokunan
   **her** fazda bu yeniden kırmızı görünecek; gerçek bir format hatasıyla
@@ -329,7 +329,7 @@ kaynağı okumak zorunlu değil.
   varsayılan" öneriyorsa, o varsayılanın gerçekten KOŞULSUZ uygulandığını
   (bir eşleşme koşuluna bağlı olmadığını) satır satır izle.
 
-**Yarım kalan iş.** Yok. `samples/AgentPrism.Api`, PostgreSql yerine geçici
+**Yarım kalan iş.** Yok. `samples/Tracon.Api`, PostgreSql yerine geçici
 bir Sqlite `ConnectionString` (env var override, `dotnet user-secrets`'a
 DOKUNULMADI) ile başlatıldı; ortamda önceden yapılandırılmış gerçek
 `OpenAI`/`Anthropic`/`Google` `secret`'ları vardı (Faz 101'in aksine bu ortam

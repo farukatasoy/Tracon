@@ -1,18 +1,18 @@
 # 25 — Sağlık Denetimi, Teşhis ve OpenAPI Yayını (`DIAG`)
 
 > **Alan kodu:** `DIAG` · **Faz:** 33 (sağlık denetimi + `/api/diagnostics`), 40 (OpenAPI yayını), 85 (`extensionPoints`), 150 (zorunlu binding profili)
-> **Kaynak:** `src/AgentPrism.AspNetCore/Health/` (tümü) ·
-> `src/AgentPrism.AspNetCore/Endpoints/DiagnosticsEndpoints.cs` ·
-> `src/AgentPrism.Abstractions/Diagnostics/` (tümü) ·
-> `src/AgentPrism.Core/Diagnostics/AgentPrismDiagnosticsCollector.cs` ·
-> `src/AgentPrism.Core/Diagnostics/AgentPrismExtensionPoints.cs` ·
-> `src/AgentPrism.Core/Diagnostics/RequiredBindingValidator.cs` (Faz 150) ·
-> `src/AgentPrism.Sql.Shared/Migrations/MigrationRunner.cs` (yalnız `GetSnapshotAsync`,
-> `ISqlPersistenceDiagnostics` uygulaması) · uç üstverisi için `src/AgentPrism.AspNetCore/Endpoints/*.cs`
-> ve `src/AgentPrism.AspNetCore/OpenAICompat/*.cs`'in `.WithTags`/`.Produces` çağrıları ·
-> `docs/openapi/agentprism.json` (yayımlanan artefakt) ·
-> çapraz doğrulama için `tests/AgentPrism.AspNetCore.FunctionalTests/OpenApi*.cs`,
-> `samples/AgentPrism.Api/AgentPrism.Api.csproj` (F-76/K-352 düzeltmesi).
+> **Kaynak:** `src/Tracon.AspNetCore/Health/` (tümü) ·
+> `src/Tracon.AspNetCore/Endpoints/DiagnosticsEndpoints.cs` ·
+> `src/Tracon.Abstractions/Diagnostics/` (tümü) ·
+> `src/Tracon.Core/Diagnostics/TraconDiagnosticsCollector.cs` ·
+> `src/Tracon.Core/Diagnostics/TraconExtensionPoints.cs` ·
+> `src/Tracon.Core/Diagnostics/RequiredBindingValidator.cs` (Faz 150) ·
+> `src/Tracon.Sql.Shared/Migrations/MigrationRunner.cs` (yalnız `GetSnapshotAsync`,
+> `ISqlPersistenceDiagnostics` uygulaması) · uç üstverisi için `src/Tracon.AspNetCore/Endpoints/*.cs`
+> ve `src/Tracon.AspNetCore/OpenAICompat/*.cs`'in `.WithTags`/`.Produces` çağrıları ·
+> `docs/openapi/tracon.json` (yayımlanan artefakt) ·
+> çapraz doğrulama için `tests/Tracon.AspNetCore.FunctionalTests/OpenApi*.cs`,
+> `samples/Tracon.Api/Tracon.Api.csproj` (F-76/K-352 düzeltmesi).
 >
 > Ortam kurulumu, fixture verisi ve reset yordamı [`00-INDEKS.md`](00-INDEKS.md)'dedir.
 > Rol tabanlı yetkilendirme kurulumu (Admin case'leri için) [`13-KIRACI-VE-GUVENLIK.md`](13-KIRACI-VE-GUVENLIK.md) §8'dedir.
@@ -26,7 +26,7 @@
 
 ## Bu dosya neyi kanıtlar
 
-Üç ayrı yüzey, tek bir ortak toplayıcıyı (`AgentPrismDiagnosticsCollector`)
+Üç ayrı yüzey, tek bir ortak toplayıcıyı (`TraconDiagnosticsCollector`)
 paylaşır: standart `/health` (makine okur — Kubernetes, App Service),
 `/api/diagnostics` (insan okur — ayrıntılı öz denetim) ve OpenAPI belgesi
 (araç okur — istemci üreteci, dağıtım hattı). Üçünün de ortak ilkesi **yan
@@ -35,18 +35,18 @@ etkisizliktir**: hiçbiri model çağırmaz, hiçbiri migration uygulamaz, hiçb
 
 ```mermaid
 flowchart TD
-    A["AgentPrismDiagnosticsCollector<br/>yan etkisiz"] --> B["kalicilik: SELECT 1 -- yalniz baglanti sinamasi"]
+    A["TraconDiagnosticsCollector<br/>yan etkisiz"] --> B["kalicilik: SELECT 1 -- yalniz baglanti sinamasi"]
     A --> C["migration: __migrations tablosu OKUNUR<br/>ASLA uygulanmaz"]
     A --> D["model saglayicilari:<br/>ModelProviderHealthCache'ten OKUNUR"]
     A --> E["config anahtarlari:<br/>cozuldu/cozulmedi -- DEGER YOK (K-059)"]
 
-    A --> F["AgentPrismHealthCheck<br/>Healthy / Degraded / Unhealthy"]
+    A --> F["TraconHealthCheck<br/>Healthy / Degraded / Unhealthy"]
     A --> G["GET /api/diagnostics<br/>Admin -- varsayilan KAPALI"]
 
     F --> H["GET /health<br/>Unhealthy -> 503, digerleri -> 200"]
     G --> I["JSON rapor"]
 
-    J["121+ HTTP ucu<br/>.WithTags / .Produces"] --> K["docs/openapi/agentprism.json<br/>test korumali anlik goruntu"]
+    J["121+ HTTP ucu<br/>.WithTags / .Produces"] --> K["docs/openapi/tracon.json<br/>test korumali anlik goruntu"]
 
     classDef red fill:#7a1f1f,stroke:#3d0f0f,color:#ffffff
     class G red
@@ -63,7 +63,7 @@ mekanizma olsa da HTTP yüzeyinin **kendi kendini tanımlama** yeteneğinin
 | Konu | Nerede |
 |---|---|
 | `ModelProviderHealthCache`/`ModelProviderCircuitBreaker`in KENDİ mekaniği (nasıl dolduğu, `refresh=true`, devre açma/kapama eşiği) | `05-SAGLAYICI-OPENAI.md` §8 — bu dosya yalnız bu önbellekten **okunan** teşhis/sağlık yansımasını sınar |
-| Rol tabanlı yetkilendirmenin GENEL sözleşmesi (`AgentPrismPolicies`, `RequireRole`) | `13-KIRACI-VE-GUVENLIK.md` §8 — bu dosya yalnız `/api/diagnostics`'in Admin kapısını sınar, genel mekanizmayı yeniden kurmaz |
+| Rol tabanlı yetkilendirmenin GENEL sözleşmesi (`TraconPolicies`, `RequireRole`) | `13-KIRACI-VE-GUVENLIK.md` §8 — bu dosya yalnız `/api/diagnostics`'in Admin kapısını sınar, genel mekanizmayı yeniden kurmaz |
 | `POST /api/agents/{name}/run` uçlarının GENEL SSE/tool/hata davranışı | `07-HTTP-YONETIM-API.md`, `11-ARAYUZ-RUN-SESSION-SSE.md` — bu dosya yalnız bu ucun OpenAPI **üstverisini** (yanıt şeması, içerik tipi) sınar |
 | Migration'ların GENEL uygulanma/idempotency davranışı | `03-KALICILIK-POSTGRESQL.md`, `04-KALICILIK-DIGER.md` — bu dosya yalnız teşhisin migration durumunu **doğru okuyup okumadığını** sınar, migration'ı bizzat uygulamaz |
 | Diğer 15 OpenAPI etiketinin (`Runs`, `Sessions`, `Evals`, ...) kendi HTTP sözleşmesi | İlgili alan dosyaları — bu dosya yalnız etiketleme/şema **mekanizmasının** kendisini (tag kapsaması, şema kapsaması, `operationId` benzersizliği) sınar, tek tek uçların iş mantığını değil |
@@ -73,16 +73,16 @@ mekanizma olsa da HTTP yüzeyinin **kendi kendini tanımlama** yeteneğinin
 1. [`00-INDEKS.md`](00-INDEKS.md) §4 reset yordamı **§1'in migration/DB
    case'leri için** uygulanır (MT-DIAG-003, 004, 005). Diğer case'ler için
    gerekmez.
-2. **İzlek C case'leri** (§1'in çoğu, §2'nin çoğu) `AgentPrism.Testing`
+2. **İzlek C case'leri** (§1'in çoğu, §2'nin çoğu) `Tracon.Testing`
    kullanan paylaşılan konsol projesini kullanır — `24-TEST-PAKETI-VE-SABLON.md`nin
-   "Koşmadan önce" adım 4'ünde kurulan `~/agentprism-manuel/test-paketi`
+   "Koşmadan önce" adım 4'ünde kurulan `~/tracon-manuel/test-paketi`
    **aynen** kullanılır (henüz kurulmadıysa oradaki adımları uygula).
 3. **İzlek B case'leri** (§3'ün tamamı, §1/§2'nin bazı case'leri) örnek
    uygulamayı çalıştırır:
    ```bash
-   cd samples/AgentPrism.Api && dotnet run     # http://localhost:5080/agentprism
+   cd samples/Tracon.Api && dotnet run     # http://localhost:5080/tracon
    export APB="Authorization: Bearer manuel-test-token-2026"
-   export APU="http://localhost:5080/agentprism"
+   export APU="http://localhost:5080/tracon"
    ```
 4. **Admin rolü gerektiren case'ler** (MT-DIAG-022) [`13-KIRACI-VE-GUVENLIK.md`](13-KIRACI-VE-GUVENLIK.md)
    §8'deki **geçici** `RoleTestAuthHandler` kurulumunu ister — o bölümün
@@ -90,10 +90,10 @@ mekanizma olsa da HTTP yüzeyinin **kendi kendini tanımlama** yeteneğinin
    da koşulabilir (varsayılan durumda hiçbir rol policy'si kayıtlı değildir —
    `13-KIRACI-VE-GUVENLIK.md`'nin MT-SEC-080 bulgusu).
 5. 🚨 **`/api/diagnostics` örnek uygulamada zaten AÇIKTIR.**
-   `samples/AgentPrism.Api/Program.cs:711`'de `options.EnableDiagnosticsEndpoint = true`
+   `samples/Tracon.Api/Program.cs:711`'de `options.EnableDiagnosticsEndpoint = true`
    kodda yazılıdır — bu, "varsayılan kapalı" davranışını (MT-DIAG-020) örnek
    uygulama üzerinde **göstermez**. O case bilinçli olarak izlek C kullanır
-   (bir `AgentPrismTestHost` hiçbir `ConfigureEndpoints` almadan).
+   (bir `TraconTestHost` hiçbir `ConfigureEndpoints` almadan).
 
 > **Gerçek para uyarısı.** MT-DIAG-006 (devre kesici) hariç, bu dosyanın
 > hiçbir case'i gerçek bir model sağlayıcısı çağırmaz — toplayıcı zaten
@@ -151,57 +151,57 @@ curl -s -i http://localhost:5080/health | tail -1
 | **İlgili faz** | Faz 33 |
 | **İlgili karar** | 33.3 |
 
-Sınır senaryosu. `AgentPrismHealthCheck`in son kuralı: hiçbir sağlayıcı
+Sınır senaryosu. `TraconHealthCheck`in son kuralı: hiçbir sağlayıcı
 `Healthy` olarak doğrulanmadıysa `Degraded` (`Unhealthy` **değil**) —
-kod: `AgentPrismHealthCheck.cs:70-77`.
+kod: `TraconHealthCheck.cs:70-77`.
 
 **Ön koşul**
-- `~/agentprism-manuel/test-paketi` kurulu.
+- `~/tracon-manuel/test-paketi` kurulu.
 
 **Adımlar**
-1. `AgentPrismTestHost`ta bir `FakeModelProvider` kaydet, hiç çağırma.
+1. `TraconTestHost`ta bir `FakeModelProvider` kaydet, hiç çağırma.
 2. `IHealthCheck`ı doğrudan `Services`ten çöz, çalıştır.
 
 **Girilecek veri**
 ```csharp
-using AgentPrism;
-using AgentPrism.Testing;
+using Tracon;
+using Tracon.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 
 var provider = new FakeModelProvider().EchoesUserMessage();
 
-await using var host = await AgentPrismTestHost.StartAsync(options =>
+await using var host = await TraconTestHost.StartAsync(options =>
 {
     options.ModelProvider = provider;
     options.ConfigureServices = services => services
         .AddHealthChecks()
-        .AddAgentPrismHealthChecks();
+        .AddTraconHealthChecks();
 });
 
 var healthCheckService = host.Services.GetRequiredService<HealthCheckService>();
 var report = await healthCheckService.CheckHealthAsync();
-var entry = report.Entries["agentprism"];
+var entry = report.Entries["tracon"];
 
 Console.WriteLine("Durum: " + entry.Status);
 Console.WriteLine("Aciklama: " + entry.Description);
 ```
 
 > 🚨 **Düzeltildi (koşum, 2026-08-13, doküman kusuru):** orijinal kod
-> `host.Services.GetServices<IHealthCheck>().OfType<AgentPrismHealthCheck>()`
-> kullanıyordu. İki ayrı hata: (1) `AgentPrismHealthCheck` `internal sealed`
-> (`AgentPrismHealthCheck.cs:25`) — dış projeden derlenmez (`CS0122`); (2)
+> `host.Services.GetServices<IHealthCheck>().OfType<TraconHealthCheck>()`
+> kullanıyordu. İki ayrı hata: (1) `TraconHealthCheck` `internal sealed`
+> (`TraconHealthCheck.cs:25`) — dış projeden derlenmez (`CS0122`); (2)
 > `AddHealthChecks()` denetimleri DI konteynerine `IHealthCheck` olarak
 > **kaydetmez** — `IHealthChecksBuilder.AddCheck<T>` bir `HealthCheckRegistration`
 > ekler, `GetServices<IHealthCheck>()` her zaman **boş** döner. Doğru yol
-> `HealthCheckService.CheckHealthAsync()`'i çağırıp `report.Entries["agentprism"]`
+> `HealthCheckService.CheckHealthAsync()`'i çağırıp `report.Entries["tracon"]`
 > okumaktır — bu, `/health` ucunun kullandığı gerçek yoldur. Ürün kusuru
 > değildir; senaryonun kendi kod örneği hiç çalıştırılmadan yazılmıştı.
 
 **Beklenen sonuç**
 - `Durum: Degraded`.
 - `Aciklama: Henuz saglikli oldugu dogrulanmis bir model saglayicisi yok.`
-  (`AgentPrismHealthCheck.cs:76` mesajıyla birebir).
+  (`TraconHealthCheck.cs:76` mesajıyla birebir).
 
 ---
 
@@ -219,7 +219,7 @@ işaretlediği tek DoD kalemidir: *"gerçek bir Postgres container'ı durdurup
 `/health`'in `503`'e döndüğü manuel olarak doğrulanmadı."* Bu case o boşluğu kapatır.
 
 **Ön koşul**
-- Örnek uygulama PostgreSQL ile çalışıyor (`AgentPrism:PostgreSql:ConnectionString`
+- Örnek uygulama PostgreSQL ile çalışıyor (`Tracon:PostgreSql:ConnectionString`
   tanımlı, `ap-pg` container'ı ayakta), en az bir sağlayıcı ısıtılmış (`Healthy`).
 
 **Adımlar**
@@ -245,7 +245,7 @@ curl -s -i http://localhost:5080/health | tail -1
 - Container durmadan önce: `200`, gövde `Healthy`.
 - Container durduktan sonra: **`503 Service Unavailable`**, gövde `Unhealthy`
   (`MigrationRunner.GetSnapshotAsync`'in `DbException` yakalayıp
-  `CanConnect: false` döndürmesi → `AgentPrismHealthCheck.cs:41-44`).
+  `CanConnect: false` döndürmesi → `TraconHealthCheck.cs:41-44`).
 - Container yeniden başladıktan sonra: `200`, gövde tekrar `Healthy` —
   toparlanma otomatiktir, uygulamanın yeniden başlatılması **gerekmez**.
 
@@ -281,11 +281,11 @@ birleşimi (gerçek DB'de gerçekten eksik bir migration satırı) hiç denenmem
 
 **Girilecek veri**
 ```bash
-docker exec -i ap-pg psql -U postgres -d agentprism -c \
-  "SELECT count(*) FROM agentprism.__migrations;"
+docker exec -i ap-pg psql -U postgres -d tracon -c \
+  "SELECT count(*) FROM tracon.__migrations;"
 
-docker exec -i ap-pg psql -U postgres -d agentprism -c \
-  "DELETE FROM agentprism.__migrations WHERE id = (SELECT MAX(id) FROM agentprism.__migrations);"
+docker exec -i ap-pg psql -U postgres -d tracon -c \
+  "DELETE FROM tracon.__migrations WHERE id = (SELECT MAX(id) FROM tracon.__migrations);"
 
 curl -s -i http://localhost:5080/health
 
@@ -294,7 +294,7 @@ curl -s "$APU/api/diagnostics" -H "$APB" | jq '{migrationsUpToDate, pendingMigra
 
 **Beklenen sonuç**
 - Adım 1'de `28` (veya güncel migration sayısı) döner.
-- `/health` **`503 Unhealthy`** döner (`AgentPrismHealthCheck.cs:46-51`,
+- `/health` **`503 Unhealthy`** döner (`TraconHealthCheck.cs:46-51`,
   `"{N} bekleyen migration var."` mesajıyla).
 - `/api/diagnostics` `migrationsUpToDate: false` ve `pendingMigrations`
   alanında **silinen tek** migration'ın adını taşır — geri kalan 27 (veya N-1)
@@ -318,37 +318,37 @@ curl -s "$APU/api/diagnostics" -H "$APB" | jq '{migrationsUpToDate, pendingMigra
 | **İlgili karar** | K-183, K-247 |
 
 **Ön koşul**
-- `~/agentprism-manuel/test-paketi` kurulu.
+- `~/tracon-manuel/test-paketi` kurulu.
 
 **Adımlar**
-1. Aynı `AgentPrismTestHost`ta hem `UseSqlite` hem (ikinci kez) `UseSqlite`
+1. Aynı `TraconTestHost`ta hem `UseSqlite` hem (ikinci kez) `UseSqlite`
    çağırarak (aynı sağlayıcı türünü iki kez kaydetmek, K-183'ü tetiklemek için
    yeterlidir — kayıt `AddSingleton`dır, `TryAdd` değil) iki işaret ekle.
 2. `IHealthCheck`ı çalıştır.
 
 **Girilecek veri**
 ```csharp
-using AgentPrism;
-using AgentPrism.Testing;
+using Tracon;
+using Tracon.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 
 var provider = new FakeModelProvider().EchoesUserMessage();
 
-await using var host = await AgentPrismTestHost.StartAsync(options =>
+await using var host = await TraconTestHost.StartAsync(options =>
 {
     options.ModelProvider = provider;
     options.ConfigureServices = services => services
         .AddHealthChecks()
-        .AddAgentPrismHealthChecks();
-    options.ConfigureAgentPrism = builder => builder
+        .AddTraconHealthChecks();
+    options.ConfigureTracon = builder => builder
         .UseSqlite("Data Source=file::memory:?cache=shared")
         .UseSqlite("Data Source=file::memory:?cache=shared");   // ikinci kayit -- K-183
 });
 
 var healthCheckService = host.Services.GetRequiredService<HealthCheckService>();
 var report = await healthCheckService.CheckHealthAsync();
-var entry = report.Entries["agentprism"];
+var entry = report.Entries["tracon"];
 
 Console.WriteLine("Durum: " + entry.Status);
 Console.WriteLine("Aciklama: " + entry.Description);
@@ -356,16 +356,16 @@ Console.WriteLine("Aciklama: " + entry.Description);
 
 > 🚨 **Doküman düzeltmesi (`HealthCheckService` kısmı) + 🐛 ÜRÜN KUSURU
 > (`:memory:` kısmı — HATA-S1-003'ün tekrarı):**
-> (1) `GetServices<IHealthCheck>().OfType<AgentPrismHealthCheck>()` deseni
+> (1) `GetServices<IHealthCheck>().OfType<TraconHealthCheck>()` deseni
 > derlenmez/boş döner (doküman kusuru, MT-DIAG-002'deki gibi) —
 > `HealthCheckService.CheckHealthAsync()` kullanıldı.
 > (2) Orijinal `Data Source=:memory:` ile — **tek** `UseSqlite` çağrısıyla bile
 > (K-183'ün ikinci kaydından bağımsız, aşağıda MT-DIAG-027'de izole doğrulandı)
-> — uygulama `SqliteException: no such table: agentprism_tenants` ile hiç
+> — uygulama `SqliteException: no such table: tracon_tenants` ile hiç
 > açılmıyor. Bu, `04-KALICILIK-DIGER.md`'nin koşumunda zaten bulunan ve
 > `SONUCLAR-S1-2026-08-13.md`'de kayıtlı **HATA-S1-003**'ün (`Data
-> Source=:memory:` dokümante edildiği hâlde çalışmıyor, `AgentPrism.Sqlite`
-> XML dokümanı hâlâ "desteklenir" diyor) `AgentPrismTestHost` üzerinden
+> Source=:memory:` dokümante edildiği hâlde çalışmıyor, `Tracon.Sqlite`
+> XML dokümanı hâlâ "desteklenir" diyor) `TraconTestHost` üzerinden
 > **ikinci bir kod yolunda** tekrarıdır — kök neden aynı
 > (`SqliteDataSource.CreateDbConnection` her çağrıda ayrı bağlantı açıyor,
 > çıplak `:memory:` bağlantıya özel). Bu case'in kendi asıl konusu (K-183
@@ -376,7 +376,7 @@ Console.WriteLine("Aciklama: " + entry.Description);
 **Beklenen sonuç**
 - `Durum: Degraded`.
 - `Aciklama:` `"Birden fazla kalicilik saglayicisi kayitli (2); su an 'SQLite'
-  kazaniyor. Yalniz bir Use*() cagirin."` biçiminde bir mesaj (`AgentPrismHealthCheck.cs:55-58`).
+  kazaniyor. Yalniz bir Use*() cagirin."` biçiminde bir mesaj (`TraconHealthCheck.cs:55-58`).
 - **Not:** `UseSqlite("Data Source=:memory:")` ile bellek içi SQLite'ın
   gerçekte açılıp açılmadığı bu case'in konusu değildir; yalnız K-183
   sayacının davranışı ölçülür. Sayı tutmazsa (`2` yerine başka bir değer)
@@ -400,8 +400,8 @@ devre kesici mekaniğinin kendisi orada zaten sınanmıştır; burada yalnız
 **Ön koşul**
 - `05-SAGLAYICI-OPENAI.md` §8'deki gibi:
   ```bash
-  dotnet user-secrets set "AgentPrism:CircuitBreaker:FailureThreshold" "2"
-  dotnet user-secrets set "AgentPrism:CircuitBreaker:BreakDuration" "00:00:20"
+  dotnet user-secrets set "Tracon:CircuitBreaker:FailureThreshold" "2"
+  dotnet user-secrets set "Tracon:CircuitBreaker:BreakDuration" "00:00:20"
   ```
   uygulanmış, uygulama yeniden başlatılmış.
 
@@ -427,7 +427,7 @@ curl -s -i http://localhost:5080/health | tail -1
 - İki başarısız çağrıdan sonra devre açılır (05'in kendi doğrulaması).
 - `/health` gövdesi **`Degraded`**dir — `openrouter-destek` sağlayıcısının
   devresi açık olsa bile diğer sağlayıcılar (varsa) sağlıklıysa uygulama
-  `Unhealthy` **olmaz** (`AgentPrismHealthCheck.cs:63-68`).
+  `Unhealthy` **olmaz** (`TraconHealthCheck.cs:63-68`).
 
 > 🚨 **Düzeltildi (koşum, 2026-08-13, doküman kusuru):** "Girilecek veri"
 > `openrouter-destek` fixture'ını **geçerli** modeliyle çağırıyor
@@ -454,7 +454,7 @@ curl -s -i http://localhost:5080/health | tail -1
 Negatif/kontrol senaryosu — sağlık denetimi maliyet üretmemelidir.
 
 **Ön koşul**
-- `~/agentprism-manuel/test-paketi` kurulu.
+- `~/tracon-manuel/test-paketi` kurulu.
 
 **Adımlar**
 1. `FakeModelProvider`ı kaydet, `IHealthCheck`ı üç kez art arda çalıştır.
@@ -462,20 +462,20 @@ Negatif/kontrol senaryosu — sağlık denetimi maliyet üretmemelidir.
 
 **Girilecek veri**
 ```csharp
-using AgentPrism;
-using AgentPrism.Testing;
+using Tracon;
+using Tracon.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 
 var provider = new FakeModelProvider().EchoesUserMessage();
 
-await using var host = await AgentPrismTestHost.StartAsync(options =>
+await using var host = await TraconTestHost.StartAsync(options =>
 {
     options.ModelProvider = provider;
-    options.ConfigureServices = services => services.AddHealthChecks().AddAgentPrismHealthChecks();
+    options.ConfigureServices = services => services.AddHealthChecks().AddTraconHealthChecks();
 });
 
-var check = host.Services.GetServices<IHealthCheck>().OfType<AgentPrismHealthCheck>().Single();
+var check = host.Services.GetServices<IHealthCheck>().OfType<TraconHealthCheck>().Single();
 
 for (var i = 0; i < 3; i++)
 {
@@ -490,7 +490,7 @@ Console.WriteLine("Requests.Count: " + provider.Requests.Count);
 
 ---
 
-### MT-DIAG-008 — `AddAgentPrism()` çağrılmadan yalnız `AddAgentPrismHealthChecks()` çağrılırsa ilk istekte DI hatası verir
+### MT-DIAG-008 — `AddTracon()` çağrılmadan yalnız `AddTraconHealthChecks()` çağrılırsa ilk istekte DI hatası verir
 
 | | |
 |---|---|
@@ -499,17 +499,17 @@ Console.WriteLine("Requests.Count: " + provider.Requests.Count);
 | **İlgili faz** | Faz 33 |
 | **İlgili karar** | K-251 |
 
-Sınır senaryosu — `AgentPrismHealthCheckExtensions`in kendi XML dokümanının
-(`AgentPrismHealthCheckExtensions.cs:34-38`) doğrulaması: kayıt anında hiçbir
+Sınır senaryosu — `TraconHealthCheckExtensions`in kendi XML dokümanının
+(`TraconHealthCheckExtensions.cs:34-38`) doğrulaması: kayıt anında hiçbir
 kontrol yapılmaz, hata yalnız **ilk yoklamada** DI çözümü başarısız olduğunda çıkar.
 
 **Ön koşul**
-- `~/agentprism-manuel/test-paketi` kurulu.
+- `~/tracon-manuel/test-paketi` kurulu.
 
 **Adımlar**
-1. `AgentPrismTestHost` yerine, `AddAgentPrism()`in **hiç çağrılmadığı** ayrı,
-   yalın bir `WebApplication` kur (bu case `AgentPrismTestHost` kullanmaz,
-   çünkü o zaten dahili olarak `AddAgentPrism()` çağırır).
+1. `TraconTestHost` yerine, `AddTracon()`in **hiç çağrılmadığı** ayrı,
+   yalın bir `WebApplication` kur (bu case `TraconTestHost` kullanmaz,
+   çünkü o zaten dahili olarak `AddTracon()` çağırır).
 2. `IHealthCheck`ı çöz, çalıştır.
 
 **Girilecek veri**
@@ -517,11 +517,11 @@ kontrol yapılmaz, hata yalnız **ilk yoklamada** DI çözümü başarısız old
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
-using AgentPrism;
+using Tracon;
 
 var builder = WebApplication.CreateSlimBuilder();
-builder.Services.AddHealthChecks().AddAgentPrismHealthChecks();
-// DIKKAT: builder.Services.AddAgentPrism() HIC CAGRILMADI.
+builder.Services.AddHealthChecks().AddTraconHealthChecks();
+// DIKKAT: builder.Services.AddTracon() HIC CAGRILMADI.
 
 var app = builder.Build();
 
@@ -538,13 +538,13 @@ catch (InvalidOperationException ex)
 ```
 
 > 🚨 **Düzeltildi (koşum, 2026-08-13, doküman kusuru — aynı desen
-> MT-DIAG-002'de):** `GetServices<IHealthCheck>().OfType<AgentPrismHealthCheck>()`
+> MT-DIAG-002'de):** `GetServices<IHealthCheck>().OfType<TraconHealthCheck>()`
 > yerine `HealthCheckService.CheckHealthAsync()` kullanıldı; istisna zaten
 > `CheckHealthAsync` sırasında (Factory çağrısında) fırlatılıyor, davranış
 > beklenenle aynı.
 
 **Beklenen sonuç**
-- `AgentPrismDiagnosticsCollector`in bağımlılıklarından biri (örn.
+- `TraconDiagnosticsCollector`in bağımlılıklarından biri (örn.
   `IAgentCatalog`) çözülemediği için bir `InvalidOperationException`
   fırlatılır — kayıt sırasında **değil**, yalnız ilk yoklamada.
 
@@ -561,19 +561,19 @@ catch (InvalidOperationException ex)
 (bkz. "Koşmadan önce" madde 5). Bu case bilinçli olarak izlek C kullanır.
 
 **Ön koşul**
-- `~/agentprism-manuel/test-paketi` kurulu.
+- `~/tracon-manuel/test-paketi` kurulu.
 
 **Adımlar**
-1. `AgentPrismTestHost`ı hiçbir `ConfigureEndpoints` vermeden başlat.
-2. `/agentprism/api/diagnostics`a GET at.
+1. `TraconTestHost`ı hiçbir `ConfigureEndpoints` vermeden başlat.
+2. `/tracon/api/diagnostics`a GET at.
 
 **Girilecek veri**
 ```csharp
-using AgentPrism.Testing;
+using Tracon.Testing;
 
-await using var host = await AgentPrismTestHost.StartAsync();
+await using var host = await TraconTestHost.StartAsync();
 
-using var response = await host.Client.GetAsync("/agentprism/api/diagnostics");
+using var response = await host.Client.GetAsync("/tracon/api/diagnostics");
 Console.WriteLine("Durum: " + (int)response.StatusCode);
 ```
 
@@ -611,7 +611,7 @@ curl -s "$APU/api/diagnostics" -H "$APB" | jq
   `registeredPersistenceProviders`, `canConnect`, `migrationsUpToDate`,
   `pendingMigrations`, `modelProviders` (dizi, her öğede `name`/`status`/`circuitOpen`),
   `configuration` (dizi, her öğede `key`/`resolved`/`hint`), `uiEmbedded`,
-  `toolCount`, `agentCount` (`AgentPrismDiagnosticsReport.cs`'in gerçekleşen 10 alanı).
+  `toolCount`, `agentCount` (`TraconDiagnosticsReport.cs`'in gerçekleşen 10 alanı).
 
 ---
 
@@ -672,7 +672,7 @@ en doğrudan olanlarından biridir.
 
 **Girilecek veri**
 ```bash
-KEY=$(dotnet user-secrets list --project samples/AgentPrism.Api \
+KEY=$(dotnet user-secrets list --project samples/Tracon.Api \
       | grep -i 'OpenAI:ApiKey' | cut -d= -f2- | tr -d ' ')
 
 curl -s "$APU/api/diagnostics" -H "$APB" | grep -F "$KEY" && echo "SIZINTI VAR" || echo "temiz"
@@ -695,11 +695,11 @@ curl -s "$APU/api/diagnostics" -H "$APB" | grep -F "$KEY" && echo "SIZINTI VAR" 
 
 MT-DIAG-023'ün izole/deterministik karşılığı — gerçek bir anahtar olmadan,
 sahte bir yapılandırma anahtarıyla `Resolved`/`Hint` alanlarının davranışını
-doğrular. `AgentPrism.Testing`'in kendisi bir `IModelProviderConfigurationDiagnostics`
+doğrular. `Tracon.Testing`'in kendisi bir `IModelProviderConfigurationDiagnostics`
 uygulaması taşımadığından, bu case doğrudan sözleşme tipini örnekler.
 
 **Ön koşul**
-- `~/agentprism-manuel/test-paketi` kurulu.
+- `~/tracon-manuel/test-paketi` kurulu.
 
 **Adımlar**
 1. `ConfigurationDiagnostic` kaydını elle oluştur, alanlarını doğrula (tip
@@ -707,13 +707,13 @@ uygulaması taşımadığından, bu case doğrudan sözleşme tipini örnekler.
 
 **Girilecek veri**
 ```csharp
-using AgentPrism;
+using Tracon;
 
 var cozulmemis = new ConfigurationDiagnostic
 {
-    Key = "AgentPrism:Providers:OpenAI:ApiKey",
+    Key = "Tracon:Providers:OpenAI:ApiKey",
     Resolved = false,
-    Hint = "dotnet user-secrets set \"AgentPrism:Providers:OpenAI:ApiKey\" \"<ANAHTARINIZ>\"",
+    Hint = "dotnet user-secrets set \"Tracon:Providers:OpenAI:ApiKey\" \"<ANAHTARINIZ>\"",
 };
 
 Console.WriteLine("Key: " + cozulmemis.Key);
@@ -741,10 +741,10 @@ Console.WriteLine("Hint: " + cozulmemis.Hint);
 | **İlgili faz** | Faz 33 |
 | **İlgili karar** | — |
 
-Sınır senaryosu. `AgentPrismDiagnosticsCollector.CollectAsync`in kendi yorumu:
+Sınır senaryosu. `TraconDiagnosticsCollector.CollectAsync`in kendi yorumu:
 *"Aynı sağlayıcı (örnek: `UseOpenAI()` ChatCompletions VE Responses için iki
 örnek kaydeder) aynı yapılandırma anahtarını birden fazla bildirebilir; rapor
-anahtar başına tek satır taşır"* (`AgentPrismDiagnosticsCollector.cs:110-112`,
+anahtar başına tek satır taşır"* (`TraconDiagnosticsCollector.cs:110-112`,
 `seenConfigurationKeys` `HashSet`i).
 
 **Ön koşul**
@@ -753,13 +753,13 @@ anahtar başına tek satır taşır"* (`AgentPrismDiagnosticsCollector.cs:110-11
   fixture'larına paralel, `05-SAGLAYICI-OPENAI.md`'de doğrulanmış davranış).
 
 **Adımlar**
-1. `/api/diagnostics`ı çağır, `configuration` dizisinde `AgentPrism:Providers:OpenAI:ApiKey`
+1. `/api/diagnostics`ı çağır, `configuration` dizisinde `Tracon:Providers:OpenAI:ApiKey`
    anahtarının kaç kez geçtiğini say.
 
 **Girilecek veri**
 ```bash
 curl -s "$APU/api/diagnostics" -H "$APB" | \
-  jq '[.configuration[] | select(.key == "AgentPrism:Providers:OpenAI:ApiKey")] | length'
+  jq '[.configuration[] | select(.key == "Tracon:Providers:OpenAI:ApiKey")] | length'
 ```
 
 **Beklenen sonuç**
@@ -815,7 +815,7 @@ curl -s "$APU/api/diagnostics" -H "$APB" | jq '{
 | **İlgili karar** | K-183, K-247 |
 
 **Ön koşul**
-- `~/agentprism-manuel/test-paketi` kurulu.
+- `~/tracon-manuel/test-paketi` kurulu.
 
 **Adımlar**
 1. Hiçbir `Use*Sql()` çağrılmadan raporu topla, `registeredPersistenceProviders`ı oku.
@@ -823,27 +823,27 @@ curl -s "$APU/api/diagnostics" -H "$APB" | jq '{
 
 **Girilecek veri**
 ```csharp
-using AgentPrism;
-using AgentPrism.Testing;
+using Tracon;
+using Tracon.Testing;
 using Microsoft.Extensions.DependencyInjection;
 
 var provider = new FakeModelProvider().EchoesUserMessage();
 
-await using (var bellekIci = await AgentPrismTestHost.StartAsync(o => o.ModelProvider = provider))
+await using (var bellekIci = await TraconTestHost.StartAsync(o => o.ModelProvider = provider))
 {
-    var collector = bellekIci.Services.GetRequiredService<AgentPrismDiagnosticsCollector>();
+    var collector = bellekIci.Services.GetRequiredService<TraconDiagnosticsCollector>();
     var report = await collector.CollectAsync();
     Console.WriteLine("Bellek ici -- persistenceProvider: " + report.PersistenceProvider +
                        ", registered: " + report.RegisteredPersistenceProviders);
 }
 
-await using (var sqliteli = await AgentPrismTestHost.StartAsync(o =>
+await using (var sqliteli = await TraconTestHost.StartAsync(o =>
 {
     o.ModelProvider = provider;
-    o.ConfigureAgentPrism = b => b.UseSqlite("Data Source=:memory:");
+    o.ConfigureTracon = b => b.UseSqlite("Data Source=:memory:");
 }))
 {
-    var collector = sqliteli.Services.GetRequiredService<AgentPrismDiagnosticsCollector>();
+    var collector = sqliteli.Services.GetRequiredService<TraconDiagnosticsCollector>();
     var report = await collector.CollectAsync();
     Console.WriteLine("SQLite -- persistenceProvider: " + report.PersistenceProvider +
                        ", registered: " + report.RegisteredPersistenceProviders);
@@ -853,9 +853,9 @@ await using (var sqliteli = await AgentPrismTestHost.StartAsync(o =>
 > 🐛 **ÜRÜN KUSURU — HATA-S1-003'ün üçüncü tekrarı (aynı kök neden MT-DIAG-005
 > ve `04-KALICILIK-DIGER.md`nin `MT-SQL-005`'inde).** Yukarıdaki kod, **tek**
 > `UseSqlite("Data Source=:memory:")` çağrısıyla bile (K-183 çoklu-kayıt
-> senaryosu yok) `SqliteException: no such table: agentprism_tenants` ile
+> senaryosu yok) `SqliteException: no such table: tracon_tenants` ile
 > çöküyor. Bu, HATA-S1-003'ün K-183'ten tamamen bağımsız, en yalın hâlidir —
-> `AgentPrismTestHost` üzerinden bulundu.
+> `TraconTestHost` üzerinden bulundu.
 
 **Beklenen sonuç**
 - Bellek içi: `persistenceProvider: InMemory`, `registered: 0`.
@@ -901,38 +901,38 @@ curl -s "$APU/api/diagnostics" -H "$APB" | jq '{toolCount, agentCount}'
 | **İlgili faz** | Faz 33 |
 | **İlgili karar** | — |
 
-🚨 `AgentPrismDiagnosticsCollector.CollectAsync`in kendi XML dokümanı:
-`UiEmbedded` her zaman `false` döner çünkü bu alan `AgentPrism.Core`'un
-bilmediği `AgentPrism.AspNetCore` katmanına aittir — **`DiagnosticsEndpoints.Map`
+🚨 `TraconDiagnosticsCollector.CollectAsync`in kendi XML dokümanı:
+`UiEmbedded` her zaman `false` döner çünkü bu alan `Tracon.Core`'un
+bilmediği `Tracon.AspNetCore` katmanına aittir — **`DiagnosticsEndpoints.Map`
 bunu bir `with` ifadesiyle sonradan doldurur** (`DiagnosticsEndpoints.cs:42`,
-`AgentPrismDiagnosticsCollector.cs:66-69`).
+`TraconDiagnosticsCollector.cs:66-69`).
 
 **Ön koşul**
-- `~/agentprism-manuel/test-paketi` kurulu.
+- `~/tracon-manuel/test-paketi` kurulu.
 
 **Adımlar**
-1. `AgentPrismDiagnosticsCollector.CollectAsync()`i **doğrudan** (HTTP ucu
+1. `TraconDiagnosticsCollector.CollectAsync()`i **doğrudan** (HTTP ucu
    olmadan) çağır, `UiEmbedded`ı oku.
 
 **Girilecek veri**
 ```csharp
-using AgentPrism;
-using AgentPrism.Testing;
+using Tracon;
+using Tracon.Testing;
 using Microsoft.Extensions.DependencyInjection;
 
 var provider = new FakeModelProvider().EchoesUserMessage();
-await using var host = await AgentPrismTestHost.StartAsync(o => o.ModelProvider = provider);
+await using var host = await TraconTestHost.StartAsync(o => o.ModelProvider = provider);
 
-var collector = host.Services.GetRequiredService<AgentPrismDiagnosticsCollector>();
+var collector = host.Services.GetRequiredService<TraconDiagnosticsCollector>();
 var report = await collector.CollectAsync();
 
 Console.WriteLine("Dogrudan CollectAsync -- UiEmbedded: " + report.UiEmbedded);
 ```
 
 **Beklenen sonuç**
-- `Dogrudan CollectAsync -- UiEmbedded: False` — konsol projesi `AgentPrism.UI`
+- `Dogrudan CollectAsync -- UiEmbedded: False` — konsol projesi `Tracon.UI`
   paketini hiç referans vermediği için bu **doğru** bir sonuçtur, ama asıl
-  kanıt şudur: değer **her zaman** `false`dur, çünkü `AgentPrism.Core`
+  kanıt şudur: değer **her zaman** `false`dur, çünkü `Tracon.Core`
   katmanı bunu asla dolduramaz. `/api/diagnostics` HTTP ucu (MT-DIAG-021,
   örnek uygulamada arayüz paketi kayıtlıysa) `uiEmbedded: true` döndürüyorsa,
   bu farkın kaynağı `DiagnosticsEndpoints.cs:42`'deki `with` ifadesidir.
@@ -952,7 +952,7 @@ Negatif/kontrol senaryosu — `CollectAsync`in XML dokümanının
 ("yan etkisizdir... migration UYGULANMAZ") ampirik kanıtı.
 
 **Ön koşul**
-- `~/agentprism-manuel/test-paketi` kurulu.
+- `~/tracon-manuel/test-paketi` kurulu.
 
 **Adımlar**
 1. `CollectAsync()`i üç kez art arda çağır.
@@ -960,14 +960,14 @@ Negatif/kontrol senaryosu — `CollectAsync`in XML dokümanının
 
 **Girilecek veri**
 ```csharp
-using AgentPrism;
-using AgentPrism.Testing;
+using Tracon;
+using Tracon.Testing;
 using Microsoft.Extensions.DependencyInjection;
 
 var provider = new FakeModelProvider().EchoesUserMessage();
-await using var host = await AgentPrismTestHost.StartAsync(o => o.ModelProvider = provider);
+await using var host = await TraconTestHost.StartAsync(o => o.ModelProvider = provider);
 
-var collector = host.Services.GetRequiredService<AgentPrismDiagnosticsCollector>();
+var collector = host.Services.GetRequiredService<TraconDiagnosticsCollector>();
 
 for (var i = 0; i < 3; i++)
 {
@@ -980,7 +980,7 @@ Console.WriteLine("Requests.Count: " + provider.Requests.Count);
 **Beklenen sonuç**
 - `Requests.Count: 0`.
 
-### MT-DIAG-040 — `AgentPrism.AspNetCore.csproj` `Microsoft.AspNetCore.OpenApi`/`Microsoft.OpenApi` taşımaz
+### MT-DIAG-040 — `Tracon.AspNetCore.csproj` `Microsoft.AspNetCore.OpenApi`/`Microsoft.OpenApi` taşımaz
 
 | | |
 |---|---|
@@ -1002,10 +1002,10 @@ geçişli bağımlılık dayatmadığının doğrudan kanıtı. `OpenApiDependen
 **Girilecek veri**
 ```bash
 grep -n "Microsoft.AspNetCore.OpenApi\|Microsoft.OpenApi" \
-  src/AgentPrism.AspNetCore/AgentPrism.AspNetCore.csproj && echo "VAR" || echo "temiz"
+  src/Tracon.AspNetCore/Tracon.AspNetCore.csproj && echo "VAR" || echo "temiz"
 
-unzip -p ~/agentprism-local-feed/AgentPrism.AspNetCore.*.nupkg \
-  AgentPrism.AspNetCore.nuspec 2>/dev/null | grep -i "openapi" && echo "VAR" || echo "temiz"
+unzip -p ~/tracon-local-feed/Tracon.AspNetCore.*.nupkg \
+  Tracon.AspNetCore.nuspec 2>/dev/null | grep -i "openapi" && echo "VAR" || echo "temiz"
 ```
 
 **Beklenen sonuç**
@@ -1024,14 +1024,14 @@ unzip -p ~/agentprism-local-feed/AgentPrism.AspNetCore.*.nupkg \
 
 Bu, Faz 40'ın kendi kapanış notunda **çözülmeden bırakılan** F-76'nın
 ("`AddOpenApi()` + SqlServer/Sqlite birlikte 500 veriyor") sonradan **düzeltildiğinin**
-kanıtıdır — `samples/AgentPrism.Api.csproj`'daki `AgentPrismRemoveDuplicateSqlXmlDocs`
+kanıtıdır — `samples/Tracon.Api.csproj`'daki `TraconRemoveDuplicateSqlXmlDocs`
 MSBuild hedefi (K-352) artık iki paylaşılan-kaynak XML doküman çakışmasını
-(`AgentPrism.SqlServer`/`AgentPrism.Sqlite`, K-185 linked-source deseni) belgeleme
+(`Tracon.SqlServer`/`Tracon.Sqlite`, K-185 linked-source deseni) belgeleme
 üretiminden önce ayıklıyor.
 
 **Ön koşul**
-- Örnek uygulama çalışıyor (`.csproj`'u hem `AgentPrism.SqlServer` hem
-  `AgentPrism.Sqlite`ı `ProjectReference` ile taşıyor — hangi `Use*Sql()`
+- Örnek uygulama çalışıyor (`.csproj`'u hem `Tracon.SqlServer` hem
+  `Tracon.Sqlite`ı `ProjectReference` ile taşıyor — hangi `Use*Sql()`
   çağrıldığından **bağımsız**, çakışma derleme zamanı XML doküman üretiminde
   oluşur).
 
@@ -1045,15 +1045,15 @@ curl -s -o /dev/null -w "%{http_code}\n" http://localhost:5080/openapi/v1.json
 
 **Beklenen sonuç**
 - **`200`** döner (F-76'nın orijinal kanıtladığı `500` **değil**).
-- Bu çalışmazsa (`500` dönerse), `samples/AgentPrism.Api.csproj`'daki
-  `AgentPrismRemoveDuplicateSqlXmlDocs` hedefinin kaldırılmış veya bozulmuş
+- Bu çalışmazsa (`500` dönerse), `samples/Tracon.Api.csproj`'daki
+  `TraconRemoveDuplicateSqlXmlDocs` hedefinin kaldırılmış veya bozulmuş
   olabileceği anlamına gelir — `OpenApiSharedSqlXmlDocTests.cs`'in kendisi
   bunu zaten bir birim/fonksiyonel testle korur; bu case gerçek çalışan
   uygulamada **ayrıca** doğrular.
 
 ---
 
-### MT-DIAG-042 — Belgedeki her ucun en az iki etiketi var, ilki `AgentPrism`
+### MT-DIAG-042 — Belgedeki her ucun en az iki etiketi var, ilki `Tracon`
 
 | | |
 |---|---|
@@ -1068,7 +1068,7 @@ curl -s -o /dev/null -w "%{http_code}\n" http://localhost:5080/openapi/v1.json
 **Adımlar**
 1. Belgeyi indir.
 2. İki etiketten azına sahip bir uç ara.
-3. İlk etiketin her yerde `AgentPrism` olduğunu doğrula.
+3. İlk etiketin her yerde `Tracon` olduğunu doğrula.
 
 **Girilecek veri**
 ```bash
@@ -1083,7 +1083,7 @@ jq -r '[.paths[][]? | .tags[0]] | unique' /tmp/apidoc.json
 
 **Beklenen sonuç**
 - İlk sorgu **boş** döner — iki etiketten az taşıyan uç yoktur.
-- İkinci sorgu **tek elemanlı** bir dizi döner: `["AgentPrism"]`.
+- İkinci sorgu **tek elemanlı** bir dizi döner: `["Tracon"]`.
 
 ---
 
@@ -1137,11 +1137,11 @@ düzeltilmiş gerçeği doğrular.
 - MT-DIAG-041 geçti.
 
 **Adımlar**
-1. `AgentPrismRunAgent` operasyonunun yanıt şemasını oku.
+1. `TraconRunAgent` operasyonunun yanıt şemasını oku.
 
 **Girilecek veri**
 ```bash
-jq '.paths["/agentprism/api/agents/{name}/run"].post.responses' /tmp/apidoc.json
+jq '.paths["/tracon/api/agents/{name}/run"].post.responses' /tmp/apidoc.json
 ```
 
 **Beklenen sonuç**
@@ -1169,12 +1169,12 @@ topladığı davranış (K-274'ün çözümü).
 - MT-DIAG-041 geçti.
 
 **Adımlar**
-1. `AgentPrismOpenAIChatCompletions` operasyonunun `200` yanıtındaki içerik
+1. `TraconOpenAIChatCompletions` operasyonunun `200` yanıtındaki içerik
    tiplerini oku.
 
 **Girilecek veri**
 ```bash
-jq '.paths["/agentprism/v1/chat/completions"].post.responses."200".content | keys' /tmp/apidoc.json
+jq '.paths["/tracon/v1/chat/completions"].post.responses."200".content | keys' /tmp/apidoc.json
 ```
 
 **Beklenen sonuç**
@@ -1194,7 +1194,7 @@ jq '.paths["/agentprism/v1/chat/completions"].post.responses."200".content | key
 | **İlgili karar** | — |
 
 Sınır senaryosu — iki fazın kesişimi. `DiagnosticsEndpoints` kendi etiketini
-taşır (`DiagnosticsEndpoints.cs:46`, `.WithTags("AgentPrism", "Diagnostics")`)
+taşır (`DiagnosticsEndpoints.cs:46`, `.WithTags("Tracon", "Diagnostics")`)
 ama `EnableDiagnosticsEndpoint`in varsayılanı `false` olduğundan bu uç
 **varsayılan yapılandırmada hiç haritalanmaz** — OpenAPI belgesi yalnız
 haritalanmış uçları listeler.
@@ -1209,10 +1209,10 @@ haritalanmış uçları listeler.
 **Adımlar**
 1. Örnek uygulamanın belgesinde `Diagnostics` etiketinin **var olduğunu** doğrula
    (çünkü orada uç açık).
-2. `~/agentprism-manuel/test-paketi`de, `EnableDiagnosticsEndpoint`
-   ayarlanmadan bir `AgentPrismTestHost` başlat; o host'ta uç hiç
+2. `~/tracon-manuel/test-paketi`de, `EnableDiagnosticsEndpoint`
+   ayarlanmadan bir `TraconTestHost` başlat; o host'ta uç hiç
    haritalanmadığı için OpenAPI'ye bu dosyanın kapsamı **dışıdır**
-   (`AgentPrism.Testing` OpenAPI belgesi üretmez) — bu adım yalnız `404`
+   (`Tracon.Testing` OpenAPI belgesi üretmez) — bu adım yalnız `404`
    ile ucun gerçekten yok olduğunu (MT-DIAG-020'nin tekrarı) teyit eder.
 
 **Girilecek veri**
@@ -1234,7 +1234,7 @@ jq -r '[.paths[][]? | .tags[]] | unique | .[] | select(. == "Diagnostics")' /tmp
 
 ---
 
-### MT-DIAG-047 — `docs/openapi/agentprism.json` çalışan host'un ürettiğiyle AYNIDIR (anlık görüntü)
+### MT-DIAG-047 — `docs/openapi/tracon.json` çalışan host'un ürettiğiyle AYNIDIR (anlık görüntü)
 
 | | |
 |---|---|
@@ -1254,14 +1254,14 @@ jq -r '[.paths[][]? | .tags[]] | unique | .[] | select(. == "Diagnostics")' /tmp
 
 **Girilecek veri**
 ```bash
-diff <(jq -S . /tmp/apidoc.json) <(jq -S . docs/openapi/agentprism.json) \
+diff <(jq -S . /tmp/apidoc.json) <(jq -S . docs/openapi/tracon.json) \
   && echo "AYNI" || echo "FARKLI -- yenileme gerekir"
 ```
 
 **Beklenen sonuç**
 - `AYNI` yazdırılır. `FARKLI` çıkarsa, kod HTTP yüzeyini değiştirmiş ama
-  `docs/openapi/agentprism.json` yenilenmemiş demektir; yenileme komutu
-  `AGENTPRISM_OPENAPI_REFRESH=1 dotnet test tests/AgentPrism.AspNetCore.FunctionalTests
+  `docs/openapi/tracon.json` yenilenmemiş demektir; yenileme komutu
+  `TRACON_OPENAPI_REFRESH=1 dotnet test tests/Tracon.AspNetCore.FunctionalTests
   -c Release --filter FullyQualifiedName~OpenApiSnapshotTests`dir (Faz 40
   devir notu) — bu bir kusur değil, doğal bakım adımıdır (dosya son
   üretildiğinden beri kaç faz geçtiğine bağlı olarak fark **beklenir**
@@ -1282,7 +1282,7 @@ Faz 40'ın kendi DoD kanıtının (`npx openapi-typescript` + `tsc --strict`)
 tekrarı.
 
 **Ön koşul**
-- Node.js kurulu. `docs/openapi/agentprism.json` mevcut.
+- Node.js kurulu. `docs/openapi/tracon.json` mevcut.
 
 **Adımlar**
 1. Belgeyi TypeScript tiplerine dönüştür.
@@ -1290,10 +1290,10 @@ tekrarı.
 
 **Girilecek veri**
 ```bash
-cd /Users/farukatasoy/Desktop/projects/AgentPrism
-npx --yes openapi-typescript docs/openapi/agentprism.json -o /tmp/agentprism-api-types.ts
+cd /Users/farukatasoy/Desktop/projects/Tracon
+npx --yes openapi-typescript docs/openapi/tracon.json -o /tmp/tracon-api-types.ts
 
-npx --yes typescript@latest --strict --noEmit /tmp/agentprism-api-types.ts
+npx --yes typescript@latest --strict --noEmit /tmp/tracon-api-types.ts
 echo "tsc cikis kodu: $?"
 ```
 
@@ -1312,21 +1312,21 @@ echo "tsc cikis kodu: $?"
 | **İlgili faz** | Faz 85 |
 | **İlgili karar** | — |
 
-🚨 **Plandan sapma:** `samples/AgentPrism.Api` saf bir "beşi de yerleşik"
+🚨 **Plandan sapma:** `samples/Tracon.Api` saf bir "beşi de yerleşik"
 örneği DEĞİLDİR — `Program.cs` zaten `IRunAttributionContext`'i
 `DemoRunAttributionContext` ile bağlar (Faz 68, kullanıcı bazlı maliyet
 demosu için). Bu case gerçek durumu ölçer.
 
 **Ön koşul**
-- `samples/AgentPrism.Api` ayakta (`dotnet run --project samples/AgentPrism.Api`),
-  `AgentPrism:Ui:AllowRemoteAccess` gerekmez (loopback yeterli).
+- `samples/Tracon.Api` ayakta (`dotnet run --project samples/Tracon.Api`),
+  `Tracon:Ui:AllowRemoteAccess` gerekmez (loopback yeterli).
 
 **Adımlar**
 1. Teşhis ucunu oku.
 
 **Girilecek veri**
 ```bash
-curl -s http://localhost:5080/agentprism/api/diagnostics | jq '.extensionPoints'
+curl -s http://localhost:5080/tracon/api/diagnostics | jq '.extensionPoints'
 ```
 
 **Beklenen sonuç**
@@ -1349,14 +1349,14 @@ curl -s http://localhost:5080/agentprism/api/diagnostics | jq '.extensionPoints'
 | **İlgili karar** | — |
 
 **Ön koşul**
-- `samples/AgentPrism.Embedded` ayakta (`dotnet run --project samples/AgentPrism.Embedded`).
+- `samples/Tracon.Embedded` ayakta (`dotnet run --project samples/Tracon.Embedded`).
 
 **Adımlar**
 1. Teşhis ucunu oku.
 
 **Girilecek veri**
 ```bash
-curl -s http://localhost:5082/agentprism/api/diagnostics > /tmp/embedded-diag.json
+curl -s http://localhost:5082/tracon/api/diagnostics > /tmp/embedded-diag.json
 jq '.extensionPoints' /tmp/embedded-diag.json
 ```
 
@@ -1420,20 +1420,20 @@ jq -r '.extensionPoints[] | .contract, .implementation' /tmp/embedded-diag.json 
 **Girilecek veri**
 ```bash
 ASPNETCORE_ENVIRONMENT=Production \
-AgentPrism__PostgreSql__ConnectionString= \
-AgentPrism__SqlServer__ConnectionString= \
-AgentPrism__Sqlite__ConnectionString= \
-dotnet run --project samples/AgentPrism.Api --no-launch-profile --urls http://localhost:5099 \
+Tracon__PostgreSql__ConnectionString= \
+Tracon__SqlServer__ConnectionString= \
+Tracon__Sqlite__ConnectionString= \
+dotnet run --project samples/Tracon.Api --no-launch-profile --urls http://localhost:5099 \
   > /tmp/faz104-prod.log 2>&1 &
 sleep 14
 grep -ci "storage that is not persistent" /tmp/faz104-prod.log        # beklenen: 1
 grep -B1 "storage that is not persistent" /tmp/faz104-prod.log | head -1
-curl -s http://localhost:5099/agentprism/api/meta | grep -o '"persistent":[a-z]*'
+curl -s http://localhost:5099/tracon/api/meta | grep -o '"persistent":[a-z]*'
 ```
 
 **Beklenen sonuç**
 - Uyarı **tam bir kez** düşer; satır `warn:` seviyesindedir ve kaynağı
-  `AgentPrism.NonPersistentStorageWarningService`'tir.
+  `Tracon.NonPersistentStorageWarningService`'tir.
 - Mesaj üç şeyi adlandırır: hangi store'ların kalıcı olmadığı
   (`agent definitions, runs, sessions`), verinin süreç ömrüyle sınırlı olduğu,
   ve kalıcılığa geçiş çağrısı (`UsePostgreSql(...)`).
@@ -1452,7 +1452,7 @@ curl -s http://localhost:5099/agentprism/api/meta | grep -o '"persistent":[a-z]*
 | **İlgili karar** | K-624 |
 
 **Ön koşul**
-- MT-DIAG-052 koşuldu ve süreç durduruldu (`pkill -f AgentPrism.Api`).
+- MT-DIAG-052 koşuldu ve süreç durduruldu (`pkill -f Tracon.Api`).
 
 **Adımlar**
 1. **Aynı** store kurulumuyla, yalnız ortamı değiştirerek başlat.
@@ -1460,10 +1460,10 @@ curl -s http://localhost:5099/agentprism/api/meta | grep -o '"persistent":[a-z]*
 **Girilecek veri**
 ```bash
 ASPNETCORE_ENVIRONMENT=Development \
-AgentPrism__PostgreSql__ConnectionString= \
-AgentPrism__SqlServer__ConnectionString= \
-AgentPrism__Sqlite__ConnectionString= \
-dotnet run --project samples/AgentPrism.Api --no-launch-profile --urls http://localhost:5099 \
+Tracon__PostgreSql__ConnectionString= \
+Tracon__SqlServer__ConnectionString= \
+Tracon__Sqlite__ConnectionString= \
+dotnet run --project samples/Tracon.Api --no-launch-profile --urls http://localhost:5099 \
   > /tmp/faz104-dev.log 2>&1 &
 sleep 14
 grep -c "Application started" /tmp/faz104-dev.log                     # beklenen: 1
@@ -1495,14 +1495,14 @@ grep -ci "storage that is not persistent" /tmp/faz104-dev.log         # beklenen
 **Girilecek veri**
 ```bash
 ASPNETCORE_ENVIRONMENT=Production \
-AgentPrism__PostgreSql__ConnectionString= \
-AgentPrism__SqlServer__ConnectionString= \
-AgentPrism__Sqlite__ConnectionString="Data Source=/tmp/faz104.db" \
-dotnet run --project samples/AgentPrism.Api --no-launch-profile --urls http://localhost:5099 \
+Tracon__PostgreSql__ConnectionString= \
+Tracon__SqlServer__ConnectionString= \
+Tracon__Sqlite__ConnectionString="Data Source=/tmp/faz104.db" \
+dotnet run --project samples/Tracon.Api --no-launch-profile --urls http://localhost:5099 \
   > /tmp/faz104-sqlite.log 2>&1 &
 sleep 16
 grep -ci "storage that is not persistent" /tmp/faz104-sqlite.log      # beklenen: 0
-curl -s http://localhost:5099/agentprism/api/meta | grep -o '"runStore":"[A-Za-z]*"'
+curl -s http://localhost:5099/tracon/api/meta | grep -o '"runStore":"[A-Za-z]*"'
 ```
 
 **Beklenen sonuç**
@@ -1525,7 +1525,7 @@ boşluğa uygular. Bu case birincisi: içerik denetimi.
 | **İlgili karar** | — |
 
 **Ön koşul**
-- `samples/AgentPrism.Api/Program.cs`'teki `.AddPatternContentGuard(...)`
+- `samples/Tracon.Api/Program.cs`'teki `.AddPatternContentGuard(...)`
   çağrısını (üç satırlık `options => { ... }` bloğuyla birlikte) GEÇİCİ olarak
   yorum satırına al — örnek uygulama varsayılan olarak bir guard kaydeder,
   bu case'in ölçtüğü tam da o kaydın YOKLUĞUdur.
@@ -1533,23 +1533,23 @@ boşluğa uygular. Bu case birincisi: içerik denetimi.
 **Adımlar**
 1. Değiştirilmiş örnek uygulamayı `Production` ortamında başlat.
 2. Kalkış log'unda uyarıyı say.
-3. `Program.cs`'i geri al (`git checkout -- samples/AgentPrism.Api/Program.cs`), yeniden derle.
+3. `Program.cs`'i geri al (`git checkout -- samples/Tracon.Api/Program.cs`), yeniden derle.
 
 **Girilecek veri**
 ```bash
 ASPNETCORE_ENVIRONMENT=Production \
-dotnet run --project samples/AgentPrism.Api --no-launch-profile --urls http://localhost:5099 \
+dotnet run --project samples/Tracon.Api --no-launch-profile --urls http://localhost:5099 \
   > /tmp/faz122-guard-prod.log 2>&1 &
 sleep 14
 grep -ci "no IContentGuard registered" /tmp/faz122-guard-prod.log     # beklenen: 1
 grep -B1 "no IContentGuard registered" /tmp/faz122-guard-prod.log | head -1
-pkill -f AgentPrism.Api
-git checkout -- samples/AgentPrism.Api/Program.cs
+pkill -f Tracon.Api
+git checkout -- samples/Tracon.Api/Program.cs
 ```
 
 **Beklenen sonuç**
 - Uyarı **tam bir kez** düşer; satır `warn:` seviyesindedir ve kaynağı
-  `AgentPrism.SilentGapWarningService`'tir.
+  `Tracon.SilentGapWarningService`'tir.
 - Mesaj `AddPatternContentGuard()` ve `AddContentGuard<T>()`'i adlandırır.
 - Uygulama ayağa kalkar; uyarı bir hata değildir.
 
@@ -1574,13 +1574,13 @@ git checkout -- samples/AgentPrism.Api/Program.cs
 **Girilecek veri**
 ```bash
 ASPNETCORE_ENVIRONMENT=Development \
-dotnet run --project samples/AgentPrism.Api --no-launch-profile --urls http://localhost:5099 \
+dotnet run --project samples/Tracon.Api --no-launch-profile --urls http://localhost:5099 \
   > /tmp/faz122-guard-dev.log 2>&1 &
 sleep 14
 grep -c "Application started" /tmp/faz122-guard-dev.log               # beklenen: 1
 grep -ci "no IContentGuard registered" /tmp/faz122-guard-dev.log      # beklenen: 0
-pkill -f AgentPrism.Api
-git checkout -- samples/AgentPrism.Api/Program.cs
+pkill -f Tracon.Api
+git checkout -- samples/Tracon.Api/Program.cs
 ```
 
 **Beklenen sonuç**
@@ -1610,18 +1610,18 @@ DEĞİŞİKLİĞİ gerektirmez, sadece varsayılan kurulumu Production'da başla
 **Girilecek veri**
 ```bash
 ASPNETCORE_ENVIRONMENT=Production \
-dotnet run --project samples/AgentPrism.Api --no-launch-profile --urls http://localhost:5099 \
+dotnet run --project samples/Tracon.Api --no-launch-profile --urls http://localhost:5099 \
   > /tmp/faz122-retention-prod.log 2>&1 &
 sleep 14
 grep -ci "data retention disabled" /tmp/faz122-retention-prod.log     # beklenen: 1
 grep -B1 "data retention disabled" /tmp/faz122-retention-prod.log | head -1
-pkill -f AgentPrism.Api
+pkill -f Tracon.Api
 ```
 
 **Beklenen sonuç**
 - Uyarı **tam bir kez** düşer; satır `warn:` seviyesindedir ve kaynağı
-  `AgentPrism.SilentGapWarningService`'tir.
-- Mesaj `AgentPrism:Retention:Enabled` anahtarını ve `IRetentionPolicyStore`
+  `Tracon.SilentGapWarningService`'tir.
+- Mesaj `Tracon:Retention:Enabled` anahtarını ve `IRetentionPolicyStore`
   üzerinden elle politika kaydetme seçeneğini adlandırır.
 - MT-DIAG-055'in uyarısıyla **aynı** log turunda birlikte görünebilir —
   ikisi de bağımsız kontroller, biri diğerini bastırmaz.
@@ -1641,7 +1641,7 @@ yoksa hiçbir davranış değişmez ve doğrulayıcı hiçbir servisi çözmez.
 | **İlgili karar** | — |
 
 **Ön koşul**
-- Örnek uygulama değiştirilmemiş hâliyle derlendi (`samples/AgentPrism.Api`
+- Örnek uygulama değiştirilmemiş hâliyle derlendi (`samples/Tracon.Api`
   hiçbir `RequireCustomBinding` çağrısı taşımaz).
 
 **Adımlar**
@@ -1650,12 +1650,12 @@ yoksa hiçbir davranış değişmez ve doğrulayıcı hiçbir servisi çözmez.
 
 **Girilecek veri**
 ```bash
-dotnet run --project samples/AgentPrism.Api --no-launch-profile --urls http://localhost:5099 \
+dotnet run --project samples/Tracon.Api --no-launch-profile --urls http://localhost:5099 \
   > /tmp/faz150-varsayilan.log 2>&1 &
 sleep 14
 grep -c "Application started" /tmp/faz150-varsayilan.log                  # beklenen: 1
 grep -ci "required custom binding" /tmp/faz150-varsayilan.log             # beklenen: 0
-pkill -f AgentPrism.Api
+pkill -f Tracon.Api
 ```
 
 **Beklenen sonuç**
@@ -1673,7 +1673,7 @@ pkill -f AgentPrism.Api
 | **İlgili karar** | — |
 
 **Ön koşul**
-- `samples/AgentPrism.Api/Program.cs` içinde `builder.AddAgentPrism()`
+- `samples/Tracon.Api/Program.cs` içinde `builder.AddTracon()`
   zincirine GEÇİCİ olarak `.RequireCustomBinding<IRunAuthorizationHandler>()`
   ekle. Örnek uygulama kendi `IRunAuthorizationHandler`'ını kaydetmez.
 
@@ -1684,24 +1684,24 @@ pkill -f AgentPrism.Api
 
 **Girilecek veri**
 ```bash
-dotnet run --project samples/AgentPrism.Api --no-launch-profile --urls http://localhost:5099 \
+dotnet run --project samples/Tracon.Api --no-launch-profile --urls http://localhost:5099 \
   > /tmp/faz150-eksik.log 2>&1
 grep -c "IRunAuthorizationHandler" /tmp/faz150-eksik.log                  # beklenen: >=1
 grep -c "AllowAllRunAuthorizationHandler" /tmp/faz150-eksik.log           # beklenen: >=1
-grep -c "BEFORE the AddAgentPrism() call" /tmp/faz150-eksik.log           # beklenen: >=1
+grep -c "BEFORE the AddTracon() call" /tmp/faz150-eksik.log           # beklenen: >=1
 grep -c "Application started" /tmp/faz150-eksik.log                       # beklenen: 0
-git checkout -- samples/AgentPrism.Api/Program.cs
+git checkout -- samples/Tracon.Api/Program.cs
 ```
 
 **Beklenen sonuç**
 - Süreç bir `InvalidOperationException` ile durur; `Application started` **hiç** yazılmaz.
 - Mesaj üçünü de adlandırır: zorunlu sözleşme (`IRunAuthorizationHandler`),
   onun yerine çözülen tip (`AllowAllRunAuthorizationHandler`) ve düzeltme
-  (`BEFORE the AddAgentPrism() call`).
+  (`BEFORE the AddTracon() call`).
 
 ---
 
-### MT-DIAG-060 — Tüketici kaydı `AddAgentPrism`'den ÖNCE yapılırsa host açılır — Faz 150
+### MT-DIAG-060 — Tüketici kaydı `AddTracon`'den ÖNCE yapılırsa host açılır — Faz 150
 
 | | |
 |---|---|
@@ -1711,8 +1711,8 @@ git checkout -- samples/AgentPrism.Api/Program.cs
 | **İlgili karar** | — |
 
 **Ön koşul**
-- `samples/AgentPrism.Embedded` değiştirilmemiş hâliyle derlendi. Bu örnek
-  dört sözleşmeyi zorunlu ilan eder ve dördünü de `AddAgentPrism()`'den ÖNCE
+- `samples/Tracon.Embedded` değiştirilmemiş hâliyle derlendi. Bu örnek
+  dört sözleşmeyi zorunlu ilan eder ve dördünü de `AddTracon()`'den ÖNCE
   kaydeder — case'in ölçtüğü tam olarak bu sıradır.
 
 **Adımlar**
@@ -1721,12 +1721,12 @@ git checkout -- samples/AgentPrism.Api/Program.cs
 
 **Girilecek veri**
 ```bash
-dotnet run --project samples/AgentPrism.Embedded --no-launch-profile --urls http://localhost:5098 \
+dotnet run --project samples/Tracon.Embedded --no-launch-profile --urls http://localhost:5098 \
   > /tmp/faz150-gomme.log 2>&1 &
 sleep 14
 grep -c "Application started" /tmp/faz150-gomme.log                       # beklenen: 1
 grep -ci "required custom binding" /tmp/faz150-gomme.log                  # beklenen: 0
-pkill -f AgentPrism.Embedded
+pkill -f Tracon.Embedded
 ```
 
 **Beklenen sonuç**
@@ -1734,10 +1734,10 @@ pkill -f AgentPrism.Embedded
 
 ---
 
-### MT-DIAG-061 — 🚨 `TryAdd` kaydı `AddAgentPrism`'den SONRA yapılırsa host BAŞLAMAZ — Faz 150
+### MT-DIAG-061 — 🚨 `TryAdd` kaydı `AddTracon`'den SONRA yapılırsa host BAŞLAMAZ — Faz 150
 
 Tüketicinin bildirdiği senaryo budur: modül sırası nedeniyle handler kaydı
-`AddAgentPrism`'den sonra koşar, yerleşik varsayılan slotu zaten tutmaktadır ve
+`AddTracon`'den sonra koşar, yerleşik varsayılan slotu zaten tutmaktadır ve
 `TryAdd` sessizce düşer.
 
 | | |
@@ -1748,9 +1748,9 @@ Tüketicinin bildirdiği senaryo budur: modül sırası nedeniyle handler kaydı
 | **İlgili karar** | — |
 
 **Ön koşul**
-- `samples/AgentPrism.Embedded/Program.cs` içinde
+- `samples/Tracon.Embedded/Program.cs` içinde
   `builder.Services.AddSingleton<IRunAuthorizationHandler, EmbeddedRunAuthorizationHandler>();`
-  satırını GEÇİCİ olarak `AddAgentPrism()` çağrısından **sonraya** taşı ve
+  satırını GEÇİCİ olarak `AddTracon()` çağrısından **sonraya** taşı ve
   `AddSingleton` yerine `TryAddSingleton` yaz
   (`using Microsoft.Extensions.DependencyInjection.Extensions;` gerekir).
 
@@ -1761,11 +1761,11 @@ Tüketicinin bildirdiği senaryo budur: modül sırası nedeniyle handler kaydı
 
 **Girilecek veri**
 ```bash
-dotnet run --project samples/AgentPrism.Embedded --no-launch-profile --urls http://localhost:5098 \
+dotnet run --project samples/Tracon.Embedded --no-launch-profile --urls http://localhost:5098 \
   > /tmp/faz150-gec-tryadd.log 2>&1
 grep -c "AllowAllRunAuthorizationHandler" /tmp/faz150-gec-tryadd.log      # beklenen: >=1
 grep -c "Application started" /tmp/faz150-gec-tryadd.log                  # beklenen: 0
-git checkout -- samples/AgentPrism.Embedded/Program.cs
+git checkout -- samples/Tracon.Embedded/Program.cs
 ```
 
 **Beklenen sonuç**
@@ -1788,7 +1788,7 @@ Tip karşılaştırmasıyla ölçen bir uygulama burada yanlış cevap verir.
 | **İlgili karar** | — |
 
 **Ön koşul**
-- `samples/AgentPrism.Embedded/Program.cs` içindeki
+- `samples/Tracon.Embedded/Program.cs` içindeki
   `builder.Services.AddSingleton<IAttachmentStorage, InMemoryBufferAttachmentStorage>();`
   satırını GEÇİCİ olarak yorum satırına al. Zincirdeki
   `.RequireCustomBinding<IAttachmentStorage>()` çağrısı yerinde kalır.
@@ -1800,17 +1800,17 @@ Tip karşılaştırmasıyla ölçen bir uygulama burada yanlış cevap verir.
 
 **Girilecek veri**
 ```bash
-dotnet run --project samples/AgentPrism.Embedded --no-launch-profile --urls http://localhost:5098 \
+dotnet run --project samples/Tracon.Embedded --no-launch-profile --urls http://localhost:5098 \
   > /tmp/faz150-yokluk.log 2>&1
 grep -c "IAttachmentStorage" /tmp/faz150-yokluk.log                       # beklenen: >=1
 grep -c "nothing is registered" /tmp/faz150-yokluk.log                    # beklenen: >=1
 grep -c "Application started" /tmp/faz150-yokluk.log                      # beklenen: 0
-git checkout -- samples/AgentPrism.Embedded/Program.cs
+git checkout -- samples/Tracon.Embedded/Program.cs
 ```
 
 **Beklenen sonuç**
 - Host başlamaz. Mesaj `nothing is registered` der — bir tip adı **değil**,
-  çünkü AgentPrism bu sözleşme için hiçbir şey kaydetmez.
+  çünkü Tracon bu sözleşme için hiçbir şey kaydetmez.
 
 ---
 
@@ -1834,11 +1834,11 @@ git checkout -- samples/AgentPrism.Embedded/Program.cs
 
 **Girilecek veri**
 ```bash
-dotnet run --project samples/AgentPrism.Embedded --no-launch-profile --urls http://localhost:5098 \
+dotnet run --project samples/Tracon.Embedded --no-launch-profile --urls http://localhost:5098 \
   > /tmp/faz150-adaptor.log 2>&1 &
 sleep 14
 grep -c "Application started" /tmp/faz150-adaptor.log                     # beklenen: 1
-pkill -f AgentPrism.Embedded
+pkill -f Tracon.Embedded
 ```
 
 **Beklenen sonuç**
@@ -1849,7 +1849,7 @@ pkill -f AgentPrism.Embedded
 ### MT-DIAG-064 — Kontrol HTTP'siz host'ta da çalışır — Faz 150
 
 Zorunlu binding bir HTTP kavramı değil, bir kompozisyon kavramıdır. Bu case
-`MapAgentPrism` çağırmayan bir host'ta kontrolün koştuğunu ölçer.
+`MapTracon` çağırmayan bir host'ta kontrolün koştuğunu ölçer.
 
 | | |
 |---|---|
@@ -1859,7 +1859,7 @@ Zorunlu binding bir HTTP kavramı değil, bir kompozisyon kavramıdır. Bu case
 | **İlgili karar** | — |
 
 **Ön koşul**
-- `samples/AgentPrism.Embedded/Program.cs` içindeki `app.MapAgentPrism(...)`
+- `samples/Tracon.Embedded/Program.cs` içindeki `app.MapTracon(...)`
   çağrısını (ve varsa ona bağlı `options` bloğunu) GEÇİCİ olarak yorum satırına
   al. Ayrıca `IToolAuthorizationHandler` kaydını da yorum satırına al.
 
@@ -1870,15 +1870,15 @@ Zorunlu binding bir HTTP kavramı değil, bir kompozisyon kavramıdır. Bu case
 
 **Girilecek veri**
 ```bash
-dotnet run --project samples/AgentPrism.Embedded --no-launch-profile --urls http://localhost:5098 \
+dotnet run --project samples/Tracon.Embedded --no-launch-profile --urls http://localhost:5098 \
   > /tmp/faz150-httpsiz.log 2>&1
 grep -c "AllowAllToolAuthorizationHandler" /tmp/faz150-httpsiz.log        # beklenen: >=1
 grep -c "Application started" /tmp/faz150-httpsiz.log                     # beklenen: 0
-git checkout -- samples/AgentPrism.Embedded/Program.cs
+git checkout -- samples/Tracon.Embedded/Program.cs
 ```
 
 **Beklenen sonuç**
-- Host başlamaz. Kontrol `MapAgentPrism`'e bağlı değildir.
+- Host başlamaz. Kontrol `MapTracon`'e bağlı değildir.
 
 ---
 

@@ -59,8 +59,8 @@ Senkronizasyon istemcisi iki test dosyasının Faz 57 ÖNCESİ Türkçe kopyası
 
 | Dosya | Etki |
 |---|---|
-| `tests/AgentPrism.AspNetCore.FunctionalTests/GovernanceEndpointTests 2.cs` | `CS0101` — `GovernanceEndpointTests` aynı ad alanında iki kez |
-| `tests/AgentPrism.PostgreSql.IntegrationTests/RunScoreStatisticsTests 2.cs` | aynı desen |
+| `tests/Tracon.AspNetCore.FunctionalTests/GovernanceEndpointTests 2.cs` | `CS0101` — `GovernanceEndpointTests` aynı ad alanında iki kez |
+| `tests/Tracon.PostgreSql.IntegrationTests/RunScoreStatisticsTests 2.cs` | aynı desen |
 
 Kanıt tahminle değil **ölçümle** alındı: `HEAD`'te ayrı bir `git worktree`
 kuruldu ve derlendi → `error CS0101`. Kopyalar ayrıca K-408'in çevirdiği
@@ -86,7 +86,7 @@ Plan doğrulanmadan kabul edilmedi; her kalem ölçüldü:
 |---|---|---|
 | `README.md:351` "Faz dokümanları (00–32)" | Bugün `00–59` yazıyor | ✅ Zaten düzeltilmiş (58.0 not etmişti) |
 | `MIMARI.md` "17 paket", tabloda 16 satır | `src`'de 18 `.csproj`, `Generators` `IsPackable=false` → **17**; `Sql.Shared`'ın `.csproj`'u **yok** (paylaşılan kaynak). README tablosu 17 satır ve hepsi gerçek paket | ✅ Sayı doğru; düzeltilecek bir şey yok |
-| `Neden AgentPrism?` iki yerde | `MIMARI.md` bugün 5 satırlık **işaret**, kopya değil | ✅ Taşıma tamamlanmış |
+| `Neden Tracon?` iki yerde | `MIMARI.md` bugün 5 satırlık **işaret**, kopya değil | ✅ Taşıma tamamlanmış |
 | Test sayısı "dört farklı sayı" | Tek **güncel** iddia `README.md`'de (3355, bayat → **3695**). `AGENTS.md`/`MEMORY.md`'deki 1068 **tarihsel** ("Faz 20'de 1068 test kaçırdı") ve doğrudur | ⚠️ Kısmen: 1 düzeltildi, 2 tarihsel kayıt korundu |
 | `README.md:166` "sekiz ekran" | Gerçek **27 ekran / 33 route** (`ls src/screens/*.tsx`, `app.tsx` route tablosu) | ✅ Düzeltildi |
 | `manuel-test/03` 33 `☒` | Doğru; `☑` ile normalize edildi | ✅ Düzeltildi |
@@ -96,7 +96,7 @@ Plan doğrulanmadan kabul edilmedi; her kalem ölçüldü:
 | Yer | Yanlış | Doğru |
 |---|---|---|
 | `README.md:29` | "~159 KB gzip" | **165,8 KB** (`npm run build` kapısının kendi çıktısı) |
-| `src/AgentPrism.UI/README.md` | "~88 KB" | 165,8 KB |
+| `src/Tracon.UI/README.md` | "~88 KB" | 165,8 KB |
 | `MIMARI.md:20` | PostgreSql `0001`–`0027`, SqlServer/Sqlite `0001`–`0014` | `0001`–**`0029`** · `0001`–**`0016`** |
 | `MIMARI.md:17` | `Sql.Shared` "24 `store`" | **29** |
 | `manuel-test/00-INDEKS.md` §4 ve §7 | "28 migration" | **29** |

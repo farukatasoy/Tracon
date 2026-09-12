@@ -4,7 +4,7 @@ Thanks for looking. This file gets you from a fresh clone to a change that
 passes the same gates the maintainer runs.
 
 Start with [`ARCHITECTURE.md`](ARCHITECTURE.md) if you have not read it — it is
-short, and it explains why the code is shaped the way it is. AgentPrism is a
+short, and it explains why the code is shaped the way it is. Tracon is a
 family of NuGet packages other people depend on, so the bar is a little higher
 than for an application: public API changes are expensive, and every public
 member needs XML documentation.
@@ -19,9 +19,9 @@ member needs XML documentation.
 The console's end-to-end tests download Chromium themselves on first run.
 
 ```bash
-git clone https://github.com/farukatasoy/AgentPrism.git
-cd AgentPrism
-dotnet build AgentPrism.slnx -c Release
+git clone https://github.com/farukatasoy/Tracon.git
+cd Tracon
+dotnet build Tracon.slnx -c Release
 ```
 
 ## The four gates
@@ -57,7 +57,7 @@ Two environment details that will otherwise cost you an hour:
   whole suite runs, and you think you narrowed it down. Use
   `python3 scripts/kapi.py test --proje <Project> --sinif "*Name*"`.
 
-If you are not touching the console, `-p:AgentPrismFrontendEnabled=false` skips
+If you are not touching the console, `-p:TraconFrontendEnabled=false` skips
 the npm, Vite, and Vitest steps. Do **not** pass it when you are touching the
 console: the end-to-end tests look for embedded assets and the run will hang.
 
@@ -73,7 +73,7 @@ times. The rule:
 |---|---|
 | Pure calculation, formatting, validation | Unit |
 | A store contract — writing, reading, isolation | Contract test (runs in memory **and** against all three SQL providers) |
-| HTTP behavior, DI registration, authorization | Functional (`AgentPrism.AspNetCore.FunctionalTests`) |
+| HTTP behavior, DI registration, authorization | Functional (`Tracon.AspNetCore.FunctionalTests`) |
 | Spans, scopes, `AsyncLocal`, streaming paths | Functional **and** a real run of a sample application |
 | Screens, routes, both languages | End-to-end (Playwright) |
 | What a packaged consumer sees | A sample application built against the packed package |
@@ -90,7 +90,7 @@ build fails until the corresponding `PublicAPI.Unshipped.txt` entry exists. The
 IDE offers a code fix; from the command line:
 
 ```bash
-dotnet format analyzers AgentPrism.slnx --diagnostics RS0016
+dotnet format analyzers Tracon.slnx --diagnostics RS0016
 ```
 
 Run it more than once. Each pass resolves roughly one project's worth of
@@ -140,7 +140,7 @@ compiled.
 ## Reporting a defect
 
 Open an issue with the smallest reproduction you can manage: the registration
-chain (`AddAgentPrism()...`), the request, what you expected, and what happened.
+chain (`AddTracon()...`), the request, what you expected, and what happened.
 For anything storage-related, say which provider. `GET /api/diagnostics` prints
 a summary of an installation — providers, storage, pending migrations,
 extension points — and it contains no secrets, so it is safe to paste. The route

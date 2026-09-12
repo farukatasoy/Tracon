@@ -3,7 +3,7 @@ title: Multimodal input and generated images
 description: Upload images, documents, text, and audio safely, attach them to a run, or generate a durable image attachment with an agent tool.
 ---
 
-AgentPrism treats binary input as a stored attachment, not as JSON inside a message.
+Tracon treats binary input as a stored attachment, not as JSON inside a message.
 The run carries an attachment id. The model receives the verified bytes only when the
 provider call is made.
 
@@ -32,8 +32,8 @@ groups the attachment with that session for listing and lifecycle cleanup.
 
 ```bash
 curl -sS -X POST \
-  "http://localhost:5081/agentprism/api/attachments?sessionId=case-4182" \
-  -H "Authorization: Bearer $AGENTPRISM_TOKEN" \
+  "http://localhost:5081/tracon/api/attachments?sessionId=case-4182" \
+  -H "Authorization: Bearer $TRACON_TOKEN" \
   -F 'file=@invoice.png'
 ```
 
@@ -42,8 +42,8 @@ that UUID in `attachmentIds`:
 
 ```bash
 curl -N -X POST \
-  http://localhost:5081/agentprism/api/agents/invoice-reader/run \
-  -H "Authorization: Bearer $AGENTPRISM_TOKEN" \
+  http://localhost:5081/tracon/api/agents/invoice-reader/run \
+  -H "Authorization: Bearer $TRACON_TOKEN" \
   -H 'Content-Type: application/json' \
   -d '{
     "sessionId": "case-4182",
@@ -69,7 +69,7 @@ reference with `DataContent`. The resolved bytes are not written back into chat
 history.
 
 :::caution[Upload support is not model support]
-Passing the upload guard means AgentPrism can store and transport the file. It does
+Passing the upload guard means Tracon can store and transport the file. It does
 not mean the selected model understands that image, PDF, or audio format. Verify the
 exact provider, model, and API surface. A text-only model can ignore the content or
 reject the request.
@@ -84,7 +84,7 @@ One attachment is limited to 20 MiB by default. The default allow list is:
 - UTF-8 `text/plain`
 - `audio/*`; the built-in detector recognizes WAV, Ogg, and MP3
 
-The client-provided `Content-Type` and file extension are not trusted. AgentPrism
+The client-provided `Content-Type` and file extension are not trusted. Tracon
 derives the type from magic bytes. Plain text is the exception: when the first 1 KiB
 is valid UTF-8 and has no NUL or disallowed control byte, it is treated as
 `text/plain`.
@@ -95,7 +95,7 @@ outside the allow list return `400`.
 Change the limit and narrow the list through options:
 
 ```csharp
-builder.Services.Configure<AgentPrismOptions>(options =>
+builder.Services.Configure<TraconOptions>(options =>
 {
     options.Attachments.MaxBytes = 8 * 1024 * 1024;
     options.Attachments.AllowedMediaTypes.Clear();
@@ -104,23 +104,23 @@ builder.Services.Configure<AgentPrismOptions>(options =>
 });
 ```
 
-Register this configuration after `AddAgentPrism()` when code values must override
-the values read from `AgentPrism:Attachments`.
+Register this configuration after `AddTracon()` when code values must override
+the values read from `Tracon:Attachments`.
 
 ## List, download, and delete
 
 ```bash
 # Descriptors only. Defaults: skip=0, take=50. take is clamped to 1..200.
-curl -H "Authorization: Bearer $AGENTPRISM_TOKEN" \
-  "http://localhost:5081/agentprism/api/attachments?sessionId=case-4182"
+curl -H "Authorization: Bearer $TRACON_TOKEN" \
+  "http://localhost:5081/tracon/api/attachments?sessionId=case-4182"
 
 # Raw bytes with the stored MIME type and a SHA-256 ETag.
-curl -OJ -H "Authorization: Bearer $AGENTPRISM_TOKEN" \
-  "http://localhost:5081/agentprism/api/attachments/{attachmentId}"
+curl -OJ -H "Authorization: Bearer $TRACON_TOKEN" \
+  "http://localhost:5081/tracon/api/attachments/{attachmentId}"
 
 # Immediate hard delete.
-curl -X DELETE -H "Authorization: Bearer $AGENTPRISM_TOKEN" \
-  "http://localhost:5081/agentprism/api/attachments/{attachmentId}"
+curl -X DELETE -H "Authorization: Bearer $TRACON_TOKEN" \
+  "http://localhost:5081/tracon/api/attachments/{attachmentId}"
 ```
 
 Downloads send `Content-Disposition: attachment` and
@@ -149,7 +149,7 @@ input.
 ## Audio input and voice are separate
 
 An audio attachment is model input. It is not automatically transcribed.
-`AgentPrism.Voice` is a separate package for speech operations. `UseVoice()` registers
+`Tracon.Voice` is a separate package for speech operations. `UseVoice()` registers
 the code-defined `speak`, `transcribe`, and `list_voices` tools. Generated speech is
 stored as an attachment.
 
@@ -165,7 +165,7 @@ to the normal tool registry, so it has the same authorization, timeout, audit, q
 and run-recording behavior as every other server-side tool.
 
 ```csharp title="Program.cs"
-var agentPrism = builder.AddAgentPrism()
+var tracon = builder.AddTracon()
     .UseOpenAI(builder.Configuration.GetSection(OpenAIProviderOptions.SectionName))
     .UseOpenAIImages(options =>
     {
@@ -182,10 +182,10 @@ the current tenant and the run's session id, so it appears in the existing trans
 and attachment UI.
 
 Generated `DataContent` is written directly. A provider `UriContent` result is
-downloaded immediately through AgentPrism's outbound-network guard, then stored as
+downloaded immediately through Tracon's outbound-network guard, then stored as
 bytes; an expired provider URL does not break later downloads. Hosted-file references
 are rejected because an attachment store has no durable provider-file reference field.
-If a multi-image response fails after an earlier image is saved, AgentPrism attempts
+If a multi-image response fails after an earlier image is saved, Tracon attempts
 to delete the earlier attachments. That cleanup is best effort: a storage delete
 failure is logged, the original generation failure is returned, and an operator can
 remove any remaining attachment through the normal attachment API.
@@ -193,8 +193,8 @@ remove any remaining attachment through the normal attachment API.
 The optional operator endpoint uses the same path outside a run:
 
 ```bash
-curl -sS -X POST http://localhost:5081/agentprism/api/images/generate \
-  -H "Authorization: Bearer $AGENTPRISM_TOKEN" \
+curl -sS -X POST http://localhost:5081/tracon/api/images/generate \
+  -H "Authorization: Bearer $TRACON_TOKEN" \
   -H 'Content-Type: application/json' \
   -d '{"prompt":"A teal lighthouse at dawn","sessionId":"case-4182"}'
 ```
@@ -208,7 +208,7 @@ is not part of a run.
 **Upload returns “type rejected.”** Changing the multipart `Content-Type` does not
 help. Check the actual file bytes and the configured allow list.
 
-**Upload returns “too large.”** Raise `AgentPrismOptions.Attachments.MaxBytes` only
+**Upload returns “too large.”** Raise `TraconOptions.Attachments.MaxBytes` only
 after reviewing proxy limits, memory pressure, database growth, and provider limits.
 The smallest limit in the request path wins.
 
@@ -234,10 +234,10 @@ deleted. Keep it for at least as long as any session or replay path that needs i
 - [Agent run HTTP API](/http-api/agents/)
 - [Voice HTTP API](/http-api/voice/)
 - [Image HTTP API](/http-api/images/)
-- [`AgentPrismAttachmentOptions` API](/api/agentprism.agentprismattachmentoptions/)
-- [`AgentPrismImageOptions` API](/api/agentprism.agentprismimageoptions/)
-- [`AgentRunRequest` API](/api/agentprism.agentrunrequest/)
-- [`UseVoice` API](/api/agentprism.voicebuilderextensions/)
+- [`TraconAttachmentOptions` API](/api/tracon.traconattachmentoptions/)
+- [`TraconImageOptions` API](/api/tracon.traconimageoptions/)
+- [`AgentRunRequest` API](/api/tracon.agentrunrequest/)
+- [`UseVoice` API](/api/tracon.voicebuilderextensions/)
 
 ## Read next
 

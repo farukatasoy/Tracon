@@ -4,7 +4,7 @@
 > **Kaynak:** [BEYIN-FIRTINASI.md](../BEYIN-FIRTINASI.md) · **F-27** (2/2)
 > **Önkoşul:** [Faz 15](15-WORKFLOWS-YURUTME.md)
 > **Sonraki:** [Faz 17](17-TOPLU-VE-ZAMANLANMIS-CALISTIRMA.md) — iş kuyruğu
-> **Paketler:** `AgentPrism.Abstractions`, `.Core`, `.PostgreSql`, `.AspNetCore`, `.Workflows`, `.UI`
+> **Paketler:** `Tracon.Abstractions`, `.Core`, `.PostgreSql`, `.AspNetCore`, `.Workflows`, `.UI`
 > **Yeni paket:** Yok · **Migration:** Yok
 
 ---
@@ -68,7 +68,7 @@ AIAgent.Id     virtual=False  canWrite=False
 ```
 
 Özellik sanal değildir ve setter'ı yoktur; ama derleyicinin ürettiği arka alan
-salt-okunur **değildir**. `WorkflowAgentIdentity` yalnızca AgentPrism'in kendi
+salt-okunur **değildir**. `WorkflowAgentIdentity` yalnızca Tracon'in kendi
 sarmalayıcı örneğinde bu alanı yazar — MAF'ın hiçbir nesnesine dokunmaz.
 
 ### 3. Kontrol noktası bekleyen isteği **taşır** ve istek yeniden yayınlanır
@@ -116,7 +116,7 @@ new AIAgentBinding(agent, new AIAgentHostOptions { ForwardIncomingMessages = fal
 ### 7. Elle kurulmuş grafta sürdürme, kontrol noktasında **kuyrukta kalan** işi tekrarlar
 
 Ölçüldü: `ozetle-ve-onayla` sürdürüldüğünde özetleyici agent yeniden çalıştı
-(37 `MessageDelta`) ve graf ikinci bir onay istedi. Sebep AgentPrism değil,
+(37 `MessageDelta`) ve graf ikinci bir onay istedi. Sebep Tracon değil,
 grafın şeklidir — kontrol noktası anında agent host'u için kuyrukta bir mesaj
 duruyordu. Hazır desenlerde ve Magentic plan onayında bu görülmez: orkestratör
 turu kendi elinde tutar.

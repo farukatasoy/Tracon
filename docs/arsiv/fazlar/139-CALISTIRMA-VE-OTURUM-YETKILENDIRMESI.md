@@ -3,10 +3,10 @@
 > **Durum:** ✅ Tamamlandı (2026-09-03)
 > **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-185** (tüketici turu 3, A1 + A8)
 > **Önkoşul:** Yok
-> **Paketler:** `AgentPrism.Abstractions`, `AgentPrism.Core`, `AgentPrism.AspNetCore`
+> **Paketler:** `Tracon.Abstractions`, `Tracon.Core`, `Tracon.AspNetCore`
 > **Yeni paket:** Yok · **Migration:** Yok
 > **Public API:** Büyüyor — yeni kontrat + `AgentRunScope`'a iki alan. `wc -l src/*/PublicAPI.Shipped.txt` → her dosya **1 satır** (yalnız başlık), yani shipped giriş **sıfır**: bugün eklemek bedava, GA'dan sonra bir sürüm kararı
-> **Tüketici yüzeyi:** `docs-site/`: `guides/embedding.md` (genişleme noktası listesi), `concepts/sessions.md`, `concepts/runs.md`, `capabilities.md` · sevk edilen: XML `<example>`, `src/AgentPrism.Abstractions/README.md`
+> **Tüketici yüzeyi:** `docs-site/`: `guides/embedding.md` (genişleme noktası listesi), `concepts/sessions.md`, `concepts/runs.md`, `capabilities.md` · sevk edilen: XML `<example>`, `src/Tracon.Abstractions/README.md`
 > **Manuel test alanı:** [`docs/manuel-test/13-KIRACI-VE-GUVENLIK.md`](../../manuel-test/13-KIRACI-VE-GUVENLIK.md)
 
 ---
@@ -28,7 +28,7 @@
 
 ## Amaç
 
-Bugün bir kiracıdaki her `Operator`, aynı kiracıdaki **başka bir kullanıcının** konuşmasını okuyabiliyor, ona yazabiliyor ve silebiliyor. AgentPrism sahipliği kiracı düzeyinde çiziyor; kiracı **içindeki** kullanıcıyı hiçbir yerde ayırmıyor. Bu faz sahipliği AgentPrism'e **öğretmez** — tüketiciye **sorar**.
+Bugün bir kiracıdaki her `Operator`, aynı kiracıdaki **başka bir kullanıcının** konuşmasını okuyabiliyor, ona yazabiliyor ve silebiliyor. Tracon sahipliği kiracı düzeyinde çiziyor; kiracı **içindeki** kullanıcıyı hiçbir yerde ayırmıyor. Bu faz sahipliği Tracon'e **öğretmez** — tüketiciye **sorar**.
 
 ## Bitiş Ölçütleri (DoD)
 
@@ -39,20 +39,20 @@ Bugün bir kiracıdaki her `Operator`, aynı kiracıdaki **başka bir kullanıc�
 - [x] Reddedilen run `runs` satırı **açmaz** ve kota **tüketmez** — `Handler_denies_a_different_user_and_no_run_row_opens`, `Denied_run_does_not_consume_the_quota`
 - [x] `AgentRunScope.UserId` tool gövdesinde görünür; akışlı yolda da dolu — `Allowed_user_id_reaches_the_tool_via_scope` (varsayılan akışlı/SSE yolu üzerinden)
 - [x] Dört doğrulama kapısı sıfır uyarı verir — `python3 scripts/kapi.py kapanis`
-      (üç koşumda `dotnet test AgentPrism.slnx` adımı iki kez tek bir testte
+      (üç koşumda `dotnet test Tracon.slnx` adımı iki kez tek bir testte
       kırmızı çıktı: `ModelHealthSingletonTests.Health_check_runs_on_only_one_instance`
       — bu faz **öncesinde** `docs/hafiza/test-altyapisi.md`'de belgelenmiş,
       yalnız tüm çözüm birlikte koşarken kaynak çakışmasından ortaya çıkan
-      bilinen bir flaky test; izole (`AgentPrism.Core.UnitTests` tek başına,
+      bilinen bir flaky test; izole (`Tracon.Core.UnitTests` tek başına,
       4 kez) ve tek test filtreli (3 kez) koşumların tamamı geçti — regresyon
       DEĞİL)
-- [x] `samples/AgentPrism.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı — aşağıda
+- [x] `samples/Tracon.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı — aşağıda
 - [x] `secret` taraması boş döndü — `python3 scripts/kapi.py tarama`
 - [x] Manuel kabul case'leri `docs/manuel-test/13-KIRACI-VE-GUVENLIK.md` içine eklendi; otomatikleştirilebilenler koşuldu — MT-SEC-140..150, tamamı otomatik ve yeşil
 - [x] `faz-denetim` koşuldu; 🔴 bulgu kalmadı — bkz. "Denetim Bulguları"
 - [x] `docs-site/` güncellendi; `npm run build` + `check-links.mjs` temiz
 
-### Doğrulama komutları — gerçek çıktı (2026-09-03, `samples/AgentPrism.Api`, handler kayıtlı DEĞİL)
+### Doğrulama komutları — gerçek çıktı (2026-09-03, `samples/Tracon.Api`, handler kayıtlı DEĞİL)
 
 ```bash
 $ curl -s "$APU/api/diagnostics" -H "$APB" | python3 -c "..."
@@ -76,7 +76,7 @@ HTTP: 404
 
 Bu üç çağrı, handler kayıtlı OLMADIĞI (K1 varsayılan) davranışın gerçek bir
 sunucuda bozulmadığını kanıtlar. Reddeden bir handler'ın 403/404 ürettiği
-davranış — `samples/AgentPrism.Api`'ye geçici kod eklemek yerine —
+davranış — `samples/Tracon.Api`'ye geçici kod eklemek yerine —
 `RunAuthorizationEndpointTests`'in 18 testinde gerçek bir `TestServer`
 üzerinden (Kestrel'in kendisi değil ama aynı `RequestDelegate` boru hattı)
 kanıtlanmıştır; bu skill'in Adım 2 notu ("birim testleri geçmesi yetmez")
@@ -122,8 +122,8 @@ kod yolundan (`RequestDelegateFactory`) çalıştırır.
    uydurmuyor, `ITenantContext`'ten okuyor" — bu, `Handler_receives_the_ambient_tenant`
    fonksiyonel testiyle tam olarak kanıtlanıyor; SQL/bellek içi ayrımı taşıyan
    bir sözleşme testi burada fazladan soyutlama olurdu.
-6. **`AgentPrismDiagnosticsCollector`'ın dokümanı "beş" yerine "altı" genişleme
-   noktasından söz edecek şekilde güncellendi** (`AgentPrismDiagnosticsReport.cs`,
+6. **`TraconDiagnosticsCollector`'ın dokümanı "beş" yerine "altı" genişleme
+   noktasından söz edecek şekilde güncellendi** (`TraconDiagnosticsReport.cs`,
    `ExtensionPointDiagnostic.cs`) — plan bunu açıkça yazmıyordu ama Açık Soru
    1'in "A" cevabının doğal sonucu.
 
