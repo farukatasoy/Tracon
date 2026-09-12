@@ -4,7 +4,7 @@
 > **Kaynak:** **F-223**'ün ikinci yarısı. Kalem Faz 164 planlanırken kullanıcıyla
 > ikiye bölündü: *"İki faza bölünür: 164 enstrüman katmanı + kanıt dilimi,
 > 165 kalan ekranlar."* Yeni bir aday açılmadı.
-> **Önkoşul:** [Faz 164](arsiv/fazlar/164-CONSOLE-ENSTRUMAN-KATMANI.md) — token
+> **Önkoşul:** [Faz 164](164-CONSOLE-ENSTRUMAN-KATMANI.md) — token
 > seti, yoğunluk ölçeği, primitif kümesi (19 yeniden yazıldı, altı eklendi),
 > durum dili ve kapılar orada kuruldu ve beş ekranda ispatlandı. Bu faz o
 > katmanı **kullanır**, genişletmez.
@@ -26,7 +26,7 @@
 `faz-baslangic` skill'ini uygula. Bu fazın minimum okuma kümesi:
 
 1. Bu doküman
-2. **[`hafiza/frontend-tasarim-katmani.md`](hafiza/frontend-tasarim-katmani.md)
+2. **[`hafiza/frontend-tasarim-katmani.md`](../../hafiza/frontend-tasarim-katmani.md)
    — bağlayıcıdır.** Faz 164'ün bıraktığı her tuzak oradadır: token, tema,
    yoğunluk ölçeği, yerleşim, primitif ve kapılar.
 3. Faz 164'ün devir notu — desen tablosu ve hangi ekranın hangi desene girdiği:
@@ -40,9 +40,9 @@
    **K-228** (`en` ↔ `tr` anahtar kümesi eşit; eksik anahtar derleme hatası) ·
    **K-232** (sunucu yanıtları çevrilmez) · **K-757** (varsayılan tema saklanan
    tercihtir) · **K-758** (runtime bağımlılık kümesi dört isimle kapıya bağlı)
-5. [`hafiza/frontend.md`](hafiza/frontend.md) — yalnız dokunduğun ekranın notu
+5. [`hafiza/frontend.md`](../../hafiza/frontend.md) — yalnız dokunduğun ekranın notu
    (ses paneli ve workflow grafı ayrı başlıklardadır; component-test altyapısı
-   bu fazda [`hafiza/frontend-test-altyapisi.md`](hafiza/frontend-test-altyapisi.md)
+   bu fazda [`hafiza/frontend-test-altyapisi.md`](../../hafiza/frontend-test-altyapisi.md)
    dosyasına taşındı)
 
 **Kaynak olarak okunacak beş ekran** — desenin kanonik hâli bunlardır, doküman
@@ -188,7 +188,7 @@ yapar; aynı gerekçe kopyalanır, yeniden icat edilmez.
 🚨 **Doğrulama diyaloğu bu fazın kapsamında DEĞİLDİR.** `Dialog` primitifi hazır
 ve kanıtlıdır, ama bir onay adımı eklemek ekranın etkileşim sözleşmesini
 değiştirir ve ilgili E2E olgusunu birlikte taşımayı gerektirir. O iş
-[F-224](ADAYLAR.md)'tür.
+[F-224](../../ADAYLAR.md)'tür.
 
 ## 165.5 — Bağlantı görünüşü
 

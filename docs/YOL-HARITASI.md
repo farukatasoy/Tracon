@@ -177,6 +177,6 @@ bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 | [162](arsiv/fazlar/162-TRACON-YENIDEN-ADLANDIRMA.md) | Tracon Yeniden Adlandırma | ✅ Tamamlandı |
 | [163](arsiv/fazlar/163-MARKA-VE-DOKUMANTASYON.md) | Marka ve Dokümantasyon Deneyimi | ✅ Tamamlandı |
 | [164](arsiv/fazlar/164-CONSOLE-ENSTRUMAN-KATMANI.md) | Console'un Enstrüman Katmanı | ✅ Tamamlandı |
-| [165](165-KONSOLUN-KALAN-EKRANLARI.md) | Konsolun Kalan Ekranları | 📋 Planlandı |
+| [165](arsiv/fazlar/165-KONSOLUN-KALAN-EKRANLARI.md) | Konsolun Kalan Ekranları | ✅ Tamamlandı |
 
 Seçilmemiş adaylar: [`ADAYLAR.md`](ADAYLAR.md). Fazların hangi dalgada, hangi gerekçeyle sıralandığı (Faz 8–56, kapandı): [`arsiv/IKINCI-FAZ-YOL-HARITASI.md`](arsiv/IKINCI-FAZ-YOL-HARITASI.md) · [`arsiv/UCUNCU-FAZ-YOL-HARITASI.md`](arsiv/UCUNCU-FAZ-YOL-HARITASI.md).
