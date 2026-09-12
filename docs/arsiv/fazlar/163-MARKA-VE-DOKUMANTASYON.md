@@ -10,18 +10,24 @@
 > **Taban:** `38cc4a0887e98c9d9958ec039ad3947fd9fff1a3`
 > **Teslim:** Yerel production preview; kullanıcı commit ve deploy istemiyor.
 
-## Bu Faza Başlarken
+> ### ⚗️ Damıtılmış kayıt
+> Bu dosya fazın **planını** değil, fazın bıraktığı **kalıcı bilgiyi**
+> taşır. Plan gövdesi, planlanan/gerçekleşen API, dosya listesi, risk ve
+> açık soru bölümleri kapanışta düştü — **silinmedi, git geçmişindedir.**
+>
+> Tam metin — kopyala, çalıştır:
+>
+> ```bash
+> git show 50a4e23e:docs/arsiv/fazlar/163-MARKA-VE-DOKUMANTASYON.md
+> ```
+>
+> Damıtıldı 2026-09-12 · `scripts/dokuman-bakim.py faz-damit`
 
-AGENTS.md, MEMORY.md ve bu fazı oku. `hafiza/marka.md` bağlayıcıdır.
-Alan belgeleri: `hafiza/site-yayin-ve-tema.md`, `hafiza/site-uretim-kapilari.md`.
-Skill zinciri: faz-baslangic → faz-uygulama → faz-denetim → faz-tamamlama;
-tuketici-dokuman-senkronu ve F-222 için kusur-giderme uygulanır.
+---
 
 ## Amaç
 
-.NET geliştiricisi Tracon'un MAF üzerindeki control plane rolünü, çözdüğü
-sorunları ve teknik bilgiye erişim yolunu anlar. Astro/Starlight ve Pagefind
-korunur. Site İngilizce kalır. Yeni dependency eklenmez.
+.NET geliştiricisi Tracon'un MAF üzerindeki control plane rolünü, çözdüğü sorunları ve teknik bilgiye erişim yolunu anlar. Astro/Starlight ve Pagefind korunur. Site İngilizce kalır. Yeni dependency eklenmez.
 
 ## Onaylanan tasarım ve kapsam
 
@@ -128,42 +134,6 @@ değildir; kendi kabul case'i `MT-DKL-033`'tür. Kapı onu yapısal kurallardan 
 tutar (kenar çubuğu, `## Read next`, llms dizini) ama ses ve iç-geçmiş
 kurallarına tabi tutar.
 
-## Hata Modları ve Testler
-
-| Hata | Seviye | Kanıt |
-|---|---|---|
-| Boş locale envanteri yeşil kapı üretir | Node dosya/CLI regression | Önce kırmızı: boş envanter ve eksik screenshot |
-| Link/anchor kaybı | Üretilen HTML bütün site | check-links ve eski anchor karşılaştırması |
-| Arama filtresi yanlış grup döndürür | Production tarayıcı | Üç grup, sonuçsuz sorgu, hata/tekrar deneme |
-| Tema, uzun başlık/tablo/kod/diyagram taşar | Tarayıcı | 360/1024/1440 × light/dark |
-| Yeni işaret screenshot'ta eski kalır | Gerçek console E2E | DocumentationScreenshotTests; 19 PNG |
-| Generator bayat kaynak okur | Tam üretim | npm run check; cache tek başına kanıt değildir |
-| Paket veya runtime sözleşmesi yanlışlıkla değişir | Repo kapıları | kapi.py kapanis |
-
-Yeni runtime iptal/eşzamanlılık/kiracı yolu yok. Arama boş/aşırı girdi ve yükleme
-hatası tarayıcıda; site JavaScript olmadan teknik metne erişilebilir kalır.
-
-## Planlanan Public API
-
-Değişiklik yok. HTTP uçları, kalıcı veri ve runtime davranışı aynı kalır.
-Site 57000 B gzip tavanı; console 250 KB gzip tavanı korunur.
-
-## Planlanan Dosya Listesi
-
-`docs-site/` sunum, generator ve içerik; `assets/` marka işareti/ikon;
-console logo bileşeni; screenshot gate regression testleri; marka ve faz kayıtları.
-
-## Manuel Kabul Case'leri
-
-Site alanına: ana CTA/yayın durumu, responsive şablon matrisi, arama filtreleri,
-klavye/focus, tema/zoom/reduced-motion, kopyalama/anchor, reference, 404 ve gerçek
-console görüntüleri. Her case önkoşul, adım ve beklenen sonuç taşır.
-
-## Açık Sorular
-
-Yok. Kullanıcı başlangıç yolunu, üç yüzeyde ortak işareti ve teknik iddiaların
-açıklayıcı marka metnine işlenmesini onayladı.
-
 ## Bitiş Ölçütleri (DoD)
 
 - [x] 52 el yazısı sayfanın envanterinde gerçek değerlendirme kanıtı var — 44'ü
@@ -201,14 +171,6 @@ açıklayıcı marka metnine işlenmesini onayladı.
       · `api/` · `http-api/` · `troubleshooting/` dışında, uydurma etimoloji yok,
       yasak kelime yok, ekran görüntüleri yeni işaretle, `en`/`tr` sözlük eşit.
       Yerel preview `http://localhost:4321/` üzerinde koşuldu.
-
-## Riskler
-
-Ağırlık payı (383 B) **tükendi** ve tavan bir kez yükseltildi (K-756); bir daha
-dolarsa sayfa bölünür, tavan ikinci kez yükseltilmez. Kaynak repo private: yeni
-erişim/yayın vaadi verilmedi. Uzun diyagramlar küçültülmedi, kendi alanında
-kaydırılıyor. Console'un `--ap-*` token'ları eski addan kalmadır ve bu fazın
-kapsamı dışındadır — sonraki bir console fazının işi.
 
 ## Plandan Sapmalar
 
@@ -292,46 +254,6 @@ Aşağıdakiler yerel uygulama tercihidir ve `K-*` kaydı açmaz:
 - Üretilen referansta bir `cref` düz metne dönerken **tip kısa adıyla**, üye ise
   bildiren tipiyle yazılır. Bağlantı yolundaki kural ile aynıdır.
 - Ürün adı `a` artikeli alır. Kapı bunu el yazısı sayfalarda zorlar.
-
-## Gerçekleşen Public API
-
-**Yüzey değişmedi.** Hiçbir `PublicAPI.Shipped.txt` / `PublicAPI.Unshipped.txt`
-dosyasına dokunulmadı; `dotnet pack` kapısı bunu doğruladı. HTTP uçları, kalıcı
-veri şeması ve runtime davranışı aynı.
-
-Değişen iki şey plandan sapmadır ve yüzey değildir:
-
-- **Sevk edilen XML metni.** 19 kaynak dosyasında yorum ve iki çalışma anı
-  dizesi düzeltildi (`RequiredBindingValidator`, `TraconExtensionPoints`).
-  İki test bu dizeleri doğruluyor ve birlikte güncellendi.
-- **Site ağırlık tavanı.** 57 000 B → 58 000 B (K-756). Console'un 250 KB gzip
-  tavanı korundu.
-
-## Dosya Listesi (gerçekleşen)
-
-151 yol (9'u yeni dosya). Alanlar:
-
-| Alan | Ne değişti |
-|---|---|
-| `docs-site/src/content/docs/**` (44 el yazısı sayfa) | Marka dili, yayın uyarısı, iddia düzeltmesi, okuma akışı, artikel artefaktı |
-| `docs-site/src/content/docs/{api,http-api}/**` | Yeniden üretildi; elle düzenlenmedi |
-| `docs-site/src/components/*.astro` (6 yeni) | `Header` · `Hero` · `PageTitle` · `MarkdownContent` · `Search` · `Footer` |
-| `docs-site/src/styles/{site.css,landing.css}` | Token kümesi `--tracon-*`; açılış sayfası stilleri (yeni) |
-| `docs-site/src/{sidebar.mjs,starlightRouteData.mjs}`, `astro.config.mjs` | Sekiz bölümlü kenar çubuğu, bileşen geçersiz kılmaları, mermaid paleti |
-| `docs-site/scripts/check-content.mjs` | Üç yeni kapı: alarm emojisi · yanlış artikel · bayat boyut iddiası |
-| `docs-site/scripts/build-api-reference.mjs` | `cref` düz metne dönerken tip kısa adıyla yazılır |
-| `docs-site/scripts/check-console-screens.{mjs,test.mjs}` | F-222: boş envanter artık kapıyı kızartır (yeni) |
-| `docs-site/scripts/check-weight.mjs` | Tavan 58 000 B, ölçüm ve gerekçe yorumda (K-756) |
-| `docs-site/public/screenshots/*.png` (19) | Gerçek console E2E ile yeni işaret altında yeniden üretildi |
-| `docs-site/public/social/*.png`, `public/favicon.svg`, `assets/{icon.png,tracon-mark.svg}` | Ortak SVG kaynaktan üretilen marka yüzeyleri |
-| `docs-site/public/llms{,-full}.txt`, `src/Tracon.Core/buildTransitive/Tracon.AgentMap.md` | `capabilities.md`'den yeniden üretildi |
-| `src/**/*.cs` (17 dosya) | Sevk edilen XML ve çalışma anı mesajlarında artikel artefaktı ve sekiz bozuk cümle |
-| `tests/**/*.cs` (7 dosya) | Aynı artefakt; iki test değişen mesajı doğrular |
-| `src/Tracon.UI/frontend/src/{assets,components}` | Console işareti bileşeni ve yeni SVG |
-| `docs/{KARARLAR.md,KARARLAR-INDEKS.md}` | K-756 |
-| `docs/manuel-test/{00-INDEKS.md,32-DOKUMAN-KALITESI.md}` | Eski marka izleri temizlendi; 13 yeni case (24 → 37) |
-| `docs/hafiza/{00-INDEKS.md,marka.md}` | Marka alan dosyası (yeni) ve indeks satırı |
-| `.agents/skills/tuketici-dokuman-senkronu/resources/kalite-sozlesmesi.md` | F bölümü taban çizgileri 2026-09-12 ölçümüyle yenilendi |
 
 ## docs-site senkron gerekçesi
 
