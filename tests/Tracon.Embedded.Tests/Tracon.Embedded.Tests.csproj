@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <!--
+      Tests the ACTUAL entry point (samples/Tracon.Embedded/Program.cs), not
+      a reconstruction of its wiring: WebApplicationFactory<T> needs an entry
+      point assembly, which the sample IS and the Tracon.* library is not —
+      see the comment next to Microsoft.AspNetCore.Mvc.Testing in
+      Directory.Packages.props for why every other test project uses TestHost
+      instead.
+    -->
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
+    <ProjectReference Include="../../samples/Tracon.Embedded/Tracon.Embedded.csproj" />
+  </ItemGroup>
+
+</Project>

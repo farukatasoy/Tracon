@@ -1,0 +1,142 @@
+using System.Diagnostics.CodeAnalysis;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+
+namespace Tracon;
+
+/// <summary>Chain extensions that turn on content inspection.</summary>
+/// <remarks>
+/// This is an extension method, not a member of <see cref="ITraconBuilder"/>:
+/// adding a member to the interface is a breaking change after release; adding
+/// an extension method is not.
+/// </remarks>
+public static class TraconContentGuardBuilderExtensions
+{
+    /// <summary>
+    /// Registers Tracon's built-in pattern-based content guard.
+    /// </summary>
+    /// <param name="builder">The configuration chain.</param>
+    /// <param name="configure">Pattern and denied-term settings.</param>
+    /// <returns>The chain, for further configuration.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="builder"/> is <see langword="null"/>.</exception>
+    /// <remarks>
+    /// <para>
+    /// <strong>This call is the no-surprises rule's gate.</strong> <c>AddTracon()</c> alone
+    /// registers no guard, and the inspection wrapper is <em>never added</em> to
+    /// the model pipeline. Without this call no prompt is inspected, no response
+    /// is inspected, and no cost is paid.
+    /// </para>
+    /// <para>
+    /// The built-in guard carries <strong>no rules by default</strong>:
+    /// <see cref="PatternContentGuardOptions.MaskedPii"/> is
+    /// <see cref="PiiPatterns.None"/> and
+    /// <see cref="PatternContentGuardOptions.DeniedTerms"/> is empty. Which
+    /// pattern family to turn on is an explicit choice; turning them all on at
+    /// once compounds the false-positive risk.
+    /// </para>
+    /// <para>
+    /// The same settings are also read from the <c>Tracon:ContentGuard:Pattern</c>
+    /// configuration section; if that section is present the guard is already
+    /// registered by <c>AddTracon()</c> and this call is redundant (the
+    /// registration uses <c>TryAddEnumerable</c>, so it is never added twice).
+    /// </para>
+    /// <example>
+    /// <code>
+    /// builder.AddTracon()
+    ///        .AddPatternContentGuard(options =>
+    ///        {
+    ///            options.MaskedPii = PiiPatterns.CreditCard | PiiPatterns.Email;
+    ///            options.DeniedTerms.Add("secret-project");
+    ///        });
+    /// </code>
+    /// </example>
+    /// </remarks>
+    public static ITraconBuilder AddPatternContentGuard(
+        this ITraconBuilder builder,
+        Action<PatternContentGuardOptions>? configure = null)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+
+        builder.Services.TryAddEnumerable(ServiceDescriptor.Singleton<IContentGuard, PatternContentGuard>());
+
+        if (configure is not null)
+        {
+            // Runs AFTER configuration binding: the value written in code
+            // overrides the Tracon:ContentGuard:Pattern section. Same order
+            // as other settings (K4 — the caller's registration wins).
+            builder.Services.Configure(configure);
+        }
+
+        return builder;
+    }
+
+    /// <summary>
+    /// Registers your own <see cref="IContentGuard"/> implementation.
+    /// </summary>
+    /// <typeparam name="TGuard">The guard type.</typeparam>
+    /// <param name="builder">The configuration chain.</param>
+    /// <returns>The chain, for further configuration.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="builder"/> is <see langword="null"/>.</exception>
+    /// <remarks>
+    /// Multiple guards can be registered; all of them run in sequence and
+    /// <strong>the strictest decision wins</strong>.
+    /// <example>
+    /// <code>
+    /// builder.AddTracon()
+    ///        .AddPatternContentGuard()
+    ///        .AddContentGuard&lt;CustomerNameGuard&gt;();
+    /// </code>
+    /// </example>
+    /// </remarks>
+    public static ITraconBuilder AddContentGuard<
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TGuard>(
+        this ITraconBuilder builder)
+        where TGuard : class, IContentGuard
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+
+        builder.Services.TryAddEnumerable(ServiceDescriptor.Singleton<IContentGuard, TGuard>());
+
+        return builder;
+    }
+
+    /// <summary>Registers a configured <see cref="IContentGuard"/> instance.</summary>
+    /// <param name="builder">The configuration chain.</param>
+    /// <param name="guard">The guard instance.</param>
+    /// <returns>The chain, for further configuration.</returns>
+    /// <exception cref="ArgumentNullException">A parameter is <see langword="null"/>.</exception>
+    /// <remarks>
+    /// Multiple guards can be registered; all of them run in sequence and
+    /// the strictest decision wins. The caller owns the instance and any
+    /// resources it holds.
+    /// </remarks>
+    public static ITraconBuilder AddContentGuard(this ITraconBuilder builder, IContentGuard guard)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        ArgumentNullException.ThrowIfNull(guard);
+
+        builder.Services.AddSingleton(guard);
+
+        return builder;
+    }
+
+    /// <summary>Registers an <see cref="IContentGuard"/> factory.</summary>
+    /// <param name="builder">The configuration chain.</param>
+    /// <param name="factory">The factory that creates the guard.</param>
+    /// <returns>The chain, for further configuration.</returns>
+    /// <exception cref="ArgumentNullException">A parameter is <see langword="null"/>.</exception>
+    /// <remarks>
+    /// The container owns the produced singleton. The factory must not capture
+    /// a scoped dependency because the result outlives that scope.
+    /// </remarks>
+    public static ITraconBuilder AddContentGuard(
+        this ITraconBuilder builder, Func<IServiceProvider, IContentGuard> factory)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        ArgumentNullException.ThrowIfNull(factory);
+
+        builder.Services.AddSingleton(factory);
+
+        return builder;
+    }
+}

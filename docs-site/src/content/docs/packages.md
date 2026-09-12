@@ -9,8 +9,8 @@ when you care about what enters your dependency graph.
 
 ## Licensing in one line
 
-`AgentPrism.Abstractions`, `AgentPrism.Testing.Contracts.Xunit` and
-`AgentPrism.Templates` are MIT; every other package is PolyForm Small Business
+`Tracon.Abstractions`, `Tracon.Testing.Contracts.Xunit` and
+`Tracon.Templates` are MIT; every other package is PolyForm Small Business
 1.0.0, which is free below 100 people and 1,000,000 USD revenue. Writing an
 extension, testing it, and owning what `dotnet new` generates therefore never
 needs a commercial licence. Details and the reasoning: [Licensing](/reference/licensing/).
@@ -18,13 +18,13 @@ needs a commercial licence. Details and the reasoning: [Licensing](/reference/li
 ## The meta package
 
 :::caution[Not published yet]
-No AgentPrism version has been pushed to NuGet or npm yet, so this command
+No Tracon version has been pushed to NuGet or npm yet, so this command
 does not resolve. Until the first release, reference the projects from a
 clone of the repository.
 :::
 
 ```bash
-dotnet add package AgentPrism --prerelease
+dotnet add package Tracon --prerelease
 ```
 
 Brings runtime, PostgreSQL persistence, the OpenAI provider, the HTTP API, workflows,
@@ -32,14 +32,14 @@ MCP, and the console — eight packages counting the two that come transitively.
 
 | Package | What it does |
 |---|---|
-| `AgentPrism.Abstractions` | Contracts. No provider, no web framework, no database |
-| `AgentPrism.Core` | Catalog, definition compiler, tool registry, run recording, and the build-time analyzer |
-| `AgentPrism.PostgreSql` | Persistence, and the vector store behind knowledge search |
-| `AgentPrism.OpenAI` | OpenAI, plus any OpenAI-compatible endpoint — OpenRouter, Groq, or a self-hosted engine such as Ollama or vLLM |
-| `AgentPrism.AspNetCore` | The HTTP API and the access layers |
-| `AgentPrism.Workflows` | Multi-agent workflows, checkpoints, human input |
-| `AgentPrism.Mcp` | Tools discovered from remote MCP servers |
-| `AgentPrism.UI` | The embedded console |
+| `Tracon.Abstractions` | Contracts. No provider, no web framework, no database |
+| `Tracon.Core` | Catalog, definition compiler, tool registry, run recording, and the build-time analyzer |
+| `Tracon.PostgreSql` | Persistence, and the vector store behind knowledge search |
+| `Tracon.OpenAI` | OpenAI, plus any OpenAI-compatible endpoint — OpenRouter, Groq, or a self-hosted engine such as Ollama or vLLM |
+| `Tracon.AspNetCore` | The HTTP API and the access layers |
+| `Tracon.Workflows` | Multi-agent workflows, checkpoints, human input |
+| `Tracon.Mcp` | Tools discovered from remote MCP servers |
+| `Tracon.UI` | The embedded console |
 
 ## Not in the meta package
 
@@ -47,49 +47,49 @@ Add these when you need them.
 
 | Package | Add it when |
 |---|---|
-| `AgentPrism.SqlServer` | You run SQL Server instead of PostgreSQL |
-| `AgentPrism.Sqlite` | One node, or durable local development |
-| `AgentPrism.Anthropic` | You call Claude models |
-| `AgentPrism.Google` | You call Gemini models |
-| `AgentPrism.Azure` | You call Azure OpenAI deployments |
-| `AgentPrism.Voice` | You need speech synthesis, transcription, or live conversation |
-| `AgentPrism.Testing` | You write tests against agents — fakes, not mocks |
-| `AgentPrism.Testing.Contracts.Xunit` | You write your own store (`IRunStore` or another), `IModelProvider`, `IRunJudge`, `IAgentSource`, `IJobHandler`, a custom tool, or your own `IToolArgumentsValidator`/`IToolAuthorizationHandler`, and want the behavior contract the shipped implementations run |
-| `AgentPrism.Templates` | `dotnet new agentprism-api` |
+| `Tracon.SqlServer` | You run SQL Server instead of PostgreSQL |
+| `Tracon.Sqlite` | One node, or durable local development |
+| `Tracon.Anthropic` | You call Claude models |
+| `Tracon.Google` | You call Gemini models |
+| `Tracon.Azure` | You call Azure OpenAI deployments |
+| `Tracon.Voice` | You need speech synthesis, transcription, or live conversation |
+| `Tracon.Testing` | You write tests against agents — fakes, not mocks |
+| `Tracon.Testing.Contracts.Xunit` | You write your own store (`IRunStore` or another), `IModelProvider`, `IRunJudge`, `IAgentSource`, `IJobHandler`, a custom tool, or your own `IToolArgumentsValidator`/`IToolAuthorizationHandler`, and want the behavior contract the shipped implementations run |
+| `Tracon.Templates` | `dotnet new tracon-api` |
 
-`AgentPrism.OpenAI`, `AgentPrism.Azure`, and `AgentPrism.Google` also expose optional
+`Tracon.OpenAI`, `Tracon.Azure`, and `Tracon.Google` also expose optional
 image-generator registrations. They reuse their chat provider's authenticated client,
-but image generation stays off until you configure `AgentPrism:Images`; see [model
+but image generation stays off until you configure `Tracon:Images`; see [model
 providers](/guides/model-providers/#image-generation-providers).
 
-## Calling AgentPrism from elsewhere
+## Calling Tracon from elsewhere
 
-These are not runtime packages you host AgentPrism with — they call a running
-AgentPrism instance, from a separate application or from a terminal.
+These are not runtime packages you host Tracon with — they call a running
+Tracon instance, from a separate application or from a terminal.
 
 | Package | What it does |
 |---|---|
-| `AgentPrism.Client` | A typed HTTP client for the management API, generated from the OpenAPI document. Every endpoint that answers with Server-Sent Events also gets a `...StreamAsync` method yielding one frame at a time. Takes no AgentPrism package and no NuGet package beyond `Microsoft.Extensions.DependencyInjection.Abstractions` |
-| `AgentPrism.Cli` | The `agentprism` global tool (`dotnet tool install -g AgentPrism.Cli`): `migrate` and `migrate status` apply pending migrations without starting the application; `state-check` reports read-only whether this build can still read the session and checkpoint state already stored; `health` reads model provider health over HTTP through `AgentPrism.Client`; `eval` triggers an eval suite, polls it to completion, and gates a build on the result |
+| `Tracon.Client` | A typed HTTP client for the management API, generated from the OpenAPI document. Every endpoint that answers with Server-Sent Events also gets a `...StreamAsync` method yielding one frame at a time. Takes no Tracon package and no NuGet package beyond `Microsoft.Extensions.DependencyInjection.Abstractions` |
+| `Tracon.Cli` | The `tracon` global tool (`dotnet tool install -g Tracon.Cli`): `migrate` and `migrate status` apply pending migrations without starting the application; `state-check` reports read-only whether this build can still read the session and checkpoint state already stored; `health` reads model provider health over HTTP through `Tracon.Client`; `eval` triggers an eval suite, polls it to completion, and gates a build on the result |
 
 See the [CLI guide](/guides/cli/) for setup and every command.
 
-## Calling AgentPrism from TypeScript
+## Calling Tracon from TypeScript
 
-`@agentprism/client` is not a NuGet package — it is the npm counterpart to
-`AgentPrism.Client`, generated from the same OpenAPI document for callers that
+`@tracon/client` is not a NuGet package — it is the npm counterpart to
+`Tracon.Client`, generated from the same OpenAPI document for callers that
 are not on .NET.
 
 ```bash
-npm install @agentprism/client
+npm install @tracon/client
 ```
 
 | Package | What it does |
 |---|---|
-| `@agentprism/client` | A typed TypeScript client for the management API, built on `openapi-fetch` — its only runtime dependency. Exports an incremental `readSse` decoder for the endpoints that stream |
+| `@tracon/client` | A typed TypeScript client for the management API, built on `openapi-fetch` — its only runtime dependency. Exports an incremental `readSse` decoder for the endpoints that stream |
 
-Same OpenAPI document, same version number as every package above — `@agentprism/client`
-and `AgentPrism.Client` are cut from the same `v*` git tag, so a matching pair always
+Same OpenAPI document, same version number as every package above — `@tracon/client`
+and `Tracon.Client` are cut from the same `v*` git tag, so a matching pair always
 describes the identical set of operations. There is no separate npm version scheme.
 What differs is the ecosystem: it ships from a browser or Node.js process instead of
 a .NET one, and it is not part of the eight AOT-compatible packages or the twenty
@@ -104,9 +104,9 @@ and production topology are not identical.
 
 | | Vector search | Notes |
 |---|---|---|
-| `AgentPrism.PostgreSql` | **yes** | The default. `pgvector` is only needed when `EnableKnowledge` is turned on; no ORM |
-| `AgentPrism.SqlServer` | no | Knowledge endpoints answer `501` |
-| `AgentPrism.Sqlite` | no | Ships a native library, so not AOT-compatible |
+| `Tracon.PostgreSql` | **yes** | The default. `pgvector` is only needed when `EnableKnowledge` is turned on; no ORM |
+| `Tracon.SqlServer` | no | Knowledge endpoints answer `501` |
+| `Tracon.Sqlite` | no | Ships a native library, so not AOT-compatible |
 
 All three also offer an opt-in `runs_v1` read-only view (`EnableReadViews`) for
 querying run data with your own SQL or an EF Core keyless entity — see
@@ -118,10 +118,10 @@ Several can be registered at once, and an agent chooses by provider name.
 
 | Package | Provider names |
 |---|---|
-| `AgentPrism.OpenAI` | `openai`, `openai-responses`, and any name you register with `UseOpenAICompatible()` |
-| `AgentPrism.Anthropic` | `anthropic` |
-| `AgentPrism.Google` | `google` |
-| `AgentPrism.Azure` | `azure-openai` |
+| `Tracon.OpenAI` | `openai`, `openai-responses`, and any name you register with `UseOpenAICompatible()` |
+| `Tracon.Anthropic` | `anthropic` |
+| `Tracon.Google` | `google` |
+| `Tracon.Azure` | `azure-openai` |
 
 :::caution[Azure: the deployment name is not the model name]
 Azure calls the **deployment** name, chosen by whoever provisioned the resource. The
@@ -129,18 +129,18 @@ same model can be deployed under two names in two resources, and a wrong name pr
 `404` rather than "model not found".
 :::
 
-AgentPrism ships **no built-in model list**. The catalogue comes from your
+Tracon ships **no built-in model list**. The catalogue comes from your
 configuration and is not a validation list — a name not listed there still works.
 Provider catalogues change faster than a NuGet release.
 
 ### Local and self-hosted models
 
-`UseOpenAICompatible(name, …)` is part of `AgentPrism.OpenAI` — not a separate
+`UseOpenAICompatible(name, …)` is part of `Tracon.OpenAI` — not a separate
 package — and points at any server that speaks the OpenAI Chat Completions API,
 including one running on your own hardware:
 
 ```csharp
-builder.AddAgentPrism()
+builder.AddTracon()
        .UseOpenAICompatible("ollama", o =>
        {
            o.Endpoint = new Uri("http://localhost:11434/v1");
@@ -151,46 +151,46 @@ builder.AddAgentPrism()
 The same call works for vLLM and LM Studio. Nothing about the request leaves your
 network: no cloud account, no external endpoint, no data leaving the machine that
 runs it. This is the option for regulated or air-gapped environments that cannot
-send prompts to a third-party API — see [what AgentPrism deliberately is
+send prompts to a third-party API — see [what Tracon deliberately is
 not](/getting-started/#what-it-deliberately-is-not).
 
 ## Trimming and native AOT
 
 Eight runtime packages make the trimming and Native AOT compatibility promise:
-`AgentPrism.Abstractions`, `Core`, `PostgreSql`, `OpenAI`, `Anthropic`, `Google`,
+`Tracon.Abstractions`, `Core`, `PostgreSql`, `OpenAI`, `Anthropic`, `Google`,
 `Azure`, and `Voice`. The following do not:
 
 | Package | Why not |
 |---|---|
-| `AgentPrism.AspNetCore` | Minimal API delegate routing uses reflection |
-| `AgentPrism.UI` | Embedded asset scanning |
-| `AgentPrism.Sqlite` | `SQLitePCLRaw` carries a native library |
-| `AgentPrism.SqlServer` | Measured clean, but not verified against a live query — the promise is withheld rather than guessed |
-| `AgentPrism.Mcp` | MCP schema and serialization paths use runtime reflection |
-| `AgentPrism.Workflows` | The MAF workflow engine uses runtime reflection |
-| `AgentPrism.Testing` | Test-host infrastructure does not make an AOT promise |
-| `AgentPrism.Testing.Contracts.Xunit` | The build-time contract-coverage check reflects over the consumer's test assembly |
-| `AgentPrism` | The meta package brings non-AOT hosting packages into the graph |
-| `AgentPrism.Client` | The generated client's JSON calls are hand-wired to a source-generated `JsonSerializerContext` (no runtime reflection), but the code generator hardcodes generic `JsonSerializer` overloads the trim/AOT analyzer flags regardless — the promise is withheld rather than guessed |
+| `Tracon.AspNetCore` | Minimal API delegate routing uses reflection |
+| `Tracon.UI` | Embedded asset scanning |
+| `Tracon.Sqlite` | `SQLitePCLRaw` carries a native library |
+| `Tracon.SqlServer` | Measured clean, but not verified against a live query — the promise is withheld rather than guessed |
+| `Tracon.Mcp` | MCP schema and serialization paths use runtime reflection |
+| `Tracon.Workflows` | The MAF workflow engine uses runtime reflection |
+| `Tracon.Testing` | Test-host infrastructure does not make an AOT promise |
+| `Tracon.Testing.Contracts.Xunit` | The build-time contract-coverage check reflects over the consumer's test assembly |
+| `Tracon` | The meta package brings non-AOT hosting packages into the graph |
+| `Tracon.Client` | The generated client's JSON calls are hand-wired to a source-generated `JsonSerializerContext` (no runtime reflection), but the code generator hardcodes generic `JsonSerializer` overloads the trim/AOT analyzer flags regardless — the promise is withheld rather than guessed |
 
-In `AgentPrism.Core` the only reflection is in `AddTool(Delegate)` and
+In `Tracon.Core` the only reflection is in `AddTool(Delegate)` and
 `AddToolsFrom<T>()`, both annotated so the warning reaches you. `AddGeneratedTools()`
 is the recommended path — filled in at compile time, no reflection at all.
 
 ## Pre-release dependencies
 
-`AgentPrism.AspNetCore` depends on `Microsoft.Agents.AI.Hosting` (preview) and
+`Tracon.AspNetCore` depends on `Microsoft.Agents.AI.Hosting` (preview) and
 `.Hosting.OpenAI` (alpha). Every pre-release dependency is deliberately concentrated
 there, so a consumer using only the runtime never takes one.
 
 The same package also carries the OpenAPI document for the endpoints it serves,
-under `buildTransitive/agentprism.json`. It is a static file and adds no
-dependency; `AgentPrism.LocalReference.md` names its path so a coding agent can
+under `buildTransitive/tracon.json`. It is a static file and adds no
+dependency; `Tracon.LocalReference.md` names its path so a coding agent can
 read the HTTP surface without leaving the machine. The document describes the
-surface `MapAgentPrism()` always serves — opt-in endpoints such as A2A exposure,
+surface `MapTracon()` always serves — opt-in endpoints such as A2A exposure,
 the diagnostics route, and the voice stream are served but not listed.
 
-AgentPrism publishes as `1.0.0-preview.N` until those two go GA. See [Versions and
+Tracon publishes as `1.0.0-preview.N` until those two go GA. See [Versions and
 upgrades](/reference/versioning/) for pinning the whole package family and
 upgrading safely between previews.
 
@@ -202,9 +202,9 @@ member without updating that file **fails the build** — so an accidental surfa
 change cannot ship silently, and every intentional one is visible in the commit
 that made it.
 
-Two projects are deliberately excluded: `AgentPrism.Generators` is a `netstandard2.0`
+Two projects are deliberately excluded: `Tracon.Generators` is a `netstandard2.0`
 build-time analyzer carried inside the Core package, not a separate NuGet package;
-`AgentPrism.Templates` is a .NET 10 `dotnet new` content package, not runtime API.
+`Tracon.Templates` is a .NET 10 `dotnet new` content package, not runtime API.
 
 ## What does not enter your graph
 
@@ -212,7 +212,7 @@ build-time analyzer carried inside the Core package, not a separate NuGet packag
   accepts a `DbDataSource` you built yourself — for example to share a connection
   pool with your own EF Core `DbContext` — but the field's type is the framework's
   own `System.Data.Common.DbDataSource`, not an ORM type; see
-  [Two connection planes: EF Core and AgentPrism](/guides/ef-core/)
+  [Two connection planes: EF Core and Tracon](/guides/ef-core/)
 - No OpenAPI package — route metadata only, so your own `AddOpenApi()` produces the
   document
 - No JavaScript build. The console ships pre-built and Brotli-compressed inside the
@@ -225,9 +225,9 @@ build-time analyzer carried inside the Core package, not a separate NuGet packag
 Choosing a provider package pulls its official SDK. One of them brings extra
 transitive weight beyond the SDK itself, worth naming up front:
 
-- `AgentPrism.Google` — Google's official Gemini SDK (`Google.GenAI`) carries
+- `Tracon.Google` — Google's official Gemini SDK (`Google.GenAI`) carries
   `Newtonsoft.Json`, `System.Management`, and `System.CodeDom` through
-  `Google.Apis.Auth`. A consumer who does not reference `AgentPrism.Google`
+  `Google.Apis.Auth`. A consumer who does not reference `Tracon.Google`
   gets none of it.
 
 ## Reference

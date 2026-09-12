@@ -1,40 +1,40 @@
 ---
 title: TypeScript client
-description: Call the AgentPrism management API from TypeScript or JavaScript with a client generated from the OpenAPI document, typed end to end.
+description: Call the Tracon management API from TypeScript or JavaScript with a client generated from the OpenAPI document, typed end to end.
 ---
 
-`@agentprism/client` is the npm counterpart to [`AgentPrism.Client`](/guides/cli/):
+`@tracon/client` is the npm counterpart to [`Tracon.Client`](/guides/cli/):
 a typed client for the management API (`/api/*`), generated from the same
-[OpenAPI document](/openapi/agentprism.json), for a caller that is not on .NET —
+[OpenAPI document](/openapi/tracon.json), for a caller that is not on .NET —
 a Node.js service, a browser admin panel, or a script.
 
 ```mermaid
 flowchart LR
     accTitle: How the TypeScript client is generated and used
-    accDescr: The published OpenAPI document generates typed schema types, createAgentPrismClient wraps them with request signing and error handling, and a call to a running instance either resolves with typed data or throws AgentPrismError.
+    accDescr: The published OpenAPI document generates typed schema types, createTraconClient wraps them with request signing and error handling, and a call to a running instance either resolves with typed data or throws TraconError.
     DOC["OpenAPI document"] -->|"openapi-typescript"| SCHEMA["Generated types<br/>paths + schemas"]
-    SCHEMA --> CLIENT["createAgentPrismClient()"]
-    CLIENT -->|"HTTP: baseUrl + /api/*"| SERVER["Running AgentPrism instance"]
+    SCHEMA --> CLIENT["createTraconClient()"]
+    CLIENT -->|"HTTP: baseUrl + /api/*"| SERVER["Running Tracon instance"]
     SERVER -->|"2xx"| DATA["typed data"]
-    SERVER -->|"4xx / 5xx"| ERROR["thrown AgentPrismError"]
+    SERVER -->|"4xx / 5xx"| ERROR["thrown TraconError"]
 ```
 
 ## Install
 
 ```bash
-npm install @agentprism/client
+npm install @tracon/client
 ```
 
 ## Create a client
 
 ```ts
-import { createAgentPrismClient } from '@agentprism/client';
+import { createTraconClient } from '@tracon/client';
 
-const client = createAgentPrismClient({
-  // The application root PLUS the MapAgentPrism prefix. The default prefix
-  // is "/agentprism"; an app that called MapAgentPrism("/control") needs
+const client = createTraconClient({
+  // The application root PLUS the MapTracon prefix. The default prefix
+  // is "/tracon"; an app that called MapTracon("/control") needs
   // "https://example.com/control" instead.
-  baseUrl: 'https://example.com/agentprism',
+  baseUrl: 'https://example.com/tracon',
   token: 'a-secret-token', // or a function called per request
   onUnauthorized: () => {
     // The server answered 401 — your app decides what that means: drop the
@@ -43,9 +43,9 @@ const client = createAgentPrismClient({
 });
 ```
 
-`baseUrl` needs the prefix because `MapAgentPrism`'s mount point is a runtime
+`baseUrl` needs the prefix because `MapTracon`'s mount point is a runtime
 parameter, not a fixed value. The published OpenAPI document does carry the
-default `/agentprism` prefix; generation strips it into a throwaway intermediate
+default `/tracon` prefix; generation strips it into a throwaway intermediate
 so the generated paths are mount-independent, and `baseUrl` supplies the mount
 back at run time. If a request went to a generated bare path with no `baseUrl`
 prefix, a server mounted anywhere but the default would answer every call with a
@@ -66,22 +66,22 @@ by name for every schema in the document, so a response can be typed without
 indexing into the generated `components` object:
 
 ```ts
-import type { RunRecord } from '@agentprism/client';
+import type { RunRecord } from '@tracon/client';
 ```
 
 ## Errors are thrown, not returned
 
 The underlying `openapi-fetch` library returns `{ data, error }` for every
 call. This client wraps that so a failed response instead **throws**
-`AgentPrismError` — a call either resolves with `data`, or the call rejects:
+`TraconError` — a call either resolves with `data`, or the call rejects:
 
 ```ts
-import { AgentPrismError } from '@agentprism/client';
+import { TraconError } from '@tracon/client';
 
 try {
   await client.GET('/api/agents/{name}', { params: { path: { name: 'missing' } } });
 } catch (error) {
-  if (error instanceof AgentPrismError) {
+  if (error instanceof TraconError) {
     console.error(error.status, error.title, error.detail);
   }
 }
@@ -101,7 +101,7 @@ These go through the same typed client. Pass `parseAs: 'stream'` so the body is
 not parsed as JSON, then decode the frames with `readSse`:
 
 ```ts
-import { createAgentPrismClient, readSse } from '@agentprism/client';
+import { createTraconClient, readSse } from '@tracon/client';
 
 const { response } = await client.POST('/api/agents/{name}/run', {
   params: { path: { name: 'support' } },
@@ -136,7 +136,7 @@ however the rest of your application already does.
 ## Checking for schema drift
 
 The generated types ship as part of the package, committed rather than built
-on install. If you work in the AgentPrism repository itself and change the
+on install. If you work in the Tracon repository itself and change the
 OpenAPI document, regenerate the client's types before committing:
 
 ```bash

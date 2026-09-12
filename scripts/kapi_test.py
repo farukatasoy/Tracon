@@ -39,7 +39,7 @@ class KapiTestleri(unittest.TestCase):
         self.assertEqual(runner.call_count, 1)
 
     def test_mtp_filtresi_filter_class_uretir(self):
-        command = kapi.test_command("AgentPrism.Core.UnitTests", ["*Capability*"])
+        command = kapi.test_command("Tracon.Core.UnitTests", ["*Capability*"])
 
         self.assertIn("--filter-class", command.args)
         self.assertNotIn("--filter", command.args)
@@ -48,7 +48,7 @@ class KapiTestleri(unittest.TestCase):
         # yalnız `windows-latest` ayağında kırmızı olur (üretim kodu doğruydu).
         parts = pathlib.PurePath(command.args[0]).parts[-3:]
         self.assertEqual(
-            parts, ("AgentPrism.Core.UnitTests", "release", "AgentPrism.Core.UnitTests"))
+            parts, ("Tracon.Core.UnitTests", "release", "Tracon.Core.UnitTests"))
 
     def test_sync_taramasi_dosya_ve_dizin_kopyasini_bulur(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -124,39 +124,39 @@ class KapiTestleri(unittest.TestCase):
     def test_harita_eksigi_tam_test_kosumuna_duser(self):
         projects, full = kapi.affected_test_projects(["src/Unknown.Package/Thing.cs"])
 
-        self.assertEqual(projects, ["AgentPrism.Generators.UnitTests"])
+        self.assertEqual(projects, ["Tracon.Generators.UnitTests"])
         self.assertTrue(full)
 
     def test_her_src_degisikligi_ornek_derleyen_projeyi_secer(self):
-        # KACIS 9433efe4: src/AgentPrism.Core'a eklenen bir XML <example>
-        # blogu AgentPrism.Generators.UnitTests'i DERLENMEZ hale getirdi;
+        # KACIS 9433efe4: src/Tracon.Core'a eklenen bir XML <example>
+        # blogu Tracon.Generators.UnitTests'i DERLENMEZ hale getirdi;
         # ic dongu Core.UnitTests + AspNetCore.FunctionalTests seciyordu ve
         # gercekte dusen projeyi HIC kosmuyordu. ExampleExtractor
         # src/**/*.cs'in tamamini okur, yalniz Generators'i degil.
         projects, full = kapi.affected_test_projects(
-            ["src/AgentPrism.Core/Builder/IAgentPrismBuilder.cs"])
+            ["src/Tracon.Core/Builder/ITraconBuilder.cs"])
 
-        self.assertIn("AgentPrism.Generators.UnitTests", projects)
+        self.assertIn("Tracon.Generators.UnitTests", projects)
         self.assertFalse(full)
 
     def test_embedded_ornegi_kendi_test_projesini_secer(self):
         # KACIS a377106e: Faz 139 altinci genisleme noktasini ekledi,
-        # samples/AgentPrism.Embedded geride kaldi. O gun bir samples/
+        # samples/Tracon.Embedded geride kaldi. O gun bir samples/
         # degisikligi HICBIR test projesi secmiyordu; Embedded.Tests ise
         # ProjectReference ile tam o ornege bagli.
         projects, full = kapi.affected_test_projects(
-            ["samples/AgentPrism.Embedded/Program.cs"])
+            ["samples/Tracon.Embedded/Program.cs"])
 
-        self.assertEqual(projects, ["AgentPrism.Embedded.Tests"])
+        self.assertEqual(projects, ["Tracon.Embedded.Tests"])
         self.assertFalse(full)
 
     def test_yayin_ornekleri_sessiz_gecmez(self):
-        # samples/AgentPrism.Samples.* cozumde DEGILDIR: hicbir kapanis
+        # samples/Tracon.Samples.* cozumde DEGILDIR: hicbir kapanis
         # kosumu onlari kapsamaz, yalniz `kapi.py yayin`. Secim bos kalir
         # ama bu ARTIK sessiz degildir.
         with contextlib.redirect_stdout(io.StringIO()) as output:
             projects, full = kapi.affected_test_projects(
-                ["samples/AgentPrism.Samples.CustomJobHandler/Program.cs"])
+                ["samples/Tracon.Samples.CustomJobHandler/Program.cs"])
 
         self.assertEqual(projects, [])
         self.assertFalse(full)
@@ -183,22 +183,22 @@ class KapiTestleri(unittest.TestCase):
     def test_trx_yalniz_dusen_testi_verir(self):
         with tempfile.TemporaryDirectory() as directory:
             kok = pathlib.Path(directory)
-            self._trx(kok, "AgentPrism.Ui.E2ETests", [
-                ("AgentPrism.Ui.E2ETests.UiTests.Gecen", "Passed"),
-                ("AgentPrism.Ui.E2ETests.UiTests.Dusen", "Failed"),
-                ("AgentPrism.Ui.E2ETests.UiTests.Atlanan", "NotExecuted"),
+            self._trx(kok, "Tracon.Ui.E2ETests", [
+                ("Tracon.Ui.E2ETests.UiTests.Gecen", "Passed"),
+                ("Tracon.Ui.E2ETests.UiTests.Dusen", "Failed"),
+                ("Tracon.Ui.E2ETests.UiTests.Atlanan", "NotExecuted"),
             ])
 
             dusenler = kapi.failed_tests_from_trx(0, kok)
 
         self.assertEqual(
-            dusenler, [("AgentPrism.Ui.E2ETests", "AgentPrism.Ui.E2ETests.UiTests.Dusen")])
+            dusenler, [("Tracon.Ui.E2ETests", "Tracon.Ui.E2ETests.UiTests.Dusen")])
 
     def test_bayat_trx_sayilmaz(self):
         # Onceki kosumun TRX'i bu kosumun dusen testi degildir.
         with tempfile.TemporaryDirectory() as directory:
             kok = pathlib.Path(directory)
-            self._trx(kok, "AgentPrism.Core.UnitTests", [("X.Y.Eski", "Failed")])
+            self._trx(kok, "Tracon.Core.UnitTests", [("X.Y.Eski", "Failed")])
 
             self.assertEqual(kapi.failed_tests_from_trx(time.time() + 60, kok), [])
 
@@ -239,24 +239,24 @@ class KapiTestleri(unittest.TestCase):
         self.assertIn("GERÇEK regresyon", output.getvalue())
 
     def test_frontend_degisikligi_ic_dongude_frontendi_acar(self):
-        self.assertTrue(kapi.frontend_changed(["src/AgentPrism.UI/frontend/src/app.tsx"]))
-        self.assertFalse(kapi.frontend_changed(["src/AgentPrism.Core/Thing.cs"]))
+        self.assertTrue(kapi.frontend_changed(["src/Tracon.UI/frontend/src/app.tsx"]))
+        self.assertFalse(kapi.frontend_changed(["src/Tracon.Core/Thing.cs"]))
 
     def test_kapanis_komutlari_dort_net_kapisini_tasir(self):
         commands = kapi.closing_commands("abc123", site=False)
         rendered = [command.display for command in commands]
 
-        self.assertIn("dotnet build AgentPrism.slnx -c Release", rendered)
+        self.assertIn("dotnet build Tracon.slnx -c Release", rendered)
         self.assertIn(
-            "dotnet test AgentPrism.slnx -c Release --no-build -maxcpucount:1 -- --report-trx",
+            "dotnet test Tracon.slnx -c Release --no-build -maxcpucount:1 -- --report-trx",
             rendered)
-        # AgentPrismSkipCleanWorkingTreeCheck (Faz 136): this pack validates the
+        # TraconSkipCleanWorkingTreeCheck (Faz 136): this pack validates the
         # packaging CONTRACT during iteration, not a release candidate - it must
         # not be blocked by the new dirty-tree gate the way `kapi.py yayin` is.
         self.assertIn(
-            "dotnet pack AgentPrism.slnx -c Release --no-build -p:AgentPrismSkipCleanWorkingTreeCheck=true",
+            "dotnet pack Tracon.slnx -c Release --no-build -p:TraconSkipCleanWorkingTreeCheck=true",
             rendered)
-        self.assertIn("dotnet format AgentPrism.slnx --verify-no-changes", rendered)
+        self.assertIn("dotnet format Tracon.slnx --verify-no-changes", rendered)
 
     def test_kapanis_performans_adimini_kosullu_ekler(self):
         with_it = [c.display for c in kapi.closing_commands("abc123", site=False, performance=True)]
@@ -266,10 +266,10 @@ class KapiTestleri(unittest.TestCase):
         self.assertNotIn("python3 scripts/kapi.py performans", without_it)
 
     def test_sicak_yol_degisikligi_performans_kapisini_tetikler(self):
-        self.assertTrue(kapi.performance_gate_triggered(["src/AgentPrism.Core/Recording/RunEventWriter.cs"]))
-        self.assertTrue(kapi.performance_gate_triggered(["src/AgentPrism.Sql.Shared/Stores/SqlRunStore.cs"]))
-        self.assertTrue(kapi.performance_gate_triggered(["bench/AgentPrism.Benchmarks/Program.cs"]))
-        self.assertFalse(kapi.performance_gate_triggered(["src/AgentPrism.Core/AgentPrismOptions.cs"]))
+        self.assertTrue(kapi.performance_gate_triggered(["src/Tracon.Core/Recording/RunEventWriter.cs"]))
+        self.assertTrue(kapi.performance_gate_triggered(["src/Tracon.Sql.Shared/Stores/SqlRunStore.cs"]))
+        self.assertTrue(kapi.performance_gate_triggered(["bench/Tracon.Benchmarks/Program.cs"]))
+        self.assertFalse(kapi.performance_gate_triggered(["src/Tracon.Core/TraconOptions.cs"]))
         self.assertFalse(kapi.performance_gate_triggered([]))
 
     def test_tam_test_kosumu_kaynak_cekismesini_sinirlar(self):
@@ -277,7 +277,7 @@ class KapiTestleri(unittest.TestCase):
         rendered = [command.display for command in commands]
 
         self.assertIn(
-            "dotnet test AgentPrism.slnx -c Release --no-build -maxcpucount:1 -- --report-trx",
+            "dotnet test Tracon.slnx -c Release --no-build -maxcpucount:1 -- --report-trx",
             rendered)
 
     def test_dry_run_komut_calistirmaz(self):
@@ -432,7 +432,7 @@ class PerformansKapisiTestleri(unittest.TestCase):
         report = {
             "Benchmarks": [
                 {
-                    "FullName": "AgentPrism.Benchmarks.RunEventWriterBenchmarks.AppendEvent",
+                    "FullName": "Tracon.Benchmarks.RunEventWriterBenchmarks.AppendEvent",
                     "Memory": {"BytesAllocatedPerOperation": 176},
                     "Statistics": {"Mean": 123.4},
                 },
@@ -442,7 +442,7 @@ class PerformansKapisiTestleri(unittest.TestCase):
         parsed = kapi.parse_benchmark_report(report)
 
         self.assertEqual(
-            parsed["AgentPrism.Benchmarks.RunEventWriterBenchmarks.AppendEvent"],
+            parsed["Tracon.Benchmarks.RunEventWriterBenchmarks.AppendEvent"],
             {"allocatedBytes": 176, "meanNanoseconds": 123.4})
 
     def test_birden_fazla_benchmark_sinifinin_raporu_birlesir(self):
@@ -558,40 +558,40 @@ class YayinTestleri(unittest.TestCase):
     def test_paketlenebilir_proje_kimlikleri_isPackable_false_olani_disler(self):
         with tempfile.TemporaryDirectory() as directory:
             root = pathlib.Path(directory)
-            self._write_csproj(root, "AgentPrism.Core")
-            self._write_csproj(root, "AgentPrism.Generators", "<PropertyGroup><IsPackable>false</IsPackable></PropertyGroup>")
+            self._write_csproj(root, "Tracon.Core")
+            self._write_csproj(root, "Tracon.Generators", "<PropertyGroup><IsPackable>false</IsPackable></PropertyGroup>")
 
-            self.assertEqual(kapi.packable_project_ids(root), ["AgentPrism.Core"])
+            self.assertEqual(kapi.packable_project_ids(root), ["Tracon.Core"])
 
     def test_paket_profili_arac_icerik_meta_ve_kutuphaneyi_ayirir(self):
         with tempfile.TemporaryDirectory() as directory:
             root = pathlib.Path(directory)
-            self._write_csproj(root, "AgentPrism.Cli", "<PropertyGroup><PackAsTool>true</PackAsTool></PropertyGroup>")
+            self._write_csproj(root, "Tracon.Cli", "<PropertyGroup><PackAsTool>true</PackAsTool></PropertyGroup>")
             self._write_csproj(
-                root, "AgentPrism.Templates",
+                root, "Tracon.Templates",
                 "<PropertyGroup><IncludeBuildOutput>false</IncludeBuildOutput><PackageType>Template</PackageType></PropertyGroup>")
-            self._write_csproj(root, "AgentPrism", "<PropertyGroup><IncludeBuildOutput>false</IncludeBuildOutput></PropertyGroup>")
-            self._write_csproj(root, "AgentPrism.Core")
+            self._write_csproj(root, "Tracon", "<PropertyGroup><IncludeBuildOutput>false</IncludeBuildOutput></PropertyGroup>")
+            self._write_csproj(root, "Tracon.Core")
 
-            self.assertEqual(kapi._package_profile(root, "AgentPrism.Cli"), "tool")
-            self.assertEqual(kapi._package_profile(root, "AgentPrism.Templates"), "content")
-            self.assertEqual(kapi._package_profile(root, "AgentPrism"), "meta")
-            self.assertEqual(kapi._package_profile(root, "AgentPrism.Core"), "library")
+            self.assertEqual(kapi._package_profile(root, "Tracon.Cli"), "tool")
+            self.assertEqual(kapi._package_profile(root, "Tracon.Templates"), "content")
+            self.assertEqual(kapi._package_profile(root, "Tracon"), "meta")
+            self.assertEqual(kapi._package_profile(root, "Tracon.Core"), "library")
 
     def test_kendi_surumunu_adlandirma_baska_paketi_karistirmiyor(self):
-        """'AgentPrism.' önekiyle başlayan başka bir paketin dosyasını
-        ("AgentPrism.Core...") kendi paketiymiş gibi almamalı."""
-        self.assertTrue(kapi._names_own_version("AgentPrism", "AgentPrism.1.0.0-preview.1.nupkg"))
-        self.assertFalse(kapi._names_own_version("AgentPrism", "AgentPrism.Core.1.0.0-preview.1.nupkg"))
-        self.assertTrue(kapi._names_own_version("AgentPrism.Core", "AgentPrism.Core.1.0.0-preview.1.nupkg"))
+        """'Tracon.' önekiyle başlayan başka bir paketin dosyasını
+        ("Tracon.Core...") kendi paketiymiş gibi almamalı."""
+        self.assertTrue(kapi._names_own_version("Tracon", "Tracon.1.0.0-preview.1.nupkg"))
+        self.assertFalse(kapi._names_own_version("Tracon", "Tracon.Core.1.0.0-preview.1.nupkg"))
+        self.assertTrue(kapi._names_own_version("Tracon.Core", "Tracon.Core.1.0.0-preview.1.nupkg"))
 
     def test_surum_istenmisse_tam_dosya_adi_aranir(self):
         with tempfile.TemporaryDirectory() as directory:
             release_dir = pathlib.Path(directory)
-            (release_dir / "AgentPrism.Core.1.0.0-preview.1.nupkg").write_bytes(b"")
+            (release_dir / "Tracon.Core.1.0.0-preview.1.nupkg").write_bytes(b"")
 
-            found = kapi._resolve_nupkg(release_dir, "AgentPrism.Core", "1.0.0-preview.1")
-            missing = kapi._resolve_nupkg(release_dir, "AgentPrism.Core", "1.0.0-preview.2")
+            found = kapi._resolve_nupkg(release_dir, "Tracon.Core", "1.0.0-preview.1")
+            missing = kapi._resolve_nupkg(release_dir, "Tracon.Core", "1.0.0-preview.2")
 
         self.assertIsNotNone(found)
         self.assertIsNone(missing)
@@ -604,25 +604,25 @@ class YayinTestleri(unittest.TestCase):
         yalnız kalan iki adaydan DOĞRU (en yeni) olanın seçildiği ölçülüyor."""
         with tempfile.TemporaryDirectory() as directory:
             release_dir = pathlib.Path(directory)
-            old = release_dir / "AgentPrism.Core.1.0.0-preview.1.nupkg"
-            new = release_dir / "AgentPrism.Core.0.0.0-preview.0.400.nupkg"
+            old = release_dir / "Tracon.Core.1.0.0-preview.1.nupkg"
+            new = release_dir / "Tracon.Core.0.0.0-preview.0.400.nupkg"
             old.write_bytes(b"")
             new.write_bytes(b"")
             os.utime(old, (1, 1))
             os.utime(new, (2, 2))
 
-            found = kapi._resolve_nupkg(release_dir, "AgentPrism.Core", None)
+            found = kapi._resolve_nupkg(release_dir, "Tracon.Core", None)
 
         self.assertEqual(found, new)
 
     def test_hedef_frameworkler_tekil_override_okur(self):
         with tempfile.TemporaryDirectory() as directory:
             root = pathlib.Path(directory)
-            self._write_csproj(root, "AgentPrism.Testing", "<PropertyGroup><TargetFrameworks>net10.0</TargetFrameworks></PropertyGroup>")
-            self._write_csproj(root, "AgentPrism.Core")
+            self._write_csproj(root, "Tracon.Testing", "<PropertyGroup><TargetFrameworks>net10.0</TargetFrameworks></PropertyGroup>")
+            self._write_csproj(root, "Tracon.Core")
 
-            self.assertEqual(kapi._target_frameworks(root, "AgentPrism.Testing"), ("net10.0",))
-            self.assertEqual(kapi._target_frameworks(root, "AgentPrism.Core"), ("net8.0", "net9.0", "net10.0"))
+            self.assertEqual(kapi._target_frameworks(root, "Tracon.Testing"), ("net10.0",))
+            self.assertEqual(kapi._target_frameworks(root, "Tracon.Core"), ("net8.0", "net9.0", "net10.0"))
 
     @staticmethod
     def _write_fake_nupkg(path: pathlib.Path, *, content: bytes, psmdcp_guid: str = "0" * 32) -> None:
@@ -644,7 +644,7 @@ class YayinTestleri(unittest.TestCase):
             root = pathlib.Path(directory)
             staging_dir, release_dir = root / "staging", root / "release"
             staging_dir.mkdir()
-            name = "AgentPrism.Core.1.0.0-preview.1.nupkg"
+            name = "Tracon.Core.1.0.0-preview.1.nupkg"
             self._write_fake_nupkg(staging_dir / name, content=b"content")
 
             conflicts = kapi._promote_staged_packages(staging_dir, release_dir, [name])
@@ -659,7 +659,7 @@ class YayinTestleri(unittest.TestCase):
             staging_dir, release_dir = root / "staging", root / "release"
             staging_dir.mkdir()
             release_dir.mkdir()
-            name = "AgentPrism.Core.1.0.0-preview.1.nupkg"
+            name = "Tracon.Core.1.0.0-preview.1.nupkg"
             self._write_fake_nupkg(staging_dir / name, content=b"same-content")
             self._write_fake_nupkg(release_dir / name, content=b"same-content")
 
@@ -680,7 +680,7 @@ class YayinTestleri(unittest.TestCase):
             staging_dir, release_dir = root / "staging", root / "release"
             staging_dir.mkdir()
             release_dir.mkdir()
-            name = "AgentPrism.Core.1.0.0-preview.1.nupkg"
+            name = "Tracon.Core.1.0.0-preview.1.nupkg"
             self._write_fake_nupkg(staging_dir / name, content=b"same-content", psmdcp_guid="a" * 32)
             self._write_fake_nupkg(release_dir / name, content=b"same-content", psmdcp_guid="b" * 32)
             self.assertNotEqual(kapi._sha256(staging_dir / name), kapi._sha256(release_dir / name))
@@ -698,8 +698,8 @@ class YayinTestleri(unittest.TestCase):
             staging_dir, release_dir = root / "staging", root / "release"
             staging_dir.mkdir()
             release_dir.mkdir()
-            conflicting = "AgentPrism.Core.1.0.0-preview.1.nupkg"
-            clean = "AgentPrism.Abstractions.1.0.0-preview.1.nupkg"
+            conflicting = "Tracon.Core.1.0.0-preview.1.nupkg"
+            clean = "Tracon.Abstractions.1.0.0-preview.1.nupkg"
             self._write_fake_nupkg(staging_dir / conflicting, content=b"new-content")
             self._write_fake_nupkg(release_dir / conflicting, content=b"old-content")
             self._write_fake_nupkg(staging_dir / clean, content=b"non-conflicting")
@@ -723,15 +723,15 @@ class YayinTestleri(unittest.TestCase):
                 version="1.0.0-preview.1",
                 commit="8b21cf9f301fbbbaee32268df838bc0130e45059",
                 packages=[
-                    {"id": "AgentPrism.Core", "file": "AgentPrism.Core.1.0.0-preview.1.nupkg", "sha256": "abc",
-                     "symbolsFile": "AgentPrism.Core.1.0.0-preview.1.snupkg", "symbolsSha256": "def"},
+                    {"id": "Tracon.Core", "file": "Tracon.Core.1.0.0-preview.1.nupkg", "sha256": "abc",
+                     "symbolsFile": "Tracon.Core.1.0.0-preview.1.snupkg", "symbolsSha256": "def"},
                 ],
             )
             manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
 
         self.assertEqual(manifest["version"], "1.0.0-preview.1")
         self.assertEqual(manifest["dirty"], False)
-        self.assertEqual(manifest["packages"][0]["id"], "AgentPrism.Core")
+        self.assertEqual(manifest["packages"][0]["id"], "Tracon.Core")
         self.assertEqual(manifest["packages"][0]["sha256"], "abc")
 
     def test_yayin_kirli_agacta_erken_reddeder_pack_denenmez(self):

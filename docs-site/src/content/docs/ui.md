@@ -1,22 +1,22 @@
 ---
 title: The console
-description: Tour the embedded AgentPrism console by task, understand its security model, and know which features remain code or HTTP only.
+description: Tour the embedded Tracon console by task, understand its security model, and know which features remain code or HTTP only.
 slug: ui
 ---
 
-The console ships inside `AgentPrism.UI` as a pre-built, Brotli-compressed
+The console ships inside `Tracon.UI` as a pre-built, Brotli-compressed
 single-page application. There is no `node_modules` in your project and no JavaScript
 build in your pipeline.
 
 ```csharp
-builder.AddAgentPrism()
+builder.AddTracon()
        .UseOpenAI(apiKey)
        .UseUI();
 
-app.MapAgentPrism("/agentprism");
+app.MapTracon("/tracon");
 ```
 
-There is no separate mapping call. `MapAgentPrism` finds the registration and binds
+There is no separate mapping call. `MapTracon` finds the registration and binds
 the console under the same prefix, so the prefix is written once.
 
 :::note[Screenshots]
@@ -143,7 +143,7 @@ conversation back, and branching it, need a SQL store.
 
 <a class="ui-shot" href="/screenshots/jobs.png"><img src="/screenshots/jobs.png" alt="The job queue with handler key, status, attempt count, and next run time" width="2880" height="1800" loading="lazy" decoding="async" /></a>
 
-Everything AgentPrism runs in the background, in one queue: queued agent runs,
+Everything Tracon runs in the background, in one queue: queued agent runs,
 scheduled runs, workflow executions, evaluation runs, online-evaluation scoring, and
 webhook deliveries. Each row carries its handler key, status, attempt count, and —
 for a failure — the classified error. The handler key is what decides which code
@@ -160,7 +160,7 @@ of work from blocking each other in the same queue. Filter the job list by lane 
 find work a worker is not currently scoped to pick up.
 
 The queue drains in any process whose worker is running. That is the default:
-`AgentPrismSchedulingOptions.Enabled` and `RunWorker` are both `true`, so calling
+`TraconSchedulingOptions.Enabled` and `RunWorker` are both `true`, so calling
 `UseScheduling()` is about configuring the worker, not switching it on. A queue
 that never moves is almost always a deployment where every process sets
 `RunWorker` to `false` — see [Jobs, schedules, and queues](/guides/background-work/).
@@ -283,7 +283,7 @@ It is opt-in because setup details are sensitive. Enable the Admin endpoint befo
 the screen can load it:
 
 ```csharp
-app.MapAgentPrism("/agentprism", options =>
+app.MapTracon("/tracon", options =>
 {
     options.EnableDiagnosticsEndpoint = true;
 });
@@ -297,15 +297,15 @@ Version, prefix, authentication method, active stores, theme, and language.
 
 ## Embeddable chat widget
 
-`AgentPrism.UI` also builds a second, much smaller bundle: a floating chat widget
+`Tracon.UI` also builds a second, much smaller bundle: a floating chat widget
 meant for a **different** page — your own product's site, not the console. It ships
 from a separate Vite entry, with its own budget gate (30 KB gzip; current size:
 2.7 KB), so console code cannot leak into it. `UseUI()` serves both; no separate
 registration is needed.
 
 ```html
-<script src="https://your-agentprism-host/agentprism/embed/embed.js"
-  data-server="https://your-agentprism-host"
+<script src="https://your-tracon-host/tracon/embed/embed.js"
+  data-server="https://your-tracon-host"
   data-agent="support"
   data-api-key="sk_..."></script>
 ```

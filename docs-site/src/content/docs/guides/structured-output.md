@@ -21,7 +21,7 @@ flowchart LR
     J --> V["Your parser and validator"]
 ```
 
-AgentPrism validates the configuration. The provider asks the model for the format.
+Tracon validates the configuration. The provider asks the model for the format.
 Your application still parses and validates the result at its trust boundary.
 
 ## Choose the mode
@@ -34,7 +34,7 @@ Your application still parses and validates the result at its trust boundary.
 | `JsonSchema` | JSON that follows the supplied schema | None |
 
 The last column is the **default**, not a permanent limit: with
-`AgentPrism:StructuredResponse:Enabled` turned on, a `Json` or `JsonSchema`
+`Tracon:StructuredResponse:Enabled` turned on, a `Json` or `JsonSchema`
 response is checked for well-formed JSON before the run closes, and your own
 `IStructuredResponseValidator` runs alongside it. What is never built in — on or
 off — is validation of the payload against the schema you supplied; that is a
@@ -49,7 +49,7 @@ Use a `JsonElement` schema. Clone the root element before disposing its document
 
 ```csharp
 using System.Text.Json;
-using AgentPrism;
+using Tracon;
 
 using var schemaDocument = JsonDocument.Parse(
     """
@@ -65,7 +65,7 @@ using var schemaDocument = JsonDocument.Parse(
     }
     """);
 
-agentPrism.AddAgent(new AgentDefinition
+tracon.AddAgent(new AgentDefinition
 {
     Name = "invoice-extractor",
     Instructions = "Extract only facts present in the supplied invoice.",
@@ -84,7 +84,7 @@ agentPrism.AddAgent(new AgentDefinition
 });
 ```
 
-AgentPrism uses the `ChatResponseFormat.ForJsonSchema(JsonElement, …)` overload. It
+Tracon uses the `ChatResponseFormat.ForJsonSchema(JsonElement, …)` overload. It
 does not reflect over a CLR type, so this path preserves the runtime's AOT stance.
 
 For schema-free JSON, use:
@@ -102,8 +102,8 @@ ResponseFormat = new AgentResponseFormat
 calling a model:
 
 ```bash
-curl -sS -X POST http://localhost:5081/agentprism/api/agents/validate \
-  -H "Authorization: Bearer $AGENTPRISM_TOKEN" \
+curl -sS -X POST http://localhost:5081/tracon/api/agents/validate \
+  -H "Authorization: Bearer $TRACON_TOKEN" \
   -H 'Content-Type: application/json' \
   -d '{
     "name": "invoice-extractor",
@@ -137,7 +137,7 @@ The console agent editor exposes the same four choices: not set, Text, JSON, and
 Schema. In JSON Schema mode it also edits the schema name, description, and JSON
 object. Saving still goes through server compilation.
 
-## What AgentPrism checks
+## What Tracon checks
 
 The compiler rejects these combinations before a run:
 
@@ -147,30 +147,30 @@ The compiler rejects these combinations before a run:
 - `Json` or `JsonSchema` for a cataloged model whose
   `SupportsStructuredOutput` value is `false`
 
-AgentPrism checks only that the schema is a JSON object. It does not validate the
+Tracon checks only that the schema is a JSON object. It does not validate the
 schema vocabulary, references, keywords, or logical consistency.
 
 The model catalog needs special attention. `ModelDescriptor.SupportsStructuredOutput`
 defaults to `false`. If the model is present in the catalog, set this flag to `true`
 only after you verify the provider/model combination. If the model is absent from the
-catalog, AgentPrism skips the capability preflight because the catalog is metadata,
+catalog, Tracon skips the capability preflight because the catalog is metadata,
 not an allow list. The provider can still reject the request at run time.
 
 :::caution[Provider support is the final gate]
-AgentPrism normalizes the request through `Microsoft.Extensions.AI`. The selected
+Tracon normalizes the request through `Microsoft.Extensions.AI`. The selected
 provider and model decide whether `Json` or `JsonSchema` is supported and which JSON
 Schema features they accept. Test the exact provider, model, and API surface you use.
 :::
 
 ## Validate the response
 
-`AgentPrism:StructuredResponse:Enabled` (default `false`) turns on a check that runs
+`Tracon:StructuredResponse:Enabled` (default `false`) turns on a check that runs
 after the model answers and before the run closes, for any agent whose
 `ResponseFormat.Kind` is `Json` or `JsonSchema`:
 
 ```json
 {
-  "AgentPrism": {
+  "Tracon": {
     "StructuredResponse": {
       "Enabled": true
     }
@@ -178,7 +178,7 @@ after the model answers and before the run closes, for any agent whose
 }
 ```
 
-With it on, AgentPrism first checks well-formedness itself: the response must be
+With it on, Tracon first checks well-formedness itself: the response must be
 non-empty and parse as JSON. That check alone catches the two failure modes every
 consumer would otherwise check by hand — an empty response and a response cut off
 mid-document. Register `IStructuredResponseValidator` to add your own rule on top —
@@ -226,12 +226,12 @@ agent that uses structured output as a gate should not stream.
 
 ## Let the model repair a rejected response
 
-`AgentPrism:StructuredResponse:MaxRepairAttempts` (default `0`) lets a rejected
+`Tracon:StructuredResponse:MaxRepairAttempts` (default `0`) lets a rejected
 response get a bounded number of second chances before the run fails:
 
 ```json
 {
-  "AgentPrism": {
+  "Tracon": {
     "StructuredResponse": {
       "Enabled": true,
       "MaxRepairAttempts": 2
@@ -267,7 +267,7 @@ repair switched off, and the rejection event carries `repairSuppressedBySession`
 so you can tell the two apart.
 
 The reason is that the underlying agent framework saves a turn's request and
-response as soon as that one model call completes — before AgentPrism can judge
+response as soon as that one model call completes — before Tracon can judge
 it. Repairing anyway would let the run succeed while the conversation it belongs
 to still ended in the rejected draft, so your next turn would read an answer the
 caller never received. Failing instead keeps the run's result and the
@@ -293,7 +293,7 @@ Do not use structured output as authorization or business validation. After the 
 4. Reject or quarantine invalid output. Do not silently repair security-sensitive
    fields.
 
-This second check is necessary because AgentPrism does not validate the returned
+This second check is necessary because Tracon does not validate the returned
 payload against your schema.
 
 ## Defaults and caveats
@@ -309,9 +309,9 @@ payload against your schema.
 | Returned payload JSON syntax check | Not performed by default; performed when `StructuredResponse:Enabled` is on |
 | Capability check | Enforced only when the selected model exists in the configured catalog |
 | Streaming | The structured document can still arrive in multiple text updates |
-| `AgentPrism:StructuredResponse:Enabled` | `false`; the response is never inspected after the model returns it |
+| `Tracon:StructuredResponse:Enabled` | `false`; the response is never inspected after the model returns it |
 | `IStructuredResponseValidator` | No-op by default (always valid); register your own to enforce a rule |
-| `AgentPrism:StructuredResponse:MaxRepairAttempts` | `0`; repair is off, an invalid response fails the run immediately |
+| `Tracon:StructuredResponse:MaxRepairAttempts` | `0`; repair is off, an invalid response fails the run immediately |
 
 For a streamed run, assemble the complete response before parsing JSON. Individual
 SSE text events are fragments, not standalone JSON documents.
@@ -343,11 +343,11 @@ and still reject a fenced payload at the application boundary.
 ## In the reference
 
 - [Agent management HTTP API](/http-api/agents/)
-- [`AgentResponseFormat` API](/api/agentprism.agentresponseformat/)
-- [`AgentResponseFormatKind` API](/api/agentprism.agentresponseformatkind/)
-- [`ModelBinding` API](/api/agentprism.modelbinding/)
-- [`IStructuredResponseValidator` API](/api/agentprism.istructuredresponsevalidator/)
-- [`AgentPrismStructuredResponseOptions` reference](/reference/configuration/#structured-response-validation)
+- [`AgentResponseFormat` API](/api/tracon.agentresponseformat/)
+- [`AgentResponseFormatKind` API](/api/tracon.agentresponseformatkind/)
+- [`ModelBinding` API](/api/tracon.modelbinding/)
+- [`IStructuredResponseValidator` API](/api/tracon.istructuredresponsevalidator/)
+- [`TraconStructuredResponseOptions` reference](/reference/configuration/#structured-response-validation)
 
 ## Read next
 

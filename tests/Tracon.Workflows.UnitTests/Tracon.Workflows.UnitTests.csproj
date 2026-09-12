@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/Tracon.Workflows/Tracon.Workflows.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Real Microsoft Agent Framework Workflows output, captured from a genuine run (Phase 126). See Fixtures/README.md. -->
+    <None Include="Fixtures/**" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

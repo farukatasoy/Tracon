@@ -1,4 +1,4 @@
-namespace AgentPrism.Tests.Common;
+namespace Tracon.Tests.Common;
 
 /// <summary>Finds this checkout's repository root from a test assembly's output directory.</summary>
 /// <remarks>
@@ -16,7 +16,7 @@ internal static class RepoRoot
     {
         var dir = new DirectoryInfo(AppContext.BaseDirectory);
 
-        while (dir is not null && !File.Exists(System.IO.Path.Combine(dir.FullName, "AgentPrism.slnx")))
+        while (dir is not null && !File.Exists(System.IO.Path.Combine(dir.FullName, "Tracon.slnx")))
         {
             dir = dir.Parent;
         }
@@ -24,7 +24,7 @@ internal static class RepoRoot
         if (dir is null)
         {
             throw new InvalidOperationException(
-                $"AgentPrism.slnx was not found. The search walked upward from '{AppContext.BaseDirectory}'.");
+                $"Tracon.slnx was not found. The search walked upward from '{AppContext.BaseDirectory}'.");
         }
 
         return dir.FullName;

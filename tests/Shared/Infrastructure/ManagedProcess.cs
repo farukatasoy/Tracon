@@ -2,7 +2,7 @@ using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 
-namespace AgentPrism.Tests.Common;
+namespace Tracon.Tests.Common;
 
 /// <summary>
 /// A subprocess that keeps running after it is started, with its output
