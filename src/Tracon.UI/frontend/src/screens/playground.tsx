@@ -8,6 +8,7 @@ import {
   Empty,
   ErrorNote,
   Field,
+  LinkButton,
   Loading,
   Mono,
   PageHeader,
@@ -15,6 +16,7 @@ import {
   Select,
   TextInput,
 } from '../components/ui';
+import { Tooltip } from '../components/tooltip';
 import { MicIcon, PaperclipIcon, PlusIcon, SendIcon, SpinnerIcon } from '../components/icons';
 import { TranscriptView } from '../components/transcript';
 import { VoicePanel } from '../components/voice-panel';
@@ -45,11 +47,27 @@ export function PlaygroundScreen({ name }: { name?: string }): ReactNode {
   const play = usePlaygroundRun(name, sessionId, setSessionId, attachments);
 
   if (play.agents.isPending) {
-    return <Loading />;
+    return (
+      <>
+        <PageHeader title={t('nav.playground')} />
+        <Panel>
+          <Loading rows={8} />
+        </Panel>
+      </>
+    );
   }
 
   if (play.agents.isError) {
-    return <ErrorNote error={play.agents.error} />;
+    return (
+      <>
+        <PageHeader title={t('nav.playground')} />
+        <Panel>
+          <div className="p-4">
+            <ErrorNote error={play.agents.error} onRetry={() => void play.agents.refetch()} />
+          </div>
+        </Panel>
+      </>
+    );
   }
 
   if (play.agents.data.length === 0) {
@@ -57,12 +75,15 @@ export function PlaygroundScreen({ name }: { name?: string }): ReactNode {
       <>
         <PageHeader title={t('nav.playground')} />
         <Panel>
-          <Empty title={t('playground.noAgents.title')}>
-            {t('playground.noAgents.body')}{' '}
-            <Link to="agents" className="text-accent underline">
-              {t('nav.agents')}
-            </Link>
-            .
+          <Empty
+            title={t('playground.noAgents.title')}
+            action={
+              <LinkButton to="agents/new" tone="primary">
+                {t('agents.new')}
+              </LinkButton>
+            }
+          >
+            {t('playground.noAgents.body')}
           </Empty>
         </Panel>
       </>
@@ -77,6 +98,7 @@ export function PlaygroundScreen({ name }: { name?: string }): ReactNode {
         actions={
           <>
             <Select
+              ariaLabel={t('common.agent')}
               value={play.selected}
               onChange={(value) => {
                 play.reset();
@@ -100,7 +122,7 @@ export function PlaygroundScreen({ name }: { name?: string }): ReactNode {
       {play.sessionId !== null && (
         <p className="mb-3 text-sm text-subtle">
           {t('common.session')}{' '}
-          <Link to={`sessions/${encodeURIComponent(play.sessionId)}`} className="text-accent underline">
+          <Link to={`sessions/${encodeURIComponent(play.sessionId)}`}>
             <Mono>{shortId(play.sessionId, 14, 6)}</Mono>
           </Link>{' '}
           — {t('playground.historyCarried')}
@@ -116,7 +138,18 @@ export function PlaygroundScreen({ name }: { name?: string }): ReactNode {
         </p>
       )}
 
-      {play.error !== null && <div className="mb-3"><ErrorNote error={play.error} /></div>}
+      {/*
+        No retry, and the reason is in the shape of the thing: this is a failed
+        RUN, not a failed read. The prompt that produced it has already been
+        cleared into the transcript, so a "try again" button here would either
+        send nothing or silently send whatever is in the box now. Re-sending is
+        the composer's job, below.
+      */}
+      {play.error !== null && (
+        <div className="mb-3">
+          <ErrorNote error={play.error} />
+        </div>
+      )}
 
       <Panel className="flex min-h-[26rem] flex-col">
         <div className="flex-1 overflow-y-auto p-4">
@@ -147,6 +180,8 @@ export function PlaygroundScreen({ name }: { name?: string }): ReactNode {
 
           {play.turns.length === 0 ? (
             (play.history === null || play.history.length === 0) && (
+              /* No action: the composer is the action, and it is on screen
+                 directly below this. */
               <Empty title={t('playground.empty.title')}>{t('playground.empty.body')}</Empty>
             )
           ) : (
@@ -174,6 +209,8 @@ export function PlaygroundScreen({ name }: { name?: string }): ReactNode {
             }
           }}
         >
+          {/* No retry: the File objects are gone once the picker closes, so the
+              only honest recovery is to attach the file again. */}
           {attachments.error !== null && <ErrorNote error={attachments.error} />}
 
           {play.parameterSchema.length > 0 && (
@@ -237,20 +274,27 @@ export function PlaygroundScreen({ name }: { name?: string }): ReactNode {
                 event.target.value = '';
               }}
             />
-            <Button
-              type="button"
-              tone="default"
-              disabled={play.busy || attachments.uploading}
-              onClick={() => attachments.fileInputRef.current?.click()}
-              title={t('playground.attachFile')}
-            >
-              {attachments.uploading ? <SpinnerIcon className="size-3.5" /> : <PaperclipIcon className="size-3.5" />}
-            </Button>
+            <Tooltip text={t('playground.attachFile')}>
+              <Button
+                type="button"
+                tone="default"
+                ariaLabel={t('playground.attachFile')}
+                disabled={play.busy || attachments.uploading}
+                onClick={() => attachments.fileInputRef.current?.click()}
+              >
+                {attachments.uploading ? (
+                  <SpinnerIcon className="size-3.5" />
+                ) : (
+                  <PaperclipIcon className="size-3.5" />
+                )}
+              </Button>
+            </Tooltip>
             <textarea
               rows={1}
               value={play.prompt}
               disabled={play.busy}
               data-testid="playground-input"
+              aria-label={t('playground.placeholder')}
               placeholder={t('playground.placeholder')}
               className="max-h-40 min-h-9 flex-1 resize-y rounded-md border border-line bg-panel px-3 py-1.5 text-base placeholder:text-subtle focus:border-accent focus:outline-none disabled:opacity-60"
               onChange={(event) => play.setPrompt(event.target.value)}
@@ -265,16 +309,18 @@ export function PlaygroundScreen({ name }: { name?: string }): ReactNode {
                 }
               }}
             />
-            <Button
-              type="button"
-              tone={play.conversation ? 'primary' : 'default'}
-              disabled={play.busy}
-              testId="voice-mode"
-              title={t('playground.conversationMode')}
-              onClick={() => void play.openConversation()}
-            >
-              <MicIcon className="size-3.5" />
-            </Button>
+            <Tooltip text={t('playground.conversationMode')}>
+              <Button
+                type="button"
+                tone={play.conversation ? 'primary' : 'default'}
+                ariaLabel={t('playground.conversationMode')}
+                disabled={play.busy}
+                testId="voice-mode"
+                onClick={() => void play.openConversation()}
+              >
+                <MicIcon className="size-3.5" />
+              </Button>
+            </Tooltip>
             {play.busy ? (
               <Button tone="default" onClick={play.abortRun}>
                 {t('workflowDetail.stop')}

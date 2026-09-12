@@ -31,7 +31,16 @@ export function Waterfall({ trace }: { trace: RunTrace }): ReactNode {
     <div className="flex flex-col">
       <div className="flex items-center justify-between border-b border-line px-4 py-2 text-xs text-subtle">
         <span>{plural('waterfall.spans', rows.length)}</span>
-        <Mono title={t('waterfall.traceIdTitle')}>{trace.traceId}</Mono>
+        {/* 🚨 The id is shown in full, so the old `title` was not the value
+            behind a truncation — it was an explanation of WHICH id this is. A
+            visible label says it to everyone; `copy` hands over the real thing,
+            which is what an operator pasting into their APM actually needs. */}
+        <span className="flex min-w-0 items-center gap-1.5">
+          <span className="shrink-0">{t('waterfall.traceIdLabel')}</span>
+          <Mono className="truncate" copy={trace.traceId} title={trace.traceId}>
+            {trace.traceId}
+          </Mono>
+        </span>
         <span>{formatMs(total)}</span>
       </div>
 
@@ -144,9 +153,12 @@ function SpanRow({
           <div className="mb-2 flex flex-wrap items-center gap-1.5">
             <Badge>{span.kind}</Badge>
             <Badge tone={failed ? 'danger' : 'accent'}>{span.status}</Badge>
-            <Mono className="text-xs text-subtle" title={t('waterfall.spanIdTitle')}>
-              {span.spanId}
-            </Mono>
+            <span className="flex min-w-0 items-center gap-1.5 text-xs text-subtle">
+              {t('waterfall.spanIdLabel')}
+              <Mono className="truncate" copy={span.spanId} title={span.spanId}>
+                {span.spanId}
+              </Mono>
+            </span>
           </div>
 
           {attributes.length === 0 ? (

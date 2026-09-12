@@ -9,20 +9,21 @@ import {
   Button,
   Empty,
   ErrorNote,
+  LinkButton,
   Loading,
   Mono,
   PageHeader,
   Panel,
+  Pager,
   Select,
+  Stat,
   Table,
   Td,
   TextInput,
   Th,
-  cx,
 } from '../components/ui';
 import { Toolbar, ToolbarField } from '../components/toolbar';
 import { StatusDot, runStatusTone } from '../components/status-dot';
-import { Pager } from './sessions';
 import type { RunStatus } from '@tracon/client';
 import type { AgentDescriptor, RunRecord, RunStatistics } from '../lib/server-types';
 
@@ -272,12 +273,9 @@ export function RunsScreen(): ReactNode {
               resettable ? (
                 <Button onClick={reset}>{t('toolbar.reset')}</Button>
               ) : (
-                <Link
-                  to="playground"
-                  className="inline-flex h-8 items-center rounded border border-transparent bg-accent px-2.5 text-base font-semibold text-accent-fg"
-                >
+                <LinkButton to="playground" tone="primary">
                   {t('runs.empty.action')}
-                </Link>
+                </LinkButton>
               )
             }
           >
@@ -295,7 +293,9 @@ export function RunsScreen(): ReactNode {
                   <Th>{t('common.status')}</Th>
                   <Th className="text-right">{t('common.duration')}</Th>
                   <Th className="text-right">{t('common.tokens')}</Th>
-                  <Th className="text-right">{t('runs.column.treeTokens')}</Th>
+                  <Th className="text-right" description={t('runs.treeTokensTitle')}>
+                    {t('runs.column.treeTokens')}
+                  </Th>
                   <Th className="text-right">{t('runs.column.events')}</Th>
                   <Th>{t('common.started')}</Th>
                 </tr>
@@ -330,7 +330,7 @@ export function RunsScreen(): ReactNode {
                       {duration(run.startedAt, run.completedAt)}
                     </Td>
                     <Td className="text-right font-mono text-id text-muted">{count(run.usage?.totalTokens)}</Td>
-                    <Td className="text-right font-mono text-id text-muted" title={t('runs.treeTokensTitle')}>
+                    <Td className="text-right font-mono text-id text-muted">
                       {count(run.treeUsage?.totalTokens)}
                     </Td>
                     <Td className="text-right font-mono text-id text-muted">{count(run.eventCount)}</Td>
@@ -347,32 +347,5 @@ export function RunsScreen(): ReactNode {
         )}
       </Panel>
     </>
-  );
-}
-
-/**
- * One measured number.
- *
- * Exported: the run detail screen builds its summary strip out of these, so the
- * two screens cannot drift apart in how a number is presented.
- */
-export function Stat({
-  label,
-  value,
-  hint,
-  tone,
-}: {
-  label: string;
-  value: string;
-  hint?: string;
-  tone?: 'danger';
-}): ReactNode {
-  return (
-    <div className="rounded border border-line bg-panel px-2.5 py-2" title={hint}>
-      <span className="block text-2xs tracking-wider text-subtle uppercase">{label}</span>
-      <span className={cx('mt-0.5 block font-mono text-metric font-semibold', tone === 'danger' && 'text-danger')}>
-        {value}
-      </span>
-    </div>
   );
 }

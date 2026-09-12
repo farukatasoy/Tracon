@@ -157,12 +157,12 @@ export function SetDiff({
           </Badge>
         ))}
         {removed.map((name) => (
-          <Badge key={`removed-${name}`} tone="danger" title={t('diff.removed')}>
+          <Badge key={`removed-${name}`} tone="danger" description={t('diff.removed')}>
             − {name}
           </Badge>
         ))}
         {added.map((name) => (
-          <Badge key={`added-${name}`} tone="success" title={t('diff.added')}>
+          <Badge key={`added-${name}`} tone="success" description={t('diff.added')}>
             + {name}
           </Badge>
         ))}

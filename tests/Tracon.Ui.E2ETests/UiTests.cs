@@ -576,7 +576,17 @@ public sealed class UiTests(BrowserFixture browsers)
 
         (await session.Page.GetAttributeAsync("html", "data-theme")).ShouldBe("light");
 
-        (await session.Page.GetByTestId("theme-toggle").GetAttributeAsync("title"))
+        // 🚨 Read through the BINDING, not off a `title` attribute. Phase 165
+        // moved this description into `Tooltip`, because `title` never showed
+        // the current preference to a touch or keyboard user at all. The
+        // assertion got stronger in the move: it now proves the text is
+        // attached to the control (`aria-describedby`) rather than merely
+        // present somewhere on it.
+        var description = await session.Page.GetByTestId("theme-toggle").GetAttributeAsync("aria-describedby");
+
+        description.ShouldNotBeNullOrEmpty("The toggle carries no description to read.");
+
+        (await session.Page.Locator($"#{description}").InnerTextAsync())
             .ShouldBe("Theme: light", "The top bar toggle did not learn about the change made in Settings.");
     }
 
@@ -754,7 +764,14 @@ public sealed class UiTests(BrowserFixture browsers)
 
         await session.Page.Locator("a[href*='/sessions/']").First.ClickAsync();
 
-        var runsButton = session.Page.GetByRole(AriaRole.Button, new() { NameRegex = SessionRunsButtonPattern });
+        // 🚨 A LINK, not a button, since phase 165. The control used to be
+        // `<Link><Button>N runs</Button></Link>` — a <button> inside an <a>,
+        // which is invalid HTML, two tab stops for one destination, and a click
+        // whose behaviour depended on which of the two the pointer hit. It is
+        // one anchor now (`LinkButton`), so it navigates, obeys middle-click and
+        // copy-link, and reports the role it actually is. The behaviour this
+        // case pins — that clicking it reaches the filtered list — is unchanged.
+        var runsButton = session.Page.GetByRole(AriaRole.Link, new() { NameRegex = SessionRunsButtonPattern });
 
         await runsButton.WaitForAsync(new() { Timeout = 15_000 });
 
@@ -2035,6 +2052,22 @@ public sealed class UiTests(BrowserFixture browsers)
     /// </summary>
     private static async Task AssertNoHorizontalOverflowAsync(IPage page, string screen)
     {
+        // Park the pointer first, so a tooltip the mouse happens to rest on
+        // after the previous step's click is not part of what this measures.
+        // A tooltip's own layout has its own case
+        // (`A_tooltip_near_the_right_edge_stays_inside_the_viewport`).
+        //
+        // 🚨 This was NOT the cause of this check's intermittency, and the
+        // record is worth keeping: `Proof_slice_screens_...` failed one run in
+        // three and passed every time in isolation, and parking the pointer did
+        // not change that. The real culprit was a 32-character trace id inside
+        // a flex wrapper with no `min-w-0` (`Mono`'s copy wrapper) — and the
+        // probe below NAMED it, once a failing run was actually captured
+        // instead of reasoned about. A flaky overflow check means the element
+        // that overflows is rendered conditionally; here the waterfall only
+        // renders when a span was sampled.
+        await page.Mouse.MoveAsync(0, 0);
+
         var overflow = await page.EvaluateAsync<int>(
             "() => document.documentElement.scrollWidth - document.documentElement.clientWidth");
 
@@ -2049,6 +2082,432 @@ public sealed class UiTests(BrowserFixture browsers)
             0,
             $"{screen} overflows horizontally at 375px width ({overflow}px). " +
             $"Widest elements past the edge: {string.Join(" | ", culprits)}");
+    }
+
+    // --- Phase 165: the remaining screens on the instrument layer's patterns ---
+
+    [Fact]
+    public async Task Remaining_screens_do_not_overflow_horizontally_at_375px_width()
+    {
+        // The twin of `Proof_slice_screens_...`, over the screens phase 165
+        // rebuilt. 🚨 It seeds a real run FIRST, because an empty screen cannot
+        // overflow: the 375px case that existed before phase 164 walked empty
+        // tables for months and never saw the 87px the dashboard was leaking.
+        await using var host = await UiHost.StartAsync();
+        await using var session = await Session.OpenAsync(browsers, host);
+
+        // 🚨 Every list on the walk has to have ROWS. An empty table cannot
+        // overflow, so a walk over a fresh tenant proves nothing — the defect
+        // phase 164 found had hidden behind exactly that for months.
+        await SeedEveryListAsync(host);
+
+        await session.Page.SetViewportSizeAsync(375, 812);
+
+        await session.Page.GotoAsync($"{host.UiAddress}/playground/support");
+        await session.Page.GetByTestId("playground-input").FillAsync("hello");
+        await session.Page.GetByTestId("playground-send").ClickAsync();
+        await session.Page.GetByText("Echo:").First.WaitForAsync(new() { Timeout = 30_000 });
+        await AssertNoHorizontalOverflowAsync(session.Page, "Playground");
+
+        // Every screen reachable without creating more data, with the heading
+        // it renders once it has loaded. A screen that silently failed to load
+        // would pass an overflow check trivially, so each one is waited for by
+        // name first.
+        var screens = new (string Path, string Heading)[]
+        {
+            ("sessions", "Sessions"),
+            ("agents", "Agents"),
+            ("tools", "Tools"),
+            ("models", "Models"),
+            ("skills", "Skills"),
+            ("workflows", "Workflows"),
+            ("triggers", "Triggers"),
+            ("jobs", "Jobs"),
+            ("evals", "Evals"),
+            ("experiments", "Experiments"),
+            ("mcp", "MCP and approvals"),
+            ("audit", "Audit"),
+            // Diagnostics has no list of its own: it reports this installation's
+            // own state, which the in-memory host always populates.
+            ("diagnostics", "Diagnostics"),
+            ("workflows/new", "New workflow"),
+        };
+
+        foreach (var (path, heading) in screens)
+        {
+            await session.Page.GotoAsync($"{host.UiAddress}/{path}");
+            await session.Page
+                .GetByRole(AriaRole.Heading, new() { Name = heading, Exact = true })
+                .First.WaitForAsync(new() { Timeout = 30_000 });
+
+            await AssertNoHorizontalOverflowAsync(session.Page, heading);
+        }
+
+        // A session's detail screen: dense, and only reachable once a run has
+        // created the session above.
+        await session.Page.GotoAsync($"{host.UiAddress}/sessions");
+        var sessionLink = session.Page.Locator("tbody a[href*='/sessions/']").First;
+        await sessionLink.WaitForAsync(new() { Timeout = 30_000 });
+        await sessionLink.ClickAsync();
+        await session.Page
+            .GetByRole(AriaRole.Tab, new() { Name = "Chat history", Exact = true })
+            .WaitForAsync(new() { Timeout = 30_000 });
+        await AssertNoHorizontalOverflowAsync(session.Page, "Session detail");
+    }
+
+    /// <summary>
+    /// Writes one row into every list the 375px walk visits.
+    /// </summary>
+    /// <remarks>
+    /// Through the management API rather than through the console: the walk is
+    /// measuring LAYOUT, and driving nine creation forms to get there would make
+    /// it a test of those forms instead. The agent, tool, workflow and provider
+    /// catalogues come from the host's own code definitions already.
+    /// </remarks>
+    private static async Task SeedEveryListAsync(UiHost host)
+    {
+        using var client = new HttpClient { BaseAddress = new Uri(host.BaseAddress) };
+
+        async Task SendAsync(Task<HttpResponseMessage> call, string path)
+        {
+            using var response = await call;
+
+            response.IsSuccessStatusCode.ShouldBeTrue(
+                $"Seeding {path} failed with {(int)response.StatusCode}: " +
+                await response.Content.ReadAsStringAsync());
+        }
+
+        Task WriteAsync(string path, object body) =>
+            SendAsync(client.PutAsJsonAsync($"{host.Prefix}{path}", body), path);
+
+        // 🚨 PUT on `/api/agents/{name}` UPDATES; creating one is a POST to the
+        // collection. The same shape does not work for both.
+        Task CreateAsync(string path, object body) =>
+            SendAsync(client.PostAsJsonAsync($"{host.Prefix}{path}", body), path);
+
+        // A long name and a long endpoint on purpose: a narrow screen overflows
+        // on the widest cell it is given, not on the average one.
+        await WriteAsync(
+            "/api/skills/refund-policy-for-late-deliveries",
+            new
+            {
+                name = "refund-policy-for-late-deliveries",
+                description = "How to decide and word a refund when the order shipped late.",
+                instructions = "Check the order age, then state the decision in one sentence.",
+            });
+
+        await WriteAsync(
+            "/api/triggers/helpdesk-webhook",
+            new
+            {
+                targetKind = "Agent",
+                targetName = "support",
+                signingSecretConfigurationName = "Tracon:TriggerSecrets:Helpdesk",
+                enabled = true,
+            });
+
+        await WriteAsync(
+            "/api/mcp-servers/knowledge-base",
+            new
+            {
+                description = "Read-only company handbook.",
+                endpoint = "https://mcp.example.invalid/a-deliberately-long-path/sse",
+                transport = "Sse",
+                enabled = true,
+                requiresApproval = true,
+            });
+
+        await WriteAsync(
+            "/api/schedules/nightly-unresolved-ticket-summary",
+            new
+            {
+                handlerKey = "tracon.agent-batch",
+                targetName = "support",
+                cron = "0 3 * * *",
+                timeZone = "UTC",
+                payload = new[] { "Summarise yesterday's unresolved tickets." },
+                enabled = true,
+            });
+
+        await WriteAsync(
+            "/api/evals/customer-support-regression-suite",
+            new
+            {
+                agentName = "support",
+                description = "Answers that must not regress.",
+                checks = new[] { new { kind = "nonEmpty", minLength = 10 } },
+            });
+
+        // 🚨 An experiment needs a STORED agent: a code-defined one has no version
+        // history, so there is nothing to split traffic between. The server says
+        // so with a 400, which is how this seeding found out.
+        await CreateAsync(
+            "/api/agents",
+            new
+            {
+                name = "stored-support-assistant",
+                displayName = "Stored support assistant",
+                description = "A database-defined agent, so an experiment has versions to split.",
+                instructions = "Answer the question in one sentence.",
+                model = new { provider = ScriptedModels.ProviderName, model = ScriptedModels.Default },
+            });
+
+        await WriteAsync(
+            "/api/experiments/support-instruction-rewrite",
+            new
+            {
+                agentName = "stored-support-assistant",
+                variants = new[]
+                {
+                    new { name = "control", version = 1, weight = 50 },
+                    new { name = "candidate", version = 1, weight = 50 },
+                },
+            });
+
+        // The audit trail is written as a SIDE EFFECT of the writes above, so it
+        // has rows by now without this test creating one directly.
+    }
+
+    [Fact]
+    public async Task A_tooltip_near_the_right_edge_stays_inside_the_viewport()
+    {
+        // 🚨 The defect this pins, found by the walk above: the bubble is
+        // centred on its trigger, so a described badge near the right edge of a
+        // 375px screen pushed 224px of bubble past the viewport and scrolled
+        // the whole page sideways (104px on the models screen). Phase 165 is
+        // what exposed it — it put tooltips on badges and column headings,
+        // which is precisely where a trigger sits near the edge.
+        await using var host = await UiHost.StartAsync();
+        await using var session = await Session.OpenAsync(browsers, host);
+
+        await session.Page.SetViewportSizeAsync(375, 812);
+
+        await session.Page.GotoAsync($"{host.UiAddress}/models");
+        await session.Page.GetByRole(AriaRole.Heading, new() { Name = "Models", Exact = true }).WaitForAsync();
+
+        // Every described badge on the screen, not just the first: the clamp has
+        // to hold wherever the trigger happens to sit.
+        var described = session.Page.Locator("span[aria-describedby][tabindex='0']");
+        var count = await described.CountAsync();
+
+        count.ShouldBeGreaterThan(0, "No described badge on this screen to hover.");
+
+        for (var index = 0; index < count; index++)
+        {
+            await described.Nth(index).HoverAsync();
+            await session.Page.GetByRole(AriaRole.Tooltip).First.WaitForAsync();
+            await AssertNoHorizontalOverflowAsync(session.Page, $"Models (tooltip {index})");
+        }
+    }
+
+    [Fact]
+    public async Task A_link_reads_as_a_link_unless_its_call_site_dresses_it()
+    {
+        // Phase 165 gave `Link` a default appearance, which changed 48 call
+        // sites at once. Both halves matter: the bare link has to carry the
+        // accent colour, and a call site that passes its own class has to keep
+        // winning — a default that overrode them would repaint muted table
+        // links and button-shaped navigations alike.
+        await using var host = await UiHost.StartAsync();
+        await using var session = await Session.OpenAsync(browsers, host);
+
+        await session.Page.GotoAsync($"{host.UiAddress}/playground/support");
+        await session.Page.GetByTestId("playground-input").FillAsync("hello");
+        await session.Page.GetByTestId("playground-send").ClickAsync();
+        await session.Page.GetByText("Echo:").First.WaitForAsync(new() { Timeout = 30_000 });
+
+        await session.Page.GotoAsync($"{host.UiAddress}/runs");
+
+        // Undressed: the run identifier in the first column.
+        var bare = session.Page.Locator("tbody a[href*='/runs/']").First;
+        await bare.WaitForAsync(new() { Timeout = 30_000 });
+        var bareClass = await bare.GetAttributeAsync("class");
+        bareClass.ShouldNotBeNull();
+        bareClass.ShouldContain("text-accent");
+
+        // Dressed by its call site: the agent column is deliberately muted so
+        // the identifier stays the row's one emphasis.
+        var muted = session.Page.Locator("tbody a[href*='/agents/']").First;
+        await muted.WaitForAsync();
+
+        var mutedClass = await muted.GetAttributeAsync("class");
+        mutedClass.ShouldNotBeNull();
+        mutedClass.ShouldContain("text-muted");
+        mutedClass.ShouldNotContain("text-accent", Case.Sensitive);
+
+        // Dressed as a button: one anchor, not a <button> nested inside one.
+        await session.Page.GotoAsync($"{host.UiAddress}/agents");
+        var asButton = session.Page.GetByRole(AriaRole.Link, new() { Name = "New agent", Exact = true });
+        await asButton.WaitForAsync();
+
+        var buttonClass = await asButton.GetAttributeAsync("class");
+        buttonClass.ShouldNotBeNull();
+        buttonClass.ShouldContain("bg-accent");
+        (await asButton.Locator("button").CountAsync()).ShouldBe(
+            0,
+            "A button-shaped link must be one anchor: a <button> inside an <a> is two tab stops for one destination.");
+    }
+
+    [Fact]
+    public async Task Reader_role_is_refused_on_admin_screens_rather_than_shown_an_empty_one()
+    {
+        // 🚨 The misreading this closes: a reader who opened /audit used to see
+        // "Nothing is recorded yet" and conclude the trail was empty. The
+        // server is still the enforcement; this is the explanation.
+        await using var host = await UiHost.StartAsync(
+            configureServices: services => TestAuthenticationHandler.Add(services)
+                .AddAuthorizationBuilder()
+                .AddPolicy(TraconPolicies.Admin, policy => policy.RequireAssertion(_ => false)));
+
+        await using var session = await Session.OpenAsync(browsers, host);
+
+        foreach (var path in new[] { "audit", "diagnostics" })
+        {
+            await session.Page.GotoAsync($"{host.UiAddress}/{path}");
+            await session.Page.GetByTestId("unauthorized").WaitForAsync(new() { Timeout = 30_000 });
+
+            (await session.Page.GetByText("Nothing is recorded yet", new() { Exact = true }).CountAsync()).ShouldBe(
+                0,
+                $"/{path} showed an empty state to a reader instead of refusing.");
+        }
+    }
+
+    /// <summary>
+    /// The sentence the stubbed session store fails with, exactly as the console
+    /// renders it — `TraconError` joins problem+json's title and detail.
+    /// </summary>
+    private const string ServerFailureText =
+        "Session store unavailable: The session store did not answer.";
+
+    [Fact]
+    public async Task A_failed_list_shows_the_servers_own_words_and_retries_on_one_click()
+    {
+        // Two rules in one walk. The message is the SERVER's, untranslated
+        // (K-232) — inventing a sentence for a failure the console does not
+        // recognise hides what actually broke. And the note carries a retry, so
+        // a 500 is not a dead end that only a page reload escapes.
+        await using var host = await UiHost.StartAsync();
+        await using var session = await Session.OpenAsync(browsers, host, locale: "tr-TR");
+
+        // 🚨 Fails while the flag is set, not "the first attempt only": the
+        // console retries a 5xx twice on its own (`main.tsx`), so failing one
+        // attempt means the user never sees an error at all.
+        var failing = true;
+
+        await session.Page.RouteAsync(
+            // `*` stops at a path separator, so this matches the LIST
+            // (`/api/sessions` with or without a query) and not one session's
+            // own address.
+            "**/api/sessions*",
+            async route =>
+            {
+                if (Volatile.Read(ref failing))
+                {
+                    await route.FulfillAsync(new RouteFulfillOptions
+                    {
+                        Status = 500,
+                        ContentType = "application/problem+json",
+                        Body = """{"title":"Session store unavailable","detail":"The session store did not answer."}""",
+                    });
+
+                    return;
+                }
+
+                await route.ContinueAsync();
+            });
+
+        await session.Page.GotoAsync($"{host.UiAddress}/sessions");
+
+        // Turkish UI, English server text: the locale is tr-TR above, and the
+        // sentence below is still the server's own.
+        // The whole sentence: `ErrorNote` prints `error.message`, and
+        // `TraconError` builds it as "<title>: <detail>" from the server's
+        // problem+json. Matching only the title would assert less than this
+        // case claims — that the server's own words reach the screen.
+        await session.Page
+            .GetByText(ServerFailureText, new() { Exact = true })
+            .WaitForAsync(new() { Timeout = 30_000 });
+
+        // Let the store answer, then press the note's own retry.
+        Volatile.Write(ref failing, false);
+
+        await session.Page.GetByTestId("error-retry").ClickAsync();
+
+        // The second attempt reaches the real endpoint, so the error clears.
+        await session.Page
+            .GetByText(ServerFailureText, new() { Exact = true })
+            .WaitForAsync(new() { State = WaitForSelectorState.Detached, Timeout = 30_000 });
+    }
+
+    [Fact]
+    public async Task Filters_are_labelled_and_the_reset_appears_only_once_something_is_filtered()
+    {
+        // The toolbar contract, on a screen that did not have one before phase
+        // 165. A bare <select> in a filter strip has no accessible name — its
+        // options are its only text, and "All agents" is not what the control
+        // IS — and a reset that is always visible cannot say whether anything
+        // is narrowed.
+        await using var host = await UiHost.StartAsync();
+        await using var session = await Session.OpenAsync(browsers, host);
+
+        await session.Page.GotoAsync($"{host.UiAddress}/skills");
+        await session.Page.GetByRole(AriaRole.Heading, new() { Name = "Skills", Exact = true }).WaitForAsync();
+
+        (await session.Page.GetByTestId("toolbar-reset").CountAsync()).ShouldBe(
+            0,
+            "Nothing is filtered yet, so there is nothing to clear.");
+
+        // Named by its visible label, not by whatever its first option says.
+        await session.Page
+            .GetByRole(AriaRole.Combobox, new() { Name = "Status", Exact = true })
+            .SelectOptionAsync("disabled");
+
+        await session.Page.GetByTestId("toolbar-reset").ClickAsync();
+
+        (await session.Page.GetByTestId("toolbar-reset").CountAsync()).ShouldBe(
+            0,
+            "The reset cleared the filters but stayed on screen.");
+    }
+
+    [Fact]
+    public async Task An_expanding_row_announces_its_state_and_opens_from_the_keyboard()
+    {
+        // The audit row used to be an `onClick` on the <tr>: unreachable by
+        // keyboard, and announcing nothing about being expandable. The
+        // disclosure is a real button now, and it names what it opens.
+        await using var host = await UiHost.StartAsync();
+        await using var session = await Session.OpenAsync(browsers, host);
+
+        // An entry is written as a side effect of storing an agent, which is
+        // the only way this screen has anything to expand.
+        await session.Page.GotoAsync($"{host.UiAddress}/agents/new");
+        await session.Page.GetByTestId("agent-name").FillAsync("audited-agent");
+        await session.Page.GetByTestId("agent-model").FillAsync(ScriptedModels.Default);
+        await session.Page.GetByTestId("agent-save").ClickAsync();
+        await session.Page
+            .GetByRole(AriaRole.Heading, new() { Name = "audited-agent", Exact = true })
+            .WaitForAsync(new() { Timeout = 30_000 });
+
+        await session.Page.GotoAsync($"{host.UiAddress}/audit");
+
+        var disclosure = session.Page.GetByRole(AriaRole.Button, new() { Name = "Details", Exact = true }).First;
+        await disclosure.WaitForAsync(new() { Timeout = 30_000 });
+
+        (await disclosure.GetAttributeAsync("aria-expanded")).ShouldBe("false");
+
+        var controls = await disclosure.GetAttributeAsync("aria-controls");
+        controls.ShouldNotBeNullOrEmpty("The disclosure does not name the region it opens.");
+
+        await disclosure.FocusAsync();
+        await session.Page.Keyboard.PressAsync("Enter");
+
+        await session.Page
+            .GetByRole(AriaRole.Button, new() { Name = "Hide", Exact = true })
+            .First.WaitForAsync(new() { Timeout = 30_000 });
+
+        (await session.Page.Locator($"#{controls}").CountAsync()).ShouldBe(
+            1,
+            "aria-controls names an element that is not on the page.");
     }
 
     /// <summary>

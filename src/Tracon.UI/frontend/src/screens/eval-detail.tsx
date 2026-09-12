@@ -11,6 +11,7 @@ import {
   ErrorNote,
   Field,
   JsonView,
+  LinkButton,
   Loading,
   Mono,
   PageHeader,
@@ -21,6 +22,7 @@ import {
   TextInput,
   Th,
 } from '../components/ui';
+import { Tooltip } from '../components/tooltip';
 import { PassRateBar } from './evals';
 import type {
   EvalCaseInput,
@@ -162,11 +164,27 @@ export function EvalSuiteDetailScreen({ name, meta }: { name: string; meta: Meta
   });
 
   if (suite.isPending) {
-    return <Loading />;
+    return (
+      <>
+        <PageHeader title={name} />
+        <Panel>
+          <Loading rows={8} />
+        </Panel>
+      </>
+    );
   }
 
   if (suite.isError) {
-    return <ErrorNote error={suite.error} />;
+    return (
+      <>
+        <PageHeader title={name} />
+        <Panel>
+          <div className="p-4">
+            <ErrorNote error={suite.error} onRetry={() => void suite.refetch()} />
+          </div>
+        </Panel>
+      </>
+    );
   }
 
   return (
@@ -176,21 +194,35 @@ export function EvalSuiteDetailScreen({ name, meta }: { name: string; meta: Meta
         description={suite.data.description ?? t('evals.measures', { agent: suite.data.agentName })}
         actions={
           meta.roles.canOperate && (
-            <Button
-              tone="primary"
-              busy={trigger.isPending}
-              disabled={cases.length === 0}
-              onClick={() => trigger.mutate()}
-            >
-              {t('evals.runNow')}
-            </Button>
+            <>
+              <LinkButton to="evals" tone="ghost">
+                {t('nav.evals')}
+              </LinkButton>
+              {/* 🚨 A decision surface: pressing this spends model calls. How
+                  many, against which agent, is what the tooltip says. */}
+              <Tooltip
+                text={t('evals.runNowEffect', {
+                  count: cases.length,
+                  agent: suite.data.agentName,
+                })}
+              >
+                <Button
+                  tone="primary"
+                  busy={trigger.isPending}
+                  disabled={cases.length === 0}
+                  onClick={() => trigger.mutate()}
+                >
+                  {t('evals.runNow')}
+                </Button>
+              </Tooltip>
+            </>
           )
         }
       />
 
       {trigger.isError && (
         <div className="mb-4">
-          <ErrorNote error={trigger.error} />
+          <ErrorNote error={trigger.error} onRetry={() => trigger.mutate()} />
         </div>
       )}
 
@@ -202,9 +234,33 @@ export function EvalSuiteDetailScreen({ name, meta }: { name: string; meta: Meta
 
       <Panel title={t('evals.cases')} className="mb-4">
         <div className="flex flex-col gap-3 p-4">
-          {existingCases.isPending && <Loading />}
-          {cases.length === 0 && !existingCases.isPending && (
-            <Empty title={t('evals.noCasesYet')}>{t('evals.noCasesBody')}</Empty>
+          {existingCases.isPending && <Loading rows={4} />}
+          {/* 🚨 A separate path from the loading one: on failure `isPending`
+              goes false and the case list used to render as EMPTY, which reads
+              as "this suite has no cases" — and saving from that state would
+              have replaced the stored cases with nothing. */}
+          {existingCases.isError && (
+            <ErrorNote
+              error={existingCases.error}
+              onRetry={() => void existingCases.refetch()}
+            />
+          )}
+          {cases.length === 0 && !existingCases.isPending && !existingCases.isError && (
+            <Empty
+              title={t('evals.noCasesYet')}
+              action={
+                meta.roles.canAdminister ? (
+                  <Button
+                    tone="primary"
+                    onClick={() => setCases((current) => [...current, emptyCase()])}
+                  >
+                    {t('evals.cases.empty.action')}
+                  </Button>
+                ) : undefined
+              }
+            >
+              {t('evals.noCasesBody')}
+            </Empty>
           )}
           {cases.map((item, index) => (
             <CaseEditor
@@ -231,38 +287,51 @@ export function EvalSuiteDetailScreen({ name, meta }: { name: string; meta: Meta
               >
                 {t('evals.saveCases')}
               </Button>
-              {saveCases.isError && <ErrorNote error={saveCases.error} />}
+              {saveCases.isError && (
+                <ErrorNote error={saveCases.error} onRetry={() => saveCases.mutate()} />
+              )}
             </div>
           )}
         </div>
       </Panel>
 
       <Panel title={t('nav.runs')}>
-        {runs.isPending && <Loading />}
+        {runs.isPending && <Loading rows={5} />}
         {runs.isError && (
           <div className="p-4">
-            <ErrorNote error={runs.error} />
+            <ErrorNote error={runs.error} onRetry={() => void runs.refetch()} />
           </div>
         )}
 
         {runs.isSuccess &&
           (runs.data.length === 0 ? (
-            <Empty title={t('evals.noRuns.title')}>{t('evals.noRuns.body')}</Empty>
+            <Empty
+              title={t('evals.noRuns.title')}
+              action={
+                meta.roles.canOperate && cases.length > 0 ? (
+                  <Button tone="primary" busy={trigger.isPending} onClick={() => trigger.mutate()}>
+                    {t('evals.noRuns.action')}
+                  </Button>
+                ) : undefined
+              }
+            >
+              {t('evals.noRuns.body')}
+            </Empty>
           ) : (
-            <Table>
+            <Table label={t('nav.runs')}>
               <thead>
                 <tr>
                   <Th>{t('runs.column.run')}</Th>
                   <Th>{t('common.status')}</Th>
                   <Th>{t('evals.passRate')}</Th>
-                  <Th>{t('agentDetail.version')}</Th>
+                  <Th className="text-right">{t('agentDetail.version')}</Th>
                   <Th>{t('common.model')}</Th>
                   <Th>{t('common.started')}</Th>
                 </tr>
               </thead>
               <tbody>
                 {runs.data.map((run) => (
-                  <tr key={run.id} className="hover:bg-raised">
+                  <tr key={run.id} className="focus-within:bg-raised hover:bg-raised">
                     <Td>
                       <Link to={`evals/runs/${encodeURIComponent(run.id)}`}>
                         <Mono title={run.id}>{shortId(run.id, 13, 6)}</Mono>
@@ -274,7 +343,9 @@ export function EvalSuiteDetailScreen({ name, meta }: { name: string; meta: Meta
                     <Td>
                       <PassRateBar passed={run.passed} failed={run.failed} total={run.total} />
                     </Td>
-                    <Td className="text-muted">{run.agentVersion ?? '—'}</Td>
+                    <Td className="text-right font-mono text-id text-muted">
+                      {run.agentVersion ?? '—'}
+                    </Td>
                     <Td className="text-muted">{run.modelId ?? '—'}</Td>
                     <Td className="text-muted" title={absoluteTime(run.startedAt)}>
                       {relativeTime(run.startedAt)}

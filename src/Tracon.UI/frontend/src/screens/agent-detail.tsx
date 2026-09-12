@@ -2,7 +2,7 @@ import { useState, type ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { client, unwrap } from '../lib/api';
 import { useT } from '../lib/i18n';
-import { Link, useNavigate } from '../lib/router';
+import { useNavigate } from '../lib/router';
 import { absoluteTime, relativeTime } from '../lib/format';
 import {
   Badge,
@@ -10,6 +10,7 @@ import {
   Empty,
   ErrorNote,
   JsonView,
+  LinkButton,
   Loading,
   Mono,
   PageHeader,
@@ -18,6 +19,7 @@ import {
   Td,
   Th,
 } from '../components/ui';
+import { Tooltip } from '../components/tooltip';
 import { HistoryIcon, TrashIcon } from '../components/icons';
 import { DiffView, FieldDiffTable, SetDiff } from '../components/diff-view';
 import { OriginBadge } from './agents';
@@ -46,11 +48,27 @@ export function AgentDetailScreen({ name, meta }: { name: string; meta: Meta }):
   });
 
   if (agent.isPending) {
-    return <Loading />;
+    return (
+      <>
+        <PageHeader title={name} />
+        <Panel>
+          <Loading rows={8} />
+        </Panel>
+      </>
+    );
   }
 
   if (agent.isError) {
-    return <ErrorNote error={agent.error} />;
+    return (
+      <>
+        <PageHeader title={name} />
+        <Panel>
+          <div className="p-4">
+            <ErrorNote error={agent.error} onRetry={() => void agent.refetch()} />
+          </div>
+        </Panel>
+      </>
+    );
   }
 
   const { descriptor, definition, factoryInstructions, isEditable } = agent.data;
@@ -62,14 +80,14 @@ export function AgentDetailScreen({ name, meta }: { name: string; meta: Meta }):
         description={descriptor.description ?? undefined}
         actions={
           <>
-            <Link to={`playground/${encodeURIComponent(name)}`}>
-              <Button>{t('agentDetail.openPlayground')}</Button>
-            </Link>
+            <LinkButton to={`playground/${encodeURIComponent(name)}`}>
+              {t('agentDetail.openPlayground')}
+            </LinkButton>
             {isEditable && meta.roles.canAdminister && (
               <>
-                <Link to={`agents/${encodeURIComponent(name)}/edit`}>
-                  <Button tone="primary">{t('common.edit')}</Button>
-                </Link>
+                <LinkButton to={`agents/${encodeURIComponent(name)}/edit`} tone="primary">
+                  {t('common.edit')}
+                </LinkButton>
                 <Button
                   tone="danger"
                   busy={remove.isPending}
@@ -88,7 +106,14 @@ export function AgentDetailScreen({ name, meta }: { name: string; meta: Meta }):
         }
       />
 
-      {error !== null && <div className="mb-4"><ErrorNote error={error} /></div>}
+      {/* The shared error slot for this screen's decisions — a delete or a
+          rollback the server refused. No retry: re-running an irreversible
+          decision is itself a decision, so the operator presses the button. */}
+      {error !== null && (
+        <div className="mb-4">
+          <ErrorNote error={error} />
+        </div>
+      )}
 
       {!isEditable && (
         <div className="mb-4 rounded-md border border-line bg-info-soft px-3 py-2 text-sm text-info">
@@ -240,29 +265,35 @@ function VersionHistory({
           </span>
         }
       >
-        {versions.isPending && <Loading />}
-        {versions.isError && <div className="p-4"><ErrorNote error={versions.error} /></div>}
+        {versions.isPending && <Loading rows={4} />}
+        {versions.isError && (
+          <div className="p-4">
+            <ErrorNote error={versions.error} onRetry={() => void versions.refetch()} />
+          </div>
+        )}
 
         {versions.isSuccess && versions.data.length === 0 && (
-          <Empty title={t('agentDetail.noVersions')} />
+          /* No action: a version appears when the stored definition is saved,
+             and a code-defined agent has none at all. */
+          <Empty title={t('agentDetail.noVersions')}>{t('agentDetail.noVersionsBody')}</Empty>
         )}
 
         {versions.isSuccess && versions.data.length > 0 && (
           <>
-            <Table>
+            <Table label={t('agentDetail.versions')}>
               <thead>
                 <tr>
                   <Th />
                   <Th>{t('agentDetail.version')}</Th>
                   <Th>{t('common.model')}</Th>
-                  <Th>{t('common.tools')}</Th>
+                  <Th className="text-right">{t('common.tools')}</Th>
                   <Th>{t('agentDetail.saved')}</Th>
                   <Th />
                 </tr>
               </thead>
               <tbody>
                 {versions.data.map((version) => (
-                  <tr key={version.version} className="hover:bg-raised">
+                  <tr key={version.version} className="focus-within:bg-raised hover:bg-raised">
                     <Td>
                       <input
                         type="checkbox"
@@ -275,25 +306,43 @@ function VersionHistory({
                     <Td>
                       <Mono>v{version.version}</Mono>
                       {version.version === currentVersion && (
-                        <Badge tone="success" title={t('agentDetail.currentTitle')}>
+                        <Badge tone="success" description={t('agentDetail.currentTitle')}>
                           {t('agentDetail.current')}
                         </Badge>
                       )}
                     </Td>
-                    <Td><Mono>{version.model.model}</Mono></Td>
-                    <Td className="text-muted">{version.toolNames.length}</Td>
+                    <Td>
+                      <Mono>{version.model.model}</Mono>
+                    </Td>
+                    <Td className="text-right font-mono text-id text-muted">
+                      {version.toolNames.length}
+                    </Td>
                     <Td className="text-muted" title={absoluteTime(version.updatedAt)}>
                       {relativeTime(version.updatedAt)}
                     </Td>
                     <Td className="text-right">
                       {version.version !== currentVersion && meta.roles.canAdminister && (
-                        <Button
-                          tone="ghost"
-                          busy={rollback.isPending && rollback.variables === version.version}
-                          onClick={() => rollback.mutate(version.version)}
+                        /*
+                          🚨 A decision surface: the CONSEQUENCE is readable at
+                          the moment of deciding. "Rollback" alone does not say
+                          which version becomes live, that the current one stays
+                          in history, or that every run started afterwards uses
+                          the restored definition — the tooltip does.
+                        */
+                        <Tooltip
+                          text={t('agentDetail.rollbackEffect', {
+                            version: version.version,
+                            current: currentVersion,
+                          })}
                         >
-                          {t('agentDetail.rollback')}
-                        </Button>
+                          <Button
+                            tone="ghost"
+                            busy={rollback.isPending && rollback.variables === version.version}
+                            onClick={() => rollback.mutate(version.version)}
+                          >
+                            {t('agentDetail.rollback')}
+                          </Button>
+                        </Tooltip>
                       )}
                     </Td>
                   </tr>
@@ -329,8 +378,8 @@ function VersionCompare({ name, a, b }: { name: string; a: number; b: number }):
   return (
     <Panel title={t('agentDetail.compareTitle', { a, b })}>
       <div className="p-4">
-        {diff.isPending && <Loading />}
-        {diff.isError && <ErrorNote error={diff.error} />}
+        {diff.isPending && <Loading rows={6} />}
+        {diff.isError && <ErrorNote error={diff.error} onRetry={() => void diff.refetch()} />}
 
         {diff.isSuccess && (
           <div className="space-y-5">

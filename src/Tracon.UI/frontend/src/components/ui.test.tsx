@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { renderScreen, screen } from '../test/render';
-import { Button, Field, Select, TextInput } from './ui';
+import { Badge, Button, Field, LinkButton, Select, TextInput } from './ui';
+import { Link } from '../lib/router';
 import { Tooltip } from './tooltip';
 
 /**
@@ -86,5 +87,109 @@ describe('accessibility bindings between primitives', () => {
     // it is IN the name — `UiTests.Trigger_created_from_UI_is_listed` pins the
     // exact browser string.
     expect(screen.getByRole('textbox', { name: /^Name\s*\*$/ })).toBeDefined();
+  });
+
+  it('lands a disclosure state on the button that owns it', () => {
+    // 🚨 The fourth closed-prop-list trap. A row that expands says so with
+    // `aria-expanded` and names what it expands with `aria-controls`; a
+    // primitive that swallows either turns an announced disclosure into a
+    // button whose effect is invisible to anyone not watching the screen.
+    renderScreen(
+      <Button testId="details" aria-expanded={false} aria-controls="panel-1">
+        Details
+      </Button>,
+    );
+
+    const button = screen.getByTestId('details');
+
+    expect(button.getAttribute('aria-expanded')).toBe('false');
+    expect(button.getAttribute('aria-controls')).toBe('panel-1');
+  });
+
+  it('lands the tooltip description on the link it wraps', () => {
+    // `Link` is the third primitive with a closed prop list, and the one a
+    // tooltip is most likely to be put on next: a bare row identifier.
+    renderScreen(
+      <Tooltip text="Open this run.">
+        <Link to="runs/abc" testId="run-link">
+          abc
+        </Link>
+      </Tooltip>,
+    );
+
+    const link = screen.getByTestId('run-link');
+
+    expect(
+      document.getElementById(link.getAttribute('aria-describedby') ?? '')?.textContent,
+    ).toBe('Open this run.');
+  });
+
+  it('makes a described badge reachable, and binds the description to it', () => {
+    // 🚨 A badge carrying only a `title` was unreachable by keyboard and
+    // invisible on touch. `description` is what replaced it, and the binding is
+    // only worth anything if the badge can actually be focused.
+    renderScreen(<Badge description="Defined in code; the stored copy is ignored.">code</Badge>);
+
+    const chip = screen.getByText('code');
+
+    expect(chip.getAttribute('tabindex')).toBe('0');
+    expect(document.getElementById(chip.getAttribute('aria-describedby') ?? '')?.textContent).toBe(
+      'Defined in code; the stored copy is ignored.',
+    );
+  });
+
+  it('leaves an undescribed badge out of the tab order', () => {
+    renderScreen(<Badge>queued</Badge>);
+
+    expect(screen.getByText('queued').getAttribute('tabindex')).toBeNull();
+  });
+});
+
+/**
+ * How a navigation looks and what it is.
+ *
+ * 🚨 `Link` rendered a class-less `<a>` until phase 165, so 25 of its 48 call
+ * sites read as plain text. The default matters as much as the override does:
+ * a caller that dresses a link deliberately — muted in a table cell, or shaped
+ * like a button — must still win.
+ */
+describe('links', () => {
+  it('reads as a link without being dressed', () => {
+    renderScreen(
+      <Link to="runs" testId="bare">
+        Runs
+      </Link>,
+    );
+
+    expect(screen.getByTestId('bare').className).toContain('text-accent');
+  });
+
+  it('lets a caller replace the default outright', () => {
+    renderScreen(
+      <Link to="runs" testId="muted" className="text-muted hover:text-fg">
+        Runs
+      </Link>,
+    );
+
+    const link = screen.getByTestId('muted');
+
+    expect(link.className).toBe('text-muted hover:text-fg');
+    expect(link.className).not.toContain('text-accent');
+  });
+
+  it('renders a button-shaped navigation as one anchor, not a button inside one', () => {
+    // 🚨 `<Link><Button/></Link>` was the old spelling: a <button> inside an
+    // <a> is invalid HTML and gives the keyboard two stops for one destination.
+    renderScreen(
+      <LinkButton to="agents/new" tone="primary" testId="new-agent">
+        New agent
+      </LinkButton>,
+    );
+
+    const link = screen.getByTestId('new-agent');
+
+    expect(link.tagName).toBe('A');
+    expect(link.querySelector('button')).toBeNull();
+    expect(link.getAttribute('href')).toContain('agents/new');
   });
 });

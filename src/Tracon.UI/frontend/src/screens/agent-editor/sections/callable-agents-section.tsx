@@ -24,8 +24,8 @@ export function CallableAgentsSection({
           {t('agentEditor.callableNotice')} <Mono>Tracon:AgentGraph</Mono>.
         </p>
 
-        {agents.isPending && <Loading />}
-        {agents.isError && <ErrorNote error={agents.error} />}
+        {agents.isPending && <Loading rows={3} />}
+        {agents.isError && <ErrorNote error={agents.error} onRetry={() => void agents.refetch()} />}
 
         {agents.isSuccess && callable.length === 0 && (
           <p className="text-base text-subtle">{t('agentEditor.noCallable')}</p>

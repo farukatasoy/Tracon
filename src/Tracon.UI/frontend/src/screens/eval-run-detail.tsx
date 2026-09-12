@@ -5,7 +5,22 @@ import { Link } from '../lib/router';
 import type { EvalCaseDiff, EvalCaseDiffKind, EvalRun, EvalRunDetailResponse, EvalRunDiff, EvalSuite } from '../lib/server-types';
 import { absoluteTime, relativeTime, shortId } from '../lib/format';
 import { useT, type MessageKey } from '../lib/i18n';
-import { Badge, Empty, ErrorNote, Loading, Mono, PageHeader, Panel, Select, Table, Td, Th } from '../components/ui';
+import {
+  Badge,
+  Empty,
+  ErrorNote,
+  LinkButton,
+  Loading,
+  Mono,
+  PageHeader,
+  Panel,
+  Stat,
+  Table,
+  Td,
+  Th,
+} from '../components/ui';
+import { Select } from '../components/ui';
+import { Toolbar, ToolbarField } from '../components/toolbar';
 import { PassRateBar } from './evals';
 
 export function EvalRunDetailScreen({ id }: { id: string }): ReactNode {
@@ -19,12 +34,30 @@ export function EvalRunDetailScreen({ id }: { id: string }): ReactNode {
     refetchInterval: 5_000,
   });
 
+  const title = t('evals.runTitle', { id: shortId(id, 13, 6) });
+
   if (detail.isPending) {
-    return <Loading />;
+    return (
+      <>
+        <PageHeader title={title} />
+        <Panel>
+          <Loading rows={8} />
+        </Panel>
+      </>
+    );
   }
 
   if (detail.isError) {
-    return <ErrorNote error={detail.error} />;
+    return (
+      <>
+        <PageHeader title={title} />
+        <Panel>
+          <div className="p-4">
+            <ErrorNote error={detail.error} onRetry={() => void detail.refetch()} />
+          </div>
+        </Panel>
+      </>
+    );
   }
 
   const { run, results } = detail.data;
@@ -32,47 +65,51 @@ export function EvalRunDetailScreen({ id }: { id: string }): ReactNode {
   return (
     <>
       <PageHeader
-        title={t('evals.runTitle', { id: shortId(run.id, 13, 6) })}
-        description={t('evals.runSubtitle', {
-          status: run.status,
-          when: relativeTime(run.startedAt),
-        })}
+        title={title}
+        description={
+          <>
+            <Mono copy={run.id}>{run.id}</Mono> —{' '}
+            {t('evals.runSubtitle', { status: run.status, when: relativeTime(run.startedAt) })}
+          </>
+        }
+        actions={
+          <LinkButton to="evals" tone="ghost">
+            {t('nav.evals')}
+          </LinkButton>
+        }
       />
 
       <Panel className="mb-4">
         <div className="grid grid-cols-2 gap-4 p-4 sm:grid-cols-4">
           <div>
-            <span className="block text-xs tracking-wide text-subtle uppercase">{t('evals.passRate')}</span>
+            <span className="block text-2xs tracking-wider text-subtle uppercase">
+              {t('evals.passRate')}
+            </span>
             <span className="mt-0.5 block">
               <PassRateBar passed={run.passed} failed={run.failed} total={run.total} />
             </span>
           </div>
-          <div>
-            <span className="block text-xs tracking-wide text-subtle uppercase">{t('evals.agentVersion')}</span>
-            <span className="mt-0.5 block text-base">{run.agentVersion ?? '—'}</span>
-          </div>
-          <div>
-            <span className="block text-xs tracking-wide text-subtle uppercase">{t('common.model')}</span>
-            <span className="mt-0.5 block text-base">{run.modelId ?? '—'}</span>
-          </div>
-          <div>
-            <span className="block text-xs tracking-wide text-subtle uppercase">{t('evals.completed')}</span>
-            <span className="mt-0.5 block text-base" title={absoluteTime(run.completedAt)}>
-              {run.completedAt == null ? '—' : relativeTime(run.completedAt)}
-            </span>
-          </div>
+          <Stat label={t('evals.agentVersion')} value={run.agentVersion?.toString() ?? '—'} />
+          <Stat label={t('common.model')} value={run.modelId ?? '—'} />
+          <Stat
+            label={t('evals.completed')}
+            value={run.completedAt == null ? '—' : relativeTime(run.completedAt)}
+            hint={run.completedAt == null ? undefined : absoluteTime(run.completedAt)}
+          />
         </div>
       </Panel>
 
       <Panel title={t('evals.caseResults')}>
         {results.length === 0 ? (
+          /* No action: a case result is written by the runner, and the body
+             below already distinguishes "still running" from "produced none". */
           <Empty title={t('evals.noResults.title')}>
             {run.status === 'Pending' || run.status === 'Running'
               ? t('evals.noResults.running')
               : t('evals.noResults.none')}
           </Empty>
         ) : (
-          <Table>
+          <Table label={t('evals.caseResults')}>
             <thead>
               <tr>
                 <Th>{t('evals.case')}</Th>
@@ -84,7 +121,7 @@ export function EvalRunDetailScreen({ id }: { id: string }): ReactNode {
             </thead>
             <tbody>
               {results.map((result) => (
-                <tr key={result.id} className="hover:bg-raised">
+                <tr key={result.id} className="focus-within:bg-raised hover:bg-raised">
                   <Td>
                     <Mono title={result.caseId}>{shortId(result.caseId, 8, 4)}</Mono>
                   </Td>
@@ -176,29 +213,49 @@ function EvalRunDiffPanel({ run }: { run: EvalRun }): ReactNode {
     <Panel className="mt-4" title={t('evals.diff.title')}>
       <div className="border-line border-b p-4">
         <p className="text-subtle mb-2 text-sm">{t('evals.diff.hint')}</p>
+        {/* 🚨 A failed suite or run lookup used to be indistinguishable from
+            "this suite has only one run": both produced the same sentence. */}
+        {suites.isError && (
+          <div className="mb-2">
+            <ErrorNote error={suites.error} onRetry={() => void suites.refetch()} />
+          </div>
+        )}
+        {runs.isError && (
+          <div className="mb-2">
+            <ErrorNote error={runs.error} onRetry={() => void runs.refetch()} />
+          </div>
+        )}
         {candidates.length === 0 ? (
           <p className="text-subtle text-sm">{t('evals.diff.noOtherRuns')}</p>
         ) : (
-          <label className="flex items-center gap-2 text-sm">
-            <span className="text-subtle">{t('evals.diff.baseline')}</span>
-            <Select value={baselineId} onChange={setBaselineId} testId="eval-diff-baseline">
-              <option value="">{t('evals.diff.pick')}</option>
-              {candidates.map((candidate) => (
-                <option key={candidate.id} value={candidate.id}>
-                  {shortId(candidate.id, 13, 6)} · {candidate.passed}/{candidate.total} ·{' '}
-                  {absoluteTime(candidate.startedAt)}
-                </option>
-              ))}
-            </Select>
-          </label>
+          <Toolbar>
+            <ToolbarField label={t('evals.diff.baseline')}>
+              {(id) => (
+                <Select
+                  id={id}
+                  value={baselineId}
+                  onChange={setBaselineId}
+                  testId="eval-diff-baseline"
+                >
+                  <option value="">{t('evals.diff.pick')}</option>
+                  {candidates.map((candidate) => (
+                    <option key={candidate.id} value={candidate.id}>
+                      {shortId(candidate.id, 13, 6)} · {candidate.passed}/{candidate.total} ·{' '}
+                      {absoluteTime(candidate.startedAt)}
+                    </option>
+                  ))}
+                </Select>
+              )}
+            </ToolbarField>
+          </Toolbar>
         )}
       </div>
 
       {baselineId === '' ? null : diff.isPending ? (
-        <Loading />
+        <Loading rows={6} />
       ) : diff.isError ? (
         <div className="p-4">
-          <ErrorNote error={diff.error} />
+          <ErrorNote error={diff.error} onRetry={() => void diff.refetch()} />
         </div>
       ) : (
         <EvalRunDiffGroups diff={diff.data} />
@@ -263,7 +320,7 @@ function EvalRunDiffTable({ cases, total }: { cases: EvalCaseDiff[]; total: numb
         {t('evals.diff.partialPage', { shown: cases.length, count: total })}
       </p>
     ) : null}
-    <Table>
+    <Table label={t('evals.diff.title')}>
       <thead>
         <tr>
           <Th>{t('evals.case')}</Th>
@@ -274,7 +331,7 @@ function EvalRunDiffTable({ cases, total }: { cases: EvalCaseDiff[]; total: numb
       </thead>
       <tbody>
         {cases.map((entry) => (
-          <tr key={entry.caseId} className="hover:bg-raised">
+          <tr key={entry.caseId} className="focus-within:bg-raised hover:bg-raised">
             <Td>
               <Mono title={entry.caseId}>{shortId(entry.caseId, 8, 4)}</Mono>
             </Td>

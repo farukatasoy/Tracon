@@ -12,6 +12,7 @@ import {
   CopyButton,
   Empty,
   ErrorNote,
+  LinkButton,
   Loading,
   Mono,
   PageHeader,
@@ -19,6 +20,7 @@ import {
   TextArea,
   TextInput,
 } from '../components/ui';
+import { Tooltip } from '../components/tooltip';
 import { SpinnerIcon } from '../components/icons';
 import { WorkflowGraphLegend, WorkflowGraphView } from '../components/workflow-graph';
 import { KIND_HINT } from './workflows';
@@ -176,24 +178,46 @@ export function WorkflowDetailScreen({ name, meta }: { name: string; meta: Meta 
   );
 
   if (workflow.isPending) {
-    return <Loading />;
+    return (
+      <>
+        <PageHeader title={name} />
+        <Panel>
+          <Loading rows={8} />
+        </Panel>
+      </>
+    );
   }
 
   if (workflow.isError) {
-    return <ErrorNote error={workflow.error} />;
+    return (
+      <>
+        <PageHeader title={name} />
+        <Panel>
+          <div className="p-4">
+            <ErrorNote error={workflow.error} onRetry={() => void workflow.refetch()} />
+          </div>
+        </Panel>
+      </>
+    );
   }
 
   if (workflow.data === null) {
     return (
-      <Panel>
-        <Empty title={t('workflowDetail.notFound')}>
-          {t('workflowDetail.notFoundBody')}{' '}
-          <Link to="workflows" className="text-accent underline">
-            {t('nav.workflows')}
-          </Link>
-          .
-        </Empty>
-      </Panel>
+      <>
+        <PageHeader title={name} />
+        <Panel>
+          <Empty
+            title={t('workflowDetail.notFound')}
+            action={
+              <LinkButton to="workflows" tone="primary">
+                {t('nav.workflows')}
+              </LinkButton>
+            }
+          >
+            {t('workflowDetail.notFoundBody')}
+          </Empty>
+        </Panel>
+      </>
     );
   }
 
@@ -213,7 +237,7 @@ export function WorkflowDetailScreen({ name, meta }: { name: string; meta: Meta 
         description={descriptor.description ?? kindHint}
         actions={
           <>
-            <Badge tone={descriptor.kind == null ? 'neutral' : 'accent'} title={kindHint}>
+            <Badge tone={descriptor.kind == null ? 'neutral' : 'accent'} description={kindHint}>
               {descriptor.kind ?? t('workflows.codeGraph')}
             </Badge>
             {editable && (
@@ -227,7 +251,9 @@ export function WorkflowDetailScreen({ name, meta }: { name: string; meta: Meta 
 
       {error !== null && (
         <div className="mb-3">
-          <ErrorNote error={error} />
+          {/* The stream's own failure. Retrying means starting the run again,
+              which is what the Run button below does — not a refetch. */}
+          <ErrorNote error={error} onRetry={() => void start()} />
         </div>
       )}
 
@@ -248,10 +274,10 @@ export function WorkflowDetailScreen({ name, meta }: { name: string; meta: Meta 
             )
           }
         >
-          {graph.isPending && <Loading />}
+          {graph.isPending && <Loading rows={6} />}
           {graph.isError && (
             <div className="p-4">
-              <ErrorNote error={graph.error} />
+              <ErrorNote error={graph.error} onRetry={() => void graph.refetch()} />
             </div>
           )}
 
@@ -270,6 +296,7 @@ export function WorkflowDetailScreen({ name, meta }: { name: string; meta: Meta 
                 <TextInput
                   value={message}
                   data-testid="workflow-message"
+                  aria-label={t('workflowDetail.messagePlaceholder')}
                   placeholder={t('workflowDetail.messagePlaceholder')}
                   disabled={streaming}
                   onChange={(event) => setMessage(event.target.value)}
@@ -286,13 +313,11 @@ export function WorkflowDetailScreen({ name, meta }: { name: string; meta: Meta 
               {runId !== null && (
                 <p className="flex items-center gap-2 text-sm text-subtle">
                   {streaming && <SpinnerIcon className="size-3" />}
-                  <Link
-                    to={`runs/${encodeURIComponent(runId)}`}
-                    className="text-accent underline"
-                    title={t('workflowDetail.inspectRun')}
-                  >
-                    <Mono>{t('workflowDetail.runId', { id: shortId(runId, 8, 4) })}</Mono>
-                  </Link>
+                  <Tooltip text={t('workflowDetail.inspectRun')}>
+                    <Link to={`runs/${encodeURIComponent(runId)}`}>
+                      <Mono>{t('workflowDetail.runId', { id: shortId(runId, 8, 4) })}</Mono>
+                    </Link>
+                  </Tooltip>
                   <span>{t('workflowDetail.eventCount', { count: events.length })}</span>
                 </p>
               )}
@@ -381,7 +406,7 @@ function PendingRequestCard({
         <Badge tone="warn">
           {t(request.form === 'PlanReview' ? 'workflowDetail.planApproval' : 'workflowDetail.waitingForInput')}
         </Badge>
-        <Mono className="text-xs text-subtle" title={request.requestId}>
+        <Mono className="text-xs text-subtle" copy={request.requestId}>
           {request.portId}
         </Mono>
       </div>
@@ -421,13 +446,24 @@ function PendingRequestCard({
             >
               {t('workflowDetail.approvePlan')}
             </Button>
-            <Button
-              disabled={disabled || text.trim().length === 0}
-              title={text.trim().length === 0 ? t('workflowDetail.revisionRequired') : undefined}
-              onClick={() => onRespond({ approved: false, text })}
+            {/* 🚨 `title` on a DISABLED control is never shown by any browser, so
+                the one explanation that mattered — why this button cannot be
+                pressed — was unreachable by construction. The tooltip wraps the
+                control rather than living on it, so it shows either way. */}
+            <Tooltip
+              text={
+                text.trim().length === 0
+                  ? t('workflowDetail.revisionRequired')
+                  : t('workflowDetail.sendBackHint')
+              }
             >
-              {t('workflowDetail.sendBack')}
-            </Button>
+              <Button
+                disabled={disabled || text.trim().length === 0}
+                onClick={() => onRespond({ approved: false, text })}
+              >
+                {t('workflowDetail.sendBack')}
+              </Button>
+            </Tooltip>
           </>
         )}
 

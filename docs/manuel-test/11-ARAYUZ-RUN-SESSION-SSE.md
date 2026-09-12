@@ -1929,3 +1929,153 @@ Faz 144'ün olayı, Faz 145'ten önce `event: unknown` olarak gidiyordu.
 - Çıktıda `event: child.timed-out` satırı görünür.
 
 ---
+
+---
+
+### MT-UIRUN-062 — Bir liste 500 aldığında sunucunun kendi metni görünür ve tek tıkla tekrar denenir (Faz 165)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 165 |
+| **İlgili karar** | K-232 |
+
+**Ön koşul**
+- Arayüz dili **Türkçe**. En az bir oturum ve bir run kaydı.
+- Tarayıcı geliştirici araçlarından `GET {prefix}/api/sessions` ve
+  `GET {prefix}/api/runs/{id}` uçlarını 500 döndürecek şekilde kesin.
+
+**Adımlar**
+1. `sessions` ekranını aç.
+2. Kesmeyi kaldır, hata notundaki "tekrar dene"ye bas.
+3. Aynısını bir run detay ekranında yap.
+
+**Beklenen sonuç**
+- Sunucunun `ProblemDetails` metni **birebir İngilizce** görünür; Türkçeye
+  çevrilmiş bir cümle üretilmez (K-232). 👤
+- Hata notunun yanında bir "tekrar dene" vardır ve **isteği tekrarlar** — sayfa
+  yenilemesi gerekmez.
+- İkinci deneme başarılı olunca hata notu kaybolur ve liste dolar.
+- 🚨 Konsol 5xx'i kendi kendine iki kez daha dener; hata notu ancak üç deneme de
+  düştükten sonra görünür. Kesmeyi tek istek için yapmak yetmez.
+
+---
+
+### MT-UIRUN-063 — Reader rolü yönetici ekranında reddedilir, boş ekran görmez (Faz 165)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 165 · 9 |
+| **İlgili karar** | — |
+
+Yanlış okuma bu case ile kapanır: `audit` açan bir reader "Henüz hiçbir şey
+kaydedilmedi" görüp denetim izinin boş olduğu sonucuna varıyordu.
+
+**Ön koşul**
+- `TraconPolicies.Admin` politikası başarısız olacak şekilde yapılandırılmış bir
+  ortam (reader rolü).
+- Denetim izinde en az bir kayıt bulunsun (bir agent oluşturup silmek yeter).
+
+**Adımlar**
+1. Adres çubuğundan doğrudan `audit` aç.
+2. Doğrudan `diagnostics` aç.
+3. `settings` içindeki script izni panelini aç.
+4. `mcp` ekranında bir server satırını genişletip "Prompt'lar" sekmesine geç.
+
+**Beklenen sonuç**
+- Dördünde de **yetkisiz durumu** görünür: kilit simgesi, hangi rolün gerektiği
+  ve reader'ın ne yapabildiği yazılıdır. 👤
+- Hiçbirinde "kayıt yok" / "boş" metni görünmez — ikisi karıştırılmaz. 👤
+- Kenar çubuğunda ve komut paletinde bu ekranlar zaten görünmez; sunucu her
+  hâlde tek gerçek zorlayıcıdır.
+
+---
+
+### MT-UIRUN-064 — İskelet yerleşimi zıplatmaz ve filtre şeridi etiketlidir (Faz 165)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 165 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- En az 20 run, 10 oturum ve 5 job kaydı.
+- Tarayıcı geliştirici araçlarından ağ hızı "Slow 3G"ye düşürülmüş olsun.
+
+**Adımlar**
+1. `runs` · `sessions` · `jobs` · `mcp` ekranlarını sırayla aç ve yükleme anına
+   bak.
+2. `runs` ekranında agent ve durum filtrelerini uygula, sonra temizle.
+3. `jobs` ekranında lane filtresini doldur, sonra temizle.
+
+**Beklenen sonuç**
+- İskelet satır sayısı gelen içerikle uyumludur; içerik geldiğinde sayfa
+  işaretçinin altından kaymaz. 👤
+- Her filtre kontrolünün **görünür bir etiketi** vardır; hiçbiri yalnız ilk
+  seçeneğinin metniyle tanımlı değildir.
+- "Filtreleri temizle" **yalnız bir şey filtreliyken** görünür, temizledikten
+  sonra kaybolur ve gerçekten temizler. 👤
+
+---
+
+### MT-UIRUN-065 — Bağlantı bağlantı gibi okunur; düğme biçimli olan tek bir `<a>`'dır (Faz 165)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 165 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- En az bir run, bir oturum ve bir agent.
+
+**Adımlar**
+1. `runs` ekranında kimlik hücresine ve agent hücresine bak.
+2. Bir oturum detay ekranında "N run" düğmesine `Tab` ile odaklan, sonra
+   orta tuşla tıkla.
+3. `agents` ekranında "Yeni agent" düğmesini orta tuşla tıkla.
+4. Klavyeyle bir liste satırının kimlik bağlantısına odaklan.
+
+**Beklenen sonuç**
+- Kimlik bağlantısı vurgu rengindedir ve hover/odakta altı çizilir; agent
+  hücresindeki bağlantı bilerek soluktur ve satırın tek vurgusunu kimlik
+  bırakır. 👤
+- "N run" ve "Yeni agent" **tek tab durağıdır** ve orta tuş yeni sekmede açar.
+- Kimlik bağlantısına odaklanmak **satırın tamamını** işaretler; `Enter` kaydı
+  açar. 👤
+
+---
+
+### MT-UIRUN-066 — 375 px'te hiçbir ekran yatay taşmaz, açıklama balonu dahil (Faz 165)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 165 · 164 |
+| **İlgili karar** | — |
+
+🚨 Boş bir kiracıda koşulan bu case hiçbir şey kanıtlamaz: taşma yalnız dolu bir
+tabloda ve uzun bir kimlikle doğar.
+
+**Ön koşul**
+- En az 20 run, 10 oturum, 5 job, bir MCP server ve bir sağlayıcı kaydı.
+- Tarayıcı penceresi 375 px genişliğe ayarlı.
+
+**Adımlar**
+1. Tüm ekranları sırayla gez.
+2. `models` ekranında **en sağdaki** sağlık badge'inin üzerine gel.
+3. `runs` ekranında en sağdaki sütun başlığının açıklamasını aç.
+4. Her ekranda sayfayı sağa kaydırmayı dene.
+
+**Beklenen sonuç**
+- Hiçbir ekranda sayfa gövdesi yatay kaymaz. Tablo, kod bloğu ve grafik kendi
+  kaydırma kutusunda kalır.
+- Açıklama balonu **görünür durumda da** viewport içinde kalır; kenara yakın bir
+  tetikleyicide sola kayar. 👤

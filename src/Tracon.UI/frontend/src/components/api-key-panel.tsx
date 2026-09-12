@@ -74,10 +74,10 @@ export function ApiKeyPanel(): ReactNode {
         </Button>
       }
     >
-      {keys.isPending && <Loading />}
+      {keys.isPending && <Loading rows={3} />}
       {keys.isError && (
         <div className="p-4">
-          <ErrorNote error={keys.error} />
+          <ErrorNote error={keys.error} onRetry={() => void keys.refetch()} />
         </div>
       )}
 
@@ -115,6 +115,8 @@ export function ApiKeyPanel(): ReactNode {
 
       {keys.isSuccess &&
         (keys.data.length === 0 ? (
+          /* No action here: the create form is the next thing in this panel,
+             so a button would only scroll past itself. */
           <Empty title={t('apiKeys.empty.title')}>{t('apiKeys.empty.body')}</Empty>
         ) : (
           <div className="divide-y divide-line">
@@ -250,7 +252,7 @@ function ApiKeyForm({
         </div>
       </Field>
 
-      {save.isError && <ErrorNote error={save.error} />}
+      {save.isError && <ErrorNote error={save.error} onRetry={() => save.mutate()} />}
 
       <div className="flex items-center gap-2">
         <Button

@@ -21,6 +21,8 @@ import {
   TextInput,
   Th,
 } from '../components/ui';
+import { Toolbar, ToolbarField } from '../components/toolbar';
+import { Tooltip } from '../components/tooltip';
 import { PlusIcon, TrashIcon } from '../components/icons';
 import type { TraconMetaResponse as Meta, JobStatus } from '@tracon/client';
 import type { JobRecord, JobSchedule } from '../lib/server-types';
@@ -327,12 +329,16 @@ export function JobsScreen({ meta }: { meta: Meta }): ReactNode {
               <Field
                 label={t('jobs.payload')}
                 hint={t('jobs.payloadHint')}
+                error={payloadError ?? undefined}
               >
-                <TextArea
-                  value={form.payload}
-                  rows={4}
-                  onChange={(event) => setForm({ ...form, payload: event.target.value })}
-                />
+                {(ids) => (
+                  <TextArea
+                    {...ids}
+                    value={form.payload}
+                    rows={4}
+                    onChange={(event) => setForm({ ...form, payload: event.target.value })}
+                  />
+                )}
               </Field>
             </div>
 
@@ -349,26 +355,67 @@ export function JobsScreen({ meta }: { meta: Meta }): ReactNode {
               >
                 {t('common.cancel')}
               </Button>
-              {payloadError != null && <ErrorNote error={new Error(payloadError)} />}
-              {save.isError && <ErrorNote error={save.error} />}
+              {save.isError && <ErrorNote error={save.error} onRetry={() => save.mutate()} />}
             </div>
           </form>
         </Panel>
       )}
 
+      {/* Two mutations that used to fail silently: a trigger that the server
+          refused, and a delete that did not take. Both leave the row exactly as
+          it was, so without saying so the operator concludes it worked. */}
+      {(trigger.isError || remove.isError) && (
+        <div className="mb-4 flex flex-col gap-2">
+          {trigger.isError && (
+            <ErrorNote
+              error={trigger.error}
+              onRetry={
+                trigger.variables === undefined ? undefined : () => trigger.mutate(trigger.variables)
+              }
+            />
+          )}
+          {remove.isError && (
+            <ErrorNote
+              error={remove.error}
+              onRetry={
+                remove.variables === undefined ? undefined : () => remove.mutate(remove.variables)
+              }
+            />
+          )}
+        </div>
+      )}
+
       <Panel title={t('jobs.schedules')} className="mb-4">
-        {schedules.isPending && <Loading />}
+        {schedules.isPending && <Loading rows={4} />}
         {schedules.isError && (
           <div className="p-4">
-            <ErrorNote error={schedules.error} />
+            <ErrorNote error={schedules.error} onRetry={() => void schedules.refetch()} />
           </div>
         )}
 
         {schedules.isSuccess &&
           (schedules.data.length === 0 ? (
-            <Empty title={t('jobs.noSchedules.title')}>{t('jobs.noSchedules.body')}</Empty>
+            <Empty
+              title={t('jobs.noSchedules.title')}
+              action={
+                meta.roles.canAdminister && (
+                  <Button
+                    tone="primary"
+                    onClick={() => {
+                      setForm(EMPTY_FORM);
+                      setEditing(null);
+                      setShowForm(true);
+                    }}
+                  >
+                    {t('jobs.empty.action')}
+                  </Button>
+                )
+              }
+            >
+              {t('jobs.noSchedules.body')}
+            </Empty>
           ) : (
-            <Table>
+            <Table label={t('jobs.schedules')}>
               <thead>
                 <tr>
                   <Th>{t('common.name')}</Th>
@@ -384,7 +431,7 @@ export function JobsScreen({ meta }: { meta: Meta }): ReactNode {
               </thead>
               <tbody>
                 {schedules.data.map((schedule) => (
-                  <tr key={schedule.id} className="hover:bg-raised">
+                  <tr key={schedule.id} className="focus-within:bg-raised hover:bg-raised">
                     <Td>
                       <Mono className="font-semibold">{schedule.name}</Mono>
                     </Td>
@@ -416,31 +463,49 @@ export function JobsScreen({ meta }: { meta: Meta }): ReactNode {
                       )}
                     </Td>
                     <Td className="text-right">
-                      {meta.roles.canOperate && (
-                        <Button
-                          onClick={() => trigger.mutate(schedule.name)}
-                          busy={trigger.isPending}
-                          title={t('jobs.triggerTitle')}
-                        >
-                          {t('jobs.trigger')}
-                        </Button>
-                      )}
-                      {meta.roles.canAdminister && (
-                        <>
-                          <Button
-                            onClick={() => {
-                              setForm(toForm(schedule));
-                              setEditing(schedule.name);
-                              setShowForm(true);
-                            }}
-                          >
-                            {t('common.edit')}
-                          </Button>
-                          <Button tone="danger" onClick={() => remove.mutate(schedule.name)}>
-                            <TrashIcon className="size-3.5" />
-                          </Button>
-                        </>
-                      )}
+                      <div className="flex items-center justify-end gap-1.5">
+                        {meta.roles.canOperate && (
+                          <Tooltip text={t('jobs.triggerTitle')}>
+                            <Button
+                              onClick={() => trigger.mutate(schedule.name)}
+                              busy={trigger.isPending && trigger.variables === schedule.name}
+                            >
+                              {t('jobs.trigger')}
+                            </Button>
+                          </Tooltip>
+                        )}
+                        {meta.roles.canAdminister && (
+                          <>
+                            <Button
+                              onClick={() => {
+                                setForm(toForm(schedule));
+                                setEditing(schedule.name);
+                                setShowForm(true);
+                              }}
+                            >
+                              {t('common.edit')}
+                            </Button>
+                            <Tooltip text={t('jobs.deleteSchedule')}>
+                              <Button
+                                tone="danger"
+                                ariaLabel={t('jobs.deleteSchedule')}
+                                busy={remove.isPending && remove.variables === schedule.name}
+                                onClick={() => {
+                                  if (
+                                    window.confirm(
+                                      t('common.confirmDelete', { name: schedule.name }),
+                                    )
+                                  ) {
+                                    remove.mutate(schedule.name);
+                                  }
+                                }}
+                              >
+                                <TrashIcon className="size-3.5" />
+                              </Button>
+                            </Tooltip>
+                          </>
+                        )}
+                      </div>
                     </Td>
                   </tr>
                 ))}
@@ -449,31 +514,58 @@ export function JobsScreen({ meta }: { meta: Meta }): ReactNode {
           ))}
       </Panel>
 
-      <Panel
-        title={t('jobs.recent')}
-        actions={
-          <div className="w-40">
+      <Toolbar onReset={laneFilter.length > 0 ? () => setLaneFilter('') : undefined}>
+        <ToolbarField label={t('jobs.laneFilter')}>
+          {(id) => (
             <TextInput
+              id={id}
+              className="h-8 w-40 py-0"
               value={laneFilter}
               placeholder={t('jobs.laneFilterPlaceholder')}
-              aria-label={t('jobs.laneFilter')}
               onChange={(event) => setLaneFilter(event.target.value)}
             />
-          </div>
-        }
-      >
-        {jobs.isPending && <Loading />}
+          )}
+        </ToolbarField>
+      </Toolbar>
+
+      {cancel.isError && (
+        <div className="mb-4">
+          <ErrorNote
+            error={cancel.error}
+            onRetry={
+              cancel.variables === undefined ? undefined : () => cancel.mutate(cancel.variables)
+            }
+          />
+        </div>
+      )}
+
+      <Panel title={t('jobs.recent')}>
+        {jobs.isPending && <Loading rows={8} />}
         {jobs.isError && (
           <div className="p-4">
-            <ErrorNote error={jobs.error} />
+            <ErrorNote error={jobs.error} onRetry={() => void jobs.refetch()} />
           </div>
         )}
 
         {jobs.isSuccess &&
           (jobs.data.length === 0 ? (
-            <Empty title={t('jobs.noJobs.title')}>{t('jobs.noJobs.body')}</Empty>
+            /*
+              🚨 No fabricated action. A job appears here because a schedule
+              fired or an API caller queued one — a console cannot make one
+              directly, so the honest next step is the schedule above.
+            */
+            <Empty
+              title={laneFilter.length > 0 ? t('common.noResults') : t('jobs.noJobs.title')}
+              action={
+                laneFilter.length > 0 ? (
+                  <Button onClick={() => setLaneFilter('')}>{t('toolbar.reset')}</Button>
+                ) : undefined
+              }
+            >
+              {laneFilter.length > 0 ? t('jobs.noJobs.filtered') : t('jobs.noJobs.body')}
+            </Empty>
           ) : (
-            <Table>
+            <Table label={t('jobs.recent')}>
               <thead>
                 <tr>
                   <Th>{t('jobs.job')}</Th>
@@ -488,7 +580,7 @@ export function JobsScreen({ meta }: { meta: Meta }): ReactNode {
               </thead>
               <tbody>
                 {jobs.data.map((job) => (
-                  <tr key={job.id} className="hover:bg-raised">
+                  <tr key={job.id} className="focus-within:bg-raised hover:bg-raised">
                     <Td>
                       <Link to={`jobs/${encodeURIComponent(job.id)}`}>
                         <Mono title={job.id}>{shortId(job.id, 13, 6)}</Mono>
@@ -513,7 +605,11 @@ export function JobsScreen({ meta }: { meta: Meta }): ReactNode {
                     <Td className="text-right">
                       {meta.roles.canOperate &&
                         (job.status === 'Pending' || job.status === 'Leased' || job.status === 'Running') && (
-                          <Button tone="danger" busy={cancel.isPending} onClick={() => cancel.mutate(job.id)}>
+                          <Button
+                            tone="danger"
+                            busy={cancel.isPending && cancel.variables === job.id}
+                            onClick={() => cancel.mutate(job.id)}
+                          >
                             {t('common.cancel')}
                           </Button>
                         )}

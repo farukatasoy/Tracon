@@ -32,6 +32,11 @@
   `src/Tracon.UI/frontend/src/styles.css` operasyon yüzeyi. Aynı **aileden**
   gelirler (koyu kömür zemin, kırık beyaz metin, tek teal vurgu); birini
   değiştirirken diğerini otomatik değişmiş sayma.
+- **🚨 Ham Tailwind paleti (`red-500`, `slate-700`) bir sızıntıdır** (Faz 165):
+  tema izlemez ve konsolun `danger` tonu değildir. `skills.tsx` iki uyarı
+  bandını böyle yazmıştı — ürünün en yüksek sesli uyarısı, başka hiçbir yerinin
+  kullanmadığı renkteydi. Tarama: `grep -rn "red-500\|slate-\|gray-\|zinc-"
+  src/Tracon.UI/frontend/src/`.
 - **Durum rengi ile seri rengi AYRI kümelerdir** (2026-09-12, Faz 164): durum
   altı tondan biridir (`status-dot.tsx`: accent · success · warn · danger ·
   info · neutral) ve **tek kaynağı** o modüldür. Grafik serileri
@@ -58,10 +63,40 @@
   satırıydı ve taşma onu **içeren panelin** sütununa yansıyordu. `Panel`
   artık `min-w-0` taşır. Tablo ve kod bloğu kendi `overflow-x-auto`
   sarmalayıcısına sahiptir; panelin altına inmesi güvenlidir.
+- **🚨 `min-w-0` kuralı BİR SEVİYE DAHA aşağı iner: `truncate` geçen bir
+  çağıran içeriği `nowrap` yapar ve o içeriğin min-content'i TÜM DİZEDİR**
+  (2026-09-12, Faz 165): `Mono`'nun `copy` sarmalayıcısı bir flex container'dı
+  ve `min-w-0` taşımıyordu, dolayısıyla 32 karakterlik bir W3C trace id onu
+  ~210 px'e sabitliyordu — `truncate` hiçbir şey kesmiyordu çünkü kesecek yer
+  yoktu. Kural: `overflow-hidden`/`truncate` bir çocuğa konuyorsa, **sarmalayan
+  her flex/grid öğesi** `min-w-0` taşımalıdır. `Panel`, `Mono`'nun copy
+  sarmalayıcısı, `Stat` ve `ErrorNote` artık taşıyor.
+- **🚨 KARARSIZ bir taşma testi gevşetilmez, okunur** (Faz 165): yukarıdaki
+  kusur `Proof_slice_screens_...`'ı üç koşumda bir düşürüyordu ve **izole her
+  zaman geçiyordu** — çünkü `Waterfall` yalnız span örneklenmişse render edilir.
+  İlk hipotez (Playwright'ın fareyi son tıklamada bırakması) yanlıştı; doğru
+  cevabı taşma probunun bastığı **suçlu listesi** verdi. Bir taşma testi
+  kararsızsa, taşan öğe koşullu olarak render ediliyordur.
 - **🚨 BOŞ bir ekranda koşan taşma testi hiçbir şey kanıtlamaz** (2026-09-12,
   Faz 164): eski 375 px olgusu run seed etmiyordu, grafikler `EmptyChart`
   çiziyordu ve taşma hiç doğmuyordu. Yukarıdaki kusur bu yüzden aylarca
   görünmedi. Yeni olgu önce playground'dan gerçek bir run üretir.
+- **🚨 GİZLİ bir öğe `sr-only` aldığı hâlde yer kaplamaya devam edebilir**
+  (2026-09-12, Faz 165): tooltip balonu gizliyken `sr-only` alıyordu ama
+  `w-max max-w-56` sınıflarını da koruyordu. **Tailwind çakışmayı stylesheet
+  sırasına göre çözer, `class` attribute'undaki sıraya göre değil** — `w-max`
+  kazanıyor ve "gizli" balon absolute konumlu, 224 px genişliğinde kalıyordu.
+  Absolute bir öğe `scrollWidth`'e **dahildir**: sağ kenara yakın her tooltip
+  sayfayı yana kaydırıyordu. Kural: gizli hâl `sr-only` alır ve **başka hiçbir
+  şey almaz** — boyut/konum sınıfları yalnız görünür daldadır.
+  **Kaynak okuması bunu bulamadı**; çalışma anı probu buldu (aynı anda görünür
+  balon doğru ölçüldü, gizli balon 224 px kenar dışında).
+- **🚨 Kenara yakın bir balon CSS ile kırpılamaz** (Faz 165): kırpma
+  tetikleyicinin konumunu ve balonun genişliğini gerektirir, ikisi de bir
+  stylesheet'in bilemeyeceği şeydir. `Tooltip` gösterim anında ölçüp kaydırır.
+  **`calc(-50% + -112px)` bir AYRIŞTIRMA HATASIDIR** ve tarayıcı tüm bildirimi
+  düşürür — kırpma sessizce hiçbir şey yapmaz. İşaret **operatöre** konur
+  (`calc(-50% - 112px)`), operanda değil.
 - **Taşma testi NEYİN geniş olduğunu söylemelidir** (Faz 164):
   `AssertNoHorizontalOverflowAsync` artık viewport'u aşan ilk beş öğeyi
   sınıflarıyla birlikte basar. Yalnız piksel sayısı vermek bir sonraki okuru
@@ -81,9 +116,38 @@
   görünmez, klavyeyle odaklanan kullanıcıya hiç görünmez ve ekran okuyucular
   tutarsız okur. `components/tooltip.tsx` hover VE odakta görünür, `Esc` ile
   kapanır ve metni `aria-describedby` ile kontrole bağlar. Balon her zaman
-  render edilir, gizliyken yalnız `sr-only` ile ekran dışına alınır — yalnız
-  hover'da var olan bir öğeye işaret eden `aria-describedby` zamanın geri
-  kalanında hiçbir şeyi tarif etmez.
+  render edilir — yalnız hover'da var olan bir öğeye işaret eden
+  `aria-describedby` zamanın geri kalanında hiçbir şeyi tarif etmez — ve
+  gizliyken **yalnız** `sr-only` alır (Faz 165 kusuru: boyut sınıflarını da
+  korumak balonu gizliyken 224 px geniş bırakıyordu, bkz. Yerleşim).
+- **🚨 Bir NAVİGASYON `Button` değildir** (Faz 165): `<Link><Button>…</Button></Link>`
+  bir `<a>` içinde `<button>` demektir — geçersiz HTML, tek hedef için iki tab
+  durağı, ve işaretçinin hangisine düştüğüne göre değişen davranış. `LinkButton`
+  gider (`href`, orta tuş, kopyala-bağlantı), `Button` yapar. `CONTROL_BASE` ve
+  `CONTROL_TONES` ikisinin de kaynağıdır; ayrı yazılırsa 1 px kayarlar.
+- **`Link` varsayılan bir görünüş taşır ve `className` onu TAMAMEN ezer**
+  (Faz 165): `className ?? LINK_CLASS`. Tailwind sınıf sırası özgüllüğü
+  belirlemez, dolayısıyla `cx(default, className)` iki rengin hangisinin
+  kazandığını **belirsiz** bırakır. Bilerek soluk bir tablo bağlantısı veya
+  düğme biçimli bir navigasyon varsayılanı devralmaz.
+- **Bir açıklamayı odaklanılamayan bir öğeye koymak onu ULAŞILAMAZ yapar**
+  (Faz 165): 26 badge `title` taşıyordu — dokunmatikte hiç, klavyede hiç
+  görünmüyordu. `Badge description` badge'i `tabIndex={0}` yapar ve `Tooltip`'e
+  verir. **Bedeli açıklanan badge başına bir tab durağıdır**; bu yüzden yalnız
+  badge'in kendi metninin söylemediği bir şey varsa geçilir. Sütun açıklaması
+  `Th description`'a gider: elli satır yerine bir durak.
+- **Bir metriğin açıklaması GÖRÜNÜR metindir** (Faz 165): `Stat hint` artık
+  `title` değil. Metrik kartında yer vardır, ve açıklamayı taşımak için
+  odaklanabilir bir kontrol icat etmek açıklamayı basmaktan kötüdür.
+- **Sekmeler tek bir yerden gelir** (Faz 165): `Tabs` hem şeridi hem paneli
+  render eder, çünkü **kablolama** varlık sebebidir — `aria-selected`,
+  `aria-controls`, panelin geri işaret etmesi, ve seçilmeyen sekmelerin tab
+  sırasından çıkıp ok tuşlarına devredilmesi. İki ekran ayrı `TabButton` yazmıştı
+  ve hiçbiri bunların hiçbirini taşımıyordu.
+- **🚨 Boş durumun aksiyonu başlıktaki düğmenin etiketini TEKRARLAMAZ**
+  (Faz 165): aynı erişilebilir ada sahip iki kontrol tek ekranda Playwright
+  strict mode'u kırar (dört mevcut olgu düştü) ve ekran okuyucuya iki aynı
+  düğme duyurur. `*.empty.action` anahtarları "ilkini oluştur" dilini taşır.
 - **Modal katmanı TEK yerdedir** (Faz 164): `dialog.tsx`. Dört şeyi birden
   yapar (odağı içeri al · `Tab`'ı hapset · `Esc` · odağı tetikleyiciye geri
   ver) ve `Esc`'te `stopPropagation` çağırır — aksi hâlde kabuğun genel `Esc`
