@@ -1763,3 +1763,95 @@ Regresyon. `memoryHasAnything` yalnız file/todo/text search bakıyordu; yalnız
 **Beklenen sonuç**
 - `memory` **null değildir**; `enableVectorSearch` hâlâ `true`,
   `vectorCollection` korunmuştur.
+
+---
+
+### MT-UIAG-056 — Boş bir kiracıda her liste ekranı ilkini nasıl oluşturacağını söyler (Faz 165)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 165 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- Hiç agent, skill, workflow, trigger, deney, eval seti ve MCP server bulunmayan
+  temiz bir kiracı. Rol: administrator.
+
+**Adımlar**
+1. Sırayla `agents` · `skills` · `workflows` · `triggers` · `experiments` ·
+   `evals` · `mcp` ekranlarını aç.
+2. Sonra `approvals` · `audit` ekranlarını ve `settings`'teki kota ile script
+   izni panellerini aç.
+
+**Beklenen sonuç**
+- Birinci gruptaki her boş durum **ne olmadığını** ve **ilkinin nasıl
+  oluşturulacağını** söyler; birincil aksiyonun metni başlıktaki düğmeyi
+  tekrarlamaz ("İlk agent'ı oluştur", "İlk server'ı ekle" gibi).
+- İkinci grupta **sahte bir aksiyon yoktur**: boş olmak istenen durumdur (bekleyen
+  onay yok, kayıt yok, tanımlı kota yok, verilmiş script izni yok). Metin bunu
+  söyler, "ilkini oluştur" demez. 👤
+
+---
+
+### MT-UIAG-057 — Bir düğmenin açıklaması hem işaretçiyle hem klavyeyle görünür (Faz 165)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 165 · 164 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- En az iki sürümü olan, veritabanında saklanan bir agent. Rol: administrator.
+
+**Adımlar**
+1. `agents/<ad>` aç, sürüm geçmişindeki eski bir satırın "Geri al" düğmesinin
+   üzerine gel.
+2. İşaretçiyi uzaklaştır, aynı düğmeye `Tab` ile odaklan.
+3. `Esc` bas.
+4. `models` ekranında bir sağlık badge'ine hem `Tab` ile odaklan hem üstüne gel.
+5. `runs` ekranında "Ağaç token" sütun başlığına `Tab` ile odaklan.
+
+**Beklenen sonuç**
+- Açıklama **iki yolda da** görünür ve geri almanın **sonucunu** söyler: hangi
+  sürüm canlı olacak, mevcut sürümün geçmişte kalacağı, bundan sonraki run'ların
+  hangi sürümü kullanacağı. 👤
+- `Esc` açıklamayı kapatır, altındaki katmanı kapatmaz.
+- Badge ve sütun başlığı klavyeyle **ulaşılabilir**; açıklamaları görünür.
+- Hiçbir açıklama için işaretçiyi bekletmek gerekmez ve hiçbiri yalnız
+  işaretçiyle görünmez. 👤
+
+---
+
+### MT-UIAG-058 — Yükleme hatası boş bir form göstermez (Faz 165)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 165 |
+| **İlgili karar** | — |
+
+Regresyon sınıfı. `isPending` istek düşer düşmez `false` olur; hata dalı
+yoksa editör "boş yüklenmiş bir kayıt" gibi görünür ve o hâlden kaydetmek
+gerçek tanımı siler.
+
+**Ön koşul**
+- Saklanan bir skill, bir trigger ve bir workflow. Rol: administrator.
+- Tarayıcı geliştirici araçlarından ilgili `GET` ucunu 500 döndürecek şekilde
+  kesin (veya sunucuyu o an durdurun).
+
+**Adımlar**
+1. `skills/<ad>/edit` aç.
+2. `triggers/<ad>/edit` aç.
+3. `workflows/<ad>/edit` aç.
+4. Her birinde "tekrar dene"ye bas, kesme kaldırılmış hâlde.
+
+**Beklenen sonuç**
+- Üçü de **hata** gösterir, boş form göstermez; sunucunun kendi metni çevrilmeden
+  görünür.
+- "Kaydet" düğmesi bu hâlde erişilebilir değildir (form hiç render edilmez).
+- Tekrar deneme isteği yeniler ve form gerçek değerlerle dolar. 👤

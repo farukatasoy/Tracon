@@ -228,11 +228,11 @@ function OnlineEvaluationSummaryPanel(): ReactNode {
   });
 
   if (summary.isPending) {
-    return <Loading />;
+    return <Loading rows={3} />;
   }
 
   if (summary.isError) {
-    return <ErrorNote error={summary.error} />;
+    return <ErrorNote error={summary.error} onRetry={() => void summary.refetch()} />;
   }
 
   const data = summary.data;
@@ -282,11 +282,11 @@ function PersistentScoreTrendPanel(): ReactNode {
   });
 
   if (summary.isPending) {
-    return <Loading />;
+    return <Loading rows={3} />;
   }
 
   if (summary.isError) {
-    return <ErrorNote error={summary.error} />;
+    return <ErrorNote error={summary.error} onRetry={() => void summary.refetch()} />;
   }
 
   if (summary.data.series.length === 0) {
@@ -316,7 +316,7 @@ function FeedbackSummary({
   const t = useT();
 
   if (isLoading) {
-    return <Loading />;
+    return <Loading rows={3} />;
   }
 
   if (stats === undefined || stats.scoredRuns === 0) {
@@ -515,7 +515,7 @@ function AlertsRow({
   return (
     <div className="flex flex-wrap items-center gap-2 px-4 py-3">
       {hasUnpriced && (
-        <Badge tone="warn" title={t('dashboard.unpricedTitle')}>
+        <Badge tone="warn" description={t('dashboard.unpricedTitle')}>
           {plural('dashboard.unpricedRuns', runsWithUnknownPricing ?? 0)}
         </Badge>
       )}

@@ -69,7 +69,14 @@ export function PromoteToEvalCase({ runId }: { runId: string }): ReactNode {
 
         <p className="text-xs text-subtle">{t('evals.promote.hint')}</p>
 
-        {promote.isError && <ErrorNote error={promote.error} />}
+        {promote.isError && (
+          <ErrorNote
+            error={promote.error}
+            onRetry={
+              promote.variables === undefined ? undefined : () => promote.mutate(promote.variables)
+            }
+          />
+        )}
       </div>
     </Panel>
   );

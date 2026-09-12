@@ -66,10 +66,10 @@ export function WebhookPanel(): ReactNode {
         </Button>
       }
     >
-      {subscriptions.isPending && <Loading />}
+      {subscriptions.isPending && <Loading rows={3} />}
       {subscriptions.isError && (
         <div className="p-4">
-          <ErrorNote error={subscriptions.error} />
+          <ErrorNote error={subscriptions.error} onRetry={() => void subscriptions.refetch()} />
         </div>
       )}
 
@@ -84,6 +84,7 @@ export function WebhookPanel(): ReactNode {
 
       {subscriptions.isSuccess &&
         (subscriptions.data.length === 0 ? (
+          /* No action: the subscription form follows directly below. */
           <Empty title={t('webhooks.empty.title')}>{t('webhooks.empty.body')}</Empty>
         ) : (
           <div className="divide-y divide-line">
@@ -137,7 +138,7 @@ function SubscriptionRow({
         {subscription.enabled ? (
           <Badge tone="success">{t('common.enabled')}</Badge>
         ) : (
-          <Badge tone="danger" title={t('webhooks.disabledTitle')}>
+          <Badge tone="danger" description={t('webhooks.disabledTitle')}>
             {t('common.disabled')}
           </Badge>
         )}
@@ -189,7 +190,7 @@ function SubscriptionRow({
       )}
       {test.isError && (
         <div className="mt-2">
-          <ErrorNote error={test.error} />
+          <ErrorNote error={test.error} onRetry={() => test.mutate()} />
         </div>
       )}
 
@@ -211,11 +212,11 @@ function Deliveries({ name }: { name: string }): ReactNode {
   });
 
   if (deliveries.isPending) {
-    return <Loading />;
+    return <Loading rows={3} />;
   }
 
   if (deliveries.isError) {
-    return <ErrorNote error={deliveries.error} />;
+    return <ErrorNote error={deliveries.error} onRetry={() => void deliveries.refetch()} />;
   }
 
   if (deliveries.data.length === 0) {
@@ -352,7 +353,7 @@ function WebhookForm({ onDone }: { onDone: () => void }): ReactNode {
         </div>
       </Field>
 
-      {save.isError && <ErrorNote error={save.error} />}
+      {save.isError && <ErrorNote error={save.error} onRetry={() => save.mutate()} />}
 
       <div className="flex items-center gap-2">
         <Button

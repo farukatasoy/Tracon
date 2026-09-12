@@ -27,11 +27,11 @@ export function RunComparison({ left, right }: { left: string; right: string }):
   });
 
   if (comparison.isPending) {
-    return <Loading />;
+    return <Loading rows={4} />;
   }
 
   if (comparison.isError) {
-    return <ErrorNote error={comparison.error} />;
+    return <ErrorNote error={comparison.error} onRetry={() => void comparison.refetch()} />;
   }
 
   const fields = {

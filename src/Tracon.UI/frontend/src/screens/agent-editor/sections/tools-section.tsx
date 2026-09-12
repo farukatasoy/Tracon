@@ -21,8 +21,8 @@ export function ToolsSection({
       <div className="p-4">
         <p className="mb-3 text-sm text-muted">{t('agentEditor.toolsNotice')}</p>
 
-        {tools.isPending && <Loading />}
-        {tools.isError && <ErrorNote error={tools.error} />}
+        {tools.isPending && <Loading rows={4} />}
+        {tools.isError && <ErrorNote error={tools.error} onRetry={() => void tools.refetch()} />}
 
         {tools.isSuccess && tools.data.length === 0 && (
           <p className="text-base text-subtle">
@@ -55,12 +55,12 @@ export function ToolsSection({
                 <span className="min-w-0">
                   <Mono className="font-medium">{tool.name}</Mono>
                   {tool.requiresApproval && (
-                    <Badge tone="warn" title={t('agentEditor.approvalTitle')}>
+                    <Badge tone="warn" description={t('agentEditor.approvalTitle')}>
                       approval
                     </Badge>
                   )}
                   {tool.runsOnClient && (
-                    <Badge tone="accent" title={t('agentEditor.runsOnClientTitle')}>
+                    <Badge tone="accent" description={t('agentEditor.runsOnClientTitle')}>
                       {t('tools.runsOnClient')}
                     </Badge>
                   )}

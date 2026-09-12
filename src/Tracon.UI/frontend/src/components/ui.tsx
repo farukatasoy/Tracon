@@ -5,9 +5,12 @@ import {
   type ReactNode,
   type TextareaHTMLAttributes,
 } from 'react';
+import { cx } from '../lib/cx';
 import { useT } from '../lib/i18n';
+import { Link } from '../lib/router';
 import { CheckIcon, CopyIcon, LockIcon } from './icons';
 import { STATUS_CHIP, type StatusTone } from './status-dot';
+import { Tooltip } from './tooltip';
 
 /**
  * The console's primitives.
@@ -24,9 +27,7 @@ import { STATUS_CHIP, type StatusTone } from './status-dot';
  * never renamed or removed.
  */
 
-export function cx(...parts: (string | false | null | undefined)[]): string {
-  return parts.filter(Boolean).join(' ');
-}
+export { cx } from '../lib/cx';
 
 /* ------------------------------------------------------------------ layout */
 
@@ -88,6 +89,23 @@ export function Panel({
 
 type ButtonTone = 'primary' | 'default' | 'ghost' | 'danger';
 
+/**
+ * The shape of a control, shared by `Button` and `LinkButton`.
+ *
+ * Hoisted out of `Button` so the two cannot drift: a link dressed as a button
+ * that sits 1px taller than the button beside it is the kind of thing nobody
+ * reports and everybody sees.
+ */
+const CONTROL_BASE =
+  'inline-flex h-8 items-center gap-1.5 rounded border px-2.5 text-base font-medium whitespace-nowrap transition-colors';
+
+const CONTROL_TONES: Record<ButtonTone, string> = {
+  primary: 'bg-accent text-accent-fg hover:bg-accent-hover border-transparent font-semibold',
+  default: 'bg-raised text-fg border-line-strong hover:border-accent',
+  ghost: 'bg-transparent text-muted hover:text-fg hover:bg-raised border-transparent',
+  danger: 'bg-transparent text-danger border-line-strong hover:bg-danger-soft hover:border-danger',
+};
+
 export function Button({
   children,
   onClick,
@@ -95,11 +113,12 @@ export function Button({
   type = 'button',
   disabled,
   busy,
-  title,
   ariaLabel,
   className,
   testId,
   'aria-describedby': describedBy,
+  'aria-expanded': expanded,
+  'aria-controls': controls,
 }: {
   children: ReactNode;
   onClick?: () => void;
@@ -107,8 +126,17 @@ export function Button({
   type?: 'button' | 'submit';
   disabled?: boolean;
   busy?: boolean;
-  title?: string;
-  /** Required when the button's content is an icon and nothing else. */
+  /**
+   * Required when the button's content is an icon and nothing else.
+   *
+   * 🚨 There is deliberately NO `title` prop. A description on a control has to
+   * be reachable — `title` is invisible on a touch device, invisible to a
+   * keyboard user who tabbed to the control, read inconsistently by screen
+   * readers, and never shown at all on a DISABLED control, which is the one
+   * case where "why can't I press this?" most needs answering. Wrap the button
+   * in `Tooltip` instead; removing the prop is what stops the next call site
+   * from reaching for it.
+   */
   ariaLabel?: string;
   className?: string;
   testId?: string;
@@ -120,34 +148,70 @@ export function Button({
    * lands on the DOM.
    */
   'aria-describedby'?: string;
+  /**
+   * A disclosure's state, and the region it opens.
+   *
+   * 🚨 Same closed-prop-list trap as `aria-describedby`: an expanding row
+   * whose button drops these is announced as a plain button, and a screen
+   * reader user is never told the details opened.
+   */
+  'aria-expanded'?: boolean;
+  'aria-controls'?: string;
 }): ReactNode {
-  const tones: Record<ButtonTone, string> = {
-    primary: 'bg-accent text-accent-fg hover:bg-accent-hover border-transparent font-semibold',
-    default: 'bg-raised text-fg border-line-strong hover:border-accent',
-    ghost: 'bg-transparent text-muted hover:text-fg hover:bg-raised border-transparent',
-    danger: 'bg-transparent text-danger border-line-strong hover:bg-danger-soft hover:border-danger',
-  };
-
   return (
     <button
       type={type}
-      title={title}
       aria-label={ariaLabel}
       aria-describedby={describedBy}
+      aria-expanded={expanded}
+      aria-controls={controls}
       aria-busy={busy === true ? true : undefined}
       data-testid={testId}
       disabled={disabled === true || busy === true}
       onClick={onClick}
       className={cx(
-        'inline-flex h-8 items-center gap-1.5 rounded border px-2.5 text-base font-medium whitespace-nowrap',
-        'transition-colors disabled:cursor-not-allowed disabled:opacity-50',
-        tones[tone],
+        CONTROL_BASE,
+        'disabled:cursor-not-allowed disabled:opacity-50',
+        CONTROL_TONES[tone],
         className,
       )}
     >
       {busy === true && <Spinner />}
       {children}
     </button>
+  );
+}
+
+/**
+ * A navigation dressed as a button.
+ *
+ * 🚨 It exists because the alternative was being written by hand. Three screens
+ * had copied the accent classes into a `<Link className=...>` and two more had
+ * written `<Link><Button>…</Button></Link>`, which puts a `<button>` inside an
+ * `<a>`: invalid HTML, two tab stops for one destination, and a click target
+ * whose behaviour depends on which of the two the pointer landed on.
+ *
+ * The distinction against `Button` is not cosmetic and it decides which one a
+ * screen reaches for: this one GOES somewhere, so it has an `href` and obeys
+ * middle-click, copy-link and open-in-new-tab. `Button` DOES something.
+ */
+export function LinkButton({
+  to,
+  children,
+  tone = 'default',
+  className,
+  testId,
+}: {
+  to: string;
+  children: ReactNode;
+  tone?: ButtonTone;
+  className?: string;
+  testId?: string;
+}): ReactNode {
+  return (
+    <Link to={to} testId={testId} className={cx(CONTROL_BASE, CONTROL_TONES[tone], className)}>
+      {children}
+    </Link>
   );
 }
 
@@ -314,15 +378,30 @@ export function Select({
 export function Badge({
   children,
   tone = 'neutral',
-  title,
+  description,
 }: {
   children: ReactNode;
   tone?: StatusTone;
-  title?: string;
+  /**
+   * What the badge means, when its one or two words are not enough — "db · v4"
+   * does not say which version is live, and "Sequential" does not say that the
+   * agents run one after another.
+   *
+   * 🚨 This used to be a `title` attribute on 26 badges, which is the one place
+   * `title` is neither a tooltip nor the full value of something truncated: a
+   * badge is not focusable, so a keyboard user could never reach the
+   * explanation, a touch user could never summon it, and screen readers read
+   * `title` inconsistently. Passing it here makes the badge focusable and hands
+   * the text to `Tooltip`, which shows on hover AND focus and binds it with
+   * `aria-describedby`. The cost is a tab stop per described badge, and it is
+   * the price of the information being reachable at all — so pass this only
+   * when the badge genuinely carries something its own text does not.
+   */
+  description?: string;
 }): ReactNode {
-  return (
+  const chip = (
     <span
-      title={title}
+      tabIndex={description === undefined ? undefined : 0}
       className={cx(
         'inline-flex items-center gap-1 rounded-sm border px-1.5 py-px text-xs font-medium whitespace-nowrap',
         STATUS_CHIP[tone],
@@ -331,6 +410,8 @@ export function Badge({
       {children}
     </span>
   );
+
+  return description === undefined ? chip : <Tooltip text={description}>{chip}</Tooltip>;
 }
 
 /**
@@ -364,7 +445,14 @@ export function Mono({
   }
 
   return (
-    <span className="inline-flex items-center gap-1">
+    // 🚨 `min-w-0`: this wrapper is a flex container, so it defaults to
+    // `min-width: auto` and refuses to shrink below its content's min-content
+    // width — and a caller that passes `truncate` has made that content
+    // `white-space: nowrap`, whose min-content is the WHOLE string. A 32-char
+    // trace id then pinned this span at ~210px and pushed the run detail screen
+    // sideways at 375px. Same defect `Panel` was given `min-w-0` for in phase
+    // 164, one level down.
+    <span className="inline-flex min-w-0 items-center gap-1">
       {text}
       <CopyButton value={copy} variant="inline" />
     </span>
@@ -436,7 +524,10 @@ export function ErrorNote({ error, onRetry }: { error: unknown; onRetry?: () => 
   return (
     <div
       role="alert"
-      className="flex flex-wrap items-center justify-between gap-2 rounded border border-danger bg-danger-soft px-3 py-2 text-sm text-danger"
+      className={cx(
+        'flex min-w-0 flex-wrap items-center justify-between gap-2 rounded',
+        'border border-danger bg-danger-soft px-3 py-2 text-sm text-danger',
+      )}
     >
       <span className="min-w-0 break-words">{message}</span>
       {onRetry !== undefined && (
@@ -470,6 +561,196 @@ export function Unauthorized({ requires }: { requires: 'operator' | 'administrat
   );
 }
 
+/* -------------------------------------------------------------------- tabs */
+
+/**
+ * A tab strip and the panel it switches.
+ *
+ * 🚨 It renders BOTH halves on purpose. The wiring is the whole reason this
+ * exists: a tab has to say it is selected (`aria-selected`), name the panel it
+ * shows (`aria-controls`), leave the unselected tabs out of the tab order so
+ * arrow keys move between them, and the panel has to point back at its tab.
+ * Two screens had each hand-rolled a `TabButton` that did none of it — a
+ * keyboard user was told "button", pressed it, and was never told what changed.
+ *
+ * Activation follows focus, which is the expected behaviour when a panel is
+ * already-loaded content rather than something a switch has to fetch.
+ */
+export function Tabs<T extends string>({
+  label,
+  value,
+  onChange,
+  panels,
+}: {
+  /** Names the strip. Two tab strips on one screen need different names. */
+  label: string;
+  value: T;
+  onChange: (value: T) => void;
+  panels: { id: T; label: string; render: () => ReactNode }[];
+}): ReactNode {
+  const base = useId();
+  const tabId = (id: T): string => `${base}-${id}-tab`;
+  const panelId = (id: T): string => `${base}-${id}-panel`;
+
+  const move = (offset: number): void => {
+    const index = panels.findIndex((panel) => panel.id === value);
+    const next = panels[(index + offset + panels.length) % panels.length];
+
+    if (next !== undefined) {
+      onChange(next.id);
+      document.getElementById(tabId(next.id))?.focus();
+    }
+  };
+
+  return (
+    <>
+      <div
+        role="tablist"
+        aria-label={label}
+        className="mb-4 flex gap-1"
+        onKeyDown={(event) => {
+          if (event.key === 'ArrowRight') {
+            event.preventDefault();
+            move(1);
+          } else if (event.key === 'ArrowLeft') {
+            event.preventDefault();
+            move(-1);
+          }
+        }}
+      >
+        {panels.map((panel) => {
+          const selected = panel.id === value;
+
+          return (
+            <button
+              key={panel.id}
+              type="button"
+              role="tab"
+              id={tabId(panel.id)}
+              aria-selected={selected}
+              aria-controls={panelId(panel.id)}
+              // Only the selected tab is a tab stop; the arrow keys reach the
+              // rest. A strip of five tabs is otherwise five stops on the way
+              // to the content.
+              tabIndex={selected ? 0 : -1}
+              onClick={() => onChange(panel.id)}
+              className={cx(
+                'rounded-md px-3 py-1.5 text-base font-medium transition-colors',
+                selected ? 'bg-raised text-fg' : 'text-muted hover:text-fg',
+              )}
+            >
+              {panel.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {panels.map((panel) => (
+        <div
+          key={panel.id}
+          role="tabpanel"
+          id={panelId(panel.id)}
+          aria-labelledby={tabId(panel.id)}
+          hidden={panel.id !== value}
+        >
+          {panel.id === value && panel.render()}
+        </div>
+      ))}
+    </>
+  );
+}
+
+/* ----------------------------------------------------------------- measures */
+
+/**
+ * One measured number.
+ *
+ * Moved here from `runs.tsx`: the summary strip belongs to five screens now,
+ * and importing a primitive out of a screen made the run list a dependency of
+ * the diagnostics page.
+ */
+export function Stat({
+  label,
+  value,
+  hint,
+  tone,
+}: {
+  label: string;
+  value: string;
+  /**
+   * What the number counts, when the label is too short to say it.
+   *
+   * 🚨 Rendered as visible text, not as a `title`. A metric that has to be
+   * explained is explained to everyone, and a metric card is one of the few
+   * places with room to do it — there is no control here to hang a `Tooltip`
+   * on, and inventing a focusable one to carry a caption is worse than
+   * printing the caption.
+   */
+  hint?: string;
+  tone?: 'danger';
+}): ReactNode {
+  return (
+    // `min-w-0` for the reason `Panel` carries it: a grid item that cannot
+    // shrink turns one wide value into a wide COLUMN.
+    <div className="min-w-0 rounded border border-line bg-panel px-2.5 py-2">
+      <span className="block text-2xs tracking-wider text-subtle uppercase">{label}</span>
+      <span
+        className={cx(
+          'mt-0.5 block font-mono text-metric font-semibold',
+          tone === 'danger' && 'text-danger',
+        )}
+      >
+        {value}
+      </span>
+      {hint !== undefined && (
+        <span className="mt-0.5 block text-2xs leading-snug text-subtle">{hint}</span>
+      )}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ paging */
+
+/**
+ * Skip/take paging over a list.
+ *
+ * Moved here from `sessions.tsx` for the same reason as `Stat`: twelve list
+ * screens page, and eleven of them would otherwise import it from the session
+ * list. It renders nothing on a single short page — controls that can only be
+ * disabled are noise.
+ */
+export function Pager({
+  page,
+  size,
+  pageSize,
+  onChange,
+}: {
+  page: number;
+  size: number;
+  pageSize: number;
+  onChange: (page: number) => void;
+}): ReactNode {
+  const t = useT();
+
+  if (page === 0 && size < pageSize) {
+    return null;
+  }
+
+  return (
+    <div className="flex items-center justify-between border-t border-line px-4 py-2 text-sm text-muted">
+      <span>{t('common.page', { page: page + 1 })}</span>
+      <div className="flex gap-2">
+        <Button tone="ghost" disabled={page === 0} onClick={() => onChange(page - 1)}>
+          {t('common.previous')}
+        </Button>
+        <Button tone="ghost" disabled={size < pageSize} onClick={() => onChange(page + 1)}>
+          {t('common.next')}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 /* ------------------------------------------------------------------ tables */
 
 export function Table({ children, label }: { children: ReactNode; label?: string }): ReactNode {
@@ -482,7 +763,23 @@ export function Table({ children, label }: { children: ReactNode; label?: string
   );
 }
 
-export function Th({ children, className }: { children?: ReactNode; className?: string }): ReactNode {
+export function Th({
+  children,
+  className,
+  description,
+}: {
+  children?: ReactNode;
+  className?: string;
+  /**
+   * What the column measures, when the heading is too short to say it.
+   *
+   * 🚨 It belongs on the heading, not on the cells. "Tree tokens" was
+   * explained by a `title` on every row's cell, which is one unreachable
+   * explanation repeated fifty times; a described heading is one tab stop for
+   * the whole column and says the same thing once.
+   */
+  description?: string;
+}): ReactNode {
   return (
     <th
       scope="col"
@@ -491,7 +788,15 @@ export function Th({ children, className }: { children?: ReactNode; className?: 
         className,
       )}
     >
-      {children}
+      {description === undefined ? (
+        children
+      ) : (
+        <Tooltip text={description}>
+          <span tabIndex={0} className="underline decoration-dotted decoration-from-font">
+            {children}
+          </span>
+        </Tooltip>
+      )}
     </th>
   );
 }
@@ -553,7 +858,8 @@ export function CopyButton({
   return (
     <button
       type="button"
-      title={copied ? t('common.copied') : t('common.copy')}
+      // No `title`: it only repeated `aria-label`, and the "copied" half is
+      // already announced by the `aria-live` region below.
       aria-label={t('common.copy')}
       className={cx(
         'rounded text-subtle transition-colors hover:text-fg',

@@ -5,6 +5,7 @@ import type { SessionBranchResult } from '../lib/server-types';
 import { useT } from '../lib/i18n';
 import { useNavigate } from '../lib/router';
 import { Button, ErrorNote } from './ui';
+import { Tooltip } from './tooltip';
 
 /**
  * Branches a session's conversation at one message and opens the branch
@@ -44,17 +45,18 @@ export function BranchButton({
 
   return (
     <>
-      <Button
-        tone="ghost"
-        onClick={() => branch.mutate()}
-        busy={branch.isPending}
-        title={t('branch.hint')}
-        testId={upToSequence === undefined ? 'branch-session' : `branch-at-${upToSequence}`}
-      >
-        {branch.isPending ? t('branch.running') : t('branch.title')}
-      </Button>
+      <Tooltip text={t('branch.hint')}>
+        <Button
+          tone="ghost"
+          onClick={() => branch.mutate()}
+          busy={branch.isPending}
+          testId={upToSequence === undefined ? 'branch-session' : `branch-at-${upToSequence}`}
+        >
+          {branch.isPending ? t('branch.running') : t('branch.title')}
+        </Button>
+      </Tooltip>
 
-      {branch.isError && <ErrorNote error={branch.error} />}
+      {branch.isError && <ErrorNote error={branch.error} onRetry={() => branch.mutate()} />}
     </>
   );
 }

@@ -195,6 +195,10 @@ export function ApprovalsScreen({ meta }: { meta: Meta }): ReactNode {
 
       {decide.isError && (
         <div className="mt-3">
+          {/* No retry. Approving or rejecting a tool call is a decision, and a
+              generic "try again" next to a failed one would re-submit a verdict
+              the operator can no longer see the arguments for. The row is still
+              in the list with both buttons on it. */}
           <ErrorNote error={decide.error} />
         </div>
       )}

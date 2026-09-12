@@ -11,6 +11,7 @@ import {
   voiceSubProtocols,
 } from '../lib/voice';
 import { Badge, Button, cx } from './ui';
+import { Tooltip } from './tooltip';
 import { CrossIcon, MicIcon, StopIcon } from './icons';
 
 /** Where a conversation is in its cycle, from the browser's point of view. */
@@ -397,9 +398,11 @@ export function VoicePanel({ agent, sessionId }: { agent: string; sessionId: str
         )}
 
         {state === 'listening' && (
-          <Button onClick={commit} testId="voice-commit" title={t('voice.sendNowTitle')}>
-            {t('voice.sendNow')}
-          </Button>
+          <Tooltip text={t('voice.sendNowTitle')}>
+            <Button onClick={commit} testId="voice-commit">
+              {t('voice.sendNow')}
+            </Button>
+          </Tooltip>
         )}
 
         {state === 'speaking' && (

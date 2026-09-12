@@ -38,6 +38,8 @@ export function TenantProviderPanel(): ReactNode {
       </div>
 
       {effectiveTenantId.trim() === '' ? (
+        /* No action: the next step is typing a tenant key in the field above,
+           not pressing a button. */
         <Empty title={t('tenantProviders.empty.title')}>{t('tenantProviders.empty.body')}</Empty>
       ) : (
         <>
@@ -83,10 +85,10 @@ function BindingsSection({ tenantId }: { tenantId: string }): ReactNode {
         </Button>
       </div>
 
-      {bindings.isPending && <Loading />}
+      {bindings.isPending && <Loading rows={3} />}
       {bindings.isError && (
         <div className="px-4 pb-3">
-          <ErrorNote error={bindings.error} />
+          <ErrorNote error={bindings.error} onRetry={() => void bindings.refetch()} />
         </div>
       )}
 
@@ -104,7 +106,9 @@ function BindingsSection({ tenantId }: { tenantId: string }): ReactNode {
 
       {bindings.isSuccess &&
         (bindings.data.length === 0 ? (
-          <Empty title={t('tenantProviders.bindings.empty.title')}>
+          /* No action, and no binding is the SAFE state: the tenant falls back
+           to the deployment's own setup-time credential. The add form follows. */
+        <Empty title={t('tenantProviders.bindings.empty.title')}>
             {t('tenantProviders.bindings.empty.body')}
           </Empty>
         ) : (
@@ -238,7 +242,7 @@ function BindingForm({
         />
       </Field>
 
-      {save.isError && <ErrorNote error={save.error} />}
+      {save.isError && <ErrorNote error={save.error} onRetry={() => save.mutate()} />}
 
       <div className="flex items-center gap-2">
         <Button
@@ -310,10 +314,10 @@ function EgressSection({ tenantId }: { tenantId: string }): ReactNode {
         <h3 className="text-sm font-semibold text-muted">{t('tenantProviders.egress.title')}</h3>
       </div>
 
-      {policy.isPending && <Loading />}
+      {policy.isPending && <Loading rows={3} />}
       {policy.isError && (
         <div className="px-4 pb-3">
-          <ErrorNote error={policy.error} />
+          <ErrorNote error={policy.error} onRetry={() => void policy.refetch()} />
         </div>
       )}
 
@@ -374,8 +378,15 @@ function EgressSection({ tenantId }: { tenantId: string }): ReactNode {
             </>
           )}
 
-          {save.isError && <ErrorNote error={save.error} />}
-          {clear.isError && <ErrorNote error={clear.error} />}
+          {save.isError && (
+            <ErrorNote
+              error={save.error}
+              onRetry={
+                save.variables === undefined ? undefined : () => save.mutate(save.variables)
+              }
+            />
+          )}
+          {clear.isError && <ErrorNote error={clear.error} onRetry={() => clear.mutate()} />}
         </div>
       )}
 

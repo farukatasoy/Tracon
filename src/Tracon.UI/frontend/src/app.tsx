@@ -1,14 +1,15 @@
 import type { ReactNode } from 'react';
 import { AccessGate } from './components/access-gate';
 import { Layout } from './components/layout';
-import { Empty, Panel } from './components/ui';
+import { Empty, LinkButton, Panel } from './components/ui';
 import { useT } from './lib/i18n';
 import { useRoute, type RouteDefinition } from './lib/router';
 import { DashboardScreen } from './screens/dashboard';
 import { AgentsScreen } from './screens/agents';
 import { AgentDetailScreen } from './screens/agent-detail';
 import { AgentEditorScreen } from './screens/agent-editor';
-import { SkillEditorScreen, SkillsScreen } from './screens/skills';
+import { SkillsScreen } from './screens/skills';
+import { SkillEditorScreen } from './screens/skills/skill-editor';
 import { PlaygroundScreen } from './screens/playground';
 import { SessionsScreen } from './screens/sessions';
 import { SessionDetailScreen } from './screens/session-detail';
@@ -92,8 +93,8 @@ export const routes = (meta: Meta): RouteDefinition[] => [
     render: (params) => <TriggerEditorScreen name={params['name'] ?? ''} meta={meta} />,
   },
   { pattern: 'approvals', render: () => <ApprovalsScreen meta={meta} /> },
-  { pattern: 'audit', render: () => <AuditScreen /> },
-  { pattern: 'diagnostics', render: () => <DiagnosticsScreen /> },
+  { pattern: 'audit', render: () => <AuditScreen meta={meta} /> },
+  { pattern: 'diagnostics', render: () => <DiagnosticsScreen meta={meta} /> },
   { pattern: 'settings', render: () => <SettingsScreen meta={meta} /> },
 ];
 
@@ -109,7 +110,18 @@ function Shell({ meta }: { meta: Meta }): ReactNode {
     <Layout meta={meta}>
       {screen ?? (
         <Panel>
-          <Empty title={t('shell.notFound.title')}>{t('shell.notFound.body')}</Empty>
+          {/* The one screen whose primary action is not "create" but "get back
+              to somewhere real". */}
+          <Empty
+            title={t('shell.notFound.title')}
+            action={
+              <LinkButton to="dashboard" tone="primary">
+                {t('nav.dashboard')}
+              </LinkButton>
+            }
+          >
+            {t('shell.notFound.body')}
+          </Empty>
         </Panel>
       )}
     </Layout>

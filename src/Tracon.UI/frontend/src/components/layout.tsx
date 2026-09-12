@@ -9,6 +9,7 @@ import { CommandPalette, ShortcutHelp } from './command-palette';
 import { visibleNavigation, type NavGroup } from './navigation';
 import { LanguageIcon, MoonIcon, SearchIcon, SunIcon, TraconMark } from './icons';
 import type { TraconMetaResponse as Meta } from '@tracon/client';
+import { Tooltip } from './tooltip';
 
 /**
  * Global key bindings.
@@ -277,7 +278,6 @@ function TopBar({
           type="button"
           data-testid="palette-open"
           onClick={onOpenPalette}
-          title={t('palette.title')}
           aria-label={t('palette.title')}
           className={cx(
             'hidden h-7 items-center gap-2 rounded border border-line-strong bg-raised px-2',
@@ -328,16 +328,24 @@ function ThemeToggle(): ReactNode {
   const { preference, resolved } = useThemePreference();
 
   return (
-    <button
-      type="button"
-      data-testid="theme-toggle"
-      aria-label={resolved === 'dark' ? t('shell.theme.toLight') : t('shell.theme.toDark')}
-      title={t(`shell.theme.${preference === 'system' ? 'system' : preference}`)}
-      onClick={() => setThemePreference(resolved === 'dark' ? 'light' : 'dark')}
-      className="rounded border border-line-strong bg-raised p-1.5 text-muted transition-colors hover:text-fg"
+    // The label says what pressing it DOES; the tooltip says what the current
+    // preference IS — which is the only place "follow the system" is visible
+    // from outside Settings, and a `title` never showed it to a keyboard or a
+    // touch user at all.
+    <Tooltip
+      text={t(`shell.theme.${preference === 'system' ? 'system' : preference}`)}
+      placement="bottom"
     >
-      {resolved === 'dark' ? <MoonIcon className="size-3.5" /> : <SunIcon className="size-3.5" />}
-    </button>
+      <button
+        type="button"
+        data-testid="theme-toggle"
+        aria-label={resolved === 'dark' ? t('shell.theme.toLight') : t('shell.theme.toDark')}
+        onClick={() => setThemePreference(resolved === 'dark' ? 'light' : 'dark')}
+        className="rounded border border-line-strong bg-raised p-1.5 text-muted transition-colors hover:text-fg"
+      >
+        {resolved === 'dark' ? <MoonIcon className="size-3.5" /> : <SunIcon className="size-3.5" />}
+      </button>
+    </Tooltip>
   );
 }
 

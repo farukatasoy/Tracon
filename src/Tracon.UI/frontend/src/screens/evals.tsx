@@ -2,7 +2,7 @@ import { useState, type FormEvent, type ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { client, unwrap } from '../lib/api';
 import { Link } from '../lib/router';
-import { relativeTime } from '../lib/format';
+import { absoluteTime, relativeTime } from '../lib/format';
 import { useT } from '../lib/i18n';
 import {
   Badge,
@@ -19,6 +19,8 @@ import {
   TextInput,
   Th,
 } from '../components/ui';
+import { Toolbar } from '../components/toolbar';
+import { Tooltip } from '../components/tooltip';
 import { PlusIcon, TrashIcon } from '../components/icons';
 import type { TraconMetaResponse as Meta } from '@tracon/client';
 import type { EvalSuite } from '../lib/server-types';
@@ -77,6 +79,7 @@ export function EvalsScreen({ meta }: { meta: Meta }): ReactNode {
   const [showForm, setShowForm] = useState(false);
   const [checksError, setChecksError] = useState<string | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
+  const [query, setQuery] = useState('');
 
   const suites = useQuery({
     queryKey: ['evalSuites'],
@@ -118,6 +121,16 @@ export function EvalsScreen({ meta }: { meta: Meta }): ReactNode {
   });
 
   const [newName, setNewName] = useState('');
+
+  const needle = query.trim().toLowerCase();
+  const filtering = needle.length > 0;
+  const filtered = (suites.data ?? []).filter(
+    (suite) =>
+      !filtering ||
+      suite.name.toLowerCase().includes(needle) ||
+      suite.agentName.toLowerCase().includes(needle) ||
+      (suite.description?.toLowerCase().includes(needle) ?? false),
+  );
 
   const submit = (event: FormEvent): void => {
     event.preventDefault();
@@ -192,15 +205,22 @@ export function EvalsScreen({ meta }: { meta: Meta }): ReactNode {
             </div>
 
             <div className="sm:col-span-2">
+              {/* The render-prop form: a validation message has to be bound to
+                  the control it judges (`aria-describedby` + `aria-invalid`),
+                  not printed somewhere beside the submit button. */}
               <Field
                 label={t('evals.checks')}
                 hint={t('evals.checksHint')}
+                error={checksError ?? undefined}
               >
-                <TextArea
-                  value={form.checks}
-                  rows={5}
-                  onChange={(event) => setForm({ ...form, checks: event.target.value })}
-                />
+                {(ids) => (
+                  <TextArea
+                    {...ids}
+                    value={form.checks}
+                    rows={5}
+                    onChange={(event) => setForm({ ...form, checks: event.target.value })}
+                  />
+                )}
               </Field>
             </div>
 
@@ -222,26 +242,66 @@ export function EvalsScreen({ meta }: { meta: Meta }): ReactNode {
               >
                 {t('common.cancel')}
               </Button>
-              {checksError != null && <ErrorNote error={new Error(checksError)} />}
-              {save.isError && <ErrorNote error={save.error} />}
+              {save.isError && <ErrorNote error={save.error} onRetry={() => save.mutate()} />}
             </div>
           </form>
         </Panel>
       )}
 
+      <Toolbar
+        search={{ value: query, onChange: setQuery, label: t('evals.search') }}
+        onReset={query.trim().length > 0 ? () => setQuery('') : undefined}
+      />
+
+      {/* A delete that failed is invisible unless it is said out loud: the row
+          is still in the list and the operator has no way to know why. */}
+      {remove.isError && (
+        <div className="mb-4">
+          <ErrorNote
+            error={remove.error}
+            onRetry={
+              remove.variables === undefined ? undefined : () => remove.mutate(remove.variables)
+            }
+          />
+        </div>
+      )}
+
       <Panel title={t('evals.suites')}>
-        {suites.isPending && <Loading />}
+        {suites.isPending && <Loading rows={6} />}
         {suites.isError && (
           <div className="p-4">
-            <ErrorNote error={suites.error} />
+            <ErrorNote error={suites.error} onRetry={() => void suites.refetch()} />
           </div>
         )}
 
         {suites.isSuccess &&
-          (suites.data.length === 0 ? (
-            <Empty title={t('evals.noSuites.title')}>{t('evals.noSuites.body')}</Empty>
+          (filtered.length === 0 ? (
+            <Empty
+              title={filtering ? t('common.noResults') : t('evals.noSuites.title')}
+              action={
+                filtering ? (
+                  <Button onClick={() => setQuery('')}>{t('toolbar.reset')}</Button>
+                ) : (
+                  meta.roles.canAdminister && (
+                    <Button
+                      tone="primary"
+                      onClick={() => {
+                        setForm(EMPTY_FORM);
+                        setNewName('');
+                        setEditing(null);
+                        setShowForm(true);
+                      }}
+                    >
+                      {t('evals.empty.action')}
+                    </Button>
+                  )
+                )
+              }
+            >
+              {filtering ? t('evals.empty.filtered') : t('evals.noSuites.body')}
+            </Empty>
           ) : (
-            <Table>
+            <Table label={t('evals.suites')}>
               <thead>
                 <tr>
                   <Th>{t('evals.suite')}</Th>
@@ -251,8 +311,8 @@ export function EvalsScreen({ meta }: { meta: Meta }): ReactNode {
                 </tr>
               </thead>
               <tbody>
-                {suites.data.map((suite) => (
-                  <tr key={suite.id} className="hover:bg-raised">
+                {filtered.map((suite) => (
+                  <tr key={suite.id} className="focus-within:bg-raised hover:bg-raised">
                     <Td>
                       <Link to={`evals/${encodeURIComponent(suite.name)}`}>{suite.name}</Link>
                       {suite.description != null && suite.description.length > 0 && (
@@ -260,12 +320,16 @@ export function EvalsScreen({ meta }: { meta: Meta }): ReactNode {
                       )}
                     </Td>
                     <Td>
-                      <Badge tone="accent">{suite.agentName}</Badge>
+                      <Link to={`agents/${encodeURIComponent(suite.agentName)}`}>
+                        <Badge tone="accent">{suite.agentName}</Badge>
+                      </Link>
                     </Td>
-                    <Td className="text-muted">{relativeTime(suite.updatedAt)}</Td>
+                    <Td className="text-muted" title={absoluteTime(suite.updatedAt)}>
+                      {relativeTime(suite.updatedAt)}
+                    </Td>
                     <Td className="text-right">
                       {meta.roles.canAdminister && (
-                        <>
+                        <div className="flex items-center justify-end gap-1.5">
                           <Button
                             onClick={() => {
                               setForm(toForm(suite));
@@ -275,10 +339,21 @@ export function EvalsScreen({ meta }: { meta: Meta }): ReactNode {
                           >
                             {t('common.edit')}
                           </Button>
-                          <Button tone="danger" onClick={() => remove.mutate(suite.name)}>
-                            <TrashIcon className="size-3.5" />
-                          </Button>
-                        </>
+                          <Tooltip text={t('evals.deleteSuite')}>
+                            <Button
+                              tone="danger"
+                              ariaLabel={t('evals.deleteSuite')}
+                              busy={remove.isPending && remove.variables === suite.name}
+                              onClick={() => {
+                                if (window.confirm(t('common.confirmDelete', { name: suite.name }))) {
+                                  remove.mutate(suite.name);
+                                }
+                              }}
+                            >
+                              <TrashIcon className="size-3.5" />
+                            </Button>
+                          </Tooltip>
+                        </div>
                       )}
                     </Td>
                   </tr>

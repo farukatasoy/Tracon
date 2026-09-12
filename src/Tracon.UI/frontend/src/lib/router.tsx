@@ -190,21 +190,50 @@ export function useRoute(routes: readonly RouteDefinition[]): ReactNode | null {
 }
 
 /**
+ * What a link looks like when the caller does not dress it.
+ *
+ * 🚨 `Link` used to render a bare `<a>` with no class at all, so half of the
+ * console's links read as plain running text and the only way to discover one
+ * was to move a pointer across it. Colour is not the whole signal — hover and
+ * keyboard focus both underline, so a link is still identifiable to someone who
+ * cannot separate the accent from the surrounding text.
+ *
+ * A caller that passes `className` replaces this outright rather than adding to
+ * it: a deliberately muted link in a table cell, or one dressed as a button
+ * (`LinkButton`), is not the same object as a link in a sentence, and Tailwind
+ * class order in a string does not decide which of two colours wins.
+ */
+const LINK_CLASS = 'text-accent hover:underline focus-visible:underline';
+
+/**
  * An anchor that navigates without a full page load.
  *
  * The `href` is a real URL so middle-click, copy-link and open-in-new-tab all
  * behave the way a user expects.
+ *
+ * 🚨 There is deliberately NO `title` prop — same reason as `Button`: a
+ * description on a control has to be reachable by touch and by keyboard, and
+ * `title` is neither. Wrap the link in `Tooltip` instead. Removing the prop is
+ * what stops the next call site from reaching for it.
  */
 export function Link({
   to,
   className,
   children,
-  title,
+  testId,
+  'aria-describedby': describedBy,
 }: {
   to: string;
   className?: string;
   children: ReactNode;
-  title?: string;
+  testId?: string;
+  /**
+   * 🚨 Declared explicitly for the same reason as `Button`: this component
+   * renders a FIXED attribute list, and `Tooltip` describes whatever control it
+   * wraps by handing it this binding. A link that quietly drops it keeps its
+   * bubble and loses its description.
+   */
+  'aria-describedby'?: string;
 }): ReactNode {
   const navigate = useNavigate();
   const href = uiBase + to.replace(/^\/+/, '');
@@ -212,8 +241,9 @@ export function Link({
   return (
     <a
       href={href}
-      className={className}
-      title={title}
+      className={className ?? LINK_CLASS}
+      data-testid={testId}
+      aria-describedby={describedBy}
       onClick={(event) => {
         if (event.defaultPrevented || event.button !== 0) {
           return;

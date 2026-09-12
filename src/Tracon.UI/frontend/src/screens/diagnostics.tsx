@@ -11,11 +11,17 @@ import {
   Mono,
   PageHeader,
   Panel,
+  Stat,
   Table,
   Td,
   Th,
+  Unauthorized,
 } from '../components/ui';
-import type { ConfigurationDiagnostic, ProviderDiagnostic } from '@tracon/client';
+import type {
+  ConfigurationDiagnostic,
+  ProviderDiagnostic,
+  TraconMetaResponse as Meta,
+} from '@tracon/client';
 import type { TraconDiagnosticsReport } from '../lib/server-types';
 
 /**
@@ -26,29 +32,48 @@ import type { TraconDiagnosticsReport } from '../lib/server-types';
  * always means "not turned on", not "broken", so it gets its own explanation instead
  * of the generic error note.
  */
-export function DiagnosticsScreen(): ReactNode {
+export function DiagnosticsScreen({ meta }: { meta: Meta }): ReactNode {
   const t = useT();
   const plural = usePlural();
+  const allowed = meta.roles.canAdminister;
   const diagnostics = useQuery({
     queryKey: ['diagnostics'],
     queryFn: () => unwrap(client.GET('/api/diagnostics')) as Promise<TraconDiagnosticsReport>,
     retry: false,
+    // 🚨 Not requested at all without the role. A reader used to get the 403
+    // and see it rendered as a generic failure, which reads as "the console is
+    // broken" rather than "this screen is not yours".
+    enabled: allowed,
   });
+
+  if (!allowed) {
+    return (
+      <>
+        <PageHeader title={t('nav.diagnostics')} description={t('diagnostics.description')} />
+        <Panel>
+          <Unauthorized requires="administrator" />
+        </Panel>
+      </>
+    );
+  }
 
   return (
     <>
       <PageHeader title={t('nav.diagnostics')} description={t('diagnostics.description')} />
 
-      {diagnostics.isPending && <Loading />}
+      {diagnostics.isPending && <Loading rows={6} />}
 
       {diagnostics.isError &&
         (diagnostics.error instanceof TraconError && diagnostics.error.status === 404 ? (
           <Panel>
+            {/* A 404 here means the endpoint is switched off, which is the
+                default — so it is a state, not a failure, and it carries no
+                retry: retrying cannot turn a compile-time option on. */}
             <Empty title={t('diagnostics.disabled.title')}>{t('diagnostics.disabled.body')}</Empty>
           </Panel>
         ) : (
           <div className="p-4">
-            <ErrorNote error={diagnostics.error} />
+            <ErrorNote error={diagnostics.error} onRetry={() => void diagnostics.refetch()} />
           </div>
         ))}
 
@@ -113,16 +138,18 @@ export function DiagnosticsScreen(): ReactNode {
                   <Badge tone="neutral">{t('common.disabled')}</Badge>
                 )}
               </Row>
-              <Row label={t('diagnostics.toolCount')}>{count(diagnostics.data.toolCount)}</Row>
-              <Row label={t('diagnostics.agentCount')}>{count(diagnostics.data.agentCount)}</Row>
             </dl>
+            <div className="grid grid-cols-2 gap-2 p-3">
+              <Stat label={t('diagnostics.toolCount')} value={count(diagnostics.data.toolCount)} />
+              <Stat label={t('diagnostics.agentCount')} value={count(diagnostics.data.agentCount)} />
+            </div>
           </Panel>
 
           <Panel title={t('diagnostics.modelProviders')} className="lg:col-span-2">
             {diagnostics.data.modelProviders.length === 0 ? (
               <p className="px-4 py-4 text-sm text-subtle">{t('diagnostics.modelProviders.empty')}</p>
             ) : (
-              <Table>
+              <Table label={t('diagnostics.modelProviders')}>
                 <thead>
                   <tr>
                     <Th>{t('common.name')}</Th>
@@ -143,7 +170,7 @@ export function DiagnosticsScreen(): ReactNode {
             {diagnostics.data.configuration.length === 0 ? (
               <p className="px-4 py-4 text-sm text-subtle">{t('diagnostics.configuration.empty')}</p>
             ) : (
-              <Table>
+              <Table label={t('diagnostics.configuration')}>
                 <thead>
                   <tr>
                     <Th>{t('diagnostics.configurationKey')}</Th>
@@ -173,7 +200,7 @@ function ProviderRow({
   t: typeof translate;
 }): ReactNode {
   return (
-    <tr>
+    <tr className="focus-within:bg-raised hover:bg-raised">
       <Td>
         <Mono>{provider.name}</Mono>
       </Td>
@@ -199,7 +226,7 @@ function ConfigurationRow({
   t: typeof translate;
 }): ReactNode {
   return (
-    <tr>
+    <tr className="focus-within:bg-raised hover:bg-raised">
       <Td>
         <Mono>{entry.key}</Mono>
       </Td>

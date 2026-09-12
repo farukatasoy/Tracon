@@ -3,21 +3,22 @@ import { useQuery } from '@tanstack/react-query';
 import { client, unwrap } from '../lib/api';
 import { useT } from '../lib/i18n';
 import { Link } from '../lib/router';
-import { relativeTime } from '../lib/format';
+import { absoluteTime, relativeTime } from '../lib/format';
 import {
   Badge,
   Button,
   Empty,
   ErrorNote,
+  LinkButton,
   Loading,
   Mono,
   PageHeader,
   Panel,
   Table,
   Td,
-  TextInput,
   Th,
 } from '../components/ui';
+import { Toolbar } from '../components/toolbar';
 import { PlusIcon } from '../components/icons';
 import type { TraconMetaResponse } from '@tracon/client';
 import type { AgentDescriptor } from '../lib/server-types';
@@ -27,7 +28,7 @@ export function OriginBadge({ agent }: { agent: AgentDescriptor }): ReactNode {
 
   if (agent.origin === 'Code') {
     return (
-      <Badge tone="info" title={t('agents.origin.code', { source: agent.sourceName })}>
+      <Badge tone="info" description={t('agents.origin.code', { source: agent.sourceName })}>
         code
       </Badge>
     );
@@ -35,13 +36,13 @@ export function OriginBadge({ agent }: { agent: AgentDescriptor }): ReactNode {
 
   if (agent.origin === 'Database') {
     return (
-      <Badge tone="accent" title={t('agents.origin.database', { version: agent.version })}>
+      <Badge tone="accent" description={t('agents.origin.database', { version: agent.version })}>
         db · v{agent.version}
       </Badge>
     );
   }
 
-  return <Badge title={t('agents.origin.other', { source: agent.sourceName })}>{agent.sourceName}</Badge>;
+  return <Badge description={t('agents.origin.other', { source: agent.sourceName })}>{agent.sourceName}</Badge>;
 }
 
 export function AgentsScreen({ meta }: { meta: TraconMetaResponse }): ReactNode {
@@ -52,19 +53,15 @@ export function AgentsScreen({ meta }: { meta: TraconMetaResponse }): ReactNode 
   });
   const [query, setQuery] = useState('');
 
-  // HATA-S4-005: the '/' shortcut (components/layout.tsx) has always focused
-  // whatever `input[data-search]` is on the page, and `?` help has always
-  // advertised it — but no screen ever rendered such an input, so `/` never
-  // did anything anywhere. This is the search box that closes that gap.
-  const normalizedQuery = query.trim().toLowerCase();
-  const filtered =
-    agents.data === undefined || normalizedQuery.length === 0
-      ? agents.data
-      : agents.data.filter(
-          (agent) =>
-            agent.name.toLowerCase().includes(normalizedQuery) ||
-            (agent.displayName?.toLowerCase().includes(normalizedQuery) ?? false),
-        );
+  const needle = query.trim().toLowerCase();
+  const filtering = needle.length > 0;
+  const filtered = (agents.data ?? []).filter(
+    (agent) =>
+      !filtering ||
+      agent.name.toLowerCase().includes(needle) ||
+      (agent.displayName?.toLowerCase().includes(needle) ?? false) ||
+      (agent.description?.toLowerCase().includes(needle) ?? false),
+  );
 
   return (
     <>
@@ -73,60 +70,85 @@ export function AgentsScreen({ meta }: { meta: TraconMetaResponse }): ReactNode 
         description={t('agents.description')}
         actions={
           meta.roles.canAdminister && (
-            <Link to="agents/new">
-              <Button tone="primary">
-                <PlusIcon className="size-3.5" />
-                {t('agents.new')}
-              </Button>
-            </Link>
+            <LinkButton to="agents/new" tone="primary">
+              <PlusIcon className="size-3.5" />
+              {t('agents.new')}
+            </LinkButton>
           )
         }
       />
 
-      {agents.isSuccess && agents.data.length > 0 && (
-        <div className="mb-3 max-w-xs">
-          <TextInput
-            data-search
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder={t('common.search')}
-            aria-label={t('common.search')}
-          />
-        </div>
-      )}
+      {/*
+        HATA-S4-005: the '/' shortcut (components/layout.tsx) focuses whatever
+        `input[data-search]` is on the page, and `?` help advertises it — the
+        toolbar's search box is the input that closes that gap. It is rendered
+        unconditionally now: a strip that appears only once the list is long
+        enough moves the rest of the screen down as soon as data arrives.
+      */}
+      <Toolbar
+        search={{ value: query, onChange: setQuery, label: t('agents.search') }}
+        onReset={filtering ? () => setQuery('') : undefined}
+      />
 
       <Panel>
-        {agents.isPending && <Loading />}
-        {agents.isError && <div className="p-4"><ErrorNote error={agents.error} /></div>}
+        {agents.isPending && <Loading rows={6} />}
+        {agents.isError && (
+          <div className="p-4">
+            <ErrorNote error={agents.error} onRetry={() => void agents.refetch()} />
+          </div>
+        )}
 
-        {agents.isSuccess && agents.data.length === 0 && (
-          <Empty title={t('agents.empty.title')}>
-            {t('agents.empty.before')} <Mono>AddAgent(...)</Mono> {t('agents.empty.after')}
+        {agents.isSuccess && filtered.length === 0 && (
+          <Empty
+            title={filtering ? t('common.noResults') : t('agents.empty.title')}
+            action={
+              filtering ? (
+                <Button onClick={() => setQuery('')}>{t('toolbar.reset')}</Button>
+              ) : (
+                meta.roles.canAdminister && (
+                  <LinkButton to="agents/new" tone="primary">
+                    {t('agents.empty.action')}
+                  </LinkButton>
+                )
+              )
+            }
+          >
+            {filtering ? (
+              t('agents.empty.filtered')
+            ) : (
+              <>
+                {t('agents.empty.before')} <Mono>AddAgent(...)</Mono> {t('agents.empty.after')}
+              </>
+            )}
           </Empty>
         )}
 
-        {agents.isSuccess && agents.data.length > 0 && filtered?.length === 0 && (
-          <Empty title={t('common.noResults')} />
-        )}
-
-        {agents.isSuccess && filtered !== undefined && filtered.length > 0 && (
-          <Table>
+        {agents.isSuccess && filtered.length > 0 && (
+          <Table label={t('nav.agents')}>
             <thead>
               <tr>
                 <Th>{t('common.name')}</Th>
                 <Th>{t('common.source')}</Th>
                 <Th>{t('common.model')}</Th>
-                <Th>{t('common.tools')}</Th>
+                <Th className="text-right">{t('common.tools')}</Th>
                 <Th>{t('common.updated')}</Th>
                 <Th />
               </tr>
             </thead>
             <tbody>
               {filtered.map((agent) => (
-                <tr key={agent.name} className="hover:bg-raised">
+                <tr key={agent.name} className="focus-within:bg-raised hover:bg-raised">
                   <Td>
+                    {/*
+                      The identity cell is the row's link: tabbing to it marks
+                      the row (`focus-within`) and Enter opens the agent, which
+                      is what "the row opens" means without inventing a second
+                      control on the <tr>.
+                    */}
                     <Link to={`agents/${encodeURIComponent(agent.name)}`} className="block">
-                      <span className="font-medium">{agent.displayName ?? agent.name}</span>
+                      <span className="font-medium text-accent hover:underline">
+                        {agent.displayName ?? agent.name}
+                      </span>
                       {agent.displayName !== null && agent.displayName !== undefined && (
                         <Mono className="ml-2 text-subtle">{agent.name}</Mono>
                       )}
@@ -139,7 +161,7 @@ export function AgentsScreen({ meta }: { meta: TraconMetaResponse }): ReactNode 
                     <div className="flex items-center gap-1.5">
                       <OriginBadge agent={agent} />
                       {agent.usesHarness && (
-                        <Badge tone="warn" title={t('agents.harness')}>
+                        <Badge tone="warn" description={t('agents.harness')}>
                           harness
                         </Badge>
                       )}
@@ -149,23 +171,28 @@ export function AgentsScreen({ meta }: { meta: TraconMetaResponse }): ReactNode 
                     {agent.model === null || agent.model === undefined ? (
                       <span className="text-subtle">—</span>
                     ) : (
-                      <Mono title={t('agents.providerTitle', { provider: agent.model.provider })}>
-                        {agent.model.model}
-                      </Mono>
+                      <>
+                        <Mono>{agent.model.model}</Mono>
+                        {/* The provider was a `title` on the model: invisible on
+                            touch and to the keyboard, for a value that fits. */}
+                        <span className="block text-2xs text-subtle">{agent.model.provider}</span>
+                      </>
                     )}
                   </Td>
-                  <Td>
+                  <Td className="text-right font-mono text-id text-muted">
                     {agent.toolNames.length === 0 ? (
                       <span className="text-subtle">—</span>
                     ) : (
-                      <span title={agent.toolNames.join(', ')}>{agent.toolNames.length}</span>
+                      agent.toolNames.length
                     )}
                   </Td>
-                  <Td className="text-muted">{relativeTime(agent.updatedAt)}</Td>
+                  <Td className="text-muted" title={absoluteTime(agent.updatedAt)}>
+                    {relativeTime(agent.updatedAt)}
+                  </Td>
                   <Td className="text-right">
-                    <Link to={`playground/${encodeURIComponent(agent.name)}`}>
-                      <Button tone="ghost">{t('common.run')}</Button>
-                    </Link>
+                    <LinkButton to={`playground/${encodeURIComponent(agent.name)}`} tone="ghost">
+                      {t('common.run')}
+                    </LinkButton>
                   </Td>
                 </tr>
               ))}

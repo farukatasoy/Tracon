@@ -97,7 +97,7 @@ export function RetentionPanel(): ReactNode {
   if (preview.isPending || policies.isPending) {
     return (
       <Panel title={t('retention.title')}>
-        <Loading />
+        <Loading rows={3} />
       </Panel>
     );
   }
@@ -106,7 +106,7 @@ export function RetentionPanel(): ReactNode {
     return (
       <Panel title={t('retention.title')}>
         <div className="p-4">
-          <ErrorNote error={preview.error} />
+          <ErrorNote error={preview.error} onRetry={() => void preview.refetch()} />
         </div>
       </Panel>
     );
@@ -239,7 +239,7 @@ function TargetRow({
             <Badge tone="neutral">{t('common.disabled')}</Badge>
           )}
           {policy?.archive === true && (
-            <Badge tone="accent" title={t('retention.archivedTitle')}>
+            <Badge tone="accent" description={t('retention.archivedTitle')}>
               {t('retention.archived')}
             </Badge>
           )}
@@ -346,7 +346,7 @@ function PolicyForm({
         </label>
       </div>
 
-      {save.isError && <ErrorNote error={save.error} />}
+      {save.isError && <ErrorNote error={save.error} onRetry={() => save.mutate()} />}
 
       <div className="flex items-center gap-2">
         <Button

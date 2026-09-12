@@ -19,6 +19,7 @@ import {
   Td,
   Th,
 } from '../components/ui';
+import { Tooltip } from '../components/tooltip';
 
 const STATUS_TONE: Record<ModelProviderHealthStatus, 'neutral' | 'success' | 'warn' | 'danger'> = {
   Unknown: 'neutral',
@@ -41,7 +42,7 @@ function HealthBadge({ health }: { health: ModelProviderHealth | undefined }): R
   return (
     <Badge
       tone={STATUS_TONE[status]}
-      title={
+      description={
         status === 'Unknown'
           ? t('models.noHealthContract')
           : t('models.checkedAt', {
@@ -111,11 +112,15 @@ export function ModelsScreen(): ReactNode {
         description={t('models.description')}
       />
 
-      {providers.isPending && <Loading />}
-      {providers.isError && <ErrorNote error={providers.error} />}
+      {providers.isPending && <Loading rows={6} />}
+      {providers.isError && (
+        <ErrorNote error={providers.error} onRetry={() => void providers.refetch()} />
+      )}
 
       {providers.isSuccess && providers.data.length === 0 && (
         <Panel>
+          {/* No action: a provider is registered in code, so the only honest
+              next step is the call that registers one — printed below. */}
           <Empty title={t('models.empty.title')}>
             {t('models.empty.body')} <Mono>UseOpenAI(apiKey)</Mono> /{' '}
             <Mono>UseOpenAICompatible(name, ...)</Mono>. {t('models.empty.note')}
@@ -138,15 +143,25 @@ export function ModelsScreen(): ReactNode {
                 </span>
               }
               actions={
-                <Button
-                  onClick={() => checkNow.mutate(provider.name)}
-                  busy={checkNow.isPending && checkNow.variables === provider.name}
-                  title={t('models.checkNowTitle')}
-                >
-                  {t('models.checkNow')}
-                </Button>
+                <Tooltip text={t('models.checkNowTitle')}>
+                  <Button
+                    onClick={() => checkNow.mutate(provider.name)}
+                    busy={checkNow.isPending && checkNow.variables === provider.name}
+                  >
+                    {t('models.checkNow')}
+                  </Button>
+                </Tooltip>
               }
             >
+              {checkNow.isError && checkNow.variables === provider.name && (
+                <div className="border-b border-line p-3">
+                  <ErrorNote
+                    error={checkNow.error}
+                    onRetry={() => checkNow.mutate(provider.name)}
+                  />
+                </div>
+              )}
+
               {providerHealth?.detail != null && providerHealth.detail.length > 0 && (
                 <div className="border-b border-line px-4 py-2 text-xs text-muted">
                   {providerHealth.detail}
@@ -154,33 +169,36 @@ export function ModelsScreen(): ReactNode {
               )}
 
               {provider.models.length === 0 ? (
+                /* No action: the catalogue comes from configuration, and an
+                   empty one is not an error — a model missing here still works
+                   (K-032). */
                 <Empty title={t('models.noModels.title')}>
                   {t('models.noModels.body')} <Mono>Tracon:Providers:OpenAI:Models</Mono>.{' '}
                   {t('models.noModels.note')}
                 </Empty>
               ) : (
-                <Table>
+                <Table label={provider.displayName ?? provider.name}>
                   <thead>
                     <tr>
                       <Th>{t('common.model')}</Th>
-                      <Th>{t('models.context')}</Th>
-                      <Th>{t('models.maxOutput')}</Th>
+                      <Th className="text-right">{t('models.context')}</Th>
+                      <Th className="text-right">{t('models.maxOutput')}</Th>
                       <Th>{t('models.capabilities')}</Th>
                     </tr>
                   </thead>
                   <tbody>
                     {provider.models.map((model) => (
-                      <tr key={model.name} className="hover:bg-raised">
+                      <tr key={model.name} className="focus-within:bg-raised hover:bg-raised">
                         <Td>
                           <Mono className="font-medium">{model.name}</Mono>
                           {model.displayName != null && (
                             <span className="ml-2 text-muted">{model.displayName}</span>
                           )}
                         </Td>
-                        <Td className="text-muted">
+                        <Td className="text-right font-mono text-id text-muted">
                           {count(model.contextWindowTokens as number | null | undefined)}
                         </Td>
-                        <Td className="text-muted">
+                        <Td className="text-right font-mono text-id text-muted">
                           {count(model.maxOutputTokens as number | null | undefined)}
                         </Td>
                         <Td>
@@ -203,9 +221,7 @@ export function ModelsScreen(): ReactNode {
 
       <p className="mt-4 text-xs text-subtle">
         {t('models.footerBefore')}{' '}
-        <Link to="dashboard" className="text-accent hover:underline">
-          {t('nav.dashboard')}
-        </Link>
+        <Link to="dashboard">{t('nav.dashboard')}</Link>
         . {t('models.footerAfter')} <Mono>Tracon:Pricing</Mono>.
       </p>
     </>

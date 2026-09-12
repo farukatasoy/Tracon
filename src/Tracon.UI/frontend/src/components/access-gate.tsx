@@ -48,8 +48,16 @@ export function AccessGate({ children }: { children: (meta: Meta) => ReactNode }
     retry: false,
   });
 
+  // 🚨 `rows={1}`, not the default four. This is the whole-app connect state:
+  // there is no list arriving behind it whose height a skeleton should hold
+  // open, so four bars would be a progress bar the user waits on rather than a
+  // placeholder for something.
   if (meta.isPending) {
-    return <Centered><Loading label={t('access.connecting')} /></Centered>;
+    return (
+      <Centered>
+        <Loading rows={1} label={t('access.connecting')} />
+      </Centered>
+    );
   }
 
   if (meta.isError) {
@@ -95,7 +103,11 @@ export function AccessGate({ children }: { children: (meta: Meta) => ReactNode }
   }
 
   if (probe.isPending) {
-    return <Centered><Loading label={t('access.connecting')} /></Centered>;
+    return (
+      <Centered>
+        <Loading rows={1} label={t('access.connecting')} />
+      </Centered>
+    );
   }
 
   return children(meta.data);

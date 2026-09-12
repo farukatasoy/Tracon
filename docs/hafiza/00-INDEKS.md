@@ -47,6 +47,7 @@
 | Arayüz (Vite, SPA rota, TS, ekran) | [frontend](frontend.md) |
 | Arayüz tasarım katmanı (token, tema, yoğunluk, primitif, erişilebilirlik) | [frontend-tasarim-katmani](frontend-tasarim-katmani.md) |
 | Arayüz yerelleştirme (`useT`, `Messages`, `Intl`) | [frontend-yerellestirme](frontend-yerellestirme.md) |
+| Arayüz test altyapısı (Vitest component, `openapi-fetch` stub) | [frontend-test-altyapisi](frontend-test-altyapisi.md) |
 | Model sağlayıcısı (OpenAI, Anthropic, Google) | [openai-saglayici](openai-saglayici.md) |
 | `IChatClient` dekoratörü, devre kesici | [model-boru-hatti](model-boru-hatti.md) |
 | `ContentGuard` fail-closed, DI döngüsü, sağlayıcı adı kaydı | [icerik-koruma-ve-saglayici-kayit](icerik-koruma-ve-saglayici-kayit.md) |

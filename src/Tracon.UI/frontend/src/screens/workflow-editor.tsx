@@ -15,7 +15,9 @@ import {
   TextArea,
   TextInput,
   cx,
+  type FieldIds,
 } from '../components/ui';
+import { Tooltip } from '../components/tooltip';
 import { KIND_HINT } from './workflows';
 import type { WorkflowSaveRequest } from '@tracon/client';
 import type { AgentDescriptor, WorkflowDefinition, WorkflowKind } from '../lib/server-types';
@@ -134,12 +136,36 @@ export function WorkflowEditorScreen({ name }: { name?: string }): ReactNode {
     },
   });
 
+  const title = editing
+    ? t('workflowEditor.editTitle', { name: name ?? '' })
+    : t('workflows.new');
+
   if (editing && existing.isPending) {
-    return <Loading />;
+    return (
+      <>
+        <PageHeader title={title} />
+        <Panel>
+          <Loading rows={8} />
+        </Panel>
+      </>
+    );
   }
 
+  // 🚨 A separate path from the loading one, and it has to render something. On
+  // failure `isPending` goes false and, without this, the editor fell through to
+  // an empty form that looked like a workflow which had loaded blank — saving it
+  // would have replaced the real definition with the default one.
   if (editing && existing.isError) {
-    return <ErrorNote error={existing.error} />;
+    return (
+      <>
+        <PageHeader title={title} />
+        <Panel>
+          <div className="p-4">
+            <ErrorNote error={existing.error} onRetry={() => void existing.refetch()} />
+          </div>
+        </Panel>
+      </>
+    );
   }
 
   const available = agents.data ?? [];
@@ -154,7 +180,7 @@ export function WorkflowEditorScreen({ name }: { name?: string }): ReactNode {
   return (
     <>
       <PageHeader
-        title={editing ? t('workflowEditor.editTitle', { name: name ?? '' }) : t('workflows.new')}
+        title={title}
         description={t('workflowEditor.description')}
         actions={
           <>
@@ -174,7 +200,7 @@ export function WorkflowEditorScreen({ name }: { name?: string }): ReactNode {
 
       {save.isError && (
         <div className="mb-3">
-          <ErrorNote error={save.error} />
+          <ErrorNote error={save.error} onRetry={() => save.mutate()} />
         </div>
       )}
 
@@ -224,6 +250,9 @@ export function WorkflowEditorScreen({ name }: { name?: string }): ReactNode {
               </Select>
             </Field>
 
+            {/* The render-prop form: "needs two agents" used to be a loose
+                paragraph under the picker, which no screen reader ties to the
+                control and no keyboard user is told about. */}
             <Field
               label={t('workflowEditor.participants')}
               required
@@ -232,19 +261,17 @@ export function WorkflowEditorScreen({ name }: { name?: string }): ReactNode {
                   ? t('workflowEditor.orderMatters')
                   : t('workflowEditor.orderIgnored')
               }
+              error={tooFew ? t('workflowEditor.needsTwo', { kind: draft.kind }) : undefined}
             >
-              <AgentPicker
-                available={available.map((agent) => agent.name)}
-                selected={draft.agentNames}
-                onChange={(agentNames) => setDraft({ ...draft, agentNames })}
-              />
+              {(ids) => (
+                <AgentPicker
+                  ids={ids}
+                  available={available.map((agent) => agent.name)}
+                  selected={draft.agentNames}
+                  onChange={(agentNames) => setDraft({ ...draft, agentNames })}
+                />
+              )}
             </Field>
-
-            {tooFew && (
-              <p className="text-sm text-warn">
-                {t('workflowEditor.needsTwo', { kind: draft.kind })}
-              </p>
-            )}
 
             {draft.kind === 'Magentic' && (
               <Field
@@ -350,10 +377,17 @@ function AgentPicker({
   available,
   selected,
   onChange,
+  ids,
 }: {
   available: readonly string[];
   selected: readonly string[];
   onChange: (names: string[]) => void;
+  /**
+   * The field bindings, put on the one real control this composite has — the
+   * "add an agent" select. A `<div>` cannot carry `aria-invalid`, and the
+   * ordered list of chosen agents is output rather than an input.
+   */
+  ids?: FieldIds;
 }): ReactNode {
   const t = useT();
   const unselected = available.filter((agent) => !selected.includes(agent));
@@ -369,29 +403,31 @@ function AgentPicker({
             <span className="w-5 text-xs text-subtle">{index + 1}</span>
             <span className="flex-1">{agent}</span>
 
-            <button
-              type="button"
-              title={t('workflowEditor.moveUp')}
-              aria-label={t('workflowEditor.moveUpAgent', { agent })}
-              disabled={index === 0}
-              className={cx('px-1 text-muted hover:text-fg', index === 0 && 'opacity-30')}
-              onClick={() => onChange(swap([...selected], index, index - 1))}
-            >
-              ↑
-            </button>
-            <button
-              type="button"
-              title={t('workflowEditor.moveDown')}
-              aria-label={t('workflowEditor.moveDownAgent', { agent })}
-              disabled={index === selected.length - 1}
-              className={cx(
-                'px-1 text-muted hover:text-fg',
-                index === selected.length - 1 && 'opacity-30',
-              )}
-              onClick={() => onChange(swap([...selected], index, index + 1))}
-            >
-              ↓
-            </button>
+            <Tooltip text={t('workflowEditor.moveUp')}>
+              <button
+                type="button"
+                aria-label={t('workflowEditor.moveUpAgent', { agent })}
+                disabled={index === 0}
+                className={cx('px-1 text-muted hover:text-fg', index === 0 && 'opacity-30')}
+                onClick={() => onChange(swap([...selected], index, index - 1))}
+              >
+                ↑
+              </button>
+            </Tooltip>
+            <Tooltip text={t('workflowEditor.moveDown')}>
+              <button
+                type="button"
+                aria-label={t('workflowEditor.moveDownAgent', { agent })}
+                disabled={index === selected.length - 1}
+                className={cx(
+                  'px-1 text-muted hover:text-fg',
+                  index === selected.length - 1 && 'opacity-30',
+                )}
+                onClick={() => onChange(swap([...selected], index, index + 1))}
+              >
+                ↓
+              </button>
+            </Tooltip>
             <button
               type="button"
               aria-label={t('workflowEditor.removeAgent', { agent })}
@@ -406,6 +442,7 @@ function AgentPicker({
 
       {unselected.length > 0 && (
         <Select
+          {...(ids ?? {})}
           value=""
           onChange={(value) => {
             if (value.length > 0) {

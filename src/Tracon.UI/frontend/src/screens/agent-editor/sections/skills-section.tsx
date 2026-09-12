@@ -19,8 +19,8 @@ export function SkillsSection({
   return (
     <Panel title={t('nav.skills')}>
       <div className="p-4">
-        {skills.isPending && <Loading />}
-        {skills.isError && <ErrorNote error={skills.error} />}
+        {skills.isPending && <Loading rows={3} />}
+        {skills.isError && <ErrorNote error={skills.error} onRetry={() => void skills.refetch()} />}
         {skills.isSuccess && skills.data.length === 0 && (
           <p className="text-base text-subtle">{t('agentEditor.noSkills')}</p>
         )}

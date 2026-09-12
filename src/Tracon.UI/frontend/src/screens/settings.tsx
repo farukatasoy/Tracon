@@ -11,6 +11,7 @@ import {
   Badge,
   Button,
   ErrorNote,
+  Field,
   Loading,
   Mono,
   PageHeader,
@@ -72,7 +73,7 @@ export function SettingsScreen({ meta }: { meta: Meta }): ReactNode {
               {meta.authentication.allowRemoteAccess ? (
                 <Badge tone="warn">{t('common.enabled')}</Badge>
               ) : (
-                <Badge tone="success" title={t('settings.loopbackTitle')}>
+                <Badge tone="success" description={t('settings.loopbackTitle')}>
                   {t('settings.loopbackOnly')}
                 </Badge>
               )}
@@ -135,36 +136,43 @@ export function SettingsScreen({ meta }: { meta: Meta }): ReactNode {
 
         <Panel title={t('settings.console')}>
           <div className="grid gap-4 p-4 sm:grid-cols-2">
-            <label className="block">
-              <span className="mb-1 block text-sm font-medium text-muted">
-                {t('settings.theme')}
-              </span>
-              <Select
-                value={preference}
-                onChange={(value) => setThemePreference(value as ThemePreference)}
-              >
-                <option value="system">{t('settings.followSystem')}</option>
-                <option value="light">{t('settings.light')}</option>
-                <option value="dark">{t('settings.dark')}</option>
-              </Select>
-            </label>
+            {/*
+              `Field`'s render-prop form rather than a hand-rolled label: the id
+              it generates is what binds the caption to the `<select>`, and the
+              hint explains why "follow the system" is not the default (K-757 —
+              a browser cannot report "no preference", so following the system
+              means defaulting to light).
+            */}
+            <Field label={t('settings.theme')} hint={t('settings.themeHint')}>
+              {(ids) => (
+                <Select
+                  {...ids}
+                  value={preference}
+                  onChange={(value) => setThemePreference(value as ThemePreference)}
+                >
+                  <option value="system">{t('settings.followSystem')}</option>
+                  <option value="light">{t('settings.light')}</option>
+                  <option value="dark">{t('settings.dark')}</option>
+                </Select>
+              )}
+            </Field>
 
-            <label className="block">
-              <span className="mb-1 block text-sm font-medium text-muted">
-                {t('shell.language')}
-              </span>
-              <Select
-                value={locale}
-                testId="language-select"
-                onChange={(value) => setLocale(value as Locale)}
-              >
-                {LOCALES.map((candidate) => (
-                  <option key={candidate} value={candidate}>
-                    {t(`shell.language.${candidate}`)}
-                  </option>
-                ))}
-              </Select>
-            </label>
+            <Field label={t('shell.language')}>
+              {(ids) => (
+                <Select
+                  {...ids}
+                  value={locale}
+                  testId="language-select"
+                  onChange={(value) => setLocale(value as Locale)}
+                >
+                  {LOCALES.map((candidate) => (
+                    <option key={candidate} value={candidate}>
+                      {t(`shell.language.${candidate}`)}
+                    </option>
+                  ))}
+                </Select>
+              )}
+            </Field>
           </div>
 
           <p className="border-t border-line px-4 py-2.5 text-xs text-subtle">
@@ -175,8 +183,12 @@ export function SettingsScreen({ meta }: { meta: Meta }): ReactNode {
         <VoicePreferencePanel />
 
         <Panel title={t('settings.activity')}>
-          {stats.isPending && <Loading />}
-          {stats.isError && <div className="p-4"><ErrorNote error={stats.error} /></div>}
+          {stats.isPending && <Loading rows={6} />}
+          {stats.isError && (
+            <div className="p-4">
+              <ErrorNote error={stats.error} onRetry={() => void stats.refetch()} />
+            </div>
+          )}
           {stats.isSuccess && (
             <dl className="divide-y divide-line">
               <Row label={t('nav.runs')}>{count(stats.data.totalRuns as number)}</Row>
@@ -185,7 +197,15 @@ export function SettingsScreen({ meta }: { meta: Meta }): ReactNode {
               <Row label={t('runs.filter.running')}>{count(stats.data.runningRuns as number)}</Row>
               <Row label={t('experiments.totalTokens')}>{count(stats.data.totalTokens as number)}</Row>
               <Row label={t('settings.tenant')}>
-                <Mono>{tenant.data?.tenantId ?? '—'}</Mono>
+                {/* An em dash used to cover two different facts: "no tenant" and
+                    "the lookup failed". The second one now says so. */}
+                {tenant.isError ? (
+                  <Badge tone="warn" description={String(tenant.error)}>
+                    {t('settings.tenantUnknown')}
+                  </Badge>
+                ) : (
+                  <Mono>{tenant.data?.tenantId ?? '—'}</Mono>
+                )}
               </Row>
             </dl>
           )}
@@ -195,7 +215,12 @@ export function SettingsScreen({ meta }: { meta: Meta }): ReactNode {
         </Panel>
 
         <Panel title={t('settings.tokenByModel')}>
-          {stats.isPending && <Loading />}
+          {stats.isPending && <Loading rows={4} />}
+          {stats.isError && (
+            <div className="p-4">
+              <ErrorNote error={stats.error} onRetry={() => void stats.refetch()} />
+            </div>
+          )}
           {stats.isSuccess &&
             (stats.data.byModel.length === 0 ? (
               <p className="px-4 py-4 text-sm text-subtle">
@@ -219,9 +244,7 @@ export function SettingsScreen({ meta }: { meta: Meta }): ReactNode {
             ))}
           <p className="border-t border-line px-4 py-2.5 text-xs text-subtle">
             {t('settings.costOnDashboardBefore')}{' '}
-            <Link to="dashboard" className="text-accent hover:underline">
-              {t('nav.dashboard')}
-            </Link>
+            <Link to="dashboard">{t('nav.dashboard')}</Link>
             . {t('settings.costOnDashboardAfter')}
           </p>
         </Panel>
@@ -272,30 +295,33 @@ function VoicePreferencePanel(): ReactNode {
     <Panel title={t('settings.voices')}>
       <div className="grid gap-4 p-4 sm:grid-cols-2">
         {LOCALES.map((candidate) => (
-          <label key={candidate} className="block">
-            <span className="mb-1 block text-sm font-medium text-muted">
-              {t('settings.voiceFor', { language: t(`shell.language.${candidate}`) })}
-            </span>
-            <Select
-              value={readVoiceForLocale(candidate) ?? ''}
-              testId={`voice-select-${candidate}`}
-              onChange={(value) => {
-                writeVoiceForLocale(candidate, value.length === 0 ? null : value);
-                setVersion((current) => current + 1);
-              }}
-            >
-              <option value="">{t('settings.serverDefaultVoice')}</option>
-              {voices.data.map((voice) => {
-                const meta = voiceOptionMeta(voice.attributes);
+          <Field
+            key={candidate}
+            label={t('settings.voiceFor', { language: t(`shell.language.${candidate}`) })}
+          >
+            {(ids) => (
+              <Select
+                {...ids}
+                value={readVoiceForLocale(candidate) ?? ''}
+                testId={`voice-select-${candidate}`}
+                onChange={(value) => {
+                  writeVoiceForLocale(candidate, value.length === 0 ? null : value);
+                  setVersion((current) => current + 1);
+                }}
+              >
+                <option value="">{t('settings.serverDefaultVoice')}</option>
+                {voices.data.map((voice) => {
+                  const meta = voiceOptionMeta(voice.attributes);
 
-                return (
-                  <option key={voice.voiceId} value={voice.voiceId}>
-                    {meta === null ? voice.name : `${voice.name} (${meta})`}
-                  </option>
-                );
-              })}
-            </Select>
-          </label>
+                  return (
+                    <option key={voice.voiceId} value={voice.voiceId}>
+                      {meta === null ? voice.name : `${voice.name} (${meta})`}
+                    </option>
+                  );
+                })}
+              </Select>
+            )}
+          </Field>
         ))}
       </div>
 

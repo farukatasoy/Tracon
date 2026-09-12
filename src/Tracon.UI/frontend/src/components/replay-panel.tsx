@@ -140,7 +140,7 @@ export function ReplayPanel({
           translated (K-232): they name a tool and its arguments, and a
           translated copy would drift from the server's own wording.
         */}
-        {replay.isError && <ErrorNote error={replay.error} />}
+        {replay.isError && <ErrorNote error={replay.error} onRetry={() => replay.mutate()} />}
 
         {replay.data != null && (
           <div className="flex flex-col gap-1 text-base" data-testid="replay-result">

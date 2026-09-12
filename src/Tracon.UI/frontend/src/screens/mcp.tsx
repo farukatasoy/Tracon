@@ -1,7 +1,7 @@
 import { Fragment, useState, type ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { client, unwrap } from '../lib/api';
-import { relativeTime } from '../lib/format';
+import { absoluteTime, relativeTime } from '../lib/format';
 import { useT } from '../lib/i18n';
 import { McpServerDetail } from '../components/mcp-server-detail';
 import {
@@ -20,6 +20,8 @@ import {
   TextInput,
   Th,
 } from '../components/ui';
+import { Toolbar } from '../components/toolbar';
+import { Tooltip } from '../components/tooltip';
 import { PlusIcon, TrashIcon } from '../components/icons';
 import type {
   TraconMetaResponse as Meta,
@@ -136,6 +138,8 @@ export function McpScreen({ meta }: { meta: Meta }): ReactNode {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [ruleForm, setRuleForm] = useState(EMPTY_RULE_FORM);
   const [showRuleForm, setShowRuleForm] = useState(false);
+  const [serverQuery, setServerQuery] = useState('');
+  const [ruleQuery, setRuleQuery] = useState('');
 
   const servers = useQuery({
     queryKey: ['mcp-servers'],
@@ -213,6 +217,25 @@ export function McpScreen({ meta }: { meta: Meta }): ReactNode {
     },
   });
 
+  const serverNeedle = serverQuery.trim().toLowerCase();
+  const serverFiltering = serverNeedle.length > 0;
+  const filteredServers = (servers.data ?? []).filter(
+    (server) =>
+      !serverFiltering ||
+      server.name.toLowerCase().includes(serverNeedle) ||
+      server.endpoint.toLowerCase().includes(serverNeedle) ||
+      (server.description?.toLowerCase().includes(serverNeedle) ?? false),
+  );
+
+  const ruleNeedle = ruleQuery.trim().toLowerCase();
+  const ruleFiltering = ruleNeedle.length > 0;
+  const filteredRules = (rules.data ?? []).filter(
+    (rule) =>
+      !ruleFiltering ||
+      rule.toolName.toLowerCase().includes(ruleNeedle) ||
+      (rule.agentName?.toLowerCase().includes(ruleNeedle) ?? false),
+  );
+
   return (
     <>
       <PageHeader
@@ -221,13 +244,11 @@ export function McpScreen({ meta }: { meta: Meta }): ReactNode {
         actions={
           meta.roles.canAdminister && (
             <>
-              <Button
-                onClick={() => refresh.mutate()}
-                busy={refresh.isPending}
-                title={t('mcp.refreshTitle')}
-              >
-                {t('mcp.refreshTools')}
-              </Button>
+              <Tooltip text={t('mcp.refreshTitle')}>
+                <Button onClick={() => refresh.mutate()} busy={refresh.isPending}>
+                  {t('mcp.refreshTools')}
+                </Button>
+              </Tooltip>
               <Button tone="primary" onClick={() => setShowForm((current) => !current)}>
                 <PlusIcon className="size-3.5" />
                 {t('mcp.addServer')}
@@ -243,6 +264,45 @@ export function McpScreen({ meta }: { meta: Meta }): ReactNode {
           <Mono>http</Mono> / <Mono>https</Mono>. {t('mcp.boundary.after')}
         </div>
       </Panel>
+
+      {/* Four mutations whose failure used to be swallowed. A refresh that the
+          server refused, an OAuth start that never opened, a delete that did
+          not take — each leaves the screen looking exactly as it did. */}
+      {(refresh.isError || authorize.isError || remove.isError || removeRule.isError) && (
+        <div className="mb-4 flex flex-col gap-2">
+          {refresh.isError && (
+            <ErrorNote error={refresh.error} onRetry={() => refresh.mutate()} />
+          )}
+          {authorize.isError && (
+            <ErrorNote
+              error={authorize.error}
+              onRetry={
+                authorize.variables === undefined
+                  ? undefined
+                  : () => authorize.mutate(authorize.variables)
+              }
+            />
+          )}
+          {remove.isError && (
+            <ErrorNote
+              error={remove.error}
+              onRetry={
+                remove.variables === undefined ? undefined : () => remove.mutate(remove.variables)
+              }
+            />
+          )}
+          {removeRule.isError && (
+            <ErrorNote
+              error={removeRule.error}
+              onRetry={
+                removeRule.variables === undefined
+                  ? undefined
+                  : () => removeRule.mutate(removeRule.variables)
+              }
+            />
+          )}
+        </div>
+      )}
 
       {showForm && (
         <Panel title={t('mcp.newServer')} className="mb-4">
@@ -387,21 +447,45 @@ export function McpScreen({ meta }: { meta: Meta }): ReactNode {
               <Button tone="ghost" onClick={() => setShowForm(false)}>
                 {t('common.cancel')}
               </Button>
-              {save.isError && <ErrorNote error={save.error} />}
+              {save.isError && <ErrorNote error={save.error} onRetry={() => save.mutate()} />}
             </div>
           </form>
         </Panel>
       )}
 
+      <Toolbar
+        search={{ value: serverQuery, onChange: setServerQuery, label: t('mcp.searchServers') }}
+        onReset={serverQuery.trim().length > 0 ? () => setServerQuery('') : undefined}
+      />
+
       <Panel title={t('mcp.servers')} className="mb-4">
-        {servers.isPending && <Loading />}
-        {servers.isError && <ErrorNote error={servers.error} />}
+        {servers.isPending && <Loading rows={4} />}
+        {servers.isError && (
+          <div className="p-4">
+            <ErrorNote error={servers.error} onRetry={() => void servers.refetch()} />
+          </div>
+        )}
 
         {servers.isSuccess &&
-          (servers.data.length === 0 ? (
-            <Empty title={t('mcp.noServers.title')}>{t('mcp.noServers.body')}</Empty>
+          (filteredServers.length === 0 ? (
+            <Empty
+              title={serverFiltering ? t('common.noResults') : t('mcp.noServers.title')}
+              action={
+                serverFiltering ? (
+                  <Button onClick={() => setServerQuery('')}>{t('toolbar.reset')}</Button>
+                ) : (
+                  meta.roles.canAdminister && (
+                    <Button tone="primary" onClick={() => setShowForm(true)}>
+                      {t('mcp.empty.action')}
+                    </Button>
+                  )
+                )
+              }
+            >
+              {serverFiltering ? t('mcp.noServers.filtered') : t('mcp.noServers.body')}
+            </Empty>
           ) : (
-            <Table>
+            <Table label={t('mcp.servers')}>
               <thead>
                 <tr>
                   <Th>{t('common.name')}</Th>
@@ -412,9 +496,9 @@ export function McpScreen({ meta }: { meta: Meta }): ReactNode {
                 </tr>
               </thead>
               <tbody>
-                {servers.data.map((server) => (
+                {filteredServers.map((server) => (
                   <Fragment key={server.id}>
-                    <tr>
+                    <tr className="focus-within:bg-raised hover:bg-raised">
                       <Td>
                         <Mono className="font-semibold">{server.name}</Mono>
                         {server.description != null && server.description.length > 0 && (
@@ -454,33 +538,45 @@ export function McpScreen({ meta }: { meta: Meta }): ReactNode {
                             onClick={() =>
                               setExpanded((current) => (current === server.name ? null : server.name))
                             }
+                            aria-expanded={expanded === server.name}
+                            aria-controls={`mcp-detail-${server.id}`}
                           >
                             {expanded === server.name ? t('audit.hide') : t('mcp.promptsAndResources')}
                           </Button>
                           {server.oauthEnabled && meta.roles.canAdminister && (
-                            <Button
-                              busy={authorize.isPending && authorize.variables === server.name}
-                              onClick={() => authorize.mutate(server.name)}
-                              title={t('mcp.authorizeTitle')}
-                            >
-                              {t('mcp.authorize')}
-                            </Button>
+                            <Tooltip text={t('mcp.authorizeTitle')}>
+                              <Button
+                                busy={authorize.isPending && authorize.variables === server.name}
+                                onClick={() => authorize.mutate(server.name)}
+                              >
+                                {t('mcp.authorize')}
+                              </Button>
+                            </Tooltip>
                           )}
                           {meta.roles.canAdminister && (
-                            <Button
-                              tone="danger"
-                              onClick={() => remove.mutate(server.name)}
-                              title={t('mcp.removeServerTitle')}
-                            >
-                              <TrashIcon className="size-3.5" />
-                            </Button>
+                            <Tooltip text={t('mcp.removeServerTitle')}>
+                              <Button
+                                tone="danger"
+                                ariaLabel={t('mcp.removeServerTitle')}
+                                busy={remove.isPending && remove.variables === server.name}
+                                onClick={() => {
+                                  if (
+                                    window.confirm(t('common.confirmDelete', { name: server.name }))
+                                  ) {
+                                    remove.mutate(server.name);
+                                  }
+                                }}
+                              >
+                                <TrashIcon className="size-3.5" />
+                              </Button>
+                            </Tooltip>
                           )}
                         </div>
                       </Td>
                     </tr>
                     {expanded === server.name && (
                       <tr>
-                        <td colSpan={5} className="p-0">
+                        <td id={`mcp-detail-${server.id}`} colSpan={5} className="p-0">
                           <McpServerDetail serverName={server.name} roles={meta.roles} />
                         </td>
                       </tr>
@@ -622,19 +718,40 @@ export function McpScreen({ meta }: { meta: Meta }): ReactNode {
               <Button tone="ghost" onClick={() => setShowRuleForm(false)}>
                 {t('common.cancel')}
               </Button>
-              {createRule.isError && <ErrorNote error={createRule.error} />}
+              {createRule.isError && (
+                <ErrorNote error={createRule.error} onRetry={() => createRule.mutate()} />
+              )}
             </div>
           </form>
         )}
 
-        {rules.isPending && <Loading />}
-        {rules.isError && <ErrorNote error={rules.error} />}
+        {rules.isPending && <Loading rows={4} />}
+        {rules.isError && (
+          <div className="p-4">
+            <ErrorNote error={rules.error} onRetry={() => void rules.refetch()} />
+          </div>
+        )}
 
         {rules.isSuccess &&
-          (rules.data.length === 0 ? (
-            <Empty title={t('mcp.noRules.title')}>{t('mcp.noRules.body')}</Empty>
+          (filteredRules.length === 0 ? (
+            /*
+              🚨 No fabricated "create the first rule" push. No standing rule is
+              the SAFE state: every matching tool call then waits for a human.
+              A rule is a standing pre-approval, so an empty state that urges
+              one would be selling away the approval gate.
+            */
+            <Empty
+              title={ruleFiltering ? t('common.noResults') : t('mcp.noRules.title')}
+              action={
+                ruleFiltering ? (
+                  <Button onClick={() => setRuleQuery('')}>{t('toolbar.reset')}</Button>
+                ) : undefined
+              }
+            >
+              {ruleFiltering ? t('mcp.noRules.filtered') : t('mcp.noRules.body')}
+            </Empty>
           ) : (
-            <Table>
+            <Table label={t('mcp.rules')}>
               <thead>
                 <tr>
                   <Th>{t('mcp.tool')}</Th>
@@ -645,8 +762,8 @@ export function McpScreen({ meta }: { meta: Meta }): ReactNode {
                 </tr>
               </thead>
               <tbody>
-                {rules.data.map((rule) => (
-                  <tr key={rule.id}>
+                {filteredRules.map((rule) => (
+                  <tr key={rule.id} className="focus-within:bg-raised hover:bg-raised">
                     <Td>
                       <Mono className="font-semibold">{rule.toolName}</Mono>
                     </Td>
@@ -655,7 +772,7 @@ export function McpScreen({ meta }: { meta: Meta }): ReactNode {
                       {rule.argumentConditions.length > 0 ? (
                         <div className="flex flex-wrap gap-1">
                           {rule.argumentConditions.map((condition, index) => (
-                            <Badge key={index} title={t('mcp.conditionedRuleTitle')}>
+                            <Badge key={index} description={t('mcp.conditionedRuleTitle')}>
                               <Mono className="text-xs">
                                 {condition.path} {OPERATOR_SYMBOLS[condition.operator]}{' '}
                                 {Array.isArray(condition.value)
@@ -666,19 +783,28 @@ export function McpScreen({ meta }: { meta: Meta }): ReactNode {
                           ))}
                         </div>
                       ) : rule.argumentsHash != null && rule.argumentsHash.length > 0 ? (
-                        <Badge title={t('mcp.sameArgumentsTitle')}>{t('mcp.sameArguments')}</Badge>
+                        <Badge description={t('mcp.sameArgumentsTitle')}>{t('mcp.sameArguments')}</Badge>
                       ) : (
-                        <Badge tone="warn" title={t('mcp.anyArgumentsTitle')}>
+                        <Badge tone="warn" description={t('mcp.anyArgumentsTitle')}>
                           {t('mcp.anyArguments')}
                         </Badge>
                       )}
                     </Td>
-                    <Td className="text-xs text-muted">{relativeTime(rule.createdAt)}</Td>
+                    <Td className="text-xs text-muted" title={absoluteTime(rule.createdAt)}>
+                      {relativeTime(rule.createdAt)}
+                    </Td>
                     <Td className="text-right">
                       {meta.roles.canAdminister && (
-                        <Button tone="danger" onClick={() => removeRule.mutate(rule.id)}>
-                          <TrashIcon className="size-3.5" />
-                        </Button>
+                        <Tooltip text={t('mcp.removeRule')}>
+                          <Button
+                            tone="danger"
+                            ariaLabel={t('mcp.removeRule')}
+                            busy={removeRule.isPending && removeRule.variables === rule.id}
+                            onClick={() => removeRule.mutate(rule.id)}
+                          >
+                            <TrashIcon className="size-3.5" />
+                          </Button>
+                        </Tooltip>
                       )}
                     </Td>
                   </tr>
