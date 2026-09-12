@@ -159,6 +159,35 @@ public sealed class PlaywrightLocatorTests
     }
 
     [Fact]
+    public void Scan_does_not_count_a_locator_named_inside_a_comment()
+    {
+        var directory = Directory.CreateTempSubdirectory("tracon-locator-test");
+
+        try
+        {
+            File.WriteAllText(
+                Path.Combine(directory.FullName, "Sample.cs"),
+                """
+                public sealed class SampleTest
+                {
+                    public async Task RunAsync(IPage page)
+                    {
+                        // GetByLabel("Theme") never matches exactly here, so the
+                        // wrapper is scoped instead.
+                        await page.Locator("label").ClickAsync();
+                    }
+                }
+                """);
+
+            Scan(directory.FullName).ShouldNotContainKey("Sample.cs");
+        }
+        finally
+        {
+            directory.Delete(recursive: true);
+        }
+    }
+
+    [Fact]
     public void Scan_does_not_count_a_locator_with_Exact_true()
     {
         var directory = Directory.CreateTempSubdirectory("tracon-locator-test");
@@ -206,7 +235,7 @@ public sealed class PlaywrightLocatorTests
                 continue;
             }
 
-            var text = File.ReadAllText(file);
+            var text = WithoutLineComments(File.ReadAllText(file));
             var risky = CountRiskyCalls(text);
 
             if (risky > 0)
@@ -216,6 +245,44 @@ public sealed class PlaywrightLocatorTests
         }
 
         return counts;
+    }
+
+    /// <summary>
+    /// Blanks out <c>//</c> line comments, keeping the line count and every
+    /// other character position intact.
+    /// </summary>
+    /// <remarks>
+    /// A comment that MENTIONS a locator is not a locator call. Counting one
+    /// inflates the file's debt by a number nobody can find in the code, and —
+    /// worse — it lets a real risky call be added for free whenever a comment
+    /// explaining a locator is deleted in the same change. Measured in phase
+    /// 164: `UiTests.cs` carried two such comments.
+    /// <para>
+    /// A <c>//</c> inside a string literal would be blanked too. No locator
+    /// argument in this repository contains one, and the failure mode is the
+    /// safe direction anyway: a missed call is caught by the strict-mode
+    /// failure the ratchet exists to prevent, at the moment it happens.
+    /// </para>
+    /// </remarks>
+    private static string WithoutLineComments(string text)
+    {
+        var builder = new StringBuilder(text.Length);
+        var lines = text.Split('\n');
+
+        for (var index = 0; index < lines.Length; index++)
+        {
+            var line = lines[index];
+            var comment = line.IndexOf("//", StringComparison.Ordinal);
+
+            builder.Append(comment < 0 ? line : line[..comment]);
+
+            if (index < lines.Length - 1)
+            {
+                builder.Append('\n');
+            }
+        }
+
+        return builder.ToString();
     }
 
     /// <summary>

@@ -29,8 +29,17 @@ export function AgentEditorScreen({ name }: { name?: string }): ReactNode {
   const editor = useAgentEditor(name);
   const { editing, ready, form, setForm } = editor;
 
+  if (editing && editor.existing.isError) {
+    return (
+      <>
+        <PageHeader title={t('agentEditor.editTitle', { name: name ?? '' })} />
+        <ErrorNote error={editor.existing.error} onRetry={() => void editor.existing.refetch()} />
+      </>
+    );
+  }
+
   if (editing && !ready) {
-    return <Loading />;
+    return <Loading rows={8} label={t('agentEditor.loading')} />;
   }
 
   return (
@@ -62,8 +71,16 @@ export function AgentEditorScreen({ name }: { name?: string }): ReactNode {
         }
       />
 
-      {editor.save.isError && <div className="mb-4"><ErrorNote error={editor.save.error} /></div>}
-      {editor.validate.isError && <div className="mb-4"><ErrorNote error={editor.validate.error} /></div>}
+      {editor.save.isError && (
+        <div className="mb-4">
+          <ErrorNote error={editor.save.error} onRetry={() => editor.save.mutate()} />
+        </div>
+      )}
+      {editor.validate.isError && (
+        <div className="mb-4">
+          <ErrorNote error={editor.validate.error} onRetry={() => editor.validate.mutate()} />
+        </div>
+      )}
       {editor.validate.data && <div className="mb-4"><ValidationReportPanel report={editor.validate.data} /></div>}
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px]">

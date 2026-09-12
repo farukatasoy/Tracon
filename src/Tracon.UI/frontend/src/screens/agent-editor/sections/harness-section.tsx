@@ -23,16 +23,16 @@ export function HarnessSection({
   return (
     <Panel title={t('agentDetail.harness')}>
       <div className="p-4">
-        <label className="flex cursor-pointer items-center gap-2 text-[13px]">
+        <label className="flex cursor-pointer items-center gap-2 text-base">
           <input
             type="checkbox"
-            className="accent-[var(--ap-accent)]"
+            className="accent-[var(--tracon-accent)]"
             checked={form.harnessEnabled}
             onChange={(event) => setForm({ ...form, harnessEnabled: event.target.checked })}
           />
           {t('agentEditor.harnessEnable')}
         </label>
-        <p className="mt-1 text-[12px] text-muted">{t('agentEditor.harnessNotice')}</p>
+        <p className="mt-1 text-sm text-muted">{t('agentEditor.harnessNotice')}</p>
 
         {form.harnessEnabled && (
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
@@ -67,10 +67,10 @@ export function HarnessSection({
             </Field>
             <div className="sm:col-span-2 flex flex-wrap gap-x-5 gap-y-2">
               {HARNESS_TOGGLES.map(([key, label]) => (
-                <label key={key} className="flex cursor-pointer items-center gap-2 text-[12px]">
+                <label key={key} className="flex cursor-pointer items-center gap-2 text-sm">
                   <input
                     type="checkbox"
-                    className="accent-[var(--ap-accent)]"
+                    className="accent-[var(--tracon-accent)]"
                     checked={form.harness[key] === true}
                     onChange={(event) =>
                       setForm({ ...form, harness: { ...form.harness, [key]: event.target.checked } })

@@ -262,10 +262,10 @@ export function TriggerEditorScreen({ name, meta }: { name?: string; meta: Meta 
                 />
               </Field>
             )}
-            <label className="flex cursor-pointer items-center gap-2 text-[13px]">
+            <label className="flex cursor-pointer items-center gap-2 text-base">
               <input
                 type="checkbox"
-                className="accent-[var(--ap-accent)]"
+                className="accent-[var(--tracon-accent)]"
                 checked={form.enabled}
                 onChange={(event) => setForm({ ...form, enabled: event.target.checked })}
               />
@@ -273,7 +273,7 @@ export function TriggerEditorScreen({ name, meta }: { name?: string; meta: Meta 
             </label>
             <div className="sm:col-span-2">
               <Field label={t('triggers.acceptUrl')} hint={t('triggers.acceptUrlHint')}>
-                <Mono className="block break-all rounded border border-line bg-raised px-2 py-1.5 text-[12px]">{acceptUrl}</Mono>
+                <Mono className="block break-all rounded border border-line bg-raised px-2 py-1.5 text-sm">{acceptUrl}</Mono>
               </Field>
             </div>
           </div>

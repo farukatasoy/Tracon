@@ -85,13 +85,13 @@ export function DiagnosticsScreen(): ReactNode {
             </dl>
 
             {diagnostics.data.registeredPersistenceProviders > 1 && (
-              <p className="border-t border-line px-4 py-2.5 text-[11px] text-warn">
+              <p className="border-t border-line px-4 py-2.5 text-xs text-warn">
                 {t('diagnostics.multipleProvidersWarning')}
               </p>
             )}
 
             {diagnostics.data.pendingMigrations.length > 0 && (
-              <div className="border-t border-line px-4 py-2.5 text-[11px] text-subtle">
+              <div className="border-t border-line px-4 py-2.5 text-xs text-subtle">
                 <div className="mb-1 font-medium text-muted">{t('diagnostics.pendingList')}</div>
                 <ul className="list-inside list-disc">
                   {diagnostics.data.pendingMigrations.map((name) => (
@@ -120,7 +120,7 @@ export function DiagnosticsScreen(): ReactNode {
 
           <Panel title={t('diagnostics.modelProviders')} className="lg:col-span-2">
             {diagnostics.data.modelProviders.length === 0 ? (
-              <p className="px-4 py-4 text-[12px] text-subtle">{t('diagnostics.modelProviders.empty')}</p>
+              <p className="px-4 py-4 text-sm text-subtle">{t('diagnostics.modelProviders.empty')}</p>
             ) : (
               <Table>
                 <thead>
@@ -141,7 +141,7 @@ export function DiagnosticsScreen(): ReactNode {
 
           <Panel title={t('diagnostics.configuration')} className="lg:col-span-2">
             {diagnostics.data.configuration.length === 0 ? (
-              <p className="px-4 py-4 text-[12px] text-subtle">{t('diagnostics.configuration.empty')}</p>
+              <p className="px-4 py-4 text-sm text-subtle">{t('diagnostics.configuration.empty')}</p>
             ) : (
               <Table>
                 <thead>
@@ -211,7 +211,7 @@ function ConfigurationRow({
         )}
       </Td>
       {/* Server text, never translated (decision K-232): it names a setup step, not UI copy. */}
-      <Td>{entry.hint ? <span className="text-[11px] text-subtle">{entry.hint}</span> : <span>—</span>}</Td>
+      <Td>{entry.hint ? <span className="text-xs text-subtle">{entry.hint}</span> : <span>—</span>}</Td>
     </tr>
   );
 }
@@ -232,8 +232,8 @@ function statusTone(status: string): 'success' | 'danger' | 'warn' | 'neutral' {
 function Row({ label, children }: { label: string; children: ReactNode }): ReactNode {
   return (
     <div className="flex items-center gap-4 px-4 py-2">
-      <dt className="w-48 shrink-0 text-[12px] text-subtle">{label}</dt>
-      <dd className="min-w-0 flex-1 text-[13px]">{children}</dd>
+      <dt className="w-48 shrink-0 text-sm text-subtle">{label}</dt>
+      <dd className="min-w-0 flex-1 text-base">{children}</dd>
     </div>
   );
 }

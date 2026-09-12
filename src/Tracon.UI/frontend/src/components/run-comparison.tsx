@@ -58,7 +58,7 @@ export function RunComparison({ left, right }: { left: string; right: string }):
         </div>
 
         <div>
-          <p className="mb-1.5 text-[11px] font-semibold tracking-wide text-subtle uppercase">
+          <p className="mb-1.5 text-xs font-semibold tracking-wide text-subtle uppercase">
             {t('compare.output')}
           </p>
           <DiffView

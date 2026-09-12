@@ -147,6 +147,13 @@ export const SpinnerIcon = ({ className }: IconProps): ReactNode => (
   </svg>
 );
 
+export const LockIcon = ({ className }: IconProps): ReactNode => (
+  <Icon className={className}>
+    <rect x="4" y="10" width="16" height="10" rx="2" />
+    <path d="M8 10V7a4 4 0 0 1 8 0v3" />
+  </Icon>
+);
+
 export const SunIcon = ({ className }: IconProps): ReactNode => (
   <Icon className={className}>
     <circle cx="12" cy="12" r="4" />

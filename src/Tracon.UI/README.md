@@ -25,7 +25,9 @@ the UI under the same prefix; the prefix is written in one place.
 
 ## Screens
 
-30 screens behind 36 routes. Grouped by the area they manage:
+30 screens behind 36 routes. The console groups them into **Operate** — what the
+agents are doing right now — and **Configure** — what they are allowed to do.
+By the area they manage:
 
 | Area | Screens |
 |-------|--------|
@@ -48,13 +50,18 @@ the UI under the same prefix; the prefix is written in one place.
 
 - The UI works under any prefix (`/tracon`, `/panel`, ...) and learns the prefix
   at runtime
-- Light and dark theme; the default is the operating system preference
+- Dark and light themes. A fresh console opens dark; Settings also offers
+  "follow system", which then tracks the operating system preference
 - Tools are defined only in code. An agent can be created from the UI, but tool
   **code** cannot be written — this is a security boundary
 - The UI shell is exempt from the bearer token layer; the loopback restriction and
   authorization policy apply instead: a browser cannot add an
   `Authorization` header to a script request
-- JavaScript budget: 250 KB gzip (build gate). Current size 175.9 KB
+- JavaScript budget: 250 KB gzip (build gate). Current size 184.1 KB
+- Four run-time JavaScript dependencies, and a build gate on that list. Dialogs,
+  menus, tooltips and the command palette are written against the platform
+- Colour, contrast and density come from one token set, checked on every build:
+  text at 5.2:1 or better and non-text at 3.5:1 or better, in both themes
 
 ## Links
 

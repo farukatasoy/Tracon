@@ -18,6 +18,14 @@ import { emptyForm, fromDefinition, isValidJson, toRequest, withDefaultProvider,
 export interface UseAgentEditorResult {
   editing: boolean;
   ready: boolean;
+  /**
+   * The definition query, exposed so the screen can tell "still loading" from
+   * "could not load". Without it an editor opened on a name that does not
+   * resolve — another tenant's agent, a deleted one, a store that is down —
+   * sits on its loading skeleton for ever, because `ready` only ever turns
+   * true on SUCCESS.
+   */
+  existing: ReturnType<typeof useQuery<AgentDetailResponse>>;
   form: FormState;
   setForm: Dispatch<SetStateAction<FormState>>;
   tools: ReturnType<typeof useQuery<ToolDescriptor[]>>;
@@ -161,6 +169,7 @@ export function useAgentEditor(name: string | undefined): UseAgentEditorResult {
   return {
     editing,
     ready,
+    existing,
     form,
     setForm,
     tools,

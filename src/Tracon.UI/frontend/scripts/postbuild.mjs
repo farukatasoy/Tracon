@@ -1,13 +1,14 @@
 // Post-processes the Vite output so the .NET package can embed it.
 //
-// Three jobs:
+// Four jobs:
 //   1. Insert the `<base href>` placeholder the host rewrites at run time.
 //   2. Brotli-compress text assets in place, so the assembly carries the small
 //      form and a client that accepts `br` is served with zero CPU cost.
 //   3. Enforce the JavaScript bundle budget.
+//   4. Enforce the run-time dependency set.
 //
-// It runs as part of `npm run build`, which means the budget is a real gate
-// locally and in CI, not a CI-only afterthought that fails after the fact.
+// It runs as part of `npm run build`, which means both gates are real locally
+// and in CI, not a CI-only afterthought that fails after the fact.
 
 import { createHash } from 'node:crypto';
 import { brotliCompressSync, constants, gzipSync } from 'node:zlib';
@@ -23,6 +24,22 @@ const COMPRESSIBLE = new Set(['.js', '.mjs', '.css', '.svg', '.json', '.map', '.
 
 /** gzip budget for JavaScript, in bytes. Exceeding it fails the build. */
 const JS_BUDGET_BYTES = 250 * 1024;
+
+/**
+ * The console's entire run-time dependency set.
+ *
+ * 🚨 A name added here is a package every consumer of `Tracon.UI` now carries.
+ * The instrument layer's dialog, menu, tooltip and combobox behaviour is
+ * written by hand for exactly this reason — a headless UI library is less work
+ * and costs the consumer a dependency. Widening this set is a decision, not an
+ * implementation detail: record it before you change the list.
+ */
+const ALLOWED_DEPENDENCIES = [
+  '@tanstack/react-query',
+  '@tracon/client',
+  'react',
+  'react-dom',
+];
 
 // The embeddable chat widget (Phase 61) builds into wwwroot/embed/ via a
 // SEPARATE Vite config and has its OWN budget gate (postbuild-embed.mjs,
@@ -144,7 +161,36 @@ function enforceBudget(files) {
   return { gzipped, kilobytes, budget };
 }
 
+/**
+ * Fails the build when the console grew a run-time dependency.
+ *
+ * The gzip budget alone would not catch it: a 6 KB headless library fits
+ * comfortably under the ceiling and still lands in every consumer's graph.
+ */
+function enforceDependencies() {
+  const manifest = JSON.parse(
+    readFileSync(join(resolve(import.meta.dirname, '..'), 'package.json'), 'utf8'),
+  );
+  const declared = Object.keys(manifest.dependencies ?? {}).sort();
+  const allowed = [...ALLOWED_DEPENDENCIES].sort();
+
+  if (declared.join() !== allowed.join()) {
+    const added = declared.filter((name) => !allowed.includes(name));
+    const removed = allowed.filter((name) => !declared.includes(name));
+
+    throw new Error(
+      'The console\'s run-time dependency set changed. ' +
+        `Added: [${added.join(', ')}]. Removed: [${removed.join(', ')}]. ` +
+        'Update ALLOWED_DEPENDENCIES only together with a recorded decision.',
+    );
+  }
+
+  return declared;
+}
+
 function main() {
+  const dependencies = enforceDependencies();
+
   prepareShell();
 
   // The budget is measured before compression rewrites the files.
@@ -163,6 +209,7 @@ function main() {
     [
       `Tracon UI assets`,
       `  javascript : ${budget.kilobytes} KB gzipped (budget ${budget.budget} KB)`,
+      `  runtime    : ${dependencies.length} dependencies (${dependencies.join(', ')})`,
       `  embedded   : ${(sizes.after / 1024).toFixed(1)} KB brotli, from ${(sizes.before / 1024).toFixed(1)} KB`,
       `  digest     : ${digest.digest('hex').slice(0, 16)}`,
       '',

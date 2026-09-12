@@ -241,7 +241,7 @@ export function WorkflowEditorScreen({ name }: { name?: string }): ReactNode {
             </Field>
 
             {tooFew && (
-              <p className="text-[12px] text-warn">
+              <p className="text-sm text-warn">
                 {t('workflowEditor.needsTwo', { kind: draft.kind })}
               </p>
             )}
@@ -332,11 +332,11 @@ function PlanApproval({
           onChange={(event) => onChange({ ...draft, requirePlanApproval: event.target.checked })}
         />
         <span>
-          <span className="flex items-center gap-1.5 text-[13px] font-medium">
+          <span className="flex items-center gap-1.5 text-base font-medium">
             {t('workflowEditor.planApproval')}
             <Badge tone="warn">{t('workflowEditor.planApprovalCost')}</Badge>
           </span>
-          <span className="mt-0.5 block text-[12px] text-muted">
+          <span className="mt-0.5 block text-sm text-muted">
             {t('workflowEditor.planApprovalNotice')}
           </span>
         </span>
@@ -364,9 +364,9 @@ function AgentPicker({
         {selected.map((agent, index) => (
           <li
             key={agent}
-            className="flex items-center gap-2 rounded-md border border-line bg-panel px-2.5 py-1.5 text-[13px]"
+            className="flex items-center gap-2 rounded-md border border-line bg-panel px-2.5 py-1.5 text-base"
           >
-            <span className="w-5 text-[11px] text-subtle">{index + 1}</span>
+            <span className="w-5 text-xs text-subtle">{index + 1}</span>
             <span className="flex-1">{agent}</span>
 
             <button

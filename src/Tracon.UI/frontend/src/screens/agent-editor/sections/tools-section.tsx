@@ -19,13 +19,13 @@ export function ToolsSection({
   return (
     <Panel title={t('common.tools')}>
       <div className="p-4">
-        <p className="mb-3 text-[12px] text-muted">{t('agentEditor.toolsNotice')}</p>
+        <p className="mb-3 text-sm text-muted">{t('agentEditor.toolsNotice')}</p>
 
         {tools.isPending && <Loading />}
         {tools.isError && <ErrorNote error={tools.error} />}
 
         {tools.isSuccess && tools.data.length === 0 && (
-          <p className="text-[13px] text-subtle">
+          <p className="text-base text-subtle">
             {t('agentEditor.noTools')} <Mono>AddTool(...)</Mono> / <Mono>AddToolsFrom(typeof(...))</Mono>
           </p>
         )}
@@ -41,7 +41,7 @@ export function ToolsSection({
               >
                 <input
                   type="checkbox"
-                  className="mt-0.5 accent-[var(--ap-accent)]"
+                  className="mt-0.5 accent-[var(--tracon-accent)]"
                   checked={checked}
                   onChange={() =>
                     setForm({
@@ -65,7 +65,7 @@ export function ToolsSection({
                     </Badge>
                   )}
                   {tool.description !== null && tool.description !== undefined && (
-                    <span className="block text-[12px] text-muted">{tool.description}</span>
+                    <span className="block text-sm text-muted">{tool.description}</span>
                   )}
                 </span>
               </label>

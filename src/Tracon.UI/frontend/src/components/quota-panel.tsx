@@ -98,7 +98,7 @@ export function QuotaPanel(): ReactNode {
         ))}
 
       {usage.isSuccess && (
-        <p className="border-t border-line px-4 py-2.5 text-[11px] text-subtle">
+        <p className="border-t border-line px-4 py-2.5 text-xs text-subtle">
           {t('quota.periodNoticeBefore')} <Mono>{usage.data.timeZone}</Mono>.{' '}
           {t('quota.periodNoticeAfter')}
         </p>
@@ -123,7 +123,7 @@ function QuotaRow({
   return (
     <div className="px-4 py-3" data-testid="quota-row">
       <div className="mb-2 flex items-center gap-2">
-        <span className="text-[13px] font-medium">
+        <span className="text-base font-medium">
           {definition.agentName ?? t('runs.allAgents')}
         </span>
         <Badge tone="neutral">{definition.period.toLowerCase()}</Badge>
@@ -188,7 +188,7 @@ function QuotaBar({
 
   return (
     <div data-testid="quota-bar">
-      <div className="mb-0.5 flex items-baseline justify-between text-[11px]">
+      <div className="mb-0.5 flex items-baseline justify-between text-xs">
         <span className="text-subtle">{label}</span>
         <span className="text-muted">
           {format(used)} / {format(limit)}

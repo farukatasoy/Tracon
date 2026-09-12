@@ -26,7 +26,7 @@ export function CancelRunButton({ runId }: { runId: string }): ReactNode {
   });
 
   if (cancel.isSuccess) {
-    return <span className="text-[12px] text-subtle">{t('runDetail.cancel.requested')}</span>;
+    return <span className="text-sm text-subtle">{t('runDetail.cancel.requested')}</span>;
   }
 
   return (
@@ -45,7 +45,7 @@ export function CancelRunButton({ runId }: { runId: string }): ReactNode {
       </Button>
 
       {cancel.isError && (
-        <span className="text-[11px] text-danger" role="alert">
+        <span className="text-xs text-danger" role="alert">
           {cancel.error instanceof TraconError && cancel.error.status === 409
             ? t('runDetail.cancel.conflict')
             : cancel.error.message}

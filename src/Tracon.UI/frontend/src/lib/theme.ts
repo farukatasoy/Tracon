@@ -18,14 +18,27 @@ export function resolveTheme(preference: ThemePreference): 'light' | 'dark' {
     : 'light';
 }
 
+/**
+ * What a console with nothing stored opens in.
+ *
+ * 🚨 Dark, and NOT `system`. The console is an operations surface left open all
+ * day and the token set is built dark-first, so dark is the product's answer
+ * rather than the machine's. Reading the machine instead cannot express this:
+ * `prefers-color-scheme` has no "unset" state in a current browser — it reports
+ * `light` for every machine that has not chosen dark — so following the system
+ * by default IS defaulting to light. "Follow system" stays on offer in Settings
+ * and behaves exactly as it did; only the starting point moved.
+ */
+const DEFAULT_PREFERENCE: ThemePreference = 'dark';
+
 export function readThemePreference(): ThemePreference {
   try {
     const stored = window.localStorage.getItem(STORAGE_KEY);
 
-    return stored === 'light' || stored === 'dark' || stored === 'system' ? stored : 'system';
+    return stored === 'light' || stored === 'dark' || stored === 'system' ? stored : DEFAULT_PREFERENCE;
   } catch {
     // Private browsing modes can throw on storage access. The default is fine.
-    return 'system';
+    return DEFAULT_PREFERENCE;
   }
 }
 
