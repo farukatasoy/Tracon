@@ -10,7 +10,7 @@ using Microsoft.CodeAnalysis.Text;
 namespace Tracon.Generators;
 
 /// <summary>
-/// Reports the Tracon usage diagnostics (APG0101-APG0402): wiring that fails
+/// Reports the Tracon usage diagnostics (TRC0101-TRC0402): wiring that fails
 /// at run time, a boundary that must not be crossed, and work written by hand
 /// that the package already ships.
 /// </summary>
@@ -19,12 +19,12 @@ namespace Tracon.Generators;
 /// The analyzer ships in the same assembly as
 /// <see cref="ToolRegistrationGenerator"/> and reaches a consumer through
 /// <c>analyzers/dotnet/cs/</c> in <c>Tracon.Core</c>'s package. It reads no
-/// files: APG0401 and APG0402 inspect two <c>AdditionalFiles</c> that the
+/// files: TRC0401 and TRC0402 inspect two <c>AdditionalFiles</c> that the
 /// package's <c>buildTransitive</c> target supplies, because file access from an
 /// analyzer is both banned (RS1035) and non-deterministic.
 /// </para>
 /// <para>
-/// The analyzer sees exactly one compilation. APG0101 and APG0102 report an
+/// The analyzer sees exactly one compilation. TRC0101 and TRC0102 report an
 /// absent registration, so a consumer that registers Tracon in another
 /// assembly gets a false positive. They are still warnings, because an
 /// <c>Info</c> diagnostic never reaches <c>dotnet build</c> output and would be
@@ -43,7 +43,7 @@ public sealed class TraconUsageAnalyzer : DiagnosticAnalyzer
     private const string AgentMapFileName = "Tracon.AgentMap.md";
 
     /// <summary>
-    /// The file the build writes beside each project. APG0402 looks for this
+    /// The file the build writes beside each project. TRC0402 looks for this
     /// exact name in the consumer's own instructions; the name is decided by the
     /// build target in this same package, so the two can only ever be renamed
     /// together.
@@ -64,7 +64,7 @@ public sealed class TraconUsageAnalyzer : DiagnosticAnalyzer
     /// </summary>
     /// <remarks>
     /// Internal rather than private so <c>DiagnosticIntegrityTests</c> can check
-    /// each registration call still exists: APG0102 puts these names into its
+    /// each registration call still exists: TRC0102 puts these names into its
     /// message, where the message format itself cannot carry them.
     /// </remarks>
     internal static readonly KeyValuePair<string, string>[] BuiltInProviders =
@@ -306,9 +306,9 @@ public sealed class TraconUsageAnalyzer : DiagnosticAnalyzer
     /// </summary>
     /// <remarks>
     /// The marker decides which one can apply. A file this package generated can
-    /// be stale (APG0401) but always names the local reference, because the map
+    /// be stale (TRC0401) but always names the local reference, because the map
     /// it was copied from does. A file the consumer wrote cannot be stale - it
-    /// belongs to them - but can be silent about the local reference (APG0402).
+    /// belongs to them - but can be silent about the local reference (TRC0402).
     /// </remarks>
     private static void ReportAgentsFileDiagnostics(CompilationAnalysisContext context)
     {
@@ -612,7 +612,7 @@ public sealed class TraconUsageAnalyzer : DiagnosticAnalyzer
     }
 
     /// <summary>
-    /// Reports APG0501 for every loop, in an async iterator, that advances the
+    /// Reports TRC0501 for every loop, in an async iterator, that advances the
     /// enumeration without repeating an ambient write the method also makes
     /// elsewhere.
     /// </summary>
@@ -701,7 +701,7 @@ public sealed class TraconUsageAnalyzer : DiagnosticAnalyzer
         }
     }
 
-    /// <summary>Reports APG0502 for a discarded ambient-scope <c>Begin(...)</c> result.</summary>
+    /// <summary>Reports TRC0502 for a discarded ambient-scope <c>Begin(...)</c> result.</summary>
     private static void VisitAmbientScopeInvocation(SyntaxNodeAnalysisContext context)
     {
         var invocation = (InvocationExpressionSyntax)context.Node;
@@ -732,7 +732,7 @@ public sealed class TraconUsageAnalyzer : DiagnosticAnalyzer
     /// operation tree - or an assignment to a discard. Everything else - a
     /// using declaration, a plain variable, a field, a return, an argument -
     /// keeps a handle on the scope and is out of scope for this diagnostic
-    /// (see the class remarks on APG0502 not being CA2000).
+    /// (see the class remarks on TRC0502 not being CA2000).
     /// </summary>
     /// <remarks>
     /// Read through <see cref="IOperation"/> rather than syntax alone: a

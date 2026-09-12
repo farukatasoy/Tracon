@@ -86,7 +86,7 @@ map and the API documentation of the installed version.
 The pointer cannot go stale: the file it names is rewritten on every build, and its
 first section is the absolute path to the capability map in your NuGet cache.
 
-`APG0402` fires while that line is missing — but **only once the property above is
+`TRC0402` fires while that line is missing — but **only once the property above is
 on**, because until then there is no file to point at. It looks for the exact file name
 anywhere in `AGENTS.md`; prose, a list, or a code fence all count.
 
@@ -141,7 +141,7 @@ rm AGENTS.md
 dotnet build
 ```
 
-`APG0401` tells you when this is due, so you do not have to remember.
+`TRC0401` tells you when this is due, so you do not have to remember.
 
 ## The diagnostics
 
@@ -152,15 +152,15 @@ agent reliably reads.
 
 | Id | Fires when | What it teaches |
 |---|---|---|
-| `APG0101` | `MapTracon()` is called but `AddTracon()` is not | The mapped endpoints have no catalog to serve; the app fails at startup |
-| `APG0102` | A model binding names a built-in provider the compilation never registers | Call the matching `Use…()`, or register a custom `IModelProvider` |
-| `APG0201` | A literal secret is written into a definition | Store the **name of the configuration key**; definitions reach backups, the audit trail, and the console |
-| `APG0301` | A retry loop is written by hand around a chat client | Hand retries hide failures from the circuit breaker and never reach the binding's fallbacks |
-| `APG0302` | An agent is wrapped without any `IAgentDecorator` in the compilation | A hand-applied wrapper misses database-defined agents; a decorator does not |
-| `APG0401` | `AGENTS.md` was generated from an older capability map | Delete it and build again |
-| `APG0402` | The local reference file is written, and your own `AGENTS.md` never names it | An agent reading it cannot reach the capability map on this machine; add one line |
+| `TRC0101` | `MapTracon()` is called but `AddTracon()` is not | The mapped endpoints have no catalog to serve; the app fails at startup |
+| `TRC0102` | A model binding names a built-in provider the compilation never registers | Call the matching `Use…()`, or register a custom `IModelProvider` |
+| `TRC0201` | A literal secret is written into a definition | Store the **name of the configuration key**; definitions reach backups, the audit trail, and the console |
+| `TRC0301` | A retry loop is written by hand around a chat client | Hand retries hide failures from the circuit breaker and never reach the binding's fallbacks |
+| `TRC0302` | An agent is wrapped without any `IAgentDecorator` in the compilation | A hand-applied wrapper misses database-defined agents; a decorator does not |
+| `TRC0401` | `AGENTS.md` was generated from an older capability map | Delete it and build again |
+| `TRC0402` | The local reference file is written, and your own `AGENTS.md` never names it | An agent reading it cannot reach the capability map on this machine; add one line |
 
-A separate family, `APG0001`–`APG0008`, validates tool registration itself and comes
+A separate family, `TRC0001`–`TRC0008`, validates tool registration itself and comes
 from the source generator. Both families carry a help link into the
 [capability map](/capabilities/).
 
@@ -180,12 +180,12 @@ analyzer:
 
 ```ini
 [*.cs]
-dotnet_diagnostic.APG0301.severity = none
+dotnet_diagnostic.TRC0301.severity = none
 ```
 
 :::caution
 With `TreatWarningsAsErrors` enabled, these warnings break the build — which is the
-intended outcome for `APG0101` and `APG0201`, both of which describe a defect that
+intended outcome for `TRC0101` and `TRC0201`, both of which describe a defect that
 fails at run time or leaks a secret. Narrow the severity of the one you disagree with
 rather than switching off the family.
 :::

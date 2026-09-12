@@ -105,7 +105,7 @@ public sealed class TemplateAgentsFileTests(TemplateFixture fixture)
         var build = await BuildAsync(projectDirectory);
 
         build.ExitCode.ShouldBe(0, build.Combined);
-        build.Combined.ShouldContain("APG0401");
+        build.Combined.ShouldContain("TRC0401");
     }
 
     [Fact]
@@ -152,7 +152,7 @@ public sealed class TemplateAgentsFileTests(TemplateFixture fixture)
     }
 
     /// <summary>
-    /// Every diagnostic a GENERATED map can produce, in one real build. APG0402
+    /// Every diagnostic a GENERATED map can produce, in one real build. TRC0402
     /// is the one that cannot appear here - it reports a file this package did
     /// not write - and <see cref="Instructions_that_never_name_the_local_reference_are_reported"/>
     /// proves it reaches a consumer on its own.
@@ -163,7 +163,7 @@ public sealed class TemplateAgentsFileTests(TemplateFixture fixture)
         using var directory = new TempDirectory();
         await InitialiseRepositoryAsync(directory.Path);
 
-        // The stale marker is what makes APG0401 fire; the rest come from the source.
+        // The stale marker is what makes TRC0401 fire; the rest come from the source.
         await File.WriteAllTextAsync(
             Path.Combine(directory.Path, "AGENTS.md"),
             StaleMap,
@@ -179,7 +179,7 @@ public sealed class TemplateAgentsFileTests(TemplateFixture fixture)
 
         build.ExitCode.ShouldBe(0, build.Combined);
 
-        foreach (var id in DiagnosticIds.Where(id => !string.Equals(id, "APG0402", StringComparison.Ordinal)))
+        foreach (var id in DiagnosticIds.Where(id => !string.Equals(id, "TRC0402", StringComparison.Ordinal)))
         {
             build.Combined.ShouldContain(id, customMessage: build.Combined);
         }
@@ -210,11 +210,11 @@ public sealed class TemplateAgentsFileTests(TemplateFixture fixture)
         var build = await BuildAsync(projectDirectory);
 
         build.ExitCode.ShouldBe(0, build.Combined);
-        build.Combined.ShouldContain("APG0402", customMessage: build.Combined);
+        build.Combined.ShouldContain("TRC0402", customMessage: build.Combined);
 
         // Staleness is a different question and belongs to a file this package
         // generated; the consumer's own file cannot be stale against anything.
-        build.Combined.ShouldNotContain("APG0401", customMessage: build.Combined);
+        build.Combined.ShouldNotContain("TRC0401", customMessage: build.Combined);
 
         // The consumer's file is never touched, only read.
         (await File.ReadAllTextAsync(Path.Combine(directory.Path, "AGENTS.md"), TestContext.Current.CancellationToken))
@@ -235,7 +235,7 @@ public sealed class TemplateAgentsFileTests(TemplateFixture fixture)
     /// <summary>
     /// 🚨 A consumer who opted into NOTHING must hear nothing. The additional
     /// files reach the analyzer whatever the properties say, so without the
-    /// opt-in gate APG0402 fires here - and the line it asks for would name
+    /// opt-in gate TRC0402 fires here - and the line it asks for would name
     /// <c>Tracon.LocalReference.md</c>, which this build never writes.
     /// </summary>
     /// <remarks>
@@ -263,7 +263,7 @@ public sealed class TemplateAgentsFileTests(TemplateFixture fixture)
         var build = await BuildAsync(projectDirectory);
 
         build.ExitCode.ShouldBe(0, build.Combined);
-        build.Combined.ShouldNotContain("APG0402", customMessage: build.Combined);
+        build.Combined.ShouldNotContain("TRC0402", customMessage: build.Combined);
 
         // The other half of the same fact: there is no file to point at.
         File.Exists(Path.Combine(projectDirectory, "Tracon.LocalReference.md"))
@@ -296,11 +296,11 @@ public sealed class TemplateAgentsFileTests(TemplateFixture fixture)
         var build = await BuildAsync(projectDirectory);
 
         build.ExitCode.ShouldBe(0, build.Combined);
-        build.Combined.ShouldNotContain("APG0402", customMessage: build.Combined);
+        build.Combined.ShouldNotContain("TRC0402", customMessage: build.Combined);
     }
 
     /// <summary>
-    /// Every project in a solution reports it, exactly as APG0401 does: the
+    /// Every project in a solution reports it, exactly as TRC0401 does: the
     /// consumer silences both with one property, and consistency is worth more
     /// than the saved line.
     /// </summary>
@@ -341,7 +341,7 @@ public sealed class TemplateAgentsFileTests(TemplateFixture fixture)
         // order it likes, and ShouldBe on a set still compares in order.
         var reporting = build.Combined
             .Split('\n')
-            .Where(line => line.Contains("APG0402", StringComparison.Ordinal))
+            .Where(line => line.Contains("TRC0402", StringComparison.Ordinal))
             .SelectMany(line => new[] { "First.csproj", "Second.csproj" }.Where(project => line.Contains(project, StringComparison.Ordinal)))
             .Distinct(StringComparer.Ordinal)
             .Order(StringComparer.Ordinal)
@@ -357,8 +357,8 @@ public sealed class TemplateAgentsFileTests(TemplateFixture fixture)
     /// </summary>
     /// <remarks>
     /// Two builds because two of the diagnostics are mutually exclusive by
-    /// design - a generated AGENTS.md can be stale (APG0401), a hand-written one
-    /// can be missing the pointer (APG0402), and no single file is both.
+    /// design - a generated AGENTS.md can be stale (TRC0401), a hand-written one
+    /// can be missing the pointer (TRC0402), and no single file is both.
     /// </remarks>
     [Fact]
     public async Task One_property_silences_the_whole_usage_family()
@@ -384,7 +384,7 @@ public sealed class TemplateAgentsFileTests(TemplateFixture fixture)
 
         stale.ExitCode.ShouldBe(0, stale.Combined);
 
-        // The hand-written file swaps APG0401 for APG0402; everything else in
+        // The hand-written file swaps TRC0401 for TRC0402; everything else in
         // the family comes from the source and reports in both builds.
         await File.WriteAllTextAsync(agentsFile, HouseRules, TestContext.Current.CancellationToken);
 
@@ -404,7 +404,7 @@ public sealed class TemplateAgentsFileTests(TemplateFixture fixture)
     }
 
     private static readonly string[] DiagnosticIds =
-        ["APG0101", "APG0102", "APG0201", "APG0301", "APG0302", "APG0401", "APG0402"];
+        ["TRC0101", "TRC0102", "TRC0201", "TRC0301", "TRC0302", "TRC0401", "TRC0402"];
 
     /// <summary>A file this package generated, from a revision it no longer ships.</summary>
     private const string StaleMap =
@@ -412,7 +412,7 @@ public sealed class TemplateAgentsFileTests(TemplateFixture fixture)
 
     /// <summary>
     /// A file the consumer wrote. It carries no revision marker, and it never
-    /// names the generated reference file - the shape APG0402 exists for.
+    /// names the generated reference file - the shape TRC0402 exists for.
     /// </summary>
     private const string HouseRules = "# House rules\n\nRun the tests before you commit.\n";
 
@@ -449,7 +449,7 @@ public sealed class TemplateAgentsFileTests(TemplateFixture fixture)
     /// and an agent wrapper. One build must report all five.
     /// </summary>
     /// <remarks>
-    /// The credential-shaped value is analyzer INPUT - APG0201 reports a string
+    /// The credential-shaped value is analyzer INPUT - TRC0201 reports a string
     /// LITERAL, so the shape has to be real. It is assembled here rather than
     /// written out to keep the generated file the only place it exists.
     /// </remarks>

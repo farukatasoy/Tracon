@@ -4,8 +4,8 @@ namespace Tracon.Generators.UnitTests;
 
 /// <summary>
 /// Verifies 135.1/135.4: an object parameter's graph is limited to 3 nested levels, a cycle
-/// is caught instead of recursing forever (APG0012), and every object type reached must be
-/// declared on the tool's <c>JsonSerializerContext</c> (APG0011) - the same rule APG0008
+/// is caught instead of recursing forever (TRC0012), and every object type reached must be
+/// declared on the tool's <c>JsonSerializerContext</c> (TRC0011) - the same rule TRC0008
 /// already enforces for a complex RESULT type, extended to cover a nested PARAMETER type too.
 /// </summary>
 public sealed class ToolObjectGraphTests
@@ -16,7 +16,7 @@ public sealed class ToolObjectGraphTests
     /// within the limit, and only the 4th nested level is rejected.
     /// </summary>
     [Fact]
-    public void A_graph_four_levels_deep_produces_APG0012_and_blocks_generation()
+    public void A_graph_four_levels_deep_produces_TRC0012_and_blocks_generation()
     {
         const string Source = """
             using System.ComponentModel;
@@ -39,7 +39,7 @@ public sealed class ToolObjectGraphTests
 
         var result = GeneratorTestHelper.Run(Source);
 
-        var diagnostics = result.DiagnosticsWithId("APG0012");
+        var diagnostics = result.DiagnosticsWithId("TRC0012");
         diagnostics.Count.ShouldBe(1);
         diagnostics[0].Severity.ShouldBe(Microsoft.CodeAnalysis.DiagnosticSeverity.Error);
         diagnostics[0].GetMessage(CultureInfo.InvariantCulture).ShouldContain("Level4");
@@ -85,7 +85,7 @@ public sealed class ToolObjectGraphTests
 
     /// <summary>135.1: a type that reaches itself again through its own members is rejected, never walked forever.</summary>
     [Fact]
-    public async Task A_cycle_produces_APG0012_naming_the_cyclic_path_and_the_generator_returns_promptly()
+    public async Task A_cycle_produces_TRC0012_naming_the_cyclic_path_and_the_generator_returns_promptly()
     {
         const string Source = """
             using System.ComponentModel;
@@ -105,18 +105,18 @@ public sealed class ToolObjectGraphTests
 
         var result = await Task.Run(() => GeneratorTestHelper.Run(Source)).WaitAsync(TimeSpan.FromSeconds(10));
 
-        var diagnostics = result.DiagnosticsWithId("APG0012");
+        var diagnostics = result.DiagnosticsWithId("TRC0012");
         diagnostics.Count.ShouldBe(1);
         diagnostics[0].GetMessage(CultureInfo.InvariantCulture).ShouldContain("NodeA → NodeB → NodeA");
     }
 
     /// <summary>
-    /// APG0011 (135.4): every distinct object type in the graph is reported once, in the
+    /// TRC0011 (135.4): every distinct object type in the graph is reported once, in the
     /// same compilation, when the tool declares no context at all (Open Question 3 - report
     /// every missing type, not just the first).
     /// </summary>
     [Fact]
-    public void An_object_parameter_with_no_JsonSerializerContext_reports_APG0011_for_every_type_in_its_graph()
+    public void An_object_parameter_with_no_JsonSerializerContext_reports_TRC0011_for_every_type_in_its_graph()
     {
         const string Source = """
             using System.ComponentModel;
@@ -136,7 +136,7 @@ public sealed class ToolObjectGraphTests
 
         var result = GeneratorTestHelper.Run(Source);
 
-        var diagnostics = result.DiagnosticsWithId("APG0011");
+        var diagnostics = result.DiagnosticsWithId("TRC0011");
         diagnostics.Count.ShouldBe(2);
 
         var messages = diagnostics.Select(d => d.GetMessage(CultureInfo.InvariantCulture)).ToList();
@@ -148,7 +148,7 @@ public sealed class ToolObjectGraphTests
 
     /// <summary>When the context declares the outer type but forgets a nested one, only the nested type is reported.</summary>
     [Fact]
-    public void A_JsonSerializerContext_missing_only_a_nested_type_reports_APG0011_for_that_type_alone()
+    public void A_JsonSerializerContext_missing_only_a_nested_type_reports_TRC0011_for_that_type_alone()
     {
         const string Source = """
             using System.ComponentModel;
@@ -172,14 +172,14 @@ public sealed class ToolObjectGraphTests
 
         var result = GeneratorTestHelper.Run(Source);
 
-        var diagnostics = result.DiagnosticsWithId("APG0011");
+        var diagnostics = result.DiagnosticsWithId("TRC0011");
         diagnostics.Count.ShouldBe(1);
         diagnostics[0].GetMessage(CultureInfo.InvariantCulture).ShouldContain("MyApp.Inner");
     }
 
-    /// <summary>When every type in the graph is declared, APG0011 never fires.</summary>
+    /// <summary>When every type in the graph is declared, TRC0011 never fires.</summary>
     [Fact]
-    public void A_JsonSerializerContext_declaring_every_type_in_the_graph_produces_no_APG0011()
+    public void A_JsonSerializerContext_declaring_every_type_in_the_graph_produces_no_TRC0011()
     {
         const string Source = """
             using System.ComponentModel;
@@ -204,11 +204,11 @@ public sealed class ToolObjectGraphTests
 
         var result = GeneratorTestHelper.Run(Source);
 
-        result.DiagnosticsWithId("APG0011").ShouldBeEmpty();
+        result.DiagnosticsWithId("TRC0011").ShouldBeEmpty();
         result.SingleWrapperFile().ShouldNotBeEmpty();
     }
 
-    /// <summary>135.1: a type with more than one public constructor has no single, unambiguous member list - unsupported (APG0003), not silently picked.</summary>
+    /// <summary>135.1: a type with more than one public constructor has no single, unambiguous member list - unsupported (TRC0003), not silently picked.</summary>
     [Fact]
     public void A_type_with_more_than_one_public_constructor_is_reported_as_an_unsupported_parameter_type()
     {
@@ -236,12 +236,12 @@ public sealed class ToolObjectGraphTests
 
         var result = GeneratorTestHelper.Run(Source);
 
-        result.DiagnosticsWithId("APG0003").Count.ShouldBe(1);
-        result.DiagnosticsWithId("APG0011").ShouldBeEmpty();
-        result.DiagnosticsWithId("APG0012").ShouldBeEmpty();
+        result.DiagnosticsWithId("TRC0003").Count.ShouldBe(1);
+        result.DiagnosticsWithId("TRC0011").ShouldBeEmpty();
+        result.DiagnosticsWithId("TRC0012").ShouldBeEmpty();
     }
 
-    /// <summary>135.1: a generic type is never a supported object shape - unsupported (APG0003).</summary>
+    /// <summary>135.1: a generic type is never a supported object shape - unsupported (TRC0003).</summary>
     [Fact]
     public void A_generic_record_parameter_is_reported_as_an_unsupported_parameter_type()
     {
@@ -262,12 +262,12 @@ public sealed class ToolObjectGraphTests
 
         var result = GeneratorTestHelper.Run(Source);
 
-        result.DiagnosticsWithId("APG0003").Count.ShouldBe(1);
+        result.DiagnosticsWithId("TRC0003").Count.ShouldBe(1);
     }
 
-    /// <summary>135.4: APG0003's message no longer claims a nested object can never be expressed.</summary>
+    /// <summary>135.4: TRC0003's message no longer claims a nested object can never be expressed.</summary>
     [Fact]
-    public void APG0003_no_longer_claims_a_nested_object_is_never_expressed()
+    public void TRC0003_no_longer_claims_a_nested_object_is_never_expressed()
     {
         const string Source = """
             using System.ComponentModel;
@@ -284,7 +284,7 @@ public sealed class ToolObjectGraphTests
 
         var result = GeneratorTestHelper.Run(Source);
 
-        var diagnostics = result.DiagnosticsWithId("APG0003");
+        var diagnostics = result.DiagnosticsWithId("TRC0003");
         diagnostics.Count.ShouldBe(1);
         diagnostics[0].GetMessage(CultureInfo.InvariantCulture).ShouldNotContain("never expresses a nested object");
     }

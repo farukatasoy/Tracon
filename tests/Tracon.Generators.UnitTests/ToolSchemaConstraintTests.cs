@@ -401,7 +401,7 @@ public sealed class ToolSchemaConstraintTests
 
         var result = GeneratorTestHelper.Run(Source);
 
-        result.DiagnosticsWithId("APG0010").ShouldBeEmpty();
+        result.DiagnosticsWithId("TRC0010").ShouldBeEmpty();
 
         var node = SchemaJson(result.SingleWrapperFile()).GetProperty("properties").GetProperty("name");
         node.GetProperty("maxLength").GetInt32().ShouldBe(0);

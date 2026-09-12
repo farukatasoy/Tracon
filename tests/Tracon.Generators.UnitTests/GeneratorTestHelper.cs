@@ -83,7 +83,7 @@ internal sealed record GeneratorRunResult(
             .SelectMany(r => r.GeneratedSources)
             .ToDictionary(s => s.HintName, s => s.SourceText.ToString(), StringComparer.Ordinal);
 
-    /// <summary>Returns only the diagnostics with a specific id (example: APG0001).</summary>
+    /// <summary>Returns only the diagnostics with a specific id (example: TRC0001).</summary>
     public IReadOnlyList<Diagnostic> DiagnosticsWithId(string id)
         => [.. Diagnostics.Where(d => string.Equals(d.Id, id, StringComparison.Ordinal))];
 

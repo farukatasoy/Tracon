@@ -28,7 +28,7 @@ internal static class AnalyzerTestHelper
     internal static readonly ImmutableArray<MetadataReference> References = BuildReferences();
 
     /// <summary>
-    /// The build properties the package makes compiler-visible. APG0402 only
+    /// The build properties the package makes compiler-visible. TRC0402 only
     /// speaks while the local reference file is written, so the tests that
     /// expect it have to say so, exactly as the build target does.
     /// </summary>
@@ -38,7 +38,7 @@ internal static class AnalyzerTestHelper
     /// <summary>Runs the analyzer and returns the diagnostics it reported.</summary>
     /// <param name="source">Consumer source code.</param>
     /// <param name="additionalFiles">
-    /// Files the package's build target supplies; APG0401 and APG0402 read
+    /// Files the package's build target supplies; TRC0401 and TRC0402 read
     /// <c>AGENTS.md</c> and <c>Tracon.AgentMap.md</c> from here.
     /// </param>
     public static Task<ImmutableArray<Diagnostic>> RunAsync(
@@ -57,8 +57,8 @@ internal static class AnalyzerTestHelper
         => RunAsync([source], additionalFiles, properties);
 
     /// <summary>
-    /// Runs the analyzer over several source files of ONE compilation. APG0101
-    /// and APG0102 look at the whole compilation, so "the registration is in
+    /// Runs the analyzer over several source files of ONE compilation. TRC0101
+    /// and TRC0102 look at the whole compilation, so "the registration is in
     /// another file" must be shown to stay silent.
     /// </summary>
     public static async Task<ImmutableArray<Diagnostic>> RunAsync(

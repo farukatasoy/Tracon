@@ -4,7 +4,7 @@ namespace Tracon.Generators;
 
 /// <summary>
 /// Definitions for the diagnostics produced by <see cref="TraconUsageAnalyzer"/>
-/// (APG0101-APG0402).
+/// (TRC0101-TRC0402).
 /// </summary>
 /// <remarks>
 /// <para>
@@ -23,7 +23,7 @@ namespace Tracon.Generators;
 /// turns into <c>NoWarn</c>.
 /// </para>
 /// <para>
-/// Every message follows the APG0003 pattern - it states what is wrong and names
+/// Every message follows the TRC0003 pattern - it states what is wrong and names
 /// the API that solves it - and every descriptor carries a help link that
 /// resolves to a real heading of the capability map. Both are enforced by
 /// <c>DiagnosticIntegrityTests</c>: a diagnostic that teaches an API which no
@@ -37,7 +37,7 @@ internal static class UsageDiagnostics
     private const string HelpBase = DocumentationLinks.CapabilityMap;
 
     public static readonly DiagnosticDescriptor MissingRegistration = new(
-        "APG0101",
+        "TRC0101",
         "Tracon is mapped but not registered",
         "'MapTracon()' is called, but this compilation never calls 'AddTracon()'. Without the registration the mapped endpoints have no catalog, no stores, and no run pipeline to serve, and the application fails at startup. Call 'AddTracon()' on the service collection.",
         Category,
@@ -48,7 +48,7 @@ internal static class UsageDiagnostics
         WellKnownDiagnosticTags.CompilationEnd);
 
     public static readonly DiagnosticDescriptor UnregisteredProvider = new(
-        "APG0102",
+        "TRC0102",
         "The bound model provider is not registered",
         "The model binding names provider '{0}', but this compilation never calls '{1}'. The agent fails at run time when the catalog resolves it. Call '{1}' while registering Tracon.",
         Category,
@@ -59,7 +59,7 @@ internal static class UsageDiagnostics
         WellKnownDiagnosticTags.CompilationEnd);
 
     public static readonly DiagnosticDescriptor LiteralSecret = new(
-        "APG0201",
+        "TRC0201",
         "A secret is written into a definition",
         "'{0}' carries a literal secret value. An Tracon definition is stored and shown as-is, so the value would reach a database backup, an audit trail, and the console. Give the name of the configuration key the value is read from, and keep the value in user secrets or an environment variable.",
         Category,
@@ -69,7 +69,7 @@ internal static class UsageDiagnostics
         helpLinkUri: $"{HelpBase}security-and-governance");
 
     public static readonly DiagnosticDescriptor HandWrittenRetry = new(
-        "APG0301",
+        "TRC0301",
         "A retry loop is written by hand around a chat client",
         "'{0}' retries a chat client call by hand. A loop inside the client hides the failures from the shared circuit breaker and never reaches the fallback models of the binding, so the call is repeated instead of failed over. Configure 'TraconOptions.CircuitBreaker' and 'ModelBinding.Fallbacks' instead.",
         Category,
@@ -79,7 +79,7 @@ internal static class UsageDiagnostics
         helpLinkUri: $"{HelpBase}model-providers");
 
     public static readonly DiagnosticDescriptor HandWrittenAgentWrapper = new(
-        "APG0302",
+        "TRC0302",
         "An agent is wrapped without a decorator",
         "'{0}' wraps another agent, but this compilation implements no 'IAgentDecorator'. A wrapper applied by hand covers only the agents it is applied to, while the catalog applies a decorator to every resolved agent, database definitions included. Implement 'IAgentDecorator' and return the wrapper from it.",
         Category,
@@ -90,7 +90,7 @@ internal static class UsageDiagnostics
         WellKnownDiagnosticTags.CompilationEnd);
 
     public static readonly DiagnosticDescriptor StaleAgentMap = new(
-        "APG0401",
+        "TRC0401",
         "The agent map file is stale",
         "'AGENTS.md' was generated from capability map revision '{0}', but the installed Tracon ships revision '{1}'. A coding agent reading it sees a capability list that no longer matches this package. Delete the file and build again to write the current map.",
         Category,
@@ -101,7 +101,7 @@ internal static class UsageDiagnostics
         WellKnownDiagnosticTags.CompilationEnd);
 
     public static readonly DiagnosticDescriptor MissingLocalReferencePointer = new(
-        "APG0402",
+        "TRC0402",
         "The agent instructions never point at the local reference file",
         "'AGENTS.md' does not name 'Tracon.LocalReference.md' anywhere. A coding agent reading it cannot find the capability map or the API documentation of the version installed on this machine, so it writes behaviour Tracon already ships. Add one line naming that file; the build writes it beside every project that references Tracon.",
         Category,
@@ -112,7 +112,7 @@ internal static class UsageDiagnostics
         WellKnownDiagnosticTags.CompilationEnd);
 
     public static readonly DiagnosticDescriptor AmbientWriteMissingFromLoop = new(
-        "APG0501",
+        "TRC0501",
         "An ambient write is not repeated inside an async iterator's loop",
         "'{0}' writes ambient state, but a loop in this async iterator body advances the enumeration again without repeating the write. An assignment made in an async iterator body does not cross a yield return boundary: the driver restores the execution context, and the next step starts with a null scope. Repeat the assignment inside the loop, immediately before the call that advances it.",
         Category,
@@ -122,7 +122,7 @@ internal static class UsageDiagnostics
         helpLinkUri: $"{HelpBase}observability-and-operations");
 
     public static readonly DiagnosticDescriptor AmbientScopeNotDisposed = new(
-        "APG0502",
+        "TRC0502",
         "An ambient scope is opened and never restored",
         "'{0}' returns a scope that must be disposed to restore the previous ambient value, but the result is discarded here. The scope is never restored, and the value it set stays visible for the rest of this execution context. Assign the result to a using var declaration.",
         Category,
