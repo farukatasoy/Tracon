@@ -1404,6 +1404,12 @@ _DUS_DESENLERI = (
     re.compile(r"^(Doğrulanmış|Kullanılan)\s+.*\b(API|İmza)", re.I),
     re.compile(r"^(Gerçekleşen|Oluşturulan|Üretilen|Planlanan)\s+.*Dosya", re.I),
     re.compile(r"^Yeni HTTP Uçları$", re.I),
+    # 🚨 Bir plan tablosu, GERÇEKLEŞENİ ayrı bir bölümde duruyorsa plan
+    # gövdesidir. Faz 165 hem `Desen tablosu — hangi ekran neye benziyor`
+    # (plan) hem `Hangi ekran hangi desene oturdu` (gerçekleşen) taşıyordu;
+    # ikincisi kalır, birincisi kapanışta ölür. Desen "tablosu" sözcüğüne
+    # bakar, tek bir faz adına değil.
+    re.compile(r"^(Desen|Ekran|Kapsam)\s+tablosu\b", re.I),
 )
 
 
