@@ -1,9 +1,9 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { client, unwrap } from '../lib/api';
-import { relativeTime } from '../lib/format';
+import { absoluteTime, relativeTime } from '../lib/format';
 import { useT } from '../lib/i18n';
-import { Link, useNavigate } from '../lib/router';
+import { useNavigate } from '../lib/router';
 import type {
   TraconMetaResponse as Meta,
   CurrentTenantResponse,
@@ -30,6 +30,7 @@ import {
   Empty,
   ErrorNote,
   Field,
+  LinkButton,
   Loading,
   Mono,
   PageHeader,
@@ -40,6 +41,7 @@ import {
   TextInput,
   Th,
 } from '../components/ui';
+import { Toolbar } from '../components/toolbar';
 import { PlusIcon } from '../components/icons';
 
 const emptyForm = (): TriggerForm => ({
@@ -53,10 +55,20 @@ const emptyForm = (): TriggerForm => ({
 
 export function TriggersScreen({ meta }: { meta: Meta }): ReactNode {
   const t = useT();
+  const [query, setQuery] = useState('');
   const triggers = useQuery({
     queryKey: ['triggers'],
     queryFn: () => unwrap(client.GET('/api/triggers')) as Promise<InboundTriggerResponse[]>,
   });
+
+  const needle = query.trim().toLowerCase();
+  const filtering = needle.length > 0;
+  const filtered = (triggers.data ?? []).filter(
+    (trigger) =>
+      !filtering ||
+      trigger.name.toLowerCase().includes(needle) ||
+      trigger.targetName.toLowerCase().includes(needle),
+  );
 
   return (
     <>
@@ -65,43 +77,75 @@ export function TriggersScreen({ meta }: { meta: Meta }): ReactNode {
         description={t('triggers.description')}
         actions={
           meta.roles.canAdminister && (
-            <Link to="triggers/new">
-              <Button tone="primary">
-                <PlusIcon className="size-3.5" />
-                {t('triggers.new')}
-              </Button>
-            </Link>
+            <LinkButton to="triggers/new" tone="primary">
+              <PlusIcon className="size-3.5" />
+              {t('triggers.new')}
+            </LinkButton>
           )
         }
       />
+
+      <Toolbar
+        search={{ value: query, onChange: setQuery, label: t('triggers.search') }}
+        onReset={filtering ? () => setQuery('') : undefined}
+      />
+
       <Panel>
-        {triggers.isPending && <Loading />}
-        {triggers.isError && <div className="p-4"><ErrorNote error={triggers.error} /></div>}
-        {triggers.isSuccess && triggers.data.length === 0 && (
-          <Empty title={t('triggers.empty.title')}>{t('triggers.empty.body')}</Empty>
+        {triggers.isPending && <Loading rows={5} />}
+        {triggers.isError && (
+          <div className="p-4">
+            <ErrorNote error={triggers.error} onRetry={() => void triggers.refetch()} />
+          </div>
         )}
-        {triggers.isSuccess && triggers.data.length > 0 && (
-          <Table>
+        {triggers.isSuccess && filtered.length === 0 && (
+          <Empty
+            title={filtering ? t('common.noResults') : t('triggers.empty.title')}
+            action={
+              filtering ? (
+                <Button onClick={() => setQuery('')}>{t('toolbar.reset')}</Button>
+              ) : (
+                meta.roles.canAdminister && (
+                  <LinkButton to="triggers/new" tone="primary">
+                    {t('triggers.empty.action')}
+                  </LinkButton>
+                )
+              )
+            }
+          >
+            {filtering ? t('triggers.empty.filtered') : t('triggers.empty.body')}
+          </Empty>
+        )}
+        {triggers.isSuccess && filtered.length > 0 && (
+          <Table label={t('nav.triggers')}>
             <thead>
               <tr>
                 <Th>{t('common.name')}</Th>
                 <Th>{t('triggers.target')}</Th>
-                <Th>{t('triggers.secret')}</Th>
+                <Th description={t('triggers.secretColumnHint')}>{t('triggers.secret')}</Th>
                 <Th>{t('common.status')}</Th>
                 <Th>{t('common.updated')}</Th>
                 <Th />
               </tr>
             </thead>
             <tbody>
-              {triggers.data.map((trigger) => (
-                <tr key={trigger.name} className="hover:bg-raised">
-                  <Td><span className="font-medium">{trigger.name}</span></Td>
-                  <Td><Mono>{trigger.targetKind}</Mono> {trigger.targetName}</Td>
+              {filtered.map((trigger) => (
+                <tr key={trigger.name} className="focus-within:bg-raised hover:bg-raised">
                   <Td>
+                    <span className="font-medium">{trigger.name}</span>
+                  </Td>
+                  <Td>
+                    <Mono>{trigger.targetKind}</Mono> {trigger.targetName}
+                  </Td>
+                  <Td>
+                    {/* 🚨 Only the CONFIGURATION KEY NAME is ever shown or stored
+                        (K-059); "resolved" says the key was found at run time,
+                        never what it contains. */}
                     {trigger.resolved ? (
                       <Badge tone="success">{t('triggers.resolved')}</Badge>
                     ) : (
-                      <Badge tone="warn">{t('triggers.unresolved')}</Badge>
+                      <Badge tone="warn" description={t('triggers.unresolvedHint')}>
+                        {t('triggers.unresolved')}
+                      </Badge>
                     )}
                   </Td>
                   <Td>
@@ -111,8 +155,17 @@ export function TriggersScreen({ meta }: { meta: Meta }): ReactNode {
                       <Badge tone="warn">{t('common.disabled')}</Badge>
                     )}
                   </Td>
-                  <Td className="text-muted">{relativeTime(trigger.updatedAt)}</Td>
-                  <Td className="text-right"><Link to={`triggers/${encodeURIComponent(trigger.name)}/edit`}><Button tone="ghost">{t('common.edit')}</Button></Link></Td>
+                  <Td className="text-muted" title={absoluteTime(trigger.updatedAt)}>
+                    {relativeTime(trigger.updatedAt)}
+                  </Td>
+                  <Td className="text-right">
+                    <LinkButton
+                      to={`triggers/${encodeURIComponent(trigger.name)}/edit`}
+                      tone="ghost"
+                    >
+                      {t('common.edit')}
+                    </LinkButton>
+                  </Td>
                 </tr>
               ))}
             </tbody>
@@ -178,7 +231,33 @@ export function TriggerEditorScreen({ name, meta }: { name?: string; meta: Meta 
     },
   });
 
-  if (editing && existing.isPending) return <Loading />;
+  if (editing && existing.isPending) {
+    return (
+      <>
+        <PageHeader title={t('triggers.editTitle', { name: name ?? '' })} />
+        <Panel>
+          <Loading rows={6} />
+        </Panel>
+      </>
+    );
+  }
+
+  // 🚨 A separate path from the loading one. `existing.isPending` is false the
+  // moment the request fails, but nothing below renders anything for that case
+  // — the screen used to sit on an empty form pretending the trigger loaded
+  // blank, and saving it would have overwritten the real one.
+  if (editing && existing.isError) {
+    return (
+      <>
+        <PageHeader title={t('triggers.editTitle', { name: name ?? '' })} />
+        <Panel>
+          <div className="p-4">
+            <ErrorNote error={existing.error} onRetry={() => void existing.refetch()} />
+          </div>
+        </Panel>
+      </>
+    );
+  }
 
   const valid =
     triggerName.trim().length > 0 &&
@@ -186,7 +265,15 @@ export function TriggerEditorScreen({ name, meta }: { name?: string; meta: Meta 
     form.signingSecretConfigurationName.trim().length > 0 &&
     (form.payloadMode !== 'Path' || (form.payloadPath ?? '').trim().length > 0);
 
-  const acceptUrl = `${window.location.origin}${meta.prefix}/api/triggers/${encodeURIComponent(tenant.data?.tenantId ?? '…')}/${encodeURIComponent(triggerName || '…')}`;
+  // 🚨 The tenant id is PART of the address an external system will sign
+  // against. When the lookup fails, `…` used to be substituted silently and the
+  // operator copied a URL that can never match — the same class of defect this
+  // phase closed on the settings screen, where a failed tenant lookup showed
+  // the same em dash as "no tenant".
+  const acceptUrl =
+    tenant.isSuccess
+      ? `${window.location.origin}${meta.prefix}/api/triggers/${encodeURIComponent(tenant.data.tenantId)}/${encodeURIComponent(triggerName || '…')}`
+      : null;
 
   return (
     <>
@@ -197,7 +284,15 @@ export function TriggerEditorScreen({ name, meta }: { name?: string; meta: Meta 
           <>
             <Button onClick={() => navigate('triggers')}>{t('common.cancel')}</Button>
             {editing && (
-              <Button tone="danger" busy={remove.isPending} onClick={() => remove.mutate()}>
+              <Button
+                tone="danger"
+                busy={remove.isPending}
+                onClick={() => {
+                  if (window.confirm(t('common.confirmDelete', { name: triggerName }))) {
+                    remove.mutate();
+                  }
+                }}
+              >
                 {t('common.delete')}
               </Button>
             )}
@@ -207,7 +302,16 @@ export function TriggerEditorScreen({ name, meta }: { name?: string; meta: Meta 
           </>
         }
       />
-      {save.isError && <div className="mb-4"><ErrorNote error={save.error} /></div>}
+      {save.isError && (
+        <div className="mb-4">
+          <ErrorNote error={save.error} onRetry={() => save.mutate()} />
+        </div>
+      )}
+      {remove.isError && (
+        <div className="mb-4">
+          <ErrorNote error={remove.error} onRetry={() => remove.mutate()} />
+        </div>
+      )}
       <div className="flex flex-col gap-4">
         <Panel title={t('triggers.definition')}>
           <div className="grid gap-4 p-4 sm:grid-cols-2">
@@ -273,7 +377,20 @@ export function TriggerEditorScreen({ name, meta }: { name?: string; meta: Meta 
             </label>
             <div className="sm:col-span-2">
               <Field label={t('triggers.acceptUrl')} hint={t('triggers.acceptUrlHint')}>
-                <Mono className="block break-all rounded border border-line bg-raised px-2 py-1.5 text-sm">{acceptUrl}</Mono>
+                {acceptUrl === null ? (
+                  tenant.isPending ? (
+                    <Loading rows={1} />
+                  ) : (
+                    <ErrorNote error={tenant.error} onRetry={() => void tenant.refetch()} />
+                  )
+                ) : (
+                  <Mono
+                    copy={acceptUrl}
+                    className="block break-all rounded border border-line bg-raised px-2 py-1.5 text-sm"
+                  >
+                    {acceptUrl}
+                  </Mono>
+                )}
               </Field>
             </div>
           </div>

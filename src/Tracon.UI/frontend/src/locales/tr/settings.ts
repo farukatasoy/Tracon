@@ -72,4 +72,6 @@ export const trSettings: Pick<Messages, keyof typeof enSettings> = {
   "voice.state.thinking": 'düşünüyor',
   "voice.state.speaking": 'konuşuyor',
   "voice.state.failed": 'başarısız',
+  "settings.themeHint": 'Console koyu açılır. "Sistemi izle" varsayılan değil bir seçimdir: tarayıcı hiç tercih belirtilmediğini bildiremez.',
+  "settings.tenantUnknown": 'Sorgu başarısız',
 };

@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { client, unwrap } from '../lib/api';
 import { Link } from '../lib/router';
@@ -6,6 +6,7 @@ import { count, prettyJson, relativeTime, timeSpanMs } from '../lib/format';
 import { useT } from '../lib/i18n';
 import {
   Badge,
+  Button,
   CodeBlock,
   Empty,
   ErrorNote,
@@ -14,6 +15,8 @@ import {
   PageHeader,
   Panel,
 } from '../components/ui';
+import { Toolbar, ToolbarField } from '../components/toolbar';
+import { Select } from '../components/ui';
 import { formatMs } from '../components/waterfall';
 import type { ToolEffect } from '@tracon/client';
 import type { AgentDescriptor, ToolDescriptor, ToolUsage } from '../lib/server-types';
@@ -39,33 +42,88 @@ export function ToolsScreen(): ReactNode {
     queryKey: ['tool-usage'],
     queryFn: () => unwrap(client.GET('/api/tools/usage')) as Promise<ToolUsage[]>,
   });
+  const [query, setQuery] = useState('');
+  const [effect, setEffect] = useState('');
 
   const usageByName = new Map((usage.data ?? []).map((row) => [row.toolName, row]));
 
   const usedBy = (tool: string): string[] =>
     (agents.data ?? []).filter((agent) => agent.toolNames.includes(tool)).map((agent) => agent.name);
 
+  const needle = query.trim().toLowerCase();
+  const filtering = needle.length > 0 || effect.length > 0;
+  const filtered = (tools.data ?? []).filter((tool) => {
+    if (effect.length > 0 && tool.effect !== effect) {
+      return false;
+    }
+
+    return (
+      needle.length === 0 ||
+      tool.name.toLowerCase().includes(needle) ||
+      (tool.description?.toLowerCase().includes(needle) ?? false)
+    );
+  });
+
+  const reset = (): void => {
+    setQuery('');
+    setEffect('');
+  };
+
   return (
     <>
-      <PageHeader
-        title={t('nav.tools')}
-        description={t('tools.description')}
-      />
+      <PageHeader title={t('nav.tools')} description={t('tools.description')} />
 
-      {tools.isPending && <Loading />}
-      {tools.isError && <ErrorNote error={tools.error} />}
+      <Toolbar
+        search={{ value: query, onChange: setQuery, label: t('tools.search') }}
+        onReset={filtering ? reset : undefined}
+      >
+        <ToolbarField label={t('tools.effect.label')}>
+          {(id) => (
+            <Select id={id} value={effect} onChange={setEffect}>
+              <option value="">{t('tools.anyEffect')}</option>
+              <option value="Read">{t('tools.effect.read')}</option>
+              <option value="Write">{t('tools.effect.write')}</option>
+              <option value="External">{t('tools.effect.external')}</option>
+              <option value="Destructive">{t('tools.effect.destructive')}</option>
+            </Select>
+          )}
+        </ToolbarField>
+      </Toolbar>
 
-      {tools.isSuccess && tools.data.length === 0 && (
+      {tools.isPending && <Loading rows={6} />}
+      {tools.isError && (
+        <ErrorNote error={tools.error} onRetry={() => void tools.refetch()} />
+      )}
+
+      {tools.isSuccess && filtered.length === 0 && (
         <Panel>
-          <Empty title={t('tools.empty.title')}>
-            {t('tools.empty.body')} <Mono>AddTool(...)</Mono> / <Mono>AddToolsFrom(typeof(...))</Mono>.{' '}
-            {t('tools.empty.attribute')} <Mono>[TraconTool]</Mono>.
+          {/*
+            🚨 No "create the first one" action, and that is deliberate rather
+            than an omission: a tool is defined in code and nowhere else (K-012,
+            rule K2), so the only honest next step this screen can offer is the
+            code that registers one. Same exception `approvals.tsx` takes, for
+            the same reason — a fabricated primary action teaches the wrong
+            thing about where the boundary is.
+          */}
+          <Empty
+            title={filtering ? t('common.noResults') : t('tools.empty.title')}
+            action={filtering ? <Button onClick={reset}>{t('toolbar.reset')}</Button> : undefined}
+          >
+            {filtering ? (
+              t('tools.empty.filtered')
+            ) : (
+              <>
+                {t('tools.empty.body')} <Mono>AddTool(...)</Mono> /{' '}
+                <Mono>AddToolsFrom(typeof(...))</Mono>. {t('tools.empty.attribute')}{' '}
+                <Mono>[TraconTool]</Mono>.
+              </>
+            )}
           </Empty>
         </Panel>
       )}
 
       <div className="flex flex-col gap-3">
-        {(tools.data ?? []).map((tool) => {
+        {filtered.map((tool) => {
           const agentNames = usedBy(tool.name);
 
           return (
@@ -81,26 +139,26 @@ export function ToolsScreen(): ReactNode {
                   {tool.source != null && (
                     <Badge
                       tone="warn"
-                      title={t('tools.mcpTitle', { server: tool.source })}
+                      description={t('tools.mcpTitle', { server: tool.source })}
                     >
                       mcp: {tool.source}
                     </Badge>
                   )}
                   <EffectBadge effect={tool.effect} />
                   {tool.requiredPermission != null && (
-                    <Badge title={t('tools.permissionTitle', { permission: tool.requiredPermission })}>
+                    <Badge description={t('tools.permissionTitle', { permission: tool.requiredPermission })}>
                       {tool.requiredPermission}
                     </Badge>
                   )}
                   {tool.timeout != null && (
-                    <Badge title={t('tools.timeoutTitle', { seconds: timeoutSeconds(tool.timeout) })}>
+                    <Badge description={t('tools.timeoutTitle', { seconds: timeoutSeconds(tool.timeout) })}>
                       {timeoutSeconds(tool.timeout)}s
                     </Badge>
                   )}
                   {tool.requiresApproval && (
                     <Badge
                       tone="warn"
-                      title={t('tools.approvalTitle')}
+                      description={t('tools.approvalTitle')}
                     >
                       {t('tools.approvalRequired')}
                     </Badge>
@@ -108,13 +166,13 @@ export function ToolsScreen(): ReactNode {
                   {tool.runsOnClient && (
                     <Badge
                       tone="accent"
-                      title={t('tools.runsOnClientTitle')}
+                      description={t('tools.runsOnClientTitle')}
                     >
                       {t('tools.runsOnClient')}
                     </Badge>
                   )}
                   {agentNames.length === 0 ? (
-                    <Badge title={t('tools.unusedTitle')}>{t('tools.unused')}</Badge>
+                    <Badge description={t('tools.unusedTitle')}>{t('tools.unused')}</Badge>
                   ) : (
                     agentNames.map((name) => (
                       <Link key={name} to={`agents/${encodeURIComponent(name)}`}>
@@ -162,19 +220,19 @@ function EffectBadge({ effect }: { effect: ToolEffect }): ReactNode {
   switch (effect) {
     case 'Destructive':
       return (
-        <Badge tone="danger" title={t('tools.effect.destructiveTitle')}>
+        <Badge tone="danger" description={t('tools.effect.destructiveTitle')}>
           {t('tools.effect.destructive')}
         </Badge>
       );
     case 'External':
       return (
-        <Badge tone="warn" title={t('tools.effect.externalTitle')}>
+        <Badge tone="warn" description={t('tools.effect.externalTitle')}>
           {t('tools.effect.external')}
         </Badge>
       );
     case 'Write':
       return (
-        <Badge tone="info" title={t('tools.effect.writeTitle')}>
+        <Badge tone="info" description={t('tools.effect.writeTitle')}>
           {t('tools.effect.write')}
         </Badge>
       );

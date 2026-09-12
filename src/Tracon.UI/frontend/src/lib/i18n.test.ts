@@ -120,6 +120,13 @@ describe('catalogues', () => {
       'runDetail.forAgent',
       'workflows.column.workflow',
       'waterfall.spans_one',
+      // 🚨 Both are made entirely of terms that stay English by the project's
+      // language rule — `trace`, `span` and `id` are never translated — so the
+      // Turkish string is the English one. The copy these replaced did
+      // translate them, and broke that rule while sitting inside a `title`
+      // attribute nobody could reach.
+      'waterfall.traceIdLabel',
+      'waterfall.spanIdLabel',
       'graph.nodeTitle',
       'graph.legend.agent',
       'mcp.oauth',

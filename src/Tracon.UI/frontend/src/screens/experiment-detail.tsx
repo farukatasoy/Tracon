@@ -19,6 +19,7 @@ import {
   TextInput,
   Th,
 } from '../components/ui';
+import { Tooltip } from '../components/tooltip';
 import { StatusBadge } from './experiments';
 import type { CanaryDecisionKind, TraconMetaResponse as Meta } from '@tracon/client';
 import type {
@@ -148,11 +149,27 @@ export function ExperimentDetailScreen({ name, meta }: { name: string; meta: Met
   });
 
   if (experiment.isPending) {
-    return <Loading />;
+    return (
+      <>
+        <PageHeader title={name} />
+        <Panel>
+          <Loading rows={8} />
+        </Panel>
+      </>
+    );
   }
 
   if (experiment.isError) {
-    return <ErrorNote error={experiment.error} />;
+    return (
+      <>
+        <PageHeader title={name} />
+        <Panel>
+          <div className="p-4">
+            <ErrorNote error={experiment.error} onRetry={() => void experiment.refetch()} />
+          </div>
+        </Panel>
+      </>
+    );
   }
 
   const data = experiment.data;
@@ -168,15 +185,41 @@ export function ExperimentDetailScreen({ name, meta }: { name: string; meta: Met
         actions={
           meta.roles.canAdminister && (
             <>
+              {/*
+                🚨 A decision surface: what the button DOES is readable before it
+                is pressed. "Start" does not say that live traffic begins
+                splitting across the arms at their configured weights, and
+                "Stop" does not say that the split ends and every request goes
+                back to the agent's current definition.
+              */}
               {data.status === 'Draft' && (
-                <Button tone="primary" testId="experiment-start" busy={start.isPending} onClick={() => start.mutate()}>
-                  {t('experiments.start')}
-                </Button>
+                <Tooltip
+                  text={t('experiments.startEffect', {
+                    agent: data.agentName,
+                    count: data.variants.length,
+                  })}
+                >
+                  <Button
+                    tone="primary"
+                    testId="experiment-start"
+                    busy={start.isPending}
+                    onClick={() => start.mutate()}
+                  >
+                    {t('experiments.start')}
+                  </Button>
+                </Tooltip>
               )}
               {data.status === 'Running' && (
-                <Button tone="danger" testId="experiment-stop" busy={stop.isPending} onClick={() => stop.mutate()}>
-                  {t('workflowDetail.stop')}
-                </Button>
+                <Tooltip text={t('experiments.stopEffect', { agent: data.agentName })}>
+                  <Button
+                    tone="danger"
+                    testId="experiment-stop"
+                    busy={stop.isPending}
+                    onClick={() => stop.mutate()}
+                  >
+                    {t('workflowDetail.stop')}
+                  </Button>
+                </Tooltip>
               )}
             </>
           )
@@ -185,7 +228,12 @@ export function ExperimentDetailScreen({ name, meta }: { name: string; meta: Met
 
       {(start.isError || stop.isError) && (
         <div className="mb-4">
-          <ErrorNote error={start.error ?? stop.error} />
+          {/* Retrying a start or a stop is pressing the same decision again, so
+              the retry does exactly that rather than refetching a read. */}
+          <ErrorNote
+            error={start.error ?? stop.error}
+            onRetry={start.isError ? () => start.mutate() : () => stop.mutate()}
+          />
         </div>
       )}
 
@@ -206,20 +254,24 @@ export function ExperimentDetailScreen({ name, meta }: { name: string; meta: Met
             </div>
           </dl>
 
-          <Table>
+          <Table label={t('experiments.configuration')}>
             <thead>
               <tr>
                 <Th>{t('experiments.variant')}</Th>
                 <Th>{t('agentDetail.version')}</Th>
-                <Th>{t('experiments.weightColumn')}</Th>
+                <Th className="text-right">{t('experiments.weightColumn')}</Th>
               </tr>
             </thead>
             <tbody>
               {data.variants.map((variant) => (
-                <tr key={variant.name}>
-                  <Td><Badge tone="accent">{variant.name}</Badge></Td>
-                  <Td><Mono>v{variant.version}</Mono></Td>
-                  <Td className="text-muted">{variant.weight}%</Td>
+                <tr key={variant.name} className="focus-within:bg-raised hover:bg-raised">
+                  <Td>
+                    <Badge tone="accent">{variant.name}</Badge>
+                  </Td>
+                  <Td>
+                    <Mono>v{variant.version}</Mono>
+                  </Td>
+                  <Td className="text-right font-mono text-id text-muted">{variant.weight}%</Td>
                 </tr>
               ))}
             </tbody>
@@ -235,42 +287,62 @@ export function ExperimentDetailScreen({ name, meta }: { name: string; meta: Met
           </span>
         }
       >
-        {results.isPending && <Loading />}
+        {results.isPending && <Loading rows={4} />}
         {results.isError && (
           <div className="p-4">
-            <ErrorNote error={results.error} />
+            <ErrorNote error={results.error} onRetry={() => void results.refetch()} />
           </div>
         )}
 
         {results.isSuccess &&
           (results.data.results.length === 0 ? (
+            /* No action: traffic arrives because the experiment is running and
+               callers send requests. There is nothing to create here. */
             <Empty title={t('experiments.noTraffic.title')}>{t('experiments.noTraffic.body')}</Empty>
           ) : (
-            <Table>
+            <Table label={t('experiments.results')}>
               <thead>
                 <tr>
                   <Th>{t('experiments.variant')}</Th>
                   <Th>{t('agentDetail.version')}</Th>
-                  <Th>{t('nav.runs')}</Th>
-                  <Th>{t('runs.filter.completed')}</Th>
-                  <Th>{t('runs.stat.failed')}</Th>
-                  <Th>{t('runs.stat.errorRate')}</Th>
-                  <Th>{t('experiments.totalTokens')}</Th>
-                  <Th>{t('experiments.avgDuration')}</Th>
+                  <Th className="text-right">{t('nav.runs')}</Th>
+                  <Th className="text-right">{t('runs.filter.completed')}</Th>
+                  <Th className="text-right">{t('runs.stat.failed')}</Th>
+                  <Th className="text-right">{t('runs.stat.errorRate')}</Th>
+                  <Th className="text-right">{t('experiments.totalTokens')}</Th>
+                  <Th className="text-right">{t('experiments.avgDuration')}</Th>
                 </tr>
               </thead>
               <tbody>
                 {results.data.results.map((result) => (
-                  <tr key={result.variant} className="hover:bg-raised">
-                    <Td><Badge tone="accent">{result.variant}</Badge></Td>
-                    <Td><Mono>v{result.version}</Mono></Td>
-                    <Td className="text-muted">{result.totalRuns}</Td>
-                    <Td className="text-muted">{result.completedRuns}</Td>
-                    <Td className="text-muted">{result.failedRuns}</Td>
-                    <Td className="text-muted">{percent(result.errorRate)}</Td>
-                    <Td className="text-muted">{count(result.totalTokens)}</Td>
-                    <Td className="text-muted">
-                      {result.averageDurationMs != null ? `${Math.round(result.averageDurationMs)}ms` : '—'}
+                  <tr key={result.variant} className="focus-within:bg-raised hover:bg-raised">
+                    <Td>
+                      <Badge tone="accent">{result.variant}</Badge>
+                    </Td>
+                    <Td>
+                      <Mono>v{result.version}</Mono>
+                    </Td>
+                    <Td className="text-right font-mono text-id text-muted">{result.totalRuns}</Td>
+                    <Td className="text-right font-mono text-id text-muted">
+                      {result.completedRuns}
+                    </Td>
+                    <Td
+                      className={`text-right font-mono text-id ${
+                        result.failedRuns > 0 ? 'text-danger' : 'text-muted'
+                      }`}
+                    >
+                      {result.failedRuns}
+                    </Td>
+                    <Td className="text-right font-mono text-id text-muted">
+                      {percent(result.errorRate)}
+                    </Td>
+                    <Td className="text-right font-mono text-id text-muted">
+                      {count(result.totalTokens)}
+                    </Td>
+                    <Td className="text-right font-mono text-id text-muted">
+                      {result.averageDurationMs != null
+                        ? `${Math.round(result.averageDurationMs)}ms`
+                        : '—'}
                     </Td>
                   </tr>
                 ))}
@@ -386,21 +458,33 @@ export function ExperimentDetailScreen({ name, meta }: { name: string; meta: Met
                 <Button tone="ghost" onClick={() => setShowCanaryForm(false)}>
                   {t('common.cancel')}
                 </Button>
-                {setCanary.isError && <ErrorNote error={setCanary.error} />}
+                {setCanary.isError && (
+                  <ErrorNote
+                    error={setCanary.error}
+                    onRetry={() => setCanary.mutate(toCanaryPolicy(canaryForm))}
+                  />
+                )}
               </div>
             </form>
           )}
 
-          {canary.isPending && <Loading />}
+          {canary.isPending && <Loading rows={3} />}
           {canary.isError && (
             <div className="p-4">
-              <ErrorNote error={canary.error} />
+              <ErrorNote error={canary.error} onRetry={() => void canary.refetch()} />
             </div>
           )}
 
           {canary.isSuccess &&
             (canary.data.policy == null ? (
-              !showCanaryForm && <Empty title={t('experiments.canary.empty.title')}>{t('experiments.canary.empty.body')}</Empty>
+              /* No action: no canary rule is the SAFE state — nothing is ever
+                 auto-rolled-back until one exists — and the button that opens
+                 the form is this panel's own header action. */
+              !showCanaryForm && (
+                <Empty title={t('experiments.canary.empty.title')}>
+                  {t('experiments.canary.empty.body')}
+                </Empty>
+              )
             ) : (
               <div className="p-4">
                 <dl className="mb-4 flex flex-wrap gap-6 text-base">
@@ -439,7 +523,12 @@ export function ExperimentDetailScreen({ name, meta }: { name: string; meta: Met
                 )}
 
                 {meta.roles.canAdminister && (
-                  <Button tone="danger" testId="canary-remove" busy={setCanary.isPending} onClick={() => setCanary.mutate(null)}>
+                  <Button
+                    tone="danger"
+                    testId="canary-remove"
+                    busy={setCanary.isPending}
+                    onClick={() => setCanary.mutate(null)}
+                  >
                     {t('experiments.canary.remove')}
                   </Button>
                 )}

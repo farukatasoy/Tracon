@@ -15,6 +15,7 @@ import {
   Mono,
   PageHeader,
   Panel,
+  Stat,
   cx,
 } from '../components/ui';
 import { StatusDot, STATUS_TEXT, type StatusTone } from '../components/status-dot';
@@ -26,7 +27,7 @@ import { ReplayPanel } from '../components/replay-panel';
 import { RunComparison } from '../components/run-comparison';
 import { TranscriptView } from '../components/transcript';
 import { Waterfall, formatMs } from '../components/waterfall';
-import { StatusBadge, Stat } from './runs';
+import { StatusBadge } from './runs';
 import type { RunEvent, RunEventType } from '../lib/run-event';
 import type { RunRecord, RunTrace, ToolInvocationRecord } from '../lib/server-types';
 
@@ -378,7 +379,14 @@ export function RunDetailScreen({ id }: { id: string }): ReactNode {
         </div>
       )}
 
-      {error !== null && <div className="mb-4"><ErrorNote error={error} /></div>}
+      {/* This screen's own action failures — a cancel, a branch. No retry: the
+          action is the button that produced it, and re-running a cancel from an
+          error note would hide which run it applies to. */}
+      {error !== null && (
+        <div className="mb-4">
+          <ErrorNote error={error} />
+        </div>
+      )}
 
       {finished && (
         <div className="mb-4">
@@ -431,6 +439,10 @@ export function RunDetailScreen({ id }: { id: string }): ReactNode {
 
         <Panel title={t('runDetail.timeline', { count: events.length })}>
           {events.length === 0 ? (
+            /* None of this screen's empty states carries an action, and the
+               reason is what a run IS: a record. Events, spans, tool calls and
+               the child tree are written while it executes; nothing pressed here
+               afterwards can add one. */
             <Empty title={streaming ? t('runDetail.waiting') : t('runDetail.noEvents')} />
           ) : (
             <ol className="max-h-[40rem] overflow-y-auto p-4">
@@ -465,21 +477,24 @@ export function RunDetailScreen({ id }: { id: string }): ReactNode {
               // always 404) — checked first because a disabled query's
               // `isPending` never leaves `true` (React Query v5), which would
               // otherwise show a permanent spinner instead of this link.
+              /* Recorded structure: spans live on the root run, and the link
+                 below goes there rather than offering to create anything. */
               <Empty title={t('runDetail.spansOnRoot.title')}>
                 {t('runDetail.spansOnRoot.before')}{' '}
                 <Link
                   to={`runs/${encodeURIComponent(record.rootRunId ?? record.parentRunId)}`}
-                  className="text-accent underline"
                 >
                   {t('runDetail.spansOnRoot.link')}
                 </Link>{' '}
                 {t('runDetail.spansOnRoot.after')}
               </Empty>
             ) : trace.isPending ? (
-              <Loading />
+              <Loading rows={5} />
             ) : trace.isSuccess ? (
               <Waterfall trace={trace.data} />
             ) : (
+              /* Sampling decided this, not the operator; the body names the
+                 setting that changes it. */
               <Empty title={t('runDetail.noSpans.title')}>
                 {t('runDetail.noSpans.body')}{' '}
                 <Mono>Tracon:Observability:SuccessSampleRatio</Mono>.
@@ -489,8 +504,9 @@ export function RunDetailScreen({ id }: { id: string }): ReactNode {
 
           <Panel title={t('runDetail.toolCalls', { count: toolCalls.data?.length ?? 0 })}>
             {toolCalls.isPending ? (
-              <Loading />
+              <Loading rows={3} />
             ) : (toolCalls.data ?? []).length === 0 ? (
+              /* Recorded: the agent either called a tool or it did not. */
               <Empty title={t('runDetail.noToolCalls.title')}>{t('runDetail.noToolCalls.body')}</Empty>
             ) : (
               <ul className="divide-y divide-line">
@@ -527,7 +543,7 @@ function ToolCallRow({ call }: { call: ToolInvocationRecord }): ReactNode {
       <div className="flex flex-wrap items-center gap-2">
         <Mono className="text-sm font-semibold">{call.toolName}</Mono>
         {call.source != null && (
-          <Badge tone="warn" title={t('runDetail.mcpSource', { server: call.source })}>
+          <Badge tone="warn" description={t('runDetail.mcpSource', { server: call.source })}>
             mcp: {call.source}
           </Badge>
         )}
@@ -620,6 +636,7 @@ function RunTree({ runs, current }: { runs: RunRecord[]; current: string }): Rea
   const t = useT();
 
   if (runs.length === 0) {
+    // Recorded structure, so no action — see the timeline above.
     return <Empty title={t('runDetail.noTree')} />;
   }
 

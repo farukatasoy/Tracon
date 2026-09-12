@@ -14944,11 +14944,23 @@ for the full walkthrough, including how the widget runs a client-side tool.
   session, and the few actions that are not a navigation
 - The first `Tab` on any screen is "Skip to content". Every layer closes with
   `Esc` and hands focus back to whatever opened it
-- Buttons the caller has no role for are hidden, based on what `/api/meta` reports
+- Buttons the caller has no role for are hidden, based on what `/api/meta` reports.
+  A screen your role cannot open says so — it does not show you an empty one
+- Every list carries a labelled filter strip, and its "clear" appears only while
+  something is actually narrowed. Empty lists say how to create the first entry,
+  except where an empty list is the state you want: no approval waiting, no
+  standing quota, no script grant, no auto-rollback rule
+- Every failed request shows the server's own words and offers a retry in place,
+  so a 500 is not a dead end that only a page reload escapes
+- Loading is a skeleton sized to the rows that are coming, so arriving data does
+  not move the page under the pointer
+- Descriptions ride in tooltips that appear on hover **and** on keyboard focus and
+  dismiss with `Esc`. The `title` attribute is used only for the full value behind
+  something abbreviated — a relative time, a shortened identifier
 - The token is kept in `sessionStorage` and is gone when the tab closes; theme and
   language live in `localStorage`
 - The JavaScript budget is 250 KB gzip and is enforced by the build. Current size:
-  184.1 KB
+  190.3 KB
 - Four run-time JavaScript dependencies, and the build fails on a fifth. Dialogs,
   menus, tooltips and the command palette are written against the platform rather
   than pulled from a component library

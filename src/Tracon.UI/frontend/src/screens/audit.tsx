@@ -1,14 +1,14 @@
-import { useState, type ReactNode } from 'react';
+import { useId, useState, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { client, unwrap } from '../lib/api';
 import { absoluteTime, relativeTime, prettyJson } from '../lib/format';
 import { useT } from '../lib/i18n';
 import {
   Badge,
+  Button,
   CodeBlock,
   Empty,
   ErrorNote,
-  Field,
   Loading,
   Mono,
   PageHeader,
@@ -17,9 +17,11 @@ import {
   Td,
   TextInput,
   Th,
+  Unauthorized,
 } from '../components/ui';
+import { Toolbar, ToolbarField } from '../components/toolbar';
 import { DiffView } from '../components/diff-view';
-import type { AuditEntry } from '@tracon/client';
+import type { AuditEntry, TraconMetaResponse as Meta } from '@tracon/client';
 
 const EMPTY_FILTERS = { actor: '', action: '', entity: '' };
 
@@ -32,10 +34,12 @@ const EMPTY_FILTERS = { actor: '', action: '', entity: '' };
  * only shows definition-level changes: agents, MCP servers, tenants,
  * approval rules, and tool approval decisions.
  */
-export function AuditScreen(): ReactNode {
+export function AuditScreen({ meta }: { meta: Meta }): ReactNode {
   const t = useT();
   const [filters, setFilters] = useState(EMPTY_FILTERS);
   const [expanded, setExpanded] = useState<string | null>(null);
+  const filtering =
+    filters.actor.length > 0 || filters.action.length > 0 || filters.entity.length > 0;
 
   const entries = useQuery({
     queryKey: ['audit', filters],
@@ -55,68 +59,109 @@ export function AuditScreen(): ReactNode {
 
   return (
     <>
-      <PageHeader
-        title={t('nav.audit')}
-        description={t('audit.description')}
-      />
+      <PageHeader title={t('nav.audit')} description={t('audit.description')} />
 
-      <Panel title={t('audit.filter')} className="mb-4">
-        <div className="grid gap-3 p-4 sm:grid-cols-3">
-          <Field label={t('audit.actor')}>
-            <TextInput
-              value={filters.actor}
-              placeholder={t('audit.actorPlaceholder')}
-              onChange={(event) => setFilters({ ...filters, actor: event.target.value })}
-            />
-          </Field>
-          <Field label={t('audit.action')} hint={t('audit.actionHint')}>
-            <TextInput
-              value={filters.action}
-              placeholder="agent.update"
-              onChange={(event) => setFilters({ ...filters, action: event.target.value })}
-            />
-          </Field>
-          <Field label={t('audit.entity')} hint={t('audit.entityHint')}>
-            <TextInput
-              value={filters.entity}
-              placeholder="agent:support"
-              onChange={(event) => setFilters({ ...filters, entity: event.target.value })}
-            />
-          </Field>
-        </div>
-      </Panel>
+      {/* 🚨 Refused, not empty. A reader who reached this address used to see the
+          "nothing is recorded yet" state and conclude the trail was empty. The
+          server is the enforcement; this is the explanation. */}
+      {!meta.roles.canAdminister ? (
+        <Panel>
+          <Unauthorized requires="administrator" />
+        </Panel>
+      ) : (
+        <>
+          <Toolbar onReset={filtering ? () => setFilters(EMPTY_FILTERS) : undefined}>
+            <ToolbarField label={t('audit.actor')}>
+              {(id) => (
+                <TextInput
+                  id={id}
+                  className="h-8 w-40 py-0"
+                  value={filters.actor}
+                  placeholder={t('audit.actorPlaceholder')}
+                  onChange={(event) => setFilters({ ...filters, actor: event.target.value })}
+                />
+              )}
+            </ToolbarField>
+            <ToolbarField label={t('audit.action')}>
+              {(id) => (
+                <TextInput
+                  id={id}
+                  className="h-8 w-40 py-0"
+                  value={filters.action}
+                  placeholder="agent.update"
+                  onChange={(event) => setFilters({ ...filters, action: event.target.value })}
+                />
+              )}
+            </ToolbarField>
+            <ToolbarField label={t('audit.entity')}>
+              {(id) => (
+                <TextInput
+                  id={id}
+                  className="h-8 w-40 py-0"
+                  value={filters.entity}
+                  placeholder="agent:support"
+                  onChange={(event) => setFilters({ ...filters, entity: event.target.value })}
+                />
+              )}
+            </ToolbarField>
+          </Toolbar>
 
-      <Panel>
-        {entries.isPending && <Loading />}
-        {entries.isError && <div className="p-4"><ErrorNote error={entries.error} /></div>}
+          <Panel>
+            {entries.isPending && <Loading rows={8} />}
+            {entries.isError && (
+              <div className="p-4">
+                <ErrorNote error={entries.error} onRetry={() => void entries.refetch()} />
+              </div>
+            )}
 
-        {entries.isSuccess &&
-          (entries.data.length === 0 ? (
-            <Empty title={t('audit.empty.title')}>{t('audit.empty.body')}</Empty>
-          ) : (
-            <Table>
-              <thead>
-                <tr>
-                  <Th>{t('audit.when')}</Th>
-                  <Th>{t('audit.actor')}</Th>
-                  <Th>{t('audit.action')}</Th>
-                  <Th>{t('audit.entity')}</Th>
-                  <Th />
-                </tr>
-              </thead>
-              <tbody>
-                {entries.data.map((entry) => (
-                  <AuditRow
-                    key={entry.id}
-                    entry={entry}
-                    isExpanded={expanded === entry.id}
-                    onToggle={() => setExpanded((current) => (current === entry.id ? null : entry.id))}
-                  />
-                ))}
-              </tbody>
-            </Table>
-          ))}
-      </Panel>
+            {entries.isSuccess &&
+              (entries.data.length === 0 ? (
+                /*
+                  🚨 No primary action, deliberately. An empty trail is the state
+                  a fresh deployment is SUPPOSED to be in, and this console
+                  cannot write an entry — an entry appears as a side effect of
+                  changing something elsewhere. Offering "record the first one"
+                  would be a fabricated action, the exception `approvals.tsx`
+                  established.
+                */
+                <Empty
+                  title={filtering ? t('common.noResults') : t('audit.empty.title')}
+                  action={
+                    filtering ? (
+                      <Button onClick={() => setFilters(EMPTY_FILTERS)}>{t('toolbar.reset')}</Button>
+                    ) : undefined
+                  }
+                >
+                  {filtering ? t('audit.empty.filtered') : t('audit.empty.body')}
+                </Empty>
+              ) : (
+                <Table label={t('nav.audit')}>
+                  <thead>
+                    <tr>
+                      <Th>{t('audit.when')}</Th>
+                      <Th>{t('audit.actor')}</Th>
+                      <Th>{t('audit.action')}</Th>
+                      <Th>{t('audit.entity')}</Th>
+                      <Th />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {entries.data.map((entry) => (
+                      <AuditRow
+                        key={entry.id}
+                        entry={entry}
+                        isExpanded={expanded === entry.id}
+                        onToggle={() =>
+                          setExpanded((current) => (current === entry.id ? null : entry.id))
+                        }
+                      />
+                    ))}
+                  </tbody>
+                </Table>
+              ))}
+          </Panel>
+        </>
+      )}
     </>
   );
 }
@@ -132,9 +177,15 @@ function AuditRow({
 }): ReactNode {
   const t = useT();
 
+  const detailsId = useId();
+
   return (
     <>
-      <tr className="cursor-pointer hover:bg-raised" onClick={onToggle}>
+      {/* 🚨 The disclosure is a <button>, not an `onClick` on the <tr>. A row
+          that only answers to a pointer is unreachable by keyboard and
+          announces nothing about being expandable; `aria-expanded` and
+          `aria-controls` are what say both. */}
+      <tr className="focus-within:bg-raised hover:bg-raised">
         <Td className="text-muted" title={absoluteTime(entry.createdAt)}>
           {relativeTime(entry.createdAt)}
         </Td>
@@ -142,9 +193,7 @@ function AuditRow({
           {entry.actor != null && entry.actor.length > 0 ? (
             <Mono>{entry.actor}</Mono>
           ) : (
-            <span className="text-subtle" title={t('audit.unknownActorTitle')}>
-              {t('audit.unknownActor')}
-            </span>
+            <Badge description={t('audit.unknownActorTitle')}>{t('audit.unknownActor')}</Badge>
           )}
         </Td>
         <Td>
@@ -153,12 +202,24 @@ function AuditRow({
         <Td>
           <Mono>{entry.entity}</Mono>
         </Td>
-        <Td className="text-right text-xs text-muted">{isExpanded ? t('audit.hide') : t('audit.details')}</Td>
+        <Td className="text-right">
+          <Button
+            tone="ghost"
+            onClick={onToggle}
+            aria-expanded={isExpanded}
+            aria-controls={detailsId}
+          >
+            {isExpanded ? t('audit.hide') : t('audit.details')}
+          </Button>
+        </Td>
       </tr>
 
-      {isExpanded && (
-        <tr>
-          <td colSpan={5} className="border-b border-line px-4 py-2 align-middle">
+      {/* 🚨 Always rendered, hidden with the `hidden` attribute rather than
+          removed. `aria-controls` above names this row, and a reference to an
+          element that only exists once expanded points at nothing for as long
+          as the row is closed — which is most of the time. */}
+      <tr hidden={!isExpanded}>
+        <td id={detailsId} colSpan={5} className="border-b border-line px-4 py-2 align-middle">
             <div className="py-2">
               {entry.before != null && entry.after != null ? (
                 <DiffView
@@ -187,9 +248,8 @@ function AuditRow({
                 </div>
               )}
             </div>
-          </td>
-        </tr>
-      )}
+        </td>
+      </tr>
     </>
   );
 }

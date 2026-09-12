@@ -5,6 +5,7 @@ import { useT } from '../lib/i18n';
 import { Button, ErrorNote, Panel, TextArea } from './ui';
 import { ThumbsDownIcon, ThumbsUpIcon } from './icons';
 import type { RunScore } from '../lib/server-types';
+import { Tooltip } from './tooltip';
 
 /** The score name this control owns. Every other name is read-only here. */
 const OVERALL = 'overall';
@@ -161,24 +162,32 @@ export function FeedbackControl({ runId }: { runId: string }): ReactNode {
     <Panel title={t('feedback.title')}>
       <div className="flex flex-col gap-2 p-4">
         <div className="flex items-center gap-2">
-          <Button
-            tone={mine?.value === 1 ? 'primary' : 'default'}
-            onClick={() => toggle(1)}
-            disabled={busy}
-            testId="feedback-up"
-            title={t('feedback.helpful')}
-          >
-            <ThumbsUpIcon className="size-3.5" />
-          </Button>
-          <Button
-            tone={mine?.value === 0 ? 'primary' : 'default'}
-            onClick={() => toggle(0)}
-            disabled={busy}
-            testId="feedback-down"
-            title={t('feedback.notHelpful')}
-          >
-            <ThumbsDownIcon className="size-3.5" />
-          </Button>
+          {/* 🚨 Icon-only, so the tooltip text is the ONLY name these carry —
+              as a `title` it was the accessible name too, and `title` is the
+              weakest possible source for one. `ariaLabel` names them and the
+              tooltip shows the same words on hover and on focus. */}
+          <Tooltip text={t('feedback.helpful')}>
+            <Button
+              tone={mine?.value === 1 ? 'primary' : 'default'}
+              onClick={() => toggle(1)}
+              disabled={busy}
+              testId="feedback-up"
+              ariaLabel={t('feedback.helpful')}
+            >
+              <ThumbsUpIcon className="size-3.5" />
+            </Button>
+          </Tooltip>
+          <Tooltip text={t('feedback.notHelpful')}>
+            <Button
+              tone={mine?.value === 0 ? 'primary' : 'default'}
+              onClick={() => toggle(0)}
+              disabled={busy}
+              testId="feedback-down"
+              ariaLabel={t('feedback.notHelpful')}
+            >
+              <ThumbsDownIcon className="size-3.5" />
+            </Button>
+          </Tooltip>
           {mine != null && (
             <span className="text-xs text-subtle">
               {t('feedback.by', { author: mine.author ?? t('feedback.anonymous') })}
@@ -196,7 +205,12 @@ export function FeedbackControl({ runId }: { runId: string }): ReactNode {
           data-testid="feedback-comment"
         />
 
-        {rate.isError && <ErrorNote error={rate.error} />}
+        {rate.isError && (
+          <ErrorNote
+            error={rate.error}
+            onRetry={rate.variables === undefined ? undefined : () => rate.mutate(rate.variables)}
+          />
+        )}
 
         {otherScores.length > 0 && (
           <div className="mt-2 flex flex-col gap-1 border-t border-line pt-2">
@@ -230,7 +244,7 @@ export function FeedbackControl({ runId }: { runId: string }): ReactNode {
             )}
           </div>
 
-          {judgeNow.isError && <ErrorNote error={judgeNow.error} />}
+          {judgeNow.isError && <ErrorNote error={judgeNow.error} onRetry={() => judgeNow.mutate()} />}
         </div>
       </div>
     </Panel>

@@ -2,7 +2,7 @@ import { useState, type FormEvent, type ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { client, unwrap } from '../lib/api';
 import { Link } from '../lib/router';
-import { relativeTime } from '../lib/format';
+import { absoluteTime, relativeTime } from '../lib/format';
 import { useT } from '../lib/i18n';
 import {
   Badge,
@@ -19,6 +19,8 @@ import {
   TextInput,
   Th,
 } from '../components/ui';
+import { Toolbar, ToolbarField } from '../components/toolbar';
+import { Tooltip } from '../components/tooltip';
 import { PlusIcon, TrashIcon } from '../components/icons';
 import type { TraconMetaResponse as Meta, ExperimentStatus } from '@tracon/client';
 import type { AgentDefinition, Experiment, ExperimentVariant } from '../lib/server-types';
@@ -68,11 +70,32 @@ export function ExperimentsScreen({ meta }: { meta: Meta }): ReactNode {
   const [editing, setEditing] = useState<string | null>(null);
   const [newName, setNewName] = useState('');
   const [form, setForm] = useState<{ agentName: string; variants: VariantForm[] }>(EMPTY_FORM);
+  const [query, setQuery] = useState('');
+  const [status, setStatus] = useState('');
 
   const experiments = useQuery({
     queryKey: ['experiments'],
     queryFn: () => unwrap(client.GET('/api/experiments')) as Promise<Experiment[]>,
   });
+
+  const needle = query.trim().toLowerCase();
+  const filtering = needle.length > 0 || status.length > 0;
+  const filtered = (experiments.data ?? []).filter((experiment) => {
+    if (status.length > 0 && experiment.status !== status) {
+      return false;
+    }
+
+    return (
+      needle.length === 0 ||
+      experiment.name.toLowerCase().includes(needle) ||
+      experiment.agentName.toLowerCase().includes(needle)
+    );
+  });
+
+  const reset = (): void => {
+    setQuery('');
+    setStatus('');
+  };
 
   const versions = useQuery({
     queryKey: ['agentVersions', form.agentName],
@@ -278,52 +301,110 @@ export function ExperimentsScreen({ meta }: { meta: Meta }): ReactNode {
               >
                 {t('common.cancel')}
               </Button>
-              {save.isError && <ErrorNote error={save.error} />}
+              {save.isError && <ErrorNote error={save.error} onRetry={() => save.mutate()} />}
             </div>
           </form>
         </Panel>
       )}
 
+      <Toolbar
+        search={{ value: query, onChange: setQuery, label: t('experiments.search') }}
+        onReset={filtering ? reset : undefined}
+      >
+        <ToolbarField label={t('common.status')}>
+          {(id) => (
+            <Select id={id} value={status} onChange={setStatus}>
+              <option value="">{t('experiments.anyStatus')}</option>
+              <option value="Draft">{t('experiments.status.draft')}</option>
+              <option value="Running">{t('runs.status.running')}</option>
+              <option value="Stopped">{t('experiments.status.stopped')}</option>
+            </Select>
+          )}
+        </ToolbarField>
+      </Toolbar>
+
+      {remove.isError && (
+        <div className="mb-4">
+          <ErrorNote
+            error={remove.error}
+            onRetry={
+              remove.variables === undefined ? undefined : () => remove.mutate(remove.variables)
+            }
+          />
+        </div>
+      )}
+
       <Panel title={t('nav.experiments')}>
-        {experiments.isPending && <Loading />}
+        {experiments.isPending && <Loading rows={6} />}
         {experiments.isError && (
           <div className="p-4">
-            <ErrorNote error={experiments.error} />
+            <ErrorNote error={experiments.error} onRetry={() => void experiments.refetch()} />
           </div>
         )}
 
         {experiments.isSuccess &&
-          (experiments.data.length === 0 ? (
-            <Empty title={t('experiments.empty.title')}>{t('experiments.empty.body')}</Empty>
+          (filtered.length === 0 ? (
+            <Empty
+              title={filtering ? t('common.noResults') : t('experiments.empty.title')}
+              action={
+                filtering ? (
+                  <Button onClick={reset}>{t('toolbar.reset')}</Button>
+                ) : (
+                  meta.roles.canAdminister && (
+                    <Button
+                      tone="primary"
+                      onClick={() => {
+                        setForm(EMPTY_FORM);
+                        setNewName('');
+                        setEditing(null);
+                        setShowForm(true);
+                      }}
+                    >
+                      {t('experiments.empty.action')}
+                    </Button>
+                  )
+                )
+              }
+            >
+              {filtering ? t('experiments.empty.filtered') : t('experiments.empty.body')}
+            </Empty>
           ) : (
-            <Table>
+            <Table label={t('nav.experiments')}>
               <thead>
                 <tr>
                   <Th>{t('experiments.experiment')}</Th>
                   <Th>{t('common.agent')}</Th>
                   <Th>{t('common.status')}</Th>
-                  <Th>{t('experiments.variants')}</Th>
+                  <Th className="text-right">{t('experiments.variants')}</Th>
                   <Th>{t('common.updated')}</Th>
                   <Th />
                 </tr>
               </thead>
               <tbody>
-                {experiments.data.map((experiment) => (
-                  <tr key={experiment.id} className="hover:bg-raised">
+                {filtered.map((experiment) => (
+                  <tr key={experiment.id} className="focus-within:bg-raised hover:bg-raised">
                     <Td>
-                      <Link to={`experiments/${encodeURIComponent(experiment.name)}`}>{experiment.name}</Link>
+                      <Link to={`experiments/${encodeURIComponent(experiment.name)}`}>
+                        {experiment.name}
+                      </Link>
                     </Td>
                     <Td>
-                      <Badge tone="accent">{experiment.agentName}</Badge>
+                      <Link to={`agents/${encodeURIComponent(experiment.agentName)}`}>
+                        <Badge tone="accent">{experiment.agentName}</Badge>
+                      </Link>
                     </Td>
                     <Td>
                       <StatusBadge status={experiment.status} />
                     </Td>
-                    <Td className="text-muted">{experiment.variants.length}</Td>
-                    <Td className="text-muted">{relativeTime(experiment.updatedAt)}</Td>
+                    <Td className="text-right font-mono text-id text-muted">
+                      {experiment.variants.length}
+                    </Td>
+                    <Td className="text-muted" title={absoluteTime(experiment.updatedAt)}>
+                      {relativeTime(experiment.updatedAt)}
+                    </Td>
                     <Td className="text-right">
                       {meta.roles.canAdminister && experiment.status === 'Draft' && (
-                        <>
+                        <div className="flex items-center justify-end gap-1.5">
                           <Button
                             onClick={() => {
                               setForm(toForm(experiment));
@@ -333,10 +414,25 @@ export function ExperimentsScreen({ meta }: { meta: Meta }): ReactNode {
                           >
                             {t('common.edit')}
                           </Button>
-                          <Button tone="danger" onClick={() => remove.mutate(experiment.name)}>
-                            <TrashIcon className="size-3.5" />
-                          </Button>
-                        </>
+                          <Tooltip text={t('experiments.deleteExperiment')}>
+                            <Button
+                              tone="danger"
+                              ariaLabel={t('experiments.deleteExperiment')}
+                              busy={remove.isPending && remove.variables === experiment.name}
+                              onClick={() => {
+                                if (
+                                  window.confirm(
+                                    t('common.confirmDelete', { name: experiment.name }),
+                                  )
+                                ) {
+                                  remove.mutate(experiment.name);
+                                }
+                              }}
+                            >
+                              <TrashIcon className="size-3.5" />
+                            </Button>
+                          </Tooltip>
+                        </div>
                       )}
                     </Td>
                   </tr>
@@ -348,3 +444,4 @@ export function ExperimentsScreen({ meta }: { meta: Meta }): ReactNode {
     </>
   );
 }
+

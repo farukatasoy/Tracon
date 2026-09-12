@@ -59,10 +59,10 @@ export function QuotaPanel(): ReactNode {
         </Button>
       }
     >
-      {usage.isPending && <Loading />}
+      {usage.isPending && <Loading rows={3} />}
       {usage.isError && (
         <div className="p-4">
-          <ErrorNote error={usage.error} />
+          <ErrorNote error={usage.error} onRetry={() => void usage.refetch()} />
         </div>
       )}
 
@@ -79,6 +79,9 @@ export function QuotaPanel(): ReactNode {
 
       {usage.isSuccess &&
         (usage.data.definitions.length === 0 ? (
+          /* No action, and no quota is the SAFE state — Tracon ships no default
+             quota, so nothing is ever rejected until a rule exists. The form to
+             add one is the next thing in this panel. */
           <Empty title={t('quota.empty.title')}>{t('quota.empty.body')}</Empty>
         ) : (
           <div className="divide-y divide-line">
@@ -283,7 +286,7 @@ function QuotaForm({
         </Field>
       </div>
 
-      {save.isError && <ErrorNote error={save.error} />}
+      {save.isError && <ErrorNote error={save.error} onRetry={() => save.mutate()} />}
 
       <div className="flex items-center gap-2">
         <Button

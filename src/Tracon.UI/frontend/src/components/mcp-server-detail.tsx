@@ -2,13 +2,14 @@ import { useState, type ReactNode } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { client, unwrap } from '../lib/api';
 import { useT } from '../lib/i18n';
-import { Badge, Button, Empty, ErrorNote, Loading, Mono, Panel } from './ui';
+import { Badge, Button, Empty, ErrorNote, Loading, Mono, Panel, Tabs, Unauthorized } from './ui';
 import type {
   TraconRoleMeta as RoleMeta,
   McpPromptContent,
   McpResourceSummary,
 } from '@tracon/client';
 import type { McpPromptSummary, McpResourceContent } from '../lib/server-types';
+import { Tooltip } from './tooltip';
 
 /**
  * A registered MCP server's prompts and resources (Phase 22.1 / 22.2).
@@ -30,49 +31,39 @@ export function McpServerDetail({
 
   return (
     <Panel className="mt-2 border-dashed">
-      <div className="flex gap-1 border-b border-line px-3 pt-2">
-        <TabButton active={tab === 'prompts'} onClick={() => setTab('prompts')}>
-          {t('mcp.prompts')}
-        </TabButton>
-        <TabButton active={tab === 'resources'} onClick={() => setTab('resources')}>
-          {t('skills.resources')}
-        </TabButton>
+      <div className="px-3 pt-3">
+        <Tabs
+          label={t('mcp.promptsAndResources')}
+          value={tab}
+          onChange={setTab}
+          panels={[
+            {
+              id: 'prompts',
+              label: t('mcp.prompts'),
+              render: () =>
+                // 🚨 Refused, not empty. This used to be an `Empty`, which reads
+                // as "this server exposes no prompts" — the opposite of what it
+                // means.
+                roles.canAdminister ? (
+                  <PromptsTab serverName={serverName} />
+                ) : (
+                  <Unauthorized requires="administrator" />
+                ),
+            },
+            {
+              id: 'resources',
+              label: t('skills.resources'),
+              render: () =>
+                roles.canRead ? (
+                  <ResourcesTab serverName={serverName} canRead={roles.canOperate} />
+                ) : (
+                  <Unauthorized requires="operator" />
+                ),
+            },
+          ]}
+        />
       </div>
-
-      {tab === 'prompts' ? (
-        roles.canAdminister ? (
-          <PromptsTab serverName={serverName} />
-        ) : (
-          <Empty title={t('mcp.adminRequired')}>{t('mcp.promptsNeedAdmin')}</Empty>
-        )
-      ) : roles.canRead ? (
-        <ResourcesTab serverName={serverName} canRead={roles.canOperate} />
-      ) : (
-        <Empty title={t('mcp.readerRequired')}>{t('mcp.resourcesNeedReader')}</Empty>
-      )}
     </Panel>
-  );
-}
-
-function TabButton({
-  active,
-  onClick,
-  children,
-}: {
-  active: boolean;
-  onClick: () => void;
-  children: ReactNode;
-}): ReactNode {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`border-b-2 px-2 pb-2 text-sm font-medium ${
-        active ? 'border-accent text-fg' : 'border-transparent text-muted hover:text-fg'
-      }`}
-    >
-      {children}
-    </button>
   );
 }
 
@@ -111,18 +102,20 @@ function PromptsTab({ serverName }: { serverName: string }): ReactNode {
   });
 
   if (prompts.isPending) {
-    return <Loading />;
+    return <Loading rows={3} />;
   }
 
   if (prompts.isError) {
     return (
       <div className="p-4">
-        <ErrorNote error={prompts.error} />
+        <ErrorNote error={prompts.error} onRetry={() => void prompts.refetch()} />
       </div>
     );
   }
 
   if (prompts.data.length === 0) {
+    // No action: the prompts are the remote server's own, and this console
+    // cannot add one. Refreshing the catalogue is the MCP screen's button.
     return (
       <Empty title={t('mcp.noPrompts')}>
         {t('mcp.noCapabilityBefore')} <Mono>prompts</Mono> {t('mcp.noCapabilityAfter')}
@@ -145,13 +138,14 @@ function PromptsTab({ serverName }: { serverName: string }): ReactNode {
               </p>
             )}
           </div>
-          <Button
-            busy={fetchContent.isPending && fetchContent.variables === prompt.name}
-            onClick={() => fetchContent.mutate(prompt.name)}
-            title={t('mcp.copyPromptTitle')}
-          >
-            {copiedName === prompt.name ? t('mcp.copied') : t('common.copy')}
-          </Button>
+          <Tooltip text={t('mcp.copyPromptTitle')}>
+            <Button
+              busy={fetchContent.isPending && fetchContent.variables === prompt.name}
+              onClick={() => fetchContent.mutate(prompt.name)}
+            >
+              {copiedName === prompt.name ? t('mcp.copied') : t('common.copy')}
+            </Button>
+          </Tooltip>
         </li>
       ))}
     </ul>
@@ -188,18 +182,19 @@ function ResourcesTab({
   });
 
   if (resources.isPending) {
-    return <Loading />;
+    return <Loading rows={3} />;
   }
 
   if (resources.isError) {
     return (
       <div className="p-4">
-        <ErrorNote error={resources.error} />
+        <ErrorNote error={resources.error} onRetry={() => void resources.refetch()} />
       </div>
     );
   }
 
   if (resources.data.length === 0) {
+    // Same as prompts: the remote server decides what it exposes.
     return (
       <Empty title={t('mcp.noResources')}>
         {t('mcp.noCapabilityBefore')} <Mono>resources</Mono> {t('mcp.noCapabilityAfter')}
@@ -227,8 +222,10 @@ function ResourcesTab({
 
       {previewUri != null && (
         <div className="border-t border-line p-3">
-          {preview.isPending && <Loading />}
-          {preview.isError && <ErrorNote error={preview.error} />}
+          {preview.isPending && <Loading rows={2} />}
+          {preview.isError && (
+            <ErrorNote error={preview.error} onRetry={() => void preview.refetch()} />
+          )}
           {preview.isSuccess &&
             (preview.data.isBinary ? (
               <p className="text-xs text-muted">

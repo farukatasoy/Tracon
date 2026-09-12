@@ -8,6 +8,7 @@ import { TranscriptView } from '../../components/transcript';
 import { AttachmentChip } from './attachment-chip';
 import { SpeakButton } from './speak-button';
 import type { Turn } from './use-playground-run';
+import { Tooltip } from '../../components/tooltip';
 
 export function TurnView({
   turn,
@@ -52,13 +53,11 @@ export function TurnView({
         {turn.status === 'streaming' && <SpinnerIcon className="size-3" />}
         <span>{t('playground.assistant')}</span>
         {turn.runId !== null && (
-          <Link
-            to={`runs/${encodeURIComponent(turn.runId)}`}
-            className="text-accent underline"
-            title={t('workflowDetail.inspectRun')}
-          >
-            {t('workflowDetail.runId', { id: shortId(turn.runId, 8, 4) })}
-          </Link>
+          <Tooltip text={t('workflowDetail.inspectRun')}>
+            <Link to={`runs/${encodeURIComponent(turn.runId)}`}>
+              {t('workflowDetail.runId', { id: shortId(turn.runId, 8, 4) })}
+            </Link>
+          </Tooltip>
         )}
         {usage?.totalTokens != null && <span>{t('settings.modelTokens', { tokens: count(usage.totalTokens) })}</span>}
       </div>

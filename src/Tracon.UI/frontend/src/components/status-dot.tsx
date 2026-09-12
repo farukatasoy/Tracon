@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import type { RunStatus } from '@tracon/client';
-import { cx } from './ui';
+import { cx } from '../lib/cx';
 
 /**
  * The status vocabulary.

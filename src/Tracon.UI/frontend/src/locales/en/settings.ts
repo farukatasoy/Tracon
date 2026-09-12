@@ -67,4 +67,6 @@ export const enSettings = {
   "voice.state.thinking": 'thinking',
   "voice.state.speaking": 'speaking',
   "voice.state.failed": 'failed',
+  "settings.themeHint": 'The console opens dark. "Follow the system" is a choice rather than the default, because a browser cannot report that no preference was ever set.',
+  "settings.tenantUnknown": 'Lookup failed',
 };

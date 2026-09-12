@@ -8,15 +8,19 @@ import {
   Button,
   Empty,
   ErrorNote,
+  LinkButton,
   Loading,
   Mono,
   PageHeader,
+  Pager,
   Panel,
   Select,
   Table,
   Td,
   Th,
 } from '../components/ui';
+import { Toolbar, ToolbarField } from '../components/toolbar';
+import { Tooltip } from '../components/tooltip';
 import { TrashIcon } from '../components/icons';
 import type { TraconMetaResponse as Meta, SessionRecord } from '@tracon/client';
 import type { AgentDescriptor } from '../lib/server-types';
@@ -58,46 +62,85 @@ export function SessionsScreen({ meta }: { meta: Meta }): ReactNode {
 
   return (
     <>
-      <PageHeader
-        title={t('nav.sessions')}
-        description={t('sessions.description')}
-        actions={
-          <Select
-            value={agentName}
-            onChange={(value) => {
-              setAgentName(value);
-              setPage(0);
-            }}
-          >
-            <option value="">{t('runs.allAgents')}</option>
-            {(agents.data ?? []).map((agent) => (
-              <option key={agent.name} value={agent.name}>
-                {agent.displayName ?? agent.name}
-              </option>
-            ))}
-          </Select>
-        }
-      />
+      <PageHeader title={t('nav.sessions')} description={t('sessions.description')} />
 
-      {remove.isError && <div className="mb-4"><ErrorNote error={remove.error} /></div>}
+      <Toolbar
+        onReset={
+          agentName.length > 0
+            ? () => {
+                setAgentName('');
+                setPage(0);
+              }
+            : undefined
+        }
+      >
+        <ToolbarField label={t('common.agent')}>
+          {(id) => (
+            <Select
+              id={id}
+              value={agentName}
+              onChange={(value) => {
+                setAgentName(value);
+                setPage(0);
+              }}
+            >
+              <option value="">{t('runs.allAgents')}</option>
+              {(agents.data ?? []).map((agent) => (
+                <option key={agent.name} value={agent.name}>
+                  {agent.displayName ?? agent.name}
+                </option>
+              ))}
+            </Select>
+          )}
+        </ToolbarField>
+      </Toolbar>
+
+      {/* A delete that failed has to be retryable where it was attempted; the
+          row is gone from the mutation's point of view but not from the list. */}
+      {remove.isError && (
+        <div className="mb-4">
+          <ErrorNote
+            error={remove.error}
+            onRetry={remove.variables === undefined ? undefined : () => remove.mutate(remove.variables)}
+          />
+        </div>
+      )}
 
       <Panel>
-        {sessions.isPending && <Loading />}
-        {sessions.isError && <div className="p-4"><ErrorNote error={sessions.error} /></div>}
+        {sessions.isPending && <Loading rows={8} />}
+        {sessions.isError && (
+          <div className="p-4">
+            <ErrorNote error={sessions.error} onRetry={() => void sessions.refetch()} />
+          </div>
+        )}
 
         {sessions.isSuccess && sessions.data.length === 0 && (
-          <Empty title={t('sessions.empty.title')}>
-            {t('sessions.empty.body')}{' '}
-            <Link to="playground" className="text-accent underline">
-              {t('nav.playground')}
-            </Link>
-            .
+          <Empty
+            title={agentName.length > 0 ? t('common.noResults') : t('sessions.empty.title')}
+            action={
+              agentName.length > 0 ? (
+                <Button
+                  onClick={() => {
+                    setAgentName('');
+                    setPage(0);
+                  }}
+                >
+                  {t('toolbar.reset')}
+                </Button>
+              ) : (
+                <LinkButton to="playground" tone="primary">
+                  {t('sessions.empty.action')}
+                </LinkButton>
+              )
+            }
+          >
+            {agentName.length > 0 ? t('sessions.empty.filtered') : t('sessions.empty.body')}
           </Empty>
         )}
 
         {sessions.isSuccess && sessions.data.length > 0 && (
           <>
-            <Table>
+            <Table label={t('nav.sessions')}>
               <thead>
                 <tr>
                   <Th>{t('common.session')}</Th>
@@ -109,7 +152,7 @@ export function SessionsScreen({ meta }: { meta: Meta }): ReactNode {
               </thead>
               <tbody>
                 {sessions.data.map((session) => (
-                  <tr key={session.id} className="hover:bg-raised">
+                  <tr key={session.id} className="focus-within:bg-raised hover:bg-raised">
                     <Td>
                       <Link to={`sessions/${encodeURIComponent(session.id)}`}>
                         <Mono title={session.id}>{shortId(session.id, 18, 6)}</Mono>
@@ -131,18 +174,20 @@ export function SessionsScreen({ meta }: { meta: Meta }): ReactNode {
                     </Td>
                     <Td className="text-right">
                       {meta.roles.canOperate && (
-                        <Button
-                          tone="ghost"
-                          title={t('sessions.delete')}
-                          busy={remove.isPending && remove.variables === session.id}
-                          onClick={() => {
-                            if (window.confirm(t('sessions.confirmDelete'))) {
-                              remove.mutate(session.id);
-                            }
-                          }}
-                        >
-                          <TrashIcon className="size-3.5" />
-                        </Button>
+                        <Tooltip text={t('sessions.delete')}>
+                          <Button
+                            tone="ghost"
+                            ariaLabel={t('sessions.delete')}
+                            busy={remove.isPending && remove.variables === session.id}
+                            onClick={() => {
+                              if (window.confirm(t('sessions.confirmDelete'))) {
+                                remove.mutate(session.id);
+                              }
+                            }}
+                          >
+                            <TrashIcon className="size-3.5" />
+                          </Button>
+                        </Tooltip>
                       )}
                     </Td>
                   </tr>
@@ -160,37 +205,5 @@ export function SessionsScreen({ meta }: { meta: Meta }): ReactNode {
         )}
       </Panel>
     </>
-  );
-}
-
-export function Pager({
-  page,
-  size,
-  pageSize,
-  onChange,
-}: {
-  page: number;
-  size: number;
-  pageSize: number;
-  onChange: (page: number) => void;
-}): ReactNode {
-  const t = useT();
-
-  if (page === 0 && size < pageSize) {
-    return null;
-  }
-
-  return (
-    <div className="flex items-center justify-between border-t border-line px-4 py-2 text-sm text-muted">
-      <span>{t('common.page', { page: page + 1 })}</span>
-      <div className="flex gap-2">
-        <Button tone="ghost" disabled={page === 0} onClick={() => onChange(page - 1)}>
-          {t('common.previous')}
-        </Button>
-        <Button tone="ghost" disabled={size < pageSize} onClick={() => onChange(page + 1)}>
-          {t('common.next')}
-        </Button>
-      </div>
-    </div>
   );
 }
