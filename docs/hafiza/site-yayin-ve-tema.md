@@ -65,3 +65,39 @@ hicbir seyi eslemez.
   yalniz ASIM'da kirmizi verir. Faz 77 oncesi hafiza dongusunde DAR bandi HIC yoktu
   ve 16000/16000 bir dosya "ok" yaziyordu. `--projeksiyon` kalan faz sayisini basar;
   yeni bir sinir koyarken OLCULEN boyuta %15 bosluk ekle (Faz 58.4 kalibrasyon kurali).
+
+## 🚨 Figür sığdırmanın bir OKUNABİLİRLİK TABANI vardır (2026-09-13)
+
+Figürler artık sütuna **sığdırılır**, kaydırılmaz (`pre.mermaid` + `MarkdownContent.astro`).
+Sığdırmanın tuzağı ölçekle gelir: bir telefon sütunu geniş bir akış şemasının beşte
+biridir ve o kadar küçültülen diyagram, metnin fotoğrafına döner — ölçüldü, 390px'te
+en geniş figür **3.7px** yazı üretti. Bu yüzden `MIN_SCALE = 0.5` tabanı vardır:
+altına inmek gerekiyorsa figür taban boyunda kalır ve **o zaman** kaydırılır
+(`[data-scrolls]`). Sonuç ölçümü: 1920/2560'ta 44 figürün hiçbiri kaydırılmaz,
+1440'ta da kaydırılmaz; yalnız tablet ve telefonda en geniş birkaçı kaydırılır.
+
+İkinci ders, hangi mermaid ayarının işe yaradığıdır. **Yazı boyutu ölçek-değişmezdir**
+— büyütürsen düğüm de büyür, küçültme oranı da aynı oranda düşer, ekrandaki boy
+değişmez. Kazandıran, yazıyla birlikte büyümeyen SABİT piksellerdir: `padding` ve
+`rankSpacing`. Onları kısmak (20→12, 70→48) + `fontSize`'ı sayfanın kendi boyuna
+çekmek (15→17px) en geniş figürün ekrandaki yazısını **9.5px'ten 12.6px'e** çıkardı.
+
+Plaka `fit-content`'tir: dar diyagram artık boş yeşil bir tarlanın ortasında durmaz.
+🚨 Bunun bedeli: SVG'ye `width: 100%` YAZILAMAZ (ebeveyn çocuğa, çocuk ebeveyne
+bakar; ölçüldü — plaka 366px'e çöktü). Genişlik `viewBox`'tan okunup piksel olarak
+yazılır, `max-width` ile küçültülür.
+
+## 🚨 Tek başına SVG favicon, sekmede ESKİ ikonu bırakır (2026-09-13)
+
+`favicon.svg` Faz 163'te yeni işaretle değişmişti ve canlı site doğru dosyayı
+veriyordu — ama sekmede hâlâ eski marka görünüyordu. Sebep dosya değil, **eksik
+dosyaydı**: SVG'yi almayan tarayıcı `/favicon.ico`'yu ADIYLA ister, site 404
+döndürüyordu, tarayıcı da elindeki önbelleklenmiş (yeniden adlandırma öncesi) ikonu
+göstermeye devam ediyordu. Favicon önbelleği HTTP önbelleğinden ayrıdır; sabit bir
+URL'nin içeriğini değiştirmek onu düşürmeye yetmez.
+
+Kural: işaret üç dosyayla sevk edilir — `favicon.svg`, `favicon.ico` (16/32/48) ve
+`apple-touch-icon.png` (180). Üçü de `build-package-icon.mjs`'in ürettiği türevdir,
+tek kaynak `assets/tracon-mark.svg`. `.ico` konteyneri PNG kareleri doğrudan taşır;
+sharp `.ico` yazamadığı için kodlayıcı script'in içindedir. Starlight'ın `favicon`
+seçeneği yalnız SVG bağlantısını basar, diğer ikisi `head`'e elle eklenir.

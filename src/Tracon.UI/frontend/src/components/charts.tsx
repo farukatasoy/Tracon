@@ -1,4 +1,4 @@
-import { useMemo, type ReactNode } from 'react';
+import { useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   barLayout,
   linePath,
@@ -18,6 +18,39 @@ import type {
   RunStatistics,
   TimeSeriesPoint,
 } from '../lib/server-types';
+
+/**
+ * The panel these charts sit in is wider than their `viewBox`, so `width:
+ * 100%` plus `preserveAspectRatio="none"` used to stretch every coordinate —
+ * including tick-label glyphs — horizontally by whatever ratio the panel
+ * happened to be. Measuring the SVG's actual rendered width and feeding that
+ * back into the viewBox makes the two match, so there is nothing left to
+ * stretch.
+ */
+function useMeasuredWidth(fallback: number) {
+  const ref = useRef<SVGSVGElement>(null);
+  const [width, setWidth] = useState(fallback);
+
+  useLayoutEffect(() => {
+    const node = ref.current;
+
+    if (node === null || typeof ResizeObserver === 'undefined') {
+      return;
+    }
+
+    const observer = new ResizeObserver(([entry]) => {
+      if (entry !== undefined && entry.contentRect.width > 0) {
+        setWidth(entry.contentRect.width);
+      }
+    });
+
+    observer.observe(node);
+
+    return () => observer.disconnect();
+  }, []);
+
+  return [ref, width] as const;
+}
 
 function EmptyChart({ height }: { height: number }): ReactNode {
   const t = useT();
@@ -47,10 +80,11 @@ export function TimeSeriesChart({
   width?: number;
 }): ReactNode {
   const t = useT();
+  const [svgRef, renderedWidth] = useMeasuredWidth(width);
   // 🚨 The horizontal padding holds the FIRST and LAST tick labels, which are
   // anchored to the plot's edges. At 12 px they were clipped by the panel.
   const padding = { top: 10, right: 16, bottom: 20, left: 16 };
-  const plotWidth = width - padding.left - padding.right;
+  const plotWidth = renderedWidth - padding.left - padding.right;
   const plotHeight = height - padding.top - padding.bottom;
 
   const layout = useMemo(() => {
@@ -84,10 +118,11 @@ export function TimeSeriesChart({
 
   return (
     <svg
+      ref={svgRef}
       role="img"
       aria-label={t('charts.timeSeriesLabel')}
       data-testid="timeseries-chart"
-      viewBox={`0 0 ${width} ${height}`}
+      viewBox={`0 0 ${renderedWidth} ${height}`}
       width="100%"
       height={height}
       preserveAspectRatio="none"
@@ -146,10 +181,11 @@ export function ScoreTrendChart({
   width?: number;
 }): ReactNode {
   const t = useT();
+  const [svgRef, renderedWidth] = useMeasuredWidth(width);
   // 🚨 The horizontal padding holds the FIRST and LAST tick labels, which are
   // anchored to the plot's edges. At 12 px they were clipped by the panel.
   const padding = { top: 10, right: 16, bottom: 20, left: 16 };
-  const plotWidth = width - padding.left - padding.right;
+  const plotWidth = renderedWidth - padding.left - padding.right;
   const plotHeight = height - padding.top - padding.bottom;
 
   const layout = useMemo(() => {
@@ -197,10 +233,11 @@ export function ScoreTrendChart({
 
   return (
     <svg
+      ref={svgRef}
       role="img"
       aria-label={t('charts.scoreTrendLabel')}
       data-testid="score-trend-chart"
-      viewBox={`0 0 ${width} ${height}`}
+      viewBox={`0 0 ${renderedWidth} ${height}`}
       width="100%"
       height={height}
       preserveAspectRatio="none"

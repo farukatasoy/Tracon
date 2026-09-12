@@ -5,28 +5,59 @@ const kind = id.startsWith('api/') || id === 'api' ? 'api' : id.startsWith('http
 ---
 <div class:list={['document-content', `content-${kind}`]}><DefaultContent><slot /></DefaultContent></div>
 <script>
-  // Keep figures readable at their authored scale. Mermaid sets an inline max-width
-  // after rendering; the viewBox is the source for the scrolling canvas width.
+  // A figure is fitted to the column rather than scrolled: a diagram narrower than
+  // the column keeps its authored size and the plate shrinks to hug it, and a wider
+  // one is scaled down until it fits. Both widths are written inline because mermaid
+  // writes an inline `max-width` of its own and a stylesheet cannot outrank it.
+  //
+  // 🚨 Fitting has a floor. A phone column is a fifth of a wide flowchart, and a
+  // diagram scaled that far is a picture of text nobody can read. Below the floor the
+  // figure holds the floor size and scrolls instead — measured: without it, the
+  // widest figure rendered 3.7 px type at 390 px.
+  const MIN_SCALE = 0.5;
   const prepareFigures = () => {
-    for (const svg of document.querySelectorAll<SVGSVGElement>('pre.mermaid svg')) {
-      const width = svg.viewBox.baseVal.width;
-      if (width) {
-        svg.style.width = `${width}px`;
-        svg.style.height = `${svg.viewBox.baseVal.height}px`;
-        svg.style.maxWidth = 'none';
+    for (const figure of document.querySelectorAll<HTMLElement>('pre.mermaid')) {
+      // astro-mermaid injects theme styles after the stylesheet. The figure owns
+      // its plate through the shared token, without a specificity competition.
+      figure.style.background = 'var(--tracon-diagram-plate)';
+      figure.style.animation = 'none';
+
+      const svg = figure.querySelector('svg');
+      const authored = svg?.viewBox.baseVal.width ?? 0;
+      const column = figure.parentElement?.clientWidth ?? 0;
+      if (!svg || !authored || !column) continue;
+
+      // The plate is `fit-content`, so its own width cannot be the measurement: it
+      // follows the SVG. The column it sits in is the fixed side of the equation.
+      const style = getComputedStyle(figure);
+      const plate =
+        parseFloat(style.paddingInlineStart) +
+        parseFloat(style.paddingInlineEnd) +
+        parseFloat(style.borderInlineStartWidth) +
+        parseFloat(style.borderInlineEndWidth);
+      const available = column - plate;
+      const rendered = Math.min(authored, Math.max(available, authored * MIN_SCALE));
+
+      svg.style.width = `${rendered}px`;
+      svg.style.maxWidth = 'none';
+      svg.style.height = 'auto';
+
+      const scrolls = rendered > available + 1;
+      figure.tabIndex = scrolls ? 0 : -1;
+      figure.toggleAttribute('data-scrolls', scrolls);
+      if (scrolls) {
+        figure.setAttribute('role', 'region');
+        figure.setAttribute('aria-label', 'Scrollable diagram');
+      } else {
+        figure.removeAttribute('role');
+        figure.removeAttribute('aria-label');
+        figure.removeAttribute('tabindex');
       }
     }
-    for (const element of document.querySelectorAll<HTMLElement>('.sl-markdown-content table, pre.mermaid')) {
-      if (element.matches('pre.mermaid')) {
-        // astro-mermaid injects theme styles after the stylesheet. The figure owns
-        // its plate through the shared token, without a specificity competition.
-        element.style.background = 'var(--tracon-diagram-plate)';
-        element.style.animation = 'none';
-      }
-      if (element.scrollWidth > element.clientWidth) {
-        element.tabIndex = 0;
-        if (element.tagName !== 'TABLE') element.setAttribute('role', 'region');
-        element.setAttribute('aria-label', element.tagName === 'TABLE' ? 'Scrollable table' : 'Scrollable diagram');
+    for (const table of document.querySelectorAll<HTMLElement>('.sl-markdown-content table')) {
+      if (table.scrollWidth > table.clientWidth) {
+        table.tabIndex = 0;
+        table.setAttribute('aria-label', 'Scrollable table');
       }
     }
   };
