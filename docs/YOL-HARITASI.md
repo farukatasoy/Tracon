@@ -8,7 +8,7 @@
 Bir fazın durumu yanlış görünüyorsa **o fazın dokümanını** düzelt;
 bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 
-## Fazlar (166 kalem)
+## Fazlar (167 kalem)
 
 | Faz | Konu | Durum |
 |-----|------|-------|
@@ -178,5 +178,6 @@ bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 | [163](arsiv/fazlar/163-MARKA-VE-DOKUMANTASYON.md) | Marka ve Dokümantasyon Deneyimi | ✅ Tamamlandı |
 | [164](arsiv/fazlar/164-CONSOLE-ENSTRUMAN-KATMANI.md) | Console'un Enstrüman Katmanı | ✅ Tamamlandı |
 | [165](arsiv/fazlar/165-KONSOLUN-KALAN-EKRANLARI.md) | Konsolun Kalan Ekranları | ✅ Tamamlandı |
+| [166](166-HTTP-KAPASITE-OLCUMU.md) | HTTP Kapasite Ölçümü | 📋 Planlandı |
 
 Seçilmemiş adaylar: [`ADAYLAR.md`](ADAYLAR.md). Fazların hangi dalgada, hangi gerekçeyle sıralandığı (Faz 8–56, kapandı): [`arsiv/IKINCI-FAZ-YOL-HARITASI.md`](arsiv/IKINCI-FAZ-YOL-HARITASI.md) · [`arsiv/UCUNCU-FAZ-YOL-HARITASI.md`](arsiv/UCUNCU-FAZ-YOL-HARITASI.md).

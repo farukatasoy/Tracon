@@ -77,7 +77,7 @@
   --sl-color-red-high: var(--tracon-text-strong);
   --sl-font: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
   --sl-font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  --sl-content-width: 54rem;
+  --sl-content-width: 78rem;
   --sl-sidebar-width: 17rem;
   --sl-nav-height: 4.5rem;
   --sl-text-sm: 0.875rem;
@@ -105,7 +105,12 @@ body { font-size: 1.0625rem; }
 .document-heading { padding-block: .75rem; }
 .document-heading h1 { font-size: clamp(2rem, 3vw, 2.75rem); line-height: 1.12; letter-spacing: -.045em; overflow-wrap: anywhere; margin: 0; }
 .sl-markdown-content { font-size: 1.0625rem; line-height: 1.75; }
-.sl-markdown-content > :is(p, ul, ol, blockquote) { max-inline-size: var(--tracon-measure); }
+/* Two tiers, so a wide column does not produce a ragged page: prose keeps a reading
+   measure, and only the blocks that are wide by nature — figures, tables, code — use
+   the whole column. An aside is prose, so it is held to the measure as a whole rather
+   than stretched to a 160-character line. */
+.sl-markdown-content > :is(p, ul, ol, blockquote),
+.sl-markdown-content > .starlight-aside { max-inline-size: var(--tracon-measure); }
 .sl-markdown-content :is(h2,h3,h4) { color: var(--tracon-text-strong); line-height: 1.3; letter-spacing: -.025em; overflow-wrap: anywhere; }
 .sl-markdown-content h2 { font-size: 1.75rem; }
 .sl-markdown-content h3 { font-size: 1.375rem; }
@@ -127,8 +132,18 @@ body { font-size: 1.0625rem; }
 .sidebar-content .large { font-size: .875rem; font-weight: 600; }
 .right-sidebar a { font-size: .875rem; }
 .right-sidebar a[aria-current='true'] { color: var(--tracon-accent); }
-.document-content .sl-markdown-content pre.mermaid { display: block; background: var(--tracon-diagram-plate); border: 1px solid var(--tracon-border); border-radius: 2px; padding: 1.25rem; margin-block: 2rem; overflow: auto; }
+/* The plate hugs its diagram, so a narrow figure does not sit in an empty field, and
+   a wide one stops at the column. MarkdownContent.astro writes the width the SVG is
+   drawn at; the floor it applies there is the only case that scrolls. */
+.document-content .sl-markdown-content pre.mermaid { display: block; inline-size: fit-content; min-width: 0; max-inline-size: 100%; background: var(--tracon-diagram-plate); border: 1px solid var(--tracon-border); border-radius: 3px; padding: 1.75rem 2rem; margin-block: 2.5rem; overflow: clip; }
+/* Only a figure held at the legibility floor scrolls; the fitted ones never do. */
+.document-content .sl-markdown-content pre.mermaid[data-scrolls] { overflow-x: auto; }
 .document-content pre.mermaid svg { display: block; flex: none; }
+/* Fitting a wide figure to the column scales its strokes down with it, and a hairline
+   thinned to two thirds of a pixel reads as a smudge. These two rules hold the drawn
+   weight and the corner radius at the size they were designed at, whatever the scale. */
+.document-content pre.mermaid svg :is(.node rect, .node polygon, .node circle, .node path, .cluster rect, path.flowchart-link, .edgePath path, .actor, .messageLine0, .messageLine1) { vector-effect: non-scaling-stroke; }
+.document-content pre.mermaid svg :is(.node rect, .cluster rect) { rx: 5px; ry: 5px; }
 .api-provenance, .reads-this { color: var(--tracon-text-muted); font: .875rem/1.7 var(--sl-font-mono); }
 .content-api .sl-heading-wrapper.level-h3 { border-top: 1px solid var(--tracon-border); margin-block-start: 2rem; padding-top: 1.25rem; }
 .content-http .sl-heading-wrapper.level-h2 { border-inline-start: 2px solid var(--tracon-accent); padding-inline-start: 1rem; }

@@ -222,6 +222,8 @@ Bir adayın `Mercek` satırı aşağıdaki destekleyen mercekleri numarayla saya
 
 ## Sıralama — aday kalmadı
 
+**F-225 → [Faz 166 — HTTP Kapasite Ölçümü](166-HTTP-KAPASITE-OLCUMU.md)** (2026-09-13): kullanıcı isteğiyle doğrudan plana dönüştü; kapsam ve kanıt faz dokümanındadır.
+
 **Dördü de plana dönüştü (2026-09-07, altıncı planlama turu).** 2026-09-05
 itibarıyla sıralanabilir bir aday vardı; Langfuse esinli tur
 ([kesif](kesif/2026-09-07-langfuse-esinli-tur.md)) üç tane daha üretti. Turun
