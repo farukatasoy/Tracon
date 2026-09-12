@@ -3,6 +3,13 @@ title: TypeScript client
 description: Call the Tracon management API from TypeScript or JavaScript with a client generated from the OpenAPI document, typed end to end.
 ---
 
+:::caution[Package availability]
+Tracon packages and templates are not published yet. Package-install examples on
+this page describe the release form and do not currently resolve from public
+registries. With authorized repository access, use the
+[source build instructions](/getting-started/first-agent/).
+:::
+
 `@tracon/client` is the npm counterpart to [`Tracon.Client`](/guides/cli/):
 a typed client for the management API (`/api/*`), generated from the same
 [OpenAPI document](/openapi/tracon.json), for a caller that is not on .NET —

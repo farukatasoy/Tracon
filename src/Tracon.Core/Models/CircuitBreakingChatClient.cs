@@ -14,7 +14,7 @@ namespace Tracon;
 /// same protection.
 /// </para>
 /// <para>
-/// <strong>Content blocking is not a failure</strong>. An
+/// <strong>Content blocking is not a failure</strong>. A
 /// <see cref="TraconContentBlockedException"/> shows that the provider is healthy:
 /// the request was blocked locally and never reached the network. Counting it would
 /// open the provider circuit after several blocked requests and turn a policy decision

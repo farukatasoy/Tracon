@@ -19,7 +19,7 @@ import {
   ModelsIcon,
   MoonIcon,
   PlaygroundIcon,
-  PrismMark,
+  TraconMark,
   RunsIcon,
   SearchIcon,
   SessionsIcon,
@@ -112,7 +112,7 @@ export function Layout({ meta, children }: { meta: Meta; children: ReactNode }):
         <div className="ap-prism h-0.5 w-full" />
 
         <Link to="dashboard" className="flex items-center gap-2.5 px-4 py-4">
-          <PrismMark className="size-6 text-fg" />
+          <TraconMark className="size-6 text-fg" />
           <span className="text-[15px] font-semibold tracking-tight">Tracon</span>
         </Link>
 
@@ -249,7 +249,7 @@ function TopBar({
   return (
     <header className="sticky top-0 z-20 flex h-12 items-center justify-between gap-3 border-b border-line bg-panel/85 px-4 backdrop-blur md:px-8">
       <div className="flex items-center gap-2 md:hidden">
-        <PrismMark className="size-5 text-fg" />
+        <TraconMark className="size-5 text-fg" />
         <span className="text-[13px] font-semibold">Tracon</span>
       </div>
 

@@ -3,6 +3,13 @@ title: Write your own judge
 description: Implement a safe deterministic or model-backed IRunJudge and verify it with Tracon's executable contract suite.
 ---
 
+:::caution[Package availability]
+Tracon packages and templates are not published yet. Package-install examples on
+this page describe the release form and do not currently resolve from public
+registries. With authorized repository access, use the
+[source build instructions](/getting-started/first-agent/).
+:::
+
 `IRunJudge` scores a completed production run. A judge can be deterministic or
 model-backed. It is registered as a singleton and can receive concurrent calls, so
 keep per-run state local to `JudgeAsync`.
@@ -100,7 +107,7 @@ session history.
 
 ## Starting a run or model call
 
-If a judge starts an Tracon run, set `TraconRunOptions.Kind` to
+If a judge starts a Tracon run, set `TraconRunOptions.Kind` to
 `RunKind.Eval`. This keeps synthetic traffic out of sampling and cost statistics.
 Tracon also suppresses sampling while `JudgeAsync` runs, but that scope does
 not cover work that outlives the call.

@@ -1,10 +1,12 @@
 # 32 — Doküman Kalitesi ve Görsel Kimlik (`DKL`)
 
-> **Alan kodu:** `DKL` · **Faz:** 76, 158
+> **Alan kodu:** `DKL` · **Faz:** 76, 158, 163
 > **Kaynak:** `docs-site/src/styles/site.css` · `docs-site/astro.config.mjs` ·
 > `docs-site/src/sidebar.mjs` · `docs-site/src/starlightRouteData.mjs` ·
 > `docs-site/scripts/check-content.mjs` · `docs-site/scripts/check-weight.mjs` ·
 > `docs-site/scripts/build-social-images.mjs` · `docs-site/public/social/*.png` ·
+> `docs-site/scripts/check-console-screens.mjs` · `docs-site/src/components/*.astro` ·
+> `docs-site/src/styles/landing.css` · `assets/tracon-mark.svg` ·
 > `tests/Tracon.AspNetCore.FunctionalTests/DocumentedPolicyTests.cs`
 >
 > Ortam kurulumu ve reset yordamı [`00-INDEKS.md`](00-INDEKS.md)'dedir.
@@ -27,9 +29,9 @@ flowchart LR
     accDescr: site.css token kumesi kontrast hesabini besler, sidebar.mjs bolum gorsellerini besler, elle yazilan sayfalar kapanis ve diyagram iddialarini besler, uretilen dist ise agirlik kapisini besler.
     CSS["site.css<br/>kapali token kumesi"] --> CC["check-content.mjs<br/>iddia 8: kontrast"]
     SB["src/sidebar.mjs<br/>bolum -> gorsel"] --> CC2["check-content.mjs<br/>iddia 9: og:image"]
-    PAGES["39 elle yazilan sayfa"] --> CC3["check-content.mjs<br/>iddia 6 ve 7"]
+    PAGES["53 elle yazilan sayfa"] --> CC3["check-content.mjs<br/>iddia 6 ve 7"]
     CSS --> MERMAID["astro.config.mjs<br/>mermaid paleti"]
-    DIST["dist/ 1001 sayfa"] --> CW["check-weight.mjs<br/>gzip tavani"]
+    DIST["dist/ 1138 sayfa"] --> CW["check-weight.mjs<br/>gzip tavani"]
 ```
 
 ## Koşmadan önce
@@ -41,7 +43,7 @@ npm run check     # content -> build -> links -> weight
 npx astro preview --port 4321
 ```
 
-Görsel case'ler `http://localhost:4321/Tracon/` üzerinde koşulur. Tema
+Görsel case'ler `http://localhost:4321/` üzerinde koşulur (`base` artık `/`). Tema
 düğmesi sağ üsttedir; koyu ve açık temanın **ikisi de** denenir.
 
 ---
@@ -50,22 +52,22 @@ düğmesi sağ üsttedir; koyu ve açık temanın **ikisi de** denenir.
 
 | # | Kod | Ön koşul | Adımlar | Beklenen sonuç |
 |---|---|---|---|---|
-| 1 | `MT-DKL-001` | Yayınlanan site | Açılış sayfasını aç | Prizma işareti başlıkta; dört ölçülmüş sayı yerinde; sorun cümlesi ilk ekranda | 👤 |
+| 1 | `MT-DKL-001` | Yayınlanan site | Açılış sayfasını aç | Tracon işareti başlıkta; onaylı hero ve dört kontrol şeridi ilk ekranda; yayın durumu satırı CTA'ların altında | 👤 |
 | 2 | `MT-DKL-002` | Aynı | Temayı koyuya çevir, on sayfa gez | Hiçbir yüzey okunmaz hâle gelmiyor; spektrum yalnız başlık altında, bölüm ayracında ve aktif gezinme öğesinde | 👤 |
 | 3 | `MT-DKL-003` | Aynı | Tarayıcıyı 360 px genişliğe daralt, dokuz sayfayı gez | Tablo, kod bloğu ve diyagram kendi içinde kayıyor; sayfa gövdesi yatay **kaymıyor** (`scrollWidth - clientWidth == 0`) | 👤 |
 | 4 | `MT-DKL-004` | Aynı | Dokuz kılavuzu tek tek aç | Dokuzunda da diyagram var, sözdizimi hatası yok ve iki temada da okunuyor | 👤 |
-| 5 | `MT-DKL-005` | — | `grep -L '^## Read next' <39 sayfa>` | Yalnız `index.mdx` çıkar; o sayfa kapıda **gerekçeli** muaftır |
+| 5 | `MT-DKL-005` | — | `grep -L '^## Read next' <53 sayfa>` | Yalnız `index.mdx` çıkar; o sayfa kapıda **gerekçeli** muaftır |
 | 6 | `MT-DKL-006` | Yayınlanan site | `troubleshooting` sayfasını aç | Başta 14 girişli belirti dizini var; bir belirtiye tıklamak doğru bölüme gidiyor; `Ctrl+F` hâlâ 62 alt başlığın tamamını buluyor | 👤 |
 | 7 | `MT-DKL-007` | — | Dört bölümden birer sayfanın `og:image` etiketi okunur | Dört farklı dosya adı çıkar (`overview` · `console` · `operate` · `reference`) ve dördü de `200` döner |
 | 8 | `MT-DKL-008` | — | Bir sayfadan `## Read next` bölümü silinir, `npm run check:content` | Kızarır ve sayfayı **adıyla** söyler |
-| 9 | `MT-DKL-009` | — | `site.css`'te `--ap-text-muted` açık temada `#a8b0bb` yapılır | Kızarır ve **oranı** yazar: `2.19:1 in the light theme; 4.5:1 required` |
+| 9 | `MT-DKL-009` | — | `site.css`'te `--tracon-text-muted` açık temada `#a8b0bb` yapılır | Kızarır ve **oranı** yazar: `2.19:1 in the light theme; 4.5:1 required` |
 | 10 | `MT-DKL-010` | — | `src/sidebar.mjs`'e görselsiz bir bölüm eklenir | Kızarır: `Sidebar section '…' has no link-preview image` |
 | 11 | `MT-DKL-011` | — | `guides/reliability.md`'den diyagram silinir | Kızarır ve muafiyet listesini gösterir |
 | 12 | `MT-DKL-012` | Yayınlanan site | `Tab` ile başlıktan içeriğe gezilir | İlk durak "Skip to content"; hedefi (`#_top`) var; odak halkası her yerde görünür | 👤 |
 | 13 | `MT-DKL-013` | — | `site.css`'e çifti olmayan bir renk token'ı eklenir | Kızarır: `is a colour with no contrast pair` |
 | 14 | `MT-DKL-014` | — | `site.css`'te bir token'ın açık tema tanımı silinir | Kızarır: `has no value in the light theme` — hesap **atlanmaz** |
 | 15 | `MT-DKL-015` | — | `site.css`'te bir token'ın son kullanımı kaldırılır | Kızarır: `is declared but nothing reads it` |
-| 16 | `MT-DKL-016` | `npm run build` koşuldu | `npm run check:weight` | 1001 sayfa tavanın altında; en ağır sayfa adıyla ve bayt olarak yazılır |
+| 16 | `MT-DKL-016` | `npm run build` koşuldu | `npm run check:weight` | 1138 sayfa tavanın (58 000 B) altında; en ağır sayfa adıyla ve bayt olarak yazılır (`troubleshooting`, 57 367 B) |
 | 17 | `MT-DKL-017` | — | `check-weight.mjs` tavanı 40 000'e indirilir | Kızarır ve **kaç sayfanın** aştığını söyler |
 | 18 | `MT-DKL-018` | — | Bir sayfaya `K-382` yazılır, `npm run check:content` | Kızarır: `internal development history leaked into a public page` |
 | 19 | `MT-DKL-019` | — | Muafiyet listesindeki bir sayfaya diyagram eklenir | Kızarır: `listed as a table page but now shows a figure; drop the exemption` |
@@ -74,6 +76,19 @@ düğmesi sağ üsttedir; koyu ve açık temanın **ikisi de** denenir.
 | 22 | `MT-DKL-022` | — | `reference/configuration.md`'de `Scheduling:RunWorker` satırındaki **görünür** `true` değerini `false` yap, işareti (`<!-- claim:… -->`) değiştirme | `npm run check:content` kızarır: `does not state that value as a backtick-quoted literal` — görünür metin ile işaret birbirinden sürüklendi |
 | 23 | `MT-DKL-023` | — | `TraconSchedulingOptions.RunWorker`'ın `= true` başlatıcısını sil | `dotnet test … Every_marked_option_default_matches_the_real_type` kızarır: `claims TraconSchedulingOptions.RunWorker=true, but the real default is false` |
 | 24 | `MT-DKL-024` | — | `OpenAIChatCompletionsEndpoints`'te `RequireApiKeyScope(ApiKeyScope.RunsWrite)`'ı `RunsRead` yap | `dotnet test … Every_marked_endpoint_policy_claim_is_actually_enforced` kızarır: yalnız `RunsRead` taşıyan anahtar reddedilmiyor |
+| 25 | `MT-DKL-025` | Yayınlanan site | Açılış sayfasındaki iki CTA'ya tıkla | Sırasıyla `/getting-started/` ve `/capabilities/` açılır; CTA'ların altındaki satır paketlerin yayımlanmadığını söyler | 👤 |
+| 26 | `MT-DKL-026` | Aynı | Dokuz şablonu (açılış · rehber · kavram · reference · troubleshooting · `.NET API` · `HTTP API` · console · 404) 360, 640, 1024 ve 1440 px'te aç | Hiçbirinde sayfa gövdesi yatay kaymıyor (`scrollWidth - clientWidth == 0`); ölçüm açık **ve** koyu temada tekrarlanır | 👤 |
+| 27 | `MT-DKL-027` | Aynı | Aramayı aç, `tenant isolation` yaz | Üç filtre grubu görünür ve sayılarıyla gelir (`.NET API` · `Documentation` · `HTTP API`); sonuç sayısı yazılır; filtre seçmek listeyi daraltır | 👤 |
+| 28 | `MT-DKL-028` | Aynı | Aramaya sonuçsuz bir sorgu yaz | Boş sonuç bir hata gibi görünmüyor; yardım metni ve dokümana dönüş bağlantısı çıkıyor | 👤 |
+| 29 | `MT-DKL-029` | Aynı | Sayfa yüklenir yüklenmez `Tab` | İlk durak "Skip to content"; hedefi (`#_top`) sayfada var; `header`, `nav`, `main` ve `footer` birer landmark olarak bulunur; her sayfada tek `h1` | 👤 |
+| 30 | `MT-DKL-030` | Aynı | Temayı koyuya çevir, sonra tarayıcıyı %200 yakınlaştır | Koyu temada her sayfanın gövde arkaplanı koyu; %200'de (≈640 px genişlik) taşma yok | 👤 |
+| 31 | `MT-DKL-031` | Aynı | Sayfayı incele: sonsuz animasyon ve `prefers-reduced-motion` | Sonsuz tekrarlı animasyon **yok**; stil dosyasında `prefers-reduced-motion` kuralı var |
+| 32 | `MT-DKL-032` | Aynı | Bir kod bloğunun kopyalama düğmesine bas; bir başlık çapasına tıkla | Pano bloğun metnini alır; çapa adres çubuğuna yazılır ve sayfa o başlığa gider | 👤 |
+| 33 | `MT-DKL-033` | `npm run build` koşuldu | `dist/404.html` açılır | Özel 404 sayfası gelir: "Page not found", dokümana ve ana sayfaya bağlantı, aramaya yönlendirme. `astro preview` bilinmeyen bir yolda **kendi** 404'ünü gösterir; bu dosya gerçek host tarafından sunulur |
+| 34 | `MT-DKL-034` | — | Bir el yazısı sayfaya `🚨` yazılır, `npm run check:content` | Kızarır: `alarm emoji in shipped prose` — sayfa ve satır numarası yazılır |
+| 35 | `MT-DKL-035` | — | Bir el yazısı sayfaya `an Tracon agent` yazılır, `npm run check:content` | Kızarır: `the product name takes "a", not "an"` — bağlamı da yazar |
+| 36 | `MT-DKL-036` | — | `guides/coding-agents.md`'deki `about 700 KB` değeri `about 400 KB` yapılır, `npm run check:content` | Kızarır ve **gerçek** boyutu yazar: `says llms-full.txt is about 400 KB, but it is 713.1 KB` |
+| 37 | `MT-DKL-037` | Konsol E2E koşuldu | `docs-site/public/screenshots/` altındaki 19 PNG'ye bak | Hepsi yeni Tracon işaretini ve `/tracon` yolunu gösterir; `check-console-screens` 18 gezinme girişinin tamamı için bir görüntü bulur, sıfır dönmez |
 
 ---
 
@@ -94,7 +109,7 @@ cd ../../..
 
 # 7 - bolum basina paylasim gorseli
 for p in "" ui guides/production reference/glossary; do
-  curl -s "http://localhost:4321/Tracon/${p}${p:+/}" \
+  curl -s "http://localhost:4321/${p}${p:+/}" \
     | grep -o 'og:image" content="[^"]*"' | head -1
 done                                                 # beklenen: dort farkli dosya
 

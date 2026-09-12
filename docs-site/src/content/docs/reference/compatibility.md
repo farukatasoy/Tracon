@@ -4,6 +4,13 @@ description: A verified compatibility matrix for target frameworks, packages, AO
 slug: reference/compatibility
 ---
 
+:::caution[Package availability]
+Tracon packages and templates are not published yet. Package-install examples on
+this page describe the release form and do not currently resolve from public
+registries. With authorized repository access, use the
+[source build instructions](/getting-started/first-agent/).
+:::
+
 Use this page before you choose a target framework, database, model provider, or
 deployment shape. A check means the package makes that promise. A dash means the
 capability does not apply; it does not mean “probably works.”

@@ -340,4 +340,4 @@ right chunk does not come back there, the agent was never going to see it.
 ## Read next
 
 - [Governance](/concepts/governance/) — approvals, audit, and limits
-- [Workflows](/concepts/workflows/)
+- [Workflows](/concepts/workflows/) — coordinate multiple agents with checkpoints and human input.

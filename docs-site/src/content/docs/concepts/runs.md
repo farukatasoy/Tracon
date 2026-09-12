@@ -12,22 +12,23 @@ the agent running, so recording is best-effort rather than an availability depen
 
 ## How recording happens
 
-`IAgentCatalog.ResolveAsync` never returns a bare agent. What it hands back is wrapped
-in a chain of decorators:
+`IAgentCatalog.ResolveAsync` applies the registered decorators. The four built-in
+decorators have this outer-to-inner order:
 
 ```mermaid
 flowchart LR
     accTitle: Agent execution decorator order
-    accDescr: Run recording wraps telemetry, approvals, guards, online evaluation, and the inner agent in a fixed outer-to-inner order.
+    accDescr: Run recording wraps telemetry, tool approvals, structured response validation, and the compiled agent. Custom decorators can participate through their configured order.
     REC["RunRecordingAgent<br/>order 0 — outermost"] --> OTEL["OpenTelemetryAgent<br/>order 10"]
     OTEL --> APR["ToolApprovalAgent<br/>order 20"]
-    APR --> AGENT["the compiled AIAgent"]
+    APR --> VALIDATE["StructuredResponseValidatingAgent<br/>order 30"]
+    VALIDATE --> AGENT["the compiled AIAgent"]
 ```
 
-The order is deliberate. **Recording is outermost** so the time it measures includes
-everything the inner layers spend. **Approval is innermost**, closest to the model
-call — outside it, telemetry would count the wait for a human as part of its own
-duration.
+Recording is outermost among the built-in decorators, so its duration includes the
+inner layers. Structured response validation is innermost and checks the final
+agent response. Tool approval sits between validation and telemetry. A custom
+`IAgentDecorator` can change the surrounding chain through its `Order`.
 
 Decorators are plain `DelegatingAIAgent` wrappers rather than MAF middleware, because
 middleware is per-agent and a harness agent adds its own inner decorators. An outer
@@ -341,7 +342,9 @@ already says it is waiting. The callback receives the messages the run produced,
 anything it throws fails the run — an `AwaitingApproval` status whose request was never
 recorded is unanswerable.
 
-## Three ways to start a run
+<span id="three-ways-to-start-a-run"></span>
+
+## Ways to start a run
 
 | | How | Response |
 |---|---|---|
@@ -433,5 +436,5 @@ for what gets replayed, what runs live, and which tools it refuses to continue.
 
 ## Read next
 
-- [Sessions and conversations](/concepts/sessions/)
-- [Evaluation and experiments](/concepts/evaluation/)
+- [Sessions and conversations](/concepts/sessions/) — retain conversation state and understand session lifetime.
+- [Evaluation and experiments](/concepts/evaluation/) — compare agent versions using cases, judges, and experiments.

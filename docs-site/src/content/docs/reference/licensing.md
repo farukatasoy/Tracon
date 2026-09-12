@@ -14,7 +14,7 @@ employees and independent contractors, **and less than 1,000,000 USD** (2019,
 adjusted for inflation) total revenue in the prior tax year.
 
 An individual, a student, a hobby project and an open source project are all under
-that threshold. So is most of the market.
+that threshold.
 
 Above the threshold, using Tracon needs a commercial licence. Write to
 <hfarukatasoy@gmail.com>.

@@ -66,7 +66,7 @@ internal static class WorkflowNodeRetry
         return TransientClasses.Contains(classification.Class);
     }
 
-    // Same shape as RunRecordingAgent.ToRunError: an TraconException
+    // Same shape as RunRecordingAgent.ToRunError: a TraconException
     // carries its own stable error type name, everything else falls back to
     // its CLR type name.
     private static RunError ToRunError(Exception exception)

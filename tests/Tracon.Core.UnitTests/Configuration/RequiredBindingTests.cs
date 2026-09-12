@@ -39,7 +39,7 @@ public sealed class RequiredBindingTests
         var exception = await Should.ThrowAsync<InvalidOperationException>(
             async () => await validator.StartAsync(TestContext.Current.CancellationToken));
 
-        exception.Message.ShouldContain("not an Tracon extension point");
+        exception.Message.ShouldContain("not a Tracon extension point");
         exception.Message.ShouldContain(nameof(IRunStore));
         exception.Message.ShouldContain(nameof(ITenantContext));
         exception.Message.ShouldContain(nameof(IToolApprovalPresenter));

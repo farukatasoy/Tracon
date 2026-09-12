@@ -1,150 +1,103 @@
 ---
-title: Agent control plane for .NET
-description: Build on Microsoft Agent Framework, then add durable runs, tools, workflows, evals, governance, protocols, and an embedded console.
+title: Tracon — approach control for your agents
+description: A .NET package family that adds a production control plane to Microsoft Agent Framework, with run recording, tenant boundaries, tool policies, and an embedded console.
 template: splash
 hero:
-  tagline: |
-    Build on Microsoft Agent Framework. Add the control plane your agents need to be
-    observable, testable, governable, and safe to operate — inside your ASP.NET Core app.
-  actions:
-    - text: Get started
-      link: /getting-started/first-agent/
-      icon: right-arrow
-    - text: Explore capabilities
-      link: /capabilities/
-      icon: open-book
-      variant: minimal
+  title: Your agents fly. You own the airspace.
 ---
 
-import { Card, CardGrid, Code } from '@astrojs/starlight/components';
+import '../../styles/landing.css';
 
-<div class="problem-statement">
-  You wrote an agent with the Microsoft Agent Framework and it works. Now someone has
-  to operate it: find out what it did last Tuesday, stop it spending without a limit,
-  test it without calling a model, and let a second team drive it over HTTP. That
-  layer is what Tracon is.
+import { Code } from '@astrojs/starlight/components';
+
+<div class="landing-intro">
+  <h2>Autonomy needs<br />an operating model.</h2>
+  <p>Your agent can answer a question. Operating it asks different questions: which tenant owns the session, who may call a tool, how work resumes, and what happened during a run. Tracon gives those questions a place in your application.</p>
 </div>
 
-<div class="trust-strip" role="list" aria-label="Product characteristics">
-  <span role="listitem"><strong>20</strong> NuGet packages</span>
-  <span role="listitem"><strong>168</strong> generated HTTP operations</span>
-  <span role="listitem"><strong>30</strong> embedded console screens</span>
-  <span role="listitem"><strong>0</strong> required infrastructure to start</span>
+<div class="operation-strips">
+  <section class="operation-strip">
+    <div><span class="strip-id">01 / Boundary</span><h3>Separate.</h3></div>
+    <p>One host can serve several tenants. Tenant-scoped stores keep their records apart; authentication and caller attribution determine which scope a request enters.</p>
+    <a href="/getting-started/security/">Set the tenant boundary →</a>
+  </section>
+  <section class="operation-strip">
+    <div><span class="strip-id">02 / Coordination</span><h3>Sequence.</h3></div>
+    <p>A task can involve several agents and a human decision. Coordinate workflows with checkpoints and resume; schedule recurring work or queue a run for a worker.</p>
+    <a href="/concepts/workflows/">Follow a workflow →</a>
+  </section>
+  <section class="operation-strip">
+    <div><span class="strip-id">03 / Permission</span><h3>Clear.</h3></div>
+    <p>A model proposing a tool call does not set its policy. Define tools in code, apply authorization, and require approval for the calls you choose to review.</p>
+    <a href="/concepts/tools/">Define the tool policy →</a>
+  </section>
+  <section class="operation-strip">
+    <div><span class="strip-id">04 / Evidence</span><h3>Record.</h3></div>
+    <p>Inspect run events, tool calls, timing, and configured cost data. Catalog agents record by default. Recording is best-effort: a store failure is logged while the agent continues.</p>
+    <a href="/concepts/runs/">Read a recorded run →</a>
+  </section>
 </div>
 
-<CardGrid>
-  <Card title="A control plane, not another agent abstraction" icon="puzzle">
-    Keep using MAF's `AIAgent`, `AgentSession`, `ChatMessage`, and `AIFunction`.
-    Tracon adds the operational layer around them without replacing their model.
-  </Card>
-  <Card title="Evidence for every important decision" icon="approve-check">
-    Default-on runs capture events, tool calls, traces, tokens, cost, errors, and
-    child-agent trees. Store failure never gets permission to stop product work.
-  </Card>
-  <Card title="From empty folder to production topology" icon="rocket">
-    Start in memory. Add PostgreSQL, SQL Server, or SQLite; workers, scheduling,
-    health, OpenTelemetry, quotas, retention, and tenant isolation when you need them.
-  </Card>
-  <Card title="One agent, every useful surface" icon="seti:c-sharp">
-    Call it from .NET, the management API, OpenAI Responses or Chat Completions.
-    Publish selected agents as MCP tools or A2A endpoints with explicit budgets.
-  </Card>
-</CardGrid>
+<p class="inventory-line"><a href="/packages/"><strong>20</strong> NuGet packages</a> · <a href="/http-api/"><strong>168</strong> generated HTTP operations</a> · <a href="/ui/"><strong>30</strong> embedded console screens</a></p>
 
-## Thirty seconds
+## MAF runs the agent. Tracon provides the controls.
 
-<Code
-  lang="csharp"
-  title="Program.cs"
-  code={`var builder = WebApplication.CreateBuilder(args);
+Keep MAF's `AIAgent`, `AgentSession`, `ChatMessage`, and `AIFunction`. Tracon adds
+catalogs, policies, persistence, inspection, and HTTP access around those objects.
+There is no parallel agent type hierarchy to adopt.
 
-var tracon = builder.AddTracon()
-    .UseOpenAI(builder.Configuration.GetSection(OpenAIProviderOptions.SectionName))
-    .UseUI();
-
-tracon.AddAgent(new AgentDefinition
-{
-    Name = "support",
-    Instructions = "Resolve customer issues clearly and safely.",
-    Model = new ModelBinding
-    {
-        Provider = OpenAIProviderNames.ChatCompletions,
-        Model = "your-model"
-    }
-});
-
-var app = builder.Build();
-
-app.MapTracon("/tracon");
-app.Run();`}
-/>
-
-Run it and open `/tracon`. Create an agent, talk to it in the playground, then
-open the run and read it back event by event.
+<span id="thirty-seconds"></span>
 
 ```mermaid
-flowchart LR
-    accTitle: From an agent definition to a run you can read back
-    accDescr: An agent definition is data in the catalog. Any caller — your code, the HTTP API, an OpenAI-compatible client, the console, a schedule, or a workflow — resolves it and starts a run. Recording is on by default, so the run leaves an ordered event stream with tokens, cost, tool calls, and traces that the console and your tests both read.
-    DEF["Agent definition<br/>model · instructions · tools · skills"] --> CAT[("Catalog<br/>versioned, with rollback")]
-    CALL["Your code · HTTP API<br/>OpenAI clients · console<br/>schedules · workflows"] --> CAT
-    CAT --> RUN["Run"]
-    RUN --> REC[("Run record<br/>events · tokens · cost<br/>tool calls · traces")]
-    REC --> READ["Console · replay · assertions<br/>OpenTelemetry export"]
+flowchart TD
+    accTitle: Microsoft Agent Framework and Tracon responsibilities
+    accDescr: Your ASP.NET Core application contains Tracon's control plane and the MAF agent runtime. Tracon supplies agent catalogs, policies, and recorded state around MAF execution. Your code and the embedded console use the control plane.
+    HOST["Your ASP.NET Core application"] --> CONTROL["Tracon control plane<br/>catalog · policies · stores · HTTP API"]
+    CONTROL --> MAF["Microsoft Agent Framework<br/>agent execution · model and tool interaction"]
+    UI["Your code · embedded console · HTTP clients"] --> CONTROL
 ```
+
+## The console ships in the assembly.
+
+Add `Tracon.UI` and register `UseUI()` to embed the console in your host. It reads
+the same management API that your own clients can call. The consuming application
+does not need Node.js or a JavaScript build to serve it.
 
 <figure class="product-shot">
   <a href="/screenshots/dashboard.png">
-    <img
-      src="/screenshots/dashboard.png"
-      alt="Tracon dashboard with run volume, error rate, token cost, and recent activity"
-      width="2880"
-      height="1800"
-      loading="lazy"
-      decoding="async"
-    />
+    <img src="/screenshots/dashboard.png" alt="The Tracon console showing recorded runs, tokens, and recent activity from the documentation sample" width="2880" height="1800" loading="lazy" decoding="async" />
   </a>
-  <figcaption>The embedded console reads the same API you can automate.</figcaption>
+  <figcaption>The real console, captured from a local sample with seeded runs. This is sample data, not live telemetry.</figcaption>
 </figure>
+
+<Code lang="csharp" title="Program.cs · registration in a configured host" code={`using Tracon;
+
+var builder = WebApplication.CreateBuilder(args);
+builder.AddTracon().UseUI();
+
+var app = builder.Build();
+app.MapTracon("/tracon");
+app.Run();`} />
+
+This registers the control plane and console. An agent and model provider are
+configured separately. Storage starts in memory; add persistence when the records
+must survive a restart. Tracon is not yet published: the [source-based guide](/getting-started/first-agent/)
+requires access to a checkout of the repository.
 
 ## Choose your path
 
-<CardGrid>
-  <Card title="Build an agent" icon="open-book">
-    Go from install to a real provider, a code-defined tool, persistence, and a
-    deterministic test. [Start the five-minute guide](/getting-started/first-agent/).
-  </Card>
-  <Card title="Integrate an existing client" icon="list-format">
-    Use OpenAI Responses or Chat Completions, manage agents over HTTP, or publish
-    a selected agent through MCP or A2A. [Choose a surface](/guides/openai-api/).
-  </Card>
-  <Card title="Operate the platform" icon="setting">
-    Design storage, migrations, workers, health, telemetry, security, quotas,
-    retention, and recovery. [Use the production guide](/guides/production/).
-  </Card>
-  <Card title="Evaluate the fit" icon="information">
-    See every feature, its package and surface, its default state, and its production
-    boundary. [Open the capability map](/capabilities/).
-  </Card>
-</CardGrid>
+<ul class="route-list">
+  <li><a href="/getting-started/first-agent/"><strong>Build</strong><span>Configure a source checkout, run an agent, and inspect the result.</span><span aria-hidden="true">↗</span></a></li>
+  <li><a href="/guides/openai-api/"><strong>Integrate</strong><span>Connect an OpenAI-compatible client to an existing agent.</span><span aria-hidden="true">↗</span></a></li>
+  <li><a href="/guides/production/"><strong>Operate</strong><span>Plan persistence, authorization, workers, telemetry, and recovery.</span><span aria-hidden="true">↗</span></a></li>
+  <li><a href="/capabilities/"><strong>Evaluate</strong><span>Review capabilities, package choices, defaults, and operating limits.</span><span aria-hidden="true">↗</span></a></li>
+</ul>
 
 <div class="boundary-note">
-  <strong>It is a library, not a hosted service.</strong> It runs inside your ASP.NET
-  Core process, on your configuration, your authentication, and your database. There
-  is no account, and Tracon sends no telemetry of its own — nothing is
-  reported back to Tracon or to any vendor. What does leave your process is
-  what you configure: an OpenTelemetry exporter you register, and the model
-  provider, MCP server, and webhook calls your agents make. Four rules hold
-  everywhere:
-  <code>AddTracon()</code> works with no infrastructure, tools are defined in code
-  and never in the console, MAF objects are passed through rather than wrapped, and
-  every extension point registers with <code>TryAdd</code> so your own implementation
-  wins. <a href="/getting-started/">What Tracon is</a> explains each.
+  <p><strong>Your host owns the boundary.</strong> Tracon is a .NET package family embedded in your application. You configure authentication, model providers, storage, and outbound connections. Tools are defined in code; the console cannot write tool code. <a href="/getting-started/">Read the architecture and limits</a> before choosing an integration.</p>
 </div>
 
-:::caution[Pre-release]
-Tracon has not shipped `1.0`. The ASP.NET Core package depends on preview Microsoft
-Agent Framework hosting packages, and public APIs can still move between previews. Pin
-package versions and validate an upgrade before production — see [Versions and
-upgrades](/reference/versioning/).
-:::
+Public packages are not available yet. The ASP.NET Core integration also uses
+preview MAF hosting dependencies. Review [compatibility](/reference/compatibility/),
+[versioning](/reference/versioning/), and [licensing](/reference/licensing/)
+as part of your evaluation.

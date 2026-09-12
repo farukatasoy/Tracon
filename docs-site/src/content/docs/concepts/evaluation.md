@@ -5,7 +5,7 @@ sidebar:
   order: 7
 ---
 
-Four ways to find out whether an agent is any good. They answer different questions
+Use evaluation suites, judges, experiments, and regression checks to compare agent behavior against explicit criteria. They answer different questions
 and are meant to be used together.
 
 | | Question | When it runs |
@@ -352,4 +352,4 @@ results on every read, so it never reports a stale verdict.
 ## Read next
 
 - [Agents and definitions](/concepts/agents/) — versions, which experiments need
-- [Governance](/concepts/governance/)
+- [Governance](/concepts/governance/) — configure approvals, quotas, guards, and audit behavior.

@@ -198,7 +198,7 @@ public sealed class SqlServerDialectTests(SqlServerFixture fixture)
     /// first-time migrations of DIFFERENT schemas (the migration lock is scoped
     /// to the schema, K-389) touch catalog objects shared by the whole database
     /// and SQL Server kills one of them with error 1205. Before this was
-    /// classified, <c>MigrationRunner</c> wrapped it in an
+    /// classified, <c>MigrationRunner</c> wrapped it in a
     /// <c>TraconException</c> and the fixture never came up: measured on
     /// 2026-08-21, five <c>SqlServerRetentionStoreContractTests</c> cases failed
     /// in a batch run with "Migration '0017_approval_conditions' could not be

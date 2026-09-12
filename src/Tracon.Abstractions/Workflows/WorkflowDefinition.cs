@@ -105,7 +105,7 @@ public sealed record WorkflowDefinition
     /// <strong>Cost.</strong> The manager agent runs again on every turn;
     /// a revision request makes it rebuild the plan from scratch. The default
     /// of <see langword="false"/> is deliberate: a run never stalls half-way
-    /// unless a definition opts in explicitly (the no-surprises rule - zero surprises).
+    /// unless a definition opts in explicitly (the no-surprises rule).
     /// </para>
     /// </remarks>
     public bool RequirePlanApproval { get; init; }

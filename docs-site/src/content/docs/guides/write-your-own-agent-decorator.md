@@ -52,7 +52,7 @@ itself at a high value.
 
 A decorator must be thread-safe — the catalog can decorate agents
 concurrently — and must not swallow a genuine `OperationCanceledException`. If
-`Decorate` throws anything else, the catalog normalizes it into an
+`Decorate` throws anything else, the catalog normalizes it into a
 `TraconAgentSourceException` (the same shape a broken `IAgentSource`
 produces) rather than letting a raw, unclassified error reach the caller.
 

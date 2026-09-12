@@ -23,7 +23,18 @@ const dist = resolve(here, '../dist');
 
 // Measured 2026-08-20: the heaviest page is troubleshooting at 49 365 B, which is
 // also the largest source page on the site. The ceiling adds about 15% of headroom.
-const CEILING = 57_000;
+//
+// Re-measured 2026-09-12: the same page reached 57 367 B and crossed the 57 000
+// ceiling. The growth is one deliberate addition, not drift — the brand contract
+// requires every page showing an install command to carry the "not published yet"
+// warning, and this page shows one. That aside costs exactly 376 B gzip here,
+// almost all of it the icon and wrapper markup Starlight renders: shortening its
+// text back saves only 95 B. The alternatives were measured before the ceiling
+// moved — no dead rule is left in site.css (all four unused-looking classes are
+// live, `pagefind-ui` at run time), and dropping the warning would have landed at
+// 56 991 B, nine bytes under, which is not a margin. Raised to 58 000 B, which
+// keeps about 1% of headroom over the measured page.
+const CEILING = 58_000;
 
 if (!existsSync(dist)) {
   console.error('dist/ is missing; run `npm run build` before checking page weight.');

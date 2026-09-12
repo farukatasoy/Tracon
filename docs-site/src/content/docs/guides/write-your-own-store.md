@@ -3,6 +3,13 @@ title: Write your own store
 description: Implement IRunStore against your own persistence engine and prove it correct with the same contract suite the four shipped providers run.
 ---
 
+:::caution[Package availability]
+Tracon packages and templates are not published yet. Package-install examples on
+this page describe the release form and do not currently resolve from public
+registries. With authorized repository access, use the
+[source build instructions](/getting-started/first-agent/).
+:::
+
 The three built-in providers (`Tracon.PostgreSql`, `.SqlServer`, `.Sqlite`) cover
 most deployments. When none of them fit — a document database, an existing
 event-sourced system, a managed table service — `IRunStore` and the 32 other store

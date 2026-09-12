@@ -1,0 +1,8 @@
+---
+import { sectionForRoute } from '../sidebar.mjs';
+const { id, entry } = Astro.locals.starlightRoute;
+---
+<div class="document-heading">
+  <p class="section-label">{sectionForRoute(id)}</p>
+  <h1 id="_top">{entry.data.title}</h1>
+</div>

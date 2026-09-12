@@ -144,7 +144,7 @@ describe('cancellation', () => {
 });
 
 describe('subsystem failure', () => {
-  it('propagates a network failure as-is, not as an TraconError', async () => {
+  it('propagates a network failure as-is, not as a TraconError', async () => {
     const client = createTraconClient({
       baseUrl: 'https://example.test/tracon',
       fetch: async () => {

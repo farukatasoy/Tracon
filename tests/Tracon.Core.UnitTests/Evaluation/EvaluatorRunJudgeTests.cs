@@ -7,7 +7,7 @@ namespace Tracon.Core.UnitTests.Evaluation;
 
 /// <summary>
 /// Tests for the bridge that turns a Microsoft.Extensions.AI
-/// <see cref="IEvaluator"/> into an Tracon run judge (Phase 155).
+/// <see cref="IEvaluator"/> into a Tracon run judge (Phase 155).
 /// </summary>
 public sealed class EvaluatorRunJudgeTests
 {

@@ -66,7 +66,7 @@ public static class TraconOnlineEvaluationBuilderExtensions
     }
 
     /// <summary>
-    /// Registers a Microsoft.Extensions.AI <see cref="IEvaluator"/> as an
+    /// Registers a Microsoft.Extensions.AI <see cref="IEvaluator"/> as a
     /// Tracon run judge.
     /// </summary>
     /// <param name="builder">Configuration chain.</param>
@@ -138,7 +138,7 @@ public static class TraconOnlineEvaluationBuilderExtensions
     }
 
     /// <summary>
-    /// Registers a Microsoft.Extensions.AI <see cref="IEvaluator"/> as an
+    /// Registers a Microsoft.Extensions.AI <see cref="IEvaluator"/> as a
     /// Tracon run judge and configures the shared judge model.
     /// </summary>
     /// <param name="builder">Configuration chain.</param>

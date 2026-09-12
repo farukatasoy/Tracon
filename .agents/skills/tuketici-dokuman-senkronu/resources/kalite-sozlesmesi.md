@@ -178,7 +178,9 @@ kılar: `build-agent-map.mjs --check`.
 **elle** kazanır. İkincisi unutulursa sevk edilen harita sessizce bayat kalır —
 bugün hiçbir kapı bunu yakalamıyor.
 
-🚨 **Harita bütçesi aşımda kırpmaz, kırılır.** Bütçe 10 240 B.
+🚨 **Harita bütçesi aşımda kırpmaz, kırılır.** Bütçe `build-agent-map.mjs`'in
+`agentMapBudgetBytes` sabitindedir; bugün 11 264 B (K-722). Sayıyı buradan değil
+oradan oku — bu satır bir kez 10 240'ta bayatladı.
 
 ---
 
@@ -187,14 +189,14 @@ bugün hiçbir kapı bunu yakalamıyor.
 Her satır bir **cırcırdır**: değeri bu yönde değişebilir, tersine değişemez.
 Tersine değişim `faz-denetim`'de 🔴 sayılır.
 
-| Taban | Ölçüm (2026-08-20) | Yön |
+| Taban | Ölçüm (2026-09-12) | Yön |
 |---|---|---|
-| `DIAGRAM_EXEMPT` | 5 kalem | yalnız küçülür |
+| `DIAGRAM_EXEMPT` | 6 kalem | yalnız küçülür |
 | `CLOSING_EXEMPT` | 1 kalem (`index.mdx`) | yalnız küçülür |
-| En ağır sayfa | 49 376 B gzip · tavan 57 000 B | yalnız düşer |
-| Kontrast — metin | 5,47:1 | yalnız yükselir |
-| Kontrast — metin dışı | 3,46:1 | yalnız yükselir |
-| Agent haritası | 8 062 B · bütçe 10 240 B | bütçe ölçümle değişir |
+| En ağır sayfa | `troubleshooting` 57 367 B gzip · tavan 58 000 B (K-756) | yalnız düşer |
+| Kontrast — metin | 5,49:1 | yalnız yükselir |
+| Kontrast — metin dışı | 3,74:1 | yalnız yükselir |
+| Agent haritası | 10 317 B · bütçe 11 264 B | bütçe ölçümle değişir |
 | `SourceLanguageTests` taban çizgisi | — | yalnız küçülür |
 
 **Bir tavanı yükseltmek bir karardır.** Gerekçesi ölçümdür, tercih değil; karar

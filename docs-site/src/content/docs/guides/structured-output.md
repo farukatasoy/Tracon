@@ -351,5 +351,5 @@ and still reject a fenced payload at the application boundary.
 
 ## Read next
 
-- [Model providers](/guides/model-providers/)
-- [Agents and definitions](/concepts/agents/)
+- [Model providers](/guides/model-providers/) — register a provider and select an explicit model identifier.
+- [Agents and definitions](/concepts/agents/) — configure and version the definitions that the catalog resolves.

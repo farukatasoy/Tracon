@@ -409,7 +409,7 @@ public sealed class ModelProviderRegistry : IModelProviderRegistry
 
         // Mark only exceptions that originate in the raw SDK client. The
         // outer normalizer can then mask provider failures without hiding a
-        // bug thrown by an Tracon guard, cache, or attachment wrapper.
+        // bug thrown by a Tracon guard, cache, or attachment wrapper.
         chatClient = new ProviderFailureTaggingChatClient(chatClient);
 
         // The concurrency limiter sits closest to the wire: it must see every

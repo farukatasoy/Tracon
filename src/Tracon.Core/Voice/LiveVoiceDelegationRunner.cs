@@ -5,7 +5,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Tracon;
 
-/// <summary>Turns one delegation from a live voice session into an Tracon run.</summary>
+/// <summary>Turns one delegation from a live voice session into a Tracon run.</summary>
 /// <remarks>
 /// <para>
 /// This is where the phase earns its keep: a delegated task becomes an

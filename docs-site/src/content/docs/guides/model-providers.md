@@ -428,7 +428,7 @@ Two consequences are worth stating plainly. A provider-side safety filter is
 **not** an exception here: return an ordinary `ChatResponse` with
 `ChatFinishReason.ContentFilter` and Tracon raises
 `TraconContentFilteredException` itself. Throwing instead makes the circuit
-breaker count a healthy provider as failing. And an `TraconException` thrown
+breaker count a healthy provider as failing. And a `TraconException` thrown
 from `CreateChatClient` is wrapped as a compilation error naming the agent, while
 every other exception propagates raw — so use it for configuration or binding
 problems the host author can act on.
@@ -628,5 +628,5 @@ counted value against the model's real `ContextWindowTokens` before deciding.
 ## Read next
 
 - [Reliable runs](/guides/reliability/) — provider fallback chains and outgoing concurrency limits
-- [Choosing packages](/packages/)
-- [Agents and definitions](/concepts/agents/)
+- [Choosing packages](/packages/) — select the packages needed by your host and its integrations.
+- [Agents and definitions](/concepts/agents/) — configure and version the definitions that the catalog resolves.

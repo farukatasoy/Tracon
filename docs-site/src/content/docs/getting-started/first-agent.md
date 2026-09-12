@@ -1,74 +1,62 @@
 ---
 title: Your first agent
-description: Build, run, inspect, and call your first Tracon agent from an empty folder in about five minutes.
+description: Build a Tracon host from an authorized source checkout, configure a model, and inspect your first recorded agent run.
 sidebar:
   order: 2
 ---
 
-Two ways in. The template writes a working application for you; the manual path shows
-you what the template wrote.
+Build an ASP.NET Core host, register a model-backed agent, then inspect its run
+in the embedded console. MAF executes the agent; Tracon supplies the catalog,
+HTTP endpoints, and default-on recording around it.
 
-## With the template
-
-```bash
-TRACON_VERSION=1.0.0-preview.N # replace N with the published preview
-dotnet new install "Tracon.Templates@$TRACON_VERSION"
-dotnet new tracon-api -o MyAgents
-cd MyAgents
-```
-
-Pinning the template version makes the generated package references reproducible.
-The project template has five options:
-
-| Option | Values | Default |
-|---|---|---|
-| `--persistence` | `memory`, `postgres`, `sqlite`, `sqlserver` | `memory` |
-| `--provider` | `openai`, `anthropic`, `google`, `azure` | `openai` |
-| `--ui` | `true`, `false` | `true` |
-| `--TraconVersion` | A NuGet version or version range | `*-*` (latest preview) |
-| `--skipRestore` | `true`, `false` | `false` |
-
-For example:
-
-```bash
-dotnet new tracon-api -o MyAgents \
-  --persistence postgres \
-  --provider openai \
-  --ui true \
-  --TraconVersion "$TRACON_VERSION"
-```
-
-Set your key — it never goes in a file that gets committed:
-
-```bash
-dotnet user-secrets set "Tracon:Providers:OpenAI:ApiKey" "sk-…"
-dotnet run
-```
-
-Open the address `dotnet run` prints, with `/tracon` on the end — the
-template listens on `http://localhost:5081` by default.
-
-The first build also writes `AGENTS.md` at the root of your repository: the
-Tracon capability map, for a coding agent working in the project. An
-existing file is never overwritten, and
-[the property that writes it](/troubleshooting/#agentsmd-does-not-appear)
-can be removed from the project file.
-
-## By hand
-
-:::caution[Not published yet]
-No Tracon version has been pushed to NuGet or npm yet, so this command
-does not resolve. Until the first release, reference the projects from a
-clone of the repository.
+:::caution[Repository access required]
+Tracon packages and templates are not published yet. This guide requires an
+existing source checkout that you are authorized to access. If you do not have
+access, start with the [capability map](/capabilities/) and
+[architecture](/concepts/) to evaluate the design.
 :::
 
+## Prerequisites
+
+- An authorized checkout of the Tracon repository.
+- The .NET SDK selected by the repository's `global.json` and Node.js for the
+  embedded console build. See the checkout's README for development prerequisites.
+- An OpenAI API key and a chat model available to that account. The model request
+  is sent to your configured provider and can incur provider charges.
+
+<span id="with-the-template"></span>
+
+## Build from source
+
+Run these commands from the root of the Tracon checkout. They create a sibling
+application and reference the three source projects it needs.
+
 ```bash
-dotnet new web -o MyAgents
-cd MyAgents
-dotnet add package Tracon --prerelease
+dotnet new web -o ../MyAgents
+cd ../MyAgents
+dotnet add reference ../Tracon/src/Tracon.AspNetCore/Tracon.AspNetCore.csproj
+dotnet add reference ../Tracon/src/Tracon.OpenAI/Tracon.OpenAI.csproj
+dotnet add reference ../Tracon/src/Tracon.UI/Tracon.UI.csproj
 dotnet user-secrets init
-dotnet user-secrets set "Tracon:Providers:OpenAI:ApiKey" "sk-…"
 ```
+
+The commands assume the checkout directory is named `Tracon`. Use its actual
+relative path if you named it differently. The console assets build with the UI
+project; no separate console server is needed.
+
+Store your provider settings in the application's development secrets. Replace
+the example values with your key and a model identifier available to your account.
+
+```bash
+dotnet user-secrets set "Tracon:Providers:OpenAI:ApiKey" "YOUR_API_KEY"
+dotnet user-secrets set "Tracon:Providers:OpenAI:DefaultModel" "YOUR_CHAT_MODEL"
+```
+
+<span id="by-hand"></span>
+
+## Register the agent
+
+Replace the generated `Program.cs` with the following:
 
 ```csharp title="Program.cs"
 using Tracon;
@@ -88,7 +76,8 @@ tracon.AddAgent(new AgentDefinition
     Model = new ModelBinding
     {
         Provider = OpenAIProviderNames.ChatCompletions,
-        Model = "…",   // today's model name, from your provider's documentation
+        Model = builder.Configuration["Tracon:Providers:OpenAI:DefaultModel"]
+            ?? throw new InvalidOperationException("Configure an OpenAI chat model."),
     },
 });
 
@@ -104,15 +93,16 @@ an image model explicitly. An image model is not inferred from this agent's chat
 model; see [image generation providers](/guides/model-providers/#image-generation-providers).
 
 ```bash
-dotnet run
+dotnet run --urls http://localhost:5081
 ```
 
-:::note[Why the model name is a blank]
-Tracon ships no built-in model list and pins no model name. Provider catalogues
-change faster than a NuGet release, and a hard-coded name would be wrong within
-months. Take the current name from your provider's documentation, or put it in
-`appsettings.json` under `Tracon:Providers:OpenAI:DefaultModel`.
-:::
+The host listens on `http://localhost:5081`. Open
+`http://localhost:5081/tracon` for the console. Provider model names are explicit
+configuration: Tracon does not ship a built-in model list.
+
+The source template remains available in the repository for readers who want to
+inspect its generated application. A published-template install command will be
+added when a release is available.
 
 ## Run it
 
@@ -153,7 +143,7 @@ curl http://localhost:5081/tracon/api/runs/{runId}
 curl -N http://localhost:5081/tracon/api/runs/{runId}/events
 ```
 
-Nothing extra was configured to make that happen. Recording can be disabled. A store
+No additional recording registration is needed for this catalog-resolved agent. Recording can be disabled. A store
 failure is also best-effort: it is logged and the agent still runs, so observability
 cannot take down product functionality.
 
@@ -164,6 +154,6 @@ store is in memory, so all of it ends when the process does.
 
 ## Read next
 
-- [Adding a tool](/getting-started/tools/) — let the agent do something
-- [Persistence](/getting-started/persistence/) — make it survive a restart
-- [Securing the endpoints](/getting-started/security/) — before it leaves your machine
+- [Adding a tool](/getting-started/tools/) — register a C# method the model can call.
+- [Persistence](/getting-started/persistence/) — retain definitions and run records across restarts.
+- [Securing the endpoints](/getting-started/security/) — configure authorization before exposing the host.

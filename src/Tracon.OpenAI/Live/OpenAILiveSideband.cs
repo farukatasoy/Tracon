@@ -165,7 +165,7 @@ internal sealed class OpenAILiveSideband : ILiveVoiceSideband
         _sendGate.Dispose();
     }
 
-    /// <summary>Translates one provider frame into an Tracon event.</summary>
+    /// <summary>Translates one provider frame into a Tracon event.</summary>
     /// <param name="message">The raw frame.</param>
     /// <returns>The event, or <see langword="null"/> when the frame carries nothing Tracon models.</returns>
     /// <remarks>
