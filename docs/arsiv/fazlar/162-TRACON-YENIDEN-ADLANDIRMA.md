@@ -184,6 +184,36 @@ Denetçinin ayrıca ölçtüğü: `src/**/*.cs` içinde 934 dosya çifti normali
 
 ---
 
+## Yayın (Adım 10)
+
+`./scripts/site-deploy.sh` — dört site kapısı yeşil (1138 sayfa, 169.440 iç
+bağlantı, hiçbiri kırık değil), `rsync` ve konteyner uzlaştırma tamam.
+
+| Doğrulama | Sonuç |
+|---|---|
+| `https://tracon.dev/` | `HTTP/2 200` · başlık `Agent control plane for .NET \| Tracon` |
+| Ana sayfada eski ad | **0 eşleşme** — canlı içerik gerçekten yeni |
+| `https://www.tracon.dev/` | `HTTP/2 308` · `location: https://tracon.dev/` |
+| `https://doayen.web.tr/` | `HTTP/2 405` — apex servisi bozulmadı (`405` = HEAD, normal) |
+| `tracon.dev/llms.txt` | yeniden üretilmiş `revision: 3d55b119` |
+
+**D9'dan küçük bir sapma:** karar "301" diyordu, Traefik `permanent=true` için
+**308** üretir. İkisi de kalıcı yönlendirmedir; 308 metodu korur. Mekanizmanın
+davranışıdır, tercih değil.
+
+### S8 — `www` router'ı ad geçişiyle GELMEZ, eklenir
+
+Ölçülen sapma: compose dosyası yalnız ad geçişi olarak işlendi ve D9'un
+istediği **ikinci router hiç eklenmedi**. DNS `www.tracon.dev`'i zaten
+droplet'e yönlendiriyordu, bu yüzden ad çözüldü ve TLS el sıkışmasında düştü —
+Traefik'in o SNI için router'ı, dolayısıyla sertifikası yoktu.
+
+Kapıların hiçbiri bunu göremezdi: `docker-compose.yml` bir yapılandırma
+dosyasıdır, testi yoktur. **Yalnız gerçek yayın yakaladı.** Bu, `faz-tamamlama`
+Adım 10'un neden protokolde olduğunun kanıtıdır — yeşil kapı yayın değildir.
+
+---
+
 ## Sonraki Faza Devir Notu
 
 Sonraki faz dokümanı **yoktur** — 162 yol haritasının son kalemidir. Bir sonraki
