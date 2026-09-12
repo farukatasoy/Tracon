@@ -1,9 +1,9 @@
 using System.Collections;
 using System.Reflection;
+using Microsoft.Extensions.AI;
 using Tracon.Azure.UnitTests.Infrastructure;
 using Tracon.Testing.Contracts;
 using Tracon.Testing.Contracts.Providers;
-using Microsoft.Extensions.AI;
 
 namespace Tracon.Azure.UnitTests;
 

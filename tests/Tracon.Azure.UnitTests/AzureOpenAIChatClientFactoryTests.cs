@@ -1,5 +1,5 @@
-using Tracon.Azure.UnitTests.Infrastructure;
 using Microsoft.Extensions.AI;
+using Tracon.Azure.UnitTests.Infrastructure;
 
 namespace Tracon.Azure.UnitTests;
 

@@ -1,9 +1,8 @@
 using System.Net;
 using System.Net.Http.Json;
-using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
-
+using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 // Same rationale as ConcurrentToolInvocationTests.cs (K-269): the package's
 // Tracon.Testing.TraconTestHost and this project's own TraconTestHost
 // share the same name; a blanket `using Tracon.Testing;` would produce CS0104.

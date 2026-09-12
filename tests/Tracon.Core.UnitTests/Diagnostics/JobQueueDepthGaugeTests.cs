@@ -1,6 +1,6 @@
 using System.Diagnostics.Metrics;
-using Tracon.Core.UnitTests.Fakes;
 using Microsoft.Extensions.Logging.Abstractions;
+using Tracon.Core.UnitTests.Fakes;
 
 namespace Tracon.Core.UnitTests.Diagnostics;
 

@@ -1,5 +1,5 @@
-using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
+using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 using FakeModelProvider = Tracon.Testing.FakeModelProvider;
 
 namespace Tracon.AspNetCore.FunctionalTests;

@@ -1,13 +1,13 @@
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
-using Tracon.Core.UnitTests.Fakes;
-using Tracon.Testing.Contracts;
-using Tracon.Testing.Contracts.Scheduling;
 using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using Tracon.Core.UnitTests.Fakes;
+using Tracon.Testing.Contracts;
+using Tracon.Testing.Contracts.Scheduling;
 
 namespace Tracon.Core.UnitTests.Contracts;
 

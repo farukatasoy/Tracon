@@ -1,9 +1,9 @@
 using System.Text.Json;
-using Tracon.Anthropic.UnitTests.Infrastructure;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Tracon.Anthropic.UnitTests.Infrastructure;
 
 namespace Tracon.Anthropic.UnitTests;
 

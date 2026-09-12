@@ -1,13 +1,13 @@
 using System.Data.Common;
 using System.Globalization;
-using Tracon.PostgreSql.IntegrationTests.Infrastructure;
-using Tracon.Testing;
-using Tracon.Testing.Contracts.Storage;
 using Microsoft.Agents.AI;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using Npgsql;
+using Tracon.PostgreSql.IntegrationTests.Infrastructure;
+using Tracon.Testing;
+using Tracon.Testing.Contracts.Storage;
 
 namespace Tracon.PostgreSql.IntegrationTests;
 

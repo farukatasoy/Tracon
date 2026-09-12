@@ -75,14 +75,14 @@
 //   dotnet user-secrets set "Tracon:Providers:AzureOpenAI:ApiKey" "..."
 
 using System.Text.Json;
-using Tracon;
-using Tracon.Api;
 using Microsoft.Agents.AI;
 using Microsoft.Agents.AI.Workflows;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.AI.Evaluation.Quality;
 using OpenAI;
+using Tracon;
+using Tracon.Api;
 
 var builder = WebApplication.CreateBuilder(args);
 

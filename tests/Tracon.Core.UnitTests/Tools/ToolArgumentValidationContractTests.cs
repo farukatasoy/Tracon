@@ -2,8 +2,8 @@ using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json;
 using System.Text.RegularExpressions;
-using Tracon.Testing.Contracts.Tools;
 using Microsoft.Extensions.AI;
+using Tracon.Testing.Contracts.Tools;
 
 namespace Tracon.Core.UnitTests.Tools;
 

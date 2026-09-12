@@ -1,7 +1,7 @@
 using System.Text.Json;
+using Microsoft.Data.SqlClient;
 using Tracon.SqlServer.IntegrationTests.Infrastructure;
 using Tracon.Testing.Contracts.Storage;
-using Microsoft.Data.SqlClient;
 
 namespace Tracon.SqlServer.IntegrationTests;
 

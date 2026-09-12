@@ -1,13 +1,13 @@
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Threading;
-using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using ModelContextProtocol;
 using ModelContextProtocol.Extensions.Tasks;
 using ModelContextProtocol.Protocol;
+using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 
 namespace Tracon.AspNetCore.FunctionalTests;
 

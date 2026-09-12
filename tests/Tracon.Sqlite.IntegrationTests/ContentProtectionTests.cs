@@ -1,8 +1,8 @@
-using Tracon.Sqlite.IntegrationTests.Infrastructure;
-using Tracon.Testing.Contracts.Storage;
 using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Options;
+using Tracon.Sqlite.IntegrationTests.Infrastructure;
+using Tracon.Testing.Contracts.Storage;
 
 namespace Tracon.Sqlite.IntegrationTests;
 

@@ -1,5 +1,5 @@
-using Tracon.Testing.Contracts.Tools;
 using Microsoft.Extensions.AI;
+using Tracon.Testing.Contracts.Tools;
 
 namespace Tracon.Core.UnitTests.Tools;
 

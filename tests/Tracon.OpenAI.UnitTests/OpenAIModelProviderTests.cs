@@ -1,6 +1,6 @@
-using Tracon.OpenAI.UnitTests.Infrastructure;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging;
+using Tracon.OpenAI.UnitTests.Infrastructure;
 
 namespace Tracon.OpenAI.UnitTests;
 
