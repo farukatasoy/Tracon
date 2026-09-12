@@ -1,6 +1,6 @@
 # Faz 162 — Tracon Yeniden Adlandırma
 
-> **Durum:** 🚧 Sürüyor
+> **Durum:** 🚧 Sürüyor (kapılar yeşil; denetim ve kapanış kaldı)
 > **Kaynak:** Kullanıcı kararı (2026-09-12) — ürün adı değişti. Bu kalem [ADAYLAR.md](ADAYLAR.md) içinde hiç bulunmadı
 > **Önkoşul:** Yok. Dış kimlikler faz öncesi alındı: npm org `tracon`, `tracon.dev` DNS, iki GitHub reposu
 > **Paketler:** 21'inin tamamı — kök ad alanı, paket kimliği, assembly adı
@@ -114,6 +114,25 @@ yazıldı. Arşivdeki ~160 işaretçiden yalnız **bu biri** etkilendi — dosya
 
 Bitti tanımı bu yüzden **üç** istisna taşır.
 
+### S7 — Ad, ALFABETİK SIRAYA girer; değiştirme bunu göremez
+
+Yeni ad eski adın bulunmadığı yere sıralanır. Bu, üç ayrı yerde **içerik
+değil sıra** farkı üretti; üçü de değiştirmeyle çözülemez, yalnız yeniden
+üretmeyle:
+
+| Yüzey | Nasıl çıktı |
+|---|---|
+| OpenAPI `components.schemas` | 5 şema 8–12. sıradan 240–244'e taşındı |
+| Üretilen istemci + TS şeması | aynı satır kümesi, farklı sıra |
+| C# `using` direktifleri | `dotnet format` 263 dosyada sıra hatası buldu |
+
+Üçünde de **aynı kanıt yöntemi** kullanıldı: sıralanmış satır kümelerini
+karşılaştır. Küme aynıysa fark yalnız sıradır ve kaçan ad yoktur.
+
+**Bu sınıf bir yeniden adlandırmanın kaçınılmaz sonucudur.** Adın ilk harfi
+değiştiği için her alfabetik sıralama etkilenir; ad aynı harfle başlasaydı
+hiçbiri görünmezdi.
+
 ---
 
 ## Bu Fazda Verilen Kararlar
@@ -148,6 +167,6 @@ geri getirilir (K-542).
 - [x] Üretilen istemci yeniden üretildi, kaçan ad yok (aynı satır kümesi)
 - [x] SQL baseline'ları yeniden üretildi → değiştirilmişle **birebir aynı**
 - [x] Agent map yeniden üretildi, drift kapısı geçiyor
-- [ ] `kapi.py kapanis --taban 96e515db` dört kapı sıfır uyarı
-- [ ] `kapi.py yayin --kuru` yeşil; `.nupkg` kimlik kümesi tam `Tracon.*`
-- [ ] Ekran görüntüleri yeniden üretildi
+- [x] `kapi.py kapanis --taban 96e515db` dört kapı sıfır uyarı (çıkış 0)
+- [x] `kapi.py yayin --kuru` yeşil (çıkış 0): 20 paket, npm dry-run, 6 packed sample + Native AOT smoke. Kimlik kümesi tam `Tracon.*`
+- [x] 19 ekran görüntüsü yeniden üretildi (`Ui.E2ETests` 58/58)
