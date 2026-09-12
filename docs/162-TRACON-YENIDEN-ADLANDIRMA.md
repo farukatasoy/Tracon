@@ -1,6 +1,6 @@
 # Faz 162 — Tracon Yeniden Adlandırma
 
-> **Durum:** 🚧 Sürüyor
+> **Durum:** ✅ Tamamlandı (2026-09-12)
 > **Kaynak:** Kullanıcı kararı (2026-09-12) — ürün adı değişti. Bu kalem [ADAYLAR.md](ADAYLAR.md) içinde hiç bulunmadı
 > **Önkoşul:** Yok. Dış kimlikler faz öncesi alındı: npm org `tracon`, `tracon.dev` DNS, iki GitHub reposu
 > **Paketler:** 21'inin tamamı — kök ad alanı, paket kimliği, assembly adı
@@ -139,7 +139,8 @@ hiçbiri görünmezdi.
 
 ## Bu Fazda Verilen Kararlar
 
-- **K-753** — migration bütünlük manifest'i yeniden temellendirilir (aşağıda).
+- **K-753** — migration bütünlük manifest'i yeniden temellendirilir.
+- **K-754** — analyzer tanı öneki `TRC`; kısaltmalar ad aramasıyla bulunamaz.
 - Üçüncü taraf ve tarihli ölçüm kayıtları yeniden adlandırılmaz (S5).
 - `agent-prism` / `agent.prism` **dokunulmadı**: ikisi
   `MigrationRunnerTests` içinde geçersiz-identifier fixture'ıdır, biri üçüncü
@@ -150,6 +151,35 @@ hiçbiri görünmezdi.
   veritabanı yok (kullanıcı kararı 2026-09-12), bu yüzden düzeltme
   migration'ı **yazılmadı**.
 - Logo ve favicon değişmedi — tasarım borcu olarak [ADAYLAR.md](ADAYLAR.md).
+
+---
+
+## Örnek Uygulama Koşumu (Adım 2)
+
+`samples/Tracon.Api`, varsayılan **dışı** yapılandırmayla
+(`Tracon__Observability__SuccessSampleRatio=1`) ayağa kaldırıldı. Gerçek çıktı:
+
+| Yoklama | Sonuç |
+|---|---|
+| `GET /tracon/api/meta` | `200` · gövde `"prefix":"/tracon"`, `"version":"0.0.0-preview.0.693"` |
+| `GET /agentprism/api/meta` (eski önek) | **`404`** — eski montaj öneki gerçekten yok |
+| `X-Tracon-Tenant: default` | `200` |
+| Arayüz `<title>` | `Tracon` |
+| Log kategorisi | `Tracon.McpDiscoveryService` |
+
+Eski header (`X-AgentPrism-Tenant`) de `200` döner; bu **doğru** davranıştır —
+tanınmayan bir header yok sayılır ve varsayılan kiracı uygulanır. Kanıt değeri
+olan yoklama eski **önekin** 404 dönmesidir.
+
+## Manuel Kabul Seti (Adım 3)
+
+**Yeni case eklenmedi, gerekçesi:** bu faz hiçbir davranış değiştirmedi
+(denetim ölçtü: `src/**/*.cs` içinde 934 dosya çifti normalize edilerek
+karşılaştırıldı, ad değişimi dışında sıfır fark). Mevcut 1597 case'in tamamı
+geçişle birlikte yeni adı ve yeni komutları taşır; sayım kapısı
+(`manuel_test_sayim_kaymasi`) yeşildir. Yeniden adlandırmanın kendi kanıtı
+kapı koşumları ve yukarıdaki örnek uygulama koşumudur, yeni bir kabul case'i
+değildir.
 
 ---
 
@@ -173,6 +203,16 @@ Denetçinin ayrıca ölçtüğü: `src/**/*.cs` içinde 934 dosya çifti normali
 ---
 
 ## Sonraki Faza Devir Notu
+
+Sonraki faz dokümanı **yoktur** — 162 yol haritasının son kalemidir. Bir sonraki
+faz seçildiğinde `faz-planlama` koşar.
+
+🚨 **Bir sonraki yeniden adlandırmayı yapacak oturuma:** ad varyantı listesi bir
+hipotezdir. Bu fazda listeyi değil **büyük/küçük duyarsız kalıntı denetimi**
+beşinci varyantı (camelCase) buldu, ve o denetim bile **kısaltmayı** (`APG`)
+göremedi — onu bağımsız denetim buldu. Sıra: (1) uzun bileşik literal'ler
+(host, URL) önce, (2) duyarlı varyant geçişleri, (3) duyarsız kalıntı denetimi,
+(4) kısaltmalar için ayrı elle arama.
 
 `repositoryIsPublic` **`false` kalır**. `astro.config.mjs` bu bayrağı hiç
 import etmiyor — repo public yapılırsa `editLink`/`social` blokları **elle**
