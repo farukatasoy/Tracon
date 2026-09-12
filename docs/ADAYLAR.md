@@ -766,7 +766,7 @@ koşumu kırmızıya çevirmez.
 
 ### F-221 · Logo ve favicon adı anlatmıyor
 
-**Kaynak:** [Faz 162](../162-TRACON-YENIDEN-ADLANDIRMA.md) — kullanıcı kararı
+**Kaynak:** [Faz 162](162-TRACON-YENIDEN-ADLANDIRMA.md) — kullanıcı kararı
 (D5): görseller o fazda bilerek değiştirilmedi.
 
 **Gözlem:** `assets/icon.png` ve `docs-site/public/favicon.svg` bir prizma
@@ -793,7 +793,7 @@ türevler tek komutla çıkar.
 
 ### F-222 · Ekran görüntüsü kapısı sıfır kez dönüyor
 
-**Kaynak:** [Faz 162](../162-TRACON-YENIDEN-ADLANDIRMA.md) keşfi — faz
+**Kaynak:** [Faz 162](162-TRACON-YENIDEN-ADLANDIRMA.md) keşfi — faz
 kapsamı dışında bırakıldı (kullanıcı kararı 2026-09-12).
 
 **Gözlem:** `docs-site/scripts/check-content.mjs:399` `nav.*` anahtarlarını
