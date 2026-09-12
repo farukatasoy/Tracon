@@ -153,7 +153,7 @@ function AuditRow({
         <Td>
           <Mono>{entry.entity}</Mono>
         </Td>
-        <Td className="text-right text-[11px] text-muted">{isExpanded ? t('audit.hide') : t('audit.details')}</Td>
+        <Td className="text-right text-xs text-muted">{isExpanded ? t('audit.hide') : t('audit.details')}</Td>
       </tr>
 
       {isExpanded && (
@@ -169,19 +169,19 @@ function AuditRow({
               ) : (
                 <div className="grid gap-3 sm:grid-cols-2">
                   <div>
-                    <p className="mb-1 text-[11px] font-medium tracking-wide text-subtle uppercase">{t('audit.before')}</p>
+                    <p className="mb-1 text-xs font-medium tracking-wide text-subtle uppercase">{t('audit.before')}</p>
                     {entry.before != null ? (
                       <CodeBlock code={prettyJson(entry.before)} maxHeight="max-h-64" />
                     ) : (
-                      <p className="text-[12px] text-subtle">—</p>
+                      <p className="text-sm text-subtle">—</p>
                     )}
                   </div>
                   <div>
-                    <p className="mb-1 text-[11px] font-medium tracking-wide text-subtle uppercase">{t('audit.after')}</p>
+                    <p className="mb-1 text-xs font-medium tracking-wide text-subtle uppercase">{t('audit.after')}</p>
                     {entry.after != null ? (
                       <CodeBlock code={prettyJson(entry.after)} maxHeight="max-h-64" />
                     ) : (
-                      <p className="text-[12px] text-subtle">—</p>
+                      <p className="text-sm text-subtle">—</p>
                     )}
                   </div>
                 </div>

@@ -36,7 +36,7 @@ export function PassRateBar({ passed, failed, total }: { passed: number; failed:
   const t = useT();
 
   if (total === 0) {
-    return <span className="text-[11px] text-subtle">{t('evals.noCases')}</span>;
+    return <span className="text-xs text-subtle">{t('evals.noCases')}</span>;
   }
 
   const passedPct = (passed / total) * 100;
@@ -50,7 +50,7 @@ export function PassRateBar({ passed, failed, total }: { passed: number; failed:
           <div className="h-full bg-danger" style={{ width: `${failedPct}%` }} />
         </div>
       </div>
-      <span className="text-[11px] text-muted">
+      <span className="text-xs text-muted">
         {passed}/{total}
       </span>
     </div>
@@ -256,7 +256,7 @@ export function EvalsScreen({ meta }: { meta: Meta }): ReactNode {
                     <Td>
                       <Link to={`evals/${encodeURIComponent(suite.name)}`}>{suite.name}</Link>
                       {suite.description != null && suite.description.length > 0 && (
-                        <span className="block text-[12px] text-subtle">{suite.description}</span>
+                        <span className="block text-sm text-subtle">{suite.description}</span>
                       )}
                     </Td>
                     <Td>

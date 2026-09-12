@@ -67,22 +67,22 @@ export function JobDetailScreen({ id, meta }: { id: string; meta: Meta }): React
       <Panel className="mb-4">
         <div className="grid grid-cols-2 gap-4 p-4 sm:grid-cols-4">
           <div>
-            <span className="block text-[11px] tracking-wide text-subtle uppercase">{t('common.status')}</span>
+            <span className="block text-xs tracking-wide text-subtle uppercase">{t('common.status')}</span>
             <span className="mt-0.5 block"><JobStatusBadge status={job.status} /></span>
           </div>
           <div>
-            <span className="block text-[11px] tracking-wide text-subtle uppercase">{t('jobs.progress')}</span>
+            <span className="block text-xs tracking-wide text-subtle uppercase">{t('jobs.progress')}</span>
             <span className="mt-0.5 block">
               <JobProgressBar done={job.doneItems} failed={job.failedItems} total={job.totalItems} />
             </span>
           </div>
           <div>
-            <span className="block text-[11px] tracking-wide text-subtle uppercase">{t('jobs.attempt')}</span>
-            <span className="mt-0.5 block text-[13px]">{job.attempt}</span>
+            <span className="block text-xs tracking-wide text-subtle uppercase">{t('jobs.attempt')}</span>
+            <span className="mt-0.5 block text-base">{job.attempt}</span>
           </div>
           <div>
-            <span className="block text-[11px] tracking-wide text-subtle uppercase">{t('jobs.scheduledFor')}</span>
-            <span className="mt-0.5 block text-[13px]" title={absoluteTime(job.scheduledFor)}>
+            <span className="block text-xs tracking-wide text-subtle uppercase">{t('jobs.scheduledFor')}</span>
+            <span className="mt-0.5 block text-base" title={absoluteTime(job.scheduledFor)}>
               {relativeTime(job.scheduledFor)}
             </span>
           </div>

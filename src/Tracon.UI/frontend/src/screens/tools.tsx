@@ -72,9 +72,9 @@ export function ToolsScreen(): ReactNode {
             <Panel key={tool.name}>
               <div className="flex flex-wrap items-start justify-between gap-3 border-b border-line px-4 py-2.5">
                 <div>
-                  <Mono className="text-[13px] font-semibold">{tool.name}</Mono>
+                  <Mono className="text-base font-semibold">{tool.name}</Mono>
                   {tool.description != null && (
-                    <p className="mt-0.5 text-[12px] text-muted">{tool.description}</p>
+                    <p className="mt-0.5 text-sm text-muted">{tool.description}</p>
                   )}
                 </div>
                 <div className="flex flex-wrap items-center gap-1.5">
@@ -129,7 +129,7 @@ export function ToolsScreen(): ReactNode {
 
               <div className="p-4">
                 {tool.jsonSchema == null || tool.jsonSchema.length === 0 ? (
-                  <p className="text-[12px] text-subtle">{t('tools.noArguments')}</p>
+                  <p className="text-sm text-subtle">{t('tools.noArguments')}</p>
                 ) : (
                   <CodeBlock code={prettyJson(tool.jsonSchema)} maxHeight="max-h-72" />
                 )}
@@ -139,7 +139,7 @@ export function ToolsScreen(): ReactNode {
         })}
       </div>
 
-      <p className="mt-4 text-[11px] text-subtle">
+      <p className="mt-4 text-xs text-subtle">
         {t('tools.durationNote')}
       </p>
     </>
@@ -189,14 +189,14 @@ function UsageStrip({ usage }: { usage: ToolUsage | undefined }): ReactNode {
 
   if (usage === undefined) {
     return (
-      <div className="border-b border-line px-4 py-1.5 text-[11px] text-subtle">
+      <div className="border-b border-line px-4 py-1.5 text-xs text-subtle">
         {t('tools.neverCalled')}
       </div>
     );
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-x-5 gap-y-1 border-b border-line px-4 py-1.5 text-[11px] text-muted">
+    <div className="flex flex-wrap items-center gap-x-5 gap-y-1 border-b border-line px-4 py-1.5 text-xs text-muted">
       <span>
         <span className="text-subtle">{t('tools.calls')}</span> {count(usage.totalCalls)}
       </span>

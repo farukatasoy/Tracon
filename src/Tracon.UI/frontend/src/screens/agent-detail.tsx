@@ -91,14 +91,14 @@ export function AgentDetailScreen({ name, meta }: { name: string; meta: Meta }):
       {error !== null && <div className="mb-4"><ErrorNote error={error} /></div>}
 
       {!isEditable && (
-        <div className="mb-4 rounded-md border border-line bg-info-soft px-3 py-2 text-[12px] text-info">
+        <div className="mb-4 rounded-md border border-line bg-info-soft px-3 py-2 text-sm text-info">
           {t('agentDetail.codeNotice')}
         </div>
       )}
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Panel title={t('agentDetail.summary')}>
-          <dl className="divide-y divide-line text-[13px]">
+          <dl className="divide-y divide-line text-base">
             <Row label={t('common.name')}><Mono>{descriptor.name}</Mono></Row>
             <Row label={t('common.source')}>
               <div className="flex items-center gap-1.5">
@@ -139,11 +139,11 @@ export function AgentDetailScreen({ name, meta }: { name: string; meta: Meta }):
         <Panel title={t('agentDetail.instructions')}>
           <div className="p-4">
             {definition?.instructions || factoryInstructions ? (
-              <p className="text-[13px] leading-relaxed whitespace-pre-wrap">
+              <p className="text-base leading-relaxed whitespace-pre-wrap">
                 {definition?.instructions ?? factoryInstructions}
               </p>
             ) : (
-              <p className="text-[13px] text-subtle">
+              <p className="text-base text-subtle">
                 {t('agentDetail.noInstructions')}
                 {definition === null && ` ${t('agentDetail.noDefinitionForCode')}`}
               </p>
@@ -172,7 +172,7 @@ export function AgentDetailScreen({ name, meta }: { name: string; meta: Meta }):
 function Row({ label, children }: { label: string; children: ReactNode }): ReactNode {
   return (
     <div className="flex items-baseline gap-4 px-4 py-2">
-      <dt className="w-24 shrink-0 text-[12px] text-subtle">{label}</dt>
+      <dt className="w-24 shrink-0 text-sm text-subtle">{label}</dt>
       <dd className="min-w-0 flex-1">{children}</dd>
     </div>
   );
@@ -300,7 +300,7 @@ function VersionHistory({
                 ))}
               </tbody>
             </Table>
-            <p className="border-t border-line px-4 py-2 text-[11px] text-subtle">
+            <p className="border-t border-line px-4 py-2 text-xs text-subtle">
               {selected.length === 1
                 ? t('agentDetail.selectOneMore')
                 : selected.length === 2
@@ -445,7 +445,7 @@ function cultureUnion(
 function Section({ title, children }: { title: string; children: ReactNode }): ReactNode {
   return (
     <section>
-      <h3 className="mb-1.5 text-[11px] font-semibold tracking-wide text-subtle uppercase">{title}</h3>
+      <h3 className="mb-1.5 text-xs font-semibold tracking-wide text-subtle uppercase">{title}</h3>
       {children}
     </section>
   );

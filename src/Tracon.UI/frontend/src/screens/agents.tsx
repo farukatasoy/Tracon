@@ -131,7 +131,7 @@ export function AgentsScreen({ meta }: { meta: TraconMetaResponse }): ReactNode 
                         <Mono className="ml-2 text-subtle">{agent.name}</Mono>
                       )}
                       {agent.description !== null && agent.description !== undefined && (
-                        <span className="block text-[12px] text-muted">{agent.description}</span>
+                        <span className="block text-sm text-muted">{agent.description}</span>
                       )}
                     </Link>
                   </Td>

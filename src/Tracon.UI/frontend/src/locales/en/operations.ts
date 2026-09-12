@@ -288,6 +288,7 @@ export const enOperations = {
   "approvals.approveTitle": 'Approve this call and queue a new run with the same session to continue.',
   "approvals.reject": 'Reject',
   "approvals.rejectTitle": 'Refuse this call and queue a new run with the same session so the model can react.',
+  "approvals.waiting": '{count} waiting',
   "approvals.status.pending": 'Pending',
   "approvals.status.approved": 'Approved',
   "approvals.status.rejected": 'Rejected',

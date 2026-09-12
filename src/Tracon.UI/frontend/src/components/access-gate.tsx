@@ -56,10 +56,10 @@ export function AccessGate({ children }: { children: (meta: Meta) => ReactNode }
     return (
       <Centered>
         <Card title={t('access.unreachable.title')}>
-          <p className="text-[13px] text-muted">
+          <p className="text-base text-muted">
             {t('access.unreachable.body', { path: 'api/meta' })}
           </p>
-          <p className="mt-2 text-[12px] text-subtle">
+          <p className="mt-2 text-sm text-subtle">
             {meta.error instanceof Error ? meta.error.message : String(meta.error)}
           </p>
         </Card>
@@ -82,12 +82,12 @@ export function AccessGate({ children }: { children: (meta: Meta) => ReactNode }
       <Centered>
         <Card title={t('access.denied.title')}>
           {/* Server text, shown as it came: the API contract is single-language. */}
-          <p className="text-[13px] text-muted">{error.detail ?? error.title}</p>
+          <p className="text-base text-muted">{error.detail ?? error.title}</p>
           {!meta.data.authentication.allowRemoteAccess && (
-            <p className="mt-3 text-[12px] text-subtle">{t('access.denied.remote')}</p>
+            <p className="mt-3 text-sm text-subtle">{t('access.denied.remote')}</p>
           )}
           {meta.data.authentication.requiresAuthorizationPolicy && (
-            <p className="mt-3 text-[12px] text-subtle">{t('access.denied.policy')}</p>
+            <p className="mt-3 text-sm text-subtle">{t('access.denied.policy')}</p>
           )}
         </Card>
       </Centered>
@@ -107,7 +107,7 @@ function TokenPrompt({ failed }: { failed: boolean }): ReactNode {
 
   return (
     <Card title={t('access.token.title')}>
-      <p className="mb-4 text-[13px] text-muted">{t('access.token.body')}</p>
+      <p className="mb-4 text-base text-muted">{t('access.token.body')}</p>
 
       <form
         onSubmit={(event) => {
@@ -127,7 +127,7 @@ function TokenPrompt({ failed }: { failed: boolean }): ReactNode {
         </Field>
 
         {failed && (
-          <p role="alert" className="mt-2 text-[12px] text-danger">
+          <p role="alert" className="mt-2 text-sm text-danger">
             {t('access.token.rejected', { setting: 'TraconEndpointOptions.AuthToken' })}
           </p>
         )}
@@ -151,10 +151,10 @@ function Card({ title, children }: { title: string; children: ReactNode }): Reac
     <div className="w-full max-w-md">
       <div className="mb-5 flex items-center gap-2.5">
         <TraconMark className="size-7 text-fg" />
-        <span className="text-lg font-semibold tracking-tight">Tracon</span>
+        <span className="text-metric font-semibold tracking-tight">Tracon</span>
       </div>
       <Panel className="p-5">
-        <h1 className="mb-2 text-[15px] font-semibold">{title}</h1>
+        <h1 className="mb-2 text-section font-semibold">{title}</h1>
         {children}
       </Panel>
     </div>

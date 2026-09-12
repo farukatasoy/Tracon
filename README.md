@@ -49,10 +49,12 @@ Experiments, Approvals, Tools, Models, MCP, Triggers, Audit, Diagnostics, Settin
 
 Written in React 19 and TypeScript, built with Vite, and embedded in the assembly
 **Brotli-compressed**. No JavaScript dependency appears in the consuming project and no
-`node_modules` folder is needed. The JavaScript budget is **175.9 KB gzip** (gate: 250 KB).
+`node_modules` folder is needed. The JavaScript budget is **184.1 KB gzip** (gate: 250 KB),
+and a gate fails the build on a fifth run-time dependency.
 
 The console runs under any prefix (`/tracon`, `/panel`, …) and learns the prefix at
-run time. Light and dark themes; the default follows the operating system.
+run time. Navigation is split into **Operate** and **Configure**. A dark instrument
+palette is the default; a light theme and "follow system" are both offered.
 
 **A slice of the HTTP surface:**
 

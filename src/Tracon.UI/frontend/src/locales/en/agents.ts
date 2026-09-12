@@ -71,6 +71,7 @@ export const enAgents = {
   "agentDetail.memory": 'Memory',
   "agentEditor.editTitle": 'Edit {name}',
   "agentEditor.newTitle": 'New agent',
+  "agentEditor.loading": 'Loading the definition',
   "agentEditor.editDescription": 'Saving writes a new version. An earlier version stays in the history and can be rolled back to.',
   "agentEditor.newDescription": 'The definition is stored in the database and compiled when the agent runs.',
   "agentEditor.saveVersion": 'Save new version',

@@ -19,22 +19,13 @@ import type {
   TimeSeriesPoint,
 } from '../lib/server-types';
 
-/**
- * A faint wash of a theme colour. Same trick as the workflow graph: mixed at
- * paint time rather than added as new `*-soft` tokens, so both themes stay
- * in sync automatically.
- */
-function tint(token: string): string {
-  return `color-mix(in srgb, var(${token}) 16%, transparent)`;
-}
-
 function EmptyChart({ height }: { height: number }): ReactNode {
   const t = useT();
 
   return (
     <div
       style={{ height }}
-      className="flex items-center justify-center text-[12px] text-subtle"
+      className="flex items-center justify-center text-sm text-subtle"
     >
       {t('charts.noRuns')}
     </div>
@@ -56,7 +47,9 @@ export function TimeSeriesChart({
   width?: number;
 }): ReactNode {
   const t = useT();
-  const padding = { top: 10, right: 12, bottom: 20, left: 12 };
+  // 🚨 The horizontal padding holds the FIRST and LAST tick labels, which are
+  // anchored to the plot's edges. At 12 px they were clipped by the panel.
+  const padding = { top: 10, right: 16, bottom: 20, left: 16 };
   const plotWidth = width - padding.left - padding.right;
   const plotHeight = height - padding.top - padding.bottom;
 
@@ -101,23 +94,23 @@ export function TimeSeriesChart({
       className="max-w-full"
     >
       <g transform={`translate(${padding.left}, ${padding.top})`}>
-        <path d={layout.runsPath} fill="none" stroke="var(--ap-violet)" strokeWidth={1.75} />
+        <path d={layout.runsPath} fill="none" stroke="var(--tracon-series-1)" strokeWidth={1.75} />
         <path
           d={layout.failedPath}
           fill="none"
-          stroke="var(--ap-rose)"
+          stroke="var(--tracon-danger)"
           strokeWidth={1.5}
           strokeDasharray="4 3"
         />
 
-        {layout.ticks.map((tick) => (
+        {layout.ticks.map((tick, index) => (
           <text
             key={tick.index}
             x={tick.x}
             y={plotHeight + 16}
-            textAnchor="middle"
-            fill="var(--ap-subtle)"
-            className="text-[10px]"
+            textAnchor={index === 0 ? 'start' : index === layout.ticks.length - 1 ? 'end' : 'middle'}
+            fill="var(--tracon-subtle)"
+            className="text-2xs"
           >
             {tick.label}
           </text>
@@ -153,7 +146,9 @@ export function ScoreTrendChart({
   width?: number;
 }): ReactNode {
   const t = useT();
-  const padding = { top: 10, right: 12, bottom: 20, left: 12 };
+  // 🚨 The horizontal padding holds the FIRST and LAST tick labels, which are
+  // anchored to the plot's edges. At 12 px they were clipped by the panel.
+  const padding = { top: 10, right: 16, bottom: 20, left: 16 };
   const plotWidth = width - padding.left - padding.right;
   const plotHeight = height - padding.top - padding.bottom;
 
@@ -212,20 +207,20 @@ export function ScoreTrendChart({
       className="max-w-full"
     >
       <g transform={`translate(${padding.left}, ${padding.top})`}>
-        <path d={layout.path} fill="none" stroke="var(--ap-violet)" strokeWidth={1.75} />
+        <path d={layout.path} fill="none" stroke="var(--tracon-series-1)" strokeWidth={1.75} />
 
         {layout.dots.map((dot, index) => (
-          <circle key={index} cx={dot.x} cy={dot.y} r={2.5} fill="var(--ap-violet)" />
+          <circle key={index} cx={dot.x} cy={dot.y} r={2.5} fill="var(--tracon-series-1)" />
         ))}
 
-        {layout.ticks.map((tick) => (
+        {layout.ticks.map((tick, index) => (
           <text
             key={tick.index}
             x={tick.x}
             y={plotHeight + 16}
-            textAnchor="middle"
-            fill="var(--ap-subtle)"
-            className="text-[10px]"
+            textAnchor={index === 0 ? 'start' : index === layout.ticks.length - 1 ? 'end' : 'middle'}
+            fill="var(--tracon-subtle)"
+            className="text-2xs"
           >
             {tick.label}
           </text>
@@ -252,21 +247,25 @@ export function ModelBreakdownChart({
   return (
     <div data-testid="model-breakdown-chart" className="flex flex-col gap-2 p-4">
       {models.map((model) => (
-        <div key={model.modelId} className="flex items-center gap-3 text-[12px]">
-          <span className="w-32 shrink-0 truncate text-muted" title={model.modelId}>
+        // 🚨 Four fixed-width columns plus a flexible bar could not fit a
+        // phone: their minimum widths added up past the viewport and pushed the
+        // whole page sideways. The bar now takes its own line below the
+        // figures, so the row wraps instead of forcing the page wider.
+        <div key={model.modelId} className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+          <span className="min-w-24 flex-1 truncate text-muted sm:w-32 sm:flex-none" title={model.modelId}>
             {model.modelId}
           </span>
-          <div className="h-4 flex-1 rounded bg-raised">
-            <div
-              style={{ width: `${(model.totalRuns / max) * 100}%`, background: tint('--ap-violet') }}
-              className="h-full rounded"
-            />
-          </div>
-          <span className="w-16 shrink-0 text-right text-subtle">{count(model.totalRuns)} run</span>
-          <span className="w-16 shrink-0 text-right text-subtle">{count(model.totalTokens)} tok</span>
-          <span className="w-28 shrink-0 text-right font-medium">
+          <span className="w-14 shrink-0 text-right font-mono text-subtle">{count(model.totalRuns)} run</span>
+          <span className="w-16 shrink-0 text-right font-mono text-subtle">{count(model.totalTokens)} tok</span>
+          <span className="w-20 shrink-0 text-right font-mono font-medium">
             {model.totalCost === undefined ? '—' : money(model.totalCost, currency)}
           </span>
+          <div className="h-1.5 w-full rounded-full bg-raised">
+            <div
+              style={{ width: `${(model.totalRuns / max) * 100}%`, background: 'var(--tracon-series-1)' }}
+              className="h-full rounded-full"
+            />
+          </div>
         </div>
       ))}
     </div>
@@ -305,10 +304,10 @@ export function TokenBreakdownChart({ stats }: { stats: RunStatistics }): ReactN
   // Solid tokens, not tints: four adjacent slices have to stay apart from each
   // other. Every one of these is defined in BOTH themes in styles.css.
   const colours: Record<string, string> = {
-    cachedInput: 'var(--ap-emerald)',
-    input: 'var(--ap-violet)',
-    reasoning: 'var(--ap-amber)',
-    output: 'var(--ap-cyan)',
+    cachedInput: 'var(--tracon-series-6)',
+    input: 'var(--tracon-series-1)',
+    reasoning: 'var(--tracon-series-5)',
+    output: 'var(--tracon-series-4)',
   };
 
   const labels: Record<string, string> = {
@@ -335,7 +334,7 @@ export function TokenBreakdownChart({ stats }: { stats: RunStatistics }): ReactN
         ))}
       </div>
 
-      <dl className="flex flex-wrap gap-x-4 gap-y-1 text-[12px]">
+      <dl className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
         {slices.map((slice) => (
           <div key={slice.key} className="flex items-center gap-1.5">
             <span
@@ -353,7 +352,7 @@ export function TokenBreakdownChart({ stats }: { stats: RunStatistics }): ReactN
         The one thing a reader cannot infer from the bar: these slices are a
         RE-CUT of the input/output totals, not extra tokens beside them.
       */}
-      <p className="text-[11px] text-subtle">{t('dashboard.tokens.hint')}</p>
+      <p className="text-xs text-subtle">{t('dashboard.tokens.hint')}</p>
     </div>
   );
 }
@@ -396,7 +395,7 @@ export function StatusDistributionChart({
               y={segment.y}
               width={barWidth}
               height={segment.height}
-              fill={segment.key === 'failed' ? 'var(--ap-rose)' : tint('--ap-emerald')}
+              fill={segment.key === 'failed' ? 'var(--tracon-danger)' : 'var(--tracon-series-1)'}
             />
           ))}
         </g>

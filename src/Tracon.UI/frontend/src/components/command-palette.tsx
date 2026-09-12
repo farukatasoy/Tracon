@@ -7,8 +7,10 @@ import { rankCommands } from '../lib/palette';
 import { useNavigate } from '../lib/router';
 import { setThemePreference, useThemePreference } from '../lib/theme';
 import { cx } from './ui';
+import { Dialog, useFocusTrap } from './dialog';
+import { NAV_GROUPS } from './navigation';
 import { SearchIcon } from './icons';
-import type { TraconMetaResponse as Meta } from '@tracon/client';
+import type { TraconMetaResponse as Meta, SessionRecord } from '@tracon/client';
 import type { AgentDescriptor, RunRecord, WorkflowDescriptor } from '../lib/server-types';
 
 /**
@@ -36,26 +38,6 @@ export interface PaletteCommand {
   perform: () => void;
 }
 
-/** Screens the palette can jump to, with the role each one needs. */
-const NAVIGATION = [
-  { path: 'dashboard', key: 'nav.dashboard', english: 'Dashboard' },
-  { path: 'agents', key: 'nav.agents', english: 'Agents' },
-  { path: 'playground', key: 'nav.playground', english: 'Playground' },
-  { path: 'sessions', key: 'nav.sessions', english: 'Sessions' },
-  { path: 'workflows', key: 'nav.workflows', english: 'Workflows' },
-  { path: 'jobs', key: 'nav.jobs', english: 'Jobs' },
-  { path: 'evals', key: 'nav.evals', english: 'Evals' },
-  { path: 'experiments', key: 'nav.experiments', english: 'Experiments' },
-  { path: 'runs', key: 'nav.runs', english: 'Runs' },
-  { path: 'tools', key: 'nav.tools', english: 'Tools' },
-  { path: 'skills', key: 'nav.skills', english: 'Skills' },
-  { path: 'models', key: 'nav.models', english: 'Models' },
-  { path: 'mcp', key: 'nav.mcp', english: 'MCP' },
-  { path: 'approvals', key: 'nav.approvals', english: 'Approvals' },
-  { path: 'audit', key: 'nav.audit', english: 'Audit', adminOnly: true },
-  { path: 'settings', key: 'nav.settings', english: 'Settings' },
-] as const;
-
 export function CommandPalette({
   meta,
   open,
@@ -70,25 +52,20 @@ export function CommandPalette({
   const t = useT();
   const [query, setQuery] = useState('');
   const [highlighted, setHighlighted] = useState(0);
-  const input = useRef<HTMLInputElement | null>(null);
   const list = useRef<HTMLUListElement | null>(null);
-  // The element that had focus when the palette opened — the ⌘K button when
-  // it was clicked, or wherever focus already was for the keyboard shortcut.
-  // Restored on close; without it, focus falls through to <body>.
-  const trigger = useRef<HTMLElement | null>(null);
+  const panel = useRef<HTMLDivElement | null>(null);
 
   const commands = usePaletteCommands(meta, open, onClose, onShowShortcuts);
   const matches = useMemo(() => rankCommands(commands, query).slice(0, 40), [commands, query]);
 
+  // Focus, Esc and focus restoration are the modal layer's job, shared with
+  // every other dialog in the console (`dialog.tsx`).
+  const onTrapKeyDown = useFocusTrap(open, panel, onClose);
+
   useEffect(() => {
     if (open) {
-      trigger.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
       setQuery('');
       setHighlighted(0);
-      input.current?.focus();
-    } else {
-      trigger.current?.focus();
-      trigger.current = null;
     }
   }, [open]);
 
@@ -105,7 +82,7 @@ export function CommandPalette({
     return null;
   }
 
-  const activeId = matches[highlighted] === undefined ? undefined : `ap-command-${highlighted}`;
+  const activeId = matches[highlighted] === undefined ? undefined : `tracon-command-${highlighted}`;
 
   return (
     <div
@@ -117,24 +94,18 @@ export function CommandPalette({
       }}
     >
       <div
+        ref={panel}
         role="dialog"
         aria-modal="true"
         aria-label={t('palette.title')}
         data-testid="command-palette"
-        className="w-full max-w-lg overflow-hidden rounded-lg border border-line bg-panel shadow-panel"
+        className="w-full max-w-lg overflow-hidden rounded border border-line-strong bg-panel shadow-panel"
         onKeyDown={(event) => {
-          if (event.key === 'Escape') {
-            event.preventDefault();
-            onClose();
+          // Esc and Tab belong to the modal layer; the arrows and Enter belong
+          // to the list, which is driven by `aria-activedescendant`.
+          onTrapKeyDown(event);
 
-            return;
-          }
-
-          // Only two focusable elements live in here, and the list is driven by
-          // `aria-activedescendant`. Keeping Tab on the input IS the focus trap.
-          if (event.key === 'Tab') {
-            event.preventDefault();
-
+          if (event.key === 'Escape' || event.key === 'Tab') {
             return;
           }
 
@@ -160,27 +131,26 @@ export function CommandPalette({
         <div className="flex items-center gap-2 border-b border-line px-3">
           <SearchIcon className="size-4 shrink-0 text-subtle" />
           <input
-            ref={input}
             type="text"
             role="combobox"
             aria-expanded="true"
-            aria-controls="ap-command-list"
+            aria-controls="tracon-command-list"
             aria-autocomplete="list"
             aria-activedescendant={activeId}
             aria-label={t('palette.placeholder')}
             placeholder={t('palette.placeholder')}
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            className="h-11 w-full bg-transparent text-[14px] text-fg placeholder:text-subtle focus:outline-none"
+            className="h-11 w-full bg-transparent text-body text-fg placeholder:text-subtle focus:outline-none"
           />
         </div>
 
         {matches.length === 0 ? (
-          <p className="px-4 py-8 text-center text-[13px] text-muted">{t('palette.empty')}</p>
+          <p className="px-4 py-8 text-center text-base text-muted">{t('palette.empty')}</p>
         ) : (
           <ul
             ref={list}
-            id="ap-command-list"
+            id="tracon-command-list"
             role="listbox"
             aria-label={t('palette.results')}
             className="max-h-80 overflow-y-auto py-1"
@@ -188,31 +158,31 @@ export function CommandPalette({
             {matches.map((command, index) => (
               <li
                 key={command.id}
-                id={`ap-command-${index}`}
+                id={`tracon-command-${index}`}
                 role="option"
                 aria-selected={index === highlighted}
                 onMouseMove={() => setHighlighted(index)}
                 onClick={() => command.perform()}
                 className={cx(
-                  'flex cursor-pointer items-center justify-between gap-3 px-4 py-2 text-[13px]',
+                  'flex cursor-pointer items-center justify-between gap-3 px-4 py-2 text-base',
                   index === highlighted ? 'bg-raised text-fg' : 'text-muted',
                 )}
               >
                 <span className="min-w-0 truncate">
-                  <span className="mr-2 text-[11px] tracking-wide text-subtle uppercase">
+                  <span className="mr-2 text-xs tracking-wide text-subtle uppercase">
                     {command.group}
                   </span>
                   {command.label}
                 </span>
                 {command.hint !== undefined && (
-                  <span className="shrink-0 font-mono text-[11px] text-subtle">{command.hint}</span>
+                  <span className="shrink-0 font-mono text-xs text-subtle">{command.hint}</span>
                 )}
               </li>
             ))}
           </ul>
         )}
 
-        <p className="border-t border-line px-4 py-2 text-[11px] text-subtle">{t('palette.footer')}</p>
+        <p className="border-t border-line px-4 py-2 text-xs text-subtle">{t('palette.footer')}</p>
       </div>
     </div>
   );
@@ -251,6 +221,12 @@ function usePaletteCommands(
       unwrap(client.GET('/api/runs', { params: { query: { take: 50 } } })) as Promise<RunRecord[]>,
     enabled: open,
   });
+  const sessions = useQuery({
+    queryKey: ['sessions', 'palette'],
+    queryFn: () =>
+      unwrap(client.GET('/api/sessions', { params: { query: { take: 25 } } })) as Promise<SessionRecord[]>,
+    enabled: open,
+  });
 
   return useMemo(() => {
     const go = (path: string) => () => {
@@ -260,18 +236,20 @@ function usePaletteCommands(
 
     const commands: PaletteCommand[] = [];
 
-    for (const item of NAVIGATION) {
-      if ('adminOnly' in item && item.adminOnly && !meta.roles.canAdminister) {
-        continue;
-      }
+    for (const group of NAV_GROUPS) {
+      for (const item of group.items) {
+        if (item.adminOnly === true && !meta.roles.canAdminister) {
+          continue;
+        }
 
-      commands.push({
-        id: `go:${item.path}`,
-        group: t('palette.group.navigate'),
-        label: t(item.key),
-        keywords: `${item.english} ${item.path}`,
-        perform: go(item.path),
-      });
+        commands.push({
+          id: `go:${item.path}`,
+          group: t('palette.group.navigate'),
+          label: t(item.label),
+          keywords: `${item.english} ${item.path} ${t(group.group)}`,
+          perform: go(item.path),
+        });
+      }
     }
 
     if (meta.roles.canAdminister) {
@@ -369,6 +347,17 @@ function usePaletteCommands(
       });
     }
 
+    for (const session of sessions.data ?? []) {
+      commands.push({
+        id: `session:${session.id}`,
+        group: t('palette.group.session'),
+        label: session.agentName,
+        keywords: session.id,
+        hint: shortId(session.id),
+        perform: go(`sessions/${encodeURIComponent(session.id)}`),
+      });
+    }
+
     return commands;
   }, [
     agents.data,
@@ -378,6 +367,7 @@ function usePaletteCommands(
     onClose,
     onShowShortcuts,
     runs.data,
+    sessions.data,
     setLocale,
     t,
     workflows.data,
@@ -387,17 +377,6 @@ function usePaletteCommands(
 /** The `?` cheat sheet. */
 export function ShortcutHelp({ open, onClose }: { open: boolean; onClose: () => void }): ReactNode {
   const t = useT();
-  const close = useRef<HTMLButtonElement | null>(null);
-
-  useEffect(() => {
-    if (open) {
-      close.current?.focus();
-    }
-  }, [open]);
-
-  if (!open) {
-    return null;
-  }
 
   const rows: { keys: string; label: string }[] = [
     { keys: '⌘/Ctrl + K', label: t('shortcuts.palette') },
@@ -414,54 +393,24 @@ export function ShortcutHelp({ open, onClose }: { open: boolean; onClose: () => 
   ];
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 backdrop-blur-sm"
-      onMouseDown={(event) => {
-        if (event.target === event.currentTarget) {
-          onClose();
-        }
-      }}
+    <Dialog
+      open={open}
+      onClose={onClose}
+      title={t('shortcuts.title')}
+      description={t('shortcuts.note')}
+      width="max-w-sm"
+      testId="shortcut-help"
     >
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-label={t('shortcuts.title')}
-        data-testid="shortcut-help"
-        className="w-full max-w-sm rounded-lg border border-line bg-panel p-5 shadow-panel"
-        onKeyDown={(event) => {
-          if (event.key === 'Escape' || event.key === 'Tab') {
-            event.preventDefault();
-
-            if (event.key === 'Escape') {
-              onClose();
-            }
-          }
-        }}
-      >
-        <h2 className="mb-3 text-[15px] font-semibold">{t('shortcuts.title')}</h2>
-
-        <dl className="flex flex-col gap-1.5 text-[13px]">
-          {rows.map((row) => (
-            <div key={row.keys} className="flex items-center justify-between gap-4">
-              <dt className="text-muted">{row.label}</dt>
-              <dd className="rounded border border-line bg-raised px-1.5 py-0.5 font-mono text-[11px]">
-                {row.keys}
-              </dd>
-            </div>
-          ))}
-        </dl>
-
-        <p className="mt-4 text-[12px] text-subtle">{t('shortcuts.note')}</p>
-
-        <button
-          ref={close}
-          type="button"
-          onClick={onClose}
-          className="mt-4 h-8 w-full rounded-md border border-line bg-raised text-[13px] font-medium hover:border-line-strong"
-        >
-          {t('common.close')}
-        </button>
-      </div>
-    </div>
+      <dl className="flex flex-col gap-1.5 px-4 py-3 text-base">
+        {rows.map((row) => (
+          <div key={row.keys} className="flex items-center justify-between gap-4">
+            <dt className="text-muted">{row.label}</dt>
+            <dd className="rounded-sm border border-line-strong bg-raised px-1.5 py-px font-mono text-xs">
+              {row.keys}
+            </dd>
+          </div>
+        ))}
+      </dl>
+    </Dialog>
   );
 }

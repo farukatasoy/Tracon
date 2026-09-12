@@ -8,118 +8,160 @@
 @custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
 
 /*
-  Neutral developer-tool base. Colour is information, not decoration: the prism
-  spectrum below is assigned to domains (agents, runs, tools, ...) so a glance at
-  a colour tells you what kind of thing you are looking at.
+  The instrument layer.
 
-  🚨 `--ap-muted` and `--ap-subtle` are used at 11–12 px, which is normal-size
-  text for WCAG, so both must clear 4.5:1 against `--ap-panel` AND against
-  `--ap-raised` — subtle text lives on both. Measured in phase 30: the previous
-  values (#8e8e9d light, #6e6e80 dark) sat at 2.9–3.8:1 and failed AA. The
-  current pair measures 4.7–5.3:1 light and 4.9–5.3:1 dark. Re-measure before
-  changing either of them.
+  Dark is the default palette and lives on bare `:root`; light is a full,
+  supported alternative under `:root[data-theme='light']`. Both carry the SAME
+  token names — a token defined in only one of them disappears when the theme
+  flips, and `styles.test.ts` fails the build for it.
+
+  Colour carries meaning, not decoration. There is ONE accent (teal) and a
+  fixed status vocabulary underneath it:
+
+    accent   the live thing — a run in flight, the selected row, the caret
+    success  cleared   — completed, healthy, approved
+    warn     holding   — queued, awaiting input, awaiting approval, degraded
+    danger   denied    — failed, rejected, unhealthy
+    info     contact   — started, attached, informational lifecycle
+    neutral  standby   — cancelled, idle, structural
+
+  🚨 `--tracon-muted` and `--tracon-subtle` render at 11–13 px, which is
+  normal-size text for WCAG, so both must clear 4.5:1 against `--tracon-panel`
+  AND `--tracon-raised` — secondary text lives on both surfaces.
+  `--tracon-line-strong` bounds form controls and must clear 3:1 against all
+  three surfaces. Every pair is asserted in `styles.test.ts`; re-measure there
+  before changing any of them, do not eyeball it.
 */
-:root,
-[data-theme='light'] {
-  --ap-bg: #f7f7f9;
-  --ap-panel: #ffffff;
-  --ap-raised: #f2f2f5;
-  --ap-line: #e3e3e9;
-  --ap-line-strong: #cfcfd8;
-  --ap-fg: #14141b;
-  --ap-muted: #55555f;
-  --ap-subtle: #6b6b79;
+:root {
+  --tracon-bg: #0a1113;
+  --tracon-panel: #10191c;
+  --tracon-raised: #172429;
+  --tracon-line: #22343a;
+  --tracon-line-strong: #628589;
+  --tracon-fg: #eef5f2;
+  --tracon-muted: #b3c6c4;
+  --tracon-subtle: #9bafaf;
 
-  --ap-accent: #7c3aed;
-  --ap-accent-hover: #6d28d9;
-  --ap-accent-fg: #ffffff;
-  --ap-accent-soft: #f2ecff;
+  --tracon-accent: #73d9c2;
+  --tracon-accent-hover: #96e5d4;
+  --tracon-accent-fg: #06211c;
+  --tracon-accent-soft: #16302c;
 
-  --ap-success: #047857;
-  --ap-success-soft: #e6f6ef;
-  --ap-danger: #be123c;
-  --ap-danger-soft: #fdecef;
-  --ap-warn: #b45309;
-  --ap-warn-soft: #fdf3e3;
-  --ap-info: #1d4ed8;
-  --ap-info-soft: #e9efff;
+  --tracon-success: #9cdda7;
+  --tracon-success-soft: #12291a;
+  --tracon-danger: #f5a59b;
+  --tracon-danger-soft: #33191a;
+  --tracon-warn: #efcd88;
+  --tracon-warn-soft: #2c2313;
+  --tracon-info: #9cc7e8;
+  --tracon-info-soft: #142430;
 
-  --ap-violet: #7c3aed;
-  --ap-indigo: #4f46e5;
-  --ap-cyan: #0e7490;
-  --ap-emerald: #047857;
-  --ap-amber: #b45309;
-  --ap-rose: #be123c;
+  /* Chart series. Deliberately NOT the status colours: a series is an
+     identity, not a state, and reusing green/red here would make a chart
+     look like it was reporting success and failure. */
+  --tracon-series-1: #73d9c2;
+  --tracon-series-2: #8ebfe8;
+  --tracon-series-3: #bda9e6;
+  --tracon-series-4: #7fd2dd;
+  --tracon-series-5: #d9c58f;
+  --tracon-series-6: #9ad3a6;
 
-  --ap-shadow: 0 1px 2px rgb(20 20 27 / 0.06), 0 8px 24px -12px rgb(20 20 27 / 0.18);
+  --tracon-shadow: 0 1px 2px rgb(0 0 0 / 0.55), 0 12px 32px -18px rgb(0 0 0 / 0.85);
 }
 
-[data-theme='dark'] {
-  --ap-bg: #0a0a0f;
-  --ap-panel: #101017;
-  --ap-raised: #17171f;
-  --ap-line: #24242e;
-  --ap-line-strong: #34343f;
-  --ap-fg: #e9e9f2;
-  --ap-muted: #9b9bad;
-  --ap-subtle: #85859a;
+:root[data-theme='light'] {
+  --tracon-bg: #eef2ec;
+  --tracon-panel: #f8f9f5;
+  --tracon-raised: #e7ede7;
+  --tracon-line: #d3ddd6;
+  --tracon-line-strong: #67807d;
+  --tracon-fg: #152d32;
+  --tracon-muted: #3c5557;
+  --tracon-subtle: #4e6567;
 
-  --ap-accent: #a78bfa;
-  --ap-accent-hover: #c4b5fd;
-  --ap-accent-fg: #14101f;
-  --ap-accent-soft: #1e1730;
+  --tracon-accent: #096552;
+  --tracon-accent-hover: #064b3d;
+  --tracon-accent-fg: #f8f9f5;
+  --tracon-accent-soft: #dceee5;
 
-  --ap-success: #34d399;
-  --ap-success-soft: #0d2a22;
-  --ap-danger: #fb7185;
-  --ap-danger-soft: #2c1218;
-  --ap-warn: #fbbf24;
-  --ap-warn-soft: #2b1f0a;
-  --ap-info: #60a5fa;
-  --ap-info-soft: #101d33;
+  --tracon-success: #285d35;
+  --tracon-success-soft: #dcecdd;
+  --tracon-danger: #9b382e;
+  --tracon-danger-soft: #f6e0dc;
+  --tracon-warn: #73511b;
+  --tracon-warn-soft: #f3e9d3;
+  --tracon-info: #1f5273;
+  --tracon-info-soft: #dde9f1;
 
-  --ap-violet: #a78bfa;
-  --ap-indigo: #818cf8;
-  --ap-cyan: #22d3ee;
-  --ap-emerald: #34d399;
-  --ap-amber: #fbbf24;
-  --ap-rose: #fb7185;
+  --tracon-series-1: #0b6b56;
+  --tracon-series-2: #245d87;
+  --tracon-series-3: #4b4586;
+  --tracon-series-4: #10627a;
+  --tracon-series-5: #6e5a24;
+  --tracon-series-6: #2c6b3f;
 
-  --ap-shadow: 0 1px 2px rgb(0 0 0 / 0.5), 0 12px 32px -16px rgb(0 0 0 / 0.8);
+  --tracon-shadow: 0 1px 2px rgb(21 45 50 / 0.07), 0 8px 24px -14px rgb(21 45 50 / 0.22);
 }
 
 @theme inline {
-  --color-bg: var(--ap-bg);
-  --color-panel: var(--ap-panel);
-  --color-raised: var(--ap-raised);
-  --color-line: var(--ap-line);
-  --color-line-strong: var(--ap-line-strong);
-  --color-fg: var(--ap-fg);
-  --color-muted: var(--ap-muted);
-  --color-subtle: var(--ap-subtle);
+  --color-bg: var(--tracon-bg);
+  --color-panel: var(--tracon-panel);
+  --color-raised: var(--tracon-raised);
+  --color-line: var(--tracon-line);
+  --color-line-strong: var(--tracon-line-strong);
+  --color-fg: var(--tracon-fg);
+  --color-muted: var(--tracon-muted);
+  --color-subtle: var(--tracon-subtle);
 
-  --color-accent: var(--ap-accent);
-  --color-accent-hover: var(--ap-accent-hover);
-  --color-accent-fg: var(--ap-accent-fg);
-  --color-accent-soft: var(--ap-accent-soft);
+  --color-accent: var(--tracon-accent);
+  --color-accent-hover: var(--tracon-accent-hover);
+  --color-accent-fg: var(--tracon-accent-fg);
+  --color-accent-soft: var(--tracon-accent-soft);
 
-  --color-success: var(--ap-success);
-  --color-success-soft: var(--ap-success-soft);
-  --color-danger: var(--ap-danger);
-  --color-danger-soft: var(--ap-danger-soft);
-  --color-warn: var(--ap-warn);
-  --color-warn-soft: var(--ap-warn-soft);
-  --color-info: var(--ap-info);
-  --color-info-soft: var(--ap-info-soft);
+  --color-success: var(--tracon-success);
+  --color-success-soft: var(--tracon-success-soft);
+  --color-danger: var(--tracon-danger);
+  --color-danger-soft: var(--tracon-danger-soft);
+  --color-warn: var(--tracon-warn);
+  --color-warn-soft: var(--tracon-warn-soft);
+  --color-info: var(--tracon-info);
+  --color-info-soft: var(--tracon-info-soft);
 
-  --color-violet: var(--ap-violet);
-  --color-indigo: var(--ap-indigo);
-  --color-cyan: var(--ap-cyan);
-  --color-emerald: var(--ap-emerald);
-  --color-amber: var(--ap-amber);
-  --color-rose: var(--ap-rose);
+  --shadow-panel: var(--tracon-shadow);
 
-  --shadow-panel: var(--ap-shadow);
+  /*
+    The density scale. Operator density: a 13 px base, tight leading, and a
+    monospace step for identifiers. Every primitive reads a NAMED step —
+    `text-[13px]` in a component is the scale leaking back out of this file.
+
+      2xs      10   legend, chart axis
+      xs       11   badge, hint, column header
+      sm       12   secondary line under a value
+      base     13   table cell, label, help text
+      body     14   panel prose, form field
+      section  15   panel heading
+      metric   18   a single number worth reading across the room
+      title    20   screen heading
+      id     12.5   run / session / tenant / span identifiers (monospace)
+  */
+  --text-2xs: 10px;
+  --text-2xs--line-height: 14px;
+  --text-xs: 11px;
+  --text-xs--line-height: 15px;
+  --text-sm: 12px;
+  --text-sm--line-height: 17px;
+  --text-base: 13px;
+  --text-base--line-height: 19px;
+  --text-body: 14px;
+  --text-body--line-height: 21px;
+  --text-section: 15px;
+  --text-section--line-height: 20px;
+  --text-metric: 18px;
+  --text-metric--line-height: 22px;
+  --text-title: 20px;
+  --text-title--line-height: 26px;
+  --text-id: 12.5px;
+  --text-id--line-height: 18px;
 
   --font-sans:
     ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
@@ -129,72 +171,123 @@
 
 @layer base {
   html {
-    color-scheme: light;
-  }
-
-  [data-theme='dark'] {
     color-scheme: dark;
   }
 
-  body {
-    background-color: var(--ap-bg);
-    color: var(--ap-fg);
-    font-family: var(--font-sans);
-    -webkit-font-smoothing: antialiased;
-    font-size: 14px;
-    line-height: 1.5;
+  html[data-theme='light'] {
+    color-scheme: light;
   }
 
+  body {
+    background-color: var(--tracon-bg);
+    color: var(--tracon-fg);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    font-size: 13px;
+    line-height: 1.45;
+  }
+
+  /*
+    One focus ring for the whole console, on the accent, with an offset that
+    keeps it off the glyphs. A component that draws its own focus style is a
+    component that will forget one of its states.
+  */
   :focus-visible {
-    outline: 2px solid var(--ap-accent);
+    outline: 2px solid var(--tracon-accent);
     outline-offset: 2px;
+    border-radius: 2px;
   }
 
   ::selection {
-    background: var(--ap-accent);
-    color: var(--ap-accent-fg);
+    background: var(--tracon-accent);
+    color: var(--tracon-accent-fg);
   }
 
   /* Long event streams and JSON payloads dominate this UI; a heavy scrollbar
      steals horizontal space from every one of them. */
   * {
     scrollbar-width: thin;
-    scrollbar-color: var(--ap-line-strong) transparent;
+    scrollbar-color: var(--tracon-line-strong) transparent;
   }
 }
 
 @layer components {
   /*
-    The refraction strip. It is the one purely decorative use of the spectrum
-    and appears only at the top of the sidebar, where it reads as the product
-    mark rather than as data.
+    The sweep. A radar returns on a period, not on demand — this is the one
+    ambient motion in the console and it marks the top of the shell, where it
+    reads as the instrument frame rather than as data.
   */
-  .ap-prism {
+  .tracon-sweep {
     background: linear-gradient(
       90deg,
-      var(--ap-violet),
-      var(--ap-indigo),
-      var(--ap-cyan),
-      var(--ap-emerald),
-      var(--ap-amber),
-      var(--ap-rose)
+      transparent 0%,
+      var(--tracon-accent) 35%,
+      var(--tracon-accent) 45%,
+      transparent 80%
     );
+    background-size: 220% 100%;
+    animation: tracon-sweep 6s linear infinite;
   }
 
-  .ap-stream-caret::after {
+  @keyframes tracon-sweep {
+    from {
+      background-position: 120% 0;
+    }
+
+    to {
+      background-position: -100% 0;
+    }
+  }
+
+  .tracon-stream-caret::after {
     content: '';
     display: inline-block;
     width: 0.5rem;
     height: 1rem;
     margin-left: 2px;
     vertical-align: text-bottom;
-    background: var(--ap-accent);
-    animation: ap-blink 1s steps(2, start) infinite;
+    background: var(--tracon-accent);
+    animation: tracon-blink 1s steps(2, start) infinite;
   }
 
-  @keyframes ap-blink {
+  @keyframes tracon-blink {
     to {
       visibility: hidden;
+    }
+  }
+
+  /*
+    Loading is a skeleton, never a spinner: a skeleton holds the height the
+    real content will take, so the layout does not jump when it arrives.
+  */
+  .tracon-skeleton {
+    background: linear-gradient(
+      90deg,
+      var(--tracon-raised) 25%,
+      var(--tracon-line) 50%,
+      var(--tracon-raised) 75%
+    );
+    background-size: 240% 100%;
+    animation: tracon-shimmer 1.4s ease-in-out infinite;
+    border-radius: 3px;
+  }
+
+  @keyframes tracon-shimmer {
+    from {
+      background-position: 120% 0;
+    }
+
+    to {
+      background-position: -120% 0;
+    }
+  }
+
+  /* Operators keep this console open all day; honour a reduced-motion choice. */
+  @media (prefers-reduced-motion: reduce) {
+    .tracon-sweep,
+    .tracon-skeleton,
+    .tracon-stream-caret::after {
+      animation: none;
     }
   }
 }

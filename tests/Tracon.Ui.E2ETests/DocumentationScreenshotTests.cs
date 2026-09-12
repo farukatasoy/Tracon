@@ -103,10 +103,11 @@ public sealed class DocumentationScreenshotTests(BrowserFixture browsers)
             ViewportSize = new ViewportSize { Width = 1440, Height = 900 },
             Locale = "en-US",
 
-            // 🚨 The captures are light-theme on purpose. The console's default follows
-            // the operating system, which would otherwise make the images depend on the
-            // machine that produced them.
-            ColorScheme = ColorScheme.Light,
+            // 🚨 The captures are dark-theme on purpose, and pinned rather than
+            // left to the machine: the console's own default is dark (phase 164),
+            // and the documentation site is dark by default too, so a light
+            // capture would be the odd one out on every page that embeds it.
+            ColorScheme = ColorScheme.Dark,
             DeviceScaleFactor = 2,
         });
 

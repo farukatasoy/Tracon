@@ -40,15 +40,15 @@ export function TurnView({
 
       {turn.prompt !== null ? (
         <div className="mb-2.5 flex justify-end">
-          <p className="max-w-[80%] rounded-lg rounded-br-sm bg-accent-soft px-3 py-2 text-[13px] whitespace-pre-wrap text-fg">
+          <p className="max-w-[80%] rounded-lg rounded-br-sm bg-accent-soft px-3 py-2 text-base whitespace-pre-wrap text-fg">
             {turn.prompt}
           </p>
         </div>
       ) : (
-        <p className="mb-2.5 text-right text-[11px] text-subtle">{t('playground.approvalSent')}</p>
+        <p className="mb-2.5 text-right text-xs text-subtle">{t('playground.approvalSent')}</p>
       )}
 
-      <div className="flex items-center gap-2 pb-1.5 text-[11px] text-subtle">
+      <div className="flex items-center gap-2 pb-1.5 text-xs text-subtle">
         {turn.status === 'streaming' && <SpinnerIcon className="size-3" />}
         <span>{t('playground.assistant')}</span>
         {turn.runId !== null && (
@@ -73,11 +73,11 @@ export function TurnView({
         />
 
         {turn.transcript.items.length === 0 && turn.status === 'streaming' && (
-          <p className="text-[13px] text-subtle">…</p>
+          <p className="text-base text-subtle">…</p>
         )}
 
         {turn.error !== null && (
-          <div className="mt-2 rounded-md border border-line bg-danger-soft px-3 py-2 text-[12px] text-danger">
+          <div className="mt-2 rounded-md border border-line bg-danger-soft px-3 py-2 text-sm text-danger">
             {turn.error}
           </div>
         )}

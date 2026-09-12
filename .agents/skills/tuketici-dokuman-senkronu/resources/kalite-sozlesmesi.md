@@ -194,8 +194,12 @@ Tersine değişim `faz-denetim`'de 🔴 sayılır.
 | `DIAGRAM_EXEMPT` | 6 kalem | yalnız küçülür |
 | `CLOSING_EXEMPT` | 1 kalem (`index.mdx`) | yalnız küçülür |
 | En ağır sayfa | `troubleshooting` 57 367 B gzip · tavan 58 000 B (K-756) | yalnız düşer |
-| Kontrast — metin | 5,49:1 | yalnız yükselir |
-| Kontrast — metin dışı | 3,74:1 | yalnız yükselir |
+| Kontrast — metin (site) | 5,49:1 | yalnız yükselir |
+| Kontrast — metin dışı (site) | 3,74:1 | yalnız yükselir |
+| Kontrast — metin (console) | 5,22:1 — `light subtle on raised` · kapı: `frontend/scripts/check-tokens.mjs` | yalnız yükselir |
+| Kontrast — metin dışı (console) | 3,56:1 — `light line-strong on raised` | yalnız yükselir |
+| Console arayüz payı | 184,1 KB gzip · tavan 250 KB | yalnız düşer |
+| Console runtime bağımlılığı | 4 paket · kapı: `frontend/scripts/postbuild.mjs` | yalnız küçülür |
 | Agent haritası | 10 317 B · bütçe 11 264 B | bütçe ölçümle değişir |
 | `SourceLanguageTests` taban çizgisi | — | yalnız küçülür |
 

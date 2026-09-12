@@ -34,7 +34,7 @@ export function ContextSection({
             ))}
           </Select>
         </Field>
-        <p className="mt-1 text-[12px] text-muted">{t('agentEditor.compactionNotice')}</p>
+        <p className="mt-1 text-sm text-muted">{t('agentEditor.compactionNotice')}</p>
 
         {form.compaction.strategy !== 'None' && (
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
@@ -211,13 +211,13 @@ export function ContextSection({
         )}
 
         <div className="mt-5 border-t border-line pt-4">
-          <p className="mb-2 text-[12px] font-medium text-muted">{t('agentDetail.memory')}</p>
+          <p className="mb-2 text-sm font-medium text-muted">{t('agentDetail.memory')}</p>
           <div className="flex flex-wrap gap-x-5 gap-y-2">
             {MEMORY_TOGGLES.map(([key, label]) => (
-              <label key={key} className="flex cursor-pointer items-center gap-2 text-[12px]">
+              <label key={key} className="flex cursor-pointer items-center gap-2 text-sm">
                 <input
                   type="checkbox"
-                  className="accent-[var(--ap-accent)]"
+                  className="accent-[var(--tracon-accent)]"
                   checked={form.memory[key] === true}
                   onChange={(event) => setForm({ ...form, memory: { ...form.memory, [key]: event.target.checked } })}
                 />

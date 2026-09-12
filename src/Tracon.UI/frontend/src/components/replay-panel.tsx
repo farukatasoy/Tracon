@@ -74,10 +74,10 @@ export function ReplayPanel({
   return (
     <Panel title={t('replay.title')}>
       <div className="flex flex-col gap-3 p-4">
-        <p className="text-[11px] text-subtle">{t('replay.hint')}</p>
+        <p className="text-xs text-subtle">{t('replay.hint')}</p>
 
         <div className="grid gap-3 sm:grid-cols-3">
-          <label className="flex flex-col gap-1 text-[11px] text-muted">
+          <label className="flex flex-col gap-1 text-xs text-muted">
             {t('replay.toolMode')}
             <Select
               value={toolMode}
@@ -93,7 +93,7 @@ export function ReplayPanel({
             </Select>
           </label>
 
-          <label className="flex flex-col gap-1 text-[11px] text-muted">
+          <label className="flex flex-col gap-1 text-xs text-muted">
             {t('replay.version')}
             <Select
               value={version}
@@ -110,7 +110,7 @@ export function ReplayPanel({
             </Select>
           </label>
 
-          <label className="flex flex-col gap-1 text-[11px] text-muted">
+          <label className="flex flex-col gap-1 text-xs text-muted">
             {t('replay.model')}
             <TextInput
               value={modelId}
@@ -122,7 +122,7 @@ export function ReplayPanel({
           </label>
         </div>
 
-        <p className="text-[11px] text-subtle">{t(`replay.toolModeHint.${toolMode}`)}</p>
+        <p className="text-xs text-subtle">{t(`replay.toolModeHint.${toolMode}`)}</p>
 
         <div>
           <Button
@@ -143,7 +143,7 @@ export function ReplayPanel({
         {replay.isError && <ErrorNote error={replay.error} />}
 
         {replay.data != null && (
-          <div className="flex flex-col gap-1 text-[13px]" data-testid="replay-result">
+          <div className="flex flex-col gap-1 text-base" data-testid="replay-result">
             <span>
               {t('replay.result', { runId: '' })}{' '}
               <Link

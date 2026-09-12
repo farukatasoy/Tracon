@@ -76,6 +76,7 @@ export const trAgents: Pick<Messages, keyof typeof enAgents> = {
   "agentDetail.memory": 'Bellek',
   "agentEditor.editTitle": '{name} düzenle',
   "agentEditor.newTitle": 'Yeni agent',
+  "agentEditor.loading": 'Tanım yükleniyor',
   "agentEditor.editDescription": 'Kaydetmek yeni bir sürüm yazar. Eski sürüm geçmişte kalır ve geri alınabilir.',
   "agentEditor.newDescription": 'Tanım veritabanında saklanır ve agent çalıştığında derlenir.',
   "agentEditor.saveVersion": 'Yeni sürüm kaydet',

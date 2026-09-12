@@ -180,7 +180,7 @@ export function FeedbackControl({ runId }: { runId: string }): ReactNode {
             <ThumbsDownIcon className="size-3.5" />
           </Button>
           {mine != null && (
-            <span className="text-[11px] text-subtle">
+            <span className="text-xs text-subtle">
               {t('feedback.by', { author: mine.author ?? t('feedback.anonymous') })}
             </span>
           )}
@@ -200,9 +200,9 @@ export function FeedbackControl({ runId }: { runId: string }): ReactNode {
 
         {otherScores.length > 0 && (
           <div className="mt-2 flex flex-col gap-1 border-t border-line pt-2">
-            <span className="text-[11px] font-semibold text-body">{t('feedback.otherScores')}</span>
+            <span className="text-xs font-semibold text-body">{t('feedback.otherScores')}</span>
             {otherScores.map((score) => (
-              <div key={score.id} className="flex items-center gap-2 text-[11px] text-subtle">
+              <div key={score.id} className="flex items-center gap-2 text-xs text-subtle">
                 <span className="font-semibold text-body">{score.name}</span>
                 <span>{score.kind === 'Categorical' ? score.textValue : formatScoreValue(score.value)}</span>
                 {score.comment != null && <span>· {score.comment}</span>}
@@ -213,7 +213,7 @@ export function FeedbackControl({ runId }: { runId: string }): ReactNode {
 
         <div className="mt-2 flex flex-col gap-1 border-t border-line pt-2">
           {judgeScores.map((score) => (
-            <div key={score.id} className="flex items-center gap-2 text-[11px] text-subtle">
+            <div key={score.id} className="flex items-center gap-2 text-xs text-subtle">
               <span className="font-semibold text-body">{t('onlineEval.judgeScoreLabel')}</span>
               <span>{score.source.replace('judge:', '')}</span>
               <span className="font-semibold text-body">{formatScoreValue(score.value)}/100</span>
@@ -226,7 +226,7 @@ export function FeedbackControl({ runId }: { runId: string }): ReactNode {
               {t('onlineEval.judgeButton')}
             </Button>
             {judgeNow.isSuccess && judgeNow.data.length === 0 && (
-              <span className="text-[11px] text-subtle">{t('onlineEval.judgeNoJudges')}</span>
+              <span className="text-xs text-subtle">{t('onlineEval.judgeNoJudges')}</span>
             )}
           </div>
 
