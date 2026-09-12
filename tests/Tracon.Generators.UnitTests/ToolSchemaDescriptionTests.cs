@@ -8,7 +8,7 @@ namespace Tracon.Generators.UnitTests;
 /// <summary>
 /// Verifies 125.1/125.2: <c>[Description]</c> on a tool parameter reaches the generated
 /// JSON schema, is placed correctly for an array parameter, survives JSON-unsafe text,
-/// and its absence is reported (APG0009) without blocking generation.
+/// and its absence is reported (TRC0009) without blocking generation.
 /// </summary>
 public sealed class ToolSchemaDescriptionTests
 {
@@ -32,7 +32,7 @@ public sealed class ToolSchemaDescriptionTests
 
         var result = GeneratorTestHelper.Run(Source);
 
-        result.DiagnosticsWithId("APG0009").ShouldBeEmpty();
+        result.DiagnosticsWithId("TRC0009").ShouldBeEmpty();
 
         var schema = SchemaJson(result.SingleWrapperFile());
         schema.GetProperty("properties").GetProperty("orderId").GetProperty("description").GetString()
@@ -162,7 +162,7 @@ public sealed class ToolSchemaDescriptionTests
 
         var result = GeneratorTestHelper.Run(Source);
 
-        var diagnostics = result.DiagnosticsWithId("APG0009");
+        var diagnostics = result.DiagnosticsWithId("TRC0009");
         diagnostics.Count.ShouldBe(1);
         diagnostics[0].Severity.ShouldBe(Microsoft.CodeAnalysis.DiagnosticSeverity.Warning);
 
@@ -189,7 +189,7 @@ public sealed class ToolSchemaDescriptionTests
 
         var result = GeneratorTestHelper.Run(Source);
 
-        result.DiagnosticsWithId("APG0009").Count.ShouldBe(1);
+        result.DiagnosticsWithId("TRC0009").Count.ShouldBe(1);
 
         var schema = SchemaJson(result.SingleWrapperFile());
         schema.GetProperty("properties").GetProperty("query").TryGetProperty("description", out _).ShouldBeFalse();
@@ -213,7 +213,7 @@ public sealed class ToolSchemaDescriptionTests
 
         var result = GeneratorTestHelper.Run(Source);
 
-        result.DiagnosticsWithId("APG0009").ShouldBeEmpty();
+        result.DiagnosticsWithId("TRC0009").ShouldBeEmpty();
     }
 
     /// <summary>

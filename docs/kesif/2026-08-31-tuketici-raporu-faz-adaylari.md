@@ -239,7 +239,7 @@ dönüşecekti.
 | Faz | Plan ne diyordu | Ölçüm ne buldu |
 |---|---|---|
 | **126** | "`sessions` payload'ında sürüm damgası **yok**" | 🚨 **Yanlış öncül.** `sessions.schema_version` `0001_initial.sql`'den beri vardı ve her satır damgalıydı. Plan kanıt tablosunu çıkarırken `SqlSessionStore.cs`'i hiç grep'lememişti. Sonuç: sessions için migration bir **rename**, `workflow_checkpoints` için bir **add**; `SessionRecord.StateSchemaVersion` `int` (nullable **değil**), checkpoint'inki `int?` |
-| **125** | APG0009'u `ToolDiagnostics.cs`'e eklemek yeter | Üretecin **private** bir `DescriptorsById` dispatch tablosu var; orada olmayan tanı **sessizce düşer** — ne hata, ne test kırılması, ne log. Tanı eklendi ve hiç raporlanmadı; yalnız tanıyı bizzat arayan test yakaladı. Kapı: `DiagnosticIntegrityTests` |
+| **125** | TRC0009'u `ToolDiagnostics.cs`'e eklemek yeter | Üretecin **private** bir `DescriptorsById` dispatch tablosu var; orada olmayan tanı **sessizce düşer** — ne hata, ne test kırılması, ne log. Tanı eklendi ve hiç raporlanmadı; yalnız tanıyı bizzat arayan test yakaladı. Kapı: `DiagnosticIntegrityTests` |
 | **124** | `(ad, argüman)` eşleştirmesi yeter | Aynı bağlantının kendi içindeki tekrarlı çağrısını da tekilleştiriyordu; sahiplik damgası gerekti (yukarıda) |
 
 Dördüncü bir sapma kod dışıdır ama kaydedilmeye değer: **128'in kuyruklu

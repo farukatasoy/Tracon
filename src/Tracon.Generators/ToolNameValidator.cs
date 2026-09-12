@@ -1,6 +1,6 @@
 namespace Tracon.Generators;
 
-/// <summary>Validates tool name rules (APG0002).</summary>
+/// <summary>Validates tool name rules (TRC0002).</summary>
 internal static class ToolNameValidator
 {
     private const int MaxLength = 64;

@@ -49,7 +49,7 @@ sıralanma gerekçesi tüketicinin önceliği değil, bu penceredir. Kullanıcı
 **Talep 3B (nested object).** K-615 generator'ın kendi `JsonSerializerContext`'ini
 kullanmamasını karara bağladı; tool sahibi kendi context'ini
 `TraconToolAttribute.JsonSerializerContext` ile verir, vermezse derleme
-`APG0008` ile durur. Nested object şeması + AOT metadata bu kararla uzlaştırılmalıdır.
+`TRC0008` ile durur. Nested object şeması + AOT metadata bu kararla uzlaştırılmalıdır.
 Faz 130 bunu beklemez ama aynı faza da girmez.
 
 **Talep 4 (dynamic routing).** Üç ön koşul eksik:

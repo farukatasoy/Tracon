@@ -2,7 +2,7 @@
 
 > **Durum:** ✅ Tamamlandı (2026-08-21)
 > **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-125**, **F-136** (Dalga 13, Küme A'nın C# kapı yarısı)
-> **Önkoşul:** Yok. [Faz 78](78-YETENEK-HARITASI-ERISIMI.md) `APG0402`'yi ekledi; bu faz onu da kapsar
+> **Önkoşul:** Yok. [Faz 78](78-YETENEK-HARITASI-ERISIMI.md) `TRC0402`'yi ekledi; bu faz onu da kapsar
 > **Paketler:** `Tracon.Generators` (yalnız tanı metinleri) · test projesi `Tracon.Generators.UnitTests`
 > **Yeni paket:** Yok · **Migration:** Yok
 > **Public API:** Büyümüyor. İki kalem de test ve doküman kapısıdır
@@ -38,7 +38,7 @@ Tracon bugün üç şeyi sevk ediyor ve üçü de yanlış olabildiği hâlde **
 - [x] `<example>` taşıyan **15 paketin tamamı** test projesinden referanslıdır; referans kümesi ile bulunan paket kümesi testte karşılaştırılır
 - [x] Sıfır blok bulunursa test düşer (boş küme tuzağı kapatıldı) — bağımsız sayım çapraz kontrolüyle (`CountRawExampleTags`), ablasyonla doğrulandı (bir `ProjectReference` kaldırılıp testin gerçekten kırmızı olduğu görüldü, sonra geri eklendi)
 - [x] `DiagnosticIntegrityTests` **14** `APG` kodunun tamamını `troubleshooting.md`'de bulur; ters yön (ölü satır) de denetlenir — her iki yön de ad hoc kırmızı/yeşil ile canlı doğrulandı
-- [x] `APG0002`…`APG0006` `troubleshooting.md`'de anlatılmıştır — İngilizce, her biri "ne oldu / neden / düzeltme"
+- [x] `TRC0002`…`TRC0006` `troubleshooting.md`'de anlatılmıştır — İngilizce, her biri "ne oldu / neden / düzeltme"
 - [x] Referans eklemenin **derleme süresine etkisi ölçüldü** ve dokümana yazıldı — Açık Soru 2
 - [x] Dört doğrulama kapısı sıfır uyarı verir
 - [~] `samples/Tracon.Api` ile gerçek `run` yapılmadı — **gerekçe:** bu faz hiçbir runtime/HTTP yüzeyine dokunmuyor (bkz. "Planlanan Public API": public yüzey, HTTP endpoint'i ve arayüz payı üçü de "Yok"). İki kalem de derleme-anı/doküman kapısıdır; sample'da gösterilecek yeni bir çalışma-zamanı davranışı yok. Bunun yerine dokuz paketin **gerçek** unit/functional test paketleri (Anthropic, Azure, Google, Mcp, OpenAI, Testing, Voice, Workflows, AspNetCore.FunctionalTests — toplam ~1000+ test) yeniden koşuldu ve hepsi geçti; bu, "gerçek entegrasyon" ihtiyacının regresyon açısından karşılığıdır
@@ -100,7 +100,7 @@ grep -cv '^#' tests/Tracon.Core.UnitTests/Architecture/capability-example-baseli
    argümanı yapıyordu. C#, statik bir sınıfı generic tip argümanı olarak KABUL
    ETMEZ (`CS0718`) — iki örnek birlikte kopyalanan bir tüketicinin derlemesi
    gerçekten kırılırdı. `static` kaldırıldı; tool metodu (`GetOrderStatus`)
-   APG0007 gereği `static` kalmaya devam ediyor, yalnız konteyner sınıf değil.
+   TRC0007 gereği `static` kalmaya devam ediyor, yalnız konteyner sınıf değil.
    Karar defterine yazıldı: K-546.
 5. **Bir NuGet paketi test-yalnız eklendi: `Azure.Identity` 1.21.0.**
    `AzureOpenAIProviderOptions.CredentialFactory`'nin örneği `DefaultAzureCredential`
@@ -122,7 +122,7 @@ grep -cv '^#' tests/Tracon.Core.UnitTests/Architecture/capability-example-baseli
 
 ## Bu Fazda Verilen Kararlar
 
-| **K-546 — `TraconToolAttribute.cs`'in `OrderTools` örneği artık `static` DEĞİL; tool metodu yine `static`** | 2026-08-21 | Ölçüldü (F-125 uygulanırken): `ITraconBuilder.cs`'in AYRI bir örneği `.AddToolsFrom<OrderTools>()` çağırıyor ve C# statik bir sınıfı generic tip argümanı olarak kabul etmiyor (`CS0718`) — iki örneği birlikte kopyalayan bir tüketici gerçekten derleyemezdi, bunu `ExampleCompilationTests` yakaladı. `ToolMethodScanner` yalnız metodun `IsStatic` olduğuna bakıyor, konteyner sınıfın statik olmasını istemiyor (APG0007 de yalnız metottan bahsediyor). `internal static class` → `internal class`; `[TraconTool]` işaretli metot `public static` kaldı. | `AddToolsFrom<T>()` bir gün `Type` parametresi yerine gerçek bir generic kısıtlama YAZARSA (bugün öyle değil, yalnız `typeof(T)` kullanıyor) yeniden değerlendirilir |
+| **K-546 — `TraconToolAttribute.cs`'in `OrderTools` örneği artık `static` DEĞİL; tool metodu yine `static`** | 2026-08-21 | Ölçüldü (F-125 uygulanırken): `ITraconBuilder.cs`'in AYRI bir örneği `.AddToolsFrom<OrderTools>()` çağırıyor ve C# statik bir sınıfı generic tip argümanı olarak kabul etmiyor (`CS0718`) — iki örneği birlikte kopyalayan bir tüketici gerçekten derleyemezdi, bunu `ExampleCompilationTests` yakaladı. `ToolMethodScanner` yalnız metodun `IsStatic` olduğuna bakıyor, konteyner sınıfın statik olmasını istemiyor (TRC0007 de yalnız metottan bahsediyor). `internal static class` → `internal class`; `[TraconTool]` işaretli metot `public static` kaldı. | `AddToolsFrom<T>()` bir gün `Type` parametresi yerine gerçek bir generic kısıtlama YAZARSA (bugün öyle değil, yalnız `typeof(T)` kullanıyor) yeniden değerlendirilir |
 | **K-547 — `Azure.Identity` yalnızca test projesine (`Tracon.Generators.UnitTests`) `PackageReference` olarak eklendi; `Tracon.Azure`'un bağımlılık grafiği DEĞİŞMEDİ** | 2026-08-21 | `AzureOpenAIProviderOptions.CredentialFactory`'nin sevk edilen `<example>`'ı `DefaultAzureCredential`'ı (o pakette) adlandırıyor — bilerek: `Tracon.Azure` o bağımlılığı ALMIYOR (yorum: "Azure.Identity does not appear... credential type is left to the consumer"). F-125'in derleme kapısı örneği GERÇEKTEN derlemek zorunda, bu yüzden gerçek tipe ihtiyaç duydu. `Directory.Packages.props`'ta `Label="Test"` grubuna eklendi (`Label="Saglayicilar"` değil — ilk taslak yanlış grup altına koymuştu, bağımsız denetim 🟢 olarak işaretledi, taşındı). | Bir tüketicinin dikte ettiği bir yönetilen kimlik senaryosu `Tracon.Azure`'un kendisine gerçek bir `Azure.Identity` bağımlılığı eklemeyi gerektirirse |
 
 ## Denetim Bulguları

@@ -12,8 +12,8 @@
     <ProjectReference Include="../../src/Tracon.Generators/Tracon.Generators.csproj" />
     <ProjectReference Include="../../src/Tracon.Core/Tracon.Core.csproj" />
     <!--
-      Phase 73: TraconUsageAnalyzer resolves REAL symbols. APG0101 needs
-      MapTracon (AspNetCore) and APG0102 needs UseOpenAI (OpenAI); a stub
+      Phase 73: TraconUsageAnalyzer resolves REAL symbols. TRC0101 needs
+      MapTracon (AspNetCore) and TRC0102 needs UseOpenAI (OpenAI); a stub
       declared in the test source would prove only that the analyzer matches a
       name, not that it matches this package's API.
     -->

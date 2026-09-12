@@ -50,7 +50,7 @@ internal static class ObjectToolAotConsumerProject
             /// <summary>
             /// The object parameter this smoke test exercises. Every type in its graph
             /// must be declared with [JsonSerializable] on the SAME context the tool
-            /// points at (APG0011) - this compiling and running at all, trimmed under
+            /// points at (TRC0011) - this compiling and running at all, trimmed under
             /// Native AOT, is the proof that binding never falls back to reflection.
             /// </summary>
             public sealed record Rubric(string Name, int Weight);

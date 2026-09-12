@@ -76,7 +76,7 @@ dosyasını değiştirmek K1'in ihlalidir.
 - [x] Kapının generic üyeleri de okuduğu gösterildi — 39/39. 🚨 Plan `` `1 `` diyordu; ek **çift** ters tırnaktır ve etkilenen üye **dört**tür (`AddToolsFrom` dahil)
 - [x] Çözüm derlenmemişken kapı **düşer**: `artifacts/bin/Tracon.Voice/release_net10.0` silindi → `No XML documentation was found … Build the solution first`
 - [x] Harita revizyonu değişti (`e4c7b05b` → `5e144649`); `build-agent-map.mjs --check` "up to date and within budget"; harita **7 940 B** ≤ 10 240
-- [x] Eski `AGENTS.md` taşıyan tüketici derlemesinde `APG0401` çıktı ve sil-derle ile **0**'a düştü — çıktı MT-YRF-011'de
+- [x] Eski `AGENTS.md` taşıyan tüketici derlemesinde `TRC0401` çıktı ve sil-derle ile **0**'a düştü — çıktı MT-YRF-011'de
 - [x] Dört doğrulama kapısı sıfır uyarı verir: `build` 0/0 · `test` **4 407 test, 0 başarısız** · `pack` exit 0 · `format --verify-no-changes` exit 0
 - [x] `samples/Tracon.Api` ile gerçek `run` yapıldı: `/openapi/v1.json` **127 path / 252 şema**, `/api/agents` kimliksiz `401` + `ProblemDetails`. Paketlenen belgeyle fark **dört isteğe bağlı uç**tur (A2A ×2, `api/diagnostics`, ses akışı) — belge canlı yüzeyin alt kümesidir, sapma değil
 - [x] `secret` taraması boş döndü — çıkan beş satırın hepsi Faz 51/06'dan kalan test ve doküman sabitleri

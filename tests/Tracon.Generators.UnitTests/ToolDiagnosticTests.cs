@@ -3,7 +3,7 @@ using System.Globalization;
 namespace Tracon.Generators.UnitTests;
 
 /// <summary>
-/// Verifies APG0010 (130.2): a constraint attribute that does not apply to its
+/// Verifies TRC0010 (130.2): a constraint attribute that does not apply to its
 /// parameter's type or shape is reported as a warning, never blocks generation, and
 /// never reaches the schema.
 /// </summary>
@@ -28,7 +28,7 @@ public sealed class ToolDiagnosticTests
 
         var result = GeneratorTestHelper.Run(Source);
 
-        var diagnostics = result.DiagnosticsWithId("APG0010");
+        var diagnostics = result.DiagnosticsWithId("TRC0010");
         diagnostics.Count.ShouldBe(1);
         diagnostics[0].Severity.ShouldBe(Microsoft.CodeAnalysis.DiagnosticSeverity.Warning);
         diagnostics[0].GetMessage(CultureInfo.InvariantCulture).ShouldContain("Range");
@@ -60,7 +60,7 @@ public sealed class ToolDiagnosticTests
 
         var result = GeneratorTestHelper.Run(Source);
 
-        var diagnostics = result.DiagnosticsWithId("APG0010");
+        var diagnostics = result.DiagnosticsWithId("TRC0010");
         diagnostics.Count.ShouldBe(1);
         diagnostics[0].GetMessage(CultureInfo.InvariantCulture).ShouldContain("RegularExpression");
     }
@@ -84,7 +84,7 @@ public sealed class ToolDiagnosticTests
 
         var result = GeneratorTestHelper.Run(Source);
 
-        result.DiagnosticsWithId("APG0010").Count.ShouldBe(1);
+        result.DiagnosticsWithId("TRC0010").Count.ShouldBe(1);
     }
 
     /// <summary>
@@ -112,7 +112,7 @@ public sealed class ToolDiagnosticTests
 
         var result = GeneratorTestHelper.Run(Source);
 
-        var diagnostics = result.DiagnosticsWithId("APG0010");
+        var diagnostics = result.DiagnosticsWithId("TRC0010");
         diagnostics.Count.ShouldBe(1);
 
         var wrapper = result.SingleWrapperFile();
@@ -139,7 +139,7 @@ public sealed class ToolDiagnosticTests
 
         var result = GeneratorTestHelper.Run(Source);
 
-        result.DiagnosticsWithId("APG0010").Count.ShouldBe(1);
+        result.DiagnosticsWithId("TRC0010").Count.ShouldBe(1);
     }
 
     /// <summary>
@@ -167,7 +167,7 @@ public sealed class ToolDiagnosticTests
 
         var result = GeneratorTestHelper.Run(Source);
 
-        result.DiagnosticsWithId("APG0010").Count.ShouldBe(1);
+        result.DiagnosticsWithId("TRC0010").Count.ShouldBe(1);
 
         var wrapper = result.SingleWrapperFile();
         wrapper.ShouldNotContain("minLength");
@@ -192,7 +192,7 @@ public sealed class ToolDiagnosticTests
 
         var result = GeneratorTestHelper.Run(Source);
 
-        result.DiagnosticsWithId("APG0010").Count.ShouldBe(1);
+        result.DiagnosticsWithId("TRC0010").Count.ShouldBe(1);
 
         var wrapper = result.SingleWrapperFile();
         wrapper.ShouldNotContain("maxItems");
@@ -217,7 +217,7 @@ public sealed class ToolDiagnosticTests
 
         var result = GeneratorTestHelper.Run(Source);
 
-        result.DiagnosticsWithId("APG0010").Count.ShouldBe(1);
+        result.DiagnosticsWithId("TRC0010").Count.ShouldBe(1);
 
         var wrapper = result.SingleWrapperFile();
         wrapper.ShouldNotContain("minLength");
@@ -249,7 +249,7 @@ public sealed class ToolDiagnosticTests
 
         var result = GeneratorTestHelper.Run(Source);
 
-        result.DiagnosticsWithId("APG0010").Count.ShouldBe(1);
+        result.DiagnosticsWithId("TRC0010").Count.ShouldBe(1);
     }
 
     /// <summary>None of the five DataAnnotations constraints has a meaning for an object parameter - present, it is reported the same as any other unrenderable case (never silently ignored).</summary>
@@ -278,7 +278,7 @@ public sealed class ToolDiagnosticTests
 
         var result = GeneratorTestHelper.Run(Source);
 
-        var diagnostics = result.DiagnosticsWithId("APG0010");
+        var diagnostics = result.DiagnosticsWithId("TRC0010");
         diagnostics.Count.ShouldBe(1);
         diagnostics[0].GetMessage(CultureInfo.InvariantCulture).ShouldContain("Range");
 
@@ -318,7 +318,7 @@ public sealed class ToolDiagnosticTests
 
         var result = GeneratorTestHelper.Run(Source);
 
-        var diagnostics = result.DiagnosticsWithId("APG0010");
+        var diagnostics = result.DiagnosticsWithId("TRC0010");
         diagnostics.Count.ShouldBe(1);
         diagnostics[0].Severity.ShouldBe(Microsoft.CodeAnalysis.DiagnosticSeverity.Warning);
         diagnostics[0].GetMessage(CultureInfo.InvariantCulture).ShouldContain("Range");
@@ -331,7 +331,7 @@ public sealed class ToolDiagnosticTests
     }
 
     [Fact]
-    public void A_supported_constraint_produces_no_APG0010()
+    public void A_supported_constraint_produces_no_TRC0010()
     {
         const string Source = """
             using System.ComponentModel;
@@ -349,6 +349,6 @@ public sealed class ToolDiagnosticTests
 
         var result = GeneratorTestHelper.Run(Source);
 
-        result.DiagnosticsWithId("APG0010").ShouldBeEmpty();
+        result.DiagnosticsWithId("TRC0010").ShouldBeEmpty();
     }
 }

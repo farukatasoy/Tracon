@@ -28,7 +28,7 @@ internal static class SourceWriter
 
         sb.Append("    public override string Name => ").Append(ToStringLiteral(model.ToolName)).Append(";\n\n");
         // AITool.Description's NRT signature is a NON-nullable string (verified: CS8764,
-        // Microsoft.Extensions.AI.Abstractions 10.9.0). When there is no description (APG0006
+        // Microsoft.Extensions.AI.Abstractions 10.9.0). When there is no description (TRC0006
         // already warns), an empty string is returned - NOT null.
         sb.Append("    public override string Description => ")
           .Append(ToStringLiteral(model.Description ?? string.Empty))
@@ -178,7 +178,7 @@ internal static class SourceWriter
     /// <c>JsonSerializerContext</c> - the generator never emits its own context, so
     /// binding always reaches for the one <c>TraconTool.JsonSerializerContext</c>
     /// names. <paramref name="jsonSerializerContextTypeDisplay"/> is never
-    /// <see langword="null"/> here: APG0011 already blocks generation for any
+    /// <see langword="null"/> here: TRC0011 already blocks generation for any
     /// object-shaped parameter whose tool has no context declaring every type in its graph.
     /// </summary>
     private static string WriteObjectConverter(ObjectType objectType, string jsonSerializerContextTypeDisplay)

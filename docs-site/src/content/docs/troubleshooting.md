@@ -541,19 +541,19 @@ source-generated path, or accept and document that the application is not AOT-sa
 
 | Ids | Category | What it reports |
 |---|---|---|
-| `APG0001`–`APG0012` | `Tracon.Tools` | A method marked `[TraconTool]` cannot be generated, a parameter has no description, or a constraint attribute does not apply. Errors: fix the method. `APG0009` and `APG0010` are warnings. |
-| `APG0101`, `APG0102` | `Tracon.Usage` | A registration this compilation never makes. The application fails at run time. |
-| `APG0201` | `Tracon.Usage` | A definition carries a literal secret instead of the name of a configuration key. |
-| `APG0301`, `APG0302` | `Tracon.Usage` | Code written by hand for behaviour the package already ships. |
-| `APG0401` | `Tracon.Usage` | `AGENTS.md` was generated from an older capability map. |
-| `APG0402` | `Tracon.Usage` | The local reference file is written, and your own `AGENTS.md` never names it, so the map is unreachable. |
-| `APG0501` | `Tracon.Usage` | An async iterator writes ambient state once but a loop advances the enumeration without repeating it. |
-| `APG0502` | `Tracon.Usage` | An ambient scope's `Begin(...)` result is discarded, so it is never restored. |
+| `TRC0001`–`TRC0012` | `Tracon.Tools` | A method marked `[TraconTool]` cannot be generated, a parameter has no description, or a constraint attribute does not apply. Errors: fix the method. `TRC0009` and `TRC0010` are warnings. |
+| `TRC0101`, `TRC0102` | `Tracon.Usage` | A registration this compilation never makes. The application fails at run time. |
+| `TRC0201` | `Tracon.Usage` | A definition carries a literal secret instead of the name of a configuration key. |
+| `TRC0301`, `TRC0302` | `Tracon.Usage` | Code written by hand for behaviour the package already ships. |
+| `TRC0401` | `Tracon.Usage` | `AGENTS.md` was generated from an older capability map. |
+| `TRC0402` | `Tracon.Usage` | The local reference file is written, and your own `AGENTS.md` never names it, so the map is unreachable. |
+| `TRC0501` | `Tracon.Usage` | An async iterator writes ambient state once but a loop advances the enumeration without repeating it. |
+| `TRC0502` | `Tracon.Usage` | An ambient scope's `Begin(...)` result is discarded, so it is never restored. |
 
 Each message names the API that resolves it, and each diagnostic links to the
 section of the [capability map](/capabilities/) that documents it.
 
-### A tool name is invalid (APG0002)
+### A tool name is invalid (TRC0002)
 
 A method marked `[TraconTool]` has a name — the attribute argument, or the method
 name when none is given — outside the range a tool name may use. A tool name must be
@@ -563,7 +563,7 @@ The name reaches the model as-is, and a model's own tool-calling protocol reject
 names outside this range before the call ever reaches Tracon. Rename the method,
 or give an explicit name to `[TraconTool("valid-name")]`.
 
-### A tool parameter type is unsupported (APG0003)
+### A tool parameter type is unsupported (TRC0003)
 
 The generator produces a JSON Schema for each parameter from its .NET type, and it
 recognizes primitive types, `string`, `Guid`, `DateTime`/`DateTimeOffset`, `enum`,
@@ -571,7 +571,7 @@ arrays or `IReadOnlyList<T>` of these, `CancellationToken`, and a supported **ob
 (a public record or class with a single public constructor — see [Write your own
 tool](/guides/write-your-own-tool/)), up to 3 nested object levels deep. A parameter
 of any other type — a `Dictionary<,>`, a tuple, a type with more than one public
-constructor, an object graph deeper than 3 levels or containing a cycle (`APG0012`) —
+constructor, an object graph deeper than 3 levels or containing a cycle (`TRC0012`) —
 has no schema mapping and is reported instead of silently ignored.
 
 **The generator's expression boundary, stated once:** it can express a parameter's
@@ -581,7 +581,7 @@ from a standard `System.ComponentModel.DataAnnotations` attribute (`RangeAttribu
 `MinLengthAttribute`, `MaxLengthAttribute`, `StringLengthAttribute`,
 `RegularExpressionAttribute`). An object parameter's own type, and every nested
 object type in its graph, must be declared with `[JsonSerializable]` on the
-`JsonSerializerContext` the tool points at (`APG0011`) — the generator never emits
+`JsonSerializerContext` the tool points at (`TRC0011`) — the generator never emits
 its own context. There is no partial path beyond this boundary: a parameter
 either gets an exact schema within it, or it needs the escape route below.
 
@@ -612,21 +612,21 @@ builder.AddTracon()
            OrderFilterJsonContext.Default.Options));
 ```
 
-### A generic method is marked as a tool (APG0004)
+### A generic method is marked as a tool (TRC0004)
 
 `[TraconTool]` was put on a generic method. A tool call carries a name and a
 JSON argument object; there is no call syntax that supplies a type argument, so the
 generator has nothing to generate. Write a concrete, non-generic wrapper method and
 mark that one instead.
 
-### AddGeneratedTools() finds nothing to register (APG0005)
+### AddGeneratedTools() finds nothing to register (TRC0005)
 
 `AddGeneratedTools()` was called, but this compilation has no method marked with
 `[TraconTool]`. Either the mark was forgotten on the method meant to become a
 tool, or the call is left over from a tool set that was since removed. Mark a
 method, or remove the call.
 
-### A tool has no description (APG0006)
+### A tool has no description (TRC0006)
 
 A model chooses which tool to call from its name and description; a tool with no
 description gives the model only the name and the parameter schema to decide with,
@@ -638,7 +638,7 @@ description:
 public static string GetOrderStatus(string orderId) => "shipped";
 ```
 
-### A complex tool result has no JSON context (APG0008)
+### A complex tool result has no JSON context (TRC0008)
 
 Generated tools return complex results as canonical JSON. Declare a
 source-generated `JsonSerializerContext` in your own source and give its type
@@ -656,7 +656,7 @@ internal partial class ToolJsonContext : JsonSerializerContext;
 public static OrderPreview PreviewOrder(string orderId) => new(orderId, "ready");
 ```
 
-### An instance method is marked as a tool (APG0007)
+### An instance method is marked as a tool (TRC0007)
 
 Generated tools must be static. Microsoft Agent Framework invokes an
 `AIFunction` with an empty service provider, so an instance method cannot rely
@@ -664,7 +664,7 @@ on constructor dependencies. Make the generated method static, or create the
 object during registration and expose a hand-built `AIFunction` that creates a
 scope for each invocation.
 
-### A tool parameter has no description (APG0009)
+### A tool parameter has no description (TRC0009)
 
 The model fills in a tool call's arguments from the JSON Schema the generator
 produces; a parameter's `description` is the strongest signal it has for which
@@ -683,7 +683,7 @@ This is a warning, not an error — existing code keeps compiling. `AIFunctionFa
 reads the same attribute, so a tool written either way teaches the model the same
 way. `CancellationToken` never needs one: it never reaches the schema.
 
-### A parameter constraint does not apply (APG0010)
+### A parameter constraint does not apply (TRC0010)
 
 A `System.ComponentModel.DataAnnotations` constraint attribute was found on a
 parameter whose type or shape it does not support — `[Range]` on a `string`, a
@@ -693,7 +693,7 @@ constraint is silently left out of the generated schema instead of producing a
 wrong one:
 
 ```csharp
-// APG0010: [Range] does not apply to string.
+// TRC0010: [Range] does not apply to string.
 public static void SetCode([Range(1, 10)] string code) { }
 ```
 
@@ -706,13 +706,13 @@ builder.AddTracon()
        .AddTool(AIFunctionFactory.Create(MyMethod));
 ```
 
-### An object parameter references a type missing from the JSON context (APG0011)
+### An object parameter references a type missing from the JSON context (TRC0011)
 
 A tool has an object parameter (or a parameter whose type contains a nested
 object), and the type in the message is not declared with `[JsonSerializable]`
 on the `JsonSerializerContext` that `TraconTool.JsonSerializerContext` points
 at. The generator never emits its own context for a nested type — the same rule
-`APG0008` enforces for a complex result: binding a nested object requires its
+`TRC0008` enforces for a complex result: binding a nested object requires its
 metadata, and that metadata comes only from a context the tool owner wrote.
 
 Declare every type in the object graph — the parameter's own type and any type it
@@ -722,7 +722,7 @@ nests — with its own `[JsonSerializable]`:
 public sealed record Criterion(string Name, int Weight);
 public sealed record Rubric(string Title, IReadOnlyList<Criterion> Criteria);
 
-// APG0011 until BOTH types are declared - Rubric nests Criterion.
+// TRC0011 until BOTH types are declared - Rubric nests Criterion.
 [JsonSerializable(typeof(Rubric))]
 [JsonSerializable(typeof(Criterion))]
 internal partial class ToolJsonContext : JsonSerializerContext;
@@ -734,9 +734,9 @@ public static string ScoreSubmission(Rubric rubric) => "scored";
 Every distinct missing type is reported once, in the same compilation, so a
 consumer can add them all rather than discovering them one build at a time.
 
-### An object parameter's graph is too deep or cyclic (APG0012)
+### An object parameter's graph is too deep or cyclic (TRC0012)
 
-A supported object parameter (`APG0003`) nests another object more than 3 levels
+A supported object parameter (`TRC0003`) nests another object more than 3 levels
 deep, or a type reaches itself again through its own members — the message names
 the path (`A → B → A`). Both are rejected at compile time instead of risking a
 generator that recurses forever, or a schema the model's own error rate rises
@@ -750,7 +750,7 @@ builder.AddTracon()
        .AddTool(AIFunctionFactory.Create(MyMethod));
 ```
 
-### APG0101 or APG0102 fires although the registration exists
+### TRC0101 or TRC0102 fires although the registration exists
 
 An analyzer sees a single compilation. When `AddTracon()` or a provider
 registration lives in another assembly, the diagnostic cannot see it. Turn the
@@ -766,7 +766,7 @@ To keep the rest, silence one rule in `.editorconfig` instead:
 
 ```ini
 [*.cs]
-dotnet_diagnostic.APG0101.severity = none
+dotnet_diagnostic.TRC0101.severity = none
 ```
 
 The `Tracon.Tools` family is unaffected by either switch; those diagnostics
@@ -787,7 +787,7 @@ The next build writes the capability map to `AGENTS.md` at the root of the
 repository, next to the project when there is no repository. A project created
 with `dotnet new tracon-api` sets the property already.
 
-### AGENTS.md is out of date (APG0401)
+### AGENTS.md is out of date (TRC0401)
 
 An existing file is never overwritten, because you may have added notes to it.
 Refresh it by deleting it and building again:
@@ -801,7 +801,7 @@ The same map is published for web-based agents at
 documentation page, with every hand-written page concatenated at
 [`/llms-full.txt`](/llms-full.txt).
 
-### I keep my own AGENTS.md, so the map never arrives (APG0402)
+### I keep my own AGENTS.md, so the map never arrives (TRC0402)
 
 Expected: your file is never overwritten. The map still ships inside the package,
 and `Tracon.LocalReference.md` carries its absolute path on this machine. Ask
@@ -820,12 +820,12 @@ Tracon: read Tracon.LocalReference.md beside each project for the capability
 map and the API documentation of the installed version.
 ```
 
-`APG0402` looks for that file name anywhere in `AGENTS.md` and goes quiet once it is
+`TRC0402` looks for that file name anywhere in `AGENTS.md` and goes quiet once it is
 there. It stays silent in two other cases as well: while the property above is off,
 because then there is no file to name, and on a file this package generated, because
 a generated map already names it.
 
-### An ambient write does not survive a streaming loop (APG0501)
+### An ambient write does not survive a streaming loop (TRC0501)
 
 `TraconRunContext.SetCurrent`, `AmbientTenantScope.Begin`, `AmbientRunAttributionScope.Begin`,
 and `ActivitySource.StartActivity` all write through an `AsyncLocal<T>`. An assignment
@@ -868,7 +868,7 @@ The diagnostic is reported on the loop, not on the write: move the assignment it
 names into the loop the warning points at, immediately before the call that advances
 the enumeration.
 
-### A `Begin(...)` scope is opened without being restored (APG0502)
+### A `Begin(...)` scope is opened without being restored (TRC0502)
 
 `AmbientTenantScope.Begin(...)` and `AmbientRunAttributionScope.Begin(...)` return an
 `IDisposable` for exactly one reason: disposing it restores the ambient value that was

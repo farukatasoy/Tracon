@@ -22,7 +22,7 @@ namespace Tracon.Core.UnitTests.Architecture;
 /// <see cref="SourceLanguageTests"/>: <c>ambient-write-baseline.txt</c> lists
 /// every <c>&lt;path&gt;:&lt;method&gt;</c> the scan finds today, one entry
 /// per method (not per line - the same method can write more than once, most
-/// often the loop-repeats-the-write pattern APG0501 checks at compile time).
+/// often the loop-repeats-the-write pattern TRC0501 checks at compile time).
 /// A NEW entry fails the test; a LOST entry fails it too, so the baseline
 /// cannot go stale in the other direction. Refresh after a reviewed change:
 /// <c>TRACON_AMBIENT_WRITE_REFRESH=1 dotnet test tests/Tracon.Core.UnitTests -c Release</c>.

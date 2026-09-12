@@ -281,7 +281,7 @@ rewritten in place because you may have added notes to it. The template
 from its first build. A repository that already keeps its own `AGENTS.md` never
 receives the map file at all, and copying the capability list into it would only
 create a second copy to maintain: add one line naming `Tracon.LocalReference.md`
-instead, which is what `APG0402` asks for and what the first section of that file
+instead, which is what `TRC0402` asks for and what the first section of that file
 answers.
 
 The map names every entry point; it explains none of them. `Tracon.LocalReference.md`

@@ -109,7 +109,7 @@ python3 scripts/kapi.py kapanis --taban <faz öncesi commit>
 - Complex sonuç için generator'ın kendi ürettiği `JsonSerializerContext` kullanılmadı.
   Roslyn generator'ları birbirlerinin ürettiği kaynağı aynı compilation'da görmez;
   gerçek consumer build'i bu yaklaşımı `CS0534` ile kırdı. `TraconToolAttribute`
-  içine `JsonSerializerContext` eklendi ve complex sonuçta `APG0008` ile tool sahibinin
+  içine `JsonSerializerContext` eklendi ve complex sonuçta `TRC0008` ile tool sahibinin
   kendi `[JsonSerializable(typeof(TResult))]` context'ini vermesi zorunlu kılındı.
   Bu AOT-safe'tir ve rehber/sample bunu çalışır biçimde kanıtlar.
 - `CustomToolContract` yalnız implementer'ın tek başına sağlayabileceği isim,
@@ -160,7 +160,7 @@ python3 scripts/kapi.py kapanis --taban <faz öncesi commit>
 - **K-615** — Generator kendi ürettiği `JsonSerializerContext`'i kullanmaz;
   complex tool sonucu için tool sahibi kendi context'ini
   `TraconToolAttribute.JsonSerializerContext`'e verir, aksi hâlde derleme
-  `APG0008` ile durur.
+  `TRC0008` ile durur.
 - **K-616** — `CustomToolContract` yalnız implementer'ın tek başına
   sağlayabileceği isim/metadata/eşzamanlı çağrı sözleşmesini taşır;
   tenant/timeout/envelope/guard davranışı registry-DI sınırını geçtiği için
@@ -182,7 +182,7 @@ Tam gerekçe her dördü için [`docs/KARARLAR.md`](../../KARARLAR.md)'dedir.
 **Birinci tur (uygulama sırasında).**
 
 - 🔴 `JsonSerializerContext` plan dışı public API idi; yukarıdaki sapma kaydıyla
-  gerekçelendi ve `APG0008`, rehber ile sample tarafından görünür kılındı.
+  gerekçelendi ve `TRC0008`, rehber ile sample tarafından görünür kılındı.
 - 🔴 İlk rehber örneğinde tanımsız domain tipleri vardı; bağımsız derlenebilir
   `OrderReceipt` örneğiyle düzeltildi.
 - 🔴 Manuel kabul setinde Faz 102 case'leri yoktu; MT-CORE-097..099 eklendi.
@@ -300,7 +300,7 @@ kaynağı okumak zorunlu değil.
   geçişinde göremez.** Generator'ın kendi `JsonSerializerContext`'ini emit
   edip aynı taramada tüketmesi planlanmıştı (102.2); gerçek tüketici build'i
   bunu `CS0534` ile kırdı (K-615). Kalıcı çözüm: gereksinim tüketicinin KENDİ
-  derlemesine itilir (`APG0008`, `[JsonSerializable]` context'i çağıran
+  derlemesine itilir (`TRC0008`, `[JsonSerializable]` context'i çağıran
   yazar). Bir üreteç ileride benzer bir "üret ve aynı taramada tüket" deseni
   denerse önce bunu ölçsün.
 - **Faz 101'in `dotnet format --no-restore` tuzağı BİREBİR tekrarlandı.**

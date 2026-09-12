@@ -778,6 +778,14 @@ her site sayfasında görünür.
 ve `build-social-images.mjs` ile türevleri yeniden üretmek. Üretim hattı hazır
 — eksik olan tasarımın kendisidir.
 
+Kapsam görselle bitmiyor: eski adın METAFORU kodda da yaşıyor ve o dosyalara
+zaten dokunulacak — `prismMark`/`PrismMark` (`build-social-images.mjs:59`,
+`icons.tsx:30`), `_prismOptions`/`prismOptions` (`WorkflowRunner.cs`),
+`prismException` (`RunRecordingAgent.Completion.cs:338`), `--ap-*` CSS ad alanı
+(17 dosya) ve `styles.css` + `layout.tsx` içindeki "prism spectrum" anlatısı.
+Hiçbiri tüketici sözleşmesi değil (tipler `internal`), bu yüzden Faz 162'de
+bırakıldı.
+
 **Değer:** İlk yayında paket listelemesi ve site aynı markayı gösterir.
 
 **Mercek:** 8.

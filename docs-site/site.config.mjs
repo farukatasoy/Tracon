@@ -31,7 +31,7 @@ export const siteUrl = `${site}${base}`;
  *
  * Add the outgoing host here on every move; never remove an entry.
  */
-export const formerHosts = ['farukatasoy.github.io'];
+export const formerHosts = ['farukatasoy.github.io', 'agentprism.doayen.web.tr'];
 
 /**
  * The source repository, and whether a reader can open it.

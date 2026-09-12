@@ -49,15 +49,15 @@ Tracon'i entegre eden back-end uygulamalarının **kod agent'ları** paketin yet
 ### Gerçek çıktı — altı tanı, tek tüketici derlemesi
 
 ```text
-Program.cs(7,1):   warning APG0101: 'MapTracon()' is called, but this compilation never calls 'AddTracon()'. ...
-Program.cs(16,47): warning APG0102: The model binding names provider 'anthropic', but this compilation never calls 'UseAnthropic()'. ...
-Program.cs(53,41): warning APG0201: 'McpServerDefinition.AuthorizationConfigurationKey' carries a literal secret value. ...
-Program.cs(22,21): warning APG0301: 'RetryingChatClient' retries a chat client call by hand. ...
-Program.cs(20,21): warning APG0302: 'LoggingAgent' wraps another agent, but this compilation implements no 'IAgentDecorator'. ...
-AGENTS.md(1,1):    warning APG0401: 'AGENTS.md' was generated from capability map revision '00000000', but the installed Tracon ships revision 'e4c7b05b'. ...
+Program.cs(7,1):   warning TRC0101: 'MapTracon()' is called, but this compilation never calls 'AddTracon()'. ...
+Program.cs(16,47): warning TRC0102: The model binding names provider 'anthropic', but this compilation never calls 'UseAnthropic()'. ...
+Program.cs(53,41): warning TRC0201: 'McpServerDefinition.AuthorizationConfigurationKey' carries a literal secret value. ...
+Program.cs(22,21): warning TRC0301: 'RetryingChatClient' retries a chat client call by hand. ...
+Program.cs(20,21): warning TRC0302: 'LoggingAgent' wraps another agent, but this compilation implements no 'IAgentDecorator'. ...
+AGENTS.md(1,1):    warning TRC0401: 'AGENTS.md' was generated from capability map revision '00000000', but the installed Tracon ships revision 'e4c7b05b'. ...
 ```
 
-`rm AGENTS.md && dotnet build` sonrası: `APG0401` sayısı **0**, dosya yeniden
+`rm AGENTS.md && dotnet build` sonrası: `TRC0401` sayısı **0**, dosya yeniden
 yazıldı (`revision: e4c7b05b`, 7763 bayt).
 `-p:TraconUsageDiagnostics=false` ile: altı tanının **hiçbiri** çıkmıyor.
 
@@ -102,11 +102,11 @@ eksiksizlikti, yani bütçe içeriği değil içerik bütçeyi belirledi. Yeni b
 **2 — Sürüm işareti paket sürümü değil, içerik revizyonu.** Plan
 `sürüm: 1.4.0` yazıyordu. MinVer sürümü her commit'te değişir
 (`0.0.0-preview.0.271`), yani harita her commit'te "bayat" görünürdü. İşaret
-artık harita gövdesinin SHA-256'sının ilk 8 hanesidir. `APG0401` tüketicinin
+artık harita gövdesinin SHA-256'sının ilk 8 hanesidir. `TRC0401` tüketicinin
 dosyasını **paketin taşıdığı haritayla** karşılaştırır; iki dosya da
 `AdditionalFiles` olarak gelir, çünkü analyzer diskten okuyamaz (RS1035).
 
-**3 — `APG0102` yeniden tanımlandı.** Plandaki tanım ("`Use<Sağlayıcı>()`
+**3 — `TRC0102` yeniden tanımlandı.** Plandaki tanım ("`Use<Sağlayıcı>()`
 çağrıldı ama sağlayıcı paketi referanslanmamış") **tespit edilemez**: paket
 yoksa çağrı zaten `CS1061` ile derlenmez. Yerine gerçek ve tespit edilebilir
 kusur kondu: `ModelBinding.Provider` yerleşik bir sağlayıcı adı taşıyor ama
@@ -114,7 +114,7 @@ derleme o sağlayıcıyı hiç kaydetmiyor. `AddModelProvider` veya
 `UseOpenAICompatible` varsa tanı susar — tüketici sağlayıcısı her adı
 karşılayabilir.
 
-**4 — `APG0302` daraltıldı; plan hâli Tracon'in kendisini yakaladı.** İlk
+**4 — `TRC0302` daraltıldı; plan hâli Tracon'in kendisini yakaladı.** İlk
 uygulama "`AIAgent` sarmalayıcısı" diyordu. `dotnet pack` `Tracon.Core`'un
 **kendi** `RunRecordingAgent` ve `ReplayMismatchGuard` sınıflarında hata verdi
 (Core, üreteç projesini `OutputItemType=Analyzer` ile referanslar, yani kendi
@@ -122,7 +122,7 @@ analyzer'ını kendi üzerinde koşturur). Sarmalayıcı kusur değildir —
 `IAgentDecorator`'ın işini yapma biçimidir. Kural iki kez daraltıldı: derlemede
 hiç `IAgentDecorator` uygulaması **ve** hiç `AddAgent(name, factory)` çağrısı
 yoksa bildirilir. Açık Soru 3'ün "riskliyse fazdan çıkarılır" yolu
-kullanılmadı; tanı daraltılarak korundu. `APG0301` de aynı sebeple daraltıldı:
+kullanılmadı; tanı daraltılarak korundu. `TRC0301` de aynı sebeple daraltıldı:
 döngü bir `catch` içermelidir, yoksa hız sınırlayan bir istemci yanlışlıkla
 "elle yeniden deneme" sayılır.
 
@@ -148,7 +148,7 @@ Dört üye `capabilities.md`'ye eklendi; taban çizgisi DoD'nin istediği gibi
 **7 — Manuel test dosyası 28 değil 29.** 28 numarayı Faz 64 aldı
 (`28-DENETIM-ZINCIRI-VE-VERI-HAKLARI.md`).
 
-**8 — `ToolDiagnostics` (APG0001–0007) de `HelpLinkUri` kazandı.**
+**8 — `ToolDiagnostics` (TRC0001–0007) de `HelpLinkUri` kazandı.**
 `DiagnosticIntegrityTests` bütün `APG` ailesini denetliyor; yedi eski tanının
 yardım bağlantısı hiç yoktu. Hepsi `#tools-skills-and-context` bölümüne çözülür.
 
@@ -173,7 +173,7 @@ hiçbir şeyle eşleşmiyor ve dosyalar **uyarısız** pakete girmiyor. Çözüm
 | **K-505** | Yetenek haritası `capabilities.md`'den üretilir, commit edilir ve `dotnet pack` onu okur; Node zinciri `dotnet build`'e bağlanmaz |
 | **K-506** | `Tracon.Usage` tanıları `Warning`'dir; `Info` `dotnet build` çıktısına düşmez (ölçüldü). Kaçış tek MSBuild özelliğidir |
 | **K-507** | Harita sürüm işareti **içerik revizyonudur**, paket sürümü değil |
-| **K-508** | `APG0302` sarmalayıcıyı değil, **dekoratörsüz ve fabrikasız** sarmalayıcıyı bildirir |
+| **K-508** | `TRC0302` sarmalayıcıyı değil, **dekoratörsüz ve fabrikasız** sarmalayıcıyı bildirir |
 | **K-509** | `CapabilityCoverageTests` kapsamı tüm kayıt giriş noktalarıdır (39 üye), yalnız `Use*`/`Map*` değil |
 
 Gerekçeler `docs/KARARLAR.md`'dedir.
@@ -190,8 +190,8 @@ buldu. Üç 🔴'ın üçü de gerçekti.
 | 3 | 🔴 | Faz dokümanının DoD'si ve doğrulama komutu `≤ 6 KB` / `6144` diyordu; paketlenen dosya 7763 bayt. Ayrıca `28-AGENT-DESTEGI.md`, `dotnet new tracon`, "bilgi satırı" kalıntıları | **Düzeltildi.** Gövdenin tamamı gerçekleşene göre hizalandı |
 | 4 | 🟡 | `Copy` görevi `ContinueOnError` taşımıyordu: salt-okunur depo kökü (yaygın CI mount'u) tüketicinin build'ini `MSB3021` ile kırardı — üstelik şablon özelliği varsayılan açar | **Düzeltildi.** `ContinueOnError="WarnAndContinue"`; kolaylık dosyası build'i kıramaz |
 | 5 | 🟡 | Harita↔kaynak sapma kapısı **hiçbir otomatik yolda değildi**: dört kapı Node'u koşmaz, `check:content` CI'da hiç çağrılmıyordu → bayat harita sevk edilebilirdi | **Düzeltildi.** CI `build` işine bağımlılıksız `build-agent-map.mjs --check` adımı eklendi |
-| 6 | 🟡 | `APG0302`, dokümante edilmiş fabrika kaçış kapısına (`AddAgent(name, factory)`) yanlış pozitif veriyordu | **Düzeltildi + test.** Fabrika çağrısı olan derlemede tanı susar |
-| 7 | 🟡 | `APG0301` herhangi bir döngü + `Task.Delay`'i yeniden deneme sayıyordu; hız sınırlayan istemci yanlış teşhis alırdı | **Düzeltildi + test.** Döngü bir `catch` içermelidir |
+| 6 | 🟡 | `TRC0302`, dokümante edilmiş fabrika kaçış kapısına (`AddAgent(name, factory)`) yanlış pozitif veriyordu | **Düzeltildi + test.** Fabrika çağrısı olan derlemede tanı susar |
+| 7 | 🟡 | `TRC0301` herhangi bir döngü + `Task.Delay`'i yeniden deneme sayıyordu; hız sınırlayan istemci yanlış teşhis alırdı | **Düzeltildi + test.** Döngü bir `catch` içermelidir |
 | 8 | 🟢 | `build-agent-map.mjs` içinde ölü `anchor()` | **Silindi** (ucuzdu) |
 | 9 | 🟢 | Üretilen `Rule:` satırı bazı bölümlerde tablo sonrası paragrafı değil bölümün ilk paragrafını alıyor; `shorten()` kelime ortasından kesiyor | `ADAYLAR.md` · **F-124** |
 | 10 | 🟢 | Kimlik bilgisi şekilli literaller birim testinde var, fonksiyonel testte çalışma anında kuruluyor — tutarsızlık | **Gerekçelendi.** İkisinin de yorumu artık literalin analyzer **girdisi** olduğunu yazıyor; depo tarama deseni hiçbirini yakalamıyor |
@@ -214,7 +214,7 @@ koşuyor) · 3.5 (imza-gövde kayması yok) · 3.6 (plan dışı public API yok)
    ver — Tracon'de bu `TraconUsageDiagnostics` özelliğidir.
 2. 🚨 **`Tracon.Core` kendi analyzer'ını KENDİ ÜZERİNDE koşturur**
    (`OutputItemType=Analyzer` ProjectReference'ı). Yeni bir `APG` tanısı
-   yazarken Core'un kendi kodunu da tarayacağını hesaba kat; `APG0302`'nin ilk
+   yazarken Core'un kendi kodunu da tarayacağını hesaba kat; `TRC0302`'nin ilk
    hâli `dotnet pack`'i kırdı. Diğer paketler etkilenmez — analyzer referansı
    çok sıçramalı `ProjectReference` zincirinde yayılmaz.
 3. 🚨 **Tüketici testleri global NuGet önbelleğine takılır.** MinVer sürümü

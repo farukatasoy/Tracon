@@ -3,7 +3,7 @@
   <!--
     Delivers the capability map that a coding agent reads, writes the pointer
     file that names the documentation on this machine, and feeds the two files
-    APG0401 and APG0402 inspect.
+    TRC0401 and TRC0402 inspect.
 
     Opt-in by design, so that installing the package surprises nobody: with
     TraconWriteAgentsFile unset,
@@ -60,16 +60,16 @@
     One switch for the whole usage family. The diagnostics are warnings because
     an Info diagnostic never appears in `dotnet build` output (measured), and a
     diagnostic a coding agent cannot read is not a diagnostic. The cost is that
-    APG0101 and APG0102 cannot see a registration that lives in another
+    TRC0101 and TRC0102 cannot see a registration that lives in another
     assembly; a consumer whose composition root is split sets this property
     instead of writing one .editorconfig entry per diagnostic.
   -->
   <PropertyGroup Condition="'$(TraconUsageDiagnostics)' == 'false'">
-    <NoWarn>$(NoWarn);APG0101;APG0102;APG0201;APG0301;APG0302;APG0401;APG0402;APG0501;APG0502</NoWarn>
+    <NoWarn>$(NoWarn);TRC0101;TRC0102;TRC0201;TRC0301;TRC0302;TRC0401;TRC0402;TRC0501;TRC0502</NoWarn>
   </PropertyGroup>
 
   <!--
-    APG0401 compares the revision marker of the two files, and APG0402 asks a
+    TRC0401 compares the revision marker of the two files, and TRC0402 asks a
     hand-written AGENTS.md to name the local reference. An analyzer must not read
     from disk (RS1035), so both arrive as additional files. This happens whether
     or not the property is set: a consumer who turned the property on once and
@@ -82,7 +82,7 @@
   </ItemGroup>
 
   <!--
-    APG0402 asks AGENTS.md to name the local reference file, so it may only ask
+    TRC0402 asks AGENTS.md to name the local reference file, so it may only ask
     while that file is actually written. Without this the diagnostic would fire
     on a consumer who opted into nothing - the package would stop being silent
     on install - and the line it asks for would name a file that never appears.
@@ -103,7 +103,7 @@
     <!--
       An existing file is NEVER overwritten. The consumer may have edited it, and
       losing those edits on a routine build would be worse than a stale map;
-      APG0401 reports staleness and names the two steps that refresh it. The
+      TRC0401 reports staleness and names the two steps that refresh it. The
       condition also makes a parallel build harmless: whichever project runs
       first writes, and the rest find the file already there.
     -->
@@ -170,7 +170,7 @@
         First, and deliberately: the first question a coding agent asks is what
         exists, and only the second is how it is called. The map is not copied
         here - it is a file in the package, and a copy could disagree with the
-        one APG0401 compares against.
+        one TRC0401 compares against.
       -->
       <_TraconLocalReferenceLine Include="## Capability map - read this first%0A"
                                      Condition="Exists('$(TraconAgentMapFile)')" />

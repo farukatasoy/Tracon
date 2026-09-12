@@ -2,12 +2,12 @@
 
 > **Durum:** ✅ Tamamlandı (2026-08-21)
 > **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-135**
-> **Önkoşul:** [Faz 73](73-TUKETICI-AGENT-DESTEGI.md) — haritayı ve `APG01xx`–`APG0401` ailesini kurar · [Faz 74](74-YEREL-REFERANS-YUZEYI.md) — bu fazın genişlettiği `Tracon.LocalReference.md`'yi kurar
+> **Önkoşul:** [Faz 73](73-TUKETICI-AGENT-DESTEGI.md) — haritayı ve `APG01xx`–`TRC0401` ailesini kurar · [Faz 74](74-YEREL-REFERANS-YUZEYI.md) — bu fazın genişlettiği `Tracon.LocalReference.md`'yi kurar
 > **Paketler:** `Tracon.Core` (targets), `Tracon.Generators` (analyzer)
 > **Yeni paket:** Yok · **Migration:** Yok
 > **Public API:** Büyümüyor — değişiklik MSBuild target'ı, `internal` bir tanı tanımı ve bir Node üretecidir; hiçbir C# public üye eklenmez
 > **Tüketici yüzeyi:** site: [`guides/coding-agents.md`](../../../docs-site/src/content/docs/guides/coding-agents.md) (§"`AGENTS.md` — the capability map" yanlış tavsiye veriyor), `capabilities.md` (tanı tablosu satırı)
-> · sevk edilen: `Tracon.LocalReference.md` gövdesi (targets içinde), `Tracon.AgentMap.md` alt bölümü, `APG0402` tanı metni, `llms.txt`
+> · sevk edilen: `Tracon.LocalReference.md` gövdesi (targets içinde), `Tracon.AgentMap.md` alt bölümü, `TRC0402` tanı metni, `llms.txt`
 > **Manuel test alanı:** [`docs/manuel-test/30-YEREL-REFERANS.md`](../../manuel-test/30-YEREL-REFERANS.md) — case'ler oraya eklenir
 
 ---
@@ -51,15 +51,15 @@ yeniden yazılır. Bu beklenen davranıştır, bir kusur değildir.
 ## Bitiş Ölçütleri (DoD)
 
 - [x] Temiz bir tüketici projesinde `dotnet build` sonrası `Tracon.LocalReference.md` "Capability map" bölümüyle **başlar**; yazılan yol diskte vardır ve harita işaretini taşır — `LocalReferenceTests.The_first_section_is_the_capability_map_and_the_path_it_names_is_real`
-- [x] `AGENTS.md`'si `Tracon.LocalReference.md`'den söz etmeyen bir depoda `dotnet build` `APG0402` üretir; tek satır işaretçi eklenince uyarı kaybolur — `TemplateAgentsFileTests.Instructions_that_never_name_the_local_reference_are_reported`. 🚨 **Denetim bunu daralttı:** yalnız yerel referans dosyası gerçekten yazılırken (Sapma 5)
-- [x] `TraconUsageDiagnostics=false` `APG0402` dahil **yedi** kodun tamamını susturur — plan "altı" diyordu, aile yedi koda çıktı
-- [x] Üretilmiş (işaretli) `AGENTS.md` taşıyan depoda `APG0402` **ötmez** — `UsageAnalyzerTests.APG0402_is_silent_for_a_generated_agents_file`
+- [x] `AGENTS.md`'si `Tracon.LocalReference.md`'den söz etmeyen bir depoda `dotnet build` `TRC0402` üretir; tek satır işaretçi eklenince uyarı kaybolur — `TemplateAgentsFileTests.Instructions_that_never_name_the_local_reference_are_reported`. 🚨 **Denetim bunu daralttı:** yalnız yerel referans dosyası gerçekten yazılırken (Sapma 5)
+- [x] `TraconUsageDiagnostics=false` `TRC0402` dahil **yedi** kodun tamamını susturur — plan "altı" diyordu, aile yedi koda çıktı
+- [x] Üretilmiş (işaretli) `AGENTS.md` taşıyan depoda `TRC0402` **ötmez** — `UsageAnalyzerTests.TRC0402_is_silent_for_a_generated_agents_file`
 - [x] Dört doğrulama kapısı sıfır uyarı verir. 🚨 `dotnet build` yeşilken `dotnet format` bir `IDE1006` verdi (`_` öneki eksik alan) — dördü de koşmanın sebebi tam olarak budur
 - [x] `samples/Tracon.Api` derlenir ve **yeni uyarı üretmez** — çözüm derlemesi 0 uyarı
 - [x] `secret` taraması bu fazın dosyalarında boş döndü (eşleşenler `docs/arsiv/` ve `.agents/` içindeki yerel Docker kapsayıcı parolalarıdır, faz öncesinden)
 - [x] Manuel kabul case'leri eklendi: `MT-YRF-020`…`027` (8 case, 19 → 27). `MT-YRF-026` ve `027` `👤 insan gerekir` işaretlidir (planın 9 ve 10 numaralı case'leri)
 - [x] `faz-denetim` koşuldu; bir 🔴 bulundu ve **kapatıldı**, altı 🟡 kapandı, iki 🟢 devredildi
-- [x] `docs-site/` güncellendi; `npm run check` (dört kapı: `check:content` · `build` · `check:links` · `check:weight`) temiz. 🚨 `capabilities.md` `APG0402` **satırı almadı** — o dosyada kod-kod tanı tablosu yok (Sapma 1)
+- [x] `docs-site/` güncellendi; `npm run check` (dört kapı: `check:content` · `build` · `check:links` · `check:weight`) temiz. 🚨 `capabilities.md` `TRC0402` **satırı almadı** — o dosyada kod-kod tanı tablosu yok (Sapma 1)
 - [x] `build-agent-map.mjs --check` temiz — `up to date and within budget`
 - [x] `grep -c '^- \[' docs-site/public/llms.txt` → **38**; 38 bağın tamamı `check-links.mjs`'den geçiyor (`130991 internal reference(s) … none broken`) — kapının `llms.txt`'i görmesi için genişletilmesi gerekti (Sapma 4)
 - [x] Sevk edilen harita iki satırı da taşır; boyut uyarısı **üretilir** (`about 400 KB`), elle yazılmaz (Sapma 6)
@@ -73,8 +73,8 @@ yeniden yazılır. Bu beklenen davranıştır, bir kusur değildir.
 grep -A 2 "Capability map" <tuketici-proje>/Tracon.LocalReference.md
 head -1 "$(grep -m1 -o '/.*Tracon\.AgentMap\.md' <tuketici-proje>/Tracon.LocalReference.md)"
 
-# APG0402 oter mi
-dotnet build <tuketici>.slnx 2>&1 | grep APG0402
+# TRC0402 oter mi
+dotnet build <tuketici>.slnx 2>&1 | grep TRC0402
 
 # Aile tamamen susuyor mu
 dotnet build <tuketici>.slnx -p:TraconUsageDiagnostics=false 2>&1 | grep -c APG0
@@ -98,7 +98,7 @@ Planın **altı** iddiası ölçümle düştü. Hiçbiri hedefi değiştirmedi; 
 
 ### 1 — `capabilities.md`'de kod-kod tanı tablosu YOK
 
-Plan 78.3 şöyle diyordu: *"`capabilities.md`'nin tanı tablosuna `APG0402` satırı
+Plan 78.3 şöyle diyordu: *"`capabilities.md`'nin tanı tablosuna `TRC0402` satırı
 girer — bu dosya sevk edilen haritanın tek kaynağıdır (K-505), yani satır
 eklenmezse harita kendi tanısından habersiz kalır."*
 
@@ -107,10 +107,10 @@ eklenmezse harita kendi tanısından habersiz kalır."*
 adlandırmaz. Kod-kod tablolar başka yerdedir:
 `guides/coding-agents.md` ve `troubleshooting.md`.
 
-Sonuç: `APG0402` satırı **o iki tabloya** girdi. `capabilities.md`'de yalnız
+Sonuç: `TRC0402` satırı **o iki tabloya** girdi. `capabilities.md`'de yalnız
 aile tarifi genişletildi (`… and instructions that leave the map unreachable`).
 Kod-kod bir satır eklemek yeni bir desen açardı ve sevk edilen haritayı her tanı
-için bir satır büyütürdü — `APG0101`…`APG0401` için de hiç yapılmamıştı.
+için bir satır büyütürdü — `TRC0101`…`TRC0401` için de hiç yapılmamıştı.
 
 🚨 Bunun bıraktığı boşluk kaydedildi: yeni bir `APG` kodunun dokümana girdiğini
 ölçen **hiçbir kapı yok** (`ADAYLAR.md` **F-136**).
@@ -123,10 +123,10 @@ sıfır uzunluklu span'ın IDE'de gösterilebildiği ölçülmelidir."*
 
 Ölçüm: `ReadRevision` `markerLength`'i işaret aramasından **önce** atıyor
 (`markerLength = line.Length`), yani elle yazılmış bir dosyada da ilk satırın
-uzunluğudur. Konum gerçek bir span'dır ve `APG0401`'inkiyle aynıdır; sıfır
+uzunluğudur. Konum gerçek bir span'dır ve `TRC0401`'inkiyle aynıdır; sıfır
 uzunluk yalnız **boş** bir `AGENTS.md`'de oluşur. İkisi de test edildi
-(`APG0402_reports_instructions_that_never_name_the_local_reference` span
-uzunluğunu, `APG0402_reports_an_empty_agents_file` sıfırı ölçer).
+(`TRC0402_reports_instructions_that_never_name_the_local_reference` span
+uzunluğunu, `TRC0402_reports_an_empty_agents_file` sıfırı ölçer).
 
 ### 3 — İndeks planın öngördüğünün **%37 üstünde**; `llms.txt` bütçesi 20 480 B
 
@@ -152,12 +152,12 @@ DoD *"her bağ `check-links.mjs`'den geçer"* diyordu. Ölçüm: o betik yalnız
 (`dist/llms.txt` içindeki markdown bağ satırları aynı çözücüden geçer) ve
 kırmızı olduğu **görüldü**: bozuk tek bir bağ `exit=1` üretiyor.
 
-### 5 — 🚨 `APG0402` opt-in'e BAĞLANDI (denetim 🔴 #1, kullanıcı kararı)
+### 5 — 🚨 `TRC0402` opt-in'e BAĞLANDI (denetim 🔴 #1, kullanıcı kararı)
 
 Planın dört tetikleme koşulunun hiçbiri "yerel referans dosyası gerçekten
 yazılıyor mu" değildi. Denetim bunun sonucunu ölçtü: **hiçbir özellik açmamış**
 bir tüketicide `AdditionalFiles` yine akıyor (targets'taki `ItemGroup` opt-in'e
-bağlı değil, bu bilerek böyle), yani `APG0402` ötüyordu — ve önerdiği satır
+bağlı değil, bu bilerek böyle), yani `TRC0402` ötüyordu — ve önerdiği satır
 **hiç yazılmayan** bir dosyayı adlandırıyordu. Ölü işaretçi, işaretçisizlikten
 kötüdür.
 
@@ -184,7 +184,7 @@ gösterirdi.
 | Karar | Nerede |
 |---|---|
 | **K-537** — `llms.txt` haritadan AYRI bütçelenir (20 480 B); ikisinin ekonomisi farklıdır | `docs/KARARLAR.md` |
-| **K-538** — `APG0402` yalnız yerel referans dosyası YAZILIRKEN öter; opt-in yapmamış tüketici hiçbir uyarı almaz | `docs/KARARLAR.md` |
+| **K-538** — `TRC0402` yalnız yerel referans dosyası YAZILIRKEN öter; opt-in yapmamış tüketici hiçbir uyarı almaz | `docs/KARARLAR.md` |
 
 ---
 
@@ -192,7 +192,7 @@ gösterirdi.
 
 | # | Seviye | Bulgu | Sonuç |
 |---|---|---|---|
-| 1 | 🔴 | `APG0402` opt-in yapmamış tüketicide de ötüyor ve önerdiği satır **ölü** bir dosyayı adlandırıyor | **Düzeltildi** — `CompilerVisibleProperty` kapısı (Sapma 5, K-538). İki fonksiyonel + iki birim testi eklendi; mutasyonla kırmızı olduğu görüldü |
+| 1 | 🔴 | `TRC0402` opt-in yapmamış tüketicide de ötüyor ve önerdiği satır **ölü** bir dosyayı adlandırıyor | **Düzeltildi** — `CompilerVisibleProperty` kapısı (Sapma 5, K-538). İki fonksiyonel + iki birim testi eklendi; mutasyonla kırmızı olduğu görüldü |
 | 2 | 🟡 | `Every_project_of_a_solution_reports_the_missing_pointer` satır sayıyordu; tek proje de eşiği geçiyordu | **Düzeltildi** — ayrık proje adları sayılıyor. 🚨 İlk düzeltme `HashSet.ShouldBe` ile yazıldı ve **sıralamaya takıldı** (denetim listesi 3.2'nin tam kendisi); `Distinct().Order()` ile deterministik hâle getirildi |
 | 3 | 🟡 | `llms.txt` tavanı DoD'nin yazdığı sayı değil ve bu bir tavan **yükseltmesidir** | **Düzeltildi** — DoD düzeltildi, K-537 ölçümle yazıldı |
 | 4 | 🟡 | Site kapıları son içeriğe karşı koşulmamıştı (`dist/` bayattı) | **Düzeltildi** — `npm run check` tam koştu; en ağır sayfa 49 873 B, harita 8 391 B |
@@ -212,8 +212,8 @@ dışı public API), 3.7 (repo kuralları — sevk edilen metinde iç referans y
 
 | Kova | Ne değişti | Üretilen mi |
 |---|---|---|
-| `docs-site/` | `guides/coding-agents.md` (yanlış tavsiye kalktı, iki adımlı reçete, diyagram, `llms.txt` anlatısı) · `troubleshooting.md` (`APG0402` satırı + bölümü) · `capabilities.md` (aile tarifi + anlatı) | Elle |
-| Sevk edilen metin | `Tracon.Core.targets` (harita bölümü · `NoWarn` · `CompilerVisibleProperty`) · `APG0402` tanı metni · `AnalyzerReleases.Unshipped.md` | Elle |
+| `docs-site/` | `guides/coding-agents.md` (yanlış tavsiye kalktı, iki adımlı reçete, diyagram, `llms.txt` anlatısı) · `troubleshooting.md` (`TRC0402` satırı + bölümü) · `capabilities.md` (aile tarifi + anlatı) | Elle |
+| Sevk edilen metin | `Tracon.Core.targets` (harita bölümü · `NoWarn` · `CompilerVisibleProperty`) · `TRC0402` tanı metni · `AnalyzerReleases.Unshipped.md` | Elle |
 | Yerel referans ve harita | `Tracon.LocalReference.md` gövdesi **dört bölüm** oldu · `Tracon.AgentMap.md` iki "Where to look" satırı kazandı · `llms.txt` 38 satırlık indeks kazandı | Üretilir, commit edilir |
 
 Dokunulmayanlar: `api/` · `http-api/` · `public/openapi/` · `ui.md` · ekran
@@ -238,7 +238,7 @@ yalnız **iddia kazandı** (iki yeni kapı), eşik kaybetmedi.
 ## Sonraki Faza Devir Notu
 
 1. 🚨 **Bir tanının önerdiği düzeltmenin GERÇEKTEN uygulanabilir olduğunu ölç.**
-   Bu fazın tek 🔴'ı buydu: `APG0402` doğru koşulda ötüyordu, mesajı doğruydu,
+   Bu fazın tek 🔴'ı buydu: `TRC0402` doğru koşulda ötüyordu, mesajı doğruydu,
    testleri geçiyordu — ve önerdiği satır **var olmayan** bir dosyayı
    adlandırıyordu. Soru şudur: *bu tanının dediğini harfiyen yapan bir tüketici
    ne elde eder?* Yeni bir tanı yazarken bu soruyu **her yapılandırmada** sor,

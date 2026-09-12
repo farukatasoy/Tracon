@@ -382,7 +382,7 @@ Postgres, Sqlite, SqlServer'ın dördünde de koşar) ·
 
 ### ~~Aile D~~ — `T[]` parametreli tool derlenmiyor 🚨 Kritik ✅ (bu koşum — zaten kapalıydı)
 
-**Kusur:** `MT-PKG-044`. `APG0003` diziyi "desteklenir" ilan ediyor ama
+**Kusur:** `MT-PKG-044`. `TRC0003` diziyi "desteklenir" ilan ediyor ama
 `T[]` parametreli hiçbir tool metodu derlenmiyor (`CS1503: IReadOnlyList<T>` → `T[]`).
 `int[]` ile de tekrar üretildi.
 
@@ -400,7 +400,7 @@ Postgres, Sqlite, SqlServer'ın dördünde de koşar) ·
 `int[]`/`string[]`/`IReadOnlyList<int>` karışımını gerçek Roslyn derlemesinden
 geçiriyor) zaten repoda. Canlı doğrulama tazelenmiş
 `Tracon.0.0.0-preview.0.138` paketiyle `~/tracon-manuel/uretec`'te
-tekrarlandı: `APG0003` sayısı 0, derleme 0 hata ile bitti. Kod değişikliği
+tekrarlandı: `TRC0003` sayısı 0, derleme 0 hata ile bitti. Kod değişikliği
 gerekmedi; yalnız case'in `Gerçek sonuç`/`Durum` alanları güncellendi.
 
 **Case:** `MT-PKG-044` ✅.
@@ -964,7 +964,7 @@ buna dokunmamıştı.
    `WebhookUrlValidator`, `QuotaEnforcer`, `WorkflowDefinitionValidator`
    (Core) · `WorkflowRunner`, `WorkflowDefinitionCompiler`,
    `TraconCheckpointStore`, `WorkflowSessionId`, `WorkflowResponseFactory`
-   (Workflows) · `ToolDiagnostics` (Generators — `APG0001`-`APG0007`
+   (Workflows) · `ToolDiagnostics` (Generators — `TRC0001`-`TRC0007`
    analyzer tanı mesajları; testler yalnız tanı KİMLİĞİNİ doğruluyor, metni
    değil, bu yüzden çeviri güvenliydi).
 3. **`ProblemDetails` kullanmayan ama aynı kullanıcı kararının (§5.3)

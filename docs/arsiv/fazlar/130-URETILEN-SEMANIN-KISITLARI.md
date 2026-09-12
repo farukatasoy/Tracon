@@ -5,8 +5,8 @@
 > **Önkoşul:** Yok
 > **Paketler:** `Tracon.Generators` (tek paket)
 > **Yeni paket:** Yok · **Migration:** Yok
-> **Public API:** büyümüyor — üretilen şema metni değişir, C# yüzeyi değişmez. Yeni bir analyzer diagnostic kodu eklenir (`APG0010`)
-> **Tüketici yüzeyi:** `docs-site/`: `guides/write-your-own-tool.md`, `concepts/tools.md`, `capabilities.md` (diagnostic bağlantısının hedef bölümü) · sevk edilen: `APG0003` metni, yeni `APG0010` metni, `AnalyzerReleases.Unshipped.md`
+> **Public API:** büyümüyor — üretilen şema metni değişir, C# yüzeyi değişmez. Yeni bir analyzer diagnostic kodu eklenir (`TRC0010`)
+> **Tüketici yüzeyi:** `docs-site/`: `guides/write-your-own-tool.md`, `concepts/tools.md`, `capabilities.md` (diagnostic bağlantısının hedef bölümü) · sevk edilen: `TRC0003` metni, yeni `TRC0010` metni, `AnalyzerReleases.Unshipped.md`
 > **Manuel test alanı:** [`docs/manuel-test/02-CEKIRDEK-VE-KATALOG.md`](../../manuel-test/02-CEKIRDEK-VE-KATALOG.md)
 
 ---
@@ -33,11 +33,11 @@ Generator bugün tipi ifade eder, **kısıtı** ifade etmez. Model `count` param
 ## Bitiş Ölçütleri (DoD)
 
 - [x] `[Range]`, `[MinLength]`, `[MaxLength]`, `[StringLength]`, `[RegularExpression]` doğru JSON Schema anahtarlarına dönüşür (case 1–3)
-- [x] Uyumsuz kısıt `APG0010` üretir, derleme başarılı kalır (case 4) — negatif değer ve argümansız `[MaxLength]` de dahil (denetim 🔴/🟡)
+- [x] Uyumsuz kısıt `TRC0010` üretir, derleme başarılı kalır (case 4) — negatif değer ve argümansız `[MaxLength]` de dahil (denetim 🔴/🟡)
 - [x] Aynı girdi iki derlemede **bit düzeyinde aynı** şema üretir
 - [x] `tr-TR` yerelinde ondalık ayırıcı `.` kalır (case 6)
-- [x] `APG0003` metni güncellendi; nested object sınırı korunur, kısıt sınırı kaldırılır
-- [x] `AnalyzerReleases.Unshipped.md` `APG0010` satırını taşır
+- [x] `TRC0003` metni güncellendi; nested object sınırı korunur, kısıt sınırı kaldırılır
+- [x] `AnalyzerReleases.Unshipped.md` `TRC0010` satırını taşır
 - [x] `DiagnosticIntegrityTests` yeşil (yardım bağlantısı siteyle uyumlu)
 - [x] Dört doğrulama kapısı sıfır uyarı verir
 - [x] Kısıtlı tool ile gerçek `run` yapıldı, çıktı belgeye yazıldı (case 5 — `Tracon.Package.Tests` üzerinden, bkz. Plandan Sapmalar #1)
@@ -77,7 +77,7 @@ LANG=tr_TR.UTF-8 dotnet build tests/Tracon.Generators.UnitTests
 ## Plandan Sapmalar
 
 1. **Manuel kabul case 5'in mekanizması `samples/Tracon.Api` yerine `Tracon.Package.Tests`'e taşındı.** Plan "samples/Tracon.Api üzerinde tool çağırt" diyordu, ama bu proje `Tracon`'e `ProjectReference` ile bağlıdır (`ConsumerRunTests`'in kendi belgesi) — paketlenmiş `analyzers/dotnet/cs/` DLL'inin gerçekten bir `PackageReference` tüketicisine ulaştığını KANITLAYAMAZ, ki DoD'nin kendi paket-seviyesi satırı tam olarak bunu istiyordu ("Kısıtlı tool gerçekten paketten çıkmaz | Paket | `Tracon.Package.Tests`"). `ConsumerRunTests`'in aynı deseni (yerel NuGet feed → dış tüketici projesi yaz → derle → çalıştır) tekrarlanarak `ConstrainedToolConsumerProject`/`ConstrainedToolPackageTests` eklendi; `samples/Tracon.Api`'nin paylaşılan `OrderTools.cs`'i (onlarca başka manuel test dokümanı ve fonksiyonel testin referans verdiği `list_recent_orders`/`get_order_status`/`cancel_order` imzaları) dokunulmadan bırakıldı. Manuel case MT-CORE-112 bu gerçek mekanizmayı anlatacak şekilde güncellendi.
-2. **`ParameterTypeValidator.TryCreate`'e planın taslağında olmayan bir `out EquatableArray<string> unsupportedConstraintAttributes` parametresi eklendi.** Plan yalnız `ParameterModel`e `Constraints` alanı eklenmesini gösteriyordu; APG0010'u raporlamak için "hangi attribute uyumsuzdu" bilgisinin `ToolCandidate.Create`'e taşınması gerekti — `ParameterModel`in kendisine eklemek (incremental modelin bir PARÇASI hâline getirmek) kapsam dışıydı, çünkü bu bilgi yalnız tek seferlik bir tanı raporlamak için var, şemaya asla girmiyor. `out` parametresi bunu `ParameterModel`in değer eşitliğinin dışında tutar.
+2. **`ParameterTypeValidator.TryCreate`'e planın taslağında olmayan bir `out EquatableArray<string> unsupportedConstraintAttributes` parametresi eklendi.** Plan yalnız `ParameterModel`e `Constraints` alanı eklenmesini gösteriyordu; TRC0010'u raporlamak için "hangi attribute uyumsuzdu" bilgisinin `ToolCandidate.Create`'e taşınması gerekti — `ParameterModel`in kendisine eklemek (incremental modelin bir PARÇASI hâline getirmek) kapsam dışıydı, çünkü bu bilgi yalnız tek seferlik bir tanı raporlamak için var, şemaya asla girmiyor. `out` parametresi bunu `ParameterModel`in değer eşitliğinin dışında tutar.
 3. **Kapanış kapısını koşarken, bu fazla TAMAMEN ilgisiz iki bayat taban çizgisi bulundu ve düzeltildi** (kullanıcı talimatı: "konuyla alakasız bug/defect'lerle karşılaşırsan onları da çöz"):
    - `tests/Tracon.Core.UnitTests/Architecture/PlaywrightLocatorTests` — Faz 129 `tests/Tracon.Ui.E2ETests/UiTests.cs`'e `GetByPlaceholder("default")` (ne `Exact = true` ne `.First`/`.Nth`) ekledi ama `playwright-locator-baseline.txt`'i hiç yenilemedi (dosyanın son commit'i Faz 93'ten kalıyordu, `UiTests.cs`'inki Faz 129'dandı). `Exact = true` eklendi — placeholder metni `jobs.tsx`'te tam olarak `"default"` ve sayfada tek örnek, bu yüzden davranış değişmedi, yalnız riskli sayım düştü.
    - `tests/Tracon.Sql.Shared.UnitTests/SqlTextSnapshotTests` — Faz 129'un `lane` sütunu (job kuyruğu lane'leri) on bir sorgu metnini değiştirdi ama üç `sql-text-baseline.*.txt` dosyası hiç yenilenmedi (son commit'leri Faz 126'dan kalıyordu). `TRACON_SQL_SNAPSHOT_REFRESH=1` ile yenilendi; `git diff` yalnız `lane` sütunu/parametresi ekleyen satırları gösterdi, üç dialekt arasında tutarlı — beklenmedik hiçbir fark yok.
@@ -88,7 +88,7 @@ LANG=tr_TR.UTF-8 dotnet build tests/Tracon.Generators.UnitTests
 ## Bu Fazda Verilen Kararlar
 
 > Yeni bir `K-NNN` kaydı açılmadı. Plandaki üç açık soru (format üretilmesin,
-> çelişen kısıt sessizce daraltılsın, `APG0010` uyarı olsun) planın kendi
+> çelişen kısıt sessizce daraltılsın, `TRC0010` uyarı olsun) planın kendi
 > önerisiyle aynen uygulandı — bunlar yerel generator tasarım tercihleridir,
 > public API/uyumluluk sözleşmesi, güvenlik/kiracı sınırı veya kalıcı
 > veri/migration kararı değil (AGENTS.md). Yukarıdaki sapma #3'teki iki
@@ -101,8 +101,8 @@ Taze bağlamlı bir denetçi (Agent, `general-purpose`) 2026-09-01'de koştu.
 
 | # | Seviye | Bulgu | Sonuç |
 |---|---|---|---|
-| 1 | 🔴 | `[MinLength(-1)]`/`[MaxLength(-1)]` gibi negatif bir kısıt değeri, JSON Schema'nın `nonNegativeInteger` şartı taşıyan `minLength`/`maxLength`/`minItems`/`maxItems` anahtarlarına doğrulanmadan yazılıyordu — geçersiz bir şema sessizce üretiliyordu, `APG0010` hiç ötmedi | **Düzeltildi.** `ReadConstraints`'in `MinLength`/`MaxLength`/`StringLength` dallarına negatif-değer kontrolü eklendi; artık `APG0010` üretiyor, anahtar şemaya hiç girmiyor. Dört yeni test (`A_negative_MinLength_is_reported_and_omitted_from_the_schema` ve üç kardeşi) |
-| 2 | 🟡 | `[MaxLength]` (argümansız kurucu, geçerli bir C# kullanımı) sessizce hiçbir etki üretmiyordu — ne şemaya yazılıyordu ne `APG0010` veriyordu; `Range(Type,...)`'ın aynı sınıftaki durumuyla (değer yok → uyarı) tutarsızdı | **Düzeltildi.** Aynı `TryReadSingleIntArgument` başarısızlık dalı artık `unsupported.Add("[MaxLength]")` çağırıyor; `A_parameterless_MaxLength_attribute_is_reported` testi ekli |
+| 1 | 🔴 | `[MinLength(-1)]`/`[MaxLength(-1)]` gibi negatif bir kısıt değeri, JSON Schema'nın `nonNegativeInteger` şartı taşıyan `minLength`/`maxLength`/`minItems`/`maxItems` anahtarlarına doğrulanmadan yazılıyordu — geçersiz bir şema sessizce üretiliyordu, `TRC0010` hiç ötmedi | **Düzeltildi.** `ReadConstraints`'in `MinLength`/`MaxLength`/`StringLength` dallarına negatif-değer kontrolü eklendi; artık `TRC0010` üretiyor, anahtar şemaya hiç girmiyor. Dört yeni test (`A_negative_MinLength_is_reported_and_omitted_from_the_schema` ve üç kardeşi) |
+| 2 | 🟡 | `[MaxLength]` (argümansız kurucu, geçerli bir C# kullanımı) sessizce hiçbir etki üretmiyordu — ne şemaya yazılıyordu ne `TRC0010` veriyordu; `Range(Type,...)`'ın aynı sınıftaki durumuyla (değer yok → uyarı) tutarsızdı | **Düzeltildi.** Aynı `TryReadSingleIntArgument` başarısızlık dalı artık `unsupported.Add("[MaxLength]")` çağırıyor; `A_parameterless_MaxLength_attribute_is_reported` testi ekli |
 | 3 | 🟡 | Planın "Beş soru" bölümü `[MaxLength(0)]`, `[Range(int.MinValue, int.MaxValue)]` ve boş `pattern` case'lerinin yazılacağını taahhüt ediyordu; hiçbiri test dosyalarında yoktu | **Düzeltildi.** Üç sınır testi `ToolSchemaConstraintTests`'e eklendi (`A_MaxLength_of_zero_produces_maxLength_zero`, `A_Range_spanning_the_full_Int32_domain_produces_matching_minimum_and_maximum`, `An_empty_RegularExpression_pattern_produces_an_empty_pattern_string`) |
 
 **🔴 ve 🟡 (yukarıdakiler dışında) yok.** Denetçinin bağımsızca doğruladığı

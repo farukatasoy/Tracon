@@ -3009,7 +3009,7 @@ kanıtlamaktır (130.3).
 
 ---
 
-### MT-CORE-111 — Uyumsuz kısıt `APG0010` üretir, derleme başarılı kalır (Faz 130)
+### MT-CORE-111 — Uyumsuz kısıt `TRC0010` üretir, derleme başarılı kalır (Faz 130)
 
 | | |
 |---|---|
@@ -3025,7 +3025,7 @@ kanıtlamaktır (130.3).
 1. `dotnet build samples/Tracon.Api`.
 
 **Beklenen sonuç**
-- Derleme `APG0010` UYARISI verir, **hata vermez** — build başarılı biter.
+- Derleme `TRC0010` UYARISI verir, **hata vermez** — build başarılı biter.
 - Üretilen şemada `s` düğümünde `minimum`/`maximum` **yoktur**.
 
 > **Otomatik karşılığı:**
@@ -3190,7 +3190,7 @@ yalnız bunu kanıtlar, yeni bir kısıt türü eklemez.
 
 ---
 
-### MT-CORE-118 — Context'te bildirilmeyen nesne tipi `APG0011` ile derlemeyi durdurur (Faz 135)
+### MT-CORE-118 — Context'te bildirilmeyen nesne tipi `TRC0011` ile derlemeyi durdurur (Faz 135)
 
 | | |
 |---|---|
@@ -3210,18 +3210,18 @@ bildirmezse derleme durur, sessizce reflection'a düşmez.
 1. `dotnet build samples/Tracon.Api`.
 
 **Beklenen sonuç**
-- Derleme `APG0011` HATASI verir (uyarı değil) — build **başarısız** biter.
+- Derleme `TRC0011` HATASI verir (uyarı değil) — build **başarısız** biter.
 - Hata metni eksik tipin adını (`Inner`) taşır.
 - Context hiçbir tip bildirmiyorsa (tamamen eksikse), graftaki HER tip için
-  ayrı bir `APG0011` üretilir — tüketici hepsini tek derlemede görür.
+  ayrı bir `TRC0011` üretilir — tüketici hepsini tek derlemede görür.
 
 > **Otomatik karşılığı:**
-> `ToolObjectGraphTests.A_JsonSerializerContext_missing_only_a_nested_type_reports_APG0011_for_that_type_alone`
-> ve `...An_object_parameter_with_no_JsonSerializerContext_reports_APG0011_for_every_type_in_its_graph`.
+> `ToolObjectGraphTests.A_JsonSerializerContext_missing_only_a_nested_type_reports_TRC0011_for_that_type_alone`
+> ve `...An_object_parameter_with_no_JsonSerializerContext_reports_TRC0011_for_every_type_in_its_graph`.
 
 ---
 
-### MT-CORE-119 — 3'ü aşan nesne derinliği `APG0012` ile derlemeyi durdurur (Faz 135)
+### MT-CORE-119 — 3'ü aşan nesne derinliği `TRC0012` ile derlemeyi durdurur (Faz 135)
 
 | | |
 |---|---|
@@ -3237,15 +3237,15 @@ bildirmezse derleme durur, sessizce reflection'a düşmez.
 1. `dotnet build samples/Tracon.Api`.
 
 **Beklenen sonuç**
-- Derleme `APG0012` HATASI verir; hata metni yolu gösterir
+- Derleme `TRC0012` HATASI verir; hata metni yolu gösterir
   (`Level0 → Level1 → Level2 → Level3 → Level4`).
 - Generator **asılmaz**, derleme normal sürede biter.
 
-> **Otomatik karşılığı:** `ToolObjectGraphTests.A_graph_four_levels_deep_produces_APG0012_and_blocks_generation`.
+> **Otomatik karşılığı:** `ToolObjectGraphTests.A_graph_four_levels_deep_produces_TRC0012_and_blocks_generation`.
 
 ---
 
-### MT-CORE-120 — Bir cycle `APG0012` üretir, generator asılmaz (Faz 135)
+### MT-CORE-120 — Bir cycle `TRC0012` üretir, generator asılmaz (Faz 135)
 
 | | |
 |---|---|
@@ -3261,10 +3261,10 @@ bildirmezse derleme durur, sessizce reflection'a düşmez.
 
 **Beklenen sonuç**
 - Derleme makul sürede (saniyeler) biter — asılı KALMAZ.
-- `APG0012` hatası yolu `NodeA → NodeB → NodeA` olarak gösterir.
+- `TRC0012` hatası yolu `NodeA → NodeB → NodeA` olarak gösterir.
 
 > **Otomatik karşılığı:**
-> `ToolObjectGraphTests.A_cycle_produces_APG0012_naming_the_cyclic_path_and_the_generator_returns_promptly`
+> `ToolObjectGraphTests.A_cycle_produces_TRC0012_naming_the_cyclic_path_and_the_generator_returns_promptly`
 > (10 saniyelik bir üst sınırla `Task.WaitAsync` koşulur).
 
 ---

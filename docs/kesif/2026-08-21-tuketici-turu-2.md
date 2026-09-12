@@ -122,7 +122,7 @@ adlarının **hepsi 0 kez** geçiyor. `docs-site` elle yazılan sayfalarında
 `ITenantContext`, `ITenantStore`, `AmbientTenantScope`, `TraconRunContext`
 ve `IAttachmentStore` **0** sayfada geçiyor. `samples/` **tek proje** taşıyor.
 `TraconDiagnosticsReport` on alan taşıyor, hiçbiri bağlı genişleme noktası
-değil. `APG` tanı ailesinde (`APG0001`…`APG0402`) karşılığı yok.
+değil. `APG` tanı ailesinde (`TRC0001`…`TRC0402`) karşılığı yok.
 **Mercek:** 1, 3, 6.
 **Eleyici sınır:** K2 ⟶ konusuz · K3 ⟶ konusuz · yeni paket **yok** · AOT
 etkilenmez · bundle etkilenmez · public API **büyümüyor** (tanı ve rapor alanı

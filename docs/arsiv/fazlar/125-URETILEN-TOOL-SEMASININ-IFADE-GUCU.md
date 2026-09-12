@@ -6,7 +6,7 @@
 > **Paketler:** `Tracon.Generators`
 > **Yeni paket:** Yok · **Migration:** Yok
 > **Public API:** Büyümüyor. Açıklama `System.ComponentModel.DescriptionAttribute`'tan okunur — Tracon yeni bir attribute **sevk etmez**
-> **Tüketici yüzeyi:** `docs-site/src/content/docs/guides/write-your-own-tool.md`, `troubleshooting.md` (APG0003 bölümü) · sevk edilen: `AnalyzerReleases.Unshipped.md` (yeni APG kuralı), `[TraconTool]` XML dokümanı
+> **Tüketici yüzeyi:** `docs-site/src/content/docs/guides/write-your-own-tool.md`, `troubleshooting.md` (TRC0003 bölümü) · sevk edilen: `AnalyzerReleases.Unshipped.md` (yeni APG kuralı), `[TraconTool]` XML dokümanı
 > **Manuel test alanı:** `docs/manuel-test/24-TEST-PAKETI-VE-SABLON.md`
 
 ---
@@ -34,8 +34,8 @@ Bir tüketici ölçtü: kendi basit reflection şeması **parametre açıklamas�
 
 - [x] `[Description]` taşıyan bir parametre üretilen şemada `description` alanı taşır — anlık görüntü testi (`ToolSchemaDescriptionTests.A_Description_attribute_on_a_scalar_parameter_reaches_the_schema`)
 - [x] Dizi parametresinde açıklama **dizi düğümünde**, `items` içinde değil (`An_array_parameters_description_is_written_on_the_array_node_not_inside_items`)
-- [x] Açıklamasız parametre APG0009 **uyarısı** üretir; derleme başarılıdır (`DiagnosticTests.APG0009_warns_when_a_parameter_description_is_missing_but_does_not_block_generation`)
-- [x] APG0003 metni ifade edilemeyenleri adıyla sayar ve kaçış yolunu gösterir (`DiagnosticTests.APG0003_message_names_what_the_generator_can_never_express_125_3`)
+- [x] Açıklamasız parametre TRC0009 **uyarısı** üretir; derleme başarılıdır (`DiagnosticTests.TRC0009_warns_when_a_parameter_description_is_missing_but_does_not_block_generation`)
+- [x] TRC0003 metni ifade edilemeyenleri adıyla sayar ve kaçış yolunu gösterir (`DiagnosticTests.TRC0003_message_names_what_the_generator_can_never_express_125_3`)
 - [x] `guides/write-your-own-tool.md` üretecin sınırını ilan eder
 - [x] Açıklama değişince üreteç yeni şema üretir (`Changing_only_the_description_produces_a_fresh_schema_not_a_stale_cached_one`)
 - [x] Dört doğrulama kapısı sıfır uyarı verir (`dotnet build`/`test`/`pack`/`format --verify-no-changes`, 2026-09-01)
@@ -64,7 +64,7 @@ dotnet build Tracon.slnx -c Release
   bilmiyordu: `ToolCandidate.Create` bir `DiagnosticInfo` üretse bile,
   `ToolRegistrationGenerator.ReportDiagnostic` id'yi bu **private** sözlükte
   bulamazsa sessizce `return` eder — ne derleme hatası, ne test kırılması, ne
-  log çıkışı. APG0009 önce `ToolDiagnostics.cs`'e eklendi ve **hiç
+  log çıkışı. TRC0009 önce `ToolDiagnostics.cs`'e eklendi ve **hiç
   raporlanmadı**; yalnız tanıyı bizzat arayan bir test (`ToolSchemaDescriptionTests`)
   bunu yakaladı. Aynı kusur sınıfının bir daha yaşanmaması için
   `DiagnosticIntegrityTests.Every_DiagnosticInfo_routed_tool_diagnostic_is_wired_into_the_generators_dispatch_table`
@@ -80,12 +80,12 @@ dotnet build Tracon.slnx -c Release
   `samples/Tracon.Api/OrderTools.cs`, `samples/Tracon.Samples.CustomTool/OrderPreviewTools.cs`,
   `src/Tracon.Templates/content/Tracon.Starter/Tools/OrderTools.cs`,
   `tests/Tracon.Package.Tests/Infrastructure/ConsumerProject.cs` —
-  APG0009 devreye girince bu dosyalardaki parametreler uyarı üretmeye başladı;
+  TRC0009 devreye girince bu dosyalardaki parametreler uyarı üretmeye başladı;
   ana repo `TreatWarningsAsErrors=true` taşıdığından `samples/Tracon.Api`
   için bu gerçek bir **derleme hatasıydı**. Dördüne de `[Description]` eklendi;
   ayrıca beş mevcut üreteç testi (`GeneratedOutputTests`, `IncrementalityTests`)
   aynı sebeple güncellendi.
-- **APG0003 mesajı ve `troubleshooting.md`, `AIFunctionFactory.Create`'in
+- **TRC0003 mesajı ve `troubleshooting.md`, `AIFunctionFactory.Create`'in
   `JsonSerializerOptions` alan overload'unu (kaynak-üretilmiş `JsonSerializerContext`
   ile AOT-güvenli) örnekliyor** — plan yalnız "register manually with
   `AddTool(AIFunctionFactory.Create(...))`" diyordu, hangi overload'ın nesne

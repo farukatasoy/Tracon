@@ -15,7 +15,7 @@ internal static class ToolDiagnostics
     private const string HelpLink = DocumentationLinks.CapabilityMap + "tools-skills-and-context";
 
     public static readonly DiagnosticDescriptor DuplicateName = new(
-        "APG0001",
+        "TRC0001",
         "Tool name conflict",
         "Tool name '{0}' is used on more than one method: {1}. Each tool name must be unique within the compilation.",
         Category,
@@ -24,7 +24,7 @@ internal static class ToolDiagnostics
         helpLinkUri: HelpLink);
 
     public static readonly DiagnosticDescriptor InvalidName = new(
-        "APG0002",
+        "TRC0002",
         "Invalid tool name",
         "Method '{0}' has tool name '{1}', which is invalid. A tool name must be 1-64 characters and contain only letters, digits, '_', or '-'.",
         Category,
@@ -33,16 +33,16 @@ internal static class ToolDiagnostics
         helpLinkUri: HelpLink);
 
     public static readonly DiagnosticDescriptor UnsupportedParameterType = new(
-        "APG0003",
+        "TRC0003",
         "Unsupported parameter type",
-        "Parameter '{1}' (type '{2}') of method '{0}' is not supported by the generator. Supported types: primitive types, string, Guid, DateTime(Offset), enum, arrays/IReadOnlyList<T> of these, CancellationToken, and a supported object - a public record or class with a single public constructor, up to 3 nested object levels deep (see APG0011, APG0012). For another type, register manually with 'AddTool(AIFunctionFactory.Create(...))'.",
+        "Parameter '{1}' (type '{2}') of method '{0}' is not supported by the generator. Supported types: primitive types, string, Guid, DateTime(Offset), enum, arrays/IReadOnlyList<T> of these, CancellationToken, and a supported object - a public record or class with a single public constructor, up to 3 nested object levels deep (see TRC0011, TRC0012). For another type, register manually with 'AddTool(AIFunctionFactory.Create(...))'.",
         Category,
         DiagnosticSeverity.Error,
         isEnabledByDefault: true,
         helpLinkUri: HelpLink);
 
     public static readonly DiagnosticDescriptor GenericMethod = new(
-        "APG0004",
+        "TRC0004",
         "A generic method cannot be a tool",
         "Method '{0}' is marked with [TraconTool] but is generic. Tool methods cannot be generic; write a concrete wrapper method.",
         Category,
@@ -51,7 +51,7 @@ internal static class ToolDiagnostics
         helpLinkUri: HelpLink);
 
     public static readonly DiagnosticDescriptor NoToolsFound = new(
-        "APG0005",
+        "TRC0005",
         "No marked tool method",
         "'AddGeneratedTools()' was called, but this compilation has no method marked with [TraconTool]. Mark tool methods, or remove this call.",
         Category,
@@ -60,7 +60,7 @@ internal static class ToolDiagnostics
         helpLinkUri: HelpLink);
 
     public static readonly DiagnosticDescriptor MissingDescription = new(
-        "APG0006",
+        "TRC0006",
         "Tool description missing",
         "Tool '{0}' has no description. The model cannot know when to call the tool without one; give a description for [TraconTool].",
         Category,
@@ -69,7 +69,7 @@ internal static class ToolDiagnostics
         helpLinkUri: HelpLink);
 
     public static readonly DiagnosticDescriptor InstanceMethod = new(
-        "APG0007",
+        "TRC0007",
         "An instance method cannot be a tool",
         "'{0}' is an instance method and cannot be a tool. MAF passes an empty provider as AIFunctionArguments.Services (decision K-218). Make the method 'static', or instantiate the tool at setup time and register it with 'AddTool(AIFunctionFactory.Create(...))'.",
         Category,
@@ -78,7 +78,7 @@ internal static class ToolDiagnostics
         helpLinkUri: HelpLink);
 
     public static readonly DiagnosticDescriptor MissingJsonSerializerContext = new(
-        "APG0008",
+        "TRC0008",
         "Complex tool result needs a JSON context",
         "Tool method '{0}' returns complex type '{1}'. Set TraconTool.JsonSerializerContext to a JsonSerializerContext that declares [JsonSerializable(typeof({1}))].",
         Category,
@@ -87,7 +87,7 @@ internal static class ToolDiagnostics
         helpLinkUri: HelpLink);
 
     public static readonly DiagnosticDescriptor MissingParameterDescription = new(
-        "APG0009",
+        "TRC0009",
         "Tool parameter description missing",
         "Parameter '{1}' of tool '{0}' has no description. The model has only the parameter name to go on; add [Description].",
         Category,
@@ -96,7 +96,7 @@ internal static class ToolDiagnostics
         helpLinkUri: HelpLink);
 
     public static readonly DiagnosticDescriptor UnsupportedConstraint = new(
-        "APG0010",
+        "TRC0010",
         "Unsupported parameter constraint",
         "Parameter '{1}' of tool '{0}' has a {2} attribute that does not apply to its type or shape, so it is not included in the generated schema. Remove it, or register the tool manually with 'AddTool(AIFunctionFactory.Create(...))'.",
         Category,
@@ -105,7 +105,7 @@ internal static class ToolDiagnostics
         helpLinkUri: HelpLink);
 
     public static readonly DiagnosticDescriptor MissingJsonSerializableParameter = new(
-        "APG0011",
+        "TRC0011",
         "Object parameter type missing from the JSON context",
         "Method '{0}' has an object parameter that references type '{1}', which is not declared with [JsonSerializable(typeof({1}))] on the JsonSerializerContext that TraconTool.JsonSerializerContext points to. Add it there, or register the tool manually with 'AddTool(AIFunctionFactory.Create(...))'.",
         Category,
@@ -114,7 +114,7 @@ internal static class ToolDiagnostics
         helpLinkUri: HelpLink);
 
     public static readonly DiagnosticDescriptor UnsupportedObjectGraph = new(
-        "APG0012",
+        "TRC0012",
         "Unsupported object parameter graph",
         "Parameter '{1}' of method '{0}' has an object graph that is either deeper than 3 nested levels or contains a cycle: {2}. Flatten the type, break the cycle, or register the tool manually with 'AddTool(AIFunctionFactory.Create(...))'.",
         Category,

@@ -31,7 +31,7 @@ listenizin beş satırı artık "Tracon'de yok" değil, **"Tracon'de var"**
 — ADR'nizi buna göre yazın.
 
 **İkisi sizin tarafınızda iş çıkarabilir** ve §8'de ayrıntısı var: yeni bir
-üreteç uyarısı (APG0009) `TreatWarningsAsErrors` taşıyan bir derlemeyi
+üreteç uyarısı (TRC0009) `TreatWarningsAsErrors` taşıyan bir derlemeyi
 kırabilir, ve `TraconAgentGraphOptions.CreateBudget()` imzası kırıldı.
 
 Sizin tarafınızda en çok işe yarayacak üç cümle:
@@ -184,7 +184,7 @@ Bulunmayanlar:
   eksende **Tracon bugün sizin sisteminizden geridedir**.
 - `minimum` / `maximum` / `pattern` yok.
 - **İç içe nesne ifade edilemez.** `ParameterTypeValidator` skaler, enum ve
-  bunların dizisi dışındaki her parametreyi APG0003 ile **derleme anında
+  bunların dizisi dışındaki her parametreyi TRC0003 ile **derleme anında
   reddeder**.
 
 Pratik sonucu: Faz 3 test planınızdaki *"nested schema"* case'i üretecin ifade
@@ -610,7 +610,7 @@ her imza koddan okundu, plandan değil.
 | Ne | Sevk edilen yüzey | Sizin raporunuzdaki karşılığı |
 |---|---|---|
 | Üretilen tool şemasında parametre açıklaması | `System.ComponentModel.DescriptionAttribute` okunur; şemaya `description` yazılır. **Tracon yeni bir attribute sevk etmedi** | Y-4 · B10 |
-| Üreteç şemasının ifade sınırının ilanı | `guides/write-your-own-tool.md` + APG0003 metni + `troubleshooting.md`; nesne parametresi için çalışan AOT-güvenli kaçış örneği | Faz 3 test planınızdaki *"nested schema"* case'i |
+| Üreteç şemasının ifade sınırının ilanı | `guides/write-your-own-tool.md` + TRC0003 metni + `troubleshooting.md`; nesne parametresi için çalışan AOT-güvenli kaçış örneği | Faz 3 test planınızdaki *"nested schema"* case'i |
 | Kalıcı payload sürüm sözleşmesi | `reference/versioning.md` § *Persisted session and checkpoint state* — katman katman söz; `SessionRecord.StateSchemaVersion` (`int`) · `WorkflowCheckpointRecord.StateSchemaVersion` (`int?`) · her ikisinde `StateMafVersion` (`string?`) | §17.1 "kritik doğrulanamayan" |
 | Argüman doğrulama halkası | `IToolArgumentsValidator.ValidateAsync(ToolDescriptor, AIFunctionArguments, CancellationToken)` → `ToolArgumentsValidationResult` (`Valid` / `Invalid(reason)`); `ValidatingAIFunction` sarmalayıcısı | §11 "Kritik" gap |
 | Kapsamlı tool kaydı | `ITraconBuilder.AddScopedTool(AIFunction)` ve `AddScopedTool(AIFunction, Action<ToolRegistrationOptions>)` | §8.1 · §11 "Yüksek" gap |
@@ -618,7 +618,7 @@ her imza koddan okundu, plandan değil.
 
 ### 8.2 🚨 Sizin tarafınızda iş çıkarabilecek üç şey
 
-**1. Yeni üreteç uyarısı APG0009 — derlemenizi kırabilir.**
+**1. Yeni üreteç uyarısı TRC0009 — derlemenizi kırabilir.**
 `[TraconTool]` taşıyan bir metodun `[Description]`'sız her parametresi
 artık **uyarı** üretiyor. Bizim kendi `samples/Tracon.Api`'miz
 `TreatWarningsAsErrors=true` taşıdığı için **derleme hatası** verdi ve dört
