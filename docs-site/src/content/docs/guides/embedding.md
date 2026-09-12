@@ -84,7 +84,7 @@ using (AmbientRunAttributionScope.Begin(job.RequestedByUserId, labels: null))
 }
 ```
 
-🚨 Open the scope inside the method that starts the run, in that method's own
+**Open the scope inside the method that starts the run**, in that method's own
 body — not in a helper it calls — and reopen it before every `MoveNextAsync` on a
 streaming path. `AmbientTenantScope` is an `AsyncLocal<T>`; a value set upstream of
 an `await` boundary does not flow back down through one opened later. A dropped

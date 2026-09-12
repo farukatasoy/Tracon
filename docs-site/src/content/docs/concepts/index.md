@@ -1,6 +1,6 @@
 ---
 title: Architecture
-description: The layers, the dependency direction, and the four rules that explain most of the API.
+description: The layers, the dependency direction, and the four conventions behind the default setup and the extension model.
 slug: concepts
 sidebar:
   order: 1
@@ -47,18 +47,20 @@ answer `501` while definition management keeps working.
 
 ## Four rules
 
-Everything else follows from these.
+These conventions explain the default setup and the extension model.
 
-### No surprises
+<span id="no-surprises"></span>
 
-`AddTracon()` works alone. Without a configured database every store falls back to
-memory, so the runtime comes up on one line with no infrastructure behind it. The
-console is a separate step, not part of that line: add `Tracon.UI`, call
-`UseUI()`, and map the endpoints with `MapTracon()` — see [the console
-guide](/ui/).
-A database is never required, and neither is any particular model vendor — OpenAI,
-Anthropic, Google, Azure OpenAI, and any OpenAI-compatible endpoint (including a
-self-hosted engine like Ollama or vLLM) all work side by side.
+### Explicit infrastructure
+
+`AddTracon()` supplies in-memory store defaults, so the runtime comes up without a
+database behind it. Configure a model provider or a custom agent source for
+execution, and choose persistence when data must survive a restart. The console is
+a separate step: add `Tracon.UI`, call `UseUI()`, and map the endpoints with
+`MapTracon()` — see [the console guide](/ui/).
+No particular model vendor is required either — OpenAI, Anthropic, Google, Azure
+OpenAI, and any OpenAI-compatible endpoint (including a self-hosted engine like
+Ollama or vLLM) can be registered side by side.
 
 ### Tools are defined in code only
 
@@ -80,11 +82,14 @@ parallel type hierarchy is laid on top of them.
 Wrapping would create maintenance debt with every MAF release and cut you off from
 the MAF ecosystem. Tracon is a *control plane*, not an *abstraction layer*.
 
-### Every extension point is replaceable
+<span id="every-extension-point-is-replaceable"></span>
 
-All services register with `TryAdd`. Register your own implementation before calling
-`AddTracon()` and yours wins. The same holds for MAF's own hosting types, which is
-why interfaces like conversation storage can be swapped out.
+### Replaceable services
+
+Default service registrations use `TryAdd`, so an implementation your application
+registers before `AddTracon()` is the one that stays. The same seam covers MAF's own
+hosting types, which is why interfaces like conversation storage can be swapped out.
+Each extension guide states the lifetime and registration contract its seam expects.
 
 ## Where things live
 

@@ -4,7 +4,7 @@ import { TraconError, client, unwrap } from '../lib/api';
 import { setToken, useToken, useTokenRejected } from '../lib/auth';
 import { useT } from '../lib/i18n';
 import { Button, Field, Loading, Panel, TextInput } from './ui';
-import { PrismMark } from './icons';
+import { TraconMark } from './icons';
 import type { TraconMetaResponse as Meta } from '@tracon/client';
 import type { AgentDescriptor } from '../lib/server-types';
 
@@ -150,7 +150,7 @@ function Card({ title, children }: { title: string; children: ReactNode }): Reac
   return (
     <div className="w-full max-w-md">
       <div className="mb-5 flex items-center gap-2.5">
-        <PrismMark className="size-7 text-fg" />
+        <TraconMark className="size-7 text-fg" />
         <span className="text-lg font-semibold tracking-tight">Tracon</span>
       </div>
       <Panel className="p-5">

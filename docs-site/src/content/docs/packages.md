@@ -148,11 +148,12 @@ builder.AddTracon()
        });
 ```
 
-The same call works for vLLM and LM Studio. Nothing about the request leaves your
-network: no cloud account, no external endpoint, no data leaving the machine that
-runs it. This is the option for regulated or air-gapped environments that cannot
-send prompts to a third-party API — see [what Tracon deliberately is
-not](/getting-started/#what-it-deliberately-is-not).
+The same call works for vLLM and LM Studio. The model call then stays inside your
+network: no cloud account and no third-party endpoint on that path. This is the
+option for regulated or air-gapped environments that cannot send prompts to a
+third-party API. What the rest of the installation sends outward — exporters,
+webhooks, other configured providers — stays your host's decision; see [what Tracon
+deliberately is not](/getting-started/#what-it-deliberately-is-not).
 
 ## Trimming and native AOT
 

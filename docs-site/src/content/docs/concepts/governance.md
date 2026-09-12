@@ -352,7 +352,7 @@ the same scope [runs](/concepts/runs/) are already counted and billed at.
 
 :::caution[Counters are approximate]
 The check happens **before** a run starts; consumption is written **after** it
-finishes. A run already in progress is never cut off mid-flight, so brief overshoot is
+finishes. A run already in progress is never cut off during execution, so brief overshoot is
 possible by design.
 :::
 
@@ -555,5 +555,5 @@ validated is the address connected to. See
 
 ## Read next
 
-- [Securing the endpoints](/getting-started/security/)
-- [The HTTP API](/http-api/)
+- [Securing the endpoints](/getting-started/security/) — bind endpoint authorization and tenant resolution to your host.
+- [The HTTP API](/http-api/) — apply authentication, pagination, and error conventions to HTTP calls.

@@ -94,8 +94,8 @@ public static class TraconMcpBuilderExtensions
     /// <remarks>
     /// <para>
     /// Configuration is provided <strong>explicitly</strong>; Tracon never
-    /// reads <c>IConfiguration</c> on its own. This follows from rationale the no-surprises rule
-    /// (zero surprises) and stays consistent with the other <c>Use*</c>
+    /// reads <c>IConfiguration</c> on its own. This follows the no-surprises rule
+    /// and stays consistent with the other <c>Use*</c>
     /// extensions in the repository.
     /// </para>
     /// <example>

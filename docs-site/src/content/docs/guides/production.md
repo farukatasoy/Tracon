@@ -372,7 +372,7 @@ actions:
 
 | What the output says | What it means | What to do |
 |---|---|---|
-| `... NOT readable by this build` on a generation line | Rows carry an Tracon envelope generation **newer** than the build you are installing. You are downgrading, or deploying a mixed package graph | Do not deploy. Install the version that wrote those rows, or newer. This is a version selection mistake, not a data problem |
+| `... NOT readable by this build` on a generation line | Rows carry a Tracon envelope generation **newer** than the build you are installing. You are downgrading, or deploying a mixed package graph | Do not deploy. Install the version that wrote those rows, or newer. This is a version selection mistake, not a data problem |
 | `unreadable: session ...` on a sampled row | The Tracon envelope is fine; Microsoft Agent Framework cannot deserialize the body it wrote earlier. The message names both the recorded and the running framework version | Continue to step 2 |
 
 **2. Decide whether those sessions have to survive the upgrade.** They often do

@@ -1,0 +1,30 @@
+---
+import DefaultSearch from '@astrojs/starlight/components/Search.astro';
+---
+<div class="search-shell">
+  <DefaultSearch />
+</div>
+<script>
+  // The built-in dialog owns focus, keyboard shortcuts and Pagefind UI. Add a
+  // recovery path without taking over those interactions or issuing a second query.
+  const shell = document.querySelector('.search-shell');
+  const dialog = shell?.querySelector('dialog');
+  if (dialog) {
+    const help = document.createElement('div');
+    help.className = 'search-help';
+    help.innerHTML = '<p>Search by task, type name, or endpoint. Use the content filters to narrow the results.</p><a href="/getting-started/">Browse the documentation</a>';
+    dialog.querySelector('.dialog-frame')?.append(help);
+    const recovery = document.createElement('div');
+    recovery.className = 'search-recovery';
+    recovery.hidden = true;
+    recovery.setAttribute('role', 'status');
+    recovery.innerHTML = '<p>Search could not load. Check your connection and try again.</p><button type="button">Retry search</button>';
+    help.before(recovery);
+    recovery.querySelector('button')?.addEventListener('click', () => window.location.reload());
+    const showFailure = () => { recovery.hidden = false; };
+    window.addEventListener('unhandledrejection', (event) => {
+      const error = String(event.reason?.stack ?? event.reason);
+      if (/pagefind|wasm|fetch|dynamically imported module/i.test(error)) showFailure();
+    });
+  }
+</script>

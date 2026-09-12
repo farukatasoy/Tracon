@@ -481,7 +481,7 @@ public sealed class MigrationRunner : ISqlPersistenceDiagnostics, IMigrationAppl
                     //
                     // 🚨 A DEADLOCK is the same race wearing another face and it
                     // was NOT caught here (measured 2026-08-21): the second catch
-                    // below wrapped it in an TraconException and the whole
+                    // below wrapped it in a TraconException and the whole
                     // fixture failed to come up — five SqlServer contract cases
                     // died on "Migration '0017_approval_conditions' could not be
                     // applied: ... (error 1205, state 51)". The server has ALREADY

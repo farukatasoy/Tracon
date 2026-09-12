@@ -43,7 +43,7 @@ public interface IModelProviderRegistry
     /// <remarks>
     /// When no tenant context is registered, or the tenant has no binding for
     /// the provider, behavior is identical to <see cref="CreateChatClient"/>
-    /// (the no-surprises rule: zero surprise when BYOK is not configured).
+    /// (the no-surprises rule: behavior does not change until BYOK is configured).
     /// </remarks>
     ValueTask<IChatClient> CreateChatClientAsync(ModelBinding binding, CancellationToken cancellationToken = default);
 

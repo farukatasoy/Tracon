@@ -3,9 +3,16 @@ title: Test agents without model calls
 description: Test agents without network model calls by using the in-memory host, scripted fake provider, recorded requests, and run assertions.
 ---
 
+:::caution[Package availability]
+Tracon packages and templates are not published yet. Package-install examples on
+this page describe the release form and do not currently resolve from public
+registries. With authorized repository access, use the
+[source build instructions](/getting-started/first-agent/).
+:::
+
 `Tracon.Testing` runs your agent through the real Tracon HTTP, catalog, tool,
 recording, and streaming pipeline without a database or network model call. You
-control the provider response, then assert against the durable run model rather than
+control the provider response, then assert against the recorded run model rather than
 mocking internal services.
 
 ```mermaid

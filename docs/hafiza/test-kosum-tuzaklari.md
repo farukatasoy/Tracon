@@ -112,3 +112,28 @@ Faz 91 taban/sonrası wall-clock ve proje-başına sonuç tabloları
 bu dosya bütçeyi aştı). Aktif tuzak değil, tarihsel ölçüm kaydıdır.
 
 - **🚨 `tests/` altındaki test OLMAYAN bir proje `IsTestProject=false` demekle yetinmez** (2026-09-08, Faz 157, ölçüldü). `Tracon.WorkerHarness` yalnız `IsTestProject` koşullandırıldığında `dotnet test Tracon.slnx` onu VSTest'e veriyordu ve TÜM koşum `testhost.dll bulunamadı` ile ABORT oluyordu — tek bir proje yüzünden hiçbir test sonucu alınamaz. Gereken: csproj'da AÇIKÇA `<IsTestProject>false</IsTestProject>` **ve** `<IsTestingPlatformApplication>false</IsTestingPlatformApplication>`.
+
+## 🚨 Bir depoyu TEK KEZ okuyan dogrulama, asenkron yazmayla yaris eder (Faz 163)
+
+`LiveVoiceLifecycleTests.The_transcript_is_written_to_the_session_history_when_
+persistence_is_on` kapanis kapisini iki kez kirdi. Uc kapsamda olculdu:
+
+| Kapsam | Sonuc |
+|---|---|
+| Tek test, izole | gecti |
+| Kendi assembly'si (1046 test) | gecti |
+| Tum cozum (`-maxcpucount:1`) | **iki kez dustu** |
+
+`kapi.py`'nin izole yeniden kosumu "kaynak cekismesi" der ve **hakli goruntu
+verir** — ama bu teshis burada yaniltici oldu. Gercek sebep testteydi: `CloseAsync`
+oturum sokulur sokulmez doner, gecmise yazma ondan SONRA sunucunun kendi isidir.
+Test depoyu bir kez okuyup dogruluyordu. Tam cozum yukunde yazma penceresi
+genisleyince okuma yazmanin onune gecti.
+
+**Kural:** bir HTTP cagrisi doner donmez ARKA PLANDA suren bir yazmayi
+dogruluyorsan, `WaitForAsync` gibi bir bekleme yardimcisi kullan. Ayni dosyadaki
+diger zamanlamaya bagli dogrulamalar zaten onu kullaniyordu; bu biri atlamisti.
+
+**Teshis sirasi ucuzdan pahaliya:** once tek test izole, sonra **tek assembly'nin
+tamami**, sonra tum cozum. Ortadaki adim burada belirleyici oldu — 1046 testin
+gecmesi "sira bagimliligi degil, zamanlama" dedi.

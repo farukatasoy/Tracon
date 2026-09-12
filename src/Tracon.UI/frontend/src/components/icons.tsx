@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import traconMark from '../assets/tracon-mark.svg';
 
 /**
  * Hand-drawn 24×24 stroke icons.
@@ -27,28 +28,8 @@ function Icon({ children, className }: IconProps & { children: ReactNode }): Rea
   );
 }
 
-export function PrismMark({ className }: IconProps): ReactNode {
-  return (
-    <svg viewBox="0 0 32 32" aria-hidden="true" className={className ?? 'size-6'}>
-      <defs>
-        <linearGradient id="ap-spectrum" x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0%" stopColor="var(--ap-violet)" />
-          <stop offset="25%" stopColor="var(--ap-indigo)" />
-          <stop offset="50%" stopColor="var(--ap-cyan)" />
-          <stop offset="75%" stopColor="var(--ap-emerald)" />
-          <stop offset="100%" stopColor="var(--ap-amber)" />
-        </linearGradient>
-      </defs>
-      <path
-        d="M16 4 29 27H3Z"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinejoin="round"
-      />
-      <path d="M5.5 21.5h21" stroke="url(#ap-spectrum)" strokeWidth="3" strokeLinecap="round" />
-    </svg>
-  );
+export function TraconMark({ className }: IconProps): ReactNode {
+  return <img src={traconMark} alt="" aria-hidden="true" className={className ?? 'size-6'} />;
 }
 
 export const DashboardIcon = ({ className }: IconProps): ReactNode => (

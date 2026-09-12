@@ -3,10 +3,17 @@ title: Versions and upgrades
 description: Understand which Tracon release these docs describe, pin preview packages safely, and upgrade the full package family without drift.
 ---
 
+:::caution[Package availability]
+Tracon packages and templates are not published yet. Package-install examples on
+this page describe the release form and do not currently resolve from public
+registries. With authorized repository access, use the
+[source build instructions](/getting-started/first-agent/).
+:::
+
 Tracon is a pre-1.0 package family. Treat version selection as part of your
 application architecture, not as a restore detail.
 
-Tracon ships 20 NuGet packages and one npm package (`@tracon/client`), all
+The release process produces 20 NuGet packages and one npm package (`@tracon/client`), all
 cut from the same `v*` tag and sharing one version line: there is no split between
 a stable subset and a preview subset. The public surface carries no compatibility
 promise for as long as that line stays pre-1.0 - a narrowing or a reshaped type is
@@ -185,7 +192,7 @@ release is blocked rather than shipped with a footnote.
 The table above splits ownership for a reason. Tracon promises its own
 envelope stays readable across the window. It cannot promise the same for the
 **state body**, which Microsoft Agent Framework writes and owns: a Microsoft
-Agent Framework version bump inside an Tracon upgrade can make older
+Agent Framework version bump inside a Tracon upgrade can make older
 bodies unreadable, and that is Microsoft's compatibility surface, not
 Tracon's.
 

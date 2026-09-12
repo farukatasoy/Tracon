@@ -26,7 +26,7 @@ namespace Tracon;
 /// </para>
 /// <para>
 /// <see cref="RunJudgeContext.TenantId"/> is authoritative. A judge that starts
-/// an Tracon run must set its run kind to <see cref="RunKind.Eval"/>. A
+/// a Tracon run must set its run kind to <see cref="RunKind.Eval"/>. A
 /// model-backed judge uses <see cref="IModelProviderRegistry.CreateSetupChatClientAsync(ModelBinding, CancellationToken)"/>.
 /// </para>
 /// </remarks>

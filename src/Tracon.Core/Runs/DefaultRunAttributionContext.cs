@@ -9,7 +9,7 @@ namespace Tracon;
 /// An application that registers nothing gets exactly its previous behaviour:
 /// both members are <see langword="null"/>, the <c>user_id</c> and
 /// <c>labels</c> columns stay NULL, and no other behaviour changes. This is the
-/// the no-surprises rule "no surprises" default.
+/// no-surprises default.
 /// </para>
 /// <para>
 /// The ambient scope is still honoured here so that a queued job, a scheduled

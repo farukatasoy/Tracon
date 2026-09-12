@@ -1,0 +1,14 @@
+---
+import SiteTitle from '@astrojs/starlight/components/SiteTitle.astro';
+import Search from './Search.astro';
+import ThemeSelect from '@astrojs/starlight/components/ThemeSelect.astro';
+---
+<div class:list={["tracon-header", { "splash-header": Astro.locals.starlightRoute.entry.data.template === "splash" }]}>
+  <SiteTitle />
+  <nav class="product-navigation" aria-label="Product">
+    <a href="/getting-started/">Documentation</a>
+    <a href="/packages/">Packages</a>
+    <a href="/api/">API reference</a>
+  </nav>
+  <div class="header-tools"><Search /><div class="header-theme"><ThemeSelect /></div></div>
+</div>

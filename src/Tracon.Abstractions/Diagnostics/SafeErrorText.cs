@@ -7,7 +7,7 @@ namespace Tracon;
 /// </summary>
 /// <remarks>
 /// <para>
-/// An <see cref="TraconException"/> is ours: its message is part of the
+/// A <see cref="TraconException"/> is ours: its message is part of the
 /// contract (<see cref="TraconException.ErrorType"/> is a stable code), and is
 /// preserved as is. Any other exception's message is never written to a
 /// persistent field or an external response — a foreign message can carry a

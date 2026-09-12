@@ -1,3 +1,4 @@
+import { checkConsoleScreens } from './check-console-screens.mjs';
 // Product-documentation invariants that are cheap enough to run on every build.
 //
 // This gate is intentionally about facts and structure, not subjective prose style.
@@ -6,7 +7,7 @@
 // compiler-generated record noise, synchronization copies, and missing capability
 // guides.
 
-import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { basename, extname, join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { build as buildAgentMap, outputs as agentMapOutputs, verifyBudget } from './build-agent-map.mjs';
@@ -162,8 +163,18 @@ const allContent = collect(docsRoot).filter((file) => ['.md', '.mdx'].includes(e
 // as living under the generated `http-api/` directory and skips every check below.
 const generatedRoots = [join(docsRoot, 'api', sep), join(docsRoot, 'http-api', sep)];
 
-const manualContent = allContent.filter(
+// Everything a person typed, 404 included. The structural rules below exempt 404
+// because it is a system route with no sidebar entry and no llms index line - but
+// that exemption used to cover the whole gate, so the page also escaped the rules
+// that have nothing to do with structure: the decision-number leak and this
+// phase's voice rules. An exemption is per rule, not per page.
+const handWrittenContent = allContent.filter(
   (file) => !generatedRoots.some((directory) => file.startsWith(directory)),
+);
+
+const manualContent = handWrittenContent.filter(
+  // 404 is a system route, not an article: it is never in the sidebar or llms index.
+  (file) => basename(file) !== '404.md',
 );
 
 const capabilityText = readFileSync(join(docsRoot, 'capabilities.md'), 'utf8');
@@ -390,29 +401,7 @@ for (const url of indexed) {
 // hand-typed operation count that drifted by seventeen.
 // ---------------------------------------------------------------------------
 
-const consoleLocales = readFileSync(
-  join(sourceRoot, 'Tracon.UI/frontend/src/locales/en.ts'),
-  'utf8',
-);
-const uiGuide = readFileSync(join(docsRoot, 'ui.md'), 'utf8');
-const screenshotRoot = join(siteRoot, 'public/screenshots');
-
-for (const [, key, label] of consoleLocales.matchAll(/'nav\.([A-Za-z]+)':\s*'([^']+)'/g)) {
-  if (key === 'primary') continue;
-
-  // A heading, not a passing mention: 'Jobs' appears in a cross-link on a page that
-  // never describes the Jobs screen, which is exactly the gap this gate closes.
-  if (!new RegExp(`^#{2,3} .*\\b${label}\\b`, 'im').test(uiGuide)) {
-    errors.push(`ui.md has no section describing the '${label}' console screen`);
-  }
-
-  if (!existsSync(join(screenshotRoot, `${key}.png`))) {
-    errors.push(
-      `public/screenshots/${key}.png is missing; regenerate with ` +
-        'TRACON_UI_SCREENSHOTS=1 dotnet test tests/Tracon.Ui.E2ETests -c Release',
-    );
-  }
-}
+errors.push(...checkConsoleScreens(sourceRoot, docsRoot, siteRoot));
 
 const manualProse = manualContent.map((file) => readFileSync(file, 'utf8')).join('\n');
 
@@ -426,6 +415,17 @@ const telemetryNames = [...diagnostics.matchAll(/public const string \w+ = "([^"
   // The meter and activity-source name is just "Tracon"; it is documented as
   // prose, not as an identifier, and matching it would accept any page.
   .filter((value) => value !== 'Tracon');
+
+// A gate that collects its own expectations can only fail while it collects
+// something. The screenshot gate returned zero for an entire phase and stayed
+// green; these two read source the same way, so they carry the same guard.
+// `public const string` becoming `static readonly` is all it would take.
+if (telemetryNames.length === 0) {
+  errors.push(
+    'No telemetry names found in TraconDiagnostics.cs; refusing to validate zero names. ' +
+      'Check the `public const string` shape the collector above matches.',
+  );
+}
 
 for (const name of telemetryNames) {
   // Whole name: 'tracon.tenant.id' is a prefix of 'tracon.tenant.identifier',
@@ -541,6 +541,16 @@ const validApiKeyScopes = new Set(
     /^\s{4}(\w+)\s*=\s*\d+,?\s*$/gm,
   )].map(([, name]) => name),
 );
+
+// Same guard, same reason: the pattern pins both the indentation and the
+// explicit `= <number>`, so a reformat or an implicit enum value would empty
+// this set and every scope claim below would pass unchecked.
+if (validApiKeyScopes.size === 0) {
+  errors.push(
+    'No API key scopes found in ApiKeyScope.cs; refusing to validate zero scopes. ' +
+      'Check the indentation and explicit values the collector above matches.',
+  );
+}
 
 // A marker sits right next to the sentence it measures, as an HTML comment -
 // invisible on the rendered page, readable from the source both by a human
@@ -830,7 +840,7 @@ for (const [, selectors, body] of styleSheet.matchAll(/([^{}]+)\{([^{}]*)\}/g)) 
   }
   if (targets.length === 0) continue;
 
-  for (const [, name, value] of body.matchAll(/(--ap-[\w-]+):\s*([^;]+);/g)) {
+  for (const [, name, value] of body.matchAll(/(--tracon-[\w-]+):\s*([^;]+);/g)) {
     const colour = /^#[0-9a-fA-F]{3,8}$/.test(value.trim()) ? value.trim() : null;
     if (!colour) continue;
     for (const target of targets) themes[target].set(name, colour);
@@ -839,13 +849,13 @@ for (const [, selectors, body] of styleSheet.matchAll(/([^{}]+)\{([^{}]*)\}/g)) 
 
 // A colour declared anywhere else — inside a component rule, a media query — would
 // never reach the maps above and so would never be measured. Measured: adding
-// `.card { --ap-sneaky: #ff0000; }` left the gate green. The token set is closed, so
+// `.card { --tracon-sneaky: #ff0000; }` left the gate green. The token set is closed, so
 // the declaration site is part of the contract.
 for (const [, selectors, body] of styleSheet.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
   const list = selectors.split(',').map((entry) => entry.trim());
   if (list.includes(':root') || list.includes(":root[data-theme='light']")) continue;
 
-  for (const [, name, value] of body.matchAll(/(--ap-[\w-]+):\s*([^;]+);/g)) {
+  for (const [, name, value] of body.matchAll(/(--tracon-[\w-]+):\s*([^;]+);/g)) {
     if (/^#[0-9a-fA-F]{3,8}$/.test(value.trim())) {
       errors.push(
         `site.css: ${name} is declared on '${selectors.trim()}'. Colour tokens belong in ` +
@@ -858,28 +868,32 @@ for (const [, selectors, body] of styleSheet.matchAll(/([^{}]+)\{([^{}]*)\}/g)) 
 // A hairline separates; it does not carry information, and the boundary it draws is
 // carried by spacing and by the raised surface behind it as well. It is the only
 // colour allowed to sit below the UI threshold, and it says so here.
-const DECORATIVE = new Map([['--ap-border', 'a hairline: spacing and surface carry the same boundary']]);
+const DECORATIVE = new Map([['--tracon-border', 'a hairline: spacing and surface carry the same boundary']]);
 
 const CONTRAST_PAIRS = [
-  ['--ap-text', '--ap-surface', 4.5],
-  ['--ap-text', '--ap-surface-raised', 4.5],
-  ['--ap-text-strong', '--ap-surface', 4.5],
-  ['--ap-text-strong', '--ap-surface-raised', 4.5],
-  ['--ap-text-muted', '--ap-surface', 4.5],
-  ['--ap-text-muted', '--ap-surface-raised', 4.5],
-  ['--ap-accent', '--ap-surface', 4.5],
-  ['--ap-accent', '--ap-surface-raised', 4.5],
-  ['--ap-accent', '--ap-accent-quiet', 4.5],
-  ['--ap-code', '--ap-surface-sunken', 4.5],
-  ['--ap-code', '--ap-surface-raised', 4.5],
-  ['--ap-diagram-ink', '--ap-diagram-plate', 4.5],
-  ['--ap-diagram-ink', '--ap-diagram-node', 4.5],
-  ['--ap-diagram-ink', '--ap-diagram-cluster', 4.5],
+  ...['success', 'warning', 'danger'].flatMap((name) => [
+    [`--tracon-${name}`, '--tracon-surface', 4.5],
+    [`--tracon-${name}`, '--tracon-surface-raised', 4.5],
+  ]),
+  ['--tracon-text', '--tracon-surface', 4.5],
+  ['--tracon-text', '--tracon-surface-raised', 4.5],
+  ['--tracon-text-strong', '--tracon-surface', 4.5],
+  ['--tracon-text-strong', '--tracon-surface-raised', 4.5],
+  ['--tracon-text-muted', '--tracon-surface', 4.5],
+  ['--tracon-text-muted', '--tracon-surface-raised', 4.5],
+  ['--tracon-accent', '--tracon-surface', 4.5],
+  ['--tracon-accent', '--tracon-surface-raised', 4.5],
+  ['--tracon-accent', '--tracon-accent-quiet', 4.5],
+  ['--tracon-code', '--tracon-surface-sunken', 4.5],
+  ['--tracon-code', '--tracon-surface-raised', 4.5],
+  ['--tracon-diagram-ink', '--tracon-diagram-plate', 4.5],
+  ['--tracon-diagram-ink', '--tracon-diagram-node', 4.5],
+  ['--tracon-diagram-ink', '--tracon-diagram-cluster', 4.5],
   // Non-text boundaries: WCAG 1.4.11 asks for 3:1, not 4.5:1.
-  ['--ap-border-strong', '--ap-surface', 3],
-  ['--ap-border-strong', '--ap-surface-raised', 3],
-  ['--ap-diagram-line', '--ap-diagram-plate', 3],
-  ['--ap-diagram-line', '--ap-diagram-node', 3],
+  ['--tracon-border-strong', '--tracon-surface', 3],
+  ['--tracon-border-strong', '--tracon-surface-raised', 3],
+  ['--tracon-diagram-line', '--tracon-diagram-plate', 3],
+  ['--tracon-diagram-line', '--tracon-diagram-node', 3],
 ];
 
 const paired = new Set(CONTRAST_PAIRS.flatMap(([a, b]) => [a, b]));
@@ -967,8 +981,9 @@ for (const label of Object.keys(sectionImages)) {
 }
 
 // 10. The rule the packaged documentation already follows applies to the site's own
-//     hand-written pages too: a reader cannot resolve a decision number.
-for (const file of manualContent) {
+//     hand-written pages too: a reader cannot resolve a decision number. 404 is a
+//     page a reader reaches, so it answers to this rule like any other.
+for (const file of handWrittenContent) {
   const text = readFileSync(file, 'utf8');
 
   if (hasInternalHistory(text)) {
@@ -1044,6 +1059,152 @@ for (const file of handWritten) {
         'and answers 404 to a reader. Link to the documentation site instead, or set ' +
         'repositoryIsPublic in docs-site/site.config.mjs once the repository is open.',
     );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Sizes of generated files, quoted in prose. The capability map, the page index
+// and the full text all grow with the documentation itself, so a number typed
+// once drifts without anyone touching the sentence: measured here, the page
+// still said "about 400 KB" for a file that had reached 713 KB, and "under
+// 10 KB" for a map of 10.3 KB. A reader sizes a context window with these, so
+// the rule is the one this file already applies to counts - state it accurately
+// or leave it out. The band is wide because the prose says "about": it catches
+// a number that has drifted, not one that rounded.
+// ---------------------------------------------------------------------------
+const sizeTolerance = 0.15;
+
+const quotedSizes = [
+  {
+    page: 'guides/coding-agents.md',
+    path: join(repositoryRoot, 'src', 'Tracon.Core', 'buildTransitive', 'Tracon.AgentMap.md'),
+    pattern: /repository root\*\*, about (\d+(?:\.\d+)?) KB/,
+    label: 'the capability map',
+  },
+  {
+    page: 'guides/coding-agents.md',
+    path: join(siteRoot, 'public', 'llms.txt'),
+    pattern: /title, address, and subject\. About (\d+(?:\.\d+)?) KB/,
+    label: 'llms.txt',
+  },
+  {
+    page: 'guides/coding-agents.md',
+    path: join(siteRoot, 'public', 'llms-full.txt'),
+    pattern: /page concatenated, about (\d+(?:\.\d+)?) KB/,
+    label: 'llms-full.txt',
+  },
+];
+
+for (const { page, path, pattern, label } of quotedSizes) {
+  // Line breaks are not meaningful to a prose claim, the same way they are not
+  // to the counted claims above.
+  const text = readFileSync(join(docsRoot, page), 'utf8').replace(/\s+/g, ' ');
+  const match = pattern.exec(text);
+
+  if (!match) {
+    errors.push(
+      `${page}: no longer states the size of ${label}. Restore the sentence, or ` +
+        'drop its entry from quotedSizes in this gate if the page should not size it.',
+    );
+    continue;
+  }
+
+  const actual = statSync(path).size / 1000;
+  const claimed = Number(match[1]);
+
+  if (Math.abs(actual - claimed) / actual > sizeTolerance) {
+    errors.push(
+      `${page}: says ${label} is about ${claimed} KB, but it is ${actual.toFixed(1)} KB. ` +
+        'Update the number, or drop it if the page does not need to size the file.',
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// The development journal's alarm voice, on a page a consumer reads. Two other
+// surfaces already refuse it: build-api-reference.mjs rewrites 🚨 and ⚠️ into
+// "**Important:**" on its way out, and the package's own XML answers to
+// ShippedDocumentationSelfContainmentTests. A page typed straight into
+// src/content/docs/ passes through neither, so the marker reached the reader
+// unstripped in three paragraphs across two guides while both of those gates
+// stayed green. The warning itself is worth keeping; only the shouting is not.
+// ---------------------------------------------------------------------------
+const alarmVoice = /🚨|⚠️/u;
+
+// The article the product name no longer takes. Renaming the product left "an
+// Tracon agent" behind on thirteen hand-written pages, because the article was
+// correct for the name it replaced. A find-and-replace cannot see it: the wrong
+// word is the one the rename never touched. It reads as a typo on every page it
+// survives on, so the rule is cheap to state and worth keeping after the
+// clean-up. Whitespace is flattened first - the article often ends a line and
+// the name starts the next - and inline code or a link may sit between them.
+// No word boundary after the name on purpose: the article is just as wrong in
+// front of a type that starts with it. "throws an TraconException" hid from a
+// `Tracon\b` pattern through four clean-up passes, in XML that ships to every
+// consumer's IntelliSense.
+const wrongArticle = /\b[Aa]n\s+(?:`|\[)?Tracon/;
+
+// The article check runs over EVERY page, generated ones included. Sixty of the
+// occurrences were not typed by anyone: the reference generator rendered a type
+// reference in its member form, so XML that correctly reads "an IRunJudge"
+// shipped as "an Tracon.IRunJudge". That is a generator regression no gate over
+// hand-written pages can see. The alarm-emoji rule stays on the manual set,
+// because the generator rewrites the marker on its way out by design.
+for (const file of allContent) {
+  const label = relative(docsRoot, file);
+  const text = readFileSync(file, 'utf8');
+  const isHandWritten = handWrittenContent.includes(file);
+
+  for (const [index, line] of isHandWritten ? text.split('\n').entries() : []) {
+    if (alarmVoice.test(line)) {
+      errors.push(
+        `${label}:${index + 1}: alarm emoji in shipped prose — "${line.trim().slice(0, 60)}". ` +
+          'Keep the warning, drop the marker: lead with bold text, an aside, or ' +
+          '"**Important:**" the way the API-reference generator rewrites it.',
+      );
+    }
+  }
+
+  const flattened = text.replace(/\s+/g, ' ');
+  const article = wrongArticle.exec(flattened);
+
+  if (article) {
+    errors.push(
+      `${label}: "${article[0]}" — the product name takes "a", not "an". ` +
+        `Context: "${flattened.slice(Math.max(0, article.index - 40), article.index + 40).trim()}".`,
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// The brand mark ships as three byte-identical committed copies, because neither
+// the console build nor `dotnet pack` may depend on the site. `build-package-icon.mjs`
+// writes all three, but it runs by hand - it is in neither `prebuild` nor `check` -
+// so nothing noticed if one copy drifted. The agent map solved the same trade the
+// same way: commit the derivative, then gate the drift.
+// ---------------------------------------------------------------------------
+const markSource = join(repositoryRoot, 'assets', 'tracon-mark.svg');
+const markCopies = [
+  join(siteRoot, 'public', 'favicon.svg'),
+  join(sourceRoot, 'Tracon.UI', 'frontend', 'src', 'assets', 'tracon-mark.svg'),
+];
+
+if (!existsSync(markSource)) {
+  errors.push('assets/tracon-mark.svg is missing; it is the source every other copy is cut from.');
+} else {
+  const original = readFileSync(markSource);
+
+  for (const copy of markCopies) {
+    if (!existsSync(copy)) {
+      errors.push(
+        `${relative(repositoryRoot, copy)} is missing; run: node docs-site/scripts/build-package-icon.mjs`,
+      );
+    } else if (!readFileSync(copy).equals(original)) {
+      errors.push(
+        `${relative(repositoryRoot, copy)} differs from assets/tracon-mark.svg; ` +
+          'run: node docs-site/scripts/build-package-icon.mjs',
+      );
+    }
   }
 }
 

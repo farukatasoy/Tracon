@@ -240,3 +240,16 @@ snapshot'tır; bugünkü değerle güncellemek kaydı düzeltmez, BOZAR.
 gördüğü Screen COMPONENT'ini söylüyordu (30) — `skills` ve `triggers` ikişer
 component export eder. Kapı, hiçbir sayfanın iddia etmediği bir sayıyı ölçtüğü
 sürece var olma sebebiyle kırmızı olamaz.
+
+## 🚨 `cref` duz metne donerken TIP kisa adiyla yazilir (Faz 163)
+
+`build-api-reference.mjs` iki yoldan `xref` cozer. **Baglanti** yolu
+(`resolveReference`) uid bir TIP ise `shortName` kullanir; kendi yorumu sebebini
+soyler: uye bicimi namespace'i bildiren tip gibi gosterir (`Tracon.IRunStore`).
+**Duz metin** yolu (`plainText` — frontmatter `description` ve ozet tablosu) ayni
+kurali uygulamiyordu ve her zaman uye bicimini yaziyordu.
+
+Sonuc yalnız cirkinlik degildi: XML artikeli **kisa ada** gore secer
+(`an <see cref="IRunJudge"/>`), uzun ad onu bozar — 60 uretilen sayfada
+"an Tracon.IRunJudge". `plainText` artik tip kumesini alir ve ayni kurali
+uygular. **Bir kural iki yolda da gecerliyse ikisine de yaz.**

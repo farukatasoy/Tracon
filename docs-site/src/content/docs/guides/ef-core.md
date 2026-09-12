@@ -47,7 +47,7 @@ up, or for a `DbDataSource` adapter you write yourself.
 
 ## There is no shared transaction
 
-`YourDbContext.SaveChangesAsync()` and an Tracon run write through two
+`YourDbContext.SaveChangesAsync()` and a Tracon run write through two
 independent connections, even when they share one pool. A run's recording never
 becomes atomic with your own schema's writes, and this is deliberate: Tracon's
 stores are singletons that outlive any one request, and "observability must never
@@ -125,7 +125,7 @@ See [Read contract views](/reference/read-views/) for the full column list, the
   separate mechanism from EF Core's.
 - **`dotnet ef migrations` never sees Tracon's schema.** It is not an EF model;
   there is no `DbSet` to scaffold it from, and none should be added.
-- **No `DbContext` owns an Tracon table.** The `tracon` schema is written
+- **No `DbContext` owns a Tracon table.** The `tracon` schema is written
   only by Tracon's own store layer, from either connection plane.
 
 ## Read next

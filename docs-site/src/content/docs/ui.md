@@ -344,5 +344,5 @@ the management HTTP API so the fields remain explicit.
 - [Securing the endpoints](/getting-started/security/) — why the shell is
   exempt from the bearer layer
 - [The HTTP API](/http-api/) — everything the console does, as requests
-- [Client-side tools and the embeddable widget](/guides/client-side-tools/)
+- [Client-side tools and the embeddable widget](/guides/client-side-tools/) — let a client execute approved tools through the widget contract.
   — a tool whose body runs in the browser, and the chat widget that runs it

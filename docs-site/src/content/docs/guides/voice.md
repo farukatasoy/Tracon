@@ -3,6 +3,13 @@ title: Voice and live conversation
 description: Add speech tools and an opt-in realtime WebSocket conversation with explicit formats, limits, cost, privacy, and deployment rules.
 ---
 
+:::caution[Package availability]
+Tracon packages and templates are not published yet. Package-install examples on
+this page describe the release form and do not currently resolve from public
+registries. With authorized repository access, use the
+[source build instructions](/getting-started/first-agent/).
+:::
+
 Tracon has three voice layers:
 
 | Layer | Use it for | Registration |
@@ -456,6 +463,6 @@ For the provider-hosted path:
 
 ## Read next
 
-- [Attachments and multimodal input](/guides/multimodal/)
-- [Observability and cost](/guides/observability/)
-- [Production deployment](/guides/production/)
+- [Attachments and multimodal input](/guides/multimodal/) — attach validated files, images, and audio to a conversation.
+- [Observability and cost](/guides/observability/) — interpret telemetry, pricing, and recorded token use.
+- [Production deployment](/guides/production/) — prepare migrations, replicas, health checks, and operational settings.

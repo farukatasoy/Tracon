@@ -296,6 +296,6 @@ PostgreSQL.
 
 ## Read next
 
-- [Sessions and conversations](/concepts/sessions/)
-- [Agents and definitions](/concepts/agents/)
-- [Tools, skills, and MCP](/concepts/tools/)
+- [Sessions and conversations](/concepts/sessions/) — retain conversation state and understand session lifetime.
+- [Agents and definitions](/concepts/agents/) — configure and version the definitions that the catalog resolves.
+- [Tools, skills, and MCP](/concepts/tools/) — choose code tools, instruction skills, or remote MCP integration.

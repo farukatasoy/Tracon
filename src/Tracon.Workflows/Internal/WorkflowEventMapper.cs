@@ -16,7 +16,7 @@ namespace Tracon;
 /// </remarks>
 internal static class WorkflowEventMapper
 {
-    /// <summary>Converts a single MAF event into an Tracon event draft.</summary>
+    /// <summary>Converts a single MAF event into a Tracon event draft.</summary>
     /// <param name="workflowEvent">The event to convert.</param>
     /// <returns>The conversion result.</returns>
     public static WorkflowEventMapping Map(WorkflowEvent workflowEvent)

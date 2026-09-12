@@ -14,6 +14,9 @@ const routes = imageByRoute();
 
 export const onRequest = defineRouteMiddleware((context) => {
   const { starlightRoute } = context.locals;
+  const id = starlightRoute.id;
+  const kind = id === 'api' || id.startsWith('api/') ? '.NET API' : id.startsWith('http-api/') ? 'HTTP API' : 'Documentation';
+  starlightRoute.head.push({ tag: 'meta', attrs: { 'data-pagefind-filter': 'Content[content]', content: kind } });
   const image = `${siteUrl}social/${imageForRoute(starlightRoute.id, routes)}.png`;
 
   for (const tag of starlightRoute.head) {

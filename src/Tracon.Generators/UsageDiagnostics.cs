@@ -61,7 +61,7 @@ internal static class UsageDiagnostics
     public static readonly DiagnosticDescriptor LiteralSecret = new(
         "TRC0201",
         "A secret is written into a definition",
-        "'{0}' carries a literal secret value. An Tracon definition is stored and shown as-is, so the value would reach a database backup, an audit trail, and the console. Give the name of the configuration key the value is read from, and keep the value in user secrets or an environment variable.",
+        "'{0}' carries a literal secret value. A Tracon definition is stored and shown as-is, so the value would reach a database backup, an audit trail, and the console. Give the name of the configuration key the value is read from, and keep the value in user secrets or an environment variable.",
         Category,
         DiagnosticSeverity.Warning,
         isEnabledByDefault: true,

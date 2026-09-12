@@ -69,8 +69,12 @@ function main() {
     throw new Error(`No markdown files under ${metadataDirectory}.`);
   }
 
-  const pages = files.map((name) => readPage(name));
-  const uids = new Set(pages.map((page) => page.uid));
+  // A page's uid is its file name, so the type set is known before any page is
+  // read. `readPage` needs it: a summary renders references as plain text, and
+  // telling a type from a member is the difference between "an IRunJudge" and
+  // "an Tracon.IRunJudge" (see `plainText`).
+  const uids = new Set(files.map((name) => name.replace(/\.md$/, '')));
+  const pages = files.map((name) => readPage(name, uids));
   const anchorsByUid = new Map(pages.map((page) => [page.uid, page.anchors]));
   const uidsByDisplayName = buildDisplayNameIndex(pages);
   const externalSlugs = harvestExternalSlugs(pages);
@@ -129,7 +133,7 @@ function runDocfx() {
 }
 
 /** Reads one DocFX page and pulls out the facts the site needs. */
-function readPage(fileName) {
+function readPage(fileName, uids) {
   const uid = fileName.replace(/\.md$/, '');
   const raw = readFileSync(join(metadataDirectory, fileName), 'utf8');
 
@@ -150,7 +154,7 @@ function readPage(fileName) {
   const fallbackSummary = kind === 'Namespace'
     ? `Public types in the ${name} namespace.`
     : `${kind} ${name} in the ${assemblies[0] ?? 'Tracon'} package.`;
-  const extractedSummary = sanitizeInternalHistory(extractSummary(raw, fallbackSummary)).trim();
+  const extractedSummary = sanitizeInternalHistory(extractSummary(raw, fallbackSummary, uids)).trim();
   const summary = extractedSummary && !extractedSummary.startsWith('#')
     ? extractedSummary
     : fallbackSummary;
@@ -630,14 +634,14 @@ shared object; the guarded operation is retried safely.
   return body.replace(/## Remarks[\s\S]*?(?=\n## Properties)/, `${remarks.trimEnd()}\n`);
 }
 
-function extractSummary(raw, fallback) {
+function extractSummary(raw, fallback, uids) {
   const withoutHeader = raw
     .replace(/^# .*$/m, '')
     .replace(/^Namespace:.*$/m, '')
     .replace(/^Assembly:.*$/m, '')
     .trimStart();
   const paragraph = withoutHeader.split(/\n\s*\n/).find((part) => !part.startsWith('```'));
-  const text = plainText(paragraph ?? fallback);
+  const text = plainText(paragraph ?? fallback, uids);
   if (text.length <= 165) {
     return text || fallback;
   }
@@ -646,9 +650,17 @@ function extractSummary(raw, fallback) {
   return `${shortened}.`;
 }
 
-function plainText(value) {
+// `uids` is optional: a caller with no type set falls back to the member form,
+// which is what every reference was rendered as before. When the set is supplied,
+// a reference to a TYPE reads as its own name — the same rule `resolveReference`
+// applies to a link. Without it the namespace renders as if it were a declaring
+// type and the surrounding sentence breaks with it: the XML says "an
+// <see cref="IRunJudge"/>", correct for the name a reader sees, and the member
+// form turned that into "an Tracon.IRunJudge" on 60 generated pages.
+function plainText(value, uids) {
   return decodeHtml(value)
-    .replace(/<xref href="([^"]+)"[^>]*><\/xref>/g, (_match, uid) => displayName(uid))
+    .replace(/<xref href="([^"]+)"[^>]*><\/xref>/g, (_match, uid) =>
+      uids?.has(uid.replace(/\(.*$/, '')) ? shortName(uid) : displayName(uid))
     .replace(/<[^>]+>/g, '')
     .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
     .replace(/[`*_\\]/g, '')

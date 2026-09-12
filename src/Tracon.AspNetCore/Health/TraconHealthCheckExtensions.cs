@@ -17,8 +17,8 @@ public static class TraconHealthCheckExtensions
     /// <exception cref="ArgumentException"><paramref name="name"/> is empty.</exception>
     /// <remarks>
     /// <para>
-    /// Tracon does not call <c>MapHealthChecks</c> — seizing the consumer's path
-    /// choice would force the no-surprises rule. Setup:
+    /// Tracon does not call <c>MapHealthChecks</c> — taking over the consumer's path
+    /// choice would break the no-surprises rule. Setup:
     /// </para>
     /// <example>
     /// <code>

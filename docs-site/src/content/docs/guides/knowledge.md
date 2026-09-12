@@ -281,5 +281,5 @@ fresh embeddings. Avoid unstable source ids that cause unnecessary full replacem
 
 ## Read next
 
-- [Context and memory](/guides/context-and-memory/)
-- [Persistence](/getting-started/persistence/)
+- [Context and memory](/guides/context-and-memory/) — control the context sent to a model and the memory retained.
+- [Persistence](/getting-started/persistence/) — choose a store for data that must survive process restarts.

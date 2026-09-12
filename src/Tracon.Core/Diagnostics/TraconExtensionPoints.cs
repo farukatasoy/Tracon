@@ -72,7 +72,7 @@ internal static class TraconExtensionPoints
     public static Type? BuiltInDefaultOf(Type contract)
     {
         var point = Find(contract)
-            ?? throw new ArgumentOutOfRangeException(nameof(contract), contract, "Not an Tracon extension point.");
+            ?? throw new ArgumentOutOfRangeException(nameof(contract), contract, "Not a Tracon extension point.");
 
         return point.BuiltInDefault;
     }

@@ -9,7 +9,7 @@ namespace Tracon.Embedded;
 /// <remarks>
 /// Tracon takes no dependency on any cloud SDK, so there is no default
 /// <see cref="IAttachmentStorage"/> — content lives in the database until a
-/// host registers one. This buffer wrapper is <strong>not</strong> an
+/// host registers one. This buffer wrapper is <strong>not</strong> a
 /// Tracon type and is not shipped in any package; a real deployment
 /// derives its own implementation from whichever object-store client it
 /// already uses.

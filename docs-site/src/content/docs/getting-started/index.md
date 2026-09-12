@@ -6,13 +6,21 @@ sidebar:
   order: 1
 ---
 
-Tracon is a **control plane** for agents built with the Microsoft Agent
-Framework (MAF). You bring the agents; it gives you the layer around them — a place
-to define them, an HTTP API to drive them, a record of every run, and a console to
-look at all of it.
+Tracon is a **.NET package family** that adds a **control plane** on Microsoft
+Agent Framework (MAF). MAF executes the agent and its model/tool loop. Tracon adds
+agent definitions, configurable execution controls, HTTP endpoints, default-on
+run recording, and an optional embedded console.
 
-It is a set of NuGet packages, not an application. It runs inside your ASP.NET Core
-process, using your configuration, your authentication, and your database.
+The packages run inside your host process. You choose the model providers,
+persistence, identity integration, and operational policies. Recording is
+best-effort: a recording-store failure is logged while agent execution continues.
+
+:::note[Evaluate through the documentation]
+Packages and templates are not published yet. You can explore the capabilities,
+API contracts, and limitations here. Running the source requires authorized
+repository access; the [source build guide](/getting-started/first-agent/) makes
+that prerequisite explicit.
+:::
 
 ## What you get
 
@@ -41,23 +49,25 @@ else. An agent can be created and edited from the console, but tool *code* can n
 be written through it — see [tools](/concepts/tools/) for the two narrow,
 guarded exceptions.
 
-**It is not a hosted service.** There is no account, no telemetry leaving your
-process, and no dependency on anything you do not run yourself. That includes the
-model call itself: point a provider at a cloud API, or at a self-hosted engine such
-as Ollama or vLLM on your own network — see [picking a model
-provider](/packages/#picking-a-model-provider).
+**It is not a hosted service.** Tracon does not provide a managed hosting account.
+Your host controls outbound connections: configured model providers, exporters,
+webhooks, and integrations can send data outside the process. You can use a cloud
+model API or a compatible self-hosted engine such as Ollama or vLLM — see
+[picking a model provider](/packages/#picking-a-model-provider).
 
 ## Four rules it will not break
 
-These hold everywhere in the codebase, and knowing them explains most of the API.
+These conventions explain the default setup and the extension model.
 
-1. **No surprises.** `AddTracon()` works alone. Without a database every store
-   falls back to memory, so the first thing you write runs without infrastructure.
+1. **Explicit infrastructure.** `AddTracon()` supplies in-memory store defaults.
+   Configure a model provider or a custom agent source for execution, and choose
+   persistence when data must survive a restart.
 2. **Tools are code only.** The console selects from registered tools; it never
    defines them.
 3. **MAF objects are passed through, not wrapped.**
-4. **Every extension point is replaceable.** Everything registers with `TryAdd`, so
-   your own implementation registered first always wins.
+4. **Replaceable services.** Default service registrations use `TryAdd` so a
+   consumer registration can supply the implementation. Follow each extension
+   guide for its lifetime and registration contract.
 
 ## Is it for you?
 
@@ -72,5 +82,6 @@ require .NET 10, and the source generator that ships inside Core targets
 
 ## Read next
 
-- [Your first agent](/getting-started/first-agent/) — a working application
-in about five minutes.
+- [Capability map](/capabilities/) — match a system requirement to a feature and its limits.
+- [Architecture](/concepts/) — understand MAF and Tracon responsibilities.
+- [Your first agent](/getting-started/first-agent/) — build a working host with repository access.

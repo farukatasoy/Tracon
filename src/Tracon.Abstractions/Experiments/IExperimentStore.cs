@@ -33,7 +33,7 @@ public interface IExperimentStore
 
     /// <summary>
     /// Creates or updates an experiment. Only an <see cref="ExperimentStatus.Draft"/>
-    /// experiment can be updated. Updating a started experiment throws an
+    /// experiment can be updated. Updating a started experiment throws a
     /// <see cref="TraconException"/>.
     /// </summary>
     /// <param name="experiment">The experiment to save.</param>
@@ -49,7 +49,7 @@ public interface IExperimentStore
     ValueTask<bool> DeleteAsync(string tenantId, string name, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Moves the experiment to <see cref="ExperimentStatus.Running"/>. Throws an
+    /// Moves the experiment to <see cref="ExperimentStatus.Running"/>. Throws a
     /// <see cref="TraconException"/> when another experiment runs for the same agent.
     /// </summary>
     /// <param name="tenantId">The tenant identifier.</param>

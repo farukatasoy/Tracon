@@ -5,9 +5,10 @@ sidebar:
   order: 5
 ---
 
-By default Tracon is reachable from `localhost` and nowhere else. That is the
-safe state, and an application that maps it and forgets to configure anything is not
-exposed. Everything below is about leaving that state on purpose.
+Configure who can reach Tracon, what they can do, and which tenant they can access.
+Protected endpoints restrict non-loopback callers by default. This restriction does
+not replace host authorization or correct proxy configuration; the metadata endpoint
+is an explicit exception.
 
 ## The layers
 
@@ -38,9 +39,8 @@ flowchart TD
 
 ### 1. The loopback restriction
 
-On by default. A request from anywhere but loopback gets `403`. It exists to make
-accidental exposure impossible, so turning it off should be a deliberate line in a
-review:
+On protected routes, non-loopback requests receive `403` by default. Review the
+host and proxy boundary before allowing remote access:
 
 ```csharp
 app.MapTracon("/tracon", options => options.AllowRemoteAccess = true);

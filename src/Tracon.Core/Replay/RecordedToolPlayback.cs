@@ -206,7 +206,7 @@ internal sealed class RecordedToolPlayback
     /// (<see cref="ToolFailureText.Get"/>) before it reaches here — the same
     /// rule <c>ToolInvocationTracker.OnResult</c> applies for a call recorded
     /// to a store. This ledger is never written to a store itself, but a
-    /// matched error is re-thrown as an <see cref="TraconException"/>
+    /// matched error is re-thrown as a <see cref="TraconException"/>
     /// message (<see cref="PlaybackFunction.InvokeCoreAsync"/>) that a normal
     /// run then DOES record for real; an unredacted raw exception message
     /// would reach that path wrapped in a type <c>ToolFailureText.Get</c>

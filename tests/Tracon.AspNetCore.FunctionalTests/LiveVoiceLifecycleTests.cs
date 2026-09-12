@@ -39,6 +39,15 @@ public sealed class LiveVoiceLifecycleTests
 
         await CloseAsync(host, voiceSessionId);
 
+        // The close returns as soon as the session is torn down; the history write
+        // that follows it is the server's own work, not the caller's. Reading the
+        // store once raced that write - measured twice in a full-solution run,
+        // while the assembly on its own passed all 1046 times. Wait for the write
+        // the way every other timing-dependent assertion in this file does.
+        await WaitForAsync(async () =>
+            (await HistoryOfAsync(host, "session-history-on"))
+                .Any(text => text.Contains("Checking that now.", StringComparison.Ordinal)));
+
         var messages = await HistoryOfAsync(host, "session-history-on");
 
         messages.ShouldContain(text => text.Contains("Where is order 442", StringComparison.Ordinal));

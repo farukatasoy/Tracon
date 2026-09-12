@@ -1,7 +1,7 @@
 namespace Tracon.Embedded;
 
 /// <summary>
-/// A host-owned record that references an Tracon run by its <see cref="RunId"/>
+/// A host-owned record that references a Tracon run by its <see cref="RunId"/>
 /// instead of copying anything the run itself already recorded — the pattern this
 /// sample exists to run end to end (see the EF Core guide on the documentation site).
 /// </summary>

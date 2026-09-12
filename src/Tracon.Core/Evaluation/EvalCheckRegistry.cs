@@ -14,7 +14,7 @@ namespace Tracon;
 /// <c>containsExpected</c>, <c>keywords</c>, <c>toolCalled</c>,
 /// <c>toolCallsPresent</c>, <c>hasImageContent</c>. Any other kind name is
 /// looked up among the custom checks registered with
-/// <c>ITraconBuilder.AddEvalCheck(...)</c>; if not found there either, an
+/// <c>ITraconBuilder.AddEvalCheck(...)</c>; if not found there either, a
 /// <see cref="TraconException"/> is thrown (the code-only tools rule - checks are declarative,
 /// never silently ignored).
 /// </para>

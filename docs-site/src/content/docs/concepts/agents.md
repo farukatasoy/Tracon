@@ -5,7 +5,7 @@ sidebar:
   order: 2
 ---
 
-An agent is **data**: a name, a model binding, instructions, and the names of the
+An agent definition is **data**: a name, a model binding, instructions, and the names of the
 tools, skills, and other agents it may use. The compiler turns that data into a MAF
 `AIAgent`.
 
@@ -324,5 +324,5 @@ criterion was finally satisfied" apart from "we ran out of iterations".
 
 ## Read next
 
-- [Runs and recording](/concepts/runs/)
-- [Tools, skills, and MCP](/concepts/tools/)
+- [Runs and recording](/concepts/runs/) — inspect recorded status, events, tokens, and recording limits.
+- [Tools, skills, and MCP](/concepts/tools/) — choose code tools, instruction skills, or remote MCP integration.

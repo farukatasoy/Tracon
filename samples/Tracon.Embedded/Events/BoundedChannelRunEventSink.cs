@@ -23,7 +23,7 @@ namespace Tracon.Embedded;
 /// slow consumer to prove the drop path.
 /// </para>
 /// <para>
-/// The channel type itself is not an Tracon type and is not offered as
+/// The channel type itself is not a Tracon type and is not offered as
 /// one — this class exists only in the sample. Tracon takes no dependency
 /// on any specific messaging library; you point this pattern at whichever bus
 /// your host already runs.

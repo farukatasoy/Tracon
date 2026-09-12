@@ -83,7 +83,7 @@ public sealed class HarnessLoopTests
     [Fact]
     public async Task An_unreachable_criterion_stops_at_the_Tracon_ceiling_instead_of_running_on()
     {
-        // No MaxIterations, and a marker the model never writes. Without an
+        // No MaxIterations, and a marker the model never writes. Without a
         // Tracon-side ceiling this is an unbounded model bill.
         var loop = new LoopSettings
         {

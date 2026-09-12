@@ -3,9 +3,16 @@ title: Typed client and CLI
 description: Call the management API from a typed client, and apply migrations or check health without starting the application, using the tracon CLI.
 ---
 
-Two packages let you reach a running Tracon instance from outside the process
-that hosts it: a typed HTTP client for your own code, and a command-line tool for
-scripts and deployment pipelines.
+:::caution[Package availability]
+Tracon packages and templates are not published yet. Package-install examples on
+this page describe the release form and do not currently resolve from public
+registries. With authorized repository access, use the
+[source build instructions](/getting-started/first-agent/).
+:::
+
+Use `Tracon.Client` for typed HTTP access to a running host. Use `Tracon.Cli`
+for scripted health checks and evaluation over HTTP, or for migrations through
+a direct database connection before the host starts.
 
 ```mermaid
 flowchart LR

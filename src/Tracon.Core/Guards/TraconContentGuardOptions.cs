@@ -8,7 +8,7 @@ namespace Tracon;
 /// <para>
 /// None of the settings in this class <strong>have any effect while no guard
 /// is registered</strong>: the inspection wrapper is not added to the pipeline and
-/// this object is never read. The the no-surprises rule (no surprises) gate is not a flag, it
+/// this object is never read. The gate is not a flag, it
 /// <em>is</em> the registration itself — the built-in guard is added by an
 /// explicit choice, either via <c>AddPatternContentGuard()</c> or by populating
 /// the <c>Tracon:ContentGuard:Pattern</c> section.

@@ -7,7 +7,7 @@ namespace Tracon;
 /// </para>
 /// <para>
 /// <strong>Two-gate default.</strong> <see cref="Enabled"/> defaults to
-/// <see langword="false"/> (the plain no-surprises reading) AND
+/// <see langword="false"/> (the no-surprises default) AND
 /// <see cref="SampleRate"/> defaults to <c>0.0</c>. Even when <see cref="Enabled"/>
 /// is turned on, no run is sampled, the judge model is never called, and not
 /// a single cent is spent unless the rate is also given. The third defense is

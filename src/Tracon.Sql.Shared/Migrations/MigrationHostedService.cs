@@ -15,7 +15,7 @@ namespace Tracon;
 /// <see cref="MigrationRunner"/> can be run as a separate deployment step.
 /// </para>
 /// <para>
-/// <strong>A failure does not start the application.</strong> An Tracon
+/// <strong>A failure does not start the application.</strong> A Tracon
 /// instance that runs while the schema is not ready silently loses data, so
 /// migration failures are not swallowed. The observability rule (a store
 /// failure does not stop a run) applies only to run recording, not to schema

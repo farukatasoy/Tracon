@@ -1,0 +1,37 @@
+---
+import DefaultContent from '@astrojs/starlight/components/MarkdownContent.astro';
+const { id } = Astro.locals.starlightRoute;
+const kind = id.startsWith('api/') || id === 'api' ? 'api' : id.startsWith('http-api/') ? 'http' : 'documentation';
+---
+<div class:list={['document-content', `content-${kind}`]}><DefaultContent><slot /></DefaultContent></div>
+<script>
+  // Keep figures readable at their authored scale. Mermaid sets an inline max-width
+  // after rendering; the viewBox is the source for the scrolling canvas width.
+  const prepareFigures = () => {
+    for (const svg of document.querySelectorAll<SVGSVGElement>('pre.mermaid svg')) {
+      const width = svg.viewBox.baseVal.width;
+      if (width) {
+        svg.style.width = `${width}px`;
+        svg.style.height = `${svg.viewBox.baseVal.height}px`;
+        svg.style.maxWidth = 'none';
+      }
+    }
+    for (const element of document.querySelectorAll<HTMLElement>('.sl-markdown-content table, pre.mermaid')) {
+      if (element.matches('pre.mermaid')) {
+        // astro-mermaid injects theme styles after the stylesheet. The figure owns
+        // its plate through the shared token, without a specificity competition.
+        element.style.background = 'var(--tracon-diagram-plate)';
+        element.style.animation = 'none';
+      }
+      if (element.scrollWidth > element.clientWidth) {
+        element.tabIndex = 0;
+        if (element.tagName !== 'TABLE') element.setAttribute('role', 'region');
+        element.setAttribute('aria-label', element.tagName === 'TABLE' ? 'Scrollable table' : 'Scrollable diagram');
+      }
+    }
+  };
+  const observer = new MutationObserver(prepareFigures);
+  observer.observe(document.querySelector('main')!, { childList: true, subtree: true });
+  window.addEventListener('resize', prepareFigures);
+  prepareFigures();
+</script>

@@ -241,4 +241,4 @@ deleted. Keep it for at least as long as any session or replay path that needs i
 
 ## Read next
 
-- [Sessions and conversations](/concepts/sessions/)
+- [Sessions and conversations](/concepts/sessions/) — retain conversation state and understand session lifetime.

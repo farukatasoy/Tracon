@@ -4,6 +4,13 @@ description: Symptom-first fixes for installation, providers, tools, storage, se
 slug: troubleshooting
 ---
 
+:::caution[Package availability]
+Tracon packages and templates are not published yet. Package-install examples on
+this page describe the release form and do not currently resolve from public
+registries. With authorized repository access, use the
+[source build instructions](/getting-started/first-agent/).
+:::
+
 Start with the first failing boundary. Do not debug a model response while the agent
 cannot compile, or debug the console while the API returns `401`.
 

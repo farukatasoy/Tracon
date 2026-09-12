@@ -22,7 +22,7 @@ namespace Tracon;
 /// </item>
 /// </list>
 /// <para>
-/// An unknown tool name results in an <see cref="TraconCompilationException"/>.
+/// An unknown tool name results in a <see cref="TraconCompilationException"/>.
 /// It is not silently skipped: an agent running with a missing tool is an
 /// agent that does not do the work the user expects.
 /// </para>
