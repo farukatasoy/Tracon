@@ -1,5 +1,6 @@
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Tracon.Core.UnitTests.Fakes;
@@ -134,6 +135,36 @@ public sealed class ToolApprovalPresenterTests
         seen.GetString("orderId").ShouldBe("42");
     }
 
+    [Fact]
+    public async Task A_presenters_own_provider_timeout_is_not_logged_as_the_configured_timeout()
+    {
+        // K-737 regression on a SHIPPED extension seam: a consumer's presenter
+        // may call an HTTP service that reports its OWN request timeout, which
+        // arrives as an OperationCanceledException with nothing cancelled. The
+        // fail-open result is the same either way; the reason an operator reads
+        // is not, and blaming a limit that never fired sends them to the wrong
+        // dial. ApprovalPresentationTimeout is set far longer than this call.
+        var presenter = new SpyPresenter(_ => throw new TaskCanceledException(
+            "The request to https://approvals.example timed out after 5s.",
+            new TimeoutException("The request to https://approvals.example timed out after 5s.")));
+
+        var logs = new CapturedLogger();
+
+        var runner = new ToolApprovalPresenterRunner(
+            presenter,
+            OptionsMonitor(TimeSpan.FromMinutes(10)),
+            logs);
+
+        var result = await runner.ResolveAllAsync([Request("req-1", "cancel_order")], "tenant-a", "agent-a", CancellationToken.None);
+
+        // Fail-open is unchanged; only the reported reason is at stake.
+        result["req-1"].ShouldBeNull();
+
+        var entry = logs.Entries.ShouldHaveSingleItem();
+        entry.ShouldContain("threw", Case.Sensitive);
+        entry.ShouldNotContain("timed out after 00:10:00", Case.Sensitive);
+    }
+
     private static ToolApprovalRequestContent Request(string requestId, string toolName, Dictionary<string, object?>? arguments = null)
         => new(requestId, new FunctionCallContent(callId: $"call-{requestId}", name: toolName, arguments: arguments ?? new Dictionary<string, object?>(StringComparer.Ordinal)));
 
@@ -143,6 +174,30 @@ public sealed class ToolApprovalPresenterTests
         services.AddOptions<TraconOptions>().Configure(o => o.Tools.ApprovalPresentationTimeout = approvalPresentationTimeout);
 
         return services.BuildServiceProvider().GetRequiredService<IOptionsMonitor<TraconOptions>>();
+    }
+
+    /// <summary>Captures what the runner tells an operator.</summary>
+    private sealed class CapturedLogger : ILogger<ToolApprovalPresenterRunner>
+    {
+        public List<string> Entries { get; } = [];
+
+        public IDisposable? BeginScope<TState>(TState state)
+            where TState : notnull
+            => null;
+
+        public bool IsEnabled(LogLevel logLevel) => true;
+
+        public void Log<TState>(
+            LogLevel logLevel,
+            EventId eventId,
+            TState state,
+            Exception? exception,
+            Func<TState, Exception?, string> formatter)
+        {
+            ArgumentNullException.ThrowIfNull(formatter);
+
+            Entries.Add(formatter(state, exception));
+        }
     }
 
     private sealed class SpyPresenter(Func<CancellationToken, ValueTask<ToolApprovalPresentation?>> callback) : IToolApprovalPresenter

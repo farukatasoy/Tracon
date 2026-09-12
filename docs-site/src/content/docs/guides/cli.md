@@ -59,6 +59,31 @@ The client takes no Tracon package and only one NuGet package
 `IServiceCollection` extension); an `HttpClient` is built once and kept for the
 container's lifetime rather than going through `IHttpClientFactory`.
 
+### Request budget
+
+`HttpClient` caps every request at 100 seconds by default. If you bound a call
+with your own longer budget, that cap applies underneath it — the call ends at
+100 seconds, and the transport reports its own cap as an
+`OperationCanceledException` with nothing cancelled, which reads exactly like
+your budget elapsing. Set `Timeout` so there is only one limit:
+
+```csharp
+services.AddTraconClient(options =>
+{
+    options.BaseAddress = new Uri("https://example.com/tracon/");
+
+    // Either give the transport a budget of its own...
+    options.Timeout = TimeSpan.FromSeconds(30);
+
+    // ...or hand the whole budget to the cancellation token you pass in.
+    options.Timeout = Timeout.InfiniteTimeSpan;
+});
+```
+
+Leaving `Timeout` unset keeps the 100-second default. `tracon eval` and
+`tracon health` set it to `Timeout.InfiniteTimeSpan` and bound their own calls,
+which is why their `--timeout` means what it says.
+
 ## The CLI
 
 ```bash

@@ -131,38 +131,4 @@ public sealed class RunCancellationStatusTests
     {
         public string TenantId => "test";
     }
-
-    /// <summary>
-    /// A chat client that fails the way <c>HttpClient</c> does when its own
-    /// deadline elapses: a <see cref="TaskCanceledException"/> wrapping a
-    /// <see cref="TimeoutException"/>, with no token cancelled anywhere.
-    /// </summary>
-    private sealed class TimingOutChatClient : IChatClient
-    {
-        public Task<ChatResponse> GetResponseAsync(
-            IEnumerable<ChatMessage> messages,
-            ChatOptions? options = null,
-            CancellationToken cancellationToken = default)
-            => throw Timeout();
-
-        public IAsyncEnumerable<ChatResponseUpdate> GetStreamingResponseAsync(
-            IEnumerable<ChatMessage> messages,
-            ChatOptions? options = null,
-            CancellationToken cancellationToken = default)
-            => throw Timeout();
-
-        public object? GetService(Type serviceType, object? serviceKey = null) => null;
-
-        public void Dispose()
-        {
-            // Nothing to release.
-        }
-
-        private static TaskCanceledException Timeout()
-        {
-            const string Message = "The request to https://api.example/v1 timed out after 30s.";
-
-            return new TaskCanceledException(Message, new TimeoutException(Message));
-        }
-    }
 }

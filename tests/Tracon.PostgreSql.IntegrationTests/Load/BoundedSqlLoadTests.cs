@@ -143,7 +143,13 @@ public sealed class BoundedSqlLoadTests(PostgresFixture fixture)
         var eventCount = runCount * EventsPerRun;
         var databaseVersion = await context.ScalarAsync<string>("SELECT version();");
         var commit = await ReadCommitAsync();
-        var memoryBytes = GC.GetGCMemoryInfo().TotalAvailableMemoryBytes;
+        var machine = await ReadMachineAsync();
+
+        // 🚨 Both of these describe the PROCESS, not the machine: the GC figure
+        // is the container/GC heap limit and ProcessorCount is the CPU count
+        // this process was given. They are labelled as such so nobody compares
+        // two runs and blames hardware that the report never named. Phase 166.
+        var processMemoryBytes = GC.GetGCMemoryInfo().TotalAvailableMemoryBytes;
 
         var report = new StringBuilder();
 
@@ -157,8 +163,10 @@ public sealed class BoundedSqlLoadTests(PostgresFixture fixture)
         report.AppendLine("|---|---|");
         report.AppendLine(Invariant($"| Operating system | {Environment.OSVersion} |"));
         report.AppendLine(Invariant($"| Architecture | {System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture} |"));
-        report.AppendLine(Invariant($"| Logical processors | {Environment.ProcessorCount} |"));
-        report.AppendLine(Invariant($"| Available memory | {memoryBytes / (1024 * 1024)} MiB |"));
+        report.AppendLine(Invariant($"| Processor | {machine.Processor ?? NotAvailable} |"));
+        report.AppendLine(Invariant($"| Physical memory | {Describe(machine.PhysicalMemoryBytes)} |"));
+        report.AppendLine(Invariant($"| Logical processors (process-visible) | {Environment.ProcessorCount} |"));
+        report.AppendLine(Invariant($"| Available memory (process-visible) | {processMemoryBytes / (1024 * 1024)} MiB |"));
         report.AppendLine(Invariant($"| .NET | {Environment.Version} |"));
         report.AppendLine(Invariant($"| Database | {databaseVersion} |"));
         report.AppendLine(Invariant($"| Commit | {commit} |"));
@@ -203,6 +211,124 @@ public sealed class BoundedSqlLoadTests(PostgresFixture fixture)
         await File.WriteAllTextAsync(path, report);
 
         return path;
+    }
+
+    private const string NotAvailable = "not available on this platform";
+
+    /// <summary>What the MACHINE is, as opposed to what this process was given.</summary>
+    private sealed record MachineFacts(string? Processor, long? PhysicalMemoryBytes);
+
+    private static string Describe(long? bytes)
+        => bytes is { } value ? Invariant($"{value / (1024 * 1024)} MiB") : NotAvailable;
+
+    /// <summary>
+    /// Reads the real hardware behind the run, per platform. A report without
+    /// these rows is still a report (K-738: it is not a gate), so every path
+    /// here fails soft and the process-visible rows carry the run either way.
+    /// </summary>
+    private static async Task<MachineFacts> ReadMachineAsync()
+    {
+        try
+        {
+            if (OperatingSystem.IsMacOS())
+            {
+                var processor = await SysctlAsync("machdep.cpu.brand_string")
+                    ?? await SysctlAsync("hw.model");
+
+                return new MachineFacts(
+                    processor,
+                    long.TryParse(await SysctlAsync("hw.memsize"), CultureInfo.InvariantCulture, out var memory) ? memory : null);
+            }
+
+            if (OperatingSystem.IsLinux())
+            {
+                return new MachineFacts(ReadProcCpuModel(), ReadProcMemTotalBytes());
+            }
+
+            return new MachineFacts(null, null);
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            return new MachineFacts(null, null);
+        }
+    }
+
+    /// <returns>The value of one <c>sysctl</c> key, or <see langword="null"/> when it cannot be read.</returns>
+    private static async Task<string?> SysctlAsync(string key)
+    {
+        var result = await ProcessRunner.RunAsync(
+            "sysctl",
+            Invariant($"-n {key}"),
+            RepoRoot.Path,
+            TimeSpan.FromSeconds(10));
+
+        if (result.ExitCode != 0)
+        {
+            return null;
+        }
+
+        var value = result.StandardOutput.Trim();
+
+        return value.Length == 0 ? null : value;
+    }
+
+    /// <returns>The processor model from <c>/proc/cpuinfo</c>, or <see langword="null"/>.</returns>
+    private static string? ReadProcCpuModel()
+    {
+        const string ProcCpuInfo = "/proc/cpuinfo";
+
+        if (!File.Exists(ProcCpuInfo))
+        {
+            return null;
+        }
+
+        // "model name" on x86; arm64 kernels publish "Model name" or nothing at
+        // all, in which case the row simply says so.
+        foreach (var line in File.ReadLines(ProcCpuInfo))
+        {
+            if (!line.StartsWith("model name", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            var separator = line.IndexOf(':', StringComparison.Ordinal);
+
+            if (separator >= 0 && line[(separator + 1)..].Trim() is { Length: > 0 } value)
+            {
+                return value;
+            }
+        }
+
+        return null;
+    }
+
+    /// <returns>Total machine memory from <c>/proc/meminfo</c>, or <see langword="null"/>.</returns>
+    private static long? ReadProcMemTotalBytes()
+    {
+        const string ProcMemInfo = "/proc/meminfo";
+
+        if (!File.Exists(ProcMemInfo))
+        {
+            return null;
+        }
+
+        foreach (var line in File.ReadLines(ProcMemInfo))
+        {
+            if (!line.StartsWith("MemTotal:", StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            // The line reads "MemTotal:       16316920 kB" - kibibytes, always.
+            var fields = line.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+            if (fields.Length >= 2 && long.TryParse(fields[1], CultureInfo.InvariantCulture, out var kibibytes))
+            {
+                return kibibytes * 1024;
+            }
+        }
+
+        return null;
     }
 
     private static async Task<string> ReadCommitAsync()

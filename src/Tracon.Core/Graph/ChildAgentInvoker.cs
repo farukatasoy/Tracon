@@ -205,11 +205,21 @@ public sealed class ChildAgentInvoker : AIAgent
                 ? new AgentResponse(new ChatMessage(ChatRole.Assistant, ApprovalRefusal(pending)))
                 : response;
         }
-        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        catch (OperationCanceledException) when (deadline.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
         {
             // Layer 1: our own deadline fired and the child honored it.
             await WriteTimedOutAsync(scope!, childOptions, hardCutoff: false, CancellationToken.None).ConfigureAwait(false);
             return new AgentResponse(new ChatMessage(ChatRole.Assistant, TimeoutRefusal()));
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            // 🚨 K-737: NEITHER token was cancelled, so this is the provider
+            // reporting its OWN request timeout - every provider SDK talks over
+            // HttpClient, which raises exactly this exception. Calling it the
+            // sub-agent's wait limit sends the operator to the wrong dial and
+            // counts a provider outage on the wait-limit metric, so no
+            // ChildRunTimedOut event is written here. Phase 166.
+            return new AgentResponse(new ChatMessage(ChatRole.Assistant, ProviderFaultRefusal()));
         }
         finally
         {
@@ -255,7 +265,7 @@ public sealed class ChildAgentInvoker : AIAgent
         {
             while (true)
             {
-                var step = await AdvanceAsync(enumerator, waitDeadline, cancellationToken).ConfigureAwait(false);
+                var step = await AdvanceAsync(enumerator, deadline, waitDeadline, cancellationToken).ConfigureAwait(false);
                 outcome = step.Outcome;
 
                 if (step.Outcome == ChildStepOutcome.HardCutoff)
@@ -273,6 +283,14 @@ public sealed class ChildAgentInvoker : AIAgent
                 {
                     await WriteTimedOutAsync(scope!, childOptions, hardCutoff: false, CancellationToken.None).ConfigureAwait(false);
                     yield return new AgentResponseUpdate(ChatRole.Assistant, TimeoutRefusal());
+                    yield break;
+                }
+
+                if (step.Outcome == ChildStepOutcome.ProviderFault)
+                {
+                    // K-737, same distinction as the non-streaming path: no
+                    // wait limit fired, so no ChildRunTimedOut event.
+                    yield return new AgentResponseUpdate(ChatRole.Assistant, ProviderFaultRefusal());
                     yield break;
                 }
 
@@ -300,6 +318,7 @@ public sealed class ChildAgentInvoker : AIAgent
     /// <summary>Advances the child's streaming enumerator under the same two-layer race as the non-streaming path.</summary>
     private async Task<ChildStep> AdvanceAsync(
         IAsyncEnumerator<AgentResponseUpdate> enumerator,
+        CancellationTokenSource deadline,
         DateTimeOffset waitDeadline,
         CancellationToken cancellationToken)
     {
@@ -328,7 +347,10 @@ public sealed class ChildAgentInvoker : AIAgent
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
-            return ChildStep.TimedOut();
+            // 🚨 K-737: only OUR deadline firing makes this a wait limit. An
+            // OperationCanceledException raised while neither token was
+            // cancelled is the provider's own request timeout. Phase 166.
+            return deadline.IsCancellationRequested ? ChildStep.TimedOut() : ChildStep.Faulted();
         }
     }
 
@@ -461,6 +483,16 @@ public sealed class ChildAgentInvoker : AIAgent
         => $"Agent '{_childName}' did not respond in time (limit: {_childDeadline}). The tree " +
            "continues; the sub-call's eventual result, if any, is discarded.";
 
+    /// <summary>
+    /// The refusal for a sub-call the provider itself broke off, kept
+    /// separate from <see cref="TimeoutRefusal"/> so the wait limit and a
+    /// provider outage never read as the same event.
+    /// </summary>
+    private string ProviderFaultRefusal()
+        => $"Agent '{_childName}' could not complete: its model provider did not answer. " +
+           $"This is a provider fault, not the sub-agent's wait limit — that limit ({_childDeadline}) " +
+           "never fired. The tree continues; the sub-call produced no result.";
+
     /// <summary>Writes 144's <see cref="RunEventType.ChildRunTimedOut"/> event.</summary>
     private async ValueTask WriteTimedOutAsync(
         AgentRunScope scope,
@@ -536,6 +568,8 @@ public sealed class ChildAgentInvoker : AIAgent
 
         public static ChildStep TimedOut() => new(ChildStepOutcome.CooperativeTimeout, false, null, null);
 
+        public static ChildStep Faulted() => new(ChildStepOutcome.ProviderFault, false, null, null);
+
         public static ChildStep Abandoned(Task<bool> moveNext) => new(ChildStepOutcome.HardCutoff, false, null, moveNext);
     }
 
@@ -544,6 +578,9 @@ public sealed class ChildAgentInvoker : AIAgent
         Completed,
         CooperativeTimeout,
         HardCutoff,
+
+        /// <summary>The provider reported its own request timeout; no wait limit fired.</summary>
+        ProviderFault,
     }
 }
 
