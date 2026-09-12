@@ -144,12 +144,12 @@ hiçbiri görünmezdi.
 | Yoklama | Sonuç |
 |---|---|
 | `GET /tracon/api/meta` | `200` · gövde `"prefix":"/tracon"`, `"version":"0.0.0-preview.0.693"` |
-| `GET /agentprism/api/meta` (eski önek) | **`404`** — eski montaj öneki gerçekten yok |
+| `GET /<eski-önek>/api/meta` | **`404`** — eski montaj öneki gerçekten yok |
 | `X-Tracon-Tenant: default` | `200` |
 | Arayüz `<title>` | `Tracon` |
 | Log kategorisi | `Tracon.McpDiscoveryService` |
 
-Eski header (`X-AgentPrism-Tenant`) de `200` döner; bu **doğru** davranıştır —
+Eski kiracı header'ı da `200` döner; bu **doğru** davranıştır —
 tanınmayan bir header yok sayılır ve varsayılan kiracı uygulanır. Kanıt değeri
 olan yoklama eski **önekin** 404 dönmesidir.
 
