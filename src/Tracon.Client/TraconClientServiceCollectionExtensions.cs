@@ -54,10 +54,25 @@ public static class TraconClientServiceCollectionExtensions
             ? options.BaseAddress
             : new Uri(options.BaseAddress.AbsoluteUri + "/", UriKind.Absolute);
         var token = options.Token;
+        var timeout = options.Timeout;
+
+        if (timeout is { } configured && configured != System.Threading.Timeout.InfiniteTimeSpan && configured <= TimeSpan.Zero)
+        {
+            throw new ArgumentException(
+                $"{nameof(TraconClientOptions.Timeout)} must be greater than zero, or " +
+                $"{nameof(System.Threading.Timeout)}.{nameof(System.Threading.Timeout.InfiniteTimeSpan)} " +
+                "to leave the budget entirely to the caller's cancellation token.",
+                nameof(configure));
+        }
 
         services.TryAddSingleton(_ =>
         {
             var httpClient = new HttpClient { BaseAddress = baseAddress };
+
+            if (timeout is { } requestTimeout)
+            {
+                httpClient.Timeout = requestTimeout;
+            }
 
             if (!string.IsNullOrEmpty(token))
             {

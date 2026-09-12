@@ -740,7 +740,41 @@ migration ister (K-711'in emsali).
 
 ---
 
-### F-219 · `ChildAgentInvoker` sağlayıcı zaman aşımını KENDİ deadline'ı sanıyor
+### F-219 · ✅ KAPANDI (2026-09-12) — `ChildAgentInvoker` sağlayıcı zaman aşımını KENDİ deadline'ı sanıyor
+
+**Kapanış:** `kusur-giderme` faz dışı. Kayıt doğruydu ve **dar** çıktı: ölçüm
+kaydın anmadığı bir ikinci zararı buldu — yanlış metin yalnız yanlış SEBEBİ
+söylemiyordu, bir sağlayıcı kesintisini `ChildRunTimedOut` **metriğine** de
+yazıyordu. Repro: 30 sn'lik `ChildDeadline` için **17 ms**'de
+*"did not respond in time (limit: 00:00:30)"*. Ayırma `deadline.IsCancellationRequested`
+ile **tam** yapılabiliyor; ayrılamayan dal yoktur. Kullanıcı kararı: sağlayıcı
+arızası dalı istisna aksıtmaz, **ayrı bir reddetme metni** döner (ağaç yaşar,
+`ChildRunTimedOut` yazılmaz). Kırmızı iki seviyede ayrı ayrı kanıtlandı — metin
+iddiası birimde, metrik iddiası **yalnız** fonksiyonel seviyede (birimde
+`scope.Writer` yoktur, olay hiç yazılmaz, yani orada iddia tiyatrodur).
+
+**Sınıf taraması** (`grep -rn "catch (OperationCanceledException) when (!" src/`,
+13 yer) iki vaka daha buldu ve ikisi de kapatıldı:
+**(2)** `ToolApprovalPresenterRunner` — `IToolApprovalPresenter` sevk edilen bir
+genişleme noktasıdır; tüketicinin kendi HTTP çağrısı kendi zaman aşımını attığında
+log *"timed out after 00:10:00"* diyordu (çağrı 56 ms'de dönmüştü). Fail-open
+davranışı değişmedi, yalnız sebep düzeldi; genel `catch` de OCE'yi kabul edecek
+şekilde genişletildi, çağıranın iptali hâlâ akıyor. **(3)** CLI — altında ayrı
+bir kusur yatıyordu: `AddTraconClient`'ın `HttpClient`'ı .NET varsayılanı
+**100 sn** taşıyordu, yani `tracon eval --timeout 1800` fiilen imkânsızdı ve tavan
+dolduğunda CLI *"Timed out after 1800 s"* yazıyordu. Ölçüldü: **100,03 sn → 0,57 sn**.
+Kullanıcı kararı: hem atfetme ayrıldı hem `TraconClientOptions.Timeout` eklendi
+(additive; CLI onu `Timeout.InfiniteTimeSpan` yapar).
+
+**Vaka DEĞİL** (tarandı, yazıldı): beş sağlayıcı sağlık kontrolü +
+`ElevenLabsSpeechClient` (iki dalda da sonuç ve sebep aynı: `Unhealthy`,
+*"Timed out."*) · `AgentDefinitionValidator` (iki dal da `false` döner, hiçbir
+yerde sebep söylenmez) · `VoiceConversationDriver` (`socket.ReceiveAsync` OCE'yi
+yalnız verilen token'dan atar; iç bir istemci yok).
+
+Kararlar: **K-759** (sebep söyleyen her filtre kendi kaynağını sınar) ·
+**K-760** (`TraconClientOptions.Timeout`). Tuzak:
+[`hafiza/cekirdek-calistirma.md`](hafiza/cekirdek-calistirma.md).
 
 **Kaynak:** [Faz 157](arsiv/fazlar/157-SINIRLI-YUK-VE-IKI-PROCESS-ARIZA-KANITI.md) denetimi — 🟢 bulgu.
 
@@ -767,7 +801,23 @@ karışmaz; operatör hangi kadranı büyüteceğini bilir.
 
 ---
 
-### F-220 · Yük raporundaki CPU/RAM alanları makineyi değil süreci anlatıyor
+### F-220 · ✅ KAPANDI (2026-09-12) — Yük raporundaki CPU/RAM alanları makineyi değil süreci anlatıyor
+
+**Kapanış:** `kusur-giderme` faz dışı. Kayıt doğruydu ve kapsamı aynen uygulandı:
+rapor artık `Processor` ve `Physical memory` satırlarını gerçek donanımdan okur
+(macOS `sysctl -n machdep.cpu.brand_string`/`hw.memsize`, Linux `/proc/cpuinfo`
+`model name` + `/proc/meminfo` `MemTotal`), okuyamadığı platformda satır
+*"not available on this platform"* der. Süreç değerleri silinmedi — ne oldukları
+adlarına yazıldı: `Logical processors (process-visible)` ·
+`Available memory (process-visible)`. Okuma yolu yumuşak düşer; rapor bir kapı
+değildir (K-738). Repro kendi koşullarında tekrar koşuldu (`TRACON_LOAD=1`,
+gerçek Postgres container'ı) ve çıktı doğrulandı: *Apple M1 Pro · 16384 MiB*.
+
+**Sınıf taraması:** `grep -rn "Environment.ProcessorCount\|GetGCMemoryInfo" src/ tests/`
+— başka vaka yok. `Environment.MachineName`'in `SingletonGuard` ve
+`JobWorkerBackgroundService`'teki kullanımları **sahip kimliğidir**, makine
+kapasitesi iddiası değil. Tuzak:
+[`hafiza/olcum-kota-ve-secenekler.md`](hafiza/olcum-kota-ve-secenekler.md).
 
 **Kaynak:** [Faz 157](arsiv/fazlar/157-SINIRLI-YUK-VE-IKI-PROCESS-ARIZA-KANITI.md) denetimi — 🟢 bulgu.
 

@@ -231,6 +231,48 @@ public sealed class ChildAgentInvokerTests
         budget.StartedRuns.ShouldBe(2);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task A_provider_timeout_is_not_reported_as_the_sub_agents_own_wait_limit(bool streaming)
+    {
+        // K-737 regression: the provider reports its OWN request timeout as an
+        // OperationCanceledException while NOTHING was cancelled. Both wait
+        // limits are set far longer than this call, so neither layer can fire -
+        // the only honest sentence here is "the provider did not answer".
+        var (invoker, store) = CreateInvoker(
+            new TimingOutChatClient(),
+            childDeadline: TimeSpan.FromSeconds(30),
+            waitTimeout: TimeSpan.FromSeconds(60));
+
+        SetScope(depth: 0, budget: new AgentRunBudget { MaxDepth = 3 });
+
+        var text = streaming
+            ? await ReadStreamTextAsync(invoker)
+            : (await invoker.RunAsync("run")).Text;
+
+        text.ShouldContain("did not answer", Case.Sensitive);
+        text.ShouldNotContain("did not respond in time", Case.Sensitive);
+
+        // The sub-run itself already recorded the truth (K-737 applies in
+        // RunRecordingAgent): a provider fault is Failed, never Canceled.
+        var child = (await store.QueryRunsAsync(new RunQuery { OnlyRootRuns = false })).ShouldHaveSingleItem();
+        child.Status.ShouldBe(RunStatus.Failed);
+    }
+
+    /// <summary>Drains a streaming sub-call into the text the caller would see.</summary>
+    private static async Task<string> ReadStreamTextAsync(ChildAgentInvoker invoker)
+    {
+        var text = new System.Text.StringBuilder();
+
+        await foreach (var update in invoker.RunStreamingAsync("run"))
+        {
+            text.Append(update.Text);
+        }
+
+        return text.ToString();
+    }
+
     /// <summary>Writes the scope to the current flow.</summary>
     /// <remarks>
     /// <see cref="TraconRunContext"/> is built on an <c>AsyncLocal</c>;

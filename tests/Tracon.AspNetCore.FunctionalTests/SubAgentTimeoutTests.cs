@@ -176,11 +176,51 @@ public sealed class SubAgentTimeoutTests
         exception.Message.ShouldContain(nameof(SubAgentSettings.WaitTimeout));
     }
 
+    [Fact]
+    public async Task A_provider_timeout_does_not_count_on_the_sub_agent_wait_limit_metric()
+    {
+        // K-737 regression through the REAL background_agents_* flow: the
+        // researcher's provider breaks the request off itself, so NEITHER wait
+        // limit fires. Both are set far longer than the call can possibly take.
+        await using var host = await StartAsync(
+            new TimingOutModelProvider(ResearcherProviderName),
+            harness: false,
+            childDeadline: TimeSpan.FromSeconds(30),
+            waitTimeout: TimeSpan.FromSeconds(60));
+
+        var agent = await ResolveRouterAsync(host);
+        var response = await agent.RunAsync("start").WaitAsync(TimeSpan.FromSeconds(30));
+
+        response.Text.ShouldContain("did not answer", Case.Sensitive);
+        response.Text.ShouldNotContain("did not respond in time", Case.Sensitive);
+
+        // The metric an operator watches for sub-agent wait limits must not
+        // move when the provider is the one that stopped answering.
+        var types = await ReadRootEventTypesAsync(host);
+        types.ShouldNotContain(RunEventType.ChildRunTimedOut);
+    }
+
     private static async Task<Microsoft.Agents.AI.AIAgent> ResolveRouterAsync(TraconTestHost host)
     {
         var catalog = host.Services.GetRequiredService<IAgentCatalog>();
 
         return (await catalog.ResolveAsync("yonlendirici", culture: null, CancellationToken.None)).ShouldNotBeNull();
+    }
+
+    /// <summary>Reads the root run's event types without requiring a wait-limit event.</summary>
+    private static async Task<List<RunEventType>> ReadRootEventTypesAsync(TraconTestHost host)
+    {
+        var runs = host.Services.GetRequiredService<IRunStore>();
+        var root = (await runs.QueryRunsAsync(new RunQuery())).ShouldHaveSingleItem();
+
+        var types = new List<RunEventType>();
+
+        await foreach (var runEvent in runs.ReadEventsAsync(root.Id))
+        {
+            types.Add(runEvent.Type);
+        }
+
+        return types;
     }
 
     private static async Task<(List<RunEventType> Types, TimedOutPayload HardCutoffEvent)> ReadRootEventsAsync(TraconTestHost host)
@@ -240,12 +280,12 @@ public sealed class SubAgentTimeoutTests
     }
 
     private static Task<TraconTestHost> StartAsync(
-        HangingModelProvider hanging, bool harness, TimeSpan childDeadline, TimeSpan waitTimeout)
+        IModelProvider researcher, bool harness, TimeSpan childDeadline, TimeSpan waitTimeout)
         => TraconTestHost.StartAsync(
             configureTracon: builder =>
             {
                 builder.AddModelProvider(BuildRouterProvider());
-                builder.AddModelProvider(hanging);
+                builder.AddModelProvider(researcher);
 
                 builder.AddAgent(new AgentDefinition
                 {

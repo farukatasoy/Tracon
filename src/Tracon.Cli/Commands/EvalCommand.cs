@@ -96,6 +96,13 @@ internal static class EvalCommand
         {
             options.BaseAddress = baseAddress;
             options.Token = token;
+
+            // 🚨 The budget below (timeoutSource.CancelAfter) is the only limit
+            // this command promises. HttpClient's own 100 s default would cap
+            // every request underneath it and report the cap as a cancellation
+            // nothing asked for (K-737), so a longer budget could never be
+            // reached and the message named a limit that never elapsed.
+            options.Timeout = System.Threading.Timeout.InfiniteTimeSpan;
         });
 
         // await using var x = ...; puts ConfigureAwait(false) out of reach for
@@ -137,9 +144,19 @@ internal static class EvalCommand
                 Console.Error.WriteLine($"Request failed: HTTP {ex.StatusCode}.");
                 return 2;
             }
-            catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+            // 🚨 `timeoutSource.IsCancellationRequested`, not just the negation
+            // of the caller's token: a transport that breaks a request off
+            // itself raises the same exception with nothing cancelled (K-737),
+            // and printing our budget then names a limit that never elapsed.
+            catch (OperationCanceledException) when (timeoutSource.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
             {
                 Console.Error.WriteLine($"Timed out after {timeout.TotalSeconds:0} s triggering suite '{suiteName}'.");
+                return 2;
+            }
+            catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+            {
+                Console.Error.WriteLine(
+                    $"The request was broken off by the transport before the {timeout.TotalSeconds:0} s budget elapsed.");
                 return 2;
             }
             catch (OperationCanceledException)
@@ -171,9 +188,19 @@ internal static class EvalCommand
                 Console.Error.WriteLine($"Request failed: HTTP {ex.StatusCode}.");
                 return 2;
             }
-            catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+            // 🚨 `timeoutSource.IsCancellationRequested`, not just the negation
+            // of the caller's token: a transport that breaks a request off
+            // itself raises the same exception with nothing cancelled (K-737),
+            // and printing our budget then names a limit that never elapsed.
+            catch (OperationCanceledException) when (timeoutSource.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
             {
                 Console.Error.WriteLine($"Timed out after {timeout.TotalSeconds:0} s waiting for suite '{suiteName}' to finish.");
+                return 2;
+            }
+            catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+            {
+                Console.Error.WriteLine(
+                    $"The request was broken off by the transport before the {timeout.TotalSeconds:0} s budget elapsed.");
                 return 2;
             }
             catch (OperationCanceledException)

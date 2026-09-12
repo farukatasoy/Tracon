@@ -89,10 +89,15 @@ public sealed class ToolApprovalPresenterRunner(
         {
             return await presenter.PresentAsync(context, timeoutSource.Token).ConfigureAwait(false);
         }
-        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        catch (OperationCanceledException) when (timeoutSource.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
         {
-            // Our own timeout fired, not the caller's cancellation: fail open, per the
-            // contract on IToolApprovalPresenter.PresentAsync.
+            // 🚨 K-737: `timeoutSource.IsCancellationRequested`, not just the
+            // negation of the caller's token. A presenter is a consumer seam
+            // and may call an HTTP service that reports its OWN request
+            // timeout as an OperationCanceledException while nothing here was
+            // cancelled; naming our limit then prints a number that never
+            // elapsed. Such a call falls through to the general catch below
+            // and is reported as what it is - the presenter threw. Phase 166.
             logger.LogWarning(
                 "IToolApprovalPresenter timed out after {Timeout} resolving '{ToolName}'; " +
                 "the approval request is published without a presentation.",
@@ -101,7 +106,11 @@ public sealed class ToolApprovalPresenterRunner(
 
             return null;
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        // The OperationCanceledException condition keeps the caller's own
+        // cancellation propagating (it is real cancellation of the whole run,
+        // not a presentation failure) while still failing open for a
+        // provider-raised one.
+        catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
         {
             logger.LogWarning(
                 ex,

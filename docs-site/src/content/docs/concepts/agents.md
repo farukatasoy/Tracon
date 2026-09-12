@@ -234,6 +234,12 @@ Five rules hold across the tree:
   A timed-out call writes a `ChildRunTimedOut` event to the root run's stream,
   naming which layer cut it.
 
+  A sub-call the **provider** broke off is a different thing and is reported as
+  one: no `ChildRunTimedOut` event is written, and the caller is told the model
+  provider did not answer rather than that the sub-agent ran past its limit. So
+  the wait-limit event counts wait limits only — if it moved, one of the two
+  layers above really did fire.
+
 The whole tree is readable with `GET /api/runs/{runId}/tree`, from any member.
 
 ## Run until the work is done
