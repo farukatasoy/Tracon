@@ -3,7 +3,7 @@
 > **Durum:** ✅ Tamamlandı (2026-09-12)
 > **Kaynak:** Kullanıcı isteği · **F-223** (aday listesi boştu; kalem doğrudan
 > kullanıcıdan geldi ve dört tasarım kararı onunla birlikte alındı)
-> **Önkoşul:** [Faz 163](arsiv/fazlar/163-MARKA-VE-DOKUMANTASYON.md) — marka dili,
+> **Önkoşul:** [Faz 163](163-MARKA-VE-DOKUMANTASYON.md) — marka dili,
 > teal palet ve `hafiza/marka.md` orada kuruldu; bu faz onu console'a taşır
 > **Paketler:** `Tracon.UI`
 > **Yeni paket:** Yok · **Migration:** Yok
@@ -20,10 +20,10 @@
 `faz-baslangic` skill'ini uygula. Bu fazın minimum okuma kümesi:
 
 1. Bu doküman
-2. **[`hafiza/marka.md`](hafiza/marka.md) — bağlayıcıdır.** Özellikle §5 (ses),
+2. **[`hafiza/marka.md`](../../hafiza/marka.md) — bağlayıcıdır.** Özellikle §5 (ses),
    §11 (görsel yön) ve §10 (terminoloji). §11 tek cümleyle bu fazın ölçütüdür:
    *"siteye bakan kişi havacılık teması değil, bir operasyon ekranı görmelidir."*
-3. [`hafiza/frontend.md`](hafiza/frontend.md) — sözlük sözleşmesi, bundle kapısı
+3. [`hafiza/frontend.md`](../../hafiza/frontend.md) — sözlük sözleşmesi, bundle kapısı
 4. Kararlar — dosyanın tamamını **okuma**, yalnız bunları grep'le:
    ```bash
    grep -n "K-228\|K-232\|K-756" docs/KARARLAR.md
@@ -58,13 +58,13 @@ bu fazda görünüş ve etkileşim olarak değişir, işlev olarak değişmez.
 
 | Kanıt | Gözlem |
 |---|---|
-| [`frontend/src/styles.css:33`](../src/Tracon.UI/frontend/src/styles.css) | `--ap-accent: #7c3aed` — vurgu rengi eski markadan (`AgentPrism`) kalma mor. Token önekinin tamamı `--ap-*`; 56 token bu önekte |
-| [`frontend/src/styles.css:22`](../src/Tracon.UI/frontend/src/styles.css) | `:root, [data-theme='light']` açık paleti taşır, `[data-theme='dark']` (satır 57) koyuyu. **Varsayılan açıktır**; marka §11 "karanlık enstrüman paleti" diyor |
-| [`frontend/src/components/ui.tsx`](../src/Tracon.UI/frontend/src/components/ui.tsx) | 19 primitif (365 satır) tipografi ölçeğini kendi içinde taşıyor; ortak bir yoğunluk ölçeği yok |
+| [`frontend/src/styles.css:33`](../../../src/Tracon.UI/frontend/src/styles.css) | `--ap-accent: #7c3aed` — vurgu rengi eski markadan (`AgentPrism`) kalma mor. Token önekinin tamamı `--ap-*`; 56 token bu önekte |
+| [`frontend/src/styles.css:22`](../../../src/Tracon.UI/frontend/src/styles.css) | `:root, [data-theme='light']` açık paleti taşır, `[data-theme='dark']` (satır 57) koyuyu. **Varsayılan açıktır**; marka §11 "karanlık enstrüman paleti" diyor |
+| [`frontend/src/components/ui.tsx`](../../../src/Tracon.UI/frontend/src/components/ui.tsx) | 19 primitif (365 satır) tipografi ölçeğini kendi içinde taşıyor; ortak bir yoğunluk ölçeği yok |
 | `grep -rho "aria-[a-z]*\|role=" frontend/src --include="*.tsx" \| wc -l` | **66** — 130 dosya ve 26 585 satır için. `dialog`, `menu`, `combobox` ve `tooltip` desenleri elle ve tutarsız |
-| [`frontend/scripts/postbuild.mjs:25`](../src/Tracon.UI/frontend/scripts/postbuild.mjs) | Bundle tavanı 250 KB gzip ve **gerçek bir kapıdır** — aşarsa build kırılır |
+| [`frontend/scripts/postbuild.mjs:25`](../../../src/Tracon.UI/frontend/scripts/postbuild.mjs) | Bundle tavanı 250 KB gzip ve **gerçek bir kapıdır** — aşarsa build kırılır |
 | `wwwroot/assets/index-*.js.br` | 152 378 B brotli. `ui.md:331` bunu 175,9 KB gzip diye yazar; tavanın ~%70'i, **~74 KB pay** |
-| [`frontend/package.json`](../src/Tracon.UI/frontend/package.json) | Runtime bağımlılık dört tane: `react`, `react-dom`, `@tanstack/react-query`, `@tracon/client` |
+| [`frontend/package.json`](../../../src/Tracon.UI/frontend/package.json) | Runtime bağımlılık dört tane: `react`, `react-dom`, `@tanstack/react-query`, `@tracon/client` |
 | `tests/Tracon.Ui.E2ETests/UiTests.cs:95` | 375 px taşma testi yalnız **birkaç** ekranı gezer, 30'unu değil |
 
 > Kanıtlar 2026-09-12 tarihinde doğrulandı.
@@ -119,7 +119,7 @@ kümelerine** bağlar; bugün her ekran kendi rengini seçiyor.
 
 **Kontrast cırcırı devralınır.** Faz 163 site tarafında metin 5,49:1 ve metin
 dışı 3,74:1 ölçtü ve bunu
-[`kalite-sozlesmesi.md`](../.agents/skills/tuketici-dokuman-senkronu/resources/kalite-sozlesmesi.md)
+[`kalite-sozlesmesi.md`](../../../.agents/skills/tuketici-dokuman-senkronu/resources/kalite-sozlesmesi.md)
 F tablosuna yazdı. Console'un kendi tabanı bu fazda **ilk kez ölçülür** ve aynı
 tabloya girer; sonraki fazlarda yalnız yükselir.
 
@@ -144,7 +144,7 @@ görünür ve kopyalanabilir. Bugün bazı ekranlarda düz metin.
 ## 164.3 — Primitifler
 
 19 primitif yeniden yazılır. Liste
-[`ui.tsx`](../src/Tracon.UI/frontend/src/components/ui.tsx) içindedir: `cx`,
+[`ui.tsx`](../../../src/Tracon.UI/frontend/src/components/ui.tsx) içindedir: `cx`,
 `PageHeader`, `Panel`, `Button`, `Field`, `TextInput`, `TextArea`, `Select`,
 `Badge`, `Mono`, `Empty`, `Loading`, `ErrorNote`, `Table`, `Th`, `Td`,
 `CodeBlock`, `CopyButton`, `JsonView`.

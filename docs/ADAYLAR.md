@@ -556,7 +556,7 @@ kapanış **o koşumla** kanıtlanır. Tam gövde:
 
 ### F-224 · Geri alınamaz kararlar için doğrulama adımı
 
-**Kaynak:** [Faz 164](164-CONSOLE-ENSTRUMAN-KATMANI.md) — yazıldı, ölçüldü ve
+**Kaynak:** [Faz 164](arsiv/fazlar/164-CONSOLE-ENSTRUMAN-KATMANI.md) — yazıldı, ölçüldü ve
 DoD gereği geri alındı (bkz. o fazın "Plandan Sapmalar" §3).
 
 **Gözlem:** Onaylar ekranında bir tool çağrısını onaylamak veya reddetmek tek
