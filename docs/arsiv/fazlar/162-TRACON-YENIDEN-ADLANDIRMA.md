@@ -1,7 +1,7 @@
 # Faz 162 — Tracon Yeniden Adlandırma
 
 > **Durum:** ✅ Tamamlandı (2026-09-12)
-> **Kaynak:** Kullanıcı kararı (2026-09-12) — ürün adı değişti. Bu kalem [ADAYLAR.md](ADAYLAR.md) içinde hiç bulunmadı
+> **Kaynak:** Kullanıcı kararı (2026-09-12) — ürün adı değişti. Bu kalem [ADAYLAR.md](../../ADAYLAR.md) içinde hiç bulunmadı
 > **Önkoşul:** Yok. Dış kimlikler faz öncesi alındı: npm org `tracon`, `tracon.dev` DNS, iki GitHub reposu
 > **Paketler:** 21'inin tamamı — kök ad alanı, paket kimliği, assembly adı
 > **Yeni paket:** Yok · **Migration:** Yok — yeni dosya eklenmedi. 124 migration dosyasının 18'inin İÇERİĞİ değişti: 3'ü job handler key DEĞERİ (54 satır), 15'i yalnız yorum. **Hiçbir DDL satırı değişmedi** (ölçüldü)
@@ -150,7 +150,7 @@ hiçbiri görünmezdi.
   yazılır; üç migration dosyasının içeriği bu yüzden değişti. Yaşayan
   veritabanı yok (kullanıcı kararı 2026-09-12), bu yüzden düzeltme
   migration'ı **yazılmadı**.
-- Logo ve favicon değişmedi — tasarım borcu olarak [ADAYLAR.md](ADAYLAR.md).
+- Logo ve favicon değişmedi — tasarım borcu olarak [ADAYLAR.md](../../ADAYLAR.md).
 
 ---
 

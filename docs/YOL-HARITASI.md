@@ -174,6 +174,6 @@ bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 | [159](arsiv/fazlar/159-TIPLI-ISTEMCIDE-AKISLI-OPENAI-CAGRISI.md) | Tipli İstemcide Akışlı OpenAI Çağrısı | ✅ Tamamlandı |
 | [160](arsiv/fazlar/160-LISANS-MODELI-VE-PAKET-METAVERISI.md) | Lisans Modeli ve Paket Metaverisi | ✅ Tamamlandı |
 | [161](arsiv/fazlar/161-GPT-LIVE-SIDEBAND-DENETIMI.md) | GPT-Live Sideband Denetimi | ✅ Tamamlandı |
-| [162](162-TRACON-YENIDEN-ADLANDIRMA.md) | Tracon Yeniden Adlandırma | ✅ Tamamlandı |
+| [162](arsiv/fazlar/162-TRACON-YENIDEN-ADLANDIRMA.md) | Tracon Yeniden Adlandırma | ✅ Tamamlandı |
 
 Seçilmemiş adaylar: [`ADAYLAR.md`](ADAYLAR.md). Fazların hangi dalgada, hangi gerekçeyle sıralandığı (Faz 8–56, kapandı): [`arsiv/IKINCI-FAZ-YOL-HARITASI.md`](arsiv/IKINCI-FAZ-YOL-HARITASI.md) · [`arsiv/UCUNCU-FAZ-YOL-HARITASI.md`](arsiv/UCUNCU-FAZ-YOL-HARITASI.md).
