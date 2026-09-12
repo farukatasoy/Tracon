@@ -4,61 +4,11 @@ import { setThemePreference, useThemePreference } from '../lib/theme';
 import { LOCALES, useLocale, useT, type Locale } from '../lib/i18n';
 import { createShortcutMatcher, isTextEntry, type ShortcutBinding } from '../lib/shortcuts';
 import { cx } from './ui';
+import { StatusDot } from './status-dot';
 import { CommandPalette, ShortcutHelp } from './command-palette';
-import {
-  AgentsIcon,
-  ApprovalsIcon,
-  AuditIcon,
-  DashboardIcon,
-  DiagnosticsIcon,
-  EvalsIcon,
-  ExperimentsIcon,
-  JobsIcon,
-  LanguageIcon,
-  McpIcon,
-  ModelsIcon,
-  MoonIcon,
-  PlaygroundIcon,
-  TraconMark,
-  RunsIcon,
-  SearchIcon,
-  SessionsIcon,
-  SettingsIcon,
-  SunIcon,
-  ToolsIcon,
-  TriggersIcon,
-  WorkflowIcon,
-} from './icons';
+import { visibleNavigation, type NavGroup } from './navigation';
+import { LanguageIcon, MoonIcon, SearchIcon, SunIcon, TraconMark } from './icons';
 import type { TraconMetaResponse as Meta } from '@tracon/client';
-
-/**
- * Navigation.
- *
- * Every screen owns a hue from the prism spectrum. The colour is not decoration:
- * it is the same hue used for that domain's badges and accents everywhere else,
- * so a glance tells you which kind of object you are looking at. Text and icon
- * shape carry the meaning too, so the UI still reads without colour.
- */
-const NAV = [
-  { path: 'agents', label: 'nav.agents', icon: AgentsIcon, hue: 'var(--ap-violet)' },
-  { path: 'dashboard', label: 'nav.dashboard', icon: DashboardIcon, hue: 'var(--ap-amber)' },
-  { path: 'playground', label: 'nav.playground', icon: PlaygroundIcon, hue: 'var(--ap-cyan)' },
-  { path: 'sessions', label: 'nav.sessions', icon: SessionsIcon, hue: 'var(--ap-emerald)' },
-  { path: 'workflows', label: 'nav.workflows', icon: WorkflowIcon, hue: 'var(--ap-emerald)' },
-  { path: 'jobs', label: 'nav.jobs', icon: JobsIcon, hue: 'var(--ap-amber)' },
-  { path: 'evals', label: 'nav.evals', icon: EvalsIcon, hue: 'var(--ap-rose)' },
-  { path: 'experiments', label: 'nav.experiments', icon: ExperimentsIcon, hue: 'var(--ap-violet)' },
-  { path: 'runs', label: 'nav.runs', icon: RunsIcon, hue: 'var(--ap-amber)' },
-  { path: 'tools', label: 'nav.tools', icon: ToolsIcon, hue: 'var(--ap-rose)' },
-  { path: 'skills', label: 'nav.skills', icon: ToolsIcon, hue: 'var(--ap-cyan)' },
-  { path: 'models', label: 'nav.models', icon: ModelsIcon, hue: 'var(--ap-indigo)' },
-  { path: 'mcp', label: 'nav.mcp', icon: McpIcon, hue: 'var(--ap-amber)' },
-  { path: 'triggers', label: 'nav.triggers', icon: TriggersIcon, hue: 'var(--ap-cyan)', adminOnly: true },
-  { path: 'approvals', label: 'nav.approvals', icon: ApprovalsIcon, hue: 'var(--ap-rose)' },
-  { path: 'audit', label: 'nav.audit', icon: AuditIcon, hue: 'var(--ap-indigo)', adminOnly: true },
-  { path: 'diagnostics', label: 'nav.diagnostics', icon: DiagnosticsIcon, hue: 'var(--ap-rose)', adminOnly: true },
-  { path: 'settings', label: 'nav.settings', icon: SettingsIcon, hue: 'var(--ap-muted)' },
-] as const;
 
 /**
  * Global key bindings.
@@ -89,10 +39,12 @@ export function Layout({ meta, children }: { meta: Meta; children: ReactNode }):
 
   const [palette, setPalette] = useState(false);
   const [help, setHelp] = useState(false);
+  const [drawer, setDrawer] = useState(false);
 
   const closeOverlays = useCallback(() => {
     setPalette(false);
     setHelp(false);
+    setDrawer(false);
   }, []);
 
   useConsoleShortcuts({
@@ -102,55 +54,68 @@ export function Layout({ meta, children }: { meta: Meta; children: ReactNode }):
     onNavigate: navigate,
   });
 
+  // The drawer is a mobile affordance, not a route: walking to another screen
+  // has to put it away or it covers the screen that was just opened.
+  useEffect(() => setDrawer(false), [path]);
+
   // A hidden nav item is a UX courtesy, not a security boundary: the server
   // is still the only real enforcement (docs/arsiv/fazlar/09-YONETISIM-VE-DENETIM-IZI.md).
-  const nav = NAV.filter((item) => !('adminOnly' in item && item.adminOnly) || meta.roles.canAdminister);
+  const groups = visibleNavigation(meta.roles.canAdminister);
 
   return (
     <div className="flex min-h-screen">
-      <aside className="sticky top-0 hidden h-screen w-56 shrink-0 flex-col border-r border-line bg-panel md:flex">
-        <div className="ap-prism h-0.5 w-full" />
+      {/* The first Tab stop on every screen. A keyboard operator should not have
+          to walk eighteen navigation entries to reach the table they opened. */}
+      <a
+        href="#tracon-main"
+        className={cx(
+          'sr-only rounded border border-accent bg-panel px-3 py-2 text-base font-medium text-accent',
+          'focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-60',
+        )}
+      >
+        {t('shell.skipToContent')}
+      </a>
 
-        <Link to="dashboard" className="flex items-center gap-2.5 px-4 py-4">
-          <TraconMark className="size-6 text-fg" />
-          <span className="text-[15px] font-semibold tracking-tight">Tracon</span>
+      <aside className="sticky top-0 hidden h-screen w-52 shrink-0 flex-col border-r border-line bg-panel md:flex">
+        <div className="tracon-sweep h-px w-full" />
+
+        <Link to="dashboard" className="flex items-center gap-2 px-3 py-3.5">
+          <TraconMark className="size-5" />
+          <span className="text-section font-semibold tracking-tight">Tracon</span>
         </Link>
 
-        <nav aria-label={t('nav.primary')} className="flex flex-1 flex-col gap-0.5 px-2">
-          {nav.map((item) => {
-            const isActive = active === item.path;
-            const Icon = item.icon;
-
-            return (
-              <Link
-                key={item.path}
-                to={item.path}
-                className={cx(
-                  'group relative flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-[13px] font-medium transition-colors',
-                  isActive ? 'bg-raised text-fg' : 'text-muted hover:bg-raised hover:text-fg',
-                )}
-              >
-                <span
-                  aria-hidden="true"
-                  className={cx(
-                    'absolute top-1.5 bottom-1.5 -left-2 w-0.5 rounded-full transition-opacity',
-                    isActive ? 'opacity-100' : 'opacity-0',
-                  )}
-                  style={{ background: item.hue }}
-                />
-                <Icon className="size-4" />
-                {t(item.label)}
-              </Link>
-            );
-          })}
+        <nav aria-label={t('nav.primary')} className="flex flex-1 flex-col gap-3 overflow-y-auto px-2 pb-2">
+          {groups.map((group) => (
+            <NavGroupList key={group.group} group={group} active={active} />
+          ))}
         </nav>
 
         <StorageNote meta={meta} />
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <TopBar meta={meta} active={active} nav={nav} onOpenPalette={() => setPalette(true)} />
-        <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 md:px-8">{children}</main>
+        <TopBar
+          meta={meta}
+          drawer={drawer}
+          onToggleDrawer={() => setDrawer((current) => !current)}
+          onOpenPalette={() => setPalette(true)}
+        />
+
+        {drawer && (
+          <nav
+            aria-label={t('nav.primary')}
+            data-testid="nav-drawer"
+            className="flex flex-col gap-3 border-b border-line bg-panel px-3 py-3 md:hidden"
+          >
+            {groups.map((group) => (
+              <NavGroupList key={group.group} group={group} active={active} />
+            ))}
+          </nav>
+        )}
+
+        <main id="tracon-main" tabIndex={-1} className="mx-auto w-full max-w-6xl flex-1 px-3 py-5 md:px-6">
+          {children}
+        </main>
       </div>
 
       <CommandPalette
@@ -160,6 +125,53 @@ export function Layout({ meta, children }: { meta: Meta; children: ReactNode }):
         onShowShortcuts={() => setHelp(true)}
       />
       <ShortcutHelp open={help} onClose={() => setHelp(false)} />
+    </div>
+  );
+}
+
+function NavGroupList({ group, active }: { group: NavGroup; active: string }): ReactNode {
+  const t = useT();
+
+  if (group.items.length === 0) {
+    return null;
+  }
+
+  return (
+    <div>
+      <p className="px-2 pb-1 text-2xs font-semibold tracking-widest text-subtle uppercase">
+        {t(group.group)}
+      </p>
+      <ul className="flex flex-col gap-px">
+        {group.items.map((item) => {
+          const isActive = active === item.path;
+          const Icon = item.icon;
+
+          return (
+            <li key={item.path}>
+              <Link
+                to={item.path}
+                aria-current={isActive ? 'page' : undefined}
+                className={cx(
+                  'relative flex items-center gap-2 rounded-sm px-2 py-1 text-base transition-colors',
+                  isActive
+                    ? 'bg-accent-soft font-medium text-accent'
+                    : 'text-muted hover:bg-raised hover:text-fg',
+                )}
+              >
+                <span
+                  aria-hidden="true"
+                  className={cx(
+                    'absolute top-1 bottom-1 -left-1 w-0.5 rounded-full bg-accent transition-opacity',
+                    isActive ? 'opacity-100' : 'opacity-0',
+                  )}
+                />
+                <Icon className="size-3.5 shrink-0" />
+                {t(item.label)}
+              </Link>
+            </li>
+          );
+        })}
+      </ul>
     </div>
   );
 }
@@ -235,56 +247,49 @@ function useConsoleShortcuts(handlers: {
 
 function TopBar({
   meta,
-  active,
-  nav,
+  drawer,
+  onToggleDrawer,
   onOpenPalette,
 }: {
   meta: Meta;
-  active: string;
-  nav: readonly (typeof NAV)[number][];
+  drawer: boolean;
+  onToggleDrawer: () => void;
   onOpenPalette: () => void;
 }): ReactNode {
   const t = useT();
 
   return (
-    <header className="sticky top-0 z-20 flex h-12 items-center justify-between gap-3 border-b border-line bg-panel/85 px-4 backdrop-blur md:px-8">
-      <div className="flex items-center gap-2 md:hidden">
-        <TraconMark className="size-5 text-fg" />
-        <span className="text-[13px] font-semibold">Tracon</span>
-      </div>
+    <header className="sticky top-0 z-20 flex h-11 items-center gap-2 border-b border-line bg-panel/90 px-3 backdrop-blur md:px-6">
+      <button
+        type="button"
+        data-testid="nav-toggle"
+        onClick={onToggleDrawer}
+        aria-expanded={drawer}
+        aria-controls="tracon-main"
+        className="flex items-center gap-2 rounded px-1 py-1 text-base font-semibold md:hidden"
+      >
+        <TraconMark className="size-4" />
+        Tracon
+      </button>
 
-      <nav aria-label={t('nav.primary')} className="flex items-center gap-1 overflow-x-auto md:hidden">
-        {nav.map((item) => (
-          <Link
-            key={item.path}
-            to={item.path}
-            className={cx(
-              'rounded px-2 py-1 text-[12px] whitespace-nowrap',
-              active === item.path ? 'bg-raised text-fg' : 'text-muted',
-            )}
-          >
-            {t(item.label)}
-          </Link>
-        ))}
-      </nav>
-
-      <div className="hidden md:block" />
-
-      <div className="flex items-center gap-2">
+      <div className="ml-auto flex items-center gap-1.5">
         <button
           type="button"
           data-testid="palette-open"
           onClick={onOpenPalette}
           title={t('palette.title')}
           aria-label={t('palette.title')}
-          className="hidden h-8 items-center gap-2 rounded-md border border-line bg-raised px-2.5 text-[12px] text-muted transition-colors hover:text-fg sm:flex"
+          className={cx(
+            'hidden h-7 items-center gap-2 rounded border border-line-strong bg-raised px-2',
+            'text-sm text-muted transition-colors hover:border-accent hover:text-fg sm:flex',
+          )}
         >
           <SearchIcon className="size-3.5" />
           <span>{t('palette.open')}</span>
-          <span className="rounded border border-line px-1 font-mono text-[10px]">⌘K</span>
+          <span className="rounded-sm border border-line px-1 font-mono text-2xs">⌘K</span>
         </button>
 
-        <span className="hidden font-mono text-[11px] text-subtle sm:inline">v{meta.version}</span>
+        <span className="hidden font-mono text-2xs text-subtle sm:inline">v{meta.version}</span>
         <LanguageToggle />
         <ThemeToggle />
       </div>
@@ -310,7 +315,7 @@ function LanguageToggle(): ReactNode {
       onClick={() => setLocale(next)}
       title={t('shell.language')}
       aria-label={t('palette.switchLanguage', { language: t(`shell.language.${next}`) })}
-      className="flex h-8 items-center gap-1.5 rounded-md border border-line bg-raised px-2 text-[11px] font-medium text-muted transition-colors hover:text-fg"
+      className="flex h-7 items-center gap-1 rounded border border-line-strong bg-raised px-1.5 text-2xs font-medium text-muted transition-colors hover:text-fg"
     >
       <LanguageIcon className="size-3.5" />
       <span className="uppercase">{locale}</span>
@@ -329,26 +334,24 @@ function ThemeToggle(): ReactNode {
       aria-label={resolved === 'dark' ? t('shell.theme.toLight') : t('shell.theme.toDark')}
       title={t(`shell.theme.${preference === 'system' ? 'system' : preference}`)}
       onClick={() => setThemePreference(resolved === 'dark' ? 'light' : 'dark')}
-      className="rounded-md border border-line bg-raised p-1.5 text-muted transition-colors hover:text-fg"
+      className="rounded border border-line-strong bg-raised p-1.5 text-muted transition-colors hover:text-fg"
     >
-      {resolved === 'dark' ? <MoonIcon className="size-4" /> : <SunIcon className="size-4" />}
+      {resolved === 'dark' ? <MoonIcon className="size-3.5" /> : <SunIcon className="size-3.5" />}
     </button>
   );
 }
 
 function StorageNote({ meta }: { meta: Meta }): ReactNode {
   const t = useT();
+  const label = meta.storage.persistent ? t('shell.storage.persistent') : t('shell.storage.memory');
 
   return (
-    <div className="border-t border-line px-4 py-3 text-[11px] leading-relaxed text-subtle">
-      <span
-        className={cx(
-          'mr-1.5 inline-block size-1.5 rounded-full align-middle',
-          meta.storage.persistent ? 'bg-success' : 'bg-warn',
-        )}
-      />
-      {meta.storage.persistent ? t('shell.storage.persistent') : t('shell.storage.memory')}
-      {!meta.storage.persistent && <span className="block text-subtle">{t('shell.storage.volatile')}</span>}
+    <div className="flex items-start gap-2 border-t border-line px-3 py-2.5 text-2xs leading-relaxed text-subtle">
+      <StatusDot tone={meta.storage.persistent ? 'success' : 'warn'} className="mt-1" />
+      <span>
+        {label}
+        {!meta.storage.persistent && <span className="block">{t('shell.storage.volatile')}</span>}
+      </span>
     </div>
   );
 }

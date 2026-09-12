@@ -26,16 +26,16 @@ export function ValidationReportPanel({ report }: { report: AgentValidationRepor
         </div>
 
         {report.messages.length === 0 ? (
-          <p className="text-[13px] text-subtle">{t('agentEditor.validationNoMessages')}</p>
+          <p className="text-base text-subtle">{t('agentEditor.validationNoMessages')}</p>
         ) : (
           <ul className="flex flex-col gap-2">
             {report.messages.map((message, index) => (
               <li key={index} className="rounded-md border border-line px-3 py-2">
                 <div className="flex flex-wrap items-center gap-2">
                   <Badge tone={SEVERITY_TONE[message.severity]}>{message.code}</Badge>
-                  {message.path != null && <Mono className="text-[12px] text-muted">{message.path}</Mono>}
+                  {message.path != null && <Mono className="text-sm text-muted">{message.path}</Mono>}
                 </div>
-                <p className="mt-1 text-[13px]">{message.message}</p>
+                <p className="mt-1 text-base">{message.message}</p>
               </li>
             ))}
           </ul>

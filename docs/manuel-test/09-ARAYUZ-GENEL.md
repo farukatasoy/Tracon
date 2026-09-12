@@ -1,14 +1,18 @@
 # 09 — Arayüz Genel (`UI`)
 
-> **Alan kodu:** `UI` · **Faz:** 5, 30
+> **Alan kodu:** `UI` · **Faz:** 5, 30, 164
 > **Kaynak:** `src/Tracon.UI/frontend/src/app.tsx` (kabuk, rota tablosu) ·
 > `components/access-gate.tsx` (kimlik doğrulama akışı) · `components/layout.tsx`
 > (gezinme, tema/dil düğmeleri, klavye bağlamaları) · `components/command-palette.tsx`
 > (⌘K paleti, kısayol yardımı) · `lib/router.tsx` (elle yazılmış yönlendirici) ·
 > `lib/i18n.tsx` + `locales/en.ts` + `locales/tr.ts` (yerelleştirme) · `lib/theme.ts`
 > (tema) · `lib/auth.ts` (bearer token deposu) · `lib/shortcuts.ts` (klavye eşleme
-> mantığı) · `components/ui.tsx` (genel bileşenler: `Loading`/`Empty`/`ErrorNote`/
-> `Select`/`Table`) · `screens/settings.tsx` (yalnız genel kısım — bkz. Sınır
+> mantığı) · `components/navigation.ts` (ekran envanteri — kenar çubuğu ve palet
+> aynı tablodan okur) · `components/ui.tsx` (genel bileşenler: `Loading`/`Empty`/
+> `ErrorNote`/`Unauthorized`/`Select`/`Table`) · `components/dialog.tsx` (odak
+> tuzağı) · `components/menu.tsx` · `components/tooltip.tsx` ·
+> `components/toolbar.tsx` · `components/status-dot.tsx` (durum renginin tek
+> kaynağı) · `styles.css` (token seti, yoğunluk ölçeği) · `screens/settings.tsx` (yalnız genel kısım — bkz. Sınır
 > tablosu) · `screens/models.tsx` · `screens/tools.tsx`.
 >
 > Ortam kurulumu, fixture verisi ve reset yordamı [`00-INDEKS.md`](00-INDEKS.md)'dedir.
@@ -1155,3 +1159,281 @@ doğrulanmadı — yalnız pratik bir taban çizgisidir).
   bileşeni bunu her zaman uygular), sayfanın geneli değil.
 - Üst çubuktaki dil/tema düğmeleri ve mobil nav şeridi hâlâ dokunulabilir
   boyuttadır, üst üste binmez.
+
+### MT-UI-044 — Console koyu palette açılır ve "sistemi izle" hâlâ sistemi izler
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 164 |
+| **İlgili karar** | — |
+
+Console bir operasyon yüzeyidir; koyu tema ürünün cevabıdır, makinenin değil.
+`prefers-color-scheme` modern tarayıcıda "seçilmemiş" durumunu bildiremez —
+seçim yapmamış her makine `light` döner — bu yüzden varsayılan **saklanan
+tercihtir**, sorgu değil.
+
+**Ön koşul**
+- Tarayıcıda `localStorage`'daki `tracon.theme` anahtarı silinmiş.
+- İşletim sistemi teması **açık** (light).
+
+**Adımlar**
+1. Console'u aç.
+2. Ayarlar ekranında tema seçimini "Sistemi izle" yap.
+3. Üst çubuktaki tema düğmesiyle koyuya, sonra açığa çevir.
+
+**Beklenen sonuç**
+- 1. adımda `<html data-theme>` **`dark`**'tır; ekran karanlık bir enstrüman
+  paleti gösterir, tek vurgu rengi teal'dır.
+- 2. adımda tema **`light`** olur — sistem tercihi yeniden devrededir.
+- 3. adımda seçim anında uygulanır ve sayfa yenilendiğinde korunur.
+
+### MT-UI-045 — İki temada da hiçbir yüzey okunmaz hâle gelmez
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 164 |
+| **İlgili karar** | — |
+
+Kontrast tabanı derlemede ölçülür (`frontend/scripts/check-tokens.mjs`); bu case
+ölçülemeyeni kontrol eder — durum renklerinin **birbirinden** ayırt edilebilirliği.
+
+**Ön koşul**
+- En az bir `Completed`, bir `Failed` ve bir `AwaitingApproval` run kayıtlı.
+
+**Adımlar**
+1. Koyu temada Dashboard · Runs · Run detayı · Onaylar · Agent editörünü gez.
+2. Temayı açığa çevir, aynı beş ekranı tekrar gez.
+
+**Beklenen sonuç**
+- Hiçbir metin zeminine karışmaz; ikincil metin (gri) her iki yüzeyde de okunur.
+- Durum renkleri birbirinden ayırt edilir: `completed` yeşil, `failed` kırmızı,
+  `awaiting approval` amber, `running` teal.
+- Grafik serisi renkleri durum renkleriyle **karışmaz** — bir çizgi bir hüküm
+  gibi okunmaz.
+- Odak halkası her iki temada da zemine karşı görünür.
+
+### MT-UI-046 — Klavye yolu: `Tab` sırası, atlama bağlantısı ve odak halkası
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 164 |
+| **İlgili karar** | — |
+
+Otomatikleştirilmiş bölümü: `UiTests.Every_one_of_the_first_ten_Tab_stops_has_an_accessible_name_and_a_visible_focus_ring`.
+Bu case ölçülemeyeni kontrol eder — sıranın **görsel** sırayı izlemesi.
+
+**Ön koşul**
+- Dashboard açık, fare kullanılmayacak.
+
+**Adımlar**
+1. Adres çubuğundan `Tab`'a bas.
+2. On durak boyunca `Tab`'a basmaya devam et.
+3. İlk durakta `Enter`'a bas.
+
+**Beklenen sonuç**
+- İlk durak "İçeriğe geç" bağlantısıdır ve odaklanınca görünür olur.
+- Her durakta odak halkası görünür ve odaklanan öğe ekranda kayar (kesilmez).
+- Sıra görsel sırayı izler: kenar çubuğu yukarıdan aşağıya, sonra üst çubuk,
+  sonra içerik.
+- 3. adımda odak doğrudan ekranın içeriğine gider; on sekiz gezinme girişi
+  atlanır.
+
+### MT-UI-047 — Komut paleti her ekrana ve son kayıtlara ulaşır
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 164 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- En az bir run ve bir session kayıtlı. Rol: administrator.
+
+**Adımlar**
+1. `Cmd/Ctrl+K` ile paleti aç.
+2. `trig` yaz.
+3. `Esc` ile kapat, tekrar aç ve bir run kimliğinin ilk karakterlerini yaz.
+
+**Beklenen sonuç**
+- Palet açılınca odak girdiye gider.
+- `Triggers` ve `Diagnostics` dahil **her** ekran palette bulunur — kenar
+  çubuğu ile palet aynı tablodan okur.
+- Son runlar ve son session'lar kendi gruplarında listelenir; `Enter` o kaydı açar.
+- `Esc` paleti kapatır ve odak paleti açan düğmeye döner; arka plan kaydırılmaz.
+
+### MT-UI-048 — Boş, hata ve yetkisiz durumları birbirinden ayrılır
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 164 |
+| **İlgili karar** | K-232 |
+
+**Ön koşul**
+- Boş bir kiracı (hiç run yok).
+- İkinci bir tarayıcı oturumu `reader` rolüyle.
+
+**Adımlar**
+1. Runs ekranını aç.
+2. Bir filtre uygula (ör. `Failed`), sonuç boşken ekrana bak.
+3. Sunucuyu durdur ve Runs ekranını yenile.
+4. `reader` oturumunda Onaylar ekranını aç (bekleyen bir onay varken).
+
+**Beklenen sonuç**
+- 1. adımda boş durum ne olmadığını **ve** nasıl ilk run'ın başlatılacağını
+  söyler; birincil aksiyon ("Playground ekranını aç") taşır.
+- 2. adımda boş durum farklıdır: filtrelerin eşleşmediğini söyler ve birincil
+  aksiyon "Filtreleri temizle" olur.
+- 3. adımda sunucunun **kendi** metni çevrilmeden görünür ve yanında "Yeniden
+  dene" vardır; tek tıkla istek tekrarlanır.
+- 4. adımda yetkisiz durumu görünür: rolün ne olduğunu ve neyin gerektiğini
+  söyler, boş ekranla karıştırılmaz.
+
+### MT-UI-049 — Yükleme iskeleti yerleşimi zıplatmaz
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 164 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- Ağ hızı kısıtlanabilir (DevTools → Network → Slow 3G).
+
+**Adımlar**
+1. Ağı yavaşlat, Runs ekranını yenile.
+2. Run detayına gir.
+
+**Beklenen sonuç**
+- Yükleme sırasında spinner değil, satır yüksekliğini koruyan bir iskelet
+  görünür.
+- Veri geldiğinde panel yüksekliği belirgin biçimde zıplamaz.
+- Ekran okuyucu "Yükleniyor" duyurusunu alır (`role="status"`).
+
+### MT-UI-050 — Tanımlayıcılar monospace'tir ve tek tıkla kopyalanır
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 164 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- En az bir run kayıtlı.
+
+**Adımlar**
+1. Runs ekranında bir run kimliğine bak, sonra detayına gir.
+2. Detaydaki kimliğin yanındaki kopyalama düğmesine bas.
+3. Panoyu bir metin alanına yapıştır.
+
+**Beklenen sonuç**
+- Kimlik her iki ekranda da monospace ve aynı boyuttadır; iki kimlik şekil
+  olarak karşılaştırılabilir.
+- Kopyalama düğmesi **tam** kimliği panoya koyar (kısaltılmış hâlini değil).
+- Kopyalandıktan sonra düğme kısa süre onay işareti gösterir.
+
+### MT-UI-051 — Onay kararı geri alınamaz olduğunu söyler
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 164 |
+| **İlgili karar** | K-014 |
+
+**Ön koşul**
+- Bekleyen bir tool onayı var. Rol: operator.
+
+**Adımlar**
+1. Onaylar ekranını aç.
+2. "Ham argümanlar" bölümünü aç.
+3. Klavyeyle "Onayla" düğmesine `Tab`'la, üstüne gelme.
+
+**Beklenen sonuç**
+- Satır tool'un çağrıldığı argümanları gösterir; karar vermeden önce okunabilir.
+- Süre sonu (`Expires`) amber renkte ve **mutlak** saattir ("az önce" değil).
+- 3. adımda düğmenin açıklaması **klavyeyle** görünür (`title` özniteliği
+  değil, gerçek bir tooltip) ve kararın ne başlattığını söyler.
+- `Esc` tooltip'i kapatır, fareyi hareket ettirmeye gerek kalmaz.
+
+### MT-UI-052 — Run detayının "İlişkili" menüsü klavyeyle kullanılır
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 164 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- Bir agent'ı başka bir agent'ın çağırdığı bir run ağacı var (`router` → `support`).
+
+**Adımlar**
+1. Alt run'ın detayına gir.
+2. "İlişkili" düğmesine `Tab`'la ve `ArrowDown` ile aç.
+3. `ArrowDown`/`ArrowUp` ile gez, `Enter` ile seç.
+4. Menüyü tekrar aç ve `Esc`'e bas.
+
+**Beklenen sonuç**
+- Düğme `aria-haspopup` ve `aria-expanded` taşır.
+- Ok tuşları listede döner; `Home`/`End` uçlara gider.
+- `Enter` seçilen kaydı açar.
+- `Esc` menüyü kapatır ve odak düğmeye döner.
+
+### MT-UI-053 — Dar ekranda (375px) kanıt dilimi yatay taşma yapmaz
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 164 |
+| **İlgili karar** | — |
+
+MT-UI-043'ün tamamlayıcısıdır: o dört genel ekranı gezer, bu beş **yoğun**
+ekranı. Otomatikleştirilmiş: `UiTests.Proof_slice_screens_do_not_overflow_horizontally_at_375px_width`.
+
+**Ön koşul**
+- En az bir run ve bir bekleyen onay kayıtlı.
+
+**Adımlar**
+1. Genişliği 375px yap.
+2. Dashboard · Runs · Run detayı · Onaylar · Agent editörünü gez.
+3. Üst çubuktaki "Tracon" düğmesine bas.
+
+**Beklenen sonuç**
+- Hiçbirinde sayfa yatay kaymaz (`scrollWidth - clientWidth == 0`).
+- Geniş tablolar kendi kaydırma kutusunda kalır ve klavyeyle kaydırılabilir.
+- 3. adımda gruplu gezinme çekmecesi açılır; bir ekrana gidince kapanır.
+
+### MT-UI-054 — Türkçe arayüzde sunucu metni çevrilmez
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 164 |
+| **İlgili karar** | K-228, K-232 |
+
+**Ön koşul**
+- Dil `tr`.
+
+**Adımlar**
+1. Kanıt dilimindeki beş ekranı gez.
+2. Var olmayan bir agent adıyla bir run başlatıp hata durumunu gör.
+
+**Beklenen sonuç**
+- Gezinme grupları "Operasyon" ve "Yapılandırma" olarak çevrilidir; ekran
+  adları, filtre etiketleri ve durum sözcükleri Türkçedir.
+- `run`, `session`, `tenant`, `tool` gibi terimler **çevrilmez**.
+- Sunucunun `ProblemDetails` metni İngilizce ve birebir görünür.
+

@@ -73,6 +73,24 @@ describe('AgentEditorScreen', () => {
     });
   });
 
+  it('shows the failure instead of an endless skeleton when the definition cannot be loaded', async () => {
+    // A definition that does not resolve — another tenant's agent, a deleted
+    // one, a store that is down. `ready` only ever turns true on SUCCESS, so
+    // without an error branch this screen sat on `aria-busy` for ever.
+    restoreFetch = installApiMock([
+      ...baseOverrides(),
+      fixture('GET', 'api/agents/support', { title: 'Agent not found', status: 404 }, 404),
+    ]);
+
+    renderScreen(<AgentEditorScreen name="support" />);
+
+    const alert = await screen.findByRole('alert');
+
+    expect(alert.textContent).toContain('Agent not found');
+    expect(screen.getByTestId('error-retry')).toBeDefined();
+    expect(screen.queryByRole('status')).toBeNull();
+  });
+
   it('flags invalid JSON in the response schema and disables Validate/Save', async () => {
     restoreFetch = installApiMock(baseOverrides());
 

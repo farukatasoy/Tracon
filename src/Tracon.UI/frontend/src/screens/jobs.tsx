@@ -70,7 +70,7 @@ export function JobProgressBar({
   const t = useT();
 
   if (total === 0) {
-    return <span className="text-[11px] text-subtle">{t('jobs.noItems')}</span>;
+    return <span className="text-xs text-subtle">{t('jobs.noItems')}</span>;
   }
 
   const donePct = (done / total) * 100;
@@ -84,7 +84,7 @@ export function JobProgressBar({
           <div className="h-full bg-danger" style={{ width: `${failedPct}%` }} />
         </div>
       </div>
-      <span className="text-[11px] text-muted">
+      <span className="text-xs text-muted">
         {done + failed}/{total}
       </span>
     </div>
@@ -234,7 +234,7 @@ export function JobsScreen({ meta }: { meta: Meta }): ReactNode {
 
       {!meta.storage.jobWorkerEnabled && (
         <Panel className="mb-4">
-          <div className="border-b border-line px-4 py-2.5 text-[12px] text-muted">
+          <div className="border-b border-line px-4 py-2.5 text-sm text-muted">
             <strong className="text-fg">{t('jobs.workerOff.title')}</strong> {t('jobs.workerOff.body')}{' '}
             <Mono className="ml-1">RunWorker</Mono>.
           </div>
@@ -314,7 +314,7 @@ export function JobsScreen({ meta }: { meta: Meta }): ReactNode {
               />
             </Field>
 
-            <label className="flex items-end gap-2 pb-1.5 text-[13px]">
+            <label className="flex items-end gap-2 pb-1.5 text-base">
               <input
                 type="checkbox"
                 checked={form.enabled}
@@ -393,13 +393,13 @@ export function JobsScreen({ meta }: { meta: Meta }): ReactNode {
                     </Td>
                     <Td className="text-muted">{schedule.targetName}</Td>
                     <Td>
-                      <Mono className="text-[11px] text-muted">{schedule.lane}</Mono>
+                      <Mono className="text-xs text-muted">{schedule.lane}</Mono>
                     </Td>
                     <Td>
                       {schedule.cron != null && schedule.cron.length > 0 ? (
-                        <Mono className="text-[11px]">{schedule.cron}</Mono>
+                        <Mono className="text-xs">{schedule.cron}</Mono>
                       ) : (
-                        <span className="text-[11px] text-subtle">{t('jobs.manualOnly')}</span>
+                        <span className="text-xs text-subtle">{t('jobs.manualOnly')}</span>
                       )}
                     </Td>
                     <Td className="text-muted" title={absoluteTime(schedule.nextRunAt)}>
@@ -499,7 +499,7 @@ export function JobsScreen({ meta }: { meta: Meta }): ReactNode {
                     </Td>
                     <Td className="text-muted">{job.targetName}</Td>
                     <Td>
-                      <Mono className="text-[11px] text-muted">{job.lane}</Mono>
+                      <Mono className="text-xs text-muted">{job.lane}</Mono>
                     </Td>
                     <Td>
                       <JobStatusBadge status={job.status} />

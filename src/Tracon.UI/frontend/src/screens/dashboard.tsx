@@ -11,6 +11,7 @@ import {
   TokenBreakdownChart,
 } from '../components/charts';
 import { Badge, ErrorNote, Loading, PageHeader, Panel, cx } from '../components/ui';
+import { StatusDot } from '../components/status-dot';
 import { Link } from '../lib/router';
 import type { TraconMetaResponse as Meta, TimeSeriesBucket } from '@tracon/client';
 import type {
@@ -97,15 +98,20 @@ export function DashboardScreen({ meta }: { meta: Meta }): ReactNode {
           className="lg:col-span-2"
           title={t('dashboard.runsOverTime')}
           actions={
-            <div className="flex gap-1">
+            <div
+              role="group"
+              aria-label={t('dashboard.range')}
+              className="flex gap-px rounded border border-line-strong p-px"
+            >
               {(Object.keys(RANGE_CONFIG) as Range[]).map((key) => (
                 <button
                   key={key}
                   type="button"
+                  aria-pressed={key === range}
                   onClick={() => setRange(key)}
                   className={cx(
-                    'rounded px-2 py-1 text-[12px] font-medium',
-                    key === range ? 'bg-accent text-accent-fg' : 'text-muted hover:bg-raised',
+                    'rounded-sm px-2 py-0.5 font-mono text-sm font-medium transition-colors',
+                    key === range ? 'bg-accent text-accent-fg' : 'text-muted hover:bg-raised hover:text-fg',
                   )}
                 >
                   {RANGE_CONFIG[key].label}
@@ -114,10 +120,10 @@ export function DashboardScreen({ meta }: { meta: Meta }): ReactNode {
             </div>
           }
         >
-          {timeseries.isPending && <Loading />}
+          {timeseries.isPending && <Loading rows={6} />}
           {timeseries.isError && (
             <div className="p-4">
-              <ErrorNote error={timeseries.error} />
+              <ErrorNote error={timeseries.error} onRetry={() => void timeseries.refetch()} />
             </div>
           )}
           {timeseries.isSuccess && (
@@ -131,10 +137,10 @@ export function DashboardScreen({ meta }: { meta: Meta }): ReactNode {
         </Panel>
 
         <Panel title={t('dashboard.modelBreakdown')}>
-          {stats.isPending && <Loading />}
+          {stats.isPending && <Loading rows={4} />}
           {stats.isError && (
             <div className="p-4">
-              <ErrorNote error={stats.error} />
+              <ErrorNote error={stats.error} onRetry={() => void stats.refetch()} />
             </div>
           )}
           {stats.isSuccess && (
@@ -143,26 +149,26 @@ export function DashboardScreen({ meta }: { meta: Meta }): ReactNode {
         </Panel>
 
         <Panel title={t('dashboard.tokens.title')}>
-          {stats.isPending && <Loading />}
+          {stats.isPending && <Loading rows={4} />}
           {stats.isError && (
             <div className="p-4">
-              <ErrorNote error={stats.error} />
+              <ErrorNote error={stats.error} onRetry={() => void stats.refetch()} />
             </div>
           )}
           {stats.isSuccess && <TokenBreakdownChart stats={stats.data} />}
         </Panel>
 
         <Panel title={t('dashboard.topAgents')}>
-          {stats.isPending && <Loading />}
+          {stats.isPending && <Loading rows={5} />}
           {stats.isSuccess && (
             <dl className="divide-y divide-line">
               {stats.data.byAgent.length === 0 && (
-                <p className="px-4 py-4 text-[12px] text-subtle">{t('dashboard.noRunsInWindow')}</p>
+                <p className="px-4 py-4 text-sm text-subtle">{t('dashboard.noRunsInWindow')}</p>
               )}
               {stats.data.byAgent.map((agent) => (
                 <div key={agent.agentName} className="flex items-center gap-4 px-4 py-2">
-                  <dt className="min-w-0 flex-1 truncate text-[13px]">{agent.agentName}</dt>
-                  <dd className="shrink-0 text-[12px] text-subtle">
+                  <dt className="min-w-0 flex-1 truncate text-base">{agent.agentName}</dt>
+                  <dd className="shrink-0 text-sm text-subtle">
                     {t('dashboard.agentSummary', {
                       runs: count(agent.totalRuns),
                       tokens: count(agent.totalTokens),
@@ -180,7 +186,7 @@ export function DashboardScreen({ meta }: { meta: Meta }): ReactNode {
         </Panel>
 
         <Panel className="lg:col-span-2" title={t('dashboard.errorBreakdown')}>
-          {stats.isPending && <Loading />}
+          {stats.isPending && <Loading rows={3} />}
           {stats.isSuccess && <ErrorBreakdown classes={stats.data.byErrorClass} />}
         </Panel>
 
@@ -232,19 +238,19 @@ function OnlineEvaluationSummaryPanel(): ReactNode {
   const data = summary.data;
 
   if (data.sampleCount === 0) {
-    return <p className="px-4 py-4 text-[12px] text-subtle">{t('onlineEval.noneYet')}</p>;
+    return <p className="px-4 py-4 text-sm text-subtle">{t('onlineEval.noneYet')}</p>;
   }
 
   return (
     <div className="flex items-center gap-6 px-4 py-3">
       <div>
-        <div className="text-[11px] text-subtle">{t('onlineEval.sampleCount')}</div>
-        <div className="text-[18px] font-semibold">{count(data.sampleCount)}</div>
+        <div className="text-xs text-subtle">{t('onlineEval.sampleCount')}</div>
+        <div className="text-metric font-semibold">{count(data.sampleCount)}</div>
       </div>
       {data.averageScore != null && (
         <div>
-          <div className="text-[11px] text-subtle">{t('onlineEval.averageScore')}</div>
-          <div className="flex items-center gap-2 text-[18px] font-semibold">
+          <div className="text-xs text-subtle">{t('onlineEval.averageScore')}</div>
+          <div className="flex items-center gap-2 text-metric font-semibold">
             {Math.round(data.averageScore)}
             {data.belowThreshold && <Badge tone="warn">{t('onlineEval.belowThreshold')}</Badge>}
           </div>
@@ -252,8 +258,8 @@ function OnlineEvaluationSummaryPanel(): ReactNode {
       )}
       {data.judgeCost != null && (
         <div>
-          <div className="text-[11px] text-subtle">{t('onlineEval.judgeCost')}</div>
-          <div className="text-[18px] font-semibold">{money(data.judgeCost, data.judgeCostCurrency)}</div>
+          <div className="text-xs text-subtle">{t('onlineEval.judgeCost')}</div>
+          <div className="text-metric font-semibold">{money(data.judgeCost, data.judgeCostCurrency)}</div>
         </div>
       )}
     </div>
@@ -284,12 +290,12 @@ function PersistentScoreTrendPanel(): ReactNode {
   }
 
   if (summary.data.series.length === 0) {
-    return <p className="px-4 py-4 text-[12px] text-subtle">{t('onlineEval.noneYet')}</p>;
+    return <p className="px-4 py-4 text-sm text-subtle">{t('onlineEval.noneYet')}</p>;
   }
 
   return (
     <div className="px-4 py-3">
-      <div className="mb-1 text-[11px] text-subtle">{t('onlineEval.trendTitle')}</div>
+      <div className="mb-1 text-xs text-subtle">{t('onlineEval.trendTitle')}</div>
       <ScoreTrendChart series={summary.data.series} />
     </div>
   );
@@ -314,19 +320,19 @@ function FeedbackSummary({
   }
 
   if (stats === undefined || stats.scoredRuns === 0) {
-    return <p className="px-4 py-4 text-[12px] text-subtle">{t('feedback.noneYet')}</p>;
+    return <p className="px-4 py-4 text-sm text-subtle">{t('feedback.noneYet')}</p>;
   }
 
   return (
     <div className="flex items-center gap-6 px-4 py-3">
       <div>
-        <div className="text-[11px] text-subtle">{t('dashboard.scoredRuns')}</div>
-        <div className="text-[18px] font-semibold">{count(stats.scoredRuns)}</div>
+        <div className="text-xs text-subtle">{t('dashboard.scoredRuns')}</div>
+        <div className="text-metric font-semibold">{count(stats.scoredRuns)}</div>
       </div>
       {stats.positiveRate != null && (
         <div>
-          <div className="text-[11px] text-subtle">{t('dashboard.positiveRate')}</div>
-          <div className="text-[18px] font-semibold">{percent(stats.positiveRate)}</div>
+          <div className="text-xs text-subtle">{t('dashboard.positiveRate')}</div>
+          <div className="text-metric font-semibold">{percent(stats.positiveRate)}</div>
         </div>
       )}
     </div>
@@ -342,7 +348,7 @@ function ErrorBreakdown({ classes }: { classes: RunErrorStatistics[] }): ReactNo
   const t = useT();
 
   if (classes.length === 0) {
-    return <p className="px-4 py-4 text-[12px] text-subtle">{t('dashboard.noErrorsInWindow')}</p>;
+    return <p className="px-4 py-4 text-sm text-subtle">{t('dashboard.noErrorsInWindow')}</p>;
   }
 
   return (
@@ -353,13 +359,13 @@ function ErrorBreakdown({ classes }: { classes: RunErrorStatistics[] }): ReactNo
         return (
           <div key={entry.class} className="px-4 py-2">
             <div className="flex items-center gap-4">
-              <dt className="min-w-0 flex-1 truncate text-[13px]">{t(`dashboard.errorClass.${entry.class}`)}</dt>
-              <dd className="shrink-0 text-[12px] text-subtle">
+              <dt className="min-w-0 flex-1 truncate text-base">{t(`dashboard.errorClass.${entry.class}`)}</dt>
+              <dd className="shrink-0 text-sm text-subtle">
                 {t('dashboard.errorClassRuns', { runs: count(entry.totalRuns) })}
               </dd>
             </div>
             {topCluster !== undefined && (
-              <p className="mt-1 truncate text-[11px] text-subtle" title={topCluster.sampleMessage}>
+              <p className="mt-1 truncate text-xs text-subtle" title={topCluster.sampleMessage}>
                 {t('dashboard.errorClusterSample', {
                   count: count(topCluster.count),
                   message: topCluster.sampleMessage,
@@ -387,7 +393,7 @@ function TopStrip({
   if (isLoading || points === undefined) {
     return (
       <Panel>
-        <Loading />
+        <Loading rows={2} />
       </Panel>
     );
   }
@@ -467,11 +473,11 @@ function StripTile({
   const bad = invertTone ? rising : falling;
 
   return (
-    <Panel className="p-4">
-      <p className="text-[11px] text-subtle">{label}</p>
-      <p className="mt-1 text-xl font-semibold tracking-tight">{value}</p>
+    <Panel className="px-3 py-2.5">
+      <p className="text-2xs tracking-wider text-subtle uppercase">{label}</p>
+      <p className="mt-0.5 font-mono text-title font-semibold tracking-tight">{value}</p>
       {deltaValue !== null && (
-        <p className={cx('mt-0.5 text-[11px]', good && 'text-success', bad && 'text-danger')}>
+        <p className={cx('mt-0.5 text-xs', good && 'text-success', bad && 'text-danger')}>
           {deltaValue >= 0 ? '+' : ''}
           {percent(deltaValue)} {t('dashboard.vsYesterday')}
         </p>
@@ -498,7 +504,12 @@ function AlertsRow({
   const hasAwaiting = (awaitingInputRuns ?? 0) > 0;
 
   if (!hasUnpriced && !hasUnhealthy && !hasAwaiting) {
-    return <p className="px-4 py-4 text-[12px] text-subtle">{t('dashboard.allClear')}</p>;
+    return (
+      <p className="flex items-center gap-2 px-4 py-3 text-sm text-muted">
+        <StatusDot tone="success" />
+        {t('dashboard.allClear')}
+      </p>
+    );
   }
 
   return (
@@ -519,7 +530,7 @@ function AlertsRow({
         </Badge>
       )}
       {hasUnpriced && canAdminister && (
-        <Link to="settings" className="text-[12px] text-accent hover:underline">
+        <Link to="settings" className="text-sm text-accent hover:underline">
           {t('dashboard.configurePricing')} →
         </Link>
       )}

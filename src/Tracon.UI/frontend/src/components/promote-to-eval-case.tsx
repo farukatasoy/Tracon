@@ -67,7 +67,7 @@ export function PromoteToEvalCase({ runId }: { runId: string }): ReactNode {
           </Button>
         </div>
 
-        <p className="text-[11px] text-subtle">{t('evals.promote.hint')}</p>
+        <p className="text-xs text-subtle">{t('evals.promote.hint')}</p>
 
         {promote.isError && <ErrorNote error={promote.error} />}
       </div>

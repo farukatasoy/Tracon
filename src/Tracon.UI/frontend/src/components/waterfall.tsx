@@ -29,7 +29,7 @@ export function Waterfall({ trace }: { trace: RunTrace }): ReactNode {
 
   return (
     <div className="flex flex-col">
-      <div className="flex items-center justify-between border-b border-line px-4 py-2 text-[11px] text-subtle">
+      <div className="flex items-center justify-between border-b border-line px-4 py-2 text-xs text-subtle">
         <span>{plural('waterfall.spans', rows.length)}</span>
         <Mono title={t('waterfall.traceIdTitle')}>{trace.traceId}</Mono>
         <span>{formatMs(total)}</span>
@@ -121,7 +121,7 @@ function SpanRow({
         className="flex w-full items-center gap-3 px-4 py-1.5 text-left hover:bg-raised"
       >
         <span
-          className="w-48 shrink-0 truncate text-[12px]"
+          className="w-48 shrink-0 truncate text-sm"
           style={{ paddingLeft: `${depth * 10}px` }}
           title={span.name}
         >
@@ -136,7 +136,7 @@ function SpanRow({
           />
         </span>
 
-        <Mono className="w-16 shrink-0 text-right text-[11px] text-muted">{formatMs(elapsed)}</Mono>
+        <Mono className="w-16 shrink-0 text-right text-xs text-muted">{formatMs(elapsed)}</Mono>
       </button>
 
       {open && (
@@ -144,15 +144,15 @@ function SpanRow({
           <div className="mb-2 flex flex-wrap items-center gap-1.5">
             <Badge>{span.kind}</Badge>
             <Badge tone={failed ? 'danger' : 'accent'}>{span.status}</Badge>
-            <Mono className="text-[11px] text-subtle" title={t('waterfall.spanIdTitle')}>
+            <Mono className="text-xs text-subtle" title={t('waterfall.spanIdTitle')}>
               {span.spanId}
             </Mono>
           </div>
 
           {attributes.length === 0 ? (
-            <p className="text-[12px] text-subtle">{t('waterfall.noAttributes')}</p>
+            <p className="text-sm text-subtle">{t('waterfall.noAttributes')}</p>
           ) : (
-            <dl className="grid gap-x-4 gap-y-1 text-[12px] sm:grid-cols-[auto_1fr]">
+            <dl className="grid gap-x-4 gap-y-1 text-sm sm:grid-cols-[auto_1fr]">
               {attributes.map(([key, value]) => (
                 <div key={key} className="contents">
                   <dt className="font-mono text-subtle">{key}</dt>

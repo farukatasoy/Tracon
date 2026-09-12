@@ -20,7 +20,7 @@ export function CallableAgentsSection({
   return (
     <Panel title={t('agentDetail.callableAgents')}>
       <div className="p-4">
-        <p className="mb-3 text-[12px] text-muted">
+        <p className="mb-3 text-sm text-muted">
           {t('agentEditor.callableNotice')} <Mono>Tracon:AgentGraph</Mono>.
         </p>
 
@@ -28,7 +28,7 @@ export function CallableAgentsSection({
         {agents.isError && <ErrorNote error={agents.error} />}
 
         {agents.isSuccess && callable.length === 0 && (
-          <p className="text-[13px] text-subtle">{t('agentEditor.noCallable')}</p>
+          <p className="text-base text-subtle">{t('agentEditor.noCallable')}</p>
         )}
 
         <div className="flex flex-col gap-1.5">
@@ -42,7 +42,7 @@ export function CallableAgentsSection({
               >
                 <input
                   type="checkbox"
-                  className="mt-0.5 accent-[var(--ap-accent)]"
+                  className="mt-0.5 accent-[var(--tracon-accent)]"
                   checked={checked}
                   onChange={() =>
                     setForm({
@@ -55,7 +55,7 @@ export function CallableAgentsSection({
                 />
                 <span className="min-w-0">
                   <Mono className="font-medium">{agent.name}</Mono>
-                  {agent.description != null && <span className="block text-[12px] text-muted">{agent.description}</span>}
+                  {agent.description != null && <span className="block text-sm text-muted">{agent.description}</span>}
                 </span>
               </label>
             );

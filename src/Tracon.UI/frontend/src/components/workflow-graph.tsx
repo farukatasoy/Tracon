@@ -63,7 +63,7 @@ export function WorkflowGraphView({
             markerHeight="6"
             orient="auto-start-reverse"
           >
-            <path d="M 0 1 L 7 4 L 0 7 z" fill="var(--ap-line-strong)" />
+            <path d="M 0 1 L 7 4 L 0 7 z" fill="var(--tracon-line-strong)" />
           </marker>
         </defs>
 
@@ -73,7 +73,7 @@ export function WorkflowGraphView({
               key={`${edge.from}->${edge.to}`}
               d={edge.path}
               fill="none"
-              stroke="var(--ap-line-strong)"
+              stroke="var(--tracon-line-strong)"
               strokeWidth={1.4}
               strokeDasharray={edge.backwards ? '4 3' : undefined}
               markerEnd="url(#ap-arrow)"
@@ -91,12 +91,12 @@ export function WorkflowGraphView({
 
 /** Fill and text colour per node role. Shape and label carry the meaning too. */
 const KIND_STYLE: Record<WorkflowNodeKind, { fill: string; stroke: string; radius: number }> = {
-  Agent: { fill: tint('--ap-violet'), stroke: 'var(--ap-violet)', radius: 8 },
-  Function: { fill: tint('--ap-cyan'), stroke: 'var(--ap-cyan)', radius: 2 },
-  Orchestration: { fill: 'var(--ap-raised)', stroke: 'var(--ap-line-strong)', radius: 8 },
-  RequestPort: { fill: tint('--ap-amber'), stroke: 'var(--ap-amber)', radius: 20 },
-  Output: { fill: tint('--ap-emerald'), stroke: 'var(--ap-emerald)', radius: 20 },
-  Unknown: { fill: 'var(--ap-raised)', stroke: 'var(--ap-line-strong)', radius: 8 },
+  Agent: { fill: tint('--tracon-series-1'), stroke: 'var(--tracon-series-1)', radius: 8 },
+  Function: { fill: tint('--tracon-series-4'), stroke: 'var(--tracon-series-4)', radius: 2 },
+  Orchestration: { fill: 'var(--tracon-raised)', stroke: 'var(--tracon-line-strong)', radius: 8 },
+  RequestPort: { fill: tint('--tracon-series-5'), stroke: 'var(--tracon-series-5)', radius: 20 },
+  Output: { fill: tint('--tracon-series-6'), stroke: 'var(--tracon-series-6)', radius: 20 },
+  Unknown: { fill: 'var(--tracon-raised)', stroke: 'var(--tracon-line-strong)', radius: 8 },
 };
 
 /**
@@ -112,9 +112,9 @@ function tint(token: string): string {
 /** Outline colour per live state. Idle keeps the node's own role colour. */
 const STATE_STROKE: Record<NodeState, string | null> = {
   idle: null,
-  running: 'var(--ap-cyan)',
-  done: 'var(--ap-emerald)',
-  failed: 'var(--ap-danger)',
+  running: 'var(--tracon-accent)',
+  done: 'var(--tracon-success)',
+  failed: 'var(--tracon-danger)',
 };
 
 function NodeBox({ node, state }: { node: LaidOutNode; state: NodeState }): ReactNode {
@@ -163,8 +163,8 @@ function NodeBox({ node, state }: { node: LaidOutNode; state: NodeState }): Reac
         x={node.x + NODE_WIDTH / 2}
         y={node.y + NODE_HEIGHT / 2 + 4}
         textAnchor="middle"
-        fill="var(--ap-fg)"
-        className="text-[11px]"
+        fill="var(--tracon-fg)"
+        className="text-xs"
       >
         {truncate(node.label)}
       </text>
@@ -182,7 +182,7 @@ export function WorkflowGraphLegend(): ReactNode {
   const t = useT();
 
   return (
-    <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-subtle">
+    <div className="flex flex-wrap items-center gap-1.5 text-xs text-subtle">
       <Badge tone="accent">{t('graph.legend.agent')}</Badge>
       <Badge tone="info">{t('graph.legend.function')}</Badge>
       <Badge>{t('graph.legend.orchestration')}</Badge>

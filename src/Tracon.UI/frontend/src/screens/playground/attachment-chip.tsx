@@ -60,7 +60,7 @@ export function AttachmentChip({
   return (
     <span
       data-testid="attachment-chip"
-      className="inline-flex items-center gap-1.5 rounded-md border border-line bg-panel py-1 pr-2 pl-1 text-[11px]"
+      className="inline-flex items-center gap-1.5 rounded-md border border-line bg-panel py-1 pr-2 pl-1 text-xs"
     >
       {previewUrl !== null ? (
         <img src={previewUrl} alt="" className="size-5 rounded object-cover" />

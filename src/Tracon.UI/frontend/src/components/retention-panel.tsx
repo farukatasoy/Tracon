@@ -158,13 +158,13 @@ export function RetentionPanel(): ReactNode {
         </Table>
       </div>
 
-      <p className="border-t border-line px-4 py-2.5 text-[11px] text-subtle">
+      <p className="border-t border-line px-4 py-2.5 text-xs text-subtle">
         {t('retention.notice')} <Mono>audit_log</Mono> {t('retention.auditNotice')}
       </p>
 
       {history.isSuccess && history.data.length > 0 && (
         <div className="border-t border-line">
-          <h3 className="px-4 pt-3 text-[12px] font-medium text-muted">{t('retention.recentRuns')}</h3>
+          <h3 className="px-4 pt-3 text-sm font-medium text-muted">{t('retention.recentRuns')}</h3>
           <Table>
             <thead>
               <tr>
@@ -326,7 +326,7 @@ function PolicyForm({
             onChange={(event) => setMaxRows(event.target.value)}
           />
         </Field>
-        <label className="flex items-end gap-2 pb-1.5 text-[13px]">
+        <label className="flex items-end gap-2 pb-1.5 text-base">
           <input
             type="checkbox"
             checked={archive}
@@ -335,7 +335,7 @@ function PolicyForm({
           />
           {t('retention.archiveFirst')}
         </label>
-        <label className="flex items-end gap-2 pb-1.5 text-[13px]">
+        <label className="flex items-end gap-2 pb-1.5 text-base">
           <input
             type="checkbox"
             checked={enabled}

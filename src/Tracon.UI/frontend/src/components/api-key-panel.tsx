@@ -83,19 +83,19 @@ export function ApiKeyPanel(): ReactNode {
 
       {revealed && (
         <div className="space-y-2 border-b border-line bg-raised/40 p-4">
-          <p className="text-[12px] font-medium">
+          <p className="text-sm font-medium">
             {t('apiKeys.newKeyTitle')}: {revealed.record.name}
           </p>
           <div className="relative">
             <CopyButton value={revealed.plaintextKey} />
             <div
-              className="overflow-auto rounded-md border border-line bg-raised p-3 pr-10 font-mono text-[12px]"
+              className="overflow-auto rounded-md border border-line bg-raised p-3 pr-10 font-mono text-sm"
               data-testid="api-key-plaintext"
             >
               {revealed.plaintextKey}
             </div>
           </div>
-          <p className="text-[11px] text-subtle">{t('apiKeys.newKeyNotice')}</p>
+          <p className="text-xs text-subtle">{t('apiKeys.newKeyNotice')}</p>
           <Button tone="ghost" onClick={() => setRevealed(null)}>
             {t('common.close')}
           </Button>
@@ -124,7 +124,7 @@ export function ApiKeyPanel(): ReactNode {
           </div>
         ))}
 
-      <p className="border-t border-line px-4 py-2.5 text-[11px] text-subtle">{t('apiKeys.notice')}</p>
+      <p className="border-t border-line px-4 py-2.5 text-xs text-subtle">{t('apiKeys.notice')}</p>
     </Panel>
   );
 }
@@ -135,7 +135,7 @@ function KeyRow({ record, onRevoke }: { record: ApiKeyRecord; onRevoke: () => vo
   return (
     <div className="px-4 py-3" data-testid="api-key-row">
       <div className="flex flex-wrap items-center gap-2">
-        <span className="text-[13px] font-medium">{record.name}</span>
+        <span className="text-base font-medium">{record.name}</span>
         {record.isActive ? (
           <Badge tone="success">{t('apiKeys.active')}</Badge>
         ) : (
@@ -150,7 +150,7 @@ function KeyRow({ record, onRevoke }: { record: ApiKeyRecord; onRevoke: () => vo
         </div>
       </div>
 
-      <div className="mt-1 text-[12px] text-muted">
+      <div className="mt-1 text-sm text-muted">
         <Mono>{record.keyPrefix}…</Mono>
       </div>
 
@@ -162,7 +162,7 @@ function KeyRow({ record, onRevoke }: { record: ApiKeyRecord; onRevoke: () => vo
         ))}
       </div>
 
-      <div className="mt-1.5 text-[11px] text-subtle">
+      <div className="mt-1.5 text-xs text-subtle">
         {t('apiKeys.created')}: {relativeTime(record.createdAt)}
         {' · '}
         {record.lastUsedAt != null
@@ -239,8 +239,8 @@ function ApiKeyForm({
                 }
                 className={
                   selected
-                    ? 'rounded border border-transparent bg-accent-soft px-1.5 py-0.5 text-[11px] font-medium text-accent'
-                    : 'rounded border border-line bg-raised px-1.5 py-0.5 text-[11px] font-medium text-muted'
+                    ? 'rounded border border-transparent bg-accent-soft px-1.5 py-0.5 text-xs font-medium text-accent'
+                    : 'rounded border border-line bg-raised px-1.5 py-0.5 text-xs font-medium text-muted'
                 }
               >
                 {t(`apiKeys.scope.${scope}`)}

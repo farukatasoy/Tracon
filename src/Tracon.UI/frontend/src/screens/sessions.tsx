@@ -181,7 +181,7 @@ export function Pager({
   }
 
   return (
-    <div className="flex items-center justify-between border-t border-line px-4 py-2 text-[12px] text-muted">
+    <div className="flex items-center justify-between border-t border-line px-4 py-2 text-sm text-muted">
       <span>{t('common.page', { page: page + 1 })}</span>
       <div className="flex gap-2">
         <Button tone="ghost" disabled={page === 0} onClick={() => onChange(page - 1)}>

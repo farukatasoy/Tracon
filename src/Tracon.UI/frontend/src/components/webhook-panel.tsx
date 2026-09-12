@@ -103,7 +103,7 @@ export function WebhookPanel(): ReactNode {
           </div>
         ))}
 
-      <p className="border-t border-line px-4 py-2.5 text-[11px] text-subtle">
+      <p className="border-t border-line px-4 py-2.5 text-xs text-subtle">
         {t('webhooks.noticeBefore')} <Mono>https</Mono>. {t('webhooks.noticeAfter')}{' '}
         <Mono>/api/runs/&#123;id&#125;</Mono>.
       </p>
@@ -133,7 +133,7 @@ function SubscriptionRow({
   return (
     <div className="px-4 py-3" data-testid="webhook-row">
       <div className="flex flex-wrap items-center gap-2">
-        <span className="text-[13px] font-medium">{subscription.name}</span>
+        <span className="text-base font-medium">{subscription.name}</span>
         {subscription.enabled ? (
           <Badge tone="success">{t('common.enabled')}</Badge>
         ) : (
@@ -159,7 +159,7 @@ function SubscriptionRow({
         </div>
       </div>
 
-      <div className="mt-1 text-[12px] text-muted">
+      <div className="mt-1 text-sm text-muted">
         <Mono>{subscription.url}</Mono>
       </div>
 
@@ -171,7 +171,7 @@ function SubscriptionRow({
         ))}
       </div>
 
-      <div className="mt-1.5 text-[11px] text-subtle">
+      <div className="mt-1.5 text-xs text-subtle">
         {subscription.secretConfigurationKey != null ? (
           <>
             {t('webhooks.signedWith')} <Mono>{subscription.secretConfigurationKey}</Mono>.{' '}
@@ -183,7 +183,7 @@ function SubscriptionRow({
       </div>
 
       {test.isSuccess && (
-        <p className="mt-2 text-[11px] text-muted" data-testid="webhook-test-result">
+        <p className="mt-2 text-xs text-muted" data-testid="webhook-test-result">
           {test.data.message}
         </p>
       )}
@@ -219,7 +219,7 @@ function Deliveries({ name }: { name: string }): ReactNode {
   }
 
   if (deliveries.data.length === 0) {
-    return <p className="mt-3 text-[12px] text-subtle">{t('webhooks.noDeliveries')}</p>;
+    return <p className="mt-3 text-sm text-subtle">{t('webhooks.noDeliveries')}</p>;
   }
 
   return (
@@ -341,8 +341,8 @@ function WebhookForm({ onDone }: { onDone: () => void }): ReactNode {
                 }
                 className={
                   selected
-                    ? 'rounded border border-transparent bg-accent-soft px-1.5 py-0.5 text-[11px] font-medium text-accent'
-                    : 'rounded border border-line bg-raised px-1.5 py-0.5 text-[11px] font-medium text-muted'
+                    ? 'rounded border border-transparent bg-accent-soft px-1.5 py-0.5 text-xs font-medium text-accent'
+                    : 'rounded border border-line bg-raised px-1.5 py-0.5 text-xs font-medium text-muted'
                 }
               >
                 {event}

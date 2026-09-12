@@ -191,17 +191,17 @@ export function ExperimentDetailScreen({ name, meta }: { name: string; meta: Met
 
       <Panel title={t('experiments.configuration')} className="mb-4">
         <div className="p-4">
-          <dl className="mb-4 flex flex-wrap gap-6 text-[13px]">
+          <dl className="mb-4 flex flex-wrap gap-6 text-base">
             <div>
-              <dt className="text-[11px] text-subtle uppercase">{t('common.status')}</dt>
+              <dt className="text-xs text-subtle uppercase">{t('common.status')}</dt>
               <dd className="mt-0.5"><StatusBadge status={data.status} /></dd>
             </div>
             <div>
-              <dt className="text-[11px] text-subtle uppercase">{t('common.started')}</dt>
+              <dt className="text-xs text-subtle uppercase">{t('common.started')}</dt>
               <dd className="mt-0.5 text-muted" title={absoluteTime(data.startedAt)}>{relativeTime(data.startedAt)}</dd>
             </div>
             <div>
-              <dt className="text-[11px] text-subtle uppercase">{t('experiments.ended')}</dt>
+              <dt className="text-xs text-subtle uppercase">{t('experiments.ended')}</dt>
               <dd className="mt-0.5 text-muted" title={absoluteTime(data.endedAt)}>{relativeTime(data.endedAt)}</dd>
             </div>
           </dl>
@@ -230,7 +230,7 @@ export function ExperimentDetailScreen({ name, meta }: { name: string; meta: Met
       <Panel
         title={t('experiments.results')}
         actions={
-          <span className="text-[11px] text-subtle">
+          <span className="text-xs text-subtle">
             {t('experiments.resultsNote')}
           </span>
         }
@@ -300,7 +300,7 @@ export function ExperimentDetailScreen({ name, meta }: { name: string; meta: Met
           }
         >
           {data.rollbackReason != null && (
-            <div className="border-b border-line bg-danger/10 p-4 text-[13px]">
+            <div className="border-b border-line bg-danger/10 p-4 text-base">
               <span className="font-medium text-danger">{t('experiments.canary.rolledBack')}</span>{' '}
               <span className="text-muted">{data.rollbackReason}</span>
             </div>
@@ -403,37 +403,37 @@ export function ExperimentDetailScreen({ name, meta }: { name: string; meta: Met
               !showCanaryForm && <Empty title={t('experiments.canary.empty.title')}>{t('experiments.canary.empty.body')}</Empty>
             ) : (
               <div className="p-4">
-                <dl className="mb-4 flex flex-wrap gap-6 text-[13px]">
+                <dl className="mb-4 flex flex-wrap gap-6 text-base">
                   <div>
-                    <dt className="text-[11px] text-subtle uppercase">{t('experiments.canary.canaryVariant')}</dt>
+                    <dt className="text-xs text-subtle uppercase">{t('experiments.canary.canaryVariant')}</dt>
                     <dd className="mt-0.5"><Badge tone="accent">{canary.data.policy.canaryVariant}</Badge></dd>
                   </div>
                   <div>
-                    <dt className="text-[11px] text-subtle uppercase">{t('experiments.canary.maxErrorRateDelta')}</dt>
+                    <dt className="text-xs text-subtle uppercase">{t('experiments.canary.maxErrorRateDelta')}</dt>
                     <dd className="mt-0.5 text-muted">
                       {canary.data.policy.maxErrorRateDelta != null ? percent(canary.data.policy.maxErrorRateDelta) : '—'}
                     </dd>
                   </div>
                   <div>
-                    <dt className="text-[11px] text-subtle uppercase">{t('experiments.canary.minScore')}</dt>
+                    <dt className="text-xs text-subtle uppercase">{t('experiments.canary.minScore')}</dt>
                     <dd className="mt-0.5 text-muted">{canary.data.policy.minScore ?? '—'}</dd>
                   </div>
                   <div>
-                    <dt className="text-[11px] text-subtle uppercase">{t('experiments.canary.rampSteps')}</dt>
+                    <dt className="text-xs text-subtle uppercase">{t('experiments.canary.rampSteps')}</dt>
                     <dd className="mt-0.5 text-muted">
                       {canary.data.policy.rampSteps.length > 0 ? canary.data.policy.rampSteps.join(' → ') : '—'}
                     </dd>
                   </div>
                   {canary.data.evaluation != null && (
                     <div>
-                      <dt className="text-[11px] text-subtle uppercase">{t('experiments.canary.lastEvaluation')}</dt>
+                      <dt className="text-xs text-subtle uppercase">{t('experiments.canary.lastEvaluation')}</dt>
                       <dd className="mt-0.5"><CanaryDecisionBadge decision={canary.data.evaluation.decision} /></dd>
                     </div>
                   )}
                 </dl>
 
                 {canary.data.evaluation != null && (
-                  <p className="mb-4 text-[13px] text-muted" title={absoluteTime(canary.data.evaluation.evaluatedAt)}>
+                  <p className="mb-4 text-base text-muted" title={absoluteTime(canary.data.evaluation.evaluatedAt)}>
                     {canary.data.evaluation.reason}
                   </p>
                 )}

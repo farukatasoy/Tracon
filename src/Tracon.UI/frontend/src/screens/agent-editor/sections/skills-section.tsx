@@ -22,9 +22,9 @@ export function SkillsSection({
         {skills.isPending && <Loading />}
         {skills.isError && <ErrorNote error={skills.error} />}
         {skills.isSuccess && skills.data.length === 0 && (
-          <p className="text-[13px] text-subtle">{t('agentEditor.noSkills')}</p>
+          <p className="text-base text-subtle">{t('agentEditor.noSkills')}</p>
         )}
-        <p className="mb-3 text-[12px] text-muted">{t('agentEditor.skillLimit')}</p>
+        <p className="mb-3 text-sm text-muted">{t('agentEditor.skillLimit')}</p>
         <div className="flex flex-col gap-1.5">
           {(skills.data ?? []).map((skill) => {
             const checked = form.skillNames.includes(skill.name);
@@ -37,7 +37,7 @@ export function SkillsSection({
               >
                 <input
                   type="checkbox"
-                  className="mt-0.5 accent-[var(--ap-accent)]"
+                  className="mt-0.5 accent-[var(--tracon-accent)]"
                   checked={checked}
                   disabled={!skill.enabled || (!checked && limitReached)}
                   onChange={() =>
@@ -52,7 +52,7 @@ export function SkillsSection({
                 <span className="min-w-0">
                   <Mono className="font-medium">{skill.name}</Mono>
                   {!skill.enabled && <Badge tone="warn">{t('common.disabled')}</Badge>}
-                  <span className="block text-[12px] text-muted">{skill.description}</span>
+                  <span className="block text-sm text-muted">{skill.description}</span>
                 </span>
               </label>
             );

@@ -293,6 +293,7 @@ export const trOperations: Pick<Messages, keyof typeof enOperations> = {
   "approvals.approveTitle": 'Bu çağrıyı onayla ve devam etmek için aynı session ile yeni bir run kuyruğa düş.',
   "approvals.reject": 'Reddet',
   "approvals.rejectTitle": 'Bu çağrıyı reddet ve modelin tepki verebilmesi için aynı session ile yeni bir run kuyruğa düş.',
+  "approvals.waiting": '{count} bekliyor',
   "approvals.status.pending": 'Bekliyor',
   "approvals.status.approved": 'Onaylandı',
   "approvals.status.rejected": 'Reddedildi',

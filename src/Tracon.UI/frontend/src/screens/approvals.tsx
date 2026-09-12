@@ -4,7 +4,22 @@ import { client, unwrap } from '../lib/api';
 import { absoluteTime, relativeTime, shortId } from '../lib/format';
 import { useT } from '../lib/i18n';
 import { Link } from '../lib/router';
-import { Badge, Button, Empty, ErrorNote, Loading, Mono, PageHeader, Panel, Table, Td, Th } from '../components/ui';
+import {
+  Badge,
+  Button,
+  Empty,
+  ErrorNote,
+  Loading,
+  Mono,
+  PageHeader,
+  Panel,
+  Table,
+  Td,
+  Th,
+  Unauthorized,
+} from '../components/ui';
+import { Tooltip } from '../components/tooltip';
+import { StatusDot } from '../components/status-dot';
 import { ThumbsDownIcon, ThumbsUpIcon } from '../components/icons';
 import type { TraconMetaResponse as Meta, PendingApproval } from '@tracon/client';
 
@@ -15,6 +30,12 @@ import type { TraconMetaResponse as Meta, PendingApproval } from '@tracon/client
  * session state owns the pending question. Deciding it does not resume the
  * *same* run — the run row that asked stays `AwaitingApproval` forever
  * (append-only, decision K-014); a new run opens with the answer.
+ *
+ * 🚨 This is the console's decision surface and a decision here cannot be taken
+ * back, so the row states the consequence before it is taken: the arguments the
+ * tool was called with are on the row itself, and each button carries a real
+ * tooltip — reachable by keyboard and on touch, unlike the `title` attribute it
+ * replaced — naming what the answer sets in motion.
  */
 export function ApprovalsScreen({ meta }: { meta: Meta }): ReactNode {
   const t = useT();
@@ -34,117 +55,149 @@ export function ApprovalsScreen({ meta }: { meta: Meta }): ReactNode {
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['approvals-pending'] }),
   });
 
+  const waiting = approvals.data?.length ?? 0;
+
   return (
     <>
-      <PageHeader title={t('approvals.title')} description={t('approvals.description')} />
+      <PageHeader
+        title={t('approvals.title')}
+        description={t('approvals.description')}
+        actions={
+          approvals.isSuccess && waiting > 0 ? (
+            <Badge tone="warn">
+              <StatusDot tone="warn" live />
+              {t('approvals.waiting', { count: waiting })}
+            </Badge>
+          ) : undefined
+        }
+      />
 
       <Panel>
-        {approvals.isPending && <Loading />}
-        {approvals.isError && <ErrorNote error={approvals.error} />}
+        {approvals.isPending && <Loading rows={3} />}
+        {approvals.isError && (
+          <div className="p-3">
+            <ErrorNote error={approvals.error} onRetry={() => void approvals.refetch()} />
+          </div>
+        )}
 
         {approvals.isSuccess &&
-          (approvals.data.length === 0 ? (
+          (waiting === 0 ? (
+            // An empty approval queue is the DESIRED state, so this one has no
+            // "create the first" action: there is nothing an operator should do
+            // to make a tool call ask for permission.
             <Empty title={t('approvals.empty.title')}>{t('approvals.empty.body')}</Empty>
           ) : (
-            <Table>
+            <Table label={t('approvals.title')}>
               <thead>
                 <tr>
                   <Th>{t('approvals.tool')}</Th>
                   <Th>{t('approvals.run')}</Th>
                   <Th>{t('common.created')}</Th>
                   <Th>{t('approvals.expiresAt')}</Th>
-                  <Th />
+                  <Th className="text-right">{t('common.actions')}</Th>
                 </tr>
               </thead>
               <tbody>
-                {approvals.data.map((approval) => {
+                {(approvals.data ?? []).map((approval) => {
                   const approving =
                     decide.isPending && decide.variables?.id === approval.id && decide.variables.approved;
                   const rejecting =
                     decide.isPending && decide.variables?.id === approval.id && !decide.variables.approved;
 
                   return (
-                    <tr key={approval.id}>
-                      <Td>
-                        {approval.presentation?.entityName == null ? (
-                          <Mono className="font-semibold">{approval.toolName}</Mono>
-                        ) : (
-                          <>
-                            <p className="font-semibold">{approval.presentation.entityName}</p>
-                            <Mono className="text-[11px] text-subtle">{approval.toolName}</Mono>
-                          </>
-                        )}
-                        {approval.presentation?.message != null && (
-                          <p className="mt-0.5 max-w-sm text-[11px] text-subtle">{approval.presentation.message}</p>
-                        )}
-                        {approval.arguments != null && approval.arguments.length > 0 && (
-                          <details className="mt-0.5">
-                            <summary className="cursor-pointer text-[11px] text-subtle">
-                              {t('approvals.rawArguments')}
-                            </summary>
-                            <p className="mt-0.5 max-w-sm text-wrap break-all text-[11px] text-subtle">
-                              {approval.arguments}
-                            </p>
-                          </details>
-                        )}
-                      </Td>
-                      <Td>
-                        <Link to={`runs/${encodeURIComponent(approval.runId)}`}>
-                          <Mono title={approval.runId}>{shortId(approval.runId, 13, 6)}</Mono>
-                        </Link>
-                        <p className="mt-0.5 text-[11px] text-subtle">{approval.sessionId}</p>
-                      </Td>
-                      <Td className="text-[11px] text-muted" title={absoluteTime(approval.createdAt)}>
-                        {relativeTime(approval.createdAt)}
-                      </Td>
-                      <Td className="text-[11px] text-muted">
-                        {/* relativeTime() is "ago"-only (it treats any future
-                            instant as clock skew and prints "just now"); an
-                            expiry is always in the future, so this shows the
-                            absolute time directly instead of a misleading one. */}
-                        {absoluteTime(approval.expiresAt)}
-                      </Td>
-                      <Td className="text-right">
-                        {meta.roles.canOperate ? (
-                          <div className="flex justify-end gap-1.5">
+                  <tr key={approval.id} className="focus-within:bg-raised hover:bg-raised">
+                    <Td>
+                      {approval.presentation?.entityName == null ? (
+                        <Mono className="font-semibold">{approval.toolName}</Mono>
+                      ) : (
+                        <>
+                          <p className="font-semibold">{approval.presentation.entityName}</p>
+                          <Mono className="text-subtle">{approval.toolName}</Mono>
+                        </>
+                      )}
+                      {approval.presentation?.message != null && (
+                        <p className="mt-0.5 max-w-sm text-sm text-subtle">{approval.presentation.message}</p>
+                      )}
+                      {approval.arguments != null && approval.arguments.length > 0 && (
+                        <details className="mt-1">
+                          <summary className="cursor-pointer text-xs text-subtle">
+                            {t('approvals.rawArguments')}
+                          </summary>
+                          <p className="mt-1 max-w-sm rounded border border-line bg-raised p-2 font-mono text-id break-all text-muted">
+                            {approval.arguments}
+                          </p>
+                        </details>
+                      )}
+                    </Td>
+                    <Td>
+                      <Link to={`runs/${encodeURIComponent(approval.runId)}`}>
+                        <Mono title={approval.runId}>{shortId(approval.runId, 13, 6)}</Mono>
+                      </Link>
+                      <p className="mt-0.5">
+                        <Mono className="text-subtle">{shortId(approval.sessionId, 13, 6)}</Mono>
+                      </p>
+                    </Td>
+                    <Td className="text-sm text-muted" title={absoluteTime(approval.createdAt)}>
+                      {relativeTime(approval.createdAt)}
+                    </Td>
+                    <Td className="font-mono text-sm text-warn">
+                      {/* relativeTime() is "ago"-only (it treats any future
+                          instant as clock skew and prints "just now"); an
+                          expiry is always in the future, so this shows the
+                          absolute time directly instead of a misleading one. */}
+                      {absoluteTime(approval.expiresAt)}
+                    </Td>
+                    <Td className="text-right">
+                      {meta.roles.canOperate ? (
+                        <div className="flex justify-end gap-1.5">
+                          <Tooltip text={t('approvals.approveTitle')}>
                             <Button
                               tone="primary"
                               busy={approving}
                               disabled={decide.isPending && !approving}
+                              testId={`approve-${approval.id}`}
                               onClick={() => decide.mutate({ id: approval.id, approved: true })}
-                              title={t('approvals.approveTitle')}
                             >
                               <ThumbsUpIcon className="size-3.5" />
                               {t('approvals.approve')}
                             </Button>
+                          </Tooltip>
+                          <Tooltip text={t('approvals.rejectTitle')}>
                             <Button
                               tone="danger"
                               busy={rejecting}
                               disabled={decide.isPending && !rejecting}
+                              testId={`reject-${approval.id}`}
                               onClick={() => decide.mutate({ id: approval.id, approved: false })}
-                              title={t('approvals.rejectTitle')}
                             >
                               <ThumbsDownIcon className="size-3.5" />
                               {t('approvals.reject')}
                             </Button>
-                          </div>
-                        ) : (
-                          <Badge tone="warn">{t('approvals.status.pending')}</Badge>
-                        )}
-                      </Td>
-                    </tr>
+                          </Tooltip>
+                        </div>
+                      ) : (
+                        <Badge tone="warn">{t('approvals.status.pending')}</Badge>
+                      )}
+                    </Td>
+                  </tr>
                   );
                 })}
               </tbody>
             </Table>
           ))}
 
-        {decide.isError && (
-          <div className="border-t border-line p-3">
-            <ErrorNote error={decide.error} />
+        {approvals.isSuccess && waiting > 0 && !meta.roles.canOperate && (
+          <div className="border-t border-line">
+            <Unauthorized requires="operator" />
           </div>
         )}
       </Panel>
+
+      {decide.isError && (
+        <div className="mt-3">
+          <ErrorNote error={decide.error} />
+        </div>
+      )}
     </>
   );
 }

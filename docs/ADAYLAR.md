@@ -554,6 +554,36 @@ koşullarında tekrar koşmadı — test bir gün sonra aynı imzayla yine düş
 kapanış **o koşumla** kanıtlanır. Tam gövde:
 [`arsiv/ERTELENEN-ADAYLAR.md`](arsiv/ERTELENEN-ADAYLAR.md).
 
+### F-224 · Geri alınamaz kararlar için doğrulama adımı
+
+**Kaynak:** [Faz 164](164-CONSOLE-ENSTRUMAN-KATMANI.md) — yazıldı, ölçüldü ve
+DoD gereği geri alındı (bkz. o fazın "Plandan Sapmalar" §3).
+
+**Gözlem:** Onaylar ekranında bir tool çağrısını onaylamak veya reddetmek tek
+tıktır ve geri alınamaz (K-014: karar yeni bir run açar, soran run sonsuza dek
+`AwaitingApproval` kalır). İki düğme yan yanadır. Aynı desen başka yerlerde de
+var: session silme, agent sürümü geri alma, kiracı anahtarı iptali.
+
+**Kapsam:** `Dialog` primitifi Faz 164'te yazıldı ve hazır (odak tuzağı, `Esc`,
+odak dönüşü, kaydırma kilidi — `UiTests` ile kanıtlı). İş, geri alınamaz
+aksiyonların **envanterini** çıkarmak, hangilerinin doğrulama hak ettiğine karar
+vermek ve etkilenen E2E olgularını **birlikte** güncellemektir. Faz 164 bunu
+yapamazdı: DoD'si mevcut 58 olgunun hiçbirinin değişmemesini şart koşuyordu.
+
+**Değer:** Bir mis-click geri alınamaz bir kararı vermez.
+
+**Mercek:** 4.
+
+**Hazırlık:** Primitif hazır; envanter ve E2E güncellemesi ölçülmedi.
+
+**Maliyet:** Küçük–orta. Envanterin büyüklüğüne bağlı.
+
+**Risk:** Orta — her doğrulama adımı bir etkileşim sözleşmesini değiştirir ve
+ilgili E2E olgusunu birlikte taşımayı gerektirir. Onay yorgunluğu da gerçek bir
+maliyettir: her şeyi doğrulatmak hiçbirini doğrulatmamakla aynı yere çıkar.
+
+---
+
 ## Aday Olmayan Açık Kayıtlar
 
 Bu kalemler faz sıralamasına girmez. Tam kanıt, geçmiş ve sonraki adım keşif
@@ -783,6 +813,12 @@ zaten dokunulacak — `prismMark`/`PrismMark` (`build-social-images.mjs:59`,
 `icons.tsx:30`), `_prismOptions`/`prismOptions` (`WorkflowRunner.cs`),
 `prismException` (`RunRecordingAgent.Completion.cs:338`), `--ap-*` CSS ad alanı
 (17 dosya) ve `styles.css` + `layout.tsx` içindeki "prism spectrum" anlatısı.
+**Kısmen kapandı (2026-09-12, Faz 164):** console tarafı bitti — `--ap-*` →
+`--tracon-*`, prizma şeridi ve ekran başına gökkuşağı tonu kaldırıldı,
+`icons.tsx` işareti zaten `TraconMark`'tı, console favicon'u yeni işaretle
+değiştirildi. Kalan: `assets/icon.png`, `docs-site/public/favicon.svg`,
+`build-social-images.mjs` ve `src/` içindeki `_prismOptions`/`prismException`
+adları.
 Hiçbiri tüketici sözleşmesi değil (tipler `internal`), bu yüzden Faz 162'de
 bırakıldı.
 
@@ -799,10 +835,21 @@ türevler tek komutla çıkar.
 
 ---
 
-### F-222 · Ekran görüntüsü kapısı sıfır kez dönüyor
+### F-222 · ✅ Kapandı — Faz 164
 
 **Kaynak:** [Faz 162](arsiv/fazlar/162-TRACON-YENIDEN-ADLANDIRMA.md) keşfi — faz
 kapsamı dışında bırakıldı (kullanıcı kararı 2026-09-12).
+
+**Kapanış (2026-09-12, Faz 164):** Aşağıdaki gözlem kaydedildiğinde zaten
+bayattı — kapı `check-content.mjs`'ten `check-console-screens.mjs`'e taşınmış ve
+`locales/en/common.ts`'i okuyordu, yani döngü dönüyordu. Ama adlandırdığı SINIF
+gerçekti ve Faz 164 onun ikinci örneğini üretti: `nav.*` ad alanındaki her
+anahtar bir ekran sayılıyordu, dolayısıyla ekran OLMAYAN bir anahtar
+(`nav.skipToContent`) kapıyı kırmızı yapıp kendi ekran görüntüsünü istedi.
+Okuma yolu artık `components/navigation.ts`'tir — kenar çubuğu ile komut
+paletinin paylaştığı tek envanter. Regresyon testi:
+`check-console-screens.test.mjs` içindeki "a shell affordance in the message
+catalogue is not mistaken for a screen".
 
 **Gözlem:** `docs-site/scripts/check-content.mjs:399` `nav.*` anahtarlarını
 `locales/en.ts` içinde arar. O anahtarlar `locales/en/common.ts`'e taşındı;

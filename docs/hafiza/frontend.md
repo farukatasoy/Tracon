@@ -4,6 +4,8 @@
 >
 > Yerellestirme AYRI dosyadadir:
 > [`frontend-yerellestirme.md`](frontend-yerellestirme.md).
+> Token seti, tema, yogunluk olcegi, primitifler ve erisilebilirlik de AYRI:
+> [`frontend-tasarim-katmani.md`](frontend-tasarim-katmani.md).
 >
 > Bu dosya `MEMORY.md`'nin alan dosyasidir. Yalnizca bu alana
 > dokunurken okunur. Yeni not buraya eklenir, `MEMORY.md`'ye degil.
@@ -37,7 +39,7 @@
 - **Gömülebilir/bağımsız bir JS paketi için Vite'ın kütüphane modu (`build.lib`, `formats: ['iife']`) ayrı bir `vite.<ad>.config.ts` ister — konsolun `vite.config.ts`'ine ikinci `input` eklemek YETMEZ** (2026-08-18, F-108/K-441/K-442): ikinci bir Vite girişini AYNI config'e eklemek iki paketin kodunu AYNI bütçe/derleme adımında karıştırır — konsol kodunun küçük bir widget'a sızdığı fark edilmeden büyür. Ayrı config, ayrı `outDir` (`wwwroot/<alt-dizin>`, konsolun `emptyOutDir`'inden SONRA derlenmeli — sıra `npm run build`'de sabitlenir), ayrı postbuild script'i (ayrı bütçe) gerektirir. `wwwroot/<alt-dizin>/` içindeki çıktı `EmbeddedUiAssetCatalog`'un GENEL `wwwroot/**/*` taramasıyla otomatik gömülür ve `{prefix}/{**path}` rotasıyla otomatik sunulur — **yeni bir C# `endpoint` yazmaya gerek yoktur**, içerik türü uzantıdan çözülür.
 
 - **🚨 Boş grafik metni PAYLAŞILDIĞI için yeni bir panel eklemek var olan E2E testini strict mode ile kırar** (2026-08-19, Faz 68): gösterge paneline "Token kırılımı" paneli eklenince boş bir kurulumda `charts.noRuns` metni İKİ panelde birden göründü ve `Dashboard_charts_render_and_range_can_be_changed` düştü. Çözüm belgelenmiş desendir: `GetByText(...).First`. Paylaşılan bir boş-durum metni kullanan yeni panel eklerken o metne dayanan E2E testlerini önceden tara.
-- **Gösterge paneli kırılım çubuğu saf mantığı `lib/chart.ts`'tedir** (2026-08-19, Faz 68): `tokenBreakdown(totals)` dört DİSJOINT dilim üretir ve hesap ÇIKARMALIdır — `cachedInputTokens`/`reasoningTokens` girdi/çıktı toplamlarının İÇİNDE sayılır, dördünü ham hâlde yığmak harcanandan uzun bir çubuk çizer. Vitest yalnız bu fonksiyonu test eder; `components/charts.tsx`'teki `TokenBreakdownChart` yalnız boyar. Renkler `--ap-emerald/violet/amber/cyan`; `--ap-sky` YOKTUR.
+- **Gösterge paneli kırılım çubuğu saf mantığı `lib/chart.ts`'tedir** (2026-08-19, Faz 68): `tokenBreakdown(totals)` dört DİSJOINT dilim üretir ve hesap ÇIKARMALIdır — `cachedInputTokens`/`reasoningTokens` girdi/çıktı toplamlarının İÇİNDE sayılır, dördünü ham hâlde yığmak harcanandan uzun bir çubuk çizer. Vitest yalnız bu fonksiyonu test eder; `components/charts.tsx`'teki `TokenBreakdownChart` yalnız boyar. Renkler `--tracon-series-6/1/5/4` (Faz 164'e kadar `--ap-emerald/violet/amber/cyan`); seri paleti durum renklerini ICERMEZ.
 - **`Record<RunEventType, ...>` sözlüğü eksik anahtarı DERLEME HATASI yapar — `run-detail.tsx`'teki `EVENT_STYLE` bu yüzden `ModelFallbackUsed`'ın (Faz 62'den beri backend'de var olan) frontend'de HİÇ tanımlanmadığını Faz 70'te ortaya çıkardı** (2026-08-19, Faz 70): `types.ts`'teki `RunEventType` union'ına yeni bir üye eklemek `EVENT_STYLE`'ın tüm anahtarları taşımasını ZORUNLU kılar (TS2739 benzeri hata) — bu, backend enum'ı ile frontend union'ının senkron kalmasını sağlayan TEK mekanizmadır. Yeni bir `RunEventType` üyesi eklerken `types.ts`'in union'ına VE `run-detail.tsx`'in `EVENT_STYLE`'ına birlikte eklenmeli; biri unutulursa derleyici yakalar, ikisi de eklenmezse (union'a hiç eklenmezse) hiçbir uyarı gelmez ve olay `foldRunEvents`'in `default: break` dalına sessizce düşer.
 
 ## Component-test altyapısı (Faz 109)

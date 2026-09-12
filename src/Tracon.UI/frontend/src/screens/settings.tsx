@@ -102,7 +102,7 @@ export function SettingsScreen({ meta }: { meta: Meta }): ReactNode {
               </Row>
             )}
           </dl>
-          <p className="border-t border-line px-4 py-2.5 text-[11px] text-subtle">
+          <p className="border-t border-line px-4 py-2.5 text-xs text-subtle">
             {t('settings.tokenNotice')}
           </p>
         </Panel>
@@ -127,7 +127,7 @@ export function SettingsScreen({ meta }: { meta: Meta }): ReactNode {
             </Row>
           </dl>
           {!meta.storage.persistent && (
-            <p className="border-t border-line px-4 py-2.5 text-[11px] text-subtle">
+            <p className="border-t border-line px-4 py-2.5 text-xs text-subtle">
               {t('settings.inMemoryNotice')} <Mono>UsePostgreSql(connectionString)</Mono>.
             </p>
           )}
@@ -136,7 +136,7 @@ export function SettingsScreen({ meta }: { meta: Meta }): ReactNode {
         <Panel title={t('settings.console')}>
           <div className="grid gap-4 p-4 sm:grid-cols-2">
             <label className="block">
-              <span className="mb-1 block text-[12px] font-medium text-muted">
+              <span className="mb-1 block text-sm font-medium text-muted">
                 {t('settings.theme')}
               </span>
               <Select
@@ -150,7 +150,7 @@ export function SettingsScreen({ meta }: { meta: Meta }): ReactNode {
             </label>
 
             <label className="block">
-              <span className="mb-1 block text-[12px] font-medium text-muted">
+              <span className="mb-1 block text-sm font-medium text-muted">
                 {t('shell.language')}
               </span>
               <Select
@@ -167,7 +167,7 @@ export function SettingsScreen({ meta }: { meta: Meta }): ReactNode {
             </label>
           </div>
 
-          <p className="border-t border-line px-4 py-2.5 text-[11px] text-subtle">
+          <p className="border-t border-line px-4 py-2.5 text-xs text-subtle">
             {t('settings.languageNotice')}
           </p>
         </Panel>
@@ -189,7 +189,7 @@ export function SettingsScreen({ meta }: { meta: Meta }): ReactNode {
               </Row>
             </dl>
           )}
-          <p className="border-t border-line px-4 py-2.5 text-[11px] text-subtle">
+          <p className="border-t border-line px-4 py-2.5 text-xs text-subtle">
             {t('settings.tokenCountNotice')}
           </p>
         </Panel>
@@ -198,7 +198,7 @@ export function SettingsScreen({ meta }: { meta: Meta }): ReactNode {
           {stats.isPending && <Loading />}
           {stats.isSuccess &&
             (stats.data.byModel.length === 0 ? (
-              <p className="px-4 py-4 text-[12px] text-subtle">
+              <p className="px-4 py-4 text-sm text-subtle">
                 {t('settings.noModelRecorded')}
               </p>
             ) : (
@@ -206,7 +206,7 @@ export function SettingsScreen({ meta }: { meta: Meta }): ReactNode {
                 {stats.data.byModel.map((model) => (
                   <Row key={model.modelId} label={model.modelId}>
                     {t('settings.modelTokens', { tokens: count(model.totalTokens as number | undefined) })}
-                    <span className="ml-2 text-[11px] text-subtle">
+                    <span className="ml-2 text-xs text-subtle">
                       {t('settings.modelBreakdown', {
                         input: count(model.inputTokens as number | undefined),
                         output: count(model.outputTokens as number | undefined),
@@ -217,7 +217,7 @@ export function SettingsScreen({ meta }: { meta: Meta }): ReactNode {
                 ))}
               </dl>
             ))}
-          <p className="border-t border-line px-4 py-2.5 text-[11px] text-subtle">
+          <p className="border-t border-line px-4 py-2.5 text-xs text-subtle">
             {t('settings.costOnDashboardBefore')}{' '}
             <Link to="dashboard" className="text-accent hover:underline">
               {t('nav.dashboard')}
@@ -273,7 +273,7 @@ function VoicePreferencePanel(): ReactNode {
       <div className="grid gap-4 p-4 sm:grid-cols-2">
         {LOCALES.map((candidate) => (
           <label key={candidate} className="block">
-            <span className="mb-1 block text-[12px] font-medium text-muted">
+            <span className="mb-1 block text-sm font-medium text-muted">
               {t('settings.voiceFor', { language: t(`shell.language.${candidate}`) })}
             </span>
             <Select
@@ -299,7 +299,7 @@ function VoicePreferencePanel(): ReactNode {
         ))}
       </div>
 
-      <p className="border-t border-line px-4 py-2.5 text-[11px] text-subtle">
+      <p className="border-t border-line px-4 py-2.5 text-xs text-subtle">
         {t('settings.voiceNotice')}
       </p>
     </Panel>
@@ -309,8 +309,8 @@ function VoicePreferencePanel(): ReactNode {
 function Row({ label, children }: { label: string; children: ReactNode }): ReactNode {
   return (
     <div className="flex items-center gap-4 px-4 py-2">
-      <dt className="w-40 shrink-0 text-[12px] text-subtle">{label}</dt>
-      <dd className="min-w-0 flex-1 text-[13px] break-words">{children}</dd>
+      <dt className="w-40 shrink-0 text-sm text-subtle">{label}</dt>
+      <dd className="min-w-0 flex-1 text-base break-words">{children}</dd>
     </div>
   );
 }

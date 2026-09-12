@@ -238,7 +238,7 @@ export function McpScreen({ meta }: { meta: Meta }): ReactNode {
       />
 
       <Panel className="mb-4">
-        <div className="border-b border-line px-4 py-2.5 text-[12px] text-muted">
+        <div className="border-b border-line px-4 py-2.5 text-sm text-muted">
           <strong className="text-fg">{t('mcp.boundary.title')}</strong> {t('mcp.boundary.before')}{' '}
           <Mono>http</Mono> / <Mono>https</Mono>. {t('mcp.boundary.after')}
         </div>
@@ -304,7 +304,7 @@ export function McpScreen({ meta }: { meta: Meta }): ReactNode {
             </Field>
 
             <div className="flex items-end gap-4">
-              <label className="flex items-center gap-2 text-[13px]">
+              <label className="flex items-center gap-2 text-base">
                 <input
                   type="checkbox"
                   checked={form.enabled}
@@ -313,7 +313,7 @@ export function McpScreen({ meta }: { meta: Meta }): ReactNode {
                 {t('common.enabled')}
               </label>
 
-              <label className="flex items-center gap-2 text-[13px]">
+              <label className="flex items-center gap-2 text-base">
                 <input
                   type="checkbox"
                   checked={form.requiresApproval}
@@ -324,7 +324,7 @@ export function McpScreen({ meta }: { meta: Meta }): ReactNode {
             </div>
 
             <div className="sm:col-span-2 border-t border-line pt-3">
-              <label className="flex items-center gap-2 text-[13px] font-medium">
+              <label className="flex items-center gap-2 text-base font-medium">
                 <input
                   type="checkbox"
                   checked={form.oauthEnabled ?? false}
@@ -342,7 +342,7 @@ export function McpScreen({ meta }: { meta: Meta }): ReactNode {
                 />
                 {t('mcp.oauth')}
               </label>
-              <p className="mt-1 text-[11px] text-muted">
+              <p className="mt-1 text-xs text-muted">
                 {t('mcp.oauthNotice')} <Mono>Tracon:Mcp:OAuthCallbackBaseUri</Mono>.
               </p>
             </div>
@@ -418,24 +418,24 @@ export function McpScreen({ meta }: { meta: Meta }): ReactNode {
                       <Td>
                         <Mono className="font-semibold">{server.name}</Mono>
                         {server.description != null && server.description.length > 0 && (
-                          <p className="text-[11px] text-subtle">{server.description}</p>
+                          <p className="text-xs text-subtle">{server.description}</p>
                         )}
                       </Td>
                       <Td className="max-w-xs truncate">
-                        <Mono className="text-[11px]">{server.endpoint}</Mono>
+                        <Mono className="text-xs">{server.endpoint}</Mono>
                       </Td>
                       <Td>
                         {server.oauthEnabled ? (
-                          <Mono className="text-[11px] text-muted">
+                          <Mono className="text-xs text-muted">
                             OAuth: {server.oauthClientId}
                           </Mono>
                         ) : server.authorizationConfigurationKey != null &&
                           server.authorizationConfigurationKey.length > 0 ? (
-                          <Mono className="text-[11px] text-muted">
+                          <Mono className="text-xs text-muted">
                             {server.authorizationConfigurationKey}
                           </Mono>
                         ) : (
-                          <span className="text-[11px] text-subtle">{t('common.none')}</span>
+                          <span className="text-xs text-subtle">{t('common.none')}</span>
                         )}
                       </Td>
                       <Td>
@@ -533,7 +533,7 @@ export function McpScreen({ meta }: { meta: Meta }): ReactNode {
               <Field label={t('mcp.conditions')} hint={t('mcp.conditionsHint')}>
                 <div className="flex flex-col gap-2">
                   {ruleForm.conditions.length === 0 && (
-                    <p className="text-[12px] text-subtle">{t('mcp.noConditions')}</p>
+                    <p className="text-sm text-subtle">{t('mcp.noConditions')}</p>
                   )}
 
                   {ruleForm.conditions.map((row, index) => (
@@ -656,7 +656,7 @@ export function McpScreen({ meta }: { meta: Meta }): ReactNode {
                         <div className="flex flex-wrap gap-1">
                           {rule.argumentConditions.map((condition, index) => (
                             <Badge key={index} title={t('mcp.conditionedRuleTitle')}>
-                              <Mono className="text-[11px]">
+                              <Mono className="text-xs">
                                 {condition.path} {OPERATOR_SYMBOLS[condition.operator]}{' '}
                                 {Array.isArray(condition.value)
                                   ? condition.value.join(', ')
@@ -673,7 +673,7 @@ export function McpScreen({ meta }: { meta: Meta }): ReactNode {
                         </Badge>
                       )}
                     </Td>
-                    <Td className="text-[11px] text-muted">{relativeTime(rule.createdAt)}</Td>
+                    <Td className="text-xs text-muted">{relativeTime(rule.createdAt)}</Td>
                     <Td className="text-right">
                       {meta.roles.canAdminister && (
                         <Button tone="danger" onClick={() => removeRule.mutate(rule.id)}>

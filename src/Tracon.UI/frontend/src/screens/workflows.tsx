@@ -44,7 +44,7 @@ export function WorkflowsScreen({ meta }: { meta: Meta }): ReactNode {
           meta.roles.canAdminister && (
             <Link
               to="workflows/new"
-              className="inline-flex h-8 items-center gap-1.5 rounded-md border border-transparent bg-accent px-3 text-[13px] font-medium text-accent-fg"
+              className="inline-flex h-8 items-center gap-1.5 rounded-md border border-transparent bg-accent px-3 text-base font-medium text-accent-fg"
             >
               <PlusIcon className="size-3.5" />
               {t('workflows.new')}
@@ -86,7 +86,7 @@ export function WorkflowsScreen({ meta }: { meta: Meta }): ReactNode {
                       {workflow.displayName ?? workflow.name}
                     </Link>
                     {workflow.description != null && workflow.description.length > 0 && (
-                      <span className="block text-[12px] text-subtle">{workflow.description}</span>
+                      <span className="block text-sm text-subtle">{workflow.description}</span>
                     )}
                   </Td>
                   <Td>
@@ -121,7 +121,7 @@ export function WorkflowsScreen({ meta }: { meta: Meta }): ReactNode {
       </Panel>
 
       {workflows.isSuccess && workflows.data.length > 0 && !meta.roles.canOperate && (
-        <p className="mt-3 text-[12px] text-subtle">
+        <p className="mt-3 text-sm text-subtle">
           {t('workflows.needsOperator')}
         </p>
       )}

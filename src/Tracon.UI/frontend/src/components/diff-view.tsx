@@ -21,17 +21,17 @@ export function DiffView({
   const { lines, truncated } = diffLines(left, right);
 
   if (lines.length === 0) {
-    return <p className="text-[12px] text-muted">{t('diff.bothEmpty')}</p>;
+    return <p className="text-sm text-muted">{t('diff.bothEmpty')}</p>;
   }
 
   return (
     <div className={cx('overflow-x-auto rounded-md border border-line', className)}>
       {truncated && (
-        <p className="border-b border-line bg-warn-soft px-3 py-1.5 text-[11px] text-warn">
+        <p className="border-b border-line bg-warn-soft px-3 py-1.5 text-xs text-warn">
           {t('diff.truncated')}
         </p>
       )}
-      <pre className="font-mono text-[12px] leading-5">
+      <pre className="font-mono text-sm leading-5">
         {lines.map((line, index) => (
           <div
             key={index}
@@ -94,16 +94,16 @@ export function FieldDiffTable<T extends object>({
   };
 
   return (
-    <table className="w-full border-collapse text-[13px]">
+    <table className="w-full border-collapse text-base">
       <thead>
         <tr>
-          <th className="border-b border-line px-3 py-1.5 text-left text-[11px] font-semibold tracking-wide text-subtle uppercase">
+          <th className="border-b border-line px-3 py-1.5 text-left text-xs font-semibold tracking-wide text-subtle uppercase">
             {t('diff.field')}
           </th>
-          <th className="border-b border-line px-3 py-1.5 text-left text-[11px] font-semibold tracking-wide text-subtle uppercase">
+          <th className="border-b border-line px-3 py-1.5 text-left text-xs font-semibold tracking-wide text-subtle uppercase">
             {t('diff.left')}
           </th>
-          <th className="border-b border-line px-3 py-1.5 text-left text-[11px] font-semibold tracking-wide text-subtle uppercase">
+          <th className="border-b border-line px-3 py-1.5 text-left text-xs font-semibold tracking-wide text-subtle uppercase">
             {t('diff.right')}
           </th>
         </tr>
@@ -117,8 +117,8 @@ export function FieldDiffTable<T extends object>({
           return (
             <tr key={key} className={changed ? 'bg-warn-soft' : undefined}>
               <td className="border-b border-line px-3 py-1.5 align-top text-muted">{row.label}</td>
-              <td className="border-b border-line px-3 py-1.5 align-top font-mono text-[12px]">{leftValue}</td>
-              <td className="border-b border-line px-3 py-1.5 align-top font-mono text-[12px]">{rightValue}</td>
+              <td className="border-b border-line px-3 py-1.5 align-top font-mono text-sm">{leftValue}</td>
+              <td className="border-b border-line px-3 py-1.5 align-top font-mono text-sm">{rightValue}</td>
             </tr>
           );
         })}
@@ -149,7 +149,7 @@ export function SetDiff({
 
   return (
     <div>
-      <p className="mb-1.5 text-[11px] font-semibold tracking-wide text-subtle uppercase">{label}</p>
+      <p className="mb-1.5 text-xs font-semibold tracking-wide text-subtle uppercase">{label}</p>
       <div className="flex flex-wrap gap-1.5">
         {unchanged.map((name) => (
           <Badge key={`same-${name}`} tone="neutral">

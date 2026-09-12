@@ -368,7 +368,7 @@ export function VoicePanel({ agent, sessionId }: { agent: string; sessionId: str
 
   if (!support.supported) {
     return (
-      <div className="border-t border-line p-3 text-[12px] text-subtle" data-testid="voice-unsupported">
+      <div className="border-t border-line p-3 text-sm text-subtle" data-testid="voice-unsupported">
         {t('voice.unavailable')} {support.reason === undefined ? '' : t(support.reason)}
       </div>
     );
@@ -390,7 +390,7 @@ export function VoicePanel({ agent, sessionId }: { agent: string; sessionId: str
         {state !== 'off' && (
           <>
             <Meter level={level} active={state === 'listening'} />
-            <span className="text-[11px] text-subtle" data-testid="voice-state" aria-live="polite">
+            <span className="text-xs text-subtle" data-testid="voice-state" aria-live="polite">
               {t(VOICE_STATE_LABEL[state])}
             </span>
           </>
@@ -417,14 +417,14 @@ export function VoicePanel({ agent, sessionId }: { agent: string; sessionId: str
       </div>
 
       {error !== null && (
-        <p role="alert" className="text-[12px] text-danger">
+        <p role="alert" className="text-sm text-danger">
           {error}
         </p>
       )}
 
       {turns.length > 0 && (
         <div
-          className="flex flex-col gap-2 text-[13px]"
+          className="flex flex-col gap-2 text-base"
           data-testid="voice-transcript"
           aria-live="polite"
         >

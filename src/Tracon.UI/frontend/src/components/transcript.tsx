@@ -36,7 +36,7 @@ export function TranscriptView({
               <p
                 key={item.id}
                 className={cx(
-                  'text-[13px] leading-relaxed whitespace-pre-wrap',
+                  'text-base leading-relaxed whitespace-pre-wrap',
                   streaming === true && isLast && 'ap-stream-caret',
                 )}
               >
@@ -51,7 +51,7 @@ export function TranscriptView({
             return (
               <div
                 key={item.id}
-                className="rounded-md border border-line bg-danger-soft px-3 py-2 text-[12px] text-danger"
+                className="rounded-md border border-line bg-danger-soft px-3 py-2 text-sm text-danger"
               >
                 {item.message}
               </div>
@@ -61,7 +61,7 @@ export function TranscriptView({
             return (
               <div
                 key={item.id}
-                className="rounded-md border border-line bg-accent-soft px-3 py-2 text-[12px] text-accent"
+                className="rounded-md border border-line bg-accent-soft px-3 py-2 text-sm text-accent"
                 title={item.detail ?? undefined}
               >
                 {item.message}
@@ -91,13 +91,13 @@ function ReasoningBlock({ text }: { text: string }): ReactNode {
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        className="flex w-full items-center gap-1.5 px-3 py-1.5 text-left text-[12px] text-muted"
+        className="flex w-full items-center gap-1.5 px-3 py-1.5 text-left text-sm text-muted"
       >
         <ChevronIcon className={cx('size-3 transition-transform', open && 'rotate-90')} />
         {t('transcript.reasoning')}
       </button>
       {open && (
-        <p className="px-3 pb-3 text-[12px] leading-relaxed whitespace-pre-wrap text-muted">{text}</p>
+        <p className="px-3 pb-3 text-sm leading-relaxed whitespace-pre-wrap text-muted">{text}</p>
       )}
     </div>
   );
@@ -127,15 +127,15 @@ function ApprovalCard({
     <div
       data-testid="approval-card"
       className="overflow-hidden rounded-md border border-line bg-panel"
-      style={{ borderLeft: '2px solid var(--ap-amber)' }}
+      style={{ borderLeft: '2px solid var(--tracon-warn)' }}
     >
       <div className="flex items-center gap-2 px-3 py-2">
         {item.entityName === null ? (
-          <span className="font-mono text-[12px] font-medium">{item.name}</span>
+          <span className="font-mono text-sm font-medium">{item.name}</span>
         ) : (
           <span className="flex flex-col">
-            <span className="text-[12px] font-medium">{item.entityName}</span>
-            <span className="font-mono text-[10px] text-subtle">{item.name}</span>
+            <span className="text-sm font-medium">{item.entityName}</span>
+            <span className="font-mono text-2xs text-subtle">{item.name}</span>
           </span>
         )}
         {item.decided === null ? (
@@ -154,14 +154,14 @@ function ApprovalCard({
       </div>
 
       <div className="flex flex-col gap-2 border-t border-line px-3 py-2.5">
-        {item.message !== null && <p className="text-[12px] text-subtle">{item.message}</p>}
+        {item.message !== null && <p className="text-sm text-subtle">{item.message}</p>}
 
         <div>
           <button
             type="button"
             data-testid="approval-toggle-arguments"
             onClick={() => setArgsOpen(!argsOpen)}
-            className="flex items-center gap-1 text-[11px] font-semibold tracking-wide text-subtle uppercase"
+            className="flex items-center gap-1 text-xs font-semibold tracking-wide text-subtle uppercase"
           >
             <ChevronIcon className={cx('size-3 transition-transform', argsOpen && 'rotate-90')} />
             {t('transcript.arguments')}
@@ -179,7 +179,7 @@ function ApprovalCard({
               type="button"
               data-testid="approval-approve"
               onClick={() => onDecide(item.requestId, true, remember)}
-              className="inline-flex h-7 items-center gap-1.5 rounded-md border border-transparent bg-accent px-3 text-[12px] font-medium text-accent-fg hover:bg-accent-hover"
+              className="inline-flex h-7 items-center gap-1.5 rounded-md border border-transparent bg-accent px-3 text-sm font-medium text-accent-fg hover:bg-accent-hover"
             >
               <CheckIcon className="size-3" />
               {t('transcript.approve')}
@@ -189,13 +189,13 @@ function ApprovalCard({
               type="button"
               data-testid="approval-reject"
               onClick={() => onDecide(item.requestId, false, false)}
-              className="inline-flex h-7 items-center gap-1.5 rounded-md border border-line px-3 text-[12px] font-medium text-danger hover:bg-danger-soft"
+              className="inline-flex h-7 items-center gap-1.5 rounded-md border border-line px-3 text-sm font-medium text-danger hover:bg-danger-soft"
             >
               <CrossIcon className="size-3" />
               {t('transcript.reject')}
             </button>
 
-            <label className="flex items-center gap-1.5 text-[11px] text-muted">
+            <label className="flex items-center gap-1.5 text-xs text-muted">
               <input
                 type="checkbox"
                 checked={remember}
@@ -220,7 +220,7 @@ function ToolCard({ item }: { item: Extract<TranscriptItem, { kind: 'tool' }> })
     <div
       data-testid="tool-card"
       className="overflow-hidden rounded-md border border-line bg-panel"
-      style={{ borderLeft: '2px solid var(--ap-rose)' }}
+      style={{ borderLeft: '2px solid var(--tracon-danger)' }}
     >
       <button
         type="button"
@@ -228,7 +228,7 @@ function ToolCard({ item }: { item: Extract<TranscriptItem, { kind: 'tool' }> })
         className="flex w-full items-center gap-2 px-3 py-2 text-left"
       >
         <ChevronIcon className={cx('size-3 shrink-0 text-subtle transition-transform', open && 'rotate-90')} />
-        <span className="font-mono text-[12px] font-medium">{item.name}</span>
+        <span className="font-mono text-sm font-medium">{item.name}</span>
         <ToolState state={item.state} />
       </button>
 
@@ -289,12 +289,12 @@ function Section({
   return (
     <div>
       {label.length > 0 && (
-        <span className="mb-1 block text-[11px] font-semibold tracking-wide text-subtle uppercase">
+        <span className="mb-1 block text-xs font-semibold tracking-wide text-subtle uppercase">
           {label}
         </span>
       )}
       {body === null || body.length === 0 ? (
-        <span className={cx('text-[12px]', tone === 'danger' ? 'text-danger' : 'text-subtle')}>
+        <span className={cx('text-sm', tone === 'danger' ? 'text-danger' : 'text-subtle')}>
           {empty}
         </span>
       ) : (

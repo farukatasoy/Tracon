@@ -6,6 +6,7 @@ import { absoluteTime, count, duration, percent, relativeTime, shortId } from '.
 import { usePlural, useT } from '../lib/i18n';
 import {
   Badge,
+  Button,
   Empty,
   ErrorNote,
   Loading,
@@ -17,35 +18,45 @@ import {
   Td,
   TextInput,
   Th,
+  cx,
 } from '../components/ui';
+import { Toolbar, ToolbarField } from '../components/toolbar';
+import { StatusDot, runStatusTone } from '../components/status-dot';
 import { Pager } from './sessions';
 import type { RunStatus } from '@tracon/client';
 import type { AgentDescriptor, RunRecord, RunStatistics } from '../lib/server-types';
 
 const PAGE_SIZE = 50;
 
+/**
+ * A run's status, everywhere it appears.
+ *
+ * 🚨 The colour comes from `runStatusTone`, not from a choice made here. Before
+ * that mapping existed, `Queued` was info on one screen and neutral on another.
+ */
 export function StatusBadge({ status }: { status: RunStatus }): ReactNode {
   const t = useT();
+  const tone = runStatusTone(status);
 
-  switch (status) {
-    case 'Completed':
-      return <Badge tone="success">{t('runs.status.completed')}</Badge>;
-    case 'Failed':
-      return <Badge tone="danger">{t('runs.status.failed')}</Badge>;
-    case 'Canceled':
-      return <Badge tone="warn">{t('runs.status.canceled')}</Badge>;
-    case 'AwaitingInput':
-      // Neither finished nor running: a workflow stopped on a human decision.
-      return <Badge tone="warn">{t('runs.status.awaitingInput')}</Badge>;
-    case 'Queued':
-      // Started with 'Prefer: respond-async'; the worker has not picked it up yet.
-      return <Badge tone="info">{t('runs.status.queued')}</Badge>;
-    case 'AwaitingApproval':
-      // A queued run hit a tool call needing approval; see /approvals.
-      return <Badge tone="warn">{t('runs.status.awaitingApproval')}</Badge>;
-    default:
-      return <Badge tone="info">{t('runs.status.running')}</Badge>;
-  }
+  const label: Record<RunStatus, string> = {
+    Completed: t('runs.status.completed'),
+    Failed: t('runs.status.failed'),
+    Canceled: t('runs.status.canceled'),
+    // Neither finished nor running: a workflow stopped on a human decision.
+    AwaitingInput: t('runs.status.awaitingInput'),
+    // Started with 'Prefer: respond-async'; the worker has not picked it up yet.
+    Queued: t('runs.status.queued'),
+    // A queued run hit a tool call needing approval; see /approvals.
+    AwaitingApproval: t('runs.status.awaitingApproval'),
+    Running: t('runs.status.running'),
+  };
+
+  return (
+    <Badge tone={tone}>
+      <StatusDot tone={tone} live={status === 'Running'} />
+      {label[status] ?? status}
+    </Badge>
+  );
 }
 
 export function RunsScreen(): ReactNode {
@@ -60,6 +71,24 @@ export function RunsScreen(): ReactNode {
   // `?sessionId=...` (session-detail.tsx's "N runs" button) — a link-driven
   // filter, not a control on this screen, so it has no `<Select>` of its own.
   const sessionId = useSearchParams().get('sessionId');
+
+  // Two different questions, and they have different answers when the list was
+  // reached from a session link. `resettable` is what THIS screen's controls
+  // can undo; `sessionId` is in the URL and the reset button cannot clear it.
+  const resettable =
+    agentName.length > 0 || status.length > 0 || includeChildren || userId.length > 0 || label.length > 0;
+  // `narrowed` is what the empty state should say: arriving from a session with
+  // no runs is a narrowed list, not an empty console.
+  const narrowed = resettable || sessionId !== null;
+
+  const reset = (): void => {
+    setAgentName('');
+    setStatus('');
+    setIncludeChildren(false);
+    setUserId('');
+    setLabel('');
+    setPage(0);
+  };
 
   const agents = useQuery({
     queryKey: ['agents'],
@@ -106,12 +135,13 @@ export function RunsScreen(): ReactNode {
 
   return (
     <>
-      <PageHeader
-        title={t('nav.runs')}
-        description={t('runs.description')}
-        actions={
-          <>
+      <PageHeader title={t('nav.runs')} description={t('runs.description')} />
+
+      <Toolbar onReset={resettable ? reset : undefined}>
+        <ToolbarField label={t('common.agent')}>
+          {(id) => (
             <Select
+              id={id}
               value={agentName}
               onChange={(value) => {
                 setAgentName(value);
@@ -125,7 +155,13 @@ export function RunsScreen(): ReactNode {
                 </option>
               ))}
             </Select>
+          )}
+        </ToolbarField>
+
+        <ToolbarField label={t('common.status')}>
+          {(id) => (
             <Select
+              id={id}
               value={status}
               onChange={(value) => {
                 setStatus(value);
@@ -141,7 +177,13 @@ export function RunsScreen(): ReactNode {
               <option value="Queued">{t('runs.filter.queued')}</option>
               <option value="AwaitingApproval">{t('runs.filter.awaitingApproval')}</option>
             </Select>
+          )}
+        </ToolbarField>
+
+        <ToolbarField label={t('runs.filter.scope')}>
+          {(id) => (
             <Select
+              id={id}
               value={includeChildren ? 'all' : 'roots'}
               onChange={(value) => {
                 setIncludeChildren(value === 'all');
@@ -151,37 +193,53 @@ export function RunsScreen(): ReactNode {
               <option value="roots">{t('runs.rootOnly')}</option>
               <option value="all">{t('runs.includeChildren')}</option>
             </Select>
-            {/*
-              Free text rather than a <Select>: the server does not expose a user
-              list, and building one from the visible page would silently offer
-              only the users on THIS page.
-            */}
+          )}
+        </ToolbarField>
+
+        {/*
+          Free text rather than a <Select>: the server does not expose a user
+          list, and building one from the visible page would silently offer
+          only the users on THIS page.
+        */}
+        <ToolbarField label={t('runs.filter.user')}>
+          {(id) => (
             <TextInput
+              id={id}
               value={userId}
               placeholder={t('runs.filter.userPlaceholder')}
-              aria-label={t('runs.filter.user')}
+              className="h-8 w-36 py-0"
               onChange={(event) => {
                 setUserId(event.target.value);
                 setPage(0);
               }}
             />
+          )}
+        </ToolbarField>
+
+        <ToolbarField label={t('runs.filter.label')}>
+          {(id) => (
             <TextInput
+              id={id}
               value={label}
               placeholder={t('runs.filter.labelPlaceholder')}
-              aria-label={t('runs.filter.label')}
+              className="h-8 w-36 py-0"
               onChange={(event) => {
                 setLabel(event.target.value);
                 setPage(0);
               }}
             />
-          </>
-        }
-      />
+          )}
+        </ToolbarField>
+      </Toolbar>
 
       {stats.isSuccess && (
-        <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
           <Stat label={t('nav.runs')} value={count(stats.data.totalRuns)} />
-          <Stat label={t('runs.stat.failed')} value={count(stats.data.failedRuns)} tone={stats.data.failedRuns > 0 ? 'danger' : undefined} />
+          <Stat
+            label={t('runs.stat.failed')}
+            value={count(stats.data.failedRuns)}
+            tone={stats.data.failedRuns > 0 ? 'danger' : undefined}
+          />
           {stats.data.awaitingInputRuns > 0 ? (
             <Stat
               label={t('runs.filter.awaitingInput')}
@@ -200,69 +258,83 @@ export function RunsScreen(): ReactNode {
       )}
 
       <Panel>
-        {runs.isPending && <Loading />}
-        {runs.isError && <div className="p-4"><ErrorNote error={runs.error} /></div>}
+        {runs.isPending && <Loading rows={8} />}
+        {runs.isError && (
+          <div className="p-3">
+            <ErrorNote error={runs.error} onRetry={() => void runs.refetch()} />
+          </div>
+        )}
 
         {runs.isSuccess && runs.data.length === 0 && (
-          <Empty title={t('runs.empty.title')}>
-            {t('runs.empty.before')}{' '}
-            <Link to="playground" className="text-accent underline">
-              {t('nav.playground')}
-            </Link>{' '}
-            {t('runs.empty.after')}
+          <Empty
+            title={t('runs.empty.title')}
+            action={
+              resettable ? (
+                <Button onClick={reset}>{t('toolbar.reset')}</Button>
+              ) : (
+                <Link
+                  to="playground"
+                  className="inline-flex h-8 items-center rounded border border-transparent bg-accent px-2.5 text-base font-semibold text-accent-fg"
+                >
+                  {t('runs.empty.action')}
+                </Link>
+              )
+            }
+          >
+            {narrowed ? t('runs.empty.filtered') : t('runs.empty.body')}
           </Empty>
         )}
 
         {runs.isSuccess && runs.data.length > 0 && (
           <>
-            <Table>
+            <Table label={t('nav.runs')}>
               <thead>
                 <tr>
                   <Th>{t('runs.column.run')}</Th>
                   <Th>{t('common.agent')}</Th>
                   <Th>{t('common.status')}</Th>
-                  <Th>{t('common.duration')}</Th>
-                  <Th>{t('common.tokens')}</Th>
-                  <Th>{t('runs.column.treeTokens')}</Th>
-                  <Th>{t('runs.column.events')}</Th>
+                  <Th className="text-right">{t('common.duration')}</Th>
+                  <Th className="text-right">{t('common.tokens')}</Th>
+                  <Th className="text-right">{t('runs.column.treeTokens')}</Th>
+                  <Th className="text-right">{t('runs.column.events')}</Th>
                   <Th>{t('common.started')}</Th>
                 </tr>
               </thead>
               <tbody>
                 {runs.data.map((run) => (
-                  <tr key={run.id} className="hover:bg-raised">
+                  // `focus-within` is the keyboard half of the hover highlight:
+                  // tabbing to the run link marks the whole row, and Enter on
+                  // that link opens it — which is what "the row opens" means
+                  // without inventing a second, fake control on the <tr>.
+                  <tr key={run.id} className="focus-within:bg-raised hover:bg-raised">
                     <Td>
-                      <span className="flex items-center gap-2">
+                      <span className="flex items-center gap-1.5">
                         <Link to={`runs/${encodeURIComponent(run.id)}`}>
                           <Mono title={run.id}>{shortId(run.id, 13, 6)}</Mono>
                         </Link>
                         {run.childRunCount > 0 && (
-                          <Badge tone="info">
-                            {plural('runs.childRuns', run.childRunCount)}
-                          </Badge>
+                          <Badge tone="info">{plural('runs.childRuns', run.childRunCount)}</Badge>
                         )}
-                        {run.depth > 0 && <Badge tone="warn">{t('runs.depth', { depth: run.depth })}</Badge>}
+                        {run.depth > 0 && <Badge tone="neutral">{t('runs.depth', { depth: run.depth })}</Badge>}
                       </span>
                     </Td>
                     <Td>
-                      <Link
-                        to={`agents/${encodeURIComponent(run.agentName)}`}
-                        className="text-muted hover:text-fg"
-                      >
+                      <Link to={`agents/${encodeURIComponent(run.agentName)}`} className="text-muted hover:text-fg">
                         {run.agentName}
                       </Link>
                     </Td>
-                    <Td><StatusBadge status={run.status} /></Td>
-                    <Td className="text-muted">{duration(run.startedAt, run.completedAt)}</Td>
-                    <Td className="text-muted">{count(run.usage?.totalTokens)}</Td>
-                    <Td
-                      className="text-muted"
-                      title={t('runs.treeTokensTitle')}
-                    >
+                    <Td>
+                      <StatusBadge status={run.status} />
+                    </Td>
+                    <Td className="text-right font-mono text-id text-muted">
+                      {duration(run.startedAt, run.completedAt)}
+                    </Td>
+                    <Td className="text-right font-mono text-id text-muted">{count(run.usage?.totalTokens)}</Td>
+                    <Td className="text-right font-mono text-id text-muted" title={t('runs.treeTokensTitle')}>
                       {count(run.treeUsage?.totalTokens)}
                     </Td>
-                    <Td className="text-muted">{count(run.eventCount)}</Td>
-                    <Td className="text-muted" title={absoluteTime(run.startedAt)}>
+                    <Td className="text-right font-mono text-id text-muted">{count(run.eventCount)}</Td>
+                    <Td className="text-sm text-muted" title={absoluteTime(run.startedAt)}>
                       {relativeTime(run.startedAt)}
                     </Td>
                   </tr>
@@ -278,6 +350,12 @@ export function RunsScreen(): ReactNode {
   );
 }
 
+/**
+ * One measured number.
+ *
+ * Exported: the run detail screen builds its summary strip out of these, so the
+ * two screens cannot drift apart in how a number is presented.
+ */
 export function Stat({
   label,
   value,
@@ -290,9 +368,9 @@ export function Stat({
   tone?: 'danger';
 }): ReactNode {
   return (
-    <div className="rounded-lg border border-line bg-panel px-3 py-2.5" title={hint}>
-      <span className="block text-[11px] tracking-wide text-subtle uppercase">{label}</span>
-      <span className={`mt-0.5 block text-lg font-semibold ${tone === 'danger' ? 'text-danger' : ''}`}>
+    <div className="rounded border border-line bg-panel px-2.5 py-2" title={hint}>
+      <span className="block text-2xs tracking-wider text-subtle uppercase">{label}</span>
+      <span className={cx('mt-0.5 block font-mono text-metric font-semibold', tone === 'danger' && 'text-danger')}>
         {value}
       </span>
     </div>

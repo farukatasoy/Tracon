@@ -17,7 +17,7 @@ export function PreviewSection({
   return (
     <Panel title={t('agentEditor.preview')}>
       <div className="p-4">
-        <p className="mb-3 text-[12px] text-muted">
+        <p className="mb-3 text-sm text-muted">
           {t('agentEditor.previewNotice')}{' '}
           <Mono>{editing ? `PUT api/agents/${name}` : 'POST api/agents'}</Mono>
         </p>

@@ -996,16 +996,24 @@ public sealed class UiTests(BrowserFixture browsers)
         /// and only the language tests pass a different value.
         /// </para>
         /// </param>
+        /// <param name="colorScheme">
+        /// What the operating system claims to prefer. Playwright's own default
+        /// is <c>Light</c>, which is what every test that does not care runs
+        /// with; <c>NoPreference</c> is how the console's dark-first default is
+        /// observed.
+        /// </param>
         public static async Task<Session> OpenAsync(
             BrowserFixture browsers,
             UiHost host,
-            string locale = "en-US")
+            string locale = "en-US",
+            ColorScheme? colorScheme = null)
         {
             var context = await browsers.Browser.NewContextAsync(new BrowserNewContextOptions
             {
                 BaseURL = host.BaseAddress,
                 ViewportSize = new ViewportSize { Width = 1440, Height = 900 },
                 Locale = locale,
+                ColorScheme = colorScheme,
             });
 
             return new Session(context, await context.NewPageAsync());
@@ -1753,6 +1761,272 @@ public sealed class UiTests(BrowserFixture browsers)
         await session.Page.GetByRole(AriaRole.Heading, new() { Name = name }).WaitForAsync(new() { Timeout = 15_000 });
     }
 
+    // --- Phase 164: the instrument layer ---
+
+    [Fact]
+    public async Task Console_opens_dark_and_still_follows_the_system_when_asked_to()
+    {
+        // The console is an operations surface, so dark is the product's answer
+        // and not the machine's: a console with nothing stored opens dark even
+        // on a machine that reports a light system preference. Choosing "follow
+        // system" in Settings puts the machine back in charge.
+        await using var host = await UiHost.StartAsync();
+        await using var session = await Session.OpenAsync(browsers, host, colorScheme: ColorScheme.Light);
+
+        await session.Page.GotoAsync($"{host.UiAddress}/settings");
+        await session.Page.GetByRole(AriaRole.Heading, new() { Name = "Settings", Exact = true }).WaitForAsync();
+
+        (await session.Page.GetAttributeAsync("html", "data-theme"))
+            .ShouldBe("dark", "A console with no stored preference did not open dark.");
+
+        // The wrapping <label>'s accessible name concatenates the <select>'s own
+        // rendered option text, so GetByLabel("Theme") never matches exactly;
+        // scope by the wrapper instead.
+        await session.Page.Locator("label", new() { HasText = "Theme" }).Locator("select")
+            .SelectOptionAsync("system");
+
+        (await session.Page.GetAttributeAsync("html", "data-theme"))
+            .ShouldBe("light", "Following the system no longer follows the system.");
+    }
+
+    [Fact]
+    public async Task Command_palette_takes_focus_traps_Tab_and_returns_focus_to_its_trigger_on_Escape()
+    {
+        // The four things a hand-written modal forgets. `dialog.tsx` owns all
+        // four for every overlay in the console; this is the proof on the one
+        // an operator opens most.
+        await using var host = await UiHost.StartAsync();
+        await using var session = await Session.OpenAsync(browsers, host);
+
+        await session.Page.GotoAsync(host.UiAddress);
+        await session.Page.GetByRole(AriaRole.Heading, new() { Name = "Dashboard", Exact = true }).WaitForAsync();
+
+        await session.Page.GetByTestId("palette-open").ClickAsync();
+        await session.Page.GetByTestId("command-palette").WaitForAsync();
+
+        // 1. Focus moved INTO the dialog, onto its one control.
+        (await session.Page.EvaluateAsync<string>("() => document.activeElement?.getAttribute('role') ?? ''"))
+            .ShouldBe("combobox");
+
+        // 2. Tab cannot leave it.
+        await session.Page.Keyboard.PressAsync("Tab");
+        await session.Page.Keyboard.PressAsync("Tab");
+
+        (await session.Page.EvaluateAsync<bool>(
+                "() => document.querySelector('[data-testid=\"command-palette\"]')?.contains(document.activeElement) === true"))
+            .ShouldBeTrue("Tab escaped the command palette.");
+
+        // 3. Escape closes it, and 4. focus goes back to the button that opened it.
+        await session.Page.Keyboard.PressAsync("Escape");
+        await session.Page.GetByTestId("command-palette").WaitForAsync(new() { State = WaitForSelectorState.Detached });
+
+        (await session.Page.EvaluateAsync<string>(
+                "() => document.activeElement?.getAttribute('data-testid') ?? ''"))
+            .ShouldBe("palette-open", "Focus did not return to the element that opened the palette.");
+    }
+
+    [Fact]
+    public async Task Shortcut_help_dialog_opens_with_the_question_mark_and_closes_on_Escape()
+    {
+        await using var host = await UiHost.StartAsync();
+        await using var session = await Session.OpenAsync(browsers, host);
+
+        await session.Page.GotoAsync(host.UiAddress);
+        await session.Page.GetByRole(AriaRole.Heading, new() { Name = "Dashboard", Exact = true }).WaitForAsync();
+
+        await session.Page.Keyboard.PressAsync("?");
+
+        var dialog = session.Page.GetByTestId("shortcut-help");
+        await dialog.WaitForAsync();
+
+        (await dialog.GetAttributeAsync("aria-modal")).ShouldBe("true");
+
+        // The dialog names itself through its heading, not a bare aria-label.
+        (await dialog.GetAttributeAsync("aria-labelledby")).ShouldNotBeNullOrEmpty();
+
+        (await session.Page.EvaluateAsync<bool>(
+                "() => document.querySelector('[data-testid=\"shortcut-help\"]')?.contains(document.activeElement) === true"))
+            .ShouldBeTrue("Opening the cheat sheet did not move focus into it.");
+
+        await session.Page.Keyboard.PressAsync("Escape");
+        await dialog.WaitForAsync(new() { State = WaitForSelectorState.Detached });
+    }
+
+    [Fact]
+    public async Task Every_one_of_the_first_ten_Tab_stops_has_an_accessible_name_and_a_visible_focus_ring()
+    {
+        // Accessibility rule 1 of the instrument layer, measured rather than
+        // asserted in prose: walk the keyboard path an operator actually takes
+        // into a screen and check every stop on it.
+        await using var host = await UiHost.StartAsync();
+        await using var session = await Session.OpenAsync(browsers, host);
+
+        await session.Page.GotoAsync(host.UiAddress);
+        await session.Page.GetByRole(AriaRole.Heading, new() { Name = "Dashboard", Exact = true }).WaitForAsync();
+
+        // Start from the document, not from wherever the load left the caret.
+        await session.Page.EvaluateAsync("() => document.body.focus()");
+
+        var nameless = new List<string>();
+        var invisible = new List<string>();
+        var first = string.Empty;
+
+        for (var stop = 0; stop < 10; stop++)
+        {
+            await session.Page.Keyboard.PressAsync("Tab");
+
+            var described = await session.Page.EvaluateAsync<string[]>(FocusProbe);
+
+            var description = described[0];
+            var name = described[1];
+            var outline = described[2];
+
+            if (stop == 0)
+            {
+                first = name;
+            }
+
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                nameless.Add(description);
+            }
+
+            if (!string.Equals(outline, "visible", StringComparison.Ordinal))
+            {
+                invisible.Add(description);
+            }
+        }
+
+        // The skip link is deliberately the first stop: eighteen navigation
+        // entries stand between the top of the page and the screen's content.
+        first.ShouldBe("Skip to content");
+
+        nameless.ShouldBeEmpty("These tab stops have no accessible name.");
+        invisible.ShouldBeEmpty("These tab stops draw no focus ring.");
+    }
+
+    [Fact]
+    public async Task Proof_slice_screens_do_not_overflow_horizontally_at_375px_width()
+    {
+        // The five screens the instrument layer was proved on. The general
+        // check above covers the shell; this one covers the dense screens,
+        // which is where a fixed-width table or a long identifier shows up.
+        await using var host = await UiHost.StartAsync();
+        await using var session = await Session.OpenAsync(browsers, host);
+
+        await session.Page.SetViewportSizeAsync(375, 812);
+
+        // A real run, so the list and the detail screen have something dense to
+        // lay out: an empty table cannot overflow.
+        await session.Page.GotoAsync($"{host.UiAddress}/playground/support");
+        await session.Page.GetByTestId("playground-input").FillAsync("hello");
+        await session.Page.GetByTestId("playground-send").ClickAsync();
+        await session.Page.GetByText("Echo:").First.WaitForAsync(new() { Timeout = 30_000 });
+
+        await session.Page.GotoAsync($"{host.UiAddress}/dashboard");
+        await session.Page.GetByRole(AriaRole.Heading, new() { Name = "Dashboard", Exact = true }).WaitForAsync();
+        await AssertNoHorizontalOverflowAsync(session.Page, "Dashboard");
+
+        await session.Page.GotoAsync($"{host.UiAddress}/runs");
+        await session.Page.GetByRole(AriaRole.Heading, new() { Name = "Runs", Exact = true }).WaitForAsync();
+
+        // The run list labels its links with the identifier itself, not with
+        // the playground's "run <id>" wording.
+        var runLink = session.Page.Locator("tbody a[href*='/runs/']").First;
+        await runLink.WaitForAsync(new() { Timeout = 30_000 });
+        await AssertNoHorizontalOverflowAsync(session.Page, "Runs");
+
+        await runLink.ClickAsync();
+        await session.Page.GetByRole(AriaRole.Heading, new() { Name = "Transcript", Exact = true }).WaitForAsync(new() { Timeout = 30_000 });
+        await AssertNoHorizontalOverflowAsync(session.Page, "Run detail");
+
+        await session.Page.GotoAsync($"{host.UiAddress}/approvals");
+        await session.Page.GetByRole(AriaRole.Heading, new() { Name = "Approvals", Exact = true }).WaitForAsync();
+        await AssertNoHorizontalOverflowAsync(session.Page, "Approvals");
+
+        await session.Page.GotoAsync($"{host.UiAddress}/agents/new");
+        await session.Page.GetByTestId("agent-name").WaitForAsync();
+        await AssertNoHorizontalOverflowAsync(session.Page, "Agent editor");
+    }
+
+    [Fact]
+    public async Task Run_identifier_is_monospace_and_carries_a_copy_control()
+    {
+        // A run id is the thing an operator moves into a query or a ticket.
+        // Every identifier in the console is monospace, at one size, and the
+        // ones worth copying carry a control instead of asking to be retyped.
+        await using var host = await UiHost.StartAsync();
+        await using var session = await Session.OpenAsync(browsers, host);
+
+        await session.Page.Context.GrantPermissionsAsync(["clipboard-read", "clipboard-write"]);
+
+        await session.Page.GotoAsync($"{host.UiAddress}/playground/support");
+        await session.Page.GetByTestId("playground-input").FillAsync("hello");
+        await session.Page.GetByTestId("playground-send").ClickAsync();
+        await session.Page.GetByText("Echo:").First.WaitForAsync(new() { Timeout = 30_000 });
+
+        await session.Page.GetByRole(AriaRole.Link, new() { NameRegex = RunLinkPattern }).First.ClickAsync();
+        await session.Page.GetByRole(AriaRole.Heading, new() { Name = "Transcript", Exact = true }).WaitForAsync(new() { Timeout = 30_000 });
+
+        // Scoped to the screen's own header: the top bar carries a monospace
+        // ⌘K hint of its own, which is not an identifier.
+        var identifier = session.Page.Locator("main header span.font-mono").First;
+        await identifier.WaitForAsync();
+
+        var family = await identifier.EvaluateAsync<string>("element => getComputedStyle(element).fontFamily");
+        family.ShouldContain("mono", Case.Insensitive);
+
+        var shown = (await identifier.InnerTextAsync()).Trim();
+
+        await identifier.Locator("xpath=..").GetByRole(AriaRole.Button, new() { Name = "Copy", Exact = true }).ClickAsync();
+
+        var copied = await session.Page.EvaluateAsync<string>("() => navigator.clipboard.readText()");
+
+        copied.ShouldBe(shown, "The copy control did not put the identifier on the clipboard.");
+    }
+
+    /// <summary>
+    /// Reports what currently has focus: a description for a failure message,
+    /// an approximation of its accessible name, and whether it draws a ring.
+    /// </summary>
+    /// <remarks>
+    /// The name is an approximation on purpose — a browser does not expose the
+    /// computed accessible name to script. It covers the four ways this console
+    /// names a control (aria-label, an associated label, its own text, its
+    /// placeholder), which is exactly what the rule being checked is about.
+    /// </remarks>
+    private const string FocusProbe = """
+        () => {
+          const element = document.activeElement;
+
+          if (element === null || element === document.body) {
+            return ['<body>', '', 'none'];
+          }
+
+          const description =
+            element.tagName.toLowerCase() +
+            (element.getAttribute('data-testid') === null ? '' : `[${element.getAttribute('data-testid')}]`) +
+            ' ' + (element.textContent ?? '').trim().slice(0, 40);
+
+          const labelled = element.getAttribute('aria-labelledby');
+          const name =
+            (element.getAttribute('aria-label') ?? '').trim() ||
+            (labelled === null ? '' : (document.getElementById(labelled)?.textContent ?? '').trim()) ||
+            (element.textContent ?? '').trim() ||
+            (element.getAttribute('placeholder') ?? '').trim() ||
+            (element.labels?.[0]?.textContent ?? '').trim() ||
+            (element.getAttribute('title') ?? '').trim();
+
+          // `:focus-visible` is already matching — the element got focus from a
+          // real Tab press, which is what makes the ring resolve here.
+          const style = getComputedStyle(element);
+          const ring =
+            style.outlineStyle !== 'none' && parseFloat(style.outlineWidth) > 0 ? 'visible' : 'none';
+
+          return [description, name, ring];
+        }
+        """;
+
     /// <summary>
     /// Verifies that the page itself does not shift horizontally at 375px width.
     /// BUG-S4-008: because <c>Panel</c>'s title+action row and <c>Row</c>'s
@@ -1764,6 +2038,37 @@ public sealed class UiTests(BrowserFixture browsers)
         var overflow = await page.EvaluateAsync<int>(
             "() => document.documentElement.scrollWidth - document.documentElement.clientWidth");
 
-        overflow.ShouldBeLessThanOrEqualTo(0, $"{screen} overflows horizontally at 375px width ({overflow}px).");
+        if (overflow <= 0)
+        {
+            return;
+        }
+
+        var culprits = await page.EvaluateAsync<string[]>(OverflowProbe);
+
+        overflow.ShouldBeLessThanOrEqualTo(
+            0,
+            $"{screen} overflows horizontally at 375px width ({overflow}px). " +
+            $"Widest elements past the edge: {string.Join(" | ", culprits)}");
     }
+
+    /// <summary>
+    /// Names the elements whose right edge is past the viewport, innermost
+    /// first, so a failure says WHAT is too wide instead of only by how much.
+    /// </summary>
+    private const string OverflowProbe = """
+        () => {
+          const edge = document.documentElement.clientWidth;
+
+          return [...document.querySelectorAll('*')]
+            .map((element) => ({ element, box: element.getBoundingClientRect() }))
+            .filter((entry) => entry.box.right > edge + 1 && entry.box.width > 0)
+            .sort((left, right) => right.box.right - left.box.right)
+            .slice(0, 5)
+            .map(
+              (entry) =>
+                `${entry.element.tagName.toLowerCase()}.${[...entry.element.classList].slice(0, 4).join('.')}` +
+                ` right=${Math.round(entry.box.right)} width=${Math.round(entry.box.width)}`,
+            );
+        }
+        """;
 }

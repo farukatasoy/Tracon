@@ -182,7 +182,7 @@ export function ExperimentsScreen({ meta }: { meta: Meta }): ReactNode {
             </div>
 
             <div>
-              <p className="mb-2 text-[12px] font-medium text-muted">{t('experiments.variants')}</p>
+              <p className="mb-2 text-sm font-medium text-muted">{t('experiments.variants')}</p>
               <div className="flex flex-col gap-2">
                 {form.variants.map((variant, index) => (
                   <div key={variant.key} className="flex items-end gap-2">
@@ -249,7 +249,7 @@ export function ExperimentsScreen({ meta }: { meta: Meta }): ReactNode {
                 >
                   {t('experiments.addVariant')}
                 </Button>
-                <span className={totalWeight === 100 ? 'text-[12px] text-muted' : 'text-[12px] text-danger'}>
+                <span className={totalWeight === 100 ? 'text-sm text-muted' : 'text-sm text-danger'}>
                   {t('experiments.weightTotal', { total: totalWeight })}
                 </span>
               </div>

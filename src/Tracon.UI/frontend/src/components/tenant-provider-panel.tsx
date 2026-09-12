@@ -77,7 +77,7 @@ function BindingsSection({ tenantId }: { tenantId: string }): ReactNode {
   return (
     <div className="border-b border-line">
       <div className="flex items-center justify-between px-4 py-2.5">
-        <h3 className="text-[12px] font-semibold text-muted">{t('tenantProviders.bindings.title')}</h3>
+        <h3 className="text-sm font-semibold text-muted">{t('tenantProviders.bindings.title')}</h3>
         <Button tone="default" onClick={() => setOpen((value) => !value)} testId="tenant-provider-add">
           {open ? t('common.close') : t('tenantProviders.bindings.add')}
         </Button>
@@ -119,7 +119,7 @@ function BindingsSection({ tenantId }: { tenantId: string }): ReactNode {
           </div>
         ))}
 
-      <p className="px-4 py-2.5 text-[11px] text-subtle">{t('tenantProviders.bindings.notice')}</p>
+      <p className="px-4 py-2.5 text-xs text-subtle">{t('tenantProviders.bindings.notice')}</p>
     </div>
   );
 }
@@ -136,7 +136,7 @@ function BindingRow({
   return (
     <div className="px-4 py-3" data-testid="tenant-provider-binding-row">
       <div className="flex flex-wrap items-center gap-2">
-        <span className="text-[13px] font-medium">{binding.providerName}</span>
+        <span className="text-base font-medium">{binding.providerName}</span>
         {binding.resolved ? (
           <Badge tone="success">{t('tenantProviders.bindings.resolved')}</Badge>
         ) : (
@@ -149,17 +149,17 @@ function BindingRow({
         </div>
       </div>
 
-      <div className="mt-1 text-[12px] text-muted">
+      <div className="mt-1 text-sm text-muted">
         <Mono>{binding.apiKeyConfigurationName}</Mono>
       </div>
 
       {binding.endpoint != null && binding.endpoint !== '' && (
-        <div className="mt-1 text-[12px] text-muted">
+        <div className="mt-1 text-sm text-muted">
           <Mono>{binding.endpoint}</Mono>
         </div>
       )}
 
-      <div className="mt-1.5 text-[11px] text-subtle">
+      <div className="mt-1.5 text-xs text-subtle">
         {t('tenantProviders.bindings.updated')}: {relativeTime(binding.updatedAt)}
       </div>
     </div>
@@ -307,7 +307,7 @@ function EgressSection({ tenantId }: { tenantId: string }): ReactNode {
   return (
     <div>
       <div className="px-4 py-2.5">
-        <h3 className="text-[12px] font-semibold text-muted">{t('tenantProviders.egress.title')}</h3>
+        <h3 className="text-sm font-semibold text-muted">{t('tenantProviders.egress.title')}</h3>
       </div>
 
       {policy.isPending && <Loading />}
@@ -339,8 +339,8 @@ function EgressSection({ tenantId }: { tenantId: string }): ReactNode {
                       onClick={() => toggle(provider.name)}
                       className={
                         selected
-                          ? 'rounded border border-transparent bg-accent-soft px-1.5 py-0.5 text-[11px] font-medium text-accent'
-                          : 'rounded border border-line bg-raised px-1.5 py-0.5 text-[11px] font-medium text-muted'
+                          ? 'rounded border border-transparent bg-accent-soft px-1.5 py-0.5 text-xs font-medium text-accent'
+                          : 'rounded border border-line bg-raised px-1.5 py-0.5 text-xs font-medium text-muted'
                       }
                     >
                       {provider.name}
@@ -379,7 +379,7 @@ function EgressSection({ tenantId }: { tenantId: string }): ReactNode {
         </div>
       )}
 
-      <p className="border-t border-line px-4 py-2.5 text-[11px] text-subtle">
+      <p className="border-t border-line px-4 py-2.5 text-xs text-subtle">
         {t('tenantProviders.egress.notice')}
       </p>
     </div>

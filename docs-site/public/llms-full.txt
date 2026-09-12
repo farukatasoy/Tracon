@@ -14608,6 +14608,38 @@ against a real server. The same run asserts each screen's landmark element, so a
 screen that stops rendering fails the build instead of leaving a stale picture here.
 :::
 
+## How it is laid out
+
+The console is built for an operator who leaves it open, not for a visitor who
+reads it once. Dark is the default palette, the base text size is 13 px, and a
+table row is about 32 px tall.
+
+Navigation is split by the job you are doing. **Operate** holds what the airspace
+is doing right now — dashboard, playground, runs, sessions, approvals, jobs,
+evaluations, audit, diagnostics. **Configure** holds what is allowed to fly —
+agents, workflows, tools, skills, models, MCP servers, triggers, settings.
+
+There is one accent colour. Everything else that is coloured is a status, and the
+same status is the same colour on every screen:
+
+| Reads as | Means |
+|---|---|
+| Accent | In flight now — a run streaming, the row you are on |
+| Green | Cleared — completed, healthy, approved |
+| Amber | Holding — queued, waiting on a person, degraded |
+| Red | Denied — failed, rejected, unhealthy |
+| Blue | Contact — something started or was attached |
+| Grey | Standby — cancelled, idle, structural |
+
+Colour is never the only signal: every status also carries its own word, and
+charts use a separate series palette so a line is never mistaken for a verdict.
+Both palettes are measured against WCAG AA on every build — text at 5.2:1 or
+better, borders and graphics at 3.5:1 or better, in both themes.
+
+Every identifier — a run, a session, a tenant, a span, an API key prefix — is
+monospace at one size, so two of them can be compared by shape. The ones worth
+moving into a query or a ticket carry a copy control.
+
 ## Dashboard
 
 <a class="ui-shot" href="/screenshots/dashboard.png"><img src="/screenshots/dashboard.png" alt="The dashboard: run counts, error rate, tokens, cost, and a runs-over-time chart" width="2880" height="1800" loading="lazy" decoding="async" /></a>
@@ -14903,16 +14935,23 @@ for the full walkthrough, including how the widget runs a client-side tool.
 ## Things worth knowing
 
 - The console works under **any** prefix and learns it at run time
-- Light and dark themes; the default follows the operating system
+- Dark and light themes. A fresh console opens dark; Settings also offers
+  "follow system", which then tracks the operating system
 - English and Turkish; the default follows the browser. Server messages are shown as
   they are and never translated — the same failure has to read the same way in a log,
   a test, and a support ticket
-- A command palette on `⌘K` / `Ctrl+K`
+- A command palette on `⌘K` / `Ctrl+K` reaches every screen, every recent run and
+  session, and the few actions that are not a navigation
+- The first `Tab` on any screen is "Skip to content". Every layer closes with
+  `Esc` and hands focus back to whatever opened it
 - Buttons the caller has no role for are hidden, based on what `/api/meta` reports
 - The token is kept in `sessionStorage` and is gone when the tab closes; theme and
   language live in `localStorage`
 - The JavaScript budget is 250 KB gzip and is enforced by the build. Current size:
-  175.9 KB
+  184.1 KB
+- Four run-time JavaScript dependencies, and the build fails on a fifth. Dialogs,
+  menus, tooltips and the command palette are written against the platform rather
+  than pulled from a component library
 
 ### Editor boundaries
 

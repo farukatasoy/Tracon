@@ -4,7 +4,7 @@ import { client, unwrap, openStream, TraconError } from '../lib/api';
 import { formatDateTime, useT } from '../lib/i18n';
 import { readSse } from '@tracon/client';
 import { foldRunEvents } from '../lib/transcript';
-import { Link } from '../lib/router';
+import { Link, useNavigate } from '../lib/router';
 import { absoluteTime, count, duration, money, prettyJson, relativeTime, shortId } from '../lib/format';
 import {
   Badge,
@@ -17,7 +17,8 @@ import {
   Panel,
   cx,
 } from '../components/ui';
-import { SpinnerIcon } from '../components/icons';
+import { StatusDot, STATUS_TEXT, type StatusTone } from '../components/status-dot';
+import { Menu, type MenuItem } from '../components/menu';
 import { CancelRunButton } from '../components/cancel-run-button';
 import { FeedbackControl } from '../components/feedback-control';
 import { PromoteToEvalCase } from '../components/promote-to-eval-case';
@@ -41,67 +42,78 @@ function unitPrice(
   return value == null ? '—' : t('runDetail.unitPrice.perMillionTokens', { price: money(value, currency) });
 }
 
-/** Event name and hue per event type. Shapes and labels carry the meaning too. */
-const EVENT_STYLE: Record<RunEventType, { label: string; hue: string }> = {
-  RunStarted: { label: 'run.started', hue: 'var(--ap-indigo)' },
-  MessageDelta: { label: 'message.delta', hue: 'var(--ap-cyan)' },
-  MessageCompleted: { label: 'message.completed', hue: 'var(--ap-cyan)' },
-  ToolInvoking: { label: 'tool.invoking', hue: 'var(--ap-rose)' },
-  ToolInvoked: { label: 'tool.invoked', hue: 'var(--ap-rose)' },
-  ToolFailed: { label: 'tool.failed', hue: 'var(--ap-danger)' },
-  RunCompleted: { label: 'run.completed', hue: 'var(--ap-emerald)' },
-  RunFailed: { label: 'run.failed', hue: 'var(--ap-danger)' },
-  ChildRunStarted: { label: 'child.started', hue: 'var(--ap-amber)' },
-  ChildRunCompleted: { label: 'child.completed', hue: 'var(--ap-amber)' },
-  HistoryCompacted: { label: 'history.compacted', hue: 'var(--ap-violet)' },
-  WorkflowStarted: { label: 'workflow.started', hue: 'var(--ap-emerald)' },
-  SuperStepStarted: { label: 'superstep.started', hue: 'var(--ap-muted)' },
-  SuperStepCompleted: { label: 'superstep.completed', hue: 'var(--ap-muted)' },
-  ExecutorInvoked: { label: 'executor.invoked', hue: 'var(--ap-indigo)' },
-  ExecutorCompleted: { label: 'executor.completed', hue: 'var(--ap-indigo)' },
-  ExecutorFailed: { label: 'executor.failed', hue: 'var(--ap-danger)' },
-  WorkflowOutput: { label: 'workflow.output', hue: 'var(--ap-emerald)' },
-  WorkflowRequest: { label: 'workflow.request', hue: 'var(--ap-amber)' },
-  RunAwaitingInput: { label: 'run.awaiting-input', hue: 'var(--ap-amber)' },
-  // Phase 48. A guard decision is a policy event, not a model event: masking
-  // gets its own hue so an operator can spot a rewritten prompt at a glance,
-  // and a block shares the danger hue with the other run-ending failures.
-  ContentMasked: { label: 'content.masked', hue: 'var(--ap-violet)' },
-  ContentBlocked: { label: 'content.blocked', hue: 'var(--ap-danger)' },
-  // Phase 62. Shares the amber "needs attention" hue with the other
-  // structural events — a fallback is a mitigation the operator should notice.
-  ModelFallbackUsed: { label: 'model.fallback-used', hue: 'var(--ap-amber)' },
-  // Phase 70. Distinct from MessageDelta's cyan: this is the model's
-  // reasoning, not its answer.
-  ReasoningDelta: { label: 'reasoning.delta', hue: 'var(--ap-violet)' },
-  // Phase 14. Structural, same indigo as RunStarted -- a document joining the
-  // run is part of its setup, not an outcome.
-  DocumentAttached: { label: 'document.attached', hue: 'var(--ap-indigo)' },
-  // Phase 89. Amber, same "needs attention" hue as ModelFallbackUsed: a tool
-  // that keeps getting truncated is a sign its own output bound is missing.
-  ToolOutputTruncated: { label: 'tool.output-truncated', hue: 'var(--ap-amber)' },
-  // Phase 87. Amber: written on a run that is ALREADY Failed, to explain why
-  // orphaned-run reconciliation declined to continue it automatically -- not
+/**
+ * Event name and status tone per event type.
+ *
+ * The console has ONE accent and a fixed status vocabulary (styles.css); an
+ * event row is coloured by what KIND of thing happened, not by which subsystem
+ * emitted it:
+ *
+ *   accent   the model is producing — a delta on the wire
+ *   info     lifecycle — something started, attached, or was invoked
+ *   success  cleared — something finished the way it was supposed to
+ *   warn     holding — degraded, waiting, truncated, retried
+ *   danger   denied — the run is ending Failed because of this
+ *   neutral  structural — a marker that reports progress, not an outcome
+ *
+ * The label and the row's own shape carry the meaning too, so the timeline
+ * still reads with no colour at all.
+ */
+const EVENT_STYLE: Record<RunEventType, { label: string; tone: StatusTone }> = {
+  RunStarted: { label: 'run.started', tone: 'info' },
+  MessageDelta: { label: 'message.delta', tone: 'accent' },
+  MessageCompleted: { label: 'message.completed', tone: 'success' },
+  ToolInvoking: { label: 'tool.invoking', tone: 'info' },
+  ToolInvoked: { label: 'tool.invoked', tone: 'success' },
+  ToolFailed: { label: 'tool.failed', tone: 'danger' },
+  RunCompleted: { label: 'run.completed', tone: 'success' },
+  RunFailed: { label: 'run.failed', tone: 'danger' },
+  ChildRunStarted: { label: 'child.started', tone: 'info' },
+  ChildRunCompleted: { label: 'child.completed', tone: 'success' },
+  HistoryCompacted: { label: 'history.compacted', tone: 'neutral' },
+  WorkflowStarted: { label: 'workflow.started', tone: 'info' },
+  SuperStepStarted: { label: 'superstep.started', tone: 'neutral' },
+  SuperStepCompleted: { label: 'superstep.completed', tone: 'neutral' },
+  ExecutorInvoked: { label: 'executor.invoked', tone: 'info' },
+  ExecutorCompleted: { label: 'executor.completed', tone: 'success' },
+  ExecutorFailed: { label: 'executor.failed', tone: 'danger' },
+  WorkflowOutput: { label: 'workflow.output', tone: 'success' },
+  WorkflowRequest: { label: 'workflow.request', tone: 'warn' },
+  RunAwaitingInput: { label: 'run.awaiting-input', tone: 'warn' },
+  // Phase 48. A guard decision is a policy event: masking rewrote the prompt
+  // and the run carried on (warn), a block ended it (danger).
+  ContentMasked: { label: 'content.masked', tone: 'warn' },
+  ContentBlocked: { label: 'content.blocked', tone: 'danger' },
+  // Phase 62. A fallback is a mitigation the operator should notice.
+  ModelFallbackUsed: { label: 'model.fallback-used', tone: 'warn' },
+  // Phase 70. The model's reasoning, not its answer — but still the model
+  // producing, so it shares the live accent with MessageDelta.
+  ReasoningDelta: { label: 'reasoning.delta', tone: 'accent' },
+  // Phase 14. A document joining the run is part of its setup, not an outcome.
+  DocumentAttached: { label: 'document.attached', tone: 'info' },
+  // Phase 89. A tool that keeps getting truncated is a sign its own output
+  // bound is missing.
+  ToolOutputTruncated: { label: 'tool.output-truncated', tone: 'warn' },
+  // Phase 87. Written on a run that is ALREADY Failed, to explain why
+  // orphaned-run reconciliation declined to continue it automatically — not
   // a new failure of its own.
-  RunContinuationBlocked: { label: 'run.continuation-blocked', hue: 'var(--ap-amber)' },
-  // Phase 131. Danger hue: the run is ending Failed, same as ContentBlocked/RunFailed.
-  StructuredResponseRejected: { label: 'structured-response.rejected', hue: 'var(--ap-danger)' },
-  // Phase 134. Amber, same "needs attention" hue as ModelFallbackUsed/ToolOutputTruncated:
-  // the run is not over yet, a repair turn is about to try again.
-  StructuredResponseRepairAttempted: { label: 'structured-response.repair-attempted', hue: 'var(--ap-amber)' },
+  RunContinuationBlocked: { label: 'run.continuation-blocked', tone: 'warn' },
+  // Phase 131. The run is ending Failed, same as ContentBlocked/RunFailed.
+  StructuredResponseRejected: { label: 'structured-response.rejected', tone: 'danger' },
+  // Phase 134. The run is not over yet, a repair turn is about to try again.
+  StructuredResponseRepairAttempted: { label: 'structured-response.repair-attempted', tone: 'warn' },
   // Phase 141. The label here is only a fallback: EventRow shows the event's
   // OWN CustomType instead whenever one is present, which it always is by
   // the time it reaches the wire (RunEventWriter rejects a Custom event
   // without one).
-  Custom: { label: 'custom', hue: 'var(--ap-muted)' },
-  // Phase 144. Amber, same "needs attention" hue as ModelFallbackUsed: a
-  // sub-agent call ran past its wait limit -- the tree kept going, but an
-  // operator should notice which layer cut it (event payload's hardCutoff).
-  ChildRunTimedOut: { label: 'child.timed-out', hue: 'var(--ap-amber)' },
-  // Phase 151. Muted, like the other structural markers: one harness loop
-  // iteration finished. It reports progress, not a problem -- the payload's
-  // continuedBy names the criterion that asked for another turn.
-  LoopIterationCompleted: { label: 'loop.iteration-completed', hue: 'var(--ap-muted)' },
+  Custom: { label: 'custom', tone: 'neutral' },
+  // Phase 144. A sub-agent call ran past its wait limit — the tree kept going,
+  // but an operator should notice which layer cut it (payload's hardCutoff).
+  ChildRunTimedOut: { label: 'child.timed-out', tone: 'warn' },
+  // Phase 151. One harness loop iteration finished. It reports progress, not a
+  // problem — the payload's continuedBy names the criterion that asked for
+  // another turn.
+  LoopIterationCompleted: { label: 'loop.iteration-completed', tone: 'neutral' },
 };
 
 /**
@@ -113,6 +125,7 @@ const EVENT_STYLE: Record<RunEventType, { label: string; hue: string }> = {
  */
 export function RunDetailScreen({ id }: { id: string }): ReactNode {
   const t = useT();
+  const navigate = useNavigate();
   const [events, setEvents] = useState<RunEvent[]>([]);
   const [streaming, setStreaming] = useState(true);
   const [error, setError] = useState<unknown>(null);
@@ -199,23 +212,63 @@ export function RunDetailScreen({ id }: { id: string }): ReactNode {
   }, [id]);
 
   if (run.isPending) {
-    return <Loading />;
+    return <Loading rows={6} />;
   }
 
   if (run.isError) {
-    return <ErrorNote error={run.error} />;
+    return <ErrorNote error={run.error} onRetry={() => void run.refetch()} />;
   }
 
   const record = run.data;
   const transcript = foldRunEvents(events);
+
+  // Where this run came from and what it belongs to. Each entry is a real
+  // record; an absent relation is simply not offered rather than shown disabled.
+  const related: (MenuItem | null)[] = [
+    record.sessionId == null
+      ? null
+      : {
+          id: 'session',
+          label: `${t('runDetail.forSession')} ${shortId(record.sessionId, 12, 5)}`,
+          onSelect: () => navigate(`sessions/${encodeURIComponent(record.sessionId ?? '')}`),
+        },
+    record.parentRunId == null
+      ? null
+      : {
+          id: 'parent',
+          label: `${t('runDetail.calledBy')} ${shortId(record.parentRunId, 12, 5)}`,
+          onSelect: () => navigate(`runs/${encodeURIComponent(record.parentRunId ?? '')}`),
+        },
+    record.replayOfRunId == null
+      ? null
+      : {
+          id: 'replay-source',
+          label: `${t('replay.sourceLink')} ${shortId(record.replayOfRunId, 12, 5)}`,
+          onSelect: () => navigate(`runs/${encodeURIComponent(record.replayOfRunId ?? '')}`),
+        },
+    record.continuedFromRunId == null
+      ? null
+      : {
+          id: 'continued-from',
+          label: `${t('runDetail.continuationOf')} ${shortId(record.continuedFromRunId, 12, 5)}`,
+          onSelect: () => navigate(`runs/${encodeURIComponent(record.continuedFromRunId ?? '')}`),
+        },
+  ];
+  const relatedItems = related.filter((item): item is MenuItem => item !== null);
 
   return (
     <>
       <PageHeader
         title={t('runs.column.run')}
         description={
-          <>
-            <Mono>{record.id}</Mono> —{' '}
+          // The identity line. A run is identified by its id, which is a thing
+          // an operator copies into a query or a ticket — so it is monospace and
+          // copyable — and by the agent or workflow that owns it. Everything
+          // else it is RELATED to moved into the menu below: seven inline links
+          // in one sentence read as a paragraph, not as an instrument.
+          <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <Mono copy={record.id}>{record.id}</Mono>
+            <span className="text-subtle">·</span>
             {record.kind === 'Workflow' ? (
               <>
                 {t('runDetail.forWorkflow')}{' '}
@@ -229,77 +282,30 @@ export function RunDetailScreen({ id }: { id: string }): ReactNode {
             ) : (
               <>
                 {t('runDetail.forAgent')}{' '}
-                <Link
-                  to={`agents/${encodeURIComponent(record.agentName)}`}
-                  className="text-accent underline"
-                >
+                <Link to={`agents/${encodeURIComponent(record.agentName)}`} className="text-accent underline">
                   {record.agentName}
-                </Link>
-              </>
-            )}
-            {record.sessionId != null && (
-              <>
-                , {t('runDetail.forSession')}{' '}
-                <Link
-                  to={`sessions/${encodeURIComponent(record.sessionId)}`}
-                  className="text-accent underline"
-                >
-                  <Mono>{shortId(record.sessionId, 12, 5)}</Mono>
                 </Link>
               </>
             )}
             {record.userId != null && (
               <>
-                , {t('runDetail.forUser')} <Mono>{record.userId}</Mono>
+                <span className="text-subtle">·</span>
+                {t('runDetail.forUser')} <Mono>{record.userId}</Mono>
               </>
             )}
-            {record.labels != null && Object.keys(record.labels).length > 0 && (
-              <>
-                {', '}
-                {Object.entries(record.labels).map(([key, value]) => (
-                  <Badge key={key} tone="neutral">
-                    {key}: {value}
-                  </Badge>
-                ))}
-              </>
-            )}
-            {record.parentRunId != null && (
-              <>
-                , {t('runDetail.calledBy')}{' '}
-                <Link
-                  to={`runs/${encodeURIComponent(record.parentRunId)}`}
-                  className="text-accent underline"
-                >
-                  <Mono>{shortId(record.parentRunId, 12, 5)}</Mono>
-                </Link>
-              </>
-            )}
-            {record.replayOfRunId != null && (
-              <>
-                , {t('replay.sourceLink')}{' '}
-                <Link
-                  to={`runs/${encodeURIComponent(record.replayOfRunId)}`}
-                  className="text-accent underline"
-                >
-                  <Mono>{shortId(record.replayOfRunId, 12, 5)}</Mono>
-                </Link>
-              </>
-            )}
-            {record.continuedFromRunId != null && (
-              <>
-                , {t('runDetail.continuationOf')}{' '}
-                <Link
-                  to={`runs/${encodeURIComponent(record.continuedFromRunId)}`}
-                  className="text-accent underline"
-                >
-                  <Mono>{shortId(record.continuedFromRunId, 12, 5)}</Mono>
-                </Link>
-              </>
-            )}
-          </>
+            {record.labels != null &&
+              Object.entries(record.labels).map(([key, value]) => (
+                <Badge key={key} tone="neutral">
+                  {key}: {value}
+                </Badge>
+              ))}
+          </span>
         }
         actions={
           <div className="flex items-center gap-2">
+            {relatedItems.length > 0 && (
+              <Menu label={t('runDetail.related')} items={relatedItems} testId="run-related" />
+            )}
             {(record.status === 'Running' || record.status === 'Queued') && (
               <CancelRunButton runId={record.id} />
             )}
@@ -308,7 +314,9 @@ export function RunDetailScreen({ id }: { id: string }): ReactNode {
         }
       />
 
-      <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-6">
+      {/* Seven figures: two columns on a phone, four on a tablet, one row on a
+          desktop. A six-column grid left `Events` alone on a second row. */}
+      <div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-4 xl:grid-cols-7">
         <Stat label={t('common.duration')} value={duration(record.startedAt, record.completedAt)} />
         <Stat label={t('common.model')} value={record.modelId ?? '—'} />
         <Stat label={t('common.provider')} value={record.modelProvider ?? '—'} />
@@ -323,7 +331,7 @@ export function RunDetailScreen({ id }: { id: string }): ReactNode {
       </div>
 
       {record.cost != null && (
-        <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-6">
+        <div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
           <Stat
             label={t('runDetail.unitPrice.input')}
             value={unitPrice(t, record.cost.inputPricePerMillionTokens, record.cost.currency)}
@@ -345,7 +353,7 @@ export function RunDetailScreen({ id }: { id: string }): ReactNode {
       {record.status === 'AwaitingInput' && (
         <div className="mb-4">
           <Panel title={t('runDetail.awaiting.title')}>
-            <div className="p-4 text-[13px]">
+            <div className="p-4 text-base">
               {t('runDetail.awaiting.before')}{' '}
               <Link
                 to={`workflows/${encodeURIComponent(record.workflowName ?? record.agentName)}`}
@@ -364,7 +372,7 @@ export function RunDetailScreen({ id }: { id: string }): ReactNode {
           <Panel title={t('runDetail.failure')}>
             <div className="p-4">
               <Badge tone="danger">{record.error.type}</Badge>
-              <p className="mt-2 text-[13px] text-danger">{record.error.message}</p>
+              <p className="mt-2 text-base text-danger">{record.error.message}</p>
             </div>
           </Panel>
         </div>
@@ -406,13 +414,13 @@ export function RunDetailScreen({ id }: { id: string }): ReactNode {
           title={
             <span className="flex items-center gap-1.5">
               {t('runDetail.transcript')}
-              {streaming && <SpinnerIcon className="size-3 text-muted" />}
+              {streaming && <StatusDot tone="accent" live label={t('runDetail.waiting')} />}
             </span>
           }
         >
           <div className="p-4" aria-live="polite" aria-busy={streaming}>
             {transcript.items.length === 0 ? (
-              <p className="text-[13px] text-subtle">
+              <p className="text-base text-subtle">
                 {streaming ? t('runDetail.waiting') : t('runDetail.noContent')}
               </p>
             ) : (
@@ -438,9 +446,9 @@ export function RunDetailScreen({ id }: { id: string }): ReactNode {
         <div className="mt-4">
           <Panel title={t('runDetail.callTree')}>
             {tree.isPending ? (
-              <Loading />
+              <Loading rows={3} />
             ) : tree.isError ? (
-              <div className="p-4"><ErrorNote error={tree.error} /></div>
+              <div className="p-4"><ErrorNote error={tree.error} onRetry={() => void tree.refetch()} /></div>
             ) : (
               <RunTree runs={tree.data ?? []} current={record.id} />
             )}
@@ -495,7 +503,7 @@ export function RunDetailScreen({ id }: { id: string }): ReactNode {
         </div>
       )}
 
-      <p className="mt-3 text-[11px] text-subtle">
+      <p className="mt-3 text-xs text-subtle">
         {t('common.started')}{' '}
         <span title={absoluteTime(record.startedAt)}>{relativeTime(record.startedAt)}</span>
         {record.isStreaming ? ` · ${t('runDetail.streamed')}` : ` · ${t('runDetail.nonStreaming')}`}
@@ -517,7 +525,7 @@ function ToolCallRow({ call }: { call: ToolInvocationRecord }): ReactNode {
   return (
     <li className="px-4 py-2.5">
       <div className="flex flex-wrap items-center gap-2">
-        <Mono className="text-[12px] font-semibold">{call.toolName}</Mono>
+        <Mono className="text-sm font-semibold">{call.toolName}</Mono>
         {call.source != null && (
           <Badge tone="warn" title={t('runDetail.mcpSource', { server: call.source })}>
             mcp: {call.source}
@@ -528,7 +536,7 @@ function ToolCallRow({ call }: { call: ToolInvocationRecord }): ReactNode {
         ) : (
           <Badge tone="danger">{t('runs.status.failed')}</Badge>
         )}
-        <span className="ml-auto text-[11px] text-subtle">
+        <span className="ml-auto text-xs text-subtle">
           {call.duration != null ? formatMs(parseDuration(call.duration)) : t('runDetail.notMeasured')}
         </span>
       </div>
@@ -539,7 +547,7 @@ function ToolCallRow({ call }: { call: ToolInvocationRecord }): ReactNode {
         </div>
       )}
 
-      {call.error != null && <p className="mt-1.5 text-[12px] text-danger">{call.error}</p>}
+      {call.error != null && <p className="mt-1.5 text-sm text-danger">{call.error}</p>}
     </li>
   );
 }
@@ -561,7 +569,8 @@ export function parseDuration(value: string): number {
 }
 
 function EventRow({ event }: { event: RunEvent }): ReactNode {
-  const style = EVENT_STYLE[event.type] ?? { label: event.type, hue: 'var(--ap-muted)' };
+  const style: { label: string; tone: StatusTone } =
+    EVENT_STYLE[event.type] ?? { label: event.type, tone: 'neutral' };
   // 141.2: a Custom event's own name IS its CustomType, not the generic
   // fallback label -- a consumer's contoso.preview-ready must read as
   // that, not as an unstyled "Custom" row.
@@ -571,28 +580,22 @@ function EventRow({ event }: { event: RunEvent }): ReactNode {
   return (
     <li className="relative flex gap-3 pb-3 pl-1 last:pb-0">
       <div className="flex flex-col items-center">
-        <span
-          aria-hidden="true"
-          className="mt-1 size-2 shrink-0 rounded-full"
-          style={{ background: style.hue }}
-        />
+        <StatusDot tone={style.tone} className="mt-1" />
         <span aria-hidden="true" className="mt-1 w-px flex-1 bg-line" />
       </div>
 
       <div className="min-w-0 flex-1">
         <div className="flex items-baseline gap-2">
           <Mono className="text-subtle">{event.sequence}</Mono>
-          <span className="font-mono text-[12px] font-medium" style={{ color: style.hue }}>
-            {label}
-          </span>
+          <span className={cx('font-mono text-id font-medium', STATUS_TEXT[style.tone])}>{label}</span>
           {event.toolName != null && <Badge>{event.toolName}</Badge>}
-          <span className="ml-auto text-[11px] text-subtle" title={absoluteTime(event.timestamp)}>
+          <span className="ml-auto text-xs text-subtle" title={absoluteTime(event.timestamp)}>
             {formatDateTime(new Date(event.timestamp), { timeStyle: 'medium' })}
           </span>
         </div>
 
         {body !== null && body.length > 0 && (
-          <div className={cx('mt-1', event.type === 'MessageDelta' && 'text-[12px]')}>
+          <div className={cx('mt-1', event.type === 'MessageDelta' && 'text-sm')}>
             {event.type === 'MessageDelta' ? (
               <span className="font-mono break-all text-muted">{body}</span>
             ) : (
@@ -674,22 +677,22 @@ function RunTreeRow({
       <span style={{ paddingLeft: `${indent * 1.25}rem` }} className="flex items-center gap-2">
         {indent > 0 && <span aria-hidden="true" className="text-subtle">└</span>}
         {isCurrent ? (
-          <Mono className="text-[12px] font-semibold">{shortId(run.id, 12, 5)}</Mono>
+          <Mono className="text-sm font-semibold">{shortId(run.id, 12, 5)}</Mono>
         ) : (
           <Link to={`runs/${encodeURIComponent(run.id)}`}>
-            <Mono className="text-[12px]" title={run.id}>{shortId(run.id, 12, 5)}</Mono>
+            <Mono className="text-sm" title={run.id}>{shortId(run.id, 12, 5)}</Mono>
           </Link>
         )}
       </span>
 
-      <Link to={`agents/${encodeURIComponent(run.agentName)}`} className="text-[12px] text-muted hover:text-fg">
+      <Link to={`agents/${encodeURIComponent(run.agentName)}`} className="text-sm text-muted hover:text-fg">
         {run.agentName}
       </Link>
 
       <StatusBadge status={run.status} />
       {isCurrent && <Badge tone="accent">{t('runDetail.thisRun')}</Badge>}
 
-      <span className="ml-auto flex items-center gap-3 text-[11px] text-subtle">
+      <span className="ml-auto flex items-center gap-3 text-xs text-subtle">
         <span>
           {count(run.usage?.totalTokens)} {t('common.tokens').toLocaleLowerCase()}
         </span>

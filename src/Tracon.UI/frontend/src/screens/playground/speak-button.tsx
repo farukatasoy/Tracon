@@ -69,7 +69,7 @@ export function SpeakButton({ text, sessionId }: { text: string; sessionId: stri
     return (
       <span className="flex items-center gap-2">
         <audio data-testid="playground-audio" src={url} controls className="h-7 max-w-[16rem]" />
-        {note !== null && <span className="text-[11px] text-subtle">{note}</span>}
+        {note !== null && <span className="text-xs text-subtle">{note}</span>}
       </span>
     );
   }
@@ -82,12 +82,12 @@ export function SpeakButton({ text, sessionId }: { text: string; sessionId: stri
         onClick={() => void speak()}
         disabled={state === 'working'}
         title={t('playground.speakTitle')}
-        className="inline-flex items-center gap-1 rounded-md border border-line px-1.5 py-0.5 text-[11px] text-subtle hover:text-fg disabled:opacity-50"
+        className="inline-flex items-center gap-1 rounded-md border border-line px-1.5 py-0.5 text-xs text-subtle hover:text-fg disabled:opacity-50"
       >
         {state === 'working' ? <SpinnerIcon className="size-3" /> : <SpeakerIcon className="size-3" />}
         {t('playground.speak')}
       </button>
-      {state === 'failed' && note !== null && <span className="text-[11px] text-danger">{note}</span>}
+      {state === 'failed' && note !== null && <span className="text-xs text-danger">{note}</span>}
     </span>
   );
 }

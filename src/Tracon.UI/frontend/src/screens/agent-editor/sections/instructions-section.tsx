@@ -26,7 +26,7 @@ export function InstructionsSection({
         <Field label={t('agentEditor.instructionsByCulture')} hint={t('agentEditor.instructionsByCultureHint')}>
           <div className="flex flex-col gap-3">
             {form.instructionsByCulture.length === 0 && (
-              <p className="text-[12px] text-subtle">{t('agentEditor.noCultures')}</p>
+              <p className="text-sm text-subtle">{t('agentEditor.noCultures')}</p>
             )}
 
             {form.instructionsByCulture.map((entry, index) => (

@@ -45,6 +45,7 @@
 | Test tek başına geçip **tam koşumda** düşüyor | [test-yalitimi](test-yalitimi.md) |
 | Kapanış kapısı taban ölçümü (wall-clock, proje sonucu) | [test-kosum-olcumleri](test-kosum-olcumleri.md) |
 | Arayüz (Vite, SPA rota, TS, ekran) | [frontend](frontend.md) |
+| Arayüz tasarım katmanı (token, tema, yoğunluk, primitif, erişilebilirlik) | [frontend-tasarim-katmani](frontend-tasarim-katmani.md) |
 | Arayüz yerelleştirme (`useT`, `Messages`, `Intl`) | [frontend-yerellestirme](frontend-yerellestirme.md) |
 | Model sağlayıcısı (OpenAI, Anthropic, Google) | [openai-saglayici](openai-saglayici.md) |
 | `IChatClient` dekoratörü, devre kesici | [model-boru-hatti](model-boru-hatti.md) |

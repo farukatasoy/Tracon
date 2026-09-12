@@ -67,7 +67,7 @@ function TabButton({
     <button
       type="button"
       onClick={onClick}
-      className={`border-b-2 px-2 pb-2 text-[12px] font-medium ${
+      className={`border-b-2 px-2 pb-2 text-sm font-medium ${
         active ? 'border-accent text-fg' : 'border-transparent text-muted hover:text-fg'
       }`}
     >
@@ -135,12 +135,12 @@ function PromptsTab({ serverName }: { serverName: string }): ReactNode {
       {prompts.data.map((prompt) => (
         <li key={prompt.name} className="flex items-center justify-between gap-3 px-3 py-2">
           <div className="min-w-0">
-            <Mono className="text-[12px] font-semibold">{prompt.title ?? prompt.name}</Mono>
+            <Mono className="text-sm font-semibold">{prompt.title ?? prompt.name}</Mono>
             {prompt.description != null && prompt.description.length > 0 && (
-              <p className="truncate text-[11px] text-subtle">{prompt.description}</p>
+              <p className="truncate text-xs text-subtle">{prompt.description}</p>
             )}
             {prompt.arguments.length > 0 && (
-              <p className="text-[11px] text-muted">
+              <p className="text-xs text-muted">
                 {t('mcp.args')} {prompt.arguments.map((argument) => argument.name).join(', ')}
               </p>
             )}
@@ -213,8 +213,8 @@ function ResourcesTab({
         {resources.data.map((resource) => (
           <li key={resource.uri} className="flex items-center justify-between gap-3 px-3 py-2">
             <div className="min-w-0">
-              <Mono className="truncate text-[12px] font-semibold">{resource.name}</Mono>
-              <p className="truncate text-[11px] text-subtle">{resource.uri}</p>
+              <Mono className="truncate text-sm font-semibold">{resource.name}</Mono>
+              <p className="truncate text-xs text-subtle">{resource.uri}</p>
             </div>
             {canRead && (
               <Button onClick={() => setPreviewUri(resource.uri)}>
@@ -231,7 +231,7 @@ function ResourcesTab({
           {preview.isError && <ErrorNote error={preview.error} />}
           {preview.isSuccess &&
             (preview.data.isBinary ? (
-              <p className="text-[11px] text-muted">
+              <p className="text-xs text-muted">
                 {t('mcp.binaryContent', {
                   bytes: preview.data.byteSize,
                   type: preview.data.mimeType ?? t('mcp.unknownType'),
@@ -244,7 +244,7 @@ function ResourcesTab({
                     <Badge tone="warn">{t('mcp.truncated')}</Badge>
                   </div>
                 )}
-                <pre className="max-h-64 overflow-auto whitespace-pre-wrap text-[11px] text-fg">
+                <pre className="max-h-64 overflow-auto whitespace-pre-wrap text-xs text-fg">
                   {preview.data.text}
                 </pre>
               </>

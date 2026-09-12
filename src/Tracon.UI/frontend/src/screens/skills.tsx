@@ -115,7 +115,7 @@ export function SkillsScreen({ meta }: { meta: Meta }): ReactNode {
             <tbody>
               {skills.data.map((skill) => (
                 <tr key={skill.name} className="hover:bg-raised">
-                  <Td><span className="font-medium">{skill.name}</span><span className="block text-[12px] text-muted">{skill.description}</span></Td>
+                  <Td><span className="font-medium">{skill.name}</span><span className="block text-sm text-muted">{skill.description}</span></Td>
                   <Td>{skill.resources.length}</Td>
                   <Td>
                     {skill.enabled ? (
@@ -187,12 +187,12 @@ function ScriptGrantsPanel({ meta }: { meta: Meta }): ReactNode {
   return (
     <Panel title={t('skills.grants.title')}>
       <div className="flex flex-col gap-3 p-4">
-        <div className="rounded border border-red-500 bg-red-500/10 px-3 py-2 text-[13px] font-medium text-red-500">
+        <div className="rounded border border-red-500 bg-red-500/10 px-3 py-2 text-base font-medium text-red-500">
           {t('skills.grants.warning')}
         </div>
         {grants.isError && <ErrorNote error={grants.error} />}
         {grant.isError && <ErrorNote error={grant.error} />}
-        {grants.isSuccess && active.length === 0 && <p className="text-[13px] text-muted">{t('skills.grants.empty')}</p>}
+        {grants.isSuccess && active.length === 0 && <p className="text-base text-muted">{t('skills.grants.empty')}</p>}
         {active.length > 0 && (
           <Table>
             <thead>
@@ -318,7 +318,7 @@ export function SkillEditorScreen({ name }: { name?: string }): ReactNode {
           <Field label={t('skills.compatibility')}><TextInput value={form.compatibility ?? ''} onChange={(event) => setForm({ ...form, compatibility: event.target.value || null })} /></Field>
           <Field label={t('skills.license')}><TextInput value={form.license ?? ''} onChange={(event) => setForm({ ...form, license: event.target.value || null })} /></Field>
           <div className="sm:col-span-2"><Field label={t('skills.allowedTools')}><TextInput value={form.allowedTools ?? ''} onChange={(event) => setForm({ ...form, allowedTools: event.target.value || null })} /></Field></div>
-          <label className="flex cursor-pointer items-center gap-2 text-[13px]"><input type="checkbox" className="accent-[var(--ap-accent)]" checked={form.enabled} onChange={(event) => setForm({ ...form, enabled: event.target.checked })} />
+          <label className="flex cursor-pointer items-center gap-2 text-base"><input type="checkbox" className="accent-[var(--tracon-accent)]" checked={form.enabled} onChange={(event) => setForm({ ...form, enabled: event.target.checked })} />
             {t('common.enabled')}
           </label>
         </div></Panel>
@@ -332,11 +332,11 @@ export function SkillEditorScreen({ name }: { name?: string }): ReactNode {
         <Panel title={t('skills.scripts')}><div className="flex flex-col gap-3 p-4">
           <div
             data-testid="script-execution-warning"
-            className="rounded border border-red-500 bg-red-500/10 px-3 py-2 text-[13px] font-medium text-red-500"
+            className="rounded border border-red-500 bg-red-500/10 px-3 py-2 text-base font-medium text-red-500"
           >
             {t('skills.scriptWarning')}
           </div>
-          <p className="text-[12px] text-muted">
+          <p className="text-sm text-muted">
             {t('skills.scriptNotice')}
           </p>
           {form.scripts.map((script, index) => <ScriptEditor key={`${script.name}-${index}`} script={script} onChange={(value) => setForm({ ...form, scripts: form.scripts.map((item, itemIndex) => itemIndex === index ? value : item) })} onRemove={() => setForm({ ...form, scripts: form.scripts.filter((_, itemIndex) => itemIndex !== index) })} />)}

@@ -115,7 +115,7 @@ export function SessionDetailScreen({ id }: { id: string }): ReactNode {
                         {role}
                       </Badge>
                       {message.authorName != null && (
-                        <span className="text-[11px] text-subtle">{message.authorName}</span>
+                        <span className="text-xs text-subtle">{message.authorName}</span>
                       )}
                       {/*
                         The index is the item's own `seq`: this list comes from
@@ -126,7 +126,7 @@ export function SessionDetailScreen({ id }: { id: string }): ReactNode {
                       </span>
                     </div>
                     {folded.items.length === 0 ? (
-                      <p className="text-[12px] text-subtle">{t('sessionDetail.noContent')}</p>
+                      <p className="text-sm text-subtle">{t('sessionDetail.noContent')}</p>
                     ) : (
                       <TranscriptView items={folded.items} />
                     )}
@@ -141,7 +141,7 @@ export function SessionDetailScreen({ id }: { id: string }): ReactNode {
       {tab === 'state' && (
         <Panel title={t('sessionDetail.stateTitle')}>
           <div className="p-4">
-            <p className="mb-3 text-[12px] text-muted">
+            <p className="mb-3 text-sm text-muted">
               {t('sessionDetail.stateNotice')}
             </p>
             <JsonView value={detail.state} maxHeight="max-h-[40rem]" />
@@ -166,7 +166,7 @@ function TabButton({
       type="button"
       onClick={onClick}
       className={cx(
-        'rounded-md px-3 py-1.5 text-[13px] font-medium transition-colors',
+        'rounded-md px-3 py-1.5 text-base font-medium transition-colors',
         active ? 'bg-raised text-fg' : 'text-muted hover:text-fg',
       )}
     >

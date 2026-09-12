@@ -98,7 +98,7 @@ export function PlaygroundScreen({ name }: { name?: string }): ReactNode {
       />
 
       {play.sessionId !== null && (
-        <p className="mb-3 text-[12px] text-subtle">
+        <p className="mb-3 text-sm text-subtle">
           {t('common.session')}{' '}
           <Link to={`sessions/${encodeURIComponent(play.sessionId)}`} className="text-accent underline">
             <Mono>{shortId(play.sessionId, 14, 6)}</Mono>
@@ -122,7 +122,7 @@ export function PlaygroundScreen({ name }: { name?: string }): ReactNode {
         <div className="flex-1 overflow-y-auto p-4">
           {play.history !== null && play.history.length > 0 && (
             <div className="mb-6 flex flex-col divide-y divide-line border-b border-line pb-4">
-              <p className="pb-2 text-[11px] font-medium text-subtle uppercase">{t('playground.priorMessages')}</p>
+              <p className="pb-2 text-xs font-medium text-subtle uppercase">{t('playground.priorMessages')}</p>
               {play.history.map(({ message, folded }, index) => {
                 const role = ((message.role as string | undefined) ?? 'unknown').toLowerCase();
 
@@ -131,11 +131,11 @@ export function PlaygroundScreen({ name }: { name?: string }): ReactNode {
                     <div className="mb-1.5 flex items-center gap-2">
                       <Badge tone={role === 'user' ? 'accent' : role === 'system' ? 'warn' : 'neutral'}>{role}</Badge>
                       {message.authorName != null && (
-                        <span className="text-[11px] text-subtle">{message.authorName}</span>
+                        <span className="text-xs text-subtle">{message.authorName}</span>
                       )}
                     </div>
                     {folded.items.length === 0 ? (
-                      <p className="text-[12px] text-subtle">{t('sessionDetail.noContent')}</p>
+                      <p className="text-sm text-subtle">{t('sessionDetail.noContent')}</p>
                     ) : (
                       <TranscriptView items={folded.items} />
                     )}
@@ -178,7 +178,7 @@ export function PlaygroundScreen({ name }: { name?: string }): ReactNode {
 
           {play.parameterSchema.length > 0 && (
             <div data-testid="playground-parameters" className="flex flex-col gap-2">
-              <p className="text-[11px] font-medium text-subtle uppercase">{t('playground.parameters')}</p>
+              <p className="text-xs font-medium text-subtle uppercase">{t('playground.parameters')}</p>
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                 {play.parameterSchema.map((parameter) => (
                   <Field key={parameter.name} label={parameter.name} required={parameter.required} hint={parameter.description}>
@@ -252,7 +252,7 @@ export function PlaygroundScreen({ name }: { name?: string }): ReactNode {
               disabled={play.busy}
               data-testid="playground-input"
               placeholder={t('playground.placeholder')}
-              className="max-h-40 min-h-9 flex-1 resize-y rounded-md border border-line bg-panel px-3 py-1.5 text-[13px] placeholder:text-subtle focus:border-accent focus:outline-none disabled:opacity-60"
+              className="max-h-40 min-h-9 flex-1 resize-y rounded-md border border-line bg-panel px-3 py-1.5 text-base placeholder:text-subtle focus:border-accent focus:outline-none disabled:opacity-60"
               onChange={(event) => play.setPrompt(event.target.value)}
               onKeyDown={(event) => {
                 // Enter sends, Shift+Enter adds a line. Ctrl/Cmd+Enter sends too,

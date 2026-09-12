@@ -1,6 +1,6 @@
 import type { Dispatch, ReactNode, SetStateAction } from 'react';
 import { useT } from '../../../lib/i18n';
-import { Button, ErrorNote, Field, Panel, Select, TextArea, TextInput } from '../../../components/ui';
+import { Button, Field, Panel, Select, TextArea, TextInput } from '../../../components/ui';
 import type { ModelProviderDescriptor } from '../../../lib/server-types';
 import { REASONING_EFFORTS, RESPONSE_FORMAT_KINDS, type FormState, type ResponseFormatKindOption } from '../model';
 
@@ -111,15 +111,24 @@ export function ModelSection({
               />
             </Field>
             <div className="sm:col-span-2">
-              <Field label={t('fields.schema')} hint={t('agentEditor.schemaHint')}>
-                <TextArea
-                  rows={6}
-                  value={form.responseFormatSchema}
-                  data-testid="agent-response-schema"
-                  onChange={(event) => setForm({ ...form, responseFormatSchema: event.target.value })}
-                />
+              {/* The render-prop form of `Field`: the message is bound to the
+                  textarea with `aria-describedby` and marks it invalid, instead
+                  of sitting next to it as a note nothing points at. */}
+              <Field
+                label={t('fields.schema')}
+                hint={t('agentEditor.schemaHint')}
+                error={schemaJsonValid ? undefined : t('agentEditor.schemaError')}
+              >
+                {(ids) => (
+                  <TextArea
+                    {...ids}
+                    rows={6}
+                    value={form.responseFormatSchema}
+                    data-testid="agent-response-schema"
+                    onChange={(event) => setForm({ ...form, responseFormatSchema: event.target.value })}
+                  />
+                )}
               </Field>
-              {!schemaJsonValid && <ErrorNote error={new Error(t('agentEditor.schemaError'))} />}
             </div>
           </>
         )}
@@ -128,7 +137,7 @@ export function ModelSection({
           <Field label={t('fields.fallbacks')} hint={t('agentEditor.fallbacksHint')}>
             <div className="flex flex-col gap-2">
               {form.fallbacks.length === 0 && (
-                <p className="text-[12px] text-subtle">{t('agentEditor.noFallbacks')}</p>
+                <p className="text-sm text-subtle">{t('agentEditor.noFallbacks')}</p>
               )}
 
               {form.fallbacks.map((fallback, index) => {

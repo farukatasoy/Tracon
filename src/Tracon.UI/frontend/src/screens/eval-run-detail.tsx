@@ -42,22 +42,22 @@ export function EvalRunDetailScreen({ id }: { id: string }): ReactNode {
       <Panel className="mb-4">
         <div className="grid grid-cols-2 gap-4 p-4 sm:grid-cols-4">
           <div>
-            <span className="block text-[11px] tracking-wide text-subtle uppercase">{t('evals.passRate')}</span>
+            <span className="block text-xs tracking-wide text-subtle uppercase">{t('evals.passRate')}</span>
             <span className="mt-0.5 block">
               <PassRateBar passed={run.passed} failed={run.failed} total={run.total} />
             </span>
           </div>
           <div>
-            <span className="block text-[11px] tracking-wide text-subtle uppercase">{t('evals.agentVersion')}</span>
-            <span className="mt-0.5 block text-[13px]">{run.agentVersion ?? '—'}</span>
+            <span className="block text-xs tracking-wide text-subtle uppercase">{t('evals.agentVersion')}</span>
+            <span className="mt-0.5 block text-base">{run.agentVersion ?? '—'}</span>
           </div>
           <div>
-            <span className="block text-[11px] tracking-wide text-subtle uppercase">{t('common.model')}</span>
-            <span className="mt-0.5 block text-[13px]">{run.modelId ?? '—'}</span>
+            <span className="block text-xs tracking-wide text-subtle uppercase">{t('common.model')}</span>
+            <span className="mt-0.5 block text-base">{run.modelId ?? '—'}</span>
           </div>
           <div>
-            <span className="block text-[11px] tracking-wide text-subtle uppercase">{t('evals.completed')}</span>
-            <span className="mt-0.5 block text-[13px]" title={absoluteTime(run.completedAt)}>
+            <span className="block text-xs tracking-wide text-subtle uppercase">{t('evals.completed')}</span>
+            <span className="mt-0.5 block text-base" title={absoluteTime(run.completedAt)}>
               {run.completedAt == null ? '—' : relativeTime(run.completedAt)}
             </span>
           </div>
@@ -175,11 +175,11 @@ function EvalRunDiffPanel({ run }: { run: EvalRun }): ReactNode {
   return (
     <Panel className="mt-4" title={t('evals.diff.title')}>
       <div className="border-line border-b p-4">
-        <p className="text-subtle mb-2 text-[12px]">{t('evals.diff.hint')}</p>
+        <p className="text-subtle mb-2 text-sm">{t('evals.diff.hint')}</p>
         {candidates.length === 0 ? (
-          <p className="text-subtle text-[12px]">{t('evals.diff.noOtherRuns')}</p>
+          <p className="text-subtle text-sm">{t('evals.diff.noOtherRuns')}</p>
         ) : (
-          <label className="flex items-center gap-2 text-[12px]">
+          <label className="flex items-center gap-2 text-sm">
             <span className="text-subtle">{t('evals.diff.baseline')}</span>
             <Select value={baselineId} onChange={setBaselineId} testId="eval-diff-baseline">
               <option value="">{t('evals.diff.pick')}</option>
@@ -228,7 +228,7 @@ function EvalRunDiffGroups({ diff }: { diff: EvalRunDiff }): ReactNode {
           data-testid={`eval-diff-group-${group.kind}`}
           className="border-line border-b last:border-b-0"
         >
-          <summary className="hover:bg-raised cursor-pointer p-3 text-[13px]">
+          <summary className="hover:bg-raised cursor-pointer p-3 text-base">
             <Badge tone={group.tone}>{t(group.label)}</Badge>
             <span className="text-subtle ml-2">{group.count(diff)}</span>
           </summary>
@@ -250,7 +250,7 @@ function EvalRunDiffTable({ cases, total }: { cases: EvalCaseDiff[]; total: numb
     // while cases sit beyond the page - the same misreading this whole screen
     // exists to prevent, one level down.
     return (
-      <p className="text-subtle p-3 text-[12px]">
+      <p className="text-subtle p-3 text-sm">
         {total === 0 ? t('evals.diff.empty') : t('evals.diff.beyondPage', { count: total })}
       </p>
     );
@@ -259,7 +259,7 @@ function EvalRunDiffTable({ cases, total }: { cases: EvalCaseDiff[]; total: numb
   return (
     <>
     {cases.length < total ? (
-      <p className="text-subtle px-3 pt-3 text-[12px]">
+      <p className="text-subtle px-3 pt-3 text-sm">
         {t('evals.diff.partialPage', { shown: cases.length, count: total })}
       </p>
     ) : null}

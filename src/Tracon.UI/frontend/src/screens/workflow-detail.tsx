@@ -240,7 +240,7 @@ export function WorkflowDetailScreen({ name, meta }: { name: string; meta: Meta 
                 {/* The console draws the graph itself; this hands out Microsoft
                     Agent Framework's Mermaid text so it can be pasted into a
                     document, where a real layout engine can place it. */}
-                <span className="inline-flex h-8 items-center rounded-md border border-line bg-raised pr-8 pl-3 text-[13px]">
+                <span className="inline-flex h-8 items-center rounded-md border border-line bg-raised pr-8 pl-3 text-base">
                   {t('workflowDetail.copyMermaid')}
                 </span>
                 <CopyButton value={graph.data.mermaid} />
@@ -284,7 +284,7 @@ export function WorkflowDetailScreen({ name, meta }: { name: string; meta: Meta 
               </div>
 
               {runId !== null && (
-                <p className="flex items-center gap-2 text-[12px] text-subtle">
+                <p className="flex items-center gap-2 text-sm text-subtle">
                   {streaming && <SpinnerIcon className="size-3" />}
                   <Link
                     to={`runs/${encodeURIComponent(runId)}`}
@@ -335,7 +335,7 @@ function Output({ events }: { events: readonly RunEvent[] }): ReactNode {
       {outputs.map((event) => (
         <p
           key={event.sequence}
-          className="rounded-md border border-line bg-raised px-3 py-2 text-[13px] whitespace-pre-wrap"
+          className="rounded-md border border-line bg-raised px-3 py-2 text-base whitespace-pre-wrap"
         >
           {event.text}
         </p>
@@ -344,7 +344,7 @@ function Output({ events }: { events: readonly RunEvent[] }): ReactNode {
       {failures.map((event) => (
         <p
           key={event.sequence}
-          className="rounded-md border border-line bg-danger-soft px-3 py-2 text-[12px] text-danger"
+          className="rounded-md border border-line bg-danger-soft px-3 py-2 text-sm text-danger"
         >
           <Mono>{event.text}</Mono> {event.payload}
         </p>
@@ -381,13 +381,13 @@ function PendingRequestCard({
         <Badge tone="warn">
           {t(request.form === 'PlanReview' ? 'workflowDetail.planApproval' : 'workflowDetail.waitingForInput')}
         </Badge>
-        <Mono className="text-[11px] text-subtle" title={request.requestId}>
+        <Mono className="text-xs text-subtle" title={request.requestId}>
           {request.portId}
         </Mono>
       </div>
 
       {request.prompt != null && request.prompt.length > 0 && (
-        <p className="mb-2.5 text-[13px] whitespace-pre-wrap">{request.prompt}</p>
+        <p className="mb-2.5 text-base whitespace-pre-wrap">{request.prompt}</p>
       )}
 
       {(request.form === 'Text' || request.form === 'Json' || request.form === 'PlanReview') && (

@@ -148,7 +148,7 @@ export function ModelsScreen(): ReactNode {
               }
             >
               {providerHealth?.detail != null && providerHealth.detail.length > 0 && (
-                <div className="border-b border-line px-4 py-2 text-[11px] text-muted">
+                <div className="border-b border-line px-4 py-2 text-xs text-muted">
                   {providerHealth.detail}
                 </div>
               )}
@@ -201,7 +201,7 @@ export function ModelsScreen(): ReactNode {
         })}
       </div>
 
-      <p className="mt-4 text-[11px] text-subtle">
+      <p className="mt-4 text-xs text-subtle">
         {t('models.footerBefore')}{' '}
         <Link to="dashboard" className="text-accent hover:underline">
           {t('nav.dashboard')}
