@@ -11,42 +11,24 @@
 
 ---
 
-## Amaç
-
-Ürünün adı değişti. Repo'da önceki ad hiçbir yerde kalmaz; dört doğrulama
-kapısı sıfır uyarı verir.
-
-Bu iş **şimdi ucuzdur ve sonra imkânsıza yakındır**: hiçbir paket NuGet'e veya
-npm'e gitmedi, release tag yok, `PublicAPI.Shipped.txt` dosyalarının tamamı
-boş. Bu yüzden hiçbir tüketici, hiçbir migration yolu, hiçbir deprecation
-gerekmez.
-
-### Faz öncesi ölçüm (2026-09-12, taban `96e515db`)
-
-| Varyant | Dosya | Eşleşme |
-|---|---|---|
-| PascalCase (sevk edilen biçim) | 2.357 | 42.987 |
-| tümü küçük | 685 | 5.546 |
-| tümü büyük | 119 | 328 |
-| ikinci büyük harfi küçük yazılmış biçim | 3 | 4 |
-| **camelCase (küçük `a`, büyük `P`)** | 58 | 192 |
-
-Adı taşıyan yol: 2.120 (199 dosya adı). Yeni ad repo'da hiç geçmiyordu.
-
-### Uygulanan geçiş
-
-Sıra yük taşır. Host geçişi **önce** koşar:
-
-```
-1) <önceki-host>.doayen.web.tr  ->  tracon.dev
-2) PascalCase -> Tracon  ·  tümü küçük -> tracon  ·  tümü büyük -> TRACON
-3) ikinci-harf-küçük -> Tracon  ·  camelCase -> tracon
-```
-
-Uygulama: 2.392 dosyada içerik, 261 `git mv` (3 tur, en sığdan başlayarak).
-Script idempotenttir — ikinci koşum sıfır dosya değiştirir.
+> ### ⚗️ Damıtılmış kayıt
+> Bu dosya fazın **planını** değil, fazın bıraktığı **kalıcı bilgiyi**
+> taşır. Plan gövdesi, planlanan/gerçekleşen API, dosya listesi, risk ve
+> açık soru bölümleri kapanışta düştü — **silinmedi, git geçmişindedir.**
+>
+> Tam metin — kopyala, çalıştır:
+>
+> ```bash
+> git show 93be13fd:docs/arsiv/fazlar/162-TRACON-YENIDEN-ADLANDIRMA.md
+> ```
+>
+> Damıtıldı 2026-09-12 · `scripts/dokuman-bakim.py faz-damit`
 
 ---
+
+## Amaç
+
+Ürünün adı değişti. Repo'da önceki ad hiçbir yerde kalmaz; dört doğrulama kapısı sıfır uyarı verir. Bu iş **şimdi ucuzdur ve sonra imkânsıza yakındır**: hiçbir paket NuGet'e veya npm'e gitmedi, release tag yok, `PublicAPI.Shipped.txt` dosyalarının tamamı boş. Bu yüzden hiçbir tüketici, hiçbir migration yolu, hiçbir deprecation gerekmez.
 
 ## Plandan Sapmalar
 
