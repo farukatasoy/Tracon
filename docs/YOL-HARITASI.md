@@ -8,7 +8,7 @@
 Bir fazın durumu yanlış görünüyorsa **o fazın dokümanını** düzelt;
 bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 
-## Fazlar (164 kalem)
+## Fazlar (165 kalem)
 
 | Faz | Konu | Durum |
 |-----|------|-------|
@@ -176,5 +176,6 @@ bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 | [161](arsiv/fazlar/161-GPT-LIVE-SIDEBAND-DENETIMI.md) | GPT-Live Sideband Denetimi | ✅ Tamamlandı |
 | [162](arsiv/fazlar/162-TRACON-YENIDEN-ADLANDIRMA.md) | Tracon Yeniden Adlandırma | ✅ Tamamlandı |
 | [163](arsiv/fazlar/163-MARKA-VE-DOKUMANTASYON.md) | Marka ve Dokümantasyon Deneyimi | ✅ Tamamlandı |
+| [164](164-CONSOLE-ENSTRUMAN-KATMANI.md) | Console'un Enstrüman Katmanı | 📋 Planlandı |
 
 Seçilmemiş adaylar: [`ADAYLAR.md`](ADAYLAR.md). Fazların hangi dalgada, hangi gerekçeyle sıralandığı (Faz 8–56, kapandı): [`arsiv/IKINCI-FAZ-YOL-HARITASI.md`](arsiv/IKINCI-FAZ-YOL-HARITASI.md) · [`arsiv/UCUNCU-FAZ-YOL-HARITASI.md`](arsiv/UCUNCU-FAZ-YOL-HARITASI.md).
