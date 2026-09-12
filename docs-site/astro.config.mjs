@@ -48,19 +48,25 @@ export default defineConfig({
       theme: 'base',
       autoTheme: false,
       mermaidConfig: {
-        // `curve` and `look` are left at mermaid's own defaults ('basis' and
-        // 'classic'): measured against this palette, neither moved a pixel that
-        // mattered. Only the spacing knobs below did, so only they are set.
+        look: 'neo',
+        // `curve` is left at mermaid's own default ('basis'): measured against this
+        // palette, it did not move a pixel that mattered.
+        // A figure is scaled to the column rather than scrolled, so the knobs that
+        // do NOT scale with the text are the ones that cost legibility: node padding
+        // and rank spacing are fixed pixels, so every pixel they take is a pixel the
+        // text must give back when a wide diagram is fitted. Tightening them and
+        // matching the page's own type size lifts the smallest rendered text on the
+        // widest figure from 9.5 px to about 12 px.
         flowchart: {
-          padding: 20,
-          nodeSpacing: 55,
-          rankSpacing: 70,
+          padding: 12,
+          nodeSpacing: 40,
+          rankSpacing: 48,
         },
         themeVariables: {
           darkMode: false,
           fontFamily:
             "ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif",
-          fontSize: '15px',
+          fontSize: '17px',
           background: token('tracon-diagram-plate'),
           primaryColor: token('tracon-diagram-node'),
           primaryTextColor: token('tracon-diagram-ink'),
@@ -107,6 +113,13 @@ export default defineConfig({
         'The production control plane for Microsoft Agent Framework — recorded runs, ' +
         'tenant isolation, tamper-evident audit trail, embedded console.',
       head: [
+        // 🚨 Starlight's `favicon` emits the SVG link alone. A browser that does not
+        // take an SVG icon asks for /favicon.ico by name, and a 404 there leaves the
+        // tab showing whatever it cached before — the previous brand, for a reader who
+        // visited before the rename. Both files are built by build-package-icon.mjs
+        // from the same mark.
+        { tag: 'link', attrs: { rel: 'icon', href: '/favicon.ico', sizes: '48x48' } },
+        { tag: 'link', attrs: { rel: 'apple-touch-icon', href: '/apple-touch-icon.png' } },
         { tag: 'meta', attrs: { name: 'theme-color', content: token('tracon-surface') } },
         {
           tag: 'meta',
