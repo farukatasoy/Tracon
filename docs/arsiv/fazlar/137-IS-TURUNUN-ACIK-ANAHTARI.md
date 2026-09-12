@@ -4,7 +4,7 @@
 > **Kaynak:** Tüketici raporu AP-REQ-001 + yanıt dokümanı §1–§3 (ProdigyEnabler, 2026-09-03) · **F-183**
 > **Önkoşul:** [Faz 136](136-PAKET-KIMLIGININ-TEKILLIGI.md) — tüketici bu fazı yeni ve
 > benzersiz bir paket sürümü üzerinden ölçecek; kimlik kapısı önce girer
-> **Paketler:** `AgentPrism.Abstractions`, `.Core`, `.Sql.Shared`, `.PostgreSql`,
+> **Paketler:** `Tracon.Abstractions`, `.Core`, `.Sql.Shared`, `.PostgreSql`,
 > `.SqlServer`, `.Sqlite`, `.AspNetCore`, `.Client`, `.UI`, `.Testing.Contracts.Xunit`
 > **Yeni paket:** Yok · **Migration:** **Gerekli — üç sağlayıcı**, numara uygulama anında alınır
 > **Public API:** **Büyüyor ve kırıyor** — `JobKind` kalkar. `PublicAPI.Shipped.txt`
@@ -13,10 +13,10 @@
 > **Tüketici yüzeyi (gerçekleşen):** `docs-site/` — elle:
 > `guides/write-your-own-job-handler`, `guides/background-work`, `concepts/runs`,
 > `ui.md`, `capabilities.md`, `reference/configuration`, `getting-started/persistence`,
-> `guides/observability`; üretilen: `api/`, `http-api/`, `openapi/agentprism.json`,
-> `llms*.txt`, `AgentPrism.AgentMap.md`, 20 ekran görüntüsü · sevk edilen:
+> `guides/observability`; üretilen: `api/`, `http-api/`, `openapi/tracon.json`,
+> `llms*.txt`, `Tracon.AgentMap.md`, 20 ekran görüntüsü · sevk edilen:
 > `IJobHandler`/`IJobDispatcher`/`JobHandlerKeys` XML dokümanı,
-> `samples/AgentPrism.Samples.CustomJobHandler`
+> `samples/Tracon.Samples.CustomJobHandler`
 > *(planın tahmin ettiği sayfa adları — `concepts/jobs`, `guides/write-your-own-store` — bu repoda yok)*
 > **Manuel test alanı:** [`manuel-test/16-IS-KUYRUGU-VE-ZAMANLAMA.md`](../../manuel-test/16-IS-KUYRUGU-VE-ZAMANLAMA.md)
 
@@ -45,11 +45,11 @@
 
 | # | Plan ne diyordu | Ne yapıldı | Gerekçe |
 |---|---|---|---|
-| 1 | "Yeni uç **yok**." Zamanlanabilir anahtar listesi arayüze `AgentPrismMetaResponse` üzerinden gelecekti (§137.4) | `GET /api/schedules/handler-keys` eklendi (Admin + `PlatformRead`); meta yanıtı **değişmedi** | `/api/meta` `AllowAnonymous`'tur ve kendi XML dokümanı "no secret, tenant data, agent name, or count information" taşımadığını yazar. Tüketicinin `contoso.gece-raporu` gibi anahtar adları deployment ayrıntısıdır ve o sözleşmeyi bozarak anonim çağrıya sızardı. Kullanıcıya soruldu, Admin-korumalı uç seçildi (K-665) |
+| 1 | "Yeni uç **yok**." Zamanlanabilir anahtar listesi arayüze `TraconMetaResponse` üzerinden gelecekti (§137.4) | `GET /api/schedules/handler-keys` eklendi (Admin + `PlatformRead`); meta yanıtı **değişmedi** | `/api/meta` `AllowAnonymous`'tur ve kendi XML dokümanı "no secret, tenant data, agent name, or count information" taşımadığını yazar. Tüketicinin `contoso.gece-raporu` gibi anahtar adları deployment ayrıntısıdır ve o sözleşmeyi bozarak anonim çağrıya sızardı. Kullanıcıya soruldu, Admin-korumalı uç seçildi (K-665) |
 | 2 | SQLite'ta sütun düşürmek için tablo yeniden kurulacaktı (`0006_sessions_tenant_key.sql` emsali) | `ALTER TABLE ... DROP COLUMN` kullanıldı | Ölçüldü: `jobs` ve `job_schedules`'in ikisi de `PRAGMA foreign_keys = ON` altında çocuk taşır. FK açıkken `DROP TABLE` örtük `DELETE FROM` yapar ve `ON DELETE CASCADE`'i tetikler — `jobs`'u yeniden kurmak `job_items`'ın TÜM satırlarını silerdi. Kaçış (`PRAGMA foreign_keys = OFF`) işlem içinde no-op'tur ve `MigrationRunner` her migration'ı işlem içinde koşar. 0006'nın tablosunun çocuğu yoktu (K-666) |
 | 3 | Rezerve önek denetimi `JobHandlerRegistry` kurucusunda, host başlangıcında olacaktı | Rezerve önek ve biçim denetimi **`AddJobHandler` çağrısının kendisinde** atar; duplicate denetimi registry'de kalır | Argüman doğrulaması koleksiyona bakmaz, yani K-251'in "kurulum anındaki ön-kontrol yapma" kuralını ihlal etmez ve hatayı çağrı yerinde adlandırır. Duplicate ancak tüm kayıtlar toplandıktan sonra bilinebilir, o registry'de kaldı. İkisi de host'u açtırmaz (K-663) |
 | 4 | `JobHandlerContract` handler'ın kendi `Kind`'ını kullanıyordu | Sözleşmeye `protected virtual string HandlerKey` eklendi (varsayılan `"contract.handler"`) | Handler artık anahtarını bildirmiyor. Sözleşme handler'ı doğrudan çağırdığı için değer dispatch'e hiç ulaşmaz; override yalnız kaydın gerçekçi görünmesi içindir |
-| 5 | Metrik etiketi `agentprism.job.kind` idi | `agentprism.job.handler_key` oldu | Etiket adı sütunun ve alanın adını izler. 🚨 Fazın ilk hâli kardinalite riskini "yok" saymıştı — kayıtlı anahtar kümesi host başlangıcında sabitlenir, doğru. Ama **kayıtsız** anahtar yolu o kümenin dışındadır ve ham anahtarı etikete yazıyordu; bağımsız denetim bunu buldu (🟡 #5) ve o yol artık sabit `"unregistered"` etiketini yazar |
+| 5 | Metrik etiketi `tracon.job.kind` idi | `tracon.job.handler_key` oldu | Etiket adı sütunun ve alanın adını izler. 🚨 Fazın ilk hâli kardinalite riskini "yok" saymıştı — kayıtlı anahtar kümesi host başlangıcında sabitlenir, doğru. Ama **kayıtsız** anahtar yolu o kümenin dışındadır ve ham anahtarı etikete yazıyordu; bağımsız denetim bunu buldu (🟡 #5) ve o yol artık sabit `"unregistered"` etiketini yazar |
 
 ### Plan dışı düzeltilen kusurlar
 
@@ -77,45 +77,45 @@
 |---|---|
 | Örnek **gerçek bir worker'da** çalışır, paket seviyesinde kanıtlanır | ✅ `dotnet test` paketlenmiş `0.0.0-preview.0.540`'a karşı 10/10; `The_sample_handler_runs_a_queued_job_in_a_real_worker` → `Completed`, `doneItems=2` |
 | İki custom handler iki anahtarla doğru işi çalıştırır | ✅ `JobHandlerRegistry` tam ordinal eşleşme; `JobHandlerRegistryTests` (10 case) + sample |
-| Kayıt sırası tersine çevrilince sonuç değişmez | ✅ `Registration_order_does_not_change_the_outcome` (kayıt `AddAgentPrism()`'den önce) |
+| Kayıt sırası tersine çevrilince sonuç değişmez | ✅ `Registration_order_does_not_change_the_outcome` (kayıt `AddTracon()`'den önce) |
 | Duplicate anahtar host'u açtırmaz; hata anahtarı adlandırır | ✅ `Two_handlers_sharing_one_key_stop_the_host` — `InvalidOperationException`, mesaj anahtarı ve iki tipi içerir |
-| `agentprism.` öneki reddedilir | ✅ `A_consumer_cannot_register_inside_the_reserved_namespace` |
+| `tracon.` öneki reddedilir | ✅ `A_consumer_cannot_register_inside_the_reserved_namespace` |
 | Kayıtsız anahtar `Failed`; `ErrorMessage` ham anahtarı taşımaz | ✅ `A_job_whose_key_nobody_registered_fails_without_leaking_the_key` — kod var, anahtar yok |
 | Execution başına yeni instance; retry de yeni scope | ✅ `JobHandlerScopeTests` iki iş ve bir retry için farklı instance + farklı scoped bağımlılık ölçer (denetim 🔴 #2); `ServiceRegistrationSnapshotTests` dokuz handler'ın da `Scoped` olduğunu kilitler |
 | `JobContext` `IServiceProvider` taşımaz | ✅ Tip değişmedi; XML dokümanı gerekçeyi yazar |
 | Lane, `TargetName`, at-least-once değişmedi | ✅ Faz 120 ve 129 testleri (lane starvation, lane kapsamı, `JobHandlerContract`) yeşil |
 | Migration üç sağlayıcıda dokuzu doğru eşler; satır korunur | ✅ `JobHandlerKeyMigrationTests` **üç sağlayıcıda** eski şemaya satır yazıp migration'ı koşar ve dokuz eşlemenin dokuzunu + satır sayılarını doğrular (denetim 🔴 #3). SQLite'ta `job_items` kaybı da ölçülür |
 | `JobStoreContract` dört uygulamada aynı sonucu verir | ✅ Bellek + üç SQL sağlayıcı, 39/39. Üç yeni `handlerKey` süzgeç case'i dahil (denetim 🟡 #8) |
-| OpenAPI ve üretilen istemci `handlerKey` taşır; drift kapısı temiz | ✅ `docs/openapi/agentprism.json`, `AgentPrismApiClient.g.cs`, `packages/agentprism-client/src/schema.ts` tazelendi (K-627'nin dört adımı) |
+| OpenAPI ve üretilen istemci `handlerKey` taşır; drift kapısı temiz | ✅ `docs/openapi/tracon.json`, `TraconApiClient.g.cs`, `packages/tracon-client/src/schema.ts` tazelendi (K-627'nin dört adımı) |
 | Arayüz açılır listesi meta'dan gelir | ⚠️ **Sapma 1** — listeyi `GET /api/schedules/handler-keys` verir, meta değil. Davranış (dinamik liste) sağlandı; kaynak uç değişti |
 | `en.ts`/`tr.ts` eksiksiz; bundle payı gzip KB ölçüldü | ✅ Üç anahtar iki dilde; **+122 B gzip** |
 | `PUT /api/schedules/{name}` izinsiz anahtarı `400` ile reddeder | ✅ `SchedulableHandlerKeyTests` (9 case, denetim 🔴 #4) + gerçek koşum: `'contoso.nightly' cannot be scheduled over HTTP…` + `status=400` |
 | Dört doğrulama kapısı sıfır uyarı | ✅ `kapi.py kapanis` — aşağıdaki kapanış koşumunda |
-| `samples/AgentPrism.Api` ile gerçek `run` yapıldı | ✅ `agentprism.agent-batch` + `summarizer` → `Completed`, `doneItems=1`; süzgeç `?handlerKey=` doğru sonucu döndü; izinsiz anahtar `400` aldı (çıktılar Sapma tablosunun altında) |
+| `samples/Tracon.Api` ile gerçek `run` yapıldı | ✅ `tracon.agent-batch` + `summarizer` → `Completed`, `doneItems=1`; süzgeç `?handlerKey=` doğru sonucu döndü; izinsiz anahtar `400` aldı (çıktılar Sapma tablosunun altında) |
 | `secret` taraması boş | ✅ `kapi.py tarama` |
 | Manuel kabul case'leri eklendi | ✅ MT-JOB-122…131 (10 case) `docs/manuel-test/16-IS-KUYRUGU-VE-ZAMANLAMA.md` içine |
 | `faz-denetim` koşuldu; 🔴 bulgu kalmadı | ✅ Denetim Bulguları bölümü |
 | `docs-site/` güncellendi; `npm run check` temiz | ✅ Dört kapı yeşil; `check:links` 155 098 bağlantı, kırık yok |
 | `docs/kesif/…-tuketici-gap-yaniti.md` AP-REQ-001 dolduruldu | ⚠️ O dosya bu repoda **yok** (`ls docs/kesif/` → AP-REQ-001 yanıt dokümanı hiç oluşturulmadı). Fazın kendi "Plandan Sapmalar" ve "Gerçekleşen Public API" bölümleri tüketici yanıtı için gereken tüm bilgiyi taşır |
 
-### Gerçek koşum çıktıları (`samples/AgentPrism.Api`)
+### Gerçek koşum çıktıları (`samples/Tracon.Api`)
 
 ```
 GET /api/schedules/handler-keys
-["agentprism.agent-batch","agentprism.workflow","agentprism.eval",
- "agentprism.webhook-delivery","agentprism.retention","agentprism.agent-run",
- "agentprism.online-eval","agentprism.approval-resume","agentprism.run-continuation"]
+["tracon.agent-batch","tracon.workflow","tracon.eval",
+ "tracon.webhook-delivery","tracon.retention","tracon.agent-run",
+ "tracon.online-eval","tracon.approval-resume","tracon.run-continuation"]
 
 PUT /api/schedules/faz137-bad  {"handlerKey":"contoso.nightly", …}
 status=400  "'contoso.nightly' cannot be scheduled over HTTP. Add it to
-             AgentPrismSchedulingOptions.HttpSchedulableHandlerKeys to allow it."
+             TraconSchedulingOptions.HttpSchedulableHandlerKeys to allow it."
 
-PUT /api/schedules/faz137-ok   {"handlerKey":"agentprism.agent-batch","targetName":"summarizer", …}
+PUT /api/schedules/faz137-ok   {"handlerKey":"tracon.agent-batch","targetName":"summarizer", …}
 POST /api/schedules/faz137-ok/trigger  → job 01a0663d-…
-GET  /api/jobs?handlerKey=agentprism.agent-batch
-  {'handlerKey': 'agentprism.agent-batch', 'targetName': 'summarizer',
+GET  /api/jobs?handlerKey=tracon.agent-batch
+  {'handlerKey': 'tracon.agent-batch', 'targetName': 'summarizer',
    'status': 'Completed', 'doneItems': 1, 'failedItems': 0}
-GET  /api/jobs?handlerKey=agentprism.retention   → 0 satır (süzgeç gerçekten uygulanıyor)
+GET  /api/jobs?handlerKey=tracon.retention   → 0 satır (süzgeç gerçekten uygulanıyor)
 ```
 
 ## Denetim Bulguları
@@ -129,7 +129,7 @@ kapandı**; altı 🟡'nin altısı da kapandı.
 
 | # | Bulgu | Kapanış |
 |---|---|---|
-| 1 | **Aynı handler'ı iki kez kaydetmek host'u açtırmıyordu.** Kayıt `AddSingleton(new JobHandlerRegistration(...))` ile yazılıyor (`TryAdd` değil, K-251 gereği koleksiyona bakılamaz), yani `AddJobHandler<T>(key)`'i veya `AddAgentPrism()`'i iki kez çağırmak iki özdeş kayıt üretiyor ve registry **aynı tip için bile** çakışma atıyordu. `AddAgentPrism`'in kendi dokümanı `TryAdd` sözü veriyor. Bunu iddia eden test registry'yi hiç kurmuyordu — tiyatro | `JobHandlerRegistry.Create` artık **aynı tip + aynı anahtar** için no-op yapar; yalnız İKİ FARKLI tip çakışma sayılır. `JobHandlerRegistryTests` iki vakayı da kilitler (`AddAgentPrism()` iki kez → dokuz anahtar, hâlâ dokuz). **Mutasyonla kanıtlandı:** no-op dalı silinince iki test kırmızıya döndü |
+| 1 | **Aynı handler'ı iki kez kaydetmek host'u açtırmıyordu.** Kayıt `AddSingleton(new JobHandlerRegistration(...))` ile yazılıyor (`TryAdd` değil, K-251 gereği koleksiyona bakılamaz), yani `AddJobHandler<T>(key)`'i veya `AddTracon()`'i iki kez çağırmak iki özdeş kayıt üretiyor ve registry **aynı tip için bile** çakışma atıyordu. `AddTracon`'in kendi dokümanı `TryAdd` sözü veriyor. Bunu iddia eden test registry'yi hiç kurmuyordu — tiyatro | `JobHandlerRegistry.Create` artık **aynı tip + aynı anahtar** için no-op yapar; yalnız İKİ FARKLI tip çakışma sayılır. `JobHandlerRegistryTests` iki vakayı da kilitler (`AddTracon()` iki kez → dokuz anahtar, hâlâ dokuz). **Mutasyonla kanıtlandı:** no-op dalı silinince iki test kırmızıya döndü |
 | 2 | **Execution başına scope kanıtsızdı.** Planın `JobHandlerScopeTests`'i yazılmamıştı ve `TestJobHandlerHost.For(...)` handler'ı **instance** olarak kaydettiği için farkı ölçmesi yapısal olarak imkânsızdı; `ForType`/`With` yardımcıları ölü koddu | `JobHandlerScopeTests` (3 case) handler'ı **tip** olarak kaydeder ve iki iş + bir retry için farklı instance ve farklı scoped bağımlılık ölçer. **Mutasyonla kanıtlandı:** scope tek sefer açılacak biçimde değiştirilince iki test kırmızıya döndü |
 | 3 | **Migration eşlemesi kanıtsızdı.** Üç `.sql` dosyasında dokuz satırlık `CASE` tablosu vardı ama hiçbir test veriye bakmıyordu; 7↔8 kayması (K-583'ün ayrı tuttuğu iki işlem) hiçbir kapıya takılmazdı | `JobHandlerKeyMigrationTests` **üç sağlayıcıda** ayrı ayrı: eski şemaya kadar migration'lar uygulanır, dokuz `kind` değeri için satır yazılır, sonra faz migration'ı koşar ve dokuz eşlemenin dokuzu ile satır sayıları doğrulanır. SQLite testi ayrıca `job_items`'ın **kaybolmadığını** ölçer (K-666'nın cascade tehlikesi). **Mutasyonla kanıtlandı:** PostgreSQL eşlemesinde 7↔8 çevrilince test kırmızıya döndü |
 | 4 | **HTTP izin listesi kanıtsızdı — ve bu bir güvenlik sınırı.** `IsSchedulableOverHttp` gövdesi `return true` yapılsa test seti yeşil kalıyordu | `SchedulableHandlerKeyTests` (9 case): izinsiz anahtar `400` + zamanlama oluşmaz, yerleşik varsayılan kabul edilir, izin listesine eklenen tüketici anahtarı kabul edilir, dolu liste yerleşikleri **kapatır**, liste ucu **Admin** ister ve `PUT`'un kabul ettiğiyle **aynı** kümeyi döner, duplicate anahtar host'u açtırmaz. **Mutasyonla kanıtlandı:** guard her zaman `true` dönecek biçimde değiştirilince iki test kırmızıya döndü |
@@ -138,7 +138,7 @@ kapandı**; altı 🟡'nin altısı da kapandı.
 
 | # | Bulgu | Kapanış |
 |---|---|---|
-| 5 | Kayıtsız anahtar yolunda `agentprism.job.handler_key` etiketi **ham anahtarı** yazıyordu — sınırsız kardinalite, `lane`'in `MaxJobLaneCardinality` tavanının karşılığı yok | O yolda etiket sabit `"unregistered"`. Kayıtlı anahtar kümesi host başlangıcında sabitlendiği için diğer yolların tavana ihtiyacı yok; gerekçe kodda yazılı |
+| 5 | Kayıtsız anahtar yolunda `tracon.job.handler_key` etiketi **ham anahtarı** yazıyordu — sınırsız kardinalite, `lane`'in `MaxJobLaneCardinality` tavanının karşılığı yok | O yolda etiket sabit `"unregistered"`. Kayıtlı anahtar kümesi host başlangıcında sabitlendiği için diğer yolların tavana ihtiyacı yok; gerekçe kodda yazılı |
 | 6 | `HttpSchedulableHandlerKeys` yerleşikleri **değiştiriyor**, doküman eklemeli okutuyordu — operatör tek anahtar eklerken dokuz yerleşiği sessizce kapatabilirdi | Kullanıcı kararı: **değiştirme anlamı korundu** (bir izin listesi yüzeyi daraltabilmelidir). XML dokümanı, `write-your-own-job-handler`, `background-work` ve `reference/configuration` bunu açıkça yazar ve "yerleşikleri de koru" reçetesini gösterir. `A_non_empty_list_REPLACES_the_built_in_default` davranışı kilitler |
 | 7 | **Handler kurucusu çözülemezse iş sonsuza kadar yeniden lease ediliyordu.** Çözüm host başlangıcından execution'a taşınmıştı; `GetRequiredService` atarsa istisna `MarkRunningAsync`'ten önce kaçıyor, dış `catch` onu Warning olarak yutuyor ve attempt sınırı hiç uygulanmıyordu | Çözüm çağrısı `try/catch` içine alındı; iş yeni kararlı `JobErrorCodes.HandlerActivationFailed` koduyla `Failed` kapanır (yapılandırma hatası, retry düzeltemez). `JobHandlerScopeTests` bunu bağımlılığı kayıtsız bırakarak ölçer |
 | 8 | `JobQuery.HandlerKey = ""` bellek ve SQL depolarında **farklı** sonuç veriyordu; sözleşme `HandlerKey`'i hiç denemiyordu | Bellek içi süzgeç `Lane`/`TenantId` ile aynı (`is { }`) hâle getirildi. `JobStoreContract`'a üç case eklendi (anahtarla süzme · eşleşmeyen anahtar · boş dizge ile `null` ayrımı) ve **dört uygulamada** da yeşil |
@@ -181,10 +181,10 @@ sütununa sığıyor.
 - **`HttpSchedulableHandlerKeys` bir dizgedir, kayıt değildir.** Listeye kayıtlı
   OLMAYAN bir anahtar yazılabilir; zamanlama oluşur ve işi worker'da
   `UnknownHandlerKey` ile düşer. Kayıt kontrolünü de HTTP'ye taşımak
-  `JobHandlerRegistry`'yi `AgentPrism.AspNetCore`'a açmayı gerektirir
+  `JobHandlerRegistry`'yi `Tracon.AspNetCore`'a açmayı gerektirir
   (`InternalsVisibleTo` zaten var) — yapılmadı çünkü izin listesi bir GÜVENLİK
   kapısıdır, bir varlık kapısı değil; ikisini birleştirmek yanlış hatayı verir.
-- **Ölçüm için:** `AgentPrismSchedulingOptions.LaneByHandlerKey` artık dizge
+- **Ölçüm için:** `TraconSchedulingOptions.LaneByHandlerKey` artık dizge
   anahtarlıdır ve doğrulayıcı anahtarın biçimini de denetler. `LaneByKind`
   kullanan bir tüketici yapılandırması **derlenmez** — bu bilinçlidir ve upgrade
   adımı olarak tüketici yanıtına yazılmalıdır.

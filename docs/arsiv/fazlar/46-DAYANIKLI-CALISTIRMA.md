@@ -3,7 +3,7 @@
 > **Durum:** ✅ Tamamlandı (2026-08-07)
 > **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-68** (F-39 bu kalemin içinde yaşar)
 > **Önkoşul:** [Faz 43](43-IDEMPOTENCY-KEY.md) — yan etkili tool'un iki kez koşmasına karşı tek savunma. Faz 17'nin iş kuyruğu **hazır**
-> **Paketler:** `AgentPrism.Abstractions`, `.Core`, `.AspNetCore`, `.UI`
+> **Paketler:** `Tracon.Abstractions`, `.Core`, `.AspNetCore`, `.UI`
 > **Yeni paket:** Yok · **Migration:** **Yok** — yeni tablo yoktur, `JobKind` ve `RunStatus` yalnız **sona** değer ekler
 > **Public API:** büyüyor — bir `JobKind` üyesi, bir `RunStatus` üyesi, bir ayar sınıfı, bir yanıt sözleşmesi. Faz 7'den önce ucuz
 
@@ -50,7 +50,7 @@ Bugün bir çalıştırma HTTP isteğinin ömrüne bağlıdır. İstemci bağlan
 - [x] Kota dolu iken kuyruğa alma `429` alır ve iş açılmaz
 - [x] `Queued` durumdaki çalıştırma iptal edilebilir
 - [x] Dört doğrulama kapısı sıfır uyarı verir
-- [x] `samples/AgentPrism.Api` ile gerçek `run` yapıldı (gerçek OpenAI çağrısı,
+- [x] `samples/Tracon.Api` ile gerçek `run` yapıldı (gerçek OpenAI çağrısı,
       `support` agent'ı — örnek uygulamada `asistan` adında bir agent yok),
       çıktı bu belgeye yazıldı
 - [x] `secret` taraması boş döndü
@@ -60,13 +60,13 @@ Bugün bir çalıştırma HTTP isteğinin ömrüne bağlıdır. İstemci bağlan
 
 ### Doğrulama komutları (gerçek çalıştırma, 2026-08-07)
 
-`samples/AgentPrism.Api` gerçek bir OpenAI anahtarıyla (`user-secrets`) çalıştırıldı.
+`samples/Tracon.Api` gerçek bir OpenAI anahtarıyla (`user-secrets`) çalıştırıldı.
 Örnekte `asistan` adında bir agent yok; `support` kullanıldı.
 
 ```bash
 # 1) Kuyruga al
 RESP=$(curl -s -D - -o /tmp/accepted-body.json -X POST \
-  http://localhost:5081/agentprism/api/agents/support/run \
+  http://localhost:5081/tracon/api/agents/support/run \
   -H "content-type: application/json" \
   -H "Prefer: respond-async" \
   -d '{"message":"ORD-2 siparişim nerede?"}')
@@ -74,7 +74,7 @@ echo "$RESP" | grep -i "^HTTP/\|^location:\|^preference-applied:"
 ```
 ```
 HTTP/1.1 202 Accepted
-Location: /agentprism/api/runs/019fdbc2-cad4-78cf-8292-f5b2a09c36d0
+Location: /tracon/api/runs/019fdbc2-cad4-78cf-8292-f5b2a09c36d0
 Preference-Applied: respond-async
 ```
 Gövde: `{"runId":"019fdbc2-cad4-78cf-8292-f5b2a09c36d0","jobId":"019fdbc2-cad4-78cf-8292-f5b2a09c36d0", ...}`
@@ -82,7 +82,7 @@ Gövde: `{"runId":"019fdbc2-cad4-78cf-8292-f5b2a09c36d0","jobId":"019fdbc2-cad4-
 
 ```bash
 # 2) HEMEN sorgula — Queued gelmeli, 404 GELMEMELI
-curl -s "http://localhost:5081/agentprism/api/runs/$RUN_ID" | python3 -c "import json,sys;print(json.load(sys.stdin)['status'])"
+curl -s "http://localhost:5081/tracon/api/runs/$RUN_ID" | python3 -c "import json,sys;print(json.load(sys.stdin)['status'])"
 ```
 ```
 Queued
@@ -94,7 +94,7 @@ Completed
 
 ```bash
 # 3) Olay akisina bagla — baslangic olaylari da gelmeli (K-014 replay)
-curl -sN "http://localhost:5081/agentprism/api/runs/$RUN_ID/events"
+curl -sN "http://localhost:5081/tracon/api/runs/$RUN_ID/events"
 ```
 ```
 id: 0
@@ -118,7 +118,7 @@ event: run.completed
 RESP=$(curl -s -D - -o /tmp/accepted3.json -X POST .../agents/support/run \
   -H "Prefer: respond-async" -d '{"message":"ORD-3 siparişim nerede?"}')
 RUN_ID=$(python3 -c "import json;print(json.load(open('/tmp/accepted3.json'))['runId'])")
-curl -s -D - -X POST "http://localhost:5081/agentprism/api/runs/$RUN_ID/cancel"
+curl -s -D - -X POST "http://localhost:5081/tracon/api/runs/$RUN_ID/cancel"
 ```
 ```
 HTTP/1.1 202 Accepted
@@ -160,10 +160,10 @@ plandan sapıldı:
    zaten bir sözlük ataması olduğu için doğal olarak upsert davranışı
    gösteriyordu; yalnız olay/araç-çağrısı günlüklerinin ikinci çağrıda
    sıfırlanmaması için küçük bir `isNew` denetimi eklendi.
-2. **`AgentPrismAsyncRunOptions` plandaki `AgentPrism.AspNetCore/` yerine
-   `AgentPrism.Core/Scheduling/`de yaşıyor.** Ölçüldü: `AgentPrismIdempotencyOptions`,
-   `AgentPrismRateLimitOptions`, `AgentPrismQuotaOptions` gibi tüm benzer
-   ayar sınıfları Core'da yaşar ve `AgentPrismServiceCollectionExtensions.AddAgentPrism`
+2. **`TraconAsyncRunOptions` plandaki `Tracon.AspNetCore/` yerine
+   `Tracon.Core/Scheduling/`de yaşıyor.** Ölçüldü: `TraconIdempotencyOptions`,
+   `TraconRateLimitOptions`, `TraconQuotaOptions` gibi tüm benzer
+   ayar sınıfları Core'da yaşar ve `TraconServiceCollectionExtensions.AddTracon`
    içinde merkezi olarak bağlanır (`BindAsyncRun`, aynı `BindIdempotency`
    deseni). Plan bu yerleşik kuralı bilmiyordu.
 3. **`AgentRunJobPayload` public record'u yazılmadı; yük ham `JsonElement`
@@ -182,8 +182,8 @@ plandan sapıldı:
 5. **Ekler (`AttachmentIds`) ve onay kararları (`Approvals`) kuyruğa alınan
    çalıştırmalarda desteklenmiyor; istek `400` alır.** Gerekçe: ek referansı
    `UriContent` için bir HTTP yol öneki (`prefix`) gerektirir ve bu değer
-   yalnızca `MapAgentPrism(prefix, ...)` çağrısı anında bilinir — DI kayıt
-   anında (`AddAgentPrism()`) değil. `AgentRunJobHandler` bir singleton
+   yalnızca `MapTracon(prefix, ...)` çağrısı anında bilinir — DI kayıt
+   anında (`AddTracon()`) değil. `AgentRunJobHandler` bir singleton
    `IJobHandler`dır ve kayıt anında `prefix`'i alamaz. Onay kararları da
    canlı bir istemci bağlantısı varsayar. İkisi de gelecekte ayrı bir aday
    kalemi olabilir; bu fazda kapsam dışı bırakıldı.
@@ -232,9 +232,9 @@ plandan sapıldı:
   Açık Soru önerisi kabul edildi)*. Gerekçe: "dayanıklı" kelimesi "iş asla
   kaybolmaz" değil "iş sessizce kaybolmaz" demektir; sessizce iki kez koşan
   bir tool hiç koşmayandan kötüdür. Yükseltmek tüketicinin bilinçli tercihidir.
-- **K-307 — `AgentPrismAsyncRunOptions.Enabled` varsayılanı `true`'dur**
+- **K-307 — `TraconAsyncRunOptions.Enabled` varsayılanı `true`'dur**
   *(kullanıcı kararı, Açık Soru 1 önerisi kabul edildi)*. Faz 43'ün
-  `AgentPrismIdempotencyOptions.Enabled` kararıyla aynı K1 okuması: başlık
+  `TraconIdempotencyOptions.Enabled` kararıyla aynı K1 okuması: başlık
   taşımayan bir istek için hiçbir şey değişmez, kapalı gelseydi başlığı
   gönderen bir istemci korunduğunu sanıp korunmazdı.
 
@@ -253,7 +253,7 @@ plandan sapıldı:
    noktası eklendiğinde değişmez. Ölçülen gerçek: MAF kancayı yalnız
    `Microsoft.Agents.AI.Workflows` içinde veriyor
    (`ICheckpointStore<T>`, `CheckpointInfo`, `CheckpointableRunBase`).
-   AgentPrism'in `workflow_checkpoints` tablosu (`parent_id` dahil) taklit
+   Tracon'in `workflow_checkpoints` tablosu (`parent_id` dahil) taklit
    edilecek desendir.
 3. **F-69 (asenkron onay kutusu) bu fazdan sonra doğaldır** — ve bu faz onu
    somutlaştırdı: kuyruğa alınan çalıştırmalarda `Approvals` **bilerek** `400`
@@ -261,10 +261,10 @@ plandan sapıldı:
    çalıştırma onay isterse bugün kimse cevap veremez.
 4. **Ekler de aynı nedenle kuyruğa alınan çalıştırmalarda desteklenmiyor**
    (Plandan Sapmalar madde 5) — `AttachmentUriReference` bir HTTP yol
-   önekine ihtiyaç duyar ve bu değer yalnız `MapAgentPrism` çağrısı anında
+   önekine ihtiyaç duyar ve bu değer yalnız `MapTracon` çağrısı anında
    bilinir, `AgentRunJobHandler`'ın DI kayıt anında değil. Aday listesine
    eklenmesi gereken yeni bir kalem: "kuyruğa alınan çalıştırmalarda ek
-   desteği" — prefix'i job payload'ına gömmek veya `IOptions<AgentPrismEndpointOptions>`
+   desteği" — prefix'i job payload'ına gömmek veya `IOptions<TraconEndpointOptions>`
    benzeri bir mekanizmayla işçiye ulaştırmak gerekir.
 5. **OpenAI uyumlu uçların asenkron sözleşmesi** yeni bir aday kalemidir
    (`background: true` + `response.id`); bu fazın başlığı oraya taşınmadı.

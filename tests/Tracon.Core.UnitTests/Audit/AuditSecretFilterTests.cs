@@ -1,0 +1,126 @@
+namespace Tracon.Core.UnitTests.Audit;
+
+/// <summary>Behavior tests for the audit trail secret filter.</summary>
+public sealed class AuditSecretFilterTests
+{
+    [Theory]
+    [InlineData("apiKey")]
+    [InlineData("ApiKey")]
+    [InlineData("authorization")]
+    [InlineData("Authorization")]
+    [InlineData("token")]
+    [InlineData("access_token")]
+    [InlineData("password")]
+    [InlineData("secret")]
+    [InlineData("clientSecret")]
+    public void Secret_key_is_redacted(string keyName)
+    {
+        var json = $$"""{"name":"github","{{keyName}}":"very-secret-value"}""";
+
+        var redacted = AuditSecretFilter.Redact(json)!;
+
+        redacted.ShouldContain("\"***\"");
+        redacted.ShouldNotContain("very-secret-value");
+        redacted.ShouldContain("\"name\":\"github\"");
+    }
+
+    [Fact]
+    public void Nested_objects_and_arrays_are_also_redacted()
+    {
+        const string Json = """
+            {"name":"support","auth":{"headers":{"Authorization":"Bearer x"}},"items":[{"password":"p1"},{"password":"p2"}]}
+            """;
+
+        var redacted = AuditSecretFilter.Redact(Json)!;
+
+        redacted.ShouldNotContain("Bearer x");
+        redacted.ShouldNotContain("\"p1\"");
+        redacted.ShouldNotContain("\"p2\"");
+    }
+
+    [Theory]
+    [InlineData("maxOutputTokens")]
+    [InlineData("maxContextWindowTokens")]
+    [InlineData("totalTokens")]
+    [InlineData("inputTokens")]
+    [InlineData("outputTokens")]
+    public void Plural_token_fields_are_not_treated_as_secrets(string keyName)
+    {
+        // Measured: in the /tracon sample app, a real agent.create record had
+        // its "maxOutputTokens" field redacted with "***". "token" on its own is
+        // a credential; its plural (Tokens) is a count.
+        var json = $$"""{"name":"support","{{keyName}}":512}""";
+
+        var redacted = AuditSecretFilter.Redact(json)!;
+
+        redacted.ShouldNotContain("\"***\"");
+        redacted.ShouldContain("512");
+    }
+
+    [Fact]
+    public void Payload_without_secrets_returns_unchanged()
+    {
+        const string Json = """{"name":"support","version":3}""";
+
+        var redacted = AuditSecretFilter.Redact(Json);
+
+        redacted.ShouldNotBeNull();
+        redacted.ShouldContain("\"name\":\"support\"");
+        redacted.ShouldContain("\"version\":3");
+    }
+
+    [Fact]
+    public void Null_is_returned_as_is()
+    {
+        AuditSecretFilter.Redact(null).ShouldBeNull();
+    }
+
+    [Fact]
+    public void Invalid_json_is_returned_as_is()
+    {
+        // For text that may be manually formatted and not valid JSON, such as
+        // run_events.payload, the filter silently leaves it unchanged.
+        const string NotJson = "orderId=ORD-1";
+
+        AuditSecretFilter.Redact(NotJson).ShouldBe(NotJson);
+    }
+
+    /// <summary>
+    /// 🚨 Separator spellings used to escape redaction. The fragment list is
+    /// written without separators ("apikey"), and matching was a plain substring
+    /// test, so "apiKey" was caught while "x-api-key", "xi-api-key" and "api_key"
+    /// were not. All three are real spellings in this code base and in the
+    /// free-form surfaces a caller controls: MCP server headers, agent metadata
+    /// and skill script arguments.
+    /// </summary>
+    [Theory]
+    [InlineData("x-api-key")]
+    [InlineData("X-Api-Key")]
+    [InlineData("xi-api-key")]
+    [InlineData("api_key")]
+    [InlineData("API.KEY")]
+    [InlineData("client_secret")]
+    [InlineData("refresh-token")]
+    public void Separated_secret_names_are_redacted(string propertyName)
+    {
+        var json = $$"""{"{{propertyName}}":"sk-live-secret"}""";
+
+        AuditSecretFilter.Redact(json).ShouldNotBeNull().ShouldNotContain("sk-live-secret");
+    }
+
+    /// <summary>
+    /// The other half of the contract: stripping separators must not start
+    /// redacting counters. K-081 recorded that a plural "tokens" is a count, and
+    /// blanket-redacting it emptied real agent records.
+    /// </summary>
+    [Theory]
+    [InlineData("max_output_tokens")]
+    [InlineData("max-context-window-tokens")]
+    [InlineData("totalTokens")]
+    public void Separated_token_counts_are_kept(string propertyName)
+    {
+        var json = $$"""{"{{propertyName}}":4096}""";
+
+        AuditSecretFilter.Redact(json).ShouldNotBeNull().ShouldContain("4096");
+    }
+}

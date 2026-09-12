@@ -1,8 +1,8 @@
-# AgentPrism — Tur 4 talep yanıtı
+# Tracon — Tur 4 talep yanıtı
 
 **Kime:** ProdigyEnabler Backend ekibi
 **Tarih:** 2026-09-06 (güncellendi — ilk sürüm aynı gün, `fc2f9d8d`)
-**Yanıtlanan belgeler:** `agentprism-feature-talepleri-2026-09-05.md` (A1 · A2 · F1–F8), `agentprism-uygulanabilirlik-raporu-2026-09-05.md` ve §8'e verdiğiniz yanıt
+**Yanıtlanan belgeler:** `tracon-feature-talepleri-2026-09-05.md` (A1 · A2 · F1–F8), `tracon-uygulanabilirlik-raporu-2026-09-05.md` ve §8'e verdiğiniz yanıt
 **İncelediğiniz sürüm:** `0.0.0-preview.0.589` · source commit `234d4081`
 **Bu yanıtın kaynağı:** commit `7b1e101a` = **`0.0.0-preview.0.622`** — pin'iniz doğrulandı, [§0.1](#01-pininiz-doğrulandı)
 **Kapsanan:** Faz **145 · 146 · 147 · 148 · 149 · 150** + beş kusur
@@ -22,7 +22,7 @@
 > - **F-197 kapandı** ve yanında sevk edilmiş bir davranış değişikliği getirdi
 >   (K-702) — [§8](#8-kusur-turu--beş-kusur-kapandı).
 > - 🚨 Sevk edilmiş bir dokümantasyon iddiamız yanlış çıktı ve düzeltildi:
->   `AddAgentPrism`'den **sonra** yapılan `Add*` kaydı kazanır
+>   `AddTracon`'den **sonra** yapılan `Add*` kaydı kazanır
 >   ([§7'deki uyarı](#-di-kayıt-sırası--sevk-edilmiş-bir-iddiamız-yanlıştı)).
 
 ---
@@ -40,7 +40,7 @@ tahminle değil, diskteki `.nupkg`'nin XML'ini açarak ölçtük:
 | `RefuseUnownedSessions` | **149** | ✅ |
 | `RequireCustomBinding` | **150** | ✅ |
 | `MapOpenAIConversations` | **149** | ✅ |
-| OpenAPI: SSE bildiren operation | 145 | **7** · `AgentPrismStreamRunEvents` dahil |
+| OpenAPI: SSE bildiren operation | 145 | **7** · `TraconStreamRunEvents` dahil |
 | OpenAPI: path / operation | — | 126 / 163 |
 
 `0.0.0-preview.0.622` = commit `7b1e101a`. Sürüm MinVer ile commit
@@ -80,7 +80,7 @@ sınırı) · [§7'deki DI uyarısı](#-di-kayıt-sırası--sevk-edilmiş-bir-id
 ### İddialarınızın doğruluğu
 
 On dört iddianızı koda karşı ölçtük. **On üçü doğru çıktı.** Yanlış olan tek
-iddia bir risk satırındaydı: `T:AgentPrism.MigrationDescriptor` public bir tip
+iddia bir risk satırındaydı: `T:Tracon.MigrationDescriptor` public bir tip
 değil, `internal sealed record` — R13'ün "hash'ler görünür" öncülü yanlıştı.
 F7'yi kendiniz geri çekerken bunu zaten doğruladınız.
 
@@ -102,7 +102,7 @@ Metodun kendi yorumu adları *"a **stable** contract"* ilan ediyordu.
 
 MIME yarısı için de haklıydınız. Nedenini kendi karar defterimizde bulduk
 (K-273, Faz 40): `.Produces(200, contentType: …)` `responseType` verilmeden
-yazılırsa ASP.NET Core içerik tipini **sessizce düşürür**. `AgentPrismStreamRunEvents`
+yazılırsa ASP.NET Core içerik tipini **sessizce düşürür**. `TraconStreamRunEvents`
 o çağrıyı hiç almamıştı.
 
 ### Sevk edilen
@@ -134,7 +134,7 @@ Alternatifi (çerçeve adının `CustomType`'ın kendisi olması) reddedildi: o
 tasarım çerçeve ad uzayını tüketiciye açar ve çekirdek adlarla çakışabilir.
 `addEventListener('custom')` dinleyip gövdedeki `customType` ile ayırın.
 
-**OpenAPI:** `AgentPrismStreamRunEvents` artık `text/event-stream` bildiriyor.
+**OpenAPI:** `TraconStreamRunEvents` artık `text/event-stream` bildiriyor.
 SSE bildiren işlem sayısı **6 → 7**.
 
 **Kapı:** `RunEventFrameNameContractTests` dört iddia taşıyor — her üyenin adı
@@ -146,7 +146,7 @@ var, hiçbiri `unknown` değil, sunucu adı arayüz etiketiyle aynı, sevk edilm
 - `unknown` çerçevesi artık gelmiyor. Parser'ınızdaki `unknown` dalını
   koruyun ama onu bir **hata** olarak işaretleyin — geldiyse sürüm uyumsuzluğu
   vardır.
-- `@agentprism/client`'ın `schema.ts`'i yeniden üretildi; `AgentPrismStreamRunEvents`
+- `@tracon/client`'ın `schema.ts`'i yeniden üretildi; `TraconStreamRunEvents`
   artık `text/event-stream` taşıyor. Orval dışlama listenizde bu operasyonu
   **adıyla** dışlamaya devam edin — MIME düzeldi ama transport lifecycle'ı
   hâlâ elle yazılıyor.
@@ -166,7 +166,7 @@ yanlıştı, `RunEventType`'ta kota yoktu ve eşik hafızası süreç içiydi.
 ### Sevk edilen API
 
 ```csharp
-// AgentPrism.Abstractions
+// Tracon.Abstractions
 public sealed record QuotaThresholdCrossing
 {
     public required string NoticeId { get; init; }
@@ -193,11 +193,11 @@ ValueTask<bool> TryClaimThresholdNotificationAsync(
 ValueTask<IReadOnlyList<QuotaThresholdCrossing>> RecordAsync(...);
 
 // Anahtar — varsayılan KAPALI:
-//   AgentPrismQuotaOptions.PublishThresholdToRunStream  (bool, false)
-//   yapılandırma: AgentPrism:Quota:PublishThresholdToRunStream
+//   TraconQuotaOptions.PublishThresholdToRunStream  (bool, false)
+//   yapılandırma: Tracon:Quota:PublishThresholdToRunStream
 
 // Rezerve CustomType sabiti:
-RunEventCustomTypes.QuotaThreshold  // "agentprism.quota.threshold"
+RunEventCustomTypes.QuotaThreshold  // "tracon.quota.threshold"
 ```
 
 ### Sıra — istediğiniz gibi
@@ -220,14 +220,14 @@ harcandığından bunu doğru davranış sayıyoruz.
 event: custom
 id: 41
 data: {"type":"Custom",
-       "customType":"agentprism.quota.threshold",
+       "customType":"tracon.quota.threshold",
        "payload":{"noticeId":"…","tenantId":"…","userId":"…","runId":"…",
                   "sessionId":"…","metric":"Tokens","period":"Monthly",
                   "thresholdPercent":80,"limit":1000000,"used":812340,
                   "resetsAt":"2026-10-01T00:00:00+00:00"}}
 ```
 
-`agentprism.` öneki **rezerve**dir — `RunEventWriter.AppendAsync` bu önekle
+`tracon.` öneki **rezerve**dir — `RunEventWriter.AppendAsync` bu önekle
 yazılan tüketici olaylarını reddeder. Bu notice'ı yalnız kütüphane üretebilir.
 
 **Korelasyon yoksa uydurulmaz.** `UserId` çözülemezse notice yine o `run`'ın
@@ -243,7 +243,7 @@ olay doğrudan POST akışına yansımıyordu.** O akış yalnız MAF'ın kendi
 `AgentResponseUpdate`'lerini `update` çerçevesi olarak iletiyor.
 
 Çözüm: `AgentEndpoints`, akış bittikten sonra ve `done` yazılmadan önce kalıcı
-kaydı **ikinci kez okur** ve yalnız `agentprism.quota.threshold` olaylarını
+kaydı **ikinci kez okur** ve yalnız `tracon.quota.threshold` olaylarını
 `event: custom` olarak yansıtır. İki yol aynı payload'ı **inşa etmez, aynı
 kaydı okur**.
 
@@ -268,7 +268,7 @@ eşik dönem sonuna kadar kaybolur. Retry/backoff ayrı bir kalem.
 
 ### Entegrasyonunuz için
 
-- `AgentPrism:Quota:PublishThresholdToRunStream=true` yazın. Varsayılan kapalı.
+- `Tracon:Quota:PublishThresholdToRunStream=true` yazın. Varsayılan kapalı.
 - FE `noticeId` ile dedup yapsın. Yeniden bağlanma aynı notice'ı tekrar okur.
 - `IChatClient.QuotaWarning` karşılığı budur. `QuotaError` hâlâ ayrı: `run`
   başlatma `429`'u ve `AgentRunBudget` terminal sonucu.
@@ -392,12 +392,12 @@ olmayan oturum reddedilmez**, ilk tur onu açar.
 public sealed record SessionRecord { /* … */ public string? OwnerId { get; init; } }
 public sealed record SessionQuery  { /* … */ public string? OwnerId { get; init; } }
 
-public sealed class AgentPrismSessionOwnershipOptions
+public sealed class TraconSessionOwnershipOptions
 {
-    public const string SectionName = "AgentPrism:SessionOwnership";
+    public const string SectionName = "Tracon:SessionOwnership";
     public bool Enabled { get; set; }                       // varsayılan KAPALI
     public bool RequireAuthenticatedOwner { get; set; } = true;
-    public string? ManagementPolicy { get; set; } = "AgentPrism.Operator";
+    public string? ManagementPolicy { get; set; } = "Tracon.Operator";
     public bool RefuseUnownedSessions { get; set; }         // Faz 149, varsayılan KAPALI
 }
 ```
@@ -445,7 +445,7 @@ görünmüyordu ama tekil erişimde reddedilmiyordu (K-693). Siz bunu reddettini
 
 ```jsonc
 // varsayılan KAPALI — mevcut kurulumlar korunur, istediğiniz gibi
-"AgentPrism": { "SessionOwnership": {
+"Tracon": { "SessionOwnership": {
     "Enabled": true,
     "RefuseUnownedSessions": true
 }}
@@ -470,7 +470,7 @@ sahiplikten **önce** yazıldığını öğrenmesini sağlardı. `errorType` tek
 ### 4.2 `/v1/conversations` kapatıldı ve kapıya bağlandı
 
 Planlama ölçümü size bildirdiğimiz boşluğu doğruladı: `/v1/conversations`
-(dört uç, `MapAgentPrism` tarafından koşulsuz map'leniyordu) sahiplik
+(dört uç, `MapTracon` tarafından koşulsuz map'leniyordu) sahiplik
 kapısından geçiyordu ama **sizin handler'ınızdan geçmiyordu**.
 
 | Uç | Sevk edilen |
@@ -483,7 +483,7 @@ kapısından geçiyordu ama **sizin handler'ınızdan geçmiyordu**.
 Ayrıca yüzeyi hiç istemiyorsanız kapatabilirsiniz:
 
 ```csharp
-app.MapAgentPrism(options => options.MapOpenAIConversations = false);
+app.MapTracon(options => options.MapOpenAIConversations = false);
 ```
 
 Varsayılan `true` — sevk edilmiş bir yüzey sessizce geri çekilmez. Bayrak
@@ -500,12 +500,12 @@ güvenlidir (fail-closed).
 
 ### 5.1 Sahiplik ve yetki iki ayrı kapıdır
 
-AgentPrism iki kapı çalıştırır ve **ikisi de sorulur; biri reddederse istek
+Tracon iki kapı çalıştırır ve **ikisi de sorulur; biri reddederse istek
 reddedilir**:
 
 | Kapı | Kim karar verir | Neyi bilir |
 |---|---|---|
-| Sahiplik (`SessionOwnershipGate`) | AgentPrism | `sessions.owner_id` ile çağıranın kimliği |
+| Sahiplik (`SessionOwnershipGate`) | Tracon | `sessions.owner_id` ile çağıranın kimliği |
 | Yetki (`IRunAuthorizationHandler`) | **Siz** | Kendi politikanız — proje, rol, kiracı üstü kurallar |
 
 Sahiplik modunu açmanız handler'ı gereksiz yapmaz; handler yazmanız sahiplik
@@ -539,7 +539,7 @@ beklenen yol değildir; `errorType` yine aynıdır.
 
 ### 5.3 Yönetim payı ve katı modun sınırı
 
-`ManagementPolicy` varsayılanı `"AgentPrism.Operator"`. Bu politikayı taşıyan
+`ManagementPolicy` varsayılanı `"Tracon.Operator"`. Bu politikayı taşıyan
 istek **filtresiz kiracı listesini** görür. AiOps console'unuz bununla çalışır;
 son kullanıcı bu politikayı **almamalıdır**. Açık sorunuz *"AiOps operatörü tüm
 kullanıcı konuşmalarını okuyabilir mi?"* — cevabı artık bir yapılandırma
@@ -589,7 +589,7 @@ deserialize hatası alırsınız. **Bu iki uç için `HttpClient` kullanın.** F
 saf-SSE beş ucun aynı kusurunu düzeltti; bu ikisi çift içerikli olduğu için
 ayrı bir tasarım gerektiriyor ve kapsam dışı bırakıldı.
 
-Karar 26 ile `AgentPrism.Client`'ı kullanmayacağınızı biliyoruz; yine de
+Karar 26 ile `Tracon.Client`'ı kullanmayacağınızı biliyoruz; yine de
 bildiriyoruz.
 
 ---
@@ -606,15 +606,15 @@ dediniz; biz de bir sonraki turda kapattık.
 ```csharp
 builder.Services.AddSingleton<IRunAuthorizationHandler, ProdigyRunAuthorization>();
 
-builder.AddAgentPrism()
+builder.AddTracon()
        .RequireCustomBinding<IRunAuthorizationHandler>()
        .RequireCustomBinding<IToolAuthorizationHandler>()
        .RequireCustomBinding<IAttachmentStorage>();
 ```
 
-`IAgentPrismBuilder RequireCustomBinding<T>() where T : class`
+`ITraconBuilder RequireCustomBinding<T>() where T : class`
 
-Zorunlu ilan edilen sözleşme AgentPrism'in **yerleşik varsayılanıyla**
+Zorunlu ilan edilen sözleşme Tracon'in **yerleşik varsayılanıyla**
 çözülüyorsa **host başlamaz**. Hata mesajı üç bilgiyi taşır: hangi sözleşme ·
 hangi tip çözüldü · nasıl düzeltilir.
 
@@ -631,11 +631,11 @@ sizin MinIO adaptörünüz için doğru davranış budur.
 | Karar | Ne demek |
 |---|---|
 | K-698 | Yedi sözleşmenin kümesi **çalışma anında** zorlanır. Tanınmayan tip host başlangıcında yediyi listeleyen açık bir hata verir |
-| K-699 | İhlal `InvalidOperationException` atar — `AgentPrismRolePolicies` ile aynı sınıf |
+| K-699 | İhlal `InvalidOperationException` atar — `TraconRolePolicies` ile aynı sınıf |
 | K-700 | Zorunluluk `/api/diagnostics`'te **görünmez**. Rapor olguyu taşır, niyeti değil; ihlal varsa host zaten ayakta değildir |
 | K-701 | Lifetime iddiası kapsam dışı. `ValidateOnBuild`/`ValidateScopes` onu zaten yakalar |
 
-Kontrol **host başlangıcında** koşar, `MapAgentPrism` anında değil — HTTP'siz
+Kontrol **host başlangıcında** koşar, `MapTracon` anında değil — HTTP'siz
 gömülü host'lar da kapsanır.
 
 ⚠️ **Bu bir kompozisyon kapısıdır.** Hangi implementasyonun bağlandığını
@@ -646,7 +646,7 @@ kanıtlar; o implementasyonun **doğru karar verdiğini** kanıtlamaz.
 Bu fazın ölçümü, dokümanımızda **sevk edilmiş** bir cümlenin yanlış olduğunu
 gösterdi. Sizin ABP modül sırası senaryonuzu doğrudan ilgilendiriyor.
 
-| Kayıt | `AddAgentPrism`'e göre | Sonuç |
+| Kayıt | `AddTracon`'e göre | Sonuç |
 |---|---|---|
 | `AddSingleton<I, T>()` | önce | ✅ sizin tipiniz bağlanır |
 | `AddSingleton<I, T>()` | **sonra** | ✅ **sizin tipiniz bağlanır** — dokümanımız bunun tersini yazıyordu |
@@ -656,7 +656,7 @@ Yerleşik DI kabı bir servis tipini çözerken **son** `ServiceDescriptor`'ı
 kullanır. Yani `Add*` sonra da kazanır; kaybeden yalnız `TryAdd*` sonradır.
 
 **Sizin gerçek riskiniz üçüncü satırdır:** bir ABP modülü kaydını `TryAdd` ile
-yapar, AgentPrism'in varsayılanı slotu zaten tutuyordur ve kayıt **sessizce
+yapar, Tracon'in varsayılanı slotu zaten tutuyordur ve kayıt **sessizce
 düşer**. F2 kapısının değeri tam olarak oradadır. Yanlış cümle iki sevk edilmiş
 yerde düzeltildi.
 
@@ -725,7 +725,7 @@ eşitliğine** çevrildi.
 
 | Kalem | Karar ve gerekçe |
 |---|---|
-| **F6** · Ses/WebSocket test harness'i | ⏸ **Sizin tarafınızdan geri çekildi.** Boşluk gerçek: `AgentPrism.Testing`'de `FakeModelProvider` ve `SseReader` var, ses protokolü fixture'ı yok. Ölçülmüş bir eksiklik çıkarsa iletin |
+| **F6** · Ses/WebSocket test harness'i | ⏸ **Sizin tarafınızdan geri çekildi.** Boşluk gerçek: `Tracon.Testing`'de `FakeModelProvider` ve `SseReader` var, ses protokolü fixture'ı yok. Ölçülmüş bir eksiklik çıkarsa iletin |
 | **F7** · Migration plan artifact'i | ⏸ **Sizin tarafınızdan geri çekildi.** `MigrationDescriptor`'ın `internal` olduğunu kendiniz doğruladınız |
 | **F4** · Yazma hacmi planlayıcısı | ❌ **Açılmadı.** Kendi belgeniz "GB/ay vaat edilmemeli" diyor; ölçülmüş bir talep yok |
 | **F5** · Çok dilli guard corpus'u | ❌ **Açılmadı.** Faz 140 `ContentGuardContext.Source` ayrımını sevk etti. Kalan iş bir test verisi bakımıdır |
@@ -817,20 +817,20 @@ Bu güncelleme yazılmadan önce koşulan ölçümler (commit `916f2d78`, macOS/
 |---|---|
 | Çalışma ağacı | temiz |
 | `RunEventType` üye ↔ adlandırılan | **31 ↔ 31**, `unknown`'a düşen yok |
-| OpenAPI `AgentPrismStreamRunEvents` 200 | `content: {"text/event-stream": {"schema": {"type": "string"}}}` |
+| OpenAPI `TraconStreamRunEvents` 200 | `content: {"text/event-stream": {"schema": {"type": "string"}}}` |
 | OpenAPI path / operation | 126 / 163 |
 | `RunAccess` üyeleri | `Start` · `Read` · `Cancel` · `Feedback` · `Attachment` · `Approval` |
 | `SessionAccess` üyeleri | `Read` · `List` · `Delete` · `Branch` · `Voice` |
 | Yetki kapısı çağrı yeri | 35 (13 dosya) |
 | Sahiplik kapısı çağrı yeri | 11 (6 dosya) |
-| `AgentPrismSessionOwnershipOptions` üyeleri | `Enabled` · `RequireAuthenticatedOwner` · `ManagementPolicy` · **`RefuseUnownedSessions`** |
-| `AgentPrismEndpointOptions.MapOpenAIConversations` | varsayılan `true` |
-| `IAgentPrismBuilder.RequireCustomBinding<T>()` | `where T : class`, public yüzeyde |
+| `TraconSessionOwnershipOptions` üyeleri | `Enabled` · `RequireAuthenticatedOwner` · `ManagementPolicy` · **`RefuseUnownedSessions`** |
+| `TraconEndpointOptions.MapOpenAIConversations` | varsayılan `true` |
+| `ITraconBuilder.RequireCustomBinding<T>()` | `where T : class`, public yüzeyde |
 | 🚨 Sahiplik kapısı ↔ SSE başlığı sırası | kapı `AgentEndpoints.cs:236`, `SseWriter.StartAsync` `:1134` → **ret gerçek `403`** |
-| `RunEventCustomTypes.QuotaThreshold` | `"agentprism.quota.threshold"` |
+| `RunEventCustomTypes.QuotaThreshold` | `"tracon.quota.threshold"` |
 | Migration setleri | PostgreSQL 46 · SQL Server 34 · SQLite 34 |
-| `dotnet build AgentPrism.slnx -c Release` | ✅ **0 uyarı · 0 hata** (92 s) |
-| `dotnet test AgentPrism.slnx` (tam çözüm) | ✅ **6442 / 6442 geçti · 0 düşen · 0 atlanan** (617 s, ilk koşumda) |
+| `dotnet build Tracon.slnx -c Release` | ✅ **0 uyarı · 0 hata** (92 s) |
+| `dotnet test Tracon.slnx` (tam çözüm) | ✅ **6442 / 6442 geçti · 0 düşen · 0 atlanan** (617 s, ilk koşumda) |
 | `dotnet pack` · `dotnet format --verify-no-changes` | ✅ ikisi de temiz |
 | `secret` taraması · doküman denetimi · script testleri (235) · yetenek haritası · denetim paketi | ✅ beşi de temiz |
 | `docs-site` `npm run check` | ✅ temiz |

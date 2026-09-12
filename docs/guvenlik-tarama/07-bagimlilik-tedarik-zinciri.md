@@ -12,7 +12,7 @@ Ortak çerçeve: [`00-INDEKS.md`](00-INDEKS.md). Bu oturum onu uygular.
 `SQLitePCLRaw.lib.e_sqlite3` (GHSA-2m69-gcr7-jv3q), `Microsoft.OpenApi`
 (GHSA-v5pm-xwqc-g5wc), `SSH.NET` (CVE-2026-48798, test bağımlılığı).
 `Microsoft.Agents.AI.Hosting*` preview/alpha paketleri yalnız
-`AgentPrism.AspNetCore`'a hapsedilmiştir (K-008).
+`Tracon.AspNetCore`'a hapsedilmiştir (K-008).
 
 ## Ara
 

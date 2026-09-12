@@ -3,7 +3,7 @@
 > **Durum:** ✅ Tamamlandı (2026-08-03)
 > **Kaynak:** [BEYIN-FIRTINASI.md](../BEYIN-FIRTINASI.md) · **F-18**, **F-19**
 > **Önkoşul:** [Faz 20](20-MALIYET-VE-GOSTERGE-PANELI.md) (para cinsi kota için) · [Faz 17](17-TOPLU-VE-ZAMANLANMIS-CALISTIRMA.md) (webhook teslimi kuyruğu kullanır)
-> **Paketler:** `AgentPrism.Abstractions`, `.Core`, `.PostgreSql`, `.AspNetCore`, `.UI`
+> **Paketler:** `Tracon.Abstractions`, `.Core`, `.PostgreSql`, `.AspNetCore`, `.UI`
 > **Yeni paket:** Yok (21.1 ölçüldü — `System.Threading.RateLimiting` paylaşılan çerçevede) · **Migration:** 0012
 
 ---
@@ -25,7 +25,7 @@
 
 ## Amaç
 
-İki ayrı iş, tek fazda: ikisi de "AgentPrism'i dış dünyayla sözleşmeye bağlar".
+İki ayrı iş, tek fazda: ikisi de "Tracon'i dış dünyayla sözleşmeye bağlar".
 
 ## Bu Fazda Alınan Kararlar
 
@@ -111,7 +111,7 @@ dâhil başka hiçbir özel aralık açılmaz.
 ## Bitiş Ölçütleri (DoD)
 
 Tüm satırlar örnek uygulama **gerçekten çalıştırılarak** doğrulandı
-(`samples/AgentPrism.Api`, gerçek OpenAI çağrısı, yerel webhook dinleyicisi).
+(`samples/Tracon.Api`, gerçek OpenAI çağrısı, yerel webhook dinleyicisi).
 
 - [x] **Kiracı kotası aşıldığında `429` ve anlaşılır `ProblemDetails` dönüyor**
 
@@ -140,7 +140,7 @@ Tüm satırlar örnek uygulama **gerçekten çalıştırılarak** doğrulandı
 - [x] **Hız sınırı yapılandırıldığında çalışıyor, kapalıyken davranış değişmiyor**
 
   ```
-  AgentPrism__RateLimit__Enabled=true PermitLimit=3 Window=00:05:00
+  Tracon__RateLimit__Enabled=true PermitLimit=3 Window=00:05:00
   istek 1 → 200 · istek 2 → 200 · istek 3 → 429 (Retry-After: 300) · …
   ```
 
@@ -180,7 +180,7 @@ Tüm satırlar örnek uygulama **gerçekten çalıştırılarak** doğrulandı
   aralıkları açmıyor (K-167).
 
 - [x] **Webhook yanıtında ve kaydında hiçbir sır yok** — yanıt yalnızca
-  `"secretConfigurationKey": "AgentPrism:Webhooks:Secrets:yerel"` (anahtarın
+  `"secretConfigurationKey": "Tracon:Webhooks:Secrets:yerel"` (anahtarın
   **adı**) döndü. Fazladan gönderilen `secret`/`signingSecret` alanları
   bağlanmadı: `WebhookEndpointTests.Yanit_ve_kayit_hicbir_sir_tasimaz`.
 

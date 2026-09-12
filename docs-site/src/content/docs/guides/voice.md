@@ -3,16 +3,16 @@ title: Voice and live conversation
 description: Add speech tools and an opt-in realtime WebSocket conversation with explicit formats, limits, cost, privacy, and deployment rules.
 ---
 
-AgentPrism has three voice layers:
+Tracon has three voice layers:
 
 | Layer | Use it for | Registration |
 |---|---|---|
-| Voice tools and REST | Generate speech, transcribe an attachment, list voices | `UseVoice()` from `AgentPrism.Voice` |
-| Live conversation | Keep a bidirectional audio/text session over WebSocket, with AgentPrism transcribing and synthesizing | `UseVoiceConversation()` from Core |
+| Voice tools and REST | Generate speech, transcribe an attachment, list voices | `UseVoice()` from `Tracon.Voice` |
+| Live conversation | Keep a bidirectional audio/text session over WebSocket, with Tracon transcribing and synthesizing | `UseVoiceConversation()` from Core |
 | Provider-hosted live voice | Let a realtime model run the conversation and hand the heavy work back to your agents | `UseLiveVoice()` plus a provider such as `UseOpenAILive()` |
 
 The second and third solve the same problem in opposite directions, and the choice
-matters. Under `UseVoiceConversation()` the audio reaches AgentPrism, so every turn is
+matters. Under `UseVoiceConversation()` the audio reaches Tracon, so every turn is
 a run, the content guard sees what was said, and any speech provider works. Under
 `UseLiveVoice()` the provider owns the conversation and the audio never touches your
 server — you get true full duplex and provider-side turn detection, and you give up
@@ -29,7 +29,7 @@ flowchart LR
         LST["List voices"]
     end
     subgraph Live["UseVoiceConversation — opt-in"]
-        WS["WebSocket /api/voice/sessions/id/stream<br/>subprotocol agentprism.voice.v1"]
+        WS["WebSocket /api/voice/sessions/id/stream<br/>subprotocol tracon.voice.v1"]
         BOUND["Socket bound to one instance<br/>for minutes"]
     end
     Tools --> HTTP["Ordinary HTTP surface"]
@@ -43,18 +43,18 @@ you need.
 
 ## Add speech tools
 
-Install `AgentPrism.Voice`, keep the provider key out of files, and register it:
+Install `Tracon.Voice`, keep the provider key out of files, and register it:
 
 ```bash
-dotnet add package AgentPrism.Voice --prerelease
-dotnet user-secrets set "AgentPrism:Voice:ApiKey" "..."
+dotnet add package Tracon.Voice --prerelease
+dotnet user-secrets set "Tracon:Voice:ApiKey" "..."
 ```
 
 ```csharp
-var agentPrism = builder.AddAgentPrism()
+var tracon = builder.AddTracon()
     .UseVoice(builder.Configuration.GetSection(VoiceOptions.SectionName));
 
-agentPrism.AddAgent(new AgentDefinition
+tracon.AddAgent(new AgentDefinition
 {
     Name = "voice-assistant",
     Instructions = "Answer clearly. Speak the answer when the caller asks.",
@@ -114,7 +114,7 @@ validation at startup.
 
 ### Voice cost has a different unit
 
-Synthesis cost uses characters and transcription cost uses duration. AgentPrism
+Synthesis cost uses characters and transcription cost uses duration. Tracon
 writes that measurement on the tool invocation but does not add it to token cost.
 If pricing is not configured, cost stays `null`; zero would claim the call was free.
 If the provider omits billed characters, the text length is used and marked as an
@@ -143,7 +143,7 @@ compatible. To replace it, register your implementation first; `TryAdd` preserve
 builder.Services.AddSingleton<ISpeechSynthesizer, ContosoSpeechProvider>();
 builder.Services.AddSingleton<ISpeechTranscriber, ContosoSpeechProvider>();
 
-builder.AddAgentPrism().UseVoice(options =>
+builder.AddTracon().UseVoice(options =>
 {
     options.DefaultVoiceId = "customer-care";
     options.MaxCharactersPerRequest = 5_000;
@@ -156,7 +156,7 @@ Live conversation needs both an `ISpeechTranscriber` and `ISpeechSynthesizer`. A
 the opt-in before the application is built:
 
 ```csharp
-var agentPrism = builder.AddAgentPrism()
+var tracon = builder.AddTracon()
     .UseVoice(builder.Configuration.GetSection(VoiceOptions.SectionName))
     .UseVoiceConversation(options =>
     {
@@ -169,17 +169,17 @@ var agentPrism = builder.AddAgentPrism()
     });
 
 var app = builder.Build();
-app.MapAgentPrism("/agentprism");
+app.MapTracon("/tracon");
 ```
 
-`MapAgentPrism` maps
+`MapTracon` maps
 `/api/voice/sessions/{sessionId}/stream` and installs WebSocket middleware only when
 the conversation services exist. Without `UseVoiceConversation()`, the route does not
 exist.
 
 ### Protocol
 
-The negotiated subprotocol is `agentprism.voice.v1`. The client sends JSON control
+The negotiated subprotocol is `tracon.voice.v1`. The client sends JSON control
 frames and binary audio:
 
 1. Send `{"type":"start","agent":"voice-assistant","inputFormat":"webm-opus"}`.
@@ -215,9 +215,9 @@ safety net for a client whose VAD never commits.
 
 ### WebSocket authentication
 
-Browsers cannot set an `Authorization` header on the WebSocket handshake. AgentPrism
+Browsers cannot set an `Authorization` header on the WebSocket handshake. Tracon
 accepts the bearer value through a second subprotocol with the
-`agentprism.token.` prefix and validates it with the same constant-time path as HTTP.
+`tracon.token.` prefix and validates it with the same constant-time path as HTTP.
 It never accepts the credential in the query string, where browser, server, and proxy
 logs would capture it.
 
@@ -240,14 +240,14 @@ speaks, detects turns, and carries the audio straight to the browser over WebRTC
 is genuinely full duplex — the caller can interrupt mid-sentence — which a one-turn-at-a-time
 pipeline cannot reproduce no matter how fast it gets.
 
-AgentPrism stands in exactly two places on that path:
+Tracon stands in exactly two places on that path:
 
-1. **It creates the session.** The browser sends an SDP offer to AgentPrism, not to the
+1. **It creates the session.** The browser sends an SDP offer to Tracon, not to the
    provider. Tenancy, role, authorization and concurrency gates all apply before
    anything is created, and your API key never reaches the browser.
 2. **It attaches a sideband.** A server-side control connection joins the same session.
    When the model hands work back — a lookup, a calculation, anything needing your
-   tools — AgentPrism turns that delegation into an **ordinary run**, with the same
+   tools — Tracon turns that delegation into an **ordinary run**, with the same
    tool registry, content guard, quota, cost accounting and audit trail as
    `POST /api/agents/{name}/run`.
 
@@ -256,9 +256,9 @@ The provider runs the conversation; your agents do the work.
 ```mermaid
 sequenceDiagram
     accTitle: How a provider-hosted live voice session is created and supervised
-    accDescr: The browser sends an SDP offer to AgentPrism, which applies its gates and creates the session at the provider with its own key. The answer goes back to the browser, which then exchanges audio directly with the provider. AgentPrism separately attaches a control connection and converts each delegation into an ordinary run.
+    accDescr: The browser sends an SDP offer to Tracon, which applies its gates and creates the session at the provider with its own key. The answer goes back to the browser, which then exchanges audio directly with the provider. Tracon separately attaches a control connection and converts each delegation into an ordinary run.
     participant B as Browser
-    participant A as AgentPrism
+    participant A as Tracon
     participant P as Provider
     B->>A: POST /api/voice/live/sessions (SDP offer)
     A->>A: tenant, role, authorization, concurrency
@@ -280,7 +280,7 @@ by the second, so an application opts into that spend explicitly rather than inh
 it from an unrelated call.
 
 ```csharp
-var agentPrism = builder.AddAgentPrism()
+var tracon = builder.AddTracon()
     .UseOpenAI(builder.Configuration.GetSection(OpenAIProviderOptions.SectionName))
     .UseOpenAILive(builder.Configuration.GetSection(OpenAILiveOptions.SectionName))
     .UseLiveVoice(options =>
@@ -294,7 +294,7 @@ var agentPrism = builder.AddAgentPrism()
     });
 
 var app = builder.Build();
-app.MapAgentPrism("/agentprism");
+app.MapTracon("/tracon");
 ```
 
 `UseLiveVoice()` is independent of `UseVoiceConversation()`. Enable either, both, or
@@ -307,7 +307,7 @@ Validation says so by name at startup if it does not.
 
 ### Settings
 
-The live layer reads `AgentPrism:Voice:Live`, bound to `VoiceLiveOptions`:
+The live layer reads `Tracon:Voice:Live`, bound to `VoiceLiveOptions`:
 
 | Setting | Default | What it does |
 |---|---|---|
@@ -323,7 +323,7 @@ The live layer reads `AgentPrism:Voice:Live`, bound to `VoiceLiveOptions`:
 | `Instructions` | *(none)* | System instructions for the live model — for example, telling it to delegate rather than guess. |
 | `PersistTranscript` | `true` | Whether the conversation text is written to durable session history. See [Privacy and retention](#privacy-and-retention). |
 
-The OpenAI provider reads `AgentPrism:Providers:OpenAI:Live`, bound to
+The OpenAI provider reads `Tracon:Providers:OpenAI:Live`, bound to
 `OpenAILiveOptions`:
 
 | Setting | Default | What it does |
@@ -331,11 +331,11 @@ The OpenAI provider reads `AgentPrism:Providers:OpenAI:Live`, bound to
 | `Model` | `gpt-live-1` | The live model. |
 | `Voice` | *(provider default)* | The output voice. |
 | `Endpoint` | `https://api.openai.com/v1/` | The API root. |
-| `MaxAppendCharacters` | `1000` | The per-append ceiling. The provider states its limit in tokens; AgentPrism ships no tokenizer, so the limit is converted once and conservatively — text over it is split, never dropped. |
+| `MaxAppendCharacters` | `1000` | The per-append ceiling. The provider states its limit in tokens; Tracon ships no tokenizer, so the limit is converted once and conservatively — text over it is split, never dropped. |
 | `BackendModel` | *(none)* | The backing model for provider-side delegation. |
 | `Timeout` | `00:00:30` | The timeout of the session-creation call. |
 
-The API key comes from `AgentPrism:Providers:OpenAI:ApiKey`; the live provider does
+The API key comes from `Tracon:Providers:OpenAI:ApiKey`; the live provider does
 not take one of its own.
 
 ### The endpoints
@@ -363,10 +363,10 @@ This is a real trade, and the honest list is short but sharp:
 
 | What you lose | Why it matters |
 |---|---|
-| **AgentPrism does not see most of the conversation** | The media flows between the browser and the provider. The content guard never inspects what is spoken, so the model can say a sentence AgentPrism never reviewed. |
+| **Tracon does not see most of the conversation** | The media flows between the browser and the provider. The content guard never inspects what is spoken, so the model can say a sentence Tracon never reviewed. |
 | **Not every turn is a run** | Only delegations produce runs. Token accounting, quota and guards cover the **delegated work**, not the chat around it. |
-| **`PersistAudio` does not apply** | There is no audio passing through AgentPrism to store. That setting belongs to `UseVoiceConversation()` and is ignored here. |
-| **The caller's audio goes to a third party** | Nothing is stored by AgentPrism, but the transmission itself is a change worth telling your users about. |
+| **`PersistAudio` does not apply** | There is no audio passing through Tracon to store. That setting belongs to `UseVoiceConversation()` and is ignored here. |
+| **The caller's audio goes to a third party** | Nothing is stored by Tracon, but the transmission itself is a change worth telling your users about. |
 | **The transcript text is durable by default** | See [Privacy and retention](#privacy-and-retention) below. |
 | **Your own speech providers are unused** | `ISpeechTranscriber` and `ISpeechSynthesizer` are not called on this path. |
 | **The spend ceiling is duration, not quota** | Voice seconds are not a quota unit. `MaxSessionDuration` and `MaxConcurrentSessionsPerTenant` are what bound the cost. |
@@ -377,7 +377,7 @@ realtime API, it remains the right layer.
 ### Cost
 
 A live session is billed by wall-clock duration, and the number in the record is the
-**provider's**, not a local stopwatch: AgentPrism does not carry the media and cannot
+**provider's**, not a local stopwatch: Tracon does not carry the media and cannot
 time it honestly. When the provider reports nothing, `liveSeconds` stays `null` rather
 than being invented.
 
@@ -385,7 +385,7 @@ Price the model per minute:
 
 ```json
 {
-  "AgentPrism": {
+  "Tracon": {
     "Pricing": {
       "Currency": "USD",
       "Voice": { "openai": { "gpt-live-1": { "PerMinute": 0.60 } } }
@@ -412,7 +412,7 @@ tells the client and the console shows the recording state. Apply attachment and
 session retention policies, document consent, and test deletion before production.
 
 On the provider-hosted path the audio is never stored, because it never reaches
-AgentPrism — but the **text** is a separate question. `PersistTranscript` defaults to
+Tracon — but the **text** is a separate question. `PersistTranscript` defaults to
 `true`, which writes the conversation into the agent session's durable history so that
 `GET /api/sessions/{id}` shows the full exchange and delegated runs see the whole
 context. That is a real retention decision, so it is handled two ways:

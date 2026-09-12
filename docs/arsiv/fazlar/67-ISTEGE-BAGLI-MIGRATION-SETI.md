@@ -2,8 +2,8 @@
 
 > **Durum:** ✅ Tamamlandı (2026-08-19)
 > **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-110**
-> **Önkoşul:** [Faz 51](51-VEKTOR-BELLEK-VE-RAG.md) — `0024_vector.sql` ve `AgentPrismKnowledgeOptions` oradan gelir
-> **Paketler:** `AgentPrism.Sql.Shared`, `AgentPrism.PostgreSql`
+> **Önkoşul:** [Faz 51](51-VEKTOR-BELLEK-VE-RAG.md) — `0024_vector.sql` ve `TraconKnowledgeOptions` oradan gelir
+> **Paketler:** `Tracon.Sql.Shared`, `Tracon.PostgreSql`
 > **Yeni paket:** Yok · **Migration:** **yeni migration yok** — var olan bir dosya ayrı bir sete taşınır. 🚨 Tuzak bu fazın tamamıdır, aşağıya bak
 > **Public API:** büyüyor (küçük) — `MigrationRunner` ve `SqlStoreContext` set kavramı öğrenir. `PublicAPI.Shipped.txt` bugün **boş** (ölçüldü: 16 pakette toplam 16 satır, her biri yalnız `#nullable enable`) — şimdi bedava
 > **Site etkisi:** `getting-started/persistence.md`, `guides/knowledge.md`, `guides/production.md`, `packages.md`, `troubleshooting.md`
@@ -43,7 +43,7 @@ Bugün `UsePostgreSql()` çağıran herkes `pgvector` kurmak zorundadır — Kno
 - [x] SQL Server ve SQLite sözleşme koşumları değişmeden geçer
       — 540/540 ve 554/554, gerçek konteynerlere karşı
 - [x] Dört doğrulama kapısı sıfır uyarı verir
-- [x] `samples/AgentPrism.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı
+- [x] `samples/Tracon.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı
       — MT-PG-064: gerçek belge yükleme + OpenAI gömü + `pgvector` arama turu
 - [x] `secret` taraması boş döndü
 - [x] Manuel kabul case'leri
@@ -61,7 +61,7 @@ Bugün `UsePostgreSql()` çağıran herkes `pgvector` kurmak zorundadır — Kno
 psql "$CONN" -c '\dx' | grep -c vector      # beklenen: 0
 
 # Bekleyen migration listesi kapalı setin dosyalarını içermemeli
-curl -s http://localhost:5081/agentprism/api/diagnostics | jq '.pendingMigrations'
+curl -s http://localhost:5081/tracon/api/diagnostics | jq '.pendingMigrations'
 ```
 
 > 🚨 Plan taslağı `.persistence` alt-nesnesi varsayıyordu; gerçekleşen
@@ -92,7 +92,7 @@ adı `"{set}:{ad}"` önekiyle taşınır. Karar K-477.
 
 **`RestrictedRoleMigrationTests` planın önerdiği isimle DEĞİL, gerçek bir
 `postgres:18-alpine` konteynerine karşı koşan `RestrictedEnvironmentMigrationTests`
-adıyla yazıldı** (`tests/AgentPrism.PostgreSql.IntegrationTests/`). Gerekçe:
+adıyla yazıldı** (`tests/Tracon.PostgreSql.IntegrationTests/`). Gerekçe:
 PostgreSQL'de `CREATE SCHEMA IF NOT EXISTS` bile, şema ÖNCEDEN var olsa dahi,
 veritabanı düzeyinde `CREATE` izni ister (ölçüldü: `docker exec` ile
 doğrulandı, "permission denied for database") — yani gerçek bir "şema-sahibi
@@ -143,10 +143,10 @@ yeşil.
   doğru sayılara taşıdı. `00-INDEKS.md`'nin geri kalanında ("Bu fazın kendi
   verisi" gibi başka bölümlerde) benzer sayısal drift olabilir; genel bir tarama
   bu fazın kapsamında DEĞİLDİ.
-- `AgentPrismPostgreSqlOptionsValidator`'a `EnableKnowledge` için bir doğrulama
+- `TraconPostgreSqlOptionsValidator`'a `EnableKnowledge` için bir doğrulama
   eklenmedi (bool, doğrulanacak bir kısıt yok) — bir sonraki faz
   `Dimensions`/`EnableKnowledge` arasında çapraz bir kısıt isterse (örn.
-  "knowledge açıkken Dimensions > 0 zorunlu" — bugün zaten `AgentPrismKnowledgeOptions`
+  "knowledge açıkken Dimensions > 0 zorunlu" — bugün zaten `TraconKnowledgeOptions`
   tarafında ayrı doğrulanıyor) burası genişler.
 
 > Kapanışta doldurulur.

@@ -66,7 +66,7 @@ updates:
           - "MinVer"
     ignore:
       # Kaynak ureteci, kendisini yukleyen derleyicinin Roslyn'inden YENI olamaz.
-      # AgentPrism net8.0'i da hedefler (K-005) ve .NET 8 SDK GA Roslyn 4.8.0
+      # Tracon net8.0'i da hedefler (K-005) ve .NET 8 SDK GA Roslyn 4.8.0
       # tasir; daha yenisi eski SDK'da SESSIZCE yuklenmez.
       - dependency-name: "Microsoft.CodeAnalysis.CSharp"
         versions: ["> 4.8.0"]
@@ -93,7 +93,7 @@ updates:
   # 2. npm — arayuz (bundle butcesi 250 KB gzip; kapi dotnet build icindedir)
   # ---------------------------------------------------------------------------
   - package-ecosystem: npm
-    directory: "/src/AgentPrism.UI/frontend"
+    directory: "/src/Tracon.UI/frontend"
     schedule:
       interval: weekly
       day: monday

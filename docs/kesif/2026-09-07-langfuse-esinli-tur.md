@@ -23,18 +23,18 @@ Turun en önemli bulgusu ilk adımda çıktı ve turun çerçevesini değiştird
 | `arsiv/KARARLAR-INDEKS-REDDEDILEN.md` | 26 kalem; **hiçbiri** skor, eval veya karşılaştırma ile ilgili değil |
 | Kod taraması | Langfuse'un beş sütununun **beşi de** bu repo'da mevcut (aşağıdaki tablo) |
 
-### Langfuse sütunları ↔ AgentPrism karşılıkları (ölçüldü)
+### Langfuse sütunları ↔ Tracon karşılıkları (ölçüldü)
 
-| Langfuse sütunu | AgentPrism karşılığı | Kanıt |
+| Langfuse sütunu | Tracon karşılığı | Kanıt |
 |---|---|---|
 | Prompt versiyonlama + rollback | Agent tanımı sürümleme | `IAgentDefinitionStore` — `GetVersionAsync` · `ListVersionsAsync` · `RollbackAsync` |
-| LLM-as-judge | `IRunJudge` + `ModelRunJudge` + online eval | `src/AgentPrism.Abstractions/Evaluation/IRunJudge.cs` · `src/AgentPrism.Core/Evaluation/` |
+| LLM-as-judge | `IRunJudge` + `ModelRunJudge` + online eval | `src/Tracon.Abstractions/Evaluation/IRunJudge.cs` · `src/Tracon.Core/Evaluation/` |
 | Human annotation → gold dataset | `RunScore` (human/api/judge, mesaj bazlı) + `RunToCasePromoter` | `RunScore.cs` · `EvalCaseSource.cs` |
 | Maliyet–gecikme panosu | `RunStatistics` (model · versiyon · kullanıcı · label kırılımı) + `dashboard.tsx` | `RunStatistics.cs:10-49` |
 | Deney karşılaştırma | `Experiment` + ağırlıklı varyant + canary + rollback | `ExperimentVariantResult.cs` — maliyet, gecikme, hata oranı, ortalama skor |
 
-Birkaç yerde AgentPrism **önde**: canary otomatik rollback, kiracı yalıtımı,
-`agentprism eval --min-pass-rate` CI kapısı (`EvalCommand.cs:168`).
+Birkaç yerde Tracon **önde**: canary otomatik rollback, kiracı yalıtımı,
+`tracon eval --min-pass-rate` CI kapısı (`EvalCommand.cs:168`).
 
 **∴ Turun çerçevesi:** ilham değeri başlıklarda değil, **kenarlarda**. Aranan
 şey "Langfuse'ta olan büyük özellik" değil, "bizim yapıp da tamamlamadığımız
@@ -74,7 +74,7 @@ derinleşmedi.
 
 ## 3. Ekosistem taraması (Aşama 3.2)
 
-| Kaynak | Bakılan tarih | Ne değişti | AgentPrism'e etkisi |
+| Kaynak | Bakılan tarih | Ne değişti | Tracon'e etkisi |
 |---|---|---|---|
 | `langfuse.com` ana sayfa | 2026-09-07 | Beş sütun: tracing · evaluation · prompt yönetimi · deney · human annotation | Beşi de mevcut; tur kenarlara yöneldi |
 | Langfuse `custom-scores` dokümanı | 2026-09-07 | `ScoreConfig`: ad + tip (numeric/categorical/boolean/text) + aralık/kategori doğrulaması | **F-208'in doğrudan öncülü** |
@@ -90,7 +90,7 @@ gerçekten yalnız `Microsoft.Extensions.AI` · `.Abstractions` · `.OpenAI`
 | Ölçüm (2026-09-07, `project.assets.json` + gerçek nuspec) | Sonuç |
 |---|---|
 | `Microsoft.Extensions.AI.Evaluation` 10.9.0 | `Core` · `AspNetCore` · `Cli` grafiğinde **var** — `Microsoft.Agents.AI` 1.20.0 ve `.Harness` getiriyor |
-| `AgentPrism.Abstractions` grafiği | **yok** (yalnız 7 paket) |
+| `Tracon.Abstractions` grafiği | **yok** (yalnız 7 paket) |
 | Kod kullanımı | `EvalJobHandler.cs:3` `using Microsoft.Extensions.AI.Evaluation;` · `EvaluationMetric` `:432`, `:458` |
 | Paketin **kendi** bağımlılığı | **yalnız** `M.E.AI.Abstractions` 10.9.0 — `Abstractions` onu zaten referanslıyor ⇒ eklemek **net 1 paket, geçişli ağırlık 0** |
 
@@ -106,13 +106,13 @@ ağırlıkla çözülmedi; **tip doğasıyla** çözüldü (kalıcı kayıt ↔ 
 ### F-207 · Eval koşumları arasında regresyon farkı
 
 **Kanıt seviyesi:** **Ölçüldü.**
-- `src/AgentPrism.AspNetCore/Endpoints/EvalEndpoints.cs:141` — sevk edilen metin:
+- `src/Tracon.AspNetCore/Endpoints/EvalEndpoints.cs:141` — sevk edilen metin:
   *"Comparing entries over time is how a regression between agent versions is spotted."*
-- `src/AgentPrism.Abstractions/Evaluation/IEvalStore.cs:143` — `ListCaseResultsAsync`
+- `src/Tracon.Abstractions/Evaluation/IEvalStore.cs:143` — `ListCaseResultsAsync`
   tek bir `evalRunId` alıyor; iki koşumu hizalayan üye **yok**.
-- `src/AgentPrism.Cli/Commands/EvalCommand.cs:168` + `PassesThreshold` —
+- `src/Tracon.Cli/Commands/EvalCommand.cs:168` + `PassesThreshold` —
   kapı `--min-pass-rate` / `--max-failures` ile **mutlak**; taban çizgisi kavramı yok.
-- `grep -n "compare\|previous\|regress\|delta\|baseline" src/AgentPrism.UI/frontend/src/screens/eval-run-detail.tsx`
+- `grep -n "compare\|previous\|regress\|delta\|baseline" src/Tracon.UI/frontend/src/screens/eval-run-detail.tsx`
   → **sıfır** eşleşme.
 
 **Mercek:** 1, 2, 7.
@@ -129,11 +129,11 @@ kapsamına birleşti; fikir 7 (case sürümleme) risk satırına taşındı.
 ### F-208 · Score'un adı ve şekli
 
 **Kanıt seviyesi:** **Ölçüldü.**
-- `src/AgentPrism.PostgreSql/Migrations/0017_run_scores.sql:30` — `value integer NOT NULL`;
+- `src/Tracon.PostgreSql/Migrations/0017_run_scores.sql:30` — `value integer NOT NULL`;
   float veya kategorik değer saklanamaz.
 - Aynı dosya `:47` — tekillik indeksi `(tenant_id, run_id, COALESCE(message_id,''), author)`;
   **`name` sütunu yok** ⇒ bir yazar bir `run`'a yalnız BİR skor yazabilir, ikincisi ezer.
-- `src/AgentPrism.Core/Evaluation/ModelRunJudge.cs:75` — judge bu sınırı
+- `src/Tracon.Core/Evaluation/ModelRunJudge.cs:75` — judge bu sınırı
   `author = "judge:{Name}"` ile aşıyor; insan gözden geçirenin böyle bir kaçışı yok.
 - `RunScoreKind.cs` — üç değerli kapalı enum (Binary · Stars · Numeric 0-100).
 - `docs/arsiv/fazlar/31-GERI-BILDIRIM-VE-PUANLAMA.md:38` — indeksin bu hâli
@@ -152,12 +152,12 @@ karardır; `Value`'nun tipi ve tekillik indeksi `1.0`'dan sonra dondurulur.
 ### F-209 · Skor trendinin kalıcı sorgusu
 
 **Kanıt seviyesi:** **Ölçüldü.**
-- `src/AgentPrism.AspNetCore/Endpoints/EvalEndpoints.cs:161-170` — sevk edilen metin:
+- `src/Tracon.AspNetCore/Endpoints/EvalEndpoints.cs:161-170` — sevk edilen metin:
   *"The summary is in-memory (it resets when the process restarts); for an
   authoritative result, the 'run_scores' table can be queried directly."*
-- `src/AgentPrism.Core/Evaluation/OnlineEvalSummaryService.cs:14-20` — pencere
+- `src/Tracon.Core/Evaluation/OnlineEvalSummaryService.cs:14-20` — pencere
   bellekte, kiracı başına kuyruk; "no durable counter store" kuralına atıf.
-- `src/AgentPrism.Abstractions/Runs/IRunScoreStore.cs` — yalnız `UpsertAsync` ·
+- `src/Tracon.Abstractions/Runs/IRunScoreStore.cs` — yalnız `UpsertAsync` ·
   `ListAsync(tenantId, runId)` · `DeleteAsync`; zaman aralığı veya toplulaştırma **yok**.
 - Üç migration'ın hiçbirinde `created_at` indeksi yok
   (PostgreSql `0017:47-52` · Sqlite `0005:26-29` · SqlServer `0005:29-34`);
@@ -220,7 +220,7 @@ ailesi mevcut ve repo onu kullanmıyor. F-208'in tasarım kararı olarak taşın
 | Fikir | Ret gerekçesi | Kalıcı mı | Nereye yazıldı |
 |---|---|---|---|
 | Agent sürümüne sembolik label (`production`/`staging`) | `Experiment` (sürüm başına ağırlıklı varyant) + `RollbackAsync` ihtiyacı karşılıyor; kiracı ayrımı staging/prod'u zaten çözüyor | Hayır — koşulları değişirse yeniden aday | Yalnız bu kayıt |
-| Eval suite'in CI kapısı | **Zaten var:** `agentprism eval --min-pass-rate --max-failures`, çıkış kodu 3 (`EvalCommand.cs:168`) | Hayır — mevcut yetenek | Yalnız bu kayıt |
+| Eval suite'in CI kapısı | **Zaten var:** `tracon eval --min-pass-rate --max-failures`, çıkış kodu 3 (`EvalCommand.cs:168`) | Hayır — mevcut yetenek | Yalnız bu kayıt |
 | Skor düşüşünde alarm | **Zaten var:** `WebhookEvents.RunScoreLow`, `MinSampleSize` eşiğiyle (`OnlineEvalSummaryService.cs`) | Hayır — mevcut yetenek | Yalnız bu kayıt |
 | İnceleme (annotation) kuyruğu | Boşluk gerçek (`grep` sıfır sonuç) ama talep kanıtı yok | Hayır — talep gelirse aday | Yalnız bu kayıt |
 | Eval koşumunun maliyeti | `EvalRun` token taşıyor, `TotalCost` taşımıyor; talep kanıtı yok | Hayır | Yalnız bu kayıt |

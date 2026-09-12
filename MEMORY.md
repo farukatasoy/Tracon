@@ -34,11 +34,11 @@ Alana bağlı değildir; her fazda tekrar bedel ödettiler.
   Faz 57 kopyaları **commit etti**, `main` derlenmedi (K-411). İki tuzak:
   `git status` **temiz** görünür (kopya izleniyordur) ve `src` taraması
   **yetmez** (`tests/` altındaydılar). Kapı: `faz-tamamlama` Adım 1. Silmek
-  yetmez — `wwwroot` + `agentprism-frontend.stamp` damgasını da sil.
+  yetmez — `wwwroot` + `tracon-frontend.stamp` damgasını da sil.
 - **🚨 `dotnet test` dakikalarca ASILI kalıyorsa alt süreç boru hatlarına bak.**
   Öksüz MSBuild düğümleri (`nodeReuse:true`) boruyu açık tutar ve
   `WaitForExitAsync` ~15 dk bloke kalır; çözüm `MSBUILDDISABLENODEREUSE=1`
-  (8 dk+ → 18,5 sn). İkinci sebep: `-p:AgentPrismFrontendEnabled=false` ile
+  (8 dk+ → 18,5 sn). İkinci sebep: `-p:TraconFrontendEnabled=false` ile
   derleyip **E2E** koşmak. Ayrıntı: `docs/hafiza/test-kosum-tuzaklari.md`.
 - **🚨 Elle tekrarlanan bir toplama ifadesine terim eklemek sessiz bir kusur
   SINIFI üretir.** Faz 68'de `InputCost + OutputCost` yedi yerde elle yazılıydı;

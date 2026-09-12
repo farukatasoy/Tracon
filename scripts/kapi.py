@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""AgentPrism validation gates.
+"""Tracon validation gates.
 
 The repository has several validation boundaries. This module is the single
 executable source for their commands so CI, skills, and local development do
@@ -28,13 +28,13 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 ARTIFACTS = ROOT / "artifacts"
 MEASUREMENTS = ARTIFACTS / "kapi-olcum.jsonl"
 PACKAGE_RELEASE_DIR = ARTIFACTS / "package" / "release"
-PACKABLE_SOLUTION_FILTER = ROOT / "AgentPrism.src.slnf"
-NPM_CLIENT_PACKAGE_DIR = ROOT / "packages" / "agentprism-client"
+PACKABLE_SOLUTION_FILTER = ROOT / "Tracon.src.slnf"
+NPM_CLIENT_PACKAGE_DIR = ROOT / "packages" / "tracon-client"
 RELEASE_VERSION_PATTERN = re.compile(r"^1\.0\.0-preview\.\d+$")
 PRERELEASE_DEPENDENCY_PATTERN = re.compile(r'id="(?P<id>[^"]+)" version="[^"]*-[^"]*"')
 REPOSITORY_COMMIT_PATTERN = re.compile(r'<repository[^>]+commit="[0-9a-f]{7,}"[^>]*/>')
 RELEASE_NOTES_PATTERN = re.compile(r"<releaseNotes>(?P<url>[^<]*)</releaseNotes>")
-K008_EXEMPT_PACKAGE = "AgentPrism.AspNetCore"
+K008_EXEMPT_PACKAGE = "Tracon.AspNetCore"
 APPLIED_MIGRATION_MANIFEST = pathlib.PurePath("scripts", "applied-migrations.json")
 GIT_COMMIT = re.compile(r"^[0-9a-f]{7,40}$")
 TEST_MAX_CPU_COUNT = 1
@@ -353,7 +353,7 @@ def changed_paths(base: str = "HEAD") -> list[str] | None:
 
 
 def frontend_changed(paths: Iterable[str]) -> bool:
-    return any(path.startswith("src/AgentPrism.UI/") or path.startswith("packages/agentprism-client/") for path in paths)
+    return any(path.startswith("src/Tracon.UI/") or path.startswith("packages/tracon-client/") for path in paths)
 
 
 # -----------------------------------------------------------------------------
@@ -366,13 +366,13 @@ def frontend_changed(paths: Iterable[str]) -> bool:
 # -----------------------------------------------------------------------------
 
 PERFORMANCE_HOT_PATHS = (
-    "src/AgentPrism.Core/Recording/RunEventWriter.cs",
-    "src/AgentPrism.Core/Compilation/CompiledAgentCache.cs",
-    "src/AgentPrism.Sql.Shared/Stores/SqlRunStore.cs",
+    "src/Tracon.Core/Recording/RunEventWriter.cs",
+    "src/Tracon.Core/Compilation/CompiledAgentCache.cs",
+    "src/Tracon.Sql.Shared/Stores/SqlRunStore.cs",
     "bench/",
 )
 
-BENCHMARK_PROJECT = ROOT / "bench" / "AgentPrism.Benchmarks" / "AgentPrism.Benchmarks.csproj"
+BENCHMARK_PROJECT = ROOT / "bench" / "Tracon.Benchmarks" / "Tracon.Benchmarks.csproj"
 BENCHMARK_BASELINE = ROOT / "bench" / "baseline.json"
 BENCHMARK_REPORT_DIR = ARTIFACTS / "benchmarks" / "results"
 
@@ -535,24 +535,24 @@ def performance_gate(
 
 
 TEST_PROJECTS: dict[str, tuple[str, ...]] = {
-    "AgentPrism.Abstractions": ("AgentPrism.Core.UnitTests",),
-    "AgentPrism.Core": ("AgentPrism.Core.UnitTests", "AgentPrism.AspNetCore.FunctionalTests"),
-    "AgentPrism.Generators": ("AgentPrism.Generators.UnitTests",),
-    "AgentPrism.PostgreSql": ("AgentPrism.PostgreSql.IntegrationTests",),
-    "AgentPrism.SqlServer": ("AgentPrism.SqlServer.IntegrationTests",),
-    "AgentPrism.Sqlite": ("AgentPrism.Sqlite.IntegrationTests",),
-    "AgentPrism.OpenAI": ("AgentPrism.OpenAI.UnitTests", "AgentPrism.Generators.UnitTests"),
-    "AgentPrism.Anthropic": ("AgentPrism.Anthropic.UnitTests",),
-    "AgentPrism.Google": ("AgentPrism.Google.UnitTests",),
-    "AgentPrism.Azure": ("AgentPrism.Azure.UnitTests",),
-    "AgentPrism.Voice": ("AgentPrism.Voice.UnitTests",),
-    "AgentPrism.Mcp": ("AgentPrism.Mcp.UnitTests",),
-    "AgentPrism.Workflows": ("AgentPrism.Workflows.UnitTests",),
-    "AgentPrism.AspNetCore": ("AgentPrism.AspNetCore.FunctionalTests",),
-    "AgentPrism.UI": ("AgentPrism.Ui.E2ETests",),
-    "AgentPrism.Testing": ("AgentPrism.Testing.UnitTests",),
-    "AgentPrism.Client": ("AgentPrism.Client.UnitTests",),
-    "AgentPrism.Cli": ("AgentPrism.Cli.FunctionalTests",),
+    "Tracon.Abstractions": ("Tracon.Core.UnitTests",),
+    "Tracon.Core": ("Tracon.Core.UnitTests", "Tracon.AspNetCore.FunctionalTests"),
+    "Tracon.Generators": ("Tracon.Generators.UnitTests",),
+    "Tracon.PostgreSql": ("Tracon.PostgreSql.IntegrationTests",),
+    "Tracon.SqlServer": ("Tracon.SqlServer.IntegrationTests",),
+    "Tracon.Sqlite": ("Tracon.Sqlite.IntegrationTests",),
+    "Tracon.OpenAI": ("Tracon.OpenAI.UnitTests", "Tracon.Generators.UnitTests"),
+    "Tracon.Anthropic": ("Tracon.Anthropic.UnitTests",),
+    "Tracon.Google": ("Tracon.Google.UnitTests",),
+    "Tracon.Azure": ("Tracon.Azure.UnitTests",),
+    "Tracon.Voice": ("Tracon.Voice.UnitTests",),
+    "Tracon.Mcp": ("Tracon.Mcp.UnitTests",),
+    "Tracon.Workflows": ("Tracon.Workflows.UnitTests",),
+    "Tracon.AspNetCore": ("Tracon.AspNetCore.FunctionalTests",),
+    "Tracon.UI": ("Tracon.Ui.E2ETests",),
+    "Tracon.Testing": ("Tracon.Testing.UnitTests",),
+    "Tracon.Client": ("Tracon.Client.UnitTests",),
+    "Tracon.Cli": ("Tracon.Cli.FunctionalTests",),
 }
 
 
@@ -560,24 +560,24 @@ TEST_PROJECTS: dict[str, tuple[str, ...]] = {
 # ExampleExtractor enumerates src/**/*.cs and COMPILES every <example> block it
 # finds, so an XML doc comment added anywhere under src/ can break it. Measured
 # escape: 9433efe4 ("caught only by the full solution test run, not by
-# AgentPrism.Core.UnitTests alone") - the inner loop selected Core.UnitTests +
+# Tracon.Core.UnitTests alone") - the inner loop selected Core.UnitTests +
 # AspNetCore.FunctionalTests and never ran the project that actually failed.
 # Costs 2.4 s measured (2026-09-04 per-project profile).
-EXAMPLE_COMPILING_TEST_PROJECT = "AgentPrism.Generators.UnitTests"
+EXAMPLE_COMPILING_TEST_PROJECT = "Tracon.Generators.UnitTests"
 
 # A sample directory the solution really tests, and the project that tests it
 # (via ProjectReference). Measured escape: a377106e - phase 139 added a sixth
-# embedding point, samples/AgentPrism.Embedded fell behind, and `ic-dongu`
+# embedding point, samples/Tracon.Embedded fell behind, and `ic-dongu`
 # selected NO test project at all for a samples/ change.
 SAMPLE_TEST_PROJECTS: dict[str, str] = {
-    "AgentPrism.Embedded": "AgentPrism.Embedded.Tests",
+    "Tracon.Embedded": "Tracon.Embedded.Tests",
 }
 
-# These ship as consumer-facing samples but are NOT in AgentPrism.slnx: they
+# These ship as consumer-facing samples but are NOT in Tracon.slnx: they
 # compile against packed NuGet packages, so no closing-gate test run covers
 # them. Only `kapi.py yayin` (release_extension_samples.py) does. Saying so out
 # loud beats selecting nothing silently.
-RELEASE_ONLY_SAMPLE_PREFIX = "samples/AgentPrism.Samples."
+RELEASE_ONLY_SAMPLE_PREFIX = "samples/Tracon.Samples."
 
 
 def affected_test_projects(paths: Iterable[str]) -> tuple[list[str], bool]:
@@ -611,7 +611,7 @@ def affected_test_projects(paths: Iterable[str]) -> tuple[list[str], bool]:
             if sample in SAMPLE_TEST_PROJECTS:
                 projects.add(SAMPLE_TEST_PROJECTS[sample])
         elif path.startswith("packages/") or path.startswith("scripts/"):
-            projects.add("AgentPrism.Client.UnitTests" if path.startswith("packages/") else "AgentPrism.Core.UnitTests")
+            projects.add("Tracon.Client.UnitTests" if path.startswith("packages/") else "Tracon.Core.UnitTests")
     return sorted(projects), needs_full
 
 
@@ -634,7 +634,7 @@ def full_solution_test_command() -> Command:
     # Olculdu 2026-09-04: TRX yazimi kosum suresini olcum gurultusunun
     # altinda etkiler (557 sn TRX'li, 561 sn TRX'siz).
     return Command((
-        "dotnet", "test", "AgentPrism.slnx", "-c", "Release", "--no-build",
+        "dotnet", "test", "Tracon.slnx", "-c", "Release", "--no-build",
         f"-maxcpucount:{TEST_MAX_CPU_COUNT}", "--", "--report-trx"))
 
 
@@ -716,8 +716,8 @@ def isolate_failed_tests(
 
 
 def inner_loop_commands(paths: list[str]) -> list[Command]:
-    frontend_flag = () if frontend_changed(paths) else ("-p:AgentPrismFrontendEnabled=false",)
-    commands = [Command(("dotnet", "build", "AgentPrism.slnx", "-c", "Release", *frontend_flag))]
+    frontend_flag = () if frontend_changed(paths) else ("-p:TraconFrontendEnabled=false",)
+    commands = [Command(("dotnet", "build", "Tracon.slnx", "-c", "Release", *frontend_flag))]
     projects, needs_full = affected_test_projects(paths)
     if needs_full:
         print("⚠️ Etkilenen proje haritası eksik; test seçimi tam koşuma genişletildi.")
@@ -732,27 +732,27 @@ def closing_commands(base: str, *, site: bool = True, performance: bool = True) 
         Command(("python3", "-m", "unittest", "discover", "-s", "scripts", "-p", "*_test.py")),
         Command(("node", "docs-site/scripts/build-agent-map.mjs", "--check")),
         Command(("python3", "scripts/denetim-paketi.py", "--taban", base)),
-        Command(("dotnet", "build", "AgentPrism.slnx", "-c", "Release")),
+        Command(("dotnet", "build", "Tracon.slnx", "-c", "Release")),
         full_solution_test_command(),
-        # AgentPrismSkipCleanWorkingTreeCheck (Faz 136): this pack validates the
+        # TraconSkipCleanWorkingTreeCheck (Faz 136): this pack validates the
         # PACKAGING CONTRACT (README, icon, K-008) during iteration - it is not
         # a release candidate, so it must still work on an uncommitted tree.
         # The real release rehearsal (`kapi.py yayin`) and the CI `pack` job a
         # `v*` tag actually publishes from both leave this unset and stay fully
-        # gated by AgentPrismValidateCleanWorkingTree.
+        # gated by TraconValidateCleanWorkingTree.
         Command((
-            "dotnet", "pack", "AgentPrism.slnx", "-c", "Release", "--no-build",
-            "-p:AgentPrismSkipCleanWorkingTreeCheck=true")),
+            "dotnet", "pack", "Tracon.slnx", "-c", "Release", "--no-build",
+            "-p:TraconSkipCleanWorkingTreeCheck=true")),
         # 🚨 NOT --no-restore: measured (2026-08-27) that dotnet format's
         # restore-less MSBuildWorkspace load intermittently fails to resolve
         # PackageReference types for every samples/*.Tests project (a
-        # floating-version, local-feed consumer of AgentPrism.* packages)
+        # floating-version, local-feed consumer of Tracon.* packages)
         # specifically right after the full solution test run above -
         # reproduced 3 times through this exact command chain, never in
         # isolation. A plain restore immediately before format is a few
         # seconds when nothing changed ("all projects are up-to-date") and
         # reliably avoids the false failure.
-        Command(("dotnet", "format", "AgentPrism.slnx", "--verify-no-changes")),
+        Command(("dotnet", "format", "Tracon.slnx", "--verify-no-changes")),
     ]
     # Path-triggered (116.4): a fifth ALWAYS-ON gate would run BenchmarkDotNet
     # on every phase closing, even when nothing near the three hot paths
@@ -811,29 +811,29 @@ LICENSE_FILES = (POLYFORM_LICENSE_FILE, MIT_LICENSE_FILE)
 # olarak budur: lisans bir sonuç değil, bilinçli bir karardır. Üç paket MIT'dir
 # ki üçüncü taraf ticari lisans almadan eklenti yazıp test edebilsin ve
 # `dotnet new`'in ürettiği koda sahip olsun. Agent çalıştıran her şey PolyForm.
-# Kaynak: src/Directory.Build.props (AgentPrismMitLicensed) - iki liste AYNI
+# Kaynak: src/Directory.Build.props (TraconMitLicensed) - iki liste AYNI
 # olmalıdır; `PackageLicenseTests` bunu kilitler.
 PACKAGE_LICENSES: dict[str, str] = {
-    "AgentPrism": POLYFORM_LICENSE_FILE,
-    "AgentPrism.Abstractions": MIT_LICENSE_FILE,
-    "AgentPrism.Anthropic": POLYFORM_LICENSE_FILE,
-    "AgentPrism.AspNetCore": POLYFORM_LICENSE_FILE,
-    "AgentPrism.Azure": POLYFORM_LICENSE_FILE,
-    "AgentPrism.Cli": POLYFORM_LICENSE_FILE,
-    "AgentPrism.Client": POLYFORM_LICENSE_FILE,
-    "AgentPrism.Core": POLYFORM_LICENSE_FILE,
-    "AgentPrism.Google": POLYFORM_LICENSE_FILE,
-    "AgentPrism.Mcp": POLYFORM_LICENSE_FILE,
-    "AgentPrism.OpenAI": POLYFORM_LICENSE_FILE,
-    "AgentPrism.PostgreSql": POLYFORM_LICENSE_FILE,
-    "AgentPrism.SqlServer": POLYFORM_LICENSE_FILE,
-    "AgentPrism.Sqlite": POLYFORM_LICENSE_FILE,
-    "AgentPrism.Templates": MIT_LICENSE_FILE,
-    "AgentPrism.Testing": POLYFORM_LICENSE_FILE,
-    "AgentPrism.Testing.Contracts.Xunit": MIT_LICENSE_FILE,
-    "AgentPrism.UI": POLYFORM_LICENSE_FILE,
-    "AgentPrism.Voice": POLYFORM_LICENSE_FILE,
-    "AgentPrism.Workflows": POLYFORM_LICENSE_FILE,
+    "Tracon": POLYFORM_LICENSE_FILE,
+    "Tracon.Abstractions": MIT_LICENSE_FILE,
+    "Tracon.Anthropic": POLYFORM_LICENSE_FILE,
+    "Tracon.AspNetCore": POLYFORM_LICENSE_FILE,
+    "Tracon.Azure": POLYFORM_LICENSE_FILE,
+    "Tracon.Cli": POLYFORM_LICENSE_FILE,
+    "Tracon.Client": POLYFORM_LICENSE_FILE,
+    "Tracon.Core": POLYFORM_LICENSE_FILE,
+    "Tracon.Google": POLYFORM_LICENSE_FILE,
+    "Tracon.Mcp": POLYFORM_LICENSE_FILE,
+    "Tracon.OpenAI": POLYFORM_LICENSE_FILE,
+    "Tracon.PostgreSql": POLYFORM_LICENSE_FILE,
+    "Tracon.SqlServer": POLYFORM_LICENSE_FILE,
+    "Tracon.Sqlite": POLYFORM_LICENSE_FILE,
+    "Tracon.Templates": MIT_LICENSE_FILE,
+    "Tracon.Testing": POLYFORM_LICENSE_FILE,
+    "Tracon.Testing.Contracts.Xunit": MIT_LICENSE_FILE,
+    "Tracon.UI": POLYFORM_LICENSE_FILE,
+    "Tracon.Voice": POLYFORM_LICENSE_FILE,
+    "Tracon.Workflows": POLYFORM_LICENSE_FILE,
 }
 
 
@@ -844,7 +844,7 @@ DEFAULT_TARGET_FRAMEWORKS = ("net8.0", "net9.0", "net10.0")
 
 def _target_frameworks(root: pathlib.Path, project_id: str) -> tuple[str, ...]:
     """Most packages inherit net8.0;net9.0;net10.0 from src/Directory.Build.props;
-    a project that pins a single framework (e.g. AgentPrism.Testing) overrides
+    a project that pins a single framework (e.g. Tracon.Testing) overrides
     TargetFrameworks (plural) explicitly."""
     text = (root / "src" / project_id / f"{project_id}.csproj").read_text(encoding="utf-8")
     match = TARGET_FRAMEWORKS_PATTERN.search(text)
@@ -856,7 +856,7 @@ def _target_frameworks(root: pathlib.Path, project_id: str) -> tuple[str, ...]:
 def _names_own_version(project_id: str, file_name: str) -> bool:
     """True if `file_name` is `<project_id>.<version>.<ext>` for THIS project,
     not a different package that merely starts with the same prefix (e.g.
-    "AgentPrism." also prefixes "AgentPrism.Core...."). A version always
+    "Tracon." also prefixes "Tracon.Core...."). A version always
     starts with a digit right after the id, which no package name does."""
     prefix = f"{project_id}."
     return file_name.startswith(prefix) and file_name[len(prefix) : len(prefix) + 1].isdigit()
@@ -976,10 +976,10 @@ def release_rehearsal(
     project_ids = packable_project_ids(root)
 
     # Erken ret (136.3): çalışma ağacı denetlenir ÖNCE dakikalarca süren bir
-    # `dotnet pack`e girilir. MSBuild kapısı (AgentPrismValidateCleanWorkingTree)
+    # `dotnet pack`e girilir. MSBuild kapısı (TraconValidateCleanWorkingTree)
     # zaten aynı sonucu verirdi; bu adım yalnız geri bildirimi öne çeker.
     # Koşulsuzdur - bir yayın provasının kanıt değeri kirli bir ağaçta yoktur,
-    # burada AgentPrismAllowDirtyPack karşılığı bir override YOKTUR (Faz 136,
+    # burada TraconAllowDirtyPack karşılığı bir override YOKTUR (Faz 136,
     # Açık Soru 3). git bulunamazsa (kaynak tarball, git PATH'te yok) kapı
     # ATLANIR - `dotnet pack` kendi MSBuild kapısı üzerinden aynı denetimi
     # tekrar dener; burası ikinci savunma hattıdır, tek hat değil.
@@ -1159,7 +1159,7 @@ def _finish_release_rehearsal(
             offenders = sorted({
                 match.group("id")
                 for match in PRERELEASE_DEPENDENCY_PATTERN.finditer(nuspec)
-                if not match.group("id").startswith("AgentPrism")
+                if not match.group("id").startswith("Tracon")
             })
             if offenders:
                 errors.append(f"{project_id}: K-008 sınırı ihlal edildi - ön sürüm bağımlılık: {', '.join(offenders)}")
@@ -1270,7 +1270,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         help="bench/baseline.json'ı bu koşumun sonucuyla değiştirir (karşılaştırma yapılmaz)")
     test = subparsers.add_parser("test", help="MTP filtresiyle tek test alt kümesi")
     test.add_argument("--sinif", nargs="+", required=True, help="sınıf desenleri")
-    test.add_argument("--proje", default="AgentPrism.Core.UnitTests", help="test proje adı")
+    test.add_argument("--proje", default="Tracon.Core.UnitTests", help="test proje adı")
     yayin = subparsers.add_parser("yayin", help="yayın provası - ağa hiçbir şey yazmaz")
     yayin.add_argument(
         "--kuru", action="store_true", required=True,
@@ -1302,7 +1302,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
     if args.stage == "performans":
         if args.komutlari_bas:
-            print("$ dotnet run -c Release --project bench/AgentPrism.Benchmarks -- --filter * --exporters json")
+            print("$ dotnet run -c Release --project bench/Tracon.Benchmarks -- --filter * --exporters json")
             return 0
         return performance_gate(update=args.guncelle)
     if args.stage == "test":

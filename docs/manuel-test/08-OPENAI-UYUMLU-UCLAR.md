@@ -1,16 +1,16 @@
 # 08 — OpenAI Uyumlu Uçlar (`COMPAT`)
 
 > **Alan kodu:** `COMPAT` · **Faz:** 50
-> **Kaynak:** `src/AgentPrism.AspNetCore/OpenAICompat/` — `OpenAIChatCompletionsEndpoints.cs`
+> **Kaynak:** `src/Tracon.AspNetCore/OpenAICompat/` — `OpenAIChatCompletionsEndpoints.cs`
 > (`/v1/chat/completions`), `OpenAIResponsesEndpoints.cs` (`/v1/responses`),
 > `OpenAIConversationsEndpoints.cs` (`/v1/conversations*`), `OpenAICompatSupport.cs`
 > (ortak yardımcılar), `AttachmentIngestion.cs` (gömülü `data:` URI → ek).
 >
 > 🚨 **00-INDEKS.md düzeltmesi.** Durum tablosundaki kaynak sütunu bu dosya için
-> `src/AgentPrism.AspNetCore` (`v1/*`) yazıyordu. Böyle bir `v1/` klasörü **yoktur**
+> `src/Tracon.AspNetCore` (`v1/*`) yazıyordu. Böyle bir `v1/` klasörü **yoktur**
 > — gerçek klasör adı `OpenAICompat/`'tır (`v1/*` yalnızca HTTP yol önekidir, dosya
-> yolu değil). Ölçüldü: `find src/AgentPrism.AspNetCore -iname "*v1*"` boş sonuç
-> döndü; asıl dosyalar `grep -rl "chat/completions" src/AgentPrism.AspNetCore`
+> yolu değil). Ölçüldü: `find src/Tracon.AspNetCore -iname "*v1*"` boş sonuç
+> döndü; asıl dosyalar `grep -rl "chat/completions" src/Tracon.AspNetCore`
 > ile bulundu. 00-INDEKS.md §7 tablosu bu üretimle birlikte düzeltildi.
 >
 > Ortam kurulumu, fixture verisi ve reset yordamı [`00-INDEKS.md`](00-INDEKS.md)'dedir.
@@ -23,24 +23,24 @@
 
 ## Bu dosya neyi kanıtlar
 
-`app.MapAgentPrism()`'in kurduğu üç OpenAI-uyumlu uç: durumsuz `/v1/chat/completions`,
+`app.MapTracon()`'in kurduğu üç OpenAI-uyumlu uç: durumsuz `/v1/chat/completions`,
 oturum destekli `/v1/responses`, konuşma yaşam döngüsü `/v1/conversations*`. Bu uçlar
 yönetim API'sinden (`/api/*`, dosya 07) **ayrı bir sözleşmedir**: `ProblemDetails`
 kullanmazlar, OpenAI'nin kendi `{"error":{"message":...}}` zarfını kullanırlar (K-038),
 ve amaçları stok OpenAI SDK'larının (Python, Node, vb.) `base_url` değiştirerek
-AgentPrism'e doğrudan bağlanabilmesidir.
+Tracon'e doğrudan bağlanabilmesidir.
 
 ```mermaid
 flowchart TD
-    A["POST /agentprism/v1/chat/completions"] --> B["model veya metadata.entity_id -> agent"]
+    A["POST /tracon/v1/chat/completions"] --> B["model veya metadata.entity_id -> agent"]
     B --> C["agent.RunAsync(messages, session: null)"]
     C --> D["ChatCompletion govde — DURUMSUZ, oturum acilmaz"]
 
-    E["POST /agentprism/v1/responses"] --> F["model veya metadata.entity_id -> agent"]
+    E["POST /tracon/v1/responses"] --> F["model veya metadata.entity_id -> agent"]
     F --> G["conversation / previous_response_id -> AgentSessionStore"]
     G --> H["OpenAIResponses.WriteResponse govde"]
 
-    I["POST /agentprism/v1/conversations"] --> J["conv_ + AgentPrismId — KIMLIK REZERVASYONU"]
+    I["POST /tracon/v1/conversations"] --> J["conv_ + TraconId — KIMLIK REZERVASYONU"]
     J -.->|conversation alaninda kullanilir| G
     H -.->|conversation = oturum kimligi, K-043| J
 ```
@@ -63,27 +63,27 @@ flowchart TD
 2. Örnek uygulama gerçek OpenAI **ve** Anthropic anahtarlarıyla çalışır
    (`support` OpenAI, `claude-destek` Anthropic ister; §1 ve §2'nin
    "sağlayıcı bağımsızlığı" case'leri ikisini de kullanır).
-3. `AgentPrism:Ui:AuthToken` `manuel-test-token-2026`'dır ([`00-INDEKS.md`](00-INDEKS.md) §2.4).
+3. `Tracon:Ui:AuthToken` `manuel-test-token-2026`'dır ([`00-INDEKS.md`](00-INDEKS.md) §2.4).
 4. Python'da stok `openai` paketi kurulu olmalıdır: `python3 -c "import openai; print(openai.__version__)"`.
    §4'teki case'ler bunu ister.
 5. §1.16, §2.23, §3.6, §3.9, §3.13 (kiracı yalıtımı case'leri) için çok kiracılılık
    **geçici olarak** açılır — bu dosyaya özel, [`00-INDEKS.md`](00-INDEKS.md)'nin
    varsayılan secret listesinde YOKTUR:
    ```bash
-   cd samples/AgentPrism.Api
-   dotnet user-secrets set "AgentPrism:Tenancy:Enabled" "true"
-   dotnet user-secrets set "AgentPrism:Tenancy:AllowHeaderResolution" "true"
+   cd samples/Tracon.Api
+   dotnet user-secrets set "Tracon:Tenancy:Enabled" "true"
+   dotnet user-secrets set "Tracon:Tenancy:AllowHeaderResolution" "true"
    ```
    Bu case'ler bitince kaldırın (`dotnet user-secrets remove ...` ikisi için) ve
    uygulamayı yeniden başlatın — geri kalan case'ler tek kiracılı varsayımla yazıldı.
-6. Örnek uygulama çalışır: `cd samples/AgentPrism.Api && dotnet run` →
+6. Örnek uygulama çalışır: `cd samples/Tracon.Api && dotnet run` →
    `http://localhost:5080`
 
 ```bash
 export APB="Authorization: Bearer manuel-test-token-2026"
-export APU="http://localhost:5080/agentprism"
-export TENANT_A="X-AgentPrism-Tenant: kiraci-alfa"
-export TENANT_B="X-AgentPrism-Tenant: kiraci-beta"
+export APU="http://localhost:5080/tracon"
+export TENANT_A="X-Tracon-Tenant: kiraci-alfa"
+export TENANT_B="X-Tracon-Tenant: kiraci-beta"
 ```
 
 > **Gerçek para uyarısı.** Bu dosyadaki neredeyse her case gerçek bir sağlayıcı
@@ -377,7 +377,7 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/v1/chat/completions" -H "$APB"
 
 Bu case dosyanın XML belgesindeki tasarım iddiasını doğrular: *"Tool cagrilari
 yanitta gorunmez"* (`OpenAIChatCompletionsEndpoints` remarks). Katalog her
-agent'ı `RunRecordingAgentDecorator` ile sarar (`src/AgentPrism.Core/Recording/`);
+agent'ı `RunRecordingAgentDecorator` ile sarar (`src/Tracon.Core/Recording/`);
 bu sarmalama giriş noktasından **bağımsızdır** — dolayısıyla `/v1/chat/completions`
 üzerinden yapılan bir çağrı da yönetim API'sindeki `/api/runs` listesinde görünür.
 
@@ -441,7 +441,7 @@ curl -s -X POST "$APU/v1/chat/completions" -H "$APB" \
 **Beklenen sonuç**
 - Çıktı tam olarak `['prompt_tokens', 'completion_tokens', 'total_tokens']`'dır
   (camelCase **DEĞİL** — `ChatUsage` kaydı `JsonPropertyName` ile açıkça
-  `snake_case` yazıyor; AgentPrism'in geri kalan JSON yüzeyinin `camelCase`
+  `snake_case` yazıyor; Tracon'in geri kalan JSON yüzeyinin `camelCase`
   varsayılanından **bilinçli bir sapma**).
 
 ---
@@ -536,7 +536,7 @@ curl -s "$APU/api/sessions" -H "$APB" | python3 -c "import json,sys; print(len(j
 | **İlgili karar** | — |
 
 **Ön koşul**
-- Örnek uygulama çalışıyor. `AgentPrism:Idempotency:Enabled` varsayılan
+- Örnek uygulama çalışıyor. `Tracon:Idempotency:Enabled` varsayılan
   `true`'dur — ek yapılandırma gerekmez.
 
 **Adımlar**
@@ -999,7 +999,7 @@ curl -s "$APU/api/attachments?sessionId=manuel-conv-025" -H "$APB" | python3 -m 
 - `/api/attachments?sessionId=manuel-conv-025` listesinde `mediaType: "image/png"`
   taşıyan bir kayıt vardır.
 - `GET $APU/api/sessions/manuel-conv-025` ile okunan sohbet geçmişinde ham
-  base64 verisi **yoktur** — yalnız `/agentprism/api/attachments/{id}` biçiminde
+  base64 verisi **yoktur** — yalnız `/tracon/api/attachments/{id}` biçiminde
   bir referans URI'si vardır (`AttachmentUriReference.Create`).
 
 ---
@@ -1075,7 +1075,7 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/v1/responses" -H "$APB" \
 **Beklenen sonuç**
 - `HTTP: 502`.
 - `error.type = "upstream_error"`.
-- Yanıt gövdesi `ProblemDetails` **DEĞİLDİR** — `AgentPrismException` (veya
+- Yanıt gövdesi `ProblemDetails` **DEĞİLDİR** — `TraconException` (veya
   `InvalidOperationException`/`HttpRequestException`) `OpenAICompatSupport.Error`
   ile yakalanmıştır.
 
@@ -1094,7 +1094,7 @@ Negatif senaryo — düzeltilmiş kusur.
 
 **Düzeltilmiş kusur (2026-08-10).** `OpenAIResponsesEndpoints.ResponsesStream.ExecuteAsync`'in
 hata `catch`'i tıpkı `OpenAIChatCompletionsEndpoints.ChatCompletionsStream` gibi
-önceden yalnız `AgentPrismException`, `InvalidOperationException`,
+önceden yalnız `TraconException`, `InvalidOperationException`,
 `HttpRequestException` yakalıyordu. `05-SAGLAYICI-OPENAI.md` `MT-OAI-043`'ün
 ölçtüğü boşluk (`System.ClientModel.ClientResultException`) ile
 `06-SAGLAYICI-DIGER.md` `MT-PROV-036`'nın ölçtüğü boşluk
@@ -1231,7 +1231,7 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/v1/conversations" -H "$APB" \
 
 **Beklenen sonuç**
 - `HTTP: 200`.
-- `id` `conv_` öneki + 32 hane hexadecimal (`AgentPrismId.NewId().ToString("N")`)
+- `id` `conv_` öneki + 32 hane hexadecimal (`TraconId.NewId().ToString("N")`)
   biçimindedir.
 - `object: "conversation"`, `metadata: null` (boş gövdede metadata yoksayılır).
 
@@ -1715,7 +1715,7 @@ cat /tmp/ap-compat-044.txt
 from openai import OpenAI
 
 client = OpenAI(
-    base_url="http://localhost:5080/agentprism/v1",
+    base_url="http://localhost:5080/tracon/v1",
     api_key="manuel-test-token-2026",
 )
 
@@ -1769,7 +1769,7 @@ python3 /tmp/ap-compat-045.py
 from openai import OpenAI
 
 client = OpenAI(
-    base_url="http://localhost:5080/agentprism/v1",
+    base_url="http://localhost:5080/tracon/v1",
     api_key="manuel-test-token-2026",
 )
 
@@ -1824,7 +1824,7 @@ python3 /tmp/ap-compat-046.py
 from openai import OpenAI, NotFoundError
 
 client = OpenAI(
-    base_url="http://localhost:5080/agentprism/v1",
+    base_url="http://localhost:5080/tracon/v1",
     api_key="manuel-test-token-2026",
 )
 
@@ -1863,7 +1863,7 @@ python3 /tmp/ap-compat-047.py
 - İlk yanıt `ORD-1001` içerir.
 - Akış bölümü kesintisiz metin yazdırır, istisna fırlatmaz.
 - `NotFoundError` yakalanır ve `status_code == 404`'tür — resmi SDK
-  AgentPrism'in `model_not_found` zarfını kendi istisna hiyerarşisine
+  Tracon'in `model_not_found` zarfını kendi istisna hiyerarşisine
   doğru eşler.
 
 ### MT-COMPAT-048 — `Authorization` başlığı eksikse `401`
@@ -1878,7 +1878,7 @@ Negatif senaryo.
 | **İlgili karar** | — |
 
 **Ön koşul**
-- `AgentPrism:Ui:AuthToken` ayarlı (`manuel-test-token-2026`).
+- `Tracon:Ui:AuthToken` ayarlı (`manuel-test-token-2026`).
 
 **Adımlar**
 1. `Authorization` başlığı olmadan `/v1/responses` çağır.
@@ -1935,5 +1935,5 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/v1/chat/completions" \
 
 **Beklenen sonuç**
 - `HTTP: 401`.
-- Yanıt gövdesi boş ya da genel bir 401 sayfasıdır — `AgentPrismEndpointFilter`
+- Yanıt gövdesi boş ya da genel bir 401 sayfasıdır — `TraconEndpointFilter`
   compat uçlarına da uygulanır, ayrı bir kimlik doğrulama yolu yoktur.

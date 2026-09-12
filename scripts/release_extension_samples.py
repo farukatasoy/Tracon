@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Verify extension samples against one exact packed AgentPrism version."""
+"""Verify extension samples against one exact packed Tracon version."""
 
 from __future__ import annotations
 
@@ -10,12 +10,12 @@ import tempfile
 
 
 SAMPLE_TEST_PROJECTS = (
-    "AgentPrism.Samples.FileRunStore.Tests",
-    "AgentPrism.Samples.CustomModelProvider.Tests",
-    "AgentPrism.Samples.CustomRunJudge.Tests",
-    "AgentPrism.Samples.CustomAgentSource.Tests",
-    "AgentPrism.Samples.CustomTool.Tests",
-    "AgentPrism.Samples.CustomJobHandler.Tests",
+    "Tracon.Samples.FileRunStore.Tests",
+    "Tracon.Samples.CustomModelProvider.Tests",
+    "Tracon.Samples.CustomRunJudge.Tests",
+    "Tracon.Samples.CustomAgentSource.Tests",
+    "Tracon.Samples.CustomTool.Tests",
+    "Tracon.Samples.CustomJobHandler.Tests",
 )
 
 # Deliberate, justified exclusions from SAMPLE_TEST_PROJECTS: a sample test
@@ -27,11 +27,11 @@ SAMPLE_TEST_PROJECTS = (
 # against the samples/ directory it claims to enumerate).
 SAMPLE_TEST_EXCLUSIONS: dict[str, str] = {}
 
-AOT_PROJECT = "AgentPrism.Samples.ExtensionAotSmoke"
+AOT_PROJECT = "Tracon.Samples.ExtensionAotSmoke"
 
 
 def validate_sample_inventory(root: pathlib.Path) -> list[str]:
-    """The samples/AgentPrism.Samples.*.Tests directory inventory must match
+    """The samples/Tracon.Samples.*.Tests directory inventory must match
     SAMPLE_TEST_PROJECTS union SAMPLE_TEST_EXCLUSIONS exactly - neither a new
     sample missing from both, nor a stale tuple/exclusion entry naming a
     project that no longer exists."""
@@ -40,7 +40,7 @@ def validate_sample_inventory(root: pathlib.Path) -> list[str]:
 
     inventory = {
         path.parent.name
-        for path in samples.glob("AgentPrism.Samples.*.Tests/*.csproj")
+        for path in samples.glob("Tracon.Samples.*.Tests/*.csproj")
     }
     accounted = set(SAMPLE_TEST_PROJECTS) | set(SAMPLE_TEST_EXCLUSIONS)
 
@@ -66,20 +66,20 @@ def validate_sample_contract(root: pathlib.Path, version: str) -> list[str]:
     samples = root / "samples"
 
     if not version or "*" in version:
-        errors.append("exact AgentPrism sample package version is required")
+        errors.append("exact Tracon sample package version is required")
 
     for project in (*SAMPLE_TEST_PROJECTS, AOT_PROJECT):
         csproj = samples / project / f"{project}.csproj"
         if not csproj.exists():
             errors.append(f"missing release sample project: {project}")
 
-    for csproj in sorted(samples.glob("AgentPrism.Samples.*/*.csproj")):
+    for csproj in sorted(samples.glob("Tracon.Samples.*/*.csproj")):
         project_text = csproj.read_text(encoding="utf-8")
         if 'VersionOverride="*-*"' in project_text:
             errors.append(f"{csproj.relative_to(root)} uses a wildcard VersionOverride")
         for line in project_text.splitlines():
-            if "ProjectReference" in line and "src/AgentPrism" in line.replace("\\", "/"):
-                errors.append(f"{csproj.relative_to(root)} references AgentPrism source")
+            if "ProjectReference" in line and "src/Tracon" in line.replace("\\", "/"):
+                errors.append(f"{csproj.relative_to(root)} references Tracon source")
 
     return errors
 
@@ -114,11 +114,11 @@ def _current_runtime_identifier(*, root: pathlib.Path, environment: dict[str, st
 def verify(root: pathlib.Path, release_dir: pathlib.Path, version: str) -> int:
     errors = validate_sample_contract(root, version)
     stale = sorted(
-        path.name for path in release_dir.glob("AgentPrism*.nupkg")
+        path.name for path in release_dir.glob("Tracon*.nupkg")
         if not path.name.endswith(f".{version}.nupkg")
     )
     if stale:
-        errors.append(f"release feed contains stale AgentPrism packages: {', '.join(stale)}")
+        errors.append(f"release feed contains stale Tracon packages: {', '.join(stale)}")
 
     if errors:
         print("❌ Extension sample contract ihlal edildi:")
@@ -126,7 +126,7 @@ def verify(root: pathlib.Path, release_dir: pathlib.Path, version: str) -> int:
             print(f"  {error}")
         return 1
 
-    with tempfile.TemporaryDirectory(prefix="agentprism-release-samples-") as temporary:
+    with tempfile.TemporaryDirectory(prefix="tracon-release-samples-") as temporary:
         temp = pathlib.Path(temporary)
         package_cache = temp / "packages"
         package_cache.mkdir()
@@ -137,10 +137,10 @@ def verify(root: pathlib.Path, release_dir: pathlib.Path, version: str) -> int:
   <packageSources>
     <clear />
     <add key="nuget.org" value="https://api.nuget.org/v3/index.json" protocolVersion="3" />
-    <add key="agentprism-release" value="{release_dir}" />
+    <add key="tracon-release" value="{release_dir}" />
   </packageSources>
   <packageSourceMapping>
-    <packageSource key="agentprism-release"><package pattern="AgentPrism*" /></packageSource>
+    <packageSource key="tracon-release"><package pattern="Tracon*" /></packageSource>
     <packageSource key="nuget.org"><package pattern="*" /></packageSource>
   </packageSourceMapping>
 </configuration>
@@ -150,7 +150,7 @@ def verify(root: pathlib.Path, release_dir: pathlib.Path, version: str) -> int:
 
         environment = os.environ.copy()
         environment["NUGET_PACKAGES"] = str(package_cache)
-        property_arg = f"-p:AgentPrismSamplePackageVersion={version}"
+        property_arg = f"-p:TraconSamplePackageVersion={version}"
 
         for project in SAMPLE_TEST_PROJECTS:
             csproj = root / "samples" / project / f"{project}.csproj"
@@ -166,9 +166,9 @@ def verify(root: pathlib.Path, release_dir: pathlib.Path, version: str) -> int:
                 print(f"❌ {project}: restore isolated NUGET_PACKAGES kullanmadı")
                 return 1
 
-        contract_assets = _project_assets_json(root, "AgentPrism.Testing.Contracts.Xunit").read_text(encoding="utf-8")
-        if '"AgentPrism.Core/' in contract_assets:
-            print("❌ Testing.Contracts.Xunit graph'ına AgentPrism.Core sızdı")
+        contract_assets = _project_assets_json(root, "Tracon.Testing.Contracts.Xunit").read_text(encoding="utf-8")
+        if '"Tracon.Core/' in contract_assets:
+            print("❌ Testing.Contracts.Xunit graph'ına Tracon.Core sızdı")
             return 1
 
         aot_csproj = root / "samples" / AOT_PROJECT / f"{AOT_PROJECT}.csproj"
@@ -189,7 +189,7 @@ def verify(root: pathlib.Path, release_dir: pathlib.Path, version: str) -> int:
             return 1
 
         aot_assets = _project_assets_json(root, AOT_PROJECT).read_text(encoding="utf-8")
-        if '"AgentPrism.Testing/' in aot_assets or '"AgentPrism.Testing.Contracts.Xunit/' in aot_assets:
+        if '"Tracon.Testing/' in aot_assets or '"Tracon.Testing.Contracts.Xunit/' in aot_assets:
             print("❌ Meta package graph'ına testing paketi sızdı")
             return 1
 

@@ -6,7 +6,7 @@
 > **Paketler:** `src/` altındaki **19** paketin hepsi. Kod değişmez; `src/Directory.Build.props`, 19 `.csproj` ve CI değişir.
 > **Yeni paket:** Yok · **Migration:** Yok
 > **Public API:** **Değişmiyor.** `PublicAPI.Unshipped.txt` dosyalarına satır eklenmez, silinmez. `Shipped.txt` dosyaları **boş kalır** — bkz. 97.1, karar 2.
-> **Tüketici yüzeyi:** site: `docs-site/src/content/docs/reference/compatibility.md` (başlık ve tablo **17 → 19**; `AgentPrism.Client` ve `AgentPrism.Cli` satırları eklenir) · `reference/versioning.md` (tek sürüm hattı ve `Shipped` politikası beyanı) · sevk edilen: **19 `.nupkg`'nin hepsi `icon.png` kazanır** — nuget.org paket kartında ikon görünür; paket `README.md`'leri değişmez
+> **Tüketici yüzeyi:** site: `docs-site/src/content/docs/reference/compatibility.md` (başlık ve tablo **17 → 19**; `Tracon.Client` ve `Tracon.Cli` satırları eklenir) · `reference/versioning.md` (tek sürüm hattı ve `Shipped` politikası beyanı) · sevk edilen: **19 `.nupkg`'nin hepsi `icon.png` kazanır** — nuget.org paket kartında ikon görünür; paket `README.md`'leri değişmez
 > **Manuel test alanı:** [`docs/manuel-test/01-KURULUM-VE-PAKETLEME.md`](../../manuel-test/01-KURULUM-VE-PAKETLEME.md) — alan kodu `PKG`, sıradaki case **MT-PKG-097**
 
 ---
@@ -28,7 +28,7 @@
 
 ## Amaç
 
-AgentPrism 97 faz ve 337 commit sonra hâlâ **yayınlanmadı**. Depoda tek bir sürüm etiketi yoktur, yani hiç kimse `dotnet add package AgentPrism` diyemez. Bu faz yayının önündeki her yapısal engeli kaldırır ve yayını **prova edilebilir** hâle getirir: sürüm politikası karara bağlanır, paketlerin içeriği bir kapıya bağlanır ve yayın işi o kapı geçmeden koşamaz.
+Tracon 97 faz ve 337 commit sonra hâlâ **yayınlanmadı**. Depoda tek bir sürüm etiketi yoktur, yani hiç kimse `dotnet add package Tracon` diyemez. Bu faz yayının önündeki her yapısal engeli kaldırır ve yayını **prova edilebilir** hâle getirir: sürüm politikası karara bağlanır, paketlerin içeriği bir kapıya bağlanır ve yayın işi o kapı geçmeden koşamaz.
 
 ## Bitiş Ölçütleri (DoD)
 
@@ -36,7 +36,7 @@ AgentPrism 97 faz ve 337 commit sonra hâlâ **yayınlanmadı**. Depoda tek bir 
 - [x] Prova sonrası `git tag` **yalnız** `docs/damitma-oncesi-2026-08` gösteriyor — komut depoyu kirletmedi (MT-PKG-097'de doğrulandı)
 - [x] `ReleaseArtifactTests` yeşil; beş iddiayı da kanıtlıyor (kimlik kümesi · sürüm · ikon · metaveri · K-008 ön sürüm sınırı) — `5/5` geçti
 - [x] `unzip -l` ile **19 paketin hepsinde** `icon.png` doğrulandı (MT-PKG-098) — 19/19, sıfır eksik
-- [x] `EnablePackageValidation=true`; `dotnet pack` sıfır uyarı. Bastırılan hiçbir kural yok, ya da bastırılan her kuralın gerekçesi karar defterinde — hiçbir kural bastırılmadı, `dotnet pack AgentPrism.src.slnf -c Release` temiz
+- [x] `EnablePackageValidation=true`; `dotnet pack` sıfır uyarı. Bastırılan hiçbir kural yok, ya da bastırılan her kuralın gerekçesi karar defterinde — hiçbir kural bastırılmadı, `dotnet pack Tracon.src.slnf -c Release` temiz
 - [x] `ci.yml`: `release-dryrun` işi var; `publish` **ve** `npm-publish` işlerinin `needs:` satırı onu içeriyor — `grep -n "needs:" .github/workflows/ci.yml` → `publish: needs: [pack, release-dryrun]` (satır 262), `npm-publish: needs: [build, release-dryrun]` (satır 297)
 - [x] `compatibility.md` başlığı "The 19 packages"; tablo 19 satır; `Client` ve `Cli` satırlarının AOT sütunu **ölçülerek** dolduruldu — `grep -l "AotCompatible>false" src/*/*.csproj` ikisini de listeledi (No)
 - [x] `check-content.mjs` yeni iddiayı taşıyor; MT-PKG-099 koşuldu ve kapı **kırıldı** — satır silinince "18 row(s), expected 19", geri alınca temiz
@@ -44,7 +44,7 @@ AgentPrism 97 faz ve 337 commit sonra hâlâ **yayınlanmadı**. Depoda tek bir 
 - [x] 97.1'in iki kararı `docs/KARARLAR.md`'ye yazıldı; **K-068 kapatıldı** ve **K-421'in yeniden açılma notu** yeni politikaya göre güncellendi — K-602/K-603/K-604
 - [x] `find src -name PublicAPI.Shipped.txt -exec cat {} + | grep -vcE '^\s*$|^#'` → **0**; `PublicSurfaceBaselineTests` hâlâ 618 tip görüyor (yüzey değişmedi) — ikisi de ölçüldü
 - [x] Dört doğrulama kapısı sıfır uyarı verir — `python3 scripts/kapi.py kapanis --taban 2fa5a40`; kanıt ve bilinen istisna için "Plandan Sapmalar" madde 8'e bkz.
-- [x] `samples/AgentPrism.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı — fresh SQLite: 24 migration uygulandı, `/health` `Degraded` (model provider yok, beklenen), host temiz açıldı/kapandı
+- [x] `samples/Tracon.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı — fresh SQLite: 24 migration uygulandı, `/health` `Degraded` (model provider yok, beklenen), host temiz açıldı/kapandı
 - [x] `secret` taraması boş döndü — `python3 scripts/kapi.py tarama` → ✅ temiz
 - [x] Manuel kabul case'leri `docs/manuel-test/01-KURULUM-VE-PAKETLEME.md` içine eklendi (MT-PKG-097..100); MT-PKG-100 dışındakiler koşuldu — 097/098/099 gerçekten koşuldu, 100 👤 yordamı belgelendi
 - [x] `faz-denetim` koşuldu; 🔴 bulgu kalmadı — 2 🟡 bulundu ve aynı oturumda kapatıldı (bkz. "Denetim Bulguları")
@@ -67,9 +67,9 @@ for f in artifacts/package/release/*.1.0.0-preview.1.nupkg; do
   id=$(basename "$f" .1.0.0-preview.1.nupkg)
   unzip -p "$f" "$id.nuspec" \
     | grep -oE 'id="[^"]*" version="[0-9]+\.[0-9]+\.[0-9]+-[^"]*"' \
-    | grep -v 'id="AgentPrism' | sed "s|^|$id: |"
+    | grep -v 'id="Tracon' | sed "s|^|$id: |"
 done
-# Beklenen: yalnizca AgentPrism.AspNetCore satirlari
+# Beklenen: yalnizca Tracon.AspNetCore satirlari
 
 # Yayin kapisinin yerinde oldugu
 grep -n -A2 "^  publish:\|^  npm-publish:\|^  release-dryrun:" .github/workflows/ci.yml
@@ -105,7 +105,7 @@ find src -name PublicAPI.Unshipped.txt -exec cat {} + \
    `_resolve_nupkg`'in "en son yazılan dosyayı seç" sezgisi, artımlı `dotnet
    pack`'in değişmemiş bir projenin çıktısını YENİDEN ÜRETMEMESİNDEN
    yararlanan bir önceki `--surum` koşumunun bayat `.nupkg`'sini seçebiliyordu
-   — canlı tekrar üretildi: `AgentPrism` ve `AgentPrism.Templates` iki koşumda
+   — canlı tekrar üretildi: `Tracon` ve `Tracon.Templates` iki koşumda
    da değişmediği için pack onları atladı, `1.0.0-preview.1` etiketli bayat
    dosyaları "en yeni" göründü ve "Paketler tek bir sürüm hattında değil"
    hatası üretti. Düzeltme: `dotnet pack` çalışmadan ÖNCE her izlenen projenin
@@ -133,12 +133,12 @@ find src -name PublicAPI.Unshipped.txt -exec cat {} + \
    yoktu ama `faz-tamamlama` Adım 3'ün standart defter tutma işidir.
 8. **🚨 `python3 scripts/kapi.py kapanis --taban 2fa5a40` tek bir kesintisiz
    koşumda hiç yeşil olmadı — ama sebebi bu fazın kodu değil, makinenin yükü.**
-   Kapanış yedi kez koşuldu; `dotnet test AgentPrism.slnx` her seferinde
-   **farklı, ilgisiz** bir test sınıfında kırıldı: `AgentPrism.AspNetCore.
+   Kapanış yedi kez koşuldu; `dotnet test Tracon.slnx` her seferinde
+   **farklı, ilgisiz** bir test sınıfında kırıldı: `Tracon.AspNetCore.
    FunctionalTests` (iki kez, iki farklı test — `EgressGuardTests`,
-   `WorkflowEndpointTests`), `AgentPrism.Ui.E2ETests` (üç kez, üç farklı test
+   `WorkflowEndpointTests`), `Tracon.Ui.E2ETests` (üç kez, üç farklı test
    — dil seçimi, eval suite akışı, oturum sayfası satır sayımı — üçü de
-   zamanlamaya duyarlı Playwright `Locator` iddiaları), `AgentPrism.Sqlite.
+   zamanlamaya duyarlı Playwright `Locator` iddiaları), `Tracon.Sqlite.
    IntegrationTests` (`SQLite Error 5: 'database is locked'`, klasik eşzamanlı
    erişim çekişmesi). **Bu fazın hiçbir değişikliği bu dört alanın hiçbirine
    dokunmuyor** (yalnız paketleme/CI/doküman/script). Her kırılan test, KENDİ
@@ -147,8 +147,8 @@ find src -name PublicAPI.Unshipped.txt -exec cat {} + \
    (bir kez; izole koşumda bile üçüncü farklı bir testte tekrar kırıldı, yine
    zamanlama iddiası). Ölçüldü: `sysctl -n vm.loadavg` bu makinede **{34, 62,
    53}** verdi — 10 çekirdekli bir makinede 3-6 kat aşırı yük, `ps aux`'ta altı
-   ayrı eşzamanlı `claude` süreci görünüyor. Sonuç: `AgentPrism.Core.UnitTests`
-   (sevk edilen metin/dil kapıları), `AgentPrism.Package.Tests` (`
+   ayrı eşzamanlı `claude` süreci görünüyor. Sonuç: `Tracon.Core.UnitTests`
+   (sevk edilen metin/dil kapıları), `Tracon.Package.Tests` (`
    ReleaseArtifactTests` dahil, üç kez), `dotnet build`, `dotnet pack`,
    `dotnet format`, Python `unittest`, ve `npm run check` **her koşumda**
    temiz kaldı — yalnız TÜM çözümü TEK seferde koşturan adım, harici yük
@@ -172,7 +172,7 @@ find src -name PublicAPI.Unshipped.txt -exec cat {} + \
 Bağımsız denetim (taze bağlamlı ayrı agent, `faz-denetim` skill'i) 2026-08-24'te
 koştu. Gerçek koşumlarla doğruladı: `dotnet pack` (19 paket, 0 uyarı,
 `EnablePackageValidation=true` temiz), `dotnet build` (0 uyarı/hata), `dotnet
-test tests/AgentPrism.Package.Tests` (43/43), `kapi.py yayin --kuru` (19 paket
+test tests/Tracon.Package.Tests` (43/43), `kapi.py yayin --kuru` (19 paket
 + `npm publish --dry-run` yeşil), `check-content.mjs` (temiz) ve MT-PKG-099'un
 gerçekten kırıp geri döndüğü.
 
@@ -212,7 +212,7 @@ bir yanlış pozitiftir — script davranışı, bu fazın kapsamı dışında),
 - `EnablePackageValidation=true` — `dotnet pack` artık TFM'ler arası (net8/9/10)
   API farkını denetler. `PackageValidationBaselineVersion` **henüz atanmadı**
   (ilk yayından sonra anlam kazanır, 97.4).
-- `tests/AgentPrism.Package.Tests/ReleaseArtifactTests.cs` +
+- `tests/Tracon.Package.Tests/ReleaseArtifactTests.cs` +
   `Infrastructure/{ReleaseArtifactFixture,PackableProjects}.cs` — beş
   davranışı (sürüm tekliği · kimlik kümesi · K-008 sınırı · ikon · metaveri)
   gerçek `dotnet pack` çıktısına karşı kanıtlar; `1.0.0-preview.1` sabit

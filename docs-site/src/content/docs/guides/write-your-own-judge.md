@@ -1,6 +1,6 @@
 ---
 title: Write your own judge
-description: Implement a safe deterministic or model-backed IRunJudge and verify it with AgentPrism's executable contract suite.
+description: Implement a safe deterministic or model-backed IRunJudge and verify it with Tracon's executable contract suite.
 ---
 
 `IRunJudge` scores a completed production run. A judge can be deterministic or
@@ -35,10 +35,10 @@ public sealed class ResponseQualityJudge : IRunJudge
 }
 ```
 
-Register it on the same chain `AddAgentPrism()` returns:
+Register it on the same chain `AddTracon()` returns:
 
 ```csharp
-agentPrism.AddRunJudge<ResponseQualityJudge>();
+tracon.AddRunJudge<ResponseQualityJudge>();
 ```
 
 Repeating `AddRunJudge<TJudge>()` for the same implementation type has no effect
@@ -55,7 +55,7 @@ has already started.
 ## Runtime contract
 
 `Name` must be stable, unique without case sensitivity, at most 64 characters,
-and contain only letters, digits, `.`, `_`, or `-`. AgentPrism uses it in metric
+and contain only letters, digits, `.`, `_`, or `-`. Tracon uses it in metric
 tags and writes scores with `judge:{Name}` as the source and author.
 
 A judge can still be called again for the same run: manual re-scoring always
@@ -76,18 +76,18 @@ rejected as a whole, before the first row is written, and does not retry.
 `Comment` is optional and is stored at a maximum of 4000 characters.
 
 The score named exactly after the judge is its **headline** score. Only that one
-feeds the online-evaluation average and the `agentprism.judge.score` histogram,
+feeds the online-evaluation average and the `tracon.judge.score` histogram,
 both of which are defined on the 0-100 scale; a judge that reports several metrics
 on several scales gives them other names, and they are stored and queryable
 without distorting that average.
 
-The cancellation token is the call budget. AgentPrism applies `JudgeTimeout` to
+The cancellation token is the call budget. Tracon applies `JudgeTimeout` to
 each judge call, which defaults to 60 seconds. Propagate a real cancellation. Do
 not throw `OperationCanceledException` for your own timeout.
 
 `JudgeTimeout` is a **real wait cutoff**, not only a cooperative cancellation
 request: if a judge ignores its token and keeps running past the deadline,
-AgentPrism still returns a `judge_timeout` failure at that point instead of
+Tracon still returns a `judge_timeout` failure at that point instead of
 waiting indefinitely. The judge body itself is not killed — it can keep running
 in the background and complete later with a success or a fault — but a late
 result is discarded: it writes no score, no summary, and no metric, and a late
@@ -100,9 +100,9 @@ session history.
 
 ## Starting a run or model call
 
-If a judge starts an AgentPrism run, set `AgentPrismRunOptions.Kind` to
+If a judge starts an Tracon run, set `TraconRunOptions.Kind` to
 `RunKind.Eval`. This keeps synthetic traffic out of sampling and cost statistics.
-AgentPrism also suppresses sampling while `JudgeAsync` runs, but that scope does
+Tracon also suppresses sampling while `JudgeAsync` runs, but that scope does
 not cover work that outlives the call.
 
 A model-backed judge must use `IModelProviderRegistry.CreateSetupChatClientAsync`.
@@ -114,11 +114,11 @@ tenant BYOK credential is never charged for control-plane evaluation.
 Add the contract package to your test project:
 
 ```bash
-dotnet add package AgentPrism.Testing.Contracts.Xunit --prerelease
+dotnet add package Tracon.Testing.Contracts.Xunit --prerelease
 ```
 
 ```csharp
-using AgentPrism.Testing.Contracts.Judges;
+using Tracon.Testing.Contracts.Judges;
 
 public sealed class ResponseQualityJudgeTests : RunJudgeContract
 {

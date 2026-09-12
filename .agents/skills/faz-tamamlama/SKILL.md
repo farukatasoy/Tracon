@@ -1,13 +1,13 @@
 ---
 name: faz-tamamlama
-description: Bir fazın (docs/NN-*.md) kodunu bitirdikten sonra çalıştırılacak kapanış protokolü — doğrulama kapıları, doküman senkronizasyonu, karar defteri ve hafıza güncellemesi. AgentPrism'de her faz bu protokolle kapanır; atlanırsa sonraki oturum yanlış dokümanla çalışır.
+description: Bir fazın (docs/NN-*.md) kodunu bitirdikten sonra çalıştırılacak kapanış protokolü — doğrulama kapıları, doküman senkronizasyonu, karar defteri ve hafıza güncellemesi. Tracon'de her faz bu protokolle kapanır; atlanırsa sonraki oturum yanlış dokümanla çalışır.
 ---
 
 # Faz Tamamlama Protokolü
 
 Bu skill, bir fazın kodu bittiğinde çalıştırılır. Amacı tek bir şeydir: **sonraki oturumun doğru bilgiyle başlaması.**
 
-AgentPrism fazlar hâlinde ve çoğu zaman **ayrı sohbetlerde** geliştirilir. Sonraki oturum bu repoyu sıfırdan okur. Dokümanlar gerçeği yansıtmıyorsa, sonraki oturum yanlış API'ye göre kod yazar ve zaman kaybeder. Bu daha önce yaşandı: plan `AgentRunResponse` diyordu, gerçek tip `AgentResponse` idi.
+Tracon fazlar hâlinde ve çoğu zaman **ayrı sohbetlerde** geliştirilir. Sonraki oturum bu repoyu sıfırdan okur. Dokümanlar gerçeği yansıtmıyorsa, sonraki oturum yanlış API'ye göre kod yazar ve zaman kaybeder. Bu daha önce yaşandı: plan `AgentRunResponse` diyordu, gerçek tip `AgentResponse` idi.
 
 ---
 
@@ -62,8 +62,8 @@ Yeni bir **paket** eklendiyse `dotnet pack` çıktısını say: paket sayısı b
 uyuşmalıdır. Yeni paket ayrıca şunları ister — atlanırsa build veya test kırar:
 
 - `src/<Paket>/README.md` (NuGet sayfasında görünür; `DependencyDirectionTests` zorlar)
-- `AgentPrism.slnx` içine `<Project Path=... />`
-- Meta pakete (`src/AgentPrism/AgentPrism.csproj`) `ProjectReference`
+- `Tracon.slnx` içine `<Project Path=... />`
+- Meta pakete (`src/Tracon/Tracon.csproj`) `ProjectReference`
 - `DependencyDirectionTests.AllowedReferences` içine bir satır
 
 Senkronizasyon kopyası ve `secret` taraması AYRICA koşulmaz: `kapanis`'in
@@ -76,7 +76,7 @@ yaşandı; vaka kayıtları [`references/gerekce.md`](references/gerekce.md).
 
 ### 🚨 Sevk edilen bir contract'a dokunulduysa: yayın provası da koşar
 
-`src/AgentPrism.Testing.Contracts.Xunit/` altındaki bir sözleşmeye **case
+`src/Tracon.Testing.Contracts.Xunit/` altındaki bir sözleşmeye **case
 eklediysen veya davranışını değiştirdiysen**, kapanış kapısı yetmez:
 
 ```bash
@@ -84,16 +84,16 @@ python3 scripts/kapi.py yayin --kuru --surum <bir sonraki preview sürümü>
 ```
 
 **Neden zorunlu:** `samples/` projeleri **hiçbir çözüm dosyasında değildir**
-(`grep -c Samples AgentPrism.slnx` → `0`) ve bu bilinçlidir — yalnız
+(`grep -c Samples Tracon.slnx` → `0`) ve bu bilinçlidir — yalnız
 `PackageReference` ile, izole `NUGET_PACKAGES` içinde koşarak gerçek bir
-tüketiciyi taklit ederler. Bunun bedeli şudur: `dotnet test AgentPrism.slnx`
+tüketiciyi taklit ederler. Bunun bedeli şudur: `dotnet test Tracon.slnx`
 onları **çalıştıramaz**. Sözleşmeyi genişleten faz, sevk ettiği sözleşmenin
 kendi referans implementation'ında geçtiğini kapanış kapısıyla **kanıtlayamaz**.
 
 **Ölçülen vaka (2026-09-02, `nuget-danismani`):** Faz 132 `RunStoreContract`'a
 iki `ModelProvider` case'i ekledi, SQL ve bellek içi store'ları güncelledi,
 kapanış kapısını 10/10 yeşil geçti. Yayın provası `EXIT=1` döndü:
-`samples/AgentPrism.Samples.FileRunStore` `ModelProvider`'ı hiç işlemiyordu ve
+`samples/Tracon.Samples.FileRunStore` `ModelProvider`'ı hiç işlemiyordu ve
 sevk edilen suite dış tüketicide **kırmızıydı** (BL-053).
 
 Prova ilk düşen sample'da durur; yeşil görene kadar kalan sample'lar ve AOT
@@ -117,10 +117,10 @@ eklenirse `tsc` durur, dolayısıyla **unutulamaz** — ama şunlar unutulabilir
 
 ## Adım 2 — Örnek uygulamayı gerçekten çalıştır
 
-Birim testleri geçmesi yetmez. `samples/AgentPrism.Api` ayağa kalkmalı ve fazın vaat ettiği davranışı göstermelidir.
+Birim testleri geçmesi yetmez. `samples/Tracon.Api` ayağa kalkmalı ve fazın vaat ettiği davranışı göstermelidir.
 
 ```bash
-cd samples/AgentPrism.Api
+cd samples/Tracon.Api
 dotnet run --no-build -c Release --urls http://localhost:5081
 # başka bir terminalde: fazın DoD bölümündeki curl komutlarını çalıştır
 ```
@@ -134,7 +134,7 @@ Sonuçları faz dokümanının DoD tablosuna **gerçek çıktı olarak** yaz. "�
 > çalıştırın — varsayılanlar her zaman en çok test edilen yoldur:
 >
 > ```bash
-> AgentPrism__Observability__SuccessSampleRatio=1 dotnet run --no-build -c Release
+> Tracon__Observability__SuccessSampleRatio=1 dotnet run --no-build -c Release
 > ```
 
 ---
@@ -257,9 +257,9 @@ dokümantasyonudur** ve yayınlanır. İkisi karıştırılmaz. Site bayatlarsa 
 kullanıcıya görünür — kod doğru olsa bile.
 
 Ama site tek tüketici yüzeyi değildir. Pakete giren `///` XML dokümanı, paket
-`README.md`'leri, paketlenen `agentprism.json`, sevk edilen
-`AgentPrism.AgentMap.md` ve tüketicinin diskinde üretilen
-`AgentPrism.LocalReference.md` de tüketiciye gider ve ayrı ayrı bayatlar.
+`README.md`'leri, paketlenen `tracon.json`, sevk edilen
+`Tracon.AgentMap.md` ve tüketicinin diskinde üretilen
+`Tracon.LocalReference.md` de tüketiciye gider ve ayrı ayrı bayatlar.
 
 **Bu iş [`tuketici-dokuman-senkronu`](../tuketici-dokuman-senkronu/SKILL.md)
 skill'ine aittir. Onu uygula** — yüzey eşleme tablosu, kalite sözleşmesi ve dört
@@ -393,7 +393,7 @@ Script derler, dört kapıyı koşar, `rsync`'ler ve konteyneri uzlaştırır. K
 biri kırmızıysa hiçbir şey yayınlanmaz. Sonra doğrula:
 
 ```bash
-curl -sI https://agentprism.doayen.web.tr/ | head -1     # 200
+curl -sI https://tracon.dev/ | head -1     # 200
 curl -sI https://doayen.web.tr/ | head -1                # apex bozulmadi (405 = HEAD, normal)
 ```
 

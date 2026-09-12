@@ -3,7 +3,7 @@
 > **Durum:** ✅ Tamamlandı (2026-08-02)
 > **Kaynak:** [BEYIN-FIRTINASI.md](../BEYIN-FIRTINASI.md) · **F-03**, **F-05**, **F-16**
 > **Önkoşul:** Yok — Faz 6 sonundaki kod tabanı yeterli
-> **Paketler:** `AgentPrism.OpenAI` (genişler), `AgentPrism.Abstractions`, `.Core`, `.AspNetCore`, `.UI`
+> **Paketler:** `Tracon.OpenAI` (genişler), `Tracon.Abstractions`, `.Core`, `.AspNetCore`, `.UI`
 > **Yeni paket:** Yok · **Migration:** Yok
 
 ---
@@ -25,11 +25,11 @@
 
 ## Amaç
 
-Bugün AgentPrism tek satıcıya bağlı. "Kontrol düzlemi" iddiası tek sağlayıcıyla zayıf kalır.
+Bugün Tracon tek satıcıya bağlı. "Kontrol düzlemi" iddiası tek sağlayıcıyla zayıf kalır.
 
 ## Bugün Ne Var (ölçüldü, 2026-08-02)
 
-`src/AgentPrism.OpenAI/`:
+`src/Tracon.OpenAI/`:
 
 | Dosya | Bugünkü davranış |
 |-------|------------------|
@@ -132,7 +132,7 @@ mevcut testler (`ModelProviderRegistryTests`) değişmeden geçti.
 
 Kullanıcı "Ollama bilgisayarımda yok, kendi yöntemlerinle test et" dedi. Gerçek
 bir Ollama kurulumu yerine `FakeOpenAiCompatibleServer` (gerçek bir Kestrel
-dinleyicisi, `127.0.0.1`, rastgele port) yazıldı ve `AgentPrism.AspNetCore.FunctionalTests`
+dinleyicisi, `127.0.0.1`, rastgele port) yazıldı ve `Tracon.AspNetCore.FunctionalTests`
 projesine eklendi. Bu, F-05'in asıl riskli mekanizmasını (yerel adrese
 bağlanma + anahtarsız istek + `OpenAIClient`'in boş kimlik kabul etmemesi
 için yer tutucu kullanılması) **gerçek bir soket üzerinden**, deterministik
@@ -164,7 +164,7 @@ hiçbir zaman sağlayıcıya ağ çağrısı yapmaz.
 ## Bitiş Ölçütleri (DoD)
 
 Elle doğrulama: gerçek OpenAI anahtarı + gerçek OpenRouter anahtarı,
-`samples/AgentPrism.Api`, `ASPNETCORE_ENVIRONMENT=Development` (user-secrets
+`samples/Tracon.Api`, `ASPNETCORE_ENVIRONMENT=Development` (user-secrets
 yalnız Development'ta yüklenir).
 
 | Ölçüt | Durum | Kanıt |
@@ -187,25 +187,25 @@ $ curl -s localhost:5080/health
  "provider":{"openAI":true,"model":"gpt-5.4-mini","name":"openai"},
  "openRouter":true}
 
-$ curl -s localhost:5080/agentprism/api/models/health
+$ curl -s localhost:5080/tracon/api/models/health
 [
   {"providerName":"openai","status":"Healthy","latency":"00:00:00.8933032","models":["gpt-5.4-mini","gpt-5.6-luna","gpt-5.6-terra"]},
   {"providerName":"openai-responses","status":"Healthy","latency":"00:00:00.4520805","models":["gpt-5.4-mini","gpt-5.6-luna","gpt-5.6-terra"]},
   {"providerName":"openrouter","status":"Healthy","latency":"00:00:00.3373152","models":[/* 200 model, ucret uretmedi */]}
 ]
 
-$ curl -s -X POST localhost:5080/agentprism/api/agents/support/run \
+$ curl -s -X POST localhost:5080/tracon/api/agents/support/run \
        -d '{"message":"ORD-7 siparisim nerede","sessionId":"faz8-openai-test"}'
 # ... tool cagrisi (get_order_status) + akisli yanit ...
 # Son metin: "ORD-7 siparişiniz kargoya verilmiş. Tahmini teslim süresi: 2 gün."
 
-$ curl -s -X POST localhost:5080/agentprism/api/agents/openrouter-destek/run \
+$ curl -s -X POST localhost:5080/tracon/api/agents/openrouter-destek/run \
        -d '{"message":"ORD-9 siparisim nerede","sessionId":"faz8-openrouter-test"}'
 # openrouter -> openai/gpt-5.4-mini (resmi OpenAI DEGIL, farkli satici)
 # ... tool cagrisi (get_order_status) + akisli yanit ...
 # Son metin: "ORD-9 siparişiniz kargoya verildi. Tahmini teslim süresi: 2 gün."
 
-$ curl -s localhost:5080/agentprism/api/models | # her ogede status alani
+$ curl -s localhost:5080/tracon/api/models | # her ogede status alani
 [{"name":"openai","status":"Healthy",...},{"name":"openai-responses","status":"Healthy",...},{"name":"openrouter","status":"Healthy",...}]
 ```
 
@@ -223,12 +223,12 @@ kısıtıydı ve gizlenmedi.
   bağlantı, yer tutucu kimlik, `GET /models` denetimi) gerçek bir Kestrel
   sunucusuyla test edildi ve doğru çalışıyor, ancak gerçek Ollama'nın kendi
   `tool_choice`/`usage` davranışı bu ortamda hiç gözlenmedi. Ollama kurulu bir
-  makinede fırsat çıkarsa `samples/AgentPrism.Api` içindeki yorum satırları
+  makinede fırsat çıkarsa `samples/Tracon.Api` içindeki yorum satırları
   açılıp elle doğrulanmalı.
 - **OpenRouter (ve muhtemelen diğer uyumlu sağlayıcılar) `max_tokens`
   varsayılanına duyarlıdır.** Yeni bir uyumlu sağlayıcı eklerken
   `ModelBinding.MaxOutputTokens` verilmemesi hesap kredi hatası (`HTTP 402`
-  benzeri) üretebilir — bu AgentPrism'in hatası değildir ama şaşırtıcıdır.
+  benzeri) üretebilir — bu Tracon'in hatası değildir ama şaşırtıcıdır.
   Bkz. `MEMORY.md`.
 - Faz 20 (maliyet) `ModelDescriptor.*CostPerMillionTokens` alanlarını
   kullanacak. Uyumlu sağlayıcılar için de yapılandırmadan doldurulabildiği
@@ -241,6 +241,6 @@ kısıtıydı ve gizlenmedi.
 - Sağlık sözleşmesi (`IModelProviderHealthCheck`) Faz 26 ve 27'de
   uygulanmalıdır; desen `OpenAIProviderHealthCheck` ile birebir aynıdır
   (`GET {endpoint}/models`, `internal` statik yardımcılar test edilebilir).
-- `AgentPrismHealthOptions.BackgroundInterval` seti çalışıyor
+- `TraconHealthOptions.BackgroundInterval` seti çalışıyor
   (`ModelProviderHealthBackgroundService`) ama gerçek bir uzun-ömürlü
   süreçte hiç gözlenmedi (yalnızca `null` — kapalı — yolu elle doğrulandı).

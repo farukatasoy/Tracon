@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>Tracon.Samples.CustomJobHandler</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Tracon.Core" VersionOverride="$(TraconSamplePackageVersion)" />
+  </ItemGroup>
+
+</Project>

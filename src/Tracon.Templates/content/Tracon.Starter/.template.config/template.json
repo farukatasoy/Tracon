@@ -1,0 +1,119 @@
+{
+  "$schema": "https://json.schemastore.org/template",
+  "author": "Tracon",
+  "classifications": [
+    "Web",
+    "Tracon",
+    "AI",
+    "Agents"
+  ],
+  "name": "Tracon control plane (ASP.NET Core)",
+  "generatorVersions": "[1.0.0.0-*)",
+  "description": "A working Tracon control plane: AddTracon + MapTracon, a sample tool, an empty appsettings.json placeholder.",
+  "groupIdentity": "Tracon.Api.CSharp",
+  "precedence": "100",
+  "identity": "Tracon.Api.CSharp",
+  "shortName": "tracon-api",
+  "tags": {
+    "language": "C#",
+    "type": "project"
+  },
+  "sourceName": "Tracon.Starter",
+  "preferNameDirectory": true,
+  "guids": [
+    "10000000-0000-0000-0000-000000000001"
+  ],
+  "symbols": {
+    "persistence": {
+      "type": "parameter",
+      "datatype": "choice",
+      "choices": [
+        { "choice": "memory", "description": "No database - persistence ends with the process" },
+        { "choice": "postgres", "description": "PostgreSQL" },
+        { "choice": "sqlite", "description": "SQLite (single file)" },
+        { "choice": "sqlserver", "description": "SQL Server / Azure SQL" }
+      ],
+      "defaultValue": "memory",
+      "description": "The persistence provider."
+    },
+    "provider": {
+      "type": "parameter",
+      "datatype": "choice",
+      "choices": [
+        { "choice": "openai", "description": "OpenAI" },
+        { "choice": "anthropic", "description": "Anthropic (Claude)" },
+        { "choice": "google", "description": "Google Gemini" },
+        { "choice": "azure", "description": "Azure OpenAI" }
+      ],
+      "defaultValue": "openai",
+      "description": "The model provider."
+    },
+    "ui": {
+      "type": "parameter",
+      "datatype": "bool",
+      "defaultValue": "true",
+      "description": "Include the embedded control plane UI."
+    },
+    "UsePostgres": {
+      "type": "computed",
+      "value": "(persistence == \"postgres\")"
+    },
+    "UseSqlServer": {
+      "type": "computed",
+      "value": "(persistence == \"sqlserver\")"
+    },
+    "UseSqlite": {
+      "type": "computed",
+      "value": "(persistence == \"sqlite\")"
+    },
+    "UseOpenAI": {
+      "type": "computed",
+      "value": "(provider == \"openai\")"
+    },
+    "UseAnthropic": {
+      "type": "computed",
+      "value": "(provider == \"anthropic\")"
+    },
+    "UseGoogle": {
+      "type": "computed",
+      "value": "(provider == \"google\")"
+    },
+    "UseAzure": {
+      "type": "computed",
+      "value": "(provider == \"azure\")"
+    },
+    "TraconVersion": {
+      "type": "parameter",
+      "datatype": "string",
+      "defaultValue": "*-*",
+      "replaces": "TRACON_TEMPLATE_PACKAGE_VERSION",
+      "description": "The version of the Tracon packages. The default '*-*' takes the latest pre-release from the configured source; pass --TraconVersion x.y.z to pin a specific version."
+    },
+    "skipRestore": {
+      "type": "parameter",
+      "datatype": "bool",
+      "description": "If set, 'dotnet restore' does not run automatically after the project is created.",
+      "defaultValue": "false"
+    }
+  },
+  "primaryOutputs": [
+    {
+      "path": "Tracon.Starter.csproj"
+    }
+  ],
+  "defaultName": "Tracon.Starter",
+  "postActions": [
+    {
+      "id": "restore",
+      "condition": "(!skipRestore)",
+      "description": "Restore NuGet packages required by this project.",
+      "manualInstructions": [
+        {
+          "text": "Run 'dotnet restore'"
+        }
+      ],
+      "actionId": "210D431B-A78B-4D2F-B762-4ED3E3EA9025",
+      "continueOnError": true
+    }
+  ]
+}

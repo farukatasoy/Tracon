@@ -5,7 +5,7 @@ Ortak çerçeve: [`00-INDEKS.md`](00-INDEKS.md). Bu oturum onu uygular.
 ## Kapsam
 
 `SocketsHttpHandler.ConnectCallback` kullanılan dosyalar, webhook imza
-doğrulama kodu, `src/AgentPrism.Mcp/`, OAuth token saklama kodu.
+doğrulama kodu, `src/Tracon.Mcp/`, OAuth token saklama kodu.
 
 ## Bilinen tasarım
 

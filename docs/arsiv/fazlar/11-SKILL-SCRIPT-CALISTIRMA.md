@@ -3,7 +3,7 @@
 > **Durum:** ✅ Tamamlandı (2026-08-02)
 > **Kaynak:** [BEYIN-FIRTINASI.md](../BEYIN-FIRTINASI.md) · **F-09** (2/2)
 > **Önkoşul:** [Faz 9](09-YONETISIM-VE-DENETIM-IZI.md) **ve** [Faz 10](10-AGENT-SKILLERI.md) — ikisi de zorunlu
-> **Paketler:** `AgentPrism.Abstractions`, `.Core`, `.PostgreSql`, `.AspNetCore`, `.UI`
+> **Paketler:** `Tracon.Abstractions`, `.Core`, `.PostgreSql`, `.AspNetCore`, `.UI`
 > **Yeni paket:** Yok · **Migration:** 0004 (`0004_skill_scripts.sql`)
 
 ---
@@ -29,7 +29,7 @@ Tasarım kuralı **K2** şunu der: *"Tool'lar yalnız kodda tanımlanır. Arayü
 erişen herkes sunucuda kod çalıştırabilseydi bu bir güvenlik açığı olurdu."*
 
 Bu faz, K2'nin **ikinci bilinçli istisnasıdır**. Birincisi MCP'ydi (K-058) ve
-orada süreç **uzakta** çalışıyordu. Burada süreç **AgentPrism'in makinesinde**
+orada süreç **uzakta** çalışıyordu. Burada süreç **Tracon'in makinesinde**
 çalışır. Fark budur ve bu fazın tüm tasarımı bu farkı yönetmek üzerinedir.
 
 **Kullanıcı kararı (2026-08-02):** script çalıştırma kabul edilebilir (K-066).
@@ -47,12 +47,12 @@ yerine paralel bir skill zinciri kurmayacaktır.
 | `AgentSkillDefinition` | `Instructions`, frontmatter, `Resources`, `Enabled`, `Version`, UTC zamanları taşır. Script alanı yoktur. |
 | `IAgentSkillStore` | `ListAsync(tenantId)`, `GetAsync(tenantId, name)`, `SaveAsync(skill)`, `DeleteAsync(tenantId, name)`; PostgreSQL kaynakları `agent_skill_resources` tablosunda cascade bağlıdır. |
 | `AgentSkillCatalog` | Kod kaydı store kaydını aynı adda geçersiz kılar. Bilinmeyen skill derleme hatasıdır; `Enabled = false` MAF'a girmez. |
-| `AgentPrismSkillsSource` | `AgentSkillDefinition` değerini `AgentInlineSkill`e çevirir. Kaynak zinciri `Aggregating` → `Filtering` → tenant anahtarlı `Caching` → `Deduplicating` biçimindedir. |
+| `TraconSkillsSource` | `AgentSkillDefinition` değerini `AgentInlineSkill`e çevirir. Kaynak zinciri `Aggregating` → `Filtering` → tenant anahtarlı `Caching` → `Deduplicating` biçimindedir. |
 | `AgentDefinition.SkillNames` | Agent tanımının sürümlü JSON yükündedir. `CompiledAgentCache` anahtarı skill parmak izini içerir; script ekleme bu geçersiz kılma davranışını korumalıdır. |
 | Onay | `AgentSkillsProviderOptions.Disable*Approval` değerleri ayarlanmaz. Gerçek OpenRouter denemesinde `load_skill` onayı Playground'da göründü ve onaylanınca skill talimatı yüklendi. |
 
 🚨 `AgentInlineSkill.AddScript` Faz 10'da bilerek çağrılmadı. Faz 11 ekleme
-yaparsa `AgentSkillCatalog` ve `AgentPrismSkillsSource` üzerinden gitmeli;
+yaparsa `AgentSkillCatalog` ve `TraconSkillsSource` üzerinden gitmeli;
 MAF'ın dosya tabanlı kaynaklarını doğrudan veritabanı verisi için kullanmak
 tenant yalıtımını ve cache parmak izini atlar.
 
@@ -107,25 +107,25 @@ Kurulum: `Enabled = true`, `PlatformIsolationAcknowledged = true`,
 Script içeriği:
 
 ```sh
-echo merhaba-agentprism
+echo merhaba-tracon
 ```
 
 Modele dönen çıktı:
 
 ```text
-merhaba-agentprism
+merhaba-tracon
 ```
 
 Denetim izi satırı: `action = "script.run"`, `tenantId = "default"`.
-İzin kaldırıldığında aynı çağrı `AgentPrismException` ile reddedilir ve
+İzin kaldırıldığında aynı çağrı `TraconException` ile reddedilir ve
 `action = "script.denied"` yazılır.
 
 Koşum sonucu (macOS arm64, .NET 10):
 
 ```text
-AgentPrism.Core.UnitTests            149 passed, 0 failed
-AgentPrism.PostgreSql.IntegrationTests 156 passed, 0 failed
-AgentPrism.AspNetCore.FunctionalTests  136 passed, 0 failed
+Tracon.Core.UnitTests            149 passed, 0 failed
+Tracon.PostgreSql.IntegrationTests 156 passed, 0 failed
+Tracon.AspNetCore.FunctionalTests  136 passed, 0 failed
 ```
 
 ---
@@ -162,7 +162,7 @@ AgentPrism.AspNetCore.FunctionalTests  136 passed, 0 failed
 
 Bu, K2'nin (**"tool'lar yalnız kodda tanımlanır"**) **ikinci bilinçli
 istisnasıdır**. Birincisi MCP'ydi ve orada süreç **uzakta** çalışıyordu; burada
-süreç **AgentPrism'in makinesinde** çalışır.
+süreç **Tracon'in makinesinde** çalışır.
 
 Özellik **varsayılan olarak kapalıdır** ve yalnız kodda açılır
 (`UseSkillScripts(...)`: zorunlu onay bayrağı + boş başlayan yorumlayıcı beyaz
@@ -174,7 +174,7 @@ için bir ortam değişkeni yeni yorumlayıcı tanıtabiliyordu. `Enabled` ve
 genişletemez, yalnız kapatır veya sınırı kabul eder.
 
 Her çalıştırma **beş kapıdan sırayla** geçer; biri kapalıysa süreç hiç başlamaz
-ve `AgentPrismException` atılır: (1) `Enabled` · (2) kiracı için geçerli izin ·
+ve `TraconException` atılır: (1) `Enabled` · (2) kiracı için geçerli izin ·
 (3) uzantı yorumlayıcı beyaz listesinde (boş varsayılan, K-088) · (4) argüman
 boyutu, şeması ve **script adının düz bir dosya adı olduğu** · (5) denetim izine
 yazılabildi. Ardından **eşzamanlılık kotası** gelir; o bir kapı **değil, bir
@@ -187,7 +187,7 @@ ve çıktı sınırıyla başlar.
 script çalıştırması, hiçbir kaydı olmayan bir uzaktan kod çalıştırma olurdu
 (K-089). Diğer tüm yazmalarda denetim hatası yutulur; burada yutulmaz.
 
-🚨 **AgentPrism dosya sistemi hapsi, ağ kısıtı, bellek/CPU kotası ve hak düşürme
+🚨 **Tracon dosya sistemi hapsi, ağ kısıtı, bellek/CPU kotası ve hak düşürme
 SAĞLAMAZ**; dördü de barındırma ortamında (container + cgroup + ayrıcalıksız
 kullanıcı) kurulur. `PlatformIsolationAcknowledged` bayrağı bu sınırı görmeden
 özellik açılmasını engeller: `Enabled = true` iken bayrak `false` ise

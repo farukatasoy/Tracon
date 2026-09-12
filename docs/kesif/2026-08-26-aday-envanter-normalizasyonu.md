@@ -61,7 +61,7 @@ bir kusur kaydı açılır ve `kusur-giderme` tekrar koşar.
 | F-90 | SQL RLS ile derin savunma | Sağlayıcılar arası güvenlik sözleşmesi değişir; SQLite karşılığı yok. |
 | F-91 | MCP OAuth token'ını kalıcı paylaşma | K-059: `secret` veritabanına yazılmaz. |
 | F-92 | Dağıtık hız sınırı | K-158 ve reddedilmiş Redis yaklaşımıyla çakışır. |
-| F-95 | Agent düzeyinde checkpoint hook'u | MAF kancası yok; AgentPrism'in paralel katmanı K3'ü zorlar. |
+| F-95 | Agent düzeyinde checkpoint hook'u | MAF kancası yok; Tracon'in paralel katmanı K3'ü zorlar. |
 | F-132 | `RequireHttps` varsayılanı | Mevcut `http` kurulumlarını kırmayan varsayılan kullanıcı/uyumluluk kararı ister. |
 
 ## 5. Ölçüm bekleyenler

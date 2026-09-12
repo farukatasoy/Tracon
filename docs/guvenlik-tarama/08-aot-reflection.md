@@ -19,5 +19,5 @@ ile işaretli ve belgelenmiş bir AOT alternatifi sunuyor (ör.
 - Her reflection/`Activator.CreateInstance` çağrısında YÜKLENEN TİP ADININ
   sabit kodda mı yoksa dış girdiden (kullanıcı, config, HTTP body) mi
   geldiğini — girdiden geliyorsa bu kontrolsüz tip yükleme = potansiyel RCE.
-- `AgentPrismAotCompatible=false` işaretli projelerin (`grep -l
+- `TraconAotCompatible=false` işaretli projelerin (`grep -l
   "AotCompatible>false" src/*/*.csproj`) gerekçesinin hâlâ geçerli olduğunu.

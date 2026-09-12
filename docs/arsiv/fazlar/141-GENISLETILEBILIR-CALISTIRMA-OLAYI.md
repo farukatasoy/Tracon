@@ -3,8 +3,8 @@
 > **Durum:** ✅ Tamamlandı (2026-09-04)
 > **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-187** (tüketici turu 3, A5)
 > **Önkoşul:** Yok
-> **Paketler:** `AgentPrism.Abstractions`, `AgentPrism.Core`, `AgentPrism.PostgreSql`,
-> `AgentPrism.SqlServer`, `AgentPrism.Sqlite`, `AgentPrism.Sql.Shared`, `AgentPrism.UI`
+> **Paketler:** `Tracon.Abstractions`, `Tracon.Core`, `Tracon.PostgreSql`,
+> `Tracon.SqlServer`, `Tracon.Sqlite`, `Tracon.Sql.Shared`, `Tracon.UI`
 > **Yeni paket:** Yok · **Migration:** **Var** — plan başlığındaki "Yok" öncülü
 > **yanlış çıktı**: `run_events.type` `smallint`/`INTEGER`'dır, metin değil
 > (doğrulandı, bkz. 141.'nin Açık Soru 1 kararı). `custom_type` nullable text
@@ -50,7 +50,7 @@ Tüketici bugün SSE akışına **hiçbir** kendi olayını yazamıyor. Yazma yo
 ## Bitiş Ölçütleri (DoD)
 
 - [x] Tüketici kodu SSE akışına kendi olayını yazabilir (case 1 kanıt) — gerçek OpenAI koşumuyla ölçüldü, bkz. MT-UIRUN-052
-- [x] `agentprism.` önekli tür **reddedilir** — `RunEventDraftValidationTests`
+- [x] `tracon.` önekli tür **reddedilir** — `RunEventDraftValidationTests`
 - [x] İki yönlü doğrulama çalışır (`Custom`↔`CustomType`) — test + üretimde ölçülen kanıt (`ToolInvoked.customType == null`)
 - [x] `customType` bellek içi + üç SQL sağlayıcıda korunur — `RunStoreContract` dördünde de koşuldu
 - [x] Replay `Custom` olayını aynen taşır — `GET .../events` canlı akış ve geçmiş okuma AYNI kod yolu (K-014); `StreamingTests` ikisini birden kanıtlar. Ayrı bir `RunReplayEndpointTests` case'i eklenmedi: `RunReplayService` `run_events`'e hiç dokunmuyor, tool kodu (Custom'ı yazan) replay altında da NORMAL çalışır — özel bir kod yolu yok, test edilecek özel bir davranış da yok
@@ -58,12 +58,12 @@ Tüketici bugün SSE akışına **hiçbir** kendi olayını yazamıyor. Yazma yo
 - [x] 🚨 `.cs` ve `.ts` enum listesi eşleşir; eşleşme testle kilitli — `RunEventTypeFrontendParityTests` (yeni); koşum SIRASINDA `.ts`'nin zaten iki üye (`DocumentAttached`, `RunContinuationBlocked`) eksik olduğu bulundu ve düzeltildi — bu fazdan önce vardı, konuyla ilgisiz bir kusurdu
 - [x] K-647 taban çizgisi büyümedi veya `Custom` gerekçesiyle **beyan edildi** — mekanik olarak `covered` oldu (`StreamingTests.cs` gerçekten payload'ı okuyup doğruluyor), bkz. Plandan Sapmalar
 - [x] Bundle payı ölçüldü ve yazıldı — **176.9 KB gzip / 250 KB bütçe** (ölçüldü, `npm run build`)
-- [x] Dört doğrulama kapısı sıfır uyarı verir — `python3 scripts/kapi.py kapanis --taban 9a243228`, commit sonrası **iki** tam koşum: 1. koşum `AgentPrism.Sql.Shared.UnitTests`'in `SqlTextSnapshotTests`'ini kırdı (beklenen — `custom_type` sütunu SQL metnini değiştirdi; `AGENTPRISM_SQL_SNAPSHOT_REFRESH=1` ile taban çizgisi yenilendi, ayrı commit), 2. koşum `AgentPrism.Ui.E2ETests.UiTests.Runs_screen_lists_only_roots_by_default`'ı bir kez kırdı — bilinen "tam çözüm koşumunda kaynak çakışması" flaky sınıfının (`docs/hafiza/test-altyapisi.md`, Faz 103'te belgelendi) altıncı örneği; izole 4/4 ve tüm E2E projesi 58/58 geçti, fazın kendi değişikliğiyle ilgisiz
-- [x] `samples/AgentPrism.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı — bkz. MT-UIRUN-052 (run `01a06aa0-5eac-705b-9101-d0c5bdeeaea4`)
+- [x] Dört doğrulama kapısı sıfır uyarı verir — `python3 scripts/kapi.py kapanis --taban 9a243228`, commit sonrası **iki** tam koşum: 1. koşum `Tracon.Sql.Shared.UnitTests`'in `SqlTextSnapshotTests`'ini kırdı (beklenen — `custom_type` sütunu SQL metnini değiştirdi; `TRACON_SQL_SNAPSHOT_REFRESH=1` ile taban çizgisi yenilendi, ayrı commit), 2. koşum `Tracon.Ui.E2ETests.UiTests.Runs_screen_lists_only_roots_by_default`'ı bir kez kırdı — bilinen "tam çözüm koşumunda kaynak çakışması" flaky sınıfının (`docs/hafiza/test-altyapisi.md`, Faz 103'te belgelendi) altıncı örneği; izole 4/4 ve tüm E2E projesi 58/58 geçti, fazın kendi değişikliğiyle ilgisiz
+- [x] `samples/Tracon.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı — bkz. MT-UIRUN-052 (run `01a06aa0-5eac-705b-9101-d0c5bdeeaea4`)
 - [x] `secret` taraması boş döndü — `scripts/kapi.py tarama`
 - [x] Manuel kabul case'leri `docs/manuel-test/11-ARAYUZ-RUN-SESSION-SSE.md` içine eklendi — MT-UIRUN-052..055
 - [x] `faz-denetim` koşuldu; 🔴 bulgu kalmadı — üç 🟡 bulundu, üçü de düzeltildi
-- [x] `docs-site/` güncellendi; `npm run check` (dördü de: içerik, derleme, bağlantı, ağırlık) temiz; `scripts/site-deploy.sh` ile yayınlandı ve canlıda doğrulandı (`curl https://agentprism.doayen.web.tr/concepts/runs/` "Writing your own event" içeriyor)
+- [x] `docs-site/` güncellendi; `npm run check` (dördü de: içerik, derleme, bağlantı, ağırlık) temiz; `scripts/site-deploy.sh` ile yayınlandı ve canlıda doğrulandı (`curl https://tracon.dev/concepts/runs/` "Writing your own event" içeriyor)
 
 ---
 
@@ -74,10 +74,10 @@ Tüketici bugün SSE akışına **hiçbir** kendi olayını yazamıyor. Yazma yo
   `smallint`/`INTEGER` olduğunu gösterdi. Açık Soru 1 bu yüzden gerçek bir
   migration kararına dönüştü ve kullanıcıya soruldu — "ayrı sütun" (önerilen
   seçenek) onaylandı. Üç migration eklendi (141.1 planındaki gibi 1-128
-  karakter, `agentprism.` rezerve önek doğrulaması `nvarchar(200)`/`text`/`TEXT`
+  karakter, `tracon.` rezerve önek doğrulaması `nvarchar(200)`/`text`/`TEXT`
   genişliğiyle uyumlu).
 - **K-647 taban çizgisi `uncovered` DEĞİL, `covered` oldu.** Plan 141.3'ün
-  beklentisi `Custom`'ın "AgentPrism payload iddiası taşımıyor" gerekçesiyle
+  beklentisi `Custom`'ın "Tracon payload iddiası taşımıyor" gerekçesiyle
   `uncovered` girmesiydi. Gerçekte `StreamingTests.cs`'e eklenen fonksiyonel
   test hem canlı SSE'de hem geçmiş okumada `customType`'ın hayatta kaldığını
   KANITLIYOR — `RunEventPayloadContractTests`'in taban çizgisi üretici
@@ -96,7 +96,7 @@ Tüketici bugün SSE akışına **hiçbir** kendi olayını yazamıyor. Yazma yo
   Hata Modları tablosu "Replay Custom olayını taşımaz | Fonksiyonel |
   ReplayTests" satırını taşıyordu. Araştırma `RunReplayService`'in
   `run_events`'e hiç dokunmadığını gösterdi (`grep -rn "RunEventType"
-  src/AgentPrism.Core/Replay/RunReplayService.cs` sıfır döner) — replay
+  src/Tracon.Core/Replay/RunReplayService.cs` sıfır döner) — replay
   `RunRecordingAgent`'ı yeniden çalıştırır, tool kodu (Custom'ı yazan kod
   dahil) normal yoldan geçer. Test edilecek Custom'a ÖZGÜ bir davranış yok;
   `StreamingTests`'in genel SSE/geçmiş-okuma testi (K-014: canlı ve geçmiş
@@ -106,7 +106,7 @@ Tüketici bugün SSE akışına **hiçbir** kendi olayını yazamıyor. Yazma yo
   olan `@tenant_id` koruma cümlesinden geçiyor (bkz. `SqlQueriesBase.cs`), tür
   bazlı bir dallanma yok. Var olan tenant izolasyon testleri her `RunEvent`
   türünü zaten kapsıyor.
-- **`samples/AgentPrism.Api`'de gerçek koşum yapıldı — planlanandan daha güçlü
+- **`samples/Tracon.Api`'de gerçek koşum yapıldı — planlanandan daha güçlü
   kanıt.** Ortamda OpenAI `user-secrets` zaten yapılandırılıydı; `mark_preview_ready`
   tool'u eklenip `support` agent'ına bağlandı ve gerçek bir `gpt-5.4-mini`
   çağrısıyla `Custom` olayı üretildi, kalıcılaştırıldı ve SSE ile geri okundu
@@ -140,7 +140,7 @@ gerçek Docker konteynerleriyle) bağımsızca yeniden koştu. **🔴 yok.**
 |---|---|---|---|
 | 1 | 🟡 | K-647 taban çizgisinde `Custom \| covered \| StreamingTests.cs` iddiası mekanik olarak doğruydu (gate dosya-seviyesinde `RunEventType.Custom` + `Payload` metnini arıyor) ama davranışsal olarak eksikti: kapsayan test yalnız `customType`'ı doğruluyordu, `Payload`'ın İÇERİĞİNİ (`orderId`) hiç okumuyordu. | **Düzeltildi.** `StreamingTests.cs`'e `custom.Data.ShouldContain("orderId")`/`"ORD-7"` eklendi — artık gerçekten payload içeriğini okuyor. |
 | 2 | 🟡 | `ValidateCustomType`'ın `Interlocked.Increment`'ten ÖNCE çağrıldığı iddiası (reddedilen bir çağrının sequence numarasını "yakmadığı") koddan doğrulanabiliyordu ama hiçbir test bunu kanıtlamıyordu. | **Düzeltildi.** `RunEventDraftValidationTests.A_rejected_call_does_not_burn_a_sequence_number` eklendi: reddedilen bir çağrıdan sonraki başarılı yazımın `Sequence`'ı atlanmadan devam ediyor. |
-| 3 | 🟡 | `RunEventType.Custom`'ın XML dokümanı, kardeş üyelerin (`ToolOutputTruncated`, `StructuredResponseRejected`) aksine `Payload`'ının `AgentPrismRunRecordingOptions.RecordToolPayloads`'a tabi olduğunu belirtmiyordu. | **Düzeltildi.** `<summary>`'ye aynı uyarı eklendi. |
+| 3 | 🟡 | `RunEventType.Custom`'ın XML dokümanı, kardeş üyelerin (`ToolOutputTruncated`, `StructuredResponseRejected`) aksine `Payload`'ının `TraconRunRecordingOptions.RecordToolPayloads`'a tabi olduğunu belirtmiyordu. | **Düzeltildi.** `<summary>`'ye aynı uyarı eklendi. |
 
 🟢 yok. Denetçi ayrıca on spesifik teknik soruyu (sequence sırası, SQL ordinal
 eşlemesi, iki yönlü doğrulama, DoD kanıtları, `.ts` tutarlılığı, `PublicAPI`

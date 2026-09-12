@@ -4,9 +4,9 @@ Ortak çerçeve: [`00-INDEKS.md`](00-INDEKS.md). Bu oturum onu uygular.
 
 ## Kapsam
 
-`src/AgentPrism.AspNetCore/Security/`,
-`src/AgentPrism.AspNetCore/Tenancy/HttpTenantContext.cs`, konuşma WebSocket
-handshake kodu, `MapAgentPrismEndpointRouteBuilderExtensions.cs`.
+`src/Tracon.AspNetCore/Security/`,
+`src/Tracon.AspNetCore/Tenancy/HttpTenantContext.cs`, konuşma WebSocket
+handshake kodu, `MapTraconEndpointRouteBuilderExtensions.cs`.
 
 ## Bilinen tasarım
 
@@ -18,7 +18,7 @@ tanımsız olsa bile doğrulanır — önceki davranışta başlık ne taşırsa
 istek geçiyordu (sessiz-geçiş açığı, kapatıldı). Konuşma WebSocket'i token'ı
 `Sec-WebSocket-Protocol` alt protokolünde alır (K-224, sorgu dizesi kasıtlı
 reddedilir — proxy loglarına yazılmasın diye). `[Authorize]`/`[AllowAnonymous]`
-attribute'ları KULLANILMAZ; merkezi `AgentPrismEndpointFilter` bu işi yapar.
+attribute'ları KULLANILMAZ; merkezi `TraconEndpointFilter` bu işi yapar.
 `/api/meta`, UI statik dosyaları, OAuth callback/webhook uçları bilinçli
 olarak bearer/loopback'ten muaf (gerekçe kod içi XML dokümanında).
 
@@ -30,7 +30,7 @@ olarak bearer/loopback'ten muaf (gerekçe kod içi XML dokümanında).
 - Örnek uygulamadaki `RequireRole(null)` tuzağının (K-431) benzerinin başka
   bir policy kaydında olup olmadığını — policy adı yanlış yazılmış/kayıtsız
   bırakılmış bir endpoint var mı.
-- `MapAgentPrismEndpointRouteBuilderExtensions.cs`'teki muafiyet listesini
+- `MapTraconEndpointRouteBuilderExtensions.cs`'teki muafiyet listesini
   son fazlarda eklenmiş her yeni `MapGet`/`MapPost` ile karşılaştır: yeni
   bir uç merkezi filtreyi atlayarak mı eklenmiş.
 - Bearer token karşılaştırmasının GERÇEKTEN sabit-zamanlı olduğunu (erken

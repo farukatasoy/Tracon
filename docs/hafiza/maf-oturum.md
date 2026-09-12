@@ -14,9 +14,9 @@
 - **`AgentSessionStore` soyut sınıf** (2026-08-01): `SaveSessionAsync` / `GetSessionAsync` / `DeleteSessionAsync`.
 - **Çok kiracılılık için MAF'ta hazır yapı var** (2026-08-01): `IsolationKeyScopedAgentSessionStore` + `SessionIsolationKeyProvider`. Sıfırdan yazmaya gerek yok.
 - **`AgentSessionStateBag`, `SerializeSessionAsync` çıktısına dahildir** (2026-08-02): oturuma yazılan her şey (kimlik damgası, konuşma kimliği) oturumla birlikte kalıcılaşır. Doğrulandı: `/sessions` çıktısında `stateBag` altında görünüyor.
-- **`StateBag.SetValue`/`TryGetValue` AOT tanısı üretmiyor** (2026-08-02): kaynak üreteciyle kurulmuş `JsonSerializerOptions` geçildiğinde `IL2026` çıkmıyor. `AgentPrismCoreJsonContext` bunun için var.
+- **`StateBag.SetValue`/`TryGetValue` AOT tanısı üretmiyor** (2026-08-02): kaynak üreteciyle kurulmuş `JsonSerializerOptions` geçildiğinde `IL2026` çıkmıyor. `TraconCoreJsonContext` bunun için var.
 
-- **🚨 `sessions.schema_version` Faz 1'den beri vardı ve HEP doluydu — Faz 126 planı bunu bilmeden "NULL = damgasız satır" tasarımı önerdi** (2026-09-01, K-649): `faz-uygulama` Adım 1'in "grep'le ölç" kuralı `SqlSessionStore.cs`'i okuyunca sütunun `0001_initial.sql`'den beri `NOT NULL` olduğu ortaya çıktı. `state_schema_version` (yeniden adlandırılmış hâli) bu yüzden `SessionRecord`'da `int` — hiçbir zaman `null` değil. Yeni MAF-sürüm sözleşmesi için gerçekten eksik olan eksen `StateMafVersion` (`string?`) idi. Yeni bir "damga/versiyon" sütunu eklerken önce `grep -n "schema_version\|CurrentSchemaVersion" src/AgentPrism.Sql.Shared/` ile GERÇEKTEN eksik olanı ölç.
+- **🚨 `sessions.schema_version` Faz 1'den beri vardı ve HEP doluydu — Faz 126 planı bunu bilmeden "NULL = damgasız satır" tasarımı önerdi** (2026-09-01, K-649): `faz-uygulama` Adım 1'in "grep'le ölç" kuralı `SqlSessionStore.cs`'i okuyunca sütunun `0001_initial.sql`'den beri `NOT NULL` olduğu ortaya çıktı. `state_schema_version` (yeniden adlandırılmış hâli) bu yüzden `SessionRecord`'da `int` — hiçbir zaman `null` değil. Yeni MAF-sürüm sözleşmesi için gerçekten eksik olan eksen `StateMafVersion` (`string?`) idi. Yeni bir "damga/versiyon" sütunu eklerken önce `grep -n "schema_version\|CurrentSchemaVersion" src/Tracon.Sql.Shared/` ile GERÇEKTEN eksik olanı ölç.
 - **Damgalama/doğrulama sorumluluğu SQL store'da DEĞİL, `AgentSessionManager`'da olmalı** (2026-09-01, K-649): `SqlSessionStore` artık `StateSchemaVersion`/`StateMafVersion`'ı `AgentName`/`TenantId` gibi düz veri olarak taşır, kendi başına hesaplamaz/doğrulamaz. Yalnız `AgentSessionManager` hem "şimdi çalışan MAF sürümü" (reflection: `typeof(AIAgent).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()`, `MetaEndpoints.ReadVersion()` ile aynı desen) hem "kayıtlı sürüm" bilgisine aynı anda sahip; "kayıtlı ≠ bugünkü" karşılaştırması ve tanımlı hata mesajı orada üretilir. Bu sayede `InMemorySessionStore`'a HİÇ dokunmak gerekmedi — `record with {...}` zaten her alanı taşıyordu.
 - **🚨 Bir yarışı İLK yazım için kapatmak, SONRAKİ yazımları kapatmaz** (2026-08-31, K-648): HATA-004 `TryCreateAsync` ile ilk kaydı atomik yaptı; sonraki her kayıt koşulsuz `SaveAsync`'ten geçmeye devam etti ve var olan bir oturumda **eşzamanlı iki tur da sessizce başarılı** oldu, biri üzerine yazıldı. Çözüm `TryUpdateAsync` + `sessions.version`. İki tuzak: (1) `AuditingSessionStore` yeni üyeyi **iletmezse** arayüzün atomik olmayan varsayılan gövdesini miras alır ve düzeltmeyi sessizce iptal eder — kendi yorumu bu tuzağı `TryCreateAsync` için zaten anlatıyordu; (2) koşulsuz `SaveAsync` sürümü **ilerletmeli**, gelen kayıttan almamalı, yoksa eski sürümü elinde tutan bir yazar hâlâ eşleşir. Bir "yarış kapatıldı" cümlesi okuduğunda sor: **hangi yazım için?**
 
@@ -30,7 +30,7 @@
 - **`ChatHistoryProvider`'ın parametresiz ctor'u yok** (2026-08-02): `protected ChatHistoryProvider(Func<...>?, Func<...>?, Func<...>?)`. Üç filtreyi de (`null` geçerek) vermek gerekir.
 - **`ChatClientAgentOptions` ve `HarnessAgentOptions` ikisinde de `ChatHistoryProvider` var** (2026-08-02): derleyici ikisine de aynı örneği koyar. `agent.GetService<ChatHistoryProvider>()` ile geri okunamaz — bağlandığını doğrulamak için gerçek bir çalıştırma yapıp veritabanına bak.
 - **`ChatHistoryProvider.InvokingAsync` public** (2026-08-02): `InvokingContext` kurucusu da public (`MAAI001` işaretli). Oturum geçmişini okumanın tek public yolu; sağlayıcı bu çağrıda yalnız okur. `ProvideChatHistoryAsync` protected olduğu için kullanılamaz.
-- **`InMemoryChatHistoryProvider` durumu oturumda tutar** (2026-08-02): `GetMessages(AgentSession)` imzası bunu gösteriyor. Tek örneğin tüm oturumlarca paylaşılması güvenli; `AddAgentPrism()` bu yüzden açıkça kaydediyor (K-037).
+- **`InMemoryChatHistoryProvider` durumu oturumda tutar** (2026-08-02): `GetMessages(AgentSession)` imzası bunu gösteriyor. Tek örneğin tüm oturumlarca paylaşılması güvenli; `AddTracon()` bu yüzden açıkça kaydediyor (K-037).
 - **🚨 Responses API + `ChatHistoryProvider` = calisma ani hatasi** (K-030): `AsIChatClient(ResponsesClient, model)` sunucu tarafi `storage`'i acik birakir, `ChatClientAgent` `Only ConversationId or ChatHistoryProvider...` atar. **Yalniz `UsePostgreSql()` acikken** gorulur. Cozum `AsIChatClientWithStoredOutputDisabled(model)`.
 - **🚨 `session: null` ile yapılan bir çağrı, `ChatHistoryProvider` KURULUYSA
   KAYDI ATLAMAZ — çerçeve kendi geçici bir `AgentSession` açar ve o oturuma
@@ -41,7 +41,7 @@
   — çerçeve arka planda taze bir `AgentSession` üretip veriyor). Sonuç:
   "`session: null` geç, kalıcılığı atla" varsayımı YANLIŞTIR; gerçek etki
   "gerçek çağıranın oturumuna YAZMA, bunun yerine bir kerelik, hiç geri
-  okunmayan bir oturuma yaz" — bu, AgentPrism'in zaten gerçek oturumsuz
+  okunmayan bir oturuma yaz" — bu, Tracon'in zaten gerçek oturumsuz
   çalıştırmalarda (bkz. `RunRecordingAgent.RunCoreAsync`'in `session = null`
   varsayılanı) SQL-destekli bir `ChatHistoryProvider` kuruluyken sergilediği
   AYNI kabul edilmiş davranıştır — `conversations`/`conversation_items`
@@ -71,9 +71,9 @@
   `StatePreflightTests.A_session_written_by_a_fully_wired_agent_decodes_through_the_bare_probe`
   — tam donanımlı bir agent iki gerçek tur koşar, `SaveSessionAsync` yazar, prob
   okur. Kırmızıya dönerse çözüm fixture yenilemek değil, çözme yüzeyini daraltmaktır.
-- **Kuşak sabitleri artık TEK yerdedir**: `StateSchemaGenerations` (`AgentPrism.Abstractions`,
+- **Kuşak sabitleri artık TEK yerdedir**: `StateSchemaGenerations` (`Tracon.Abstractions`,
   `internal`, Core ve Workflows'a görünür). `AgentSessionManager.CurrentStateSchemaVersion`
-  ve `AgentPrismCheckpointStore.CurrentStateSchemaVersion` oradan okur. Envelope'u
+  ve `TraconCheckpointStore.CurrentStateSchemaVersion` oradan okur. Envelope'u
   değiştiren faz sayıyı **orada** artırır; ön kontrol kendiliğinden doğru cevabı verir.
   MAF sürüm metni de aynı şekilde `AssemblyVersionText.Read`'e toplandı — üçüncü
   kopya açma (K-483 dersi).
@@ -84,7 +84,7 @@
 - **🚨 Şifreli oturum durumu ÇÖZÜLEMEZ ve bu bir kusur DEĞİLDİR** (2026-09-08, K-735;
   ön kontrolün bu yüzden nasıl çöktüğü ve testin bunu neden kaçırdığı
   [`test-altyapisi.md`](test-altyapisi.md) § *Sahte `null` bağımlılık*'tadır):
-  `AgentPrismContentProtectionOptions.Columns` varsayılan olarak `sessions.state`'i
+  `TraconContentProtectionOptions.Columns` varsayılan olarak `sessions.state`'i
   kapsar; CLI hiçbir anahtar tutmaz (K-059). `ContentProtectionEnvelope.IsProtected`
   yalnız `$apEnc` etiketine bakar ve satır "yapı kontrolü" kovasına girer. Şifreli
   zarf **geçerli JSON'dur** — `JsonDocument.Parse` başarılı olur, yani "ayrıştı, öyleyse

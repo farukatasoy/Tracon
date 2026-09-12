@@ -1,0 +1,62 @@
+#nullable enable
+Tracon.OpenAIApiSurface
+Tracon.OpenAIApiSurface.ChatCompletions = 0 -> Tracon.OpenAIApiSurface
+Tracon.OpenAIApiSurface.Responses = 1 -> Tracon.OpenAIApiSurface
+Tracon.OpenAIChatClientFactory
+Tracon.OpenAIChatClientFactory.CreateChatClient(Tracon.ModelBinding! binding, Tracon.OpenAIApiSurface apiSurface) -> Microsoft.Extensions.AI.IChatClient!
+Tracon.OpenAIChatClientFactory.OpenAIChatClientFactory(Tracon.OpenAIProviderOptions! options, Microsoft.Extensions.Logging.ILoggerFactory? loggerFactory = null) -> void
+Tracon.OpenAICompatibleProviderExtensions
+Tracon.OpenAICompatibleProviderOptions
+Tracon.OpenAIImageBuilderExtensions
+Tracon.OpenAILiveOptions
+Tracon.OpenAILiveOptions.BackendModel.get -> string?
+Tracon.OpenAILiveOptions.BackendModel.set -> void
+Tracon.OpenAILiveOptions.Endpoint.get -> System.Uri?
+Tracon.OpenAILiveOptions.Endpoint.set -> void
+Tracon.OpenAILiveOptions.MaxAppendCharacters.get -> int
+Tracon.OpenAILiveOptions.MaxAppendCharacters.set -> void
+Tracon.OpenAILiveOptions.Model.get -> string!
+Tracon.OpenAILiveOptions.Model.set -> void
+Tracon.OpenAILiveOptions.OpenAILiveOptions() -> void
+Tracon.OpenAILiveOptions.Timeout.get -> System.TimeSpan
+Tracon.OpenAILiveOptions.Timeout.set -> void
+Tracon.OpenAILiveOptions.Voice.get -> string?
+Tracon.OpenAILiveOptions.Voice.set -> void
+Tracon.OpenAILiveProviderExtensions
+Tracon.OpenAIModelCatalog
+Tracon.OpenAIProviderExtensions
+Tracon.OpenAIProviderNames
+Tracon.OpenAIProviderOptions
+Tracon.OpenAIProviderOptions.ApiKey.get -> string?
+Tracon.OpenAIProviderOptions.ApiKey.set -> void
+Tracon.OpenAIProviderOptions.DefaultModel.get -> string?
+Tracon.OpenAIProviderOptions.DefaultModel.set -> void
+Tracon.OpenAIProviderOptions.EnableResponsesSurface.get -> bool
+Tracon.OpenAIProviderOptions.EnableResponsesSurface.set -> void
+Tracon.OpenAIProviderOptions.Endpoint.get -> System.Uri?
+Tracon.OpenAIProviderOptions.Endpoint.set -> void
+Tracon.OpenAIProviderOptions.Models.get -> System.Collections.Generic.IList<Tracon.ModelDescriptor!>!
+Tracon.OpenAIProviderOptions.OpenAIProviderOptions() -> void
+Tracon.OpenAIProviderOptions.Organization.get -> string?
+Tracon.OpenAIProviderOptions.Organization.set -> void
+Tracon.OpenAIProviderOptions.Timeout.get -> System.TimeSpan?
+Tracon.OpenAIProviderOptions.Timeout.set -> void
+const Tracon.OpenAICompatibleProviderOptions.SectionName = "Tracon:Providers:OpenAICompatible" -> string!
+const Tracon.OpenAILiveOptions.ConservativeCharactersPerToken = 2 -> int
+const Tracon.OpenAILiveOptions.ProviderAppendTokenLimit = 500 -> int
+const Tracon.OpenAILiveOptions.SectionName = "Tracon:Providers:OpenAI:Live" -> string!
+const Tracon.OpenAIProviderNames.ChatCompletions = "openai" -> string!
+const Tracon.OpenAIProviderNames.Responses = "openai-responses" -> string!
+const Tracon.OpenAIProviderOptions.SectionName = "Tracon:Providers:OpenAI" -> string!
+static Tracon.OpenAIChatClientFactory.CreateClient(Tracon.OpenAIProviderOptions! options, Tracon.EgressSocketGuard? egressGuard = null) -> OpenAI.OpenAIClient!
+static Tracon.OpenAIChatClientFactory.FromClient(OpenAI.OpenAIClient! client, string? defaultModel = null, Microsoft.Extensions.Logging.ILoggerFactory? loggerFactory = null) -> Tracon.OpenAIChatClientFactory!
+static Tracon.OpenAICompatibleProviderExtensions.UseOpenAICompatible(this Tracon.ITraconBuilder! builder, string! name, Microsoft.Extensions.Configuration.IConfiguration! configurationSection) -> Tracon.ITraconBuilder!
+static Tracon.OpenAICompatibleProviderExtensions.UseOpenAICompatible(this Tracon.ITraconBuilder! builder, string! name, System.Action<Tracon.OpenAIProviderOptions!>! configure) -> Tracon.ITraconBuilder!
+static Tracon.OpenAIImageBuilderExtensions.UseOpenAIImages(this Tracon.ITraconBuilder! builder, System.Action<Tracon.TraconImageOptions!>? configure = null) -> Tracon.ITraconBuilder!
+static Tracon.OpenAILiveProviderExtensions.UseOpenAILive(this Tracon.ITraconBuilder! builder) -> Tracon.ITraconBuilder!
+static Tracon.OpenAILiveProviderExtensions.UseOpenAILive(this Tracon.ITraconBuilder! builder, Microsoft.Extensions.Configuration.IConfiguration! configurationSection) -> Tracon.ITraconBuilder!
+static Tracon.OpenAILiveProviderExtensions.UseOpenAILive(this Tracon.ITraconBuilder! builder, System.Action<Tracon.OpenAILiveOptions!>! configure) -> Tracon.ITraconBuilder!
+static Tracon.OpenAIModelCatalog.Build(Tracon.OpenAIProviderOptions! options) -> System.Collections.Generic.IReadOnlyList<Tracon.ModelDescriptor!>!
+static Tracon.OpenAIProviderExtensions.UseOpenAI(this Tracon.ITraconBuilder! builder, Microsoft.Extensions.Configuration.IConfiguration! configurationSection) -> Tracon.ITraconBuilder!
+static Tracon.OpenAIProviderExtensions.UseOpenAI(this Tracon.ITraconBuilder! builder, System.Action<Tracon.OpenAIProviderOptions!>! configure) -> Tracon.ITraconBuilder!
+static Tracon.OpenAIProviderExtensions.UseOpenAI(this Tracon.ITraconBuilder! builder, string! apiKey, System.Action<Tracon.OpenAIProviderOptions!>? configure = null) -> Tracon.ITraconBuilder!

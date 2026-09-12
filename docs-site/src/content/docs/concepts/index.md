@@ -6,7 +6,7 @@ sidebar:
   order: 1
 ---
 
-AgentPrism sits between your application and the Microsoft Agent Framework. It adds a
+Tracon sits between your application and the Microsoft Agent Framework. It adds a
 catalog, a compiler, a recording layer, an HTTP surface, and a console — and it adds
 nothing between you and MAF's own types.
 
@@ -14,16 +14,16 @@ nothing between you and MAF's own types.
 
 ```mermaid
 flowchart TD
-    accTitle: AgentPrism architecture layers
+    accTitle: Tracon architecture layers
     accDescr: The embedded console and HTTP API use the control plane, which coordinates model providers, runtime execution, and replaceable stores.
     APP["Your ASP.NET Core application"]
-    UI["<b>AgentPrism.UI</b><br/>embedded React console"]
-    HTTP["<b>AgentPrism.AspNetCore</b><br/>management API · OpenAI-compatible endpoints<br/>access layers · SSE"]
+    UI["<b>Tracon.UI</b><br/>embedded React console"]
+    HTTP["<b>Tracon.AspNetCore</b><br/>management API · OpenAI-compatible endpoints<br/>access layers · SSE"]
     PROV["<b>Providers</b><br/>OpenAI · Anthropic · Google · Azure · Voice"]
     STORE["<b>Persistence</b><br/>PostgreSQL · SQL Server · SQLite"]
     OPT["<b>Optional</b><br/>Workflows · MCP"]
-    CORE["<b>AgentPrism.Core</b><br/>catalog · compiler · tool registry<br/>run recording · session manager · in-memory stores"]
-    ABS["<b>AgentPrism.Abstractions</b><br/>contracts"]
+    CORE["<b>Tracon.Core</b><br/>catalog · compiler · tool registry<br/>run recording · session manager · in-memory stores"]
+    ABS["<b>Tracon.Abstractions</b><br/>contracts"]
     MAF["<b>Microsoft Agent Framework</b><br/>AIAgent · AgentSession · ChatMessage · AIFunction"]
 
     APP --> HTTP
@@ -51,10 +51,10 @@ Everything else follows from these.
 
 ### No surprises
 
-`AddAgentPrism()` works alone. Without a configured database every store falls back to
+`AddTracon()` works alone. Without a configured database every store falls back to
 memory, so the runtime comes up on one line with no infrastructure behind it. The
-console is a separate step, not part of that line: add `AgentPrism.UI`, call
-`UseUI()`, and map the endpoints with `MapAgentPrism()` — see [the console
+console is a separate step, not part of that line: add `Tracon.UI`, call
+`UseUI()`, and map the endpoints with `MapTracon()` — see [the console
 guide](/ui/).
 A database is never required, and neither is any particular model vendor — OpenAI,
 Anthropic, Google, Azure OpenAI, and any OpenAI-compatible endpoint (including a
@@ -67,7 +67,7 @@ who reached the console could execute code on your server.
 
 There are exactly two deliberate exceptions, both described in
 [tools](/concepts/tools/) with their guards: remote **MCP servers**, where
-the process runs somewhere else and AgentPrism is only a client, and **skill
+the process runs somewhere else and Tracon is only a client, and **skill
 scripts**, where the process runs on this machine — the strictest exception, off by
 default, behind six sequential gates. In both, a console user enables an existing
 capability rather than writing new code. That distinction is the rule.
@@ -78,23 +78,23 @@ capability rather than writing new code. That distinction is the rule.
 parallel type hierarchy is laid on top of them.
 
 Wrapping would create maintenance debt with every MAF release and cut you off from
-the MAF ecosystem. AgentPrism is a *control plane*, not an *abstraction layer*.
+the MAF ecosystem. Tracon is a *control plane*, not an *abstraction layer*.
 
 ### Every extension point is replaceable
 
 All services register with `TryAdd`. Register your own implementation before calling
-`AddAgentPrism()` and yours wins. The same holds for MAF's own hosting types, which is
+`AddTracon()` and yours wins. The same holds for MAF's own hosting types, which is
 why interfaces like conversation storage can be swapped out.
 
 ## Where things live
 
 | | |
 |---|---|
-| Contracts, records, enums | `AgentPrism.Abstractions` |
-| Catalog, compiler, recording, in-memory stores | `AgentPrism.Core` |
-| Endpoints, access layers, OpenAI compatibility | `AgentPrism.AspNetCore` |
-| Schema, migrations, vector search | `AgentPrism.PostgreSql` and friends |
-| The console | `AgentPrism.UI` |
+| Contracts, records, enums | `Tracon.Abstractions` |
+| Catalog, compiler, recording, in-memory stores | `Tracon.Core` |
+| Endpoints, access layers, OpenAI compatibility | `Tracon.AspNetCore` |
+| Schema, migrations, vector search | `Tracon.PostgreSql` and friends |
+| The console | `Tracon.UI` |
 
 See [choosing packages](/packages/) for which to install.
 

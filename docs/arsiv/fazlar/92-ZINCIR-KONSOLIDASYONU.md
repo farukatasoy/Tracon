@@ -46,7 +46,7 @@ Faz 91 kuralları koda taşıdı. Bu faz **metni** konsolide eder: zincirde her 
 - [x] `python3 scripts/dokuman-bakim.py` çıkış kodu 0; kırık bağlantı 0
 - [x] Skill listesi on skill gösteriyor; `ortak` skill olarak görünmüyor (`.agents/ortak/` içinde `SKILL.md` yok — yapısal olarak keşfedilemez; ayrıca gözle doğrulandı)
 - [x] Dört doğrulama kapısı sıfır uyarı — tek `kapi.py kapanis` koşumu olarak değil, ayrı ayrı doğrulandı (bkz. Plandan Sapmalar #4): `dotnet build` ✅, `dotnet pack` ✅, `dotnet format --verify-no-changes` ✅ (exit 0), `docs-site && npm run check` ✅ (`check:content` 0 hata, build 1059 sayfa, `check:links` 141.812 referans temiz, `check:weight` en ağır sayfa 50.989 B < 57.000 B), `kapi.py tarama` ✅, `dokuman-bakim.py --denetle` ✅
-- [x] `samples/AgentPrism.Api` ile gerçek `run` yapıldı — 🚨 bu faz kod değiştirmez; koşum bir **regresyon kanıtıdır**. `/health` → `200 Degraded` (model provider'ı henüz koşulmadığı için beklenen), `/agentprism` → `200`, `/agentprism/api/meta` bearer ile → `200`, 24 migration temiz uygulandı (bkz. Plandan Sapmalar #5)
+- [x] `samples/Tracon.Api` ile gerçek `run` yapıldı — 🚨 bu faz kod değiştirmez; koşum bir **regresyon kanıtıdır**. `/health` → `200 Degraded` (model provider'ı henüz koşulmadığı için beklenen), `/tracon` → `200`, `/tracon/api/meta` bearer ile → `200`, 24 migration temiz uygulandı (bkz. Plandan Sapmalar #5)
 - [x] `secret` taraması boş döndü (`kapi.py tarama`: "Tarama: ✅ temiz")
 - [x] Manuel kabul case'leri `docs/manuel-test/36-GELISTIRME-KAPILARI.md` içine eklendi (dosyayı Faz 91 açar); otomatikleştirilebilenler koşuldu (case 9, 10, 12, 13 — case 11 👤 insan gerekir)
 - [x] `faz-denetim` taze bağlamlı ayrı `Agent` çağrısıyla koşuldu — bu faz kendi çıktısının ilk tüketicisidir. 🔴 1 bulgu çıktı, kapandı; 🟡 3 bulgu çıktı, üçü de kapandı (bkz. Denetim Bulguları). Wall-clock kulvar paralelliği bu oturumda dogfooding edilmedi — gerekçe Plandan Sapmalar #7
@@ -59,7 +59,7 @@ wc -l -c .agents/skills/{faz-baslangic,faz-uygulama,faz-denetim,faz-tamamlama,tu
          .agents/skills/tuketici-dokuman-senkronu/resources/kalite-sozlesmesi.md
 
 # Tekrar gerçekten kapandı mı
-grep -rln "dotnet format AgentPrism.slnx --verify-no-changes" AGENTS.md .agents/   # 1 dosya olmalı
+grep -rln "dotnet format Tracon.slnx --verify-no-changes" AGENTS.md .agents/   # 1 dosya olmalı
 grep -rln "DI · HTTP · kiracı · akış · depo" .agents/                              # 1 dosya olmalı
 
 # Bayat komut kalmadı mı
@@ -135,17 +135,17 @@ python3 scripts/dokuman-bakim.py
 
    | Koşum | Kırılan test | İzole sonuç |
    |---|---|---|
-   | 1 | `AgentPrism.Ui.E2ETests.UiTests.Pending_request_card_can_be_answered` | 1/1 geçti |
-   | 2 | `AgentPrism.Sqlite.IntegrationTests.Contracts.SqliteWorkflowCheckpointStoreContractTests.Another_tenants_checkpoint_is_NOT_FOUND` | 1/1 geçti |
-   | 3 | `AgentPrism.Sqlite.IntegrationTests.ContentProtectionTests.A_column_left_out_of_the_protected_set_stays_plaintext_while_another_column_is_encrypted` | 1/1 geçti |
+   | 1 | `Tracon.Ui.E2ETests.UiTests.Pending_request_card_can_be_answered` | 1/1 geçti |
+   | 2 | `Tracon.Sqlite.IntegrationTests.Contracts.SqliteWorkflowCheckpointStoreContractTests.Another_tenants_checkpoint_is_NOT_FOUND` | 1/1 geçti |
+   | 3 | `Tracon.Sqlite.IntegrationTests.ContentProtectionTests.A_column_left_out_of_the_protected_set_stays_plaintext_while_another_column_is_encrypted` | 1/1 geçti |
 
    🚨 **Bağımsız denetim düzeltmesi:** ilk yazım üçünü de `docs/ADAYLAR.md`
    F-130/F-137/F-139'a bağlıyordu; bu **yanlıştı** — o üç kalem yalnız
-   `AgentPrism.Ui.E2ETests` (tarayıcı/DOM) kapsar. Doğrusu: yalnız **1.**
+   `Tracon.Ui.E2ETests` (tarayıcı/DOM) kapsar. Doğrusu: yalnız **1.**
    koşum (`Pending_request_card_can_be_answered`, aynı proje) F-130 sınıfına
    benzer (Faz 91 Plandan Sapmalar #6 emsaliyle — aynı test adı). **2.** ve
    **3.** koşum tamamen farklı bir projedendir
-   (`AgentPrism.Sqlite.IntegrationTests`) ve hiçbir F-NN kaydına bağlı
+   (`Tracon.Sqlite.IntegrationTests`) ve hiçbir F-NN kaydına bağlı
    değildir; bunlar için yalnız `docs/ADAYLAR.md:738`'deki genel gözleme atıf
    yapılabilir: "bu noktadan sonra kalem tek tek testler değil, tam koşumun
    paralellik profilidir — beklemeleri uzatmak yanlış çözümdür." Dördüncü bir
@@ -158,7 +158,7 @@ python3 scripts/dokuman-bakim.py
    tek başına yeni bir kayıt açmaya değecek kadar tekrarlanmadı (birer kez);
    tekrarlanırsa `kusur-giderme` Adım 5 gereği F-NN olarak yazılmalıdır.
 
-5. **`samples/AgentPrism.Api`'nin varsayılan PostgreSQL dev veritabanı, ilk
+5. **`samples/Tracon.Api`'nin varsayılan PostgreSQL dev veritabanı, ilk
    denemede `0032_tenant_provider_bindings` migration'ı için checksum
    uyuşmazlığıyla başlamayı reddetti** (`git log` migration dosyasının son
    dokunulduğu commit'i `9c32242` — "döküman düzeni sağlandı" — olarak
@@ -168,7 +168,7 @@ python3 scripts/dokuman-bakim.py
    veritabanını sıfırlamak yıkıcı bir yerel işlem olduğu için denenmedi.
    Bunun yerine örnek uygulama, ortam değişkenleriyle **tek seferlik, kalıcı
    olmayan** bir SQLite dosyasına yönlendirildi
-   (`AgentPrism__Sqlite__ConnectionString`) — bu da desteklenen bir saklama
+   (`Tracon__Sqlite__ConnectionString`) — bu da desteklenen bir saklama
    seçeneğidir ve Postgres'e dokunmaz. Bu koşumda 24 migration temiz uygulandı
    ve regresyon kanıtı buradan toplandı (bkz. DoD).
 
@@ -222,7 +222,7 @@ Bağımsız (taze bağlamlı, ayrı `Agent` çağrısı) `faz-denetim`, taban `c
 | # | Bulgu | Sonuç |
 |---|---|---|
 | 1 | Plandan Sapmalar #2'nin tuzak tablosu `git` PATH'te yokken çökme kalemini "kapı kazanmadı" diye yanlış sınıflandırmıştı — Faz 91 devir notunun o satırının 2. sütunu aslında kapı kazandığını (`OSError` yakalama + 4 regresyon testi) söylüyor; 3. sütundaki "Henüz kapı kazanmadı" ayrı bir kaleme (Frontend.targets incremental doğrulaması) aitti. | Düzeltildi. Tablo 10 satıra çıkarıldı, git-PATH doğru sınıflandırıldı, gerçek kapı-kazanmamış kalem (Frontend.targets) ayrıca açıklandı. |
-| 2 | Plandan Sapmalar #4, üç flaky test başarısızlığının üçünü de `docs/ADAYLAR.md` F-130/F-137/F-139'a bağlıyordu; o üç kayıt yalnız `AgentPrism.Ui.E2ETests`'i kapsar, 2./3. başarısızlık farklı bir projedendir (`AgentPrism.Sqlite.IntegrationTests`) ve hiçbir kayda bağlı değildir. | Düzeltildi. İddia daraltıldı: yalnız 1. koşum F-130 sınıfına benziyor; 2./3. için yalnız genel "paralellik profili" gözlemine atıf yapıldı, yanlış F-NN numarası kaldırıldı. |
+| 2 | Plandan Sapmalar #4, üç flaky test başarısızlığının üçünü de `docs/ADAYLAR.md` F-130/F-137/F-139'a bağlıyordu; o üç kayıt yalnız `Tracon.Ui.E2ETests`'i kapsar, 2./3. başarısızlık farklı bir projedendir (`Tracon.Sqlite.IntegrationTests`) ve hiçbir kayda bağlı değildir. | Düzeltildi. İddia daraltıldı: yalnız 1. koşum F-130 sınıfına benziyor; 2./3. için yalnız genel "paralellik profili" gözlemine atıf yapıldı, yanlış F-NN numarası kaldırıldı. |
 | 3 | Kulvar mermaid şemasında Adım 6 (sonraki fazın devir notunu yazmak — derin bağlam gerektirir) yanlışlıkla "taze bağlamlı" C kulvarına (`tuketici-dokuman-senkronu`) atanmıştı; bu adımın içeriği tüketici dokümantasyonuyla ilgisiz. | Düzeltildi. `faz-tamamlama/SKILL.md`'deki şema güncellendi: C yalnız Adım 7, D Adım 5/6/8'i kapsıyor. Zincir metni yeniden ölçüldü (Plandan Sapmalar #6). |
 
 ### 🟢 Aday listesine
@@ -259,11 +259,11 @@ isterse `aday-kesfi`, seçilmiş bir aday varsa doğrudan `faz-planlama`.
 
 - `Frontend.targets`'ın ikinci build'de `npm run build` koşturmadığını
   doğrulayan **otomatik** bir regresyon testi yok (yalnız Faz 91'in tek
-  seferlik elle ölçümü var). Ucuz, `AgentPrism.UI` projesine daraltılmış bir
+  seferlik elle ölçümü var). Ucuz, `Tracon.UI` projesine daraltılmış bir
   kapı tasarımı gerektirir (bağımsız denetimin Faz 91 🟡 bulgusu #2).
 - Tam test koşumunun paralellik profili kırılganlığı (`docs/ADAYLAR.md:738`)
   hâlâ çözülmedi; bu fazda **iki yeni örneği** gözlemlendi
-  (`AgentPrism.Sqlite.IntegrationTests` içinde, F-NN kaydı açılacak kadar
+  (`Tracon.Sqlite.IntegrationTests` içinde, F-NN kaydı açılacak kadar
   tekrarlanmadı — bkz. Plandan Sapmalar #4). Üçüncü kez aynı sınıf tekrarlarsa
   `kusur-giderme` Adım 5 gereği F-NN açılmalıdır.
 - `references/gerekce.md` konvansiyonu artık iki skil'de var

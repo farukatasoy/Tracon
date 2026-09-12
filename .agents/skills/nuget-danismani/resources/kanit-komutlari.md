@@ -53,7 +53,7 @@ for f in artifacts/package/release/*.nupkg; do
   id=$(basename "$f" | sed -E 's/\.[0-9]+\.[0-9]+\.[0-9]+.*//')
   unzip -p "$f" "$id.nuspec" \
     | grep -oE 'id="[^"]*" version="[0-9]+\.[0-9]+\.[0-9]+-[^"]*"' \
-    | grep -v 'id="AgentPrism' | sed "s|^|$id: |"
+    | grep -v 'id="Tracon' | sed "s|^|$id: |"
 done
 ```
 
@@ -110,10 +110,10 @@ cat > "$TMP/NuGet.config" <<'XML'
   <packageSources>
     <clear />
     <add key="nuget.org" value="https://api.nuget.org/v3/index.json" protocolVersion="3" />
-    <add key="agentprism-release" value="ARTIFACT_DIR" />
+    <add key="tracon-release" value="ARTIFACT_DIR" />
   </packageSources>
   <packageSourceMapping>
-    <packageSource key="agentprism-release"><package pattern="AgentPrism*" /></packageSource>
+    <packageSource key="tracon-release"><package pattern="Tracon*" /></packageSource>
     <packageSource key="nuget.org"><package pattern="*" /></packageSource>
   </packageSourceMapping>
 </configuration>
@@ -121,7 +121,7 @@ XML
 sed -i '' "s|ARTIFACT_DIR|$PWD/artifacts/package/release|" "$TMP/NuGet.config"
 
 cd "$TMP/app" && dotnet new console
-dotnet add package AgentPrism --version 1.0.0-preview.N   # 2: EXACT surum, floating YOK
+dotnet add package Tracon --version 1.0.0-preview.N   # 2: EXACT surum, floating YOK
 # 3: ProjectReference YOK - csproj'da src/ yolu gecmemeli
 dotnet build && dotnet run
 ```
@@ -136,7 +136,7 @@ grep -q "$TMP/cache" artifacts/obj/<Proje>/project.assets.json && echo "izole �
 Test/contracts paketinin production graph'ına sızmadığını da aynı dosyadan oku:
 
 ```bash
-grep -c '"AgentPrism.Testing' artifacts/obj/<Proje>/project.assets.json   # 0 olmali
+grep -c '"Tracon.Testing' artifacts/obj/<Proje>/project.assets.json   # 0 olmali
 ```
 
 ---
@@ -150,7 +150,7 @@ grep -l "AotCompatible>false" src/*/*.csproj      # AOT OLMAYAN paketler
 ```
 
 Kanıt, packed tüketicinin `PublishAot` ile publish edilip **çalıştırılmasıdır**.
-`kapi.py yayin` bunu `AgentPrism.Samples.ExtensionAotSmoke` üzerinden yapar.
+`kapi.py yayin` bunu `Tracon.Samples.ExtensionAotSmoke` üzerinden yapar.
 Yeni bir yüzey için aynısını kur ve şu üçünü ara: trim uyarısı ·
 `RequiresUnreferencedCode` · `RequiresDynamicCode`. Native AOT publish **somut
 bir RID** ister; `--use-current-runtime` izole bir cache'e ILCompiler runtime
@@ -188,7 +188,7 @@ Yöntem: fırlatan/sızdıran bir **fake implementation** kur, sonra ham dizeyi
 
 ```bash
 # Yuzey envanteri - hangi uclarin okunmasi gerektigi
-grep -rn "MapPost\|MapGet\|WriteAsync\|ProblemDetails" src/AgentPrism.AspNetCore/ | wc -l
+grep -rn "MapPost\|MapGet\|WriteAsync\|ProblemDetails" src/Tracon.AspNetCore/ | wc -l
 ```
 
 Okunacak yüzeyler — biri bile atlanırsa iddia geçersizdir: agent SSE · buffered

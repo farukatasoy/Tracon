@@ -1,6 +1,6 @@
 # Ses ve Konusma Tuzaklari
 
-> Ses tool'lari (`AgentPrism.Voice`), gercek zamanli konusma katmani (`Core/Voice/`),
+> Ses tool'lari (`Tracon.Voice`), gercek zamanli konusma katmani (`Core/Voice/`),
 > token disi olcum.
 >
 > Bu dosya `MEMORY.md`'nin alan dosyasidir. Yalnizca bu alana
@@ -11,16 +11,16 @@
 
 ## Nerede yasiyor
 
-- **Ses `AgentPrism.Voice/` altinda, olcum Core'da** (2026-08-05, Faz 28):
+- **Ses `Tracon.Voice/` altinda, olcum Core'da** (2026-08-05, Faz 28):
   sozlesmeler `Abstractions/Voice/` (HTTP katmani gorsun diye, K-215);
   `Internal/ElevenLabsSpeechClient.cs` uc HTTP ucunu ham `HttpClient` ile
   konusur ve eszamanlilik sayacini tutar; `Tools/VoiceToolBase.cs` 🚨
   bagimliligi KURULUM aninda alir (K-218). Token disi olcum:
-  `Core/Tools/AgentPrismToolUsage.cs` (public bildirim) →
+  `Core/Tools/TraconToolUsage.cs` (public bildirim) →
   `Core/Recording/ToolUsageAccumulator.cs` (cagri kimligine gore) →
   `ToolInvocationTracker.OnResult`. Uclar
   `AspNetCore/Endpoints/VoiceEndpoints.cs`.
-- **Konusma katmani `Core/Voice/` altinda, `AgentPrism.Voice`'ta DEGIL**
+- **Konusma katmani `Core/Voice/` altinda, `Tracon.Voice`'ta DEGIL**
   (2026-08-05, Faz 29): boru hatti yalniz `ISpeechTranscriber`/
   `ISpeechSynthesizer` kullanir, saglayiciya dokunmaz (K-222).
   `VoiceConversationDriver` (alma dongusu + tur gorevi + gonderme kilidi),
@@ -34,7 +34,7 @@
 ## Tuzaklar
 
 - **🚨 Konusma WebSocket'i token'i `Sec-WebSocket-Protocol` alt protokolunde
-  alir** (`agentprism.token.<token>`) ve sabit zamanda kendisi dogrular (K-224).
+  alir** (`tracon.token.<token>`) ve sabit zamanda kendisi dogrular (K-224).
   Tarayici bir el sikismaya `Authorization` basligi ekleyemez; sorgu dizesi
   sunucu ve ters vekil gunluklerine yazilacagi icin **kabul edilmez**.
 - **🚨 Oturum deposu davranisini degistirmek ses ucunu sessizce bozdu** (K-283,
@@ -138,9 +138,9 @@ tazele.
 
 - **Yalniz `webrtc` transport'u var.** `websocket`/`ws` → `400 "Only the webrtc
   transport is supported."` Sunucu tarafli bir medya koprusu **yapilamaz**;
-  AgentPrism SDP araciligi yapar.
+  Tracon SDP araciligi yapar.
 - **`/v1/live/client_secrets` → 404.** Ephemeral token ucu YOK ve gerekmiyor:
-  oturumu AgentPrism kendi anahtariyla yaratir.
+  oturumu Tracon kendi anahtariyla yaratir.
 - **Append alani `content`, `text` DEGIL** ve `delegation_id` **uc kanalda da
   zorunlu** (`session.thinking|commentary|instructions.append`).
 - **Transcript'te `is_final` YOK** — yalniz `start_ms`/`end_ms` tasiyan delta.
@@ -168,7 +168,7 @@ tazele.
 - **🚨 Giden WebSocket egress politikasini elde cagirmak zorundadir** (K-751).
   `ClientWebSocket`'in `ConnectCallback`'i yoktur. Ayrica: politika reddi REST
   yolunda `HttpRequestException` **icine sarili** gelir — yalniz
-  `AgentPrismException` yakalayan bir uc sirali bir reddi yakalanmamis 500
+  `TraconException` yakalayan bir uc sirali bir reddi yakalanmamis 500
   olarak kacirir (gercek kosumda bulundu).
 - **🚨 Sideband pump'i HTTP isteginin disinda kosar.** Ambient kiraci ve
   attribution pump'in KENDI govdesinde, ilk olay islenmeden once acilir; her

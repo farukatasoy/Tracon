@@ -1,10 +1,10 @@
 using System.Globalization;
 
-namespace AgentPrism.Tests.Common;
+namespace Tracon.Tests.Common;
 
 /// <summary>
-/// Starts <c>tests/AgentPrism.WorkerHarness</c> as a separate operating-system
-/// process - a real AgentPrism host a test can kill.
+/// Starts <c>tests/Tracon.WorkerHarness</c> as a separate operating-system
+/// process - a real Tracon host a test can kill.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -24,7 +24,7 @@ namespace AgentPrism.Tests.Common;
 /// </remarks>
 internal static class WorkerProcessHost
 {
-    private const string ProjectName = "AgentPrism.WorkerHarness";
+    private const string ProjectName = "Tracon.WorkerHarness";
 
 #if DEBUG
     private const string Configuration = "debug";

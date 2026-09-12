@@ -6,35 +6,35 @@
 > 142 yalnız `PendingApproval.Presentation` alanı ve `IToolApprovalPresenter`.
 >
 > **Kaynak:**
-> `src/AgentPrism.Abstractions/Runs/IRunCancellationRegistry.cs`,
+> `src/Tracon.Abstractions/Runs/IRunCancellationRegistry.cs`,
 > `RunReconciliationOptions.cs`, `RunErrorClass.cs` (yalnız `Canceled=10`/
 > `Infrastructure=12`) ·
-> `src/AgentPrism.Abstractions/Approvals/` (tümü: `PendingApproval.cs`,
+> `src/Tracon.Abstractions/Approvals/` (tümü: `PendingApproval.cs`,
 > `ApprovalStatus.cs`, `IPendingApprovalStore.cs`) ·
-> `src/AgentPrism.Core/Recording/RunCancellationRegistry.cs`,
+> `src/Tracon.Core/Recording/RunCancellationRegistry.cs`,
 > `RunHeartbeatWriter.cs`, `RunReconciliationService.cs`,
 > `RunReconciliationOptionsValidator.cs` ·
-> `src/AgentPrism.Core/Approvals/` (tümü: `InMemoryPendingApprovalStore.cs`,
-> `AgentPrismApprovalOptions.cs`, `ApprovalExpirationService.cs`,
+> `src/Tracon.Core/Approvals/` (tümü: `InMemoryPendingApprovalStore.cs`,
+> `TraconApprovalOptions.cs`, `ApprovalExpirationService.cs`,
 > `ApprovalResumeJobHandler.cs`) ·
-> `src/AgentPrism.Core/Runs/DefaultRunErrorClassifier.cs` (yalnız
+> `src/Tracon.Core/Runs/DefaultRunErrorClassifier.cs` (yalnız
 > `Canceled`/`Infrastructure` dalları) ·
-> `src/AgentPrism.Core/SingletonGuard.cs`, `SingletonExecutionOptions.cs` ·
-> `src/AgentPrism.AspNetCore/Endpoints/RunEndpoints.cs` (yalnız
+> `src/Tracon.Core/SingletonGuard.cs`, `SingletonExecutionOptions.cs` ·
+> `src/Tracon.AspNetCore/Endpoints/RunEndpoints.cs` (yalnız
 > `CancelRunAsync`, satır 631-719) ·
-> `src/AgentPrism.AspNetCore/Endpoints/ApprovalEndpoints.cs` (tümü) ·
-> `src/AgentPrism.AspNetCore/Endpoints/WorkflowEndpoints.cs` (yalnız `RunAsync`,
+> `src/Tracon.AspNetCore/Endpoints/ApprovalEndpoints.cs` (tümü) ·
+> `src/Tracon.AspNetCore/Endpoints/WorkflowEndpoints.cs` (yalnız `RunAsync`,
 > §1'in workflow-iptal denemesi için) ·
-> `src/AgentPrism.UI/frontend/src/screens/approvals.tsx` ·
-> `src/AgentPrism.Core/Hosting/AgentPrismDrainService.cs`,
-> `AgentPrismDrainOptions.cs` ·
-> `src/AgentPrism.Core/Recording/AgentPrismRunContinuationOptions.cs`,
+> `src/Tracon.UI/frontend/src/screens/approvals.tsx` ·
+> `src/Tracon.Core/Hosting/TraconDrainService.cs`,
+> `TraconDrainOptions.cs` ·
+> `src/Tracon.Core/Recording/TraconRunContinuationOptions.cs`,
 > `RunReconciliationService.cs` (yalnız `TryContinueAsync` ve altındakiler) ·
-> `src/AgentPrism.Core/Scheduling/RunContinuationJobHandler.cs` ·
-> `src/AgentPrism.Core/Replay/RecordedToolPlayback.cs` (`ToolPlaybackMismatchPolicy`) ·
-> `src/AgentPrism.Abstractions/Runs/IAgentPrismDrainState.cs` ·
-> `src/AgentPrism.AspNetCore/RateLimiting/DrainGate.cs` ·
-> `src/AgentPrism.UI/frontend/src/screens/run-detail.tsx` (yalnız `continuedFromRunId` bağı).
+> `src/Tracon.Core/Scheduling/RunContinuationJobHandler.cs` ·
+> `src/Tracon.Core/Replay/RecordedToolPlayback.cs` (`ToolPlaybackMismatchPolicy`) ·
+> `src/Tracon.Abstractions/Runs/ITraconDrainState.cs` ·
+> `src/Tracon.AspNetCore/RateLimiting/DrainGate.cs` ·
+> `src/Tracon.UI/frontend/src/screens/run-detail.tsx` (yalnız `continuedFromRunId` bağı).
 >
 > 🚨 **Kaynak eşlemesi kökten daraltıldı — grep ile ölçülen büyük örtüşme
 > (2026-08-10, bu oturumda ölçüldü).** `00-INDEKS.md`'nin §7 tablosu bu
@@ -107,14 +107,14 @@ flowchart TD
 | Yeniden oynatma paneli, karşılaştırma paneli, dallandırma düğmesi (arayüz), `422`/`409` UI davranışı | `11` `MT-UIRUN-026`–`046`, `10-ARAYUZ-AGENT-PLAYGROUND.md` `MT-UIAG-039` (zaten üretildi) |
 | `POST /runs/{id}/replay` kapsam denetimi (`Operator`/`Admin`), `feedback`/`compare`/`input` uçlarının kapsam boşluğu | `17-EVAL-VE-DENEYLER.md` `MT-EVAL-093/094/101` (zaten üretildi) |
 | Genel HTTP zarfı (`ProblemDetails`), kiracı yalıtımı (genel mekanizma), API anahtarı oluşturma deseni | `07`, `13-KIRACI-VE-GUVENLIK.md` (zaten üretildi) — burada yalnız §3'ün onay-kutusuna özgü kapsam/kiracı boşlukları için TEKRAR kullanılır |
-| Rol politikalarının (`AgentPrismPolicies`) örnek uygulamada kayıtlı olmadığı, dolayısıyla `RequireRole`'ün no-op olduğu genel bulgu | `14-SKILL-VE-SCRIPT.md` (zaten not düşüldü) — bu dosyanın `MT-RES-029`'u AYNI kök nedeni Onay uçlarında DOĞRULAR, yeniden araştırmaz |
+| Rol politikalarının (`TraconPolicies`) örnek uygulamada kayıtlı olmadığı, dolayısıyla `RequireRole`'ün no-op olduğu genel bulgu | `14-SKILL-VE-SCRIPT.md` (zaten not düşüldü) — bu dosyanın `MT-RES-029`'u AYNI kök nedeni Onay uçlarında DOĞRULAR, yeniden araştırmaz |
 | `document_embeddings`/`run_inputs` gibi diğer saklama hedeflerinin retention ile silinmesi | `23-SAKLAMA-ARSIV-KOTA.md` (henüz üretilmedi) — bu dosya `pending_approvals`/`run_heartbeats` için bir saklama hedefi de ARAMAZ (kod okumasıyla: `RetentionTargets.cs`'te bu iki tablo için giriş yok — bkz. not §2 sonu) |
 
 ## Koşmadan önce
 
 1. [`00-INDEKS.md`](00-INDEKS.md) §4 reset yordamı uygulanır.
 2. Örnek uygulama PostgreSQL ile çalışır (varsayılan kurulum, §2.4).
-3. `AgentPrism:Providers:OpenAI:ApiKey` tanımlı — §1 ve §5 gerçek model çağırır
+3. `Tracon:Providers:OpenAI:ApiKey` tanımlı — §1 ve §5 gerçek model çağırır
    (`FIX-PROMPT-04`, 50.000 karakter, uzun bir çalıştırma penceresi açmak için;
    teknik `11-ARAYUZ-RUN-SESSION-SSE.md`'nin `MT-UIRUN-021`'iyle AYNIDIR).
 4. §2 ve §5, `RunReconciliation`'ı GEÇİCİ olarak açık ve kısa aralıklarla
@@ -123,20 +123,20 @@ flowchart TD
    alınmalı** (aksi halde sonraki dosyaların koşumu sırasında arka planda
    gereksiz tarama sorguları atılır):
    ```bash
-   dotnet user-secrets remove "AgentPrism:RunReconciliation:Enabled"
-   dotnet user-secrets remove "AgentPrism:RunReconciliation:HeartbeatInterval"
-   dotnet user-secrets remove "AgentPrism:RunReconciliation:OrphanThreshold"
-   dotnet user-secrets remove "AgentPrism:RunReconciliation:ScanInterval"
-   dotnet user-secrets remove "AgentPrism:Approvals:DefaultExpiration"
-   dotnet user-secrets remove "AgentPrism:Approvals:ScanInterval"
+   dotnet user-secrets remove "Tracon:RunReconciliation:Enabled"
+   dotnet user-secrets remove "Tracon:RunReconciliation:HeartbeatInterval"
+   dotnet user-secrets remove "Tracon:RunReconciliation:OrphanThreshold"
+   dotnet user-secrets remove "Tracon:RunReconciliation:ScanInterval"
+   dotnet user-secrets remove "Tracon:Approvals:DefaultExpiration"
+   dotnet user-secrets remove "Tracon:Approvals:ScanInterval"
    ```
-5. Örnek uygulama çalışır: `cd samples/AgentPrism.Api && dotnet run` →
-   `http://localhost:5080/agentprism`.
+5. Örnek uygulama çalışır: `cd samples/Tracon.Api && dotnet run` →
+   `http://localhost:5080/tracon`.
 
 ```bash
 export APB="Authorization: Bearer manuel-test-token-2026"
-export APU="http://localhost:5080/agentprism"
-export PG="docker exec -i ap-pg psql -U postgres -d agentprism"
+export APU="http://localhost:5080/tracon"
+export PG="docker exec -i ap-pg psql -U postgres -d tracon"
 ```
 
 > **Gerçek para uyarısı.** §1'in `MT-RES-001`/`002`/`005` ve §5'in
@@ -380,7 +380,7 @@ curl -s "$APU/api/runs/$WFRUN" -H "$APB" | python3 -c "import json,sys;print(jso
   değildir.
 
 ~~Eski beklenti (2026-08-15 koşumu): `Completed` — MAF'ın grafik-içi iptal
-sınırı nedeniyle. Bu sınır hâlâ vardır ama artık AgentPrism onu kaydına
+sınırı nedeniyle. Bu sınır hâlâ vardır ama artık Tracon onu kaydına
 yansıtmıyor.~~
 
 ---
@@ -440,7 +440,7 @@ curl -s "$APU/api/stats/errors?hours=1" -H "$APB" | python3 -m json.tool
 | **İlgili karar** | K1 (varsayılan kapalı) |
 
 **Ön koşul**
-- `AgentPrism:RunReconciliation:*` ayarlarının HİÇBİRİ verilmemiş (varsayılan).
+- `Tracon:RunReconciliation:*` ayarlarının HİÇBİRİ verilmemiş (varsayılan).
 - Herhangi bir tamamlanmış çalıştırmanın `runId`'si not edilmiş.
 
 **Adımlar**
@@ -451,7 +451,7 @@ curl -s "$APU/api/stats/errors?hours=1" -H "$APB" | python3 -m json.tool
 
 **Girilecek veri**
 ```bash
-$PG -c "UPDATE agentprism.runs SET status = 0, completed_at = NULL,
+$PG -c "UPDATE tracon.runs SET status = 0, completed_at = NULL,
         started_at = now() - interval '10 minutes', heartbeat_at = NULL
         WHERE id = '$SOME_RUN_ID';"
 sleep 10
@@ -489,7 +489,7 @@ curl -s "$APU/api/runs/$SOME_RUN_ID" -H "$APB" | python3 -c "import json,sys;pri
 
 **Girilecek veri**
 ```bash
-$PG -c "UPDATE agentprism.runs SET status = 0, completed_at = NULL,
+$PG -c "UPDATE tracon.runs SET status = 0, completed_at = NULL,
         started_at = now() - interval '10 minutes', heartbeat_at = NULL
         WHERE id = '$SOME_RUN_ID';"
 sleep 5
@@ -501,14 +501,14 @@ curl -s "$APU/api/runs/$SOME_RUN_ID" -H "$APB" | python3 -c "import json,sys; r=
 - `error.type == "orphaned"`.
 - `error.class == "Infrastructure"`.
 - `error.fingerprint == "orphaned"` (sabit dize, K-364 — `ErrorFingerprint`
-  hesaplanmaz; `AgentPrism.Sql.Shared` `AgentPrism.Core`'daki `internal`
+  hesaplanmaz; `Tracon.Sql.Shared` `Tracon.Core`'daki `internal`
   sınıfa erişemediği için).
 - `error.message` `"...son isaret: <tarih>..."` biçiminde bir metin taşır.
 
 **Doğrulama sorgusu**
 ```sql
 SELECT status, error_type, error_class, error_fingerprint, error_message
-  FROM agentprism.runs WHERE id = '<runId>';
+  FROM tracon.runs WHERE id = '<runId>';
 ```
 
 ---
@@ -539,7 +539,7 @@ RESP=$(curl -s -X POST "$APU/api/agents/support/run" -H "$APB" \
   -d '{"message":"ORD-1001 siparisim nerede?"}')
 QID=$(echo "$RESP" | python3 -c "import json,sys;print(json.load(sys.stdin)['runId'])")
 
-$PG -c "UPDATE agentprism.runs SET started_at = now() - interval '10 minutes'
+$PG -c "UPDATE tracon.runs SET started_at = now() - interval '10 minutes'
         WHERE id = '$QID' AND status = 5;"
 sleep 5
 curl -s "$APU/api/runs/$QID" -H "$APB" | python3 -c "import json,sys;print(json.load(sys.stdin)['status'])"
@@ -604,7 +604,7 @@ bağımlı değildir.
 
 **Ön koşul**
 - `RunReconciliation` ayarları açık (yukarıdaki gibi).
-- `AgentPrism:SingletonExecution:Enabled` HENÜZ verilmemiş (varsayılan
+- `Tracon:SingletonExecution:Enabled` HENÜZ verilmemiş (varsayılan
   `false` — `SingletonGuard.IsHeld` her zaman `true` döner, depoya hiç
   sorgu gitmez).
 
@@ -615,16 +615,16 @@ bağımlı değildir.
    uyarısını yazıp yazmadığına bak (ikisi de aynı satırı görüp `UPDATE`
    denemesi yapabilir; SQL'in kendisi idempotent olduğu için veri bozulmaz
    ama İKİ log satırı beklenir).
-4. `AgentPrism:SingletonExecution:Enabled=true` ekleyip HER İKİ örneği de
+4. `Tracon:SingletonExecution:Enabled=true` ekleyip HER İKİ örneği de
    yeniden başlat, adım 2-3'ü tekrarla.
 
 **Girilecek veri**
 ```bash
 # ikinci ornek (ayrı terminal, aynı user-secrets kimligini paylasir):
-cd samples/AgentPrism.Api && dotnet run --urls http://localhost:5081
+cd samples/Tracon.Api && dotnet run --urls http://localhost:5081
 
 # adim 4:
-dotnet user-secrets set "AgentPrism:SingletonExecution:Enabled" "true"
+dotnet user-secrets set "Tracon:SingletonExecution:Enabled" "true"
 ```
 
 **Beklenen sonuç**
@@ -645,7 +645,7 @@ dotnet user-secrets set "AgentPrism:SingletonExecution:Enabled" "true"
 | **İlgili karar** | K-368 |
 
 **Ön koşul**
-- Örnek uygulama çalışıyor; `AgentPrism:Providers:OpenAI:ApiKey` tanımlı
+- Örnek uygulama çalışıyor; `Tracon:Providers:OpenAI:ApiKey` tanımlı
   (`support` gerçek modelle `cancel_order` tool'unu çağırmalı).
 
 **Adımlar**
@@ -677,7 +677,7 @@ curl -s "$APU/api/approvals/pending" -H "$APB" | python3 -m json.tool
   "Pending"`, `expiresAt` `createdAt`'ten `~24 saat` sonra (varsayılan
   `DefaultExpiration`).
 - Adım 3 (Faz 142): kayıt ayrıca `presentation` alanı taşır —
-  `samples/AgentPrism.Api/OrderApprovalPresenter.cs` `ORD-1001`'i çözer:
+  `samples/Tracon.Api/OrderApprovalPresenter.cs` `ORD-1001`'i çözer:
   `presentation.entityType: "order"`, `entityId: "ORD-1001"`, `entityName:
   "Order ORD-1001"`, `message` "Priya Shah" adını içerir. Ham `arguments`
   alanı DEĞİŞMEDEN kalır — sunum onun yerine geçmez.
@@ -731,7 +731,7 @@ curl -s "$APU/api/runs?sessionId=$SESSION_ID" -H "$APB" | python3 -m json.tool
 
 **Doğrulama sorgusu**
 ```sql
-SELECT id, status FROM agentprism.runs
+SELECT id, status FROM tracon.runs
  WHERE session_id = '<sessionId>' ORDER BY started_at;
 ```
 
@@ -840,10 +840,10 @@ curl -s -o /dev/null -w "%{http_code}\n" -X POST "$APU/api/approvals/$FAKE/decid
 | **İlgili karar** | — |
 
 **Ön koşul**
-- `13-KIRACI-VE-GUVENLIK.md`'nin `X-AgentPrism-Tenant` başlığıyla kiracı
+- `13-KIRACI-VE-GUVENLIK.md`'nin `X-Tracon-Tenant` başlığıyla kiracı
   çözümü açık olduğu kurulum bilinir (`AllowHeaderResolution`).
 - `FIX-TENANT-01` (`kiraci-alfa`) altında bir bekleyen onay üretilmiş
-  (`MT-RES-020`'nin adımları `X-AgentPrism-Tenant: kiraci-alfa` başlığıyla).
+  (`MT-RES-020`'nin adımları `X-Tracon-Tenant: kiraci-alfa` başlığıyla).
 
 **Adımlar**
 1. `FIX-TENANT-02` (`kiraci-beta`) başlığıyla aynı `approvalId`'yi `GET` et.
@@ -853,12 +853,12 @@ curl -s -o /dev/null -w "%{http_code}\n" -X POST "$APU/api/approvals/$FAKE/decid
 **Girilecek veri**
 ```bash
 curl -s -o /dev/null -w "%{http_code}\n" "$APU/api/approvals/$APPROVAL_ID" \
-  -H "$APB" -H "X-AgentPrism-Tenant: kiraci-beta"
+  -H "$APB" -H "X-Tracon-Tenant: kiraci-beta"
 curl -s -o /dev/null -w "%{http_code}\n" -X POST "$APU/api/approvals/$APPROVAL_ID/decide" \
-  -H "$APB" -H "X-AgentPrism-Tenant: kiraci-beta" -H "content-type: application/json" -d '{"approved":true}'
+  -H "$APB" -H "X-Tracon-Tenant: kiraci-beta" -H "content-type: application/json" -d '{"approved":true}'
 
 curl -s -o /dev/null -w "%{http_code}\n" "$APU/api/approvals/$APPROVAL_ID" \
-  -H "$APB" -H "X-AgentPrism-Tenant: kiraci-alfa"
+  -H "$APB" -H "X-Tracon-Tenant: kiraci-alfa"
 ```
 
 **Beklenen sonuç**
@@ -915,8 +915,8 @@ curl -s "$APU/api/audit/tool:cancel_order" -H "$APB" | python3 -m json.tool
 **Ön koşul**
 - Kısa süre sonu ayarları verilmiş, uygulama yeniden başlatılmış:
   ```bash
-  dotnet user-secrets set "AgentPrism:Approvals:DefaultExpiration" "00:00:05"
-  dotnet user-secrets set "AgentPrism:Approvals:ScanInterval" "00:00:02"
+  dotnet user-secrets set "Tracon:Approvals:DefaultExpiration" "00:00:05"
+  dotnet user-secrets set "Tracon:Approvals:ScanInterval" "00:00:02"
   ```
 - Yeni bir bekleyen onay üretilmiş (`MT-RES-020`'nin adımları).
 
@@ -949,7 +949,7 @@ curl -s -i -X POST "$APU/api/approvals/$APPROVAL_ID/decide" -H "$APB" \
 
 ### MT-RES-028 — 🚨 `ApprovalEndpoints` hiçbir ucunda `RequireApiKeyScope` çağırmaz — yalnız-okuma kapsamlı bir anahtar onay kararı verebiliyor mu
 
-`grep -n "RequireApiKeyScope" src/AgentPrism.AspNetCore/Endpoints/
+`grep -n "RequireApiKeyScope" src/Tracon.AspNetCore/Endpoints/
 ApprovalEndpoints.cs` **boş** döner. `Workflow`/`Scheduling`/`Eval-Experiment`/
 `Governance`/`Knowledge` uçlarında zaten defalarca ölçülen aynı desenin
 (`00-INDEKS.md`'nin birikmiş notları) onay kutusundaki tekrarı — `AgentEndpoints
@@ -1003,12 +1003,12 @@ curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/agents/kapsam-kontrol" \
 
 `ApprovalEndpoints.Map`, `/decide` ucuna `.RequireRole(roles.Operator)`
 ekler. `RoleEndpointConventionBuilderExtensions.RequireRole` şu KOD YORUMUNU
-taşır: *"policyName'in null olmasi, ilgili AgentPrismPolicies policy'sinin
+taşır: *"policyName'in null olmasi, ilgili TraconPolicies policy'sinin
 tuketicinin authorization yapilandirmasinda kayitli olmadigi anlamina gelir
 — bu durumda uc yalnizca mevcut uc katmanli korumadan (loopback, bearer,
-genel policy) gecer."* `grep -n "AgentPrismPolicies\|AddAuthorization\|
-RequireRolePolicies" samples/AgentPrism.Api/Program.cs` **boş** döner — bu
-üçü de kayıtlı değil. Sonuç: `AgentPrismRolePolicies.Resolve` `Operator`
+genel policy) gecer."* `grep -n "TraconPolicies\|AddAuthorization\|
+RequireRolePolicies" samples/Tracon.Api/Program.cs` **boş** döner — bu
+üçü de kayıtlı değil. Sonuç: `TraconRolePolicies.Resolve` `Operator`
 alanını `null` çözer ve `RequireRole` bu uçta HİÇBİR yetkilendirme
 EKLEMEZ. Bu, `14-SKILL-VE-SCRIPT.md`'nin daha önce Skill uçları için
 kaydettiği AYNI kök nedenin onay kutusundaki DOĞRULAMASIdır.
@@ -1029,7 +1029,7 @@ kaydettiği AYNI kök nedenin onay kutusundaki DOĞRULAMASIdır.
 1. Elde var olan TEK bearer token'la (`FIX-TOKEN-01`, hangi rolü temsil
    ettiği tanımsız çünkü rol claim'i hiç üretilmiyor) `decide` çağır.
 2. Sonucu Faz 55'in kendi DoD iddiasıyla (`Reader_rolu_karar_veremez`,
-   izole bir fonksiyonel test host'unda `AgentPrismPolicies` KAYITLI olarak
+   izole bir fonksiyonel test host'unda `TraconPolicies` KAYITLI olarak
    çalıştırılmıştı) karşılaştır.
 
 **Girilecek veri**
@@ -1042,7 +1042,7 @@ curl -s -o /dev/null -w "%{http_code}\n" -X POST "$APU/api/approvals/$APPROVAL_I
 - `200` — statik token her role açık uçlara erişir; bu ortamda "Reader"
   rolünü temsil eden ayrı bir kimlik YOK, dolayısıyla `403` beklentisi bu
   senaryoda gözlemlenemez.
-- Bu bir kusur DEĞİLDİR: `samples/AgentPrism.Api` bilinçli olarak tek bir
+- Bu bir kusur DEĞİLDİR: `samples/Tracon.Api` bilinçli olarak tek bir
   statik operatör token'ı ile kurulmuştur; rol ayrımı test etmek özel bir
   kimlik doğrulama şeması (rol claim'i üreten bir test handler'ı) ister —
   `14-SKILL-VE-SCRIPT.md`'nin de kasıtlı olarak atladığı aynı sınır.
@@ -1067,7 +1067,7 @@ onay kutusuyla KARIŞTIRILMAMASI gereken, FARKLI bir kapsamdır: bu case
 | **İlgili karar** | — |
 
 **Ön koşul**
-- `AgentPrism:AsyncRun:Enabled` varsayılan `true`.
+- `Tracon:AsyncRun:Enabled` varsayılan `true`.
 
 **Adımlar**
 1. `Prefer: respond-async` ile gövdede `approvals` alanı taşıyan bir istek
@@ -1267,12 +1267,12 @@ tekrarlanabilir. `RunContinuation` ayarları bu bölüme özeldir, `Approvals`
 gibi dosyanın sonunda geri alınmalıdır:
 
 ```bash
-dotnet user-secrets set "AgentPrism:RunReconciliation:Enabled" "true"
-dotnet user-secrets set "AgentPrism:RunReconciliation:HeartbeatInterval" "00:00:01"
-dotnet user-secrets set "AgentPrism:RunReconciliation:OrphanThreshold" "00:00:03"
-dotnet user-secrets set "AgentPrism:RunReconciliation:ScanInterval" "00:00:01"
-dotnet user-secrets set "AgentPrism:RunContinuation:Enabled" "true"
-dotnet user-secrets set "AgentPrism:RunContinuation:MaxAttempts" "1"
+dotnet user-secrets set "Tracon:RunReconciliation:Enabled" "true"
+dotnet user-secrets set "Tracon:RunReconciliation:HeartbeatInterval" "00:00:01"
+dotnet user-secrets set "Tracon:RunReconciliation:OrphanThreshold" "00:00:03"
+dotnet user-secrets set "Tracon:RunReconciliation:ScanInterval" "00:00:01"
+dotnet user-secrets set "Tracon:RunContinuation:Enabled" "true"
+dotnet user-secrets set "Tracon:RunContinuation:MaxAttempts" "1"
 # örnek uygulama bu ayarlarla yeniden başlatılmalı
 ```
 
@@ -1302,7 +1302,7 @@ başlamış, hâlâ çalışıyor" durumuna sokar. §5'in ortam değişkenleri (
 
 **Girilecek veri**
 ```bash
-$PG -c "UPDATE agentprism.runs SET status = 0, completed_at = NULL,
+$PG -c "UPDATE tracon.runs SET status = 0, completed_at = NULL,
         started_at = now() - interval '10 minutes', heartbeat_at = NULL,
         session_id = 'mt-res-060' WHERE id = '$SOME_RUN_ID';"
 sleep 5
@@ -1349,7 +1349,7 @@ RESP=$(curl -s -X POST "$APU/api/agents/support/run" -H "$APB" \
 SRC=$(echo "$RESP" | python3 -c "import json,sys;print(json.load(sys.stdin)['runId'])")
 sleep 3   # gercekten Completed olmasini bekle, girdi kaydi yazilsin
 
-$PG -c "UPDATE agentprism.runs SET status = 0, completed_at = NULL,
+$PG -c "UPDATE tracon.runs SET status = 0, completed_at = NULL,
         started_at = now() - interval '10 minutes', heartbeat_at = NULL
         WHERE id = '$SRC';"
 sleep 5
@@ -1405,9 +1405,9 @@ sleep 3
 
 curl -s "$APU/api/runs/$SRC/tools" -H "$APB" | python3 -m json.tool
 
-$PG -c "UPDATE agentprism.tool_invocations SET result = 'RECORDED-DEGERI'
+$PG -c "UPDATE tracon.tool_invocations SET result = 'RECORDED-DEGERI'
         WHERE run_id = '$SRC' AND tool_name = 'get_order_status';"
-$PG -c "UPDATE agentprism.runs SET status = 0, completed_at = NULL,
+$PG -c "UPDATE tracon.runs SET status = 0, completed_at = NULL,
         started_at = now() - interval '10 minutes', heartbeat_at = NULL
         WHERE id = '$SRC';"
 sleep 5
@@ -1461,7 +1461,7 @@ RESP=$(curl -s -X POST "$APU/api/agents/support/run" -H "$APB" \
 SRC=$(echo "$RESP" | python3 -c "import json,sys;print(json.load(sys.stdin)['runId'])")
 sleep 3
 
-$PG -c "UPDATE agentprism.runs SET status = 0, completed_at = NULL,
+$PG -c "UPDATE tracon.runs SET status = 0, completed_at = NULL,
         started_at = now() - interval '10 minutes', heartbeat_at = NULL
         WHERE id = '$SRC';"
 sleep 5
@@ -1530,7 +1530,7 @@ print(blocked[0]['text'] if blocked else 'YOK')
 
 **Girilecek veri**
 ```bash
-$PG -c "UPDATE agentprism.runs SET status = 0, completed_at = NULL,
+$PG -c "UPDATE tracon.runs SET status = 0, completed_at = NULL,
         started_at = now() - interval '10 minutes', heartbeat_at = NULL
         WHERE id = '$CONT';"
 sleep 5
@@ -1566,12 +1566,12 @@ curl -s "$APU/api/runs?sessionId=mt-res-061" -H "$APB" | python3 -c "import json
 
 **Girilecek veri**
 ```bash
-$PG -c "UPDATE agentprism.runs SET status = 0, completed_at = NULL,
+$PG -c "UPDATE tracon.runs SET status = 0, completed_at = NULL,
         started_at = now() - interval '10 minutes', heartbeat_at = NULL
         WHERE id = '$SESSIONLESS_RUN_ID';"
 sleep 5
 curl -s "$APU/api/runs/$SESSIONLESS_RUN_ID" -H "$APB" | python3 -c "import json,sys;print(json.load(sys.stdin)['status'])"
-$PG -c "SELECT count(*) FROM agentprism.runs WHERE started_at > now() - interval '15 seconds';"
+$PG -c "SELECT count(*) FROM tracon.runs WHERE started_at > now() - interval '15 seconds';"
 ```
 
 **Beklenen sonuç**
@@ -1619,8 +1619,8 @@ $PG -c "SELECT count(*) FROM agentprism.runs WHERE started_at > now() - interval
 
 **Ön koşul**
 ```bash
-dotnet user-secrets set "AgentPrism:Drain:Enabled" "true"
-dotnet user-secrets set "AgentPrism:Drain:Timeout" "00:00:10"
+dotnet user-secrets set "Tracon:Drain:Enabled" "true"
+dotnet user-secrets set "Tracon:Drain:Timeout" "00:00:10"
 # örnek uygulama BU ayarla yeniden başlatılmış, PID not edilmiş
 ```
 
@@ -1673,7 +1673,7 @@ curl -s -o /dev/null -w "%{http_code}\n" -X POST "$APU/api/agents/support/run" \
 **Adımlar**
 1. Migration öncesi bir oturum kaydı yaz (normal bir `run` ile, ya da doğrudan
    `INSERT INTO sessions (..., schema_version, ...)`).
-2. Migration'ı koş (`dotnet agentprism migrate` veya otomatik uygula).
+2. Migration'ı koş (`dotnet tracon migrate` veya otomatik uygula).
 3. `psql`/`sqlcmd`/`sqlite3` ile o oturum satırını sorgula.
 4. Aynı oturuma yeni bir `run` gönder (`GET /api/sessions/{id}` değil,
    gerçek bir konuşma turu).
@@ -1706,7 +1706,7 @@ curl -s -o /dev/null -w "%{http_code}\n" -X POST "$APU/api/agents/support/run" \
 2. Oturum satırını sorgula (`SELECT id, state_schema_version, state_maf_version FROM sessions ...`).
 
 **Beklenen sonuç**
-- `state_schema_version` bugünkü AgentPrism şema neslini taşır (`1`).
+- `state_schema_version` bugünkü Tracon şema neslini taşır (`1`).
 - `state_maf_version`, `Directory.Packages.props`'taki
   `MicrosoftAgentsAIVersion` ile eşleşen bir sürüm dizesi taşır — `NULL`
   değil.
@@ -1726,7 +1726,7 @@ curl -s -o /dev/null -w "%{http_code}\n" -X POST "$APU/api/agents/support/run" \
 ```bash
 # Var olan bir oturumun state_schema_version'ını elle GELECEKTEKİ bir
 # değere ayarla:
-psql -c "UPDATE agentprism.sessions SET state_schema_version = 999999 WHERE id = '<id>';"
+psql -c "UPDATE tracon.sessions SET state_schema_version = 999999 WHERE id = '<id>';"
 ```
 
 **Adımlar**
@@ -1762,8 +1762,8 @@ psql -c "UPDATE agentprism.sessions SET state_schema_version = 999999 WHERE id =
 
 **Adımlar**
 1. `dotnet restore` ile yeni MAF sürümünü çek.
-2. `./artifacts/bin/AgentPrism.Core.UnitTests/release/AgentPrism.Core.UnitTests --filter-method "*PersistedPayloadUpgrade*"` koştur.
-3. `./artifacts/bin/AgentPrism.Workflows.UnitTests/release/AgentPrism.Workflows.UnitTests --filter-method "*PersistedPayloadUpgrade*"` koştur.
+2. `./artifacts/bin/Tracon.Core.UnitTests/release/Tracon.Core.UnitTests --filter-method "*PersistedPayloadUpgrade*"` koştur.
+3. `./artifacts/bin/Tracon.Workflows.UnitTests/release/Tracon.Workflows.UnitTests --filter-method "*PersistedPayloadUpgrade*"` koştur.
 
 **Beklenen sonuç**
 - Testler ya YEŞİLDİR (yeni MAF sürümü eski fixture'ları hâlâ okuyabiliyor),
@@ -1771,7 +1771,7 @@ psql -c "UPDATE agentprism.sessions SET state_schema_version = 999999 WHERE id =
   okuyamadığını AÇIKÇA söyler — "bir fixture bozuldu" değil, "MAF X → Y
   yükseltmesi üretimdeki oturumları/checkpoint'leri okunamaz yapıyor" biçiminde.
 - Kırmızı çıkarsa fixture YENİDEN ÜRETİLMEZ (bkz.
-  `tests/AgentPrism.Core.UnitTests/Fixtures/README.md`); karar
+  `tests/Tracon.Core.UnitTests/Fixtures/README.md`); karar
   `nuget-danismani` kanalına gider.
 
 ---
@@ -1809,7 +1809,7 @@ gerçek bir hata enjekte etmek için sunucu koduna dokunmak gerekir).
 
 İki katmanın ikisi de (kooperatif iptal + sert kesme) gerçek bir MAF
 `background_agents_*` tool akışı üzerinden `SubAgentTimeoutTests`
-(`AgentPrism.AspNetCore.FunctionalTests`) ile zaten otomatik kanıtlanmıştır —
+(`Tracon.AspNetCore.FunctionalTests`) ile zaten otomatik kanıtlanmıştır —
 bu case'ler örnek uygulamada elle gözlem içindir.
 
 | | |
@@ -1820,14 +1820,14 @@ bu case'ler örnek uygulamada elle gözlem içindir.
 | **İlgili karar** | — |
 
 **Ön koşul**
-- `samples/AgentPrism.Api` ayakta.
+- `samples/Tracon.Api` ayakta.
 - `yonlendirici` adlı bir agent, `CallableAgentNames = ["arastirmaci"]` ve
   `SubAgents.ChildDeadline = 00:00:01` ile tanımlı (gerçek bir model çağrısı
   genelde bir saniyeden uzun sürer, bu yüzden kesme gerçek koşulda tetiklenir).
 
 **Adımlar**
 1. `yonlendirici`'yi çalıştır, `arastirmaci`'yi çağıracak bir istek gönder.
-2. `GET /agentprism/api/runs/{runId}/events` ile kök `run`'ın olay akışını oku.
+2. `GET /tracon/api/runs/{runId}/events` ile kök `run`'ın olay akışını oku.
 
 **Beklenen sonuç**
 - Kök `run`, `ChildDeadline` süresinde biter (alt-agent'ın kendi model
@@ -1872,7 +1872,7 @@ bu case'ler örnek uygulamada elle gözlem içindir.
 | **İlgili karar** | — |
 
 **Ön koşul**
-- Kurulumun `AgentPrism:AgentGraph:ChildDeadline`'ı büyük bir değerde
+- Kurulumun `Tracon:AgentGraph:ChildDeadline`'ı büyük bir değerde
   (ör. `00:02:00`, varsayılan).
 - `yonlendirici`'nin kendi `SubAgents.ChildDeadline`'ı çok kısa (`00:00:01`).
 
@@ -1902,10 +1902,10 @@ bu case'ler örnek uygulamada elle gözlem içindir.
 
 **Adımlar**
 1. Uygulamayı başlat veya `yonlendirici`'yi katalogdan çöz (`GET
-   /agentprism/api/agents/yonlendirici` ya da ilk çalıştırma denemesi).
+   /tracon/api/agents/yonlendirici` ya da ilk çalıştırma denemesi).
 
 **Beklenen sonuç**
-- `AgentPrismCompilationException` fırlar; mesaj `yonlendirici` agent adını ve
+- `TraconCompilationException` fırlar; mesaj `yonlendirici` agent adını ve
   `ChildDeadline`/`WaitTimeout` alan adlarını taşır. Kombinasyon sessizce kabul
   EDİLMEZ.
 
@@ -1926,7 +1926,7 @@ bu case'ler örnek uygulamada elle gözlem içindir.
 **Adımlar**
 1. `run` bittikten sonra birkaç saniye bekle (alt-agent'ın gerçek model
    çağrısının doğal olarak tamamlanmasına yetecek kadar).
-2. `GET /agentprism/api/runs/{runId}/events`'i TEKRAR oku.
+2. `GET /tracon/api/runs/{runId}/events`'i TEKRAR oku.
 
 **Beklenen sonuç**
 - Olay listesi ilk okumadakiyle AYNIDIR — alt-agent'ın gecikmiş sonucu
@@ -1952,7 +1952,7 @@ bu case'ler örnek uygulamada elle gözlem içindir.
 
 **Adımlar**
 1. Worker A'yı başlat; `job`'u lease ettiğini ve handler'a girdiğini doğrula
-   (`GET /agentprism/api/jobs/{id}` → `leaseOwner` dolu, `attempt = 1`).
+   (`GET /tracon/api/jobs/{id}` → `leaseOwner` dolu, `attempt = 1`).
 2. `lease_until` değerini not al.
 3. Worker B'yi başlat.
 4. Worker A'yı `kill -9 <pid>` ile öldür (zarif kapanış DEĞİL).
@@ -2006,7 +2006,7 @@ bu case'ler örnek uygulamada elle gözlem içindir.
 | **İlgili karar** | — |
 
 **Ön koşul**
-- Tek bir process, `AgentPrism:Scheduling:RunWorker=false`; aynı SQL deposu.
+- Tek bir process, `Tracon:Scheduling:RunWorker=false`; aynı SQL deposu.
 
 **Adımlar**
 1. Bir `job` kuyruğa gönder.
@@ -2066,9 +2066,9 @@ bu case'ler örnek uygulamada elle gözlem içindir.
   HTTP timeout'u; agent'ta fallback zinciri YOK.
 
 **Adımlar**
-1. `POST /agentprism/api/agents/{ad}/run` (`Idempotency-Key` başlığı ile —
+1. `POST /tracon/api/agents/{ad}/run` (`Idempotency-Key` başlığı ile —
    akışsız yol).
-2. Yanıtı ve `GET /agentprism/api/runs` kaydını oku.
+2. Yanıtı ve `GET /tracon/api/runs` kaydını oku.
 
 **Beklenen sonuç**
 - HTTP `502` + `application/problem+json`; **200 + boş gövde DEĞİL**.

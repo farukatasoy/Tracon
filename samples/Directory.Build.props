@@ -12,7 +12,7 @@
     <!-- Release verification MUST override this with the exact version packed
          by the current rehearsal. The floating default keeps local sample
          development convenient without making the release path ambiguous. -->
-    <AgentPrismSamplePackageVersion Condition="'$(AgentPrismSamplePackageVersion)' == ''">*-*</AgentPrismSamplePackageVersion>
+    <TraconSamplePackageVersion Condition="'$(TraconSamplePackageVersion)' == ''">*-*</TraconSamplePackageVersion>
   </PropertyGroup>
 
 </Project>

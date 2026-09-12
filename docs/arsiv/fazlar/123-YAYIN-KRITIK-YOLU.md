@@ -3,9 +3,9 @@
 > **Durum:** ✅ Tamamlandı (2026-08-28)
 > **Kaynak:** [YAYIN-HAZIRLIK.md](../../YAYIN-HAZIRLIK.md) — **BL-052**, **BL-015**, **OP-007** (KG-019, yol B)
 > **Önkoşul:** Yok — [Faz 122](122-KAYIT-API-SI-VE-SESSIZ-BOSLUKLAR.md) kapandı, çalışma ağacı temiz
-> **Paketler:** Kod paketi değişmiyor. Dokunulan: `src/Directory.Build.props`, `src/AgentPrism.Core`, `src/AgentPrism.{Anthropic,Azure,Google,OpenAI}`, `scripts/`, `.github/workflows/ci.yml`, `tests/AgentPrism.{Anthropic,Azure,Google,OpenAI}.UnitTests`
+> **Paketler:** Kod paketi değişmiyor. Dokunulan: `src/Directory.Build.props`, `src/Tracon.Core`, `src/Tracon.{Anthropic,Azure,Google,OpenAI}`, `scripts/`, `.github/workflows/ci.yml`, `tests/Tracon.{Anthropic,Azure,Google,OpenAI}.UnitTests`
 > **Yeni paket:** Yok · **Migration:** Yok
-> **Public API:** Planın "büyümüyor" iddiası K-646'nın kusur düzeltmesiyle geçersiz kaldı — bkz. Gerçekleşen Public API. `AgentPrism.Core`'a bir tip eklendi (`TenantChatClientCacheKey`), `PublicAPI.Shipped.txt` toplamı hâlâ **0** satırdır (K-603)
+> **Public API:** Planın "büyümüyor" iddiası K-646'nın kusur düzeltmesiyle geçersiz kaldı — bkz. Gerçekleşen Public API. `Tracon.Core`'a bir tip eklendi (`TenantChatClientCacheKey`), `PublicAPI.Shipped.txt` toplamı hâlâ **0** satırdır (K-603)
 > **Tüketici yüzeyi:** site: [`reference/versioning.md`](../../../docs-site/src/content/docs/reference/versioning.md) (yalnız bağlantı eklenir; ayna sayfa **yok**)
 > · sevk edilen: **yeni** kök `CHANGELOG.md` (İngilizce) + her `.nuspec`'e giren `PackageReleaseNotes`
 > **Manuel test alanı:** [`docs/manuel-test/01-KURULUM-VE-PAKETLEME.md`](../../manuel-test/01-KURULUM-VE-PAKETLEME.md)
@@ -41,7 +41,7 @@ Bu faz yayın **kritik yolunu** kapatır. Üç kalem tek fazdadır çünkü üç
 - [x] `ContractCoverage` muafiyetlerinin her biri gerekçe taşır — Azure ve OpenAI, `ModelProviderSettingsContract` için (ikisi de `ProviderSettings` okumuyor)
 - [x] `.github/workflows/ci.yml` `github-release` işi tanımlı; `needs` ve tag koşulu doğru — `needs: [publish, npm-publish]`, `if: startsWith(github.ref, 'refs/tags/v')`
 - [x] Dört doğrulama kapısı sıfır uyarı verir — `kapi.py kapanis --taban ef780fc` uçtan uca yeşil (build, 4779 test, pack, format, site)
-- [x] `samples/AgentPrism.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı — OpenAI (`support`) ve Anthropic (`claude-support`) agent'ları gerçek tamamlama döndürdü, `/api/runs`'da `Completed` olarak kaydedildi
+- [x] `samples/Tracon.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı — OpenAI (`support`) ve Anthropic (`claude-support`) agent'ları gerçek tamamlama döndürdü, `/api/runs`'da `Completed` olarak kaydedildi
 - [x] `secret` taraması boş döndü — `kapi.py tarama` ✅
 - [x] Manuel kabul case'leri `docs/manuel-test/01-KURULUM-VE-PAKETLEME.md` içine eklendi; otomatikleştirilebilenler koşuldu — MT-PKG-101..107 (107 yalnız 👤)
 - [x] `faz-denetim` koşuldu; 🔴 bulgu kalmadı — bkz. Denetim Bulguları
@@ -61,10 +61,10 @@ for f in artifacts/package/release/*.nupkg; do
 done
 
 # URL çözümlendi mi? Ham $(Version) kalmamalı
-unzip -p artifacts/package/release/AgentPrism.Core.1.0.0-preview.1.nupkg '*.nuspec' | grep releaseNotes
+unzip -p artifacts/package/release/Tracon.Core.1.0.0-preview.1.nupkg '*.nuspec' | grep releaseNotes
 
 # Adaptör sözleşmeleri, secret'sız
-dotnet test tests/AgentPrism.Anthropic.UnitTests -c Release
+dotnet test tests/Tracon.Anthropic.UnitTests -c Release
 ```
 
 ---
@@ -79,7 +79,7 @@ dotnet test tests/AgentPrism.Anthropic.UnitTests -c Release
   döndürdüğü `IChatClient` sarmalayıcısını her çağrıda yeniden üretiyordu.
   Kullanıcıya iki seçenek sunuldu (sözleşmeyi gevşet / dört adaptörü düzelt);
   kullanıcı adaptörleri düzeltmeyi seçti. Sonuç: yeni public tip
-  `AgentPrism.TenantChatClientCacheKey` (`AgentPrism.Core`) ve dört
+  `Tracon.TenantChatClientCacheKey` (`Tracon.Core`) ve dört
   `*ModelProvider.cs` dosyasında `CreateChatClientCore` değişikliği. Kayıt:
   K-646.
 - **`PackageReleaseNotes` planın taslağından farklı yerde tanımlandı.**
@@ -94,7 +94,7 @@ dotnet test tests/AgentPrism.Anthropic.UnitTests -c Release
   DEĞİL, düz dosya adı referansı.** Plan "yalnız bağlantı eklenir" diyordu;
   repo bugün **private** (`docs-site/site.config.mjs`:
   `repositoryIsPublic = false`) ve site'nin kendi içerik kapısı
-  `https://github.com/farukatasoy/AgentPrism` metnini reddediyor (okuyucuya
+  `https://github.com/farukatasoy/Tracon` metnini reddediyor (okuyucuya
   404 verir). `CHANGELOG.md`'nin varlığı ve konumu anlatılıyor, tıklanabilir
   GitHub bağlantısı repo açıldığında eklenebilir.
 - **123.1'in envanter kapısı planın taslağından bir isim farklı.** Plan
@@ -102,9 +102,9 @@ dotnet test tests/AgentPrism.Anthropic.UnitTests -c Release
   fonksiyon imzasını taslak olarak veriyordu; gerçekleşen kod birebir bu
   isimleri kullandı (sapma yok, doğrulama amaçlı not).
 - **Site senkron kapısı iki kuralı `--site-gerekce-yazildi` ile geçti.**
-  `cekirdek-kavram` (`src/AgentPrism.Core/Models/TenantChatClientCacheKey.cs`
+  `cekirdek-kavram` (`src/Tracon.Core/Models/TenantChatClientCacheKey.cs`
   → `concepts/`) ve `model-saglayici`
-  (`src/AgentPrism.{Anthropic,Azure,Google,OpenAI}/*ModelProvider.cs` →
+  (`src/Tracon.{Anthropic,Azure,Google,OpenAI}/*ModelProvider.cs` →
   `getting-started/first-agent.md`) tetiklendi. Gerekçe: K-646'nın düzeltmesi
   yalnız **iç** bir önbellekleme detayıdır — BYOK'un imzası, kayıt çağrıları
   ve gözlemlenebilir davranışı değişmedi (aynı `UseAnthropic`/`UseAzureOpenAI`/
@@ -120,7 +120,7 @@ dotnet test tests/AgentPrism.Anthropic.UnitTests -c Release
 
 - **K-646** — Tenant credential ile üretilen `IChatClient`, dört sevk edilen
   adaptörde de (credential, model, `ProviderSettings`) başına önbelleğe
-  alınır; paylaşılan anahtar `AgentPrism.Core.TenantChatClientCacheKey`
+  alınır; paylaşılan anahtar `Tracon.Core.TenantChatClientCacheKey`
   olarak eklendi *(kullanıcı kararı)*. Bkz. `docs/KARARLAR.md`.
 
 ## Denetim Bulguları
@@ -172,18 +172,18 @@ case'leri eklendi, iç referans sızmadı).
   wrapper'ını önbelleğe almadığını yakalar.** Yeni bir üçüncü/dördüncü taraf
   provider yazan biri bu contract'ı türetirse aynı testi görür — sözleşmenin
   kendi XML dokümanı artık ("shared SDK client, not the wrapper") doğru.
-- **Devralınan sözleşme:** `AgentPrism.Testing.Contracts.Xunit` paketinin dört
+- **Devralınan sözleşme:** `Tracon.Testing.Contracts.Xunit` paketinin dört
   provider contract'ı (`ModelProviderContract`,
   `ModelProviderCredentialContract`, `ModelProviderSettingsContract`) artık
   dört shipped adaptörün TAMAMINDA gerçek testle koşuyor —
-  `tests/AgentPrism.{Anthropic,Azure,Google,OpenAI}.UnitTests/*ModelProviderContractTests.cs`.
+  `tests/Tracon.{Anthropic,Azure,Google,OpenAI}.UnitTests/*ModelProviderContractTests.cs`.
   Bir provider adaptörüne yeni bir `ProviderSettings` anahtarı eklenirken
   `ModelProviderSettingsContractTests`'in `SupportedSetting`'ini güncellemeyi
   unutma.
 - **Devralınan sözleşme:** `scripts/release_extension_samples.py`'nin
   `SAMPLE_TEST_PROJECTS` ∪ `SAMPLE_TEST_EXCLUSIONS` artık `samples/*.Tests`
   envanteriyle TAM eşleşmek zorunda (`validate_sample_inventory`). Yeni bir
-  `AgentPrism.Samples.<Ad>.Tests` dizini açıldığında bu iki kümeden birine
+  `Tracon.Samples.<Ad>.Tests` dizini açıldığında bu iki kümeden birine
   bilinçli olarak eklenmezse `kapi.py yayin` kırmızı döner.
 - **Yarım kalan iş yok** — üç kalemin (BL-052, BL-015, OP-007) üçü de
   kapandı, `kapi.py yayin --kuru --surum 1.0.0-preview.1` uçtan uca yeşil.

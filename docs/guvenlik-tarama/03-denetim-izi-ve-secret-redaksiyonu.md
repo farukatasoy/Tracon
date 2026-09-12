@@ -4,7 +4,7 @@ Ortak çerçeve: [`00-INDEKS.md`](00-INDEKS.md). Bu oturum onu uygular.
 
 ## Kapsam
 
-`src/AgentPrism.Core/Audit/` (`AuditActorContext`, `AuditSecretFilter`,
+`src/Tracon.Core/Audit/` (`AuditActorContext`, `AuditSecretFilter`,
 `AuditRecorder`, `Auditing*Store`), `AsyncLocal` kullanım noktaları,
 `record` tipli ayar/credential sınıfları, `SecretLeakTests`.
 

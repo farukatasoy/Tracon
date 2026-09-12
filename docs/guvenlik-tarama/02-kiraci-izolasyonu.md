@@ -4,9 +4,9 @@ Ortak çerçeve: [`00-INDEKS.md`](00-INDEKS.md). Bu oturum onu uygular.
 
 ## Kapsam
 
-`src/AgentPrism.Sql.Shared/Stores/*.cs`, `TenantAgnosticAttribute.cs`,
+`src/Tracon.Sql.Shared/Stores/*.cs`, `TenantAgnosticAttribute.cs`,
 `TenantCoverageTests`, `CompiledAgentCache`, dosya belleği kodu
-(`src/AgentPrism.Core/`), `HttpTenantContext.cs`.
+(`src/Tracon.Core/`), `HttpTenantContext.cs`.
 
 ## Bilinen tasarım
 

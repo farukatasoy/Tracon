@@ -5,7 +5,7 @@
 > ("Dokümantasyon — dış tüketici gözüyle") **devralır ve genişletir**.
 > **Önkoşul:** [Faz 57](57-KOD-DILI-BIRLESTIRME.md) — **zorunlu.** API referansı
 > XML dokümandan üretilir; Türkçe XML doküman Türkçe site üretir.
-> **Paketler:** Kod değişmez; `AgentPrism.AspNetCore` OpenAPI üstverisi düzeltilir
+> **Paketler:** Kod değişmez; `Tracon.AspNetCore` OpenAPI üstverisi düzeltilir
 > **Yeni paket:** Yok (Node tarafında yeni bir çalışma alanı) · **Migration:** Yok
 > **Public API:** Değişmiyor
 
@@ -28,7 +28,7 @@
 
 ## Amaç
 
-AgentPrism 17 NuGet paketi ve 33 route'luk bir arayüz yayınlıyor. Kullanıcıya dönük dokümantasyon bugün ~2.500 satırdır (`README.md` 362 + 18 paket README 1.375 + `MIMARI.md` 751); geri kalan ~99.500 satır **geliştirme günlüğüdür**. Site altyapısı sıfırdır — repo genelinde DocFX, Docusaurus, MkDocs veya GitHub Pages izi yoktur.
+Tracon 17 NuGet paketi ve 33 route'luk bir arayüz yayınlıyor. Kullanıcıya dönük dokümantasyon bugün ~2.500 satırdır (`README.md` 362 + 18 paket README 1.375 + `MIMARI.md` 751); geri kalan ~99.500 satır **geliştirme günlüğüdür**. Site altyapısı sıfırdır — repo genelinde DocFX, Docusaurus, MkDocs veya GitHub Pages izi yoktur.
 
 ## Bitiş Ölçütleri (DoD)
 
@@ -37,14 +37,14 @@ AgentPrism 17 NuGet paketi ve 33 route'luk bir arayüz yayınlıyor. Kullanıcı
 - [x] `/api/` altında **588 public tip** görünüyor ve açıklamaları İngilizce —
       plandaki 590 namespace sayfalarını da sayıyordu (bkz. 59.0 spike sonucu)
 - [x] 143 operasyon render ediliyor (Scalar yerine üretilen sayfalarla, K-417);
-      `info.title` = `AgentPrism HTTP API`, `servers` ve `securitySchemes` dolu
+      `info.title` = `Tracon HTTP API`, `servers` ve `securitySchemes` dolu
 - [~] Getting started **temiz bir makinede** izlenmedi. Bu makinede doğrulanan:
-      `dotnet new agentprism-api` şablonu ve seçenekleri (`Templates.Tests`,
+      `dotnet new tracon-api` şablonu ve seçenekleri (`Templates.Tests`,
       canlı `--help`), örnek uygulamanın gerçek koşumu, sayfadaki her `curl`
       kalıbının canlı uygulamaya karşı çalışması. Temiz makine doğrulaması
       yapılmadı — .NET SDK'sız bir ortam gerektirir
 - [x] UI guide'daki 14 ekran görüntüsünün tamamı E2E koşumundan **üretildi**
-      (`DocumentationScreenshotTests`, `AGENTPRISM_UI_SCREENSHOTS=1`)
+      (`DocumentationScreenshotTests`, `TRACON_UI_SCREENSHOTS=1`)
 - [x] İç bağlantı denetimi: **628 sayfada 403.240 referans, sıfır kırık**
 - [~] `pages` job'u yazıldı ve YAML doğrulandı; **yeşil olduğu görülmedi** —
       depo henüz GitHub'da yok (`git remote -v` boş). Bkz. "Yayın için gereken
@@ -71,19 +71,19 @@ cd docs-site && npm run generate
 
 # OpenAPI ustverisi ve K-418 kapisinin olctugu sey
 python3 -c "
-import json; d=json.load(open('docs/openapi/agentprism.json'))
+import json; d=json.load(open('docs/openapi/tracon.json'))
 ops=[o for p,v in d['paths'].items() for m,o in v.items() if m in ('get','post','put','delete','patch')]
 props=[pv for s in d['components']['schemas'].values() for pv in (s.get('properties') or {}).values()]
 print(d['info']['title'], d['servers'], d.get('security'))
 print('description:', sum(1 for o in ops if o.get('description')), '/', len(ops))
 print('sema property dokumani:', sum(1 for v in props if v.get('description')), '/', len(props))
 "
-#   -> AgentPrism HTTP API [...] [{'bearer': []}]
+#   -> Tracon HTTP API [...] [{'bearer': []}]
 #   -> description: 143 / 143
 #   -> sema property dokumani: 819 / 1080
 
 # Ekran goruntulerini yenile
-AGENTPRISM_UI_SCREENSHOTS=1 dotnet test tests/AgentPrism.Ui.E2ETests -c Release
+TRACON_UI_SCREENSHOTS=1 dotnet test tests/Tracon.Ui.E2ETests -c Release
 ```
 
 ---
@@ -95,7 +95,7 @@ AGENTPRISM_UI_SCREENSHOTS=1 dotnet test tests/AgentPrism.Ui.E2ETests -c Release
    temasında render ediyor ve içeriği **Pagefind'e girmiyor**. Bu fazda 143
    operasyonun tamamına açıklama yazıldı; hepsini sitenin kendi aramasından gizlemek
    kabul edilemezdi. `scripts/build-http-api.mjs` etiket başına bir Starlight sayfası
-   üretir. Ham belge `/openapi/agentprism.json` olarak yayınlanır.
+   üretir. Ham belge `/openapi/tracon.json` olarak yayınlanır.
 
 2. **API referansı DocFX'in HTML sitesi değil, markdown çıktısı (K-416).** Aynı
    gerekçe: tek site, tek tema, tek arama indeksi. Bedeli ölçüldü ve ödendi — DocFX
@@ -110,7 +110,7 @@ AGENTPRISM_UI_SCREENSHOTS=1 dotnet test tests/AgentPrism.Ui.E2ETests -c Release
    yapısal olarak ölçülünce çıktı. Kalıcı kapı eklendi ve hatalı bağlamayla gerçekten
    düştüğü doğrulandı.
 
-4. **A2A uçları plan dışı eklendi.** Snapshot'ta yoklar (test host `MapAgentPrismA2A`
+4. **A2A uçları plan dışı eklendi.** Snapshot'ta yoklar (test host `MapTraconA2A`
    çağırmaz), bu yüzden "eksik 75" listesinde görünmüyorlardı. Örnek uygulamanın
    kendi belgesi 147/147 yerine 145/147 gösterince ortaya çıktılar; ikisine de
    `summary` + `description` yazıldı.
@@ -119,7 +119,7 @@ AGENTPRISM_UI_SCREENSHOTS=1 dotnet test tests/AgentPrism.Ui.E2ETests -c Release
    yalnız "eksik 75'i yaz" diyordu; var olan 68'in 6'sı Türkçe geliştirme günlüğüne
    işaret ediyordu ve o metinler siteye giriyor.
 
-6. **Plan kanıtı bayattı: `src/AgentPrism.UI/README.md` zaten güncelmiş.** Plan "7
+6. **Plan kanıtı bayattı: `src/Tracon.UI/README.md` zaten güncelmiş.** Plan "7
    ekran, ~88 KB" diyordu; dosya gerçekte 27 ekran / 33 route / 165,8 KB yazıyordu.
    Üçü de bağımsız ölçüldü ve doğrulandı (27 `.tsx`, 33 `pattern:`, `npm run build`
    → 165,8 KB). 59.1'in 5. kalemi bu yüzden **gereksizdi**.
@@ -128,7 +128,7 @@ AGENTPRISM_UI_SCREENSHOTS=1 dotnet test tests/AgentPrism.Ui.E2ETests -c Release
    yetiniyordu. Astro 5 seçilmedi çünkü `npm audit` 5 açık bildirdi (2 yüksek: XSS,
    SSRF). Astro 7.2.2 + Starlight 0.41.7 = 0 açık.
 
-8. **`AgentPrism.Generators` referans listesinden çıkarıldı** — XML dokümanı yok ve
+8. **`Tracon.Generators` referans listesinden çıkarıldı** — XML dokümanı yok ve
    `IsPackable=false`. Kullanıcının "17 paketin hepsi" kararı paketlenebilir 17
    projeyi kapsar; `Sql.Shared`'in `.csproj`'u yoktur, `Generators` paket değildir.
 
@@ -156,7 +156,7 @@ AGENTPRISM_UI_SCREENSHOTS=1 dotnet test tests/AgentPrism.Ui.E2ETests -c Release
 | 1 | Sürümleme | **A** — hayır, tek sürüm |
 | 2 | `/api/` kapsamı | **A** — paketlenebilir 17 paketin hepsi |
 | 3 | Concepts | **B** — sıfırdan, dış okuyucu için |
-| 4 | Alan adı | `farukatasoy.github.io/AgentPrism` (proje sitesi, `base: /AgentPrism/`) |
+| 4 | Alan adı | `farukatasoy.github.io/Tracon` (proje sitesi, `base: /Tracon/`) |
 
 ## Sonraki Faza Devir Notu
 
@@ -183,7 +183,7 @@ AGENTPRISM_UI_SCREENSHOTS=1 dotnet test tests/AgentPrism.Ui.E2ETests -c Release
 - **Senkron kopyaları DocFX'i kırar** (`IOException`, yarım yazılmış `<ad> N.dll`).
   `docfx.json` artık `exclude` taşır ama `artifacts/` temizliği yine de ilk adımdır.
 - **Starlight sidebar bağlantıları `base` TAŞIMAZ**, markdown bağlantıları taşır.
-  Karıştırmak `/AgentPrism/AgentPrism/...` üretir; `check-links.mjs` yakalar.
+  Karıştırmak `/Tracon/Tracon/...` üretir; `check-links.mjs` yakalar.
 - 🚨 **Tam çözüm koşumunda iki kez aralıklı bir test düşüşü görüldü** (bir kez
   `AspNetCore.FunctionalTests`, bir kez `Core.UnitTests`), hiçbiri izole koşumda
   tekrar etmedi ve ikisi de yakalanamadı. Sonrasında **altı ardışık tam koşum

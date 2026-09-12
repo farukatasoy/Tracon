@@ -1,0 +1,81 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Description>Behavior contract suites for Tracon extension points, as xunit.v3 test base classes: store interfaces (IRunStore and 30 others), IModelProvider, IRunJudge, IAgentSource, IJobHandler, and code-defined custom tools. A third-party implementation derives one class per interface and inherits the same scenarios the shipped implementations run.</Description>
+    <PackageTags>$(CommonPackageTags);testing;contracts;xunit</PackageTags>
+    <!--
+      Every abstract class, protected member and TestData factory carries a
+      full <summary> (the actual contract surface a consumer reads). The
+      ~380 [Fact] scenario methods do not - their names ARE the
+      documentation, the same convention every test file in tests/ already
+      follows (tests/Directory.Build.props suppresses CS1591 the same way;
+      this project inherits no Directory.Build.props from tests/ because it
+      lives under src/).
+    -->
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+    <!--
+      K-270 is NOT inherited: that constraint comes from
+      Microsoft.AspNetCore.TestHost, which this package does not take. The
+      TFM set matches Abstractions (net8.0;net9.0;net10.0) because a
+      consumer's own store can target any one of the three - this is the
+      Directory.Build.props default and is left unset here on purpose.
+    -->
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../Tracon.Abstractions/Tracon.Abstractions.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!--
+      AgentFileStoreContract derives from Microsoft Agent Framework's
+      AgentFileStore, which lives in "Microsoft.Agents.AI" (GA), not in
+      "Microsoft.Agents.AI.Abstractions" (which Tracon.Abstractions
+      already carries). This is a GA package, same as Tracon.Core's own
+      direct reference; K-008's preview restriction does not apply.
+    -->
+    <PackageReference Include="Microsoft.Agents.AI" />
+    <!--
+      ModelProviderContract asserts that IModelProvider.CreateChatClient
+      returns a RAW client, using Microsoft.Extensions.AI's own GetService
+      discovery protocol to look for a FunctionInvokingChatClient. That type
+      lives in "Microsoft.Extensions.AI" (GA), not in the .Abstractions
+      package Tracon.Abstractions carries. This reference adds NO new
+      package: Microsoft.Agents.AI above already pulls it transitively
+      (measured on the resolved graph); making it explicit only states the
+      dependency this assembly compiles against.
+    -->
+    <PackageReference Include="Microsoft.Extensions.AI" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!--
+      xunit.v3.extensibility.core, NOT plain xunit.v3: the contract classes
+      are abstract fixtures ([Fact]/[Theory], IAsyncLifetime), not a runnable
+      test project themselves, and xunit.v3's buildTransitive props force
+      <OutputType>Exe</OutputType> (MTP's entry point), which fails a library
+      build. .extensibility.core ships the identical xunit.v3.core.dll
+      without that requirement. Shouldly: the assertions inside the fixture
+      bodies. Both are ORDINARY dependencies (not PrivateAssets="all"): a
+      consumer's OWN test project pulls in the real "xunit.v3" package to get
+      the runner/MTP entry point, and its runner discovers the inherited
+      [Fact] methods this package's assembly declares. The package name says
+      so - a consumer on NUnit or MSTest cannot use this package.
+    -->
+    <PackageReference Include="xunit.v3.extensibility.core" />
+    <!-- Assert.SkipWhen only (see Directory.Packages.props); everything else routes through Shouldly. -->
+    <PackageReference Include="xunit.v3.assert" />
+    <PackageReference Include="Shouldly" />
+  </ItemGroup>
+
+  <!--
+    This lives under src/, not tests/, so it does not inherit
+    tests/Directory.Build.props's <Using Include="Xunit"/><Using
+    Include="Shouldly"/> - the contract classes need both explicitly.
+  -->
+  <ItemGroup>
+    <Using Include="Xunit" />
+    <Using Include="Shouldly" />
+  </ItemGroup>
+
+</Project>

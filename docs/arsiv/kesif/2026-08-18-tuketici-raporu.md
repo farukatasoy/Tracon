@@ -29,7 +29,7 @@ numara F-109
 
 **Ekosistem taraması:** 2026-08-18 · web erişimi **var**
 
-**Kaynak rapor:** `agentprism-uygulanabilirlik-analizi-2026-08-17.md` — bu
+**Kaynak rapor:** `tracon-uygulanabilirlik-analizi-2026-08-17.md` — bu
 repo'da değildir, tüketici projesinin `claudedocs/` dizinindedir.
 
 ---
@@ -80,13 +80,13 @@ harcandı. Eleme ölçümün sonucudur.
 
 🚨 **15 numaralı kalem raporda yoktur.** Rapor kendi panel tasarımında
 `kiracı × kullanıcı × agent × purpose × model` kırılımı istiyordu (M4.2) ama
-bunu bir AgentPrism boşluğu olarak yazmamıştı. Ölçüm sırasında çıktı.
+bunu bir Tracon boşluğu olarak yazmamıştı. Ölçüm sırasında çıktı.
 
 ---
 
 ## 3. Ekosistem taraması (Aşama 3.2)
 
-| Kaynak | Bakılan tarih | Ne bulundu | AgentPrism'e etkisi |
+| Kaynak | Bakılan tarih | Ne bulundu | Tracon'e etkisi |
 |---|---|---|---|
 | `Microsoft.Extensions.AI.Abstractions` 10.8.3 (repo'nun sabitlediği sürüm) | 2026-08-18 | `UsageDetails` on üye taşıyor: `CachedInputTokenCount`, `ReasoningTokenCount`, `InputAudioTokenCount`, `InputTextTokenCount`, `OutputAudioTokenCount`, `OutputTextTokenCount`, `AdditionalCounts` | 🚨 F-112'nin hazırlığı **yüksek** — veri tipli olarak zaten geliyor, biz atıyoruz |
 | [LiteLLM Tool Permission Guardrail](https://docs.litellm.ai/docs/proxy/guardrails/tool_permission) · [LiteLLM MCP Permission Management](https://docs.litellm.ai/docs/mcp_control) | 2026-08-18 | Tool başına izin/ret kuralı, sağlayıcıdan bağımsız; MCP tool'ları anahtar/takım/organizasyon bazında kısıtlanıyor | F-113 için "X'te standart, .NET'te yok" |
@@ -111,11 +111,11 @@ kanıt satırı ve eleyici sınır kontrolü durur.
 | F-111 | **Ölçüldü** — `RunRecord.cs` yalnız `TenantId`/`SessionId`/`AgentName`; `grep -rn "UserId" src` → **0 sonuç** | Temiz | `RunRecord` · `RunStartInfo` · `RunStatistics*` — en pahalı |
 | F-112 | **Ölçüldü** — `RunRecordingAgent.cs:1056` üç sayacı alır, gerisini atar; `RunSupportTypes.cs:6` üç alan | Temiz | `RunUsage` · `RunCost` |
 | F-113 | **Ölçüldü** — `ToolDescriptor.cs` izin/etki alanı yok; `IToolAuthoriz*` → 0 sonuç | K2 **zorlamıyor** — izin kontrolü tool *tanımlamaz*, çalıştırmayı kısıtlar | `ToolDescriptor` · attribute |
-| F-114 | **Ölçüldü** — timeout yalnız `AgentPrismOptions.cs:71` (MCP) ve `:210` (skill script) | Temiz | `ToolDescriptor` — F-113 ile aynı record |
+| F-114 | **Ölçüldü** — timeout yalnız `TraconOptions.cs:71` (MCP) ve `:210` (skill script) | Temiz | `ToolDescriptor` — F-113 ile aynı record |
 | F-115 | **Ölçüldü** — `RunEventWriter.cs:22` yalnız `IRunStore`'a yazar; `RunEventType.cs` 0–21, `ReasoningDelta` yok | K3 temiz — MAF tipi sarmalanmıyor | Yeni arayüz + enum'a **ekleme** (konvansiyon izin veriyor) |
 | F-116 | **Ölçüldü** — `WorkflowGraph.cs:94` `WorkflowNodeKind`: `Agent`/`Orchestration`/`RequestPort`/`Output` | 🚨 **K2 sınırında** — bkz. aşağı | `WorkflowDefinition` · enum ekleme |
 | F-117 | **Ölçüldü** — `AgentDefinition.cs:33` tek `string?` | Temiz | `AgentDefinition` |
-| F-118 | **Ölçüldü** — `ElevenLabsSpeechClient.cs:318` yalnız `text-to-speech` ve `/stream` | Temiz | `AgentPrism.Voice` sözleşmesi |
+| F-118 | **Ölçüldü** — `ElevenLabsSpeechClient.cs:318` yalnız `text-to-speech` ve `/stream` | Temiz | `Tracon.Voice` sözleşmesi |
 | F-119 | **Ölçüldü** — allowlist yalnız webhook URL'i ve skill script'te; sağlayıcı için yok | Temiz | Yapılandırma + doğrulama |
 
 ### 🚨 F-116'nın K2 sınırı — planlamadan önce karara bağlanmalı

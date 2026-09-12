@@ -4,7 +4,7 @@
 > **Kaynak:** [BEYIN-FIRTINASI.md](../BEYIN-FIRTINASI.md) · **F-12**
 > **Önkoşul:** Yok · Faz 9 önerilir (yükleme yetkisi rol ister)
 > **Sonraki bağımlı:** [Faz 28](28-SES-TOOLLARI.md) — ses çıktısı bu fazın deposunu kullanır
-> **Paketler:** `AgentPrism.Abstractions`, `.Core`, `.PostgreSql`, `.AspNetCore`, `.UI`
+> **Paketler:** `Tracon.Abstractions`, `.Core`, `.PostgreSql`, `.AspNetCore`, `.UI`
 > **Yeni paket:** Yok · **Migration:** 0006 (planlanan sırada)
 
 ---
@@ -26,7 +26,7 @@
 
 ## Amaç
 
-Kullanıcı bir görsel, ses dosyası veya belge yükleyip agent'a gönderebilsin. OpenAI ve OpenRouter arayüzlerinin standart yeteneğidir; AgentPrism bugün yalnız metin taşır. ---
+Kullanıcı bir görsel, ses dosyası veya belge yükleyip agent'a gönderebilsin. OpenAI ve OpenRouter arayüzlerinin standart yeteneğidir; Tracon bugün yalnız metin taşır. ---
 
 ## Bu Fazda Verilen Kararlar
 
@@ -73,7 +73,7 @@ Kullanıcı bir görsel, ses dosyası veya belge yükleyip agent'a gönderebilsi
 
 - [x] Arayüzden görsel yüklenip agent'a gönderiliyor; model yanıt veriyor —
       Playground'a sürükle-bırak/dosya seçici + önizleme eklendi;
-      `AgentPrism.Ui.E2ETests.UiTests.Playground_dosya_yuklenir_onizleme_gorunur_ve_calistirma_devam_eder`
+      `Tracon.Ui.E2ETests.UiTests.Playground_dosya_yuklenir_onizleme_gorunur_ve_calistirma_devam_eder`
       gerçek bir Chromium'da dosya yükler ve modelin yanıt verdiğini doğrular.
 - [x] `conversation_items` içindeki mesaj **küçük** kalıyor — mesaj yalnız
       `UriContent({prefix}/api/attachments/{id})` taşır; ölçüldü:
@@ -102,7 +102,7 @@ Kullanıcı bir görsel, ses dosyası veya belge yükleyip agent'a gönderebilsi
 - `ModelDescriptor`'a yetenek alanı (`SupportsVision` vb.) eklenirse Faz 8'in
   katalog yapısı genişler; K-032 gereği değer **yapılandırmadan** gelir. Bu
   alan eklenene kadar desteklemeyen bir modele ek göndermek sağlayıcı
-  hatasıyla sonuçlanır, AgentPrism önceden engellemez.
+  hatasıyla sonuçlanır, Tracon önceden engellemez.
 - `/v1/chat/completions` görsel/dosya girdisi almaz (K-116). İstenirse
   `AttachmentIngestion.ReplaceEmbeddedDataAsync` zaten paylaşıma hazır;
   yalnız `OpenAIChatCompletionsEndpoints.ReadContent`'in `image_url`/

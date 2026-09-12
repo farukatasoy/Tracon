@@ -265,29 +265,29 @@ SITE_KURALLARI: tuple[tuple[str, str, tuple[str, ...], str], ...] = (
     # ve `.gitignore`dadir -- `git diff` onu hic goremez. Bayatlayabilen ve
     # IZLENEN tek sey, uretilip commit EDILEN OpenAPI belgesidir; kural artik
     # once onu kabul eder. `docs/` ile baslayan hedef depo koku'ne goredir.
-    ("http-api", r"^src/AgentPrism\.AspNetCore/(Endpoints|OpenAICompat|A2A|McpServer)/",
-     ("docs/openapi/agentprism.json", "http-api.md"), "HTTP yuzeyi degisti"),
-    ("guvenlik-kiraci", r"^src/AgentPrism\.AspNetCore/(Security|Tenancy)/",
+    ("http-api", r"^src/Tracon\.AspNetCore/(Endpoints|OpenAICompat|A2A|McpServer)/",
+     ("docs/openapi/tracon.json", "http-api.md"), "HTTP yuzeyi degisti"),
+    ("guvenlik-kiraci", r"^src/Tracon\.AspNetCore/(Security|Tenancy)/",
      ("getting-started/security.md", "concepts/governance.md"), "guvenlik/kiraci sinirlari degisti"),
-    ("arayuz", r"^src/AgentPrism\.UI/frontend/src/(screens|components)/",
+    ("arayuz", r"^src/Tracon\.UI/frontend/src/(screens|components)/",
      ("ui.md",), "ekran veya bilesen degisti (ekran goruntusu de gerekebilir)"),
     # capabilities.md kurali, genel Abstractions|Core kuralindan ONCE yazilir --
     # `buildTransitive/` ikisini de tetikler, ikisi de ayri satir olarak raporlanir.
-    ("buildtransitive", r"^src/AgentPrism\.Core/buildTransitive/",
+    ("buildtransitive", r"^src/Tracon\.Core/buildTransitive/",
      ("capabilities.md",), "tuketicinin gordugu MSBuild yuzeyi degisti"),
-    ("cekirdek-kavram", r"^src/AgentPrism\.(Abstractions|Core)/",
+    ("cekirdek-kavram", r"^src/Tracon\.(Abstractions|Core)/",
      ("concepts/",), "cekirdek kavram yuzeyi degisti"),
-    ("workflow", r"^src/AgentPrism\.Workflows/",
+    ("workflow", r"^src/Tracon\.Workflows/",
      ("concepts/workflows.md",), "workflow yurutmesi degisti"),
-    ("kalicilik", r"^src/AgentPrism\.(PostgreSql|SqlServer|Sqlite|Sql\.Shared)/",
+    ("kalicilik", r"^src/Tracon\.(PostgreSql|SqlServer|Sqlite|Sql\.Shared)/",
      ("getting-started/persistence.md",), "kalicilik katmani degisti"),
-    ("model-saglayici", r"^src/AgentPrism\.(OpenAI|Anthropic|Google|Azure|Voice)/",
+    ("model-saglayici", r"^src/Tracon\.(OpenAI|Anthropic|Google|Azure|Voice)/",
      ("getting-started/first-agent.md",), "model saglayicisi degisti"),
-    ("proje-sablonu", r"^src/AgentPrism\.Templates/",
+    ("proje-sablonu", r"^src/Tracon\.Templates/",
      ("getting-started/index.md",), "proje sablonu degisti"),
-    ("paket-tanimi", r"^src/AgentPrism[^/]*/[^/]*\.csproj$",
+    ("paket-tanimi", r"^src/Tracon[^/]*/[^/]*\.csproj$",
      ("packages.md",), "paket tanimi degisti"),
-    ("paket-readme", r"^src/AgentPrism[^/]*/README\.md$",
+    ("paket-readme", r"^src/Tracon[^/]*/README\.md$",
      ("packages.md",), "paket README'si degisti"),
 )
 
@@ -303,7 +303,7 @@ def _kural_eslesmesi(degisen: list[str]) -> list[tuple[str, tuple[str, ...], str
     tasir). `docs/` ile baslayan bir hedef site icerik kokune degil DEPO
     KOKU'ne goredir -- her kullaniciya donuk yuzey bir site sayfasi degildir
     (F-203: HTTP yuzeyinin bayatlayabilen izlenen ciktisi
-    `docs/openapi/agentprism.json`tir)."""
+    `docs/openapi/tracon.json`tir)."""
     degisen_kume = set(degisen)
     sonuc: list[tuple[str, tuple[str, ...], str, bool]] = []
     for ad, desen, hedefler, _neden in SITE_KURALLARI:
@@ -710,12 +710,12 @@ def dokuman_iddia_cakismalari(kok: pathlib.Path = ROOT) -> list[str]:
 SURUM_DAMGASI_KAYDI: dict[str, str | None] = {
     # Microsoft.Extensions.VectorData: repo bu paketi almiyor (iddia zaten
     # "onu SARMALAMIYORUZ" diyor), dolayisiyla pin yok.
-    "src/AgentPrism.Abstractions/Knowledge/IVectorSearchStore.cs": None,
-    "src/AgentPrism.Mcp/Internal/McpTransportFactory.cs": "ModelContextProtocol.Core",
-    "src/AgentPrism.SqlServer/AgentPrismSqlServerOptions.cs": "Microsoft.Data.SqlClient",
-    "src/AgentPrism.AspNetCore/OpenAICompat/OpenAIResponsesEndpoints.cs": "Microsoft.Agents.AI.Hosting.OpenAI",
-    "src/AgentPrism.Core/Models/FallbackChatClient.cs": "OpenAI",
-    "src/AgentPrism.Core/Compilation/RecordingLoopEvaluator.cs": "Microsoft.Agents.AI",
+    "src/Tracon.Abstractions/Knowledge/IVectorSearchStore.cs": None,
+    "src/Tracon.Mcp/Internal/McpTransportFactory.cs": "ModelContextProtocol.Core",
+    "src/Tracon.SqlServer/TraconSqlServerOptions.cs": "Microsoft.Data.SqlClient",
+    "src/Tracon.AspNetCore/OpenAICompat/OpenAIResponsesEndpoints.cs": "Microsoft.Agents.AI.Hosting.OpenAI",
+    "src/Tracon.Core/Models/FallbackChatClient.cs": "OpenAI",
+    "src/Tracon.Core/Compilation/RecordingLoopEvaluator.cs": "Microsoft.Agents.AI",
 }
 
 _DAMGA = re.compile(r"(?i)measured[^\n]{0,90}?(\d+\.\d+\.\d+(?:-[A-Za-z0-9.]+)?)")
@@ -837,7 +837,7 @@ def sevk_edilen_olay_anlatisi(kok: pathlib.Path = ROOT) -> list[str]:
     yeniden onerdi. Uretilen referans bir kesif yuzeyi degildir; tuketiciye
     donuk her olayin anlatida bir cumlesi olmak zorundadir.
     """
-    sabitler = kok / "src" / "AgentPrism.Abstractions" / "Webhooks" / "WebhookTypes.cs"
+    sabitler = kok / "src" / "Tracon.Abstractions" / "Webhooks" / "WebhookTypes.cs"
     icerik = kok / "docs-site" / "src" / "content" / "docs"
     if not sabitler.exists() or not icerik.is_dir():
         return []
@@ -872,7 +872,7 @@ def sevk_edilen_genisleme_noktasi(kok: pathlib.Path = ROOT) -> list[str]:
     """Genisleme noktasi kumesi kodda ve SEVK EDILEN metinde ayni olmalidir.
 
     Kusur sinifi (K-483 ailesi), UC kez olctu:
-      1. Faz 139 altinci noktayi ekledi -> samples/AgentPrism.Embedded geride
+      1. Faz 139 altinci noktayi ekledi -> samples/Tracon.Embedded geride
          kaldi (`a377106e`).
       2. Faz 142 yedinciyi ekledi -> `faz-denetim` capabilities.md ve
          DiagnosticsCollector'i yakaladi (bulgu #2), ORNEGIN kendi metnini
@@ -887,8 +887,8 @@ def sevk_edilen_genisleme_noktasi(kok: pathlib.Path = ROOT) -> list[str]:
       - sevk edilen metinde "<sayi> embedding/extension point" yaziyorsa
         o sayi N'dir.
     """
-    toplayici = (kok / "src" / "AgentPrism.Core" / "Diagnostics"
-                 / "AgentPrismDiagnosticsCollector.cs")
+    toplayici = (kok / "src" / "Tracon.Core" / "Diagnostics"
+                 / "TraconDiagnosticsCollector.cs")
     yetenekler = kok / "docs-site" / "src" / "content" / "docs" / "capabilities.md"
     if not toplayici.exists() or not yetenekler.exists():
         return []
@@ -975,10 +975,10 @@ def tekrarlanan_kapi_tanimlari(kok: pathlib.Path = ROOT) -> list[str]:
     if "python3 scripts/kapi.py kapanis" not in agents_text:
         bulgular.append("AGENTS.md kapanış kapısını kapi.py'ye devretmiyor")
     if all(command in agents_text for command in (
-        "dotnet build  AgentPrism.slnx",
-        "dotnet test   AgentPrism.slnx",
-        "dotnet pack   AgentPrism.slnx",
-        "dotnet format AgentPrism.slnx",
+        "dotnet build  Tracon.slnx",
+        "dotnet test   Tracon.slnx",
+        "dotnet pack   Tracon.slnx",
+        "dotnet format Tracon.slnx",
     )):
         bulgular.append("AGENTS.md dört ham kapanış komutunu kopyalıyor")
 
@@ -1092,7 +1092,7 @@ BAGLANTI_HARIC = (
 # da denetim disidir: `api/`, `http-api/` ve `openapi/` `build` isinde henuz
 # URETILMEMISTIR -- ayri bir `site` isi `npm run build` (-> `prebuild` ->
 # `generate`) icinde uretir ve ucu commit EDILMEZ (`.gitignore`). Bagimsiz
-# denetim bunu OLCTU: `http-api.md`deki `/openapi/agentprism.json` baglantisi,
+# denetim bunu OLCTU: `http-api.md`deki `/openapi/tracon.json` baglantisi,
 # `openapi` bu listede olmadan, HER temiz `build` checkout'unda kalici yanlis
 # pozitif uretirdi -- kaynak sayfa hic degismese bile. Kok dizinin kendisi de
 # (`/http-api/`, `/api/`) ayni sebeple denetim disidir -- URL duzeyinde ayirt
@@ -1240,7 +1240,7 @@ def kirik_baglantilar(kok: pathlib.Path = ROOT) -> list[str]:
                     govde = h[1:].rstrip("/")
                     if not govde or govde.split("/", 1)[0] not in SITE_URETILEN_HEDEF:
                         if re.search(r"\.\w+$", govde):
-                            # `llms.txt`, `openapi/agentprism.json` gibi dosya
+                            # `llms.txt`, `openapi/tracon.json` gibi dosya
                             # hedefleri sayfa degil `public/` varligidir.
                             if not (kok / "docs-site" / "public" / govde).exists():
                                 bulunan.append(f"{rel} -> {h}")
@@ -1398,7 +1398,7 @@ AMAC_SINIRI = 400
 # git'ten BIREBIR yeniden uretilebilen bolumler duser:
 #   * imza anlik goruntusu -- `maf-api-kesfi` skill'i reflection'la yeniden uretir
 #   * dosya listesi        -- `git show --stat <sha>` birebir verir
-#   * planlanan uc listesi -- `docs/openapi/agentprism.json` uretilir
+#   * planlanan uc listesi -- `docs/openapi/tracon.json` uretilir
 # Geri kalan HER SEY korunur (varsayilan KAL + RAPORLA).
 _DUS_DESENLERI = (
     re.compile(r"^(Doğrulanmış|Kullanılan)\s+.*\b(API|İmza)", re.I),

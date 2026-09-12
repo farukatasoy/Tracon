@@ -36,7 +36,7 @@ yoksa kapı kırılır. Aynı dosya üç tüketiciye hizmet eder — gezinme, sa
 `og:image` ve içerik kapısı — bu yüzden yeni bir **bölüm** eklerken `sectionImages`
 haritası da büyür.
 
-🚨 **Kurulum komutu.** `dotnet add package AgentPrism…` satırı `--prerelease`
+🚨 **Kurulum komutu.** `dotnet add package Tracon…` satırı `--prerelease`
 veya `--version` taşımalıdır. 1.0 çıkmadı; bayrak olmadan komut çalışmaz.
 
 ---
@@ -48,7 +48,7 @@ veya `--version` taşımalıdır. 1.0 çıkmadı; bayrak olmadan komut çalışm
 
 **Tüketicinin elinde olanlar:** paketin kendi tipleri, public üyeleri,
 yapılandırma anahtarları, HTTP uçları, MSBuild özellikleri ve
-`https://agentprism.doayen.web.tr` adresi.
+`https://tracon.dev` adresi.
 
 **Elinde olmayanlar:** `docs/KARARLAR.md`, faz numaraları, `K-NNN`, `F-NN`,
 `K1`–`K4`, `MT-*`, `docs/NN-*.md`.
@@ -60,11 +60,11 @@ Satır **silinmez**; taşıdığı bilgi kendi kendine yeten bir cümleye çevri
 
 | Bugün | Yarın |
 |---|---|
-| `AgentPrism carries no built-in model list (decision K-032).` | `AgentPrism carries no built-in model list: model names change faster than a NuGet release.` |
+| `Tracon carries no built-in model list (decision K-032).` | `Tracon carries no built-in model list: model names change faster than a NuGet release.` |
 | `the same rule as K-103, applied a second time` | `the same rule that governs the first approval, applied a second time` |
 | `A scope does not replace role policies, it narrows them (docs/arsiv/fazlar/53-KIRACI-API-ANAHTARLARI.md, section 53.3).` | `A scope does not replace role policies, it narrows them.` |
 | `The outcome of a data subject erasure request (phase 64).` | `The outcome of a data subject erasure request.` |
-| `Details: docs/arsiv/fazlar/27-AZURE-FOUNDRY.md` | `Details: https://agentprism.doayen.web.tr/guides/model-providers/` |
+| `Details: docs/arsiv/fazlar/27-AZURE-FOUNDRY.md` | `Details: https://tracon.dev/guides/model-providers/` |
 
 Üç desen vardır ve iş bu üçe indirgenir:
 
@@ -83,7 +83,7 @@ Kırık bağlantı üretmek, bağlantı olmamasından kötüdür.
 |---|---|---|
 | `src/**/*.cs` içindeki `///` satırları | ✅ | `.xml` olarak pakete girer |
 | `src/*/README.md` | ✅ | `PackageReadmeFile` — nuget.org sayfası |
-| `docs/openapi/agentprism.json` | ✅ | `AgentPrism.AspNetCore` paketine girer |
+| `docs/openapi/tracon.json` | ✅ | `Tracon.AspNetCore` paketine girer |
 | Kök `README.md` | ✅ | GitHub karşılama sayfası; okuru tüketicidir |
 | `src/**` içindeki `//` ve `/* */` yorumları | ❌ | Pakete girmez; bakımcının kaydıdır ve `docs/` referansı orada **değerlidir** |
 | `tests/**`, `samples/**` | ❌ | Pakete girmez |
@@ -146,15 +146,15 @@ göremez ve tema değişiminde kaybolur.
 
 ## E · Yerel referans ve agent haritası
 
-**`AgentPrism.LocalReference.md`** tüketicinin diskinde, **her build'de** üretilir
+**`Tracon.LocalReference.md`** tüketicinin diskinde, **her build'de** üretilir
 ve projenin yanında durur. Makineye özgüdür; tüketici onu `.gitignore`'una
-ekler. AgentPrism **tüketicinin `.gitignore`'unu değiştirmez** — başkasının
+ekler. Tracon **tüketicinin `.gitignore`'unu değiştirmez** — başkasının
 dosyasını değiştirmek sıfır sürpriz kuralının ihlalidir.
 
 İçinde dört bölüm vardır ve **ilki** `## Capability map - read this first`:
-paketin taşıdığı `AgentPrism.AgentMap.md`'nin mutlak yolu. Sonra referanslanan her
-AgentPrism paketinin XML doküman yolu, `AgentPrism.AspNetCore` varsa paketlenmiş
-`agentprism.json` yolu, ve bir `## How to read them` `grep` reçetesi. Sıra
+paketin taşıdığı `Tracon.AgentMap.md`'nin mutlak yolu. Sonra referanslanan her
+Tracon paketinin XML doküman yolu, `Tracon.AspNetCore` varsa paketlenmiş
+`tracon.json` yolu, ve bir `## How to read them` `grep` reçetesi. Sıra
 soruların sırasını kodlar: önce **ne var**, sonra **nasıl çağrılır**. Reçete **önce adı bulan**, sonra üyeyi
 okuyan sırayı öğretir; ölçüm bu sıranın gerektiğini gösterdi — iki sorgu ancak
 ikinci denemede cevaplandı ve sebep yanlış ad tahminiydi.
@@ -167,7 +167,7 @@ Dosya elle yazılmaz. **Dolaylı** bayatlar:
 | Giriş noktasında `<example>` yok | Reçetenin sözü tutulmaz | `CapabilityExampleTests` |
 | Dosyanın adı veya konumu değişti | Agent haritasının `## Where to look` bölümü bayatlar | Göz |
 
-**`AgentPrism.AgentMap.md`** nupkg'de sevk edilir ve **tek kaynağı**
+**`Tracon.AgentMap.md`** nupkg'de sevk edilir ve **tek kaynağı**
 `docs-site/src/content/docs/capabilities.md`'dir. `llms.txt` ve `llms-full.txt`
 aynı kaynaktan üretilir. Üçü de **commit edilir**, çünkü `dotnet pack` haritayı
 okur ve Node zinciri `dotnet build`'e bağlanamaz. Bu takas drift kapısını zorunlu

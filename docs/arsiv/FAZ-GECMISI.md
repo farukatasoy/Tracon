@@ -15,7 +15,7 @@
 
 ---
 
-Faz 9 sonunda AgentPrism **denetlenebilir**: üç rol (Reader/Operator/Admin) uç
+Faz 9 sonunda Tracon **denetlenebilir**: üç rol (Reader/Operator/Admin) uç
 grupları arasında ayrım yapıyor, `audit_log` gerçekten doluyor (agent, MCP sunucusu,
 kiracı, onay kuralı yazmaları + tool onay kararları) ve sır suzgeci bu kayıtlardan
 hiçbir kimlik bilgisi sızdırmıyor. Bkz. [`09-YONETISIM-VE-DENETIM-IZI.md`](fazlar/09-YONETISIM-VE-DENETIM-IZI.md).
@@ -84,7 +84,7 @@ testiyle doğrulandı: iki gerçek `IJobStore` örneği 50 iş için yarıştı,
 iki kez kiralanmadı. `JobWorkerBackgroundService` tek bir `PeriodicTimer`
 döngüsünde hem sırası gelen `job_schedules` satırlarını `jobs`'a düşürür hem
 kiralanabilir işleri `IJobHandler` sözleşmesine dağıtır; işçi
-`AgentPrismSchedulingOptions.RunWorker = false` ile kapatılabilir, kuyruk yine
+`TraconSchedulingOptions.RunWorker = false` ile kapatılabilir, kuyruk yine
 de yazılabilir/okunabilir kalır (K-018 deseni). Bir toplu iş her ögesi için
 sıradan bir `runs` satırı üretir — `job_items.run_id` üzerinden geriye bağlanır,
 ikinci bir kayıt hattı açılmaz. Beş alanlı cron alt kümesi elle yazılmıştır
@@ -103,7 +103,7 @@ taşır, vakalar `PUT .../cases` ile tam değiştirilir. Koşu, Faz 17'nin **ayn
 `jobs` kuyruğunu kullanır (`JobKind.Eval`) — ayrı bir yürütme yolu açılmadı. Her
 vaka `IAgentCatalog.ResolveAsync` ile çözülen agent üzerinde **yeni bir
 oturumda** çalışır ve kendiliğinden kendi `runs` satırını üretir (`EvalJobHandler`
-`AgentPrismRunOptions.Kind = RunKind.Eval` verir); bu satırlar normal
+`TraconRunOptions.Kind = RunKind.Eval` verir); bu satırlar normal
 istatistiklerden (`IRunStore.GetStatisticsAsync`) hariç tutulur ama transkript
 ve span erişimi aynı kalır. `agent_version`/`model_id` tetikleme anında değil,
 işçi işi fiilen **çalıştırmaya başlarken** çözülür — kuyrukta beklerken tanım
@@ -124,11 +124,11 @@ adımları ve eval çalıştırmaları deneye hiç girmez (K-131), her biri
 `IAgentCatalog.ResolveAsync`'i kendi amacıyla (güncel sürüm / sabit sürüm) çağırır.
 Versiyon çözümü `IVersionedAgentSource` marker arayüzüyle eklendi: yalnızca
 veritabanı kaynağı (`DefinitionStoreAgentSource`) uygular, kod kaynağı (K-003)
-dokunulmadı kaldı — sürüm istenen bir kod agent'ı `AgentPrismException` fırlatır.
+dokunulmadı kaldı — sürüm istenen bir kod agent'ı `TraconException` fırlatır.
 `runs.agent_version` her çalıştırmada dolar (deney dışı çalıştırmalarda da,
 descriptor'ın güncel sürümü varsayılan olur); `experiment_id`/`variant` yalnız
 deney tarafından atanmış çalıştırmalarda dolar ve **hiçbiri metrik etiketi
-olmaz** — sürüm etiketi (`agentprism.agent.version`) kardinalitesi kabul
+olmaz** — sürüm etiketi (`tracon.agent.version`) kardinalitesi kabul
 edilebilir bulunup varsayılan açık bırakıldı, deney kimliği sınırsız büyüyeceği
 için hiç etikete girmedi. Gerçek bir çalıştırmada doğrulandı: iki talimat
 sürümü arasında %50/%50 ağırlıklı bir deney, 20 farklı oturumla çalıştırıldı ve
@@ -138,17 +138,17 @@ control/v2 kollarına 6/14 dağıldı (küçük örneklem varyansı, 10.000 örn
 [`19-SURUM-KARSILASTIRMA-VE-AB.md`](fazlar/19-SURUM-KARSILASTIRMA-VE-AB.md).
 
 Faz 5 sonunda kabul senaryosu tamamlandı: paket kurulur, `.UseUI()` +
-`app.MapAgentPrism()` yazılır ve tarayıcıda bir kontrol düzlemi açılır. Faz 6 ekranı
+`app.MapTracon()` yazılır ve tarayıcıda bir kontrol düzlemi açılır. Faz 6 ekranı
 sekize çıkardı (MCP & approvals) ve arayüz artık span waterfall'ı, tool çağrı
 sayılarını ve onay kartlarını gösteriyor. Arayüz assembly'ye Brotli sıkıştırılmış
 gömülüdür (85,1 KB), tüketici projede hiçbir JavaScript bağımlılığı oluşturmaz ve
 JavaScript bütçesi Faz 16 sonunda 105,2 KB / 250 KB gzip'tir.
 
-Faz 6 sonunda AgentPrism **işletilebilir**: her çalıştırmanın span ağacı ve metriği
+Faz 6 sonunda Tracon **işletilebilir**: her çalıştırmanın span ağacı ve metriği
 var, geri alınamaz tool'lar kullanıcı onayı bekliyor, tool'lar uzak MCP
 sunucularından da gelebiliyor ve kiracı istekten çözülüp hiçbir uçtan sızmıyor.
 
-Faz 8 sonunda AgentPrism **tek satıcıya bağlı değildir**: `UseOpenAICompatible(ad, ...)`
+Faz 8 sonunda Tracon **tek satıcıya bağlı değildir**: `UseOpenAICompatible(ad, ...)`
 herhangi bir OpenAI uyumlu uca (OpenRouter, Groq, vLLM, yerel Ollama/LM Studio)
 bağlanır, her sağlayıcı `GET {endpoint}/models` ile ücretsiz denetlenir ve ardışık
 hata veren bir sağlayıcı devre kesici tarafından geçici olarak durdurulur. Doğrulandı:
@@ -163,12 +163,12 @@ OpenRouter çalıştırmasında `load_skill` onayı Playground'da kabul edildi; 
 talimatı yüklenip modelin yanıtını belirledi. Ayrıntı
 [`10-AGENT-SKILLERI.md`](fazlar/10-AGENT-SKILLERI.md).
 
-Dış yüzey Faz 4'ten beri açık: stok OpenAI SDK'sı `base_url` değiştirerek AgentPrism'e
+Dış yüzey Faz 4'ten beri açık: stok OpenAI SDK'sı `base_url` değiştirerek Tracon'e
 bağlanıyor, agent'ı `model` alanından seçiyor, tool döngüsü sunucuda tamamlanıyor,
 konuşma hem `previous_response_id` hem `conversations.create()` ile zincirleniyor ve
 her çalıştırma `run_events` tablosuna yazılıp SSE ile geri oynatılabiliyor.
 
-Faz 21 sonunda AgentPrism **dış dünyayla sözleşmeye bağlandı**. Kullanım iki ayrı
+Faz 21 sonunda Tracon **dış dünyayla sözleşmeye bağlandı**. Kullanım iki ayrı
 mekanizmayla sınırlanabiliyor: hız sınırı (saniye/dakika, bellekte, ASP.NET Core
 paylaşılan çerçevesinden — yeni paket gerekmedi) ve kota (gün/ay, veritabanında,
 kiracı ve agent kapsamında). İkisi de varsayılan olarak hiçbir isteği reddetmiyor.
@@ -192,7 +192,7 @@ plan topluluk paketlerini (`Anthropic.SDK`, `Google_GenerativeAI`) varsayıyordu
 oysa ikisinin de **resmî** birinci taraf karşılığı vardı (`Anthropic` 12.39.0,
 `Google.GenAI` 1.16.0) ve ikisi de kendi `AsIChatClient` adaptörünü taşıyordu.
 Böylece "IChatClient uygulamasını biz yazarız" senaryosu hiç gerçekleşmedi ve faz
-`AgentPrism.OpenAI` ile birebir aynı şekli aldı (K-204).
+`Tracon.OpenAI` ile birebir aynı şekli aldı (K-204).
 
 Google'ın resmî SDK'sı `Google.Apis.Auth` üzerinden `Newtonsoft.Json`,
 `System.Management` ve `System.CodeDom` çekiyordu — 11 geçişli bağımlılık. Ağırlık
@@ -203,7 +203,7 @@ Sözleşmeye tek bir alan eklendi: `ModelBinding.ProviderSettings`. `AgentDefini
 ile aynı şekli seçmek işe yaradı — `jsonb` yolu, HTTP sözleşmesi ve kaynak üreteci
 bağlamı hiç değişmeden çalıştı (K-208).
 
-Güvenlik filtresi tespiti sağlayıcı paketlerine değil `AgentPrism.Core`'a kondu;
+Güvenlik filtresi tespiti sağlayıcı paketlerine değil `Tracon.Core`'a kondu;
 devre kesiciyle aynı desen. Dekoratörün devre kesicinin **dışında** durması
 gerektiği tasarım aşamasında yakalandı: filtrelenmiş bir yanıt sağlayıcının
 sağlıklı olduğunu gösterir, içeride olsaydı arka arkaya filtrelenen birkaç istek
@@ -231,7 +231,7 @@ uzun uzun tartışılmıştı. Foundry ertelendi; ölçümler ve kaybedilen gara
 tablosu faz dokümanında korundu (K-212).
 
 Asıl bulgu Azure OpenAI tarafında çıktı. `Azure.AI.OpenAI` 2.1.0 `OpenAI` 2.1.0'a
-karşı derlenmiş; AgentPrism `OpenAI` 2.12.0 kullanıyor ve merkezî paket yönetimi
+karşı derlenmiş; Tracon `OpenAI` 2.12.0 kullanıyor ve merkezî paket yönetimi
 tek sürüm zorluyor. NuGet çakışmayı sessizce çözdü, `dotnet build` **sıfır uyarı**
 verdi — ve `AzureChatExtensions`'ın istek tarafı metotlarının tamamı çalışma anında
 `MissingMethodException` attı. Derleme yeşilliğinin hiçbir şey kanıtlamadığı
@@ -251,11 +251,11 @@ uçtan uca doğrulandı. Ayrıntı [`27-AZURE-FOUNDRY.md`](fazlar/27-AZURE-FOUND
 
 ---
 
-## Migration geçmişi (`agentprism` şeması)
+## Migration geçmişi (`tracon` şeması)
 
 `docs/MIMARI.md`'den taşındı (2026-08-03, Faz 21) — birikimli anlatı sıcak yolda
 tutulmaz. Bugünkü tablo listesi `MIMARI.md` bölüm 5'tedir; şemanın kaynağı her
-zaman `src/AgentPrism.PostgreSql/Migrations/*.sql` dosyalarıdır.
+zaman `src/Tracon.PostgreSql/Migrations/*.sql` dosyalarıdır.
 
 | Migration | Faz | Ne eklendi |
 |-----------|-----|------------|
@@ -281,7 +281,7 @@ zaman `src/AgentPrism.PostgreSql/Migrations/*.sql` dosyalarıdır.
 > değil, o iki fazın anlatısıdır. Bugünkü tablo (hangi paket AOT uyumlu)
 > `MIMARI.md`'de kalır.
 
-Ayrım `AgentPrismAotCompatible` özelliği ile uygulanır: varsayılan
+Ayrım `TraconAotCompatible` özelliği ile uygulanır: varsayılan
 `src/Directory.Build.props` içinde verilir, `IsAotCompatible` türetmesi ise
 `Directory.Build.targets` içinde yapılır (csproj okunduktan **sonra**) — K-006.
 
@@ -289,11 +289,11 @@ AOT uyumluluğu Faz 1'de üç somut kısıt getirdi:
 
 | Kısıt | Çözüm |
 |-------|-------|
-| `ValidateDataAnnotations()` yansıma kullanır | Elle yazılmış `AgentPrismOptionsValidator` |
+| `ValidateDataAnnotations()` yansıma kullanır | Elle yazılmış `TraconOptionsValidator` |
 | `optionsBuilder.Bind()` yansıma kullanır | `EnableConfigurationBindingGenerator=true` (kaynak üreteci) |
 | Tool argümanlarını JSON'a çevirme | Elle biçimlendirme; `JsonSerializer` kullanılmaz |
 
-`AgentPrism.PostgreSql` (Faz 2) `jsonb` alanlarını serileştirirken
+`Tracon.PostgreSql` (Faz 2) `jsonb` alanlarını serileştirirken
 **System.Text.Json kaynak üreteci** kullanmalıdır (`JsonSerializerContext`);
 yansımaya dayanan aşırı yüklemeler AOT vaadini bozar.
 
@@ -376,7 +376,7 @@ Kapı **üç kusur** buldu — faz biri bekliyordu:
 1. **Bellek içi depolarda yalıtım hiç yoktu** (K-277). `InMemoryAgentDefinitionStore`
    `tenant_id` kavramını taşımıyordu; `InMemorySessionStore`, `InMemoryRunStore`
    ve `InMemoryTraceStore` tekil okumalarda kiracıyı okumuyordu. K-018 bu
-   depoları birinci sınıf sayar ve `AddAgentPrism()` onları varsayılan olarak
+   depoları birinci sınıf sayar ve `AddTracon()` onları varsayılan olarak
    kaydeder — yani veritabanısız çok kiracılı bir kurulumda kiracılar birbirinin
    verisini görüyordu. Örnek uygulama koşumu bunu uçtan uca doğruladı.
 2. **`sessions.id` tek başına birincil anahtardı** (K-278). Oturum kimliği
@@ -439,7 +439,7 @@ yarısı bir **taşımadır** ve gerekçesi ölçümdür.
 Plan guard'ı "model boru hattının en dışına" koyuyordu ve motivasyon örneği uzak
 bir MCP tool'unun döndürdüğü zararlı içerikti. `grep -rn "UseFunctionInvocation"
 src/` dört sağlayıcı fabrikasının (OpenAI, Anthropic, Google, Azure) ve
-`AgentPrism.Testing/FakeModelProvider`'ın tool çağrı döngüsünü **kendi içinde**
+`Tracon.Testing/FakeModelProvider`'ın tool çağrı döngüsünü **kendi içinde**
 kurduğunu gösterdi. Sonuç: `ModelProviderRegistry`'nin sardığı **hiçbir halka**
 döngünün turlarını göremiyordu — planın kendi motivasyon örneği o konumda
 yakalanamazdı. Kırk yedi faz boyunca fark edilmemişti çünkü diğer halkaların

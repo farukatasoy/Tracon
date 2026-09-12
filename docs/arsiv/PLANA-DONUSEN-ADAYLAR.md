@@ -45,7 +45,7 @@ aynı gün altı faza dönüştü. Turun tam kaydı:
 
 **Sorun:** `UsePostgreSql()`, Knowledge hiç kullanılmasa bile
 `CREATE EXTENSION vector` çalıştırır
-(`0024_vector.sql:17` *(Faz 67'de [`MigrationsKnowledge/0001_vector.sql`](../../src/AgentPrism.PostgreSql/MigrationsKnowledge/0001_vector.sql)'e taşındı)*);
+(`0024_vector.sql:17` *(Faz 67'de [`MigrationsKnowledge/0001_vector.sql`](../../src/Tracon.PostgreSql/MigrationsKnowledge/0001_vector.sql)'e taşındı)*);
 `MigrationDescriptor.Discover` gömülü **her** `.sql` dosyasını sırayla koşar,
 koşullu set kavramı yoktur. Extension'ı olmayan ya da migration kimliğine
 `CREATE EXTENSION` izni vermeyen yönetilen bir PostgreSQL'de paket
@@ -77,7 +77,7 @@ beş dakikadadır ve orada kaybedilen tüketici geri gelmez.
 `grep -rn "UserId" src` repo genelinde **0 sonuç** verir. Amaç/etiket alanı da
 yoktur. `RunStatisticsQuery` yalnız agent ve kiracıya göre filtreler, kırılım
 agent · sürüm · modeldir
-([`RunStatistics.cs`](../../src/AgentPrism.Abstractions/Runs/RunStatistics.cs)).
+([`RunStatistics.cs`](../../src/Tracon.Abstractions/Runs/RunStatistics.cs)).
 Sonuç: çok kiracılı bir üründe "hangi kullanıcı ne harcadı" ve "hangi özellik ne
 harcadı" **sorulamaz**. Kiracı-içi faturalama ve iç maliyet dağıtımı imkânsızdır.
 **Kapsam:** Çalıştırmaya kullanıcı kimliği ve serbest etiket kümesi; bu
@@ -88,7 +88,7 @@ boyutların kayda, filtreye, istatistik kırılımına ve arayüze taşınması.
 **Hazırlık:** Sıfırdan.
 **Maliyet:** 🚨 **En geniş yüzey** — `RunRecord`, `RunStartInfo`,
 `RunStatisticsQuery`, `RunStatistics`, HTTP filtreleri, arayüz, bir migration.
-**Risk:** 🚨 **Kullanıcı kimliği kişisel veridir.** AgentPrism kişisel kimlik
+**Risk:** 🚨 **Kullanıcı kimliği kişisel veridir.** Tracon kişisel kimlik
 **saklamamalıdır**; alan opak bir dizedir ve anlamını tüketici verir. Aynı duruş
 [Faz 64](fazlar/64-DENETIM-ZINCIRI-VE-VERI-KONUSU-HAKLARI.md)'ün `IDataSubjectResolver`
 kararıyla tutarlıdır. Etiketler kardinaliteyi patlatabilir: metrik etiketi
@@ -113,8 +113,8 @@ gruplamasını bozar. Etiket boyutu ise bu numarayla hiç elde edilemez.
 ### F-112 · Cache ve reasoning token kırılımı
 
 **Sorun:** `RunUsage` üç alan taşır
-([`RunSupportTypes.cs:6`](../../src/AgentPrism.Abstractions/Runs/RunSupportTypes.cs)) ve
-[`RunRecordingAgent.cs:1056`](../../src/AgentPrism.Core/Recording/RunRecordingAgent.cs)
+([`RunSupportTypes.cs:6`](../../src/Tracon.Abstractions/Runs/RunSupportTypes.cs)) ve
+[`RunRecordingAgent.cs:1056`](../../src/Tracon.Core/Recording/RunRecordingAgent.cs)
 `UsageDetails`'ten yalnız `InputTokenCount`/`OutputTokenCount`/`TotalTokenCount`
 alır. 🚨 **Ölçüldü:** sabitlenen `Microsoft.Extensions.AI.Abstractions`
 **10.8.3**'te `UsageDetails` ayrıca `CachedInputTokenCount`,
@@ -147,7 +147,7 @@ belgelenmiş, bugünkü sonuç yanlış bir sayıdır.
 ### F-113 · Tool düzeyinde yetkilendirme ve etki sınıfı
 
 **Sorun:** `ToolDescriptor` yalnız `RequiresApproval` taşır
-([`ToolDescriptor.cs`](../../src/AgentPrism.Abstractions/Tools/ToolDescriptor.cs));
+([`ToolDescriptor.cs`](../../src/Tracon.Abstractions/Tools/ToolDescriptor.cs));
 gerekli izin adı da etki sınıfı da yoktur. `IToolAuthoriz*` deseni repo
 genelinde **0 sonuç** verir. Sonuç: "bu kullanıcı bu tool'u hiç çağırabilir mi"
 sorusu **ifade edilemez**. Onay bir insan kapısıdır — izin değildir.
@@ -160,9 +160,9 @@ her kullanıcıya açıktır.
 **Hazırlık:** Sıfırdan. Sarmalama **registry'de** yapılır — kapıyı atlayan bir
 kod yolu olamaz.
 **Maliyet:** Bir `record` alanı, bir enum, bir arayüz.
-**Risk:** 🚨 AgentPrism **kullanıcı ve rol saklamaz** ve saklamamalıdır. Kanca
+**Risk:** 🚨 Tracon **kullanıcı ve rol saklamaz** ve saklamamalıdır. Kanca
 kimliği çözmez, tüketicinin kimlik hattına **sorar**. Varsayılanı izin vermek
-olmalıdır, yoksa `AddAgentPrism()` tek başına çalışmaz (K1).
+olmalıdır, yoksa `AddTracon()` tek başına çalışmaz (K1).
 **Bağımlılık:** F-114 aynı `record`.
 [Faz 63](fazlar/63-ARGUMAN-DUZEYINDE-ONAY-POLITIKASI.md) `ToolApprovalRule`'a
 dokunuyor — sıra kararı gerekir.
@@ -183,7 +183,7 @@ tool zaten şemayla modele gösterilmiş ve çağrılmıştır. İzin, tool'un m
 
 ### F-114 · Tool yürütme timeout'u
 
-**Sorun:** Timeout yalnız iki yerdedir — `AgentPrismOptions.cs:71` (`McpTimeout`)
+**Sorun:** Timeout yalnız iki yerdedir — `TraconOptions.cs:71` (`McpTimeout`)
 ve `:210` (skill script). Kodda tanımlı bir tool için yürütme timeout'u
 **yoktur**. Harici API çağıran bir tool turu süresiz uzatır;
 `MaximumIterationsPerRequest` adım sayar, süre saymaz.
@@ -210,7 +210,7 @@ sözleşmeye koymak tek noktada çözer — `MaxPayloadLength` ile aynı gerekç
 ### F-115 · Çalıştırma olayı hedefi ve `ReasoningDelta`
 
 **Sorun:** İki parça. **(a)** `RunEvent` yalnız `IRunStore`'a yazılır
-([`RunEventWriter.cs:22`](../../src/AgentPrism.Core/Recording/RunEventWriter.cs));
+([`RunEventWriter.cs:22`](../../src/Tracon.Core/Recording/RunEventWriter.cs));
 canlı olayı gözlemleyecek genişleme noktası yoktur. Kendi gerçek zamanlı
 arayüzüne gömen tüketici ya HTTP SSE ile kendine bağlanır ya `IRunStore`'u
 dekore eder — kalıcılık ile yayını karıştıran yanlış bir yer. **(b)**
@@ -243,7 +243,7 @@ ikisi ayrı sorumluluktur.
 
 **Sorun:** `WorkflowNodeKind` dört değer taşır — `Agent`, `Orchestration`,
 `RequestPort`, `Output`
-([`WorkflowGraph.cs:94`](../../src/AgentPrism.Abstractions/Workflows/WorkflowGraph.cs)).
+([`WorkflowGraph.cs:94`](../../src/Tracon.Abstractions/Workflows/WorkflowGraph.cs)).
 Düğüm **agent'tır**. AI çağırmayan bir adım (dosya indirme, TTS, dönüştürme,
 veritabanı yazımı) grafiğe giremez. Sonuç: gerçek bir üretim hattının yalnız AI
 kısmı devredilebilir, orkestrasyon tüketicinin kuyruğunda kalır.
@@ -274,7 +274,7 @@ ortadan kaldırmaktı.
 ### F-117 · Talimatta çok dillilik
 
 **Sorun:** `AgentDefinition.Instructions` tek bir `string?`'tir
-([`AgentDefinition.cs:33`](../../src/AgentPrism.Abstractions/Agents/AgentDefinition.cs)).
+([`AgentDefinition.cs:33`](../../src/Tracon.Abstractions/Agents/AgentDefinition.cs)).
 İki dilde çalışan bir üründe iki ayrı agent tanımı gerekir; versiyon
 geçmişleri, eval kümeleri ve deneyleri **ayrışır**.
 **Kapsam:** Kültür anahtarlı talimat; çözümleme çalışma anında, varsayılana
@@ -302,7 +302,7 @@ içinde erimelidir; ayrı bir alan eklemek erken olabilir.
 
 **Sorun:** `ElevenLabsSpeechClient` yalnız `text-to-speech` ve `/stream`
 uçlarını çağırır
-([`ElevenLabsSpeechClient.cs:318`](../../src/AgentPrism.Voice/Internal/ElevenLabsSpeechClient.cs)).
+([`ElevenLabsSpeechClient.cs:318`](../../src/Tracon.Voice/Internal/ElevenLabsSpeechClient.cs)).
 Kelime düzeyinde zaman damgası döndüren uç desteklenmiyor. Sentezlenen sesi
 metinle hizalamak — altyazı, vurgulama, transcript senkronu — mümkün değil.
 **Kapsam:** Konuşma sentezi tool'una isteğe bağlı zaman damgası çıktısı;
@@ -312,7 +312,7 @@ zorunda — paketi kullanmasının bir kısmı boşa gidiyor.
 **Mercek:** 1.
 **Hazırlık:** Sağlayıcı ucu hazır; iş eşlemedir.
 **Maliyet:** Düşük.
-**Risk:** `AgentPrism.Voice` sözleşmesini büyütür. Zaman damgası akışlı sentezde
+**Risk:** `Tracon.Voice` sözleşmesini büyütür. Zaman damgası akışlı sentezde
 farklı gelir — iki yol ayrı ele alınmalıdır.
 **Bağımlılık:** Yok.
 **Ekosistem:** Taranmadı.
@@ -329,7 +329,7 @@ başına faz olmamalıdır.
 **Sorun:** Bir kiracının verisinin hangi sağlayıcıya gidebileceğini kısıtlayan
 mekanizma yok. Ölçüldü: `grep -rn "AllowList\|Allowlist\|AllowedProviders" src`
 **üç** sonuç verir ve üçü de aynı şeydir —
-[`AgentPrismOptions.cs:207`](../../src/AgentPrism.Core/AgentPrismOptions.cs)
+[`TraconOptions.cs:207`](../../src/Tracon.Core/TraconOptions.cs)
 `EnvironmentAllowList` (skill script ortam değişkeni). Sağlayıcı tarafında
 allowlist yoktur; webhook için `WebhookUrlValidator` ayrı bir mekanizmadır.
 `OpenAICompatible` ile herhangi bir adrese kiracı verisi gönderen bir agent
@@ -354,8 +354,8 @@ Faz 65'in kapsamına katılmadıkça planlanmamalıdır.
 
 #### F-104 · Örnek uygulama rol politikaları — ✅ KAPATILDI (2026-08-18)
 
-> **Aday değildir.** Faza dönüşmeden bir kusur olarak düzeltildi. `samples/AgentPrism.Api`
-> artık `AgentPrism:Demo:Roles:Enabled` bayrağıyla üç politikayı kaydeder ve o anda
+> **Aday değildir.** Faza dönüşmeden bir kusur olarak düzeltildi. `samples/Tracon.Api`
+> artık `Tracon:Demo:Roles:Enabled` bayrağıyla üç politikayı kaydeder ve o anda
 > `RequireRolePolicies`'i açar — kayıt silinirse uygulama **başlamaz**. Gerçek koşumla
 > kanıtlandı: başlıksız `401`, `reader` liste `200`, `reader` yazma `403`, `admin` `201`;
 > bayrak kapalıyken davranış birebir eskisi (`200`/`201`). Tam gerekçe: **K-431**.
@@ -445,17 +445,17 @@ kullanmadan önce yeniden ölç.
 
 ### F-121
 
-| ~~**F-121**~~ | ✅ **KAPANDI (2026-08-20)** — kapsamı ölçümle değişti → [Faz 74](fazlar/74-YEREL-REFERANS-YUZEYI.md) tamamlandı | 2026-08-18 tüketici agent turu · [Faz 73](fazlar/73-TUKETICI-AGENT-DESTEGI.md) | 🚨 **Kaydın istediği ölçüm yapıldı (2026-08-19) ve `dotnet tool` MCP sunucusu okumasını düşürdü.** Paket **2.96 MB** XML dokümanı (~5 600 üye) sevk ediyor ve o korpus tüketicinin `~/.nuget/packages` dizininde **zaten duruyor**; on gerçek detay sorgusunun **onu da** `grep` ile cevaplandı. Sunucunun `grep` üzerine koyacağı tek yeni yetenek anlamsal aramadır — o da RAG'dir ve Dalga 9'da elendi. Maliyet yapısal: `grep -rn PackAsTool` **boş** — yeni dağıtım kanalı, F-93 ile aynı sınıf; benimseme Faz 73'ün opt-in özelliğinden **kötü**. Ölçüm üç gerçek boşluk buldu ve Faz 74 onları alır: yerel korpusa hiçbir işaret yok, `agentprism.json` (123 path) hiçbir pakete girmiyor, 39 giriş noktasının **27'sinde** çalışan örnek yok. Sunucu reddedilmedi, gerekçesi düştü; Faz 74'ün ölçümüyle yeniden açılabilir |
+| ~~**F-121**~~ | ✅ **KAPANDI (2026-08-20)** — kapsamı ölçümle değişti → [Faz 74](fazlar/74-YEREL-REFERANS-YUZEYI.md) tamamlandı | 2026-08-18 tüketici agent turu · [Faz 73](fazlar/73-TUKETICI-AGENT-DESTEGI.md) | 🚨 **Kaydın istediği ölçüm yapıldı (2026-08-19) ve `dotnet tool` MCP sunucusu okumasını düşürdü.** Paket **2.96 MB** XML dokümanı (~5 600 üye) sevk ediyor ve o korpus tüketicinin `~/.nuget/packages` dizininde **zaten duruyor**; on gerçek detay sorgusunun **onu da** `grep` ile cevaplandı. Sunucunun `grep` üzerine koyacağı tek yeni yetenek anlamsal aramadır — o da RAG'dir ve Dalga 9'da elendi. Maliyet yapısal: `grep -rn PackAsTool` **boş** — yeni dağıtım kanalı, F-93 ile aynı sınıf; benimseme Faz 73'ün opt-in özelliğinden **kötü**. Ölçüm üç gerçek boşluk buldu ve Faz 74 onları alır: yerel korpusa hiçbir işaret yok, `tracon.json` (123 path) hiçbir pakete girmiyor, 39 giriş noktasının **27'sinde** çalışan örnek yok. Sunucu reddedilmedi, gerekçesi düştü; Faz 74'ün ölçümüyle yeniden açılabilir |
 
 ### F-102
 
-| ~~**F-102**~~ | ✅ **KAPANDI (2026-08-18)** — kırılgan eşzamanlılık testi | 2026-08-08 denetimi | Karar verildi ve uygulandı: **K-385** yeniden deneme döngüsüne jitter ekledi ve üst sınırı 5 → **10**'a çıkardı ([`SqlEvalStore.cs:179`](../../src/AgentPrism.Sql.Shared/Stores/SqlEvalStore.cs)). Özgün kayıt: 🚨 **Ölçüldü:** `AddCaseAsync_es_zamanli_terfiler_farkli_seq_uretir` PostgreSQL paketinin tamamı koşarken düştü (`SqlEvalStore.AddCaseAsync:221` — "5 denemede sira numarasi atanamadi"), **tek başına ve ikinci tam koşumda geçti** (870/870). Testin kendisi mi yoksa `AddCaseAsync`'in 5 denemelik yeniden deneme sınırı mı yetersiz — karara bağlanmalı. Bir kusur değil, **kırılgan bir test** olarak sınıflandırıldı ama sessiz bırakılmadı |
+| ~~**F-102**~~ | ✅ **KAPANDI (2026-08-18)** — kırılgan eşzamanlılık testi | 2026-08-08 denetimi | Karar verildi ve uygulandı: **K-385** yeniden deneme döngüsüne jitter ekledi ve üst sınırı 5 → **10**'a çıkardı ([`SqlEvalStore.cs:179`](../../src/Tracon.Sql.Shared/Stores/SqlEvalStore.cs)). Özgün kayıt: 🚨 **Ölçüldü:** `AddCaseAsync_es_zamanli_terfiler_farkli_seq_uretir` PostgreSQL paketinin tamamı koşarken düştü (`SqlEvalStore.AddCaseAsync:221` — "5 denemede sira numarasi atanamadi"), **tek başına ve ikinci tam koşumda geçti** (870/870). Testin kendisi mi yoksa `AddCaseAsync`'in 5 denemelik yeniden deneme sınırı mı yetersiz — karara bağlanmalı. Bir kusur değil, **kırılgan bir test** olarak sınıflandırıldı ama sessiz bırakılmadı |
 
 ---
 
 ### F-133
 
-| ~~**F-133**~~ | ✅ **KAPANDI (2026-08-21)** — düzeltildi, K-540/K-541 | Faz 77 kapanış koşumu (2026-08-20) | **Kaydın teşhisi 2026-08-21'de ölçümle DÜZELTİLDİ.** Kayıt "izolasyonda HER ZAMAN düşüyor, tam sette bazen geçiyor" diyordu ve zamanlama yarışı sanıyordu. Gerçek: pencere bir yarış DEĞİL, **sabit bir sıraydı** ve onay isteyen HER kuyruk çalıştırmasında açıktı. `RunRecordingAgent` çalıştırmayı `agent.RunAsync`'in İÇİNDE `AwaitingApproval` ile kapatıyor ([`AgentRunJobHandler.cs:92`](../../src/AgentPrism.Core/Scheduling/AgentRunJobHandler.cs)), onay satırı ise çağrı döndükten sonra yazılıyordu (satır 150) — arada `GET /api/approvals/pending` boş dizi veriyordu. Kırılgan olan tek şey tüketicinin o pencereye bakıp bakmadığıydı. Deterministik düşen test yazıldı (`ApprovalEndpointTests.Approval_row_exists_before_the_run_reports_AwaitingApproval`, casus bir `IPendingApprovalStore` ile) ve düzeltmeden önce kırmızıydı. Çözüm K-541: sıra **oturum → onay satırı → durum**, `AgentPrismRunOptions.BeforePendingApprovalIsPublished` kancasıyla zorlanır. Özgün kayıt: `Second_decision_on_the_same_approval_gets_409`, `ApprovalEndpointTests.cs:159`, `ShouldHaveSingleItem` → 0 öğe. |
+| ~~**F-133**~~ | ✅ **KAPANDI (2026-08-21)** — düzeltildi, K-540/K-541 | Faz 77 kapanış koşumu (2026-08-20) | **Kaydın teşhisi 2026-08-21'de ölçümle DÜZELTİLDİ.** Kayıt "izolasyonda HER ZAMAN düşüyor, tam sette bazen geçiyor" diyordu ve zamanlama yarışı sanıyordu. Gerçek: pencere bir yarış DEĞİL, **sabit bir sıraydı** ve onay isteyen HER kuyruk çalıştırmasında açıktı. `RunRecordingAgent` çalıştırmayı `agent.RunAsync`'in İÇİNDE `AwaitingApproval` ile kapatıyor ([`AgentRunJobHandler.cs:92`](../../src/Tracon.Core/Scheduling/AgentRunJobHandler.cs)), onay satırı ise çağrı döndükten sonra yazılıyordu (satır 150) — arada `GET /api/approvals/pending` boş dizi veriyordu. Kırılgan olan tek şey tüketicinin o pencereye bakıp bakmadığıydı. Deterministik düşen test yazıldı (`ApprovalEndpointTests.Approval_row_exists_before_the_run_reports_AwaitingApproval`, casus bir `IPendingApprovalStore` ile) ve düzeltmeden önce kırmızıydı. Çözüm K-541: sıra **oturum → onay satırı → durum**, `TraconRunOptions.BeforePendingApprovalIsPublished` kancasıyla zorlanır. Özgün kayıt: `Second_decision_on_the_same_approval_gets_409`, `ApprovalEndpointTests.cs:159`, `ShouldHaveSingleItem` → 0 öğe. |
 
 ---
 
@@ -482,7 +482,7 @@ kullanmadan önce yeniden ölç.
 |---|---|
 | **F-37** `Idempotency-Key` desteği | [Faz 43](fazlar/43-IDEMPOTENCY-KEY.md) |
 | **F-42** Yapılandırılmış çıktı (JSON şeması) | [Faz 38](fazlar/38-YAPILANDIRILMIS-CIKTI.md) |
-| **F-46** `AgentPrism.Testing` paketi | [Faz 39](fazlar/39-TEST-PAKETI.md) |
+| **F-46** `Tracon.Testing` paketi | [Faz 39](fazlar/39-TEST-PAKETI.md) |
 | **F-53** Üretimden eval kümesi toplama | [Faz 45](fazlar/45-URETIMDEN-EVAL-KUMESI.md) |
 | **F-55** Hata sınıflandırma ve arıza kümeleme | [Faz 44](fazlar/44-HATA-SINIFLANDIRMA.md) |
 | **F-57** Tek yürütücü seçimi | [Faz 42](fazlar/42-TEK-YURUTUCU-SECIMI.md) |
@@ -494,7 +494,7 @@ kullanmadan önce yeniden ölç.
 | Kalem | Faz |
 |---|---|
 | **F-30** Vektör bellek ve RAG | [Faz 51](fazlar/51-VEKTOR-BELLEK-VE-RAG.md) |
-| **F-31** AgentPrism'in MCP sunucusu olması | [Faz 50](fazlar/50-DISA-ACILAN-AGENT-YUZEYI.md) |
+| **F-31** Tracon'in MCP sunucusu olması | [Faz 50](fazlar/50-DISA-ACILAN-AGENT-YUZEYI.md) |
 | **F-32** Guardrails | [Faz 48](fazlar/48-GUARDRAILS.md) |
 | **F-33** A2A protokolü | [Faz 50](fazlar/50-DISA-ACILAN-AGENT-YUZEYI.md) |
 | **F-47** Kaynak üreteci | [Faz 52](fazlar/52-KAYNAK-URETECI.md) |
@@ -545,7 +545,7 @@ olarak buraya yazılmalıdır; ID'ler **F-77'den** devam eder.
 | Akışlı yanıtta idempotency | [Faz 43](fazlar/43-IDEMPOTENCY-KEY.md) | Doğru evi F-68'in `202 Accepted` + `Location` sözleşmesidir |
 | TypeScript istemci paketi ve npm yayını | [Faz 40](fazlar/40-OPENAPI-YAYINI.md) | İkinci bir dağıtım kanalı; ayrı yayın hattı, kimlik bilgisi ve sürümleme ister |
 | Çok turlu eval vakası terfisi | [Faz 45](fazlar/45-URETIMDEN-EVAL-KUMESI.md) | `EvalCase` sözleşmesini değiştirir; Faz 7'den **önce** karara bağlanması ucuzdur |
-| `AgentPrismMcpOptions`'ı `IConfiguration`'a bağlamak | [Faz 42](fazlar/42-TEK-YURUTUCU-SECIMI.md) | Ölçüldü: `.UseMcp()` yalnız kod-taraflı `configure` delegesi kabul eder, `IConfiguration.Bind` hiç çağrılmaz — `AgentPrism:Mcp:RefreshInterval` gibi bir ortam değişkeni **sessizce hiçbir şey yapmaz**. Faz 42'den önce de böyleydi; ilk kez orada gerçek bir dağıtım denemesinde ortaya çıktı |
+| `TraconMcpOptions`'ı `IConfiguration`'a bağlamak | [Faz 42](fazlar/42-TEK-YURUTUCU-SECIMI.md) | Ölçüldü: `.UseMcp()` yalnız kod-taraflı `configure` delegesi kabul eder, `IConfiguration.Bind` hiç çağrılmaz — `Tracon:Mcp:RefreshInterval` gibi bir ortam değişkeni **sessizce hiçbir şey yapmaz**. Faz 42'den önce de böyleydi; ilk kez orada gerçek bir dağıtım denemesinde ortaya çıktı |
 | 🚨 `BackgroundService` başlatma sırası migration'la yarışır | [Faz 42](fazlar/42-TEK-YURUTUCU-SECIMI.md) | Ölçüldü: `MigrationHostedService.StartAsync` migration'ları TAM bekler ama `BackgroundService.StartAsync` (taban sınıf) `ExecuteAsync`'i beklemeden döner; kayıt sırası `.UseMcp()` `.UseSqlite()`'tan önceyse `McpDiscoveryService`'in ilk SQL denemesi migration bitmeden çalışabilir ("no such table"). Kendiliğinden iyileşir (bir sonraki turda) ama gözlemlenebilir bir uyarı üretir. Kalıcı çözüm hosted service sırasını garanti etmek veya ilk turu geciktirmek — ikisi de kendi kararını ister |
 
 ### Dalga 3 — ✅ planlandı (2026-08-06), bu listeden çıktı
@@ -575,7 +575,7 @@ ID'ler **F-77'den** devam eder.
 
 | Kapsam dışı iş | Hangi fazdan | Neden ayrı bir kalem |
 |---|---|---|
-| Tur bazlı kontrol noktası (F-68 Okuma B) | [Faz 46](fazlar/46-DAYANIKLI-CALISTIRMA.md) | 🚨 MAF agent düzeyinde kanca **vermiyor** — ölçüldü. Kancayı AgentPrism yazmak K3'ü zorlar |
+| Tur bazlı kontrol noktası (F-68 Okuma B) | [Faz 46](fazlar/46-DAYANIKLI-CALISTIRMA.md) | 🚨 MAF agent düzeyinde kanca **vermiyor** — ölçüldü. Kancayı Tracon yazmak K3'ü zorlar |
 | Azure AI Content Safety adaptörü | [Faz 48](fazlar/48-GUARDRAILS.md) | Ağırlık **4 paket** (ölçüldü) — sorun değil. Erteleme gerekçesi doğrulanamazlıktır (K-212 emsali) |
 | `IVectorSearchStore`'un SQL Server / SQLite uygulaması | [Faz 51](fazlar/51-VEKTOR-BELLEK-VE-RAG.md) | SQL Server'ın yerel `VECTOR` tipi ve SQLite'ın `sqlite-vec` uzantısı **ölçülmedi** |
 
@@ -603,9 +603,9 @@ içinde tip mevcut. Sürüm yükseltmesi gerekmiyor.
 
 | Ölçüm | Sonuç |
 |---|---|
-| `DistributedCachingChatClient(IChatClient, IDistributedCache)` | 🚨 `IDistributedCache` bugün AgentPrism'de **hiç kullanılmıyor** (`grep -rn "IDistributedCache" src` → boş). Tüketici bir cache uygulaması seçmek zorunda kalır ve bellek içi olan çok örnekli kurulumda **sessizce işe yaramaz** — bu bir K1 (sıfır sürpriz) kararıdır |
+| `DistributedCachingChatClient(IChatClient, IDistributedCache)` | 🚨 `IDistributedCache` bugün Tracon'de **hiç kullanılmıyor** (`grep -rn "IDistributedCache" src` → boş). Tüketici bir cache uygulaması seçmek zorunda kalır ve bellek içi olan çok örnekli kurulumda **sessizce işe yaramaz** — bu bir K1 (sıfır sürpriz) kararıdır |
 | `CacheKeyAdditionalValues { get; set; }` — `IReadOnlyList<Object>` | Kiracı anahtara **yapısal** olarak karışır; elle string birleştirme gerekmez, **K-525 sağlanır** |
-| `GetCacheKey(...)` ve `EnableCaching(...)` `protected virtual` | AgentPrism kiracı anahtarlamasını yapılandırmaya güvenmek yerine **zorlayabilir** |
+| `GetCacheKey(...)` ve `EnableCaching(...)` `protected virtual` | Tracon kiracı anahtarlamasını yapılandırmaya güvenmek yerine **zorlayabilir** |
 
 **Maliyet:** Düşük — yeni MEAI paketi yok; `IDistributedCache` kaydı tüketicinin kararı.
 **Risk:** Varsayılan **kapalı**. Agent'ın aynı soruya farklı yanıt vermesi
@@ -615,7 +615,7 @@ anahtarında olmalıdır.
 konursa isabet eden bir çağrı `chat` span'i ve token kaydı **üretmez** (harcama
 yok, doğru olabilir); içine konursa sıfır token'lı bir span yazar. Karar
 Faz 68'in maliyet kırılımını etkiler ve plan anında verilmelidir
-([`ModelProviderRegistry.cs:300-360`](../../src/AgentPrism.Core/Models/ModelProviderRegistry.cs)).
+([`ModelProviderRegistry.cs:300-360`](../../src/Tracon.Core/Models/ModelProviderRegistry.cs)).
 **Bağımlılık:** Yok.
 **Ekosistem:** LiteLLM ve Portkey'de standart (önceki turların damgası; 2026-08-21'de
 **yeniden doğrulanmadı**). Anthropic'in prompt caching'i ayrı bir kavramdır ve Faz 26'da zaten var.
@@ -631,13 +631,13 @@ kiracı başına anahtarlama kiracı başına istemci örneği demektir; bu, bug
 çalışıyor. `FunctionInvokingChatClient.AllowConcurrentInvocation` MEAI'de
 zaten var (**Ölçüldü**, aynı reflection: `strings` çıktısında
 `AllowConcurrentInvocation`/`allowConcurrentInvocation` alanı görünüyor) ama
-AgentPrism hiçbir yerde açmıyor (`grep -rn AllowConcurrentInvocation src`
-yalnız bir **yorum** buluyor: [`ToolUsageAccumulator.cs:18`](../../src/AgentPrism.Core/Recording/ToolUsageAccumulator.cs#L18)
+Tracon hiçbir yerde açmıyor (`grep -rn AllowConcurrentInvocation src`
+yalnız bir **yorum** buluyor: [`ToolUsageAccumulator.cs:18`](../../src/Tracon.Core/Recording/ToolUsageAccumulator.cs#L18)
 — sınıf zaten eşzamanlı çağrıyı bekleyerek `ConcurrentDictionary` kullanıyor,
 ama tetikleyen ayar hiçbir yerde `true` değil).
 **Kapsam:** `ChatClientBuilder` boru hattına bir agent/model tanımı bayrağı ekler.
 **Ölçüldü (2026-08-21):** ekleme noktası doğrulandı —
-[`ModelProviderRegistry.cs:317-321`](../../src/AgentPrism.Core/Models/ModelProviderRegistry.cs)
+[`ModelProviderRegistry.cs:317-321`](../../src/Tracon.Core/Models/ModelProviderRegistry.cs)
 `.AsBuilder().UseFunctionInvocation(_loggerFactory).UseOpenTelemetry(...)`; K-320'nin
 merkezi kurulum noktası ayakta.
 **Değer:** Bağımsız tool'ları paralel çağıran bir turda gecikme düşer —
@@ -656,11 +656,11 @@ tanımında açıkça seçilmeli.
 **Ekosistem:** MAF 2026-08-18'de bunu ürün özelliği olarak öne çıkardı —
 kendi ekosistemimizin en taze sinyali.
 
-🚨 **Asıl risk ölçüldü (2026-08-21): eşzamanlılık AgentPrism'in AMBIENT tool
+🚨 **Asıl risk ölçüldü (2026-08-21): eşzamanlılık Tracon'in AMBIENT tool
 bağlamına çarpar.** Tool katmanı iki yerde `FunctionInvokingChatClient.CurrentContext`
-okuyor — [`AuthorizingAIFunction.cs:107`](../../src/AgentPrism.Core/Tools/AuthorizingAIFunction.cs#L107)
+okuyor — [`AuthorizingAIFunction.cs:107`](../../src/Tracon.Core/Tools/AuthorizingAIFunction.cs#L107)
 (çağrı kimliğiyle yetkilendirme) ve
-[`AgentPrismToolUsage.cs:56`](../../src/AgentPrism.Core/Tools/AgentPrismToolUsage.cs#L56).
+[`TraconToolUsage.cs:56`](../../src/Tracon.Core/Tools/TraconToolUsage.cs#L56).
 Bayrak açılınca tool gövdeleri eşzamanlı koşar; bu ambient'ın çağrı başına doğru
 çözülüp çözülmediği **ölçülmemiştir**. Bu depo aynı sınıf tuzağı **beş kez**
 yaşadı (`MEMORY.md`, `docs/hafiza/cekirdek-calistirma.md`). Plan bunu ilk iş
@@ -684,7 +684,7 @@ dokümanındadır.
 
 **Sorun:** `conversation_items` tam sohbet geçmişini açık saklıyor. Ekler
 `attachments.content` sütununda `bytea` olarak açık duruyor
-([`0006_attachments.sql:22`](../../src/AgentPrism.PostgreSql/Migrations/0006_attachments.sql)).
+([`0006_attachments.sql:22`](../../src/Tracon.PostgreSql/Migrations/0006_attachments.sql)).
 
 🚨 **Yüzey ölçüldü (2026-08-20 güvenlik taraması, B06-2): iki sütun değil, dokuz.**
 `sessions.state` · `conversation_items.item` · `responses.payload` ·
@@ -719,12 +719,12 @@ sütuna dokunur; ayrı planlanırsa ikincisi birincisini bozar — Faz 64'ün
 
 | Okuma yolu | Kanıt | Şifreleme / redaksiyon etkisi |
 |---|---|---|
-| Yeniden oynatma | [`RunReplayService.cs:30`](../../src/AgentPrism.Core/Replay/RunReplayService.cs) `IRunInputStore _inputs` | Replay **ham** girdiyi ister; redakte edilirse yeniden oynatma sadık değildir |
-| Eval terfisi | [`RunToCasePromoter.cs:175`](../../src/AgentPrism.Core/Evaluation/RunToCasePromoter.cs) `_runs.ReadEventsAsync`, `:97` `ListToolInvocationsAsync` | Vaka `run_events` ve `tool_invocations` **ham metninden** üretilir |
-| Dosya araması | [`SqlAgentFileStore.cs:212`](../../src/AgentPrism.Sql.Shared/Stores/SqlAgentFileStore.cs) `CollectMatches(Regex regex, string content)` | Regex **düz metin** üzerinde koşar; şifreleme dosya aramasını tamamen bitirir |
+| Yeniden oynatma | [`RunReplayService.cs:30`](../../src/Tracon.Core/Replay/RunReplayService.cs) `IRunInputStore _inputs` | Replay **ham** girdiyi ister; redakte edilirse yeniden oynatma sadık değildir |
+| Eval terfisi | [`RunToCasePromoter.cs:175`](../../src/Tracon.Core/Evaluation/RunToCasePromoter.cs) `_runs.ReadEventsAsync`, `:97` `ListToolInvocationsAsync` | Vaka `run_events` ve `tool_invocations` **ham metninden** üretilir |
+| Dosya araması | [`SqlAgentFileStore.cs:212`](../../src/Tracon.Sql.Shared/Stores/SqlAgentFileStore.cs) `CollectMatches(Regex regex, string content)` | Regex **düz metin** üzerinde koşar; şifreleme dosya aramasını tamamen bitirir |
 
 Ayrıca F-87'nin öncülü koddan doğrulandı:
-[`AgentPrismServiceCollectionExtensions.cs:870`](../../src/AgentPrism.Core/AgentPrismServiceCollectionExtensions.cs#L870)
+[`TraconServiceCollectionExtensions.cs:870`](../../src/Tracon.Core/TraconServiceCollectionExtensions.cs#L870)
 açıkça yazıyor — *"RunStarted event and IRunInputStore never passes through the guards."*
 
 **Karşı görüş:** `IContentProtector` varsayılansız gelirse (K4) bugün **hiçbir
@@ -763,7 +763,7 @@ aynı sözleşmeyi (`ModelBinding`) ve aynı boru hattını paylaşır; F-75 ile
 🚨 **Faz 64 iki tasarım kararını plan anında verdi:** denetim izi
 **dokunulmazdır** (silme yalnız içerik verisinde uygulanır) ve veri konusu
 kimliği bir **genişleme noktasıyla** (`IDataSubjectResolver`) çözülür —
-AgentPrism kişisel kimlik **saklamaz**.
+Tracon kişisel kimlik **saklamaz**.
 
 🚨 **F-63'ün kapsamı daraldı.** Kalem "TypeScript istemci paketi **ve** OpenAPI
 yayını" idi; [Faz 40](../arsiv/fazlar/40-OPENAPI-YAYINI.md) yalnız **belgeyi** kapsar.
@@ -821,7 +821,7 @@ kod agent'ına verdiğimiz korpus gerçekten okunabilir mi.
 
 Ölçüm ikisini birden buldu. Sevk edilen dokümantasyon **kendi kendine
 yetmiyor**: 15 paketin XML dosyalarında **1 033 satır**, paketlenen
-`agentprism.json`'da **39 yer** ve 18 paket README'sinin **9'unda** tüketicide
+`tracon.json`'da **39 yer** ve 18 paket README'sinin **9'unda** tüketicide
 var olmayan adreslere gönderme var (`phase 64`, `K-032`, `docs/NN-*.md`). K-408
 bu sınıfın bir katman yüzeyini kapatmıştı ("imza İngilizce, açıklama Türkçe");
 bu, aynı kusurun bir katman derinidir — dil doğru, **hedef kitle** yanlış.
@@ -850,15 +850,15 @@ F-135 bir keşif turundan değil, **gerçek bir tüketici kurulumundan** doğdu
 zaten bir `AGENTS.md` vardı, paket onu doğru şekilde ezmedi, ve haritayı
 gösteren başka hiçbir yol yoktu.
 
-Ölçüm teşhisi keskinleştirdi. Oradaki kod agent'ı `AgentPrism.LocalReference.md`'yi
+Ölçüm teşhisi keskinleştirdi. Oradaki kod agent'ı `Tracon.LocalReference.md`'yi
 **kendiliğinden** bulmuş ve `AGENTS.md:105`'te doğru biçimde belgelemiş — hatta
-`AgentPrism.AgentMap.md` adını biliyor. Yani eksik olan bilgi değil, **yoldur**:
+`Tracon.AgentMap.md` adını biliyor. Yani eksik olan bilgi değil, **yoldur**:
 `LocalReference.md` XML doc yollarını yazıyor ama haritanın yolunu yazmıyor
-([targets:149](../../src/AgentPrism.Core/buildTransitive/AgentPrism.Core.targets#L149)).
+([targets:149](../../src/Tracon.Core/buildTransitive/Tracon.Core.targets#L149)).
 
-Aynı ölçüm bir tanı tasarımını da düşürdü: "`AGENTS.md` AgentPrism'den söz
+Aynı ölçüm bir tanı tasarımını da düşürdü: "`AGENTS.md` Tracon'den söz
 ediyor mu" kontrolü o dosyada sessiz kalırdı (20'den fazla kez söz ediyor).
-`APG0402`'nin tetiği bu yüzden yönlendirme **hedefine** bağlandı, konuya değil.
+`TRC0402`'nin tetiği bu yüzden yönlendirme **hedefine** bağlandı, konuya değil.
 
 Kapsam ikinci bir soruyla büyüdü: *harita ulaşılır olunca yeterli mi?* Ölçüm
 hayır dedi. Tüketicinin agent'ının kendi kaydettiği tuzağın
@@ -872,7 +872,7 @@ girişi de yok: `llms.txt` bir bağ listesi değil (`^- [` deseni **0** eşleşi
 — dağıtım ters. İkisi de Faz 78'e katlandı (§78.4).
 
 Ters yönde bir ölçüm de kayda geçti: sevk edilen XML doc'lar **51**
-`AgentPrism:` yapılandırma anahtarı taşıyor, sitenin `configuration.md`'si
+`Tracon:` yapılandırma anahtarı taşıyor, sitenin `configuration.md`'si
 **39**. Boşluk referansta değil, anlatıdadır.
 
 Faz 73 bu bedeli önceden yazmıştı — "opt-in kararının bedeli benimseme
@@ -886,8 +886,8 @@ oranıdır". F-135 o cümlenin ilk ölçülen faturasıdır.
 
 | ID | Kalem | Kaynak | Gerekçe |
 |---|---|---|---|
-| ~~**F-87**~~ | 🚫 **KAPATILDI (2026-08-21, 👤 kullanıcı kararı).** Öncülü ölçüldü ve **yanlış çıktı**: kayıt artık guard'dan geçiyor — [`RunRecordingAgent.cs:661`](../../src/AgentPrism.Core/Recording/RunRecordingAgent.cs#L661) `RunStarted` olayını ve `IRunInputStore` yazımını `ContentGuardMessageMasker.PreviewAsync` ile maskeliyor. Kayıt, `AgentPrismServiceCollectionExtensions.cs:869`'daki yorumu ters okumuştu ("bu satır **olmasaydı**" diyor ve satır **var**). Geriye dönük temizlik ihtiyacını da [Faz 64](fazlar/64-DENETIM-ZINCIRI-VE-VERI-KONUSU-HAKLARI.md) konu bazlı **silme** ile karşılıyor (`DELETE /api/data-subjects/{id}`). Geriye kalan tek dar iş — satırı tutup parçayı temizleyen **redaksiyon** — ölçülmüş bir tüketici talebine bağlı değildir; bir talep gelirse yeniden açılır |
-| ~~**F-100**~~ | ✅ **KAPANDI (2026-08-18)** — bütçe eşiği uyarısı | 2026-08-08 denetimi | 🚨 **İddia ölçüldü ve yanlış çıktı.** Mekanizma koddadır: `AgentPrismQuotaOptions.ThresholdPercents` (varsayılan `[80, 100]`), `QuotaEnforcer.PublishThresholdEventsAsync` ve `WebhookEvents.QuotaThreshold = "quota.threshold"`. Eşik aşımı **zaten** giden webhook tetikliyor |
+| ~~**F-87**~~ | 🚫 **KAPATILDI (2026-08-21, 👤 kullanıcı kararı).** Öncülü ölçüldü ve **yanlış çıktı**: kayıt artık guard'dan geçiyor — [`RunRecordingAgent.cs:661`](../../src/Tracon.Core/Recording/RunRecordingAgent.cs#L661) `RunStarted` olayını ve `IRunInputStore` yazımını `ContentGuardMessageMasker.PreviewAsync` ile maskeliyor. Kayıt, `TraconServiceCollectionExtensions.cs:869`'daki yorumu ters okumuştu ("bu satır **olmasaydı**" diyor ve satır **var**). Geriye dönük temizlik ihtiyacını da [Faz 64](fazlar/64-DENETIM-ZINCIRI-VE-VERI-KONUSU-HAKLARI.md) konu bazlı **silme** ile karşılıyor (`DELETE /api/data-subjects/{id}`). Geriye kalan tek dar iş — satırı tutup parçayı temizleyen **redaksiyon** — ölçülmüş bir tüketici talebine bağlı değildir; bir talep gelirse yeniden açılır |
+| ~~**F-100**~~ | ✅ **KAPANDI (2026-08-18)** — bütçe eşiği uyarısı | 2026-08-08 denetimi | 🚨 **İddia ölçüldü ve yanlış çıktı.** Mekanizma koddadır: `TraconQuotaOptions.ThresholdPercents` (varsayılan `[80, 100]`), `QuotaEnforcer.PublishThresholdEventsAsync` ve `WebhookEvents.QuotaThreshold = "quota.threshold"`. Eşik aşımı **zaten** giden webhook tetikliyor |
 | ~~**F-121**~~ | ✅ **KAPANDI (2026-08-20)** — kapsamı ölçümle değişti → [Faz 74](fazlar/74-YEREL-REFERANS-YUZEYI.md) tamamlandı | 2026-08-18 tüketici agent turu · [Faz 73](fazlar/73-TUKETICI-AGENT-DESTEGI.md) | Gerekçe: [`arsiv/PLANA-DONUSEN-ADAYLAR.md`](../arsiv/PLANA-DONUSEN-ADAYLAR.md) — F-121. |
 | ~~**F-124**~~ | 📋 **PLANA DÖNÜŞTÜ (2026-08-20)** → [Faz 75](fazlar/75-TUKETICI-DOKUMAN-DOGRULUGU.md) §75.4 | [Faz 73](fazlar/73-TUKETICI-AGENT-DESTEGI.md) denetimi (2026-08-19) | 🚨 **Kaydın teşhisi ölçümle düzeltildi (2026-08-20).** Kesme iddiası doğruydu — sevk edilen haritada üç kelime ortası kesme var. Kural iddiası **yanlıştı**: "Storage and testability" bölümünün tablodan ÖNCE düz metni yok, yani üreteç tablodan sonrakini zaten alıyor; gerçek kusur alınan cümlenin bir kural değil bir yön tarifi olmasıdır. Ölçüm **üçüncü bir kusur** buldu: 11 bölümün **ikisi hiç kural üretmiyor** ("Runs, sessions, and media" ve "Observability and operations" — `capabilities.md`'de düz metinleri yok). Üçü de Faz 75'e girdi |
 | ~~**F-125**~~ | 📋 **PLANA DÖNÜŞTÜ (2026-08-21)** → [Faz 79](fazlar/79-SEVK-EDILEN-YUZEY-KAPILARI.md) | [Faz 74](fazlar/74-YEREL-REFERANS-YUZEYI.md) denetimi (2026-08-20) | Gövde faza taşındı. Planlama sırasında kanıt yeniden ölçüldü ve kayda göre üç düzeltme yapıldı; ayrıntı faz dokümanının "Bugün ne çalışmıyor" bölümündedir. |
@@ -907,14 +907,14 @@ oranıdır". F-135 o cümlenin ilk ölçülen faturasıdır.
 
 | Kalem | Kanıt |
 |---|---|
-| **F-43** Sağlayıcıya özgü ayar torbası | `ModelBinding.ProviderSettings` sözleşmede yaşıyor: [`ModelBinding.cs:70`](../../src/AgentPrism.Abstractions/Agents/ModelBinding.cs). Karar K-208. Bilinmeyen anahtar derleme hatasıdır — istenen davranış birebir uygulanmış. Eski liste bunu "Faz 26 isteyecek" diye yazmıştı; Faz 26 bitti ve isteği karşıladı |
+| **F-43** Sağlayıcıya özgü ayar torbası | `ModelBinding.ProviderSettings` sözleşmede yaşıyor: [`ModelBinding.cs:70`](../../src/Tracon.Abstractions/Agents/ModelBinding.cs). Karar K-208. Bilinmeyen anahtar derleme hatasıdır — istenen davranış birebir uygulanmış. Eski liste bunu "Faz 26 isteyecek" diye yazmıştı; Faz 26 bitti ve isteği karşıladı |
 
 ### Kanıtı yanlışlanan — kalem ayakta, gerekçe değişti
 
 | Kalem | Eski iddia | 2026-08-06 ölçümü |
 |---|---|---|
-| **F-35** Çalıştırma iptali | "`RunStatus.Canceled` tanımlı ama hiçbir kod yazmıyor" | **Yanlış.** Üç yer yazıyor: [`RunRecordingAgent.cs:186`](../../src/AgentPrism.Core/Recording/RunRecordingAgent.cs), aynı dosya `:251` ve [`WorkflowRunner.cs:463`](../../src/AgentPrism.Workflows/Internal/WorkflowRunner.cs). Gerçek delik başkadır ve aşağıda yazılıdır |
-| **F-57** Çok örnekli koordinasyon | "Faz 17 bu olmadan yapılırsa her cron N kez tetiklenir" | **Yanlış.** [`0008_scheduling.sql:46`](../../src/AgentPrism.PostgreSql/Migrations/0008_scheduling.sql) `jobs_schedule_scheduled_uq UNIQUE (schedule_id, scheduled_for)` kısıtını taşıyor (K-138). Cron çift tetiklemesi zaten kapalı. Kalemin aciliyeti düştü, kapsamı daraldı |
+| **F-35** Çalıştırma iptali | "`RunStatus.Canceled` tanımlı ama hiçbir kod yazmıyor" | **Yanlış.** Üç yer yazıyor: [`RunRecordingAgent.cs:186`](../../src/Tracon.Core/Recording/RunRecordingAgent.cs), aynı dosya `:251` ve [`WorkflowRunner.cs:463`](../../src/Tracon.Workflows/Internal/WorkflowRunner.cs). Gerçek delik başkadır ve aşağıda yazılıdır |
+| **F-57** Çok örnekli koordinasyon | "Faz 17 bu olmadan yapılırsa her cron N kez tetiklenir" | **Yanlış.** [`0008_scheduling.sql:46`](../../src/Tracon.PostgreSql/Migrations/0008_scheduling.sql) `jobs_schedule_scheduled_uq UNIQUE (schedule_id, scheduled_for)` kısıtını taşıyor (K-138). Cron çift tetiklemesi zaten kapalı. Kalemin aciliyeti düştü, kapsamı daraldı |
 
 ### Yükseltilenler
 
@@ -947,7 +947,7 @@ kapandığı için "X'te standart, .NET'te yok" damarı tükendi. Kalan sekiz ka
 ölçülerek **dört kümeye** toplandı. Küme mantığı Faz 64 emsalidir: aynı veriye
 dokunan iki kalem ayrı planlanırsa ikincisi birincisini bozar.
 
-Kullanıcı sırası: **A → B → C → E**. 🚨 **Küme A ikiye bölündü (2026-08-21):** `faz-planlama` "üç kalem bir faz değil, bir turdur" der ve bir faz ancak AYNI altyapıyı paylaşan iki kalemi birleştirir. F-125 ve F-136 ikisi de `AgentPrism.Generators.UnitTests` içinde bir C# kapısıdır (ölçüldü: `AnalyzerTestHelper` ve `DiagnosticIntegrityTests` orada) → **Faz 79**. F-129 ise `scripts/dokuman-bakim.py` içinde bir Python kapısıdır ve ayrı kalır. Faz 7 **ertelenmeye devam** eder (K-068).
+Kullanıcı sırası: **A → B → C → E**. 🚨 **Küme A ikiye bölündü (2026-08-21):** `faz-planlama` "üç kalem bir faz değil, bir turdur" der ve bir faz ancak AYNI altyapıyı paylaşan iki kalemi birleştirir. F-125 ve F-136 ikisi de `Tracon.Generators.UnitTests` içinde bir C# kapısıdır (ölçüldü: `AnalyzerTestHelper` ve `DiagnosticIntegrityTests` orada) → **Faz 79**. F-129 ise `scripts/dokuman-bakim.py` içinde bir Python kapısıdır ve ayrı kalır. Faz 7 **ertelenmeye devam** eder (K-068).
 Tam koşum kaydı: [`kesif/2026-08-21-faz-adaylari-tespiti.md`](kesif/2026-08-21-faz-adaylari-tespiti.md).
 
 | Sıra | Küme | Kalemler | Ortak yanı | Bu turda ölçülen |
@@ -973,11 +973,11 @@ kendi oturumudur.
 
 | ID | Kalem | Kaynak | Ölçüm |
 |---|---|---|---|
-| **F-122** | `Runs_button_on_session_page_navigates_to_filtered_list` (`AgentPrism.Ui.E2ETests`) kırılgan | Faz 65 kapanış koşumu (2026-08-19) | 🚨 **Ölçüldü:** izolasyonda 3/3 geçti; tam `AgentPrism.Ui.E2ETests` seti (55 test) koşarken 3 denemeden 2'sinde `tbody tr` satır sayısı, düğme etiketindeki beklenen sayıyla eşleşmeden okundu (`UiTests.cs:720`) — koşu tarayıcı/`Docker` kaynak çekişmesi altında bir zamanlama yarışı. Faz 65'in dokunduğu hiçbir dosyayla (BYOK/egress) ilgisi yok. F-102 emsali: bir kusur değil, kırılgan bir test — ama sessiz bırakılmadı. Ya `runsButton`'ın metnini bekledikten SONRA tablo satır sayısının da stabilize olmasını bekleyen bir `WaitForAsync` eklenir, ya da `expectedCount` okuması tablo render'ından SONRAya taşınır |
-| **F-130** | `Eval_suite_is_created_case_added_and_run_passes` (`AgentPrism.Ui.E2ETests`) kırılgan | Faz 77 doküman bütçesi koşumu (2026-08-20) | 🚨 **Ölçüldü, F-122'nin aynısı.** Tam `Ui.E2ETests` setinde (56 test) `TimeoutException: Timeout 30000ms exceeded` — `GetByPlaceholder("What is your return policy?")` üzerinde `fill` sırasında *"element was detached from the DOM, retrying"* (`UiTests.cs:1113`). Üç adımlı ayırt etme protokolü (`docs/hafiza/test-altyapisi.md`) tam uygulandı: izolasyonda **1/1** geçti, **ikinci tam koşumda 56/56** geçti. Kök sebep tarayıcı/`Docker` kaynak çekişmesi altında React yeniden render'ının `textarea`'yı `fill` ortasında DOM'dan koparması — ürün kusuru değil. Faz 77 yalnız dokümana, bir Python script'ine ve `.cs` **yorumlarına** dokundu; arayüzle ilgisi yok. Çözüm F-122 ile aynı sınıftadır: `fill` öncesi elemanın stabilize olmasını bekleyen bir `WaitForAsync`, ya da locator'ı `fill` anında yeniden çözmek |
-| **F-137** | `Shell_opens_and_asks_for_token_when_required` (`AgentPrism.Ui.E2ETests`) **çalışma kopyasına göre** düşüyor | [Faz 78](fazlar/78-YETENEK-HARITASI-ERISIMI.md) kapanış koşumu (2026-08-21) | 🚨 **Ölçüldü ve Faz 78'in DEĞİŞİKLİĞİ DEĞİL** — `git stash` ile temiz `HEAD`'de, aynı çalışma kopyasında **yine düşüyor**. Belirti: token girildikten sonra `GetByRole(Heading, "Dashboard")` 15 sn içinde görünmüyor (`UiTests.cs:599`). Ölçüm matrisi: **(a)** `AgentPrism.Ui.E2ETests` tek başına, `/Users/.../Desktop/projects/AgentPrism` → **5/5 düştü**; **(b)** tek test izole, aynı kopya → **1/1 geçti**; **(c)** `/private/tmp` altındaki `git worktree`, aynı `HEAD`, tam set → **2/2 geçti**; **(d)** `dotnet test AgentPrism.slnx` içinde → 1 düştü, 1 geçti. Yani **deterministik değil ama tek başına koşan sette yola bağlı olarak neredeyse her zaman düşüyor**. F-122/F-130'dan farklı sınıf: onlar kaynak çekişmesi altında araya giren kırılganlıktı, bu **yol/ortam** bağımlı. Kök sebep aranmalı: aynı kaynak ağacının iki kopyasının farklı davranması kalıcı tarayıcı profiline, `localStorage`'a veya yol izinlerine/uzunluğuna işaret eder. **Kusurdur, yeni yetenek değil** — `kusur-giderme` protokolü uygulanmalıdır |
-| **F-138** | `Respond_does_not_rerun_the_entry_node_when_it_is_an_agent` (`AgentPrism.Workflows.UnitTests`) kırılgan | Kanal 2 kusur koşumu (2026-08-21) | 🚨 **Ölçüldü:** dört tam koşumun yalnız birinde düştü; **izolasyonda 5/5 geçti**. Belirti: `resumed.Single(runEvent => runEvent.Type == RunEventType.WorkflowOutput)` eşleşme bulamıyor (`WorkflowAgentEntryRespondTests.cs:55`) — yani `RespondStreamingAsync` devam eden akışta çıktı olayını üretmemiş. F-122/F-130 sınıfı (kaynak çekişmesi) OLABİLİR ama kanıtlanmadı: o ikisi tarayıcı/`Docker` çekişmesiydi, bu saf bir birim testidir ve dış kaynağa dokunmaz. **Bu yüzden gerçek bir çıktı-olayı kaybı ihtimali elenemedi**; ilk adım yük altında tekrar üretmektir. 🚨 **İKİNCİ VAKA ölçüldü (2026-08-21, K-545 koşumu):** `WorkflowHumanInTheLoopTests.Once_a_response_is_given_the_run_completes` (`WorkflowHumanInTheLoopTests.cs:88`) **birebir aynı** iddiada düştü — `resumed.Single(e => e.Type == RunEventType.WorkflowOutput)` eşleşme bulamadı. Aynı ölçüm profili: tam çözüm koşumunda düştü, izolasyonda **5/5**, kendi projesinin tam koşumunda **3/3** geçti. İki farklı test, tek belirti → "kaynak çekişmesi" açıklaması **zayıfladı**; `RespondStreamingAsync`'in devam eden akışında `WorkflowOutput` olayının kaybolması artık iki bağımsız kanıt taşıyor ve kalem bir **ürün kusuru** gibi ele alınmalıdır |
-| **F-139** | `Version_diff_compares_two_versions` (`AgentPrism.Ui.E2ETests`) kırılgan | K-545 koşumu (2026-08-21) | **Ölçüldü, F-122/F-130'un aynısı.** Tam çözüm koşumunda `33 sn` sonra düştü; **izolasyonda 1/1 geçti**. Aynı sınıf: tarayıcı + `Docker` kaynak çekişmesi altında bir zamanlama yarışı, ürün kusuru değil. Kalem sessiz bırakılmadı ama tek başına faz değildir — üç E2E kırılganı (F-122, F-130, F-139) ve F-137 **birlikte** ele alınmalıdır: ortak kök tam koşumun paralelliğidir, tek tek beklemeler değil |
+| **F-122** | `Runs_button_on_session_page_navigates_to_filtered_list` (`Tracon.Ui.E2ETests`) kırılgan | Faz 65 kapanış koşumu (2026-08-19) | 🚨 **Ölçüldü:** izolasyonda 3/3 geçti; tam `Tracon.Ui.E2ETests` seti (55 test) koşarken 3 denemeden 2'sinde `tbody tr` satır sayısı, düğme etiketindeki beklenen sayıyla eşleşmeden okundu (`UiTests.cs:720`) — koşu tarayıcı/`Docker` kaynak çekişmesi altında bir zamanlama yarışı. Faz 65'in dokunduğu hiçbir dosyayla (BYOK/egress) ilgisi yok. F-102 emsali: bir kusur değil, kırılgan bir test — ama sessiz bırakılmadı. Ya `runsButton`'ın metnini bekledikten SONRA tablo satır sayısının da stabilize olmasını bekleyen bir `WaitForAsync` eklenir, ya da `expectedCount` okuması tablo render'ından SONRAya taşınır |
+| **F-130** | `Eval_suite_is_created_case_added_and_run_passes` (`Tracon.Ui.E2ETests`) kırılgan | Faz 77 doküman bütçesi koşumu (2026-08-20) | 🚨 **Ölçüldü, F-122'nin aynısı.** Tam `Ui.E2ETests` setinde (56 test) `TimeoutException: Timeout 30000ms exceeded` — `GetByPlaceholder("What is your return policy?")` üzerinde `fill` sırasında *"element was detached from the DOM, retrying"* (`UiTests.cs:1113`). Üç adımlı ayırt etme protokolü (`docs/hafiza/test-altyapisi.md`) tam uygulandı: izolasyonda **1/1** geçti, **ikinci tam koşumda 56/56** geçti. Kök sebep tarayıcı/`Docker` kaynak çekişmesi altında React yeniden render'ının `textarea`'yı `fill` ortasında DOM'dan koparması — ürün kusuru değil. Faz 77 yalnız dokümana, bir Python script'ine ve `.cs` **yorumlarına** dokundu; arayüzle ilgisi yok. Çözüm F-122 ile aynı sınıftadır: `fill` öncesi elemanın stabilize olmasını bekleyen bir `WaitForAsync`, ya da locator'ı `fill` anında yeniden çözmek |
+| **F-137** | `Shell_opens_and_asks_for_token_when_required` (`Tracon.Ui.E2ETests`) **çalışma kopyasına göre** düşüyor | [Faz 78](fazlar/78-YETENEK-HARITASI-ERISIMI.md) kapanış koşumu (2026-08-21) | 🚨 **Ölçüldü ve Faz 78'in DEĞİŞİKLİĞİ DEĞİL** — `git stash` ile temiz `HEAD`'de, aynı çalışma kopyasında **yine düşüyor**. Belirti: token girildikten sonra `GetByRole(Heading, "Dashboard")` 15 sn içinde görünmüyor (`UiTests.cs:599`). Ölçüm matrisi: **(a)** `Tracon.Ui.E2ETests` tek başına, `/Users/.../Desktop/projects/Tracon` → **5/5 düştü**; **(b)** tek test izole, aynı kopya → **1/1 geçti**; **(c)** `/private/tmp` altındaki `git worktree`, aynı `HEAD`, tam set → **2/2 geçti**; **(d)** `dotnet test Tracon.slnx` içinde → 1 düştü, 1 geçti. Yani **deterministik değil ama tek başına koşan sette yola bağlı olarak neredeyse her zaman düşüyor**. F-122/F-130'dan farklı sınıf: onlar kaynak çekişmesi altında araya giren kırılganlıktı, bu **yol/ortam** bağımlı. Kök sebep aranmalı: aynı kaynak ağacının iki kopyasının farklı davranması kalıcı tarayıcı profiline, `localStorage`'a veya yol izinlerine/uzunluğuna işaret eder. **Kusurdur, yeni yetenek değil** — `kusur-giderme` protokolü uygulanmalıdır |
+| **F-138** | `Respond_does_not_rerun_the_entry_node_when_it_is_an_agent` (`Tracon.Workflows.UnitTests`) kırılgan | Kanal 2 kusur koşumu (2026-08-21) | 🚨 **Ölçüldü:** dört tam koşumun yalnız birinde düştü; **izolasyonda 5/5 geçti**. Belirti: `resumed.Single(runEvent => runEvent.Type == RunEventType.WorkflowOutput)` eşleşme bulamıyor (`WorkflowAgentEntryRespondTests.cs:55`) — yani `RespondStreamingAsync` devam eden akışta çıktı olayını üretmemiş. F-122/F-130 sınıfı (kaynak çekişmesi) OLABİLİR ama kanıtlanmadı: o ikisi tarayıcı/`Docker` çekişmesiydi, bu saf bir birim testidir ve dış kaynağa dokunmaz. **Bu yüzden gerçek bir çıktı-olayı kaybı ihtimali elenemedi**; ilk adım yük altında tekrar üretmektir. 🚨 **İKİNCİ VAKA ölçüldü (2026-08-21, K-545 koşumu):** `WorkflowHumanInTheLoopTests.Once_a_response_is_given_the_run_completes` (`WorkflowHumanInTheLoopTests.cs:88`) **birebir aynı** iddiada düştü — `resumed.Single(e => e.Type == RunEventType.WorkflowOutput)` eşleşme bulamadı. Aynı ölçüm profili: tam çözüm koşumunda düştü, izolasyonda **5/5**, kendi projesinin tam koşumunda **3/3** geçti. İki farklı test, tek belirti → "kaynak çekişmesi" açıklaması **zayıfladı**; `RespondStreamingAsync`'in devam eden akışında `WorkflowOutput` olayının kaybolması artık iki bağımsız kanıt taşıyor ve kalem bir **ürün kusuru** gibi ele alınmalıdır |
+| **F-139** | `Version_diff_compares_two_versions` (`Tracon.Ui.E2ETests`) kırılgan | K-545 koşumu (2026-08-21) | **Ölçüldü, F-122/F-130'un aynısı.** Tam çözüm koşumunda `33 sn` sonra düştü; **izolasyonda 1/1 geçti**. Aynı sınıf: tarayıcı + `Docker` kaynak çekişmesi altında bir zamanlama yarışı, ürün kusuru değil. Kalem sessiz bırakılmadı ama tek başına faz değildir — üç E2E kırılganı (F-122, F-130, F-139) ve F-137 **birlikte** ele alınmalıdır: ortak kök tam koşumun paralelliğidir, tek tek beklemeler değil |
 
 ---
 
@@ -1010,7 +1010,7 @@ taşımıyor veya kendi iptal/gözlem yoluna sahip; aynı kusur sınıfı bulunm
 
 **Belirti:** Görev `await` edilmediği için exception gözlemlenmez ve
 **işlenmemiş** olur — .NET süreci sonlandırır. Ölçülen: tek bir testi izole
-koşmak (`AgentPrism.AspNetCore.FunctionalTests --filter-method
+koşmak (`Tracon.AspNetCore.FunctionalTests --filter-method
 "*Timed_out_call_completes*"`) test host'unu **exit 134 (SIGABRT)** ile
 çökertir; aynı çökme `c4e3189` üzerinde birebir tekrarlanır.
 
@@ -1028,15 +1028,15 @@ listede tut ve `ExecuteAsync` dönmeden önce `Task.WhenAll` ile bekle; ya da
 semaforu `using` yerine servis ömrüne bağla.
 
 **Değer:** Yüksek — işlenmemiş exception süreci öldürür ve bu, gözlemlenebilirlik
-değil **kullanılabilirlik** sorunudur. Ayrıca `AgentPrism.Core`
-`AgentPrismDrainService` ile zarif kapanış vaat eder; bu kusur o vaadi deler.
+değil **kullanılabilirlik** sorunudur. Ayrıca `Tracon.Core`
+`TraconDrainService` ile zarif kapanış vaat eder; bu kusur o vaadi deler.
 
 **Mercek:** A (çekirdek çalıştırma yolu).
 
 ### F-151 · Uygulanmış iki PostgreSQL migration dosyası sonradan düzenlendi — mevcut kurulumlar yükseltmede BAŞLAMAZ — ✅ KAPATILDI (2026-08-25)
 
 **Nereden geldi:** Faz 99 kapanışının örnek uygulama koşumu (2026-08-25).
-Yerel geliştirme veritabanı `AgentPrismException` ile açılışı durdurdu.
+Yerel geliştirme veritabanı `TraconException` ile açılışı durdurdu.
 
 **Kapanış:** `0032_tenant_provider_bindings.sql` ve `0037_run_continuation.sql`
 ilk uygulanmış baytlarına döndü. `scripts/kapi.py tarama`,
@@ -1059,7 +1059,7 @@ değiştirir; önceki SQL toplu-onarım kök neden iddiası ölçümle çürüt�
 
 **Etki:** Bu iki migration'ı `9c32242` ÖNCESİNDE uygulamış **her** kurulum,
 yeni sürüme yükseltince açılışta çöker. Yerel geliştirme veritabanında
-ölçüldü — `samples/AgentPrism.Api` başlamıyor:
+ölçüldü — `samples/Tracon.Api` başlamıyor:
 `Checksum in the database: 9116FE1E...`, `checksum of the file: 16D3AB60...`.
 Bu bir geliştirme rahatsızlığı değil, **sevk edilmiş bir kırılmadır**.
 

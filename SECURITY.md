@@ -2,10 +2,10 @@
 
 ## Supported versions
 
-AgentPrism ships 20 NuGet packages and one npm package from a single version
+Tracon ships 20 NuGet packages and one npm package from a single version
 line. Only the **most recent published version** receives security fixes; a
 preview that has been superseded is not patched in place. See
-[Versions and upgrades](https://agentprism.doayen.web.tr/reference/versioning/)
+[Versions and upgrades](https://tracon.dev/reference/versioning/)
 for the pinning and upgrade contract.
 
 | Version line | Supported |
@@ -21,7 +21,7 @@ not own.
 
 Include what a maintainer needs to reproduce it:
 
-- the exact AgentPrism package versions from `dotnet list package`;
+- the exact Tracon package versions from `dotnet list package`;
 - the .NET target framework and deployment runtime;
 - the storage engine, and whether multi-tenancy is enabled;
 - the affected surface — an HTTP endpoint, a .NET API, an MCP or A2A route, or a

@@ -1,7 +1,7 @@
 // The one definition of "a reference into the development record".
 //
 // Four places need it — three site generators and the .NET ratchet in
-// tests/AgentPrism.Core.UnitTests/Architecture — and four copies drift. Measured:
+// tests/Tracon.Core.UnitTests/Architecture — and four copies drift. Measured:
 // while there were copies, a `section 39` in a doc comment passed the .NET gate and
 // then failed the site generator. The pattern lives in a plain file so a regex
 // engine on either side can read it unchanged.

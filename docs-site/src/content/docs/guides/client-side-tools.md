@@ -11,7 +11,7 @@ just selected. A client-side tool lets the model call something that runs on the
 ## The mechanic
 
 ```csharp
-builder.AddAgentPrism()
+builder.AddTracon()
        .AddClientTool(
            "read_shopping_cart",
            "Reads the items currently in the customer's shopping cart in the browser.",
@@ -30,7 +30,7 @@ sequenceDiagram
     accTitle: Client-side tool call round trip
     accDescr: The caller sends a message, the server returns a pending tool call it never ran, the caller resolves it locally and sends the result back, and the server returns the final text.
     participant Caller as Caller (browser)
-    participant Server as AgentPrism
+    participant Server as Tracon
 
     Caller->>Server: POST /run {"message": "what's in my cart?"}
     Server->>Server: model calls read_shopping_cart
@@ -43,7 +43,7 @@ sequenceDiagram
 Answer it with `toolResults` on the next request, matched by `callId`:
 
 ```bash
-curl -X POST https://your-host/agentprism/api/agents/support/run \
+curl -X POST https://your-host/tracon/api/agents/support/run \
   -H "Authorization: Bearer $API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -90,11 +90,11 @@ at what the agent's definition carries, not at what one run happened to use.
 
 ## CORS
 
-A page calling `/run` from its own origin needs a CORS response, and AgentPrism sends
+A page calling `/run` from its own origin needs a CORS response, and Tracon sends
 none by default:
 
 ```csharp
-app.MapAgentPrism("/agentprism", options =>
+app.MapTracon("/tracon", options =>
 {
     options.AllowedOrigins.Add("https://shop.example.com");
 });
@@ -116,19 +116,19 @@ management token.
 
 ## The embeddable widget
 
-`AgentPrism.UI` also builds a small, framework-free chat widget — a separate bundle
+`Tracon.UI` also builds a small, framework-free chat widget — a separate bundle
 from the console, with its own 30 KB gzip budget. Drop it into any page with one
 script tag:
 
 ```html
-<script src="https://your-agentprism-host/agentprism/embed/embed.js"
-  data-server="https://your-agentprism-host"
-  data-prefix="/agentprism"
+<script src="https://your-tracon-host/tracon/embed/embed.js"
+  data-server="https://your-tracon-host"
+  data-prefix="/tracon"
   data-agent="support"
   data-api-key="sk_..."></script>
 <script>
   // Runs after the widget script, in document order.
-  window.AgentPrismEmbed.registerTool('read_shopping_cart', () => {
+  window.TraconEmbed.registerTool('read_shopping_cart', () => {
     const cart = JSON.parse(localStorage.getItem('cart') ?? '[]');
     return cart.map((item) => `${item.qty}x ${item.name}`).join(', ');
   });

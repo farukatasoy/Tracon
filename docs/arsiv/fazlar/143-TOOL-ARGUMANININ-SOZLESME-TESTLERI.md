@@ -3,10 +3,10 @@
 > **Durum:** ✅ Tamamlandı (2026-09-04)
 > **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-189** (tüketici turu 3, B7)
 > **Önkoşul:** Yok
-> **Paketler:** `AgentPrism.Testing.Contracts.Xunit`
+> **Paketler:** `Tracon.Testing.Contracts.Xunit`
 > **Yeni paket:** Yok — mevcut sözleşme paketine ek (K-605 ile sevk edildi) · **Migration:** Yok
 > **Public API:** Büyüyor — yeni `abstract` sözleşme sınıfları. Yalnız test paketinde; tüketicinin çalışma anı grafiğine **girmez**
-> **Tüketici yüzeyi:** `docs-site/`: `guides/testing.md`, `guides/write-your-own-tool.md`, `packages.md` · sevk edilen: `src/AgentPrism.Testing.Contracts.Xunit/README.md`
+> **Tüketici yüzeyi:** `docs-site/`: `guides/testing.md`, `guides/write-your-own-tool.md`, `packages.md` · sevk edilen: `src/Tracon.Testing.Contracts.Xunit/README.md`
 > **Manuel test alanı:** [`docs/manuel-test/24-TEST-PAKETI-VE-SABLON.md`](../../manuel-test/24-TEST-PAKETI-VE-SABLON.md)
 
 ---
@@ -28,7 +28,7 @@
 
 ## Amaç
 
-AgentPrism iki yerde fail-closed davranış **vaat ediyor**: `throw` eden bir argüman doğrulayıcı çağrıyı reddeder, `throw` eden bir yetkilendirme handler'ı çağrıyı engeller. Bu vaatler AgentPrism'in **kendi** kodunda test ediliyor — ama **tüketicinin** implementasyonunda test edilmiyor. Tüketicinin ölçümü: yirmi iki tool'un yedisi yıkıcı.
+Tracon iki yerde fail-closed davranış **vaat ediyor**: `throw` eden bir argüman doğrulayıcı çağrıyı reddeder, `throw` eden bir yetkilendirme handler'ı çağrıyı engeller. Bu vaatler Tracon'in **kendi** kodunda test ediliyor — ama **tüketicinin** implementasyonunda test edilmiyor. Tüketicinin ölçümü: yirmi iki tool'un yedisi yıkıcı.
 
 ## Bitiş Ölçütleri (DoD)
 
@@ -37,9 +37,9 @@ AgentPrism iki yerde fail-closed davranış **vaat ediyor**: `throw` eden bir ar
 - [x] Aynı tohum aynı argümanları üretir; suite kırılgan değil — `SchemaArgumentGeneratorTests` determinizm testleri, MT-TEST-092
 - [x] Desteklenmeyen şema **açıkça** atlanır ve sebebi çıktıya yazılır — MT-TEST-093
 - [x] `AIFunction.JsonSchema` imzası `maf-api-kesfi` ile doğrulandı (tahmin edilmedi) — `AIFunctionDeclaration.JsonSchema : JsonElement` (dump-api.sh)
-- [x] Test paketi tüketicinin çalışma anı grafiğine sızmaz (`DependencyDirectionTests`) — MT-TEST-094, izin listesi hâlâ yalnız `AgentPrism.Abstractions`
+- [x] Test paketi tüketicinin çalışma anı grafiğine sızmaz (`DependencyDirectionTests`) — MT-TEST-094, izin listesi hâlâ yalnız `Tracon.Abstractions`
 - [x] Dört doğrulama kapısı sıfır uyarı verir — `kapi.py kapanis` iki kez (denetim düzeltmesi öncesi/sonrası), ikisi de yeşil
-- [x] `samples/AgentPrism.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı — aşağıda
+- [x] `samples/Tracon.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı — aşağıda
 - [x] `secret` taraması boş döndü — `kapi.py kapanis` içindeki `kapi.py tarama` adımı temiz
 - [x] Manuel kabul case'leri `docs/manuel-test/24-TEST-PAKETI-VE-SABLON.md` içine eklendi — MT-TEST-090..094
 - [x] `faz-denetim` koşuldu; 🔴 bulgu kalmadı — 1×🟡 (kapandı), 1×🟢 (adaya yazıldı)
@@ -47,14 +47,14 @@ AgentPrism iki yerde fail-closed davranış **vaat ediyor**: `throw` eden bir ar
 
 ---
 
-## `samples/AgentPrism.Api` ile gerçek run kanıtı
+## `samples/Tracon.Api` ile gerçek run kanıtı
 
-Bu faz `samples/AgentPrism.Api`'nin çalışma anı davranışına dokunmaz (test-anı
+Bu faz `samples/Tracon.Api`'nin çalışma anı davranışına dokunmaz (test-anı
 paketidir) — bu adım fazın **regresyon üretmediğinin** kanıtıdır, yeni bir
 davranışın değil.
 
 ```bash
-curl -s -X POST http://localhost:5081/agentprism/api/agents/support/run \
+curl -s -X POST http://localhost:5081/tracon/api/agents/support/run \
   -H "Authorization: Bearer manuel-test-token-2026" -H "Content-Type: application/json" \
   -d '{"message":"Where is my order ORD-7?"}'
 ```
@@ -88,13 +88,13 @@ aynen korur" vaadiyle tutarlı.
 3. **`A_pre_cancelled_token_is_honored` — planın 6 `[Fact]`'lik taslağında yok, Hata
    Modları tablosunun "İptal edilen doğrulama" satırında var.** Tablo plandan daha
    yetkili kabul edildi; `RunJudgeContract`'ın aynı adı taşıyan testiyle aynı desen.
-4. **`tests/AgentPrism.Testing.Contracts.Tests/` değil `tests/AgentPrism.Testing.Contracts.Xunit.UnitTests/`.**
+4. **`tests/Tracon.Testing.Contracts.Tests/` değil `tests/Tracon.Testing.Contracts.Xunit.UnitTests/`.**
    Plan proje adını tahmin ediyordu. Gerçek konvansiyon `src/Directory.Build.props`'taki
    `InternalsVisibleTo Include="$(MSBuildProjectName).UnitTests"` — `SchemaArgumentGenerator`
    kasıtlı `internal` olduğu için (fuzzing altyapısı, sevk edilen genişleme noktası değil)
    bu adı taşıyan bir proje **zorunluydu**, plandaki ad çalışmazdı.
-5. **`ContractSelfProofTests` `tests/AgentPrism.Testing.Contracts.Tests/`e değil,
-   `tests/AgentPrism.Core.UnitTests/Tools/`e (`ToolContractSelfProofTests` adıyla)
+5. **`ContractSelfProofTests` `tests/Tracon.Testing.Contracts.Tests/`e değil,
+   `tests/Tracon.Core.UnitTests/Tools/`e (`ToolContractSelfProofTests` adıyla)
    kondu.** Paketteki her diğer sözleşmenin (`CustomToolContractTests`,
    `DependencyDirectionTests`, `ToolContractCoverageTests`) dogfood'landığı **tek**
    yer orası; ayrı bir proje açmak aynı deseni ikiye bölerdi.
@@ -141,12 +141,12 @@ Düzeltme sonrası dört doğrulama kapısı **yeniden** koşuldu (bkz. DoD).
 ## Sonraki Faza Devir Notu
 
 - **Devraldığı sözleşmeler:** `ToolArgumentValidationContract` (7 `[Fact]`) ve
-  `ToolAuthorizationContract` (3 `[Fact]`), `AgentPrism.Testing.Contracts.Tools`
-  ad alanında, `ContractCoverage.ToolContracts` kapsamında. İkisi de MAF/AgentPrism
+  `ToolAuthorizationContract` (3 `[Fact]`), `Tracon.Testing.Contracts.Tools`
+  ad alanında, `ContractCoverage.ToolContracts` kapsamında. İkisi de MAF/Tracon
   çalışma anı grafiğine **girmez** — yalnız test paketinde.
 - **Davranış sözleşmeleri:**
   - `IToolArgumentsValidator`/`IToolAuthorizationHandler` fail-closed vaadi artık
-    yalnız AgentPrism'in kendi wrapper'ında değil, **tüketicinin implementasyonunda**
+    yalnız Tracon'in kendi wrapper'ında değil, **tüketicinin implementasyonunda**
     da sınanabilir bir hâle geldi.
   - `SchemaArgumentGenerator` (internal) yalnız düz `string`/`integer`/`number`/
     `boolean`/`enum` şema özelliklerini modelliyor; nested object/array **her

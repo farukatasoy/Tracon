@@ -3,7 +3,7 @@
 > **Durum:** ✅ Tamamlandı (2026-08-26)
 > **Kaynak:** [`arsiv/kesif/2026-08-23-yapisal-sorun-envanteri.md`](../kesif/2026-08-23-yapisal-sorun-envanteri.md) — **kalem 17**. Bu faz bir `F-NN` adayından gelmez
 > **Önkoşul:** [Faz 105](105-DI-BILESEN-KOKU-AYRISTIRMA.md) — teknik zorunluluk yoktur; yapısal tur sırası composition root'tan compiler'a ilerler
-> **Paketler:** `AgentPrism.Core`
+> **Paketler:** `Tracon.Core`
 > **Yeni paket:** Yok · **Migration:** Yok
 > **Public API:** Büyümüyor. `AgentDefinitionCompiler` imzaları ve davranışı değişmez; `PublicAPI.Shipped.txt` girdisi bugün **0**
 > **Tüketici yüzeyi:** Yok. Public imza ve XML metni değişmez; üretilen API reference aynı kalır
@@ -37,7 +37,7 @@
 - [x] Compile-path matrisi sync, async, cached ve parameterized yolları kapsar
 - [x] `git diff -- 'src/*/PublicAPI.*.txt'` boş döner
 - [x] Dört doğrulama kapısı sıfır uyarı verir
-- [x] `samples/AgentPrism.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı
+- [x] `samples/Tracon.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı
 - [x] `secret` taraması boş döndü
 - [x] Manuel kabul case'leri ilgili aileye eklendi ve otomatik olanlar koşuldu
 - [x] `faz-denetim` koşuldu; 🔴 bulgu kalmadı

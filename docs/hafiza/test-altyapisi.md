@@ -18,7 +18,7 @@
 - **🚨 Statik ozellik baslaticilari BEYAN SIRASINDA kosar** (2026-08-19, olculdu): `CapabilityEntryPoints`'te `RepositoryRoot` toplayicilardan SONRA beyan edilmisti; toplayicilar kostugunda deger hala `null`'di ve `TypeInitializationException` verdi. Bir toplayicinin ihtiyac duydugu deger ya EN BASTA beyan edilir ya da `Lazy<T>` ile ertelenir — `Lazy` alani da consumers'tan **once** beyan edilmelidir, cunku alan baslaticisi da sirayla kosar.
 - **🚨 Derlenmis XML dokumanini okuyan kapi, derlenmemis cozumde SESSIZCE YESIL gecer**: XML yoksa "hic kapsanmayan uye yok" sonucu cikar. Kapi once "her giris noktasi icin bir dokumanli uye bulundu mu?" diye sormali ve bulunamayanlari "once cozumu derle" mesajiyla dusurmelidir.
 - **Test derlemesinin kendi dizini yapilandirmayi soyler**: `UseArtifactsOutput` altinda `AppContext.BaseDirectory` son segmenti `release` veya `debug`'dir. Paket XML'i `artifacts/bin/<Paket>/<yapilandirma>_net10.0/<Paket>.xml` altindadir; **dizin adi ile dosya adi eslesmelidir**, yoksa bagimliligin baska bir paketin ciktisina kopyalanan XML'i ikinci kez okunur.
-- **Ornek metnini denetleyen iddia yabanci uyeler icin ACIK bir liste ister**: `Add*`/`Use*`/`Map*` cagrilarinin AgentPrism'e ait olup olmadigi ad sekline bakarak ayirt edilemez (`AddSingleton`, `AddHealthChecks`, `MapHealthChecks` Microsoft'undur). Liste yalnizca **Microsoft** uyelerini tasir; oraya bir AgentPrism uyesi eklemek incelemede tam olarak yanlis iddia olarak gorunur.
+- **Ornek metnini denetleyen iddia yabanci uyeler icin ACIK bir liste ister**: `Add*`/`Use*`/`Map*` cagrilarinin Tracon'e ait olup olmadigi ad sekline bakarak ayirt edilemez (`AddSingleton`, `AddHealthChecks`, `MapHealthChecks` Microsoft'undur). Liste yalnizca **Microsoft** uyelerini tasir; oraya bir Tracon uyesi eklemek incelemede tam olarak yanlis iddia olarak gorunur.
 - **Kaynak dili kapisi test dosyalarini da tarar**: yol adinda Turkce harf kullanan bir test (`"Sipariş Servisi"`) `SourceLanguageTests`'i kizartir. Unicode yolu denemek icin Turkce olmayan bir harf sec (`Café`, `Órder`).
 
 ## Kume karsilastirmasi (Faz 78)
@@ -101,7 +101,7 @@ tekrarlanmalı — ve `.editorconfig`'in `[tests/**/*.cs]` bölümü (CA1707 alt
   niyet beyanidir ve sessizce gecen senaryo kalmaz (K-611).
 - **Bir sozlesme senaryosunun disi var mi — ihlali KASTEN uretip kirmiziyi gor.**
   Faz 99'da ham-istemci kurali icin bu yapildi: ihlal once **derlenmedi bile**
-  (yalniz `AgentPrism.Abstractions`'a bagli bir saglayici `AsBuilder()`'a
+  (yalniz `Tracon.Abstractions`'a bagli bir saglayici `AsBuilder()`'a
   erisemez — o tip `Microsoft.Extensions.AI`'dedir). Bu kendi basina bir
   bulgudur: en olasi hatayi yapmak yapisal olarak zordur. Paket bilerek
   eklendiginde senaryo uc turetilmis sinifta birden dustu.
@@ -138,14 +138,14 @@ tekrarlanmalı — ve `.editorconfig`'in `[tests/**/*.cs]` bölümü (CA1707 alt
   regresyon testleri de tek-satır örnek kullandığı için bunu yakalamadı —
   gerçek `src/` ağacında REFRESH koşup çıkan siteleri tek tek okumak asıl
   yakalayan adımdı.
-- **🚨 Yeni bir XML `<example>`'a illüstratif bir tip adı eklemek `AgentPrism.
+- **🚨 Yeni bir XML `<example>`'a illüstratif bir tip adı eklemek `Tracon.
   Generators.UnitTests`'i kırar, hedef paketin kendi test projesini DEĞİL**
-  (Faz 122): `tests/AgentPrism.Generators.UnitTests/Examples/ExampleCompilationTests`
+  (Faz 122): `tests/Tracon.Generators.UnitTests/Examples/ExampleCompilationTests`
   her `<example>` bloğunu gerçekten DERLER; `ExamplePrelude.cs` "sen yazmış
   gibi davran" tipleri (`GitAgentSource`, `ResponseQualityJudge`, vb.) stub
   olarak tanımlar. Yeni bir örnek yeni bir illüstratif ad kullanıyorsa
   (`AuditingAgentDecorator` gibi) o ada `ExamplePrelude.cs`'e bir stub eklenmeli
-  — eklenmezse `CS0246` yalnız TAM çözüm koşumunda (`dotnet test AgentPrism.slnx`
+  — eklenmezse `CS0246` yalnız TAM çözüm koşumunda (`dotnet test Tracon.slnx`
   veya `kapi.py kapanis`) görünür, `Core.UnitTests` gibi hedef paketin kendi
   testini koşmak bunu YAKALAMAZ.
 - **`FakeModelProvider.EchoesUserMessage()` ham mesajı DEĞİL, `"Echo: {mesaj}"`
@@ -160,16 +160,16 @@ tekrarlanmalı — ve `.editorconfig`'in `[tests/**/*.cs]` bölümü (CA1707 alt
 
 `SqlStoreContext.ContentProtector` test altyapisinda `null` birakiliyordu;
 `ProtectedValue.Read` `?.` ile kisa devre yapip ham zarfi donduruyordu. Uretimde
-`AddAgentPrism()` bir `NullContentProtector` **kaydeder** ve onun `Unprotect`'i
+`AddTracon()` bir `NullContentProtector` **kaydeder** ve onun `Unprotect`'i
 sifreli bir zarf gorunce **FIRLATIR**.
 
 Sonuc: Faz 156'nin ön kontrolu iki yesil test ve dort yesil kapiyla `EXIT=134`
-verdi — yigin iziyle. Kusuru yalniz `samples/AgentPrism.Api` kosumu gosterdi.
+verdi — yigin iziyle. Kusuru yalniz `samples/Tracon.Api` kosumu gosterdi.
 
 **Kural:** bir "bos/varsayilan" bagimliligi test ederken **DI'in gercekten
 kaydettigini** kullan. `null` birakmak yalnizca daha az kod degildir; farkli bir
 kod yolu secer. Bu depodaki hazir yardimci:
-`tests/AgentPrism.Sqlite.IntegrationTests/Infrastructure/ProtectingStoreContext.Keyless`
+`tests/Tracon.Sqlite.IntegrationTests/Infrastructure/ProtectingStoreContext.Keyless`
 — uretimin kaydettigi protector'i verir, `null` degil.
 
 Ayni sinifin diger yuzu: bir istisna atan no-op'u `try/catch` ile sarmak
@@ -206,6 +206,6 @@ Tek basina gecip tam kosumda dusen test AYRI dosyadadir:
   ZAMAN iki yonlu yazilir** — eslesmesi gerekeni eslestirdigi KADAR,
   eslesmemesi gerekeni eslestirmedigi de kanitlanir. Cikis kodunu kirmayan bir
   dedektorde bu daha da onemlidir: gurultu sessizce normallesir.
-- **Sozlesme testleri `tests/Shared/` altindadir** ve saglayici basina bir entegrasyon test projesine derlenir (`AgentPrism.StoreContracts` ad alani). Yeni bir saglayici eklerken sozlesme testi YAZILMAZ; yalnizca kosucu sinif turetilir. SQLite bu iddianin DORDUNCU kanitidir (K-194).  
+- **Sozlesme testleri `tests/Shared/` altindadir** ve saglayici basina bir entegrasyon test projesine derlenir (`Tracon.StoreContracts` ad alani). Yeni bir saglayici eklerken sozlesme testi YAZILMAZ; yalnizca kosucu sinif turetilir. SQLite bu iddianin DORDUNCU kanitidir (K-194).  
   *(2026-09-07'de `sql-saglayicilari.md`'den butce icin tasindi.)*
 - **Ayrı process başlatan altyapı `tests/Shared/Infrastructure/` altındadır ve LINK'lenir, kopyalanmaz** (Faz 157): `ProcessRunner` (`RunAsync` = bitmesini bekle, `StartAsync` = uzun ömürlü + `ManagedProcess` ile `SIGKILL`), `RepoRoot`, `WorkerProcessHost`, `HarnessExecutionLog`. Tüketen proje `<Compile Include="../Shared/Infrastructure/..." Link="..."/>` ile bağlar; ikinci kopya K-411 sınıfıdır. MSBuild `nodeReuse` deadlock düzeltmesi tek bir `CreateStartInfo` gövdesindedir; iki giriş noktası onu paylaşır.

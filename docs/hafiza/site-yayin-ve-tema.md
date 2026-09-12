@@ -21,8 +21,8 @@ hicbir seyi eslemez.
 - **`docs-site/` yayin hatti** (AGENTS.md'den, Faz 77): site `dotnet build`'e BAGLANMAZ,
   pakete GIRMEZ, Node **22.12+** ister. `api/` ve `http-api/` sayfalari URETILIR
   (`npm run generate`) ve commit EDILMEZ; ekran goruntuleri E2E kosumundan uretilir
-  (`AGENTPRISM_UI_SCREENSHOTS=1`) ve commit EDILIR.
-- **🚨 Yayin GitHub Pages DEGILDIR (K-542).** Site `agentprism.doayen.web.tr` adresinde
+  (`TRACON_UI_SCREENSHOTS=1`) ve commit EDILIR.
+- **🚨 Yayin GitHub Pages DEGILDIR (K-542).** Site `tracon.dev` adresinde
   kendi sunucumuzda barinir; yayini `scripts/site-deploy.sh` yapar (derleme → dort kapi →
   rsync → `docker compose up -d`). CI'nin `site` isi YAYINLAMAZ, yalnizca derler ve
   kapilari kosar.

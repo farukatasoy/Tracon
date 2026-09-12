@@ -1,6 +1,6 @@
 using System.Globalization;
 
-namespace AgentPrism.Tests.Common;
+namespace Tracon.Tests.Common;
 
 /// <summary>
 /// The append-only file every harness process writes one line to per execution

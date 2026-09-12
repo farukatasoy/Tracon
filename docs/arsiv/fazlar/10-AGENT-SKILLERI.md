@@ -4,7 +4,7 @@
 > **Kaynak:** [BEYIN-FIRTINASI.md](../BEYIN-FIRTINASI.md) · **F-09** (1/2)
 > **Önkoşul:** [Faz 9](09-YONETISIM-VE-DENETIM-IZI.md) — denetim izi dekoratörü hazır olmalı
 > **Sonraki:** [Faz 11](11-SKILL-SCRIPT-CALISTIRMA.md) — script çalıştırma
-> **Paketler:** `AgentPrism.Abstractions`, `.Core`, `.PostgreSql`, `.AspNetCore`, `.UI`
+> **Paketler:** `Tracon.Abstractions`, `.Core`, `.PostgreSql`, `.AspNetCore`, `.UI`
 > **Yeni paket:** Yok · **Migration:** 0003 (planlanan sırada)
 
 ---
@@ -47,10 +47,10 @@ Bir agent'a çalışma anında yüklenen, markdown tabanlı yetenek paketleri ve
 ### Public API
 
 - `AgentSkillDefinition`, `AgentSkillResourceDefinition` ve `IAgentSkillStore`
-  `AgentPrism.Abstractions/Skills/` altında eklendi.
+  `Tracon.Abstractions/Skills/` altında eklendi.
 - `AgentDefinition.SkillNames` agent tanımının ve PostgreSQL JSON yükünün parçasıdır.
-- `IAgentPrismBuilder.AddSkill(AgentSkillDefinition)` kod kayıtlarını ekler.
-- `AgentPrismSkillOptions`: `MaxSkillsPerAgent = 10`, instructions için 64 KB,
+- `ITraconBuilder.AddSkill(AgentSkillDefinition)` kod kayıtlarını ekler.
+- `TraconSkillOptions`: `MaxSkillsPerAgent = 10`, instructions için 64 KB,
   kaynak içeriği için 256 KB ve skill başına 20 kaynak sınırı taşır.
 - Yönetim API'si `GET/PUT/DELETE {prefix}/api/skills` uçlarını sağlar. `PUT`
   oluşturma ve güncelleme için aynı uçtur; doğrulama MAF
@@ -59,9 +59,9 @@ Bir agent'a çalışma anında yüklenen, markdown tabanlı yetenek paketleri ve
 ### Çalışma Zamanı ve Kalıcılık
 
 - `AgentSkillCatalog`, kod kayıtlarını tenant store'un önünde çözer. Aynı ad
-  için kod kaydı kazanır. Bilinmeyen ad `AgentPrismCompilationException` üretir;
+  için kod kaydı kazanır. Bilinmeyen ad `TraconCompilationException` üretir;
   kapalı skill listede kalır ama MAF'a verilmez.
-- `AgentPrismSkillsSource`, her tanımı `AgentInlineSkill` ve kaynaklarına çevirir.
+- `TraconSkillsSource`, her tanımı `AgentInlineSkill` ve kaynaklarına çevirir.
   Düz agent `AgentSkillsProvider` ile `AIContextProviders` üzerinden; harness
   `AgentSkillsSource` üzerinden bağlanır. Hiçbir `Disable*Approval` bayrağı
   ayarlanmaz.
@@ -118,5 +118,5 @@ Bir agent'a çalışma anında yüklenen, markdown tabanlı yetenek paketleri ve
   varsayımı yapmayın.
 - `AgentSkillsProviderOptions.DisableRunSkillScriptApproval` alanı Faz 11'in
   konusudur ve **yine `false` kalacaktır**.
-- Boyut sınırlarını taşıyan `AgentPrismSkillOptions` Faz 11'de script sınırları
+- Boyut sınırlarını taşıyan `TraconSkillOptions` Faz 11'de script sınırları
   (zaman aşımı, çıktı boyutu) ile genişler.

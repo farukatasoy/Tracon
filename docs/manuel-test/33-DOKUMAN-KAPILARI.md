@@ -26,7 +26,7 @@ CI'nın `build` işine bağladı.
 ## Koşmadan önce
 
 ```bash
-cd /Users/farukatasoy/Desktop/projects/AgentPrism
+cd /Users/farukatasoy/Desktop/projects/Tracon
 python3 --version   # 3.10+ gerekir (X | None tip birleşimi)
 ```
 
@@ -40,16 +40,16 @@ Case 6-12 Faz 90'da eklendi (üç yeni kapı, damıtma komutları, muaf ağaç b
 
 | # | Kod | Ön koşul | Adımlar | Beklenen sonuç |
 |---|---|---|---|---|
-| 1 | `MT-DKP-001` | Temiz ağaç | `src/AgentPrism.Workflows/` altında bir dosyaya boşluk ekle, `docs-site/src/content/docs/packages.md`'ye bir satır ekle, `python3 scripts/dokuman-bakim.py --site-denetle --taban HEAD` | ❌ **kırmızı**, çıkış kodu 1 — `workflow` kuralı `concepts/workflows.md` ister, `packages.md` onu karşılamaz. Rapor kural adını, hedefi ve tetikleyen dosyayı yazar |
+| 1 | `MT-DKP-001` | Temiz ağaç | `src/Tracon.Workflows/` altında bir dosyaya boşluk ekle, `docs-site/src/content/docs/packages.md`'ye bir satır ekle, `python3 scripts/dokuman-bakim.py --site-denetle --taban HEAD` | ❌ **kırmızı**, çıkış kodu 1 — `workflow` kuralı `concepts/workflows.md` ister, `packages.md` onu karşılamaz. Rapor kural adını, hedefi ve tetikleyen dosyayı yazar |
 | 2 | `MT-DKP-002` | Case 1'in ağacı (değişiklikleri geri alma) | `concepts/workflows.md`'ye de bir satır ekle, aynı komutu tekrar koş | ✅ **yeşil**, çıkış kodu 0 — tetiklenen kuralın hedefi de değişenler arasında |
-| 3 | `MT-DKP-003` | Temiz ağaç | `src/AgentPrism.Core/buildTransitive/AgentPrism.Core.targets`'a yorum satırı ekle, `python3 scripts/dokuman-bakim.py --site-denetle --taban HEAD` | ❌ **kırmızı** — rapor **`capabilities.md`**'yi ister (`buildtransitive` kuralı) **ve** ayrıca `concepts/` dizinini ister (`cekirdek-kavram` kuralı); ikisi ayrı satır |
+| 3 | `MT-DKP-003` | Temiz ağaç | `src/Tracon.Core/buildTransitive/Tracon.Core.targets`'a yorum satırı ekle, `python3 scripts/dokuman-bakim.py --site-denetle --taban HEAD` | ❌ **kırmızı** — rapor **`capabilities.md`**'yi ister (`buildtransitive` kuralı) **ve** ayrıca `concepts/` dizinini ister (`cekirdek-kavram` kuralı); ikisi ayrı satır |
 | 4 | `MT-DKP-004` | Temiz ağaç | Elle yazılan bir sayfaya (ör. `docs-site/src/content/docs/troubleshooting.md`) bir Markdown bağlantısı ekle — görünen metin "kırık", hedef yol `/yok-boyle-sayfa/` — sonra `python3 scripts/dokuman-bakim.py --denetle` | ❌ **kırmızı** — "Kırık bağlantı" bölümünde dosya adı ve hedef yol görünür |
 | 5 | `MT-DKP-005` | 👤 insan gerekir | `.github/workflows/ci.yml`'yi aç | `Dokuman kapilari` ve `Dokuman kapilari testleri` adımları **`build`** işinde; `site` işinde **değil**. `Python kur` adımı (`actions/setup-python`) bu adımlardan önce çalışır |
 | 6 | `MT-DKP-006` | Temiz ağaç | `sed -i '' 's/✅ Tamamlandı/BOZUK/' docs/YOL-HARITASI.md` sonra `python3 scripts/dokuman-bakim.py --denetle` | ❌ **kırmızı** — "Üretilen dosya tazeliği" bölümü `docs/YOL-HARITASI.md — kaynakla ayni degil` der. Bu kapı olmadan bayat üretilmiş dosya sessizce commit edilebiliyordu |
 | 7 | `MT-DKP-007` | Temiz ağaç | `sed -i '' 's/^### K-021.*/### SILINDI/' docs/arsiv/KARARLAR-GECMISI.md` sonra `--denetle` koş. 🚨 Desen sondaki `.*`'sız yazılırsa **fire etmez**: aynı numara iki başlıkta geçer (`### K-021` ve `### K-021 — devam (Faz 90 damıtması)`) ve biri kalırsa çapa hâlâ çözülür — kapı doğru davranır | ❌ **kırmızı** — "Karar gerekçesi işaretçisi" o `K-NNN`'yi sarkan olarak listeler. `kirik_baglantilar()` bunu **göremez**: bağlantı dosya düzeyindedir, dosya vardır, çapa denetlenmez |
 | 8 | `MT-DKP-008` | Temiz ağaç | Bir damıtılmış kayıttaki (`docs/arsiv/fazlar/24-SQLITE.md`) `git show <sha>` SHA'sını `deadbee` yap, `--denetle` koş | ❌ **kırmızı** — "Damıtılmış kayıt tam metni" `deadbee:...çözülmüyor` der. Git geçmişine güvenmek ancak kapı onu her koşumda kanıtlıyorsa meşrudur |
 | 9 | `MT-DKP-009` | Temiz ağaç | `python3 scripts/dokuman-bakim.py faz-damit 24 --kuru` | Çıkış 0, **hiçbir dosya değişmez** (`git status --porcelain` boş). Kayıt zaten damıtılmış olduğu için `0/1 dosya · 3.902 → 3.902 B` raporlar — damıtma **idempotenttir**, ikinci koşum kaydı bozmaz |
-| 10 | `MT-DKP-010` | Kirli ağaç · `docs/` kökünde açık bir faz (`<NN>`) | `echo "" >> src/AgentPrism.Core/AgentPrismServiceCollectionExtensions.cs` sonra `python3 scripts/dokuman-bakim.py faz-arsivle <NN>` | ❌ Komut **hiçbir dosyaya dokunmadan** çıkar: "çalışma ağacında commit edilmemiş değişiklik var … `git reset --hard` koşar ve onları YOK EDER". `src/` altındaki düzenleme **korunur** |
+| 10 | `MT-DKP-010` | Kirli ağaç · `docs/` kökünde açık bir faz (`<NN>`) | `echo "" >> src/Tracon.Core/TraconServiceCollectionExtensions.cs` sonra `python3 scripts/dokuman-bakim.py faz-arsivle <NN>` | ❌ Komut **hiçbir dosyaya dokunmadan** çıkar: "çalışma ağacında commit edilmemiş değişiklik var … `git reset --hard` koşar ve onları YOK EDER". `src/` altındaki düzenleme **korunur** |
 | 11 | `MT-DKP-011` | Temiz ağaç | Bir doküman dosyasına ```` ```markdown ```` bloğu içinde `[x](../../YOK.md)` yaz, `--denetle` koş | ✅ **yeşil** — kod bloğundaki örnek bağlantı sayılmaz. Aynı satırı blok **dışına** yazınca ❌ kırmızı olur; damıtma şablonunu belgeleyebilmek bunu gerektiriyor |
 | 12 | `MT-DKP-012` | Temiz ağaç | `python3 scripts/dokuman-bakim.py --denetle \| grep "docs/arsiv"` | `docs/arsiv/**.md` satırı **0 değil** gerçek bir bayt sayısı gösterir. 0 görürsen `_dizin_boyutu` HARIC'i kendi üstüne uyguluyor demektir — muaf ağaç bütçeleri sessizce anlamsız olur |
 

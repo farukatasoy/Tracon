@@ -1,0 +1,24 @@
+#nullable enable
+Tracon.TraconSqliteBuilderExtensions
+Tracon.TraconSqliteOptions
+Tracon.TraconSqliteOptions.TraconSqliteOptions() -> void
+Tracon.TraconSqliteOptions.AutoApplyMigrations.get -> bool
+Tracon.TraconSqliteOptions.AutoApplyMigrations.set -> void
+Tracon.TraconSqliteOptions.CommandTimeoutSeconds.get -> int
+Tracon.TraconSqliteOptions.CommandTimeoutSeconds.set -> void
+Tracon.TraconSqliteOptions.ConnectionString.get -> string?
+Tracon.TraconSqliteOptions.ConnectionString.set -> void
+Tracon.TraconSqliteOptions.DataSource.get -> System.Data.Common.DbDataSource?
+Tracon.TraconSqliteOptions.DataSource.set -> void
+Tracon.TraconSqliteOptions.EnableReadViews.get -> bool
+Tracon.TraconSqliteOptions.EnableReadViews.set -> void
+Tracon.TraconSqliteOptions.TablePrefix.get -> string!
+Tracon.TraconSqliteOptions.TablePrefix.set -> void
+Tracon.MigrationRunner
+Tracon.MigrationRunner.ApplyAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<int>
+Tracon.MigrationRunner.GetSnapshotAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Tracon.SqlPersistenceDiagnosticsSnapshot!>
+Tracon.MigrationRunner.ProviderName.get -> string!
+const Tracon.TraconSqliteOptions.SectionName = "Tracon:Sqlite" -> string!
+static Tracon.TraconSqliteBuilderExtensions.UseSqlite(this Tracon.ITraconBuilder! builder, Microsoft.Extensions.Configuration.IConfiguration! configurationSection) -> Tracon.ITraconBuilder!
+static Tracon.TraconSqliteBuilderExtensions.UseSqlite(this Tracon.ITraconBuilder! builder, string! connectionString) -> Tracon.ITraconBuilder!
+static Tracon.TraconSqliteBuilderExtensions.UseSqlite(this Tracon.ITraconBuilder! builder, System.Action<Tracon.TraconSqliteOptions!>! configure) -> Tracon.ITraconBuilder!

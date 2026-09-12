@@ -3,7 +3,7 @@
 > **Durum:** ✅ Tamamlandı (2026-08-07)
 > **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-54**, **F-66** (birleşti)
 > **Önkoşul:** Yok. [Faz 46](46-DAYANIKLI-CALISTIRMA.md) biterse yeniden oynatma `202` ile kuyruğa alınabilir — zorunlu değildir
-> **Paketler:** `AgentPrism.Abstractions`, `.Core`, `.Sql.Shared`, `.PostgreSql`, `.SqlServer`, `.Sqlite`, `.AspNetCore`, `.UI`
+> **Paketler:** `Tracon.Abstractions`, `.Core`, `.Sql.Shared`, `.PostgreSql`, `.SqlServer`, `.Sqlite`, `.AspNetCore`, `.UI`
 > **Yeni paket:** Yok · **Migration:** **gerekli** — bir tablo + iki sütun, üç set, numaralar uygulama anında alınır (K-178)
 > **Public API:** büyüyor — bir arayüz, iki enum, dört kayıt tipi. Faz 7'den önce ucuz
 
@@ -55,7 +55,7 @@
       ve PostgreSQL/SQLite ile aynıdır
 - [x] Migration üç sette de uygulandı (K-178)
 - [x] Dört doğrulama kapısı sıfır uyarı verir
-- [x] `samples/AgentPrism.Api` ile gerçek `run` yapıldı — çıktılar aşağıda
+- [x] `samples/Tracon.Api` ile gerçek `run` yapıldı — çıktılar aşağıda
 - [x] `secret` taraması boş döndü
 - [x] `en.ts` ve `tr.ts` eksiksiz; bundle **151,3 → 159,3 KB gzip** (bu fazın payı
       **8,0 KB**; plan 3–5 KB tahmin etmişti). Bütçe 250 KB, kalan pay 90,7 KB
@@ -63,7 +63,7 @@
 
 ### Örnek uygulamayla ölçülen gerçek çıktı (2026-08-07)
 
-`samples/AgentPrism.Api`, SQLite kalıcılığı ve gerçek OpenAI çağrılarıyla.
+`samples/Tracon.Api`, SQLite kalıcılığı ve gerçek OpenAI çağrılarıyla.
 
 | Adım | Sonuç |
 |---|---|
@@ -84,7 +84,7 @@
 
 🚨 **Örnek uygulamanın yakaladığı gerçek hata (birim testleri kaçırdı).**
 Yeniden oynatma ucu ilk yazımda sağlayıcı hatalarını
-`AgentPrismException or InvalidOperationException or HttpRequestException`
+`TraconException or InvalidOperationException or HttpRequestException`
 listesiyle yakalıyordu. Gerçek bir OpenAI `403 model_not_found` yanıtı
 `System.ClientModel.ClientResultException` fırlattı ve istek **işlenmemiş bir
 500** oldu. Bu, **K-296'nın birebir tekrarıdır** (Faz 44: "resmî sağlayıcı
@@ -95,56 +95,56 @@ ve okunabilir bir `ProblemDetails` döndürüyor.
 
 ```bash
 # 0) Kaynak calistirma
-RUN=$(curl -s -X POST http://localhost:5081/agentprism/api/agents/asistan/run \
+RUN=$(curl -s -X POST http://localhost:5081/tracon/api/agents/asistan/run \
   -H "content-type: application/json" \
   -d '{"message":"istanbul hava durumu"}' | jq -r '.runId')
 
 # 1) Girdi kaydedildi mi — polimorfik icerik aynen geldi mi
-curl -s "http://localhost:5081/agentprism/api/runs/$RUN/input" | jq '.messages'
+curl -s "http://localhost:5081/tracon/api/runs/$RUN/input" | jq '.messages'
 
 # 2) jsonb tuzagi denetimi — sutun tipi `json` OLMALI
-psql "$AGENTPRISM_CONN" -c \
+psql "$TRACON_CONN" -c \
   "SELECT data_type FROM information_schema.columns
-    WHERE table_schema='agentprism' AND table_name='run_inputs' AND column_name='messages';"
+    WHERE table_schema='tracon' AND table_name='run_inputs' AND column_name='messages';"
 
 # 3) Yeniden oynat — ReplayTools, tool GERCEKTEN kosmamali
-BEFORE=$(psql -tA "$AGENTPRISM_CONN" -c "SELECT count(*) FROM agentprism.tool_invocations;")
-REPLAY=$(curl -s -X POST "http://localhost:5081/agentprism/api/runs/$RUN/replay" \
+BEFORE=$(psql -tA "$TRACON_CONN" -c "SELECT count(*) FROM tracon.tool_invocations;")
+REPLAY=$(curl -s -X POST "http://localhost:5081/tracon/api/runs/$RUN/replay" \
   -H "content-type: application/json" \
   -d '{"toolMode":"ReplayTools"}' | jq -r '.runId')
-AFTER=$(psql -tA "$AGENTPRISM_CONN" -c "SELECT count(*) FROM agentprism.tool_invocations;")
+AFTER=$(psql -tA "$TRACON_CONN" -c "SELECT count(*) FROM tracon.tool_invocations;")
 echo "tool_invocations: $BEFORE -> $AFTER  (ESIT olmali)"
 
 # 4) Soy bagi
-curl -s "http://localhost:5081/agentprism/api/runs/$REPLAY" | jq '{id, replayOfRunId}'
+curl -s "http://localhost:5081/tracon/api/runs/$REPLAY" | jq '{id, replayOfRunId}'
 
 # 5) Karsilastir
-curl -s "http://localhost:5081/agentprism/api/runs/$RUN/compare/$REPLAY" | jq
+curl -s "http://localhost:5081/tracon/api/runs/$RUN/compare/$REPLAY" | jq
 
 # 6) Onay gerektiren tool + LiveTools -> 409
 curl -s -o /dev/null -w "%{http_code}\n" -X POST \
-  "http://localhost:5081/agentprism/api/runs/$RUN/replay" \
+  "http://localhost:5081/tracon/api/runs/$RUN/replay" \
   -H "content-type: application/json" -d '{"toolMode":"LiveTools"}'
 
 # 7) Dallandir
 SESSION="oturum-1"
-curl -s -X POST "http://localhost:5081/agentprism/api/agents/asistan/run" \
+curl -s -X POST "http://localhost:5081/tracon/api/agents/asistan/run" \
   -H "content-type: application/json" \
   -d "{\"message\":\"merhaba\",\"sessionId\":\"$SESSION\"}" > /dev/null
 BRANCH=$(curl -s -X POST \
-  "http://localhost:5081/agentprism/api/sessions/$SESSION/branch" \
+  "http://localhost:5081/tracon/api/sessions/$SESSION/branch" \
   -H "content-type: application/json" -d '{"upToSequence":1}')
 echo "$BRANCH" | jq
 
 # 8) Dal bagimsiz mi — ana konusmanin oge sayisi DEGISMEMELI
-psql "$AGENTPRISM_CONN" -c \
+psql "$TRACON_CONN" -c \
   "SELECT c.id, c.parent_conversation_id, c.branch_from_seq, count(i.id) AS oge
-     FROM agentprism.conversations c
-     LEFT JOIN agentprism.conversation_items i ON i.conversation_id = c.id
+     FROM tracon.conversations c
+     LEFT JOIN tracon.conversation_items i ON i.conversation_id = c.id
     GROUP BY c.id ORDER BY c.created_at;"
 
 # 9) Saklama hedefi
-curl -s http://localhost:5081/agentprism/api/retention/run_inputs | jq
+curl -s http://localhost:5081/tracon/api/retention/run_inputs | jq
 ```
 
 ---
@@ -171,8 +171,8 @@ Fazın kendi kapsamı değildi; `dotnet test` çalıştırılamadığı için d�
 
 | Arıza | Kök sebep | Ölçüm |
 |---|---|---|
-| 🚨 `dotnet test AgentPrism.slnx` hiçbir test koşmadan **on dakikalarca asılı** kalıyordu | `AgentPrism.Templates.Tests` fikstürü `dotnet pack`'i yönlendirilmiş stdout ile çalıştırıyor; `pack`'in başlattığı MSBuild düğümleri (`nodeReuse:true`) komut bittikten sonra da yaşayıp boruyu açık tutuyor ve `Process.WaitForExitAsync` asenkron okuyucuların bitmesini de beklediği için **~15 dakika** bloke kalıyor | Düğümler `pkill` ile öldürülünce fikstür ANINDA devam etti. `MSBUILDDISABLENODEREUSE=1` eklendi: **8 dk+ (asılı) → 18,5 sn** |
-| E2E paketi arayüz derlenmeden koşulduğunda 41 test 30'ar saniye zaman aşımına uğruyordu | `-p:AgentPrismFrontendEnabled=false` ile derlenmiş bir çözümde `AgentPrism.UI` hiçbir varlık gömmez | `UiHost.StartAsync` artık `IAgentPrismUiProvider.HasAssets` denetler ve saniyeler içinde açık bir mesajla düşer |
+| 🚨 `dotnet test Tracon.slnx` hiçbir test koşmadan **on dakikalarca asılı** kalıyordu | `Tracon.Templates.Tests` fikstürü `dotnet pack`'i yönlendirilmiş stdout ile çalıştırıyor; `pack`'in başlattığı MSBuild düğümleri (`nodeReuse:true`) komut bittikten sonra da yaşayıp boruyu açık tutuyor ve `Process.WaitForExitAsync` asenkron okuyucuların bitmesini de beklediği için **~15 dakika** bloke kalıyor | Düğümler `pkill` ile öldürülünce fikstür ANINDA devam etti. `MSBUILDDISABLENODEREUSE=1` eklendi: **8 dk+ (asılı) → 18,5 sn** |
+| E2E paketi arayüz derlenmeden koşulduğunda 41 test 30'ar saniye zaman aşımına uğruyordu | `-p:TraconFrontendEnabled=false` ile derlenmiş bir çözümde `Tracon.UI` hiçbir varlık gömmez | `UiHost.StartAsync` artık `ITraconUiProvider.HasAssets` denetler ve saniyeler içinde açık bir mesajla düşer |
 
 Tüm paketin süresi: **2 dk 33 sn** (SQL Server hariç — bkz. Bitiş Ölçütleri).
 
@@ -202,6 +202,6 @@ Tüm paketin süresi: **2 dk 33 sn** (SQL Server hariç — bkz. Bitiş Ölçüt
   | Kapsam dışı | Neden ayrı |
   |---|---|
   | Kuyruğa alınan yeniden oynatma (`Prefer: respond-async`) | K-316: iş yükü sözleşmesi + işçi sürecinde kiracı çözümü ölçülmedi |
-  | Bellek içi konuşma deposu (dallandırmayı her kurulumda açar) | K-313: AgentPrism kendi `ChatHistoryProvider`'ını yazmalı; K3'ü zorlar |
+  | Bellek içi konuşma deposu (dallandırmayı her kurulumda açar) | K-313: Tracon kendi `ChatHistoryProvider`'ını yazmalı; K3'ü zorlar |
   | Alt agent ve skill yüzeylerinin oynatılması | S4: ikisi de `AIContextProvider` üzerinden gelir ve tool dönüşümünden geçmez |
   | Workflow dallandırma ucu | Kontrol noktası durumu opaktır |

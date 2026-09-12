@@ -1,22 +1,22 @@
 # 15 — Workflows: Yürütme, Kontrol Noktası, Graf ve Human-in-the-Loop (`WF`)
 
 > **Alan kodu:** `WF` · **Faz:** 15, 16, 71, 87 (yalnız düğüm başına retry)
-> **Kaynak:** `src/AgentPrism.Workflows/` (tümü: `AgentPrismWorkflowOptions`,
-> `AgentPrismWorkflowsBuilderExtensions`, `WorkflowAgentBinding`, `Internal/*`) ·
-> `src/AgentPrism.Abstractions/Workflows/` (tümü) ·
-> `src/AgentPrism.Abstractions/Runs/RunKind.cs` ·
-> `src/AgentPrism.Core/Workflows/WorkflowDefinitionValidator.cs` ·
-> `src/AgentPrism.Core/Storage/InMemoryWorkflowStores.cs` ·
-> `src/AgentPrism.Core/Audit/AuditingWorkflowDefinitionStore.cs` (yalnız denetim
-> eylem adları) · `src/AgentPrism.PostgreSql/Migrations/0007_workflows.sql` ·
-> `src/AgentPrism.PostgreSql/Stores/PostgresWorkflow*.cs` ·
-> `src/AgentPrism.AspNetCore/Endpoints/WorkflowEndpoints.cs` ·
-> `src/AgentPrism.AspNetCore/Contracts/WorkflowContracts.cs` ·
-> `src/AgentPrism.UI/frontend/src/screens/workflows.tsx`,
+> **Kaynak:** `src/Tracon.Workflows/` (tümü: `TraconWorkflowOptions`,
+> `TraconWorkflowsBuilderExtensions`, `WorkflowAgentBinding`, `Internal/*`) ·
+> `src/Tracon.Abstractions/Workflows/` (tümü) ·
+> `src/Tracon.Abstractions/Runs/RunKind.cs` ·
+> `src/Tracon.Core/Workflows/WorkflowDefinitionValidator.cs` ·
+> `src/Tracon.Core/Storage/InMemoryWorkflowStores.cs` ·
+> `src/Tracon.Core/Audit/AuditingWorkflowDefinitionStore.cs` (yalnız denetim
+> eylem adları) · `src/Tracon.PostgreSql/Migrations/0007_workflows.sql` ·
+> `src/Tracon.PostgreSql/Stores/PostgresWorkflow*.cs` ·
+> `src/Tracon.AspNetCore/Endpoints/WorkflowEndpoints.cs` ·
+> `src/Tracon.AspNetCore/Contracts/WorkflowContracts.cs` ·
+> `src/Tracon.UI/frontend/src/screens/workflows.tsx`,
 > `workflow-editor.tsx`, `workflow-detail.tsx` ·
-> `src/AgentPrism.UI/frontend/src/components/workflow-graph.tsx` ·
-> `src/AgentPrism.UI/frontend/src/lib/workflow-graph.ts` ·
-> `samples/AgentPrism.Api/Program.cs` (yalnız `AddWorkflow(...)` blokları:
+> `src/Tracon.UI/frontend/src/components/workflow-graph.tsx` ·
+> `src/Tracon.UI/frontend/src/lib/workflow-graph.ts` ·
+> `samples/Tracon.Api/Program.cs` (yalnız `AddWorkflow(...)` blokları:
 > `ozetle-ve-cevir`, `ozetle-ve-onayla`; ve Faz 71'in `AddWorkflowFunction(...)`
 > bloğu: `word-count`).
 >
@@ -68,13 +68,13 @@ flowchart TD
 | Genel HTTP zarfı (`ProblemDetails`, CRUD, idempotency) | `07-HTTP-YONETIM-API.md` (zaten üretildi) |
 | Üç katmanlı erişim koruması, kiracı izolasyonu, API anahtarı kapsamları | `13-KIRACI-VE-GUVENLIK.md` (zaten üretildi) — burada TEKRARLANMAZ, yalnız §9'daki kapsam boşluğu bu dosyaya özgü olduğu için buradadır |
 | `run-detail.tsx`'in `kind === 'Workflow'` satırını nasıl gösterdiği, `AwaitingInput` istatistik dalı, "Dallandır" | `11-ARAYUZ-RUN-SESSION-SSE.md` (zaten üretildi, `MT-UIRUN-012`/`013`/`044`) — burada TEKRARLANMAZ |
-| SSE `error` çerçevesinin gerçek sağlayıcı istisnalarını (K-296) yakalayamaması | `05-SAGLAYICI-OPENAI.md` `MT-OAI-043` — bu dosyadaki workflow hataları `AgentPrismException`'dır ve o boşluğa **girmez** (bkz. §8 notu) |
+| SSE `error` çerçevesinin gerçek sağlayıcı istisnalarını (K-296) yakalayamaması | `05-SAGLAYICI-OPENAI.md` `MT-OAI-043` — bu dosyadaki workflow hataları `TraconException`'dır ve o boşluğa **girmez** (bkz. §8 notu) |
 | İş kuyruğu (`Prefer: respond-async`) ile workflow çalıştırma | `16-IS-KUYRUGU-VE-ZAMANLAMA.md` (henüz üretilmedi) |
-| Rol matrisi (`AgentPrismPolicies.Reader`/`.Admin`) genel no-op durumu | `00-INDEKS.md` §8 ve `14-SKILL-VE-SCRIPT.md`'de zaten kaydedildi — burada tekrar açıklanmaz, yalnız §9'un öncülü olarak anılır |
+| Rol matrisi (`TraconPolicies.Reader`/`.Admin`) genel no-op durumu | `00-INDEKS.md` §8 ve `14-SKILL-VE-SCRIPT.md`'de zaten kaydedildi — burada tekrar açıklanmaz, yalnız §9'un öncülü olarak anılır |
 
 > **Rol matrisi burada da NO-OP'tur, tekrar test edilmez.** `WorkflowEndpoints`
 > her ucu `RequireRole(roles.Reader/Operator/Admin)` ile işaretler ama
-> `AgentPrismPolicies.*` örnek uygulamada kayıtlı değildir — statik bearer
+> `TraconPolicies.*` örnek uygulamada kayıtlı değildir — statik bearer
 > token tüm workflow uçlarına erişir. Bu, `14-SKILL-VE-SCRIPT.md`'nin zaten
 > kaydettiği genel bulgunun bir tekrarıdır. **Farklı ve bu dosyaya özgü olan**,
 > `WorkflowEndpoints`'in **hiçbir ucunda** `RequireApiKeyScope(...)` çağrısının
@@ -91,8 +91,8 @@ flowchart TD
    doğrulama sorguları **PostgreSQL** varsayar (`$type` ayracı ve `json` sütun
    kanıtı yalnız PostgreSQL'de anlamlıdır — K-027); diğer sağlayıcılar
    `04-KALICILIK-DIGER.md`'nin işidir.
-3. Örnek uygulama çalışır: `cd samples/AgentPrism.Api && dotnet run` →
-   `http://localhost:5080/agentprism`.
+3. Örnek uygulama çalışır: `cd samples/Tracon.Api && dotnet run` →
+   `http://localhost:5080/tracon`.
 4. Örnek uygulama İKİ kodda tanımlı workflow taşır: `ozetle-ve-cevir`
    (Sequential, insan girdisi istemez) ve `ozetle-ve-onayla` (insan onayı
    ister, `RequestPort.Create<string, bool>`). Üçüncüsü yok; arayüzden
@@ -104,8 +104,8 @@ flowchart TD
 
 ```bash
 export APB="Authorization: Bearer manuel-test-token-2026"
-export APU="http://localhost:5080/agentprism"
-export PG="docker exec -i ap-pg psql -U postgres -d agentprism"
+export APU="http://localhost:5080/tracon"
+export PG="docker exec -i ap-pg psql -U postgres -d tracon"
 ```
 
 > **Gerçek para uyarısı.** §3, §4, §5, §6 gerçek OpenAI modeliyle (`gpt-5.4-mini`)
@@ -127,7 +127,7 @@ kullanılır — her ikisi de anahtar gerektirmez, OpenAI kullanır).
 | `FIX-WF-01` | Ad `inceleme-zinciri` · `Sequential` · `agentNames: ["ozetleyici","cevirmen"]` |
 | `FIX-WF-02` | Ad `plan-onayli` · `Magentic` · `agentNames: ["cevirmen"]` · `managerAgentName: "ozetleyici"` · `maxIterations: 2` · `requirePlanApproval: true` |
 | `FIX-WF-03` | Ad `cift-gorus` · `Concurrent` · `agentNames: ["ozetleyici","cevirmen"]` |
-| `FIX-WF-MSG-01` | `"AgentPrism, Microsoft Agent Framework uzerine kurulu bir NuGet paket ailesidir."` — özetleme/çeviri girdisi |
+| `FIX-WF-MSG-01` | `"Tracon, Microsoft Agent Framework uzerine kurulu bir NuGet paket ailesidir."` — özetleme/çeviri girdisi |
 
 ---
 
@@ -733,11 +733,11 @@ düzeltilmiş hâli:
   'yok-boyle-bir-agent' agent'ini kullaniyor ancak boyle bir agent katalogda
   yok. Once agent'i tanimlayin, sonra workflow'u kaydedin." metnini taşır,
   akış `event: done` ile normal biter — HTTP bağlantı düzeyinde bir hata
-  YOKTUR. `WorkflowDefinitionCompiler`'ın attığı `AgentPrismException`,
+  YOKTUR. `WorkflowDefinitionCompiler`'ın attığı `TraconException`,
   `WorkflowRunner`'ın kendi içinde yakalanıp `RunEventType.RunFailed`
   (`WorkflowRunner.cs:1018`) tipli bir domain event'ine çevriliyor ve normal
   event akışının bir parçası olarak yayınlanıyor; `WorkflowEndpoints.WorkflowEventStream`'in
-  ayrı `catch (AgentPrismException ...)` bloğu (`event: error` üreten,
+  ayrı `catch (TraconException ...)` bloğu (`event: error` üreten,
   `WorkflowEndpoints.cs:491-497`) YALNIZCA akışın kendisi (async enumerable)
   DIŞARI istisna fırlatırsa çalışır — bu case'in hata yolu oraya hiç
   uğramıyor.
@@ -875,7 +875,7 @@ DEĞİŞMEDİ.
 | **İlgili karar** | — |
 
 **Adımlar**
-1. Tarayıcıda doğrudan `.../agentprism/workflows/ozetle-ve-cevir/edit` adresine git.
+1. Tarayıcıda doğrudan `.../tracon/workflows/ozetle-ve-cevir/edit` adresine git.
 
 **Beklenen sonuç**
 - Sayfa bir form GÖSTERMEZ; `existing` sorgusu (`api.workflow(name)`, tekil
@@ -902,7 +902,7 @@ DEĞİŞMEDİ.
 **Girilecek veri**
 ```bash
 curl -N -s -X POST "$APU/api/workflows/ozetle-ve-cevir/run" -H "$APB" -H "content-type: application/json" \
-     -d '{"message":"AgentPrism, Microsoft Agent Framework uzerine kurulu bir NuGet paket ailesidir."}'
+     -d '{"message":"Tracon, Microsoft Agent Framework uzerine kurulu bir NuGet paket ailesidir."}'
 ```
 ```bash
 curl -s "$APU/api/runs/<runId>/tree" -H "$APB" | python3 -m json.tool
@@ -937,7 +937,7 @@ curl -s "$APU/api/runs/<runId>/tree" -H "$APB" | python3 -m json.tool
 **Doğrulama sorgusu**
 ```sql
 SELECT kind, workflow_name, agent_name, count(*)
-FROM agentprism.runs
+FROM tracon.runs
 WHERE workflow_name = 'ozetle-ve-cevir' OR agent_name IN ('ozetleyici','cevirmen')
 GROUP BY kind, workflow_name, agent_name
 ORDER BY kind;
@@ -978,7 +978,7 @@ curl -s "$APU/api/workflows/runs/<runId>/checkpoints" -H "$APB" | python3 -m jso
 SELECT checkpoint_id, parent_id,
        pg_typeof(state) AS sutun_tipi,
        substring(state::text from 1 for 40) AS ilk_40_bayt
-FROM agentprism.workflow_checkpoints
+FROM tracon.workflow_checkpoints
 WHERE run_id = '<runId>'
 ORDER BY created_at;
 ```
@@ -1016,7 +1016,7 @@ ORDER BY created_at;
 **Doğrulama sorgusu**
 ```sql
 SELECT run_id, session_id, count(*)
-FROM agentprism.workflow_checkpoints
+FROM tracon.workflow_checkpoints
 WHERE session_id IN ('<ilk-session-id>', 'ikinci-oturum')
 GROUP BY run_id, session_id;
 ```
@@ -1078,7 +1078,7 @@ curl -N -s -X POST "$APU/api/workflows/ozetle-ve-cevir/run" -H "$APB" -H "conten
 **Girilecek veri**
 ```bash
 curl -N -s -X POST "$APU/api/workflows/inceleme-zinciri/run" -H "$APB" -H "content-type: application/json" \
-     -d '{"message":"AgentPrism, Microsoft Agent Framework uzerine kurulu bir NuGet paket ailesidir."}'
+     -d '{"message":"Tracon, Microsoft Agent Framework uzerine kurulu bir NuGet paket ailesidir."}'
 ```
 
 **Beklenen sonuç**
@@ -1140,7 +1140,7 @@ curl -N -s -X POST "$APU/api/workflows/runs/<runId>/resume" -H "$APB" -H "conten
 **Beklenen sonuç**
 - `HTTP` akışı başarıyla başlar; ilk kontrol noktası genelde ilk super-step
   öncesine denk geldiği için `ozetleyici`'nin YENİDEN çalıştığı gözlenebilir
-  (`MessageDelta` olayları tekrar görülür) — bu AgentPrism'in değil, grafın
+  (`MessageDelta` olayları tekrar görülür) — bu Tracon'in değil, grafın
   o noktada kuyrukta bekleyen işin doğal sonucudur (Faz 16 §"Ölçülen MAF
   Davranışları" madde 7'nin aynısı, farklı bir bağlamda).
 
@@ -1199,7 +1199,7 @@ içeriği doğru:
 **Girilecek veri**
 ```bash
 curl -N -s -X POST "$APU/api/workflows/ozetle-ve-onayla/run" -H "$APB" -H "content-type: application/json" \
-     -d '{"message":"AgentPrism yayin oncesi manuel kabul testi yaziyoruz."}'
+     -d '{"message":"Tracon yayin oncesi manuel kabul testi yaziyoruz."}'
 ```
 
 **Beklenen sonuç**
@@ -1360,17 +1360,17 @@ Negatif senaryo — kiracı yalıtımı.
 | **İlgili karar** | — |
 
 **Ön koşul**
-- `X-AgentPrism-Tenant: kiraci-alfa` başlığıyla `ozetle-ve-onayla`'yı çalıştır,
+- `X-Tracon-Tenant: kiraci-alfa` başlığıyla `ozetle-ve-onayla`'yı çalıştır,
   `runId`'yi not al (bkz. `13-KIRACI-VE-GUVENLIK.md` MT-SEC-021 için header
   çözümlemesinin nasıl açıldığı).
 
 **Girilecek veri**
 ```bash
 curl -N -s -X POST "$APU/api/workflows/ozetle-ve-onayla/run" -H "$APB" \
-     -H "X-AgentPrism-Tenant: kiraci-alfa" -H "content-type: application/json" \
+     -H "X-Tracon-Tenant: kiraci-alfa" -H "content-type: application/json" \
      -d '{"message":"Kiraci alfa testi."}'
 curl -s -w "\nHTTP: %{http_code}\n" "$APU/api/workflows/runs/<runId>/requests" -H "$APB" \
-     -H "X-AgentPrism-Tenant: kiraci-beta"
+     -H "X-Tracon-Tenant: kiraci-beta"
 ```
 
 **Beklenen sonuç**
@@ -1401,7 +1401,7 @@ curl -s -X PUT "$APU/api/workflows/plan-onayli" -H "$APB" -H "content-type: appl
   "requirePlanApproval": true
 }'
 curl -N -s -X POST "$APU/api/workflows/plan-onayli/run" -H "$APB" -H "content-type: application/json" \
-     -d '{"message":"AgentPrism, Microsoft Agent Framework uzerine kurulu bir NuGet paket ailesidir. Bunu Ingilizceye cevir."}'
+     -d '{"message":"Tracon, Microsoft Agent Framework uzerine kurulu bir NuGet paket ailesidir. Bunu Ingilizceye cevir."}'
 ```
 
 **Beklenen sonuç**
@@ -1638,7 +1638,7 @@ Negatif senaryo. `MT-SEC-070` deseniyle aynı: geçici kod değişikliği gerekt
 | **İlgili karar** | — |
 
 **Adımlar**
-1. `samples/AgentPrism.Api/Program.cs` satır ~103'teki `.UseWorkflows()`
+1. `samples/Tracon.Api/Program.cs` satır ~103'teki `.UseWorkflows()`
    çağrısını GEÇİCİ olarak yorum satırına al.
 2. `dotnet run` ile yeniden başlat.
 3. Katalog ve çalıştırma uçlarını sırayla dene.
@@ -1656,13 +1656,13 @@ curl -s -w "\nHTTP: %{http_code}\n" "$APU/api/workflows/ozetle-ve-cevir/graph" -
   dalı `store.ListAsync` ile devam eder (`WorkflowEndpoints.cs:126-134`). Kod
   tanımlı `ozetle-ve-cevir` listede **artık görünmez** (kayıt hiç yapılmadı).
 - `run`: `HTTP: 501`, `title: "Workflow motoru kayitli degil"`, `detail`
-  "... AgentPrism.Workflows paketini ekleyin ve UseWorkflows() cagirin."
+  "... Tracon.Workflows paketini ekleyin ve UseWorkflows() cagirin."
   metnini içerir.
 - `graph`: `HTTP: 501` (aynı `NotRegistered` yardımcı metodu).
 
 ---
 
-### MT-WF-091 — `AgentPrism:Workflows:Enabled=false` → SSE `error` "calistirma kapali"
+### MT-WF-091 — `Tracon:Workflows:Enabled=false` → SSE `error` "calistirma kapali"
 
 Negatif senaryo — yalnız çalıştırma kapanır, katalog etkilenmez.
 
@@ -1674,10 +1674,10 @@ Negatif senaryo — yalnız çalıştırma kapanır, katalog etkilenmez.
 | **İlgili karar** | — |
 
 **Adımlar**
-1. `dotnet user-secrets set "AgentPrism:Workflows:Enabled" "false"`
-   (`samples/AgentPrism.Api` dizininde), yeniden başlat.
+1. `dotnet user-secrets set "Tracon:Workflows:Enabled" "false"`
+   (`samples/Tracon.Api` dizininde), yeniden başlat.
 2. Çalıştırmayı dene.
-3. Ayarı `dotnet user-secrets remove "AgentPrism:Workflows:Enabled"`,
+3. Ayarı `dotnet user-secrets remove "Tracon:Workflows:Enabled"`,
    yeniden başlat.
 
 **Girilecek veri**
@@ -1687,8 +1687,8 @@ curl -N -s -X POST "$APU/api/workflows/ozetle-ve-cevir/run" -H "$APB" -H "conten
 
 **Beklenen sonuç**
 - SSE `event: run` gelir (bir `runId` ÜRETİLİR), ardından `event: error`;
-  `message: "Workflow calistirma kapali. 'AgentPrism:Workflows:Enabled'
-  ayarini acin."` (`WorkflowRunner.cs:339-343`). Bu bir `AgentPrismException`
+  `message: "Workflow calistirma kapali. 'Tracon:Workflows:Enabled'
+  ayarini acin."` (`WorkflowRunner.cs:339-343`). Bu bir `TraconException`
   olduğu için `error` çerçevesi GÜVENİLİR şekilde üretilir — K-296'nın
   boşluğuna girmez.
 
@@ -1706,7 +1706,7 @@ Negatif senaryo — sonsuz döngü korumasının ucuz ve deterministik tetikleme
 | **İlgili karar** | — |
 
 **Adımlar**
-1. `dotnet user-secrets set "AgentPrism:Workflows:MaxSuperSteps" "2"`,
+1. `dotnet user-secrets set "Tracon:Workflows:MaxSuperSteps" "2"`,
    yeniden başlat.
 2. `ozetle-ve-cevir`'i çalıştır (gerçek kanıtta bu workflow 3 super-step
    üretir — Faz 15 "Gerçek Kanıt": `SuperStepStarted 3`).
@@ -1740,7 +1740,7 @@ Negatif senaryo.
 | **İlgili karar** | — |
 
 **Adımlar**
-1. `dotnet user-secrets set "AgentPrism:Workflows:EnableCheckpointing" "false"`,
+1. `dotnet user-secrets set "Tracon:Workflows:EnableCheckpointing" "false"`,
    yeniden başlat.
 2. `ozetle-ve-cevir`'i çalıştır (checkpoint YAZILMAZ), `runId`'yi not al.
 3. Aynı `runId`'yi sürdürmeyi dene.
@@ -1753,7 +1753,7 @@ curl -N -s -X POST "$APU/api/workflows/runs/<runId>/resume" -H "$APB" -H "conten
 
 **Beklenen sonuç**
 - SSE `event: error`; `message: "Kontrol noktasindan sürdürme icin
-  'AgentPrism:Workflows:EnableCheckpointing' acik olmalidir."`
+  'Tracon:Workflows:EnableCheckpointing' acik olmalidir."`
   (`WorkflowRunner.cs:794-795` — bu dal `checkpointManager is null` VE
   `execution.ResumeFrom` dolu olduğunda tetiklenir; ama önce
   `RequireCheckpointAsync` çalışır — checkpoint hiç yazılmadığı için asıl
@@ -1862,7 +1862,7 @@ Negatif senaryo — kiracı yalıtımı, `IWorkflowCheckpointStore` seviyesinde.
 **Girilecek veri**
 ```bash
 curl -s -w "\nHTTP: %{http_code}\n" "$APU/api/workflows/runs/<runId>/checkpoints" -H "$APB" \
-     -H "X-AgentPrism-Tenant: kiraci-beta"
+     -H "X-Tracon-Tenant: kiraci-beta"
 ```
 
 **Beklenen sonuç**
@@ -1873,13 +1873,13 @@ curl -s -w "\nHTTP: %{http_code}\n" "$APU/api/workflows/runs/<runId>/checkpoints
 ### MT-WF-100 — 🚨 `RunsRead`-kapsamlı bir API anahtarı workflow `PUT`/`run`'a erişebiliyor mu?
 
 Şüpheli davranış — koddan ölçüldü, koşumda doğrulanacak/çürütülecek.
-`WorkflowEndpoints.Map` (`src/AgentPrism.AspNetCore/Endpoints/WorkflowEndpoints.cs`)
+`WorkflowEndpoints.Map` (`src/Tracon.AspNetCore/Endpoints/WorkflowEndpoints.cs`)
 **hiçbir ucunda** `.RequireApiKeyScope(...)` çağırmaz — karşılaştırma:
 `AgentEndpoints.cs` ve `RunEndpoints.cs` her CRUD/çalıştırma ucuna
 `RequireApiKeyScope(ApiKeyScope.AgentsAdmin)`/`RunsWrite` ekler
-(`AgentEndpoints.cs:43-99`, `RunEndpoints.cs:79-233`). `AgentPrismEndpointFilter.CheckScope`
+(`AgentEndpoints.cs:43-99`, `RunEndpoints.cs:79-233`). `TraconEndpointFilter.CheckScope`
 şu satırı taşır: `if (requirement is null || record.Scopes.Contains(requirement.Scope))
-return null;` (`AgentPrismEndpointFilter.cs:194`) — metadata YOKSA denetim
+return null;` (`TraconEndpointFilter.cs:194`) — metadata YOKSA denetim
 KOŞULSUZ geçer. Sonuç (şüphe): rol politikaları zaten no-op olduğu için
 (bkz. dosya başındaki not), `ApiKeyScope` sistemi de workflow uçlarında HİÇ
 uygulanmıyor olabilir — yalnız `RunsRead` taşıyan (yalnız okuma niyetiyle
@@ -1940,7 +1940,7 @@ curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/agents/kapsam-kontrol" -H "
 
 Faz 71 `AddWorkflowFunction` ile kod içinde kayıtlı bir fonksiyonu `Sequential`
 bir tanımın `nodes` listesine karıştırma yeteneği getirdi. Kanıt:
-`src/AgentPrism.Workflows/AgentPrismWorkflowFunctionExtensions.cs`,
+`src/Tracon.Workflows/TraconWorkflowFunctionExtensions.cs`,
 `Internal/WorkflowFunctionRegistry.cs`, `Internal/WorkflowAgentStepExecutor.cs`,
 `Internal/WorkflowDefinitionCompiler.cs` (`BuildMixedSequentialAsync`).
 
@@ -1968,7 +1968,7 @@ Regresyon kapısı — `Nodes` boşken hiçbir kod yolu değişmemeli.
 
 ### MT-WF-111 — `GET /api/workflows/functions` kayıtlı fonksiyonu listeler
 
-**Gerçekten koşuldu ve doğrulandı** (2026-08-19, `samples/AgentPrism.Api`,
+**Gerçekten koşuldu ve doğrulandı** (2026-08-19, `samples/Tracon.Api`,
 port 5091, EchoModelProvider — bkz. `docs/arsiv/fazlar/71-WORKFLOW-KOD-DUGUMU.md` "Doğrulama
 komutları" bölümü).
 
@@ -1980,7 +1980,7 @@ komutları" bölümü).
 | **İlgili karar** | — |
 
 **Ön koşul**
-- `samples/AgentPrism.Api/Program.cs`'te `word-count` adıyla kayıtlı bir
+- `samples/Tracon.Api/Program.cs`'te `word-count` adıyla kayıtlı bir
   fonksiyon (Faz 71'in kendi örneği).
 
 **Girilecek veri**
@@ -2150,7 +2150,7 @@ ve
 
 **Gerçekten koşuldu ve doğrulandı** —
 `WorkflowNodeRetryTests.A_transient_error_in_a_function_node_is_retried_and_costs_no_extra_super_step`
-üç kez `AgentPrismProviderUnavailableException` fırlatan bir fonksiyon
+üç kez `TraconProviderUnavailableException` fırlatan bir fonksiyon
 düğümünü gerçek bir `WorkflowRunner` üzerinden çalıştırır ve koşunun
 `Completed` bittiğini, deneme sayısının `3` olduğunu ÖLÇER. Açık Soru 2'nin
 cevabı da AYNI testte ölçüldü: retry döngüsü fonksiyonun KENDİ çağrısının
@@ -2174,12 +2174,12 @@ bunu iki gerçek koşumu (`flaky`/`baseline`) karşılaştırarak kanıtlar).
   (üstel geri çekilmeyle) yeniden denenir.
 - Başka bir sınıf (`CompilationFailed`, `ToolError`, …) İLK denemede
   yeniden denenmeden yukarı fırlatılır.
-- `AgentPrismWorkflowOptions.MaxSuperSteps` sayacı bu düğümün denemelerinden
+- `TraconWorkflowOptions.MaxSuperSteps` sayacı bu düğümün denemelerinden
   ETKİLENMEZ.
 
 **Adımlar (elle koşum için — sample app'e retry'lı bir düğüm eklendiyse)**
 1. Örnek uygulamaya (veya bir sınama projesine) ilk `N-1` çağrısında
-   `AgentPrismProviderUnavailableException` fırlatan, `N`'inci çağrıda
+   `TraconProviderUnavailableException` fırlatan, `N`'inci çağrıda
    başarılı dönen bir fonksiyon kaydet: `retryPolicy: new WorkflowNodeRetryPolicy
    { MaxAttempts = N, InitialDelay = TimeSpan.FromMilliseconds(50) }`.
 2. Agent → fonksiyon zincirini çalıştır.
@@ -2199,7 +2199,7 @@ bunu iki gerçek koşumu (`flaky`/`baseline`) karşılaştırarak kanıtlar).
 ### MT-WF-118 — Düğüm başına retry: kalıcı hata veren fonksiyon yeniden DENENMEZ, koşu düşer (Faz 87)
 
 **Gerçekten koşuldu ve doğrulandı** —
-`WorkflowNodeRetryTests.A_permanent_error_is_never_retried` `AgentPrismException`
+`WorkflowNodeRetryTests.A_permanent_error_is_never_retried` `TraconException`
 (kalıcı, `CompilationFailed` sınıfına düşen) fırlatan bir düğümün TEK bir
 denemede yukarı fırlatıldığını ölçer;
 `WorkflowFunctionNodeTests.A_function_node_that_throws_fails_the_run_with_the_real_error`
@@ -2230,12 +2230,12 @@ korunduğunu tamamlar.
 
 ---
 
-### MT-WF-119 — Aynı adda iki kod-tanımlı workflow: `AgentPrismException`, ham `ArgumentException` DEĞİL (BL-039, Faz 122)
+### MT-WF-119 — Aynı adda iki kod-tanımlı workflow: `TraconException`, ham `ArgumentException` DEĞİL (BL-039, Faz 122)
 
 **Gerçekten koşuldu ve doğrulandı** —
-`WorkflowCatalogTests.Duplicate_code_workflow_names_throw_an_AgentPrismException`
+`WorkflowCatalogTests.Duplicate_code_workflow_names_throw_an_TraconException`
 iki `CodeWorkflowRegistration`'ı aynı adla kaydedip `WorkflowCatalog`'un
-kurucusunun `AgentPrismException` (mesajda çakışan ad adı geçen) fırlattığını
+kurucusunun `TraconException` (mesajda çakışan ad adı geçen) fırlattığını
 ölçer — eskiden `Dictionary.ToDictionary` ham `System.ArgumentException`
 fırlatıyordu, kardeşi `WorkflowFunctionRegistry`'nin zaten kullandığı desenle
 hizalandı.
@@ -2254,7 +2254,7 @@ hizalandı.
 2. Uygulamayı başlat.
 
 **Beklenen sonuç**
-- Uygulama `AgentPrismException` ile başlangıçta düşer; mesaj çakışan workflow
+- Uygulama `TraconException` ile başlangıçta düşer; mesaj çakışan workflow
   adını **iki kez de değil, en az bir kez** adlandırır ve "Workflow names must
   be unique." cümlesini taşır.
 - Ham `System.ArgumentException` (`"An item with the same key has already

@@ -1,4 +1,4 @@
-// Turns docs/openapi/agentprism.json into Starlight pages — one per tag and schema.
+// Turns docs/openapi/tracon.json into Starlight pages — one per tag and schema.
 //
 // Why not embed an OpenAPI viewer:
 //
@@ -8,7 +8,7 @@
 //   description; hiding all 143 of them from the site's own search to gain a
 //   try-it-out console was the wrong trade.
 //
-//   The raw document is still published at /openapi/agentprism.json, so anyone who
+//   The raw document is still published at /openapi/tracon.json, so anyone who
 //   wants Scalar, Swagger UI, Postman, or a generated client can load it there.
 
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
@@ -20,8 +20,8 @@ import { base } from '../site.config.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = resolve(here, '../..');
-const documentPath = join(repositoryRoot, 'docs/openapi/agentprism.json');
-const endpointSourceDirectory = join(repositoryRoot, 'src/AgentPrism.AspNetCore');
+const documentPath = join(repositoryRoot, 'docs/openapi/tracon.json');
+const endpointSourceDirectory = join(repositoryRoot, 'src/Tracon.AspNetCore');
 const outputDirectory = join(here, '../src/content/docs/http-api');
 const publicDirectory = join(here, '../public/openapi');
 const sidebarFile = join(here, '../src/generated/http-api-sidebar.json');
@@ -50,7 +50,7 @@ function main() {
   rmSync(outputDirectory, { recursive: true, force: true });
   mkdirSync(outputDirectory, { recursive: true });
   mkdirSync(publicDirectory, { recursive: true });
-  writeFileSync(join(publicDirectory, 'agentprism.json'), `${JSON.stringify(document, null, 2)}\n`);
+  writeFileSync(join(publicDirectory, 'tracon.json'), `${JSON.stringify(document, null, 2)}\n`);
 
   for (const [tag, operations] of groups) {
     writeFileSync(
@@ -97,7 +97,7 @@ function main() {
 }
 
 /**
- * Every operation carries the tag "AgentPrism" plus one area tag; the area tag is
+ * Every operation carries the tag "Tracon" plus one area tag; the area tag is
  * what a reader navigates by, so that is the one the pages are grouped on.
  */
 function groupByTag(document) {
@@ -111,7 +111,7 @@ function groupByTag(document) {
         continue;
       }
 
-      const tag = (operation.tags ?? []).find((candidate) => candidate !== 'AgentPrism') ?? 'Other';
+      const tag = (operation.tags ?? []).find((candidate) => candidate !== 'Tracon') ?? 'Other';
       groups.set(tag, [...(groups.get(tag) ?? []), { path, method, operation }]);
     }
   }
@@ -134,14 +134,14 @@ function renderGroup(tag, operations, document, authorizationByOperation) {
   const lines = [
     '---',
     `title: ${quote(tag)}`,
-    `description: ${quote(`The ${tag.toLowerCase()} endpoints of the AgentPrism HTTP API — ${operations.length} operations.`)}`,
+    `description: ${quote(`The ${tag.toLowerCase()} endpoints of the Tracon HTTP API — ${operations.length} operations.`)}`,
     `slug: http-api/${slugify(tag)}`,
     'editUrl: false',
     'lastUpdated: false',
     '---',
     '',
     `${operations.length} operations. \`{prefix}\` is the route prefix passed to`,
-    '`MapAgentPrism`; the template uses `/agentprism`.',
+    '`MapTracon`; the template uses `/tracon`.',
     '',
   ];
 
@@ -294,7 +294,7 @@ function renderSchemaIndex(schemas) {
   const lines = [
     '---',
     'title: HTTP schemas',
-    `description: ${quote(`Request and response shapes for all ${schemas.length} schemas in the generated AgentPrism OpenAPI contract.`)}`,
+    `description: ${quote(`Request and response shapes for all ${schemas.length} schemas in the generated Tracon OpenAPI contract.`)}`,
     'slug: http-api/schemas',
     'editUrl: false',
     'lastUpdated: false',
@@ -400,8 +400,8 @@ function readEndpointAuthorization() {
       const role = /\.RequireRole\(roles\.(Reader|Operator|Admin)\)/.exec(chain)?.[1];
       const scope = /\.RequireApiKeyScope\(ApiKeyScope\.(\w+)\)/.exec(chain)?.[1];
       const anonymous = /\.AllowAnonymous\(\)/.test(chain) ||
-        operationId === 'AgentPrismMcpOAuthCallback' ||
-        operationId === 'AgentPrismAcceptInboundTrigger';
+        operationId === 'TraconMcpOAuthCallback' ||
+        operationId === 'TraconAcceptInboundTrigger';
 
       result.set(operationId, { role, scope, anonymous });
     }
@@ -427,7 +427,7 @@ function assertAuthorizationCoverage(document, authorizationByOperation) {
       if (!operation || operation.security?.length === 0) continue;
       const authorization = authorizationByOperation.get(operation.operationId);
       if (!authorization?.role) missingRoles.push(operation.operationId);
-      if (!authorization?.scope && operation.operationId !== 'AgentPrismCurrentTenant') {
+      if (!authorization?.scope && operation.operationId !== 'TraconCurrentTenant') {
         missingScopes.push(operation.operationId);
       }
     }
@@ -458,10 +458,10 @@ function normalizeDocument(document, authorizationByOperation) {
         operation.security = [];
       }
       if (authorization?.role) {
-        operation['x-agentprism-role'] = authorization.role;
+        operation['x-tracon-role'] = authorization.role;
       }
       if (authorization?.scope) {
-        operation['x-agentprism-api-key-scope'] = authorization.scope;
+        operation['x-tracon-api-key-scope'] = authorization.scope;
       }
     }
   }
@@ -489,7 +489,7 @@ function sanitizeDescriptionFields(value) {
 }
 
 function renderPath(path) {
-  return path.startsWith('/agentprism') ? `{prefix}${path.slice('/agentprism'.length)}` : `{prefix}${path}`;
+  return path.startsWith('/tracon') ? `{prefix}${path.slice('/tracon'.length)}` : `{prefix}${path}`;
 }
 
 // The source documentation is kept self-contained by

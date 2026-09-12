@@ -3,7 +3,7 @@
 > **Alan kodu:** `PKG` · **Faz:** 0, 52, 60
 > **Kaynak:** `global.json` · `NuGet.config` · `Directory.Build.props` ·
 > `Directory.Build.targets` · `src/Directory.Build.props` · `src/*/*.csproj` ·
-> `src/AgentPrism.Generators/`
+> `src/Tracon.Generators/`
 >
 > Ortam kurulumu, fixture verisi ve reset yordamı [`00-INDEKS.md`](00-INDEKS.md)'dedir.
 
@@ -15,7 +15,7 @@
 
 ## Bu dosya neyi kanıtlar
 
-AgentPrism bir NuGet paket ailesidir. Bu dosya **paketin kendisini** test eder:
+Tracon bir NuGet paket ailesidir. Bu dosya **paketin kendisini** test eder:
 derleme kapıları, üretilen `.nupkg` içeriği, bağımlılık grafiği, derleme anı
 tanıları, AOT vaadi ve temiz bir tüketicinin ilk beş dakikası.
 
@@ -37,9 +37,9 @@ flowchart LR
 1. Repo temiz olmalıdır: `git status` çıktısı `docs/manuel-test/` dışında boş.
 2. Bu dosya **veritabanı istemez**. PostgreSQL/SQL Server container'ları kapalı olabilir.
 3. Çalışma dizinleri:
-   - Repo: `/Users/farukatasoy/Desktop/projects/AgentPrism`
-   - Temiz tüketici (İzlek A): `~/agentprism-manuel/` — repo **dışında**
-   - Yerel feed: `~/agentprism-local-feed/`
+   - Repo: `/Users/farukatasoy/Desktop/projects/Tracon`
+   - Temiz tüketici (İzlek A): `~/tracon-manuel/` — repo **dışında**
+   - Yerel feed: `~/tracon-local-feed/`
 4. Bu dosyadaki hiçbir case repo kaynağını kalıcı değiştirmez. Geçici dosya ekleyen
    case'ler son adımda onu siler.
 
@@ -70,7 +70,7 @@ flowchart LR
 
 **Girilecek veri**
 ```bash
-cd /Users/farukatasoy/Desktop/projects/AgentPrism
+cd /Users/farukatasoy/Desktop/projects/Tracon
 dotnet --list-sdks
 dotnet --version
 cat global.json
@@ -169,11 +169,11 @@ docker pull mcr.microsoft.com/mssql/server:2022-latest
 
 **Girilecek veri**
 ```bash
-cd /Users/farukatasoy/Desktop/projects/AgentPrism
-dotnet build  AgentPrism.slnx -c Release
-dotnet test   AgentPrism.slnx -c Release --no-build
-MSBUILDDISABLENODEREUSE=1 dotnet pack AgentPrism.slnx -c Release --no-build
-dotnet format AgentPrism.slnx --verify-no-changes --no-restore
+cd /Users/farukatasoy/Desktop/projects/Tracon
+dotnet build  Tracon.slnx -c Release
+dotnet test   Tracon.slnx -c Release --no-build
+MSBUILDDISABLENODEREUSE=1 dotnet pack Tracon.slnx -c Release --no-build
+dotnet format Tracon.slnx --verify-no-changes --no-restore
 ```
 
 **Beklenen sonuç**
@@ -209,14 +209,14 @@ repo'da bir kez 276 `IDE0055` hatası bu şekilde çıktı.
 
 **Girilecek veri**
 ```bash
-cd /Users/farukatasoy/Desktop/projects/AgentPrism
+cd /Users/farukatasoy/Desktop/projects/Tracon
 printf '\ninternal static class BicimTesti\n{\n        public static int Deger => 1;\n}\n' \
-  >> src/AgentPrism.Abstractions/Tools/AgentPrismToolAttribute.cs
+  >> src/Tracon.Abstractions/Tools/TraconToolAttribute.cs
 
-dotnet build  AgentPrism.slnx -c Release
-dotnet format AgentPrism.slnx --verify-no-changes --no-restore ; echo "format cikis kodu: $?"
+dotnet build  Tracon.slnx -c Release
+dotnet format Tracon.slnx --verify-no-changes --no-restore ; echo "format cikis kodu: $?"
 
-git checkout -- src/AgentPrism.Abstractions/Tools/AgentPrismToolAttribute.cs
+git checkout -- src/Tracon.Abstractions/Tools/TraconToolAttribute.cs
 ```
 
 **Beklenen sonuç**
@@ -256,15 +256,15 @@ yani hiçbir uyarı muaf değildir. Bu iddia ölçülmeden kabul edilmez.
 - Repo temiz.
 
 **Adımlar**
-1. `AgentPrism.Core` içine, XML dokümanı olmayan bir public tip ekle.
+1. `Tracon.Core` içine, XML dokümanı olmayan bir public tip ekle.
 2. Yalnız o projeyi derle.
 3. Dosyayı sil.
 
 **Girilecek veri**
 ```bash
-cd /Users/farukatasoy/Desktop/projects/AgentPrism
-cat > src/AgentPrism.Core/ManuelUyariTesti.cs <<'EOF'
-namespace AgentPrism;
+cd /Users/farukatasoy/Desktop/projects/Tracon
+cat > src/Tracon.Core/ManuelUyariTesti.cs <<'EOF'
+namespace Tracon;
 
 public sealed class ManuelUyariTesti
 {
@@ -272,14 +272,14 @@ public sealed class ManuelUyariTesti
 }
 EOF
 
-dotnet build src/AgentPrism.Core -c Release ; echo "cikis kodu: $?"
-rm src/AgentPrism.Core/ManuelUyariTesti.cs
+dotnet build src/Tracon.Core -c Release ; echo "cikis kodu: $?"
+rm src/Tracon.Core/ManuelUyariTesti.cs
 ```
 
 **Beklenen sonuç**
 - Derleme **başarısız** olur (çıkış kodu ≠ 0).
 - Çıktıda `CS1591` **`error`** olarak görünür, `warning` olarak değil.
-- Dosya silindikten sonra `dotnet build src/AgentPrism.Core -c Release` yeniden geçer.
+- Dosya silindikten sonra `dotnet build src/Tracon.Core -c Release` yeniden geçer.
 
 ---
 
@@ -307,15 +307,15 @@ denetimin gerçekten çalıştığını kanıtlar.
 
 **Girilecek veri**
 ```bash
-cd /Users/farukatasoy/Desktop/projects/AgentPrism
+cd /Users/farukatasoy/Desktop/projects/Tracon
 find src -name "* 2.*" -not -path "*/node_modules/*"          # bos olmali
 
-cp src/AgentPrism.Abstractions/Tools/AgentPrismToolAttribute.cs \
-   "src/AgentPrism.Abstractions/Tools/AgentPrismToolAttribute 2.cs"
+cp src/Tracon.Abstractions/Tools/TraconToolAttribute.cs \
+   "src/Tracon.Abstractions/Tools/TraconToolAttribute 2.cs"
 
-dotnet build src/AgentPrism.Abstractions -c Release ; echo "cikis kodu: $?"
+dotnet build src/Tracon.Abstractions -c Release ; echo "cikis kodu: $?"
 
-rm "src/AgentPrism.Abstractions/Tools/AgentPrismToolAttribute 2.cs"
+rm "src/Tracon.Abstractions/Tools/TraconToolAttribute 2.cs"
 find src -name "* 2.*" -not -path "*/node_modules/*"          # yine bos olmali
 ```
 
@@ -323,7 +323,7 @@ find src -name "* 2.*" -not -path "*/node_modules/*"          # yine bos olmali
 - 1. adımdaki `find` **hiçbir şey** döndürmez.
 - 3. adımdaki derleme `CS0101` (aynı ad alanında yinelenen tip) ile başarısız olur.
 - 4. adımdan sonra `find` yine boştur ve
-  `dotnet build src/AgentPrism.Abstractions -c Release` geçer.
+  `dotnet build src/Tracon.Abstractions -c Release` geçer.
 
 ---
 
@@ -345,8 +345,8 @@ find src -name "* 2.*" -not -path "*/node_modules/*"          # yine bos olmali
 
 **Girilecek veri**
 ```bash
-cd /Users/farukatasoy/Desktop/projects/AgentPrism
-time dotnet build AgentPrism.slnx -c Release -p:AgentPrismFrontendEnabled=false 2>&1 \
+cd /Users/farukatasoy/Desktop/projects/Tracon
+time dotnet build Tracon.slnx -c Release -p:TraconFrontendEnabled=false 2>&1 \
   | grep -Ei "npm ci|npm run build|arayuz derleniyor" || echo "NPM ADIMI YOK - beklenen"
 ```
 
@@ -367,33 +367,33 @@ time dotnet build AgentPrism.slnx -c Release -p:AgentPrismFrontendEnabled=false 
 | **İlgili karar** | — |
 
 Negatif senaryo. İçi boş bir arayüz paketi yayınlanamaz. Kod bunu iki seviyede
-korur: derlemede `AGENTPRISM0002` uyarısı, `pack` aşamasında `AGENTPRISM0003` hatası.
+korur: derlemede `TRACON0002` uyarısı, `pack` aşamasında `TRACON0003` hatası.
 
 **Ön koşul**
 - MT-PKG-010 geçti.
 
 **Adımlar**
 1. Üretilmiş arayüz çıktısını ve damgayı geçici bir yere taşı.
-2. `AgentPrism.UI` paketini, arayüz zinciri kapalıyken paketle.
+2. `Tracon.UI` paketini, arayüz zinciri kapalıyken paketle.
 3. Çıktıyı geri koy ve normal derlemeyle yeniden üret.
 
 **Girilecek veri**
 ```bash
-cd /Users/farukatasoy/Desktop/projects/AgentPrism
-mv src/AgentPrism.UI/wwwroot /tmp/ap-wwwroot-yedek
+cd /Users/farukatasoy/Desktop/projects/Tracon
+mv src/Tracon.UI/wwwroot /tmp/ap-wwwroot-yedek
 
-MSBUILDDISABLENODEREUSE=1 dotnet pack src/AgentPrism.UI -c Release \
-  -p:AgentPrismFrontendEnabled=true --no-build -o /tmp/ap-ui-test 2>&1 | grep AGENTPRISM0003
+MSBUILDDISABLENODEREUSE=1 dotnet pack src/Tracon.UI -c Release \
+  -p:TraconFrontendEnabled=true --no-build -o /tmp/ap-ui-test 2>&1 | grep TRACON0003
 echo "cikis kodu: $?"
 
-mv /tmp/ap-wwwroot-yedek src/AgentPrism.UI/wwwroot
-dotnet build src/AgentPrism.UI -c Release
+mv /tmp/ap-wwwroot-yedek src/Tracon.UI/wwwroot
+dotnet build src/Tracon.UI -c Release
 ```
 
 **Beklenen sonuç**
-- `pack` **başarısız** olur ve `AGENTPRISM0003` kodlu hata verir.
+- `pack` **başarısız** olur ve `TRACON0003` kodlu hata verir.
 - Hata metni "arayuz varligi uretilmemis" ve "Node.js 20.19+ kurun" ifadelerini taşır.
-- Son adımdan sonra `src/AgentPrism.UI/wwwroot/index.html` yeniden vardır.
+- Son adımdan sonra `src/Tracon.UI/wwwroot/index.html` yeniden vardır.
 
 > ⚠️ Bu case dosya taşır. Adım 3 **atlanmaz**; atlanırsa sonraki tüm arayüz
 > dosyaları yanlış sonuç verir.
@@ -410,30 +410,30 @@ dotnet build src/AgentPrism.UI -c Release
 | **İlgili karar** | — |
 
 Negatif senaryo. NuGet paket sayfası `README.md` olmadan boş görünür.
-`Directory.Build.targets` bunu `AGENTPRISM0001` ile erken yakalar.
+`Directory.Build.targets` bunu `TRACON0001` ile erken yakalar.
 
 **Ön koşul**
 - Repo temiz.
 
 **Adımlar**
-1. `AgentPrism.Voice` paketinin `README.md` dosyasını geçici olarak taşı.
+1. `Tracon.Voice` paketinin `README.md` dosyasını geçici olarak taşı.
 2. O projeyi paketle.
 3. Dosyayı geri koy.
 
 **Girilecek veri**
 ```bash
-cd /Users/farukatasoy/Desktop/projects/AgentPrism
-mv src/AgentPrism.Voice/README.md /tmp/ap-voice-readme.md
+cd /Users/farukatasoy/Desktop/projects/Tracon
+mv src/Tracon.Voice/README.md /tmp/ap-voice-readme.md
 
-MSBUILDDISABLENODEREUSE=1 dotnet pack src/AgentPrism.Voice -c Release -o /tmp/ap-voice-test 2>&1 \
-  | grep AGENTPRISM0001
+MSBUILDDISABLENODEREUSE=1 dotnet pack src/Tracon.Voice -c Release -o /tmp/ap-voice-test 2>&1 \
+  | grep TRACON0001
 
-mv /tmp/ap-voice-readme.md src/AgentPrism.Voice/README.md
+mv /tmp/ap-voice-readme.md src/Tracon.Voice/README.md
 ```
 
 **Beklenen sonuç**
-- `pack` başarısız olur ve `AGENTPRISM0001` kodlu hata verir.
-- Hata metni paket adını (`AgentPrism.Voice`) taşır.
+- `pack` başarısız olur ve `TRACON0001` kodlu hata verir.
+- Hata metni paket adını (`Tracon.Voice`) taşır.
 - Dosya geri konduktan sonra aynı komut başarılı biter.
 
 ### MT-PKG-020 — Paket sayısı ve sembol paketi sayısı
@@ -445,8 +445,8 @@ mv /tmp/ap-voice-readme.md src/AgentPrism.Voice/README.md
 | **İlgili faz** | Faz 0, 37 |
 | **İlgili karar** | — |
 
-`src/` altında 18 proje vardır. Biri (`AgentPrism.Generators`) `IsPackable=false`
-taşır ve yayımlanmaz. `AgentPrism.Templates` sembol paketi üretmez
+`src/` altında 18 proje vardır. Biri (`Tracon.Generators`) `IsPackable=false`
+taşır ve yayımlanmaz. `Tracon.Templates` sembol paketi üretmez
 (`IncludeSymbols=false`) — içinde derlenen bir derleme yoktur.
 
 **Ön koşul**
@@ -459,10 +459,10 @@ taşır ve yayımlanmaz. `AgentPrism.Templates` sembol paketi üretmez
 
 **Girilecek veri**
 ```bash
-cd /Users/farukatasoy/Desktop/projects/AgentPrism
+cd /Users/farukatasoy/Desktop/projects/Tracon
 rm -rf /tmp/ap-pack && mkdir -p /tmp/ap-pack
 
-MSBUILDDISABLENODEREUSE=1 dotnet pack AgentPrism.slnx -c Release -o /tmp/ap-pack
+MSBUILDDISABLENODEREUSE=1 dotnet pack Tracon.slnx -c Release -o /tmp/ap-pack
 
 echo "nupkg : $(ls /tmp/ap-pack/*.nupkg  | wc -l)"
 echo "snupkg: $(ls /tmp/ap-pack/*.snupkg | wc -l)"
@@ -472,13 +472,13 @@ ls /tmp/ap-pack/*.nupkg | grep -i generators || echo "Generators yayimlanmadi - 
 
 **Beklenen sonuç**
 - **17** `.nupkg` üretilir.
-- **16** `.snupkg` üretilir; eksik olan `AgentPrism.Templates`'tir.
-- `AgentPrism.Generators` hiçbir çıktı üretmez ve son satır
+- **16** `.snupkg` üretilir; eksik olan `Tracon.Templates`'tir.
+- `Tracon.Generators` hiçbir çıktı üretmez ve son satır
   `Generators yayimlanmadi - beklenen` yazar.
-- Paket adları: `AgentPrism`, `.Abstractions`, `.Anthropic`, `.AspNetCore`,
+- Paket adları: `Tracon`, `.Abstractions`, `.Anthropic`, `.AspNetCore`,
   `.Azure`, `.Core`, `.Google`, `.Mcp`, `.OpenAI`, `.PostgreSql`, `.SqlServer`,
   `.Sqlite`, `.Templates`, `.Testing`, `.UI`, `.Voice`, `.Workflows`.
-- `AgentPrism.Sql.Shared` bir paket **değildir** ve listede görünmez.
+- `Tracon.Sql.Shared` bir paket **değildir** ve listede görünmez.
 
 ---
 
@@ -492,7 +492,7 @@ ls /tmp/ap-pack/*.nupkg | grep -i generators || echo "Generators yayimlanmadi - 
 | **İlgili karar** | K-348 |
 
 🚨 **Bu case bir şüphe üzerine yazıldı ve üretim oturumunda ölçüldü.** Ölçüm
-şunu gösterdi: `--no-build` ile paketlenen `AgentPrism.Core`, üreteç DLL'ini
+şunu gösterdi: `--no-build` ile paketlenen `Tracon.Core`, üreteç DLL'ini
 **taşımıyor**. Ayrıntı [`00-INDEKS.md`](00-INDEKS.md) §8'dedir. Koşum bu ölçümü
 tekrarlar ve kapsamını kesinleştirir.
 
@@ -503,30 +503,30 @@ Faz 52'nin bütün kazanımı bu tek dosyaya bağlıdır.
 - Repo temiz.
 
 **Adımlar**
-1. `AgentPrism.Core`'u tek başına, `--no-build` **olmadan** paketle ve içeriğe bak.
-2. `AgentPrism.Core`'u tek başına, `--no-build` **ile** paketle ve içeriğe bak.
+1. `Tracon.Core`'u tek başına, `--no-build` **olmadan** paketle ve içeriğe bak.
+2. `Tracon.Core`'u tek başına, `--no-build` **ile** paketle ve içeriğe bak.
 3. Çözüm genelinde, `--no-build` **olmadan** paketle ve içeriğe bak.
 4. Çözüm genelinde, doğrulama kapısının kullandığı biçimde (`--no-build` ile)
    paketle ve içeriğe bak.
 
 **Girilecek veri**
 ```bash
-cd /Users/farukatasoy/Desktop/projects/AgentPrism
-dotnet build AgentPrism.slnx -c Release
+cd /Users/farukatasoy/Desktop/projects/Tracon
+dotnet build Tracon.slnx -c Release
 
 for etiket in "tek-build" "tek-nobuild" "cozum-build" "cozum-nobuild"; do
   rm -rf "/tmp/ap-$etiket" && mkdir -p "/tmp/ap-$etiket"
 done
 
-MSBUILDDISABLENODEREUSE=1 dotnet pack src/AgentPrism.Core -c Release            -o /tmp/ap-tek-build
-MSBUILDDISABLENODEREUSE=1 dotnet pack src/AgentPrism.Core -c Release --no-build -o /tmp/ap-tek-nobuild
-MSBUILDDISABLENODEREUSE=1 dotnet pack AgentPrism.slnx     -c Release            -o /tmp/ap-cozum-build
-MSBUILDDISABLENODEREUSE=1 dotnet pack AgentPrism.slnx     -c Release --no-build -o /tmp/ap-cozum-nobuild
+MSBUILDDISABLENODEREUSE=1 dotnet pack src/Tracon.Core -c Release            -o /tmp/ap-tek-build
+MSBUILDDISABLENODEREUSE=1 dotnet pack src/Tracon.Core -c Release --no-build -o /tmp/ap-tek-nobuild
+MSBUILDDISABLENODEREUSE=1 dotnet pack Tracon.slnx     -c Release            -o /tmp/ap-cozum-build
+MSBUILDDISABLENODEREUSE=1 dotnet pack Tracon.slnx     -c Release --no-build -o /tmp/ap-cozum-nobuild
 
 for etiket in "tek-build" "tek-nobuild" "cozum-build" "cozum-nobuild"; do
   printf '%-16s ' "$etiket"
-  unzip -l /tmp/ap-$etiket/AgentPrism.Core.*.nupkg \
-    | grep -c "analyzers/dotnet/cs/AgentPrism.Generators.dll"
+  unzip -l /tmp/ap-$etiket/Tracon.Core.*.nupkg \
+    | grep -c "analyzers/dotnet/cs/Tracon.Generators.dll"
 done
 ```
 
@@ -539,7 +539,7 @@ done
 
 **Doğrulama sorgusu**
 ```bash
-unzip -l /tmp/ap-cozum-nobuild/AgentPrism.Core.*.nupkg | grep analyzers
+unzip -l /tmp/ap-cozum-nobuild/Tracon.Core.*.nupkg | grep analyzers
 ```
 
 ---
@@ -557,22 +557,22 @@ unzip -l /tmp/ap-cozum-nobuild/AgentPrism.Core.*.nupkg | grep analyzers
 - MT-PKG-020 koşuldu, `/tmp/ap-pack` dolu.
 
 **Adımlar**
-1. `AgentPrism.Core` paketinin dosya listesini oku.
+1. `Tracon.Core` paketinin dosya listesini oku.
 2. Tek TFM'li paketleri ayrı doğrula.
 
 **Girilecek veri**
 ```bash
-unzip -l /tmp/ap-pack/AgentPrism.Core.*.nupkg    | grep -E "lib/|README"
-unzip -l /tmp/ap-pack/AgentPrism.Testing.*.nupkg | grep -E "lib/"
-unzip -l /tmp/ap-pack/AgentPrism.*.nupkg         2>/dev/null | head -1
+unzip -l /tmp/ap-pack/Tracon.Core.*.nupkg    | grep -E "lib/|README"
+unzip -l /tmp/ap-pack/Tracon.Testing.*.nupkg | grep -E "lib/"
+unzip -l /tmp/ap-pack/Tracon.*.nupkg         2>/dev/null | head -1
 ```
 
 **Beklenen sonuç**
-- `AgentPrism.Core` şunları içerir: `lib/net8.0/`, `lib/net9.0/`, `lib/net10.0/` —
-  her birinde `AgentPrism.Core.dll` **ve** `AgentPrism.Core.xml`.
+- `Tracon.Core` şunları içerir: `lib/net8.0/`, `lib/net9.0/`, `lib/net10.0/` —
+  her birinde `Tracon.Core.dll` **ve** `Tracon.Core.xml`.
 - Paket kökünde `README.md` vardır.
-- `AgentPrism.Testing` yalnız `lib/net10.0/` içerir (tek TFM, bilinçli).
-- `AgentPrism` (meta) hiçbir `lib/` klasörü içermez.
+- `Tracon.Testing` yalnız `lib/net10.0/` içerir (tek TFM, bilinçli).
+- `Tracon` (meta) hiçbir `lib/` klasörü içermez.
 
 ---
 
@@ -589,19 +589,19 @@ unzip -l /tmp/ap-pack/AgentPrism.*.nupkg         2>/dev/null | head -1
 - `/tmp/ap-pack` dolu.
 
 **Adımlar**
-1. `AgentPrism.Core` paketinden nuspec'i çıkar.
+1. `Tracon.Core` paketinden nuspec'i çıkar.
 2. Üstveri alanlarını oku.
 
 **Girilecek veri**
 ```bash
 cd /tmp && rm -rf ap-nuspec && mkdir ap-nuspec && cd ap-nuspec
-unzip -o /tmp/ap-pack/AgentPrism.Core.*.nupkg "*.nuspec" > /dev/null
-cat AgentPrism.Core.nuspec
+unzip -o /tmp/ap-pack/Tracon.Core.*.nupkg "*.nuspec" > /dev/null
+cat Tracon.Core.nuspec
 ```
 
 **Beklenen sonuç**
 > **Düzeltildi (2026-08-15, KAPANIS-PLANI §8):** `<requireLicenseAcceptance>`
-> elementi nuspec'e hiç yazılmaz (2026-08-15 koşumunda `AgentPrism.Core
+> elementi nuspec'e hiç yazılmaz (2026-08-15 koşumunda `Tracon.Core
 > 0.0.0-preview.0.166` nuspec'inde de doğrulandı — element yok). NuGet bu
 > yokluğu `false` olarak yorumlar, yani davranışsal etki yoktur; dokümanın
 > "vardır" iddiası koda göre düzeltildi.
@@ -614,9 +614,9 @@ vardır.~~
   lisanslı paketlerde element **yazılır**. MIT üçlüsünde yazılmaz (üstteki not).
 - `<readme>README.md</readme>` vardır.
 - `<authors>Faruk Atasoy</authors>` ve `<projectUrl>` /
-  `<repository type="git" url="https://github.com/farukatasoy/AgentPrism">` vardır.
+  `<repository type="git" url="https://github.com/farukatasoy/Tracon">` vardır.
 - `<repository>` düğümü **boş olmayan** bir `commit` niteliği taşır.
-- `<tags>` içinde `agentprism ai agents microsoft-agent-framework llm dotnet`
+- `<tags>` içinde `tracon ai agents microsoft-agent-framework llm dotnet`
   geçer.
 - 🚨 Hiçbir alan `TODO`, `placeholder` veya boş dize taşımaz.
 
@@ -635,11 +635,11 @@ vardır.~~
 - `/tmp/ap-pack` dolu.
 
 **Adımlar**
-1. `AgentPrism.Core` sembol paketinin içeriğini listele.
+1. `Tracon.Core` sembol paketinin içeriğini listele.
 
 **Girilecek veri**
 ```bash
-unzip -l /tmp/ap-pack/AgentPrism.Core.*.snupkg | grep -E "\.pdb|\.nuspec"
+unzip -l /tmp/ap-pack/Tracon.Core.*.snupkg | grep -E "\.pdb|\.nuspec"
 ```
 
 **Beklenen sonuç**
@@ -665,27 +665,27 @@ zip zaman damgası her seferinde değişir.
 - Repo temiz. `git status` yalnız `docs/manuel-test/` gösterir.
 
 **Adımlar**
-1. Birinci kez paketle ve `AgentPrism.Abstractions.dll` özetini al.
+1. Birinci kez paketle ve `Tracon.Abstractions.dll` özetini al.
 2. Ara çıktıyı sil.
 3. İkinci kez paketle ve özeti tekrar al.
 4. İki özeti karşılaştır.
 
 **Girilecek veri**
 ```bash
-cd /Users/farukatasoy/Desktop/projects/AgentPrism
+cd /Users/farukatasoy/Desktop/projects/Tracon
 ozet() {
   rm -rf /tmp/ap-det && mkdir -p /tmp/ap-det && cd /tmp/ap-det
-  unzip -o "$1"/AgentPrism.Abstractions.*.nupkg "lib/net10.0/*.dll" > /dev/null
-  shasum -a 256 lib/net10.0/AgentPrism.Abstractions.dll | cut -d' ' -f1
-  cd /Users/farukatasoy/Desktop/projects/AgentPrism
+  unzip -o "$1"/Tracon.Abstractions.*.nupkg "lib/net10.0/*.dll" > /dev/null
+  shasum -a 256 lib/net10.0/Tracon.Abstractions.dll | cut -d' ' -f1
+  cd /Users/farukatasoy/Desktop/projects/Tracon
 }
 
 rm -rf /tmp/ap-d1 /tmp/ap-d2
-MSBUILDDISABLENODEREUSE=1 dotnet pack src/AgentPrism.Abstractions -c Release -o /tmp/ap-d1
+MSBUILDDISABLENODEREUSE=1 dotnet pack src/Tracon.Abstractions -c Release -o /tmp/ap-d1
 A=$(ozet /tmp/ap-d1)
 
-rm -rf artifacts/obj/AgentPrism.Abstractions
-MSBUILDDISABLENODEREUSE=1 dotnet pack src/AgentPrism.Abstractions -c Release -o /tmp/ap-d2
+rm -rf artifacts/obj/Tracon.Abstractions
+MSBUILDDISABLENODEREUSE=1 dotnet pack src/Tracon.Abstractions -c Release -o /tmp/ap-d2
 B=$(ozet /tmp/ap-d2)
 
 echo "1: $A"; echo "2: $B"; [ "$A" = "$B" ] && echo "AYNI" || echo "🚨 FARKLI"
@@ -718,16 +718,16 @@ hiç girmez ve `dotnet new install` **sessizce çalışmayan** bir paket kurar.
 
 **Girilecek veri**
 ```bash
-unzip -l /tmp/ap-pack/AgentPrism.Templates.*.nupkg | grep -E "template.config|content/"
+unzip -l /tmp/ap-pack/Tracon.Templates.*.nupkg | grep -E "template.config|content/"
 cd /tmp && rm -rf ap-tpl && mkdir ap-tpl && cd ap-tpl
-unzip -o /tmp/ap-pack/AgentPrism.Templates.*.nupkg "*.nuspec" > /dev/null
-grep -E "packageType|<readme>" AgentPrism.Templates.nuspec
+unzip -o /tmp/ap-pack/Tracon.Templates.*.nupkg "*.nuspec" > /dev/null
+grep -E "packageType|<readme>" Tracon.Templates.nuspec
 ```
 
 **Beklenen sonuç**
-- `content/AgentPrism.Starter/.template.config/template.json` **ve**
+- `content/Tracon.Starter/.template.config/template.json` **ve**
   `dotnetcli.host.json` paket içindedir.
-- `content/AgentPrism.Starter/.gitignore` paket içindedir.
+- `content/Tracon.Starter/.gitignore` paket içindedir.
 - Yollar tek katmanlıdır: `content/content/...` **yoktur**.
 - nuspec `<packageType name="Template" ...>` taşır.
 - Paket hiçbir `lib/` klasörü içermez.
@@ -757,14 +757,14 @@ commit yüksekliğini kullanır. Yayın anında bu davranış değişir.
 
 **Girilecek veri**
 ```bash
-cd /Users/farukatasoy/Desktop/projects/AgentPrism
+cd /Users/farukatasoy/Desktop/projects/Tracon
 git tag                                     # bos olmali
 
-MSBUILDDISABLENODEREUSE=1 dotnet pack src/AgentPrism.Abstractions -c Release -o /tmp/ap-v1
+MSBUILDDISABLENODEREUSE=1 dotnet pack src/Tracon.Abstractions -c Release -o /tmp/ap-v1
 ls /tmp/ap-v1/*.nupkg | sed 's#.*/##'
 
 git tag v1.0.0-preview.1
-MSBUILDDISABLENODEREUSE=1 dotnet pack src/AgentPrism.Abstractions -c Release -o /tmp/ap-v2
+MSBUILDDISABLENODEREUSE=1 dotnet pack src/Tracon.Abstractions -c Release -o /tmp/ap-v2
 ls /tmp/ap-v2/*.nupkg | sed 's#.*/##'
 
 git tag -d v1.0.0-preview.1
@@ -796,17 +796,17 @@ kullanmayan tüketici `Google.Apis.Auth` zincirini almaz.
 **Girilecek veri**
 ```bash
 cd /tmp && rm -rf ap-meta && mkdir ap-meta && cd ap-meta
-unzip -o /tmp/ap-pack/AgentPrism.0.*.nupkg "*.nuspec" > /dev/null
-grep -E "<dependency id=" AgentPrism.nuspec | sort -u
+unzip -o /tmp/ap-pack/Tracon.0.*.nupkg "*.nuspec" > /dev/null
+grep -E "<dependency id=" Tracon.nuspec | sort -u
 ```
 
 **Beklenen sonuç**
-- Yalnız şu altı bağımlılık görünür: `AgentPrism.AspNetCore`, `AgentPrism.Mcp`,
-  `AgentPrism.OpenAI`, `AgentPrism.PostgreSql`, `AgentPrism.UI`,
-  `AgentPrism.Workflows`.
-- Şunlar **görünmez**: `AgentPrism.SqlServer`, `AgentPrism.Sqlite`,
-  `AgentPrism.Anthropic`, `AgentPrism.Google`, `AgentPrism.Azure`,
-  `AgentPrism.Voice`, `AgentPrism.Testing`, `AgentPrism.Templates`.
+- Yalnız şu altı bağımlılık görünür: `Tracon.AspNetCore`, `Tracon.Mcp`,
+  `Tracon.OpenAI`, `Tracon.PostgreSql`, `Tracon.UI`,
+  `Tracon.Workflows`.
+- Şunlar **görünmez**: `Tracon.SqlServer`, `Tracon.Sqlite`,
+  `Tracon.Anthropic`, `Tracon.Google`, `Tracon.Azure`,
+  `Tracon.Voice`, `Tracon.Testing`, `Tracon.Templates`.
 
 ---
 
@@ -820,34 +820,34 @@ grep -E "<dependency id=" AgentPrism.nuspec | sort -u
 | **İlgili karar** | K-007 |
 
 Sınır senaryosu. `CentralPackageTransitivePinningEnabled=true` olsaydı
-`AgentPrism.PostgreSql` 13 doğrudan bağımlılık bildirirdi. Kapalıyken 2 bekleniyor.
+`Tracon.PostgreSql` 13 doğrudan bağımlılık bildirirdi. Kapalıyken 2 bekleniyor.
 
 **Ön koşul**
 - `/tmp/ap-pack` dolu.
 
 **Adımlar**
-1. `AgentPrism.PostgreSql` nuspec'inin `net10.0` grubunu oku.
-2. `AgentPrism.Abstractions` için tekrarla.
+1. `Tracon.PostgreSql` nuspec'inin `net10.0` grubunu oku.
+2. `Tracon.Abstractions` için tekrarla.
 
 **Girilecek veri**
 ```bash
 cd /tmp && rm -rf ap-dep && mkdir ap-dep && cd ap-dep
-unzip -o /tmp/ap-pack/AgentPrism.PostgreSql.*.nupkg   "*.nuspec" > /dev/null
-unzip -o /tmp/ap-pack/AgentPrism.Abstractions.*.nupkg "*.nuspec" > /dev/null
+unzip -o /tmp/ap-pack/Tracon.PostgreSql.*.nupkg   "*.nuspec" > /dev/null
+unzip -o /tmp/ap-pack/Tracon.Abstractions.*.nupkg "*.nuspec" > /dev/null
 
-echo "--- PostgreSql"   && grep -A20 'targetFramework="net10.0"' AgentPrism.PostgreSql.nuspec   | grep "dependency id"
-echo "--- Abstractions" && grep -A20 'targetFramework="net10.0"' AgentPrism.Abstractions.nuspec | grep "dependency id"
+echo "--- PostgreSql"   && grep -A20 'targetFramework="net10.0"' Tracon.PostgreSql.nuspec   | grep "dependency id"
+echo "--- Abstractions" && grep -A20 'targetFramework="net10.0"' Tracon.Abstractions.nuspec | grep "dependency id"
 ```
 
 **Beklenen sonuç**
-- `AgentPrism.PostgreSql` **2** bağımlılık bildirir: `AgentPrism.Core` ve `Npgsql`.
-- `AgentPrism.Abstractions` **2** bağımlılık bildirir:
+- `Tracon.PostgreSql` **2** bağımlılık bildirir: `Tracon.Core` ve `Npgsql`.
+- `Tracon.Abstractions` **2** bağımlılık bildirir:
   `Microsoft.Agents.AI.Abstractions` ve `Microsoft.Extensions.AI.Abstractions`.
 - Hiçbirinde `OpenTelemetry.Api`, `OpenAI` gibi geçişli paketler **görünmez**.
 
 ---
 
-### MT-PKG-032 — Önsürüm MAF paketleri yalnız `AgentPrism.AspNetCore`'da
+### MT-PKG-032 — Önsürüm MAF paketleri yalnız `Tracon.AspNetCore`'da
 
 | | |
 |---|---|
@@ -878,9 +878,9 @@ done
 ```
 
 **Beklenen sonuç**
-- Çıktının **her** satırı `AgentPrism.AspNetCore` ile başlar.
-- `AgentPrism.Core`, `AgentPrism.Abstractions`, `AgentPrism.PostgreSql`,
-  `AgentPrism.OpenAI` hiçbir satırda görünmez.
+- Çıktının **her** satırı `Tracon.AspNetCore` ile başlar.
+- `Tracon.Core`, `Tracon.Abstractions`, `Tracon.PostgreSql`,
+  `Tracon.OpenAI` hiçbir satırda görünmez.
 - Beklenen önsürüm paketleri: `Microsoft.Agents.AI.Hosting`,
   `Microsoft.Agents.AI.Hosting.OpenAI`, `Microsoft.Agents.AI.Hosting.A2A`,
   `Microsoft.Agents.AI.Hosting.AspNetCore`, `A2A.AspNetCore`.
@@ -950,11 +950,11 @@ done
 ```
 
 **Beklenen sonuç**
-- `Google.GenAI` yalnız `AgentPrism.Google`'da görünür.
-- `Anthropic` yalnız `AgentPrism.Anthropic`'te görünür.
-- `Npgsql` yalnız `AgentPrism.PostgreSql`'de görünür.
-- `Microsoft.Data.SqlClient` yalnız `AgentPrism.SqlServer`'da görünür.
-- Hiçbiri meta pakette (`AgentPrism`) görünmez.
+- `Google.GenAI` yalnız `Tracon.Google`'da görünür.
+- `Anthropic` yalnız `Tracon.Anthropic`'te görünür.
+- `Npgsql` yalnız `Tracon.PostgreSql`'de görünür.
+- `Microsoft.Data.SqlClient` yalnız `Tracon.SqlServer`'da görünür.
+- Hiçbiri meta pakette (`Tracon`) görünmez.
 
 ### MT-PKG-040 — Üreteç işaretli statik metodu kaydeder
 
@@ -975,13 +975,13 @@ done
 
 **Girilecek veri**
 ```bash
-cd ~/agentprism-manuel/uretec
+cd ~/tracon-manuel/uretec
 cat > Tools.cs <<'EOF'
-using AgentPrism;
+using Tracon;
 
 internal static class SiparisTools
 {
-    [AgentPrismTool("get_order_status", "Bir siparisin kargo durumunu dondurur.")]
+    [TraconTool("get_order_status", "Bir siparisin kargo durumunu dondurur.")]
     public static string GetOrderStatus(string orderId) => $"{orderId}: kargoda";
 }
 EOF
@@ -991,15 +991,15 @@ dotnet build -c Release \
   -p:CompilerGeneratedFilesOutputPath=obj/generated
 
 find obj/generated -name "*.g.cs" | head
-cat $(find obj/generated -name "AgentPrismGeneratedTools.g.cs" | head -1)
+cat $(find obj/generated -name "TraconGeneratedTools.g.cs" | head -1)
 ```
 
 **Beklenen sonuç**
 - Derleme sıfır uyarıyla biter.
-- `AgentPrismGeneratedTools.g.cs` üretilir.
+- `TraconGeneratedTools.g.cs` üretilir.
 - Dosyanın ilk satırı `// <auto-generated/>`'dır.
 - Dosya `AddGeneratedTools` adlı bir uzantı metodu tanımlar
-  (`namespace AgentPrism`).
+  (`namespace Tracon`).
 - Dosyada `get_order_status` dizgisi geçer.
 - Dosyada `System.Reflection`, `Activator.`, `GetMethod(` ve
   `AIFunctionFactory` dizgilerinin **hiçbiri** geçmez.
@@ -1027,10 +1027,10 @@ kullanılamaz hâle gelir.
 
 **Girilecek veri**
 ```bash
-cd ~/agentprism-manuel/uretec
+cd ~/tracon-manuel/uretec
 dotnet format --verify-no-changes --no-restore ; echo "format cikis kodu: $?"
 
-G=$(find obj/generated -name "AgentPrismGeneratedTools.g.cs" | head -1)
+G=$(find obj/generated -name "TraconGeneratedTools.g.cs" | head -1)
 grep -Pn '\t'      "$G" && echo "🚨 TAB var" || echo "TAB yok"
 grep -Pn '[ \t]+$' "$G" && echo "🚨 satir sonu boslugu var" || echo "satir sonu temiz"
 ```
@@ -1041,7 +1041,7 @@ grep -Pn '[ \t]+$' "$G" && echo "🚨 satir sonu boslugu var" || echo "satir son
 
 ---
 
-### MT-PKG-042 — `APG0001`: aynı tool adı iki metotta
+### MT-PKG-042 — `TRC0001`: aynı tool adı iki metotta
 
 | | |
 |---|---|
@@ -1063,34 +1063,34 @@ kazanabiliyordu.
 
 **Girilecek veri**
 ```bash
-cd ~/agentprism-manuel/uretec
+cd ~/tracon-manuel/uretec
 cat > Hata.cs <<'EOF'
-using AgentPrism;
+using Tracon;
 
 internal static class CakisanTools
 {
-    [AgentPrismTool("ayni_ad", "Birinci.")]
+    [TraconTool("ayni_ad", "Birinci.")]
     public static string Bir(string a) => a;
 
-    [AgentPrismTool("ayni_ad", "Ikinci.")]
+    [TraconTool("ayni_ad", "Ikinci.")]
     public static string Iki(string a) => a;
 }
 EOF
 
-dotnet build -c Release 2>&1 | grep -E "APG0001|error"
+dotnet build -c Release 2>&1 | grep -E "TRC0001|error"
 rm Hata.cs
 ```
 
 **Beklenen sonuç**
 - Derleme **başarısız** olur.
-- `APG0001` **error** olarak çıkar.
+- `TRC0001` **error** olarak çıkar.
 - Mesaj `ayni_ad` adını ve **iki** metodu birden listeler
   (`CakisanTools.Bir, CakisanTools.Iki`).
 - Tanı iki ayrı konumda birden bildirilir.
 
 ---
 
-### MT-PKG-043 — `APG0002`: geçersiz karakterli tool adı
+### MT-PKG-043 — `TRC0002`: geçersiz karakterli tool adı
 
 | | |
 |---|---|
@@ -1112,46 +1112,46 @@ Negatif ve sınır senaryosu. Kural: 1–64 karakter, yalnız harf, rakam, `_` v
 
 **Girilecek veri**
 ```bash
-cd ~/agentprism-manuel/uretec
+cd ~/tracon-manuel/uretec
 cat > Hata.cs <<'EOF'
-using AgentPrism;
+using Tracon;
 
 internal static class KotuAdTools
 {
-    [AgentPrismTool("get order", "Bosluk var.")]
+    [TraconTool("get order", "Bosluk var.")]
     public static string A(string x) => x;
 
-    [AgentPrismTool("get.order", "Nokta var.")]
+    [TraconTool("get.order", "Nokta var.")]
     public static string B(string x) => x;
 
-    [AgentPrismTool("aaaaaaaaaabbbbbbbbbbccccccccccddddddddddeeeeeeeeeeffffffffffggggg", "65 karakter.")]
+    [TraconTool("aaaaaaaaaabbbbbbbbbbccccccccccddddddddddeeeeeeeeeeffffffffffggggg", "65 karakter.")]
     public static string C(string x) => x;
 }
 EOF
-dotnet build -c Release 2>&1 | grep -c "APG0002"
+dotnet build -c Release 2>&1 | grep -c "TRC0002"
 
 cat > Hata.cs <<'EOF'
-using AgentPrism;
+using Tracon;
 
 internal static class SinirAdTools
 {
-    [AgentPrismTool("aaaaaaaaaabbbbbbbbbbccccccccccddddddddddeeeeeeeeeeffffffffffgggg", "64 karakter - gecerli.")]
+    [TraconTool("aaaaaaaaaabbbbbbbbbbccccccccccddddddddddeeeeeeeeeeffffffffffgggg", "64 karakter - gecerli.")]
     public static string D(string x) => x;
 }
 EOF
-dotnet build -c Release 2>&1 | grep -c "APG0002"
+dotnet build -c Release 2>&1 | grep -c "TRC0002"
 
 rm Hata.cs
 ```
 
 **Beklenen sonuç**
-- Birinci derleme **3** `APG0002` tanısı üretir ve başarısız olur.
-- İkinci derleme **0** `APG0002` üretir ve başarılı biter — 64 karakter geçerlidir.
+- Birinci derleme **3** `TRC0002` tanısı üretir ve başarısız olur.
+- İkinci derleme **0** `TRC0002` üretir ve başarılı biter — 64 karakter geçerlidir.
 - Mesaj hem metot adını hem geçersiz tool adını taşır.
 
 ---
 
-### MT-PKG-044 — `APG0003`: desteklenmeyen parametre tipi
+### MT-PKG-044 — `TRC0003`: desteklenmeyen parametre tipi
 
 | | |
 |---|---|
@@ -1174,52 +1174,52 @@ bir sınırdır ve tanı kaçış yolunu göstermelidir.
 
 **Girilecek veri**
 ```bash
-cd ~/agentprism-manuel/uretec
+cd ~/tracon-manuel/uretec
 cat > Hata.cs <<'EOF'
-using AgentPrism;
+using Tracon;
 
 internal sealed record Siparis(string Id, int Adet);
 
 internal static class BilesikTools
 {
-    [AgentPrismTool("siparis_ver", "Bilesik tip - desteklenmez.")]
+    [TraconTool("siparis_ver", "Bilesik tip - desteklenmez.")]
     public static string SiparisVer(Siparis siparis) => siparis.Id;
 }
 EOF
-dotnet build -c Release 2>&1 | grep "APG0003"
+dotnet build -c Release 2>&1 | grep "TRC0003"
 
 cat > Hata.cs <<'EOF'
 using System;
 using System.Collections.Generic;
 using System.Threading;
-using AgentPrism;
+using Tracon;
 
 internal enum Oncelik { Dusuk, Yuksek }
 
 internal static class BeyazListeTools
 {
-    [AgentPrismTool("beyaz_liste", "Desteklenen tiplerin tamami.")]
+    [TraconTool("beyaz_liste", "Desteklenen tiplerin tamami.")]
     public static string Hepsi(
         string a, int b, long c, double d, decimal e, bool f,
         Guid g, DateTime h, DateTimeOffset i, Oncelik j,
         int? k, string[] l, IReadOnlyList<int> m, CancellationToken ct) => a;
 }
 EOF
-dotnet build -c Release 2>&1 | grep -c "APG0003"
+dotnet build -c Release 2>&1 | grep -c "TRC0003"
 
 rm Hata.cs
 ```
 
 **Beklenen sonuç**
-- Birinci derleme başarısız olur ve `APG0003` verir.
-- `APG0003` mesajı desteklenen tipleri **listeler** ve
+- Birinci derleme başarısız olur ve `TRC0003` verir.
+- `TRC0003` mesajı desteklenen tipleri **listeler** ve
   `AddTool(AIFunctionFactory.Create(...))` kaçış yolunu gösterir.
-- İkinci derleme **0** `APG0003` üretir ve başarılı biter.
+- İkinci derleme **0** `TRC0003` üretir ve başarılı biter.
 - İkinci derlemede `CancellationToken` bir tool parametresi olarak kabul edilir.
 
 ---
 
-### MT-PKG-045 — `APG0004`: generic metot tool olamaz
+### MT-PKG-045 — `TRC0004`: generic metot tool olamaz
 
 | | |
 |---|---|
@@ -1240,27 +1240,27 @@ Negatif senaryo. Bu hata daha önce **çalışma anında** çıkıyordu.
 
 **Girilecek veri**
 ```bash
-cd ~/agentprism-manuel/uretec
+cd ~/tracon-manuel/uretec
 cat > Hata.cs <<'EOF'
-using AgentPrism;
+using Tracon;
 
 internal static class GenericTools
 {
-    [AgentPrismTool("generic_tool", "Generic - desteklenmez.")]
+    [TraconTool("generic_tool", "Generic - desteklenmez.")]
     public static string Getir<T>(string id) => id;
 }
 EOF
-dotnet build -c Release 2>&1 | grep "APG0004"
+dotnet build -c Release 2>&1 | grep "TRC0004"
 rm Hata.cs
 ```
 
 **Beklenen sonuç**
-- Derleme başarısız olur ve `APG0004` **error** verir.
+- Derleme başarısız olur ve `TRC0004` **error** verir.
 - Mesaj somut bir sarmalayıcı metot yazmayı önerir.
 
 ---
 
-### MT-PKG-046 — `APG0005`: çağrı var, işaretli metot yok
+### MT-PKG-046 — `TRC0005`: çağrı var, işaretli metot yok
 
 | | |
 |---|---|
@@ -1283,30 +1283,30 @@ hiç tool yoksa derleme durur.
 
 **Girilecek veri**
 ```bash
-cd ~/agentprism-manuel/uretec
+cd ~/tracon-manuel/uretec
 mv Tools.cs /tmp/ap-tools-yedek.cs
 
 cat > Program.cs <<'EOF'
-using AgentPrism;
+using Tracon;
 using Microsoft.Extensions.DependencyInjection;
 
 var services = new ServiceCollection();
-services.AddAgentPrism().AddGeneratedTools();
+services.AddTracon().AddGeneratedTools();
 EOF
 
-dotnet build -c Release 2>&1 | grep "APG0005"
+dotnet build -c Release 2>&1 | grep "TRC0005"
 
 mv /tmp/ap-tools-yedek.cs Tools.cs
 ```
 
 **Beklenen sonuç**
-- Derleme başarısız olur ve `APG0005` **error** verir.
+- Derleme başarısız olur ve `TRC0005` **error** verir.
 - Mesaj iki çözüm önerir: metotları işaretlemek veya çağrıyı kaldırmak.
 - `Tools.cs` geri konduktan sonra aynı derleme geçer.
 
 ---
 
-### MT-PKG-047 — `APG0006`: açıklama eksik — hata değil, uyarı
+### MT-PKG-047 — `TRC0006`: açıklama eksik — hata değil, uyarı
 
 | | |
 |---|---|
@@ -1316,7 +1316,7 @@ mv /tmp/ap-tools-yedek.cs Tools.cs
 | **İlgili karar** | — |
 
 Sınır senaryosu. Bir kütüphane, tüketicinin derlemesini kırma hakkını dikkatli
-kullanır. `APG0006` tek **uyarı** seviyeli tanıdır ve bastırılabilir olmalıdır.
+kullanır. `TRC0006` tek **uyarı** seviyeli tanıdır ve bastırılabilir olmalıdır.
 
 **Ön koşul**
 - Bölüm ön koşulu uygulandı.
@@ -1329,33 +1329,33 @@ kullanır. `APG0006` tek **uyarı** seviyeli tanıdır ve bastırılabilir olmal
 
 **Girilecek veri**
 ```bash
-cd ~/agentprism-manuel/uretec
+cd ~/tracon-manuel/uretec
 cat > Hata.cs <<'EOF'
-using AgentPrism;
+using Tracon;
 
 internal static class AciklamasizTools
 {
-    [AgentPrismTool("aciklamasiz")]
+    [TraconTool("aciklamasiz")]
     public static string Getir(string id) => id;
 }
 EOF
 
-dotnet build -c Release 2>&1 | grep "APG0006"
+dotnet build -c Release 2>&1 | grep "TRC0006"
 echo "--- bastirilmis ---"
-dotnet build -c Release -p:NoWarn=APG0006 2>&1 | grep -c "APG0006"
+dotnet build -c Release -p:NoWarn=TRC0006 2>&1 | grep -c "TRC0006"
 
 rm Hata.cs
 ```
 
 **Beklenen sonuç**
-- Birinci derlemede `APG0006` **warning** olarak görünür.
+- Birinci derlemede `TRC0006` **warning** olarak görünür.
 - `TreatWarningsAsErrors` bu projede tanımlı değildir, bu yüzden derleme
   **başarılı** biter.
-- `-p:NoWarn=APG0006` ile derlemede tanı sayısı **0**'dır ve derleme geçer.
+- `-p:NoWarn=TRC0006` ile derlemede tanı sayısı **0**'dır ve derleme geçer.
 
 ---
 
-### MT-PKG-048 — `APG0007`: örnek metot tool olamaz
+### MT-PKG-048 — `TRC0007`: örnek metot tool olamaz
 
 | | |
 |---|---|
@@ -1379,26 +1379,26 @@ sağlayıcı geçirir ve yazılan koruma hiç çalışmaz.
 
 **Girilecek veri**
 ```bash
-cd ~/agentprism-manuel/uretec
+cd ~/tracon-manuel/uretec
 cat > Hata.cs <<'EOF'
-using AgentPrism;
+using Tracon;
 
 internal sealed class OrnekTools
 {
-    [AgentPrismTool("ornek_metot", "Ornek metot - desteklenmez.")]
+    [TraconTool("ornek_metot", "Ornek metot - desteklenmez.")]
     public string Getir(string id) => id;
 }
 EOF
-dotnet build -c Release 2>&1 | grep "APG0007"
+dotnet build -c Release 2>&1 | grep "TRC0007"
 
 sed -i '' 's/public string Getir/public static string Getir/' Hata.cs
-dotnet build -c Release 2>&1 | grep -c "APG0007"
+dotnet build -c Release 2>&1 | grep -c "TRC0007"
 
 rm Hata.cs
 ```
 
 **Beklenen sonuç**
-- Birinci derleme başarısız olur ve `APG0007` **error** verir.
+- Birinci derleme başarısız olur ve `TRC0007` **error** verir.
 - Mesaj K-218'e açıkça atıf yapar ve iki çözüm gösterir: metodu `static` yapmak
   veya tool'u kurulum anında örnekleyip `AddTool(AIFunctionFactory.Create(...))`
   ile kaydetmek.
@@ -1428,13 +1428,13 @@ eklemek onu kendiliğinden agent'lara açmamalıdır — bu bir güvenlik sını
 
 **Girilecek veri**
 ```bash
-cd ~/agentprism-manuel/uretec
+cd ~/tracon-manuel/uretec
 cat > Tools.cs <<'EOF'
-using AgentPrism;
+using Tracon;
 
 internal static class SiparisTools
 {
-    [AgentPrismTool("get_order_status", "Bir siparisin kargo durumunu dondurur.")]
+    [TraconTool("get_order_status", "Bir siparisin kargo durumunu dondurur.")]
     public static string GetOrderStatus(string orderId) => $"{orderId}: kargoda";
 
     public static string GizliYardimci(string x) => x;
@@ -1445,7 +1445,7 @@ rm -rf obj/generated
 dotnet build -c Release -p:EmitCompilerGeneratedFiles=true \
   -p:CompilerGeneratedFilesOutputPath=obj/generated
 
-G=$(find obj/generated -name "AgentPrismGeneratedTools.g.cs" | head -1)
+G=$(find obj/generated -name "TraconGeneratedTools.g.cs" | head -1)
 grep -c "GizliYardimci"  "$G"
 grep -c "GetOrderStatus" "$G"
 ```
@@ -1467,9 +1467,9 @@ grep -c "GetOrderStatus" "$G"
 | **İlgili faz** | Faz 52 |
 | **İlgili karar** | K-348 |
 
-Sınır senaryosu. Faz 52, üreteci **yalnız** `AgentPrism.Core`'a doğrudan
+Sınır senaryosu. Faz 52, üreteci **yalnız** `Tracon.Core`'a doğrudan
 `PackageReference` veren bir tüketiciyle doğruladı. Gerçek tüketicilerin çoğu
-meta paketi (`AgentPrism`) alır. Analyzer varlıkları meta paket üzerinden
+meta paketi (`Tracon`) alır. Analyzer varlıkları meta paket üzerinden
 geçişli olarak akmalıdır.
 
 **Ön koşul**
@@ -1482,30 +1482,30 @@ geçişli olarak akmalıdır.
 
 **Girilecek veri**
 ```bash
-rm -rf ~/agentprism-manuel/meta && mkdir -p ~/agentprism-manuel/meta
-cd ~/agentprism-manuel/meta
+rm -rf ~/tracon-manuel/meta && mkdir -p ~/tracon-manuel/meta
+cd ~/tracon-manuel/meta
 dotnet new web -o . --force
-cp ~/agentprism-manuel/uretec/nuget.config .
+cp ~/tracon-manuel/uretec/nuget.config .
 
-SURUM=$(ls /tmp/ap-pack/AgentPrism.0.*.nupkg | sed 's#.*/AgentPrism\.##;s#\.nupkg##')
-dotnet add package AgentPrism --version "$SURUM"
+SURUM=$(ls /tmp/ap-pack/Tracon.0.*.nupkg | sed 's#.*/Tracon\.##;s#\.nupkg##')
+dotnet add package Tracon --version "$SURUM"
 
 cat > Program.cs <<'EOF'
-using AgentPrism;
+using Tracon;
 
 var builder = WebApplication.CreateBuilder(args);
-builder.AddAgentPrism().AddGeneratedTools();
+builder.AddTracon().AddGeneratedTools();
 var app = builder.Build();
-app.MapAgentPrism("/agentprism");
+app.MapTracon("/tracon");
 app.Run();
 EOF
 
 cat > Tools.cs <<'EOF'
-using AgentPrism;
+using Tracon;
 
 internal static class MetaTools
 {
-    [AgentPrismTool("meta_tool", "Meta paket uzerinden uretilen tool.")]
+    [TraconTool("meta_tool", "Meta paket uzerinden uretilen tool.")]
     public static string Getir(string id) => id;
 }
 EOF
@@ -1530,7 +1530,7 @@ dotnet build -c Release ; echo "cikis kodu: $?"
 | **İlgili karar** | K-006 |
 
 **Ön koşul**
-- MT-PKG-040 geçti; `~/agentprism-manuel/uretec` çalışır durumda.
+- MT-PKG-040 geçti; `~/tracon-manuel/uretec` çalışır durumda.
 
 **Adımlar**
 1. Tüketici projesine AOT bayrağını ekle.
@@ -1539,13 +1539,13 @@ dotnet build -c Release ; echo "cikis kodu: $?"
 
 **Girilecek veri**
 ```bash
-cd ~/agentprism-manuel/uretec
+cd ~/tracon-manuel/uretec
 cat > Program.cs <<'EOF'
-using AgentPrism;
+using Tracon;
 using Microsoft.Extensions.DependencyInjection;
 
 var services = new ServiceCollection();
-services.AddAgentPrism().AddGeneratedTools();
+services.AddTracon().AddGeneratedTools();
 Console.WriteLine("kayit tamam");
 EOF
 
@@ -1583,13 +1583,13 @@ Uyarı bastırılmamalı, çağırana iletilmelidir.
 
 **Girilecek veri**
 ```bash
-cd ~/agentprism-manuel/uretec
+cd ~/tracon-manuel/uretec
 cat > Program.cs <<'EOF'
-using AgentPrism;
+using Tracon;
 using Microsoft.Extensions.DependencyInjection;
 
 var services = new ServiceCollection();
-services.AddAgentPrism().AddToolsFrom(typeof(SiparisTools));
+services.AddTracon().AddToolsFrom(typeof(SiparisTools));
 Console.WriteLine("kayit tamam");
 EOF
 
@@ -1626,8 +1626,8 @@ vermek yanıltıcı olur.
 
 **Girilecek veri**
 ```bash
-cd /Users/farukatasoy/Desktop/projects/AgentPrism
-grep -l "AgentPrismAotCompatible>false" src/*/*.csproj | sed 's#src/##;s#/.*##' | sort
+cd /Users/farukatasoy/Desktop/projects/Tracon
+grep -l "TraconAotCompatible>false" src/*/*.csproj | sed 's#src/##;s#/.*##' | sort
 ```
 
 **Beklenen sonuç**
@@ -1636,10 +1636,10 @@ grep -l "AgentPrismAotCompatible>false" src/*/*.csproj | sed 's#src/##;s#/.*##' 
 > yitirmişti; `AGENTS.md` zaten "Sekiz paket uyumludur" diyor ve bu koddan
 > türetilen kümeyle birebir örtüşüyor. Düzeltilecek taraf bu test dosyasıydı,
 > `AGENTS.md`/kod değil.
-- Bayrağı `false` yapan projeler tam olarak şunlardır: `AgentPrism` (meta),
-  `AgentPrism.AspNetCore`, `AgentPrism.Generators`, `AgentPrism.Mcp`,
-  `AgentPrism.SqlServer`, `AgentPrism.Sqlite`, `AgentPrism.Templates`,
-  `AgentPrism.Testing`, `AgentPrism.UI`, `AgentPrism.Workflows`.
+- Bayrağı `false` yapan projeler tam olarak şunlardır: `Tracon` (meta),
+  `Tracon.AspNetCore`, `Tracon.Generators`, `Tracon.Mcp`,
+  `Tracon.SqlServer`, `Tracon.Sqlite`, `Tracon.Templates`,
+  `Tracon.Testing`, `Tracon.UI`, `Tracon.Workflows`.
 - Geriye kalan (AOT uyumlu, **8 paket**) — `AGENTS.md` "Sekiz paket
   uyumludur" der: `Abstractions`, `Anthropic`, `Azure`, `Core`, `Google`,
   `OpenAI`, `PostgreSql`, `Voice`.
@@ -1667,20 +1667,20 @@ yalnız dört tanedir — `Abstractions`, `Core`, `PostgreSql`, `OpenAI`.~~
 
 **Girilecek veri**
 ```bash
-mkdir -p ~/agentprism-local-feed
-rm -f ~/agentprism-local-feed/*.nupkg
-cp /tmp/ap-pack/*.nupkg ~/agentprism-local-feed/
+mkdir -p ~/tracon-local-feed
+rm -f ~/tracon-local-feed/*.nupkg
+cp /tmp/ap-pack/*.nupkg ~/tracon-local-feed/
 
-dotnet nuget list source | grep agentprism-local \
-  || dotnet nuget add source ~/agentprism-local-feed -n agentprism-local
+dotnet nuget list source | grep tracon-local \
+  || dotnet nuget add source ~/tracon-local-feed -n tracon-local
 
-dotnet new install AgentPrism.Templates::*-* --add-source ~/agentprism-local-feed
-dotnet new list agentprism
+dotnet new install Tracon.Templates::*-* --add-source ~/tracon-local-feed
+dotnet new list tracon
 ```
 
 **Beklenen sonuç**
-- `dotnet new list agentprism` çıktısında `agentprism-api` kısa adı görünür.
-- Şablon adı `AgentPrism control plane (ASP.NET Core)`'dur.
+- `dotnet new list tracon` çıktısında `tracon-api` kısa adı görünür.
+- Şablon adı `Tracon control plane (ASP.NET Core)`'dur.
 - Dil sütunu `C#`, tip sütunu `project`'tir.
 
 ---
@@ -1710,19 +1710,19 @@ tasarım kuralı #1'i de kanıtlar: veritabanı olmadan hiçbir şey kırılmaz.
 
 **Girilecek veri**
 ```bash
-rm -rf ~/agentprism-manuel/varsayilan && mkdir -p ~/agentprism-manuel/varsayilan
-cd ~/agentprism-manuel/varsayilan
-cp ~/agentprism-manuel/uretec/nuget.config .
+rm -rf ~/tracon-manuel/varsayilan && mkdir -p ~/tracon-manuel/varsayilan
+cd ~/tracon-manuel/varsayilan
+cp ~/tracon-manuel/uretec/nuget.config .
 
-SURUM=$(ls ~/agentprism-local-feed/AgentPrism.0.*.nupkg | sed 's#.*/AgentPrism\.##;s#\.nupkg##')
-dotnet new agentprism-api -o . --AgentPrismVersion "$SURUM"
+SURUM=$(ls ~/tracon-local-feed/Tracon.0.*.nupkg | sed 's#.*/Tracon\.##;s#\.nupkg##')
+dotnet new tracon-api -o . --TraconVersion "$SURUM"
 
 dotnet build -c Release
 dotnet run -c Release &
 sleep 8
 
-curl -s http://localhost:5081/agentprism/api/meta | head -c 400
-open http://localhost:5081/agentprism
+curl -s http://localhost:5081/tracon/api/meta | head -c 400
+open http://localhost:5081/tracon
 ```
 
 **Beklenen sonuç**
@@ -1730,7 +1730,7 @@ open http://localhost:5081/agentprism
   `appsettings.json`, `README.md`, `.gitignore` üretilir.
 - `dotnet build` sıfır hata verir.
 - `curl` HTTP 200 döndürür ve gövde bir JSON nesnesidir.
-- Tarayıcıda `/agentprism` arayüzü açılır ve boş bir agent listesi değil,
+- Tarayıcıda `/tracon` arayüzü açılır ve boş bir agent listesi değil,
   `support` agent'ını gösterir.
 - Uygulama, hiçbir bağlantı dizesi ve API anahtarı **tanımlı değilken** ayağa kalkar.
 - Üretilen `appsettings.json` `ConnectionString` ve `ApiKey` alanlarını **boş
@@ -1762,11 +1762,11 @@ ve düzeltildikten sonra yolun çalıştığını kanıtlar.
 
 **Girilecek veri**
 ```bash
-cd ~/agentprism-manuel/varsayilan
+cd ~/tracon-manuel/varsayilan
 
 # 1) Yer tutucu ile
 dotnet run -c Release & sleep 8
-curl -s -X POST http://localhost:5081/agentprism/api/agents/support/run \
+curl -s -X POST http://localhost:5081/tracon/api/agents/support/run \
   -H "content-type: application/json" \
   -d '{"message":"ORD-1001 siparisim nerede?"}' | head -c 400
 kill %1
@@ -1776,12 +1776,12 @@ sed -i '' 's/MODEL_ADINI_BURAYA_YAZIN/gpt-5.4-mini/' Program.cs
 
 # 3) Anahtari ver
 dotnet user-secrets init
-dotnet user-secrets set "AgentPrism:Providers:OpenAI:ApiKey" "<OPENAI_ANAHTARINIZ>"
+dotnet user-secrets set "Tracon:Providers:OpenAI:ApiKey" "<OPENAI_ANAHTARINIZ>"
 
 # 4) Tekrar dene
 dotnet build -c Release
 dotnet run -c Release & sleep 8
-curl -s -X POST http://localhost:5081/agentprism/api/agents/support/run \
+curl -s -X POST http://localhost:5081/tracon/api/agents/support/run \
   -H "content-type: application/json" \
   -d '{"message":"ORD-1001 siparisim nerede?"}' | head -c 600
 ```
@@ -1792,7 +1792,7 @@ curl -s -X POST http://localhost:5081/agentprism/api/agents/support/run \
 - 4. adımda `run` başarılı biter.
 - Yanıt `ORD-1001` dizgisini içerir **ve** `get_order_status` tool'u tam bir kez
   çağrılır. (Model metni sabit değildir; metne bağlı iddia yapılmaz.)
-- `/agentprism/api/runs` en az bir kayıt döndürür ve son kaydın `status` alanı
+- `/tracon/api/runs` en az bir kayıt döndürür ve son kaydın `status` alanı
   tamamlanmış durumu gösterir.
 
 ---
@@ -1816,13 +1816,13 @@ curl -s -X POST http://localhost:5081/agentprism/api/agents/support/run \
 
 **Girilecek veri**
 ```bash
-SURUM=$(ls ~/agentprism-local-feed/AgentPrism.0.*.nupkg | sed 's#.*/AgentPrism\.##;s#\.nupkg##')
+SURUM=$(ls ~/tracon-local-feed/Tracon.0.*.nupkg | sed 's#.*/Tracon\.##;s#\.nupkg##')
 
 for p in postgres sqlite sqlserver; do
-  rm -rf ~/agentprism-manuel/$p && mkdir -p ~/agentprism-manuel/$p
-  cd ~/agentprism-manuel/$p
-  cp ~/agentprism-manuel/uretec/nuget.config .
-  dotnet new agentprism-api -o . --persistence $p --AgentPrismVersion "$SURUM"
+  rm -rf ~/tracon-manuel/$p && mkdir -p ~/tracon-manuel/$p
+  cd ~/tracon-manuel/$p
+  cp ~/tracon-manuel/uretec/nuget.config .
+  dotnet new tracon-api -o . --persistence $p --TraconVersion "$SURUM"
   echo "=== $p csproj ==="   && grep "PackageReference" *.csproj
   echo "=== $p Program.cs ===" && grep -E "Use(PostgreSql|Sqlite|SqlServer)" Program.cs
   echo "=== $p appsettings ===" && grep -E "PostgreSql|Sqlite|SqlServer" appsettings.json
@@ -1831,10 +1831,10 @@ done
 ```
 
 **Beklenen sonuç**
-- `postgres` varyantı yalnız `AgentPrism` paketini referanslar (PostgreSQL meta
+- `postgres` varyantı yalnız `Tracon` paketini referanslar (PostgreSQL meta
   pakete dâhildir) ve `UsePostgreSql` çağrısını taşır.
-- `sqlite` varyantı ek olarak `AgentPrism.Sqlite` paketini referanslar.
-- `sqlserver` varyantı ek olarak `AgentPrism.SqlServer` paketini referanslar.
+- `sqlite` varyantı ek olarak `Tracon.Sqlite` paketini referanslar.
+- `sqlserver` varyantı ek olarak `Tracon.SqlServer` paketini referanslar.
 - Her varyantın `appsettings.json` dosyası yalnız **kendi** sağlayıcısının
   bölümünü taşır; diğer ikisi yoktur.
 - Hiçbir varyantta `#if` / `//#if` yönergesi üretilmiş dosyada kalmaz.
@@ -1860,22 +1860,22 @@ done
 
 **Girilecek veri**
 ```bash
-SURUM=$(ls ~/agentprism-local-feed/AgentPrism.0.*.nupkg | sed 's#.*/AgentPrism\.##;s#\.nupkg##')
+SURUM=$(ls ~/tracon-local-feed/Tracon.0.*.nupkg | sed 's#.*/Tracon\.##;s#\.nupkg##')
 
 for s in openai anthropic google azure; do
-  rm -rf ~/agentprism-manuel/prov-$s && mkdir -p ~/agentprism-manuel/prov-$s
-  cd ~/agentprism-manuel/prov-$s
-  cp ~/agentprism-manuel/uretec/nuget.config .
-  dotnet new agentprism-api -o . --provider $s --AgentPrismVersion "$SURUM"
+  rm -rf ~/tracon-manuel/prov-$s && mkdir -p ~/tracon-manuel/prov-$s
+  cd ~/tracon-manuel/prov-$s
+  cp ~/tracon-manuel/uretec/nuget.config .
+  dotnet new tracon-api -o . --provider $s --TraconVersion "$SURUM"
   echo "=== $s ===" && grep -E "PackageReference|Use(OpenAI|Anthropic|Google|AzureOpenAI)" *.csproj Program.cs
   dotnet build -c Release > /dev/null && echo "$s derlendi"
 done
 ```
 
 **Beklenen sonuç**
-- `openai` varyantı ek paket referanslamaz (`AgentPrism.OpenAI` meta paketten gelir).
-- `anthropic`, `google`, `azure` varyantları sırasıyla `AgentPrism.Anthropic`,
-  `AgentPrism.Google`, `AgentPrism.Azure` paketlerini ekler.
+- `openai` varyantı ek paket referanslamaz (`Tracon.OpenAI` meta paketten gelir).
+- `anthropic`, `google`, `azure` varyantları sırasıyla `Tracon.Anthropic`,
+  `Tracon.Google`, `Tracon.Azure` paketlerini ekler.
 - Her varyantın `Program.cs` dosyası tek bir `Use*` çağrısı taşır.
 - Dördü de **derlenir**. Azure varyantının derlenmesi kimlik bilgisi istemez.
 
@@ -1906,18 +1906,18 @@ Sınır senaryosu. Arayüz istemeyen tüketici için HTTP API çalışmaya devam
 
 **Girilecek veri**
 ```bash
-SURUM=$(ls ~/agentprism-local-feed/AgentPrism.0.*.nupkg | sed 's#.*/AgentPrism\.##;s#\.nupkg##')
-rm -rf ~/agentprism-manuel/uisiz && mkdir -p ~/agentprism-manuel/uisiz
-cd ~/agentprism-manuel/uisiz
-cp ~/agentprism-manuel/uretec/nuget.config .
-dotnet new agentprism-api -o . --ui false --AgentPrismVersion "$SURUM"
+SURUM=$(ls ~/tracon-local-feed/Tracon.0.*.nupkg | sed 's#.*/Tracon\.##;s#\.nupkg##')
+rm -rf ~/tracon-manuel/uisiz && mkdir -p ~/tracon-manuel/uisiz
+cd ~/tracon-manuel/uisiz
+cp ~/tracon-manuel/uretec/nuget.config .
+dotnet new tracon-api -o . --ui false --TraconVersion "$SURUM"
 
 grep -c "UseUI" Program.cs
 dotnet build -c Release
 dotnet run -c Release & sleep 8
 
-echo "meta : $(curl -s -o /dev/null -w '%{http_code}' http://localhost:5081/agentprism/api/meta)"
-echo "arayuz: $(curl -s -o /dev/null -w '%{http_code}' http://localhost:5081/agentprism)"
+echo "meta : $(curl -s -o /dev/null -w '%{http_code}' http://localhost:5081/tracon/api/meta)"
+echo "arayuz: $(curl -s -o /dev/null -w '%{http_code}' http://localhost:5081/tracon)"
 kill %1
 ```
 
@@ -1951,27 +1951,27 @@ sürüm verildiğinde hata **anlaşılır** olmalıdır.
 
 **Girilecek veri**
 ```bash
-rm -rf ~/agentprism-manuel/surum && mkdir -p ~/agentprism-manuel/surum
-cd ~/agentprism-manuel/surum
-cp ~/agentprism-manuel/uretec/nuget.config .
+rm -rf ~/tracon-manuel/surum && mkdir -p ~/tracon-manuel/surum
+cd ~/tracon-manuel/surum
+cp ~/tracon-manuel/uretec/nuget.config .
 
-dotnet new agentprism-api -o . --skip-restore
-grep "AgentPrism" *.csproj
+dotnet new tracon-api -o . --skip-restore
+grep "Tracon" *.csproj
 
-rm -rf ~/agentprism-manuel/surum2 && mkdir -p ~/agentprism-manuel/surum2
-cd ~/agentprism-manuel/surum2
-cp ~/agentprism-manuel/uretec/nuget.config .
-dotnet new agentprism-api -o . --AgentPrismVersion 99.99.99 --skip-restore
+rm -rf ~/tracon-manuel/surum2 && mkdir -p ~/tracon-manuel/surum2
+cd ~/tracon-manuel/surum2
+cp ~/tracon-manuel/uretec/nuget.config .
+dotnet new tracon-api -o . --TraconVersion 99.99.99 --skip-restore
 dotnet restore 2>&1 | tail -3
 ```
 
 **Beklenen sonuç**
-- Birinci projede `Version="*-*"` görünür ve `AGENTPRISM_TEMPLATE_PACKAGE_VERSION`
+- Birinci projede `Version="*-*"` görünür ve `TRACON_TEMPLATE_PACKAGE_VERSION`
   yer tutucusu **kalmaz**.
 - `--skip-restore` verildiğinde `dotnet new` restore çalıştırmaz (çıktıda
   "Restoring" satırı yoktur).
 - İkinci projede `dotnet restore` **başarısız** olur ve hata mesajı
-  `AgentPrism` paket adını **ve** `99.99.99` sürümünü açıkça yazar (`NU1102`).
+  `Tracon` paket adını **ve** `99.99.99` sürümünü açıkça yazar (`NU1102`).
 
 ---
 
@@ -1997,7 +1997,7 @@ desen burada öğrenilirse her yerde tekrarlanır.
 
 **Girilecek veri**
 ```bash
-cd ~/agentprism-manuel/varsayilan
+cd ~/tracon-manuel/varsayilan
 grep -rn "sk-\|api[_-]\?key.*[:=].*[A-Za-z0-9]\{20,\}" \
   --include="*.json" --include="*.cs" --include="*.csproj" . | grep -v "bin/\|obj/"
 echo "--- tarama bitti ---"
@@ -2022,57 +2022,57 @@ grep -E "appsettings\.\*\.json|\.env|secrets" .gitignore
 | **İlgili faz** | Faz 1 |
 | **İlgili karar** | — |
 
-AgentPrism servislerini `TryAdd*` ile kaydeder. Tüketici kendi
-uygulamasını **önce** kaydettiyse AgentPrism onu ezmemelidir.
+Tracon servislerini `TryAdd*` ile kaydeder. Tüketici kendi
+uygulamasını **önce** kaydettiyse Tracon onu ezmemelidir.
 
 **Ön koşul**
 - MT-PKG-070 geçti.
 
 **Adımlar**
 1. Yeni bir konsol projesi kur.
-2. Kendi `IRunStore` uygulamanı AgentPrism'den **önce** kaydet.
+2. Kendi `IRunStore` uygulamanı Tracon'den **önce** kaydet.
 3. Çözümlenen tipi yazdır.
-4. Kaydı AgentPrism'den **sonra** yapıp tekrarla.
+4. Kaydı Tracon'den **sonra** yapıp tekrarla.
 
 **Girilecek veri**
 ```bash
-rm -rf ~/agentprism-manuel/tryadd && mkdir -p ~/agentprism-manuel/tryadd
-cd ~/agentprism-manuel/tryadd
+rm -rf ~/tracon-manuel/tryadd && mkdir -p ~/tracon-manuel/tryadd
+cd ~/tracon-manuel/tryadd
 dotnet new console -o . --force
-cp ~/agentprism-manuel/uretec/nuget.config .
-SURUM=$(ls ~/agentprism-local-feed/AgentPrism.Core.*.nupkg | sed 's#.*AgentPrism.Core\.##;s#\.nupkg##')
-dotnet add package AgentPrism.Core --version "$SURUM"
+cp ~/tracon-manuel/uretec/nuget.config .
+SURUM=$(ls ~/tracon-local-feed/Tracon.Core.*.nupkg | sed 's#.*Tracon.Core\.##;s#\.nupkg##')
+dotnet add package Tracon.Core --version "$SURUM"
 
 cat > Program.cs <<'EOF'
-using AgentPrism;
+using Tracon;
 using Microsoft.Extensions.DependencyInjection;
 
 // 1) Tuketicinin kaydi ONCE
 var once = new ServiceCollection();
 once.AddSingleton<IRunStore, BenimRunStore>();
-once.AddAgentPrism();
+once.AddTracon();
 Console.WriteLine("once: " + once.BuildServiceProvider().GetRequiredService<IRunStore>().GetType().Name);
 
 // 2) Tuketicinin kaydi SONRA
 var sonra = new ServiceCollection();
-sonra.AddAgentPrism();
+sonra.AddTracon();
 sonra.AddSingleton<IRunStore, BenimRunStore>();
 Console.WriteLine("sonra: " + sonra.BuildServiceProvider().GetRequiredService<IRunStore>().GetType().Name);
 EOF
 
 # BenimRunStore: IRunStore'un tum uyelerini NotSupportedException ile uygular.
-# Uyeler icin: grep -n "" src/AgentPrism.Abstractions/Runs/IRunStore.cs
+# Uyeler icin: grep -n "" src/Tracon.Abstractions/Runs/IRunStore.cs
 
 dotnet run -c Release
 ```
 
 **Beklenen sonuç**
-- `once:` satırı `BenimRunStore` yazar — AgentPrism kaydı **ezmez**.
+- `once:` satırı `BenimRunStore` yazar — Tracon kaydı **ezmez**.
 - `sonra:` satırı `BenimRunStore` yazar — son kayıt kazanır.
 - Hiçbir adımda istisna atılmaz.
 
 > Not: `BenimRunStore` sınıfını yazmak için önce arayüz üyeleri okunur:
-> `grep -n "" src/AgentPrism.Abstractions/Runs/IRunStore.cs`. Bu case, tam
+> `grep -n "" src/Tracon.Abstractions/Runs/IRunStore.cs`. Bu case, tam
 > gövdesi [`02-CEKIRDEK-VE-KATALOG.md`](02-CEKIRDEK-VE-KATALOG.md)'de yazılacak
 > `MT-CORE` case'leriyle birlikte koşulabilir.
 
@@ -2094,19 +2094,19 @@ içi izleğin **tek** doğrudan testidir. Küçük görünür, atlanmaz.
 - MT-PKG-080 projesi hazır.
 
 **Adımlar**
-1. Yalnız `AddAgentPrism()` çağır.
+1. Yalnız `AddTracon()` çağır.
 2. Servis sağlayıcıyı kur.
 3. Çekirdek servisleri çözümle.
 
 **Girilecek veri**
 ```bash
-cd ~/agentprism-manuel/tryadd
+cd ~/tracon-manuel/tryadd
 cat > Program.cs <<'EOF'
-using AgentPrism;
+using Tracon;
 using Microsoft.Extensions.DependencyInjection;
 
 var services = new ServiceCollection();
-services.AddAgentPrism();
+services.AddTracon();
 
 var provider = services.BuildServiceProvider();
 
@@ -2124,9 +2124,9 @@ dotnet run -c Release ; echo "cikis kodu: $?"
 > `ISessionStore` denetim izi dekoratörü (`AuditingSessionStore`) ile sarılı
 > (iç deposu yine bellek içi, dış bağımlılık yok); `IToolRegistry` hiç
 > `InMemory` önekiyle adlandırılmamış (`ToolRegistry`). 2026-08-15'te kaynak
-> yeniden doğrulandı: `src/AgentPrism.Core/Tools/ToolRegistry.cs:9`,
-> `src/AgentPrism.Core/Storage/InMemoryRunStore.cs:22`,
-> `src/AgentPrism.Core/Audit/AuditingSessionStore.cs:13`.
+> yeniden doğrulandı: `src/Tracon.Core/Tools/ToolRegistry.cs:9`,
+> `src/Tracon.Core/Storage/InMemoryRunStore.cs:22`,
+> `src/Tracon.Core/Audit/AuditingSessionStore.cs:13`.
 - Çıkış kodu `0`'dır.
 - `IRunStore` → `InMemoryRunStore`, `ISessionStore` → `AuditingSessionStore`,
   `IToolRegistry` → `ToolRegistry` (önek yok).
@@ -2162,19 +2162,19 @@ son kayıt kazanır ve uyarı loglanır."* Bu iddia ölçülür.
 
 **Girilecek veri**
 ```bash
-cd ~/agentprism-manuel/sqlite
+cd ~/tracon-manuel/sqlite
 dotnet user-secrets init
-dotnet user-secrets set "AgentPrism:Sqlite:ConnectionString" "Data Source=manuel-cift.db"
-dotnet user-secrets set "AgentPrism:PostgreSql:ConnectionString" \
-  "Host=localhost;Port=55432;Database=agentprism;Username=postgres;Password=agentprism"
+dotnet user-secrets set "Tracon:Sqlite:ConnectionString" "Data Source=manuel-cift.db"
+dotnet user-secrets set "Tracon:PostgreSql:ConnectionString" \
+  "Host=localhost;Port=55432;Database=tracon;Username=postgres;Password=tracon"
 
 # Program.cs'e PostgreSql cagrisini de ekle (Sqlite cagrisinin ALTINA).
-# agentPrism.UsePostgreSql(builder.Configuration.GetSection("AgentPrism:PostgreSql"));
+# tracon.UsePostgreSql(builder.Configuration.GetSection("Tracon:PostgreSql"));
 
 dotnet build -c Release
 dotnet run -c Release 2>&1 | tee /tmp/ap-cift.log &
 sleep 10
-curl -s http://localhost:5081/agentprism/api/meta
+curl -s http://localhost:5081/tracon/api/meta
 kill %1
 grep -iE "warn|uyari|birden fazla|multiple" /tmp/ap-cift.log
 ```
@@ -2210,7 +2210,7 @@ Temel iddia: kayıtlı bir yüzeyde kapı sessizdir.
 
 **Girilecek veri**
 ```bash
-dotnet build AgentPrism.slnx -c Release --no-incremental 2>&1 | grep -c "warning RS0"
+dotnet build Tracon.slnx -c Release --no-incremental 2>&1 | grep -c "warning RS0"
 ```
 
 **Beklenen sonuç**
@@ -2235,20 +2235,20 @@ kanıtlamaz.
 - MT-PKG-090 geçti.
 
 **Adımlar**
-1. `IAgentPrismBuilder`'a yeni, kayıtsız bir `public` metot ekle (arayüz + uygulama).
+1. `ITraconBuilder`'a yeni, kayıtsız bir `public` metot ekle (arayüz + uygulama).
 2. Derle.
 3. Metodu ve dosyayı geri al.
 
 **Girilecek veri**
 ```bash
-# IAgentPrismBuilder.cs içine: void ProbeUnregisteredMember();
-# AgentPrismBuilder.cs içine: public void ProbeUnregisteredMember() { }
-dotnet build src/AgentPrism.Core/AgentPrism.Core.csproj -c Release 2>&1 | grep "RS0016"
+# ITraconBuilder.cs içine: void ProbeUnregisteredMember();
+# TraconBuilder.cs içine: public void ProbeUnregisteredMember() { }
+dotnet build src/Tracon.Core/Tracon.Core.csproj -c Release 2>&1 | grep "RS0016"
 ```
 
 **Beklenen sonuç**
 - Derleme `error RS0016` ile **kırılır** ve eklenen üyenin tam imzasını adıyla söyler.
-- Ölçüldü (2026-08-16): `error RS0016: Symbol 'AgentPrism.IAgentPrismBuilder.ProbeUnregisteredMember() -> void' is not part of the declared public API`.
+- Ölçüldü (2026-08-16): `error RS0016: Symbol 'Tracon.ITraconBuilder.ProbeUnregisteredMember() -> void' is not part of the declared public API`.
 
 ---
 
@@ -2265,7 +2265,7 @@ dotnet build src/AgentPrism.Core/AgentPrism.Core.csproj -c Release 2>&1 | grep "
 - MT-PKG-091'in üyesi hâlâ kodda.
 
 **Adımlar**
-1. `src/AgentPrism.Core/PublicAPI.Unshipped.txt`'e üyenin imzasını ekle.
+1. `src/Tracon.Core/PublicAPI.Unshipped.txt`'e üyenin imzasını ekle.
 2. Yeniden derle.
 3. Üyeyi ve satırı geri al.
 
@@ -2290,13 +2290,13 @@ tüketildiğinde de çalıştığının kanıtı — iç test bu sınıfı hiç 
 - `dotnet pack` üretti (`artifacts/package/release/`).
 
 **Adımlar**
-1. Scratch bir konsol projesi aç, yerel besleme (`artifacts/package/release`) ile `AgentPrism.Anthropic` ve `AgentPrism.Mcp`'yi ekle.
+1. Scratch bir konsol projesi aç, yerel besleme (`artifacts/package/release`) ile `Tracon.Anthropic` ve `Tracon.Mcp`'yi ekle.
 2. `AnthropicChatClientFactory.FromClient(...)` (yeni statik fabrika) ve `UseMcp()` (bare, sadeleşmiş aşırı yükleme) çağır.
 3. Derle ve çalıştır.
 
 **Girilecek veri**
 ```bash
-mkdir -p ~/agentprism-manuel/tuketici-probe && cd ~/agentprism-manuel/tuketici-probe
+mkdir -p ~/tracon-manuel/tuketici-probe && cd ~/tracon-manuel/tuketici-probe
 dotnet new console -n ConsumerProbe --force
 cd ConsumerProbe
 cat > NuGet.config <<'EOF'
@@ -2309,17 +2309,17 @@ cat > NuGet.config <<'EOF'
   </packageSources>
 </configuration>
 EOF
-dotnet add package AgentPrism.Anthropic --version <surum>
-dotnet add package AgentPrism.Mcp --version <surum>
+dotnet add package Tracon.Anthropic --version <surum>
+dotnet add package Tracon.Mcp --version <surum>
 # Program.cs: AnthropicChatClientFactory.FromClient(client, defaultModel: "claude-sonnet", loggerFactory: null)
-#             services.AddAgentPrism().UseAnthropic("k").UseMcp();
+#             services.AddTracon().UseAnthropic("k").UseMcp();
 dotnet build -c Release
 dotnet run -c Release --no-build
 ```
 
 **Beklenen sonuç**
 - Derleme sıfır uyarıyla biter.
-- Çalıştırma `Consumer probe OK: AgentPrism.AnthropicChatClientFactory` yazdırır.
+- Çalıştırma `Consumer probe OK: Tracon.AnthropicChatClientFactory` yazdırır.
 - Ölçüldü (2026-08-16): birebir bu çıktı üretildi, sürüm `0.0.0-preview.0.251`.
 
 ---
@@ -2337,18 +2337,18 @@ Faz 96'nın 96 tipi `internal`'a çekmesinin gerçek tüketicide de tuttuğunun
 kanıtı — `ConsumerSurfaceTests` bunu otomatik koşar, bu case elle tekrarı için.
 
 **Ön koşul**
-- Repo temiz, `dotnet pack "AgentPrism.src.slnf" -c Release` yapılmış, yerel besleme hazır.
-- `~/.nuget/packages/agentprism*` global paket önbelleğinden silinmiş (aynı sürüm sayısı tekrar
+- Repo temiz, `dotnet pack "Tracon.src.slnf" -c Release` yapılmış, yerel besleme hazır.
+- `~/.nuget/packages/tracon*` global paket önbelleğinden silinmiş (aynı sürüm sayısı tekrar
   paketlenirse NuGet eski çıkarılmış kopyayı kullanır — ölçüldü, bu fazda yaşandı).
 
 **Adımlar**
-1. Scratch bir konsol projesi aç, yerel besleme ile `AgentPrism`'i ekle.
-2. `Program.cs`'e `var store = new AgentPrism.InMemoryRunStore();` yaz, derle.
-3. Satırı `AgentPrism.IRunStore? store = null;` ile değiştir, tekrar derle.
+1. Scratch bir konsol projesi aç, yerel besleme ile `Tracon`'i ekle.
+2. `Program.cs`'e `var store = new Tracon.InMemoryRunStore();` yaz, derle.
+3. Satırı `Tracon.IRunStore? store = null;` ile değiştir, tekrar derle.
 
 **Girilecek veri**
 ```bash
-mkdir -p ~/agentprism-manuel/surface-probe && cd ~/agentprism-manuel/surface-probe
+mkdir -p ~/tracon-manuel/surface-probe && cd ~/tracon-manuel/surface-probe
 dotnet new console -n SurfaceProbe --force
 cd SurfaceProbe
 cat > NuGet.config <<'EOF'
@@ -2361,12 +2361,12 @@ cat > NuGet.config <<'EOF'
   </packageSources>
 </configuration>
 EOF
-dotnet add package AgentPrism --version <surum>
+dotnet add package Tracon --version <surum>
 # Program.cs adim 2:
-echo 'var store = new AgentPrism.InMemoryRunStore();' > Program.cs
+echo 'var store = new Tracon.InMemoryRunStore();' > Program.cs
 dotnet build -c Release
 # Program.cs adim 3:
-echo 'AgentPrism.IRunStore? store = null;' > Program.cs
+echo 'Tracon.IRunStore? store = null;' > Program.cs
 dotnet build -c Release
 ```
 
@@ -2390,7 +2390,7 @@ dotnet build -c Release
 büyüyen bir yüzey bu kapı olmadan fark edilmeden ilerler.
 
 **Ön koşul**
-- `tests/AgentPrism.Core.UnitTests/Architecture/public-surface-baseline.txt` kodda.
+- `tests/Tracon.Core.UnitTests/Architecture/public-surface-baseline.txt` kodda.
 
 **Adımlar**
 1. Baseline dosyasında bir paketin sayısını elle 1 azalt.
@@ -2399,7 +2399,7 @@ büyüyen bir yüzey bu kapı olmadan fark edilmeden ilerler.
 
 **Girilecek veri**
 ```bash
-./artifacts/bin/AgentPrism.Core.UnitTests/release/AgentPrism.Core.UnitTests \
+./artifacts/bin/Tracon.Core.UnitTests/release/Tracon.Core.UnitTests \
   --filter-method "*PublicSurfaceBaseline*"
 ```
 
@@ -2424,24 +2424,24 @@ dosyası eklenmeyi unutulan bir paket bu kapı olmadan sessizce izlenmez kalır.
 - Yok.
 
 **Adımlar**
-1. `src/AgentPrism.Core/PublicAPI.Shipped.txt` ve `PublicAPI.Unshipped.txt`'i geçici olarak başka
+1. `src/Tracon.Core/PublicAPI.Shipped.txt` ve `PublicAPI.Unshipped.txt`'i geçici olarak başka
    bir isme taşı (dosyaları "kaybet").
 2. `PublicApiTrackingDeclarationTests` sınıfını koş.
 3. Dosyaları geri taşı.
 
 **Girilecek veri**
 ```bash
-mv src/AgentPrism.Core/PublicAPI.Shipped.txt /tmp/Shipped.txt.bak
-mv src/AgentPrism.Core/PublicAPI.Unshipped.txt /tmp/Unshipped.txt.bak
-./artifacts/bin/AgentPrism.Core.UnitTests/release/AgentPrism.Core.UnitTests \
+mv src/Tracon.Core/PublicAPI.Shipped.txt /tmp/Shipped.txt.bak
+mv src/Tracon.Core/PublicAPI.Unshipped.txt /tmp/Unshipped.txt.bak
+./artifacts/bin/Tracon.Core.UnitTests/release/Tracon.Core.UnitTests \
   --filter-method "*PublicApiTrackingDeclaration*"
-mv /tmp/Shipped.txt.bak src/AgentPrism.Core/PublicAPI.Shipped.txt
-mv /tmp/Unshipped.txt.bak src/AgentPrism.Core/PublicAPI.Unshipped.txt
+mv /tmp/Shipped.txt.bak src/Tracon.Core/PublicAPI.Shipped.txt
+mv /tmp/Unshipped.txt.bak src/Tracon.Core/PublicAPI.Unshipped.txt
 ```
 
 **Beklenen sonuç**
-- Test **kırılır** ve `AgentPrism.Core`'un iki seçeneğini (izleme dosyalarını ekle / açıkça
-  `AgentPrismPublicApiTrackingEnabled=false` yaz) mesajında gösterir.
+- Test **kırılır** ve `Tracon.Core`'un iki seçeneğini (izleme dosyalarını ekle / açıkça
+  `TraconPublicApiTrackingEnabled=false` yaz) mesajında gösterir.
 
 ---
 
@@ -2538,7 +2538,7 @@ echo "toplam paket: $(ls artifacts/package/release/*.1.0.0-preview.1.nupkg | wc 
 **Girilecek veri**
 ```bash
 cd docs-site
-# Örn. AgentPrism.Cli satırını geçici sil, sonra:
+# Örn. Tracon.Cli satırını geçici sil, sonra:
 node scripts/check-content.mjs
 git checkout -- src/content/docs/reference/compatibility.md
 node scripts/check-content.mjs
@@ -2594,7 +2594,7 @@ grep -n -A2 "^  publish:\|^  npm-publish:\|^  release-dryrun:" .github/workflows
 | **İlgili faz** | Faz 123 |
 | **İlgili karar** | K-622 |
 
-`kapi.py yayin` artık `AgentPrism.Samples.CustomJobHandler.Tests`'i de koşar
+`kapi.py yayin` artık `Tracon.Samples.CustomJobHandler.Tests`'i de koşar
 (BL-052) — beş değil altı sample, artı Native AOT smoke.
 
 **Ön koşul**
@@ -2660,12 +2660,12 @@ cp /tmp/CHANGELOG.md.bak CHANGELOG.md
 | **İlgili faz** | Faz 123 |
 | **İlgili karar** | K-622 |
 
-`samples/AgentPrism.Samples.*.Tests` envanteri `SAMPLE_TEST_PROJECTS` ∪
+`samples/Tracon.Samples.*.Tests` envanteri `SAMPLE_TEST_PROJECTS` ∪
 `SAMPLE_TEST_EXCLUSIONS` ile tam eşleşmezse kapı adı vererek kırılır —
 Faz 120'nin sessizce dışarıda kalan sample'ının tekrarı imkânsız kılınır.
 
 **Ön koşul**
-- Boş bir `samples/AgentPrism.Samples.Deneme.Tests/` dizini, içinde tek bir
+- Boş bir `samples/Tracon.Samples.Deneme.Tests/` dizini, içinde tek bir
   `.csproj` dosyası, geçici olarak açılır.
 
 **Adımlar**
@@ -2675,19 +2675,19 @@ Faz 120'nin sessizce dışarıda kalan sample'ının tekrarı imkânsız kılın
 
 **Girilecek veri**
 ```bash
-mkdir -p samples/AgentPrism.Samples.Deneme.Tests
-echo '<Project Sdk="Microsoft.NET.Sdk" />' > samples/AgentPrism.Samples.Deneme.Tests/AgentPrism.Samples.Deneme.Tests.csproj
+mkdir -p samples/Tracon.Samples.Deneme.Tests
+echo '<Project Sdk="Microsoft.NET.Sdk" />' > samples/Tracon.Samples.Deneme.Tests/Tracon.Samples.Deneme.Tests.csproj
 python3 -c "
 import sys, pathlib
 sys.path.insert(0, 'scripts')
 import release_extension_samples as res
 print(res.validate_sample_inventory(pathlib.Path('.')))
 "
-rm -rf samples/AgentPrism.Samples.Deneme.Tests
+rm -rf samples/Tracon.Samples.Deneme.Tests
 ```
 
 **Beklenen sonuç**
-- Liste boş değildir; tek satırı `AgentPrism.Samples.Deneme.Tests`'i adlandırır
+- Liste boş değildir; tek satırı `Tracon.Samples.Deneme.Tests`'i adlandırır
   ve `SAMPLE_TEST_PROJECTS`/`SAMPLE_TEST_EXCLUSIONS`'a girmediğini söyler.
 - Dizin silindikten sonra liste tekrar boştur.
 
@@ -2710,15 +2710,15 @@ bu yüzden `BeforeTargets="GenerateNuspec"` bir hedefin İÇİNDE atanır.
 - MT-PKG-101 koşuldu (paketler `artifacts/package/release/` içinde).
 
 **Adımlar**
-1. `AgentPrism.Core` paketinin `.nuspec`'inden `releaseNotes` alanını oku.
+1. `Tracon.Core` paketinin `.nuspec`'inden `releaseNotes` alanını oku.
 
 **Girilecek veri**
 ```bash
-unzip -p artifacts/package/release/AgentPrism.Core.1.0.0-preview.1.nupkg '*.nuspec' | grep releaseNotes
+unzip -p artifacts/package/release/Tracon.Core.1.0.0-preview.1.nupkg '*.nuspec' | grep releaseNotes
 ```
 
 **Beklenen sonuç**
-- `https://github.com/farukatasoy/AgentPrism/blob/v1.0.0-preview.1/CHANGELOG.md`.
+- `https://github.com/farukatasoy/Tracon/blob/v1.0.0-preview.1/CHANGELOG.md`.
 - `v$(Version)` veya `v/CHANGELOG.md` (boş sürüm) **görünmez**.
 
 ---
@@ -2759,7 +2759,7 @@ done
 | **İlgili faz** | Faz 123 |
 | **İlgili karar** | K-646 |
 
-`AgentPrism.{Anthropic,Azure,Google,OpenAI}.UnitTests` artık
+`Tracon.{Anthropic,Azure,Google,OpenAI}.UnitTests` artık
 `ModelProviderContract` + `ModelProviderCredentialContract`'ı türetir (Anthropic
 ve Google ayrıca `ModelProviderSettingsContract`'ı). Sözleşme bir kusur buldu
 (BYOK sarmalayıcısı önbelleğe alınmıyordu, K-646) ve dördünde de düzeltildi.
@@ -2773,8 +2773,8 @@ ve Google ayrıca `ModelProviderSettingsContract`'ı). Sözleşme bir kusur buld
 **Girilecek veri**
 ```bash
 for p in Anthropic Azure Google OpenAI; do
-  MSBUILDDISABLENODEREUSE=1 dotnet build tests/AgentPrism.$p.UnitTests -c Release
-  ./artifacts/bin/AgentPrism.$p.UnitTests/release/AgentPrism.$p.UnitTests
+  MSBUILDDISABLENODEREUSE=1 dotnet build tests/Tracon.$p.UnitTests -c Release
+  ./artifacts/bin/Tracon.$p.UnitTests/release/Tracon.$p.UnitTests
 done
 ```
 
@@ -2831,15 +2831,15 @@ Yeni kapının temiz ağaçta hiçbir etkisi olmamalı.
 
 **Girilecek veri**
 ```bash
-MSBUILDDISABLENODEREUSE=1 dotnet pack src/AgentPrism.Abstractions/AgentPrism.Abstractions.csproj -c Release
+MSBUILDDISABLENODEREUSE=1 dotnet pack src/Tracon.Abstractions/Tracon.Abstractions.csproj -c Release
 ```
 
 **Beklenen sonuç**
-- Çıkış `0`; `artifacts/package/release/AgentPrism.Abstractions.*.nupkg` üretilir.
+- Çıkış `0`; `artifacts/package/release/Tracon.Abstractions.*.nupkg` üretilir.
 
 ---
 
-### MT-PKG-109 — Commit'siz bir değişiklik `AGENTPRISM0004` ile pack'i durdurur
+### MT-PKG-109 — Commit'siz bir değişiklik `TRACON0004` ile pack'i durdurur
 
 | | |
 |---|---|
@@ -2862,12 +2862,12 @@ tüketici bulgusunun (AP-REQ-002) kapatıldığı kapı.
 **Girilecek veri**
 ```bash
 printf '\n' >> src/Directory.Build.props
-MSBUILDDISABLENODEREUSE=1 dotnet pack src/AgentPrism.Abstractions/AgentPrism.Abstractions.csproj -c Release
+MSBUILDDISABLENODEREUSE=1 dotnet pack src/Tracon.Abstractions/Tracon.Abstractions.csproj -c Release
 git checkout -- src/Directory.Build.props
 ```
 
 **Beklenen sonuç**
-- Sıfır olmayan çıkış; `error AGENTPRISM0004` mesajı görünür.
+- Sıfır olmayan çıkış; `error TRACON0004` mesajı görünür.
 - Hiçbir yeni `.nupkg` üretilmez.
 
 ---
@@ -2893,12 +2893,12 @@ Kapı yalnız `GenerateNuspec`'ten önce koşar; `build`/`test` yolunu HİÇ gö
 **Girilecek veri**
 ```bash
 printf '\n' >> src/Directory.Build.props
-MSBUILDDISABLENODEREUSE=1 dotnet build src/AgentPrism.Abstractions/AgentPrism.Abstractions.csproj -c Release
+MSBUILDDISABLENODEREUSE=1 dotnet build src/Tracon.Abstractions/Tracon.Abstractions.csproj -c Release
 git checkout -- src/Directory.Build.props
 ```
 
 **Beklenen sonuç**
-- Çıkış `0`; `AGENTPRISM0004` **görünmez**.
+- Çıkış `0`; `TRACON0004` **görünmez**.
 
 ---
 
@@ -2924,17 +2924,17 @@ bir `.cs` dosyası SDK'nın varsayılan glob'uyla pakete girebilir.
 
 **Girilecek veri**
 ```bash
-touch src/AgentPrism.Abstractions/.mt-pkg-111-marker
-MSBUILDDISABLENODEREUSE=1 dotnet pack src/AgentPrism.Abstractions/AgentPrism.Abstractions.csproj -c Release
-rm src/AgentPrism.Abstractions/.mt-pkg-111-marker
+touch src/Tracon.Abstractions/.mt-pkg-111-marker
+MSBUILDDISABLENODEREUSE=1 dotnet pack src/Tracon.Abstractions/Tracon.Abstractions.csproj -c Release
+rm src/Tracon.Abstractions/.mt-pkg-111-marker
 ```
 
 **Beklenen sonuç**
-- Sıfır olmayan çıkış; `error AGENTPRISM0004` mesajı görünür.
+- Sıfır olmayan çıkış; `error TRACON0004` mesajı görünür.
 
 ---
 
-### MT-PKG-112 — Override sürümsüz verilirse `AGENTPRISM0006` ister
+### MT-PKG-112 — Override sürümsüz verilirse `TRACON0006` ister
 
 | | |
 |---|---|
@@ -2951,18 +2951,18 @@ kendiliğinden bir sürüme bağlamasını tamamen engeller.
 
 **Adımlar**
 1. Ağacı kirlet.
-2. `AgentPrismAllowDirtyPack=true` ile, `MinVerVersionOverride` VERMEDEN paketle.
+2. `TraconAllowDirtyPack=true` ile, `MinVerVersionOverride` VERMEDEN paketle.
 3. Değişikliği geri al.
 
 **Girilecek veri**
 ```bash
 printf '\n' >> src/Directory.Build.props
-MSBUILDDISABLENODEREUSE=1 dotnet pack src/AgentPrism.Abstractions/AgentPrism.Abstractions.csproj -c Release -p:AgentPrismAllowDirtyPack=true
+MSBUILDDISABLENODEREUSE=1 dotnet pack src/Tracon.Abstractions/Tracon.Abstractions.csproj -c Release -p:TraconAllowDirtyPack=true
 git checkout -- src/Directory.Build.props
 ```
 
 **Beklenen sonuç**
-- Sıfır olmayan çıkış; `error AGENTPRISM0006` mesajı görünür.
+- Sıfır olmayan çıkış; `error TRACON0006` mesajı görünür.
 
 ---
 
@@ -2987,13 +2987,13 @@ git checkout -- src/Directory.Build.props
 **Girilecek veri**
 ```bash
 printf '\n' >> src/Directory.Build.props
-MSBUILDDISABLENODEREUSE=1 dotnet pack src/AgentPrism.Abstractions/AgentPrism.Abstractions.csproj -c Release -p:AgentPrismAllowDirtyPack=true -p:MinVerVersionOverride=0.0.0-dirty.deneme
+MSBUILDDISABLENODEREUSE=1 dotnet pack src/Tracon.Abstractions/Tracon.Abstractions.csproj -c Release -p:TraconAllowDirtyPack=true -p:MinVerVersionOverride=0.0.0-dirty.deneme
 git checkout -- src/Directory.Build.props
-rm -f artifacts/package/release/AgentPrism.Abstractions.0.0.0-dirty.deneme.nupkg artifacts/package/release/AgentPrism.Abstractions.0.0.0-dirty.deneme.snupkg
+rm -f artifacts/package/release/Tracon.Abstractions.0.0.0-dirty.deneme.nupkg artifacts/package/release/Tracon.Abstractions.0.0.0-dirty.deneme.snupkg
 ```
 
 **Beklenen sonuç**
-- Çıkış `0`; `AgentPrism.Abstractions.0.0.0-dirty.deneme.nupkg` üretilir.
+- Çıkış `0`; `Tracon.Abstractions.0.0.0-dirty.deneme.nupkg` üretilir.
 
 ---
 
@@ -3020,12 +3020,12 @@ taşıyan açık bir sürümle bile.
 **Girilecek veri**
 ```bash
 printf '\n' >> src/Directory.Build.props
-MSBUILDDISABLENODEREUSE=1 CI=true dotnet pack src/AgentPrism.Abstractions/AgentPrism.Abstractions.csproj -c Release -p:AgentPrismAllowDirtyPack=true -p:MinVerVersionOverride=0.0.0-dirty.deneme
+MSBUILDDISABLENODEREUSE=1 CI=true dotnet pack src/Tracon.Abstractions/Tracon.Abstractions.csproj -c Release -p:TraconAllowDirtyPack=true -p:MinVerVersionOverride=0.0.0-dirty.deneme
 git checkout -- src/Directory.Build.props
 ```
 
 **Beklenen sonuç**
-- Sıfır olmayan çıkış; `error AGENTPRISM0005` mesajı görünür.
+- Sıfır olmayan çıkış; `error TRACON0005` mesajı görünür.
 
 ---
 
@@ -3083,18 +3083,18 @@ Tüketicinin ölçtüğü olayın kendisi: aynı sürüm iddiası, farklı SHA-2
 
 **Girilecek veri**
 ```bash
-echo "// mt-pkg-116" >> src/AgentPrism.Abstractions/AssemblyInfo.cs 2>/dev/null || \
-  printf '\n// mt-pkg-116\n' >> src/AgentPrism.Abstractions/AgentPrism.Abstractions.csproj
+echo "// mt-pkg-116" >> src/Tracon.Abstractions/AssemblyInfo.cs 2>/dev/null || \
+  printf '\n// mt-pkg-116\n' >> src/Tracon.Abstractions/Tracon.Abstractions.csproj
 git add -A && git commit -m "test: mt-pkg-116 geçici değişiklik"
-shasum -a 256 artifacts/package/release/AgentPrism.Abstractions.1.0.0-preview.1.nupkg
+shasum -a 256 artifacts/package/release/Tracon.Abstractions.1.0.0-preview.1.nupkg
 MSBUILDDISABLENODEREUSE=1 python3 scripts/kapi.py yayin --kuru --surum 1.0.0-preview.1
-shasum -a 256 artifacts/package/release/AgentPrism.Abstractions.1.0.0-preview.1.nupkg
+shasum -a 256 artifacts/package/release/Tracon.Abstractions.1.0.0-preview.1.nupkg
 git reset --hard HEAD~1
 ```
 
 **Beklenen sonuç**
 - İkinci koşum sıfır olmayan çıkışla durur; "FARKLI içerikli bir artifact
-  zaten var" mesajı `AgentPrism.Abstractions`'ı adlandırır.
+  zaten var" mesajı `Tracon.Abstractions`'ı adlandırır.
 - İki `shasum` çağrısı **aynı** değeri verir (dosya hiç değişmedi).
 
 ---
@@ -3157,8 +3157,8 @@ done
 
 **Beklenen sonuç**
 - 20 satır döner.
-- `AgentPrism.Abstractions`, `AgentPrism.Testing.Contracts.Xunit` ve
-  `AgentPrism.Templates` yalnız `LICENSE-MIT.md` taşır.
+- `Tracon.Abstractions`, `Tracon.Testing.Contracts.Xunit` ve
+  `Tracon.Templates` yalnız `LICENSE-MIT.md` taşır.
 - Kalan 17 paket yalnız `LICENSE.md` taşır.
 - 🚨 Hiçbir paket **iki** lisans dosyasını birden taşımaz. Taşısaydı tüketicinin
   eline hangi şartların geçtiği belirsiz olurdu.
@@ -3183,7 +3183,7 @@ done
 
 **Girilecek veri**
 ```bash
-for id in AgentPrism.Abstractions AgentPrism.Core; do
+for id in Tracon.Abstractions Tracon.Core; do
   f=$(ls /tmp/ap-pack/$id.*.nupkg | head -1)
   echo "== $id"
   unzip -p "$f" "$id.nuspec" | grep -E "<license |requireLicenseAcceptance"
@@ -3191,9 +3191,9 @@ done
 ```
 
 **Beklenen sonuç**
-- `AgentPrism.Abstractions`: `<license type="file">LICENSE-MIT.md</license>`,
+- `Tracon.Abstractions`: `<license type="file">LICENSE-MIT.md</license>`,
   `requireLicenseAcceptance` elementi **yok** (NuGet `false` değerini yazmaz).
-- `AgentPrism.Core`: `<license type="file">LICENSE.md</license>` ve
+- `Tracon.Core`: `<license type="file">LICENSE.md</license>` ve
   `<requireLicenseAcceptance>true</requireLicenseAcceptance>`.
 - Her iki pakette beyan edilen dosya adı, paketin içindeki dosya adıyla aynıdır.
 
@@ -3248,7 +3248,7 @@ diff /tmp/polyform.canonical /tmp/polyform.ours && echo "BIREBIR"
 
 **Girilecek veri**
 ```bash
-cd packages/agentprism-client
+cd packages/tracon-client
 grep '"license"' package.json
 npm pack --dry-run 2>&1 | grep -i license
 diff LICENSE.md ../../LICENSE.md && echo "KOPYA BIREBIR"
@@ -3293,7 +3293,7 @@ done
 - `nuspec=LICENSE-MIT.md` olan her pakette README **MIT** der.
 - `nuspec=LICENSE.md` olan her pakette README **PolyForm** der.
 - 🚨 Hiçbir pakette README ile nuspec çelişmez. Bu case Faz 160 denetiminin
-  bulduğu 🔴'nın sınıfıdır: `packages/agentprism-client/README.md` `package.json`
+  bulduğu 🔴'nın sınıfıdır: `packages/tracon-client/README.md` `package.json`
   PolyForm'a geçtikten sonra MIT demeye devam etmişti. README, nuget.org'un ve
   npmjs.com'un render ettiği sayfadır — çeliştiğinde tüketici ona inanır.
 - npm tarafı `MT-PKG-121` ile ayrıca ölçülür.

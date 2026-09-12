@@ -133,7 +133,7 @@ tetiklemeden metodun dışına fırlıyordu. Düzeltme: kapsam kurma (`CreateSco
 saf, G/Ç yok) G/Ç yapan adımdan (`WriteRunStartAsync`) ayrıldı; ikincisi artık
 her iki metodun da try/finally'sinin İÇİNDE çalışıyor.
 
-Canlı doğrulama (gerçek Postgres, `samples/AgentPrism.Api`): `support`
+Canlı doğrulama (gerçek Postgres, `samples/Tracon.Api`): `support`
 agent'ına 11 istek `curl --max-time` ile 2-120ms aralığında erken kesildi; 5'i
 sunucuya ulaşıp bir `runs` satırı açtı, **5'i de** `Canceled` ile kapandı
 (`eventCount:2`, `run_events` sorgusu: seq 0 `RunStarted`, seq 1 "Calistirma
@@ -274,7 +274,7 @@ dokunulmadı — yalnız render sırası düzeltildi. Canlı sunucuda `yonlendir
 üzerinden bir alt çalıştırma üretilip Trace paneli kontrol edildi: "Spans
 live on the root run" başlığı + kök çalıştırmaya giden bağlantı hemen
 görünüyor, kalıcı "Loading" YOK. Regresyon testi:
-`tests/AgentPrism.Ui.E2ETests/UiTests.cs`
+`tests/Tracon.Ui.E2ETests/UiTests.cs`
 `Alt_calistirmanin_iz_paneli_koke_git_baglantisini_gosterir_yuklenerek_asili_kalmaz`.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
@@ -476,7 +476,7 @@ agent'ın o modları da desteklemediği açıklanır, çünkü kod kökenli agen
 yalnız `LiveTools`'ta oynatılabilir — DB yolunun mesajı burada yanlış olurdu).
 Regresyon testi (fix geri alınıp KIRMIZI verdiği doğrulandıktan sonra fix
 geri uygulandı):
-`tests/AgentPrism.AspNetCore.FunctionalTests/RunReplayEndpointTests.cs`
+`tests/Tracon.AspNetCore.FunctionalTests/RunReplayEndpointTests.cs`
 `Kod_kaynakli_agentteki_onay_gerektiren_tool_LiveTools_ile_de_409_doner`.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
@@ -511,8 +511,8 @@ _(2026-08-13 koşumu: Kaldı — HATA-S4-015, `BindRunRecording`'in
 
 **2026-08-15 yeniden koşum (KAPANIS-PLANI §9, K-406 sonrası) — Geçti.**
 Kök neden `MT-API-064`'te aynı koşumda kod düzeyinde yeniden doğrulandı:
-`AgentPrismServiceCollectionExtensions.BindRunRecording`
-(`AgentPrismServiceCollectionExtensions.cs:1799-1801`) artık
+`TraconServiceCollectionExtensions.BindRunRecording`
+(`TraconServiceCollectionExtensions.cs:1799-1801`) artık
 `RecordRunInput`'ı `TryReadBool` ile okuyor; `RecordRunInput=false`
 verildiğinde `GET .../input` artık **404** döner (canlı doğrulandı,
 `MT-API-064`). Arayüz tarafı bu case'de hiç değişmedi ve zaten doğru
@@ -538,7 +538,7 @@ replay ile test edilebileceği doğrulandı. Yeni run sayfası açılınca
 "Karşılaştırma" paneli OTOMATİK göründü (hiç tıklama gerekmedi). Tablo
 BİREBİR dokümanın 9 satırını taşıyor: Durum (Completed/Completed), Sürüm
 (6/6), Model (gpt-5.4-mini/gpt-5.4-mini), Süre (1983ms/2684ms — SAĞ yeni),
-Token (250/422), Maliyet (—/—, `AgentPrism:Providers:OpenAI:PricingTable`
+Token (250/422), Maliyet (—/—, `Tracon:Providers:OpenAI:PricingTable`
 yapılandırılmamış), Tool çağrısı (1/1), Hata sınıfı (—/—), Puanlar (0/0).
 "Çıktı" bölümünde `DiffView` iki cümleyi satır satır kırmızı/yeşil
 işaretledi: SOL `"ORD-1001 siparişiniz kargoya verilmiş. Tahmini teslim
@@ -553,7 +553,7 @@ süresi: 2 gün."`, SAĞ `"ORD-1001 kargoya verilmiş. Tahmini teslim: 2 gün."`
 
 **Gerçek sonuç**
 Adım 2 (Ham Durum) BİREBİR doğru: `stateNotice` metni + `JsonView` içinde
-`stateBag`/`toolApprovalState`/`AgentPrism.ChatHistory` JSON'u.
+`stateBag`/`toolApprovalState`/`Tracon.ChatHistory` JSON'u.
 
 Adım 1 (Sohbet geçmişi) düz metin turlarında (user/assistant, rol rozetleri
 + her satırda "Buradan dallan") doğru ama **tool çağrısı turunda YANLIŞ**:
@@ -589,7 +589,7 @@ mesaj sınırını da aşıp ARDIŞIK İKİ FARKLI MESAJIN metnini birleştiriyo
 DEĞİŞMEDİ). Canlı sunucuda `support`'a tool çağrısı gerektiren bir istek
 (`get_order_status`) gönderilip oturum sayfası kontrol edildi: çağrı artık
 "bitti" durumunda, sonuç metni çağrının kendi kartında görünüyor. Regresyon
-testleri: `src/AgentPrism.UI/frontend/src/lib/transcript.test.ts`
+testleri: `src/Tracon.UI/frontend/src/lib/transcript.test.ts`
 (`foldMessages` — düz metin turlarında ayrı item, ÇAĞRI+SONUÇ farklı
 mesajlarda birleşiyor, eşleşmeyen sonuç sessizce yutuluyor, boş dizi).
 
@@ -600,7 +600,7 @@ mesajlarda birleşiyor, eşleşmeyen sonuç sessizce yutuluyor, boş dizi).
 ## MT-UIRUN-040 — 🚨 Bellek içi kalıcılıkta oturum geçmişi HER ZAMAN `null` döner; Dallandırma da `501` ile başarısız olur
 
 **Gerçek sonuç**
-`AgentPrism__PostgreSql__ConnectionString=""` ile uygulama yeniden
+`Tracon__PostgreSql__ConnectionString=""` ile uygulama yeniden
 başlatıldı, `/api/meta` `storage.persistent:false` doğruladı, kenar çubuğu
 "Bellek içi depolama — Süreç kapanınca veri silinir." gösterdi.
 `playground/support`'ta `Merhaba` (`FIX-PROMPT-02`) gönderildi, oturum
@@ -615,7 +615,7 @@ calisir. Bellek ici kurulumda sohbet gecmisi oturum durumunun opak
 blogunda yasar ve belirli bir noktaya kadar kopyalanamaz; sessizce
 tamamini kopyalamak istenen dali uretmezdi."` — birebir; UI mesaj
 satırının altında kırmızı `alert` ile bu metni AYNEN gösterdi. Adım 3
-UYGULANDI: `AgentPrism__PostgreSql__ConnectionString` geri kondu, uygulama
+UYGULANDI: `Tracon__PostgreSql__ConnectionString` geri kondu, uygulama
 yeniden başlatıldı, `/api/meta` `storage.persistent:true` ile doğrulandı.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
@@ -669,9 +669,9 @@ için maliyet nedeniyle atlandı) — sahte sağlayıcılı E2E testinde uçtan 
 doğrulandı: bir oturumda 1 çalıştırma üretilip "1 run" düğmesine tıklandı,
 `Runs` ekranı "Page not found" GÖSTERMEDEN açıldı ve tablo TAM 1 satır
 listeledi. Regresyon testleri:
-`src/AgentPrism.UI/frontend/src/lib/format.test.ts`
+`src/Tracon.UI/frontend/src/lib/format.test.ts`
 (`splitTarget` — yol/sorgu ayrımı, `matchRoute`'a beslendiğinde eşleşme) ·
-`tests/AgentPrism.Ui.E2ETests/UiTests.cs`
+`tests/Tracon.Ui.E2ETests/UiTests.cs`
 `Oturum_sayfasindaki_calistirmalar_dugmesi_filtrelenmis_listeye_gider`.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı

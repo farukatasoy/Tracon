@@ -1,19 +1,19 @@
-# AgentPrism
+# Tracon
 
 **A production-grade agent control plane for the Microsoft Agent Framework.**
 
-AgentPrism is a .NET package family built on
+Tracon is a .NET package family built on
 [Microsoft Agent Framework](https://learn.microsoft.com/en-us/agent-framework/overview/).
-You write the AI harness; you operate it at `/agentprism`.
+You write the AI harness; you operate it at `/tracon`.
 
 > **Status:** in development, **not yet published** — nothing is on NuGet or npm and
 > there is no release tag, so the install command below does not resolve yet. Build
-> from this repository. AgentPrism is **operable**, its
-> [product documentation is published](https://agentprism.doayen.web.tr), and the
+> from this repository. Tracon is **operable**, its
+> [product documentation is published](https://tracon.dev), and the
 > **public API gate** (`EnablePublicApiTracking`) is on independently of any release
 > decision — an unrecorded surface change breaks the build. Start with
-> `dotnet new agentprism-api` and test without calling a model using
-> `AgentPrism.Testing`.
+> `dotnet new tracon-api` and test without calling a model using
+> `Tracon.Testing`.
 >
 > - Runs recorded with spans, metrics and cost; tenants isolated; audit trail made
 >   tamper-evident with a hash chain (`GET /api/audit/verify`)
@@ -29,17 +29,17 @@ You write the AI harness; you operate it at `/agentprism`.
 > an opt-in `AGENTS.md` capability map.
 
 ```csharp
-builder.AddAgentPrism()
+builder.AddTracon()
        .UsePostgreSql(connectionString)
        .UseOpenAI(apiKey)
        .AddTool(GetOrderStatus)
        .UseUI();
 
-app.MapAgentPrism("/agentprism");
+app.MapTracon("/tracon");
 ```
 
 Two lines: a working agent, durable sessions, and a control plane at
-`http://localhost:5080/agentprism`.
+`http://localhost:5080/tracon`.
 
 ### The console
 
@@ -51,30 +51,30 @@ Written in React 19 and TypeScript, built with Vite, and embedded in the assembl
 **Brotli-compressed**. No JavaScript dependency appears in the consuming project and no
 `node_modules` folder is needed. The JavaScript budget is **175.9 KB gzip** (gate: 250 KB).
 
-The console runs under any prefix (`/agentprism`, `/panel`, …) and learns the prefix at
+The console runs under any prefix (`/tracon`, `/panel`, …) and learns the prefix at
 run time. Light and dark themes; the default follows the operating system.
 
 **A slice of the HTTP surface:**
 
 ```csharp
 // One entry point; access is restricted to loopback by default.
-app.MapAgentPrism("/agentprism", options => options.RequireAuthorization("AgentPrismAdmin"));
+app.MapTracon("/tracon", options => options.RequireAuthorization("TraconAdmin"));
 ```
 
 ```
-GET    /agentprism/api/meta                    version · auth method · active stores  [anonymous]
-GET    /agentprism/api/agents                  catalog (code + database)
-POST   /agentprism/api/agents                  new definition    · PUT · DELETE · /versions · /rollback
-POST   /agentprism/api/agents/{name}/run       streaming trial run over SSE
-GET    /agentprism/api/sessions[/{id}]         sessions and conversation history · DELETE
-GET    /agentprism/api/runs[/{id}]             run record
-GET    /agentprism/api/runs/{id}/events        SSE; live or replay, resumable with Last-Event-ID
-GET    /agentprism/api/tools · /api/models · /api/stats · /api/diagnostics
-POST   /agentprism/api/attachments             upload an attachment · GET/DELETE
+GET    /tracon/api/meta                    version · auth method · active stores  [anonymous]
+GET    /tracon/api/agents                  catalog (code + database)
+POST   /tracon/api/agents                  new definition    · PUT · DELETE · /versions · /rollback
+POST   /tracon/api/agents/{name}/run       streaming trial run over SSE
+GET    /tracon/api/sessions[/{id}]         sessions and conversation history · DELETE
+GET    /tracon/api/runs[/{id}]             run record
+GET    /tracon/api/runs/{id}/events        SSE; live or replay, resumable with Last-Event-ID
+GET    /tracon/api/tools · /api/models · /api/stats · /api/diagnostics
+POST   /tracon/api/attachments             upload an attachment · GET/DELETE
 
-POST   /agentprism/v1/responses                OpenAI Responses API compatible
-POST   /agentprism/v1/chat/completions         OpenAI Chat Completions API compatible
-POST   /agentprism/v1/conversations            open a conversation · GET/DELETE · /items
+POST   /tracon/v1/responses                OpenAI Responses API compatible
+POST   /tracon/v1/chat/completions         OpenAI Chat Completions API compatible
+POST   /tracon/v1/conversations            open a conversation · GET/DELETE · /items
 ```
 
 With the stock OpenAI SDK:
@@ -82,7 +82,7 @@ With the stock OpenAI SDK:
 ```python
 from openai import OpenAI
 
-client = OpenAI(base_url="https://app.example.com/agentprism/v1", api_key="...")
+client = OpenAI(base_url="https://app.example.com/tracon/v1", api_key="...")
 
 # The 'model' field carries the agent name - no extra field is needed.
 r = client.responses.create(model="support", input="Where is my order ORD-3")
@@ -98,8 +98,8 @@ be replayed over SSE.
 **Defining an agent and its tools in code:**
 
 ```csharp
-builder.AddAgentPrism()
-       .AddToolsFrom(typeof(OrderTools))      // methods marked with [AgentPrismTool]
+builder.AddTracon()
+       .AddToolsFrom(typeof(OrderTools))      // methods marked with [TraconTool]
        .UseOpenAI(apiKey)
        .AddAgent(new AgentDefinition
        {
@@ -122,7 +122,7 @@ await sessions.SaveSessionAsync(agent, session);
 ```csharp
 internal static class OrderTools
 {
-    [AgentPrismTool("get_order_status", "Returns the shipping status of an order.")]
+    [TraconTool("get_order_status", "Returns the shipping status of an order.")]
     public static string GetOrderStatus(string orderId) => ...;
 
     public static string Helper() => "...";   // unmarked - not a tool
@@ -137,10 +137,10 @@ checked for free with `GET {endpoint}/models`, and a circuit breaker stops a pro
 that fails repeatedly.
 
 Without `UsePostgreSql()`, storage falls back to memory and nothing breaks. The schema
-is created by embedded SQL migrations in a separate `agentprism` schema; your
+is created by embedded SQL migrations in a separate `tracon` schema; your
 application's `public` schema is left alone.
 
-A running example: [`samples/AgentPrism.Api`](samples/AgentPrism.Api).
+A running example: [`samples/Tracon.Api`](samples/Tracon.Api).
 
 ---
 
@@ -153,12 +153,12 @@ documentation says so plainly:
 > "DevUI is a **sample app** to help you visualize and debug your agents and workflows
 > during development. It is **not** intended for production use."
 
-AgentPrism fills that gap. It does not replace DevUI — it continues where DevUI stops.
+Tracon fills that gap. It does not replace DevUI — it continues where DevUI stops.
 
-| | DevUI | AgentPrism |
+| | DevUI | Tracon |
 |---|-------|------------|
 | Purpose | Visualising during development | A control plane that runs in production |
-| Persistence | In memory | PostgreSQL (separate `agentprism` schema) |
+| Persistence | In memory | PostgreSQL (separate `tracon` schema) |
 | Access | Loopback + static token | Loopback + token + authorization policy |
 | Agent definitions | Read-only | Code + database, versioned, rollback-able |
 | Multi-tenancy | None | `tenant_id` on every query |
@@ -171,27 +171,27 @@ AgentPrism fills that gap. It does not replace DevUI — it continues where DevU
 
 | Package | Licence | What it does |
 |---------|---------|--------------|
-| `AgentPrism` | PolyForm | Meta package — brings everything in with one reference |
-| `AgentPrism.Abstractions` | MIT | Contracts; enough on its own if you write your own implementations |
-| `AgentPrism.Core` | PolyForm | Runtime, catalog, definition compiler, tool registry, session management. **No database required.** |
-| `AgentPrism.PostgreSql` | PolyForm | Persistence — embedded SQL migrations, separate `agentprism` schema |
-| `AgentPrism.SqlServer` | PolyForm | SQL Server 2019+ and Azure SQL persistence — same schema, its own migration set. **Not in the meta package.** Contract tests run against a real `mssql/server` |
-| `AgentPrism.Sqlite` | PolyForm | SQLite persistence — one file, table prefix, its own migration set. **Not in the meta package.** Single-writer; not for a multi-instance deployment |
-| `AgentPrism.OpenAI` | PolyForm | OpenAI provider adapter — Chat Completions and Responses, tool calling, OpenTelemetry |
-| `AgentPrism.Anthropic` | PolyForm | Anthropic (Claude) provider adapter — official SDK, prompt caching, extended thinking. **Not in the meta package** |
-| `AgentPrism.Google` | PolyForm | Google Gemini provider adapter — official SDK, safety thresholds, thinking budget. **Not in the meta package**; brings a transitive `Google.Apis.Auth` chain |
-| `AgentPrism.Azure` | PolyForm | Azure OpenAI provider adapter — deployment-based model resolution, API key or Entra identity. **Not in the meta package**; `Azure.Identity` is **not** a dependency, the credential factory comes from you |
-| `AgentPrism.Voice` | PolyForm | Speech tools: `speak`, `transcribe`, `list_voices`, measured into `tool_invocations`. **Zero NuGet dependencies**; not in the meta package. Live conversation lives in `Core`: `UseVoiceConversation()` |
-| `AgentPrism.Mcp` | PolyForm | Tool discovery from remote MCP servers — HTTP only, approval by default |
-| `AgentPrism.Workflows` | PolyForm | Workflow execution — five patterns, checkpoints, resume, human-in-the-loop |
-| `AgentPrism.AspNetCore` | PolyForm | HTTP layer — management API, OpenAI-compatible endpoints, multi-tenancy |
-| `AgentPrism.UI` | PolyForm | Embedded React console — 30 screens across 36 routes, zero JavaScript dependencies |
-| `AgentPrism.Templates` | MIT | The `dotnet new agentprism-api` template — not in the meta package |
-| `AgentPrism.Testing` | PolyForm | `FakeModelProvider`, `AgentPrismTestHost`, `RunAssertions`; test-framework neutral, not in the meta package |
-| `AgentPrism.Testing.Contracts.Xunit` | MIT | The behavior-contract suites the shipped implementations run — derive from them to verify your own `IRunStore`, `IModelProvider`, `IRunJudge`, `IAgentSource`, `IJobHandler`, or custom tool. Not in the meta package |
-| `AgentPrism.Client` | PolyForm | Typed management client generated from the OpenAPI document — 162 operations, zero AgentPrism dependency, zero NuGet dependency beyond DI abstractions. Not in the meta package |
-| `AgentPrism.Cli` | PolyForm | The `agentprism` global tool (`dotnet tool install -g AgentPrism.Cli`) — `migrate`, `migrate status`, `health`. Not a library; not in the meta package |
-| [`@agentprism/client`](https://www.npmjs.com/package/@agentprism/client) | PolyForm | **npm, not NuGet** — the same 165 operations as `AgentPrism.Client`, generated from the same OpenAPI document with `openapi-typescript` + `openapi-fetch`. `npm install @agentprism/client` |
+| `Tracon` | PolyForm | Meta package — brings everything in with one reference |
+| `Tracon.Abstractions` | MIT | Contracts; enough on its own if you write your own implementations |
+| `Tracon.Core` | PolyForm | Runtime, catalog, definition compiler, tool registry, session management. **No database required.** |
+| `Tracon.PostgreSql` | PolyForm | Persistence — embedded SQL migrations, separate `tracon` schema |
+| `Tracon.SqlServer` | PolyForm | SQL Server 2019+ and Azure SQL persistence — same schema, its own migration set. **Not in the meta package.** Contract tests run against a real `mssql/server` |
+| `Tracon.Sqlite` | PolyForm | SQLite persistence — one file, table prefix, its own migration set. **Not in the meta package.** Single-writer; not for a multi-instance deployment |
+| `Tracon.OpenAI` | PolyForm | OpenAI provider adapter — Chat Completions and Responses, tool calling, OpenTelemetry |
+| `Tracon.Anthropic` | PolyForm | Anthropic (Claude) provider adapter — official SDK, prompt caching, extended thinking. **Not in the meta package** |
+| `Tracon.Google` | PolyForm | Google Gemini provider adapter — official SDK, safety thresholds, thinking budget. **Not in the meta package**; brings a transitive `Google.Apis.Auth` chain |
+| `Tracon.Azure` | PolyForm | Azure OpenAI provider adapter — deployment-based model resolution, API key or Entra identity. **Not in the meta package**; `Azure.Identity` is **not** a dependency, the credential factory comes from you |
+| `Tracon.Voice` | PolyForm | Speech tools: `speak`, `transcribe`, `list_voices`, measured into `tool_invocations`. **Zero NuGet dependencies**; not in the meta package. Live conversation lives in `Core`: `UseVoiceConversation()` |
+| `Tracon.Mcp` | PolyForm | Tool discovery from remote MCP servers — HTTP only, approval by default |
+| `Tracon.Workflows` | PolyForm | Workflow execution — five patterns, checkpoints, resume, human-in-the-loop |
+| `Tracon.AspNetCore` | PolyForm | HTTP layer — management API, OpenAI-compatible endpoints, multi-tenancy |
+| `Tracon.UI` | PolyForm | Embedded React console — 30 screens across 36 routes, zero JavaScript dependencies |
+| `Tracon.Templates` | MIT | The `dotnet new tracon-api` template — not in the meta package |
+| `Tracon.Testing` | PolyForm | `FakeModelProvider`, `TraconTestHost`, `RunAssertions`; test-framework neutral, not in the meta package |
+| `Tracon.Testing.Contracts.Xunit` | MIT | The behavior-contract suites the shipped implementations run — derive from them to verify your own `IRunStore`, `IModelProvider`, `IRunJudge`, `IAgentSource`, `IJobHandler`, or custom tool. Not in the meta package |
+| `Tracon.Client` | PolyForm | Typed management client generated from the OpenAPI document — 162 operations, zero Tracon dependency, zero NuGet dependency beyond DI abstractions. Not in the meta package |
+| `Tracon.Cli` | PolyForm | The `tracon` global tool (`dotnet tool install -g Tracon.Cli`) — `migrate`, `migrate status`, `health`. Not a library; not in the meta package |
+| [`@tracon/client`](https://www.npmjs.com/package/@tracon/client) | PolyForm | **npm, not NuGet** — the same 165 operations as `Tracon.Client`, generated from the same OpenAPI document with `openapi-typescript` + `openapi-fetch`. `npm install @tracon/client` |
 
 **Target frameworks:** `net8.0`, `net9.0`, `net10.0`
 
@@ -201,18 +201,18 @@ inflation adjusted) revenue in the prior tax year. Above that, a commercial lice
 applies. Three packages are MIT instead, so that writing and testing an extension,
 and owning what `dotnet new` generates, never needs one. Full terms: [LICENSE.md](LICENSE.md)
 and [LICENSE-MIT.md](LICENSE-MIT.md); the reasoning behind the split is on the
-[licensing page](https://agentprism.doayen.web.tr/reference/licensing/).
+[licensing page](https://tracon.dev/reference/licensing/).
 
 ### AOT compatibility
 
 Eight packages promise trimming and Native AOT compatibility:
-`AgentPrism.Abstractions`, `Core`, `PostgreSql`, `OpenAI`, `Anthropic`,
+`Tracon.Abstractions`, `Core`, `PostgreSql`, `OpenAI`, `Anthropic`,
 `Google`, `Azure`, and `Voice`. The other twelve do not — including the
-**meta package `AgentPrism` itself**, since it pulls in `AgentPrism.AspNetCore`
-and `AgentPrism.UI`, neither of which makes the promise. Reference the meta
+**meta package `Tracon` itself**, since it pulls in `Tracon.AspNetCore`
+and `Tracon.UI`, neither of which makes the promise. Reference the meta
 package expecting "the whole family is AOT-safe" and `PublishAot` fails on
 one of those two. Per-package reasons:
-[Compatibility reference](https://agentprism.doayen.web.tr/reference/compatibility/).
+[Compatibility reference](https://tracon.dev/reference/compatibility/).
 
 ---
 
@@ -222,18 +222,18 @@ one of those two. Per-package reasons:
 release, reference the projects from a clone.
 
 ```bash
-dotnet add package AgentPrism --prerelease
+dotnet add package Tracon --prerelease
 ```
 
 ### The model catalog
 
-AgentPrism **ships no built-in model list**. Model names and prices change faster than
+Tracon **ships no built-in model list**. Model names and prices change faster than
 a NuGet package is released, and a list baked into code turns misleading quickly. The
 catalog comes from configuration:
 
 ```json
 {
-  "AgentPrism": { "Providers": { "OpenAI": {
+  "Tracon": { "Providers": { "OpenAI": {
     "DefaultModel": "gpt-5.4-mini",
     "Models": [
       { "Name": "gpt-5.4-mini", "DisplayName": "GPT-5.4 mini",
@@ -254,12 +254,12 @@ A connection string and an API key **never** enter the repository. Use
 ```bash
 cd <your project>
 dotnet user-secrets init
-dotnet user-secrets set "AgentPrism:PostgreSql:ConnectionString" "Host=...;Port=5432;Database=AgentPrism;Username=...;Password=..."
+dotnet user-secrets set "Tracon:PostgreSql:ConnectionString" "Host=...;Port=5432;Database=Tracon;Username=...;Password=..."
 
 # or SQL Server, or SQLite (never all three at once; the last registration wins and a warning is logged)
-dotnet user-secrets set "AgentPrism:SqlServer:ConnectionString" "Server=...,1433;Database=AgentPrism;User Id=...;Password=...;TrustServerCertificate=true"
-dotnet user-secrets set "AgentPrism:Sqlite:ConnectionString"    "Data Source=agentprism.db"
-dotnet user-secrets set "AgentPrism:Providers:OpenAI:ApiKey"     "sk-..."
+dotnet user-secrets set "Tracon:SqlServer:ConnectionString" "Server=...,1433;Database=Tracon;User Id=...;Password=...;TrustServerCertificate=true"
+dotnet user-secrets set "Tracon:Sqlite:ConnectionString"    "Data Source=tracon.db"
+dotnet user-secrets set "Tracon:Providers:OpenAI:ApiKey"     "sk-..."
 ```
 
 `appsettings.json` shows the shape only; it carries no value.
@@ -270,7 +270,7 @@ dotnet user-secrets set "AgentPrism:Providers:OpenAI:ApiKey"     "sk-..."
 
 Four rules that do not change. Detail: [docs/MIMARI.md](docs/MIMARI.md) (Turkish).
 
-**1. No surprises.** `AddAgentPrism()` works alone. Without PostgreSQL configured,
+**1. No surprises.** `AddTracon()` works alone. Without PostgreSQL configured,
 storage falls back to memory. A database is never required.
 
 **2. Tools are defined in code only.** The console can create an agent; it can never
@@ -278,7 +278,7 @@ write tool **code**. It only lets you pick from the tools registered in code. Th
 security boundary.
 
 **3. MAF objects are passed through, not wrapped.** `AIAgent`, `AgentSession`, and
-`ChatMessage` are used directly. AgentPrism is a control plane, not an abstraction
+`ChatMessage` are used directly. Tracon is a control plane, not an abstraction
 layer.
 
 **4. Every extension point is replaceable.** Every service is registered with
@@ -297,19 +297,19 @@ candidates are in [docs/ADAYLAR.md](docs/ADAYLAR.md).
 
 Both are **off by default** and turned on explicitly in code
 (`.UseSkillScripts(...)`, `.AddPatternContentGuard(...)`/`.AddContentGuard<T>()`).
-Skill scripts run on the server with no OS-level isolation from AgentPrism itself —
+Skill scripts run on the server with no OS-level isolation from Tracon itself —
 that boundary is the hosting environment's job (container, unprivileged user,
 restricted network). Full behavior, the security boundary, and the guard decision
 model: [docs/MIMARI-GUVENLIK.md](docs/MIMARI-GUVENLIK.md) (Turkish) ·
-[product docs](https://agentprism.doayen.web.tr).
+[product docs](https://tracon.dev).
 
 ### Version policy
 
 `Microsoft.Agents.AI.Hosting` (preview) and `Microsoft.Agents.AI.Hosting.OpenAI`
-(alpha) are still pre-release. AgentPrism publishes as `1.0.0-preview.N` until both
+(alpha) are still pre-release. Tracon publishes as `1.0.0-preview.N` until both
 reach GA.
 
-The pre-release dependency lives only in `AgentPrism.AspNetCore`. Every other package
+The pre-release dependency lives only in `Tracon.AspNetCore`. Every other package
 depends on GA packages only.
 
 ---
@@ -317,10 +317,10 @@ depends on GA packages only.
 ## Development
 
 ```bash
-dotnet build  AgentPrism.slnx -c Release              # 0 warnings expected
-dotnet test   AgentPrism.slnx -c Release --no-build   # 20 test projects
-dotnet pack   AgentPrism.slnx -c Release --no-build
-dotnet format AgentPrism.slnx --verify-no-changes
+dotnet build  Tracon.slnx -c Release              # 0 warnings expected
+dotnet test   Tracon.slnx -c Release --no-build   # 20 test projects
+dotnet pack   Tracon.slnx -c Release --no-build
+dotnet format Tracon.slnx --verify-no-changes
 ```
 
 `TreatWarningsAsErrors` is on — there are no warnings, only errors.
@@ -331,13 +331,13 @@ end-to-end tests download Chromium themselves on first run.
 
 `dotnet build` builds the console too: `npm ci` → type check → Vitest → Vite → Brotli
 compression → bundle budget gate. The steps are incremental and skipped when nothing
-changed. For a fast inner loop, use `-p:AgentPrismFrontendEnabled=false`.
+changed. For a fast inner loop, use `-p:TraconFrontendEnabled=false`.
 
 ```bash
-cd samples/AgentPrism.Api && dotnet run     # http://localhost:5080/agentprism
+cd samples/Tracon.Api && dotnet run     # http://localhost:5080/tracon
 
 # Console only: the Vite dev server is faster (5173, proxying to 5080)
-cd src/AgentPrism.UI/frontend && npm run dev
+cd src/Tracon.UI/frontend && npm run dev
 ```
 
 ---
@@ -345,7 +345,7 @@ cd src/AgentPrism.UI/frontend && npm run dev
 ## Documentation
 
 **The user-facing product documentation is a separate site:**
-<https://agentprism.doayen.web.tr> — installation, your first agent, concepts, a
+<https://tracon.dev> — installation, your first agent, concepts, a
 console tour, the HTTP API (165 operations), and an API reference for 671 public types.
 Its source is [`docs-site/`](docs-site/); [`scripts/site-deploy.sh`](scripts/site-deploy.sh)
 builds it, runs the four site gates, and publishes it. The serving stack is in
@@ -372,8 +372,8 @@ site — `docs/` is the journal, `docs-site/` is the product documentation.
 
 ## Licence
 
-**PolyForm Small Business 1.0.0**, except for `AgentPrism.Abstractions`,
-`AgentPrism.Testing.Contracts.Xunit` and `AgentPrism.Templates`, which are MIT.
+**PolyForm Small Business 1.0.0**, except for `Tracon.Abstractions`,
+`Tracon.Testing.Contracts.Xunit` and `Tracon.Templates`, which are MIT.
 
 Use is free of charge if your company has fewer than 100 total individuals working
 as employees and independent contractors, and less than 1,000,000 USD (2019, adjusted
@@ -385,4 +385,4 @@ No package contains a licence key, an activation call or a feature gate, and the
 licence of a version already published never changes.
 
 Terms: [LICENSE.md](LICENSE.md) · [LICENSE-MIT.md](LICENSE-MIT.md) · which package is
-which, and why: <https://agentprism.doayen.web.tr/reference/licensing/>
+which, and why: <https://tracon.dev/reference/licensing/>

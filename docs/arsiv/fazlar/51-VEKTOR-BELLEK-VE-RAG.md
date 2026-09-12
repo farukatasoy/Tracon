@@ -3,7 +3,7 @@
 > **Durum:** ✅ Tamamlandı (2026-08-08)
 > **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-30**
 > **Önkoşul:** Yok
-> **Paketler:** `AgentPrism.Abstractions`, `.Core`, `.Sql.Shared`, `.PostgreSql`, `.SqlServer`, `.Sqlite`, `.AspNetCore`
+> **Paketler:** `Tracon.Abstractions`, `.Core`, `.Sql.Shared`, `.PostgreSql`, `.SqlServer`, `.Sqlite`, `.AspNetCore`
 > **Yeni paket:** Yok · **Yeni NuGet:** 🚨 **Yok** — gerekçe [51.2](#512--sıfır-yeni-paket-ölçülmüş-gerekçe) · **Migration:** **gerekli** — PostgreSQL'de bir tablo + uzantı; SQL Server ve SQLite'ta **yok**
 > **Public API:** büyüyor — bir arayüz, üç kayıt tipi, iki ayar. Faz 7'den önce ucuz
 
@@ -26,7 +26,7 @@
 
 ## Amaç
 
-AgentPrism'de anlamsal arama yoktur. Bir agent'a doküman verip "buna göre cevapla" demenin yolu yoktur; dosya belleği vardır ama araması **regex**'tir ve her çağrıda **bütün dosyaları belleğe alır**. Bu faz `pgvector` ile anlamsal aramayı getirir ve dosya aramasının O(n) davranışını düzeltir.
+Tracon'de anlamsal arama yoktur. Bir agent'a doküman verip "buna göre cevapla" demenin yolu yoktur; dosya belleği vardır ama araması **regex**'tir ve her çağrıda **bütün dosyaları belleğe alır**. Bu faz `pgvector` ile anlamsal aramayı getirir ve dosya aramasının O(n) davranışını düzeltir.
 
 ## Bitiş Ölçütleri (DoD)
 
@@ -56,7 +56,7 @@ AgentPrism'de anlamsal arama yoktur. Bir agent'a doküman verip "buna göre ceva
       3 indeks) < 50ms (test container'ında, `MigrationRunnerTests` içinde
       diğer 23 migration'la birlikte). Tablo bu fazda yeni açıldığı için
       gerçek kurulumlarda da maliyet aynı şekilde sıfırdır.
-- [x] Belge yüklenir, parçalanır, gömülür ve aranabilir — `samples/AgentPrism.Api`
+- [x] Belge yüklenir, parçalanır, gömülür ve aranabilir — `samples/Tracon.Api`
       ile GERÇEK bir embedding modeliyle uçtan uca doğrulandı (aşağıda,
       Ortak bölümü).
 - [x] 🚨 Yanlış boyutlu gömü yazma **hata verir**
@@ -67,7 +67,7 @@ AgentPrism'de anlamsal arama yoktur. Bir agent'a doküman verip "buna göre ceva
       (`PgVectorSearchStoreTests.Kiraci_birbirinin_koleksiyonunu_gormez`,
       `KnowledgeRetentionTests.Kiraci_suzgeciyle_yalniz_o_kiracinin_satirlari_silinir`).
       🚨 Gerçek run'daki `X-Tenant-Id` denemesi bunu GÖSTEREMEDİ: örnek uygulamada
-      `AgentPrism:Tenancy:Enabled` kapalıydı (varsayılan), bu yüzden başlık
+      `Tracon:Tenancy:Enabled` kapalıydı (varsayılan), bu yüzden başlık
       yok sayıldı ve tek sabit kiracı kullanıldı — beklenen davranış, yalıtım
       eksikliği değil. Kanıt depo/saklama katmanındaki testlerdedir.
 - [x] 🚨 `EnableVectorSearch = true` + SQLite/SQL Server → **derleme anında
@@ -81,7 +81,7 @@ AgentPrism'de anlamsal arama yoktur. Bir agent'a doküman verip "buna göre ceva
       açıkken de `IVectorSearchStore`'un `null` kalmasıyla BİREBİR aynı durumdur.)
 - [x] 🚨 `IEmbeddingGenerator` kayıtlı değilken açılışta anlaşılır hata
       (`AgentDefinitionCompilerTests.Anlamsal_arama_istenip_gomu_ureticisi_kayitli_degilse_derlemeyi_durdurur`;
-      `KnowledgeIngestionService.IsSupported=false` → `AgentPrismException`, HTTP'de 501).
+      `KnowledgeIngestionService.IsSupported=false` → `TraconException`, HTTP'de 501).
 - [x] `search_knowledge` tool'u yalnız `EnableVectorSearch` ile bağlanır
       (`AgentDefinitionCompilerTests.Anlamsal_arama_ikisi_de_kayitliyken_tool_baglanir`;
       gerçek run'da agent `search_knowledge`'ı çağırdı, bkz. Ortak).
@@ -96,7 +96,7 @@ AgentPrism'de anlamsal arama yoktur. Bir agent'a doküman verip "buna göre ceva
       değişmedi (`git diff --stat -- '*.csproj'` boş döndü); `PgVectorSearchStore`
       doğrudan zaten bağımlı olunan `Npgsql` ve `System.Text.Json` (DOM tabanlı
       `Utf8JsonWriter`/`JsonDocument`, yansımasız) kullanır.
-- [x] 🚨 `AgentPrism.PostgreSql` AOT uyarısı üretmez — proje `AgentPrismAotCompatible`
+- [x] 🚨 `Tracon.PostgreSql` AOT uyarısı üretmez — proje `TraconAotCompatible`
       bayrağını override ETMEZ (varsayılan `true`), yani trim/AOT analizi normal
       `dotnet build`'in bir parçası olarak zaten çalıştı; 0 uyarı (`TreatWarningsAsErrors`
       açıkken IL2026/IL3050 derlemeyi kırardı). Ayrı bir `VectorAotTests` yazılmadı —
@@ -119,9 +119,9 @@ AgentPrism'de anlamsal arama yoktur. Bir agent'a doküman verip "buna göre ceva
       hepsi yeşil. SQL Server (435 test) bu makinede yalnız geçici bir
       `azure-sql-edge` yamasıyla koşturulabildi (K-317'nin bilinen yerel
       kısıtı, Faz 51'le ilgisizdir) — 435/435 yeşil, yama commit'e GİRMEDİ.
-- [x] `samples/AgentPrism.Api` ile gerçek `run` yapıldı — bir belge yüklendi ve
+- [x] `samples/Tracon.Api` ile gerçek `run` yapıldı — bir belge yüklendi ve
       agent ona dayanarak cevap verdi. 🚨 **Plandan sapma:** bu makinedeki
-      `AgentPrism:Providers:OpenAI:ApiKey` embedding modeline erişemiyordu
+      `Tracon:Providers:OpenAI:ApiKey` embedding modeline erişemiyordu
       (`403 model_not_found`, proje yalnız sohbet modellerine izinli); doğrulama
       **Google `gemini-embedding-001`** ile (`outputDimensionality=1536`) yapıldı
       ve sonra örnek koddan SÖKÜLDÜ — kalıcı örnek kodu plandaki gibi OpenAI
@@ -139,56 +139,56 @@ AgentPrism'de anlamsal arama yoktur. Bir agent'a doküman verip "buna göre ceva
 
 ```bash
 # 0) pgvector uzantisi var mi
-psql "$AGENTPRISM_CONN" -c "SELECT extname, extversion FROM pg_extension WHERE extname='vector';"
+psql "$TRACON_CONN" -c "SELECT extname, extversion FROM pg_extension WHERE extname='vector';"
 
 # 1) Belge yukle
-curl -s -X POST http://localhost:5081/agentprism/api/knowledge/kurumsal/documents \
+curl -s -X POST http://localhost:5081/tracon/api/knowledge/kurumsal/documents \
   -H "content-type: application/json" \
   -d '{"sourceId":"izin-politikasi",
        "text":"Yillik izin 14 gundur. Bes yildan sonra 20 gune cikar."}' | jq
 
 # 2) Anlamsal arama — kelime esleşmesi OLMAYAN bir sorgu
-curl -s -X POST http://localhost:5081/agentprism/api/knowledge/kurumsal/search \
+curl -s -X POST http://localhost:5081/tracon/api/knowledge/kurumsal/search \
   -H "content-type: application/json" \
   -d '{"query":"tatil hakkim ne kadar","top":3}' \
   | jq '.[] | {sourceId, chunkIndex, distance}'
 #    "tatil" kelimesi belgede GECMIYOR; anlamsal arama yine de bulmali
 
 # 3) Agent tool'u kullaniyor mu
-RUN=$(curl -s -X POST http://localhost:5081/agentprism/api/agents/ik-asistani/run \
+RUN=$(curl -s -X POST http://localhost:5081/tracon/api/agents/ik-asistani/run \
   -H "content-type: application/json" \
   -d '{"message":"kac gun tatilim var"}' | jq -r '.runId')
-psql "$AGENTPRISM_CONN" -c \
-  "SELECT tool_name FROM agentprism.tool_invocations WHERE run_id='$RUN';"
+psql "$TRACON_CONN" -c \
+  "SELECT tool_name FROM tracon.tool_invocations WHERE run_id='$RUN';"
 #    search_knowledge gorulmeli
 
 # 4) 🚨 Kiraci yalitimi
-curl -s -X POST http://localhost:5081/agentprism/api/knowledge/kurumsal/search \
+curl -s -X POST http://localhost:5081/tracon/api/knowledge/kurumsal/search \
   -H "content-type: application/json" -H "X-Tenant-Id: baska-kiraci" \
   -d '{"query":"tatil hakkim ne kadar"}' | jq 'length'
 #    beklenen: 0
 
 # 5) 🚨 Yanlis boyut hata vermeli
 curl -s -o /dev/null -w "%{http_code}\n" -X POST \
-  http://localhost:5081/agentprism/api/knowledge/kurumsal/documents \
+  http://localhost:5081/tracon/api/knowledge/kurumsal/documents \
   -H "content-type: application/json" \
   -d '{"sourceId":"x","chunks":[{"index":0,"content":"a","embedding":[0.1,0.2]}]}'
 #    beklenen: 400
 
 # 6) 🚨 IS A — LoadAllAsync kalkti mi (10 000 dosya ile)
 #    Sorgu sayaci veya EXPLAIN ile olculur; sonuc belgeye yazilir
-psql "$AGENTPRISM_CONN" -c \
-  "EXPLAIN ANALYZE SELECT path, content FROM agentprism.agent_files
+psql "$TRACON_CONN" -c \
+  "EXPLAIN ANALYZE SELECT path, content FROM tracon.agent_files
     WHERE tenant_id='default' AND agent_name='asistan'
       AND path LIKE 'docs/%' AND content ~ 'izin';"
 
 # 7) 🚨 Yeni bagimlilik YOK
-dotnet list AgentPrism.slnx package --include-transitive \
+dotnet list Tracon.slnx package --include-transitive \
   | grep -Ei "pgvector|SemanticKernel|VectorData" || echo "TEMIZ"
 
 # 8) HNSW indeks boyutu ve olusturma suresi
-psql "$AGENTPRISM_CONN" -c \
-  "SELECT pg_size_pretty(pg_relation_size('agentprism.document_embeddings_hnsw_idx'));"
+psql "$TRACON_CONN" -c \
+  "SELECT pg_size_pretty(pg_relation_size('tracon.document_embeddings_hnsw_idx'));"
 ```
 
 ---
@@ -209,7 +209,7 @@ psql "$AGENTPRISM_CONN" -c \
    `{dimension}` için doldurur); `MigrationRunner.ApplyTemplate` bunu şema
    değiştirmesinden SONRA uygular. Mekanizma "vektör"e özel değildir — ileride
    başka bir sağlayıcıya özgü kurulum-anı değeri gerekirse aynı yol kullanılır.
-3. **`IVectorSearchStore` `AgentPrism.Sql.Shared`in paylaşılan katmanından
+3. **`IVectorSearchStore` `Tracon.Sql.Shared`in paylaşılan katmanından
    GEÇMEZ.** Plan dosya listesi `PostgresQueries.cs`e "vektör sorguları" eklemeyi
    öngörüyordu; gerçekte `PgVectorSearchStore` doğrudan `Npgsql` kullanır (K-176
    yalnız 20 ÇOK-SAĞLAYICILI depo için geçerlidir — bu depo tanım gereği TEK
@@ -237,9 +237,9 @@ psql "$AGENTPRISM_CONN" -c \
 | Karar | Tarih | Gerekçe | Yeniden açılma koşulu |
 |---|---|---|---|
 | **K-341 — Vektör gömüsü metin biçiminde (`::vector` cast) yazılır, hiçbir vektör paketi alınmaz** | 2026-08-08 | Üç aday ölçüldü: `Microsoft.SemanticKernel.Connectors.PgVector` 1.74.0-preview `Npgsql 8.0.7`'ye karşı derlenmiş (bizde 10.0.3); `Pgvector` 0.3.2 `Npgsql 8.0.5`'e karşı; `Microsoft.Extensions.VectorData.Abstractions` 10.8.0 tek başına işe yaramaz (K-343). K-211'in ikinci uygulaması: sürüm kayması bu depoda ölçülmüş bir hata sınıfıdır. Metin/ikili farkı da ölçüldü (bkz. DoD Ortak): fark yalnız yazma telinde (~2,3×), disk saklama ve okuma **özdeş** (PostgreSQL her iki yoldan da aynı kanonik ikili gösterimi saklar — `pg_column_size` 6148 bayt, tam olarak `1536×4+4`). | `Npgsql` sürüm kayması deseni bu paketlerde giderilirse veya ikili biçim ölçülebilir bir kazanç gösterirse. |
-| **K-342 — K-105 güncellenir: `ChatHistoryMemoryProvider` yine bağlanmadı, sebep artık ölçülmüş** | 2026-08-08 | K-105'in yeniden açılma koşulu ("`VectorStore` implementasyonu ve embedding sağlayıcısı seçildiğinde") kısmen karşılandı — embedding sağlayıcısı çözüldü (tüketici kaydeder) ama `VectorStore` çözülmedi: ölçüldü (`Microsoft.Extensions.VectorData.Abstractions` 10.8.0), `VectorStoreCollection<TKey,TRecord>.GetAsync` bir `Expression<Func<TRecord,bool>>` süzgeci ister; ifade ağacı yorumlamak `[RequiresDynamicCode]` sınıfına girer ve `AgentPrism.PostgreSql`'in AOT duruşunu bozar. `IVectorSearchStore` bu tipi SARMALAMAZ; kendi minimal sözleşmesini tanımlar. | Microsoft bu tipin AOT-güvenli bir filtre yüzeyi sunarsa, ya da tüketici ifade ağacı çevirmenin maliyetini kabul ederse. |
+| **K-342 — K-105 güncellenir: `ChatHistoryMemoryProvider` yine bağlanmadı, sebep artık ölçülmüş** | 2026-08-08 | K-105'in yeniden açılma koşulu ("`VectorStore` implementasyonu ve embedding sağlayıcısı seçildiğinde") kısmen karşılandı — embedding sağlayıcısı çözüldü (tüketici kaydeder) ama `VectorStore` çözülmedi: ölçüldü (`Microsoft.Extensions.VectorData.Abstractions` 10.8.0), `VectorStoreCollection<TKey,TRecord>.GetAsync` bir `Expression<Func<TRecord,bool>>` süzgeci ister; ifade ağacı yorumlamak `[RequiresDynamicCode]` sınıfına girer ve `Tracon.PostgreSql`'in AOT duruşunu bozar. `IVectorSearchStore` bu tipi SARMALAMAZ; kendi minimal sözleşmesini tanımlar. | Microsoft bu tipin AOT-güvenli bir filtre yüzeyi sunarsa, ya da tüketici ifade ağacı çevirmenin maliyetini kabul ederse. |
 | **K-343 — Anlamsal arama yalnız PostgreSQL'de uygulanır** *(kullanıcı kararı, 2026-08-06)* | 2026-08-08 | SQL Server'ın yerel `VECTOR` tipi ve SQLite'ın `sqlite-vec` uzantısı bu fazda ÖLÇÜLMEDİ (SQLite için: `SQLitePCLRaw` yerel kütüphanemiz bunu taşımıyor). `IVectorSearchStore` Abstractions'a girdi, varsayılan uygulaması YOK (K4); SQL Server/SQLite tüketicisi kendi uygulamasını kaydedebilir. `document_embeddings` tablosu yalnız PostgreSQL migration setindedir (0024); diğer iki setin migration'ları bu fazda HİÇ değişmedi. | SQL Server `VECTOR` tipi veya SQLite `sqlite-vec` ölçülüp bir tüketici/katkı bu sağlayıcılardan birine somut bir `IVectorSearchStore` eklerse. |
-| **K-344 — Sql.Shared'in cross-provider katmanı `IVectorSearchStore` için kullanılmaz** | 2026-08-08 | K-176'nın "paylaşılan katman, saglayıcıdan bağımsız SQL üretir" kuralı 20 ÇOK-SAĞLAYICILI depo içindir. `IVectorSearchStore`'un TEK somut uygulaması (K-343) olduğu için bir `SqlDialect`/`SqlQueriesBase` soyutlaması eklemek gereksiz dolaylamadır; `PgVectorSearchStore` doğrudan `Npgsql` kullanır ve `AgentPrism.PostgreSql` derlemesinde yaşar (linked-source değil). | SQL Server veya SQLite için somut bir uygulama eklenirse, o zaman ortak bir arayüz zaten `IVectorSearchStore`'un kendisidir — yeni bir soyutlama katmanına gerek yoktur. |
+| **K-344 — Sql.Shared'in cross-provider katmanı `IVectorSearchStore` için kullanılmaz** | 2026-08-08 | K-176'nın "paylaşılan katman, saglayıcıdan bağımsız SQL üretir" kuralı 20 ÇOK-SAĞLAYICILI depo içindir. `IVectorSearchStore`'un TEK somut uygulaması (K-343) olduğu için bir `SqlDialect`/`SqlQueriesBase` soyutlaması eklemek gereksiz dolaylamadır; `PgVectorSearchStore` doğrudan `Npgsql` kullanır ve `Tracon.PostgreSql` derlemesinde yaşar (linked-source değil). | SQL Server veya SQLite için somut bir uygulama eklenirse, o zaman ortak bir arayüz zaten `IVectorSearchStore`'un kendisidir — yeni bir soyutlama katmanına gerek yoktur. |
 | **K-345 — `document_embeddings` metadata sütunu `jsonb`'dir, `json` değil** | 2026-08-08 | K-027'nin "$type ilk özellik olmalı" kısıtı burada GEÇERLİ DEĞİLDİR: bu alan polimorfik `ChatMessage` taşımaz, düz bir `string → string` sözlüktür; `jsonb`'nin anahtar yeniden sıralaması zararsızdır ve indekslenebilirlik kazançtır. `PgVectorSearchStore` bunu yansımasız `Utf8JsonWriter`/`JsonDocument` (DOM tabanlı) ile serileştirir/ayrıştırır — AOT güvenlidir. | — |
 | **K-346 — Migration şablonlama genelleştirildi: `SqlStoreContext.MigrationTemplateValues`** | 2026-08-08 | `{dimension}` yer tutucusu `{schema}` ile AYNI mekanizmadan geçemezdi (`SqlQueriesBase.ApplySchema` yalnız şemayı bilir) ama "vektöre özel" bir çözüm de yanlış katmana ait olurdu (`MigrationRunner` üç sağlayıcıda ortaktır, K-176). Genel bir `IReadOnlyDictionary<string,string>` eklenip `MigrationRunner.ApplyTemplate` içinde şema değiştirmesinden SONRA uygulanır; SQL Server/SQLite boş sözlükle çalışmaya devam eder. | — |
 
@@ -265,7 +265,7 @@ bir sıradaki faza değil.
    depoda hedef dizin dışı satır okunmaz" kanıtı **1 satır** (test
    container'ında, `EXPLAIN ANALYZE` ile) — kapının başlangıç eşiği budur.
 5. 🚨 **PostgreSQL entegrasyon test imajı artık `pgvector/pgvector:pg18`'dir**,
-   `postgres:18-alpine` DEĞİL (`tests/AgentPrism.PostgreSql.IntegrationTests/Infrastructure/PostgresFixture.cs`).
+   `postgres:18-alpine` DEĞİL (`tests/Tracon.PostgreSql.IntegrationTests/Infrastructure/PostgresFixture.cs`).
    Yeni bir migration eklerken veya imaj sürümünü yükseltirken bu satırı
    unutmayın — düz `postgres` imajına dönmek migration 0024'ü (ve onu izleyen
    HER migration'ı, aynı `ApplyPendingAsync` tek toplu iş içinde çalıştığı için)

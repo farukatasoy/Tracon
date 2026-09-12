@@ -3,9 +3,9 @@ title: Background work
 description: Queue agent runs, schedule recurring work, operate workers, and understand leasing, retries, cancellation, and multi-instance behavior.
 ---
 
-AgentPrism can move a run out of the request path or create work from a recurring
+Tracon can move a run out of the request path or create work from a recurring
 schedule. Both paths use the same durable job queue and worker. This gives an API
-caller a short `202 Accepted` response while AgentPrism owns execution, status, and
+caller a short `202 Accepted` response while Tracon owns execution, status, and
 recovery.
 
 Use background work when the caller cannot keep an SSE connection open, when a batch
@@ -29,7 +29,7 @@ stateDiagram-v2
 
 ## Configure the worker
 
-`AddAgentPrism()` registers the scheduling stores and worker. `UseScheduling()` only
+`AddTracon()` registers the scheduling stores and worker. `UseScheduling()` only
 changes its settings:
 
 ```csharp
@@ -45,13 +45,13 @@ builder.Services.UseScheduling(options =>
     options.MaxItemsPerJob = 1_000;
 });
 
-var agentPrism = builder.AddAgentPrism()
+var tracon = builder.AddTracon()
     .UseOpenAI(builder.Configuration.GetSection(OpenAIProviderOptions.SectionName))
     .UsePostgreSql(
-        builder.Configuration.GetSection(AgentPrismPostgreSqlOptions.SectionName));
+        builder.Configuration.GetSection(TraconPostgreSqlOptions.SectionName));
 
 var app = builder.Build();
-app.MapAgentPrism("/agentprism");
+app.MapTracon("/tracon");
 app.Run();
 ```
 
@@ -59,7 +59,7 @@ The same values can come from configuration:
 
 ```json
 {
-  "AgentPrism": {
+  "Tracon": {
     "Scheduling": {
       "Enabled": true,
       "RunWorker": true,
@@ -84,26 +84,26 @@ Code passed to `UseScheduling()` wins over configuration.
 Send the normal management run request with `Prefer: respond-async`:
 
 ```bash
-curl -i https://agents.example.com/agentprism/api/agents/support/run \
-  -H "Authorization: Bearer $AGENTPRISM_API_KEY" \
+curl -i https://agents.example.com/tracon/api/agents/support/run \
+  -H "Authorization: Bearer $TRACON_API_KEY" \
   -H 'Content-Type: application/json' \
   -H 'Prefer: respond-async' \
   -d '{"message":"Prepare the weekly escalation report."}'
 ```
 
-AgentPrism returns `202 Accepted`, `Preference-Applied: respond-async`, and a
+Tracon returns `202 Accepted`, `Preference-Applied: respond-async`, and a
 `Location` header. The response identifies both the run and its backing job. For this
 path, the job ID is the run ID. Follow the returned location, or read the run and its
 events directly:
 
 ```bash
 curl -sS \
-  -H "Authorization: Bearer $AGENTPRISM_API_KEY" \
-  https://agents.example.com/agentprism/api/runs/$RUN_ID
+  -H "Authorization: Bearer $TRACON_API_KEY" \
+  https://agents.example.com/tracon/api/runs/$RUN_ID
 
 curl -sS \
-  -H "Authorization: Bearer $AGENTPRISM_API_KEY" \
-  https://agents.example.com/agentprism/api/runs/$RUN_ID/events
+  -H "Authorization: Bearer $TRACON_API_KEY" \
+  https://agents.example.com/tracon/api/runs/$RUN_ID/events
 ```
 
 Queued runs do not accept `attachmentIds` or an initial `approvals` collection. If a
@@ -139,11 +139,11 @@ calendar, time zone, and payload:
 
 ```bash
 curl -sS -X PUT \
-  https://agents.example.com/agentprism/api/schedules/weekday-support-review \
-  -H "Authorization: Bearer $AGENTPRISM_API_KEY" \
+  https://agents.example.com/tracon/api/schedules/weekday-support-review \
+  -H "Authorization: Bearer $TRACON_API_KEY" \
   -H 'Content-Type: application/json' \
   -d '{
-    "handlerKey": "agentprism.agent-batch",
+    "handlerKey": "tracon.agent-batch",
     "targetName": "support",
     "cron": "0 8 * * 1-5",
     "timeZone": "UTC",
@@ -162,7 +162,7 @@ item. A missing payload creates no items. Each job accepts at most
 `handlerKey` names the handler that runs the jobs this schedule produces. Only
 the keys the server allows over HTTP are accepted —
 `GET /api/schedules/handler-keys` returns exactly that list, and anything else
-is a `400`. It is AgentPrism's own built-in keys unless the host set
+is a `400`. It is Tracon's own built-in keys unless the host set
 `Scheduling.HttpSchedulableHandlerKeys`, so making one of your own handlers
 schedulable from outside is a deliberate opt-in. A non-empty setting
 **replaces** that default rather than extending it — which is what lets an
@@ -170,7 +170,7 @@ operator narrow the surface, and also what makes a list naming only a consumer
 key turn every built-in key off. See
 [Write your own job handler](/guides/write-your-own-job-handler/).
 
-AgentPrism accepts five-field cron expressions: minute, hour, day of month, month,
+Tracon accepts five-field cron expressions: minute, hour, day of month, month,
 and day of week. It supports `*`, fixed values, ranges, lists, and `/step`. It does
 not support seconds or the `L`, `W`, and `#` extensions. When both day-of-month and
 day-of-week are restricted, either field can match. Time-zone identifiers are
@@ -261,8 +261,8 @@ lane, handler key, and terminal status:
 
 | Instrument | What it counts |
 |---|---|
-| `agentprism.job.executions` | Jobs that reached `Completed`, `Failed`, or `Cancelled` |
-| `agentprism.job.duration` | How long a single attempt took, in seconds |
+| `tracon.job.executions` | Jobs that reached `Completed`, `Failed`, or `Cancelled` |
+| `tracon.job.duration` | How long a single attempt took, in seconds |
 
 A job released for another attempt is **not** counted. A job configured with three
 attempts that ultimately fails is one `Failed`, not three, and the recorded duration
@@ -273,7 +273,7 @@ which the jobs list and the Jobs screen can only show if somebody looks:
 
 ```json
 {
-  "AgentPrism": {
+  "Tracon": {
     "Observability": {
       "EnableJobQueueDepthGauge": true,
       "JobQueueDepthRefreshInterval": "00:00:30"
@@ -282,14 +282,14 @@ which the jobs list and the Jobs screen can only show if somebody looks:
 }
 ```
 
-`agentprism.job.queue.depth` then reports outstanding jobs per lane and open status
+`tracon.job.queue.depth` then reports outstanding jobs per lane and open status
 (`Pending`, `Leased`, `Running`). It is off by default because it queries the
 database on a scrape; the refresh interval caches those reads, so a scrape more
 often than every 30 seconds costs nothing extra. Terminal jobs are never counted
 here — they are already on the counter — which keeps the query's cost tied to the
 work still outstanding instead of to the queue's history.
 
-Alerting is yours to configure: AgentPrism measures the depth and leaves the
+Alerting is yours to configure: Tracon measures the depth and leaves the
 threshold to your observability stack. See
 [observability](/guides/observability/#what-the-job-metrics-count) for the full tag
 list and the lane-cardinality guard.
@@ -299,7 +299,7 @@ list and the lane-cardinality guard.
 Two more background concerns sit next to the job queue, both off by default and
 both meant for a multi-instance deployment.
 
-**Singleton execution** (`AgentPrism:SingletonExecution`) elects one active
+**Singleton execution** (`Tracon:SingletonExecution`) elects one active
 instance for periodic background services that must not run twice at once:
 approval expiration, model-provider health polling, canary evaluation, and run
 reconciliation itself. It does not protect the job queue — that already uses
@@ -307,7 +307,7 @@ per-job SQL leasing, which is unaffected by this setting.
 
 ```json
 {
-  "AgentPrism": {
+  "Tracon": {
     "SingletonExecution": {
       "Enabled": true,
       "LeaseDuration": "00:01:00"
@@ -325,7 +325,7 @@ instances alternate on work that has to run on one.
 `OwnerId` defaults to the machine name, process id, and a random suffix; set
 it explicitly only to force a specific instance to hold the lease.
 
-**Run reconciliation** (`AgentPrism:RunReconciliation`) closes runs stuck in
+**Run reconciliation** (`Tracon:RunReconciliation`) closes runs stuck in
 `Running` after the owning process crashes mid-execution — a `Queued` job is
 already covered by lease expiry, but a run that already started has no lease
 of its own. Without reconciliation, an orphaned row stays `Running` forever
@@ -335,7 +335,7 @@ longer than `OrphanThreshold` and marks them `Failed`.
 
 ```json
 {
-  "AgentPrism": {
+  "Tracon": {
     "RunReconciliation": {
       "Enabled": true,
       "HeartbeatInterval": "00:00:30",
@@ -420,7 +420,7 @@ idempotent.
 | Symptom | Check |
 |---|---|
 | A queued run remains `Queued` | Confirm `Scheduling.Enabled` and `RunWorker`; confirm at least one worker passed the schema-ready gate and can reach the same SQL database |
-| The request returns `501` | `AgentPrism:AsyncRun:Enabled` is false |
+| The request returns `501` | `Tracon:AsyncRun:Enabled` is false |
 | The request returns `400` | Supply `message`; remove `attachmentIds` and initial `approvals` from a queued run |
 | The same external action happens twice | The lease was replayed after an uncertain failure; add an operation-level idempotency key and leave queued-run attempts at one until the tool is safe |
 | A job is `Completed` but work is missing | Inspect `failedItems` and the individual item records; mixed-result batches still complete |

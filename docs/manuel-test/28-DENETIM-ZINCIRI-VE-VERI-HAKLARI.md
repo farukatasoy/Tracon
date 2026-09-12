@@ -1,14 +1,14 @@
 # 28 — Denetim Zinciri ve Veri Konusu Hakları (`DVR`)
 
 > **Alan kodu:** `DVR` · **Faz:** 64
-> **Kaynak:** `src/AgentPrism.Abstractions/Audit/` (`AuditChainStatus.cs`,
+> **Kaynak:** `src/Tracon.Abstractions/Audit/` (`AuditChainStatus.cs`,
 > `AuditChainVerification.cs`, `AuditChainQuery.cs`) ·
-> `src/AgentPrism.Abstractions/Privacy/` (tümü) ·
-> `src/AgentPrism.Core/Audit/` (`AuditChainHasher.cs`, `AuditChainWalker.cs`) ·
-> `src/AgentPrism.Core/Privacy/NullDataSubjectStore.cs` ·
-> `src/AgentPrism.Sql.Shared/Stores/{SqlAuditLog,SqlDataSubjectStore}.cs` ·
-> `src/AgentPrism.Sql.Shared/Internal/DataSubjectTargetRegistry.cs` ·
-> `src/AgentPrism.AspNetCore/Endpoints/{AuditEndpoints,DataSubjectEndpoints}.cs`
+> `src/Tracon.Abstractions/Privacy/` (tümü) ·
+> `src/Tracon.Core/Audit/` (`AuditChainHasher.cs`, `AuditChainWalker.cs`) ·
+> `src/Tracon.Core/Privacy/NullDataSubjectStore.cs` ·
+> `src/Tracon.Sql.Shared/Stores/{SqlAuditLog,SqlDataSubjectStore}.cs` ·
+> `src/Tracon.Sql.Shared/Internal/DataSubjectTargetRegistry.cs` ·
+> `src/Tracon.AspNetCore/Endpoints/{AuditEndpoints,DataSubjectEndpoints}.cs`
 >
 > Ortam kurulumu, fixture verisi ve reset yordamı [`00-INDEKS.md`](00-INDEKS.md)'dedir.
 
@@ -45,14 +45,14 @@ flowchart TD
 ## Koşmadan önce
 
 1. [`00-INDEKS.md`](00-INDEKS.md) §4 reset yordamı uygulanır.
-2. Örnek uygulama çalışır: `cd samples/AgentPrism.Api && dotnet run` → `http://localhost:5080`.
+2. Örnek uygulama çalışır: `cd samples/Tracon.Api && dotnet run` → `http://localhost:5080`.
    ```bash
    export APB="Authorization: Bearer manuel-test-token-2026"
-   export APU="http://localhost:5080/agentprism"
+   export APU="http://localhost:5080/tracon"
    ```
 3. Bu alanın case'leri **doğrudan SQL** ile satır değiştirme/silme gerektirir
    (MT-DVR-003/004) — bir hash zincirini elle tahrif etmenin tek yolu budur.
-   PostgreSQL kullanılıyorsa `docker exec -i ap-pg psql -U postgres -d agentprism`.
+   PostgreSQL kullanılıyorsa `docker exec -i ap-pg psql -U postgres -d tracon`.
 4. `IDataSubjectResolver` **kayıtlı değildir** varsayılan olarak (K1: sıfır
    sürpriz) — MT-DVR-005/006 bunu doğrudan sınar. MT-DVR-007'den itibaren
    geçici bir çözümleyici gerekir; örnek uygulamaya elle eklenmez, bu case'ler
@@ -146,7 +146,7 @@ curl -s "$APU/api/audit/verify" -H "$APB" | jq
 
 **Girilecek veri**
 ```sql
-UPDATE agentprism.audit_log SET after = '{"tampered":true}'
+UPDATE tracon.audit_log SET after = '{"tampered":true}'
 WHERE entity = 'retention:run_events' ORDER BY chain_seq DESC LIMIT 1;
 ```
 ```bash
@@ -180,9 +180,9 @@ tam UPDATE deseni geliştirme sırasında elle doğrulandı — 👤 tam SQL ko�
 
 **Girilecek veri**
 ```sql
-DELETE FROM agentprism.audit_log
+DELETE FROM tracon.audit_log
 WHERE chain_seq = (
-  SELECT chain_seq FROM agentprism.audit_log
+  SELECT chain_seq FROM tracon.audit_log
   WHERE entity = 'retention:run_events' ORDER BY chain_seq ASC LIMIT 1 OFFSET 1
 );
 ```

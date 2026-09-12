@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/Tracon.Core/Tracon.Core.csproj" />
+    <ProjectReference Include="../../src/Tracon.Testing.Contracts.Xunit/Tracon.Testing.Contracts.Xunit.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!--
+      Test-only: verifying that the Tracon:ContentGuard section actually
+      binds requires an IConfiguration instance. Tracon.Core depends only
+      on Configuration.Abstractions and must stay that way.
+    -->
+    <PackageReference Include="Microsoft.Extensions.Configuration" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Real Microsoft Agent Framework output, captured from a genuine run (Phase 126). See Fixtures/README.md. -->
+    <None Include="Fixtures/**" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <!--
+    Store contract suite (Phase 23; packaged in Phase 98 as
+    Tracon.Testing.Contracts.Xunit), in-memory side only. The same
+    abstract classes also run in Tracon.PostgreSql.IntegrationTests and
+    Tracon.SqlServer.IntegrationTests against their real backends;
+    running them here too, from a project with no [assembly: AssemblyFixture]
+    and no Testcontainers dependency, means the in-memory store — the
+    default a consumer gets when they add no persistence package — is
+    verified on a machine with no Docker. TenantCoverageTests (now in
+    Tracon.SqlServer.IntegrationTests) reflects over SqlRunStore, a type
+    this project does not reference, and never ran here.
+  -->
+
+</Project>

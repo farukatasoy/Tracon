@@ -1,0 +1,7 @@
+bin/
+obj/
+*.user
+appsettings.*.local.json
+
+# Regenerated on every build; the paths inside are specific to this machine.
+Tracon.LocalReference.md

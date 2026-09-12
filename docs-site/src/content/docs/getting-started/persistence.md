@@ -1,6 +1,6 @@
 ---
 title: Persistence
-description: Choose PostgreSQL, SQL Server, or SQLite and operate AgentPrism migrations safely from development to production.
+description: Choose PostgreSQL, SQL Server, or SQLite and operate Tracon migrations safely from development to production.
 sidebar:
   order: 4
 ---
@@ -9,9 +9,9 @@ Without a database every store is in memory and everything ends with the process
 That is deliberate — it makes the first agent work with no infrastructure — but it is
 not where you stop.
 
-:::caution[In production, AgentPrism says so out loud]
+:::caution[In production, Tracon says so out loud]
 Start a host in the `Production` environment while storage is still in memory and
-AgentPrism writes one warning at startup, naming the stores that do not survive a
+Tracon writes one warning at startup, naming the stores that do not survive a
 restart. In-memory storage stays a supported mode — the warning never fails
 startup and there is no switch to silence it, because a production installation
 losing its runs on the next deployment should not be a quiet fact. The same
@@ -22,15 +22,15 @@ console's settings screen shows.
 ## Pick one
 
 ```csharp
-builder.AddAgentPrism()
-       .UsePostgreSql(connectionString);   // AgentPrism.PostgreSql
+builder.AddTracon()
+       .UsePostgreSql(connectionString);   // Tracon.PostgreSql
 ```
 
 | Package | Choose it when |
 |---|---|
-| `AgentPrism.PostgreSql` | The default. The only one with vector search for knowledge |
-| `AgentPrism.SqlServer` | You already run SQL Server |
-| `AgentPrism.Sqlite` | One node, or a durable local development setup |
+| `Tracon.PostgreSql` | The default. The only one with vector search for knowledge |
+| `Tracon.SqlServer` | You already run SQL Server |
+| `Tracon.Sqlite` | One node, or a durable local development setup |
 
 All three implement the same store contracts and pass the same shared contract tests.
 Their operational limits differ: only PostgreSQL supports Knowledge, only PostgreSQL
@@ -46,15 +46,15 @@ secret is read from, never the value.
 Binding from configuration is the usual shape:
 
 ```csharp
-.UsePostgreSql(builder.Configuration.GetSection(AgentPrismPostgreSqlOptions.SectionName))
+.UsePostgreSql(builder.Configuration.GetSection(TraconPostgreSqlOptions.SectionName))
 ```
 
 ```json title="appsettings.json"
 {
-  "AgentPrism": {
+  "Tracon": {
     "PostgreSql": {
       "ConnectionString": "",
-      "SchemaName": "agentprism",
+      "SchemaName": "tracon",
       "AutoApplyMigrations": true,
       "CommandTimeoutSeconds": 30,
       "EnableKnowledge": false,
@@ -68,9 +68,9 @@ Binding from configuration is the usual shape:
 
 | Provider | Namespace | Migration coordination |
 |---|---|---|
-| PostgreSQL | Separate `agentprism` schema by default | `pg_advisory_lock`, scoped to the schema |
-| SQL Server | Separate `agentprism` schema by default; your `dbo` objects stay untouched | `sp_getapplock`, scoped to the schema |
-| SQLite | No schema support; `agentprism_` table prefix by default | A sidecar file lock next to the database |
+| PostgreSQL | Separate `tracon` schema by default | `pg_advisory_lock`, scoped to the schema |
+| SQL Server | Separate `tracon` schema by default; your `dbo` objects stay untouched | `sp_getapplock`, scoped to the schema |
+| SQLite | No schema support; `tracon_` table prefix by default | A sidecar file lock next to the database |
 
 Rename `SchemaName` or `TablePrefix` when your conventions require it. A bare SQLite
 `Data Source=:memory:` connection is rejected because each opened connection would
@@ -112,10 +112,10 @@ starts, unless that responsibility is moved to its own deployment step:
 ```mermaid
 flowchart TD
     accTitle: Two ways a migration is applied
-    accDescr: With AutoApplyMigrations true, the application applies pending migrations itself at startup. With it false, a separate agentprism migrate step applies the schema first, and the application only verifies it before starting.
+    accDescr: With AutoApplyMigrations true, the application applies pending migrations itself at startup. With it false, a separate tracon migrate step applies the schema first, and the application only verifies it before starting.
     START["Application starts"] --> CHECK{"AutoApplyMigrations"}
     CHECK -->|"true (default)"| APPLY["Applies pending migrations itself<br/>provider lock serializes concurrent instances"]
-    CHECK -->|"false"| SEPARATE["agentprism migrate<br/>runs as its own deployment step, no app needed"]
+    CHECK -->|"false"| SEPARATE["tracon migrate<br/>runs as its own deployment step, no app needed"]
     SEPARATE --> APP2["Application starts, verifies the schema, does not write"]
     APPLY --> READY["Ready"]
     APP2 --> READY
@@ -138,7 +138,7 @@ that environment first.
 :::
 
 :::caution[A migration can be one-way]
-Most migrations only add. Some rewrite or drop a column, and while AgentPrism is in
+Most migrations only add. Some rewrite or drop a column, and while Tracon is in
 preview a release may contain one: the data is carried across by the migration
 itself, but there is no downgrade path back to the older schema. Take a backup
 before upgrading a database you cannot lose, and roll a version back by restoring
@@ -154,29 +154,29 @@ your own row count before upgrading a large database.
 :::
 
 Set `AutoApplyMigrations = false` when schema changes are their own deployment step.
-AgentPrism then verifies but does not write. The diagnostics endpoint can report
+Tracon then verifies but does not write. The diagnostics endpoint can report
 whether the schema is current, but it is deliberately not mapped by default because
 it exposes setup details:
 
 ```csharp
-app.MapAgentPrism("/agentprism", options =>
+app.MapTracon("/tracon", options =>
 {
     options.EnableDiagnosticsEndpoint = true;
 });
 ```
 
-After that opt-in, `GET /agentprism/api/diagnostics` is an Admin surface and still
+After that opt-in, `GET /tracon/api/diagnostics` is an Admin surface and still
 passes through the configured access layers.
 
 Something still needs to **apply** the schema before the application starts with
-`AutoApplyMigrations = false`. The `agentprism` CLI does that as its own step,
+`AutoApplyMigrations = false`. The `tracon` CLI does that as its own step,
 against the database directly — no running application required:
 
 ```bash
-agentprism migrate --provider postgres --connection "$AGENTPRISM_CONNECTION"
+tracon migrate --provider postgres --connection "$TRACON_CONNECTION"
 ```
 
-Running it again applies nothing (`0 applied`) and exits `0`; `agentprism migrate
+Running it again applies nothing (`0 applied`) and exits `0`; `tracon migrate
 status` lists pending migration names without writing. See the [typed client and
 CLI guide](/guides/cli/) for setup and the rest of the commands.
 
@@ -190,12 +190,12 @@ one, for example an EF Core `DbContext` configured with an `NpgsqlDataSource`:
 .UsePostgreSql(options => options.DataSource = yourDataSource)
 ```
 
-AgentPrism never disposes an instance it did not build; ownership stays with
+Tracon never disposes an instance it did not build; ownership stays with
 whoever created it. Building two separate data sources from the identical
 connection string does **not** share a connection pool — see
 [Two data planes, one connection pool or two](/guides/embedding/#two-data-planes-one-connection-pool-or-two)
 and, for the full EF Core pattern,
-[Two connection planes: EF Core and AgentPrism](/guides/ef-core/).
+[Two connection planes: EF Core and Tracon](/guides/ef-core/).
 
 ## What changes once it is durable
 
@@ -214,7 +214,7 @@ replays instead of repeating, and orphan reconciliation itself only has a stale
 the process that opened it.
 
 Session and workflow checkpoint rows carry a version stamp of their own, separate
-from the schema migrations above: AgentPrism's envelope around the row, and the
+from the schema migrations above: Tracon's envelope around the row, and the
 Microsoft Agent Framework version that wrote the opaque state inside it. See
 [Versions and upgrades](/reference/versioning/#persisted-session-and-checkpoint-state)
 for what that stamp promises and what happens when an old row can no longer be read.
@@ -223,7 +223,7 @@ Durable state is also state an upgrade has to keep being able to read, and the
 stamp is what makes that answerable ahead of time rather than in production:
 
 ```bash
-agentprism state-check --provider postgres --connection "$AGENTPRISM_CONNECTION"
+tracon state-check --provider postgres --connection "$TRACON_CONNECTION"
 ```
 
 Run with the **new** version of the tool, it counts your stored rows by stamp,
@@ -238,7 +238,7 @@ or row limit per target — run events, tool calls, traces, jobs, webhook delive
 eval results, checkpoints, and more.
 
 Database policies take precedence. When no database policy exists and
-`AgentPrism:Retention:Enabled` is true, configuration falls back to built-in target
+`Tracon:Retention:Enabled` is true, configuration falls back to built-in target
 defaults, such as 30 days for run events and 14 days for spans. With retention
 disabled, nothing is deleted. An `archive: true` policy also deletes nothing when no
 `IArchiveSink` is registered; data loss is the failure mode the worker avoids.
@@ -246,8 +246,8 @@ disabled, nothing is deleted. An `archive: true` policy also deletes nothing whe
 Cleanup runs through the job queue. Preview a policy before you execute it:
 
 ```bash
-curl 'http://localhost:5081/agentprism/api/retention/preview'
-curl -X POST 'http://localhost:5081/agentprism/api/retention/run'
+curl 'http://localhost:5081/tracon/api/retention/preview'
+curl -X POST 'http://localhost:5081/tracon/api/retention/run'
 ```
 
 ## Durability also enables governance

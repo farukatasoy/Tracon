@@ -1,6 +1,6 @@
-# AgentPrism — Mimari
+# Tracon — Mimari
 
-> AgentPrism'in **bugünkü** mimari resmi. Faz dokümanları (`docs/NN-*.md`) sırayı
+> Tracon'in **bugünkü** mimari resmi. Faz dokümanları (`docs/NN-*.md`) sırayı
 > anlatır; bu doküman **ne** inşa ettiğimizi. Kod ile çelişirse **doküman yanlıştır**.
 >
 > **Bütçelidir** — denetim `python3 scripts/dokuman-bakim.py --denetle`. Anlatı
@@ -14,7 +14,7 @@
 **Paket listesi tek yerdedir: [`README.md`](../README.md) → "Paketler".** Burada
 tekrarlanmaz. Mimari açıdan anlamı olan kalemler:
 
-- `AgentPrism.Sql.Shared` **paket değildir** — `.csproj`'u yoktur; üç SQL
+- `Tracon.Sql.Shared` **paket değildir** — `.csproj`'u yoktur; üç SQL
   sağlayıcısı onu `<Compile Include=... />` ile derler: 29 `store`,
   `SqlQueriesBase`, `SqlDialect` (K-198), migration runner (K-176).
 - Migration setleri sağlayıcı başına bağımsızdır (K-178): PostgreSql `0001`–`0029`,
@@ -32,8 +32,8 @@ Ne veritabanı ne de belirli bir model satıcısı **zorunludur**: `storage`
 yapılandırılmazsa bellek içine düşer; OpenAI · uyumlu `endpoint`'ler ·
 Anthropic · Google · Azure OpenAI birlikte çalışır.
 
-**Neden AgentPrism?** MAF GA'dir ama resmî arayüzü DevUI preview'dur ve dokümanı
-"not intended for production use" der. AgentPrism onun yerine geçmez, bıraktığı
+**Neden Tracon?** MAF GA'dir ama resmî arayüzü DevUI preview'dur ve dokümanı
+"not intended for production use" der. Tracon onun yerine geçmez, bıraktığı
 yerden devam eder — gerekçe ve karşılaştırma:
 [`arsiv/DEVUI-KARSILASTIRMASI.md`](arsiv/DEVUI-KARSILASTIRMASI.md).
 Faz faz nasıl buraya gelindiği: [`arsiv/FAZ-GECMISI.md`](arsiv/FAZ-GECMISI.md).
@@ -44,32 +44,32 @@ Faz faz nasıl buraya gelindiği: [`arsiv/FAZ-GECMISI.md`](arsiv/FAZ-GECMISI.md)
 
 ```mermaid
 flowchart TD
-    T["Tüketici uygulama · ASP.NET Core<br/>builder.AddAgentPrism().UsePostgreSql(..).UseOpenAI(..)<br/>app.MapAgentPrism('/agentprism')"]
+    T["Tüketici uygulama · ASP.NET Core<br/>builder.AddTracon().UsePostgreSql(..).UseOpenAI(..)<br/>app.MapTracon('/tracon')"]
 
-    UI["<b>AgentPrism.UI</b><br/>gömülü React SPA · Brotli varlıklar · iki dilli<br/>UseUI() → IAgentPrismUiProvider"]
+    UI["<b>Tracon.UI</b><br/>gömülü React SPA · Brotli varlıklar · iki dilli<br/>UseUI() → ITraconUiProvider"]
 
-    HTTP["<b>AgentPrism.AspNetCore</b><br/>MapAgentPrism · /api/* yönetim API'si<br/>/v1/responses · /v1/chat/completions · /v1/conversations<br/>loopback · bearer · policy · SSE"]
+    HTTP["<b>Tracon.AspNetCore</b><br/>MapTracon · /api/* yönetim API'si<br/>/v1/responses · /v1/chat/completions · /v1/conversations<br/>loopback · bearer · policy · SSE"]
 
-    PG["<b>AgentPrism.PostgreSql</b><br/>kalıcılık"]
-    OA["<b>AgentPrism.OpenAI</b><br/>openai · openai-responses · uyumlu uçlar"]
-    AN["<b>AgentPrism.Anthropic</b><br/>anthropic"]
-    GO["<b>AgentPrism.Google</b><br/>google"]
-    AZ["<b>AgentPrism.Azure</b><br/>azure-openai"]
-    VO["<b>AgentPrism.Voice</b><br/>speak · transcribe · list_voices"]
-    MCP["<b>AgentPrism.Mcp</b><br/>uzak MCP tool keşfi"]
-    WF["<b>AgentPrism.Workflows</b><br/>workflow yürütme · beş desen"]
+    PG["<b>Tracon.PostgreSql</b><br/>kalıcılık"]
+    OA["<b>Tracon.OpenAI</b><br/>openai · openai-responses · uyumlu uçlar"]
+    AN["<b>Tracon.Anthropic</b><br/>anthropic"]
+    GO["<b>Tracon.Google</b><br/>google"]
+    AZ["<b>Tracon.Azure</b><br/>azure-openai"]
+    VO["<b>Tracon.Voice</b><br/>speak · transcribe · list_voices"]
+    MCP["<b>Tracon.Mcp</b><br/>uzak MCP tool keşfi"]
+    WF["<b>Tracon.Workflows</b><br/>workflow yürütme · beş desen"]
 
-    CORE["<b>AgentPrism.Core</b><br/>IAgentCatalog ◄ IAgentSource[] · kod · MAF · veritabanı<br/>AgentSkillCatalog · AgentPrismSkillsSource<br/>IAgentDecorator[] · kayıt 0 · telemetri 10 · onay 20<br/>AgentDefinitionCompiler · CompiledAgentCache<br/>AgentSessionManager · AgentSessionIdentity<br/>ToolRegistry · ToolMethodScanner · ModelProviderRegistry<br/>AgentPrismMetrics · RunTraceCollector · ToolApprovalRuleEvaluator<br/>InMemory*Store"]
+    CORE["<b>Tracon.Core</b><br/>IAgentCatalog ◄ IAgentSource[] · kod · MAF · veritabanı<br/>AgentSkillCatalog · TraconSkillsSource<br/>IAgentDecorator[] · kayıt 0 · telemetri 10 · onay 20<br/>AgentDefinitionCompiler · CompiledAgentCache<br/>AgentSessionManager · AgentSessionIdentity<br/>ToolRegistry · ToolMethodScanner · ModelProviderRegistry<br/>TraconMetrics · RunTraceCollector · ToolApprovalRuleEvaluator<br/>InMemory*Store"]
 
-    ABS["<b>AgentPrism.Abstractions</b><br/>sözleşmeler"]
+    ABS["<b>Tracon.Abstractions</b><br/>sözleşmeler"]
 
     MAF["<b>Microsoft Agent Framework</b><br/>AIAgent · AgentSession · ChatClientAgent · HarnessAgent<br/>ChatHistoryProvider · AgentSessionStore · Workflows"]
 
-    CLIENT["<b>AgentPrism.Client</b><br/>OpenAPI'den üretilen tipli HTTP istemcisi<br/>AgentPrismApiClient · AddAgentPrismClient()"]
-    CLI["<b>AgentPrism.Cli</b><br/><code>agentprism</code> global tool<br/>migrate · migrate status · health"]
+    CLIENT["<b>Tracon.Client</b><br/>OpenAPI'den üretilen tipli HTTP istemcisi<br/>TraconApiClient · AddTraconClient()"]
+    CLI["<b>Tracon.Cli</b><br/><code>tracon</code> global tool<br/>migrate · migrate status · health"]
 
     T --> HTTP
-    HTTP -->|"IAgentPrismUiProvider · kayıtlıysa"| UI
+    HTTP -->|"ITraconUiProvider · kayıtlıysa"| UI
     HTTP --> PG
     HTTP --> OA
     HTTP --> AN
@@ -101,10 +101,10 @@ tablosu 9. bölümdedir (K-006).
 > tetikler. Böylece ikisi de isteğe bağlı paket kalır. Workflow motoru kayıtlı
 > değilse yalnız çalıştırma uçları `501` döner; tanım yönetimi çalışır (K-118).
 
-> `AgentPrism.Client` **hiçbir AgentPrism paketini referanslamaz** (Faz 83,
+> `Tracon.Client` **hiçbir Tracon paketini referanslamaz** (Faz 83,
 > K-565): DTO'ları OpenAPI belgesinden üretilir, `Abstractions`'ı yeniden
 > kullanmaz — kesikli ok bunu **HTTP üzerinden çağırma** ilişkisi olarak
-> gösterir, derleme-zamanı bağımlılık değil. `AgentPrism.Cli` üç SQL sağlayıcı
+> gösterir, derleme-zamanı bağımlılık değil. `Tracon.Cli` üç SQL sağlayıcı
 > paketini de referanslar (diyagramda yalnız `PostgreSql` gösterildi, `SqlServer`
 > ve `Sqlite` aynı ilişkiyi taşır) — bir global tool olduğu için bu ağırlık
 > tüketicinin grafiğine **girmez** (K-568).
@@ -116,25 +116,25 @@ Bu grafiği bozan bir referans eklemek yasaktır; mimari testi bunu zorlar.
 ## 3. Dört Değişmez Tasarım Kuralı
 
 ### K1 — Sıfır sürpriz
-`AddAgentPrism()` tek başına çalışır. PostgreSQL yapılandırılmazsa tüm `storage` bellek içine düşer. Veritabanı **zorunlu değildir**. Bir geliştirici paketi kurar, tek satır yazar ve çalışan bir arayüz görür.
+`AddTracon()` tek başına çalışır. PostgreSQL yapılandırılmazsa tüm `storage` bellek içine düşer. Veritabanı **zorunlu değildir**. Bir geliştirici paketi kurar, tek satır yazar ve çalışan bir arayüz görür.
 
 ### K2 — Tool'lar yalnız kodda tanımlanır
 Arayüzden agent oluşturulabilir, ancak tool **kodu** yazılamaz. Arayüz sadece kodda kayıtlı tool'lardan seçim yaptırır.
 
 **Arayüz iki dillidir, API tek dillidir.** Konsol metni sözlüklerden gelir ve eksik çeviri **derleme hatasıdır** (K-228); sunucunun `ProblemDetails` metni **İngilizce kalır** (K-232) — aynı hata günlükte, testte ve destek kaydında aynı okunmalıdır.
 
-> **Gerekçe:** Arayüzden çalıştırılabilir kod tanımlanabilseydi, AgentPrism arayüzüne erişen herkes sunucuda kod çalıştırabilirdi.
+> **Gerekçe:** Arayüzden çalıştırılabilir kod tanımlanabilseydi, Tracon arayüzüne erişen herkes sunucuda kod çalıştırabilirdi.
 
 **Kuralın bilinçli istisnaları — iki tanedir**, ikisi de §7'de korumalarıyla
-birlikte anlatılır: **MCP tool'ları** (K-058; süreç *uzakta* çalışır, AgentPrism
+birlikte anlatılır: **MCP tool'ları** (K-058; süreç *uzakta* çalışır, Tracon
 yalnız istemcidir) ve **skill script'leri** (K-066; süreç *bu makinede* çalışır —
 en sıkı istisna). Her ikisinde de arayüz kullanıcısı **yeni kod yazmaz**, var
 olan bir yeteneği etkinleştirir. Bu ayrım kuralın özüdür.
 
 ### K3 — MAF nesneleri sızdırılır, sarmalanmaz
-`AIAgent`, `AgentSession`, `ChatMessage`, `AIFunction` doğrudan kullanılır. AgentPrism bunların üzerine kendi paralel tip hiyerarşisini koymaz.
+`AIAgent`, `AgentSession`, `ChatMessage`, `AIFunction` doğrudan kullanılır. Tracon bunların üzerine kendi paralel tip hiyerarşisini koymaz.
 
-> **Gerekçe:** Sarmalama, MAF'ın her yeni sürümünde bakım borcu üretir ve tüketiciyi MAF ekosisteminden koparır. AgentPrism bir *kontrol düzlemi*dir, bir *soyutlama katmanı* değil.
+> **Gerekçe:** Sarmalama, MAF'ın her yeni sürümünde bakım borcu üretir ve tüketiciyi MAF ekosisteminden koparır. Tracon bir *kontrol düzlemi*dir, bir *soyutlama katmanı* değil.
 
 ### K4 — Her genişleme noktası değiştirilebilir
 Tüm servisler `TryAdd*` ile kaydedilir. Tüketici kendi implementasyonunu daha önce kaydederse onunki kazanır. Aynı kural MAF'ın kendi `Hosting.OpenAI` paketinde de geçerlidir — bu yüzden `IConversationStorage` gibi arayüzleri değiştirebiliyoruz.
@@ -149,7 +149,7 @@ Her oturumda değil, yalnız MAF'a dokunurken okunur.
 
 ---
 
-## 5. Veri Modeli (`agentprism` şeması)
+## 5. Veri Modeli (`tracon` şeması)
 
 Ayrı şema kullanılır. Tüketici uygulamanın `public` şemasına **hiç dokunulmaz**.
 
@@ -170,7 +170,7 @@ erDiagram
 
 > Diyagram **ilişkileri** gösterir; kesikli çizgi (`..`) yabancı anahtarı olmayan
 > mantıksal bağdır. Şemanın kaynağı her zaman
-> `src/AgentPrism.PostgreSql/Migrations/*.sql`'dir; hangi migration'ın hangi
+> `src/Tracon.PostgreSql/Migrations/*.sql`'dir; hangi migration'ın hangi
 > tabloyu eklediği [`arsiv/FAZ-GECMISI.md`](arsiv/FAZ-GECMISI.md) → "Migration
 > geçmişi" altındadır.
 
@@ -226,11 +226,11 @@ Kurallar:
 - **Sorgulanan** serbest yapılı alanlar `jsonb`, sorgulanan yollarda GIN index
 - 🚨 **Opak ve polimorfik yükler `json`, `jsonb` DEĞİL.** `jsonb` nesne anahtarlarını yeniden sıralar; System.Text.Json'ın `$type` ayracı ilk özellik olmak zorundadır. `sessions.state` ve `conversation_items.item` bu yüzden `json`. Karar K-027.
 - `run_events.payload` `text` — `RunEventWriter` argümanları AOT uyumlu kalmak için elle biçimlendirir, çıktı geçerli JSON olmayabilir
-- Birincil anahtarlar `uuid` v7 — zaman sıralı, index dostu; uygulama üretir (`AgentPrismId.NewId()`), `gen_random_uuid()` **kullanılmaz**
+- Birincil anahtarlar `uuid` v7 — zaman sıralı, index dostu; uygulama üretir (`TraconId.NewId()`), `gen_random_uuid()` **kullanılmaz**
 - `RunStatus` ve `RunEventType` `smallint` olarak saklanır; enum değerleri kararlıdır
 - 🚨 **NULL sütun içeren benzersizlik `COALESCE` ile kurulur.** PostgreSQL'de NULL'lar birbirine eşit sayılmaz; `quotas` kapsam benzersizliği `(tenant_id, COALESCE(agent_name, ''), period)` ifadesi üzerinedir ve `ON CONFLICT` yan tümcesi **aynı ifadeyi** yazar
 - Her tabloda `tenant_id` (`text`); `tenants`'a **yabancı anahtar yoktur** — kısıt Faz 6'da gelir
-- Şema adı yapılandırılabilir (`AgentPrismPostgreSqlOptions.SchemaName`); `.sql`'deki `{schema}` yer tutucusu doğrulamadan sonra değiştirilir (K-029)
+- Şema adı yapılandırılabilir (`TraconPostgreSqlOptions.SchemaName`); `.sql`'deki `{schema}` yer tutucusu doğrulamadan sonra değiştirilir (K-029)
 - `run_events` partition'ı **açılmadı** (K-063 → K-199): 100k satırda parti silme saniyede ~720k satır siliyor, hedef yükün çok üzerinde. `retention_policies` tabloyu sınırlı tutar
 
 ---
@@ -240,13 +240,13 @@ Kurallar:
 ```mermaid
 flowchart TD
     C["İstemci"]
-    H["<b>AgentPrism.AspNetCore</b> — erişim filtresi<br/>loopback / bearer / policy"]
+    H["<b>Tracon.AspNetCore</b> — erişim filtresi<br/>loopback / bearer / policy"]
     V1["/v1/* eşlemesi<br/>agent adı = model ?? metadata.entity_id<br/>oturum = conversation ?? previous_response_id ?? yeni yanıt kimliği<br/>güvenilmez kimlikte kiracı sahipliği doğrulanır"]
     R["IAgentCatalog.ResolveAsync(name, culture)<br/>culture = AgentRunRequest.Culture, Accept-Language OKUNMAZ (Faz 72)"]
     SRC["Kaynaklar önceliğe göre<br/>CodeAgentSource 0 → MAF köprüsü 10 → DefinitionStoreAgentSource 100"]
     COMP["CompiledAgentCache.GetOrAddAsync(name, version, bagimlilikParmakIzi, culture)<br/>AgentDefinitionCompiler.CompileAsync(definition, callableAgents, culture)<br/>InstructionCultureResolver: culture → ebeveyn alt etiket → varsayilan Instructions<br/>kiraci egress + BYOK kimlik bilgisi burada cozulur (Faz 65)"]
     DEC["IAgentDecorator[] — Order'a göre, KÜÇÜK olan dışta"]
-    REC["<b>RunRecordingAgent</b> · Order 0<br/>kök span agentprism.run burada açılır<br/>AgentRunScope burada yayımlanır<br/>RunEventWriter sıra numarasını üretir<br/>store hatası çalıştırmayı KESMEZ"]
+    REC["<b>RunRecordingAgent</b> · Order 0<br/>kök span tracon.run burada açılır<br/>AgentRunScope burada yayımlanır<br/>RunEventWriter sıra numarasını üretir<br/>store hatası çalıştırmayı KESMEZ"]
     OTEL["<b>OpenTelemetryAgent</b> · Order 10<br/>invoke_agent span'i"]
     APR["<b>ToolApprovalAgent</b> · Order 20<br/>otomatik onay kuralları"]
     RUN["AIAgent.RunAsync / RunStreamingAsync"]
@@ -284,7 +284,7 @@ flowchart TD
 >
 > 🚨 Aynı kuralın ikinci hâli **akışlı** yolda geçerlidir: bir
 > `async IAsyncEnumerable` gövdesinde yapılan `AsyncLocal` ataması `yield return`
-> sınırını aşmaz. `AgentPrismRunContext.SetCurrent(...)` bu yüzden her
+> sınırını aşmaz. `TraconRunContext.SetCurrent(...)` bu yüzden her
 > `MoveNextAsync`'ten hemen önce tekrarlanır (Faz 12'de ölçüldü).
 
 İki sapma vardır. **Deney ataması:** yalnız `POST /api/agents/{name}/run`
@@ -333,10 +333,10 @@ Derleyicinin içi (`AgentDefinitionCompiler.Compile`):
 flowchart LR
     D["AgentDefinition"] --> M["IModelProviderRegistry<br/>→ IChatClient"]
     D --> T["IToolRegistry<br/>→ AIFunction[]"]
-    D --> S["AgentSkillCatalog<br/>→ AgentPrismSkillsSource"]
+    D --> S["AgentSkillCatalog<br/>→ TraconSkillsSource"]
     D --> G["CallableAgentResolver<br/>→ ChildAgentInvoker[]"]
     D --> H{"Harness var mı?"}
-    T -.->|"bilinmeyen tool adı"| E["AgentPrismCompilationException"]
+    T -.->|"bilinmeyen tool adı"| E["TraconCompilationException"]
     M -.->|"bilinmeyen sağlayıcı"| E
     S -->|"bilinmeyen skill"| E
     G -.->|"bilinmeyen agent adı"| E
@@ -419,15 +419,15 @@ konusu hakları · skill script çalıştırma · kota ve webhook imzası · MCP
 ## 8. Sürüm Politikası
 
 `Microsoft.Agents.AI.Hosting` (preview) ve `.Hosting.OpenAI` (alpha) hâlâ ön
-sürümdür. Ön sürüm bağımlılığı **yalnızca** `AgentPrism.AspNetCore` içinde
-toplanır (K-008). AgentPrism o iki paket GA olana kadar `1.0.0-preview.N`
+sürümdür. Ön sürüm bağımlılığı **yalnızca** `Tracon.AspNetCore` içinde
+toplanır (K-008). Tracon o iki paket GA olana kadar `1.0.0-preview.N`
 yayınlanır — sonra tek pakette sürüm güncellemesi yeterlidir.
 
 ---
 
 ## 9. Trim ve AOT
 
-Bayrak paket başına `AgentPrismAotCompatible` ile uygulanır (K-006); güncel liste
+Bayrak paket başına `TraconAotCompatible` ile uygulanır (K-006); güncel liste
 `grep -l "AotCompatible>false" src/*/*.csproj` ile doğrulanır — burada
 tekrarlanmaz.
 

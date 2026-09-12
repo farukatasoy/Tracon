@@ -1,19 +1,19 @@
 ---
 title: Read contract views
-description: Query AgentPrism's run data directly with your own SQL or an EF Core keyless entity, through a versioned, read-only view instead of the internal tables.
+description: Query Tracon's run data directly with your own SQL or an EF Core keyless entity, through a versioned, read-only view instead of the internal tables.
 slug: reference/read-views
 ---
 
 Two ways exist today to put a run's cost or status next to your own entity in a
 report: page through `GET /api/runs` and join in memory, or connect straight to
-AgentPrism's internal tables and risk breaking on the next release. `runs_v1` is a
+Tracon's internal tables and risk breaking on the next release. `runs_v1` is a
 third way — a narrow, versioned, read-only SQL view built for exactly this.
 
 ```mermaid
 flowchart LR
     accTitle: Where runs_v1 sits
-    accDescr: AgentPrism's store layer writes the runs table; the runs_v1 view reads it and is queried either by your own raw SQL or by an EF Core keyless entity, alongside the existing HTTP API path for writes and paged reads.
-    S["AgentPrism's store layer<br/>(writes)"] --> T["runs table"]
+    accDescr: Tracon's store layer writes the runs table; the runs_v1 view reads it and is queried either by your own raw SQL or by an EF Core keyless entity, alongside the existing HTTP API path for writes and paged reads.
+    S["Tracon's store layer<br/>(writes)"] --> T["runs table"]
     T --> V["runs_v1 view<br/>(read-only, versioned)"]
     V --> Q["Your own SQL"]
     V --> E["EF Core keyless entity"]
@@ -26,7 +26,7 @@ flowchart LR
 migration set on all three SQL providers: PostgreSQL, SQL Server, and SQLite.
 
 ```csharp
-builder.AddAgentPrism()
+builder.AddTracon()
        .UsePostgreSql(o =>
        {
            o.ConnectionString = connectionString;
@@ -34,16 +34,16 @@ builder.AddAgentPrism()
        });
 ```
 
-The equivalent setting exists on `AgentPrismSqlServerOptions.EnableReadViews` and
-`AgentPrismSqliteOptions.EnableReadViews`. It defaults to `false`<!-- claim:option AgentPrismSqliteOptions.EnableReadViews=false -->: a deployment
+The equivalent setting exists on `TraconSqlServerOptions.EnableReadViews` and
+`TraconSqliteOptions.EnableReadViews`. It defaults to `false`<!-- claim:option TraconSqliteOptions.EnableReadViews=false -->: a deployment
 that never turns it on pays nothing for it, and never sees a `runs_v1` object in
 its database.
 
 | Provider | Object name |
 |---|---|
-| PostgreSQL | `{schema}.runs_v1` (default schema `agentprism`) |
-| SQL Server | `{schema}.runs_v1` (default schema `agentprism`) |
-| SQLite | `{prefix}runs_v1` (default prefix `agentprism_`, no separating dot) |
+| PostgreSQL | `{schema}.runs_v1` (default schema `tracon`) |
+| SQL Server | `{schema}.runs_v1` (default schema `tracon`) |
+| SQLite | `{prefix}runs_v1` (default prefix `tracon_`, no separating dot) |
 
 ## Columns
 
@@ -97,7 +97,7 @@ Map the view as a keyless entity — it has no primary key you should rely on fo
 change tracking, and you are not writing through it:
 
 ```csharp
-public sealed class AgentPrismRun
+public sealed class TraconRun
 {
     public Guid RunId { get; set; }
     public string TenantId { get; set; } = default!;
@@ -121,15 +121,15 @@ public sealed class AgentPrismRun
     public string? ErrorType { get; set; }
 }
 
-modelBuilder.Entity<AgentPrismRun>()
+modelBuilder.Entity<TraconRun>()
     .HasNoKey()
-    .ToView("runs_v1", "agentprism");
+    .ToView("runs_v1", "tracon");
 ```
 
 Three things to keep in mind:
 
 - **`.ToView(...)` never appears in your own `dotnet ef migrations add` output.**
-  AgentPrism's migration creates the view; your own migration history stays
+  Tracon's migration creates the view; your own migration history stays
   untouched. This is why the two migration steps never conflict — see
   [Two migration steps, one order that matters less than you think](/guides/ef-core/#two-migration-steps-one-order-that-matters-less-than-you-think).
 - **Your own query still needs the tenant filter** — the view does not apply one
@@ -148,6 +148,6 @@ version afterward.
 
 ## Read next
 
-- [Two connection planes — EF Core and AgentPrism](/guides/ef-core/) — sharing a connection pool, and what an EF `DbContext` does not get
+- [Two connection planes — EF Core and Tracon](/guides/ef-core/) — sharing a connection pool, and what an EF `DbContext` does not get
 - [Observability](/guides/observability/) — run statistics through the HTTP API, the same numbers this view reads
-- [Choose a migration strategy](/guides/production/#choose-a-migration-strategy) — `AutoApplyMigrations` and running `agentprism migrate` as its own deploy step
+- [Choose a migration strategy](/guides/production/#choose-a-migration-strategy) — `AutoApplyMigrations` and running `tracon migrate` as its own deploy step

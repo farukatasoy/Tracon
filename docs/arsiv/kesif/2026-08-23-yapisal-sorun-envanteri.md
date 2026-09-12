@@ -102,7 +102,7 @@ Her faz dokümanının "Gerçekleşen Public API" bölümü kaynaktır. Sürüm 
 **Ölçüm:** [`Directory.Packages.props:37-51`](../../../Directory.Packages.props) —
 `Microsoft.Agents.AI.Hosting` **1.18.0-preview**, `.Hosting.OpenAI` **1.18.0-alpha**,
 `.Hosting.A2A` / `.Hosting.AspNetCore` preview, `A2A.AspNetCore` preview2.
-`README.md` bunu doğru beyan ediyor: "AgentPrism publishes as `1.0.0-preview.N`
+`README.md` bunu doğru beyan ediyor: "Tracon publishes as `1.0.0-preview.N`
 until both reach GA."
 
 **Neden P0:** Bu, kalem 1'in **kontrol dışı** bileşenidir. Faz 7 bitse bile stabil
@@ -110,7 +110,7 @@ until both reach GA."
 `1.0.0-preview.N` ile çıkmak, yoksa MAF GA'sını beklemek. İkincisi seçilirse
 bekleme süresi kimsenin takviminde değildir.
 
-**Kapsam sınırı:** K-008 preview bağımlılığını yalnız `AgentPrism.AspNetCore`
+**Kapsam sınırı:** K-008 preview bağımlılığını yalnız `Tracon.AspNetCore`
 içinde tutuyor. Diğer 20 paket GA bağımlılıklıdır ve **ayrı** stabil sürümle
 çıkabilir. Bu ölçülmemiş bir seçenektir.
 
@@ -125,7 +125,7 @@ içinde tutuyor. Diğer 20 paket GA bağımlılıklıdır ve **ayrı** stabil s�
 > **Plan anında ölçülen düzeltme:** (a) kuralı **sevk edilen bir analyzer kuralı
 > olarak yazılamaz** — "async metotta ambient yazımı" bugünkü kodda altı kez öter
 > ve altısı da doğrudur (`AsyncLocal` yazımı aşağı akar, yukarı akmaz). Faz 93
-> sınıfı üçe böler: `APG0501` (akışlı yolda yineleme dışı yazım) ve `APG0502`
+> sınıfı üçe böler: `TRC0501` (akışlı yolda yineleme dışı yazım) ve `TRC0502`
 > (ambient kapsamın `IDisposable`'ı atıldı) sevk edilir; yardımcı-metot vakası
 > taban çizgili bir repo kapısı olur. (b) kuralının C# tarafı **zaten kapalıdır**
 > (`RunCost.Total()`, `CostTotals.Total()`); canlı 18 vakası SQL metnindedir ve
@@ -143,7 +143,7 @@ eklenince yalnız SQL düzeltildi ve bir kiracı maliyet tavanını aşabilirdi 
 şartına bağlı. Bu bir kapı değil, bir umuttur. Kanıtlanmış kusur sınıfı bu şekilde
 kapanmaz.
 
-**Neden faz:** [`AgentPrism.Generators`](../../../src/AgentPrism.Generators) zaten
+**Neden faz:** [`Tracon.Generators`](../../../src/Tracon.Generators) zaten
 analyzer taşıyor (`APG*`). Kural yazımı, tanı kodu, test ve `.editorconfig`
 severity kaydı gerektirir. En az üç kural adayı var: (a) `async` metotta
 `AsyncLocal`/`Activity` yazımı, (b) toplama alan `record`'da elle yazılmış toplam
@@ -191,13 +191,13 @@ baseline dosyası + bir kabul case'i.
 ### 6. CI matrix'i Docker gerçeğiyle uyuşmuyor · ⚡ Tek oturum
 
 > **Durum:** ✅ Kapandı (2026-08-23, aynı oturumda) — yeni
-> [`AgentPrism.no-docker.slnf`](../../../AgentPrism.no-docker.slnf) (K-268
-> desenini izler) `AgentPrism.PostgreSql.IntegrationTests` ve
-> `AgentPrism.SqlServer.IntegrationTests`'i dışlar; `windows-latest` job'u
-> artık `dotnet test AgentPrism.slnx` yerine bu filtreyi koşar. Kalem 13'ün
+> [`Tracon.no-docker.slnf`](../../../Tracon.no-docker.slnf) (K-268
+> desenini izler) `Tracon.PostgreSql.IntegrationTests` ve
+> `Tracon.SqlServer.IntegrationTests`'i dışlar; `windows-latest` job'u
+> artık `dotnet test Tracon.slnx` yerine bu filtreyi koşar. Kalem 13'ün
 > taşıması sayesinde InMemory sözleşme testleri bu filtrede de yaşıyor.
 
-**Ölçüm:** [`ci.yml`](../../../.github/workflows/ci.yml) `dotnet test AgentPrism.slnx`
+**Ölçüm:** [`ci.yml`](../../../.github/workflows/ci.yml) `dotnet test Tracon.slnx`
 komutunu `ubuntu-latest` **ve** `windows-latest` üzerinde koşuyor. Integration
 projeleri Testcontainers ile Linux image başlatıyor (`pgvector/pgvector:pg18`).
 Testlerde tek bir OS/Docker guard yok — `OSPlatform` / `IsWindows` taraması
@@ -225,13 +225,13 @@ kısaltır — bugün Docker isteyen 4 proje **her** koşuda hatta.
 > referans almayan tip `internal`'a çekilir" mekanik olarak uygulanamaz: ad
 > araması üç yanlış pozitif sınıfı üretir — uzatma metodu sınıfı (çağrı yerinde
 > adı yazılmaz; hiçbir yerde geçmeyen 57 tipin **22'si** `*Extensions`),
-> öznitelik tipi (`[AgentPrismTool]` yazılır, `AgentPrismToolAttribute` değil) ve
+> öznitelik tipi (`[TraconTool]` yazılır, `TraconToolAttribute` değil) ve
 > `<see cref>` yorumu (kullanım değildir ama `internal` olunca CS1574 üretir).
 > Faz 96 bunun yerine **erişilebilirlik** ölçütünü kullanır: başka bir public
 > üye imzasında geçmeyen tip yapraktır. Ölçüldü: 714 tipin **129'u** yaprak,
 > 23'ü `interface` (genişleme noktası), kalan **106** aday havuzu. Elle
 > doğrulamayla kapsama giren aday sayısı **96**'dır. 6.301 API girdisi; 4.761'i tek pakette
-([`AgentPrism.Abstractions`](../../../src/AgentPrism.Abstractions/PublicAPI.Unshipped.txt)).
+([`Tracon.Abstractions`](../../../src/Tracon.Abstractions/PublicAPI.Unshipped.txt)).
 68 interface, 76 `Options` sınıfı, 1.502 property.
 
 > 🚨 **Yeniden ölçüm (2026-08-24):** toplam **8.063** girdi. Asıl hedef girdi
@@ -259,9 +259,9 @@ tip, dolum listesini kalıcı olarak küçültür.
 > Asıl kazanç satır değil kusur sınıfıdır: maliyet toplama ifadesi **18 yerde**
 > elle yazılıdır. Faz 94 iki ekseni birden alır.
 
-**Ölçüm:** [`SqlServerQueries.cs`](../../../src/AgentPrism.SqlServer/Internal/SqlServerQueries.cs)
-2.477 + [`PostgresQueries.cs`](../../../src/AgentPrism.PostgreSql/Internal/PostgresQueries.cs)
-2.282 + [`SqliteQueries.cs`](../../../src/AgentPrism.Sqlite/Internal/SqliteQueries.cs)
+**Ölçüm:** [`SqlServerQueries.cs`](../../../src/Tracon.SqlServer/Internal/SqlServerQueries.cs)
+2.477 + [`PostgresQueries.cs`](../../../src/Tracon.PostgreSql/Internal/PostgresQueries.cs)
+2.282 + [`SqliteQueries.cs`](../../../src/Tracon.Sqlite/Internal/SqliteQueries.cs)
 2.241 satır. Query adları ve döndürülen sütun sırası özdeş; yalnız metin farklı.
 
 **Neden P1:** K-483'ün doğduğu yapı budur. Dördüncü sağlayıcı borcu %33 büyütür.
@@ -293,7 +293,7 @@ faz bir aileyi kapatır ve manuel setten siler. Öncelik sırası: kiracı/güve
 > **Durum:** 📋 Planlandı (2026-08-24) — [Faz 95](../fazlar/95-GERCEK-TUKETICI-KAPISI.md).
 >
 > 🚨 **Plan anında bu maddenin kanıtı KISMEN YANLIŞLANDI.** "Paket olarak
-> tüketilebiliyor mu" sorusu zaten kapılıdır: `AgentPrism.Templates.Tests`
+> tüketilebiliyor mu" sorusu zaten kapılıdır: `Tracon.Templates.Tests`
 > çözümü `pack` eder, `artifacts/package/release`'i yerel feed yapar, global
 > paket önbelleğini temizler ve `PackageReference` ile beslenen bir proje
 > üretir. Üstünde 10 case koşuyor — derleme sıfır uyarı, uygulama ayağa
@@ -313,7 +313,7 @@ uygulama var ve ikisi de CI'da **çalıştırılmıyor** (yalnız derleniyor).
 
 **Neden faz:** Çözüm bir smoke-run kapısıdır: sample uygulamayı CI'da ayağa
 kaldır, gerçek bir `run` koştur, `run` kaydını doğrula. Fake model provider zaten
-var (`AgentPrism.Testing`).
+var (`Tracon.Testing`).
 
 ---
 
@@ -325,11 +325,11 @@ var (`AgentPrism.Testing`).
 
 **Ölçüm:** **12** csproj `AotCompatible=false` taşıyor —
 `AspNetCore`, `Cli`, `Client`, `SqlServer`, `Templates`, `UI`, `Mcp`,
-`Generators`, `Sqlite`, `Workflows`, `Testing` ve çatı paketi **`AgentPrism`**.
-`AgentPrism.Client` AOT denemesi 146 `IL2026`/`IL3050` tanısıyla terk edildi (K-567).
+`Generators`, `Sqlite`, `Workflows`, `Testing` ve çatı paketi **`Tracon`**.
+`Tracon.Client` AOT denemesi 146 `IL2026`/`IL3050` tanısıyla terk edildi (K-567).
 SQLite AOT/publish ölçümü yapılmadı (K-196).
 
-**Neden P1:** Çatı paketi `AgentPrism`'i referans alan tüketici, "AOT uyumlu paket
+**Neden P1:** Çatı paketi `Tracon`'i referans alan tüketici, "AOT uyumlu paket
 ailesi" algısıyla gelirse duvara çarpar. Bu bir doğruluk sorunudur, kod sorunu değil.
 
 **Neden tek oturum:** Paket bazında yetenek matrisini `README` ve `docs-site`'ta
@@ -345,9 +345,9 @@ beyan etmek. Kod değişmez.
 > (`settings.tsx:129`, `settings.inMemoryNotice`). Eksik olan **sunucu tarafı**
 > sinyalidir; `IsProduction` kontrolü kodda hiç yoktur.
 
-**Ölçüm:** [`AgentPrismServiceCollectionExtensions.cs:514-605`](../../../src/AgentPrism.Core/AgentPrismServiceCollectionExtensions.cs#L514-L605)
+**Ölçüm:** [`TraconServiceCollectionExtensions.cs:514-605`](../../../src/Tracon.Core/TraconServiceCollectionExtensions.cs#L514-L605)
 **27** InMemory store kaydeder (toplam 5.382 satır). Uyarı yalnız bir XML
-yorumunda: "Use `AgentPrism.PostgreSql` in production". Diagnostics
+yorumunda: "Use `Tracon.PostgreSql` in production". Diagnostics
 `persistenceProvider = "InMemory"` raporluyor ama bunu bir teşhis uyarısına
 çevirmiyor.
 
@@ -355,7 +355,7 @@ yorumunda: "Use `AgentPrism.PostgreSql` in production". Diagnostics
 belleğinde çalışır: restart'ta veri kaybı, tek instance, sınırsız bellek büyümesi.
 
 **Neden tek oturum:** Sağlık/teşhis yüzeyi zaten var
-([`AgentPrismDiagnosticsCollector.cs:108`](../../../src/AgentPrism.Core/Diagnostics/AgentPrismDiagnosticsCollector.cs#L108)).
+([`TraconDiagnosticsCollector.cs:108`](../../../src/Tracon.Core/Diagnostics/TraconDiagnosticsCollector.cs#L108)).
 `Production` ortamında InMemory tespit edilirse bir `Warning` tanısı üretmek yeterli.
 
 ---
@@ -365,14 +365,14 @@ belleğinde çalışır: restart'ta veri kaybı, tek instance, sınırsız belle
 > **Durum:** ✅ Kapandı (2026-08-23, aynı oturumda).
 
 **Ölçüm (tespit anında):** `InMemoryStoreContractTests.cs`
-`tests/AgentPrism.PostgreSql.IntegrationTests/Contracts/` altındaydı; XML'i
+`tests/Tracon.PostgreSql.IntegrationTests/Contracts/` altındaydı; XML'i
 "It requires no database" diyordu, ama dosya PostgreSQL integration
 projesindeydi ve o assembly `[assembly: AssemblyFixture(typeof(PostgresFixture))]`
 taşıyordu.
 
 **Çözüm:** Dosya
-[`tests/AgentPrism.Core.UnitTests/Contracts/InMemoryStoreContractTests.cs`](../../../tests/AgentPrism.Core.UnitTests/Contracts/InMemoryStoreContractTests.cs)'a
-taşındı; `AgentPrism.Core.UnitTests.csproj` paylaşılan sözleşme testlerini
+[`tests/Tracon.Core.UnitTests/Contracts/InMemoryStoreContractTests.cs`](../../../tests/Tracon.Core.UnitTests/Contracts/InMemoryStoreContractTests.cs)'a
+taşındı; `Tracon.Core.UnitTests.csproj` paylaşılan sözleşme testlerini
 (`TenantCoverageTests.cs` hariç — o `typeof(SqlRunStore)` ile SQL'e sabitli)
 bağladı. 1.801 test, Docker olmadan yeşil.
 
@@ -380,7 +380,7 @@ bağladı. 1.801 test, Docker olmadan yeşil.
 satırlık implementasyonu hiç sınanmıyordu. Doküman ile gerçek çelişiyordu.
 
 **Neden tek oturum:** Dosyayı Docker istemeyen bir projeye taşımak
-(`AgentPrism.Core.UnitTests` + paylaşılan `tests/Shared` referansı). Kalem 6'nın
+(`Tracon.Core.UnitTests` + paylaşılan `tests/Shared` referansı). Kalem 6'nın
 CI ayrıştırmasıyla birlikte koşulmalı.
 
 ---
@@ -394,14 +394,14 @@ CI ayrıştırmasıyla birlikte koşulmalı.
 > 🚨 Yeniden ölçüldü 2026-08-25 ve **iddianın yarısı düştü**: hız sınırının tek
 > süreç oluşu zaten beyan edilmiştir — `InboundTriggerRateLimiter.cs:8-13` "PER
 > INSTANCE" yazar ve `guides/inbound-triggers.md:156-160` bir `caution` bloğu
-> taşır. Gerçek boşluk ikidir: `AgentPrismRateLimitOptions` XML'i ("lives in
+> taşır. Gerçek boşluk ikidir: `TraconRateLimitOptions` XML'i ("lives in
 > memory" der, çok örnekli kapsamı yazmaz) ve `guides/production.md` (hiç
 > geçmez). RLS kararı ise hiçbir yerde kayıtlı değildi — `KARARLAR.md`,
 > `MIMARI-GUVENLIK.md` ve `docs-site/` taramaları **0** döndü.
 
 **Ölçüm:** `ROW LEVEL SECURITY` taraması `src/` altında **0** sonuç — kiracı
 yalıtımı tümüyle uygulama katmanındadır (`ITenantContext` + `TenantIsolationTests`).
-[`InboundTriggerRateLimiter`](../../../src/AgentPrism.Core/Triggers/InboundTriggerRateLimiter.cs)
+[`InboundTriggerRateLimiter`](../../../src/Tracon.Core/Triggers/InboundTriggerRateLimiter.cs)
 process belleğindedir. SQL Server gerçek `mssql/server` üzerinde doğrulanmadı (K-186).
 
 **Neden P1:** Çok örnekli kurulumda kota ve kilit davranışı tek süreç varsayımına
@@ -422,7 +422,7 @@ uygulama katmanı tek hat mı kalacak?
 > `ClientCoverageTests` · `ClientDescriptionBaselineTests` (Faz 83, K-424).
 > Kazanç düşük, iş orta — kalem kapandı.
 
-**Ölçüm:** [`AgentPrismApiClient.g.cs`](../../../src/AgentPrism.Client/Generated/AgentPrismApiClient.g.cs)
+**Ölçüm:** [`TraconApiClient.g.cs`](../../../src/Tracon.Client/Generated/TraconApiClient.g.cs)
 25.128 satır, **14** `#pragma warning disable` (10'u ilk 20 satırda, nullability dahil).
 
 **Neden P1:** `TreatWarningsAsErrors` tüm repoda geçerliyken en çok tüketilen
@@ -453,10 +453,10 @@ sürüm sonrası fark edilir.
 
 > **Durum:** 📋 Dört faza ayrıldı (2026-08-26) — [Faz 105](../fazlar/105-DI-BILESEN-KOKU-AYRISTIRMA.md) DI composition root · [Faz 106](../fazlar/106-AGENT-DERLEYICI-AYRISTIRMA.md) compiler · [Faz 107](../fazlar/107-RUN-KAYIT-AKISI-AYRISTIRMA.md) run recording · [Faz 108](../fazlar/108-BELLEK-ICI-RUN-STORE-AYRISTIRMA.md) in-memory run store. Tek mega refactor reddedildi; dört dosya farklı sözleşme ve test sınırı taşır.
 
-[`AgentPrismServiceCollectionExtensions.cs`](../../../src/AgentPrism.Core/AgentPrismServiceCollectionExtensions.cs)
-2.662 satır / 47 metot · [`AgentDefinitionCompiler.cs`](../../../src/AgentPrism.Core/Compilation/AgentDefinitionCompiler.cs)
-1.617 satır · [`RunRecordingAgent.cs`](../../../src/AgentPrism.Core/Recording/RunRecordingAgent.cs)
-1.331 satır · [`InMemoryRunStore.cs`](../../../src/AgentPrism.Core/Storage/InMemoryRunStore.cs) 1.432 satır.
+[`TraconServiceCollectionExtensions.cs`](../../../src/Tracon.Core/TraconServiceCollectionExtensions.cs)
+2.662 satır / 47 metot · [`AgentDefinitionCompiler.cs`](../../../src/Tracon.Core/Compilation/AgentDefinitionCompiler.cs)
+1.617 satır · [`RunRecordingAgent.cs`](../../../src/Tracon.Core/Recording/RunRecordingAgent.cs)
+1.331 satır · [`InMemoryRunStore.cs`](../../../src/Tracon.Core/Storage/InMemoryRunStore.cs) 1.432 satır.
 
 Her yeni yetenek DI dosyasına dokunuyor; `TryAdd*` sırası gözden kaçma riski
 dosyayla birlikte büyüyor. Faz 20'de 1.068 testin kaçırdığı imza–gövde kusuru tam
@@ -603,7 +603,7 @@ sıfırdır; yayından sonra bir sürüm kararıdır.
 
 - **8.063** `Unshipped` girdi, **716** public tip. `Shipped.txt` dosyalarının
   hepsi boştur (yalnız `#nullable enable`).
-- Tip dağılımı: **339** tip `AgentPrism.Abstractions`'ta.
+- Tip dağılımı: **339** tip `Tracon.Abstractions`'ta.
 - 🚨 **Hedef girdi değil tiptir.** `Abstractions`'ın 4.760 girdisinin
   **1.250'si `get`**, **1.170'i `set/init`** erişimcisidir. Bunlar tip
   kaldırılmadan küçülmez. Gözden geçirilecek liste **716 satırdır**, 8.063 değil:
@@ -625,7 +625,7 @@ dışından hiç referans almayan tip `internal`'a çekilir. Bu ölçüt `Testin
 ### 7.4 Faz 97 yazacak oturuma — ölçülmüş zemin
 
 > **Durum:** 📋 Planlandı (2026-08-24) — [Faz 97](../fazlar/97-SURUM-POLITIKASI-VE-YAYIN-PROVASI.md). Kapsam plan turunda **daraldı**: faz yayını kendisi yapmaz. `v1.0.0-preview.1` etiketi geri alınamaz olduğu için kullanıcının elinde kalır (👤); faz sürüm politikasını, yayın provası kapısını, paket ikonunu ve `PackageValidation`'ı kapatır. 🚨 `Shipped.txt` dolumu **GA'ya ertelendi** — bu, aşağıdaki zemin notunun ve Faz 7'nin özgün DoD'sinin bilinçli olarak değiştirilmesidir.
-> Plan turunda yeniden ölçüldü: Faz 96 sonrası **7.532** girdi · **618** tip (bölüm 7.3'ün 8.063/716 değeri artık bayattır); `dotnet pack` **19** paket üretiyor ve ön sürüm bağımlılığı beyan eden **tek** paket `AgentPrism.AspNetCore` (K-008 tutuyor); `agentprism`, `agentprism.core` ve `@agentprism/client` kimliklerinin üçü de **boşta**.
+> Plan turunda yeniden ölçüldü: Faz 96 sonrası **7.532** girdi · **618** tip (bölüm 7.3'ün 8.063/716 değeri artık bayattır); `dotnet pack` **19** paket üretiyor ve ön sürüm bağımlılığı beyan eden **tek** paket `Tracon.AspNetCore` (K-008 tutuyor); `tracon`, `tracon.core` ve `@tracon/client` kimliklerinin üçü de **boşta**.
 
 **Kapsam:** madde 2 (sürüm politikası) + madde 1 (Faz 7 dolumu ve yayın).
 [Faz 7](../fazlar/07-SAGLAMLASTIRMA-VE-YAYIN.md) 2026-08-02'den beri
@@ -645,15 +645,15 @@ dışından hiç referans almayan tip `internal`'a çekilir. Bu ölçüt `Testin
   **İlk `v1.0.0-preview.1` etiketi hem NuGet hem npm yayınını başlatır.**
   Fazın kendi DoD'si bu tetiği ve geri alınamazlığını ele almalıdır.
 - Ön sürüm MAF bağımlılıkları [`Directory.Packages.props:37-51`](../../../Directory.Packages.props)
-  içindedir ve K-008 gereği yalnız `AgentPrism.AspNetCore`'a girer.
+  içindedir ve K-008 gereği yalnız `Tracon.AspNetCore`'a girer.
 - Paketlenen proje sayısı **19**'dur (`src/` altındaki 20 projeden
-  `AgentPrism.Generators` `IsPackable=false`; `AgentPrism.Sql.Shared` bir
+  `Tracon.Generators` `IsPackable=false`; `Tracon.Sql.Shared` bir
   `.csproj` DEĞİLDİR — üç sağlayıcıya derlenen paylaşılan kaynak dizinidir).
 
 **Kapsama giren doküman doğruluğu kalemi:**
 [`reference/compatibility.md:24`](../../../docs-site/src/content/docs/reference/compatibility.md)
 başlığı **"The 17 packages"** diyor ve 17 satır listeliyor; depo **19** paket
-üretiyor. `AgentPrism.Client` ve `AgentPrism.Cli` o tabloda yoktur
+üretiyor. `Tracon.Client` ve `Tracon.Cli` o tabloda yoktur
 (`packages.md` ikisini de kapsıyor — eksik olan yalnız bu sayfa).
 
 ### 7.5 🚨 Bu turun yöntem dersi — atlanmaması gereken
@@ -667,7 +667,7 @@ başlığı **"The 17 packages"** diyor ve 17 satır listeliyor; depo **19** pak
 | Madde 10: "sample'lar CI'da çalıştırılmıyor" → genel tüketim boşluğu | `pack → yerel feed → PackageReference → derle → ayağa kalk` zinciri **zaten kurulu ve CI'da**. Gerçek boşluk yalnız **gerçek `run`**'dı. Faz 95'in kapsamı bu yüzden envanterin tarif ettiğinin çok altındadır |
 | Bölüm 7.3'ün ölçütü: "`src/` dışından referans almayan tip `internal`'a çekilir" | **Uygulanamaz.** Ad araması uzatma metodu sınıfını, öznitelik tipini ve `<see cref>` bağını göremez. Körü körüne uygulansaydı her paketin `Add*` giriş noktası kapanırdı (22 vaka ölçüldü) |
 | Bölüm 7.3'ün alt önerisi: `Abstractions`'ın tek tüketicili 30 tipi `Core`'a taşınır | **Mekanik olarak imkânsız + kazancı sıfır.** 30 tipin 24'ü yine `Abstractions`'ın kendi public imzalarında geçiyor; `Core`, `Abstractions`'a bağımlı olduğu için taşınamazlar. Taşınabilen 6 tipin hepsi genişleme noktası ve public kalmak zorunda. Net yüzey azalması: **0 tip** |
-| "`AgentPrism.Client` 302 public tipi takipsiz — sessiz boşluk" *(bu planlama turunda üretilen iddia)* | **Bilinçli karar.** `src/Directory.Build.props:66-77` dört projeyi `AgentPrismPublicApiTrackingEnabled=false` ile hariç tutuyor (K-424), gerekçesi yazılı ve drift kapısı gerçekten var (`ClientDescriptionBaselineTests`, Faz 83). Faz 96 istisnalara dokunmaz; yalnız "yeni packable paket beyansız eklenemez" kapısını kurar |
+| "`Tracon.Client` 302 public tipi takipsiz — sessiz boşluk" *(bu planlama turunda üretilen iddia)* | **Bilinçli karar.** `src/Directory.Build.props:66-77` dört projeyi `TraconPublicApiTrackingEnabled=false` ile hariç tutuyor (K-424), gerekçesi yazılı ve drift kapısı gerçekten var (`ClientDescriptionBaselineTests`, Faz 83). Faz 96 istisnalara dokunmaz; yalnız "yeni packable paket beyansız eklenemez" kapısını kurar |
 
 Ders: `faz-planlama` Adım 1 (kanıtı yeniden doğrula) bu dosyadan gelen her
 kalem için **zorunludur**. Doğrulanmadan plana yazılan bir kanıt, var olmayan

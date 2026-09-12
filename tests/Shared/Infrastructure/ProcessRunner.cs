@@ -1,7 +1,7 @@
 using System.Diagnostics;
 using System.Text;
 
-namespace AgentPrism.Tests.Common;
+namespace Tracon.Tests.Common;
 
 /// <summary>Runs a CLI command as a subprocess and collects its output.</summary>
 /// <remarks>
@@ -24,7 +24,7 @@ namespace AgentPrism.Tests.Common;
 /// remain. Once the nodes are killed, the fixture resumes IMMEDIATELY.
 /// </para>
 /// <para>
-/// Phase 157 moved this type out of <c>AgentPrism.Package.Tests</c> and into
+/// Phase 157 moved this type out of <c>Tracon.Package.Tests</c> and into
 /// <c>tests/Shared/Infrastructure</c>, linked by every test project that needs
 /// it. <see cref="StartAsync"/> was added there for the two-process failure
 /// proof, which needs a subprocess that keeps RUNNING and can be killed —

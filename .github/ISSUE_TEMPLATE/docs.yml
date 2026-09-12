@@ -1,5 +1,5 @@
 name: Documentation defect
-description: Something on agentprism.doayen.web.tr, in a package README, or in XML documentation is wrong or missing.
+description: Something on tracon.dev, in a package README, or in XML documentation is wrong or missing.
 labels: [documentation]
 body:
   - type: input
@@ -7,7 +7,7 @@ body:
     attributes:
       label: Where
       description: The page URL, the package README, or the type and member whose XML documentation is wrong.
-      placeholder: https://agentprism.doayen.web.tr/reference/versioning/
+      placeholder: https://tracon.dev/reference/versioning/
     validations:
       required: true
   - type: textarea

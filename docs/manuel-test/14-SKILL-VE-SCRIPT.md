@@ -1,23 +1,23 @@
 # 14 — Skill ve Script Çalıştırma (`SKILL`)
 
 > **Alan kodu:** `SKILL` · **Faz:** 10, 11
-> **Kaynak:** `src/AgentPrism.Abstractions/Skills/` (tümü) ·
-> `src/AgentPrism.Core/Skills/` (tümü: `AgentSkillCatalog`, `AgentPrismSkillsSource`,
-> `CodeSkillRegistration`, `AgentPrismSkillScriptBuilderExtensions`,
+> **Kaynak:** `src/Tracon.Abstractions/Skills/` (tümü) ·
+> `src/Tracon.Core/Skills/` (tümü: `AgentSkillCatalog`, `TraconSkillsSource`,
+> `CodeSkillRegistration`, `TraconSkillScriptBuilderExtensions`,
 > `Scripts/SandboxedSkillScriptRunner`, `Scripts/SkillScriptProcessRunner`,
 > `Scripts/SkillScriptArgumentValidator`, `Scripts/SkillScriptConcurrencyLimiter`) ·
-> `src/AgentPrism.Core/Storage/InMemoryAgentSkillStore.cs`,
-> `InMemorySkillScriptGrantStore.cs` · `src/AgentPrism.Core/Audit/AuditingSkillScriptGrantStore.cs` ·
-> `src/AgentPrism.Core/Compilation/AgentDefinitionCompiler.cs` (yalnız skill/script
+> `src/Tracon.Core/Storage/InMemoryAgentSkillStore.cs`,
+> `InMemorySkillScriptGrantStore.cs` · `src/Tracon.Core/Audit/AuditingSkillScriptGrantStore.cs` ·
+> `src/Tracon.Core/Compilation/AgentDefinitionCompiler.cs` (yalnız skill/script
 > kablolaması — genel derleme akışı `02-CEKIRDEK-VE-KATALOG.md`'nin işi) ·
-> `src/AgentPrism.Core/Compilation/AgentDefinitionValidator.cs` (yalnız `CheckSkillsAsync`/
-> `CheckStructureAsync`) · `src/AgentPrism.AspNetCore/Endpoints/SkillEndpoints.cs`,
-> `SkillScriptGrantEndpoints.cs` · `src/AgentPrism.AspNetCore/Contracts/AgentContracts.cs`
+> `src/Tracon.Core/Compilation/AgentDefinitionValidator.cs` (yalnız `CheckSkillsAsync`/
+> `CheckStructureAsync`) · `src/Tracon.AspNetCore/Endpoints/SkillEndpoints.cs`,
+> `SkillScriptGrantEndpoints.cs` · `src/Tracon.AspNetCore/Contracts/AgentContracts.cs`
 > (yalnız `AgentSkillRequest`/`SkillScriptGrantRequest`) ·
-> `src/AgentPrism.PostgreSql/Migrations/0003_agent_skills.sql`,
-> `0004_skill_scripts.sql` · `src/AgentPrism.UI/frontend/src/screens/skills.tsx` ·
-> `src/AgentPrism.UI/frontend/src/screens/agent-editor.tsx` (yalnız skill seçici bölümü) ·
-> `samples/AgentPrism.Api/Program.cs` (yalnız `agentPrism` değişkeni ve builder zinciri).
+> `src/Tracon.PostgreSql/Migrations/0003_agent_skills.sql`,
+> `0004_skill_scripts.sql` · `src/Tracon.UI/frontend/src/screens/skills.tsx` ·
+> `src/Tracon.UI/frontend/src/screens/agent-editor.tsx` (yalnız skill seçici bölümü) ·
+> `samples/Tracon.Api/Program.cs` (yalnız `tracon` değişkeni ve builder zinciri).
 >
 > Ortam kurulumu, fixture verisi ve reset yordamı [`00-INDEKS.md`](00-INDEKS.md)'dedir.
 
@@ -33,13 +33,13 @@ Faz 10, çalışma anında bir agent'a yüklenen markdown tabanlı **skill**'ler
 (`load_skill`/`read_skill_resource`, MAF onay zincirinden geçer) kanıtlar. Faz
 11 bunun üzerine **script çalıştırmayı** ekler — K2 kuralının ("tool'lar yalnız
 kodda tanımlanır") MCP'den (K-058) sonraki **ikinci bilinçli istisnası**: script
-kodu, AgentPrism'in kendi makinesinde, ayrı bir OS sürecinde çalışır.
+kodu, Tracon'in kendi makinesinde, ayrı bir OS sürecinde çalışır.
 
 ```mermaid
 flowchart TD
     A["POST/PUT api/skills"] --> B["IAgentSkillStore<br/>tenant basina kayit"]
     B --> C["AgentSkillCatalog<br/>kod > store, MaxSkillsPerAgent"]
-    C --> D["AgentPrismSkillsSource<br/>AgentSkillDefinition -> AgentInlineSkill"]
+    C --> D["TraconSkillsSource<br/>AgentSkillDefinition -> AgentInlineSkill"]
     D --> E["AgentSkillsProvider<br/>onaylar HEP ACIK"]
     E --> F["Model: load_skill / read_skill_resource / script"]
 
@@ -49,7 +49,7 @@ flowchart TD
     I --> J{"scripts.Enabled +<br/>AllowStoredScripts?"}
     J -- "hayir" --> JX["Model script'i hic gormez"]
     J -- "evet" --> K{"skill_script_grants<br/>gecerli izin var mi?"}
-    K -- "hayir" --> KX["403/AgentPrismException<br/>script.denied"]
+    K -- "hayir" --> KX["403/TraconException<br/>script.denied"]
     K -- "evet" --> L["Ayri OS sureci<br/>zaman asimi, cikti siniri, temiz ortam"]
     L --> M["script.run denetim izi<br/>+ tool_invocations + span"]
 
@@ -65,7 +65,7 @@ flowchart TD
 |---|---|
 | Genel HTTP zarfı (`ProblemDetails`, CRUD, idempotency) | `07-HTTP-YONETIM-API.md` (zaten üretildi) |
 | Üç katmanlı erişim koruması, kiracı izolasyonu, API anahtarları | `13-KIRACI-VE-GUVENLIK.md` (zaten üretildi) — burada TEKRARLANMAZ |
-| Rol matrisi testi (Reader/Admin, `AgentPrismPolicies`) | **Hiçbir dosyaya atanmamış** — bkz. aşağıdaki not |
+| Rol matrisi testi (Reader/Admin, `TraconPolicies`) | **Hiçbir dosyaya atanmamış** — bkz. aşağıdaki not |
 | `cancel_order` gibi normal tool onayları, "Hatırla" kalıcı kural mekanizması | `10-ARAYUZ-AGENT-PLAYGROUND.md` (zaten üretildi) — burada yalnız `load_skill`'e özgü fark not edilir |
 | MCP tool'larının onay akışı | `18-MCP-VE-A2A.md` |
 | `PatternContentGuard`/içerik engeli | `22-GUARDRAIL-VE-YAPISAL-CIKTI.md` |
@@ -74,7 +74,7 @@ flowchart TD
 > **Rol matrisi bu dosyada test edilmez.** `SkillEndpoints`/`SkillScriptGrantEndpoints`
 > `RequireRole(roles.Reader)`/`RequireRole(roles.Admin)` kullanır
 > (`RoleEndpointConventionBuilderExtensions.cs:24-29`), ama bu bir NO-OP'tur:
-> `AgentPrismPolicies.Reader`/`.Admin` tüketicinin `AuthorizationOptions`'ında
+> `TraconPolicies.Reader`/`.Admin` tüketicinin `AuthorizationOptions`'ında
 > KAYITLI DEĞİLSE (örnek uygulama kaydetmez) kısıtlama hiç uygulanmaz — statik
 > bearer token TÜM skill/script uçlarına erişir. Gerçek bir rol ayrımı test
 > etmek özel bir kimlik doğrulama şeması ister; bu, `13-KIRACI-VE-GUVENLIK.md`'nin
@@ -90,17 +90,17 @@ flowchart TD
    `InMemorySkillScriptGrantStore` ile kayıtlıdır. Bu dosyanın çoğu case'i
    kalıcılık sağlayıcısından bağımsızdır; PostgreSQL gerektiren case'ler açıkça
    işaretlenmiştir.
-3. Örnek uygulama çalışır: `cd samples/AgentPrism.Api && dotnet run` →
-   `http://localhost:5080/agentprism`.
+3. Örnek uygulama çalışır: `cd samples/Tracon.Api && dotnet run` →
+   `http://localhost:5080/tracon`.
 4. Örnek uygulama **hiçbir skill, script veya çalıştırma izni tanımlamaz**
-   (`grep -n "Skill" samples/AgentPrism.Api/Program.cs` boş döner) ve
+   (`grep -n "Skill" samples/Tracon.Api/Program.cs` boş döner) ve
    `.UseSkillScripts(...)` hiç çağrılmaz — script çalıştırma varsayılan olarak
    **tamamen kapalıdır**. §6, bunu açmak için geçici bir kod değişikliği ister;
    o bölümün başında ayrıca belirtilir.
 
 ```bash
 export APB="Authorization: Bearer manuel-test-token-2026"
-export APU="http://localhost:5080/agentprism"
+export APU="http://localhost:5080/tracon"
 ```
 
 > **Gerçek para uyarısı.** Yalnız §3 (gerçek model ile skill yükleme onayı)
@@ -117,7 +117,7 @@ Bu veriler yalnız bu dosyaya özgüdür, `00-INDEKS.md`'ye girmez (`PROMPT.md` 
 |---|---|
 | `FIX-SKILL-FATURA` | Ad `fatura-kontrolu` · Açıklama `Fatura kontrol kurallarini ve KDV hesaplamasini aciklar.` · Talimat aşağıda |
 | `FIX-SKILL-PROMPT` | `Fatura kontrol kurallarini uygulayarak yardim et` → `load_skill` çağrısı bekler |
-| `FIX-SCRIPT-MERHABA` | Ad `merhaba` · Uzantı `sh` · İçerik `echo merhaba-agentprism` |
+| `FIX-SCRIPT-MERHABA` | Ad `merhaba` · Uzantı `sh` · İçerik `echo merhaba-tracon` |
 | `FIX-AGENT-SKILL` | Ad `manuel-skill-test` · Talimat `Sen bir yardimci asistansin.` · `skillNames: ["fatura-kontrolu"]` · Tool yok |
 
 `FIX-SKILL-FATURA`'nın `instructions` alanı (deterministik bir işaretçi taşır,
@@ -132,7 +132,7 @@ eklemeden tam olarak su metni yaz: FATURA_SKILL_ACTIVE
 
 # 1 — Skill CRUD ve Frontmatter Doğrulama (Faz 10)
 
-Doğrulama kuralları AgentPrism'in kendi icadı değildir — MAF'ın
+Doğrulama kuralları Tracon'in kendi icadı değildir — MAF'ın
 `AgentSkillFrontmatter.ValidateName/ValidateDescription/ValidateCompatibility`
 metotları kullanılır (`SkillEndpoints.cs:106-120`). Bu yüzden hata `detail`
 metinleri **İngilizcedir**; `title` alanı Türkçedir. Bu bilinçli bir
@@ -263,8 +263,8 @@ curl -s -w "\nHTTP: %{http_code}\n" "$APU/api/skills/test-kaynakli" -H "$APB"
 
 **Doğrulama sorgusu** *(PostgreSQL izleğinde)*
 ```sql
-SELECT count(*) FROM agentprism.agent_skill_resources
-WHERE skill_id = (SELECT id FROM agentprism.agent_skills WHERE name = 'test-kaynakli');
+SELECT count(*) FROM tracon.agent_skill_resources
+WHERE skill_id = (SELECT id FROM tracon.agent_skills WHERE name = 'test-kaynakli');
 -- Skill kaydinin kendisi de silindigi icin 0 satir bekleniyor (skill_id yabanci anahtari yok olur);
 -- ON DELETE CASCADE (0003_agent_skills.sql:22) sayesinde ayri bir silme adimi gerekmez.
 ```
@@ -422,7 +422,7 @@ curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/skills/cok-uzun-talimat" -H
 
 **Beklenen sonuç**
 - `HTTP: 400`. `title: "Skill talimati cok buyuk"`, `detail`
-  `instructions en fazla 65536 bayt olabilir.` (`AgentPrismSkillOptions.MaxInstructionsLength`,
+  `instructions en fazla 65536 bayt olabilir.` (`TraconSkillOptions.MaxInstructionsLength`,
   varsayılan 64 KB).
 
 ---
@@ -497,7 +497,7 @@ curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/skills/cakisan-kaynak" -H "
 | **İlgili karar** | — |
 
 **Ön koşul**
-- `http://localhost:5080/agentprism/skills` açık.
+- `http://localhost:5080/tracon/skills` açık.
 
 **Adımlar**
 1. "Yeni Skill" düğmesine tıkla.
@@ -584,7 +584,7 @@ skill VARLIĞINI denetler ama SAYISINI denetlemez; sayı sınırı yalnız
 
 **Ön koşul**
 ```bash
-dotnet user-secrets set "AgentPrism:Skills:MaxSkillsPerAgent" "1"
+dotnet user-secrets set "Tracon:Skills:MaxSkillsPerAgent" "1"
 ```
 Uygulama yeniden başlatılır. İki geçerli skill oluştur:
 ```bash
@@ -618,7 +618,7 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/agents/iki-skilli-agent/ru
 - Adım 2: `HTTP: 400`. `title: "Agent derlenemedi"`, `detail`
   `'iki-skilli-agent' agent'i en fazla 1 skill tasiyabilir.`
   (`AgentSkillCatalog.cs:44-51`, `AgentEndpoints.cs:466-473` üzerinden
-  `AgentPrismException` yakalanıp `400`'e çevrilir).
+  `TraconException` yakalanıp `400`'e çevrilir).
 
 ---
 
@@ -647,7 +647,7 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/agents/iki-skilli-agent/ru
 **Beklenen sonuç**
 - Hiçbir `load_skill` onay kartı belirmez — `AgentSkillCatalog.GetEnabledAsync`
   yalnız `Enabled: true` kayıtları döner (`AgentSkillCatalog.cs:83-93`),
-  `AgentPrismSkillsSource` bu skill'i MAF'a hiç sunmaz.
+  `TraconSkillsSource` bu skill'i MAF'a hiç sunmaz.
 - Model, herhangi bir skill talimatı olmadan genel bir yanıt üretir.
 
 ---
@@ -667,10 +667,10 @@ HTTP karşılığı yoktur.
 **Ön koşul**
 1. `FIX-SKILL-FATURA` DB'de kayıtlı (MT-SKILL-001), `instructions` alanı
    `FATURA_SKILL_ACTIVE` işaretçisini taşıyor.
-2. `samples/AgentPrism.Api/Program.cs`'e, `agentPrism` değişkeni
+2. `samples/Tracon.Api/Program.cs`'e, `tracon` değişkeni
    tanımlandıktan hemen sonra GEÇİCİ olarak ekleyin:
    ```csharp
-   agentPrism.AddSkill(new AgentSkillDefinition
+   tracon.AddSkill(new AgentSkillDefinition
    {
        TenantId = "default",
        Name = "fatura-kontrolu",
@@ -730,7 +730,7 @@ yansımaz" riskini doğrudan sınar.
 🚨 **Şüpheli bulgu (ölçüldü, koşulmadı).** `agent-editor.tsx:540`
 `limitReached = form.skillNames.length >= 10` sabit sayı `10` ile
 karşılaştırır; sunucunun gerçek `MaxSkillsPerAgent` değeri `/api/meta`
-gövdesinde YOKTUR (`grep -n "MaxSkillsPerAgent" src/AgentPrism.AspNetCore/Endpoints/MetaEndpoints.cs`
+gövdesinde YOKTUR (`grep -n "MaxSkillsPerAgent" src/Tracon.AspNetCore/Endpoints/MetaEndpoints.cs`
 boş döner). Sunucu sınırı `10`'dan farklı ayarlanırsa arayüz bunu asla
 öğrenmez.
 
@@ -743,7 +743,7 @@ boş döner). Sunucu sınırı `10`'dan farklı ayarlanırsa arayüz bunu asla
 
 **Ön koşul**
 ```bash
-dotnet user-secrets set "AgentPrism:Skills:MaxSkillsPerAgent" "2"
+dotnet user-secrets set "Tracon:Skills:MaxSkillsPerAgent" "2"
 ```
 Uygulama yeniden başlatılır. En az 3 etkin skill oluştur.
 
@@ -858,7 +858,7 @@ Negatif senaryo.
 
 ### MT-SKILL-040 — Varsayılan durumda (Interpreters boş) HERHANGİ bir script uzantısı reddedilir
 
-Negatif senaryo. Sıfır kurulum gerektirir — `AgentPrismSkillScriptOptions.Interpreters`
+Negatif senaryo. Sıfır kurulum gerektirir — `TraconSkillScriptOptions.Interpreters`
 varsayılan olarak BOŞ sözlüktür.
 
 | | |
@@ -886,8 +886,8 @@ curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/skills/scriptli-skill" -H "
 
 ### MT-SKILL-041 — `Interpreters`'a `sh` eklenince AYNI kayıt başarılı olur (yalnız config, kod değişikliği YOK)
 
-🚨 **Doğrulanmış keşif.** `AgentPrismSkillScriptOptions.Interpreters` sözlüğü
-`IConfiguration`'dan HER ZAMAN bağlanır (`AgentPrismServiceCollectionExtensions.cs:1136-1141`,
+🚨 **Doğrulanmış keşif.** `TraconSkillScriptOptions.Interpreters` sözlüğü
+`IConfiguration`'dan HER ZAMAN bağlanır (`TraconServiceCollectionExtensions.cs:1136-1141`,
 `BindSkillScripts`), `UseSkillScripts()` çağrılıp çağrılmadığından BAĞIMSIZDIR.
 Faz 11 dokümanının "Seçenek A ÖNERİLEN... kökler KODDA, arayüzden DEĞİL" notu
 script KÖKLERİ (`SkillRoots`) için doğrudur ama yorumlayıcı beyaz listesi de
@@ -903,7 +903,7 @@ KAYDI (henüz ÇALIŞTIRMA değil) bu yolla açılabilir.
 
 **Ön koşul**
 ```bash
-dotnet user-secrets set "AgentPrism:Skills:Scripts:Interpreters:sh" "/bin/bash"
+dotnet user-secrets set "Tracon:Skills:Scripts:Interpreters:sh" "/bin/bash"
 ```
 Uygulama yeniden başlatılır.
 
@@ -916,7 +916,7 @@ curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/skills/scriptli-skill" -H "
      -H "content-type: application/json" -d '{
   "name": "scriptli-skill", "description": "Script testi.", "instructions": "test", "enabled": true,
   "resources": [],
-  "scripts": [{ "name": "merhaba", "extension": "sh", "content": "echo merhaba-agentprism", "parametersSchema": null }]
+  "scripts": [{ "name": "merhaba", "extension": "sh", "content": "echo merhaba-tracon", "parametersSchema": null }]
 }'
 ```
 
@@ -1066,7 +1066,7 @@ POZİTİF yönden kanıtlar (script çalışmasa bile veri kaybolmaz).
 
 **Ön koşul**
 - MT-SKILL-041 geçti (`scriptli-skill`, `sh` script'i kayıtlı),
-  `AgentPrism:Skills:Scripts:Enabled` AYARLANMAMIŞ (varsayılan `false`).
+  `Tracon:Skills:Scripts:Enabled` AYARLANMAMIŞ (varsayılan `false`).
 
 **Adımlar**
 1. `GET /api/skills/scriptli-skill` çağır.
@@ -1078,9 +1078,9 @@ curl -s "$APU/api/skills/scriptli-skill" -H "$APB" | python3 -m json.tool
 
 **Beklenen sonuç**
 - Gövde `scripts` dizisinde `merhaba` script'ini TAM içerikle (`content:
-  "echo merhaba-agentprism"`) döner — kayıt hiçbir zaman gizlenmez, yalnız
-  modele SUNULMAZ (`AgentPrismSkillsSource.CreateSkill`'in
-  `_scripts is { StoredScriptsEnabled: true }` koşulu, `AgentPrismSkillsSource.cs:71`).
+  "echo merhaba-tracon"`) döner — kayıt hiçbir zaman gizlenmez, yalnız
+  modele SUNULMAZ (`TraconSkillsSource.CreateSkill`'in
+  `_scripts is { StoredScriptsEnabled: true }` koşulu, `TraconSkillsSource.cs:71`).
 
 ### MT-SKILL-050 — Script çalıştırma KAPALIYKEN izin vermeye çalışmak → `409`
 
@@ -1119,8 +1119,8 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/skill-script-grants" -H "$
 
 **Ön koşul**
 ```bash
-dotnet user-secrets set "AgentPrism:Skills:Scripts:Enabled" "true"
-dotnet user-secrets set "AgentPrism:Skills:Scripts:PlatformIsolationAcknowledged" "true"
+dotnet user-secrets set "Tracon:Skills:Scripts:Enabled" "true"
+dotnet user-secrets set "Tracon:Skills:Scripts:PlatformIsolationAcknowledged" "true"
 ```
 Uygulama yeniden başlatılır. (🚨 Bu ikisi TEK BAŞINA script'i
 ÇALIŞTIRILABİLİR yapmaz — `UseSkillScripts()` çağrılmadığı sürece
@@ -1211,7 +1211,7 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/skill-script-grants" -H "$
 
 **Adımlar**
 1. `curl -s "$APU/api/skill-script-grants" -H "$APB"` çağır.
-2. `http://localhost:5080/agentprism/skills` sayfasını aç, en alttaki
+2. `http://localhost:5080/tracon/skills` sayfasını aç, en alttaki
    "Script Çalıştırma İzinleri" panelini incele.
 
 **Beklenen sonuç**
@@ -1243,7 +1243,7 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/skill-script-grants" -H "$
 
 **Doğrulama sorgusu** *(PostgreSQL izleğinde)*
 ```sql
-SELECT skill_name, script_name, revoked_at FROM agentprism.skill_script_grants
+SELECT skill_name, script_name, revoked_at FROM tracon.skill_script_grants
 WHERE skill_name = 'scriptli-skill';
 -- satir SILINMEZ, revoked_at doludur.
 ```
@@ -1287,8 +1287,8 @@ MT-SKILL-051 notunu kanıtlar. **Bu case'i koşarken §6'nın 1. adımını
 - §6'nın 2-5. adımları uygulandı, 1. adım (kod değişikliği) UYGULANMADI.
 - `Enabled`/`PlatformIsolationAcknowledged` da config ile açıldı:
   ```bash
-  dotnet user-secrets set "AgentPrism:Skills:Scripts:Enabled" "true"
-  dotnet user-secrets set "AgentPrism:Skills:Scripts:PlatformIsolationAcknowledged" "true"
+  dotnet user-secrets set "Tracon:Skills:Scripts:Enabled" "true"
+  dotnet user-secrets set "Tracon:Skills:Scripts:PlatformIsolationAcknowledged" "true"
   ```
 
 **Adımlar**
@@ -1300,10 +1300,10 @@ MT-SKILL-051 notunu kanıtlar. **Bu case'i koşarken §6'nın 1. adımını
 - `load_skill` çağrılır ve onay ister (skill kaydı zaten normal işler).
 - Onaydan SONRA modele `merhaba` adında ÇAĞRILABİLİR bir tool asla
   sunulmaz — model bunu ya hiç denemez ya da "böyle bir araç yok" anlamına
-  gelen bir yanıt üretir. Sebebi: `AgentPrismSkillsSource.CreateSkill`'in
+  gelen bir yanıt üretir. Sebebi: `TraconSkillsSource.CreateSkill`'in
   `_scripts is { StoredScriptsEnabled: true }` koşulu `_scripts`'in kendisi
   (`SkillScriptSupport`) DI'da hiç kayıtlı olmadığı için `null`'dır — config
-  bayrakları burada hiç okunmaz (`AgentPrismSkillsSource.cs:71`).
+  bayrakları burada hiç okunmaz (`TraconSkillsSource.cs:71`).
 - `tool_invocations` tablosunda `source = "skill:scriptli-skill"` taşıyan
   HİÇBİR satır oluşmaz.
 
@@ -1331,8 +1331,8 @@ Bu case §6'nın TAM ön koşulunu (1-5. adımlar) gerektirir.
 > **Düzeltildi (2026-08-15, KAPANIS-PLANI §6 Aile W):** Bugünkü MAF sürümünde
 > ikinci onay kartının tool adı `merhaba` DEĞİL, MAF'ın kendi generic
 > `run_skill_script(skillName, scriptName, arguments)` dispatcher'ıdır.
-> `AgentPrismSkillsSource.CreateSkill`'in `skill.AddScript(script.Name, ...)`
-> çağrısı (`AgentPrismSkillsSource.cs:76-81`) hâlâ AYNI şekilde script başına
+> `TraconSkillsSource.CreateSkill`'in `skill.AddScript(script.Name, ...)`
+> çağrısı (`TraconSkillsSource.cs:76-81`) hâlâ AYNI şekilde script başına
 > çağrılıyor — ama `Microsoft.Agents.AI.AgentSkillsProvider` (paket içi,
 > `AgentInlineSkillScript.RunAsync`/`RunSkillScriptAsync`) modele TEK bir
 > generic tool şeması sunuyor ve `scriptName` argümanıyla kayıtlı delegeye
@@ -1345,10 +1345,10 @@ Bu case §6'nın TAM ön koşulunu (1-5. adımlar) gerektirir.
 - İkinci onay kartının tool adı `run_skill_script`'tir, argümanları
   `{"skillName":"scriptli-skill","scriptName":"merhaba","arguments":""}`
   taşır.
-- Script sonucu modele `exit_code: 0\nstdout:\nmerhaba-agentprism\n\n`
+- Script sonucu modele `exit_code: 0\nstdout:\nmerhaba-tracon\n\n`
   biçiminde döner (`SandboxedSkillScriptRunner.Format`,
   `SandboxedSkillScriptRunner.cs:355-379`).
-- Model nihai yanıtında `merhaba-agentprism` dizgisini içerir.
+- Model nihai yanıtında `merhaba-tracon` dizgisini içerir.
 
 ~~Eski beklenti (eski bir MAF sürümüne dayanıyordu): İkinci onay kartının
 tool adı `merhaba`'dır (skill kaydındaki script adı aynen tool adı olur,
@@ -1356,11 +1356,11 @@ MAF'ın generic `run_skill_script`'i DEĞİL).~~
 
 **Doğrulama sorgusu** *(PostgreSQL izleğinde)*
 ```sql
-SELECT action, entity, tenant_id FROM agentprism.audit_entries
+SELECT action, entity, tenant_id FROM tracon.audit_entries
 WHERE action = 'script.run' ORDER BY created_at DESC LIMIT 1;
 -- entity = 'scriptli-skill/merhaba' beklenir.
 
-SELECT tool_name, source, error FROM agentprism.tool_invocations
+SELECT tool_name, source, error FROM tracon.tool_invocations
 WHERE source = 'skill:scriptli-skill' ORDER BY created_at DESC LIMIT 1;
 -- tool_name = 'skill_script', error = NULL beklenir.
 ```
@@ -1397,7 +1397,7 @@ Negatif senaryo.
 > `"Error: Function failed."` metnini döner (muhtemelen istisna
 > içeriklerinin model bağlamına sızmasını önleyen bilinçli bir MAF
 > davranışı). Spesifik red mesajı (`'scriptli-skill/merhaba' script'i
-> calistirilmadi: ...`) AgentPrism'in KENDİ gözlemlenebilirlik katmanında
+> calistirilmadi: ...`) Tracon'in KENDİ gözlemlenebilirlik katmanında
 > (`tool_invocations.error`) tam olarak korunur — yalnız modele dönen metin
 > genelleşir.
 - Script çalışmaz; modele dönen tool sonucu `"Error: Function failed."`dir.
@@ -1415,7 +1415,7 @@ varsayıyordu): modele dönen tool sonucu bir hata metni içerir
 
 **Doğrulama sorgusu**
 ```sql
-SELECT action, entity FROM agentprism.audit_entries
+SELECT action, entity FROM tracon.audit_entries
 WHERE action = 'script.denied' ORDER BY created_at DESC LIMIT 1;
 ```
 
@@ -1433,7 +1433,7 @@ WHERE action = 'script.denied' ORDER BY created_at DESC LIMIT 1;
 **Ön koşul**
 - MT-SKILL-058'in ön koşulu geçerli, EK olarak:
   ```bash
-  dotnet user-secrets set "AgentPrism:Skills:Scripts:Timeout" "00:00:02"
+  dotnet user-secrets set "Tracon:Skills:Scripts:Timeout" "00:00:02"
   ```
 - `scriptli-skill`'e `uyuyan` adında yeni bir script ekle (`sleep 10`):
   ```bash
@@ -1441,7 +1441,7 @@ WHERE action = 'script.denied' ORDER BY created_at DESC LIMIT 1;
     "name": "scriptli-skill", "description": "Script testi.", "instructions": "test", "enabled": true,
     "resources": [],
     "scripts": [
-      { "name": "merhaba", "extension": "sh", "content": "echo merhaba-agentprism", "parametersSchema": null },
+      { "name": "merhaba", "extension": "sh", "content": "echo merhaba-tracon", "parametersSchema": null },
       { "name": "uyuyan", "extension": "sh", "content": "sleep 10 && echo bitti", "parametersSchema": null }
     ]
   }'
@@ -1477,7 +1477,7 @@ WHERE action = 'script.denied' ORDER BY created_at DESC LIMIT 1;
 **Ön koşul**
 - MT-SKILL-058'in ön koşulu geçerli, EK olarak:
   ```bash
-  dotnet user-secrets set "AgentPrism:Skills:Scripts:MaxOutputBytes" "100"
+  dotnet user-secrets set "Tracon:Skills:Scripts:MaxOutputBytes" "100"
   ```
 - `scriptli-skill`'e `buyuk-cikti` script'i ekle
   (`content: "python3 -c \"print('x' * 5000)\""`, uzantı `sh` — betik
@@ -1490,7 +1490,7 @@ WHERE action = 'script.denied' ORDER BY created_at DESC LIMIT 1;
 
 **Beklenen sonuç**
 - Tool sonucunun `stdout` bölümü tam 100 bayt civarında kesilir ve satırın
-  sonunda `\n[AgentPrism: cikti 100 bayt sinirinda kirpildi.]` metni
+  sonunda `\n[Tracon: cikti 100 bayt sinirinda kirpildi.]` metni
   görünür (`SkillScriptProcessRunner.cs:231-234`).
 - Sürecin kendisi zaman aşımına UĞRAMAZ (`exit_code: 0` görünür) — kırpma ile
   zaman aşımı bağımsız kapılardır.
@@ -1525,21 +1525,21 @@ ortam değişkenleri (`OpenAI__ApiKey` gibi) script sürecine HİÇ ULAŞMAZ.
 > .Environment.Clear()`'dan bağımsız, kabuğun kendi iç muhasebesidir).
 > Bunlar `secret` TAŞIMAZ (çalışma dizini yolu, kabuk iç içelik sayacı,
 > son çalıştırılan yorumlayıcının yolu) — güvenlik iddiası (hiçbir
-> AgentPrism-özel/`secret` değişkeni sızmaz) TAM olarak doğrulandı, yalnız
+> Tracon-özel/`secret` değişkeni sızmaz) TAM olarak doğrulandı, yalnız
 > "yalnız 4 değişken" sayımı eksikti.
-- `stdout` çıktısı `PATH`, `HOME`, `AGENTPRISM_SKILL_TEMP=<gecici-dizin>`,
-  `AGENTPRISM_SKILL_NAME=scriptli-skill` satırlarını İÇERİR (bunlar
-  AgentPrism'in açıkça geçirdiği/izin verdiği tek değişkenlerdir —
+- `stdout` çıktısı `PATH`, `HOME`, `TRACON_SKILL_TEMP=<gecici-dizin>`,
+  `TRACON_SKILL_NAME=scriptli-skill` satırlarını İÇERİR (bunlar
+  Tracon'in açıkça geçirdiği/izin verdiği tek değişkenlerdir —
   `SkillScriptProcessRunner.cs:92-104`, `EnvironmentAllowList` varsayılanı
   `["PATH","HOME"]`), EK olarak bash'in kendi ürettiği `PWD`, `SHLVL`, `_`
   satırları da görünür.
-- `OpenAI__ApiKey`, `AgentPrism__PostgreSql__ConnectionString` gibi hiçbir
-  AgentPrism-özel ortam değişkeni ÇIKTIDA GÖRÜNMEZ — `ProcessStartInfo.Environment.Clear()`
+- `OpenAI__ApiKey`, `Tracon__PostgreSql__ConnectionString` gibi hiçbir
+  Tracon-özel ortam değişkeni ÇIKTIDA GÖRÜNMEZ — `ProcessStartInfo.Environment.Clear()`
   çağıran süreci komple boşaltır.
 
 ~~Eski beklenti (eksik — bash'in kendi otomatik değişkenlerini
-saymıyordu): stdout çıktısı YALNIZ PATH, HOME, AGENTPRISM_SKILL_TEMP,
-AGENTPRISM_SKILL_NAME satırlarını içerir.~~
+saymıyordu): stdout çıktısı YALNIZ PATH, HOME, TRACON_SKILL_TEMP,
+TRACON_SKILL_NAME satırlarını içerir.~~
 
 ---
 
@@ -1585,19 +1585,19 @@ BEKLETİR (`SkillScriptConcurrencyLimiter.cs:25-42`).
 - MT-SKILL-058 geçti, OpenTelemetry konsol/dosya exporter'ı ile izleniyor
   (bkz. `12-GOZLEMLENEBILIRLIK-MALIYET.md`'nin genel OTel kurulum notu).
   > **2026-08-15 sapma (izin verilen, daha güçlü kanıt):** ayrı bir OTel
-  > exporter kurmak yerine `AgentPrism:Observability:SuccessSampleRatio=1`
+  > exporter kurmak yerine `Tracon:Observability:SuccessSampleRatio=1`
   > ile başarılı run'ların da iz tuttuğu garanti edildi, span'ler
-  > AgentPrism'in KENDİ kalıcı iz deposundan `GET /api/runs/{id}/trace`
+  > Tracon'in KENDİ kalıcı iz deposundan `GET /api/runs/{id}/trace`
   > ile okundu (`12-GOZLEMLENEBILIRLIK-MALIYET.md` §7'nin MT-OBS-015/016'da
   > zaten kullandığı yöntem) — konsol/dosya exporter'ından ayrıştırmaktan
   > daha güvenilir.
 
 **Beklenen sonuç**
 - Span adı `execute_skill_script`.
-- Öznitelikler: `agentprism.skill.name = "scriptli-skill"`,
-  `agentprism.script.name = "merhaba"`, `agentprism.script.exit_code = 0`,
-  `agentprism.script.duration_ms` pozitif bir sayı taşır
-  (`AgentPrismDiagnostics.cs:31,106,109,112,115`).
+- Öznitelikler: `tracon.skill.name = "scriptli-skill"`,
+  `tracon.script.name = "merhaba"`, `tracon.script.exit_code = 0`,
+  `tracon.script.duration_ms` pozitif bir sayı taşır
+  (`TraconDiagnostics.cs:31,106,109,112,115`).
 
 ---
 

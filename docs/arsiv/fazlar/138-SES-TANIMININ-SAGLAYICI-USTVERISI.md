@@ -3,12 +3,12 @@
 > **Durum:** ✅ Tamamlandı (2026-09-03)
 > **Kaynak:** Tüketici raporu AP-REQ-003 + yanıt dokümanı §5 (ProdigyEnabler, 2026-09-03) · **F-184**
 > **Önkoşul:** Yok — [Faz 137](137-IS-TURUNUN-ACIK-ANAHTARI.md) ile bağımsızdır, paralel uygulanabilir
-> **Paketler:** `AgentPrism.Abstractions`, `.Voice`, `.AspNetCore`, `.Client`, `.UI`
+> **Paketler:** `Tracon.Abstractions`, `.Voice`, `.AspNetCore`, `.Client`, `.UI`
 > **Yeni paket:** Yok · **Migration:** Yok — `VoiceDescriptor` kalıcılaştırılmaz
 > **Public API:** **Büyüyor, kırmıyor** — `VoiceDescriptor`'a varsayılanlı bir alan eklenir.
 > `PublicAPI.Shipped.txt` boş olduğu için bugün ucuz (`wc -l src/*/PublicAPI.Shipped.txt` ile doğrula)
 > **Tüketici yüzeyi:** `docs-site/` — `guides/voice` · sevk edilen: `VoiceDescriptor`
-> XML dokümanı, `src/AgentPrism.Voice/README.md` (`list_voices` satırı)
+> XML dokümanı, `src/Tracon.Voice/README.md` (`list_voices` satırı)
 > **Manuel test alanı:** [`manuel-test/19-COK-MODLULUK-VE-SES.md`](../../manuel-test/19-COK-MODLULUK-VE-SES.md)
 
 ---
@@ -30,7 +30,7 @@
 
 ## Amaç
 
-`VoiceDescriptor` yalnız üç alan taşır: `VoiceId`, `Name`, `Category`. ElevenLabs'ın `labels` alanı hiç parse edilmez. Bu yüzden ses havuzunu niteliklerine göre seçmek isteyen her tüketici ikinci bir sağlayıcı yolu açmak zorunda kalır — AgentPrism'in sağladığı adapter sınırını delerek. Bu ihtiyaç yalnız dış tüketiciye ait değildir.
+`VoiceDescriptor` yalnız üç alan taşır: `VoiceId`, `Name`, `Category`. ElevenLabs'ın `labels` alanı hiç parse edilmez. Bu yüzden ses havuzunu niteliklerine göre seçmek isteyen her tüketici ikinci bir sağlayıcı yolu açmak zorunda kalır — Tracon'in sağladığı adapter sınırını delerek. Bu ihtiyaç yalnız dış tüketiciye ait değildir.
 
 ## Bitiş Ölçütleri (DoD)
 
@@ -43,11 +43,11 @@
 - [x] `list_voices` çıktısı gender bilgisini güvenli biçimde gösterir (`ListVoicesToolTests.Gender_attribute_is_shown_when_reported`)
 - [x] Var olan custom `ISpeechSynthesizer` uygulaması **değişmeden derlenir** (`Attributes` varsayılanlı; mevcut tüm üretim noktaları grep'lendi, yalnız `ElevenLabsSpeechClient.MapVoices` dolduruyor)
 - [x] 🔴 `ListVoicesTool` içindeki iki Türkçe dizge İngilizce'ye çevrildi
-- [x] 🔴 `SourceLanguageTests` kelime listesi bu vakayı **yakalayacak** biçimde genişledi; taban çizgisi büyümedi — kelimeler eklenmeden ÖNCE stash ile ölçüldü (kırmızı, 2 satır), fix sonrası yeşil; aynı turda 5 `AgentPrism.AspNetCore.FunctionalTests` dosyasındaki benzer Türkçe test verisi de temizlendi (yeni yakalanan vaka)
-- [x] Üç JSON kaynak üreticisi bağlamı güncellendi (`ElevenLabsJsonContext`, `AgentPrismClientJsonContext.g.cs` — AspNetCore reflection kullanır, üçüncü bir bağlam yok, bkz. Plandan Sapmalar); Native AOT smoke ses yolunda yeşil (`kapi.py yayin --kuru`)
+- [x] 🔴 `SourceLanguageTests` kelime listesi bu vakayı **yakalayacak** biçimde genişledi; taban çizgisi büyümedi — kelimeler eklenmeden ÖNCE stash ile ölçüldü (kırmızı, 2 satır), fix sonrası yeşil; aynı turda 5 `Tracon.AspNetCore.FunctionalTests` dosyasındaki benzer Türkçe test verisi de temizlendi (yeni yakalanan vaka)
+- [x] Üç JSON kaynak üreticisi bağlamı güncellendi (`ElevenLabsJsonContext`, `TraconClientJsonContext.g.cs` — AspNetCore reflection kullanır, üçüncü bir bağlam yok, bkz. Plandan Sapmalar); Native AOT smoke ses yolunda yeşil (`kapi.py yayin --kuru`)
 - [x] OpenAPI ve üretilen istemci `attributes` taşır; drift kapısı temiz (`OpenApiSnapshotTests`, `OpenApiResponseSchemaTests` — 23/23 yeşil)
 - [x] Dört doğrulama kapısı sıfır uyarı verir (`kapi.py kapanis`)
-- [x] `samples/AgentPrism.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı — bkz. "Gerçek Run Kanıtı" bölümü
+- [x] `samples/Tracon.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı — bkz. "Gerçek Run Kanıtı" bölümü
 - [x] `secret` taraması boş döndü (`kapi.py tarama` → ✅ temiz)
 - [x] Manuel kabul case'leri `docs/manuel-test/19-COK-MODLULUK-VE-SES.md` içine eklendi (MT-MM-100..107)
 - [x] `faz-denetim` koşuldu; 🔴 bulgu kalmadı (ilk turda 3 🔴 + 2 🟡 + 1 🟢 bulundu, tamamı bu fazda kapatıldı — bkz. Denetim Bulguları)
@@ -90,7 +90,7 @@
    "Denetim Bulguları"). İkisi de dördüncü doğrulama kapısının (`dotnet test`)
    kendi baseline testleriydi — ilk `faz-uygulama` turunda çalıştırılmamıştı,
    denetimden önce koşulmuş olsaydı erken yakalanırdı. Ders sonraki faza:
-   `dotnet test tests/AgentPrism.Core.UnitTests` fazın SON adımı değil,
+   `dotnet test tests/Tracon.Core.UnitTests` fazın SON adımı değil,
    `faz-denetim` çağrılmadan ÖNCEKİ adım olmalı.
 5. **Frontend'in elle dil eşlemesi (Q4) kaldırılmadı — planın önerisi (A)
    izlendi.** Ölçüm dilin geldiğini gösterdi (ElevenLabs, `verified_languages`
@@ -124,8 +124,8 @@ boşluk bırakmadı:
   tetikledi — desen dosya yolundaki "provider" kelimesine geniş eşleşiyor;
   `first-agent.md` bugün ses sağlayıcısından hiç bahsetmiyor (`grep` boş) ve
   bu fazın konusu bir LLM model sağlayıcısı değil.
-- **`paket-readme` → `packages.md`**: `AgentPrism.Voice/README.md` tetikledi
-  (`list_voices` satırının güncellenmesi). `packages.md`'nin `AgentPrism.Voice`
+- **`paket-readme` → `packages.md`**: `Tracon.Voice/README.md` tetikledi
+  (`list_voices` satırının güncellenmesi). `packages.md`'nin `Tracon.Voice`
   satırı zaten yüksek seviyeli ("speech synthesis, transcription, or live
   conversation"); tool'un dönüş biçimindeki bir ayrıntı o seviyeye ait değil.
 
@@ -143,11 +143,11 @@ kabul koşumu). Onun yerine iki kanıt üretildi:
    indirildi, `VoiceResponseModel`/`VerifiedVoiceLanguageResponseModel`
    şemaları incelendi (bkz. Plandan Sapmalar #1-2). Eşleme tahminle değil bu
    ölçümle yazıldı.
-2. **`samples/AgentPrism.Api` gerçek bir `run` ile çalıştırıldı** (in-memory
+2. **`samples/Tracon.Api` gerçek bir `run` ile çalıştırıldı** (in-memory
    depolama, ses sağlayıcısı yapılandırılmadan — voice-opsiyonel yol):
-   - `GET /agentprism/api/voice/voices` → `501` (ses hiç yapılandırılmamışken
+   - `GET /tracon/api/voice/voices` → `501` (ses hiç yapılandırılmamışken
      beklenen davranış; regresyon yok).
-   - `POST /agentprism/api/agents/cached-support/run` gerçek bir SSE koşusu
+   - `POST /tracon/api/agents/cached-support/run` gerçek bir SSE koşusu
      üretti: `{"runId":"01a066b2-1994-7804-bbe3-82738f7db0a4", ...}` →
      `"Echo: What is the status of order 42? "` → `done`.
    - Bu, fazın DEĞİŞTİRDİĞİ derleme/DI/HTTP zincirinin (yeni `Attributes`
@@ -163,9 +163,9 @@ Tamamı bu fazda kapatıldı:
 |---|---|---|---|
 | 1 | 🔴 | `VoiceDescriptor.Attributes`'ın `<summary>`/`<remarks>`'ı `<see cref="VoiceAttributeNames.Gender"/>` gibi MEMBER cref kullanıyordu; sözleşme tipinde bu yasak (`tuketici-dokuman-senkronu` kalite sözleşmesi §B) — NSwag'in OpenAPI/npm/C# istemci açıklamasına tam CLR imzasını ("string VoiceAttributeNames.Gender") bastığı ölçüldü, üçüncü tekrar | **Düzeltildi** — tüm cref'ler `<c>` düz metne çevrildi (`SpeechModels.cs`); OpenAPI/npm/C# istemci yeniden üretildi, açıklama artık düz metin |
 | 2 | 🔴 | `ElevenLabsSpeechClient.ListVoicesAsync`'in yeni `<remarks>`'ı 🚨 ile başlıyordu — `///` içinde geliştirme günlüğü sesi yasak (`ShippedDocumentationSelfContainmentTests`); test fiilen kırmızıydı | **Düzeltildi** — 🚨 kaldırıldı, metin düz olguya çevrildi; test yeşil |
-| 3 | 🔴 | Yeni public tip `VoiceAttributeNames` `AgentPrism.Abstractions`'ın tip sayısını 363→364 çıkardı ama `public-surface-baseline.txt` güncellenmemişti; `PublicSurfaceBaselineTests` fiilen kırmızıydı | **Düzeltildi** — taban çizgisi `AGENTPRISM_PUBLIC_SURFACE_REFRESH=1` ile 364'e yenilendi (planlı, kasıtlı bir büyüme) |
+| 3 | 🔴 | Yeni public tip `VoiceAttributeNames` `Tracon.Abstractions`'ın tip sayısını 363→364 çıkardı ama `public-surface-baseline.txt` güncellenmemişti; `PublicSurfaceBaselineTests` fiilen kırmızıydı | **Düzeltildi** — taban çizgisi `TRACON_PUBLIC_SURFACE_REFRESH=1` ile 364'e yenilendi (planlı, kasıtlı bir büyüme) |
 | 4 | 🟡 | DoD satırı "gerçek run yapıldı, çıktı belgeye yazıldı" — çıktı hiçbir dokümana yazılmamıştı | **Düzeltildi** — bkz. "Gerçek Run Kanıtı" bölümü |
-| 5 | 🟡 | `src/AgentPrism.Voice/README.md`'nin `list_voices` satırı bayattı ("List of name + ID") | **Düzeltildi** — `category`/`attributes` yansıtacak biçimde güncellendi |
+| 5 | 🟡 | `src/Tracon.Voice/README.md`'nin `list_voices` satırı bayattı ("List of name + ID") | **Düzeltildi** — `category`/`attributes` yansıtacak biçimde güncellendi |
 | 6 | 🟡 | Yeni çok-sayfalı `ListVoicesAsync` döngüsünde ikinci (veya sonraki) sayfanın hata dönmesi hiç test edilmemişti | **Düzeltildi** — `A_failure_on_a_later_page_fails_the_whole_call_rather_than_returning_a_partial_list` testi eklendi |
 | 7 | 🟢 | `ListVoicesTool.Description` metni ("Returns a name and id") artık eksikti — araç `category`/`attributes` de döndürüyor | **Düzeltildi** (kozmetik, ADAYLAR'a devredilmeden bu turda giderildi) |
 

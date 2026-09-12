@@ -36,7 +36,7 @@
 | MT-SEC-011 | ☑ | `/api/meta` yanıtı `AuthToken` DEĞERİNİ hiçbir alanda taşımaz |
 | MT-SEC-012 | ☑ | Arayüz kabuğu bearer token'dan MUAFTIR ama loopback'ten muaf DEĞİLDİR |
 | MT-SEC-020 | ☑ | `UseTenancy` hiç çağrılmamışken her istek varsayılan kiracıya düşer |
-| MT-SEC-021 | ☑ | `AllowHeaderResolution` açıkken `X-AgentPrism-Tenant` başlığı kiracıyı belirler |
+| MT-SEC-021 | ☑ | `AllowHeaderResolution` açıkken `X-Tracon-Tenant` başlığı kiracıyı belirler |
 | MT-SEC-022 | ☑ | `AllowHeaderResolution` KAPALIYKEN aynı başlık yok sayılır |
 | MT-SEC-023 | ☑ | Biçimsiz kiracı kimliği başlıkta gönderilirse sessizce reddedilir (hataya düşmez) |
 | MT-SEC-030 | ☑ | Kiracı A'da `FIX-AGENT-01` oluşturma |
@@ -61,7 +61,7 @@
 | MT-SEC-057 | ☑ | `DELETE /api/api-keys/{id}` iptal eder; sonra o anahtarla istek `401` alır |
 | MT-SEC-058 | ☑ | Var olmayan veya zaten iptal edilmiş `id`'yi tekrar iptal etmek → `404` |
 | MT-SEC-059 | ☑ | Süresi geçmiş anahtar `401` alır |
-| MT-SEC-060 | ☑ | `X-AgentPrism-Tenant` başlığı, anahtarın kiracısıyla ÇELİŞİRSE `403` |
+| MT-SEC-060 | ☑ | `X-Tracon-Tenant` başlığı, anahtarın kiracısıyla ÇELİŞİRSE `403` |
 | MT-SEC-061 | ☑ | Başlık HİÇ verilmezse kiracı doğrudan anahtardan çözülür |
 | MT-SEC-062 | ☑ | `apikey.create`/`apikey.revoke` denetim izine düşer, ham değer YAZILMAZ |
 | MT-SEC-070 | ☑ | `external:invoke` anahtarı YOKKEN `AllowRemoteAccess = true` yapılırsa uygulama AÇILMAZ |
@@ -104,11 +104,11 @@ uygulanmış olmalı; ek olarak `AllowedTenants` boş bırakılır (whitelist yo
 ---
 
 **Yeniden koşum (Aile G, 2026-08-14).** DÜZELTİLDİ — **HTTP 400**:
-`{"title":"Gecersiz istek govdesi","detail":"The JSON value could not be converted to AgentPrism.ApiKeyScope. Path: $.scopes[0]..."}`.
+`{"title":"Gecersiz istek govdesi","detail":"The JSON value could not be converted to Tracon.ApiKeyScope. Path: $.scopes[0]..."}`.
 Kök neden düzeltmesi tek endpoint'e özel bir yama DEĞİL, kütüphane çapında bir
 yeniden tasarımdır: `ApiKeyEndpoints.CreateAsync` artık `[FromBody]` otomatik
 baglamasi yerine `RequestBodyBinding.ReadAsync<T>` (yeni,
-`AgentPrism.AspNetCore/Internal/RequestBodyBinding.cs`) ile govdeyi elle okur —
+`Tracon.AspNetCore/Internal/RequestBodyBinding.cs`) ile govdeyi elle okur —
 `AgentEndpoints`'in zaten kullandığı desenle aynı. Bu koşumda tahmin edilen 10
 dosyanın TAMAMI (ve tahminin KAÇIRDIĞI, implicit binding kullanan
 `GovernanceEndpoints`, `AgentEndpoints.RollbackAsync`, `.../run`,
@@ -136,13 +136,13 @@ HTTP: 405 (Method Not Allowed).
 
 Bu dosyadaki case'ler bittiğinde:
 
-1. `samples/AgentPrism.Api/RoleTestAuthHandler.cs` (varsa) silinir.
+1. `samples/Tracon.Api/RoleTestAuthHandler.cs` (varsa) silinir.
 2. `Program.cs`'e eklenen `AddAuthentication`/`AddAuthorization`,
    `UseAuthentication`/`UseAuthorization`, `options.AllowRemoteAccess = true;`
    ve `options.RequireRolePolicies = true;` satırları geri alınır.
-3. `git diff samples/AgentPrism.Api/Program.cs` çalıştırılıp değişiklik
+3. `git diff samples/Tracon.Api/Program.cs` çalıştırılıp değişiklik
    KALMADIĞI doğrulanır.
-4. `dotnet user-secrets list` ile `AgentPrism:Tenancy:*` girdileri temizlenir
+4. `dotnet user-secrets list` ile `Tracon:Tenancy:*` girdileri temizlenir
    (isteğe bağlı — sonraki dosya zaten kendi reset yordamını uygular).
 
 ---

@@ -1,21 +1,21 @@
 # 19 — Çok Modluluk: Ek, Ses Tool'ları ve Gerçek Zamanlı Konuşma (`MM`)
 
 > **Alan kodu:** `MM` · **Faz:** 14, 28, 29, 72, 88
-> **Kaynak:** `src/AgentPrism.Abstractions/Attachments/` (tümü) ·
-> `src/AgentPrism.Core/Attachments/` (tümü) ·
-> `src/AgentPrism.AspNetCore/Endpoints/AttachmentEndpoints.cs` ·
-> `src/AgentPrism.AspNetCore/OpenAICompat/AttachmentIngestion.cs` ·
-> `src/AgentPrism.Voice/` (tümü — `AgentPrism.Voice` paketi) ·
-> `src/AgentPrism.Abstractions/Voice/` (tümü — `SpeechContracts.cs`,
+> **Kaynak:** `src/Tracon.Abstractions/Attachments/` (tümü) ·
+> `src/Tracon.Core/Attachments/` (tümü) ·
+> `src/Tracon.AspNetCore/Endpoints/AttachmentEndpoints.cs` ·
+> `src/Tracon.AspNetCore/OpenAICompat/AttachmentIngestion.cs` ·
+> `src/Tracon.Voice/` (tümü — `Tracon.Voice` paketi) ·
+> `src/Tracon.Abstractions/Voice/` (tümü — `SpeechContracts.cs`,
 > `SpeechModels.cs`, `ConversationContracts.cs`) ·
-> `src/AgentPrism.Core/Voice/` (tümü — gerçek zamanlı konuşma sürücüsü) ·
-> `src/AgentPrism.AspNetCore/Endpoints/VoiceEndpoints.cs` ·
-> `src/AgentPrism.AspNetCore/Voice/VoiceConversationEndpoint.cs` ·
-> `src/AgentPrism.AspNetCore/AgentPrismEndpointRouteBuilderExtensions.cs`
+> `src/Tracon.Core/Voice/` (tümü — gerçek zamanlı konuşma sürücüsü) ·
+> `src/Tracon.AspNetCore/Endpoints/VoiceEndpoints.cs` ·
+> `src/Tracon.AspNetCore/Voice/VoiceConversationEndpoint.cs` ·
+> `src/Tracon.AspNetCore/TraconEndpointRouteBuilderExtensions.cs`
 > (yalnız `MapVoiceConversation` — `UseWebSockets()` koşullu kurulumu) ·
-> `src/AgentPrism.Core/Images/` (tümü) ·
-> `src/AgentPrism.AspNetCore/Endpoints/ImageEndpoints.cs` ·
-> `src/AgentPrism.{OpenAI,Azure,Google}/*Image*` ·
+> `src/Tracon.Core/Images/` (tümü) ·
+> `src/Tracon.AspNetCore/Endpoints/ImageEndpoints.cs` ·
+> `src/Tracon.{OpenAI,Azure,Google}/*Image*` ·
 > Migration'lar: `attachments`/`agent_files` (`0006`), `tool_invocations` beş
 > ölçüm sütunu (`0015`), `voice_sessions` (`0016`).
 >
@@ -77,8 +77,8 @@ flowchart TD
 | Genel çalıştırma kaydı, span, maliyet gösterimi, SSE zarfı | `11-ARAYUZ-RUN-SESSION-SSE.md`, `12-GOZLEMLENEBILIRLIK-MALIYET.md` (zaten üretildi) — burada yalnız ses turunun de AYNI yolu ürettiği doğrulanır, mekanizma tekrar edilmez |
 | Sahipsiz eklerin/kapanmış konuşma kayıtlarının otomatik temizlenmesi (saklama işi) | `23-SAKLAMA-ARSIV-KOTA.md` (henüz üretilmedi) — burada yalnız `RetentionTargets.Attachments`/`VoiceSessions` hedeflerinin VARLIĞI doğrulanır, işin kendisi değil |
 
-> **Rol matrisi burada da örnek uygulamada NO-OP'tur.** `samples/AgentPrism.Api/Program.cs`
-> hiçbir `AgentPrismRolePolicies` rol policy'si kaydetmez (`grep -n "AddAuthorization\|RolePolic" samples/AgentPrism.Api/Program.cs`
+> **Rol matrisi burada da örnek uygulamada NO-OP'tur.** `samples/Tracon.Api/Program.cs`
+> hiçbir `TraconRolePolicies` rol policy'si kaydetmez (`grep -n "AddAuthorization\|RolePolic" samples/Tracon.Api/Program.cs`
 > boş döner) — bu genel davranış `13-KIRACI-VE-GUVENLIK.md`'de test edildi.
 > Bu dosyadaki tüm uçlar (`RequireRole(roles.Operator)` dahil) bu yüzden yalnız
 > loopback + bearer token katmanlarından geçer; ayrıca rol reddi test edilmez.
@@ -86,10 +86,10 @@ flowchart TD
 ## Koşmadan önce
 
 1. [`00-INDEKS.md`](00-INDEKS.md) §4 reset yordamı uygulanır.
-2. Örnek uygulama çalışır: `cd samples/AgentPrism.Api && dotnet run` →
-   `http://localhost:5080/agentprism`.
-3. **§1–4 (ek) hiçbir ek yapılandırma istemez** — `AgentPrism.Core` her zaman
-   kurulur. **§5'ten itibaren (ses)** `AgentPrism:Voice:ApiKey` (gerçek
+2. Örnek uygulama çalışır: `cd samples/Tracon.Api && dotnet run` →
+   `http://localhost:5080/tracon`.
+3. **§1–4 (ek) hiçbir ek yapılandırma istemez** — `Tracon.Core` her zaman
+   kurulur. **§5'ten itibaren (ses)** `Tracon:Voice:ApiKey` (gerçek
    ElevenLabs anahtarı) gerekir; `00-INDEKS.md` §2.4'e göre zaten ayarlıdır.
    Anahtar tanımlıysa örnek uygulama `UseVoice()` **ve** `UseVoiceConversation()`'ı
    birlikte açar (`Program.cs:212-226`) — ikisi ayrı ayrı açılıp kapatılamaz;
@@ -101,8 +101,8 @@ flowchart TD
 
 ```bash
 export APB="Authorization: Bearer manuel-test-token-2026"
-export APU="http://localhost:5080/agentprism"
-export PG="docker exec -i ap-pg psql -U postgres -d agentprism"
+export APU="http://localhost:5080/tracon"
+export PG="docker exec -i ap-pg psql -U postgres -d tracon"
 ```
 
 > 🚨 **Gerçek para uyarısı.** Bu dosyanın §5'ten sonraki HER case'i gerçek
@@ -118,10 +118,10 @@ export PG="docker exec -i ap-pg psql -U postgres -d agentprism"
 |---|---|
 | `FIX-MM-PNG-01` | 1×1 saydam PNG (68 bayt) — aşağıdaki komutla oluşturulur |
 | `FIX-MM-VOICE-01` | Gerçek bir ElevenLabs ses kimliği — sabit değildir, MT-MM-038'in çıktısından `$VOICE_ID` olarak alınır |
-| `FIX-MM-WS-CLIENT` | `~/agentprism-manuel-test/voice_client.py` — §9'da kurulan tester-tedarikli WebSocket istemcisi |
+| `FIX-MM-WS-CLIENT` | `~/tracon-manuel-test/voice_client.py` — §9'da kurulan tester-tedarikli WebSocket istemcisi |
 
 ```bash
-mkdir -p ~/agentprism-manuel-test
+mkdir -p ~/tracon-manuel-test
 python3 -c "
 import base64
 open('/tmp/fix-mm.png', 'wb').write(base64.b64decode(
@@ -227,7 +227,7 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/attachments" -H "$APB" \
 
 ---
 
-### MT-MM-005 — `AgentPrismAttachmentOptions.MaxBytes` (varsayılan 20 MB) aşımı reddedilir
+### MT-MM-005 — `TraconAttachmentOptions.MaxBytes` (varsayılan 20 MB) aşımı reddedilir
 
 Negatif senaryo.
 
@@ -281,7 +281,7 @@ for name, (b2, expect_ok) in cases.items():
     open(path, 'wb').write(bytes([0xFF, b2]) + b'\x00' * 64)
     result = subprocess.run(
         ['curl', '-s', '-o', '/dev/null', '-w', '%{http_code}', '-X', 'POST',
-         'http://localhost:5080/agentprism/api/attachments',
+         'http://localhost:5080/tracon/api/attachments',
          '-H', 'Authorization: Bearer manuel-test-token-2026',
          '-F', f'file=@{path};type=audio/mpeg'],
         capture_output=True, text=True)
@@ -390,21 +390,21 @@ Kritik negatif senaryo — kiracı yalıtımı.
 | **İlgili karar** | — |
 
 **Ön koşul**
-- `FIX-TENANT-01` (`kiraci-alfa`) altında bir ek yüklenmiş (`X-AgentPrism-Tenant: kiraci-alfa` başlığıyla).
-- Çok kiracılık açık: `AgentPrism:Tenancy:Enabled=true`, `AgentPrism:Tenancy:AllowHeaderResolution=true`
+- `FIX-TENANT-01` (`kiraci-alfa`) altında bir ek yüklenmiş (`X-Tracon-Tenant: kiraci-alfa` başlığıyla).
+- Çok kiracılık açık: `Tracon:Tenancy:Enabled=true`, `Tracon:Tenancy:AllowHeaderResolution=true`
   (varsayılan kapalı — `13-KIRACI-VE-GUVENLIK.md` §5 deseniyle aynı).
 
 **Girilecek veri**
 
 > **Doküman düzeltmesi:** Örnek başlık adı `X-Tenant-Id` idi; gerçek başlık
-> `HttpTenantContext.cs:50`'de `X-AgentPrism-Tenant`dır (bkz. `13-KIRACI-VE-GUVENLIK.md`
+> `HttpTenantContext.cs:50`'de `X-Tracon-Tenant`dır (bkz. `13-KIRACI-VE-GUVENLIK.md`
 > MT-SEC-021, aynı başlığı doğru kullanıyor). Aşağıda düzeltildi.
 
 ```bash
-curl -s -X POST "$APU/api/attachments" -H "$APB" -H "X-AgentPrism-Tenant: kiraci-alfa" \
+curl -s -X POST "$APU/api/attachments" -H "$APB" -H "X-Tracon-Tenant: kiraci-alfa" \
      -F "file=@/tmp/fix-mm.png;type=image/png" | python3 -c "import json,sys; print(json.load(sys.stdin)['id'])"
 # Yukaridaki id'yi ALFA_ID olarak sakla, sonra BETA kiracisiyla dene:
-curl -s -w "\nHTTP: %{http_code}\n" "$APU/api/attachments/$ALFA_ID" -H "$APB" -H "X-AgentPrism-Tenant: kiraci-beta" -o /dev/null
+curl -s -w "\nHTTP: %{http_code}\n" "$APU/api/attachments/$ALFA_ID" -H "$APB" -H "X-Tracon-Tenant: kiraci-beta" -o /dev/null
 ```
 
 **Beklenen sonuç**
@@ -513,7 +513,7 @@ Negatif senaryo.
 
 **Girilecek veri**
 ```bash
-curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/agents/support/run" -H "$APB" -H "X-AgentPrism-Tenant: kiraci-beta" \
+curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/agents/support/run" -H "$APB" -H "X-Tracon-Tenant: kiraci-beta" \
      -H "content-type: application/json" -d "{
   \"message\": \"bu ek nedir\",
   \"attachmentIds\": [\"$ALFA_ID\"]
@@ -656,7 +656,7 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/v1/responses" -H "$APB" \
 - `HTTP: 400` — `AttachmentIngestion.ReplaceEmbeddedDataAsync` `guard.Validate`
   hatasını doğrudan istemciye taşır.
 
-### MT-MM-031 — `AgentPrism:Voice:ApiKey` yoksa `/api/voice/*` `501`, konuşma ucu `404` döner
+### MT-MM-031 — `Tracon:Voice:ApiKey` yoksa `/api/voice/*` `501`, konuşma ucu `404` döner
 
 Negatif/sınır senaryosu — kritik. **Geçici yapılandırma değişikliği ister.**
 
@@ -668,7 +668,7 @@ Negatif/sınır senaryosu — kritik. **Geçici yapılandırma değişikliği is
 | **İlgili karar** | — |
 
 **Adımlar**
-1. `cd samples/AgentPrism.Api && dotnet user-secrets remove "AgentPrism:Voice:ApiKey"`.
+1. `cd samples/Tracon.Api && dotnet user-secrets remove "Tracon:Voice:ApiKey"`.
 2. Uygulamayı yeniden başlat (`Program.cs:210`'daki `voiceEnabled` artık
    `false`; hem `UseVoice()` hem `UseVoiceConversation()` HİÇ çağrılmaz).
 
@@ -683,7 +683,7 @@ curl -s -w "\nHTTP: %{http_code}\n" "$APU/api/voice/sessions/deneme/stream" -H "
 - İkinci istek `HTTP: 404` (uç HİÇ kayıtlı değil — `UseVoiceConversation()`
   çağrılmadığı için rota gerçekten yok, "var ama kapalı" değil).
 - **Ön koşulu geri al:**
-  `dotnet user-secrets set "AgentPrism:Voice:ApiKey" "<ELEVENLABS_ANAHTARINIZ>"`,
+  `dotnet user-secrets set "Tracon:Voice:ApiKey" "<ELEVENLABS_ANAHTARINIZ>"`,
   uygulamayı yeniden başlat — sonraki tüm case'ler bu anahtara ihtiyaç duyar.
 
 ---
@@ -701,15 +701,15 @@ Negatif senaryo — saklanamayan biçim.
 
 **Girilecek veri**
 ```bash
-cd samples/AgentPrism.Api
-dotnet user-secrets set "AgentPrism:Voice:OutputFormat" "pcm_16000"
+cd samples/Tracon.Api
+dotnet user-secrets set "Tracon:Voice:OutputFormat" "pcm_16000"
 dotnet run
 ```
 
 **Beklenen sonuç**
 - Uygulama açılışta `OptionsValidationException` ile ÇÖKER; mesaj
   `'pcm_16000' bicimi ek olarak saklanamaz` metnini içerir (`VoiceOptionsValidator.IsStorableFormat`).
-- **Geri al:** `dotnet user-secrets remove "AgentPrism:Voice:OutputFormat"`,
+- **Geri al:** `dotnet user-secrets remove "Tracon:Voice:OutputFormat"`,
   yeniden başlat.
 
 ---
@@ -727,15 +727,15 @@ Negatif senaryo.
 
 **Girilecek veri**
 ```bash
-cd samples/AgentPrism.Api
-dotnet user-secrets set "AgentPrism:Voice:Provider" "azure-cognitive-speech"
+cd samples/Tracon.Api
+dotnet user-secrets set "Tracon:Voice:Provider" "azure-cognitive-speech"
 dotnet run
 ```
 
 **Beklenen sonuç**
 - Açılış çöker; mesaj `'azure-cognitive-speech' saglayicisi taninmiyor.
   Yerlesik saglayici: 'elevenlabs'` metnini içerir.
-- **Geri al:** `dotnet user-secrets remove "AgentPrism:Voice:Provider"`,
+- **Geri al:** `dotnet user-secrets remove "Tracon:Voice:Provider"`,
   yeniden başlat.
 
 ---
@@ -753,15 +753,15 @@ Negatif senaryo.
 
 **Girilecek veri**
 ```bash
-cd samples/AgentPrism.Api
-dotnet user-secrets set "AgentPrism:Voice:MaxConcurrentRequests" "0"
+cd samples/Tracon.Api
+dotnet user-secrets set "Tracon:Voice:MaxConcurrentRequests" "0"
 dotnet run
 ```
 
 **Beklenen sonuç**
 - Açılış çöker; mesaj `eszamanli istek siniri sifirdan buyuk olmalidir`
   içerir.
-- **Geri al:** `dotnet user-secrets remove "AgentPrism:Voice:MaxConcurrentRequests"`,
+- **Geri al:** `dotnet user-secrets remove "Tracon:Voice:MaxConcurrentRequests"`,
   yeniden başlat.
 
 ---
@@ -779,7 +779,7 @@ Kritik güvenlik doğrulaması.
 
 **Adımlar**
 1. Geçici olarak GEÇERSİZ ama BOŞ-OLMAYAN bir anahtar ayarla:
-   `dotnet user-secrets set "AgentPrism:Voice:ApiKey" "SAHTE-GECERSIZ-ANAHTAR-xyz789"`,
+   `dotnet user-secrets set "Tracon:Voice:ApiKey" "SAHTE-GECERSIZ-ANAHTAR-xyz789"`,
    uygulamayı yeniden başlat (bu geçerli bir açılış — doğrulama yalnız
    BOŞLUĞU kontrol eder, gerçekliği değil).
 2. Gerçek bir çağrı yap.
@@ -855,7 +855,7 @@ Gerçek entegrasyon — mutlu yol, kritik.
 **Girilecek veri**
 ```bash
 curl -s -X POST "$APU/api/voice/speak" -H "$APB" -H "content-type: application/json" -d "{
-  \"text\": \"AgentPrism manuel test seslendirmesi.\",
+  \"text\": \"Tracon manuel test seslendirmesi.\",
   \"sessionId\": \"manuel-mm-1\",
   \"voiceId\": \"$VOICE_ID\"
 }" | python3 -m json.tool
@@ -863,7 +863,7 @@ curl -s -X POST "$APU/api/voice/speak" -H "$APB" -H "content-type: application/j
 
 **Beklenen sonuç**
 - `HTTP: 200`. Gövdede `attachment.mediaType: "audio/mpeg"`, `characters`
-  pozitif bir tam sayı, `isEstimated` bir `bool`. `AgentPrism:Pricing:Voice`
+  pozitif bir tam sayı, `isEstimated` bir `bool`. `Tracon:Pricing:Voice`
   yapılandırılmamışsa `cost`/`currency` `null` — SIFIR değil (K-032).
   `attachment.id`'yi `GET {APU}/api/attachments/{id}` ile indirip gerçekten
   çalan bir MP3 olduğunu doğrula.
@@ -909,8 +909,8 @@ Sınır senaryosu — düzeltilmiş kusur.
 böyle bir kontrol taşımıyordu — `SpeakTool.InvokeCoreAsync` bu kontrolü
 yaparken HTTP ucu `ElevenLabsSpeechClient.SynthesizeAsync`'i DOĞRUDAN
 çağırıyordu, doküman ile kod çelişiyordu. `ISpeechSynthesizer`'a
-`MaxCharactersPerRequest` özelliği eklendi (`AgentPrism.Abstractions` —
-`AgentPrism.AspNetCore`, `AgentPrism.Voice`'a referans VEREMEZ, bu yüzden
+`MaxCharactersPerRequest` özelliği eklendi (`Tracon.Abstractions` —
+`Tracon.AspNetCore`, `Tracon.Voice`'a referans VEREMEZ, bu yüzden
 soyutlama katmanına eklendi); `SpeakAsync` artık bu sınırı `speak` tool'uyla
 AYNI şekilde uygular.
 
@@ -980,7 +980,7 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/agents/sesli-asistan/run" 
 
 ```sql
 SELECT session_id, run_id, media_type, byte_size
-FROM agentprism.attachments
+FROM tracon.attachments
 WHERE session_id = 'manuel-mm-speak-1'
 ORDER BY created_at DESC LIMIT 1;
 ```
@@ -1124,7 +1124,7 @@ curl -s -X POST "$APU/api/agents/sesli-asistan/run" -H "$APB" \
 **Doğrulama sorgusu**
 ```sql
 SELECT tool_name, usage_unit, usage_quantity, usage_estimated, cost, cost_currency
-FROM agentprism.tool_invocations
+FROM tracon.tool_invocations
 WHERE run_id = '<RUN_ID>' AND tool_name = 'speak';
 ```
 
@@ -1150,7 +1150,7 @@ WHERE run_id = '<RUN_ID>' AND tool_name = 'speak';
 
 **Doğrulama sorgusu**
 ```sql
-SELECT usage_unit, usage_quantity FROM agentprism.tool_invocations
+SELECT usage_unit, usage_quantity FROM tracon.tool_invocations
 WHERE run_id = '<RUN_ID>' AND tool_name = 'transcribe';
 ```
 
@@ -1176,7 +1176,7 @@ Sınır senaryosu — K-220.
 
 **Doğrulama sorgusu**
 ```sql
-SELECT count(*) FROM agentprism.tool_invocations WHERE tool_name = 'speak'
+SELECT count(*) FROM tracon.tool_invocations WHERE tool_name = 'speak'
   AND created_at > now() - interval '5 minutes';
 ```
 
@@ -1203,9 +1203,9 @@ SELECT count(*) FROM agentprism.tool_invocations WHERE tool_name = 'speak'
 ```bash
 pip3 install --quiet websockets
 
-cat > ~/agentprism-manuel-test/voice_client.py << 'PYEOF'
+cat > ~/tracon-manuel-test/voice_client.py << 'PYEOF'
 #!/usr/bin/env python3
-"""AgentPrism gercek zamanli konusma WebSocket istemcisi (tester-tedarikli)."""
+"""Tracon gercek zamanli konusma WebSocket istemcisi (tester-tedarikli)."""
 import argparse
 import asyncio
 import json
@@ -1215,8 +1215,8 @@ import sys
 
 import websockets
 
-SUBPROTOCOL = "agentprism.voice.v1"
-TOKEN_PREFIX = "agentprism.token."
+SUBPROTOCOL = "tracon.voice.v1"
+TOKEN_PREFIX = "tracon.token."
 
 def make_tone(seconds: float, sample_rate: int, freq: float = 440.0) -> bytes:
     n = int(sample_rate * seconds)
@@ -1226,7 +1226,7 @@ def make_tone(seconds: float, sample_rate: int, freq: float = 440.0) -> bytes:
 async def main() -> None:
     p = argparse.ArgumentParser()
     p.add_argument("--host", default="localhost:5080")
-    p.add_argument("--prefix", default="/agentprism")
+    p.add_argument("--prefix", default="/tracon")
     p.add_argument("--session", default="manuel-ws-1")
     p.add_argument("--agent", default="sesli-asistan")
     p.add_argument("--token", default="manuel-test-token-2026")
@@ -1321,7 +1321,7 @@ if __name__ == "__main__":
     asyncio.run(main())
 PYEOF
 
-python3 ~/agentprism-manuel-test/voice_client.py --help
+python3 ~/tracon-manuel-test/voice_client.py --help
 ```
 
 **Beklenen sonuç**
@@ -1349,7 +1349,7 @@ yalnız izlek C referansı tekrar edilir.
   uygulamada ikinci durum ayrı test edilemez (ikisi birlikte açılıp
   kapanıyor, bkz. MT-MM-031); bu case yalnız otomatik test kanıtının GÜNCEL
   olduğunu (test dosyasının varlığını ve geçtiğini) doğrular:
-  `dotnet test tests/AgentPrism.AspNetCore.FunctionalTests -c Release --no-build --filter "FullyQualifiedName~VoiceConversationTests.UseVoiceConversation_cagrilmadiysa|FullyQualifiedName~VoiceConversationTests.Ses_saglayicisi_yoksa"`.
+  `dotnet test tests/Tracon.AspNetCore.FunctionalTests -c Release --no-build --filter "FullyQualifiedName~VoiceConversationTests.UseVoiceConversation_cagrilmadiysa|FullyQualifiedName~VoiceConversationTests.Ses_saglayicisi_yoksa"`.
 
 ---
 
@@ -1386,11 +1386,11 @@ curl -s -w "\nHTTP: %{http_code}\n" "$APU/api/voice/sessions/duz-http-deneme/str
 
 **Girilecek veri**
 ```bash
-python3 ~/agentprism-manuel-test/voice_client.py --session manuel-ws-token-ok --token manuel-test-token-2026
+python3 ~/tracon-manuel-test/voice_client.py --session manuel-ws-token-ok --token manuel-test-token-2026
 ```
 
 **Beklenen sonuç**
-- `BAGLANDI, kabul edilen alt protokol: agentprism.voice.v1` yazdırılır.
+- `BAGLANDI, kabul edilen alt protokol: tracon.voice.v1` yazdırılır.
   İlk `<<` çerçevesi `{"type": "ready", "agent": "sesli-asistan", ...,
   "persistAudio": false}` olur.
 
@@ -1409,7 +1409,7 @@ Negatif senaryo — kritik.
 
 **Girilecek veri**
 ```bash
-python3 ~/agentprism-manuel-test/voice_client.py --session manuel-ws-token-bad --token yanlis-token-123
+python3 ~/tracon-manuel-test/voice_client.py --session manuel-ws-token-bad --token yanlis-token-123
 ```
 
 **Beklenen sonuç**
@@ -1432,14 +1432,14 @@ Kritik negatif senaryo — güvenlik sınırı.
 
 **Girilecek veri**
 ```bash
-python3 ~/agentprism-manuel-test/voice_client.py --session manuel-ws-query-token \
+python3 ~/tracon-manuel-test/voice_client.py --session manuel-ws-query-token \
   --token manuel-test-token-2026 --send-token-in-query --no-token
 ```
 
 **Beklenen sonuç**
 - Komut `--send-token-in-query` ile token'ı `?token=...` sorgu dizesine
-  koyar VE `--no-token` ile alt protokol listesinden `agentprism.token.*`
-  girdisini ÇIKARIR (yalnız `agentprism.voice.v1` kalır). Bağlantı
+  koyar VE `--no-token` ile alt protokol listesinden `tracon.token.*`
+  girdisini ÇIKARIR (yalnız `tracon.voice.v1` kalır). Bağlantı
   REDDEDİLİR (`401`) — sunucu yalnız `Sec-WebSocket-Protocol` alt
   protokolüne bakar, sorgu dizesini hiç okumaz. Adres bu şekilde sunucu
   günlüklerine ve tarayıcı geçmişine yazılsa bile token orada geçerli
@@ -1469,7 +1469,7 @@ Kritik negatif senaryo — K-277 davranışı.
 
 **Girilecek veri**
 ```bash
-python3 ~/agentprism-manuel-test/voice_client.py --session paylasilan-oturum-id --token manuel-test-token-2026
+python3 ~/tracon-manuel-test/voice_client.py --session paylasilan-oturum-id --token manuel-test-token-2026
 curl -s "$APU/api/sessions/paylasilan-oturum-id" -H "$APB" -H "X-Tenant-Id: kiraci-alfa" \
      | python3 -c "import json,sys; print(len(json.load(sys.stdin).get('items', [])))"
 ```
@@ -1495,7 +1495,7 @@ Gerçek entegrasyon — mutlu yol, kritik.
 
 **Girilecek veri**
 ```bash
-python3 ~/agentprism-manuel-test/voice_client.py --session manuel-ws-tur-1 --voice-id "$VOICE_ID"
+python3 ~/tracon-manuel-test/voice_client.py --session manuel-ws-tur-1 --voice-id "$VOICE_ID"
 ```
 
 **Beklenen sonuç**
@@ -1524,7 +1524,7 @@ python3 ~/agentprism-manuel-test/voice_client.py --session manuel-ws-tur-1 --voi
 **Doğrulama sorgusu**
 ```sql
 SELECT status, agent_name, model_id, input_tokens, output_tokens, session_id
-FROM agentprism.runs WHERE id = '<RUN_ID>';
+FROM tracon.runs WHERE id = '<RUN_ID>';
 ```
 
 **Beklenen sonuç**
@@ -1548,7 +1548,7 @@ Sınır senaryosu.
 
 **Girilecek veri**
 ```bash
-python3 ~/agentprism-manuel-test/voice_client.py --session manuel-ws-ikinci-start --repeat-start
+python3 ~/tracon-manuel-test/voice_client.py --session manuel-ws-ikinci-start --repeat-start
 ```
 
 **Beklenen sonuç**
@@ -1574,7 +1574,7 @@ kopmamalıdır.
 
 **Girilecek veri**
 ```bash
-python3 ~/agentprism-manuel-test/voice_client.py --session manuel-ws-bos-commit \
+python3 ~/tracon-manuel-test/voice_client.py --session manuel-ws-bos-commit \
   --send-audio-before-start --audio-seconds 0.0 --no-commit
 # Not: bu komut once "commit"i ELLE gondermeden BOS bir ses gonderir; ardindan
 # aracin kendisi commit gonderir. Boş parca (0 saniye) VoiceUtteranceBuffer'in
@@ -1602,7 +1602,7 @@ Negatif senaryo.
 
 **Girilecek veri**
 ```bash
-python3 ~/agentprism-manuel-test/voice_client.py --session manuel-ws-bad-format --format mp3
+python3 ~/tracon-manuel-test/voice_client.py --session manuel-ws-bad-format --format mp3
 ```
 
 **Beklenen sonuç**
@@ -1624,7 +1624,7 @@ Negatif senaryo.
 
 **Girilecek veri**
 ```bash
-python3 ~/agentprism-manuel-test/voice_client.py --session manuel-ws-bad-agent --agent yok-boyle-bir-agent
+python3 ~/tracon-manuel-test/voice_client.py --session manuel-ws-bad-agent --agent yok-boyle-bir-agent
 ```
 
 **Beklenen sonuç**
@@ -1645,7 +1645,7 @@ Gerçek entegrasyon — kritik.
 
 **Girilecek veri**
 ```bash
-python3 ~/agentprism-manuel-test/voice_client.py --session manuel-ws-kesinti-1 --cancel-on-audio-start
+python3 ~/tracon-manuel-test/voice_client.py --session manuel-ws-kesinti-1 --cancel-on-audio-start
 curl -s "$APU/api/sessions/manuel-ws-kesinti-1" -H "$APB" | python3 -m json.tool | tail -20
 ```
 
@@ -1657,7 +1657,7 @@ curl -s "$APU/api/sessions/manuel-ws-kesinti-1" -H "$APB" | python3 -m json.tool
 
 **Doğrulama sorgusu**
 ```sql
-SELECT status FROM agentprism.runs WHERE id = '<runStarted cerçevesindeki runId>';
+SELECT status FROM tracon.runs WHERE id = '<runStarted cerçevesindeki runId>';
 ```
 
 **Beklenen sonuç (SQL)**
@@ -1683,11 +1683,11 @@ Negatif senaryo.
 **Girilecek veri**
 ```bash
 for i in 1 2 3 4 5; do
-  python3 ~/agentprism-manuel-test/voice_client.py --session "manuel-ws-sinir-$i" \
+  python3 ~/tracon-manuel-test/voice_client.py --session "manuel-ws-sinir-$i" \
     --no-commit --max-wait-seconds 20 &
 done
 sleep 2
-python3 ~/agentprism-manuel-test/voice_client.py --session manuel-ws-sinir-6 --no-commit --max-wait-seconds 5
+python3 ~/tracon-manuel-test/voice_client.py --session manuel-ws-sinir-6 --no-commit --max-wait-seconds 5
 wait
 ```
 
@@ -1712,7 +1712,7 @@ Kritik güvenlik doğrulaması (kişisel veri).
 
 **Girilecek veri**
 ```bash
-python3 ~/agentprism-manuel-test/voice_client.py --session manuel-ws-nopersist
+python3 ~/tracon-manuel-test/voice_client.py --session manuel-ws-nopersist
 curl -s "$APU/api/attachments?sessionId=manuel-ws-nopersist" -H "$APB" \
      | python3 -c "import json,sys; print(len(json.load(sys.stdin)))"
 ```
@@ -1736,12 +1736,12 @@ Kritik senaryo — S3 (docs/29).
 | **İlgili karar** | K-225 |
 
 **Adımlar**
-1. `cd samples/AgentPrism.Api && dotnet user-secrets set "AgentPrism:Voice:Conversation:PersistAudio" "true"`,
+1. `cd samples/Tracon.Api && dotnet user-secrets set "Tracon:Voice:Conversation:PersistAudio" "true"`,
    uygulamayı yeniden başlat.
 
 **Girilecek veri**
 ```bash
-python3 ~/agentprism-manuel-test/voice_client.py --session manuel-ws-persist
+python3 ~/tracon-manuel-test/voice_client.py --session manuel-ws-persist
 curl -s "$APU/api/attachments?sessionId=manuel-ws-persist" -H "$APB" | python3 -m json.tool
 ```
 
@@ -1751,7 +1751,7 @@ curl -s "$APU/api/attachments?sessionId=manuel-ws-persist" -H "$APB" | python3 -
   `mediaType: "audio/mpeg"` (agent'ın konuştuğu ses) — kullanıcının
   gönderdiği sinüs tonu HİÇBİR ek olarak görünmez, çünkü kullanıcının sesi
   hiçbir zaman diske/veritabanına yazılmaz.
-- **Geri al:** `dotnet user-secrets remove "AgentPrism:Voice:Conversation:PersistAudio"`,
+- **Geri al:** `dotnet user-secrets remove "Tracon:Voice:Conversation:PersistAudio"`,
   yeniden başlat.
 
 ---
@@ -1777,7 +1777,7 @@ curl -s "$APU/api/voice/sessions?sessionId=manuel-ws-tur-1" -H "$APB" | python3 
 **Doğrulama sorgusu**
 ```sql
 SELECT session_id, turns, end_reason, input_seconds, output_chars
-FROM agentprism.voice_sessions WHERE session_id = 'manuel-ws-tur-1';
+FROM tracon.voice_sessions WHERE session_id = 'manuel-ws-tur-1';
 ```
 
 **Beklenen sonuç**
@@ -1807,7 +1807,7 @@ Sınır senaryosu — teknik doğrulama.
   gönderilince çözüm ucuna giden bayt sayısı tam 3244'tür. Bu case koşum
   sırasında bu testin GEÇTİĞİNİ doğrulamakla yetinir (gerçek ElevenLabs'e
   giden multipart gövdenin bayt sayısını manuel ölçmek pratik değildir):
-  `dotnet test tests/AgentPrism.Core.UnitTests -c Release --no-build --filter "FullyQualifiedName~VoiceUtteranceBufferTests"`.
+  `dotnet test tests/Tracon.Core.UnitTests -c Release --no-build --filter "FullyQualifiedName~VoiceUtteranceBufferTests"`.
 
 ### MT-MM-086 — Canlı transkript ve altyazı, gerçek bir turda arayüzde akar
 
@@ -1819,7 +1819,7 @@ Sınır senaryosu — teknik doğrulama.
 | **İlgili karar** | — |
 
 **Ön koşul**
-- Chrome'da `http://localhost:5080/agentprism/playground/sesli-asistan`
+- Chrome'da `http://localhost:5080/tracon/playground/sesli-asistan`
   açık; tarayıcı mikrofon iznini kabul etmiş.
 
 **Adımlar**
@@ -1899,7 +1899,7 @@ GERÇEK bir güvensiz-bağlam denemesi bu ortamda pratik değildir.
 
 **Adımlar**
 1. Mac'in yerel ağ IP adresini bul (`ipconfig getifaddr en0`).
-2. Chrome'da `http://<yerel-ip>:5080/agentprism/playground/sesli-asistan`
+2. Chrome'da `http://<yerel-ip>:5080/tracon/playground/sesli-asistan`
    adresini aç (`localhost` DEĞİL, IP adresiyle — HTTP üzerinden).
 3. Mikrofon düğmesine tıkla.
 
@@ -1907,7 +1907,7 @@ GERÇEK bir güvensiz-bağlam denemesi bu ortamda pratik değildir.
 - Panel ya hiç açılmaz ya da açılıp içinde "mikrofon erişimi güvenli bir
   bağlam gerektirir" temalı açık bir mesaj gösterir; sessiz bir başarısızlık
   (konsol hatası dışında hiçbir görünür belirti olmaması) KABUL EDİLEMEZ.
-  IP adresi üzerinden AgentPrism'e erişim `AllowRemoteAccess` ayarı
+  IP adresi üzerinden Tracon'e erişim `AllowRemoteAccess` ayarı
   KAPALIYSA zaten backend'de `403` ile reddedilir — bu durumda case
   `⏭ ATLA — AllowRemoteAccess kapalı, tarayıcı güvenli-bağlam denemesine hiç
   ulaşamıyor` notuyla işaretlenir ve `AllowRemoteAccess` GEÇİCİ olarak
@@ -2020,17 +2020,17 @@ yoktur. Kombinasyon istisna ile reddedilir (K1).
 | **İlgili karar** | — |
 
 **Adımlar**
-1. `AgentPrism.Voice.UnitTests.ElevenLabsSpeechClientTests.Streaming_synthesis_rejects_IncludeTimestamps_explicitly`
+1. `Tracon.Voice.UnitTests.ElevenLabsSpeechClientTests.Streaming_synthesis_rejects_IncludeTimestamps_explicitly`
    testini çalıştır (otomatik koşum; bu case elle tekrar üretmeye gerek
    bırakmaz, davranışın belgesidir):
    ```bash
-   dotnet test tests/AgentPrism.Voice.UnitTests -c Release \
+   dotnet test tests/Tracon.Voice.UnitTests -c Release \
      --filter "FullyQualifiedName~Streaming_synthesis_rejects_IncludeTimestamps_explicitly"
    ```
 
 **Beklenen sonuç**
 - Test yeşil. `ISpeechSynthesizer.SynthesizeStreamingAsync` çağrısı
-  `request.IncludeTimestamps == true` iken `AgentPrismException` fırlatır;
+  `request.IncludeTimestamps == true` iken `TraconException` fırlatır;
   hiçbir HTTP isteği ElevenLabs'e gitmez (`handler.Requests` boştur —
   kredi harcanmaz). Akışlı sentez zaten `POST /api/voice/speak`'ten
   ULAŞILAMAZ (o uç her zaman `SynthesizeAsync`'i çağırır); bu case yalnız
@@ -2065,10 +2065,10 @@ Negatif/maliyet senaryosu. MT-MM-091 ve MT-MM-092'nin karşılaştırması.
 # 15 — Görsel Üretim Tool'u (Faz 88)
 
 > **Ek ön koşul:** Bir görsel sağlayıcı anahtarı ve modeli tanımlıdır. OpenAI
-> örneği için `AgentPrism:Images:Enabled=true`, `:Provider=openai`,
+> örneği için `Tracon:Images:Enabled=true`, `:Provider=openai`,
 > `:Model=<etkin görsel model>` ayarlanır. Bu bölümdeki canlı çağrılar gerçek
 > sağlayıcı kredisi harcar. Fiyat case'leri için `Pricing:Images` altında açık
-> bir tüketici fiyatı girilir; AgentPrism yerleşik fiyat kullanmaz.
+> bir tüketici fiyatı girilir; Tracon yerleşik fiyat kullanmaz.
 
 ### MT-MM-095 — `generate_image` yalnız ek kimliği döndürür ve ek oturuma bağlıdır
 
@@ -2106,7 +2106,7 @@ curl -s -H "$APB" "$APU/api/attachments?sessionId=$SESSION_ID" | jq .
 | **İlgili karar** | — |
 
 **Ön koşul**
-- `AgentPrism:Images:Enabled=false` ile uygulama yeniden başlatılmış.
+- `Tracon:Images:Enabled=false` ile uygulama yeniden başlatılmış.
 
 **Adımlar**
 ```bash
@@ -2306,12 +2306,12 @@ curl -s -o /dev/null -w '%{http_code}\n' -X POST "$APU/api/images/generate" \
 - Depo kök dizini.
 
 **Adımlar**
-1. `dotnet test tests/AgentPrism.Core.UnitTests -c Release --filter-method
+1. `dotnet test tests/Tracon.Core.UnitTests -c Release --filter-method
    "*Source_tree_carries_no_Turkish*"` koştur.
 
 **Beklenen sonuç**
 - Test yeşildir.
-- `tests/AgentPrism.Core.UnitTests/Architecture/source-language-baseline.txt`
+- `tests/Tracon.Core.UnitTests/Architecture/source-language-baseline.txt`
   boş kalır (hiçbir dosya için izin verilen satır sayısı büyümedi).
 
 ### MT-MM-106 — Ses yolu Native AOT'ta çalışır
@@ -2347,7 +2347,7 @@ curl -s -o /dev/null -w '%{http_code}\n' -X POST "$APU/api/images/generate" \
   projesi (`samples/` veya harici).
 
 **Adımlar**
-1. Projeyi yeni `AgentPrism.Abstractions` sürümüne karşı derle.
+1. Projeyi yeni `Tracon.Abstractions` sürümüne karşı derle.
 
 **Beklenen sonuç**
 - Proje **hiçbir kod değişikliği olmadan** derlenir: `Attributes` varsayılanlı
@@ -2366,7 +2366,7 @@ curl -s -o /dev/null -w '%{http_code}\n' -X POST "$APU/api/images/generate" \
 - `UseLiveVoice()` çağrılmış, hiçbir `ILiveVoiceProvider` kayıtlı değil.
 
 **Adımlar**
-1. `POST /agentprism/api/voice/live/sessions` gövde `{"sessionId":"s1","agent":"support","sdp":"v=0\r\n"}`.
+1. `POST /tracon/api/voice/live/sessions` gövde `{"sessionId":"s1","agent":"support","sdp":"v=0\r\n"}`.
 
 **Beklenen sonuç**
 - `501`; `detail` metni eksik olan çağrının adını (`UseOpenAILive`) söyler.
@@ -2398,8 +2398,8 @@ curl -s -o /dev/null -w '%{http_code}\n' -X POST "$APU/api/images/generate" \
 | **İlgili faz** | Faz 161 |
 
 **Ön koşul**
-- Gerçek `AgentPrism:Providers:OpenAI:ApiKey`, `support` agent'ı tanımlı,
-  `samples/AgentPrism.Api` ayakta.
+- Gerçek `Tracon:Providers:OpenAI:ApiKey`, `support` agent'ı tanımlı,
+  `samples/Tracon.Api` ayakta.
 
 **Adımlar**
 1. `http://localhost:5080/live-test.html` aç.
@@ -2426,7 +2426,7 @@ curl -s -o /dev/null -w '%{http_code}\n' -X POST "$APU/api/images/generate" \
 
 **Adımlar**
 1. Agent'ın bir tool'unu gerektiren bir soru sor ("442 numaralı siparişin durumu ne?").
-2. `GET /agentprism/api/runs?take=5`.
+2. `GET /tracon/api/runs?take=5`.
 
 **Beklenen sonuç**
 - Gerçek bir satır: `agentName` oturumu açan agent, `sessionId` istekteki değer,
@@ -2447,7 +2447,7 @@ curl -s -o /dev/null -w '%{http_code}\n' -X POST "$APU/api/images/generate" \
 
 **Adımlar**
 1. Oturumu kapat (`DELETE .../voice/live/sessions/{id}`).
-2. `GET /agentprism/api/sessions/{sessionId}`.
+2. `GET /tracon/api/sessions/{sessionId}`.
 
 **Beklenen sonuç**
 - Konuşmanın dökümü geçmişte durur; devredilen run'ın girdisi etiketli
@@ -2463,7 +2463,7 @@ curl -s -o /dev/null -w '%{http_code}\n' -X POST "$APU/api/images/generate" \
 | **İlgili karar** | K-706 |
 
 **Ön koşul**
-- `AgentPrism:Voice:Live:PersistTranscript=false`.
+- `Tracon:Voice:Live:PersistTranscript=false`.
 
 **Adımlar**
 1. MT-MM-111'i tekrarla.
@@ -2483,12 +2483,12 @@ curl -s -o /dev/null -w '%{http_code}\n' -X POST "$APU/api/images/generate" \
 | **İlgili karar** | K-701 · K-702 |
 
 **Ön koşul**
-- `AgentPrism:Pricing:Voice:openai:gpt-live-1:PerMinute` tanımlı,
-  `AgentPrism:Pricing:Currency` tanımlı.
+- `Tracon:Pricing:Voice:openai:gpt-live-1:PerMinute` tanımlı,
+  `Tracon:Pricing:Currency` tanımlı.
 
 **Adımlar**
 1. Bir canlı oturum aç, kapat.
-2. `GET /agentprism/api/voice/sessions`.
+2. `GET /tracon/api/voice/sessions`.
 
 **Beklenen sonuç**
 - `provider`, `model`, `liveSeconds` ve `cost.durationCost` dolu.
@@ -2505,7 +2505,7 @@ curl -s -o /dev/null -w '%{http_code}\n' -X POST "$APU/api/images/generate" \
 | **İlgili karar** | K-702 |
 
 **Ön koşul**
-- `AgentPrism:Pricing:Voice` altında `gpt-live-1` **yok**.
+- `Tracon:Pricing:Voice` altında `gpt-live-1` **yok**.
 
 **Adımlar**
 1. MT-MM-114'ü tekrarla.
@@ -2523,12 +2523,12 @@ curl -s -o /dev/null -w '%{http_code}\n' -X POST "$APU/api/images/generate" \
 | **İlgili faz** | Faz 161 |
 
 **Ön koşul**
-- `AgentPrism:Voice:Live:PendingSessionTimeout` kısa bir değere çekilmiş
+- `Tracon:Voice:Live:PendingSessionTimeout` kısa bir değere çekilmiş
   (ör. `00:00:30`).
 
 **Adımlar**
 1. Geçerli bir SDP ile oturum yarat, tarayıcıyı **hiç bağlama**.
-2. TTL kadar bekle, `GET /agentprism/api/voice/sessions`.
+2. TTL kadar bekle, `GET /tracon/api/voice/sessions`.
 
 **Beklenen sonuç**
 - Kayıt `endReason: "Abandoned"` ile kapanmıştır — `Error` değil. Terk edilmiş
@@ -2548,7 +2548,7 @@ curl -s -o /dev/null -w '%{http_code}\n' -X POST "$APU/api/images/generate" \
 
 **Adımlar**
 1. `tenant-a` ile bir canlı oturum aç, `voiceSessionId`'yi al.
-2. `X-AgentPrism-Tenant: tenant-b` ile aynı kimliğe `DELETE` ve `GET` at.
+2. `X-Tracon-Tenant: tenant-b` ile aynı kimliğe `DELETE` ve `GET` at.
 3. `tenant-b` ile **rastgele** bir kimliğe `GET` at.
 
 **Beklenen sonuç**
@@ -2565,7 +2565,7 @@ curl -s -o /dev/null -w '%{http_code}\n' -X POST "$APU/api/images/generate" \
 | **İlgili karar** | K-705 |
 
 **Ön koşul**
-- `AgentPrism:Voice:Live:MaxConcurrentSessionsPerTenant=1`.
+- `Tracon:Voice:Live:MaxConcurrentSessionsPerTenant=1`.
 
 **Adımlar**
 1. Bir oturum aç (açık kalsın).
@@ -2590,7 +2590,7 @@ curl -s -o /dev/null -w '%{http_code}\n' -X POST "$APU/api/images/generate" \
 - `UseVoiceConversation()` açık (canlı katmandan bağımsız).
 
 **Adımlar**
-1. `/agentprism/api/voice/sessions/{id}/stream` üzerinde tam bir tur yap.
+1. `/tracon/api/voice/sessions/{id}/stream` üzerinde tam bir tur yap.
 
 **Beklenen sonuç**
 - Faz 29 davranışı **değişmemiştir**: `ready` → ses → `transcript` → `done`.

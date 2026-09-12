@@ -59,7 +59,7 @@ function main() {
   if (!existsSync(metadataDirectory)) {
     throw new Error(
       `DocFX produced no output at ${metadataDirectory}. Build the solution first ` +
-        '(dotnet build AgentPrism.slnx -c Release), then run this script again.',
+        '(dotnet build Tracon.slnx -c Release), then run this script again.',
     );
   }
 
@@ -133,12 +133,12 @@ function readPage(fileName) {
   const uid = fileName.replace(/\.md$/, '');
   const raw = readFileSync(join(metadataDirectory, fileName), 'utf8');
 
-  // `# <a id="AgentPrism_IAgentCatalog"></a> Interface IAgentCatalog`
+  // `# <a id="Tracon_IAgentCatalog"></a> Interface IAgentCatalog`
   const heading = /^# <a id="[^"]*"><\/a> (\w+) (.+)$/m.exec(raw);
   const kind = heading?.[1] ?? 'Type';
   const name = (heading?.[2] ?? uid).trim();
 
-  // `Assembly: AgentPrism.Abstractions.dll  ` — a type compiled into more than one
+  // `Assembly: Tracon.Abstractions.dll  ` — a type compiled into more than one
   // package (the shared SQL sources) lists them all on one line.
   const assemblyLine = /^Assembly: (.+)$/m.exec(raw);
   const assemblies = (assemblyLine?.[1] ?? '')
@@ -149,7 +149,7 @@ function readPage(fileName) {
   const anchors = new Set([...raw.matchAll(/<a id="([^"]+)"><\/a>/g)].map((match) => match[1]));
   const fallbackSummary = kind === 'Namespace'
     ? `Public types in the ${name} namespace.`
-    : `${kind} ${name} in the ${assemblies[0] ?? 'AgentPrism'} package.`;
+    : `${kind} ${name} in the ${assemblies[0] ?? 'Tracon'} package.`;
   const extractedSummary = sanitizeInternalHistory(extractSummary(raw, fallbackSummary)).trim();
   const summary = extractedSummary && !extractedSummary.startsWith('#')
     ? extractedSummary
@@ -197,15 +197,15 @@ function transform(page, uids, anchorsByUid, uidsByDisplayName, externalSlugs) {
   });
 
   // 3. Page-to-page links: DocFX writes `Foo.md`, Starlight serves `/api/foo/`.
-  body = body.replace(/\]\((AgentPrism[^)\s#]*)\.md(#[^)\s]*)?\)/g, (_match, uid, anchor) =>
+  body = body.replace(/\]\((Tracon[^)\s#]*)\.md(#[^)\s]*)?\)/g, (_match, uid, anchor) =>
     uids.has(uid) ? `](${apiBase}/${uid.toLowerCase()}/${anchor ?? ''})` : `](${apiBase}/)`,
   );
 
-  // DocFX sometimes chooses a pinned GitHub source link for a public AgentPrism
+  // DocFX sometimes chooses a pinned GitHub source link for a public Tracon
   // type even when that type has a page in this reference. Keep readers inside
   // the reference; genuine "View source" links are not matched by the name index.
   body = body.replace(
-    /\[([^\]]+)\]\(https:\/\/github\.com\/farukatasoy\/AgentPrism\/blob\/[^)]+\/src\/[^)]+\.cs\)/g,
+    /\[([^\]]+)\]\(https:\/\/github\.com\/farukatasoy\/Tracon\/blob\/[^)]+\/src\/[^)]+\.cs\)/g,
     (match, label) => {
       const display = label.replaceAll('\\', '').replace(/<.*$/, '').trim();
       const target = uidsByDisplayName.get(display);
@@ -287,7 +287,7 @@ function resolveReference(uid, uids, anchorsByUid, externalSlugs) {
 
   if (uids.has(bare)) {
     // A type reads as its own name. Using the member form here would render the
-    // namespace as if it were a declaring type: `AgentPrism.IRunStore`.
+    // namespace as if it were a declaring type: `Tracon.IRunStore`.
     return `[${shortName(uid)}](${apiBase}/${bare.toLowerCase()}/)`;
   }
 
@@ -341,7 +341,7 @@ function buildDisplayNameIndex(pages) {
   );
 }
 
-/** The last segment: `AgentPrism.IRunStore` reads as `IRunStore`. */
+/** The last segment: `Tracon.IRunStore` reads as `IRunStore`. */
 function shortName(uid) {
   const bare = uid.replace(/\(.*$/, '').replace(/`\d+/g, '');
   const text = bare.split('.').pop();
@@ -373,7 +373,7 @@ function buildIndex(pages) {
 
   return `---
 title: API reference
-description: Every public type in the AgentPrism packages, generated from the compiled assemblies and their XML documentation.
+description: Every public type in the Tracon packages, generated from the compiled assemblies and their XML documentation.
 slug: api
 tableOfContents: false
 editUrl: false
@@ -392,16 +392,16 @@ along with the rest of the site.
 |---|---|
 ${rows}
 
-\`AgentPrism\` and \`AgentPrism.Templates\` are absent on purpose: the first is a meta
+\`Tracon\` and \`Tracon.Templates\` are absent on purpose: the first is a meta
 package that only carries references, and the second ships a \`dotnet new\` template
 rather than an API.
 
 ## Where to start
 
-- [\`IAgentCatalog\`](${apiBase}/agentprism.iagentcatalog/) — resolving an agent, the entry point to a run
-- [\`IRunStore\`](${apiBase}/agentprism.irunstore/) — where every run is recorded
-- [\`IAgentPrismBuilder\`](${apiBase}/agentprism.iagentprismbuilder/) — the registration chain
-- [\`AgentDefinition\`](${apiBase}/agentprism.agentdefinition/) — what an agent is, as data
+- [\`IAgentCatalog\`](${apiBase}/tracon.iagentcatalog/) — resolving an agent, the entry point to a run
+- [\`IRunStore\`](${apiBase}/tracon.irunstore/) — where every run is recorded
+- [\`ITraconBuilder\`](${apiBase}/tracon.itraconbuilder/) — the registration chain
+- [\`AgentDefinition\`](${apiBase}/tracon.agentdefinition/) — what an agent is, as data
 `;
 }
 
@@ -413,7 +413,7 @@ function groupByAssembly(pages) {
       continue;
     }
 
-    const assemblies = page.assemblies.length > 0 ? page.assemblies : ['AgentPrism'];
+    const assemblies = page.assemblies.length > 0 ? page.assemblies : ['Tracon'];
     for (const assembly of assemblies) {
       groups.set(assembly, [...(groups.get(assembly) ?? []), page]);
     }
@@ -589,7 +589,7 @@ function sanitizeInternalHistory(body) {
       .replace(/\bRationale:\s*/gi, '')
       .replace(/\brationale\b/gi, 'reason')
       .replace(/🚨|⚠️/gu, '**Important:**')
-      .replace(/^## Remarks's cost model/gm, "## Remarks\n\nAgentPrism's cost model")
+      .replace(/^## Remarks's cost model/gm, "## Remarks\n\nTracon's cost model")
       .replace(/^(#{2,4} Remarks)[.:]\s*(.+)$/gm, '$1\n\n$2')
       .replace(/\*\*(?:NO|THE SAME)\*\*/g, (value) => `**${value.slice(2, -2).toLowerCase()}**`)
       .replace(/\b(?:NOT SILENTLY OVERWRITE|NOT SUPPORTED|NEVER CHANGES AGAIN)\b/g, (value) => value.toLowerCase())
@@ -603,7 +603,7 @@ function sanitizeInternalHistory(body) {
 
 
 function normalizeSharedProviderDocumentation(uid, body) {
-  if (uid !== 'AgentPrism.MigrationRunner') {
+  if (uid !== 'Tracon.MigrationRunner') {
     return body;
   }
 
@@ -682,7 +682,7 @@ function escapeHtml(value) {
 }
 
 function namespaceLink(value) {
-  const match = /^\[([^\]]+)]\((\/AgentPrism\/api\/[^)#]+\/)\)$/.exec(value.trim());
+  const match = /^\[([^\]]+)]\((\/Tracon\/api\/[^)#]+\/)\)$/.exec(value.trim());
 
   if (!match) {
     return escapeHtml(value.replace(/^\[([^\]]+)]\([^)]+\)$/, '$1'));

@@ -1,13 +1,13 @@
 # 03 — Kalıcılık: PostgreSQL (`PG`)
 
 > **Alan kodu:** `PG` · **Faz:** 2 (ayrıca 51: pgvector)
-> **Kaynak:** `src/AgentPrism.PostgreSql` (`AgentPrismPostgreSqlBuilderExtensions.cs` ·
-> `AgentPrismPostgreSqlOptions.cs` · `AgentPrismPostgreSqlOptionsValidator.cs` ·
+> **Kaynak:** `src/Tracon.PostgreSql` (`TraconPostgreSqlBuilderExtensions.cs` ·
+> `TraconPostgreSqlOptions.cs` · `TraconPostgreSqlOptionsValidator.cs` ·
 > `Internal/NpgsqlDataSourceFactory.cs` · `Internal/PostgresDialect.cs` ·
 > `Internal/PostgresQueries.cs` · `Stores/PgVectorSearchStore.cs` · `Migrations/*.sql`)
 >
 > Migration çalıştırma motoru (`MigrationRunner`, `MigrationHostedService`) ve depo
-> uygulamaları (`SqlAgentDefinitionStore` vb.) `src/AgentPrism.Sql.Shared` içinde
+> uygulamaları (`SqlAgentDefinitionStore` vb.) `src/Tracon.Sql.Shared` içinde
 > yaşar ve SQLite/SQL Server ile ORTAKTIR; bu dosya onları yalnız PostgreSQL
 > sağlayıcısı üzerinden, PostgreSQL'e özgü SQL metni ve diyalekt davranışıyla
 > (advisory lock, `jsonb`, `pgvector`) sınar. Sağlayıcılar arası karşılaştırma
@@ -23,7 +23,7 @@
 
 ## Bu dosya neyi kanıtlar
 
-`UsePostgreSql()` çağrıldığında AgentPrism'in bellek içi varsayılanlarının yerini
+`UsePostgreSql()` çağrıldığında Tracon'in bellek içi varsayılanlarının yerini
 alan zincir. Bağlantı ve şema ayarları doğrulanır, tek bir `NpgsqlDataSource`
 kurulur, açılışta gömülü SQL migration'ları bir öneri kilidiyle korunarak
 uygulanır, yirmi civarı depo `Replace` ile (ikisi `TryAdd` ile) değiştirilir ve
@@ -32,7 +32,7 @@ yalnız bu paketin uygulamasıdır.
 
 ```mermaid
 flowchart TD
-    A["UsePostgreSql()"] --> B["AgentPrismPostgreSqlOptions + Validator"]
+    A["UsePostgreSql()"] --> B["TraconPostgreSqlOptions + Validator"]
     B --> C["NpgsqlDataSource"]
     C --> D["SqlStoreContext (PostgresDialect)"]
     D --> E["MigrationHostedService"]
@@ -42,7 +42,7 @@ flowchart TD
     H --> I["Denetim izi dekoratorleri"]
     D --> J["PgVectorSearchStore (pgvector)"]
     D --> K["ISqlPersistenceDiagnostics"]
-    K --> L["/health, /agentprism/api/diagnostics"]
+    K --> L["/health, /tracon/api/diagnostics"]
 ```
 
 ## Sınır: bu dosya nerede biter
@@ -61,24 +61,24 @@ flowchart TD
 
 1. [`00-INDEKS.md`](00-INDEKS.md) §4 reset yordamı uygulanır.
 2. PostgreSQL container'ı (`ap-pg`, `pgvector/pgvector:pg18`) çalışır durumdadır.
-3. `AgentPrism:PostgreSql:ConnectionString` `dotnet user-secrets` içinde tanımlıdır
+3. `Tracon:PostgreSql:ConnectionString` `dotnet user-secrets` içinde tanımlıdır
    (bkz. `00-INDEKS.md` §2.4). Bazı case'ler bu değeri **geçici olarak** değiştirir;
    her case kendi temizlik adımını taşır.
-4. `AgentPrism:Ui:AuthToken` `manuel-test-token-2026`'dır.
-5. Örnek uygulama çalışır: `cd samples/AgentPrism.Api && dotnet run` →
+4. `Tracon:Ui:AuthToken` `manuel-test-token-2026`'dır.
+5. Örnek uygulama çalışır: `cd samples/Tracon.Api && dotnet run` →
    `http://localhost:5080`
 
 Kısaltmalar — bu dosyadaki her `curl`/`psql` şunları kullanır:
 
 ```bash
 export APB="Authorization: Bearer manuel-test-token-2026"
-export APU="http://localhost:5080/agentprism"
-export PG="docker exec -i ap-pg psql -U postgres -d agentprism"
+export APU="http://localhost:5080/tracon"
+export PG="docker exec -i ap-pg psql -U postgres -d tracon"
 ```
 
 > **İzlek A notu.** Bu dosyadaki konsol uygulamaları [`01-KURULUM-VE-PAKETLEME.md`](01-KURULUM-VE-PAKETLEME.md)
-> `MT-PKG-070`'in kurduğu yerel NuGet feed'ini (`~/agentprism-local-feed`) kullanır.
-> `AgentPrism.PostgreSql` bağımsız bir konsol uygulamasından **model çağırmadan**
+> `MT-PKG-070`'in kurduğu yerel NuGet feed'ini (`~/tracon-local-feed`) kullanır.
+> `Tracon.PostgreSql` bağımsız bir konsol uygulamasından **model çağırmadan**
 > `IVectorSearchStore` gibi arayüzlere erişmeyi sağlar — Npgsql bağlantısı gerçektir
 > ama hiçbir LLM sağlayıcısı gerekmez.
 
@@ -86,7 +86,7 @@ export PG="docker exec -i ap-pg psql -U postgres -d agentprism"
 
 # 1 — Bağlantı, ayarlar ve doğrulama
 
-Bu bölüm `AgentPrismPostgreSqlOptions`, `AgentPrismPostgreSqlOptionsValidator` ve
+Bu bölüm `TraconPostgreSqlOptions`, `TraconPostgreSqlOptionsValidator` ve
 `NpgsqlDataSourceFactory`'yi sınar. Doğrulama açılışta (`ValidateOnStart`) çalışır;
 geçersiz bir ayar uygulamanın **hiç başlamamasına** yol açar — çalışma anında
 sessizce yok sayılmaz.
@@ -109,23 +109,23 @@ sessizce yok sayılmaz.
 
 **Girilecek veri**
 ```bash
-dotnet user-secrets set "AgentPrism:PostgreSql:ConnectionString" ""
-cd samples/AgentPrism.Api && dotnet run
+dotnet user-secrets set "Tracon:PostgreSql:ConnectionString" ""
+cd samples/Tracon.Api && dotnet run
 ```
 
 **Beklenen sonuç**
 > **Düzeltildi (2026-08-15, KAPANIS-PLANI §8) — İzlek B ile bu senaryo yapısal
 > olarak erişilemez, beklenti koda göre düzeltildi:**
-> `samples/AgentPrism.Api/Program.cs:639` boş bağlantı dizesinde
+> `samples/Tracon.Api/Program.cs:639` boş bağlantı dizesinde
 > `UsePostgreSql()`'i hiç çağırmaz — validator'a hiçbir zaman ulaşılmaz.
 > Örnek uygulama sessizce InMemory'e düşer, `/health` **200 Degraded** döner
 > (kalıcılık nedeniyle değil, model sağlayıcı sağlığı nedeniyle). Bu, İzlek B
 > için **doğru** ve kasıtlı davranıştır (`Program.cs:622` yorumu).
-> `AgentPrismPostgreSqlOptionsValidator`'ın kendisi doğru çalışır — bu yalnız
+> `TraconPostgreSqlOptionsValidator`'ın kendisi doğru çalışır — bu yalnız
 > İzlek A/C (doğrudan `UsePostgreSql()` çağıran bir harness) üzerinden
 > gözlemlenebilir: `UsePostgreSql(string)` çağrı anında `ArgumentException`,
 > `UsePostgreSql(IConfiguration)` ilk `IOptions.Value` erişiminde
-> `AgentPrismPostgreSqlOptions.ConnectionString bos olamaz` mesajıyla
+> `TraconPostgreSqlOptions.ConnectionString bos olamaz` mesajıyla
 > `OptionsValidationException` fırlatır. Bu case'in adımları İzlek A/C'ye
 > taşınmalıdır; İzlek B için ayrı bir case ("boş bağlantı dizesiyle örnek
 > uygulama bellek içi depoya sessizce düşer, `/health` 200 Degraded döner")
@@ -134,7 +134,7 @@ cd samples/AgentPrism.Api && dotnet run
 ~~Eski beklenti (yanlış öncül — İzlek B'de validator'a hiç ulaşılmadığını
 gözden kaçırıyordu): Uygulama başlamayı reddeder (`ValidateOnStart`);
 konsolda `OptionsValidationException` görünür ve mesaj
-`AgentPrismPostgreSqlOptions.ConnectionString bos olamaz` metnini taşır.
+`TraconPostgreSqlOptions.ConnectionString bos olamaz` metnini taşır.
 Süreç sıfırdan farklı bir çıkış koduyla sonlanır; `/health` hiçbir zaman
 yanıt vermez.~~
 
@@ -158,8 +158,8 @@ yanıt vermez.~~
 
 **Girilecek veri**
 ```bash
-dotnet user-secrets set "AgentPrism:PostgreSql:SchemaName" "public"
-cd samples/AgentPrism.Api && dotnet run
+dotnet user-secrets set "Tracon:PostgreSql:SchemaName" "public"
+cd samples/Tracon.Api && dotnet run
 ```
 
 **Beklenen sonuç**
@@ -170,7 +170,7 @@ cd samples/AgentPrism.Api && dotnet run
 **Doğrulama sorgusu**
 ```sql
 SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public';
--- Beklenen: denemeden ONCEKI ile AYNI sayi (AgentPrism public'e hicbir tablo yazmadi).
+-- Beklenen: denemeden ONCEKI ile AYNI sayi (Tracon public'e hicbir tablo yazmadi).
 ```
 
 ---
@@ -199,17 +199,17 @@ katıdır: yalnız küçük harf, rakam, alt çizgi.
 **Girilecek veri**
 ```bash
 # 1) Buyuk harf
-dotnet user-secrets set "AgentPrism:PostgreSql:SchemaName" "Agentprism"
-cd samples/AgentPrism.Api && dotnet run
+dotnet user-secrets set "Tracon:PostgreSql:SchemaName" "Tracon"
+cd samples/Tracon.Api && dotnet run
 # Ctrl+C ile durdur
 
 # 2) Bosluk
-dotnet user-secrets set "AgentPrism:PostgreSql:SchemaName" "agent prism"
+dotnet user-secrets set "Tracon:PostgreSql:SchemaName" "agent prism"
 dotnet run
 # Ctrl+C ile durdur
 
 # 3) Enjeksiyon denemesi
-dotnet user-secrets set "AgentPrism:PostgreSql:SchemaName" "agentprism; DROP SCHEMA public CASCADE;--"
+dotnet user-secrets set "Tracon:PostgreSql:SchemaName" "tracon; DROP SCHEMA public CASCADE;--"
 dotnet run
 # Ctrl+C ile durdur
 ```
@@ -250,16 +250,16 @@ Sınır senaryosu.
 
 **Girilecek veri**
 ```bash
-dotnet user-secrets set "AgentPrism:PostgreSql:CommandTimeoutSeconds" "-1"
+dotnet user-secrets set "Tracon:PostgreSql:CommandTimeoutSeconds" "-1"
 dotnet run   # reddedilir, Ctrl+C
 
-dotnet user-secrets set "AgentPrism:PostgreSql:CommandTimeoutSeconds" "3601"
+dotnet user-secrets set "Tracon:PostgreSql:CommandTimeoutSeconds" "3601"
 dotnet run   # reddedilir, Ctrl+C
 
-dotnet user-secrets set "AgentPrism:PostgreSql:CommandTimeoutSeconds" "0"
+dotnet user-secrets set "Tracon:PostgreSql:CommandTimeoutSeconds" "0"
 dotnet run   # baslar, Ctrl+C
 
-dotnet user-secrets set "AgentPrism:PostgreSql:CommandTimeoutSeconds" "3600"
+dotnet user-secrets set "Tracon:PostgreSql:CommandTimeoutSeconds" "3600"
 dotnet run   # baslar, Ctrl+C
 ```
 
@@ -280,7 +280,7 @@ dotnet run   # baslar, Ctrl+C
 | **İlgili karar** | K-021 |
 
 `UsePostgreSql(string)`, `UsePostgreSql(IConfiguration)` ve
-`UsePostgreSql(Action<Options>)` üç ayrı yoldan aynı `AgentPrismPostgreSqlOptions`'a
+`UsePostgreSql(Action<Options>)` üç ayrı yoldan aynı `TraconPostgreSqlOptions`'a
 varmalıdır. `IConfiguration` yolu yansıma KULLANMAZ — elle yazılmış bir `Bind()`
 metodudur (K-021); yeni bir alan eklenip bu metoda eklenmezse sessizce kaybolur.
 
@@ -295,15 +295,15 @@ metodudur (K-021); yeni bir alan eklenip bu metoda eklenmezse sessizce kaybolur.
 
 **Girilecek veri**
 ```bash
-rm -rf ~/agentprism-manuel/pg-ayarlar && mkdir -p ~/agentprism-manuel/pg-ayarlar
-cd ~/agentprism-manuel/pg-ayarlar
+rm -rf ~/tracon-manuel/pg-ayarlar && mkdir -p ~/tracon-manuel/pg-ayarlar
+cd ~/tracon-manuel/pg-ayarlar
 dotnet new console -o . --force
-cp ~/agentprism-manuel/uretec/nuget.config .
-SURUM=$(ls ~/agentprism-local-feed/AgentPrism.PostgreSql.*.nupkg | sed 's#.*AgentPrism.PostgreSql\.##;s#\.nupkg##')
-dotnet add package AgentPrism.PostgreSql --version "$SURUM"
+cp ~/tracon-manuel/uretec/nuget.config .
+SURUM=$(ls ~/tracon-local-feed/Tracon.PostgreSql.*.nupkg | sed 's#.*Tracon.PostgreSql\.##;s#\.nupkg##')
+dotnet add package Tracon.PostgreSql --version "$SURUM"
 
 cat > Program.cs <<'EOF'
-using AgentPrism;
+using Tracon;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
@@ -311,32 +311,32 @@ using Microsoft.Extensions.Options;
 void Yazdir(string etiket, IServiceCollection services)
 {
     var options = services.BuildServiceProvider()
-        .GetRequiredService<IOptions<AgentPrismPostgreSqlOptions>>().Value;
+        .GetRequiredService<IOptions<TraconPostgreSqlOptions>>().Value;
     Console.WriteLine($"{etiket}: ConnectionString='{options.ConnectionString}' SchemaName='{options.SchemaName}'");
 }
 
-var conn = "Host=localhost;Port=55432;Database=agentprism;Username=postgres;Password=agentprism";
+var conn = "Host=localhost;Port=55432;Database=tracon;Username=postgres;Password=tracon";
 
 var s1 = new ServiceCollection();
-s1.AddAgentPrism().UsePostgreSql(conn);
+s1.AddTracon().UsePostgreSql(conn);
 Yazdir("string", s1);
 
 var config = new ConfigurationBuilder()
     .AddInMemoryCollection(new Dictionary<string, string?>
     {
-        ["AgentPrism:PostgreSql:ConnectionString"] = conn,
-        ["AgentPrism:PostgreSql:SchemaName"] = "agentprism",
+        ["Tracon:PostgreSql:ConnectionString"] = conn,
+        ["Tracon:PostgreSql:SchemaName"] = "tracon",
     })
     .Build();
 var s2 = new ServiceCollection();
-s2.AddAgentPrism().UsePostgreSql(config.GetSection(AgentPrismPostgreSqlOptions.SectionName));
+s2.AddTracon().UsePostgreSql(config.GetSection(TraconPostgreSqlOptions.SectionName));
 Yazdir("IConfiguration", s2);
 
 var s3 = new ServiceCollection();
-s3.AddAgentPrism().UsePostgreSql(o =>
+s3.AddTracon().UsePostgreSql(o =>
 {
     o.ConnectionString = conn;
-    o.SchemaName = "agentprism";
+    o.SchemaName = "tracon";
 });
 Yazdir("Action<Options>", s3);
 EOF
@@ -359,9 +359,9 @@ dotnet run -c Release
 | **İlgili karar** | — |
 
 Sınır senaryosu / şüphe kaydı. Kod tabanında bağlantı dizesi boşluğunu kontrol
-eden **iki** ayrı yer vardır: `AgentPrismPostgreSqlOptionsValidator` (her
+eden **iki** ayrı yer vardır: `TraconPostgreSqlOptionsValidator` (her
 `IOptions<T>.Value` erişiminde tetiklenir) ve `NpgsqlDataSourceFactory.Create`
-(kendi içinde ayrı bir `AgentPrismException` fırlatır). Normal DI akışında
+(kendi içinde ayrı bir `TraconException` fırlatır). Normal DI akışında
 `NpgsqlDataSource` fabrikası `IOptions<T>.Value`'yu **kendisi** okuduğu için
 Validator'ın önce tetiklenmesi beklenir; bu case hangisinin GERÇEKTEN göründüğünü
 kaydeder.
@@ -375,20 +375,20 @@ kaydeder.
 
 **Girilecek veri**
 ```bash
-rm -rf ~/agentprism-manuel/pg-baglantisiz && mkdir -p ~/agentprism-manuel/pg-baglantisiz
-cd ~/agentprism-manuel/pg-baglantisiz
+rm -rf ~/tracon-manuel/pg-baglantisiz && mkdir -p ~/tracon-manuel/pg-baglantisiz
+cd ~/tracon-manuel/pg-baglantisiz
 dotnet new console -o . --force
-cp ~/agentprism-manuel/uretec/nuget.config .
-SURUM=$(ls ~/agentprism-local-feed/AgentPrism.PostgreSql.*.nupkg | sed 's#.*AgentPrism.PostgreSql\.##;s#\.nupkg##')
-dotnet add package AgentPrism.PostgreSql --version "$SURUM"
+cp ~/tracon-manuel/uretec/nuget.config .
+SURUM=$(ls ~/tracon-local-feed/Tracon.PostgreSql.*.nupkg | sed 's#.*Tracon.PostgreSql\.##;s#\.nupkg##')
+dotnet add package Tracon.PostgreSql --version "$SURUM"
 
 cat > Program.cs <<'EOF'
-using AgentPrism;
+using Tracon;
 using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
 
 var services = new ServiceCollection();
-services.AddAgentPrism().UsePostgreSql(_ => { });
+services.AddTracon().UsePostgreSql(_ => { });
 
 var provider = services.BuildServiceProvider();
 
@@ -410,7 +410,7 @@ dotnet run -c Release
 **Beklenen sonuç**
 - Bir istisna fırlar; `🚨 istisna ATILMADI` görünmez.
 - İstisnanın tipi kaydedilir (`Microsoft.Extensions.Options.OptionsValidationException`
-  mi yoksa `AgentPrism.AgentPrismException` mi). `AgentPrismPostgreSqlOptionsValidator`'ın
+  mi yoksa `Tracon.TraconException` mi). `TraconPostgreSqlOptionsValidator`'ın
   DI akışında Factory'nin kendi kontrolünden ÖNCE tetiklenip tetiklenmediği burada netleşir;
   ikisi de kullanıcı için anlaşılır bir mesaj taşımalıdır.
 
@@ -426,7 +426,7 @@ dotnet run -c Release
 | **İlgili karar** | — |
 
 Negatif senaryo. `MigrationHostedService`'in kod yorumu açıktır: "Hata uygulamayi
-baslatmaz" — şema hazır değilken sessizce çalışan bir AgentPrism veri kaybeder;
+baslatmaz" — şema hazır değilken sessizce çalışan bir Tracon veri kaybeder;
 bu yüzden migration hatası yutulmaz, süreç kapanır.
 
 **Ön koşul**
@@ -439,9 +439,9 @@ bu yüzden migration hatası yutulmaz, süreç kapanır.
 
 **Girilecek veri**
 ```bash
-dotnet user-secrets set "AgentPrism:PostgreSql:ConnectionString" \
-  "Host=localhost;Port=1;Database=agentprism;Username=postgres;Password=agentprism;Timeout=5"
-cd samples/AgentPrism.Api && dotnet run
+dotnet user-secrets set "Tracon:PostgreSql:ConnectionString" \
+  "Host=localhost;Port=1;Database=tracon;Username=postgres;Password=tracon;Timeout=5"
+cd samples/Tracon.Api && dotnet run
 ```
 ```bash
 # Baska bir terminalde, uygulama hala "baslarken":
@@ -465,7 +465,7 @@ curl -s -m 3 -w "\nHTTP: %{http_code}\n" "http://localhost:5080/health"
 | **İlgili faz** | Faz 2 |
 | **İlgili karar** | K-059 |
 
-Negatif senaryo. `AgentPrismPostgreSqlOptions.ConnectionString`'in XML dokümanı
+Negatif senaryo. `TraconPostgreSqlOptions.ConnectionString`'in XML dokümanı
 "bir sırdır ve dosyaya yazılmaz" der; bu case iddiayı doğrular.
 
 **Ön koşul**
@@ -477,11 +477,11 @@ Negatif senaryo. `AgentPrismPostgreSqlOptions.ConnectionString`'in XML doküman�
 
 **Girilecek veri**
 ```bash
-grep -rn "Password=agentprism\|Host=localhost;Port=55432" samples/AgentPrism.Api/appsettings*.json
+grep -rn "Password=tracon\|Host=localhost;Port=55432" samples/Tracon.Api/appsettings*.json
 ```
 ```sql
-SELECT count(*) FROM agentprism.agent_definitions WHERE definition::text ILIKE '%Password=%';
-SELECT count(*) FROM agentprism.audit_log WHERE before::text ILIKE '%Password=%' OR after::text ILIKE '%Password=%';
+SELECT count(*) FROM tracon.agent_definitions WHERE definition::text ILIKE '%Password=%';
+SELECT count(*) FROM tracon.audit_log WHERE before::text ILIKE '%Password=%' OR after::text ILIKE '%Password=%';
 ```
 
 **Beklenen sonuç**
@@ -508,16 +508,16 @@ SELECT count(*) FROM agentprism.audit_log WHERE before::text ILIKE '%Password=%'
 
 **Girilecek veri**
 ```bash
-cd samples/AgentPrism.Api && dotnet run
+cd samples/Tracon.Api && dotnet run
 ```
 ```sql
-SELECT count(*) FROM agentprism.__migrations;
-SELECT set_name, count(*) FROM agentprism.__migrations GROUP BY set_name ORDER BY set_name;
-SELECT set_name, id, name FROM agentprism.__migrations ORDER BY set_name, id;
+SELECT count(*) FROM tracon.__migrations;
+SELECT set_name, count(*) FROM tracon.__migrations GROUP BY set_name ORDER BY set_name;
+SELECT set_name, id, name FROM tracon.__migrations ORDER BY set_name, id;
 ```
 
 **Beklenen sonuç**
-- Açılış logu `AgentPrism 33 migration uyguladi. Sema: agentprism.` satırını taşır
+- Açılış logu `Tracon 33 migration uyguladi. Sema: tracon.` satırını taşır
   (örnek uygulama `EnableKnowledge: true` taşır, Faz 67 — bkz. MT-PG-062 knowledge
   KAPALIYKEN davranışı ayrıca sınar).
 - `count(*)` **33** döner; `set_name` grubu **32** (`core`) ve **1** (`knowledge`) döner.
@@ -548,7 +548,7 @@ SELECT set_name, id, name FROM agentprism.__migrations ORDER BY set_name, id;
 
 **Girilecek veri**
 ```bash
-cd samples/AgentPrism.Api && dotnet run
+cd samples/Tracon.Api && dotnet run
 ```
 
 **Beklenen sonuç**
@@ -570,7 +570,7 @@ cd samples/AgentPrism.Api && dotnet run
 
 Sınır senaryosu. İlk beş migration ELLE uygulanır ve `__migrations` defterine
 (Faz 67 ÖNCESİ şekliyle — `id` tek başına birincil anahtar, `set_name` sütunu
-YOK) doğru checksum'la kaydedilir — hem bir önceki AgentPrism sürümünün yarım
+YOK) doğru checksum'la kaydedilir — hem bir önceki Tracon sürümünün yarım
 bıraktığı bir dağıtımı, hem de Faz 67 öncesi bir veritabanının şema
 yükseltmesini (K-475) aynı anda simüler. Uygulama geri kalan çekirdek
 migration'ları VE knowledge setini uygulamalı, `set_name` sütununu geriye dönük
@@ -587,25 +587,25 @@ eklemeli, birincil anahtarı `(set_name, id)`'ye genişletmelidir.
 
 **Girilecek veri**
 ```bash
-$PG -c "CREATE SCHEMA IF NOT EXISTS agentprism;"
+$PG -c "CREATE SCHEMA IF NOT EXISTS tracon;"
 
-for f in src/AgentPrism.PostgreSql/Migrations/0001_initial.sql \
-         src/AgentPrism.PostgreSql/Migrations/0002_observability.sql \
-         src/AgentPrism.PostgreSql/Migrations/0003_agent_skills.sql \
-         src/AgentPrism.PostgreSql/Migrations/0004_skill_scripts.sql \
-         src/AgentPrism.PostgreSql/Migrations/0005_agent_call_graph.sql; do
-  sed 's/{schema}/agentprism/g' "$f" | $PG
+for f in src/Tracon.PostgreSql/Migrations/0001_initial.sql \
+         src/Tracon.PostgreSql/Migrations/0002_observability.sql \
+         src/Tracon.PostgreSql/Migrations/0003_agent_skills.sql \
+         src/Tracon.PostgreSql/Migrations/0004_skill_scripts.sql \
+         src/Tracon.PostgreSql/Migrations/0005_agent_call_graph.sql; do
+  sed 's/{schema}/tracon/g' "$f" | $PG
 done
 
-$PG -c "CREATE TABLE IF NOT EXISTS agentprism.__migrations (
+$PG -c "CREATE TABLE IF NOT EXISTS tracon.__migrations (
   id integer NOT NULL PRIMARY KEY, name text NOT NULL,
   checksum text NOT NULL, applied_at timestamptz NOT NULL);"
 
-for f in src/AgentPrism.PostgreSql/Migrations/0001_initial.sql \
-         src/AgentPrism.PostgreSql/Migrations/0002_observability.sql \
-         src/AgentPrism.PostgreSql/Migrations/0003_agent_skills.sql \
-         src/AgentPrism.PostgreSql/Migrations/0004_skill_scripts.sql \
-         src/AgentPrism.PostgreSql/Migrations/0005_agent_call_graph.sql; do
+for f in src/Tracon.PostgreSql/Migrations/0001_initial.sql \
+         src/Tracon.PostgreSql/Migrations/0002_observability.sql \
+         src/Tracon.PostgreSql/Migrations/0003_agent_skills.sql \
+         src/Tracon.PostgreSql/Migrations/0004_skill_scripts.sql \
+         src/Tracon.PostgreSql/Migrations/0005_agent_call_graph.sql; do
   id=$(basename "$f" | cut -c1-4 | sed 's/^0*//')
   name=$(basename "$f" .sql)
   checksum=$(python3 -c "
@@ -613,17 +613,17 @@ import hashlib
 data = open('$f', 'rb').read().replace(b'\r\n', b'\n')
 print(hashlib.sha256(data).hexdigest().upper())
 ")
-  $PG -c "INSERT INTO agentprism.__migrations (id, name, checksum, applied_at) VALUES ($id, '$name', '$checksum', now());"
+  $PG -c "INSERT INTO tracon.__migrations (id, name, checksum, applied_at) VALUES ($id, '$name', '$checksum', now());"
 done
 
-cd samples/AgentPrism.Api && dotnet run
+cd samples/Tracon.Api && dotnet run
 ```
 ```sql
-SELECT set_name, id, name, applied_at FROM agentprism.__migrations ORDER BY set_name, id LIMIT 8;
+SELECT set_name, id, name, applied_at FROM tracon.__migrations ORDER BY set_name, id LIMIT 8;
 ```
 
 **Beklenen sonuç**
-- Açılış logu `AgentPrism 28 migration uyguladi.` yazar (32 çekirdek − 5 elle
+- Açılış logu `Tracon 28 migration uyguladi.` yazar (32 çekirdek − 5 elle
   uygulanmış + 1 knowledge).
 - Hiçbir checksum uyuşmazlığı hatası oluşmaz.
 - `__migrations`'ta **33** satır vardır (32 `core` + 1 `knowledge`); id 1–5'in
@@ -656,20 +656,20 @@ değişmiş gibi simüle edilir — `__migrations.checksum` elle bozulur.
 
 **Girilecek veri**
 ```bash
-$PG -c "UPDATE agentprism.__migrations SET checksum = 'BOZUK0000000000000000000000000000000000000000000000000000000' WHERE set_name = 'core' AND id = 1;"
-cd samples/AgentPrism.Api && dotnet run
+$PG -c "UPDATE tracon.__migrations SET checksum = 'BOZUK0000000000000000000000000000000000000000000000000000000' WHERE set_name = 'core' AND id = 1;"
+cd samples/Tracon.Api && dotnet run
 ```
 ```bash
 python3 -c "
 import hashlib
-data = open('src/AgentPrism.PostgreSql/Migrations/0001_initial.sql','rb').read().replace(b'\r\n', b'\n')
+data = open('src/Tracon.PostgreSql/Migrations/0001_initial.sql','rb').read().replace(b'\r\n', b'\n')
 print(hashlib.sha256(data).hexdigest().upper())
 "
 ```
 
 **Beklenen sonuç**
 - Uygulama başlamayı reddeder.
-- Konsolda `AgentPrismException` görünür; mesaj `'0001_initial' migration'i
+- Konsolda `TraconException` görünür; mesaj `'0001_initial' migration'i
   veritabaninda uygulanmis ancak dosyanin icerigi degismis` ifadesini taşır.
 - Mesaj hem veritabanındaki (bozuk) hem dosyadaki (doğru) checksum'ı gösterir.
 
@@ -698,17 +698,17 @@ başlarsa biri kilidi alır, diğeri bekler.
 **Girilecek veri**
 ```bash
 # Terminal 1
-cd samples/AgentPrism.Api && dotnet run
+cd samples/Tracon.Api && dotnet run
 
 # Terminal 2 (mumkun oldugunca ayni anda)
-cd samples/AgentPrism.Api && dotnet run --urls http://localhost:5090
+cd samples/Tracon.Api && dotnet run --urls http://localhost:5090
 ```
 ```sql
-SELECT count(*) FROM agentprism.__migrations;
+SELECT count(*) FROM tracon.__migrations;
 ```
 
 **Beklenen sonuç**
-- Yalnız BİR terminalin logu `AgentPrism 33 migration uyguladi.` yazar; diğeri
+- Yalnız BİR terminalin logu `Tracon 33 migration uyguladi.` yazar; diğeri
   0 migration uygular (log satırı görünmez) çünkü kilidi aldığında migration'lar
   zaten bitmiştir.
 - Hiçbir terminalde checksum hatası veya çökme olmaz.
@@ -738,8 +738,8 @@ Negatif/sınır senaryosu.
 
 **Girilecek veri**
 ```bash
-dotnet user-secrets set "AgentPrism:PostgreSql:AutoApplyMigrations" "false"
-cd samples/AgentPrism.Api && dotnet run
+dotnet user-secrets set "Tracon:PostgreSql:AutoApplyMigrations" "false"
+cd samples/Tracon.Api && dotnet run
 ```
 ```bash
 curl -s -w "\nHTTP: %{http_code}\n" "http://localhost:5080/health"
@@ -769,30 +769,30 @@ curl -s -X POST "$APU/api/agents" -H "$APB" -H "content-type: application/json" 
 | **İlgili karar** | K-013 |
 
 **Ön koşul**
-- MT-PG-020 geçti (`agentprism` şeması 28 migration'lı).
+- MT-PG-020 geçti (`tracon` şeması 28 migration'lı).
 
 **Adımlar**
-1. Şema adını `agentprism_ikinci` olarak ayarla.
+1. Şema adını `tracon_ikinci` olarak ayarla.
 2. Uygulamayı başlat.
 3. Her iki şemayı da sorgula.
 
 **Girilecek veri**
 ```bash
-dotnet user-secrets set "AgentPrism:PostgreSql:SchemaName" "agentprism_ikinci"
-cd samples/AgentPrism.Api && dotnet run
+dotnet user-secrets set "Tracon:PostgreSql:SchemaName" "tracon_ikinci"
+cd samples/Tracon.Api && dotnet run
 ```
 ```sql
-SELECT schema_name FROM information_schema.schemata WHERE schema_name IN ('agentprism', 'agentprism_ikinci');
-SELECT count(*) FROM agentprism.__migrations;
-SELECT count(*) FROM agentprism_ikinci.__migrations;
+SELECT schema_name FROM information_schema.schemata WHERE schema_name IN ('tracon', 'tracon_ikinci');
+SELECT count(*) FROM tracon.__migrations;
+SELECT count(*) FROM tracon_ikinci.__migrations;
 ```
 
 **Beklenen sonuç**
-- Açılış logu yeni şema için `AgentPrism 28 migration uyguladi. Sema:
-  agentprism_ikinci.` yazar.
+- Açılış logu yeni şema için `Tracon 28 migration uyguladi. Sema:
+  tracon_ikinci.` yazar.
 - Her iki şema da mevcuttur; her ikisinin de `__migrations`'ı **28** satır
   taşır — birbirinden BAĞIMSIZDIR.
-- Orijinal `agentprism` şemasındaki veriler (varsa) dokunulmadan kalır.
+- Orijinal `tracon` şemasındaki veriler (varsa) dokunulmadan kalır.
 
 ---
 
@@ -821,12 +821,12 @@ değiştirmez. Kod bunu 🚨 ile işaretler; bu case operasyonel tuzağı doğru
 
 **Girilecek veri**
 ```bash
-dotnet user-secrets set "AgentPrism:Knowledge:Dimensions" "3"
-cd samples/AgentPrism.Api && dotnet run
+dotnet user-secrets set "Tracon:Knowledge:Dimensions" "3"
+cd samples/Tracon.Api && dotnet run
 ```
 ```sql
 SELECT atttypmod FROM pg_attribute
-WHERE attrelid = 'agentprism.document_embeddings'::regclass AND attname = 'embedding';
+WHERE attrelid = 'tracon.document_embeddings'::regclass AND attname = 'embedding';
 ```
 
 **Beklenen sonuç**
@@ -862,8 +862,8 @@ curl -s -X POST "$APU/api/agents/manuel-denetim/run" -H "$APB" \
   -H "content-type: application/json" -d '{"message":"Merhaba"}' > /dev/null
 ```
 ```sql
-SELECT entity, action FROM agentprism.audit_log ORDER BY created_at DESC LIMIT 5;
-SELECT count(*) FROM agentprism.audit_log WHERE entity ILIKE '%run%' OR entity ILIKE '%tool_invocation%';
+SELECT entity, action FROM tracon.audit_log ORDER BY created_at DESC LIMIT 5;
+SELECT count(*) FROM tracon.audit_log WHERE entity ILIKE '%run%' OR entity ILIKE '%tool_invocation%';
 ```
 
 **Beklenen sonuç**
@@ -896,25 +896,25 @@ depo `TryAddSingleton` ile kaydedilir — bir tüketici KENDİ uygulamasını
 
 **Girilecek veri**
 ```bash
-rm -rf ~/agentprism-manuel/tryadd && mkdir -p ~/agentprism-manuel/tryadd
-cd ~/agentprism-manuel/tryadd
+rm -rf ~/tracon-manuel/tryadd && mkdir -p ~/tracon-manuel/tryadd
+cd ~/tracon-manuel/tryadd
 dotnet new console -o . --force
-cp ~/agentprism-manuel/uretec/nuget.config .
-SURUM=$(ls ~/agentprism-local-feed/AgentPrism.PostgreSql.*.nupkg | sed 's#.*AgentPrism.PostgreSql\.##;s#\.nupkg##')
-dotnet add package AgentPrism.PostgreSql --version "$SURUM"
+cp ~/tracon-manuel/uretec/nuget.config .
+SURUM=$(ls ~/tracon-local-feed/Tracon.PostgreSql.*.nupkg | sed 's#.*Tracon.PostgreSql\.##;s#\.nupkg##')
+dotnet add package Tracon.PostgreSql --version "$SURUM"
 
 cat > Program.cs <<'EOF'
-using AgentPrism;
+using Tracon;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
 var services = new ServiceCollection();
-services.AddAgentPrism();
+services.AddTracon();
 
 // Tuketici KENDI uygulamasini UsePostgreSql()'DEN ONCE kaydeder.
 services.TryAddSingleton<IConversationBranchStore, SahteDalStore>();
 
-services.UsePostgreSql("Host=localhost;Port=55432;Database=agentprism;Username=postgres;Password=agentprism");
+services.UsePostgreSql("Host=localhost;Port=55432;Database=tracon;Username=postgres;Password=tracon");
 
 var resolved = services.BuildServiceProvider().GetRequiredService<IConversationBranchStore>();
 Console.WriteLine("Cozumlenen tip: " + resolved.GetType().FullName);
@@ -957,14 +957,14 @@ dotnet run -c Release
 **Girilecek veri**
 ```bash
 cat > Program.cs <<'EOF'
-using AgentPrism;
+using Tracon;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
 var services = new ServiceCollection();
-services.AddAgentPrism();
+services.AddTracon();
 services.TryAddSingleton<IVectorSearchStore, SahteVektorStore>();
-services.UsePostgreSql("Host=localhost;Port=55432;Database=agentprism;Username=postgres;Password=agentprism");
+services.UsePostgreSql("Host=localhost;Port=55432;Database=tracon;Username=postgres;Password=tracon");
 
 var resolved = services.BuildServiceProvider().GetRequiredService<IVectorSearchStore>();
 Console.WriteLine("Cozumlenen tip: " + resolved.GetType().FullName);
@@ -1008,25 +1008,25 @@ kaydedilir — kayıt sırası ÖNEMLİ DEĞİLDİR, `UsePostgreSql()` her zaman
 
 **Girilecek veri**
 ```bash
-rm -rf ~/agentprism-manuel/replace && mkdir -p ~/agentprism-manuel/replace
-cd ~/agentprism-manuel/replace
+rm -rf ~/tracon-manuel/replace && mkdir -p ~/tracon-manuel/replace
+cd ~/tracon-manuel/replace
 dotnet new console -o . --force
-cp ~/agentprism-manuel/uretec/nuget.config .
-SURUM=$(ls ~/agentprism-local-feed/AgentPrism.PostgreSql.*.nupkg | sed 's#.*AgentPrism.PostgreSql\.##;s#\.nupkg##')
-dotnet add package AgentPrism.PostgreSql --version "$SURUM"
+cp ~/tracon-manuel/uretec/nuget.config .
+SURUM=$(ls ~/tracon-local-feed/Tracon.PostgreSql.*.nupkg | sed 's#.*Tracon.PostgreSql\.##;s#\.nupkg##')
+dotnet add package Tracon.PostgreSql --version "$SURUM"
 
 cat > Program.cs <<'EOF'
-using AgentPrism;
+using Tracon;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
 var services = new ServiceCollection();
-services.AddAgentPrism();
+services.AddTracon();
 
 // Tuketici IRunStore'u ONCE, TryAdd ile kaydeder.
 services.TryAddSingleton<IRunStore, SahteRunStore>();
 
-services.UsePostgreSql("Host=localhost;Port=55432;Database=agentprism;Username=postgres;Password=agentprism");
+services.UsePostgreSql("Host=localhost;Port=55432;Database=tracon;Username=postgres;Password=tracon");
 
 var resolved = services.BuildServiceProvider().GetRequiredService<IRunStore>();
 Console.WriteLine("Cozumlenen tip: " + resolved.GetType().FullName);
@@ -1036,7 +1036,7 @@ dotnet run -c Release
 ```
 
 **Beklenen sonuç**
-- Çıktı `SqlRunStore` tipini gösterir (`AgentPrism` ad alanında) —
+- Çıktı `SqlRunStore` tipini gösterir (`Tracon` ad alanında) —
   `SahteRunStore` **DEĞİLDİR**. `Replace` deseni `TryAdd`'in aksine önceki kaydı
   bilerek ezer; MT-PG-031/032'deki davranışla TAM TERSİDİR.
 
@@ -1058,16 +1058,16 @@ gerektirir** — test bitince adım 4'te geri alınır.
 - MT-PG-020 geçti, uygulama durdurulmuş.
 
 **Adımlar**
-1. `samples/AgentPrism.Api/Program.cs`'de `agentPrism.UsePostgreSql(postgreSql);`
+1. `samples/Tracon.Api/Program.cs`'de `tracon.UsePostgreSql(postgreSql);`
    satırından (yaklaşık 641. satır) hemen SONRA şu satırı geçici olarak ekle:
-   `agentPrism.UseSqlite(o => o.ConnectionString = "Data Source=manuel-test-ikinci.db");`
+   `tracon.UseSqlite(o => o.ConnectionString = "Data Source=manuel-test-ikinci.db");`
 2. Uygulamayı başlat, açılış logunu oku.
 3. `/api/diagnostics` ve `/health` ucunu çağır.
 4. Değişikliği geri al.
 
 **Girilecek veri**
 ```bash
-cd samples/AgentPrism.Api && dotnet run
+cd samples/Tracon.Api && dotnet run
 ```
 ```bash
 curl -s "$APU/api/diagnostics" -H "$APB" | python3 -m json.tool | grep -E "persistenceProvider|registeredPersistenceProviders"
@@ -1075,12 +1075,12 @@ curl -s -w "\nHTTP: %{http_code}\n" "http://localhost:5080/health"
 ```
 ```bash
 # Temizlik (adim 4):
-git checkout -- samples/AgentPrism.Api/Program.cs
-rm -f samples/AgentPrism.Api/manuel-test-ikinci.db
+git checkout -- samples/Tracon.Api/Program.cs
+rm -f samples/Tracon.Api/manuel-test-ikinci.db
 ```
 
 **Beklenen sonuç**
-- Açılış logu `AgentPrism'de birden fazla kalicilik saglayicisi kayitli:
+- Açılış logu `Tracon'de birden fazla kalicilik saglayicisi kayitli:
   PostgreSQL, SQLite.` (ya da çağrı sırasına göre ters) uyarısını taşır.
 - `/api/diagnostics`: `registeredPersistenceProviders` = **2**;
   `persistenceProvider` = **son çağrılan** sağlayıcı (`SQLite` — `UseSqlite`
@@ -1102,7 +1102,7 @@ MT-PG-034'ün devamı: sıra tersine çevrilir.
 
 **Ön koşul**
 - MT-PG-034'ün geçici kodu HENÜZ geri alınmadı (veya yeniden uygulanır), ama bu
-  kez `UseSqlite(...)` satırı `agentPrism.UsePostgreSql(postgreSql);`'DEN ÖNCE
+  kez `UseSqlite(...)` satırı `tracon.UsePostgreSql(postgreSql);`'DEN ÖNCE
   eklenir.
 
 **Adımlar**
@@ -1117,8 +1117,8 @@ curl -s "$APU/api/diagnostics" -H "$APB" | python3 -m json.tool | grep persisten
 ```
 ```bash
 # Temizlik:
-git checkout -- samples/AgentPrism.Api/Program.cs
-rm -f samples/AgentPrism.Api/manuel-test-ikinci.db
+git checkout -- samples/Tracon.Api/Program.cs
+rm -f samples/Tracon.Api/manuel-test-ikinci.db
 ```
 
 **Beklenen sonuç**
@@ -1144,7 +1144,7 @@ rm -f samples/AgentPrism.Api/manuel-test-ikinci.db
 **Girilecek veri**
 ```sql
 SELECT extname, extversion FROM pg_extension WHERE extname = 'vector';
-SELECT indexname FROM pg_indexes WHERE schemaname = 'agentprism' AND tablename = 'document_embeddings' ORDER BY indexname;
+SELECT indexname FROM pg_indexes WHERE schemaname = 'tracon' AND tablename = 'document_embeddings' ORDER BY indexname;
 SELECT indexdef FROM pg_indexes WHERE indexname = 'document_embeddings_hnsw_idx';
 ```
 
@@ -1182,19 +1182,19 @@ Negatif senaryo.
 
 **Girilecek veri**
 ```bash
-rm -rf ~/agentprism-manuel/vektor && mkdir -p ~/agentprism-manuel/vektor
-cd ~/agentprism-manuel/vektor
+rm -rf ~/tracon-manuel/vektor && mkdir -p ~/tracon-manuel/vektor
+cd ~/tracon-manuel/vektor
 dotnet new console -o . --force
-cp ~/agentprism-manuel/uretec/nuget.config .
-SURUM=$(ls ~/agentprism-local-feed/AgentPrism.PostgreSql.*.nupkg | sed 's#.*AgentPrism.PostgreSql\.##;s#\.nupkg##')
-dotnet add package AgentPrism.PostgreSql --version "$SURUM"
+cp ~/tracon-manuel/uretec/nuget.config .
+SURUM=$(ls ~/tracon-local-feed/Tracon.PostgreSql.*.nupkg | sed 's#.*Tracon.PostgreSql\.##;s#\.nupkg##')
+dotnet add package Tracon.PostgreSql --version "$SURUM"
 
 cat > Program.cs <<'EOF'
-using AgentPrism;
+using Tracon;
 using Microsoft.Extensions.DependencyInjection;
 
 var services = new ServiceCollection();
-services.AddAgentPrism().UsePostgreSql("Host=localhost;Port=55432;Database=agentprism;Username=postgres;Password=agentprism");
+services.AddTracon().UsePostgreSql("Host=localhost;Port=55432;Database=tracon;Username=postgres;Password=tracon");
 
 var provider = services.BuildServiceProvider();
 var store = provider.GetRequiredService<IVectorSearchStore>();
@@ -1246,13 +1246,13 @@ dotnet run -c Release
 **Girilecek veri**
 ```bash
 cat > Program.cs <<'EOF'
-using AgentPrism;
+using Tracon;
 using Microsoft.Extensions.DependencyInjection;
 
 float[] Axis(int index) { var v = new float[1536]; v[index] = 1f; return v; }
 
 var services = new ServiceCollection();
-services.AddAgentPrism().UsePostgreSql("Host=localhost;Port=55432;Database=agentprism;Username=postgres;Password=agentprism");
+services.AddTracon().UsePostgreSql("Host=localhost;Port=55432;Database=tracon;Username=postgres;Password=tracon");
 var store = services.BuildServiceProvider().GetRequiredService<IVectorSearchStore>();
 
 await store.UpsertAsync("kiraci-alfa", "manuel-koleksiyon", "manuel-kaynak", new[]
@@ -1281,7 +1281,7 @@ EOF
 dotnet run -c Release
 ```
 ```sql
-SELECT source_id, chunk_index, content FROM agentprism.document_embeddings
+SELECT source_id, chunk_index, content FROM tracon.document_embeddings
 WHERE tenant_id = 'kiraci-alfa' AND collection = 'manuel-koleksiyon';
 ```
 
@@ -1315,13 +1315,13 @@ eksen vektörleri arası kosinüs mesafesi hesaplanabilir ve değişmezdir.
 **Girilecek veri**
 ```bash
 cat > Program.cs <<'EOF'
-using AgentPrism;
+using Tracon;
 using Microsoft.Extensions.DependencyInjection;
 
 float[] Axis(int index) { var v = new float[1536]; v[index] = 1f; return v; }
 
 var services = new ServiceCollection();
-services.AddAgentPrism().UsePostgreSql("Host=localhost;Port=55432;Database=agentprism;Username=postgres;Password=agentprism");
+services.AddTracon().UsePostgreSql("Host=localhost;Port=55432;Database=tracon;Username=postgres;Password=tracon");
 var store = services.BuildServiceProvider().GetRequiredService<IVectorSearchStore>();
 
 await store.UpsertAsync("kiraci-alfa", "siralama-testi", "eksen-0", new[] { new VectorChunk { Index = 0, Content = "eksen 0", Embedding = Axis(0) } });
@@ -1375,13 +1375,13 @@ uygulanır (birincil anahtar veya benzersizlik kısıtı DEĞİL).
 **Girilecek veri**
 ```bash
 cat > Program.cs <<'EOF'
-using AgentPrism;
+using Tracon;
 using Microsoft.Extensions.DependencyInjection;
 
 float[] Axis(int index) { var v = new float[1536]; v[index] = 1f; return v; }
 
 var services = new ServiceCollection();
-services.AddAgentPrism().UsePostgreSql("Host=localhost;Port=55432;Database=agentprism;Username=postgres;Password=agentprism");
+services.AddTracon().UsePostgreSql("Host=localhost;Port=55432;Database=tracon;Username=postgres;Password=tracon");
 var store = services.BuildServiceProvider().GetRequiredService<IVectorSearchStore>();
 
 await store.UpsertAsync("kiraci-alfa", "paylasimli-koleksiyon", "ortak-kaynak", new[] { new VectorChunk { Index = 0, Content = "ALFA'nin gizli belgesi", Embedding = Axis(0) } });
@@ -1425,13 +1425,13 @@ dotnet run -c Release
 **Girilecek veri**
 ```bash
 cat > Program.cs <<'EOF'
-using AgentPrism;
+using Tracon;
 using Microsoft.Extensions.DependencyInjection;
 
 float[] Axis(int index) { var v = new float[1536]; v[index] = 1f; return v; }
 
 var services = new ServiceCollection();
-services.AddAgentPrism().UsePostgreSql("Host=localhost;Port=55432;Database=agentprism;Username=postgres;Password=agentprism");
+services.AddTracon().UsePostgreSql("Host=localhost;Port=55432;Database=tracon;Username=postgres;Password=tracon");
 var store = services.BuildServiceProvider().GetRequiredService<IVectorSearchStore>();
 
 await store.UpsertAsync("kiraci-alfa", "silme-testi", "silinecek-kaynak", new[]
@@ -1477,13 +1477,13 @@ dotnet run -c Release
 **Girilecek veri**
 ```bash
 cat > Program.cs <<'EOF'
-using AgentPrism;
+using Tracon;
 using Microsoft.Extensions.DependencyInjection;
 
 float[] Axis(int index) { var v = new float[1536]; v[index] = 1f; return v; }
 
 var services = new ServiceCollection();
-services.AddAgentPrism().UsePostgreSql("Host=localhost;Port=55432;Database=agentprism;Username=postgres;Password=agentprism");
+services.AddTracon().UsePostgreSql("Host=localhost;Port=55432;Database=tracon;Username=postgres;Password=tracon");
 var store = services.BuildServiceProvider().GetRequiredService<IVectorSearchStore>();
 
 await store.UpsertAsync("kiraci-alfa", "mesafe-testi", "yakin", new[] { new VectorChunk { Index = 0, Content = "yakin", Embedding = Axis(0) } });
@@ -1579,7 +1579,7 @@ curl -s -w "\nHTTP: %{http_code}\n" "http://localhost:5080/health"
 
 **Beklenen sonuç**
 > **Düzeltildi (2026-08-15, KAPANIS-PLANI §8):** `echo` sağlayıcısı
-> `AgentPrismHealthCheck.cs:70-77`'nin izlediği `ModelProviders` listesinde
+> `TraconHealthCheck.cs:70-77`'nin izlediği `ModelProviders` listesinde
 > hiç yer almaz (yalnız openai/openai-responses/openrouter/anthropic/google
 > izlenir) — bu yüzden `echo`-only bir kurulumda `/health` YAPISAL OLARAK
 > asla düz `Healthy` dönemez, en iyi ihtimalle `Degraded` durur. Bu, model
@@ -1595,7 +1595,7 @@ Npgsql havuzu kendiliğinden toparlanır.~~
 
 ---
 
-### MT-PG-051 — `/agentprism/api/diagnostics` bekleyen migration'ları listeler, hiçbir `secret` taşımaz
+### MT-PG-051 — `/tracon/api/diagnostics` bekleyen migration'ları listeler, hiçbir `secret` taşımaz
 
 | | |
 |---|---|
@@ -1613,9 +1613,9 @@ Npgsql havuzu kendiliğinden toparlanır.~~
 
 **Girilecek veri**
 ```bash
-$PG -c "DROP SCHEMA IF EXISTS agentprism CASCADE;"
-dotnet user-secrets set "AgentPrism:PostgreSql:AutoApplyMigrations" "false"
-cd samples/AgentPrism.Api && dotnet run
+$PG -c "DROP SCHEMA IF EXISTS tracon CASCADE;"
+dotnet user-secrets set "Tracon:PostgreSql:AutoApplyMigrations" "false"
+cd samples/Tracon.Api && dotnet run
 ```
 ```bash
 curl -s "$APU/api/diagnostics" -H "$APB" | python3 -m json.tool
@@ -1656,7 +1656,7 @@ for i in 1 2 3; do
 done
 ```
 ```sql
-SELECT to_regclass('agentprism.__migrations');
+SELECT to_regclass('tracon.__migrations');
 ```
 
 **Beklenen sonuç**
@@ -1691,7 +1691,7 @@ curl -s -w "\nHTTP: %{http_code}\n" "http://localhost:5080/health"
 **Beklenen sonuç**
 > **Düzeltildi (2026-08-15, KAPANIS-PLANI §8) — aynı kök neden `MT-PG-050`:**
 > **200**, gövde `Degraded` durumunu gösterir. "`echo` yeterli" ön koşul
-> varsayımı yanlıştır — `echo` sağlayıcısı `AgentPrismHealthCheck.cs:70-77`'nin
+> varsayımı yanlıştır — `echo` sağlayıcısı `TraconHealthCheck.cs:70-77`'nin
 > izlediği `ModelProviders` listesinde hiç yer almaz, bu yüzden "en az bir
 > model sağlayıcısı sağlıklı" koşulu `echo`-only bir kurulumda YAPISAL OLARAK
 > hiçbir zaman sağlanamaz; `Healthy` etiketi yalnız openai/anthropic/google/
@@ -1729,7 +1729,7 @@ done
 wait
 ```
 ```sql
-SELECT count(*) FROM agentprism.agent_definitions WHERE name LIKE 'manuel-esz-%';
+SELECT count(*) FROM tracon.agent_definitions WHERE name LIKE 'manuel-esz-%';
 ```
 
 **Beklenen sonuç**
@@ -1785,7 +1785,7 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/agents/manuel-esz-1/run" -
 ## İsteğe bağlı `knowledge` migration seti (Faz 67)
 
 `0024_vector.sql`, `MigrationsKnowledge/0001_vector.sql`'a taşındı ve yalnız
-`AgentPrism:PostgreSql:EnableKnowledge = true` iken uygulanır (K1, varsayılan
+`Tracon:PostgreSql:EnableKnowledge = true` iken uygulanır (K1, varsayılan
 kapalı). Karar: K-475/K-476/K-477. Aşağıdaki beş case, faz dokümanının
 ([`67-ISTEGE-BAGLI-MIGRATION-SETI.md`](../arsiv/fazlar/67-ISTEGE-BAGLI-MIGRATION-SETI.md))
 manuel kabul tablosunun karşılığıdır; MT-PG-062/063/064 kapanışta **gerçek**
@@ -1812,19 +1812,19 @@ konteynerlere karşı koşuldu (kanıt aşağıda).
 
 **Girilecek veri**
 ```bash
-docker run -d --name ap-pg-plain -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=agentprism -p 55433:5432 postgres:18-alpine
-cd samples/AgentPrism.Api && dotnet run -- \
-  --AgentPrism:PostgreSql:ConnectionString="Host=localhost;Port=55433;Database=agentprism;Username=postgres;Password=postgres" \
-  --AgentPrism:PostgreSql:SchemaName=agentprism_case1 \
-  --AgentPrism:PostgreSql:EnableKnowledge=false
+docker run -d --name ap-pg-plain -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=tracon -p 55433:5432 postgres:18-alpine
+cd samples/Tracon.Api && dotnet run -- \
+  --Tracon:PostgreSql:ConnectionString="Host=localhost;Port=55433;Database=tracon;Username=postgres;Password=postgres" \
+  --Tracon:PostgreSql:SchemaName=tracon_case1 \
+  --Tracon:PostgreSql:EnableKnowledge=false
 ```
 ```bash
-curl -s http://localhost:5099/agentprism/api/diagnostics -H "Authorization: Bearer $TOKEN"
-docker exec ap-pg-plain psql -U postgres -d agentprism -c "\dx"
+curl -s http://localhost:5099/tracon/api/diagnostics -H "Authorization: Bearer $TOKEN"
+docker exec ap-pg-plain psql -U postgres -d tracon -c "\dx"
 ```
 
 **Beklenen sonuç**
-- Açılış logu `AgentPrism 32 migration uyguladi.` yazar; hiçbir hata yoktur.
+- Açılış logu `Tracon 32 migration uyguladi.` yazar; hiçbir hata yoktur.
 - `/api/diagnostics`: `"canConnect": true`, `"migrationsUpToDate": true`,
   `"pendingMigrations": []`.
 - `\dx` yalnız `plpgsql` listeler — `vector` **yoktur**.
@@ -1850,7 +1850,7 @@ konteynerine karşı BİREBİR çalıştırıldı. Sonuç: `__migrations` 32 sat
 
 Negatif senaryo. `pgvector` sunucuda YÜKLÜ değilken `CREATE EXTENSION vector`
 PostgreSQL'in kendi hatasını (`0A000`) verir; `MigrationRunner` bunu
-`AgentPrismException`'a sarar.
+`TraconException`'a sarar.
 
 **Ön koşul**
 - MT-PG-062'nin konteyneri (`pgvector` yok).
@@ -1861,29 +1861,29 @@ PostgreSQL'in kendi hatasını (`0A000`) verir; `MigrationRunner` bunu
 
 **Girilecek veri**
 ```bash
-cd samples/AgentPrism.Api && dotnet run -- \
-  --AgentPrism:PostgreSql:ConnectionString="Host=localhost;Port=55433;Database=agentprism;Username=postgres;Password=postgres" \
-  --AgentPrism:PostgreSql:SchemaName=agentprism_case2 \
-  --AgentPrism:PostgreSql:EnableKnowledge=true
+cd samples/Tracon.Api && dotnet run -- \
+  --Tracon:PostgreSql:ConnectionString="Host=localhost;Port=55433;Database=tracon;Username=postgres;Password=postgres" \
+  --Tracon:PostgreSql:SchemaName=tracon_case2 \
+  --Tracon:PostgreSql:EnableKnowledge=true
 ```
 
 **Beklenen sonuç**
 - Uygulama başlamayı reddeder (fail-fast, mevcut MT-PG-007 emsali).
 - Konsolun İLK satırı **okunur** bir mesaj taşır:
-  `AgentPrism.AgentPrismException: Migration '0001_vector' could not be applied: extension "vector" is not available (SQLSTATE 0A000).`
+  `Tracon.TraconException: Migration '0001_vector' could not be applied: extension "vector" is not available (SQLSTATE 0A000).`
 - Bu istek hiçbir HTTP istemcisine ULAŞMAZ (süreç HTTP dinlemeye başlamadan çöker) —
   "`DbException` yığın izi kullanıcıya gitmez" burada "hiçbir kullanıcı isteği
   hiç işlenmez" anlamına gelir; ayrıntılı .NET yığın izi yalnızca operatörün
   KONSOLUNDA görünür (K-354'ün "hata yutulmaz" ilkesiyle tutarlı).
 - Çekirdek migration'ların hiçbiri GERİ ALINMAZ: konteyneri düz `postgres` imajıyla
-  değiştirmeden `agentprism_case2` şeması silinip yeniden denenirse çekirdek
+  değiştirmeden `tracon_case2` şeması silinip yeniden denenirse çekirdek
   32'si yine sorunsuz uygulanır (yalnız `0001_vector` başarısız olur).
 
 **Gerçek koşum kanıtı (2026-08-19, kapanış)**: aynı konteynere karşı çalıştırıldı.
 Gerçek hata: `ERROR: 0A000: extension "vector" is not available` /
 `HINT: The extension must first be installed on the system where PostgreSQL is
 running.`; uygulamanın fırlattığı üst seviye istisna tam olarak yukarıdaki
-metni taşıdı. `agentprism_case2.__migrations` sorgulandığında `core` setinin
+metni taşıdı. `tracon_case2.__migrations` sorgulandığında `core` setinin
 **32** satırının TAMAMININ başarıyla uygulandığı, yalnız `knowledge` setinin
 hiç satır yazmadığı doğrulandı.
 
@@ -1901,7 +1901,7 @@ hiç satır yazmadığı doğrulandı.
 **Ön koşul**
 - `ap-pg` (`pgvector/pgvector:pg18`) çalışıyor.
 - `EnableKnowledge = true`.
-- `AgentPrism:Providers:OpenAI:ApiKey` `dotnet user-secrets`'ta tanımlı
+- `Tracon:Providers:OpenAI:ApiKey` `dotnet user-secrets`'ta tanımlı
   (gerçek gömü üretimi için).
 
 **Adımlar**
@@ -1912,7 +1912,7 @@ hiç satır yazmadığı doğrulandı.
 **Girilecek veri**
 ```bash
 curl -s -X POST "$APU/api/knowledge/faz67-test/documents" -H "$APB" -H "content-type: application/json" \
-  -d '{"sourceId":"doc-1","text":"AgentPrism Faz 67, PostgreSQL migration setlerini istege bagli hale getirir."}'
+  -d '{"sourceId":"doc-1","text":"Tracon Faz 67, PostgreSQL migration setlerini istege bagli hale getirir."}'
 curl -s -X POST "$APU/api/knowledge/faz67-test/search" -H "$APB" -H "content-type: application/json" \
   -d '{"query":"migration set nedir","maxResults":3}'
 ```
@@ -1947,7 +1947,7 @@ ile yüklenen içeriği BİREBİR döndürdü.
 2. Açılış logunu oku.
 
 **Beklenen sonuç**
-- Açılış logu `AgentPrism 1 migration uyguladi.` yazar (yalnız `0001_vector`;
+- Açılış logu `Tracon 1 migration uyguladi.` yazar (yalnız `0001_vector`;
   çekirdek 32'si zaten uygulanmıştı, YENİDEN uygulanmaz).
 - `__migrations` toplam **33** satıra çıkar.
 
@@ -1971,14 +1971,14 @@ defterinin `set_name` sütunu kazanmasıdır — sözleşme testleri davranış
 değişikliği olmadan geçmelidir.
 
 **Adımlar**
-1. Tam sözleşme test koşumunu çalıştır (`AgentPrism.SqlServer.IntegrationTests`,
-   `AgentPrism.Sqlite.IntegrationTests`).
+1. Tam sözleşme test koşumunu çalıştır (`Tracon.SqlServer.IntegrationTests`,
+   `Tracon.Sqlite.IntegrationTests`).
 
 **Beklenen sonuç**
 - 👤 Fark yok — iki sağlayıcıda da davranış AYNI kalır.
 
-**Gerçek koşum kanıtı (2026-08-19, kapanış)**: `AgentPrism.SqlServer.IntegrationTests`
-540/540, `AgentPrism.Sqlite.IntegrationTests` 554/554 (ledger yükseltme testi
+**Gerçek koşum kanıtı (2026-08-19, kapanış)**: `Tracon.SqlServer.IntegrationTests`
+540/540, `Tracon.Sqlite.IntegrationTests` 554/554 (ledger yükseltme testi
 dahil) — ikisi de gerçek konteynerlere karşı yeşil.
 
 ---
@@ -1997,16 +1997,16 @@ dahil) — ikisi de gerçek konteynerlere karşı yeşil.
 boşluğu yüzünden aslında farklıydı, 2'si ise fazladan özdeş çıktı — bkz. faz
 dokümanının "Plandan Sapmalar" bölümü) tek yerde kurar; maliyet/token toplama
 ifadeleri `CostTotal`/`TreeSum` ile üretilir. Kapı: `SqlTextSnapshotTests`
-(`tests/AgentPrism.Sql.Shared.UnitTests`) faz başında alınan taban çizgisiyle
+(`tests/Tracon.Sql.Shared.UnitTests`) faz başında alınan taban çizgisiyle
 üç dialektin ÇÖZÜMLENMİŞ (şema adı yerleşmiş) SQL metnini birebir karşılaştırır
 — Docker gerekmez.
 
 **Adımlar**
-1. `dotnet test tests/AgentPrism.Sql.Shared.UnitTests -c Release` çalıştır.
+1. `dotnet test tests/Tracon.Sql.Shared.UnitTests -c Release` çalıştır.
 2. `SqlQueriesBase.CostAddends`'e sahte bir dördüncü terim ekle, aynı komutu
    tekrar çalıştır, sonra geri al.
-3. `AgentPrism.PostgreSql.IntegrationTests`, `AgentPrism.SqlServer.IntegrationTests`
-   ve `AgentPrism.Sqlite.IntegrationTests` sözleşme setlerinin tamamını gerçek
+3. `Tracon.PostgreSql.IntegrationTests`, `Tracon.SqlServer.IntegrationTests`
+   ve `Tracon.Sqlite.IntegrationTests` sözleşme setlerinin tamamını gerçek
    sunuculara karşı çalıştır.
 
 **Beklenen sonuç**
@@ -2016,25 +2016,25 @@ ifadeleri `CostTotal`/`TreeSum` ile üretilir. Kapı: `SqlTextSnapshotTests`
   yok) — geri alınca yeniden yeşil.
 - Adım 3: davranış AYNI kalır; hiçbir maliyet/token/kimlik alanı değişmez.
 
-**Gerçek koşum kanıtı (2026-08-24, kapanış)**: `AgentPrism.Sql.Shared.UnitTests`
-8/8; `AgentPrism.PostgreSql.IntegrationTests` 638/638;
-`AgentPrism.SqlServer.IntegrationTests` 574/574;
-`AgentPrism.Sqlite.IntegrationTests` 592/592 — dördü de gerçek sunuculara/dosyaya
-karşı, refactor öncesi ve sonrası aynı sayılarla yeşil. Ayrıca `samples/AgentPrism.Api`
-gerçek `ap-pg` konteynerine (taze `agentprism_p94` şeması, 37 migration) karşı
+**Gerçek koşum kanıtı (2026-08-24, kapanış)**: `Tracon.Sql.Shared.UnitTests`
+8/8; `Tracon.PostgreSql.IntegrationTests` 638/638;
+`Tracon.SqlServer.IntegrationTests` 574/574;
+`Tracon.Sqlite.IntegrationTests` 592/592 — dördü de gerçek sunuculara/dosyaya
+karşı, refactor öncesi ve sonrası aynı sayılarla yeşil. Ayrıca `samples/Tracon.Api`
+gerçek `ap-pg` konteynerine (taze `tracon_p94` şeması, 37 migration) karşı
 çalıştırıldı: `phase94-echo` adlı bir agent tanımı oluşturuldu (maliyetsiz
 `echo` sağlayıcısı — gerçek bir para harcayan sağlayıcıya dokunulmadı), bir
-`run` yapıldı, `GET /agentprism/api/runs/{id}` çağrıldı — kayıt `RunOrdinals`
+`run` yapıldı, `GET /tracon/api/runs/{id}` çağrıldı — kayıt `RunOrdinals`
 üzerinden doğru okundu (`status: Completed`, `eventCount: 11`, akış yanıtı
 tam metniyle geldi). `usage`/`cost` bu koşumda `null` döndü çünkü örnek
 uygulamanın `EchoModelProvider`'ı yalnız AKIŞLI yolda kullanım bildirmiyor —
 bu bir Faz 94 kusuru değil, örnek uygulamanın bilinen sınırıdır; DOLU
 usage/cost yolu zaten `RunStoreContract`'ın 382 test'iyle üç gerçek
-veritabanına karşı kanıtlanmıştır. `GET /agentprism/api/stats?agentName=phase94-echo`
+veritabanına karşı kanıtlanmıştır. `GET /tracon/api/stats?agentName=phase94-echo`
 de çağrıldı — `SelectRunStatistics` (`CostTotal`/`CountWhereAnyNotNull`
 kullanan sorgu) gerçek PostgreSQL'e karşı çalıştı ve `totalCost: null` (doğru
 — hiçbir koşumun maliyeti yok) döndürdü. Doğrulama şeması temizlendi
-(`DROP SCHEMA agentprism_p94 CASCADE`).
+(`DROP SCHEMA tracon_p94 CASCADE`).
 
 ---
 
@@ -2048,28 +2048,28 @@ kullanan sorgu) gerçek PostgreSQL'e karşı çalıştı ve `totalCost: null` (d
 | **İlgili karar** | — |
 
 `UsePostgreSql(o => o.DataSource = ...)`: tüketicinin kendi kurduğu bir
-`NpgsqlDataSource`, hem host'un EF Core `DbContext`'ine hem AgentPrism'e
+`NpgsqlDataSource`, hem host'un EF Core `DbContext`'ine hem Tracon'e
 verilir. `ConnectionString` bu durumda **istenmez**.
 
 **Adımlar**
-1. `samples/AgentPrism.Embedded`'i `AgentPrism:PostgreSql:ConnectionString`
+1. `samples/Tracon.Embedded`'i `Tracon:PostgreSql:ConnectionString`
    ile başlat (örneğin kendi README'sindeki adımlar).
 2. `POST /tickets` ile bir `run` başlat.
-3. Host'un kendi tablosunu (`Tickets`) ve AgentPrism'in `agentprism.runs`
+3. Host'un kendi tablosunu (`Tickets`) ve Tracon'in `tracon.runs`
    tablosunu aynı veritabanında `psql` ile oku.
 
 **Beklenen sonuç**
-- Başlangıç logunda tek satır: `AgentPrism applied N migration(s)`.
-- `Tickets.RunId` == `agentprism.runs.id`.
-- `GET /agentprism/api/runs/{id}` aynı kaydı döndürür.
+- Başlangıç logunda tek satır: `Tracon applied N migration(s)`.
+- `Tickets.RunId` == `tracon.runs.id`.
+- `GET /tracon/api/runs/{id}` aynı kaydı döndürür.
 
-**Gerçek koşum kanıtı (2026-08-26, kapanış)**: `samples/AgentPrism.Embedded`
+**Gerçek koşum kanıtı (2026-08-26, kapanış)**: `samples/Tracon.Embedded`
 yerel bir `postgres:18-alpine` konteynerine karşı gerçek connection string ile
 başlatıldı. `POST /tickets` (`tenantId=acme`) bir `run` üretti
 (`01a03dd5-c07f-7dac-a5c3-e76a05cb85a3`); `psql` ile doğrudan sorgulandı:
-`public."Tickets"` satırının `run_id`'si `agentprism.runs.id` ile birebir
-eşleşti, `agentprism.runs` satırı `status=1` (`Completed`), `tenant_id='acme'`.
-`GET /agentprism/api/runs/{id}` (`X-Host-Tenant: acme` ile) aynı kaydı 200
+`public."Tickets"` satırının `run_id`'si `tracon.runs.id` ile birebir
+eşleşti, `tracon.runs` satırı `status=1` (`Completed`), `tenant_id='acme'`.
+`GET /tracon/api/runs/{id}` (`X-Host-Tenant: acme` ile) aynı kaydı 200
 döndürdü. Konteyner sonda silindi.
 
 ### MT-PG-069 — `DataSource` ve `ConnectionString` birlikte verilirse başlangıç hatası
@@ -2087,16 +2087,16 @@ Açık Soru 1'in kararı: sessiz öncelik yok, ikisi birden verilirse
 **Adımlar**
 1. `UsePostgreSql(o => { o.DataSource = ds; o.ConnectionString = "..."; })` ile
    bir `ServiceProvider` kur.
-2. `IOptions<AgentPrismPostgreSqlOptions>.Value`'yu oku.
+2. `IOptions<TraconPostgreSqlOptions>.Value`'yu oku.
 
 **Beklenen sonuç**
 - `OptionsValidationException` fırlar; mesaj hem `DataSource` hem
   `ConnectionString` adını taşır.
 
 **Gerçek koşum kanıtı (2026-08-26, kapanış)**: `ExternalDataSourceTests
-.DataSource_and_ConnectionString_together_is_rejected` (`AgentPrism.PostgreSql
+.DataSource_and_ConnectionString_together_is_rejected` (`Tracon.PostgreSql
 .IntegrationTests`, gerçek PostgreSQL konteynerine karşı) — yeşil. Aynı kural
-`AgentPrism.SqlServer.IntegrationTests` ve `AgentPrism.Sqlite
+`Tracon.SqlServer.IntegrationTests` ve `Tracon.Sqlite
 .IntegrationTests`'in kendi `ExternalDataSourceTests` sınıflarında da
 doğrulandı.
 
@@ -2109,7 +2109,7 @@ doğrulandı.
 | **İlgili faz** | Faz 110 |
 | **İlgili karar** | — |
 
-AgentPrism'in kurmadığı bir data source'u dispose etmesi, host kapanışında
+Tracon'in kurmadığı bir data source'u dispose etmesi, host kapanışında
 tüketicinin kendi `DbContext`'ini sessizce öldürür — bu fazın en somut kusur
 riski.
 
@@ -2121,12 +2121,12 @@ riski.
 
 **Beklenen sonuç**
 - Adım 3'teki komut normal çalışır — `ObjectDisposedException` **yok**.
-- AgentPrism'in **kendi** kurduğu data source (yalnız `ConnectionString`) için
+- Tracon'in **kendi** kurduğu data source (yalnız `ConnectionString`) için
   ise adım 3 `ObjectDisposedException` fırlatır — sahiplik doğru yönde çalışıyor.
 
 **Gerçek koşum kanıtı (2026-08-26, kapanış)**: `ExternalDataSourceTests
 .External_data_source_is_not_disposed_when_the_host_stops` ve
-`.Own_data_source_is_disposed_when_the_host_stops` (`AgentPrism.PostgreSql
+`.Own_data_source_is_disposed_when_the_host_stops` (`Tracon.PostgreSql
 .IntegrationTests`, gerçek PostgreSQL) — ikisi de yeşil. Sahiplik mantığının
 kendisi (`SqlStoreContext.Dispose()`/`DisposeAsync()`'in `OwnsDataSource`'a
 koşullu olması) ayrıca bir spy data source ile izole test edildi:
@@ -2158,7 +2158,7 @@ connection string'e değil, `NpgsqlDataSource` **örneğine** aittir.
 
 **Gerçek koşum kanıtı (2026-08-26, kapanış)**: `ConnectionPoolSharingTests
 .Two_data_sources_built_from_the_same_connection_string_do_not_share_a_pool`
-(`AgentPrism.PostgreSql.IntegrationTests`, gerçek PostgreSQL konteynerine
+(`Tracon.PostgreSql.IntegrationTests`, gerçek PostgreSQL konteynerine
 karşı) — ölçülen backend sayısı tam **10** (`concurrentConnectionsPerSource ×
 2`), iddia edilen **5** değil. Sonuç `embedding.md`'ye ve fazın "Plandan
 Sapmalar" bölümüne yazıldı. 👤 adımı otomatik test `pg_stat_activity`'yi
@@ -2168,7 +2168,7 @@ istenirse aynı sorgu elle tekrarlanabilir.
 ## İsteğe bağlı `views` migration seti (Faz 111)
 
 `{schema}.runs_v1` — sürümlü, salt-okunur okuma sözleşmesi görünümü. Yalnız
-`AgentPrism:PostgreSql:EnableReadViews = true` iken kurulur (varsayılan
+`Tracon:PostgreSql:EnableReadViews = true` iken kurulur (varsayılan
 kapalı). Aşağıdaki case'ler faz dokümanının
 ([`111-OKUMA-SOZLESMESI-GORUNUMLERI.md`](../arsiv/fazlar/111-OKUMA-SOZLESMESI-GORUNUMLERI.md))
 manuel kabul tablosunun karşılığıdır; tamamı kapanışta **gerçek** bir
@@ -2187,8 +2187,8 @@ PostgreSQL konteynerine karşı otomatik koştu (kanıt aşağıda).
 - PostgreSQL, `EnableReadViews = true` ile migrate edildi.
 
 **Adımlar**
-1. `SELECT * FROM agentprism.runs_v1 LIMIT 5;`
-2. `\d+ agentprism.runs_v1` ile sütun listesini kontrol et.
+1. `SELECT * FROM tracon.runs_v1 LIMIT 5;`
+2. `\d+ tracon.runs_v1` ile sütun listesini kontrol et.
 
 **Beklenen sonuç**
 - Sütunlar 111.2 tablosuyla birebir: `run_id`, `tenant_id`, `agent_name`,
@@ -2199,9 +2199,9 @@ PostgreSQL konteynerine karşı otomatik koştu (kanıt aşağıda).
   `arguments`, `result`, `content`) yoktur.
 
 **Gerçek koşum kanıtı (2026-08-26, kapanış)**: `ReadViewColumnSetTests`
-(`AgentPrism.Sql.Shared.UnitTests`, veritabanı açmadan, gömülü SQL metni
+(`Tracon.Sql.Shared.UnitTests`, veritabanı açmadan, gömülü SQL metni
 üzerinden, üç sağlayıcıda) — sütun kümesi kapısı ve korunan sütun kapısı 6/6
-yeşil. Canlı doğrulama: `ReadViewContractTests` (`AgentPrism.PostgreSql
+yeşil. Canlı doğrulama: `ReadViewContractTests` (`Tracon.PostgreSql
 .IntegrationTests`, gerçek PostgreSQL konteynerine karşı) 4/4.
 
 ### MT-PG-073 — `total_cost` store'un raporladığı toplamla birebir eşleşir; tanımsız fiyat `NULL` kalır
@@ -2228,7 +2228,7 @@ yeşil. Canlı doğrulama: `ReadViewContractTests` (`AgentPrism.PostgreSql
 **Gerçek koşum kanıtı (2026-08-26, kapanış)**: `ReadViewContractTests
 .Total_cost_in_the_view_matches_the_stores_own_statistics` ve
 `.Total_cost_is_null_not_zero_when_pricing_is_undefined`
-(`AgentPrism.PostgreSql.IntegrationTests`, gerçek konteyner) — ikisi de yeşil.
+(`Tracon.PostgreSql.IntegrationTests`, gerçek konteyner) — ikisi de yeşil.
 Toplam terim kapısı (`ReadViewCostTermTests`, bağlantısız): `runs`'un üç
 `*_cost` sütunu da `total_cost` ifadesinde bulunuyor; K-483 sınıfının
 otomatik taraması.
@@ -2270,7 +2270,7 @@ kiracının satırı da filtresiz sorguda döndü.
 
 **Adımlar**
 1. Uygulamayı başlat, migration'ları uygula.
-2. `SELECT to_regclass('agentprism.runs_v1');` çalıştır.
+2. `SELECT to_regclass('tracon.runs_v1');` çalıştır.
 
 **Beklenen sonuç**
 - Sonuç `NULL` — görünüm hiç kurulmadı. `__migrations`'ta `set_name='views'`

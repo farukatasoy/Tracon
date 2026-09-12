@@ -16,15 +16,15 @@
 #
 # Overridable:
 #   SITE_HOST      ssh destination            (default root@167.172.168.49)
-#   SITE_PATH      document root on the host  (default /var/www/agentprism)
-#   SITE_STACK     compose directory on host  (default /deploy/agentprism)
+#   SITE_PATH      document root on the host  (default /var/www/tracon)
+#   SITE_STACK     compose directory on host  (default /deploy/tracon)
 #   SITE_SSH_KEY   private key                (default ~/.ssh/id_ed25519_digitalocean)
 
 set -euo pipefail
 
 SITE_HOST="${SITE_HOST:-root@167.172.168.49}"
-SITE_PATH="${SITE_PATH:-/var/www/agentprism}"
-SITE_STACK="${SITE_STACK:-/deploy/agentprism}"
+SITE_PATH="${SITE_PATH:-/var/www/tracon}"
+SITE_STACK="${SITE_STACK:-/deploy/tracon}"
 SITE_SSH_KEY="${SITE_SSH_KEY:-$HOME/.ssh/id_ed25519_digitalocean}"
 
 repository_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -71,7 +71,7 @@ step "Checking $SITE_HOST"
 # The console assets are not part of the documentation site, and building them
 # would add the whole npm/Vite chain to a run that has no use for it.
 step "Building the solution (DocFX reads its output)"
-dotnet build AgentPrism.slnx -c Release -p:AgentPrismFrontendEnabled=false
+dotnet build Tracon.slnx -c Release -p:TraconFrontendEnabled=false
 
 step "Restoring DocFX"
 dotnet tool restore
@@ -132,6 +132,6 @@ if [[ -n "$dry_run" ]]; then
   printf '\nDry run: nothing was published.\n'
 else
   printf '\nPublished. Verify:\n'
-  printf '  curl -sI https://agentprism.doayen.web.tr/ | head -1\n'
+  printf '  curl -sI https://tracon.dev/ | head -1\n'
   printf '  curl -sI https://doayen.web.tr/ | head -1   # the app at the apex, untouched\n'
 fi

@@ -3,8 +3,8 @@
 > **Durum:** ✅ Tamamlandı (2026-08-04)
 > **Kaynak:** [BEYIN-FIRTINASI.md](../BEYIN-FIRTINASI.md) · **F-28**, **F-29**
 > **Önkoşul:** Yok (Faz 9 önerilir — uzak içerik almak Admin yetkisidir)
-> **Paketler:** `AgentPrism.Mcp`, `.Abstractions`, `.PostgreSql`, `.AspNetCore`, `.UI`
-> **Yeni paket:** Yok · **Migration:** `0013_mcp_oauth.sql` · **Yeni test projesi:** `AgentPrism.Mcp.UnitTests`
+> **Paketler:** `Tracon.Mcp`, `.Abstractions`, `.PostgreSql`, `.AspNetCore`, `.UI`
+> **Yeni paket:** Yok · **Migration:** `0013_mcp_oauth.sql` · **Yeni test projesi:** `Tracon.Mcp.UnitTests`
 
 ---
 
@@ -125,14 +125,14 @@ altta).
   (state/CSRF, token cache, non-interactive fail-fast) kod incelemesi ve
   `curl` ile doğrulandı; gerçek bir OAuth korumalı MCP referans
   sunucusuyla uçtan uca test edilmedi.
-- **`AgentPrism.Ui.E2ETests` bu oturumun sonunda yeniden doğrulanmalıdır.**
+- **`Tracon.Ui.E2ETests` bu oturumun sonunda yeniden doğrulanmalıdır.**
   Bu fazın en başındaki tam paket çalıştırmasında 29/29 geçti (mevcut MCP
   ekranı testi dahil). Fazın sonunda, makinede eşzamanlı çalışan başka
   Claude Code oturumlarının CPU çekişmesi yüzünden iki bağımsız yeniden
   çalıştırma da genel zaman aşımlarıyla başarısız oldu — hiçbiri MCP/OAuth
   ile ilgili değildi (`Evals`, `Settings`, `Playground` ekranlarında
   "eleman görünmedi"). Makine boşken `dotnet test
-  tests/AgentPrism.Ui.E2ETests` tek başına çalıştırılıp temiz geçtiği
+  tests/Tracon.Ui.E2ETests` tek başına çalıştırılıp temiz geçtiği
   teyit edilmelidir.
 - Faz 13'ün `TextSearchProvider`'ı MCP kaynaklarını arama kaynağı olarak
   kullanabilir; bu, ayrı bir değerlendirme ister.

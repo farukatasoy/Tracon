@@ -9,7 +9,7 @@
       GA     -> Microsoft.Agents.AI, .Abstractions, .OpenAI, .Workflows, .Harness
       preview-> Microsoft.Agents.AI.Hosting
       alpha  -> Microsoft.Agents.AI.Hosting.OpenAI
-    Preview/alpha bagimliliklari yalnizca AgentPrism.AspNetCore icinde toplanir.
+    Preview/alpha bagimliliklari yalnizca Tracon.AspNetCore icinde toplanir.
     Ayrinti: docs/KARARLAR.md, karar K-008.
   -->
 
@@ -52,12 +52,12 @@
     <PackageVersion Include="Microsoft.Extensions.AI.Evaluation.Quality" Version="10.9.0" />
   </ItemGroup>
 
-  <ItemGroup Label="Microsoft Agent Framework - onsurum (yalnizca AgentPrism.AspNetCore)">
+  <ItemGroup Label="Microsoft Agent Framework - onsurum (yalnizca Tracon.AspNetCore)">
     <PackageVersion Include="Microsoft.Agents.AI.Hosting" Version="1.20.0-preview.260831.1" />
     <PackageVersion Include="Microsoft.Agents.AI.Hosting.OpenAI" Version="1.20.0-alpha.260831.1" />
     <!--
-      Faz 50: AgentPrism'i disa acan A2A sunucusu. Ayni surum hatti
-      (1.20.0-preview.260831.1), K-008 kapsaminda yalnizca AgentPrism.AspNetCore.
+      Faz 50: Tracon'i disa acan A2A sunucusu. Ayni surum hatti
+      (1.20.0-preview.260831.1), K-008 kapsaminda yalnizca Tracon.AspNetCore.
       `Microsoft.Agents.AI.Hosting.AspNetCore` plan taslaginda OLCULMEMISTI;
       `AddA2AServer` yalniz KAYIT yapar, HTTP ucunu `A2A.AspNetCore`'un
       `MapA2A`/`MapHttpA2A` uzantilari acar (K-057'nin yeniden acilma notuna
@@ -79,7 +79,7 @@
   <!--
     Faz 62, F-59 acik soru 1: on ucus token sayimi icin ACIK PackageReference
     (secenek A). Bugune kadar `Microsoft.ML.Tokenizers` yalniz MAF'in gecisli
-    bagimliligiydi (K-104) ve dogrudan cagrilmiyordu; burada CAGIRAN AgentPrism'dir,
+    bagimliligiydi (K-104) ve dogrudan cagrilmiyordu; burada CAGIRAN Tracon'dir,
     bu yuzden gecisli surume guvenmek ust paket onu birakirsa derlemeyi kirar.
   -->
   <ItemGroup Label="Ic ucus token sayimi">
@@ -88,12 +88,12 @@
     <!--
       CVE zorlamasi (K-007 deseni, satir 220 ile ayni gerekce).
       Microsoft.ML.Tokenizers.Data.O200kBase 2.0.0'in TEK bagimlilik grubu
-      .NETStandard2.0'dir ve orada Microsoft.Bcl.Memory 9.0.4 vardir; AgentPrism.Core
+      .NETStandard2.0'dir ve orada Microsoft.Bcl.Memory 9.0.4 vardir; Tracon.Core
       net8/9/10 hedefledigi icin NuGet en yakin uyumlu grup olarak oraya duser.
       (Tokenizers'in KENDI net8.0 grubu yalniz Google.Protobuf tasir; eski yorum
       yanlis paketi sucluyordu.) O surumde yuksek onem dereceli bir acik var
       (NU1903, GHSA-73j8-2gch-69rq). Gecisli sabitleme kapali (K-007) oldugu icin surum
-      AgentPrism.Core'da dogrudan bir PackageReference ile zorlanir.
+      Tracon.Core'da dogrudan bir PackageReference ile zorlanir.
     -->
     <PackageVersion Include="Microsoft.Bcl.Memory" Version="$(MicrosoftExtensionsVersion)" />
   </ItemGroup>
@@ -103,8 +103,8 @@
     <PackageVersion Include="Microsoft.Extensions.Diagnostics.Abstractions" Version="$(MicrosoftExtensionsVersion)" />
     <PackageVersion Include="Microsoft.Extensions.Hosting.Abstractions" Version="$(MicrosoftExtensionsVersion)" />
     <!--
-      Faz 157: yalnizca tests/AgentPrism.WorkerHarness kullanir. Sevk edilen
-      hicbir paket bu satira bagli DEGILDIR - AgentPrism kutuphaneleri
+      Faz 157: yalnizca tests/Tracon.WorkerHarness kullanir. Sevk edilen
+      hicbir paket bu satira bagli DEGILDIR - Tracon kutuphaneleri
       Hosting.Abstractions ile yetinir; tam generic host yalnizca iki process
       ariza kanitinin OLDURULEN worker'i icin gerekir.
     -->
@@ -120,11 +120,11 @@
   <!--
     Saglayici SDK'lari. Ucu de RESMI birinci taraf paketidir; topluluk paketi
     kullanilmadi (K-204). Ucu de kendi `AsIChatClient` adaptorunu tasir, bu yuzden
-    AgentPrism mesaj eslemesi/akis/tool cagrisi yazmaz.
+    Tracon mesaj eslemesi/akis/tool cagrisi yazmaz.
 
     Google.GenAI'in gecisli agirligi bilinerek kabul edildi: Google.Apis.Auth
     uzerinden Newtonsoft.Json, System.Management ve System.CodeDom gelir. Bagimlilik
-    yalnizca AgentPrism.Google paketindedir; Gemini kullanmayan tuketici hicbirini
+    yalnizca Tracon.Google paketindedir; Gemini kullanmayan tuketici hicbirini
     almaz. Ayrinti: docs/KARARLAR.md, karar K-205.
   -->
   <ItemGroup Label="Saglayicilar">
@@ -132,20 +132,20 @@
     <PackageVersion Include="Google.GenAI" Version="1.16.0" />
     <PackageVersion Include="OpenAI" Version="2.12.0" />
     <!--
-      Azure OpenAI (Faz 27). Bu paket yalnizca AgentPrism.Azure icindedir ve
+      Azure OpenAI (Faz 27). Bu paket yalnizca Tracon.Azure icindedir ve
       OpenAI SDK'sinin ustune Azure yonlendirmesini (deployment yolu, api-version,
       api-key/Entra kimligi) ekler.
 
       🚨 SURUM KAYMASI VAR VE BILINCLIDIR. Azure.AI.OpenAI 2.1.0, OpenAI 2.1.0'a
-      karsi derlendi; biz OpenAI 2.12.0 kullaniyoruz (AgentPrism.OpenAI'in ihtiyaci).
+      karsi derlendi; biz OpenAI 2.12.0 kullaniyoruz (Tracon.OpenAI'in ihtiyaci).
       Olculdu (2026-08-05): temel sohbet yolu (GetChatClient -> AsIChatClient ->
       istek) sorunsuz calisir, ama Azure.AI.OpenAI.Chat.AzureChatExtensions'in
       ISTEK tarafi metotlarinin TAMAMI calisma aninda MissingMethodException verir
       ("OpenAI.Chat.ChatCompletionOptions.get_SerializedAdditionalRawData bulunamadi").
-      Bu yuzden AgentPrism.Azure o uzantilarin hicbirini kullanmaz ve saglayiciya
+      Bu yuzden Tracon.Azure o uzantilarin hicbirini kullanmaz ve saglayiciya
       ozgu ayar (ProviderSettings) sunmaz. Ayrinti: docs/KARARLAR.md, karar K-211.
 
-      Azure.Core dogrudan yazilir cunku AgentPrism.Azure'un PUBLIC API'si
+      Azure.Core dogrudan yazilir cunku Tracon.Azure'un PUBLIC API'si
       Azure.Core.TokenCredential tipini tasir (kimlik fabrikasi, K-210); gecisli
       bir bagimliligin tipini public yuzeyde tasimak kirilgan olurdu.
     -->
@@ -157,7 +157,7 @@
     <PackageVersion Include="Npgsql" Version="10.0.3" />
     <!--
       SQL Server surucusu (Faz 23). Kirpma/AOT icin isaretli DEGILDIR; bu yuzden
-      AgentPrism.SqlServer AgentPrismAotCompatible=false yazar (K-181).
+      Tracon.SqlServer TraconAotCompatible=false yazar (K-181).
     -->
     <PackageVersion Include="Microsoft.Data.SqlClient" Version="7.0.2" />
     <!--
@@ -176,9 +176,9 @@
   </ItemGroup>
 
   <!--
-    Faz 110: samples/AgentPrism.Embedded'in isteğe bağlı EF Core boyutu — iki
+    Faz 110: samples/Tracon.Embedded'in isteğe bağlı EF Core boyutu — iki
     bağlantı düzleminin AYNI NpgsqlDataSource üzerinde buluştuğunu kanıtlar
-    (docs-site/.../guides/ef-core.md). AgentPrism EF Core kullanmaz (L16, L29);
+    (docs-site/.../guides/ef-core.md). Tracon EF Core kullanmaz (L16, L29);
     bu bağımlılık yalnız samples/ altındadır, sevk edilen hiçbir pakete girmez.
     Npgsql 10.0.3 ile aynı sürüm serisi.
   -->
@@ -189,7 +189,7 @@
   <!--
     MCP istemcisi. `ModelContextProtocol` DEGIL, `.Core`: tam paket
     Microsoft.Extensions.Hosting.Abstractions ve Caching.Abstractions da ceker;
-    bunlar sunucu barindirma icindir ve AgentPrism yalnizca istemcidir.
+    bunlar sunucu barindirma icindir ve Tracon yalnizca istemcidir.
     `.Core` bagimliliklari (2.2.0 nuspec'i, olculdu 2026-08-21): Microsoft.Extensions.AI.Abstractions
     10.8.3, Logging.Abstractions 10.0.10, System.IO.Pipelines, System.Net.ServerSentEvents.
     Ucu de TABANDIR; bizim pinlerimiz (10.9.0 ve 10.0.11) daha yuksek oldugu icin
@@ -198,9 +198,9 @@
   <ItemGroup Label="Model Context Protocol">
     <PackageVersion Include="ModelContextProtocol.Core" Version="2.2.0" />
     <!--
-      Faz 50: AgentPrism'i disa acan MCP sunucusu. K-057'nin kosulu degisti:
-      "AgentPrism yalnizca istemcidir" artik dogru degil. Yalnizca
-      AgentPrism.AspNetCore icine girer; AgentPrism.Mcp (istemci) `.Core`'da
+      Faz 50: Tracon'i disa acan MCP sunucusu. K-057'nin kosulu degisti:
+      "Tracon yalnizca istemcidir" artik dogru degil. Yalnizca
+      Tracon.AspNetCore icine girer; Tracon.Mcp (istemci) `.Core`'da
       kalir. Olculdu (2026-08-07): 13 gecisli paket, tumu Microsoft.Extensions.*
       ailesinden. 2.2.0'da yeniden okundu (2026-08-21): `.AspNetCore` sabit surumle
       `ModelContextProtocol` [2.2.0]'i, o da `.Core` [2.2.0] + Caching.Abstractions
@@ -209,10 +209,10 @@
     <PackageVersion Include="ModelContextProtocol.AspNetCore" Version="2.2.0" />
     <!--
       Faz 117: MCP Tasks uzantisi (2026-07-28 spec). Yalnizca
-      AgentPrism.AspNetCore icine girer. Olculdu (2026-08-26, gercek restore,
+      Tracon.AspNetCore icine girer. Olculdu (2026-08-26, gercek restore,
       net10.0, temiz proje): + ModelContextProtocol.AspNetCore -> 13 paket,
       + bu paket -> 14 paket. Net yeni gecisli paket SIFIR - on iki gecisli
-      paketin tumu zaten .AspNetCore uzerinden grafikte. AgentPrism.Mcp
+      paketin tumu zaten .AspNetCore uzerinden grafikte. Tracon.Mcp
       (istemci) bu paketi hic gormez, K-057 bozulmaz.
     -->
     <PackageVersion Include="ModelContextProtocol.Extensions.Tasks" Version="2.2.0" />
@@ -231,7 +231,7 @@
   </ItemGroup>
 
   <!--
-    Faz 52: AgentPrism.Generators (tool kaynak ureteci). AgentPrism.Core icinde
+    Faz 52: Tracon.Generators (tool kaynak ureteci). Tracon.Core icinde
     Analyzer olarak tasinir, PrivateAssets=all + ReferenceOutputAssembly=false;
     tuketicinin bagimlilik grafigine SIZMAZ (dotnet list package ile dogrulanir).
 
@@ -239,10 +239,10 @@
     tasidigi Roslyn 4.8.0'dir (dotnet/roslyn#70919); .NET 9 SDK (9.0.305/306)
     4.14.0, .NET 10 SDK (10.0.100) 5.0.0 tasir. Uretec, kendisini yukleyen
     derleyicinin Roslyn'inden YENI olamaz - yeni olursa eski SDK'da SESSIZCE
-    yuklenmez. AgentPrism net8.0'i da hedefledigi (K-005) ve tuketicinin net8.0
+    yuklenmez. Tracon net8.0'i da hedefledigi (K-005) ve tuketicinin net8.0
     projesini eski bir 8.0.1xx SDK ile derleyebilecegi icin taban 4.8.0'dir.
   -->
-  <ItemGroup Label="Kaynak Ureteci (AgentPrism.Generators, IsPackable=false)">
+  <ItemGroup Label="Kaynak Ureteci (Tracon.Generators, IsPackable=false)">
     <PackageVersion Include="Microsoft.CodeAnalysis.CSharp" Version="4.8.0" />
   </ItemGroup>
 
@@ -256,13 +256,13 @@
   <ItemGroup Label="Test">
     <!--
       Microsoft.AspNetCore.Mvc.Testing DEGIL: WebApplicationFactory<T> bir giris
-      noktasi derlemesi ister ve AgentPrism bir kutuphanedir. TestHost, minimal
+      noktasi derlemesi ister ve Tracon bir kutuphanedir. TestHost, minimal
       API uclarini kendi barindiricisinda ayaga kaldirmaya yeter.
     -->
     <PackageVersion Include="Microsoft.AspNetCore.TestHost" Version="10.0.10" />
     <!--
-      Only for testing an actual application ENTRY POINT (samples/AgentPrism.Embedded),
-      not the library: WebApplicationFactory<T> needs one, and AgentPrism.* itself
+      Only for testing an actual application ENTRY POINT (samples/Tracon.Embedded),
+      not the library: WebApplicationFactory<T> needs one, and Tracon.* itself
       is a library with none — TestHost above stays the pattern for testing it.
       Same 10.0.10 ASP.NET Core line as TestHost/OpenApi above.
     -->
@@ -280,7 +280,7 @@
     <!--
       Yalnizca UI paketi (SwaggerGen degil): dokuman zaten Microsoft.AspNetCore.OpenApi
       ile uretiliyor (AddOpenApi/MapOpenApi), bu paket sadece /openapi/v1.json'u
-      interaktif bir sayfada gosterir. samples/AgentPrism.Api disinda kullanilmaz.
+      interaktif bir sayfada gosterir. samples/Tracon.Api disinda kullanilmaz.
     -->
     <PackageVersion Include="Swashbuckle.AspNetCore.SwaggerUI" Version="10.2.3" />
     <!-- 1.x serisi: xunit.v3 3.2.2 Microsoft Testing Platform v1 uzerine kuruludur.
@@ -289,7 +289,7 @@
     <!--
       Playwright arayuz E2E testleri icin. Tarayici ikilisi NuGet paketiyle
       gelmez; test fixture'i eksikse kendisi indirir (bkz.
-      tests/AgentPrism.Ui.E2ETests/Infrastructure/PlaywrightFixture.cs).
+      tests/Tracon.Ui.E2ETests/Infrastructure/PlaywrightFixture.cs).
     -->
     <PackageVersion Include="Microsoft.Playwright" Version="1.61.0" />
     <PackageVersion Include="NSubstitute" Version="6.0.0" />
@@ -308,7 +308,7 @@
     <PackageVersion Include="Testcontainers.PostgreSql" Version="4.13.0" />
     <PackageVersion Include="xunit.v3" Version="3.2.2" />
     <!--
-      AgentPrism.Testing.Contracts.Xunit (Phase 98) is a LIBRARY of abstract
+      Tracon.Testing.Contracts.Xunit (Phase 98) is a LIBRARY of abstract
       [Fact]/[Theory] fixtures, not a runnable test project: the plain
       "xunit.v3" package's buildTransitive props force
       <OutputType>Exe</OutputType> (Microsoft Testing Platform's entry point)
@@ -329,11 +329,11 @@
     -->
     <PackageVersion Include="xunit.v3.assert" Version="3.2.2" />
     <!--
-      Faz 79. AgentPrism.Azure kasitli olarak Azure.Identity'ye bagimli DEGILDIR
+      Faz 79. Tracon.Azure kasitli olarak Azure.Identity'ye bagimli DEGILDIR
       (AzureOpenAIProviderOptions.CredentialFactory'nin gerekcesine bak): kimlik
       bilgisi tipi tuketiciye birakilir. Sevk edilen `<example>` yine de
       DefaultAzureCredential adlandiriyor; her ornegin derlendigini kanitlayan
-      kapinin gercek tipe ihtiyaci var - yalniz test icin, AgentPrism.Azure'un
+      kapinin gercek tipe ihtiyaci var - yalniz test icin, Tracon.Azure'un
       kendi bagimlilik grafigi degismiyor.
     -->
     <PackageVersion Include="Azure.Identity" Version="1.21.0" />

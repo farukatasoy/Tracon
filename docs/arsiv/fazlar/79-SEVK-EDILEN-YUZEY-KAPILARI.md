@@ -2,12 +2,12 @@
 
 > **Durum:** ✅ Tamamlandı (2026-08-21)
 > **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-125**, **F-136** (Dalga 13, Küme A'nın C# kapı yarısı)
-> **Önkoşul:** Yok. [Faz 78](78-YETENEK-HARITASI-ERISIMI.md) `APG0402`'yi ekledi; bu faz onu da kapsar
-> **Paketler:** `AgentPrism.Generators` (yalnız tanı metinleri) · test projesi `AgentPrism.Generators.UnitTests`
+> **Önkoşul:** Yok. [Faz 78](78-YETENEK-HARITASI-ERISIMI.md) `TRC0402`'yi ekledi; bu faz onu da kapsar
+> **Paketler:** `Tracon.Generators` (yalnız tanı metinleri) · test projesi `Tracon.Generators.UnitTests`
 > **Yeni paket:** Yok · **Migration:** Yok
 > **Public API:** Büyümüyor. İki kalem de test ve doküman kapısıdır
 > **Tüketici yüzeyi:** `docs-site/` → `troubleshooting.md` (beş yeni tanı bölümü)
-> · sevk edilen: iki XML `<example>` bloğu **yeniden yazılır** (`AgentPrismToolAttribute.cs`, `AgentPrismMcpServerBuilderExtensions.cs`)
+> · sevk edilen: iki XML `<example>` bloğu **yeniden yazılır** (`TraconToolAttribute.cs`, `TraconMcpServerBuilderExtensions.cs`)
 > **Manuel test alanı:** [`docs/manuel-test/31-DOKUMAN-DOGRULUGU.md`](../../manuel-test/31-DOKUMAN-DOGRULUGU.md)
 
 ---
@@ -29,19 +29,19 @@
 
 ## Amaç
 
-AgentPrism bugün üç şeyi sevk ediyor ve üçü de yanlış olabildiği hâlde **hiçbir kapı kızarmıyor**: XML `<example>` blokları (tüketicinin kopyaladığı kod), `APG` tanı kodları (tüketicinin derlemesinde gördüğü mesaj) ve bunların doküman karşılıkları. Bu faz iki kapıyı kurar.
+Tracon bugün üç şeyi sevk ediyor ve üçü de yanlış olabildiği hâlde **hiçbir kapı kızarmıyor**: XML `<example>` blokları (tüketicinin kopyaladığı kod), `APG` tanı kodları (tüketicinin derlemesinde gördüğü mesaj) ve bunların doküman karşılıkları. Bu faz iki kapıyı kurar.
 
 ## Bitiş Ölçütleri (DoD)
 
 - [x] `ExampleCompilationTests` **49** bloğun tamamını derler/doğrular; blok sayısı iddiası testte yazılıdır — **not:** 49'un 45'i C# (Roslyn derlemesi), 4'ü `<code language="json">` (config parçası, `JsonDocument.Parse` ile doğrulanır). Plan "49 blok Roslyn ile derlenir" diyordu; ölçüm bunu düzeltti (Plandan Sapmalar #2)
-- [x] İki elipsis bloğu yeniden yazılmıştır ve derlenir; **muafiyet tabanı açılmamıştır** — **not:** gerçekte değişen ikinci dosya plandaki gibi `AgentPrismMcpServerBuilderExtensions.cs` değil, `AzureOpenAIProviderOptions.cs`'dir (Plandan Sapmalar #3)
+- [x] İki elipsis bloğu yeniden yazılmıştır ve derlenir; **muafiyet tabanı açılmamıştır** — **not:** gerçekte değişen ikinci dosya plandaki gibi `TraconMcpServerBuilderExtensions.cs` değil, `AzureOpenAIProviderOptions.cs`'dir (Plandan Sapmalar #3)
 - [x] `<example>` taşıyan **15 paketin tamamı** test projesinden referanslıdır; referans kümesi ile bulunan paket kümesi testte karşılaştırılır
 - [x] Sıfır blok bulunursa test düşer (boş küme tuzağı kapatıldı) — bağımsız sayım çapraz kontrolüyle (`CountRawExampleTags`), ablasyonla doğrulandı (bir `ProjectReference` kaldırılıp testin gerçekten kırmızı olduğu görüldü, sonra geri eklendi)
 - [x] `DiagnosticIntegrityTests` **14** `APG` kodunun tamamını `troubleshooting.md`'de bulur; ters yön (ölü satır) de denetlenir — her iki yön de ad hoc kırmızı/yeşil ile canlı doğrulandı
-- [x] `APG0002`…`APG0006` `troubleshooting.md`'de anlatılmıştır — İngilizce, her biri "ne oldu / neden / düzeltme"
+- [x] `TRC0002`…`TRC0006` `troubleshooting.md`'de anlatılmıştır — İngilizce, her biri "ne oldu / neden / düzeltme"
 - [x] Referans eklemenin **derleme süresine etkisi ölçüldü** ve dokümana yazıldı — Açık Soru 2
 - [x] Dört doğrulama kapısı sıfır uyarı verir
-- [~] `samples/AgentPrism.Api` ile gerçek `run` yapılmadı — **gerekçe:** bu faz hiçbir runtime/HTTP yüzeyine dokunmuyor (bkz. "Planlanan Public API": public yüzey, HTTP endpoint'i ve arayüz payı üçü de "Yok"). İki kalem de derleme-anı/doküman kapısıdır; sample'da gösterilecek yeni bir çalışma-zamanı davranışı yok. Bunun yerine dokuz paketin **gerçek** unit/functional test paketleri (Anthropic, Azure, Google, Mcp, OpenAI, Testing, Voice, Workflows, AspNetCore.FunctionalTests — toplam ~1000+ test) yeniden koşuldu ve hepsi geçti; bu, "gerçek entegrasyon" ihtiyacının regresyon açısından karşılığıdır
+- [~] `samples/Tracon.Api` ile gerçek `run` yapılmadı — **gerekçe:** bu faz hiçbir runtime/HTTP yüzeyine dokunmuyor (bkz. "Planlanan Public API": public yüzey, HTTP endpoint'i ve arayüz payı üçü de "Yok"). İki kalem de derleme-anı/doküman kapısıdır; sample'da gösterilecek yeni bir çalışma-zamanı davranışı yok. Bunun yerine dokuz paketin **gerçek** unit/functional test paketleri (Anthropic, Azure, Google, Mcp, OpenAI, Testing, Voice, Workflows, AspNetCore.FunctionalTests — toplam ~1000+ test) yeniden koşuldu ve hepsi geçti; bu, "gerçek entegrasyon" ihtiyacının regresyon açısından karşılığıdır
 - [x] `secret` taraması boş döndü (yalnız bu fazın dokunduğu dosyalarda; repodaki önceden var olan yerel test `Password=`/`sk-` literalleri bu fazdan bağımsızdır)
 - [x] Manuel kabul case'leri `docs/manuel-test/31-DOKUMAN-DOGRULUGU.md` içine eklendi (`MT-DDG-025`…`MT-DDG-029`); 25, 26, 28 canlı koşuldu ve kırmızı olduğu görüldü, sonra geri alındı. 27 ve 29 mekanizma olarak aynı kod yolunu kullanır (25/26/28 ile doğrulanmıştır), ayrıca koşulmadı
 - [x] `faz-denetim` koşuldu; 🔴 bulgu kalmadı (iki 🟡 kapandı, bkz. Denetim Bulguları)
@@ -51,26 +51,26 @@ AgentPrism bugün üç şeyi sevk ediyor ve üçü de yanlış olabildiği hâld
 
 ```bash
 # Kapı gerçekten 49 blok görüyor mu (test çıktısındaki sayı iddiası)
-dotnet test tests/AgentPrism.Generators.UnitTests -c Release
+dotnet test tests/Tracon.Generators.UnitTests -c Release
 
 # Descriptor sayısı ile dokümandaki kod sayısı eşit mi
-grep -rhoE 'APG[0-9]{4}' src/AgentPrism.Generators/ | sort -u | wc -l
+grep -rhoE 'APG[0-9]{4}' src/Tracon.Generators/ | sort -u | wc -l
 grep -ohE 'APG[0-9]{4}' docs-site/src/content/docs/troubleshooting.md | sort -u | wc -l
 
 # Muafiyet tabanı hâlâ boş mu (yalnız yorum satırları)
-grep -cv '^#' tests/AgentPrism.Core.UnitTests/Architecture/capability-example-baseline.txt
+grep -cv '^#' tests/Tracon.Core.UnitTests/Architecture/capability-example-baseline.txt
 ```
 
 ---
 
 ## Plandan Sapmalar
 
-1. 🚨 **§79.1'in "yalnız iki yer tutucu (`app`, `agentPrism`) yeter" iddiası ölçülmeden
+1. 🚨 **§79.1'in "yalnız iki yer tutucu (`app`, `tracon`) yeter" iddiası ölçülmeden
    yazılmıştı ve yanlıştı.** Adım 1 (`faz-uygulama`) gereği kod yazmadan önce
    ölçüldü: 49 bloğun serbest tanımlayıcılarını çıkaran küçük bir Python taraması,
    `builder` (`IHostApplicationBuilder`) adının **36/45** C# blokta bağlanmamış
    hâlde geçtiğini gösterdi — plan bunu hiç saymamıştı. Gerçek prelüd on iki
-   değişken (`builder`, `app`, `agentPrism`, `apiKey`, `connectionString`,
+   değişken (`builder`, `app`, `tracon`, `apiKey`, `connectionString`,
    `configuration`, `refundTool`, `endpoint`, `audio`, `request`, `price`, `args`)
    ve beş test-yalnız saplama tip (`OnPremiseModelProvider`, `IOrderGateway`/
    `OrderGateway`, `NightlyReportJobHandler`, `CustomerNameGuard`, paylaşılan
@@ -85,7 +85,7 @@ grep -cv '^#' tests/AgentPrism.Core.UnitTests/Architecture/capability-example-ba
    `{ + içerik + }` sarılıp `JsonDocument.Parse` ile doğrulanıyor, Roslyn'e hiç
    girmiyor. DoD'nin "49 bloğun tamamı derlenir" cümlesi bu ayrımla okunmalı.
 3. **İkinci elipsis bloğu plandaki dosya değil, farklı bir dosyaydı.** §79.1
-   `AgentPrismMcpServerBuilderExtensions.cs`'i "derlenmeyen elipsis bloğu"
+   `TraconMcpServerBuilderExtensions.cs`'i "derlenmeyen elipsis bloğu"
    olarak adlandırıyordu; ölçüm gösterdi ki oradaki `// ...` geçerli bir C#
    yorumudur ve blok prelüd placeholder'ları eklenince zaten derleniyordu —
    hiç dokunulmadı. Gerçekte ikinci düzeltme gereken blok
@@ -93,23 +93,23 @@ grep -cv '^#' tests/AgentPrism.Core.UnitTests/Architecture/capability-example-ba
    bildirilmemiş bir `options` adına atıfta bulunuyordu (`CS0103`). Çözüm
    örneği kendi kendine yeterli hâle getirmek oldu:
    `var options = new AzureOpenAIProviderOptions { CredentialFactory = ... };`.
-4. **`OrderTools` örneği `static` sınıf olarak yazılamaz; `AgentPrismToolAttribute.cs`
-   düzeltildi.** `AgentPrismToolAttribute.cs`'in örneği `internal static class
-   OrderTools` gösteriyordu (elipsis düzeltmesiyle birlikte); `IAgentPrismBuilder.cs`'in
+4. **`OrderTools` örneği `static` sınıf olarak yazılamaz; `TraconToolAttribute.cs`
+   düzeltildi.** `TraconToolAttribute.cs`'in örneği `internal static class
+   OrderTools` gösteriyordu (elipsis düzeltmesiyle birlikte); `ITraconBuilder.cs`'in
    AYRI bir örneği aynı adı `.AddToolsFrom<OrderTools>()` ile generic tip
    argümanı yapıyordu. C#, statik bir sınıfı generic tip argümanı olarak KABUL
    ETMEZ (`CS0718`) — iki örnek birlikte kopyalanan bir tüketicinin derlemesi
    gerçekten kırılırdı. `static` kaldırıldı; tool metodu (`GetOrderStatus`)
-   APG0007 gereği `static` kalmaya devam ediyor, yalnız konteyner sınıf değil.
+   TRC0007 gereği `static` kalmaya devam ediyor, yalnız konteyner sınıf değil.
    Karar defterine yazıldı: K-546.
 5. **Bir NuGet paketi test-yalnız eklendi: `Azure.Identity` 1.21.0.**
    `AzureOpenAIProviderOptions.CredentialFactory`'nin örneği `DefaultAzureCredential`
-   adlandırıyor — gerçek bir tip, `AgentPrism.Azure`'un KASITLI OLARAK bağımlı
+   adlandırıyor — gerçek bir tip, `Tracon.Azure`'un KASITLI OLARAK bağımlı
    olmadığı bir pakette (bkz. o sınıfın kendi XML dokümanı). Kapı bu örneğin
    gerçekten derlendiğini kanıtlamak zorunda olduğu için paket test projesine
-   eklendi; `AgentPrism.Azure`'un kendi bağımlılık grafiği değişmedi (doğrulandı:
-   `src/AgentPrism.Azure.csproj` dokunulmadı). Karar defterine yazıldı: K-547.
-6. **`samples/AgentPrism.Api` ile gerçek `run` yapılmadı** — bu faz hiçbir
+   eklendi; `Tracon.Azure`'un kendi bağımlılık grafiği değişmedi (doğrulandı:
+   `src/Tracon.Azure.csproj` dokunulmadı). Karar defterine yazıldı: K-547.
+6. **`samples/Tracon.Api` ile gerçek `run` yapılmadı** — bu faz hiçbir
    runtime veya HTTP yüzeyine dokunmuyor (planın kendi "Planlanan Public API"
    bölümü zaten üçünü de "Yok" diye işaretliyordu). Bunun yerine dokuz paketin
    gerçek unit/functional test paketleri (~1000+ test) yeniden koşuldu; hiçbiri
@@ -122,8 +122,8 @@ grep -cv '^#' tests/AgentPrism.Core.UnitTests/Architecture/capability-example-ba
 
 ## Bu Fazda Verilen Kararlar
 
-| **K-546 — `AgentPrismToolAttribute.cs`'in `OrderTools` örneği artık `static` DEĞİL; tool metodu yine `static`** | 2026-08-21 | Ölçüldü (F-125 uygulanırken): `IAgentPrismBuilder.cs`'in AYRI bir örneği `.AddToolsFrom<OrderTools>()` çağırıyor ve C# statik bir sınıfı generic tip argümanı olarak kabul etmiyor (`CS0718`) — iki örneği birlikte kopyalayan bir tüketici gerçekten derleyemezdi, bunu `ExampleCompilationTests` yakaladı. `ToolMethodScanner` yalnız metodun `IsStatic` olduğuna bakıyor, konteyner sınıfın statik olmasını istemiyor (APG0007 de yalnız metottan bahsediyor). `internal static class` → `internal class`; `[AgentPrismTool]` işaretli metot `public static` kaldı. | `AddToolsFrom<T>()` bir gün `Type` parametresi yerine gerçek bir generic kısıtlama YAZARSA (bugün öyle değil, yalnız `typeof(T)` kullanıyor) yeniden değerlendirilir |
-| **K-547 — `Azure.Identity` yalnızca test projesine (`AgentPrism.Generators.UnitTests`) `PackageReference` olarak eklendi; `AgentPrism.Azure`'un bağımlılık grafiği DEĞİŞMEDİ** | 2026-08-21 | `AzureOpenAIProviderOptions.CredentialFactory`'nin sevk edilen `<example>`'ı `DefaultAzureCredential`'ı (o pakette) adlandırıyor — bilerek: `AgentPrism.Azure` o bağımlılığı ALMIYOR (yorum: "Azure.Identity does not appear... credential type is left to the consumer"). F-125'in derleme kapısı örneği GERÇEKTEN derlemek zorunda, bu yüzden gerçek tipe ihtiyaç duydu. `Directory.Packages.props`'ta `Label="Test"` grubuna eklendi (`Label="Saglayicilar"` değil — ilk taslak yanlış grup altına koymuştu, bağımsız denetim 🟢 olarak işaretledi, taşındı). | Bir tüketicinin dikte ettiği bir yönetilen kimlik senaryosu `AgentPrism.Azure`'un kendisine gerçek bir `Azure.Identity` bağımlılığı eklemeyi gerektirirse |
+| **K-546 — `TraconToolAttribute.cs`'in `OrderTools` örneği artık `static` DEĞİL; tool metodu yine `static`** | 2026-08-21 | Ölçüldü (F-125 uygulanırken): `ITraconBuilder.cs`'in AYRI bir örneği `.AddToolsFrom<OrderTools>()` çağırıyor ve C# statik bir sınıfı generic tip argümanı olarak kabul etmiyor (`CS0718`) — iki örneği birlikte kopyalayan bir tüketici gerçekten derleyemezdi, bunu `ExampleCompilationTests` yakaladı. `ToolMethodScanner` yalnız metodun `IsStatic` olduğuna bakıyor, konteyner sınıfın statik olmasını istemiyor (TRC0007 de yalnız metottan bahsediyor). `internal static class` → `internal class`; `[TraconTool]` işaretli metot `public static` kaldı. | `AddToolsFrom<T>()` bir gün `Type` parametresi yerine gerçek bir generic kısıtlama YAZARSA (bugün öyle değil, yalnız `typeof(T)` kullanıyor) yeniden değerlendirilir |
+| **K-547 — `Azure.Identity` yalnızca test projesine (`Tracon.Generators.UnitTests`) `PackageReference` olarak eklendi; `Tracon.Azure`'un bağımlılık grafiği DEĞİŞMEDİ** | 2026-08-21 | `AzureOpenAIProviderOptions.CredentialFactory`'nin sevk edilen `<example>`'ı `DefaultAzureCredential`'ı (o pakette) adlandırıyor — bilerek: `Tracon.Azure` o bağımlılığı ALMIYOR (yorum: "Azure.Identity does not appear... credential type is left to the consumer"). F-125'in derleme kapısı örneği GERÇEKTEN derlemek zorunda, bu yüzden gerçek tipe ihtiyaç duydu. `Directory.Packages.props`'ta `Label="Test"` grubuna eklendi (`Label="Saglayicilar"` değil — ilk taslak yanlış grup altına koymuştu, bağımsız denetim 🟢 olarak işaretledi, taşındı). | Bir tüketicinin dikte ettiği bir yönetilen kimlik senaryosu `Tracon.Azure`'un kendisine gerçek bir `Azure.Identity` bağımlılığı eklemeyi gerektirirse |
 
 ## Denetim Bulguları
 
@@ -132,7 +132,7 @@ grep -cv '^#' tests/AgentPrism.Core.UnitTests/Architecture/capability-example-ba
 
 | # | Bulgu | Seviye | Sonuç |
 |---|---|---|---|
-| 1 | §79.1'in anlatısı, hangi iki dosyanın gerçekte düzeltildiğini yanlış anlatıyor (`AgentPrismMcpServerBuilderExtensions.cs` yerine `AzureOpenAIProviderOptions.cs`) | 🟡 | Düzeltildi — Plandan Sapmalar #3 |
+| 1 | §79.1'in anlatısı, hangi iki dosyanın gerçekte düzeltildiğini yanlış anlatıyor (`TraconMcpServerBuilderExtensions.cs` yerine `AzureOpenAIProviderOptions.cs`) | 🟡 | Düzeltildi — Plandan Sapmalar #3 |
 | 2 | §79.2'nin istediği derleme-süresi ölçümü kapanıştan önce dokümana yazılmamıştı | 🟡 | Düzeltildi — Açık Soru 2 ve DoD satırı güncellendi |
 | 3 | `Directory.Packages.props`'ta `Azure.Identity`, `Label="Test"` yerine `Label="Saglayicilar"` (üretim sağlayıcı grubu) altına eklenmişti | 🟢 | Düzeltildi (taşındı) — davranışı etkilemiyordu, yalnız organizasyon |
 | 4 | `docs-site/scripts/check-weight.mjs`'in kod-içi yorumundaki "en ağır sayfa" ölçümü bu fazın eklemesinden sonra bayatladı (yorum 49 365 B diyor, gerçek 50 885 B) | 🟢 | Devredilmedi — bu fazın dokunmadığı bir dosyadaki yorum satırı, fonksiyonel etkisi yok (kapı dinamik ölçer). `docs/ADAYLAR.md`'ye F-NN açacak kadar değerli görülmedi |
@@ -158,11 +158,11 @@ grep -cv '^#' tests/AgentPrism.Core.UnitTests/Architecture/capability-example-ba
    ve tersi). Yeni bir `APG` tanısı ekleyen bir sonraki faz — `Directory.Build.props`'un
    `RS2000` (`AnalyzerReleases.Unshipped.md`) kapısına EK OLARAK — bu sayfaya
    bir `###` bölüm de eklemek zorunda, yoksa test kırmızı kalır.
-4. **`AgentPrism.Generators.UnitTests` artık 15 paketin tamamına referans
+4. **`Tracon.Generators.UnitTests` artık 15 paketin tamamına referans
    veriyor** (önceden 4'tü). Yeni bir paket `<example>` taşımaya başlarsa
    `Every_package_carrying_an_example_is_referenced_by_this_project` testi
    otomatik kırmızı olur ve hangi paketin eksik olduğunu adlandırır —
-   `AgentPrism.slnx`'e eklenen bir sonraki paket bunu unutmamalı, kapı zaten
+   `Tracon.slnx`'e eklenen bir sonraki paket bunu unutmamalı, kapı zaten
    hatırlatıyor.
 5. **Yarım kalan iş yok.** DoD'nin tamamı işaretlendi (bir satır `[~]` —
    gerekçeli, uygulanamaz). Faz `F-125` ve `F-136`'nın ikisini de kapattı.

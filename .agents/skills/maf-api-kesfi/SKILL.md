@@ -84,7 +84,7 @@ APIDUMP_PACKAGES="Azure.AI.OpenAI@2.6.0" APIDUMP_PREFIXES="Azure.AI" \
 Bilinen örnekler: `HarnessAgentOptions` üyeleri, `OpenTelemetryAgent` kurucusu,
 `ChatHistoryProvider.InvokingContext` kurucusu.
 
-**2. Ön sürüm paketleri.** `Microsoft.Agents.AI.Hosting` (preview) ve `.Hosting.OpenAI` (alpha) yalnızca `AgentPrism.AspNetCore` içinde kullanılabilir — karar K-008. Diğer paketler yalnız GA MAF paketlerine bağlanır.
+**2. Ön sürüm paketleri.** `Microsoft.Agents.AI.Hosting` (preview) ve `.Hosting.OpenAI` (alpha) yalnızca `Tracon.AspNetCore` içinde kullanılabilir — karar K-008. Diğer paketler yalnız GA MAF paketlerine bağlanır.
 
 **3. Nullability reflection'da görünmez.** Script `AgentSession session` gösterir ama gerçek imza `AgentSession? session = null` olabilir. Override yazarken derleyici uyarısına güven; `MA0061` varsayılan değer farkını yakalar.
 

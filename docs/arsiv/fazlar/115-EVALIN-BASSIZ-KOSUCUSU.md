@@ -3,11 +3,11 @@
 > **Durum:** ✅ Tamamlandı (2026-08-27)
 > **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-168**
 > **Önkoşul:** Faz 18 (eval altyapısı) ve Faz 83 (tipli istemci ve CLI) — ikisi de arşivde; yalnız aşağıdaki grep'lerle okunur
-> **Paketler:** `AgentPrism.Cli` (tek paket)
-> **Yeni paket:** Yok — `AgentPrism.Client` referansı **zaten var** · **Migration:** Yok
-> **Public API:** `PublicAPI.*.txt` **değişmiyor** (`AgentPrismPublicApiTrackingEnabled=false`, [Cli.csproj:18](../../../src/AgentPrism.Cli/AgentPrism.Cli.csproj)). Fakat komut adı, bayraklar ve **exit code'lar sevk edilen bir sözleşmedir** ve sonradan ucuz değişmez
+> **Paketler:** `Tracon.Cli` (tek paket)
+> **Yeni paket:** Yok — `Tracon.Client` referansı **zaten var** · **Migration:** Yok
+> **Public API:** `PublicAPI.*.txt` **değişmiyor** (`TraconPublicApiTrackingEnabled=false`, [Cli.csproj:18](../../../src/Tracon.Cli/Tracon.Cli.csproj)). Fakat komut adı, bayraklar ve **exit code'lar sevk edilen bir sözleşmedir** ve sonradan ucuz değişmez
 > **Tüketici yüzeyi:** `docs-site/src/content/docs/guides/cli.md`, `capabilities.md`
-> · sevk edilen: `src/AgentPrism.Cli/README.md`, `Program.cs`'in `PrintHelp()` metni, `Cli.csproj` `<Description>`
+> · sevk edilen: `src/Tracon.Cli/README.md`, `Program.cs`'in `PrintHelp()` metni, `Cli.csproj` `<Description>`
 > **Manuel test alanı:** `docs/manuel-test/34-ISTEMCI-VE-CLI.md` · `docs/manuel-test/17-EVAL-VE-DENEYLER.md`
 
 ---
@@ -29,11 +29,11 @@
 
 ## Amaç
 
-AgentPrism'in eval çekirdeği tamdır ve HTTP'den tetiklenebilir, fakat onu koşup **exit code üreten** bir yol yoktur. Kalite ölçümü arayüzden elle tetiklenmeye bağlıdır. Bu faz `agentprism eval` komutunu ekler: suite'i tetikler, bitene kadar yoklar, tüketicinin verdiği eşiğe göre exit code üretir. - **F-168** — agent kalitesi, kod kalitesiyle aynı CI adımından geçebilir.
+Tracon'in eval çekirdeği tamdır ve HTTP'den tetiklenebilir, fakat onu koşup **exit code üreten** bir yol yoktur. Kalite ölçümü arayüzden elle tetiklenmeye bağlıdır. Bu faz `tracon eval` komutunu ekler: suite'i tetikler, bitene kadar yoklar, tüketicinin verdiği eşiğe göre exit code üretir. - **F-168** — agent kalitesi, kod kalitesiyle aynı CI adımından geçebilir.
 
 ## Bitiş Ölçütleri (DoD)
 
-- [x] Eşiği geçen bir suite için `agentprism eval … --min-pass-rate 1.0` → exit `0`
+- [x] Eşiği geçen bir suite için `tracon eval … --min-pass-rate 1.0` → exit `0`
 - [x] Bir case'i düşen suite için aynı komut → exit **`3`**, çıktıda düşen case **kimliği** var (`EvalCaseResult` bir isim taşımaz — bkz. Plandan Sapmalar)
 - [x] İki eşik birlikte verildiğinde **ikisi birden** sağlanmadıkça `3` döner
 - [x] `Failed`/`Cancelled` biten eval → exit `2` (asla `3` değil)
@@ -43,14 +43,14 @@ AgentPrism'in eval çekirdeği tamdır ve HTTP'den tetiklenebilir, fakat onu ko�
 - [x] Sunucu hata gövdesi hiçbir çıktıya sızmaz (`CliSecretRedactionTests` eval komutunu kapsar)
 - [x] Üç mevcut komutun `0`/`1`/`2` anlamı **değişmedi**
 - [x] Dört doğrulama kapısı sıfır uyarı verir (`python3 scripts/kapi.py kapanis` — tam koşum, tüm projeler yeşil)
-- [x] `samples/AgentPrism.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı — aşağıda
+- [x] `samples/Tracon.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı — aşağıda
 - [x] `secret` taraması boş döndü (`python3 scripts/kapi.py tarama` → `✅ temiz`)
 - [x] Manuel kabul case'leri `docs/manuel-test/34-ISTEMCI-VE-CLI.md` içine eklendi; otomatikleştirilebilenler koşuldu
 - [x] `faz-denetim` koşuldu; 🔴 bulgu kalmadı (ikisi de düzeltildi — bkz. Denetim Bulguları)
 - [x] `docs-site/guides/cli.md` yeni komutu ve **exit code tablosunu** yazar; `npm run build` + `check-links.mjs` temiz
-- [x] `src/AgentPrism.Cli/README.md`, `PrintHelp()` ve `<Description>` üçü de tutarlı
+- [x] `src/Tracon.Cli/README.md`, `PrintHelp()` ve `<Description>` üçü de tutarlı
 
-### Gerçek `run` kanıtı — `samples/AgentPrism.Api`'ye karşı
+### Gerçek `run` kanıtı — `samples/Tracon.Api`'ye karşı
 
 Sunucu gerçekten çalıştırıldı (`support` agent'ı, gerçek OpenAI çağrısı —
 `dotnet user-secrets`'ta bu makineye özgü bir manuel-test token'ı ve
@@ -58,7 +58,7 @@ sağlayıcı anahtarı zaten kuruluydu). Bir suite/case oluşturuldu, sonra CLI
 gerçek HTTP üzerinden koşturuldu:
 
 ```
-$ agentprism eval --url http://localhost:5081/agentprism --suite demo-suite \
+$ tracon eval --url http://localhost:5081/tracon --suite demo-suite \
     --token <token> --min-pass-rate 1.0 --poll-interval 2 --timeout 60
 Completed: 1/1 passed in 8,1 s.
 exit=0
@@ -83,11 +83,11 @@ exit=0
 
 ```bash
 # Kapı kapanıyor mu
-agentprism eval --url http://localhost:5081/agentprism --suite checkout --min-pass-rate 1.0
+tracon eval --url http://localhost:5081/tracon --suite checkout --min-pass-rate 1.0
 echo "exit=$?"   # beklenen: 3 (bir case düşükse)
 
 # Kapı yokken hiçbir şey kırmıyor
-agentprism eval --url http://localhost:5081/agentprism --suite checkout
+tracon eval --url http://localhost:5081/tracon --suite checkout
 echo "exit=$?"   # beklenen: 0
 ```
 
@@ -98,7 +98,7 @@ echo "exit=$?"   # beklenen: 0
 1. **Boş suite `--min-pass-rate` ile `3` DÖNEMEZ; `2` döner.** Planın Açık
    Soru 3'ü ve DoD satırı, `Total == 0` olan bir **run**'ın var olacağını
    varsayıyordu. Gerçek sunucu davranışı ölçüldüğünde
-   ([`EvalEndpoints.cs:479-484`](../../../src/AgentPrism.AspNetCore/Endpoints/EvalEndpoints.cs))
+   ([`EvalEndpoints.cs:479-484`](../../../src/Tracon.AspNetCore/Endpoints/EvalEndpoints.cs))
    `POST /api/evals/{name}/run` sıfır case'li bir suite'i `400 "has no
    cases"` ile **trigger anında** reddediyor — hiçbir run kaydı hiç
    oluşmuyor. Dolayısıyla `Total == 0` bir `Completed` run bugünkü kod
@@ -113,15 +113,15 @@ echo "exit=$?"   # beklenen: 0
    "case adı" diyordu; `EvalCaseResult` **kasıtlı olarak** bir isim taşımaz
    (yalnız `CaseId`, bkz. `EvalCaseResult.cs`'in kendi XML sözü — bir case
    sonradan değişse/silinse bile geçmiş sonucun anlaşılır kalması için).
-   `agentprism eval`'in çıktısı bu yüzden `FAILED case <Guid>` yazar,
+   `tracon eval`'in çıktısı bu yüzden `FAILED case <Guid>` yazar,
    okunabilir bir metin değil. DoD ve doküman metni buna göre düzeltildi;
    davranış değişmedi, yalnız vaat doğru kelimeye çekildi.
 3. **İki önceden var olan, faz dışı kusur bulundu ve düzeltildi** (kullanıcı
    talimatı: "konuyla alakasız bug/defect'lerle karşılaşırsan onları da
-   çöz"). İkisi de `AgentPrismTriggerEvalRunAsync`/`AgentPrismGetEvalRunAsync`'in
+   çöz"). İkisi de `TraconTriggerEvalRunAsync`/`TraconGetEvalRunAsync`'in
    bu fazda İLK KEZ gerçek veriyle çağrılmasıyla ortaya çıktı — daha önce
    hiçbir test bu iki metodu gerçek bir sunucuya karşı koşmamıştı
-   (`AgentPrismTestHost`'un in-memory `TestServer`'ı ham `HttpClient`
+   (`TraconTestHost`'un in-memory `TestServer`'ı ham `HttpClient`
    kullanıyor, üretilmiş istemciyi değil):
    - `scripts/generate-client-json-context.py`'deki bir regex, `Type? body =
      null` biçimindeki OPSİYONEL istek gövdesi parametrelerini (9 metot,
@@ -134,12 +134,12 @@ echo "exit=$?"   # beklenen: 0
      bir değer tipi (`System.Text.Json.JsonElement`, `Microsoft.Extensions.AI.ChatRole`)
      için NSwag boş `{}` şema üretiyor ve bu şemayı tipin KISA ADIYLA bir
      POCO sınıfına çeviriyordu — bu sınıf AYNI ad alanında GERÇEK tipi
-     gölgeliyordu (`AgentPrism.Client.Generated.JsonElement` ≠
+     gölgeliyordu (`Tracon.Client.Generated.JsonElement` ≠
      `System.Text.Json.JsonElement`). 16 alanın TÜMÜ (`EvalCaseResult.Scores`
      dahil) etkileniyordu; tel üzerindeki değer bir JSON NESNESİ değilse
      (`Scores` bir dizidir) her çağrı `JsonException` fırlatıyordu. Düzeltme:
      `COLLIDING_ANY_TYPES` tablosu bogus sınıfı siler, referansları gerçek
-     tipe (`JsonElement`) ya da — `AgentPrism.Client`'ın bilerek bağımlı
+     tipe (`JsonElement`) ya da — `Tracon.Client`'ın bilerek bağımlı
      OLMADIĞI bir paketin tipiyse (`ChatRole`) — o tipin gerçek tel biçimine
      (`string`) nitelendirir. Ayrıntı ve sınıf taraması sonucu:
      `docs/hafiza/paketleme-ve-dagitim.md`, `docs/KARARLAR.md` K-633,
@@ -147,7 +147,7 @@ echo "exit=$?"   # beklenen: 0
 
 ## Bu Fazda Verilen Kararlar
 
-- **K-633** — `AgentPrism.Client`'ın üretilmiş `JsonElement`/`ChatRole`-tipli
+- **K-633** — `Tracon.Client`'ın üretilmiş `JsonElement`/`ChatRole`-tipli
   alanları geriye dönük uyumsuz biçimde düzeltildi (yukarıdaki sapma 3);
   gerekçe ve yeniden açılma koşulu `docs/KARARLAR.md`'dedir.
 
@@ -162,26 +162,26 @@ Bağımsız denetim (taze bağlamlı agent, `docs/115-EVALIN-BASSIZ-KOSUCUSU.md`
 | 2 | 🔴 | DoD/doküman metni, sunucunun gerçek 400-reddi ile çelişen "boş suite `3` döner" iddiasını taşıyordu | Düzeltildi (Plandan Sapmalar 1) — DoD, README, cli.md, EvalCommandTests hepsi gerçek davranışa çekildi |
 | 3 | 🟡 | `EvalRunStatus.Failed`/`Cancelled` → exit `2` dalını tetikleyen test yoktu (fazın kendi en kritik risk maddesi) | Düzeltildi — `A_run_that_ends_Failed_exits_2_never_3` eklendi (suite'in agent'ı yok, `EvalJobHandler` suite'i `Failed` ile bitirir) |
 | 4 | 🟡 | "case adı" vaadi gerçek sözleşmeyle (yalnız `CaseId`) uyuşmuyordu; testin adı "isimlendirir" diyordu ama yalnız sabit alt dize arıyordu | Düzeltildi (Plandan Sapmalar 2) — metin "case kimliği"ne çekildi, test artık gerçek `Guid` değerini iddia ediyor |
-| 5 | 🟡 | `AgentPrism.Client`'ın üretilmiş tip değişikliği (kusur düzeltmesi) `PublicApiTrackingEnabled=false` olduğu için hiçbir analyzer'dan geçmiyordu; karar defteri kaydı yoktu | Düzeltildi — K-633 eklendi |
-| 6 | 🟢 | `IMcpToolRefresher` (bir DI parametresi, istek gövdesi değil) opsiyonel-body regex düzeltmesinden yan etkiyle etkilendi — zararsız (`AgentPrismRefreshMcpToolsAsync` artık çöküyor DEĞİL, aksine düzeliyor) | Devredilmedi — `docs/hafiza/paketleme-ve-dagitim.md`'nin genel sınıf-taraması komutu bunu bir sonraki `nswag` rejenerasyonunda zaten kapsıyor |
+| 5 | 🟡 | `Tracon.Client`'ın üretilmiş tip değişikliği (kusur düzeltmesi) `PublicApiTrackingEnabled=false` olduğu için hiçbir analyzer'dan geçmiyordu; karar defteri kaydı yoktu | Düzeltildi — K-633 eklendi |
+| 6 | 🟢 | `IMcpToolRefresher` (bir DI parametresi, istek gövdesi değil) opsiyonel-body regex düzeltmesinden yan etkiyle etkilendi — zararsız (`TraconRefreshMcpToolsAsync` artık çöküyor DEĞİL, aksine düzeliyor) | Devredilmedi — `docs/hafiza/paketleme-ve-dagitim.md`'nin genel sınıf-taraması komutu bunu bir sonraki `nswag` rejenerasyonunda zaten kapsıyor |
 
 ## Sonraki Faza Devir Notu
 
-- `agentprism eval` artık gerçek, çift-katmanlı bir kusur sınıfını
-  (`AgentPrism.Client`'ın üretilmiş dosyalarındaki NSwag/NJsonSchema
+- `tracon eval` artık gerçek, çift-katmanlı bir kusur sınıfını
+  (`Tracon.Client`'ın üretilmiş dosyalarındaki NSwag/NJsonSchema
   tuzakları) kapsayan bir regresyon setiyle korunuyor
   (`scripts/nswag_postprocess_client_test.py`,
   `docs/hafiza/paketleme-ve-dagitim.md`). Bir sonraki `dotnet nswag run`
   öncesi, yeni bir "opak değer tipi" (kendi `[JsonConverter]`'ı olan, boş
   şema üreten) eklenirse aynı sınıf taraması komutu (hafıza notunda) tekrar
   koşulmalı.
-- `AgentPrism.Client`'ın üretilmiş dosyalarının **hiçbiri** artık `AgentPrism.Client.Generated`
+- `Tracon.Client`'ın üretilmiş dosyalarının **hiçbiri** artık `Tracon.Client.Generated`
   ad alanında BCL/MEAI tipiyle aynı kısa adı taşımıyor — bu, üretilmiş
   istemcinin manuel post-processing'e bağımlılığını artıran bir örnek daha;
-  `AgentPrismClientJsonContext.g.cs`'in üretim SIRASI hâlâ kritik
+  `TraconClientJsonContext.g.cs`'in üretim SIRASI hâlâ kritik
   (`nswag-postprocess-client.py` HER ZAMAN `generate-client-json-context.py`'den
   ÖNCE koşmalı — aksi hâlde context bogus sınıfı kaydeder).
 - Faz 116 (Performans Tahsis Kapısı) bu fazla dosya/kod düzeyinde
-  kesişmiyor; `agentprism eval`'in kendi eşik felsefesi (115.3) F-67'nin
+  kesişmiyor; `tracon eval`'in kendi eşik felsefesi (115.3) F-67'nin
   "performans kapısı" tasarımına referans niteliğinde olabilir ama F-67
   ayrı bir eşik ailesi ister (115.6'da kapsam dışı bırakıldı).

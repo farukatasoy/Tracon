@@ -55,19 +55,19 @@
 - `run` → `{jobId: "019ff7f8-…", target: "run_events"}` — senkron silmedi, iş
   kuyruğa yazdı (MT-RET-004'ün davranışı).
 - `history[0]` → `deletedRows: **10**`, `archivedRows: 0`, `error: **null**`.
-- SQL sayımı → `agentprism_run_events` **2** satır (yalnız güncel olanlar).
-- `agentprism_runs` özet satırı **korundu** (1 satır) — `run_events`
+- SQL sayımı → `tracon_run_events` **2** satır (yalnız güncel olanlar).
+- `tracon_runs` özet satırı **korundu** (1 satır) — `run_events`
   silinirken `runs` düşmedi.
 
 ⚠️ **İki doküman düzeltmesi gerekiyor:**
 
 1. **Adım 1'deki `INSERT` güncel şemayla uyuşmuyor.** Doküman
-   `agentprism_runs (id, tenant_id, agent_name, status, created_at, updated_at)`
+   `tracon_runs (id, tenant_id, agent_name, status, created_at, updated_at)`
    yazıyor; tabloda `created_at`/`updated_at` sütunları **yok**, bunun yerine
    `started_at TEXT NOT NULL`, `completed_at TEXT NULL` ve
    `is_streaming INTEGER NOT NULL` var. Koşumda kullanılan doğru biçim:
    ```sql
-   INSERT INTO agentprism_runs (id, tenant_id, agent_name, status, started_at, is_streaming)
+   INSERT INTO tracon_runs (id, tenant_id, agent_name, status, started_at, is_streaming)
    VALUES ('11111111-1111-1111-1111-111111111111','default','support',1,datetime('now'),0);
    ```
 2. **Adım 4'teki `sleep 2` yetersiz.** `run` bir iş kuyruğa yazar; işi
@@ -75,7 +75,7 @@
    işler. İlk denemede `sleep 2` sonrası `history` boş (`[]`) ve tablo hâlâ 12
    satırdı; uygulama açık bırakılınca iş işlendi ve sonuç beklendiği gibi
    geldi. Doğrulama, `history` dolana kadar yoklanmalıdır (ya da
-   `agentprism_jobs.status` = 3 beklenmelidir).
+   `tracon_jobs.status` = 3 beklenmelidir).
 
 **Durum:** ☐ Beklemede · ☑ Geçti (doküman SQL ve bekleme düzeltmesiyle) · ☐ Kaldı · ☐ Atlandı
 
@@ -105,8 +105,8 @@ olmalıdır.
 ## MT-RET-011 — `Enabled=false` kaydı, config'teki varsayılanı da GÖLGELER
 
 **Gerçek sonuç**
-Config varsayılanı `AgentPrism__Retention__Enabled=true` +
-`AgentPrism__Retention__Spans__MaxAgeDays=14` ile verildi (aşağıdaki nota bak),
+Config varsayılanı `Tracon__Retention__Enabled=true` +
+`Tracon__Retention__Spans__MaxAgeDays=14` ile verildi (aşağıdaki nota bak),
 `traces` için DB kaydı yokken taban durum doğrulandı:
 
 | Durum | `preview` yanıtı |
@@ -122,11 +122,11 @@ Config varsayılanı `AgentPrism__Retention__Enabled=true` +
 ⚠️ **İki doküman düzeltmesi (ön koşul eksik):**
 
 1. **Config anahtarı `Traces` değil `Spans`.** `traces` hedefi
-   `AgentPrismRetentionOptions.Spans` nesnesine eşlenir
-   (`AgentPrismRetentionOptions.cs:88`, `RetentionTargets.Traces => Spans`).
-   Dokümandaki `AgentPrism:Retention:Traces:MaxAgeDays` anahtarı **hiçbir şey
-   yapmaz**; doğrusu `AgentPrism:Retention:Spans:MaxAgeDays`'tir.
-2. **`AgentPrism:Retention:Enabled=true` zorunludur.**
+   `TraconRetentionOptions.Spans` nesnesine eşlenir
+   (`TraconRetentionOptions.cs:88`, `RetentionTargets.Traces => Spans`).
+   Dokümandaki `Tracon:Retention:Traces:MaxAgeDays` anahtarı **hiçbir şey
+   yapmaz**; doğrusu `Tracon:Retention:Spans:MaxAgeDays`'tir.
+2. **`Tracon:Retention:Enabled=true` zorunludur.**
    `RetentionPolicyResolver.ResolveAsync` config'e bakmadan önce
    `if (!options.Enabled) return null;` denetimi yapar
    (`RetentionPolicyResolver.cs:43`). Bu ön koşul olmadan hiçbir config
@@ -139,7 +139,7 @@ Config varsayılanı `AgentPrism__Retention__Enabled=true` +
 ## MT-RET-015 — `run_inputs`, `Sessions`/`Conversations`'ın aksine varsayılan KAPALI DEĞİLDİR
 
 **Gerçek sonuç**
-`AgentPrism__Retention__Enabled=true`, `…RunInputs__MaxAgeDays=60` ve
+`Tracon__Retention__Enabled=true`, `…RunInputs__MaxAgeDays=60` ve
 `…Sessions__MaxAgeDays=60` ile, hiçbir DB kaydı yokken:
 
 | Hedef | `preview` yanıtı | Config etkili mi |
@@ -147,8 +147,8 @@ Config varsayılanı `AgentPrism__Retention__Enabled=true` +
 | `run_inputs` | `maxAgeDays: null, enabled: false, cutoff: null` | **HAYIR** |
 | `sessions` | `maxAgeDays: 60, enabled: true, cutoff: 2026-06-13…` | **EVET** |
 
-**Case'in iddiası tersine çıktı.** Kök neden `AgentPrismRetentionOptions.ForTarget`
-(`AgentPrismRetentionOptions.cs:85-101`) — 16 saklama hedefinden yalnız **12'si**
+**Case'in iddiası tersine çıktı.** Kök neden `TraconRetentionOptions.ForTarget`
+(`TraconRetentionOptions.cs:85-101`) — 16 saklama hedefinden yalnız **12'si**
 için bir ayar nesnesi döndürür. Eşleşmeyen dört hedef `_ => null` dalına düşer
 ve config varsayılanı **hiç okunmaz**:
 
@@ -163,7 +163,7 @@ Yani `UserDataTargets` config'i engellemez — sadece varsayılanı kapalı tuta
 Config'ten değer verilince normal çalışır, koşum bunu gösterdi.
 
 ⚠️ **Yan bulgu (`HATA-S1-005`, Düşük):** bu dört hedef için
-`AgentPrism:Retention:<Hedef>:MaxAgeDays` yazan bir tüketici **sessiz bir
+`Tracon:Retention:<Hedef>:MaxAgeDays` yazan bir tüketici **sessiz bir
 etkisizlikle** karşılaşır — ne hata, ne uyarı, ne log. Kasıtlı olabilir (bu
 hedefler daha sonraki fazlarda eklendi) ama hiçbir yerde yazmıyor.
 `MaxRows`'un config yüzeyine çıkmaması bilinçli bir karardır ve `ForTarget`'ın
@@ -173,11 +173,11 @@ yok.
 **Durum:** ☐ Beklemede · ☑ Geçti (beklenen sonuç koda göre düzeltildi) · ☐ Kaldı · ☐ Atlandı
 
 > **Güncelleme (S1-8, 2026-08-13):** `HATA-S1-005` bu oturumda kodlandı —
-> `AgentPrismRetentionOptions`'a dört hedef eklendi VE (ayrıca yakalanan
-> ikincil bir eksiklik olarak) `AgentPrismServiceCollectionExtensions.BindRetention`
+> `TraconRetentionOptions`'a dört hedef eklendi VE (ayrıca yakalanan
+> ikincil bir eksiklik olarak) `TraconServiceCollectionExtensions.BindRetention`
 > bu dört hedefi artık biliyor. Sonuç: **case'in ÖZGÜN (ilk yazılan) iddiası
 > artık doğru** — `run_inputs` config varsayılanını KULLANIR, tıpkı
-> `sessions` gibi. Canlıda doğrulandı: `AgentPrism__Retention__RunInputs__MaxAgeDays=60`
+> `sessions` gibi. Canlıda doğrulandı: `Tracon__Retention__RunInputs__MaxAgeDays=60`
 > ile `preview?target=run_inputs` → `{"maxAgeDays":60,"enabled":true,...}`.
 > Yukarıdaki "tersine çıktı" bulgusu artık GEÇERSİZ (kod o zamanki hâlini
 > yansıtıyordu) — tarihsel kayıt olarak bırakıldı, silinmedi. Bkz.
@@ -216,7 +216,7 @@ uçtan uca çalıştı (`RunCompleted`, iki agent adımı — `ozetleyici`,
 bağımsız çalıştırmayla doğrulandı — tutarlı, deterministik `FARK=0`.
 
 **Kök neden (ölçüldü, kod okundu)** `grep -rn "RecordQuotaAsync\|QuotaEnforcer"
-src/AgentPrism.AspNetCore/Endpoints/WorkflowEndpoints.cs` **sıfır** sonuç
+src/Tracon.AspNetCore/Endpoints/WorkflowEndpoints.cs` **sıfır** sonuç
 döner; `RecordQuotaAsync` yalnız `RunRecordingAgent.cs:779`'dan çağrılır ve
 `WorkflowEndpoints.cs` hiçbir yerde `RunRecordingAgent`'a atıfta bulunmaz.
 Workflow çalıştırma yolu, agent çalıştırma yolundan (`AgentEndpoints` →

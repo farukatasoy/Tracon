@@ -1,0 +1,1232 @@
+#nullable enable
+Tracon.AcceptedRunResponse
+Tracon.AcceptedRunResponse.<Clone>$() -> Tracon.AcceptedRunResponse!
+Tracon.AcceptedRunResponse.AcceptedRunResponse() -> void
+Tracon.AcceptedRunResponse.Equals(Tracon.AcceptedRunResponse? other) -> bool
+Tracon.AcceptedRunResponse.EventsLocation.get -> string!
+Tracon.AcceptedRunResponse.EventsLocation.init -> void
+Tracon.AcceptedRunResponse.JobId.get -> System.Guid
+Tracon.AcceptedRunResponse.JobId.init -> void
+Tracon.AcceptedRunResponse.Location.get -> string!
+Tracon.AcceptedRunResponse.Location.init -> void
+Tracon.AcceptedRunResponse.RunId.get -> System.Guid
+Tracon.AcceptedRunResponse.RunId.init -> void
+Tracon.AgentDefinitionRequest
+Tracon.AgentDefinitionRequest.<Clone>$() -> Tracon.AgentDefinitionRequest!
+Tracon.AgentDefinitionRequest.AgentDefinitionRequest() -> void
+Tracon.AgentDefinitionRequest.CallableAgentNames.get -> System.Collections.Generic.IReadOnlyList<string!>!
+Tracon.AgentDefinitionRequest.CallableAgentNames.init -> void
+Tracon.AgentDefinitionRequest.Compaction.get -> Tracon.CompactionSettings?
+Tracon.AgentDefinitionRequest.Compaction.init -> void
+Tracon.AgentDefinitionRequest.Description.get -> string?
+Tracon.AgentDefinitionRequest.Description.init -> void
+Tracon.AgentDefinitionRequest.DisplayName.get -> string?
+Tracon.AgentDefinitionRequest.DisplayName.init -> void
+Tracon.AgentDefinitionRequest.Equals(Tracon.AgentDefinitionRequest? other) -> bool
+Tracon.AgentDefinitionRequest.Harness.get -> Tracon.HarnessSettings?
+Tracon.AgentDefinitionRequest.Harness.init -> void
+Tracon.AgentDefinitionRequest.Instructions.get -> string?
+Tracon.AgentDefinitionRequest.Instructions.init -> void
+Tracon.AgentDefinitionRequest.InstructionsByCulture.get -> System.Collections.Generic.IReadOnlyDictionary<string!, string!>?
+Tracon.AgentDefinitionRequest.InstructionsByCulture.init -> void
+Tracon.AgentDefinitionRequest.McpResourceUris.get -> System.Collections.Generic.IReadOnlyList<string!>!
+Tracon.AgentDefinitionRequest.McpResourceUris.init -> void
+Tracon.AgentDefinitionRequest.Memory.get -> Tracon.MemorySettings?
+Tracon.AgentDefinitionRequest.Memory.init -> void
+Tracon.AgentDefinitionRequest.Metadata.get -> System.Collections.Generic.IReadOnlyDictionary<string!, System.Text.Json.JsonElement>!
+Tracon.AgentDefinitionRequest.Metadata.init -> void
+Tracon.AgentDefinitionRequest.Model.get -> Tracon.ModelBinding!
+Tracon.AgentDefinitionRequest.Model.init -> void
+Tracon.AgentDefinitionRequest.Name.get -> string!
+Tracon.AgentDefinitionRequest.Name.init -> void
+Tracon.AgentDefinitionRequest.Parameters.get -> System.Collections.Generic.IReadOnlyList<Tracon.AgentParameter!>!
+Tracon.AgentDefinitionRequest.Parameters.init -> void
+Tracon.AgentDefinitionRequest.SharedInstructionsName.get -> string?
+Tracon.AgentDefinitionRequest.SharedInstructionsName.init -> void
+Tracon.AgentDefinitionRequest.SkillNames.get -> System.Collections.Generic.IReadOnlyList<string!>!
+Tracon.AgentDefinitionRequest.SkillNames.init -> void
+Tracon.AgentDefinitionRequest.SubAgents.get -> Tracon.SubAgentSettings?
+Tracon.AgentDefinitionRequest.SubAgents.init -> void
+Tracon.AgentDefinitionRequest.ToDefinition() -> Tracon.AgentDefinition!
+Tracon.AgentDefinitionRequest.ToolNames.get -> System.Collections.Generic.IReadOnlyList<string!>!
+Tracon.AgentDefinitionRequest.ToolNames.init -> void
+Tracon.AgentDetailResponse
+Tracon.AgentDetailResponse.<Clone>$() -> Tracon.AgentDetailResponse!
+Tracon.AgentDetailResponse.AgentDetailResponse() -> void
+Tracon.AgentDetailResponse.Definition.get -> Tracon.AgentDefinition?
+Tracon.AgentDetailResponse.Definition.init -> void
+Tracon.AgentDetailResponse.Descriptor.get -> Tracon.AgentDescriptor!
+Tracon.AgentDetailResponse.Descriptor.init -> void
+Tracon.AgentDetailResponse.Equals(Tracon.AgentDetailResponse? other) -> bool
+Tracon.AgentDetailResponse.FactoryInstructions.get -> string?
+Tracon.AgentDetailResponse.FactoryInstructions.init -> void
+Tracon.AgentDetailResponse.IsEditable.get -> bool
+Tracon.AgentDetailResponse.IsEditable.init -> void
+Tracon.TraconA2ABuilderExtensions
+Tracon.TraconA2AExtensions
+Tracon.TraconA2AOptions
+Tracon.TraconA2AOptions.TraconA2AOptions() -> void
+Tracon.TraconA2AOptions.Budget.get -> Tracon.AgentRunBudget!
+Tracon.TraconA2AOptions.Budget.set -> void
+Tracon.TraconA2AOptions.ExposedAgents.get -> System.Collections.Generic.IList<string!>!
+Tracon.TraconAgentSessionStore
+Tracon.TraconAgentSessionStore.TraconAgentSessionStore(Tracon.AgentSessionManager! sessions) -> void
+Tracon.TraconAuthenticationMeta
+Tracon.TraconAuthenticationMeta.<Clone>$() -> Tracon.TraconAuthenticationMeta!
+Tracon.TraconAuthenticationMeta.TraconAuthenticationMeta() -> void
+Tracon.TraconAuthenticationMeta.AllowRemoteAccess.get -> bool
+Tracon.TraconAuthenticationMeta.AllowRemoteAccess.init -> void
+Tracon.TraconAuthenticationMeta.Equals(Tracon.TraconAuthenticationMeta? other) -> bool
+Tracon.TraconAuthenticationMeta.RequiresAuthorizationPolicy.get -> bool
+Tracon.TraconAuthenticationMeta.RequiresAuthorizationPolicy.init -> void
+Tracon.TraconAuthenticationMeta.RequiresBearerToken.get -> bool
+Tracon.TraconAuthenticationMeta.RequiresBearerToken.init -> void
+Tracon.TraconEndpointOptions
+Tracon.TraconEndpointOptions.TraconEndpointOptions() -> void
+Tracon.TraconEndpointOptions.AllowRemoteAccess.get -> bool
+Tracon.TraconEndpointOptions.AllowRemoteAccess.set -> void
+Tracon.TraconEndpointOptions.AllowedOrigins.get -> System.Collections.Generic.IList<string!>!
+Tracon.TraconEndpointOptions.AuthToken.get -> string?
+Tracon.TraconEndpointOptions.AuthToken.set -> void
+Tracon.TraconEndpointOptions.AuthorizationPolicy.get -> string?
+Tracon.TraconEndpointOptions.EnableDiagnosticsEndpoint.get -> bool
+Tracon.TraconEndpointOptions.EnableDiagnosticsEndpoint.set -> void
+Tracon.TraconEndpointOptions.MapOpenAIConversations.get -> bool
+Tracon.TraconEndpointOptions.MapOpenAIConversations.set -> void
+Tracon.TraconEndpointOptions.RequireAuthorization(string! policyName) -> void
+Tracon.TraconEndpointOptions.RequireRolePolicies.get -> bool
+Tracon.TraconEndpointOptions.RequireRolePolicies.set -> void
+Tracon.TraconEndpointOptions.RunEventPollInterval.get -> System.TimeSpan
+Tracon.TraconEndpointOptions.RunEventPollInterval.set -> void
+Tracon.TraconEndpointRouteBuilderExtensions
+Tracon.TraconHealthCheckExtensions
+Tracon.TraconMcpServerBuilderExtensions
+Tracon.TraconMcpServerExtensions
+Tracon.TraconMcpServerOptions
+Tracon.TraconMcpServerOptions.TraconMcpServerOptions() -> void
+Tracon.TraconMcpServerOptions.Budget.get -> Tracon.AgentRunBudget!
+Tracon.TraconMcpServerOptions.Budget.set -> void
+Tracon.TraconMcpServerOptions.EnableTasks.get -> bool
+Tracon.TraconMcpServerOptions.EnableTasks.set -> void
+Tracon.TraconMcpServerOptions.ExposeAllAgents.get -> bool
+Tracon.TraconMcpServerOptions.ExposeAllAgents.set -> void
+Tracon.TraconMcpServerOptions.ExposedAgents.get -> System.Collections.Generic.IList<string!>!
+Tracon.TraconMcpServerOptions.TaskPollInterval.get -> System.TimeSpan
+Tracon.TraconMcpServerOptions.TaskPollInterval.set -> void
+Tracon.TraconMcpServerOptions.TaskTimeToLive.get -> System.TimeSpan
+Tracon.TraconMcpServerOptions.TaskTimeToLive.set -> void
+Tracon.TraconMcpServerOptions.ToolNamePrefix.get -> string!
+Tracon.TraconMcpServerOptions.ToolNamePrefix.set -> void
+Tracon.TraconMetaResponse
+Tracon.TraconMetaResponse.<Clone>$() -> Tracon.TraconMetaResponse!
+Tracon.TraconMetaResponse.TraconMetaResponse() -> void
+Tracon.TraconMetaResponse.Authentication.get -> Tracon.TraconAuthenticationMeta!
+Tracon.TraconMetaResponse.Authentication.init -> void
+Tracon.TraconMetaResponse.Equals(Tracon.TraconMetaResponse? other) -> bool
+Tracon.TraconMetaResponse.Prefix.get -> string!
+Tracon.TraconMetaResponse.Prefix.init -> void
+Tracon.TraconMetaResponse.Roles.get -> Tracon.TraconRoleMeta!
+Tracon.TraconMetaResponse.Roles.init -> void
+Tracon.TraconMetaResponse.Storage.get -> Tracon.TraconStorageMeta!
+Tracon.TraconMetaResponse.Storage.init -> void
+Tracon.TraconMetaResponse.Version.get -> string!
+Tracon.TraconMetaResponse.Version.init -> void
+Tracon.TraconPolicies
+Tracon.TraconRoleMeta
+Tracon.TraconRoleMeta.<Clone>$() -> Tracon.TraconRoleMeta!
+Tracon.TraconRoleMeta.TraconRoleMeta() -> void
+Tracon.TraconRoleMeta.CanAdminister.get -> bool
+Tracon.TraconRoleMeta.CanAdminister.init -> void
+Tracon.TraconRoleMeta.CanOperate.get -> bool
+Tracon.TraconRoleMeta.CanOperate.init -> void
+Tracon.TraconRoleMeta.CanRead.get -> bool
+Tracon.TraconRoleMeta.CanRead.init -> void
+Tracon.TraconRoleMeta.Equals(Tracon.TraconRoleMeta? other) -> bool
+Tracon.TraconStorageMeta
+Tracon.TraconStorageMeta.<Clone>$() -> Tracon.TraconStorageMeta!
+Tracon.TraconStorageMeta.AgentDefinitionStore.get -> string!
+Tracon.TraconStorageMeta.AgentDefinitionStore.init -> void
+Tracon.TraconStorageMeta.TraconStorageMeta() -> void
+Tracon.TraconStorageMeta.Equals(Tracon.TraconStorageMeta? other) -> bool
+Tracon.TraconStorageMeta.JobStore.get -> string!
+Tracon.TraconStorageMeta.JobStore.init -> void
+Tracon.TraconStorageMeta.JobWorkerEnabled.get -> bool
+Tracon.TraconStorageMeta.JobWorkerEnabled.init -> void
+Tracon.TraconStorageMeta.Persistent.get -> bool
+Tracon.TraconStorageMeta.Persistent.init -> void
+Tracon.TraconStorageMeta.RunStore.get -> string!
+Tracon.TraconStorageMeta.RunStore.init -> void
+Tracon.TraconStorageMeta.SessionStore.get -> string!
+Tracon.TraconStorageMeta.SessionStore.init -> void
+Tracon.TraconTenancyBuilderExtensions
+Tracon.TraconTenancyOptions
+Tracon.TraconTenancyOptions.TraconTenancyOptions() -> void
+Tracon.TraconTenancyOptions.AllowHeaderResolution.get -> bool
+Tracon.TraconTenancyOptions.AllowHeaderResolution.set -> void
+Tracon.TraconTenancyOptions.AllowedTenants.get -> System.Collections.Generic.IList<string!>!
+Tracon.TraconTenancyOptions.ClaimType.get -> string?
+Tracon.TraconTenancyOptions.ClaimType.set -> void
+Tracon.TraconTenancyOptions.Enabled.get -> bool
+Tracon.TraconTenancyOptions.Enabled.set -> void
+Tracon.TraconTenancyOptions.HeaderName.get -> string!
+Tracon.TraconTenancyOptions.HeaderName.set -> void
+Tracon.AgentRollbackRequest
+Tracon.AgentRollbackRequest.<Clone>$() -> Tracon.AgentRollbackRequest!
+Tracon.AgentRollbackRequest.AgentRollbackRequest() -> void
+Tracon.AgentRollbackRequest.Equals(Tracon.AgentRollbackRequest? other) -> bool
+Tracon.AgentRollbackRequest.Version.get -> int
+Tracon.AgentRollbackRequest.Version.init -> void
+Tracon.AgentRunRequest
+Tracon.AgentRunRequest.<Clone>$() -> Tracon.AgentRunRequest!
+Tracon.AgentRunRequest.AgentRunRequest() -> void
+Tracon.AgentRunRequest.Approvals.get -> System.Collections.Generic.IReadOnlyList<Tracon.ToolApprovalDecision!>!
+Tracon.AgentRunRequest.Approvals.init -> void
+Tracon.AgentRunRequest.AttachmentIds.get -> System.Collections.Generic.IReadOnlyList<System.Guid>!
+Tracon.AgentRunRequest.AttachmentIds.init -> void
+Tracon.AgentRunRequest.Culture.get -> string?
+Tracon.AgentRunRequest.Culture.init -> void
+Tracon.AgentRunRequest.Documents.get -> System.Collections.Generic.IReadOnlyList<Tracon.AgentRunDocument!>!
+Tracon.AgentRunRequest.Documents.init -> void
+Tracon.AgentRunRequest.Equals(Tracon.AgentRunRequest? other) -> bool
+Tracon.AgentRunRequest.Lane.get -> string?
+Tracon.AgentRunRequest.Lane.init -> void
+Tracon.AgentRunRequest.Message.get -> string?
+Tracon.AgentRunRequest.Message.init -> void
+Tracon.AgentRunRequest.Parameters.get -> System.Collections.Generic.IReadOnlyDictionary<string!, string!>?
+Tracon.AgentRunRequest.Parameters.init -> void
+Tracon.AgentRunRequest.SessionId.get -> string?
+Tracon.AgentRunRequest.SessionId.init -> void
+Tracon.AgentRunRequest.ToolResults.get -> System.Collections.Generic.IReadOnlyList<Tracon.ClientToolResult!>!
+Tracon.AgentRunRequest.ToolResults.init -> void
+Tracon.AgentSkillRequest
+Tracon.AgentSkillRequest.<Clone>$() -> Tracon.AgentSkillRequest!
+Tracon.AgentSkillRequest.AgentSkillRequest() -> void
+Tracon.AgentSkillRequest.AllowedTools.get -> string?
+Tracon.AgentSkillRequest.AllowedTools.init -> void
+Tracon.AgentSkillRequest.Compatibility.get -> string?
+Tracon.AgentSkillRequest.Compatibility.init -> void
+Tracon.AgentSkillRequest.Description.get -> string!
+Tracon.AgentSkillRequest.Description.init -> void
+Tracon.AgentSkillRequest.Enabled.get -> bool
+Tracon.AgentSkillRequest.Enabled.init -> void
+Tracon.AgentSkillRequest.Equals(Tracon.AgentSkillRequest? other) -> bool
+Tracon.AgentSkillRequest.Instructions.get -> string!
+Tracon.AgentSkillRequest.Instructions.init -> void
+Tracon.AgentSkillRequest.License.get -> string?
+Tracon.AgentSkillRequest.License.init -> void
+Tracon.AgentSkillRequest.Metadata.get -> System.Collections.Generic.IReadOnlyDictionary<string!, System.Text.Json.JsonElement>!
+Tracon.AgentSkillRequest.Metadata.init -> void
+Tracon.AgentSkillRequest.Name.get -> string!
+Tracon.AgentSkillRequest.Name.init -> void
+Tracon.AgentSkillRequest.Resources.get -> System.Collections.Generic.IReadOnlyList<Tracon.AgentSkillResourceDefinition!>!
+Tracon.AgentSkillRequest.Resources.init -> void
+Tracon.AgentSkillRequest.Scripts.get -> System.Collections.Generic.IReadOnlyList<Tracon.AgentSkillScriptDefinition!>!
+Tracon.AgentSkillRequest.Scripts.init -> void
+Tracon.AgentSkillRequest.ToDefinition(string! tenantId) -> Tracon.AgentSkillDefinition!
+Tracon.AgentVersionDiffResponse
+Tracon.AgentVersionDiffResponse.<Clone>$() -> Tracon.AgentVersionDiffResponse!
+Tracon.AgentVersionDiffResponse.AgentVersionDiffResponse() -> void
+Tracon.AgentVersionDiffResponse.Equals(Tracon.AgentVersionDiffResponse? other) -> bool
+Tracon.AgentVersionDiffResponse.Left.get -> Tracon.AgentDefinition!
+Tracon.AgentVersionDiffResponse.Left.init -> void
+Tracon.AgentVersionDiffResponse.Right.get -> Tracon.AgentDefinition!
+Tracon.AgentVersionDiffResponse.Right.init -> void
+Tracon.ApiKeyCreateRequest
+Tracon.ApiKeyCreateRequest.<Clone>$() -> Tracon.ApiKeyCreateRequest!
+Tracon.ApiKeyCreateRequest.ApiKeyCreateRequest() -> void
+Tracon.ApiKeyCreateRequest.Equals(Tracon.ApiKeyCreateRequest? other) -> bool
+Tracon.ApiKeyCreateRequest.ExpiresAt.get -> System.DateTimeOffset?
+Tracon.ApiKeyCreateRequest.ExpiresAt.init -> void
+Tracon.ApiKeyCreateRequest.Name.get -> string?
+Tracon.ApiKeyCreateRequest.Name.init -> void
+Tracon.ApiKeyCreateRequest.Scopes.get -> System.Collections.Generic.IReadOnlyList<Tracon.ApiKeyScope>?
+Tracon.ApiKeyCreateRequest.Scopes.init -> void
+Tracon.ApprovalDecisionRequest
+Tracon.ApprovalDecisionRequest.<Clone>$() -> Tracon.ApprovalDecisionRequest!
+Tracon.ApprovalDecisionRequest.ApprovalDecisionRequest() -> void
+Tracon.ApprovalDecisionRequest.Approved.get -> bool
+Tracon.ApprovalDecisionRequest.Approved.init -> void
+Tracon.ApprovalDecisionRequest.Equals(Tracon.ApprovalDecisionRequest? other) -> bool
+Tracon.ClientToolResult
+Tracon.ClientToolResult.<Clone>$() -> Tracon.ClientToolResult!
+Tracon.ClientToolResult.CallId.get -> string!
+Tracon.ClientToolResult.CallId.init -> void
+Tracon.ClientToolResult.ClientToolResult() -> void
+Tracon.ClientToolResult.Equals(Tracon.ClientToolResult? other) -> bool
+Tracon.ClientToolResult.ErrorMessage.get -> string?
+Tracon.ClientToolResult.ErrorMessage.init -> void
+Tracon.ClientToolResult.Result.get -> string?
+Tracon.ClientToolResult.Result.init -> void
+Tracon.CurrentTenantResponse
+Tracon.CurrentTenantResponse.<Clone>$() -> Tracon.CurrentTenantResponse!
+Tracon.CurrentTenantResponse.CurrentTenantResponse() -> void
+Tracon.CurrentTenantResponse.Equals(Tracon.CurrentTenantResponse? other) -> bool
+Tracon.CurrentTenantResponse.TenantId.get -> string!
+Tracon.CurrentTenantResponse.TenantId.init -> void
+Tracon.EvalCaseInput
+Tracon.EvalCaseInput.<Clone>$() -> Tracon.EvalCaseInput!
+Tracon.EvalCaseInput.Context.get -> string?
+Tracon.EvalCaseInput.Context.init -> void
+Tracon.EvalCaseInput.Equals(Tracon.EvalCaseInput? other) -> bool
+Tracon.EvalCaseInput.EvalCaseInput() -> void
+Tracon.EvalCaseInput.ExpectedOutput.get -> string?
+Tracon.EvalCaseInput.ExpectedOutput.init -> void
+Tracon.EvalCaseInput.ExpectedTools.get -> System.Collections.Generic.IReadOnlyList<string!>!
+Tracon.EvalCaseInput.ExpectedTools.init -> void
+Tracon.EvalCaseInput.Query.get -> string!
+Tracon.EvalCaseInput.Query.init -> void
+Tracon.EvalCasePromotionRequest
+Tracon.EvalCasePromotionRequest.<Clone>$() -> Tracon.EvalCasePromotionRequest!
+Tracon.EvalCasePromotionRequest.Equals(Tracon.EvalCasePromotionRequest? other) -> bool
+Tracon.EvalCasePromotionRequest.EvalCasePromotionRequest() -> void
+Tracon.EvalCasePromotionRequest.SourceKind.get -> Tracon.EvalCaseSource?
+Tracon.EvalCasePromotionRequest.SourceKind.init -> void
+Tracon.EvalRunDetailResponse
+Tracon.EvalRunDetailResponse.<Clone>$() -> Tracon.EvalRunDetailResponse!
+Tracon.EvalRunDetailResponse.Equals(Tracon.EvalRunDetailResponse? other) -> bool
+Tracon.EvalRunDetailResponse.EvalRunDetailResponse() -> void
+Tracon.EvalRunDetailResponse.Results.get -> System.Collections.Generic.IReadOnlyList<Tracon.EvalCaseResult!>!
+Tracon.EvalRunDetailResponse.Results.init -> void
+Tracon.EvalRunDetailResponse.Run.get -> Tracon.EvalRun!
+Tracon.EvalRunDetailResponse.Run.init -> void
+Tracon.EvalRunTriggerRequest
+Tracon.EvalRunTriggerRequest.<Clone>$() -> Tracon.EvalRunTriggerRequest!
+Tracon.EvalRunTriggerRequest.AgentVersion.get -> int?
+Tracon.EvalRunTriggerRequest.AgentVersion.init -> void
+Tracon.EvalRunTriggerRequest.Equals(Tracon.EvalRunTriggerRequest? other) -> bool
+Tracon.EvalRunTriggerRequest.EvalRunTriggerRequest() -> void
+Tracon.EvalRunTriggerRequest.ModelId.get -> string?
+Tracon.EvalRunTriggerRequest.ModelId.init -> void
+Tracon.EvalRunTriggerRequest.NumRepetitions.get -> int?
+Tracon.EvalRunTriggerRequest.NumRepetitions.init -> void
+Tracon.EvalSuiteSaveRequest
+Tracon.EvalSuiteSaveRequest.<Clone>$() -> Tracon.EvalSuiteSaveRequest!
+Tracon.EvalSuiteSaveRequest.AgentName.get -> string!
+Tracon.EvalSuiteSaveRequest.AgentName.init -> void
+Tracon.EvalSuiteSaveRequest.Checks.get -> System.Text.Json.JsonElement
+Tracon.EvalSuiteSaveRequest.Checks.init -> void
+Tracon.EvalSuiteSaveRequest.Description.get -> string?
+Tracon.EvalSuiteSaveRequest.Description.init -> void
+Tracon.EvalSuiteSaveRequest.Equals(Tracon.EvalSuiteSaveRequest? other) -> bool
+Tracon.EvalSuiteSaveRequest.EvalSuiteSaveRequest() -> void
+Tracon.ExperimentCanaryResponse
+Tracon.ExperimentCanaryResponse.<Clone>$() -> Tracon.ExperimentCanaryResponse!
+Tracon.ExperimentCanaryResponse.Equals(Tracon.ExperimentCanaryResponse? other) -> bool
+Tracon.ExperimentCanaryResponse.Evaluation.get -> Tracon.CanaryEvaluation?
+Tracon.ExperimentCanaryResponse.Evaluation.init -> void
+Tracon.ExperimentCanaryResponse.ExperimentCanaryResponse() -> void
+Tracon.ExperimentCanaryResponse.Policy.get -> Tracon.CanaryPolicy?
+Tracon.ExperimentCanaryResponse.Policy.init -> void
+Tracon.ExperimentResultsResponse
+Tracon.ExperimentResultsResponse.<Clone>$() -> Tracon.ExperimentResultsResponse!
+Tracon.ExperimentResultsResponse.Equals(Tracon.ExperimentResultsResponse? other) -> bool
+Tracon.ExperimentResultsResponse.Experiment.get -> Tracon.Experiment!
+Tracon.ExperimentResultsResponse.Experiment.init -> void
+Tracon.ExperimentResultsResponse.ExperimentResultsResponse() -> void
+Tracon.ExperimentResultsResponse.Results.get -> System.Collections.Generic.IReadOnlyList<Tracon.ExperimentVariantResult!>!
+Tracon.ExperimentResultsResponse.Results.init -> void
+Tracon.ExperimentSaveRequest
+Tracon.ExperimentSaveRequest.<Clone>$() -> Tracon.ExperimentSaveRequest!
+Tracon.ExperimentSaveRequest.AgentName.get -> string!
+Tracon.ExperimentSaveRequest.AgentName.init -> void
+Tracon.ExperimentSaveRequest.Equals(Tracon.ExperimentSaveRequest? other) -> bool
+Tracon.ExperimentSaveRequest.ExperimentSaveRequest() -> void
+Tracon.ExperimentSaveRequest.Variants.get -> System.Collections.Generic.IReadOnlyList<Tracon.ExperimentVariant!>!
+Tracon.ExperimentSaveRequest.Variants.init -> void
+Tracon.HttpTenantContext
+Tracon.HttpTenantContext.HttpTenantContext(Microsoft.AspNetCore.Http.IHttpContextAccessor! accessor, Microsoft.Extensions.Options.IOptions<Tracon.TraconOptions!>! coreOptions, Microsoft.Extensions.Options.IOptions<Tracon.TraconTenancyOptions!>! tenancyOptions) -> void
+Tracon.HttpTenantContext.TenantId.get -> string!
+Tracon.ITraconUiProvider
+Tracon.ITraconUiProvider.HasAssets.get -> bool
+Tracon.ITraconUiProvider.TryServeAsync(Microsoft.AspNetCore.Http.HttpContext! context, string! basePath, string! relativePath) -> System.Threading.Tasks.ValueTask<bool>
+Tracon.InboundTriggerAcceptedResponse
+Tracon.InboundTriggerAcceptedResponse.<Clone>$() -> Tracon.InboundTriggerAcceptedResponse!
+Tracon.InboundTriggerAcceptedResponse.Equals(Tracon.InboundTriggerAcceptedResponse? other) -> bool
+Tracon.InboundTriggerAcceptedResponse.EventsLocation.get -> string?
+Tracon.InboundTriggerAcceptedResponse.EventsLocation.init -> void
+Tracon.InboundTriggerAcceptedResponse.InboundTriggerAcceptedResponse() -> void
+Tracon.InboundTriggerAcceptedResponse.JobId.get -> System.Guid
+Tracon.InboundTriggerAcceptedResponse.JobId.init -> void
+Tracon.InboundTriggerAcceptedResponse.Location.get -> string!
+Tracon.InboundTriggerAcceptedResponse.Location.init -> void
+Tracon.InboundTriggerAcceptedResponse.RunId.get -> System.Guid?
+Tracon.InboundTriggerAcceptedResponse.RunId.init -> void
+Tracon.InboundTriggerResponse
+Tracon.InboundTriggerResponse.<Clone>$() -> Tracon.InboundTriggerResponse!
+Tracon.InboundTriggerResponse.CreatedAt.get -> System.DateTimeOffset
+Tracon.InboundTriggerResponse.CreatedAt.init -> void
+Tracon.InboundTriggerResponse.Enabled.get -> bool
+Tracon.InboundTriggerResponse.Enabled.init -> void
+Tracon.InboundTriggerResponse.Equals(Tracon.InboundTriggerResponse? other) -> bool
+Tracon.InboundTriggerResponse.InboundTriggerResponse() -> void
+Tracon.InboundTriggerResponse.Name.get -> string!
+Tracon.InboundTriggerResponse.Name.init -> void
+Tracon.InboundTriggerResponse.PayloadMode.get -> Tracon.InboundTriggerPayloadMode
+Tracon.InboundTriggerResponse.PayloadMode.init -> void
+Tracon.InboundTriggerResponse.PayloadPath.get -> string?
+Tracon.InboundTriggerResponse.PayloadPath.init -> void
+Tracon.InboundTriggerResponse.Resolved.get -> bool
+Tracon.InboundTriggerResponse.Resolved.init -> void
+Tracon.InboundTriggerResponse.SigningSecretConfigurationName.get -> string!
+Tracon.InboundTriggerResponse.SigningSecretConfigurationName.init -> void
+Tracon.InboundTriggerResponse.TargetKind.get -> Tracon.InboundTriggerTargetKind
+Tracon.InboundTriggerResponse.TargetKind.init -> void
+Tracon.InboundTriggerResponse.TargetName.get -> string!
+Tracon.InboundTriggerResponse.TargetName.init -> void
+Tracon.InboundTriggerResponse.UpdatedAt.get -> System.DateTimeOffset
+Tracon.InboundTriggerResponse.UpdatedAt.init -> void
+Tracon.InboundTriggerSaveRequest
+Tracon.InboundTriggerSaveRequest.<Clone>$() -> Tracon.InboundTriggerSaveRequest!
+Tracon.InboundTriggerSaveRequest.Enabled.get -> bool
+Tracon.InboundTriggerSaveRequest.Enabled.init -> void
+Tracon.InboundTriggerSaveRequest.Equals(Tracon.InboundTriggerSaveRequest? other) -> bool
+Tracon.InboundTriggerSaveRequest.InboundTriggerSaveRequest() -> void
+Tracon.InboundTriggerSaveRequest.PayloadMode.get -> Tracon.InboundTriggerPayloadMode
+Tracon.InboundTriggerSaveRequest.PayloadMode.init -> void
+Tracon.InboundTriggerSaveRequest.PayloadPath.get -> string?
+Tracon.InboundTriggerSaveRequest.PayloadPath.init -> void
+Tracon.InboundTriggerSaveRequest.SigningSecretConfigurationName.get -> string?
+Tracon.InboundTriggerSaveRequest.SigningSecretConfigurationName.init -> void
+Tracon.InboundTriggerSaveRequest.TargetKind.get -> Tracon.InboundTriggerTargetKind
+Tracon.InboundTriggerSaveRequest.TargetKind.init -> void
+Tracon.InboundTriggerSaveRequest.TargetName.get -> string?
+Tracon.InboundTriggerSaveRequest.TargetName.init -> void
+Tracon.JobDetailResponse
+Tracon.JobDetailResponse.<Clone>$() -> Tracon.JobDetailResponse!
+Tracon.JobDetailResponse.Equals(Tracon.JobDetailResponse? other) -> bool
+Tracon.JobDetailResponse.Items.get -> System.Collections.Generic.IReadOnlyList<Tracon.JobItemRecord!>!
+Tracon.JobDetailResponse.Items.init -> void
+Tracon.JobDetailResponse.Job.get -> Tracon.JobRecord!
+Tracon.JobDetailResponse.Job.init -> void
+Tracon.JobDetailResponse.JobDetailResponse() -> void
+Tracon.JobScheduleSaveRequest
+Tracon.JobScheduleSaveRequest.<Clone>$() -> Tracon.JobScheduleSaveRequest!
+Tracon.JobScheduleSaveRequest.Cron.get -> string?
+Tracon.JobScheduleSaveRequest.Cron.init -> void
+Tracon.JobScheduleSaveRequest.Enabled.get -> bool
+Tracon.JobScheduleSaveRequest.Enabled.init -> void
+Tracon.JobScheduleSaveRequest.Equals(Tracon.JobScheduleSaveRequest? other) -> bool
+Tracon.JobScheduleSaveRequest.HandlerKey.get -> string!
+Tracon.JobScheduleSaveRequest.HandlerKey.init -> void
+Tracon.JobScheduleSaveRequest.JobScheduleSaveRequest() -> void
+Tracon.JobScheduleSaveRequest.Lane.get -> string?
+Tracon.JobScheduleSaveRequest.Lane.init -> void
+Tracon.JobScheduleSaveRequest.Payload.get -> System.Text.Json.JsonElement
+Tracon.JobScheduleSaveRequest.Payload.init -> void
+Tracon.JobScheduleSaveRequest.TargetName.get -> string!
+Tracon.JobScheduleSaveRequest.TargetName.init -> void
+Tracon.JobScheduleSaveRequest.TimeZone.get -> string!
+Tracon.JobScheduleSaveRequest.TimeZone.init -> void
+Tracon.JobTriggerRequest
+Tracon.JobTriggerRequest.<Clone>$() -> Tracon.JobTriggerRequest!
+Tracon.JobTriggerRequest.Equals(Tracon.JobTriggerRequest? other) -> bool
+Tracon.JobTriggerRequest.JobTriggerRequest() -> void
+Tracon.JobTriggerRequest.Payload.get -> System.Text.Json.JsonElement?
+Tracon.JobTriggerRequest.Payload.init -> void
+Tracon.LiveVoiceSessionCreateRequest
+Tracon.LiveVoiceSessionCreateRequest.<Clone>$() -> Tracon.LiveVoiceSessionCreateRequest!
+Tracon.LiveVoiceSessionCreateRequest.Agent.get -> string!
+Tracon.LiveVoiceSessionCreateRequest.Agent.init -> void
+Tracon.LiveVoiceSessionCreateRequest.Equals(Tracon.LiveVoiceSessionCreateRequest? other) -> bool
+Tracon.LiveVoiceSessionCreateRequest.LiveVoiceSessionCreateRequest() -> void
+Tracon.LiveVoiceSessionCreateRequest.Sdp.get -> string!
+Tracon.LiveVoiceSessionCreateRequest.Sdp.init -> void
+Tracon.LiveVoiceSessionCreateRequest.SessionId.get -> string!
+Tracon.LiveVoiceSessionCreateRequest.SessionId.init -> void
+Tracon.LiveVoiceSessionCreateRequest.Voice.get -> string?
+Tracon.LiveVoiceSessionCreateRequest.Voice.init -> void
+Tracon.LiveVoiceSessionCreateResponse
+Tracon.LiveVoiceSessionCreateResponse.<Clone>$() -> Tracon.LiveVoiceSessionCreateResponse!
+Tracon.LiveVoiceSessionCreateResponse.Equals(Tracon.LiveVoiceSessionCreateResponse? other) -> bool
+Tracon.LiveVoiceSessionCreateResponse.LiveVoiceSessionCreateResponse() -> void
+Tracon.LiveVoiceSessionCreateResponse.Model.get -> string?
+Tracon.LiveVoiceSessionCreateResponse.Model.init -> void
+Tracon.LiveVoiceSessionCreateResponse.PersistTranscript.get -> bool
+Tracon.LiveVoiceSessionCreateResponse.PersistTranscript.init -> void
+Tracon.LiveVoiceSessionCreateResponse.Sdp.get -> string!
+Tracon.LiveVoiceSessionCreateResponse.Sdp.init -> void
+Tracon.LiveVoiceSessionCreateResponse.VoiceSessionId.get -> System.Guid
+Tracon.LiveVoiceSessionCreateResponse.VoiceSessionId.init -> void
+Tracon.LiveVoiceSessionStatusResponse
+Tracon.LiveVoiceSessionStatusResponse.<Clone>$() -> Tracon.LiveVoiceSessionStatusResponse!
+Tracon.LiveVoiceSessionStatusResponse.Equals(Tracon.LiveVoiceSessionStatusResponse? other) -> bool
+Tracon.LiveVoiceSessionStatusResponse.LiveSeconds.get -> decimal?
+Tracon.LiveVoiceSessionStatusResponse.LiveSeconds.init -> void
+Tracon.LiveVoiceSessionStatusResponse.LiveVoiceSessionStatusResponse() -> void
+Tracon.LiveVoiceSessionStatusResponse.Model.get -> string?
+Tracon.LiveVoiceSessionStatusResponse.Model.init -> void
+Tracon.LiveVoiceSessionStatusResponse.StartedAt.get -> System.DateTimeOffset
+Tracon.LiveVoiceSessionStatusResponse.StartedAt.init -> void
+Tracon.LiveVoiceSessionStatusResponse.State.get -> string!
+Tracon.LiveVoiceSessionStatusResponse.State.init -> void
+Tracon.LiveVoiceSessionStatusResponse.Turns.get -> int
+Tracon.LiveVoiceSessionStatusResponse.Turns.init -> void
+Tracon.LiveVoiceSessionStatusResponse.VoiceSessionId.get -> System.Guid
+Tracon.LiveVoiceSessionStatusResponse.VoiceSessionId.init -> void
+Tracon.McpOAuthStartResponse
+Tracon.McpOAuthStartResponse.<Clone>$() -> Tracon.McpOAuthStartResponse!
+Tracon.McpOAuthStartResponse.AuthorizationUri.get -> string!
+Tracon.McpOAuthStartResponse.AuthorizationUri.init -> void
+Tracon.McpOAuthStartResponse.Equals(Tracon.McpOAuthStartResponse? other) -> bool
+Tracon.McpOAuthStartResponse.McpOAuthStartResponse() -> void
+Tracon.McpOAuthStartResponse.State.get -> string!
+Tracon.McpOAuthStartResponse.State.init -> void
+Tracon.McpPromptArgumentsRequest
+Tracon.McpPromptArgumentsRequest.<Clone>$() -> Tracon.McpPromptArgumentsRequest!
+Tracon.McpPromptArgumentsRequest.Arguments.get -> System.Collections.Generic.IReadOnlyDictionary<string!, string!>?
+Tracon.McpPromptArgumentsRequest.Arguments.init -> void
+Tracon.McpPromptArgumentsRequest.Equals(Tracon.McpPromptArgumentsRequest? other) -> bool
+Tracon.McpPromptArgumentsRequest.McpPromptArgumentsRequest() -> void
+Tracon.McpRefreshResponse
+Tracon.McpRefreshResponse.<Clone>$() -> Tracon.McpRefreshResponse!
+Tracon.McpRefreshResponse.Equals(Tracon.McpRefreshResponse? other) -> bool
+Tracon.McpRefreshResponse.McpRefreshResponse() -> void
+Tracon.McpRefreshResponse.ToolCount.get -> int
+Tracon.McpRefreshResponse.ToolCount.init -> void
+Tracon.McpServerRequest
+Tracon.McpServerRequest.<Clone>$() -> Tracon.McpServerRequest!
+Tracon.McpServerRequest.AuthorizationConfigurationKey.get -> string?
+Tracon.McpServerRequest.AuthorizationConfigurationKey.init -> void
+Tracon.McpServerRequest.Description.get -> string?
+Tracon.McpServerRequest.Description.init -> void
+Tracon.McpServerRequest.Enabled.get -> bool
+Tracon.McpServerRequest.Enabled.init -> void
+Tracon.McpServerRequest.Endpoint.get -> string!
+Tracon.McpServerRequest.Endpoint.init -> void
+Tracon.McpServerRequest.Equals(Tracon.McpServerRequest? other) -> bool
+Tracon.McpServerRequest.Headers.get -> System.Collections.Generic.IReadOnlyDictionary<string!, string!>?
+Tracon.McpServerRequest.Headers.init -> void
+Tracon.McpServerRequest.McpServerRequest() -> void
+Tracon.McpServerRequest.OAuthAuthorizationMode.get -> Tracon.McpOAuthAuthorizationMode
+Tracon.McpServerRequest.OAuthAuthorizationMode.init -> void
+Tracon.McpServerRequest.OAuthClientId.get -> string?
+Tracon.McpServerRequest.OAuthClientId.init -> void
+Tracon.McpServerRequest.OAuthClientSecretConfigurationKey.get -> string?
+Tracon.McpServerRequest.OAuthClientSecretConfigurationKey.init -> void
+Tracon.McpServerRequest.OAuthEnabled.get -> bool
+Tracon.McpServerRequest.OAuthEnabled.init -> void
+Tracon.McpServerRequest.OAuthScopes.get -> string?
+Tracon.McpServerRequest.OAuthScopes.init -> void
+Tracon.McpServerRequest.RequiresApproval.get -> bool
+Tracon.McpServerRequest.RequiresApproval.init -> void
+Tracon.McpServerRequest.Transport.get -> Tracon.McpTransportMode
+Tracon.McpServerRequest.Transport.init -> void
+Tracon.QuotaSaveRequest
+Tracon.QuotaSaveRequest.<Clone>$() -> Tracon.QuotaSaveRequest!
+Tracon.QuotaSaveRequest.AgentName.get -> string?
+Tracon.QuotaSaveRequest.AgentName.init -> void
+Tracon.QuotaSaveRequest.Enabled.get -> bool
+Tracon.QuotaSaveRequest.Enabled.init -> void
+Tracon.QuotaSaveRequest.Equals(Tracon.QuotaSaveRequest? other) -> bool
+Tracon.QuotaSaveRequest.MaxCost.get -> decimal?
+Tracon.QuotaSaveRequest.MaxCost.init -> void
+Tracon.QuotaSaveRequest.MaxRuns.get -> long?
+Tracon.QuotaSaveRequest.MaxRuns.init -> void
+Tracon.QuotaSaveRequest.MaxTokens.get -> long?
+Tracon.QuotaSaveRequest.MaxTokens.init -> void
+Tracon.QuotaSaveRequest.Period.get -> Tracon.QuotaPeriod
+Tracon.QuotaSaveRequest.Period.init -> void
+Tracon.QuotaSaveRequest.QuotaSaveRequest() -> void
+Tracon.QuotaUsageResponse
+Tracon.QuotaUsageResponse.<Clone>$() -> Tracon.QuotaUsageResponse!
+Tracon.QuotaUsageResponse.DailyResetsAt.get -> System.DateTimeOffset
+Tracon.QuotaUsageResponse.DailyResetsAt.init -> void
+Tracon.QuotaUsageResponse.Definitions.get -> System.Collections.Generic.IReadOnlyList<Tracon.QuotaDefinition!>!
+Tracon.QuotaUsageResponse.Definitions.init -> void
+Tracon.QuotaUsageResponse.Equals(Tracon.QuotaUsageResponse? other) -> bool
+Tracon.QuotaUsageResponse.MonthlyResetsAt.get -> System.DateTimeOffset
+Tracon.QuotaUsageResponse.MonthlyResetsAt.init -> void
+Tracon.QuotaUsageResponse.QuotaUsageResponse() -> void
+Tracon.QuotaUsageResponse.TenantId.get -> string!
+Tracon.QuotaUsageResponse.TenantId.init -> void
+Tracon.QuotaUsageResponse.TimeZone.get -> string!
+Tracon.QuotaUsageResponse.TimeZone.init -> void
+Tracon.QuotaUsageResponse.Usage.get -> System.Collections.Generic.IReadOnlyList<Tracon.QuotaUsageRecord!>!
+Tracon.QuotaUsageResponse.Usage.init -> void
+Tracon.RetentionPolicySaveRequest
+Tracon.RetentionPolicySaveRequest.<Clone>$() -> Tracon.RetentionPolicySaveRequest!
+Tracon.RetentionPolicySaveRequest.Archive.get -> bool
+Tracon.RetentionPolicySaveRequest.Archive.init -> void
+Tracon.RetentionPolicySaveRequest.Enabled.get -> bool
+Tracon.RetentionPolicySaveRequest.Enabled.init -> void
+Tracon.RetentionPolicySaveRequest.Equals(Tracon.RetentionPolicySaveRequest? other) -> bool
+Tracon.RetentionPolicySaveRequest.MaxAgeDays.get -> int?
+Tracon.RetentionPolicySaveRequest.MaxAgeDays.init -> void
+Tracon.RetentionPolicySaveRequest.MaxRows.get -> long?
+Tracon.RetentionPolicySaveRequest.MaxRows.init -> void
+Tracon.RetentionPolicySaveRequest.RetentionPolicySaveRequest() -> void
+Tracon.RetentionRunTriggerResponse
+Tracon.RetentionRunTriggerResponse.<Clone>$() -> Tracon.RetentionRunTriggerResponse!
+Tracon.RetentionRunTriggerResponse.Equals(Tracon.RetentionRunTriggerResponse? other) -> bool
+Tracon.RetentionRunTriggerResponse.JobId.get -> System.Guid
+Tracon.RetentionRunTriggerResponse.JobId.init -> void
+Tracon.RetentionRunTriggerResponse.RetentionRunTriggerResponse() -> void
+Tracon.RetentionRunTriggerResponse.Target.get -> string!
+Tracon.RetentionRunTriggerResponse.Target.init -> void
+Tracon.RunComparisonResponse
+Tracon.RunComparisonResponse.<Clone>$() -> Tracon.RunComparisonResponse!
+Tracon.RunComparisonResponse.Equals(Tracon.RunComparisonResponse? other) -> bool
+Tracon.RunComparisonResponse.Left.get -> Tracon.RunComparisonSide!
+Tracon.RunComparisonResponse.Left.init -> void
+Tracon.RunComparisonResponse.Right.get -> Tracon.RunComparisonSide!
+Tracon.RunComparisonResponse.Right.init -> void
+Tracon.RunComparisonResponse.RunComparisonResponse() -> void
+Tracon.RunComparisonSide
+Tracon.RunComparisonSide.<Clone>$() -> Tracon.RunComparisonSide!
+Tracon.RunComparisonSide.AgentName.get -> string!
+Tracon.RunComparisonSide.AgentName.init -> void
+Tracon.RunComparisonSide.AgentVersion.get -> int?
+Tracon.RunComparisonSide.AgentVersion.init -> void
+Tracon.RunComparisonSide.Cost.get -> Tracon.RunCost?
+Tracon.RunComparisonSide.Cost.init -> void
+Tracon.RunComparisonSide.DurationMs.get -> long?
+Tracon.RunComparisonSide.DurationMs.init -> void
+Tracon.RunComparisonSide.Equals(Tracon.RunComparisonSide? other) -> bool
+Tracon.RunComparisonSide.ErrorClass.get -> Tracon.RunErrorClass?
+Tracon.RunComparisonSide.ErrorClass.init -> void
+Tracon.RunComparisonSide.ErrorMessage.get -> string?
+Tracon.RunComparisonSide.ErrorMessage.init -> void
+Tracon.RunComparisonSide.ModelId.get -> string?
+Tracon.RunComparisonSide.ModelId.init -> void
+Tracon.RunComparisonSide.Output.get -> string?
+Tracon.RunComparisonSide.Output.init -> void
+Tracon.RunComparisonSide.ReplayOfRunId.get -> System.Guid?
+Tracon.RunComparisonSide.ReplayOfRunId.init -> void
+Tracon.RunComparisonSide.RunComparisonSide() -> void
+Tracon.RunComparisonSide.RunId.get -> System.Guid
+Tracon.RunComparisonSide.RunId.init -> void
+Tracon.RunComparisonSide.Scores.get -> System.Collections.Generic.IReadOnlyList<Tracon.RunScore!>!
+Tracon.RunComparisonSide.Scores.init -> void
+Tracon.RunComparisonSide.Status.get -> Tracon.RunStatus
+Tracon.RunComparisonSide.Status.init -> void
+Tracon.RunComparisonSide.ToolCallCount.get -> int
+Tracon.RunComparisonSide.ToolCallCount.init -> void
+Tracon.RunComparisonSide.Usage.get -> Tracon.RunUsage?
+Tracon.RunComparisonSide.Usage.init -> void
+Tracon.RunFeedbackRequest
+Tracon.RunFeedbackRequest.<Clone>$() -> Tracon.RunFeedbackRequest!
+Tracon.RunFeedbackRequest.Comment.get -> string?
+Tracon.RunFeedbackRequest.Comment.init -> void
+Tracon.RunFeedbackRequest.Equals(Tracon.RunFeedbackRequest? other) -> bool
+Tracon.RunFeedbackRequest.Kind.get -> Tracon.RunScoreKind
+Tracon.RunFeedbackRequest.Kind.init -> void
+Tracon.RunFeedbackRequest.MessageId.get -> string?
+Tracon.RunFeedbackRequest.MessageId.init -> void
+Tracon.RunFeedbackRequest.Name.get -> string?
+Tracon.RunFeedbackRequest.Name.init -> void
+Tracon.RunFeedbackRequest.RunFeedbackRequest() -> void
+Tracon.RunFeedbackRequest.TextValue.get -> string?
+Tracon.RunFeedbackRequest.TextValue.init -> void
+Tracon.RunFeedbackRequest.Value.get -> double?
+Tracon.RunFeedbackRequest.Value.init -> void
+Tracon.RunInputResponse
+Tracon.RunInputResponse.<Clone>$() -> Tracon.RunInputResponse!
+Tracon.RunInputResponse.CreatedAt.get -> System.DateTimeOffset
+Tracon.RunInputResponse.CreatedAt.init -> void
+Tracon.RunInputResponse.Equals(Tracon.RunInputResponse? other) -> bool
+Tracon.RunInputResponse.Messages.get -> System.Collections.Generic.IReadOnlyList<Microsoft.Extensions.AI.ChatMessage!>!
+Tracon.RunInputResponse.Messages.init -> void
+Tracon.RunInputResponse.RunId.get -> System.Guid
+Tracon.RunInputResponse.RunId.init -> void
+Tracon.RunInputResponse.RunInputResponse() -> void
+Tracon.RunReplayResponse
+Tracon.RunReplayResponse.<Clone>$() -> Tracon.RunReplayResponse!
+Tracon.RunReplayResponse.AgentVersion.get -> int?
+Tracon.RunReplayResponse.AgentVersion.init -> void
+Tracon.RunReplayResponse.CompareLocation.get -> string!
+Tracon.RunReplayResponse.CompareLocation.init -> void
+Tracon.RunReplayResponse.Equals(Tracon.RunReplayResponse? other) -> bool
+Tracon.RunReplayResponse.ModelId.get -> string?
+Tracon.RunReplayResponse.ModelId.init -> void
+Tracon.RunReplayResponse.Output.get -> string?
+Tracon.RunReplayResponse.Output.init -> void
+Tracon.RunReplayResponse.RunId.get -> System.Guid
+Tracon.RunReplayResponse.RunId.init -> void
+Tracon.RunReplayResponse.RunReplayResponse() -> void
+Tracon.RunReplayResponse.SourceRunId.get -> System.Guid
+Tracon.RunReplayResponse.SourceRunId.init -> void
+Tracon.RunReplayResponse.ToolMode.get -> Tracon.ReplayToolMode
+Tracon.RunReplayResponse.ToolMode.init -> void
+Tracon.SearchKnowledgeHit
+Tracon.SearchKnowledgeHit.<Clone>$() -> Tracon.SearchKnowledgeHit!
+Tracon.SearchKnowledgeHit.ChunkIndex.get -> int
+Tracon.SearchKnowledgeHit.ChunkIndex.init -> void
+Tracon.SearchKnowledgeHit.Content.get -> string!
+Tracon.SearchKnowledgeHit.Content.init -> void
+Tracon.SearchKnowledgeHit.Distance.get -> double
+Tracon.SearchKnowledgeHit.Distance.init -> void
+Tracon.SearchKnowledgeHit.Equals(Tracon.SearchKnowledgeHit? other) -> bool
+Tracon.SearchKnowledgeHit.Metadata.get -> System.Collections.Generic.IReadOnlyDictionary<string!, string!>?
+Tracon.SearchKnowledgeHit.Metadata.init -> void
+Tracon.SearchKnowledgeHit.SearchKnowledgeHit() -> void
+Tracon.SearchKnowledgeHit.SourceId.get -> string!
+Tracon.SearchKnowledgeHit.SourceId.init -> void
+Tracon.SearchKnowledgeRequest
+Tracon.SearchKnowledgeRequest.<Clone>$() -> Tracon.SearchKnowledgeRequest!
+Tracon.SearchKnowledgeRequest.Equals(Tracon.SearchKnowledgeRequest? other) -> bool
+Tracon.SearchKnowledgeRequest.Query.get -> string!
+Tracon.SearchKnowledgeRequest.Query.init -> void
+Tracon.SearchKnowledgeRequest.SearchKnowledgeRequest() -> void
+Tracon.SearchKnowledgeRequest.Top.get -> int?
+Tracon.SearchKnowledgeRequest.Top.init -> void
+Tracon.SessionDetailResponse
+Tracon.SessionDetailResponse.<Clone>$() -> Tracon.SessionDetailResponse!
+Tracon.SessionDetailResponse.AgentName.get -> string!
+Tracon.SessionDetailResponse.AgentName.init -> void
+Tracon.SessionDetailResponse.CreatedAt.get -> System.DateTimeOffset
+Tracon.SessionDetailResponse.CreatedAt.init -> void
+Tracon.SessionDetailResponse.Equals(Tracon.SessionDetailResponse? other) -> bool
+Tracon.SessionDetailResponse.Id.get -> string!
+Tracon.SessionDetailResponse.Id.init -> void
+Tracon.SessionDetailResponse.Messages.get -> System.Text.Json.JsonElement?
+Tracon.SessionDetailResponse.Messages.init -> void
+Tracon.SessionDetailResponse.SessionDetailResponse() -> void
+Tracon.SessionDetailResponse.State.get -> System.Text.Json.JsonElement
+Tracon.SessionDetailResponse.State.init -> void
+Tracon.SessionDetailResponse.TenantId.get -> string?
+Tracon.SessionDetailResponse.TenantId.init -> void
+Tracon.SessionDetailResponse.UpdatedAt.get -> System.DateTimeOffset
+Tracon.SessionDetailResponse.UpdatedAt.init -> void
+Tracon.SkillScriptGrantRequest
+Tracon.SkillScriptGrantRequest.<Clone>$() -> Tracon.SkillScriptGrantRequest!
+Tracon.SkillScriptGrantRequest.Equals(Tracon.SkillScriptGrantRequest? other) -> bool
+Tracon.SkillScriptGrantRequest.ExpiresAt.get -> System.DateTimeOffset?
+Tracon.SkillScriptGrantRequest.ExpiresAt.init -> void
+Tracon.SkillScriptGrantRequest.ScriptName.get -> string?
+Tracon.SkillScriptGrantRequest.ScriptName.init -> void
+Tracon.SkillScriptGrantRequest.SkillName.get -> string!
+Tracon.SkillScriptGrantRequest.SkillName.init -> void
+Tracon.SkillScriptGrantRequest.SkillScriptGrantRequest() -> void
+Tracon.TenantEgressPolicyRequest
+Tracon.TenantEgressPolicyRequest.<Clone>$() -> Tracon.TenantEgressPolicyRequest!
+Tracon.TenantEgressPolicyRequest.AllowedProviders.get -> System.Collections.Generic.IReadOnlyList<string!>?
+Tracon.TenantEgressPolicyRequest.AllowedProviders.init -> void
+Tracon.TenantEgressPolicyRequest.Equals(Tracon.TenantEgressPolicyRequest? other) -> bool
+Tracon.TenantEgressPolicyRequest.TenantEgressPolicyRequest() -> void
+Tracon.TenantEgressPolicyResponse
+Tracon.TenantEgressPolicyResponse.<Clone>$() -> Tracon.TenantEgressPolicyResponse!
+Tracon.TenantEgressPolicyResponse.AllowedProviders.get -> System.Collections.Generic.IReadOnlyList<string!>?
+Tracon.TenantEgressPolicyResponse.AllowedProviders.init -> void
+Tracon.TenantEgressPolicyResponse.Equals(Tracon.TenantEgressPolicyResponse? other) -> bool
+Tracon.TenantEgressPolicyResponse.TenantEgressPolicyResponse() -> void
+Tracon.TenantEgressPolicyResponse.TenantId.get -> string!
+Tracon.TenantEgressPolicyResponse.TenantId.init -> void
+Tracon.TenantEgressPolicyResponse.UpdatedAt.get -> System.DateTimeOffset?
+Tracon.TenantEgressPolicyResponse.UpdatedAt.init -> void
+Tracon.TenantProviderBindingRequest
+Tracon.TenantProviderBindingRequest.<Clone>$() -> Tracon.TenantProviderBindingRequest!
+Tracon.TenantProviderBindingRequest.ApiKeyConfigurationName.get -> string?
+Tracon.TenantProviderBindingRequest.ApiKeyConfigurationName.init -> void
+Tracon.TenantProviderBindingRequest.Endpoint.get -> string?
+Tracon.TenantProviderBindingRequest.Endpoint.init -> void
+Tracon.TenantProviderBindingRequest.Equals(Tracon.TenantProviderBindingRequest? other) -> bool
+Tracon.TenantProviderBindingRequest.TenantProviderBindingRequest() -> void
+Tracon.TenantProviderBindingResponse
+Tracon.TenantProviderBindingResponse.<Clone>$() -> Tracon.TenantProviderBindingResponse!
+Tracon.TenantProviderBindingResponse.ApiKeyConfigurationName.get -> string!
+Tracon.TenantProviderBindingResponse.ApiKeyConfigurationName.init -> void
+Tracon.TenantProviderBindingResponse.Endpoint.get -> string?
+Tracon.TenantProviderBindingResponse.Endpoint.init -> void
+Tracon.TenantProviderBindingResponse.Equals(Tracon.TenantProviderBindingResponse? other) -> bool
+Tracon.TenantProviderBindingResponse.ProviderName.get -> string!
+Tracon.TenantProviderBindingResponse.ProviderName.init -> void
+Tracon.TenantProviderBindingResponse.Resolved.get -> bool
+Tracon.TenantProviderBindingResponse.Resolved.init -> void
+Tracon.TenantProviderBindingResponse.TenantProviderBindingResponse() -> void
+Tracon.TenantProviderBindingResponse.UpdatedAt.get -> System.DateTimeOffset
+Tracon.TenantProviderBindingResponse.UpdatedAt.init -> void
+Tracon.TenantRequest
+Tracon.TenantRequest.<Clone>$() -> Tracon.TenantRequest!
+Tracon.TenantRequest.DisplayName.get -> string?
+Tracon.TenantRequest.DisplayName.init -> void
+Tracon.TenantRequest.Equals(Tracon.TenantRequest? other) -> bool
+Tracon.TenantRequest.TenantRequest() -> void
+Tracon.ToolApprovalDecision
+Tracon.ToolApprovalDecision.<Clone>$() -> Tracon.ToolApprovalDecision!
+Tracon.ToolApprovalDecision.Approved.get -> bool
+Tracon.ToolApprovalDecision.Approved.init -> void
+Tracon.ToolApprovalDecision.Equals(Tracon.ToolApprovalDecision? other) -> bool
+Tracon.ToolApprovalDecision.Reason.get -> string?
+Tracon.ToolApprovalDecision.Reason.init -> void
+Tracon.ToolApprovalDecision.Remember.get -> bool
+Tracon.ToolApprovalDecision.Remember.init -> void
+Tracon.ToolApprovalDecision.RememberArgumentsOnly.get -> bool
+Tracon.ToolApprovalDecision.RememberArgumentsOnly.init -> void
+Tracon.ToolApprovalDecision.RequestId.get -> string!
+Tracon.ToolApprovalDecision.RequestId.init -> void
+Tracon.ToolApprovalDecision.ToolApprovalDecision() -> void
+Tracon.ToolApprovalRuleRequest
+Tracon.ToolApprovalRuleRequest.<Clone>$() -> Tracon.ToolApprovalRuleRequest!
+Tracon.ToolApprovalRuleRequest.AgentName.get -> string?
+Tracon.ToolApprovalRuleRequest.AgentName.init -> void
+Tracon.ToolApprovalRuleRequest.ArgumentConditions.get -> System.Collections.Generic.IReadOnlyList<Tracon.ToolArgumentCondition!>!
+Tracon.ToolApprovalRuleRequest.ArgumentConditions.init -> void
+Tracon.ToolApprovalRuleRequest.Equals(Tracon.ToolApprovalRuleRequest? other) -> bool
+Tracon.ToolApprovalRuleRequest.ToolApprovalRuleRequest() -> void
+Tracon.ToolApprovalRuleRequest.ToolName.get -> string!
+Tracon.ToolApprovalRuleRequest.ToolName.init -> void
+Tracon.UploadDocumentChunk
+Tracon.UploadDocumentChunk.<Clone>$() -> Tracon.UploadDocumentChunk!
+Tracon.UploadDocumentChunk.Content.get -> string!
+Tracon.UploadDocumentChunk.Content.init -> void
+Tracon.UploadDocumentChunk.Embedding.get -> float[]?
+Tracon.UploadDocumentChunk.Embedding.init -> void
+Tracon.UploadDocumentChunk.Equals(Tracon.UploadDocumentChunk? other) -> bool
+Tracon.UploadDocumentChunk.Index.get -> int
+Tracon.UploadDocumentChunk.Index.init -> void
+Tracon.UploadDocumentChunk.Metadata.get -> System.Collections.Generic.IReadOnlyDictionary<string!, string!>?
+Tracon.UploadDocumentChunk.Metadata.init -> void
+Tracon.UploadDocumentChunk.UploadDocumentChunk() -> void
+Tracon.UploadDocumentRequest
+Tracon.UploadDocumentRequest.<Clone>$() -> Tracon.UploadDocumentRequest!
+Tracon.UploadDocumentRequest.Chunks.get -> System.Collections.Generic.IReadOnlyList<Tracon.UploadDocumentChunk!>?
+Tracon.UploadDocumentRequest.Chunks.init -> void
+Tracon.UploadDocumentRequest.Equals(Tracon.UploadDocumentRequest? other) -> bool
+Tracon.UploadDocumentRequest.SourceId.get -> string!
+Tracon.UploadDocumentRequest.SourceId.init -> void
+Tracon.UploadDocumentRequest.Text.get -> string?
+Tracon.UploadDocumentRequest.Text.init -> void
+Tracon.UploadDocumentRequest.UploadDocumentRequest() -> void
+Tracon.UploadDocumentResponse
+Tracon.UploadDocumentResponse.<Clone>$() -> Tracon.UploadDocumentResponse!
+Tracon.UploadDocumentResponse.ChunkCount.get -> int
+Tracon.UploadDocumentResponse.ChunkCount.init -> void
+Tracon.UploadDocumentResponse.Deconstruct(out string! SourceId, out int ChunkCount) -> void
+Tracon.UploadDocumentResponse.Equals(Tracon.UploadDocumentResponse? other) -> bool
+Tracon.UploadDocumentResponse.SourceId.get -> string!
+Tracon.UploadDocumentResponse.SourceId.init -> void
+Tracon.UploadDocumentResponse.UploadDocumentResponse(string! SourceId, int ChunkCount) -> void
+Tracon.WebhookSaveRequest
+Tracon.WebhookSaveRequest.<Clone>$() -> Tracon.WebhookSaveRequest!
+Tracon.WebhookSaveRequest.Enabled.get -> bool
+Tracon.WebhookSaveRequest.Enabled.init -> void
+Tracon.WebhookSaveRequest.Equals(Tracon.WebhookSaveRequest? other) -> bool
+Tracon.WebhookSaveRequest.Events.get -> System.Collections.Generic.IReadOnlyList<string!>?
+Tracon.WebhookSaveRequest.Events.init -> void
+Tracon.WebhookSaveRequest.Headers.get -> System.Collections.Generic.IReadOnlyDictionary<string!, string!>?
+Tracon.WebhookSaveRequest.Headers.init -> void
+Tracon.WebhookSaveRequest.SecretConfigurationKey.get -> string?
+Tracon.WebhookSaveRequest.SecretConfigurationKey.init -> void
+Tracon.WebhookSaveRequest.Url.get -> string?
+Tracon.WebhookSaveRequest.Url.init -> void
+Tracon.WebhookSaveRequest.WebhookSaveRequest() -> void
+Tracon.WebhookTestResponse
+Tracon.WebhookTestResponse.<Clone>$() -> Tracon.WebhookTestResponse!
+Tracon.WebhookTestResponse.Equals(Tracon.WebhookTestResponse? other) -> bool
+Tracon.WebhookTestResponse.Message.get -> string!
+Tracon.WebhookTestResponse.Message.init -> void
+Tracon.WebhookTestResponse.Name.get -> string!
+Tracon.WebhookTestResponse.Name.init -> void
+Tracon.WebhookTestResponse.Queued.get -> bool
+Tracon.WebhookTestResponse.Queued.init -> void
+Tracon.WebhookTestResponse.WebhookTestResponse() -> void
+Tracon.WorkflowFunctionResponse
+Tracon.WorkflowFunctionResponse.<Clone>$() -> Tracon.WorkflowFunctionResponse!
+Tracon.WorkflowFunctionResponse.Description.get -> string?
+Tracon.WorkflowFunctionResponse.Description.init -> void
+Tracon.WorkflowFunctionResponse.Equals(Tracon.WorkflowFunctionResponse? other) -> bool
+Tracon.WorkflowFunctionResponse.InputType.get -> string!
+Tracon.WorkflowFunctionResponse.InputType.init -> void
+Tracon.WorkflowFunctionResponse.Name.get -> string!
+Tracon.WorkflowFunctionResponse.Name.init -> void
+Tracon.WorkflowFunctionResponse.OutputType.get -> string!
+Tracon.WorkflowFunctionResponse.OutputType.init -> void
+Tracon.WorkflowFunctionResponse.WorkflowFunctionResponse() -> void
+Tracon.WorkflowRespondHttpRequest
+Tracon.WorkflowRespondHttpRequest.<Clone>$() -> Tracon.WorkflowRespondHttpRequest!
+Tracon.WorkflowRespondHttpRequest.Approved.get -> bool?
+Tracon.WorkflowRespondHttpRequest.Approved.init -> void
+Tracon.WorkflowRespondHttpRequest.CheckpointId.get -> string?
+Tracon.WorkflowRespondHttpRequest.CheckpointId.init -> void
+Tracon.WorkflowRespondHttpRequest.Data.get -> System.Text.Json.JsonElement?
+Tracon.WorkflowRespondHttpRequest.Data.init -> void
+Tracon.WorkflowRespondHttpRequest.Equals(Tracon.WorkflowRespondHttpRequest? other) -> bool
+Tracon.WorkflowRespondHttpRequest.RequestId.get -> string!
+Tracon.WorkflowRespondHttpRequest.RequestId.init -> void
+Tracon.WorkflowRespondHttpRequest.Text.get -> string?
+Tracon.WorkflowRespondHttpRequest.Text.init -> void
+Tracon.WorkflowRespondHttpRequest.WorkflowRespondHttpRequest() -> void
+Tracon.WorkflowResumeHttpRequest
+Tracon.WorkflowResumeHttpRequest.<Clone>$() -> Tracon.WorkflowResumeHttpRequest!
+Tracon.WorkflowResumeHttpRequest.CheckpointId.get -> string?
+Tracon.WorkflowResumeHttpRequest.CheckpointId.init -> void
+Tracon.WorkflowResumeHttpRequest.Equals(Tracon.WorkflowResumeHttpRequest? other) -> bool
+Tracon.WorkflowResumeHttpRequest.WorkflowResumeHttpRequest() -> void
+Tracon.WorkflowRunHttpRequest
+Tracon.WorkflowRunHttpRequest.<Clone>$() -> Tracon.WorkflowRunHttpRequest!
+Tracon.WorkflowRunHttpRequest.Equals(Tracon.WorkflowRunHttpRequest? other) -> bool
+Tracon.WorkflowRunHttpRequest.Message.get -> string?
+Tracon.WorkflowRunHttpRequest.Message.init -> void
+Tracon.WorkflowRunHttpRequest.SessionId.get -> string?
+Tracon.WorkflowRunHttpRequest.SessionId.init -> void
+Tracon.WorkflowRunHttpRequest.WorkflowRunHttpRequest() -> void
+Tracon.WorkflowSaveRequest
+Tracon.WorkflowSaveRequest.<Clone>$() -> Tracon.WorkflowSaveRequest!
+Tracon.WorkflowSaveRequest.AgentNames.get -> System.Collections.Generic.IReadOnlyList<string!>?
+Tracon.WorkflowSaveRequest.AgentNames.init -> void
+Tracon.WorkflowSaveRequest.Description.get -> string?
+Tracon.WorkflowSaveRequest.Description.init -> void
+Tracon.WorkflowSaveRequest.DisplayName.get -> string?
+Tracon.WorkflowSaveRequest.DisplayName.init -> void
+Tracon.WorkflowSaveRequest.Equals(Tracon.WorkflowSaveRequest? other) -> bool
+Tracon.WorkflowSaveRequest.HandoffInstructions.get -> string?
+Tracon.WorkflowSaveRequest.HandoffInstructions.init -> void
+Tracon.WorkflowSaveRequest.Kind.get -> Tracon.WorkflowKind
+Tracon.WorkflowSaveRequest.Kind.init -> void
+Tracon.WorkflowSaveRequest.ManagerAgentName.get -> string?
+Tracon.WorkflowSaveRequest.ManagerAgentName.init -> void
+Tracon.WorkflowSaveRequest.MaxIterations.get -> int?
+Tracon.WorkflowSaveRequest.MaxIterations.init -> void
+Tracon.WorkflowSaveRequest.Nodes.get -> System.Collections.Generic.IReadOnlyList<Tracon.WorkflowNodeReference!>?
+Tracon.WorkflowSaveRequest.Nodes.init -> void
+Tracon.WorkflowSaveRequest.RequirePlanApproval.get -> bool
+Tracon.WorkflowSaveRequest.RequirePlanApproval.init -> void
+Tracon.WorkflowSaveRequest.WorkflowSaveRequest() -> void
+const Tracon.TraconA2AExtensions.DefaultPattern = "/tracon/a2a" -> string!
+const Tracon.TraconEndpointRouteBuilderExtensions.DefaultPrefix = "/tracon" -> string!
+const Tracon.TraconMcpServerExtensions.DefaultPattern = "/tracon/mcp" -> string!
+const Tracon.TraconPolicies.Admin = "Tracon.Admin" -> string!
+const Tracon.TraconPolicies.Operator = "Tracon.Operator" -> string!
+const Tracon.TraconPolicies.Reader = "Tracon.Reader" -> string!
+override Tracon.AcceptedRunResponse.Equals(object? obj) -> bool
+override Tracon.AcceptedRunResponse.GetHashCode() -> int
+override Tracon.AcceptedRunResponse.ToString() -> string!
+override Tracon.AgentDefinitionRequest.Equals(object? obj) -> bool
+override Tracon.AgentDefinitionRequest.GetHashCode() -> int
+override Tracon.AgentDefinitionRequest.ToString() -> string!
+override Tracon.AgentDetailResponse.Equals(object? obj) -> bool
+override Tracon.AgentDetailResponse.GetHashCode() -> int
+override Tracon.AgentDetailResponse.ToString() -> string!
+override Tracon.TraconAgentSessionStore.DeleteSessionAsync(Microsoft.Agents.AI.AIAgent! agent, string! sessionStoreId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
+override Tracon.TraconAgentSessionStore.GetSessionAsync(Microsoft.Agents.AI.AIAgent! agent, string! sessionStoreId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Microsoft.Agents.AI.AgentSession!>
+override Tracon.TraconAgentSessionStore.SaveSessionAsync(Microsoft.Agents.AI.AIAgent! agent, string! sessionStoreId, Microsoft.Agents.AI.AgentSession! session, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
+override Tracon.TraconAuthenticationMeta.Equals(object? obj) -> bool
+override Tracon.TraconAuthenticationMeta.GetHashCode() -> int
+override Tracon.TraconAuthenticationMeta.ToString() -> string!
+override Tracon.TraconMetaResponse.Equals(object? obj) -> bool
+override Tracon.TraconMetaResponse.GetHashCode() -> int
+override Tracon.TraconMetaResponse.ToString() -> string!
+override Tracon.TraconRoleMeta.Equals(object? obj) -> bool
+override Tracon.TraconRoleMeta.GetHashCode() -> int
+override Tracon.TraconRoleMeta.ToString() -> string!
+override Tracon.TraconStorageMeta.Equals(object? obj) -> bool
+override Tracon.TraconStorageMeta.GetHashCode() -> int
+override Tracon.TraconStorageMeta.ToString() -> string!
+override Tracon.AgentRollbackRequest.Equals(object? obj) -> bool
+override Tracon.AgentRollbackRequest.GetHashCode() -> int
+override Tracon.AgentRollbackRequest.ToString() -> string!
+override Tracon.AgentRunRequest.Equals(object? obj) -> bool
+override Tracon.AgentRunRequest.GetHashCode() -> int
+override Tracon.AgentRunRequest.ToString() -> string!
+override Tracon.AgentSkillRequest.Equals(object? obj) -> bool
+override Tracon.AgentSkillRequest.GetHashCode() -> int
+override Tracon.AgentSkillRequest.ToString() -> string!
+override Tracon.AgentVersionDiffResponse.Equals(object? obj) -> bool
+override Tracon.AgentVersionDiffResponse.GetHashCode() -> int
+override Tracon.AgentVersionDiffResponse.ToString() -> string!
+override Tracon.ApiKeyCreateRequest.Equals(object? obj) -> bool
+override Tracon.ApiKeyCreateRequest.GetHashCode() -> int
+override Tracon.ApiKeyCreateRequest.ToString() -> string!
+override Tracon.ApprovalDecisionRequest.Equals(object? obj) -> bool
+override Tracon.ApprovalDecisionRequest.GetHashCode() -> int
+override Tracon.ApprovalDecisionRequest.ToString() -> string!
+override Tracon.ClientToolResult.Equals(object? obj) -> bool
+override Tracon.ClientToolResult.GetHashCode() -> int
+override Tracon.ClientToolResult.ToString() -> string!
+override Tracon.CurrentTenantResponse.Equals(object? obj) -> bool
+override Tracon.CurrentTenantResponse.GetHashCode() -> int
+override Tracon.CurrentTenantResponse.ToString() -> string!
+override Tracon.EvalCaseInput.Equals(object? obj) -> bool
+override Tracon.EvalCaseInput.GetHashCode() -> int
+override Tracon.EvalCaseInput.ToString() -> string!
+override Tracon.EvalCasePromotionRequest.Equals(object? obj) -> bool
+override Tracon.EvalCasePromotionRequest.GetHashCode() -> int
+override Tracon.EvalCasePromotionRequest.ToString() -> string!
+override Tracon.EvalRunDetailResponse.Equals(object? obj) -> bool
+override Tracon.EvalRunDetailResponse.GetHashCode() -> int
+override Tracon.EvalRunDetailResponse.ToString() -> string!
+override Tracon.EvalRunTriggerRequest.Equals(object? obj) -> bool
+override Tracon.EvalRunTriggerRequest.GetHashCode() -> int
+override Tracon.EvalRunTriggerRequest.ToString() -> string!
+override Tracon.EvalSuiteSaveRequest.Equals(object? obj) -> bool
+override Tracon.EvalSuiteSaveRequest.GetHashCode() -> int
+override Tracon.EvalSuiteSaveRequest.ToString() -> string!
+override Tracon.ExperimentCanaryResponse.Equals(object? obj) -> bool
+override Tracon.ExperimentCanaryResponse.GetHashCode() -> int
+override Tracon.ExperimentCanaryResponse.ToString() -> string!
+override Tracon.ExperimentResultsResponse.Equals(object? obj) -> bool
+override Tracon.ExperimentResultsResponse.GetHashCode() -> int
+override Tracon.ExperimentResultsResponse.ToString() -> string!
+override Tracon.ExperimentSaveRequest.Equals(object? obj) -> bool
+override Tracon.ExperimentSaveRequest.GetHashCode() -> int
+override Tracon.ExperimentSaveRequest.ToString() -> string!
+override Tracon.InboundTriggerAcceptedResponse.Equals(object? obj) -> bool
+override Tracon.InboundTriggerAcceptedResponse.GetHashCode() -> int
+override Tracon.InboundTriggerAcceptedResponse.ToString() -> string!
+override Tracon.InboundTriggerResponse.Equals(object? obj) -> bool
+override Tracon.InboundTriggerResponse.GetHashCode() -> int
+override Tracon.InboundTriggerResponse.ToString() -> string!
+override Tracon.InboundTriggerSaveRequest.Equals(object? obj) -> bool
+override Tracon.InboundTriggerSaveRequest.GetHashCode() -> int
+override Tracon.InboundTriggerSaveRequest.ToString() -> string!
+override Tracon.JobDetailResponse.Equals(object? obj) -> bool
+override Tracon.JobDetailResponse.GetHashCode() -> int
+override Tracon.JobDetailResponse.ToString() -> string!
+override Tracon.JobScheduleSaveRequest.Equals(object? obj) -> bool
+override Tracon.JobScheduleSaveRequest.GetHashCode() -> int
+override Tracon.JobScheduleSaveRequest.ToString() -> string!
+override Tracon.JobTriggerRequest.Equals(object? obj) -> bool
+override Tracon.JobTriggerRequest.GetHashCode() -> int
+override Tracon.JobTriggerRequest.ToString() -> string!
+override Tracon.LiveVoiceSessionCreateRequest.Equals(object? obj) -> bool
+override Tracon.LiveVoiceSessionCreateRequest.GetHashCode() -> int
+override Tracon.LiveVoiceSessionCreateRequest.ToString() -> string!
+override Tracon.LiveVoiceSessionCreateResponse.Equals(object? obj) -> bool
+override Tracon.LiveVoiceSessionCreateResponse.GetHashCode() -> int
+override Tracon.LiveVoiceSessionCreateResponse.ToString() -> string!
+override Tracon.LiveVoiceSessionStatusResponse.Equals(object? obj) -> bool
+override Tracon.LiveVoiceSessionStatusResponse.GetHashCode() -> int
+override Tracon.LiveVoiceSessionStatusResponse.ToString() -> string!
+override Tracon.McpOAuthStartResponse.Equals(object? obj) -> bool
+override Tracon.McpOAuthStartResponse.GetHashCode() -> int
+override Tracon.McpOAuthStartResponse.ToString() -> string!
+override Tracon.McpPromptArgumentsRequest.Equals(object? obj) -> bool
+override Tracon.McpPromptArgumentsRequest.GetHashCode() -> int
+override Tracon.McpPromptArgumentsRequest.ToString() -> string!
+override Tracon.McpRefreshResponse.Equals(object? obj) -> bool
+override Tracon.McpRefreshResponse.GetHashCode() -> int
+override Tracon.McpRefreshResponse.ToString() -> string!
+override Tracon.McpServerRequest.Equals(object? obj) -> bool
+override Tracon.McpServerRequest.GetHashCode() -> int
+override Tracon.McpServerRequest.ToString() -> string!
+override Tracon.QuotaSaveRequest.Equals(object? obj) -> bool
+override Tracon.QuotaSaveRequest.GetHashCode() -> int
+override Tracon.QuotaSaveRequest.ToString() -> string!
+override Tracon.QuotaUsageResponse.Equals(object? obj) -> bool
+override Tracon.QuotaUsageResponse.GetHashCode() -> int
+override Tracon.QuotaUsageResponse.ToString() -> string!
+override Tracon.RetentionPolicySaveRequest.Equals(object? obj) -> bool
+override Tracon.RetentionPolicySaveRequest.GetHashCode() -> int
+override Tracon.RetentionPolicySaveRequest.ToString() -> string!
+override Tracon.RetentionRunTriggerResponse.Equals(object? obj) -> bool
+override Tracon.RetentionRunTriggerResponse.GetHashCode() -> int
+override Tracon.RetentionRunTriggerResponse.ToString() -> string!
+override Tracon.RunComparisonResponse.Equals(object? obj) -> bool
+override Tracon.RunComparisonResponse.GetHashCode() -> int
+override Tracon.RunComparisonResponse.ToString() -> string!
+override Tracon.RunComparisonSide.Equals(object? obj) -> bool
+override Tracon.RunComparisonSide.GetHashCode() -> int
+override Tracon.RunComparisonSide.ToString() -> string!
+override Tracon.RunFeedbackRequest.Equals(object? obj) -> bool
+override Tracon.RunFeedbackRequest.GetHashCode() -> int
+override Tracon.RunFeedbackRequest.ToString() -> string!
+override Tracon.RunInputResponse.Equals(object? obj) -> bool
+override Tracon.RunInputResponse.GetHashCode() -> int
+override Tracon.RunInputResponse.ToString() -> string!
+override Tracon.RunReplayResponse.Equals(object? obj) -> bool
+override Tracon.RunReplayResponse.GetHashCode() -> int
+override Tracon.RunReplayResponse.ToString() -> string!
+override Tracon.SearchKnowledgeHit.Equals(object? obj) -> bool
+override Tracon.SearchKnowledgeHit.GetHashCode() -> int
+override Tracon.SearchKnowledgeHit.ToString() -> string!
+override Tracon.SearchKnowledgeRequest.Equals(object? obj) -> bool
+override Tracon.SearchKnowledgeRequest.GetHashCode() -> int
+override Tracon.SearchKnowledgeRequest.ToString() -> string!
+override Tracon.SessionDetailResponse.Equals(object? obj) -> bool
+override Tracon.SessionDetailResponse.GetHashCode() -> int
+override Tracon.SessionDetailResponse.ToString() -> string!
+override Tracon.SkillScriptGrantRequest.Equals(object? obj) -> bool
+override Tracon.SkillScriptGrantRequest.GetHashCode() -> int
+override Tracon.SkillScriptGrantRequest.ToString() -> string!
+override Tracon.TenantEgressPolicyRequest.Equals(object? obj) -> bool
+override Tracon.TenantEgressPolicyRequest.GetHashCode() -> int
+override Tracon.TenantEgressPolicyRequest.ToString() -> string!
+override Tracon.TenantEgressPolicyResponse.Equals(object? obj) -> bool
+override Tracon.TenantEgressPolicyResponse.GetHashCode() -> int
+override Tracon.TenantEgressPolicyResponse.ToString() -> string!
+override Tracon.TenantProviderBindingRequest.Equals(object? obj) -> bool
+override Tracon.TenantProviderBindingRequest.GetHashCode() -> int
+override Tracon.TenantProviderBindingRequest.ToString() -> string!
+override Tracon.TenantProviderBindingResponse.Equals(object? obj) -> bool
+override Tracon.TenantProviderBindingResponse.GetHashCode() -> int
+override Tracon.TenantProviderBindingResponse.ToString() -> string!
+override Tracon.TenantRequest.Equals(object? obj) -> bool
+override Tracon.TenantRequest.GetHashCode() -> int
+override Tracon.TenantRequest.ToString() -> string!
+override Tracon.ToolApprovalDecision.Equals(object? obj) -> bool
+override Tracon.ToolApprovalDecision.GetHashCode() -> int
+override Tracon.ToolApprovalDecision.ToString() -> string!
+override Tracon.ToolApprovalRuleRequest.Equals(object? obj) -> bool
+override Tracon.ToolApprovalRuleRequest.GetHashCode() -> int
+override Tracon.ToolApprovalRuleRequest.ToString() -> string!
+override Tracon.UploadDocumentChunk.Equals(object? obj) -> bool
+override Tracon.UploadDocumentChunk.GetHashCode() -> int
+override Tracon.UploadDocumentChunk.ToString() -> string!
+override Tracon.UploadDocumentRequest.Equals(object? obj) -> bool
+override Tracon.UploadDocumentRequest.GetHashCode() -> int
+override Tracon.UploadDocumentRequest.ToString() -> string!
+override Tracon.UploadDocumentResponse.Equals(object? obj) -> bool
+override Tracon.UploadDocumentResponse.GetHashCode() -> int
+override Tracon.UploadDocumentResponse.ToString() -> string!
+override Tracon.WebhookSaveRequest.Equals(object? obj) -> bool
+override Tracon.WebhookSaveRequest.GetHashCode() -> int
+override Tracon.WebhookSaveRequest.ToString() -> string!
+override Tracon.WebhookTestResponse.Equals(object? obj) -> bool
+override Tracon.WebhookTestResponse.GetHashCode() -> int
+override Tracon.WebhookTestResponse.ToString() -> string!
+override Tracon.WorkflowFunctionResponse.Equals(object? obj) -> bool
+override Tracon.WorkflowFunctionResponse.GetHashCode() -> int
+override Tracon.WorkflowFunctionResponse.ToString() -> string!
+override Tracon.WorkflowRespondHttpRequest.Equals(object? obj) -> bool
+override Tracon.WorkflowRespondHttpRequest.GetHashCode() -> int
+override Tracon.WorkflowRespondHttpRequest.ToString() -> string!
+override Tracon.WorkflowResumeHttpRequest.Equals(object? obj) -> bool
+override Tracon.WorkflowResumeHttpRequest.GetHashCode() -> int
+override Tracon.WorkflowResumeHttpRequest.ToString() -> string!
+override Tracon.WorkflowRunHttpRequest.Equals(object? obj) -> bool
+override Tracon.WorkflowRunHttpRequest.GetHashCode() -> int
+override Tracon.WorkflowRunHttpRequest.ToString() -> string!
+override Tracon.WorkflowSaveRequest.Equals(object? obj) -> bool
+override Tracon.WorkflowSaveRequest.GetHashCode() -> int
+override Tracon.WorkflowSaveRequest.ToString() -> string!
+static Tracon.AcceptedRunResponse.operator !=(Tracon.AcceptedRunResponse? left, Tracon.AcceptedRunResponse? right) -> bool
+static Tracon.AcceptedRunResponse.operator ==(Tracon.AcceptedRunResponse? left, Tracon.AcceptedRunResponse? right) -> bool
+static Tracon.AgentDefinitionRequest.operator !=(Tracon.AgentDefinitionRequest? left, Tracon.AgentDefinitionRequest? right) -> bool
+static Tracon.AgentDefinitionRequest.operator ==(Tracon.AgentDefinitionRequest? left, Tracon.AgentDefinitionRequest? right) -> bool
+static Tracon.AgentDetailResponse.operator !=(Tracon.AgentDetailResponse? left, Tracon.AgentDetailResponse? right) -> bool
+static Tracon.AgentDetailResponse.operator ==(Tracon.AgentDetailResponse? left, Tracon.AgentDetailResponse? right) -> bool
+static Tracon.TraconA2ABuilderExtensions.UseA2A(this Tracon.ITraconBuilder! builder, System.Action<Tracon.TraconA2AOptions!>? configure = null) -> Tracon.ITraconBuilder!
+static Tracon.TraconA2AExtensions.MapTraconA2A(this Microsoft.AspNetCore.Routing.IEndpointRouteBuilder! endpoints, string! pattern = "/tracon/a2a") -> Microsoft.AspNetCore.Builder.IEndpointConventionBuilder!
+static Tracon.TraconAuthenticationMeta.operator !=(Tracon.TraconAuthenticationMeta? left, Tracon.TraconAuthenticationMeta? right) -> bool
+static Tracon.TraconAuthenticationMeta.operator ==(Tracon.TraconAuthenticationMeta? left, Tracon.TraconAuthenticationMeta? right) -> bool
+static Tracon.TraconEndpointRouteBuilderExtensions.MapTracon(this Microsoft.AspNetCore.Routing.IEndpointRouteBuilder! endpoints, string! prefix = "/tracon", System.Action<Tracon.TraconEndpointOptions!>? configure = null) -> Microsoft.AspNetCore.Builder.IEndpointConventionBuilder!
+static Tracon.TraconHealthCheckExtensions.AddTraconHealthChecks(this Microsoft.Extensions.DependencyInjection.IHealthChecksBuilder! builder, string! name = "tracon", System.Collections.Generic.IEnumerable<string!>? tags = null) -> Microsoft.Extensions.DependencyInjection.IHealthChecksBuilder!
+static Tracon.TraconMcpServerBuilderExtensions.UseMcpServer(this Tracon.ITraconBuilder! builder, System.Action<Tracon.TraconMcpServerOptions!>? configure = null) -> Tracon.ITraconBuilder!
+static Tracon.TraconMcpServerExtensions.MapTraconMcpServer(this Microsoft.AspNetCore.Routing.IEndpointRouteBuilder! endpoints, string! pattern = "/tracon/mcp") -> Microsoft.AspNetCore.Builder.IEndpointConventionBuilder!
+static Tracon.TraconMetaResponse.operator !=(Tracon.TraconMetaResponse? left, Tracon.TraconMetaResponse? right) -> bool
+static Tracon.TraconMetaResponse.operator ==(Tracon.TraconMetaResponse? left, Tracon.TraconMetaResponse? right) -> bool
+static Tracon.TraconRoleMeta.operator !=(Tracon.TraconRoleMeta? left, Tracon.TraconRoleMeta? right) -> bool
+static Tracon.TraconRoleMeta.operator ==(Tracon.TraconRoleMeta? left, Tracon.TraconRoleMeta? right) -> bool
+static Tracon.TraconStorageMeta.operator !=(Tracon.TraconStorageMeta? left, Tracon.TraconStorageMeta? right) -> bool
+static Tracon.TraconStorageMeta.operator ==(Tracon.TraconStorageMeta? left, Tracon.TraconStorageMeta? right) -> bool
+static Tracon.TraconTenancyBuilderExtensions.UseTenancy(this Tracon.ITraconBuilder! builder, System.Action<Tracon.TraconTenancyOptions!>! configure) -> Tracon.ITraconBuilder!
+static Tracon.AgentRollbackRequest.operator !=(Tracon.AgentRollbackRequest? left, Tracon.AgentRollbackRequest? right) -> bool
+static Tracon.AgentRollbackRequest.operator ==(Tracon.AgentRollbackRequest? left, Tracon.AgentRollbackRequest? right) -> bool
+static Tracon.AgentRunRequest.operator !=(Tracon.AgentRunRequest? left, Tracon.AgentRunRequest? right) -> bool
+static Tracon.AgentRunRequest.operator ==(Tracon.AgentRunRequest? left, Tracon.AgentRunRequest? right) -> bool
+static Tracon.AgentSkillRequest.operator !=(Tracon.AgentSkillRequest? left, Tracon.AgentSkillRequest? right) -> bool
+static Tracon.AgentSkillRequest.operator ==(Tracon.AgentSkillRequest? left, Tracon.AgentSkillRequest? right) -> bool
+static Tracon.AgentVersionDiffResponse.operator !=(Tracon.AgentVersionDiffResponse? left, Tracon.AgentVersionDiffResponse? right) -> bool
+static Tracon.AgentVersionDiffResponse.operator ==(Tracon.AgentVersionDiffResponse? left, Tracon.AgentVersionDiffResponse? right) -> bool
+static Tracon.ApiKeyCreateRequest.operator !=(Tracon.ApiKeyCreateRequest? left, Tracon.ApiKeyCreateRequest? right) -> bool
+static Tracon.ApiKeyCreateRequest.operator ==(Tracon.ApiKeyCreateRequest? left, Tracon.ApiKeyCreateRequest? right) -> bool
+static Tracon.ApprovalDecisionRequest.operator !=(Tracon.ApprovalDecisionRequest? left, Tracon.ApprovalDecisionRequest? right) -> bool
+static Tracon.ApprovalDecisionRequest.operator ==(Tracon.ApprovalDecisionRequest? left, Tracon.ApprovalDecisionRequest? right) -> bool
+static Tracon.ClientToolResult.operator !=(Tracon.ClientToolResult? left, Tracon.ClientToolResult? right) -> bool
+static Tracon.ClientToolResult.operator ==(Tracon.ClientToolResult? left, Tracon.ClientToolResult? right) -> bool
+static Tracon.CurrentTenantResponse.operator !=(Tracon.CurrentTenantResponse? left, Tracon.CurrentTenantResponse? right) -> bool
+static Tracon.CurrentTenantResponse.operator ==(Tracon.CurrentTenantResponse? left, Tracon.CurrentTenantResponse? right) -> bool
+static Tracon.EvalCaseInput.operator !=(Tracon.EvalCaseInput? left, Tracon.EvalCaseInput? right) -> bool
+static Tracon.EvalCaseInput.operator ==(Tracon.EvalCaseInput? left, Tracon.EvalCaseInput? right) -> bool
+static Tracon.EvalCasePromotionRequest.operator !=(Tracon.EvalCasePromotionRequest? left, Tracon.EvalCasePromotionRequest? right) -> bool
+static Tracon.EvalCasePromotionRequest.operator ==(Tracon.EvalCasePromotionRequest? left, Tracon.EvalCasePromotionRequest? right) -> bool
+static Tracon.EvalRunDetailResponse.operator !=(Tracon.EvalRunDetailResponse? left, Tracon.EvalRunDetailResponse? right) -> bool
+static Tracon.EvalRunDetailResponse.operator ==(Tracon.EvalRunDetailResponse? left, Tracon.EvalRunDetailResponse? right) -> bool
+static Tracon.EvalRunTriggerRequest.operator !=(Tracon.EvalRunTriggerRequest? left, Tracon.EvalRunTriggerRequest? right) -> bool
+static Tracon.EvalRunTriggerRequest.operator ==(Tracon.EvalRunTriggerRequest? left, Tracon.EvalRunTriggerRequest? right) -> bool
+static Tracon.EvalSuiteSaveRequest.operator !=(Tracon.EvalSuiteSaveRequest? left, Tracon.EvalSuiteSaveRequest? right) -> bool
+static Tracon.EvalSuiteSaveRequest.operator ==(Tracon.EvalSuiteSaveRequest? left, Tracon.EvalSuiteSaveRequest? right) -> bool
+static Tracon.ExperimentCanaryResponse.operator !=(Tracon.ExperimentCanaryResponse? left, Tracon.ExperimentCanaryResponse? right) -> bool
+static Tracon.ExperimentCanaryResponse.operator ==(Tracon.ExperimentCanaryResponse? left, Tracon.ExperimentCanaryResponse? right) -> bool
+static Tracon.ExperimentResultsResponse.operator !=(Tracon.ExperimentResultsResponse? left, Tracon.ExperimentResultsResponse? right) -> bool
+static Tracon.ExperimentResultsResponse.operator ==(Tracon.ExperimentResultsResponse? left, Tracon.ExperimentResultsResponse? right) -> bool
+static Tracon.ExperimentSaveRequest.operator !=(Tracon.ExperimentSaveRequest? left, Tracon.ExperimentSaveRequest? right) -> bool
+static Tracon.ExperimentSaveRequest.operator ==(Tracon.ExperimentSaveRequest? left, Tracon.ExperimentSaveRequest? right) -> bool
+static Tracon.HttpTenantContext.IsValidTenantId(string? tenantId) -> bool
+static Tracon.InboundTriggerAcceptedResponse.operator !=(Tracon.InboundTriggerAcceptedResponse? left, Tracon.InboundTriggerAcceptedResponse? right) -> bool
+static Tracon.InboundTriggerAcceptedResponse.operator ==(Tracon.InboundTriggerAcceptedResponse? left, Tracon.InboundTriggerAcceptedResponse? right) -> bool
+static Tracon.InboundTriggerResponse.operator !=(Tracon.InboundTriggerResponse? left, Tracon.InboundTriggerResponse? right) -> bool
+static Tracon.InboundTriggerResponse.operator ==(Tracon.InboundTriggerResponse? left, Tracon.InboundTriggerResponse? right) -> bool
+static Tracon.InboundTriggerSaveRequest.operator !=(Tracon.InboundTriggerSaveRequest? left, Tracon.InboundTriggerSaveRequest? right) -> bool
+static Tracon.InboundTriggerSaveRequest.operator ==(Tracon.InboundTriggerSaveRequest? left, Tracon.InboundTriggerSaveRequest? right) -> bool
+static Tracon.JobDetailResponse.operator !=(Tracon.JobDetailResponse? left, Tracon.JobDetailResponse? right) -> bool
+static Tracon.JobDetailResponse.operator ==(Tracon.JobDetailResponse? left, Tracon.JobDetailResponse? right) -> bool
+static Tracon.JobScheduleSaveRequest.operator !=(Tracon.JobScheduleSaveRequest? left, Tracon.JobScheduleSaveRequest? right) -> bool
+static Tracon.JobScheduleSaveRequest.operator ==(Tracon.JobScheduleSaveRequest? left, Tracon.JobScheduleSaveRequest? right) -> bool
+static Tracon.JobTriggerRequest.operator !=(Tracon.JobTriggerRequest? left, Tracon.JobTriggerRequest? right) -> bool
+static Tracon.JobTriggerRequest.operator ==(Tracon.JobTriggerRequest? left, Tracon.JobTriggerRequest? right) -> bool
+static Tracon.LiveVoiceSessionCreateRequest.operator !=(Tracon.LiveVoiceSessionCreateRequest? left, Tracon.LiveVoiceSessionCreateRequest? right) -> bool
+static Tracon.LiveVoiceSessionCreateRequest.operator ==(Tracon.LiveVoiceSessionCreateRequest? left, Tracon.LiveVoiceSessionCreateRequest? right) -> bool
+static Tracon.LiveVoiceSessionCreateResponse.operator !=(Tracon.LiveVoiceSessionCreateResponse? left, Tracon.LiveVoiceSessionCreateResponse? right) -> bool
+static Tracon.LiveVoiceSessionCreateResponse.operator ==(Tracon.LiveVoiceSessionCreateResponse? left, Tracon.LiveVoiceSessionCreateResponse? right) -> bool
+static Tracon.LiveVoiceSessionStatusResponse.operator !=(Tracon.LiveVoiceSessionStatusResponse? left, Tracon.LiveVoiceSessionStatusResponse? right) -> bool
+static Tracon.LiveVoiceSessionStatusResponse.operator ==(Tracon.LiveVoiceSessionStatusResponse? left, Tracon.LiveVoiceSessionStatusResponse? right) -> bool
+static Tracon.McpOAuthStartResponse.operator !=(Tracon.McpOAuthStartResponse? left, Tracon.McpOAuthStartResponse? right) -> bool
+static Tracon.McpOAuthStartResponse.operator ==(Tracon.McpOAuthStartResponse? left, Tracon.McpOAuthStartResponse? right) -> bool
+static Tracon.McpPromptArgumentsRequest.operator !=(Tracon.McpPromptArgumentsRequest? left, Tracon.McpPromptArgumentsRequest? right) -> bool
+static Tracon.McpPromptArgumentsRequest.operator ==(Tracon.McpPromptArgumentsRequest? left, Tracon.McpPromptArgumentsRequest? right) -> bool
+static Tracon.McpRefreshResponse.operator !=(Tracon.McpRefreshResponse? left, Tracon.McpRefreshResponse? right) -> bool
+static Tracon.McpRefreshResponse.operator ==(Tracon.McpRefreshResponse? left, Tracon.McpRefreshResponse? right) -> bool
+static Tracon.McpServerRequest.operator !=(Tracon.McpServerRequest? left, Tracon.McpServerRequest? right) -> bool
+static Tracon.McpServerRequest.operator ==(Tracon.McpServerRequest? left, Tracon.McpServerRequest? right) -> bool
+static Tracon.QuotaSaveRequest.operator !=(Tracon.QuotaSaveRequest? left, Tracon.QuotaSaveRequest? right) -> bool
+static Tracon.QuotaSaveRequest.operator ==(Tracon.QuotaSaveRequest? left, Tracon.QuotaSaveRequest? right) -> bool
+static Tracon.QuotaUsageResponse.operator !=(Tracon.QuotaUsageResponse? left, Tracon.QuotaUsageResponse? right) -> bool
+static Tracon.QuotaUsageResponse.operator ==(Tracon.QuotaUsageResponse? left, Tracon.QuotaUsageResponse? right) -> bool
+static Tracon.RetentionPolicySaveRequest.operator !=(Tracon.RetentionPolicySaveRequest? left, Tracon.RetentionPolicySaveRequest? right) -> bool
+static Tracon.RetentionPolicySaveRequest.operator ==(Tracon.RetentionPolicySaveRequest? left, Tracon.RetentionPolicySaveRequest? right) -> bool
+static Tracon.RetentionRunTriggerResponse.operator !=(Tracon.RetentionRunTriggerResponse? left, Tracon.RetentionRunTriggerResponse? right) -> bool
+static Tracon.RetentionRunTriggerResponse.operator ==(Tracon.RetentionRunTriggerResponse? left, Tracon.RetentionRunTriggerResponse? right) -> bool
+static Tracon.RunComparisonResponse.operator !=(Tracon.RunComparisonResponse? left, Tracon.RunComparisonResponse? right) -> bool
+static Tracon.RunComparisonResponse.operator ==(Tracon.RunComparisonResponse? left, Tracon.RunComparisonResponse? right) -> bool
+static Tracon.RunComparisonSide.operator !=(Tracon.RunComparisonSide? left, Tracon.RunComparisonSide? right) -> bool
+static Tracon.RunComparisonSide.operator ==(Tracon.RunComparisonSide? left, Tracon.RunComparisonSide? right) -> bool
+static Tracon.RunFeedbackRequest.operator !=(Tracon.RunFeedbackRequest? left, Tracon.RunFeedbackRequest? right) -> bool
+static Tracon.RunFeedbackRequest.operator ==(Tracon.RunFeedbackRequest? left, Tracon.RunFeedbackRequest? right) -> bool
+static Tracon.RunInputResponse.operator !=(Tracon.RunInputResponse? left, Tracon.RunInputResponse? right) -> bool
+static Tracon.RunInputResponse.operator ==(Tracon.RunInputResponse? left, Tracon.RunInputResponse? right) -> bool
+static Tracon.RunReplayResponse.operator !=(Tracon.RunReplayResponse? left, Tracon.RunReplayResponse? right) -> bool
+static Tracon.RunReplayResponse.operator ==(Tracon.RunReplayResponse? left, Tracon.RunReplayResponse? right) -> bool
+static Tracon.SearchKnowledgeHit.operator !=(Tracon.SearchKnowledgeHit? left, Tracon.SearchKnowledgeHit? right) -> bool
+static Tracon.SearchKnowledgeHit.operator ==(Tracon.SearchKnowledgeHit? left, Tracon.SearchKnowledgeHit? right) -> bool
+static Tracon.SearchKnowledgeRequest.operator !=(Tracon.SearchKnowledgeRequest? left, Tracon.SearchKnowledgeRequest? right) -> bool
+static Tracon.SearchKnowledgeRequest.operator ==(Tracon.SearchKnowledgeRequest? left, Tracon.SearchKnowledgeRequest? right) -> bool
+static Tracon.SessionDetailResponse.operator !=(Tracon.SessionDetailResponse? left, Tracon.SessionDetailResponse? right) -> bool
+static Tracon.SessionDetailResponse.operator ==(Tracon.SessionDetailResponse? left, Tracon.SessionDetailResponse? right) -> bool
+static Tracon.SkillScriptGrantRequest.operator !=(Tracon.SkillScriptGrantRequest? left, Tracon.SkillScriptGrantRequest? right) -> bool
+static Tracon.SkillScriptGrantRequest.operator ==(Tracon.SkillScriptGrantRequest? left, Tracon.SkillScriptGrantRequest? right) -> bool
+static Tracon.TenantEgressPolicyRequest.operator !=(Tracon.TenantEgressPolicyRequest? left, Tracon.TenantEgressPolicyRequest? right) -> bool
+static Tracon.TenantEgressPolicyRequest.operator ==(Tracon.TenantEgressPolicyRequest? left, Tracon.TenantEgressPolicyRequest? right) -> bool
+static Tracon.TenantEgressPolicyResponse.operator !=(Tracon.TenantEgressPolicyResponse? left, Tracon.TenantEgressPolicyResponse? right) -> bool
+static Tracon.TenantEgressPolicyResponse.operator ==(Tracon.TenantEgressPolicyResponse? left, Tracon.TenantEgressPolicyResponse? right) -> bool
+static Tracon.TenantProviderBindingRequest.operator !=(Tracon.TenantProviderBindingRequest? left, Tracon.TenantProviderBindingRequest? right) -> bool
+static Tracon.TenantProviderBindingRequest.operator ==(Tracon.TenantProviderBindingRequest? left, Tracon.TenantProviderBindingRequest? right) -> bool
+static Tracon.TenantProviderBindingResponse.operator !=(Tracon.TenantProviderBindingResponse? left, Tracon.TenantProviderBindingResponse? right) -> bool
+static Tracon.TenantProviderBindingResponse.operator ==(Tracon.TenantProviderBindingResponse? left, Tracon.TenantProviderBindingResponse? right) -> bool
+static Tracon.TenantRequest.operator !=(Tracon.TenantRequest? left, Tracon.TenantRequest? right) -> bool
+static Tracon.TenantRequest.operator ==(Tracon.TenantRequest? left, Tracon.TenantRequest? right) -> bool
+static Tracon.ToolApprovalDecision.operator !=(Tracon.ToolApprovalDecision? left, Tracon.ToolApprovalDecision? right) -> bool
+static Tracon.ToolApprovalDecision.operator ==(Tracon.ToolApprovalDecision? left, Tracon.ToolApprovalDecision? right) -> bool
+static Tracon.ToolApprovalRuleRequest.operator !=(Tracon.ToolApprovalRuleRequest? left, Tracon.ToolApprovalRuleRequest? right) -> bool
+static Tracon.ToolApprovalRuleRequest.operator ==(Tracon.ToolApprovalRuleRequest? left, Tracon.ToolApprovalRuleRequest? right) -> bool
+static Tracon.UploadDocumentChunk.operator !=(Tracon.UploadDocumentChunk? left, Tracon.UploadDocumentChunk? right) -> bool
+static Tracon.UploadDocumentChunk.operator ==(Tracon.UploadDocumentChunk? left, Tracon.UploadDocumentChunk? right) -> bool
+static Tracon.UploadDocumentRequest.operator !=(Tracon.UploadDocumentRequest? left, Tracon.UploadDocumentRequest? right) -> bool
+static Tracon.UploadDocumentRequest.operator ==(Tracon.UploadDocumentRequest? left, Tracon.UploadDocumentRequest? right) -> bool
+static Tracon.UploadDocumentResponse.operator !=(Tracon.UploadDocumentResponse? left, Tracon.UploadDocumentResponse? right) -> bool
+static Tracon.UploadDocumentResponse.operator ==(Tracon.UploadDocumentResponse? left, Tracon.UploadDocumentResponse? right) -> bool
+static Tracon.WebhookSaveRequest.operator !=(Tracon.WebhookSaveRequest? left, Tracon.WebhookSaveRequest? right) -> bool
+static Tracon.WebhookSaveRequest.operator ==(Tracon.WebhookSaveRequest? left, Tracon.WebhookSaveRequest? right) -> bool
+static Tracon.WebhookTestResponse.operator !=(Tracon.WebhookTestResponse? left, Tracon.WebhookTestResponse? right) -> bool
+static Tracon.WebhookTestResponse.operator ==(Tracon.WebhookTestResponse? left, Tracon.WebhookTestResponse? right) -> bool
+static Tracon.WorkflowFunctionResponse.From(Tracon.WorkflowFunctionDescriptor! descriptor) -> Tracon.WorkflowFunctionResponse!
+static Tracon.WorkflowFunctionResponse.operator !=(Tracon.WorkflowFunctionResponse? left, Tracon.WorkflowFunctionResponse? right) -> bool
+static Tracon.WorkflowFunctionResponse.operator ==(Tracon.WorkflowFunctionResponse? left, Tracon.WorkflowFunctionResponse? right) -> bool
+static Tracon.WorkflowRespondHttpRequest.operator !=(Tracon.WorkflowRespondHttpRequest? left, Tracon.WorkflowRespondHttpRequest? right) -> bool
+static Tracon.WorkflowRespondHttpRequest.operator ==(Tracon.WorkflowRespondHttpRequest? left, Tracon.WorkflowRespondHttpRequest? right) -> bool
+static Tracon.WorkflowResumeHttpRequest.operator !=(Tracon.WorkflowResumeHttpRequest? left, Tracon.WorkflowResumeHttpRequest? right) -> bool
+static Tracon.WorkflowResumeHttpRequest.operator ==(Tracon.WorkflowResumeHttpRequest? left, Tracon.WorkflowResumeHttpRequest? right) -> bool
+static Tracon.WorkflowRunHttpRequest.operator !=(Tracon.WorkflowRunHttpRequest? left, Tracon.WorkflowRunHttpRequest? right) -> bool
+static Tracon.WorkflowRunHttpRequest.operator ==(Tracon.WorkflowRunHttpRequest? left, Tracon.WorkflowRunHttpRequest? right) -> bool
+static Tracon.WorkflowSaveRequest.operator !=(Tracon.WorkflowSaveRequest? left, Tracon.WorkflowSaveRequest? right) -> bool
+static Tracon.WorkflowSaveRequest.operator ==(Tracon.WorkflowSaveRequest? left, Tracon.WorkflowSaveRequest? right) -> bool

@@ -3,7 +3,7 @@
 > **Durum:** ✅ Tamamlandı (2026-08-18)
 > **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-108**, **F-64**
 > **Önkoşul:** [Faz 53](53-KIRACI-API-ANAHTARLARI.md) — tarayıcıya yönetim token'ı konulamaz, kapsamlı anahtar şart · [Faz 55](55-ASENKRON-ONAY-KUTUSU.md) — sonuç kanalının emsali · [Faz 48](48-GUARDRAILS.md) — istemciden gelen sonuç guard'dan geçer
-> **Paketler:** `AgentPrism.Abstractions`, `AgentPrism.Core`, `AgentPrism.AspNetCore`, `AgentPrism.UI`
+> **Paketler:** `Tracon.Abstractions`, `Tracon.Core`, `Tracon.AspNetCore`, `Tracon.UI`
 > **Yeni paket:** Yok · **Migration:** Yok — senkron kanal seçildi, bekleyen çağrı tablosu **yoktur** (Açık Soru 1'in kullanıcı kararı)
 > **Public API:** büyüyor **ve bir imza genişliyor** — `PublicAPI.Shipped.txt` bugün **boş** (ölçüldü: 1 satır), `EnablePublicApiTracking` `true`. Kırıcı sayılan değişiklik bugün **bedava**, ilk yayından sonra değil
 > **Site etkisi:** `ui.md` (gömülebilir bileşen bölümü), `capabilities.md`, yeni `guides/client-side-tools.md` + ekran görüntüsü
@@ -34,26 +34,26 @@ Paketi kullanan bir arka uç servisi, agent'ının **tarayıcıda** çalışan b
 
 - [x] Kodda kayıtlı bir istemci tool'u modele gider, **sunucuda çalışmaz**, `FunctionCallContent` çağırana döner — gerçek OpenAI çağrısıyla doğrulandı (aşağıda)
 - [x] `toolResults` ile gönderilen sonuç turu tamamlar; nihai yanıt sonucu kullanır — gerçek OpenAI çağrısıyla doğrulandı (aşağıda)
-- [x] `sessionId` yokken, kuyruk yolunda, bilinmeyen `callId` ile ve ikinci kez gönderimde sırasıyla `400`/`400`/`400`/`409` — `ClientToolEndpointTests` (9 test) + `samples/AgentPrism.Api` üzerinde `curl` ile doğrulandı
+- [x] `sessionId` yokken, kuyruk yolunda, bilinmeyen `callId` ile ve ikinci kez gönderimde sırasıyla `400`/`400`/`400`/`409` — `ClientToolEndpointTests` (9 test) + `samples/Tracon.Api` üzerinde `curl` ile doğrulandı
 - [x] İstemciden gelen sonuç guard boru hattından geçer (engellenen desen maskelenir) — `ClientToolGuardTests`, `422` + `errorType: content_blocked`, yasaklı terim yanıt gövdesinde yok
 - [x] Başka kiracının çalıştırmasına sonuç yazılamaz — `ClientToolEndpointTests.Another_tenants_pending_call_cannot_be_answered` + `SessionStoreContract : TenantIsolationContract<ISessionStore>` (dört sağlayıcı, mevcut kanıt — Denetim Bulguları #9)
-- [x] `AllowedOrigins` boşken CORS başlığı **yollanmaz**; `AllowAnyOrigin` API'si **yoktur** — `CorsOptionsTests` (5 test) + `samples/AgentPrism.Api` üzerinde `curl` ile doğrulandı
+- [x] `AllowedOrigins` boşken CORS başlığı **yollanmaz**; `AllowAnyOrigin` API'si **yoktur** — `CorsOptionsTests` (5 test) + `samples/Tracon.Api` üzerinde `curl` ile doğrulandı
 - [x] Gömülebilir bileşen ayrı çıktıdır ve < 30 KB gzip; kapı sayıyı build çıktısına yazar — ölçüldü: **2,7 KB gzip** (`postbuild-embed.mjs`)
 - [x] Kontrol düzlemi bundle'ı 250 KB gzip altında; yeni pay ölçülüp belgeye yazıldı — ölçüldü: **165,7 KB gzip** (önceki: 165,4 KB — `runsOnClient` rozeti ve iki yeni anahtar +0,3 KB)
 - [x] Dört doğrulama kapısı sıfır uyarı verir — `build`/`test`/`pack`/`format` dördü de bu oturumda koşuldu, dördü de temiz
-- [x] `samples/AgentPrism.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı — aşağıda
+- [x] `samples/Tracon.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı — aşağıda
 - [x] `secret` taraması boş döndü — `faz-tamamlama` Adım 1'in deseni koşuldu, bu fazda dokunulan dosyalarda eşleşme yok
-- [x] Manuel kabul case'leri `docs/manuel-test/26-ISTEMCI-TOOLLARI-VE-GOMULEBILIR.md` içine eklendi; otomatikleştirilebilenler koşuldu — 13 case (MT-IST-001…013), `curl` ile koşulabilenler `samples/AgentPrism.Api` üzerinde gerçek OpenAI çağrısıyla teyit edildi; MT-IST-012 (tarayıcı etkileşimi) 👤 insan gerektirir olarak işaretli — otomatik karşılığı `UiTests.Embed_widget_runs_a_client_side_tool_and_completes_the_turn_in_a_real_browser`'dır
+- [x] Manuel kabul case'leri `docs/manuel-test/26-ISTEMCI-TOOLLARI-VE-GOMULEBILIR.md` içine eklendi; otomatikleştirilebilenler koşuldu — 13 case (MT-IST-001…013), `curl` ile koşulabilenler `samples/Tracon.Api` üzerinde gerçek OpenAI çağrısıyla teyit edildi; MT-IST-012 (tarayıcı etkileşimi) 👤 insan gerektirir olarak işaretli — otomatik karşılığı `UiTests.Embed_widget_runs_a_client_side_tool_and_completes_the_turn_in_a_real_browser`'dır
 - [x] `faz-denetim` koşuldu; 🔴 bulgu kalmadı — iki 🔴 bulundu ve **düzeltildi** (Denetim Bulguları bölümü); ikinci koşumda 🔴 yok
 - [x] `docs-site/` güncellendi (`ui.md`, `capabilities.md`, `guides/client-side-tools.md`); `npm run build` + `check-links.mjs` temiz — `892 sayfa, 0 kırık bağlantı`; API/HTTP referansı `npm run generate` ile tazelendi (aynı geçişte 604 bayat senkronizasyon kopyası da temizlendi — Faz 61'den önceydi, bu fazın hatası değil)
 - [x] `en.ts` ve `tr.ts` eksiksiz (K-228) — `tsc --noEmit` + `i18n.test.ts` (16 test) temiz; widget'ın kendi sözlüğü ayrı, `SourceLanguageTests` istisnasıyla (Denetim Bulgusu #1)
 
 ### Doğrulama komutları — gerçek çıktı
 
-`samples/AgentPrism.Api` üzerinde, gerçek bir OpenAI çağrısıyla (`gpt-5.4-mini`), `support` agent'ının `read_shopping_cart` istemci tool'uyla koşuldu:
+`samples/Tracon.Api` üzerinde, gerçek bir OpenAI çağrısıyla (`gpt-5.4-mini`), `support` agent'ının `read_shopping_cart` istemci tool'uyla koşuldu:
 
 ```bash
-$ curl -s -X POST http://localhost:5080/agentprism/api/agents/support/run \
+$ curl -s -X POST http://localhost:5080/tracon/api/agents/support/run \
   -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
   -H 'Idempotency-Key: e2e-key-1' \
   -d '{"sessionId":"e2e-manual-1","message":"What is in my shopping cart right now?"}'
@@ -78,7 +78,7 @@ $ curl -s -X POST http://localhost:5080/agentprism/api/agents/support/run \
 `FunctionCallContent` döndü; `read_shopping_cart`'ın **çalıştığına dair sunucu logunda hiçbir iz yoktu** (K2 doğrulandı).
 
 ```bash
-$ curl -s -X POST http://localhost:5080/agentprism/api/agents/support/run \
+$ curl -s -X POST http://localhost:5080/tracon/api/agents/support/run \
   -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
   -H 'Idempotency-Key: e2e-key-2' \
   -d '{"sessionId":"e2e-manual-1","toolResults":[{"callId":"call_qbyUNWHadUVfjzaNXC1AxypY","result":"2x Wireless Mouse, 1x USB-C Cable"}]}'
@@ -100,15 +100,15 @@ $ curl -s -X POST http://localhost:5080/agentprism/api/agents/support/run \
 Tur tamamlandı; model sonucu doğru kullandı.
 
 ```bash
-$ curl -s -o /dev/null -w "%{http_code}\n" -X POST http://localhost:5080/agentprism/api/agents/support/run \
+$ curl -s -o /dev/null -w "%{http_code}\n" -X POST http://localhost:5080/tracon/api/agents/support/run \
   -H "Authorization: Bearer $TOKEN" -H 'Prefer: respond-async' -H 'Content-Type: application/json' \
   -d '{"sessionId":"e2e-manual-1","toolResults":[{"callId":"x","result":"y"}]}'
 400
 
-$ curl -s -o /dev/null -w "%{http_code} %{content_type}\n" http://localhost:5080/agentprism/embed/embed.js
+$ curl -s -o /dev/null -w "%{http_code} %{content_type}\n" http://localhost:5080/tracon/embed/embed.js
 200 text/javascript; charset=utf-8
 
-$ curl -s -D - -o /dev/null http://localhost:5080/agentprism/api/meta -H "Origin: https://shop.example.com" | grep -i access-control
+$ curl -s -D - -o /dev/null http://localhost:5080/tracon/api/meta -H "Origin: https://shop.example.com" | grep -i access-control
 (çıktı boş — beklenen, AllowedOrigins yapılandırılmadı)
 ```
 
@@ -119,7 +119,7 @@ $ curl -s -D - -o /dev/null http://localhost:5080/agentprism/api/meta -H "Origin
 Sekiz kalem — hepsi ölçülerek keşfedildi, K-435…K-443 olarak kayıtlı (bkz. bir
 sonraki bölüm). Özet:
 
-1. **`IToolRegistry`/`AgentPrismToolRegistration` `AITool`'a değil
+1. **`IToolRegistry`/`TraconToolRegistration` `AITool`'a değil
    `AIFunctionDeclaration`'a genişledi** (K-435). Plan `AITool` öngörüyordu;
    ölçüldü ki `AITool`'un kendisi `.JsonSchema` taşımıyor, yalnız
    `AIFunctionDeclaration` (ve onun altındaki `AIFunction`) taşıyor.
@@ -129,7 +129,7 @@ sonraki bölüm). Özet:
 3. **`FunctionResultContent` `ChatRole.Tool` altında gönderiliyor**, plan bunu
    hiç belirtmiyordu (K-437). Gerçek bir OpenAI çağrısıyla ölçüldü.
 4. **CORS, `services.AddCors()` OLMADAN elle kurulan `CorsService`/`CorsMiddleware`
-   ile uygulandı** (K-438). Plan bu kısıtı öngörmüyordu; `MapAgentPrism()`
+   ile uygulandı** (K-438). Plan bu kısıtı öngörmüyordu; `MapTracon()`
    `app.Build()`'den sonra çalıştığı için `AddCors()` orada çağrılamıyor —
    ölçüldü (host başlangıcında `InvalidOperationException`).
 5. **`toolResults` eşleştirmesi BİLEREK iki kez yapılıyor** — akış başlamadan
@@ -151,8 +151,8 @@ Ayrıca, planın Açık Soru listesindeki kararlar:
 - **Açık Soru 1 (onay + istemci tool'u ayrık kalsın mı?)** → **A** seçildi ve
   `ToolRegistry`/`McpTenantTools`'ta bir kayıt-anı denetimiyle **zorlandı**:
   `RequiresApproval: true` taşıyan bir kayıt `AIFunction` değilse başlangıçta
-  `AgentPrismException` fırlar.
-- **Açık Soru 3 (widget ayrı paket mi?)** → **A** (aynı `AgentPrism.UI`
+  `TraconException` fırlar.
+- **Açık Soru 3 (widget ayrı paket mi?)** → **A** (aynı `Tracon.UI`
   paketi, ikinci Vite girişi) — plandaki önerinin aynısı.
 - **Açık Soru 4 (sonuç hatası nasıl taşınır?)** → **A** (`ErrorMessage`
   model'e iletilir) — plandaki önerinin aynısı, `"Error: {mesaj}"` biçiminde.
@@ -173,7 +173,7 @@ K-435 ile K-443 arası — tam metin ve gerekçe `docs/KARARLAR.md`'de:
 
 | Karar | Özet |
 |---|---|
-| K-435 | `IToolRegistry`/`AgentPrismToolRegistration` `AIFunctionDeclaration`'a genişledi, `AITool`'a değil |
+| K-435 | `IToolRegistry`/`TraconToolRegistration` `AIFunctionDeclaration`'a genişledi, `AITool`'a değil |
 | K-436 | İstemci tool'u bildirimi `AIFunctionFactory.CreateDeclaration(...)` ile kurulur |
 | K-437 | İstemciden gelen sonuç `ChatRole.Tool` altında gönderilir |
 | K-438 | CORS `services.AddCors()` olmadan elle kurulur |
@@ -225,13 +225,13 @@ K-435 ile K-443 arası — tam metin ve gerekçe `docs/KARARLAR.md`'de:
   tüketicisi (`AIFunction` bekleyen eski kod) derleme hatası alır, bu bilinçli.
 - `AgentRunRequest.ToolResults` `Approvals`'ın birebir kardeşi: `sessionId`
   zorunlu, kuyruk yolunda `400`, bilinmeyen/tekrar `callId` `400`/`409`.
-- `AgentPrismEndpointOptions.AllowedOrigins` boşsa CORS başlığı hiç gönderilmez;
+- `TraconEndpointOptions.AllowedOrigins` boşsa CORS başlığı hiç gönderilmez;
   `AllowAnyOrigin` API'si YOK ve eklenmemeli (K1).
 
 **🚨 Bilinen tuzaklar:**
-- `services.AddCors()` `MapAgentPrism()` içinde çağrılamaz (`app.Build()`'den
+- `services.AddCors()` `MapTracon()` içinde çağrılamaz (`app.Build()`'den
   sonra, DI kabı mühürlü). Yeni bir DI-bağımlı ASP.NET Core özelliği
-  `MapAgentPrism()`'e eklenecekse aynı kısıt geçerlidir — `AgentPrismCorsMiddleware.cs`'teki
+  `MapTracon()`'e eklenecekse aynı kısıt geçerlidir — `TraconCorsMiddleware.cs`'teki
   elle kurulum deseni örnek alınabilir.
 - `ClientToolResultResolver.MatchAsync`'in NEDEN iki kez çağrıldığını
   (K-439) anlamadan bu kodu "sadeleştirmeye" çalışma — SSE başlıklarının

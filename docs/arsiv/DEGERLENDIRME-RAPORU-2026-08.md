@@ -51,7 +51,7 @@
   iş var (bkz. §4).
 - **Doküman kayması bulundu:** [`README.md:311`](../../README.md#L311) `dotnet test`
   komutunu "# 310 test" notuyla belgeliyor. Depoda bugün 16 test projesi var
-  (`AgentPrism.Generators.UnitTests` dahil) ve toplam `[Fact]`/`[Theory]`
+  (`Tracon.Generators.UnitTests` dahil) ve toplam `[Fact]`/`[Theory]`
   işaretli metot sayısı **~3.900**'ün üzerinde — sayı en az bir büyüklük
   mertebesi bayatlamış. Küçük ama gerçek bir düzeltme.
 
@@ -64,20 +64,20 @@ kusurlarıdır. Faz kapsamı dışında bırakıldıkları için hâlâ açıkt�
 
 ### 2.1 🔴 OpenAPI + çoklu SQL sağlayıcı → `/openapi/v1.json` 500 verir
 
-**Kanıt (F-76, ölçüldü 2026-08-06):** `AgentPrism.Sql.Shared` üç ayrı derlemeye
-(`AgentPrism.SqlServer`, `AgentPrism.Sqlite`, `AgentPrism.PostgreSql`)
+**Kanıt (F-76, ölçüldü 2026-08-06):** `Tracon.Sql.Shared` üç ayrı derlemeye
+(`Tracon.SqlServer`, `Tracon.Sqlite`, `Tracon.PostgreSql`)
 `LinkBase` ile bağlanıyor (K-185). İki veya daha fazla SQL sağlayıcısı aynı
-projede referanslandığında (`samples/AgentPrism.Api` dahil — SqlServer +
+projede referanslandığında (`samples/Tracon.Api` dahil — SqlServer +
 Sqlite birlikte), `Microsoft.AspNetCore.OpenApi`'nin XML doküman toplayıcısı
-aynı tam nitelikli tip adını (`T:AgentPrism.MigrationRunner` vb.) iki kez
+aynı tam nitelikli tip adını (`T:Tracon.MigrationRunner` vb.) iki kez
 görüyor ve `ArgumentException` fırlatıyor. Sonuç: `AddOpenApi()` +
 `MapOpenApi()` kullanan **her** çok-sağlayıcılı tüketici için `/openapi/v1.json`
 kırık.
-**Neden görünmedi:** `AgentPrism.AspNetCore.FunctionalTests` hiçbir SQL
+**Neden görünmedi:** `Tracon.AspNetCore.FunctionalTests` hiçbir SQL
 sağlayıcısına referans vermiyor; hata yalnız gerçek çok-sağlayıcı kurulumunda
 çıkıyor.
 **Üç çözüm yolu belirlenmiş, hiçbiri seçilmemiş:** (a) çakışan tiplerin XML
-doküman üretimini tek derlemede bırakacak yapılandırma, (b) `AgentPrism.Sql.Shared`'ı
+doküman üretimini tek derlemede bırakacak yapılandırma, (b) `Tracon.Sql.Shared`'ı
 gerçek bir paket yapmak (K-185'i yeniden açar), (c) yukarı akış
 (`dotnet/aspnetcore`) hatası olarak bildirmek.
 **Öneri:** Faz 40'ın "belge = gerçek uygulama" iddiasını doğrulayan bu hata,
@@ -87,9 +87,9 @@ bırakır.
 
 ### 2.2 🟡 `.UseMcp()` yapılandırma bağlama sessizce çalışmıyor
 
-**Kanıt (Faz 42 sırasında ölçüldü):** `AgentPrismMcpOptions` yalnız kod
+**Kanıt (Faz 42 sırasında ölçüldü):** `TraconMcpOptions` yalnız kod
 tarafında `configure` delegesiyle set edilebiliyor; `IConfiguration.Bind`
-hiç çağrılmıyor. `AgentPrism:Mcp:RefreshInterval` gibi bir ortam değişkeni
+hiç çağrılmıyor. `Tracon:Mcp:RefreshInterval` gibi bir ortam değişkeni
 **hiçbir hata vermeden hiçbir şey yapmıyor**. Sessiz konfigürasyon kaybı,
 container/K8s tabanlı dağıtımlarda (env-var-first) tipik bir tuzaktır.
 **Öneri:** `IConfiguration` bağlama eklenmeli veya en azından açılışta bir
@@ -146,7 +146,7 @@ yapılsaydı kırıcı bir sürüm kararı olurdu, öncesinde bedava oldu:
 
 - Faz 36 → `IRetentionStore`
 - Faz 45 → `IEvalStore`
-- Faz 52 → `IAgentPrismBuilder` (`AddGeneratedTools()`)
+- Faz 52 → `ITraconBuilder` (`AddGeneratedTools()`)
 
 Bu üç örnek, **Faz 7'nin ne kadar süre daha ertelenebileceğinin** doğal bir
 üst sınırını gösteriyor: her yeni faz, dondurma yapılmadığı sürece "bedava"
@@ -174,7 +174,7 @@ yeniden keşfetmesini önler:
 | Akışlı yanıtta idempotency | Faz 43 | Faz 46'nın `202 Accepted` sözleşmesiyle kapandı sayılabilir |
 | TypeScript istemci paketi + npm yayını | Faz 40 | İkinci dağıtım kanalı; ayrı yayın hattı ister |
 | Çok turlu eval vakası terfisi | Faz 45 | `EvalCase` sözleşmesini değiştirir; Faz 7'den önce karara bağlanması ucuz |
-| Tur bazlı kontrol noktası (F-68 Okuma B) | Faz 46 | MAF agent düzeyinde kanca **yok** (ölçüldü); AgentPrism yazarsa K3 zorlanır |
+| Tur bazlı kontrol noktası (F-68 Okuma B) | Faz 46 | MAF agent düzeyinde kanca **yok** (ölçüldü); Tracon yazarsa K3 zorlanır |
 | Azure AI Content Safety adaptörü | Faz 48 | Ağırlık sorun değil (4 paket); erteleme gerekçesi doğrulanamazlık (K-212 emsali) |
 | `IVectorSearchStore` SQL Server/SQLite uygulaması | Faz 51 | Yerel `VECTOR` tipi ve `sqlite-vec` ölçülmedi |
 
@@ -249,7 +249,7 @@ Altısı da planlanmış bir fazın doğrudan devamı:
 
 - **F-34** Talimat şablonlama ve paylaşılan prompt kütüphanesi
 - **F-48** GitOps (tanım dışa/içe aktarım)
-- **F-50** Tipli yönetim istemcisi ve CLI (`dotnet agentprism`)
+- **F-50** Tipli yönetim istemcisi ve CLI (`dotnet tracon`)
 - **F-51** .NET Aspire entegrasyonu
 - **F-67** Performans regresyon kapısı (`BenchmarkDotNet`)
 

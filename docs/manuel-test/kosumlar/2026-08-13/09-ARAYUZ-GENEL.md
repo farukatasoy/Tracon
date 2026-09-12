@@ -35,7 +35,7 @@
 | MT-UI-014 | ☑ | Depolama notu bellek içi/kalıcı durumu doğru renkle gösterir |
 | MT-UI-015 | ☑ | Bilinmeyen bir rota "sayfa bulunamadı" boş durumunu gösterir |
 | MT-UI-016 | ☑ | Tarayıcının geri/ileri düğmeleri konsol içi gezinmeyi senkronlar |
-| MT-UI-017 | ☑ | `/agentprism` ile `/agentprism/` aynı sayfayı gösterir |
+| MT-UI-017 | ☑ | `/tracon` ile `/tracon/` aynı sayfayı gösterir |
 | MT-UI-018 | ☑ | `⌘K`/`Ctrl+K` paleti açar, giriş alanına odaklanır |
 | MT-UI-019 | ☑ | Ok tuşlarıyla gezinme + Enter seçili komutu çalıştırır |
 | MT-UI-022 | ☑ | `g a` gibi iki tuşlu diziler doğru rotaya gider, 1.2 saniyede zaman aşımına uğrar |
@@ -56,7 +56,7 @@
 ## MT-UI-001 — Bearer token açıkken ilk açılışta token isteme kartı görünür
 
 **Gerçek sonuç**
-"AgentPrism" başlığı ve "Access token required" kartı görünür. Giriş alanı `placeholder="Bearer token"`, sayfa açılışında odaklanmış (`[active]`). Boş alanla "Continue" butonu `[disabled]`. Konsolda `GET /api/agents` 401'i var — bu beklenen yoklama mekanizmasının kendisi (`AccessGate`nin token kartını tetikleyen 401), kusur değil.
+"Tracon" başlığı ve "Access token required" kartı görünür. Giriş alanı `placeholder="Bearer token"`, sayfa açılışında odaklanmış (`[active]`). Boş alanla "Continue" butonu `[disabled]`. Konsolda `GET /api/agents` 401'i var — bu beklenen yoklama mekanizmasının kendisi (`AccessGate`nin token kartını tetikleyen 401), kusur değil.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
@@ -65,11 +65,11 @@
 ## MT-UI-003 — Yanlış token girilince reddedildi mesajı görünür, yeniden denenebilir
 
 **Gerçek sonuç**
-`HATA-S4-001`: `yanlis-token` girilip "Continue"a basılınca kart **sessizce** boş forma döner — `role="alert"` satırı hiç görünmez, giriş alanı temizlenir, buton yeniden devre dışı kalır. Kök neden: `src/AgentPrism.UI/frontend/src/lib/api.ts:155-159`'daki `request()` her 401 yanıtında (yorum: "Dropping it returns the app to the token prompt instead of retrying a credential that is known to be wrong") koşulsuz `setToken(null)` çağırır — bu, yanlış tokenın YOL AÇTIĞI 401'i de kapsar. `access-gate.tsx:53-55`'teki `TokenPrompt failed={token !== null}` render edildiğinde `token` zaten `setToken(null)` ile temizlenmiş olduğundan `failed` her zaman `false` olur; `access.token.rejected` mesajı (satır 110-114) fiilen ölü koddur, hiçbir gerçek akışta render edilemez. Kullanıcı yanlış token girdiğinde NEDEN reddedildiğini görmez.
+`HATA-S4-001`: `yanlis-token` girilip "Continue"a basılınca kart **sessizce** boş forma döner — `role="alert"` satırı hiç görünmez, giriş alanı temizlenir, buton yeniden devre dışı kalır. Kök neden: `src/Tracon.UI/frontend/src/lib/api.ts:155-159`'daki `request()` her 401 yanıtında (yorum: "Dropping it returns the app to the token prompt instead of retrying a credential that is known to be wrong") koşulsuz `setToken(null)` çağırır — bu, yanlış tokenın YOL AÇTIĞI 401'i de kapsar. `access-gate.tsx:53-55`'teki `TokenPrompt failed={token !== null}` render edildiğinde `token` zaten `setToken(null)` ile temizlenmiş olduğundan `failed` her zaman `false` olur; `access.token.rejected` mesajı (satır 110-114) fiilen ölü koddur, hiçbir gerçek akışta render edilemez. Kullanıcı yanlış token girdiğinde NEDEN reddedildiğini görmez.
 
 ---
 
-**Aile U (bu koşum).** Kök neden düzeltildi: `src/AgentPrism.UI/frontend/src/lib/auth.ts`'e
+**Aile U (bu koşum).** Kök neden düzeltildi: `src/Tracon.UI/frontend/src/lib/auth.ts`'e
 `rejectToken()` eklendi — token'ı `null` yapmadan ÖNCE (yalnız o token gerçekten
 denenmişse, ilk anonim `probe`'un 401'ini "reddedildi" saymadan) bir `rejected`
 bayrağı set eder, yeni `useTokenRejected()` hook'u bunu okur. `api.ts`'teki
@@ -78,9 +78,9 @@ bayrağı set eder, yeni `useTokenRejected()` hook'u bunu okur. `api.ts`'teki
 `setToken()` (yeni token gönderimi VEYA Ayarlar'daki "Forget" çıkışı) bayrağı
 temizler. Canlı Postgres'e karşı doğrulandı: `yanlis-token` girilip "Continue"a
 basılınca kart artık kapanmıyor, `role="alert"` satırı "The server rejected
-that token. Check the value configured in AgentPrismEndpointOptions.AuthToken."
+that token. Check the value configured in TraconEndpointOptions.AuthToken."
 metniyle görünüyor; ardından doğru token girilip tekrar denendiğinde kabuk
-normal şekilde açılıyor. Regresyon testi: `src/AgentPrism.UI/frontend/src/lib/auth.test.ts`
+normal şekilde açılıyor. Regresyon testi: `src/Tracon.UI/frontend/src/lib/auth.test.ts`
 (`rejectToken` — token yokken no-op, token varken reddedildi işaretler;
 `setToken` — yeni gönderim ve "Forget" ikisi de bayrağı temizler).
 
@@ -91,7 +91,7 @@ normal şekilde açılıyor. Regresyon testi: `src/AgentPrism.UI/frontend/src/li
 ## MT-UI-004 — Bearer token kapalıyken kabuk hiç token istemeden açılır
 
 **Gerçek sonuç**
-`GET /api/meta` → `requiresBearerToken:false`. Konsol doğrudan Dashboard'a açıldı, token kartı hiç görünmedi. Not: env değişkenini `unset` etmek yetmedi — alttaki `user-secrets` değeri sızıyordu (config sağlayıcı sırası: env yalnız AYNI anahtar set edilirse user-secrets'ı ezer, unset edilirse alttaki değer geçerli kalır). Boş string (`export AgentPrism__Ui__AuthToken=""`) vermek gerekti — KOSUM-PLANI §2.2'nin zaten belirttiği kural.
+`GET /api/meta` → `requiresBearerToken:false`. Konsol doğrudan Dashboard'a açıldı, token kartı hiç görünmedi. Not: env değişkenini `unset` etmek yetmedi — alttaki `user-secrets` değeri sızıyordu (config sağlayıcı sırası: env yalnız AYNI anahtar set edilirse user-secrets'ı ezer, unset edilirse alttaki değer geçerli kalır). Boş string (`export Tracon__Ui__AuthToken=""`) vermek gerekti — KOSUM-PLANI §2.2'nin zaten belirttiği kural.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
@@ -103,7 +103,7 @@ normal şekilde açılıyor. Regresyon testi: `src/AgentPrism.UI/frontend/src/li
 ## MT-UI-005 — Sunucuya hiç ulaşılamıyorsa "ulaşılamıyor" ekranı görünür
 
 **Gerçek sonuç**
-`HATA-S4-002`: Ne "önceden yüklenmiş sekmeden yeniden yükle" ne de "kapalıyken doğrudan aç" adımı belgelenen özel "Sunucuya ulaşılamıyor" kartını üretti. Kestrel tamamen durunca **aynı origin** hem statik kabuğu (`index.html`/JS) hem API'yi sunduğu için tam sayfa yenilemesi ağ seviyesinde `net::ERR_CONNECTION_REFUSED` ile başarısız olur — tarayıcının KENDİ çevrimdışı hata sayfası görünür, React hiç çalışmaz. `GET /agentprism/` yanıtı `Cache-Control: no-cache` taşıdığından disk önbelleğinden de sunulamaz. Kabuk zaten yüklüyken (React çalışırken) sunucuyu durdurup senkronize `focus`/`visibilitychange` olayı tetiklemeyi denedim — TanStack Query'nin `meta` sorgusu yeniden getirilmedi (arka planda gerçek bir odak kaybı/kazanımı olmadığı için tetiklenmedi), dolayısıyla `meta.isError` dalı (`access-gate.tsx:36-49`) bu koşumda hiç gözlemlenemedi. **Kapsam:** Bu, kod aynı origin'den statik+API sunduğu ve service worker/offline kabuk olmadığı sürece HER tarayıcıda böyledir — düzeltmesi (ayrı statik host veya service worker) altyapısal bir karardır, basit bir kod düzeltmesi değildir.
+`HATA-S4-002`: Ne "önceden yüklenmiş sekmeden yeniden yükle" ne de "kapalıyken doğrudan aç" adımı belgelenen özel "Sunucuya ulaşılamıyor" kartını üretti. Kestrel tamamen durunca **aynı origin** hem statik kabuğu (`index.html`/JS) hem API'yi sunduğu için tam sayfa yenilemesi ağ seviyesinde `net::ERR_CONNECTION_REFUSED` ile başarısız olur — tarayıcının KENDİ çevrimdışı hata sayfası görünür, React hiç çalışmaz. `GET /tracon/` yanıtı `Cache-Control: no-cache` taşıdığından disk önbelleğinden de sunulamaz. Kabuk zaten yüklüyken (React çalışırken) sunucuyu durdurup senkronize `focus`/`visibilitychange` olayı tetiklemeyi denedim — TanStack Query'nin `meta` sorgusu yeniden getirilmedi (arka planda gerçek bir odak kaybı/kazanımı olmadığı için tetiklenmedi), dolayısıyla `meta.isError` dalı (`access-gate.tsx:36-49`) bu koşumda hiç gözlemlenemedi. **Kapsam:** Bu, kod aynı origin'den statik+API sunduğu ve service worker/offline kabuk olmadığı sürece HER tarayıcıda böyledir — düzeltmesi (ayrı statik host veya service worker) altyapısal bir karardır, basit bir kod düzeltmesi değildir.
 
 ---
 
@@ -144,26 +144,26 @@ senaryosu) doğrulanabilir.
 ## MT-UI-008 — 403 (uzak erişim kapalı) durumunda sunucu metni olduğu gibi görünür
 
 **Gerçek sonuç**
-`HATA-S4-003` (Yüksek): Loopback dışı bir adresten (`http://192.168.1.102:5084/agentprism/`, `AllowRemoteAccess=false`) konsolu açınca "Erişim reddedildi" kartı **hiç görünmedi** — tarayıcı yalnızca sunucunun ham `ProblemDetails` JSON gövdesini düz metin olarak gösterdi (`{"type":"...","title":"Uzak erisim kapali","status":403,...}`), React hiç çalışmadı. Kök neden: `src/AgentPrism.AspNetCore/Security/AgentPrismEndpointFilter.cs:72-80`'deki loopback denetimi `_allowRemoteAccess` bayrağına bakar ve **`requireBearerToken` parametresinden bağımsız** her uca (statik kabuk ucu dahil) aynı şekilde uygulanır. Sınıfın kendi XML yorumu (satır 42-49) tam olarak bu sınıfın bearer-token içi bir benzer sorunu ÇÖZDÜĞÜNÜ anlatır ("kabuk `requireBearerToken:false` ile çağrılır, yoksa kullanıcı token girebileceği ekranı hiç göremez") ama aynı çözüm loopback denetimine UYGULANMAMIŞ — kabuk ucu da loopback dışı istekte 403 JSON döner, SPA hiç yüklenmez, dolayısıyla `access-gate.tsx`'in "Erişim reddedildi" kartı hiçbir zaman render edilemez. `access.denied.remote` ipucu satırı da aynı nedenle görünmez.
+`HATA-S4-003` (Yüksek): Loopback dışı bir adresten (`http://192.168.1.102:5084/tracon/`, `AllowRemoteAccess=false`) konsolu açınca "Erişim reddedildi" kartı **hiç görünmedi** — tarayıcı yalnızca sunucunun ham `ProblemDetails` JSON gövdesini düz metin olarak gösterdi (`{"type":"...","title":"Uzak erisim kapali","status":403,...}`), React hiç çalışmadı. Kök neden: `src/Tracon.AspNetCore/Security/TraconEndpointFilter.cs:72-80`'deki loopback denetimi `_allowRemoteAccess` bayrağına bakar ve **`requireBearerToken` parametresinden bağımsız** her uca (statik kabuk ucu dahil) aynı şekilde uygulanır. Sınıfın kendi XML yorumu (satır 42-49) tam olarak bu sınıfın bearer-token içi bir benzer sorunu ÇÖZDÜĞÜNÜ anlatır ("kabuk `requireBearerToken:false` ile çağrılır, yoksa kullanıcı token girebileceği ekranı hiç göremez") ama aynı çözüm loopback denetimine UYGULANMAMIŞ — kabuk ucu da loopback dışı istekte 403 JSON döner, SPA hiç yüklenmez, dolayısıyla `access-gate.tsx`'in "Erişim reddedildi" kartı hiçbir zaman render edilemez. `access.denied.remote` ipucu satırı da aynı nedenle görünmez.
 
 ---
 
-**Yeniden koşum (Aile M, KAPANIS-PLANI.md).** `AgentPrismEndpointFilter`'a yeni bir
+**Yeniden koşum (Aile M, KAPANIS-PLANI.md).** `TraconEndpointFilter`'a yeni bir
 `requireLoopback` parametresi eklendi (varsayılan `true`); kabuk grubu
 (`MapUi`) artık `requireLoopback: false` ile kuruluyor — tıpkı bearer token
 muafiyeti gibi. Veri uçlarındaki asıl korumalı grup (`api/agents` vb.)
 değişmedi, loopback kısıtı orada `true` kalıyor. Canlı Postgres'e karşı
 (`AuthToken` geçici olarak `dotnet user-secrets remove` ile kaldırılıp
 doğrulama sonrası geri eklendi — yalnız remote-access katmanını izole etmek
-için) LAN IP'den (`http://192.168.1.102:5090/agentprism/`) gerçek bir
+için) LAN IP'den (`http://192.168.1.102:5090/tracon/`) gerçek bir
 Playwright oturumuyla tekrar üretildi: kabuk artık yükleniyor, React çalışıyor
 ve `AccessGate` "Access denied" kartını sunucunun ham `detail` metniyle
-(`"AgentPrism uclari varsayilan olarak..."`) ve `access.denied.remote`
+(`"Tracon uclari varsayilan olarak..."`) ve `access.denied.remote`
 ipucuyla (`"Remote access is off. ..."`) doğru şekilde gösteriyor. Veri ucu
 (`/api/agents`) aynı LAN IP'den hâlâ `403`/`"Uzak erisim kapali"` döndürmeye
 devam ediyor — koruma kaybolmadı, yalnızca kabuğun kendisi artık React'i
 başlatabiliyor. Regresyon testi:
-`tests/AgentPrism.AspNetCore.FunctionalTests/SecurityTests.cs`
+`tests/Tracon.AspNetCore.FunctionalTests/SecurityTests.cs`
 `Kabuk_loopback_disi_istekte_hala_yuklenir_HATA_S4_003` (fix geri alınıp
 koşulduğunda `Forbidden` ile KIRMIZI verdiği ampirik olarak doğrulandıktan
 sonra fix geri uygulandı).
@@ -205,7 +205,7 @@ kalktı) ama odak `⌘K` düğmesine (`data-testid="palette-open"`) DÖNMEDİ �
 düğmesini elle tıklayarak paleti açıp aynı adımları tekrarladığımda da aynı
 sonuç: `Esc` sonrası odak `document.body`'de kaldı.
 
-**Kaldı** — kök neden: `src/AgentPrism.UI/frontend/src/components/layout.tsx:157`
+**Kaldı** — kök neden: `src/Tracon.UI/frontend/src/components/layout.tsx:157`
 `onClose={() => setPalette(false)}` yalnızca durumu kapatıyor, açılışta hangi
 öğenin odakta olduğunu tutan bir `ref` yok. `command-palette.tsx:117-122`'deki
 `Escape` dalı da yalnızca `onClose()` çağırıyor, bir focus-restore çağrısı
@@ -223,7 +223,7 @@ neredeyse orası) kaydedilir; kapanırken (`open` `true`→`false`) o elemana
 odaklan" efektiyle birleştirildi, yeni bir efekt eklenmedi. Canlı sunucuda
 doğrulandı: ⌘K düğmesine tıklanıp `Esc`'e basıldığında `document.activeElement`
 tekrar `[data-testid="palette-open"]`. Regresyon testi:
-`tests/AgentPrism.Ui.E2ETests/UiTests.cs`
+`tests/Tracon.Ui.E2ETests/UiTests.cs`
 `Komut_paleti_Esc_sonrasi_odagi_acan_dugmeye_dondurur` (gerçek tarayıcı,
 `document.activeElement` doğrudan kontrol edilir).
 
@@ -252,8 +252,8 @@ YOK olması) tarayıcıda ölçülemedi.
 
 **Gerçek sonuç**
 Ön koşulun kendisi kod tarafında YANLIŞ: `input[data-search]` deseni
-YALNIZCA tüketen tarafta var (`src/AgentPrism.UI/frontend/src/components/
-layout.tsx:202`); tüm `src/AgentPrism.UI/frontend/src/screens/*.tsx` dosyaları
+YALNIZCA tüketen tarafta var (`src/Tracon.UI/frontend/src/components/
+layout.tsx:202`); tüm `src/Tracon.UI/frontend/src/screens/*.tsx` dosyaları
 grep'lendi (`grep -rln "data-search" screens/`) — **sıfır** eşleşme. Agents
 listesi (kod okuması VE canlı DOM anlık görüntüsüyle doğrulandı) hiç arama
 kutusu içermiyor; hiçbir ekran içermiyor. `/`'nin bu davranışı `?` kısayol
@@ -324,8 +324,8 @@ döndü (sayfa GÖRSEL olarak doğru). Ama üst çubuktaki düğmenin kendisi
 YANLIŞ kaldı: `title="Theme: dark"`, `aria-label="Switch to light theme"`,
 ikon hâlâ ay (`MoonIcon`) — sanki tema hâlâ `dark`'mış gibi.
 
-**Kaldı** — kök neden: `src/AgentPrism.UI/frontend/src/components/layout.tsx:319-353`
-`ThemeToggle` ve `src/AgentPrism.UI/frontend/src/screens/settings.tsx:31,134-147`
+**Kaldı** — kök neden: `src/Tracon.UI/frontend/src/components/layout.tsx:319-353`
+`ThemeToggle` ve `src/Tracon.UI/frontend/src/screens/settings.tsx:31,134-147`
 Ayarlar `<select>`'i **iki bağımsız `useState<ThemePreference>`** taşıyor —
 paylaşılan bir context/store yok. Her ikisi de yalnız MOUNT anında
 `readThemePreference()` ile localStorage'ı okuyor. `ThemeToggle` kabuğun bir
@@ -343,7 +343,7 @@ yenilemeden düğmeye güvenirse yanlış temaya "geçtiğini" sanabilir.
 
 ---
 
-**Aile U (bu koşum).** `src/AgentPrism.UI/frontend/src/lib/theme.ts`'e
+**Aile U (bu koşum).** `src/Tracon.UI/frontend/src/lib/theme.ts`'e
 paylaşımlı bir store eklendi (`auth.ts`'teki desenin aynısı —
 `useSyncExternalStore`): `setThemePreference()` tek yazma yolu,
 `useThemePreference()` tek okuma yolu. `ThemeToggle` (layout.tsx) ve Ayarlar
@@ -355,7 +355,7 @@ artık bileşen başına değil, modül düzeyinde TEK sefer kurulur. Canlı Pos
 karşı doğrulandı: Ayarlar'daki `<select>`'ten "Dark" seçilince üst çubuktaki
 düğmenin `title` özniteliği AYNI SPA oturumunda (sayfa yenilemeden)
 `"Theme: dark"`'a dönüyor; "Light" seçilince `"Theme: light"`'a. Regresyon
-testi: `tests/AgentPrism.Ui.E2ETests/UiTests.cs`
+testi: `tests/Tracon.Ui.E2ETests/UiTests.cs`
 `Ayarlardaki_tema_secici_ust_cubuktaki_dugmeyi_ayni_oturumda_gunceller`.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
@@ -372,7 +372,7 @@ yapacak bir tool yok — bu, MT-UI-026'daki `prefers-color-scheme` engeliyle
 aynı sınıftan bir tooling kısıtı.
 
 Destekleyici doğrulama (bulgu değil): `matchLocale` fonksiyonunun
-(`src/AgentPrism.UI/frontend/src/lib/i18n.tsx:66-76`) birebir kopyası canlı
+(`src/Tracon.UI/frontend/src/lib/i18n.tsx:66-76`) birebir kopyası canlı
 sayfada çalıştırıldı — `matchLocale(['tr-TR'])` → `"tr"` döndü, algoritma
 doğru. `initialiseLocale()` (`i18n.tsx:235-240`) da `applyTheme` ile aynı
 desende: `main.tsx`'te React render'ından ÖNCE, senkron çağrılıyor
@@ -388,7 +388,7 @@ yüklemesi gözlemlenemedi.
 
 **Gerçek sonuç**
 Konsolun kendi metinleri Türkçe (birinci madde geçti). İKİNCİ MADDE KALDI:
-dil Türkçeyken var olmayan bir agent'a gidildiğinde (`/agentprism/agents/
+dil Türkçeyken var olmayan bir agent'a gidildiğinde (`/tracon/agents/
 does-not-exist-xyz`) `role="alert"` kutusu şunu gösterdi: `"Agent bulunamadi:
 'does-not-exist-xyz' adinda bir agent yok."` — bu metin **İNGİLİZCE DEĞİL**,
 Türkçe (aksansız/ASCII harf çevirisi: "bulunamadi", "adinda"). `curl` ile
@@ -398,7 +398,7 @@ doğrudan sunucu doğrulandı — `Accept-Language` başlığı YOK, hatta açı
 adinda bir agent yok.",...}`. Yani bu, istemcinin dil ayarına göre değil,
 SUNUCU KODUNUN İÇİNE gömülü sabit bir Türkçe string.
 
-**Kaldı** — kök neden: `src/AgentPrism.AspNetCore/Endpoints/AgentEndpoints.cs:513-514`
+**Kaldı** — kök neden: `src/Tracon.AspNetCore/Endpoints/AgentEndpoints.cs:513-514`
 (ve aynı dosyada 217, 276, 345, 427, 450, 458, 473, 505, 562, 571, 579, 594,
 602, 852, 867, 986, 1001, 1013, 1021, 1031 satırlarındaki HER `title`/`detail`)
 `ProblemDetails` metnini `"Agent bulunamadi"` / `$"'{name}' adinda bir agent
@@ -406,14 +406,14 @@ yok."` gibi SABİT Türkçe (aksansız) string olarak yazıyor — bir kaynak/lo
 sistemi veya `CurrentUICulture` YOK, doğrudan literal. `grep -rlE` ile
 repo'da bu ASCII-Türkçe kalıbı (`bulunamadi|kullanimda|gecersiz|desteklenmiyor|
 eksik|zorunlu|gerekli|basarisiz`) taşıyan **28 kaynak dosyası** bulundu — pratik
-olarak `src/AgentPrism.AspNetCore/Endpoints/`'in TAMAMI dahil (`AgentEndpoints`,
+olarak `src/Tracon.AspNetCore/Endpoints/`'in TAMAMI dahil (`AgentEndpoints`,
 `ApiKeyEndpoints`, `ApprovalEndpoints`, `AttachmentEndpoints`, `CatalogEndpoints`,
 `EvalEndpoints`, `ExperimentEndpoints`, `GovernanceEndpoints`,
 `KnowledgeEndpoints`, `ModelHealthEndpoints`, `ObservabilityEndpoints`,
 `QuotaEndpoints`, `RetentionEndpoints`, `RunEndpoints`, `SchedulingEndpoints`,
 `SessionEndpoints`, `SkillEndpoints`, `SkillScriptGrantEndpoints`,
 `WebhookEndpoints`, `WorkflowEndpoints`, `Voice/VoiceConversationEndpoint.cs`)
-artı `AgentPrism.Core`/`AgentPrism.Workflows`/`AgentPrism.Generators`'daki
+artı `Tracon.Core`/`Tracon.Workflows`/`Tracon.Generators`'daki
 birkaç dosya. `ErrorNote`'un kendi yorumundaki "the API contract is
 single-language on purpose" iddiası — o "tek dil"in **İngilizce** olduğu
 varsayımıyla yazılmış — ama sunucu tarafı fiilen Türkçe. `HATA-S4-007`.
@@ -428,7 +428,7 @@ ayrıca kontrol edilmemişti.
 
 ---
 
-**Yeniden koşum (Aile N, KAPANIS-PLANI.md).** `src/AgentPrism.AspNetCore/`
+**Yeniden koşum (Aile N, KAPANIS-PLANI.md).** `src/Tracon.AspNetCore/`
 altındaki 26 dosyadaki **113 `title:` literalinin tamamı** ve eşlik eden
 `detail:` metinleri İngilizce'ye çevrildi — bu case'in kendi tekrar
 üretimindeki tam örnek dahil: `GET /api/agents/does-not-exist-xyz` artık
@@ -436,17 +436,17 @@ altındaki 26 dosyadaki **113 `title:` literalinin tamamı** ve eşlik eden
 'does-not-exist-xyz'.",...}` döner (canlı Postgres'e karşı doğrulandı,
 `Accept-Language: en` başlığıyla/başlıksız fark yok — sunucu zaten tek
 dilli). Kapsam yalnız `title:`/`detail:` literalleriyle sınırlı kalmadı:
-bu literallerin beslendiği alttaki `AgentPrismException`/doğrulayıcı
-mesajları da (AgentPrism.Core, AgentPrism.Workflows, AgentPrism.Generators
+bu literallerin beslendiği alttaki `TraconException`/doğrulayıcı
+mesajları da (Tracon.Core, Tracon.Workflows, Tracon.Generators
 — case'in kendi öngördüğü "birkaç dosya" kapsamı) aynı geçişte çevrildi,
 aksi halde `detail: ex.Message` yolundan Türkçe metin sızmaya devam
 ederdi. Ek olarak OpenAI-uyumlu uçlar (`/v1/responses`,
 `/v1/chat/completions`, `/v1/conversations`), A2A/MCP dış çağrı hata
-metinleri ve `AgentPrism.Voice`'un WebSocket ProblemDetails yazıcısı da
+metinleri ve `Tracon.Voice`'un WebSocket ProblemDetails yazıcısı da
 aynı ilkeyle çevrildi — bunlar `ProblemDetails` kullanmadığı için ilk
 grep'in (113 sayımı) dışında kalmıştı ama aynı kullanıcı kararının
 (§5.3) kapsamındaydı. Regresyon çiti:
-`tests/AgentPrism.Core.UnitTests/Architecture/ProblemDetailsLanguageTests.cs`
+`tests/Tracon.Core.UnitTests/Architecture/ProblemDetailsLanguageTests.cs`
 — tüm `src/` ağacını tarar, her `title:` literalinin ASCII-Türkçe
 kalıp taşımadığını doğrular (fix geri alınıp koşulduğunda KIRMIZI
 verdiği ampirik olarak doğrulandı). 29 mevcut test (Workflows.UnitTests
@@ -466,7 +466,7 @@ Models) hepsi hem `tr` hem `en`'de programatik olarak tarandı:
 `el.scrollWidth > el.clientWidth` (yatay taşma) her ekranda çalıştırıldı.
 `document.body.scrollWidth` her zaman `≤1280` (pencere genişliği) kaldı —
 yatay sayfa taşması yok. Tek eşleşme: Settings ekranındaki Webhooks panelinde
-`{id}` — kaynağı incelendi (`src/AgentPrism.UI/frontend/src/components/
+`{id}` — kaynağı incelendi (`src/Tracon.UI/frontend/src/components/
 webhook-panel.tsx:103`, `<Mono>/api/runs/&#123;id&#125;</Mono>`) ve bu bir
 `interpolate()` kusuru DEĞİL: kasıtlı olarak HTML entity ile kaçırılmış,
 çevrilmeyen, sabit bir REST yol deseni örneği (`webhooks.noticeAfter`
@@ -482,8 +482,8 @@ görsel olarak taşmadı.
 ## MT-UI-038 — Boş model kataloğu hata değil, yönlendirici boş durum gösterir
 
 **Gerçek sonuç**
-Ön koşul bu ÖRNEK UYGULAMADA fiilen kurulamıyor: `samples/AgentPrism.Api/
-Program.cs:128-149` OpenAI anahtarı boşken KOŞULSUZ `agentPrism.
+Ön koşul bu ÖRNEK UYGULAMADA fiilen kurulamıyor: `samples/Tracon.Api/
+Program.cs:128-149` OpenAI anahtarı boşken KOŞULSUZ `tracon.
 AddModelProvider(new EchoModelProvider())` çağırıyor ("Anahtar yoksa
 uygulama ağ çağrısı yapmayan örnek sağlayıcı ile çalışır; hiçbir şey
 kırılmaz" — bilinçli tasarım). Tüm sağlayıcı anahtarları (`OpenAI`,
@@ -494,9 +494,9 @@ gösterdi — ne kırmızı hata ne de dokümanın tarif ettiği "boş durum kar
 (`UseOpenAI`/`UseOpenAICompatible` örnek kodu) göründü, çünkü katalog
 GERÇEKTEN boş değildi. **Doküman düzeltmesi (AGENTS.md: doküman-kod
 çelişkisinde doküman yanlıştır):** bu case'in ön koşulu ("hiçbir sağlayıcı
-kayıtlı değil") `samples/AgentPrism.Api` üzerinden hiçbir zaman
+kayıtlı değil") `samples/Tracon.Api` üzerinden hiçbir zaman
 üretilemez — echo fallback'i kasıtlı olarak bunu engelliyor. Gerçek boş
-katalog durumu yalnız `AgentPrism.Core`'un `ModelProviderRegistry`'sine
+katalog durumu yalnız `Tracon.Core`'un `ModelProviderRegistry`'sine
 doğrudan birim testiyle ya da örnek uygulama dışında sıfır sağlayıcılı
 özel bir host ile üretilebilir — bu, elle arayüz testinin kapsamı dışında.
 Uygulama normal yapılandırmayla (tüm anahtarlar dolu) yeniden başlatıldı.
@@ -565,7 +565,7 @@ diğerleri doğrulanmamış, ayrı bir bulgu olarak not düşülür (aşağıdak
 Canlı Postgres'e karşı 375px'te üçü de yeniden ölçüldü: Dashboard 331=331,
 Ayarlar 331=331, Tool'lar (`cancel_order`, GERÇEKTEN 4 agent tarafından
 kullanılıyor) 331=331 — hiçbiri taşmıyor. Regresyon testi:
-`tests/AgentPrism.Ui.E2ETests/UiTests.cs`
+`tests/Tracon.Ui.E2ETests/UiTests.cs`
 `Genel_ekranlar_375px_genislikte_yatay_tasma_yapmaz` (Dashboard+Ayarlar,
 sabit E2E veri kümesiyle tetiklenebilen ikisi; Tool'lar dalı yalnız canlı
 sunucuda doğrulandı — E2E fixture'ında hiçbir tool birden fazla agent

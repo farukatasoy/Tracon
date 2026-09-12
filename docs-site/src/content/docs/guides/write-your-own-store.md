@@ -3,19 +3,19 @@ title: Write your own store
 description: Implement IRunStore against your own persistence engine and prove it correct with the same contract suite the four shipped providers run.
 ---
 
-The three built-in providers (`AgentPrism.PostgreSql`, `.SqlServer`, `.Sqlite`) cover
+The three built-in providers (`Tracon.PostgreSql`, `.SqlServer`, `.Sqlite`) cover
 most deployments. When none of them fit — a document database, an existing
 event-sourced system, a managed table service — `IRunStore` and the 32 other store
-interfaces in `AgentPrism.Abstractions` are the extension point. This guide covers the
+interfaces in `Tracon.Abstractions` are the extension point. This guide covers the
 largest and most-documented one, `IRunStore`, using its behavior contract to verify
 the result.
 
 ```bash
-dotnet add package AgentPrism.Testing.Contracts.Xunit --prerelease
+dotnet add package Tracon.Testing.Contracts.Xunit --prerelease
 ```
 
-Add it to your **test** project only. It brings in `AgentPrism.Abstractions` and
-nothing else from AgentPrism — no `AgentPrism.Core`, no SQL package, no ASP.NET Core.
+Add it to your **test** project only. It brings in `Tracon.Abstractions` and
+nothing else from Tracon — no `Tracon.Core`, no SQL package, no ASP.NET Core.
 xunit.v3 and Shouldly are ordinary dependencies: your test project's own xunit.v3
 runner discovers the `[Fact]` methods the inherited contract class declares.
 
@@ -50,18 +50,18 @@ cannot:
 | Idempotency | `StartRunAsync` is an UPSERT. A second call with the same `RunId` updates the row instead of opening a new one; `UserId` and `Labels` are COALESCED (a `null` value on the call leaves the previous value in place), and the **returned** record reflects that COALESCE, not the raw call arguments |
 | Tenant behavior | Three modes across the interface: **expected tenant** (`AppendEventAsync`, `CompleteRunAsync`, `UpdateRunCostAsync` compare the call's tenant against the record's own, ignoring the ambient tenant), **ambient tenant** (the read methods filter by `ITenantContext` unless overridden), **tenant-independent** (`TouchHeartbeatAsync`, `ClaimOrphanedRunsAsync` are maintenance work that scans every tenant) |
 | Thread safety | Registered as a singleton; must be safe under concurrent calls from unrelated runs and must not depend on a scoped service |
-| Null / not-found semantics | `GetRunAsync` returns `null`; `ReadEventsAsync` returns an empty sequence; `AppendEventAsync` and `CompleteRunAsync` throw `AgentPrismException` |
+| Null / not-found semantics | `GetRunAsync` returns `null`; `ReadEventsAsync` returns an empty sequence; `AppendEventAsync` and `CompleteRunAsync` throw `TraconException` |
 | Completion overrides | `CompleteRunAsync` may correct the model attribution a run started with: `RunCompletion.ModelId` and `RunCompletion.ModelProvider` each **overwrite** the stored value when set, and **leave it unchanged** when `null` — the common case, since only a `ModelBinding.Fallbacks` link answering makes a completion carry them. Persisting `ModelId` but forgetting `ModelProvider` costs the run its provider attribution silently, and the cost resolver then falls back to matching by model name alone |
 | Event order | `RunEvent.Sequence` is assigned by the caller, not the store; events are append-only; `ReadEventsAsync`'s `fromSequence` is inclusive |
-| Duplicate `Sequence` | A second `AppendEventAsync` call reusing a sequence number already written for that run is a caller error — reject it with `AgentPrismException`, do not silently accept or silently drop it |
+| Duplicate `Sequence` | A second `AppendEventAsync` call reusing a sequence number already written for that run is a caller error — reject it with `TraconException`, do not silently accept or silently drop it |
 
 The full text lives on `IRunStore`'s own XML documentation — see [the API
-reference](/api/agentprism.irunstore/) for the exact wording each method carries.
+reference](/api/tracon.irunstore/) for the exact wording each method carries.
 
 ## Prove it with the contract suite
 
 ```csharp
-using AgentPrism.Testing.Contracts.Storage;
+using Tracon.Testing.Contracts.Storage;
 
 public sealed class MyRunStoreTests : RunStoreContract
 {
@@ -79,7 +79,7 @@ inherited test **fail** with whatever exception that method throws — it does n
 to compile, so an incomplete store is still a normal, greppable red build.
 
 :::caution[Testing against a prerelease build]
-If you point your project at a **prerelease** AgentPrism package that you built
+If you point your project at a **prerelease** Tracon package that you built
 yourself rather than one from nuget.org, give the run its own package cache:
 
 ```bash
@@ -114,15 +114,15 @@ The same three things every store contract leaves to you, regardless of interfac
 - **Your own persistence engine's guarantees.** If your backing store does not offer
   atomic upserts, `StartRunAsync`'s idempotency requirement is your problem to solve,
   not something the contract can verify for you.
-- **Wiring into `AddAgentPrism()`.** The contract suite exercises the store directly.
+- **Wiring into `AddTracon()`.** The contract suite exercises the store directly.
   Registering it (`services.AddSingleton<IRunStore, MyRunStore>()`, called before or
-  after `AddAgentPrism()` — `TryAdd*` means your registration always wins) is a
+  after `AddTracon()` — `TryAdd*` means your registration always wins) is a
   separate, ordinary DI step.
 
 ## Other store interfaces
 
 `IRunStore` is the largest and most heavily documented seam, but the same package
-ships a contract class for every other store interface in `AgentPrism.Abstractions` —
+ships a contract class for every other store interface in `Tracon.Abstractions` —
 sessions, agent definitions, jobs, evals, experiments, webhooks, and more. Each follows
 the same shape: derive the matching `*Contract` class, supply a store instance, run
 `dotnet test`.
@@ -158,7 +158,7 @@ never works on it. Running `SessionStoreContract` is what makes that visible.
 its own. Three rules the contract checks, and that a custom store has to honor:
 
 - Count **only** the open statuses — `Pending`, `Leased`, and `Running`. A terminal
-  job is counted by `agentprism.job.executions` when it finishes, so scanning for it
+  job is counted by `tracon.job.executions` when it finishes, so scanning for it
   here would tie the query's cost to the queue's whole history.
 - Omit a lane/status pair with no open jobs rather than reporting it as zero.
 - Take **no tenant argument and apply no tenant filter**. Like `LeaseAsync`, this is

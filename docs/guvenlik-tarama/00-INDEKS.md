@@ -1,4 +1,4 @@
-# AgentPrism — Güvenlik Tarama Planı İndeksi
+# Tracon — Güvenlik Tarama Planı İndeksi
 
 > Kapsamlı bir güvenlik taraması için 10 konu başlığına bölünmüş, bağımsız
 > çalıştırılabilir prompt seti. Her `NN-<konu>.md` dosyası tek başına bir
@@ -7,7 +7,7 @@
 
 ## Neden bu tarama
 
-AgentPrism zaten olgun bir güvenlik mimarisine sahiptir (bkz.
+Tracon zaten olgun bir güvenlik mimarisine sahiptir (bkz.
 [`MIMARI-GUVENLIK.md`](../MIMARI-GUVENLIK.md), Faz 9/11/41/48/53/63-66/69).
 Bu taramanın amacı sıfırdan zafiyet aramak değil, var olan korumalarda
 **regresyon** ve **boşluk** bulmaktır. Kapanmış bir K-kararını yeniden

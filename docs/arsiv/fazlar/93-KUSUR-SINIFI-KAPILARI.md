@@ -3,10 +3,10 @@
 > **Durum:** ✅ Tamamlandı (2026-08-24)
 > **Kaynak:** [`arsiv/kesif/2026-08-23-yapisal-sorun-envanteri.md`](../kesif/2026-08-23-yapisal-sorun-envanteri.md) kalem **3** (analyzer kuralları — Faz 91'de kapanmayan bölüm). Bu faz bir `F-NN` adayından gelmez.
 > **Önkoşul:** [Faz 91](91-GELISTIRME-DONGUSU-KAPILARI.md) — kapı komut yüzeyi (`scripts/kapi.py`) ve `denetim-paketi.py` oradan gelir; bu faz aynı desende iki kapı daha ekler
-> **Paketler:** `AgentPrism.Generators`, `AgentPrism.Workflows` (yalnız analyzer referansı), `AgentPrism.Core` (yalnız `buildTransitive` `NoWarn` listesi)
+> **Paketler:** `Tracon.Generators`, `Tracon.Workflows` (yalnız analyzer referansı), `Tracon.Core` (yalnız `buildTransitive` `NoWarn` listesi)
 > **Yeni paket:** Yok · **Migration:** Yok
-> **Public API:** Büyümüyor. Ölçüldü 2026-08-23: `src/*/PublicAPI.Unshipped.txt` 8.079 satır, `Shipped.txt` dosyaları boş (16 dosya × 1 satır). `AgentPrism.Generators` `AgentPrismPublicApiTrackingEnabled=false` taşır; tanı ve baseline dosyaları public üye değildir
-> **Tüketici yüzeyi:** **Var.** Sevk edilen: iki yeni `APG` tanısı (`AgentPrism.Core` nupkg'i, `analyzers/dotnet/cs/`) + `src/AgentPrism.Core/buildTransitive/AgentPrism.Core.targets` `NoWarn` listesi + `docs-site/src/content/docs/troubleshooting.md` (her tanı orada açıklanmalıdır — `DiagnosticIntegrityTests` bunu zorlar). Site: `troubleshooting.md`. `tuketici-dokuman-senkronu` koşar
+> **Public API:** Büyümüyor. Ölçüldü 2026-08-23: `src/*/PublicAPI.Unshipped.txt` 8.079 satır, `Shipped.txt` dosyaları boş (16 dosya × 1 satır). `Tracon.Generators` `TraconPublicApiTrackingEnabled=false` taşır; tanı ve baseline dosyaları public üye değildir
+> **Tüketici yüzeyi:** **Var.** Sevk edilen: iki yeni `APG` tanısı (`Tracon.Core` nupkg'i, `analyzers/dotnet/cs/`) + `src/Tracon.Core/buildTransitive/Tracon.Core.targets` `NoWarn` listesi + `docs-site/src/content/docs/troubleshooting.md` (her tanı orada açıklanmalıdır — `DiagnosticIntegrityTests` bunu zorlar). Site: `troubleshooting.md`. `tuketici-dokuman-senkronu` koşar
 > **Manuel test alanı:** [`docs/manuel-test/29-AGENT-DESTEGI.md`](../../manuel-test/29-AGENT-DESTEGI.md) (APG tanıları) + [`docs/manuel-test/36-GELISTIRME-KAPILARI.md`](../../manuel-test/36-GELISTIRME-KAPILARI.md) (repo kapıları)
 
 ---
@@ -32,16 +32,16 @@ Bu faz, **üç kez veya daha fazla tekrarlamış** iki kusur sınıfını yazıd
 
 ## Bitiş Ölçütleri (DoD)
 
-- [x] `APG0501` akışlı bir yineleyicide döngü dışı ambient yazımını `warning` olarak bildirir; yazım döngü içine taşınınca uyarı kaybolur (manuel case 1–2 koşuldu, gerçek tüketici derlemesinde — çıktı `docs/manuel-test/29-AGENT-DESTEGI.md` MT-AGD-021'de)
-- [x] `APG0502` `using`'siz `AmbientTenantScope.Begin(...)` çağrısını `warning` olarak bildirir (manuel case 3, MT-AGD-021)
-- [x] `AgentPrismUsageDiagnostics=false` iki yeni tanıyı da susturur (manuel case 4, MT-AGD-021) — `AgentPrism.Core.targets` `NoWarn` listesi güncellendi
+- [x] `TRC0501` akışlı bir yineleyicide döngü dışı ambient yazımını `warning` olarak bildirir; yazım döngü içine taşınınca uyarı kaybolur (manuel case 1–2 koşuldu, gerçek tüketici derlemesinde — çıktı `docs/manuel-test/29-AGENT-DESTEGI.md` MT-AGD-021'de)
+- [x] `TRC0502` `using`'siz `AmbientTenantScope.Begin(...)` çağrısını `warning` olarak bildirir (manuel case 3, MT-AGD-021)
+- [x] `TraconUsageDiagnostics=false` iki yeni tanıyı da susturur (manuel case 4, MT-AGD-021) — `Tracon.Core.targets` `NoWarn` listesi güncellendi
 - [x] `DiagnosticIntegrityTests` yeni iddiayı taşır: her `Usage` tanısı `.targets` `NoWarn` metninde geçer (`Every_usage_diagnostic_is_in_the_NoWarn_switch`)
-- [x] `dotnet build src/AgentPrism.Workflows -c Release` sıfır `APG` uyarısı verir; ölçüm 2026-08-24: `0 Warning(s), 0 Error(s)` — bkz. "Plandan Sapmalar" (yanlış pozitif keşfi ve düzeltmesi)
+- [x] `dotnet build src/Tracon.Workflows -c Release` sıfır `APG` uyarısı verir; ölçüm 2026-08-24: `0 Warning(s), 0 Error(s)` — bkz. "Plandan Sapmalar" (yanlış pozitif keşfi ve düzeltmesi)
 - [x] `AmbientWriteSiteTests` **11** benzersiz `<yol>:<metot>` yerini taban çizgisiyle eşleştirir (14 = ham grep satır sayısı, çoklu-yazım-tek-metot durumları dedup edildi — bkz. "Plandan Sapmalar"); elle eklenen yeni yer testi düşürür (manuel case 6, gerçekten koşuldu)
-- [x] `PlaywrightLocatorTests` bugünkü sayıyı (`tests/AgentPrism.Ui.E2ETests/UiTests.cs` → 128) dondurur; elle eklenen riskli locator testi düşürür (manuel case 7, gerçekten koşuldu)
-- [x] İki taban çizgisi dosyasının tazeleme ortam değişkeni belgelendi ve **koşularak** doğrulandı (`AGENTPRISM_AMBIENT_WRITE_REFRESH=1`, `AGENTPRISM_PLAYWRIGHT_LOCATOR_REFRESH=1`)
+- [x] `PlaywrightLocatorTests` bugünkü sayıyı (`tests/Tracon.Ui.E2ETests/UiTests.cs` → 128) dondurur; elle eklenen riskli locator testi düşürür (manuel case 7, gerçekten koşuldu)
+- [x] İki taban çizgisi dosyasının tazeleme ortam değişkeni belgelendi ve **koşularak** doğrulandı (`TRACON_AMBIENT_WRITE_REFRESH=1`, `TRACON_PLAYWRIGHT_LOCATOR_REFRESH=1`)
 - [x] Dört doğrulama kapısı sıfır uyarı verir (`python3 scripts/kapi.py kapanis --taban 7d1f43c`, 2026-08-24, tüm 10 alt komut ✅)
-- [x] `samples/AgentPrism.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı — bkz. "Plandan Sapmalar"
+- [x] `samples/Tracon.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı — bkz. "Plandan Sapmalar"
 - [x] `secret` taraması boş döndü (`kapi.py tarama` → "Tarama: ✅ temiz")
 - [x] Manuel kabul case'leri `docs/manuel-test/29-AGENT-DESTEGI.md` (MT-AGD-021) ve `36-GELISTIRME-KAPILARI.md` (MT-GDK-014–016) içine eklendi; otomatikleştirilebilenlerin tamamı gerçekten koşuldu
 - [x] `faz-denetim` koşuldu; 🔴 bulgu kapandı (bkz. "Denetim Bulguları")
@@ -52,7 +52,7 @@ Bu faz, **üç kez veya daha fazla tekrarlamış** iki kusur sınıfını yazıd
 
 ```bash
 # APG uyarısı Workflows'ta öter mi
-dotnet build src/AgentPrism.Workflows/AgentPrism.Workflows.csproj -c Release 2>&1 | grep "warning APG" || echo "temiz"
+dotnet build src/Tracon.Workflows/Tracon.Workflows.csproj -c Release 2>&1 | grep "warning APG" || echo "temiz"
 
 # Ambient yazım yeri sayısı (taban çizgisiyle eşleşmeli)
 grep -rn --include="*.cs" "SetCurrent(\|AmbientTenantScope.Begin(\|AmbientRunAttributionScope.Begin(\|StartActivity(" src/ | grep -v "///" | wc -l
@@ -61,20 +61,20 @@ grep -rn --include="*.cs" "SetCurrent(\|AmbientTenantScope.Begin(\|AmbientRunAtt
 grep -rn --include="*.cs" "GetByText(\|GetByPlaceholder(\|GetByLabel(\|GetByRole(" tests/ | wc -l
 
 # Kapı testleri
-./artifacts/bin/AgentPrism.Core.UnitTests/release/AgentPrism.Core.UnitTests --filter-class "*AmbientWriteSiteTests*"
-./artifacts/bin/AgentPrism.Core.UnitTests/release/AgentPrism.Core.UnitTests --filter-class "*PlaywrightLocatorTests*"
+./artifacts/bin/Tracon.Core.UnitTests/release/Tracon.Core.UnitTests --filter-class "*AmbientWriteSiteTests*"
+./artifacts/bin/Tracon.Core.UnitTests/release/Tracon.Core.UnitTests --filter-class "*PlaywrightLocatorTests*"
 
 # Paket kırılmadı
-dotnet pack AgentPrism.slnx -c Release
+dotnet pack Tracon.slnx -c Release
 ```
 
 ---
 
 ## Plandan Sapmalar
 
-1. **`APG0501`'in tetik koşulu plan tasarımından daha dar: "yaprak döngü" + `finally` hariç tutma.**
+1. **`TRC0501`'in tetik koşulu plan tasarımından daha dar: "yaprak döngü" + `finally` hariç tutma.**
    Plan (93.1) altı bugünkü yazım yerini ölçmüş ve "hiçbiri kuralın tetiğine
-   girmiyor" demişti — bu doğruydu, ama plan `AgentPrism.Workflows`'a analyzer
+   girmiyor" demişti — bu doğruydu, ama plan `Tracon.Workflows`'a analyzer
    referansı eklendiğinde (93.6) ortaya çıkan **yedinci** bir döngüyü
    ölçmemişti: `WorkflowRunner.RunGuardedAsync`'in kendi gövdesinde hem
    ambient yazım (`StartActivity`, `SetCurrent`) hem de ayrı, güvenli bir
@@ -89,14 +89,14 @@ dotnet pack AgentPrism.slnx -c Release
    (yaprak) döngüler kontrol edilir, her biri bağımsız; (b) bir döngünün
    `finally` bloğu (temizlik/dispose amaçlı) await taraması dışında tutulur.
    Gerekçe ve üç gerçek üretim vakası (`RunGuardedAsync` satır 524,
-   `PumpAsync` satır 659/806) `AgentPrismUsageAnalyzer.cs`'in
+   `PumpAsync` satır 659/806) `TraconUsageAnalyzer.cs`'in
    `ImmediateDescendants` ve `VisitAsyncIteratorMethod` üzerindeki `<remarks>`
-   bloklarında ve `UsageAnalyzerTests.APG0501_evaluates_a_nested_loop_on_its_own_account`
+   bloklarında ve `UsageAnalyzerTests.TRC0501_evaluates_a_nested_loop_on_its_own_account`
    testinde belgelendi. Bu **yerel bir implementasyon tercihidir** (K-* açılmadı,
    AGENTS.md'nin "public API/güvenlik/kiracı sınırı/kalıcı veri" ölçütünü
-   karşılamıyor); ölçüm gerçek `dotnet build src/AgentPrism.Workflows -c Release`
+   karşılamıyor); ölçüm gerçek `dotnet build src/Tracon.Workflows -c Release`
    ile doğrulandı (0 uyarı).
-2. **`APG0502`'nin discard tespiti sözdizimsel değil `IOperation` tabanlı.**
+2. **`TRC0502`'nin discard tespiti sözdizimsel değil `IOperation` tabanlı.**
    Plan yalnız "çağrı bir `ExpressionStatement`'tır" diyordu. İlk implementasyon
    (yalnız `ExpressionStatementSyntax` kontrolü) `void Run() => Begin(...);`
    şeklindeki expression-bodied metotları kaçırdı — bunların syntax ebeveyni
@@ -104,7 +104,7 @@ dotnet pack AgentPrism.slnx -c Release
    sonuç aynı şekilde atılıyor. `context.SemanticModel.GetOperation(...)?.Parent
    is IExpressionStatementOperation` kontrolüne geçildi; bu hem normal `stmt;`
    hem de void-dönen arrow-body'yi doğru şekilde yakalıyor. Ölçüldü: testler
-   önce başarısız oldu (`APG0502_reports_a_discarded_ambient_scope` 0
+   önce başarısız oldu (`TRC0502_reports_a_discarded_ambient_scope` 0
    diagnostic döndü), düzeltme sonrası geçti.
 3. **`AmbientWriteSiteTests`/`PlaywrightLocatorTests`'in kendi kaynak dosyaları
    taramadan hariç tutuldu.** Plan bunu öngörmüyordu. İlk `REFRESH` çalıştırması
@@ -123,14 +123,14 @@ dotnet pack AgentPrism.slnx -c Release
    yazım YENİ bir "yer" sayılmıyor. Sonuç: 14 ham satır → 11 benzersiz taban
    çizgisi satırı. Mekanizma doğru çalışıyor (manuel case 6 ile kanıtlandı);
    yalnızca ölçüm terminolojisi netleştirildi.
-5. **`APG0501`'in "await foreach de sayılsın mı" açık sorusu (1) plandaki gibi
+5. **`TRC0501`'in "await foreach de sayılsın mı" açık sorusu (1) plandaki gibi
    basit bir "otomatik true" ile değil, "gövdede ayrı bir await var mı"
    kontrolüyle çözüldü.** `await foreach`'in kendi örtük `MoveNextAsync()`'i
    ayrıca bir "sürücü tetiği" sayılmadı (sapma #1'in gerekçesiyle aynı kök
    neden) — yalnızca döngü GÖVDESİNDE (nested loop hariç) ayrı bir `await`
    varsa tetikleniyor. Açık sorunun "A: ikisi de sayılsın" önerisi ruhen
    korundu (`await foreach` DA tetiklenebilir,
-   `APG0501_reports_an_await_foreach_with_a_further_unguarded_await` testi
+   `TRC0501_reports_an_await_foreach_with_a_further_unguarded_await` testi
    kanıtlıyor) ama tetik koşulu `while`/`for` ile TUTARLI tek bir kurala
    indirgendi.
 
@@ -141,11 +141,11 @@ güncelleme gerektirdi ve yapıldı (Usage diagnostics satırına "ambient write
 "discarded ambient scope" eklendi). Kalan üçü **yanlış tetikleme** — heuristic
 dosya-yolu bazlı, davranış bazlı değil:
 
-- **`cekirdek-kavram` → `concepts/`**: `AgentPrism.Core.targets`'taki tek
+- **`cekirdek-kavram` → `concepts/`**: `Tracon.Core.targets`'taki tek
   değişiklik `NoWarn` listesine iki tanı ID'si eklenmesi. Bu bir MSBuild
   yapılandırma detayıdır, `concepts/` altındaki hiçbir temel kavramı (agent
   catalog, run recording, tool registry) etkilemiyor.
-- **`workflow` → `concepts/workflows.md`**: `AgentPrism.Workflows.csproj`'a
+- **`workflow` → `concepts/workflows.md`**: `Tracon.Workflows.csproj`'a
   eklenen tek şey `OutputItemType=Analyzer` `ProjectReference`'ıdır —
   derleme-zamanı bir analyzer bağlantısı. Workflow **yürütme** davranışı
   (execution engine, checkpoint, human input) hiç değişmedi;
@@ -163,7 +163,7 @@ Yeni `K-NNN` kaydı yok. Bu fazda alınan tüm kararlar (yukarıdaki "Plandan
 Sapmalar") **yerel implementasyon tercihleridir** — AGENTS.md'nin karar
 defteri eşiğini (public API/compatibility contract, güvenlik/kiracı sınırı,
 kalıcı veri/migration, geri dönüşü pahalı sistem kararı) karşılamıyor. Kod
-yorumlarında (`AgentPrismUsageAnalyzer.cs` `<remarks>` blokları) ve bu
+yorumlarında (`TraconUsageAnalyzer.cs` `<remarks>` blokları) ve bu
 dokümanda kalıcı olarak belgelendi.
 
 ## Denetim Bulguları
@@ -174,10 +174,10 @@ başına tekrar koşturdu ve manuel case 15-16'yı kendisi de tekrarladı.
 
 | # | Bulgu | Seviye | Sonuç |
 |---|---|---|---|
-| 1 | `kusur-giderme` SKILL.md'nin sayaç tablosuna kapı sütunu eklenmemişti (DoD maddesiyle çelişki) | 🔴 | **Düzeltildi** — tabloya `Kapı` sütunu eklendi (`AsyncLocal`→`APG0501`+`AmbientWriteSiteTests`, sync kopyası→`kapi.py tarama`, Playwright→`PlaywrightLocatorTests`) |
+| 1 | `kusur-giderme` SKILL.md'nin sayaç tablosuna kapı sütunu eklenmemişti (DoD maddesiyle çelişki) | 🔴 | **Düzeltildi** — tabloya `Kapı` sütunu eklendi (`AsyncLocal`→`TRC0501`+`AmbientWriteSiteTests`, sync kopyası→`kapi.py tarama`, Playwright→`PlaywrightLocatorTests`) |
 | 2 | DoD'daki "14 yer" ifadesi taban çizgisindeki gerçek 11 satırla uyuşmuyordu | 🟡 | **Düzeltildi** — DoD satırı 11'e düzeltildi, "Plandan Sapmalar #4"e ölçüm terminolojisi (ham grep vs. benzersiz taban çizgisi) yazıldı |
 | 3 | Hata Modları tablosundaki iki satır (Windows yol ayırıcısı, `RepositoryRoot` bulunamama) ayrı bir birim testi vaat ediyordu, kodda yok | 🟡 | **Gerekçelendi** — tablo satırları "davranış kodda var, ayrı test yok, `SourceLanguageTests` ile aynı desen" olarak düzeltildi; yeni test **eklenmedi** çünkü referans aldığı desenin kendisi de aynı boşluğu taşıyor |
-| 4 | `samples/AgentPrism.Api` ile gerçek `run` kanıtı faz dokümanında yoktu | 🟡 | **Düzeltildi** — koşum bu bölümün altına, gerçek çıktıyla yazıldı |
+| 4 | `samples/Tracon.Api` ile gerçek `run` kanıtı faz dokümanında yoktu | 🟡 | **Düzeltildi** — koşum bu bölümün altına, gerçek çıktıyla yazıldı |
 
 **Temiz çıkan başlıklar** (denetçi raporu): 3.2 (test tiyatrosu), 3.3 (test
 seviyesi), 3.5 (imza-gövde kayması), 3.6 (plan dışı public API), 3.7 (repo
@@ -206,20 +206,20 @@ kusuru bu fazın kapsamı dışında bırakıldı ve `docs/hafiza/cekirdek-calis
 tuzak olarak kaydedildi (bu bir yetenek adayı değil, `ADAYLAR.md`'nin
 formatına girmiyor).
 
-### `samples/AgentPrism.Api` gerçek koşum (2026-08-24)
+### `samples/Tracon.Api` gerçek koşum (2026-08-24)
 
-`AgentPrism__PostgreSql__ConnectionString=""` ile (yerel `user-secrets`'taki
+`Tracon__PostgreSql__ConnectionString=""` ile (yerel `user-secrets`'taki
 eski bir migration checksum çakışmasını atlayıp in-memory store'a zorlamak
 için — Faz 93'ün konusuyla ilgisiz, ortam-özel bir durum) uygulama ayağa
 kalktı:
 
 ```bash
-curl -s -X POST http://localhost:5081/agentprism/api/agents/support/run \
+curl -s -X POST http://localhost:5081/tracon/api/agents/support/run \
   -H 'Authorization: Bearer <token>' -H 'Content-Type: application/json' \
   -d '{"message":"where is my order"}'
 # SSE akışı: event: update ... event: done, data: {"sessionId":null}
 
-curl -s http://localhost:5081/agentprism/api/runs -H 'Authorization: Bearer <token>'
+curl -s http://localhost:5081/tracon/api/runs -H 'Authorization: Bearer <token>'
 # [{"agentName":"support","status":"Completed","modelId":"gpt-5.4-mini",
 #   "usage":{"inputTokens":232,"outputTokens":18,"totalTokens":250},"eventCount":17,...}]
 ```
@@ -231,9 +231,9 @@ etkilemiyor) örnek uygulamayı bozmadı.
 ## Sonraki Faza Devir Notu
 
 **Devralınan sözleşmeler:**
-- `AgentPrism.Workflows` artık `AgentPrism.Generators`'a `OutputItemType=Analyzer`
+- `Tracon.Workflows` artık `Tracon.Generators`'a `OutputItemType=Analyzer`
   `ProjectReference` taşıyor (`Core`'un deseninin aynısı). Yeni bir `APG` tanısı
-  eklenirse **hem** `AgentPrism.Core` **hem** `AgentPrism.Workflows` üzerinde
+  eklenirse **hem** `Tracon.Core` **hem** `Tracon.Workflows` üzerinde
   `dotnet build -c Release` ile sıfır-yanlış-pozitif ölçülmeli — Faz 93 bunu
   ihmal ettiğinde iki ayrı yanlış pozitif üretti (bkz. "Plandan Sapmalar #1").
 - `AmbientWriteSiteTests`/`PlaywrightLocatorTests` yalnız küçülen taban
@@ -245,8 +245,8 @@ etkilemiyor) örnek uygulamayı bozmadı.
 - 🚨 **Bir async iterator kuralı yazarken "metot gövdesinde herhangi bir yer"
   varsayımı yanlış pozitif üretir.** Konteyner döngüler (başka bir döngü
   içeren) ile `finally`/cleanup bloklarındaki await'ler ayrı ele alınmalı —
-  detay `AgentPrismUsageAnalyzer.cs`'in `ImmediateDescendants` yorumunda.
-- 🚨 **APG0502 tipi "sonuç discard edildi mi" analizleri sözdizimsel
+  detay `TraconUsageAnalyzer.cs`'in `ImmediateDescendants` yorumunda.
+- 🚨 **TRC0502 tipi "sonuç discard edildi mi" analizleri sözdizimsel
   (`ExpressionStatementSyntax`) DEĞİL, `IOperation` (`IExpressionStatementOperation`)
   tabanlı yazılmalı** — sözdizimsel kontrol expression-bodied üyeleri
   (`void X() => Y();`) kaçırır.

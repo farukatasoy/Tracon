@@ -1,11 +1,11 @@
-# AgentPrism — Tüketici Geri Bildirim Raporu
+# Tracon — Tüketici Geri Bildirim Raporu
 
-> **Kimden:** ProdigyEnabler (ABP 10.5 / .NET 10 / PostgreSQL / Hangfire) — AgentPrism'i üretim AI altyapısına gömmeye hazırlanan tüketici proje.
-> **Kime:** AgentPrism kod geliştirme agent'ı.
+> **Kimden:** ProdigyEnabler (ABP 10.5 / .NET 10 / PostgreSQL / Hangfire) — Tracon'i üretim AI altyapısına gömmeye hazırlanan tüketici proje.
+> **Kime:** Tracon kod geliştirme agent'ı.
 > **Tarih:** 2026-08-21 · **Ölçülen sürüm:** `0.0.0-preview.0.291` (13 paket referanslı; `Azure`/`Sqlite`/`SqlServer` bilinçli dışarıda)
 > **Önceki tur:** [`2026-08-18-tuketici-raporu.md`](../arsiv/kesif/2026-08-18-tuketici-raporu.md) — aynı tüketiciden. O tur F-110…F-119'u doğurdu. **Bu rapor onun devamıdır.**
 >
-> **Not (AgentPrism tarafı, 2026-08-21):** Bu dosya dışarıdan gelen bir tüketici
+> **Not (Tracon tarafı, 2026-08-21):** Bu dosya dışarıdan gelen bir tüketici
 > raporudur ve **olduğu gibi** saklanır. İddiaların doğrulaması bizim tarafımızda
 > [`2026-08-21-tuketici-turu-2.md`](2026-08-21-tuketici-turu-2.md) içindedir.
 > Rapordaki göreli bağlantılar bu repo'ya göre düzeltilmiştir; metin değişmemiştir.
@@ -18,7 +18,7 @@ Bu bir spec değildir, **tüketici raporudur**. Önceki turun zemin notu şunu y
 
 > "Yetkilendirme ve maliyet dağıtımı boşlukları önceki turlarda görülmemişti. İkisini de faz listesine bakmak değil, **gerçek bir tüketicinin paketi gömmeye çalışması** gösterdi."
 
-Aradaki fark şudur: **2026-08-18 turu dokümanı okuyarak yazılmıştı; bu tur paketin API yüzeyi okunarak ve gerçek bir geçiş planlanarak yazıldı.** Kaynak: 12 paketin XML dokümanı (~6.100 public member), `AgentPrism.AgentMap.md`, `agentprism.json` (123 yol), nuspec bağımlılıkları ve tüketici tarafının 190 dosyalık AI kod tabanı.
+Aradaki fark şudur: **2026-08-18 turu dokümanı okuyarak yazılmıştı; bu tur paketin API yüzeyi okunarak ve gerçek bir geçiş planlanarak yazıldı.** Kaynak: 12 paketin XML dokümanı (~6.100 public member), `Tracon.AgentMap.md`, `tracon.json` (123 yol), nuspec bağımlılıkları ve tüketici tarafının 190 dosyalık AI kod tabanı.
 
 Okuma sırası:
 
@@ -149,7 +149,7 @@ Tüketici tarafında **her** AI çağrısı çalışma anında parametre enjekte
 
 Bugün bunu Scriban tabanlı bir renderer yapıyor ve JSON-güvenli kaçış uyguluyor.
 
-**AgentPrism'de bugün iki yol var ve ikisi de kötüdür:**
+**Tracon'de bugün iki yol var ve ikisi de kötüdür:**
 
 1. **Parametreyi kullanıcı mesajına koy.** Talimatı veri kanalına indirir. Enjeksiyon yüzeyini büyütür (bkz. Y8) ve "system prompt" ile "kullanıcı girdisi" ayrımını yok eder.
 2. **Her çağrıda `AddAgent(name, factory)` ile dinamik agent üret.** Kod agent'larının sürüm geçmişi yoktur — bu, Faz 19'un sürümleme, diff, rollback, A/B ve eval kazanımlarının **tamamını** kapatır. Yani F-34'ün eksikliği, bizim için Faz 18/19/45/49/56'yı erişilemez kılıyor.
@@ -166,7 +166,7 @@ Bugün bunu Scriban tabanlı bir renderer yapıyor ve JSON-güvenli kaçış uyg
 - **Eval vakası parametre seti taşımalı.** Aksi hâlde parametreli bir agent değerlendirilemez ve kalem kendi değerini kesmiş olur.
 - `InstructionsByCulture` ile birleşir: her kültür varyantı **aynı** parametre şemasını kullanır.
 
-**Değer:** Bu olmadan parametreli agent'lar AgentPrism tanımına taşınamaz. Bir tüketici için "agent tanımını AgentPrism'e taşı" adımı bugün yarım kalıyor.
+**Değer:** Bu olmadan parametreli agent'lar Tracon tanımına taşınamaz. Bir tüketici için "agent tanımını Tracon'e taşı" adımı bugün yarım kalıyor.
 **Mercek:** 1, 5, 7 — ve dolaylı olarak 3 (parametresiz bir kontrol düzlemi kurumsal bir prompt kütüphanesi olamaz).
 **Hazırlık:** Sıfırdan. Ama kapsam daraldığı için ucuzladı: değer yerleştirme + kaçış bir şablon motoru değildir, ~150 satırlık saf bir fonksiyondur. Scriban gibi bir motor **alınmamalıdır** — hem K2'yi zorlar hem AOT duruşunu.
 **Maliyet:** Orta. Yeni public tip: 2 (`AgentParameterDefinition`, sözlük alanı). Migration: agent tanımı yükü zaten `jsonb`.
@@ -178,11 +178,11 @@ Bugün bunu Scriban tabanlı bir renderer yapıyor ve JSON-güvenli kaçış uyg
 
 ### Y2 · Kesintiye uğramış turun devamı — F-95'in MAF-kancasız alternatifi 🔴
 
-> **F-95 ile aynı ihtiyaç, farklı tasarım.** F-95 şu ölçümle kapsam dışına alınmıştı: *"MAF agent düzeyinde kanca vermiyor — ölçüldü. Kancayı AgentPrism yazmak K3'ü zorlar. Kanca yalnız `Microsoft.Agents.AI.Workflows` içinde var."* **Bu ölçüm doğrudur ve bu kalem onu tartışmıyor.** Önerilen tasarım MAF'a hiç kanca takmaz.
+> **F-95 ile aynı ihtiyaç, farklı tasarım.** F-95 şu ölçümle kapsam dışına alınmıştı: *"MAF agent düzeyinde kanca vermiyor — ölçüldü. Kancayı Tracon yazmak K3'ü zorlar. Kanca yalnız `Microsoft.Agents.AI.Workflows` içinde var."* **Bu ölçüm doğrudur ve bu kalem onu tartışmıyor.** Önerilen tasarım MAF'a hiç kanca takmaz.
 
 **Sorun:** Agent koşusu süreç-içidir. Süreç yeniden başlarsa (deploy, çökme, ölçek olayı) koşu kaybolur. `ClaimOrphanedRunsAsync` (Faz 54) satırı `Failed` işaretler — doğru davranıştır ama **kurtarma değildir.**
 
-Tüketici tarafında bugünkü karşılık şudur: her tool turunda iş kuyruğa geri girer, bu yüzden deploy sırasında akan bir sohbet turu **hayatta kalır**. AgentPrism'e geçiş bu davranışı kaybettirir. Tek instance'lı bir kurulumda bu, **her yayında aktif turların kesilmesi** demektir.
+Tüketici tarafında bugünkü karşılık şudur: her tool turunda iş kuyruğa geri girer, bu yüzden deploy sırasında akan bir sohbet turu **hayatta kalır**. Tracon'e geçiş bu davranışı kaybettirir. Tek instance'lı bir kurulumda bu, **her yayında aktif turların kesilmesi** demektir.
 
 **Kritik gözlem — kayıp veri yoktur.** Kesilen turun bilgisi zaten diskte durur:
 
@@ -190,17 +190,17 @@ Tüketici tarafında bugünkü karşılık şudur: her tool turunda iş kuyruğa
 - `RecordedToolPlayback` bu kayıttan bir defter kurup `(tool adı, argümanlar)` çiftiyle eşleştirmeyi **zaten yapıyor** ve aynı çağrının tekrarını kayıt sırasına göre tüketiyor.
 - `PendingApproval` sözleşmesi şu emsali **zaten kurmuş**: *"Karar verildikten sonra AYNI koşu devam etmez; kuyruğa yeni bir koşu konur (aynı oturum, yeni RunId)."*
 
-Yani "turu tur sınırında devam ettirme" mekanizması AgentPrism'de **iki parça hâlinde mevcuttur**; eksik olan üçüncüsü onları birleştiren tetikleyicidir.
+Yani "turu tur sınırında devam ettirme" mekanizması Tracon'de **iki parça hâlinde mevcuttur**; eksik olan üçüncüsü onları birleştiren tetikleyicidir.
 
 **Kapsam:**
 
 - `ClaimOrphanedRunsAsync` öksüz bir koşuyu kapatırken, koşu bir **oturuma** bağlıysa ve ayar açıksa, aynı oturum için bir devam koşusu kuyruğa konur (`JobKind.AgentRun`, yeni `RunId`, `parent_run_id` ile öksüz koşuya bağlı).
 - Devam koşusu tool'ları `RecordedToolPlayback` defteriyle koşar: kesilen turda **tamamlanmış** tool çağrıları yeniden çalıştırılmaz, kayıtlı sonuçları döner. Yarım kalan çağrı yeniden çalışır.
-- Ayar varsayılan **kapalı** (sıfır sürpriz kuralı). `AgentPrism:RunReconciliation` altında yaşar — orası zaten öksüz koşunun evi.
+- Ayar varsayılan **kapalı** (sıfır sürpriz kuralı). `Tracon:RunReconciliation` altında yaşar — orası zaten öksüz koşunun evi.
 - Deneme sayısı sınırlı; `JobRecord.MaxAttempts` zaten var.
 - Devam koşusu koşu ağacında görünür olmalı: operatör "bu tur bir kez kesildi ve devam etti" cümlesini konsolda okuyabilmelidir.
 
-**Neden K3'ü zorlamaz:** MAF'a kanca takılmıyor. Kullanılan üç şeyin üçü de AgentPrism'in kendi kaydıdır — `run_events`, `RecordedToolPlayback`, iş kuyruğu.
+**Neden K3'ü zorlamaz:** MAF'a kanca takılmıyor. Kullanılan üç şeyin üçü de Tracon'in kendi kaydıdır — `run_events`, `RecordedToolPlayback`, iş kuyruğu.
 
 **Neden K-315'i (yeniden oynatma oturumsuzdur) ihlal etmez:** Bu bir replay değildir. Replay kaynak koşuyu yeni ve oturumsuz bir koşu olarak tekrar çalıştırır. Bu kalem **aynı oturumun kesilen turunu** devam ettirir ve bunu `ApprovalResume`'un zaten yaptığı gibi yeni bir koşuyla yapar. İki işlem ayrı adlandırılmalıdır ki karışmasın.
 
@@ -218,13 +218,13 @@ Yani "turu tur sınırında devam ettirme" mekanizması AgentPrism'de **iki par�
 
 ### Y3 · Görsel üretim tool'u 🟠
 
-**Sorun:** AgentPrism görsel **üretemiyor**. Faz 14 çok modluluğu girdi tarafında çözdü (görsel, ses, dosya girdisi); çıktı tarafında karşılığı yok. `ImageGenerationToolCallContent` yalnız MAF içerik tipi olarak JSON bağlamında geçiyor — bir sağlayıcı yeteneği olarak sunulmuyor.
+**Sorun:** Tracon görsel **üretemiyor**. Faz 14 çok modluluğu girdi tarafında çözdü (görsel, ses, dosya girdisi); çıktı tarafında karşılığı yok. `ImageGenerationToolCallContent` yalnız MAF içerik tipi olarak JSON bağlamında geçiyor — bir sağlayıcı yeteneği olarak sunulmuyor.
 
-Tüketici tarafında görsel üretimi üretimde çalışan bir pipeline adımıdır: bir makale onaya girdiğinde beş içerik üretilir ve biri görseldir. AgentPrism'e geçince **dört adımın maliyeti görünür olur, beşincisi görünmez kalır.** "Bir makalenin toplam üretim maliyeti nedir" sorusu tam cevaplanamaz — ve o soru kontrol düzleminin varlık sebebidir.
+Tüketici tarafında görsel üretimi üretimde çalışan bir pipeline adımıdır: bir makale onaya girdiğinde beş içerik üretilir ve biri görseldir. Tracon'e geçince **dört adımın maliyeti görünür olur, beşincisi görünmez kalır.** "Bir makalenin toplam üretim maliyeti nedir" sorusu tam cevaplanamaz — ve o soru kontrol düzleminin varlık sebebidir.
 
 **Kapsam:**
 
-- `AgentPrism.Images` (veya mevcut sağlayıcı paketlerine ek): `GenerateImageTool` — ses tarafındaki `SpeakTool`/`TranscribeTool` emsaliyle birebir aynı yapı.
+- `Tracon.Images` (veya mevcut sağlayıcı paketlerine ek): `GenerateImageTool` — ses tarafındaki `SpeakTool`/`TranscribeTool` emsaliyle birebir aynı yapı.
 - Ölçüm: görsel başına / çözünürlük başına fiyat. `VoicePriceOverride` deseni aynen uygulanabilir — o desen "bir model ya karakter başına ya süre başına ücretlenir" ayrımını zaten çözmüş.
 - `tool_invocations` satırına yazılır; koşuya bağlıdır; kota, onay, denetim ve kiracılık otomatik gelir.
 - Üretilen görsel `IAttachmentStorage` üzerinden yaşar — genişleme noktası zaten var.
@@ -234,7 +234,7 @@ Tüketici tarafında görsel üretimi üretimde çalışan bir pipeline adımıd
 **Mercek:** 1, 3, 8.
 **Hazırlık:** Sağlayıcı SDK'ları hazır (OpenAI `Images`, Google Gemini görsel çıktısı). Ses fazının (Faz 28) yapısı birebir emsaldir.
 **Maliyet:** Orta. Yeni paket **gerekmeyebilir** — sağlayıcı paketlerine tool eklemek yeterli olabilir; ölçülmelidir.
-**Risk:** Düşük–orta. Asıl risk fiyatlandırmanın karmaşıklığıdır (boyut, kalite, model başına farklı birim). Ses tarafındaki "AgentPrism fiyat uydurmaz; eşleşme yoksa `null` döner" kuralı burada da korunmalıdır.
+**Risk:** Düşük–orta. Asıl risk fiyatlandırmanın karmaşıklığıdır (boyut, kalite, model başına farklı birim). Ses tarafındaki "Tracon fiyat uydurmaz; eşleşme yoksa `null` döner" kuralı burada da korunmalıdır.
 **Bağımlılık:** Faz 28 (ses tool'ları — emsal) · Faz 14 (ekler).
 **Ekosistem:** LiteLLM görsel üretimi maliyetiyle birlikte proxy'liyor. Langfuse görsel çıktıyı izlemede gösteriyor. .NET'te kontrol düzlemi seviyesinde karşılığı yok.
 
@@ -244,28 +244,28 @@ Tüketici tarafında görsel üretimi üretimde çalışan bir pipeline adımıd
 
 > **Bu bir paket kalemi değildir.** İlk taslakta "ABP entegrasyon paketi" olarak yazılmıştı; L16 (EF Core kullanılmadı) ve *"S3/Azure Blob uygulaması: genişleme noktası zaten var, somut uygulama tüketicinin işidir"* emsali okununca **örnek + doküman** kalemine daraltıldı. Volo.Abp bağımlılığı paket ailesine girmemelidir.
 
-**Sorun:** AgentPrism'i mevcut bir kurumsal uygulamaya gömmek için **beş** genişleme noktası aynı anda doğru bağlanmalıdır:
+**Sorun:** Tracon'i mevcut bir kurumsal uygulamaya gömmek için **beş** genişleme noktası aynı anda doğru bağlanmalıdır:
 
 | Genişleme noktası | Neyi çözer | Tuzağı |
 |---|---|---|
-| `ITenantContext` | "Bu isteğin kiracısı kim" | Uygulamanın kiracı kimliği `Guid?`, AgentPrism'inki `string`. Host/null hâli eşlenmelidir |
+| `ITenantContext` | "Bu isteğin kiracısı kim" | Uygulamanın kiracı kimliği `Guid?`, Tracon'inki `string`. Host/null hâli eşlenmelidir |
 | `IRunAttributionContext` | "Kim harcadı, hangi iş için" | Singleton olmalı |
 | `IToolAuthorizationHandler` | "Bu çağrıyı yapabilir mi" | Fail-closed — doğru, ama uygulamanın izin kontrolü fırlatıyorsa davranış değişir |
 | `IRunEventSink` | Gerçek zamanlı köprü | Sıcak yolda `await` edilir |
-| Kiracı kaydının senkronizasyonu | AgentPrism'in kendi `tenants` tablosu | `MigrationHostedService` yalnız **varsayılan** kiracıyı garanti eder; yeni kiracı elle eklenmelidir |
+| Kiracı kaydının senkronizasyonu | Tracon'in kendi `tenants` tablosu | `MigrationHostedService` yalnız **varsayılan** kiracıyı garanti eder; yeni kiracı elle eklenmelidir |
 
 Beşinin **her biri** kendi XML dokümanında iyi anlatılmış. Ama beşi bir arada hiçbir yerde görünmüyor. Tüketici bunları tek tek keşfediyor ve sırayı kendi kuruyor.
 
-**Ve bir tuzak bunların hepsini kesiyor:** `AmbientTenantScope` / `AmbientRunAttributionScope` — arka planda çalışan bir işte (Hangfire job'ı, hosted service, ABP background job) scope'un **koşuyu başlatan metodun kendi gövdesinde** açılması ve akış yolunda her `MoveNextAsync` öncesi açık kalması gerekir. Bu, AgentPrism'in kendi `AGENTS.md`'sinde *"beş kez yaşandı"* diye kayıtlı bir tuzaktır. Tüketici bunu ilk kez yaşayacaktır — ve tüketici tarafında `AsyncLocal` akışını hata ayıklamak, kütüphane içinde ayıklamaktan zordur.
+**Ve bir tuzak bunların hepsini kesiyor:** `AmbientTenantScope` / `AmbientRunAttributionScope` — arka planda çalışan bir işte (Hangfire job'ı, hosted service, ABP background job) scope'un **koşuyu başlatan metodun kendi gövdesinde** açılması ve akış yolunda her `MoveNextAsync` öncesi açık kalması gerekir. Bu, Tracon'in kendi `AGENTS.md`'sinde *"beş kez yaşandı"* diye kayıtlı bir tuzaktır. Tüketici bunu ilk kez yaşayacaktır — ve tüketici tarafında `AsyncLocal` akışını hata ayıklamak, kütüphane içinde ayıklamaktan zordur.
 
 **Kapsam:**
 
-- `samples/` altına ikinci bir örnek: **"var olan bir uygulamaya gömme"**. Bugünkü `AgentPrism.Api` örneği yeşil alan kurulumudur; bu örnek beş noktayı da bağlar.
+- `samples/` altına ikinci bir örnek: **"var olan bir uygulamaya gömme"**. Bugünkü `Tracon.Api` örneği yeşil alan kurulumudur; bu örnek beş noktayı da bağlar.
 - Örnek çerçeve-nötr olmalıdır: ASP.NET Core + jenerik bir "kiracılı, izinli, arka plan işli uygulama". ABP adı geçmesin — ama desen ABP, Orchard, kendi yazdığı çerçeve, hepsine uysun.
 - Arka plan işi senaryosu **zorunlu**: örnekte bir hosted service'ten koşu başlatan bir yol olsun, scope orada doğru açılsın. Tuzağın tek gerçek panzehiri budur.
-- `docs-site/`'a "Embedding AgentPrism in an existing application" sayfası: beş nokta + sıra + doğrulama listesi.
+- `docs-site/`'a "Embedding Tracon in an existing application" sayfası: beş nokta + sıra + doğrulama listesi.
 
-**Değer:** Mercek 1'in ta kendisi — ilk agent'a kadar geçen süre. Yeşil alan kurulumu iki satırdır (`AddAgentPrism()` + `MapAgentPrism()`); gömme kurulumu bugün keşif gerektiriyor.
+**Değer:** Mercek 1'in ta kendisi — ilk agent'a kadar geçen süre. Yeşil alan kurulumu iki satırdır (`AddTracon()` + `MapTracon()`); gömme kurulumu bugün keşif gerektiriyor.
 **Mercek:** 1, 3, 6.
 **Hazırlık:** Hazır — beş nokta da mevcut. Yalnız örnek ve sayfa yazılacak.
 **Maliyet:** Küçük. Public yüzey **büyümez**.
@@ -288,12 +288,12 @@ Beşinin **her biri** kendi XML dokümanında iyi anlatılmış. Ama beşi bir a
 
 Tüketici tarafındaki karşılığı üç katmanlı bir kurtarma mimarisidir: her adım sonrası öksüz adım tespiti · periyodik watchdog taraması · yeni tetiklemede zorla sonlandırma. Bu üç katman gerçek bir üretim olayından doğdu — dört paralel adımın biri sessizce takılınca pipeline sonsuza dek `Running` kaldı.
 
-**Bu kalem olmadan** tüketici Hangfire'ı bırakamaz. Yani AgentPrism kurulumunda **üçüncü** bir kuyruk kalıcı olur.
+**Bu kalem olmadan** tüketici Hangfire'ı bırakamaz. Yani Tracon kurulumunda **üçüncü** bir kuyruk kalıcı olur.
 
 **Kapsam:**
 
 - Workflow tanımında düğüm başına retry politikası: deneme sayısı + geri çekilme (backoff) çarpanı. `JobRecord.MaxAttempts`'ın düğüm seviyesindeki kardeşi.
-- Geçici/kalıcı hata ayrımı — tipli sağlayıcı exception'ları (`AgentPrismProviderUnavailableException`) zaten bunu **taşıyor**; metin eşleştirmesine gerek yok. Bu, kalemin en ucuz parçasıdır.
+- Geçici/kalıcı hata ayrımı — tipli sağlayıcı exception'ları (`TraconProviderUnavailableException`) zaten bunu **taşıyor**; metin eşleştirmesine gerek yok. Bu, kalemin en ucuz parçasıdır.
 - `RunReconciliation` workflow koşularını da kapsasın: checkpoint'i olan ve lease'i düşmüş bir koşu `Failed` yerine **kuyruğa geri konsun** (ayarla, varsayılan kapalı).
 - Konsolda "bu workflow düğümü 2 kez denendi" görünürlüğü — `run_events` zaten olay taşıyor.
 
@@ -339,7 +339,7 @@ Tüketici tarafında somut örnek: bir ontoloji arama tool'u geniş bir alt ağa
 
 **Kapsam:**
 
-- `AgentPrismToolRegistration.MaxOutputBytes` (veya karakter) — `Timeout` alanının kardeşi, aynı yerde yaşar, kurulum varsayılanı `ToolOptions`'tan gelir.
+- `TraconToolRegistration.MaxOutputBytes` (veya karakter) — `Timeout` alanının kardeşi, aynı yerde yaşar, kurulum varsayılanı `ToolOptions`'tan gelir.
 - Aşımda çıktı kırpılır ve modele **açık bir işaretle** verilir: "çıktı kırpıldı, N bayt atlandı". Sessiz kırpma modelin yanlış sonuç üretmesine yol açar.
 - Kırpma olayı `run_events`'e yazılır — operatör hangi tool'un sürekli kırpıldığını görebilmelidir. Bu, kalemin ölçme–iyileştirme tarafıdır: kırpılan tool, yanlış tasarlanmış tool'dur.
 
@@ -430,7 +430,7 @@ Bunlar tüketici olarak cevabını bilmediğim ve tasarımı etkileyen sorulard�
 | 1 | Y1 (şablon) ve Y8 (belge kanalı) tek fazda mı planlanmalı? | İkisi de "talimata ne girer" sorusudur. Ayrı planlanırsa ikincisi birincisinin kararını bozar — Küme C emsali |
 | 2 | Y2 ve Y5 tek fazda mı? | İkisi de "kesilen işi devam ettir"dir; biri agent, biri workflow. Ortak sözleşme (devam kaydı, deneme sayısı, yan etki kısıtı) yazılabilir |
 | 3 | Y2'de devam koşusu **varsayılan kapalı** mı olmalı? | Sıfır sürpriz kuralı "evet" diyor. Ama o zaman özellik varsayılan kurulumda görünmez kalır |
-| 4 | Görsel üretim (Y3) yeni bir paket mi, mevcut sağlayıcı paketlerine ek mi? | Ses ayrı paket oldu (`AgentPrism.Voice`); görselin bağımlılık ağırlığı ölçülmeli |
+| 4 | Görsel üretim (Y3) yeni bir paket mi, mevcut sağlayıcı paketlerine ek mi? | Ses ayrı paket oldu (`Tracon.Voice`); görselin bağımlılık ağırlığı ölçülmeli |
 | 5 | `IRunEventSink` için tampon sarmalayıcısı (Y6) paket sınırına girer mi? | S3 emsali "somut uygulama tüketicinin işi" diyor; ama burada tekrarlanan şey bir eşzamanlılık desenidir |
 
 ---
@@ -441,11 +441,11 @@ Bu rapordaki her iddia aşağıdakilerden birine dayanır. Canlı çalıştırma
 
 | Kaynak | Ne için |
 |---|---|
-| 12 paketin XML dokümanı (`~/.nuget/packages/agentprism.*/0.0.0-preview.0.291/lib/net10.0/*.xml`) | Tip sözleşmeleri, tasarım gerekçeleri, varsayılanlar |
-| `AgentPrism.AgentMap.md` (Core `buildTransitive/`) | Yetenek envanteri |
-| `agentprism.json` (OpenAPI 3.1.1 · 123 yol) | HTTP yüzeyi, uç davranışları |
+| 12 paketin XML dokümanı (`~/.nuget/packages/tracon.*/0.0.0-preview.0.291/lib/net10.0/*.xml`) | Tip sözleşmeleri, tasarım gerekçeleri, varsayılanlar |
+| `Tracon.AgentMap.md` (Core `buildTransitive/`) | Yetenek envanteri |
+| `tracon.json` (OpenAPI 3.1.1 · 123 yol) | HTTP yüzeyi, uç davranışları |
 | `.nuspec` dosyaları | Bağımlılıklar, hedef framework |
 | `docs/ADAYLAR.md` · `docs/YOL-HARITASI.md` · `docs/arsiv/KARARLAR-INDEKS-REDDEDILEN.md` | Çakışma taraması (§1.1) |
 | `docs/kesif/2026-08-18-tuketici-raporu.md` | Önceki turla süreklilik |
 | ProdigyEnabler `docs/AI-MIMARISI.md` · `claudedocs/ai-altyapi-*` | Tüketici tarafındaki gerçek ihtiyaç |
-| ProdigyEnabler `claudedocs/agentprism-uygulanabilirlik-raporu-2026-08-21.md` | Bu raporun kaynağı olan tam geçiş analizi |
+| ProdigyEnabler `claudedocs/tracon-uygulanabilirlik-raporu-2026-08-21.md` | Bu raporun kaynağı olan tam geçiş analizi |

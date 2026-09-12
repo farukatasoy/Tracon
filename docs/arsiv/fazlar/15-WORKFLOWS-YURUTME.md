@@ -4,7 +4,7 @@
 > **Kaynak:** [BEYIN-FIRTINASI.md](../BEYIN-FIRTINASI.md) · **F-27** (1/2)
 > **Önkoşul:** [Faz 12](12-AGENT-CAGRI-GRAFIGI.md) — `runs.parent_run_id` bu fazda yeniden kullanıldı
 > **Sonraki:** [Faz 16](16-WORKFLOWS-ARAYUZ.md) — graf, arayüz, human-in-the-loop
-> **Paketler:** `AgentPrism.Abstractions`, `.Core`, `.PostgreSql`, `.AspNetCore`, **`AgentPrism.Workflows` (YENİ)**
+> **Paketler:** `Tracon.Abstractions`, `.Core`, `.PostgreSql`, `.AspNetCore`, **`Tracon.Workflows` (YENİ)**
 > **Migration:** 0007
 
 ---
@@ -106,7 +106,7 @@ Executor'lar `WatchStreamAsync` pompasının içinde değil, `RunStreamingAsync`
 çağrısında başlatılan bir arka plan görevinde çalışır ve o görev
 `ExecutionContext`'i **tam o anda** yakalar.
 
-Sonuç: `AgentPrismRunContext` kapsamı yalnızca `MoveNextAsync` öncesinde
+Sonuç: `TraconRunContext` kapsamı yalnızca `MoveNextAsync` öncesinde
 yazılırsa alt agent çağrıları "çalıştırma kaydı kapalı" diyerek reddedilir ve
 workflow **sessizce boş** çalışır — hiçbir agent satırı, hiçbir kontrol noktası
 oluşmaz. Kapsam `StartAsync` çağrısından **önce** de yazılmalıdır. Bu, Faz
@@ -116,13 +116,13 @@ oluşmaz. Kapsam `StartAsync` çağrısından **önce** de yazılmalıdır. Bu, 
 
 ## Gerçek Kanıt
 
-`samples/AgentPrism.Api`, gerçek OpenAI modeli (`gpt-5.4-mini`) ve gerçek
+`samples/Tracon.Api`, gerçek OpenAI modeli (`gpt-5.4-mini`) ve gerçek
 PostgreSQL 18 ile çalıştırıldı.
 
 ### Kodda tanımlı workflow — `ozetle-ve-cevir`
 
 ```
-POST /agentprism/api/workflows/ozetle-ve-cevir/run
+POST /tracon/api/workflows/ozetle-ve-cevir/run
 → 122 SSE cercevesi, ilk "run", son "done"
 
 olaylar: RunStarted 1, WorkflowStarted 1, SuperStepStarted 3,
@@ -149,7 +149,7 @@ Kontrol noktaları — zincirlenmiş üç nokta:
 ### Arayüzden tanımlı workflow — `inceleme-zinciri`
 
 ```
-PUT /agentprism/api/workflows/inceleme-zinciri
+PUT /tracon/api/workflows/inceleme-zinciri
 {"kind":"Sequential","agentNames":["ozetleyici","cevirmen"]}
 → 200, version=1, tenantId="default"
 
@@ -169,7 +169,7 @@ to each other with ready-made patterns, and each execution is a runs row.
 ### Sürdürme
 
 ```
-POST /agentprism/api/workflows/runs/{runId}/resume
+POST /tracon/api/workflows/runs/{runId}/resume
 → YENI runId, 98 cerceve, WorkflowOutput uretildi, RunCompleted
 ```
 
@@ -211,7 +211,7 @@ Bu bölüm sonraki fazın en değerli bilgisidir.
 **Belirti:** 4 birim testi düştü — workflow satırı `Completed` ama sıfır alt
 agent satırı, sıfır kontrol noktası.
 
-**Kök neden:** `AgentPrismRunContext` kapsamı yalnızca `MoveNextAsync` öncesinde
+**Kök neden:** `TraconRunContext` kapsamı yalnızca `MoveNextAsync` öncesinde
 yazılıyordu. MAF yürütmeyi `RunStreamingAsync` çağrısında başlatan bir arka plan
 görevine devrediyor ve o görev `ExecutionContext`'i tam o anda yakalıyor —
 kapsam henüz boştu, `ChildAgentInvoker` tüm çağrıları reddetti.

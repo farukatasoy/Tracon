@@ -1,15 +1,15 @@
 ---
 title: Glossary
-description: Precise definitions for the AgentPrism terms used across agent design, execution, storage, security, evaluation, and operations.
+description: Precise definitions for the Tracon terms used across agent design, execution, storage, security, evaluation, and operations.
 slug: reference/glossary
 ---
 
 Agent systems reuse familiar words for different things. These definitions state what
-each term means inside AgentPrism.
+each term means inside Tracon.
 
 ## Agents and context
 
-**Agent.** A MAF `AIAgent` resolved through the AgentPrism catalog. It can come from a
+**Agent.** A MAF `AIAgent` resolved through the Tracon catalog. It can come from a
   declarative definition or a factory in code.
 
 **Agent definition.** Data that names an agent and selects its instructions, model binding, tools,
@@ -56,7 +56,7 @@ each term means inside AgentPrism.
   application code or a deliberately gated skill script, not from a free-form UI
   field.
 
-**Generated tool.** A method marked with `[AgentPrismTool]` and registered by generated code. It avoids
+**Generated tool.** A method marked with `[TraconTool]` and registered by generated code. It avoids
   runtime reflection and dynamic-code requirements.
 
 **Tool approval.** A required human or standing-rule decision before a sensitive tool call executes.
@@ -74,10 +74,10 @@ each term means inside AgentPrism.
 **Content guard.** An input or output inspector that can allow, mask, or block content. Multiple guards
   run in sequence and the strictest decision wins.
 
-**MCP client.** The `AgentPrism.Mcp` capability that discovers tools, prompts, and resources from
+**MCP client.** The `Tracon.Mcp` capability that discovers tools, prompts, and resources from
   remote HTTP Model Context Protocol servers.
 
-**MCP server.** The optional ASP.NET Core surface that publishes an explicit set of AgentPrism
+**MCP server.** The optional ASP.NET Core surface that publishes an explicit set of Tracon
   agents as MCP tools for external clients.
 
 **A2A.** The agent-to-agent protocol surface that publishes an explicit allowlist of agents.
@@ -169,7 +169,7 @@ each term means inside AgentPrism.
   judge, enable flag, and positive sample rate all exist.
 
 **Experiment.** Stable traffic assignment between versions of the same agent with per-arm counts,
-  errors, usage, and duration. AgentPrism reports results but does not declare a
+  errors, usage, and duration. Tracon reports results but does not declare a
   winner.
 
 **Canary.** An experiment arm used for limited rollout. An optional policy can stop or roll it
@@ -180,7 +180,7 @@ each term means inside AgentPrism.
 **Tenant.** The top-level data and authority partition. Stores and requests carry a tenant id;
   single-tenant mode uses the configured default id.
 
-**Role.** An ASP.NET Core authorization policy such as Reader, Operator, or Admin. AgentPrism
+**Role.** An ASP.NET Core authorization policy such as Reader, Operator, or Admin. Tracon
   does not store users or role assignments.
 
 **API-key scope.** One closed enum value that narrows what a key may do. Effective authority is the
@@ -215,9 +215,9 @@ each term means inside AgentPrism.
   judges, background jobs, or the optional quota and queue-depth gauges.
 
 **Control plane.** The catalog, execution records, policies, operational services, API, and console
-  around agents. AgentPrism adds this plane without hiding the MAF objects below it.
+  around agents. Tracon adds this plane without hiding the MAF objects below it.
 
-**Console.** The embedded AgentPrism UI. It is an operator client of the same management API
+**Console.** The embedded Tracon UI. It is an operator client of the same management API
   that external automation can call.
 
 ## Read next

@@ -1,7 +1,7 @@
 # Tüketici Raporundan Çıkan Faz Adayları ve Kusurlar
 
 > **Tarih:** 2026-08-31 · **Ölçüm tabanı:** `8105c00` (HEAD)
-> **Kaynak:** `agentprism-uygulanabilirlik-analizi-2026-08-31.md` (ProdigyEnabler)
+> **Kaynak:** `tracon-uygulanabilirlik-analizi-2026-08-31.md` (ProdigyEnabler)
 > **Kardeş doküman:** [doğrulama raporu](2026-08-31-tuketici-raporu-dogrulamasi.md)
 >
 > **Bu dosya `ADAYLAR.md` değildir** ve artık bir **tur kaydıdır**: hangi
@@ -128,7 +128,7 @@ of a session that was already found existing) continue, unchanged, to use the
 sözleşmesi: *"Overwrites an existing record with the same identifier."*
 
 **Neden kusur:** HATA-004 tam olarak bu sınıftı ve **yalnız ilk kayıt için**
-kapatıldı (`TryCreateAsync` + `AgentPrismSessionConflictException`). Aynı sınıfın
+kapatıldı (`TryCreateAsync` + `TraconSessionConflictException`). Aynı sınıfın
 ikinci yarısı açık kaldı. `MEMORY.md`'nin "aynı kusur sınıfı defalarca
 tekrarladı" dersi doğrudan buraya oturuyor.
 
@@ -141,8 +141,8 @@ yazma (`TryCreateAsync` gibi **default gövdeli** bir metotla kırılmadan
 eklenebilir); üç SQL sağlayıcı + `SessionStoreContract`. Bir migration.
 
 **Karar (2026-08-31):** kapsam kararı değil, **gözden kaçma**. Çakışma ilk
-kaydın deseniyle kapatıldı: `AgentPrismSessionConflictException` fırlatılır ve
-retry çağırana düşer. AgentPrism'in içeride sessizce retry denemesi, kaybeden
+kaydın deseniyle kapatıldı: `TraconSessionConflictException` fırlatılır ve
+retry çağırana düşer. Tracon'in içeride sessizce retry denemesi, kaybeden
 turun hangi kararla düştüğünü çağırandan gizlerdi.
 
 **Uygulandı:** `ISessionStore.TryUpdateAsync` + `SessionRecord.Version` +
@@ -160,7 +160,7 @@ Karar kaydı **K-648**.
    zorluyor.
 3. **🚨 Farklı kimliğe kayıt.** Responses ucunun `previous_response_id`
    zincirlemesi oturumu `loadId`'den okuyup `saveId`'ye yazar ve
-   `AgentPrismAgentSessionStore` kimliği kayıttan hemen önce **yeniden
+   `TraconAgentSessionStore` kimliği kayıttan hemen önce **yeniden
    damgalar**. İlk uygulamam sürümü yalnız oturum nesnesine bağladığı için
    iyi bir yazımı 409 ile reddetti; regresyonu **fonksiyonel bir test kazayla**
    yakaladı. Sürüm artık okunduğu **kimliğe** bağlı ve davranış
@@ -239,7 +239,7 @@ dönüşecekti.
 | Faz | Plan ne diyordu | Ölçüm ne buldu |
 |---|---|---|
 | **126** | "`sessions` payload'ında sürüm damgası **yok**" | 🚨 **Yanlış öncül.** `sessions.schema_version` `0001_initial.sql`'den beri vardı ve her satır damgalıydı. Plan kanıt tablosunu çıkarırken `SqlSessionStore.cs`'i hiç grep'lememişti. Sonuç: sessions için migration bir **rename**, `workflow_checkpoints` için bir **add**; `SessionRecord.StateSchemaVersion` `int` (nullable **değil**), checkpoint'inki `int?` |
-| **125** | APG0009'u `ToolDiagnostics.cs`'e eklemek yeter | Üretecin **private** bir `DescriptorsById` dispatch tablosu var; orada olmayan tanı **sessizce düşer** — ne hata, ne test kırılması, ne log. Tanı eklendi ve hiç raporlanmadı; yalnız tanıyı bizzat arayan test yakaladı. Kapı: `DiagnosticIntegrityTests` |
+| **125** | TRC0009'u `ToolDiagnostics.cs`'e eklemek yeter | Üretecin **private** bir `DescriptorsById` dispatch tablosu var; orada olmayan tanı **sessizce düşer** — ne hata, ne test kırılması, ne log. Tanı eklendi ve hiç raporlanmadı; yalnız tanıyı bizzat arayan test yakaladı. Kapı: `DiagnosticIntegrityTests` |
 | **124** | `(ad, argüman)` eşleştirmesi yeter | Aynı bağlantının kendi içindeki tekrarlı çağrısını da tekilleştiriyordu; sahiplik damgası gerekti (yukarıda) |
 
 Dördüncü bir sapma kod dışıdır ama kaydedilmeye değer: **128'in kuyruklu
@@ -292,7 +292,7 @@ küçük bir örnek proje.
 işaretledi ve startup'ta fail-fast koymayı kendi kararı olarak yazdı.
 
 **Öneri:** `getting-started/security.md` ve kurulum teşhisinde
-(`AgentPrismDiagnosticsReport`) "yetkilendirme değiştirilmemiş" satırının
+(`TraconDiagnosticsReport`) "yetkilendirme değiştirilmemiş" satırının
 görünürlüğü ölçülmeli. Teşhis raporunda zaten varsa doküman yönlendirmesi
 eksik demektir; yoksa küçük bir aday doğar.
 
@@ -307,7 +307,7 @@ Aday olmayacak kalemler ve nedenleri. Bir kalem ileride yeniden açılırsa
 |---|---|
 | `IRunEventReader.ReadAfterAsync(runId, sequence)` | **Var.** `IRunStore.ReadEventsAsync(runId, fromSequence)` public ve tam olarak bu (`IRunStore.cs:191`) |
 | `RunInExternalJobAsync(ExternalJobContext, …)` | **Gerekmez.** `IAgentCatalog.ResolveAsync` kayıt sarmalayıcılı agent döndürür; kuyruk `Scheduling:RunWorker=false` ile kapanır. Kalan iş doküman → D-1 |
-| `AgentPrism.Abp` entegrasyon paketi | Dört ihtiyacın dördü de açık seam'e düşüyor (doğrulama raporu Y-11). Yeni NuGet paketi bu depoda en pahalı değişiklik türüdür; kazanç yalnız kolaylık. Reçete D-1 ile yazılır |
+| `Tracon.Abp` entegrasyon paketi | Dört ihtiyacın dördü de açık seam'e düşüyor (doğrulama raporu Y-11). Yeni NuGet paketi bu depoda en pahalı değişiklik türüdür; kazanç yalnız kolaylık. Reçete D-1 ile yazılır |
 | SQL tabanlı dağıtık iptal | `IRunCancellationRegistry` public ve `TryAddSingleton`; değiştirme yolu XML dokümanında adıyla yazılı. Sevk edilmiş implementasyon talebi ölçülmüş bir ihtiyaca dayanmıyor (tüketici tek örnekli) |
 | `UseMcpStdio` | **Bilinçli sınır.** *"Local process (stdio) transport is deliberately not supported."* (`McpConnection.cs:184`). Talebin kendisi "mevcut hedefte kanıt yoktur" diyor. Güvenlik ekseninde yeniden açılabilir, ergonomi ekseninde değil |
 | `RunStructuredAsync<T>` (yerel doğrulama + sınırlı onarım) | Bugünkü duruş **yazılı ve kasıtlı**: `guides/structured-output.md` — model yanıtı güvenilir bir .NET nesnesi değildir, doğrulama tüketicinin güven sınırındadır. "Sınırlı onarım" ise ekstra model çağrısı demektir; maliyeti gizler. Yeniden açılması bir **karar** değişikliğidir, aday değil |

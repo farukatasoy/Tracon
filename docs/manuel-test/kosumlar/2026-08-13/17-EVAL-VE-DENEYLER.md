@@ -194,17 +194,17 @@ düzeltildi. Kod/veri kusuru yok — kasıtlı kabul edilmiş davranış
 ## MT-EVAL-092 — `GET /input`: `RecordRunInput=false` iken `404` — ✅ DÜZELTİLDİ (2026-08-14, K-406)
 
 **Gerçek sonuç**
-- `AgentPrism:RunRecording:RecordRunInput=false` set edilip uygulama
+- `Tracon:RunRecording:RecordRunInput=false` set edilip uygulama
   yeniden başlatıldı, `support` agent'ına yeni bir run gönderildi
   (`runId=019ffece-9276-7457-88a5-b27278c04dd9`), `GET .../input`
   çağrıldı. Beklenen `404` yerine **`HTTP: 200`**, tam girdi
   (`messages: [...]`) döndü — `RecordRunInput=false` HİÇBİR ETKİ
   yapmadı.
   **🚨 HATA-K-007 (Yüksek).** Kök neden koddan doğrulandı:
-  `AgentPrismServiceCollectionExtensions.cs:1769-1795`'teki
+  `TraconServiceCollectionExtensions.cs:1769-1795`'teki
   `BindRunRecording` metodu `Enabled`, `RecordMessageDeltas`,
   `RecordToolPayloads`, `MaxPayloadLength` alanlarını config'ten okuyor
-  AMA `RecordRunInput`'u (varsayılanı `true`, `AgentPrismOptions.cs:461`)
+  AMA `RecordRunInput`'u (varsayılanı `true`, `TraconOptions.cs:461`)
   HİÇ okumuyor — `TryReadBool(recording, nameof(...RecordRunInput), ...)`
   çağrısı eksik. Sonuç: bu bayrak config/`user-secrets`/ortam
   değişkeninden ASLA `false` olamıyor, her zaman derleme-zamanı
@@ -221,7 +221,7 @@ düzeltildi. Kod/veri kusuru yok — kasıtlı kabul edilmiş davranış
 
 **🔧 Kapanış güncellemesi (2026-08-14, HATA-K-007/K-406 — düzeltildi):**
 `BindRunRecording`'e eksik `TryReadBool(recording,
-nameof(AgentPrismRunRecordingOptions.RecordRunInput), ...)` çağrısı
+nameof(TraconRunRecordingOptions.RecordRunInput), ...)` çağrısı
 eklendi. Aynı senaryo birebir tekrarlandı, gerçek sunucuya karşı:
 `RecordRunInput=false` iken yeni bir çalıştırmanın `GET /input`'u artık
 `HTTP: 404`, `"Girdi kaydi yok"`. Regresyon: ayar kaldırılıp (varsayılan
@@ -251,7 +251,7 @@ kapanış notu eklendi. Ayrıntı: `SONUCLAR-K-2026-08-13.md`, `K-406`.
   sürümü (v5) MT-EVAL-074 için kasıtlı bozulmuş modeli taşıyordu — bu
   dokümanlanmış tasarım gereği beklenen davranış, kusur değil.
   `{"toolMode":"ReplayTools","agentVersion":3}` ile düzeltilip tekrar
-  çağrıldı: `HTTP: 200`, `compareLocation:"/agentprism/api/runs/
+  çağrıldı: `HTTP: 200`, `compareLocation:"/tracon/api/runs/
   019ffed0-.../compare/019ffed2-..."`, `agentVersion:3`,
   `replayOfRunId:"019ffed0-..."`. Beklenenle eşleşiyor (sürüm parametresi
   gerekliliği doküman notu olarak eklendi).
@@ -327,17 +327,17 @@ istiyor). Ayrıntı: `SONUCLAR-K-2026-08-13.md`, `K-407`.
 
 ## Koşum sonrası temizlik notu
 
-Bu dosyanın case'leri `AgentPrism:OnlineEvaluation:*`,
-`AgentPrism:Canary:*` ve `AgentPrism:RunRecording:RecordRunInput`
+Bu dosyanın case'leri `Tracon:OnlineEvaluation:*`,
+`Tracon:Canary:*` ve `Tracon:RunRecording:RecordRunInput`
 `user-secrets` girdilerini geçici olarak açar. Dosyayı bitirdikten sonra:
 
 ```bash
-cd samples/AgentPrism.Api
-dotnet user-secrets remove "AgentPrism:OnlineEvaluation:Enabled"
-dotnet user-secrets remove "AgentPrism:OnlineEvaluation:SampleRate"
-dotnet user-secrets remove "AgentPrism:Canary:AutoRollbackEnabled"
-dotnet user-secrets remove "AgentPrism:Canary:ScanInterval"
-dotnet user-secrets remove "AgentPrism:RunRecording:RecordRunInput"
+cd samples/Tracon.Api
+dotnet user-secrets remove "Tracon:OnlineEvaluation:Enabled"
+dotnet user-secrets remove "Tracon:OnlineEvaluation:SampleRate"
+dotnet user-secrets remove "Tracon:Canary:AutoRollbackEnabled"
+dotnet user-secrets remove "Tracon:Canary:ScanInterval"
+dotnet user-secrets remove "Tracon:RunRecording:RecordRunInput"
 ```
 
 ---

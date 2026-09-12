@@ -11,18 +11,18 @@
 # SITE_HOST comes from .env, which scripts/site-deploy.sh writes from
 # docs-site/site.config.mjs. It is not committed: a literal here would be one more
 # copy of the address for nothing to keep in agreement.
-name: agentprism-site
+name: tracon-site
 
 services:
   site:
     image: nginx:1.27-alpine
-    container_name: agentprism-site
+    container_name: tracon-site
     restart: unless-stopped
 
     volumes:
       # Read-only on purpose: the site is delivered by rsync, never written from
       # inside the container.
-      - /var/www/agentprism:/usr/share/nginx/html:ro
+      - /var/www/tracon:/usr/share/nginx/html:ro
       - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
 
     networks:
@@ -31,11 +31,11 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=reverse-proxy"
-      - "traefik.http.routers.agentprism.rule=Host(`${SITE_HOST}`)"
-      - "traefik.http.routers.agentprism.entrypoints=websecure"
-      - "traefik.http.routers.agentprism.tls=true"
-      - "traefik.http.routers.agentprism.tls.certresolver=le"
-      - "traefik.http.services.agentprism.loadbalancer.server.port=8080"
+      - "traefik.http.routers.tracon.rule=Host(`${SITE_HOST}`)"
+      - "traefik.http.routers.tracon.entrypoints=websecure"
+      - "traefik.http.routers.tracon.tls=true"
+      - "traefik.http.routers.tracon.tls.certresolver=le"
+      - "traefik.http.services.tracon.loadbalancer.server.port=8080"
 
 networks:
   reverse-proxy:

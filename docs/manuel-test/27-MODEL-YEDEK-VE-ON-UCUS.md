@@ -3,19 +3,19 @@
 > **Alan kodu:** `MYU` · **Faz:** 62 tam kapsam · 81 (§ yanıt önbelleği ve eşzamanlı tool çağrısı) · 113 (§ `IProviderRetryClassifier` genişleme noktası) · 124 (§ yedeklemenin tool defteri)
 >
 > **Kaynak:**
-> `src/AgentPrism.Abstractions/Agents/ModelBinding.cs` (`Fallbacks`, `ResponseCache`,
+> `src/Tracon.Abstractions/Agents/ModelBinding.cs` (`Fallbacks`, `ResponseCache`,
 > `AllowConcurrentToolCalls`), `ModelFallback.cs`, `ResponseCacheSettings.cs` ·
-> `src/AgentPrism.Abstractions/Models/ContextWindowEstimate.cs` ·
-> `src/AgentPrism.Abstractions/Options/AgentPrismPreflightOptions.cs`,
-> `AgentPrismModelConcurrencyOptions.cs` ·
-> `src/AgentPrism.Core/Models/FallbackChatClient.cs`, `ProviderConcurrencyLimiter.cs`,
-> `ContextWindowEstimator.cs`, `AgentPrismResponseCachingChatClient.cs`,
+> `src/Tracon.Abstractions/Models/ContextWindowEstimate.cs` ·
+> `src/Tracon.Abstractions/Options/TraconPreflightOptions.cs`,
+> `TraconModelConcurrencyOptions.cs` ·
+> `src/Tracon.Core/Models/FallbackChatClient.cs`, `ProviderConcurrencyLimiter.cs`,
+> `ContextWindowEstimator.cs`, `TraconResponseCachingChatClient.cs`,
 > `ModelProviderRegistry.cs` (yedek/eşzamanlılık/önbellek sarmalayıcıları ve
-> `AllowConcurrentInvocation` bağlaması) · `src/AgentPrism.Core/Compilation/AgentDefinitionCompiler.cs`
+> `AllowConcurrentInvocation` bağlaması) · `src/Tracon.Core/Compilation/AgentDefinitionCompiler.cs`
 > (yalnız `BuildContextWindowStrategy`) ·
-> `src/AgentPrism.AspNetCore/Endpoints/AgentEndpoints.cs` (yalnız `EstimateAsync`,
+> `src/Tracon.AspNetCore/Endpoints/AgentEndpoints.cs` (yalnız `EstimateAsync`,
 > `/run`'daki `PreflightGate.CheckAsync` çağrısı) ·
-> `src/AgentPrism.AspNetCore/RateLimiting/PreflightGate.cs`.
+> `src/Tracon.AspNetCore/RateLimiting/PreflightGate.cs`.
 >
 > Ortam kurulumu, fixture verisi ve reset yordamı [`00-INDEKS.md`](00-INDEKS.md)'dedir.
 
@@ -55,7 +55,7 @@ flowchart TD
 
 | Konu | Nerede |
 |---|---|
-| Devre kesicinin kendi durum makinesi (`Closed`/`Open`/`HalfOpen`), `AgentPrismProviderUnavailableException` sözleşmesi | `08-SAGLAYICI-GENISLEMESI.md` (zaten üretildi) — burada yalnız devrenin AÇIK olması yedek zincirini TETİKLEYEN bir girdi olarak kullanılır, devrenin kendisi tekrar test edilmez |
+| Devre kesicinin kendi durum makinesi (`Closed`/`Open`/`HalfOpen`), `TraconProviderUnavailableException` sözleşmesi | `08-SAGLAYICI-GENISLEMESI.md` (zaten üretildi) — burada yalnız devrenin AÇIK olması yedek zincirini TETİKLEYEN bir girdi olarak kullanılır, devrenin kendisi tekrar test edilmez |
 | Model sağlık ucu, sağlayıcı kaydı, `ProviderSettings` sözleşmesi | `08`, `25-SAGLIK-TESHIS-OPENAPI.md` (zaten üretildi) |
 | `RunStatistics`/`/api/stats` panosunun genel şekli, maliyet hesaplama kuralları | `12-GOZLEMLENEBILIRLIK-MALIYET.md` (zaten üretildi) — burada yalnız `ByModel` kırılımının yedek modeli GÖSTERDİĞİ doğrulanır |
 | `ContextWindow` sıkıştırma stratejisinin kendi çalışma zamanı davranışı (turuncu/kırmızı eviction) | `13-BAGLAM-SIKISTIRMA-VE-BELLEK.md` (zaten üretildi) — burada yalnız `MaxContextWindowTokens`'ın TÜRETİLMESİ test edilir, sıkıştırmanın kendisi değil |
@@ -72,24 +72,24 @@ flowchart TD
    kullanılmaz çünkü kimlik doğrulama hataları BİLEREK yedeği tetiklemez
    (K-449).
    ```bash
-   dotnet user-secrets set "AgentPrism:Providers:OpenAI:ApiKey" "<gercek anahtar>"
+   dotnet user-secrets set "Tracon:Providers:OpenAI:ApiKey" "<gercek anahtar>"
    ```
    `flaky` kaydı ve iki agent (`birincil-kirik` → `flaky` birincil + gerçek
    `openai` yedek; `birincil-saglam` → gerçek `openai` birincil, `Fallbacks`
-   boş) `samples/AgentPrism.Api/Program.cs`'e geçici olarak eklenir; koşum
+   boş) `samples/Tracon.Api/Program.cs`'e geçici olarak eklenir; koşum
    sonunda geri alınır.
 3. `CircuitBreaker:FailureThreshold` bu tur için `1`'e indirilir (tek
    denemede devrenin açılmasını görmek için):
    ```bash
-   dotnet user-secrets set "AgentPrism:CircuitBreaker:FailureThreshold" "1"
+   dotnet user-secrets set "Tracon:CircuitBreaker:FailureThreshold" "1"
    ```
-   Dosyanın sonunda geri alınır: `dotnet user-secrets remove "AgentPrism:CircuitBreaker:FailureThreshold"`.
-4. Örnek uygulama çalışır: `cd samples/AgentPrism.Api && dotnet run` →
-   `http://localhost:5080/agentprism`.
+   Dosyanın sonunda geri alınır: `dotnet user-secrets remove "Tracon:CircuitBreaker:FailureThreshold"`.
+4. Örnek uygulama çalışır: `cd samples/Tracon.Api && dotnet run` →
+   `http://localhost:5080/tracon`.
 
 ```bash
 export APB="Authorization: Bearer manuel-test-token-2026"
-export APU="http://localhost:5080/agentprism"
+export APU="http://localhost:5080/tracon"
 ```
 
 > **Gerçek para uyarısı.** `MT-MYU-002`, `003`, `004`'ün başarılı yolu gerçek
@@ -114,7 +114,7 @@ export APU="http://localhost:5080/agentprism"
 - `birincil-saglam` agent'ı (gerçek `openai`, `Fallbacks: []`).
 
 **Adımlar**
-1. `AgentPrism:CircuitBreaker:FailureThreshold=1` iken `openai`'ye geçersiz
+1. `Tracon:CircuitBreaker:FailureThreshold=1` iken `openai`'ye geçersiz
    bir API anahtarıyla bir çağrı tetikle (devreyi aç).
 2. Aynı agent'a ikinci bir çağrı yap.
 
@@ -130,7 +130,7 @@ curl -s -o /dev/null -w '%{http_code}\n' -X POST "$APU/api/agents/birincil-sagla
 ```
 
 **Beklenen sonuç**
-- Adım 2: devre kesici zaten açık; `AgentPrismProviderUnavailableException`
+- Adım 2: devre kesici zaten açık; `TraconProviderUnavailableException`
   kaynaklı bir hata döner (Faz 8'in bugünkü davranışı — `Fallbacks` boş
   olduğu için `FallbackChatClient` hiç devrede değildir).
 
@@ -191,8 +191,8 @@ curl -s "$APU/api/stats?agentName=birincil-kirik" -H "$APB"
 | **İlgili karar** | K-447 |
 
 **Ön koşul**
-- MT-MYU-002'nin çıktısı; `AgentPrism:Pricing:{flaky-adı}:{model}` ile
-  `AgentPrism:Pricing:openai:{gercek model}` FARKLI birim fiyatlarla
+- MT-MYU-002'nin çıktısı; `Tracon:Pricing:{flaky-adı}:{model}` ile
+  `Tracon:Pricing:openai:{gercek model}` FARKLI birim fiyatlarla
   yapılandırılmış (tur başında).
 
 **Adımlar**
@@ -253,7 +253,7 @@ curl -s -i -X POST "$APU/api/agents/ikisi-de-kirik/run" -H "$APB" \
 | **İlgili karar** | K1, K-446 |
 
 **Ön koşul**
-- `AgentPrism:Preflight:Enabled` ayarlanMAMIŞ (varsayılan `false`).
+- `Tracon:Preflight:Enabled` ayarlanMAMIŞ (varsayılan `false`).
 - `birincil-saglam` agent'ı.
 
 **Adımlar**
@@ -270,7 +270,7 @@ curl -s -i -X POST "$APU/api/agents/birincil-saglam/run" -H "$APB" \
 **Beklenen sonuç**
 - İstek sağlayıcıya GİDER (loglarda gerçek bir HTTP çağrısı görünür); hata
   varsa sağlayıcının kendi `context_length_exceeded` benzeri hatasıdır,
-  AgentPrism'in ürettiği bir `400` DEĞİLDİR.
+  Tracon'in ürettiği bir `400` DEĞİLDİR.
 
 ---
 
@@ -285,7 +285,7 @@ curl -s -i -X POST "$APU/api/agents/birincil-saglam/run" -H "$APB" \
 
 **Ön koşul**
 ```bash
-dotnet user-secrets set "AgentPrism:Preflight:Enabled" "true"
+dotnet user-secrets set "Tracon:Preflight:Enabled" "true"
 ```
 (Örnek uygulama yeniden başlatılır.)
 
@@ -417,7 +417,7 @@ curl -s -i -X POST "$APU/api/agents" -H "$APB" -H 'content-type: application/jso
 | **İlgili karar** | K-551, K-552, K-557 |
 
 **Ön koşul**
-- `cached-support` agent'ı (`samples/AgentPrism.Api`'de kalıcı olarak tanımlı;
+- `cached-support` agent'ı (`samples/Tracon.Api`'de kalıcı olarak tanımlı;
   `ResponseCache.Enabled = true`, `Lifetime = 10 dk`). `AddDistributedMemoryCache()`
   zaten kayıtlıdır.
 
@@ -461,7 +461,7 @@ curl -s "$APU/api/runs?agentName=cached-support&limit=2" -H "$APB" | python3 -m 
 - `cached-support` (`ToolNames: [get_order_status, list_recent_orders]`,
   `ResponseCache.Enabled = true`) ve aynı talimatı/modeli taşıyan ama
   **farklı** (veya boş) bir tool kümesine sahip geçici bir ikinci agent —
-  `samples/AgentPrism.Api/Program.cs`'e geçici eklenir:
+  `samples/Tracon.Api/Program.cs`'e geçici eklenir:
   ```csharp
   .AddAgent(new AgentDefinition
   {
@@ -505,7 +505,7 @@ curl -s -X POST "$APU/api/agents/cached-support-notools/run" -H "$APB" \
 | **İlgili karar** | K-551 |
 
 **Ön koşul**
-- Çok kiracılılık açık (`AgentPrism:Tenancy:Enabled=true`,
+- Çok kiracılılık açık (`Tracon:Tenancy:Enabled=true`,
   `AllowHeaderResolution=true` — bkz. `13-KIRACI-VE-GUVENLIK.md`).
 - `cached-support` her iki kiracıda da erişilebilir (kod tanımlı agent).
 
@@ -516,10 +516,10 @@ curl -s -X POST "$APU/api/agents/cached-support-notools/run" -H "$APB" \
 **Girilecek veri**
 ```bash
 curl -s -X POST "$APU/api/agents/cached-support/run" -H "$APB" \
-  -H 'X-AgentPrism-Tenant: acme' -H 'content-type: application/json' \
+  -H 'X-Tracon-Tenant: acme' -H 'content-type: application/json' \
   -d '{"message":"What is the status of order 99?"}'
 curl -s -X POST "$APU/api/agents/cached-support/run" -H "$APB" \
-  -H 'X-AgentPrism-Tenant: beta' -H 'content-type: application/json' \
+  -H 'X-Tracon-Tenant: beta' -H 'content-type: application/json' \
   -d '{"message":"What is the status of order 99?"}'
 ```
 
@@ -539,7 +539,7 @@ curl -s -X POST "$APU/api/agents/cached-support/run" -H "$APB" \
 | **İlgili karar** | K-556 |
 
 **Ön koşul**
-- `samples/AgentPrism.Api/Program.cs`'deki `builder.Services.AddDistributedMemoryCache();`
+- `samples/Tracon.Api/Program.cs`'deki `builder.Services.AddDistributedMemoryCache();`
   satırı GEÇİCİ olarak yorum satırına alınır, uygulama yeniden başlatılır.
 
 **Adımlar**
@@ -590,7 +590,7 @@ curl -s -X POST "$APU/api/agents/validate" -H "$APB" -H 'content-type: applicati
 > her birinin kaydının/yetkilendirme kararının doğru çağrıya bağlandığı
 > iddiası gerçek bir LLM ile YENİDEN ÜRETİLEMEZ (model üç tool'u aynı turda
 > çağırıp çağırmayacağına kendi karar verir, bu davranış zorlanamaz).
-> Bu iddia `tests/AgentPrism.AspNetCore.FunctionalTests/ConcurrentToolInvocationTests.cs`
+> Bu iddia `tests/Tracon.AspNetCore.FunctionalTests/ConcurrentToolInvocationTests.cs`
 > tarafından **her koşumda garantili** kanıtlanır (sahte model üç çağrıyı TEK
 > bir turda üretir, `Barrier(3)` üç gövdenin GERÇEKTEN aynı anda çalıştığını
 > zorlar). El ile koşulacak tek şey budur: bu üç testin GERÇEKTEN geçtiğini
@@ -618,7 +618,7 @@ curl -s -X POST "$APU/api/agents/validate" -H "$APB" -H 'content-type: applicati
 1. Agent'a bir mesaj gönder.
 2. `GET /api/runs/{runId}` ile yanıtı ve `modelId`'yi doğrula.
 
-**Beklenen sonuç (2026-08-26'da ölçüldü — gerçek OpenAI çağrısıyla, `samples/AgentPrism.Api`)**
+**Beklenen sonuç (2026-08-26'da ölçüldü — gerçek OpenAI çağrısıyla, `samples/Tracon.Api`)**
 - Bağlantı hatası (`Connection refused`) yedek zincire düşürür; yanıt
   **gerçek** yedek modelden gelir (`"Hi"`), birincinin yer tutucu modelinden DEĞİL.
 - 🚨 Bu case bir regresyonu YAKALADI ve düzeltmeyi doğruladı: yedek çağrısı
@@ -674,9 +674,9 @@ kurulumda birincil hiçbir zaman bir tool çağırmaz, kesinti ilk çağrıda ol
 
 **Bu iddianın otomatikleştirilmiş kanıtı ayrıdır.** Aynı MT-MYU-014'ün
 eşzamanlı tool çağrısı için yaptığı gerekçe burada da geçerlidir:
-`tests/AgentPrism.AspNetCore.FunctionalTests/FallbackToolSideEffectTests.cs`
+`tests/Tracon.AspNetCore.FunctionalTests/FallbackToolSideEffectTests.cs`
 sahte bir sağlayıcı çifti kullanır (biri tool'u çağırıp SONRA düşer, öbürü
-AYNI tool çağrısını tekrar sorar) ve gerçek `[AgentPrismTool]` gövdesinin
+AYNI tool çağrısını tekrar sorar) ve gerçek `[TraconTool]` gövdesinin
 kaç kez çalıştığını sayar — bu, her koşumda **garantili** ve deterministik
 tekrarlanır; gerçek bir LLM'in aynı turda aynı tool'u tekrar sorup
 sormayacağı zorlanamaz. El ile koşulacak tek şey, bu üç testin
@@ -686,7 +686,7 @@ sormayacağı zorlanamaz. El ile koşulacak tek şey, bu üç testin
 GERÇEKTEN geçtiğini doğrulamaktır:
 
 ```bash
-./artifacts/bin/AgentPrism.AspNetCore.FunctionalTests/release/AgentPrism.AspNetCore.FunctionalTests \
+./artifacts/bin/Tracon.AspNetCore.FunctionalTests/release/Tracon.AspNetCore.FunctionalTests \
   --filter-method "*FallbackToolSideEffect*"
 ```
 
@@ -703,15 +703,15 @@ GERÇEKTEN geçtiğini doğrulamaktır:
 
 ## Koşumdan sonra
 
-1. `dotnet user-secrets remove "AgentPrism:CircuitBreaker:FailureThreshold"`
-2. `dotnet user-secrets remove "AgentPrism:Preflight:Enabled"`
-3. `samples/AgentPrism.Api/Program.cs`'e eklenen `flaky`/`flaky2` kayıtları ve
+1. `dotnet user-secrets remove "Tracon:CircuitBreaker:FailureThreshold"`
+2. `dotnet user-secrets remove "Tracon:Preflight:Enabled"`
+3. `samples/Tracon.Api/Program.cs`'e eklenen `flaky`/`flaky2` kayıtları ve
    `birincil-kirik`/`ikisi-de-kirik`/`baglam-turetilen`/`baglam-eksik`
    agent'ları geri alınır.
 4. MT-MYU-011'in geçici `cached-support-notools` agent'ı geri alınır.
    `cached-support` ve `AddDistributedMemoryCache()` KALICIDIR, geri alınmaz.
 5. MT-MYU-013'ün yorumladığı `AddDistributedMemoryCache()` satırı geri açılır.
 6. MT-MYU-015/016'nın geçici `IProviderRetryClassifier` kaydı, `retry-seam-demo`
-   agent'ı ve `flaky-113` sağlayıcı kaydı `samples/AgentPrism.Api/Program.cs`'ten
-   geri alınır; `dotnet user-secrets remove "AgentPrism:Demo:RetryClassifierBlocksConnectionFailures"`.
+   agent'ı ve `flaky-113` sağlayıcı kaydı `samples/Tracon.Api/Program.cs`'ten
+   geri alınır; `dotnet user-secrets remove "Tracon:Demo:RetryClassifierBlocksConnectionFailures"`.
 6. [`00-INDEKS.md`](00-INDEKS.md) §4 reset yordamı tekrar uygulanır.

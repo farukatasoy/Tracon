@@ -1,9 +1,9 @@
 # Faz 6 — Gözlemlenebilirlik, Tool Onayı, MCP ve Çok Kiracılılık
 
 > **Durum:** ✅ Tamamlandı (2026-08-02)
-> **Önkoşul:** [05-AGENTPRISM-UI.md](05-AGENTPRISM-UI.md) — tamamlandı
+> **Önkoşul:** [05-TRACON-UI.md](05-TRACON-UI.md) — tamamlandı
 > **Sonraki:** [07-SAGLAMLASTIRMA-VE-YAYIN.md](07-SAGLAMLASTIRMA-VE-YAYIN.md)
-> **Paketler:** `AgentPrism.Abstractions`, `.Core`, `.PostgreSql`, `.AspNetCore`, `.UI`, **`.Mcp` (yeni)**
+> **Paketler:** `Tracon.Abstractions`, `.Core`, `.PostgreSql`, `.AspNetCore`, `.UI`, **`.Mcp` (yeni)**
 
 ---
 
@@ -24,7 +24,7 @@
 
 ## Amaç
 
-Üretim işletimi için gereken görünürlüğü ve denetimi eklemek. Faz 5 sonunda AgentPrism **çalışıyordu**; bu faz sonunda **işletilebilir** hâle geldi: - her çalıştırmanın span ağacı ve metriği var - geri alınamaz tool'lar kullanıcı onayı bekliyor - tool'lar uzak MCP sunucularından da gelebiliyor - kiracı istekten çözülüyor ve hiçbir uçtan sızmıyor ---
+Üretim işletimi için gereken görünürlüğü ve denetimi eklemek. Faz 5 sonunda Tracon **çalışıyordu**; bu faz sonunda **işletilebilir** hâle geldi: - her çalıştırmanın span ağacı ve metriği var - geri alınamaz tool'lar kullanıcı onayı bekliyor - tool'lar uzak MCP sunucularından da gelebiliyor - kiracı istekten çözülüyor ve hiçbir uçtan sızmıyor ---
 
 ## Plandan Sapmalar
 
@@ -113,7 +113,7 @@ beklemesini kendi süresine katardı.
 ```mermaid
 sequenceDiagram
     participant U as Arayuz
-    participant A as AgentPrism
+    participant A as Tracon
     participant M as Model
 
     U->>A: POST /run {message}
@@ -159,9 +159,9 @@ onaylanır.
 | Ölçüt | Durum | Kanıt |
 |-------|-------|-------|
 | Runs ekranında trace waterfall görünür | ✅ | 5 span, doğru hiyerarşi (aşağıdaki çıktı) |
-| Metrikler `Meter` üzerinden yayılır | ✅ | `ObservabilityTests`; Prometheus formatı **tüketiciye ait** — AgentPrism `Meter` yayar, exporter'ı ele geçirmez |
+| Metrikler `Meter` üzerinden yayılır | ✅ | `ObservabilityTests`; Prometheus formatı **tüketiciye ait** — Tracon `Meter` yayar, exporter'ı ele geçirmez |
 | Workflow tanımlanır ve grafı görünür | ⏭️ | Ertelendi — sapma S1, karar K-054 |
-| MCP sunucusu eklenir, tool'ları keşfedilir | ✅ | `AgentPrism.Mcp`; uç `PUT /api/mcp-servers/{name}` |
+| MCP sunucusu eklenir, tool'ları keşfedilir | ✅ | `Tracon.Mcp`; uç `PUT /api/mcp-servers/{name}` |
 | İki kiracılı senaryoda sızıntı yok | ✅ | `TenancyTests` 8 test |
 | Tool onay akışı uçtan uca çalışır | ✅ | Gerçek OpenAI modeliyle doğrulandı (aşağıda) |
 | Span yazma yolu örneklemeyle sınırlı | ✅ | `SuccessSampleRatio` 0,1; hatalar %100 |
@@ -195,20 +195,20 @@ GET /api/approvals/rules
 **Span ağacı** (`SuccessSampleRatio=1` ile):
 
 ```
-agentprism.run                   2680ms
+tracon.run                   2680ms
   invoke_agent support(support)    2670ms
     chat gpt-5.4-mini                1837ms
     execute_tool get_order_status       2ms
     chat gpt-5.4-mini                 795ms
 
 kok span oznitelikleri:
-  agentprism.agent.name   = support
-  agentprism.model.id     = gpt-5.4-mini
-  agentprism.run.id       = 019fc14f-3eb6-780e-a928-faf9b95821a5
-  agentprism.run.status   = Completed
-  agentprism.run.streaming= True
-  agentprism.session.id   = conv_019fc14f3e5877718505d5b38d01ed05
-  agentprism.tenant.id    = default
+  tracon.agent.name   = support
+  tracon.model.id     = gpt-5.4-mini
+  tracon.run.id       = 019fc14f-3eb6-780e-a928-faf9b95821a5
+  tracon.run.status   = Completed
+  tracon.run.streaming= True
+  tracon.session.id   = conv_019fc14f3e5877718505d5b38d01ed05
+  tracon.tenant.id    = default
 ```
 
 **Tool kullanımı ve model kırılımı:**
@@ -237,8 +237,8 @@ GET /api/stats
    belirgin biçimde uzun olacaktır. Yeni tipler yukarıdaki "Gerçekleşen Public API"
    bölümünde tam listelidir.
 
-2. **`AgentPrism.Mcp` yeni bir yayınlanabilir pakettir.** Yayın zinciri, paket
-   ikonu, README ve sürüm politikası onu da kapsamalıdır. `AgentPrismAotCompatible`
+2. **`Tracon.Mcp` yeni bir yayınlanabilir pakettir.** Yayın zinciri, paket
+   ikonu, README ve sürüm politikası onu da kapsamalıdır. `TraconAotCompatible`
    **false**'tur (MCP şemaları çalışma anında çözülür).
 
 3. **`run_events` partition kararı yük testine bağlandı** (K-063). Faz 7'nin
@@ -251,7 +251,7 @@ GET /api/stats
    depo okur — kural sayısı arttıkça maliyeti ölçülmelidir).
 
 5. **Depo adresi hâlâ yer tutucu.** `PackageProjectUrl` / `RepositoryUrl`
-   `https://github.com/farukatasoy/AgentPrism` olarak duruyor; kullanıcı gerçek
+   `https://github.com/farukatasoy/Tracon` olarak duruyor; kullanıcı gerçek
    adresin henüz belli olmadığını bildirdi. Faz 7'nin açık kalemi.
 
 6. **Arayüzde kiracı *seçici* bilerek yoktur.** Faz 6 planı bunu öneriyordu; Settings
@@ -283,7 +283,7 @@ düz bir liste çizdi. Span, çağıran metodun **kendi gövdesinde** açılmal�
 
 **2. Yapılandırma bağlamada erken dönüş sonraki bölümleri yutar.**
 `Bind` metodu `RunRecording` bölümü yoksa `return` ediyordu ve `Observability`
-hiç okunmuyordu. Ölçüldü: `AgentPrism__Observability__SuccessSampleRatio=1`
+hiç okunmuyordu. Ölçüldü: `Tracon__Observability__SuccessSampleRatio=1`
 sessizce yok sayıldı. Her alt bölüm **kendi varlığından** sorumludur.
 
 **3. `TryAddEnumerable` fabrika kaydında implementasyon tipini çözemez.**

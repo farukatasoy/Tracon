@@ -1,11 +1,11 @@
 ---
 title: Embedding into a host application
-description: Bind AgentPrism's seven embedding points to your own identity, authorization, eventing, storage, and approval presentation, and read the identity a tool body sees.
+description: Bind Tracon's seven embedding points to your own identity, authorization, eventing, storage, and approval presentation, and read the identity a tool body sees.
 ---
 
-`AddAgentPrism()` plus `MapAgentPrism()` is a complete, working setup on its own —
+`AddTracon()` plus `MapTracon()` is a complete, working setup on its own —
 that two-line promise is what [Your first agent](/getting-started/first-agent/)
-shows. Embedding AgentPrism into an application that already has its own tenants,
+shows. Embedding Tracon into an application that already has its own tenants,
 users, permissions, event bus, or object storage is a different job: it means
 replacing six built-in defaults with bindings into systems you already run. All
 six are wired the same way, are all optional, and can be added one at a time.
@@ -22,10 +22,10 @@ six are wired the same way, are all optional, and can be added one at a time.
 | `IAttachmentStorage` | A place to write attachment bytes outside the database | Content is stored as `bytea` in the database |
 
 Each interface is registered with `TryAdd`, so a registration made **before**
-`AddAgentPrism()` wins over the built-in default. A registration made after it is
+`AddTracon()` wins over the built-in default. A registration made after it is
 where module order starts to matter: a `TryAdd` registration is dropped, because
-AgentPrism's default already holds the slot, while a plain `Add` still wins the
-resolve and leaves AgentPrism's unused registration behind it. Register first and
+Tracon's default already holds the slot, while a plain `Add` still wins the
+resolve and leaves Tracon's unused registration behind it. Register first and
 neither case can bite you. `GET /api/diagnostics` (once you turn it on) reports which
 of the six are still built-in and which your application replaced — see
 [Extension points](#extension-points-in-diagnostics) below; to turn a missed binding
@@ -43,13 +43,13 @@ builder.Services.AddSingleton<IRunAuthorizationHandler, YourRunAuthorizationHand
 builder.Services.AddSingleton<IRunEventSink, YourRunEventSink>();
 builder.Services.AddSingleton<IAttachmentStorage, YourAttachmentStorage>();
 
-var agentPrism = builder.AddAgentPrism()
+var tracon = builder.AddTracon()
     .UseOpenAI(builder.Configuration.GetSection(OpenAIProviderOptions.SectionName))
-    .UsePostgreSql(builder.Configuration.GetSection(AgentPrismPostgreSqlOptions.SectionName));
+    .UsePostgreSql(builder.Configuration.GetSection(TraconPostgreSqlOptions.SectionName));
 ```
 
-The order above — bindings first, `AddAgentPrism()` second — is the only order that
-works. `AddAgentPrism()` calls `TryAdd*` for all six; called first, it claims every
+The order above — bindings first, `AddTracon()` second — is the only order that
+works. `AddTracon()` calls `TryAdd*` for all six; called first, it claims every
 slot and your registrations that follow do nothing.
 
 ### 1 — Tenant resolution
@@ -66,7 +66,7 @@ resolution chain [Governance](/concepts/governance/#multi-tenancy) describes onl
 applies when you leave the default in place and turn it on with `UseTenancy()`.
 Bind your own `ITenantContext` instead when the tenant already lives in a service,
 a claim shape, or a header your identity layer owns. Bind `ITenantStore` alongside
-it only if you also want AgentPrism's tenant admin endpoints
+it only if you also want Tracon's tenant admin endpoints
 (`/api/tenants`) to read and write your own tenant records instead of its
 in-memory default.
 
@@ -115,11 +115,11 @@ and [Troubleshooting a slow sink](/guides/observability/#troubleshooting) for th
 full contract.
 
 **The one rule that matters most:** `OnEventAsync` must queue the event and
-return. AgentPrism awaits it directly on the run's own hot path, before the
+return. Tracon awaits it directly on the run's own hot path, before the
 response keeps streaming to its caller — a sink that does its own network I/O
 inline ties the model's response speed to that network call's latency.
 
-AgentPrism holds **no queue of its own** in front of your sink, so the buffer is
+Tracon holds **no queue of its own** in front of your sink, so the buffer is
 yours to own: write to a bounded channel and return. Size that channel to drop
 the event and log it when it is full rather than block, so a slow consumer of
 yours never slows the run down to match its queue depth.
@@ -142,19 +142,19 @@ public sealed class YourAttachmentStorage(IYourBlobClient blobs) : IAttachmentSt
 ```
 
 `IAttachmentStore` keeps the metadata row either way; `IAttachmentStorage` only
-decides where the bytes live. AgentPrism takes no dependency on any cloud SDK —
+decides where the bytes live. Tracon takes no dependency on any cloud SDK —
 you write this class against whichever client your object store already uses.
 
 ### 6 — Run and session authorization
 
-AgentPrism draws ownership at the **tenant** level by default; without this
+Tracon draws ownership at the **tenant** level by default; without this
 binding, every caller with the `Operator` role in a tenant can start a run as,
 read, cancel, score, and delete every other user's runs, attachments,
 approvals, and sessions in the same tenant.
 
 :::note[Sessions have a built-in answer too]
 Turning on [session ownership](/concepts/sessions/#session-ownership) makes
-AgentPrism record which user opened a session and narrow the session list to
+Tracon record which user opened a session and narrow the session list to
 that user, with no handler at all. It covers **sessions only**; runs,
 attachments, approvals, and scores still need the handler below. The two
 compose — with ownership on, a handler no longer has to reject a whole session
@@ -283,14 +283,14 @@ stay identical to a missing resource's.
 
 A tool cannot reach `AgentSession`, so it cannot read `ITenantContext` or
 `IRunAttributionContext` through the normal request pipeline. It reads the same
-values from `AgentPrismRunContext.Current` instead — a static, `AsyncLocal`-backed
+values from `TraconRunContext.Current` instead — a static, `AsyncLocal`-backed
 snapshot the run pipeline populates before every tool call:
 
 ```csharp
-[AgentPrismTool("current_account", "Returns the tenant, run, session, and caller identity of the current run.")]
+[TraconTool("current_account", "Returns the tenant, run, session, and caller identity of the current run.")]
 public static string CurrentAccount()
 {
-    var scope = AgentPrismRunContext.Current;
+    var scope = TraconRunContext.Current;
 
     return scope is null
         ? "no run in progress"
@@ -299,7 +299,7 @@ public static string CurrentAccount()
 ```
 
 This is the only place a tool can read the run's identity — there is no parameter
-AgentPrism injects for it. `scope.UserId` is the same value `IRunAttributionContext`
+Tracon injects for it. `scope.UserId` is the same value `IRunAttributionContext`
 resolved for the run record, not a new concept — just a second place to read it
 from. `AgentRunScope` also carries `RootRunId` (the top of an
 agent-calls-agent tree) and `Budget` (the shared token/depth/count ceiling for that
@@ -307,9 +307,9 @@ tree).
 
 ## Two data planes, one connection pool or two
 
-Your application's own schema and AgentPrism's tables can live in the same
-PostgreSQL database. AgentPrism writes only inside its own schema (`SchemaName`,
-default `agentprism`; see
+Your application's own schema and Tracon's tables can live in the same
+PostgreSQL database. Tracon writes only inside its own schema (`SchemaName`,
+default `tracon`; see
 [Choose a migration strategy](/guides/production/#choose-a-migration-strategy)) and
 never reads or writes yours.
 
@@ -319,34 +319,34 @@ pools a `NpgsqlDataSource` **instance**, not a connection string — two separat
 pools (measured: with 5 concurrent commands held open on each of two data
 sources built from the same string, the server showed 10 simultaneous
 backends, not 5). If your application uses Entity Framework Core (or any other
-Npgsql consumer) and you want AgentPrism sharing its actual pool, build **one**
+Npgsql consumer) and you want Tracon sharing its actual pool, build **one**
 `NpgsqlDataSource` and give the same instance to both sides:
 
 ```csharp
 var dataSource = new NpgsqlDataSourceBuilder(connectionString).Build();
 builder.Services.AddDbContext<YourDbContext>(o => o.UseNpgsql(dataSource));
-builder.AddAgentPrism()
+builder.AddTracon()
        .UsePostgreSql(o => o.DataSource = dataSource);
 ```
 
-See [Two connection planes: EF Core and AgentPrism](/guides/ef-core/) for the
+See [Two connection planes: EF Core and Tracon](/guides/ef-core/) for the
 full pattern, including startup/shutdown ownership. Without a shared
-`DataSource`, pointing `AgentPrism:PostgreSql:ConnectionString` at the same
+`DataSource`, pointing `Tracon:PostgreSql:ConnectionString` at the same
 string your application uses is still fine — the two sides simply keep
 independent pools against the same database, exactly as if they pointed at two
 different databases.
 
-Give AgentPrism a **separate** connection string (or data source) — same
+Give Tracon a **separate** connection string (or data source) — same
 server, different database, or a fully different server — when you want its
 connection ceiling, credentials, or failure blast radius kept independent of
-your application's own database traffic. Nothing in AgentPrism requires this;
+your application's own database traffic. Nothing in Tracon requires this;
 it is purely an operational choice, and it can be changed later since only the
 connection string moves.
 
-`AutoApplyMigrations` (default `true`) applies to AgentPrism's own schema only. In
+`AutoApplyMigrations` (default `true`) applies to Tracon's own schema only. In
 an embedded setup where your application already owns a controlled migration step
 for its own schema, set it to `false` and call the registered
-`MigrationRunner.ApplyAsync()` from that same step — AgentPrism's schema then
+`MigrationRunner.ApplyAsync()` from that same step — Tracon's schema then
 migrates alongside yours instead of at every instance's startup. See
 [Choose a migration strategy](/guides/production/#choose-a-migration-strategy) for
 the fleet-deployment version of this same setting.
@@ -355,13 +355,13 @@ the fleet-deployment version of this same setting.
 
 Reporting a missed binding is not the same as refusing to run without it. An
 application that means to enforce its own rule can declare the binding required, and
-the host then does not start while AgentPrism's built-in default is what resolves:
+the host then does not start while Tracon's built-in default is what resolves:
 
 ```csharp
 builder.Services.AddSingleton<IRunAuthorizationHandler, YourRunAuthorizationHandler>();
 builder.Services.AddSingleton<IToolAuthorizationHandler, YourToolAuthorizationHandler>();
 
-builder.AddAgentPrism()
+builder.AddTracon()
     .RequireCustomBinding<IRunAuthorizationHandler>()
     .RequireCustomBinding<IToolAuthorizationHandler>();
 ```
@@ -370,9 +370,9 @@ The check runs while the host starts, and the message names the contract, the ty
 that resolved instead, and how to fix it:
 
 ```text
-IRunAuthorizationHandler was declared as a required custom binding, but AgentPrism's
+IRunAuthorizationHandler was declared as a required custom binding, but Tracon's
 built-in default AllowAllRunAuthorizationHandler is what resolved. Register your own
-IRunAuthorizationHandler on IServiceCollection BEFORE the AddAgentPrism() call.
+IRunAuthorizationHandler on IServiceCollection BEFORE the AddTracon() call.
 ```
 
 Four properties are worth knowing before you rely on it:
@@ -380,8 +380,8 @@ Four properties are worth knowing before you rely on it:
 - **It is off by default.** An application that never calls `RequireCustomBinding`
   behaves exactly as it did before, and the call resolves nothing extra at startup.
 - **It is not an HTTP concern.** The check runs at host start, so an embedded host
-  that never calls `MapAgentPrism()` gets the same guarantee.
-- **`IRunEventSink` and `IAttachmentStorage` are judged by absence.** AgentPrism
+  that never calls `MapTracon()` gets the same guarantee.
+- **`IRunEventSink` and `IAttachmentStorage` are judged by absence.** Tracon
   registers nothing for those two, so "still on the default" means no registration at
   all rather than a particular type.
 - **It is a composition gate, not a security proof.** It tells you your
@@ -394,15 +394,15 @@ listing the seven that are accepted.
 ## Extension points in diagnostics
 
 `GET /api/diagnostics` (off by default; turn it on with
-`AgentPrismEndpointOptions.EnableDiagnosticsEndpoint`) reports an `extensionPoints`
+`TraconEndpointOptions.EnableDiagnosticsEndpoint`) reports an `extensionPoints`
 array: one entry per contract above, naming the bound implementation's type and
-whether it is still AgentPrism's built-in default.
+whether it is still Tracon's built-in default.
 
 ```mermaid
 flowchart TD
     accTitle: Binding and verification order
-    accDescr: Register the six implementations, then call AddAgentPrism so TryAdd claims whatever is still unbound, then read the diagnostics endpoint to confirm each binding actually took.
-    A["Register ITenantContext, IRunAttributionContext,<br/>IToolAuthorizationHandler, IRunAuthorizationHandler,<br/>IRunEventSink, IAttachmentStorage"] --> B["AddAgentPrism call<br/>TryAdd claims any still-open slot"]
+    accDescr: Register the six implementations, then call AddTracon so TryAdd claims whatever is still unbound, then read the diagnostics endpoint to confirm each binding actually took.
+    A["Register ITenantContext, IRunAttributionContext,<br/>IToolAuthorizationHandler, IRunAuthorizationHandler,<br/>IRunEventSink, IAttachmentStorage"] --> B["AddTracon call<br/>TryAdd claims any still-open slot"]
     B --> C["GET /api/diagnostics<br/>reads extensionPoints"]
     C --> D{"isBuiltInDefault?"}
     D -->|false| E["binding is active"]
@@ -426,12 +426,12 @@ wrong interface.
 
 ## Verification checklist
 
-- [ ] Every binding you need is registered **before** `AddAgentPrism()`
+- [ ] Every binding you need is registered **before** `AddTracon()`
 - [ ] Bindings your deployment must not run without are declared with `RequireCustomBinding<T>()`
 - [ ] `GET /api/diagnostics` shows `isBuiltInDefault: false` for each contract you bound
 - [ ] A background job opens `AmbientTenantScope.Begin(tenantId)` in the method that starts the run, and the scope covers every `await` on that path
 - [ ] `IRunEventSink.OnEventAsync` never performs blocking I/O inline — it queues and returns
-- [ ] `AgentPrism:PostgreSql:SchemaName` (or the equivalent SQL Server/SQLite setting) does not collide with a schema your own application already owns
+- [ ] `Tracon:PostgreSql:SchemaName` (or the equivalent SQL Server/SQLite setting) does not collide with a schema your own application already owns
 - [ ] `AutoApplyMigrations` matches your deployment's migration strategy, not just the default
 
 ## Read next

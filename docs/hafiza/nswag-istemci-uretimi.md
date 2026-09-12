@@ -1,12 +1,12 @@
 # NSwag ile Uretilen Istemci
 
-> `AgentPrism.Client`/`@agentprism/client`'in `docs/openapi/agentprism.json`'dan
+> `Tracon.Client`/`@tracon/client`'in `docs/openapi/tracon.json`'dan
 > `dotnet nswag run` ile uretilme tuzaklari. `paketleme-ve-dagitim.md`'nin
 > alan dosyasidir - yalniz istemci ureteci konusuna dokunurken okunur.
 
 ## NSwag ile uretilen istemci (Faz 83)
 
-> `AgentPrism.Client`, `docs/openapi/agentprism.json`'dan `dotnet nswag run` ile
+> `Tracon.Client`, `docs/openapi/tracon.json`'dan `dotnet nswag run` ile
 > uretilir. Uc script (`scripts/nswag-*.py`) uretim ONCESI/SONRASI donusum
 > yapar; komut sirasi paketin kendi README'sinde.
 
@@ -33,7 +33,7 @@
     KAYNAKTAN gelir**: sunucunun `.WithDescription(...)` metni oldugu gibi
     OpenAPI `description` alanina, oradan XML doc yorumuna kopyalanir.
     `ShippedDocumentationSelfContainmentTests` bunu `.cs` dosyasinda YAKALAR
-    ama commit'li `docs/openapi/agentprism.json`'da YAKALAMAZ (emoji orada
+    ama commit'li `docs/openapi/tracon.json`'da YAKALAMAZ (emoji orada
     `🚨` olarak JSON-escape'lidir, ham UTF-8 degildir) — bir
     onceki fazdan miras kalan boyle bir ihlal, istemci ILK KEZ uretildiginde
     ortaya cikar. Duzeltme KAYNAK `.WithDescription(...)` metnindedir, uretilen
@@ -42,31 +42,31 @@
   bir tuketici derlemesinde `CS0433` (belirsiz referans) verir** (Faz 83,
   K-568): `MigrationRunner` her SQL saglayici paketine AYRI derlenir (K-247'nin
   ayni tuzagi, burada "sayim" degil "unqualified referans" baglaminda);
-  `agentprism` CLI'si `--provider`'a gore calisma aninda secim yaptigi icin
+  `tracon` CLI'si `--provider`'a gore calisma aninda secim yaptigi icin
   UCUNU DE ayni derlemede referans eder. `extern alias` uc komut sinifini
   neredeyse birebir uc kez tekrar etmeyi gerektirirdi. Cozum: paylasilan
-  arayuzu `AgentPrism.Abstractions`'a tasimak (`IMigrationApplier`,
+  arayuzu `Tracon.Abstractions`'a tasimak (`IMigrationApplier`,
   `ISqlPersistenceDiagnostics`'in yaninda) — arayuz TEK derlemede tanimli
   oldugu icin uc saglayici referans edildiginde bile AYNI tip kalir.
 - **`UseBaseUrl: false` (nswag.json) + `HttpClient.BaseAddress`**: istemci
   URL'leri BAGIL (`"api/agents"`, onek/sonek yok) uretilsin diye. Belge
   `servers` alanindan gelen sabit bir `_baseUrl` alani (varsayilan `nswag.json`
-  ayariyla) her cagriya ONEK olarak eklenir ve `AddAgentPrismClient`'in
+  ayariyla) her cagriya ONEK olarak eklenir ve `AddTraconClient`'in
   `BaseAddress`'ini GORMEZDEN GELIR — `UseBaseUrl:false` bu alani TAMAMEN
   kaldirir, `HttpClient.BaseAddress` (trailing `/` ile) tek kaynak olur.
 
 - **🚨 Tel uzerinde gorunen bir `enum`'u degistirmek DORT uretilmis yuzeyi birden
   tazelemeyi ister; ucunu yapip birini atlamak `tsc`'yi kirmizi birakir**
-  (2026-08-26, K-627, olculdu). Sira: (1) `AGENTPRISM_OPENAPI_REFRESH=1 dotnet test
-  tests/AgentPrism.AspNetCore.FunctionalTests -c Release --filter
-  FullyQualifiedName~OpenApiSnapshotTests` → `docs/openapi/agentprism.json`;
-  (2) `packages/agentprism-client` icinde `npm run generate` → `src/schema.ts`;
+  (2026-08-26, K-627, olculdu). Sira: (1) `TRACON_OPENAPI_REFRESH=1 dotnet test
+  tests/Tracon.AspNetCore.FunctionalTests -c Release --filter
+  FullyQualifiedName~OpenApiSnapshotTests` → `docs/openapi/tracon.json`;
+  (2) `packages/tracon-client` icinde `npm run generate` → `src/schema.ts`;
   (3) `dotnet tool restore && python3 scripts/nswag-prepare-document.py ... &&
   dotnet nswag run nswag.json && python3 scripts/nswag-postprocess-client.py
-  <uretilen.cs> docs/openapi/agentprism.json
-  && python3 scripts/generate-client-json-context.py ...` → `AgentPrismApiClient.g.cs`;
-  (4) **`packages/agentprism-client` icinde `npm run build`**. Dorduncu adim
-  kolayca unutulur: `src/AgentPrism.UI/frontend` tiplerini `@agentprism/client`'tan
+  <uretilen.cs> docs/openapi/tracon.json
+  && python3 scripts/generate-client-json-context.py ...` → `TraconApiClient.g.cs`;
+  (4) **`packages/tracon-client` icinde `npm run build`**. Dorduncu adim
+  kolayca unutulur: `src/Tracon.UI/frontend` tiplerini `@tracon/client`'tan
   alir ve o import **`dist/`'i** cozer, `src/`'i degil. `dist/` gitignore'dur, yani
   `git status` temiz gorunur ve yalniz frontend `tsc` sikayet eder — sozluk anahtari
   `t(\`dashboard.errorClass.${entry.class}\`)` gibi sema tipinden TUREYEN her yerde
@@ -84,17 +84,17 @@
   `EvalSuite.Checks`, `JobTriggerRequest.Payload`, ...) bos-`[JsonExtensionData]`
   sinifina karsi deserialize ediliyordu — tel uzerindeki deger bir JSON NESNESI
   DEGILSE (ör. `Scores` bir dizi) her cagri `JsonException` firlatiyordu, HICBIR
-  test bunu yakalamamisti (`AgentPrismTestHost`'un in-memory `TestServer`'i
-  `AgentPrismApiClient` degil dogrudan `HttpClient` kullaniyor). Ayrica
+  test bunu yakalamamisti (`TraconTestHost`'un in-memory `TestServer`'i
+  `TraconApiClient` degil dogrudan `HttpClient` kullaniyor). Ayrica
   `System.Text.Json.JsonElement` bir STRUCT oldugu icin gercek tipe gecince
   NJsonSchema'nin ROOT response null-check'i (`if (objectResponse_.Object ==
   null)`) `CS0019` verir — bu da ayrica silinmeli. Cozum
   `scripts/nswag-postprocess-client.py`'daki `COLLIDING_ANY_TYPES` tablosu:
   bogus sinifi siler, her referansi GERCEK tipe (`System.Text.Json.JsonElement`)
-  ya da — `AgentPrism.Client`'in bilerek referans ETMEDIGI bir paketin tipiyse
+  ya da — `Tracon.Client`'in bilerek referans ETMEDIGI bir paketin tipiyse
   (`Microsoft.Extensions.AI.ChatRole`) — o tipin GERCEK tel bicimine (`string`,
   kendi converter'i zaten oyle serialize ediyor) nitelendirir. Yeni bir
-  cakisma tespiti: `python3 -c "import json; s=json.load(open('docs/openapi/agentprism.json'))['components']['schemas']; print([k for k,v in s.items() if v=={}])"`
+  cakisma tespiti: `python3 -c "import json; s=json.load(open('docs/openapi/tracon.json'))['components']['schemas']; print([k for k,v in s.items() if v=={}])"`
   — cikan her ad `COLLIDING_ANY_TYPES`'a eklenir. `scripts/nswag_postprocess_client_test.py`
   regresyonu kapatir.
 
@@ -108,7 +108,7 @@
   `<Target>`'in ICINDEKI `<PropertyGroup>`'a tasi — o zaman `$(Version)` zaten
   dolu. Kanit: `src/Directory.Build.props`.
 
-- **🚨 Packed-consumer sample projelerini `AgentPrism.slnx`'e ekleme.** Bu
+- **🚨 Packed-consumer sample projelerini `Tracon.slnx`'e ekleme.** Bu
   projeler `artifacts/package/release` local feed'inden exact paket tuketir;
   temiz CI runner'inda feed `pack` oncesi yoktur ve solution restore `NU1301`
   ile kirilir. Sample'lari `scripts/release_extension_samples.py` dogrudan
@@ -154,7 +154,7 @@
   govde parametresinin TIPI de kaynak-uretilmis context'te KAYITLI olmalidir**
   (2026-09-08, Faz 159, olculdu). `.Accepts<object>(...)` bos sema uretir,
   NSwag `object body` yazar ve istemci `JsonSerializer.SerializeToUtf8Bytes`'i
-  kaynak-uretilmis `AgentPrismClientJsonContext` ile cagirir: anonim tip ya da
+  kaynak-uretilmis `TraconClientJsonContext` ile cagirir: anonim tip ya da
   POCO gecen HER cagiran `NotSupportedException` alir ("JsonTypeInfo metadata
   for type ... was not provided"). Yalniz kayitli kok tipler serilesir. Cozum
   `.Accepts<JsonElement>(...)`: belge anlamca AYNI kalir (JsonElement'in kendi

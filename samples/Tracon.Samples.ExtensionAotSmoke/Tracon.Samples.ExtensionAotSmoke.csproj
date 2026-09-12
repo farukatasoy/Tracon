@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <PublishAot>true</PublishAot>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../Tracon.Samples.CustomModelProvider/Tracon.Samples.CustomModelProvider.csproj" />
+    <ProjectReference Include="../Tracon.Samples.CustomAgentSource/Tracon.Samples.CustomAgentSource.csproj" />
+    <ProjectReference Include="../Tracon.Samples.CustomTool/Tracon.Samples.CustomTool.csproj" />
+    <PackageReference Include="Tracon" VersionOverride="$(TraconSamplePackageVersion)" />
+  </ItemGroup>
+
+</Project>

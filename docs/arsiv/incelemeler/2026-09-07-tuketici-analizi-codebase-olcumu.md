@@ -9,7 +9,7 @@
 
 ## 1. Kapsam, zemin ve kanıt sınırı
 
-- Girdi: [AgentPrism — Kapsamlı Teknik ve Ürün Analizi](2026-09-07-tuketici-analizi-girdi-raporu.md), 1005 satır. SHA-256: `5127dd2a98ad24792c8de8c57baafae9bf70151a428c2402e14c7101f22aec1c`.
+- Girdi: [Tracon — Kapsamlı Teknik ve Ürün Analizi](2026-09-07-tuketici-analizi-girdi-raporu.md), 1005 satır. SHA-256: `5127dd2a98ad24792c8de8c57baafae9bf70151a428c2402e14c7101f22aec1c`.
 - Codebase: `2a3f5cff0f43078d7c41d5faf24ad45cb7131a8e`. Başlangıçta yalnız girdi raporu untracked idi. Bu inceleme ürün kodunu değiştirmedi, commit veya yayın yapmadı.
 - Kullanıcının netleştirmesi: **“şu an için henüz yayınlanmamış geliştirme sürümü”**. Registry'de yokluk bir yayın arızası değildir. Yayınlanmış gibi anlatmak doküman kusurudur.
 - [Yol haritasında](../../YOL-HARITASI.md) son numaralı faz 154 kapalıdır. Üretecin 155 kayıt sayması ile son faz numarası aynı ölçüm değildir. Son üç fazın devir notları okundu. Faz 153 özellikle case snapshot'ının bulunmadığını ve K-716 sınırını devreder.
@@ -28,7 +28,7 @@ Tam rapor arşiv inceleme ağacında tutuldu. Keşif giriş kaydı [buradadır](
 |---|---|---|
 | Canlı `llms.txt`, `llms-full.txt`, OpenAPI indirme | Üçü HTTP 200 | Web aracı bu URL'leri açamadı; TLS doğrulamasını kapatmadan `curl` kullanıldı. |
 | NuGet meta/Core ve npm client index | Üçü HTTP 404 | Kullanıcının yayınlanmamış sürüm açıklamasıyla tutarlı. Abstractions ve GitHub araması bu tur tekrar edilmedi. |
-| Yerel ve canlı güncel OpenAPI sayımı | **128 path, 165 operasyon, 274 schema; 23 alan tag'i + ortak AgentPrism** | Girdi raporundaki 127/164/269 eski snapshot'a ait. Runtime host'un tüm olası rotalarının sayısı değildir. |
+| Yerel ve canlı güncel OpenAPI sayımı | **128 path, 165 operasyon, 274 schema; 23 alan tag'i + ortak Tracon** | Girdi raporundaki 127/164/269 eski snapshot'a ait. Runtime host'un tüm olası rotalarının sayısı değildir. |
 | Diagnostics snapshot kontrolü | `/api/diagnostics` mevcut | Conditional endpoint'in doküman build profilinde bulunduğunu gösterir. Her host'ta etkin olduğunu göstermez. |
 | UI route kaynak sayımı | **28 module, 30 farklı JSX Screen component, 36 route** | 28/30 farkının nedeni bulundu: kapı dosya/module sayıyor, diğer metin component sayıyor. |
 | `node docs-site/scripts/check-content.mjs` | Exit 0; **52 manual / 1104 toplam sayfa** geçti | Aşağıdaki davranış çelişkileri dururken kapı yeşil. Semantik doğruluk kanıtı değil. |
@@ -62,19 +62,19 @@ Aşağıdaki D01–D18, kaynak raporun §14.1'deki 12 satırını ve §14.2'deki
 | D02 · Tag sayısı | `reference/compatibility.md:146`: 19; JSON: 23 alan + ortak tag. | **Doküman kusuru.** “Alan tag'i” ile toplam tag tanımı ayrılmalı; kaynak JSON'dan üretilmeli veya sayı kaldırılmalı. |
 | D03 · Diagnostics kapsamı | `reference/compatibility.md:145–151` conditional rotaları reference dışında gibi sunuyor; JSON'da diagnostics var. | **Anlatım kusuru.** “Host'ta conditional” ile “bu snapshot'ta mevcut” ayrı sütunlar olmalı. Route conditional olma davranışı doğru; koddan kaldırılmaz. |
 | D04 · UI 28/30/36 | `check-content.mjs:107` benzersiz import module sayıyor. `skills.tsx` ve `triggers.tsx` ikişer Screen export ediyor. `app.tsx:41` route listesi 30 component / 36 route. | **Ölçüm tanımı kusuru.** “Ekran” kullanıcıya gösterilen component ise 30; 28 module teknik ayrıntıdır. Tek tanım seçip kapıyı düzelt. Salt drift'ten daha yapısal. |
-| D05 · Tenancy default | Changelog `multi-tenant by default`; `AgentPrismTenancyOptions.cs:47` bool initializer yok, default false. | **Yüksek öncelikli doküman kusuru.** Tek tenant default açık yazılmalı. Generated changelog değil kök `CHANGELOG.md` düzeltilmeli. |
-| D06 · Worker default | `ui.md:162` yalnız `UseScheduling()` ile kuyruğun tüketildiğini söylüyor. `AgentPrismSchedulingOptions.cs:14,22`: Enabled/RunWorker true. Background rehberi doğru. | **Yüksek öncelikli doküman kusuru.** `UseScheduling` worker açmak için şart değil. API-only örneğinde RunWorker=false açık olmalı. |
+| D05 · Tenancy default | Changelog `multi-tenant by default`; `TraconTenancyOptions.cs:47` bool initializer yok, default false. | **Yüksek öncelikli doküman kusuru.** Tek tenant default açık yazılmalı. Generated changelog değil kök `CHANGELOG.md` düzeltilmeli. |
+| D06 · Worker default | `ui.md:162` yalnız `UseScheduling()` ile kuyruğun tüketildiğini söylüyor. `TraconSchedulingOptions.cs:14,22`: Enabled/RunWorker true. Background rehberi doğru. | **Yüksek öncelikli doküman kusuru.** `UseScheduling` worker açmak için şart değil. API-only örneğinde RunWorker=false açık olmalı. |
 | D07 · CLI release kapsamı | Changelog migrate/status/health sayıyor; `EvalCommand.cs` ve güncel rehber eval veriyor. `build-changelog.mjs:45` Unreleased bölümünü düşürüyor. | **Sürüm aidiyeti belirsizliği.** Eski release notuna her yeni capability eklenmez. Henüz yayın olmadığından yayın durumu önce düzeltilmeli; ilk gerçek release içeriği o artifact ile sabitlenmeli. “Eval kodu eksik” reddedildi. |
 | D08 · OpenAI scope | `guides/openai-api.md:191` ExternalInvoke öneriyor. `OpenAIChatCompletionsEndpoints.cs:53`, `OpenAIResponsesEndpoints.cs:81`: **RunsWrite**. Conversations okuma/silme RunsRead/RunsWrite. | **Yüksek öncelikli doküman kusuru.** OpenAI örneğini RunsWrite ile düzelt; MCP/A2A ExternalInvoke kalır. Kod scope'unu yanlış metne uydurma. Sadece ExternalInvoke verilen key OpenAI çağrısının doğru anahtarı değildir. |
-| D09 · A2A expose-all | `external-agents.md:188` yok diyor; :197 iki yüzeye genelliyor. `AgentPrismA2AOptions` ile MCP options ayrı. | **Doküman kusuru.** ExposeAllAgents ve ToolNamePrefix MCP'ye özgü anlatılmalı. A2A'ya sırf metni doğrulamak için yeni feature eklenmez. |
+| D09 · A2A expose-all | `external-agents.md:188` yok diyor; :197 iki yüzeye genelliyor. `TraconA2AOptions` ile MCP options ayrı. | **Doküman kusuru.** ExposeAllAgents ve ToolNamePrefix MCP'ye özgü anlatılmalı. A2A'ya sırf metni doğrulamak için yeni feature eklenmez. |
 | D10 · Structured validation | Rehber :8 opt-in seam'i açıklıyor; :29 mode tablosu “None”, :301 payload validation “Not performed”. `StructuredResponseValidatingAgent.cs:160` repair/validation akışı; options default kapalı. | **Eksik koşul anlatımı.** İddianın default davranış için doğru olduğunu belirt; request formatı / syntax / custom schema / repair ayrımı yap. Built-in tam schema validator yokluğu gerçek fakat ayrı ürün sınırı. |
 | D11 · Package identity | `reference/versioning.md:24` immutable artifact; custom store rehberi :89 aynı preview'ın farklı içerik olabileceğini söylüyor. `kapi.py:870` content fingerprint ile overwrite koruyor, :900 manifest yazıyor; dirty pack ayrı sürüm ister. | **Doküman kusuru, altyapı yokluğu değil.** Resmî build ile eski/harici/local build istisnasını adlandır. Byte eşitliği ile ZIP metadata'dan arındırılmış içerik fingerprint'ini de karıştırma. |
 | D12 · TypeScript prefix | `generate.mjs:50` önce `strip-prefix.mjs` çalıştırıyor; public JSON prefiksli. Prefix testleri geçti. | **Kod kusuru iddiası çürütüldü.** Rehber :48'de “generation document” yerine “normalize edilen ara girdi” de; public snapshot ile linkle. Normalize ara JSON'u ayrıca yayımlamak zorunlu değil; dönüşüm ve custom-prefix örneği yeterli. |
 | D13 · Approval resume | Background :110–112 karar sonrası elle yeni run diyor. `ApprovalEndpoints.cs:203–276` audit → decide → yeni queued run → ApprovalResume job üretiyor. | **Yüksek öncelikli doküman kusuru.** Durable mailbox kararı otomatik enqueue eder; tüketici ikinci run başlatmamalı. In-band karar sonraki request ile gelir; workflow respond ayrı akıştır. Üç ayrı sequence ve failure davranışı yazılmalı. |
 | D14 · Code-only / stored scripts | `AgentContracts.cs:128` Scripts kabul ediyor; yürütme Enabled + AllowStoredScripts + tenant grant koşullu. Script runner ayrı süreç ve sınırlama uygular; OS sandbox vaadi yok. | **Sınır anlatımı düzeltilmeli.** “Tool implementation kodda” doğru; “sunucuda çalışabilecek hiçbir içerik saklanamaz” yanlış. Script writer/admin, grant veren ve host isolation sorumlusu ayrı gösterilmeli. Tool editor yasağı değişmez. |
 | D15 · SQLite cross-instance | Background :331 SQLite'ı cross-instance election listesine alıyor; :389 tek process diyor. Store lease semantiği ile production tavsiyesi farklı. | **Doküman kusuru.** Lease implementation varlığı bir cluster support garantisi değildir. SQLite tek process tavsiyesi korunur; cross-instance örneği PostgreSQL/SQL Server ile yazılır. |
-| D16 · Telemetry dışarı çıkmaz | `index.mdx:134` mutlak ifade; observability rehberi :45 host OTel exporter kuruyor. Provider/MCP/webhook zaten network kullanır. | **Doküman kusuru.** “AgentPrism'e zorunlu telemetry gönderilmez” gibi dar ifade kullan. Exporter ve entegrasyon egress'ini gizleme. |
-| D17 · One-line console | `concepts/index.md:55` bir satırla console; UI rehberi paket + UseUI + MapAgentPrism adımlarını veriyor. | **Onboarding kusuru.** Runtime DI kaydı ile HTTP/UI kurulumu ayrılmalı. Gerçek minimal snippet'i tek kaynak yap; satır sayısı pazarlamasını kaldır. |
+| D16 · Telemetry dışarı çıkmaz | `index.mdx:134` mutlak ifade; observability rehberi :45 host OTel exporter kuruyor. Provider/MCP/webhook zaten network kullanır. | **Doküman kusuru.** “Tracon'e zorunlu telemetry gönderilmez” gibi dar ifade kullan. Exporter ve entegrasyon egress'ini gizleme. |
+| D17 · One-line console | `concepts/index.md:55` bir satırla console; UI rehberi paket + UseUI + MapTracon adımlarını veriyor. | **Onboarding kusuru.** Runtime DI kaydı ile HTTP/UI kurulumu ayrılmalı. Gerçek minimal snippet'i tek kaynak yap; satır sayısı pazarlamasını kaldır. |
 | D18 · Eval sequence / ID | `evaluation.md:61` sıra değişince eski sonuçların başka case'e hizalandığını söylüyor; :117 ID hizalamasını doğru açıklıyor. `EvalRunDiffBuilder.cs:195` CaseId kullanıyor. | **Doküman kusuru.** Seq görüntüleme sırasıdır; ID karşılaştırma kimliği. HTTP replace yeni ID ürettiğinde Added/Removed olur; başka case'e sırayla eşleşmez. |
 
 Doküman yolları tabloda `docs-site/src/content/docs/` altına görelidir. Kod yollarının tam envanteri §9'dadır.
@@ -121,7 +121,7 @@ Bu nedenle “kapı yeşil → doküman doğru” sonucu hatalıdır. Bu tur sem
 | `Model.AllowConcurrentToolCalls` | UI model mapper | Gönderilmiyor; mevcut true değeri korunmuyor. |
 | Yalnız vector search içeren `Memory` | `memoryHasAnything`, model.ts:193 | Predicate yalnız file/todo/text search okuyor. Gerçek source probunda `memory: null` çıktı. Başka memory flag'i true ise bütün memory nesnesi taşınıyor; koşul bu yüzden önemlidir. |
 
-İlk sekiz satır kaynak akışıyla ölçüldü; parameters/shared instructions request yokluğu ve son satır Node probuyla da görüldü. SQL payload mapper da ayrıca okundu: `src/AgentPrism.Sql.Shared/Internal/AgentDefinitionPayload.cs:68,97` iki yönde McpResourceUris/SubAgents alanlarını atıyor. In-memory store ise `definition with` kopyası alıyor (`InMemoryAgentDefinitionStore.cs:112`); aynı kayıt iki backend'de farklı korunabilir. Bütün alanların SQL'de kaybolduğu browser E2E bu tur koşulmadı. Bazı mevcut definition kombinasyonları validation'da reddedilebilir; bu, mapper'ın lossless olduğu anlamına gelmez.
+İlk sekiz satır kaynak akışıyla ölçüldü; parameters/shared instructions request yokluğu ve son satır Node probuyla da görüldü. SQL payload mapper da ayrıca okundu: `src/Tracon.Sql.Shared/Internal/AgentDefinitionPayload.cs:68,97` iki yönde McpResourceUris/SubAgents alanlarını atıyor. In-memory store ise `definition with` kopyası alıyor (`InMemoryAgentDefinitionStore.cs:112`); aynı kayıt iki backend'de farklı korunabilir. Bütün alanların SQL'de kaybolduğu browser E2E bu tur koşulmadı. Bazı mevcut definition kombinasyonları validation'da reddedilebilir; bu, mapper'ın lossless olduğu anlamına gelmez.
 
 **Aksiyon:** `kusur-giderme` ile tek alanı değil sınıfı kapat. Önce API'den round-trip desteklenen alanları ve .NET/in-memory store üzerinden oluşturulmuş daha geniş definition'ları ayır. SQL SaveAsync/GetAsync için McpResourceUris/SubAgents kaybını ayrı sınır testiyle sabitle; yalnız editor mapper'ını değiştirmek sınıfı kapatmaz. Server-owned `Origin/Version/TenantId/UpdatedAt` alanlarını mass assignment'a açma. Bilinmeyen alanı koruma, açık merge veya edit reddi seçeneklerinden kalıcı contract seç. Mapper testi yanında gerçek HTTP ve UI save sınırını geçen test gerekir.
 
@@ -169,7 +169,7 @@ Buradaki A01–A18 rapor içi izleme kimliğidir; **F-NN değildir**. Mercek num
 
 **Aksiyon:** Önce domain operation key'nin host'tan geldiği, downstream idempotency/lookup ile çalışan reference senaryosu kur. Prepared/Executing/OutcomeUnknown ve reconcile ihtiyaçları bu senaryoyla doğrulanırsa opt-in public operation seam/store adayına geç. RunId business dedup key yapılamaz. Crash öncesi/sonrası lookup sonucu bilinmiyorsa otomatik retry güvenli sayılmaz.
 
-**Değer:** Dış etki üreten kurumsal otomasyon. **Maliyet:** Store sözleşmesi, migration'lar, invocation/recovery/test yüzeyi. **Risk:** Framework'ün yapamayacağı exactly-once sözü; domain ledger'ıyla ikinci hakikat kaynağı. **Hazırlık:** Mevcut replay yalnız bir parça; downstream contract gereklidir. **Mercek:** 2,3,5. **Karşı görüş:** Read-only agent için bu altyapı gereksizdir. Ödeme transaction'ının sahibi host kalmalı. Tüm AgentPrism tüketicileri için 1.0 blocker olması reddedildi; kritik side-effect ürününde kabul kapısı olması desteklendi.
+**Değer:** Dış etki üreten kurumsal otomasyon. **Maliyet:** Store sözleşmesi, migration'lar, invocation/recovery/test yüzeyi. **Risk:** Framework'ün yapamayacağı exactly-once sözü; domain ledger'ıyla ikinci hakikat kaynağı. **Hazırlık:** Mevcut replay yalnız bir parça; downstream contract gereklidir. **Mercek:** 2,3,5. **Karşı görüş:** Read-only agent için bu altyapı gereksizdir. Ödeme transaction'ının sahibi host kalmalı. Tüm Tracon tüketicileri için 1.0 blocker olması reddedildi; kritik side-effect ürününde kabul kapısı olması desteklendi.
 
 ### A04 · State compatibility / upgrade preflight — dar kapsamla aday
 
@@ -247,13 +247,13 @@ Buradaki A01–A18 rapor içi izleme kimliğidir; **F-NN değildir**. Mercek num
 
 **Kaynak:** §15.14, §11.3, §10.6. **Ölçüldü:** `McpOAuthTokenCacheRegistry.cs:17` tenant+server başına in-memory cache. `AesGcmContentProtector.cs:74,87–95` envelope kid ile encrypt/decrypt. Mevcut koruma geçmiş veriyi topluca dönüştüren job değil.
 
-**Aksiyon:** Host-owned token store seam, refresh concurrency ve reauthorization state koşullu aday. **AgentPrism SQL veritabanına token değeri yazma önerisi K-059 ile çelişir; şifreli olması bu sınırı kaldırmaz.** Harici host secret store referansı/seam'i bu kararı koruyabilir. Content key usage inventory/re-encryption/dry-run/progress ayrı adaydır; backup envanteri host runbook'unda kalır.
+**Aksiyon:** Host-owned token store seam, refresh concurrency ve reauthorization state koşullu aday. **Tracon SQL veritabanına token değeri yazma önerisi K-059 ile çelişir; şifreli olması bu sınırı kaldırmaz.** Harici host secret store referansı/seam'i bu kararı koruyabilir. Content key usage inventory/re-encryption/dry-run/progress ayrı adaydır; backup envanteri host runbook'unda kalır.
 
 **Değer:** Restart sonrası MCP erişimi ve key retirement. **Maliyet:** Token ownership/lifecycle; ayrı rotation job ve kolon envanteri. **Risk:** Token sızıntısı, refresh yarışı, eski backup'ın çözülememesi. **Hazırlık:** Cache ve content envelope var; host secret provider seçilmedi. **Mercek:** 2,3,6. **Karşı görüş:** Memory-only doğru ve desteklenen bir tercihtir. Harici vault'u herkese zorunlu tutmak reddedildi. K-059'u yeniden açacak ekosistem kanıtı yok.
 
 ### A14 · Protocol conformance / negotiation — küçük matrix ile aday
 
-**Kaynak:** §15.15, §11. **Ölçüldü:** `AgentPrismMetaResponse.cs:14–28` Version/Prefix/Authentication/Storage/Roles taşır; genel protocol capability matrisi yok. `Storage.JobWorkerEnabled` zaten mevcut. .NET/TS istemcileri OpenAPI'den üretiliyor; prefix testleri geçti. F-198 dual JSON/SSE client davranışı zaten açık kayıt.
+**Kaynak:** §15.15, §11. **Ölçüldü:** `TraconMetaResponse.cs:14–28` Version/Prefix/Authentication/Storage/Roles taşır; genel protocol capability matrisi yok. `Storage.JobWorkerEnabled` zaten mevcut. .NET/TS istemcileri OpenAPI'den üretiliyor; prefix testleri geçti. F-198 dual JSON/SSE client davranışı zaten açık kayıt.
 
 **Aksiyon:** Önce release'e bağlı ingress capability matrisi ve pinned client fixture'ları: text, streaming, resume, session, approval, cancel, quota, unsupported fields. Yeni capability negotiation DTO gerekiyorsa mevcut meta'nın unauthenticated olmasını hesaba kat; tenant/agent politikası sızdırma. F-198'i çoğaltma. A2A push/background veya MCP approval'ı sırf parity uğruna ekleme.
 
@@ -269,7 +269,7 @@ Buradaki A01–A18 rapor içi izleme kimliğidir; **F-NN değildir**. Mercek num
 
 ### A16 · Benchmark / chaos / production sample — mevcut harness'i genişlet
 
-**Kaynak:** §15.17, §9.3, §12, §16. **Ölçüldü:** `bench/AgentPrism.Benchmarks` içinde cache, run store query ve event writer benchmark'ları var. `RunEventWriterBenchmarks.cs:20` NoOpRunStore kullanıyor; allocation ölçümü gerçek SQL load değildir. Lease expiry, reconciliation, concurrency ve authorization test aileleri de var.
+**Kaynak:** §15.17, §9.3, §12, §16. **Ölçüldü:** `bench/Tracon.Benchmarks` içinde cache, run store query ve event writer benchmark'ları var. `RunEventWriterBenchmarks.cs:20` NoOpRunStore kullanıyor; allocation ölçümü gerçek SQL load değildir. Lease expiry, reconciliation, concurrency ve authorization test aileleri de var.
 
 **Aksiyon:** Sıfırdan benchmark altyapısı kurma. Mevcut bench üstüne bounded SQL/load ve iki process kill senaryoları ekle. DB unavailable, slow sink, provider timeout, retention hacmi, streaming fan-out ve rolling upgrade ayrı failure manifestleri taşımalı. API-only/worker-only/migration örneği bu testlerle bağlansın. CPU/RAM/DB/payload/concurrency ve dependency commit kimliği yazılsın; dış model latency'si kontrol düzlemi overhead'inden ayrı ölçülsün.
 
@@ -298,7 +298,7 @@ Buradaki A01–A18 rapor içi izleme kimliğidir; **F-NN değildir**. Mercek num
 | Karar | Ölçüm / yeni durum | Sonuç |
 |---|---|---|
 | **K-716** · Eval content değişikliği kapsam dışı | Rapor yeni tüketici gerekçesi getiriyor; kod durumu karar günündekiyle aynı. Ekosistem değişimi yok. | A09 seçilirse karar kapsamı kullanıcıyla yeniden açılmalı. Bu rapor kararı değiştirmedi. |
-| **K-059** · Secret değeri AgentPrism DB'ye yazılmaz | MCP token cache'in process-local olması gerçek; encrypted token SQL store önerisi sınırı aşar. | DB token store reddedildi. Host secret-store seam'i ayrı seçenek; kararı geçersiz kılan kanıt yok. |
+| **K-059** · Secret değeri Tracon DB'ye yazılmaz | MCP token cache'in process-local olması gerçek; encrypted token SQL store önerisi sınırı aşar. | DB token store reddedildi. Host secret-store seam'i ayrı seçenek; kararı geçersiz kılan kanıt yok. |
 | **K-090** · Skill script argument validation sığ | Tam gerekçe script validator'ına ait; yeni genel tool seam'leri zaten mevcut. | Bunu bütün schema adapter'larına genel yasak diye kullanma. Core'a zorunlu engine eklemek yine gerekçelendirilmedi. |
 | **K-103 / K-339** · Alt/external agent approval sınırı | MCP/A2A'nın insanı olmayan çağrıları mevcut sınırla karşılaşıyor. | Negotiation/dokümanla açıkla. Bu tur upstream kanca değişimi ölçülmedi; otomatik yeniden açma yok. |
 | **F-171** · Sevk edilen ölçümler için kapı | Mevcut kapı bazı sayıları ölçüyor ama kapsam ve ölçüm tanımı eksik. | Yeni kopya aday açma; mevcut adayın kanıtını bu raporla güncellemek sonraki seçim adımıdır. |
@@ -316,7 +316,7 @@ Buradaki A01–A18 rapor içi izleme kimliğidir; **F-NN değildir**. Mercek num
 | Her capability'yi default açmak / tek sihirli Production=true | İhtiyaçlar farklı; tüketicinin composition yetkisini azaltır. | Yaklaşım reddi; açıklanabilir profil mümkün. |
 | Exactly-once agent / prompt-injection-proof / tüm ürün AOT | Dış sistem/model sınırları ve paket matrisi bu garantileri vermiyor. | Yanlış garanti reddi. |
 | Bütün recording'i fail-closed yapmak | Observability işlevi bozamaz; kritik karar handoff'u ayrı çözülür. | Mevcut contract korunur. |
-| MCP token'ını encrypted diye AgentPrism SQL'e yazmak | K-059 değer saklama sınırı şifrelemeyle kalkmaz. | Mevcut güvenlik kararı. |
+| MCP token'ını encrypted diye Tracon SQL'e yazmak | K-059 değer saklama sınırı şifrelemeyle kalkmaz. | Mevcut güvenlik kararı. |
 | Generic workflow, microservice veya broker dönüşümü | Somut kullanım acısı yok; embedded library değerini ve dependency yüzeyini değiştirir. | Bu tur erteleme; microservice zorunluluğu reddi. |
 | Bütün P0/P1 önerilerini 1.0 blocker yapmak | Read-only/single-process ile kritik side effect/fleet aynı garantiye ihtiyaç duymuyor. | Öncelik çerçevesi reddi. |
 | Tarihsel release/snapshot sayılarını bugünkü sayıyla değiştirmek | İnceleme kanıtını bozar; main ve release farklı snapshot'lardır. | Doküman yöntemi reddi. |
@@ -394,31 +394,31 @@ Bütün yollar repository köküne görelidir. Satırlar ölçüm commit'ine ait
 
 | Kanıt | Kaynak |
 |---|---|
-| UI mapper ve dar state | `src/AgentPrism.UI/frontend/src/screens/agent-editor/model.ts:146` · `use-agent-editor.ts:110,158` |
-| HTTP definition dönüşümü/update | `src/AgentPrism.AspNetCore/Contracts/AgentContracts.cs:12,70` · `Endpoints/AgentEndpoints.cs:599,643` |
-| Tam definition/model/memory alanları | `src/AgentPrism.Abstractions/Agents/AgentDefinition.cs:84,96,133,145,167` · `ModelBinding.cs:68,125,138` · `MemorySettings.cs:39` |
-| Payload yazımı ve eksik alanlar | `src/AgentPrism.Sql.Shared/Stores/SqlAgentDefinitionStore.cs:111` · `src/AgentPrism.Sql.Shared/Internal/AgentDefinitionPayload.cs:68,97` · `src/AgentPrism.Core/Storage/InMemoryAgentDefinitionStore.cs:112` |
-| Default worker/tenant | `src/AgentPrism.Abstractions/Scheduling/AgentPrismSchedulingOptions.cs:14,22` · `src/AgentPrism.AspNetCore/Tenancy/AgentPrismTenancyOptions.cs:47` |
-| OpenAI scope | `src/AgentPrism.AspNetCore/OpenAICompat/OpenAIResponsesEndpoints.cs:81` · `OpenAIChatCompletionsEndpoints.cs:53` · `OpenAIConversationsEndpoints.cs:53–94` |
-| Approval karar/handoff | `src/AgentPrism.AspNetCore/Endpoints/ApprovalEndpoints.cs:203` · `src/AgentPrism.Core/Approvals/ApprovalResumeJobHandler.cs:26` |
-| Run recording / local cancellation | `src/AgentPrism.Core/Recording/RunEventWriter.cs:156` · `RunCancellationRegistry.cs:8` |
-| Tool wait ve default validator | `src/AgentPrism.Core/Tools/TimeoutAIFunction.cs:57` · `NoOpToolArgumentsValidator.cs:23` |
-| Structured syntax/custom/repair | `src/AgentPrism.Core/Compilation/StructuredResponseValidatingAgent.cs:145` · `src/AgentPrism.Core/AgentPrismStructuredResponseOptions.cs:20,28` |
-| Turn-local fallback replay | `src/AgentPrism.Core/Models/FallbackChatClient.cs:115` |
-| Approximate quota / run tree | `src/AgentPrism.Core/Quotas/QuotaEnforcer.cs:46,131` · `src/AgentPrism.Core/Models/RunBudgetChatClient.cs` |
-| State restore ve stamp | `src/AgentPrism.Core/Sessions/AgentSessionManager.cs:188` · `src/AgentPrism.Workflows/Internal/AgentPrismCheckpointStore.cs:83` · `WorkflowRunner.cs:946` |
-| Eval ID/snapshot sınırı | `src/AgentPrism.AspNetCore/Endpoints/EvalEndpoints.cs:364` · `src/AgentPrism.Sql.Shared/Stores/SqlEvalStore.cs:130` · `src/AgentPrism.Core/Evaluation/InMemoryEvalStore.cs:122` |
-| Eval hizalaması / tool check | `src/AgentPrism.Abstractions/Evaluation/EvalRunDiffBuilder.cs:195` · `EvalCaseResult.cs:20` · `src/AgentPrism.Core/Evaluation/EvalCheckRegistry.cs:145` |
-| Profile ve authorization coverage sınırı | `src/AgentPrism.Core/Diagnostics/RequiredBindingValidator.cs:130` · `tests/AgentPrism.Core.UnitTests/Architecture/RunAuthorizationCoverageTests.cs:24` |
-| OAuth cache ve content key | `src/AgentPrism.Mcp/Internal/McpOAuthTokenCacheRegistry.cs:17` · `src/AgentPrism.Core/Security/AesGcmContentProtector.cs:74,87` |
-| Rule ve queue mevcut alanları | `src/AgentPrism.Abstractions/Approvals/ToolApprovalRule.cs:29` · `src/AgentPrism.Abstractions/Scheduling/JobRecord.cs:49` |
-| Protocol metadata | `src/AgentPrism.AspNetCore/Contracts/AgentPrismMetaResponse.cs:14` |
-| Knowledge source/query | `src/AgentPrism.Abstractions/Knowledge/VectorSearchHit.cs:7` · `VectorSearchRequest.cs:7` · `src/AgentPrism.Core/Knowledge/VectorSearchToolFactory.cs:59` |
+| UI mapper ve dar state | `src/Tracon.UI/frontend/src/screens/agent-editor/model.ts:146` · `use-agent-editor.ts:110,158` |
+| HTTP definition dönüşümü/update | `src/Tracon.AspNetCore/Contracts/AgentContracts.cs:12,70` · `Endpoints/AgentEndpoints.cs:599,643` |
+| Tam definition/model/memory alanları | `src/Tracon.Abstractions/Agents/AgentDefinition.cs:84,96,133,145,167` · `ModelBinding.cs:68,125,138` · `MemorySettings.cs:39` |
+| Payload yazımı ve eksik alanlar | `src/Tracon.Sql.Shared/Stores/SqlAgentDefinitionStore.cs:111` · `src/Tracon.Sql.Shared/Internal/AgentDefinitionPayload.cs:68,97` · `src/Tracon.Core/Storage/InMemoryAgentDefinitionStore.cs:112` |
+| Default worker/tenant | `src/Tracon.Abstractions/Scheduling/TraconSchedulingOptions.cs:14,22` · `src/Tracon.AspNetCore/Tenancy/TraconTenancyOptions.cs:47` |
+| OpenAI scope | `src/Tracon.AspNetCore/OpenAICompat/OpenAIResponsesEndpoints.cs:81` · `OpenAIChatCompletionsEndpoints.cs:53` · `OpenAIConversationsEndpoints.cs:53–94` |
+| Approval karar/handoff | `src/Tracon.AspNetCore/Endpoints/ApprovalEndpoints.cs:203` · `src/Tracon.Core/Approvals/ApprovalResumeJobHandler.cs:26` |
+| Run recording / local cancellation | `src/Tracon.Core/Recording/RunEventWriter.cs:156` · `RunCancellationRegistry.cs:8` |
+| Tool wait ve default validator | `src/Tracon.Core/Tools/TimeoutAIFunction.cs:57` · `NoOpToolArgumentsValidator.cs:23` |
+| Structured syntax/custom/repair | `src/Tracon.Core/Compilation/StructuredResponseValidatingAgent.cs:145` · `src/Tracon.Core/TraconStructuredResponseOptions.cs:20,28` |
+| Turn-local fallback replay | `src/Tracon.Core/Models/FallbackChatClient.cs:115` |
+| Approximate quota / run tree | `src/Tracon.Core/Quotas/QuotaEnforcer.cs:46,131` · `src/Tracon.Core/Models/RunBudgetChatClient.cs` |
+| State restore ve stamp | `src/Tracon.Core/Sessions/AgentSessionManager.cs:188` · `src/Tracon.Workflows/Internal/TraconCheckpointStore.cs:83` · `WorkflowRunner.cs:946` |
+| Eval ID/snapshot sınırı | `src/Tracon.AspNetCore/Endpoints/EvalEndpoints.cs:364` · `src/Tracon.Sql.Shared/Stores/SqlEvalStore.cs:130` · `src/Tracon.Core/Evaluation/InMemoryEvalStore.cs:122` |
+| Eval hizalaması / tool check | `src/Tracon.Abstractions/Evaluation/EvalRunDiffBuilder.cs:195` · `EvalCaseResult.cs:20` · `src/Tracon.Core/Evaluation/EvalCheckRegistry.cs:145` |
+| Profile ve authorization coverage sınırı | `src/Tracon.Core/Diagnostics/RequiredBindingValidator.cs:130` · `tests/Tracon.Core.UnitTests/Architecture/RunAuthorizationCoverageTests.cs:24` |
+| OAuth cache ve content key | `src/Tracon.Mcp/Internal/McpOAuthTokenCacheRegistry.cs:17` · `src/Tracon.Core/Security/AesGcmContentProtector.cs:74,87` |
+| Rule ve queue mevcut alanları | `src/Tracon.Abstractions/Approvals/ToolApprovalRule.cs:29` · `src/Tracon.Abstractions/Scheduling/JobRecord.cs:49` |
+| Protocol metadata | `src/Tracon.AspNetCore/Contracts/TraconMetaResponse.cs:14` |
+| Knowledge source/query | `src/Tracon.Abstractions/Knowledge/VectorSearchHit.cs:7` · `VectorSearchRequest.cs:7` · `src/Tracon.Core/Knowledge/VectorSearchToolFactory.cs:59` |
 | Release manifest / identity | `scripts/kapi.py:870,900,1146` · `scripts/kapi_test.py:692,717` · `.github/workflows/ci.yml:261,313,358,426` |
 | License/source/security | `LICENSE:1` · `SECURITY.md:5,20` · `src/Directory.Build.props:42,61` |
 | Site gate ve revision | `docs-site/scripts/check-content.mjs:94,107,438,452` · `build-agent-map.mjs:97` · `build-changelog.mjs:45` |
-| TS normalize/client tests | `packages/agentprism-client/scripts/generate.mjs:50` · `packages/agentprism-client/scripts/strip-prefix.mjs:20` · aynı paketin `test/prefix.test.ts` ve `test/paths-coverage.test.ts` dosyaları |
-| Mevcut bench | `bench/AgentPrism.Benchmarks/RunEventWriterBenchmarks.cs:20` · `CompiledAgentCacheBenchmarks.cs` · `RunStoreQueryBenchmarks.cs` |
+| TS normalize/client tests | `packages/tracon-client/scripts/generate.mjs:50` · `packages/tracon-client/scripts/strip-prefix.mjs:20` · aynı paketin `test/prefix.test.ts` ve `test/paths-coverage.test.ts` dosyaları |
+| Mevcut bench | `bench/Tracon.Benchmarks/RunEventWriterBenchmarks.cs:20` · `CompiledAgentCacheBenchmarks.cs` · `RunStoreQueryBenchmarks.cs` |
 
 ### Tekrar çalıştırılabilen küçük ölçümler
 
@@ -427,7 +427,7 @@ node docs-site/scripts/check-content.mjs
 python3 scripts/dokuman-bakim.py --denetle
 ```
 
-Client testleri `packages/agentprism-client` dizininde:
+Client testleri `packages/tracon-client` dizininde:
 
 ```bash
 npm exec -- vitest run test/prefix.test.ts test/paths-coverage.test.ts
@@ -446,9 +446,9 @@ UI mapper probu repository kökünde gerçek source'u transpile eder; dosya değ
 ```javascript
 // node --input-type=module ile stdin'den çalıştırılır.
 import fs from 'node:fs';
-import ts from './src/AgentPrism.UI/frontend/node_modules/typescript/lib/typescript.js';
+import ts from './src/Tracon.UI/frontend/node_modules/typescript/lib/typescript.js';
 const source = fs.readFileSync(
-  'src/AgentPrism.UI/frontend/src/screens/agent-editor/model.ts', 'utf8');
+  'src/Tracon.UI/frontend/src/screens/agent-editor/model.ts', 'utf8');
 const js = ts.transpileModule(source, {
   compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 },
 }).outputText;
@@ -464,9 +464,9 @@ console.log(Object.hasOwn(request, 'sharedInstructionsName')); // false
 
 ## 10. Ekosistem kontrolü ve kapanış
 
-**Bakılan tarih: 2026-09-07.** [MCP HTTP authorization specification](https://modelcontextprotocol.io/specification/2025-11-25/basic/authorization) kontrol edildi. Token handling, audience ve authorization discovery protokol sorumluluklarıdır; bu kaynak AgentPrism DB'de token saklamayı zorunlu kılmaz. A13 için host-owned storage seçeneği protokol gereğiyle çelişmeyen bir tasarım yönüdür; bu bir SDK implementasyon seçimi değildir.
+**Bakılan tarih: 2026-09-07.** [MCP HTTP authorization specification](https://modelcontextprotocol.io/specification/2025-11-25/basic/authorization) kontrol edildi. Token handling, audience ve authorization discovery protokol sorumluluklarıdır; bu kaynak Tracon DB'de token saklamayı zorunlu kılmaz. A13 için host-owned storage seçeneği protokol gereğiyle çelişmeyen bir tasarım yönüdür; bu bir SDK implementasyon seçimi değildir.
 
-Canlı proje ölçümleri: [LLM index](https://agentprism.doayen.web.tr/llms.txt), [tam metin](https://agentprism.doayen.web.tr/llms-full.txt), [OpenAPI](https://agentprism.doayen.web.tr/openapi/agentprism.json), [NuGet meta index](https://api.nuget.org/v3-flatcontainer/agentprism/index.json), [NuGet Core index](https://api.nuget.org/v3-flatcontainer/agentprism.core/index.json), [npm index](https://registry.npmjs.org/@agentprism%2fclient). 404 bağlantıları ölçüm adresidir; yayımlanmış artifact bağlantısı gibi okunmaz.
+Canlı proje ölçümleri: [LLM index](https://tracon.dev/llms.txt), [tam metin](https://tracon.dev/llms-full.txt), [OpenAPI](https://tracon.dev/openapi/tracon.json), [NuGet meta index](https://api.nuget.org/v3-flatcontainer/tracon/index.json), [NuGet Core index](https://api.nuget.org/v3-flatcontainer/tracon.core/index.json), [npm index](https://registry.npmjs.org/@tracon%2fclient). 404 bağlantıları ölçüm adresidir; yayımlanmış artifact bağlantısı gibi okunmaz.
 
 “MAF artık bu boşluğu kapatıyor”, “rakiplerin hiçbiri yapmıyor” veya yeni SDK imzası iddiası üretilmedi. Bu nedenle yeni MAF tipi kullanımı/reflection keşfi yapılmadı. A17/A18 gibi ertelenen geniş fikirler için ekosistem üstünlüğü kanıtı yok; seçilirlerse ayrı güncel SDK/restore ölçümü gerekir.
 

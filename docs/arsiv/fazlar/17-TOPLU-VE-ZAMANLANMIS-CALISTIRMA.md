@@ -5,7 +5,7 @@
 > **Önkoşul:** Yok · Faz 9 önerilir (iş oluşturma Admin yetkisidir)
 > **Devreden faz:** [Faz 16](16-WORKFLOWS-ARAYUZ.md) — workflow arayüzü ve human-in-the-loop
 > **Sonraki bağımlı:** [Faz 18](18-DEGERLENDIRME.md) — eval bu kuyruğu kullanır
-> **Paketler:** `AgentPrism.Abstractions`, `.Core`, `.PostgreSql`, `.AspNetCore`, `.UI`
+> **Paketler:** `Tracon.Abstractions`, `.Core`, `.PostgreSql`, `.AspNetCore`, `.UI`
 > **Yeni paket:** Yok · **Migration:** 0008 (planlanan sırada)
 
 ---
@@ -59,7 +59,7 @@ Faz 25'in saklama politikası bu kuralı bozmamalıdır.
 
 ### 🚨 Bekleyen çalıştırmalar süresiz bekler
 
-`AgentPrismWorkflowOptions.RunTimeout` yalnızca **akış açıkken** çalışır. Bir
+`TraconWorkflowOptions.RunTimeout` yalnızca **akış açıkken** çalışır. Bir
 çalıştırma `AwaitingInput` olduktan sonra hiçbir zaman aşımı onu kapatmaz. Faz
 17 bir "bekleyen işler" görünümü veya bir süre sınırı getirmek isteyebilir;
 getirmezse Faz 25'in temizliği bunu ele almalıdır.
@@ -74,7 +74,7 @@ başladıktan sonra sürdürebilir; bu ölçülerek doğrulandı.
 
 ## Amaç
 
-Bir agent'ı bir veri kümesi üzerinde toplu çalıştırmak ve zamanlanmış (cron) tetiklemek. Beyin fırtınası belgesi bunun eval (F-14) ile **aynı altyapıyı paylaştığını** söylüyor; bu yüzden kuyruk **önce** yapılır ve eval onun üzerine kurulur. Bu, AgentPrism'i "istek geldiğinde çalışan" bir kütüphaneden "kendi kendine iş yapan" bir kontrol düzlemine dönüştürür.
+Bir agent'ı bir veri kümesi üzerinde toplu çalıştırmak ve zamanlanmış (cron) tetiklemek. Beyin fırtınası belgesi bunun eval (F-14) ile **aynı altyapıyı paylaştığını** söylüyor; bu yüzden kuyruk **önce** yapılır ve eval onun üzerine kurulur. Bu, Tracon'i "istek geldiğinde çalışan" bir kütüphaneden "kendi kendine iş yapan" bir kontrol düzlemine dönüştürür.
 
 ## Plandan Sapmalar
 
@@ -83,7 +83,7 @@ Gerekçeleri `docs/KARARLAR.md` içinde K-134 … K-138 olarak numaralıdır.
 
 | Sapma | Gerekçe |
 |-------|---------|
-| `WorkflowJobHandler` ayrı bir pakete değil, `AgentPrism.Core`'a kondu | `IWorkflowRunner` zaten `AgentPrism.Abstractions`'ta; Core zaten ona bağımlı. Somut uygulama yalnız `UseWorkflows()` çağrılırsa DI'a girer — `runner` nullable'dır (K-134) |
+| `WorkflowJobHandler` ayrı bir pakete değil, `Tracon.Core`'a kondu | `IWorkflowRunner` zaten `Tracon.Abstractions`'ta; Core zaten ona bağımlı. Somut uygulama yalnız `UseWorkflows()` çağrılırsa DI'a girer — `runner` nullable'dır (K-134) |
 | `jobs` tablosuna `(schedule_id, scheduled_for)` üzerinde benzersiz kısıt eklendi | Bölüm 17.5'in metni bu kısıtın var olduğunu söylüyordu ama 17.2'deki DDL örneğinde eksikti; migration 0008 metne göre tamamlandı (K-138) |
 | İptal için ayrı bir `cancel_requested` sütunu **açılmadı** | `jobs.status` tek gerçek kaynak: CAS ile `Cancelled` yapılır, işçi ogeler arasında bunu tekrar okur (K-137) |
 | Zamanlanmış bir işin kiracısı `AsyncLocal` tabanlı `AmbientTenantScope` ile taşınır | `ITenantContext` uygulamaları singleton'dır ve ne HTTP bağlamı ne sabit varsayılan "bu iş hangi kiracı için" sorusunu cevaplayabilir (K-136) |

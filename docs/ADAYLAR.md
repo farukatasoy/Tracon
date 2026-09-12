@@ -63,8 +63,8 @@
 > kesin sözleşme yanıtı aldı.
 >
 > F-183'ün ölçümü raporun bulduğundan ağır çıktı: sevk edilen
-> `samples/AgentPrism.Samples.CustomJobHandler` örneği `JobKind.AgentBatch`
-> bildirir ve `AddAgentPrism()`'den sonra kaydolur, yani gerçek bir worker'da
+> `samples/Tracon.Samples.CustomJobHandler` örneği `JobKind.AgentBatch`
+> bildirir ve `AddTracon()`'den sonra kaydolur, yani gerçek bir worker'da
 > **hiç çalışmaz** — testi yalnız DI kaydını ölçüyor. Bu kusur ayrı bir kayıt
 > açmaz; F-183'ün düşen testidir.
 >
@@ -202,7 +202,7 @@ tekrarlanmaz; ilgili keşif ve arşiv kayıtlarındadır.
 
 | Ölçüt | Soru |
 |---|---|
-| **Değer** | Bu olmadan AgentPrism'i kim kullanamaz? |
+| **Değer** | Bu olmadan Tracon'i kim kullanamaz? |
 | **Maliyet** | Kaç paket, kaç yeni public tip, kaç migration? |
 | **Risk** | Bir tasarım kuralını, AOT veya bundle bütçesini zorluyor mu? |
 | **Hazırlık** | MAF veya .NET ekosisteminde hazır mı, sıfırdan mı? |
@@ -259,7 +259,7 @@ bir adayın gerekçesini çürüttü — § *Sıralamayı Değiştiren Ölçüml
 > (2026-09-05). Bağımlılığı olan MAF 1.20.0 yükseltmesi aynı oturumda yapıldı ve
 > kalemin çerçevesi ölçümle değişti: yükseltme **düz agent yolunun** süresiz
 > asılma riskini kod yazılmadan kapattı (`WaitTimeout` varsayılanı 00:05:00),
-> geriye harness yolu · sayının AgentPrism tarafından seçilmesi · zaman aşımının
+> geriye harness yolu · sayının Tracon tarafından seçilmesi · zaman aşımının
 > `run` kanıtına yazılması kaldı. Plan bu üçünü kapsar.
 
 > **Ek (2026-09-03, tüketici turu 3).** ProdigyEnabler'ın `1.0.0-preview.1`
@@ -318,15 +318,15 @@ Gerekçeler:
 | **F-167 · 2 → 3** | "SDK maliyeti zaten ödenmiş" bir talep kanıtı değil, yalnız bir indirimdir. Çalışma anı probu bayatlama korkusunu zaten çürüttü (sunucu bugün stateless). Geriye 1.0 öncesi **yeni bir NuGet paketi** almak kalıyor — burada en pahalı değişiklik türü budur. |
 | **F-168 · 3 → 1** ve plana | Maliyet "Orta" yazılmıştı; ölçüm **küçük** buldu. İki HTTP çağrısı üretilmiş istemcide **zaten var**, eşik için gereken üç sayı (`Total`/`Passed`/`Failed`) sözleşmede var, CLI test altyapısı (`RealHttpHost` · `CliRunner`) hazır. Sunucu hiç değişmiyor; OpenAPI/TS/NSwag zinciri koşmuyor. |
 | **F-67 · 2 → 2** ve plana | Kapsam gürültü ölçümüyle daraldı: CI kapısı **yalnız tahsis edilen bayt** olur (deterministik, sıfır tolerans), süre ölçülür ama kapı değildir. Yeni paketin ağırlığı gerçek restore ile sayıldı: BenchmarkDotNet 0.15.8 → **22 geçişli paket**. K-212'nin 37'sinden az ve — asıl fark — ölçüm projesi `IsPackable=false` olduğu için tüketiciye **hiç ulaşmıyor**. |
-| **F-67 ile F-168 "aynı karar" iddiası zayıfladı** | Aday metni "F-67 ile **aynı** kararı ister" diyordu. Ölçüm bunu çürüttü: F-168 bir eşik **koymaz**, tüketiciden **alır** — AgentPrism kalite barı dayatmaz. F-67 ise bu depo için gerçek bir sayı seçmek zorundadır. Ortak olan yalnız "gürültülü kapı kurma" ilkesi; gürültünün kaynağı bile farklı (model belirsizliği ↔ paylaşılan CI makinesi). Bu yüzden **tek faz değil, iki ayrı faz** yazıldı. |
-| **F-167 · 3 → 1** ve plana | En büyük maliyet iddiası ("Tasks extension'ı **yeni bir NuGet paketidir** ve geçişli ağırlığı sayılmalıdır") gerçek restore ile çürüdü: `ModelContextProtocol.Extensions.Tasks` 2.2.0 `.AspNetCore`'un üstüne **net 1 paket** ekliyor, geçişli ağırlık **sıfır** — on iki geçişli paketin tamamı zaten grafikte. Ayrıca `IMcpTaskStore` AgentPrism'in var olan run kaydı üzerine oturuyor: **yeni tablo ve migration gerekmiyor**. Buna karşılık ölçüm yeni bir risk buldu: SDK sözleşmesinde **kiracı parametresi yok** ve K-103'ün onay kontrolü run kuyruğa taşınınca handler'dan düşüyor. |
+| **F-67 ile F-168 "aynı karar" iddiası zayıfladı** | Aday metni "F-67 ile **aynı** kararı ister" diyordu. Ölçüm bunu çürüttü: F-168 bir eşik **koymaz**, tüketiciden **alır** — Tracon kalite barı dayatmaz. F-67 ise bu depo için gerçek bir sayı seçmek zorundadır. Ortak olan yalnız "gürültülü kapı kurma" ilkesi; gürültünün kaynağı bile farklı (model belirsizliği ↔ paylaşılan CI makinesi). Bu yüzden **tek faz değil, iki ayrı faz** yazıldı. |
+| **F-167 · 3 → 1** ve plana | En büyük maliyet iddiası ("Tasks extension'ı **yeni bir NuGet paketidir** ve geçişli ağırlığı sayılmalıdır") gerçek restore ile çürüdü: `ModelContextProtocol.Extensions.Tasks` 2.2.0 `.AspNetCore`'un üstüne **net 1 paket** ekliyor, geçişli ağırlık **sıfır** — on iki geçişli paketin tamamı zaten grafikte. Ayrıca `IMcpTaskStore` Tracon'in var olan run kaydı üzerine oturuyor: **yeni tablo ve migration gerekmiyor**. Buna karşılık ölçüm yeni bir risk buldu: SDK sözleşmesinde **kiracı parametresi yok** ve K-103'ün onay kontrolü run kuyruğa taşınınca handler'dan düşüyor. |
 | **F-152 · 2 → 2** ve plana | Maliyet iddiası ("kalıcı model ve **üç SQL sağlayıcı migration'ı** gerekir") çürüdü: `UpsertAsync` **yargıç başına** çağrılıyor ve satır `Author = "judge:{ad}"` taşıyor; `IRunScoreStore.ListAsync` ve `JobRecord.Attempt` de zaten var. **Checkpoint bugün zaten veride duruyor** — eksik olan tek şey döngünün onu okuması. Yeni tablo, migration ve public yüzey **yok**. |
 | **F-95 sıralamadan çıktı** | Dördüncü sıra, sahip olmadığı bir plan hazırlığını ima ediyordu. `Hazırlık` satırı zaten "🚨 İmza doğrulanmadı" diyor. **2026-09-05 güncellemesi:** imza doğrulandı ve **MAF yolu kapandı** — kanca ayrı bir alpha pakettedir (`Microsoft.Agents.AI.AgentHooks`), sözleşmesi *enforcement*'tır (kesinti/devam değil) ve `FunctionInvokingChatClient` içeren client'ı reddeder. Kalem yalnız F-141 üzerinden ilerler; bkz. § *Bekleyen Kalemler* → F-95 `Hazırlık`. |
-| **F-208 · paket ağırlığı riski DÜŞTÜ** | Aday metni *"`M.E.AI.Evaluation` bağımlılığını almak `Abstractions`'ın grafiğini büyütür"* diyordu. Gerçek restore ile ölçüldü (2026-09-07): paketin **tek** bağımlılığı `M.E.AI.Abstractions` 10.9.0'dır ve `AgentPrism.Abstractions` onu **zaten referanslıyor** ⇒ **net 1 paket, geçişli ağırlık 0**. Karar bu yüzden ağırlıkla değil **tip doğasıyla** verildi (kalıcı kayıt ↔ mutable çalışma-anı nesnesi): şekli hizala, tipi alma. |
-| 🚨 **Keşif iddiası ÇÜRÜDÜ: repo bu aileyi kullanıyor** | [`kesif/2026-09-07-langfuse-esinli-tur.md:85`](kesif/2026-09-07-langfuse-esinli-tur.md) *"🚨 Repo bu aileyi kullanmıyor"* diyordu. Doğru olan yalnız yarısıdır: `Directory.Packages.props` `.Evaluation*`'ı **doğrudan** referanslamıyor, ama `Microsoft.Extensions.AI.Evaluation` 10.9.0 `Core`/`AspNetCore`/`Cli` grafiğinde `Microsoft.Agents.AI` 1.20.0 üzerinden **var** ve [`EvalJobHandler.cs:3`](../src/AgentPrism.Core/Evaluation/EvalJobHandler.cs#L3) `using`'i ile **kullanılıyor** (`EvaluationMetric`, `:432` ve `:458`). Keşif kaydı düzeltildi. |
-| **F-208'in kapsamı BÜYÜDÜ** | Ölçüm ikinci bir boşluk buldu: [`EvalJobHandler.cs:458`](../src/AgentPrism.Core/Evaluation/EvalJobHandler.cs#L458) `SerializeScores` metriğin `Value`, `Interpretation.Rating`, `Diagnostics` ve `Metadata` alanlarını **atıyor**. Bugün gözlemlenebilir bir yanlış davranış yok (MAF `EvalCheck`'i yalnız boolean üretiyor), ama şekil kararıyla aynı koddur. Kullanıcı kararı: ayrı kusur açılmaz, [Faz 152](arsiv/fazlar/152-SKORUN-ADI-VE-SEKLI.md)'nin kapsamına girer. |
+| **F-208 · paket ağırlığı riski DÜŞTÜ** | Aday metni *"`M.E.AI.Evaluation` bağımlılığını almak `Abstractions`'ın grafiğini büyütür"* diyordu. Gerçek restore ile ölçüldü (2026-09-07): paketin **tek** bağımlılığı `M.E.AI.Abstractions` 10.9.0'dır ve `Tracon.Abstractions` onu **zaten referanslıyor** ⇒ **net 1 paket, geçişli ağırlık 0**. Karar bu yüzden ağırlıkla değil **tip doğasıyla** verildi (kalıcı kayıt ↔ mutable çalışma-anı nesnesi): şekli hizala, tipi alma. |
+| 🚨 **Keşif iddiası ÇÜRÜDÜ: repo bu aileyi kullanıyor** | [`kesif/2026-09-07-langfuse-esinli-tur.md:85`](kesif/2026-09-07-langfuse-esinli-tur.md) *"🚨 Repo bu aileyi kullanmıyor"* diyordu. Doğru olan yalnız yarısıdır: `Directory.Packages.props` `.Evaluation*`'ı **doğrudan** referanslamıyor, ama `Microsoft.Extensions.AI.Evaluation` 10.9.0 `Core`/`AspNetCore`/`Cli` grafiğinde `Microsoft.Agents.AI` 1.20.0 üzerinden **var** ve [`EvalJobHandler.cs:3`](../src/Tracon.Core/Evaluation/EvalJobHandler.cs#L3) `using`'i ile **kullanılıyor** (`EvaluationMetric`, `:432` ve `:458`). Keşif kaydı düzeltildi. |
+| **F-208'in kapsamı BÜYÜDÜ** | Ölçüm ikinci bir boşluk buldu: [`EvalJobHandler.cs:458`](../src/Tracon.Core/Evaluation/EvalJobHandler.cs#L458) `SerializeScores` metriğin `Value`, `Interpretation.Rating`, `Diagnostics` ve `Metadata` alanlarını **atıyor**. Bugün gözlemlenebilir bir yanlış davranış yok (MAF `EvalCheck`'i yalnız boolean üretiyor), ama şekil kararıyla aynı koddur. Kullanıcı kararı: ayrı kusur açılmaz, [Faz 152](arsiv/fazlar/152-SKORUN-ADI-VE-SEKLI.md)'nin kapsamına girer. |
 | 🚨 **F-216'nın MERKEZÎ İDDİASI ÇÜRÜDÜ** | Aday *"önceki artifact'in ürettiği durum corpus'u test ağacında yok"* diyordu. **Var.** [Faz 126](arsiv/fazlar/126-KALICI-PAYLOAD-SURUM-SOZLESMESI.md) gerçek koşumdan yakalanmış oturum ve checkpoint corpus'unu, onları okuyan `PersistedPayloadUpgradeTests`'i ve bir fixture yenileme yasağını sevk etmiş. Corpus 1.18.0, pin bugün 1.20.0 — çapraz sürüm kanıtı fiilen koşuyor. Kaynak raporun taraması bunu kaçırdı. Faz 156 bu yüzden **daraltıldı**: corpus yazma işi kapsam dışıdır; kalan boşluk operatöre dönük salt okunur ön kontrol, yazılı upgrade penceresi ve başarısız restore prosedürüdür. |
-| 🚨 **F-210'un ENGELİ SANILDIĞI GİBİ KALKMAMIŞ** | Aday *"Faz 152 bunu açar"* diyordu. Faz 152 **kayıt** şeklini açtı (`RunScore.Name`/`Kind`/`Value`), **yargıç dönüşünü** değil: [`IRunJudge.cs:89`](../src/AgentPrism.Abstractions/Evaluation/IRunJudge.cs#L89) `RunJudgment` hâlâ yalnız `int? Score` taşıyor ve [`OnlineEvalJobHandler.cs:313`](../src/AgentPrism.Core/Evaluation/OnlineEvalJobHandler.cs#L313) bir yargıcı tek satıra eşliyor. Köprü bedava değil; Faz 155'in ilk işi sözleşmeyi genişletmektir. Kullanıcı kararı: genişlet — `PublicAPI.Shipped.txt` toplam 17 satır (yalnız başlık) olduğu için bugün bedava, ilk yayından sonra kırıcı. |
+| 🚨 **F-210'un ENGELİ SANILDIĞI GİBİ KALKMAMIŞ** | Aday *"Faz 152 bunu açar"* diyordu. Faz 152 **kayıt** şeklini açtı (`RunScore.Name`/`Kind`/`Value`), **yargıç dönüşünü** değil: [`IRunJudge.cs:89`](../src/Tracon.Abstractions/Evaluation/IRunJudge.cs#L89) `RunJudgment` hâlâ yalnız `int? Score` taşıyor ve [`OnlineEvalJobHandler.cs:313`](../src/Tracon.Core/Evaluation/OnlineEvalJobHandler.cs#L313) bir yargıcı tek satıra eşliyor. Köprü bedava değil; Faz 155'in ilk işi sözleşmeyi genişletmektir. Kullanıcı kararı: genişlet — `PublicAPI.Shipped.txt` toplam 17 satır (yalnız başlık) olduğu için bugün bedava, ilk yayından sonra kırıcı. |
 | **Sıra F-216'dan F-210'a geçti** | Aday F-216'yı *"zaman duyarlı"* diye başa koymuştu; o gerekçe corpus iddiasına dayanıyordu ve çürüdü. Gerçekten zaman duyarlı olan kalem F-210'dur: yayımlanmamış bir public sözleşmeyi genişletmek bugün bedava, yayından sonra kırıcıdır. |
 | **F-192'nin satır numarası kaydı** | Aday metni `AgentDefinitionCompiler.Agents.cs:172` diyordu; doğru satır **236**'dır. `LoopAgent`/`LoopEvaluator` sayımı (`0 dosya`) ve MAF imzalarının tamamı 1.20.0'da yeniden doğrulandı — `HarnessAgentOptions.LoopEvaluators` ve `.LoopAgentOptions` yerinde. |
 | **F-209'un önkoşulu SERTLEŞTİ** | Aday metni sırayı *"F-208 önce koşarsa kırılıma skor adı da girer"* diye yumuşak yazıyordu. Plan bunu **zorunlu önkoşula** çevirdi: Faz 152 `Value`'yu `double?` yapıyor ve `Categorical` şeklini açıyor; toplulaştırmanın kova anahtarı `(name, kind)` olmak zorunda ve `null` değer ortalamaya girmemeli. Ters sırada bu üç kural sonradan eklenir. |
@@ -344,7 +344,7 @@ dönüşebilmeleri için burada duruyor.
 | **F-179** | Ön koşulu yok: `run` satırı sağlayıcıyı saklamıyor, kayan latency penceresi ölçülmüyor | [Faz 132](arsiv/fazlar/132-UYGULANAN-FIYAT-SNAPSHOTU.md) kapanır **ve** F-178 attempt süresini ölçmeye başlar **ve** gerçek üretim trafiği oluşur |
 | **F-199** | Kota eşiği claim edildikten SONRA webhook/akış yayını başarısız olursa o eşik dönem sonuna kadar kalıcı kaybolur — düşük risk, ayrı bir kalem | Kota webhook/notice teslimi için bir retry/backoff mekanizması istenirse ([Faz 146](arsiv/fazlar/146-CALISTIRMAYA-BAGLI-KOTA-ESIGI.md) denetim bulgusu) |
 | **F-200** | "Komşu kullanıcı kota notice'ı almaz" garantisi yapısaldır (`RunEventWriter`'ın run başına özel `Guid`'i) ama özel bir çok-kullanıcılı regresyon testi yok | Gelecekte `RunEventWriter`/`RunRecordingAgent`'ın run-izolasyonu yeniden düzenlenirse ([Faz 146](arsiv/fazlar/146-CALISTIRMAYA-BAGLI-KOTA-ESIGI.md) denetim bulgusu) |
-| **F-203** | ✅ **KAPANDI (2026-09-06)** — `kusur-giderme` faz dışı. 🚨 Kaydın öncülü YANLIŞTI: hedef `docs-site/src/content/docs/http-api.md` **izleniyor** ve `.gitignore`'da değil; gitignore'lu olan `http-api/` **dizinidir**. Gerçek kusur farklıydı ve tarihe karşı ölçüldü: o sayfa API'nin elle yazılmış **şeklidir** (kimlik doğrulama, akış, sayfalama, hata gövdesi) ve bir uç eklenmesi onu değiştirmez, yani kural son 40 commit'te **7 kez tetiklendi, 5'i kırmızı** döndü ve hepsi `--site-gerekce-yazildi` ile geçildi — sürekli kırmızı bir kapı insanları onu susturmaya eğitir. Kaydın önerdiği **çözüm** yine de doğruydu: `docs/openapi/agentprism.json` (üretilen ama izlenen ve commit edilen) alternatif hedef olarak eklendi ve `docs/` ile başlayan hedef artık depo köküne göre çözülür. Aynı tarihte yeniden ölçüldü: **5 kırmızı → 3**. Kalan üçü uç dosyasının değişip HTTP yüzeyinin değişmediği commit'lerdir (XML yorum düzeltmesi, MAF yükseltmesi) — gerekçe yazma yolu tam olarak onlar içindir. Kapı: `dokuman_bakim_test.py`'a dört test (depo kökü hedefinin site kökü altında ARANMADIĞI dahil). Tuzak: `docs/hafiza/dokumantasyon.md` |
+| **F-203** | ✅ **KAPANDI (2026-09-06)** — `kusur-giderme` faz dışı. 🚨 Kaydın öncülü YANLIŞTI: hedef `docs-site/src/content/docs/http-api.md` **izleniyor** ve `.gitignore`'da değil; gitignore'lu olan `http-api/` **dizinidir**. Gerçek kusur farklıydı ve tarihe karşı ölçüldü: o sayfa API'nin elle yazılmış **şeklidir** (kimlik doğrulama, akış, sayfalama, hata gövdesi) ve bir uç eklenmesi onu değiştirmez, yani kural son 40 commit'te **7 kez tetiklendi, 5'i kırmızı** döndü ve hepsi `--site-gerekce-yazildi` ile geçildi — sürekli kırmızı bir kapı insanları onu susturmaya eğitir. Kaydın önerdiği **çözüm** yine de doğruydu: `docs/openapi/tracon.json` (üretilen ama izlenen ve commit edilen) alternatif hedef olarak eklendi ve `docs/` ile başlayan hedef artık depo köküne göre çözülür. Aynı tarihte yeniden ölçüldü: **5 kırmızı → 3**. Kalan üçü uç dosyasının değişip HTTP yüzeyinin değişmediği commit'lerdir (XML yorum düzeltmesi, MAF yükseltmesi) — gerekçe yazma yolu tam olarak onlar içindir. Kapı: `dokuman_bakim_test.py`'a dört test (depo kökü hedefinin site kökü altında ARANMADIĞI dahil). Tuzak: `docs/hafiza/dokumantasyon.md` |
 | **F-204** | ✅ **KAPANDI (2026-09-06)** — `kusur-giderme` faz dışı. Boşluk kaydın söylediğinden **büyüktü**: kayıt yalnız `OpenAIConversationsEndpoints.cs`'in üç çağrısını anıyordu, ölçüm `RunEndpoints.cs`'in **12** `CheckRunResourceAsync` çağrısı taşıdığını buldu — on birinin silinmesi kapıyı yeşil bırakırdı. Kapı varlıktan (`IsMatch`) **tam sayı eşitliğine** çevrildi (kullanıcı kararı); taban değil, çünkü taban bir eklemenin bir silmeyi ödemesine ve net sıfırda sessiz geçmesine izin verirdi. 22 (dosya, marker) çiftinin sayısı ölçülüp yazıldı. Düzeltmeden **önce** kırmızı olduğu kanıtlandı: bir `CheckSessionAsync` çağrısı silinince *"expected 3, found 2"* — eski kapı bunu göremiyordu. Taramanın kendi regresyon testi de sayma davranışını kanıtlar. Tuzak: `docs/hafiza/test-altyapisi.md` |
 | **F-206** | ✅ **KAPANDI (2026-09-06)** — `kusur-giderme` faz dışı. Kapanış turunun kendi kapı koşumunda bulundu: `denetim-paketi.py:17`'nin test tiyatrosu tarayıcısı `\bShould\b` arıyordu ve bu depodaki **7488** Shouldly iddiasının **hiçbirini** eşleştirmiyordu (`Should`'dan sonra kelime karakteri gelir, `\b` sınır oluşturmaz); `Assert.` yalnız **6** yerde geçiyor. Yani tarayıcı pratikte her yeni testi aday sayıyordu — bu turda 5 yanlış pozitif, düzeltmeden sonra **0**. Çıkış kodunu kırmadığı için gürültü olarak yaşamıştı; F-203'ün sınıfı. Kök sebep testtedir: var olan tek test yalnız POZİTİF yönü ("iddiasız test yakalanır") kanıtlıyordu. Düzeltme `Should\w*` + **iki yönlü** üç test (Shouldly tanınır · altı biçim ayrı ayrı · gerçekten iddiasız test HÂLÂ aday). Eski regex'e karşı kırmızı olduğu ölçüldü. Tuzak: `docs/hafiza/test-altyapisi.md` |
 | **F-221** | `text/event-stream` içerik tipinin **şeması** hâlâ JSON şeklini ilan ediyor (`ChatCompletion`/`JsonElement`); saf-SSE uçlar doğru biçimde `type: string` diyor. Üretilen istemci etkilenmiyor (altıncı geçiş içerik tipinin VARLIĞINA bakar), ama belgeden kod üreten üçüncü taraf yanlış bilgilenir | ASP.NET Core'un üstveri modeli aynı statü kodu için iki şema ifade edemiyor ve K-039 gereği kütüphane `Microsoft.AspNetCore.OpenApi`'ye bağımlı değil — bir `OpenApiOperationTransformer` kütüphanede yaşayamaz. Üçüncü taraf bir üreteç bu yüzden kırılırsa ([Faz 159](arsiv/fazlar/159-TIPLI-ISTEMCIDE-AKISLI-OPENAI-CAGRISI.md) denetim bulgusu 🟢 3) |
@@ -355,14 +355,14 @@ dönüşebilmeleri için burada duruyor.
 
 ### F-95 · Agent düzeyinde kesinti/devam kancası (yeniden açıldı)
 
-**Sorun:** Kesintiye uğramış bir agent turunu devam ettirmek için AgentPrism'in
+**Sorun:** Kesintiye uğramış bir agent turunu devam ettirmek için Tracon'in
 agent yürütmesinin **içine** girebilmesi gerekir. Bu kalem şu ölçümle kapsam
-dışına alınmıştı: *"MAF agent düzeyinde kanca vermiyor; kancayı AgentPrism
+dışına alınmıştı: *"MAF agent düzeyinde kanca vermiyor; kancayı Tracon
 yazmak K3'ü zorlar. Kanca yalnız `Microsoft.Agents.AI.Workflows` içinde var."*
 
 **Kapsam:** ~~Önce MAF'ın yeni kanca sözleşmesini ölç~~ — **ölçüldü
 (2026-09-05), karşılamıyor** (bkz. `Hazırlık`). Kalan kapsam F-141'in
-kapsamıdır: kesinti/devam'ı MAF'a kanca takmadan çözmek. AgentPrism paralel bir
+kapsamıdır: kesinti/devam'ı MAF'a kanca takmadan çözmek. Tracon paralel bir
 kanca hiyerarşisi kurmaz (K3); bu kural MAF kancası alınmadığı için de geçerli
 kalır — F-141 agent yürütmesinin **içine** girmeyen bir tasarım seçmelidir.
 
@@ -384,26 +384,26 @@ ve `AgentHooksOptions`. Üç ölçüm bu kalemi kapatır:
 2. **Bölünemez ve pipeline'ımızla uyumsuz.** Seam decorator'ları `internal`;
    PR gövdesi "partial installs are impossible by construction" diyor. Dahası
    `AsAIAgentWithAgentHooks`, içinde `FunctionInvokingChatClient` bulunan bir
-   client'ı **reddeder** ("tools would execute below the verdicts"). AgentPrism'in
+   client'ı **reddeder** ("tools would execute below the verdicts"). Tracon'in
    her provider pipeline'ı `UseFunctionInvocation()` kurar
-   ([`AnthropicChatClientFactory.cs:14`](../src/AgentPrism.Anthropic/AnthropicChatClientFactory.cs#L14) ·
-   [`AzureOpenAIChatClientFactory.cs:16`](../src/AgentPrism.Azure/AzureOpenAIChatClientFactory.cs#L16) ·
-   [`GoogleChatClientFactory.cs:15`](../src/AgentPrism.Google/GoogleChatClientFactory.cs#L15)).
+   ([`AnthropicChatClientFactory.cs:14`](../src/Tracon.Anthropic/AnthropicChatClientFactory.cs#L14) ·
+   [`AzureOpenAIChatClientFactory.cs:16`](../src/Tracon.Azure/AzureOpenAIChatClientFactory.cs#L16) ·
+   [`GoogleChatClientFactory.cs:15`](../src/Tracon.Google/GoogleChatClientFactory.cs#L15)).
    Kancayı almak, agent kurulum yolunun tamamını MAF'a devretmek demektir.
 3. **Bağımlılık grafiği kabul edilemez.** `ResponsibleAI.AgentHooks`
    0.1.0-alpha.4 bir **native FFI** taşır (`libagent_hooks_ffi`, 1.7 MB) ve
    yalnız dört RID kapsar: linux-x64 · osx-arm64 · osx-x64 · win-x64 —
    **linux-arm64 yoktur**. Yanında `Microsoft.ML.Tokenizers`,
    `Microsoft.Extensions.AI.Evaluation`, `VectorData.Abstractions`,
-   `Compliance.Abstractions`, `FileSystemGlobbing` gelir. `AgentPrism.Core`
+   `Compliance.Abstractions`, `FileSystemGlobbing` gelir. `Tracon.Core`
    bugün AOT-uyumludur; bu graf hem onu hem "tüketicinin bağımlılık grafiğini
    kirletme" kuralını bozar.
 
 **Maliyet:** Ölçüldü ve **karşılanamaz** — yukarıdaki 2. ve 3. maddeler.
 
 **Risk:** Yüzeyin tamamı `[Experimental("MAAI001")]`'dir ve paket alpha
-kanalındadır. K-008 ön sürüm paketlerini yalnız `AgentPrism.AspNetCore` içinde
-tutar; bu kanca ise `AgentPrism.Core`'un agent kurulum yoluna girer.
+kanalındadır. K-008 ön sürüm paketlerini yalnız `Tracon.AspNetCore` içinde
+tutar; bu kanca ise `Tracon.Core`'un agent kurulum yoluna girer.
 
 **Bağımlılık:** ~~MAF 1.19.0'a yükseltme~~ — **düştü**. Yükseltme bu kalemi
 **açmıyor** (1.18.0 → 1.20.0 diff'inde sıfır kaldırma, kanca ayrı pakette).
@@ -436,7 +436,7 @@ kapısına girer; iki ayrı spec/test kaynağı oluşmaz.
 **Mercek:** 2, 3, 4, 6.
 
 **Hazırlık:** Ölçüldü — `find docs/manuel-test -maxdepth 1 -name '*.md'` 37 dosya,
-case kimliği taraması 1.650 case verdi. `AgentPrism.Testing` ve Testcontainers
+case kimliği taraması 1.650 case verdi. `Tracon.Testing` ve Testcontainers
 altyapısı zaten vardır.
 
 **Maliyet:** Yüksek, fakat ilk dilim kontrollüdür.
@@ -464,7 +464,7 @@ ve hiçbir kapı onları doğrulamıyor. `preview.1` öncesi drift taraması (20
 | Konsol ekranı | 27 (×2), 28 (×3) | **30** (`app.tsx` `*Screen` importları) |
 | Konsol rotası | 33, 36 | **36** (`app.tsx` `pattern:` sayısı) |
 | JS bundle gzip | 180.2 KB, 165.8 KB, 169.4 KB | **175.9 KB** (`npm run build`) |
-| İstemci operasyonu | 161 (×2) | **162** (`agentprism.json`) |
+| İstemci operasyonu | 161 (×2) | **162** (`tracon.json`) |
 | Store contract'ı | "32 others" / "29 more" | **31** (32 dosya − ortak taban) |
 | Kök README paket tablosu | 19 satır | **20** paket |
 
@@ -474,7 +474,7 @@ birbirinden habersiz kopya taşıyordu.
 
 **Kapsam:** Bu sayıları koddan türeten bir kapı. En küçük hâli
 `check-content.mjs`'e bir kontrol eklemektir: sevk edilen metindeki işaretli
-sayıları (`app.tsx`, `agentprism.json`, `postbuild.mjs` çıktısı, packable
+sayıları (`app.tsx`, `tracon.json`, `postbuild.mjs` çıktısı, packable
 `.csproj` kümesi, `Contracts/` envanteri) yeniden hesaplayıp karşılaştırır.
 Alternatif: sayıyı metinden **çıkarmak** — kapı yazmak yerine iddiayı
 kaldırmak da geçerli bir çözümdür ve ölçülmelidir.
@@ -487,11 +487,11 @@ geri alınamaz.
 Yukarıdaki tablo *sayılarla* ilgilidir. Aynı sınıfın ikinci yarısı sevk edilen
 XML dokümanlarındadır: bir bağımlılık sürümünü **adıyla anıp** o sürümde ölçülmüş
 bir davranış iddia eden yorumlar. Ölçüm: `src/` genelinde **beş** tane —
-[`IVectorSearchStore.cs:16`](../src/AgentPrism.Abstractions/Knowledge/IVectorSearchStore.cs#L16) (MEAI 10.8.0) ·
-[`McpTransportFactory.cs:32`](../src/AgentPrism.Mcp/Internal/McpTransportFactory.cs#L32) (MCP 2.2.0) ·
-[`AgentPrismSqlServerOptions.cs:32`](../src/AgentPrism.SqlServer/AgentPrismSqlServerOptions.cs#L32) (SqlClient 7.0.2) ·
-[`OpenAIResponsesEndpoints.cs:25`](../src/AgentPrism.AspNetCore/OpenAICompat/OpenAIResponsesEndpoints.cs#L25) (Hosting.OpenAI) ·
-[`FallbackChatClient.cs:612`](../src/AgentPrism.Core/Models/FallbackChatClient.cs#L612) (OpenAI 2.12.0).
+[`IVectorSearchStore.cs:16`](../src/Tracon.Abstractions/Knowledge/IVectorSearchStore.cs#L16) (MEAI 10.8.0) ·
+[`McpTransportFactory.cs:32`](../src/Tracon.Mcp/Internal/McpTransportFactory.cs#L32) (MCP 2.2.0) ·
+[`TraconSqlServerOptions.cs:32`](../src/Tracon.SqlServer/TraconSqlServerOptions.cs#L32) (SqlClient 7.0.2) ·
+[`OpenAIResponsesEndpoints.cs:25`](../src/Tracon.AspNetCore/OpenAICompat/OpenAIResponsesEndpoints.cs#L25) (Hosting.OpenAI) ·
+[`FallbackChatClient.cs:612`](../src/Tracon.Core/Models/FallbackChatClient.cs#L612) (OpenAI 2.12.0).
 
 Bunlar F-171'in var olan mekanizmasıyla **kapatılamaz**: bir davranış iddiası
 koddan yeniden hesaplanamaz, yalnız yeniden **ölçülebilir**. Kapının yapabileceği
@@ -583,8 +583,8 @@ yeteneklerdir**:
 
 | Önerilen | Nerede zaten var |
 |---|---|
-| Eval suite'i için CI kapısı | `agentprism eval --min-pass-rate --max-failures`, regresyonda çıkış kodu 3 (`src/AgentPrism.Cli/Commands/EvalCommand.cs:168`) |
-| Skor düşüşünde alarm | `WebhookEvents.RunScoreLow`, `MinSampleSize` gürültü eşiğiyle (`src/AgentPrism.Core/Evaluation/OnlineEvalSummaryService.cs`) |
+| Eval suite'i için CI kapısı | `tracon eval --min-pass-rate --max-failures`, regresyonda çıkış kodu 3 (`src/Tracon.Cli/Commands/EvalCommand.cs:168`) |
+| Skor düşüşünde alarm | `WebhookEvents.RunScoreLow`, `MinSampleSize` gürültü eşiğiyle (`src/Tracon.Core/Evaluation/OnlineEvalSummaryService.cs`) |
 | Agent sürümüne `production`/`staging` label'ı | `Experiment` sürüm başına ağırlıklı varyant veriyor, `IAgentDefinitionStore.RollbackAsync` geri alıyor; ortam ayrımını kiracı sınırı çözüyor |
 
 
@@ -764,3 +764,69 @@ koşumu kırmızıya çevirmez.
 
 ---
 
+### F-221 · Logo ve favicon adı anlatmıyor
+
+**Kaynak:** [Faz 162](arsiv/fazlar/162-TRACON-YENIDEN-ADLANDIRMA.md) — kullanıcı kararı
+(D5): görseller o fazda bilerek değiştirilmedi.
+
+**Gözlem:** `assets/icon.png` ve `docs-site/public/favicon.svg` bir prizma
+çiziyor. Prizma önceki adın görsel karşılığıydı; yeni adla hiçbir ilişkisi
+yok. `assets/icon.png` NuGet'e `PackageIcon` olarak **sevk edilir**, favicon
+her site sayfasında görünür.
+
+**Kapsam:** Yeni bir işaret tasarlamak; `docs-site/scripts/build-package-icon.mjs`
+ve `build-social-images.mjs` ile türevleri yeniden üretmek. Üretim hattı hazır
+— eksik olan tasarımın kendisidir.
+
+Kapsam görselle bitmiyor: eski adın METAFORU kodda da yaşıyor ve o dosyalara
+zaten dokunulacak — `prismMark`/`PrismMark` (`build-social-images.mjs:59`,
+`icons.tsx:30`), `_prismOptions`/`prismOptions` (`WorkflowRunner.cs`),
+`prismException` (`RunRecordingAgent.Completion.cs:338`), `--ap-*` CSS ad alanı
+(17 dosya) ve `styles.css` + `layout.tsx` içindeki "prism spectrum" anlatısı.
+Hiçbiri tüketici sözleşmesi değil (tipler `internal`), bu yüzden Faz 162'de
+bırakıldı.
+
+**Değer:** İlk yayında paket listelemesi ve site aynı markayı gösterir.
+
+**Mercek:** 8.
+
+**Hazırlık:** Üretim script'leri çalışır durumda; girdi dosyası değişince
+türevler tek komutla çıkar.
+
+**Maliyet:** Küçük (kod), tasarım kararı kullanıcıya ait.
+
+**Risk:** Düşük — hiçbir kapı ikonun içeriğine bakmaz.
+
+---
+
+### F-222 · Ekran görüntüsü kapısı sıfır kez dönüyor
+
+**Kaynak:** [Faz 162](arsiv/fazlar/162-TRACON-YENIDEN-ADLANDIRMA.md) keşfi — faz
+kapsamı dışında bırakıldı (kullanıcı kararı 2026-09-12).
+
+**Gözlem:** `docs-site/scripts/check-content.mjs:399` `nav.*` anahtarlarını
+`locales/en.ts` içinde arar. O anahtarlar `locales/en/common.ts`'e taşındı;
+`en.ts` bugün yalnız bir toplayıcıdır ve tek bir `'nav.…'` literal'i
+taşımaz. Regex sıfır eşleşme bulur, döngü hiç dönmez ve **19 ekran
+görüntüsünün varlığını hiçbir şey doğrulamaz**. Kapı yeşil görünür.
+
+**Kapsam:** Okuma yolunu `locales/en/common.ts`'e çevirmek, sonra kapının
+gerçekten döndüğünü kanıtlayan bir kayıt eklemek. `kusur-giderme` SINIF
+TARAMASI adımı burada zorunludur: aynı sınıf (fragment'e taşınan bir sabiti
+eski toplayıcı dosyada arayan kapı) başka kapılarda da olabilir —
+`check-content.mjs` içindeki her `readFileSync(...locales...)` ve her
+`nav\.`/`'[a-z]+\.` regex'i taranır.
+
+**Değer:** Sevk edilen sayfalarda eksik veya bayat ekran görüntüsü yakalanır.
+
+**Mercek:** 6.
+
+**Hazırlık:** Kusur yeri ve kök nedeni ölçüldü; düzeltme tek satır, kanıt
+testi ek iş.
+
+**Maliyet:** Küçük.
+
+**Risk:** Düşük — ama kapı canlanınca bugün eksik olan varlıklar ortaya
+çıkabilir; o hâlde düzeltme kapsamı ekran görüntüsü üretimini de kapsar.
+
+---

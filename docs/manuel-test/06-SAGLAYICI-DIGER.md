@@ -1,13 +1,13 @@
 # 06 — Sağlayıcı: Anthropic, Google, Azure OpenAI (`PROV`)
 
 > **Alan kodu:** `PROV` · **Faz:** 8, 26, 27
-> **Kaynak:** `src/AgentPrism.Anthropic` (tümü), `src/AgentPrism.Google` (tümü),
-> `src/AgentPrism.Azure` (tümü) — üç paket de `AgentPrism.OpenAI` ile **aynı**
+> **Kaynak:** `src/Tracon.Anthropic` (tümü), `src/Tracon.Google` (tümü),
+> `src/Tracon.Azure` (tümü) — üç paket de `Tracon.OpenAI` ile **aynı**
 > iskeleti tekrarlar (`XxxProviderOptions*`, `XxxProviderExtensions`,
 > `XxxChatClientFactory`, `XxxModelProvider`, `XxxModelCatalog`,
 > `XxxProviderHealthCheck`, `XxxProviderNames`). Devre kesici, sağlık önbelleği ve
-> içerik filtresi tespiti `AgentPrism.Anthropic`/`Google`/`Azure` içinde YAŞAMAZ —
-> paylaşılan bir dekoratör katmanıdır: `src/AgentPrism.Core/Models/`
+> içerik filtresi tespiti `Tracon.Anthropic`/`Google`/`Azure` içinde YAŞAMAZ —
+> paylaşılan bir dekoratör katmanıdır: `src/Tracon.Core/Models/`
 > (`ModelProviderCircuitBreaker.cs`, `CircuitBreakingChatClient.cs`,
 > `ModelProviderHealthCache.cs`, `ModelProviderRegistry.cs`,
 > `ContentFilterDetectingChatClient.cs`). Bu makine [`05-SAGLAYICI-OPENAI.md`](05-SAGLAYICI-OPENAI.md)'de
@@ -73,14 +73,14 @@ flowchart TD
 
 1. [`00-INDEKS.md`](00-INDEKS.md) §4 reset yordamı uygulanır.
 2. **Gerçek bir Anthropic API anahtarı** tanımlıdır:
-   `dotnet user-secrets set "AgentPrism:Providers:Anthropic:ApiKey" "<ANAHTARINIZ>"`.
+   `dotnet user-secrets set "Tracon:Providers:Anthropic:ApiKey" "<ANAHTARINIZ>"`.
 3. **Gerçek bir Google Gemini API anahtarı** tanımlıdır:
-   `dotnet user-secrets set "AgentPrism:Providers:Google:ApiKey" "<ANAHTARINIZ>"`.
+   `dotnet user-secrets set "Tracon:Providers:Google:ApiKey" "<ANAHTARINIZ>"`.
 4. Azure OpenAI kimliği **YOK** (`Sabit gerçekler` tablosu). §9'daki her case'in
    başına bu yüzden `⏭ ATLA — Azure kimliği yok` satırı konur. Kullanıcı
    sonradan bir Azure kaynağı açarsa bu bölüm gerçek kimlikle yeniden koşulur.
-5. `AgentPrism:Ui:AuthToken` `manuel-test-token-2026`'dır.
-6. Örnek uygulama çalışır: `cd samples/AgentPrism.Api && dotnet run` →
+5. `Tracon:Ui:AuthToken` `manuel-test-token-2026`'dır.
+6. Örnek uygulama çalışır: `cd samples/Tracon.Api && dotnet run` →
    `http://localhost:5080`. Konsol çıktısı **görünür** tutulur (§3, §8 konsol
    günlüğü okur).
 
@@ -88,7 +88,7 @@ Kısaltmalar — bu dosyadaki her `curl` şu başlıkları kullanır:
 
 ```bash
 export APB="Authorization: Bearer manuel-test-token-2026"
-export APU="http://localhost:5080/agentprism"
+export APU="http://localhost:5080/tracon"
 ```
 
 > **Gerçek para uyarısı.** §5 (Anthropic E2E) ve §6 (Google E2E) gerçek model
@@ -168,8 +168,8 @@ agent tanımlarının `AddAgent()` çağrısını da kapsar (Program.cs, satır 
 
 **Girilecek veri**
 ```bash
-dotnet user-secrets remove "AgentPrism:Providers:Anthropic:ApiKey" --project samples/AgentPrism.Api
-cd samples/AgentPrism.Api && dotnet run
+dotnet user-secrets remove "Tracon:Providers:Anthropic:ApiKey" --project samples/Tracon.Api
+cd samples/Tracon.Api && dotnet run
 ```
 ```bash
 curl -s "$APU/api/models" -H "$APB" | python3 -c "import json,sys; print([p['name'] for p in json.load(sys.stdin)])"
@@ -177,7 +177,7 @@ curl -s "$APU/api/agents" -H "$APB" | python3 -c "import json,sys; print([a['nam
 ```
 ```bash
 # Temizlik:
-dotnet user-secrets set "AgentPrism:Providers:Anthropic:ApiKey" "<ANAHTARINIZ>" --project samples/AgentPrism.Api
+dotnet user-secrets set "Tracon:Providers:Anthropic:ApiKey" "<ANAHTARINIZ>" --project samples/Tracon.Api
 ```
 
 **Beklenen sonuç**
@@ -197,7 +197,7 @@ dotnet user-secrets set "AgentPrism:Providers:Anthropic:ApiKey" "<ANAHTARINIZ>" 
 | **İlgili faz** | Faz 26 |
 | **İlgili karar** | K-006 |
 
-Negatif senaryo. **`samples/AgentPrism.Api` bu case'i tetikleyemez** — aynı
+Negatif senaryo. **`samples/Tracon.Api` bu case'i tetikleyemez** — aynı
 gerekçeyle [`05-SAGLAYICI-OPENAI.md`](05-SAGLAYICI-OPENAI.md)'nin MT-OAI-013'ü
 tetikleyemediği gibi: `anthropicEnabled`/`googleEnabled` bayrağı `false` ise
 `UseAnthropic`/`UseGoogle` hiç çağrılmaz, dolayısıyla `ApiKey` boşken
@@ -206,11 +206,11 @@ doğrulayıcı asla devreye girmez. Yerine [`01-KURULUM-VE-PAKETLEME.md`](01-KUR
 kurulur — **iki paket birden** test edilir (aynı feed, tek proje).
 
 **Ön koşul**
-- `MT-PKG-070` geçti (`~/agentprism-local-feed` dolu).
+- `MT-PKG-070` geçti (`~/tracon-local-feed` dolu).
 
 **Adımlar**
-1. Boş bir konsol projesi oluştur, `AgentPrism.Core`, `AgentPrism.Anthropic` ve
-   `AgentPrism.Google` paketlerini yerel feed'den ekle.
+1. Boş bir konsol projesi oluştur, `Tracon.Core`, `Tracon.Anthropic` ve
+   `Tracon.Google` paketlerini yerel feed'den ekle.
 2. `UseAnthropic(o => { })` çağıran (ApiKey vermeyen) bir gövde yaz, çalıştır.
 3. `UseGoogle(o => { })` çağıran bir gövdeyle tekrarla.
 
@@ -219,14 +219,14 @@ kurulur — **iki paket birden** test edilir (aynı feed, tek proje).
 rm -rf /tmp/ap-prov-apikey-test && mkdir -p /tmp/ap-prov-apikey-test
 cd /tmp/ap-prov-apikey-test
 dotnet new console -o . --force
-dotnet nuget add source ~/agentprism-local-feed -n agentprism-local 2>/dev/null || true
-SURUM=$(ls ~/agentprism-local-feed/AgentPrism.Core.0.*.nupkg | sed 's#.*/AgentPrism\.Core\.##;s#\.nupkg##')
-dotnet add package AgentPrism.Core --version "$SURUM" --source ~/agentprism-local-feed
-dotnet add package AgentPrism.Anthropic --version "$SURUM" --source ~/agentprism-local-feed
-dotnet add package AgentPrism.Google --version "$SURUM" --source ~/agentprism-local-feed
+dotnet nuget add source ~/tracon-local-feed -n tracon-local 2>/dev/null || true
+SURUM=$(ls ~/tracon-local-feed/Tracon.Core.0.*.nupkg | sed 's#.*/Tracon\.Core\.##;s#\.nupkg##')
+dotnet add package Tracon.Core --version "$SURUM" --source ~/tracon-local-feed
+dotnet add package Tracon.Anthropic --version "$SURUM" --source ~/tracon-local-feed
+dotnet add package Tracon.Google --version "$SURUM" --source ~/tracon-local-feed
 
 cat > Program.cs <<'EOF'
-using AgentPrism;
+using Tracon;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -236,11 +236,11 @@ var builder = Host.CreateApplicationBuilder(args);
 
 if (target == "anthropic")
 {
-    builder.Services.AddAgentPrism().UseAnthropic(o => { });
+    builder.Services.AddTracon().UseAnthropic(o => { });
 }
 else
 {
-    builder.Services.AddAgentPrism().UseGoogle(o => { });
+    builder.Services.AddTracon().UseGoogle(o => { });
 }
 
 using var app = builder.Build();
@@ -268,7 +268,7 @@ echo "--- google ---"; dotnet run -- google
 | **İlgili karar** | K-006 |
 
 Negatif senaryo. Bu alan OpenAI'de **yoktur** — Anthropic Messages API'sinde
-`max_tokens` zorunlu bir alan olduğu için AgentPrism bir varsayılan taşımak
+`max_tokens` zorunlu bir alan olduğu için Tracon bir varsayılan taşımak
 zorundadır ve o varsayılan asla `null`/sıfır olamaz.
 
 **Ön koşul**
@@ -281,12 +281,12 @@ zorundadır ve o varsayılan asla `null`/sıfır olamaz.
 
 **Girilecek veri**
 ```bash
-dotnet user-secrets set "AgentPrism:Providers:Anthropic:DefaultMaxOutputTokens" "0" --project samples/AgentPrism.Api
-cd samples/AgentPrism.Api && dotnet run
+dotnet user-secrets set "Tracon:Providers:Anthropic:DefaultMaxOutputTokens" "0" --project samples/Tracon.Api
+cd samples/Tracon.Api && dotnet run
 ```
 ```bash
 # Temizlik:
-dotnet user-secrets remove "AgentPrism:Providers:Anthropic:DefaultMaxOutputTokens" --project samples/AgentPrism.Api
+dotnet user-secrets remove "Tracon:Providers:Anthropic:DefaultMaxOutputTokens" --project samples/Tracon.Api
 ```
 
 **Beklenen sonuç**
@@ -318,12 +318,12 @@ Negatif senaryo. Bu alan da OpenAI'de yoktur.
 
 **Girilecek veri**
 ```bash
-dotnet user-secrets set "AgentPrism:Providers:Anthropic:MaxRetries" "-1" --project samples/AgentPrism.Api
-cd samples/AgentPrism.Api && dotnet run
+dotnet user-secrets set "Tracon:Providers:Anthropic:MaxRetries" "-1" --project samples/Tracon.Api
+cd samples/Tracon.Api && dotnet run
 ```
 ```bash
 # Temizlik:
-dotnet user-secrets remove "AgentPrism:Providers:Anthropic:MaxRetries" --project samples/AgentPrism.Api
+dotnet user-secrets remove "Tracon:Providers:Anthropic:MaxRetries" --project samples/Tracon.Api
 ```
 
 **Beklenen sonuç**
@@ -358,12 +358,12 @@ doğrulamak için (Azure hariç, §9 kendi validator'ını taşır).
 
 **Girilecek veri**
 ```bash
-dotnet user-secrets set "AgentPrism:Providers:Google:Endpoint" "sadece-bir-yol" --project samples/AgentPrism.Api
-cd samples/AgentPrism.Api && dotnet run
+dotnet user-secrets set "Tracon:Providers:Google:Endpoint" "sadece-bir-yol" --project samples/Tracon.Api
+cd samples/Tracon.Api && dotnet run
 ```
 ```bash
 # Temizlik:
-dotnet user-secrets remove "AgentPrism:Providers:Google:Endpoint" --project samples/AgentPrism.Api
+dotnet user-secrets remove "Tracon:Providers:Google:Endpoint" --project samples/Tracon.Api
 ```
 
 **Beklenen sonuç**
@@ -389,21 +389,21 @@ sınanır (aynı desen, farklı bölüm — verimlilik için birleştirildi).
 - Uygulama durdurulmuş.
 
 **Adımlar**
-1. `samples/AgentPrism.Api/appsettings.json`'da
-   `AgentPrism:Providers:Anthropic:Models` dizisine `{"Name": ""}` ekle
+1. `samples/Tracon.Api/appsettings.json`'da
+   `Tracon:Providers:Anthropic:Models` dizisine `{"Name": ""}` ekle
    (dizinin sonuna).
-2. Aynı dosyada `AgentPrism:Providers:Google:Models` dizisine de `{"Name": ""}`
+2. Aynı dosyada `Tracon:Providers:Google:Models` dizisine de `{"Name": ""}`
    ekle.
 3. Uygulamayı başlat.
 4. Değişikliği geri al.
 
 **Girilecek veri**
 ```bash
-cd samples/AgentPrism.Api && dotnet run
+cd samples/Tracon.Api && dotnet run
 ```
 ```bash
 # Temizlik:
-git checkout -- samples/AgentPrism.Api/appsettings.json
+git checkout -- samples/Tracon.Api/appsettings.json
 ```
 
 **Beklenen sonuç**
@@ -441,7 +441,7 @@ _(ayrı komut yok — önceki case kayıtları incelenir)_
 **Beklenen sonuç**
 - Hiçbir mesajda gerçek `sk-ant-...` (Anthropic) veya `AIza...` (Google)
   anahtarı geçmez — yalnız **ayar anahtarının adı**
-  (`AgentPrism:Providers:Anthropic:ApiKey` gibi) geçebilir.
+  (`Tracon:Providers:Anthropic:ApiKey` gibi) geçebilir.
 
 ### MT-PROV-020 — Aynı ad iki kez tanımlanırsa son tanım kazanır (Anthropic VE Google)
 
@@ -458,7 +458,7 @@ Sınır senaryosu. **Geçici dosya değişikliği.**
 - Uygulama durdurulmuş.
 
 **Adımlar**
-1. `appsettings.json`'da `AgentPrism:Providers:Anthropic:Models` dizisine,
+1. `appsettings.json`'da `Tracon:Providers:Anthropic:Models` dizisine,
    mevcut `claude-haiku-4-5-20251001` girdisinden SONRA, aynı adla ama farklı
    `DisplayName` taşıyan ikinci bir girdi ekle: `{"Name":
    "claude-haiku-4-5-20251001", "DisplayName": "IKINCI TANIM"}`.
@@ -467,7 +467,7 @@ Sınır senaryosu. **Geçici dosya değişikliği.**
 
 **Girilecek veri**
 ```bash
-cd samples/AgentPrism.Api && dotnet run
+cd samples/Tracon.Api && dotnet run
 ```
 ```bash
 curl -s "$APU/api/models" -H "$APB" | python3 -c "
@@ -479,7 +479,7 @@ print(len(a['models']), [m['displayName'] for m in a['models'] if m['name']=='cl
 ```
 ```bash
 # Temizlik:
-git checkout -- samples/AgentPrism.Api/appsettings.json
+git checkout -- samples/Tracon.Api/appsettings.json
 ```
 
 **Beklenen sonuç**
@@ -834,7 +834,7 @@ curl -s "$APU/api/runs?agentName=manuel-dusunme-sicaklik-catismasi" -H "$APB" | 
   4xxException -> AnthropicApiException -> AnthropicServiceException ->
   AnthropicException -> Exception`). `AgentEndpoints.AgentRunStream
   .ExecuteStreamingAsync`'in `error` çerçevesi üreten `catch` bloğu yalnız
-  `AgentPrismException`, `InvalidOperationException`, `HttpRequestException`
+  `TraconException`, `InvalidOperationException`, `HttpRequestException`
   yakalar — üçü de `AnthropicApiException`'ı kapsamaz. Bu, OpenAI için
   `05-SAGLAYICI-OPENAI.md` `MT-OAI-043`'ün (K-296) tespit ettiği **aynı**
   boşluktur; burada Anthropic'te de geçerli olduğu koşumda doğrulanır.
@@ -853,7 +853,7 @@ curl -s "$APU/api/runs?agentName=manuel-dusunme-sicaklik-catismasi" -H "$APB" | 
 Gerçek para harcar. Kısa istemler önbelleğe **alınmaz** (README, "Bilinen
 davranış farkları") — Anthropic'in kendi eşiği modelin cinsine göre değişir
 (Haiku için Sonnet'ten daha yüksek bir minimum token sayısı ister); bu yüzden
-istem burada kasıtlı olarak uzun tutulur. Eşik AgentPrism kodunda **yoktur**,
+istem burada kasıtlı olarak uzun tutulur. Eşik Tracon kodunda **yoktur**,
 Anthropic'in kendi API kısıtıdır — case bunu ölçmez, yalnız sayaçların
 göründüğünü/görünmediğini kaydeder.
 
@@ -889,7 +889,7 @@ curl -s -X POST "$APU/api/agents/manuel-prompt-caching/run" -H "$APB" \
 - **Eğer** istem Anthropic'in önbellek eşiğinin üzerindeyse: ikinci çalıştırmanın
   kayıtlı yanıtında (arayüz veya ham istek/yanıt günlüğü, koşum notuna eklenir)
   önbellek okuma sayacı görülür. **Eğer** eşiğin altındaysa: hiçbir sayaç
-  görünmez — bu bir AgentPrism kusuru **değildir**, Anthropic'in kendi eşik
+  görünmez — bu bir Tracon kusuru **değildir**, Anthropic'in kendi eşik
   kısıtıdır ve sonuç öyle not edilir.
 
 ### MT-PROV-040 — `claude-destek`: tool çağrısıyla uçtan uca çalıştırma
@@ -1101,12 +1101,12 @@ Gerçek para harcar (en az bir istek gönderilir, filtrelense bile ücretlendiri
 **Bu dosyanın en değerli case'idir.** `gemini-kati-filtre` (Program.cs, satır
 ~536-553) dört güvenlik kategorisini de `BLOCK_LOW_AND_ABOVE`'a çeker — en
 katı eşik. `ContentFilterDetectingChatClient`
-(`src/AgentPrism.Core/Models/ContentFilterDetectingChatClient.cs`) bitiş
-sebebi `ContentFilter` VE yanıt tamamen boşsa `AgentPrismContentFilteredException`
-fırlatır; bu istisna `AgentPrismException`'dan türediği için (`ErrorType =
+(`src/Tracon.Core/Models/ContentFilterDetectingChatClient.cs`) bitiş
+sebebi `ContentFilter` VE yanıt tamamen boşsa `TraconContentFilteredException`
+fırlatır; bu istisna `TraconException`'dan türediği için (`ErrorType =
 "content_filtered"`) SSE `error` çerçevesi **düzgün üretilir** — bu, dar
 `catch` filtresi düzeltilmeden ÖNCE de zaten çalışan bir yoldu
-(`AgentPrismException` filtrede hep vardı); MT-PROV-042/MT-OAI-043'ün
+(`TraconException` filtrede hep vardı); MT-PROV-042/MT-OAI-043'ün
 düzeltmeden önce eksik olduğu asıl sınıflar OpenAI/Anthropic'in KENDİ SDK
 istisnalarıydı.
 
@@ -1254,8 +1254,8 @@ bu yüzden burada tekrarlanmaz.
 - Uygulama durdurulmuş.
 
 **Adımlar**
-1. `agentPrism.UseAnthropic(anthropic);` satırından (yaklaşık 171. satır) hemen
-   SONRA ekle: `agentPrism.UseAnthropic(o => { o.ApiKey = "sk-ant-cok-gizli-test-anahtari-12345"; o.Endpoint = new Uri("http://127.0.0.1:59999/"); });`
+1. `tracon.UseAnthropic(anthropic);` satırından (yaklaşık 171. satır) hemen
+   SONRA ekle: `tracon.UseAnthropic(o => { o.ApiKey = "sk-ant-cok-gizli-test-anahtari-12345"; o.Endpoint = new Uri("http://127.0.0.1:59999/"); });`
    — **dikkat:** bu ikinci çağrı `alreadyRegistered` kontrolü yüzünden yeni bir
    sağlayıcı kaydetmez, yalnız ayarları birleştirir (K-025); bu yüzden gerçek
    anahtarı **geçici olarak** yorum satırına alıp yalnız bu geçersiz adresi
@@ -1269,7 +1269,7 @@ curl -s "$APU/api/models/health/anthropic" -H "$APB" | python3 -m json.tool
 ```
 ```bash
 # Temizlik:
-git checkout -- samples/AgentPrism.Api/Program.cs
+git checkout -- samples/Tracon.Api/Program.cs
 ```
 
 **Beklenen sonuç**
@@ -1296,8 +1296,8 @@ git checkout -- samples/AgentPrism.Api/Program.cs
 
 **Girilecek veri**
 ```bash
-ANTHROPIC_ANAHTAR=$(dotnet user-secrets list --project samples/AgentPrism.Api | grep "Anthropic:ApiKey" | cut -d= -f2 | tr -d ' ')
-GOOGLE_ANAHTAR=$(dotnet user-secrets list --project samples/AgentPrism.Api | grep "Google:ApiKey" | cut -d= -f2 | tr -d ' ')
+ANTHROPIC_ANAHTAR=$(dotnet user-secrets list --project samples/Tracon.Api | grep "Anthropic:ApiKey" | cut -d= -f2 | tr -d ' ')
+GOOGLE_ANAHTAR=$(dotnet user-secrets list --project samples/Tracon.Api | grep "Google:ApiKey" | cut -d= -f2 | tr -d ' ')
 
 for uc in "/api/models" "/api/models/health" "/api/models/health/anthropic" "/api/models/health/google"; do
   echo "--- $uc ---"
@@ -1338,9 +1338,9 @@ curl -s "$APU/api/diagnostics" -H "$APB" | tee /tmp/ap-prov-diag.json | python3 
 ```
 
 **Beklenen sonuç**
-- `configuration` dizisinde `key: "AgentPrism:Providers:Anthropic:ApiKey"`
+- `configuration` dizisinde `key: "Tracon:Providers:Anthropic:ApiKey"`
   taşıyan **tam olarak bir** girdi vardır, `resolved: true`, `hint: null`.
-- `configuration` dizisinde `key: "AgentPrism:Providers:Google:ApiKey"` taşıyan
+- `configuration` dizisinde `key: "Tracon:Providers:Google:ApiKey"` taşıyan
   **tam olarak bir** girdi vardır, `resolved: true`, `hint: null`.
 - `key` alanlarının hiçbiri gerçek anahtar dizgisini içermez.
 
@@ -1366,11 +1366,11 @@ curl -s "$APU/api/diagnostics" -H "$APB" | tee /tmp/ap-prov-diag.json | python3 
 
 **Girilecek veri**
 ```bash
-cd samples/AgentPrism.Api && dotnet run > /tmp/ap-prov-console.log 2>&1 &
+cd samples/Tracon.Api && dotnet run > /tmp/ap-prov-console.log 2>&1 &
 sleep 5
 # ... yukaridaki calistirmalar burada tekrarlanir ...
-ANTHROPIC_ANAHTAR=$(dotnet user-secrets list --project samples/AgentPrism.Api | grep "Anthropic:ApiKey" | cut -d= -f2 | tr -d ' ')
-GOOGLE_ANAHTAR=$(dotnet user-secrets list --project samples/AgentPrism.Api | grep "Google:ApiKey" | cut -d= -f2 | tr -d ' ')
+ANTHROPIC_ANAHTAR=$(dotnet user-secrets list --project samples/Tracon.Api | grep "Anthropic:ApiKey" | cut -d= -f2 | tr -d ' ')
+GOOGLE_ANAHTAR=$(dotnet user-secrets list --project samples/Tracon.Api | grep "Google:ApiKey" | cut -d= -f2 | tr -d ' ')
 grep -c "$ANTHROPIC_ANAHTAR\|$GOOGLE_ANAHTAR" /tmp/ap-prov-console.log || echo "0 (temiz)"
 kill %1
 ```
@@ -1391,7 +1391,7 @@ kill %1
 
 **Ön koşul**
 - Örnek uygulama gerçek bir Azure OpenAI kaynağı adresi ve anahtarıyla
-  çalışıyor: `dotnet user-secrets set "AgentPrism:Providers:AzureOpenAI:Endpoint" "https://<kaynak>.openai.azure.com/"`
+  çalışıyor: `dotnet user-secrets set "Tracon:Providers:AzureOpenAI:Endpoint" "https://<kaynak>.openai.azure.com/"`
   ve `...:ApiKey`.
 
 **Adımlar**
@@ -1426,7 +1426,7 @@ genel adresi yoktur; bu yüzden `Endpoint` OpenAI/Anthropic/Google'da olduğu
 gibi opsiyonel değil, **zorunlu**dur.
 
 **Ön koşul**
-- Uygulama durdurulmuş. `AgentPrism:Providers:AzureOpenAI:ApiKey` geçerli
+- Uygulama durdurulmuş. `Tracon:Providers:AzureOpenAI:ApiKey` geçerli
   (gerçek veya biçimce geçerli) bir değer taşıyor.
 
 **Adımlar**
@@ -1435,8 +1435,8 @@ gibi opsiyonel değil, **zorunlu**dur.
 
 **Girilecek veri**
 ```bash
-dotnet user-secrets remove "AgentPrism:Providers:AzureOpenAI:Endpoint" --project samples/AgentPrism.Api
-cd samples/AgentPrism.Api && dotnet run
+dotnet user-secrets remove "Tracon:Providers:AzureOpenAI:Endpoint" --project samples/Tracon.Api
+cd samples/Tracon.Api && dotnet run
 ```
 
 **Beklenen sonuç**
@@ -1469,8 +1469,8 @@ Negatif senaryo.
 
 **Girilecek veri**
 ```bash
-dotnet user-secrets remove "AgentPrism:Providers:AzureOpenAI:ApiKey" --project samples/AgentPrism.Api
-cd samples/AgentPrism.Api && dotnet run
+dotnet user-secrets remove "Tracon:Providers:AzureOpenAI:ApiKey" --project samples/Tracon.Api
+cd samples/Tracon.Api && dotnet run
 ```
 
 **Beklenen sonuç**
@@ -1507,8 +1507,8 @@ ikisi de verilmişse yönetilen kimlik kazanır (daha güvenli olan).
 
 **Girilecek veri**
 ```csharp
-// Gecici test kurulumu (samples/AgentPrism.Api/Program.cs):
-agentPrism.UseAzureOpenAI(o =>
+// Gecici test kurulumu (samples/Tracon.Api/Program.cs):
+tracon.UseAzureOpenAI(o =>
 {
     o.Endpoint = new Uri("https://<kaynaginiz>.openai.azure.com/");
     o.ApiKey = "gecersiz-anahtar-kasitli";
@@ -1711,8 +1711,8 @@ denetimi detayında **da** görünmemesi gerekir
 
 **Girilecek veri**
 ```bash
-AZURE_ANAHTAR=$(dotnet user-secrets list --project samples/AgentPrism.Api | grep "AzureOpenAI:ApiKey" | cut -d= -f2 | tr -d ' ')
-AZURE_ADRES=$(dotnet user-secrets list --project samples/AgentPrism.Api | grep "AzureOpenAI:Endpoint" | cut -d= -f2 | tr -d ' ')
+AZURE_ANAHTAR=$(dotnet user-secrets list --project samples/Tracon.Api | grep "AzureOpenAI:ApiKey" | cut -d= -f2 | tr -d ' ')
+AZURE_ADRES=$(dotnet user-secrets list --project samples/Tracon.Api | grep "AzureOpenAI:Endpoint" | cut -d= -f2 | tr -d ' ')
 
 for uc in "/api/models" "/api/models/health" "/api/models/health/azure-openai" "/api/diagnostics"; do
   echo "--- $uc ---"
@@ -1722,5 +1722,5 @@ done
 
 **Beklenen sonuç**
 - Her uç için sayım `0`'dır. `/api/diagnostics`'teki `key` alanı yalnız
-  `AgentPrism:Providers:AzureOpenAI:ApiKey` ayar **adını** taşır, ne anahtarı
+  `Tracon:Providers:AzureOpenAI:ApiKey` ayar **adını** taşır, ne anahtarı
   ne kaynak adresini.

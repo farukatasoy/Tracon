@@ -28,7 +28,7 @@
 |---|---|---|
 | MT-DIAG-001 | ☑ | Bellek içi kurulumda, bir sağlayıcı ısıtıldıktan sonra `Healthy` döner |
 | MT-DIAG-006 | ☑ | Bir model sağlayıcısının devresi açıkken `/health` `Degraded` döner |
-| MT-DIAG-008 | ☑ | `AddAgentPrism()` çağrılmadan yalnız `AddAgentPrismHealthChecks()` çağrılırsa ilk istekte DI hatası verir |
+| MT-DIAG-008 | ☑ | `AddTracon()` çağrılmadan yalnız `AddTraconHealthChecks()` çağrılırsa ilk istekte DI hatası verir |
 | MT-DIAG-020 | ☑ | Varsayılan kapalı: hiç açılmadan `/api/diagnostics` `404` döner |
 | MT-DIAG-021 | ☑ | Açıkken `200` döner ve rapor şemasını taşır |
 | MT-DIAG-022 | ☑ | Admin olmayan rolle `403` döner |
@@ -38,7 +38,7 @@
 | MT-DIAG-028 | ☑ | `toolCount`/`agentCount` gerçek kayıtlı sayıyı yansıtır |
 | MT-DIAG-029 | ☑ | `uiEmbedded` arayüz paketine göre doğru değer taşır |
 | MT-DIAG-030 | ☑ | Teşhis ucu hiçbir model çağrısı veya migration uygulaması üretmez |
-| MT-DIAG-040 | ☑ | `AgentPrism.AspNetCore.csproj` `Microsoft.AspNetCore.OpenApi`/`Microsoft.OpenApi` taşımaz |
+| MT-DIAG-040 | ☑ | `Tracon.AspNetCore.csproj` `Microsoft.AspNetCore.OpenApi`/`Microsoft.OpenApi` taşımaz |
 | MT-DIAG-044 | ☑ | `POST /api/agents/{name}/run` yalnız `text/event-stream` bildirir, tipli JSON DEĞİL |
 | MT-DIAG-045 | ☑ | `/v1/chat/completions` hem `application/json` hem `text/event-stream` içerik tipini BİRLİKTE bildirir |
 | MT-DIAG-046 | ☑ | `Diagnostics` etiketi varsayılan üretilen belgede YOKTUR (uç varsayılan kapalı) |
@@ -88,7 +88,7 @@ Beklenenle birebir.
 
 **Gerçek sonuç**
 Senaryonun kendi kodu (orijinal `Data Source=:memory:`, iki kayıt) çalıştırıldı:
-`SqliteException: no such table: agentprism_tenants` ile `AgentPrismTestHost`
+`SqliteException: no such table: tracon_tenants` ile `TraconTestHost`
 hiç açılmadı — HATA-S1-003'ün tekrarı (bkz. yukarıdaki not). K-183 sayacı bu
 yüzden hiç ölçülemedi; case bu hâliyle **Kaldı**.
 
@@ -98,7 +98,7 @@ Ek doğrulama (case'in asıl konusu olan K-183 davranışını ayrıca sınamak 
 su an 'SQLite' kazaniyor. Yalniz bir Use*() cagirin.` — K-183'ün kendisi
 sağlam çalışıyor, yalnız `:memory:` bağlantı dizesi bozuk.
 
- **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı — S1-8'de HATA-S1-003 düzeltmesiyle yeniden koşuldu: validator artik ciplak :memory:'yi acikca reddediyor (AgentPrismTestHost dahil). Bkz. SONUCLAR-S1-2026-08-13.md.
+ **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı — S1-8'de HATA-S1-003 düzeltmesiyle yeniden koşuldu: validator artik ciplak :memory:'yi acikca reddediyor (TraconTestHost dahil). Bkz. SONUCLAR-S1-2026-08-13.md.
 
 ---
 
@@ -127,7 +127,7 @@ için değişiklik gerekmedi.)
 **Gerçek sonuç**
 Bellek içi blok beklendiği gibi: `Bellek ici -- persistenceProvider: InMemory,
 registered: 0`. SQLite bloğu (`Data Source=:memory:`) `SqliteException: no
-such table: agentprism_tenants` ile çöktü — HATA-S1-003. Ek doğrulama
+such table: tracon_tenants` ile çöktü — HATA-S1-003. Ek doğrulama
 (`Data Source=file::memory:?cache=shared` ile): `SQLite --
 persistenceProvider: SQLite, registered: 1` — beklenen sayaç davranışı bu
 bağlantı dizesiyle doğru, yalnız dokümanın kendi `:memory:` biçimi bozuk.
@@ -146,22 +146,22 @@ bağlantı dizesiyle doğru, yalnız dokümanın kendi `:memory:` biçimi bozuk.
 
 ---
 
-## MT-DIAG-042 — Belgedeki her ucun en az iki etiketi var, ilki `AgentPrism`
+## MT-DIAG-042 — Belgedeki her ucun en az iki etiketi var, ilki `Tracon`
 
 **Gerçek sonuç**
 🐛 **HATA-S1-012.** İlk sorgu **boş DEĞİL** — tam olarak bir uç iki etiketten
-az taşıyor: `GET /agentprism/api/voice/sessions/{sessionId}/stream` (WebSocket
-akış ucu, `operationId: AgentPrismVoiceStream`), yalnız `["AgentPrism"]`
+az taşıyor: `GET /tracon/api/voice/sessions/{sessionId}/stream` (WebSocket
+akış ucu, `operationId: TraconVoiceStream`), yalnız `["Tracon"]`
 etiketiyle. Kök neden: `VoiceConversationEndpoint.Map()`
-(`src/AgentPrism.AspNetCore/Voice/VoiceConversationEndpoint.cs:38-52`) hiç
+(`src/Tracon.AspNetCore/Voice/VoiceConversationEndpoint.cs:38-52`) hiç
 `.WithTags(...)` çağırmıyor — yalnız `voiceGroup`'un
-(`AgentPrismEndpointRouteBuilderExtensions.cs:252`) grup düzeyindeki tek
-`"AgentPrism"` etiketini devralıyor. Karşılaştırma: aynı dosyadaki diğer ses
-uçları (`VoiceEndpoints.cs:48,55,61,70`) hepsi `.WithTags("AgentPrism",
+(`TraconEndpointRouteBuilderExtensions.cs:252`) grup düzeyindeki tek
+`"Tracon"` etiketini devralıyor. Karşılaştırma: aynı dosyadaki diğer ses
+uçları (`VoiceEndpoints.cs:48,55,61,70`) hepsi `.WithTags("Tracon",
 "Voice")` çağırıyor — yalnız bu WebSocket ucu ikinci etiketi (`Voice`)
-eksik bırakıyor. İkinci sorgu beklenen: `["AgentPrism"]`.
+eksik bırakıyor. İkinci sorgu beklenen: `["Tracon"]`.
 
- **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı — S1-8'de düzeltmesiyle yeniden koşuldu: tags artik ["AgentPrism","Voice"]. Bkz. SONUCLAR-S1-2026-08-13.md.
+ **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı — S1-8'de düzeltmesiyle yeniden koşuldu: tags artik ["Tracon","Voice"]. Bkz. SONUCLAR-S1-2026-08-13.md.
 
 ---
 
@@ -170,14 +170,14 @@ eksik bırakıyor. İkinci sorgu beklenen: `["AgentPrism"]`.
 **Gerçek sonuç**
 🐛 **HATA-S1-013.** İlk sorgu boş DEĞİL — `null` yazdırıyor. İkinci sorgu
 `147` / `146` — **eşit değil**. Kök neden: iki A2A ucunun `operationId`si hiç
-yok: `POST /agentprism/a2a/ozetleyici` ve
-`GET /agentprism/a2a/ozetleyici/.well-known/agent-card.json`. Bu ikisi jq'nin
+yok: `POST /tracon/a2a/ozetleyici` ve
+`GET /tracon/a2a/ozetleyici/.well-known/agent-card.json`. Bu ikisi jq'nin
 `group_by` mantığında "tekrar eden" (iki `null`) sayılıyor, ilk sorgu bu yüzden
-`null` basıyor. `AgentPrismA2AExtensions.cs:122-126`:
+`null` basıyor. `TraconA2AExtensions.cs:122-126`:
 `agentGroup.MapA2A(handler, "/")` ve `agentGroup.MapWellKnownAgentCard(card,
 "")` — ikisi de üçüncü taraf A2A SDK uzantıları, `.WithName(...)` hiç
-çağrılmıyor (grup yalnız `.WithTags("AgentPrism", "A2A")` alıyor,
-`AgentPrismA2AExtensions.cs:103`). Diğer tüm gruplar (`AgentPrismEndpointRouteBuilderExtensions.cs`)
+çağrılmıyor (grup yalnız `.WithTags("Tracon", "A2A")` alıyor,
+`TraconA2AExtensions.cs:103`). Diğer tüm gruplar (`TraconEndpointRouteBuilderExtensions.cs`)
 her tekil uçta ayrıca `.WithName(...)` çağırıyor; A2A grubu bunu atlıyor.
 Etki sınırlı: yalnız 2/147 işlem etkileniyor, ikisi de dinamik A2A yüzeyinde
 (kod-üretici istemciler bu iki uç için kararsız/otomatik ad üretir).
@@ -186,19 +186,19 @@ Etki sınırlı: yalnız 2/147 işlem etkileniyor, ikisi de dinamik A2A yüzeyin
 
 ---
 
-## MT-DIAG-047 — `docs/openapi/agentprism.json` çalışan host'un ürettiğiyle AYNIDIR (anlık görüntü)
+## MT-DIAG-047 — `docs/openapi/tracon.json` çalışan host'un ürettiğiyle AYNIDIR (anlık görüntü)
 
 **Gerçek sonuç**
 `FARKLI -- yenileme gerekir`. Fark iki nedenden geliyor: (1) `info.title`
-farklı — canlı belge `AgentPrism.Api | v1` (örnek uygulama), işlenmiş dosya
-`AgentPrism.AspNetCore.FunctionalTests | v1` — yani `docs/openapi/agentprism.json`
+farklı — canlı belge `Tracon.Api | v1` (örnek uygulama), işlenmiş dosya
+`Tracon.AspNetCore.FunctionalTests | v1` — yani `docs/openapi/tracon.json`
 `OpenApiSnapshotTests`in **FunctionalTests host**'undan üretilmiş, örnek
 uygulamadan değil; ikisi yapılandırma olarak eşit değil (örnek uygulama
 `Diagnostics`/`A2A`/`Voice` uçlarını açık tutuyor, FunctionalTests host'u
-muhtemelen tutmuyor). (2) Bu yüzden `/agentprism/a2a/ozetleyici`,
-`/agentprism/a2a/ozetleyici/.well-known/agent-card.json`,
-`/agentprism/api/diagnostics`, `/agentprism/api/voice/sessions/{sessionId}/stream`
-işlenmiş dosyada hiç yok; `AgentPrismDiagnosticsReport`/`ConfigurationDiagnostic`/
+muhtemelen tutmuyor). (2) Bu yüzden `/tracon/a2a/ozetleyici`,
+`/tracon/a2a/ozetleyici/.well-known/agent-card.json`,
+`/tracon/api/diagnostics`, `/tracon/api/voice/sessions/{sessionId}/stream`
+işlenmiş dosyada hiç yok; `TraconDiagnosticsReport`/`ConfigurationDiagnostic`/
 `ProviderDiagnostic` şemaları da yok. Diğer taraftan işlenmiş dosyada bir
 `IMcpToolRefresher` şeması ve `requestBody` var ki canlı belgede yok — sürüm
 farkı (FunctionalTests projesi bu şerit'in `dotnet pack` tazelemesinden önce

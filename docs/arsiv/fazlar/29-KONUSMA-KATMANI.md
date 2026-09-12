@@ -26,11 +26,11 @@
 
 ## Amaç ve Sonuç
 
-Kullanıcı **konuşsun ve konuşulan cevabı duysun** — ama AgentPrism'in kontrol düzlemi vaatleri (çalıştırma kaydı, span, maliyet, onay, kiracı, kota) askıya alınmadan. **Sonuç:** Tarayıcıdan konuşulup sesli yanıt alınıyor. Her konuşma turu **normal bir `runs` satırı** üretiyor; token sayımı, span'ler ve tool onayı aynen çalışıyor.
+Kullanıcı **konuşsun ve konuşulan cevabı duysun** — ama Tracon'in kontrol düzlemi vaatleri (çalıştırma kaydı, span, maliyet, onay, kiracı, kota) askıya alınmadan. **Sonuç:** Tarayıcıdan konuşulup sesli yanıt alınıyor. Her konuşma turu **normal bir `runs` satırı** üretiyor; token sayımı, span'ler ve tool onayı aynen çalışıyor.
 
 ## ⚠️ Bu Faz Barındırma Modelini Değiştirir
 
-Bugüne kadar AgentPrism **istek/yanıt** çalıştı: HTTP gelir, SSE ile akar, biter.
+Bugüne kadar Tracon **istek/yanıt** çalıştı: HTTP gelir, SSE ile akar, biter.
 Gerçek zamanlı ses bunu değiştirir:
 
 | Konu | Faz 28'e kadar | Bu fazdan sonra |
@@ -55,21 +55,21 @@ Bu yüzden yetenek **isteğe bağlıdır**: `UseVoiceConversation()` çağrılma
 
 Beş sapma var; hepsi ölçümle veya kuralla gerekçelendirildi.
 
-### S1 — 🚨 Konuşma katmanı `AgentPrism.Voice`'ta **değil**, `Core`'da
+### S1 — 🚨 Konuşma katmanı `Tracon.Voice`'ta **değil**, `Core`'da
 
-Plan "Paketler: `AgentPrism.Voice` (genişler)" diyordu. **Yanlış.** Boru hattı
+Plan "Paketler: `Tracon.Voice` (genişler)" diyordu. **Yanlış.** Boru hattı
 (Seçenek A) yalnızca `ISpeechTranscriber` ve `ISpeechSynthesizer`
-soyutlamalarını kullanır; ElevenLabs'e hiç dokunmaz. Katman `AgentPrism.Voice`'a
+soyutlamalarını kullanır; ElevenLabs'e hiç dokunmaz. Katman `Tracon.Voice`'a
 konsaydı iki şey olurdu:
 
-1. `AgentPrism.AspNetCore` konuşma ucunu sunmak için `AgentPrism.Voice`'a
+1. `Tracon.AspNetCore` konuşma ucunu sunmak için `Tracon.Voice`'a
    referans vermek zorunda kalırdı — **paket yönü kuralı** bunu yasaklar.
 2. Kendi cözüm/sentez uygulamasını kaydeden bir tüketici, kullanmadığı ElevenLabs
    paketini kurmak zorunda kalırdı.
 
-**Yapıldı.** Sürücü `AgentPrism.Core/Voice/`, sözleşmeler
-`AgentPrism.Abstractions/Voice/`, uç `AgentPrism.AspNetCore/Voice/`.
-`AgentPrism.Voice` bu fazda **hiç değişmedi**. Karar K-222.
+**Yapıldı.** Sürücü `Tracon.Core/Voice/`, sözleşmeler
+`Tracon.Abstractions/Voice/`, uç `Tracon.AspNetCore/Voice/`.
+`Tracon.Voice` bu fazda **hiç değişmedi**. Karar K-222.
 
 ### S2 — Artımlı transkript **yok**; `IStreamingSpeechTranscriber` yazılmadı
 
@@ -104,11 +104,11 @@ Karar K-225.
 ### S4 — Sunucu `UseWebSockets()`'i **kendisi** kurar
 
 Kestrel `IHttpWebSocketFeature` sağlamaz; onu `WebSocketMiddleware` kurar.
-Tüketiciden ayrıca `app.UseWebSockets()` istemek `MapAgentPrism`'in **tek giriş
+Tüketiciden ayrıca `app.UseWebSockets()` istemek `MapTracon`'in **tek giriş
 noktası** olma kuralını (K1) bozardı ve hata yalnızca ilk konuşma denemesinde
 görünürdü.
 
-`MapAgentPrism` ara yazılımı **yalnızca** sürücü kayıtlıyken ve `endpoints` bir
+`MapTracon` ara yazılımı **yalnızca** sürücü kayıtlıyken ve `endpoints` bir
 `IApplicationBuilder` iken kurar. Zaten kuruluysa ikinci örnek
 `IHttpWebSocketFeature`'ı dolu bulur ve dokunmadan geçer. Karar K-223.
 
@@ -147,7 +147,7 @@ Yan fayda: E2E testi bunu kullanır — Chromium'un sahte ses cihazı **sürekli
 
 ## Bitiş Ölçütleri (DoD)
 
-Elle doğrulama: `samples/AgentPrism.Api`, 2026-08-05. Model çağrıları **gerçek
+Elle doğrulama: `samples/Tracon.Api`, 2026-08-05. Model çağrıları **gerçek
 OpenAI**'a gitti; ses sağlayıcısı ElevenLabs'in veri düzlemi sözleşmesini birebir
 taklit eden yerel bir uçtu (Faz 27/28'in deseni).
 
@@ -179,8 +179,8 @@ taklit eden yerel bir uçtu (Faz 27/28'in deseni).
 
 ```
 # 1) UCTAN UCA BIR TUR — gercek OpenAI modeli
-baglandi: ws://127.0.0.1:5080/agentprism/api/voice/sessions/conv_76e1…/stream
-kabul edilen alt protokol: agentprism.voice.v1
+baglandi: ws://127.0.0.1:5080/tracon/api/voice/sessions/conv_76e1…/stream
+kabul edilen alt protokol: tracon.voice.v1
 ready         agent=sesli-asistan persistAudio=False
 transcript    "siparisim nerede" (3 ms)
 runStarted    019fd302-3a65-76bb-9537-62b27d328f8b (10 ms)
@@ -229,7 +229,7 @@ GECIKME (commit anindan itibaren, saglayici gecikmesi HARIC)
 ## Kullanım
 
 ```csharp
-builder.AddAgentPrism()
+builder.AddTracon()
        .UseVoice(configuration.GetSection(VoiceOptions.SectionName))
 
        // ⚠️ BARINDIRMA MODELINI DEGISTIRIR: WebSocket dakikalarca acik kalir ve
@@ -239,7 +239,7 @@ builder.AddAgentPrism()
 
 ```
 GET {prefix}/api/voice/sessions/{sessionId}/stream
-    Sec-WebSocket-Protocol: agentprism.voice.v1, agentprism.token.<token>
+    Sec-WebSocket-Protocol: tracon.voice.v1, tracon.token.<token>
 ```
 
 Ters vekil arkasında: WebSocket geçişine izin verin ve boşta zaman aşımını
@@ -253,7 +253,7 @@ gerekir.
 Karar defterine yazıldı (`docs/KARARLAR.md`, **K-222 – K-227**):
 
 1. **K-222** — Seçenek A (boru hattı) + konuşma katmanı `Core`'da, `Voice`'ta değil.
-2. **K-223** — `MapAgentPrism` `UseWebSockets()`'i koşullu olarak kendisi kurar.
+2. **K-223** — `MapTracon` `UseWebSockets()`'i koşullu olarak kendisi kurar.
 3. **K-224** — WebSocket token'ı **alt protokolde** taşınır; sorgu dizesinde kabul edilmez.
 4. **K-225** — `PersistAudio` yalnız **agent'ın ürettiği sesi** saklar.
 5. **K-226** — Artımlı transkript yok; tek atımlı çözüm (kullanıcı kararı).
@@ -263,7 +263,7 @@ Karar defterine yazıldı (`docs/KARARLAR.md`, **K-222 – K-227**):
 
 ## Sonraki Faza Devir Notu
 
-- 🚨 **`UseWebSockets()` artık `MapAgentPrism` içinde koşullu olarak çağrılıyor**
+- 🚨 **`UseWebSockets()` artık `MapTracon` içinde koşullu olarak çağrılıyor**
   (K-223). WebSocket kullanan başka bir yetenek eklenirse aynı koşula bağlanmalı;
   ara yazılımı koşulsuz kurmak, yeteneği kullanmayan tüketicinin boru hattına
   dokunmak olur.
@@ -280,6 +280,6 @@ Karar defterine yazıldı (`docs/KARARLAR.md`, **K-222 – K-227**):
   örnek sayısıyla çarpılır — hız sınırıyla (K-158) aynı ödünleşme.
 - **`voice_sessions` saklama hedefine eklendi** ama örnek uygulamada bir politika
   tanımlı değil; Faz 25'in varsayılan yapılandırması bu hedefi kapsamıyor.
-- **`DependencyDirectionTests.AllowedReferences` hâlâ `AgentPrism.SqlServer`,
-  `AgentPrism.Sqlite` ve `AgentPrism.Sql.Shared` paketlerini içermiyor**
+- **`DependencyDirectionTests.AllowedReferences` hâlâ `Tracon.SqlServer`,
+  `Tracon.Sqlite` ve `Tracon.Sql.Shared` paketlerini içermiyor**
   (Faz 23/24'ten kalan boşluk; Faz 26, 27 ve 28'de de açıktı).

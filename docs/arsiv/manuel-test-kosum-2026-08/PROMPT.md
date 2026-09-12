@@ -1,4 +1,4 @@
-# AgentPrism — Manuel Kabul Testi Üretim Protokolü
+# Tracon — Manuel Kabul Testi Üretim Protokolü
 
 > **Bu dosya bir prompt'tur.** Yeni bir oturum açtığında bu dosyanın tamamını
 > yapıştır. Tek seferlik bir talimat değildir — senaryo dosyaları bitene kadar
@@ -9,10 +9,10 @@
 
 ## 1. Görev
 
-AgentPrism yayınlanmadan önce **elle koşulacak** bir kabul testi seti yazıyorsun.
+Tracon yayınlanmadan önce **elle koşulacak** bir kabul testi seti yazıyorsun.
 Bu, paket dokümanını yazmadan önceki son adımdır.
 
-AgentPrism bir uygulama değil, milyonlarca geliştiricinin bağımlı olabileceği bir
+Tracon bir uygulama değil, milyonlarca geliştiricinin bağımlı olabileceği bir
 **NuGet paket ailesidir**. Bir kusur yayınlandıktan sonra geri alınamaz. Test seti
 bu eşiğe göre yazılır: her yetenek, her sınır durumu, her hata yolu.
 
@@ -57,7 +57,7 @@ Bu bölüm önceki oturumda kullanıcıyla karara bağlandı. Sorgulama, ölçme
 | Docker | Kurulu, 8 GB |
 | Tarayıcı | Chrome tam · Safari kısa · dar ekran kısa |
 | Python | Var — stok `openai` istemcisi ile uyumluluk doğrulanır |
-| Örnek uygulama adresi | `http://localhost:5080` · arayüz `/agentprism` |
+| Örnek uygulama adresi | `http://localhost:5080` · arayüz `/tracon` |
 
 ### Kullanılabilir kimlik bilgileri
 
@@ -71,7 +71,7 @@ Bu bölüm önceki oturumda kullanıcıyla karara bağlandı. Sorgulama, ölçme
 | Azure OpenAI | ❌ **YOK** |
 | Yerel Ollama / LM Studio | ❓ Varsa kullanılır, yoksa atlanır |
 
-**Azure kuralı:** `AgentPrism.Azure` ve Faz 27 için senaryo **yine de yazılır**,
+**Azure kuralı:** `Tracon.Azure` ve Faz 27 için senaryo **yine de yazılır**,
 ancak her case'in başına `⏭ ATLA — Azure kimliği yok` satırı konur. Kullanıcı
 sonradan bir kaynak açarsa set hazır olur. Senaryoyu "yazmamak" bir boşluk
 bırakır; "yazıp atlamak" bırakmaz.
@@ -112,13 +112,13 @@ izlek olduğu belirtilir.
 
 | İzlek | Nedir | Ne kanıtlar |
 |---|---|---|
-| **A — Temiz tüketici** | `dotnet pack` → yerel NuGet feed → `dotnet new agentprism-api` | Paketleme, bağımlılık grafiği, şablon, gerçek tüketici deneyimi |
-| **B — Repo içi örnek** | `samples/AgentPrism.Api` | Zengin fixture: hazır agent, workflow, tool, MCP, ses |
-| **C — Deterministik** | `AgentPrism.Testing` · `FakeModelProvider` · `AgentPrismTestHost` · `RunAssertions` | Model çağırmadan tekrarlanabilir doğrulama; metin eşleşmesi **yalnız burada** yapılır |
+| **A — Temiz tüketici** | `dotnet pack` → yerel NuGet feed → `dotnet new tracon-api` | Paketleme, bağımlılık grafiği, şablon, gerçek tüketici deneyimi |
+| **B — Repo içi örnek** | `samples/Tracon.Api` | Zengin fixture: hazır agent, workflow, tool, MCP, ses |
+| **C — Deterministik** | `Tracon.Testing` · `FakeModelProvider` · `TraconTestHost` · `RunAssertions` | Model çağırmadan tekrarlanabilir doğrulama; metin eşleşmesi **yalnız burada** yapılır |
 
-> **Düzeltme (2026-08-09, ölçüldü).** `EchoModelProvider` `AgentPrism.Testing`
+> **Düzeltme (2026-08-09, ölçüldü).** `EchoModelProvider` `Tracon.Testing`
 > paketinde **yoktur**; örnek uygulamanın kendi sınıfıdır
-> (`samples/AgentPrism.Api/EchoModelProvider.cs` · sağlayıcı adı `echo` · model
+> (`samples/Tracon.Api/EchoModelProvider.cs` · sağlayıcı adı `echo` · model
 > `echo-1`) ve OpenAI anahtarı tanımlı değilken kaydedilir. Yani `echo`,
 > **izlek B**'nin ağa çıkmayan yoludur. Beş kopya sahte sağlayıcı K-269 ile
 > `FakeModelProvider`'da birleştirildi.
@@ -159,9 +159,9 @@ Bu, protokolün en önemli kuralıdır. Bir uç adresi, bir alan adı, bir ayar
 anahtarı veya bir enum değeri yazmadan **önce** kaynağı grep'le:
 
 ```bash
-grep -rn "api/runs" src/AgentPrism.AspNetCore/
-grep -rn "class AgentDefinition" -A40 src/AgentPrism.Abstractions/
-grep -rn "SectionName" src/AgentPrism.Core/
+grep -rn "api/runs" src/Tracon.AspNetCore/
+grep -rn "class AgentDefinition" -A40 src/Tracon.Abstractions/
+grep -rn "SectionName" src/Tracon.Core/
 ```
 
 Repo hafızasında yazılı bir ders var: *"Planın yapısal iddiasını kabul etmeden
@@ -218,7 +218,7 @@ Her dosyada **en az %40** negatif ya da sınır senaryosu olsun.
 
 **Doğrulama sorgusu** *(varsa)*
 ```sql
-SELECT ... FROM agentprism....;
+SELECT ... FROM tracon....;
 ```
 
 **Gerçek sonuç**

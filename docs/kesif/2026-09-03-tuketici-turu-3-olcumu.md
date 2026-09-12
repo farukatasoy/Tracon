@@ -10,7 +10,7 @@ raporlamayı istedi.
 **Zemin:** Faz 138 kapalı · sıralanabilir aday kuyruğu boş · en büyük numara F-184
 **İncelenen sürüm:** `1.0.0-preview.1` — turu 2'nin (Faz 136 · 137 · 138) çıktısı
 **Ekosistem taraması:** yapılmadı — kalemlerin hiçbiri "MAF/ekosistem bunu artık
-veriyor" iddiası taşımıyor; hepsi AgentPrism'in kendi yüzeyine dair. Ekosistem
+veriyor" iddiası taşımıyor; hepsi Tracon'in kendi yüzeyine dair. Ekosistem
 karşılaştırması gereken tek kalem B1'dir ve orada işaretlendi.
 
 ---
@@ -36,17 +36,17 @@ sonucu:
 | Ölçülen iddia | Sonuç |
 |---|---|
 | `AgentRunRequest` alanları · `sessionId` gövdeden gelir | ✅ Doğru (`AgentEndpoints.cs:825`) |
-| 163 operasyon / 126 path | ✅ **Birebir** doğru (`docs/openapi/agentprism.json` sayımı) |
+| 163 operasyon / 126 path | ✅ **Birebir** doğru (`docs/openapi/tracon.json` sayımı) |
 | `RunEventType` kapalı enum, 29 değer | ✅ Birebir doğru (`RunEventType.cs`, 0–28) |
 | `RunEventDraft` alanları (5 tane) | ✅ Doğru (`RunEventWriter.cs:356`) |
 | `ContentGuardContext` alanları (6 tane) | ✅ Doğru (`ContentGuardContext.cs:25`) |
 | `ToolApprovalContext` alanları | ✅ Doğru (`ToolApprovalContext.cs:14`) |
-| `AgentRunScope`'ta `UserId` yok | ✅ Doğru (`AgentPrismRunContext.cs:52`) |
+| `AgentRunScope`'ta `UserId` yok | ✅ Doğru (`TraconRunContext.cs:52`) |
 | `ModelBinding`'de endpoint/credential yok | ✅ Doğru (`ModelBinding.cs`) |
-| `AgentPrismRunRecordingOptions`'ta birleştirme yok | ✅ Doğru (`AgentPrismOptions.cs:538-594`) |
+| `TraconRunRecordingOptions`'ta birleştirme yok | ✅ Doğru (`TraconOptions.cs:538-594`) |
 | `Operator` rolü run + onay + session silme veriyor | ✅ Doğru (üç uç da `roles.Operator`) |
 | **Kota eşik bildirimi yok** | ❌ **YANLIŞ** — mekanizma var (aşağıda A2) |
-| **`IRunEventSink` dolan bir kanalda olay düşürür** | ❌ **YANLIŞ** — AgentPrism'in kanalı yok (aşağıda A9) |
+| **`IRunEventSink` dolan bir kanalda olay düşürür** | ❌ **YANLIŞ** — Tracon'in kanalı yok (aşağıda A9) |
 
 On iki iddianın onu doğru. İki yanlış iddianın **ikisi de bizim dokümanımızın
 ürettiği** bir yanlış anlamadır; tüketicinin okuma hatası değildir. İkisi de
@@ -64,7 +64,7 @@ ve `RequireApiKeyScope` taşıyor. `AgentSessionManager.cs:365` sorguyu yalnız
 `_tenantContext.TenantId` ile daraltıyor. `AgentEndpoints.cs:169-270` run yolunda
 dört kapı var (`DrainGate`, `RunAttributionGate`, `QuotaGate`, `PreflightGate`) —
 **hiçbiri çağıran kimliğini session sahipliğiyle karşılaştırmıyor.**
-`AgentPrismDiagnosticsCollector.cs:221-245` sevk edilen beş genişleme noktasını
+`TraconDiagnosticsCollector.cs:221-245` sevk edilen beş genişleme noktasını
 sayıyor: `ITenantContext`, `IRunAttributionContext`, `IToolAuthorizationHandler`,
 `IRunEventSink`, `IAttachmentStorage`. **Run başlatmayı veya session okumayı
 yetkilendiren bir nokta yok.** Tüketicinin "denedik, yetmiyor" tablosunun altı
@@ -106,10 +106,10 @@ kütüphanenin değil tüketicinin olmalı.
 ### A5 · Genişletilebilir run olayı türü (`Custom`)
 
 **Kanıt seviyesi:** Ölçüldü.
-`RunEventWriter.cs:139` `AppendAsync` public; `AgentPrismRunContext.cs` `Writer`
+`RunEventWriter.cs:139` `AppendAsync` public; `TraconRunContext.cs` `Writer`
 public. Yazma yolu **açık**, taşınacak tür **yok** (`RunEventDraft.Type` kapalı
 enum). Tüketicinin tespiti tam.
-`src/AgentPrism.UI/frontend/src/lib/run-event.ts:8` — arayüzdeki `RunEventType`
+`src/Tracon.UI/frontend/src/lib/run-event.ts:8` — arayüzdeki `RunEventType`
 listesi **elle** bakılıyor ("by hand" yorumu dosyada yazılı); yeni bir değer
 oraya da girer. `runs_v1` görünümü run seviyesindedir
 (`SqlServer/MigrationsViews/0001_read_views.sql:23`), olay türünden
@@ -149,7 +149,7 @@ yarıyor.
 ### A6 · Akış delta'larının sunucuda birleştirilmesi
 
 **Kanıt seviyesi:** Ölçüldü. `grep -rn "Coalesc" src/` → run yolunda **sıfır**
-eşleşme (yalnız SQL `COALESCE` kullanımları). `AgentPrismOptions.cs:538-594`
+eşleşme (yalnız SQL `COALESCE` kullanımları). `TraconOptions.cs:538-594`
 ailesi (`RecordMessageDeltas`, `RecordReasoningDeltas`, `MaxPayloadLength`) akışın
 şeklini zaten yönetiyor; tüketicinin "aynı ailenin üyesi" gerekçesi yerinde.
 
@@ -167,7 +167,7 @@ tamponu yazıyor" gözleminden ibaret.
 ### A8 · Run scope'unda çağıran kimliği
 
 **Kanıt seviyesi:** Ölçüldü. `RunRecord.cs:47,57` — `UserId` ve `Labels` zaten
-toplanıyor ve `runs` satırına **yazılıyor**. `AgentPrismRunContext.cs:52`
+toplanıyor ve `runs` satırına **yazılıyor**. `TraconRunContext.cs:52`
 `AgentRunScope` onları taşımıyor. Yani değer üretiliyor, bir adım ötede
 düşürülüyor. Tüketicinin "yeni kavram getirmiyor" gerekçesi doğru.
 
@@ -197,7 +197,7 @@ talep kanıtı değildir. **Gerçek bir kullanıcı acısı ölçülmedi.**
 ### B1 · Tek run'da tool çağrısı sayısı sınırı
 
 **Kanıt seviyesi:** Ölçüldü. `HarnessSettings.cs:21` `MaximumIterationsPerRequest`
-**tek** sayı tavanıdır ve harness'a bağlıdır. `AgentPrismOptions.cs:147-192`
+**tek** sayı tavanıdır ve harness'a bağlıdır. `TraconOptions.cs:147-192`
 ailesi token (`MaxTotalTokens`), çocuk run (`MaxTotalRuns`), derinlik
 (`MaxDepth`), maliyet (`MaxTotalCost`) ve süre (`MaxDuration`) sayıyor —
 **tool çağrısı sayısı yok.** Tüketicinin boşluk tespiti doğru.
@@ -226,7 +226,7 @@ maliyeti buna değer mi, ölçülmedi.
 
 | Kalem | Ölçüm | Neden bu turda aday değil |
 |---|---|---|
-| **B2** tool sonucu önbelleği | `AgentPrismToolAttribute.cs` — `CacheSeconds` yok; `ModelBinding.ResponseCache` var (`:125`) | Fikir sağlam ve `Effect` doğrulaması hazır. Ama çok kiracılı önbellek **kalıcı bir güvenlik yüzeyidir**; yanlış anahtar bir kiracıya başkasının sonucunu verir. 1.0 öncesi alınacak en riskli kalem |
+| **B2** tool sonucu önbelleği | `TraconToolAttribute.cs` — `CacheSeconds` yok; `ModelBinding.ResponseCache` var (`:125`) | Fikir sağlam ve `Effect` doğrulaması hazır. Ama çok kiracılı önbellek **kalıcı bir güvenlik yüzeyidir**; yanlış anahtar bir kiracıya başkasının sonucunu verir. 1.0 öncesi alınacak en riskli kalem |
 | **B3** gölge run | `Variant`, `compare` ucu (`RunEndpoints.cs:241`), `IRunJudge` var | Gerçek para harcayan bir mod. Bütçe/kota muhasebesi ayrı raporlanmalı — kapsam göründüğünden büyük |
 | **B4** Git `IAgentSource` | Sevk edilen tek implementasyon `CodeAgentSource` (`Catalog/CodeAgentSource.cs:12`) | Boşluk gerçek. Ama yeni bir paket + Git bağımlılığı; K-212 deseni. Ayrı bir tur ister |
 | **B5** redaksiyon profili | `IContentProtector` var (`Security/IContentProtector.cs:7`) | Tüketici maliyeti kendisi yazmış: redakte edilmiş run **replay edilemez**. Bu, Faz 112'nin replay sözleşmesiyle çelişir |
@@ -258,8 +258,8 @@ Numaralar **kullanıcı onayından sonra** verilir; en büyük mevcut numara F-1
 
 | Bulgu | Kanıt | Kullanıcıya söylendi | `kusur-giderme` |
 |---|---|---|---|
-| **`IRunEventSink` doküman cümlesi yanlış okunuyor** — `docs-site/src/content/docs/guides/embedding.md:109` "A channel that reaches capacity **drops** the event" cümlesi **tüketicinin kendi kanalını** tarif ediyor, ama AgentPrism'in davranışı gibi okunuyor. Gerçek: AgentPrism'in kanalı **yok**; `RunEventWriter.cs:203` sink'i doğrudan `await` ediyor. Tüketici bu cümleye dayanarak var olmayan bir kanal için metrik istedi (A9) | `RunEventWriter.cs:189-215` · `embedding.md:106-110` | ✅ | Bekliyor |
-| **Kota eşik bildirimi keşfedilemiyor** — mekanizma **var** (`AgentPrismQuotaOptions.cs:41` `ThresholdPercents = [80,100]`, `QuotaEnforcer.cs:296` bir kez/periyot, `quota.threshold` webhook'u) ama yalnız **üretilen API referansında** görünüyor. `llms-full.txt`'te `ThresholdPercents` **bir kez** geçiyor; anlatı sayfası `concepts/governance.md` § "Quotas and rate limits" eşikten hiç söz etmiyor. Belgeyi baştan sona okuyan tüketici özelliği bulamadı ve **var olanı yeniden önerdi** (A2) | `AgentPrismQuotaOptions.cs:41` · `QuotaEnforcer.cs:245-315` · `governance.md:238-258` | ✅ | Bekliyor |
+| **`IRunEventSink` doküman cümlesi yanlış okunuyor** — `docs-site/src/content/docs/guides/embedding.md:109` "A channel that reaches capacity **drops** the event" cümlesi **tüketicinin kendi kanalını** tarif ediyor, ama Tracon'in davranışı gibi okunuyor. Gerçek: Tracon'in kanalı **yok**; `RunEventWriter.cs:203` sink'i doğrudan `await` ediyor. Tüketici bu cümleye dayanarak var olmayan bir kanal için metrik istedi (A9) | `RunEventWriter.cs:189-215` · `embedding.md:106-110` | ✅ | Bekliyor |
+| **Kota eşik bildirimi keşfedilemiyor** — mekanizma **var** (`TraconQuotaOptions.cs:41` `ThresholdPercents = [80,100]`, `QuotaEnforcer.cs:296` bir kez/periyot, `quota.threshold` webhook'u) ama yalnız **üretilen API referansında** görünüyor. `llms-full.txt`'te `ThresholdPercents` **bir kez** geçiyor; anlatı sayfası `concepts/governance.md` § "Quotas and rate limits" eşikten hiç söz etmiyor. Belgeyi baştan sona okuyan tüketici özelliği bulamadı ve **var olanı yeniden önerdi** (A2) | `TraconQuotaOptions.cs:41` · `QuotaEnforcer.cs:245-315` · `governance.md:238-258` | ✅ | Bekliyor |
 
 Her iki kusur da **doküman kusurudur**, kod kusuru değil.
 
@@ -307,7 +307,7 @@ Bu turda yok. Hiçbir kalem kapatılmış bir kararı geçersizleştirmiyor.
 | Fikir | Ret gerekçesi | Kalıcı mı | Nereye |
 |---|---|---|---|
 | **A2** `QuotaDefinition.WarnAtPercent` + `RunEventType.QuotaThresholdCrossed` | Eşik mekanizması **zaten var**; öneri onu çoğaltır. Geriye kalan gerçek boşluk yalnız **kanaldır** (webhook ↔ SSE) ve bu, A5'in (`Custom` olay) üstüne oturur | Hayır — kanal sorusu A5 kapandıktan sonra yeniden sorulur | Bu not |
-| **A9** `AgentPrismRunEventSinkOptions.Capacity` + `OnDropped` | AgentPrism'in düşüren bir kanalı yok; öneri metrik eklemek değil **yeni bir kanal inşa etmek** demek. Tüketici bunu bilseydi istemezdi | Hayır — gerçek bir sink darboğazı ölçülürse yeniden açılır | Bu not |
+| **A9** `TraconRunEventSinkOptions.Capacity` + `OnDropped` | Tracon'in düşüren bir kanalı yok; öneri metrik eklemek değil **yeni bir kanal inşa etmek** demek. Tüketici bunu bilseydi istemezdi | Hayır — gerçek bir sink darboğazı ölçülürse yeniden açılır | Bu not |
 | **B5** redaksiyon profili | Redakte edilmiş run replay edilemez; Faz 112'nin replay sözleşmesiyle çelişir | Hayır | Bu not |
 | **B10** prompt bisector | n blok = n koşum; maliyet en yüksek, talep kanıtı en zayıf | Hayır | Bu not |
 

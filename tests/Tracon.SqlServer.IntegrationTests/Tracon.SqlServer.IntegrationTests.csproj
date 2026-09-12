@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/Tracon.SqlServer/Tracon.SqlServer.csproj" />
+    <!--
+      Store contract suite (Phase 23; packaged in Phase 98 as
+      Tracon.Testing.Contracts.Xunit). The SAME abstract classes also run
+      in Tracon.PostgreSql.IntegrationTests. This phase's exact test was
+      that: adding a third persistence implementation should NOT REQUIRE
+      writing a new contract test.
+    -->
+    <ProjectReference Include="../../src/Tracon.Testing.Contracts.Xunit/Tracon.Testing.Contracts.Xunit.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Testcontainers.MsSql" />
+    <!-- Pins to the patched version for GHSA-q939-rpr3-3284 (SSH.NET, a transitive dependency of Testcontainers). -->
+    <PackageReference Include="SSH.NET" />
+  </ItemGroup>
+
+  <!--
+    TenantCoverageTests.cs (Phase 41) lives directly in this project, not
+    under the contract package: it reflects over Tracon.Sql.Shared's
+    linked-source internal types (SqlRunStore and the rest), which are only
+    reachable from a provider assembly, never from a published package
+    (K-247 — a linked-source internal type's identity is not stable across
+    assemblies).
+  -->
+
+</Project>

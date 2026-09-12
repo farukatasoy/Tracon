@@ -1,16 +1,16 @@
 # 18 — MCP İstemcisi/Sunucusu ve A2A Dış Yüzeyi (`MCP`)
 
 > **Alan kodu:** `MCP` · **Faz:** 6, 22, 50, 89 (tool çıktısı boyut sınırı — ikinci sarmalama zinciri), 117 (Tasks uzantısı)
-> **Kaynak:** `src/AgentPrism.Mcp/` (tümü — istemci tarafı: sunucu keşfi,
-> tool/prompt/resource köprüsü, OAuth) · `src/AgentPrism.AspNetCore/McpServer/`
-> (tümü — AgentPrism'i MCP sunucusu olarak dışa açma) ·
-> `src/AgentPrism.AspNetCore/A2A/` (tümü — AgentPrism'i A2A sunucusu olarak
-> dışa açma) · `src/AgentPrism.AspNetCore/Endpoints/GovernanceEndpoints.cs`
+> **Kaynak:** `src/Tracon.Mcp/` (tümü — istemci tarafı: sunucu keşfi,
+> tool/prompt/resource köprüsü, OAuth) · `src/Tracon.AspNetCore/McpServer/`
+> (tümü — Tracon'i MCP sunucusu olarak dışa açma) ·
+> `src/Tracon.AspNetCore/A2A/` (tümü — Tracon'i A2A sunucusu olarak
+> dışa açma) · `src/Tracon.AspNetCore/Endpoints/GovernanceEndpoints.cs`
 > (yalnız `/api/mcp-servers/*` dalı — MCP sunucu kaydı CRUD, prompt/resource
-> köprüsü, OAuth başlatma) · `src/AgentPrism.AspNetCore/Security/ExternalSurfaceGuard.cs`,
-> `ExternalCallAudit.cs` · `src/AgentPrism.Abstractions/Mcp/McpServerDefinition.cs` ·
-> `src/AgentPrism.UI/frontend/src/screens/mcp.tsx`, `tools.tsx` (yalnız MCP
-> rozeti) · `src/AgentPrism.UI/frontend/src/components/mcp-server-detail.tsx` ·
+> köprüsü, OAuth başlatma) · `src/Tracon.AspNetCore/Security/ExternalSurfaceGuard.cs`,
+> `ExternalCallAudit.cs` · `src/Tracon.Abstractions/Mcp/McpServerDefinition.cs` ·
+> `src/Tracon.UI/frontend/src/screens/mcp.tsx`, `tools.tsx` (yalnız MCP
+> rozeti) · `src/Tracon.UI/frontend/src/components/mcp-server-detail.tsx` ·
 > Migration'lar: `mcp_servers` tablosu (PostgreSQL `0002_observability.sql` +
 > `0013_mcp_oauth.sql`; SQL Server/SQLite `0001_initial.sql`).
 >
@@ -24,11 +24,11 @@
 
 ## Bu dosya neyi kanıtlar
 
-AgentPrism, Model Context Protocol'ü **iki yönde** de konuşur. Faz 22
-(**istemci** yönü): AgentPrism, dışarıdaki bir MCP sunucusuna bağlanıp
+Tracon, Model Context Protocol'ü **iki yönde** de konuşur. Faz 22
+(**istemci** yönü): Tracon, dışarıdaki bir MCP sunucusuna bağlanıp
 onun tool/prompt/resource'larını kendi agent'larına tool olarak sunar —
 sunucular kodda değil, veritabanında tanımlıdır ve arka planda periyodik
-taranır. Faz 50 bunun tam tersini ekledi (**sunucu** yönü): AgentPrism'in
+taranır. Faz 50 bunun tam tersini ekledi (**sunucu** yönü): Tracon'in
 kendi katalog agent'ları, dışarıdaki bir MCP istemcisine (ör. Claude Code
 CLI) tek bir tool olarak sunulabilir. Aynı fazda, kardeş bir protokol olan
 A2A (Agent2Agent) ile agent'lar kendi "agent kartı"nı yayınlayabilir. Faz 6
@@ -37,15 +37,15 @@ temel keşif altyapısını getirmişti; bu dosya Faz 22/50'nin üzerine kurulu
 
 ```mermaid
 flowchart TD
-    subgraph Istemci["AgentPrism ISTEMCI (Faz 22)"]
+    subgraph Istemci["Tracon ISTEMCI (Faz 22)"]
         DB["mcp_servers tablosu<br/>(kodda degil, DB'de)"] --> DS["McpDiscoveryService<br/>5 dk'da bir tarar"]
         DS -->|basarili| TOOLS["AIFunction listesi<br/>{server}_{tool}"]
         DS -->|ulasilamaz| DEGRADE["o sunucu 0 tool<br/>digerleri etkilenmez"]
     end
 
-    subgraph Sunucu["AgentPrism SUNUCU (Faz 50)"]
-        CATALOG["IAgentCatalog<br/>CANLI, her istekte okunur"] --> MCPSRV["/agentprism/mcp<br/>tools/list, tools/call"]
-        CATALOG --> A2ASRV["/agentprism/a2a/{agent}<br/>agent-card.json + SendMessage"]
+    subgraph Sunucu["Tracon SUNUCU (Faz 50)"]
+        CATALOG["IAgentCatalog<br/>CANLI, her istekte okunur"] --> MCPSRV["/tracon/mcp<br/>tools/list, tools/call"]
+        CATALOG --> A2ASRV["/tracon/a2a/{agent}<br/>agent-card.json + SendMessage"]
         GUARD["McpApprovalGuardFilter<br/>onay gerektiren tool varsa"] -.->|UYGULAMA BASLAMAZ| MCPSRV
     end
 
@@ -72,7 +72,7 @@ flowchart TD
 > **Rol matrisi burada da NO-OP'tur.** MCP-sunucu ve A2A grupları zaten
 > `RequireRole(...)` HİÇ ÇAĞIRMAZ (kod tasarımı — dış çağıranlar için
 > doğal bir Reader/Operator/Admin kavramı yoktur). **Bu dosyaya özgü
-> olan**: dış yüzeyin kendisi (`/agentprism/mcp`, `/agentprism/a2a`)
+> olan**: dış yüzeyin kendisi (`/tracon/mcp`, `/tracon/a2a`)
 > `RequireApiKeyScope(ExternalInvoke)`'u DOĞRU uygular, ama MCP sunucu
 > **kayıt** API'si (`/api/mcp-servers/*`, `GovernanceEndpoints.cs`) hiçbir
 > `RequireApiKeyScope` çağrısı taşımaz — §9'da ayrı ayrı ölçülür, biri
@@ -81,8 +81,8 @@ flowchart TD
 ## Koşmadan önce
 
 1. [`00-INDEKS.md`](00-INDEKS.md) §4 reset yordamı uygulanır.
-2. Örnek uygulama çalışır: `cd samples/AgentPrism.Api && dotnet run` →
-   `http://localhost:5080/agentprism`.
+2. Örnek uygulama çalışır: `cd samples/Tracon.Api && dotnet run` →
+   `http://localhost:5080/tracon`.
 3. Örnek uygulama `ozetleyici` agent'ını **hem** MCP **hem** A2A ile dışa
    açar (`Program.cs:98-99`, `.UseMcpServer(o =>
    o.ExposedAgents.Add("ozetleyici"))` / `.UseA2A(o =>
@@ -91,7 +91,7 @@ flowchart TD
    tetiklemez. Guard'ı tetiklemek isteyen case'ler (§6 MT-MCP-034, §7
    MT-MCP-045) GEÇİCİ bir `Program.cs` değişikliği ister — bu değişiklik
    case sonunda GERİ ALINIR.
-4. `AgentPrism:Mcp` bölümü `appsettings.json`'da tanımlı DEĞİLDİR; örnek
+4. `Tracon:Mcp` bölümü `appsettings.json`'da tanımlı DEĞİLDİR; örnek
    uygulama `UseMcp(builder.Configuration.GetSection(...))`
    (config-bağlı overload) kullanır — §2'nin case'leri bu farkı ölçer.
 5. **Yerel bir test MCP sunucusu bu repo'da hiç dokümante edilmemiştir**
@@ -101,8 +101,8 @@ flowchart TD
 
 ```bash
 export APB="Authorization: Bearer manuel-test-token-2026"
-export APU="http://localhost:5080/agentprism"
-export PG="docker exec -i ap-pg psql -U postgres -d agentprism"
+export APU="http://localhost:5080/tracon"
+export PG="docker exec -i ap-pg psql -U postgres -d tracon"
 ```
 
 > **Gerçek para uyarısı.** §4 MT-MCP-023, §6 MT-MCP-032/036, §7 MT-MCP-041
@@ -237,7 +237,7 @@ curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/mcp-servers/karisik-yetki" 
      -H "content-type: application/json" -d '{
   "endpoint": "http://localhost:6062/mcp",
   "oauthEnabled": true,
-  "authorizationConfigurationKey": "AgentPrism:Mcp:BirTest"
+  "authorizationConfigurationKey": "Tracon:Mcp:BirTest"
 }'
 ```
 
@@ -267,7 +267,7 @@ curl -s -X PUT "$APU/api/mcp-servers/oauth-test" -H "$APB" -H "content-type: app
   "endpoint": "http://localhost:6063/mcp",
   "oauthEnabled": true,
   "oauthClientId": "test-client",
-  "oauthClientSecretConfigurationKey": "AgentPrism:Mcp:TestSecret",
+  "oauthClientSecretConfigurationKey": "Tracon:Mcp:TestSecret",
   "oauthScopes": "read"
 }' | python3 -m json.tool
 ```
@@ -296,7 +296,7 @@ curl -s "$APU/api/mcp-servers" -H "$APB" | python3 -m json.tool
 
 **Beklenen sonuç**
 - Her sunucu satırında `authorizationConfigurationKey` yalnız bir
-  yapılandırma **anahtarı adı** (ör. `"AgentPrism:Mcp:TestSecret"`)
+  yapılandırma **anahtarı adı** (ör. `"Tracon:Mcp:TestSecret"`)
   taşır — hiçbir gerçek secret DEĞERİ (token, şifre) gövdede yer almaz
   (K-059). `headers` alanındaki değerler ise OLDUĞU GİBİ döner — bir
   sunucu kaydı `headers` içine yanlışlıkla bir secret koyarsa, şema bunu
@@ -321,14 +321,14 @@ curl -s -w "\nHTTP: %{http_code}\n" -X DELETE "$APU/api/mcp-servers/ftp-sunucu" 
 
 **Doğrulama sorgusu**
 ```sql
-SELECT count(*) FROM agentprism.mcp_servers WHERE name IN ('ftp-sunucu', 'stdio-denemesi', 'karisik-yetki');
+SELECT count(*) FROM tracon.mcp_servers WHERE name IN ('ftp-sunucu', 'stdio-denemesi', 'karisik-yetki');
 ```
 
 **Beklenen sonuç**
 - `HTTP: 204`. SQL sorgusu `0` döner (bu üç sunucu hiç başarıyla
   oluşturulmamıştı — negatif case'lerin kalıcı iz bırakmadığının kanıtı).
 
-### MT-MCP-010 — Örnek uygulama config-bağlı `UseMcp` overload'ını kullanır — `AgentPrism:Mcp:RefreshInterval` GERÇEKTEN etkilidir
+### MT-MCP-010 — Örnek uygulama config-bağlı `UseMcp` overload'ını kullanır — `Tracon:Mcp:RefreshInterval` GERÇEKTEN etkilidir
 
 Bu, önceden bir kere kayda geçmiş bir hatanın (K-353: `RefreshInterval`
 `IConfiguration`'a hiç bağlanmıyordu) düzeltmesinin canlı doğrulamasıdır.
@@ -342,8 +342,8 @@ Bu, önceden bir kere kayda geçmiş bir hatanın (K-353: `RefreshInterval`
 
 **Girilecek veri**
 ```bash
-cd samples/AgentPrism.Api
-dotnet user-secrets set "AgentPrism:Mcp:RefreshInterval" "00:00:10"
+cd samples/Tracon.Api
+dotnet user-secrets set "Tracon:Mcp:RefreshInterval" "00:00:10"
 # Uygulamayi yeniden baslat.
 ```
 
@@ -357,9 +357,9 @@ dotnet user-secrets set "AgentPrism:Mcp:RefreshInterval" "00:00:10"
 
 **Beklenen sonuç**
 - Tarama, VARSAYILAN `5 dakika` yerine `10 saniye`de bir gerçekleşir —
-  `appsettings.json`'daki `AgentPrism:Mcp:RefreshInterval` GERÇEKTEN
+  `appsettings.json`'daki `Tracon:Mcp:RefreshInterval` GERÇEKTEN
   okunmuştur. (K-353 öncesi bu ayar sessizce yok sayılırdı.)
-- Case sonrası `dotnet user-secrets remove "AgentPrism:Mcp:RefreshInterval"`.
+- Case sonrası `dotnet user-secrets remove "Tracon:Mcp:RefreshInterval"`.
 
 ---
 
@@ -375,15 +375,15 @@ Sınır senaryosu — sık karıştırılan bir ayrım.
 | **İlgili karar** | — |
 
 **Adımlar**
-1. `appsettings.json`/`user-secrets`'a `AgentPrism:Mcp:Servers:0:Endpoint`
+1. `appsettings.json`/`user-secrets`'a `Tracon:Mcp:Servers:0:Endpoint`
    gibi bir anahtar EKLEMEYİ dene (böyle bir yapı zaten kod tarafından
    okunmaz — bu case'in amacı, bu tür bir anahtarın SESSİZCE yok
    sayıldığını doğrulamaktır).
 
 **Girilecek veri**
 ```bash
-cd samples/AgentPrism.Api
-dotnet user-secrets set "AgentPrism:Mcp:Servers:0:Endpoint" "http://olmayan-bir-yer/mcp"
+cd samples/Tracon.Api
+dotnet user-secrets set "Tracon:Mcp:Servers:0:Endpoint" "http://olmayan-bir-yer/mcp"
 # Uygulamayi yeniden baslat.
 curl -s "$APU/api/mcp-servers" -H "$APB" | python3 -c "import json,sys; print([s['name'] for s in json.load(sys.stdin)])"
 ```
@@ -407,7 +407,7 @@ Negatif/edge senaryo — sessiz bozulma, hata değil.
 | **İlgili karar** | — |
 
 **Ön koşul**
-- `test-sunucu`, `authorizationConfigurationKey: "AgentPrism:Mcp:HicVarOlmayanAnahtar"`
+- `test-sunucu`, `authorizationConfigurationKey: "Tracon:Mcp:HicVarOlmayanAnahtar"`
   ile güncellenmiş (bu anahtar `user-secrets`'ta HİÇ tanımlı DEĞİL).
 
 **Adımlar**
@@ -591,13 +591,13 @@ Sınır senaryosu.
 | **İlgili karar** | — |
 
 **Ön koşul**
-- `AgentPrism:Mcp:MaxToolsPerServer` `1` olarak ayarlanmış (test
+- `Tracon:Mcp:MaxToolsPerServer` `1` olarak ayarlanmış (test
   amaçlı), yerel sunucu 2+ tool sunuyor.
 
 **Girilecek veri**
 ```bash
-cd samples/AgentPrism.Api
-dotnet user-secrets set "AgentPrism:Mcp:MaxToolsPerServer" "1"
+cd samples/Tracon.Api
+dotnet user-secrets set "Tracon:Mcp:MaxToolsPerServer" "1"
 # Uygulamayi yeniden baslat, keşif turunu bekle.
 curl -s "$APU/api/tools" -H "$APB" | python3 -c "import json,sys; print(len([t for t in json.load(sys.stdin) if t.get('source')=='test-sunucu']))"
 ```
@@ -678,7 +678,7 @@ curl -s "$APU/api/tools" -H "$APB" | python3 -c "import json,sys; print([t['name
 **Adımlar**
 1. Genel amaçlı, yaygın bilinen bir MCP referans sunucusunu Streamable
    HTTP üzerinden başlat. Bu repo'nun DIŞINDA, tester tarafından seçilen
-   bir araçtır — aşağıdaki komut yalnız bir ÖRNEKTİR, AgentPrism
+   bir araçtır — aşağıdaki komut yalnız bir ÖRNEKTİR, Tracon
    dokümanlarının bir parçası değildir:
    ```bash
    npx -y @modelcontextprotocol/server-everything --port 6060
@@ -694,7 +694,7 @@ curl -s "$APU/api/tools" -H "$APB" | python3 -c "import json,sys; print([t['name
 
 ---
 
-### MT-MCP-027 — Yerel sunucuyu AgentPrism'e kaydet, tool keşfi gerçekleşir
+### MT-MCP-027 — Yerel sunucuyu Tracon'e kaydet, tool keşfi gerçekleşir
 
 | | |
 |---|---|
@@ -757,13 +757,13 @@ Negatif/sınır senaryosu.
 | **İlgili faz** | Faz 50 |
 | **İlgili karar** | — |
 
-**Beklenen sonuç (koşum, izlek C — `AgentPrism.Testing`)**
-- `AgentPrismTestHost` ile `AgentPrismMcpServerOptions`'ı hiç
+**Beklenen sonuç (koşum, izlek C — `Tracon.Testing`)**
+- `TraconTestHost` ile `TraconMcpServerOptions`'ı hiç
   yapılandırmadan (`ExposedAgents=[]`, `ExposeAllAgents=false`
   varsayılanlarıyla) `tools/list` çağrıldığında `tools: []` döner —
   hiçbir agent, açıkça izin verilmedikçe dışa açılmaz.
 - Repo'nun kendi `Bos_beyaz_liste_hicbir_tool_dondurmez` testi
-  (`tests/AgentPrism.AspNetCore.FunctionalTests/McpServerEndpointTests.cs:14`)
+  (`tests/Tracon.AspNetCore.FunctionalTests/McpServerEndpointTests.cs:14`)
   bu davranışı zaten otomatik doğruluyor — bu case, üretim benzeri örnek
   uygulama üzerinde AYNI GARANTİYİ elle tekrar doğrular: örnek
   uygulamada yalnız `ozetleyici` beyaz listededir, başka HİÇBİR agent
@@ -787,7 +787,7 @@ curl -s -X POST "$APU/mcp" -H "$APB" -H "content-type: application/json" -H "acc
 ```
 
 **Beklenen sonuç**
-- Yanıt TAM OLARAK tek bir tool içerir: `agentprism_ozetleyici`,
+- Yanıt TAM OLARAK tek bir tool içerir: `tracon_ozetleyici`,
   `inputSchema` yalnız `message` (string, required) alanı taşır. Başka
   hiçbir agent (ör. `support`) listede YOKTUR — beyaz listeye
   eklenmemiştir.
@@ -807,7 +807,7 @@ curl -s -X POST "$APU/mcp" -H "$APB" -H "content-type: application/json" -H "acc
 ```bash
 curl -s -X POST "$APU/mcp" -H "$APB" -H "content-type: application/json" -H "accept: application/json, text/event-stream" \
      -d '{ "jsonrpc": "2.0", "id": 2, "method": "tools/call",
-          "params": { "name": "agentprism_ozetleyici", "arguments": { "message": "Bugun hava cok guzeldi. Is yerinde her sey yolunda gitti. Toplantilar verimliydi." } } }'
+          "params": { "name": "tracon_ozetleyici", "arguments": { "message": "Bugun hava cok guzeldi. Is yerinde her sey yolunda gitti. Toplantilar verimliydi." } } }'
 ```
 
 **Beklenen sonuç**
@@ -832,7 +832,7 @@ Negatif senaryo.
 ```bash
 curl -s -X POST "$APU/mcp" -H "$APB" -H "content-type: application/json" -H "accept: application/json, text/event-stream" \
      -d '{ "jsonrpc": "2.0", "id": 3, "method": "tools/call",
-          "params": { "name": "agentprism_ozetleyici", "arguments": { "message": "" } } }'
+          "params": { "name": "tracon_ozetleyici", "arguments": { "message": "" } } }'
 ```
 
 **Beklenen sonuç**
@@ -854,7 +854,7 @@ gerektirir, case sonunda geri alınır.**
 | **İlgili karar** | — |
 
 **Adımlar**
-1. `samples/AgentPrism.Api/Program.cs`'te GEÇİCİ olarak
+1. `samples/Tracon.Api/Program.cs`'te GEÇİCİ olarak
    `.UseMcpServer(o => o.ExposedAgents.Add("ozetleyici"))` satırını
    `.UseMcpServer(o => o.ExposedAgents.Add("support"))` ile DEĞİŞTİR
    (`support`, `cancel_order` — `RequiresApproval=true` — tool'unu
@@ -867,7 +867,7 @@ gerektirir, case sonunda geri alınır.**
   onay gerektiren bir tool asla dış bir MCP istemcisine sessizce
   sunulamaz.
 - Case sonrası `Program.cs` değişikliği GERİ ALINIR (`git checkout --
-  samples/AgentPrism.Api/Program.cs` veya elle geri yaz), uygulama
+  samples/Tracon.Api/Program.cs` veya elle geri yaz), uygulama
   normal haliyle yeniden başlatılır.
 
 ---
@@ -912,7 +912,7 @@ curl -s -X POST "$APU/api/agents" -H "$APB" -H "content-type: application/json" 
 }'
 curl -s -X POST "$APU/mcp" -H "$APB" -H "content-type: application/json" -H "accept: application/json, text/event-stream" \
      -d '{ "jsonrpc": "2.0", "id": 2, "method": "tools/list" }'
-# -> restart OLMADAN agentprism_manuel-canli-katalog gorunur, description: "ILK aciklama"
+# -> restart OLMADAN tracon_manuel-canli-katalog gorunur, description: "ILK aciklama"
 
 curl -s -X PUT "$APU/api/agents/manuel-canli-katalog" -H "$APB" -H "content-type: application/json" -d '{
   "name": "manuel-canli-katalog",
@@ -944,21 +944,21 @@ curl -s -X POST "$APU/mcp" -H "$APB" -H "content-type: application/json" -H "acc
 - Test makinesinde Claude Code CLI kurulu.
 
 **Adımlar**
-1. AgentPrism'in MCP sunucusunu CLI'ye ekle.
+1. Tracon'in MCP sunucusunu CLI'ye ekle.
 2. Bağlantı durumunu kontrol et.
 
 **Girilecek veri (düzeltilmiş — Authorization başlığı eksikti)**
 ```bash
-claude mcp add --transport http agentprism-manuel-test http://localhost:5080/agentprism/mcp \
+claude mcp add --transport http tracon-manuel-test http://localhost:5080/tracon/mcp \
      -s local --header "Authorization: Bearer manuel-test-token-2026"
-claude mcp get agentprism-manuel-test
+claude mcp get tracon-manuel-test
 ```
 
 **Beklenen sonuç**
-- `Status: ✔ Connected`. Bu, AgentPrism'in MCP sunucu yüzeyinin
+- `Status: ✔ Connected`. Bu, Tracon'in MCP sunucu yüzeyinin
   spesifikasyona gerçekten uygun olduğunun (protokolün kendi bir
   istemcisiyle doğrulanmış) en güçlü kanıtıdır.
-- Case sonrası `claude mcp remove agentprism-manuel-test -s local`.
+- Case sonrası `claude mcp remove tracon-manuel-test -s local`.
 
 ### MT-MCP-040 — Agent kartı `GET .well-known/agent-card.json` gerçek çıktısı
 
@@ -1008,7 +1008,7 @@ curl -s -X POST "$APU/a2a/ozetleyici/" -H "$APB" -H "content-type: application/j
   `role` alanı `"ROLE_AGENT"` biçimindedir (`"agent"` DEĞİL,
   protobuf-tarzı). Standart bir A2A istemcisi bu ikisini beklemeden
   yazılmışsa uyumsuzluk yaşayabilir — bu, koşum notuna kaydedilecek bir
-  gözlemdir, bir AgentPrism kusuru değildir (bağımlı SDK'nın davranışı).
+  gözlemdir, bir Tracon kusuru değildir (bağımlı SDK'nın davranışı).
 
 ---
 
@@ -1030,7 +1030,7 @@ curl -s "$APU/a2a/ozetleyici/.well-known/agent-card.json" -H "$APB" \
 ```
 
 **Beklenen sonuç**
-- Çıktı `/agentprism/a2a/ozetleyici` gibi GÖRECELİ bir yoldur, `http://...`
+- Çıktı `/tracon/a2a/ozetleyici` gibi GÖRECELİ bir yoldur, `http://...`
   ile başlayan MUTLAK bir URL DEĞİLDİR. Bir ters vekil (reverse proxy)
   arkasındaki gerçek bir A2A istemcisi bu URL'yi kendisi tamamlamak
   zorunda kalabilir — bu bilinen bir sınırlamadır, kusur değildir.
@@ -1049,8 +1049,8 @@ Negatif/sınır senaryosu — API yüzeyi karşılaştırması.
 | **İlgili karar** | — |
 
 **Adımlar**
-1. `AgentPrismA2AOptions` tipinin genel API yüzeyini incele (kod
-   okuması, `src/AgentPrism.AspNetCore/A2A/AgentPrismA2AOptions.cs`) veya
+1. `TraconA2AOptions` tipinin genel API yüzeyini incele (kod
+   okuması, `src/Tracon.AspNetCore/A2A/TraconA2AOptions.cs`) veya
    dolaylı olarak: `ozetleyici` dışında herhangi bir agent'a A2A yoluyla
    erişmeyi dene.
 
@@ -1100,7 +1100,7 @@ curl -s -w "\nHTTP: %{http_code}\n" "$APU/a2a/yeni-a2a-adayi/.well-known/agent-c
   (`Microsoft.Agents.AI.Hosting.A2A`), uygulama başladıktan sonra
   kataloğa eklenen bir agent'ı GÖREMEZ. Uygulamayı yeniden başlatmadan
   bu agent'ı A2A'ya açmanın hiçbir yolu yoktur — bu, ölçülmüş ve
-  testlerle (`tests/AgentPrism.AspNetCore.FunctionalTests/A2AEndpointTests.cs`)
+  testlerle (`tests/Tracon.AspNetCore.FunctionalTests/A2AEndpointTests.cs`)
   kanıtlanmış, kasıtlı bir sınırlamadır.
 
 ---
@@ -1139,7 +1139,7 @@ Kritik negatif senaryo. **Geçici kod değişikliği gerektirir.**
 | **İlgili karar** | — |
 
 **Adımlar**
-1. `/agentprism/tools` ekranını aç.
+1. `/tracon/tools` ekranını aç.
 2. `test-sunucu_*` önekli bir tool'a bak.
 
 **Beklenen sonuç**
@@ -1160,7 +1160,7 @@ Kritik negatif senaryo. **Geçici kod değişikliği gerektirir.**
 | **İlgili karar** | — |
 
 **Adımlar**
-1. `/agentprism/mcp` → "Yeni sunucu".
+1. `/tracon/mcp` → "Yeni sunucu".
 2. `authorizationConfigurationKey` alanına bir metin yaz.
 3. "OAuth kullan" onay kutusunu işaretle.
 
@@ -1181,15 +1181,15 @@ Kritik negatif senaryo. **Geçici kod değişikliği gerektirir.**
 | **İlgili karar** | K-059 |
 
 **Adımlar**
-1. `/agentprism/mcp` listesindeki "Yetki" sütununa bak.
+1. `/tracon/mcp` listesindeki "Yetki" sütununa bak.
 
 **Beklenen sonuç**
 - Sütun ya OAuth istemci kimliğini ya da yapılandırma ANAHTARI ADINI
-  gösterir (`AgentPrism:McpSecrets:GithubToken` gibi) — asla gerçek bir token/
+  gösterir (`Tracon:McpSecrets:GithubToken` gibi) — asla gerçek bir token/
   şifre DEĞERİ göstermez. Bu, MT-MCP-007'nin API seviyesindeki kanıtının
   arayüz tarafındaki karşılığıdır.
 
-### MT-MCP-050 — `/agentprism/mcp` ve `/agentprism/a2a` GRUP SEVİYESİNDE `ExternalInvoke` kapsamını doğru uygular (pozitif kontrol)
+### MT-MCP-050 — `/tracon/mcp` ve `/tracon/a2a` GRUP SEVİYESİNDE `ExternalInvoke` kapsamını doğru uygular (pozitif kontrol)
 
 Bu, §9'un geri kalanının aksine bir POZİTİF doğrulamadır — dış yüzeyin
 kendisi doğru korunuyor.
@@ -1207,7 +1207,7 @@ kendisi doğru korunuyor.
 **Adımlar**
 1. `ExternalInvoke` kapsamı OLMAYAN (ör. yalnız `RunsRead`) bir API
    anahtarı üret.
-2. Bu anahtarla `/agentprism/mcp`'ye `tools/list` gönder.
+2. Bu anahtarla `/tracon/mcp`'ye `tools/list` gönder.
 3. Kontrol: `ExternalInvoke` kapsamlı ikinci bir anahtar üret, aynı
    çağrının BAŞARILI olduğunu doğrula.
 
@@ -1284,7 +1284,7 @@ Somut, uçtan uca kanıt — MT-MCP-051'in rol katmanı boyutu.
 | **İlgili karar** | — |
 
 **Ön koşul**
-- Örnek uygulama `AgentPrismPolicies.*` rol politikalarını HİÇ kaydetmez
+- Örnek uygulama `TraconPolicies.*` rol politikalarını HİÇ kaydetmez
   (`00-INDEKS.md` §8'de zaten ölçülmüş) — bu durumda
   `RequireRole(roles.Admin)` de no-op'tur.
 
@@ -1326,7 +1326,7 @@ başlangıç koruması hâlâ vardır.
   temiz durum).
 
 **Adımlar**
-1. `AgentPrismEndpointOptions.AllowRemoteAccess`'i GEÇİCİ olarak `true`
+1. `TraconEndpointOptions.AllowRemoteAccess`'i GEÇİCİ olarak `true`
    yapacak şekilde `Program.cs`'i değiştir (loopback dışı erişimi açar).
 2. `dotnet run` ile başlatmayı dene.
 
@@ -1349,7 +1349,7 @@ başlangıç koruması hâlâ vardır.
 | **İlgili faz** | Faz 77 |
 | **İlgili karar** | K-529 · K-530 |
 
-**Ön koşul** Varsayılan ayarlar (`AgentPrism:Egress:AllowPrivateNetworkTargets`
+**Ön koşul** Varsayılan ayarlar (`Tracon:Egress:AllowPrivateNetworkTargets`
 tanımlı DEĞİL). Örnek uygulama ayakta.
 
 **Adımlar**
@@ -1362,7 +1362,7 @@ curl -s -X PUT "$APU/api/mcp-servers/probe" -H "$APB" \
 
 **Beklenen sonuç**
 - `400`. `detail`: `The target resolves to a private network address
-  (169.254.169.254); set 'AgentPrism:Egress:AllowPrivateNetworkTargets' to true
+  (169.254.169.254); set 'Tracon:Egress:AllowPrivateNetworkTargets' to true
   to allow it.`
 - Aynısı `http://10.0.0.5:8080/mcp`, `https://192.168.1.10/mcp`,
   `http://127.0.0.1:9000/mcp` ve NAT64 biçimi
@@ -1382,7 +1382,7 @@ curl -s -X PUT "$APU/api/mcp-servers/probe" -H "$APB" \
 | **İlgili faz** | Faz 77 |
 | **İlgili karar** | K-530 |
 
-**Ön koşul** Uygulamayı `AgentPrism__Egress__AllowPrivateNetworkTargets=true`
+**Ön koşul** Uygulamayı `Tracon__Egress__AllowPrivateNetworkTargets=true`
 ortam değişkeniyle başlat.
 
 **Adımlar** MT-MCP-054'ün ilk komutunu tekrarla.
@@ -1390,7 +1390,7 @@ ortam değişkeniyle başlat.
 **Beklenen sonuç**
 - `200`; kayıt oluşur. İç ağında MCP sunucusu çalıştıran bir kurulumun
   yükseltme yolu budur ve **tek satırdır**.
-- 🚨 Ayar `AgentPrism` bölümünün altındadır (`AgentPrism:Egress:...`). Bu case
+- 🚨 Ayar `Tracon` bölümünün altındadır (`Tracon:Egress:...`). Bu case
   aynı zamanda ayarın gerçekten **bağlandığını** ölçer — tanımlı ama okunmayan
   bir ayar sınıfı bu repoda daha önce yaşandı (K-406).
 
@@ -1418,10 +1418,10 @@ curl -s -X PUT "$APU/api/mcp-servers/probe" -H "$APB" \
 **Beklenen sonuç**
 - `400`. `detail`: `'ConnectionStrings:Default' is outside the allowed prefix.
   'authorizationConfigurationKey' may only reference a configuration key under
-  'AgentPrism:McpSecrets:'.`
+  'Tracon:McpSecrets:'.`
 - `authorizationConfigurationKey` yerine `oauthClientSecretConfigurationKey`
   kullanıldığında (OAuth açıkken) aynı red, alan adı değişerek gelir.
-- `AgentPrism:McpSecrets:Token` ile aynı istek `200` döner.
+- `Tracon:McpSecrets:Token` ile aynı istek `200` döner.
 
 ---
 
@@ -1435,7 +1435,7 @@ curl -s -X PUT "$APU/api/mcp-servers/probe" -H "$APB" \
 | **İlgili karar** | K-533 |
 
 **Ön koşul** Veritabanında `authorization_configuration_key` sütunu
-`AgentPrism:Mcp:LegacyToken` (önek DIŞI) olan bir MCP kaydı. Faz 77 öncesi
+`Tracon:Mcp:LegacyToken` (önek DIŞI) olan bir MCP kaydı. Faz 77 öncesi
 kaydedilmiş bir kurulumda bu kendiliğinden vardır; yoksa SQL ile yazılır.
 
 **Adımlar**
@@ -1446,7 +1446,7 @@ kaydedilmiş bir kurulumda bu kendiliğinden vardır; yoksa SQL ile yazılır.
 - Adım 1 `200` döner ve kayıt listede görünür: **okuma etkilenmez.** Operatör
   neyi düzelteceğini görebilmelidir.
 - Adım 2 `400` döner ve mesaj hem alan adını (`authorizationConfigurationKey`)
-  hem izinli öneki (`AgentPrism:McpSecrets:`) yazar.
+  hem izinli öneki (`Tracon:McpSecrets:`) yazar.
 - Düzeltme elle yapılır: anahtar adı öneke taşınır ve `dotnet user-secrets`
   içindeki değer yeni adla yazılır. Taşıma yardımcısı **yoktur** ve bilinçlidir
   (kayıt başına tek alan; değer değil **ad** taşınır).
@@ -1467,7 +1467,7 @@ kaydedilmiş bir kurulumda bu kendiliğinden vardır; yoksa SQL ile yazılır.
 
 **Adımlar**
 1. Sunucuyu kaydetmeyi dene.
-2. `AgentPrism__Egress__AllowPrivateNetworkTargets=true` ile yeniden başlat, tekrar kaydet.
+2. `Tracon__Egress__AllowPrivateNetworkTargets=true` ile yeniden başlat, tekrar kaydet.
 3. Tool listesinin tazelenmesini bekle ve `GET $APU/api/tools` ile tool'ları gör.
 
 **Beklenen sonuç**
@@ -1509,7 +1509,7 @@ Büyük metin döndüren en az bir tool taşıyan bir MCP sunucusu kayıtlı (bk
 repo'da dokümante edilmiş bir yerel MCP sunucusu yoktur, tester kendi
 sunucusunu getirir). Uygulama küçük bir kurulum varsayılanıyla başlatılmış:
 ```bash
-export AgentPrism__Tools__DefaultMaxOutputBytes=200
+export Tracon__Tools__DefaultMaxOutputBytes=200
 ```
 
 **Adımlar**
@@ -1562,7 +1562,7 @@ curl -s "$BASE/api/runs/$RUN_ID/events" -H "$APB" \
 **Beklenen sonuç**
 - `TaskId`, `/api/runs/{TaskId}` altında GÖRÜNEN gerçek bir run kimliğidir; `agentName` doğru.
 - `tasks/get` önce `Working`, sonra `Completed` döner; sonuç metni gerçek agent çıktısını taşır.
-- Otomatikleştirildi: `McpTasksEndpointTests.EnableTasks_true_creates_a_task_whose_id_is_the_run_id`, `Tasks_get_transitions_from_working_to_completed_with_the_run_output`. Gerçek `samples/AgentPrism.Api` koşumu: bkz. faz dokümanı § "Gerçek sunucu koşumu".
+- Otomatikleştirildi: `McpTasksEndpointTests.EnableTasks_true_creates_a_task_whose_id_is_the_run_id`, `Tasks_get_transitions_from_working_to_completed_with_the_run_output`. Gerçek `samples/Tracon.Api` koşumu: bkz. faz dokümanı § "Gerçek sunucu koşumu".
 
 ### MT-MCP-063 — `tasks/cancel`: koşan bir task'ı GERÇEKTEN iptal eder, kuyruklu (henüz başlamamış) task'ı doğrudan kapatır (Faz 117)
 
@@ -1621,7 +1621,7 @@ Onay gerektiren bir tool kodda kayıtlı; agent önce bu tool OLMADAN dışa aç
 - Adım 3: 🚨 SDK'nin kendi `tasks/cancel`'ı KOŞULSUZ ack döner VE run'ı GERÇEKTEN iptal edebilir (kapatılamayan bir SDK sınırı, K-637) — ama kiracı A'nın kendi görünümü hâlâ DOĞRU ve OKUNABİLİR kalır (asla `Working` durumunda takılı kalmaz).
 - Otomatikleştirildi: `McpTaskTenantIsolationTests` (2 test).
 
-### MT-MCP-066 — İki AgentPrism örneği, tek veritabanı: task ikinci örnekten okunur (Faz 117)
+### MT-MCP-066 — İki Tracon örneği, tek veritabanı: task ikinci örnekten okunur (Faz 117)
 
 | | |
 |---|---|
@@ -1634,7 +1634,7 @@ Onay gerektiren bir tool kodda kayıtlı; agent önce bu tool OLMADAN dışa aç
 
 **Beklenen sonuç**
 - Örnek B, hiç görmediği bir task'ı `IRunStore`'dan doğru şekilde yeniden inşa eder — bellek içi bir önbelleğe bağlı değildir.
-- Otomatikleştirildi: `McpTaskCrossInstanceTests.Second_instance_reconstructs_a_completed_task_from_the_shared_database` — plan bunu 👤 elle koşulacak bir case sayıyordu, iki gerçek `AgentPrismTestHost` + tek SQLite dosyasıyla otomatikleştirildi.
+- Otomatikleştirildi: `McpTaskCrossInstanceTests.Second_instance_reconstructs_a_completed_task_from_the_shared_database` — plan bunu 👤 elle koşulacak bir case sayıyordu, iki gerçek `TraconTestHost` + tek SQLite dosyasıyla otomatikleştirildi.
 
 ### MT-MCP-067 — 👤 `TaskTimeToLive` dolunca `tasks/get` hâlâ okunur (Faz 117, Açık Soru 2)
 
@@ -1691,7 +1691,7 @@ yan etkisi vardı).
 
 > **Otomatik karşılığı:** `ToolWrapperChainTests.A_code_defined_registration_and_an_mcp_style_registration_produce_the_same_wrapper_layers`
 > ve `A_real_validator_installs_the_validating_layer_between_timeout_and_authorizing`
-> (`tests/AgentPrism.Core.UnitTests/Tools/ToolWrapperChainTests.cs`) iki çağrı
+> (`tests/Tracon.Core.UnitTests/Tools/ToolWrapperChainTests.cs`) iki çağrı
 > yolunun aynı zinciri kurduğunu birim seviyesinde doğrudan ölçer. ⬜ Gerçek
 > bir MCP sunucusuna karşı elle koşulmadı — `18-MCP-VE-A2A.md`'nin genelinde
 > §5'in kendi notu geçerlidir: repo'da dokümante edilmiş bir yerel MCP

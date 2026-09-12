@@ -1,0 +1,56 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Microsoft.CodeAnalysis.CSharp.SourceGenerators.Testing.XUnit is NOT used:
+    that package pulls in xunit v2 (xunit.assert 2.3.0), while this repo uses
+    xunit.v3 + Microsoft Testing Platform (tests/Directory.Build.props). Referencing
+    both in the same project would cause a FactAttribute/TheoryAttribute clash.
+    CSharpGeneratorDriver is used directly instead - same coverage, one test
+    runner.
+  -->
+  <ItemGroup>
+    <ProjectReference Include="../../src/Tracon.Generators/Tracon.Generators.csproj" />
+    <ProjectReference Include="../../src/Tracon.Core/Tracon.Core.csproj" />
+    <!--
+      Phase 73: TraconUsageAnalyzer resolves REAL symbols. TRC0101 needs
+      MapTracon (AspNetCore) and TRC0102 needs UseOpenAI (OpenAI); a stub
+      declared in the test source would prove only that the analyzer matches a
+      name, not that it matches this package's API.
+    -->
+    <ProjectReference Include="../../src/Tracon.AspNetCore/Tracon.AspNetCore.csproj" />
+    <ProjectReference Include="../../src/Tracon.OpenAI/Tracon.OpenAI.csproj" />
+    <!--
+      Phase 79: Examples/ExampleCompilationTests.cs compiles every shipped
+      <example> block, and the 49 blocks are spread across 15 packages
+      (measured, docs/79-*.md §79.2). Tracon.Abstractions comes in
+      transitively through Core; these 11 are the rest.
+    -->
+    <ProjectReference Include="../../src/Tracon.Workflows/Tracon.Workflows.csproj" />
+    <ProjectReference Include="../../src/Tracon.Azure/Tracon.Azure.csproj" />
+    <ProjectReference Include="../../src/Tracon.Anthropic/Tracon.Anthropic.csproj" />
+    <ProjectReference Include="../../src/Tracon.Mcp/Tracon.Mcp.csproj" />
+    <ProjectReference Include="../../src/Tracon.Testing/Tracon.Testing.csproj" />
+    <ProjectReference Include="../../src/Tracon.SqlServer/Tracon.SqlServer.csproj" />
+    <ProjectReference Include="../../src/Tracon.UI/Tracon.UI.csproj" />
+    <ProjectReference Include="../../src/Tracon.PostgreSql/Tracon.PostgreSql.csproj" />
+    <ProjectReference Include="../../src/Tracon.Sqlite/Tracon.Sqlite.csproj" />
+    <ProjectReference Include="../../src/Tracon.Google/Tracon.Google.csproj" />
+    <ProjectReference Include="../../src/Tracon.Voice/Tracon.Voice.csproj" />
+    <!-- Phase 84: TraconClientServiceCollectionExtensions carries an <example> too; missed when Phase 83 added the package. -->
+    <ProjectReference Include="../../src/Tracon.Client/Tracon.Client.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" />
+    <!--
+      Phase 155: a shipped <example> names Microsoft.Extensions.AI.Evaluation.Quality's
+      RelevanceEvaluator. ExampleCompilationTests compiles every block against THIS
+      project's reference set, so the type has to be resolvable here - and only here:
+      no shipped package references the catalog.
+    -->
+    <PackageReference Include="Microsoft.Extensions.AI.Evaluation.Quality" />
+    <!-- Test-only: the AzureOpenAIProviderOptions.CredentialFactory <example> names DefaultAzureCredential. -->
+    <PackageReference Include="Azure.Identity" />
+  </ItemGroup>
+
+</Project>

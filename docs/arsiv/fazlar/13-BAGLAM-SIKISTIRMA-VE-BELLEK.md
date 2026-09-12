@@ -3,7 +3,7 @@
 > **Durum:** ✅ Tamamlandı (2026-08-02)
 > **Kaynak:** [BEYIN-FIRTINASI.md](../BEYIN-FIRTINASI.md) · **F-11**
 > **Önkoşul:** Yok (Faz 10 ve 12 bu fazı **gerekli** kılar — bağlam onlarla büyür)
-> **Paketler:** `AgentPrism.Abstractions`, `.Core`, `.PostgreSql`, `.AspNetCore`, `.UI`
+> **Paketler:** `Tracon.Abstractions`, `.Core`, `.PostgreSql`, `.AspNetCore`, `.UI`
 > **Yeni paket:** Yok (ölçüldü — bkz. §13.4) · **Migration:** Yok
 
 ---
@@ -34,13 +34,13 @@
 ### Çalıştırma kapsamı
 
 ```csharp
-AgentPrismRunContext.Current            // okuma
-AgentPrismRunContext.SetCurrent(scope)  // yazma
+TraconRunContext.Current            // okuma
+TraconRunContext.SetCurrent(scope)  // yazma
 ```
 
 `AgentRunScope` bu fazda yeni bir alan kazandı: `internal CompactionUsageAccumulator? ExtraUsage`
 (bkz. §13.2). Sıkıştırma olayını akışa yazmanın **tek yolu** hâlâ
-`AgentPrismRunContext.Current?.Writer`'dır.
+`TraconRunContext.Current?.Writer`'dır.
 
 ### 🚨 Bilinen tuzaklar (Faz 12'de ölçüldü, bu fazda da geçerli kaldı)
 
@@ -54,7 +54,7 @@ AgentPrismRunContext.SetCurrent(scope)  // yazma
 | Tuzak | Kural |
 |-------|-------|
 | `CompactionStrategy.CompactCoreAsync` **korumalıdır** ve C#'ta bir kardeş türetilmiş tipin örneği üzerinden çağrılamaz | Bir strateji sarmalayıcısı (`ObservedCompactionStrategy`) iç stratejiyi **`CompactAsync`** (public, sanal olmayan) ile çağırır. `CompactAsync` iç stratejinin **kendi** tetikleyicisini tekrar kontrol eder — bu yüzden iç strateji de dış ile **aynı** tetikleyiciyle kurulur (`ContextWindow`/`Pipeline` hariç, onlar kendi iç tetikleyicilerini kendileri taşır). |
-| `AgentDefinitionPayload` (`AgentPrism.PostgreSql`) `AgentDefinition`'ı **ayrı bir DTO** ile serileştirir, kaynak üretecinin `AgentDefinition`'dan otomatik türettiği şema **değil** | Yeni bir `AgentDefinition` alanı eklendiğinde `AgentPrismCoreJsonContext` yeterli değildir — `Internal/AgentDefinitionPayload.cs`'e de elle eklenmelidir. Ölçüldü: `Compaction`/`Memory` alanları eklenmeden önce PostgreSQL round-trip testi sessizce `null` döndürüyordu (build/test kırmıyordu, yalnızca round-trip testi yakaladı). **Aynı dosyada Faz 12'den kalma bağımsız bir hata daha bulundu ve düzeltildi:** `CallableAgentNames` de bu payload'da hiç yoktu — PostgreSQL'e yazılan bir agent'ın çağırabileceği alt agent listesi sessizce kayboluyordu. |
+| `AgentDefinitionPayload` (`Tracon.PostgreSql`) `AgentDefinition`'ı **ayrı bir DTO** ile serileştirir, kaynak üretecinin `AgentDefinition`'dan otomatik türettiği şema **değil** | Yeni bir `AgentDefinition` alanı eklendiğinde `TraconCoreJsonContext` yeterli değildir — `Internal/AgentDefinitionPayload.cs`'e de elle eklenmelidir. Ölçüldü: `Compaction`/`Memory` alanları eklenmeden önce PostgreSQL round-trip testi sessizce `null` döndürüyordu (build/test kırmıyordu, yalnızca round-trip testi yakaladı). **Aynı dosyada Faz 12'den kalma bağımsız bir hata daha bulundu ve düzeltildi:** `CallableAgentNames` de bu payload'da hiç yoktu — PostgreSQL'e yazılan bir agent'ın çağırabileceği alt agent listesi sessizce kayboluyordu. |
 | `CompactionMessageIndex` gerçek bir `Microsoft.ML.Tokenizers.Tokenizer` ister ama `CompactionProvider`'ın kendisi **tokenizer parametresi almaz** | Ölçüldü: `CompactionProvider(strategy, stateKey, loggerFactory)` ile kurulan bir agent gerçek bir `RunAsync` çağrısında hatasız çalıştı — MAF tokenizer'ı içeride kendisi çözüyor, `Microsoft.ML.Tokenizers.Data.*` gibi ek bir veri paketi **gerekmedi**. Bu, §13.4'ün "yeni paket yok" kararını doğrular. |
 | Enum HTTP'ye yansıyorsa `JsonStringEnumConverter` **eklenmeden** unutmak sessiz bir sayı sızıntısı üretir | `CompactionStrategyKind` ilk yazıldığında bu öznitelik unutuldu; bir fonksiyonel test (`.GetString()` beklerken sayı geldi) yakaladı. K-040 deseni her yeni HTTP'ye yansıyan enum için tekrarlanmalı. |
 
@@ -71,7 +71,7 @@ MAF'ta hazır olan ve daha önce hiç kullanılmayan bağlam yönetimi yetenekle
 3. **`ChatHistoryMemoryProvider` bu fazın kapsamı dışında** — VectorStore gerekçesiyle (K-105, kullanıcı kararı).
 4. **Sıkıştırma varsayılan kapalıdır** (K-106, kullanıcı kararı).
 5. **Özetlenen mesajlar `conversation_items`'ta saklanır, silinmez** (K-107, kullanıcı kararı).
-6. **Özet modeli çözümleme sırası:** agent ayarı → `AgentPrismOptions.UtilityModel` → agent'ın kendi modeli (K-108).
+6. **Özet modeli çözümleme sırası:** agent ayarı → `TraconOptions.UtilityModel` → agent'ın kendi modeli (K-108).
 7. **Özet token'ları çalıştırmanın toplamına dâhildir** (K-108, `CompactionUsageAccumulator`/`MergeUsage` ile).
 8. **`Pipeline` sırası sabittir:** ToolResult → SlidingWindow → Summarization (K-109).
 9. **`TextSearchProvider` kayıtlı `AgentFileStore`'a bağımlıdır**, bu faz `InMemoryAgentFileStore` (K-110).
@@ -103,6 +103,6 @@ Tam gerekçeler `docs/KARARLAR.md`'de.
   zaten toplamı taşıyor ama özet payı ayrıştırılmış değil.
 - **Bağımsız bulunan hata:** `AgentDefinitionPayload`'da `CallableAgentNames`
   eksikti (Faz 12'den kalma); bu fazda bulunup düzeltildi. Yeni bir
-  `AgentDefinition` alanı eklerken **hem** `AgentPrismCoreJsonContext`'in
-  kapsadığı tipi **hem** `AgentPrism.PostgreSql/Internal/AgentDefinitionPayload.cs`'i
+  `AgentDefinition` alanı eklerken **hem** `TraconCoreJsonContext`'in
+  kapsadığı tipi **hem** `Tracon.PostgreSql/Internal/AgentDefinitionPayload.cs`'i
   güncellemeyi unutmayın — ikisi ayrı şemalardır.

@@ -1,4 +1,4 @@
-# AgentPrism — Manuel Kabul Testi Koşum Planı (2026-08-13 turu)
+# Tracon — Manuel Kabul Testi Koşum Planı (2026-08-13 turu)
 
 > ## 📦 ARŞİV — bu bir TUR KAYDIDIR, protokol değildir
 >
@@ -67,25 +67,25 @@ ile kod çelişirse doküman yanlıştır.
 
 ### 2.2 `user-secrets` kullanılmaz — ortam değişkeni kullanılır
 
-`dotnet user-secrets` deposu `UserSecretsId=agentprism-sample-api` ile
+`dotnet user-secrets` deposu `UserSecretsId=tracon-sample-api` ile
 **makine genelinde tektir**. Dört şerit onu paylaşır; biri yazarken diğeri okur.
 
 Senaryolarda geçen her
 
 ```bash
-dotnet user-secrets set "AgentPrism:PostgreSql:ConnectionString" "..."
-dotnet user-secrets remove "AgentPrism:Sqlite:ConnectionString"
+dotnet user-secrets set "Tracon:PostgreSql:ConnectionString" "..."
+dotnet user-secrets remove "Tracon:Sqlite:ConnectionString"
 ```
 
 adımı, ajan tarafından şeridin kendi ortam değişkenine çevrilir:
 
 ```bash
-export AgentPrism__PostgreSql__ConnectionString="..."
-export AgentPrism__Sqlite__ConnectionString=""      # remove = bos deger
+export Tracon__PostgreSql__ConnectionString="..."
+export Tracon__Sqlite__ConnectionString=""      # remove = bos deger
 ```
 
 Ortam değişkeni `user-secrets`'ı **ezer** (ASP.NET Core yapılandırma sırası).
-Boş değer "kayıtlı değil" demektir: `samples/AgentPrism.Api/Program.cs:635-646`
+Boş değer "kayıtlı değil" demektir: `samples/Tracon.Api/Program.cs:635-646`
 üç sağlayıcıyı `string.IsNullOrWhiteSpace` ile ayırır.
 
 > Bu bir **sapmadır** ve her oturumun sonuç dosyasına bir kez yazılır:
@@ -96,11 +96,11 @@ Boş değer "kayıtlı değil" demektir: `samples/AgentPrism.Api/Program.cs:635-
 | Kaynak | Kural |
 |---|---|
 | Senaryo dosyaları | Bir dosya **tek** şeride aittir. Başka şeridin dosyasına yazma. |
-| PostgreSQL | Yalnız kendi şemanı düşür: `DROP SCHEMA IF EXISTS mt_s<N> CASCADE;` — **asla** `agentprism` şemasını değil. |
+| PostgreSQL | Yalnız kendi şemanı düşür: `DROP SCHEMA IF EXISTS mt_s<N> CASCADE;` — **asla** `tracon` şemasını değil. |
 | SQLite | Yalnız kendi worktree'ndeki `.db` dosyası. |
-| SQL Server | Yalnız kendi veritabanın (`AgentPrism_S<N>`). |
+| SQL Server | Yalnız kendi veritabanın (`Tracon_S<N>`). |
 | Docker container | **Durdurma, silme, yeniden başlatma yok.** Container'lar paylaşılır. Bir case container'ı durdurmayı istiyorsa §5'e bak. |
-| `~/agentprism-local-feed`, `dotnet new install` | Küresel. Yalnız `24` dosyasını koşan ajan dokunur. |
+| `~/tracon-local-feed`, `dotnet new install` | Küresel. Yalnız `24` dosyasını koşan ajan dokunur. |
 | Port | Yalnız kendi portun. |
 
 ### 2.4 Ne zaman kullanıcıya sorulur
@@ -111,7 +111,7 @@ Ajan şu durumlarda **durur ve `AskUserQuestion` ile sorar** — varsayım yapma
 2. Bir case fiziksel eylem ister: mikrofon, hoparlör, Docker Desktop ayarı,
    göz denetimi. → Önce §5'teki listeye ekle; oturum sonunda topluca sor.
 3. Bir case paylaşılan bir kaynağı bozacak: container durdurma, küresel şablon
-   kaydı, `agentprism` şeması, repo'nun `NuGet.config` dosyası.
+   kaydı, `tracon` şeması, repo'nun `NuGet.config` dosyası.
 4. Beklenen sonuç iki farklı biçimde okunabiliyor ve hangisinin doğru olduğu
    koddan çıkmıyor.
 5. **Kritik** önemde bir kusur bulundu ve aynı kök neden sonraki 5+ case'i
@@ -146,7 +146,7 @@ kopyası, ayrı dal. Böylece dosya yazımı çakışmaz ve birleştirme önemsi
 
 ```mermaid
 flowchart TD
-    R["AgentPrism (ana kopya)<br/>dal: docs/manuel-test"] --> W1["ap-s1<br/>dal: test/kosum-s1<br/>port 5081 · sema mt_s1"]
+    R["Tracon (ana kopya)<br/>dal: docs/manuel-test"] --> W1["ap-s1<br/>dal: test/kosum-s1<br/>port 5081 · sema mt_s1"]
     R --> W2["ap-s2<br/>dal: test/kosum-s2<br/>port 5082 · sema mt_s2"]
     R --> W3["ap-s3<br/>dal: test/kosum-s3<br/>port 5083 · sema mt_s3"]
     R --> W4["ap-s4<br/>dal: test/kosum-s4<br/>port 5084 · sema mt_s4"]
@@ -159,7 +159,7 @@ flowchart TD
 ### 3.1 Kurulum (bir kez, tek kişi/ajan yapar)
 
 ```bash
-cd /Users/farukatasoy/Desktop/projects/AgentPrism
+cd /Users/farukatasoy/Desktop/projects/Tracon
 
 # 1. Aktif oturumun isi bitti mi? Bitmediyse BEKLE.
 git status --short
@@ -174,7 +174,7 @@ done
 
 # 4. Her worktree'yi bir kez tam derle (sonraki kosumlar --no-build ile hizli olur).
 for n in 1 2 3 4; do
-  (cd ../ap-s$n && dotnet build AgentPrism.slnx -c Release)
+  (cd ../ap-s$n && dotnet build Tracon.slnx -c Release)
 done
 ```
 
@@ -188,24 +188,24 @@ Her oturum bu bloğu çalıştırarak açılır. `<N>` şerit numarasıdır.
 ```bash
 export SERIT=1                      # kendi serit numaran
 export APORT=508$SERIT
-export APU="http://localhost:$APORT/agentprism"
+export APU="http://localhost:$APORT/tracon"
 export APB="Authorization: Bearer manuel-test-token-2026"
-export PG="docker exec -i ap-pg psql -U postgres -d agentprism"
+export PG="docker exec -i ap-pg psql -U postgres -d tracon"
 
-cd /Users/farukatasoy/Desktop/projects/AgentPrism/../ap-s$SERIT
+cd /Users/farukatasoy/Desktop/projects/Tracon/../ap-s$SERIT
 
 # Kimlik — hepsi ortam degiskeni, user-secrets DEGIL.
-export AgentPrism__Ui__AuthToken="manuel-test-token-2026"
-export AgentPrism__Providers__OpenAI__ApiKey="$(cd /Users/farukatasoy/Desktop/projects/AgentPrism/samples/AgentPrism.Api && dotnet user-secrets list --json 2>/dev/null | python3 -c 'import sys,json;d=sys.stdin.read();d=d[d.index("{"):d.rindex("}")+1];print(json.loads(d).get("AgentPrism:Providers:OpenAI:ApiKey",""))')"
+export Tracon__Ui__AuthToken="manuel-test-token-2026"
+export Tracon__Providers__OpenAI__ApiKey="$(cd /Users/farukatasoy/Desktop/projects/Tracon/samples/Tracon.Api && dotnet user-secrets list --json 2>/dev/null | python3 -c 'import sys,json;d=sys.stdin.read();d=d[d.index("{"):d.rindex("}")+1];print(json.loads(d).get("Tracon:Providers:OpenAI:ApiKey",""))')"
 # Ayni deseni Anthropic, Google, OpenAICompatible:openrouter, Voice icin tekrarla.
 
 # Kalicilik — HER SERIT KENDI IZOLASYONU. Ucunden yalniz biri dolu olur.
-export AgentPrism__PostgreSql__ConnectionString="Host=localhost;Port=55432;Database=agentprism;Username=postgres;Password=agentprism"
-export AgentPrism__PostgreSql__SchemaName="mt_s$SERIT"
-export AgentPrism__Sqlite__ConnectionString=""
-export AgentPrism__SqlServer__ConnectionString=""
+export Tracon__PostgreSql__ConnectionString="Host=localhost;Port=55432;Database=tracon;Username=postgres;Password=tracon"
+export Tracon__PostgreSql__SchemaName="mt_s$SERIT"
+export Tracon__Sqlite__ConnectionString=""
+export Tracon__SqlServer__ConnectionString=""
 
-dotnet run --project samples/AgentPrism.Api -c Release --no-build --urls "http://localhost:$APORT"
+dotnet run --project samples/Tracon.Api -c Release --no-build --urls "http://localhost:$APORT"
 ```
 
 > Anahtarları okumak için `dotnet user-secrets list` **yalnız okuma** yapar;
@@ -218,12 +218,12 @@ dotnet run --project samples/AgentPrism.Api -c Release --no-build --urls "http:/
 ```bash
 # 1. Uygulamayi durdur.
 # 2. Yalniz KENDI semani dusur.
-docker exec -i ap-pg psql -U postgres -d agentprism -c "DROP SCHEMA IF EXISTS mt_s$SERIT CASCADE;"
+docker exec -i ap-pg psql -U postgres -d tracon -c "DROP SCHEMA IF EXISTS mt_s$SERIT CASCADE;"
 # 3. Yalniz KENDI sqlite dosyani sil.
-rm -f samples/AgentPrism.Api/agentprism-manuel.db*
+rm -f samples/Tracon.Api/tracon-manuel.db*
 # 4. Yalniz KENDI SQL Server veritabanini dusur (varsa).
 docker exec -i ap-mssql /opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa \
-  -P 'AgentPrism!2026' -Q "DROP DATABASE IF EXISTS AgentPrism_S$SERIT;"
+  -P 'Tracon!2026' -Q "DROP DATABASE IF EXISTS Tracon_S$SERIT;"
 # 5. Uygulamayi yeniden baslat.
 ```
 
@@ -336,8 +336,8 @@ bölüm başlıklarıdır — bir bölümün ortasında oturum bitmez.
 
 ### Şerit 1 — Kalıcılık ve ses · port 5081 · şema `mt_s1`
 
-Kalıcılık sağlayıcısı case'e göre değişir; bu şerit `AgentPrism__Sqlite__*` ve
-`AgentPrism__SqlServer__*` değişkenlerini en çok o kullanır.
+Kalıcılık sağlayıcısı case'e göre değişir; bu şerit `Tracon__Sqlite__*` ve
+`Tracon__SqlServer__*` değişkenlerini en çok o kullanır.
 
 | Oturum | Dosya | Bölüm | Case | Not |
 |---|---|---|---|---|
@@ -425,11 +425,11 @@ karar gerekçeleri: `docs/KARARLAR.md` K-400..K-407,
 |---|---|---|
 | `HATA-K-002` — Skill script çalıştırma iki ayrı kök nedenle tamamen çalışmıyordu | Kritik | ✅ Düzeltildi (K-400) |
 | `HATA-K-003` — Magentic plan onayı sonrası devam `ExecutorFailed`/`RunFailed` ile opak hata veriyor | Kritik | ✅ Düzeltildi (K-401, kısmi — "zarif durdurma" F-106'ya yazıldı) |
-| `HATA-K-004` — `AgentPrismWorkflowOptions` hiçbir konfigürasyon kaynağına bağlı değil | Kritik | ✅ Düzeltildi (K-402) |
+| `HATA-K-004` — `TraconWorkflowOptions` hiçbir konfigürasyon kaynağına bağlı değil | Kritik | ✅ Düzeltildi (K-402) |
 | `HATA-K-005` — Workflow `run` ucunda `sessionId` doğrulama hatası düz `HTTP 500`'e düşüyor | Kritik | ✅ Düzeltildi (K-403) |
 | `HATA-K-001` — `POST/PUT /api/agents` bilinmeyen skill/tool/callable-agent adını SAVE zamanında hiç doğrulamıyor | Yüksek | ✅ Düzeltildi (K-404) |
 | `HATA-K-006` — `WorkflowEndpoints` API anahtarı kapsam denetimi hiç uygulamıyor | Yüksek | ✅ Düzeltildi (K-405) |
-| `HATA-K-007` — `AgentPrism:RunRecording:RecordRunInput` config'ten hiçbir zaman okunmuyor | Yüksek | ✅ Düzeltildi (K-406) |
+| `HATA-K-007` — `Tracon:RunRecording:RecordRunInput` config'ten hiçbir zaman okunmuyor | Yüksek | ✅ Düzeltildi (K-406) |
 | `HATA-K-008` — `ApiKeyScope`'ta Eval/Experiment için kapsam yok, `RunEndpoints`'te `feedback`/`compare`/`input` kapsamsız | Yüksek | ✅ Düzeltildi (K-407) |
 
 Ortak kuyruk'ta kod/kusur açığı **sıfır**. `SchedulingEndpoints`
@@ -449,7 +449,7 @@ kapsamı dışında bırakıldı, ayrı bir bulgu/düzeltme gerektirir.
 Tüm şeritler bitince tek bir toplama oturumu:
 
 ```bash
-cd /Users/farukatasoy/Desktop/projects/AgentPrism
+cd /Users/farukatasoy/Desktop/projects/Tracon
 for n in 1 2 3 4; do git merge --no-ff test/kosum-s$n -m "manuel test: serit $n sonuclari"; done
 ```
 

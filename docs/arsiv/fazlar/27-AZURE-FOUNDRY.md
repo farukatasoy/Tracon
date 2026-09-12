@@ -3,7 +3,7 @@
 > **Durum:** ✅ Tamamlandı (2026-08-05) — Azure OpenAI yapıldı, **Foundry ertelendi**
 > **Kaynak:** [BEYIN-FIRTINASI.md](../BEYIN-FIRTINASI.md) · **F-04**
 > **Önkoşul:** [Faz 8](08-SAGLAYICI-GENISLEMESI.md) · [Faz 26](26-ANTHROPIC-VE-GEMINI.md)
-> **Paketler:** **`AgentPrism.Azure` (YENİ)**
+> **Paketler:** **`Tracon.Azure` (YENİ)**
 > **Migration:** Yok
 
 ---
@@ -39,7 +39,7 @@ Sürüm uyumu **sağlandı**; iş yine de ertelendi. Gerekçe üç katmanlıdır
 1. **37 geçişli paket.** K-205'te 11 için verilen kararın üç katı.
 2. **Doğrulanamazlık.** `FoundryAgentSource` gerçek bir Azure aboneliği olmadan
    sahte istemciden öteye test edilemez; DoD'nin yarısı boş kalırdı.
-3. **Ödünleşme.** Foundry agent'ı AgentPrism'in tool onayı, kalıcılık, kiracı
+3. **Ödünleşme.** Foundry agent'ı Tracon'in tool onayı, kalıcılık, kiracı
    yalıtımı ve replay garantilerini kaybettirir. Sessizce yarım çalışan bir
    özellik, hiç olmayan özellikten kötüdür.
 
@@ -52,7 +52,7 @@ Plan `SettingsPrefix = "azure"` diyordu. Ad `ModelBinding.Provider` üzerinden
 bozar (K-207'nin dersi). `azure` adı tüm Azure dünyasını tek ada kilitlerdi;
 Foundry veya Azure AI Inference sonradan eklenirse yanıltıcı kalırdı. Karar K-210.
 
-Paket adı plandaki gibi `AgentPrism.Azure` kaldı — paket ileride başka Azure
+Paket adı plandaki gibi `Tracon.Azure` kaldı — paket ileride başka Azure
 servislerini de barındırabilir.
 
 ### S3 — Kimlik fabrikası tüketiciden gelir; `Azure.Identity` alınmadı
@@ -119,21 +119,21 @@ konuşlandırılmış olabilir. Bu yüzden yanlış bir ad "model bulunamadı" d
 > **DEPLOYMENT** adi bekler. …
 
 Katalogdaki `Name` alanları da deployment adıdır. Katalog yine bir doğrulama
-listesi **değildir** (K-032): Azure'da yeni bir deployment açmak AgentPrism
+listesi **değildir** (K-032): Azure'da yeni bir deployment açmak Tracon
 yapılandırmasının güncellenmesini beklememelidir.
 
 ---
 
 ## Bitiş Ölçütleri (DoD)
 
-Elle doğrulama: `samples/AgentPrism.Api`, `ASPNETCORE_ENVIRONMENT=Development`,
+Elle doğrulama: `samples/Tracon.Api`, `ASPNETCORE_ENVIRONMENT=Development`,
 2026-08-05. **Gerçek bir Azure aboneliği kullanılmadı** — bunun yerine Azure'un
 veri düzlemi sözleşmesini birebir taklit eden yerel bir uç kullanıldı; gelen
 istegin yolu, başlıkları ve gövdesi kaydedildi.
 
 | Ölçüt | Durum | Kanıt |
 |-------|-------|-------|
-| `AgentPrism.Azure` paketi üretiliyor | ✅ | **14 paket** (Faz 26'da 13 idi); 4 doğrudan bağımlılık, geçişli sızıntı yok |
+| `Tracon.Azure` paketi üretiliyor | ✅ | **14 paket** (Faz 26'da 13 idi); 4 doğrudan bağımlılık, geçişli sızıntı yok |
 | Azure deployment'ı ile çalıştırma ve **tool çağrısı** | ✅ | aşağıdaki çıktı, 3 — `ToolInvoking`/`ToolInvoked` üretildi, iki HTTP turu |
 | Akışlı çalıştırmada token kullanımı toplanıyor | ✅ | `isStreaming=true`, giriş=168 çıkış=9 toplam=177 |
 | Managed identity yolu belgelendi ve **çalıştığı gösterildi** | ✅ | aşağıdaki çıktı, 6 — `Bearer` başlığı gitti, kapsam doğru |
@@ -158,7 +158,7 @@ istegin yolu, başlıkları ve gövdesi kaydedildi.
 
 ```
 # 1) Alti saglayici ayni uygulamada
-$ curl -s localhost:5391/agentprism/api/models
+$ curl -s localhost:5391/tracon/api/models
   anthropic          ['claude-haiku-4-5-20251001', 'claude-opus-5', 'claude-sonnet-5']
   azure-openai       ['uretim-gpt']                 # <- DEPLOYMENT adi
   google             ['gemini-3.1-flash-lite', 'gemini-3.1-pro-preview', 'gemini-3.6-flash']
@@ -202,7 +202,7 @@ $ curl -s ".../api/models/health?refresh=true"
    …saglayici degistirildiginde eski ayarlar temizlenmelidir.
    'azure-openai' saglayicisi hicbir ek ayar desteklemiyor.
 
-# 6) YONETILEN KIMLIK (Entra) — AgentPrism'in kendi fabrikasindan gecerek
+# 6) YONETILEN KIMLIK (Entra) — Tracon'in kendi fabrikasindan gecerek
   YANIT  : 'ORD-42 siparisiniz kargoya verildi.'
   MODEL  : uretim-gpt      TOKEN: giris=120 cikis=18
   KAPSAM : https://cognitiveservices.azure.com/.default
@@ -219,11 +219,11 @@ $ curl -s ".../api/models/health?refresh=true"
 
 ```csharp
 // API anahtari ile
-builder.AddAgentPrism()
+builder.AddTracon()
        .UseAzureOpenAI(configuration.GetSection(AzureOpenAIProviderOptions.SectionName));
 
 // Yonetilen kimlik ile — Azure.Identity TUKETICININ paketi
-builder.AddAgentPrism()
+builder.AddTracon()
        .UseAzureOpenAI(o =>
        {
            o.Endpoint = new Uri("https://benim-kaynagim.openai.azure.com/");
@@ -261,7 +261,7 @@ Karar defterine yazıldı (`docs/KARARLAR.md`, **K-210 – K-213**):
 
 - **Sağlayıcı ailesi tamamlandı:** `openai`, `openai-responses`, `openai-compatible`
   (adlandırılmış), `anthropic`, `google`, `azure-openai`. Yeni bir sağlayıcı eklemek
-  artık **10 dosyalık** bir kalıptır; en kısa örnek `AgentPrism.Azure`'dur
+  artık **10 dosyalık** bir kalıptır; en kısa örnek `Tracon.Azure`'dur
   (dekoratörü olmayan tek paket).
 - 🚨 **Bir SDK'yı merkezî sürüm yönetimi altında kullanırken, o SDK'nın *başka bir
   SDK'nın* tipini genişlettiği yerleri çalışma anında deneyin.** `Azure.AI.OpenAI`
@@ -273,21 +273,21 @@ Karar defterine yazıldı (`docs/KARARLAR.md`, **K-210 – K-213**):
   olduğu için genişleme kırıcı değildir.
 - **`AzureOpenAIClientOptions.ServiceVersion` yalnız iki değer taşıyor**
   (`V2024_06_01`, `V2024_10_21`) ve varsayılan sonuncusudur. Yeni bir Azure API
-  sürümü gerektiğinde `Azure.AI.OpenAI` yükseltilmelidir; AgentPrism bu enum'u
+  sürümü gerektiğinde `Azure.AI.OpenAI` yükseltilmelidir; Tracon bu enum'u
   public yüzeyine **almadı** (kaçış kapısı: hazır `AzureOpenAIClient` alan kurucu).
 - **Sağlık denetiminin döndürdüğü liste model listesidir, deployment listesi
   değildir.** Gerçek bir abonelikte biçim doğrulanmalıdır; beklenmeyen gövde boş
   liste döndürür ve denetimi `Healthy` bırakır (Google'ın OpenAI-biçimi düşüşüyle
   aynı desen).
-- **`DependencyDirectionTests.AllowedReferences` hâlâ `AgentPrism.SqlServer`,
-  `AgentPrism.Sqlite` ve `AgentPrism.Sql.Shared` paketlerini içermiyor**
-  (Faz 23/24'ten kalan boşluk, Faz 26'da da açıktı). Bu fazda `AgentPrism.Azure`
+- **`DependencyDirectionTests.AllowedReferences` hâlâ `Tracon.SqlServer`,
+  `Tracon.Sqlite` ve `Tracon.Sql.Shared` paketlerini içermiyor**
+  (Faz 23/24'ten kalan boşluk, Faz 26'da da açıktı). Bu fazda `Tracon.Azure`
   eklendi; SQL paketleri hâlâ açık.
 
 ### Ertelenen iş — Azure AI Foundry (ölçümler korunmuştur)
 
-Yapılacaksa **`AgentPrism.Azure.Foundry` adıyla ayrı bir paket** olmalıdır (37
-geçişli bağımlılık `AgentPrism.Azure`'a bulaşmamalıdır). Ölçülmüş gerçekler:
+Yapılacaksa **`Tracon.Azure.Foundry` adıyla ayrı bir paket** olmalıdır (37
+geçişli bağımlılık `Tracon.Azure`'a bulaşmamalıdır). Ölçülmüş gerçekler:
 
 ```csharp
 // Microsoft.Agents.AI.Foundry 1.5.0 — MAF 1.16.0 ile yuklenir (dogrulandi)
@@ -319,24 +319,24 @@ static ChatClientAgent AgentClientExtensions.AsAIAgent(AIProjectClient c, ChatCl
 deseni olduğu gibi kopyalanamaz.
 
 Foundry agent'ı **uzakta yaşar**: talimatı, tool'ları ve konuşma durumu Azure
-tarafındadır. AgentPrism onu derlemez, **keşfeder** — yani bir `IAgentSource`'tur
+tarafındadır. Tracon onu derlemez, **keşfeder** — yani bir `IAgentSource`'tur
 (K-019). Kaybedilen garantiler:
 
 | Konu | Durum |
 |------|-------|
 | Agent tanımı | **Salt okunur** — arayüzden düzenlenemez, sürümlenemez |
-| Tool'lar | Azure tarafında tanımlıdır; AgentPrism'in tool defteri geçerli değildir |
+| Tool'lar | Azure tarafında tanımlıdır; Tracon'in tool defteri geçerli değildir |
 | Konuşma durumu | Azure'da tutulur — K-030'un aynı gerilimi: kalıcılık, kiracı yalıtımı ve replay vaatleri **zayıflar** |
 | Çalıştırma kaydı | `runs` satırı yazılır; olaylar akıştan alınır. Span'ler eksik olabilir |
-| Onay akışı | AgentPrism'in tool onayı **uygulanamaz** — tool'lar uzakta çalışır |
+| Onay akışı | Tracon'in tool onayı **uygulanamaz** — tool'lar uzakta çalışır |
 
 Arayüz bu agent'ları **ayrı bir rozetle** göstermeli ve detay ekranında hangi
 özelliklerin geçerli olmadığını **listelemelidir**. Sessizce yarım çalışan bir
 özellik, hiç olmayan özellikten kötüdür.
 
-- **AAD/Entra rollerinin AgentPrism rolleriyle (Faz 9) eşlenmesi yapılmadı ve
-  yapılmamalıdır** (açık soru 4): eşleme tüketicinin policy tanımıdır, AgentPrism
+- **AAD/Entra rollerinin Tracon rolleriyle (Faz 9) eşlenmesi yapılmadı ve
+  yapılmamalıdır** (açık soru 4): eşleme tüketicinin policy tanımıdır, Tracon
   varsayım yapmaz. Karar değişmedi.
 - Faz 20'nin fiyat çözümlemesi Azure'da farklıdır (kurumsal anlaşma fiyatı);
-  `AgentPrism:Pricing` bölümü bunu zaten karşılar — katalogdaki `Name` deployment
+  `Tracon:Pricing` bölümü bunu zaten karşılar — katalogdaki `Name` deployment
   adı olduğu için fiyat da deployment başına verilir.

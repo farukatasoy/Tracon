@@ -3,7 +3,7 @@
 > **Durum:** ✅ Tamamlandı (2026-08-08)
 > **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-56**
 > **Önkoşul:** [Faz 41](41-KIRACI-YALITIMININ-ZORLANMASI.md) — kiracı yalıtımı zemini · [Faz 50](50-DISA-ACILAN-AGENT-YUZEYI.md) — bu fazı **acil** kılan dış yüzey
-> **Paketler:** `AgentPrism.Abstractions`, `AgentPrism.Core`, `AgentPrism.AspNetCore`, `AgentPrism.Sql.Shared`, `AgentPrism.UI`
+> **Paketler:** `Tracon.Abstractions`, `Tracon.Core`, `Tracon.AspNetCore`, `Tracon.Sql.Shared`, `Tracon.UI`
 > **Yeni paket:** Yok · **Migration:** gerekli — numara uygulama anında alınır (üç sağlayıcı için ayrı)
 > **Public API:** büyüyor — yeni tipler ve bir depo arayüzü. Faz 7'den önce ucuz
 
@@ -26,7 +26,7 @@
 
 ## Amaç
 
-AgentPrism'e gelen kimlik doğrulaması bugün **tek statik bearer token**'dır. Bu token'ı bilen herkes bütün kiracıların bütün uçlarına erişir. Anahtar döndürme, iptal, kapsam daraltma ve kiracıya bağlama yolu yoktur.
+Tracon'e gelen kimlik doğrulaması bugün **tek statik bearer token**'dır. Bu token'ı bilen herkes bütün kiracıların bütün uçlarına erişir. Anahtar döndürme, iptal, kapsam daraltma ve kiracıya bağlama yolu yoktur.
 
 ## Plandan Sapmalar
 
@@ -47,9 +47,9 @@ AgentPrism'e gelen kimlik doğrulaması bugün **tek statik bearer token**'dır.
   başlığı sunulduğunda `AuthToken` tanımsız olsa bile artık doğrulanır. Plan
   metni "ikisi de tanımsızsa davranış aynıdır" diyordu; bu yalnız **başlık
   YOKKEN** geçerlidir — başlık varken sessiz geçiş kaldırıldı.
-- **`docs/openapi/agentprism.json` değişti** (yeni `/api/api-keys` uçları);
+- **`docs/openapi/tracon.json` değişti** (yeni `/api/api-keys` uçları);
   Faz 53'ün DoD'sinde bahsedilmiyordu ama diğer her yeni uç ucu gibi otomatik
-  snapshot testine girdi ve `AGENTPRISM_OPENAPI_REFRESH=1` ile tazelendi.
+  snapshot testine girdi ve `TRACON_OPENAPI_REFRESH=1` ile tazelendi.
 
 ## Bu Fazda Verilen Kararlar
 
@@ -57,38 +57,38 @@ K-356, K-357, K-358, K-359, K-360, K-361 — `docs/KARARLAR.md`.
 
 ## Bitiş Ölçütleri (DoD)
 
-- [x] `POST /api/api-keys` ham anahtarı bir kez döner — `Olusturma_ham_degeri_bir_kez_dondurur`, ayrıca `samples/AgentPrism.Api` ile elle doğrulandı
-- [x] Geçerli bir API anahtarıyla yapılan istek, `X-AgentPrism-Tenant` başlığı olmadan doğru kiracıyı çözer — `Kiraci_basliktan_degil_anahtardan_cozulur`
+- [x] `POST /api/api-keys` ham anahtarı bir kez döner — `Olusturma_ham_degeri_bir_kez_dondurur`, ayrıca `samples/Tracon.Api` ile elle doğrulandı
+- [x] Geçerli bir API anahtarıyla yapılan istek, `X-Tracon-Tenant` başlığı olmadan doğru kiracıyı çözer — `Kiraci_basliktan_degil_anahtardan_cozulur`
 - [x] Başlık anahtarın kiracısından farklı bir kiracı söylerse `403` döner — `Baslik_anahtarin_kiracisindan_farkliysa_403_alir`
 - [x] Süresi geçmiş / iptal edilmiş anahtar `401` alır — `Suresi_gecmis_anahtar_401_alir`, `Iptal_edilen_anahtar_401_alir`
 - [x] `runs:read` kapsamlı anahtar `POST /api/agents/{name}/run` çağırınca `403` alır — `Yetersiz_kapsamli_anahtar_403_alir`
 - [x] `AllowRemoteAccess` + `external:invoke` anahtarıyla MCP/A2A yüzeyi açılır; anahtar yokken bugünkü red korunur — `AllowRemoteAccess_acikken_external_invoke_anahtari_yoksa_MCP_acilamaz` / `...anahtariyla_MCP_acilir`
 - [x] Statik token'lı bugünkü kurulum hiç değişmeden çalışmaya devam eder — mevcut 431 fonksiyonel test (artı yeni 20'si) yeşil
 - [x] Dört doğrulama kapısı sıfır uyarı verir — `dotnet build/test/pack/format` hepsi temiz (bu oturumda ölçüldü)
-- [x] `samples/AgentPrism.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı — aşağıda
+- [x] `samples/Tracon.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı — aşağıda
 - [x] `secret` taraması boş döndü
 - [x] `en.ts`/`tr.ts` eksiksiz (i18n.test.ts 16/16); bundle payı ölçüldü: **161.5 KB gzip / 250 KB bütçe**
 
-### Doğrulama komutları — gerçek çıktı (2026-08-08, `samples/AgentPrism.Api`, loopback)
+### Doğrulama komutları — gerçek çıktı (2026-08-08, `samples/Tracon.Api`, loopback)
 
 ```
-POST /agentprism/api/api-keys {"name":"ci","scopes":["RunsRead"]}
+POST /tracon/api/api-keys {"name":"ci","scopes":["RunsRead"]}
 → {"record":{"id":"019fe119-...","tenantId":"default","name":"ci","keyPrefix":"ap_default_2",
    "scopes":["RunsRead"],...,"isActive":true},
    "plaintextKey":"ap_default_2zKqRNjJ6MVXcwtTxPKuXkouy85tReMOhGAgYr9MGzo"}
 
-GET /agentprism/api/agents  (Authorization: Bearer <RunsRead anahtarı>)
+GET /tracon/api/agents  (Authorization: Bearer <RunsRead anahtarı>)
 → 403  (agents:read kapsamı yok — doğru davranış)
 
-GET /agentprism/api/agents  (Authorization: Bearer <AgentsRead anahtarı>)
+GET /tracon/api/agents  (Authorization: Bearer <AgentsRead anahtarı>)
 → 200
 
-POST /agentprism/api/agents/asistan/run  (Authorization: Bearer <RunsRead anahtarı>)
+POST /tracon/api/agents/asistan/run  (Authorization: Bearer <RunsRead anahtarı>)
 → 403  (runs:write kapsamı yok)
 
-DELETE /agentprism/api/api-keys/{id} → 204; sonraki istekte aynı anahtar → 401
-GET /agentprism/api/api-keys → liste, hiçbir kayıtta plaintextKey/hash yok
-grep raw-key /tmp/agentprism-api.log → 0 eşleşme
+DELETE /tracon/api/api-keys/{id} → 204; sonraki istekte aynı anahtar → 401
+GET /tracon/api/api-keys → liste, hiçbir kayıtta plaintextKey/hash yok
+grep raw-key /tmp/tracon-api.log → 0 eşleşme
 ```
 
 ## Sonraki Faza Devir Notu

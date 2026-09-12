@@ -1,13 +1,13 @@
 # 30 — Yerel Referans Yüzeyi (`YRF`)
 
 > **Alan kodu:** `YRF` · **Faz:** 74 · 78
-> **Kaynak:** `src/AgentPrism.Core/buildTransitive/AgentPrism.Core.targets` ·
-> `src/AgentPrism.AspNetCore/buildTransitive/AgentPrism.AspNetCore.targets` ·
-> `src/AgentPrism.AspNetCore/AgentPrism.AspNetCore.csproj` (`docs/openapi/agentprism.json` paketlemesi) ·
-> `src/AgentPrism.Templates/content/AgentPrism.Starter/.gitignore` ·
+> **Kaynak:** `src/Tracon.Core/buildTransitive/Tracon.Core.targets` ·
+> `src/Tracon.AspNetCore/buildTransitive/Tracon.AspNetCore.targets` ·
+> `src/Tracon.AspNetCore/Tracon.AspNetCore.csproj` (`docs/openapi/tracon.json` paketlemesi) ·
+> `src/Tracon.Templates/content/Tracon.Starter/.gitignore` ·
 > `docs-site/scripts/build-agent-map.mjs` · `docs-site/scripts/check-links.mjs` ·
-> `docs-site/src/content/docs/capabilities.md` · `src/AgentPrism.Generators/UsageDiagnostics.cs` (`APG0402`) ·
-> `tests/AgentPrism.Core.UnitTests/Architecture/{CapabilityEntryPoints,CapabilityExampleTests}.cs`
+> `docs-site/src/content/docs/capabilities.md` · `src/Tracon.Generators/UsageDiagnostics.cs` (`TRC0402`) ·
+> `tests/Tracon.Core.UnitTests/Architecture/{CapabilityEntryPoints,CapabilityExampleTests}.cs`
 >
 > Ortam kurulumu ve reset yordamı [`00-INDEKS.md`](00-INDEKS.md)'dedir.
 > Bu alan [`29-AGENT-DESTEGI.md`](29-AGENT-DESTEGI.md)'nin üstüne kurulur; oradaki
@@ -24,11 +24,11 @@ ettiğini kanıtlar.
 
 ```mermaid
 flowchart TD
-    REF["Tuketicinin PackageReference'lari"] --> TGT["AgentPrism.Core.targets"]
-    ASP["AgentPrism.AspNetCore.targets<br/>agentprism.json yolunu bildirir"] --> TGT
-    TGT --> LR["AgentPrism.LocalReference.md<br/>uretilen, makineye ozgu"]
+    REF["Tuketicinin PackageReference'lari"] --> TGT["Tracon.Core.targets"]
+    ASP["Tracon.AspNetCore.targets<br/>tracon.json yolunu bildirir"] --> TGT
+    TGT --> LR["Tracon.LocalReference.md<br/>uretilen, makineye ozgu"]
     LR -.->|"yol"| XML["nuget onbellegindeki XML<br/>her giris noktasinda ornek"]
-    LR -.->|"yol"| OAS["agentprism.json"]
+    LR -.->|"yol"| OAS["tracon.json"]
     MAP["AGENTS.md - git kokunde"] -.->|"adiyla isaret eder"| LR
     API["PublicAPI.*.txt + XML"] --> GATE["CapabilityExampleTests"]
 ```
@@ -37,16 +37,16 @@ flowchart TD
 
 1. Depo paketlenir ve yerel besleme hazırlanır:
    ```bash
-   cd /Users/farukatasoy/Desktop/projects/AgentPrism
-   dotnet pack AgentPrism.src.slnf -c Release
-   export APVER=$(ls -t artifacts/package/release/AgentPrism.0.0.0*.nupkg | head -1 | sed -E 's/.*AgentPrism\.(0\.0\.0[^ ]*)\.nupkg/\1/')
+   cd /Users/farukatasoy/Desktop/projects/Tracon
+   dotnet pack Tracon.src.slnf -c Release
+   export APVER=$(ls -t artifacts/package/release/Tracon.0.0.0*.nupkg | head -1 | sed -E 's/.*Tracon\.(0\.0\.0[^ ]*)\.nupkg/\1/')
    echo $APVER
    ```
 2. 🚨 **Global NuGet önbelleği temizlenir.** MinVer sürümü commit'ler arasında
    sabittir; aynı sürümle yeniden paketlenen `.nupkg` **hiç açılmaz** ve
    `.targets` değişikliğin görünmez:
    ```bash
-   rm -rf ~/.nuget/packages/agentprism*/$APVER
+   rm -rf ~/.nuget/packages/tracon*/$APVER
    ```
 3. Boş bir tüketici dizini açılır (her case kendi dizininde koşabilir):
    ```bash
@@ -57,19 +57,19 @@ flowchart TD
      <packageSources>
        <clear />
        <add key="nuget.org" value="https://api.nuget.org/v3/index.json" />
-       <add key="agentprism-local" value="/Users/farukatasoy/Desktop/projects/AgentPrism/artifacts/package/release" />
+       <add key="tracon-local" value="/Users/farukatasoy/Desktop/projects/Tracon/artifacts/package/release" />
      </packageSources>
    </configuration>
    EOF
    ```
 4. `Consumer.csproj` `Microsoft.NET.Sdk.Web` kullanır, `net10.0` hedefler ve
-   `AgentPrism` meta paketini `$APVER` sürümüyle referanslar. Meta paket
+   `Tracon` meta paketini `$APVER` sürümüyle referanslar. Meta paket
    **bilerek** seçilir: `buildTransitive/` geçişli referansta akmak zorundadır.
 5. 🚨 Referans dosyası **projenin yanında** aranır — `AGENTS.md`'nin aksine git
-   kökünde **değil**: `$APC/src/Consumer/AgentPrism.LocalReference.md`. Sebep:
-   bir çözümdeki iki proje farklı AgentPrism paketleri referanslar ve tek bir
+   kökünde **değil**: `$APC/src/Consumer/Tracon.LocalReference.md`. Sebep:
+   bir çözümdeki iki proje farklı Tracon paketleri referanslar ve tek bir
    dosya bu iki cevabı birden taşıyamaz (Faz 74 denetim bulgusu 3).
-   Kolaylık için: `export APLR=$APC/src/Consumer/AgentPrism.LocalReference.md`.
+   Kolaylık için: `export APLR=$APC/src/Consumer/Tracon.LocalReference.md`.
 
 ---
 
@@ -77,7 +77,7 @@ flowchart TD
 
 ### MT-YRF-001 — Özellik kapalıyken referans dosyası yazılmaz
 
-**Ön koşul:** §3'ün tüketici projesi, hiçbir AgentPrism MSBuild özelliği yazılmamış.
+**Ön koşul:** §3'ün tüketici projesi, hiçbir Tracon MSBuild özelliği yazılmamış.
 
 **Adımlar:**
 1. `dotnet build src/Consumer/Consumer.csproj -c Release`
@@ -92,8 +92,8 @@ yazmaz.
 ### MT-YRF-002 — Tek anahtar ikisini de açar ve her yol diskte vardır
 
 **Ön koşul:** `Consumer.csproj`'a
-`<AgentPrismWriteAgentsFile>true</AgentPrismWriteAgentsFile>` eklenmiş.
-`AgentPrismWriteLocalReference` **yazılmamış**.
+`<TraconWriteAgentsFile>true</TraconWriteAgentsFile>` eklenmiş.
+`TraconWriteLocalReference` **yazılmamış**.
 
 **Adımlar:**
 1. `dotnet build src/Consumer/Consumer.csproj -c Release`
@@ -101,7 +101,7 @@ yazmaz.
 3. `grep -o '/.*\.xml' $APLR | while read p; do test -f "$p" || echo "YOK: $p"; done`
 
 **Beklenen sonuç:** Dosya **projenin yanında** oluşur (`AGENTS.md` git köküne,
-bu dosya `src/Consumer/`'a). İlk satır `<!-- AgentPrism local reference -
+bu dosya `src/Consumer/`'a). İlk satır `<!-- Tracon local reference -
 regenerated on every build - machine-specific - do not commit -->`. Ayrı bir
 `Installed version:` başlığı **yoktur**; sürüm her yolun içindedir — iki paket
 farklı sürümde çözülürse tek bir başlık dürüst olamazdı. Adım 3 **hiçbir şey
@@ -116,10 +116,10 @@ anahtarın ikisini de açması benimseme engelini artırmaz.
 
 **Adımlar:**
 1. ```bash
-   export APXML=$(grep -m1 -o '/.*AgentPrism\.Core\.xml' $APLR)
+   export APXML=$(grep -m1 -o '/.*Tracon\.Core\.xml' $APLR)
    grep -A 12 'AddToolApprovalPolicy' $APXML
    ```
-2. `grep -A 14 'AddAgentPrism(Microsoft.Extensions.Hosting.IHostApplicationBuilder)' $APXML`
+2. `grep -A 14 'AddTracon(Microsoft.Extensions.Hosting.IHostApplicationBuilder)' $APXML`
 
 **Beklenen sonuç:** Her iki `grep` de `<summary>` **ve** `<example><code>` blokları
 döndürür. Örnek, çalışan en kısa çağrıdır. Agent'ın "bu nasıl çağrılır?" sorusu
@@ -135,7 +135,7 @@ ağ erişimi olmadan cevaplanır.
 1. `sed -n '/## How to read them/,$p' $APLR`
 2. Dosyadaki ilk reçeteyi olduğu gibi koştur:
    ```bash
-   grep -o 'name="M:AgentPrism[^"]*Tenant[^"]*"' $APXML | head -5
+   grep -o 'name="M:Tracon[^"]*Tenant[^"]*"' $APXML | head -5
    ```
 
 **Beklenen sonuç:** Bölüm iki adımlı reçeteyi ve generic üyelerin arite eki
@@ -145,14 +145,14 @@ cevaplanmıştı, sebebi yanlış ad tahminiydi.
 
 ---
 
-### MT-YRF-005 — Yalnız `AgentPrism.Core` referanslı projede HTTP bölümü yok
+### MT-YRF-005 — Yalnız `Tracon.Core` referanslı projede HTTP bölümü yok
 
 **Ön koşul:** Ayrı bir tüketici dizini; `Microsoft.NET.Sdk` (Web değil),
-`PackageReference` **`AgentPrism.Core`**, `AgentPrismWriteAgentsFile=true`.
+`PackageReference` **`Tracon.Core`**, `TraconWriteAgentsFile=true`.
 
 **Adımlar:**
 1. `dotnet build -c Release`
-2. `grep -c '## HTTP API document' AgentPrism.LocalReference.md`
+2. `grep -c '## HTTP API document' Tracon.LocalReference.md`
 
 **Beklenen sonuç:** Adım 2 tek bir `0` yazar (eşleşme yok). HTTP belgesi,
 uçlarını sunan paketle gelir; onu referanslamayan tüketiciye ait olmayan bir
@@ -160,13 +160,13 @@ satır yazılmaz.
 
 ---
 
-### MT-YRF-006 — `AgentPrism.AspNetCore` ile HTTP belgesi gelir ve okunur
+### MT-YRF-006 — `Tracon.AspNetCore` ile HTTP belgesi gelir ve okunur
 
 **Ön koşul:** MT-YRF-002 koşuldu (meta paket AspNetCore'u getirir).
 
 **Adımlar:**
 1. ```bash
-   export APOAS=$(sed -n '/## HTTP API document/,$p' $APLR | grep -m1 -o '/.*agentprism\.json')
+   export APOAS=$(sed -n '/## HTTP API document/,$p' $APLR | grep -m1 -o '/.*tracon\.json')
    test -f $APOAS && echo VAR
    ```
 2. ```bash
@@ -175,20 +175,20 @@ satır yazılmaz.
 
 **Beklenen sonuç:** Adım 1 `VAR` yazar. Adım 2 **123 path** ve **250 şema**
 yazar. Bu case aynı anda üç şeyi kanıtlar: belge pakete girdi (`Remove`+`Include`
-tuzağı aşıldı), `buildTransitive/AgentPrism.AspNetCore.targets` adı NuGet'in
+tuzağı aşıldı), `buildTransitive/Tracon.AspNetCore.targets` adı NuGet'in
 kendiliğinden import ettiği sözleşmeye uyuyor, ve yazılan yol gerçek.
 
 ---
 
-### MT-YRF-007 — `agentprism.json` gerçekten pakette
+### MT-YRF-007 — `tracon.json` gerçekten pakette
 
 **Ön koşul:** §1 koşuldu.
 
 **Adımlar:**
-1. `unzip -l artifacts/package/release/AgentPrism.AspNetCore.$APVER.nupkg | grep buildTransitive`
+1. `unzip -l artifacts/package/release/Tracon.AspNetCore.$APVER.nupkg | grep buildTransitive`
 
-**Beklenen sonuç:** İki satır: `buildTransitive/AgentPrism.AspNetCore.targets`
-ve `buildTransitive/agentprism.json` (~515 KB). `<None Update=...>` sessizce
+**Beklenen sonuç:** İki satır: `buildTransitive/Tracon.AspNetCore.targets`
+ve `buildTransitive/tracon.json` (~515 KB). `<None Update=...>` sessizce
 hiçbir şey yapardı; kanıt tek komuttur.
 
 ---
@@ -210,8 +210,8 @@ kışkırtılmaz.
 
 ### MT-YRF-009 — İkinci özellik dosyayı tek başına kapatır
 
-**Ön koşul:** `Consumer.csproj`'a `AgentPrismWriteAgentsFile=true` **ve**
-`<AgentPrismWriteLocalReference>false</AgentPrismWriteLocalReference>` eklenmiş.
+**Ön koşul:** `Consumer.csproj`'a `TraconWriteAgentsFile=true` **ve**
+`<TraconWriteLocalReference>false</TraconWriteLocalReference>` eklenmiş.
 Önceki case'lerin çıktısı silinmiş: `rm -f $APC/AGENTS.md $APLR`.
 
 **Adımlar:**
@@ -250,17 +250,17 @@ kıramaz. `ContinueOnError="WarnAndContinue"` bunu sağlar.
 
 ---
 
-### MT-YRF-011 — Eski `AGENTS.md` taşıyan tüketicide `APG0401` çıkar
+### MT-YRF-011 — Eski `AGENTS.md` taşıyan tüketicide `TRC0401` çıkar
 
 **Ön koşul:** Faz 73'ten kalmış (eski revizyonlu) bir `AGENTS.md`. Taklit etmek
 için:
 ```bash
-printf '<!-- AgentPrism agent map · revision: 00000000 · generated by docs-site/scripts/build-agent-map.mjs -->\n# AgentPrism\n' > $APC/AGENTS.md
+printf '<!-- Tracon agent map · revision: 00000000 · generated by docs-site/scripts/build-agent-map.mjs -->\n# Tracon\n' > $APC/AGENTS.md
 ```
 
 **Adımlar:**
-1. `dotnet build src/Consumer/Consumer.csproj -c Release -t:Rebuild 2>&1 | grep APG0401`
-2. `rm $APC/AGENTS.md && dotnet build src/Consumer/Consumer.csproj -c Release -t:Rebuild 2>&1 | grep -c APG0401`
+1. `dotnet build src/Consumer/Consumer.csproj -c Release -t:Rebuild 2>&1 | grep TRC0401`
+2. `rm $APC/AGENTS.md && dotnet build src/Consumer/Consumer.csproj -c Release -t:Rebuild 2>&1 | grep -c TRC0401`
 
 **Beklenen sonuç:** Adım 1 uyarıyı ve yenileme yolunu yazar. Adım 2 `0` döner.
 🚨 Bu faz haritanın **gövdesini** değiştirdi, bu yüzden revizyon da değişti
@@ -270,19 +270,19 @@ printf '<!-- AgentPrism agent map · revision: 00000000 · generated by docs-sit
 
 ### MT-YRF-012 — Şablonun `.gitignore`'u referans dosyasını kapsar
 
-**Ön koşul:** Şablon kurulu (`dotnet new install src/AgentPrism.Templates`).
+**Ön koşul:** Şablon kurulu (`dotnet new install src/Tracon.Templates`).
 
 **Adımlar:**
 1. ```bash
    export APT=$(mktemp -d)/Sablon && mkdir -p $APT && cd $APT && git init -q .
-   dotnet new agentprism-api -n Sablon -o . --AgentPrismVersion $APVER --persistence memory --provider openai --ui false
+   dotnet new tracon-api -n Sablon -o . --TraconVersion $APVER --persistence memory --provider openai --ui false
    ```
 2. `dotnet build -c Release`
 3. `git status --porcelain | grep LocalReference; echo "eslesme=$?"`
 
 **Beklenen sonuç:** Adım 3 `eslesme=1` yazar — dosya oluşmuş olsa bile
 **izlenmiyor**. Şablonun `.gitignore`'undaki desen eğik çizgi taşımadığı için
-**her derinlikte** eşleşir; dosya proje dizininde olsa da kapsanır. AgentPrism **tüketicinin
+**her derinlikte** eşleşir; dosya proje dizininde olsa da kapsanır. Tracon **tüketicinin
 kendi** `.gitignore`'unu değiştirmez (K1); var olan bir projede bunu tüketici
 yapar ve dosyanın ilk satırı bunu söyler.
 
@@ -293,11 +293,11 @@ yapar ve dosyanın ilk satırı bunu söyler.
 **Ön koşul:** Temiz çalışma ağacı.
 
 **Adımlar:**
-1. `src/AgentPrism.Core/IAgentPrismBuilder.cs` içinde `AddSkill`'in
+1. `src/Tracon.Core/ITraconBuilder.cs` içinde `AddSkill`'in
    `<example>...</example>` bloğunu sil.
-2. `dotnet build AgentPrism.slnx -c Release -p:AgentPrismFrontendEnabled=false`
-3. `dotnet test tests/AgentPrism.Core.UnitTests -c Release --no-build`
-4. `git checkout src/AgentPrism.Core/IAgentPrismBuilder.cs`
+2. `dotnet build Tracon.slnx -c Release -p:TraconFrontendEnabled=false`
+3. `dotnet test tests/Tracon.Core.UnitTests -c Release --no-build`
+4. `git checkout src/Tracon.Core/ITraconBuilder.cs`
 
 **Beklenen sonuç:** Adım 3 kızarır ve üyeyi **adıyla** söyler:
 `+ AddSkill: a registration entry point whose documentation carries no <example>`.
@@ -312,8 +312,8 @@ Taban çizgisi boş doğdu ve yalnız küçülebilir.
 **Adımlar:**
 1. Herhangi bir `<example>` içindeki bir çağrıyı var olmayan bir adla değiştir
    (ör. `.UseSqlite(` → `.UseSqLite(`).
-2. `dotnet build AgentPrism.slnx -c Release -p:AgentPrismFrontendEnabled=false`
-3. `dotnet test tests/AgentPrism.Core.UnitTests -c Release --no-build`
+2. `dotnet build Tracon.slnx -c Release -p:TraconFrontendEnabled=false`
+3. `dotnet test tests/Tracon.Core.UnitTests -c Release --no-build`
 4. `git checkout src/`
 
 **Beklenen sonuç:** Adım 3 `No_example_teaches_a_registration_that_does_not_exist`
@@ -327,11 +327,11 @@ ile kızarır ve hangi üyenin örneğinde hangi adın uydurma olduğunu yazar. 
 **Ön koşul:** Temiz çalışma ağacı.
 
 **Adımlar:**
-1. `IAgentPrismBuilder`'a örneksiz yeni bir üye ekle
-   (ör. `IAgentPrismBuilder UseSomething();`) ve `AgentPrismBuilder`'da uygula.
+1. `ITraconBuilder`'a örneksiz yeni bir üye ekle
+   (ör. `ITraconBuilder UseSomething();`) ve `TraconBuilder`'da uygula.
 2. `dotnet format analyzers --diagnostics RS0016` ile `PublicAPI.Unshipped.txt`'i doldur.
-3. `dotnet build AgentPrism.slnx -c Release -p:AgentPrismFrontendEnabled=false`
-4. `dotnet test tests/AgentPrism.Core.UnitTests -c Release --no-build`
+3. `dotnet build Tracon.slnx -c Release -p:TraconFrontendEnabled=false`
+4. `dotnet test tests/Tracon.Core.UnitTests -c Release --no-build`
 5. `git checkout src/`
 
 **Beklenen sonuç:** Adım 4 **iki** kapıyla birden kızarır:
@@ -345,9 +345,9 @@ ile kızarır ve hangi üyenin örneğinde hangi adın uydurma olduğunu yazar. 
 **Ön koşul:** Temiz çalışma ağacı.
 
 **Adımlar:**
-1. `rm -rf artifacts/bin/AgentPrism.Voice/release_net10.0`
-2. `dotnet test tests/AgentPrism.Core.UnitTests -c Release --no-build`
-3. `dotnet build AgentPrism.slnx -c Release -p:AgentPrismFrontendEnabled=false`
+1. `rm -rf artifacts/bin/Tracon.Voice/release_net10.0`
+2. `dotnet test tests/Tracon.Core.UnitTests -c Release --no-build`
+3. `dotnet build Tracon.slnx -c Release -p:TraconFrontendEnabled=false`
 
 **Beklenen sonuç:** Adım 2 **düşer** ve "Build the solution first" mesajını yazar.
 XML yoksa "hiç kapsanmayan yok" sonucu çıkardı; kapı bunu **yüksek sesle**
@@ -360,9 +360,9 @@ reddeder.
 **Ön koşul:** Çözüm derlenmiş.
 
 **Adımlar:**
-1. `dotnet test tests/AgentPrism.Core.UnitTests -c Release --no-build`
+1. `dotnet test tests/Tracon.Core.UnitTests -c Release --no-build`
 2. ```bash
-   grep -o 'name="M:[^"]*AddContentGuard[^"]*"' artifacts/bin/AgentPrism.Core/release_net10.0/AgentPrism.Core.xml
+   grep -o 'name="M:[^"]*AddContentGuard[^"]*"' artifacts/bin/Tracon.Core/release_net10.0/Tracon.Core.xml
    ```
 
 **Beklenen sonuç:** `The_reader_sees_every_entry_point_including_the_generic_ones`
@@ -381,7 +381,7 @@ taşıdığını gösterir — naif ad eşleştirmesi 39 üyenin **dördünü** 
 2. `node docs-site/scripts/build-agent-map.mjs --check`
 
 **Beklenen sonuç:** Adım 1 ilk satır olarak
-`- Exact local paths for the version you have: AgentPrism.LocalReference.md, beside each project that references AgentPrism`
+`- Exact local paths for the version you have: Tracon.LocalReference.md, beside each project that references Tracon`
 yazar. Adım 2 "up to date and within budget" der — üretilen harita commit'ten
 sapmamıştır ve 10 240 baytın altındadır.
 
@@ -390,16 +390,16 @@ sapmamıştır ve 10 240 baytın altındadır.
 ### MT-YRF-019 — Farklı paket kümesi taşıyan iki proje kendi cevabını alır
 
 **Ön koşul:** Bir git kökünde iki proje: `src/Web` (`Microsoft.NET.Sdk.Web`,
-`AgentPrism` meta paketi) ve `src/Worker` (`Microsoft.NET.Sdk`, yalnız
-`AgentPrism.Core`). İkisinde de `AgentPrismWriteAgentsFile=true`. Tek bir
+`Tracon` meta paketi) ve `src/Worker` (`Microsoft.NET.Sdk`, yalnız
+`Tracon.Core`). İkisinde de `TraconWriteAgentsFile=true`. Tek bir
 `.sln` ikisini de içerir.
 
 **Adımlar:**
 1. `dotnet build Multi.sln -c Release -t:Rebuild`
-2. `find . -name AgentPrism.LocalReference.md`
-3. `grep -c '## HTTP API document' src/Web/AgentPrism.LocalReference.md`
-4. `grep -c '## HTTP API document' src/Worker/AgentPrism.LocalReference.md`
-5. `stat -f %m src/*/AgentPrism.LocalReference.md`, sonra tekrar derle ve yine bak
+2. `find . -name Tracon.LocalReference.md`
+3. `grep -c '## HTTP API document' src/Web/Tracon.LocalReference.md`
+4. `grep -c '## HTTP API document' src/Worker/Tracon.LocalReference.md`
+5. `stat -f %m src/*/Tracon.LocalReference.md`, sonra tekrar derle ve yine bak
 
 **Beklenen sonuç:** Adım 2 **iki** dosya bulur, ikisi de kendi projesinin
 yanındadır; git kökünde **hiçbir dosya yoktur**. Adım 3 `1`, adım 4 `0` yazar —
@@ -414,29 +414,29 @@ içerik her derlemede değişiyordu.
 
 ### MT-YRF-020 — Yerel referansın **ilk** bölümü yetenek haritasıdır
 
-**Ön koşul:** MT-YRF-002'nin deposu (`AgentPrismWriteAgentsFile=true`, derlenmiş).
+**Ön koşul:** MT-YRF-002'nin deposu (`TraconWriteAgentsFile=true`, derlenmiş).
 
 **Adımlar:**
-1. `grep -n '^## ' $APC/src/Consumer/AgentPrism.LocalReference.md | head -1`
-2. `grep -A 2 'Capability map' $APC/src/Consumer/AgentPrism.LocalReference.md`
+1. `grep -n '^## ' $APC/src/Consumer/Tracon.LocalReference.md | head -1`
+2. `grep -A 2 'Capability map' $APC/src/Consumer/Tracon.LocalReference.md`
 3. ```bash
-   head -1 "$(grep -m1 -o '/.*AgentPrism\.AgentMap\.md' $APC/src/Consumer/AgentPrism.LocalReference.md)"
+   head -1 "$(grep -m1 -o '/.*Tracon\.AgentMap\.md' $APC/src/Consumer/Tracon.LocalReference.md)"
    ```
 
 **Beklenen sonuç:** Adım 1 ilk `##` başlığının
 `## Capability map - read this first` olduğunu gösterir — sıralama soruların
 sırasını kodlar: önce **ne var**, sonra **nasıl çağrılır**. Adım 2 tek bir mutlak
 yol yazar. Adım 3 o dosyanın ilk satırını basar ve satır
-`<!-- AgentPrism agent map · revision:` ile başlar — yani yol ölü değildir,
+`<!-- Tracon agent map · revision:` ile başlar — yani yol ölü değildir,
 gerçekten haritayı gösterir.
 
 > Bu, Faz 78'in teşhisidir: harita diskte **zaten vardı**, eksik olan **yoldu**.
 
 ---
 
-### MT-YRF-021 — Kendi `AGENTS.md`'si olan depoda `APG0402` öter
+### MT-YRF-021 — Kendi `AGENTS.md`'si olan depoda `TRC0402` öter
 
-**Ön koşul:** Kökte elle yazılmış, `AgentPrism.LocalReference.md` dizesini
+**Ön koşul:** Kökte elle yazılmış, `Tracon.LocalReference.md` dizesini
 **içermeyen** bir `AGENTS.md`:
 ```bash
 printf '# House rules\n\nRun the tests before you commit.\n' > $APC/AGENTS.md
@@ -446,19 +446,19 @@ printf '# House rules\n\nRun the tests before you commit.\n' > $APC/AGENTS.md
 1. `dotnet build $APC/src/Consumer/Consumer.csproj -c Release -t:Rebuild 2>&1 | grep APG04`
 2. `cat $APC/AGENTS.md` — dosya değişti mi?
 3. ```bash
-   printf 'AgentPrism: read AgentPrism.LocalReference.md beside each project.\n' >> $APC/AGENTS.md
+   printf 'Tracon: read Tracon.LocalReference.md beside each project.\n' >> $APC/AGENTS.md
    dotnet build $APC/src/Consumer/Consumer.csproj -c Release -t:Rebuild 2>&1 | grep -c APG0
    ```
 
-**Beklenen sonuç:** Adım 1 `warning APG0402` yazar ve mesaj eklenecek dosyanın
-**tam adını** taşır; `APG0401` **çıkmaz** (bayatlık üretilmiş bir dosyanın
+**Beklenen sonuç:** Adım 1 `warning TRC0402` yazar ve mesaj eklenecek dosyanın
+**tam adını** taşır; `TRC0401` **çıkmaz** (bayatlık üretilmiş bir dosyanın
 sorunudur, tüketicinin kendi dosyasının değil). Adım 2 dosyanın **bayt bayt
 değişmediğini** gösterir — tüketicinin dosyası yalnız **okunur**. Adım 3 `0`
 döner: tek satır uyarıyı kapatır.
 
 ---
 
-### MT-YRF-022 — Üretilmiş `AGENTS.md` `APG0402` üretmez
+### MT-YRF-022 — Üretilmiş `AGENTS.md` `TRC0402` üretmez
 
 **Ön koşul:** MT-YRF-021'in deposu.
 
@@ -469,7 +469,7 @@ döner: tek satır uyarıyı kapatır.
 
 **Beklenen sonuç:** Adım 1 haritayı `AGENTS.md` olarak yazar, adım 2 revizyon
 işaretini gösterir, adım 3 `0` döner. İşaret taşıyan dosya haritanın kendisidir
-ve harita zaten yerel referansı adıyla anar — `APG0402`'nin sorusu orada
+ve harita zaten yerel referansı adıyla anar — `TRC0402`'nin sorusu orada
 sorulmaz (K-507).
 
 ---
@@ -479,12 +479,12 @@ sorulmaz (K-507).
 **Ön koşul:** MT-YRF-021'in deposu (elle yazılmış `AGENTS.md`, işaretçi **yok**).
 
 **Adımlar:**
-1. `dotnet build $APC/src/Consumer/Consumer.csproj -c Release -t:Rebuild -p:AgentPrismUsageDiagnostics=false 2>&1 | grep -c APG0`
-2. `printf '<!-- AgentPrism agent map · revision: 00000000 · generated by docs-site/scripts/build-agent-map.mjs -->\n# AgentPrism\n' > $APC/AGENTS.md`
+1. `dotnet build $APC/src/Consumer/Consumer.csproj -c Release -t:Rebuild -p:TraconUsageDiagnostics=false 2>&1 | grep -c APG0`
+2. `printf '<!-- Tracon agent map · revision: 00000000 · generated by docs-site/scripts/build-agent-map.mjs -->\n# Tracon\n' > $APC/AGENTS.md`
 3. Adım 1'i tekrarla.
 
 **Beklenen sonuç:** İki koşum da `0` döner. İki `AGENTS.md` biçimi gerekir çünkü
-`APG0401` ile `APG0402` **birbirini dışlar**: biri üretilmiş dosyanın bayatlığını,
+`TRC0401` ile `TRC0402` **birbirini dışlar**: biri üretilmiş dosyanın bayatlığını,
 diğeri elle yazılmış dosyanın sessizliğini bildirir ve hiçbir dosya ikisi birden
 olamaz.
 
@@ -501,8 +501,8 @@ o boşluğu birlikte kapatır.
 **Adımlar:**
 1. `node docs-site/scripts/build-agent-map.mjs --check`
 2. `grep -c '^- \[' docs-site/public/llms.txt`
-3. `wc -c src/AgentPrism.Core/buildTransitive/AgentPrism.AgentMap.md docs-site/public/llms.txt`
-4. `grep -c 'llms-full.txt' src/AgentPrism.Core/buildTransitive/AgentPrism.AgentMap.md docs-site/public/llms.txt`
+3. `wc -c src/Tracon.Core/buildTransitive/Tracon.AgentMap.md docs-site/public/llms.txt`
+4. `grep -c 'llms-full.txt' src/Tracon.Core/buildTransitive/Tracon.AgentMap.md docs-site/public/llms.txt`
 5. `cd docs-site && npm run build && node scripts/check-links.mjs`
 
 **Beklenen sonuç:** Adım 1 `up to date and within budget` yazar. Adım 2 elle
@@ -538,15 +538,15 @@ harita üretmekle aynı kusurdur: yapıt tam görünür, atlanan sayfa bulunamaz
 
 **Ön koşul:** Kendi `AGENTS.md`'si olan gerçek bir tüketici deposu
 (ölçüm deposu: `prodigy-enabler-backend`, 191 satırlık elle yazılmış `AGENTS.md`).
-`AgentPrismWriteLocalReference=true`, `AgentPrismWriteAgentsFile` **kapalı**.
+`TraconWriteLocalReference=true`, `TraconWriteAgentsFile` **kapalı**.
 
 **Adımlar:**
-1. AgentPrism paketlerini bu fazın sürümüne yükselt, `dotnet build`.
-2. Çıktıda `APG0402` var mı bak; varsa mesajın istediği tek satırı `AGENTS.md`'ye ekle.
-3. Kod agent'ını **sıfırdan** başlat ve sor: *"AgentPrism hangi yetenekleri sunuyor?"*
+1. Tracon paketlerini bu fazın sürümüne yükselt, `dotnet build`.
+2. Çıktıda `TRC0402` var mı bak; varsa mesajın istediği tek satırı `AGENTS.md`'ye ekle.
+3. Kod agent'ını **sıfırdan** başlat ve sor: *"Tracon hangi yetenekleri sunuyor?"*
 
-**Beklenen sonuç:** Agent `AGENTS.md` → `AgentPrism.LocalReference.md` →
-`AgentPrism.AgentMap.md` zincirini izler ve haritayı **okur**. Yolu tahmin etmez,
+**Beklenen sonuç:** Agent `AGENTS.md` → `Tracon.LocalReference.md` →
+`Tracon.AgentMap.md` zincirini izler ve haritayı **okur**. Yolu tahmin etmez,
 `~/.nuget` altında arama yapmaz ve "haritayı bulamadım" demez.
 
 🚨 Bu fazın **gerçek** kabul ölçütüdür: mekanizma değil, sonuç ölçülür. Faz

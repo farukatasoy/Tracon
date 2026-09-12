@@ -1,28 +1,28 @@
 # 23 — Saklama, Arşiv, Kota ve Çalıştırma-İçi Bütçe (`RET`)
 
 > **Alan kodu:** `RET` · **Faz:** 21 (yalnız kota dilimi), 25, 36, 114, 128, 146
-> **Kaynak:** `src/AgentPrism.Abstractions/Retention/` (tümü) ·
-> `src/AgentPrism.Core/Retention/` (tümü) ·
-> `src/AgentPrism.Sql.Shared/Internal/RetentionTargetRegistry.cs` ·
-> `src/AgentPrism.AspNetCore/Endpoints/RetentionEndpoints.cs` ·
-> `samples/AgentPrism.Api/FileSystemArchiveSink.cs` ·
-> `src/AgentPrism.Abstractions/Quotas/` · `src/AgentPrism.Core/Quotas/`
+> **Kaynak:** `src/Tracon.Abstractions/Retention/` (tümü) ·
+> `src/Tracon.Core/Retention/` (tümü) ·
+> `src/Tracon.Sql.Shared/Internal/RetentionTargetRegistry.cs` ·
+> `src/Tracon.AspNetCore/Endpoints/RetentionEndpoints.cs` ·
+> `samples/Tracon.Api/FileSystemArchiveSink.cs` ·
+> `src/Tracon.Abstractions/Quotas/` · `src/Tracon.Core/Quotas/`
 > (`QuotaEnforcer`, `QuotaPeriodCalculator`, `InMemoryQuotaStore`) ·
-> `src/AgentPrism.AspNetCore/Endpoints/QuotaEndpoints.cs` ·
-> `src/AgentPrism.Core/Recording/RunRecordingAgent.cs`
+> `src/Tracon.AspNetCore/Endpoints/QuotaEndpoints.cs` ·
+> `src/Tracon.Core/Recording/RunRecordingAgent.cs`
 > (`RecordQuotaAsync`, kök-çalıştırma kapısı) ·
-> `src/AgentPrism.Abstractions/Runs/AgentRunBudget.cs` ·
-> `src/AgentPrism.Core/Models/RunBudgetChatClient.cs` (Faz 114) ·
-> `src/AgentPrism.Core/AgentPrismOptions.cs`
-> (`AgentPrismAgentGraphOptions.MaxDuration`, Faz 128) ·
-> `src/AgentPrism.Core/Recording/RunRecordingAgent.Notifications.cs`
+> `src/Tracon.Abstractions/Runs/AgentRunBudget.cs` ·
+> `src/Tracon.Core/Models/RunBudgetChatClient.cs` (Faz 114) ·
+> `src/Tracon.Core/TraconOptions.cs`
+> (`TraconAgentGraphOptions.MaxDuration`, Faz 128) ·
+> `src/Tracon.Core/Recording/RunRecordingAgent.Notifications.cs`
 > (`WriteQuotaThresholdNoticeAsync`) ·
-> `src/AgentPrism.Abstractions/Runs/RunEventCustomTypes.cs`
-> (`QuotaThreshold`) · `src/AgentPrism.AspNetCore/Endpoints/AgentEndpoints.cs`
+> `src/Tracon.Abstractions/Runs/RunEventCustomTypes.cs`
+> (`QuotaThreshold`) · `src/Tracon.AspNetCore/Endpoints/AgentEndpoints.cs`
 > (`WriteQuotaThresholdNoticesAsync`, Faz 146).
 >
 > 🚨 **Faz 21'in yalnız KOTA dilimi bu dosyanındır.** Hız sınırı
-> (`AgentPrismRateLimitFilter`) ve webhook/olay yayını (`WebhookEndpoints`,
+> (`TraconRateLimitFilter`) ve webhook/olay yayını (`WebhookEndpoints`,
 > `IWebhookPublisher`) **hiçbir manuel test dosyasına atanmamıştır** — bkz.
 > dosyanın sonundaki "Sınır" tablosu ve `00-INDEKS.md` §8'deki not.
 >
@@ -80,7 +80,7 @@ flowchart TD
 
 | Konu | Nerede |
 |---|---|
-| Hız sınırı (`AgentPrismRateLimitFilter`, Faz 21.1) | 🚨 **Hiçbir dosyaya atanmamış** — bkz. `00-INDEKS.md` §8 |
+| Hız sınırı (`TraconRateLimitFilter`, Faz 21.1) | 🚨 **Hiçbir dosyaya atanmamış** — bkz. `00-INDEKS.md` §8 |
 | Webhook / olay yayını (Faz 21.3) | 🚨 **Hiçbir dosyaya atanmamış** — bkz. `00-INDEKS.md` §8 |
 | Maliyet gözlemlenebilirliği (`RunCost`, `/api/stats`) | `12-GOZLEMLENEBILIRLIK-MALIYET.md` (zaten üretildi) |
 | API anahtarı kapsamının GENEL sözleşmesi | `13-KIRACI-VE-GUVENLIK.md` (zaten üretildi) |
@@ -90,17 +90,17 @@ flowchart TD
 ## Koşmadan önce
 
 1. [`00-INDEKS.md`](00-INDEKS.md) §4 reset yordamı uygulanır.
-2. Örnek uygulama çalışır: `cd samples/AgentPrism.Api && dotnet run` → `http://localhost:5080`.
+2. Örnek uygulama çalışır: `cd samples/Tracon.Api && dotnet run` → `http://localhost:5080`.
    ```bash
    export APB="Authorization: Bearer manuel-test-token-2026"
-   export APU="http://localhost:5080/agentprism"
+   export APU="http://localhost:5080/tracon"
    ```
 3. Bazı case'ler (`§1`, `§3`) tabloya doğrudan SQL ile veri yazmayı gerektirir
    (gerçek bir çalıştırma zincirinden 150 satır üretmek pratik değildir — Faz
    36'nın kendi kapanış koşumu da bunu yaptı). SQLite kullanılıyorsa
-   (`AgentPrism:Sqlite:ConnectionString`), veritabanı dosyası `sqlite3` ile
+   (`Tracon:Sqlite:ConnectionString`), veritabanı dosyası `sqlite3` ile
    doğrudan açılabilir.
-4. Arşiv case'leri (`§2`) için `AgentPrism:Retention:ArchivePath` **varsayılan
+4. Arşiv case'leri (`§2`) için `Tracon:Retention:ArchivePath` **varsayılan
    olarak boştur** — bu bilinçlidir, MT-RET-012'nin ön koşuludur.
 
 > **Gerçek para uyarısı.** §4 (kota) ve §5 (çalıştırma-içi bütçe) gerçek
@@ -121,7 +121,7 @@ flowchart TD
 | **İlgili karar** | — |
 
 **Ön koşul**
-- SQLite ile çalışıyor (`AgentPrism:Sqlite:ConnectionString` tanımlı, reset yapıldı).
+- SQLite ile çalışıyor (`Tracon:Sqlite:ConnectionString` tanımlı, reset yapıldı).
 
 **Adımlar**
 1. `run_events` tablosuna doğrudan SQL ile, 10 tanesi 40 gün önceye tarihli 12
@@ -133,13 +133,13 @@ flowchart TD
 **Girilecek veri**
 ```bash
 # 1. Bir run + 12 run_event (10'u 40 gun once, 2'si bugun)
-sqlite3 samples/AgentPrism.Api/agentprism-manuel.db <<'SQL'
-INSERT INTO agentprism_runs (id, tenant_id, agent_name, status, created_at, updated_at)
+sqlite3 samples/Tracon.Api/tracon-manuel.db <<'SQL'
+INSERT INTO tracon_runs (id, tenant_id, agent_name, status, created_at, updated_at)
 VALUES ('11111111-1111-1111-1111-111111111111','default','support',1,datetime('now'),datetime('now'));
-INSERT INTO agentprism_run_events (run_id, seq, type, created_at)
+INSERT INTO tracon_run_events (run_id, seq, type, created_at)
 SELECT '11111111-1111-1111-1111-111111111111', value, 0, datetime('now','-40 days')
 FROM (SELECT value FROM json_each('[1,2,3,4,5,6,7,8,9,10]'));
-INSERT INTO agentprism_run_events (run_id, seq, type, created_at)
+INSERT INTO tracon_run_events (run_id, seq, type, created_at)
 VALUES ('11111111-1111-1111-1111-111111111111', 11, 0, datetime('now')),
        ('11111111-1111-1111-1111-111111111111', 12, 0, datetime('now'));
 SQL
@@ -155,7 +155,7 @@ curl -s "$APU/api/retention/preview?target=run_events" -H "$APB" | jq
 curl -s -X POST "$APU/api/retention/run?target=run_events" -H "$APB" | jq
 sleep 2
 curl -s "$APU/api/retention/history?target=run_events" -H "$APB" | jq '.[0]'
-sqlite3 samples/AgentPrism.Api/agentprism-manuel.db "SELECT count(*) FROM agentprism_run_events WHERE run_id='11111111-1111-1111-1111-111111111111';"
+sqlite3 samples/Tracon.Api/tracon-manuel.db "SELECT count(*) FROM tracon_run_events WHERE run_id='11111111-1111-1111-1111-111111111111';"
 ```
 
 **Beklenen sonuç**
@@ -366,7 +366,7 @@ yapılandırmaya **hiç bakılmaz** — kayıt "kapalı" olsa bile. Bir kullanı
 varsa **hiçbir şey silinmez**.
 
 **Ön koşul**
-- `dotnet user-secrets set "AgentPrism:Retention:Traces:MaxAgeDays" "14"` ile
+- `dotnet user-secrets set "Tracon:Retention:Traces:MaxAgeDays" "14"` ile
   config tabanlı bir varsayılan tanımlı, uygulama yeniden başlatıldı.
 
 **Adımlar**
@@ -403,8 +403,8 @@ Negatif senaryo. `IArchiveSink` kayıtlı değilse arşivlenemeyen veri
 düşürülmez — sessiz veri kaybını engelleyen kural.
 
 **Ön koşul**
-- `AgentPrism:Retention:ArchivePath` **ayarlanMAMIŞ** (varsayılan durum —
-  `samples/AgentPrism.Api/Program.cs:653-658` bu anahtar boşsa `IArchiveSink`'i
+- `Tracon:Retention:ArchivePath` **ayarlanMAMIŞ** (varsayılan durum —
+  `samples/Tracon.Api/Program.cs:653-658` bu anahtar boşsa `IArchiveSink`'i
   hiç kaydetmez).
 - MT-RET-001'deki gibi eskimiş satırlar mevcut.
 
@@ -427,7 +427,7 @@ curl -s "$APU/api/retention/history?target=run_events" -H "$APB" | jq '.[0]'
 - Geçmiş kaydı `deletedRows: 0` taşır (veya `error` alanı sink eksikliğini
   belirtir — koşumda hangisi olduğu kaydedilir).
 - Doğrudan SQL sayımı satırların **silinmediğini** doğrular.
-- `AgentPrism:Retention:ArchivePath`'i ayarlayıp uygulamayı yeniden başlatınca
+- `Tracon:Retention:ArchivePath`'i ayarlayıp uygulamayı yeniden başlatınca
   (`FileSystemArchiveSink` artık kayıtlı), **aynı** politika ile `run`
   çalıştırıldığında satırlar hem arşivlenir hem silinir — `.jsonl.gz`
   dosyaları belirtilen yolda oluşur.
@@ -484,13 +484,13 @@ yüzeyine büyümez."
 - Örnek uygulama çalışıyor.
 
 **Adımlar**
-1. `AgentPrism:Retention:RunEvents:MaxRows` gibi bir anahtar ayarlamayı dene.
+1. `Tracon:Retention:RunEvents:MaxRows` gibi bir anahtar ayarlamayı dene.
 2. Etkisiz olduğunu doğrula.
 
 **Girilecek veri**
 ```bash
-dotnet user-secrets set "AgentPrism:Retention:RunEvents:MaxRows" "100" \
-  --project samples/AgentPrism.Api
+dotnet user-secrets set "Tracon:Retention:RunEvents:MaxRows" "100" \
+  --project samples/Tracon.Api
 ```
 (Uygulamayı yeniden başlat.)
 ```bash
@@ -498,7 +498,7 @@ curl -s "$APU/api/retention/preview?target=run_events" -H "$APB" | jq
 ```
 
 **Beklenen sonuç**
-- Bu anahtarın hiçbir etkisi **yoktur** — `AgentPrismRetentionOptions` sınıfı
+- Bu anahtarın hiçbir etkisi **yoktur** — `TraconRetentionOptions` sınıfı
   bu alanı hiç okumaz (`RetentionPolicyResolver.cs:47-49`'daki açık yorum).
   `preview` politikasız kalmaya devam eder (MT-RET-005'teki gibi).
 - `MaxRows`'u etkinleştirmenin **tek** yolu `PUT /api/retention/{target}` ile
@@ -521,7 +521,7 @@ hassasiyet sınıfı) bu listede **yoktur** — config tabanlı bir `MaxAgeDays`
 varsayılanı `run_inputs` için normal şekilde çalışır.
 
 **Ön koşul**
-- `dotnet user-secrets set "AgentPrism:Retention:RunInputs:MaxAgeDays" "60"`.
+- `dotnet user-secrets set "Tracon:Retention:RunInputs:MaxAgeDays" "60"`.
 
 **Adımlar**
 1. Uygulamayı yeniden başlat.
@@ -542,7 +542,7 @@ curl -s "$APU/api/retention/preview?target=sessions" -H "$APB" | jq
 > alanındadır.
 
 - `run_inputs` için `preview` config'teki varsayılanı **KULLANMAZ** —
-  `AgentPrismRetentionOptions.ForTarget` içinde `run_inputs` için bir case
+  `TraconRetentionOptions.ForTarget` içinde `run_inputs` için bir case
   **yoktur**, `_ => null` dalına düşer. Yanıt `enabled: false`,
   `maxAgeDays: null` olur.
 - `sessions` için config varsayılanı **KULLANILIR**. `UserDataTargets`
@@ -574,11 +574,11 @@ Faz kapanışında gerçek koşumla (SQLite, port 5080) doğrulanmış senaryonu
 
 **Girilecek veri**
 ```bash
-sqlite3 samples/AgentPrism.Api/agentprism-manuel.db <<'SQL'
-INSERT INTO agentprism_runs (id, tenant_id, agent_name, status, created_at, updated_at)
+sqlite3 samples/Tracon.Api/tracon-manuel.db <<'SQL'
+INSERT INTO tracon_runs (id, tenant_id, agent_name, status, created_at, updated_at)
 VALUES ('22222222-2222-2222-2222-222222222222','default','support',1,datetime('now'),datetime('now'));
 WITH RECURSIVE seq(x) AS (SELECT 1 UNION ALL SELECT x+1 FROM seq WHERE x < 150)
-INSERT INTO agentprism_run_events (run_id, seq, type, created_at)
+INSERT INTO tracon_run_events (run_id, seq, type, created_at)
 SELECT '22222222-2222-2222-2222-222222222222', x, 0,
        strftime('%Y-%m-%dT%H:%M:%S.0000000Z', datetime('now', '-' || x || ' seconds'))
 FROM seq;
@@ -593,13 +593,13 @@ curl -s -X POST "$APU/api/retention/run?target=run_events" -H "$APB" | jq -r '.j
 sleep 4
 curl -s "$APU/api/retention/history?target=run_events" -H "$APB" | jq '.[0]'
 
-sqlite3 samples/AgentPrism.Api/agentprism-manuel.db \
-  "SELECT count(*) FROM agentprism_run_events WHERE run_id='22222222-2222-2222-2222-222222222222';"
+sqlite3 samples/Tracon.Api/tracon-manuel.db \
+  "SELECT count(*) FROM tracon_run_events WHERE run_id='22222222-2222-2222-2222-222222222222';"
 ```
 
 > **Doküman düzeltmesi (kusur değil):** orijinal `Girilecek veri`
 > `datetime('now', ...)` kullanıyordu — SQLite'ın varsayılan biçimi
-> (`YYYY-MM-DD HH:MM:SS`, boşluk ayraçlı). `AgentPrism.Sqlite/Internal/
+> (`YYYY-MM-DD HH:MM:SS`, boşluk ayraçlı). `Tracon.Sqlite/Internal/
 > SqliteDialect.cs:251-256`'nın `AddTimestamp`'i tüm `created_at` yazımlarında
 > **`T` ayraçlı** ISO-8601 kullanır (`yyyy-MM-ddTHH:mm:ss.fffffffZ`) ve
 > kod içi yorumu bunun **bilinçli** olduğunu söylüyor: "sözlüksel olarak zaman
@@ -700,7 +700,7 @@ curl -s "$APU/api/retention/preview?target=run_events" -H "$APB" | jq
 
 Sınır senaryosu — **düzeltici bulgu**. `docs/arsiv/fazlar/36-SAKLAMA-HACIM-SINIRI.md`
 (Plandan Sapmalar #2) *"`MaxRows` kiracı başına değil, tablo genelinde
-çalışır"* diyor (K-260). Ölçüldü: `src/AgentPrism.Abstractions/Retention/
+çalışır"* diyor (K-260). Ölçüldü: `src/Tracon.Abstractions/Retention/
 IRetentionStore.cs`'in **güncel** `FindRowLimitCutoffAsync` imzası bir
 `string? tenantId` parametresi taşıyor ve `RetentionExecutor.cs:230` onu
 gerçekten geçiriyor — bu, Faz 41'in `DeleteBatchAsync`'e kiracı sınırlaması
@@ -708,7 +708,7 @@ eklediği K-279 değişikliğiyle **aynı anda veya sonrasında** `MaxRows`'a da
 uygulanmış. Faz 36'nın metni güncellenmemiş, kod ondan **ileri**.
 
 **Ön koşul**
-- Çok kiracılık açık (`AgentPrism:Tenancy:Enabled=true`, bkz.
+- Çok kiracılık açık (`Tracon:Tenancy:Enabled=true`, bkz.
   `13-KIRACI-VE-GUVENLIK.md`'nin kurulum notları). SQLite.
 
 **Adımlar**
@@ -722,15 +722,15 @@ uygulanmış. Faz 36'nın metni güncellenmemiş, kod ondan **ileri**.
 # (adim 1-2: sqlite3 ile tenant_id sutunuyla birlikte 150 + 5 satir eklenir)
 
 curl -s -X PUT "$APU/api/retention/run_events" \
-  -H "$APB" -H "X-AgentPrism-Tenant: kiraci-alfa" -H "content-type: application/json" \
+  -H "$APB" -H "X-Tracon-Tenant: kiraci-alfa" -H "content-type: application/json" \
   -d '{"maxRows":100,"archive":false,"enabled":true}'
 
 curl -s -X POST "$APU/api/retention/run?target=run_events" \
-  -H "$APB" -H "X-AgentPrism-Tenant: kiraci-alfa" | jq -r '.jobId'
+  -H "$APB" -H "X-Tracon-Tenant: kiraci-alfa" | jq -r '.jobId'
 sleep 2
 
-sqlite3 samples/AgentPrism.Api/agentprism-manuel.db \
-  "SELECT tenant_id, count(*) FROM agentprism_run_events GROUP BY tenant_id;"
+sqlite3 samples/Tracon.Api/tracon-manuel.db \
+  "SELECT tenant_id, count(*) FROM tracon_run_events GROUP BY tenant_id;"
 ```
 
 **Beklenen sonuç (K-279'un doğrulanması, K-260'ın çürütülmesi)**
@@ -898,7 +898,7 @@ ONCE=$(curl -s "$APU/api/quotas/usage" -H "$APB" | jq '[.[] | select(.agentName=
 
 curl -s -X POST "$APU/api/workflows/ozetle-ve-cevir/run" \
   -H "$APB" -H "content-type: application/json" -H "Idempotency-Key: $(uuidgen)" \
-  -d '{"message":"Bu metni ozetle ve Ingilizceye cevir: AgentPrism bir NuGet paket ailesidir."}' | jq -r '.runId // .id'
+  -d '{"message":"Bu metni ozetle ve Ingilizceye cevir: Tracon bir NuGet paket ailesidir."}' | jq -r '.runId // .id'
 
 sleep 3
 SONRA=$(curl -s "$APU/api/quotas/usage" -H "$APB" | jq '[.[] | select(.agentName==null and .period=="Daily")][0].runs // 0')
@@ -934,8 +934,8 @@ bunu toplama hiç **katmaz** — yani fiyatsız bir modelin çalıştırmaları 
 `MaxCost` kuralına karşı pratikte hiç sayılmaz.
 
 **Ön koşul**
-- `samples/AgentPrism.Api/Program.cs` hiçbir model fiyatı tanımlamaz
-  (`grep -rn "InputCostPerMillionTokens" samples/AgentPrism.Api/Program.cs`
+- `samples/Tracon.Api/Program.cs` hiçbir model fiyatı tanımlamaz
+  (`grep -rn "InputCostPerMillionTokens" samples/Tracon.Api/Program.cs`
   boş döner — bu ölçüldü, dosya değiştirilmedi).
 
 **Adımlar**
@@ -1037,8 +1037,8 @@ wait
 
 Negatif senaryo — bilinen ailenin **sekizinci** (`Retention`) ve
 **dokuzuncu** (`Quota`) bağımsız tekrarı (önceki yediyi bkz.
-`15/16/17/18/20/21`). `grep -n "RequireApiKeyScope" src/AgentPrism.AspNetCore/
-Endpoints/RetentionEndpoints.cs src/AgentPrism.AspNetCore/Endpoints/
+`15/16/17/18/20/21`). `grep -n "RequireApiKeyScope" src/Tracon.AspNetCore/
+Endpoints/RetentionEndpoints.cs src/Tracon.AspNetCore/Endpoints/
 QuotaEndpoints.cs` **sıfır** sonuç döner — ikisi de yalnız
 `RequireRole(roles.Admin)` taşır, ve rol politikaları örnek uygulamada hiç
 kayıtlı değildir (`14-SKILL-VE-SCRIPT.md`'nin bulgusu). Sonuç: statik bearer
@@ -1103,15 +1103,15 @@ Faz 41'den beri (`tenantId` zorunlu parametre) yapısal olarak garanti eder.
 **Girilecek veri**
 ```bash
 curl -s -X PUT "$APU/api/retention/run_events" \
-  -H "$APB" -H "X-AgentPrism-Tenant: kiraci-alfa" -H "content-type: application/json" \
+  -H "$APB" -H "X-Tracon-Tenant: kiraci-alfa" -H "content-type: application/json" \
   -d '{"maxAgeDays":30,"archive":false,"enabled":true}'
 
 curl -s -X POST "$APU/api/retention/run?target=run_events" \
-  -H "$APB" -H "X-AgentPrism-Tenant: kiraci-alfa" | jq -r '.jobId'
+  -H "$APB" -H "X-Tracon-Tenant: kiraci-alfa" | jq -r '.jobId'
 sleep 2
 
-sqlite3 samples/AgentPrism.Api/agentprism-manuel.db \
-  "SELECT tenant_id, count(*) FROM agentprism_run_events GROUP BY tenant_id;"
+sqlite3 samples/Tracon.Api/tracon-manuel.db \
+  "SELECT tenant_id, count(*) FROM tracon_run_events GROUP BY tenant_id;"
 ```
 
 **Beklenen sonuç**
@@ -1135,7 +1135,7 @@ geçmiş dönemleri sonsuza dek tutar — yalnız geçerli dönem sorgulanır,
 eskiler ölü veridir."* Bu, Faz 25'in ele alması beklenen bir iş kalemiydi.
 Ölçüldü: `RetentionTargets.All`'un güncel **16** üyesinde `quota_usage`
 (veya `QuotaUsage` sabiti) **yoktur** — `grep -rn "quota_usage" src/
-AgentPrism.Abstractions/Retention/ src/AgentPrism.Sql.Shared/Internal/
+Tracon.Abstractions/Retention/ src/Tracon.Sql.Shared/Internal/
 RetentionTargetRegistry.cs` sıfır sonuç döner. `webhook_deliveries` (aynı
 devir notunda anılan ikinci tablo) listeye **eklenmiş**; `quota_usage`
 **eklenmemiş**.
@@ -1183,22 +1183,22 @@ uygulaması) her zaman boş/sıfır döner. Tasarım kuralı #1'in ("sıfır sü
 - .NET SDK kurulu. Yerel NuGet feed hazır.
 
 **Adımlar**
-1. Hiçbir SQL sağlayıcısı eklenmeden bir `AgentPrismTestHost` kur.
+1. Hiçbir SQL sağlayıcısı eklenmeden bir `TraconTestHost` kur.
 2. Politika kaydetmeyi ve önizleme almayı dene.
 
 **Girilecek veri**
 ```bash
-mkdir -p ~/agentprism-manuel/saklama-testleri && cd ~/agentprism-manuel/saklama-testleri
+mkdir -p ~/tracon-manuel/saklama-testleri && cd ~/tracon-manuel/saklama-testleri
 dotnet new console
-SURUM=$(ls ~/agentprism-local-feed/AgentPrism.Testing.*.nupkg | sed 's#.*AgentPrism.Testing\.##;s#\.nupkg##')
-dotnet add package AgentPrism.Testing --version "$SURUM"
+SURUM=$(ls ~/tracon-local-feed/Tracon.Testing.*.nupkg | sed 's#.*Tracon.Testing\.##;s#\.nupkg##')
+dotnet add package Tracon.Testing --version "$SURUM"
 
 cat > Program.cs <<'EOF'
-using AgentPrism;
-using AgentPrism.Testing;
+using Tracon;
+using Tracon.Testing;
 using Microsoft.Extensions.DependencyInjection;
 
-await using var host = await AgentPrismTestHost.StartAsync(o =>
+await using var host = await TraconTestHost.StartAsync(o =>
 {
     o.ModelProvider = new FakeModelProvider().EchoesUserMessage();
     // DIKKAT: UsePostgreSql/UseSqlite/UseSqlServer HIC cagrilmiyor.
@@ -1241,16 +1241,16 @@ Sınır aşılınca yalnız `runs` satırı değil, o `run`'ın event log'u, too
 invocation log'u ve heartbeat kaydı da düşmelidir; aksi hâlde bellekte
 sahipsiz veri birikir.
 
-> 👤 **İnsan gerekir** — `MaxRuns` `AddAgentPrism()` üzerinden `config`'ten
+> 👤 **İnsan gerekir** — `MaxRuns` `AddTracon()` üzerinden `config`'ten
 > ayarlanamaz, yalnız `new InMemoryRunStore { MaxRuns = N }` ile kod
 > düzeyinde verilir; standart bir `curl` senaryosu yoktur.
 
 **Otomatik karşılığı** (koşuldu, 2026-08-26):
 - `InMemoryRunStoreTests.When_the_upper_limit_is_exceeded_the_oldest_run_is_dropped`
-  (`tests/AgentPrism.Core.UnitTests/Storage/InMemoryStoreTests.cs`) — en eski
+  (`tests/Tracon.Core.UnitTests/Storage/InMemoryStoreTests.cs`) — en eski
   `run` satırının düştüğünü kanıtlar.
 - `InMemoryRunStoreStructureTests.Trim_drops_the_dropped_runs_events_and_tool_invocations_too`
-  (`tests/AgentPrism.Core.UnitTests/Storage/InMemoryRunStoreStructureTests.cs`) —
+  (`tests/Tracon.Core.UnitTests/Storage/InMemoryRunStoreStructureTests.cs`) —
   aynı trim'in event log'unu ve tool invocation log'unu da sildiğini kanıtlar
   (Faz 108'in `partial` ayrıştırmasından önce bu ikinci iddia için ayrı bir
   test yoktu).
@@ -1268,8 +1268,8 @@ başına aşar; ikinci tur **gerçek sağlayıcıya hiç ulaşmadan** kesilir.
 **Ön koşul (tüm case'ler için ortak)**
 - Örnek uygulama, düşürülmüş bir tavanla başlatılır:
   ```bash
-  export AgentPrism__AgentGraph__MaxTotalTokens=50
-  cd samples/AgentPrism.Api && dotnet run
+  export Tracon__AgentGraph__MaxTotalTokens=50
+  cd samples/Tracon.Api && dotnet run
   ```
 
 ### MT-RET-050 — Düşük token tavanı, uzun tool döngülü bir `run`'ı KESER
@@ -1281,7 +1281,7 @@ başına aşar; ikinci tur **gerçek sağlayıcıya hiç ulaşmadan** kesilir.
 | **İlgili faz** | Faz 114 |
 | **İlgili karar** | K-627 |
 
-**Ölçüldü (2026-08-26, gerçek OpenAI çağrısı, `samples/AgentPrism.Api`):**
+**Ölçüldü (2026-08-26, gerçek OpenAI çağrısı, `samples/Tracon.Api`):**
 başarısız bir `POST /api/agents/{name}/run`'ın gövdesi bir `run` kaydı
 DEĞİL, bir `ProblemDetails`'tir (`runId` alanı taşımaz) — bu yüzden
 `RUN_ID` POST yanıtından değil, `GET /api/runs`'tan okunur.
@@ -1292,7 +1292,7 @@ DEĞİL, bir `ProblemDetails`'tir (`runId` alanı taşımaz) — bu yüzden
 
 **Girilecek veri**
 ```bash
-export AgentPrism__AgentGraph__MaxTotalTokens=150   # örnek uygulamayı bu env ile başlat
+export Tracon__AgentGraph__MaxTotalTokens=150   # örnek uygulamayı bu env ile başlat
 
 curl -s -X POST "$APU/api/agents/support/run" \
   -H "$APB" -H "content-type: application/json" -H "Idempotency-Key: $(uuidgen)" \
@@ -1310,9 +1310,9 @@ curl -s "$APU/api/runs/$RUN_ID" -H "$APB" | jq '{status, errorClass: .error.clas
   emekliye ayırdığı `9` yeniden kullanılmaz; bu tavan kesmesi mevcut
   `QuotaExceeded` (`4`) altında raporlanır.
 - `errorMessage` hangi tavanın (`token`) dolduğunu ve hangi ayarın
-  (`AgentPrism:AgentGraph:MaxTotalTokens`) yükseltileceğini adıyla yazar —
+  (`Tracon:AgentGraph:MaxTotalTokens`) yükseltileceğini adıyla yazar —
   ölçülen tam metin: *"The run tree's token budget is exhausted (254/150).
-  Raise AgentPrism:AgentGraph:MaxTotalTokens to allow more. No further model
+  Raise Tracon:AgentGraph:MaxTotalTokens to allow more. No further model
   calls can be made in this run tree."*
 
 ---
@@ -1376,8 +1376,8 @@ curl -s "$APU/api/runs/$RUN_ID/events" -H "$APB"
 **Ön koşul**
 - Örnek uygulama, tavan **olmadan** yeniden başlatılır:
   ```bash
-  unset AgentPrism__AgentGraph__MaxTotalTokens
-  cd samples/AgentPrism.Api && dotnet run
+  unset Tracon__AgentGraph__MaxTotalTokens
+  cd samples/Tracon.Api && dotnet run
   ```
 
 **Adımlar**
@@ -1415,15 +1415,15 @@ curl -s "$APU/api/runs/$RUN_ID" -H "$APB" | jq '.status'
 düşülür — `QuotaDefinition.MaxCost`'un zaten uyguladığı kuralın aynısı.
 
 **Ön koşul**
-- Örnek uygulamanın modeli fiyat kataloğunda/`AgentPrism:Pricing`
+- Örnek uygulamanın modeli fiyat kataloğunda/`Tracon:Pricing`
   yapılandırmasında **tanımlı değil** (varsayılan kurulumda genelde böyledir
   — `MT-RET-034`'ün önkoşuluyla aynı).
 - Örnek uygulama düşük bir MALİYET tavanıyla, YÜKSEK bir token tavanıyla
   başlatılır:
   ```bash
-  export AgentPrism__AgentGraph__MaxTotalCost=0.000001
-  export AgentPrism__AgentGraph__MaxTotalTokens=200000
-  cd samples/AgentPrism.Api && dotnet run
+  export Tracon__AgentGraph__MaxTotalCost=0.000001
+  export Tracon__AgentGraph__MaxTotalTokens=200000
+  cd samples/Tracon.Api && dotnet run
   ```
 
 **Adımlar**
@@ -1530,8 +1530,8 @@ budur: bugüne kadar kuyruğa alınmış bir `run`'ı zamanla sınırlayan **hi�
   tavan seçilir çünkü gerçek bir OpenAI ağ turu her zaman bundan uzun
   sürer — bu yüzden İLK model turu her zaman biter, kesme İKİNCİ turda olur:
   ```bash
-  export AgentPrism__AgentGraph__MaxDuration="00:00:00.001"
-  cd samples/AgentPrism.Api && dotnet run
+  export Tracon__AgentGraph__MaxDuration="00:00:00.001"
+  cd samples/Tracon.Api && dotnet run
   ```
 
 ### MT-RET-060 — Düşük süre tavanı, bir tool döngülü `run`'ı KESER
@@ -1543,8 +1543,8 @@ budur: bugüne kadar kuyruğa alınmış bir `run`'ı zamanla sınırlayan **hi�
 | **İlgili faz** | Faz 128 |
 | **İlgili karar** | K-630 |
 
-**Ölçüldü (2026-09-01, gerçek OpenAI çağrısı, `samples/AgentPrism.Api`,
-`export AgentPrism__AgentGraph__MaxDuration="00:00:00.001"`).**
+**Ölçüldü (2026-09-01, gerçek OpenAI çağrısı, `samples/Tracon.Api`,
+`export Tracon__AgentGraph__MaxDuration="00:00:00.001"`).**
 
 **Adımlar**
 1. `support` agent'ına bir sipariş sorusu sor (tool çağrısını tetikler).
@@ -1568,10 +1568,10 @@ curl -s "$APU/api/runs/$RUN_ID" -H "$APB" | jq '{status, errorClass: .error.clas
 - `errorClass: "QuotaExceeded"` — token/maliyet kesmesiyle **aynı** sınıf
   (K-630); mesaj hangi boyutun dolduğunu ayırt eder.
 - `errorMessage` hangi tavanın (`süre`) dolduğunu, hangi ayarın
-  (`AgentPrism:AgentGraph:MaxDuration`) yükseltileceğini VE tavanın sert bir
+  (`Tracon:AgentGraph:MaxDuration`) yükseltileceğini VE tavanın sert bir
   zaman aşımı olmadığını adıyla yazar — ölçülen tam metin: *"The run tree's
   time budget is exhausted (00:00:00.0932770/00:00:00.0010000). Raise
-  AgentPrism:AgentGraph:MaxDuration to allow more. This is a cutoff between
+  Tracon:AgentGraph:MaxDuration to allow more. This is a cutoff between
   model turns, not a hard timeout: a tool call already in progress is not
   interrupted. No further model calls can be made in this run tree."*
 - Elapsed süre (`0.093...`) tavandan (`0.001`) büyüktür ama **sıfıra
@@ -1628,8 +1628,8 @@ curl -s --max-time 5 "$APU/api/runs/$RUN_ID/events" -H "$APB"
 **Ön koşul**
 - Örnek uygulama, tavan **olmadan** yeniden başlatılır:
   ```bash
-  unset AgentPrism__AgentGraph__MaxDuration
-  cd samples/AgentPrism.Api && dotnet run
+  unset Tracon__AgentGraph__MaxDuration
+  cd samples/Tracon.Api && dotnet run
   ```
 
 **Adımlar**
@@ -1711,7 +1711,7 @@ GERÇEKTEN çalışırken (ve son tarih ÇOKTAN geçmişken) `POST
 /api/runs/{id}/cancel`'ın tam o anda çağrılmasını gerektirir — zamanlaması
 elle koşumda tesadüfe kalır. Güvence, otomatik fonksiyonel teste
 bırakılmıştır:
-`tests/AgentPrism.AspNetCore.FunctionalTests/RunDeadlineTests.cs` →
+`tests/Tracon.AspNetCore.FunctionalTests/RunDeadlineTests.cs` →
 `Cancelling_a_run_while_the_deadline_has_already_passed_still_classifies_as_Canceled`
 — bir `TaskCompletionSource` ile tool'un GERÇEKTEN çalıştığı an
 belirlenip tam o anda `cancel` ucu çağrılır, ardından çalıştırmanın
@@ -1731,14 +1731,14 @@ ile) deterministik hâle getirir.
 
 # 7 — Çalıştırmaya bağlı kota eşiği bildirimi (Faz 146)
 
-Eşiği geçiren `run`'ın kendi olay akışına yazılan `agentprism.quota.threshold`
+Eşiği geçiren `run`'ın kendi olay akışına yazılan `tracon.quota.threshold`
 bildirimi: sıra (terminal olaydan önce), korelasyon (`run`/kullanıcı), iki
 yoldan aynı payload, `Last-Event-ID` ile yeniden okunabilirlik, kalıcı
 tekillik ve varsayılan kapalı davranış.
 
 > **Gerçek para uyarısı.** Bu bölümdeki tüm case'ler gerçek bir sağlayıcı
 > çağrısı yapar (`support` agent'ının bağlı olduğu model). `PublishThresholdToRunStream`
-> varsayılan **kapalıdır**; case'ler `--AgentPrism:Quotas:PublishThresholdToRunStream=true`
+> varsayılan **kapalıdır**; case'ler `--Tracon:Quotas:PublishThresholdToRunStream=true`
 > ile başlatılan bir örnek uygulama koşumu gerektirir.
 
 ### MT-RET-070 — Anahtar kapalıyken davranış birebir eskisiyle aynıdır
@@ -1784,7 +1784,7 @@ curl -N -s "$APU/api/agents/support/run" -H "$APB" -H 'content-type: application
 | **İlgili karar** | 146.1 |
 
 **Ön koşul**
-- Örnek uygulama `--AgentPrism:Quotas:PublishThresholdToRunStream=true` ile başlatıldı.
+- Örnek uygulama `--Tracon:Quotas:PublishThresholdToRunStream=true` ile başlatıldı.
 - `support` agent'ı için `maxRuns=1` bir kota kaydı var (temiz dönem).
 
 **Adımlar**
@@ -1811,7 +1811,7 @@ event: done
 **Beklenen sonuç**
 - `event: custom` **`event: done`'dan önce** gelir. ✅ Doğrulandı.
 - Aynı akışın `data:` gövdesi `"type":"Custom"` ve
-  `"customType":"agentprism.quota.threshold"` taşır.
+  `"customType":"tracon.quota.threshold"` taşır.
 
 ---
 
@@ -1845,7 +1845,7 @@ data: {"runId":"...","sequence":11,"type":"Custom", ...,
                     \"runId\":\"...\",\"sessionId\":null,\"metric\":\"Runs\",
                     \"period\":\"Daily\",\"thresholdPercent\":100,\"limit\":1,
                     \"used\":1,\"resetsAt\":\"2026-09-06T00:00:00+00:00\"}",
-       "customType":"agentprism.quota.threshold"}
+       "customType":"tracon.quota.threshold"}
 ```
 
 **Beklenen sonuç**
@@ -1889,8 +1889,8 @@ curl -s "$APU/api/runs/$RUN_ID/events" -H "$APB" -H "Last-Event-ID: 0" | grep -c
 
 **Ön koşul**
 - `maxRuns=2`, tek eşik `%50` (varsayılan `[80,100]` yerine).
-- Uygulama `--AgentPrism:Quotas:PublishThresholdToRunStream=true
-  --AgentPrism:Quotas:ThresholdPercents:0=50` ile başlatıldı (veya iki
+- Uygulama `--Tracon:Quotas:PublishThresholdToRunStream=true
+  --Tracon:Quotas:ThresholdPercents:0=50` ile başlatıldı (veya iki
   eleman varsayılanı kabul edilip yalnız ilk `run`'ın `%50`'yi, ikinci
   `run`'ın `%100`'ü geçtiği ayrı ayrı gözlemlenir).
 
@@ -1932,7 +1932,7 @@ SQL Server) yapılandırıldığında elle koşulabilir; bellek içi kurulumda
 "yeniden başlatma" kavramı yoktur (sayaç da sıfırlanır).
 
 **Ön koşul**
-- SQLite ile çalışıyor (`AgentPrism:Sqlite:ConnectionString` tanımlı).
+- SQLite ile çalışıyor (`Tracon:Sqlite:ConnectionString` tanımlı).
 - MT-RET-074'ün ilk `run`'ı (eşik zaten claim edildi).
 
 **Adımlar**

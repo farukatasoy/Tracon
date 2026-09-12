@@ -3,7 +3,7 @@
 > **Durum:** ✅ Tamamlandı (2026-08-19)
 > **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-40**, **F-119**
 > **Önkoşul:** [Faz 41](41-KIRACI-YALITIMININ-ZORLANMASI.md) — kiracı yalıtımının zemini · [Faz 53](53-KIRACI-API-ANAHTARLARI.md) — kiracı yönetim yüzeyi ve kapsam modeli · [Faz 8](08-SAGLAYICI-GENISLEMESI.md) — sağlayıcı katmanı
-> **Paketler:** `AgentPrism.Abstractions`, `AgentPrism.Core`, `AgentPrism.OpenAI`, `AgentPrism.Anthropic`, `AgentPrism.Google`, `AgentPrism.Azure`, `AgentPrism.Sql.Shared`, `AgentPrism.PostgreSql`, `AgentPrism.SqlServer`, `AgentPrism.Sqlite`, `AgentPrism.AspNetCore`, `AgentPrism.UI`
+> **Paketler:** `Tracon.Abstractions`, `Tracon.Core`, `Tracon.OpenAI`, `Tracon.Anthropic`, `Tracon.Google`, `Tracon.Azure`, `Tracon.Sql.Shared`, `Tracon.PostgreSql`, `Tracon.SqlServer`, `Tracon.Sqlite`, `Tracon.AspNetCore`, `Tracon.UI`
 > **Yeni paket:** Yok · **Migration:** **gerekli — üç set** (yeni `tenant_provider_bindings` tablosu). Numara uygulama anında alınır (K-178)
 > **Public API:** **büyüyor ve bir arayüz imzası genişliyor** — `IModelProvider.CreateChatClient`. 🚨 Arayüze metot/parametre eklemek yayından **sonra** en pahalı değişikliktir; `PublicAPI.Shipped.txt` bugün **boş** olduğu için **şimdi bedava**
 > **Site etkisi:** `guides/model-providers.md`, `concepts/governance.md`, `reference/configuration.md`
@@ -33,7 +33,7 @@ Sağlayıcı anahtarı bugün **globaldir**. Bütün kiracılar aynı anahtarı,
 ## Bitiş Ölçütleri (DoD)
 
 - [x] Bağlama yokken bugünkü davranış **birebir** korunur — sync `CreateChatClient` yolu değişmedi; `ModelProviderRegistryTenantCredentialTests.Tenant_with_no_binding_falls_back_to_the_global_credential` ve `The_sync_overload_never_resolves_a_tenant_credential_...`
-- [x] Kiracının bağlaması varken çağrı **onun** anahtarıyla gider; iki kiracı iki farklı anahtar kullanır (sözleşme testi, dört koşum) — `TenantProviderBindingStoreContract` bellek içi + 3 SQL sağlayıcısında (1050+ test dahil toplam koşum); gerçek örnek uygulamada `acme` kiracısı için ayrı bir `AgentPrism:ProviderKeys:Acme:OpenAI` bağlaması doğrulandı (Adım 2)
+- [x] Kiracının bağlaması varken çağrı **onun** anahtarıyla gider; iki kiracı iki farklı anahtar kullanır (sözleşme testi, dört koşum) — `TenantProviderBindingStoreContract` bellek içi + 3 SQL sağlayıcısında (1050+ test dahil toplam koşum); gerçek örnek uygulamada `acme` kiracısı için ayrı bir `Tracon:ProviderKeys:Acme:OpenAI` bağlaması doğrulandı (Adım 2)
 - [x] Anahtar **değeri** hiçbir yerde saklanmaz: veritabanı, log, `span`, API yanıtı — dördü de testle kapatıldı — `TenantProviderEndpointTests.Response_never_carries_a_credential_value`, `*ModelProviderCredentialTests.The_key_value_never_appears_in_client_metadata` (OpenAI), doğrudan `psql` ile veritabanı satırı okundu (Adım 2)
 - [x] Önek dışındaki bir yapılandırma adı hem kayıtta hem çözümlemede reddedilir — `TenantProviderCredentialResolverTests` (kayıt + çözümleme iki ayrı test), `TenantProviderEndpointTests.Name_outside_the_allowed_prefix_is_rejected`
 - [x] Ad var ama değer yoksa çağrı global anahtara **düşmez**; hata anlaşılırdır — `ModelProviderRegistryTenantCredentialTests.A_binding_that_exists_but_resolves_to_no_value_does_not_fall_back_silently`
@@ -41,7 +41,7 @@ Sağlayıcı anahtarı bugün **globaldir**. Bütün kiracılar aynı anahtarı,
 - [~] Bağlama yazımı denetim izine **mutasyondan sonra** yazılır (planın "önce" ifadesinden sapma) — `AuditRecorder.WriteAsync` (hata yutan, standart) deseni kullanıldı; K-089/K-370'in "önce + engelleyici" deseni yalnız GERİ ALINAMAZ eylemler içindir (script çalıştırma, onay kararı), bir yapılandırma yazımı bu sınıfa girmiyor — `ApiKeyEndpoints`/`RetentionEndpoints` ile aynı, kurulu desen
 - [x] Arayüzde değer girme alanı **yoktur** — `tenant-provider-panel.tsx`; form yalnız sağlayıcı, yapılandırma anahtarı ADI, uç adresi alır
 - [x] Dört doğrulama kapısı sıfır uyarı verir — `dotnet build`/`test`/`pack`/`format`, hepsi 0 uyarı (Adım 1)
-- [x] `samples/AgentPrism.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı — Adım 2, gerçek PostgreSQL'e karşı: önek reddi `400`, bağlama `resolved:false`→veritabanı satırı, egress reddi `400`→izinli `201`, denetim izi zincirlenmiş hash ile doğrulandı
+- [x] `samples/Tracon.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı — Adım 2, gerçek PostgreSQL'e karşı: önek reddi `400`, bağlama `resolved:false`→veritabanı satırı, egress reddi `400`→izinli `201`, denetim izi zincirlenmiş hash ile doğrulandı
 - [x] `secret` taraması boş döndü — yalnız önceden var olan doküman örnekleri eşleşti, yeni kod sıfır eşleşme
 - [x] Manuel kabul case'leri `docs/manuel-test/13-KIRACI-VE-GUVENLIK.md` içine eklendi (MT-SEC-109..119); otomatikleştirilebilenler Adım 2'de gerçek koşumla doğrulandı
 - [x] `faz-denetim` koşuldu; 🔴 bulgu kalmadı — bkz. "Denetim Bulguları"
@@ -58,20 +58,20 @@ Sağlayıcı anahtarı bugün **globaldir**. Bütün kiracılar aynı anahtarı,
 
 ```bash
 # Deger yalniz user-secrets'ta yasar
-dotnet user-secrets set "AgentPrism:ProviderKeys:Acme:OpenAI" "sk-..." \
-  --project samples/AgentPrism.Api
+dotnet user-secrets set "Tracon:ProviderKeys:Acme:OpenAI" "sk-..." \
+  --project samples/Tracon.Api
 
 # Baglama yaz - yalniz AD
-curl -s -X PUT http://localhost:5081/agentprism/api/tenants/acme/providers/openai \
+curl -s -X PUT http://localhost:5081/tracon/api/tenants/acme/providers/openai \
   -H 'Content-Type: application/json' \
-  -d '{"apiKeyConfigurationName":"AgentPrism:ProviderKeys:Acme:OpenAI"}'
+  -d '{"apiKeyConfigurationName":"Tracon:ProviderKeys:Acme:OpenAI"}'
 
 # Deger DONMEZ, yalniz cozumleme durumu doner
-curl -s http://localhost:5081/agentprism/api/tenants/acme/providers
+curl -s http://localhost:5081/tracon/api/tenants/acme/providers
 
 # Onek disindaki ad reddedilir
 curl -s -o /dev/null -w '%{http_code}\n' -X PUT \
-  http://localhost:5081/agentprism/api/tenants/acme/providers/openai \
+  http://localhost:5081/tracon/api/tenants/acme/providers/openai \
   -H 'Content-Type: application/json' \
   -d '{"apiKeyConfigurationName":"ConnectionStrings:Default"}'
 ```
@@ -111,7 +111,7 @@ curl -s -o /dev/null -w '%{http_code}\n' -X PUT \
 - **E2E (Playwright) doğrulaması ilk denemede yapılamadı**, ortamda tarayıcı
   ikilikleri kurulu değildi ve `npx playwright install chromium` ağ üzerinden
   zaman aşımına uğradı. `faz-denetim` kapanışında (Adım 1) tarayıcılar kurulu
-  hâlde bulundu; tam `AgentPrism.Ui.E2ETests` seti koşuldu — **55/55 geçti**
+  hâlde bulundu; tam `Tracon.Ui.E2ETests` seti koşuldu — **55/55 geçti**
   (bu fazın kendi paneli için ayrı bir case eklenmedi; mevcut `settings.tsx`
   kapsamı yeterliydi, bkz. Adım 7 site senkronu).
 - **🟢 Bağımsız bir gözlem, faz kapsamı DIŞINDA:** tam çözüm koşumunda
@@ -149,7 +149,7 @@ saklamaz, bağlama varken tamamen atlar).
 | # | Bulgu | Sonuç |
 |---|---|---|
 | 1 | §65.5'teki anlatı metni "mutasyondan **önce**" (K-089) diyordu ama gerçek kod (`ApiKeyEndpoints`/`RetentionEndpoints` ile aynı, kurulu desen) mutasyonu önce uygular, denetim kaydını sonra (hata yutan `AuditRecorder.WriteAsync`) yazar | **Düzeltildi — dokümanla kod artık aynı şeyi söylüyor.** §65.5 metni güncellendi: K-089/K-370'in "önce + engelleyici" deseni yalnız GERİ ALINAMAZ eylemler içindir (script çalıştırma, onay kararı); bir `configKeyName` yazımı bu sınıfa girmez. DoD'deki `[~]` satırı zaten bu gerekçeyi taşıyordu |
-| 2 | Plan tablosunda adı geçen `TenantProviderConcurrencyTests` ve `TenantProviderTelemetryTests` hiç yazılmamıştı | **Kısmen yazıldı, kısmen gerekçelendi.** Concurrency: gerçek PostgreSQL'e karşı `TenantProviderBindingConcurrencyTests.Racing_upserts_to_the_same_binding_leave_exactly_one_consistent_row` eklendi (20 eşzamanlı `UpsertAsync`, `JobStoreConcurrencyTests` deseniyle) — `ON CONFLICT ... DO UPDATE` altında tek satır kalıyor, kaybolan güncelleme yok. Telemetry: yeni BYOK kodunun hiçbir yerinde `ILogger`/`Activity` çağrısı **yok** (`grep -rn "Log\|SetTag" src/AgentPrism.Core/Tenancy/ src/AgentPrism.AspNetCore/Endpoints/TenantProviderEndpoints.cs` boş döner) — sızacak bir log/span yolu yok; mevcut genel `AuditSecretFilterTests` + bu fazın kendi `Response_never_carries_a_credential_value`/`Saving_a_binding_writes_an_audit_entry_without_a_credential_value` testleri (functional) zaten API yanıtı ve denetim izi yollarını kapatıyor. Ayrı bir `TenantProviderTelemetryTests` sınıfı açmadım çünkü doğrulayacağı davranış yok |
+| 2 | Plan tablosunda adı geçen `TenantProviderConcurrencyTests` ve `TenantProviderTelemetryTests` hiç yazılmamıştı | **Kısmen yazıldı, kısmen gerekçelendi.** Concurrency: gerçek PostgreSQL'e karşı `TenantProviderBindingConcurrencyTests.Racing_upserts_to_the_same_binding_leave_exactly_one_consistent_row` eklendi (20 eşzamanlı `UpsertAsync`, `JobStoreConcurrencyTests` deseniyle) — `ON CONFLICT ... DO UPDATE` altında tek satır kalıyor, kaybolan güncelleme yok. Telemetry: yeni BYOK kodunun hiçbir yerinde `ILogger`/`Activity` çağrısı **yok** (`grep -rn "Log\|SetTag" src/Tracon.Core/Tenancy/ src/Tracon.AspNetCore/Endpoints/TenantProviderEndpoints.cs` boş döner) — sızacak bir log/span yolu yok; mevcut genel `AuditSecretFilterTests` + bu fazın kendi `Response_never_carries_a_credential_value`/`Saving_a_binding_writes_an_audit_entry_without_a_credential_value` testleri (functional) zaten API yanıtı ve denetim izi yollarını kapatıyor. Ayrı bir `TenantProviderTelemetryTests` sınıfı açmadım çünkü doğrulayacağı davranış yok |
 
 **Temiz çıkan başlıklar:** 3.1 (DoD), 3.3 (test seviyesi), 3.5 (imza-gövde), 3.7 (repo kuralları), 3.8 (ürün yüzeyi)
 

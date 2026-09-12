@@ -1,41 +1,41 @@
 # 16 — İş Kuyruğu, Zamanlama, Tek Yürütücü Seçimi ve Dayanıklı Çalıştırma (`JOB`)
 
 > **Alan kodu:** `JOB` · **Faz:** 17, 42, 46, 66, 120, 129, 137
-> **Kaynak:** `src/AgentPrism.Abstractions/Scheduling/` (tümü) ·
-> `src/AgentPrism.Abstractions/Coordination/` (tümü — `ISingletonLeaseStore`,
+> **Kaynak:** `src/Tracon.Abstractions/Scheduling/` (tümü) ·
+> `src/Tracon.Abstractions/Coordination/` (tümü — `ISingletonLeaseStore`,
 > `SingletonExecutionOptions`) ·
-> `src/AgentPrism.Abstractions/Runs/RunStatus.cs` (yalnız `Queued`) ·
-> `src/AgentPrism.Core/Scheduling/` (tümü: `JobWorkerBackgroundService`,
+> `src/Tracon.Abstractions/Runs/RunStatus.cs` (yalnız `Queued`) ·
+> `src/Tracon.Core/Scheduling/` (tümü: `JobWorkerBackgroundService`,
 > `AgentBatchJobHandler`, `WorkflowJobHandler`, `AgentRunJobHandler`,
 > `CronExpression`, `InMemoryJobStore`, `InMemoryJobScheduleStore`,
-> `AgentPrismSchedulingOptions*`, `AgentPrismAsyncRunOptions`) ·
-> `src/AgentPrism.Core/Coordination/` (tümü — `SingletonGuard`,
+> `TraconSchedulingOptions*`, `TraconAsyncRunOptions`) ·
+> `src/Tracon.Core/Coordination/` (tümü — `SingletonGuard`,
 > `InMemorySingletonLeaseStore`, `SingletonExecutionOptionsValidator`) ·
-> `src/AgentPrism.Core/Models/ModelProviderHealthBackgroundService.cs` (yalnız
-> `SingletonGuard` sarmalaması) · `src/AgentPrism.Mcp/Internal/McpDiscoveryService.cs`
-> (aynı) · `src/AgentPrism.Sql.Shared/Stores/SqlSingletonLeaseStore.cs` ·
-> `src/AgentPrism.PostgreSql/Migrations/0008_scheduling.sql`,
-> `0019_singleton_leases.sql` · `src/AgentPrism.AspNetCore/Endpoints/SchedulingEndpoints.cs` ·
-> `src/AgentPrism.AspNetCore/Contracts/SchedulingContracts.cs` ·
-> `src/AgentPrism.AspNetCore/Endpoints/AgentEndpoints.cs` (yalnız `Prefer:
+> `src/Tracon.Core/Models/ModelProviderHealthBackgroundService.cs` (yalnız
+> `SingletonGuard` sarmalaması) · `src/Tracon.Mcp/Internal/McpDiscoveryService.cs`
+> (aynı) · `src/Tracon.Sql.Shared/Stores/SqlSingletonLeaseStore.cs` ·
+> `src/Tracon.PostgreSql/Migrations/0008_scheduling.sql`,
+> `0019_singleton_leases.sql` · `src/Tracon.AspNetCore/Endpoints/SchedulingEndpoints.cs` ·
+> `src/Tracon.AspNetCore/Contracts/SchedulingContracts.cs` ·
+> `src/Tracon.AspNetCore/Endpoints/AgentEndpoints.cs` (yalnız `Prefer:
 > respond-async` dalı — `WantsAsync`/`RunQueuedAsync`) ·
-> `src/AgentPrism.AspNetCore/Endpoints/RunEndpoints.cs` (yalnız `Queued`'a özgü
+> `src/Tracon.AspNetCore/Endpoints/RunEndpoints.cs` (yalnız `Queued`'a özgü
 > `/cancel` dalı ve SSE akışının `Queued` beklemesi) ·
-> `src/AgentPrism.AspNetCore/Contracts/AgentContracts.cs` (yalnız
-> `AcceptedRunResponse`) · `src/AgentPrism.UI/frontend/src/screens/jobs.tsx`,
-> `job-detail.tsx` · `src/AgentPrism.Abstractions/Triggers/` (tümü) ·
-> `src/AgentPrism.Core/Triggers/` (tümü — `InboundTriggerDispatcher`,
+> `src/Tracon.AspNetCore/Contracts/AgentContracts.cs` (yalnız
+> `AcceptedRunResponse`) · `src/Tracon.UI/frontend/src/screens/jobs.tsx`,
+> `job-detail.tsx` · `src/Tracon.Abstractions/Triggers/` (tümü) ·
+> `src/Tracon.Core/Triggers/` (tümü — `InboundTriggerDispatcher`,
 > `InboundTriggerSecretResolver`, `InboundTriggerRateLimiter`,
-> `InboundTriggerPayloadReader`) · `src/AgentPrism.Core/Storage/InMemoryInboundTriggerStore.cs` ·
-> `src/AgentPrism.Sql.Shared/Stores/SqlInboundTriggerStore.cs` ·
-> `src/AgentPrism.PostgreSql/Migrations/0033_inbound_triggers.sql` ·
-> `src/AgentPrism.AspNetCore/Endpoints/TriggerEndpoints.cs` ·
-> `src/AgentPrism.AspNetCore/Contracts/TriggerContracts.cs` ·
-> `src/AgentPrism.UI/frontend/src/screens/triggers.tsx` (Faz 66) ·
-> `src/AgentPrism.Abstractions/Scheduling/JobLanes.cs` ·
-> `src/AgentPrism.PostgreSql/Migrations/0041_job_lanes.sql`,
-> `src/AgentPrism.SqlServer/Migrations/0028_job_lanes.sql`,
-> `src/AgentPrism.Sqlite/Migrations/0028_job_lanes.sql` (Faz 129).
+> `InboundTriggerPayloadReader`) · `src/Tracon.Core/Storage/InMemoryInboundTriggerStore.cs` ·
+> `src/Tracon.Sql.Shared/Stores/SqlInboundTriggerStore.cs` ·
+> `src/Tracon.PostgreSql/Migrations/0033_inbound_triggers.sql` ·
+> `src/Tracon.AspNetCore/Endpoints/TriggerEndpoints.cs` ·
+> `src/Tracon.AspNetCore/Contracts/TriggerContracts.cs` ·
+> `src/Tracon.UI/frontend/src/screens/triggers.tsx` (Faz 66) ·
+> `src/Tracon.Abstractions/Scheduling/JobLanes.cs` ·
+> `src/Tracon.PostgreSql/Migrations/0041_job_lanes.sql`,
+> `src/Tracon.SqlServer/Migrations/0028_job_lanes.sql`,
+> `src/Tracon.Sqlite/Migrations/0028_job_lanes.sql` (Faz 129).
 >
 > Ortam kurulumu, fixture verisi ve reset yordamı [`00-INDEKS.md`](00-INDEKS.md)'dedir.
 
@@ -47,7 +47,7 @@
 
 ## Bu dosya neyi kanıtlar
 
-Faz 17, AgentPrism'e **kütüphane sınırları içinde** bir arka plan işçisi
+Faz 17, Tracon'e **kütüphane sınırları içinde** bir arka plan işçisi
 getirdi: `jobs`/`job_schedules`/`job_items` tabloları, `FOR UPDATE SKIP LOCKED`
 ile kiralama ve cron'un elle yazılmış bir alt kümesi. Faz 42 bunun üzerine,
 çok örnekli dağıtımlarda MCP keşfi ve model sağlık yoklamasının **tek**
@@ -94,7 +94,7 @@ flowchart TD
 
 > **Rol matrisi burada da NO-OP'tur, tekrar test edilmez.** `SchedulingEndpoints`
 > her ucu `RequireRole(roles.Admin/Operator/Reader)` ile işaretler ama
-> `AgentPrismPolicies.*` örnek uygulamada kayıtlı değildir (bkz.
+> `TraconPolicies.*` örnek uygulamada kayıtlı değildir (bkz.
 > `00-INDEKS.md` §8, `14-SKILL-VE-SCRIPT.md`). **Bu dosyaya özgü olan**,
 > `SchedulingEndpoints`'in de (tıpkı `15-WORKFLOWS.md`'nin bulduğu
 > `WorkflowEndpoints` gibi) **hiçbir ucunda** `RequireApiKeyScope(...)`
@@ -106,23 +106,23 @@ flowchart TD
 2. İş kuyruğu ve zamanlama depoları **her kalıcılık sağlayıcısında** (bellek
    içi dahil) aynı arayüzle çalışır (K-018). Bu dosyanın SQL doğrulama
    sorguları **PostgreSQL** varsayar; diğer sağlayıcılar `04-KALICILIK-DIGER.md`'nin işidir.
-3. Örnek uygulama çalışır: `cd samples/AgentPrism.Api && dotnet run` →
-   `http://localhost:5080/agentprism`.
+3. Örnek uygulama çalışır: `cd samples/Tracon.Api && dotnet run` →
+   `http://localhost:5080/tracon`.
 4. Örnek uygulama **hiçbir zamanlama önceden tanımlamaz**
-   (`grep -n "UseScheduling\|AddJobHandler" samples/AgentPrism.Api/Program.cs`
-   boş döner) — işçi ve depolar yine de `AddAgentPrism()` tarafından
+   (`grep -n "UseScheduling\|AddJobHandler" samples/Tracon.Api/Program.cs`
+   boş döner) — işçi ve depolar yine de `AddTracon()` tarafından
    koşulsuz kaydedilidir (`.UseScheduling()` çağrısı yalnızca ayar
    değiştirmek için gerekir, işlevi açmak için değil).
-5. `AgentPrism:Scheduling`, `AgentPrism:SingletonExecution`,
-   `AgentPrism:AsyncRun` ve `AgentPrism:Health` bölümlerinin **tümü**
+5. `Tracon:Scheduling`, `Tracon:SingletonExecution`,
+   `Tracon:AsyncRun` ve `Tracon:Health` bölümlerinin **tümü**
    `IConfiguration`'dan (`dotnet user-secrets`) bağlanır — MCP'nin
    `RefreshInterval` kısıtının (Faz 42 devir notu) **aksine**. §6'nın kanıtı
    bunu ölçer.
 
 ```bash
 export APB="Authorization: Bearer manuel-test-token-2026"
-export APU="http://localhost:5080/agentprism"
-export PG="docker exec -i ap-pg psql -U postgres -d agentprism"
+export APU="http://localhost:5080/tracon"
+export PG="docker exec -i ap-pg psql -U postgres -d tracon"
 ```
 
 > **Gerçek para uyarısı.** §2 (toplu çalıştırma), §3 (workflow işi) ve §7'nin
@@ -136,8 +136,8 @@ export PG="docker exec -i ap-pg psql -U postgres -d agentprism"
 
 | Kimlik | Değer |
 |---|---|
-| `FIX-JOB-01` | Zamanlama adı `ozet-toplu` · `kind: AgentBatch` · `targetName: "ozetleyici"` · cron yok (yalnız elle tetiklenir) · `payload: ["AgentPrism bir NuGet paket ailesidir.", "Workflow yurutmesi Faz 15te geldi."]` |
-| `FIX-JOB-02` | Zamanlama adı `wf-toplu` · `kind: Workflow` · `targetName: "ozetle-ve-cevir"` · cron yok · `payload: ["AgentPrism, Microsoft Agent Framework uzerine kurulu bir NuGet paket ailesidir."]` |
+| `FIX-JOB-01` | Zamanlama adı `ozet-toplu` · `kind: AgentBatch` · `targetName: "ozetleyici"` · cron yok (yalnız elle tetiklenir) · `payload: ["Tracon bir NuGet paket ailesidir.", "Workflow yurutmesi Faz 15te geldi."]` |
+| `FIX-JOB-02` | Zamanlama adı `wf-toplu` · `kind: Workflow` · `targetName: "ozetle-ve-cevir"` · cron yok · `payload: ["Tracon, Microsoft Agent Framework uzerine kurulu bir NuGet paket ailesidir."]` |
 | `FIX-JOB-03` | Zamanlama adı `dakikalik-ozet` · `kind: AgentBatch` · `targetName: "ozetleyici"` · `cron: "*/1 * * * *"` · `payload: ["Otomatik tetiklenen test girdisi."]` |
 
 ---
@@ -163,7 +163,7 @@ curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/schedules/ozet-toplu" -H "$
   "kind": "AgentBatch",
   "targetName": "ozetleyici",
   "timeZone": "UTC",
-  "payload": ["AgentPrism bir NuGet paket ailesidir.", "Workflow yurutmesi Faz 15te geldi."],
+  "payload": ["Tracon bir NuGet paket ailesidir.", "Workflow yurutmesi Faz 15te geldi."],
   "enabled": true
 }'
 ```
@@ -430,10 +430,10 @@ Negatif senaryo, sınır değer. Geçici olarak sınır düşürülür (varsayı
 | **İlgili karar** | — |
 
 **Adımlar**
-1. `dotnet user-secrets set "AgentPrism:Scheduling:MaxItemsPerJob" "2"`,
+1. `dotnet user-secrets set "Tracon:Scheduling:MaxItemsPerJob" "2"`,
    yeniden başlat.
 2. 3 ögeli bir `payload` ile kaydetmeyi dene.
-3. Ayarı `dotnet user-secrets remove "AgentPrism:Scheduling:MaxItemsPerJob"`,
+3. Ayarı `dotnet user-secrets remove "Tracon:Scheduling:MaxItemsPerJob"`,
    yeniden başlat.
 
 **Girilecek veri**
@@ -536,7 +536,7 @@ Sınır durumu — arayüzden yalnızca iki tür zamanlanabilir; diğer beş
 | **İlgili karar** | K-018 |
 
 **Adımlar**
-1. `dotnet user-secrets set "AgentPrism:Scheduling:RunWorker" "false"`,
+1. `dotnet user-secrets set "Tracon:Scheduling:RunWorker" "false"`,
    yeniden başlat.
 2. Jobs ekranını aç.
 3. Ayarı kaldır, yeniden başlat.
@@ -677,7 +677,7 @@ Negatif senaryo — MT-JOB-012'nin tetikleme yolundaki eşdeğeri.
 | **İlgili karar** | — |
 
 **Adımlar**
-1. `dotnet user-secrets set "AgentPrism:Scheduling:MaxItemsPerJob" "1"`,
+1. `dotnet user-secrets set "Tracon:Scheduling:MaxItemsPerJob" "1"`,
    yeniden başlat.
 2. 2 ögeli bir `payload` ile tetikle.
 3. Ayarı kaldır, yeniden başlat.
@@ -721,7 +721,7 @@ curl -s "$APU/api/jobs/<job-id>" -H "$APB" | python3 -m json.tool
 
 **Beklenen sonuç**
 - `AgentBatchJobHandler.ExecuteAsync` ilk satırda `catalog.ResolveAsync`
-  `null` döner ve `AgentPrismException` fırlatır ("'yok-boyle-bir-agent'
+  `null` döner ve `TraconException` fırlatır ("'yok-boyle-bir-agent'
   adinda bir agent bulunamadi...") — bu, TEK ögeli işin öge döngüsüne hiç
   girmeden İŞ SEVİYESİNDE bir hatadır (bkz. MT-JOB-052, yeniden deneme
   merdiveni). Birden çok öge içeren ve YALNIZCA bir ögesi (ör. bozuk bir
@@ -769,7 +769,7 @@ curl -s "$APU/api/jobs/<job-id>" -H "$APB" | python3 -m json.tool
 ```bash
 curl -s -X PUT "$APU/api/schedules/wf-toplu" -H "$APB" -H "content-type: application/json" -d '{
   "kind": "Workflow", "targetName": "ozetle-ve-cevir", "timeZone": "UTC",
-  "payload": ["AgentPrism, Microsoft Agent Framework uzerine kurulu bir NuGet paket ailesidir."]
+  "payload": ["Tracon, Microsoft Agent Framework uzerine kurulu bir NuGet paket ailesidir."]
 }'
 curl -s -X POST "$APU/api/schedules/wf-toplu/trigger" -H "$APB" -d '{}'
 sleep 15
@@ -828,7 +828,7 @@ Negatif senaryo — `MT-SEC-070`/`MT-WF-090` desenini izler.
 - `job.status: "Failed"` (ilk denemede — `WorkflowJobHandler` `runner is
   null` dalında `throw` eder, ama bu HTTP `501` DEĞİLDİR; iş kuyruğu HTTP
   katmanından bağımsızdır). `job.errorMessage: "Workflow motoru kayitli
-  degil. 'AgentPrism.Workflows' paketini ekleyip UseWorkflows() cagirin."`
+  degil. 'Tracon.Workflows' paketini ekleyip UseWorkflows() cagirin."`
   (`WorkflowJobHandler.cs:36-40`) — ama `MaxAttempts` (varsayılan 3)
   yüzünden bu mesajın `job.errorMessage`'a yazılması için işin ÜÇÜNCÜ
   denemesinin bitmesi gerekir; ara denemelerde `ReleaseForRetryAsync` ile
@@ -844,7 +844,7 @@ Negatif senaryo — `MT-SEC-070`/`MT-WF-090` desenini izler.
 | **İlgili karar** | — |
 
 **Adımlar**
-1. `dotnet user-secrets set "AgentPrism:Scheduling:RunWorker" "false"`,
+1. `dotnet user-secrets set "Tracon:Scheduling:RunWorker" "false"`,
    yeniden başlat (işçi işi ASLA almasın diye — iptal penceresini genişletir).
 2. `ozet-toplu`'yu tetikle, `job-id`'yi al.
 3. Hemen iptal et.
@@ -971,7 +971,7 @@ Sınır durumu.
 | **İlgili karar** | — |
 
 **Adımlar**
-1. `dotnet user-secrets set "AgentPrism:Scheduling:RunWorker" "false"`,
+1. `dotnet user-secrets set "Tracon:Scheduling:RunWorker" "false"`,
    yeniden başlat.
 2. `ozet-toplu`'yu tetikle.
 3. 30 saniye bekle, işi tekrar oku.
@@ -1029,21 +1029,21 @@ Sınır durumu.
 | **İlgili karar** | — |
 
 **Adımlar**
-1. `dotnet user-secrets set "AgentPrism:Scheduling:PollInterval" "00:00:00"`,
+1. `dotnet user-secrets set "Tracon:Scheduling:PollInterval" "00:00:00"`,
    yeniden başlat.
 2. Herhangi bir zamanlamayı tetikle.
 3. 20 saniye bekle, işin `Pending` kaldığını doğrula.
 4. Ayarı kaldır, yeniden başlat.
 
 **Beklenen sonuç (doküman düzeltmesi)**
-- **Doküman kusuru:** `AgentPrism__Scheduling__PollInterval="00:00:00"` ile
+- **Doküman kusuru:** `Tracon__Scheduling__PollInterval="00:00:00"` ile
   uygulama hiç **başlamaz** —
-  `AgentPrismSchedulingOptionsValidator.cs:28-32`, `PollInterval <=
+  `TraconSchedulingOptionsValidator.cs:28-32`, `PollInterval <=
   TimeSpan.Zero` için `OptionsValidationException` fırlatır (`ValidateOnStart`).
   `JobWorkerBackgroundService.cs:42`'deki `options.PollInterval <=
   TimeSpan.Zero` erken-çıkış dalı bu yüzden **ölü koddur** — standart
   `IConfiguration`/`UseScheduling()` yoluyla asla ulaşılamaz (yalnız kod
-  tabanlı, doğrulayıcıyı atlayan bir `AgentPrismSchedulingOptions` örneği
+  tabanlı, doğrulayıcıyı atlayan bir `TraconSchedulingOptions` örneği
   bu dalı tetikleyebilir). Doğru beklenti: uygulama başlamayı reddeder.
 
 ---
@@ -1052,8 +1052,8 @@ Sınır durumu.
 
 Sınır durumu — şüpheli boşluk, doğrudan koddan ölçüldü.
 `AuditingWorkflowDefinitionStore`/`AuditingSkillScriptGrantStore`'un aksine,
-`src/AgentPrism.Core/Audit/` altında bir `AuditingJobScheduleStore` veya
-`AuditingJobStore` **yoktur** (`find src/AgentPrism.Core/Audit -type f` bu
+`src/Tracon.Core/Audit/` altında bir `AuditingJobScheduleStore` veya
+`AuditingJobStore` **yoktur** (`find src/Tracon.Core/Audit -type f` bu
 ikisini içermiyor); `SchedulingEndpoints.CancelJobAsync` da (RunEndpoints'in
 `CancelRunAsync`'inin aksine) hiçbir `AuditRecorder.WriteAsync` çağrısı
 yapmaz.
@@ -1070,7 +1070,7 @@ yapmaz.
 
 **Doğrulama sorgusu**
 ```sql
-SELECT count(*) FROM agentprism.audit_log WHERE occurred_at > now() - interval '2 minutes'
+SELECT count(*) FROM tracon.audit_log WHERE occurred_at > now() - interval '2 minutes'
   AND (action LIKE 'schedule.%' OR action LIKE 'job.%');
 ```
 
@@ -1095,7 +1095,7 @@ Sınır durumu — eşzamanlılık sınırı.
 | **İlgili karar** | — |
 
 **Adımlar**
-1. `dotnet user-secrets set "AgentPrism:Scheduling:MaxConcurrentJobs" "1"`,
+1. `dotnet user-secrets set "Tracon:Scheduling:MaxConcurrentJobs" "1"`,
    yeniden başlat.
 2. Art arda 2 kez `ozet-toplu`'yu tetikle (2 ayrı `job-id`).
 3. Hemen her ikisinin durumunu oku.
@@ -1122,7 +1122,7 @@ Sınır durumu — eşzamanlılık sınırı.
 
 **Doğrulama sorgusu**
 ```sql
-SELECT count(*) FROM agentprism.singleton_leases;
+SELECT count(*) FROM tracon.singleton_leases;
 ```
 
 **Beklenen sonuç**
@@ -1142,13 +1142,13 @@ SELECT count(*) FROM agentprism.singleton_leases;
 | **İlgili karar** | — |
 
 **Adımlar**
-1. `dotnet user-secrets set "AgentPrism:SingletonExecution:Enabled" "true"`
-2. `dotnet user-secrets set "AgentPrism:SingletonExecution:LeaseDuration" "00:00:12"`
-3. `dotnet user-secrets set "AgentPrism:Health:BackgroundInterval" "00:00:05"`
-4. `dotnet user-secrets set "AgentPrism:Mcp:RefreshInterval" "00:00:05"`
+1. `dotnet user-secrets set "Tracon:SingletonExecution:Enabled" "true"`
+2. `dotnet user-secrets set "Tracon:SingletonExecution:LeaseDuration" "00:00:12"`
+3. `dotnet user-secrets set "Tracon:Health:BackgroundInterval" "00:00:05"`
+4. `dotnet user-secrets set "Tracon:Mcp:RefreshInterval" "00:00:05"`
    (🚨 bu ayar artık `IConfiguration`'dan bağlanıyor — bkz. Koşmadan önce §5;
    Faz 42'nin devir notundaki "MCP `RefreshInterval` yapılandırmadan
-   bağlanmaz" tuzağı `samples/AgentPrism.Api/Program.cs:93`'ün
+   bağlanmaz" tuzağı `samples/Tracon.Api/Program.cs:93`'ün
    `.UseMcp(builder.Configuration.GetSection(...))` çağrısıyla ÇÖZÜLMÜŞTÜR —
    bu, faz kapanışından sonra düzeltilmiş, henüz hiçbir manuel test dosyasında
    kaydedilmemiş bir düzeltmedir).
@@ -1156,13 +1156,13 @@ SELECT count(*) FROM agentprism.singleton_leases;
 
 **Doğrulama sorgusu**
 ```sql
-SELECT name, owner_id, expires_at, updated_at FROM agentprism.singleton_leases ORDER BY name;
+SELECT name, owner_id, expires_at, updated_at FROM tracon.singleton_leases ORDER BY name;
 ```
 
 **Beklenen sonuç (doküman düzeltmesi)**
 - **Doküman güncelliğini yitirmiş:** İki satır değil **üç** satır beklenir
   — `mcp-discovery`, `model-provider-health` ve `approval-expiration`
-  (`src/AgentPrism.Core/Approvals/ApprovalExpirationService.cs`, Faz 42'nin
+  (`src/Tracon.Core/Approvals/ApprovalExpirationService.cs`, Faz 42'nin
   dokümante edildiği tarihten SONRA eklenmiş üçüncü bir `SingletonGuard`
   tüketicisi). Üçünün de `owner_id`'si `{MachineName}:{ProcessId}:{Guid}`
   biçiminde ve **aynı sürece** ait olmalıdır.
@@ -1183,7 +1183,7 @@ Bu case `dotnet run` ile ÇALIŞTIRILAMAZ — `launchSettings.json` her zaman
 
 **Ön koşul**
 - MT-JOB-061'in ayarları hâlâ `user-secrets`'ta.
-- `dotnet publish samples/AgentPrism.Api -c Release -o /tmp/ap-publish`
+- `dotnet publish samples/Tracon.Api -c Release -o /tmp/ap-publish`
 
 **Adımlar**
 1. Aynı SQLite dosyasına (veya PostgreSQL bağlantısına) bağlanan iki süreci
@@ -1192,13 +1192,13 @@ Bu case `dotnet run` ile ÇALIŞTIRILAMAZ — `launchSettings.json` her zaman
 
 **Girilecek veri**
 ```bash
-AGENTPRISM__SQLITE__CONNECTIONSTRING="Data Source=singleton-demo.db" \
-  dotnet /tmp/ap-publish/AgentPrism.Api.dll --urls http://localhost:5091 &
-AGENTPRISM__SQLITE__CONNECTIONSTRING="Data Source=singleton-demo.db" \
-  dotnet /tmp/ap-publish/AgentPrism.Api.dll --urls http://localhost:5092 &
+TRACON__SQLITE__CONNECTIONSTRING="Data Source=singleton-demo.db" \
+  dotnet /tmp/ap-publish/Tracon.Api.dll --urls http://localhost:5091 &
+TRACON__SQLITE__CONNECTIONSTRING="Data Source=singleton-demo.db" \
+  dotnet /tmp/ap-publish/Tracon.Api.dll --urls http://localhost:5092 &
 
 sleep 8
-sqlite3 singleton-demo.db "SELECT name, owner_id FROM agentprism_singleton_leases;"
+sqlite3 singleton-demo.db "SELECT name, owner_id FROM tracon_singleton_leases;"
 ```
 
 **Beklenen sonuç**
@@ -1228,7 +1228,7 @@ sqlite3 singleton-demo.db "SELECT name, owner_id FROM agentprism_singleton_lease
 **Girilecek veri**
 ```bash
 kill -TERM <sahip-PID>
-watch -n 2 'sqlite3 singleton-demo.db "SELECT name, owner_id, expires_at FROM agentprism_singleton_leases;"'
+watch -n 2 'sqlite3 singleton-demo.db "SELECT name, owner_id, expires_at FROM tracon_singleton_leases;"'
 ```
 
 **Beklenen sonuç**
@@ -1263,7 +1263,7 @@ Sınır durumu — dolaylı gözlem.
 
 **Girilecek veri**
 ```bash
-for i in 1 2 3; do sqlite3 singleton-demo.db "SELECT name, updated_at FROM agentprism_singleton_leases;"; sleep 5; done
+for i in 1 2 3; do sqlite3 singleton-demo.db "SELECT name, updated_at FROM tracon_singleton_leases;"; sleep 5; done
 ```
 
 **Beklenen sonuç**
@@ -1296,10 +1296,10 @@ Sınır durumu — `singleton_leases` mekanizması BURADA devrede DEĞİLDİR;
 
 **Girilecek veri**
 ```bash
-for i in 1 2 3; do curl -s -X POST http://localhost:5091/agentprism/api/schedules/ozet-toplu/trigger -d '{}'; done
-for i in 1 2 3; do curl -s -X POST http://localhost:5092/agentprism/api/schedules/ozet-toplu/trigger -d '{}'; done
+for i in 1 2 3; do curl -s -X POST http://localhost:5091/tracon/api/schedules/ozet-toplu/trigger -d '{}'; done
+for i in 1 2 3; do curl -s -X POST http://localhost:5092/tracon/api/schedules/ozet-toplu/trigger -d '{}'; done
 sleep 12
-sqlite3 singleton-demo.db "SELECT id, lease_owner, status FROM agentprism_jobs ORDER BY created_at DESC LIMIT 6;"
+sqlite3 singleton-demo.db "SELECT id, lease_owner, status FROM tracon_jobs ORDER BY created_at DESC LIMIT 6;"
 ```
 
 **Beklenen sonuç**
@@ -1355,7 +1355,7 @@ cat /tmp/accepted-body.json
 
 **Beklenen sonuç**
 - `HTTP/1.1 202 Accepted`.
-- `Location: /agentprism/api/runs/<runId>`.
+- `Location: /tracon/api/runs/<runId>`.
 - `Preference-Applied: respond-async`.
 - Gövde `AcceptedRunResponse`: `runId`, `jobId` (`runId` ile **birebir
   aynı** — K-305), `location`, `eventsLocation` (`.../events` ile biter).
@@ -1416,7 +1416,7 @@ curl -s -w "\nHTTP: %{http_code}\n" "$APU/api/runs/<runId>" -H "$APB" | python3 
 
 **Doğrulama sorgusu**
 ```sql
-SELECT id, kind, workflow_name FROM agentprism.runs WHERE id = '<runId>';
+SELECT id, kind, workflow_name FROM tracon.runs WHERE id = '<runId>';
 ```
 ```bash
 curl -s "$APU/api/jobs/<runId>" -H "$APB" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d['job']['id'], d['job']['kind'])"
@@ -1522,12 +1522,12 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/agents/support/run" -H "$A
 - `HTTP: 400`, `title: "Desteklenmiyor"`, `detail: "Kuyruga alinan
   ('Prefer: respond-async') bir calistirma onay kararlarini veya ekleri bu
   surumde desteklemez."` (`AgentEndpoints.cs:544-551`). Gerekçe: ek
-  referansı `MapAgentPrism`'in `prefix`'ine ihtiyaç duyar ve bu değer
+  referansı `MapTracon`'in `prefix`'ine ihtiyaç duyar ve bu değer
   `AgentRunJobHandler`'ın DI kayıt anında bilinmez.
 
 ---
 
-### MT-JOB-078 — `AgentPrism:AsyncRun:Enabled = false` → başlık taşıyan istek `501` alır
+### MT-JOB-078 — `Tracon:AsyncRun:Enabled = false` → başlık taşıyan istek `501` alır
 
 Negatif senaryo.
 
@@ -1539,7 +1539,7 @@ Negatif senaryo.
 | **İlgili karar** | — |
 
 **Adımlar**
-1. `dotnet user-secrets set "AgentPrism:AsyncRun:Enabled" "false"`,
+1. `dotnet user-secrets set "Tracon:AsyncRun:Enabled" "false"`,
    yeniden başlat.
 2. `Prefer: respond-async` ile istek gönder.
 3. Ayarı kaldır, yeniden başlat.
@@ -1552,7 +1552,7 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/agents/support/run" -H "$A
 
 **Beklenen sonuç**
 - `HTTP: 501`, `title: "Kuyruga alma destegi kapali"`, `detail`
-  `AgentPrismAsyncRunOptions.Enabled = false` ifadesini içerir
+  `TraconAsyncRunOptions.Enabled = false` ifadesini içerir
   (`AgentEndpoints.cs:527-534`). Sessizce SSE'ye düşmez.
 
 ---
@@ -1598,7 +1598,7 @@ curl -s "$APU/api/jobs?kind=AgentRun" -H "$APB" | python3 -c "import json,sys; p
 | **İlgili karar** | — |
 
 **Ön koşul**
-- `dotnet user-secrets set "AgentPrism:Scheduling:RunWorker" "false"`,
+- `dotnet user-secrets set "Tracon:Scheduling:RunWorker" "false"`,
   yeniden başlat (işçi işi almasın diye).
 
 **Girilecek veri**
@@ -1614,7 +1614,7 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/runs/$RUN_ID/cancel" -H "$
   `completedAt` dolu (`RunEndpoints.cs:652-674`, `Queued` dalı — iş
   kuyruktan `IJobStore.CancelAsync` ile iptal edilir ve `runs` satırı
   DOĞRUDAN kapatılır, işçi asla almadığı için orphan OLUŞMAZ).
-- İşi kaldır: `dotnet user-secrets remove "AgentPrism:Scheduling:RunWorker"`,
+- İşi kaldır: `dotnet user-secrets remove "Tracon:Scheduling:RunWorker"`,
   yeniden başlat.
 
 ---
@@ -1764,8 +1764,8 @@ hiç satır yazmaz; yükü doğrudan `job.payload` taşır.
 Şüpheli davranış — koddan ölçüldü, koşumda doğrulanacak/çürütülecek. Aynı
 kalıp `15-WORKFLOWS.md` `MT-WF-100`'de `WorkflowEndpoints` için doğrulandı;
 `SchedulingEndpoints.cs` de (`grep -n "RequireApiKeyScope"
-src/AgentPrism.AspNetCore/Endpoints/SchedulingEndpoints.cs` boş döner)
-**hiçbir ucunda** `RequireApiKeyScope(...)` çağırmaz. `AgentPrismEndpointFilter.CheckScope`
+src/Tracon.AspNetCore/Endpoints/SchedulingEndpoints.cs` boş döner)
+**hiçbir ucunda** `RequireApiKeyScope(...)` çağırmaz. `TraconEndpointFilter.CheckScope`
 metadata yoksa denetimi koşulsuz geçirir (bkz. `15-WORKFLOWS.md`'nin aynı
 bulgusu). Rol politikaları zaten no-op olduğu için, doğrularsa yalnız
 `RunsRead` taşıyan bir OKUMA-amaçlı anahtar zamanlama silebilir, iş
@@ -1828,12 +1828,12 @@ elle hesaplanır — `$APU`/`$APB` bu dosyanın da temel değişkenleridir
 **Ortak kurulum (her case'den önce, bir kez):**
 ```bash
 export TRIGSECRET="whsec_manuel_test_66"
-dotnet user-secrets set "AgentPrism:TriggerSecrets:Slack" "$TRIGSECRET" \
-  --project samples/AgentPrism.Api
+dotnet user-secrets set "Tracon:TriggerSecrets:Slack" "$TRIGSECRET" \
+  --project samples/Tracon.Api
 
 curl -s -X PUT "$APU/api/triggers/slack" -H "$APB" -H "content-type: application/json" -d '{
   "targetKind":"agent","targetName":"support",
-  "signingSecretConfigurationName":"AgentPrism:TriggerSecrets:Slack",
+  "signingSecretConfigurationName":"Tracon:TriggerSecrets:Slack",
   "payloadMode":"path","payloadPath":"event.text"
 }'
 ```
@@ -1847,8 +1847,8 @@ SIG="sha256=$(printf '%s.%s' "$TS" "$BODY" | openssl dgst -sha256 -hmac "$TRIGSE
 
 curl -s -i -X POST "$APU/api/triggers/default/slack" \
   -H "content-type: application/json" \
-  -H "X-AgentPrism-Timestamp: $TS" \
-  -H "X-AgentPrism-Signature: $SIG" \
+  -H "X-Tracon-Timestamp: $TS" \
+  -H "X-Tracon-Signature: $SIG" \
   -d "$BODY"
 ```
 
@@ -1871,11 +1871,11 @@ SIG="sha256=$(printf '%s.%s' "$TS" "$BODY" | openssl dgst -sha256 -hmac "$TRIGSE
 
 curl -s -i -X POST "$APU/api/triggers/default/slack" \
   -H "content-type: application/json" \
-  -H "X-AgentPrism-Timestamp: $TS" -H "X-AgentPrism-Signature: $SIG" -d "$BODY"
+  -H "X-Tracon-Timestamp: $TS" -H "X-Tracon-Signature: $SIG" -d "$BODY"
 ```
 
 **Beklenen sonuç**
-- `HTTP: 202`, `Location` başlığı `/agentprism/api/runs/{runId}` biçiminde.
+- `HTTP: 202`, `Location` başlığı `/tracon/api/runs/{runId}` biçiminde.
 - Gövdede `runId` ve `jobId` **aynı** değeri taşır (Faz 46'nın kalıbı).
 - `GET $APU/api/runs/{runId}` birkaç saniye içinde `status: "Completed"`
   (veya modele bağlı `Failed`) gösterir — `Queued` değil.
@@ -1919,7 +1919,7 @@ SIG="sha256=$(printf '%s.%s' "$TS" "$BODY" | openssl dgst -sha256 -hmac "$TRIGSE
 
 curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/triggers/default/slack" \
   -H "content-type: application/json" \
-  -H "X-AgentPrism-Timestamp: $TS" -H "X-AgentPrism-Signature: $SIG" \
+  -H "X-Tracon-Timestamp: $TS" -H "X-Tracon-Signature: $SIG" \
   -d '{"event":{"text":"degistirildi"}}'
 ```
 
@@ -1946,7 +1946,7 @@ SIG="sha256=$(printf '%s.%s' "$TS" "$BODY" | openssl dgst -sha256 -hmac "$TRIGSE
 
 curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/triggers/default/slack" \
   -H "content-type: application/json" \
-  -H "X-AgentPrism-Timestamp: $TS" -H "X-AgentPrism-Signature: $SIG" -d "$BODY"
+  -H "X-Tracon-Timestamp: $TS" -H "X-Tracon-Signature: $SIG" -d "$BODY"
 ```
 
 **Beklenen sonuç**
@@ -2020,7 +2020,7 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/triggers/boyle-bir-kiraci-
 ```bash
 curl -s -X PUT "$APU/api/triggers/slack" -H "$APB" -H "content-type: application/json" -d '{
   "targetKind":"agent","targetName":"support",
-  "signingSecretConfigurationName":"AgentPrism:TriggerSecrets:Slack",
+  "signingSecretConfigurationName":"Tracon:TriggerSecrets:Slack",
   "payloadMode":"path","payloadPath":"event.text","enabled":false
 }'
 
@@ -2029,7 +2029,7 @@ TS=$(date +%s)
 SIG="sha256=$(printf '%s.%s' "$TS" "$BODY" | openssl dgst -sha256 -hmac "$TRIGSECRET" | sed 's/^.* //')"
 curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/triggers/default/slack" \
   -H "content-type: application/json" \
-  -H "X-AgentPrism-Timestamp: $TS" -H "X-AgentPrism-Signature: $SIG" -d "$BODY"
+  -H "X-Tracon-Timestamp: $TS" -H "X-Tracon-Signature: $SIG" -d "$BODY"
 ```
 
 **Beklenen sonuç**
@@ -2079,7 +2079,7 @@ SIG="sha256=$(printf '%s.%s' "$TS" "$BODY" | openssl dgst -sha256 -hmac "$TRIGSE
 
 curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/triggers/default/slack" \
   -H "content-type: application/json" \
-  -H "X-AgentPrism-Timestamp: $TS" -H "X-AgentPrism-Signature: $SIG" -d "$BODY"
+  -H "X-Tracon-Timestamp: $TS" -H "X-Tracon-Signature: $SIG" -d "$BODY"
 ```
 
 **Beklenen sonuç**
@@ -2100,12 +2100,12 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/triggers/default/slack" \
 **Girilecek veri**
 ```bash
 # PostgreSQL örneği; sağlayıcıya göre bağlan
-psql "$PGCONN" -c "SELECT signing_secret_configuration_name FROM agentprism.inbound_triggers;"
-pg_dump "$PGCONN" --schema=agentprism | grep -c "$TRIGSECRET"
+psql "$PGCONN" -c "SELECT signing_secret_configuration_name FROM tracon.inbound_triggers;"
+pg_dump "$PGCONN" --schema=tracon | grep -c "$TRIGSECRET"
 ```
 
 **Beklenen sonuç**
-- Sütun yalnız `AgentPrism:TriggerSecrets:Slack` (yapılandırma anahtarının
+- Sütun yalnız `Tracon:TriggerSecrets:Slack` (yapılandırma anahtarının
   ADI) taşır.
 - `grep -c` çıktısı `0` — gerçek `secret` değeri (`$TRIGSECRET`) dökümde
   hiç geçmez.
@@ -2129,7 +2129,7 @@ for i in $(seq 1 100); do
   SIG="sha256=$(printf '%s.%s' "$TS" "$BODY" | openssl dgst -sha256 -hmac "$TRIGSECRET" | sed 's/^.* //')"
   curl -s -o /dev/null -w "%{http_code} " -X POST "$APU/api/triggers/default/slack" \
     -H "content-type: application/json" \
-    -H "X-AgentPrism-Timestamp: $TS" -H "X-AgentPrism-Signature: $SIG" -d "$BODY"
+    -H "X-Tracon-Timestamp: $TS" -H "X-Tracon-Signature: $SIG" -d "$BODY"
 done
 echo
 ```
@@ -2155,9 +2155,9 @@ echo
    doldurulmuş).
 2. Kaydet, liste ekranına dön.
 3. Yeni tetikleyicinin satırında `Resolved`/`Unresolved` rozetini kontrol
-   et (`AgentPrism:TriggerSecrets:...` anahtarı `user-secrets`'ta tanımlı
+   et (`Tracon:TriggerSecrets:...` anahtarı `user-secrets`'ta tanımlı
    değilse `Unresolved` beklenir).
-4. Düzenleme ekranında **Accept URL** alanının `{origin}/agentprism/api/
+4. Düzenleme ekranında **Accept URL** alanının `{origin}/tracon/api/
    triggers/{tenantId}/{name}` biçiminde göründüğünü doğrula.
 
 **Beklenen sonuç**
@@ -2207,14 +2207,14 @@ echo
 
 **Girilecek veri**
 ```bash
-dotnet test samples/AgentPrism.Samples.CustomJobHandler.Tests/AgentPrism.Samples.CustomJobHandler.Tests.csproj -c Release
+dotnet test samples/Tracon.Samples.CustomJobHandler.Tests/Tracon.Samples.CustomJobHandler.Tests.csproj -c Release
 ```
 
 **Beklenen sonuç**
 - `NightlyReportJobHandlerContractTests`'in üç case'i de geçer: zaten
   `Completed` bir öge yeniden işlenmez, retry'de yalnız `Pending` öge'ler
   işlenir, iptal öge'ler arasında gözlenir.
-- Proje `PackageReference` ile `AgentPrism`/`AgentPrism.Testing.Contracts.Xunit`
+- Proje `PackageReference` ile `Tracon`/`Tracon.Testing.Contracts.Xunit`
   paketlerini kullanır — `ProjectReference` değil; gerçek bir dış tüketicinin
   göreceği yüzeyi kanıtlar.
 
@@ -2237,7 +2237,7 @@ dotnet test samples/AgentPrism.Samples.CustomJobHandler.Tests/AgentPrism.Samples
 | **İlgili karar** | K1 |
 
 **Ön koşul**
-- `AgentPrism:Scheduling:Lanes`/`MaxConcurrentJobsPerLane`/`LaneByKind` HİÇ
+- `Tracon:Scheduling:Lanes`/`MaxConcurrentJobsPerLane`/`LaneByKind` HİÇ
   ayarlanmamış (varsayılan kurulum).
 
 **Adımlar**
@@ -2264,11 +2264,11 @@ curl -s "$APU/api/jobs/<job-id>" -H "$APB" | python3 -c "import json,sys; print(
 | **İlgili karar** | — |
 
 **Adımlar**
-1. `dotnet user-secrets set "AgentPrism:Scheduling:Lanes:0" "media"`,
+1. `dotnet user-secrets set "Tracon:Scheduling:Lanes:0" "media"`,
    yeniden başlat.
 2. `ozet-toplu`'yu tetikle (`lane` alanı yok → `default`).
 3. 30 saniye bekle.
-4. `dotnet user-secrets remove "AgentPrism:Scheduling:Lanes:0"`, yeniden
+4. `dotnet user-secrets remove "Tracon:Scheduling:Lanes:0"`, yeniden
    başlat — iş bu kez normal tamamlanır.
 
 **Girilecek veri**
@@ -2302,7 +2302,7 @@ Sınır durumu — head-of-line blocking'in çözüldüğünün kanıtı.
   ve KISA süren `ozetleyici`'ye hedefli.
 
 **Adımlar**
-1. `dotnet user-secrets set "AgentPrism:Scheduling:MaxConcurrentJobsPerLane:media" "1"`,
+1. `dotnet user-secrets set "Tracon:Scheduling:MaxConcurrentJobsPerLane:media" "1"`,
    yeniden başlat.
 2. `media` zamanlamasını İKİ kez tetikle (iki iş, `media` `lane`'inde).
 3. Hemen ardından `default` zamanlamasını tetikle.
@@ -2429,22 +2429,22 @@ curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/schedules/buyuk-harf-lane" 
 | **İlgili karar** | — |
 
 **Ön koşul:** `Observability` altında hiçbir ayar yok (varsayılan kurulum).
-OTel konsol exporter'ı `AgentPrismDiagnostics.MeterName` metre'sini dinliyor.
+OTel konsol exporter'ı `TraconDiagnostics.MeterName` metre'sini dinliyor.
 
 **Adımlar**
 1. İki `AgentBatch` işi kuyruğa at ve bitmelerini bekle.
 2. OTel çıktısını süz:
    ```bash
-   grep -E "agentprism\.job\.(executions|duration|queue\.depth)" <otel-log>
+   grep -E "tracon\.job\.(executions|duration|queue\.depth)" <otel-log>
    ```
 
 **Beklenen sonuç**
-- `agentprism.job.executions` toplam **2** sayar; her ölçüm
-  `agentprism.job.lane`, `agentprism.job.kind`, `agentprism.job.status`
-  ve `agentprism.tenant.id` etiketlerini taşır.
-- `agentprism.job.duration` saniye biriminde iki ölçüm taşır; `tenant`
+- `tracon.job.executions` toplam **2** sayar; her ölçüm
+  `tracon.job.lane`, `tracon.job.kind`, `tracon.job.status`
+  ve `tracon.tenant.id` etiketlerini taşır.
+- `tracon.job.duration` saniye biriminde iki ölçüm taşır; `tenant`
   etiketi **yoktur**.
-- `agentprism.job.queue.depth` çıktıda **hiç yoktur** — gauge varsayılan
+- `tracon.job.queue.depth` çıktıda **hiç yoktur** — gauge varsayılan
   kapalıdır ve veritabanına gitmez.
 
 ---
@@ -2458,7 +2458,7 @@ OTel konsol exporter'ı `AgentPrismDiagnostics.MeterName` metre'sini dinliyor.
 | **İlgili faz** | Faz 133 |
 | **İlgili karar** | — |
 
-**Ön koşul:** `AgentPrism__Observability__EnableJobQueueDepthGauge=true`.
+**Ön koşul:** `Tracon__Observability__EnableJobQueueDepthGauge=true`.
 İşçi kapalı (`Scheduling:RunWorker=false`) — işler kuyrukta beklesin.
 
 **Adımlar**
@@ -2468,8 +2468,8 @@ OTel konsol exporter'ı `AgentPrismDiagnostics.MeterName` metre'sini dinliyor.
 4. `JobQueueDepthRefreshInterval` (30 sn) geçtikten sonra tekrar scrape et.
 
 **Beklenen sonuç**
-- Adım 2: `agentprism.job.queue.depth` `lane=default`, `status=Pending`
-  etiketleriyle **3** gösterir. `agentprism.tenant.id` etiketi **yoktur**.
+- Adım 2: `tracon.job.queue.depth` `lane=default`, `status=Pending`
+  etiketleriyle **3** gösterir. `tracon.tenant.id` etiketi **yoktur**.
 - Adım 3: `jobs` tablosuna **ikinci sorgu gitmez** (önbellek).
 - Adım 4: tam bir sorgu daha gider.
 
@@ -2489,8 +2489,8 @@ OTel konsol exporter'ı `AgentPrismDiagnostics.MeterName` metre'sini dinliyor.
 
 **Adımlar**
 1. İşi at ve üç denemenin de bitmesini bekle.
-2. `agentprism.job.executions` ölçümlerini say.
-3. `agentprism.job.duration` ölçümlerini say.
+2. `tracon.job.executions` ölçümlerini say.
+3. `tracon.job.duration` ölçümlerini say.
 
 **Beklenen sonuç**
 - Sayaç **1** artar, 3 değil; etiketi `status=Failed`.
@@ -2510,14 +2510,14 @@ OTel konsol exporter'ı `AgentPrismDiagnostics.MeterName` metre'sini dinliyor.
 | **İlgili faz** | Faz 133 |
 | **İlgili karar** | — |
 
-**Ön koşul:** `AgentPrism__Observability__MaxJobLaneCardinality=2`.
+**Ön koşul:** `Tracon__Observability__MaxJobLaneCardinality=2`.
 🚨 **Taze süreç gerekir.** Kardinalite kümesi süreç ömrü boyunca yalnız büyür;
 daha önce bir `default` işi koşulduysa bütçenin biri zaten harcanmıştır ve
 beklenen sıra tutmaz. Uygulamayı bu case için yeniden başlat.
 
 **Adımlar**
 1. `alpha`, `beta` ve `gamma` lane'lerine birer iş at, bitmelerini bekle.
-2. `agentprism.job.executions` ölçümlerinin `agentprism.job.lane`
+2. `tracon.job.executions` ölçümlerinin `tracon.job.lane`
    etiketlerini oku.
 3. `alpha` lane'ine bir iş daha at.
 
@@ -2525,7 +2525,7 @@ beklenen sıra tutmaz. Uygulamayı bu case için yeniden başlat.
 - Adım 2: etiketler sırayla `alpha`, `beta`, **`other`**.
 - Adım 3: `alpha` **adını korur** — küme yalnız büyür, küçülmez. Süreç
   yeniden başlatılana kadar bu eşleme sabittir.
-- `EnableJobQueueDepthGauge` de açıksa `agentprism.job.queue.depth`
+- `EnableJobQueueDepthGauge` de açıksa `tracon.job.queue.depth`
   **aynı** eşlemeyi kullanır: `gamma` orada da `other`'dır. İki enstrüman tek
   bir kümeyi paylaşır.
 
@@ -2547,7 +2547,7 @@ sayıda satır (ör. 60 000 satır, 3 000'i açık).
 ```sql
 EXPLAIN (ANALYZE, BUFFERS)
 SELECT lane, status, CAST(COUNT(*) AS bigint)
-FROM agentprism.jobs
+FROM tracon.jobs
 WHERE status IN (0, 1, 2)
 GROUP BY lane, status;
 ```
@@ -2595,7 +2595,7 @@ Her handler işlediği anahtarı log'a yazar.
 | **İlgili karar** | K-663 |
 
 **Ön koşul:** MT-JOB-122'nin kaydı, ama `AddJobHandler<...>` çağrıları
-`AddAgentPrism()`'den **önce** yapılır.
+`AddTracon()`'den **önce** yapılır.
 
 **Adımlar** MT-JOB-122'nin adımlarının aynısı.
 
@@ -2627,7 +2627,7 @@ Her handler işlediği anahtarı log'a yazar.
 
 ---
 
-### MT-JOB-125 — `agentprism.` öneki tüketiciye kapalıdır
+### MT-JOB-125 — `tracon.` öneki tüketiciye kapalıdır
 
 | | |
 |---|---|
@@ -2636,15 +2636,15 @@ Her handler işlediği anahtarı log'a yazar.
 | **İlgili faz** | Faz 137 |
 | **İlgili karar** | K-663 |
 
-**Ön koşul:** `AddJobHandler<AHandler>("agentprism.retention")`.
+**Ön koşul:** `AddJobHandler<AHandler>("tracon.retention")`.
 
 **Adımlar** Uygulamayı başlat.
 
 **Beklenen sonuç**
 - Uygulama **başlamaz**; `ArgumentException` atılır.
-- Mesaj `agentprism.` önekinin rezerve olduğunu söyler ve kendi önek
+- Mesaj `tracon.` önekinin rezerve olduğunu söyler ve kendi önek
   seçmeyi önerir.
-- Yerleşik `agentprism.retention` handler'ı **gölgelenmemiştir**.
+- Yerleşik `tracon.retention` handler'ı **gölgelenmemiştir**.
 
 ---
 
@@ -2667,7 +2667,7 @@ Her handler işlediği anahtarı log'a yazar.
 
 **Beklenen sonuç**
 - İş `Failed`'dır.
-- `errorMessage` `agentprism.job.unknown-handler-key` kodunu **içerir**.
+- `errorMessage` `tracon.job.unknown-handler-key` kodunu **içerir**.
 - `errorMessage` ham anahtarı (`acme.no-such-handler`) **içermez**.
 - Ham anahtar yalnız log'dadır ve mesajdaki `ref:` ile aynı korelasyon
   kimliğini taşır.
@@ -2715,16 +2715,16 @@ sütununun dokuz değerinin dokuzu için de en az bir satır.
 **Adımlar**
 1. Satır sayılarını not al: `SELECT COUNT(*) FROM jobs;` ve
    `SELECT COUNT(*) FROM job_schedules;`
-2. Yeni sürümü başlat (veya `agentprism migrate` koş).
+2. Yeni sürümü başlat (veya `tracon migrate` koş).
 3. `SELECT handler_key, COUNT(*) FROM jobs GROUP BY handler_key;`
 
 **Beklenen sonuç**
 - Satır sayıları **değişmemiştir**.
-- Eşleme: `0→agentprism.agent-batch`, `1→agentprism.workflow`,
-  `2→agentprism.eval`, `3→agentprism.webhook-delivery`,
-  `4→agentprism.retention`, `5→agentprism.agent-run`,
-  `6→agentprism.online-eval`, `7→agentprism.approval-resume`,
-  `8→agentprism.run-continuation`.
+- Eşleme: `0→tracon.agent-batch`, `1→tracon.workflow`,
+  `2→tracon.eval`, `3→tracon.webhook-delivery`,
+  `4→tracon.retention`, `5→tracon.agent-run`,
+  `6→tracon.online-eval`, `7→tracon.approval-resume`,
+  `8→tracon.run-continuation`.
 - `kind` sütunu **artık yoktur**; `handler_key` `NOT NULL`'dur.
 - Üç sağlayıcıda da sonuç aynıdır.
 
@@ -2779,7 +2779,7 @@ handler `acme.a` anahtarıyla kayıtlı.
   yanıtıdır — varsayılanda dokuz yerleşik anahtar.
 - 3. adımdan sonra custom anahtar da listede görünür.
 - Zamanlama ve iş tablolarının sütun başlığı **"Handler key"**'dir ve hücre
-  tam anahtarı gösterir (`agentprism.agent-batch`).
+  tam anahtarı gösterir (`tracon.agent-batch`).
 
 ---
 
@@ -2796,8 +2796,8 @@ handler `acme.a` anahtarıyla kayıtlı.
 
 **Adımlar**
 1. `GET /api/jobs` çağır.
-2. `GET /api/jobs?handlerKey=agentprism.agent-batch` çağır.
-3. `GET /api/jobs?handlerKey=agentprism.retention` çağır.
+2. `GET /api/jobs?handlerKey=tracon.agent-batch` çağır.
+3. `GET /api/jobs?handlerKey=tracon.retention` çağır.
 
 **Beklenen sonuç**
 - Her satır `handlerKey` alanı taşır; `kind` alanı **yoktur**.

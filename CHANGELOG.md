@@ -1,19 +1,19 @@
 # Changelog
 
-All notable changes to AgentPrism are documented in this file.
+All notable changes to Tracon are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
-Nothing here has been published yet. AgentPrism is in development: no version
+Nothing here has been published yet. Tracon is in development: no version
 has been pushed to NuGet or npm, and there is no release tag. The entries below
 describe what is on `main`. The first real release will get its own section,
 fixed to the artifacts it actually ships.
 
 ### Added
 
-- `AgentPrism:SessionOwnership:RefuseUnownedSessions` (default `false`).
+- `Tracon:SessionOwnership:RefuseUnownedSessions` (default `false`).
   Session ownership is not retroactive, so rows written before it was turned
   on belong to nobody; until now those stayed readable by id to anyone in the
   tenant, and only disappeared from owner-filtered listings. With this on they
@@ -23,29 +23,29 @@ fixed to the artifacts it actually ships.
   them, so support keeps the access it already had in the management listing;
   that exemption does not extend to starting a run. A session that does not
   exist yet is unaffected: the first turn still opens it and claims it.
-- `AgentPrismEndpointOptions.MapOpenAIConversations` (default `true`). Set it
-  to `false` in `MapAgentPrism` to leave the four `/v1/conversations` routes
+- `TraconEndpointOptions.MapOpenAIConversations` (default `true`). Set it
+  to `false` in `MapTracon` to leave the four `/v1/conversations` routes
   unmapped; they then answer `404` and disappear from the OpenAPI document.
   `/v1/responses` and `/v1/chat/completions` are unaffected.
 
 ### Changed
 
-- **Licence.** AgentPrism now ships under the **PolyForm Small Business License
+- **Licence.** Tracon now ships under the **PolyForm Small Business License
   1.0.0** instead of MIT. Use is free of charge for an individual, an open source
   project, and any company with fewer than 100 total individuals working as
   employees and independent contractors and less than 1,000,000 USD (2019,
   inflation adjusted) revenue in the prior tax year; above that threshold a
   commercial licence applies (hfarukatasoy@gmail.com). Three packages stay MIT so
   that writing an extension, proving it against the behaviour contracts, and
-  owning the code `dotnet new` generates never need one: `AgentPrism.Abstractions`,
-  `AgentPrism.Testing.Contracts.Xunit` and `AgentPrism.Templates`. The npm client
-  `@agentprism/client` follows its NuGet twin and is PolyForm. No package contains
+  owning the code `dotnet new` generates never need one: `Tracon.Abstractions`,
+  `Tracon.Testing.Contracts.Xunit` and `Tracon.Templates`. The npm client
+  `@tracon/client` follows its NuGet twin and is PolyForm. No package contains
   a licence key, an activation call or a feature gate, and the licence of a
   published version never changes. Because PolyForm is not OSI approved, packages
   now declare `<license type="file">` and carry the text inside the `.nupkg`
   rather than naming an SPDX expression. Nothing was published under MIT, so no
   existing consumer is affected. See
-  <https://agentprism.doayen.web.tr/reference/licensing/>.
+  <https://tracon.dev/reference/licensing/>.
 
 - **The `/v1/conversations` read and delete routes now go through your
   registered `IRunAuthorizationHandler`.** `GET /v1/conversations/{id}`,
@@ -66,14 +66,14 @@ fixed to the artifacts it actually ships.
   `IModelProvider` extension point for any other provider — with per-tenant
   bring-your-own-key (BYOK) support and per-tenant egress policy.
 - Persistence backends for PostgreSQL, SQL Server, and SQLite, each with
-  embedded migrations; the runtime (`AgentPrism.Core`) needs no database.
+  embedded migrations; the runtime (`Tracon.Core`) needs no database.
 - An embedded React console — 30 screens across 36 routes (Dashboard,
   Agents, Skills, Playground, Sessions, Runs, Workflows, Jobs, Evals,
   Experiments, Approvals, Tools, Models, MCP, Triggers, Audit, Diagnostics,
   Settings) — with zero JavaScript dependency in the consuming project.
 - A management HTTP API alongside OpenAI-compatible endpoints
   (`/v1/responses`, `/v1/chat/completions`, `/v1/conversations`). Multi-tenancy
-  is opt-in: `AgentPrismTenancyOptions.Enabled` is `false` by default and
+  is opt-in: `TraconTenancyOptions.Enabled` is `false` by default and
   every request resolves to the single default tenant until you turn it on.
 - Run recording with spans, metrics, and cost; a tamper-evident audit trail
   with a verifiable hash chain; data subject export and erasure.
@@ -99,19 +99,19 @@ fixed to the artifacts it actually ships.
   attributes, and support nested object and object-array parameters.
 - Extension points for custom tools, model providers, run stores, run
   judges, agent sources, and scheduled job handlers, each with a published
-  behavior-contract test suite (`AgentPrism.Testing.Contracts.Xunit`) so a
+  behavior-contract test suite (`Tracon.Testing.Contracts.Xunit`) so a
   third-party implementation can be verified against the same tests
-  AgentPrism's own implementations run.
+  Tracon's own implementations run.
 - Workflow execution with five orchestration patterns, checkpoints, resume,
   and human-in-the-loop approval.
 - MCP tool discovery from remote servers, and agent exposure over MCP and
   A2A.
 - A typed management client generated from the OpenAPI document, published
-  both as a NuGet package (`AgentPrism.Client`) and an npm package
-  (`@agentprism/client`).
-- A `dotnet new agentprism-api` project template and an `agentprism` global
+  both as a NuGet package (`Tracon.Client`) and an npm package
+  (`@tracon/client`).
+- A `dotnet new tracon-api` project template and an `tracon` global
   CLI tool (`migrate`, `migrate status`, `health`, `eval`).
-- Native AOT and trimming compatibility for `AgentPrism.Abstractions`,
-  `AgentPrism.Core`, `AgentPrism.PostgreSql`, `AgentPrism.OpenAI`,
-  `AgentPrism.Anthropic`, `AgentPrism.Google`, `AgentPrism.Azure`, and
-  `AgentPrism.Voice`.
+- Native AOT and trimming compatibility for `Tracon.Abstractions`,
+  `Tracon.Core`, `Tracon.PostgreSql`, `Tracon.OpenAI`,
+  `Tracon.Anthropic`, `Tracon.Google`, `Tracon.Azure`, and
+  `Tracon.Voice`.

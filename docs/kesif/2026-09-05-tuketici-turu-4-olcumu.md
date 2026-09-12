@@ -12,7 +12,7 @@ plana çevirmeyi istedi.
 **İncelenen sürüm:** `0.0.0-preview.0.589` · source commit `234d4081` — **bu
 depo HEAD'iyle aynı**, çalışma ağacı temiz
 **Ekosistem taraması:** yapılmadı — hiçbir kalem "MAF/ekosistem bunu artık
-veriyor" iddiası taşımıyor; hepsi AgentPrism'in kendi yüzeyine dair.
+veriyor" iddiası taşımıyor; hepsi Tracon'in kendi yüzeyine dair.
 
 ---
 
@@ -46,11 +46,11 @@ Tüketici kaynak gösterdi ve "yok" yerine "bulunamadı" dedi. Ölçüm sonucu:
 | Terminal, kota kaydından önce yazılıyor | ✅ Doğru (`Completion.cs:132` → `:162`) |
 | `RunEventType`'ta kota eşiği yok | ✅ Doğru (31 üyenin hiçbiri) |
 | `QuotaEnforcer` eşik hafızası süreç içi | ✅ Doğru (`QuotaEnforcer.cs:39`, `ConcurrentDictionary`) |
-| `AgentPrismStreamRunEvents` MIME bildirmiyor | ✅ Doğru — `{"200": {"description": "OK"}}`; ailedeki **tek** bildirmeyen SSE ucu |
+| `TraconStreamRunEvents` MIME bildirmiyor | ✅ Doğru — `{"200": {"description": "OK"}}`; ailedeki **tek** bildirmeyen SSE ucu |
 | `RunEventType.Custom` `unknown` adıyla taşınıyor | ✅ Doğru — 31 üyenin **21'i** `unknown` (`RunEndpoints.cs:973`) |
 | `ExtensionPointDiagnostic` kayıt bilgisini gösterir (F2) | ✅ Doğru; eksik olan yalnız **zorlama** anahtarı |
 | `SqlPersistenceDiagnosticsSnapshot` yalnız ad taşır (F7) | ✅ Doğru — `CanConnect` + `PendingMigrations` |
-| `T:AgentPrism.MigrationDescriptor` public bir tiptir (R13) | ❌ **Yanlış** — `internal sealed record` (`MigrationDescriptor.cs:13`). Hash'ler var ama dışarıdan görünmüyor |
+| `T:Tracon.MigrationDescriptor` public bir tiptir (R13) | ❌ **Yanlış** — `internal sealed record` (`MigrationDescriptor.cs:13`). Hash'ler var ama dışarıdan görünmüyor |
 
 Bir iddia yanlış çıktı ve o da bir feature talebini değil bir risk satırını
 etkiliyor. Rapor bu turda da **yüksek doğrulukta**.
@@ -85,7 +85,7 @@ Faz 147'nin kapsamına alındı.
 | **F7** · migration plan artifact'i | ⏸ Sıralanmadı | Boşluk gerçek ama değeri düşük; raporun kendi kanıtı (`MigrationDescriptor` public) yanlış çıktı |
 | **F4** · yazma hacmi planlayıcısı | ❌ Elendi | Tüketicinin kendisi "GB/ay vaat edilmemeli" diyor; ölçülmüş talep yok |
 | **F5** · çok dilli guard corpus'u | ❌ Elendi | Faz 140 `ContentGuardContext.Source` ayrımını sevk etti; kalan iş test verisi bakımıdır, faz değil |
-| **F6** · ses/WebSocket harness'i | ⏸ Sıralanmadı | Boşluk gerçek (`AgentPrism.Testing` içinde ses fixture'ı yok) ama tüketici VAD/WebSocket'i kendi üstlendi; talep kanıtı yok |
+| **F6** · ses/WebSocket harness'i | ⏸ Sıralanmadı | Boşluk gerçek (`Tracon.Testing` içinde ses fixture'ı yok) ama tüketici VAD/WebSocket'i kendi üstlendi; talep kanıtı yok |
 | **F8** · generator kontrat paketi | ❌ Elendi | Asıl şikâyet beklenti/doküman; Faz 127 kısmen kapattı |
 
 **Faz sırası ve gerekçesi:** 145 → 146 → 147 → 148.

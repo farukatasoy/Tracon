@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
-"""Prepares docs/openapi/agentprism.json for NSwag client generation.
+"""Prepares docs/openapi/tracon.json for NSwag client generation.
 
 Two transforms, both applied to a throwaway copy - the committed document is
 never touched:
 
-1. Strip the '/agentprism' MapAgentPrism prefix from every path. The document
-   is generated with every path relative to the DEFAULT MapAgentPrism prefix;
+1. Strip the '/tracon' MapTracon prefix from every path. The document
+   is generated with every path relative to the DEFAULT MapTracon prefix;
    that prefix is a runtime parameter
-   (AgentPrismEndpointRouteBuilderExtensions.cs), so a client generated
+   (TraconEndpointRouteBuilderExtensions.cs), so a client generated
    straight from the document would 404 against any consumer that calls
-   MapAgentPrism with a custom prefix. AgentPrismClientOptions.BaseAddress
+   MapTracon with a custom prefix. TraconClientOptions.BaseAddress
    carries the prefix instead (docs/arsiv/fazlar/83-TIPLI-ISTEMCI-VE-CLI.md, section 83.3).
 
 2. Close every object schema (`additionalProperties: false`) that does not
@@ -32,7 +32,7 @@ Usage: nswag-prepare-document.py <input.json> <output.json> [prefix]
 import json
 import sys
 
-DEFAULT_PREFIX = "/agentprism"
+DEFAULT_PREFIX = "/tracon"
 
 
 def strip_prefix(document: dict, prefix: str) -> None:
