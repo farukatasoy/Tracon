@@ -175,6 +175,6 @@ bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 | [160](arsiv/fazlar/160-LISANS-MODELI-VE-PAKET-METAVERISI.md) | Lisans Modeli ve Paket Metaverisi | ✅ Tamamlandı |
 | [161](arsiv/fazlar/161-GPT-LIVE-SIDEBAND-DENETIMI.md) | GPT-Live Sideband Denetimi | ✅ Tamamlandı |
 | [162](arsiv/fazlar/162-TRACON-YENIDEN-ADLANDIRMA.md) | Tracon Yeniden Adlandırma | ✅ Tamamlandı |
-| [163](163-MARKA-VE-DOKUMANTASYON.md) | Marka ve Dokümantasyon Deneyimi | 🚧 Uygulanıyor — kod bitti, kapılar yeşil, denetim koşuldu; kapanış commit bekliyor (2026-09-12) |
+| [163](arsiv/fazlar/163-MARKA-VE-DOKUMANTASYON.md) | Marka ve Dokümantasyon Deneyimi | ✅ Tamamlandı |
 
 Seçilmemiş adaylar: [`ADAYLAR.md`](ADAYLAR.md). Fazların hangi dalgada, hangi gerekçeyle sıralandığı (Faz 8–56, kapandı): [`arsiv/IKINCI-FAZ-YOL-HARITASI.md`](arsiv/IKINCI-FAZ-YOL-HARITASI.md) · [`arsiv/UCUNCU-FAZ-YOL-HARITASI.md`](arsiv/UCUNCU-FAZ-YOL-HARITASI.md).
