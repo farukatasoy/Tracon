@@ -1,0 +1,74 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <!--
+      TargetFrameworks (PLURAL) is left EMPTY: src/Directory.Build.props assigns
+      it "net8.0;net9.0;net10.0". TargetFramework (SINGULAR) is enough for
+      `dotnet build`, but `dotnet pack`'s cross-targeting path reads the PLURAL
+      value; leaving it empty pins the template to a single TFM (it doesn't
+      compile anyway, so a TFM has no meaning here).
+    -->
+    <TargetFrameworks></TargetFrameworks>
+    <Description>The `dotnet new tracon-api` template. Generates a working Tracon control plane: Program.cs, a sample tool, an empty appsettings.json placeholder, a README.</Description>
+    <PackageTags>$(CommonPackageTags);template;dotnet-new</PackageTags>
+    <PackageType>Template</PackageType>
+    <TemplateAffinityPackageId>Tracon</TemplateAffinityPackageId>
+    <!--
+      The template package is NOT a library: it does not compile, it only
+      carries content. IncludeBuildOutput=false + the NU5128 suppression is the
+      SAME pattern as the meta package (Tracon.csproj) - see the K-007 note
+      in docs/KARARLAR.md and src/Tracon/Tracon.csproj.
+    -->
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <!-- No consumer-facing API surface - it ships `dotnet new` content, not a library. -->
+    <TraconPublicApiTrackingEnabled>false</TraconPublicApiTrackingEnabled>
+    <!--
+      🚨 IncludeSymbols=false is MANDATORY. src/Directory.Build.props assigns
+      IncludeSymbols=true + snupkg (a separate symbol package is produced for
+      every package). This project has no compiled .dll/.pdb; the symbol
+      package stays EMPTY and NuGet.Build.Tasks.Pack rejects it with NU5017
+      ("neither dependencies nor content") - the build FAILS even though the
+      MAIN package is correctly populated. Measured: the <files> list in the
+      nuspec was correct, the error came only from the symbol package.
+    -->
+    <IncludeSymbols>false</IncludeSymbols>
+    <NoWarn>$(NoWarn);NU5128</NoWarn>
+    <!--
+      The template package has no dependencies at all and never enters the
+      consumer's dependency graph (37.1). An AOT promise is meaningless too -
+      it doesn't compile.
+    -->
+    <TraconAotCompatible>false</TraconAotCompatible>
+    <!--
+      The .cs files under content/ must NOT be included in THIS project's own
+      compilation - they are source files for the project to be generated, not
+      source for the template package. The SDK's default globbing is disabled;
+      content is added explicitly below as <None>.
+    -->
+    <EnableDefaultItems>false</EnableDefaultItems>
+    <!--
+      The SDK's default globbing EXCLUDES folders (.template.config) and files
+      (.gitignore) that start with a dot. Without NoDefaultExcludes, the
+      template's definition file never enters the package and `dotnet new
+      install` silently installs a non-functional package (see
+      docs/hafiza/build-ve-analyzer.md - same class as the "duplicate files"
+      trap: silent poisoning).
+    -->
+    <NoDefaultExcludes>true</NoDefaultExcludes>
+  </PropertyGroup>
+
+  <!--
+    <None Pack="true" PackagePath="..."> - the official NuGet pattern
+    (learn.microsoft.com/nuget/reference/msbuild-targets#packagepath).
+    %(RecursiveDir) in the "content/**/*" pattern gives everything AFTER
+    "content/"; starting PackagePath explicitly with "content/" produces the
+    correct SINGLE-LAYER result (ContentTargetFolders is NOT USED - it never
+    applies when an explicit PackagePath is present; adding it produces
+    "content/content/..." - measured).
+  -->
+  <ItemGroup>
+    <None Include="content/**/*" Exclude="content/**/bin/**;content/**/obj/**" Pack="true" PackagePath="content/%(RecursiveDir)%(Filename)%(Extension)" />
+  </ItemGroup>
+
+</Project>

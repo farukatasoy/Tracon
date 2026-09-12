@@ -4,10 +4,10 @@ description: Let an external system such as Slack start a queued agent or workfl
 ---
 
 An inbound trigger is the reverse of an [outbound webhook](/concepts/governance/#webhooks):
-instead of AgentPrism notifying another system, another system starts a run in
-AgentPrism. A Slack slash command, a support-desk ticket event, or a queue
+instead of Tracon notifying another system, another system starts a run in
+Tracon. A Slack slash command, a support-desk ticket event, or a queue
 consumer can all become the start of an agent or workflow run without holding
-an AgentPrism API key.
+an Tracon API key.
 
 The accept endpoint is always queued and always returns `202 Accepted` — there
 is no synchronous mode. A caller that needs the model's answer inline should
@@ -35,30 +35,30 @@ flowchart TD
 ## Define a trigger
 
 ```bash
-dotnet user-secrets set "AgentPrism:TriggerSecrets:Slack" "whsec_..." \
-  --project samples/AgentPrism.Api
+dotnet user-secrets set "Tracon:TriggerSecrets:Slack" "whsec_..." \
+  --project samples/Tracon.Api
 ```
 
 ```bash
 curl -sS -X PUT \
-  https://agents.example.com/agentprism/api/triggers/slack \
-  -H "Authorization: Bearer $AGENTPRISM_API_KEY" \
+  https://agents.example.com/tracon/api/triggers/slack \
+  -H "Authorization: Bearer $TRACON_API_KEY" \
   -H 'Content-Type: application/json' \
   -d '{
     "targetKind": "agent",
     "targetName": "support",
-    "signingSecretConfigurationName": "AgentPrism:TriggerSecrets:Slack",
+    "signingSecretConfigurationName": "Tracon:TriggerSecrets:Slack",
     "payloadMode": "path",
     "payloadPath": "event.text"
   }'
 ```
 
 `signingSecretConfigurationName` carries only the configuration **key's
-name** — never the secret value. AgentPrism reads the value from
+name** — never the secret value. Tracon reads the value from
 `IConfiguration` at request time, the same rule tenant provider bindings and
 MCP server credentials follow. The name must be under
-`AgentPrismInboundTriggerOptions.AllowedConfigurationPrefix`, which defaults
-to `AgentPrism:TriggerSecrets:`.
+`TraconInboundTriggerOptions.AllowedConfigurationPrefix`, which defaults
+to `Tracon:TriggerSecrets:`.
 
 `targetKind` is `agent` or `workflow`. `payloadMode` controls how the request
 body becomes the run's message:
@@ -70,16 +70,16 @@ body becomes the run's message:
 
 There is no template language here — the same rule that keeps tool
 approval conditions free of expression evaluation. A consumer that needs to
-reshape the payload does so before it reaches AgentPrism.
+reshape the payload does so before it reaches Tracon.
 
 ## Send a signed event
 
 ```bash
 curl -sS -i -X POST \
-  https://agents.example.com/agentprism/api/triggers/default/slack \
+  https://agents.example.com/tracon/api/triggers/default/slack \
   -H 'Content-Type: application/json' \
-  -H "X-AgentPrism-Timestamp: $(date +%s)" \
-  -H "X-AgentPrism-Signature: sha256=$SIGNATURE" \
+  -H "X-Tracon-Timestamp: $(date +%s)" \
+  -H "X-Tracon-Signature: sha256=$SIGNATURE" \
   -d '{"event":{"text":"Reset my password"}}'
 ```
 
@@ -100,15 +100,15 @@ is `null` until the queued job runs — poll `GET /api/jobs/{jobId}` instead.
 {
   "runId": "01a01890-1652-7183-9d50-6efd430644a3",
   "jobId": "01a01890-1652-7183-9d50-6efd430644a3",
-  "location": "/agentprism/api/runs/01a01890-1652-7183-9d50-6efd430644a3",
-  "eventsLocation": "/agentprism/api/runs/01a01890-1652-7183-9d50-6efd430644a3/events"
+  "location": "/tracon/api/runs/01a01890-1652-7183-9d50-6efd430644a3",
+  "eventsLocation": "/tracon/api/runs/01a01890-1652-7183-9d50-6efd430644a3/events"
 }
 ```
 
 ## No bearer token, by design
 
 The accept endpoint (`POST /api/triggers/{tenantId}/{name}`) carries no
-`Authorization` requirement — an external system cannot present an AgentPrism
+`Authorization` requirement — an external system cannot present an Tracon
 API key or the static `AuthToken`. Its entire authentication story is the
 HMAC signature: a request without a valid, in-window signature never reaches
 the queue.
@@ -123,7 +123,7 @@ the queue.
 - The timestamp must fall within `TimestampTolerance` (default five minutes)
   of the server's clock. This is the first line of defense against a
   captured request being replayed.
-- The signature itself is also the replay key: AgentPrism reserves it in the
+- The signature itself is also the replay key: Tracon reserves it in the
   idempotency store on the first accepted request, so an identical replay —
   even inside the timestamp window — gets `409 Conflict`, never a second run.
 
@@ -138,23 +138,23 @@ endpoint follows: a write that cannot be audited is not applied.
 | `TimestampTolerance` | 5 minutes | Requests outside this window are rejected (`401`) regardless of signature validity |
 | `MaxBodyBytes` | 256 KB | A larger body is rejected (`413`) before it is fully read |
 | `MaxRequestsPerMinute` | 60 | Per trigger, per process (`429` beyond the limit) |
-| `AllowedConfigurationPrefix` | `AgentPrism:TriggerSecrets:` | The only prefix a signing secret's configuration key name may start with |
+| `AllowedConfigurationPrefix` | `Tracon:TriggerSecrets:` | The only prefix a signing secret's configuration key name may start with |
 
 ```json
 {
-  "AgentPrism": {
+  "Tracon": {
     "InboundTriggers": {
       "TimestampTolerance": "00:05:00",
       "MaxBodyBytes": 262144,
       "MaxRequestsPerMinute": 60,
-      "AllowedConfigurationPrefix": "AgentPrism:TriggerSecrets:"
+      "AllowedConfigurationPrefix": "Tracon:TriggerSecrets:"
     }
   }
 }
 ```
 
 :::caution[The rate limit is per process]
-Like AgentPrism's general rate limiter, the trigger limit lives in process
+Like Tracon's general rate limiter, the trigger limit lives in process
 memory — there is no distributed counter. In a multi-instance deployment the
 limit applies per instance, not per trigger across the whole deployment.
 :::

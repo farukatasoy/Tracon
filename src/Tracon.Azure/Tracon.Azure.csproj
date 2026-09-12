@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Description>Azure OpenAI provider adapter for Tracon. Deployment-based model resolution, authentication with an API key or Microsoft Entra identity, model catalog, and health checks.</Description>
+    <PackageTags>$(CommonPackageTags);azure;azure-openai;entra;provider</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../Tracon.Core/Tracon.Core.csproj" />
+  </ItemGroup>
+
+  <!--
+    Azure.AI.OpenAI is Azure's OFFICIAL adapter and only adds routing on top of
+    the OpenAI SDK: POST {endpoint}/openai/deployments/{deployment}/chat/completions
+    ?api-version=... Message mapping, streaming, tool calls, and usage counters
+    all come from the OpenAI SDK's own code; Tracon writes none of them.
+
+    Azure.Core is written directly because it appears in the public API (see
+    Directory.Packages.props).
+  -->
+  <ItemGroup>
+    <PackageReference Include="Azure.AI.OpenAI" />
+    <PackageReference Include="Azure.Core" />
+    <!-- The ChatClient -> IChatClient adapter (`AsIChatClient`) comes from this package. -->
+    <PackageReference Include="Microsoft.Extensions.AI.OpenAI" />
+  </ItemGroup>
+
+</Project>

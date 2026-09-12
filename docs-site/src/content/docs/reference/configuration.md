@@ -1,6 +1,6 @@
 ---
 title: Configuration
-description: Verified configuration sections and defaults for AgentPrism core services, providers, persistence, operations, security, and optional surfaces.
+description: Verified configuration sections and defaults for Tracon core services, providers, persistence, operations, security, and optional surfaces.
 slug: reference/configuration
 ---
 
@@ -9,21 +9,21 @@ default from provider behavior. `null`, empty, and off mean exactly that.
 
 ## Binding rules
 
-`builder.AddAgentPrism()` on an `IHostApplicationBuilder` reads the `AgentPrism`
+`builder.AddTracon()` on an `IHostApplicationBuilder` reads the `Tracon`
 section. Package extensions then register their capability and read or accept their
 own options. A section in a file does not load a package by itself.
 
 ```csharp
-var agentPrism = builder.AddAgentPrism()
+var tracon = builder.AddTracon()
     .UseOpenAI(builder.Configuration.GetSection(OpenAIProviderOptions.SectionName))
-    .UsePostgreSql(builder.Configuration.GetSection(AgentPrismPostgreSqlOptions.SectionName))
+    .UsePostgreSql(builder.Configuration.GetSection(TraconPostgreSqlOptions.SectionName))
     .UseWorkflows()
     .UseUI();
 ```
 
 The configuration key separator is `:`. Environment variables use `__`, so
-`AgentPrism:Providers:OpenAI:ApiKey` becomes
-`AgentPrism__Providers__OpenAI__ApiKey`.
+`Tracon:Providers:OpenAI:ApiKey` becomes
+`Tracon__Providers__OpenAI__ApiKey`.
 
 :::danger[Secrets do not belong in a settings file]
 Provider keys, connection strings, bearer tokens, webhook secrets, and MCP
@@ -32,61 +32,61 @@ Database records keep a configuration **key name**, never the secret value.
 :::
 
 ```bash
-dotnet user-secrets set "AgentPrism:Providers:OpenAI:ApiKey" "<value>"
-dotnet user-secrets set "AgentPrism:PostgreSql:ConnectionString" "<value>"
+dotnet user-secrets set "Tracon:Providers:OpenAI:ApiKey" "<value>"
+dotnet user-secrets set "Tracon:PostgreSql:ConnectionString" "<value>"
 ```
 
 ## Section index
 
 | Section | Option type | Registration that uses it |
 |---|---|---|
-| `AgentPrism` | `AgentPrismOptions` | `AddAgentPrism()` |
-| `AgentPrism:Approvals` | `AgentPrismApprovalOptions` | `AddAgentPrism()` |
-| `AgentPrism:AsyncRun` | `AgentPrismAsyncRunOptions` | `AddAgentPrism()` |
-| `AgentPrism:Canary` | `CanaryOptions` | `AddAgentPrism()` |
-| `AgentPrism:ContentGuard` | `AgentPrismContentGuardOptions` | Guard pipeline after a guard is registered |
-| `AgentPrism:ContentGuard:Pattern` | `PatternContentGuardOptions` | Section presence or `AddPatternContentGuard()` |
-| `AgentPrism:ContentProtection` | `AgentPrismContentProtectionOptions` | `AddAgentPrism()` binds it; `AddContentProtection()` makes it apply |
-| `AgentPrism:Drain` | `AgentPrismDrainOptions` | `AddAgentPrism()` |
-| `AgentPrism:Idempotency` | `AgentPrismIdempotencyOptions` | `AddAgentPrism()` and the HTTP layer |
-| `AgentPrism:Knowledge` | `AgentPrismKnowledgeOptions` | `AddAgentPrism()`; PostgreSQL and embeddings make it functional |
-| `AgentPrism:OnlineEvaluation` | `OnlineEvaluationOptions` | `AddAgentPrism()` plus at least one judge |
-| `AgentPrism:Quotas` | `AgentPrismQuotaOptions` | `AddAgentPrism()` |
-| `AgentPrism:RateLimit` | `AgentPrismRateLimitOptions` | `MapAgentPrism()` |
-| `AgentPrism:Retention` | `AgentPrismRetentionOptions` | `AddAgentPrism()` |
-| `AgentPrism:RunContinuation` | `AgentPrismRunContinuationOptions` | `AddAgentPrism()` |
-| `AgentPrism:RunReconciliation` | `RunReconciliationOptions` | `AddAgentPrism()` |
-| `AgentPrism:Scheduling` | `AgentPrismSchedulingOptions` | `AddAgentPrism()`; `UseScheduling()` can override from code |
-| `AgentPrism:SingletonExecution` | `SingletonExecutionOptions` | `AddAgentPrism()` |
-| `AgentPrism:StructuredResponse` | `AgentPrismStructuredResponseOptions` | `AddAgentPrism()` |
-| `AgentPrism:TenantProviders` | `AgentPrismTenantProviderOptions` | `AddAgentPrism()` |
-| `AgentPrism:Webhooks` | `AgentPrismWebhookOptions` | `AddAgentPrism()` |
-| `AgentPrism:Egress` | `AgentPrismEgressOptions` | `AddAgentPrism()` |
-| `AgentPrism:Providers:OpenAI` | `OpenAIProviderOptions` | The configuration overload of `UseOpenAI()` |
-| `AgentPrism:Providers:OpenAICompatible:{name}` | `OpenAIProviderOptions` shape | The configuration overload of `UseOpenAICompatible()` |
-| `AgentPrism:Providers:Anthropic` | `AnthropicProviderOptions` | The configuration overload of `UseAnthropic()` |
-| `AgentPrism:Providers:Google` | `GoogleProviderOptions` | The configuration overload of `UseGoogle()` |
-| `AgentPrism:Providers:AzureOpenAI` | `AzureOpenAIProviderOptions` | The configuration overload of `UseAzureOpenAI()` |
-| `AgentPrism:PostgreSql` | `AgentPrismPostgreSqlOptions` | The configuration overload of `UsePostgreSql()` |
-| `AgentPrism:SqlServer` | `AgentPrismSqlServerOptions` | The configuration overload of `UseSqlServer()` |
-| `AgentPrism:Sqlite` | `AgentPrismSqliteOptions` | The configuration overload of `UseSqlite()` |
-| `AgentPrism:Mcp` | `AgentPrismMcpOptions` (connection) and `AgentPrismMcpSecurityOptions` (key prefix) | `UseMcp()`; the prefix binds through `AddAgentPrism()` |
-| `AgentPrism:Workflows` | `AgentPrismWorkflowOptions` | `UseWorkflows()` |
-| `AgentPrism:Voice` | `VoiceOptions` | `UseVoice()` |
-| `AgentPrism:Voice:Conversation` | `VoiceConversationOptions` | The configuration overload of `UseVoiceConversation()` |
+| `Tracon` | `TraconOptions` | `AddTracon()` |
+| `Tracon:Approvals` | `TraconApprovalOptions` | `AddTracon()` |
+| `Tracon:AsyncRun` | `TraconAsyncRunOptions` | `AddTracon()` |
+| `Tracon:Canary` | `CanaryOptions` | `AddTracon()` |
+| `Tracon:ContentGuard` | `TraconContentGuardOptions` | Guard pipeline after a guard is registered |
+| `Tracon:ContentGuard:Pattern` | `PatternContentGuardOptions` | Section presence or `AddPatternContentGuard()` |
+| `Tracon:ContentProtection` | `TraconContentProtectionOptions` | `AddTracon()` binds it; `AddContentProtection()` makes it apply |
+| `Tracon:Drain` | `TraconDrainOptions` | `AddTracon()` |
+| `Tracon:Idempotency` | `TraconIdempotencyOptions` | `AddTracon()` and the HTTP layer |
+| `Tracon:Knowledge` | `TraconKnowledgeOptions` | `AddTracon()`; PostgreSQL and embeddings make it functional |
+| `Tracon:OnlineEvaluation` | `OnlineEvaluationOptions` | `AddTracon()` plus at least one judge |
+| `Tracon:Quotas` | `TraconQuotaOptions` | `AddTracon()` |
+| `Tracon:RateLimit` | `TraconRateLimitOptions` | `MapTracon()` |
+| `Tracon:Retention` | `TraconRetentionOptions` | `AddTracon()` |
+| `Tracon:RunContinuation` | `TraconRunContinuationOptions` | `AddTracon()` |
+| `Tracon:RunReconciliation` | `RunReconciliationOptions` | `AddTracon()` |
+| `Tracon:Scheduling` | `TraconSchedulingOptions` | `AddTracon()`; `UseScheduling()` can override from code |
+| `Tracon:SingletonExecution` | `SingletonExecutionOptions` | `AddTracon()` |
+| `Tracon:StructuredResponse` | `TraconStructuredResponseOptions` | `AddTracon()` |
+| `Tracon:TenantProviders` | `TraconTenantProviderOptions` | `AddTracon()` |
+| `Tracon:Webhooks` | `TraconWebhookOptions` | `AddTracon()` |
+| `Tracon:Egress` | `TraconEgressOptions` | `AddTracon()` |
+| `Tracon:Providers:OpenAI` | `OpenAIProviderOptions` | The configuration overload of `UseOpenAI()` |
+| `Tracon:Providers:OpenAICompatible:{name}` | `OpenAIProviderOptions` shape | The configuration overload of `UseOpenAICompatible()` |
+| `Tracon:Providers:Anthropic` | `AnthropicProviderOptions` | The configuration overload of `UseAnthropic()` |
+| `Tracon:Providers:Google` | `GoogleProviderOptions` | The configuration overload of `UseGoogle()` |
+| `Tracon:Providers:AzureOpenAI` | `AzureOpenAIProviderOptions` | The configuration overload of `UseAzureOpenAI()` |
+| `Tracon:PostgreSql` | `TraconPostgreSqlOptions` | The configuration overload of `UsePostgreSql()` |
+| `Tracon:SqlServer` | `TraconSqlServerOptions` | The configuration overload of `UseSqlServer()` |
+| `Tracon:Sqlite` | `TraconSqliteOptions` | The configuration overload of `UseSqlite()` |
+| `Tracon:Mcp` | `TraconMcpOptions` (connection) and `TraconMcpSecurityOptions` (key prefix) | `UseMcp()`; the prefix binds through `AddTracon()` |
+| `Tracon:Workflows` | `TraconWorkflowOptions` | `UseWorkflows()` |
+| `Tracon:Voice` | `VoiceOptions` | `UseVoice()` |
+| `Tracon:Voice:Conversation` | `VoiceConversationOptions` | The configuration overload of `UseVoiceConversation()` |
 
-`AddAgentPrism()` binds `Skills:Scripts` values but does not register a script runner.
+`AddTracon()` binds `Skills:Scripts` values but does not register a script runner.
 Call `UseSkillScripts()` to cross that execution boundary; the call sets `Enabled`
 and registers the runner. A settings section or grant record alone cannot execute a
 script.
 
-## Core defaults under `AgentPrism`
+## Core defaults under `Tracon`
 
-<p class="reads-this">Read by <code>AgentPrism.Core</code> through <code>AddAgentPrism()</code>. No extra package reference.</p>
+<p class="reads-this">Read by <code>Tracon.Core</code> through <code>AddTracon()</code>. No extra package reference.</p>
 
 ### Identity, validation, and agent graphs
 
-| Key relative to `AgentPrism` | Default | Meaning |
+| Key relative to `Tracon` | Default | Meaning |
 |---|---:|---|
 | `DefaultTenantId` | `default` | Tenant used when no request resolver supplies one |
 | `MaxParameterValueLength` | `4096` bytes | Largest UTF-8 size for one `AgentParameter` value in a run request or eval case |
@@ -100,7 +100,7 @@ script.
 | `Tools:DefaultMaxOutputBytes` | `null` (unlimited) | UTF-8 byte limit for a tool result when its own registration sets none; must be at least 57 bytes when set |
 
 Non-positive graph token, cost, or run limits remove that limit. See
-[`AgentPrismAgentGraphOptions`](/api/agentprism.agentprismagentgraphoptions/)
+[`TraconAgentGraphOptions`](/api/tracon.traconagentgraphoptions/)
 for the exact runtime interpretation.
 
 ### Skills and script execution
@@ -126,7 +126,7 @@ for the exact runtime interpretation.
 | `Skills:Scripts:MaxConcurrentTotal` | `8` |
 | `Skills:Scripts:SearchDepth` | `2` |
 
-`Enabled=true` is invalid until `PlatformIsolationAcknowledged=true`. AgentPrism
+`Enabled=true` is invalid until `PlatformIsolationAcknowledged=true`. Tracon
 does not provide a filesystem, network, CPU, memory, or privilege sandbox.
 
 ### Attachments and audit
@@ -185,7 +185,7 @@ on the model binding, not a global setting. See
 | `Observability:JobQueueDepthRefreshInterval` | 30 seconds |
 | `Observability:MaxJobLaneCardinality` | `64` |
 
-These settings control AgentPrism span creation and its own trace store. They do not
+These settings control Tracon span creation and its own trace store. They do not
 replace the application's OpenTelemetry exporter.
 
 Both gauges are off by default because each one reads the database on a scrape;
@@ -231,18 +231,18 @@ Pricing has no built-in values. `Currency`, provider/model token prices, and voi
 and image prices all start empty. The supported shape is:
 
 ```text
-AgentPrism:Pricing:Currency
-AgentPrism:Pricing:{provider}:{model}:Input
-AgentPrism:Pricing:{provider}:{model}:Output
-AgentPrism:Pricing:{provider}:{model}:CachedInput
-AgentPrism:Pricing:Voice:{provider}:{model}:PerMillionCharacters
-AgentPrism:Pricing:Voice:{provider}:{model}:PerMinute
-AgentPrism:Pricing:Images:{provider}:{model}:PerImage
-AgentPrism:Pricing:Images:{provider}:{model}:SizeMultipliers:{provider-size}
-AgentPrism:Pricing:Images:{provider}:{model}:OutputCostPerMillionTokens
+Tracon:Pricing:Currency
+Tracon:Pricing:{provider}:{model}:Input
+Tracon:Pricing:{provider}:{model}:Output
+Tracon:Pricing:{provider}:{model}:CachedInput
+Tracon:Pricing:Voice:{provider}:{model}:PerMillionCharacters
+Tracon:Pricing:Voice:{provider}:{model}:PerMinute
+Tracon:Pricing:Images:{provider}:{model}:PerImage
+Tracon:Pricing:Images:{provider}:{model}:SizeMultipliers:{provider-size}
+Tracon:Pricing:Images:{provider}:{model}:OutputCostPerMillionTokens
 ```
 
-Values label and calculate reports only. AgentPrism performs no currency conversion.
+Values label and calculate reports only. Tracon performs no currency conversion.
 The shorter configuration keys `Input`, `Output` and `CachedInput` bind to the code
 properties `InputCostPerMillionTokens`, `OutputCostPerMillionTokens` and
 `CachedInputCostPerMillionTokens`.
@@ -276,18 +276,18 @@ worth widening the price schema.
 An image model uses either `PerImage` or `OutputCostPerMillionTokens`, never both.
 `SizeMultipliers` applies only to a per-image price and uses the exact provider size
 string, for example `1024x1024`. An image response with no matching configured price
-records its real quantity but leaves `cost` as `null`; AgentPrism does not estimate
+records its real quantity but leaves `cost` as `null`; Tracon does not estimate
 image prices.
 
 ### Images
 
-`AgentPrism:Images` is off by default (`false`).<!-- claim:option AgentPrismImageOptions.Enabled=false --> When `Enabled` is `true`, `Provider` and
+`Tracon:Images` is off by default (`false`).<!-- claim:option TraconImageOptions.Enabled=false --> When `Enabled` is `true`, `Provider` and
 `Model` are required and `MaxImagesPerRequest` must be at least one. Enabling it adds
 the `generate_image` tool and maps `POST /api/images/generate`.
 
 ```json
 {
-  "AgentPrism": {
+  "Tracon": {
     "Images": {
       "Enabled": true,
       "Provider": "openai",
@@ -314,14 +314,14 @@ registers more than one image provider or a custom keyed generator.
 
 ## Operational sections
 
-<p class="reads-this">Read by <code>AgentPrism.Core</code>. The lease-backed entries coordinate more than one process only with a SQL persistence package.</p>
+<p class="reads-this">Read by <code>Tracon.Core</code>. The lease-backed entries coordinate more than one process only with a SQL persistence package.</p>
 
 ### Scheduling, async runs, leases, and recovery
 
 | Section and key | Default |
 |---|---:|
 | `Scheduling:Enabled` | `true` |
-| `Scheduling:RunWorker` | `true`<!-- claim:option AgentPrismSchedulingOptions.RunWorker=true --> |
+| `Scheduling:RunWorker` | `true`<!-- claim:option TraconSchedulingOptions.RunWorker=true --> |
 | `Scheduling:MaxConcurrentJobs` | `2` |
 | `Scheduling:PollInterval` | 10 seconds |
 | `Scheduling:LeaseDuration` | 5 minutes |
@@ -347,7 +347,7 @@ registers more than one image provider or a custom keyed generator.
 | `Drain:Timeout` | 30 seconds |
 
 `UseScheduling()` changes worker settings from code; it does not create a second
-queue. `AddAgentPrism()` already registers the core job contracts.
+queue. `AddTracon()` already registers the core job contracts.
 
 ### Approvals, evaluation, and canaries
 
@@ -406,9 +406,9 @@ embedding generator exist.
 
 ### Outbound network targets
 
-| Key relative to `AgentPrism:Egress` | Default |
+| Key relative to `Tracon:Egress` | Default |
 |---|---:|
-| `AllowPrivateNetworkTargets` | `false`<!-- claim:option AgentPrismEgressOptions.AllowPrivateNetworkTargets=false --> |
+| `AllowPrivateNetworkTargets` | `false`<!-- claim:option TraconEgressOptions.AllowPrivateNetworkTargets=false --> |
 
 Covers all three surfaces that reach the network: webhook delivery, MCP server
 connections, and per-tenant model provider endpoints. While it is off, a target that
@@ -418,12 +418,12 @@ as an IP literal, and on every connection for one written as a host name. See
 
 ### Webhooks
 
-| Key relative to `AgentPrism:Webhooks` | Default |
+| Key relative to `Tracon:Webhooks` | Default |
 |---|---:|
 | `Enabled` | `true` |
 | `AllowPrivateNetworkTargets` | `false` |
 | `AllowInsecureHttp` | `false` |
-| `AllowedConfigurationPrefix` | `AgentPrism:WebhookSecrets:` |
+| `AllowedConfigurationPrefix` | `Tracon:WebhookSecrets:` |
 | `MaxExtraHeaders` | `20` |
 | `Timeout` | 10 seconds |
 | `MaxResponseBytes` | `8192` |
@@ -437,14 +437,14 @@ redirects remain blocked by default.
 `AllowedConfigurationPrefix` bounds which configuration key a subscription may name as
 its signing secret; a name outside it is refused both when the subscription is saved
 and when the secret is resolved. `MaxExtraHeaders` bounds a subscription's own extra
-headers — headers whose name AgentPrism sets itself are always dropped, whatever the
+headers — headers whose name Tracon sets itself are always dropped, whatever the
 limit is. `AllowPrivateNetworkTargets` here applies to webhook delivery only; the
-shared `AgentPrism:Egress` setting covers this surface too, and either one being on is
+shared `Tracon:Egress` setting covers this surface too, and either one being on is
 enough.
 
 ### At-rest content protection
 
-| Key relative to `AgentPrism:ContentProtection` | Default |
+| Key relative to `Tracon:ContentProtection` | Default |
 |---|---:|
 | `Enabled` | `false` |
 | `ActiveKeyId` | (none) |
@@ -461,9 +461,9 @@ for the full key setup and its limits.
 
 ## Retention defaults
 
-<p class="reads-this">Read by <code>AgentPrism.Core</code>. Deletion needs a persistence package; the in-memory stores have nothing to retain across a restart.</p>
+<p class="reads-this">Read by <code>Tracon.Core</code>. Deletion needs a persistence package; the in-memory stores have nothing to retain across a restart.</p>
 
-`AgentPrism:Retention:Enabled` defaults to `false`<!-- claim:option AgentPrismRetentionOptions.Enabled=false -->. `BatchSize` defaults to `5000`
+`Tracon:Retention:Enabled` defaults to `false`<!-- claim:option TraconRetentionOptions.Enabled=false -->. `BatchSize` defaults to `5000`
 and `BatchDelay` to 100 ms. The following ages become configuration-based defaults
 only after retention is enabled. A database policy for a target takes precedence.
 
@@ -488,24 +488,24 @@ only after retention is enabled. A database policy for a target takes precedence
 
 `IdempotencyKeys` is not a bindable child section. Its one-day option default still
 applies when configuration defaults are enabled. Change that target through
-`Configure(AgentPrismOptions)` or a stored retention policy.
+`Configure(TraconOptions)` or a stored retention policy.
 
 ## Persistence sections
 
-<p class="reads-this">Read by <code>AgentPrism.PostgreSql</code>, <code>AgentPrism.SqlServer</code>, and <code>AgentPrism.Sqlite</code>. A section without its package does nothing.</p>
+<p class="reads-this">Read by <code>Tracon.PostgreSql</code>, <code>Tracon.SqlServer</code>, and <code>Tracon.Sqlite</code>. A section without its package does nothing.</p>
 
 | Section | Key | Default |
 |---|---|---|
-| `AgentPrism:PostgreSql` | `ConnectionString` | `null`; required by the configuration registration |
-|  | `SchemaName` | `agentprism` |
+| `Tracon:PostgreSql` | `ConnectionString` | `null`; required by the configuration registration |
+|  | `SchemaName` | `tracon` |
 |  | `AutoApplyMigrations` | `true` |
 |  | `CommandTimeoutSeconds` | `30` |
-| `AgentPrism:SqlServer` | `ConnectionString` | `null`; required by the configuration registration |
-|  | `SchemaName` | `agentprism` |
+| `Tracon:SqlServer` | `ConnectionString` | `null`; required by the configuration registration |
+|  | `SchemaName` | `tracon` |
 |  | `AutoApplyMigrations` | `true` |
 |  | `CommandTimeoutSeconds` | `30` |
-| `AgentPrism:Sqlite` | `ConnectionString` | `null`; required by the configuration registration |
-|  | `TablePrefix` | `agentprism_` |
+| `Tracon:Sqlite` | `ConnectionString` | `null`; required by the configuration registration |
+|  | `TablePrefix` | `tracon_` |
 |  | `AutoApplyMigrations` | `true` |
 |  | `CommandTimeoutSeconds` | `30` |
 
@@ -514,24 +514,24 @@ not suitable. PostgreSQL and SQL Server use a schema; SQLite uses a table prefix
 
 ## Provider sections
 
-<p class="reads-this">Read by <code>AgentPrism.OpenAI</code>, <code>AgentPrism.Anthropic</code>, <code>AgentPrism.Google</code>, and <code>AgentPrism.AzureOpenAI</code>, each through its own <code>Use*()</code> call.</p>
+<p class="reads-this">Read by <code>Tracon.OpenAI</code>, <code>Tracon.Anthropic</code>, <code>Tracon.Google</code>, and <code>Tracon.AzureOpenAI</code>, each through its own <code>Use*()</code> call.</p>
 
 All provider model lists start empty. All nullable request timeouts use the provider
 library default.
 
 | Section | Verified defaults |
 |---|---|
-| `AgentPrism:Providers:OpenAI` | `ApiKey=null`, `DefaultModel=null`, `Endpoint=null` for OpenAI, `Organization=null`, `Timeout=null`, `Models=[]` |
-| `AgentPrism:Providers:OpenAICompatible:{name}` | Same shape as OpenAI; `EnableResponsesSurface=false` |
-| `AgentPrism:Providers:Anthropic` | `ApiKey=null`, `DefaultModel=null`, `Endpoint=null` for Anthropic, `DefaultMaxOutputTokens=4096`, `Timeout=null`, `MaxRetries=null`, `Models=[]` |
-| `AgentPrism:Providers:Google` | `ApiKey=null`, `DefaultModel=null`, `Endpoint=null` for Google, `ApiVersion=null`, `Timeout=null`, `Models=[]` |
-| `AgentPrism:Providers:AzureOpenAI` | `Endpoint=null` but required, `ApiKey=null`, `CredentialFactory=null`, `DefaultDeployment=null`, `Audience=null` for public cloud, `Timeout=null`, `Models=[]` |
+| `Tracon:Providers:OpenAI` | `ApiKey=null`, `DefaultModel=null`, `Endpoint=null` for OpenAI, `Organization=null`, `Timeout=null`, `Models=[]` |
+| `Tracon:Providers:OpenAICompatible:{name}` | Same shape as OpenAI; `EnableResponsesSurface=false` |
+| `Tracon:Providers:Anthropic` | `ApiKey=null`, `DefaultModel=null`, `Endpoint=null` for Anthropic, `DefaultMaxOutputTokens=4096`, `Timeout=null`, `MaxRetries=null`, `Models=[]` |
+| `Tracon:Providers:Google` | `ApiKey=null`, `DefaultModel=null`, `Endpoint=null` for Google, `ApiVersion=null`, `Timeout=null`, `Models=[]` |
+| `Tracon:Providers:AzureOpenAI` | `Endpoint=null` but required, `ApiKey=null`, `CredentialFactory=null`, `DefaultDeployment=null`, `Audience=null` for public cloud, `Timeout=null`, `Models=[]` |
 
 `CredentialFactory` is code-only because it is a delegate. When it is set, Azure does
 not use `ApiKey`. The consumer chooses and references `Azure.Identity` when managed
 identity is required.
 
-| `AgentPrism:TenantProviders` | `AllowedConfigurationPrefix="AgentPrism:ProviderKeys:"` |
+| `Tracon:TenantProviders` | `AllowedConfigurationPrefix="Tracon:ProviderKeys:"` |
 
 A tenant provider binding's configuration key name must start with
 `AllowedConfigurationPrefix`; a name outside it is rejected with `400`, both when the
@@ -540,11 +540,11 @@ binding is saved and again when it is resolved. See
 
 ## MCP, workflows, and voice
 
-<p class="reads-this">Read by <code>AgentPrism.Mcp</code>, <code>AgentPrism.Workflows</code>, and <code>AgentPrism.Voice</code>. Live conversation is the exception: it is in <code>AgentPrism.Core</code>, behind <code>UseVoiceConversation()</code>.</p>
+<p class="reads-this">Read by <code>Tracon.Mcp</code>, <code>Tracon.Workflows</code>, and <code>Tracon.Voice</code>. Live conversation is the exception: it is in <code>Tracon.Core</code>, behind <code>UseVoiceConversation()</code>.</p>
 
 ### MCP client
 
-| Key relative to `AgentPrism:Mcp` | Default |
+| Key relative to `Tracon:Mcp` | Default |
 |---|---:|
 | `Enabled` | `true` |
 | `RefreshInterval` | 5 minutes |
@@ -553,27 +553,27 @@ binding is saved and again when it is resolved. See
 | `MaxResourceBytesPerResource` | `65536` |
 | `MaxResourceBytesTotal` | `262144` |
 | `OAuthCallbackBaseUri` | `null` |
-| `AllowedConfigurationPrefix` | `AgentPrism:McpSecrets:` |
+| `AllowedConfigurationPrefix` | `Tracon:McpSecrets:` |
 
-`AllowedConfigurationPrefix` belongs to `AgentPrismMcpSecurityOptions` rather than
-`AgentPrismMcpOptions`, and binds through `AddAgentPrism()` — the rule is enforced
+`AllowedConfigurationPrefix` belongs to `TraconMcpSecurityOptions` rather than
+`TraconMcpOptions`, and binds through `AddTracon()` — the rule is enforced
 both where a server definition is saved and where its key is resolved, and those two
 live in packages that do not reference each other. The section name is the same, so
 it stays one section to configure. It bounds both `authorizationConfigurationKey` and
 `oauthClientSecretConfigurationKey`.
 
-The remaining keys belong to `AgentPrismMcpOptions`. `UseMcp()` without arguments uses
+The remaining keys belong to `TraconMcpOptions`. `UseMcp()` without arguments uses
 those defaults but does not read `IConfiguration` implicitly. Use the explicit overload when you want the section:
 
 ```csharp
-agentPrism.UseMcp(
-    builder.Configuration.GetSection(AgentPrismMcpOptions.SectionName),
+tracon.UseMcp(
+    builder.Configuration.GetSection(TraconMcpOptions.SectionName),
     configure: null);
 ```
 
 ### Workflows
 
-| Key relative to `AgentPrism:Workflows` | Default |
+| Key relative to `Tracon:Workflows` | Default |
 |---|---:|
 | `Enabled` | `true` |
 | `EnableCheckpointing` | `true` |
@@ -587,7 +587,7 @@ binds this section and then applies its optional code override.
 
 ### Speech tools
 
-| Key relative to `AgentPrism:Voice` | Default |
+| Key relative to `Tracon:Voice` | Default |
 |---|---:|
 | `Provider` | `elevenlabs` |
 | `ApiKey` | `null` |
@@ -603,7 +603,7 @@ binds this section and then applies its optional code override.
 
 ### Live voice conversation
 
-| Key relative to `AgentPrism:Voice:Conversation` | Default |
+| Key relative to `Tracon:Voice:Conversation` | Default |
 |---|---:|
 | `MaxConcurrentConnectionsPerTenant` | `5` |
 | `MaxConnectionDuration` | 30 minutes |
@@ -621,9 +621,9 @@ conversation also needs both `ISpeechTranscriber` and `ISpeechSynthesizer`.
 
 ## Endpoint options are code-only
 
-<p class="reads-this">Read by <code>AgentPrism.AspNetCore</code> at the <code>MapAgentPrism()</code> call, not from configuration.</p>
+<p class="reads-this">Read by <code>Tracon.AspNetCore</code> at the <code>MapTracon()</code> call, not from configuration.</p>
 
-`AgentPrismEndpointOptions` belongs to the `MapAgentPrism()` call. It has no named
+`TraconEndpointOptions` belongs to the `MapTracon()` call. It has no named
 configuration section.
 
 | Option | Default |
@@ -638,16 +638,16 @@ configuration section.
 | `AllowedOrigins` | empty (no CORS header sent) |
 
 ```csharp
-app.MapAgentPrism("/agentprism", options =>
+app.MapTracon("/tracon", options =>
 {
     options.AllowRemoteAccess = true;
-    options.AuthToken = builder.Configuration["AgentPrism:AuthToken"];
+    options.AuthToken = builder.Configuration["Tracon:AuthToken"];
     options.EnableDiagnosticsEndpoint = true;
-    options.RequireAuthorization("AgentPrismAccess");
+    options.RequireAuthorization("TraconAccess");
 });
 ```
 
-`MapOpenAIConversations` is the only one that starts on (`true`).<!-- claim:option AgentPrismEndpointOptions.MapOpenAIConversations=true --> Setting it to `false`
+`MapOpenAIConversations` is the only one that starts on (`true`).<!-- claim:option TraconEndpointOptions.MapOpenAIConversations=true --> Setting it to `false`
 leaves the four `/v1/conversations` routes unmapped: they answer `404` and
 disappear from the OpenAPI document, while `/v1/responses` and
 `/v1/chat/completions` are unaffected. It shrinks the surface a deployment that
@@ -668,7 +668,7 @@ startup by design.
 The following features use explicit code options because they contain delegates,
 freeze an exposure allowlist at registration, or define request-resolution policy:
 
-- `UseTenancy(AgentPrismTenancyOptions)` selects the claim or explicitly allowed
+- `UseTenancy(TraconTenancyOptions)` selects the claim or explicitly allowed
   header resolver. Four properties decide how a request's tenant is resolved, and
   the default of each is the safe one:
 
@@ -676,11 +676,11 @@ freeze an exposure allowlist at registration, or define request-resolution polic
   |---|---|---|
   | `Enabled` | `false` | Multi-tenancy is off until you turn it on; every request then resolves a tenant |
   | `ClaimType` | *(none)* | The claim the resolver reads from the authenticated principal. **Left unset, no claim is read at all** — set it explicitly, for example to `tenant_id` |
-  | `AllowHeaderResolution` | `false` | Whether `X-AgentPrism-Tenant` may name the tenant. **Leave this off in production** unless a trusted gateway sets the header and strips any client copy |
-  | `HeaderName` | `X-AgentPrism-Tenant` | The header consulted when header resolution is on |
+  | `AllowHeaderResolution` | `false` | Whether `X-Tracon-Tenant` may name the tenant. **Leave this off in production** unless a trusted gateway sets the header and strips any client copy |
+  | `HeaderName` | `X-Tracon-Tenant` | The header consulted when header resolution is on |
   | `AllowedTenants` | empty | When populated, an allowlist: a resolved tenant outside it is rejected rather than served |
-- `UseMcpServer(AgentPrismMcpServerOptions)` exposes no agent by default (`false`).<!-- claim:option AgentPrismMcpServerOptions.ExposeAllAgents=false -->
-- `UseA2A(AgentPrismA2AOptions)` exposes no agent by default.
+- `UseMcpServer(TraconMcpServerOptions)` exposes no agent by default (`false`).<!-- claim:option TraconMcpServerOptions.ExposeAllAgents=false -->
+- `UseA2A(TraconA2AOptions)` exposes no agent by default.
 - `AddModelRunJudge(ModelRunJudgeOptions)` defines the judge model and its
   `Criteria`: the plain-language standard the judge scores a run against.
 - `AddAgent()`, `AddSkill()`, `AddWorkflow()`, and `AddEvalCheck()` define executable

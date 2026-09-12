@@ -1,0 +1,40 @@
+#nullable enable
+Tracon.GoogleChatClientFactory
+Tracon.GoogleImageBuilderExtensions
+Tracon.GoogleChatClientFactory.CreateChatClient(Tracon.ModelBinding! binding) -> Microsoft.Extensions.AI.IChatClient!
+Tracon.GoogleChatClientFactory.Dispose() -> void
+Tracon.GoogleChatClientFactory.GoogleChatClientFactory(Tracon.GoogleProviderOptions! options, Microsoft.Extensions.Logging.ILoggerFactory? loggerFactory = null) -> void
+Tracon.GoogleModelCatalog
+Tracon.GoogleProviderExtensions
+Tracon.GoogleProviderNames
+Tracon.GoogleProviderOptions
+Tracon.GoogleProviderOptions.ApiKey.get -> string?
+Tracon.GoogleProviderOptions.ApiKey.set -> void
+Tracon.GoogleProviderOptions.ApiVersion.get -> string?
+Tracon.GoogleProviderOptions.ApiVersion.set -> void
+Tracon.GoogleProviderOptions.DefaultModel.get -> string?
+Tracon.GoogleProviderOptions.DefaultModel.set -> void
+Tracon.GoogleProviderOptions.Endpoint.get -> System.Uri?
+Tracon.GoogleProviderOptions.Endpoint.set -> void
+Tracon.GoogleProviderOptions.GoogleProviderOptions() -> void
+Tracon.GoogleProviderOptions.Models.get -> System.Collections.Generic.IList<Tracon.ModelDescriptor!>!
+Tracon.GoogleProviderOptions.Timeout.get -> System.TimeSpan?
+Tracon.GoogleProviderOptions.Timeout.set -> void
+const Tracon.GoogleProviderNames.Google = "google" -> string!
+const Tracon.GoogleProviderNames.SafetyCivicIntegritySetting = "google.safety.civicIntegrity" -> string!
+const Tracon.GoogleProviderNames.SafetyDangerousContentSetting = "google.safety.dangerousContent" -> string!
+const Tracon.GoogleProviderNames.SafetyHarassmentSetting = "google.safety.harassment" -> string!
+const Tracon.GoogleProviderNames.SafetyHateSpeechSetting = "google.safety.hateSpeech" -> string!
+const Tracon.GoogleProviderNames.SafetySexuallyExplicitSetting = "google.safety.sexuallyExplicit" -> string!
+const Tracon.GoogleProviderNames.SettingsPrefix = "google" -> string!
+const Tracon.GoogleProviderNames.ThinkingBudgetTokensSetting = "google.thinking.budgetTokens" -> string!
+const Tracon.GoogleProviderNames.ThinkingIncludeThoughtsSetting = "google.thinking.includeThoughts" -> string!
+const Tracon.GoogleProviderOptions.SectionName = "Tracon:Providers:Google" -> string!
+static Tracon.GoogleChatClientFactory.FromClient(Google.GenAI.Client! client, string? defaultModel = null, Microsoft.Extensions.Logging.ILoggerFactory? loggerFactory = null) -> Tracon.GoogleChatClientFactory!
+static Tracon.GoogleImageBuilderExtensions.UseGoogleImages(this Tracon.ITraconBuilder! builder, System.Action<Tracon.TraconImageOptions!>? configure = null) -> Tracon.ITraconBuilder!
+static Tracon.GoogleModelCatalog.Build(Tracon.GoogleProviderOptions! options) -> System.Collections.Generic.IReadOnlyList<Tracon.ModelDescriptor!>!
+static Tracon.GoogleProviderExtensions.UseGoogle(this Tracon.ITraconBuilder! builder, Microsoft.Extensions.Configuration.IConfiguration! configurationSection) -> Tracon.ITraconBuilder!
+static Tracon.GoogleProviderExtensions.UseGoogle(this Tracon.ITraconBuilder! builder, string! apiKey, System.Action<Tracon.GoogleProviderOptions!>? configure = null) -> Tracon.ITraconBuilder!
+static Tracon.GoogleProviderExtensions.UseGoogle(this Tracon.ITraconBuilder! builder, System.Action<Tracon.GoogleProviderOptions!>! configure) -> Tracon.ITraconBuilder!
+static Tracon.GoogleProviderNames.SupportedSettings.get -> System.Collections.Generic.IReadOnlyList<string!>!
+static Tracon.GoogleChatClientFactory.CreateClient(Tracon.GoogleProviderOptions! options, Tracon.EgressSocketGuard? egressGuard = null) -> Google.GenAI.Client!

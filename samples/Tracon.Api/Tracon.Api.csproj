@@ -1,0 +1,110 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <RootNamespace>Tracon.Api</RootNamespace>
+    <UserSecretsId>tracon-sample-api</UserSecretsId>
+    <!--
+      🚨 InvariantGlobalization is NOT enabled. `Microsoft.Data.SqlClient` does
+      NOT support Globalization Invariant Mode: `SqlConnection.Open` unconditionally
+      throws `NotSupportedException: Globalization Invariant Mode is not supported.`
+      and an application using `UseSqlServer()` NEVER starts. The error message
+      does not mention Tracon, so the consumer cannot find the root cause.
+      Measured (manual test MT-SQL-024). Rationale: docs/KARARLAR.md, decision K-392.
+    -->
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/Tracon/Tracon.csproj" />
+    <!--
+      🚨 Needed only for THIS repo. `OutputItemType=Analyzer` does NOT propagate
+      across multi-hop ProjectReference chains (Api -> Tracon -> Core -> Generators)
+      - measured, AddGeneratedTools() gives CS1061 without this line.
+      NuGet's analyzers/dotnet/cs propagation applies only to PACKAGE consumption
+      (PackageReference); a real external consumer only takes `Tracon.Core` via
+      PackageReference and does not need this line. See docs/arsiv/fazlar/52-KAYNAK-URETECI.md.
+    -->
+    <ProjectReference Include="../../src/Tracon.Generators/Tracon.Generators.csproj"
+                       PrivateAssets="all"
+                       ReferenceOutputAssembly="false"
+                       OutputItemType="Analyzer" />
+    <!--
+      SQL Server and SQLite are NOT included in the meta package, so consumers
+      are not forced to pull in Microsoft.Data.SqlClient/SQLitePCLRaw
+      (K-185, same applies to SQLite). A consumer who wants them references
+      explicitly; the sample app references them to show all three providers.
+    -->
+    <ProjectReference Include="../../src/Tracon.SqlServer/Tracon.SqlServer.csproj" />
+    <ProjectReference Include="../../src/Tracon.Sqlite/Tracon.Sqlite.csproj" />
+    <!--
+      Anthropic and Google providers are also NOT included in the meta package
+      (K-185 pattern): a consumer using OpenAI should not be forced to pull in the
+      Anthropic SDK, and a consumer not using Gemini should not be forced to pull
+      in the Google.Apis.Auth chain. The sample app references them explicitly to
+      show all three providers together.
+    -->
+    <ProjectReference Include="../../src/Tracon.Anthropic/Tracon.Anthropic.csproj" />
+    <ProjectReference Include="../../src/Tracon.Google/Tracon.Google.csproj" />
+    <ProjectReference Include="../../src/Tracon.Azure/Tracon.Azure.csproj" />
+    <!-- Voice tools. NOT included in the meta package; referenced explicitly. -->
+    <ProjectReference Include="../../src/Tracon.Voice/Tracon.Voice.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!--
+      The OpenAPI document is the CONSUMER's choice. Tracon.AspNetCore does
+      not depend on this package; endpoints carry metadata from the shared
+      framework and appear in the document automatically when AddOpenApi() is called.
+    -->
+    <!--
+      Phase 155: the calibrated evaluator catalog. This is exactly what a consumer
+      does - Tracon does not reference it, so anyone who wants the catalog adds
+      the package themselves.
+    -->
+    <PackageReference Include="Microsoft.Extensions.AI.Evaluation.Quality" />
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
+    <!-- CVE pin; rationale in Directory.Packages.props. -->
+    <PackageReference Include="Microsoft.OpenApi" />
+    <!--
+      UI-only package: renders the /openapi/v1.json document produced above at
+      /swagger. Does not bring in Swashbuckle's own SwaggerGen, so there is no
+      second, competing OpenAPI generator in this sample.
+    -->
+    <PackageReference Include="Swashbuckle.AspNetCore.SwaggerUI" />
+  </ItemGroup>
+
+  <!--
+    🚨 F-76 (measured 2026-08-08). Tracon.Sql.Shared is NOT a package; the
+    same source links into three assemblies via LinkBase (K-185). The three
+    assemblies' XML documentation files therefore carry the SAME member ids -
+    measured: 620 shared <member> ids between SqlServer and Sqlite, the first
+    being `T:Tracon.MigrationRunner`.
+
+    The GenerateAdditionalXmlFilesForOpenApi target of Microsoft.AspNetCore.OpenApi
+    (build/Microsoft.AspNetCore.OpenApi.targets) adds each ProjectReference's .xml
+    file to AdditionalFiles; XmlCommentGenerator collects them all into ONE
+    dictionary and throws `ArgumentException` on the second duplicate id.
+    Result: /openapi/v1.json returns 500.
+
+    🚨 SCOPE MEASURED: the target's condition is `ReferenceSourceTarget ==
+    'ProjectReference'`. In this sample, 15 ProjectReference and 368
+    ResolveAssemblyReference were measured; XML from assemblies that come via
+    NuGet packages is NEVER added. A real PackageReference consumer
+    (Tracon + SqlServer + Sqlite + AddOpenApi) was tested end to end and
+    returned HTTP 200. So the bug affects ONLY consumers that build from source
+    (ProjectReference) - including this sample app.
+
+    Fix: keep the documentation of the conflicting shared source in ONE assembly
+    only. None of the SQL provider types appear in the HTTP contract, so nothing
+    is lost from the document. PostgreSql remains the canonical one.
+    Rationale and measurement: docs/KARARLAR.md K-352, docs/arsiv/fazlar/40-OPENAPI-YAYINI.md.
+  -->
+  <Target Name="TraconRemoveDuplicateSqlXmlDocs"
+          AfterTargets="GenerateAdditionalXmlFilesForOpenApi">
+    <ItemGroup>
+      <AdditionalFiles Remove="@(AdditionalFiles)"
+                       Condition="'%(AdditionalFiles.Filename)' == 'Tracon.SqlServer' OR
+                                  '%(AdditionalFiles.Filename)' == 'Tracon.Sqlite'" />
+    </ItemGroup>
+  </Target>
+
+</Project>

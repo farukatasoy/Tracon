@@ -1,0 +1,69 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Description>Tracon HTTP layer. MapTracon connects the management API and the OpenAI-compatible run endpoints. Includes layered access protection: loopback by default, bearer token, ASP.NET Core authorization policy.</Description>
+    <PackageTags>$(CommonPackageTags);aspnetcore;api;openai-compatible;responses</PackageTags>
+    <!-- Minimal API delegate routing uses reflection; AOT cannot be promised. -->
+    <TraconAotCompatible>false</TraconAotCompatible>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../Tracon.Core/Tracon.Core.csproj" />
+  </ItemGroup>
+
+  <!--
+    Phase 74: the OpenAPI document travels with the package that serves the
+    endpoints it describes, and Tracon.AspNetCore.targets hands its path to
+    the local reference file. No dependency is added - this is a static JSON
+    file - so K-039 is untouched.
+
+    The document is packed FROM ITS SOURCE under docs/openapi. A copy inside
+    this project would be a second surface that can drift, and
+    OpenApiSnapshotTests already pins the source against a running host.
+
+    🚨 `Update` does NOT work here, and the failure is silent: the SDK's default
+    None glob is applied only in the INNER (TFM-specific) builds, while `dotnet
+    pack` collects package files in the OUTER cross-targeting build. Remove +
+    Include is the working form. See Tracon.Core.csproj for the measurement.
+
+    🚨 The file name is a contract: NuGet auto-imports only
+    buildTransitive/<PackageId>.props and buildTransitive/<PackageId>.targets.
+    A different name packs cleanly and is then never imported.
+  -->
+  <ItemGroup>
+    <None Remove="buildTransitive/**" />
+    <None Include="buildTransitive/Tracon.AspNetCore.targets" Pack="true" PackagePath="buildTransitive/" />
+    <None Include="../../docs/openapi/tracon.json" Pack="true" PackagePath="buildTransitive/" />
+  </ItemGroup>
+
+  <!--
+    NOTE: These two packages are pre-release (preview / alpha).
+    All of Tracon's pre-release MAF dependencies are deliberately
+    consolidated into this single package. This keeps Tracon.Abstractions,
+    .Core, .PostgreSql, and .OpenAI dependent only on GA packages. Rationale:
+    docs/KARARLAR.md, decision K-008.
+  -->
+  <ItemGroup Label="Pre-release MAF dependencies">
+    <PackageReference Include="Microsoft.Agents.AI.Hosting" />
+    <PackageReference Include="Microsoft.Agents.AI.Hosting.OpenAI" />
+    <!-- Phase 50: A2A exposure server. Rationale: Directory.Packages.props. -->
+    <PackageReference Include="Microsoft.Agents.AI.Hosting.A2A" />
+    <PackageReference Include="Microsoft.Agents.AI.Hosting.AspNetCore" />
+    <PackageReference Include="A2A.AspNetCore" />
+  </ItemGroup>
+
+  <!--
+    MCP server (Phase 50). GA package; NOT in the pre-release group. Lives
+    only here per K-057 — Tracon.Mcp (client) stays in `.Core`.
+  -->
+  <ItemGroup Label="Model Context Protocol - server">
+    <PackageReference Include="ModelContextProtocol.AspNetCore" />
+    <!-- Phase 117: MCP Tasks extension. Net new transitive weight: zero (Directory.Packages.props). -->
+    <PackageReference Include="ModelContextProtocol.Extensions.Tasks" />
+  </ItemGroup>
+
+</Project>

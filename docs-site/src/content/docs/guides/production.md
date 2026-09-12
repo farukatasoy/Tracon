@@ -1,9 +1,9 @@
 ---
 title: Production deployment
-description: Deploy AgentPrism with durable storage, explicit access control, health checks, worker topology, retention, and safe secret handling.
+description: Deploy Tracon with durable storage, explicit access control, health checks, worker topology, retention, and safe secret handling.
 ---
 
-A production AgentPrism deployment needs more than a provider key. It needs durable
+A production Tracon deployment needs more than a provider key. It needs durable
 state, an explicit identity boundary, a migration strategy, readiness probes, bounded
 background work, and a policy for the data that runs create.
 
@@ -13,27 +13,27 @@ single-process option and the in-memory defaults are for development and tests.
 ## Start from a production registration
 
 Keep credentials outside checked-in configuration. ASP.NET Core maps this environment
-variable to `AgentPrism:PostgreSql:ConnectionString`:
+variable to `Tracon:PostgreSql:ConnectionString`:
 
 ```bash
-export AgentPrism__PostgreSql__ConnectionString='Host=...;Database=...;Username=...;Password=...'
+export Tracon__PostgreSql__ConnectionString='Host=...;Database=...;Username=...;Password=...'
 ```
 
 Register one provider and one SQL persistence package:
 
 ```csharp
-using AgentPrism;
+using Tracon;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 
 var builder = WebApplication.CreateBuilder(args);
 
-var agentPrism = builder.AddAgentPrism()
+var tracon = builder.AddTracon()
     .UseOpenAI(builder.Configuration.GetSection(OpenAIProviderOptions.SectionName))
     .UsePostgreSql(
-        builder.Configuration.GetSection(AgentPrismPostgreSqlOptions.SectionName));
+        builder.Configuration.GetSection(TraconPostgreSqlOptions.SectionName));
 
 builder.Services.AddHealthChecks()
-    .AddAgentPrismHealthChecks(tags: ["ready"]);
+    .AddTraconHealthChecks(tags: ["ready"]);
 
 var app = builder.Build();
 
@@ -42,16 +42,16 @@ app.MapHealthChecks("/health/ready", new HealthCheckOptions
     Predicate = registration => registration.Tags.Contains("ready"),
 });
 
-app.MapAgentPrism("/agentprism");
+app.MapTracon("/tracon");
 app.Run();
 ```
 
-A deployment whose module order can leave an authorization handler on AgentPrism's
+A deployment whose module order can leave an authorization handler on Tracon's
 permissive default should say so out loud, so the mistake is a failed startup rather
 than an allowed request:
 
 ```csharp
-var agentPrism = builder.AddAgentPrism()
+var tracon = builder.AddTracon()
     .RequireCustomBinding<IRunAuthorizationHandler>()
     .RequireCustomBinding<IToolAuthorizationHandler>();
 ```
@@ -60,34 +60,34 @@ See [Make a binding required](/guides/embedding/#make-a-binding-required) for th
 seven contracts this accepts and what the check does and does not prove.
 
 Use your platform's secret manager for the provider API key and database connection
-string. The canonical OpenAI key path is `AgentPrism:Providers:OpenAI:ApiKey`; its
-environment form is `AgentPrism__Providers__OpenAI__ApiKey`. Do not put either value
+string. The canonical OpenAI key path is `Tracon:Providers:OpenAI:ApiKey`; its
+environment form is `Tracon__Providers__OpenAI__ApiKey`. Do not put either value
 in `appsettings.json`, a container image, or a deployment manifest that is not backed
 by a secret facility.
 
 ## Make the HTTP boundary explicit
 
-Remote access is off by default. In production, connect AgentPrism to the same
+Remote access is off by default. In production, connect Tracon to the same
 ASP.NET Core authentication scheme that protects the rest of the application. Bind
-the three AgentPrism policy names to your own role or claim model:
+the three Tracon policy names to your own role or claim model:
 
 ```csharp
 builder.Services.AddAuthorization(options =>
 {
-    options.AddPolicy("AgentPrismAccess", policy =>
+    options.AddPolicy("TraconAccess", policy =>
         policy.RequireAuthenticatedUser());
 
-    options.AddPolicy(AgentPrismPolicies.Reader, policy =>
+    options.AddPolicy(TraconPolicies.Reader, policy =>
         policy.RequireRole(
-            "agentprism-reader",
-            "agentprism-operator",
-            "agentprism-admin"));
+            "tracon-reader",
+            "tracon-operator",
+            "tracon-admin"));
 
-    options.AddPolicy(AgentPrismPolicies.Operator, policy =>
-        policy.RequireRole("agentprism-operator", "agentprism-admin"));
+    options.AddPolicy(TraconPolicies.Operator, policy =>
+        policy.RequireRole("tracon-operator", "tracon-admin"));
 
-    options.AddPolicy(AgentPrismPolicies.Admin, policy =>
-        policy.RequireRole("agentprism-admin"));
+    options.AddPolicy(TraconPolicies.Admin, policy =>
+        policy.RequireRole("tracon-admin"));
 });
 ```
 
@@ -95,10 +95,10 @@ After `UseAuthentication()` and `UseAuthorization()`, map the surface with both 
 base policy and strict role-policy validation:
 
 ```csharp
-app.MapAgentPrism("/agentprism", options =>
+app.MapTracon("/tracon", options =>
 {
     options.AllowRemoteAccess = true;
-    options.RequireAuthorization("AgentPrismAccess");
+    options.RequireAuthorization("TraconAccess");
     options.RequireRolePolicies = true;
 });
 ```
@@ -110,7 +110,7 @@ deployment should fail closed on this configuration error.
 
 The optional `AuthToken` is a single static shared secret. It is useful for a private
 operator surface, but it has no per-user identity or individual revocation. Prefer an
-ASP.NET Core policy for people and tenant-bound, narrowly scoped AgentPrism API keys
+ASP.NET Core policy for people and tenant-bound, narrowly scoped Tracon API keys
 for system clients.
 
 :::caution[Reverse proxies change the network boundary]
@@ -126,9 +126,9 @@ PostgreSQL configuration has these operational controls:
 
 ```json
 {
-  "AgentPrism": {
+  "Tracon": {
     "PostgreSql": {
-      "SchemaName": "agentprism",
+      "SchemaName": "tracon",
       "AutoApplyMigrations": false,
       "CommandTimeoutSeconds": 30
     }
@@ -137,13 +137,13 @@ PostgreSQL configuration has these operational controls:
 ```
 
 `AutoApplyMigrations` defaults to `true`. Startup takes a database lock scoped to the
-AgentPrism schema, validates checksums for applied migrations, and applies each
+Tracon schema, validates checksums for applied migrations, and applies each
 pending migration in a transaction. A migration failure stops startup.
 
 For a small service, automatic migration is simple and safe. For a fleet, set it to
 false and run the registered `MigrationRunner.ApplyAsync()` from one controlled
 deployment step before new application instances become ready. With automatic
-migration disabled, AgentPrism opens its schema-ready gate on the assumption that the
+migration disabled, Tracon opens its schema-ready gate on the assumption that the
 external step completed. The health check still reports pending migrations as
 unhealthy.
 
@@ -159,24 +159,24 @@ startup:
 
 ```bash
 dotnet ef database update            # your application's own schema
-agentprism migrate --provider postgres --connection "$AGENTPRISM_CONNECTION"
+tracon migrate --provider postgres --connection "$TRACON_CONNECTION"
 ```
 
-See [Two connection planes: EF Core and AgentPrism](/guides/ef-core/) for sharing a
+See [Two connection planes: EF Core and Tracon](/guides/ef-core/) for sharing a
 connection pool with an EF Core `DbContext` in the same process.
 
 ### Storage defaults and limits
 
 | Setting | Default | Limit or consequence |
 |---|---:|---|
-| PostgreSQL schema | `agentprism` | Lowercase unquoted identifier, at most 63 characters |
+| PostgreSQL schema | `tracon` | Lowercase unquoted identifier, at most 63 characters |
 | `AutoApplyMigrations` | `true` | A failed migration prevents startup |
 | `EnableKnowledge` (PostgreSQL) | `false` | Applies the `pgvector`-dependent migration set; needs no extension permission while off |
 | `CommandTimeoutSeconds` | `30` | Valid range 0 through 3,600; `0` means unlimited |
 | Persistence without `Use*Sql*` | In memory | State disappears on process exit |
 | SQL provider count | One | If several are registered, the last wins and diagnostics become degraded |
 
-PostgreSQL is the only AgentPrism storage provider with vector search. It is opt-in:
+PostgreSQL is the only Tracon storage provider with vector search. It is opt-in:
 `EnableKnowledge` defaults to `false`, so a deployment that never turns it on needs
 no `pgvector` extension and no extension-creation permission at all. Turn it on and
 install `pgvector` before migrations run only when the deployment includes the
@@ -221,8 +221,8 @@ cross-node cancellation is a requirement. Queued-run cancellation is durable bec
 it uses the shared job store.
 
 Rate limits are per process for the same reason. The endpoint limiter
-(`AgentPrism:RateLimit`) and the inbound trigger limiter both count in the memory
-of one instance; AgentPrism ships no distributed counter. Two instances with a
+(`Tracon:RateLimit`) and the inbound trigger limiter both count in the memory
+of one instance; Tracon ships no distributed counter. Two instances with a
 `PermitLimit` of 100 admit 200 requests per window between them, and a `Tenant`
 partition splits each instance's own window rather than a window shared across
 the deployment. Size the limit per instance, or put a shared limiter in the
@@ -232,14 +232,14 @@ change them.
 
 ## Add readiness, liveness, and diagnostics
 
-Use the AgentPrism check for readiness. It is `Unhealthy` when SQL is unreachable or
+Use the Tracon check for readiness. It is `Unhealthy` when SQL is unreachable or
 migrations are pending. It is `Degraded` when storage works but provider health is
 not confirmed, a circuit is open, or several persistence providers are registered.
 It does not make a paid model completion.
 
 Keep liveness independent of database and provider availability so the orchestrator
 does not restart a healthy process during an upstream outage. The application owns
-both health routes and their response policy; AgentPrism only registers the check.
+both health routes and their response policy; Tracon only registers the check.
 
 `GET /api/diagnostics` is not mapped by default. If an operations workflow needs it,
 set `EnableDiagnosticsEndpoint=true`, require the Admin role, and restrict the route.
@@ -260,14 +260,14 @@ Start with an explicit classification:
 | Persisted traces | Successful runs sampled at 10%; failures retained when enabled |
 | Sessions and conversations | No configuration age limit by default |
 
-`AgentPrism:Retention:Enabled` defaults to `false`. With no explicit database policy,
+`Tracon:Retention:Enabled` defaults to `false`. With no explicit database policy,
 nothing is deleted automatically. When you enable configuration defaults, run events
 default to 30 days, tool invocations to 90 days, traces to 14 days, completed jobs to
 30 days, idempotency keys to one day, and run inputs to 30 days. Session and
 conversation deletion still require an explicit policy.
 
 Preview a retention rule before you execute it. If archival is enabled but no
-`IArchiveSink` is registered, AgentPrism does not delete the rows.
+`IArchiveSink` is registered, Tracon does not delete the rows.
 
 Retention removes data by age; it never touches `audit_log`, which is a separate,
 tamper-evident trail (`GET /api/audit/verify`) and stays outside any retention
@@ -307,7 +307,7 @@ one-line change:
 
 ```json
 {
-  "AgentPrism": {
+  "Tracon": {
     "Egress": {
       "AllowPrivateNetworkTargets": true
     }
@@ -316,7 +316,7 @@ one-line change:
 ```
 
 The rejection message names that setting, so an operator who hits it can act without
-reading this page. `AgentPrism:Webhooks:AllowPrivateNetworkTargets` still works and
+reading this page. `Tracon:Webhooks:AllowPrivateNetworkTargets` still works and
 still applies to webhook delivery only; either setting being on is enough for a
 webhook target.
 
@@ -330,7 +330,7 @@ setting, or set it to `0` to remove the limit:
 
 ```json
 {
-  "AgentPrism": {
+  "Tracon": {
     "AgentGraph": {
       "MaxTotalTokens": 500000
     }
@@ -345,20 +345,20 @@ saving it again is refused with a message naming both the field and the prefix.
 
 | Record | Field | Required prefix |
 |---|---|---|
-| MCP server | `authorizationConfigurationKey`, `oauthClientSecretConfigurationKey` | `AgentPrism:McpSecrets:` |
-| Webhook subscription | `secretConfigurationKey` | `AgentPrism:WebhookSecrets:` |
+| MCP server | `authorizationConfigurationKey`, `oauthClientSecretConfigurationKey` | `Tracon:McpSecrets:` |
+| Webhook subscription | `secretConfigurationKey` | `Tracon:WebhookSecrets:` |
 
 Fix each record by moving the key name under the prefix and re-writing the value under
 the new name in your secret store. There is no migration helper and this is
 deliberate: it is one field per record, and what moves is a **name**, not a secret
 value. Alternatively, widen the prefix through
-`AgentPrism:Mcp:AllowedConfigurationPrefix` or
-`AgentPrism:Webhooks:AllowedConfigurationPrefix` — but a prefix broad enough to cover
+`Tracon:Mcp:AllowedConfigurationPrefix` or
+`Tracon:Webhooks:AllowedConfigurationPrefix` — but a prefix broad enough to cover
 an arbitrary key removes the boundary it exists to provide.
 
 ## When the state preflight comes back red
 
-Run `agentprism state-check` with the **new** tool version against a copy of
+Run `tracon state-check` with the **new** tool version against a copy of
 production data before every upgrade — see [the upgrade
 window](/reference/versioning/) for what the command reports and what its
 answer is worth. Exit code `3` means it found stored state the new build
@@ -372,8 +372,8 @@ actions:
 
 | What the output says | What it means | What to do |
 |---|---|---|
-| `... NOT readable by this build` on a generation line | Rows carry an AgentPrism envelope generation **newer** than the build you are installing. You are downgrading, or deploying a mixed package graph | Do not deploy. Install the version that wrote those rows, or newer. This is a version selection mistake, not a data problem |
-| `unreadable: session ...` on a sampled row | The AgentPrism envelope is fine; Microsoft Agent Framework cannot deserialize the body it wrote earlier. The message names both the recorded and the running framework version | Continue to step 2 |
+| `... NOT readable by this build` on a generation line | Rows carry an Tracon envelope generation **newer** than the build you are installing. You are downgrading, or deploying a mixed package graph | Do not deploy. Install the version that wrote those rows, or newer. This is a version selection mistake, not a data problem |
+| `unreadable: session ...` on a sampled row | The Tracon envelope is fine; Microsoft Agent Framework cannot deserialize the body it wrote earlier. The message names both the recorded and the running framework version | Continue to step 2 |
 
 **2. Decide whether those sessions have to survive the upgrade.** They often do
 not — a session is a conversation, and most are minutes old. `state-check`'s
@@ -421,8 +421,8 @@ in the test suite that runs on every build, and each is stated as what was
 observed rather than as a guarantee.
 
 :::caution[Measured, not promised]
-These observations describe how one AgentPrism version behaves against one SQL
-store. They are not a statement that AgentPrism supports multiple nodes, and
+These observations describe how one Tracon version behaves against one SQL
+store. They are not a statement that Tracon supports multiple nodes, and
 they set no service level. SQLite remains a single-process store; run the
 scenarios below on PostgreSQL or SQL Server.
 :::
@@ -509,22 +509,22 @@ of the same per-subscriber reads.)
 Migrations are additive, so a process running the older version keeps reading and
 writing the tables it knows while the newer schema is already applied, and both
 lease from the same queue without collision. Verify the window before you open it
-with `agentprism state-check`, which reads and writes nothing. Keep the window
+with `tracon state-check`, which reads and writes nothing. Keep the window
 short and planned; an indefinite dual-version deployment is not a supported shape.
 
 Unlike the other behaviours on this page, this one is measured with **one** build
 standing in for both sides — a process that enabled fewer optional migration sets
-than the schema has. Two released AgentPrism versions running side by side is not
+than the schema has. Two released Tracon versions running side by side is not
 something we have measured, which is another reason to keep the window short.
 
 ## Release and capacity caveats
 
-AgentPrism and its Microsoft Agent Framework hosting dependencies are pre-release.
+Tracon and its Microsoft Agent Framework hosting dependencies are pre-release.
 Pin an exact NuGet version, run contract and integration tests before upgrades, and
-review generated API changes as part of the release. `AgentPrism.AspNetCore` is not
+review generated API changes as part of the release. `Tracon.AspNetCore` is not
 Native AOT compatible.
 
-AgentPrism does not provide an operating-system sandbox for skill scripts. If you
+Tracon does not provide an operating-system sandbox for skill scripts. If you
 enable them, run the service as an unprivileged identity in an isolated container,
 restrict its filesystem and network, and treat every script as deployed code.
 
@@ -535,7 +535,7 @@ scaled without a matching quota.
 
 ## Deployment checklist
 
-- [ ] Pin one tested AgentPrism version and one SQL provider.
+- [ ] Pin one tested Tracon version and one SQL provider.
 - [ ] Load database and provider credentials only from a secret facility.
 - [ ] Run or verify migrations before readiness can pass.
 - [ ] Require a real authentication policy and all three role policies.
@@ -546,9 +546,9 @@ scaled without a matching quota.
 - [ ] Test direct and queued cancellation through the actual load balancer.
 - [ ] Size `LeaseDuration` deliberately: it is the worst-case stall after a worker crash.
 - [ ] Make every irreversible side effect idempotent; job execution is at-least-once.
-- [ ] Export the `AgentPrism` activity source and meter; alert on readiness and job age.
+- [ ] Export the `Tracon` activity source and meter; alert on readiness and job age.
 - [ ] Define retention, privacy, backup, and restore procedures for every stored data class.
-- [ ] Run `agentprism state-check` with the new tool version against a copy of
+- [ ] Run `tracon state-check` with the new tool version against a copy of
       production data before every upgrade, and know what a `3` means (above).
 - [ ] Register `IDataSubjectResolver` if data subject export/erasure requests are part of your compliance posture.
 - [ ] Keep skill scripts and diagnostics disabled unless their operational need is explicit.
@@ -570,7 +570,7 @@ irreversible action. Test the crash boundary, not only the successful path.
 | Readiness is `Unhealthy` | Check SQL reachability and pending migrations before provider status |
 | Readiness is `Degraded` after startup | Refresh model health, inspect open circuits, and verify that only one SQL provider is registered |
 | Remote users get `403` | Confirm `AllowRemoteAccess`, the base policy, role policy, API-key scope, tenant, and trusted proxy configuration |
-| Startup reports missing role policies | Register all `AgentPrism.Reader`, `AgentPrism.Operator`, and `AgentPrism.Admin` policies or keep strict remote mapping disabled until they exist |
+| Startup reports missing role policies | Register all `Tracon.Reader`, `Tracon.Operator`, and `Tracon.Admin` policies or keep strict remote mapping disabled until they exist |
 | A direct run cannot be canceled | Route the request to the owning process or install a distributed `IRunCancellationRegistry`; a restarted owner no longer has the in-process registration |
 | Jobs do not move | Confirm a worker is enabled, shares the same SQL database, and passed the schema-ready gate |
 | A job restarted by itself | A worker holding its lease died or stalled past `LeaseDuration`; check `Attempt` and the worker's own liveness before suspecting the handler |

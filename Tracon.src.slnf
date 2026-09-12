@@ -1,0 +1,28 @@
+{
+  "solution": {
+    "path": "Tracon.slnx",
+    "projects": [
+      "src/Tracon.Abstractions/Tracon.Abstractions.csproj",
+      "src/Tracon.Core/Tracon.Core.csproj",
+      "src/Tracon.Generators/Tracon.Generators.csproj",
+      "src/Tracon.PostgreSql/Tracon.PostgreSql.csproj",
+      "src/Tracon.SqlServer/Tracon.SqlServer.csproj",
+      "src/Tracon.Sqlite/Tracon.Sqlite.csproj",
+      "src/Tracon.OpenAI/Tracon.OpenAI.csproj",
+      "src/Tracon.Anthropic/Tracon.Anthropic.csproj",
+      "src/Tracon.Google/Tracon.Google.csproj",
+      "src/Tracon.Azure/Tracon.Azure.csproj",
+      "src/Tracon.Voice/Tracon.Voice.csproj",
+      "src/Tracon.Mcp/Tracon.Mcp.csproj",
+      "src/Tracon.Workflows/Tracon.Workflows.csproj",
+      "src/Tracon.AspNetCore/Tracon.AspNetCore.csproj",
+      "src/Tracon.UI/Tracon.UI.csproj",
+      "src/Tracon/Tracon.csproj",
+      "src/Tracon.Templates/Tracon.Templates.csproj",
+      "src/Tracon.Testing/Tracon.Testing.csproj",
+      "src/Tracon.Testing.Contracts.Xunit/Tracon.Testing.Contracts.Xunit.csproj",
+      "src/Tracon.Client/Tracon.Client.csproj",
+      "src/Tracon.Cli/Tracon.Cli.csproj"
+    ]
+  }
+}

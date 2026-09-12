@@ -13,20 +13,20 @@ model may call.
 Mark the method and let the source generator find it:
 
 ```csharp title="Tools/OrderTools.cs"
-using AgentPrism;
+using Tracon;
 
 internal class OrderTools
 {
     /// <summary>Returns the shipping status of an order.</summary>
     /// <param name="orderId">The order number.</param>
-    [AgentPrismTool("get_order_status", "Returns the shipping status of an order.")]
+    [TraconTool("get_order_status", "Returns the shipping status of an order.")]
     public static string GetOrderStatus(string orderId)
         => $"Order {orderId} has shipped. Estimated delivery: 2 days.";
 }
 ```
 
 ```csharp title="Program.cs"
-builder.AddAgentPrism()
+builder.AddTracon()
        .AddGeneratedTools();
 ```
 
@@ -37,7 +37,7 @@ class does not quietly expose it to a model.
 Then name it on the agent:
 
 ```csharp
-agentPrism.AddAgent(new AgentDefinition
+tracon.AddAgent(new AgentDefinition
 {
     Name = "support",
     // …
@@ -48,7 +48,7 @@ agentPrism.AddAgent(new AgentDefinition
 An unknown tool name fails **definition compilation**, not C# compilation. A database
 definition is rejected when you validate or save it. A code definition is compiled
 when the catalog first resolves it and does not resolve until the registration is
-fixed. In either case, the model never receives a tool name AgentPrism cannot bind.
+fixed. In either case, the model never receives a tool name Tracon cannot bind.
 
 ### The other two ways
 
@@ -77,22 +77,22 @@ Take dependencies at **registration**:
 public static string GetOrderStatus(string orderId, IServiceProvider services)
     => services.GetRequiredService<IOrderRepository>().Find(orderId).Status;
 
-agentPrism.AddTool(GetOrderStatus);
+tracon.AddTool(GetOrderStatus);
 
 // Right — the dependency is captured when the tool is registered
 var repository = app.Services.GetRequiredService<IOrderRepository>();
-agentPrism.AddTool(AIFunctionFactory.Create(
+tracon.AddTool(AIFunctionFactory.Create(
     (string orderId) => repository.Find(orderId).Status,
     "get_order_status",
     "Returns the shipping status of an order."));
 ```
 
-`[AgentPrismTool]` catches the same mistake earlier: the source generator does not
+`[TraconTool]` catches the same mistake earlier: the source generator does not
 support an `IServiceProvider` parameter, so the method fails to compile instead of
 failing on the first call.
 
 The same problem reaches instance methods picked up by `AddToolsFrom<T>()` — the
-instance has to come from somewhere, and MAF cannot supply it. AgentPrism rejects an
+instance has to come from somewhere, and MAF cannot supply it. Tracon rejects an
 instance method there too, but at scan time, when `AddToolsFrom<T>()` runs at startup,
 not on the first call.
 :::
@@ -102,7 +102,7 @@ dependency has to be fresh per call — a repository, a `DbContext` — use
 `AddScopedTool` instead of `AddTool`:
 
 ```csharp
-agentPrism.AddScopedTool(AIFunctionFactory.Create(
+tracon.AddScopedTool(AIFunctionFactory.Create(
     (string orderId, AIFunctionArguments arguments) =>
         arguments.Services!.GetRequiredService<IOrderRepository>().Find(orderId).Status,
     "get_order_status",
@@ -120,11 +120,11 @@ full mechanism.
 Some tools should not run unattended:
 
 ```csharp
-[AgentPrismTool("issue_refund", "Refunds an order.", RequiresApproval = true)]
+[TraconTool("issue_refund", "Refunds an order.", RequiresApproval = true)]
 public static string IssueRefund(string orderId) => /* … */;
 
 // or, for a tool registered from a delegate:
-agentPrism.AddTool(IssueRefund, configure: options => options.RequiresApproval = true);
+tracon.AddTool(IssueRefund, configure: options => options.RequiresApproval = true);
 ```
 
 For the full singleton, scoped-dependency, timeout, and output contract, see
@@ -144,7 +144,7 @@ under **Governance**.
 ## Try it
 
 ```bash
-curl -N -X POST http://localhost:5081/agentprism/api/agents/support/run \
+curl -N -X POST http://localhost:5081/tracon/api/agents/support/run \
      -H 'Content-Type: application/json' \
      -d '{"message":"Where is order 4182?"}'
 ```

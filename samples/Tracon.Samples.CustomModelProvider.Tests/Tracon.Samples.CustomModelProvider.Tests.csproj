@@ -1,0 +1,69 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <IsTestProject>true</IsTestProject>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+
+  <!--
+    xunit.v3 runs on the Microsoft Testing Platform (MTP), not VSTest; a test
+    project is a self-contained executable. Same setup as
+    tests/Directory.Build.props; this project does not inherit it (it lives
+    under samples/, not tests/).
+  -->
+  <PropertyGroup Label="Microsoft Testing Platform">
+    <UseMicrosoftTestingPlatformRunner>true</UseMicrosoftTestingPlatformRunner>
+    <TestingPlatformDotnetTestSupport>true</TestingPlatformDotnetTestSupport>
+    <TestingPlatformCaptureOutput>false</TestingPlatformCaptureOutput>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <!--
+      The same two relaxations tests/** gets from .editorconfig, applied here
+      because this project's path is under samples/, which that section does
+      not match. Set on the project rather than widened in .editorconfig: this
+      is the first sample test project that declares [Fact] methods of its own
+      (FileRunStore.Tests only derives contract classes), and an .editorconfig
+      glob broad enough to catch "sample projects that are also test projects"
+      would quietly relax the sample APPLICATIONS next to them too.
+
+      CA1707: snake_case test names, the convention every test in this repo
+      uses. xUnit1051: these tests are in-memory and take milliseconds; the
+      end-to-end run passes TestContext.Current.CancellationToken where a
+      token is actually plumbed through, and AIAgent.RunAsync's own overload
+      does not take one.
+    -->
+    <NoWarn>$(NoWarn);CA1707;xUnit1051</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!--
+      The sample provider, by ProjectReference: it is this repo's own sample
+      code, not a published package. Everything Tracon, by contrast, is a
+      PackageReference resolved from the local feed (../NuGet.config) - the
+      contract suite and the runtime are never project-referenced, which is
+      what makes this sample a real third-party consumer.
+    -->
+    <ProjectReference Include="../Tracon.Samples.CustomModelProvider/Tracon.Samples.CustomModelProvider.csproj" />
+    <!-- VersionOverride, not Version: see the sample provider's own csproj for why. -->
+    <PackageReference Include="Tracon.Testing.Contracts.Xunit" VersionOverride="$(TraconSamplePackageVersion)" />
+    <!--
+      The meta package, because the end-to-end test compiles and runs a real
+      agent: that needs the runtime (AddTracon, AddModelProvider, the
+      agent catalog), not just the abstractions the provider was written
+      against. It is also the line a real consumer writes.
+    -->
+    <PackageReference Include="Tracon" VersionOverride="$(TraconSamplePackageVersion)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="xunit.v3" />
+    <PackageReference Include="Microsoft.Testing.Extensions.TrxReport" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+    <Using Include="Shouldly" />
+  </ItemGroup>
+
+</Project>

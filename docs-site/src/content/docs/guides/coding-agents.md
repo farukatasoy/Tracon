@@ -1,14 +1,14 @@
 ---
 title: Coding agents
-description: Teach a coding agent what AgentPrism already does, via the capability map, a local reference file, and build-time diagnostics.
+description: Teach a coding agent what Tracon already does, via the capability map, a local reference file, and build-time diagnostics.
 slug: guides/coding-agents
 ---
 
 A coding agent cannot use a capability it does not know exists. It will write a retry
 loop around a chat client, hand-roll an approval queue, or invent a cost table —
-carefully, and for no reason, because AgentPrism ships all three.
+carefully, and for no reason, because Tracon ships all three.
 
-AgentPrism closes that gap from inside the build, without a service to run or an
+Tracon closes that gap from inside the build, without a service to run or an
 index to keep in sync. Three files land in your repository or beside your project, and
 seven compiler diagnostics speak up when an agent writes something the package already
 covers.
@@ -20,22 +20,22 @@ the project itself, or a `Directory.Build.props` at the repository root:
 
 ```xml
 <PropertyGroup>
-  <AgentPrismWriteAgentsFile>true</AgentPrismWriteAgentsFile>
+  <TraconWriteAgentsFile>true</TraconWriteAgentsFile>
 </PropertyGroup>
 ```
 
-That turns on both files. `AgentPrismWriteLocalReference` follows it unless you set it
+That turns on both files. `TraconWriteLocalReference` follows it unless you set it
 yourself, so you can keep the capability map and skip the machine-specific reference:
 
 ```xml
 <PropertyGroup>
-  <AgentPrismWriteAgentsFile>true</AgentPrismWriteAgentsFile>
-  <AgentPrismWriteLocalReference>false</AgentPrismWriteLocalReference>
+  <TraconWriteAgentsFile>true</TraconWriteAgentsFile>
+  <TraconWriteLocalReference>false</TraconWriteLocalReference>
 </PropertyGroup>
 ```
 
 The project template sets the first property, so a project created with
-`dotnet new agentprism-api` already has both files.
+`dotnet new tracon-api` already has both files.
 
 ## What each file is for
 
@@ -44,7 +44,7 @@ flowchart LR
     accTitle: What a coding agent reads, and which question each file answers
     accDescr: The build writes the capability map and the local reference. The local reference names the map on disk, so a repository that keeps its own instructions reaches it through one pointer line. The site copies serve an agent with no checkout.
     BUILD["dotnet build"] --> MAP["AGENTS.md<br/>repository root<br/>written only when absent"]
-    BUILD --> LOCAL["AgentPrism.LocalReference.md<br/>beside each project"]
+    BUILD --> LOCAL["Tracon.LocalReference.md<br/>beside each project"]
     OWN["Your own AGENTS.md<br/>one line naming that file"] --> LOCAL
     MAP --> Q1["What capability exists,<br/>and what call turns it on"]
     LOCAL --> Q1
@@ -72,14 +72,14 @@ your repository root and never touches your `AGENTS.md`:
 
 ```xml
 <PropertyGroup>
-  <AgentPrismWriteLocalReference>true</AgentPrismWriteLocalReference>
+  <TraconWriteLocalReference>true</TraconWriteLocalReference>
 </PropertyGroup>
 ```
 
 Then add one line to your own file:
 
 ```markdown
-AgentPrism: read AgentPrism.LocalReference.md beside each project for the capability
+Tracon: read Tracon.LocalReference.md beside each project for the capability
 map and the API documentation of the installed version.
 ```
 
@@ -90,17 +90,17 @@ first section is the absolute path to the capability map in your NuGet cache.
 on**, because until then there is no file to point at. It looks for the exact file name
 anywhere in `AGENTS.md`; prose, a list, or a code fence all count.
 
-### `AgentPrism.LocalReference.md` — the exact paths
+### `Tracon.LocalReference.md` — the exact paths
 
-Written **beside each project** that references AgentPrism, on every build, and
+Written **beside each project** that references Tracon, on every build, and
 regenerated rather than merged — so add it to `.gitignore`. It answers the second
 question an agent asks, "how exactly is this called", by pointing at documentation
 already on the machine:
 
-- one XML documentation file per referenced AgentPrism package, at the version this
+- one XML documentation file per referenced Tracon package, at the version this
   project restored;
 - the packaged HTTP API document, when the project references
-  `AgentPrism.AspNetCore`.
+  `Tracon.AspNetCore`.
 
 The paths are machine-specific and version-specific, which is the point: an agent
 that greps them reads the signatures of the version you actually installed, not a
@@ -108,7 +108,7 @@ newer or older one from the web.
 
 ```bash
 grep -A 12 "AddToolApprovalPolicy" \
-  "$(grep -m1 -o '/.*AgentPrism\.Core\.xml' AgentPrism.LocalReference.md)"
+  "$(grep -m1 -o '/.*Tracon\.Core\.xml' Tracon.LocalReference.md)"
 ```
 
 ### `llms.txt` and `llms-full.txt` — for an agent with no checkout
@@ -145,14 +145,14 @@ dotnet build
 
 ## The diagnostics
 
-Seven diagnostics in the `AgentPrism.Usage` category. They are **warnings**, not
+Seven diagnostics in the `Tracon.Usage` category. They are **warnings**, not
 suggestions, for one measured reason: an `Info` diagnostic never appears in
 `dotnet build` output at any verbosity, and build output is the only channel a coding
 agent reliably reads.
 
 | Id | Fires when | What it teaches |
 |---|---|---|
-| `APG0101` | `MapAgentPrism()` is called but `AddAgentPrism()` is not | The mapped endpoints have no catalog to serve; the app fails at startup |
+| `APG0101` | `MapTracon()` is called but `AddTracon()` is not | The mapped endpoints have no catalog to serve; the app fails at startup |
 | `APG0102` | A model binding names a built-in provider the compilation never registers | Call the matching `Use…()`, or register a custom `IModelProvider` |
 | `APG0201` | A literal secret is written into a definition | Store the **name of the configuration key**; definitions reach backups, the audit trail, and the console |
 | `APG0301` | A retry loop is written by hand around a chat client | Hand retries hide failures from the circuit breaker and never reach the binding's fallbacks |
@@ -166,12 +166,12 @@ from the source generator. Both families carry a help link into the
 
 ### Turning them off
 
-One property switches off the whole `AgentPrism.Usage` family by adding it to
+One property switches off the whole `Tracon.Usage` family by adding it to
 `$(NoWarn)`:
 
 ```xml
 <PropertyGroup>
-  <AgentPrismUsageDiagnostics>false</AgentPrismUsageDiagnostics>
+  <TraconUsageDiagnostics>false</TraconUsageDiagnostics>
 </PropertyGroup>
 ```
 

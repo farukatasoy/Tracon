@@ -1,4 +1,4 @@
-# AgentPrism kod stili
+# Tracon kod stili
 # Bu dosya build sirasinda uygulanir (EnforceCodeStyleInBuild=true).
 # `dotnet format --verify-no-changes` CI'da dogrular.
 
@@ -161,7 +161,7 @@ dotnet_diagnostic.CA1848.severity = suggestion
 # icin gereksiz tekrar olusturur.
 dotnet_diagnostic.CA1062.severity = none
 
-# CA1303: Yerellestirilebilir dizeler. AgentPrism hata mesajlarini yerellestirmez.
+# CA1303: Yerellestirilebilir dizeler. Tracon hata mesajlarini yerellestirmez.
 dotnet_diagnostic.CA1303.severity = none
 
 # MA0004/MA0022: Meziantou - ConfigureAwait ve ValueTask kurallari kutuphane icin dogru.
@@ -192,13 +192,13 @@ dotnet_diagnostic.MA0016.severity = none
 dotnet_diagnostic.CA1861.severity = none
 
 # ---------------------------------------------------------------------------
-# AgentPrism.Testing.Contracts.Xunit - test fixtures shipped as a src/
+# Tracon.Testing.Contracts.Xunit - test fixtures shipped as a src/
 # package (Phase 98). The [Fact]/[Theory] methods inside it are test code
 # (same snake_case convention as tests/**), even though the project itself
 # lives under src/ because it is a published NuGet package - the [tests/**]
 # section above does not match its path.
 # ---------------------------------------------------------------------------
-[src/AgentPrism.Testing.Contracts.Xunit/**/*.cs]
+[src/Tracon.Testing.Contracts.Xunit/**/*.cs]
 dotnet_diagnostic.xUnit1051.severity = none
 dotnet_diagnostic.CA1707.severity = none
 dotnet_diagnostic.CA2007.severity = none

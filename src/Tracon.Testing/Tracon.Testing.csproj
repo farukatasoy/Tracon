@@ -1,0 +1,58 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Description>Test helpers for Tracon: a non-networked model provider, an in-memory host fixture, and assertions on run records. Binds to no test framework (xunit, NUnit, MSTest).</Description>
+    <PackageTags>$(CommonPackageTags);testing;fixtures;mocks</PackageTags>
+    <!--
+      SINGLE TFM: the Microsoft.AspNetCore.TestHost package version maps
+      one-to-one to the hosting framework (10.0.10 supports only net10.0);
+      there is no classified package that collapses the same version for
+      net8.0/net9.0. The plural property is used ON PURPOSE (not singular):
+      `dotnet pack`'s cross-target orchestration keeps reading the plural
+      value inherited from Directory.Build.props, and the singular value is
+      NOT SEEN by it (Phase 37 trap, docs/hafiza/build-ve-analyzer.md).
+    -->
+    <TargetFrameworks>net10.0</TargetFrameworks>
+    <!--
+      The test package does not run in production: FakeModelProvider.CallsTool
+      reads anonymous-type properties through reflection, and
+      TraconTestHost's JSON (de)serialization carries no source-generator
+      context. No AOT promise is made.
+    -->
+    <TraconAotCompatible>false</TraconAotCompatible>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../Tracon.Core/Tracon.Core.csproj" />
+    <!--
+      The type a consumer will want most is the in-memory host fixture
+      (TraconTestHost), and it requires Tracon.AspNetCore, which
+      builds the endpoints. K-008 applies here: AspNetCore is the only
+      package that can carry prerelease MAF packages; since Testing
+      depends on it, it inherits those dependencies TRANSITIVELY.
+      Acceptable — the test package is not in the production graph
+      anyway. Rationale: docs/arsiv/fazlar/39-TEST-PAKETI.md, section 39.1.
+    -->
+    <ProjectReference Include="../Tracon.AspNetCore/Tracon.AspNetCore.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!--
+      The in-memory host is built on TestServer (not
+      Microsoft.AspNetCore.Mvc.Testing - K-007: WebApplicationFactory<T>
+      requires an entry-point assembly and locks the consumer into a hosting
+      model. TestHost, in contrast, is an official, stable Microsoft package
+      that pulls in no other dependency.
+    -->
+    <PackageReference Include="Microsoft.AspNetCore.TestHost" />
+  </ItemGroup>
+
+  <!--
+    NO test framework package is taken (xunit, NUnit, MSTest, Shouldly,
+    FluentAssertions). The package works regardless of which framework the
+    consumer uses; when an assertion fails it throws its own
+    TraconAssertionException, and every framework counts that as a
+    failure. Rationale: section 39.2.
+  -->
+
+</Project>

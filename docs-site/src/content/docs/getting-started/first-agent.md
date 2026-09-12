@@ -1,6 +1,6 @@
 ---
 title: Your first agent
-description: Build, run, inspect, and call your first AgentPrism agent from an empty folder in about five minutes.
+description: Build, run, inspect, and call your first Tracon agent from an empty folder in about five minutes.
 sidebar:
   order: 2
 ---
@@ -11,9 +11,9 @@ you what the template wrote.
 ## With the template
 
 ```bash
-AGENTPRISM_VERSION=1.0.0-preview.N # replace N with the published preview
-dotnet new install "AgentPrism.Templates@$AGENTPRISM_VERSION"
-dotnet new agentprism-api -o MyAgents
+TRACON_VERSION=1.0.0-preview.N # replace N with the published preview
+dotnet new install "Tracon.Templates@$TRACON_VERSION"
+dotnet new tracon-api -o MyAgents
 cd MyAgents
 ```
 
@@ -25,31 +25,31 @@ The project template has five options:
 | `--persistence` | `memory`, `postgres`, `sqlite`, `sqlserver` | `memory` |
 | `--provider` | `openai`, `anthropic`, `google`, `azure` | `openai` |
 | `--ui` | `true`, `false` | `true` |
-| `--AgentPrismVersion` | A NuGet version or version range | `*-*` (latest preview) |
+| `--TraconVersion` | A NuGet version or version range | `*-*` (latest preview) |
 | `--skipRestore` | `true`, `false` | `false` |
 
 For example:
 
 ```bash
-dotnet new agentprism-api -o MyAgents \
+dotnet new tracon-api -o MyAgents \
   --persistence postgres \
   --provider openai \
   --ui true \
-  --AgentPrismVersion "$AGENTPRISM_VERSION"
+  --TraconVersion "$TRACON_VERSION"
 ```
 
 Set your key — it never goes in a file that gets committed:
 
 ```bash
-dotnet user-secrets set "AgentPrism:Providers:OpenAI:ApiKey" "sk-…"
+dotnet user-secrets set "Tracon:Providers:OpenAI:ApiKey" "sk-…"
 dotnet run
 ```
 
-Open the address `dotnet run` prints, with `/agentprism` on the end — the
+Open the address `dotnet run` prints, with `/tracon` on the end — the
 template listens on `http://localhost:5081` by default.
 
 The first build also writes `AGENTS.md` at the root of your repository: the
-AgentPrism capability map, for a coding agent working in the project. An
+Tracon capability map, for a coding agent working in the project. An
 existing file is never overwritten, and
 [the property that writes it](/troubleshooting/#agentsmd-does-not-appear)
 can be removed from the project file.
@@ -57,7 +57,7 @@ can be removed from the project file.
 ## By hand
 
 :::caution[Not published yet]
-No AgentPrism version has been pushed to NuGet or npm yet, so this command
+No Tracon version has been pushed to NuGet or npm yet, so this command
 does not resolve. Until the first release, reference the projects from a
 clone of the repository.
 :::
@@ -65,21 +65,21 @@ clone of the repository.
 ```bash
 dotnet new web -o MyAgents
 cd MyAgents
-dotnet add package AgentPrism --prerelease
+dotnet add package Tracon --prerelease
 dotnet user-secrets init
-dotnet user-secrets set "AgentPrism:Providers:OpenAI:ApiKey" "sk-…"
+dotnet user-secrets set "Tracon:Providers:OpenAI:ApiKey" "sk-…"
 ```
 
 ```csharp title="Program.cs"
-using AgentPrism;
+using Tracon;
 
 var builder = WebApplication.CreateBuilder(args);
 
-var agentPrism = builder.AddAgentPrism()
+var tracon = builder.AddTracon()
     .UseOpenAI(builder.Configuration.GetSection(OpenAIProviderOptions.SectionName))
     .UseUI();
 
-agentPrism.AddAgent(new AgentDefinition
+tracon.AddAgent(new AgentDefinition
 {
     Name = "support",
     DisplayName = "Support Assistant",
@@ -94,12 +94,12 @@ agentPrism.AddAgent(new AgentDefinition
 
 var app = builder.Build();
 
-app.MapAgentPrism("/agentprism");
+app.MapTracon("/tracon");
 app.Run();
 ```
 
 This first agent uses a chat model only. To let a later agent generate stored image
-attachments, add `UseOpenAIImages(...)`, set `AgentPrism:Images:Enabled`, and choose
+attachments, add `UseOpenAIImages(...)`, set `Tracon:Images:Enabled`, and choose
 an image model explicitly. An image model is not inferred from this agent's chat
 model; see [image generation providers](/guides/model-providers/#image-generation-providers).
 
@@ -108,32 +108,32 @@ dotnet run
 ```
 
 :::note[Why the model name is a blank]
-AgentPrism ships no built-in model list and pins no model name. Provider catalogues
+Tracon ships no built-in model list and pins no model name. Provider catalogues
 change faster than a NuGet release, and a hard-coded name would be wrong within
 months. Take the current name from your provider's documentation, or put it in
-`appsettings.json` under `AgentPrism:Providers:OpenAI:DefaultModel`.
+`appsettings.json` under `Tracon:Providers:OpenAI:DefaultModel`.
 :::
 
 ## Run it
 
-**In the console.** Open `/agentprism`, pick **Playground**, choose `support`, and
+**In the console.** Open `/tracon`, pick **Playground**, choose `support`, and
 send a message. The reply streams in; tool calls appear as cards with their arguments
 and results.
 
 **Over HTTP.** The same run, as a server-sent event stream:
 
 ```bash
-curl -N -X POST http://localhost:5081/agentprism/api/agents/support/run \
+curl -N -X POST http://localhost:5081/tracon/api/agents/support/run \
      -H 'Content-Type: application/json' \
      -d '{"message":"Where is order 4182?"}'
 ```
 
 **From an OpenAI client.** The compatible endpoint accepts the familiar wire format.
-Point the client at AgentPrism, provide its authentication, and use the agent name as
+Point the client at Tracon, provide its authentication, and use the agent name as
 the `model`:
 
 ```bash
-curl -X POST http://localhost:5081/agentprism/v1/responses \
+curl -X POST http://localhost:5081/tracon/v1/responses \
      -H 'Content-Type: application/json' \
      -d '{"model":"support","input":"Where is order 4182?"}'
 ```
@@ -148,9 +148,9 @@ console, open **Runs**: status, duration, token counts, cost when pricing is
 configured, and the ordered event stream. Over HTTP it is the same data:
 
 ```bash
-curl http://localhost:5081/agentprism/api/runs
-curl http://localhost:5081/agentprism/api/runs/{runId}
-curl -N http://localhost:5081/agentprism/api/runs/{runId}/events
+curl http://localhost:5081/tracon/api/runs
+curl http://localhost:5081/tracon/api/runs/{runId}
+curl -N http://localhost:5081/tracon/api/runs/{runId}/events
 ```
 
 Nothing extra was configured to make that happen. Recording can be disabled. A store
