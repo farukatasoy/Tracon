@@ -8,7 +8,7 @@ documentation, and https://tracon.dev/http-api/ for those.
 
 # Capability map
 
-Tracon is a library, not a hosted service. You choose the pieces, keep control of
+Tracon is a .NET package family that adds a control plane on Microsoft Agent Framework. You choose the pieces, keep control of
 the dependency graph, and run the control plane inside your own .NET application.
 This page is the inventory: what exists, where it lives, and what turns it on.
 
@@ -280,9 +280,9 @@ exists. Two channels tell it, and both are generated from this page.
 | Tool diagnostics | Automatic with `Tracon.Core` | The `Tracon.Tools` category reports a tool method the generator cannot use |
 
 The map is refreshed by deleting `AGENTS.md` and building again; the file is never
-rewritten in place because you may have added notes to it. The template
-`dotnet new tracon-api` sets the property, so a generated project has the map
-from its first build. A repository that already keeps its own `AGENTS.md` never
+rewritten in place because you may have added notes to it. The project template
+sets the property, so a project generated from it has the map from its first
+build. A repository that already keeps its own `AGENTS.md` never
 receives the map file at all, and copying the capability list into it would only
 create a second copy to maintain: add one line naming `Tracon.LocalReference.md`
 instead, which is what `TRC0402` asks for and what the first section of that file
@@ -329,7 +329,7 @@ defaults.
 
 # Agents and definitions
 
-An agent is **data**: a name, a model binding, instructions, and the names of the
+An agent definition is **data**: a name, a model binding, instructions, and the names of the
 tools, skills, and other agents it may use. The compiler turns that data into a MAF
 `AIAgent`.
 
@@ -648,14 +648,14 @@ criterion was finally satisfied" apart from "we ran out of iterations".
 
 ## Read next
 
-- [Runs and recording](/concepts/runs/)
-- [Tools, skills, and MCP](/concepts/tools/)
+- [Runs and recording](/concepts/runs/) — inspect recorded status, events, tokens, and recording limits.
+- [Tools, skills, and MCP](/concepts/tools/) — choose code tools, instruction skills, or remote MCP integration.
 
 ---
 
 # Evaluation and experiments
 
-Four ways to find out whether an agent is any good. They answer different questions
+Use evaluation suites, judges, experiments, and regression checks to compare agent behavior against explicit criteria. They answer different questions
 and are meant to be used together.
 
 | | Question | When it runs |
@@ -1002,7 +1002,7 @@ results on every read, so it never reports a stale verdict.
 ## Read next
 
 - [Agents and definitions](/concepts/agents/) — versions, which experiments need
-- [Governance](/concepts/governance/)
+- [Governance](/concepts/governance/) — configure approvals, quotas, guards, and audit behavior.
 
 ---
 
@@ -1355,7 +1355,7 @@ the same scope [runs](/concepts/runs/) are already counted and billed at.
 
 :::caution[Counters are approximate]
 The check happens **before** a run starts; consumption is written **after** it
-finishes. A run already in progress is never cut off mid-flight, so brief overshoot is
+finishes. A run already in progress is never cut off during execution, so brief overshoot is
 possible by design.
 :::
 
@@ -1558,8 +1558,8 @@ validated is the address connected to. See
 
 ## Read next
 
-- [Securing the endpoints](/getting-started/security/)
-- [The HTTP API](/http-api/)
+- [Securing the endpoints](/getting-started/security/) — bind endpoint authorization and tenant resolution to your host.
+- [The HTTP API](/http-api/) — apply authentication, pagination, and error conventions to HTTP calls.
 
 ---
 
@@ -1606,18 +1606,20 @@ answer `501` while definition management keeps working.
 
 ## Four rules
 
-Everything else follows from these.
+These conventions explain the default setup and the extension model.
 
-### No surprises
+<span id="no-surprises"></span>
 
-`AddTracon()` works alone. Without a configured database every store falls back to
-memory, so the runtime comes up on one line with no infrastructure behind it. The
-console is a separate step, not part of that line: add `Tracon.UI`, call
-`UseUI()`, and map the endpoints with `MapTracon()` — see [the console
-guide](/ui/).
-A database is never required, and neither is any particular model vendor — OpenAI,
-Anthropic, Google, Azure OpenAI, and any OpenAI-compatible endpoint (including a
-self-hosted engine like Ollama or vLLM) all work side by side.
+### Explicit infrastructure
+
+`AddTracon()` supplies in-memory store defaults, so the runtime comes up without a
+database behind it. Configure a model provider or a custom agent source for
+execution, and choose persistence when data must survive a restart. The console is
+a separate step: add `Tracon.UI`, call `UseUI()`, and map the endpoints with
+`MapTracon()` — see [the console guide](/ui/).
+No particular model vendor is required either — OpenAI, Anthropic, Google, Azure
+OpenAI, and any OpenAI-compatible endpoint (including a self-hosted engine like
+Ollama or vLLM) can be registered side by side.
 
 ### Tools are defined in code only
 
@@ -1639,11 +1641,14 @@ parallel type hierarchy is laid on top of them.
 Wrapping would create maintenance debt with every MAF release and cut you off from
 the MAF ecosystem. Tracon is a *control plane*, not an *abstraction layer*.
 
-### Every extension point is replaceable
+<span id="every-extension-point-is-replaceable"></span>
 
-All services register with `TryAdd`. Register your own implementation before calling
-`AddTracon()` and yours wins. The same holds for MAF's own hosting types, which is
-why interfaces like conversation storage can be swapped out.
+### Replaceable services
+
+Default service registrations use `TryAdd`, so an implementation your application
+registers before `AddTracon()` is the one that stays. The same seam covers MAF's own
+hosting types, which is why interfaces like conversation storage can be swapped out.
+Each extension guide states the lifetime and registration contract its seam expects.
 
 ## Where things live
 
@@ -1674,22 +1679,23 @@ the agent running, so recording is best-effort rather than an availability depen
 
 ## How recording happens
 
-`IAgentCatalog.ResolveAsync` never returns a bare agent. What it hands back is wrapped
-in a chain of decorators:
+`IAgentCatalog.ResolveAsync` applies the registered decorators. The four built-in
+decorators have this outer-to-inner order:
 
 ```mermaid
 flowchart LR
     accTitle: Agent execution decorator order
-    accDescr: Run recording wraps telemetry, approvals, guards, online evaluation, and the inner agent in a fixed outer-to-inner order.
+    accDescr: Run recording wraps telemetry, tool approvals, structured response validation, and the compiled agent. Custom decorators can participate through their configured order.
     REC["RunRecordingAgent<br/>order 0 — outermost"] --> OTEL["OpenTelemetryAgent<br/>order 10"]
     OTEL --> APR["ToolApprovalAgent<br/>order 20"]
-    APR --> AGENT["the compiled AIAgent"]
+    APR --> VALIDATE["StructuredResponseValidatingAgent<br/>order 30"]
+    VALIDATE --> AGENT["the compiled AIAgent"]
 ```
 
-The order is deliberate. **Recording is outermost** so the time it measures includes
-everything the inner layers spend. **Approval is innermost**, closest to the model
-call — outside it, telemetry would count the wait for a human as part of its own
-duration.
+Recording is outermost among the built-in decorators, so its duration includes the
+inner layers. Structured response validation is innermost and checks the final
+agent response. Tool approval sits between validation and telemetry. A custom
+`IAgentDecorator` can change the surrounding chain through its `Order`.
 
 Decorators are plain `DelegatingAIAgent` wrappers rather than MAF middleware, because
 middleware is per-agent and a harness agent adds its own inner decorators. An outer
@@ -2003,7 +2009,9 @@ already says it is waiting. The callback receives the messages the run produced,
 anything it throws fails the run — an `AwaitingApproval` status whose request was never
 recorded is unanswerable.
 
-## Three ways to start a run
+<span id="three-ways-to-start-a-run"></span>
+
+## Ways to start a run
 
 | | How | Response |
 |---|---|---|
@@ -2095,8 +2103,8 @@ for what gets replayed, what runs live, and which tools it refuses to continue.
 
 ## Read next
 
-- [Sessions and conversations](/concepts/sessions/)
-- [Evaluation and experiments](/concepts/evaluation/)
+- [Sessions and conversations](/concepts/sessions/) — retain conversation state and understand session lifetime.
+- [Evaluation and experiments](/concepts/evaluation/) — compare agent versions using cases, judges, and experiments.
 
 ---
 
@@ -2398,9 +2406,9 @@ console's origin.
 
 ## Read next
 
-- [Runs and recording](/concepts/runs/)
-- [Attachments and multimodal input](/guides/multimodal/)
-- [Workflows](/concepts/workflows/)
+- [Runs and recording](/concepts/runs/) — inspect recorded status, events, tokens, and recording limits.
+- [Attachments and multimodal input](/guides/multimodal/) — attach validated files, images, and audio to a conversation.
+- [Workflows](/concepts/workflows/) — coordinate multiple agents with checkpoints and human input.
 
 ---
 
@@ -2741,7 +2749,7 @@ right chunk does not come back there, the agent was never going to see it.
 ## Read next
 
 - [Governance](/concepts/governance/) — approvals, audit, and limits
-- [Workflows](/concepts/workflows/)
+- [Workflows](/concepts/workflows/) — coordinate multiple agents with checkpoints and human input.
 
 ---
 
@@ -2972,76 +2980,64 @@ and the response opens a new one.
 ## Read next
 
 - [Runs and recording](/concepts/runs/) — reading the tree
-- [Evaluation and experiments](/concepts/evaluation/)
+- [Evaluation and experiments](/concepts/evaluation/) — compare agent versions using cases, judges, and experiments.
 
 ---
 
 # Your first agent
 
-Two ways in. The template writes a working application for you; the manual path shows
-you what the template wrote.
+Build an ASP.NET Core host, register a model-backed agent, then inspect its run
+in the embedded console. MAF executes the agent; Tracon supplies the catalog,
+HTTP endpoints, and default-on recording around it.
 
-## With the template
-
-```bash
-TRACON_VERSION=1.0.0-preview.N # replace N with the published preview
-dotnet new install "Tracon.Templates@$TRACON_VERSION"
-dotnet new tracon-api -o MyAgents
-cd MyAgents
-```
-
-Pinning the template version makes the generated package references reproducible.
-The project template has five options:
-
-| Option | Values | Default |
-|---|---|---|
-| `--persistence` | `memory`, `postgres`, `sqlite`, `sqlserver` | `memory` |
-| `--provider` | `openai`, `anthropic`, `google`, `azure` | `openai` |
-| `--ui` | `true`, `false` | `true` |
-| `--TraconVersion` | A NuGet version or version range | `*-*` (latest preview) |
-| `--skipRestore` | `true`, `false` | `false` |
-
-For example:
-
-```bash
-dotnet new tracon-api -o MyAgents \
-  --persistence postgres \
-  --provider openai \
-  --ui true \
-  --TraconVersion "$TRACON_VERSION"
-```
-
-Set your key — it never goes in a file that gets committed:
-
-```bash
-dotnet user-secrets set "Tracon:Providers:OpenAI:ApiKey" "sk-…"
-dotnet run
-```
-
-Open the address `dotnet run` prints, with `/tracon` on the end — the
-template listens on `http://localhost:5081` by default.
-
-The first build also writes `AGENTS.md` at the root of your repository: the
-Tracon capability map, for a coding agent working in the project. An
-existing file is never overwritten, and
-[the property that writes it](/troubleshooting/#agentsmd-does-not-appear)
-can be removed from the project file.
-
-## By hand
-
-:::caution[Not published yet]
-No Tracon version has been pushed to NuGet or npm yet, so this command
-does not resolve. Until the first release, reference the projects from a
-clone of the repository.
+:::caution[Repository access required]
+Tracon packages and templates are not published yet. This guide requires an
+existing source checkout that you are authorized to access. If you do not have
+access, start with the [capability map](/capabilities/) and
+[architecture](/concepts/) to evaluate the design.
 :::
 
+## Prerequisites
+
+- An authorized checkout of the Tracon repository.
+- The .NET SDK selected by the repository's `global.json` and Node.js for the
+  embedded console build. See the checkout's README for development prerequisites.
+- An OpenAI API key and a chat model available to that account. The model request
+  is sent to your configured provider and can incur provider charges.
+
+<span id="with-the-template"></span>
+
+## Build from source
+
+Run these commands from the root of the Tracon checkout. They create a sibling
+application and reference the three source projects it needs.
+
 ```bash
-dotnet new web -o MyAgents
-cd MyAgents
-dotnet add package Tracon --prerelease
+dotnet new web -o ../MyAgents
+cd ../MyAgents
+dotnet add reference ../Tracon/src/Tracon.AspNetCore/Tracon.AspNetCore.csproj
+dotnet add reference ../Tracon/src/Tracon.OpenAI/Tracon.OpenAI.csproj
+dotnet add reference ../Tracon/src/Tracon.UI/Tracon.UI.csproj
 dotnet user-secrets init
-dotnet user-secrets set "Tracon:Providers:OpenAI:ApiKey" "sk-…"
 ```
+
+The commands assume the checkout directory is named `Tracon`. Use its actual
+relative path if you named it differently. The console assets build with the UI
+project; no separate console server is needed.
+
+Store your provider settings in the application's development secrets. Replace
+the example values with your key and a model identifier available to your account.
+
+```bash
+dotnet user-secrets set "Tracon:Providers:OpenAI:ApiKey" "YOUR_API_KEY"
+dotnet user-secrets set "Tracon:Providers:OpenAI:DefaultModel" "YOUR_CHAT_MODEL"
+```
+
+<span id="by-hand"></span>
+
+## Register the agent
+
+Replace the generated `Program.cs` with the following:
 
 ```csharp title="Program.cs"
 using Tracon;
@@ -3061,7 +3057,8 @@ tracon.AddAgent(new AgentDefinition
     Model = new ModelBinding
     {
         Provider = OpenAIProviderNames.ChatCompletions,
-        Model = "…",   // today's model name, from your provider's documentation
+        Model = builder.Configuration["Tracon:Providers:OpenAI:DefaultModel"]
+            ?? throw new InvalidOperationException("Configure an OpenAI chat model."),
     },
 });
 
@@ -3077,15 +3074,16 @@ an image model explicitly. An image model is not inferred from this agent's chat
 model; see [image generation providers](/guides/model-providers/#image-generation-providers).
 
 ```bash
-dotnet run
+dotnet run --urls http://localhost:5081
 ```
 
-:::note[Why the model name is a blank]
-Tracon ships no built-in model list and pins no model name. Provider catalogues
-change faster than a NuGet release, and a hard-coded name would be wrong within
-months. Take the current name from your provider's documentation, or put it in
-`appsettings.json` under `Tracon:Providers:OpenAI:DefaultModel`.
-:::
+The host listens on `http://localhost:5081`. Open
+`http://localhost:5081/tracon` for the console. Provider model names are explicit
+configuration: Tracon does not ship a built-in model list.
+
+The source template remains available in the repository for readers who want to
+inspect its generated application. A published-template install command will be
+added when a release is available.
 
 ## Run it
 
@@ -3126,7 +3124,7 @@ curl http://localhost:5081/tracon/api/runs/{runId}
 curl -N http://localhost:5081/tracon/api/runs/{runId}/events
 ```
 
-Nothing extra was configured to make that happen. Recording can be disabled. A store
+No additional recording registration is needed for this catalog-resolved agent. Recording can be disabled. A store
 failure is also best-effort: it is logged and the agent still runs, so observability
 cannot take down product functionality.
 
@@ -3137,21 +3135,29 @@ store is in memory, so all of it ends when the process does.
 
 ## Read next
 
-- [Adding a tool](/getting-started/tools/) — let the agent do something
-- [Persistence](/getting-started/persistence/) — make it survive a restart
-- [Securing the endpoints](/getting-started/security/) — before it leaves your machine
+- [Adding a tool](/getting-started/tools/) — register a C# method the model can call.
+- [Persistence](/getting-started/persistence/) — retain definitions and run records across restarts.
+- [Securing the endpoints](/getting-started/security/) — configure authorization before exposing the host.
 
 ---
 
 # What Tracon is
 
-Tracon is a **control plane** for agents built with the Microsoft Agent
-Framework (MAF). You bring the agents; it gives you the layer around them — a place
-to define them, an HTTP API to drive them, a record of every run, and a console to
-look at all of it.
+Tracon is a **.NET package family** that adds a **control plane** on Microsoft
+Agent Framework (MAF). MAF executes the agent and its model/tool loop. Tracon adds
+agent definitions, configurable execution controls, HTTP endpoints, default-on
+run recording, and an optional embedded console.
 
-It is a set of NuGet packages, not an application. It runs inside your ASP.NET Core
-process, using your configuration, your authentication, and your database.
+The packages run inside your host process. You choose the model providers,
+persistence, identity integration, and operational policies. Recording is
+best-effort: a recording-store failure is logged while agent execution continues.
+
+:::note[Evaluate through the documentation]
+Packages and templates are not published yet. You can explore the capabilities,
+API contracts, and limitations here. Running the source requires authorized
+repository access; the [source build guide](/getting-started/first-agent/) makes
+that prerequisite explicit.
+:::
 
 ## What you get
 
@@ -3180,23 +3186,25 @@ else. An agent can be created and edited from the console, but tool *code* can n
 be written through it — see [tools](/concepts/tools/) for the two narrow,
 guarded exceptions.
 
-**It is not a hosted service.** There is no account, no telemetry leaving your
-process, and no dependency on anything you do not run yourself. That includes the
-model call itself: point a provider at a cloud API, or at a self-hosted engine such
-as Ollama or vLLM on your own network — see [picking a model
-provider](/packages/#picking-a-model-provider).
+**It is not a hosted service.** Tracon does not provide a managed hosting account.
+Your host controls outbound connections: configured model providers, exporters,
+webhooks, and integrations can send data outside the process. You can use a cloud
+model API or a compatible self-hosted engine such as Ollama or vLLM — see
+[picking a model provider](/packages/#picking-a-model-provider).
 
 ## Four rules it will not break
 
-These hold everywhere in the codebase, and knowing them explains most of the API.
+These conventions explain the default setup and the extension model.
 
-1. **No surprises.** `AddTracon()` works alone. Without a database every store
-   falls back to memory, so the first thing you write runs without infrastructure.
+1. **Explicit infrastructure.** `AddTracon()` supplies in-memory store defaults.
+   Configure a model provider or a custom agent source for execution, and choose
+   persistence when data must survive a restart.
 2. **Tools are code only.** The console selects from registered tools; it never
    defines them.
 3. **MAF objects are passed through, not wrapped.**
-4. **Every extension point is replaceable.** Everything registers with `TryAdd`, so
-   your own implementation registered first always wins.
+4. **Replaceable services.** Default service registrations use `TryAdd` so a
+   consumer registration can supply the implementation. Follow each extension
+   guide for its lifetime and registration contract.
 
 ## Is it for you?
 
@@ -3211,8 +3219,9 @@ require .NET 10, and the source generator that ships inside Core targets
 
 ## Read next
 
-- [Your first agent](/getting-started/first-agent/) — a working application
-in about five minutes.
+- [Capability map](/capabilities/) — match a system requirement to a feature and its limits.
+- [Architecture](/concepts/) — understand MAF and Tracon responsibilities.
+- [Your first agent](/getting-started/first-agent/) — build a working host with repository access.
 
 ---
 
@@ -3499,9 +3508,10 @@ before this leaves your machine.
 
 # Securing the endpoints
 
-By default Tracon is reachable from `localhost` and nowhere else. That is the
-safe state, and an application that maps it and forgets to configure anything is not
-exposed. Everything below is about leaving that state on purpose.
+Configure who can reach Tracon, what they can do, and which tenant they can access.
+Protected endpoints restrict non-loopback callers by default. This restriction does
+not replace host authorization or correct proxy configuration; the metadata endpoint
+is an explicit exception.
 
 ## The layers
 
@@ -3532,9 +3542,8 @@ flowchart TD
 
 ### 1. The loopback restriction
 
-On by default. A request from anywhere but loopback gets `403`. It exists to make
-accidental exposure impossible, so turning it off should be a deliberate line in a
-review:
+On protected routes, non-loopback requests receive `403` by default. Review the
+host and proxy boundary before allowing remote access:
 
 ```csharp
 app.MapTracon("/tracon", options => options.AllowRemoteAccess = true);
@@ -4364,16 +4373,23 @@ idempotent.
 ## Read next
 
 - [Write your own job handler](/guides/write-your-own-job-handler/) — the `IJobHandler` at-least-once contract, and the reusable test suite that verifies it
-- [Reliable runs](/guides/reliability/) — what happens to a queued run when a worker dies mid-flight
+- [Reliable runs](/guides/reliability/) — what happens to a queued run when a worker dies during execution
 - [Production deployment](/guides/production/) — where the worker process lives and how many of them you run
 
 ---
 
 # Typed client and CLI
 
-Two packages let you reach a running Tracon instance from outside the process
-that hosts it: a typed HTTP client for your own code, and a command-line tool for
-scripts and deployment pipelines.
+:::caution[Package availability]
+Tracon packages and templates are not published yet. Package-install examples on
+this page describe the release form and do not currently resolve from public
+registries. With authorized repository access, use the
+[source build instructions](/getting-started/first-agent/).
+:::
+
+Use `Tracon.Client` for typed HTTP access to a running host. Use `Tracon.Cli`
+for scripted health checks and evaluation over HTTP, or for migrations through
+a direct database connection before the host starts.
 
 ```mermaid
 flowchart LR
@@ -4721,6 +4737,13 @@ credential meant for exactly this.
 
 # Coding agents
 
+:::caution[Package availability]
+Tracon packages and templates are not published yet. The `dotnet new tracon-api`
+line below describes the release form and does not currently resolve from public
+registries. With authorized repository access, use the
+[source build instructions](/getting-started/first-agent/).
+:::
+
 A coding agent cannot use a capability it does not know exists. It will write a retry
 loop around a chat client, hand-roll an approval queue, or invent a cost table —
 carefully, and for no reason, because Tracon ships all three.
@@ -4771,7 +4794,7 @@ flowchart LR
 
 ### `AGENTS.md` — the capability map
 
-Written once to your **repository root**, under 10 KB, and read by most coding agents
+Written once to your **repository root**, about 10 KB, and read by most coding agents
 at the start of a session. It names every registration entry point, the package it
 lives in, and the rule each capability group obeys.
 
@@ -4835,9 +4858,9 @@ every page — three sizes for three questions, published on the documentation s
 
 - [`llms.txt`](/llms.txt) — the capability map, then **which page answers
   what**: one line per hand-written page, with its title, address, and subject. About
-  17 KB.
+  20 KB.
 - [`llms-full.txt`](/llms-full.txt) — every guide, concept, and reference
-  page concatenated, about 400 KB.
+  page concatenated, about 700 KB.
 
 The middle layer is the one to use. The map names a capability but does not explain it;
 the index names the one page that does, and reading that page costs a fraction of the
@@ -5220,9 +5243,9 @@ PostgreSQL.
 
 ## Read next
 
-- [Sessions and conversations](/concepts/sessions/)
-- [Agents and definitions](/concepts/agents/)
-- [Tools, skills, and MCP](/concepts/tools/)
+- [Sessions and conversations](/concepts/sessions/) — retain conversation state and understand session lifetime.
+- [Agents and definitions](/concepts/agents/) — configure and version the definitions that the catalog resolves.
+- [Tools, skills, and MCP](/concepts/tools/) — choose code tools, instruction skills, or remote MCP integration.
 
 ---
 
@@ -5272,7 +5295,7 @@ up, or for a `DbDataSource` adapter you write yourself.
 
 ## There is no shared transaction
 
-`YourDbContext.SaveChangesAsync()` and an Tracon run write through two
+`YourDbContext.SaveChangesAsync()` and a Tracon run write through two
 independent connections, even when they share one pool. A run's recording never
 becomes atomic with your own schema's writes, and this is deliberate: Tracon's
 stores are singletons that outlive any one request, and "observability must never
@@ -5350,7 +5373,7 @@ See [Read contract views](/reference/read-views/) for the full column list, the
   separate mechanism from EF Core's.
 - **`dotnet ef migrations` never sees Tracon's schema.** It is not an EF model;
   there is no `DbSet` to scaffold it from, and none should be added.
-- **No `DbContext` owns an Tracon table.** The `tracon` schema is written
+- **No `DbContext` owns a Tracon table.** The `tracon` schema is written
   only by Tracon's own store layer, from either connection plane.
 
 ## Read next
@@ -5444,7 +5467,7 @@ using (AmbientRunAttributionScope.Begin(job.RequestedByUserId, labels: null))
 }
 ```
 
-🚨 Open the scope inside the method that starts the run, in that method's own
+**Open the scope inside the method that starts the run**, in that method's own
 body — not in a helper it calls — and reopen it before every `MoveNextAsync` on a
 streaming path. `AmbientTenantScope` is an `AsyncLocal<T>`; a value set upstream of
 an `await` boundary does not flow back down through one opened later. A dropped
@@ -5809,7 +5832,7 @@ Tracon supports three different external-agent directions. Keep them separate:
 | Direction | Purpose | Registration | HTTP surface |
 |---|---|---|---|
 | MCP client | Bring remote tools, prompts, and resources into Tracon | `UseMcp()` | Managed through `/api/mcp-servers/*` |
-| MCP server | Publish an Tracon agent as an MCP tool | `UseMcpServer()` | `/tracon/mcp` by default |
+| MCP server | Publish a Tracon agent as an MCP tool | `UseMcpServer()` | `/tracon/mcp` by default |
 | A2A server | Publish an agent through the agent-to-agent protocol | `UseA2A()` | `/tracon/a2a/{agent}` by default |
 
 ```mermaid
@@ -6021,7 +6044,7 @@ recording, tenancy, trace, cost, quota, and audit infrastructure.
 ## Read next
 
 - [Tools, skills, and MCP](/concepts/tools/) — the other direction: consuming an MCP server rather than publishing one
-- [Securing the endpoints](/getting-started/security/) — an exposed agent is a public surface, and its budget is the only limit
+- [Securing the endpoints](/getting-started/security/) — bind exposed agents to authentication, tenant scopes, and execution limits
 - [Compatibility matrices](/reference/compatibility/) — which protocol revisions and transports are supported
 
 ---
@@ -6032,7 +6055,7 @@ An inbound trigger is the reverse of an [outbound webhook](/concepts/governance/
 instead of Tracon notifying another system, another system starts a run in
 Tracon. A Slack slash command, a support-desk ticket event, or a queue
 consumer can all become the start of an agent or workflow run without holding
-an Tracon API key.
+a Tracon API key.
 
 The accept endpoint is always queued and always returns `202 Accepted` — there
 is no synchronous mode. A caller that needs the model's answer inline should
@@ -6133,7 +6156,7 @@ is `null` until the queued job runs — poll `GET /api/jobs/{jobId}` instead.
 ## No bearer token, by design
 
 The accept endpoint (`POST /api/triggers/{tenantId}/{name}`) carries no
-`Authorization` requirement — an external system cannot present an Tracon
+`Authorization` requirement — an external system cannot present a Tracon
 API key or the static `AuthToken`. Its entire authentication story is the
 HMAC signature: a request without a valid, in-window signature never reaches
 the queue.
@@ -6209,7 +6232,7 @@ system's webhook configuration.
 
 - [Jobs, schedules, and queues](/guides/background-work/) — how a queued run actually executes
 - [Runs and recording](/concepts/runs/) — the four ways a run starts
-- [Security](/getting-started/security/)
+- [Security](/getting-started/security/) — bind endpoint authorization and tenant resolution to your host.
 
 ---
 
@@ -6493,8 +6516,8 @@ fresh embeddings. Avoid unstable source ids that cause unnecessary full replacem
 
 ## Read next
 
-- [Context and memory](/guides/context-and-memory/)
-- [Persistence](/getting-started/persistence/)
+- [Context and memory](/guides/context-and-memory/) — control the context sent to a model and the memory retained.
+- [Persistence](/getting-started/persistence/) — choose a store for data that must survive process restarts.
 
 ---
 
@@ -6925,7 +6948,7 @@ Two consequences are worth stating plainly. A provider-side safety filter is
 **not** an exception here: return an ordinary `ChatResponse` with
 `ChatFinishReason.ContentFilter` and Tracon raises
 `TraconContentFilteredException` itself. Throwing instead makes the circuit
-breaker count a healthy provider as failing. And an `TraconException` thrown
+breaker count a healthy provider as failing. And a `TraconException` thrown
 from `CreateChatClient` is wrapped as a compilation error naming the agent, while
 every other exception propagates raw — so use it for configuration or binding
 problems the host author can act on.
@@ -7125,8 +7148,8 @@ counted value against the model's real `ContextWindowTokens` before deciding.
 ## Read next
 
 - [Reliable runs](/guides/reliability/) — provider fallback chains and outgoing concurrency limits
-- [Choosing packages](/packages/)
-- [Agents and definitions](/concepts/agents/)
+- [Choosing packages](/packages/) — select the packages needed by your host and its integrations.
+- [Agents and definitions](/concepts/agents/) — configure and version the definitions that the catalog resolves.
 
 ---
 
@@ -7370,7 +7393,7 @@ deleted. Keep it for at least as long as any session or replay path that needs i
 
 ## Read next
 
-- [Sessions and conversations](/concepts/sessions/)
+- [Sessions and conversations](/concepts/sessions/) — retain conversation state and understand session lifetime.
 
 ---
 
@@ -7754,9 +7777,9 @@ operational information.
 
 ## Read next
 
-- [Runs and event recording](/concepts/runs/)
-- [Reliable runs](/guides/reliability/)
-- [Production deployment](/guides/production/)
+- [Runs and event recording](/concepts/runs/) — inspect recorded status, events, tokens, and recording limits.
+- [Reliable runs](/guides/reliability/) — configure durable execution and understand recovery limits.
+- [Production deployment](/guides/production/) — prepare migrations, replicas, health checks, and operational settings.
 
 ---
 
@@ -7772,25 +7795,25 @@ understand:
 ```mermaid
 flowchart TD
     accTitle: The two compatible surfaces and who owns the conversation
-    accDescr: Responses keeps conversation state on the server, reached either by previous_response_id or by an explicitly reserved conversation. Chat Completions carries its history in the request. Both resolve the model field to an Tracon agent, which then chooses its own provider model.
+    accDescr: Responses keeps conversation state on the server, reached either by previous_response_id or by an explicitly reserved conversation. Chat Completions carries its history in the request. Both resolve the model field to a Tracon agent, which then chooses its own provider model.
     RESP["POST /v1/responses"] --> SRV["Tracon owns the session"]
     CONV["POST /v1/conversations"] --> SRV
     PREV["previous_response_id"] --> SRV
     CHAT["POST /v1/chat/completions"] --> CLI["The client owns the message list"]
-    SRV --> PICK["model selects an Tracon agent"]
+    SRV --> PICK["model selects a Tracon agent"]
     CLI --> PICK
     PICK --> AGENT["Agent: instructions · tools · skills<br/>memory · guards · budgets"]
     AGENT --> MODEL["The provider model the agent binds to"]
 ```
 
 This is an **agent surface**, not a transparent model proxy. The request's `model`
-selects an Tracon agent. That agent then selects its provider model, instructions,
+selects a Tracon agent. That agent then selects its provider model, instructions,
 tools, skills, memory, guards, and budgets on the server.
 
 ## Responses API: recommended for stateful clients
 
 The official OpenAI SDK uses `client.responses.create(model=..., input=...)`; point
-the same client shape at Tracon and use an Tracon credential:
+the same client shape at Tracon and use a Tracon credential:
 
 ```python
 import os
@@ -8003,7 +8026,7 @@ for await (const frame of readSse(response)) {
 | OpenAI hosted tools | not a pass-through | not a pass-through | Configure Tracon tools/MCP instead |
 | Background Responses mode | no | no | Use `Prefer: respond-async` on the management run endpoint |
 
-Fields understood by the OpenAI parser can be accepted without becoming an
+Fields understood by the OpenAI parser can be accepted without becoming a
 Tracon feature. Do not assume every OpenAI hosted tool, storage flag, service
 tier, or retrieval surface is forwarded to the agent's provider. The server-side
 definition is authoritative.
@@ -8030,7 +8053,7 @@ your architecture permits.
 | `401` | Bearer token or API key is missing, invalid, revoked, or expired |
 | `403` | Role, scope, loopback, or tenant rule refused the call |
 | `404 model_not_found` | The selected Tracon agent does not resolve |
-| `422` | An Tracon content guard or idempotency contract rejected the request |
+| `422` | A Tracon content guard or idempotency contract rejected the request |
 | `429` | A rate or quota boundary was reached |
 | `502` | The configured upstream provider failed |
 
@@ -8421,7 +8444,7 @@ actions:
 
 | What the output says | What it means | What to do |
 |---|---|---|
-| `... NOT readable by this build` on a generation line | Rows carry an Tracon envelope generation **newer** than the build you are installing. You are downgrading, or deploying a mixed package graph | Do not deploy. Install the version that wrote those rows, or newer. This is a version selection mistake, not a data problem |
+| `... NOT readable by this build` on a generation line | Rows carry a Tracon envelope generation **newer** than the build you are installing. You are downgrading, or deploying a mixed package graph | Do not deploy. Install the version that wrote those rows, or newer. This is a version selection mistake, not a data problem |
 | `unreadable: session ...` on a sampled row | The Tracon envelope is fine; Microsoft Agent Framework cannot deserialize the body it wrote earlier. The message names both the recorded and the running framework version | Continue to step 2 |
 
 **2. Decide whether those sessions have to survive the upgrade.** They often do
@@ -9417,16 +9440,23 @@ and still reject a fenced payload at the application boundary.
 
 ## Read next
 
-- [Model providers](/guides/model-providers/)
-- [Agents and definitions](/concepts/agents/)
+- [Model providers](/guides/model-providers/) — register a provider and select an explicit model identifier.
+- [Agents and definitions](/concepts/agents/) — configure and version the definitions that the catalog resolves.
 
 ---
 
 # Test agents without model calls
 
+:::caution[Package availability]
+Tracon packages and templates are not published yet. Package-install examples on
+this page describe the release form and do not currently resolve from public
+registries. With authorized repository access, use the
+[source build instructions](/getting-started/first-agent/).
+:::
+
 `Tracon.Testing` runs your agent through the real Tracon HTTP, catalog, tool,
 recording, and streaming pipeline without a database or network model call. You
-control the provider response, then assert against the durable run model rather than
+control the provider response, then assert against the recorded run model rather than
 mocking internal services.
 
 ```mermaid
@@ -9684,6 +9714,13 @@ mistake instead of hiding it.
 
 # TypeScript client
 
+:::caution[Package availability]
+Tracon packages and templates are not published yet. Package-install examples on
+this page describe the release form and do not currently resolve from public
+registries. With authorized repository access, use the
+[source build instructions](/getting-started/first-agent/).
+:::
+
 `@tracon/client` is the npm counterpart to [`Tracon.Client`](/guides/cli/):
 a typed client for the management API (`/api/*`), generated from the same
 [OpenAPI document](/openapi/tracon.json), for a caller that is not on .NET —
@@ -9840,6 +9877,13 @@ sync.
 ---
 
 # Voice and live conversation
+
+:::caution[Package availability]
+Tracon packages and templates are not published yet. Package-install examples on
+this page describe the release form and do not currently resolve from public
+registries. With authorized repository access, use the
+[source build instructions](/getting-started/first-agent/).
+:::
 
 Tracon has three voice layers:
 
@@ -10294,9 +10338,9 @@ For the provider-hosted path:
 
 ## Read next
 
-- [Attachments and multimodal input](/guides/multimodal/)
-- [Observability and cost](/guides/observability/)
-- [Production deployment](/guides/production/)
+- [Attachments and multimodal input](/guides/multimodal/) — attach validated files, images, and audio to a conversation.
+- [Observability and cost](/guides/observability/) — interpret telemetry, pricing, and recorded token use.
+- [Production deployment](/guides/production/) — prepare migrations, replicas, health checks, and operational settings.
 
 ---
 
@@ -10351,7 +10395,7 @@ itself at a high value.
 
 A decorator must be thread-safe — the catalog can decorate agents
 concurrently — and must not swallow a genuine `OperationCanceledException`. If
-`Decorate` throws anything else, the catalog normalizes it into an
+`Decorate` throws anything else, the catalog normalizes it into a
 `TraconAgentSourceException` (the same shape a broken `IAgentSource`
 produces) rather than letting a raw, unclassified error reach the caller.
 
@@ -10626,6 +10670,13 @@ class comes from the built-in classifier instead, and the failure is logged.
 
 # Write your own job handler
 
+:::caution[Package availability]
+Tracon packages and templates are not published yet. Package-install examples on
+this page describe the release form and do not currently resolve from public
+registries. With authorized repository access, use the
+[source build instructions](/getting-started/first-agent/).
+:::
+
 `IJobHandler` executes a durable job under one **handler key** — a stable
 string such as `contoso.nightly-report`. The key is the job's identity: it is
 both how the job is classified and how the background worker picks the handler
@@ -10816,12 +10867,19 @@ handler actually receives a queued job.
 ## Read next
 
 - [Jobs, schedules, and queues](/guides/background-work/) — leasing, retries, cancellation, and multi-instance behavior
-- [Reliable runs](/guides/reliability/) — what happens to a queued run when a worker dies mid-flight
+- [Reliable runs](/guides/reliability/) — what happens to a queued run when a worker dies during execution
 - [Testing](/guides/testing/) — test package guidance
 
 ---
 
 # Write your own judge
+
+:::caution[Package availability]
+Tracon packages and templates are not published yet. Package-install examples on
+this page describe the release form and do not currently resolve from public
+registries. With authorized repository access, use the
+[source build instructions](/getting-started/first-agent/).
+:::
 
 `IRunJudge` scores a completed production run. A judge can be deterministic or
 model-backed. It is registered as a singleton and can receive concurrent calls, so
@@ -10920,7 +10978,7 @@ session history.
 
 ## Starting a run or model call
 
-If a judge starts an Tracon run, set `TraconRunOptions.Kind` to
+If a judge starts a Tracon run, set `TraconRunOptions.Kind` to
 `RunKind.Eval`. This keeps synthetic traffic out of sampling and cost statistics.
 Tracon also suppresses sampling while `JudgeAsync` runs, but that scope does
 not cover work that outlives the call.
@@ -10960,6 +11018,13 @@ timeouts, persistence, or HTTP responses.
 ---
 
 # Write your own store
+
+:::caution[Package availability]
+Tracon packages and templates are not published yet. Package-install examples on
+this page describe the release form and do not currently resolve from public
+registries. With authorized repository access, use the
+[source build instructions](/getting-started/first-agent/).
+:::
 
 The three built-in providers (`Tracon.PostgreSql`, `.SqlServer`, `.Sqlite`) cover
 most deployments. When none of them fit — a document database, an existing
@@ -11233,14 +11298,14 @@ object levels, or one that reaches itself again through its own members, fails t
 build with `TRC0012` instead of risking a schema the model's own error rate rises
 against once it gets this deep.
 
-🚨 **Put the attribute directly on the parameter, never with an explicit
+**Put the attribute directly on the parameter, never with an explicit
 `[property: ...]` target.** `[Description]`/`[Range]`/etc. on a positional record's
 parameter (`Rubric(... int Weight)`) reach the generator only when the attribute has
 no explicit target — `[property: Description(...)]` moves it to the generated
 property instead, which the generator never reads, and the member silently loses its
 description or constraint instead of failing to build.
 
-🚨 **Do not give the context a non-default naming policy.** Binding deserializes the
+**Do not give the context a non-default naming policy.** Binding deserializes the
 whole object through `JsonSerializerContext.Default`, so a
 `[JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase)]`
 on the context changes what JSON KEY binding expects (`camelCase`) while the schema
@@ -11667,7 +11732,7 @@ reachable; they just stop appearing in your Swagger UI or generated document.
 
 ## Read next
 
-- [HTTP API reference](/http-api/) — every operation, grouped by tag
+- [Agent operations](/http-api/agents/) — inspect a generated request and response contract
 - [Securing the endpoints](/getting-started/security/) — the authentication these conventions assume
 - [OpenAI-compatible API](/guides/openai-api/) — the other HTTP surface, with different rules
 
@@ -11819,11 +11884,12 @@ builder.AddTracon()
        });
 ```
 
-The same call works for vLLM and LM Studio. Nothing about the request leaves your
-network: no cloud account, no external endpoint, no data leaving the machine that
-runs it. This is the option for regulated or air-gapped environments that cannot
-send prompts to a third-party API — see [what Tracon deliberately is
-not](/getting-started/#what-it-deliberately-is-not).
+The same call works for vLLM and LM Studio. The model call then stays inside your
+network: no cloud account and no third-party endpoint on that path. This is the
+option for regulated or air-gapped environments that cannot send prompts to a
+third-party API. What the rest of the installation sends outward — exporters,
+webhooks, other configured providers — stays your host's decision; see [what Tracon
+deliberately is not](/getting-started/#what-it-deliberately-is-not).
 
 ## Trimming and native AOT
 
@@ -11934,6 +12000,13 @@ metadata will link straight to it.
 ---
 
 # Compatibility
+
+:::caution[Package availability]
+Tracon packages and templates are not published yet. Package-install examples on
+this page describe the release form and do not currently resolve from public
+registries. With authorized repository access, use the
+[source build instructions](/getting-started/first-agent/).
+:::
 
 Use this page before you choose a target framework, database, model provider, or
 deployment shape. A check means the package makes that promise. A dash means the
@@ -13070,7 +13143,7 @@ employees and independent contractors, **and less than 1,000,000 USD** (2019,
 adjusted for inflation) total revenue in the prior tax year.
 
 An individual, a student, a hobby project and an open source project are all under
-that threshold. So is most of the market.
+that threshold.
 
 Above the threshold, using Tracon needs a commercial licence. Write to
 <hfarukatasoy@gmail.com>.
@@ -13160,10 +13233,9 @@ ones. Both are also at the root of the repository.
 
 # Read contract views
 
-Two ways exist today to put a run's cost or status next to your own entity in a
-report: page through `GET /api/runs` and join in memory, or connect straight to
-Tracon's internal tables and risk breaking on the next release. `runs_v1` is a
-third way — a narrow, versioned, read-only SQL view built for exactly this.
+Use `runs_v1` to join run status and cost with your application's SQL data. It is
+an opt-in, versioned, read-only view. Use `GET /api/runs` for HTTP access; avoid
+coupling reports to Tracon's internal table structure.
 
 ```mermaid
 flowchart LR
@@ -13312,10 +13384,17 @@ version afterward.
 
 # Versions and upgrades
 
+:::caution[Package availability]
+Tracon packages and templates are not published yet. Package-install examples on
+this page describe the release form and do not currently resolve from public
+registries. With authorized repository access, use the
+[source build instructions](/getting-started/first-agent/).
+:::
+
 Tracon is a pre-1.0 package family. Treat version selection as part of your
 application architecture, not as a restore detail.
 
-Tracon ships 20 NuGet packages and one npm package (`@tracon/client`), all
+The release process produces 20 NuGet packages and one npm package (`@tracon/client`), all
 cut from the same `v*` tag and sharing one version line: there is no split between
 a stable subset and a preview subset. The public surface carries no compatibility
 promise for as long as that line stays pre-1.0 - a narrowing or a reshaped type is
@@ -13494,7 +13573,7 @@ release is blocked rather than shipped with a footnote.
 The table above splits ownership for a reason. Tracon promises its own
 envelope stays readable across the window. It cannot promise the same for the
 **state body**, which Microsoft Agent Framework writes and owns: a Microsoft
-Agent Framework version bump inside an Tracon upgrade can make older
+Agent Framework version bump inside a Tracon upgrade can make older
 bodies unreadable, and that is Microsoft's compatibility surface, not
 Tracon's.
 
@@ -13581,6 +13660,13 @@ content.
 ---
 
 # Troubleshooting
+
+:::caution[Package availability]
+Tracon packages and templates are not published yet. Package-install examples on
+this page describe the release form and do not currently resolve from public
+registries. With authorized repository access, use the
+[source build instructions](/getting-started/first-agent/).
+:::
 
 Start with the first failing boundary. Do not debug a model response while the agent
 cannot compile, or debug the console while the API returns `401`.
@@ -14841,6 +14927,6 @@ the management HTTP API so the fields remain explicit.
 - [Securing the endpoints](/getting-started/security/) — why the shell is
   exempt from the bearer layer
 - [The HTTP API](/http-api/) — everything the console does, as requests
-- [Client-side tools and the embeddable widget](/guides/client-side-tools/)
+- [Client-side tools and the embeddable widget](/guides/client-side-tools/) — let a client execute approved tools through the widget contract.
   — a tool whose body runs in the browser, and the chat widget that runs it
 

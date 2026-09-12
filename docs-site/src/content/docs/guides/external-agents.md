@@ -8,7 +8,7 @@ Tracon supports three different external-agent directions. Keep them separate:
 | Direction | Purpose | Registration | HTTP surface |
 |---|---|---|---|
 | MCP client | Bring remote tools, prompts, and resources into Tracon | `UseMcp()` | Managed through `/api/mcp-servers/*` |
-| MCP server | Publish an Tracon agent as an MCP tool | `UseMcpServer()` | `/tracon/mcp` by default |
+| MCP server | Publish a Tracon agent as an MCP tool | `UseMcpServer()` | `/tracon/mcp` by default |
 | A2A server | Publish an agent through the agent-to-agent protocol | `UseA2A()` | `/tracon/a2a/{agent}` by default |
 
 ```mermaid
@@ -220,5 +220,5 @@ recording, tenancy, trace, cost, quota, and audit infrastructure.
 ## Read next
 
 - [Tools, skills, and MCP](/concepts/tools/) — the other direction: consuming an MCP server rather than publishing one
-- [Securing the endpoints](/getting-started/security/) — an exposed agent is a public surface, and its budget is the only limit
+- [Securing the endpoints](/getting-started/security/) — bind exposed agents to authentication, tenant scopes, and execution limits
 - [Compatibility matrices](/reference/compatibility/) — which protocol revisions and transports are supported

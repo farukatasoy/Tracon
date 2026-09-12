@@ -43,7 +43,7 @@ public sealed class CapabilityExampleTests
 
     /// <summary>
     /// Extension methods from Microsoft's own packages that an example is
-    /// allowed to show. An Tracon member NEVER belongs here — the point of
+    /// allowed to show. A Tracon member NEVER belongs here — the point of
     /// the list is to say "this name is not ours", so adding one of ours would
     /// be visible as exactly the wrong claim.
     /// </summary>

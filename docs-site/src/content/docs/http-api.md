@@ -226,6 +226,6 @@ reachable; they just stop appearing in your Swagger UI or generated document.
 
 ## Read next
 
-- [HTTP API reference](/http-api/) — every operation, grouped by tag
+- [Agent operations](/http-api/agents/) — inspect a generated request and response contract
 - [Securing the endpoints](/getting-started/security/) — the authentication these conventions assume
 - [OpenAI-compatible API](/guides/openai-api/) — the other HTTP surface, with different rules

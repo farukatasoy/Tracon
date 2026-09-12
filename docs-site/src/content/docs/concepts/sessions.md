@@ -301,6 +301,6 @@ console's origin.
 
 ## Read next
 
-- [Runs and recording](/concepts/runs/)
-- [Attachments and multimodal input](/guides/multimodal/)
-- [Workflows](/concepts/workflows/)
+- [Runs and recording](/concepts/runs/) — inspect recorded status, events, tokens, and recording limits.
+- [Attachments and multimodal input](/guides/multimodal/) — attach validated files, images, and audio to a conversation.
+- [Workflows](/concepts/workflows/) — coordinate multiple agents with checkpoints and human input.

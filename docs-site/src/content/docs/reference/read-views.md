@@ -4,10 +4,9 @@ description: Query Tracon's run data directly with your own SQL or an EF Core ke
 slug: reference/read-views
 ---
 
-Two ways exist today to put a run's cost or status next to your own entity in a
-report: page through `GET /api/runs` and join in memory, or connect straight to
-Tracon's internal tables and risk breaking on the next release. `runs_v1` is a
-third way — a narrow, versioned, read-only SQL view built for exactly this.
+Use `runs_v1` to join run status and cost with your application's SQL data. It is
+an opt-in, versioned, read-only view. Use `GET /api/runs` for HTTP access; avoid
+coupling reports to Tracon's internal table structure.
 
 ```mermaid
 flowchart LR

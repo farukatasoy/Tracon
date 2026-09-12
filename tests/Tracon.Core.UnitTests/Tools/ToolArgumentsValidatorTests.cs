@@ -48,7 +48,7 @@ public sealed class ToolArgumentsValidatorTests
         var inner = AIFunctionFactory.Create(() => { ran = true; return "should never run"; }, "tool");
         var wrapped = Wrap(inner, new ThrowingValidator());
 
-        // "Rejects" means an TraconException carrying a SAFE reason - not
+        // "Rejects" means a TraconException carrying a SAFE reason - not
         // the validator's own exception propagating and not the real body
         // running. This is the same fail-closed shape AuthorizingAIFunction
         // uses for a throwing IToolAuthorizationHandler.

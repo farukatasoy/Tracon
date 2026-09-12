@@ -68,7 +68,7 @@ internal sealed class RequiredBindingValidator(
             if (TraconExtensionPoints.Find(contract) is null)
             {
                 throw new InvalidOperationException(
-                    $"{contract.Name} was declared as a required custom binding, but it is not an Tracon " +
+                    $"{contract.Name} was declared as a required custom binding, but it is not a Tracon " +
                     $"extension point. RequireCustomBinding accepts these seven contracts: " +
                     $"{TraconExtensionPoints.ContractNames}.");
             }

@@ -7,7 +7,7 @@ namespace Tracon;
 /// Startup checks that the MCP and A2A external surfaces share.
 /// </summary>
 /// <remarks>
-/// The goal is the same application of the no-surprises rule: an explicit failure instead of an external
+/// Both apply the no-surprises rule: an explicit failure instead of an external
 /// surface that silently half works. <see cref="EnsureRemoteAccessNotCombined"/> runs at
 /// the moment of the <c>MapTraconMcpServer</c>/<c>MapTraconA2A</c> call (endpoint
 /// mapping, BEFORE <c>app.Run()</c>) and does not touch the database. The approval guard

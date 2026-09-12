@@ -4,7 +4,7 @@ description: A complete map of Tracon capabilities, with the package, registrati
 slug: capabilities
 ---
 
-Tracon is a library, not a hosted service. You choose the pieces, keep control of
+Tracon is a .NET package family that adds a control plane on Microsoft Agent Framework. You choose the pieces, keep control of
 the dependency graph, and run the control plane inside your own .NET application.
 This page is the inventory: what exists, where it lives, and what turns it on.
 
@@ -276,9 +276,9 @@ exists. Two channels tell it, and both are generated from this page.
 | Tool diagnostics | Automatic with `Tracon.Core` | The `Tracon.Tools` category reports a tool method the generator cannot use |
 
 The map is refreshed by deleting `AGENTS.md` and building again; the file is never
-rewritten in place because you may have added notes to it. The template
-`dotnet new tracon-api` sets the property, so a generated project has the map
-from its first build. A repository that already keeps its own `AGENTS.md` never
+rewritten in place because you may have added notes to it. The project template
+sets the property, so a project generated from it has the map from its first
+build. A repository that already keeps its own `AGENTS.md` never
 receives the map file at all, and copying the capability list into it would only
 create a second copy to maintain: add one line naming `Tracon.LocalReference.md`
 instead, which is what `TRC0402` asks for and what the first section of that file

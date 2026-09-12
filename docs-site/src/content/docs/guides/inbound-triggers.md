@@ -7,7 +7,7 @@ An inbound trigger is the reverse of an [outbound webhook](/concepts/governance/
 instead of Tracon notifying another system, another system starts a run in
 Tracon. A Slack slash command, a support-desk ticket event, or a queue
 consumer can all become the start of an agent or workflow run without holding
-an Tracon API key.
+a Tracon API key.
 
 The accept endpoint is always queued and always returns `202 Accepted` — there
 is no synchronous mode. A caller that needs the model's answer inline should
@@ -108,7 +108,7 @@ is `null` until the queued job runs — poll `GET /api/jobs/{jobId}` instead.
 ## No bearer token, by design
 
 The accept endpoint (`POST /api/triggers/{tenantId}/{name}`) carries no
-`Authorization` requirement — an external system cannot present an Tracon
+`Authorization` requirement — an external system cannot present a Tracon
 API key or the static `AuthToken`. Its entire authentication story is the
 HMAC signature: a request without a valid, in-window signature never reaches
 the queue.
@@ -184,4 +184,4 @@ system's webhook configuration.
 
 - [Jobs, schedules, and queues](/guides/background-work/) — how a queued run actually executes
 - [Runs and recording](/concepts/runs/) — the four ways a run starts
-- [Security](/getting-started/security/)
+- [Security](/getting-started/security/) — bind endpoint authorization and tenant resolution to your host.

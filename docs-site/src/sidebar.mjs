@@ -25,14 +25,16 @@ const httpApiSidebar = generated('http-api-sidebar');
 export const sidebar = [
   {
     label: 'Start here',
+    collapsed: false,
     items: [
-      { label: 'What Tracon is', slug: 'getting-started', badge: 'Preview' },
+      { label: 'What Tracon is', slug: 'getting-started' },
       { label: 'Your first agent', slug: 'getting-started/first-agent' },
       { label: 'Complete capability map', slug: 'capabilities' },
       { label: 'Architecture', slug: 'concepts' },
     ],
   },
   {
+    collapsed: true,
     label: 'Build agents',
     items: [
       { label: 'Agents and definitions', slug: 'concepts/agents' },
@@ -47,6 +49,7 @@ export const sidebar = [
     ],
   },
   {
+    collapsed: true,
     label: 'Orchestrate',
     items: [
       { label: 'Sessions and conversations', slug: 'concepts/sessions' },
@@ -55,33 +58,30 @@ export const sidebar = [
     ],
   },
   {
-    label: 'Test and improve',
+    collapsed: true,
+    label: 'Test and evaluate',
     items: [
       { label: 'Test without model calls', slug: 'guides/testing' },
       { label: 'Evaluation and experiments', slug: 'concepts/evaluation' },
     ],
   },
   {
-    label: 'Integrate and expose',
+    collapsed: true,
+    label: 'Integrate',
     items: [
       { label: 'OpenAI-compatible API', slug: 'guides/openai-api' },
       { label: 'MCP server and A2A', slug: 'guides/external-agents' },
       { label: 'Client-side tools and the embeddable widget', slug: 'guides/client-side-tools' },
       { label: 'Inbound triggers', slug: 'guides/inbound-triggers' },
       { label: 'HTTP API conventions', slug: 'http-api' },
+      { label: 'Coding agent integration', slug: 'guides/coding-agents' },
     ],
   },
   {
-    label: 'Operate in production',
+    collapsed: true,
+    label: 'Operate',
     items: [
       { label: 'Persistence', slug: 'getting-started/persistence' },
-      { label: 'Write your own store', slug: 'guides/write-your-own-store' },
-      { label: 'Write your own judge', slug: 'guides/write-your-own-judge' },
-      { label: 'Write your own agent source', slug: 'guides/write-your-own-agent-source' },
-      { label: 'Write your own agent decorator', slug: 'guides/write-your-own-agent-decorator' },
-      { label: 'Write your own tool', slug: 'guides/write-your-own-tool' },
-      { label: 'Write your own error classifier', slug: 'guides/write-your-own-error-classifier' },
-      { label: 'Write your own job handler', slug: 'guides/write-your-own-job-handler' },
       { label: 'Security', slug: 'getting-started/security' },
       { label: 'Runs and recording', slug: 'concepts/runs' },
       { label: 'Reliable runs', slug: 'guides/reliability' },
@@ -93,17 +93,24 @@ export const sidebar = [
       { label: 'Embedding into a host application', slug: 'guides/embedding' },
       { label: 'Two connection planes: EF Core and Tracon', slug: 'guides/ef-core' },
       { label: 'Troubleshooting', slug: 'troubleshooting' },
+      { label: 'The console', slug: 'ui' },
     ],
   },
   {
-    label: 'The console',
-    items: [{ label: 'UI guide', slug: 'ui' }],
+    collapsed: true,
+    label: 'Extend',
+    items: [
+      { label: 'Write your own store', slug: 'guides/write-your-own-store' },
+      { label: 'Write your own judge', slug: 'guides/write-your-own-judge' },
+      { label: 'Write your own agent source', slug: 'guides/write-your-own-agent-source' },
+      { label: 'Write your own agent decorator', slug: 'guides/write-your-own-agent-decorator' },
+      { label: 'Write your own tool', slug: 'guides/write-your-own-tool' },
+      { label: 'Write your own error classifier', slug: 'guides/write-your-own-error-classifier' },
+      { label: 'Write your own job handler', slug: 'guides/write-your-own-job-handler' },
+    ],
   },
   {
-    label: 'Coding agents',
-    items: [{ label: 'Agent map and diagnostics', slug: 'guides/coding-agents' }],
-  },
-  {
+    collapsed: true,
     label: 'Reference',
     items: [
       { label: 'Configuration', slug: 'reference/configuration' },
@@ -135,11 +142,10 @@ export const sectionImages = {
   'Start here': 'overview',
   'Build agents': 'overview',
   Orchestrate: 'overview',
-  'Test and improve': 'operate',
-  'Integrate and expose': 'reference',
-  'Operate in production': 'operate',
-  'The console': 'console',
-  'Coding agents': 'reference',
+  'Test and evaluate': 'operate',
+  'Integrate': 'reference',
+  'Operate': 'operate',
+  Extend: 'reference',
   Reference: 'reference',
   'HTTP API reference': 'reference',
   'API reference': 'reference',
@@ -191,5 +197,16 @@ export function imageByRoute() {
 
 /** The image a page should advertise. Never returns nothing. */
 export function imageForRoute(route, { exact, byPrefix } = imageByRoute()) {
+  if (route === 'ui') return 'console';
   return exact.get(route) ?? byPrefix.get(route.split('/')[0]) ?? defaultImage;
+}
+
+/** Human-readable location, shared by page headings and search metadata. */
+export function sectionForRoute(route) {
+  if (route === 'api' || route.startsWith('api/')) return '.NET API';
+  if (route.startsWith('http-api/')) return 'HTTP API';
+  for (const section of sidebar) {
+    if (section.items.some((item) => item.slug === route)) return section.label;
+  }
+  return 'Documentation';
 }

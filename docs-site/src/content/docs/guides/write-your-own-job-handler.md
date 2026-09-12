@@ -3,6 +3,13 @@ title: Write your own job handler
 description: Implement a safe IJobHandler for the durable job queue and verify it with Tracon's executable contract suite.
 ---
 
+:::caution[Package availability]
+Tracon packages and templates are not published yet. Package-install examples on
+this page describe the release form and do not currently resolve from public
+registries. With authorized repository access, use the
+[source build instructions](/getting-started/first-agent/).
+:::
+
 `IJobHandler` executes a durable job under one **handler key** — a stable
 string such as `contoso.nightly-report`. The key is the job's identity: it is
 both how the job is classified and how the background worker picks the handler
@@ -193,5 +200,5 @@ handler actually receives a queued job.
 ## Read next
 
 - [Jobs, schedules, and queues](/guides/background-work/) — leasing, retries, cancellation, and multi-instance behavior
-- [Reliable runs](/guides/reliability/) — what happens to a queued run when a worker dies mid-flight
+- [Reliable runs](/guides/reliability/) — what happens to a queued run when a worker dies during execution
 - [Testing](/guides/testing/) — test package guidance

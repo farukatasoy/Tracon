@@ -115,7 +115,7 @@ only mapped when persistence is configured.
 ## What this sample deliberately does not add
 
 Neither `InMemoryBufferAttachmentStorage` nor `BoundedChannelRunEventSink` is
-an Tracon type — they live only here. Tracon takes no dependency on
+a Tracon type — they live only here. Tracon takes no dependency on
 any specific object store or messaging library; a real deployment derives its
 own implementation from whichever client it already uses (S3, Azure Blob,
 Kafka, SQS, an internal bus).

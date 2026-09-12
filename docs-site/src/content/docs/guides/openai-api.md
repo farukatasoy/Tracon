@@ -13,25 +13,25 @@ understand:
 ```mermaid
 flowchart TD
     accTitle: The two compatible surfaces and who owns the conversation
-    accDescr: Responses keeps conversation state on the server, reached either by previous_response_id or by an explicitly reserved conversation. Chat Completions carries its history in the request. Both resolve the model field to an Tracon agent, which then chooses its own provider model.
+    accDescr: Responses keeps conversation state on the server, reached either by previous_response_id or by an explicitly reserved conversation. Chat Completions carries its history in the request. Both resolve the model field to a Tracon agent, which then chooses its own provider model.
     RESP["POST /v1/responses"] --> SRV["Tracon owns the session"]
     CONV["POST /v1/conversations"] --> SRV
     PREV["previous_response_id"] --> SRV
     CHAT["POST /v1/chat/completions"] --> CLI["The client owns the message list"]
-    SRV --> PICK["model selects an Tracon agent"]
+    SRV --> PICK["model selects a Tracon agent"]
     CLI --> PICK
     PICK --> AGENT["Agent: instructions · tools · skills<br/>memory · guards · budgets"]
     AGENT --> MODEL["The provider model the agent binds to"]
 ```
 
 This is an **agent surface**, not a transparent model proxy. The request's `model`
-selects an Tracon agent. That agent then selects its provider model, instructions,
+selects a Tracon agent. That agent then selects its provider model, instructions,
 tools, skills, memory, guards, and budgets on the server.
 
 ## Responses API: recommended for stateful clients
 
 The official OpenAI SDK uses `client.responses.create(model=..., input=...)`; point
-the same client shape at Tracon and use an Tracon credential:
+the same client shape at Tracon and use a Tracon credential:
 
 ```python
 import os
@@ -244,7 +244,7 @@ for await (const frame of readSse(response)) {
 | OpenAI hosted tools | not a pass-through | not a pass-through | Configure Tracon tools/MCP instead |
 | Background Responses mode | no | no | Use `Prefer: respond-async` on the management run endpoint |
 
-Fields understood by the OpenAI parser can be accepted without becoming an
+Fields understood by the OpenAI parser can be accepted without becoming a
 Tracon feature. Do not assume every OpenAI hosted tool, storage flag, service
 tier, or retrieval surface is forwarded to the agent's provider. The server-side
 definition is authoritative.
@@ -271,7 +271,7 @@ your architecture permits.
 | `401` | Bearer token or API key is missing, invalid, revoked, or expired |
 | `403` | Role, scope, loopback, or tenant rule refused the call |
 | `404 model_not_found` | The selected Tracon agent does not resolve |
-| `422` | An Tracon content guard or idempotency contract rejected the request |
+| `422` | A Tracon content guard or idempotency contract rejected the request |
 | `429` | A rate or quota boundary was reached |
 | `502` | The configured upstream provider failed |
 

@@ -102,14 +102,14 @@ object levels, or one that reaches itself again through its own members, fails t
 build with `TRC0012` instead of risking a schema the model's own error rate rises
 against once it gets this deep.
 
-🚨 **Put the attribute directly on the parameter, never with an explicit
+**Put the attribute directly on the parameter, never with an explicit
 `[property: ...]` target.** `[Description]`/`[Range]`/etc. on a positional record's
 parameter (`Rubric(... int Weight)`) reach the generator only when the attribute has
 no explicit target — `[property: Description(...)]` moves it to the generated
 property instead, which the generator never reads, and the member silently loses its
 description or constraint instead of failing to build.
 
-🚨 **Do not give the context a non-default naming policy.** Binding deserializes the
+**Do not give the context a non-default naming policy.** Binding deserializes the
 whole object through `JsonSerializerContext.Default`, so a
 `[JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase)]`
 on the context changes what JSON KEY binding expects (`camelCase`) while the schema

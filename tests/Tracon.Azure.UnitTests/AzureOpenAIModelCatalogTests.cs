@@ -59,7 +59,7 @@ public sealed class AzureOpenAIModelCatalogTests
     public void Deployment_not_in_the_catalog_is_not_rejected()
     {
         // The catalog is not a validation list (K-032): opening a new
-        // deployment in Azure should not have to wait for an Tracon
+        // deployment in Azure should not have to wait for a Tracon
         // configuration update.
         var provider = new AzureOpenAIModelProvider(
             AzureOpenAIProviderNames.AzureOpenAI,

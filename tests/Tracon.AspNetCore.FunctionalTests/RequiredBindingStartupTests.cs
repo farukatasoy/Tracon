@@ -152,7 +152,7 @@ public sealed class RequiredBindingStartupTests
             async () => await TraconTestHost.StartAsync(
                 configureTracon: static builder => builder.RequireCustomBinding<IRunStore>()));
 
-        exception.Message.ShouldContain("not an Tracon extension point");
+        exception.Message.ShouldContain("not a Tracon extension point");
         exception.Message.ShouldContain(nameof(ITenantContext));
     }
 

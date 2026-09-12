@@ -4,6 +4,13 @@ description: Teach a coding agent what Tracon already does, via the capability m
 slug: guides/coding-agents
 ---
 
+:::caution[Package availability]
+Tracon packages and templates are not published yet. The `dotnet new tracon-api`
+line below describes the release form and does not currently resolve from public
+registries. With authorized repository access, use the
+[source build instructions](/getting-started/first-agent/).
+:::
+
 A coding agent cannot use a capability it does not know exists. It will write a retry
 loop around a chat client, hand-roll an approval queue, or invent a cost table —
 carefully, and for no reason, because Tracon ships all three.
@@ -54,7 +61,7 @@ flowchart LR
 
 ### `AGENTS.md` — the capability map
 
-Written once to your **repository root**, under 10 KB, and read by most coding agents
+Written once to your **repository root**, about 10 KB, and read by most coding agents
 at the start of a session. It names every registration entry point, the package it
 lives in, and the rule each capability group obeys.
 
@@ -118,9 +125,9 @@ every page — three sizes for three questions, published on the documentation s
 
 - [`llms.txt`](/llms.txt) — the capability map, then **which page answers
   what**: one line per hand-written page, with its title, address, and subject. About
-  17 KB.
+  20 KB.
 - [`llms-full.txt`](/llms-full.txt) — every guide, concept, and reference
-  page concatenated, about 400 KB.
+  page concatenated, about 700 KB.
 
 The middle layer is the one to use. The map names a capability but does not explain it;
 the index names the one page that does, and reading that page costs a fraction of the

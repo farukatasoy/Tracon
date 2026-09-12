@@ -16,7 +16,7 @@ import sharp from 'sharp';
 const SIZE = 128;
 
 const here = dirname(fileURLToPath(import.meta.url));
-const source = resolve(here, '../public/favicon.svg');
+const source = resolve(here, '../../assets/tracon-mark.svg');
 const target = resolve(here, '../../assets/icon.png');
 
 const svg = readFileSync(source);
@@ -25,3 +25,10 @@ const png = await sharp(svg).resize(SIZE, SIZE).png({ compressionLevel: 9 }).toB
 mkdirSync(dirname(target), { recursive: true });
 writeFileSync(target, png);
 console.log(`assets/icon.png  ${png.length} B (${SIZE}x${SIZE}, from ${source})`);
+
+// Commit static derivatives so neither the console nor package build needs the site.
+for (const destination of ['../public/favicon.svg', '../../src/Tracon.UI/frontend/src/assets/tracon-mark.svg']) {
+  const path = resolve(here, destination);
+  mkdirSync(dirname(path), { recursive: true });
+  writeFileSync(path, svg);
+}

@@ -101,7 +101,7 @@ namespace Tracon;
 /// circuit breaker count a healthy provider as failing.
 /// </para>
 /// <para>
-/// An <see cref="TraconException"/> thrown from
+/// A <see cref="TraconException"/> thrown from
 /// <see cref="CreateChatClient"/> is wrapped as a compilation error naming the
 /// agent; every other exception propagates raw. Use it for a configuration or
 /// binding problem the host author can act on.

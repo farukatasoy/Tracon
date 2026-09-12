@@ -14,7 +14,7 @@ namespace Tracon.Generators.UnitTests;
 /// </summary>
 /// <remarks>
 /// The compilation is deliberately NOT named <c>Tracon.*</c>: the analyzer
-/// only reports on symbols that come from an Tracon assembly, and a test
+/// only reports on symbols that come from a Tracon assembly, and a test
 /// assembly with that name would satisfy the check by accident. The Tracon
 /// assemblies are referenced for real instead.
 /// </remarks>

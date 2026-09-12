@@ -434,5 +434,5 @@ idempotent.
 ## Read next
 
 - [Write your own job handler](/guides/write-your-own-job-handler/) — the `IJobHandler` at-least-once contract, and the reusable test suite that verifies it
-- [Reliable runs](/guides/reliability/) — what happens to a queued run when a worker dies mid-flight
+- [Reliable runs](/guides/reliability/) — what happens to a queued run when a worker dies during execution
 - [Production deployment](/guides/production/) — where the worker process lives and how many of them you run
