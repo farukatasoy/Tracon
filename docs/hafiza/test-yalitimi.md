@@ -14,7 +14,7 @@
 
 ## Vakalar
 
-- **🚨 Tam `dotnet test AgentPrism.slnx -c Release --no-build -maxcpucount:1`
+- **🚨 Tam `dotnet test Tracon.slnx -c Release --no-build -maxcpucount:1`
   koşumu ara sıra flaky kırılır — izole koşumda hep geçer (Faz 103).** Beş ayrı
   koşumda beş FARKLI test kırıldı: `ImageAttachmentWriterTests` (port çakışması,
   "Address already in use"), `SqliteDialectTests.Polymorphic_JSON_round_trips_intact`
@@ -22,9 +22,9 @@
   ÜRÜN KUSURU çıktı — aşağıya bak; sınıfa yanlış yazılmıştı**),
   `OnlineEvalJobHandlerTests.Judge_timeout_cuts_off_the_wait_when_the_judge_ignores_cancellation`
   (20ms iç timeout'a karşı 1s dış test sınırı — thread-pool starvation altında
-  50x marj bile tükeniyor), `AgentPrism.Ui.E2ETests.UiTests.Playground_voice_mode_opens_microphone_and_shows_transcript`
+  50x marj bile tükeniyor), `Tracon.Ui.E2ETests.UiTests.Playground_voice_mode_opens_microphone_and_shows_transcript`
   (Faz 130: `GetByTestId("voice-transcript")` 30s Playwright timeout'una takıldı,
-  izole koşumda 2.5s'de geçti), `AgentPrism.Ui.E2ETests.UiTests.Runs_screen_lists_only_roots_by_default`
+  izole koşumda 2.5s'de geçti), `Tracon.Ui.E2ETests.UiTests.Runs_screen_lists_only_roots_by_default`
   (Faz 141: aynı 30s `WaitForAsync` deseni bir kez kırıldı, izole 4/4 ve tüm
   proje 58/58 geçti). Altısı da kendi projesinde tek başına 100% geçti.
   Şüphe: binlerce testin aynı anda paylaştığı port/dosya/thread-pool kaynağı —
@@ -56,7 +56,7 @@
   geçti.
 - **🚨 `MeterListener` process-wide'dır; süzgeç `Meter` INSTANCE'ına bağlanır,
   ismine değil** (Faz 134'te gerçekten çöktü: izole 1/1 yeşil, yeni eşzamanlı
-  bir testle 3/3 kırık). Her host `new Meter(AgentPrismDiagnostics.MeterName)`
+  bir testle 3/3 kırık). Her host `new Meter(TraconDiagnostics.MeterName)`
   kurar — AYNI isim, FARKLI instance. **Kural:** teste kendi `IMeterFactory`'sini
   ver, `ReferenceEquals(instrument.Meter, meter)` ile süz —
   `Fakes/MetricTestHelpers.cs` (birim), `Infrastructure/TestMeterIsolation.cs`
@@ -108,9 +108,9 @@
   basina gecti, ikinci tam kosumda **870/870** yesil geldi. Yuk altinda
   kirilgan bir test; degisiklikle ilgisi yoktu. Aday listesine **F-102** olarak
   yazildi — sessiz birakilmadi.
-  **Ikinci vaka (2026-08-24, Faz 95 kapanisi):** `AgentPrism.Workflows.UnitTests.WorkflowHumanInTheLoopTests.A_rejection_response_also_flows_through_execution`
+  **Ikinci vaka (2026-08-24, Faz 95 kapanisi):** `Tracon.Workflows.UnitTests.WorkflowHumanInTheLoopTests.A_rejection_response_also_flows_through_execution`
   tam kosumda dustu (`Sequence contains no matching element`), tek basina VE
-  proje tek basina (102/102) gecti. Faz 95 `src/AgentPrism.Workflows`'a hic
+  proje tek basina (102/102) gecti. Faz 95 `src/Tracon.Workflows`'a hic
   dokunmadi — nedensellik dislaniyor. Ucuncu tam kosum 20/20 proje yesil
   donuncu dogrulandi. F-102'nin sinifi `Ui.E2ETests`'e ozgu degil, tam
   cozum kosumunda HERHANGI bir projede gorulebilir.
@@ -123,11 +123,11 @@
   by another process"* + `Sequence contains no matching element`. Bu bir URUN
   KUSURU DEGILDIR: `dotnet new` sablon deposu kullanici genelindedir, test
   basina yalitilmaz. **Ayirt etme**: tek basina kostur —
-  `dotnet test tests/AgentPrism.Package.Tests -c Release --no-build`; 10/10
+  `dotnet test tests/Tracon.Package.Tests -c Release --no-build`; 10/10
   gecerse kilit cakismasidir. Ayni kosumda iki kez ust uste duserse gercek
   kusurdur. Faz 58'de tam paket bir kez 3695/3695 yesil, ikinci kez bu tek
   testte dustu, izole kosumda 10/10 gecti.
-- **🚨 `AgentPrism.Ui.E2ETests` tam kosarken (55 test) zamanlama yarisi altinda
+- **🚨 `Tracon.Ui.E2ETests` tam kosarken (55 test) zamanlama yarisi altinda
   kirilgan tekil testler cikabilir — F-102'nin Playwright hali** (2026-08-19,
   Faz 65 kapanisi). `Runs_button_on_session_page_navigates_to_filtered_list`
   tam kosumda 3 denemeden 2'sinde dustu (`tbody tr` sayisi dugme etiketiyle
@@ -175,7 +175,7 @@ Kural: bir dinleyiciyi **tam olarak bir kez** yık. Sınıf taraması (2026-08-3
 
 ## 🚨 Bir global sahte `TimeProvider` kaydı arka plan servisini de dondurur (Faz 128)
 
-`AgentPrismTestHost.StartAsync`'te `services.AddSingleton<TimeProvider>(fakeClock)`
+`TraconTestHost.StartAsync`'te `services.AddSingleton<TimeProvider>(fakeClock)`
 yalnız test edilen KODU değil, **host'un kendi arka plan servislerini** de
 etkiler — `JobWorkerBackgroundService`'in poll/kira-yenileme döngüsü AYNI
 `TimeProvider`'ı okur. Elle ilerleyen bir sahte saat (`ManualTimeProvider`,
@@ -191,13 +191,13 @@ SENKRON yolu sahte saatle test et. Vaka: `RunDeadlineTests.Deadline_is_enforced_
 
 ## Playwright E2E'de yuk kaynakli gezinme zaman asimi (Faz 161)
 
-`AgentPrism.Ui.E2ETests` tam kosumda **her seferinde baska bir test** 30 sn'lik
+`Tracon.Ui.E2ETests` tam kosumda **her seferinde baska bir test** 30 sn'lik
 `GotoAsync` zaman asimiyla dusebiliyor (olculdu 2026-09-11: once
 `Tools_screen_shows_call_count`, sonra `Skill_created_from_UI_is_listed`,
 ucuncu kosum 58/58 yesil). Ucu de izole gecti.
 
 🚨 "Tek basina geciyor" TEK BASINA yeterli DEGIL. Uc kanit birlikte arandi:
-degisiklik o yuzeye hic dokunmuyor (`git status | grep AgentPrism.UI` bos) ·
+degisiklik o yuzeye hic dokunmuyor (`git status | grep Tracon.UI` bos) ·
 dusen test **degisiyor** (kod kusuru ayni testi dusurur) · E2E host'u yeni
 yetenegi hic kaydetmiyor (`grep -rn "UseLiveVoice" tests/...E2ETests/` bos).
 Biri tutmuyorsa kod yolu okunur.

@@ -3,7 +3,7 @@
 > **Durum:** ✅ Tamamlandı (2026-08-26)
 > **Kaynak:** [`arsiv/kesif/2026-08-23-yapisal-sorun-envanteri.md`](../kesif/2026-08-23-yapisal-sorun-envanteri.md) — **kalem 17**. Bu faz bir `F-NN` adayından gelmez
 > **Önkoşul:** [Faz 106](106-AGENT-DERLEYICI-AYRISTIRMA.md) — teknik zorunluluk yoktur; yapısal tur compiler'dan runtime wrapper'a ilerler
-> **Paketler:** `AgentPrism.Core`
+> **Paketler:** `Tracon.Core`
 > **Yeni paket:** Yok · **Migration:** Yok
 > **Public API:** Büyümüyor. `RunRecordingAgent` constructor ve davranışı değişmez; `PublicAPI.Shipped.txt` girdisi bugün **0**
 > **Tüketici yüzeyi:** Yok. Public imza, XML metni ve observable contract değişmez
@@ -38,7 +38,7 @@
 - [x] Store/sink failure testleri run davranışının bozulmadığını gösterir
 - [x] `git diff -- 'src/*/PublicAPI.*.txt'` boş döner
 - [x] Dört doğrulama kapısı sıfır uyarı verir
-- [x] `samples/AgentPrism.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı
+- [x] `samples/Tracon.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı
 - [x] `secret` taraması boş döndü
 - [x] Manuel kabul case'leri ilgili ailelere eklendi ve otomatik olanlar koşuldu
 - [x] `faz-denetim` koşuldu; 🔴 bulgu kalmadı
@@ -94,13 +94,13 @@ güvenlik/kiracı sınırı veya kalıcı veri kararı gerektiren bir seçim yap
 Taze bağlamlı bir `general-purpose` agent, `faz-denetim` skill'ini uygulayarak
 koştu (2026-08-26). Yöntem: silinen bloğun tam metni (`git diff`) her yeni
 partial dosyanın içeriğiyle satır satır karşılaştırıldı — hepsi karakter
-düzeyinde birebir taşınmış bulundu; `dotnet build src/AgentPrism.Core` üç
+düzeyinde birebir taşınmış bulundu; `dotnet build src/Tracon.Core` üç
 hedefte de bağımsız olarak yeniden koşuldu.
 
 **🔴 ve 🟡 yok.**
 
 **🟢 (aday listesine, F-164 olarak eklendi):** Örnek uygulamada
-(`samples/AgentPrism.Api`) `RunTraceCollector` span örneklemesi hiç
+(`samples/Tracon.Api`) `RunTraceCollector` span örneklemesi hiç
 tutmuyor — Faz 107'nin dokunmadığı bir alan (DI kaydı/config bağlama),
 kod diff'iyle ilgisiz.
 
@@ -112,10 +112,10 @@ kod diff'iyle ilgisiz.
 - `AmbientWriteSiteTests`'in `<path>:<method>` anahtarı dosya taşımasına
   duyarlıdır — bir metot yeni bir `partial` dosyaya taşınırsa baseline'da
   yalnız o satırın **yolu** değişir, sayısı değişmez;
-  `AGENTPRISM_AMBIENT_WRITE_REFRESH=1` ile yenile ve `REPLACE ME` yer
+  `TRACON_AMBIENT_WRITE_REFRESH=1` ile yenile ve `REPLACE ME` yer
   tutucusunu eski satırdaki gerekçeyle değiştir — otomatik yenileme
   gerekçeyi KORUMAZ, yalnız yeni yolu placeholder'la yazar.
-- Örnek uygulamada (`samples/AgentPrism.Api`) span örneklemesi
+- Örnek uygulamada (`samples/Tracon.Api`) span örneklemesi
   (`RunTraceCollector`/`ITraceStore`) ~45 ayrı denemede hiç tutmadı —
   `SuccessSampleRatio=1` ortam değişkeni de etkisizdi. Kök neden
   ölçülmedi; Faz 107'nin dokunmadığı bir alan (DI kaydı/config bağlama).

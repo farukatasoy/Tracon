@@ -1,3 +1,0 @@
-#nullable enable
-AgentPrism.AgentPrismUiBuilderExtensions
-static AgentPrism.AgentPrismUiBuilderExtensions.UseUI(this AgentPrism.IAgentPrismBuilder! builder) -> AgentPrism.IAgentPrismBuilder!

@@ -80,7 +80,7 @@ yapılamadı ama kod okumasında bir tutarsızlık bulunmadı.
 ## MT-OBS-003 — Fiyat tanımlandıktan sonra yeni bir çalıştırma "Bugünkü Maliyet" karosunda gerçek bir tutar üretir
 
 **Gerçek sonuç**
-`AgentPrism__Pricing__openai__gpt-5.4-mini__Input=0.15`,
+`Tracon__Pricing__openai__gpt-5.4-mini__Input=0.15`,
 `...Output=0.60` env değişkenleriyle yeniden başlatıldı (`env` komutu
 kullanıldı — bash `export` nokta içeren değişken adını kabul ETMİYOR, `env
 'KEY.WITH.DOTS=val' cmd` ile aşıldı). `playground/support`'ta `Merhaba`
@@ -103,7 +103,7 @@ doğru — sorun yalnız istemci tarafı biçimlendirme hassasiyetinde.
 kalıyor — tam `0` hâlâ `"0.00"` yazar, `MT-OBS-003`'ün kendi belgesindeki
 "asla `0` olarak gösterilmez" ilkesiyle çelişmez). `0.00003945` artık
 `"0.000039"` yazıyor — sıfırdan görsel olarak ayırt edilebilir. Regresyon
-testi: `src/AgentPrism.UI/frontend/src/lib/format.test.ts`
+testi: `src/Tracon.UI/frontend/src/lib/format.test.ts`
 (`money` — `0.00003945` artık `"0.00 USD"` DEĞİL, tam `0` hâlâ `"0.00 USD"`).
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
@@ -113,7 +113,7 @@ testi: `src/AgentPrism.UI/frontend/src/lib/format.test.ts`
 ## MT-OBS-004 — 🚨 "Bugünkü Maliyet" karosu para birimini HİÇBİR ZAMAN göstermez; Model Kırılımı aynı veri için gösterir
 
 **Gerçek sonuç**
-`AgentPrism__Pricing__Currency=USD` eklenip yeniden başlatıldı (`MT-OBS-003`
+`Tracon__Pricing__Currency=USD` eklenip yeniden başlatıldı (`MT-OBS-003`
 fiyatlandırması korunarak). Adım 2: "Bugünkü tutar" karosu **`0,00`**
 gösterdi — para birimi soneki (`USD`) YOK, birebir beklenen (`HATA-S4-019`
 yüzünden değer `0,00` görünüyor olsa da SONEK YOKLUĞU testi bağımsız ve
@@ -186,14 +186,14 @@ bayrağın hepsi `false` olduğunda `dashboard.allClear` döndüğü zaten
 **Gerçek sonuç**
 Adım 2: `MT-OBS-016`'nın run'ı (`019ffd20-585f-...`, varsayılan
 `RecordSensitiveData=false`) → filtrelenmiş anahtar listesi `[]` — BOŞ,
-birebir beklenen. Adım 3: `AgentPrism__Observability__RecordSensitiveData=true`
+birebir beklenen. Adım 3: `Tracon__Observability__RecordSensitiveData=true`
 ile yeniden başlatıldı (ratio=1 korunarak), taze `support`/`Merhaba` turu
 (`019ffd23-d66e-75ec-8e20-697f89dc9d04`, `Completed`) → liste artık DOLU:
 `['gen_ai.input.messages', 'gen_ai.output.messages']` — bayrak açıkken
 gerçek içerik anahtarları göründü, birebir beklenen. Test sonrası uygulama
 HİÇBİR env override OLMADAN yeniden başlatıldı — `RecordSensitiveData`
 varsayılana (`false`) döndü, `SuccessSampleRatio` da kod varsayılanına
-(`0.1`, `AgentPrismOptions.cs:361`) döndü; S4-10 (§8-12) temiz bir başlangıç
+(`0.1`, `TraconOptions.cs:361`) döndü; S4-10 (§8-12) temiz bir başlangıç
 durumu devralacak.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
@@ -210,7 +210,7 @@ adı varsayıyor: `openrouter-destek` agent'ının GERÇEK `modelId`'si
 sağlayıcı önekli model kimliği; `RunPricingResolver.FindConfiguredPrice`
 tam string eşleşmesi arar). Anahtarlar `Pricing:openai:openai/gpt-5.4-mini`
 ve `Pricing:openrouter:openai/gpt-5.4-mini` olarak DÜZELTİLDİ (env: `env
-'AgentPrism__Pricing__openai__openai/gpt-5.4-mini__Input=1' ...` — `/`
+'Tracon__Pricing__openai__openai/gpt-5.4-mini__Input=1' ...` — `/`
 karakteri de `export`'un reddettiği bir karakter, `env` ile aşıldı), sonuç
 aynı: (1) İLK çalıştırma (gerçek zamanlı, sağlayıcı BİLİNİYOR) doğru şekilde
 `openrouter`'ın fiyatını (`5`) kullandı — `cost.inputCost:0.00065`
@@ -225,21 +225,21 @@ DEĞİL.
 
 ---
 
-## MT-OBS-033 — `agentprism.run.cost` sayacı yalnız fiyatı BİLİNEN run'larda artar
+## MT-OBS-033 — `tracon.run.cost` sayacı yalnız fiyatı BİLİNEN run'larda artar
 
 **Gerçek sonuç**
-`dotnet-counters collect -p 57768 --counters AgentPrism --format json`
+`dotnet-counters collect -p 57768 --counters Tracon --format json`
 (TUI yerine JSON dışa aktarım kullanıldı — Playwright/ajan ortamında
 etkileşimli `monitor` ekranı okunamaz, veri aynı). Adım 3: `support`
 (fiyatlı `openai:gpt-5.4-mini`) ile bir tur tamamlandı, örnekte
-`agentprism.run.cost` satırı belirdi: `value:3.945e-05`,
-`tags:agentprism.agent.name=support,agentprism.cost.currency=USD,
-agentprism.model.id=gpt-5.4-mini,agentprism.tenant.id=default` — birebir
+`tracon.run.cost` satırı belirdi: `value:3.945e-05`,
+`tags:tracon.agent.name=support,tracon.cost.currency=USD,
+tracon.model.id=gpt-5.4-mini,tracon.tenant.id=default` — birebir
 beklenen (dört etiket de var, sıfırdan büyük).
 
 **Doküman düzeltmesi (KOSUM-PLANI §2.1) — Adım 4:** `manuel-bos`
 BEKLENDIĞI gibi "fiyatsız" DEĞİL — fiyatlandırma anahtar+provider bazlıdır
-(`AgentPrism:Pricing:openai:gpt-5.4-mini`), `manuel-bos`'un modeli de
+(`Tracon:Pricing:openai:gpt-5.4-mini`), `manuel-bos`'un modeli de
 BİREBİR `openai`/`gpt-5.4-mini` (support ile aynı) olduğundan bu ön koşul
 altında `manuel-bos` da GERÇEK bir maliyet üretti (canlı doğrulandı:
 `GET .../runs/{id}` → `cost.source:"Configuration"`, `cost.inputCost:
@@ -248,15 +248,15 @@ fixture'la test etmek için BUNUN YERİNE `claude-destek`
 (`anthropic`/`claude-haiku-4-5-20251001`, bu oturumda hiç fiyatlandırılmadı)
 kullanıldı: aynı turu tamamladı, `cost.source:"Unknown"` doğrulandı, YENİ
 bir `dotnet-counters collect` penceresinde (63 olay yakalandı — toplama
-canlı çalıştığı kanıtlı, `agentprism.runs`/`agentprism.tokens` dahil) HİÇBİR
-`agentprism.run.cost` satırı belirmedi — sayaç bu run için HİÇ tetiklenmedi,
+canlı çalıştığı kanıtlı, `tracon.runs`/`tracon.tokens` dahil) HİÇBİR
+`tracon.run.cost` satırı belirmedi — sayaç bu run için HİÇ tetiklenmedi,
 mekanizma birebir beklenen.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
-## MT-OBS-034 — `agentprism.run.cost` İPTAL edilen bir run'da da (fiyat biliniyorsa) artar
+## MT-OBS-034 — `tracon.run.cost` İPTAL edilen bir run'da da (fiyat biliniyorsa) artar
 
 **Gerçek sonuç**
 Metodoloji notu: Playground'a HİÇ tıklanmadı (ortam kuralı #6 — akış
@@ -278,11 +278,11 @@ güncellenmiyor, yalnız tamamlanışta yazılıyor. Bu profille aynı isteği
 TEKRARLADIM, `t≈5s`'de (modelin KESİNLİKLE aktif üretim yaptığı, yüzlerce
 token akışının ortasında) `POST cancel` çağrıldı: `202`, `status:Canceled`,
 `usage:null`, `cost:null` — birebir. `dotnet-counters collect` (aynı
-pencerede, PID `57768`) `agentprism.run.cost` için SIFIR olay yakaladı;
-`agentprism.runs`/`agentprism.run.duration` olayları VARDI (run'ın
+pencerede, PID `57768`) `tracon.run.cost` için SIFIR olay yakaladı;
+`tracon.runs`/`tracon.run.duration` olayları VARDI (run'ın
 kendisi doğru kaydedildi, yalnız maliyet hiç hesaplanmadı).
 
-Kod kanıtı: `src/AgentPrism.Core/Recording/RunRecordingAgent.cs:357-360`
+Kod kanıtı: `src/Tracon.Core/Recording/RunRecordingAgent.cs:357-360`
 (`usage` yereli YALNIZ `content is UsageContent` geldiğinde atanır),
 `RunPricingResolver.cs:40-43` (`usage is null` ise `Resolve` `null` döner
 → maliyet hesaplanamaz). Canlı kanıtla birleştirince: OpenAI'nin akış
@@ -298,15 +298,15 @@ harici bir protokol sınırlaması.
 
 ---
 
-## MT-OBS-035 — 🚨 `agentprism.quota.usage`/`.limit` VARSAYILANDA (kapalı bayrak) hiçbir ölçüm yaymaz
+## MT-OBS-035 — 🚨 `tracon.quota.usage`/`.limit` VARSAYILANDA (kapalı bayrak) hiçbir ölçüm yaymaz
 
 **Gerçek sonuç**
-`AgentPrism:Observability:EnableQuotaUsageGauge` ayarlanMAMIŞ (varsayılan
+`Tracon:Observability:EnableQuotaUsageGauge` ayarlanMAMIŞ (varsayılan
 `false`) hâlde: `PUT api/quotas` ile kiracı geneli kural tanımlandı
 (`Daily`, `maxRuns:1000`), `manuel-bos` ile bir tur tamamlandı,
-`dotnet-counters collect -p 57768 --counters AgentPrism --format json`
-15 saniyelik pencerede `agentprism.run.cost`/`agentprism.runs`/
-`agentprism.tokens`/`gen_ai.*` olayları YAKALADI ama `agentprism.quota.*`
+`dotnet-counters collect -p 57768 --counters Tracon --format json`
+15 saniyelik pencerede `tracon.run.cost`/`tracon.runs`/
+`tracon.tokens`/`gen_ai.*` olayları YAKALADI ama `tracon.quota.*`
 adında TEK bir olay bile yakalamadı (`0`) — bayrak kapalıyken hiçbir
 ölçüm/etiket yayılmıyor, birebir beklenen. (Not: `dotnet-counters collect`
 yalnız GERÇEKTEN raporlanan ölçüm olaylarını yakalar; enstrümanın salt
@@ -316,7 +316,7 @@ ama `Snapshot()`'ın bayrak kapalıyken boş liste döndüğü davranışıyla
 ÇELİŞMİYOR. **Sonradan not (bkz. `MT-OBS-036`/`HATA-S4-020`):** bu case'in
 kendisi hâlâ doğru gözlemlendi, ama `MT-OBS-036`'yı koştururken ortaya
 çıktı ki bayrak zaten HİÇBİR ZAMAN açılamıyor — `EnableQuotaUsageGauge`
-`AgentPrism:Observability:*`'ten hiç OKUNMUYOR (ayrı bir DI kayıt kusuru).
+`Tracon:Observability:*`'ten hiç OKUNMUYOR (ayrı bir DI kayıt kusuru).
 Yani bu case'in "varsayılanda kapalı" gözlemi teknik olarak doğru ama
 NEDENİ dokümanın varsaydığından farklı: bayrak yalnız "henüz açılmamış"
 değil, "açılamaz" durumda.)
@@ -328,43 +328,43 @@ değil, "açılamaz" durumda.)
 ## MT-OBS-036 — Bayrak açılınca aynı ölçerler kota kuralına karşılık gelen etiketli değerleri yayar
 
 **Gerçek sonuç**
-**`HATA-S4-020` — bayrak AÇILAMIYOR.** `AgentPrism__Observability__
+**`HATA-S4-020` — bayrak AÇILAMIYOR.** `Tracon__Observability__
 EnableQuotaUsageGauge=true` + `QuotaUsageRefreshInterval=00:00:05` ile
 uygulama yeniden başlatıldı (`ps eww 62048` ile süreç ortamı doğrulandı —
 env değişkenleri DOĞRU ULAŞTI), `MT-OBS-035`'in kota kuralı (`Daily`,
 `maxRuns:1000`) hâlâ etkin, `GET api/quotas/usage` tenant geneli kaydı
 gösterdi (`agentName:"", period:"Daily", runs:118, ...` — `Snapshot()`'ın
 eşleyeceği veri GERÇEKTEN mevcut). Bir tur daha (`manuel-bos`) tamamlandı,
-`dotnet-counters collect -p 62048 --counters AgentPrism --format json`
-16 saniye (>3× `QuotaUsageRefreshInterval`) izledi: `agentprism.quota.usage`/
-`agentprism.quota.limit` için **SIFIR** olay — diğer sayaçlar
-(`agentprism.run.cost` vb.) aynı pencerede normal şekilde raporlanmaya
+`dotnet-counters collect -p 62048 --counters Tracon --format json`
+16 saniye (>3× `QuotaUsageRefreshInterval`) izledi: `tracon.quota.usage`/
+`tracon.quota.limit` için **SIFIR** olay — diğer sayaçlar
+(`tracon.run.cost` vb.) aynı pencerede normal şekilde raporlanmaya
 devam ederken.
 
 **Kök neden (kod okumasıyla kesinleştirildi):**
-`QuotaUsageObserver`, `IOptionsMonitor<AgentPrismObservabilityOptions>`
-enjekte eder (`AgentPrismServiceCollectionExtensions.cs:547`) ve
+`QuotaUsageObserver`, `IOptionsMonitor<TraconObservabilityOptions>`
+enjekte eder (`TraconServiceCollectionExtensions.cs:547`) ve
 `Snapshot()` bu tipin `CurrentValue.EnableQuotaUsageGauge`'ına bakar
-(`QuotaUsageObserver.cs:141`). Ama `AgentPrismObservabilityOptions`
-STANDALONE (`IOptionsMonitor<AgentPrismObservabilityOptions>` olarak)
-HİÇBİR YERDE `services.Configure<AgentPrismObservabilityOptions>(...)`
-İLE KAYDEDİLMİYOR — `grep -rn "Configure<AgentPrismObservabilityOptions>"
+(`QuotaUsageObserver.cs:141`). Ama `TraconObservabilityOptions`
+STANDALONE (`IOptionsMonitor<TraconObservabilityOptions>` olarak)
+HİÇBİR YERDE `services.Configure<TraconObservabilityOptions>(...)`
+İLE KAYDEDİLMİYOR — `grep -rn "Configure<TraconObservabilityOptions>"
 src/` sıfır sonuç. `BindObservability(...)` metodu VARDIR ve ÇALIŞIR ama
-yalnız `AgentPrismOptions.Observability` (İÇ İÇE property, `Configure<
-AgentPrismOptions>` ile kayıtlı) üzerine yazıyor
-(`AgentPrismServiceCollectionExtensions.cs:792`) — bu, `QuotaUsageObserver`'ın
-okuduğu STANDALONE `IOptionsMonitor<AgentPrismObservabilityOptions>` ile
-AYNI NESNE DEĞİL. Karşılaştırma: kardeş tipler `AgentPrismQuotaOptions`,
-`AgentPrismWebhookOptions`, `AgentPrismRateLimitOptions` vb. hepsi
+yalnız `TraconOptions.Observability` (İÇ İÇE property, `Configure<
+TraconOptions>` ile kayıtlı) üzerine yazıyor
+(`TraconServiceCollectionExtensions.cs:792`) — bu, `QuotaUsageObserver`'ın
+okuduğu STANDALONE `IOptionsMonitor<TraconObservabilityOptions>` ile
+AYNI NESNE DEĞİL. Karşılaştırma: kardeş tipler `TraconQuotaOptions`,
+`TraconWebhookOptions`, `TraconRateLimitOptions` vb. hepsi
 `services.Configure<X>(options => BindX(section, options))` ile AYRICA
-kayıtlı (`:147-166`), yalnız `AgentPrismObservabilityOptions` bu listede
+kayıtlı (`:147-166`), yalnız `TraconObservabilityOptions` bu listede
 YOK. Sonuç: DI, `QuotaUsageObserver`'a HER ZAMAN varsayılan (yapılandırılmamış)
-bir `AgentPrismObservabilityOptions` verir — `EnableQuotaUsageGauge` KALICI
+bir `TraconObservabilityOptions` verir — `EnableQuotaUsageGauge` KALICI
 OLARAK `false` (derleme zamanı varsayılanı), `QuotaUsageRefreshInterval`
 KALICI OLARAK `30s`, hiçbir konfigürasyon kaynağından (env/`user-secrets`/
 `appsettings.json`) DEĞİŞTİRİLEMEZ.
 
-**Kapsam:** Faz 35'in kota gösterge (`agentprism.quota.usage`/`.limit`)
+**Kapsam:** Faz 35'in kota gösterge (`tracon.quota.usage`/`.limit`)
 özelliği TAMAMEN işlevsiz — bayrağı açmanın HİÇBİR yolu yok, dokümante
 edilen ayar (`docs/arsiv/fazlar/35-MALIYET-VE-KOTA-METRIKLERI.md`'nin kendisi de dahil)
 sessizce yok sayılıyor. `MT-OBS-035`'in "varsayılanda kapalı" gözlemi
@@ -373,34 +373,34 @@ teknik olarak DOĞRU kalıyor ama nedeni yanlış: "henüz açılmamış" değil
 
 ---
 **2026-08-14 yeniden koşum (Aile P).** Kök neden doğrulandı ve düzeltildi:
-`QuotaUsageObserver` artık standalone `IOptionsMonitor<AgentPrismObservabilityOptions>`
-(hiçbir yerde `services.Configure<AgentPrismObservabilityOptions>` ile kayıtlı
-DEĞİLDİ) yerine doğru bağlanan `IOptionsMonitor<AgentPrismOptions>`'ı enjekte
+`QuotaUsageObserver` artık standalone `IOptionsMonitor<TraconObservabilityOptions>`
+(hiçbir yerde `services.Configure<TraconObservabilityOptions>` ile kayıtlı
+DEĞİLDİ) yerine doğru bağlanan `IOptionsMonitor<TraconOptions>`'ı enjekte
 edip `.Observability` alt özelliğini okuyor (`QuotaUsageObserver.cs`,
-`AgentPrismServiceCollectionExtensions.cs:547`). Ayrıca `BindObservability`'ye
+`TraconServiceCollectionExtensions.cs:547`). Ayrıca `BindObservability`'ye
 eksik olan `IncludeAgentVersionTag` bağlaması ve `Bind()`'a hiç eklenmemiş olan
-`AgentPrismOptions.Validation`/`BindValidation` (K-253, `AgentDefinitionValidator`
+`TraconOptions.Validation`/`BindValidation` (K-253, `AgentDefinitionValidator`
 tarafından okunan ama hiçbir zaman config'ten gelemeyen `McpTimeout`) eklendi
 — üçü de "yeni alan eklendi ama `Bind()`'a eklenmedi" kusur sınıfının (K-406 ile
-aynı) ayrı örnekleri. Kalıcı çözüm: `AgentPrismOptions` ağacındaki HER skalar
+aynı) ayrı örnekleri. Kalıcı çözüm: `TraconOptions` ağacındaki HER skalar
 alanı yapılandırmadan geri okuyup doğrulayan bir yansımalı test eklendi
-(`tests/AgentPrism.Core.UnitTests/Configuration/AgentPrismOptionsBindingCoverageTests.cs`)
+(`tests/Tracon.Core.UnitTests/Configuration/TraconOptionsBindingCoverageTests.cs`)
 — gelecekte eklenen bir alan `Bind()`'a eklenmeyi unutulursa bu test kırılır.
 
 Canlı doğrulama (gerçek PostgreSQL'e karşı, `mt_fin_p` şeması):
-`AgentPrism__Observability__EnableQuotaUsageGauge=true` +
+`Tracon__Observability__EnableQuotaUsageGauge=true` +
 `QuotaUsageRefreshInterval=00:00:05` ile uygulama başlatıldı, `PUT /api/quotas`
 ile kiracı geneli bir kural (`Daily`, `maxRuns:1000`) yazıldı, `support`
 agent'ı bir kez çalıştırıldı (`POST /api/agents/support/run`), `GET
 /api/quotas/usage` gerçek kullanımı gösterdi (`runs:1`). `dotnet-counters
-collect -p <pid> --counters AgentPrism --format json` 12 saniye izledi:
-`agentprism.quota.usage` (`value:1`, `agentprism.quota.metric=Runs,
-agentprism.quota.period=Daily, agentprism.quota.scope=,
-agentprism.tenant.id=default`) ve `agentprism.quota.limit` (`value:1000`,
+collect -p <pid> --counters Tracon --format json` 12 saniye izledi:
+`tracon.quota.usage` (`value:1`, `tracon.quota.metric=Runs,
+tracon.quota.period=Daily, tracon.quota.scope=,
+tracon.tenant.id=default`) ve `tracon.quota.limit` (`value:1000`,
 aynı etiketler) artık GERÇEKTEN raporlanıyor — önceki koşumun "16 saniyede
 SIFIR olay" bulgusunun tam tersi. Regresyon testleri:
-`tests/AgentPrism.Core.UnitTests/Quotas/QuotaUsageObserverRegistrationTests.cs`
-(DI'dan çözülen `QuotaUsageObserver`'ın `IOptionsMonitor<AgentPrismOptions>`'ı
+`tests/Tracon.Core.UnitTests/Quotas/QuotaUsageObserverRegistrationTests.cs`
+(DI'dan çözülen `QuotaUsageObserver`'ın `IOptionsMonitor<TraconOptions>`'ı
 gerçekten yapılandırılmış değeri taşıdığını doğrular — var olan
 `QuotaUsageObserverTests.cs` bunu YAKALAMAZ çünkü kurucuyu doğrudan çağırır,
 DI çözümlemesini hiç tetiklemez).

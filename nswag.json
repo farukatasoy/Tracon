@@ -4,7 +4,7 @@
   "documentGenerator": {
     "fromDocument": {
       "json": null,
-      "url": "artifacts/openapi/agentprism.client-input.json",
+      "url": "artifacts/openapi/tracon.client-input.json",
       "output": null,
       "newLineBehavior": "Auto"
     }
@@ -20,7 +20,7 @@
       "disposeHttpClient": false,
       "protectedMethods": [],
       "generateExceptionClasses": true,
-      "exceptionClass": "AgentPrismApiException",
+      "exceptionClass": "TraconApiException",
       "wrapDtoExceptions": true,
       "useHttpClientCreationMethod": false,
       "httpClientType": "System.Net.Http.HttpClient",
@@ -40,7 +40,7 @@
       "useRequestAndResponseSerializationSettings": false,
       "serializeTypeInformation": false,
       "queryNullValue": "",
-      "className": "AgentPrismApiClient",
+      "className": "TraconApiClient",
       "operationGenerationMode": "SingleClientFromOperationId",
       "additionalNamespaceUsages": ["System.Text.Json"],
       "additionalContractNamespaceUsages": [],
@@ -54,8 +54,8 @@
       "wrapResponses": false,
       "wrapResponseMethods": [],
       "generateResponseClasses": true,
-      "responseClass": "AgentPrismApiResponse",
-      "namespace": "AgentPrism.Client.Generated",
+      "responseClass": "TraconApiResponse",
+      "namespace": "Tracon.Client.Generated",
       "requiredPropertiesMustBeDefined": true,
       "dateType": "System.DateTimeOffset",
       "jsonConverters": null,
@@ -92,7 +92,7 @@
       "enumNameGeneratorType": null,
       "serviceHost": null,
       "serviceSchemes": null,
-      "output": "src/AgentPrism.Client/Generated/AgentPrismApiClient.g.cs"
+      "output": "src/Tracon.Client/Generated/TraconApiClient.g.cs"
     }
   }
 }

@@ -3,10 +3,10 @@
 > **Durum:** ✅ Tamamlandı (2026-08-26)
 > **Kaynak:** [`kesif/2026-08-26-ef-core-uyum-olcumu.md`](../../kesif/2026-08-26-ef-core-uyum-olcumu.md) — kalem **P1 · P2 · P3 · P5 · P6**. Bu faz bir `F-NN` adayından gelmez
 > **Önkoşul:** Yok. Teknik zorunluluk yoktur; [Faz 109](109-FRONTEND-MODULLERI-VE-EKRAN-TESTLERI.md) kapandıktan sonra sıraya girer
-> **Paketler:** `AgentPrism.PostgreSql`, `.SqlServer`, `.Sqlite`, `.Sql.Shared` · `samples/AgentPrism.Embedded`
+> **Paketler:** `Tracon.PostgreSql`, `.SqlServer`, `.Sqlite`, `.Sql.Shared` · `samples/Tracon.Embedded`
 > **Yeni paket:** NuGet paketi **yok**. Sample-only bağımlılık: `Npgsql.EntityFrameworkCore.PostgreSQL` — yalnız `samples/`, sevk edilen hiçbir pakete girmez · **Migration:** Yok
 > **Public API:** **Büyüyor** — üç `Options` tipine birer `DbDataSource?` alanı. Bugün ucuz: `wc -l src/*/PublicAPI.Shipped.txt` = **17 satır** (19 paketin tamamı yalnız başlık taşıyor, K-603). Faz 7 sonrası aynı alanı eklemek kırıcı olurdu
-> **Tüketici yüzeyi:** Site — yeni sayfa `docs-site/src/content/docs/guides/ef-core.md` · değişen: `guides/embedding.md`, `guides/production.md`, `packages.md` · Sevk edilen: `src/AgentPrism.PostgreSql/README.md`, `.SqlServer/README.md`, `.Sqlite/README.md` ve yeni alanın XML `<example>` bloğu
+> **Tüketici yüzeyi:** Site — yeni sayfa `docs-site/src/content/docs/guides/ef-core.md` · değişen: `guides/embedding.md`, `guides/production.md`, `packages.md` · Sevk edilen: `src/Tracon.PostgreSql/README.md`, `.SqlServer/README.md`, `.Sqlite/README.md` ve yeni alanın XML `<example>` bloğu
 > **Manuel test alanı:** [`manuel-test/03-KALICILIK-POSTGRESQL.md`](../../manuel-test/03-KALICILIK-POSTGRESQL.md) · [`manuel-test/04-KALICILIK-DIGER.md`](../../manuel-test/04-KALICILIK-DIGER.md) — plan `26-ISTEMCI-TOOLLARI-VE-GOMULEBILIR.md`'yi işaret ediyordu, o dosya istemci tool'ları/gömülebilir sohbet widget'ına özgü ve bu fazla ilgisiz; SQL Server/SQLite'ın simetrik `DataSource` alanı `04`'e girdi (bkz. "Plandan Sapmalar")
 
 ---
@@ -28,20 +28,20 @@
 
 ## Amaç
 
-EF Core kullanan bir uygulama AgentPrism'i gömünce **iki bağlantı düzlemi** doğar. Bugün bu düzlemler arasındaki temas ne bir sözleşmedir ne belgelidir: PostgreSQL'de kazara çalışır, diğer iki sağlayıcıda hiç yoktur, ve sitedeki kapasite iddiası mekanizmayla çelişir. Faz bu temas yüzeyini açık, simetrik ve ölçülmüş bir sözleşmeye bağlar.
+EF Core kullanan bir uygulama Tracon'i gömünce **iki bağlantı düzlemi** doğar. Bugün bu düzlemler arasındaki temas ne bir sözleşmedir ne belgelidir: PostgreSQL'de kazara çalışır, diğer iki sağlayıcıda hiç yoktur, ve sitedeki kapasite iddiası mekanizmayla çelişir. Faz bu temas yüzeyini açık, simetrik ve ölçülmüş bir sözleşmeye bağlar.
 
 ## Bitiş Ölçütleri (DoD)
 
 - [x] `UsePostgreSql(o => o.DataSource = ds)` ile kurulan uygulama `run` yapar ve `ConnectionString` **istemez** — `ExternalDataSourceTests.DataSource_alone_does_not_require_a_connection_string` + `Compiled_agent_runs_against_an_external_data_source` (gerçek PostgreSQL)
 - [x] Aynı davranış `UseSqlServer` ve `UseSqlite` için de doğrudur — her ikisinin kendi `ExternalDataSourceTests`'i, gerçek sunucu/dosyaya karşı
-- [x] Host kapanışında dış data source dispose **edilmez**; case 4 kanıtlar — `External_data_source_is_not_disposed_when_the_host_stops` (üç sağlayıcı) + `samples/AgentPrism.Embedded`'in canlı `SIGTERM` koşumu (bkz. `MT-PG-070`)
+- [x] Host kapanışında dış data source dispose **edilmez**; case 4 kanıtlar — `External_data_source_is_not_disposed_when_the_host_stops` (üç sağlayıcı) + `samples/Tracon.Embedded`'in canlı `SIGTERM` koşumu (bkz. `MT-PG-070`)
 - [x] `NpgsqlDataSource` artık public DI servisi olarak kaydedilmez; bunu doğrulayan test yeşildir — `The_data_source_is_not_registered_as_a_public_DI_service` (üç sağlayıcı; denetimin 🔴 bulgusu üzerine eklendi, bkz. "Denetim Bulguları")
 - [x] `ConnectionPoolSharingTests` ölçümü koşuldu ve sonucu "Plandan Sapmalar" bölümüne yazıldı
 - [x] `embedding.md` havuz cümlesi ölçümle uyumludur
 - [x] `guides/ef-core.md` yayında; `npm run build` + `check-links.mjs` temiz
-- [x] `samples/AgentPrism.Embedded` hem veritabanısız hem PostgreSQL'li yolda koşar — veritabanısız: `AgentPrism.Embedded.Tests` 3/3; PostgreSQL'li: canlı konteynere karşı `POST /tickets` + `GET /agentprism/api/runs/{id}` (bkz. `MT-PG-068`)
+- [x] `samples/Tracon.Embedded` hem veritabanısız hem PostgreSQL'li yolda koşar — veritabanısız: `Tracon.Embedded.Tests` 3/3; PostgreSQL'li: canlı konteynere karşı `POST /tickets` + `GET /tracon/api/runs/{id}` (bkz. `MT-PG-068`)
 - [x] Dört doğrulama kapısı sıfır uyarı verir — `python3 scripts/kapi.py kapanis --taban 678ba30`
-- [x] `samples/AgentPrism.Embedded` ile gerçek `run` yapıldı, çıktı belgeye yazıldı — plan `samples/AgentPrism.Api`yı işaret ediyordu; bu fazın kendi örneği `AgentPrism.Embedded` olduğu için kanıt oradan alındı (bkz. "Plandan Sapmalar")
+- [x] `samples/Tracon.Embedded` ile gerçek `run` yapıldı, çıktı belgeye yazıldı — plan `samples/Tracon.Api`yı işaret ediyordu; bu fazın kendi örneği `Tracon.Embedded` olduğu için kanıt oradan alındı (bkz. "Plandan Sapmalar")
 - [x] `secret` taraması boş döndü — `python3 scripts/kapi.py tarama` → ✅ temiz
 - [x] Manuel kabul case'leri `docs/manuel-test/03-KALICILIK-POSTGRESQL.md` ve `04-KALICILIK-DIGER.md` içine eklendi (plan `26-...`yi işaret ediyordu, bkz. "Plandan Sapmalar"); otomatikleştirilebilenler koşuldu
 - [x] `faz-denetim` koşuldu; 🔴 bulgu kalmadı — ilk turda 1×🔴 + 2×🟡 çıktı, üçü de kapatıldı (bkz. "Denetim Bulguları")
@@ -50,13 +50,13 @@ EF Core kullanan bir uygulama AgentPrism'i gömünce **iki bağlantı düzlemi**
 
 ```bash
 # Dış data source ile kurulan örnek gerçekten koşuyor mu
-curl -s http://localhost:5081/agentprism/api/runs | head -c 400
+curl -s http://localhost:5081/tracon/api/runs | head -c 400
 
 # Public DI kaydı gerçekten kalktı mı
 grep -rn "TryAddSingleton(static provider => NpgsqlDataSourceFactory" src/
 
 # Havuz ölçümü
-./artifacts/bin/AgentPrism.PostgreSql.IntegrationTests/release/AgentPrism.PostgreSql.IntegrationTests \
+./artifacts/bin/Tracon.PostgreSql.IntegrationTests/release/Tracon.PostgreSql.IntegrationTests \
   --filter-method "*ConnectionPoolSharing*"
 ```
 
@@ -85,7 +85,7 @@ bu fazla hiçbir ilgisi yok. Doğru sağlayıcı-simetri dosyası
 tutuldu.** Plan yalnız "`DbDataSource`, `NpgsqlDataSource` değil" diyordu (public
 imza için — bu aynen korundu). Uygulamada `NpgsqlDataSourceFactory.Resolve`
 RUNTIME'da `options.DataSource`'un gerçekten bir `NpgsqlDataSource` olmasını
-zorunlu kılıyor (aksi hâlde `AgentPrismException`, açık mesajla). Gerekçe: (1)
+zorunlu kılıyor (aksi hâlde `TraconException`, açık mesajla). Gerekçe: (1)
 PostgreSQL için üretim kalitesinde tek `DbDataSource` uygulaması zaten Npgsql'in
 kendisi — plan da "SQL Server/SQLite dürüst not"unda bunun SQL Server için
 henüz hiç var olmadığını, SQLite için de var olmadığını zaten kabul ediyordu;
@@ -115,7 +115,7 @@ bu üçü de kapsıyor, çünkü kod paylaşılan kaynaktır (K-176).
 ## Bu Fazda Verilen Kararlar
 
 - **K-625** — Üç SQL sağlayıcısına `Options.DataSource` alanı eklendi;
-  AgentPrism kendi kurduğu data source'u artık public bir DI servisi olarak
+  Tracon kendi kurduğu data source'u artık public bir DI servisi olarak
   kaydetmez; `DataSource` ve `ConnectionString` birlikte verilirse başlangıç
   hatası. Tam gerekçe: `docs/KARARLAR.md`.
 
@@ -129,7 +129,7 @@ ile doğrulama). İlk tur 1×🔴 + 2×🟡 buldu; üçü de aynı fazda kapatı
 |---|---|---|---|
 | 1 | 🔴 | DoD'nin istediği "`NpgsqlDataSource` artık public DI servisi değil" iddiasını doğrulayan hiçbir test yoktu — yalnız elle çalıştırılan bir `grep` vardı | **Düzeltildi.** Üç sağlayıcıya `The_data_source_is_not_registered_as_a_public_DI_service` testi eklendi (`provider.GetService<NpgsqlDataSource>()`/`SqlServerDataSource`/`SqliteDataSource` `null` döner), gerçek sunucu/dosyaya karşı yeşil |
 | 2 | 🟡 | DoD'nin 13 satırı hâlâ `- [ ]` işaretsizdi, doküman başlığı "✅ Tamamlandı" diyordu | **Düzeltildi.** Her satır kanıtına göre `[x]` işaretlendi |
-| 3 | 🟡 | `samples/AgentPrism.Embedded`'in kurduğu `NpgsqlDataSource` hiçbir yerde dispose edilmiyordu — fazın kendi sözleşmesi ("caller keeps ownership and disposes it when the host shuts down") referans örnekte uygulanmıyordu | **Düzeltildi.** `app.Lifetime.ApplicationStopping.Register(() => dataSource.Dispose())` eklendi; canlı bir PostgreSQL konteynerine karşı `SIGTERM` ile doğrulandı — kapanış logunda hata yok |
+| 3 | 🟡 | `samples/Tracon.Embedded`'in kurduğu `NpgsqlDataSource` hiçbir yerde dispose edilmiyordu — fazın kendi sözleşmesi ("caller keeps ownership and disposes it when the host shuts down") referans örnekte uygulanmıyordu | **Düzeltildi.** `app.Lifetime.ApplicationStopping.Register(() => dataSource.Dispose())` eklendi; canlı bir PostgreSQL konteynerine karşı `SIGTERM` ile doğrulandı — kapanış logunda hata yok |
 
 🔴 ve 🟡 bulgu kalmadı. Temiz çıkan başlıklar (ilk tur): 3.2 (test tiyatrosu
 yok), 3.3 (test seviyeleri doğru), 3.5 (imza-gövde kayması yok), 3.6 (plan
@@ -138,14 +138,14 @@ dışı public API yok), 3.7 (repo kuralları), 3.8 (ürün yüzeyi/site sözle�
 ## Sonraki Faza Devir Notu
 
 - **Faz 111** (Okuma Sözleşmesi Görünümleri, P4) bu fazdan bağımsızdır ama aynı
-  `AgentPrism.Sql.Shared`/üç sağlayıcı katmanına dokunacaktır — `SqlStoreContext`
+  `Tracon.Sql.Shared`/üç sağlayıcı katmanına dokunacaktır — `SqlStoreContext`
   artık `IDisposable`/`IAsyncDisposable`; yeni bir alan eklerken bu iki metodu
   unutma.
 - **SQL Server'ın `DbDataSource` durumu yeniden ölçülmeli** bir sonraki
   `Microsoft.Data.SqlClient` sürüm yükseltmesinde (bugün 7.0.2, ölçülen: yok).
-  Ölçüm sonucu ne olursa olsun `AgentPrismSqlServerOptions.DataSource` alanı
+  Ölçüm sonucu ne olursa olsun `TraconSqlServerOptions.DataSource` alanı
   zaten var — yalnız dokümanın "henüz yok" cümlesi değişir.
-- **`samples/AgentPrism.Embedded`'in EF Core yolu `Database.EnsureCreatedAsync()`
+- **`samples/Tracon.Embedded`'in EF Core yolu `Database.EnsureCreatedAsync()`
   kullanır, gerçek `dotnet ef migrations` DEĞİL** — örnek basitliği için
   bilinçli bir tercih (`production.md`'nin CI adımı gerçek `dotnet ef database
   update`'i belgeler, ama örnek kod içinde migration scaffolding'i taşımaz).

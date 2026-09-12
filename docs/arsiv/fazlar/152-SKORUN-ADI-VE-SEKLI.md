@@ -3,10 +3,10 @@
 > **Durum:** ✅ Tamamlandı (2026-09-07)
 > **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-208**
 > **Önkoşul:** Yok. **Ardılı vardır:** [Faz 154](154-SKOR-TRENDININ-KALICI-SORGUSU.md) aynı tabloya dokunur ve **bu fazdan sonra** koşar.
-> **Paketler:** `AgentPrism.Abstractions`, `AgentPrism.Core`, `AgentPrism.AspNetCore`, `AgentPrism.PostgreSql`, `AgentPrism.Sqlite`, `AgentPrism.SqlServer`, `AgentPrism.Testing.Contracts.Xunit`, `AgentPrism.UI`
+> **Paketler:** `Tracon.Abstractions`, `Tracon.Core`, `Tracon.AspNetCore`, `Tracon.PostgreSql`, `Tracon.Sqlite`, `Tracon.SqlServer`, `Tracon.Testing.Contracts.Xunit`, `Tracon.UI`
 > **Yeni paket:** Yok — karar 152.1'de ölçümle verildi · **Migration:** PostgreSQL `0048` · SQLite `0035` · SQL Server `0035` (K-178: numaralar sağlayıcı başına bağımsızdır)
 > **Public API:** 🔴 Büyüyor **ve kırıyor** — `RunScore.Value` tipi değişir. `wc -l src/*/PublicAPI.Shipped.txt` → her dosya **1 satır** (ölçüldü 2026-09-07): hiçbir yüzey sevk edilmemiştir, bu değişiklik **bugün bedava**, `1.0`'dan sonra **imkânsızdır**.
-> **Tüketici yüzeyi:** site: `docs-site/src/content/docs/concepts/evaluation.md` · üretilen: `http-api/schema-runscore.md`, `api/agentprism.runscore` · sevk edilen: `RunScore` XML dokümanı, `IRunScoreStore` XML dokümanı, `RunEndpoints` `.WithDescription` metinleri
+> **Tüketici yüzeyi:** site: `docs-site/src/content/docs/concepts/evaluation.md` · üretilen: `http-api/schema-runscore.md`, `api/tracon.runscore` · sevk edilen: `RunScore` XML dokümanı, `IRunScoreStore` XML dokümanı, `RunEndpoints` `.WithDescription` metinleri
 > **Manuel test alanı:** `docs/manuel-test/17-EVAL-VE-DENEYLER.md`
 
 ---
@@ -44,19 +44,19 @@
 | 8 | `EvalCaseResult.Scores` değer ve `rating` taşır; `metadata` taşımaz | ✅ | `SerializeScoresTests` (8 case) · canlı eval koşumu: `{"name":"non_empty","kind":"boolean","value":true,"passed":true,"rating":"Good","reason":"Response length 32 meets minimum 1"}` — `metadata` yok |
 | 9 | AOT kapısı geçer — `SerializeScores` `reflection` kullanmaz | ✅ | Desen eşlemesi (`is BooleanMetric` / `is NumericMetric` / `is StringMetric`), `Utf8JsonWriter` elle; `kapi.py kapanis` içindeki tam test koşumu yeşil |
 | 10 | Dört doğrulama kapısı sıfır uyarı verir | ✅ | `python3 scripts/kapi.py kapanis --taban 3e528aa0` — bkz. **Kapı koşumu** |
-| 11 | `samples/AgentPrism.Api` ile gerçek `run` + skor yazımı yapıldı | ✅ | Aşağıdaki **Canlı koşum çıktısı** |
+| 11 | `samples/Tracon.Api` ile gerçek `run` + skor yazımı yapıldı | ✅ | Aşağıdaki **Canlı koşum çıktısı** |
 | 12 | `secret` taraması boş döndü | ✅ | `kapi.py tarama` |
 | 13 | Manuel kabul case'leri sete eklendi; otomatikleştirilebilenler koşuldu | ✅ | `docs/manuel-test/17-EVAL-VE-DENEYLER.md` **EVAL-112 … EVAL-119**; 112–116 ve 118 canlı koşuldu, 117 ve 119 `👤 insan gerekir` |
 | 14 | `faz-denetim` koşuldu; 🔴 bulgu kalmadı | ✅ | Bkz. **Denetim Bulguları** |
 | 15 | `docs-site/concepts/evaluation.md` güncellendi; site kapıları temiz | ✅ | `npm run check` — 1083 sayfa, 159 630 bağlantı, kırık 0; en ağır sayfa 56 439 B / 57 000 B |
 | 16 | `RunScore` XML dokümanındaki *"1.5 for Stars"* hatası düzeltildi | ✅ | Artık *"1 to 5 for Stars"*; aynı hata `RunFeedbackRequest.Value`'da da vardı ve orada da düzeltildi |
 | 17 | `en.ts` ve `tr.ts` eksiksiz; bundle payı ölçüldü | ✅ | Yeni anahtar: `feedback.otherScores` (iki dilde). Bundle **152,1 KB** brotli / 250 KB bütçe (fazdan önce 151,9 KB — **+0,2 KB**) |
-| 18 | OpenAPI → NSwag → TypeScript zinciri yeniden üretildi | ✅ | Dört adım da koşuldu: `AGENTPRISM_OPENAPI_REFRESH=1` → `npm run generate` → `nswag-prepare` + `nswag run` + `postprocess` + `json-context` → `packages/agentprism-client` `npm run build` |
+| 18 | OpenAPI → NSwag → TypeScript zinciri yeniden üretildi | ✅ | Dört adım da koşuldu: `TRACON_OPENAPI_REFRESH=1` → `npm run generate` → `nswag-prepare` + `nswag run` + `postprocess` + `json-context` → `packages/tracon-client` `npm run build` |
 
-### Canlı koşum çıktısı (2026-09-07, `samples/AgentPrism.Api`)
+### Canlı koşum çıktısı (2026-09-07, `samples/Tracon.Api`)
 
 Kimlik çözümlenebilir bir kurulumda koşuldu
-(`AgentPrism__Demo__Roles__Enabled=true`, `X-AgentPrism-Demo-Role: operator`) —
+(`Tracon__Demo__Roles__Enabled=true`, `X-Tracon-Demo-Role: operator`) —
 🚨 kimliksiz kurulumda tekillik hiç devreye girmez ve **her çağrı yeni satır
 açar** (K1, 0017'nin kaydettiği davranış). İlk koşum kimliksiz yapıldı ve
 `helpfulness` iki satır olarak göründü; bu bir kusur değil, o kuralın kendisidir.
@@ -70,11 +70,11 @@ case5 similarity=0.87      -> 200
 case6 illegal name         -> 400
 no-name body (compat)      -> 200
 
-accuracy       kind=Binary       value=1    textValue=None   author=demo-agentprism-operator
-helpfulness    kind=Stars        value=5    textValue=None   author=demo-agentprism-operator
-overall        kind=Binary       value=0    textValue=None   author=demo-agentprism-operator
-severity       kind=Categorical  value=None textValue=minor  author=demo-agentprism-operator
-similarity     kind=Numeric      value=0.87 textValue=None   author=demo-agentprism-operator
+accuracy       kind=Binary       value=1    textValue=None   author=demo-tracon-operator
+helpfulness    kind=Stars        value=5    textValue=None   author=demo-tracon-operator
+overall        kind=Binary       value=0    textValue=None   author=demo-tracon-operator
+severity       kind=Categorical  value=None textValue=minor  author=demo-tracon-operator
+similarity     kind=Numeric      value=0.87 textValue=None   author=demo-tracon-operator
 rows: 5
 ```
 
@@ -93,16 +93,16 @@ Faz öncesi aynı alan yalnız `{"name":…,"passed":…,"reason":…}` taşıyo
 
 ```bash
 # İki farklı ad, iki ayrı satır
-curl -s -X POST http://localhost:5081/agentprism/api/runs/$RUN/feedback \
+curl -s -X POST http://localhost:5081/tracon/api/runs/$RUN/feedback \
   -H 'content-type: application/json' -d '{"name":"helpfulness","kind":"Stars","value":4}'
-curl -s -X POST http://localhost:5081/agentprism/api/runs/$RUN/feedback \
+curl -s -X POST http://localhost:5081/tracon/api/runs/$RUN/feedback \
   -H 'content-type: application/json' -d '{"name":"accuracy","kind":"Binary","value":1}'
-curl -s http://localhost:5081/agentprism/api/runs/$RUN/feedback | jq 'length'   # 2 bekleniyor
+curl -s http://localhost:5081/tracon/api/runs/$RUN/feedback | jq 'length'   # 2 bekleniyor
 
 # Ondalık korunuyor mu
-curl -s -X POST http://localhost:5081/agentprism/api/runs/$RUN/feedback \
+curl -s -X POST http://localhost:5081/tracon/api/runs/$RUN/feedback \
   -H 'content-type: application/json' -d '{"name":"similarity","kind":"Numeric","value":0.87}'
-curl -s http://localhost:5081/agentprism/api/runs/$RUN/feedback | jq '.[] | select(.name=="similarity").value'
+curl -s http://localhost:5081/tracon/api/runs/$RUN/feedback | jq '.[] | select(.name=="similarity").value'
 ```
 
 ---
@@ -111,7 +111,7 @@ curl -s http://localhost:5081/agentprism/api/runs/$RUN/feedback | jq '.[] | sele
 
 | # | Plan ne diyordu | Ne yapıldı | Gerekçe |
 |---|---|---|---|
-| 1 | Planlanan Public API yalnız `RunScore` ve `RunScoreKind`'ı büyütüyordu | **`public static class RunScoreRules`** eklendi (`DefaultName`, `MaxNameLength`, `MaxTextValueLength`, `NameDescription`, `IsValidName`, `Validate`) | Invariant'ı **dört** store birden zorlamalı ve sözleşme testi bunu talep ediyor. `AgentPrism.Sql.Shared` linked source'tur (K-176) ve üç ayrı derlemeye derlenir; `Abstractions`'ın `internal`'ına erişemez — üç yeni `InternalsVisibleTo` yazmak paket üstverisine sızardı. `IRunScoreStore` bir **genişleme noktasıdır**: tüketicinin kendi store'u da aynı kuralı uygulamak zorunda ve sevk edilen `RunScoreStoreContract` onu buna zorluyor. Kuralı ikinci kez elle yazmak ikinci bir doğrulama yolu üretirdi (planın 152.2'de kendi yazdığı gerekçe). Public tip sayısı 380 → **381** |
+| 1 | Planlanan Public API yalnız `RunScore` ve `RunScoreKind`'ı büyütüyordu | **`public static class RunScoreRules`** eklendi (`DefaultName`, `MaxNameLength`, `MaxTextValueLength`, `NameDescription`, `IsValidName`, `Validate`) | Invariant'ı **dört** store birden zorlamalı ve sözleşme testi bunu talep ediyor. `Tracon.Sql.Shared` linked source'tur (K-176) ve üç ayrı derlemeye derlenir; `Abstractions`'ın `internal`'ına erişemez — üç yeni `InternalsVisibleTo` yazmak paket üstverisine sızardı. `IRunScoreStore` bir **genişleme noktasıdır**: tüketicinin kendi store'u da aynı kuralı uygulamak zorunda ve sevk edilen `RunScoreStoreContract` onu buna zorluyor. Kuralı ikinci kez elle yazmak ikinci bir doğrulama yolu üretirdi (planın 152.2'de kendi yazdığı gerekçe). Public tip sayısı 380 → **381** |
 | 2 | 152.3(4): "`Kind` `Categorical` ise `TextValue` doludur ve `Value` `null`'dır; **değilse tersi**" | Invariant bir **şekil** kuralıdır, bir **varlık** kuralı değil: `Categorical` → `TextValue` dolu **ve** `Value` null; diğer kind'ler → `TextValue` null, `Value` **null olabilir** | Planın harfi kendi DoD'siyle çelişiyordu: "`Value = null` 'ölçüm yok' olarak geri döner" satırı, `Value`'nun non-categorical kind'lerde zorunlu olmasıyla aynı anda doğru olamaz. Depo katmanında `null` meşrudur (ölçüm yok); **HTTP ucu** daha katıdır ve non-categorical bir gövdede `value` ister — bugünkü davranış korunur |
 | 3 | Hata modu tablosunda "İptal: yazma ortasında `CancellationToken` iptal olur → Sözleşme" | Sözleşmeye **eklenmedi** | Repoda hiçbir store sözleşmesinin iptal case'i yok ve bellek içi store'lar token'ı hiç okumuyor. `RunScoreStoreContract` **sevk edilen** bir sözleşmedir; oraya iptal case'i eklemek her üçüncü taraf store'a yeni bir zorunluluk yükler ve bu tek fazın değil, tüm store ailesinin kararıdır. `docs/ADAYLAR.md` **F-213** olarak yazıldı |
 | 4 | Hata modu tablosunda "Eşzamanlılık: aynı `(run, author, name)` iki eşzamanlı yazım → Sözleşme" | `Repeated_writes_of_the_SAME_name_leave_exactly_one_row` yazıldı (art arda beş yazım) | Sözleşme fixture'ı sağlayıcı başına **tek bağlantı** tutar; paralel bir yazım demeti tekillik indeksini değil bağlantıyı ölçerdi. Art arda yazım, indeks değişiminin ilk göstereceği arızayı (anahtar tutmuyor ⇒ her yazım yeni satır) **gerçekten** yakalar. Adı da bunu söyler — "Concurrent" demez |

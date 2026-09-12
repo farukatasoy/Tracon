@@ -20,16 +20,16 @@ bugünün ağacında yeniden ölçtü; ikisi elendi, beşi ayakta kaldı.
 |---|---|---|
 | Kota zamanlaması | `QuotaEnforcer.cs:200`, `QuotaGate.cs:34-47` | Tavan **run öncesi bir kez** ve **dönem birikimi** üzerinden bakılıyor. Tek bir run tavanı aşabilir. |
 | Bütçe hata sınıfı | `grep -rn "BudgetExceeded" src/` | `RunErrorClass.cs:63` + generated client. **Üreten kod yok.** |
-| MCP sunucusu | `grep -rn "Stateless\|MRTR\|Tasks\|Elicit" src/AgentPrism.AspNetCore/McpServer src/AgentPrism.Mcp` | **Sıfır isabet.** |
+| MCP sunucusu | `grep -rn "Stateless\|MRTR\|Tasks\|Elicit" src/Tracon.AspNetCore/McpServer src/Tracon.Mcp` | **Sıfır isabet.** |
 | MCP SDK sürümü | `Directory.Packages.props:162,172` | `ModelContextProtocol.Core` / `.AspNetCore` **2.2.0**. |
 | MAF sürümü | `Directory.Packages.props:19` | `MicrosoftAgentsAIVersion` = **1.18.0**. Hosting hattı 1.18.0-preview/alpha. |
-| CLI yüzeyi | `ls src/AgentPrism.Cli/Commands/` | `Health`, `Migrate`, `MigrateStatus`. Eval, run veya agent komutu yok. |
-| Eval altyapısı | `ls src/AgentPrism.*/Evaluation/` | `EvalSuite`, `EvalRun`, `IRunJudge`, `EvalJobHandler`, `RunToCasePromoter` tam. Başsız koşucu yok. |
-| A2A yeteneği | `AgentPrismA2AExtensions.cs:171` | `Streaming = false, PushNotifications = false`. |
+| CLI yüzeyi | `ls src/Tracon.Cli/Commands/` | `Health`, `Migrate`, `MigrateStatus`. Eval, run veya agent komutu yok. |
+| Eval altyapısı | `ls src/Tracon.*/Evaluation/` | `EvalSuite`, `EvalRun`, `IRunJudge`, `EvalJobHandler`, `RunToCasePromoter` tam. Başsız koşucu yok. |
+| A2A yeteneği | `TraconA2AExtensions.cs:171` | `Streaming = false, PushNotifications = false`. |
 | Webhook redrive | `grep -rn "Redrive\|DeadLetter" src/` | **Sıfır isabet.** |
 | Model capability | `IModelProvider.cs:69-75`, `AgentDefinitionCompiler.ChatOptions.cs:208` | Yalnız `SupportsStructuredOutput` gerçek kapı; diğer üçü **advisory** ilan edilmiş. |
-| Onay politikası | `grep -rn "simulate\|explain" src/AgentPrism.AspNetCore/Endpoints` | Yalnız `DataSubjectEndpoints` `dryRun`'ı. Tool policy için yok. |
-| RAG citation | `VectorSearchHit.cs:1-21`, `grep -rn "Citation" src/` | Hit `SourceId`/`ChunkIndex` taşıyor. AgentPrism'in kendi citation sözleşmesi **yok** (yalnız MEAI tipi generated client'ta). |
+| Onay politikası | `grep -rn "simulate\|explain" src/Tracon.AspNetCore/Endpoints` | Yalnız `DataSubjectEndpoints` `dryRun`'ı. Tool policy için yok. |
+| RAG citation | `VectorSearchHit.cs:1-21`, `grep -rn "Citation" src/` | Hit `SourceId`/`ChunkIndex` taşıyor. Tracon'in kendi citation sözleşmesi **yok** (yalnız MEAI tipi generated client'ta). |
 | Prompt cache yönlendirmesi | `AnthropicProviderSettingsChatClient.cs:105` | Anthropic `cache_control` **var**. Google/OpenAI karşılığı yok. |
 | Prompt cache raporlama | `ModelDescriptor.cs:46`, `RunSupportTypes.cs:41,117` | `CachedInputTokens` + `CachedInputCost` tam. |
 | OTel | `ModelProviderRegistry.cs:456` | `UseOpenTelemetry(...)` **zaten** pipeline'da. |
@@ -41,13 +41,13 @@ bugünün ağacında yeniden ölçtü; ikisi elendi, beşi ayakta kaldı.
 
 ## 2. Ekosistem taraması
 
-| Kaynak | Bakılan tarih | Ne değişti | AgentPrism'e etkisi |
+| Kaynak | Bakılan tarih | Ne değişti | Tracon'e etkisi |
 |---|---|---|---|
-| [MCP 2026-07-28 spesifikasyonu](https://modelcontextprotocol.io/specification/2026-07-28/changelog) | 2026-08-26 | Stateless çekirdek, Multi Round-Trip Requests (SEP-2322), header tabanlı yönlendirme, cache'lenebilir list sonuçları, authorization sertleştirmesi, resmî extension çerçevesi. Tasks resmî extension oldu. | AgentPrism'in MCP sunucusu bu yüzeylerin hiçbirini taşımıyor. 2026-08-23 turunun 2025-11-25 tabanlı gerekçeleri **bayatladı**. |
+| [MCP 2026-07-28 spesifikasyonu](https://modelcontextprotocol.io/specification/2026-07-28/changelog) | 2026-08-26 | Stateless çekirdek, Multi Round-Trip Requests (SEP-2322), header tabanlı yönlendirme, cache'lenebilir list sonuçları, authorization sertleştirmesi, resmî extension çerçevesi. Tasks resmî extension oldu. | Tracon'in MCP sunucusu bu yüzeylerin hiçbirini taşımıyor. 2026-08-23 turunun 2025-11-25 tabanlı gerekçeleri **bayatladı**. |
 | [MCP C# SDK v2.0](https://devblogs.microsoft.com/dotnet/announcing-v20-of-the-official-mcp-csharp-sdk/) | 2026-08-26 | `HttpServerTransportOptions.Stateless` varsayılanı **true**. Stateless sunucu transport oturumu açmaz, standalone SSE GET/DELETE ucunu sunmaz, istenmeyen sunucu→istemci isteğini desteklemez. MCP Apps ve Tasks ayrı extension paketleri. 2025-11-25 ve öncesiyle down-level uyum var. | Repo zaten 2.2.0'da. Bu varsayılanın mevcut davranışı sessizce değiştirip değiştirmediği **ölçülmedi** (Kanal 2). |
 | [MAF Build 2026 duyurusu](https://devblogs.microsoft.com/agent-framework/microsoft-agent-framework-at-build-2026-announce/) | 2026-08-26 | Agent Harness, hosted agents, CodeAct, GitHub Copilot SDK backend'i. | Harness zaten kullanılıyor (`AgentDefinitionCompiler.Agents.cs:279`). CodeAct K2'yi ihlal eder. |
 | [MAF sürüm notları](https://github.com/microsoft/agent-framework/releases) | 2026-08-26 | 1.0 GA 2026-04-02. **1.19.0**: session-persisted chat routing, Azure Blob session persistence, **experimental agent-hooks interception**. 1.15.0: A2UI, workflow checkpoint registry. | Repo 1.18.0'da. agent-hooks, **F-95**'in "MAF kancası yok" gerekçesini geçersiz kılmış olabilir (Kanal 3). |
-| [LLM gateway karşılaştırmaları 2026](https://insights.nomadlab.cc/blog/2026/05/langfuse-helicone-portkey-litellm-openrouter-2026) | 2026-08-26 | Üretim yığını "her katman için bir araç" deseninde: orchestration runtime · observability · gateway. Portkey tek kontrol düzleminde gateway + observability + prompt yönetimi + governance topluyor. | AgentPrism .NET/MAF tarafında bu üç katmanı zaten birleştiriyor. Bu taramada AgentPrism'de olmayan ve **ölçülebilir** tek gateway yeteneği semantik önbellek çıktı; değeri düşük ve riski yüksek görüldü (bkz. § 5). |
+| [LLM gateway karşılaştırmaları 2026](https://insights.nomadlab.cc/blog/2026/05/langfuse-helicone-portkey-litellm-openrouter-2026) | 2026-08-26 | Üretim yığını "her katman için bir araç" deseninde: orchestration runtime · observability · gateway. Portkey tek kontrol düzleminde gateway + observability + prompt yönetimi + governance topluyor. | Tracon .NET/MAF tarafında bu üç katmanı zaten birleştiriyor. Bu taramada Tracon'de olmayan ve **ölçülebilir** tek gateway yeteneği semantik önbellek çıktı; değeri düşük ve riski yüksek görüldü (bkz. § 5). |
 
 ---
 
@@ -56,7 +56,7 @@ bugünün ağacında yeniden ölçtü; ikisi elendi, beşi ayakta kaldı.
 | # | Fikir | Kim için | Neden şimdi | Sonuç |
 |---:|---|---|---|---|
 | 1 | Çalıştırma-içi maliyet tavanı (mid-run kill switch) | Platform ekibi · nöbetçi | `BudgetExceeded` beyan edilmiş, üretilmiyor; tavan yalnız run öncesi bakılıyor | ✅ |
-| 2 | MCP 2026-07-28 hizalanması (stateless · MRTR · Tasks) | AgentPrism'i MCP sunucusu olarak tüketen ekip | Spec ve SDK 2.x yayında; repo SDK'yı almış, yüzeyi almamış | ✅ |
+| 2 | MCP 2026-07-28 hizalanması (stateless · MRTR · Tasks) | Tracon'i MCP sunucusu olarak tüketen ekip | Spec ve SDK 2.x yayında; repo SDK'yı almış, yüzeyi almamış | ✅ |
 | 3 | Eval'in başsız koşucusu ve CI kapısı | MAF'ı zaten kullanan ekip · platform ekibi | Eval altyapısı tam, koşum yolu yok; CLI üç komut taşıyor | ✅ |
 | 4 | A2A dayanıklı task store + streaming/push | Agent'ını başka agent'lara açan ekip | Agent card ikisini de `false` ilan ediyor | ✅ (devir) |
 | 5 | Webhook dead-letter ve redrive | Nöbetçi mühendis | `Failed` durumu var, operatörün yeniden sürme yolu yok | ✅ (devir) |
@@ -86,7 +86,7 @@ bugünün ağacında yeniden ölçtü; ikisi elendi, beşi ayakta kaldı.
 
 **Kanıt:** Ölçüldü — `QuotaEnforcer.cs:200` dönem birikimini run **öncesi**
 karşılaştırır; `QuotaGate.cs:34` bunu tek seferlik ön uçuş olarak çağırır.
-`grep -rn "MaxCost" src/AgentPrism.Core/Recording src/AgentPrism.Core/Compilation`
+`grep -rn "MaxCost" src/Tracon.Core/Recording src/Tracon.Core/Compilation`
 sıfır isabet verir. `RunErrorClass.cs:63` `BudgetExceeded = 9` taşır ve `src/`
 içinde onu **üreten kod yoktur**.
 **Mercek:** 2, 3, 8.
@@ -98,7 +98,7 @@ tanımlanmazsa davranış öngörülemez olur.
 
 ### 2 · MCP 2026-07-28 hizalanması
 
-**Kanıt:** Ölçüldü — `src/AgentPrism.AspNetCore/McpServer` ve `src/AgentPrism.Mcp`
+**Kanıt:** Ölçüldü — `src/Tracon.AspNetCore/McpServer` ve `src/Tracon.Mcp`
 içinde `Stateless|MRTR|Tasks|Elicit` sıfır isabet. `Directory.Packages.props:162,172`
 SDK'yı 2.2.0'a sabitliyor. Ekosistem kanıtı 2026-08-26 tarihli spec changelog'u
 ve SDK v2.0 duyurusu.
@@ -108,17 +108,17 @@ ve SDK v2.0 duyurusu.
 MCP sözleşmesi büyür. Tenant/auth bağlamının task kimliğine sıkı bağlanması
 zorunludur.
 **Karşı görüş:** Spec bir ay önce yayınlandı ve down-level uyum zaten var.
-AgentPrism'in MCP sunucusu loopback + bearer + policy ile korunuyor ve uzak
+Tracon'in MCP sunucusu loopback + bearer + policy ile korunuyor ve uzak
 erişimle birlikte açılmıyor; stateless yönlendirmenin bugün ölçülmüş bir
 tüketicisi yok.
 
 ### 3 · Eval'in başsız koşucusu ve CI kapısı
 
-**Kanıt:** Ölçüldü — `ls src/AgentPrism.Cli/Commands/` üç komut verir.
-`src/AgentPrism.Core/Evaluation/` on beş dosyayla tam bir eval çekirdeği taşır.
+**Kanıt:** Ölçüldü — `ls src/Tracon.Cli/Commands/` üç komut verir.
+`src/Tracon.Core/Evaluation/` on beş dosyayla tam bir eval çekirdeği taşır.
 İkisini birleştiren, exit code üreten bir yol yoktur.
 **Mercek:** 3, 7.
-**Eleyici sınır:** K2/K3 uyumlu. Yeni paket gerekmez (`AgentPrism.Cli` vardır).
+**Eleyici sınır:** K2/K3 uyumlu. Yeni paket gerekmez (`Tracon.Cli` vardır).
 Public CLI sözleşmesi büyür — CLI yüzeyi de bir uyumluluk taahhüdüdür.
 **Karşı görüş:** Model yanıtı deterministik değildir; eşiği yanlış seçilen bir
 eval kapısı CI'ı gürültüyle kapatır. F-67'nin gürültü eşiği sorunuyla aynı
@@ -126,7 +126,7 @@ sorundur ve aynı kararı ister.
 
 ### 4 · A2A dayanıklı task store + streaming/push
 
-**Kanıt:** Ölçüldü — `AgentPrismA2AExtensions.cs:171` `Streaming = false,
+**Kanıt:** Ölçüldü — `TraconA2AExtensions.cs:171` `Streaming = false,
 PushNotifications = false`. 2026-08-23 turunda da ölçülmüştü; bugün değişmemiş.
 **Mercek:** 1, 3, 6.
 **Eleyici sınır:** K3 korunur. Mevcut `A2A.AspNetCore` + MAF Hosting hattı
@@ -159,7 +159,7 @@ olabilir. Yanlış negatif çalışan bir agent'ı derlemede durdurur — bugün
 
 ### 7 · Tool onay politikası için explain/simulate ucu
 
-**Kanıt:** Ölçüldü — `grep -rn "simulate\|explain" src/AgentPrism.AspNetCore/Endpoints`
+**Kanıt:** Ölçüldü — `grep -rn "simulate\|explain" src/Tracon.AspNetCore/Endpoints`
 yalnız `DataSubjectEndpoints`'in `dryRun`'ını bulur. Onay yüzeyinde karşılığı yoktur.
 **Mercek:** 2, 3, 5.
 **Eleyici sınır:** K2 korunur — simülasyon hiçbir tool gövdesi çalıştırmaz.
@@ -171,7 +171,7 @@ yanıltıcı olur.
 ### 8 · RAG kaynak soy zinciri ve citation sözleşmesi
 
 **Kanıt:** Ölçüldü — `VectorSearchHit.cs:1-21` `SourceId` ve `ChunkIndex`
-taşır. `grep -rn "Citation" src/` AgentPrism'in kendi tipini bulmaz; yalnız
+taşır. `grep -rn "Citation" src/` Tracon'in kendi tipini bulmaz; yalnız
 generated client'ta MEAI tipi görünür.
 **Mercek:** 1, 3, 7.
 **Eleyici sınır:** K2 uyumlu. AOT için tipli metadata seçilmelidir. Sağlayıcıya
@@ -235,8 +235,8 @@ kanıtı üretilmeden listeye alınırsa aynı ölçüm ikinci kez yapılmış o
 
 | Bulgu | Kanıt | Kullanıcıya söylendi mi | `kusur-giderme` koşuldu mu |
 |---|---|---|---|
-| **Doğrulandı.** `RunErrorClass.BudgetExceeded = 9` public enum'da beyan edilmiş; **hiçbir kod yolu onu üretemez**. Faz 104'ün beyan doğruluğu kapsamına girer. | Tüm repo taraması: yalnız tanım (`RunErrorClass.cs:63`), `PublicAPI.Unshipped.txt:2174`, `docs/openapi/agentprism.json:13029`, `packages/agentprism-client/src/schema.ts:5480`, generated client ve **iki dil dosyası** (`locales/en/runs.ts:208`, `locales/tr/runs.ts:213`). `DefaultRunErrorClassifier.cs` hiçbir exception'ı buna eşlemez. Tree budget tükendiğinde `ChildAgentInvoker.cs:230-232` **exception atmaz**, modele metin döndürür — run başarılı biter. | Evet | ⏸ Düzeltme yönü kullanıcı kararı bekliyor (bkz. § 8) |
-| **Çürütüldü — kusur değil.** MCP sunucusunun stateless olması sessiz bir davranış değişimi değildir. | **Çalışma anı probu (2026-08-26):** kurulu `ModelContextProtocol.AspNetCore` **2.2.0** paketinde `HttpServerTransportOptions` varsayılanları `Stateless = True`, `SessionMode = Stateless`, `EnableLegacySse = False`. `AgentPrismMcpServerBuilderExtensions.cs:60` `WithHttpTransport()`'u seçeneksiz çağırır → SDK varsayılanı geçerli. **Ama** `git log -p -- Directory.Packages.props` gösteriyor ki repo bu paketi **doğrudan 2.0.0'da** aldı ve 2.2.0'a çıktı; **1.x hiç kullanılmadı**, yani stateless varsayılanı hiçbir zaman değişmedi. `McpServerEndpointTests.cs` ve `McpTestClient` yüzeyi test ediyor. | Evet | Gerek yok — kapandı |
+| **Doğrulandı.** `RunErrorClass.BudgetExceeded = 9` public enum'da beyan edilmiş; **hiçbir kod yolu onu üretemez**. Faz 104'ün beyan doğruluğu kapsamına girer. | Tüm repo taraması: yalnız tanım (`RunErrorClass.cs:63`), `PublicAPI.Unshipped.txt:2174`, `docs/openapi/tracon.json:13029`, `packages/tracon-client/src/schema.ts:5480`, generated client ve **iki dil dosyası** (`locales/en/runs.ts:208`, `locales/tr/runs.ts:213`). `DefaultRunErrorClassifier.cs` hiçbir exception'ı buna eşlemez. Tree budget tükendiğinde `ChildAgentInvoker.cs:230-232` **exception atmaz**, modele metin döndürür — run başarılı biter. | Evet | ⏸ Düzeltme yönü kullanıcı kararı bekliyor (bkz. § 8) |
+| **Çürütüldü — kusur değil.** MCP sunucusunun stateless olması sessiz bir davranış değişimi değildir. | **Çalışma anı probu (2026-08-26):** kurulu `ModelContextProtocol.AspNetCore` **2.2.0** paketinde `HttpServerTransportOptions` varsayılanları `Stateless = True`, `SessionMode = Stateless`, `EnableLegacySse = False`. `TraconMcpServerBuilderExtensions.cs:60` `WithHttpTransport()`'u seçeneksiz çağırır → SDK varsayılanı geçerli. **Ama** `git log -p -- Directory.Packages.props` gösteriyor ki repo bu paketi **doğrudan 2.0.0'da** aldı ve 2.2.0'a çıktı; **1.x hiç kullanılmadı**, yani stateless varsayılanı hiçbir zaman değişmedi. `McpServerEndpointTests.cs` ve `McpTestClient` yüzeyi test ediyor. | Evet | Gerek yok — kapandı |
 
 **Sınıf taraması (`kusur-giderme` zorunlu adımı):** `RunErrorClass`'ın **on dört
 üyesinin tamamı** tarandı. `BudgetExceeded` üreticisi **sıfır** olan **tek**
@@ -247,8 +247,8 @@ değil, tek bir vakadır.
 
 | Kayıt | Kararın gerekçesi | Neyin değiştiği | Kullanıcının kararı |
 |---|---|---|---|
-| **F-95** (karar/uyumluluk eşiği) | "Agent düzeyinde checkpoint hook'u — **MAF kancası yok**; AgentPrism'in paralel katmanı K3'ü zorlar" | MAF **1.19.0** sürüm notu doğrulandı (2026-08-26, releases sayfası okundu): ".NET: agent-hooks interception contract as a first-class experimental feature", [PR #7564](https://github.com/microsoft/agent-framework/pull/7564). 1.18.0 notlarında yoktur. Repo 1.18.0'dadır. | ✅ **Yeniden açıldı.** `ADAYLAR.md`'ye aday olarak yazıldı; imza `maf-api-kesfi` ile doğrulanmadan plana dönmez |
-| **K-008** (ön sürüm MAF paketleri yalnız `AgentPrism.AspNetCore`) | Ön sürüm bağımlılığı tüketici grafiğine sızmasın | MAF 1.0 GA 2026-04-02'de çıktı, fakat `Microsoft.Agents.AI.Hosting*` hattı **hâlâ** preview/alpha (`Directory.Packages.props:37-50`). | Değişiklik gerekmiyor — karar geçerli |
+| **F-95** (karar/uyumluluk eşiği) | "Agent düzeyinde checkpoint hook'u — **MAF kancası yok**; Tracon'in paralel katmanı K3'ü zorlar" | MAF **1.19.0** sürüm notu doğrulandı (2026-08-26, releases sayfası okundu): ".NET: agent-hooks interception contract as a first-class experimental feature", [PR #7564](https://github.com/microsoft/agent-framework/pull/7564). 1.18.0 notlarında yoktur. Repo 1.18.0'dadır. | ✅ **Yeniden açıldı.** `ADAYLAR.md`'ye aday olarak yazıldı; imza `maf-api-kesfi` ile doğrulanmadan plana dönmez |
+| **K-008** (ön sürüm MAF paketleri yalnız `Tracon.AspNetCore`) | Ön sürüm bağımlılığı tüketici grafiğine sızmasın | MAF 1.0 GA 2026-04-02'de çıktı, fakat `Microsoft.Agents.AI.Hosting*` hattı **hâlâ** preview/alpha (`Directory.Packages.props:37-50`). | Değişiklik gerekmiyor — karar geçerli |
 
 ---
 
@@ -284,10 +284,10 @@ Uygulanan adımlar ve doğrulama:
 |---|---|
 | Düşen test önce yazıldı (`RunErrorClassContractTests`) | 2/2 **kırmızı** — üye kümesi ve `9`'un tanımlı olması |
 | `RunErrorClass.cs` · `PublicAPI.Unshipped.txt` · `locales/en/runs.ts` · `locales/tr/runs.ts` | Üye ve iki sözlük anahtarı kaldırıldı; `9`'un neden emekli olduğu koda yorum olarak yazıldı |
-| OpenAPI belgesi yeniden üretildi | `AGENTPRISM_OPENAPI_REFRESH=1` · 671/671 yeşil |
+| OpenAPI belgesi yeniden üretildi | `TRACON_OPENAPI_REFRESH=1` · 671/671 yeşil |
 | TypeScript şeması yeniden üretildi | `npm run generate` |
 | NSwag C# istemcisi yeniden üretildi | dört script zinciri |
-| `@agentprism/client` `dist` yeniden derlendi | **atlanırsa frontend `tsc` kırmızı kalır** — bayat `dist` tuzağı |
+| `@tracon/client` `dist` yeniden derlendi | **atlanırsa frontend `tsc` kırmızı kalır** — bayat `dist` tuzağı |
 | Aynı test yeniden koşuldu | 2/2 **yeşil** |
 | Sözleşme sınıfı taraması | `RunErrorClass`'ın 14 üyesi tarandı; üreticisiz **tek** üye buydu |
 | Frontend | `tsc --noEmit` temiz · 222/222 test yeşil |
@@ -311,7 +311,7 @@ Bu, K2'nin kapattığı tartışma değildir.
 
 Ayrıca K2'nin zaten **iki bilinçli istisnası** vardır (MCP · skill script) ve
 skill script istisnası şunu açıkça ilan eder (`MIMARI-GUVENLIK.md:241`):
-*"AgentPrism dosya sistemi hapsi, ağ kısıtı, bellek/CPU kotası ve hak düşürme
+*"Tracon dosya sistemi hapsi, ağ kısıtı, bellek/CPU kotası ve hak düşürme
 SAĞLAMAZ."* Hyperlight bu dördünü kutudan verir. Yalıtım ekseninde CodeAct,
 repo'nun **zaten sevk ettiği** istisnadan zayıf değil, **güçlüdür**.
 
@@ -341,7 +341,7 @@ Sonuçları:
   (K-166/K-167: "birim testi yetmez, örnek uygulamayı gerçekten çalıştır")
   yapılamaz.
 - ARM Linux (Graviton, Ampere) kapsam dışıdır.
-- AgentPrism bir **NuGet ailesidir**; native RID bağımlılığı tüketicinin
+- Tracon bir **NuGet ailesidir**; native RID bağımlılığı tüketicinin
   dağıtım hedefini daraltır.
 
 ### 9.4 Sınıflandırma

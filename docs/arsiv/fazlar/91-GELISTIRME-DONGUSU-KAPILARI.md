@@ -3,10 +3,10 @@
 > **Durum:** ✅ Tamamlandı (2026-08-23)
 > **Kaynak:** [`arsiv/kesif/2026-08-23-yapisal-sorun-envanteri.md`](../kesif/2026-08-23-yapisal-sorun-envanteri.md) kalem **3** (kısmi) ve kalem **20** · kullanıcı isteği: geliştirme sürecinin uçtan uca optimizasyonu. Bu faz bir `F-NN` adayından gelmez; envanter turunun iki kalemini birleştirir.
 > **Önkoşul:** Yok
-> **Paketler:** Yok — iş `scripts/`, `.github/`, `src/AgentPrism.UI/*.targets` üzerindedir
+> **Paketler:** Yok — iş `scripts/`, `.github/`, `src/Tracon.UI/*.targets` üzerindedir
 > **Yeni paket:** Yok · **Migration:** Yok
 > **Public API:** Büyümüyor. `PublicAPI.Unshipped.txt` 8079 satır, `Shipped.txt` dosyaları boş (16 dosya × 1 satır); bu faz ikisine de dokunmaz
-> **Tüketici yüzeyi:** **Yok.** `tuketici-dokuman-senkronu` Adım 0 tablosundaki hiçbir yol tutmuyor: public üye değişmiyor, HTTP ucu yok, ekran yok, yeni paket yok. `AgentPrism.UI.Frontend.targets` yalnız `AgentPrism.UI.csproj:61` tarafından import edilir; `buildTransitive/` içinde **değildir**, tüketiciye gitmez. Skill koşmaz — gerekçe budur
+> **Tüketici yüzeyi:** **Yok.** `tuketici-dokuman-senkronu` Adım 0 tablosundaki hiçbir yol tutmuyor: public üye değişmiyor, HTTP ucu yok, ekran yok, yeni paket yok. `Tracon.UI.Frontend.targets` yalnız `Tracon.UI.csproj:61` tarafından import edilir; `buildTransitive/` içinde **değildir**, tüketiciye gitmez. Skill koşmaz — gerekçe budur
 > **Manuel test alanı:** [`docs/manuel-test/33-DOKUMAN-KAPILARI.md`](../../manuel-test/33-DOKUMAN-KAPILARI.md) (Adım 4 kapıları) + yeni aile `36-GELISTIRME-KAPILARI.md` (`kapi.py`, `denetim-paketi.py`)
 
 ---
@@ -48,7 +48,7 @@ Bu faz, geliştirme döngüsünün **prose ile taşınan** kalite kurallarını 
 - [x] **Ölçüm karşılaştırması yazıldı**: §91.0 ve §91.5 rakamları yan yana. Tam testte 8,70 s artış olduğu için iyileşme iddia edilmedi
 - [x] **Eklenen script satırı ile düşen prose satırı ölçüldü ve yazıldı.** Üretim script'leri 643 satır, script testleri 215 satır ekledi; ortak kapı/senkronizasyon/secret prose'undan 63 satır düştü. Script'in büyük olması, prose'un yerine test edilebilir tek kaynak koyma bedelidir
 - [x] Dört doğrulama kapısı sıfır uyarı verir (`kapi.py kapanis` ile); kapanış koşumu `891307d` tabanıyla ve Node 22 PATH'iyle yeşildir
-- [x] `samples/AgentPrism.Api` ayağa kalktı: `/agentprism` 200 HTML, `/agentprism/api/meta` bearer ile 200, `/health` 200 `Degraded`, support run SSE akışı Echo yanıtıyla tamamlandı. Örnek UI için Playwright `AgentPrism.Ui.E2ETests` 57/57 geçti; in-app browser connector bu ortamda kullanılamadı
+- [x] `samples/Tracon.Api` ayağa kalktı: `/tracon` 200 HTML, `/tracon/api/meta` bearer ile 200, `/health` 200 `Degraded`, support run SSE akışı Echo yanıtıyla tamamlandı. Örnek UI için Playwright `Tracon.Ui.E2ETests` 57/57 geçti; in-app browser connector bu ortamda kullanılamadı
 - [x] `secret` taraması boş döndü
 - [x] Manuel kabul case'leri eklendi: §91.4 kapıları `33-DOKUMAN-KAPILARI.md`'ye, `kapi.py`/`denetim-paketi.py` case'leri yeni `36-GELISTIRME-KAPILARI.md`'ye + `00-INDEKS.md` satırı. Otomatikleştirilebilenler koşuldu
 - [x] `faz-denetim` koşuldu; 🔴 bulgu kalmadı
@@ -73,8 +73,8 @@ python3 scripts/dokuman-bakim.py --denetle
 python3 -m unittest discover -s scripts -p "*_test.py"
 
 # Build incremental'liği
-dotnet build AgentPrism.slnx -c Release          # birinci
-dotnet build AgentPrism.slnx -c Release          # ikinci: npm run build koşmamalı
+dotnet build Tracon.slnx -c Release          # birinci
+dotnet build Tracon.slnx -c Release          # ikinci: npm run build koşmamalı
 ```
 
 ---
@@ -99,7 +99,7 @@ dotnet build AgentPrism.slnx -c Release          # ikinci: npm run build koşmam
    çalışmayı ve başarısızlıkta `git reset --hard` kullanabileceği için reddediyor;
    proje kuralı gereği kullanıcı istemeden commit atılmadı. Commit sonrası
    `faz-arsivle 91` ve `faz-damit 91` koşulmalıdır.
-6. Son kapanış tekrarında tam test `AgentPrism.Ui.E2ETests` içinde 56/57 ile
+6. Son kapanış tekrarında tam test `Tracon.Ui.E2ETests` içinde 56/57 ile
    kırmızı oldu. İlk kırılan `Pending_request_card_can_be_answered`, sonra
    izole koşumda 1/1 geçti; ayrı UI koşumundaki
    `Runs_button_on_session_page_navigates_to_filtered_list` de izole 1/1
@@ -123,7 +123,7 @@ dotnet build AgentPrism.slnx -c Release          # ikinci: npm run build koşmam
    sabitlendi.
 9. Dört 🟡 bulgu düzeltildikten sonra `kapi.py kapanis --taban 891307d`
    **ikinci kez** koşuldu (yalnız `.py`/`.md` değişti, hiçbir C# dosyası
-   dokunulmadı). `dotnet test` bu tekrarda `AgentPrism.Templates.Tests`
+   dokunulmadı). `dotnet test` bu tekrarda `Tracon.Templates.Tests`
    içinde `ExitCode 70` ile kırmızı çıktı — mesaj birebir
    `test-kosum-tuzaklari.md:43-55`'te Faz 58'den beri kayıtlı GLOBAL
    `~/.templateengine/packages.json` kilit çakışmasıyla eşleşiyor. Kayıtlı
@@ -157,7 +157,7 @@ Yok.
 
 | Bulgu | Sonuç |
 |---|---|
-| In-app browser connector bu çalışma ortamında kullanılamadı. | Gerekçelendi. Örnek uygulama HTTP smoke ile, UI davranışı geçen tam UI koşumunda Playwright `AgentPrism.Ui.E2ETests` 57/57 ile doğrulandı; görsel connector case'i ayrıca insan koşumuna kaldı. |
+| In-app browser connector bu çalışma ortamında kullanılamadı. | Gerekçelendi. Örnek uygulama HTTP smoke ile, UI davranışı geçen tam UI koşumunda Playwright `Tracon.Ui.E2ETests` 57/57 ile doğrulandı; görsel connector case'i ayrıca insan koşumuna kaldı. |
 | Kapanış tekrarlarında tam UI suite 56/57 ile kırmızı oldu. | Gerekçelendi. Kırılan iki farklı case izole koşumda 1/1 geçti; bu repo hafızasındaki F-130 flakiness sınıfının beklenen belirtisidir. Başarısız tam koşumun çıkış kodu gizlenmedi. |
 | Alt-agent mekanizması bulunmadığı için denetim aynı oturumda read-only bağımsız checklist olarak yapıldı. | Kapandı (madde 7). Kullanıcının ayrı bir oturumda istediği doğrulama, gerçek taze bağlamlı `Agent` çağrısıyla bu denetimi tekrarladı — aşağıya bakın. |
 
@@ -200,7 +200,7 @@ listede kapı kazanan tuzakların anlatısını kısaltabilir:
 | CI/skill içinde kopyalanmış sync/secret/closing tanımı | `dokuman-bakim.py` tekrarlanan kapı tanımı kontrolü | `kapi.py` tek kaynak olarak kalır |
 | Node durumunun ve frontend varlıklarının hot build'de kaybolması | `Frontend.targets` detection/assets stamp'leri + üç TFM clean build | Stamp sırası ve `DispatchToInnerBuilds` sınırı korunur |
 | Tarihsel test tiyatrosu ve signature drift | `denetim-paketi.py` advisory replay kanıtı | Advisory kalır; sert kapı gibi sunulmaz |
-| `git` PATH'te yokken `kapi.py`/`denetim-paketi.py` traceback ile çökmesi | `_git()`/`git()` `OSError` yakalar; regresyon testleri var | **Henüz kapı kazanmadı**: `Frontend.targets`'ın incremental doğruluğunu (ikinci build `npm run build` koşturmaz) hiçbir otomatik kapı tekrar doğrulamıyor — kanıt yalnız bu fazın tek seferlik elle ölçümünde. UI projesine daraltılmış, ucuz bir regresyon testi (tam çözüm değil, yalnız `AgentPrism.UI` iki kez build) tasarım kararı gerektirir; bağımsız denetimin 🟡 bulgusu (bkz. Denetim Bulguları #2) |
+| `git` PATH'te yokken `kapi.py`/`denetim-paketi.py` traceback ile çökmesi | `_git()`/`git()` `OSError` yakalar; regresyon testleri var | **Henüz kapı kazanmadı**: `Frontend.targets`'ın incremental doğruluğunu (ikinci build `npm run build` koşturmaz) hiçbir otomatik kapı tekrar doğrulamıyor — kanıt yalnız bu fazın tek seferlik elle ölçümünde. UI projesine daraltılmış, ucuz bir regresyon testi (tam çözüm değil, yalnız `Tracon.UI` iki kez build) tasarım kararı gerektirir; bağımsız denetimin 🟡 bulgusu (bkz. Denetim Bulguları #2) |
 
 Devralınan ölçüm sonucu: cold frontend-enabled build 58,60 s → 49,66 s;
 tam test 164,43 s → 173,13 s; geçen kapanış ölçümü Node 22 ile 327,98 s.

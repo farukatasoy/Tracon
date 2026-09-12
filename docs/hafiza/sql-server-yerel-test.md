@@ -45,7 +45,7 @@ sebep o gün bulunamamıştı. 2026-08-12'de bulundu ve düzeltildi:
 
 ## Performans (2026-08-12, K-387/K-388/K-389/K-390)
 
-Container gerçekten koşmaya başlayınca (yukarıdaki K-386) `AgentPrism.SqlServer.IntegrationTests`
+Container gerçekten koşmaya başlayınca (yukarıdaki K-386) `Tracon.SqlServer.IntegrationTests`
 en yavaş paket olarak kaldı — bu makinede `mssql/server` yalnızca `linux/amd64`
 ve Apple Silicon'da Rosetta ile çalışıyor; ölçülen emülasyon cezası konteyner
 içi aynı CPU döngüsü için **~9,2×** (arm64 2,55 sn, amd64 23,38 sn). CI
@@ -152,7 +152,7 @@ düzeltildi:
 
 Bu makinede SQL Server sözleşme testlerini koşturman istenirse (2026-08-12
 itibarıyla beklenen sonuç: doğrudan çalışır, `dotnet test
-tests/AgentPrism.SqlServer.IntegrationTests -c Release`):
+tests/Tracon.SqlServer.IntegrationTests -c Release`):
 
 1. `docker run --rm --platform linux/amd64 busybox uname -m` ile hızlı bir ön
    kontrol yap. `x86_64` dönerse gerçek `mssql/server` çalışır, doğrudan testi

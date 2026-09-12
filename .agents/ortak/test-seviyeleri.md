@@ -15,7 +15,7 @@ basittir:
 |---|---|---|
 | Saf hesap, biçimlendirme, doğrulama | Birim | Sınır yok |
 | Depo sözleşmesi (yazma/okuma/yalıtım) | `tests/Shared/Contracts/` sözleşme testi | Bellek içi + üç SQL sağlayıcısında birden koşar |
-| HTTP davranışı, DI kaydı, yetki | Fonksiyonel (`AgentPrism.AspNetCore.FunctionalTests`) | Bir depo davranışını düzeltmek çağıranı sessizce değiştirir (K-283) |
+| HTTP davranışı, DI kaydı, yetki | Fonksiyonel (`Tracon.AspNetCore.FunctionalTests`) | Bir depo davranışını düzeltmek çağıranı sessizce değiştirir (K-283) |
 | `span`, `scope`, `AsyncLocal`, akışlı yol | Fonksiyonel **ve** örnek uygulama | Birim testi `AsyncLocal` akışını taklit eder, kanıtlamaz |
 | Ekran, rota, iki dillilik | E2E (Playwright) | `tsc` yalnız anahtar varlığını zorlar |
 | Paketlenmiş tüketicinin gördüğü yüzey | Örnek uygulama + manuel case | `ProjectReference` ile koşan iç test bu sınıfı hiç görmez |

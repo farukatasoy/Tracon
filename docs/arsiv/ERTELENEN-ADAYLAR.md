@@ -11,12 +11,12 @@
 > Aşağıdaki kanıt **ölçülmüştür**; sonraki oturum ölçümü tekrarlamak zorunda
 > değildir, yalnız tarihini denetler.
 
-**Sorun:** AgentPrism bir kontrol düzlemidir ama kontrol kuralları **kendi
+**Sorun:** Tracon bir kontrol düzlemidir ama kontrol kuralları **kendi
 biçiminde** yaşar: onay kuralları `tool_approval_rules`, kota `quotas`, rol
 politikaları kodda. Microsoft 2026-06-02'de bunun için açık bir standart
 yayımladı.
 **Kapsam:** ACS bildirimini okuyan bir politika değerlendirici; kesişim
-noktalarının AgentPrism dekoratör zincirine eşlenmesi (kayıt 0 → telemetri 10
+noktalarının Tracon dekoratör zincirine eşlenmesi (kayıt 0 → telemetri 10
 → onay 20 zinciri hazır yuvadır).
 **Değer:** Kurumsal alıcı "hangi standarda uyuyorsunuz" diye sorar. Bugün
 cevap "kendi modelimiz"dir.
@@ -40,7 +40,7 @@ cevap "kendi modelimiz"dir.
 🚨 **"MAF adaptörü hazır" iddiası yarım doğrudur.**
 `AgentControlAgentFrameworkRunMiddleware<TInput,TOutput>` **MAF tipi almaz** —
 ACS'nin kendi `IAgentControlAgentInvocationContext<TInput,TOutput>` arayüzünü
-alır. Adaptör bir **şekildir**, hazır bir köprü değil; AgentPrism yine de
+alır. Adaptör bir **şekildir**, hazır bir köprü değil; Tracon yine de
 `AIAgent` → o arayüz dönüşümünü yazmak zorundadır.
 
 **Maliyet:** Uygulama **düşük-orta** (adaptör şekilleri hazır). **Bağımlılık
@@ -54,7 +54,7 @@ yazıyor.
 deseni — ağırlık değil, **olgunluk ve doğrulanabilirlik**.
 **Yeniden açılma koşulu:** ACS **GA** olduğunda; ya da spesifikasyon yönetilen
 bir uygulamaya kavuştuğunda. Alınırsa **ayrı bir paket** olmalıdır
-(`AgentPrism.AgentControl`), K-185/K-209/K-212 deseniyle — native ağırlık
+(`Tracon.AgentControl`), K-185/K-209/K-212 deseniyle — native ağırlık
 yalnız isteyen tüketiciye bulaşmalıdır.
 **Bağımlılık:** [Faz 48](fazlar/48-GUARDRAILS.md)'in `IContentGuard`'ı ACS'nin
 `input`/`output` kesişim noktalarına eşlenir. `pre_tool_call`/`post_tool_call`
@@ -70,7 +70,7 @@ Kaynak: [spesifikasyon](https://microsoft.github.io/agent-governance-toolkit/pac
 > **Faza dönüşmedi; bir kusur olarak düzeltildi.** Kapsam ölçülüp **daraltıldı**:
 > hata yalnız `ProjectReference` ile derleyen tüketiciyi etkiliyordu, NuGet
 > paketiyle tüketen bir uygulamayı **etkilemiyordu** (uçtan uca doğrulandı:
-> HTTP 200). Düzeltme `samples/AgentPrism.Api.csproj` içindedir ve K-185'i
+> HTTP 200). Düzeltme `samples/Tracon.Api.csproj` içindedir ve K-185'i
 > yeniden açmadı. Tam gerekçe, ölçümler ve koruma testi: **K-352**.
 
 ---
@@ -130,7 +130,7 @@ onlarca paralel host tam olarak o ortam.
 bütçesi böyle bozulmaz).
 
 **Kapı:** `McpTasksEndpointTests.Discover_probe_negotiates_2026_07_28_even_when_the_first_response_is_slow` —
-`configureApp`'ten geçirilen bir middleware ilk `/agentprism/mcp` isteğini
+`configureApp`'ten geçirilen bir middleware ilk `/tracon/mcp` isteğini
 6 saniye geciktirir (SDK'nın 5 sn varsayılanının üstü, düzeltmenin 30 sn'sinin
 altı). Düzeltmeden ÖNCE kırmızıydı (`2025-11-25` negotiate edildi, ölçüldü),
 sonra yeşil. Gerçek CI çekişmesini beklemeden mekanizmayı deterministik
@@ -150,7 +150,7 @@ kapsam dışı.
 <details>
 <summary>Kapanış öncesi teşhis anlatısı (yanlış sınıflandırma, kayıt)</summary>
 
-**Sorun:** `dotnet test AgentPrism.slnx` (tüm çözüm birlikte) koşumunda üç MCP
+**Sorun:** `dotnet test Tracon.slnx` (tüm çözüm birlikte) koşumunda üç MCP
 Tasks testi düşüyor: `McpTasksEndpointTests.Unknown_task_id_is_reported_as_a_protocol_error_not_a_500`,
 `McpTaskCrossInstanceTests.Second_instance_reconstructs_a_completed_task_from_the_shared_database`,
 `McpTaskCrossInstanceTests.Second_instance_reconstructs_an_approval_rejection_generically_not_with_todays_exact_wording`.
@@ -159,8 +159,8 @@ Tasks testi düşüyor: `McpTasksEndpointTests.Unknown_task_id_is_reported_as_a_
 
 | Koşum | Sonuç |
 |---|---|
-| Tüm çözüm (`AgentPrism.slnx`) | ❌ 3 düştü / 766 |
-| Yalnız `AgentPrism.AspNetCore.FunctionalTests` derlemesi | ✅ 766/766 |
+| Tüm çözüm (`Tracon.slnx`) | ❌ 3 düştü / 766 |
+| Yalnız `Tracon.AspNetCore.FunctionalTests` derlemesi | ✅ 766/766 |
 | Yalnız `*McpTask*` filtresi (HEAD) | ✅ 12/12 |
 | Yalnız `*McpTask*` filtresi (temel `f2147a27`, Faz 139 öncesi) | ✅ 12/12 |
 
@@ -230,7 +230,7 @@ sevk edilen bir ürün kusuruydu** (K-660).
 >
 > ✅ **DÜZELTME SONRASI İLK YÜK ALTI KOŞUM YEŞİL (2026-09-05).** Kaydın eksik
 > dediği kanıt budur. MAF 1.20.0 yükseltmesinin kapanış kapısında tam paket
-> koşuldu (`dotnet test AgentPrism.slnx -c Release --no-build -maxcpucount:1`,
+> koşuldu (`dotnet test Tracon.slnx -c Release --no-build -maxcpucount:1`,
 > 21 proje, 6161 test, 0 düşen) ve
 > `Playground_voice_mode_opens_microphone_and_shows_transcript` **geçti —
 > TRX süresi 00:00:01.49**, E2E 58/58. Karşılaştırma: kaydın kendi yük altı
@@ -267,8 +267,8 @@ Tuzak `docs/hafiza/ses-ve-konusma.md`'de; sözleşme `docs-site/guides/voice.md`
 <details>
 <summary>Kapanış öncesi teşhis anlatısı (kayıt)</summary>
 
-**Sorun:** `AgentPrism.Ui.E2ETests.UiTests.Playground_voice_mode_opens_microphone_and_shows_transcript`
-**yalnız** tam çözüm koşumunda (`dotnet test AgentPrism.slnx -c Release
+**Sorun:** `Tracon.Ui.E2ETests.UiTests.Playground_voice_mode_opens_microphone_and_shows_transcript`
+**yalnız** tam çözüm koşumunda (`dotnet test Tracon.slnx -c Release
 --no-build -maxcpucount:1`) düşüyor: Playwright'ın `voice-transcript`
 test id'sini beklerken 30 sn'lik varsayılan zaman aşımına takılıyor.
 
@@ -282,7 +282,7 @@ yalıtım veya kilit çakışmasıdır"* kalemi. Sessiz bırakılmaz; testi uzat
 (zaman aşımını büyütmek) semptomu susturur, sebebi değil.
 
 **Ek ölçüm (2026-09-02, F-181 turunda):** Ağustos'tan kalan bir tam-paket
-koşum kaydı (`tests/AgentPrism.Ui.E2ETests/artifacts/repro/full-suite-before/`,
+koşum kaydı (`tests/Tracon.Ui.E2ETests/artifacts/repro/full-suite-before/`,
 izlenmiyor) bu testi **geçerken** yakalamış. TRX'teki gerçek süre
 **00:00:02.58**. Koşum logundaki `(36s)` testin süresi değil, koşumun o andaki
 geçen süresidir — karıştırılmamalı.
@@ -307,14 +307,14 @@ WebSocket el sıkışması tamamlandı, `ready` geldi, VAD commit edilebilir bir
 tampon üretti ve düğme tıklandı. Düşen yalnız commit **sonrası** sunucu turu.
 Bu, 2026-09-02'de bu kayda yazılan hipotezi doğruluyor: kayıp olay commit
 sonrasındadır, el sıkışmasında değil. Kanıt:
-`tests/AgentPrism.Ui.E2ETests/artifacts/repro/2026-09-03-kapanis/` (izlenmiyor).
+`tests/Tracon.Ui.E2ETests/artifacts/repro/2026-09-03-kapanis/` (izlenmiyor).
 
 **Sonraki adım daraldı:** commit'ten sonra sunucunun transcript üretimine kadar
 olan yolu ölç — `voice-commit` tıklaması sunucuya ulaştı mı, ulaştıysa yanıt
 neden gelmedi. Zaman aşımını büyütmek hâlâ yasak.
 
 **Önceki üç koşumda tekrarlanmamıştı:** Faz 134 · Faz 135 · ve
-2026-09-02'nin F-181 kapanış kapısı (`dotnet test AgentPrism.slnx -c Release
+2026-09-02'nin F-181 kapanış kapısı (`dotnet test Tracon.slnx -c Release
 --no-build -maxcpucount:1`, E2E **57/57** yeşil, 506 sn). Kusur gerçek ama
 seyrek; bir sonraki düşüşte **koşumun kendi TRX'i saklanmalıdır** — asıl eksik
 kanıt, düşen koşumdaki adım sürelerinin dağılımıdır.
@@ -337,7 +337,7 @@ buldu (kayıtta bir tane vardı):
 **Çözüm:** Etiketle süzmek yerine `Meter` **instance**'ına bağlanma. Etiket
 süzgeci, hangi testlerin çakışabileceğine dair düzyazı bir akıl yürütmeye
 dayanıyordu; yeni bir test onu sessizce geçersiz kılabilirdi. Dinlenen her tip
-`IMeterFactory` alıyor ve `AgentPrismTestHost.StartAsync` servis kaydına izin
+`IMeterFactory` alıyor ve `TraconTestHost.StartAsync` servis kaydına izin
 veriyor — izolasyon dört vakanın dördünde de mümkündü.
 
 **Kapı:** `MeterListenerIsolationTests` (sıfır tolerans, taban çizgisi yok).
@@ -360,7 +360,7 @@ ayıklar: tuzağı XML dokümanında ANLATAN `ObservabilityTests` cezalandırıl
 ### F-215 · SQL Server'ın `run_scores` upsert'ü yarışıyor ve `NULL`/`''` semantiği kardeşlerinden sapıyor — ✅ KAPANDI (2026-09-07)
 
 **Kapanış:** `kusur-giderme` faz dışı koşuldu. Önerilen çözüm (`message_key AS ISNULL(message_id, N'') PERSISTED`
-+ index taşıma) [`0037_run_score_message_key.sql`](../../src/AgentPrism.SqlServer/Migrations/0037_run_score_message_key.sql)
++ index taşıma) [`0037_run_score_message_key.sql`](../../src/Tracon.SqlServer/Migrations/0037_run_score_message_key.sql)
 ile uygulandı; migration mevcut `NULL`/`''` çiftlerini `0025_provider_name_case.sql`
 emsaliyle dedupe eder (en yeni `created_at` kalır). **Boşluk kaydın önerdiğinden
 büyüktü:** sargable predicate tek başına YETMEDİ — tam paket koşumunda (izole
@@ -392,6 +392,6 @@ Düzeltmeden sonra SQL Server tam paketi (703/703) iki ayrı koşumda, Postgres
 
 ### F-214 · Deneylerde boş-string `MessageId` run seviyesi ortalamayı bozabilir — ✅ KAPANDI (2026-09-07)
 
-**Kapanış:** `kusur-giderme` faz dışı koşuldu. Boşluk kaydın söylediğinden **bir yer büyüktü**: kayıt üç SQL sorgusu + `FileRunStore.cs` diyordu, ölçüm beşinci yeri buldu — [`InMemoryRunStore.Analytics.cs:57`](../../src/AgentPrism.Core/Storage/InMemoryRunStore.Analytics.cs#L57) de `score.MessageId is null` kullanıyordu, yani bellek içi deney sonucu da aynı skoru dışlıyordu. Beşi birden `is not { Length: > 0 }` / `(message_id IS NULL OR message_id = '')` oldu (SQL Server'da `N''`). **Kapı:** `RunStoreContract`'a **iki yönlü** bir çift test — bir tanesi yetmezdi, çünkü "her skoru run seviyesi say" diyen aşırı düzeltme de tek testi yeşil geçerdi. Sözleşme skor store'unu yeni `CreateScoreStoreAsync()` kancasıyla ister (`virtual`, `abstract` değil: sevk edilen sözleşmeyi türeten üçüncü tarafı kırmamak için) ve beş fixture'ın hepsi override eder. Düzeltmeden önce bellek içi ve SQLite'ta kırmızı olduğu ölçüldü (*"should be 80d but was null"*). Karar açılmadı: sevk edilen `RunScore.MessageId` sözleşmesi **zaten** *"if empty, the score belongs to the whole run"* diyordu; kod sözleşmeye hizalandı. **Tuzak:** `docs/hafiza/sql-saglayicilari.md`.
+**Kapanış:** `kusur-giderme` faz dışı koşuldu. Boşluk kaydın söylediğinden **bir yer büyüktü**: kayıt üç SQL sorgusu + `FileRunStore.cs` diyordu, ölçüm beşinci yeri buldu — [`InMemoryRunStore.Analytics.cs:57`](../../src/Tracon.Core/Storage/InMemoryRunStore.Analytics.cs#L57) de `score.MessageId is null` kullanıyordu, yani bellek içi deney sonucu da aynı skoru dışlıyordu. Beşi birden `is not { Length: > 0 }` / `(message_id IS NULL OR message_id = '')` oldu (SQL Server'da `N''`). **Kapı:** `RunStoreContract`'a **iki yönlü** bir çift test — bir tanesi yetmezdi, çünkü "her skoru run seviyesi say" diyen aşırı düzeltme de tek testi yeşil geçerdi. Sözleşme skor store'unu yeni `CreateScoreStoreAsync()` kancasıyla ister (`virtual`, `abstract` değil: sevk edilen sözleşmeyi türeten üçüncü tarafı kırmamak için) ve beş fixture'ın hepsi override eder. Düzeltmeden önce bellek içi ve SQLite'ta kırmızı olduğu ölçüldü (*"should be 80d but was null"*). Karar açılmadı: sevk edilen `RunScore.MessageId` sözleşmesi **zaten** *"if empty, the score belongs to the whole run"* diyordu; kod sözleşmeye hizalandı. **Tuzak:** `docs/hafiza/sql-saglayicilari.md`.
 
 

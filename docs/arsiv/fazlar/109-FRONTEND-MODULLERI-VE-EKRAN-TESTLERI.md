@@ -3,10 +3,10 @@
 > **Durum:** ✅ Tamamlandı (2026-08-26)
 > **Kaynak:** [`arsiv/kesif/2026-08-23-yapisal-sorun-envanteri.md`](../kesif/2026-08-23-yapisal-sorun-envanteri.md) — **kalem 18** ve **kalem 19**. Bu faz bir `F-NN` adayından gelmez
 > **Önkoşul:** [Faz 108](108-BELLEK-ICI-RUN-STORE-AYRISTIRMA.md) — teknik zorunluluk yoktur; yapısal turun Core bölümü bittikten sonra frontend'e geçilir
-> **Paketler:** `AgentPrism.UI` — yalnız frontend source ve test altyapısı
+> **Paketler:** `Tracon.UI` — yalnız frontend source ve test altyapısı
 > **Yeni paket:** NuGet yok · npm runtime dependency yok · dört dev dependency: `@testing-library/react`, `@testing-library/dom`, `@testing-library/user-event`, `jsdom` · **Migration:** Yok
 > **Public API:** Büyümüyor. C# ve HTTP contract değişmez
-> **Tüketici yüzeyi:** Var — mevcut management console ekranları. Site: [`docs-site/src/content/docs/ui.md`](../../../docs-site/src/content/docs/ui.md) ve `docs-site/public/screenshots/`. Sevk edilen: `AgentPrism.UI` içindeki embedded asset'ler. Görsel ve metinsel davranışın değişmemesi hedeflenir
+> **Tüketici yüzeyi:** Var — mevcut management console ekranları. Site: [`docs-site/src/content/docs/ui.md`](../../../docs-site/src/content/docs/ui.md) ve `docs-site/public/screenshots/`. Sevk edilen: `Tracon.UI` içindeki embedded asset'ler. Görsel ve metinsel davranışın değişmemesi hedeflenir
 > **Manuel test alanı:** [`manuel-test/09-ARAYUZ-GENEL.md`](../../manuel-test/09-ARAYUZ-GENEL.md) · [`manuel-test/10-ARAYUZ-AGENT-PLAYGROUND.md`](../../manuel-test/10-ARAYUZ-AGENT-PLAYGROUND.md)
 
 ---
@@ -39,11 +39,11 @@ Faz iki bağlı sorunu birlikte kapatır. Büyük screen dosyaları state, netwo
 - [x] Agent editor ve Playground için belirtilen branch testleri yeşildir
 - [x] `npm run build` `tsc`, Vitest, Vite ve iki bundle kapısını temiz geçirir
 - [x] Console JavaScript **175,5 KB gzip değerini aşmaz**; genel bütçe 250 KB olarak kalır — **kısmen**: 175,9 KB (+0,4 KB, modül sınırı maliyeti); bkz. Plandan Sapmalar. Genel 250 KB bütçesi kalır.
-- [x] `AgentPrism.Ui.E2ETests` 57/57 yeşildir
-- [x] `AGENTPRISM_UI_SCREENSHOTS=1` ile screenshot seti yeniden üretildi; istenmeyen görsel fark yoktur
+- [x] `Tracon.Ui.E2ETests` 57/57 yeşildir
+- [x] `TRACON_UI_SCREENSHOTS=1` ile screenshot seti yeniden üretildi; istenmeyen görsel fark yoktur
 - [x] `tuketici-dokuman-senkronu` koşuldu; `ui.md` ve screenshot yüzeyi doğrulandı
 - [x] Dört doğrulama kapısı sıfır uyarı verir
-- [x] `samples/AgentPrism.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı
+- [x] `samples/Tracon.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı
 - [x] `secret` taraması boş döndü
 - [x] Manuel kabul case'leri ilgili ailelere eklendi; otomatik olanlar koşuldu
 - [x] `faz-denetim` koşuldu; 🔴 bulgu gerekçelendi (bkz. Denetim Bulguları)
@@ -62,9 +62,9 @@ Yok. Bu fazın tüm kararları yerel implementation tercihidir (dosya bölünme 
 
 ## Gerçek Run Kanıtı
 
-`samples/AgentPrism.Api` bellek içi depoyla çalıştırıldı (`AgentPrism__PostgreSql__ConnectionString=""`
+`samples/Tracon.Api` bellek içi depoyla çalıştırıldı (`Tracon__PostgreSql__ConnectionString=""`
 ile daha önceki bir manuel test oturumundan kalan `localhost:55432` bağlantısı
-geçersiz kılındı). `POST /agentprism/api/agents/claude-support/run` gerçek
+geçersiz kılındı). `POST /tracon/api/agents/claude-support/run` gerçek
 Anthropic Claude Haiku çağrısı yaptı:
 
 ```
@@ -75,7 +75,7 @@ id: 8
 event: done
 ```
 
-`GET /agentprism/api/runs/01a03bff-a4e9-796b-af6f-6e4859dc64cf` kaydı
+`GET /tracon/api/runs/01a03bff-a4e9-796b-af6f-6e4859dc64cf` kaydı
 `"status": "Completed"`, `"usage": {"inputTokens":720,"outputTokens":4,...}`
 olarak doğruladı — refactor sonrası uçtan uca çalıştırma/kayıt yolu sağlam.
 
@@ -86,7 +86,7 @@ değiştiği için `ui.md`'nin de değişmesini bekledi. Sayfa güncellenmedi:
 `ui.md` iç dosya yapısına hiç değinmiyor (`grep` boş döndü) ve bu fazın amacı
 kullanıcıya görünen davranışı **değiştirmemek** — yalnız state/network/view
 sorumluluklarını ayırmak. Kanıt: `docs-site/public/screenshots/` altındaki UI
-ekran görüntüleri bu faz kapanışında `AGENTPRISM_UI_SCREENSHOTS=1` ile yeniden
+ekran görüntüleri bu faz kapanışında `TRACON_UI_SCREENSHOTS=1` ile yeniden
 üretildi ve `git diff` görsel fark göstermedi (aşağıda).
 
 ## Denetim Bulguları
@@ -100,7 +100,7 @@ Bağımsız denetçi (taze bağlam, `faz-denetim` skill'i) 2026-08-26'da koştu.
 `docs/KARARLAR.md`'ye karar olarak yazılmadı.
 
 **Gerekçe:** `SkippedFiles` bir teknik borç sayacı (o rolü
-`AGENTPRISM_SOURCE_LANGUAGE_REFRESH`'in yönettiği dosya-başına satır tabanı
+`TRACON_SOURCE_LANGUAGE_REFRESH`'in yönettiği dosya-başına satır tabanı
 görür) DEĞİL, K-228'in zaten sabitlediği **kalıcı, meşru** iki dilli dosyalar
 için tam muafiyet listesidir — mevcut girdiler (`locales/tr.ts`,
 `embed/locale.tr.ts`) de aynı kalıcı statüdedir. Bu faz `tr.ts`'i altı
@@ -125,7 +125,7 @@ gelecek iş değil, bu fazın kendi dokümanındaki bir ifade netliği.
 
 **Diğer altı başlık (3.1–3.5, 3.7):** Temiz. Kanıt: denetçinin doğruladığı
 `npm run build` (tsc + 18 dosya/221 test + Vite×2, 175,9 KB gzip) ve
-`dotnet test tests/AgentPrism.Core.UnitTests` (1970/1970, `SkippedFiles`
+`dotnet test tests/Tracon.Core.UnitTests` (1970/1970, `SkippedFiles`
 düzeltmesi dahil).
 
 ## Sonraki Faza Devir Notu

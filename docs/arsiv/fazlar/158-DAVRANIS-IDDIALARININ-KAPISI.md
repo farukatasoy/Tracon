@@ -33,12 +33,12 @@ Sevk edilen metindeki **sayılabilir** iddialar artık kapı altındadır. **Dav
 ## Bitiş Ölçütleri (DoD)
 
 - [x] İşaretli iddiaların her biri koddaki gerçek değerle karşılaştırılıyor — plan dokuz diyordu, gerçekleşen **on** oldu (bkz. Plandan Sapmalar)
-- [x] Kasten bozulan bir varsayılan cümlesinde kapı **kırmızı**; doğru cümlede yeşil — `AgentPrismSchedulingOptions.RunWorker`'ın initializer'ı kaldırılıp elle doğrulandı (bkz. Denetim Bulguları, kanıt komutları aşağıda)
+- [x] Kasten bozulan bir varsayılan cümlesinde kapı **kırmızı**; doğru cümlede yeşil — `TraconSchedulingOptions.RunWorker`'ın initializer'ı kaldırılıp elle doğrulandı (bkz. Denetim Bulguları, kanıt komutları aşağıda)
 - [x] İşaretsiz davranış iddiası sayısı raporda **görünür** (sıfır olması gerekmez) — `node docs-site/scripts/check-content.mjs` çıktısı: `Behavior claims: 11 marked and verified by DocumentedPolicyTests.cs; 146 sentence(s) across manual pages match "by default" or "defaults to"`
 - [x] Bir uç scope'u ile sayfanın yazdığı scope ayrıştığında fonksiyonel test kırmızı — `OpenAIChatCompletionsEndpoints`'in `RequireApiKeyScope`'u `RunsRead`'e çevrilip elle doğrulandı: `Every_marked_endpoint_policy_claim_is_actually_enforced` kırmızı, mesaj her iki değeri de yazdı
 - [x] Kapı yanlış pozitif üretmiyor: mevcut 147 satırın hiçbiri işaretlenmeden kırmızı yapmıyor — `npm run check:content` işaretlemeden önceki taban çizgiye karşı yeşil kaldı
 - [x] Dört doğrulama kapısı sıfır uyarı verir — `python3 scripts/kapi.py kapanis --taban 91004b3a` (test adımı ilk turda kaynak çekişmesiyle kırmızı oldu, izole yeniden koşum ve tam ikinci koşum yeşildi; `docs/hafiza/test-altyapisi.md`'deki bilinen sınıf)
-- [x] `samples/AgentPrism.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı — bu faz üretim/çalışma anı davranışını değiştirmiyor (yalnız doküman metni ve bir doğrulama kapısı); örnek uygulama `dotnet build` + `dotnet run` ile ayağa kaldırıldı, `GET /agentprism/api/meta` → `200` doğrulandı, regresyon yok. Bu fazın gerçek iddiası (scope allow/deny) `DocumentedPolicyTests.cs` içinde **gerçek bir ASP.NET Core host'a karşı gerçek HTTP isteğiyle** kanıtlanıyor — samples üzerinde tekrarlamak aynı kanıtı ikinci kez üretmek olurdu
+- [x] `samples/Tracon.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı — bu faz üretim/çalışma anı davranışını değiştirmiyor (yalnız doküman metni ve bir doğrulama kapısı); örnek uygulama `dotnet build` + `dotnet run` ile ayağa kaldırıldı, `GET /tracon/api/meta` → `200` doğrulandı, regresyon yok. Bu fazın gerçek iddiası (scope allow/deny) `DocumentedPolicyTests.cs` içinde **gerçek bir ASP.NET Core host'a karşı gerçek HTTP isteğiyle** kanıtlanıyor — samples üzerinde tekrarlamak aynı kanıtı ikinci kez üretmek olurdu
 - [x] `secret` taraması boş döndü — `python3 scripts/kapi.py tarama` ✅
 - [x] Manuel kabul case'leri `docs/manuel-test/32-DOKUMAN-KALITESI.md` içine eklendi ve **`00-INDEKS.md` sayımı güncellendi** — `MT-DKL-021`..`024`, sayaç 20 → 24
 - [x] `faz-denetim` koşuldu; 🔴 bulgu kalmadı — bir 🔴 bulundu ve kapatıldı (bkz. Denetim Bulguları)
@@ -114,8 +114,8 @@ hepsi yeşil.
   listesini kendisi tarıyor.
   Faz 159 bu mekanizmaya dokunmuyor; F-171'in kalan kısmı (147 satırın
   geri kalanını kapsama genişletmek) `docs/ADAYLAR.md`'de aday olarak durur.
-- **`AgentPrismSqliteOptions.EnableReadViews`, `AgentPrismSqlServerOptions.
-  EnableReadViews` ve `AgentPrismPostgreSqlOptions.EnableReadViews` aynı
+- **`TraconSqliteOptions.EnableReadViews`, `TraconSqlServerOptions.
+  EnableReadViews` ve `TraconPostgreSqlOptions.EnableReadViews` aynı
   cümleyle (`read-views.md:38`) belgeleniyor** ama yalnız Sqlite işaretlendi
   (plan böyle diyordu). PostgreSQL/SqlServer eşdeğerleri henüz kapı altında
   değil — genişleme adayı.

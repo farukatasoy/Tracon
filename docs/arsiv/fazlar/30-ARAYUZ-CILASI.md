@@ -3,7 +3,7 @@
 > **Durum:** ✅ Tamamlandı (2026-08-05)
 > **Kaynak:** [BEYIN-FIRTINASI.md](../BEYIN-FIRTINASI.md) · **F-25**, **F-26**
 > **Önkoşul:** Yok — ama **en sonda** olması bilinçliydi
-> **Paketler:** `AgentPrism.UI` (yalnız arayüz; **sunucuda tek satır değişiklik yok**)
+> **Paketler:** `Tracon.UI` (yalnız arayüz; **sunucuda tek satır değişiklik yok**)
 > **Migration:** Yok
 > **Kararlar:** K-228 … K-238
 
@@ -115,11 +115,11 @@ K-235.
 | Arayüz Türkçe ve İngilizce çalışıyor; dil tercihi kalıcı | ✅ 794 anahtar; E2E yeniden yüklemede kalıcılığı doğruluyor |
 | Eksik çeviri **derlemeyi kırıyor** | ✅ Kanıt: `nav.runs` silinince `TS2741`, `npm run build` içindeki `tsc --noEmit` durur |
 | Komut paleti çalışıyor; rol bazlı filtreleme doğru | ✅ E2E: Admin policy reddedilince "New agent" komutu paletten kayboluyor |
-| **Konuşma modu iki dilde çalışıyor**, seslendirme dile uygun sesle | ✅ Dil başına ses Ayarlar'da seçilir, `start` çerçevesinde gönderilir (K-234). ⚠️ Gerçek bir ses sağlayıcısıyla **elle** doğrulanmadı: örnek uygulamada `AgentPrism:Voice` yapılandırılmamış (`/api/voice/voices` → 500) ve E2E sahte sentezleyici kullanıyor. Doğrulanan: panelin sağlayıcısız gizlenmesi ve `voiceId`'nin protokolde taşınması |
+| **Konuşma modu iki dilde çalışıyor**, seslendirme dile uygun sesle | ✅ Dil başına ses Ayarlar'da seçilir, `start` çerçevesinde gönderilir (K-234). ⚠️ Gerçek bir ses sağlayıcısıyla **elle** doğrulanmadı: örnek uygulamada `Tracon:Voice` yapılandırılmamış (`/api/voice/voices` → 500) ve E2E sahte sentezleyici kullanıyor. Doğrulanan: panelin sağlayıcısız gizlenmesi ve `voiceId`'nin protokolde taşınması |
 | Kısayollar çalışıyor ve metin alanlarında tetiklenmiyor | ✅ 18 birim + 3 E2E testi |
 | Klavye ile tüm ekranlar gezilebiliyor; odak görünür | ✅ Global `:focus-visible`; palet odak tuzağı ve `aria-activedescendant` ile |
 | Bundle ölçüldü ve bütçe içinde | ✅ **151,3 KB / 250 KB**. ❌ Plandaki "toplam 120 KB altı" hedefi **karşılanmadı ve karşılanamazdı** — faz 124,9 KB'den başlıyordu. Gerekçe "Plandan Sapmalar §3" |
-| Dört doğrulama kapısı sıfır uyarı | ✅ build / pack / format temiz. `dotnet test`: **1847 başarılı**, 223 başarısız — hepsi `AgentPrism.SqlServer.IntegrationTests`, `mssql/server` konteyneri bu makinede hiç ayağa kalkmıyor ([23-SQL-SERVER.md](23-SQL-SERVER.md)'de kayıtlı, bu fazdan bağımsız) |
+| Dört doğrulama kapısı sıfır uyarı | ✅ build / pack / format temiz. `dotnet test`: **1847 başarılı**, 223 başarısız — hepsi `Tracon.SqlServer.IntegrationTests`, `mssql/server` konteyneri bu makinede hiç ayağa kalkmıyor ([23-SQL-SERVER.md](23-SQL-SERVER.md)'de kayıtlı, bu fazdan bağımsız) |
 
 ---
 
@@ -175,8 +175,8 @@ mode ihlaliyle kırdı. İkincisi yeniden yazıldı.
 - **Çözümleme dili gönderilmiyor** (K-235). Sağlayıcının sezmesi yanlış dil
   üretirse `VoiceClientMessage`'a `language` eklenir — tip `internal`, kırıcı
   değil.
-- **`DependencyDirectionTests.AllowedReferences` hâlâ `AgentPrism.SqlServer`,
-  `AgentPrism.Sqlite` ve `AgentPrism.Sql.Shared` paketlerini içermiyor**
+- **`DependencyDirectionTests.AllowedReferences` hâlâ `Tracon.SqlServer`,
+  `Tracon.Sqlite` ve `Tracon.Sql.Shared` paketlerini içermiyor**
   (Faz 23/24'ten kalan boşluk; 26, 27, 28, 29 ve 30'da da açıktı).
 - **`AttachmentTypeGuard` EBML (WebM) imzasını tanımaz** (Faz 29'dan devrediyor).
 - **`ISpeechTranscriber` tek atımlıdır** (K-226); artımlı transkript ayrı bir

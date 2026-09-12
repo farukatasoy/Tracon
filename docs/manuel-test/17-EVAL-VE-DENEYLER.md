@@ -1,23 +1,23 @@
 # 17 — Eval, Deneyler (A/B), Kanarya Yayını ve Geri Bildirim (`EVAL`)
 
 > **Alan kodu:** `EVAL` · **Faz:** 18, 19, 31, 45, 49, 56, 100, 103, 118, 152, 153, 155
-> **Kaynak:** `src/AgentPrism.Abstractions/Evaluation/` (tümü) ·
-> `src/AgentPrism.Abstractions/Experiments/` (tümü — `Experiment.cs`,
+> **Kaynak:** `src/Tracon.Abstractions/Evaluation/` (tümü) ·
+> `src/Tracon.Abstractions/Experiments/` (tümü — `Experiment.cs`,
 > `ExperimentVariant.cs`, `ExperimentStatus.cs`, `CanaryPolicy.cs`,
 > `CanaryEvaluation.cs`, `CanaryDecisionKind.cs`) ·
-> `src/AgentPrism.Core/Evaluation/` (tümü — Faz 155'te eklenen
+> `src/Tracon.Core/Evaluation/` (tümü — Faz 155'te eklenen
 > `EvaluatorRunJudge.cs` ve `IEvalEvaluatorFactory.cs` dahil) ·
-> `src/AgentPrism.Abstractions/Evaluation/JudgeScore.cs` · `src/AgentPrism.Core/Experiments/`
-> (tümü) · `src/AgentPrism.Core/Audit/AuditingExperimentStore.cs` ·
-> `src/AgentPrism.AspNetCore/Endpoints/EvalEndpoints.cs`,
-> `ExperimentEndpoints.cs` · `src/AgentPrism.AspNetCore/Contracts/EvaluationContracts.cs`,
-> `ExperimentContracts.cs` · `src/AgentPrism.AspNetCore/Endpoints/RunEndpoints.cs`
+> `src/Tracon.Abstractions/Evaluation/JudgeScore.cs` · `src/Tracon.Core/Experiments/`
+> (tümü) · `src/Tracon.Core/Audit/AuditingExperimentStore.cs` ·
+> `src/Tracon.AspNetCore/Endpoints/EvalEndpoints.cs`,
+> `ExperimentEndpoints.cs` · `src/Tracon.AspNetCore/Contracts/EvaluationContracts.cs`,
+> `ExperimentContracts.cs` · `src/Tracon.AspNetCore/Endpoints/RunEndpoints.cs`
 > (yalnız `feedback`/`compare`/`input`/`replay` dalları — Faz 31 ve ilgili) ·
-> `src/AgentPrism.Abstractions/Runs/RunScore.cs`, `RunScoreKind.cs`,
+> `src/Tracon.Abstractions/Runs/RunScore.cs`, `RunScoreKind.cs`,
 > `RunScoreRules.cs`, `IRunScoreStore.cs`, `RunReplay.cs` ·
-> `src/AgentPrism.UI/frontend/src/screens/evals.tsx`, `eval-detail.tsx`,
+> `src/Tracon.UI/frontend/src/screens/evals.tsx`, `eval-detail.tsx`,
 > `eval-run-detail.tsx`, `experiments.tsx`, `experiment-detail.tsx` ·
-> `src/AgentPrism.UI/frontend/src/components/promote-to-eval-case.tsx`,
+> `src/Tracon.UI/frontend/src/components/promote-to-eval-case.tsx`,
 > `feedback-control.tsx` · Migration'lar: `0009_eval.sql`,
 > `0010_experiments.sql`, `0017_run_scores.sql`, `0022_eval_case_source.sql`,
 > `0028_experiment_canary.sql`, `0048_run_score_name_and_shape.sql`.
@@ -84,7 +84,7 @@ flowchart TD
 
 > **Rol matrisi burada da NO-OP'tur, tekrar test edilmez.** `EvalEndpoints`/
 > `ExperimentEndpoints` her ucu `RequireRole(roles.Reader/Operator/Admin)`
-> ile işaretler ama `AgentPrismPolicies.*` örnek uygulamada kayıtlı değildir
+> ile işaretler ama `TraconPolicies.*` örnek uygulamada kayıtlı değildir
 > (bkz. `00-INDEKS.md` §8). **Bu dosyaya özgü olan**: `ApiKeyScope` enum'ında
 > Eval/Experiment için **hiçbir** kapsam değeri hiç tanımlanmamış —
 > `RunsRead`/`RunsWrite`/`AgentsRead`/`AgentsAdmin`/`ExternalInvoke` beş
@@ -94,10 +94,10 @@ flowchart TD
 ## Koşmadan önce
 
 1. [`00-INDEKS.md`](00-INDEKS.md) §4 reset yordamı uygulanır.
-2. Örnek uygulama çalışır: `cd samples/AgentPrism.Api && dotnet run` →
-   `http://localhost:5080/agentprism`.
+2. Örnek uygulama çalışır: `cd samples/Tracon.Api && dotnet run` →
+   `http://localhost:5080/tracon`.
 3. Örnek uygulama **hiçbir eval takımı, hiçbir deney önceden tanımlamaz**
-   (`grep -n "IEvalStore\|IExperimentStore" samples/AgentPrism.Api/Program.cs`
+   (`grep -n "IEvalStore\|IExperimentStore" samples/Tracon.Api/Program.cs`
    yalnız DI kaydını bulur, seed verisi yok) — bu dosyanın her senaryosu
    kendi fixture'ını sıfırdan kurar.
 4. `support` agent'ı **kod-kökenlidir** (`AgentDefinitionOrigin.Code`,
@@ -106,15 +106,15 @@ flowchart TD
 5. Çevrimiçi değerlendirme (§5) ve deney sonuçları (§6/§7) yalnız
    `openAiEnabled` iken (OpenAI anahtarı tanımlıyken) tam test edilebilir —
    `AddModelRunJudge(...)` yalnız bu koşulda kayıtlıdır (`Program.cs:260-276`).
-6. `AgentPrism:OnlineEvaluation` ve `AgentPrism:Canary` bölümleri
+6. `Tracon:OnlineEvaluation` ve `Tracon:Canary` bölümleri
    `appsettings.json`'da **yoktur** — §5 ve §8'in bazı case'leri geçici
    olarak `dotnet user-secrets set` ile bu anahtarları açar, case sonunda
    kaldırır (aksi belirtilmedikçe).
 
 ```bash
 export APB="Authorization: Bearer manuel-test-token-2026"
-export APU="http://localhost:5080/agentprism"
-export PG="docker exec -i ap-pg psql -U postgres -d agentprism"
+export APU="http://localhost:5080/tracon"
+export PG="docker exec -i ap-pg psql -U postgres -d tracon"
 ```
 
 > **Gerçek para uyarısı.** §3 (eval koşusu), §5 (çevrimiçi değerlendirme/
@@ -242,7 +242,7 @@ curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/evals/kirik-takim" -H "$APB
 
 **Beklenen sonuç**
 - `HTTP: 400`. Mesaj `"Bilinmeyen denetim turu: 'regexMatch'. Ozel bir
-  denetimse 'IAgentPrismBuilder.AddEvalCheck(\"regexMatch\", ...)' ile
+  denetimse 'ITraconBuilder.AddEvalCheck(\"regexMatch\", ...)' ile
   kaydedilmelidir."` metnini içerir.
 - `GET /api/evals/kirik-takim` → `404` (kayıt hiç oluşmadı).
 
@@ -318,7 +318,7 @@ curl -s -w "\nHTTP: %{http_code}\n" -X DELETE "$APU/api/evals/denetimsiz-takim" 
 
 **Doğrulama sorgusu**
 ```sql
-SELECT count(*) FROM agentprism.eval_suites WHERE name = 'denetimsiz-takim';
+SELECT count(*) FROM tracon.eval_suites WHERE name = 'denetimsiz-takim';
 ```
 
 **Beklenen sonuç**
@@ -422,7 +422,7 @@ curl -s "$APU/api/evals/destek-degerlendirme/cases" -H "$APB"
 | **İlgili karar** | — |
 
 **Adımlar**
-1. `/agentprism/evals/destek-degerlendirme` ekranını aç.
+1. `/tracon/evals/destek-degerlendirme` ekranını aç.
 2. "Add case" ile boş bir satır ekle, `query` alanını boş bırak.
 3. "Save cases" düğmesinin durumunu gözle.
 
@@ -442,7 +442,7 @@ curl -s "$APU/api/evals/destek-degerlendirme/cases" -H "$APB"
 | **İlgili karar** | — |
 
 **Adımlar**
-1. `/agentprism/evals` → "New suite".
+1. `/tracon/evals` → "New suite".
 2. `checks` metin alanına `{ bozuk json` yaz, geri kalanı geçerli doldur.
 3. Kaydet'e tıkla.
 
@@ -464,7 +464,7 @@ UX gözlemi — kusur değil, koşumda doğrulanacak asimetri.
 | **İlgili karar** | — |
 
 **Adımlar**
-1. `/agentprism/evals` listesinde bir takımın "Sil" düğmesine tıkla.
+1. `/tracon/evals` listesinde bir takımın "Sil" düğmesine tıkla.
 
 **Beklenen sonuç**
 - Hiçbir `window.confirm` veya modal açılmaz; takım anında silinir. Geri
@@ -498,7 +498,7 @@ curl -s "$APU/api/evals/runs/$RUN_ID" -H "$APB"
 
 **Doğrulama sorgusu**
 ```sql
-SELECT status, total, passed, failed, agent_version FROM agentprism.eval_runs WHERE id = '<RUN_ID>';
+SELECT status, total, passed, failed, agent_version FROM tracon.eval_runs WHERE id = '<RUN_ID>';
 ```
 
 **Beklenen sonuç**
@@ -648,7 +648,7 @@ curl -s -X POST "$APU/api/evals/gorsel-testi/run" -H "$APB" \
 
 **Doğrulama sorgusu**
 ```sql
-SELECT agent_version FROM agentprism.eval_runs WHERE id = '<RUN_ID>';
+SELECT agent_version FROM tracon.eval_runs WHERE id = '<RUN_ID>';
 ```
 
 **Beklenen sonuç**
@@ -689,7 +689,7 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/evals/denetimsiz-takim/run
   **sayısını** kontrol etmez, yalnız `kind` geçerliliğini kontrol eder).
 - Birkaç saniye sonra `GET /api/evals/runs/{id}` → `status: "Failed"`,
   `passed=0, failed=total`. `EvalJobHandler`'ın attığı
-  `AgentPrismException` ("'{ad}' takiminin hic denetimi yok; en az bir
+  `TraconException` ("'{ad}' takiminin hic denetimi yok; en az bir
   denetim gereklidir.") koşuyu senkron değil, ASENKRON olarak düşürür.
 
 ---
@@ -786,7 +786,7 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/evals/destek-degerlendirme
 
 **Doğrulama sorgusu**
 ```sql
-SELECT count(*) FROM agentprism.eval_cases WHERE source_run_id = '<AYNI-RUN_ID>';
+SELECT count(*) FROM tracon.eval_cases WHERE source_run_id = '<AYNI-RUN_ID>';
 ```
 
 **Beklenen sonuç**
@@ -849,7 +849,7 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST \
 
 **Ön koşul**
 - OpenAI etkin (yargıç kayıtlı, `Program.cs:267-275`).
-- `AgentPrism:OnlineEvaluation` hiçbir `dotnet user-secrets` girdisi
+- `Tracon:OnlineEvaluation` hiçbir `dotnet user-secrets` girdisi
   TAŞIMAZ (varsayılan durum).
 
 **Adımlar**
@@ -860,7 +860,7 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST \
 
 **Doğrulama sorgusu**
 ```sql
-SELECT count(*) FROM agentprism.jobs WHERE kind = 6;  -- JobKind.OnlineEval
+SELECT count(*) FROM tracon.jobs WHERE kind = 6;  -- JobKind.OnlineEval
 ```
 
 **Beklenen sonuç**
@@ -884,9 +884,9 @@ SELECT count(*) FROM agentprism.jobs WHERE kind = 6;  -- JobKind.OnlineEval
 
 **Girilecek veri**
 ```bash
-cd samples/AgentPrism.Api
-dotnet user-secrets set "AgentPrism:OnlineEvaluation:Enabled" "true"
-dotnet user-secrets set "AgentPrism:OnlineEvaluation:SampleRate" "1.0"
+cd samples/Tracon.Api
+dotnet user-secrets set "Tracon:OnlineEvaluation:Enabled" "true"
+dotnet user-secrets set "Tracon:OnlineEvaluation:SampleRate" "1.0"
 # Uygulamayi yeniden baslat.
 ```
 
@@ -898,8 +898,8 @@ dotnet user-secrets set "AgentPrism:OnlineEvaluation:SampleRate" "1.0"
 
 **Doğrulama sorgusu**
 ```sql
-SELECT j.kind, j.status FROM agentprism.jobs j WHERE j.kind = 6 ORDER BY j.created_at DESC LIMIT 1;
-SELECT kind, value, source, author FROM agentprism.run_scores WHERE run_id = '<RUN_ID>';
+SELECT j.kind, j.status FROM tracon.jobs j WHERE j.kind = 6 ORDER BY j.created_at DESC LIMIT 1;
+SELECT kind, value, source, author FROM tracon.run_scores WHERE run_id = '<RUN_ID>';
 ```
 
 **Beklenen sonuç**
@@ -949,7 +949,7 @@ Sınır senaryosu — `RunSampler.IsSampled` FNV-1a hash tabanlıdır,
 | **İlgili karar** | — |
 
 **Ön koşul**
-- OpenAI etkin (yargıç kayıtlı). `AgentPrism:OnlineEvaluation:SampleRate`
+- OpenAI etkin (yargıç kayıtlı). `Tracon:OnlineEvaluation:SampleRate`
   bu case için `0` (veya tanımsız) olabilir — manuel uç örnekleme kapısını
   hiç kullanmaz.
 
@@ -960,7 +960,7 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/runs/<RUN_ID>/judge" -H "$
 
 **Doğrulama sorgusu**
 ```sql
-SELECT action, entity FROM agentprism.audit_log WHERE action = 'run.judge.manual' ORDER BY created_at DESC LIMIT 1;
+SELECT action, entity FROM tracon.audit_log WHERE action = 'run.judge.manual' ORDER BY created_at DESC LIMIT 1;
 ```
 
 **Beklenen sonuç**
@@ -1017,7 +1017,7 @@ curl -s -X POST "$APU/api/runs/<RUN_ID>/judge" -H "$APB"
 
 **Doğrulama sorgusu**
 ```sql
-SELECT count(*) FROM agentprism.run_scores WHERE run_id = '<RUN_ID>' AND author = 'judge:model';
+SELECT count(*) FROM tracon.run_scores WHERE run_id = '<RUN_ID>' AND author = 'judge:model';
 ```
 
 **Beklenen sonuç**
@@ -1204,7 +1204,7 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/experiments/ikinci-deney/s
 
 **Doğrulama sorgusu**
 ```sql
-SELECT name, status FROM agentprism.experiments WHERE agent_name = 'manuel-destek' AND status = 1;
+SELECT name, status FROM tracon.experiments WHERE agent_name = 'manuel-destek' AND status = 1;
 ```
 
 **Beklenen sonuç**
@@ -1257,7 +1257,7 @@ curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/experiments/destek-talimat-
 
 **Beklenen sonuç**
 - Başarısız olur (yalnız `Draft` düzenlenebilir — `InMemoryExperimentStore
-  .SaveAsync`, `Status != Draft` ise `AgentPrismException`). Gerçek HTTP
+  .SaveAsync`, `Status != Draft` ise `TraconException`). Gerçek HTTP
   kodunu koşum kaydeder.
 
 ---
@@ -1294,7 +1294,7 @@ curl -s "$APU/api/experiments/destek-talimat-testi" -H "$APB" | python3 -c "impo
 | **İlgili karar** | — |
 
 **Adımlar**
-1. `/agentprism/experiments` → "New".
+1. `/tracon/experiments` → "New".
 2. Varyant ağırlıklarını `30` + `30` yap.
 
 **Beklenen sonuç**
@@ -1312,7 +1312,7 @@ curl -s "$APU/api/experiments/destek-talimat-testi" -H "$APB" | python3 -c "impo
 | **İlgili karar** | — |
 
 **Adımlar**
-1. `/agentprism/experiments` listesinde `destek-talimat-testi` (`Stopped`)
+1. `/tracon/experiments` listesinde `destek-talimat-testi` (`Stopped`)
    satırına bak.
 
 **Beklenen sonuç**
@@ -1350,7 +1350,7 @@ done
 
 **Doğrulama sorgusu**
 ```sql
-SELECT DISTINCT variant FROM agentprism.runs WHERE experiment_id IS NOT NULL AND session_id = 'belirlenirlik-testi-42';
+SELECT DISTINCT variant FROM tracon.runs WHERE experiment_id IS NOT NULL AND session_id = 'belirlenirlik-testi-42';
 ```
 
 **Beklenen sonuç**
@@ -1370,7 +1370,7 @@ SELECT DISTINCT variant FROM agentprism.runs WHERE experiment_id IS NOT NULL AND
 
 **Doğrulama sorgusu**
 ```sql
-SELECT experiment_id, variant, agent_version FROM agentprism.runs WHERE session_id = 'belirlenirlik-testi-42' LIMIT 1;
+SELECT experiment_id, variant, agent_version FROM tracon.runs WHERE session_id = 'belirlenirlik-testi-42' LIMIT 1;
 ```
 
 **Beklenen sonuç**
@@ -1472,7 +1472,7 @@ curl -s "$APU/api/experiments/destek-talimat-testi-2/canary" -H "$APB"
    gerçekleşmediğini gözle.
 
 **Beklenen sonuç**
-- `appsettings.json`'da `AgentPrism:Canary` bölümü yoktur;
+- `appsettings.json`'da `Tracon:Canary` bölümü yoktur;
   `AutoRollbackEnabled` derleme zamanı varsayılanı (`false`) geçerlidir —
   `CanaryEvaluationService.ExecuteAsync` başlangıçta hemen döner, hiçbir
   deneyi taramaz.
@@ -1498,9 +1498,9 @@ kanıtlar.
 
 **Girilecek veri**
 ```bash
-cd samples/AgentPrism.Api
-dotnet user-secrets set "AgentPrism:Canary:AutoRollbackEnabled" "true"
-dotnet user-secrets set "AgentPrism:Canary:ScanInterval" "00:00:30"
+cd samples/Tracon.Api
+dotnet user-secrets set "Tracon:Canary:AutoRollbackEnabled" "true"
+dotnet user-secrets set "Tracon:Canary:ScanInterval" "00:00:30"
 # Uygulamayi yeniden baslat.
 ```
 
@@ -1514,8 +1514,8 @@ dotnet user-secrets set "AgentPrism:Canary:ScanInterval" "00:00:30"
 
 **Doğrulama sorgusu**
 ```sql
-SELECT rollback_reason, canary_policy->'canaryVariant' FROM agentprism.experiments WHERE name = 'destek-talimat-testi-2';
-SELECT action, entity, after FROM agentprism.audit_log WHERE action = 'experiment.auto_rollback' ORDER BY created_at DESC LIMIT 1;
+SELECT rollback_reason, canary_policy->'canaryVariant' FROM tracon.experiments WHERE name = 'destek-talimat-testi-2';
+SELECT action, entity, after FROM tracon.audit_log WHERE action = 'experiment.auto_rollback' ORDER BY created_at DESC LIMIT 1;
 ```
 
 **Beklenen sonuç**
@@ -1524,7 +1524,7 @@ SELECT action, entity, after FROM agentprism.audit_log WHERE action = 'experimen
   "system:canary-evaluator"`.
 - `GET /api/experiments/destek-talimat-testi-2` → `variants` ağırlıkları
   kanarya `0`, kontrol `100` olmuştur.
-- Case sonrası `AgentPrism:Canary:*` `user-secrets` girdilerini kaldır.
+- Case sonrası `Tracon:Canary:*` `user-secrets` girdilerini kaldır.
 
 ---
 
@@ -1552,8 +1552,8 @@ Sınır senaryosu.
 
 **Doğrulama sorgusu**
 ```sql
-SELECT canary_policy FROM agentprism.experiments WHERE name = 'kanarya-saglikli';
-SELECT count(*) FROM agentprism.audit_log WHERE action LIKE 'experiment%' AND entity = 'experiment:kanarya-saglikli';
+SELECT canary_policy FROM tracon.experiments WHERE name = 'kanarya-saglikli';
+SELECT count(*) FROM tracon.audit_log WHERE action LIKE 'experiment%' AND entity = 'experiment:kanarya-saglikli';
 ```
 
 **Beklenen sonuç**
@@ -1578,7 +1578,7 @@ SELECT count(*) FROM agentprism.audit_log WHERE action LIKE 'experiment%' AND en
 - MT-EVAL-074 sonrası `destek-talimat-testi-2`.
 
 **Adımlar**
-1. `/agentprism/experiments/destek-talimat-testi-2` ekranını aç.
+1. `/tracon/experiments/destek-talimat-testi-2` ekranını aç.
 
 **Beklenen sonuç**
 - Kırmızı bir banner geri alma nedenini gösterir. Bu, ekranın **tek**
@@ -1648,7 +1648,7 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/runs/<RUN_ID>/feedback" -H
 ```
 
 **Beklenen sonuç**
-- `HTTP: 200`/`201`. `run_scores.kind=2`, `value=4`. Ancak `/agentprism`
+- `HTTP: 200`/`201`. `run_scores.kind=2`, `value=4`. Ancak `/tracon`
   arayüzünde bu puanı ÜRETEN hiçbir buton yoktur (bkz. MT-EVAL-089) —
   yalnız `curl` veya doğrudan API tüketicisi bir `Stars` puanı yazabilir.
 
@@ -1700,7 +1700,7 @@ curl -s -X POST "$APU/api/runs/<RUN_ID>/feedback" -H "$APB" \
 
 **Doğrulama sorgusu**
 ```sql
-SELECT count(*), value, comment FROM agentprism.run_scores WHERE run_id = '<RUN_ID>' AND kind = 1 GROUP BY value, comment;
+SELECT count(*), value, comment FROM tracon.run_scores WHERE run_id = '<RUN_ID>' AND kind = 1 GROUP BY value, comment;
 ```
 
 **Beklenen sonuç**
@@ -1738,9 +1738,9 @@ olduğu için tekillik hiç devreye girmez.
 **Ön koşul**
 - Bu davranışı tetiklemek `author`'ın `NULL` yazıldığı bir çağrı yolu
   gerektirir — statik bearer token senaryosunda `author` dolu olabilir; bu
-  case `AgentPrismTestHost`/`FakeModelProvider` (İzlek C) ile,
+  case `TraconTestHost`/`FakeModelProvider` (İzlek C) ile,
   `IRunScoreStore.UpsertAsync`'i doğrudan `Author: null` ile iki kez
-  çağıran bir entegrasyon testi biçiminde koşulur (`AgentPrism.Testing`
+  çağıran bir entegrasyon testi biçiminde koşulur (`Tracon.Testing`
   paketinin sağladığı test host'u kullan).
 
 **Beklenen sonuç**
@@ -1768,7 +1768,7 @@ curl -s -w "\nHTTP: %{http_code}\n" -X DELETE "$APU/api/runs/<RUN_ID>/feedback/$
 
 **Doğrulama sorgusu**
 ```sql
-SELECT action FROM agentprism.audit_log WHERE action = 'run.feedback.delete' ORDER BY created_at DESC LIMIT 1;
+SELECT action FROM tracon.audit_log WHERE action = 'run.feedback.delete' ORDER BY created_at DESC LIMIT 1;
 ```
 
 **Beklenen sonuç**
@@ -1792,7 +1792,7 @@ SELECT action FROM agentprism.audit_log WHERE action = 'run.feedback.delete' ORD
 
 **Doğrulama sorgusu**
 ```sql
-SELECT count(*) FROM agentprism.audit_log WHERE action LIKE 'run.feedback%' AND entity LIKE '%<RUN_ID>%';
+SELECT count(*) FROM tracon.audit_log WHERE action LIKE 'run.feedback%' AND entity LIKE '%<RUN_ID>%';
 ```
 
 **Beklenen sonuç**
@@ -1903,15 +1903,15 @@ Negatif/ayar-bağımlı senaryo.
 
 **Girilecek veri**
 ```bash
-cd samples/AgentPrism.Api
-dotnet user-secrets set "AgentPrism:RunRecording:RecordRunInput" "false"
+cd samples/Tracon.Api
+dotnet user-secrets set "Tracon:RunRecording:RecordRunInput" "false"
 # Uygulamayi yeniden baslat, yeni bir run gonder, sonra:
 curl -s -w "\nHTTP: %{http_code}\n" "$APU/api/runs/<YENI-RUN_ID>/input" -H "$APB"
 ```
 
 **Beklenen sonuç**
 - `HTTP: 404`, `title: "Girdi kaydi yok"`.
-- Case sonrası `dotnet user-secrets remove "AgentPrism:RunRecording
+- Case sonrası `dotnet user-secrets remove "Tracon:RunRecording
   :RecordRunInput"` ile varsayılana dön.
 
 ---
@@ -2105,10 +2105,10 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/runs/<RUN_ID>/replay" -H "
 ### EVAL-104 — CustomRunJudge sample paketten gerçek run/skor üretir (Faz 103)
 
 **Ön koşul**
-- `samples/AgentPrism.Samples.CustomRunJudge.Tests` yalnız local-feed exact-version paket referansı kullanıyor.
+- `samples/Tracon.Samples.CustomRunJudge.Tests` yalnız local-feed exact-version paket referansı kullanıyor.
 
 **Adımlar**
-1. `dotnet test samples/AgentPrism.Samples.CustomRunJudge.Tests` koş.
+1. `dotnet test samples/Tracon.Samples.CustomRunJudge.Tests` koş.
 
 **Beklenen sonuç**
 - Contract, registration ve gerçek run/evaluation testleri geçer.
@@ -2133,7 +2133,7 @@ veya log gözlemi gerektirdiği için 👤 insan gerekir.
 - İki `IRunJudge` kayıtlı: `a` (her zaman `Score` döner) ve `b` (ilk
   çağrıda `throw`, ikinci çağrıda `Score` döner) — her ikisi de kendi çağrı
   sayısını loglar veya artırır (geçici test kodu).
-- `AgentPrism:OnlineEvaluation:Enabled=true`, `SampleRate=1.0`.
+- `Tracon:OnlineEvaluation:Enabled=true`, `SampleRate=1.0`.
 
 **Adımlar**
 1. `support` agent'ına gerçek bir run gönder, tamamlanmasını bekle.
@@ -2155,7 +2155,7 @@ veya log gözlemi gerektirdiği için 👤 insan gerekir.
 
 **Doğrulama sorgusu**
 ```sql
-SELECT source, author FROM agentprism.run_scores WHERE run_id = '<RUN_ID>';
+SELECT source, author FROM tracon.run_scores WHERE run_id = '<RUN_ID>';
 ```
 
 **Beklenen sonuç**
@@ -2252,8 +2252,8 @@ Bkz. MT-EVAL-045 (aynı upsert davranışı). Buradaki ek iddia: yargıç
 ### EVAL-112 — Aynı yazar aynı `run`'a İKİ FARKLI ADLA skor yazar
 
 **Ön koşul**
-- `samples/AgentPrism.Api` ayakta, kimlik çözümlenebiliyor
-  (`AgentPrism__Demo__Roles__Enabled=true` ve `X-AgentPrism-Demo-Role: operator`).
+- `samples/Tracon.Api` ayakta, kimlik çözümlenebiliyor
+  (`Tracon__Demo__Roles__Enabled=true` ve `X-Tracon-Demo-Role: operator`).
   🚨 Kimliksiz kurulumda tekillik hiç devreye girmez ve her çağrı yeni satır
   açar (K1) — bu case o yolu ölçmez.
 - Tamamlanmış bir `run` (`$RUN`).
@@ -2411,7 +2411,7 @@ Bkz. MT-EVAL-045 (aynı upsert davranışı). Buradaki ek iddia: yargıç
 ### EVAL-120 — İki koşumun farkı altı kümeyi ayırır
 
 **Ön koşul**
-- `samples/AgentPrism.Api` ayakta.
+- `samples/Tracon.Api` ayakta.
 - Bir suite iki kez koşulmuş: `$FIRST` (taban çizgisi) ve `$SECOND`. İkinci
   koşumda bir case bozulmuş.
 

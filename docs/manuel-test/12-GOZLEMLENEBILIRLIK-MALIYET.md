@@ -8,22 +8,22 @@
 > 119 (§ ham hata metni sızıntısının kapatılması — `SafeErrorText`),
 > 132 (§ uygulanan fiyat snapshot'ı — birim fiyatlar, `runs.model_provider`,
 > yeniden hesaplamanın `Unknown`'a daralması)
-> **Kaynak:** `src/AgentPrism.UI/frontend/src/screens/dashboard.tsx` (tüm dosya) ·
+> **Kaynak:** `src/Tracon.UI/frontend/src/screens/dashboard.tsx` (tüm dosya) ·
 > `components/charts.tsx` (`TimeSeriesChart`/`ModelBreakdownChart`/
 > `StatusDistributionChart`) · `components/waterfall.tsx` (iz/span görselleştirme,
 > `run-detail.tsx` üzerinden kullanılır — bkz. Sınır) · `lib/format.ts`
 > (`money`/`count`/`percent`) · `lib/api.ts` (`api.stats/timeseries/toolUsage/
 > modelsHealth/onlineEvaluationSummary`).
-> Sunucu: `src/AgentPrism.AspNetCore/Endpoints/ObservabilityEndpoints.cs`
+> Sunucu: `src/Tracon.AspNetCore/Endpoints/ObservabilityEndpoints.cs`
 > (`/api/runs/{id}/trace`, `/tools`, `/api/tools/usage`) ·
 > `Endpoints/CatalogEndpoints.cs` (`/api/stats`, `/api/stats/timeseries`,
 > `/api/stats/errors`, `/api/stats/recalculate-costs`) ·
-> `Endpoints/ModelHealthEndpoints.cs` · `src/AgentPrism.Core/Diagnostics/`
-> (`RunTraceCollector.cs`, `AgentPrismMetrics.cs`) ·
-> `src/AgentPrism.Core/Quotas/QuotaUsageObserver.cs` (yalnız Faz 35'in
-> ölçerleri — bkz. Sınır) · `src/AgentPrism.Core/Models/RunPricingResolver.cs` ·
-> `src/AgentPrism.Core/Storage/InMemoryRunStore.cs` (`GetTimeSeriesAsync`,
-> `GetToolUsageAsync`) · `src/AgentPrism.Abstractions/Diagnostics/SafeErrorText.cs`
+> `Endpoints/ModelHealthEndpoints.cs` · `src/Tracon.Core/Diagnostics/`
+> (`RunTraceCollector.cs`, `TraconMetrics.cs`) ·
+> `src/Tracon.Core/Quotas/QuotaUsageObserver.cs` (yalnız Faz 35'in
+> ölçerleri — bkz. Sınır) · `src/Tracon.Core/Models/RunPricingResolver.cs` ·
+> `src/Tracon.Core/Storage/InMemoryRunStore.cs` (`GetTimeSeriesAsync`,
+> `GetToolUsageAsync`) · `src/Tracon.Abstractions/Diagnostics/SafeErrorText.cs`
 > (Faz 119 — hata metni redaksiyon kuralı; 26 çağrı yeri `docs/119-HATA-METNI-SIZINTISI.md`'de).
 >
 > Ortam kurulumu, fixture verisi ve reset yordamı [`00-INDEKS.md`](00-INDEKS.md)'dedir.
@@ -42,8 +42,8 @@ görselleştirmesi ve **örnekleme** kuralı (Faz 6 — başarılı çalıştır
 yalnız bir kısmı, hatalıların tamamı), maliyet çözümleme sırası (katalog →
 yapılandırma → bilinmeyen, K-032) ve bunun **hiçbir zaman sıfıra düşmediği**
 (bilinmeyen fiyat `null`'dur, `0` değil), ve Faz 35'in **arayüzü olmayan**
-iki OpenTelemetry enstrümanının (`agentprism.run.cost` sayacı,
-`agentprism.quota.usage`/`.limit` gözlemlenen ölçerleri) `dotnet-counters`
+iki OpenTelemetry enstrümanının (`tracon.run.cost` sayacı,
+`tracon.quota.usage`/`.limit` gözlemlenen ölçerleri) `dotnet-counters`
 ile gözlemlenmesi.
 
 ```mermaid
@@ -57,8 +57,8 @@ flowchart TD
     H -->|"orneklendiyse 200"| I["Waterfall: span agaci"]
     H -->|"orneklenmediyse 404"| J["'SuccessSampleRatio' mesaji"]
     K["RunRecordingAgent.CompleteAsync"] --> L["RunPricingResolver: katalog -> yapilandirma -> Unknown"]
-    L --> M["runs.cost_* sutunlari + agentprism.run.cost sayaci"]
-    N["QuotaUsageObserver (Faz 35, varsayilan KAPALI)"] -.->|"EnableQuotaUsageGauge=true"| O["agentprism.quota.usage/.limit"]
+    L --> M["runs.cost_* sutunlari + tracon.run.cost sayaci"]
+    N["QuotaUsageObserver (Faz 35, varsayilan KAPALI)"] -.->|"EnableQuotaUsageGauge=true"| O["tracon.quota.usage/.limit"]
 ```
 
 ## Sınır: bu dosya nerede biter
@@ -76,12 +76,12 @@ flowchart TD
 
 1. [`00-INDEKS.md`](00-INDEKS.md) §4 reset yordamı uygulanır.
 2. Örnek uygulama çalışır, `manuel-test-token-2026` ile giriş yapılmıştır.
-3. `AgentPrism:Providers:OpenAI:ApiKey` tanımlıdır.
-4. **Örnek uygulama HİÇBİR model fiyatı tanımlamaz** (`grep -rn "InputCostPerMillionTokens\|Pricing" samples/AgentPrism.Api/Program.cs` boş döner) — bu yüzden reset sonrası HER çalıştırma `PricingSource.Unknown`'dur. Bu bir kusur değil, dosyanın kendi başlangıç durumudur; § 8'deki case'ler fiyatı bilerek sonradan tanımlar.
+3. `Tracon:Providers:OpenAI:ApiKey` tanımlıdır.
+4. **Örnek uygulama HİÇBİR model fiyatı tanımlamaz** (`grep -rn "InputCostPerMillionTokens\|Pricing" samples/Tracon.Api/Program.cs` boş döner) — bu yüzden reset sonrası HER çalıştırma `PricingSource.Unknown`'dur. Bu bir kusur değil, dosyanın kendi başlangıç durumudur; § 8'deki case'ler fiyatı bilerek sonradan tanımlar.
 5. `dotnet-counters` .NET global aracı kuruludur (§ 12 için):
    ```bash
    dotnet tool install --global dotnet-counters
-   dotnet-counters ps   # AgentPrism.Api sürecinin PID'sini bulmak için
+   dotnet-counters ps   # Tracon.Api sürecinin PID'sini bulmak için
    ```
 6. Bu dosyanın birçok case'i `dotnet user-secrets set/remove` ile uygulamayı
    YENİDEN BAŞLATMAYI gerektirir — her case bunu adım olarak yazar, atlanmaz.
@@ -134,12 +134,12 @@ Sınır durumu — hiç çalıştırma yokken.
 
 **Ön koşul**
 - `playground/support` ile `FIX-PROMPT-02` (`Merhaba`) gönderilmiş, tur
-  tamamlanmış. Hiçbir `AgentPrism:Pricing:*` anahtarı tanımlı DEĞİL
+  tamamlanmış. Hiçbir `Tracon:Pricing:*` anahtarı tanımlı DEĞİL
   (varsayılan durum).
 
 **Adımlar**
 1. "Dashboard" ekranını aç, "Bugünkü Maliyet" karosunu oku.
-2. `curl -s "http://localhost:5080/agentprism/api/stats?maxAgents=10" -H "Authorization: Bearer manuel-test-token-2026" | python3 -m json.tool | grep -i unknownpricing`
+2. `curl -s "http://localhost:5080/tracon/api/stats?maxAgents=10" -H "Authorization: Bearer manuel-test-token-2026" | python3 -m json.tool | grep -i unknownpricing`
 
 **Beklenen sonuç**
 - Adım 1: karo `—` gösterir (`today?.cost === null || undefined`) — `0` DEĞİL.
@@ -159,9 +159,9 @@ Sınır durumu — hiç çalıştırma yokken.
 
 **Ön koşul**
 ```bash
-cd samples/AgentPrism.Api
-dotnet user-secrets set "AgentPrism:Pricing:openai:gpt-5.4-mini:Input" "0.15"
-dotnet user-secrets set "AgentPrism:Pricing:openai:gpt-5.4-mini:Output" "0.60"
+cd samples/Tracon.Api
+dotnet user-secrets set "Tracon:Pricing:openai:gpt-5.4-mini:Input" "0.15"
+dotnet user-secrets set "Tracon:Pricing:openai:gpt-5.4-mini:Output" "0.60"
 ```
 uygulama yeniden başlatılmış.
 
@@ -191,7 +191,7 @@ gözlemsel olarak doğrulanır.
 
 **Ön koşul**
 ```bash
-dotnet user-secrets set "AgentPrism:Pricing:Currency" "USD"
+dotnet user-secrets set "Tracon:Pricing:Currency" "USD"
 ```
 uygulama yeniden başlatılmış; `MT-OBS-003`'ün fiyatlandırması hâlâ tanımlı.
 
@@ -305,7 +305,7 @@ Sınır durumu — sıfıra bölme kaçınması.
 - `support` (openai/gpt-5.4-mini) ile birden çok, `claude-destek` (Anthropic
   anahtarı varsa) ile bir çalıştırma var. Fiyat tanımlı DEĞİL (bu case için
   `MT-OBS-003`'ün fiyat ayarları GERİ ALINIR: `dotnet user-secrets remove
-  "AgentPrism:Pricing:openai:gpt-5.4-mini:Input"` ve `:Output`, yeniden başlat).
+  "Tracon:Pricing:openai:gpt-5.4-mini:Input"` ve `:Output`, yeniden başlat).
 
 **Adımlar**
 1. Dashboard'ı aç, "Model Kırılımı" panelini incele.
@@ -475,7 +475,7 @@ Sınır tablosu) — burada yalnız özet panelin varlığı ve yenileme davran�
 
 **Ön koşul**
 ```bash
-dotnet user-secrets set "AgentPrism:Observability:SuccessSampleRatio" "0"
+dotnet user-secrets set "Tracon:Observability:SuccessSampleRatio" "0"
 ```
 uygulama yeniden başlatılmış.
 
@@ -487,7 +487,7 @@ uygulama yeniden başlatılmış.
 
 **Beklenen sonuç**
 - Adım 1: `GET .../trace` `404` döner; panel `runDetail.noSpans` boş-
-  durumunu, `AgentPrism:Observability:SuccessSampleRatio` adını anarak
+  durumunu, `Tracon:Observability:SuccessSampleRatio` adını anarak
   gösterir. Oran `0` olduğu için bu SONUÇ GARANTİLİDİR (olasılıksal değil).
 - Adım 2: aynı ayar altında bile trace VARDIR (`200`) — `AlwaysPersistFailures`
   (varsayılan `true`) örnekleme oranını GEÇERSİZ kılar.
@@ -505,7 +505,7 @@ uygulama yeniden başlatılmış.
 
 **Ön koşul**
 ```bash
-dotnet user-secrets set "AgentPrism:Observability:SuccessSampleRatio" "1"
+dotnet user-secrets set "Tracon:Observability:SuccessSampleRatio" "1"
 ```
 uygulama yeniden başlatılmış.
 
@@ -588,13 +588,13 @@ alt dizgi eşleşmesidir.
 
 **Ön koşul**
 - `MT-OBS-016`'nın `SuccessSampleRatio=1` ayarı hâlâ etkin.
-- `dotnet user-secrets set "AgentPrism:Observability:RecordSensitiveData" "false"`
+- `dotnet user-secrets set "Tracon:Observability:RecordSensitiveData" "false"`
   (varsayılan zaten budur, açıkça yazmak bu case'i belgeler).
 
 **Adımlar**
 1. `playground/support` aç, `Merhaba` gönder, tamamlansın; `runId`'yi not al.
-2. `curl -s "http://localhost:5080/agentprism/api/runs/<runId>/trace" -H "Authorization: Bearer manuel-test-token-2026" | python3 -c "import json,sys; d=json.load(sys.stdin); print([k for s in d['spans'] for k in s['attributes'] if 'message' in k.lower() or 'prompt' in k.lower() or 'completion' in k.lower()])"`
-3. `dotnet user-secrets set "AgentPrism:Observability:RecordSensitiveData" "true"`,
+2. `curl -s "http://localhost:5080/tracon/api/runs/<runId>/trace" -H "Authorization: Bearer manuel-test-token-2026" | python3 -c "import json,sys; d=json.load(sys.stdin); print([k for s in d['spans'] for k in s['attributes'] if 'message' in k.lower() or 'prompt' in k.lower() or 'completion' in k.lower()])"`
+3. `dotnet user-secrets set "Tracon:Observability:RecordSensitiveData" "true"`,
    uygulamayı yeniden başlat, AYNI adımları tekrarla (yeni bir `runId` ile).
 
 **Beklenen sonuç**
@@ -622,7 +622,7 @@ Negatif senaryo — sunucu bu ikisini ayırmaz.
 - `MT-OBS-017`'nin `support` alt çalıştırmasının `runId`'si elde.
 
 **Adımlar**
-1. `curl -s -o /dev/null -w "%{http_code}\n" "http://localhost:5080/agentprism/api/runs/<altRunId>/trace" -H "Authorization: Bearer manuel-test-token-2026"`
+1. `curl -s -o /dev/null -w "%{http_code}\n" "http://localhost:5080/tracon/api/runs/<altRunId>/trace" -H "Authorization: Bearer manuel-test-token-2026"`
 2. Aynı isteği rastgele, var olmayan bir GUID ile tekrarla.
 
 **Beklenen sonuç**
@@ -643,11 +643,11 @@ Negatif senaryo — sunucu bu ikisini ayırmaz.
 | **İlgili karar** | K-032 |
 
 **Ön koşul**
-- Hiçbir `AgentPrism:Pricing:*` anahtarı tanımlı DEĞİL. `manuel-bos`
+- Hiçbir `Tracon:Pricing:*` anahtarı tanımlı DEĞİL. `manuel-bos`
   (`FIX-AGENT-02`) ile bir çalıştırma üret.
 
 **Adımlar**
-1. `curl -s "http://localhost:5080/agentprism/api/runs/<runId>" -H "Authorization: Bearer manuel-test-token-2026" | python3 -m json.tool | grep -A4 '"cost"'`
+1. `curl -s "http://localhost:5080/tracon/api/runs/<runId>" -H "Authorization: Bearer manuel-test-token-2026" | python3 -m json.tool | grep -A4 '"cost"'`
 
 **Beklenen sonuç**
 - `cost.source = "Unknown"`, `cost.inputCost = null`, `cost.outputCost = null`
@@ -656,7 +656,7 @@ Negatif senaryo — sunucu bu ikisini ayırmaz.
 
 **Doğrulama sorgusu**
 ```sql
-SELECT input_cost, output_cost, pricing_source FROM agentprism.runs WHERE id = '<runId>';
+SELECT input_cost, output_cost, pricing_source FROM tracon.runs WHERE id = '<runId>';
 ```
 
 ---
@@ -674,8 +674,8 @@ Sınır durumu — kısmi fiyatlandırma "Unknown"a düşmez.
 
 **Ön koşul**
 ```bash
-dotnet user-secrets remove "AgentPrism:Pricing:openai:gpt-5.4-mini:Output"
-dotnet user-secrets set "AgentPrism:Pricing:openai:gpt-5.4-mini:Input" "0.15"
+dotnet user-secrets remove "Tracon:Pricing:openai:gpt-5.4-mini:Output"
+dotnet user-secrets set "Tracon:Pricing:openai:gpt-5.4-mini:Input" "0.15"
 ```
 (yalnız `Input` kalacak şekilde), uygulama yeniden başlatılmış.
 
@@ -704,10 +704,10 @@ adlardır.
 
 **Ön koşul**
 ```bash
-dotnet user-secrets set "AgentPrism:Pricing:Voice:openai:gpt-5.4-mini:Input" "999"
+dotnet user-secrets set "Tracon:Pricing:Voice:openai:gpt-5.4-mini:Input" "999"
 ```
 (`openai`'nin GERÇEK `Pricing:openai:...` anahtarı KALDIRILMIŞ olmalı —
-`MT-OBS-022`'den `dotnet user-secrets remove "AgentPrism:Pricing:openai:gpt-5.4-mini:Input"`),
+`MT-OBS-022`'den `dotnet user-secrets remove "Tracon:Pricing:openai:gpt-5.4-mini:Input"`),
 uygulama yeniden başlatılmış.
 
 **Adımlar**
@@ -739,11 +739,11 @@ sınırlama (K-154).
 **Ön koşul**
 - OpenRouter anahtarı tanımlı.
 ```bash
-dotnet user-secrets remove "AgentPrism:Pricing:Voice:openai:gpt-5.4-mini:Input"
-dotnet user-secrets set "AgentPrism:Pricing:openai:gpt-5.4-mini:Input" "1"
-dotnet user-secrets set "AgentPrism:Pricing:openai:gpt-5.4-mini:Output" "1"
-dotnet user-secrets set "AgentPrism:Pricing:openrouter:gpt-5.4-mini:Input" "5"
-dotnet user-secrets set "AgentPrism:Pricing:openrouter:gpt-5.4-mini:Output" "5"
+dotnet user-secrets remove "Tracon:Pricing:Voice:openai:gpt-5.4-mini:Input"
+dotnet user-secrets set "Tracon:Pricing:openai:gpt-5.4-mini:Input" "1"
+dotnet user-secrets set "Tracon:Pricing:openai:gpt-5.4-mini:Output" "1"
+dotnet user-secrets set "Tracon:Pricing:openrouter:gpt-5.4-mini:Input" "5"
+dotnet user-secrets set "Tracon:Pricing:openrouter:gpt-5.4-mini:Output" "5"
 ```
 uygulama yeniden başlatılmış — AYNI model adı (`gpt-5.4-mini`) iki
 sağlayıcıda ÇOK FARKLI fiyatlarla tanımlı.
@@ -777,7 +777,7 @@ sağlayıcıda ÇOK FARKLI fiyatlarla tanımlı.
 
 **Adımlar**
 1. `curl -s -X POST ".../api/stats/recalculate-costs" -H "Authorization: Bearer manuel-test-token-2026" | python3 -m json.tool`.
-2. `SELECT tenant_id, action, entity FROM agentprism.audit_log WHERE action = 'stats.recalculate-costs' ORDER BY occurred_at DESC LIMIT 1;`
+2. `SELECT tenant_id, action, entity FROM tracon.audit_log WHERE action = 'stats.recalculate-costs' ORDER BY occurred_at DESC LIMIT 1;`
 
 **Beklenen sonuç**
 - Adım 1: `runsConsidered >= runsUpdated`, `runsStillUnknown` en az
@@ -796,7 +796,7 @@ Negatif senaryo.
 | **İlgili karar** | — |
 
 **Adımlar**
-1. `curl -i "http://localhost:5080/agentprism/api/stats/timeseries?from=2026-08-10T00:00:00Z&to=2026-08-10T00:00:00Z" -H "Authorization: Bearer manuel-test-token-2026"`
+1. `curl -i "http://localhost:5080/tracon/api/stats/timeseries?from=2026-08-10T00:00:00Z&to=2026-08-10T00:00:00Z" -H "Authorization: Bearer manuel-test-token-2026"`
    (`from` ve `to` BİREBİR AYNI).
 
 **Beklenen sonuç**
@@ -817,7 +817,7 @@ Negatif senaryo — 500 kova sınırı.
 | **İlgili karar** | — |
 
 **Adımlar**
-1. `curl -i "http://localhost:5080/agentprism/api/stats/timeseries?from=$(date -u -v-31d +%Y-%m-%dT%H:%M:%SZ)&to=$(date -u +%Y-%m-%dT%H:%M:%SZ)&bucket=Hour" -H "Authorization: Bearer manuel-test-token-2026"`
+1. `curl -i "http://localhost:5080/tracon/api/stats/timeseries?from=$(date -u -v-31d +%Y-%m-%dT%H:%M:%SZ)&to=$(date -u +%Y-%m-%dT%H:%M:%SZ)&bucket=Hour" -H "Authorization: Bearer manuel-test-token-2026"`
    (macOS `date -v` sözdizimi; 31 gün × 24 saat = 744 kova, 500 sınırını aşar).
 
 **Beklenen sonuç**
@@ -838,7 +838,7 @@ Sınır durumu.
 | **İlgili karar** | — |
 
 **Adımlar**
-1. `curl -s "http://localhost:5080/agentprism/api/stats/timeseries?from=2020-01-01T00:00:00Z&to=2020-01-02T00:00:00Z&bucket=Hour" -H "Authorization: Bearer manuel-test-token-2026" | python3 -c "import json,sys; d=json.load(sys.stdin); print(len(d))"`
+1. `curl -s "http://localhost:5080/tracon/api/stats/timeseries?from=2020-01-01T00:00:00Z&to=2020-01-02T00:00:00Z&bucket=Hour" -H "Authorization: Bearer manuel-test-token-2026" | python3 -c "import json,sys; d=json.load(sys.stdin); print(len(d))"`
    (kesinlikle hiç çalıştırmanın olmadığı bir tarih aralığı).
 
 **Beklenen sonuç**
@@ -865,7 +865,7 @@ Sınır durumu.
 
 **Adımlar**
 1. `playground/support` aç, `FIX-PROMPT-04` gönder; HEMEN (akış bitmeden)
-   `curl -s "http://localhost:5080/agentprism/api/stats/timeseries?bucket=Hour" -H "Authorization: Bearer manuel-test-token-2026" | python3 -m json.tool | tail -20`.
+   `curl -s "http://localhost:5080/tracon/api/stats/timeseries?bucket=Hour" -H "Authorization: Bearer manuel-test-token-2026" | python3 -m json.tool | tail -20`.
 
 **Beklenen sonuç**
 - Son (güncel) kovada `runs >= 1` ama `averageDurationMs: null` — `CompletedAt`
@@ -887,7 +887,7 @@ Sınır durumu — `Math.Clamp(max, 1, 200)`, taban `1`'dir (`/api/stats`'in
 - En az bir tool çağrısı yapılmış (`FIX-PROMPT-01`).
 
 **Adımlar**
-1. `curl -s "http://localhost:5080/agentprism/api/tools/usage?maxTools=0" -H "Authorization: Bearer manuel-test-token-2026" | python3 -c "import json,sys; print(len(json.load(sys.stdin)))"`
+1. `curl -s "http://localhost:5080/tracon/api/tools/usage?maxTools=0" -H "Authorization: Bearer manuel-test-token-2026" | python3 -c "import json,sys; print(len(json.load(sys.stdin)))"`
 
 **Beklenen sonuç**
 - Sonuç `0` DEĞİL, `1`'dir (en az bir tool çağrısı varsa) — `maxTools=0`
@@ -910,7 +910,7 @@ Sınır durumu.
 - `FIX-PROMPT-01` ile `get_order_status` çağıran bir run bugün yapılmış.
 
 **Adımlar**
-1. `curl -s "http://localhost:5080/agentprism/api/tools/usage?startedAfter=$(date -u -v+1H +%Y-%m-%dT%H:%M:%SZ)" -H "Authorization: Bearer manuel-test-token-2026"`
+1. `curl -s "http://localhost:5080/tracon/api/tools/usage?startedAfter=$(date -u -v+1H +%Y-%m-%dT%H:%M:%SZ)" -H "Authorization: Bearer manuel-test-token-2026"`
    (gelecekteki bir zaman — hiçbir run'ın `StartedAt`'i bunu geçmemiştir).
 
 **Beklenen sonuç**
@@ -939,7 +939,7 @@ Devre kesici ve sağlayıcı sağlığının derin mekaniği zaten
   Dashboard her açılışta canlı bir sağlık taraması TETİKLEMEZ, yalnız son
   önbelleklenmiş durumu okur.
 
-### MT-OBS-033 — `agentprism.run.cost` sayacı yalnız fiyatı BİLİNEN run'larda artar
+### MT-OBS-033 — `tracon.run.cost` sayacı yalnız fiyatı BİLİNEN run'larda artar
 
 | | |
 |---|---|
@@ -950,13 +950,13 @@ Devre kesici ve sağlayıcı sağlığının derin mekaniği zaten
 
 **Ön koşul**
 - `MT-OBS-003`'ün fiyatlandırması tanımlı (`openai:gpt-5.4-mini` fiyatlı).
-- `dotnet-counters ps` ile `AgentPrism.Api` sürecinin PID'si bulunmuş.
+- `dotnet-counters ps` ile `Tracon.Api` sürecinin PID'si bulunmuş.
 
 **Adımlar**
-1. `dotnet-counters monitor -p <pid> --counters AgentPrism` çalıştır, ekranı
+1. `dotnet-counters monitor -p <pid> --counters Tracon` çalıştır, ekranı
    açık bırak.
 2. `playground/support` aç, `Merhaba` gönder, tamamlansın.
-3. `dotnet-counters` ekranında `agentprism.run.cost` satırının değerine bak.
+3. `dotnet-counters` ekranında `tracon.run.cost` satırının değerine bak.
 4. `manuel-bos` (fiyatsız) ile bir çalıştırma daha yap, sayaç DEĞİŞİYOR mu
    gözlemle.
 
@@ -969,7 +969,7 @@ Devre kesici ve sağlayıcı sağlığının derin mekaniği zaten
 
 ---
 
-### MT-OBS-034 — `agentprism.run.cost` İPTAL edilen bir run'da da (fiyat biliniyorsa) artar
+### MT-OBS-034 — `tracon.run.cost` İPTAL edilen bir run'da da (fiyat biliniyorsa) artar
 
 Sınır durumu — harcanan token'ın parası zaten harcanmıştır.
 
@@ -987,7 +987,7 @@ Sınır durumu — harcanan token'ın parası zaten harcanmıştır.
 1. `playground/support` aç, `FIX-PROMPT-04` (uzun) gönder; akış sürerken
    çalıştırma sayfasına geç, "İptal Et"e tıkla, onayla (bkz.
    [`11-ARAYUZ-RUN-SESSION-SSE.md`](11-ARAYUZ-RUN-SESSION-SSE.md) `MT-UIRUN-022`).
-2. İptal tamamlanınca `agentprism.run.cost` sayacına bak.
+2. İptal tamamlanınca `tracon.run.cost` sayacına bak.
 
 **Beklenen sonuç (KOSUM-PLANI §2.1 ile düzeltildi — bkz. `kosumlar/2026-08-13/`)**
 - OpenAI streaming protokolünde (`stream_options.include_usage=true`)
@@ -1002,7 +1002,7 @@ Sınır durumu — harcanan token'ın parası zaten harcanmıştır.
 
 ---
 
-### MT-OBS-035 — 🚨 `agentprism.quota.usage`/`.limit` VARSAYILANDA (kapalı bayrak) hiçbir ölçüm yaymaz
+### MT-OBS-035 — 🚨 `tracon.quota.usage`/`.limit` VARSAYILANDA (kapalı bayrak) hiçbir ölçüm yaymaz
 
 `EnableQuotaUsageGauge` varsayılanı `false`'tur (`RunCost` sayacının
 AKSİNE, bu ek bir kaynak tüketimidir ve açıkça istenmelidir).
@@ -1015,17 +1015,17 @@ AKSİNE, bu ek bir kaynak tüketimidir ve açıkça istenmelidir).
 | **İlgili karar** | — |
 
 **Ön koşul**
-- Hiçbir `AgentPrism:Observability:EnableQuotaUsageGauge` ayarı YAPILMAMIŞ
+- Hiçbir `Tracon:Observability:EnableQuotaUsageGauge` ayarı YAPILMAMIŞ
   (varsayılan `false`).
-- `curl -i -X PUT "http://localhost:5080/agentprism/api/quotas" -H "Authorization: Bearer manuel-test-token-2026" -H "Content-Type: application/json" -d '{"period":"Daily","maxRuns":1000}'`
+- `curl -i -X PUT "http://localhost:5080/tracon/api/quotas" -H "Authorization: Bearer manuel-test-token-2026" -H "Content-Type: application/json" -d '{"period":"Daily","maxRuns":1000}'`
   ile kiracı geneli bir kota kuralı tanımlanmış (kuralın KENDİSİ Faz 21'in
   konusudur — burada yalnız SCAFFOLD amaçlı kullanılır, bkz. Sınır tablosu).
 
 **Adımlar**
-1. `dotnet-counters monitor -p <pid> --counters AgentPrism` çalıştır.
+1. `dotnet-counters monitor -p <pid> --counters Tracon` çalıştır.
 2. `playground/support` ile birkaç çalıştırma yap (kota sayacını doldurmak
    için).
-3. `agentprism.quota.usage`/`agentprism.quota.limit` satırlarını ara.
+3. `tracon.quota.usage`/`tracon.quota.limit` satırlarını ara.
 
 **Beklenen sonuç**
 - İkisi de listede İSİM olarak GÖRÜNEBİLİR (enstrüman her zaman kayıtlıdır)
@@ -1045,16 +1045,16 @@ AKSİNE, bu ek bir kaynak tüketimidir ve açıkça istenmelidir).
 
 **Ön koşul**
 ```bash
-dotnet user-secrets set "AgentPrism:Observability:EnableQuotaUsageGauge" "true"
-dotnet user-secrets set "AgentPrism:Observability:QuotaUsageRefreshInterval" "00:00:05"
+dotnet user-secrets set "Tracon:Observability:EnableQuotaUsageGauge" "true"
+dotnet user-secrets set "Tracon:Observability:QuotaUsageRefreshInterval" "00:00:05"
 ```
 uygulama yeniden başlatılmış; `MT-OBS-035`'in kota kuralı hâlâ tanımlı ve en
 az bir çalıştırma yapılmış olmalı.
 
 **Adımlar**
-1. `dotnet-counters monitor -p <pid> --counters AgentPrism` çalıştır, en az
+1. `dotnet-counters monitor -p <pid> --counters Tracon` çalıştır, en az
    10 saniye bekle (önbellek tazelenmesi için).
-2. `agentprism.quota.usage`/`agentprism.quota.limit` satırlarını oku.
+2. `tracon.quota.usage`/`tracon.quota.limit` satırlarını oku.
 
 **Beklenen sonuç**
 - İkisi de artık SIFIRDAN FARKLI değer(ler) taşır; etiketler arasında
@@ -1111,7 +1111,7 @@ curl -s -H "Authorization: Bearer $TOKEN" -H "$ROLE" "$BASE/api/runs?take=1" | j
 curl -s -X POST "$BASE/api/agents/summarizer/run" \
   -H "Authorization: Bearer $TOKEN" -H "$ROLE" -H "Content-Type: application/json" \
   -H "X-Demo-User: ada" -H "X-Demo-Labels: team=payments,ticket=OPS-1" \
-  -d '{"message":"Özetle: AgentPrism çalıştırmaları kaydeder.","userId":"ATTACKER"}' -N
+  -d '{"message":"Özetle: Tracon çalıştırmaları kaydeder.","userId":"ATTACKER"}' -N
 curl -s -H "Authorization: Bearer $TOKEN" -H "$ROLE" "$BASE/api/runs?take=1" | jq '.[0] | {userId, labels}'
 ```
 
@@ -1222,10 +1222,10 @@ curl -s -H "Authorization: Bearer $TOKEN" -H "$ROLE" "$BASE/api/stats" | jq '.to
 **Ön koşul**
 Gerçek bir OpenAI anahtarı tanımlı ve cache oranı YAPILANDIRILMIŞ:
 ```bash
-export "AgentPrism__Pricing__Currency=USD"
-export "AgentPrism__Pricing__openai__gpt-5.4-mini__Input=0.25"
-export "AgentPrism__Pricing__openai__gpt-5.4-mini__Output=2"
-export "AgentPrism__Pricing__openai__gpt-5.4-mini__CachedInput=0.025"
+export "Tracon__Pricing__Currency=USD"
+export "Tracon__Pricing__openai__gpt-5.4-mini__Input=0.25"
+export "Tracon__Pricing__openai__gpt-5.4-mini__Output=2"
+export "Tracon__Pricing__openai__gpt-5.4-mini__CachedInput=0.025"
 ```
 Uygulama bu ayarlarla yeniden başlatılmış olmalı.
 
@@ -1343,14 +1343,14 @@ curl -s -H "Authorization: Bearer $TOKEN" -H "$ROLE" "$BASE/api/runs?take=1" | j
 
 **Ön koşul**
 - `MT-MM-095` için gerçek görsel üretim çalışır.
-- Önce `AgentPrism:Pricing:Images:<provider>:<model>` bölümü tamamen yoktur.
+- Önce `Tracon:Pricing:Images:<provider>:<model>` bölümü tamamen yoktur.
 
 **Adımlar**
 1. Bir görsel üret ve tool çağrısının `usage` kaydını oku.
 2. Uygulamayı şu açık fiyatla yeniden başlat:
 ```bash
-dotnet user-secrets set "AgentPrism:Pricing:Images:openai:<model>:PerImage" "0.04"
-dotnet user-secrets set "AgentPrism:Pricing:Images:openai:<model>:SizeMultipliers:1024x1024" "2"
+dotnet user-secrets set "Tracon:Pricing:Images:openai:<model>:PerImage" "0.04"
+dotnet user-secrets set "Tracon:Pricing:Images:openai:<model>:SizeMultipliers:1024x1024" "2"
 ```
 3. Aynı boyutta bir görsel daha üret ve iki `usage` kaydını karşılaştır.
 
@@ -1371,9 +1371,9 @@ dotnet user-secrets set "AgentPrism:Pricing:Images:openai:<model>:SizeMultiplier
 
 **Adımlar**
 ```bash
-dotnet user-secrets set "AgentPrism:Pricing:Images:openai:<model>:PerImage" "0.04"
-dotnet user-secrets set "AgentPrism:Pricing:Images:openai:<model>:OutputCostPerMillionTokens" "10"
-cd samples/AgentPrism.Api && dotnet run -c Release
+dotnet user-secrets set "Tracon:Pricing:Images:openai:<model>:PerImage" "0.04"
+dotnet user-secrets set "Tracon:Pricing:Images:openai:<model>:OutputCostPerMillionTokens" "10"
+cd samples/Tracon.Api && dotnet run -c Release
 ```
 
 **Beklenen sonuç**
@@ -1399,8 +1399,8 @@ Uygulama küçük bir kurulum varsayılanıyla başlatılmış. Sınır
 `TruncatingAIFunction.MinimumEnvelopeBytes`'ın (bugün 57) altında **olamaz** —
 düşük bir değer uygulamayı options validation hatasıyla başlatmaz:
 ```bash
-export AgentPrism__Tools__DefaultMaxOutputBytes=100
-cd samples/AgentPrism.Api && dotnet run -c Release --urls http://localhost:5081
+export Tracon__Tools__DefaultMaxOutputBytes=100
+cd samples/Tracon.Api && dotnet run -c Release --urls http://localhost:5081
 ```
 
 **Adımlar**
@@ -1454,7 +1454,7 @@ ayarlanmadan) çalışıyor.
 
 ---
 
-### MT-OBS-050 — İç span'ler `agentprism.run` kök span'inin çocuğu olmaya devam eder (Faz 107)
+### MT-OBS-050 — İç span'ler `tracon.run` kök span'inin çocuğu olmaya devam eder (Faz 107)
 
 Faz 107 `RunRecordingAgent`'ı `partial` dosyalara ayırdı; span'i açan
 `PrepareRun` ve kapatan `CompleteAsync` bu ayrımdan etkilenen metotlar
@@ -1469,18 +1469,18 @@ kök/çocuk span hiyerarşisini bozmadığını kanıtlar.
 | **İlgili karar** | — |
 
 **Ön koşul**
-- `samples/AgentPrism.Api` ayakta (bkz. `11-ARAYUZ-RUN-SESSION-SSE.md` MT-UIRUN-050).
+- `samples/Tracon.Api` ayakta (bkz. `11-ARAYUZ-RUN-SESSION-SSE.md` MT-UIRUN-050).
 
 **Adımlar**
 1. `POST .../support/run` ile gerçek bir çalıştırma yap.
 2. `GET .../runs/{id}/trace` ile span ağacını oku.
 
 **Beklenen sonuç**
-- `agentprism.run` kök span'i vardır; `invoke_agent`/`chat` gibi iç span'ler
+- `tracon.run` kök span'i vardır; `invoke_agent`/`chat` gibi iç span'ler
   onun **çocuğudur**, kardeşi değil.
 - **Otomatik koşuldu (2026-08-26):** bu hiyerarşi
   `ObservabilityTests.Inner_spans_become_children_of_root_span`
-  (`tests/AgentPrism.Core.UnitTests/Diagnostics/ObservabilityTests.cs`) ve
+  (`tests/Tracon.Core.UnitTests/Diagnostics/ObservabilityTests.cs`) ve
   `RunRecordingAgentOutcomeMatrixTests` (span durum etiketi, dört sonuç için)
   ile otomatik koşuldu — tam koşumda 1967/1967 testin parçası olarak geçti.
   `PrepareRun`/`CreateScope`/`RunCoreAsync`/`RunCoreStreamingAsync`, span ve
@@ -1492,7 +1492,7 @@ kök/çocuk span hiyerarşisini bozmadığını kanıtlar.
   tepesindeki span ile arıyordu; gerçek ASP.NET yolunda bu span run root değil,
   HTTP server span'idir. Collector artık zincirde kayıtlı en yakın ancestor
   tamponunu buluyor. `RunTraceEndToEndTests.Successful_run_is_persisted_when_sample_ratio_is_one`
-  gerçek DI + HTTP + SSE + trace endpoint zincirini ve `agentprism.run` span'ini
+  gerçek DI + HTTP + SSE + trace endpoint zincirini ve `tracon.run` span'ini
   doğrular. `SuccessSampleRatio=1` ile sample tekrarında trace endpoint `200`
   dönmelidir.
 
@@ -1510,11 +1510,11 @@ kök/çocuk span hiyerarşisini bozmadığını kanıtlar.
 **Ön koşul**
 - Kayıtlı bir `IRunErrorClassifier`: `DefaultRunErrorClassifier`'ı doğrudan
   `new()` ile kurup (DI gerekmez, sıfır bağımlılıklıdır) kompozisyonla sarar —
-  `RunError.Type == AgentPrismProviderUnavailableException.ProviderUnavailableErrorType`
+  `RunError.Type == TraconProviderUnavailableException.ProviderUnavailableErrorType`
   ise kendi kuralını uygular (yerleşiğin `ProviderUnavailable` atadığı sınıfı
   bilerek başka bir sınıfa çevirir), aksi hâlde `builtIn.Classify(runError)`'a düşer.
 - Birincili VE yedeği İKİSİ de sürekli bağlantı reddiyle düşen bir agent
-  (zincir kesin tükenir → gerçek bir `AgentPrismProviderUnavailableException`).
+  (zincir kesin tükenir → gerçek bir `TraconProviderUnavailableException`).
 
 **Adımlar**
 1. Agent'a bir mesaj gönder (zincir tükenir).
@@ -1591,9 +1591,9 @@ kök/çocuk span hiyerarşisini bozmadığını kanıtlar.
 | **İlgili karar** | K-640 |
 
 **Ön koşul**
-- `samples/AgentPrism.Api` — `openai`/`anthropic`/`google` sağlayıcılarından
+- `samples/Tracon.Api` — `openai`/`anthropic`/`google` sağlayıcılarından
   birine **geçersiz** bir API anahtarı ver (`dotnet user-secrets set
-  "AgentPrism:Providers:OpenAI:ApiKey" "sk-gecersiz"`).
+  "Tracon:Providers:OpenAI:ApiKey" "sk-gecersiz"`).
 
 **Adımlar**
 1. O sağlayıcıya bağlı bir agent'ı çalıştır (`POST /api/agents/{ad}/run`).
@@ -1606,7 +1606,7 @@ kök/çocuk span hiyerarşisini bozmadığını kanıtlar.
   `ProviderFailureNormalizer` ile sabit `"The model provider request failed."`
   metnine iner (`error.type` = `upstream_error`) — bu Faz 119'dan önce de
   doğruydu, bu case regresyon olmadığını doğrular.
-- Adım 3: Tam sağlayıcı hatası (`ex.ToString()`) `AgentPrism.ModelProvider`
+- Adım 3: Tam sağlayıcı hatası (`ex.ToString()`) `Tracon.ModelProvider`
   kategorisiyle loglanmıştır.
 
 ### MT-OBS-055 — 🚨 Kuyruklu (`respond-async`) bir `run`'ın oturum açma hatası, `jobs.error_message`'a ham metin sızdırmaz
@@ -1619,7 +1619,7 @@ kök/çocuk span hiyerarşisini bozmadığını kanıtlar.
 | **İlgili karar** | K-640 |
 
 **Ön koşul**
-- `samples/AgentPrism.Api`, kalıcı bir SQL sağlayıcısı (`UsePostgreSql`/
+- `samples/Tracon.Api`, kalıcı bir SQL sağlayıcısı (`UsePostgreSql`/
   `UseSqlite`) ile çalışıyor — `jobs` tablosunu okumak için gerekli.
 
 **Adımlar**
@@ -1696,17 +1696,17 @@ kök/çocuk span hiyerarşisini bozmadığını kanıtlar.
 - Geliştirme ortamı; `src/` içine geçici bir dosya eklenecek.
 
 **Adımlar**
-1. `src/AgentPrism.Core/` altına, bir `catch (Exception exception)` bloğu
+1. `src/Tracon.Core/` altına, bir `catch (Exception exception)` bloğu
    içinde `context.Something = exception.Message;` yazan geçici bir dosya ekle.
-2. `dotnet test tests/AgentPrism.Core.UnitTests -c Release --no-build
+2. `dotnet test tests/Tracon.Core.UnitTests -c Release --no-build
    --filter-method "*RawExceptionTextSite*"` çalıştır (derlenmiş ikili ile).
 3. Geçici dosyayı sil.
 
 **Beklenen sonuç (2026-08-27'de ölçüldü)**
 - Adım 2: `RawExceptionTextSiteTests.Raw_exception_text_sites_match_the_baseline`
   **kırmızı** döner; hata mesajı yeni siteyi `<dosya>:<metot>` biçiminde adlandırır
-  ve `AGENTPRISM_RAW_EXCEPTION_TEXT_REFRESH=1` ile nasıl kapatılacağını söyler.
-  Gerçek çıktı: `"+ src/AgentPrism.Core/__RatchetProbeTemp.cs:Probe: new raw-exception-text
+  ve `TRACON_RAW_EXCEPTION_TEXT_REFRESH=1` ile nasıl kapatılacağını söyler.
+  Gerçek çıktı: `"+ src/Tracon.Core/__RatchetProbeTemp.cs:Probe: new raw-exception-text
   site, not in the baseline"`. Dosya silinip yeniden koşulduğunda yeşile döndü.
 
 ---
@@ -1729,7 +1729,7 @@ kök/çocuk span hiyerarşisini bozmadığını kanıtlar.
 **Adımlar**
 1. `playground/support` aç, `Merhaba` gönder, tamamlansın; `runId`'yi not al.
 2. `curl -s ".../api/runs/<runId>" -H "Authorization: Bearer manuel-test-token-2026" | python3 -m json.tool | grep -A10 "modelId\|modelProvider\|cost"` — hem `support` hem `birincil-kirik` için.
-3. `dotnet user-secrets set "AgentPrism:Pricing:openai:gpt-5.4-mini:Input" "999"`, yeniden başlat, `curl -X POST ".../api/stats/recalculate-costs"`.
+3. `dotnet user-secrets set "Tracon:Pricing:openai:gpt-5.4-mini:Input" "999"`, yeniden başlat, `curl -X POST ".../api/stats/recalculate-costs"`.
 4. Adım 2'yi `support`'un `runId`'si için tekrarla.
 
 **Beklenen sonuç**
@@ -1765,7 +1765,7 @@ kök/çocuk span hiyerarşisini bozmadığını kanıtlar.
 
 **Adımlar**
 1. `psql -c "\di+ *run_scores*"` — indeks listesini gör.
-2. `psql -c "EXPLAIN SELECT * FROM agentprism.run_scores WHERE tenant_id = 'default' AND created_at >= now() - interval '30 days';"`
+2. `psql -c "EXPLAIN SELECT * FROM tracon.run_scores WHERE tenant_id = 'default' AND created_at >= now() - interval '30 days';"`
 
 **Beklenen sonuç**
 - Adım 1: `run_scores_created_at_idx` (`tenant_id, created_at`) ve

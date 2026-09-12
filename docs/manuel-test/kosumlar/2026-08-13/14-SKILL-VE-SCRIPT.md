@@ -106,11 +106,11 @@ bu asimetriyi kanıtlar.
 ## MT-SKILL-021 — 🚨 `MaxSkillsPerAgent` aşımı SAVE'de geçer, yalnız RUN'da `400` verir
 
 **Gerçek sonuç**
-Adım 1: `HTTP: 201`. Adım 2: `HTTP: 400`, `title: "Agent derlenemedi"`, `detail: "'iki-skilli-agent' agent'i en fazla 1 skill tasiyabilir."`. Tam beklendiği gibi — koşumun ilk denemesinde eski uygulama süreci `pkill` deseniyle yakalanamadığı için (apphost ikili adı `AgentPrism.Api`, `dotnet ... .dll` değil) yeniden başlama sessizce başarısız oldu ve `MaxSkillsPerAgent` hiç uygulanmadı (adım 2 yanlışlıkla `200` döndü); PID ile `kill -9` edilip doğru ortam değişkenleriyle yeniden başlatıldıktan sonra tekrarlanan koşum yukarıdaki sonucu verdi.
+Adım 1: `HTTP: 201`. Adım 2: `HTTP: 400`, `title: "Agent derlenemedi"`, `detail: "'iki-skilli-agent' agent'i en fazla 1 skill tasiyabilir."`. Tam beklendiği gibi — koşumun ilk denemesinde eski uygulama süreci `pkill` deseniyle yakalanamadığı için (apphost ikili adı `Tracon.Api`, `dotnet ... .dll` değil) yeniden başlama sessizce başarısız oldu ve `MaxSkillsPerAgent` hiç uygulanmadı (adım 2 yanlışlıkla `200` döndü); PID ile `kill -9` edilip doğru ortam değişkenleriyle yeniden başlatıldıktan sonra tekrarlanan koşum yukarıdaki sonucu verdi.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
-**Temizlik:** `dotnet user-secrets remove "AgentPrism:Skills:MaxSkillsPerAgent"`.
+**Temizlik:** `dotnet user-secrets remove "Tracon:Skills:MaxSkillsPerAgent"`.
 
 ---
 
@@ -135,15 +135,15 @@ Adım 1: `HTTP: 201`. Adım 2: `HTTP: 400`, `title: "Agent derlenemedi"`, `detai
 ## MT-SKILL-058 — Gerçek çalıştırma kanıtı: `echo` script'i onaydan geçer ve modele sonucu döner
 
 **Gerçek sonuç**
-🚨 **KRİTİK KUSUR.** §6'nın ortak ön koşulu (geçici `agentPrism.UseSkillScripts(o => o.PlatformIsolationAcknowledged = true);` kod satırı + `AllowStoredScripts=true`) uygulanıp yeniden derlendikten/başlatıldıktan sonra, `scriptli-skill`'e bağlı (script içeren, gerçekten etkin) HERHANGİ bir agent'a gönderilen HER istek `run` başlarken şu hatayla çöküyor: `InvalidOperationException: JsonSerializerOptions instance must specify a TypeInfoResolver setting before being marked as read-only.` `load_skill` onay kartı hiç çıkmıyor, model hiç çağrılmıyor — hata skill'in MAF'a sunulacağı derleme anında oluşuyor. Hem Playground'dan (`manuel-script-test`, "Fatura kontrol..." promptu) hem doğrudan `POST /api/agents/manuel-script-test/run` ile ("merhaba" gövdesi) doğrulandı, ikisi de aynı hatayı üretti — tam belirlenimli (deterministik), model içeriğinden bağımsız.
+🚨 **KRİTİK KUSUR.** §6'nın ortak ön koşulu (geçici `tracon.UseSkillScripts(o => o.PlatformIsolationAcknowledged = true);` kod satırı + `AllowStoredScripts=true`) uygulanıp yeniden derlendikten/başlatıldıktan sonra, `scriptli-skill`'e bağlı (script içeren, gerçekten etkin) HERHANGİ bir agent'a gönderilen HER istek `run` başlarken şu hatayla çöküyor: `InvalidOperationException: JsonSerializerOptions instance must specify a TypeInfoResolver setting before being marked as read-only.` `load_skill` onay kartı hiç çıkmıyor, model hiç çağrılmıyor — hata skill'in MAF'a sunulacağı derleme anında oluşuyor. Hem Playground'dan (`manuel-script-test`, "Fatura kontrol..." promptu) hem doğrudan `POST /api/agents/manuel-script-test/run` ile ("merhaba" gövdesi) doğrulandı, ikisi de aynı hatayı üretti — tam belirlenimli (deterministik), model içeriğinden bağımsız.
 
-**Kök neden (kod okunarak doğrulandı):** `src/AgentPrism.Core/Skills/AgentPrismSkillsSource.cs:10` — `private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web);` — resolver'ı hiç ayarlanmamış, salt reflection tabanlı bir `JsonSerializerOptions` örneği. Bu örnek `_scripts is { StoredScriptsEnabled: true }` iken (`AgentPrismSkillsSource.cs:71-81`) MAF'ın `skill.AddScript(script.Name, delegate, description, SerializerOptions)` çağrısına aynen geçiriliyor; MAF bu seçenekler nesnesini içeride `MakeReadOnly()` ile donduruyor (resolver popüle edilmeden), bu da .NET'in "TypeInfoResolver olmadan salt-okunur işaretlenemez" korumasını tetikliyor. `StoredScriptsEnabled: false` iken (§4/§5, MT-SKILL-057) bu kod yolu (`skill.AddScript`) hiç çağrılmadığı için sorun gizli kalıyor — bu yüzden script KAYDI/İZNİ katmanındaki 14 case (§4+§5) sorunsuz geçti ama gerçek ÇALIŞTIRMA katmanının TAMAMI (§6) bu satırda çöküyor.
+**Kök neden (kod okunarak doğrulandı):** `src/Tracon.Core/Skills/TraconSkillsSource.cs:10` — `private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web);` — resolver'ı hiç ayarlanmamış, salt reflection tabanlı bir `JsonSerializerOptions` örneği. Bu örnek `_scripts is { StoredScriptsEnabled: true }` iken (`TraconSkillsSource.cs:71-81`) MAF'ın `skill.AddScript(script.Name, delegate, description, SerializerOptions)` çağrısına aynen geçiriliyor; MAF bu seçenekler nesnesini içeride `MakeReadOnly()` ile donduruyor (resolver popüle edilmeden), bu da .NET'in "TypeInfoResolver olmadan salt-okunur işaretlenemez" korumasını tetikliyor. `StoredScriptsEnabled: false` iken (§4/§5, MT-SKILL-057) bu kod yolu (`skill.AddScript`) hiç çağrılmadığı için sorun gizli kalıyor — bu yüzden script KAYDI/İZNİ katmanındaki 14 case (§4+§5) sorunsuz geçti ama gerçek ÇALIŞTIRMA katmanının TAMAMI (§6) bu satırda çöküyor.
 
 **Kapsam:** Bu, script çalıştırma özelliğinin (Faz 11) yayınlanan hâlde TAMAMEN işlevsiz olduğu anlamına gelir — `UseSkillScripts()` çağıran ve saklı script'i olan HER tüketici aynı çökmeyi yaşar. MT-SKILL-059..063 ve 070 AYNI kök nedenle bloklanıyor (script gerçekten çalıştırılmadan hiçbiri gözlemlenemez); kullanıcı kararıyla bu case'ler tek tek tekrar denenmeden "aynı kök nedenle Kaldı" olarak işaretlendi, ayrıntı için bu case'e bakınız.
 
 **🔧 Kapanış güncellemesi (2026-08-14):** Kök neden HATA-K-002 olarak kodlandı ve düzeltildi (K-400, `SONUCLAR-K-2026-08-13.md`) — bu case'in kendisi yeniden koşulup uçtan uca doğrulandı (yukarıdaki Durum satırına bakınız). MT-SKILL-059..063 ve 070 henüz TEK TEK yeniden koşulmadı (bu düzeltme oturumunun kapsamı "çöküşü gider + doğrula", "her bloklu case'i tekrar koş" değildi) — engel artık kalkmış durumda, bu case'ler gelecek bir koşumda normal şekilde tekrar denenebilir.
 
-**🚨 Kapanış güncellemesi (2026-08-15, KAPANIS-PLANI §9/§6 Aile W) — MT-SKILL-059..070'in gerçek yeniden koşumu İKİ YENİ ve BAĞIMSIZ kritik kusur buldu.** K-400 kök nedeni gerçekten kapalı (bu case'in kendi "geçti" iddiası yukarıdaki 2026-08-14 notuyla tutarlı — `load_skill` onayı sorunsuz geçiyor), ama script'in GERÇEKTEN çalıştırılması hâlâ iki farklı yerde çöküyordu; bu case'in 2026-08-14 koşumu bunları YAKALAMADI çünkü `echo merhaba-agentprism` gibi stdin okumayan bir script'in zamanlamasına şans eseri denk gelmedi (ırk koşulu — deterministik değil, aşağıya bakınız). 2026-08-15'te tam ortam kurulup (§6 ortak ön koşulu) MT-SKILL-059..070'in HEPSİ canlı OpenAI çağrısıyla gerçekten koşulunca:
+**🚨 Kapanış güncellemesi (2026-08-15, KAPANIS-PLANI §9/§6 Aile W) — MT-SKILL-059..070'in gerçek yeniden koşumu İKİ YENİ ve BAĞIMSIZ kritik kusur buldu.** K-400 kök nedeni gerçekten kapalı (bu case'in kendi "geçti" iddiası yukarıdaki 2026-08-14 notuyla tutarlı — `load_skill` onayı sorunsuz geçiyor), ama script'in GERÇEKTEN çalıştırılması hâlâ iki farklı yerde çöküyordu; bu case'in 2026-08-14 koşumu bunları YAKALAMADI çünkü `echo merhaba-tracon` gibi stdin okumayan bir script'in zamanlamasına şans eseri denk gelmedi (ırk koşulu — deterministik değil, aşağıya bakınız). 2026-08-15'te tam ortam kurulup (§6 ortak ön koşulu) MT-SKILL-059..070'in HEPSİ canlı OpenAI çağrısıyla gerçekten koşulunca:
 
 1. **`SkillScriptProcessRunner.WriteArgumentsAsync`'in `finally` bloğu** (`process.StandardInput.Close()`) `try/catch`'in DIŞINDAydı; stdin'i hiç okumadan çıkan (`echo` gibi) bir script'te `Close()`'un kendi iç flush'ı `IOException: Pipe is broken` fırlatıyor ve bu YAKALANMADAN dışarı sızıyordu — MAF'ın `run_skill_script` çağrısı `"Error: Function failed."` ile başarısız oluyordu. **Script çalıştırma özelliğinin TAMAMI (K-400 kapandıktan SONRA bile) fiilen işlevsizdi.**
 2. **`SandboxedSkillScriptRunner.DenyAsync`** red nedenini (düz metin) `jsonb` sütununa JSON'a çevirmeden yazıyordu; her `script.denied` denetim izi `22P02 invalid input syntax for type json` ile sessizce kayboluyordu (Faz 9'un "gözlemlenebilirlik hatası çalıştırmayı bozmaz" bilinçli istisnası devreye giriyordu — kayıt kaybolsa da red işliyordu, ama denetim izi HİÇ oluşmuyordu).
@@ -154,7 +154,7 @@ Adım 1: `HTTP: 201`. Adım 2: `HTTP: 400`, `title: "Agent derlenemedi"`, `detai
 JSON geçerlilik denetimi eklendi), ardından MT-SKILL-058..070'in TAMAMI canlı
 OpenAI ile yeniden koşulup doğrulandı — ayrıntı §6 Aile W.
 
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı — 2026-08-15'te üçüncü kez uçtan uca koşuldu (iki yeni kusur düzeltildikten sonra): `load_skill` onayı → `run_skill_script(scriptName=merhaba)` onayı → gerçek çalıştırma → `exit_code: 0\nstdout:\nmerhaba-agentprism\n\n`, `tool_invocations.error IS NULL`, `audit_log`'da `script.run`/`scriptli-skill/merhaba`. Tool adı beklentisi yukarıda koda göre düzeltildi.
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı — 2026-08-15'te üçüncü kez uçtan uca koşuldu (iki yeni kusur düzeltildikten sonra): `load_skill` onayı → `run_skill_script(scriptName=merhaba)` onayı → gerçek çalıştırma → `exit_code: 0\nstdout:\nmerhaba-tracon\n\n`, `tool_invocations.error IS NULL`, `audit_log`'da `script.run`/`scriptli-skill/merhaba`. Tool adı beklentisi yukarıda koda göre düzeltildi.
 
 ---
 
@@ -183,7 +183,7 @@ düzeltildi, ayrıntı `docs/hafiza/cekirdek-calistirma.md` ve §6 Aile W):**
    reddediyor, `script.denied` denetim izi HİÇ oluşmuyordu (kayıt
    başarısızlığı Faz 9'un bilinçli istisnasınca yutuluyor, red işlemeye
    devam ediyordu — ama iz kayboluyordu). Düzeltme:
-   `JsonSerializer.Serialize(reason, AgentPrismCoreJsonContext.Default.String)`.
+   `JsonSerializer.Serialize(reason, TraconCoreJsonContext.Default.String)`.
 2. Aynı koşumda, İZİNLİ script'lerin (merhaba/uyuyan/vb.) gerçek
    çalıştırılması da AYRI bir kusurla (`SkillScriptProcessRunner`'ın
    `Process.StandardInput.Close()`'u) çöküyordu — bkz. `MT-SKILL-058`'in
@@ -214,7 +214,7 @@ aşmadı, süreç gerçekten öldürüldü.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
-**Temizlik:** `dotnet user-secrets remove "AgentPrism:Skills:Scripts:Timeout"` — uygulandı.
+**Temizlik:** `dotnet user-secrets remove "Tracon:Skills:Scripts:Timeout"` — uygulandı.
 
 ---
 
@@ -226,7 +226,7 @@ _(2026-08-13/14 koşumları: Kaldı — MT-SKILL-058'in kök nedeniyle bloklu.)_
 **2026-08-15 gerçek koşum (KAPANIS-PLANI §9) — Geçti.** `load_skill` →
 `run_skill_script(scriptName=buyuk-cikti)` onaylandı; sonuç birebir
 beklenen: `exit_code: 0`, `stdout` tam 100 `x` karakterine kırpıldı, ardından
-`\n[AgentPrism: cikti 100 bayt sinirinda kirpildi.]` metni. Zaman aşımına
+`\n[Tracon: cikti 100 bayt sinirinda kirpildi.]` metni. Zaman aşımına
 UĞRAMADI. (İlk denemede script içeriği bu koşumun kendi kayıt scriptindeki
 bir tırnak-kaçışı hatasıyla `print(x * 5000)` olarak kaydedilmişti — Python
 `NameError` üretti, ama kırpma mesajı yine de doğru tetiklendi; içerik
@@ -234,7 +234,7 @@ düzeltilip temiz bir `stdout` ile tekrarlandı.)
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
-**Temizlik:** `dotnet user-secrets remove "AgentPrism:Skills:Scripts:MaxOutputBytes"` — uygulandı.
+**Temizlik:** `dotnet user-secrets remove "Tracon:Skills:Scripts:MaxOutputBytes"` — uygulandı.
 
 ---
 
@@ -249,10 +249,10 @@ başarıyla çalıştırıldıktan sonra o çağrının `runId`'siyle
 örtüşüyor:
 ```
 execute_skill_script {
-  'agentprism.skill.name': 'scriptli-skill',
-  'agentprism.script.name': 'merhaba',
-  'agentprism.script.exit_code': '0',
-  'agentprism.script.duration_ms': '66.4933'
+  'tracon.skill.name': 'scriptli-skill',
+  'tracon.script.name': 'merhaba',
+  'tracon.script.exit_code': '0',
+  'tracon.script.duration_ms': '66.4933'
 }
 ```
 Aynı iz, model tarafına sunulan tool listesini de doğruladı —

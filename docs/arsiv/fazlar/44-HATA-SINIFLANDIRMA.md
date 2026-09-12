@@ -3,7 +3,7 @@
 > **Durum:** ✅ Tamamlandı (2026-08-07)
 > **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-55**
 > **Önkoşul:** Yok
-> **Paketler:** `AgentPrism.Abstractions`, `.Core`, `.Sql.Shared`, `.PostgreSql`, `.SqlServer`, `.Sqlite`, `.AspNetCore`, `.UI`
+> **Paketler:** `Tracon.Abstractions`, `.Core`, `.Sql.Shared`, `.PostgreSql`, `.SqlServer`, `.Sqlite`, `.AspNetCore`, `.UI`
 > **Yeni paket:** Yok · **Migration:** **gerekli** — iki sütun + bir indeks, üç set (K-178)
 > **Public API:** büyüyor — bir arayüz, bir enum, `RunStatistics`'e bir alan. Faz 7'den önce ucuz
 
@@ -32,7 +32,7 @@
 
 - [x] 🚨 `GET /api/stats/errors` "son 24 saatte en sık üç hata" sorusunu
       cevaplar — bugün cevaplanamıyor
-- [x] Dört `AgentPrismException` alt tipinin **hepsi** kararlı bir `ErrorType`
+- [x] Dört `TraconException` alt tipinin **hepsi** kararlı bir `ErrorType`
       yazar (`content_filtered`, `compilation_failed`, `provider_unavailable`,
       `job_retry`)
 - [x] Eski ve yeni `error_type` biçimleri **aynı** sınıfa eşlenir
@@ -41,7 +41,7 @@
       hiçbir uç 500 dönmez (`RunStatisticsLegacyRowTests` — bellek içi +
       PostgreSQL + SQLite'ta geçti)
 - [x] Sağlayıcı hatası ve tool hatası **gerçek** bir çalıştırmada doğru sınıfa
-      düşer (`samples/AgentPrism.Api`, aşağıdaki "Doğrulama komutları" çıktısı).
+      düşer (`samples/Tracon.Api`, aşağıdaki "Doğrulama komutları" çıktısı).
       İçerik filtresi ve kota aşımı gerçek uçtan uca **değil**, otomatik testle
       doğrulandı — gerekçe "Plandan Sapmalar"da
 - [x] Parmak izi kümeleme **ölçüldü**: bkz. "Bu Fazda Verilen Kararlar" —
@@ -56,7 +56,7 @@
       uygulandı ve test edildi; SQL Server (`0009`) sözdizimi PostgreSQL'in
       birebir aynısı (filtreli indeks) ama bu ortamda **çalıştırılamadı**
 - [x] Dört doğrulama kapısı sıfır uyarı verir
-- [x] `samples/AgentPrism.Api` ile gerçek `run` yapıldı, çıktı bu belgeye yazıldı
+- [x] `samples/Tracon.Api` ile gerçek `run` yapıldı, çıktı bu belgeye yazıldı
 - [x] `secret` taraması boş döndü
 - [x] `en.ts` ve `tr.ts` eksiksiz; bundle payı **156,6 KB gzip / 250 KB bütçe**
       (2026-08-07, tam çözüm derlemesinde ölçüldü)
@@ -65,26 +65,26 @@
 
 > 🚨 Plan taslağı `POST .../run` gövdesini `{"messages":[{"role":"user","text":...}]}`
 > olarak varsaymıştı; gerçek sözleşme `AgentRunRequest.Message` (tekil, düz
-> `string`) alanıdır. Aşağıdaki komutlar `samples/AgentPrism.Api`'ye karşı
+> `string`) alanıdır. Aşağıdaki komutlar `samples/Tracon.Api`'ye karşı
 > (varsayılan model sağlayıcısı `EchoModelProvider`, bellek içi depo) 2026-08-07
 > tarihinde gerçekten çalıştırıldı.
 
 ```bash
 # Gercek bir saglayici hatasi: gecersiz model adi, OpenAI 404 dondurur
-curl -s -X POST http://localhost:5080/agentprism/api/agents \
+curl -s -X POST http://localhost:5080/tracon/api/agents \
   -H 'content-type: application/json' \
   -d '{"name":"kirik-saglayici-test","instructions":"Kisa yanit ver.",
        "model":{"provider":"openai","model":"gpt-olmayan-model-xyz"}}'
-curl -s -X POST http://localhost:5080/agentprism/api/agents/kirik-saglayici-test/run \
+curl -s -X POST http://localhost:5080/tracon/api/agents/kirik-saglayici-test/run \
   -H 'content-type: application/json' -d '{"message":"merhaba"}'
 
 # Gercek bir tool hatasi: alt agent onay istegi yasagi (yonlendirici -> support -> cancel_order)
-curl -s -X POST http://localhost:5080/agentprism/api/agents/yonlendirici/run \
+curl -s -X POST http://localhost:5080/tracon/api/agents/yonlendirici/run \
   -H 'content-type: application/json' \
   -d '{"message":"ORD-1001 siparisini iptal et, destek ekibine yonlendir ve cancel_order tool unu cagirmasini soyle."}'
 
 # Hata kirilimi
-curl -s "http://localhost:5080/agentprism/api/stats/errors?hours=24" | python3 -m json.tool
+curl -s "http://localhost:5080/tracon/api/stats/errors?hours=24" | python3 -m json.tool
 ```
 
 Gerçek çıktı (kısaltıldı):
@@ -152,12 +152,12 @@ zamanıyla göründü.
   Sorgu metni PostgreSQL ile karakter karakter aynı desende yazıldı
   (filtreli indeks sözdizimi K-178'in devir notundan zaten biliniyordu) ama
   gerçek bir SQL Server'da **ölçülmedi**.
-- **Tam çözüm `dotnet test`i bu ortamda tamamlanamadı** (`AgentPrism.Templates.Tests`
+- **Tam çözüm `dotnet test`i bu ortamda tamamlanamadı** (`Tracon.Templates.Tests`
   13+ dakika boyunca hiç test başlatmadan takıldı — muhtemelen ağ/şablon
   restore gecikmesi, bu fazla ilgisiz). Doğrulama bunun yerine etkilenen
-  projeler tek tek çalıştırılarak yapıldı: `AgentPrism.Core.UnitTests` (615),
-  `AgentPrism.PostgreSql.IntegrationTests` (bellek içi + PostgreSQL, 821),
-  `AgentPrism.Sqlite.IntegrationTests` (424), `AgentPrism.AspNetCore.FunctionalTests`
+  projeler tek tek çalıştırılarak yapıldı: `Tracon.Core.UnitTests` (615),
+  `Tracon.PostgreSql.IntegrationTests` (bellek içi + PostgreSQL, 821),
+  `Tracon.Sqlite.IntegrationTests` (424), `Tracon.AspNetCore.FunctionalTests`
   (348, OpenAPI anlık görüntüsü yenilendi), arayüz `vitest`+`tsc` (141 test).
 
 ## Bu Fazda Verilen Kararlar
@@ -202,7 +202,7 @@ K-293 · K-294 · K-295 · K-296 · K-297 · K-298 · K-299 — tam gerekçeleri
   eklenmelidir.
 - **SDK istisna adları yalnız gerçek bir sağlayıcı çağrısıyla ortaya çıkar**
   (K-296) — yeni bir birinci sınıf sağlayıcı eklerken `DefaultRunErrorClassifier.ProviderErrorTypePattern`'i
-  o SDK'nın gerçek istisna adıyla (birim testi değil, `samples/AgentPrism.Api`
+  o SDK'nın gerçek istisna adıyla (birim testi değil, `samples/Tracon.Api`
   üzerinden) doğrulayın.
 - **Pencere fonksiyonu deseni bu kod tabanında YENİDİR** (K-299) — dördüncü
   bir SQL sağlayıcısı eklenirse `ROW_NUMBER()`/`COUNT() OVER` desteği önce

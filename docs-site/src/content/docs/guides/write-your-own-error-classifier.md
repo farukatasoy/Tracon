@@ -1,6 +1,6 @@
 ---
 title: Write your own error classifier
-description: Override which provider failures retry, and how a failed run is classified, without losing AgentPrism's built-in rules.
+description: Override which provider failures retry, and how a failed run is classified, without losing Tracon's built-in rules.
 ---
 
 A provider failure raises two separate questions, answered by two separate
@@ -21,13 +21,13 @@ flowchart TD
 ```
 
 Both are registered with `TryAddSingleton`, so your own registration
-(`services.AddSingleton<...>()`, called before or after `AddAgentPrism()` —
+(`services.AddSingleton<...>()`, called before or after `AddTracon()` —
 `TryAdd*` means your registration always wins) replaces the built-in default.
 Neither one needs the other: register just the one you need.
 
 ## Decide whether a failure retries
 
-`IProviderRetryClassifier` runs once per failed attempt, before AgentPrism's
+`IProviderRetryClassifier` runs once per failed attempt, before Tracon's
 [fallback chain](/guides/reliability/#fall-back-to-a-secondary-provider) falls
 back to its own rules:
 
@@ -46,7 +46,7 @@ services.AddSingleton<IProviderRetryClassifier, AcmeRetryClassifier>();
 ```
 
 `ProviderRetryDecision` has three values, not two. Returning `Unknown` for
-every exception you do not recognize matters: AgentPrism's built-in rules are
+every exception you do not recognize matters: Tracon's built-in rules are
 a closed, positive set — an unrecognized failure does not retry by default,
 because hiding a configuration error behind a silent provider switch costs
 more than the switch saves. A `bool` contract would force your classifier to
@@ -55,7 +55,7 @@ it is registered.
 
 A cancellation is never offered to your classifier, however it is nested
 inside the exception you receive — that check runs before this seam and
-cannot be overridden. If your classifier throws, AgentPrism logs the failure
+cannot be overridden. If your classifier throws, Tracon logs the failure
 and falls back to the built-in rules for that call; a broken classifier does
 not break the model call it decorates.
 

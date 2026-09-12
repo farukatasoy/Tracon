@@ -31,12 +31,12 @@ gerekçesini koda ve `docs/KARARLAR.md`'ye yaz.
 
 ## Hızlı iç döngü
 
-Arayüze dokunmuyorsan `-p:AgentPrismFrontendEnabled=false` npm/Vite/Vitest
+Arayüze dokunmuyorsan `-p:TraconFrontendEnabled=false` npm/Vite/Vitest
 adımlarını atlar (`kapi.py ic-dongu` bunu değişen dosyalara bakarak otomatik
 seçer). Dördünün tamamı **faz kapanışında** ve arayüz/paket değişiminde
 çalışır.
 
-`ic-dongu`'nun kapsamadığı tek yer: `samples/AgentPrism.Samples.*` **hiçbir
+`ic-dongu`'nun kapsamadığı tek yer: `samples/Tracon.Samples.*` **hiçbir
 çözüm dosyasında değildir**, onları yalnız `kapi.py yayin` paketlenmiş sürüme
 karşı koşar. `ic-dongu` böyle bir yola dokunduğunda bunu **yazar**; sessizce
 geçmez (2026-09-04 süreç denetimi, F-183). E2E tuzağı: `faz-uygulama` Adım 5 — arayüze dokunuyorsan bu bayrağı
@@ -93,7 +93,7 @@ altısı da 2026-08-28'de arka arkaya çıktı, hiçbiri ubuntu'da görünmüyor
 - **`npx` bir `.cmd`'dir.** Node'un `execFileSync`'i onu çözemez (`ENOENT`) ve
   shell'siz spawn edemez. Kurulu bir CLI'yi `npx` ile değil, `package.json`'ın
   `bin` alanından çözüp `process.execPath` ile çağır (örnek:
-  `packages/agentprism-client/scripts/generate.mjs`). `dotnet` gibi gerçek bir
+  `packages/tracon-client/scripts/generate.mjs`). `dotnet` gibi gerçek bir
   `.exe` sorun değildir.
 
 ## MTP filtresi — `dotnet test --filter` YAZMA

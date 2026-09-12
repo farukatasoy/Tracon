@@ -2,7 +2,7 @@
 
 > **Durum:** ✅ Tamam — 204/204 sözleşme testi `azure-sql-edge` (arm64) üzerinde yeşil (bkz. "Açık Kalan")
 > **Kaynak:** [BEYIN-FIRTINASI.md](../BEYIN-FIRTINASI.md) · **F-06**
-> **Paketler:** **`AgentPrism.SqlServer` (YENİ)** · `AgentPrism.PostgreSql` (yeniden yapılandırıldı) · `AgentPrism.Sql.Shared` (yeni, **paket değil**)
+> **Paketler:** **`Tracon.SqlServer` (YENİ)** · `Tracon.PostgreSql` (yeniden yapılandırıldı) · `Tracon.Sql.Shared` (yeni, **paket değil**)
 > **Migration:** Kendi migration seti — `0001_initial.sql`
 > **Kararlar:** K-176 … K-189
 
@@ -49,7 +49,7 @@ uygulamalarının da paylaşılabileceği anlamına geldi ve **kapsam genişleti
 > **Çözüldü (2026-08-12, K-386):** Kök sebep Rosetta ayarı değil, kurulu
 > Docker Desktop'ın (4.29.0) host macOS için çok eski olmasıydı. 4.86.0'a
 > güncellemek gerçek `mcr.microsoft.com/mssql/server:2022-latest`'i çalışır
-> hale getirdi; `AgentPrism.SqlServer.IntegrationTests` 479/479 yeşil koştu.
+> hale getirdi; `Tracon.SqlServer.IntegrationTests` 479/479 yeşil koştu.
 > Ayrıntı: `docs/hafiza/sql-server-yerel-test.md`. Aşağıdaki bölüm o günkü
 > teşhisin ARŞİVİDİR.
 
@@ -82,7 +82,7 @@ yüzeyi neredeyse özdeş olsa da gerçek SQL Server değildir — motor farklar
 framework" + "Use Rosetta for x86_64/amd64 emulation" → Apply & restart. Sonra:
 
 ```bash
-dotnet test tests/AgentPrism.SqlServer.IntegrationTests -c Release
+dotnet test tests/Tracon.SqlServer.IntegrationTests -c Release
 ```
 
 Alternatif: CI'yı Linux amd64 üzerinde koşturmak.
@@ -119,7 +119,7 @@ tekrar dene rehberi: `docs/hafiza/sql-server-yerel-test.md`.
 
 ## Bitiş Ölçütleri (DoD)
 
-- [x] `AgentPrism.SqlServer` paketi üretiliyor (`dotnet pack` sayısı arttı)
+- [x] `Tracon.SqlServer` paketi üretiliyor (`dotnet pack` sayısı arttı)
 - [x] **Tüm store sözleşme testleri SQL Server üzerinde yeşil** — `azure-sql-edge` (arm64) ile 204/204 (Faz 23 kapanışında); gerçek `mssql/server` ile 479/479 (2026-08-12, K-386)
 - [x] Migration'lar temiz veritabanında ve tekrar çalıştırmada doğru — `MigrationRunnerTests` `azure-sql-edge` üzerinde yeşil
 - [x] Eşzamanlı iki süreçte migration bir kez uygulanıyor — `azure-sql-edge` üzerinde yeşil

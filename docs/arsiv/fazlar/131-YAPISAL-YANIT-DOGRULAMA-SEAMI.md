@@ -3,7 +3,7 @@
 > **Durum:** ✅ Tamamlandı (2026-09-01)
 > **Kaynak:** [kesif/2026-09-01-tuketici-feature-talepleri.md](../../kesif/2026-09-01-tuketici-feature-talepleri.md) — **F-174**
 > **Önkoşul:** Yok
-> **Paketler:** `AgentPrism.Abstractions`, `.Core`, `.AspNetCore` (yalnız `RunEventType` yüzeyi), `.UI` (olay etiketi)
+> **Paketler:** `Tracon.Abstractions`, `.Core`, `.AspNetCore` (yalnız `RunEventType` yüzeyi), `.UI` (olay etiketi)
 > **Yeni paket:** Yok · **Migration:** Yok — yeni `RunEventType` ve `RunErrorClass` değerleri mevcut `smallint` sütunlarına yazılır
 > **Public API:** büyüyor — yeni arayüz, options, olay ve hata sınıfı. `wc -l src/*/PublicAPI.Shipped.txt` → her dosya 1 satır; shipped giriş sıfır olduğu için bugün eklemek ucuz
 > **Tüketici yüzeyi:** `docs-site/`: `guides/structured-output.md`, `concepts/runs.md` (olay listesi), `capabilities.md`, `reference/configuration.md` · sevk edilen: `IStructuredResponseValidator` XML `<example>`'ı, `en.ts`/`tr.ts` olay etiketi
@@ -28,19 +28,19 @@
 
 ## Amaç
 
-`AgentResponseFormat` bugün yalnız sağlayıcıya bir kısıt gönderir. Dönen yanıtı **hiçbir şey doğrulamaz**. Model boş içerik döndürdüğünde, JSON kesik geldiğinde veya şemaya uymayan bir alan geldiğinde `run` **başarılı** kapanır. Tüketici parse hatasını sonra alır. Böylece AgentPrism'in `run` sonucu ile gerçek kullanım sonucu ayrışır.
+`AgentResponseFormat` bugün yalnız sağlayıcıya bir kısıt gönderir. Dönen yanıtı **hiçbir şey doğrulamaz**. Model boş içerik döndürdüğünde, JSON kesik geldiğinde veya şemaya uymayan bir alan geldiğinde `run` **başarılı** kapanır. Tüketici parse hatasını sonra alır. Böylece Tracon'in `run` sonucu ile gerçek kullanım sonucu ayrışır.
 
 ## Bitiş Ölçütleri (DoD)
 
 - [x] `Enabled: false` iken davranış Faz 130 ile **birebir** aynıdır (case 1) — `Disabled_by_default_a_malformed_response_does_not_fail_the_run` (fonksiyonel), `Disabled_option_lets_an_invalid_response_through_unchanged` (birim)
 - [x] Geçersiz yanıt `run`'ı `Failed` kapatır; `StructuredResponseInvalid` sınıfı ve `StructuredResponseRejected` olayı yazılır (case 2) — `Enabled_a_malformed_response_fails_the_run_with_the_structured_response_error_class`
-- [x] Geçerli yanıt hiçbir olay üretmez (case 3) — `Enabled_a_valid_response_completes_the_run_and_writes_no_event` **ve** gerçek `samples/AgentPrism.Api` koşumu (aşağıya bak)
+- [x] Geçerli yanıt hiçbir olay üretmez (case 3) — `Enabled_a_valid_response_completes_the_run_and_writes_no_event` **ve** gerçek `samples/Tracon.Api` koşumu (aşağıya bak)
 - [x] Doğrulayıcı istisnası **geçersiz** sayılır (case 4) — `A_throwing_consumer_validator_rejects_fail_closed`, `A_throwing_validator_rejects_fail_closed_instead_of_propagating`
 - [x] Akışta doğrulama son güncellemeden sonra çalışır ve `run` `Failed` kapanır (case 5) — `Streaming_branch_still_closes_the_run_as_failed_after_the_content_already_streamed`, `Streaming_forwards_every_update_before_validating` **ve** gerçek streaming koşumu (geçerli kol)
 - [x] Ham model çıktısı hata metnine yazılmaz (case 7) — `The_raw_response_text_never_reaches_the_run_error_message_or_the_rejection_events_own_fields`, `Rejection_writes_a_StructuredResponseRejected_event_on_the_ambient_run_scope`
 - [x] Yeni `RunErrorClass` değeri 9'u kullanmaz; `RunErrorClassContractTests` yeşil — değer 14, `Value_nine_stays_retired` yeşil
 - [x] Dört doğrulama kapısı sıfır uyarı verir — `kapi.py ic-dongu`/`tarama` yeşil, tam `dotnet build` (arayüz dahil) 0 uyarı/0 hata
-- [x] `samples/AgentPrism.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı — aşağıya bak
+- [x] `samples/Tracon.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı — aşağıya bak
 - [x] `secret` taraması boş döndü — `kapi.py tarama` ✅ temiz
 - [x] Manuel kabul case'leri `docs/manuel-test/22-GUARDRAIL-VE-YAPISAL-CIKTI.md` içine eklendi; otomatikleştirilebilenler koşuldu — §10, MT-GUARD-090..096 (geçersiz-yanıt kolu OpenAI'de teknik olarak üretilemez, bkz. Plandan Sapmalar)
 - [x] `faz-denetim` koşuldu; 🔴 bulgu kalmadı — bkz. Denetim Bulguları
@@ -77,14 +77,14 @@ bkz. "Plandan Sapmalar"); bu kol `StructuredResponseEndpointTests.cs`'in 8
 testiyle gerçek host + gerçek `RunRecordingAgent` zinciri üzerinden, scriptlenebilir
 sahte bir sağlayıcıyla kanıtlandı.
 
-### Bundle payı (2026-09-01, tam `dotnet build AgentPrism.slnx -c Release`)
+### Bundle payı (2026-09-01, tam `dotnet build Tracon.slnx -c Release`)
 
 ```
 javascript : 176.3 KB gzipped (budget 250 KB)
 embedded   : 150.9 KB brotli, from 682.4 KB (widget bütçesi 30 KB, ayrı ölçülür)
 ```
 
-`llms.txt` 20 477 B (bütçe 20 480 B), `AgentPrism.AgentMap.md` 9 902 B (bütçe 10 240 B) —
+`llms.txt` 20 477 B (bütçe 20 480 B), `Tracon.AgentMap.md` 9 902 B (bütçe 10 240 B) —
 agent map değişmedi (yeni satır eklenmedi, mevcut "Structured output" satırının
 yalnız haritaya girmeyen Boundary sütunu genişletildi, bkz. "Plandan Sapmalar").
 
@@ -92,9 +92,9 @@ yalnız haritaya girmeyen Boundary sütunu genişletildi, bkz. "Plandan Sapmalar
 
 ## Plandan Sapmalar
 
-- **"Planlanan Dosya Listesi" `Exceptions/AgentPrismStructuredResponseException.cs`
-  dosyasını varsaymıştı — yanlıştı.** Bu repoda TÜM `AgentPrismException` alt
-  sınıfları tek dosyada (`src/AgentPrism.Abstractions/AgentPrismException.cs`)
+- **"Planlanan Dosya Listesi" `Exceptions/TraconStructuredResponseException.cs`
+  dosyasını varsaymıştı — yanlıştı.** Bu repoda TÜM `TraconException` alt
+  sınıfları tek dosyada (`src/Tracon.Abstractions/TraconException.cs`)
   yaşıyor, ayrı bir `Exceptions/` klasörü yok. Yeni istisna o dosyanın sonuna
   eklendi, mevcut konvansiyona uyularak.
 - **§131.4'ün "Arayüz | Olay etiketi `en.ts` ve `tr.ts`'e girer" iddiası
@@ -174,13 +174,13 @@ yeşil olduğunu bağımsız olarak doğruladı.
   `AgentRunBudget`'ın token/cost/duration sınırları, `FallbackChatClient`'ın tur
   içi tool defteri, cost attribution ve iptal ile kesişecek — ayrı bir tasarım
   turu gerekir, bu fazın decorator'ına küçük bir ek değil.
-- `RunRecordingAgent`'ın akışlı yolunda `AgentPrismRunContext.SetCurrent` HER
+- `RunRecordingAgent`'ın akışlı yolunda `TraconRunContext.SetCurrent` HER
   `MoveNextAsync` öncesi yeniden yazılıyor (Faz 12'den beri) — bu sayede en
   içteki decorator (`StructuredResponseValidatingAgent`, Order 30) döngü
   bittikten SONRA çalışan kodunda bile doğru ambient scope'u görüyor. Yeni bir
   içteki decorator eklerken bu garantiye güvenebilirsin, ama ayrı bir konsol
   probuyla DOĞRULAMADAN varsayma (`docs/hafiza/cekirdek-calistirma.md`).
-- `AgentPrism.Testing`'in `FakeModelProvider.EchoesUserMessage()` yanıtı
+- `Tracon.Testing`'in `FakeModelProvider.EchoesUserMessage()` yanıtı
   **`"Echo: {mesaj}"` önekiyle döner**, ham mesajı değil — bu fazda geçerli
   JSON test etmek isteyen bir test bu yüzden `RespondsWith(sabitMetin)`
   kullanmak zorunda kaldı. Sonraki bir faz "echo" sağlayıcısıyla geçerli

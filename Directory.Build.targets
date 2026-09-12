@@ -8,12 +8,12 @@
   <!--
     Trim / AOT bayragi. Bu turetme BILEREK targets icindedir: src/Directory.Build.props
     csproj govdesinden once yuklenir, dolayisiyla orada IsAotCompatible atamak
-    csproj'un <AgentPrismAotCompatible>false</...> tercihini gormezdi ve bayrak
-    geri alinamaz bicimde true kalirdi. Olculdu: AgentPrism.AspNetCore false yazmasina
+    csproj'un <TraconAotCompatible>false</...> tercihini gormezdi ve bayrak
+    geri alinamaz bicimde true kalirdi. Olculdu: Tracon.AspNetCore false yazmasina
     ragmen minimal API yonlendirmesi icin IL2026/IL3050 uretiyordu.
     Gerekce: docs/KARARLAR.md, karar K-006.
   -->
-  <PropertyGroup Condition=" '$(AgentPrismAotCompatible)' == 'true' ">
+  <PropertyGroup Condition=" '$(TraconAotCompatible)' == 'true' ">
     <IsAotCompatible>true</IsAotCompatible>
   </PropertyGroup>
 
@@ -43,9 +43,9 @@
     gorunur ve eksikse NU5039 uyarisi build'i kirar. Bu hedef eksikligi
     anlasilir bir mesajla erken yakalar.
   -->
-  <Target Name="AgentPrismValidatePackageReadme" BeforeTargets="GenerateNuspec" Condition=" '$(IsPackable)' == 'true' ">
+  <Target Name="TraconValidatePackageReadme" BeforeTargets="GenerateNuspec" Condition=" '$(IsPackable)' == 'true' ">
     <Error Condition="!Exists('$(MSBuildProjectDirectory)/README.md')"
-           Code="AGENTPRISM0001"
+           Code="TRACON0001"
            Text="Yayinlanabilir paket '$(MSBuildProjectName)' icin README.md eksik. NuGet paket sayfasinda gorunecek bir README.md dosyasi ekleyin." />
   </Target>
 
@@ -57,7 +57,7 @@
     DIFFERENT content. This gate closes that gap at the only point `dotnet pack`
     accepts one: right before the .nuspec is written.
 
-    Runs BeforeTargets="GenerateNuspec", exactly like AgentPrismValidatePackageReadme
+    Runs BeforeTargets="GenerateNuspec", exactly like TraconValidatePackageReadme
     above - GenerateNuspec is part of the `Pack` target chain only, so a plain
     `dotnet build`/`dotnet test` invocation never reaches this target and is
     never blocked by it (docs/136-PAKET-KIMLIGININ-TEKILLIGI.md, kabul case 3).
@@ -67,10 +67,10 @@
     primary defense and performs its own git check; this MSBuild gate is the
     SECOND line, not the only one (docs/136-PAKET-KIMLIGININ-TEKILLIGI.md, "Beş soru").
 
-    AgentPrismSkipCleanWorkingTreeCheck bypasses this entire target regardless
-    of git state. It exists ONLY for AgentPrism's own iteration-loop tooling -
+    TraconSkipCleanWorkingTreeCheck bypasses this entire target regardless
+    of git state. It exists ONLY for Tracon's own iteration-loop tooling -
     `scripts/kapi.py kapanis`'s pack step and the `dotnet pack` calls inside
-    AgentPrism.Package.Tests' ReleaseArtifactFixture/TemplateFixture - which
+    Tracon.Package.Tests' ReleaseArtifactFixture/TemplateFixture - which
     validate the PACKAGING CONTRACT (README, icon, K-008, template
     installability) during normal development and are never the source of a
     published artifact (Faz 136 denetim bulgusu 🔴#1: without this, the closing
@@ -80,17 +80,17 @@
     (the release rehearsal) and the CI `pack` job that a `v*` tag actually
     publishes from both leave it unset, so THEY stay fully gated.
   -->
-  <Target Name="AgentPrismValidateCleanWorkingTree" BeforeTargets="GenerateNuspec"
-          Condition=" '$(IsPackable)' == 'true' AND '$(AgentPrismSkipCleanWorkingTreeCheck)' != 'true' ">
+  <Target Name="TraconValidateCleanWorkingTree" BeforeTargets="GenerateNuspec"
+          Condition=" '$(IsPackable)' == 'true' AND '$(TraconSkipCleanWorkingTreeCheck)' != 'true' ">
     <Exec Command="git rev-parse --is-inside-work-tree"
           ContinueOnError="WarnAndContinue"
           StandardOutputImportance="low"
           StandardErrorImportance="low">
-      <Output TaskParameter="ExitCode" PropertyName="AgentPrismGitProbeExitCode" />
+      <Output TaskParameter="ExitCode" PropertyName="TraconGitProbeExitCode" />
     </Exec>
 
-    <PropertyGroup Condition=" '$(AgentPrismGitProbeExitCode)' == '0' ">
-      <AgentPrismInsideGitWorkTree>true</AgentPrismInsideGitWorkTree>
+    <PropertyGroup Condition=" '$(TraconGitProbeExitCode)' == '0' ">
+      <TraconInsideGitWorkTree>true</TraconInsideGitWorkTree>
     </PropertyGroup>
 
     <!--
@@ -104,12 +104,12 @@
       the packed assembly (docs/136-PAKET-KIMLIGININ-TEKILLIGI.md, "Untracked
       dosyalar da bloke eder").
     -->
-    <Exec Condition=" '$(AgentPrismInsideGitWorkTree)' == 'true' "
+    <Exec Condition=" '$(TraconInsideGitWorkTree)' == 'true' "
           Command="git status --porcelain"
           ConsoleToMSBuild="true"
           StandardOutputImportance="low"
           StandardErrorImportance="low">
-      <Output TaskParameter="ConsoleOutput" ItemName="AgentPrismGitStatusLine" />
+      <Output TaskParameter="ConsoleOutput" ItemName="TraconGitStatusLine" />
     </Exec>
 
     <!--
@@ -119,22 +119,22 @@
       `git status` output above is deliberately low-importance, so it never
       reaches the log. Faz 136 built the gate; this carries its evidence.
     -->
-    <PropertyGroup Condition=" '$(AgentPrismInsideGitWorkTree)' == 'true' AND '@(AgentPrismGitStatusLine->Count())' != '0' ">
-      <AgentPrismWorkingTreeDirty>true</AgentPrismWorkingTreeDirty>
-      <AgentPrismDirtyEntries>@(AgentPrismGitStatusLine, ' | ')</AgentPrismDirtyEntries>
+    <PropertyGroup Condition=" '$(TraconInsideGitWorkTree)' == 'true' AND '@(TraconGitStatusLine->Count())' != '0' ">
+      <TraconWorkingTreeDirty>true</TraconWorkingTreeDirty>
+      <TraconDirtyEntries>@(TraconGitStatusLine, ' | ')</TraconDirtyEntries>
     </PropertyGroup>
 
-    <Error Condition=" '$(AgentPrismWorkingTreeDirty)' == 'true' AND '$(AgentPrismAllowDirtyPack)' != 'true' "
-           Code="AGENTPRISM0004"
-           Text="Working tree is not clean ('git status --porcelain' reported changes) for package '$(MSBuildProjectName)'. A packed artifact whose content cannot be traced back to a commit has no provenance; commit or stash first. Reported entries: $(AgentPrismDirtyEntries). For local experimentation only, set AgentPrismAllowDirtyPack=true together with an explicit MinVerVersionOverride carrying 'dirty' (e.g. 0.0.0-dirty.&lt;name&gt;) - never in CI." />
+    <Error Condition=" '$(TraconWorkingTreeDirty)' == 'true' AND '$(TraconAllowDirtyPack)' != 'true' "
+           Code="TRACON0004"
+           Text="Working tree is not clean ('git status --porcelain' reported changes) for package '$(MSBuildProjectName)'. A packed artifact whose content cannot be traced back to a commit has no provenance; commit or stash first. Reported entries: $(TraconDirtyEntries). For local experimentation only, set TraconAllowDirtyPack=true together with an explicit MinVerVersionOverride carrying 'dirty' (e.g. 0.0.0-dirty.&lt;name&gt;) - never in CI." />
 
-    <Error Condition=" '$(AgentPrismWorkingTreeDirty)' == 'true' AND '$(AgentPrismAllowDirtyPack)' == 'true' AND ( '$(ContinuousIntegrationBuild)' == 'true' OR '$(CI)' == 'true' ) "
-           Code="AGENTPRISM0005"
-           Text="AgentPrismAllowDirtyPack=true was set in a CI build (ContinuousIntegrationBuild=true or CI=true). A dirty pack has no provenance and must never leave a developer's machine." />
+    <Error Condition=" '$(TraconWorkingTreeDirty)' == 'true' AND '$(TraconAllowDirtyPack)' == 'true' AND ( '$(ContinuousIntegrationBuild)' == 'true' OR '$(CI)' == 'true' ) "
+           Code="TRACON0005"
+           Text="TraconAllowDirtyPack=true was set in a CI build (ContinuousIntegrationBuild=true or CI=true). A dirty pack has no provenance and must never leave a developer's machine." />
 
-    <Error Condition=" '$(AgentPrismWorkingTreeDirty)' == 'true' AND '$(AgentPrismAllowDirtyPack)' == 'true' AND '$(ContinuousIntegrationBuild)' != 'true' AND '$(CI)' != 'true' AND !$(MinVerVersionOverride.Contains('dirty')) "
-           Code="AGENTPRISM0006"
-           Text="AgentPrismAllowDirtyPack=true requires an explicit MinVerVersionOverride that carries 'dirty' (e.g. 0.0.0-dirty.&lt;name&gt;). A dirty artifact must sort BELOW every clean release version, and it must never be produced by MinVer's own automatic derivation - that is exactly how a dirty pack once masqueraded as a clean one." />
+    <Error Condition=" '$(TraconWorkingTreeDirty)' == 'true' AND '$(TraconAllowDirtyPack)' == 'true' AND '$(ContinuousIntegrationBuild)' != 'true' AND '$(CI)' != 'true' AND !$(MinVerVersionOverride.Contains('dirty')) "
+           Code="TRACON0006"
+           Text="TraconAllowDirtyPack=true requires an explicit MinVerVersionOverride that carries 'dirty' (e.g. 0.0.0-dirty.&lt;name&gt;). A dirty artifact must sort BELOW every clean release version, and it must never be produced by MinVer's own automatic derivation - that is exactly how a dirty pack once masqueraded as a clean one." />
   </Target>
 
 </Project>

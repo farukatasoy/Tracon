@@ -1,9 +1,9 @@
-# AgentPrism License
+# Tracon License
 
-AgentPrism is licensed under the **PolyForm Small Business License 1.0.0**. The
+Tracon is licensed under the **PolyForm Small Business License 1.0.0**. The
 canonical text follows below and is reproduced without modification.
 
-Required Notice: Copyright (c) 2026 Faruk Atasoy (https://agentprism.eski-site.invalid)
+Required Notice: Copyright (c) 2026 Faruk Atasoy (https://tracon.dev)
 
 ## Are you free to use it?
 
@@ -13,16 +13,16 @@ for inflation) total revenue in the prior tax year. An individual, a student and
 open source project are all under that threshold. The exact wording is in the
 **Small Business** section below, which is the clause that governs.
 
-Above that threshold, use of AgentPrism needs a commercial licence. Write to
+Above that threshold, use of Tracon needs a commercial licence. Write to
 hfarukatasoy@gmail.com.
 
 ## Three packages are MIT instead
 
 | Package | Why it is MIT |
 |---------|---------------|
-| `AgentPrism.Abstractions` | Contracts only. A third party writes an extension against these interfaces; nothing here runs an agent. |
-| `AgentPrism.Testing.Contracts.Xunit` | The behaviour contract suites that an extension has to pass. It depends only on `AgentPrism.Abstractions`. |
-| `AgentPrism.Templates` | `dotnet new agentprism-api` generates source into your project. The code it generates is yours, under no obligation to these terms. |
+| `Tracon.Abstractions` | Contracts only. A third party writes an extension against these interfaces; nothing here runs an agent. |
+| `Tracon.Testing.Contracts.Xunit` | The behaviour contract suites that an extension has to pass. It depends only on `Tracon.Abstractions`. |
+| `Tracon.Templates` | `dotnet new tracon-api` generates source into your project. The code it generates is yours, under no obligation to these terms. |
 
 Those three ship `LICENSE-MIT.md`. Every other package ships this file. A package
 states its own licence in its `.nuspec`; if the two ever disagree, the file inside
@@ -31,7 +31,7 @@ the package governs.
 ## There is no licence key
 
 No package contains an activation call, a licence check, a phone-home request or a
-feature gate. Nothing stops you from running AgentPrism. Compliance is yours to
+feature gate. Nothing stops you from running Tracon. Compliance is yours to
 determine, the same way it is for any dependency your build already carries.
 
 ## A published version keeps its licence

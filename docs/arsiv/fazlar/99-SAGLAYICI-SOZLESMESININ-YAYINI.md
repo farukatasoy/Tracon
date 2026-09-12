@@ -4,10 +4,10 @@
 > **Kaynak:** Doğrudan kullanıcı isteği (2026-08-25). Aday listesinden gelmedi;
 > `preview.1` öncesi genişleme noktası olgunlaştırma işidir.
 > **Önkoşul:** [Faz 98](98-DEPOLAMA-SOZLESMESININ-YAYINI.md) —
-> `AgentPrism.Testing.Contracts.Xunit` paketini, `ContractCoverage` kapısını ve
-> yalnız-NuGet sample emsalini (`AgentPrism.Samples.FileRunStore`) bu faz devralır.
-> **Paketler:** `AgentPrism.Abstractions`, `AgentPrism.Testing.Contracts.Xunit`,
-> `AgentPrism.Core` (yalnız XML dokümanı), `samples/`
+> `Tracon.Testing.Contracts.Xunit` paketini, `ContractCoverage` kapısını ve
+> yalnız-NuGet sample emsalini (`Tracon.Samples.FileRunStore`) bu faz devralır.
+> **Paketler:** `Tracon.Abstractions`, `Tracon.Testing.Contracts.Xunit`,
+> `Tracon.Core` (yalnız XML dokümanı), `samples/`
 > **Yeni paket:** Yok — sözleşme suite'i var olan pakete yeni bir ad alanı ekler ·
 > **Migration:** Yok
 > **Public API:** Büyüyor — `ModelProviderContract` + `ContractCoverage`'ın kapsam
@@ -15,7 +15,7 @@
 > dosya boş**, yani yüzeyi bugün büyütmek bedavadır.
 > **Tüketici yüzeyi:** site: `guides/model-providers.md` (üçüncü taraf bölümü),
 > `packages.md`, `capabilities.md` · sevk edilen: `IModelProvider` XML dokümanı,
-> `src/AgentPrism.Testing.Contracts.Xunit/README.md`, `IContentGuard` XML dokümanı
+> `src/Tracon.Testing.Contracts.Xunit/README.md`, `IContentGuard` XML dokümanı
 > **Manuel test alanı:** `docs/manuel-test/24-TEST-PAKETI-VE-SABLON.md` (`MT-TEST-078..083`) — plandan sapma 5
 
 ---
@@ -37,20 +37,20 @@
 
 ## Amaç
 
-AgentPrism'in `IModelProvider` genişleme noktası bugün **kaynak kodu okumadan doğru uygulanamaz.** Arayüzün XML dokümanı ham istemci kuralını ve boru hattı sahipliğini anlatır; ama singleton ömrü, thread-safety beklentisi, dispose sahipliği, ad karşılaştırması, katalog semantiği ve hata sınıflandırmasının mesaj metnine bağlı olduğu **hiçbir sevk edilen yüzeyde yazmaz**.
+Tracon'in `IModelProvider` genişleme noktası bugün **kaynak kodu okumadan doğru uygulanamaz.** Arayüzün XML dokümanı ham istemci kuralını ve boru hattı sahipliğini anlatır; ama singleton ömrü, thread-safety beklentisi, dispose sahipliği, ad karşılaştırması, katalog semantiği ve hata sınıflandırmasının mesaj metnine bağlı olduğu **hiçbir sevk edilen yüzeyde yazmaz**.
 
 ## Bitiş Ölçütleri (DoD)
 
 - [x] `IModelProvider` XML dokümanı 99.1'deki **sekiz maddenin hepsini** taşır; `credential` semantiği ve `CompiledAgentCache` uyarısı çapraz referanslıdır
 - [x] `IContentGuard`'ın "OUTERMOST" cümlesi koda göre düzeltildi
-- [x] `ModelProviderContract` `AgentPrism.Testing.Contracts.Providers` ad alanında yayınlandı; yalnız `Abstractions` + `Microsoft.Extensions.AI` alır (`AgentPrism.Core` **inmez** — bağımlılık grafiği ölçülerek doğrulandı)
-- [x] `samples/AgentPrism.Samples.CustomModelProvider` yalnız `PackageReference` kullanır; `grep -c ProjectReference` → `0`
+- [x] `ModelProviderContract` `Tracon.Testing.Contracts.Providers` ad alanında yayınlandı; yalnız `Abstractions` + `Microsoft.Extensions.AI` alır (`Tracon.Core` **inmez** — bağımlılık grafiği ölçülerek doğrulandı)
+- [x] `samples/Tracon.Samples.CustomModelProvider` yalnız `PackageReference` kullanır; `grep -c ProjectReference` → `0`
 - [x] Sample'ın test projesi `ModelProviderContract`'ı türetir, credential'ı gerçek istemci sınırında uygular **ve** uçtan uca bir `run` tamamlar; hepsi yeşil
 - [x] `PipelineOwnershipTests` Ö2'nin farkını ölçer: ham sağlayıcıda tool sonucu `Input` yönünde denetlenir, sarmalayan sağlayıcıda denetlenmez. Test hiçbir implementation tip adına bağlanmaz
 - [x] Dört mevcut `StoreContractCoverageTests` yeşil kaldı
 - [x] Sözleşme paketinin public yüzeyine `Shouldly` tipi **sızmaz**: `protected`/`public` imzalarda Shouldly tipi yok
 - [x] Dört doğrulama kapısı sıfır uyarı verdi
-- [x] `samples/AgentPrism.Api` gerçek PostgreSQL veritabanıyla başladı; `/health` 200 döndü
+- [x] `samples/Tracon.Api` gerçek PostgreSQL veritabanıyla başladı; `/health` 200 döndü
 - [x] `secret` taraması boş döndü
 - [x] Manuel kabul case'leri `docs/manuel-test/24-TEST-PAKETI-VE-SABLON.md` içine eklendi; 1·2·4·5 koşuldu
 - [x] `faz-denetim` koşuldu; ilk turdaki iki 🔴 ve üç 🟡 bulgu kapatıldı
@@ -62,18 +62,18 @@ AgentPrism'in `IModelProvider` genişleme noktası bugün **kaynak kodu okumadan
 
 ```bash
 # Sözleşme paketi Core'a inmiyor
-F=$(find artifacts/obj/AgentPrism.Testing.Contracts.Xunit -name project.assets.json | head -1)
-python3 -c "import json;d=json.load(open('$F'));print([k for k in list(d['targets'].values())[0] if 'AgentPrism.Core' in k])"
+F=$(find artifacts/obj/Tracon.Testing.Contracts.Xunit -name project.assets.json | head -1)
+python3 -c "import json;d=json.load(open('$F'));print([k for k in list(d['targets'].values())[0] if 'Tracon.Core' in k])"
 # beklenen: []
 
 # Sample yalnız NuGet
-grep -c ProjectReference samples/AgentPrism.Samples.CustomModelProvider/*.csproj || true   # 0
+grep -c ProjectReference samples/Tracon.Samples.CustomModelProvider/*.csproj || true   # 0
 
 # Sample sözleşmeyi geçiyor
-MSBUILDDISABLENODEREUSE=1 dotnet test samples/AgentPrism.Samples.CustomModelProvider.Tests
+MSBUILDDISABLENODEREUSE=1 dotnet test samples/Tracon.Samples.CustomModelProvider.Tests
 
 # Boru hattı sahipliği regresyonu
-./artifacts/bin/AgentPrism.Core.UnitTests/release/AgentPrism.Core.UnitTests --filter-method "*PipelineOwnership*"
+./artifacts/bin/Tracon.Core.UnitTests/release/Tracon.Core.UnitTests --filter-method "*PipelineOwnership*"
 ```
 
 ---
@@ -97,15 +97,15 @@ sınıf + muafiyet deseninin aynısı.
 **2. `ContractCoverage` ad alanı taşındı ve kapsamsız aşırı yüklemeler KALDIRILDI.**
 Plan yalnız kapsamlı bir aşırı yükleme *eklemeyi* öngörüyordu. Kapsamsız olanı
 bırakmak, dört depolama kapsam testini kıran tuzağın kendisini bırakmak olurdu:
-bir depolama tüketicisi, AgentPrism sağlayıcı sözleşmesi yayınladı diye
-kırılabilirdi. Tip `AgentPrism.Testing.Contracts.Storage`'dan
-`AgentPrism.Testing.Contracts`'a taşındı — iki aileye birden hizmet ediyor, ad
+bir depolama tüketicisi, Tracon sağlayıcı sözleşmesi yayınladı diye
+kırılabilirdi. Tip `Tracon.Testing.Contracts.Storage`'dan
+`Tracon.Testing.Contracts`'a taşındı — iki aileye birden hizmet ediyor, ad
 alanı artık yanıltmıyor. Aile adları `ContractCoverage.StorageContracts` /
 `ProviderContracts` sabitleridir; yazım hatası derleme hatasıdır. Hiçbir
 sözleşme tipi eşleşmeyen bir kapsam `ArgumentException` verir — sessizce hiçbir
 şeyi kontrol etmeyen yeşil bir kapı üretmez.
 
-**3. Public yüzey büyümesi ölçüldü ve kabul edildi.** `AgentPrism.Testing.Contracts.Xunit`
+**3. Public yüzey büyümesi ölçüldü ve kabul edildi.** `Tracon.Testing.Contracts.Xunit`
 36 → **39** public tip (üç sözleşme sınıfı); `PublicAPI.Unshipped.txt` +38 girdi,
 eski `Storage.ContractCoverage` girdileri düştü. `PublicSurfaceBaselineTests`
 büyümeyi kasıtlı bir ekleme olarak zorladı — taban çizgisi elle güncellendi.
@@ -120,7 +120,7 @@ Gevşetme artık projeye özgü ve gerekçeli: `<NoWarn>CA1707;xUnit1051</NoWarn
 Plan `docs/manuel-test/99-SAGLAYICI-SOZLESMESI.md` diyordu; 22 numarası zaten
 doluydu ve daha önemlisi Faz 98 aynı türden case'leri (sözleşme paketi + örnek
 tüketici) 24'e koymuştu. O dosyanın kapsam satırı zaten
-`src/AgentPrism.Testing.Contracts.Xunit` ve `samples/*` içeriyor. Case'ler
+`src/Tracon.Testing.Contracts.Xunit` ve `samples/*` içeriyor. Case'ler
 `MT-TEST-078..083`.
 
 **6. Planda olmayan bir doküman kusuru bulundu ve düzeltildi.** `IContentGuard`'ın
@@ -134,7 +134,7 @@ taşımaz. Kaldırıldı. Kapı, bu fazın amacını (tüketici sesiyle yazmak) 
 üzerimizde uyguladı.
 
 **8. Ölçülen bulgu: en olası hatayı yapmak yapısal olarak zordur.** Sözleşmeyi
-kasten ihlal etme denemesi **derlenmedi**: yalnız `AgentPrism.Abstractions`'a
+kasten ihlal etme denemesi **derlenmedi**: yalnız `Tracon.Abstractions`'a
 bağlı bir sağlayıcı `AsBuilder()`/`UseFunctionInvocation()` tiplerine erişemez —
 onlar `Microsoft.Extensions.AI` paketindedir ve `Abstractions` yalnız
 `Microsoft.Extensions.AI.Abstractions` taşır. İhlal ancak paket bilerek
@@ -156,7 +156,7 @@ commit'lerden okur. Bu iki düzeltme fazın kapsamını genişletti, çünkü `p
 
 ## Bu Fazda Verilen Kararlar
 
-- **K-609:** AgentPrism'in dönen `IChatClient` için dispose sahipliği yoktur.
+- **K-609:** Tracon'in dönen `IChatClient` için dispose sahipliği yoktur.
 - **K-610:** `ContractCoverage` her çağrıda açık bir sözleşme ailesi alır.
 - **K-611:** İsteğe bağlı sağlayıcı davranışı, atlanan case değil ayrı opt-in
   sözleşme sınıfıdır.
@@ -227,7 +227,7 @@ Yeni Git tabanlı kapı, değişikliği hangi araç yaparsa yapsın yakalar.
   `docs/hafiza/dokumantasyon.md`.
 - 🚨 Yeni `samples/*.Tests` projesi `tests/**` analyzer gevşemelerini almaz;
   bastırma projenin kendi `<NoWarn>`'una yazılır.
-- 🚨 Bu makinede tam çözüm testi (`dotnet test AgentPrism.slnx`) **host
+- 🚨 Bu makinede tam çözüm testi (`dotnet test Tracon.slnx`) **host
   çekişmesinden** kırılıyor: iki veritabanı konteyneri + Playwright aynı anda
   koşuyor. Faz 99'da 641 kırmızının **tamamı** izole koşumda yeşile döndü
   (PostgreSQL 637/637, şablon 1/1, E2E 2/2, ToolGovernance 4/4). Faz 97'nin

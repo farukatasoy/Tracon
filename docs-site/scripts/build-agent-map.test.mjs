@@ -6,8 +6,8 @@ import { packageName, splitRow } from './build-agent-map.mjs';
 
 test('package names are extracted from Windows paths', () => {
   assert.equal(
-    packageName('D:\\a\\AgentPrism\\AgentPrism\\src\\AgentPrism.Core\\AgentPrism.Core.csproj', win32.basename),
-    'AgentPrism.Core',
+    packageName('D:\\a\\Tracon\\Tracon\\src\\Tracon.Core\\Tracon.Core.csproj', win32.basename),
+    'Tracon.Core',
   );
 });
 

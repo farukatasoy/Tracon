@@ -3,10 +3,10 @@
 > **Durum:** ✅ Tamamlandı (2026-09-07)
 > **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-207**
 > **Önkoşul:** Yok. [Faz 152](152-SKORUN-ADI-VE-SEKLI.md) ile **çakışmaz** — o `run_scores`'a, bu `eval_case_results`'a dokunur.
-> **Paketler:** `AgentPrism.Abstractions`, `AgentPrism.Core`, `AgentPrism.AspNetCore`, `AgentPrism.PostgreSql`, `AgentPrism.Sqlite`, `AgentPrism.SqlServer`, `AgentPrism.Cli`, `AgentPrism.Testing.Contracts.Xunit`, `AgentPrism.UI`
+> **Paketler:** `Tracon.Abstractions`, `Tracon.Core`, `Tracon.AspNetCore`, `Tracon.PostgreSql`, `Tracon.Sqlite`, `Tracon.SqlServer`, `Tracon.Cli`, `Tracon.Testing.Contracts.Xunit`, `Tracon.UI`
 > **Yeni paket:** Yok · **Migration:** Yok — hizalama anahtarı (`EvalCaseResult.CaseId`) ve gereken alanlar mevcut şemadadır
 > **Public API:** Büyüyor — bir okuma tipi ailesi + bir `IEvalStore` üyesi + bir CLI seçeneği. `wc -l src/*/PublicAPI.Shipped.txt` → her dosya **1 satır** (ölçüldü 2026-09-07): `IEvalStore`'a üye eklemek üçüncü taraf uygulayıcıyı kırar ve bu **`1.0` öncesi** yapılmalıdır.
-> **Tüketici yüzeyi:** site: `docs-site/src/content/docs/concepts/evaluation.md` · üretilen: `http-api/`, `api/` · sevk edilen: `EvalEndpoints` `.WithDescription` metinleri, `EvalRun` XML dokümanı, `agentprism eval` yardım metni
+> **Tüketici yüzeyi:** site: `docs-site/src/content/docs/concepts/evaluation.md` · üretilen: `http-api/`, `api/` · sevk edilen: `EvalEndpoints` `.WithDescription` metinleri, `EvalRun` XML dokümanı, `tracon eval` yardım metni
 > **Manuel test alanı:** `docs/manuel-test/17-EVAL-VE-DENEYLER.md` · `docs/manuel-test/34-ISTEMCI-VE-CLI.md`
 
 ---
@@ -35,13 +35,13 @@
 - [x] `GET /api/evals/runs/{id}/diff?baseline={runId}` altı kümeyi ayrı ayrı döner
 - [x] Suite'e eklenen case `Added`'dir, `Regressed` **değildir**
 - [x] Taban çizgisinin ayrıntısı silinmişken uç `409` döner — **boş fark dönmez**
-- [x] `agentprism eval <suite> --baseline previous --max-regressions 0` regresyonda çıkış kodu **3** verir
+- [x] `tracon eval <suite> --baseline previous --max-regressions 0` regresyonda çıkış kodu **3** verir
 - [x] Karşılaştırılamama çıkış kodu **4** verir; 3 ile karışmaz
 - [x] İlk koşumda `--baseline previous` kapıyı kırmızı yakmaz
 - [x] ~~İçeriği değişen case `contentChanged` ile işaretlenir~~ — **kapsamdan çıkarıldı** (K-716 👤). Plan kendisiyle çelişiyordu ve bayrak hiçbir zaman yanamazdı; sınır `EvalRunDiff` XML dokümanına ve siteye yazıldı
 - [x] `EvalEndpoints.cs:141`'deki sevk edilen metin artık **doğrudur** (uç gerçekten karşılaştırıyor)
 - [x] Dört doğrulama kapısı sıfır uyarı verir
-- [x] `samples/AgentPrism.Api` ile gerçek iki eval koşumu + fark alındı, çıktı belgeye yazıldı
+- [x] `samples/Tracon.Api` ile gerçek iki eval koşumu + fark alındı, çıktı belgeye yazıldı
 - [x] `secret` taraması boş döndü
 - [x] Manuel kabul case'leri `17-EVAL-VE-DENEYLER.md` ve `34-ISTEMCI-VE-CLI.md` içine eklendi
 - [x] `faz-denetim` koşuldu; 🔴 bulgu kalmadı
@@ -53,11 +53,11 @@
 
 ```bash
 # Fark dört kümeyi ayırıyor mu
-curl -s "http://localhost:5081/agentprism/api/evals/runs/$SECOND/diff?baseline=$FIRST" \
+curl -s "http://localhost:5081/tracon/api/evals/runs/$SECOND/diff?baseline=$FIRST" \
   | jq '[.cases[] | .kind] | group_by(.) | map({(.[0]): length}) | add'
 
 # Göreli kapı regresyonda düşüyor mu
-agentprism eval smoke --baseline previous --max-regressions 0; echo "exit=$?"
+tracon eval smoke --baseline previous --max-regressions 0; echo "exit=$?"
 ```
 
 ---
@@ -66,16 +66,16 @@ agentprism eval smoke --baseline previous --max-regressions 0; echo "exit=$?"
 
 | Plan | Gerçek | Neden |
 |---|---|---|
-| Dosya listesi üç ayrı SQL store'a (`PostgreSqlEvalStore`, `SqliteEvalStore`, `SqlServerEvalStore`) dokunacağını söylüyordu | **Tek** `src/AgentPrism.Sql.Shared/Stores/SqlEvalStore.cs` değişti | Plan bayattı: Faz 94 (SQL Tek Kaynak) üç store'u birleştirmişti. Üç uygulama yerine iki oldu (bellek içi + paylaşılan SQL) |
-| `EvalRunDiffBuilder` `AgentPrism.Core`'a konacaktı | `AgentPrism.Abstractions`'a kondu ve **public** | Açık Soru 1 "üçüncü taraf uygulayıcı hizalamayı yeniden yazmak zorunda kalmasın" diyordu. Üçüncü taraf `Core`'u değil `Abstractions`'ı referans eder; `Core`'da olsaydı kurallar yeniden yazılırdı (K-714) |
+| Dosya listesi üç ayrı SQL store'a (`PostgreSqlEvalStore`, `SqliteEvalStore`, `SqlServerEvalStore`) dokunacağını söylüyordu | **Tek** `src/Tracon.Sql.Shared/Stores/SqlEvalStore.cs` değişti | Plan bayattı: Faz 94 (SQL Tek Kaynak) üç store'u birleştirmişti. Üç uygulama yerine iki oldu (bellek içi + paylaşılan SQL) |
+| `EvalRunDiffBuilder` `Tracon.Core`'a konacaktı | `Tracon.Abstractions`'a kondu ve **public** | Açık Soru 1 "üçüncü taraf uygulayıcı hizalamayı yeniden yazmak zorunda kalmasın" diyordu. Üçüncü taraf `Core`'u değil `Abstractions`'ı referans eder; `Core`'da olsaydı kurallar yeniden yazılırdı (K-714) |
 | `DiffRunsAsync(Guid baselineRunId, Guid candidateRunId, ct)` | `DiffRunsAsync(EvalRunDiffQuery query, ct)` | Planın imzasında **kiracı yoktu** — depo kiracı yalıtımını zorlayamazdı, oysa planın kendi test tablosu `TenantIsolationContract` istiyordu. Sayfalama da (Açık Soru 4: evet) imzaya girmeliydi. `EvalRunQuery`'nin var olan deseni izlendi |
 | `ContentChanged` / `ContentChangedCount` public API'ye girecekti | **Girmedi** (kullanıcı kararı) | Plan kendisiyle çelişiyordu: hash "bugünkü `EvalCase`'ten" okunacaktı ama iki taraf aynı case'i okur, bayrak hiç yanamazdı. Ayrıca ölçüldü — `EvalCaseInput` `Id` taşımaz, `PUT /cases` her düzenlemede yeni id atar, yani sevk edilen yüzeyde içerik değişimi zaten `Added`+`Removed`'dır. Sınır sözleşmeye yazıldı (K-716) |
 | Tamamlanmamış koşumun beklenen sonucu yazılı değildi | Yalnız `Completed` karşılaştırılır; diğeri `400` (kullanıcı kararı) | `Pending` bir koşumun `Total`'ı 0'dır ve "ayrıntı silinmiş" sezgisini yanlış tetikliyordu (K-717) |
 | Fark sonucu yalnız `Cases` + `ContentChangedCount` taşıyacaktı | Altı kümenin her biri için ayrı sayaç + `TotalCases` | Açık Soru 4 sayfalamayı seçti; sayfalanan bir listeden küme sayıları okunamaz. Sayaçlar sayfalamadan bağımsızdır |
-| DoD `agentprism eval <suite>` yazıyordu | Komut `--suite <ad>` alır | Faz 115'ten devralınan mevcut imza; değiştirmek kırıcı olurdu |
+| DoD `tracon eval <suite>` yazıyordu | Komut `--suite <ad>` alır | Faz 115'ten devralınan mevcut imza; değiştirmek kırıcı olurdu |
 | `EvalCaseDiff` `Output` taşımayacaktı | Taşımıyor | Plan korundu — yanıt şişmez |
 | Planda olmayan: `EvalRunDiffUnavailableException` + `EvalRunDiffUnavailableReason` | Eklendi | Plan "throws" diyordu ama tipi adlandırmıyordu. Uç `409`/`400` ayrımını yapabilmek için sebep makine tarafından okunabilir olmalı (K-715) |
-| Planda olmayan: kültür bağımsız biçimleme düzeltmesi (3 yer) | Yapıldı | Faz DoD'sinin "örnek uygulamayla gerçek koşum" adımında bulundu: `agentprism eval` tr-TR bir makinede "in 3,7 s" yazıyordu. Sınıf **ölçülerek** daraltıldı — `0.0`/`0.000000`/`P0` riskli, `F0`/`0` değil; ilk taramada şüphelenilen üç `:F0` yeri geri alındı (K-720) |
+| Planda olmayan: kültür bağımsız biçimleme düzeltmesi (3 yer) | Yapıldı | Faz DoD'sinin "örnek uygulamayla gerçek koşum" adımında bulundu: `tracon eval` tr-TR bir makinede "in 3,7 s" yazıyordu. Sınıf **ölçülerek** daraltıldı — `0.0`/`0.000000`/`P0` riskli, `F0`/`0` değil; ilk taramada şüphelenilen üç `:F0` yeri geri alındı (K-720) |
 | Planda olmayan: `karar-damit`'in "işaretçisi var, atla" kuralı kaldırıldı | Yapıldı | Karar defteri bütçesi aşıldı; kural "taşı, silme" olduğu için önce taşıma denendi ve aracın kendisi kusurluydu (K-721) |
 
 ## Bu Fazda Verilen Kararlar
@@ -85,7 +85,7 @@ K-714 · K-715 · K-716 👤 · K-717 👤 · K-718 · K-719 · K-720 · K-721 �
 
 ## Örnek Uygulama Koşumu (kanıt)
 
-`samples/AgentPrism.Api` gerçek bir OpenAI binding'iyle ayağa kaldırıldı
+`samples/Tracon.Api` gerçek bir OpenAI binding'iyle ayağa kaldırıldı
 (`gpt-5.4-mini`), `diff-demo` takımı iki vakayla kuruldu ve iki kez koşuldu.
 İkinci koşumdan önce **yalnız takımın `checks` alanı** sıkıldı — vakaların
 kendisi değil, çünkü `PUT /cases` her düzenlemede yeni vaka kimliği atar ve
@@ -99,7 +99,7 @@ $ curl -s ".../evals/runs/$FIRST/diff?baseline=$SECOND" | jq ...      # ters yö
 $ curl -s -o /dev/null -w "%{http_code}" ".../diff?baseline=<olmayan>"
 404
 
-$ agentprism eval --url ... --suite diff-demo --baseline $FIRST --max-regressions 0
+$ tracon eval --url ... --suite diff-demo --baseline $FIRST --max-regressions 0
 Completed: 0/2 passed in 3.7 s.
   FAILED case 01a07b03-1547-7ea3-…: keyword_check: Missing keywords: zzz-never-said
   FAILED case 01a07b03-1547-7434-…: keyword_check: Missing keywords: zzz-never-said
@@ -108,14 +108,14 @@ vs baseline 01a07b03-3889-77f2-…: 2 regressed, 0 fixed, 0 added, 0 removed.
   regressed: case 01a07b03-1547-7ea3-…: keyword_check: Missing keywords: zzz-never-said
 exit=3
 
-$ agentprism eval ... --baseline previous --max-regressions 0   # önceki koşum da düşüktü
+$ tracon eval ... --baseline previous --max-regressions 0   # önceki koşum da düşüktü
 vs baseline 01a07b03-a27c-7bf0-…: 0 regressed, 0 fixed, 0 added, 0 removed.
 exit=0
 
-$ agentprism eval ... --max-regressions 0                       # --baseline YOK
+$ tracon eval ... --max-regressions 0                       # --baseline YOK
 '--max-regressions' needs '--baseline <runId|previous>'; …
 exit=1
-$ agentprism eval ... --baseline yesterday
+$ tracon eval ... --baseline yesterday
 exit=1
 ```
 

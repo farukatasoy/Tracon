@@ -84,7 +84,7 @@ yerde yakalanmadı** — ASP.NET Core'un varsayılan işleyicisine düştü,
 `detail`siz bare `500` üretti. Kaynak: `AgentEndpoints.cs`'deki
 `ExecuteBufferedAsync` (Idempotency-Key/akışsız yol), 2026-08-10'da
 `ExecuteStreamingAsync`'e uygulanan K-296 genel-catch düzeltmesini HİÇ
-almamış — hâlâ dar `catch (Exception ex) when (ex is AgentPrismException
+almamış — hâlâ dar `catch (Exception ex) when (ex is TraconException
 or InvalidOperationException or HttpRequestException)` filtresini taşıyor.
 `ClientResultException`/`AnthropicApiException` gibi sağlayıcı SDK
 istisnaları (ikisi de doğrudan `Exception`'dan türer) bu filtreden
@@ -101,7 +101,7 @@ kaçıyor. Ayrıntı: `SONUCLAR-S3-2026-08-13.md`.
 ## MT-GUARD-032 — Arayüz, API'nin izin verdiği bozuk JSON'u SAVE anında engeller
 
 **Gerçek sonuç**
-Playwright ile `/agentprism/agents/new` açıldı, `JsonSchema` seçildi, şema
+Playwright ile `/tracon/agents/new` açıldı, `JsonSchema` seçildi, şema
 kutusuna `{ bozuk` yazıldı: kutunun altında `alert: "Not valid JSON."`
 belirdi, **`Create` düğmesi `disabled` kaldı**. Kutu
 `{"type":"object","properties":{}}` ile düzeltilince hem `Validate` hem
@@ -270,9 +270,9 @@ filtreliyor.
 
 # 8 — Guardrail: genişleme noktası ve kayıt sınırları (deterministik)
 
-Bu bölümün tamamı `AgentPrismTestHost`/bellek içi `ServiceCollection` kullanır;
+Bu bölümün tamamı `TraconTestHost`/bellek içi `ServiceCollection` kullanır;
 hiçbiri örnek uygulamaya veya gerçek bir sağlayıcıya bağlanmaz. Aynı klasör
-(`~/agentprism-manuel/guard-testleri`, MT-GUARD-052'de kuruldu) yeniden
+(`~/tracon-manuel/guard-testleri`, MT-GUARD-052'de kuruldu) yeniden
 kullanılır — yalnız `Program.cs` her case için üzerine yazılır.
 
 ---
@@ -289,7 +289,7 @@ MaskReplacement: ***
 ```
 `AddPatternContentGuard()` hiç çağrılmadan, yalnız `MaskReplacement`
 anahtarı verilerek guard DI konteynerine kaydedildi
-(`AgentPrismServiceCollectionExtensions.cs:178-185`'teki
+(`TraconServiceCollectionExtensions.cs:178-185`'teki
 `patternSection.Exists()` kontrolü doğrulandı). Bu, K1'in belgelenmesi
 gereken bir **inceltilmiş sınırı** — davranışsal bir kusur değil (guard
 hâlâ her zaman `Allow` döner), ama "kayıt = maliyet" varsayımının tam

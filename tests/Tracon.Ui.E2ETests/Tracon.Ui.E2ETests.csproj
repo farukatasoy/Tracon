@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>Tracon.Ui.E2ETests</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Playwright" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/Tracon.UI/Tracon.UI.csproj" />
+    <ProjectReference Include="../../src/Tracon.Workflows/Tracon.Workflows.csproj" />
+    <!-- Fake model provider (FakeModelProvider): Phase 39, K-007 rationale section 39.1. -->
+    <ProjectReference Include="../../src/Tracon.Testing/Tracon.Testing.csproj" />
+  </ItemGroup>
+
+</Project>

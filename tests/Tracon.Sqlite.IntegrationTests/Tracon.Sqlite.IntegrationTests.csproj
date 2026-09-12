@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/Tracon.Sqlite/Tracon.Sqlite.csproj" />
+    <!--
+      Store contract suite (Phase 23/24; packaged in Phase 98 as
+      Tracon.Testing.Contracts.Xunit). The SAME abstract classes also run
+      in Tracon.PostgreSql.IntegrationTests and
+      Tracon.SqlServer.IntegrationTests. The third provider (SQL Server)
+      passed this test: writing a new contract test was NOT REQUIRED. SQLite
+      is the fourth test.
+    -->
+    <ProjectReference Include="../../src/Tracon.Testing.Contracts.Xunit/Tracon.Testing.Contracts.Xunit.csproj" />
+  </ItemGroup>
+
+  <!--
+    A container is NOT REQUIRED: a file-based temporary database is enough
+    (docs/arsiv/fazlar/24-SQLITE.md, 24.5). This shortens CI time compared to the
+    PostgreSQL/SQL Server contract runs.
+  -->
+
+</Project>

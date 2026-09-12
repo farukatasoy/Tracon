@@ -149,7 +149,7 @@ function card({ name, title, subtitle }) {
   ${motifs[name]()}
   ${prismMark(80, 92, 64)}
   <text x="164" y="146" font-family="${font}" font-size="34" font-weight="600"
-        letter-spacing="-0.5" fill="${ink.text}">AgentPrism</text>
+        letter-spacing="-0.5" fill="${ink.text}">Tracon</text>
   <text x="80" y="332" font-family="${font}" font-size="54" font-weight="700"
         letter-spacing="-1.6" fill="${ink.text}">${title}</text>
   <text x="80" y="390" font-family="${font}" font-size="25" font-weight="400"

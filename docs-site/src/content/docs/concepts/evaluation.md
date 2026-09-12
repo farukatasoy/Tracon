@@ -22,7 +22,7 @@ stored and read as one unit with the suite. Create or update the suite before ad
 cases:
 
 ```bash
-curl -X PUT http://localhost:5081/agentprism/api/evals/support \
+curl -X PUT http://localhost:5081/tracon/api/evals/support \
      -H 'Content-Type: application/json' \
      -d '{
        "agentName": "support",
@@ -43,7 +43,7 @@ common cases, matched directly to `Microsoft.Agents.AI.EvalChecks` factories:
 | `toolCallsPresent` | At least one tool was called | — |
 | `hasImageContent` | The response carries image content | — |
 
-Application code can add more with `IAgentPrismBuilder.AddEvalCheck(kind, check)` — a
+Application code can add more with `ITraconBuilder.AddEvalCheck(kind, check)` — a
 named MAF `EvalCheck` that becomes usable under a custom kind name alongside the six
 built-in ones. A kind that matches neither fails the run with a clear error instead of
 being silently skipped.
@@ -51,7 +51,7 @@ being silently skipped.
 Cases are a separate, ordered list of queries:
 
 ```bash
-curl -X PUT http://localhost:5081/agentprism/api/evals/support/cases \
+curl -X PUT http://localhost:5081/tracon/api/evals/support/cases \
      -H 'Content-Type: application/json' \
      -d '[{"query":"Where is order 4182?","expectedOutput":"shipped"}]'
 ```
@@ -75,8 +75,8 @@ agent and produces its own run row, so a failing check can be traced to the exac
 conversation that produced it.
 
 ```bash
-curl -X POST http://localhost:5081/agentprism/api/evals/support/run
-curl http://localhost:5081/agentprism/api/evals/support/runs
+curl -X POST http://localhost:5081/tracon/api/evals/support/run
+curl http://localhost:5081/tracon/api/evals/support/runs
 ```
 
 ## Comparing two runs
@@ -87,7 +87,7 @@ stopped working. `GET /api/evals/runs/{id}/diff?baseline={runId}` aligns two run
 the same suite case by case instead:
 
 ```bash
-curl "http://localhost:5081/agentprism/api/evals/runs/$SECOND/diff?baseline=$FIRST"
+curl "http://localhost:5081/tracon/api/evals/runs/$SECOND/diff?baseline=$FIRST"
 ```
 
 Every case lands in exactly one bucket:
@@ -124,10 +124,10 @@ it.
 
 ### As a CI gate
 
-`agentprism eval` turns the same comparison into an exit code:
+`tracon eval` turns the same comparison into an exit code:
 
 ```bash
-agentprism eval --url http://localhost:5081/agentprism --suite support \
+tracon eval --url http://localhost:5081/tracon --suite support \
   --baseline previous --max-regressions 0
 ```
 
@@ -188,7 +188,7 @@ catalog in `Microsoft.Extensions.AI.Evaluation.Quality`, which grades relevance,
 coherence, completeness, task adherence, and tool-call accuracy without you
 writing a scoring prompt at all.
 
-AgentPrism does **not** reference that catalog. Add the package when you want it,
+Tracon does **not** reference that catalog. Add the package when you want it,
 so a consumer who does not carries none of it:
 
 ```bash
@@ -196,7 +196,7 @@ dotnet add package Microsoft.Extensions.AI.Evaluation.Quality
 ```
 
 ```csharp
-builder.AddAgentPrism()
+builder.AddTracon()
        .AddEvaluatorJudge(
            "relevance",
            new RelevanceEvaluator(),

@@ -1,30 +1,30 @@
 # 20 — Bağlam Sıkıştırma, Bellek Sağlayıcıları ve Anlamsal Arama (`MEM`)
 
 > **Alan kodu:** `MEM` · **Faz:** 13, 51
-> **Kaynak:** `src/AgentPrism.Abstractions/Agents/CompactionSettings.cs`,
+> **Kaynak:** `src/Tracon.Abstractions/Agents/CompactionSettings.cs`,
 > `CompactionStrategyKind.cs`, `MemorySettings.cs` ·
-> `src/AgentPrism.Abstractions/Knowledge/` (tümü: `IVectorSearchStore.cs`,
+> `src/Tracon.Abstractions/Knowledge/` (tümü: `IVectorSearchStore.cs`,
 > `VectorChunk.cs`, `VectorSearchRequest.cs`, `VectorSearchHit.cs`) ·
-> `src/AgentPrism.Core/Compilation/AgentDefinitionCompiler.cs` (yalnız
+> `src/Tracon.Core/Compilation/AgentDefinitionCompiler.cs` (yalnız
 > sıkıştırma/bellek/anlamsal-arama bağlama kısmı: `BuildCompactionStrategy`,
 > `CreateMemoryProviders`, `AddVectorSearchTool`, harness çakışma denetimi) ·
-> `src/AgentPrism.Core/Compilation/ObservedCompactionStrategy.cs`,
+> `src/Tracon.Core/Compilation/ObservedCompactionStrategy.cs`,
 > `CompactionUsageTrackingChatClient.cs` ·
-> `src/AgentPrism.Core/Knowledge/` (tümü: `AgentPrismKnowledgeOptions.cs`,
+> `src/Tracon.Core/Knowledge/` (tümü: `TraconKnowledgeOptions.cs`,
 > `TextChunker.cs`, `KnowledgeIngestionService.cs`, `VectorSearchToolFactory.cs`) ·
-> `src/AgentPrism.PostgreSql/Stores/PgVectorSearchStore.cs` ·
-> `src/AgentPrism.PostgreSql/MigrationsKnowledge/0001_vector.sql` (Faz 67
+> `src/Tracon.PostgreSql/Stores/PgVectorSearchStore.cs` ·
+> `src/Tracon.PostgreSql/MigrationsKnowledge/0001_vector.sql` (Faz 67
 > öncesi: `Migrations/0024_vector.sql`) ·
-> `src/AgentPrism.AspNetCore/Endpoints/KnowledgeEndpoints.cs` ·
-> `src/AgentPrism.AspNetCore/Contracts/KnowledgeContracts.cs` ·
-> `samples/AgentPrism.Api/Program.cs` (yalnız embedding kaydı ve
+> `src/Tracon.AspNetCore/Endpoints/KnowledgeEndpoints.cs` ·
+> `src/Tracon.AspNetCore/Contracts/KnowledgeContracts.cs` ·
+> `samples/Tracon.Api/Program.cs` (yalnız embedding kaydı ve
 > `bilgi-asistani` bloğu).
 >
 > 🚨 **Kaynak eşlemesi düzeltmesi.** `00-INDEKS.md`'nin §7 tablosu bu dosya
-> için yalnız `src/AgentPrism.Core` (memory) ve migration dosyasını
+> için yalnız `src/Tracon.Core` (memory) ve migration dosyasını
 > listeliyordu. Ölçüldü: Faz 51'in yönetim yüzeyi (`KnowledgeEndpoints.cs`,
 > `KnowledgeContracts.cs`) ve Faz 13/51'in sözleşme tipleri
-> (`AgentPrism.Abstractions/Agents/*Settings.cs`, `Knowledge/*.cs`) başka
+> (`Tracon.Abstractions/Agents/*Settings.cs`, `Knowledge/*.cs`) başka
 > hiçbir dosyanın kaynak eşlemesinde yok — bu iki alan olmadan bu dosyanın
 > ana kanıtı (belge yükleme, arama, HTTP hataları) hiç test edilemezdi.
 > Yukarıdaki liste düzeltilmiş hâldir.
@@ -50,7 +50,7 @@ düzeltmesi, `04-KALICILIK-DIGER.md`'nin işidir).
 ```mermaid
 flowchart TD
     A["AgentDefinition.Compaction/Memory"] --> B["AgentDefinitionCompiler"]
-    B -- "gecersiz tetikleyici/alan" --> BX["AgentPrismCompilationException<br/>400 Agent derlenemedi"]
+    B -- "gecersiz tetikleyici/alan" --> BX["TraconCompilationException<br/>400 Agent derlenemedi"]
     B -- "gecerli" --> C["CompactionProvider / FileMemoryProvider /<br/>TodoProvider / TextSearchProvider / search_knowledge tool"]
 
     C --> D["Gercek calistirma"]
@@ -85,18 +85,18 @@ flowchart TD
 
 1. [`00-INDEKS.md`](00-INDEKS.md) §4 reset yordamı uygulanır.
 2. Örnek uygulama PostgreSQL ile çalışır (`pgvector` uzantılı,
-   `AgentPrism:PostgreSql:ConnectionString` ayarlı) — bu dosyanın §4-§6
+   `Tracon:PostgreSql:ConnectionString` ayarlı) — bu dosyanın §4-§6
    bölümleri **yalnız PostgreSQL'de** anlamlıdır (K-343). §1-§3 (sıkıştırma,
    dosya belleği/todo/metin araması) kalıcılık sağlayıcısından bağımsızdır.
-3. `AgentPrism:Providers:OpenAI:ApiKey` tanımlı (§2, §4, §5 gerçek model ve
+3. `Tracon:Providers:OpenAI:ApiKey` tanımlı (§2, §4, §5 gerçek model ve
    gerçek embedding çağırır).
-4. Örnek uygulama çalışır: `cd samples/AgentPrism.Api && dotnet run` →
-   `http://localhost:5080/agentprism`.
+4. Örnek uygulama çalışır: `cd samples/Tracon.Api && dotnet run` →
+   `http://localhost:5080/tracon`.
 
 ```bash
 export APB="Authorization: Bearer manuel-test-token-2026"
-export APU="http://localhost:5080/agentprism"
-export PG="docker exec -i ap-pg psql -U postgres -d agentprism"
+export APU="http://localhost:5080/tracon"
+export PG="docker exec -i ap-pg psql -U postgres -d tracon"
 ```
 
 > **Gerçek para uyarısı.** §2 her case'te en az 4-5 gerçek model çağrısı
@@ -149,7 +149,7 @@ Bu veriler yalnız bu dosyaya özgüdür, `00-INDEKS.md`'ye girmez (`PROMPT.md`
 `POST /api/agents/validate`, `AgentDefinitionValidator.CheckStructureAsync`
 üzerinden `AgentDefinitionCompiler.Compile(...)`'ı **gerçekten** çalıştırır
 (`AgentDefinitionValidator.cs:322-336`) ve fırlayan
-`AgentPrismCompilationException`'ı `messages` dizisine `code:
+`TraconCompilationException`'ı `messages` dizisine `code:
 "compilation_error"` ile ekler. Hiçbir şey kaydedilmez, hiçbir model
 çağrılmaz. `POST`/`PUT /api/agents` bu denetimi **YAPMAZ** — yalnız temel
 alan kontrolü ve çağrı grafiği döngü denetimi yapar
@@ -262,7 +262,7 @@ curl -s -X POST "$APU/api/agents/validate" -H "$APB" -H "content-type: applicati
 ### MT-MEM-004 — Bilinmeyen `strategy` string değeri JSON deserialize hatası verir (`400`)
 
 `CompactionStrategyKind` `JsonStringEnumConverter<T>` ile işaretli (K-040
-deseni). Bu, `AgentPrismCompilationException` **değil** — istek gövdesi
+deseni). Bu, `TraconCompilationException` **değil** — istek gövdesi
 model bağlama ulaşamadan reddedilir.
 
 | | |
@@ -414,8 +414,8 @@ curl -s "$APU/api/runs/<son-runId>/events" -H "$APB" | python3 -m json.tool
 **Doğrulama sorgusu**
 ```sql
 SELECT r.id, e.seq, e.type, e.text, e.payload
-FROM agentprism.run_events e
-JOIN agentprism.runs r ON r.id = e.run_id
+FROM tracon.run_events e
+JOIN tracon.runs r ON r.id = e.run_id
 WHERE r.agent_name = 'manuel-sikistir' AND e.type = 10
 ORDER BY e.created_at DESC;
 ```
@@ -440,8 +440,8 @@ ORDER BY e.created_at DESC;
 **Girilecek veri**
 ```sql
 SELECT c.id AS conversation_id, count(ci.*) AS toplam_oge
-FROM agentprism.conversations c
-JOIN agentprism.conversation_items ci ON ci.conversation_id = c.id
+FROM tracon.conversations c
+JOIN tracon.conversation_items ci ON ci.conversation_id = c.id
 WHERE c.tenant_id = 'default' AND c.agent_name = 'manuel-sikistir'
 GROUP BY c.id;
 ```
@@ -584,8 +584,8 @@ done
 
 **Doğrulama sorgusu**
 ```sql
-SELECT count(*) FROM agentprism.run_events e
-JOIN agentprism.runs r ON r.id = e.run_id
+SELECT count(*) FROM tracon.run_events e
+JOIN tracon.runs r ON r.id = e.run_id
 WHERE r.agent_name = 'support' AND r.session_id = 'mem-kontrol-01' AND e.type = 10;
 -- beklenen: 0
 ```
@@ -745,28 +745,28 @@ F-105) — bu case'in kapsamı yalnız kiracı sınırıdır.
 **Ön koşul**
 - `13-KIRACI-VE-GUVENLIK.md`'nin tenancy açma deseni (§3 ön koşulu) bilinir:
   ```bash
-  dotnet user-secrets set "AgentPrism:Tenancy:Enabled" "true"
-  dotnet user-secrets set "AgentPrism:Tenancy:AllowHeaderResolution" "true"
+  dotnet user-secrets set "Tracon:Tenancy:Enabled" "true"
+  dotnet user-secrets set "Tracon:Tenancy:AllowHeaderResolution" "true"
   ```
   Uygulama yeniden başlatılır.
 - `manuel-dosya-bellek` ve `manuel-dosya-arama` kayıtlı (`MT-MEM-011`/`013`).
 
 **Adımlar**
-1. `X-AgentPrism-Tenant: kiraci-alfa` başlığıyla `manuel-dosya-bellek`'i
+1. `X-Tracon-Tenant: kiraci-alfa` başlığıyla `manuel-dosya-bellek`'i
    çalıştır, benzersiz bir işaretçi yazdır.
-2. `X-AgentPrism-Tenant: kiraci-beta` başlığıyla (FARKLI kiracı, FARKLI
+2. `X-Tracon-Tenant: kiraci-beta` başlığıyla (FARKLI kiracı, FARKLI
    oturum) `manuel-dosya-arama`'yı çalıştır ve aynı işaretçiyi ara.
 
 **Girilecek veri**
 ```bash
 curl -s -X POST "$APU/api/agents/manuel-dosya-bellek/run" -H "$APB" \
-     -H "X-AgentPrism-Tenant: kiraci-alfa" \
+     -H "X-Tracon-Tenant: kiraci-alfa" \
      -H "Idempotency-Key: manuel-mem-014-yaz-$(date +%s%N)" -H "content-type: application/json" \
      -d '{"message":"Bunu dosyaya kaydet: gizli-anahtar SIZINTI-9902.","sessionId":"mem-sizinti-alfa"}'
 ```
 ```bash
 curl -s -X POST "$APU/api/agents/manuel-dosya-arama/run" -H "$APB" \
-     -H "X-AgentPrism-Tenant: kiraci-beta" \
+     -H "X-Tracon-Tenant: kiraci-beta" \
      -H "Idempotency-Key: manuel-mem-014-ara-$(date +%s%N)" -H "content-type: application/json" \
      -d '{"message":"SIZINTI-9902 ile ilgili bir kayit var mi? Ara ve bul.","sessionId":"mem-sizinti-beta"}'
 ```
@@ -811,7 +811,7 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/knowledge/manuel-bilgi/doc
 **Doğrulama sorgusu**
 ```sql
 SELECT source_id, chunk_index, length(content), created_at
-FROM agentprism.document_embeddings
+FROM tracon.document_embeddings
 WHERE tenant_id = 'default' AND collection = 'manuel-bilgi';
 ```
 
@@ -908,7 +908,7 @@ curl -s "$APU/api/knowledge/manuel-bilgi/documents" -H "$APB"
 
 **Doğrulama sorgusu**
 ```sql
-SELECT count(*) FROM agentprism.document_embeddings
+SELECT count(*) FROM tracon.document_embeddings
 WHERE tenant_id = 'default' AND collection = 'manuel-bilgi' AND source_id = 'izin-notu';
 -- beklenen: 0
 ```
@@ -925,7 +925,7 @@ WHERE tenant_id = 'default' AND collection = 'manuel-bilgi' AND source_id = 'izi
 | **İlgili karar** | Açık Soru 4 (§51) |
 
 **Ön koşul**
-- PostgreSQL aktif. `AgentPrismKnowledgeOptions.Dimensions` varsayılanı
+- PostgreSQL aktif. `TraconKnowledgeOptions.Dimensions` varsayılanı
   `1536`'dır — bu case boyutu **doğru** vermelidir (yanlış boyut için bkz.
   `MT-MEM-022`).
 
@@ -984,7 +984,7 @@ curl -s -X POST "$APU/api/knowledge/manuel-bilgi/documents" -H "$APB" -H "conten
 
 **Doğrulama sorgusu**
 ```sql
-SELECT chunk_index, content FROM agentprism.document_embeddings
+SELECT chunk_index, content FROM tracon.document_embeddings
 WHERE tenant_id = 'default' AND collection = 'manuel-bilgi' AND source_id = 'tekrar-notu';
 -- beklenen: TEK satir, icerik "Ikinci surum..." ile baslar; "Ilk surum" YOKTUR
 ```
@@ -1125,7 +1125,7 @@ Negatif senaryo / sınır durumu. `KnowledgeIngestionService.IsSupported`
 
 **Ön koşul**
 ```bash
-dotnet user-secrets remove "AgentPrism:PostgreSql:ConnectionString"
+dotnet user-secrets remove "Tracon:PostgreSql:ConnectionString"
 ```
 Uygulama bellek içi depolarla yeniden başlatılır (`UsePostgreSql()`
 çağrılmaz, dolayısıyla `IVectorSearchStore` **hiç** kayıtlı olmaz — bu bayrak
@@ -1156,8 +1156,8 @@ curl -s -w "\nHTTP: %{http_code}\n" -X DELETE "$APU/api/knowledge/manuel-bilgi/d
 
 **Ön koşulu geri al**
 ```bash
-dotnet user-secrets set "AgentPrism:PostgreSql:ConnectionString" \
-  "Host=localhost;Port=55432;Database=agentprism;Username=postgres;Password=agentprism"
+dotnet user-secrets set "Tracon:PostgreSql:ConnectionString" \
+  "Host=localhost;Port=55432;Database=tracon;Username=postgres;Password=tracon"
 ```
 
 ### MT-MEM-026 — `bilgi-asistani` uçtan uca: belge yükle → soru sor → `search_knowledge` tam bir kez çağrılır
@@ -1199,7 +1199,7 @@ curl -s -X POST "$APU/api/agents/bilgi-asistani/run" -H "$APB" \
 
 **Doğrulama sorgusu**
 ```sql
-SELECT tool_name, count(*) FROM agentprism.tool_invocations
+SELECT tool_name, count(*) FROM tracon.tool_invocations
 WHERE run_id = '<runId>' GROUP BY tool_name;
 ```
 
@@ -1257,7 +1257,7 @@ Negatif senaryo. `/validate` ile (model çağırmaz).
 
 **Ön koşul**
 ```bash
-dotnet user-secrets remove "AgentPrism:PostgreSql:ConnectionString"
+dotnet user-secrets remove "Tracon:PostgreSql:ConnectionString"
 ```
 Uygulama bellek içi depoyla yeniden başlatılır.
 
@@ -1281,8 +1281,8 @@ curl -s -X POST "$APU/api/agents/validate" -H "$APB" -H "content-type: applicati
 
 **Ön koşulu geri al**
 ```bash
-dotnet user-secrets set "AgentPrism:PostgreSql:ConnectionString" \
-  "Host=localhost;Port=55432;Database=agentprism;Username=postgres;Password=agentprism"
+dotnet user-secrets set "Tracon:PostgreSql:ConnectionString" \
+  "Host=localhost;Port=55432;Database=tracon;Username=postgres;Password=tracon"
 ```
 
 ---
@@ -1302,7 +1302,7 @@ boşaltılırsa PostgreSQL kayıtlı olsa BİLE bu kayıt hiç oluşmaz.
 
 **Ön koşul**
 ```bash
-dotnet user-secrets remove "AgentPrism:Providers:OpenAI:ApiKey"
+dotnet user-secrets remove "Tracon:Providers:OpenAI:ApiKey"
 ```
 Uygulama yeniden başlatılır (PostgreSQL bağlantısı KALIR).
 
@@ -1329,7 +1329,7 @@ curl -s -X POST "$APU/api/agents/validate" -H "$APB" -H "content-type: applicati
 
 **Ön koşulu geri al**
 ```bash
-dotnet user-secrets set "AgentPrism:Providers:OpenAI:ApiKey" "<OPENAI_ANAHTARINIZ>"
+dotnet user-secrets set "Tracon:Providers:OpenAI:ApiKey" "<OPENAI_ANAHTARINIZ>"
 ```
 
 ### MT-MEM-030 — Vektör arama kiracı yalıtımı: bir kiracının belgesi diğerinde görünmez
@@ -1343,8 +1343,8 @@ dotnet user-secrets set "AgentPrism:Providers:OpenAI:ApiKey" "<OPENAI_ANAHTARINI
 
 **Ön koşul**
 ```bash
-dotnet user-secrets set "AgentPrism:Tenancy:Enabled" "true"
-dotnet user-secrets set "AgentPrism:Tenancy:AllowHeaderResolution" "true"
+dotnet user-secrets set "Tracon:Tenancy:Enabled" "true"
+dotnet user-secrets set "Tracon:Tenancy:AllowHeaderResolution" "true"
 ```
 Uygulama yeniden başlatılır.
 
@@ -1357,15 +1357,15 @@ Uygulama yeniden başlatılır.
 **Girilecek veri**
 ```bash
 curl -s -X POST "$APU/api/knowledge/manuel-bilgi/documents" -H "$APB" \
-     -H "X-AgentPrism-Tenant: kiraci-alfa" -H "content-type: application/json" \
+     -H "X-Tracon-Tenant: kiraci-alfa" -H "content-type: application/json" \
      -d '{"sourceId":"alfa-belge","text":"Bu belge yalnizca kiraci-alfaya aittir, gizli-kod XYZ."}'
 
 curl -s -X POST "$APU/api/knowledge/manuel-bilgi/search" -H "$APB" \
-     -H "X-AgentPrism-Tenant: kiraci-beta" -H "content-type: application/json" \
+     -H "X-Tracon-Tenant: kiraci-beta" -H "content-type: application/json" \
      -d '{"query":"gizli kod nedir"}' | python3 -m json.tool
 
 curl -s -X POST "$APU/api/knowledge/manuel-bilgi/search" -H "$APB" \
-     -H "X-AgentPrism-Tenant: kiraci-alfa" -H "content-type: application/json" \
+     -H "X-Tracon-Tenant: kiraci-alfa" -H "content-type: application/json" \
      -d '{"query":"gizli kod nedir"}' | python3 -m json.tool
 ```
 
@@ -1376,7 +1376,7 @@ curl -s -X POST "$APU/api/knowledge/manuel-bilgi/search" -H "$APB" \
 
 **Doğrulama sorgusu**
 ```sql
-SELECT tenant_id, source_id FROM agentprism.document_embeddings
+SELECT tenant_id, source_id FROM tracon.document_embeddings
 WHERE collection = 'manuel-bilgi' AND source_id = 'alfa-belge';
 -- beklenen: tek satir, tenant_id = 'kiraci-alfa'
 ```
@@ -1384,7 +1384,7 @@ WHERE collection = 'manuel-bilgi' AND source_id = 'alfa-belge';
 ### MT-MEM-031 — 🚨 `KnowledgeEndpoints` hiçbir ucunda `RequireApiKeyScope` çağırmıyor — yalnız-okuma anahtarı belge yazabiliyor/silebiliyor mu?
 
 Şüpheli davranış — koddan ölçüldü, koşumda doğrulanacak/çürütülecek.
-`grep -n "RequireApiKeyScope" src/AgentPrism.AspNetCore/Endpoints/KnowledgeEndpoints.cs`
+`grep -n "RequireApiKeyScope" src/Tracon.AspNetCore/Endpoints/KnowledgeEndpoints.cs`
 **boş** döner — karşılaştırma: `AgentEndpoints.cs`/`RunEndpoints.cs` her
 uca `RequireApiKeyScope(ApiKeyScope.AgentsAdmin/RunsWrite/...)` ekler.
 Bu, `WorkflowEndpoints` (`15-WORKFLOWS.md` `MT-WF-100`), `SchedulingEndpoints`

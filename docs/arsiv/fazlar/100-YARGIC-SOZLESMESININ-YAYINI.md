@@ -7,13 +7,13 @@
 > **Önkoşul:** [Faz 99](99-SAGLAYICI-SOZLESMESININ-YAYINI.md) —
 > `ContractCoverage`'ın aile mekanizmasını (K-610), opt-in sözleşme sınıfı
 > kuralını (K-611) ve yalnız-NuGet sample emsalini bu faz devralır.
-> **Paketler:** `AgentPrism.Abstractions`, `AgentPrism.Core`,
-> `AgentPrism.Testing.Contracts.Xunit`, `samples/`
+> **Paketler:** `Tracon.Abstractions`, `Tracon.Core`,
+> `Tracon.Testing.Contracts.Xunit`, `samples/`
 > **Yeni paket:** Yok — sözleşme suite'i var olan pakete üçüncü bir ad alanı ekler ·
 > **Migration:** Yok
 > **Public API:** Büyüyor ve **daralıyor** — `RunJudgment.JudgeUsage` kalkar,
 > `IModelProviderRegistry`'ye bir aşırı yükleme, `OnlineEvaluationOptions`'a bir
-> alan, `ModelCredentialSource` · `AgentPrismJudgeException` · `RunJudgeContract` eklenir. Ölçüldü (2026-08-25):
+> alan, `ModelCredentialSource` · `TraconJudgeException` · `RunJudgeContract` eklenir. Ölçüldü (2026-08-25):
 > `wc -l src/*/PublicAPI.Shipped.txt` = 17 satır, hepsi `#nullable enable`
 > başlığı — **her dosya boştur**, yüzeyi bugün değiştirmek bedavadır; Faz 7'den
 > sonra bir sürüm kararıdır.
@@ -21,7 +21,7 @@
 > `concepts/evaluation.md`, `packages.md`, `capabilities.md`,
 > `reference/configuration.md` · sevk edilen: `IRunJudge` · `RunJudgeContext` ·
 > `RunJudgment` · `IModelProviderRegistry` XML dokümanı,
-> `src/AgentPrism.Testing.Contracts.Xunit/README.md`
+> `src/Tracon.Testing.Contracts.Xunit/README.md`
 > **Manuel test alanı:** [`docs/manuel-test/17-EVAL-VE-DENEYLER.md`](../../manuel-test/17-EVAL-VE-DENEYLER.md) (`EVAL` öneki, bugün 69 case)
 
 ---
@@ -43,13 +43,13 @@
 
 ## Amaç
 
-`IRunJudge`, AgentPrism'in dört genişleme noktasından biridir. Faz 98 depolama, Faz 99 sağlayıcı sözleşmesini sevk edilen yüzeye taşıdı. Yargıç hâlâ taşınmadı: arayüz derlenir, ama derlendikten sonra **sessizce yanlış davranan on kural** hiçbir sevk edilen yüzeyde yazmaz.
+`IRunJudge`, Tracon'in dört genişleme noktasından biridir. Faz 98 depolama, Faz 99 sağlayıcı sözleşmesini sevk edilen yüzeye taşıdı. Yargıç hâlâ taşınmadı: arayüz derlenir, ama derlendikten sonra **sessizce yanlış davranan on kural** hiçbir sevk edilen yüzeyde yazmaz.
 
 ## Bitiş Ölçütleri (DoD)
 
 - [x] `IRunJudge` · `RunJudgeContext` · `RunJudgment` XML dokümanı 100.1'deki **on maddenin hepsini** taşır
 - [x] `RunJudgment.JudgeUsage` kaldırıldı; `grep -rn "JudgeUsage" src/ tests/` boş döner
-- [x] Aynı adlı iki `IRunJudge` kaydı host başlarken `AgentPrismException` üretir; karşılaştırma `OrdinalIgnoreCase`
+- [x] Aynı adlı iki `IRunJudge` kaydı host başlarken `TraconException` üretir; karşılaştırma `OrdinalIgnoreCase`
 - [x] Boş/geçersiz `Name` host başlarken reddedilir
 - [x] Aralık dışı skor kalıcılaşmaz, `judge_contract` üretir ve **yeniden kuyruklanmaz**
 - [x] Yargıcın keyfi `OperationCanceledException`'ı job'ı `Running` bırakmaz; gerçek host iptali hâlâ yayılır (iki test birlikte)
@@ -60,14 +60,14 @@
 - [x] 🚨 Yargıcın `JudgeAsync` içinde başlattığı `run` **örneklenmez**; döngü testi yeşil
 - [x] `ModelRunJudge` `CreateChatClientAsync(..., ModelCredentialSource.Setup, ...)` kullanır; egress policy uygulanır, BYOK anahtarı **kullanılmaz** (iki ayrı test)
 - [x] `Reason` 4000 karakterde kırpılır ve kırpma işaretlenir; skor yazılır
-- [x] `RunJudgeContract` `AgentPrism.Testing.Contracts.Judges` ad alanında yayınlandı; paketin bağımlılık grafiğine `AgentPrism.Core` **inmez** (`project.assets.json` ölçümü)
+- [x] `RunJudgeContract` `Tracon.Testing.Contracts.Judges` ad alanında yayınlandı; paketin bağımlılık grafiğine `Tracon.Core` **inmez** (`project.assets.json` ölçümü)
 - [x] Sözleşme paketinin public yüzeyine `Shouldly` tipi sızmaz
-- [x] `samples/AgentPrism.Samples.CustomRunJudge` yalnız `PackageReference` kullanır; `grep -c ProjectReference` → `0`
+- [x] `samples/Tracon.Samples.CustomRunJudge` yalnız `PackageReference` kullanır; `grep -c ProjectReference` → `0`
 - [~] Sample'ın test projesi `RunJudgeContract`'ı türetir, kapsam kapısını koşar **ve** uçtan uca bir skor kalıcılaştırır; hepsi yeşil — yayınlanmamış contract paketi nedeniyle henüz doğrulanmadı
 - [x] Mevcut `StoreContractCoverageTests` (dört koşum) ve sağlayıcı kapsam testi yeşil kaldı
 - [x] `OnlineEvalJobHandler`'ın yanlış retry yorumu düzeltildi ve bir test davranışı kanıtlıyor
 - [x] Dört doğrulama kapısı sıfır uyarı verir
-- [x] `samples/AgentPrism.Api` ile gerçek `run` yapıldı; sample yargıç kaydedilip skor üretildi, çıktı belgeye yazıldı
+- [x] `samples/Tracon.Api` ile gerçek `run` yapıldı; sample yargıç kaydedilip skor üretildi, çıktı belgeye yazıldı
 - [x] `secret` taraması boş döndü
 - [x] Manuel kabul case'leri `docs/manuel-test/17-EVAL-VE-DENEYLER.md` içine eklendi; otomatikleştirilebilenler koşuldu
 - [x] `faz-denetim` koşuldu; 🔴 bulgu kalmadı
@@ -84,18 +84,18 @@ python3 scripts/kapi.py kapanis --taban 64c0a39
 grep -rn "JudgeUsage" src/ tests/ docs-site/src/content/docs/api/ || echo "temiz"
 
 # Sözleşme paketi Core'a inmiyor
-F=$(find artifacts/obj/AgentPrism.Testing.Contracts.Xunit -name project.assets.json | head -1)
-python3 -c "import json;d=json.load(open('$F'));print([k for k in list(d['targets'].values())[0] if 'AgentPrism.Core' in k])"
+F=$(find artifacts/obj/Tracon.Testing.Contracts.Xunit -name project.assets.json | head -1)
+python3 -c "import json;d=json.load(open('$F'));print([k for k in list(d['targets'].values())[0] if 'Tracon.Core' in k])"
 # beklenen: []
 
 # Sample yalnız NuGet
-grep -c ProjectReference samples/AgentPrism.Samples.CustomRunJudge/*.csproj || true   # 0
+grep -c ProjectReference samples/Tracon.Samples.CustomRunJudge/*.csproj || true   # 0
 
 # Sample sözleşmeyi geçiyor
-MSBUILDDISABLENODEREUSE=1 dotnet test samples/AgentPrism.Samples.CustomRunJudge.Tests
+MSBUILDDISABLENODEREUSE=1 dotnet test samples/Tracon.Samples.CustomRunJudge.Tests
 
 # Döngü ve iptal regresyonları
-./artifacts/bin/AgentPrism.Core.UnitTests/release/AgentPrism.Core.UnitTests \
+./artifacts/bin/Tracon.Core.UnitTests/release/Tracon.Core.UnitTests \
   --filter-method "*JudgeSamplingSuppression*|*OnlineEvalCancellation*|*OnlineEvalTimeout*"
 ```
 

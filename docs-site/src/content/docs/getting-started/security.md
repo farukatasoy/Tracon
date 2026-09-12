@@ -1,11 +1,11 @@
 ---
 title: Securing the endpoints
-description: Protect AgentPrism with network boundaries, bearer tokens, scoped API keys, roles, tenancy, and outbound guards.
+description: Protect Tracon with network boundaries, bearer tokens, scoped API keys, roles, tenancy, and outbound guards.
 sidebar:
   order: 5
 ---
 
-By default AgentPrism is reachable from `localhost` and nowhere else. That is the
+By default Tracon is reachable from `localhost` and nowhere else. That is the
 safe state, and an application that maps it and forgets to configure anything is not
 exposed. Everything below is about leaving that state on purpose.
 
@@ -43,7 +43,7 @@ accidental exposure impossible, so turning it off should be a deliberate line in
 review:
 
 ```csharp
-app.MapAgentPrism("/agentprism", options => options.AllowRemoteAccess = true);
+app.MapTracon("/tracon", options => options.AllowRemoteAccess = true);
 ```
 
 :::danger
@@ -57,7 +57,7 @@ port.
 A single shared token, compared in constant time:
 
 ```csharp
-options.AuthToken = builder.Configuration["AgentPrism:AuthToken"];
+options.AuthToken = builder.Configuration["Tracon:AuthToken"];
 ```
 
 Good enough for one operator or a private network. It cannot be revoked
@@ -81,11 +81,11 @@ header for tenant resolution. A secret is proof; a header is a claim.
 
 ### 4. An authorization policy
 
-The production path. Hand AgentPrism a policy name and it runs inside your own
+The production path. Hand Tracon a policy name and it runs inside your own
 authentication pipeline:
 
 ```csharp
-options.RequireAuthorization("AgentPrismAdmin");
+options.RequireAuthorization("TraconAdmin");
 ```
 
 ## Roles
@@ -98,7 +98,7 @@ Three policy names — `Reader`, `Operator`, `Admin` — that you bind to your o
 | Operator | Reader, plus start runs, decide approvals, delete sessions |
 | Admin | Everything: write definitions, add MCP servers, manage tenants and approval rules, read the audit trail |
 
-AgentPrism stores no users and no roles. If a policy is not registered in your
+Tracon stores no users and no roles. If a policy is not registered in your
 application, that endpoint group simply falls back to the layers above — so upgrading
 never breaks a working deployment. Turn on `RequireRolePolicies` and a missing policy
 becomes a **startup** error instead of a silent gap.
@@ -130,7 +130,7 @@ server and proxy logs.
 
 ## Outbound requests are guarded too
 
-AgentPrism reaches the network from three places, and each one accepts an address that
+Tracon reaches the network from three places, and each one accepts an address that
 ultimately came from a user. That makes all three an SSRF risk — cloud metadata
 endpoints (`169.254.169.254`) included, which often hand out unauthenticated temporary
 credentials.
@@ -145,7 +145,7 @@ One guard covers all three. Private network targets are refused by default:
 
 ```json
 {
-  "AgentPrism": {
+  "Tracon": {
     "Egress": {
       "AllowPrivateNetworkTargets": false
     }
@@ -178,14 +178,14 @@ followed — a redirect is an escape route into a private network.
 A stored record never holds a secret value; it holds the **name** of the configuration
 key the value is read from. That alone is not enough, so each name must sit under an
 allowed prefix. Without it, a record could name `ConnectionStrings:Default` as its
-"API key" and AgentPrism would send that value to a remote server.
+"API key" and Tracon would send that value to a remote server.
 
 | Record | Field | Default prefix |
 |---|---|---|
-| Inbound trigger | `signingSecretConfigurationName` | `AgentPrism:TriggerSecrets:` |
-| Tenant provider binding | `apiKeyConfigurationName` | `AgentPrism:ProviderKeys:` |
-| MCP server | `authorizationConfigurationKey`, `oauthClientSecretConfigurationKey` | `AgentPrism:McpSecrets:` |
-| Webhook subscription | `secretConfigurationKey` | `AgentPrism:WebhookSecrets:` |
+| Inbound trigger | `signingSecretConfigurationName` | `Tracon:TriggerSecrets:` |
+| Tenant provider binding | `apiKeyConfigurationName` | `Tracon:ProviderKeys:` |
+| MCP server | `authorizationConfigurationKey`, `oauthClientSecretConfigurationKey` | `Tracon:McpSecrets:` |
+| Webhook subscription | `secretConfigurationKey` | `Tracon:WebhookSecrets:` |
 
 Each prefix is configurable through the matching options section, and the rule is
 enforced twice: where the record is saved, and again where the value is resolved — so
@@ -193,7 +193,7 @@ a record written before a prefix was configured cannot quietly read outside it.
 
 ## What is stored in the clear
 
-By default, AgentPrism does **not** encrypt content at rest. Your database holds
+By default, Tracon does **not** encrypt content at rest. Your database holds
 these in plain form unless you turn on [content protection](#at-rest-content-protection)
 below, so plan for that before storing regulated data:
 
@@ -216,11 +216,11 @@ SHA-256 hash, never as a recoverable value.
 
 `AddContentProtection(...)` encrypts the ten columns above with AES-256-GCM before
 they reach the database, and decrypts them transparently on read — the rest of
-AgentPrism, and your own code, never sees ciphertext. It is off by default (no
+Tracon, and your own code, never sees ciphertext. It is off by default (no
 surprises); turning it on is a deliberate, explicit call.
 
 ```csharp
-builder.AddAgentPrism()
+builder.AddTracon()
        .AddContentProtection(options =>
        {
            options.ActiveKeyId = "2026-08";
@@ -230,7 +230,7 @@ builder.AddAgentPrism()
 ```
 
 `Keys` never holds a key's raw material — it maps a key id to the **name** of
-another configuration key, the same indirection AgentPrism uses for provider
+another configuration key, the same indirection Tracon uses for provider
 credentials. The raw 32-byte, base64-encoded key lives only in `dotnet user-secrets`
 or an environment variable:
 
@@ -249,7 +249,7 @@ Three limits are worth knowing before you rely on this:
   and every candidate file is decrypted and matched on the client instead.
 - **Only new writes are protected.** Turning protection on does not retroactively
   encrypt existing rows, and turning it off does not decrypt them — each row stays
-  readable either way, because AgentPrism decides whether a value is encrypted by
+  readable either way, because Tracon decides whether a value is encrypted by
   looking at the value itself, never at configuration. Key rotation is lazy for the
   same reason: an old key id stays configured for as long as any row still carries
   it, and losing that key makes those rows unrecoverable.
@@ -267,7 +267,7 @@ delete what you no longer need.
 - [ ] Retention policies exist for run events and traces
 - [ ] Encryption at rest is provided by the database or the disk, `AddContentProtection(...)`, or both
 - [ ] Skill script execution is left off unless you have read what it does
-- [ ] `AgentPrism:Egress:AllowPrivateNetworkTargets` is on only if your MCP servers or
+- [ ] `Tracon:Egress:AllowPrivateNetworkTargets` is on only if your MCP servers or
       provider endpoints really are on the internal network
 - [ ] `IToolAuthorizationHandler` is implemented for any tool that should not be callable
       by every caller — see [Tools: authorization and timeout](/concepts/tools/#authorization-validation-and-timeout)

@@ -1,0 +1,63 @@
+<!--
+  WARNING: This project loads the SDK via an explicit Import, not via the
+  `Sdk="..."` attribute.
+
+  Reason, measured: when the `Sdk` attribute is used, the SDK targets are
+  placed at the VERY END of the project. Tracon.UI.Frontend.targets loads
+  before that, and its BeforeTargets="AssignTargetPaths" target is silently
+  dropped with a message like:
+
+      The target "AssignTargetPaths" listed in a BeforeTargets attribute
+      does not exist in the project, and will be ignored.
+
+  Result: the UI assets are never embedded, and the package is silently
+  produced without a UI. With the explicit Import form, the frontend targets
+  load AFTER the SDK targets.
+-->
+<Project>
+
+  <Import Project="Sdk.props" Sdk="Microsoft.NET.Sdk" />
+
+  <PropertyGroup>
+    <Description>TraconUI - embedded management UI. Single-page application written with React + TypeScript, embedded in the assembly, and served under /tracon. Creates no JavaScript dependency in the consumer's project.</Description>
+    <PackageTags>$(CommonPackageTags);ui;dashboard;devui;playground</PackageTags>
+    <!-- No AOT promise can be made because of embedded asset scanning and the ASP.NET Core dependency. -->
+    <TraconAotCompatible>false</TraconAotCompatible>
+  </PropertyGroup>
+
+  <PropertyGroup Label="Frontend build">
+    <!--
+      The frontend source lives under frontend/. The Vite output is written into
+      wwwroot/ and embedded in the assembly as an EmbeddedResource. The chain is
+      defined in Tracon.UI.Frontend.targets and is incremental.
+
+      Can be disabled for a fast inner loop:  dotnet build -p:TraconFrontendEnabled=false
+    -->
+    <TraconFrontendEnabled Condition=" '$(TraconFrontendEnabled)' == '' ">true</TraconFrontendEnabled>
+    <TraconFrontendRoot>$(MSBuildProjectDirectory)/frontend</TraconFrontendRoot>
+    <TraconFrontendOutput>$(MSBuildProjectDirectory)/wwwroot</TraconFrontendOutput>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../Tracon.AspNetCore/Tracon.AspNetCore.csproj" />
+  </ItemGroup>
+
+  <!--
+    Show the frontend sources in the IDE tree, but do not include them in the
+    build. node_modules and the build output are excluded.
+  -->
+  <ItemGroup>
+    <None Include="frontend/**/*"
+          Exclude="frontend/node_modules/**;frontend/dist/**"
+          Visible="true" />
+  </ItemGroup>
+
+  <Import Project="Sdk.targets" Sdk="Microsoft.NET.Sdk" />
+
+  <Import Project="Tracon.UI.Frontend.targets" />
+
+</Project>

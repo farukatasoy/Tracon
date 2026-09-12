@@ -3,7 +3,7 @@
 > **Durum:** ✅ Tamamlandı (2026-08-06)
 > **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-60**
 > **Önkoşul:** Yok
-> **Paketler:** `AgentPrism.Abstractions`, `.Core`, `.AspNetCore`, `.UI`
+> **Paketler:** `Tracon.Abstractions`, `.Core`, `.AspNetCore`, `.UI`
 > **Yeni paket:** Yok · **Migration:** Yok
 > **Public API:** büyüyor — Faz 7'den önce ucuz
 
@@ -32,9 +32,9 @@ Bir agent tanımını **kaydetmeden** denemenin yolu yoktur. Bugün tek yol tan�
 
 1. **🚨 Döngü denetimi YENİ yazılmadı — zaten vardı.** Planın "Bugün ne
    çalışmıyor" kanıt tablosu `grep -rni "cycle|circular"` aramasını yalnız
-   `src/AgentPrism.Core/Compilation/` ve `src/AgentPrism.Core/Agents/`
+   `src/Tracon.Core/Compilation/` ve `src/Tracon.Core/Agents/`
    dizinlerinde çalıştırmıştı. Gerçek statik döngü denetimi
-   `src/AgentPrism.Core/Graph/AgentCallGraph.cs`'te **zaten** yaşıyordu ve
+   `src/Tracon.Core/Graph/AgentCallGraph.cs`'te **zaten** yaşıyordu ve
    `POST /api/agents`/`PUT /api/agents/{name}` kaydetme anında kullanılıyordu;
    bu dosya ayrı bir karar numarası taşımadan, önceki bir fazda eklenmişti.
    Plan bu yüzden `CallGraphCycleDetector.cs` adında
@@ -43,14 +43,14 @@ Bir agent tanımını **kaydetmeden** denemenin yolu yoktur. Bugün tek yol tan�
    `Compilation/CallGraphCycleDetector.cs` **oluşturulmadı**.
 2. **`ValidateAsync`'in `mcpTimeout` parametresi kaldırıldı.** Planın taslak
    imzası yalnız `(AgentDefinition, CancellationToken)` idi; ilk taslakta bir
-   `TimeSpan mcpTimeout` parametresi eklenmişti ama `AgentPrismValidationOptions`
-   `IOptions<AgentPrismOptions>` üzerinden zaten kayıtlı olduğu için parametre
+   `TimeSpan mcpTimeout` parametresi eklenmişti ama `TraconValidationOptions`
+   `IOptions<TraconOptions>` üzerinden zaten kayıtlı olduğu için parametre
    gereksizdi. Kaldırıldı — planın taslak imzasıyla birebir aynı (K-253).
 3. **Açık soru 2'nin "B" seçeneği farklı bir dosyada uygulandı.** Plan
-   `AgentPrismEndpointOptions`'ta (AspNetCore) ayarlanabilir bir zaman aşımı
-   öneriyordu. `AgentDefinitionValidator` `AgentPrism.Core`'da yaşar ve
-   `AgentPrism.AspNetCore`'a bağımlı olamaz (paket yönü tersine döner); ayar bu
-   yüzden `AgentPrismOptions.Validation.McpTimeout` (Core) altına kondu — aynı
+   `TraconEndpointOptions`'ta (AspNetCore) ayarlanabilir bir zaman aşımı
+   öneriyordu. `AgentDefinitionValidator` `Tracon.Core`'da yaşar ve
+   `Tracon.AspNetCore`'a bağımlı olamaz (paket yönü tersine döner); ayar bu
+   yüzden `TraconOptions.Validation.McpTimeout` (Core) altına kondu — aynı
    yapılandırılabilirlik, doğru katman (K-253).
 4. **`unknown_model` denetimi model **adını** değil, sağlayıcı **kaydını**
    denetler.** K-032 model kataloğunun bir doğrulama listesi olmadığını
@@ -66,7 +66,7 @@ Bir agent tanımını **kaydetmeden** denemenin yolu yoktur. Bugün tek yol tan�
    `unknown_tool` olarak raporluyordu; bu, DoD'nin "Ulaşılamayan MCP sunucusu
    `inconclusive:true` üretir, `valid` düşmez" şartını ihlal ederdi — hem
    çünkü doğrudan `unknown_tool` (Error) eklenir hem de final derleme aynı
-   tool için `AgentPrismCompilationException` fırlatırdı. Düzeltme:
+   tool için `TraconCompilationException` fırlatırdı. Düzeltme:
    `Inconclusive` iken ne `unknown_tool` yazılır ne de final derleme çalışır.
    Ölçüldü: `AgentDefinitionValidatorTests.Ulasilamayan_mcp_sunucusu_...` bu
    olmadan kırmızı veriyordu.
@@ -76,12 +76,12 @@ Bir agent tanımını **kaydetmeden** denemenin yolu yoktur. Bugün tek yol tan�
 | Karar | Tarih | Gerekçe | Yeniden açılma koşulu |
 |---|---|---|---|
 | **K-252 — Cağrı grafiği döngü/bilinmeyen-agent denetimi `AgentCallGraph`'ta genişletildi, yeni dosya açılmadı** | 2026-08-06 | Statik döngü denetimi Faz 34 planlanmadan önce zaten vardı (`AgentCallGraph.Validate`, kaydetme anında `POST/PUT /api/agents` tarafından kullanılıyor). Planın kanıt taraması yanlış dizinde arandığı için bunu kaçırmıştı. İki ayrı döngü denetleyicisi (biri kaydetmede, biri doğrulama ucunda) aynı mantığı iki yerde bakımsız bırakırdı — ilk sapma ikincisini yakalamazdı. Çözüm: `Validate(string)` (eski imza, testleri bozulmadan kalır) artık yeni `ValidateDetailed(...)`'i çağırır; ikincisi kod (`unknown_agent`/`cycle`) ve mesaj birlikte taşıyan `AgentCallGraphProblem` döner. | Döngü denetiminin kendisi değişirse (yeni bir hata sınıfı, örn. derinlik tahmini) her iki tüketici de aynı yerden güncellenir |
-| **K-253 — `AgentPrismValidationOptions.McpTimeout` `AgentPrismOptions`'a (Core) eklendi, `AgentPrismEndpointOptions`'a (AspNetCore) değil** | 2026-08-06 | Planın açık soru 2'si zaman aşımını `AgentPrismEndpointOptions`'ta öneriyordu, ama `AgentDefinitionValidator` `AgentPrism.Core`'dadır ve `AgentPrism.Core`, `AgentPrism.AspNetCore`'a bağımlı **olamaz** (paket bağımlılık yönü K1'in bir parçası). `IOptions<AgentPrismOptions>` zaten `AgentDefinitionCompiler`'ın da kullandığı ortak yapılandırma kanalıdır; aynı kanaldan okumak yeni bir katman ihlali yaratmadan aynı yapılandırılabilirliği (varsayılan 5 sn, `AgentPrism:Validation:McpTimeout` ile değiştirilebilir) verir. | Doğrulama ucu HTTP katmanına özgü bir ayar (örn. istek başına zaman aşımı) gerektirirse, o ayar `AgentPrismEndpointOptions`'a eklenip `AgentDefinitionValidator.ValidateAsync`'e parametre olarak geçirilebilir |
+| **K-253 — `TraconValidationOptions.McpTimeout` `TraconOptions`'a (Core) eklendi, `TraconEndpointOptions`'a (AspNetCore) değil** | 2026-08-06 | Planın açık soru 2'si zaman aşımını `TraconEndpointOptions`'ta öneriyordu, ama `AgentDefinitionValidator` `Tracon.Core`'dadır ve `Tracon.Core`, `Tracon.AspNetCore`'a bağımlı **olamaz** (paket bağımlılık yönü K1'in bir parçası). `IOptions<TraconOptions>` zaten `AgentDefinitionCompiler`'ın da kullandığı ortak yapılandırma kanalıdır; aynı kanaldan okumak yeni bir katman ihlali yaratmadan aynı yapılandırılabilirliği (varsayılan 5 sn, `Tracon:Validation:McpTimeout` ile değiştirilebilir) verir. | Doğrulama ucu HTTP katmanına özgü bir ayar (örn. istek başına zaman aşımı) gerektirirse, o ayar `TraconEndpointOptions`'a eklenip `AgentDefinitionValidator.ValidateAsync`'e parametre olarak geçirilebilir |
 
 ## Bitiş Ölçütleri (DoD) — gerçekleşen
 
 - [x] Geçerli bir tanım `POST /api/agents/validate` ile `200` +
-      `{"valid":true,"messages":[]}` döner — `samples/AgentPrism.Api`'de
+      `{"valid":true,"messages":[]}` döner — `samples/Tracon.Api`'de
       `provider:"openai"` ile doğrulandı (aşağıda çıktı)
 - [x] Bilinmeyen tool adı taşıyan tanım `200` + `valid:false` +
       `code:"unknown_tool"` döner
@@ -93,26 +93,26 @@ Bir agent tanımını **kaydetmeden** denemenin yolu yoktur. Bugün tek yol tan�
       sunucuda (11→11 agent, 0→0 run) doğrulandı
 - [x] Ulaşılamayan MCP sunucusu `inconclusive:true` üretir, `valid` düşmez
 - [x] Dört doğrulama kapısı sıfır uyarı verdi
-- [x] `samples/AgentPrism.Api` ile gerçek doğrulama yapıldı, çıktı aşağıda
+- [x] `samples/Tracon.Api` ile gerçek doğrulama yapıldı, çıktı aşağıda
 - [x] `secret` taraması boş döndü
 - [x] `en.ts` ve `tr.ts` eksiksiz; bundle payı ölçüldü: **155,1 KB gzip / 250 KB**
       (önceki 151,3 KB'den +3,8 KB — planın tahmini 1–2 KB'nin biraz üzerinde,
       bütçenin hâlâ **94,9 KB** altında)
 
-### Gerçek sunucu çıktısı (2026-08-06, `samples/AgentPrism.Api`)
+### Gerçek sunucu çıktısı (2026-08-06, `samples/Tracon.Api`)
 
 ```bash
-$ curl -s -X POST http://localhost:5080/agentprism/api/agents/validate \
+$ curl -s -X POST http://localhost:5080/tracon/api/agents/validate \
     -d '{"name":"deneme","model":{"provider":"openai","model":"gpt-5.4-mini"},"toolNames":[]}'
 {"valid":true,"inconclusive":false,"messages":[]}
 
-$ curl -s -X POST http://localhost:5080/agentprism/api/agents/validate \
+$ curl -s -X POST http://localhost:5080/tracon/api/agents/validate \
     -d '{"name":"deneme","model":{"provider":"openai","model":"gpt-5.4-mini"},"toolNames":["olmayan_tool"]}'
 {"valid":false,"inconclusive":false,"messages":[{"severity":"Error","code":"unknown_tool",
   "message":"'deneme' agent'i 'olmayan_tool' adli bir tool'a isaret ediyor ancak bu kodda kayitli degil.",
   "path":"toolNames[0]"}]}
 
-$ curl -s -X POST http://localhost:5080/agentprism/api/agents/validate \
+$ curl -s -X POST http://localhost:5080/tracon/api/agents/validate \
     -d '{"name":"deneme","model":{"provider":"openai","model":"gpt-5.4-mini"},"callableAgentNames":["deneme"]}'
 {"valid":false,"inconclusive":false,"messages":[{"severity":"Error","code":"cycle",
   "message":"'deneme' kendisini cagiramaz. ...","path":"callableAgentNames"}]}
@@ -129,7 +129,7 @@ $ curl -s -X POST http://localhost:5080/agentprism/api/agents/validate \
   uzunluğu sınırı) eklenirse hem `Validate` (kaydetme, `400`) hem
   `ValidateDetailed` (doğrulama ucu, tipli kod) **aynı yerden** güncellenir —
   ikisini ayrı ayrı senkronize etmeye gerek yok.
-- **`AgentDefinitionValidator` `AgentPrism.Core`'da, `IAgentCatalog`'u
+- **`AgentDefinitionValidator` `Tracon.Core`'da, `IAgentCatalog`'u
   doğrudan enjekte eder.** `CallableAgentResolver`'ın aksine gecikmeli
   çözümlemeye ihtiyacı yoktur çünkü `IAgentCatalog`'un **kendi** kurulumunun
   bir parçası değildir — `IAgentCatalog` zaten tamamen kurulduktan sonra
@@ -142,9 +142,9 @@ $ curl -s -X POST http://localhost:5080/agentprism/api/agents/validate \
   sınıflarıdır. Faz 35 maliyet/kota metriklerine dokunuyorsa bu ayrımla
   karışmaz; ama gelecekte doğrulama ucuna yeni bir ağ-bağımlı denetim
   eklenirse aynı deseni (başarısız → Inconclusive, final adımı atla) tekrarlayın.
-- **`AgentPrismValidationOptions` `AgentPrismOptions`'ın altında yaşıyor**,
-  yeni bir `AgentPrism:Validation:McpTimeout` yapılandırma anahtarı açtı.
-  `AgentPrismOptionsValidator` bunu doğruluyor (sıfırdan büyük olmalı).
+- **`TraconValidationOptions` `TraconOptions`'ın altında yaşıyor**,
+  yeni bir `Tracon:Validation:McpTimeout` yapılandırma anahtarı açtı.
+  `TraconOptionsValidator` bunu doğruluyor (sıfırdan büyük olmalı).
 - **Yarım kalan iş yok.** F-48 (GitOps: tanım dışa/içe aktarımı) bu ucu CI
   adımı olarak kullanacak; bu faz onun önkoşulunu (kaydetmeden derleme)
   hazırladı, F-48'in kendisi bu dalgada değildi.

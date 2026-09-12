@@ -79,7 +79,7 @@
 ## MT-API-060 — `GET /api/runs` varsayılan olarak yalnız kök çalıştırmaları döner
 
 **Gerçek sonuç**
-**KALDI — HATA-S2-001.** `includeChildren` olmadan `1` satır (doğru). Ancak `includeChildren=true` ile de **`1`** satır döndü — beklenen `2` (kök + `support` alt çalıştırması) değil. Kök çalıştırmanın kendisi `childRunCount:1` taşıyor (alt çalıştırma gerçekten var ve kaydedilmiş), ama `/api/runs?sessionId=api-agac-01&includeChildren=true` onu listelemiyor. Kök neden: `InMemoryRunStore.QueryRunsAsync` (`src/AgentPrism.Core/Storage/InMemoryRunStore.cs:339`) `SessionId` eşitlik filtresini `OnlyRootRuns`'tan bağımsız, HER satıra (alt çalıştırmalar dahil) uyguluyor. Alt çalıştırmaların kendi `sessionId` alanı **kasıtlı olarak** `null`'dur (K-217: 'sütun çalıştırma bu oturumla başlatıldı der, kapsam burada üretilen içerik bu oturuma aittir der' — `RunRecordingAgent.cs:481-485`). Aynı filtre deseni `PostgresQueries.cs:409`, `SqliteQueries.cs:458`, `SqlServerQueries.cs:488`'de birebir kopya — **dört store'un tamamını** etkiliyor. Sonuç: `sessionId` + `includeChildren=true` kombinasyonu asla alt çalıştırma göstermez; uç noktanın kendi `WithDescription` metni (`RunEndpoints.cs:83-86`, "'includeChildren=true' kullanin") bu tuzağı belirtmiyor — K1 'sıfır sürpriz' ilkesini ihlal ediyor. Doğru tam-aile görünümü yalnız `rootRunId`/`GET /api/runs/{id}/tree` ile elde ediliyor (MT-API-062 bunu doğruladı, aynı kök çalıştırmanın `/tree`'si doğru `2` satır döndürdü).
+**KALDI — HATA-S2-001.** `includeChildren` olmadan `1` satır (doğru). Ancak `includeChildren=true` ile de **`1`** satır döndü — beklenen `2` (kök + `support` alt çalıştırması) değil. Kök çalıştırmanın kendisi `childRunCount:1` taşıyor (alt çalıştırma gerçekten var ve kaydedilmiş), ama `/api/runs?sessionId=api-agac-01&includeChildren=true` onu listelemiyor. Kök neden: `InMemoryRunStore.QueryRunsAsync` (`src/Tracon.Core/Storage/InMemoryRunStore.cs:339`) `SessionId` eşitlik filtresini `OnlyRootRuns`'tan bağımsız, HER satıra (alt çalıştırmalar dahil) uyguluyor. Alt çalıştırmaların kendi `sessionId` alanı **kasıtlı olarak** `null`'dur (K-217: 'sütun çalıştırma bu oturumla başlatıldı der, kapsam burada üretilen içerik bu oturuma aittir der' — `RunRecordingAgent.cs:481-485`). Aynı filtre deseni `PostgresQueries.cs:409`, `SqliteQueries.cs:458`, `SqlServerQueries.cs:488`'de birebir kopya — **dört store'un tamamını** etkiliyor. Sonuç: `sessionId` + `includeChildren=true` kombinasyonu asla alt çalıştırma göstermez; uç noktanın kendi `WithDescription` metni (`RunEndpoints.cs:83-86`, "'includeChildren=true' kullanin") bu tuzağı belirtmiyor — K1 'sıfır sürpriz' ilkesini ihlal ediyor. Doğru tam-aile görünümü yalnız `rootRunId`/`GET /api/runs/{id}/tree` ile elde ediliyor (MT-API-062 bunu doğruladı, aynı kök çalıştırmanın `/tree`'si doğru `2` satır döndürdü).
 
 ---
 
@@ -115,15 +115,15 @@ MT-API-060'ın kaydettiği alt çalıştırma kimliği (`/tree` üzerinden bulun
 ## MT-API-064 — Girdi kaydı kapalıyken `GET /api/runs/{id}/input` `404` döner
 
 **Gerçek sonuç**
-_(2026-08-13 koşumu: Kaldı — HATA-S2-002. `AgentPrismServiceCollectionExtensions
+_(2026-08-13 koşumu: Kaldı — HATA-S2-002. `TraconServiceCollectionExtensions
 .BindRunRecording` `RecordRunInput`'ı hiç okumuyordu, `GET .../input` her zaman
 `200` dönüyordu.)_
 
 **2026-08-15 yeniden koşum (KAPANIS-PLANI §9, K-406 sonrası) — Geçti.**
 Kök neden `K-406` ile kapatıldı: `BindRunRecording`
-(`src/AgentPrism.Core/AgentPrismServiceCollectionExtensions.cs:1799-1801`)
+(`src/Tracon.Core/TraconServiceCollectionExtensions.cs:1799-1801`)
 artık `RecordRunInput`'ı `TryReadBool` ile config'ten okuyor. Canlı
-doğrulama: `AgentPrism:RunRecording:RecordRunInput=false` ile yeniden
+doğrulama: `Tracon:RunRecording:RecordRunInput=false` ile yeniden
 başlatıldı, `support` agent'ına bir tur çalıştırıldı. `GET /api/runs/{id}`
 → **200** (çalıştırma var). `GET /api/runs/{id}/input` → **404**, gövde
 `"No recorded input"` + `"Run '...' has no recorded input. It may have

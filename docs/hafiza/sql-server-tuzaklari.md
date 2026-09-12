@@ -1,6 +1,6 @@
 # SQL Server Tuzaklari — Parametre, Sorgu, Sema Farklari, Upsert
 
-> `AgentPrism.SqlServer`'a ozgu davranis ve onun diger saglayicilardan ayrildigi
+> `Tracon.SqlServer`'a ozgu davranis ve onun diger saglayicilardan ayrildigi
 > noktalar. Paylasilan katman icin: [`sql-saglayicilari.md`](sql-saglayicilari.md).
 > PostgreSQL icin: [`postgresql.md`](postgresql.md). SQLite icin:
 > [`sqlite.md`](sqlite.md).
@@ -50,7 +50,7 @@
   okumasi HER ZAMAN `Dialect.ReadTextArray`/`ReadUuidArray` uzerinden gecer; ayni
   kural bir `DbConnection`'i somut tipe CAST etmek icin de gecerlidir (K-545).
   Vaka: [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
-- **🚨 Paylaşılan bir sütun listesini yeniden adlandırmak, o listeyi ELLE TEKRARLAYAN bir sağlayıcı sorgusunu SESSİZCE bayat bırakır** (2026-09-03, Faz 137): `JobColumns` sabiti üç sağlayıcıda paylaşılırken SQL Server'ın `LeaseJob`'ı aynı listeyi `inserted.` önekiyle ELLE yazıyordu. `kind` → `handler_key` yeniden adlandırması yirmi sorguyu düzeltti, o birini kaçırdı; derleyici SQL metnini görmez, PostgreSQL/SQLite snapshot'ları o sorguyu içermez ve kusur yalnız SQL Server entegrasyon koşumunda "Invalid column name 'kind'" olarak çıktı. Çözüm listeyi TÜRETMEKtir (`InsertedJobColumns = Qualify(JobColumns, "inserted.")`) — okuyucu ORDINAL eşlediği için sıra da garanti altına girer. Sütun listesi değiştirirken `grep -rn "inserted\.\|excluded\.\|EXCLUDED\." src/AgentPrism.{SqlServer,Sqlite,PostgreSql}/Internal/` ile elle yazılmış her kopyayı tara.
+- **🚨 Paylaşılan bir sütun listesini yeniden adlandırmak, o listeyi ELLE TEKRARLAYAN bir sağlayıcı sorgusunu SESSİZCE bayat bırakır** (2026-09-03, Faz 137): `JobColumns` sabiti üç sağlayıcıda paylaşılırken SQL Server'ın `LeaseJob`'ı aynı listeyi `inserted.` önekiyle ELLE yazıyordu. `kind` → `handler_key` yeniden adlandırması yirmi sorguyu düzeltti, o birini kaçırdı; derleyici SQL metnini görmez, PostgreSQL/SQLite snapshot'ları o sorguyu içermez ve kusur yalnız SQL Server entegrasyon koşumunda "Invalid column name 'kind'" olarak çıktı. Çözüm listeyi TÜRETMEKtir (`InsertedJobColumns = Qualify(JobColumns, "inserted.")`) — okuyucu ORDINAL eşlediği için sıra da garanti altına girer. Sütun listesi değiştirirken `grep -rn "inserted\.\|excluded\.\|EXCLUDED\." src/Tracon.{SqlServer,Sqlite,PostgreSql}/Internal/` ile elle yazılmış her kopyayı tara.
 
 - **Iki dalli upsert `OUTPUT` GEREKTIRMEZSE cok basitlesir** (2026-08-19, Faz 65): `UpsertAsync` deger dondurmuyorsa `UPDATE WITH (UPDLOCK, SERIALIZABLE) ...; IF @@ROWCOUNT = 0 INSERT ...;` yeter — K-187/188/189'un asil tuzagi (`OUTPUT` ikinci sonuc kumesine duser) hic devreye girmez. `tenant_provider_bindings`/`tenant_egress_policies` bunu kullanir.  
   *(Faz 155'te `sql-saglayicilari.md`'den butce icin tasindi.)*

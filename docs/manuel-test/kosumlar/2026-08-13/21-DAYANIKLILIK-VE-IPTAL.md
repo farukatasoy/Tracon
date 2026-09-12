@@ -71,7 +71,7 @@ Sunucu surec, uzun bir yonlendirici calistirmasi baslar baslamaz (kill -9 ile) d
 ## MT-RES-005 — 🚨 Workflow çalıştırması gerçekten iptal edilebiliyor mu (Faz 32 kapanışında KANITLANAMAMIŞ boşluğun denemesi)
 
 **Gerçek sonuç**
-**HATA-S2-010 (Yüksek, doğrulanmış şüpheydi — Faz 32'nin kendi kapatamadığı açık soruyu kapattı).** `ozetle-ve-cevir` workflow'u `FIX-PROMPT-04` boyutunda bir metinle başlatıldı. Cancel ÖNCESİ ayrı bir `GET` ile durum açıkça `Running` olarak DOĞRULANDI (yarış koşulu değil). `POST /api/runs/{id}/cancel` → `HTTP 202`. 3 saniye sonra: `status: Completed` (`Canceled` DEĞİL), `error: null` — düzeltilmiş beklentiyle **tam örtüşüyor**. Faz 32'nin kendi denemesinde yaşadığı aynı sorun (grafik iptali yutuluyor) TEKRARLANDI ve DOĞRULANDI. Kod okuması: `WorkflowRunner.cs:356-368` AgentPrism seviyesinde DOĞRU görünüyor — tek bir `linked` `CancellationTokenSource` hem `IRunCancellationRegistry.Register`'a (satır 362) hem `run.WatchStreamAsync`'e (satır 589, `linked.Token`) besleniyor; `OperationCanceledException` doğru şekilde yakalanıyor (satır 612). Sorun muhtemelen MAF'ın kendi `AgentWorkflowBuilder.BuildSequential` grafiğinin (`StreamingRun.WatchStreamAsync` iç uygulaması) dışarıdan gelen iptal token'ını çalışan bir adım ortasında GERÇEKTEN honor etmemesi — AgentPrism dışı (bağımlılık) bir sınır, ama kullanıcıya göre SONUÇ AYNI: bir workflow çalıştırması iptal edilemiyor, sessizce tamamlanıyor (maliyet/zaman israfı + kullanıcı yanıltılması).
+**HATA-S2-010 (Yüksek, doğrulanmış şüpheydi — Faz 32'nin kendi kapatamadığı açık soruyu kapattı).** `ozetle-ve-cevir` workflow'u `FIX-PROMPT-04` boyutunda bir metinle başlatıldı. Cancel ÖNCESİ ayrı bir `GET` ile durum açıkça `Running` olarak DOĞRULANDI (yarış koşulu değil). `POST /api/runs/{id}/cancel` → `HTTP 202`. 3 saniye sonra: `status: Completed` (`Canceled` DEĞİL), `error: null` — düzeltilmiş beklentiyle **tam örtüşüyor**. Faz 32'nin kendi denemesinde yaşadığı aynı sorun (grafik iptali yutuluyor) TEKRARLANDI ve DOĞRULANDI. Kod okuması: `WorkflowRunner.cs:356-368` Tracon seviyesinde DOĞRU görünüyor — tek bir `linked` `CancellationTokenSource` hem `IRunCancellationRegistry.Register`'a (satır 362) hem `run.WatchStreamAsync`'e (satır 589, `linked.Token`) besleniyor; `OperationCanceledException` doğru şekilde yakalanıyor (satır 612). Sorun muhtemelen MAF'ın kendi `AgentWorkflowBuilder.BuildSequential` grafiğinin (`StreamingRun.WatchStreamAsync` iç uygulaması) dışarıdan gelen iptal token'ını çalışan bir adım ortasında GERÇEKTEN honor etmemesi — Tracon dışı (bağımlılık) bir sınır, ama kullanıcıya göre SONUÇ AYNI: bir workflow çalıştırması iptal edilemiyor, sessizce tamamlanıyor (maliyet/zaman israfı + kullanıcı yanıltılması).
 
 ---
 
@@ -106,10 +106,10 @@ periyodik yazar; `RunReconciliationService` `status=Running` VE
 çağırmaz; DB'ye doğrudan yazarak bir "çökmüş süreç" taklit eder.
 
 ```bash
-dotnet user-secrets set "AgentPrism:RunReconciliation:Enabled" "true"
-dotnet user-secrets set "AgentPrism:RunReconciliation:HeartbeatInterval" "00:00:01"
-dotnet user-secrets set "AgentPrism:RunReconciliation:OrphanThreshold" "00:00:03"
-dotnet user-secrets set "AgentPrism:RunReconciliation:ScanInterval" "00:00:01"
+dotnet user-secrets set "Tracon:RunReconciliation:Enabled" "true"
+dotnet user-secrets set "Tracon:RunReconciliation:HeartbeatInterval" "00:00:01"
+dotnet user-secrets set "Tracon:RunReconciliation:OrphanThreshold" "00:00:03"
+dotnet user-secrets set "Tracon:RunReconciliation:ScanInterval" "00:00:01"
 # uygulamayi yeniden baslat
 ```
 
@@ -118,14 +118,14 @@ dotnet user-secrets set "AgentPrism:RunReconciliation:ScanInterval" "00:00:01"
 ## MT-RES-014 — (opsiyonel, iki örnek) `SingletonExecution` kapalıyken uzlaştırma HER örnekte bağımsız koşar; açıldığında tekilleşir
 
 **Gerçek sonuç**
-Atlandi - case'in kendisi bunu acikca izin veriyor ("Bu case iki terminal ister; zaman butcesi dar ise Atlandi isaretlenip gerekce not dusulebilir"). Bu kosum oturumu tek bir surec/port uzerinde calisiyor; ikinci bagimsiz bir AgentPrism ornegi (ayni PostgreSQL'e farkli portta baglanan) baslatmak oturumun mevcut tek-sunucu akisini bozar. Gerekce: zaman butcesi.
+Atlandi - case'in kendisi bunu acikca izin veriyor ("Bu case iki terminal ister; zaman butcesi dar ise Atlandi isaretlenip gerekce not dusulebilir"). Bu kosum oturumu tek bir surec/port uzerinde calisiyor; ikinci bagimsiz bir Tracon ornegi (ayni PostgreSQL'e farkli portta baglanan) baslatmak oturumun mevcut tek-sunucu akisini bozar. Gerekce: zaman butcesi.
 
 **Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☑ Atlandı
 
 > **Not.** `pending_approvals` ve `run_heartbeats` (heartbeat ayrı bir tablo
 > DEĞİL, `runs.heartbeat_at` sütunu — bkz. `0026_run_heartbeat.sql`) için
 > `RetentionTargets.cs`'te bir giriş YOKTUR (`grep -n "IdempotencyKeys\|
-> RunInputs" src/AgentPrism.Abstractions/Retention/RetentionTargets.cs` iki
+> RunInputs" src/Tracon.Abstractions/Retention/RetentionTargets.cs` iki
 > sonuç döner, `PendingApprovals` yoktur). `pending_approvals` süresiz
 > BÜYÜYEBİLİR — `ApprovalExpirationService` yalnız `status`'u `Expired`
 > yapar, satırı SİLMEZ. Bu, `23-SAKLAMA-ARSIV-KOTA.md` üretilirken
@@ -146,7 +146,7 @@ kuyruğa düşürür, eski çalıştırma `AwaitingApproval`'da SONSUZA kalır (
 ## MT-RES-028 — 🚨 `ApprovalEndpoints` hiçbir ucunda `RequireApiKeyScope` çağırmaz — yalnız-okuma kapsamlı bir anahtar onay kararı verebiliyor mu
 
 **Gerçek sonuç**
-**KALDI - HATA-S2-011 (Yuksek, dogrulanmis supheydi).** Adim 2: yalniz RunsRead kapsamli bir anahtarla POST /api/approvals/{id}/decide -> HTTP 200, karar GERCEKTEN uygulandi (status: Approved). Adim 3 (kontrol grubu): AYNI anahtarla PUT /api/agents/{name} (AgentsAdmin gerektirir) -> HTTP 403, title: Kapsam yetersiz - anahtarin genel olarak kapsam sistemine tabi oldugu, yalniz ApprovalEndpoints'te bu denetimin HIC calismadigi dogrulandi. grep -n "RequireApiKeyScope" src/AgentPrism.AspNetCore/Endpoints/ApprovalEndpoints.cs bos doner (kod okumasiyla onceden olculmustu, koşumda dogrulandi). Salt-okunur bir otomasyon anahtari, bekleyen gercek yan etkili bir tool cagrisini (siparis iptali) onaylayabiliyor/reddedebiliyor.
+**KALDI - HATA-S2-011 (Yuksek, dogrulanmis supheydi).** Adim 2: yalniz RunsRead kapsamli bir anahtarla POST /api/approvals/{id}/decide -> HTTP 200, karar GERCEKTEN uygulandi (status: Approved). Adim 3 (kontrol grubu): AYNI anahtarla PUT /api/agents/{name} (AgentsAdmin gerektirir) -> HTTP 403, title: Kapsam yetersiz - anahtarin genel olarak kapsam sistemine tabi oldugu, yalniz ApprovalEndpoints'te bu denetimin HIC calismadigi dogrulandi. grep -n "RequireApiKeyScope" src/Tracon.AspNetCore/Endpoints/ApprovalEndpoints.cs bos doner (kod okumasiyla onceden olculmustu, koşumda dogrulandi). Salt-okunur bir otomasyon anahtari, bekleyen gercek yan etkili bir tool cagrisini (siparis iptali) onaylayabiliyor/reddedebiliyor.
 
 ---
 

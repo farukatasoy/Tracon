@@ -17,7 +17,7 @@ süreçlerinde `MSBUILDDISABLENODEREUSE=1` ile alındı. Süreler wall-clock'tur
 | `dotnet build` — frontend açık, sıcak | 6,05 s |
 | `dotnet build` — frontend kapalı, soğuk | 52,88 s |
 | `dotnet build` — frontend kapalı, sıcak | 6,09 s |
-| Tam `dotnet test AgentPrism.slnx --no-build` | 164,43 s · exit 1 |
+| Tam `dotnet test Tracon.slnx --no-build` | 164,43 s · exit 1 |
 | `dotnet pack --no-build` | 6,62 s · exit 0 |
 | `dotnet format --verify-no-changes --no-restore` | 76,47 s · exit 0; workspace yükleme uyarısı yazdı |
 | `docs-site` `npm run check` | 9,93 s · exit 1; yerel Astro koşumu Node 20.19.4'ü, Astro'nun istediği `>=22.12.0` yerine gördü |
@@ -64,7 +64,7 @@ altyapısı hazırdı; tam test paketi 19 projenin tamamında yeşil döndü.
 | `dotnet build` — frontend açık, sıcak | 6,09 s · `npm run build` koşmadı |
 | `dotnet build` — frontend kapalı, soğuk | 48,58 s · 0 warning · 0 error |
 | `dotnet build` — frontend kapalı, sıcak | 6,50 s · 0 warning · 0 error |
-| Tam `dotnet test AgentPrism.slnx --no-build` | 173,13 s · exit 0 |
+| Tam `dotnet test Tracon.slnx --no-build` | 173,13 s · exit 0 |
 | `dotnet pack --no-build` | 5,50 s · exit 0 |
 | `dotnet format --verify-no-changes --no-restore` | 76,33 s · exit 0; workspace yükleme uyarısı yazdı |
 | `docs-site` `npm run check` — default PATH | 9,77 s · exit 1; Node 20.19.4 < Astro gereksinimi `>=22.12.0` |
@@ -104,7 +104,7 @@ için bu toplamlarla doğrudan hız yüzdesi çıkarılmaz.
 
 ### Faz 91 kapanış tekrarında F-130 ayrıştırması — 2026-08-23
 
-Kapanış kapılarının ikinci tekrarında tam suite `AgentPrism.Ui.E2ETests`
+Kapanış kapılarının ikinci tekrarında tam suite `Tracon.Ui.E2ETests`
 56/57 ile kırmızı oldu: önce `Pending_request_card_can_be_answered`, ayrı
 UI koşumunda `Runs_button_on_session_page_navigates_to_filtered_list`.
 İki case de derlenmiş test ikilisinde `--filter-method` ile izole 1/1 geçti.
@@ -121,7 +121,7 @@ BenchmarkDotNet varsayılan `Job` (pilot + 15 iterasyon).
 
 | Koşum | Süre |
 |---|---:|
-| `dotnet run -c Release --project bench/AgentPrism.Benchmarks -- --filter * --exporters json` (tek başına) | ~83–91 s |
+| `dotnet run -c Release --project bench/Tracon.Benchmarks -- --filter * --exporters json` (tek başına) | ~83–91 s |
 | `python3 scripts/kapi.py performans` (build + koşum + karşılaştırma) | ~85–92 s |
 
 Sıcak yol dosyası değişmediğinde adım tamamen **atlanır** (116.4); yukarıdaki

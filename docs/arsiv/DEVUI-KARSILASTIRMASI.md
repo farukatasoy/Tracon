@@ -1,9 +1,9 @@
-# DevUI Karsilastirmasi — AgentPrism'in Gerekcesi
+# DevUI Karsilastirmasi — Tracon'in Gerekcesi
 
 > `MIMARI.md`'den tasindi (2026-08-04, Faz 23): sicak yol butcesi.
 > Bu bolum **tarihsel gerekcedir** ve degismez; bugunku mimari `MIMARI.md`'dedir.
 
-## Neden AgentPrism?
+## Neden Tracon?
 
 Microsoft Agent Framework (MAF) 1.16.0 ile GA oldu. Güçlü bir agent runtime sunar. Ancak resmî geliştirici arayüzü **DevUI** hâlâ preview ve dokümanı açıkça şunu söyler:
 
@@ -19,12 +19,12 @@ DevUI'nin kaynak kodundan doğrulanan sınırları:
 | .NET dokümanı yok | Learn sayfası C# pivotunda "Coming Soon" |
 | PostgreSQL yok | Kalıcılık paketleri yalnız `CosmosNoSql` ve `Valkey` |
 
-**AgentPrism bu boşluğu doldurur.** DevUI'nin yerine geçmez — DevUI'nin bıraktığı yerden devam eder.
+**Tracon bu boşluğu doldurur.** DevUI'nin yerine geçmez — DevUI'nin bıraktığı yerden devam eder.
 
-| | DevUI | AgentPrism |
+| | DevUI | Tracon |
 |---|-------|------------|
 | Amaç | Geliştirme sırasında görselleştirme | Üretimde çalışan kontrol düzlemi |
-| Kalıcılık | Bellek içi | PostgreSQL (`agentprism` şeması) |
+| Kalıcılık | Bellek içi | PostgreSQL (`tracon` şeması) |
 | Erişim | Loopback + sabit token | Loopback + token + authorization policy |
 | Agent tanımı | Salt okunur | Kod + veritabanı, versiyonlu, geri alınabilir |
 | Çok kiracılılık | Yok | `tenant_id` ile her sorguda |

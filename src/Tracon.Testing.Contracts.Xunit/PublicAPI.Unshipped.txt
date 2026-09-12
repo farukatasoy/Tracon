@@ -1,0 +1,870 @@
+#nullable enable
+Tracon.Testing.Contracts.AgentSources.AgentSourceContract
+Tracon.Testing.Contracts.AgentSources.AgentSourceContract.A_pre_cancelled_token_is_honored() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.AgentSources.AgentSourceContract.AgentSourceContract() -> void
+Tracon.Testing.Contracts.AgentSources.AgentSourceContract.DisposeAsync() -> System.Threading.Tasks.ValueTask
+Tracon.Testing.Contracts.AgentSources.AgentSourceContract.Every_listed_agent_resolves() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.AgentSources.AgentSourceContract.InitializeAsync() -> System.Threading.Tasks.ValueTask
+Tracon.Testing.Contracts.AgentSources.AgentSourceContract.Known_agent_resolves() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.AgentSources.AgentSourceContract.Listed_descriptors_name_the_source() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.AgentSources.AgentSourceContract.Listed_names_are_unique_and_valid() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.AgentSources.AgentSourceContract.Listing_is_repeatable() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.AgentSources.AgentSourceContract.Listing_is_safe_under_concurrency() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.AgentSources.AgentSourceContract.Name_is_not_empty() -> void
+Tracon.Testing.Contracts.AgentSources.AgentSourceContract.Priority_is_stable_across_calls() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.AgentSources.AgentSourceContract.Resolution_is_safe_under_concurrency() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.AgentSources.AgentSourceContract.Resolved_agent_is_listed() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.AgentSources.AgentSourceContract.Source.get -> Tracon.IAgentSource!
+Tracon.Testing.Contracts.AgentSources.AgentSourceContract.Unknown_agent_returns_null() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.AgentSources.TenantAwareAgentSourceContract
+Tracon.Testing.Contracts.AgentSources.TenantAwareAgentSourceContract.TenantAwareAgentSourceContract() -> void
+Tracon.Testing.Contracts.AgentSources.TenantAwareAgentSourceContract.Tenant_lists_do_not_leak_between_tenants() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.AgentSources.VersionedAgentSourceContract
+Tracon.Testing.Contracts.AgentSources.VersionedAgentSourceContract.Known_version_resolves() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.AgentSources.VersionedAgentSourceContract.Unknown_version_returns_null() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.AgentSources.VersionedAgentSourceContract.VersionedAgentSourceContract() -> void
+Tracon.Testing.Contracts.AgentSources.VersionedAgentSourceContract.VersionedSource.get -> Tracon.IVersionedAgentSource!
+Tracon.Testing.Contracts.ContractCoverage
+Tracon.Testing.Contracts.Judges.RunJudgeContract
+Tracon.Testing.Contracts.Judges.RunJudgeContract.A_pre_cancelled_token_is_honored() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Judges.RunJudgeContract.Concurrent_calls_start_together_and_complete() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Judges.RunJudgeContract.DisposeAsync() -> System.Threading.Tasks.ValueTask
+Tracon.Testing.Contracts.Judges.RunJudgeContract.Every_score_in_a_judgment_can_be_stored() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Judges.RunJudgeContract.InitializeAsync() -> System.Threading.Tasks.ValueTask
+Tracon.Testing.Contracts.Judges.RunJudgeContract.Judge.get -> Tracon.IRunJudge!
+Tracon.Testing.Contracts.Judges.RunJudgeContract.Name_is_a_stable_valid_identifier_across_calls() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Judges.RunJudgeContract.Repeated_calls_with_the_same_context_complete() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Judges.RunJudgeContract.RunJudgeContract() -> void
+Tracon.Testing.Contracts.Judges.RunJudgeContract.Whitespace_output_and_empty_tools_do_not_throw() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Providers.ModelProviderContract
+Tracon.Testing.Contracts.Providers.ModelProviderContract.A_client_that_is_never_disposed_does_not_stop_the_provider() -> void
+Tracon.Testing.Contracts.Providers.ModelProviderContract.A_model_the_catalog_does_not_list_is_not_rejected() -> void
+Tracon.Testing.Contracts.Providers.ModelProviderContract.Binding(string? model = null, string? providerName = null) -> Tracon.ModelBinding!
+Tracon.Testing.Contracts.Providers.ModelProviderContract.Catalog_model_names_are_unique_and_not_empty() -> void
+Tracon.Testing.Contracts.Providers.ModelProviderContract.Concurrent_create_chat_client_calls_all_return_a_client() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Providers.ModelProviderContract.Create_chat_client_accepts_a_binding_whose_provider_name_differs_in_case() -> void
+Tracon.Testing.Contracts.Providers.ModelProviderContract.Create_chat_client_returns_a_client_for_the_setup_time_credential() -> void
+Tracon.Testing.Contracts.Providers.ModelProviderContract.Create_chat_client_returns_a_raw_client_that_builds_no_tool_call_loop() -> void
+Tracon.Testing.Contracts.Providers.ModelProviderContract.DisposeAsync() -> System.Threading.Tasks.ValueTask
+Tracon.Testing.Contracts.Providers.ModelProviderContract.InitializeAsync() -> System.Threading.Tasks.ValueTask
+Tracon.Testing.Contracts.Providers.ModelProviderContract.ModelProviderContract() -> void
+Tracon.Testing.Contracts.Providers.ModelProviderContract.Provider.get -> Tracon.IModelProvider!
+Tracon.Testing.Contracts.Providers.ModelProviderContract.Provider_name_is_not_empty() -> void
+Tracon.Testing.Contracts.Providers.ModelProviderCredentialContract
+Tracon.Testing.Contracts.Providers.ModelProviderCredentialContract.A_tenant_credential_is_applied_to_the_returned_client() -> void
+Tracon.Testing.Contracts.Providers.ModelProviderCredentialContract.A_tenant_credential_produces_a_different_client_than_the_setup_time_one() -> void
+Tracon.Testing.Contracts.Providers.ModelProviderCredentialContract.An_endpoint_override_on_a_tenant_credential_is_accepted() -> void
+Tracon.Testing.Contracts.Providers.ModelProviderCredentialContract.Concurrent_resolution_of_one_credential_stays_stable() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Providers.ModelProviderCredentialContract.Create_chat_client_with_a_tenant_credential_returns_a_client() -> void
+Tracon.Testing.Contracts.Providers.ModelProviderCredentialContract.ModelProviderCredentialContract() -> void
+Tracon.Testing.Contracts.Providers.ModelProviderCredentialContract.Provider_declares_the_tenant_credential_capability() -> void
+Tracon.Testing.Contracts.Providers.ModelProviderCredentialContract.Two_different_credentials_do_not_share_one_client() -> void
+Tracon.Testing.Contracts.Providers.ModelProviderSettingsContract
+Tracon.Testing.Contracts.Providers.ModelProviderSettingsContract.A_supported_provider_setting_is_accepted() -> void
+Tracon.Testing.Contracts.Providers.ModelProviderSettingsContract.A_supported_setting_is_matched_regardless_of_key_casing() -> void
+Tracon.Testing.Contracts.Providers.ModelProviderSettingsContract.An_unsupported_provider_setting_is_rejected() -> void
+Tracon.Testing.Contracts.Providers.ModelProviderSettingsContract.ModelProviderSettingsContract() -> void
+Tracon.Testing.Contracts.Scheduling.JobHandlerContract
+Tracon.Testing.Contracts.Scheduling.JobHandlerContract.Cancellation_is_observed_between_items() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Scheduling.JobHandlerContract.Completed_items_are_not_processed_again() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Scheduling.JobHandlerContract.DisposeAsync() -> System.Threading.Tasks.ValueTask
+Tracon.Testing.Contracts.Scheduling.JobHandlerContract.Handler.get -> Tracon.IJobHandler!
+Tracon.Testing.Contracts.Scheduling.JobHandlerContract.InitializeAsync() -> System.Threading.Tasks.ValueTask
+Tracon.Testing.Contracts.Scheduling.JobHandlerContract.JobHandlerContract() -> void
+Tracon.Testing.Contracts.Scheduling.JobHandlerContract.JobId.get -> System.Guid
+Tracon.Testing.Contracts.Scheduling.JobHandlerContract.Only_pending_items_are_processed_on_a_retry() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.AgentDefinitionStoreContract
+Tracon.Testing.Contracts.Storage.AgentDefinitionStoreContract.AgentDefinitionStoreContract() -> void
+Tracon.Testing.Contracts.Storage.AgentDefinitionStoreContract.DeleteAsync_removes_all_versions() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.AgentDefinitionStoreContract.Each_tenants_version_counter_is_its_own() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.AgentDefinitionStoreContract.GetAsync_for_a_missing_definition_returns_null() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.AgentDefinitionStoreContract.GetVersionAsync_for_a_missing_agent_returns_null() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.AgentDefinitionStoreContract.GetVersionAsync_for_a_missing_version_returns_null() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.AgentDefinitionStoreContract.GetVersionAsync_returns_the_requested_version() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.AgentDefinitionStoreContract.ListAsync_orders_by_name() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.AgentDefinitionStoreContract.ListVersionsAsync_orders_newest_to_oldest() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.AgentDefinitionStoreContract.RollbackAsync_for_a_missing_agent_throws() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.AgentDefinitionStoreContract.RollbackAsync_saves_the_old_version_as_a_new_version() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.AgentDefinitionStoreContract.RollbackAsync_to_a_missing_version_throws() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.AgentDefinitionStoreContract.SaveAsync_increments_version_and_keeps_history() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.AgentDefinitionStoreContract.SaveAsync_marks_origin_as_database() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.AgentDefinitionStoreContract.SaveAsync_round_trips_all_definition_fields() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.AgentDefinitionStoreContract.Tenant_cannot_roll_back_another_tenants_definition() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.AgentFileStoreContract
+Tracon.Testing.Contracts.Storage.AgentFileStoreContract.AgentFileStoreContract() -> void
+Tracon.Testing.Contracts.Storage.AgentFileStoreContract.Creating_a_directory_does_not_produce_a_record() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.AgentFileStoreContract.Enter(string! tenantId) -> void
+Tracon.Testing.Contracts.Storage.AgentFileStoreContract.Glob_filter_narrows_by_file_name() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.AgentFileStoreContract.Recursive_false_skips_matches_in_subdirectories() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.AgentFileStoreContract.Search_does_not_find_another_tenants_file() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.AgentFileStoreContract.Search_in_a_large_store_returns_only_the_target_directory() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.AgentSkillStoreContract
+Tracon.Testing.Contracts.Storage.AgentSkillStoreContract.AgentSkillStoreContract() -> void
+Tracon.Testing.Contracts.Storage.AgentSkillStoreContract.Deleting_a_missing_record_returns_false() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.AgentSkillStoreContract.Disabled_skill_reads_back_disabled() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.AgentSkillStoreContract.List_is_sorted_by_name() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.AgentSkillStoreContract.Missing_skill_returns_null() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.AgentSkillStoreContract.Saved_skill_is_read_back() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.AgentSkillStoreContract.Saving_the_same_name_again_increments_version() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.ApiKeyStoreContract
+Tracon.Testing.Contracts.Storage.ApiKeyStoreContract.Active_scope_is_found_system_wide() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.ApiKeyStoreContract.ApiKeyStoreContract() -> void
+Tracon.Testing.Contracts.Storage.ApiKeyStoreContract.Cannot_revoke_another_tenants_key() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.ApiKeyStoreContract.Expiration_is_read_back() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.ApiKeyStoreContract.Finding_another_tenants_key_by_hash_returns_the_correct_tenant() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.ApiKeyStoreContract.Found_by_hash_of_the_raw_value() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.ApiKeyStoreContract.Last_used_timestamp_is_updated() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.ApiKeyStoreContract.Revoked_key_carries_RevokedAt_and_appears_inactive() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.ApiKeyStoreContract.Revoked_keys_scope_is_no_longer_active() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.ApiKeyStoreContract.Same_key_cannot_be_revoked_twice() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.ApiKeyStoreContract.Saved_key_is_read_back() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.ApiKeyStoreContract.Unknown_hash_is_not_found() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.AttachmentStoreContract
+Tracon.Testing.Contracts.Storage.AttachmentStoreContract.Another_tenants_attachment_is_not_visible() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.AttachmentStoreContract.AttachmentStoreContract() -> void
+Tracon.Testing.Contracts.Storage.AttachmentStoreContract.Bulk_delete_by_session_removes_only_matches() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.AttachmentStoreContract.Content_is_read_back_as_is() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.AttachmentStoreContract.Delete_succeeds_once_and_returns_false_the_second_time() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.AttachmentStoreContract.Listing_filters_by_session() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.AttachmentStoreContract.Record_metadata_is_stored_correctly() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.AttachmentStoreContract.Session_based_delete_does_not_delete_the_others_attachments() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.AuditLogContract
+Tracon.Testing.Contracts.Storage.AuditLogContract.Action_and_entity_filter_works() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.AuditLogContract.AuditLogContract() -> void
+Tracon.Testing.Contracts.Storage.AuditLogContract.Concurrent_writes_for_one_tenant_produce_a_single_valid_chain() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.AuditLogContract.Deleting_a_row_directly_is_detected_as_a_gap() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.AuditLogContract.Entries_are_returned_newest_to_oldest() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.AuditLogContract.Entry_with_unknown_actor_carries_null() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.AuditLogContract.First_entry_of_a_tenant_carries_no_previous_hash() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.AuditLogContract.Limit_constrains_the_result() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.AuditLogContract.Log.get -> Tracon.IAuditLog!
+Tracon.Testing.Contracts.Storage.AuditLogContract.No_leakage_between_tenants() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.AuditLogContract.Null_tenant_follows_the_ambient_tenant_when_it_changes() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.AuditLogContract.Null_tenant_resolves_to_the_ambient_tenant_and_does_not_leak_others() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.AuditLogContract.Second_entry_links_to_the_first() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.AuditLogContract.Tampering_a_row_directly_is_detected_as_broken() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.AuditLogContract.Two_tenants_chains_verify_independently() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.AuditLogContract.VerifyChainAsync_reports_valid_for_a_normally_written_chain() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.AuditLogContract.VerifyChainAsync_with_null_tenant_checks_the_ambient_tenants_own_chain() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.AuditLogContract.Written_entry_round_trips() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.EvalStoreContract
+Tracon.Testing.Contracts.Storage.EvalStoreContract.AddCaseAsync_assigns_seq_atomically() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.EvalStoreContract.AddCaseAsync_concurrent_promotions_produce_distinct_seq() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.EvalStoreContract.AddCaseAsync_does_not_separate_sourceless_cases_from_hand_written_ones() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.EvalStoreContract.AddCaseAsync_returns_the_existing_case_the_second_time_for_the_same_source_run_id() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.EvalStoreContract.AddCaseAsync_stores_source_fields_and_expected_fields() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.EvalStoreContract.Case_result_is_recorded_and_filtered_by_tenant() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.EvalStoreContract.DeleteSuiteAsync_also_deletes_its_cases_and_runs() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.EvalStoreContract.DiffRunsAsync_counts_a_case_recorded_twice_once() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.EvalStoreContract.DiffRunsAsync_observes_cancellation() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.EvalStoreContract.DiffRunsAsync_refuses_an_unfinished_run() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.EvalStoreContract.DiffRunsAsync_refuses_two_runs_of_different_suites() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.EvalStoreContract.DiffRunsAsync_returns_null_for_an_unknown_run() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.EvalStoreContract.DiffRunsAsync_returns_null_for_another_tenants_run() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.EvalStoreContract.DiffRunsAsync_separates_the_six_buckets() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.EvalStoreContract.DiffRunsAsync_throws_when_retention_removed_only_SOME_of_the_results() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.EvalStoreContract.DiffRunsAsync_throws_when_the_baseline_details_were_removed_by_retention() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.EvalStoreContract.DiffRunsAsync_throws_when_the_candidate_details_were_removed_by_retention() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.EvalStoreContract.EvalStoreContract() -> void
+Tracon.Testing.Contracts.Storage.EvalStoreContract.GetSuiteAsync_returns_null_for_another_tenant() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.EvalStoreContract.ListSuitesAsync_returns_only_that_tenant() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.EvalStoreContract.QueryRunsAsync_filters_by_suite_and_puts_the_newest_first() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.EvalStoreContract.ReplaceCasesAsync_assigns_sequence_numbers_and_replaces_previous_cases() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.EvalStoreContract.ReplaceCasesAsync_leaves_parameters_null_for_a_case_that_declares_none() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.EvalStoreContract.ReplaceCasesAsync_stores_expected_tools_and_context() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.EvalStoreContract.ReplaceCasesAsync_stores_parameter_values_for_a_parameterized_agent() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.EvalStoreContract.Run_lifecycle_transitions_from_running_to_completed() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.EvalStoreContract.Run_reads_do_not_leak_across_tenants() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.EvalStoreContract.SaveSuiteAsync_assigns_an_id_to_a_new_suite() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.EvalStoreContract.SaveSuiteAsync_keeps_the_id_for_the_same_name_and_updates() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.ExperimentStoreContract
+Tracon.Testing.Contracts.Storage.ExperimentStoreContract.Canary_policy_can_be_set_on_a_draft_experiment_too() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.ExperimentStoreContract.Canary_policy_is_cleared_with_null() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.ExperimentStoreContract.Canary_policy_is_set_and_read_back() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.ExperimentStoreContract.Canary_ramp_is_rejected_on_a_non_running_experiment() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.ExperimentStoreContract.Canary_ramp_updates_weights_on_a_running_experiment_and_stays_Running() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.ExperimentStoreContract.Deleting_nonexistent_experiment_returns_false() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.ExperimentStoreContract.Draft_experiment_can_be_deleted() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.ExperimentStoreContract.Draft_experiment_can_be_updated() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.ExperimentStoreContract.ExperimentStoreContract() -> void
+Tracon.Testing.Contracts.Storage.ExperimentStoreContract.Experiment_lifecycle_does_not_leak_across_tenants() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.ExperimentStoreContract.ListRunningWithCanaryAsync_returns_only_running_experiments_with_canary_defined() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.ExperimentStoreContract.Listing_returns_only_that_tenant() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.ExperimentStoreContract.Non_running_experiment_cannot_be_stopped() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.ExperimentStoreContract.Nonexistent_experiment_cannot_be_started() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.ExperimentStoreContract.Returns_null_when_no_experiment_is_running() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.ExperimentStoreContract.Rollback_stops_the_experiment_restores_weights_and_records_the_reason() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.ExperimentStoreContract.Running_experiment_cannot_be_deleted() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.ExperimentStoreContract.Running_experiment_cannot_be_updated() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.ExperimentStoreContract.Save_and_get_round_trips() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.ExperimentStoreContract.Second_start_for_same_agent_is_rejected() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.ExperimentStoreContract.Setting_canary_policy_is_EXEMPT_from_the_draft_only_edit_restriction() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.ExperimentStoreContract.Starting_returns_the_running_experiment() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.ExperimentStoreContract.Stopping_stops_the_experiment_and_frees_the_running_slot() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.IdempotencyStoreContract
+Tracon.Testing.Contracts.Storage.IdempotencyStoreContract.Completed_key_also_returns_the_stored_HTTP_headers() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.IdempotencyStoreContract.Completed_key_returns_an_empty_dictionary_when_there_are_NO_headers() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.IdempotencyStoreContract.Completed_key_returns_the_stored_response_with_the_same_fingerprint() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.IdempotencyStoreContract.Completed_key_with_a_DIFFERENT_fingerprint_returns_FingerprintMismatch() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.IdempotencyStoreContract.Completed_record_does_NOT_affect_another_tenant() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.IdempotencyStoreContract.Concurrent_reservation_of_the_same_key_only_one_gets_Reserved() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.IdempotencyStoreContract.DisposeAsync() -> System.Threading.Tasks.ValueTask
+Tracon.Testing.Contracts.Storage.IdempotencyStoreContract.IdempotencyStoreContract() -> void
+Tracon.Testing.Contracts.Storage.IdempotencyStoreContract.InitializeAsync() -> System.Threading.Tasks.ValueTask
+Tracon.Testing.Contracts.Storage.IdempotencyStoreContract.Key_in_progress_returns_InProgress_on_second_reservation() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.IdempotencyStoreContract.New_key_returns_Reserved() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.IdempotencyStoreContract.Released_key_can_be_reserved_again() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.IdempotencyStoreContract.Same_key_lives_independently_in_two_tenants() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.IdempotencyStoreContract.Store.get -> Tracon.IIdempotencyStore!
+Tracon.Testing.Contracts.Storage.InboundTriggerStoreContract
+Tracon.Testing.Contracts.Storage.InboundTriggerStoreContract.DeleteAsync_returns_false_for_a_trigger_that_does_not_exist() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.InboundTriggerStoreContract.InboundTriggerStoreContract() -> void
+Tracon.Testing.Contracts.Storage.InboundTriggerStoreContract.Listing_returns_every_trigger_of_the_tenant() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.InboundTriggerStoreContract.Missing_trigger_returns_null() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.InboundTriggerStoreContract.Path_mode_and_path_round_trip() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.InboundTriggerStoreContract.Saved_trigger_is_read_back() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.InboundTriggerStoreContract.Upsert_replaces_the_existing_trigger_for_the_same_tenant_and_name() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.InboundTriggerStoreContract.Workflow_target_kind_round_trips() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.JobScheduleStoreContract
+Tracon.Testing.Contracts.Storage.JobScheduleStoreContract.DeleteAsync_removes_an_existing_schedule() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.JobScheduleStoreContract.GetAsync_returns_null_for_another_tenant() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.JobScheduleStoreContract.JobScheduleStoreContract() -> void
+Tracon.Testing.Contracts.Storage.JobScheduleStoreContract.ListAsync_returns_only_that_tenant() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.JobScheduleStoreContract.ListDueAsync_returns_only_enabled_and_due_schedules() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.JobScheduleStoreContract.SaveAsync_assigns_an_id_to_a_new_schedule() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.JobScheduleStoreContract.SaveAsync_keeps_the_id_and_updates_for_the_same_name() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.JobScheduleStoreContract.TryClaimNextRunAsync_a_second_claim_prevents_the_conflict() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.JobScheduleStoreContract.TryClaimNextRunAsync_fails_when_the_expected_value_does_not_match() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.JobStoreContract
+Tracon.Testing.Contracts.Storage.JobStoreContract.CancelAsync_does_not_affect_another_tenants_job() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.JobStoreContract.CancelAsync_works_only_in_eligible_states(Tracon.JobStatus status, bool expected) -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.JobStoreContract.CompleteAsync_releases_the_lease() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.JobStoreContract.Enqueued_job_defaults_to_the_default_lane() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.JobStoreContract.Enqueued_job_starts_pending_and_creates_items() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.JobStoreContract.GetAsync_returns_null_for_another_tenant() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.JobStoreContract.JobStoreContract() -> void
+Tracon.Testing.Contracts.Storage.JobStoreContract.Job_can_be_re_leased_once_the_lease_expires() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.JobStoreContract.Job_not_yet_due_cannot_be_leased() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.JobStoreContract.Lease_with_a_lane_filter_never_returns_a_job_from_an_unlisted_lane() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.JobStoreContract.Lease_with_a_lane_filter_only_returns_a_job_in_that_lane() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.JobStoreContract.Lease_with_an_empty_lanes_list_applies_no_filter() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.JobStoreContract.Lease_with_null_lanes_applies_no_filter() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.JobStoreContract.Leased_job_is_not_given_to_another_worker_before_expiry() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.JobStoreContract.Leasing_marks_Leased_and_increments_the_attempt() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.JobStoreContract.MarkRunningAsync_works_only_for_the_real_owner() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.JobStoreContract.QueryAsync_filters_by_handler_key() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.JobStoreContract.QueryAsync_filters_by_lane() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.JobStoreContract.QueryAsync_filters_by_tenant() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.JobStoreContract.QueryAsync_lane_filter_does_not_leak_another_tenants_job() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.JobStoreContract.QueryAsync_returns_nothing_for_a_handler_key_no_job_uses() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.JobStoreContract.QueryAsync_treats_an_empty_handler_key_as_a_filter_that_matches_nothing() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.JobStoreContract.Queue_depth_counts_a_job_released_for_retry_as_pending_again() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.JobStoreContract.Queue_depth_counts_every_tenants_jobs_together() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.JobStoreContract.Queue_depth_drops_a_lane_once_its_last_job_finishes() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.JobStoreContract.Queue_depth_groups_pending_jobs_by_lane() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.JobStoreContract.Queue_depth_is_empty_when_no_job_is_open() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.JobStoreContract.Queue_depth_never_counts_a_terminal_status() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.JobStoreContract.Queue_depth_separates_the_open_statuses() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.JobStoreContract.ReleaseForRetryAsync_returns_to_pending_without_resetting_the_attempt() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.JobStoreContract.ReportItemAsync_counts_successful_and_failed_items_separately() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.JobStoreContract.ReportItemAsync_is_idempotent() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.JobStoreContract.Retry_preserves_the_jobs_lane() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.McpServerStoreContract
+Tracon.Testing.Contracts.Storage.McpServerStoreContract.Deleting_a_nonexistent_record_returns_false() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.McpServerStoreContract.McpServerStoreContract() -> void
+Tracon.Testing.Contracts.Storage.McpServerStoreContract.Nonexistent_server_returns_null() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.McpServerStoreContract.Saved_server_is_read_back() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.McpServerStoreContract.Saving_the_same_name_a_second_time_overwrites_it() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.MutableTenantContext
+Tracon.Testing.Contracts.Storage.MutableTenantContext.MutableTenantContext(string! tenantId) -> void
+Tracon.Testing.Contracts.Storage.MutableTenantContext.TenantId.get -> string!
+Tracon.Testing.Contracts.Storage.MutableTenantContext.TenantId.set -> void
+Tracon.Testing.Contracts.Storage.PendingApprovalStoreContract
+Tracon.Testing.Contracts.Storage.PendingApprovalStoreContract.Absent_presentation_is_read_back_as_null() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.PendingApprovalStoreContract.Created_request_is_read_back() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.PendingApprovalStoreContract.Deciding_updates_status_and_actor() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.PendingApprovalStoreContract.Expired_request_is_closed_and_returned() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.PendingApprovalStoreContract.Expiry_scan_does_not_exceed_the_max_limit() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.PendingApprovalStoreContract.Listing_returns_only_pending_requests() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.PendingApprovalStoreContract.PendingApprovalStoreContract() -> void
+Tracon.Testing.Contracts.Storage.PendingApprovalStoreContract.Presentation_round_trips_through_create_and_get() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.PendingApprovalStoreContract.Second_decision_is_rejected() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.QuotaStoreContract
+Tracon.Testing.Contracts.Storage.QuotaStoreContract.A_different_metric_is_a_separate_claim() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.QuotaStoreContract.A_different_tenants_identically_shaped_claim_is_independent() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.QuotaStoreContract.A_different_threshold_percent_is_a_separate_claim() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.QuotaStoreContract.A_new_period_starts_with_no_claim_even_if_the_previous_period_already_has_one() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.QuotaStoreContract.A_threshold_already_claimed_in_this_period_is_not_claimed_again() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.QuotaStoreContract.Another_tenants_rule_is_not_visible() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.QuotaStoreContract.Another_tenants_usage_is_not_visible() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.QuotaStoreContract.Claim_fails_when_the_usage_row_does_not_exist_yet() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.QuotaStoreContract.Concurrent_claims_of_the_same_threshold_let_only_one_caller_win() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.QuotaStoreContract.Concurrent_increments_lose_no_increment() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.QuotaStoreContract.Consecutive_usage_accumulates() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.QuotaStoreContract.Deleted_rule_is_not_read_back() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.QuotaStoreContract.Deleting_a_nonexistent_rule_returns_false() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.QuotaStoreContract.Different_agent_becomes_a_separate_rule() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.QuotaStoreContract.Different_period_becomes_a_separate_rule() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.QuotaStoreContract.Empty_limits_are_preserved_as_null() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.QuotaStoreContract.First_claim_of_a_threshold_succeeds() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.QuotaStoreContract.QuotaStoreContract() -> void
+Tracon.Testing.Contracts.Storage.QuotaStoreContract.Saved_rule_is_read_back() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.QuotaStoreContract.Saving_the_same_scope_a_second_time_overwrites_it() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.QuotaStoreContract.Separate_period_keeps_a_separate_counter() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.QuotaStoreContract.Usage_increments_both_the_agent_and_tenant_counters() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.QuotaStoreContract.Usage_is_filtered_by_agent_name() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.QuotaStoreContract.Usage_is_filtered_by_period() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.QuotaStoreContract.Usage_with_undefined_price_does_not_break_the_cost_total() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RetentionPolicyStoreContract
+Tracon.Testing.Contracts.Storage.RetentionPolicyStoreContract.Another_tenants_policy_is_not_visible() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RetentionPolicyStoreContract.Deleted_policy_is_not_read_back() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RetentionPolicyStoreContract.Failed_run_carries_the_error_message() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RetentionPolicyStoreContract.Falls_back_to_the_wildcard_policy_when_no_tenant_specific_record_exists() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RetentionPolicyStoreContract.RetentionPolicyStoreContract() -> void
+Tracon.Testing.Contracts.Storage.RetentionPolicyStoreContract.Run_history_returns_newest_first() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RetentionPolicyStoreContract.Run_is_created_and_progress_accumulates() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RetentionPolicyStoreContract.Saved_policy_is_read_back() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RetentionPolicyStoreContract.Saving_the_same_target_a_second_time_overwrites_it() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RetentionPolicyStoreContract.Tenant_specific_record_takes_precedence_over_the_wildcard() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RetentionStoreContract
+Tracon.Testing.Contracts.Storage.RetentionStoreContract.Archive_read_returns_only_the_given_tenant() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RetentionStoreContract.Count_covers_only_the_given_tenant() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RetentionStoreContract.Delete_does_NOT_touch_the_others_data() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RetentionStoreContract.DisposeAsync() -> System.Threading.Tasks.ValueTask
+Tracon.Testing.Contracts.Storage.RetentionStoreContract.InitializeAsync() -> System.Threading.Tasks.ValueTask
+Tracon.Testing.Contracts.Storage.RetentionStoreContract.RetentionStoreContract() -> void
+Tracon.Testing.Contracts.Storage.RetentionStoreContract.Row_limit_threshold_counts_only_the_given_tenant() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RetentionStoreContract.Store.get -> Tracon.IRetentionStore!
+Tracon.Testing.Contracts.Storage.RetentionStoreContract.Unknown_target_throws() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunInputStoreContract
+Tracon.Testing.Contracts.Storage.RunInputStoreContract.Another_tenants_input_cannot_be_read() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunInputStoreContract.DisposeAsync() -> System.Threading.Tasks.ValueTask
+Tracon.Testing.Contracts.Storage.RunInputStoreContract.InitializeAsync() -> System.Threading.Tasks.ValueTask
+Tracon.Testing.Contracts.Storage.RunInputStoreContract.Polymorphic_content_round_trips_with_KEY_ORDER_preserved() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunInputStoreContract.RunInputStoreContract() -> void
+Tracon.Testing.Contracts.Storage.RunInputStoreContract.Run_without_a_record_returns_null() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunInputStoreContract.Second_write_is_IGNORED() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunInputStoreContract.Store.get -> Tracon.IRunInputStore!
+Tracon.Testing.Contracts.Storage.RunInputStoreContract.Written_input_round_trips_exactly() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunScoreStoreContract
+Tracon.Testing.Contracts.Storage.RunScoreStoreContract.A_categorical_score_carrying_a_numeric_value_is_REJECTED() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunScoreStoreContract.A_categorical_score_is_stored_as_text() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunScoreStoreContract.A_decimal_value_is_NOT_rounded() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunScoreStoreContract.A_null_value_is_counted_but_does_not_enter_the_average() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunScoreStoreContract.A_null_value_means_NO_MEASUREMENT_not_zero() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunScoreStoreContract.A_numeric_score_carrying_a_text_value_is_REJECTED() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunScoreStoreContract.A_whole_number_value_is_read_back_as_a_number_not_an_integer() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunScoreStoreContract.An_empty_match_returns_empty_lists_not_null() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunScoreStoreContract.An_empty_string_Author_is_excluded_from_the_author_breakdown_like_no_author() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunScoreStoreContract.An_empty_string_MessageId_is_treated_the_same_as_no_message() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunScoreStoreContract.An_illegal_name_is_REJECTED(string! name) -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunScoreStoreContract.Another_tenants_score_cannot_be_deleted() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunScoreStoreContract.Another_tenants_score_is_not_visible() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunScoreStoreContract.Another_tenants_score_never_enters_the_summary() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunScoreStoreContract.Author_breakdown_excludes_scores_with_no_author() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunScoreStoreContract.Canceled_token_throws() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunScoreStoreContract.Categorical_scores_report_category_counts_not_an_average() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunScoreStoreContract.Category_cardinality_beyond_MaxRows_is_truncated_and_reported() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunScoreStoreContract.Concurrent_writes_of_the_SAME_name_leave_exactly_one_row() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunScoreStoreContract.Concurrent_writes_with_null_and_empty_MessageId_leave_exactly_one_row() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunScoreStoreContract.Deleting_a_nonexistent_score_returns_false() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunScoreStoreContract.Different_authors_score_the_same_target_independently() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunScoreStoreContract.Different_kinds_of_the_same_name_are_not_averaged_together() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunScoreStoreContract.Different_messages_are_scored_independently() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunScoreStoreContract.Empty_author_makes_EVERY_call_open_a_new_row() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunScoreStoreContract.Hour_buckets_group_scores_within_the_same_hour() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunScoreStoreContract.MessageId_is_never_a_breakdown_dimension() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunScoreStoreContract.Repeated_writes_of_the_SAME_name_leave_exactly_one_row() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunScoreStoreContract.RunScoreStoreContract() -> void
+Tracon.Testing.Contracts.Storage.RunScoreStoreContract.Same_author_scoring_the_same_target_twice_UPDATES_the_row() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunScoreStoreContract.Same_author_scoring_the_same_target_under_a_DIFFERENT_name_opens_a_new_row() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunScoreStoreContract.Score_is_deleted() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunScoreStoreContract.Score_with_no_message_id_belongs_to_the_whole_run() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunScoreStoreContract.Scores_are_grouped_into_time_buckets_and_empty_buckets_are_omitted() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunScoreStoreContract.Summary_can_be_read_while_a_score_is_being_written() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunScoreStoreContract.Target_Message_excludes_run_level_scores() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunScoreStoreContract.Target_Run_excludes_message_level_scores() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunScoreStoreContract.Updating_ONE_name_leaves_the_authors_other_names_untouched() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunScoreStoreContract.Week_buckets_start_on_Monday_and_group_the_whole_week() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunScoreStoreContract.Written_score_is_read_back() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract
+Tracon.Testing.Contracts.Storage.RunStoreContract.A_label_key_without_a_value_matches_any_value_of_that_key() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.A_run_that_reports_only_a_cache_count_still_produces_a_usage_record() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.A_run_without_attribution_reads_back_as_null_not_as_an_empty_map() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.A_second_start_without_attribution_does_not_erase_the_first_one() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.AppendEventAsync_does_not_write_with_the_wrong_expected_tenant() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.Applied_unit_prices_round_trip_and_do_not_enter_the_total() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.Attribution_round_trips() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.ClaimOrphanedRunsAsync_does_not_touch_a_Running_row_within_the_threshold() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.ClaimOrphanedRunsAsync_marks_a_stale_Running_row_as_Failed() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.ClaimOrphanedRunsAsync_never_touches_a_Queued_row() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.ClaimOrphanedRunsAsync_reports_ContinuedFromRunId_on_the_claimed_record() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.CompleteRunAsync_does_not_close_with_the_wrong_expected_tenant() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.Completion_leaves_the_model_id_unchanged_when_no_override_is_given() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.Completion_leaves_the_model_provider_unchanged_when_no_override_is_given() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.Completion_overrides_the_model_id_when_a_fallback_answered() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.Completion_overrides_the_model_provider_when_a_fallback_answered() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.Completion_stores_error_class_and_fingerprint() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.Completion_updates_the_summary() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.ContinuedFromRunId_round_trips() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.Cost_does_not_exist_at_all_when_model_is_unknown() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.Cost_fields_are_null_but_source_is_written_as_unknown_when_pricing_is_undefined() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.Cost_is_written_and_read_back() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.Cost_recalculation_updates_the_target_row() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.Custom_event_custom_type_round_trips_and_stays_null_for_every_other_type() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.Empty_store_summary_returns_zero() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.Event_cannot_be_appended_to_a_nonexistent_run() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.Event_fields_round_trip() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.Events_are_read_in_sequence_order() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.Every_cost_total_includes_the_cache_charge() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.Experiment_results_are_summarized_per_arm() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.Experiment_results_average_a_run_level_score_written_with_an_empty_message_id() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.Experiment_results_include_cost() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.Experiment_results_leave_a_message_level_score_out_of_the_average() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.Experiment_results_return_empty_for_an_experiment_with_no_traffic() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.List_returns_only_root_runs_by_default() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.Nonexistent_run_cannot_be_completed() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.Nonexistent_run_returns_empty_events() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.Nonexistent_run_returns_null() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.Parent_filter_overrides_root_filter() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.Query_applies_paging() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.Query_filters_by_a_label_key_and_value_together() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.Query_filters_by_agent_name() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.Query_filters_by_error_type() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.Query_filters_by_start_time() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.Query_filters_by_status() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.Query_filters_by_user() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.Query_session_filter_with_includeChildren_also_returns_child_runs() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.Query_sorts_newest_first() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.RecordToolInvocationAsync_does_not_write_with_the_wrong_expected_tenant() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.Reusing_a_sequence_number_is_rejected() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.RunStoreContract() -> void
+Tracon.Testing.Contracts.Storage.RunStoreContract.Run_record_is_stamped_with_the_current_tenant() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.StartRunAsync_return_value_carries_the_coalesced_attribution() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.StartRunAsync_upserts_when_called_twice_with_the_same_id() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.Statistics_break_down_by_label_and_the_rows_do_not_partition_the_runs() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.Statistics_break_down_by_user() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.Statistics_narrow_to_one_label_when_asked() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.Statistics_narrow_to_one_user_when_asked() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.Statistics_total_the_token_breakdown_beside_the_input_and_output_totals() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.Summary_aggregates_cost_and_reports_the_undefined_count() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.Summary_aggregates_statuses_and_tokens() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.Summary_and_time_series_do_not_leak_across_tenants() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.Summary_computes_breakdown_by_error_class() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.Summary_computes_error_rate_only_over_completed_runs() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.Summary_computes_version_breakdown() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.Summary_excludes_eval_runs() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.Summary_filters_by_agent_name() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.Summary_filters_by_start_time() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.Summary_limits_agent_breakdown() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.Summary_returns_at_most_three_failure_clusters_per_class() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.Summary_returns_no_error_rate_when_no_run_has_completed() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.Summary_rows_with_no_error_class_appear_in_the_unknown_bucket() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.Summary_sorts_agent_breakdown_by_run_count() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.The_cache_charge_round_trips_and_counts_toward_the_total() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.The_token_breakdown_round_trips_and_stays_null_when_it_was_never_reported() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.Time_series_does_not_exclude_eval_runs() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.Time_series_fills_empty_buckets() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.Time_series_throws_when_the_bucket_limit_is_exceeded() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.Token_info_stays_null_when_absent() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.TouchHeartbeatAsync_refreshed_row_is_not_considered_orphaned() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.TouchHeartbeatAsync_silently_skips_a_nonexistent_or_non_Running_id() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.Tree_cost_adds_the_cache_charge_of_every_run_in_the_tree() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.Tree_cost_is_not_summed_with_its_own_cost_separate_fields() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.Tree_fields_round_trip() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.Tree_query_returns_the_root_and_all_its_descendants() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.Tree_total_combines_tokens_of_root_and_descendants() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.Tree_total_stays_null_when_no_tokens_are_reported() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.Tree_usage_sums_the_breakdown_across_child_runs() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.Unit_prices_stay_null_when_the_model_price_is_unknown() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.UpdateRunCostAsync_does_not_update_with_the_wrong_expected_tenant() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.Workflow_run_lives_in_the_same_table() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.SessionStoreContract
+Tracon.Testing.Contracts.Storage.SessionStoreContract.A_later_write_that_carries_no_owner_does_not_CLEAR_the_stored_one() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.SessionStoreContract.A_session_saved_without_StateMafVersion_reads_back_null() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.SessionStoreContract.A_session_saved_without_an_owner_reads_back_null() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.SessionStoreContract.An_owned_session_round_trips_its_owner() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.SessionStoreContract.An_owner_at_the_maximum_allowed_length_round_trips_whole() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.SessionStoreContract.An_unowned_session_can_still_be_given_an_owner() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.SessionStoreContract.Delete_removes_the_record() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.SessionStoreContract.GetOwnerTenantIdAsync_returns_null_for_a_never_used_id() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.SessionStoreContract.GetOwnerTenantIdAsync_returns_the_real_owner_independent_of_the_ambient_tenant() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.SessionStoreContract.Nonexistent_session_returns_null() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.SessionStoreContract.Query_applies_paging() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.SessionStoreContract.Query_applies_the_owner_filter_BEFORE_paging() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.SessionStoreContract.Query_filters_by_agent_name() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.SessionStoreContract.Query_filters_by_owner_and_never_returns_an_unowned_row() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.SessionStoreContract.Query_starts_with_the_most_recently_updated() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.SessionStoreContract.SaveAsync_advances_the_version_so_a_stale_update_cannot_match_it() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.SessionStoreContract.Saving_with_the_same_id_overwrites_the_record_and_keeps_the_creation_time() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.SessionStoreContract.SessionStoreContract() -> void
+Tracon.Testing.Contracts.Storage.SessionStoreContract.Session_state_round_trips_without_corruption() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.SessionStoreContract.StateSchemaVersion_and_StateMafVersion_round_trip() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.SessionStoreContract.The_same_owner_stays_separate_in_two_tenants() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.SessionStoreContract.TryCreateAsync_only_one_concurrent_call_with_the_same_id_wins() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.SessionStoreContract.TryCreateAsync_returns_false_and_does_not_overwrite_for_an_existing_id() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.SessionStoreContract.TryCreateAsync_returns_true_and_saves_for_a_new_id() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.SessionStoreContract.TryCreateAsync_same_id_wins_independently_in_two_tenants() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.SessionStoreContract.TryCreateAsync_stamps_the_first_version() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.SessionStoreContract.TryUpdateAsync_cannot_reach_another_tenants_record() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.SessionStoreContract.TryUpdateAsync_only_one_concurrent_call_from_the_same_version_wins() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.SessionStoreContract.TryUpdateAsync_refuses_a_stale_version_and_leaves_the_record_alone() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.SessionStoreContract.TryUpdateAsync_replaces_the_record_and_advances_the_version() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.SessionStoreContract.TryUpdateAsync_returns_false_for_an_id_that_does_not_exist() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.SessionStoreContract.TryUpdateAsync_writes_the_records_own_tenant_not_the_ambient_one() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.SingletonLeaseStoreContract
+Tracon.Testing.Contracts.Storage.SingletonLeaseStoreContract.DisposeAsync() -> System.Threading.Tasks.ValueTask
+Tracon.Testing.Contracts.Storage.SingletonLeaseStoreContract.Empty_lease_can_be_acquired() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.SingletonLeaseStoreContract.InitializeAsync() -> System.Threading.Tasks.ValueTask
+Tracon.Testing.Contracts.Storage.SingletonLeaseStoreContract.Owner_can_renew_its_lease() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.SingletonLeaseStoreContract.ReleaseAsync_by_a_non_owner_does_nothing() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.SingletonLeaseStoreContract.Released_lease_can_be_reacquired_immediately_by_someone_else() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.SingletonLeaseStoreContract.RenewAsync_returns_false_for_a_non_owner() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.SingletonLeaseStoreContract.RenewAsync_returns_false_once_the_lease_has_passed_to_someone_else() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.SingletonLeaseStoreContract.Same_owner_can_reacquire_its_own_lease() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.SingletonLeaseStoreContract.Second_owner_cannot_acquire_while_lease_is_held() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.SingletonLeaseStoreContract.SingletonLeaseStoreContract() -> void
+Tracon.Testing.Contracts.Storage.SingletonLeaseStoreContract.Someone_else_can_acquire_once_the_lease_expires() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.SingletonLeaseStoreContract.Store.get -> Tracon.ISingletonLeaseStore!
+Tracon.Testing.Contracts.Storage.SkillScriptGrantContract
+Tracon.Testing.Contracts.Storage.SkillScriptGrantContract.Expired_grant_is_not_returned() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.SkillScriptGrantContract.Grant_does_not_leak_across_tenants() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.SkillScriptGrantContract.Granting_the_same_grant_twice_leaves_a_single_record() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.SkillScriptGrantContract.Revoked_grant_can_be_granted_again() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.SkillScriptGrantContract.Revoked_grant_is_invalid() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.SkillScriptGrantContract.Script_specific_grant_wins_over_the_skill_wide_grant() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.SkillScriptGrantContract.SkillScriptGrantContract() -> void
+Tracon.Testing.Contracts.Storage.SkillScriptGrantContract.Skill_wide_grant_covers_every_script() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.TenantEgressPolicyStoreContract
+Tracon.Testing.Contracts.Storage.TenantEgressPolicyStoreContract.Deleting_the_policy_makes_the_tenant_unrestricted_again() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.TenantEgressPolicyStoreContract.Saved_policy_is_read_back() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.TenantEgressPolicyStoreContract.TenantEgressPolicyStoreContract() -> void
+Tracon.Testing.Contracts.Storage.TenantEgressPolicyStoreContract.Tenant_with_no_saved_policy_is_unrestricted() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.TenantEgressPolicyStoreContract.Upsert_replaces_the_existing_policy() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.TenantIsolationContract<TStore>
+Tracon.Testing.Contracts.Storage.TenantIsolationContract<TStore>.AmbientTenant.get -> Tracon.Testing.Contracts.Storage.MutableTenantContext!
+Tracon.Testing.Contracts.Storage.TenantIsolationContract<TStore>.DisposeAsync() -> System.Threading.Tasks.ValueTask
+Tracon.Testing.Contracts.Storage.TenantIsolationContract<TStore>.InitializeAsync() -> System.Threading.Tasks.ValueTask
+Tracon.Testing.Contracts.Storage.TenantIsolationContract<TStore>.Same_name_lives_independently_across_two_tenants() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.TenantIsolationContract<TStore>.Store.get -> TStore
+Tracon.Testing.Contracts.Storage.TenantIsolationContract<TStore>.TenantIsolationContract() -> void
+Tracon.Testing.Contracts.Storage.TenantIsolationContract<TStore>.Tenant_cannot_delete_another_tenants_record() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.TenantIsolationContract<TStore>.Tenant_cannot_read_another_tenants_record() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.TenantIsolationContract<TStore>.Tenant_does_not_see_another_tenants_record_in_the_list() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.TenantIsolationContract<TStore>.Tenant_reads_its_own_record() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.TenantIsolationContract<TStore>.UseAmbientTenant(Tracon.Testing.Contracts.Storage.MutableTenantContext! tenant) -> void
+Tracon.Testing.Contracts.Storage.TenantProviderBindingStoreContract
+Tracon.Testing.Contracts.Storage.TenantProviderBindingStoreContract.A_binding_is_deleted_whatever_case_the_caller_uses() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.TenantProviderBindingStoreContract.A_binding_saved_under_a_different_case_replaces_the_existing_one() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.TenantProviderBindingStoreContract.A_provider_name_is_matched_case_insensitively(string! savedAs, string! requestedAs) -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.TenantProviderBindingStoreContract.Endpoint_is_optional() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.TenantProviderBindingStoreContract.Listing_returns_every_provider_binding_of_the_tenant() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.TenantProviderBindingStoreContract.Missing_binding_returns_null() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.TenantProviderBindingStoreContract.Saved_binding_is_read_back() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.TenantProviderBindingStoreContract.TenantProviderBindingStoreContract() -> void
+Tracon.Testing.Contracts.Storage.TenantProviderBindingStoreContract.Upsert_replaces_the_existing_binding_for_the_same_tenant_and_provider() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.TestData
+Tracon.Testing.Contracts.Storage.ToolApprovalRuleStoreContract
+Tracon.Testing.Contracts.Storage.ToolApprovalRuleStoreContract.Added_rule_is_read_back() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.ToolApprovalRuleStoreContract.Argument_conditions_round_trip() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.ToolApprovalRuleStoreContract.Condition_scoped_rule_added_twice_leaves_a_single_record() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.ToolApprovalRuleStoreContract.Deleting_a_nonexistent_rule_returns_false() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.ToolApprovalRuleStoreContract.Different_agent_becomes_a_separate_rule() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.ToolApprovalRuleStoreContract.Different_conditions_become_a_separate_rule() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.ToolApprovalRuleStoreContract.Same_scope_added_twice_leaves_a_single_record() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.ToolApprovalRuleStoreContract.ToolApprovalRuleStoreContract() -> void
+Tracon.Testing.Contracts.Storage.ToolInvocationContract
+Tracon.Testing.Contracts.Storage.ToolInvocationContract.Failed_invocation_is_counted_as_unsuccessful() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.ToolInvocationContract.Invocation_fields_round_trip() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.ToolInvocationContract.Invocation_with_no_reported_usage_comes_back_with_EMPTY_usage() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.ToolInvocationContract.Invocations_come_back_in_time_order() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.ToolInvocationContract.Non_token_measurement_round_trips() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.ToolInvocationContract.Summary_does_not_count_another_tenants_invocations() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.ToolInvocationContract.Summary_is_aggregated_per_tool() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.ToolInvocationContract.Summary_is_ordered_by_call_count_and_limited() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.ToolInvocationContract.ToolInvocationContract() -> void
+Tracon.Testing.Contracts.Storage.ToolInvocationContract.Unknown_duration_stays_empty() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.TraceStoreContract
+Tracon.Testing.Contracts.Storage.TraceStoreContract.Attributes_are_preserved() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.TraceStoreContract.Empty_set_is_not_written() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.TraceStoreContract.Span_tree_round_trips() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.TraceStoreContract.TenantId.get -> string!
+Tracon.Testing.Contracts.Storage.TraceStoreContract.TraceStoreContract() -> void
+Tracon.Testing.Contracts.Storage.TraceStoreContract.Unrecorded_run_returns_empty() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.TraceStoreContract.Writing_the_same_span_twice_does_not_create_a_duplicate() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.VoiceSessionStoreContract
+Tracon.Testing.Contracts.Storage.VoiceSessionStoreContract.Agent_and_session_filters_work() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.VoiceSessionStoreContract.Another_tenants_record_is_not_visible() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.VoiceSessionStoreContract.Duration_does_NOT_lose_its_decimal_fraction() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.VoiceSessionStoreContract.List_is_ordered_newest_to_oldest() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.VoiceSessionStoreContract.Live_session_provider_model_and_cost_round_trip() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.VoiceSessionStoreContract.Missing_measurement_stays_null_NOT_zero() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.VoiceSessionStoreContract.Paging_is_applied() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.VoiceSessionStoreContract.Saved_call_is_read_back() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.VoiceSessionStoreContract.Second_write_with_the_same_id_UPDATES_the_record() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.VoiceSessionStoreContract.The_two_new_end_reasons_round_trip() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.VoiceSessionStoreContract.Unpriced_live_session_reads_back_with_a_null_cost_NOT_a_zero() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.VoiceSessionStoreContract.VoiceSessionStoreContract() -> void
+Tracon.Testing.Contracts.Storage.WebhookStoreContract
+Tracon.Testing.Contracts.Storage.WebhookStoreContract.Another_tenants_subscription_is_not_visible() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.WebhookStoreContract.Deleted_subscription_is_not_read_back() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.WebhookStoreContract.Deleting_a_subscription_also_deletes_its_deliveries() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.WebhookStoreContract.Deliveries_are_filtered_by_status() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.WebhookStoreContract.Delivery_record_is_read_back() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.WebhookStoreContract.Disabled_subscription_does_not_appear_in_event_search() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.WebhookStoreContract.Event_name_matches_exactly() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.WebhookStoreContract.Failed_delivery_does_not_record_a_delivery_time() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.WebhookStoreContract.Failure_counter_increments_and_disables_the_subscription_at_the_threshold() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.WebhookStoreContract.Headers_are_preserved() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.WebhookStoreContract.Saved_subscription_is_read_back() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.WebhookStoreContract.Saving_the_same_name_a_second_time_overwrites_it() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.WebhookStoreContract.Subscribers_for_an_event_are_found() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.WebhookStoreContract.Successful_delivery_resets_the_counter() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.WebhookStoreContract.Successful_delivery_result_is_recorded() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.WebhookStoreContract.WebhookStoreContract() -> void
+Tracon.Testing.Contracts.Storage.WorkflowCheckpointStoreContract
+Tracon.Testing.Contracts.Storage.WorkflowCheckpointStoreContract.A_checkpoint_written_without_version_stamps_lists_back_null() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.WorkflowCheckpointStoreContract.Another_tenants_checkpoint_is_NOT_FOUND() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.WorkflowCheckpointStoreContract.Delete_clears_the_entire_session() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.WorkflowCheckpointStoreContract.Listing_by_run_filters_correctly() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.WorkflowCheckpointStoreContract.Listing_does_NOT_CARRY_the_state_payload() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.WorkflowCheckpointStoreContract.Listing_preserves_creation_order() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.WorkflowCheckpointStoreContract.Nonexistent_checkpoint_returns_null() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.WorkflowCheckpointStoreContract.Polymorphic_payload_is_read_back_with_KEY_ORDER_PRESERVED() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.WorkflowCheckpointStoreContract.StateSchemaVersion_and_StateMafVersion_round_trip_through_listing_metadata() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.WorkflowCheckpointStoreContract.WorkflowCheckpointStoreContract() -> void
+Tracon.Testing.Contracts.Storage.WorkflowCheckpointStoreContract.Written_checkpoint_is_read_back() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.WorkflowDefinitionStoreContract
+Tracon.Testing.Contracts.Storage.WorkflowDefinitionStoreContract.All_fields_survive_the_round_trip() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.WorkflowDefinitionStoreContract.Another_tenants_definition_is_not_visible() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.WorkflowDefinitionStoreContract.Deleted_definition_is_not_read_back() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.WorkflowDefinitionStoreContract.Deleting_a_nonexistent_definition_returns_false() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.WorkflowDefinitionStoreContract.Every_save_increments_the_version() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.WorkflowDefinitionStoreContract.Incoming_version_value_is_ignored() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.WorkflowDefinitionStoreContract.Listing_is_sorted_by_name() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.WorkflowDefinitionStoreContract.Magentic_manager_name_is_preserved() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.WorkflowDefinitionStoreContract.Node_list_survives_the_round_trip() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.WorkflowDefinitionStoreContract.Same_name_is_independent_across_tenants() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.WorkflowDefinitionStoreContract.Saved_definition_is_read_back() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.WorkflowDefinitionStoreContract.WorkflowDefinitionStoreContract() -> void
+Tracon.Testing.Contracts.Tools.CustomToolContract
+Tracon.Testing.Contracts.Tools.CustomToolContract.Concurrent_server_calls_complete() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Tools.CustomToolContract.CustomToolContract() -> void
+Tracon.Testing.Contracts.Tools.CustomToolContract.DisposeAsync() -> System.Threading.Tasks.ValueTask
+Tracon.Testing.Contracts.Tools.CustomToolContract.InitializeAsync() -> System.Threading.Tasks.ValueTask
+Tracon.Testing.Contracts.Tools.CustomToolContract.Metadata_is_self_consistent() -> void
+Tracon.Testing.Contracts.Tools.CustomToolContract.Name_is_stable_and_valid() -> void
+Tracon.Testing.Contracts.Tools.CustomToolContract.Registration.get -> Tracon.TraconToolRegistration!
+Tracon.Testing.Contracts.Tools.RepeatableToolContract
+Tracon.Testing.Contracts.Tools.RepeatableToolContract.Registration_is_marked_safe_to_repeat() -> void
+Tracon.Testing.Contracts.Tools.RepeatableToolContract.RepeatableToolContract() -> void
+Tracon.Testing.Contracts.Tools.ToolArgumentValidationContract
+Tracon.Testing.Contracts.Tools.ToolArgumentValidationContract.A_pre_cancelled_token_is_honored() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Tools.ToolArgumentValidationContract.DisposeAsync() -> System.Threading.Tasks.ValueTask
+Tracon.Testing.Contracts.Tools.ToolArgumentValidationContract.InitializeAsync() -> System.Threading.Tasks.ValueTask
+Tracon.Testing.Contracts.Tools.ToolArgumentValidationContract.Missing_required_argument_is_rejected() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Tools.ToolArgumentValidationContract.Out_of_range_number_is_rejected() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Tools.ToolArgumentValidationContract.Pattern_violation_is_rejected() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Tools.ToolArgumentValidationContract.Throwing_validator_rejects_the_call() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Tools.ToolArgumentValidationContract.Tool.get -> Microsoft.Extensions.AI.AIFunction!
+Tracon.Testing.Contracts.Tools.ToolArgumentValidationContract.ToolArgumentValidationContract() -> void
+Tracon.Testing.Contracts.Tools.ToolArgumentValidationContract.Type_mismatch_is_rejected() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Tools.ToolArgumentValidationContract.Unknown_extra_property_is_handled_deliberately() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Tools.ToolArgumentValidationContract.Validator.get -> Tracon.IToolArgumentsValidator!
+Tracon.Testing.Contracts.Tools.ToolAuthorizationContract
+Tracon.Testing.Contracts.Tools.ToolAuthorizationContract.Denied_call_never_runs_the_tool_body() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Tools.ToolAuthorizationContract.DisposeAsync() -> System.Threading.Tasks.ValueTask
+Tracon.Testing.Contracts.Tools.ToolAuthorizationContract.Handler.get -> Tracon.IToolAuthorizationHandler!
+Tracon.Testing.Contracts.Tools.ToolAuthorizationContract.Handler_receives_the_calling_tenant() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Tools.ToolAuthorizationContract.InitializeAsync() -> System.Threading.Tasks.ValueTask
+Tracon.Testing.Contracts.Tools.ToolAuthorizationContract.Throwing_handler_denies_the_call() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Tools.ToolAuthorizationContract.ToolAuthorizationContract() -> void
+abstract Tracon.Testing.Contracts.AgentSources.AgentSourceContract.CreateSourceAsync() -> System.Threading.Tasks.ValueTask<Tracon.IAgentSource!>
+abstract Tracon.Testing.Contracts.AgentSources.AgentSourceContract.KnownAgentName.get -> string!
+abstract Tracon.Testing.Contracts.AgentSources.TenantAwareAgentSourceContract.UseTenantAsync(string! tenantId) -> System.Threading.Tasks.ValueTask<string!>
+abstract Tracon.Testing.Contracts.AgentSources.VersionedAgentSourceContract.KnownVersion.get -> int
+abstract Tracon.Testing.Contracts.Judges.RunJudgeContract.CreateJudgeAsync() -> System.Threading.Tasks.ValueTask<Tracon.IRunJudge!>
+abstract Tracon.Testing.Contracts.Providers.ModelProviderContract.CreateProviderAsync() -> System.Threading.Tasks.ValueTask<Tracon.IModelProvider!>
+abstract Tracon.Testing.Contracts.Providers.ModelProviderCredentialContract.AssertCredentialIsApplied(Microsoft.Extensions.AI.IChatClient! client, Tracon.ModelProviderCredential! credential) -> void
+abstract Tracon.Testing.Contracts.Providers.ModelProviderCredentialContract.Credential.get -> Tracon.ModelProviderCredential!
+abstract Tracon.Testing.Contracts.Providers.ModelProviderSettingsContract.SupportedSetting.get -> System.Collections.Generic.KeyValuePair<string!, System.Text.Json.JsonElement>
+abstract Tracon.Testing.Contracts.Scheduling.JobHandlerContract.CreateHandlerAsync() -> System.Threading.Tasks.ValueTask<Tracon.IJobHandler!>
+abstract Tracon.Testing.Contracts.Scheduling.JobHandlerContract.CreateItem(int sequence, Tracon.JobItemStatus status) -> Tracon.JobItemRecord!
+abstract Tracon.Testing.Contracts.Storage.AgentFileStoreContract.EnterRunScope() -> void
+abstract Tracon.Testing.Contracts.Storage.AgentFileStoreContract.ExitRunScope() -> void
+abstract Tracon.Testing.Contracts.Storage.IdempotencyStoreContract.CreateStoreAsync() -> System.Threading.Tasks.ValueTask<Tracon.IIdempotencyStore!>
+abstract Tracon.Testing.Contracts.Storage.RetentionStoreContract.CreateStoreAsync() -> System.Threading.Tasks.ValueTask<Tracon.IRetentionStore!>
+abstract Tracon.Testing.Contracts.Storage.RetentionStoreContract.SeedOldRowAsync(string! tenantId) -> System.Threading.Tasks.ValueTask
+abstract Tracon.Testing.Contracts.Storage.RunInputStoreContract.CreateStoreAsync() -> System.Threading.Tasks.ValueTask<Tracon.IRunInputStore!>
+abstract Tracon.Testing.Contracts.Storage.SingletonLeaseStoreContract.CreateStoreAsync() -> System.Threading.Tasks.ValueTask<Tracon.ISingletonLeaseStore!>
+abstract Tracon.Testing.Contracts.Storage.TenantIsolationContract<TStore>.CountAsync(string! tenantId) -> System.Threading.Tasks.ValueTask<int>
+abstract Tracon.Testing.Contracts.Storage.TenantIsolationContract<TStore>.CreateStoreAsync() -> System.Threading.Tasks.ValueTask<TStore>
+abstract Tracon.Testing.Contracts.Storage.TenantIsolationContract<TStore>.ExistsAsync(string! tenantId, object! key) -> System.Threading.Tasks.ValueTask<bool>
+abstract Tracon.Testing.Contracts.Storage.TenantIsolationContract<TStore>.SeedAsync(string! tenantId, string! name) -> System.Threading.Tasks.ValueTask<object!>
+abstract Tracon.Testing.Contracts.Storage.TraceStoreContract.SeedRunAsync(System.Guid runId) -> System.Threading.Tasks.ValueTask
+abstract Tracon.Testing.Contracts.Tools.CustomToolContract.CreateRegistrationAsync() -> System.Threading.Tasks.ValueTask<Tracon.TraconToolRegistration!>
+abstract Tracon.Testing.Contracts.Tools.CustomToolContract.ExpectedResultText.get -> string!
+abstract Tracon.Testing.Contracts.Tools.ToolArgumentValidationContract.CreateToolAsync() -> System.Threading.Tasks.ValueTask<Microsoft.Extensions.AI.AIFunction!>
+abstract Tracon.Testing.Contracts.Tools.ToolArgumentValidationContract.CreateValidatorAsync() -> System.Threading.Tasks.ValueTask<Tracon.IToolArgumentsValidator!>
+abstract Tracon.Testing.Contracts.Tools.ToolAuthorizationContract.AllowedRequest.get -> Tracon.ToolAuthorizationRequest!
+abstract Tracon.Testing.Contracts.Tools.ToolAuthorizationContract.CreateHandlerAsync() -> System.Threading.Tasks.ValueTask<Tracon.IToolAuthorizationHandler!>
+abstract Tracon.Testing.Contracts.Tools.ToolAuthorizationContract.DeniedRequest.get -> Tracon.ToolAuthorizationRequest!
+const Tracon.Testing.Contracts.ContractCoverage.AgentSourceContracts = "Tracon.Testing.Contracts.AgentSources" -> string!
+const Tracon.Testing.Contracts.ContractCoverage.JudgeContracts = "Tracon.Testing.Contracts.Judges" -> string!
+const Tracon.Testing.Contracts.ContractCoverage.ProviderContracts = "Tracon.Testing.Contracts.Providers" -> string!
+const Tracon.Testing.Contracts.ContractCoverage.SchedulingContracts = "Tracon.Testing.Contracts.Scheduling" -> string!
+const Tracon.Testing.Contracts.ContractCoverage.StorageContracts = "Tracon.Testing.Contracts.Storage" -> string!
+const Tracon.Testing.Contracts.ContractCoverage.ToolContracts = "Tracon.Testing.Contracts.Tools" -> string!
+const Tracon.Testing.Contracts.Storage.RetentionStoreContract.TenantA = "tenant-a" -> string!
+const Tracon.Testing.Contracts.Storage.RetentionStoreContract.TenantB = "tenant-b" -> string!
+const Tracon.Testing.Contracts.Storage.TenantIsolationContract<TStore>.TenantA = "tenant-a" -> string!
+const Tracon.Testing.Contracts.Storage.TenantIsolationContract<TStore>.TenantB = "tenant-b" -> string!
+override Tracon.Testing.Contracts.Storage.AgentDefinitionStoreContract.CountAsync(string! tenantId) -> System.Threading.Tasks.ValueTask<int>
+override Tracon.Testing.Contracts.Storage.AgentDefinitionStoreContract.ExistsAsync(string! tenantId, object! key) -> System.Threading.Tasks.ValueTask<bool>
+override Tracon.Testing.Contracts.Storage.AgentDefinitionStoreContract.SeedAsync(string! tenantId, string! name) -> System.Threading.Tasks.ValueTask<object!>
+override Tracon.Testing.Contracts.Storage.AgentDefinitionStoreContract.TryDeleteAsync(string! tenantId, object! key) -> System.Threading.Tasks.ValueTask<bool?>
+override Tracon.Testing.Contracts.Storage.AgentFileStoreContract.CountAsync(string! tenantId) -> System.Threading.Tasks.ValueTask<int>
+override Tracon.Testing.Contracts.Storage.AgentFileStoreContract.ExistsAsync(string! tenantId, object! key) -> System.Threading.Tasks.ValueTask<bool>
+override Tracon.Testing.Contracts.Storage.AgentFileStoreContract.OnDisposeAsync() -> System.Threading.Tasks.ValueTask
+override Tracon.Testing.Contracts.Storage.AgentFileStoreContract.SeedAsync(string! tenantId, string! name) -> System.Threading.Tasks.ValueTask<object!>
+override Tracon.Testing.Contracts.Storage.AgentFileStoreContract.TryDeleteAsync(string! tenantId, object! key) -> System.Threading.Tasks.ValueTask<bool?>
+override Tracon.Testing.Contracts.Storage.AgentSkillStoreContract.CountAsync(string! tenantId) -> System.Threading.Tasks.ValueTask<int>
+override Tracon.Testing.Contracts.Storage.AgentSkillStoreContract.ExistsAsync(string! tenantId, object! key) -> System.Threading.Tasks.ValueTask<bool>
+override Tracon.Testing.Contracts.Storage.AgentSkillStoreContract.SeedAsync(string! tenantId, string! name) -> System.Threading.Tasks.ValueTask<object!>
+override Tracon.Testing.Contracts.Storage.AgentSkillStoreContract.TryDeleteAsync(string! tenantId, object! key) -> System.Threading.Tasks.ValueTask<bool?>
+override Tracon.Testing.Contracts.Storage.ApiKeyStoreContract.CountAsync(string! tenantId) -> System.Threading.Tasks.ValueTask<int>
+override Tracon.Testing.Contracts.Storage.ApiKeyStoreContract.ExistsAsync(string! tenantId, object! key) -> System.Threading.Tasks.ValueTask<bool>
+override Tracon.Testing.Contracts.Storage.ApiKeyStoreContract.SeedAsync(string! tenantId, string! name) -> System.Threading.Tasks.ValueTask<object!>
+override Tracon.Testing.Contracts.Storage.ApiKeyStoreContract.TryDeleteAsync(string! tenantId, object! key) -> System.Threading.Tasks.ValueTask<bool?>
+override Tracon.Testing.Contracts.Storage.AttachmentStoreContract.CountAsync(string! tenantId) -> System.Threading.Tasks.ValueTask<int>
+override Tracon.Testing.Contracts.Storage.AttachmentStoreContract.ExistsAsync(string! tenantId, object! key) -> System.Threading.Tasks.ValueTask<bool>
+override Tracon.Testing.Contracts.Storage.AttachmentStoreContract.SeedAsync(string! tenantId, string! name) -> System.Threading.Tasks.ValueTask<object!>
+override Tracon.Testing.Contracts.Storage.AttachmentStoreContract.TryDeleteAsync(string! tenantId, object! key) -> System.Threading.Tasks.ValueTask<bool?>
+override Tracon.Testing.Contracts.Storage.AuditLogContract.CountAsync(string! tenantId) -> System.Threading.Tasks.ValueTask<int>
+override Tracon.Testing.Contracts.Storage.AuditLogContract.ExistsAsync(string! tenantId, object! key) -> System.Threading.Tasks.ValueTask<bool>
+override Tracon.Testing.Contracts.Storage.AuditLogContract.SeedAsync(string! tenantId, string! name) -> System.Threading.Tasks.ValueTask<object!>
+override Tracon.Testing.Contracts.Storage.EvalStoreContract.CountAsync(string! tenantId) -> System.Threading.Tasks.ValueTask<int>
+override Tracon.Testing.Contracts.Storage.EvalStoreContract.ExistsAsync(string! tenantId, object! key) -> System.Threading.Tasks.ValueTask<bool>
+override Tracon.Testing.Contracts.Storage.EvalStoreContract.SeedAsync(string! tenantId, string! name) -> System.Threading.Tasks.ValueTask<object!>
+override Tracon.Testing.Contracts.Storage.EvalStoreContract.TryDeleteAsync(string! tenantId, object! key) -> System.Threading.Tasks.ValueTask<bool?>
+override Tracon.Testing.Contracts.Storage.ExperimentStoreContract.CountAsync(string! tenantId) -> System.Threading.Tasks.ValueTask<int>
+override Tracon.Testing.Contracts.Storage.ExperimentStoreContract.ExistsAsync(string! tenantId, object! key) -> System.Threading.Tasks.ValueTask<bool>
+override Tracon.Testing.Contracts.Storage.ExperimentStoreContract.SeedAsync(string! tenantId, string! name) -> System.Threading.Tasks.ValueTask<object!>
+override Tracon.Testing.Contracts.Storage.ExperimentStoreContract.TryDeleteAsync(string! tenantId, object! key) -> System.Threading.Tasks.ValueTask<bool?>
+override Tracon.Testing.Contracts.Storage.InboundTriggerStoreContract.CountAsync(string! tenantId) -> System.Threading.Tasks.ValueTask<int>
+override Tracon.Testing.Contracts.Storage.InboundTriggerStoreContract.ExistsAsync(string! tenantId, object! key) -> System.Threading.Tasks.ValueTask<bool>
+override Tracon.Testing.Contracts.Storage.InboundTriggerStoreContract.SeedAsync(string! tenantId, string! name) -> System.Threading.Tasks.ValueTask<object!>
+override Tracon.Testing.Contracts.Storage.InboundTriggerStoreContract.TryDeleteAsync(string! tenantId, object! key) -> System.Threading.Tasks.ValueTask<bool?>
+override Tracon.Testing.Contracts.Storage.JobScheduleStoreContract.CountAsync(string! tenantId) -> System.Threading.Tasks.ValueTask<int>
+override Tracon.Testing.Contracts.Storage.JobScheduleStoreContract.ExistsAsync(string! tenantId, object! key) -> System.Threading.Tasks.ValueTask<bool>
+override Tracon.Testing.Contracts.Storage.JobScheduleStoreContract.SeedAsync(string! tenantId, string! name) -> System.Threading.Tasks.ValueTask<object!>
+override Tracon.Testing.Contracts.Storage.JobScheduleStoreContract.TryDeleteAsync(string! tenantId, object! key) -> System.Threading.Tasks.ValueTask<bool?>
+override Tracon.Testing.Contracts.Storage.JobStoreContract.CountAsync(string! tenantId) -> System.Threading.Tasks.ValueTask<int>
+override Tracon.Testing.Contracts.Storage.JobStoreContract.ExistsAsync(string! tenantId, object! key) -> System.Threading.Tasks.ValueTask<bool>
+override Tracon.Testing.Contracts.Storage.JobStoreContract.SeedAsync(string! tenantId, string! name) -> System.Threading.Tasks.ValueTask<object!>
+override Tracon.Testing.Contracts.Storage.JobStoreContract.TryDeleteAsync(string! tenantId, object! key) -> System.Threading.Tasks.ValueTask<bool?>
+override Tracon.Testing.Contracts.Storage.McpServerStoreContract.CountAsync(string! tenantId) -> System.Threading.Tasks.ValueTask<int>
+override Tracon.Testing.Contracts.Storage.McpServerStoreContract.ExistsAsync(string! tenantId, object! key) -> System.Threading.Tasks.ValueTask<bool>
+override Tracon.Testing.Contracts.Storage.McpServerStoreContract.SeedAsync(string! tenantId, string! name) -> System.Threading.Tasks.ValueTask<object!>
+override Tracon.Testing.Contracts.Storage.McpServerStoreContract.TryDeleteAsync(string! tenantId, object! key) -> System.Threading.Tasks.ValueTask<bool?>
+override Tracon.Testing.Contracts.Storage.PendingApprovalStoreContract.CountAsync(string! tenantId) -> System.Threading.Tasks.ValueTask<int>
+override Tracon.Testing.Contracts.Storage.PendingApprovalStoreContract.ExistsAsync(string! tenantId, object! key) -> System.Threading.Tasks.ValueTask<bool>
+override Tracon.Testing.Contracts.Storage.PendingApprovalStoreContract.SeedAsync(string! tenantId, string! name) -> System.Threading.Tasks.ValueTask<object!>
+override Tracon.Testing.Contracts.Storage.PendingApprovalStoreContract.TryDeleteAsync(string! tenantId, object! key) -> System.Threading.Tasks.ValueTask<bool?>
+override Tracon.Testing.Contracts.Storage.QuotaStoreContract.CountAsync(string! tenantId) -> System.Threading.Tasks.ValueTask<int>
+override Tracon.Testing.Contracts.Storage.QuotaStoreContract.ExistsAsync(string! tenantId, object! key) -> System.Threading.Tasks.ValueTask<bool>
+override Tracon.Testing.Contracts.Storage.QuotaStoreContract.SeedAsync(string! tenantId, string! name) -> System.Threading.Tasks.ValueTask<object!>
+override Tracon.Testing.Contracts.Storage.QuotaStoreContract.TryDeleteAsync(string! tenantId, object! key) -> System.Threading.Tasks.ValueTask<bool?>
+override Tracon.Testing.Contracts.Storage.RetentionPolicyStoreContract.CountAsync(string! tenantId) -> System.Threading.Tasks.ValueTask<int>
+override Tracon.Testing.Contracts.Storage.RetentionPolicyStoreContract.ExistsAsync(string! tenantId, object! key) -> System.Threading.Tasks.ValueTask<bool>
+override Tracon.Testing.Contracts.Storage.RetentionPolicyStoreContract.SeedAsync(string! tenantId, string! name) -> System.Threading.Tasks.ValueTask<object!>
+override Tracon.Testing.Contracts.Storage.RetentionPolicyStoreContract.TryDeleteAsync(string! tenantId, object! key) -> System.Threading.Tasks.ValueTask<bool?>
+override Tracon.Testing.Contracts.Storage.RetentionPolicyStoreContract.TryOverwriteAsync(string! tenantId, string! name) -> System.Threading.Tasks.ValueTask<bool>
+override Tracon.Testing.Contracts.Storage.RunScoreStoreContract.CountAsync(string! tenantId) -> System.Threading.Tasks.ValueTask<int>
+override Tracon.Testing.Contracts.Storage.RunScoreStoreContract.ExistsAsync(string! tenantId, object! key) -> System.Threading.Tasks.ValueTask<bool>
+override Tracon.Testing.Contracts.Storage.RunScoreStoreContract.SeedAsync(string! tenantId, string! name) -> System.Threading.Tasks.ValueTask<object!>
+override Tracon.Testing.Contracts.Storage.RunScoreStoreContract.TryDeleteAsync(string! tenantId, object! key) -> System.Threading.Tasks.ValueTask<bool?>
+override Tracon.Testing.Contracts.Storage.RunStoreContract.CountAsync(string! tenantId) -> System.Threading.Tasks.ValueTask<int>
+override Tracon.Testing.Contracts.Storage.RunStoreContract.ExistsAsync(string! tenantId, object! key) -> System.Threading.Tasks.ValueTask<bool>
+override Tracon.Testing.Contracts.Storage.RunStoreContract.SeedAsync(string! tenantId, string! name) -> System.Threading.Tasks.ValueTask<object!>
+override Tracon.Testing.Contracts.Storage.SessionStoreContract.CountAsync(string! tenantId) -> System.Threading.Tasks.ValueTask<int>
+override Tracon.Testing.Contracts.Storage.SessionStoreContract.ExistsAsync(string! tenantId, object! key) -> System.Threading.Tasks.ValueTask<bool>
+override Tracon.Testing.Contracts.Storage.SessionStoreContract.SeedAsync(string! tenantId, string! name) -> System.Threading.Tasks.ValueTask<object!>
+override Tracon.Testing.Contracts.Storage.SessionStoreContract.TryDeleteAsync(string! tenantId, object! key) -> System.Threading.Tasks.ValueTask<bool?>
+override Tracon.Testing.Contracts.Storage.SkillScriptGrantContract.CountAsync(string! tenantId) -> System.Threading.Tasks.ValueTask<int>
+override Tracon.Testing.Contracts.Storage.SkillScriptGrantContract.ExistsAsync(string! tenantId, object! key) -> System.Threading.Tasks.ValueTask<bool>
+override Tracon.Testing.Contracts.Storage.SkillScriptGrantContract.SeedAsync(string! tenantId, string! name) -> System.Threading.Tasks.ValueTask<object!>
+override Tracon.Testing.Contracts.Storage.SkillScriptGrantContract.TryDeleteAsync(string! tenantId, object! key) -> System.Threading.Tasks.ValueTask<bool?>
+override Tracon.Testing.Contracts.Storage.TenantEgressPolicyStoreContract.CountAsync(string! tenantId) -> System.Threading.Tasks.ValueTask<int>
+override Tracon.Testing.Contracts.Storage.TenantEgressPolicyStoreContract.ExistsAsync(string! tenantId, object! key) -> System.Threading.Tasks.ValueTask<bool>
+override Tracon.Testing.Contracts.Storage.TenantEgressPolicyStoreContract.SeedAsync(string! tenantId, string! name) -> System.Threading.Tasks.ValueTask<object!>
+override Tracon.Testing.Contracts.Storage.TenantEgressPolicyStoreContract.TryDeleteAsync(string! tenantId, object! key) -> System.Threading.Tasks.ValueTask<bool?>
+override Tracon.Testing.Contracts.Storage.TenantProviderBindingStoreContract.CountAsync(string! tenantId) -> System.Threading.Tasks.ValueTask<int>
+override Tracon.Testing.Contracts.Storage.TenantProviderBindingStoreContract.ExistsAsync(string! tenantId, object! key) -> System.Threading.Tasks.ValueTask<bool>
+override Tracon.Testing.Contracts.Storage.TenantProviderBindingStoreContract.SeedAsync(string! tenantId, string! name) -> System.Threading.Tasks.ValueTask<object!>
+override Tracon.Testing.Contracts.Storage.TenantProviderBindingStoreContract.TryDeleteAsync(string! tenantId, object! key) -> System.Threading.Tasks.ValueTask<bool?>
+override Tracon.Testing.Contracts.Storage.ToolApprovalRuleStoreContract.CountAsync(string! tenantId) -> System.Threading.Tasks.ValueTask<int>
+override Tracon.Testing.Contracts.Storage.ToolApprovalRuleStoreContract.ExistsAsync(string! tenantId, object! key) -> System.Threading.Tasks.ValueTask<bool>
+override Tracon.Testing.Contracts.Storage.ToolApprovalRuleStoreContract.SeedAsync(string! tenantId, string! name) -> System.Threading.Tasks.ValueTask<object!>
+override Tracon.Testing.Contracts.Storage.ToolApprovalRuleStoreContract.TryDeleteAsync(string! tenantId, object! key) -> System.Threading.Tasks.ValueTask<bool?>
+override Tracon.Testing.Contracts.Storage.ToolInvocationContract.CountAsync(string! tenantId) -> System.Threading.Tasks.ValueTask<int>
+override Tracon.Testing.Contracts.Storage.ToolInvocationContract.ExistsAsync(string! tenantId, object! key) -> System.Threading.Tasks.ValueTask<bool>
+override Tracon.Testing.Contracts.Storage.ToolInvocationContract.SeedAsync(string! tenantId, string! name) -> System.Threading.Tasks.ValueTask<object!>
+override Tracon.Testing.Contracts.Storage.TraceStoreContract.CountAsync(string! tenantId) -> System.Threading.Tasks.ValueTask<int>
+override Tracon.Testing.Contracts.Storage.TraceStoreContract.ExistsAsync(string! tenantId, object! key) -> System.Threading.Tasks.ValueTask<bool>
+override Tracon.Testing.Contracts.Storage.TraceStoreContract.SeedAsync(string! tenantId, string! name) -> System.Threading.Tasks.ValueTask<object!>
+override Tracon.Testing.Contracts.Storage.VoiceSessionStoreContract.CountAsync(string! tenantId) -> System.Threading.Tasks.ValueTask<int>
+override Tracon.Testing.Contracts.Storage.VoiceSessionStoreContract.ExistsAsync(string! tenantId, object! key) -> System.Threading.Tasks.ValueTask<bool>
+override Tracon.Testing.Contracts.Storage.VoiceSessionStoreContract.SeedAsync(string! tenantId, string! name) -> System.Threading.Tasks.ValueTask<object!>
+override Tracon.Testing.Contracts.Storage.WebhookStoreContract.CountAsync(string! tenantId) -> System.Threading.Tasks.ValueTask<int>
+override Tracon.Testing.Contracts.Storage.WebhookStoreContract.ExistsAsync(string! tenantId, object! key) -> System.Threading.Tasks.ValueTask<bool>
+override Tracon.Testing.Contracts.Storage.WebhookStoreContract.SeedAsync(string! tenantId, string! name) -> System.Threading.Tasks.ValueTask<object!>
+override Tracon.Testing.Contracts.Storage.WebhookStoreContract.TryDeleteAsync(string! tenantId, object! key) -> System.Threading.Tasks.ValueTask<bool?>
+override Tracon.Testing.Contracts.Storage.WorkflowCheckpointStoreContract.CountAsync(string! tenantId) -> System.Threading.Tasks.ValueTask<int>
+override Tracon.Testing.Contracts.Storage.WorkflowCheckpointStoreContract.ExistsAsync(string! tenantId, object! key) -> System.Threading.Tasks.ValueTask<bool>
+override Tracon.Testing.Contracts.Storage.WorkflowCheckpointStoreContract.SeedAsync(string! tenantId, string! name) -> System.Threading.Tasks.ValueTask<object!>
+override Tracon.Testing.Contracts.Storage.WorkflowCheckpointStoreContract.TryDeleteAsync(string! tenantId, object! key) -> System.Threading.Tasks.ValueTask<bool?>
+override Tracon.Testing.Contracts.Storage.WorkflowDefinitionStoreContract.CountAsync(string! tenantId) -> System.Threading.Tasks.ValueTask<int>
+override Tracon.Testing.Contracts.Storage.WorkflowDefinitionStoreContract.ExistsAsync(string! tenantId, object! key) -> System.Threading.Tasks.ValueTask<bool>
+override Tracon.Testing.Contracts.Storage.WorkflowDefinitionStoreContract.SeedAsync(string! tenantId, string! name) -> System.Threading.Tasks.ValueTask<object!>
+override Tracon.Testing.Contracts.Storage.WorkflowDefinitionStoreContract.TryDeleteAsync(string! tenantId, object! key) -> System.Threading.Tasks.ValueTask<bool?>
+static Tracon.Testing.Contracts.ContractCoverage.ContractTypes(string! namespaceScope) -> System.Collections.Generic.IReadOnlyList<System.Type!>!
+static Tracon.Testing.Contracts.ContractCoverage.MissingDerivedTypes(System.Reflection.Assembly! consumerAssembly, string! namespaceScope, System.Collections.Generic.IReadOnlyCollection<string!>? except = null) -> System.Collections.Generic.IReadOnlyList<string!>!
+static Tracon.Testing.Contracts.Judges.RunJudgeContract.ShouldBeStorable(Tracon.RunJudgment! judgment) -> void
+static Tracon.Testing.Contracts.Storage.TestData.Definition(string! name) -> Tracon.AgentDefinition!
+static Tracon.Testing.Contracts.Storage.TestData.EvalCase(System.Guid suiteId, string! query = "question") -> Tracon.EvalCase!
+static Tracon.Testing.Contracts.Storage.TestData.EvalCaseDraft(System.Guid? sourceRunId = null, string! query = "question") -> Tracon.EvalCaseDraft!
+static Tracon.Testing.Contracts.Storage.TestData.EvalRun(string! tenantId, System.Guid suiteId) -> Tracon.EvalRun!
+static Tracon.Testing.Contracts.Storage.TestData.EvalSuite(string! tenantId = "default", string! name = "customer-support-team") -> Tracon.EvalSuite!
+static Tracon.Testing.Contracts.Storage.TestData.Event(System.Guid runId, long sequence) -> Tracon.RunEvent!
+static Tracon.Testing.Contracts.Storage.TestData.Job(string! tenantId = "default", System.DateTimeOffset? scheduledFor = null) -> Tracon.JobRecord!
+static Tracon.Testing.Contracts.Storage.TestData.Run(System.Guid runId, string! agentName = "test-agent") -> Tracon.RunStartInfo!
+static Tracon.Testing.Contracts.Storage.TestData.Schedule(string! tenantId = "default", string! name = "night-report") -> Tracon.JobSchedule!
+static Tracon.Testing.Contracts.Storage.TestData.Session(string! sessionId, System.Text.Json.JsonElement? state = null) -> Tracon.SessionRecord!
+static Tracon.Testing.Contracts.Storage.TestData.State(string! json) -> System.Text.Json.JsonElement
+virtual Tracon.Testing.Contracts.AgentSources.AgentSourceContract.UnknownAgentName.get -> string!
+virtual Tracon.Testing.Contracts.AgentSources.VersionedAgentSourceContract.UnknownVersion.get -> int
+virtual Tracon.Testing.Contracts.Judges.RunJudgeContract.ConcurrentCallCount.get -> int
+virtual Tracon.Testing.Contracts.Judges.RunJudgeContract.CreateContext() -> Tracon.RunJudgeContext!
+virtual Tracon.Testing.Contracts.Providers.ModelProviderContract.OnDisposeAsync() -> System.Threading.Tasks.ValueTask
+virtual Tracon.Testing.Contracts.Providers.ModelProviderContract.UnknownModelName.get -> string!
+virtual Tracon.Testing.Contracts.Providers.ModelProviderCredentialContract.OtherCredential.get -> Tracon.ModelProviderCredential!
+virtual Tracon.Testing.Contracts.Providers.ModelProviderSettingsContract.UnsupportedSettingKey.get -> string!
+virtual Tracon.Testing.Contracts.Scheduling.JobHandlerContract.CreateJob(System.Collections.Generic.IReadOnlyList<Tracon.JobItemRecord!>! items) -> Tracon.JobRecord!
+virtual Tracon.Testing.Contracts.Scheduling.JobHandlerContract.HandlerKey.get -> string!
+virtual Tracon.Testing.Contracts.Storage.AuditLogContract.ExecuteRawAsync(string! sql) -> System.Threading.Tasks.ValueTask
+virtual Tracon.Testing.Contracts.Storage.AuditLogContract.FormatIdForRawSql(System.Guid id) -> string!
+virtual Tracon.Testing.Contracts.Storage.AuditLogContract.QualifiedAuditLogTable.get -> string!
+virtual Tracon.Testing.Contracts.Storage.AuditLogContract.SupportsRawTamper.get -> bool
+virtual Tracon.Testing.Contracts.Storage.IdempotencyStoreContract.OnDisposeAsync() -> System.Threading.Tasks.ValueTask
+virtual Tracon.Testing.Contracts.Storage.PendingApprovalStoreContract.PrepareRunAsync(System.Guid runId, string! tenantId) -> System.Threading.Tasks.ValueTask
+virtual Tracon.Testing.Contracts.Storage.RetentionStoreContract.OnDisposeAsync() -> System.Threading.Tasks.ValueTask
+virtual Tracon.Testing.Contracts.Storage.RunInputStoreContract.OnDisposeAsync() -> System.Threading.Tasks.ValueTask
+virtual Tracon.Testing.Contracts.Storage.RunInputStoreContract.PrepareRunAsync(System.Guid runId, string! tenantId) -> System.Threading.Tasks.ValueTask
+virtual Tracon.Testing.Contracts.Storage.RunStoreContract.CreateScoreStoreAsync() -> System.Threading.Tasks.ValueTask<Tracon.IRunScoreStore?>
+virtual Tracon.Testing.Contracts.Storage.SingletonLeaseStoreContract.OnDisposeAsync() -> System.Threading.Tasks.ValueTask
+virtual Tracon.Testing.Contracts.Storage.TenantIsolationContract<TStore>.OnDisposeAsync() -> System.Threading.Tasks.ValueTask
+virtual Tracon.Testing.Contracts.Storage.TenantIsolationContract<TStore>.TryDeleteAsync(string! tenantId, object! key) -> System.Threading.Tasks.ValueTask<bool?>
+virtual Tracon.Testing.Contracts.Storage.TenantIsolationContract<TStore>.TryOverwriteAsync(string! tenantId, string! name) -> System.Threading.Tasks.ValueTask<bool>
+virtual Tracon.Testing.Contracts.Tools.ToolArgumentValidationContract.ExtraPropertyIsRejected.get -> bool
+virtual Tracon.Testing.Contracts.Tools.ToolArgumentValidationContract.Seed.get -> int

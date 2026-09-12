@@ -8,7 +8,7 @@ sidebar:
 A workflow runs several agents together. Where a callable agent is one agent using
 another as a tool, a workflow is an orchestration you define and can watch.
 
-Workflows need `AgentPrism.Workflows`. Without the engine registered, definition
+Workflows need `Tracon.Workflows`. Without the engine registered, definition
 management still works and only the execution endpoints answer `501` — the package
 stays optional on purpose.
 
@@ -48,7 +48,7 @@ A real pipeline has steps that are not AI calls — a file download, a format
 conversion, a database write. `AddWorkflowFunction` registers one by name:
 
 ```csharp
-agentPrism.AddWorkflowFunction<List<ChatMessage>, List<ChatMessage>>(
+tracon.AddWorkflowFunction<List<ChatMessage>, List<ChatMessage>>(
     "word-count",
     services => (messages, context, cancellationToken) =>
     {
@@ -108,7 +108,7 @@ handler with a real side effect must tolerate being called more than once.
 `AddWorkflowFunction` takes an optional retry policy:
 
 ```csharp
-agentPrism.AddWorkflowFunction<List<ChatMessage>, List<ChatMessage>>(
+tracon.AddWorkflowFunction<List<ChatMessage>, List<ChatMessage>>(
     "call-shipping-api",
     services => (messages, context, cancellationToken) => CallShippingApiAsync(messages, cancellationToken),
     "Looks up a shipment.",
@@ -125,7 +125,7 @@ rate limit, or a timeout. Anything else (a bad argument, a permanent downstream
 error) is thrown on the first attempt, exactly as without a policy. The retry loop
 runs entirely inside the node's own call: Microsoft Agent Framework invokes the
 node once per routed message either way, so retrying costs nothing against
-`AgentPrismWorkflowOptions.MaxSuperSteps` — a node that succeeds on its third
+`TraconWorkflowOptions.MaxSuperSteps` — a node that succeeds on its third
 attempt still counts as exactly one super-step.
 
 Workflows can also be built in code with MAF's own builder.
@@ -140,7 +140,7 @@ rather than an error. Use the same string in both places.
 ## Running one
 
 ```bash
-curl -N -X POST http://localhost:5081/agentprism/api/workflows/triage/run \
+curl -N -X POST http://localhost:5081/tracon/api/workflows/triage/run \
      -H 'Content-Type: application/json' \
      -d '{"message":"My invoice is wrong and the app crashes"}'
 ```
@@ -174,7 +174,7 @@ of agent steps is bounded the same way a single agent's own tool loop is.
 ## Checkpoints
 
 A workflow writes checkpoints as it goes, controlled by
-`AgentPrism:Workflows:EnableCheckpointing` (default `true`).
+`Tracon:Workflows:EnableCheckpointing` (default `true`).
 `GET /api/workflows/runs/{runId}/checkpoints` lists them and
 `POST /api/workflows/runs/{runId}/resume` continues from one — omit the id to resume
 from the latest.
@@ -193,12 +193,12 @@ that stops to wait for a human answer fails outright instead of hanging with no 
 to resume.
 
 A checkpoint's state is the Microsoft Agent Framework's own serialized graph;
-AgentPrism does not interpret it and makes no promise that a checkpoint written
+Tracon does not interpret it and makes no promise that a checkpoint written
 by one Microsoft Agent Framework version can be resumed by a different one. See
 [Versions and upgrades](/reference/versioning/#persisted-session-and-checkpoint-state)
 for the compatibility policy.
 
-`agentprism state-check` counts stored checkpoints by the AgentPrism envelope
+`tracon state-check` counts stored checkpoints by the Tracon envelope
 generation stamped on them and says which of those the build running the
 command understands. That is as far as it can go for a checkpoint: the state
 inside has no decoder outside a running workflow, so the command reports a

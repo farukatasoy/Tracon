@@ -72,7 +72,7 @@ Case'in kendi ön koşulu tetiklendi: bu oturumda (`mt_s4`, şerit izole) `13-
 KIRACI-VE-GUVENLIK.md`'nin ürettiği API-anahtarı/rol fixture'ı hiç
 oluşturulmadı (o dosya Şerit 2'de `mt_s2` şemasında koşuldu, izole şema/
 şerit paylaşılmıyor — KOSUM-PLANI §2.3). Arayüz tek bir bearer token
-(`AgentPrism:Ui:AuthToken`) destekliyor ve bu token her zaman tam rol
+(`Tracon:Ui:AuthToken`) destekliyor ve bu token her zaman tam rol
 taşıyor (S4-1'in `MT-UI-010/011` bulgusuyla aynı yapısal engel: `X-Test-
 Role` test iskelesi tarayıcının gerçek `Authorization: Bearer` akışıyla
 uyumsuz). Case'in kendi metni bu durumda ⏭ ATLA'yı ve gerekçe olarak
@@ -109,7 +109,7 @@ kalktı) — beklenenle birebir eşleşiyor.
 **Gerçek sonuç**
 `POST /api/agents` → `409`, gövde: `{"title":"Agent adi kullanimda",
 "status":409,"detail":"'manuel-bos' adinda bir tanim zaten var. Guncellemek
-icin PUT kullanin."}`. Form kapanmadı (URL `/agentprism/agents/new`'de
+icin PUT kullanin."}`. Form kapanmadı (URL `/tracon/agents/new`'de
 kaldı), kırmızı `ErrorNote` göründü: "Agent adi kullanimda: 'manuel-bos'
 adinda bir tanim zaten var. Guncellemek icin PUT kullanin." — `detail` alanı
 metnin İÇİNDE birebir var (ErrorNote `title: detail` biçiminde birleştirip
@@ -130,7 +130,7 @@ Adım 2: "Doğrula"ya tıklandı, "Doğrulama sonucu" paneli `Geçerli` rozetini
 gösterdi, "Sorun bulunamadı. Hiçbir şey kaydedilmedi, hiçbir model
 çağrılmadı." notuyla — model adı (`bilinmeyen-model-adi-xyz`) gerçekte
 OpenAI'de yok ama doğrulayıcı bunu reddetmedi; bu, K-032'nin doğal sonucu
-(AgentPrism model listesini sunucu tarafında bilinçli olarak seçmez/
+(Tracon model listesini sunucu tarafında bilinçli olarak seçmez/
 doğrulamaz, doğrulama yalnız biçim/şema düzeyinde) — case'in kendi metni
 zaten yalnız "report.valid durumuna göre" göstermeyi bekliyor, kusur değil.
 Adım 3: Agents listesine dönüldü, `manuel-dogrula-test` katalogda YOK —
@@ -143,7 +143,7 @@ doğrulama hiçbir şey kaydetmedi.
 ## MT-UIAG-012 — Beceri (skill) seçimi 10'da sınırlanır, sonraki checkbox'lar devre dışı kalır
 
 **Gerçek sonuç**
-Ön koşul karşılanmıyor: `/agentprism/skills` ekranı "Henüz skill yok"
+Ön koşul karşılanmıyor: `/tracon/skills` ekranı "Henüz skill yok"
 gösteriyor — bu `mt_s4` şemasında SIFIR skill kayıtlı (S4-1..S4-3'te hiçbir
 skill senaryo dosyası henüz koşulmadı, `14-SKILL-VE-SCRIPT.md` ortak
 kuyrukta bekliyor). Case'in kendi metni bu durumda ⏭ ATLA'yı öngörüyor
@@ -179,7 +179,7 @@ birebir örtüşüyor. **Düzeltme:** guard, effect gövdesinden functional
 providerNames)`, `current.provider` — her zaman taze state — üzerinden karar
 verir); artık hangi commit'te hangi effect'in önce/sonra çalıştığından
 BAĞIMSIZ olarak doğru sağlayıcıyı asla ezmiyor. Değişen dosya:
-`src/AgentPrism.UI/frontend/src/screens/agent-editor.tsx`. Regresyon testi
+`src/Tracon.UI/frontend/src/screens/agent-editor.tsx`. Regresyon testi
 (yeni dosya `agent-editor.test.ts`, üç senaryo) fix'siz koda karşı koşuldu —
 "var olan sağlayıcıyı ezmez" testi KIRMIZI verdi, doğrulandı. Dört kapı
 yeşil (`dotnet test` 467+42+484 test dahil, sıfır regresyon). Canlı
@@ -242,7 +242,7 @@ doğrudan gidildi: `Ad` alanı `"support"` değeriyle dolu ve salt-okunur,
 gerçekten `409` ile `"Code-defined agent cannot be modified: 'support' is
 defined in code..."` metnini döndü — case'in orijinal beklediği akış artık
 gerçekten erişilebilir. Regresyon testi:
-`tests/AgentPrism.Ui.E2ETests/UiTests.cs`
+`tests/Tracon.Ui.E2ETests/UiTests.cs`
 `Kod_agentine_dogrudan_URL_ile_gidilince_form_ad_ile_dolu_gelir`.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
@@ -368,12 +368,12 @@ ayrıca tam doğrulandı.
 ---
 
 **2026-08-14 yeniden koşum (KAPANIS-PLANI Aile K).** Kök neden:
-`src/AgentPrism.UI/Internal/EmbeddedUiProvider.cs` `ContentSecurityPolicy`
+`src/Tracon.UI/Internal/EmbeddedUiProvider.cs` `ContentSecurityPolicy`
 sabiti `img-src 'self' data:` taşıyordu, `blob:` şeması yoktu — ek
 önizlemesinin kaynağı (`useAttachmentPreview`, `URL.createObjectURL`) her
 zaman bir `blob:` URL'idir. Düzeltme: `img-src 'self' data: blob:;`. Canlı
-`samples/AgentPrism.Api`'ye karşı `curl` ile doğrulandı — yanıt başlığı artık
-`blob:`'i taşıyor. `tests/AgentPrism.Ui.E2ETests/UiTests.cs`
+`samples/Tracon.Api`'ye karşı `curl` ile doğrulandı — yanıt başlığı artık
+`blob:`'i taşıyor. `tests/Tracon.Ui.E2ETests/UiTests.cs`
 `Playground_dosya_yuklenir_onizleme_gorunur_ve_calistirma_devam_eder`
 gerçek bir Chromium'da `document.addEventListener('securitypolicyviolation',
 ...)` ile ek önizlemesi yüklenirken CSP ihlali OLMADIĞINI doğrular — fix
@@ -391,7 +391,7 @@ kabuk yanıtının `Content-Security-Policy` başlığını doğrudan kontrol ed
 
 **Gerçek sonuç**
 MT-UIAG-026'nın tamamlanmış turunda (`support`, düz metin yanıt) "Seslendir"
-düğmesine tıklandı — gerçek ElevenLabs çağrısı (`AgentPrism:Voice:ApiKey`
+düğmesine tıklandı — gerçek ElevenLabs çağrısı (`Tracon:Voice:ApiKey`
 tanımlı). Başarılı oldu: düğme yerine `data-testid="playground-audio"`
 `<audio controls>` öğesi + `"32 karakter · 0.0035 USD"` notu belirdi
 (`result.cost != null`, `speechCost` kalıbı birebir). AMA ses OYNATILAMIYOR:
@@ -416,12 +416,12 @@ gibi.
 **2026-08-14 yeniden koşum (KAPANIS-PLANI Aile K).** Aynı kök neden
 (`MT-UIAG-044`'te düzeltilen `EmbeddedUiProvider.ContentSecurityPolicy`);
 bu case ikinci, daha geniş etkili örnekti (`media-src` yönergesi hiç yoktu).
-Düzeltme: `media-src 'self' blob:;` eklendi. Canlı `samples/AgentPrism.Api`'ye
+Düzeltme: `media-src 'self' blob:;` eklendi. Canlı `samples/Tracon.Api`'ye
 karşı `curl` ile doğrulandı — yanıt başlığı artık `media-src 'self' blob:`
 taşıyor. Gerçek ElevenLabs ile etkileşimli tarayıcı testi bu koşumda
 YAPILMADI (Aile J'deki kilitlenme emsaliyle aynı gerekçe — mevcut Playwright
 tarayıcısı başka bir oturumca meşguldü). Bunun yerine
-`tests/AgentPrism.Ui.E2ETests/UiTests.cs`
+`tests/Tracon.Ui.E2ETests/UiTests.cs`
 `Playground_yaniti_seslendirilir_ve_ses_ogesi_calar` (sahte `StubSpeechSynthesizer`,
 gerçek Chromium) güçlendirildi: `document.addEventListener('securitypolicyviolation',
 ...)` ile ses oynatıcısı `blob:` kaynağını yüklerken CSP ihlali OLMADIĞINI
@@ -442,7 +442,7 @@ otomatik regresyon kanıtı yeterli görülerek case Geçti işaretlendi.
 ## MT-UIAG-051 — Seslendirme sağlayıcısı yapılandırılmamışsa düğme yanında hata notu görünür
 
 **Gerçek sonuç**
-`AgentPrism__Voice__ApiKey=""` ile (KOSUM-PLANI §2.2 sapması — `user-secrets
+`Tracon__Voice__ApiKey=""` ile (KOSUM-PLANI §2.2 sapması — `user-secrets
 remove` yerine boş ortam değişkeni) uygulama yeniden başlatıldı. Yan bulgu:
 `sesli-asistan` agent'ı artık `GET api/agents/sesli-asistan` → `404`
 veriyor (voice olmadan katalogda hiç kayıtlı değil) — beklenen örnek
@@ -450,10 +450,10 @@ uygulama davranışı, kusur değil, ayrıca ele alınmadı. Yeni bir `support`
 turu (`Merhaba`) üretildi (önceki turun state'i restart ile kayboldu),
 "Seslendir" tıklandı. Ağ sekmesi: `POST api/voice/speak` → `501`. Düğmenin
 YANINDA kırmızı not: `"Ses saglayicisi yapilandirilmadi: Ses ozelligini
-acmak icin \`AgentPrism.Voice\` paketini ekleyin ve \`UseVoice(...)\`
+acmak icin \`Tracon.Voice\` paketini ekleyin ve \`UseVoice(...)\`
 cagirin."` — sunucudan gelen mesaj birebir. Ses oynatıcı HİÇ belirmedi,
 düğme `idle` kaldı (DOM'da hâlâ tıklanabilir, disabled değil). Case bitince
-`AgentPrism:Voice:ApiKey` GERİ AYARLANDI, uygulama yeniden başlatıldı —
+`Tracon:Voice:ApiKey` GERİ AYARLANDI, uygulama yeniden başlatıldı —
 aşağıda doğrulandı.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı

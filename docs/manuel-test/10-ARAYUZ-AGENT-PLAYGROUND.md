@@ -3,7 +3,7 @@
 > **Alan kodu:** `UIAG` · **Faz:** 5 (agent kataloğu, editör, playground), 19 (sürüm
 > karşılaştırma — `agent-detail.tsx` içindeki `VersionCompare`), 142 (onay
 > kartında varlık adı sunumu ve katlanır ham argümanlar)
-> **Kaynak:** `src/AgentPrism.UI/frontend/src/screens/agents.tsx` (katalog) ·
+> **Kaynak:** `src/Tracon.UI/frontend/src/screens/agents.tsx` (katalog) ·
 > `screens/agent-editor.tsx` (oluşturma/düzenleme) · `screens/agent-detail.tsx`
 > (özet, versiyon geçmişi, karşılaştırma, geri alma) · `screens/playground.tsx`
 > (akışlı sohbet) · destek bileşenleri: `components/transcript.tsx` (tool/onay/
@@ -14,7 +14,7 @@
 > createAgent/updateAgent/validateAgent/deleteAgent/agentVersions/
 > rollbackAgent/agentVersionDiff/uploadAttachment/deleteAttachment/
 > attachmentBlob/createConversation/speak`).
-> Sunucu tarafı davranış: `src/AgentPrism.AspNetCore/Endpoints/AgentEndpoints.cs`
+> Sunucu tarafı davranış: `src/Tracon.AspNetCore/Endpoints/AgentEndpoints.cs`
 > (özellikle `AgentRunStream.ExecuteStreamingAsync`'in `run`/`update`/`done`/
 > `error` çerçeveleri), `Endpoints/AttachmentEndpoints.cs`,
 > `Core/Attachments/AttachmentTypeGuard.cs`, `Core/Approvals/
@@ -75,14 +75,14 @@ flowchart TD
 ## Koşmadan önce
 
 1. [`00-INDEKS.md`](00-INDEKS.md) §4 reset yordamı uygulanır.
-2. Örnek uygulama çalışır (`cd samples/AgentPrism.Api && dotnet run`),
-   `http://localhost:5080/agentprism/` açılır, `manuel-test-token-2026` ile giriş
+2. Örnek uygulama çalışır (`cd samples/Tracon.Api && dotnet run`),
+   `http://localhost:5080/tracon/` açılır, `manuel-test-token-2026` ile giriş
    yapılmıştır (bkz. [`09-ARAYUZ-GENEL.md`](09-ARAYUZ-GENEL.md) `MT-UI-001`/`002`).
-3. `AgentPrism:Providers:OpenAI:ApiKey` tanımlıdır — bu dosyanın çoğu case'i
+3. `Tracon:Providers:OpenAI:ApiKey` tanımlıdır — bu dosyanın çoğu case'i
    gerçek bir OpenAI çağrısı yapar (`support` agent'ı, model `gpt-5.4-mini`).
    Gerçek para harcanır; her case'in "Adımlar" bölümü tam olarak kaç çalıştırma
    gerektiğini yazar.
-4. Kalıcılık: `AgentPrism:PostgreSql:ConnectionString` tanımlıdır (agent
+4. Kalıcılık: `Tracon:PostgreSql:ConnectionString` tanımlıdır (agent
    CRUD ve versiyon geçmişi bellek içi depoda da çalışır, ama bu dosyadaki
    versiyon/geri alma case'leri PostgreSQL ile koşulur ki bir sonraki oturumda
    da agent listesi kalıcı kalsın).
@@ -143,14 +143,14 @@ yeniden kanıtlanmaz.
 - Bu dosyanın geri kalanı `canAdminister = true` bir tokenla koşulur; bu case
   tek başına, yalnız bir Operator-rol API anahtarıyla (bkz. `13-KIRACI-VE-
   GUVENLIK.md`'nin üreteceği fixture) test edilebilir. O dosya henüz yoksa
-  `Reader`/`Operator` rolündeki herhangi bir `AgentPrism:Ui:AuthToken` dışı
+  `Reader`/`Operator` rolündeki herhangi bir `Tracon:Ui:AuthToken` dışı
   erişim yolu (API anahtarı üstünden yalnızca REST) kullanılabilir; arayüz
   bugün TEK bir bearer token'ı destekler ve o token her zaman tam rol taşır —
   bu durumda case ⏭ **ATLA** işaretlenip gerekçe "13'ün API-anahtarı fixture'ı
   bekleniyor" olarak yazılır.
 
 **Adımlar**
-1. `canAdminister = false` olan bir erişimle `/agentprism/agents` aç.
+1. `canAdminister = false` olan bir erişimle `/tracon/agents` aç.
 
 **Beklenen sonuç**
 - `PageHeader`'ın `actions` alanında "Yeni Agent" düğmesi HİÇ render edilmez
@@ -170,7 +170,7 @@ Sınır durumu.
 | **İlgili karar** | — |
 
 **Ön koşul**
-- `/agentprism/agents/new` açık, form tamamen boş.
+- `/tracon/agents/new` açık, form tamamen boş.
 
 **Adımlar**
 1. "Doğrula" ve "Oluştur" düğmelerinin durumuna bak.
@@ -201,7 +201,7 @@ Sınır durumu.
 | **İlgili karar** | — |
 
 **Ön koşul**
-- `/agentprism/agents/new` açık.
+- `/tracon/agents/new` açık.
 
 **Adımlar**
 1. `Ad`: `manuel-bos` (`FIX-AGENT-02`).
@@ -234,7 +234,7 @@ somut uygulaması.
 | **İlgili karar** | K2 |
 
 **Ön koşul**
-- `/agentprism/agents/new` açık.
+- `/tracon/agents/new` açık.
 
 **Adımlar**
 1. `Ad`: `manuel-destek` (`FIX-AGENT-01`).
@@ -271,7 +271,7 @@ Negatif senaryo.
 - `manuel-bos` (`MT-UIAG-004`) zaten var.
 
 **Adımlar**
-1. `/agentprism/agents/new` aç, `Ad`: `manuel-bos` yaz.
+1. `/tracon/agents/new` aç, `Ad`: `manuel-bos` yaz.
 2. `Sağlayıcı`/`Model` doldur, "Oluştur"a tıkla.
 
 **Beklenen sonuç**
@@ -295,7 +295,7 @@ kullanıcıya sunucudan geldiği gibi gösterir.
 | **İlgili karar** | K-003 |
 
 **Ön koşul**
-- `/agentprism/agents/new` açık.
+- `/tracon/agents/new` açık.
 
 **Adımlar**
 1. `Ad`: `support`. `Sağlayıcı`/`Model` doldur, "Oluştur"a tıkla.
@@ -319,7 +319,7 @@ kullanıcıya sunucudan geldiği gibi gösterir.
 | **İlgili karar** | — |
 
 **Ön koşul**
-- `/agentprism/agents/new` açık.
+- `/tracon/agents/new` açık.
 
 **Adımlar**
 1. `Ad`: `manuel-dogrula-test`. `Sağlayıcı`: `openai` · `Model`: `bilinmeyen-model-adi-xyz`.
@@ -347,7 +347,7 @@ Sınır/negatif senaryo — istemci tarafı doğrulama, sunucuya hiç gitmez.
 | **İlgili karar** | — |
 
 **Ön koşul**
-- `/agentprism/agents/new` açık; `Ad`/`Sağlayıcı`/`Model` geçerli değerlerle
+- `/tracon/agents/new` açık; `Ad`/`Sağlayıcı`/`Model` geçerli değerlerle
   dolu (form aksi halde zaten devre dışı olurdu).
 
 **Adımlar**
@@ -377,7 +377,7 @@ Sınır/negatif senaryo — istemci tarafı doğrulama, sunucuya hiç gitmez.
 | **İlgili karar** | — |
 
 **Ön koşul**
-- `/agentprism/agents/new` açık, zorunlu alanlar dolu.
+- `/tracon/agents/new` açık, zorunlu alanlar dolu.
 
 **Adımlar**
 1. "Harness" panelindeki checkbox'ı işaretle.
@@ -412,7 +412,7 @@ açar.
 | **İlgili karar** | — |
 
 **Ön koşul**
-- `/agentprism/agents/new` açık.
+- `/tracon/agents/new` açık.
 
 **Adımlar**
 1. "Bağlam" panelinde stratejiyi `SlidingWindow` seç; görünen alanları not al.
@@ -450,7 +450,7 @@ yapar (bu case yalnız arayüzü ölçer).
   kaç beceri kaydettiğini önce `Skills` ekranından say).
 
 **Adımlar**
-1. `/agentprism/agents/new` aç, "Beceriler" panelinde art arda 10 checkbox işaretle.
+1. `/tracon/agents/new` aç, "Beceriler" panelinde art arda 10 checkbox işaretle.
 2. 11. beceriyi işaretlemeyi dene.
 
 **Beklenen sonuç**
@@ -744,7 +744,7 @@ Kütüphane kullanılmadı — el yazımı LCS diff (K-045).
 **Doküman düzeltmesi**
 Orijinal metin "eklenen kısım (` Nazik ol.`) yeşil, değişmeyen kısım nötr
 renkte" diyordu — bu KELİME/ALT-SATIR düzeyinde vurgu ima ediyor.
-`src/AgentPrism.UI/frontend/src/components/diff-view.tsx:6-9`'un kendi XML
+`src/Tracon.UI/frontend/src/components/diff-view.tsx:6-9`'un kendi XML
 yorumu "Line-by-line diff of two texts" der; `diffLines()` satırı BÜTÜN
 olarak `added`/`removed` işaretler, satır İÇİNDE hangi alt-dizinin
 değiştiğini ayırt etmez. Tasarım kasıtlı (K-149'un da referans verdiği
@@ -754,7 +754,7 @@ kararıdır, diff bileşeniyle ilgisi yok; muhtemelen kopyala-yapıştır hatas�
 
 **Doğrulama sorgusu**
 ```bash
-curl -s "http://localhost:5080/agentprism/api/agents/manuel-destek/versions/1/diff/2" \
+curl -s "http://localhost:5080/tracon/api/agents/manuel-destek/versions/1/diff/2" \
   -H "Authorization: Bearer manuel-test-token-2026" | python3 -m json.tool
 ```
 
@@ -995,7 +995,7 @@ Oturum kimliği sunucudan rezerve edilir (K-043) — arayüz kendi biçimini uyd
   ("`cancel_order` tool kartının bu turda HİÇ belirmediği doğrulanır")
   yanlıştı — MAF'ın `FunctionApprovalRequestContent.CreateResponse(false,
   reason)`'ı reddi normal bir `FunctionResultContent` (sabit metin "Tool
-  call invocation rejected.") olarak sentezliyor; AgentPrism'in transcript
+  call invocation rejected.") olarak sentezliyor; Tracon'in transcript
   render'ı HER `FunctionResultContent`'i (kaynağı ister gerçek tool
   çalıştırması ister red-stub'u olsun) bir tool kartına çeviriyor. Doğru
   beklenti: yeni turda `cancel_order` İKİNCİ bir kartla (rozet `bitti`/`ok`
@@ -1042,7 +1042,7 @@ hiç göndermez, sunucu tarafı varsayılanı `false`'tur.
 **Doğrulama sorgusu**
 ```sql
 SELECT tool_name, agent_name, arguments_hash, created_at
-FROM agentprism.tool_approval_rules
+FROM tracon.tool_approval_rules
 WHERE agent_name = 'support' AND tool_name = 'cancel_order';
 ```
 Beklenen: tek satır, `arguments_hash IS NULL` (argüman bazlı sınırlama yok).
@@ -1313,7 +1313,7 @@ Negatif senaryo — akış hiç başlamadan gelen `ProblemDetails` yolu.
 | **İlgili karar** | — |
 
 **Ön koşul**
-- `http://localhost:5080/agentprism/#/playground/manuel-yok-boyle-agent`
+- `http://localhost:5080/tracon/#/playground/manuel-yok-boyle-agent`
   adresine DOĞRUDAN git (agent seçicide olmayan bir ad — route parametresi
   serbest metindir).
 
@@ -1335,7 +1335,7 @@ Negatif senaryo — akış hiç başlamadan gelen `ProblemDetails` yolu.
 ### MT-UIAG-042 — `FIX-PROMPT-05` guard engeli → yalnız tur içi hata; ÜST hata kutusu YOK
 
 Negatif senaryo — akış İÇİNDE gelen `event: error` yolu.
-`AgentPrismContentBlockedException`, `AgentPrismException`'dan türediği için
+`TraconContentBlockedException`, `TraconException`'dan türediği için
 akışlı `catch` bloğunda YAKALANIR (2026-08-10'dan beri diğer sağlayıcı
 istisnaları da aynı şekilde yakalanıyor — bkz. `MT-UIAG-043`'ün güncellenmiş
 notu) ve düzgün bir `error` çerçevesi üretir.
@@ -1360,7 +1360,7 @@ notu) ve düzgün bir `error` çerçevesi üretir.
   `run()`'ın dış `catch`'inde set edilir, SSE `error` çerçevesi bu yolu HİÇ
   tetiklemez.
 - Turun İÇİNDE kırmızı bir hata kutusu görünür, metni
-  `AgentPrismContentBlockedException: ...` ile başlar (engellenen metnin
+  `TraconContentBlockedException: ...` ile başlar (engellenen metnin
   KENDİSİ mesajda YOKTUR — yalnız guard/kural bilgisi).
 - `GET /api/runs/{runId}` (Run bağlantısından) çağrılırsa `runs.error_type =
   'content_blocked'` görünür (bu alanın derinliği `22-GUARDRAIL-VE-YAPISAL-
@@ -1376,7 +1376,7 @@ sağlayıcı istisnasının (`ClientResultException`, `AnthropicApiException`)
 `AgentRunStream.ExecuteStreamingAsync`'in o zamanki dar `catch` bloğuna
 uymadığını ve bağlantının `error` çerçevesi ÜRETMEDEN kapandığını ölçmüştü.
 Bu case, o boşluğun **arayüzde nasıl göründüğünü** ölçmek için yazılmıştı:
-`@agentprism/client`'ın `readSse`'si akış sonunu (`reader.read()`'in `done: true`
+`@tracon/client`'ın `readSse`'si akış sonunu (`reader.read()`'in `done: true`
 dönmesi) bir HATA olarak değil, normal bir bitiş olarak ele alır — istisna
 fırlatmaz; `error` çerçevesi hiç gelmezse `playground.tsx`'in `for await`
 döngüsü sessizce sonlanırdı. Backend'deki dar filtre kaldırıldığı için artık
@@ -1420,7 +1420,7 @@ DEĞİŞMEDİ — yalnız backend artık işleyicinin beklediği çerçeveyi gö
 
 **Doğrulama sorgusu**
 ```bash
-curl -s "http://localhost:5080/agentprism/api/runs/<runId>" \
+curl -s "http://localhost:5080/tracon/api/runs/<runId>" \
   -H "Authorization: Bearer manuel-test-token-2026" | python3 -m json.tool
 ```
 
@@ -1533,7 +1533,7 @@ Negatif senaryo.
 
 ### MT-UIAG-048 — 20 MB sınırını aşan dosya "Ek çok büyük" hatası verir
 
-Negatif/sınır senaryosu — varsayılan `AgentPrismAttachmentOptions.MaxBytes = 20
+Negatif/sınır senaryosu — varsayılan `TraconAttachmentOptions.MaxBytes = 20
 * 1024 * 1024`.
 
 | | |
@@ -1569,7 +1569,7 @@ Negatif/sınır senaryosu — varsayılan `AgentPrismAttachmentOptions.MaxBytes 
 | **İlgili karar** | — |
 
 **Ön koşul**
-- `AgentPrism:Voice:ApiKey` (ElevenLabs) tanımlı.
+- `Tracon:Voice:ApiKey` (ElevenLabs) tanımlı.
 - `playground/support` açık, en az bir mesaj gönderilmiş (oturum var).
 
 **Adımlar**
@@ -1596,7 +1596,7 @@ Negatif/sınır senaryosu — varsayılan `AgentPrismAttachmentOptions.MaxBytes 
 | **İlgili karar** | — |
 
 **Ön koşul**
-- `AgentPrism:Voice:ApiKey` tanımlı.
+- `Tracon:Voice:ApiKey` tanımlı.
 - `playground/support`'ta metin içeren tamamlanmış bir tur var
   (`MT-UIAG-026`).
 
@@ -1627,7 +1627,7 @@ Negatif senaryo.
 | **İlgili karar** | — |
 
 **Ön koşul**
-- `dotnet user-secrets remove "AgentPrism:Voice:ApiKey"`, uygulama yeniden
+- `dotnet user-secrets remove "Tracon:Voice:ApiKey"`, uygulama yeniden
   başlatıldı (`UseVoice()` hiç çağrılmamış gibi davranır).
 - `playground/support`'ta tamamlanmış bir tur var.
 
@@ -1642,7 +1642,7 @@ Negatif senaryo.
   denenebilir.
 
 **Ön koşulu geri al**
-- Case bitince `AgentPrism:Voice:ApiKey`'i TEKRAR ayarla, uygulamayı yeniden
+- Case bitince `Tracon:Voice:ApiKey`'i TEKRAR ayarla, uygulamayı yeniden
   başlat — sonraki dosyaların koşumu bu anahtara ihtiyaç duyabilir.
 
 ### MT-UIAG-052 — Dar ekranda (375px) agent editor ve playground yatay taşma yapmaz
@@ -1676,7 +1676,7 @@ Faz 109 bu iki ekranı çok sayıda alt modüle böldüğü için ikisi burada a
 
 ### MT-UIAG-053 — Kayıtlı bir `IToolApprovalPresenter` varken onay kartı başlıkta varlık adını gösterir (Faz 142)
 
-`MT-UIAG-028`'in aksine burada `samples/AgentPrism.Api`'nin kendi
+`MT-UIAG-028`'in aksine burada `samples/Tracon.Api`'nin kendi
 `OrderApprovalPresenter`'ı devrede — sunucu SSE akışına ayrı bir
 `event: approvals` çerçevesi ekler, kart onu `requestId` ile eşleştirip
 kendini günceller.

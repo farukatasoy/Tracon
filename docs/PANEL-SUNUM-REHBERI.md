@@ -1,4 +1,4 @@
-# AgentPrism Panel Sunum Rehberi
+# Tracon Panel Sunum Rehberi
 
 > Kaynak envanter: [`PROJE-OZELLIKLERI.md`](PROJE-OZELLIKLERI.md). Bu rehber,
 > envanterdeki 13 kategori ve 202 özelliğin tamamı için sunum kararı verir.
@@ -11,8 +11,8 @@
 
 ## 1. Amaç ve hedef kitle
 
-Bu belge, ayrı bir **AgentPrism Showcase** tüketici uygulamasında hangi yeteneğin
-nasıl gösterileceğini tanımlar. Hedef kitle; AgentPrism'i değerlendiren B2B ürün
+Bu belge, ayrı bir **Tracon Showcase** tüketici uygulamasında hangi yeteneğin
+nasıl gösterileceğini tanımlar. Hedef kitle; Tracon'i değerlendiren B2B ürün
 sahipleri, solution architect'ler, platform ekipleri ve uygulamayı kuracak .NET
 geliştiricileridir.
 
@@ -26,7 +26,7 @@ zorlanmaz.
 ### Kanıt ve dil sözleşmesi
 
 - Birincil yetenek listesi `docs/PROJE-OZELLIKLERI.md` dosyasıdır.
-- UI konumu, `src/AgentPrism.UI/frontend/src/app.tsx` route tablosu ve ilgili screen
+- UI konumu, `src/Tracon.UI/frontend/src/app.tsx` route tablosu ve ilgili screen
   veya component ile doğrulanmıştır.
 - Tüketici davranışı, `docs-site/src/content/docs/` altındaki ürün dokümantasyonu
   ve public source contract'ları ile çapraz kontrol edilmiştir.
@@ -52,14 +52,14 @@ zorlanmaz.
 
 Bu tablo tek tek kartlardaki kararların hangi gerçek yüzey ailesiyle çapraz
 kontrol edildiğini gösterir. Source type/public contract doğrulaması ilgili
-`src/AgentPrism.*` projesinde; UI action doğrulaması adı verilen screen/component'te
+`src/Tracon.*` projesinde; UI action doğrulaması adı verilen screen/component'te
 yapılmıştır.
 
 | Kategori | Başlıca source/UI kanıtı | Başlıca ürün dokümantasyonu |
 | --- | --- | --- |
-| C1 Agent/orchestration | `AgentPrism.Core`, `screens/agent-editor/*`, `agent-detail.tsx` | `concepts/agents.md`, `guides/model-providers.md`, `guides/reliability.md` |
-| C2 Provider/media | `AgentPrism.OpenAI`, `.Anthropic`, `.Google`, `.AzureOpenAI`, `.Voice`; `models.tsx`, `voice-panel.tsx` | `guides/model-providers.md`, `guides/multimodal.md`, `guides/voice.md` |
-| C3 Tool/skill/MCP/context | `AgentPrism.Core`, `.Mcp`, `.Generators`; `tools.tsx`, `skills.tsx`, `mcp.tsx`, `approvals.tsx` | `concepts/tools.md`, `guides/client-side-tools.md`, `guides/context-and-memory.md`, `guides/knowledge.md` |
+| C1 Agent/orchestration | `Tracon.Core`, `screens/agent-editor/*`, `agent-detail.tsx` | `concepts/agents.md`, `guides/model-providers.md`, `guides/reliability.md` |
+| C2 Provider/media | `Tracon.OpenAI`, `.Anthropic`, `.Google`, `.AzureOpenAI`, `.Voice`; `models.tsx`, `voice-panel.tsx` | `guides/model-providers.md`, `guides/multimodal.md`, `guides/voice.md` |
+| C3 Tool/skill/MCP/context | `Tracon.Core`, `.Mcp`, `.Generators`; `tools.tsx`, `skills.tsx`, `mcp.tsx`, `approvals.tsx` | `concepts/tools.md`, `guides/client-side-tools.md`, `guides/context-and-memory.md`, `guides/knowledge.md` |
 | C4 Run/session/content | Run/session/attachment contracts ve endpoints; `run-detail.tsx`, `session-detail.tsx`, `playground/*` | `concepts/runs.md`, `concepts/sessions.md`, `guides/multimodal.md` |
 | C5 Workflow/job/reliability | Workflow/job stores, endpoints ve workers; `workflow-detail.tsx`, `jobs.tsx`, `job-detail.tsx` | `concepts/workflows.md`, `guides/background-work.md`, `guides/reliability.md` |
 | C6 Evaluation/change | Eval/experiment/canary stores ve endpoints; `eval-*.tsx`, `experiment-detail.tsx` | `concepts/evaluation.md` |
@@ -69,7 +69,7 @@ yapılmıştır.
 | C10 HTTP/protocol/client | ASP.NET Core endpoint maps, generated clients, CLI; console route consumers | `http-api.md`, `guides/openai-api.md`, `guides/external-agents.md`, `guides/typescript-client.md`, `guides/cli.md`, `guides/embedding.md` |
 | C11 Dashboard/UI | `frontend/src/app.tsx` içindeki 36 route ve ilgili screen/component'ler | `ui.md` ve build ile üretilen gerçek-browser screenshots |
 | C12 Packaging/DI | Project files, package metadata, DI extensions, template ve PublicAPI baselines | `packages.md`, `reference/compatibility.md`, extension guides |
-| C13 Test/quality | `AgentPrism.Testing*`, `.Generators`, packed-consumer/infra tests ve repository scripts | `guides/testing.md`, `guides/coding-agents.md`, `reference/versioning.md` |
+| C13 Test/quality | `Tracon.Testing*`, `.Generators`, packed-consumer/infra tests ve repository scripts | `guides/testing.md`, `guides/coding-agents.md`, `reference/versioning.md` |
 
 ## 2. Sunum mimarisi
 
@@ -82,7 +82,7 @@ flowchart LR
     Console --> Api[ASP.NET Core host and Management API]
     Widget --> Api
     ExternalClient[.NET, TypeScript, OpenAI, MCP and A2A clients] --> Api
-    Api --> Runtime[AgentPrism runtime]
+    Api --> Runtime[Tracon runtime]
     Runtime --> Sql[(Primary SQL store)]
     Runtime --> Cache[(Distributed cache)]
     Runtime --> Providers[Model and media providers]
@@ -96,8 +96,8 @@ flowchart LR
 
 | Bileşen | Sorumluluk | Bağımlılık ve sınır |
 | --- | --- | --- |
-| ASP.NET Core host | `MapAgentPrism()` ile Management API, console ve seçili protocol yüzeylerini yayınlar. | Remote access, authentication, authorization, CORS ve diagnostics bilinçli açılır. |
-| AgentPrism paketleri | Core, ASP.NET Core, UI, provider, persistence, MCP, workflow, voice ve testing yeteneklerini seçer. | Showcase, meta package yerine explicit paketlerle dependency graph'ı görünür tutabilir. |
+| ASP.NET Core host | `MapTracon()` ile Management API, console ve seçili protocol yüzeylerini yayınlar. | Remote access, authentication, authorization, CORS ve diagnostics bilinçli açılır. |
+| Tracon paketleri | Core, ASP.NET Core, UI, provider, persistence, MCP, workflow, voice ve testing yeteneklerini seçer. | Showcase, meta package yerine explicit paketlerle dependency graph'ı görünür tutabilir. |
 | Embedded console | Ana canlı demo yüzeyidir. | Varsayılan base path `/panel`; yeni route eklenmez. |
 | Primary persistence | Agent definition, session, run, workflow, job, eval ve governance kayıtlarını kalıcı tutar. | Önerilen varsayılan PostgreSQL + `pgvector`; SQL Server ve SQLite ayrı profile'dır. |
 | Distributed cache | Response cache ve token/cache senaryolarını destekler. | Demo için Redis önerilir; cache temizliği reset'in parçasıdır. |
@@ -166,32 +166,32 @@ kimlikleri `ORD-DEMO-1001` biçimindedir. E-posta ve telefon alanları sentetikt
 
 | Tanım | Amaç | Gerekli paket/altyapı | Configuration veya registration | Secret ihtiyacı | Seed edilebilir mi? | Kullanıldığı demolar |
 | --- | --- | --- | --- | --- | --- | --- |
-| Core host | Runtime ve DI | `AgentPrism.Core`, ASP.NET Core | `AddAgentPrism()` | Hayır | Hayır | Tümü |
-| Management + console | API ve embedded panel | `AgentPrism.AspNetCore`, `AgentPrism.UI` | `MapAgentPrism("/panel")`, `UseUI()` | Opsiyonel bearer key: `AgentPrism:Http:BearerToken` | Hayır | A–M |
-| PostgreSQL store | Kalıcı veri ve vector search | `AgentPrism.PostgreSql`, PostgreSQL, `pgvector` | `AgentPrism:PostgreSql:ConnectionString` | Evet, `<POSTGRES_CONNECTION_STRING>` | Migration ve seed | C–K |
-| SQL Server profile | Enterprise persistence kanıtı | `AgentPrism.SqlServer`, SQL Server 2019+ | `AgentPrism:SqlServer:ConnectionString` | Evet | Migration ve seed | J, L |
-| SQLite profile | Tek dosyalı local profil | `AgentPrism.Sqlite` | `AgentPrism:Sqlite:ConnectionString` | Hayır | Migration ve seed | J, L |
-| Redis cache | Response cache | `IDistributedCache`, Redis | `ConnectionStrings:AgentPrismRedis` | Ortama göre | Hayır | A, H |
-| OpenAI provider | Birincil text/image provider | `AgentPrism.OpenAI` | `AgentPrism:Providers:OpenAI:ApiKey` | Evet, `<OPENAI_API_KEY>` | Hayır | A–I |
-| OpenAI Responses provider | Responses yüzeyi ve reasoning | `AgentPrism.OpenAI` | Ayrı provider adı ve aynı/ayrı key reference | Evet | Hayır | A, C, I |
-| OpenAI-compatible provider | Local veya hosted compatible endpoint | `AgentPrism.OpenAI` | `AgentPrism:Providers:Compatible:Endpoint`, `:ApiKey` | Ortama göre | Hayır | G, I |
-| Anthropic provider | Fallback ve comparison | `AgentPrism.Anthropic` | `AgentPrism:Providers:Anthropic:ApiKey` | Evet, `<ANTHROPIC_API_KEY>` | Hayır | E, G |
-| Google provider | Gemini ve image | `AgentPrism.Google` | `AgentPrism:Providers:Google:ApiKey` | Evet, `<GOOGLE_API_KEY>` | Hayır | C, G |
-| Azure OpenAI provider | Deployment ve enterprise profile | `AgentPrism.AzureOpenAI` | `AgentPrism:Providers:AzureOpenAI:Endpoint`, `:ApiKey` veya Entra registration | Ortama göre | Hayır | G, L |
-| Fake provider | Deterministic fallback | `AgentPrism.Testing` | `FakeModelProvider` scripted registration | Hayır | Script seed | Tüm canlı akışların fallback'i |
-| ElevenLabs speech | Speak/transcribe/voices | `AgentPrism.Voice` | `AgentPrism:Voice:ElevenLabs:ApiKey` | Evet, `<ELEVENLABS_API_KEY>` | Hayır | C |
+| Core host | Runtime ve DI | `Tracon.Core`, ASP.NET Core | `AddTracon()` | Hayır | Hayır | Tümü |
+| Management + console | API ve embedded panel | `Tracon.AspNetCore`, `Tracon.UI` | `MapTracon("/panel")`, `UseUI()` | Opsiyonel bearer key: `Tracon:Http:BearerToken` | Hayır | A–M |
+| PostgreSQL store | Kalıcı veri ve vector search | `Tracon.PostgreSql`, PostgreSQL, `pgvector` | `Tracon:PostgreSql:ConnectionString` | Evet, `<POSTGRES_CONNECTION_STRING>` | Migration ve seed | C–K |
+| SQL Server profile | Enterprise persistence kanıtı | `Tracon.SqlServer`, SQL Server 2019+ | `Tracon:SqlServer:ConnectionString` | Evet | Migration ve seed | J, L |
+| SQLite profile | Tek dosyalı local profil | `Tracon.Sqlite` | `Tracon:Sqlite:ConnectionString` | Hayır | Migration ve seed | J, L |
+| Redis cache | Response cache | `IDistributedCache`, Redis | `ConnectionStrings:TraconRedis` | Ortama göre | Hayır | A, H |
+| OpenAI provider | Birincil text/image provider | `Tracon.OpenAI` | `Tracon:Providers:OpenAI:ApiKey` | Evet, `<OPENAI_API_KEY>` | Hayır | A–I |
+| OpenAI Responses provider | Responses yüzeyi ve reasoning | `Tracon.OpenAI` | Ayrı provider adı ve aynı/ayrı key reference | Evet | Hayır | A, C, I |
+| OpenAI-compatible provider | Local veya hosted compatible endpoint | `Tracon.OpenAI` | `Tracon:Providers:Compatible:Endpoint`, `:ApiKey` | Ortama göre | Hayır | G, I |
+| Anthropic provider | Fallback ve comparison | `Tracon.Anthropic` | `Tracon:Providers:Anthropic:ApiKey` | Evet, `<ANTHROPIC_API_KEY>` | Hayır | E, G |
+| Google provider | Gemini ve image | `Tracon.Google` | `Tracon:Providers:Google:ApiKey` | Evet, `<GOOGLE_API_KEY>` | Hayır | C, G |
+| Azure OpenAI provider | Deployment ve enterprise profile | `Tracon.AzureOpenAI` | `Tracon:Providers:AzureOpenAI:Endpoint`, `:ApiKey` veya Entra registration | Ortama göre | Hayır | G, L |
+| Fake provider | Deterministic fallback | `Tracon.Testing` | `FakeModelProvider` scripted registration | Hayır | Script seed | Tüm canlı akışların fallback'i |
+| ElevenLabs speech | Speak/transcribe/voices | `Tracon.Voice` | `Tracon:Voice:ElevenLabs:ApiKey` | Evet, `<ELEVENLABS_API_KEY>` | Hayır | C |
 | Image generators | Görsel üretme | Provider paketleri | Provider-specific image registration | Evet | Hayır | C |
-| Commerce MCP | Remote tool/prompt/resource | `AgentPrism.Mcp`, local MCP host | Server definition; auth key `AgentPrism:Mcp:Commerce:Authorization` | Opsiyonel | Definition seed | B, I |
+| Commerce MCP | Remote tool/prompt/resource | `Tracon.Mcp`, local MCP host | Server definition; auth key `Tracon:Mcp:Commerce:Authorization` | Opsiyonel | Definition seed | B, I |
 | Knowledge store | Ingestion ve vector search | PostgreSQL + `pgvector`, embedding provider | Knowledge registration ve embedding model binding | Evet | Corpus seed | B, C |
 | Worker/scheduling | Queue, retry, canary, eval, webhook | Workflow/background packages | `UseScheduling()` ve worker options | Hayır | Schedule seed | D–F |
 | Security boundary | AuthN/AuthZ, tenant ve roles | Consumer auth pipeline | Named policies; tenant claim/header; exact CORS origins | Token/key olabilir | Policy seed kısmen | F, I |
 | API keys | Scoped external access | Governance store | Panel/API ile hash'li key oluşturma | Değer yalnız oluşturulurken görünür | Metadata seed; gerçek key hayır | F, I |
-| Tenant provider binding | BYOK ve egress | Provider + governance store | Yalnız `AgentPrism:TenantSecrets:Acme:OpenAI` key adı | Evet, değer config'de | Binding seed | F, G |
+| Tenant provider binding | BYOK ve egress | Provider + governance store | Yalnız `Tracon:TenantSecrets:Acme:OpenAI` key adı | Evet, değer config'de | Binding seed | F, G |
 | Quota | Admission control | Durable quota store | Tenant, dönem, time zone, request/token/cost limitleri | Hayır | Evet | F, H |
-| Webhook receiver | Signed outbound delivery | Local HTTPS receiver | `AgentPrism:Webhooks:Support:SigningSecret` | Evet | Subscription seed | D, F |
-| Inbound trigger | İmzalı job başlatma | Trigger store + worker | `AgentPrism:Triggers:HighValueRefund:SigningSecret` | Evet | Definition seed | D, F |
-| Content protection | At-rest encryption | Key provider + SQL/object storage | `AgentPrism:Protection:Keys:Primary` | Evet | Hayır | J |
-| Object storage | Attachment binary store | Custom `IAttachmentStorage` | `AgentPrism:Storage:Attachments:*` | Ortama göre | Namespace seed | C, J |
+| Webhook receiver | Signed outbound delivery | Local HTTPS receiver | `Tracon:Webhooks:Support:SigningSecret` | Evet | Subscription seed | D, F |
+| Inbound trigger | İmzalı job başlatma | Trigger store + worker | `Tracon:Triggers:HighValueRefund:SigningSecret` | Evet | Definition seed | D, F |
+| Content protection | At-rest encryption | Key provider + SQL/object storage | `Tracon:Protection:Keys:Primary` | Evet | Hayır | J |
+| Object storage | Attachment binary store | Custom `IAttachmentStorage` | `Tracon:Storage:Attachments:*` | Ortama göre | Namespace seed | C, J |
 | OpenTelemetry | Trace ve metrics export | OTLP collector | `OTEL_EXPORTER_OTLP_ENDPOINT`; service name | Ortama göre | Hayır | H |
 | Protocol allowlists | MCP server ve A2A exposure | ASP.NET Core protocol packages | Explicit agent allowlists ve remote-access options | Scoped API key gerekir | Evet | I |
 | Sample clients | .NET, TypeScript, OpenAI, MCP ve A2A kanıtı | Client paketleri/SDK'lar | Base URL, tenant ve scoped key placeholders | Evet | Request fixtures | I, L |
@@ -339,7 +339,7 @@ Her karttaki panel yolu `/panel` base path'ine göredir. Örneğin `Runs > Detai
 - **Ön koşullar:** P1–P2 + Redis. **Hazırlanacak tanımlar:** Cache-enabled `Product FAQ Agent`, aynı tenant/request fixture'ı.
 - **Panel konumu:** `Runs > Detail > Timeline/Trace`; `Dashboard` token/cost. **Demo adımları:** Aynı request'i iki kez çalıştır; run'ları karşılaştır.
 - **Beklenen görünür sonuç:** İkinci run'da cache event/span, düşük süre ve uygun usage. **Kanıt ölçütü:** Provider test proxy'sinde tek outbound call ve cache-key isolation testi.
-- **Reset/tekrar koşum:** Redis demo namespace + R1. **Risk ve notlar:** Model/provider cache token'ı ile AgentPrism response cache'i karıştırılmamalıdır. **İlişkili özellikler:** 143–144, 146.
+- **Reset/tekrar koşum:** Redis demo namespace + R1. **Risk ve notlar:** Model/provider cache token'ı ile Tracon response cache'i karıştırılmamalıdır. **İlişkili özellikler:** 143–144, 146.
 
 #### 19. Concurrent tool calls
 - **Sınıf:** Doğrudan panel demosu. **Sunum değeri:** Bağımsız I/O işlemlerinin toplam latency'yi azalttığını gösterir.
@@ -380,7 +380,7 @@ Her karttaki panel yolu `/panel` base path'ine göredir. Örneğin `Runs > Detai
 
 #### 24. OpenAI provider
 - **Sınıf:** Panel destekli demo. **Sunum değeri:** OpenAI Chat Completions ve Responses yüzeylerinin ayrı binding olarak kullanılabildiğini kanıtlar.
-- **Ön koşullar:** P2, `AgentPrism:Providers:OpenAI:ApiKey`. **Hazırlanacak tanımlar:** İki provider adı ve iki agent binding'i.
+- **Ön koşullar:** P2, `Tracon:Providers:OpenAI:ApiKey`. **Hazırlanacak tanımlar:** İki provider adı ve iki agent binding'i.
 - **Panel konumu:** `Models`, `Agent Detail`, `Playground`, `Run Detail`. **Demo adımları:** İki agent'ı çalıştır; provider/model kayıtlarını karşılaştır.
 - **Beklenen görünür sonuç:** Sağlıklı provider'lar, streaming cevap ve ayrı recorded provider adı. **Kanıt ölçütü:** Her binding doğru API surface'ine outbound çağrı yapar.
 - **Reset/tekrar koşum:** R1. **Risk ve notlar:** Token maliyeti ve rate limit vardır. **İlişkili özellikler:** 7, 157–158.
@@ -394,14 +394,14 @@ Her karttaki panel yolu `/panel` base path'ine göredir. Örneğin `Runs > Detai
 
 #### 26. Anthropic provider
 - **Sınıf:** Panel destekli demo. **Sunum değeri:** Claude, prompt caching ve extended thinking ayarlarının native provider ile kullanılmasını gösterir.
-- **Ön koşullar:** P2, `AgentPrism:Providers:Anthropic:ApiKey`. **Hazırlanacak tanımlar:** `Quality Analyst Agent` Claude binding'i.
+- **Ön koşullar:** P2, `Tracon:Providers:Anthropic:ApiKey`. **Hazırlanacak tanımlar:** `Quality Analyst Agent` Claude binding'i.
 - **Panel konumu:** `Models`, `Agent Edit/Detail`, `Playground`, token breakdown. **Demo adımları:** Thinking setting'li run başlat; reasoning ve cache usage'ı incele.
 - **Beklenen görünür sonuç:** Claude model, reasoning block ve usage. **Kanıt ölçütü:** Provider-specific settings request'e taşınır.
 - **Reset/tekrar koşum:** R1. **Risk ve notlar:** Extended thinking maliyetlidir ve model desteği gerekir. **İlişkili özellikler:** 7, 143–144.
 
 #### 27. Google provider
 - **Sınıf:** Panel destekli demo. **Sunum değeri:** Gemini safety/thinking ayarları ve provider çeşitliliğini gösterir.
-- **Ön koşullar:** P2, `AgentPrism:Providers:Google:ApiKey`. **Hazırlanacak tanımlar:** `globex-support` tenant binding'i.
+- **Ön koşullar:** P2, `Tracon:Providers:Google:ApiKey`. **Hazırlanacak tanımlar:** `globex-support` tenant binding'i.
 - **Panel konumu:** `Models`, `Settings > Tenant providers`, `Playground`. **Demo adımları:** Tenant binding'i seç; safety-sensitive prompt çalıştır.
 - **Beklenen görünür sonuç:** Gemini run ve safety outcome. **Kanıt ölçütü:** Recorded provider/model ile tenant binding eşleşir.
 - **Reset/tekrar koşum:** R2. **Risk ve notlar:** Safety kararları model version'ına göre değişebilir; deterministic fallback gerekir. **İlişkili özellikler:** 110–111, 147.
@@ -436,7 +436,7 @@ Her karttaki panel yolu `/panel` base path'ine göredir. Örneğin `Runs > Detai
 
 #### 32. Speech tools
 - **Sınıf:** Doğrudan panel demosu. **Sunum değeri:** Speech synthesis, transcription ve voice catalog entegrasyonunu gösterir.
-- **Ön koşullar:** P5, `AgentPrism:Voice:ElevenLabs:ApiKey`, microphone permission. **Hazırlanacak tanımlar:** `speak`, `transcribe`, `list_voices` tool'ları.
+- **Ön koşullar:** P5, `Tracon:Voice:ElevenLabs:ApiKey`, microphone permission. **Hazırlanacak tanımlar:** `speak`, `transcribe`, `list_voices` tool'ları.
 - **Panel konumu:** `Playground`; `Settings > Voices`; `Tools`. **Demo adımları:** Voice seç; kısa audio yükle/transcribe et; answer'ı speak ile oynat.
 - **Beklenen görünür sonuç:** Voice listesi, transcript, audio response ve run tool cards. **Kanıt ölçütü:** Session/run yeniden açıldığında text ve configured audio persistence policy tutarlıdır.
 - **Reset/tekrar koşum:** R1 + media izinleri. **Risk ve notlar:** Sessiz ortam, browser codec ve ücret gerekir; prerecorded audio fallback'i bulunur. **İlişkili özellikler:** 34, 74–75, 167.
@@ -473,14 +473,14 @@ Her karttaki panel yolu `/panel` base path'ine göredir. Örneğin `Runs > Detai
 
 #### 37. Build-time tool generation
 - **Sınıf:** Panel dışı teknik demo. **Sunum değeri:** Reflection/dynamic code olmadan compile-time discovery ve AOT uyumunu kanıtlar.
-- **Ön koşullar:** P6. **Hazırlanacak tanımlar:** `[AgentPrismTool]` kullanılan temp consumer.
+- **Ön koşullar:** P6. **Hazırlanacak tanımlar:** `[TraconTool]` kullanılan temp consumer.
 - **Panel konumu:** Dolaylı olarak `Tools`; ana kanıt build output ve generated source'dur. **Demo adımları:** `dotnet build`; generated registration'ı incele; host'u açıp tool'u catalog'da göster.
 - **Beklenen görünür sonuç:** Build başarılı ve tool panelde görünür. **Kanıt ölçütü:** Reflection scanning kapalıyken tool çağrısı geçer.
 - **Reset/tekrar koşum:** R4. **Risk ve notlar:** Teknik ek sunuma alınır. **İlişkili özellikler:** 182, 194.
 
 #### 38. Generated tool schema
 - **Sınıf:** Doğrudan panel demosu. **Sunum değeri:** Tool sözleşmesinin elle JSON Schema yazılmadan koddan üretildiğini gösterir.
-- **Ön koşullar:** P1 ve `[AgentPrismTool]` ile kayıtlı tool'lar. **Hazırlanacak tanımlar:** `[Description]`, DataAnnotations kısıtı ve iç içe object parametre taşıyan bir tool.
+- **Ön koşullar:** P1 ve `[TraconTool]` ile kayıtlı tool'lar. **Hazırlanacak tanımlar:** `[Description]`, DataAnnotations kısıtı ve iç içe object parametre taşıyan bir tool.
 - **Panel konumu:** `Tools`; `Playground` tool çağrısı. **Demo adımları:** Tool'un argüman listesini aç; açıklama ve kısıtları göster; agent'a tool'u çağırt.
 - **Beklenen görünür sonuç:** Panelde açıklamalı ve kısıtlı argüman şeması. **Kanıt ölçütü:** Şema koddaki attribute'lardan derleme sırasında üretilir; reflection kullanılmaz.
 - **Reset/tekrar koşum:** Gerekmez. **Risk ve notlar:** Object graph derinliği üç seviye ile sınırlıdır. **İlişkili özellikler:** 37, 39, 194.
@@ -958,7 +958,7 @@ Her karttaki panel yolu `/panel` base path'ine göredir. Örneğin `Runs > Detai
 
 #### 105. Static bearer token
 - **Sınıf:** Panel destekli demo. **Sunum değeri:** Küçük deployment için basit Management API korumasını gösterir.
-- **Ön koşullar:** P3, `AgentPrism:Http:BearerToken`. **Hazırlanacak tanımlar:** Token placeholder; gerçek değer runtime secret store'da.
+- **Ön koşullar:** P3, `Tracon:Http:BearerToken`. **Hazırlanacak tanımlar:** Token placeholder; gerçek değer runtime secret store'da.
 - **Panel konumu:** `Access Gate`, `Settings > Access`. **Demo adımları:** Tokensız gir; token'ı yalnız browser tab'a ver; paneli aç.
 - **Beklenen görünür sonuç:** Önce 401/access prompt, sonra token-required badge. **Kanıt ölçütü:** Secret response/UI/store'da geri okunmaz.
 - **Reset/tekrar koşum:** Browser token forget. **Risk ve notlar:** Enterprise demo için consumer AuthN tercih edilir. **İlişkili özellikler:** 106–108.
@@ -1172,7 +1172,7 @@ Her karttaki panel yolu `/panel` base path'ine göredir. Örneğin `Runs > Detai
 - **Sınıf:** Panel dışı teknik demo. **Sunum değeri:** Consumer connection pool/`DbDataSource` ownership'ının korunmasını gösterir.
 - **Ön koşullar:** P6 ve her SQL provider için registration test. **Hazırlanacak tanımlar:** Instrumented consumer data source.
 - **Panel konumu:** `Diagnostics` yalnız active store'u gösterir; ownership görünmez. **Demo adımları:** Contract/integration test çalıştır; dispose counters göster.
-- **Beklenen görünür sonuç:** Panelde normal persistence. **Kanıt ölçütü:** AgentPrism consumer-owned source'u yanlış dispose etmez.
+- **Beklenen görünür sonuç:** Panelde normal persistence. **Kanıt ölçütü:** Tracon consumer-owned source'u yanlış dispose etmez.
 - **Reset/tekrar koşum:** R4. **Risk ve notlar:** Technical persistence appendix. **İlişkili özellikler:** 131–133, 138.
 
 #### 136. Read contract view'ları
@@ -1191,7 +1191,7 @@ Her karttaki panel yolu `/panel` base path'ine göredir. Örneğin `Runs > Detai
 
 #### 138. Replaceable store'lar
 - **Sınıf:** Panel dışı teknik demo. **Sunum değeri:** Consumer registration'ının `TryAdd*` nedeniyle kazanmasını gösterir.
-- **Ön koşullar:** P6. **Hazırlanacak tanımlar:** Instrumented custom run store registered before AgentPrism.
+- **Ön koşullar:** P6. **Hazırlanacak tanımlar:** Instrumented custom run store registered before Tracon.
 - **Panel konumu:** `Diagnostics` active store dolaylıdır. **Demo adımları:** DI test host başlat; resolved implementation type ve call counter'ı göster.
 - **Beklenen görünür sonuç:** Custom store kullanılır. **Kanıt ölçütü:** Built-in registration override etmez; contract suite geçer.
 - **Reset/tekrar koşum:** R4. **Risk ve notlar:** Main live flow'a alınmaz. **İlişkili özellikler:** 135, 183, 193.
@@ -1269,7 +1269,7 @@ Her karttaki panel yolu `/panel` base path'ine göredir. Örneğin `Runs > Detai
 - **Reset/tekrar koşum:** Breaker state/fake clock. **Risk ve notlar:** Özel breaker ekranı yoktur. **İlişkili özellikler:** 20–21, 110, 147.
 
 #### 149. ASP.NET Core health check
-- **Sınıf:** Panel dışı teknik demo. **Sunum değeri:** AgentPrism readiness'in consumer health pipeline'ına birleşmesini gösterir.
+- **Sınıf:** Panel dışı teknik demo. **Sunum değeri:** Tracon readiness'in consumer health pipeline'ına birleşmesini gösterir.
 - **Ön koşullar:** HealthChecks registration. **Hazırlanacak tanımlar:** Healthy ve database-unready profiles.
 - **Panel konumu:** `Diagnostics` dolaylı; `/health/ready` ana kanıt. **Demo adımları:** Endpoint'i iki profile'da çağır.
 - **Beklenen görünür sonuç:** HTTP health status ve named entries. **Kanıt ölçütü:** Consumer pipeline output'u.
@@ -1327,7 +1327,7 @@ Her karttaki panel yolu `/panel` base path'ine göredir. Örneğin `Runs > Detai
 - **Reset/tekrar koşum:** R4. **Risk ve notlar:** Technical client appendix. **İlişkili özellikler:** 155, 163–164.
 
 #### 157. OpenAI Responses compatibility
-- **Sınıf:** Panel destekli demo. **Sunum değeri:** Existing OpenAI client'ın Responses, streaming, conversation, tools ve attachment ile AgentPrism'e bağlanmasını gösterir.
+- **Sınıf:** Panel destekli demo. **Sunum değeri:** Existing OpenAI client'ın Responses, streaming, conversation, tools ve attachment ile Tracon'e bağlanmasını gösterir.
 - **Ön koşullar:** P2/P3 ve compatibility mapping. **Hazırlanacak tanımlar:** OpenAI SDK request fixture.
 - **Panel konumu:** `Runs`, `Sessions`, `Run Detail` sonucu gösterir. **Demo adımları:** `/v1/responses` çağır; stream et; previous response/conversation ile devam et.
 - **Beklenen görünür sonuç:** Recorded run/session/tool loop. **Kanıt ölçütü:** OpenAI client response contract ve panel record eşleşir.
@@ -1348,7 +1348,7 @@ Her karttaki panel yolu `/panel` base path'ine göredir. Örneğin `Runs > Detai
 - **Reset/tekrar koşum:** R1. **Risk ve notlar:** SQL store önerilir. **İlişkili özellikler:** 71, 73, 157.
 
 #### 160. MCP server
-- **Sınıf:** Panel destekli demo. **Sunum değeri:** Allowlisted AgentPrism agent'ının remote MCP client'a tool olarak açılmasını gösterir.
+- **Sınıf:** Panel destekli demo. **Sunum değeri:** Allowlisted Tracon agent'ının remote MCP client'a tool olarak açılmasını gösterir.
 - **Ön koşullar:** P3, MCP client, `ExternalInvoke` key. **Hazırlanacak tanımlar:** Allowlisted `Customer Support Agent`.
 - **Panel konumu:** External MCP client tetikler; `Runs` sonucu gösterir. **Demo adımları:** Tools list; agent tool invoke; run detail aç.
 - **Beklenen görünür sonuç:** MCP result ve external protocol run. **Kanıt ölçütü:** Allowlist dışı agent görünmez.
@@ -1370,21 +1370,21 @@ Her karttaki panel yolu `/panel` base path'ine göredir. Örneğin `Runs > Detai
 
 #### 163. Typed .NET client
 - **Sınıf:** Panel dışı teknik demo. **Sunum değeri:** Generated typed Management API access ve DI kullanımını gösterir.
-- **Ön koşullar:** P6 + `AgentPrism.Client`. **Hazırlanacak tanımlar:** Minimal console client.
+- **Ön koşullar:** P6 + `Tracon.Client`. **Hazırlanacak tanımlar:** Minimal console client.
 - **Panel konumu:** Client mutation sonucu ilgili panelde görünür. **Demo adımları:** DI client ile agent list/run request yap; returned DTO/run id göster.
 - **Beklenen görünür sonuç:** Typed result ve panel record. **Kanıt ölçütü:** Compile-time DTO/operation surface ve error mapping.
 - **Reset/tekrar koşum:** R4/R1. **Risk ve notlar:** Technical client appendix. **İlişkili özellikler:** 155–156, 164.
 
 #### 164. Typed TypeScript client
 - **Sınıf:** Panel dışı teknik demo. **Sunum değeri:** Browser/Node consumer için aynı OpenAPI'den typed operations ve errors gösterir.
-- **Ön koşullar:** P6 + `@agentprism/client`. **Hazırlanacak tanımlar:** Node sample ve browser fixture.
+- **Ön koşullar:** P6 + `@tracon/client`. **Hazırlanacak tanımlar:** Node sample ve browser fixture.
 - **Panel konumu:** Mutation/run sonucu panelde görünür. **Demo adımları:** Typed request çalıştır; intentional error mapping göster.
 - **Beklenen görünür sonuç:** Typed success/error ve recorded state. **Kanıt ölçütü:** Schema drift testleri.
 - **Reset/tekrar koşum:** R4/R1. **Risk ve notlar:** Console da bu client'ı kullanır; bu tek başına public consumer proof değildir. **İlişkili özellikler:** 156, 163.
 
 #### 165. CLI
 - **Sınıf:** Panel dışı teknik demo. **Sunum değeri:** Deployment migration, provider health ve CI eval quality gate komutlarını gösterir.
-- **Ön koşullar:** P6, `agentprism` global tool. **Hazırlanacak tanımlar:** CLI profile ve passing/failing suite.
+- **Ön koşullar:** P6, `tracon` global tool. **Hazırlanacak tanımlar:** CLI profile ve passing/failing suite.
 - **Panel konumu:** `Diagnostics`, `Models`, `Evals` sonuçları dolaylıdır. **Demo adımları:** migration status, provider health ve eval gate çalıştır.
 - **Beklenen görünür sonuç:** Structured exit/output ve panelde aynı state. **Kanıt ölçütü:** Threshold fail non-zero exit üretir.
 - **Reset/tekrar koşum:** R4. **Risk ve notlar:** Technical/CI appendix. **İlişkili özellikler:** 96, 134, 147.
@@ -1407,7 +1407,7 @@ Her karttaki panel yolu `/panel` base path'ine göredir. Örneğin `Runs > Detai
 
 #### 168. Embedded console
 - **Sınıf:** Doğrudan panel demosu. **Sunum değeri:** Consumer'a frontend build/runtime bağımlılığı eklemeden tam control plane UI verir.
-- **Ön koşullar:** `AgentPrism.UI`. **Hazırlanacak tanımlar:** P1 seed.
+- **Ön koşullar:** `Tracon.UI`. **Hazırlanacak tanımlar:** P1 seed.
 - **Panel konumu:** Tüm console. **Demo adımları:** Host'u yalnız packaged assets ile aç; browser network/static headers'ı göster.
 - **Beklenen görünür sonuç:** SPA ve compressed assets. **Kanıt ölçütü:** Consumer project'te `node_modules`/JS build yoktur.
 - **Reset/tekrar koşum:** Browser cache. **Risk ve notlar:** Source UI build'i showcase'e kopyalanmaz. **İlişkili özellikler:** 169–178, 200.
@@ -1416,7 +1416,7 @@ Her karttaki panel yolu `/panel` base path'ine göredir. Örneğin `Runs > Detai
 - **Sınıf:** Doğrudan panel demosu. **Sunum değeri:** Console/API'nin consumer route yapısına uyduğunu gösterir.
 - **Ön koşullar:** Base path `/panel`. **Hazırlanacak tanımlar:** Reverse-proxy-safe profile.
 - **Panel konumu:** `Settings > Prefix/UI base/API base`. **Demo adımları:** `/panel` aç; deep route reload yap.
-- **Beklenen görünür sonuç:** Assets/API/navigation seçili prefix altında çalışır. **Kanıt ölçütü:** Root `/agentprism` varsayımı yoktur.
+- **Beklenen görünür sonuç:** Assets/API/navigation seçili prefix altında çalışır. **Kanıt ölçütü:** Root `/tracon` varsayımı yoktur.
 - **Reset/tekrar koşum:** Profile restart. **Risk ve notlar:** Proxy path rewrite prova edilir. **İlişkili özellikler:** 155, 168.
 
 #### 170. Dashboard
@@ -1534,7 +1534,7 @@ Her karttaki panel yolu `/panel` base path'ine göredir. Örneğin `Runs > Detai
 
 #### 187. Project template
 - **Sınıf:** Panel dışı teknik demo. **Sunum değeri:** Working control plane başlangıcını ve safe secret placeholders'ı gösterir.
-- **Ön koşullar:** P6, installed template. **Hazırlanacak tanımlar:** Temp `dotnet new agentprism-api` output.
+- **Ön koşullar:** P6, installed template. **Hazırlanacak tanımlar:** Temp `dotnet new tracon-api` output.
 - **Panel konumu:** Generated app console'u dolaylıdır. **Demo adımları:** Template instantiate/build; files/README/placeholders göster; run.
 - **Beklenen görünür sonuç:** Çalışan host/sample tool ve boş secret placeholders. **Kanıt ölçütü:** Packed template test. **Reset/tekrar koşum:** R4. **Risk ve notlar:** Ana showcase'i template sırasında üretme. **İlişkili özellikler:** 180, 200.
 
@@ -1560,7 +1560,7 @@ Her karttaki panel yolu `/panel` base path'ine göredir. Örneğin `Runs > Detai
 
 #### 191. Integrated test host
 - **Sınıf:** Panel dışı teknik demo. **Sunum değeri:** Real catalog/HTTP/in-memory stores ile hızlı integration test kurulumunu gösterir.
-- **Ön koşullar:** P6. **Hazırlanacak tanımlar:** `AgentPrismTestHost` sample test.
+- **Ön koşullar:** P6. **Hazırlanacak tanımlar:** `TraconTestHost` sample test.
 - **Panel konumu:** Yok. **Demo adımları:** Host başlat; endpoint request; teardown çalıştır.
 - **Beklenen görünür sonuç:** Isolated passing test. **Kanıt ölçütü:** Real endpoint/catalog path. **Reset/tekrar koşum:** Test teardown. **Risk ve notlar:** Production persistence proof değildir. **İlişkili özellikler:** 190, 192.
 
@@ -1597,7 +1597,7 @@ Her karttaki panel yolu `/panel` base path'ine göredir. Örneğin `Runs > Detai
 #### 197. Local reference üretimi
 - **Sınıf:** Panel dışı teknik demo. **Sunum değeri:** Restore edilen exact package version XML/OpenAPI reference'ını coding agent'a verir.
 - **Ön koşullar:** P6. **Hazırlanacak tanımlar:** Consumer project with pinned packages.
-- **Panel konumu:** Yok. **Demo adımları:** Build; `AgentPrism.LocalReference.md` link/version içeriklerini göster.
+- **Panel konumu:** Yok. **Demo adımları:** Build; `Tracon.LocalReference.md` link/version içeriklerini göster.
 - **Beklenen görünür sonuç:** Exact local references. **Kanıt ölçütü:** Restore graph ile version eşleşir. **Reset/tekrar koşum:** R4. **Risk ve notlar:** Runtime feature değildir. **İlişkili özellikler:** 196, 198.
 
 #### 198. Web-agent doküman yüzeyi
@@ -1727,7 +1727,7 @@ kısaltılmış sürümüdür. Diğerleri teknik veya karar verici ekidir.
 
 ### J — MCP, A2A ve OpenAI-compatible protocol yüzeyleri
 
-- **Amaç:** AgentPrism'in yalnız panel değil, protocol server ve compatibility layer olduğunu göstermek.
+- **Amaç:** Tracon'in yalnız panel değil, protocol server ve compatibility layer olduğunu göstermek.
 - **Tahmini süre:** 8 dakika. **Hazır tanımlar:** OpenAI/.NET/TS/MCP/A2A clients ve allowlists.
 - **Panelde izlenecek yol:** Client terminali → `Runs/Sessions/Jobs`; ayrıca product widget → panel.
 - **Tetiklenen davranışlar:** Responses, Chat Completions, Conversations, MCP invoke/task, A2A invoke ve widget/voice protocol.

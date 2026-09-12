@@ -1,0 +1,119 @@
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.AspNetCore.Routing;
+
+namespace Tracon;
+
+/// <summary>Audit trail read endpoints.</summary>
+/// <remarks>
+/// Read-only: there is no delete or amend endpoint, and there will not be. Retention
+/// policy is the concern.
+/// </remarks>
+internal static class AuditEndpoints
+{
+    /// <summary>Maps the audit trail endpoints.</summary>
+    /// <param name="builder">The endpoint group.</param>
+    /// <param name="roles">The resolved role policies.</param>
+    public static void Map(IEndpointRouteBuilder builder, TraconRolePolicies roles)
+    {
+        builder.MapGet("/api/audit", async Task<Ok<IReadOnlyList<AuditEntry>>> (
+                IAuditLog auditLog,
+                ITenantContext tenants,
+                string? actor,
+                string? action,
+                string? entity,
+                DateTimeOffset? after,
+                DateTimeOffset? before,
+                int? limit,
+                CancellationToken cancellationToken) =>
+            {
+                var entries = await auditLog.QueryAsync(
+                    new AuditQuery
+                    {
+                        TenantId = tenants.TenantId,
+                        Actor = actor,
+                        Action = action,
+                        Entity = entity,
+                        After = after,
+                        Before = before,
+                        Limit = limit is { } max ? Math.Clamp(max, 1, 500) : 100,
+                    },
+                    cancellationToken).ConfigureAwait(false);
+
+                return TypedResults.Ok(entries);
+            })
+            .RequireRole(roles.Admin)
+            .RequireApiKeyScope(ApiKeyScope.AuditRead)
+            .WithName("TraconListAudit")
+            .WithTags("Tracon", "Governance")
+            .WithSummary("Lists audit entries, filterable by actor, action, entity, and date range.")
+            .WithDescription(
+                "Filterable by actor, action, entity, and date range. Runs (an agent processing " +
+                "a message) are not written to this log; the runs table already keeps the full " +
+                "record. The one exception is the 'content.blocked' action: an " +
+                "IContentGuard's block decision is a GOVERNANCE decision, not a run detail, and " +
+                "must remain traceable even after the run record is deleted by retention policy. " +
+                "The entry carries only the guard and rule name, never the blocked TEXT.");
+
+        builder.MapGet("/api/audit/{entity}", async Task<Ok<IReadOnlyList<AuditEntry>>> (
+                string entity,
+                IAuditLog auditLog,
+                ITenantContext tenants,
+                int? limit,
+                CancellationToken cancellationToken) =>
+            {
+                var entries = await auditLog.QueryAsync(
+                    new AuditQuery
+                    {
+                        TenantId = tenants.TenantId,
+                        Entity = entity,
+                        Limit = limit is { } max ? Math.Clamp(max, 1, 500) : 100,
+                    },
+                    cancellationToken).ConfigureAwait(false);
+
+                return TypedResults.Ok(entries);
+            })
+            .RequireRole(roles.Admin)
+            .RequireApiKeyScope(ApiKeyScope.AuditRead)
+            .WithName("TraconGetEntityAudit")
+            .WithTags("Tracon", "Governance")
+            .WithSummary("Returns a single entity's change history, newest first.")
+            .WithDescription(
+                "The path segment is the full entity key as it was recorded, in the form " +
+                "'<type>:<id>' — for example 'quota:<guid>' or 'retention:runs'. It is matched " +
+                "as written, not as a prefix. Entries carry the before and the after state, so " +
+                "one request answers 'who changed this and to what'. There is no paging: " +
+                "'?limit=' defaults to 100 and is clamped to 1..500, and only the newest entries " +
+                "are returned. An entity with no history returns an empty list, not 404.");
+
+        builder.MapGet("/api/audit/verify", async Task<Ok<AuditChainVerification>> (
+                IAuditLog auditLog,
+                ITenantContext tenants,
+                DateTimeOffset? after,
+                DateTimeOffset? before,
+                CancellationToken cancellationToken) =>
+            {
+                var result = await auditLog.VerifyChainAsync(
+                    new AuditChainQuery { TenantId = tenants.TenantId, After = after, Before = before },
+                    cancellationToken).ConfigureAwait(false);
+
+                return TypedResults.Ok(result);
+            })
+            .RequireRole(roles.Admin)
+            .RequireApiKeyScope(ApiKeyScope.AuditRead)
+            .WithName("TraconVerifyAuditChain")
+            .WithTags("Tracon", "Governance")
+            .WithSummary("Walks the tenant's audit trail hash chain and reports whether it is intact.")
+            .WithDescription(
+                "'Valid' means every entry's hash matches its content and links to the one " +
+                "before it. 'Broken' means an entry's stored hash no longer matches its content " +
+                "— it was altered after it was written. 'Gap' means a link between two entries " +
+                "is missing — a row was deleted, or a write never completed; " +
+                "'firstFailingEntryId' names where. An entry written before this feature shipped " +
+                "carries no hash and is excluded from the walk, not misreported as broken. " +
+                "Without '?after='/'?before=' the whole tenant history is walked; a narrower " +
+                "range is cheaper but cannot judge a break exactly at its own edge, because the " +
+                "entry just before the range is not read.");
+    }
+}

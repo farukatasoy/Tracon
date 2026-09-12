@@ -1,8 +1,8 @@
 # 02 — Çekirdek ve Katalog (`CORE`)
 
 > **Alan kodu:** `CORE` · **Faz:** 1, 3, 72, 101, 106, 127, 130, 135
-> **Kaynak:** `src/AgentPrism.Abstractions` · `src/AgentPrism.Core`
-> (`Compilation/` · `Catalog/` · `Tools/` · `Sessions/` · `AgentPrismOptions*`)
+> **Kaynak:** `src/Tracon.Abstractions` · `src/Tracon.Core`
+> (`Compilation/` · `Catalog/` · `Tools/` · `Sessions/` · `TraconOptions*`)
 >
 > Ortam kurulumu, fixture verisi ve reset yordamı [`00-INDEKS.md`](00-INDEKS.md)'dedir.
 
@@ -27,7 +27,7 @@ flowchart LR
     D --> E["AIAgent"]
     E --> F["AgentSessionManager"]
     B -.->|Valid=false| G["rapor - istisna YOK"]
-    C -.->|hata| H["AgentPrismCompilationException"]
+    C -.->|hata| H["TraconCompilationException"]
 ```
 
 ## Sınır: bu dosya nerede biter
@@ -45,17 +45,17 @@ uçun kendisi değil, uçun arkasındaki çekirdek davranıştır.
 ## Koşmadan önce
 
 1. [`00-INDEKS.md`](00-INDEKS.md) §4 reset yordamı uygulanır.
-2. PostgreSQL container'ı (`ap-pg`) çalışır ve `AgentPrism:PostgreSql:ConnectionString`
+2. PostgreSQL container'ı (`ap-pg`) çalışır ve `Tracon:PostgreSql:ConnectionString`
    tanımlıdır. Veritabanı gereklidir: tanım **kaydı** onsuz denenemez.
-3. `AgentPrism:Ui:AuthToken` `manuel-test-token-2026` olarak tanımlıdır.
-4. Örnek uygulama çalışır: `cd samples/AgentPrism.Api && dotnet run` →
+3. `Tracon:Ui:AuthToken` `manuel-test-token-2026` olarak tanımlıdır.
+4. Örnek uygulama çalışır: `cd samples/Tracon.Api && dotnet run` →
    `http://localhost:5080`
 
 Kısaltma — bu dosyadaki her `curl` şu başlıkları kullanır:
 
 ```bash
 export APB="Authorization: Bearer manuel-test-token-2026"
-export APU="http://localhost:5080/agentprism"
+export APU="http://localhost:5080/tracon"
 ```
 
 > **Ağ çağrısı yapmayan izlek.** Örnek uygulama, OpenAI anahtarı tanımlı değilken
@@ -113,7 +113,7 @@ curl -s -X POST "$APU/api/agents/validate" -H "$APB" -H "content-type: applicati
 | **İlgili faz** | Faz 1 |
 | **İlgili karar** | K2 |
 
-Negatif senaryo. Bu, AgentPrism'in güvenlik sınırıdır: arayüzden agent
+Negatif senaryo. Bu, Tracon'in güvenlik sınırıdır: arayüzden agent
 oluşturulabilir, **tool kodu yazılamaz**. Bir tanım yalnız kodda kayıtlı bir
 tool'a işaret edebilir.
 
@@ -209,10 +209,10 @@ reddedilir.
 **Girilecek veri**
 > **Düzeltildi (2026-08-15, KAPANIS-PLANI §8):** `provider:"echo"` yanlış
 > seçim — `EchoModelProvider.CreateChatClient`
-> (`samples/AgentPrism.Api/EchoModelProvider.cs`) ağa çıkmayan yerel örnek
+> (`samples/Tracon.Api/EchoModelProvider.cs`) ağa çıkmayan yerel örnek
 > sağlayıcı olduğu için `ModelBinding.ProviderSettings`'i hiç okumaz/
 > doğrulamaz. Doğrulama gerçek mekanizması (`ModelProviderSettings.Validate`,
-> `src/AgentPrism.Abstractions/Agents/ModelProviderSettings.cs`) yalnız ağa
+> `src/Tracon.Abstractions/Agents/ModelProviderSettings.cs`) yalnız ağa
 > çıkan sağlayıcılarda (`anthropic`/`google`/`azure`) çalışır.
 ```bash
 curl -s -X POST "$APU/api/agents/validate" -H "$APB" -H "content-type: application/json" -d '{
@@ -372,7 +372,7 @@ curl -s -X PUT "$APU/api/agents/manuel-a" -H "$APB" -H "content-type: applicatio
 
 **Doğrulama sorgusu**
 ```sql
-SELECT name, version FROM agentprism.agent_definitions WHERE name LIKE 'manuel-%' ORDER BY name;
+SELECT name, version FROM tracon.agent_definitions WHERE name LIKE 'manuel-%' ORDER BY name;
 ```
 
 ---
@@ -599,19 +599,19 @@ koşulur — örnek uygulamada skill kataloğu zaten kayıtlıdır.
 
 **Girilecek veri**
 ```bash
-rm -rf ~/agentprism-manuel/skillsiz && mkdir -p ~/agentprism-manuel/skillsiz
-cd ~/agentprism-manuel/skillsiz
+rm -rf ~/tracon-manuel/skillsiz && mkdir -p ~/tracon-manuel/skillsiz
+cd ~/tracon-manuel/skillsiz
 dotnet new console -o . --force
-cp ~/agentprism-manuel/uretec/nuget.config .
-SURUM=$(ls ~/agentprism-local-feed/AgentPrism.Core.*.nupkg | sed 's#.*AgentPrism.Core\.##;s#\.nupkg##')
-dotnet add package AgentPrism.Core --version "$SURUM"
+cp ~/tracon-manuel/uretec/nuget.config .
+SURUM=$(ls ~/tracon-local-feed/Tracon.Core.*.nupkg | sed 's#.*Tracon.Core\.##;s#\.nupkg##')
+dotnet add package Tracon.Core --version "$SURUM"
 
 cat > Program.cs <<'EOF'
-using AgentPrism;
+using Tracon;
 using Microsoft.Extensions.DependencyInjection;
 
 var services = new ServiceCollection();
-services.AddAgentPrism().AddAgent(new AgentDefinition
+services.AddTracon().AddAgent(new AgentDefinition
 {
     Name = "skill-isteyen",
     Model = new ModelBinding { Provider = "echo", Model = "echo-1" },
@@ -626,7 +626,7 @@ try
     await catalog.ResolveAsync("skill-isteyen");
     Console.WriteLine("🚨 istisna ATILMADI");
 }
-catch (AgentPrismCompilationException ex)
+catch (TraconCompilationException ex)
 {
     Console.WriteLine("beklenen istisna: " + ex.Message);
     Console.WriteLine("AgentName: " + ex.AgentName);
@@ -637,11 +637,11 @@ dotnet run -c Release
 ```
 
 **Beklenen sonuç**
-> **Düzeltildi (2026-08-15, KAPANIS-PLANI §8):** `AddAgentPrism()`
-> (`src/AgentPrism.Core/AgentPrismServiceCollectionExtensions.cs:381`)
+> **Düzeltildi (2026-08-15, KAPANIS-PLANI §8):** `AddTracon()`
+> (`src/Tracon.Core/TraconServiceCollectionExtensions.cs:381`)
 > `AgentSkillCatalog`'u `TryAddSingleton` ile KOŞULSUZ kaydeder (doküman'ın
 > `IAgentSkillCatalog` adı hatalı — arayüz yok, somut sınıf kaydediliyor) —
-> bir tüketicinin `AddAgentPrism()` çağırdığı hiçbir standart senaryoda
+> bir tüketicinin `AddTracon()` çağırdığı hiçbir standart senaryoda
 > katalog "kayıtlı değil" olamaz. Doğru ve tek erişilebilir dal, tanımın
 > **var olmayan bir skill'e** işaret ettiği dalıdır. 2026-08-15'te kod
 > yeniden doğrulandı: `AgentDefinitionCompiler.cs:307`/`:1174`'teki "skill
@@ -679,14 +679,14 @@ işe yaramaz; hangi agent olduğu yazılmalıdır.
 
 **Girilecek veri**
 ```bash
-cd ~/agentprism-manuel/skillsiz
+cd ~/tracon-manuel/skillsiz
 cat > Program.cs <<'EOF'
-using AgentPrism;
+using Tracon;
 using Microsoft.Extensions.DependencyInjection;
 
 var services = new ServiceCollection();
-services.AddAgentPrism()
-    .AddTool(AgentPrismManuelTools.Var)
+services.AddTracon()
+    .AddTool(TraconManuelTools.Var)
     .AddAgent(new AgentDefinition
     {
         Name = "tool-eksik",
@@ -698,11 +698,11 @@ var provider = services.BuildServiceProvider();
 var catalog = provider.GetRequiredService<IAgentCatalog>();
 
 try { await catalog.ResolveAsync("tool-eksik"); Console.WriteLine("🚨 istisna ATILMADI"); }
-catch (AgentPrismCompilationException ex) { Console.WriteLine(ex.Message); }
+catch (TraconCompilationException ex) { Console.WriteLine(ex.Message); }
 
-internal static class AgentPrismManuelTools
+internal static class TraconManuelTools
 {
-    [AgentPrismTool("var_olan_tool", "Kayitli bir tool.")]
+    [TraconTool("var_olan_tool", "Kayitli bir tool.")]
     public static string Var(string x) => x;
 }
 EOF
@@ -712,19 +712,19 @@ dotnet run -c Release
 
 **Beklenen sonuç**
 > **Düzeltildi (2026-08-15, KAPANIS-PLANI §8):** Script'in kendisi iki farklı
-> tool kayıt deyimini karıştırmış: `[AgentPrismTool("var_olan_tool", ...)]`
+> tool kayıt deyimini karıştırmış: `[TraconTool("var_olan_tool", ...)]`
 > özniteliğini koyuyor ama `.AddTool(delegate)` ile kaydediyor.
-> `src/AgentPrism.Core/IAgentPrismBuilder.cs:47` `AddTool(Delegate method,
+> `src/Tracon.Core/ITraconBuilder.cs:47` `AddTool(Delegate method,
 > string? name = null, ...)` — "name boş bırakılırsa METOT ADI kullanılır"
-> diye açıkça belgeler, kasıtlı davranış. `[AgentPrismTool]` özniteliği
+> diye açıkça belgeler, kasıtlı davranış. `[TraconTool]` özniteliği
 > yalnız `AddToolsFrom<T>()` tarafından okunur, `.AddTool(delegate)` onu hiç
 > görmez. Doğru kayıtlı ad bu yüzden metot adı `"Var"`dır, öznitelikteki
 > `"var_olan_tool"` DEĞİL.
 - İstisna mesajı `tool-eksik` agent adını taşır.
 - Mesaj eksik tool adını (`hayali_tool`) taşır.
 - Mesaj **kayıtlı tool'ları listeler** (`Var` görünür — `.AddTool(delegate)`
-  metot adını kullanır, `[AgentPrismTool]` özniteliğini değil).
-- Mesaj `builder.AddAgentPrism().AddTool(...)` yönlendirmesini içerir.
+  metot adını kullanır, `[TraconTool]` özniteliğini değil).
+- Mesaj `builder.AddTracon().AddTool(...)` yönlendirmesini içerir.
 
 ~~Eski beklenti (yanlış öncül — script iki tool-kayıt idiomunu
 karıştırmıştı): Mesaj kayıtlı tool'ları listeler (`var_olan_tool` görünür).~~
@@ -776,7 +776,7 @@ curl -s "$APU/api/agents" -H "$APB" | python3 -m json.tool | grep -A3 '"name": "
 
 **Doğrulama sorgusu**
 ```sql
-SELECT name, version, display_name FROM agentprism.agent_definitions WHERE name = 'support';
+SELECT name, version, display_name FROM tracon.agent_definitions WHERE name = 'support';
 ```
 
 ---
@@ -842,7 +842,7 @@ curl -s -o /dev/null -w "RUN  : %{http_code}\n" -X POST "$APU/api/agents/hic-boy
 
 **Doğrulama sorgusu**
 ```sql
-SELECT count(*) FROM agentprism.runs WHERE agent_name = 'hic-boyle-bir-agent-yok';
+SELECT count(*) FROM tracon.runs WHERE agent_name = 'hic-boyle-bir-agent-yok';
 ```
 
 ---
@@ -900,7 +900,7 @@ curl -s -X POST "$APU/api/agents/manuel-surum/run" -H "$APB" \
 **Doğrulama sorgusu**
 ```sql
 SELECT agent_name, agent_version, status, started_at
-FROM agentprism.runs WHERE agent_name = 'manuel-surum' ORDER BY started_at;
+FROM tracon.runs WHERE agent_name = 'manuel-surum' ORDER BY started_at;
 ```
 
 ---
@@ -974,13 +974,13 @@ curl -s "$APU/api/agents/manuel-secret" -H "$APB" | python3 -m json.tool
 - `ModelBinding` üzerinde bir API anahtarı alanı **yoktur**; sözleşme buna izin
   vermez.
 - `metadata` serbest alandır ve tüketicinin oraya yazdığı değer geri okunur —
-  bu beklenendir; AgentPrism serbest metadata'yı denetlemez.
-- 🚨 `agent_definitions` tablosunda AgentPrism'in **kendi** yazdığı hiçbir
+  bu beklenendir; Tracon serbest metadata'yı denetlemez.
+- 🚨 `agent_definitions` tablosunda Tracon'in **kendi** yazdığı hiçbir
   sağlayıcı anahtarı yoktur.
 
 **Doğrulama sorgusu**
 ```sql
-SELECT name, definition::text FROM agentprism.agent_definitions
+SELECT name, definition::text FROM tracon.agent_definitions
 WHERE definition::text ILIKE '%apikey%' OR definition::text ILIKE '%connectionstring%';
 -- Beklenen: yalniz 'manuel-secret'in metadata'sindaki serbest metin, baska hicbir satir yok.
 ```
@@ -1035,14 +1035,14 @@ Negatif senaryo. Sessizce "son kayıt kazanır" davranışı, hangi tool'un
 
 **Girilecek veri**
 ```bash
-cd ~/agentprism-manuel/skillsiz
+cd ~/tracon-manuel/skillsiz
 cat > Program.cs <<'EOF'
-using AgentPrism;
+using Tracon;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 
 var services = new ServiceCollection();
-services.AddAgentPrism()
+services.AddTracon()
     .AddTool(AIFunctionFactory.Create((string a) => a, "ayni_ad", "Birinci."))
     .AddTool(AIFunctionFactory.Create((string a) => a, "ayni_ad", "Ikinci."));
 
@@ -1053,7 +1053,7 @@ try
     var registry = provider.GetRequiredService<IToolRegistry>();
     Console.WriteLine("🚨 istisna ATILMADI - tool sayisi: " + registry.List().Count);
 }
-catch (AgentPrismException ex)
+catch (TraconException ex)
 {
     Console.WriteLine("beklenen istisna: " + ex.Message);
 }
@@ -1162,7 +1162,7 @@ Mutlu yol — ama beklenen sonuç model metnine değil, **ölçülebilir olguya*
 
 **Ön koşul**
 - Örnek uygulama çalışıyor.
-- `AgentPrism:Providers:OpenAI:ApiKey` tanımlıdır (gerçek model çağrısı gerekir).
+- `Tracon:Providers:OpenAI:ApiKey` tanımlıdır (gerçek model çağrısı gerekir).
 
 **Adımlar**
 1. `support` agent'ını sipariş sorusuyla çalıştır (`FIX-PROMPT-01`).
@@ -1187,9 +1187,9 @@ echo "$RUN" | tail -c 500
 **Doğrulama sorgusu**
 ```sql
 SELECT r.id, r.agent_name, r.status, r.cost_usd,
-       (SELECT count(*) FROM agentprism.tool_invocations t
+       (SELECT count(*) FROM tracon.tool_invocations t
          WHERE t.run_id = r.id AND t.tool_name = 'get_order_status') AS tool_cagrisi
-FROM agentprism.runs r
+FROM tracon.runs r
 WHERE r.agent_name = 'support'
 ORDER BY r.started_at DESC LIMIT 1;
 ```
@@ -1230,8 +1230,8 @@ curl -s -X POST "$APU/api/agents/support/run" -H "$APB" \
 **Doğrulama sorgusu**
 ```sql
 SELECT r.id, count(t.*) AS tool_sayisi
-FROM agentprism.runs r
-LEFT JOIN agentprism.tool_invocations t ON t.run_id = r.id
+FROM tracon.runs r
+LEFT JOIN tracon.tool_invocations t ON t.run_id = r.id
 WHERE r.agent_name = 'support'
 GROUP BY r.id ORDER BY max(r.started_at) DESC LIMIT 1;
 ```
@@ -1275,8 +1275,8 @@ curl -s "$APU/api/sessions/manuel-oturum-01" -H "$APB" | python3 -m json.tool | 
 
 **Doğrulama sorgusu**
 ```sql
-SELECT count(*) FROM agentprism.conversation_items ci
-JOIN agentprism.sessions s ON s.id = ci.session_id
+SELECT count(*) FROM tracon.conversation_items ci
+JOIN tracon.sessions s ON s.id = ci.session_id
 WHERE s.external_id = 'manuel-oturum-01';
 ```
 
@@ -1316,8 +1316,8 @@ curl -s -X POST "$APU/api/agents/support/run" -H "$APB" -H "content-type: applic
 
 **Doğrulama sorgusu**
 ```sql
-SELECT count(*) FROM agentprism.conversation_items ci
-JOIN agentprism.sessions s ON s.id = ci.session_id
+SELECT count(*) FROM tracon.conversation_items ci
+JOIN tracon.sessions s ON s.id = ci.session_id
 WHERE s.external_id = 'manuel-oturum-01';
 -- Silme sonrasi 0, yeniden calistirma sonrasi 2 beklenir.
 ```
@@ -1389,8 +1389,8 @@ curl -s -X POST "$APU/api/agents/support/run" -H "$APB" -H "content-type: applic
 **Doğrulama sorgusu**
 ```sql
 SELECT s.external_id, count(ci.*) AS mesaj
-FROM agentprism.sessions s
-LEFT JOIN agentprism.conversation_items ci ON ci.session_id = s.id
+FROM tracon.sessions s
+LEFT JOIN tracon.conversation_items ci ON ci.session_id = s.id
 WHERE s.external_id IN ('musteri-42','musteri-99')
 GROUP BY s.external_id;
 ```
@@ -1436,8 +1436,8 @@ echo "--- 2 ---"; tail -c 200 /tmp/ap-y2.txt
 
 **Doğrulama sorgusu**
 ```sql
-SELECT count(*) FROM agentprism.conversation_items ci
-JOIN agentprism.sessions s ON s.id = ci.session_id
+SELECT count(*) FROM tracon.conversation_items ci
+JOIN tracon.sessions s ON s.id = ci.session_id
 WHERE s.external_id = 'manuel-yaris';
 ```
 
@@ -1461,19 +1461,19 @@ Negatif ve sınır senaryosu. Geçerli aralık 0–1 048 576'dır.
 
 **Girilecek veri**
 ```bash
-cd ~/agentprism-manuel/skillsiz
+cd ~/tracon-manuel/skillsiz
 cat > Program.cs <<'EOF'
-using AgentPrism;
+using Tracon;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
 static void Dene(int deger)
 {
     var services = new ServiceCollection();
-    services.AddAgentPrism().Configure(o => o.RunRecording.MaxPayloadLength = deger);
+    services.AddTracon().Configure(o => o.RunRecording.MaxPayloadLength = deger);
     try
     {
-        _ = services.BuildServiceProvider().GetRequiredService<IOptions<AgentPrismOptions>>().Value;
+        _ = services.BuildServiceProvider().GetRequiredService<IOptions<TraconOptions>>().Value;
         Console.WriteLine($"{deger}: KABUL");
     }
     catch (OptionsValidationException ex)
@@ -1507,7 +1507,7 @@ dotnet run -c Release
 | **İlgili faz** | Faz 11 |
 | **İlgili karar** | — |
 
-Negatif senaryo. AgentPrism işletim sistemi düzeyinde yalıtım **sağlamaz**.
+Negatif senaryo. Tracon işletim sistemi düzeyinde yalıtım **sağlamaz**.
 `PlatformIsolationAcknowledged` bu sınırın okunduğunu bildiren bilinçli onaydır;
 ayarlanmadan `Enabled` açılamaz.
 
@@ -1520,23 +1520,23 @@ ayarlanmadan `Enabled` açılamaz.
 
 **Girilecek veri**
 ```bash
-cd ~/agentprism-manuel/skillsiz
+cd ~/tracon-manuel/skillsiz
 cat > Program.cs <<'EOF'
-using AgentPrism;
+using Tracon;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
 static void Dene(bool onay)
 {
     var services = new ServiceCollection();
-    services.AddAgentPrism().Configure(o =>
+    services.AddTracon().Configure(o =>
     {
         o.Skills.Scripts.Enabled = true;
         o.Skills.Scripts.PlatformIsolationAcknowledged = onay;
     });
     try
     {
-        _ = services.BuildServiceProvider().GetRequiredService<IOptions<AgentPrismOptions>>().Value;
+        _ = services.BuildServiceProvider().GetRequiredService<IOptions<TraconOptions>>().Value;
         Console.WriteLine($"onay={onay}: KABUL");
     }
     catch (OptionsValidationException ex)
@@ -1580,15 +1580,15 @@ Sınır senaryosu. Sınırsız bırakılan bir kurulumda ilk yanlış tanım **f
 
 **Girilecek veri**
 ```bash
-cd ~/agentprism-manuel/skillsiz
+cd ~/tracon-manuel/skillsiz
 cat > Program.cs <<'EOF'
-using AgentPrism;
+using Tracon;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
 var services = new ServiceCollection();
-services.AddAgentPrism();
-var o = services.BuildServiceProvider().GetRequiredService<IOptions<AgentPrismOptions>>().Value;
+services.AddTracon();
+var o = services.BuildServiceProvider().GetRequiredService<IOptions<TraconOptions>>().Value;
 
 Console.WriteLine($"MaxDepth      : {o.AgentGraph.MaxDepth}");
 Console.WriteLine($"MaxTotalTokens: {o.AgentGraph.MaxTotalTokens}");
@@ -1630,15 +1630,15 @@ yazılmaları **açık tercih** olmalıdır.
 
 **Girilecek veri**
 ```bash
-cd ~/agentprism-manuel/skillsiz
+cd ~/tracon-manuel/skillsiz
 cat > Program.cs <<'EOF'
-using AgentPrism;
+using Tracon;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
 var services = new ServiceCollection();
-services.AddAgentPrism();
-var o = services.BuildServiceProvider().GetRequiredService<IOptions<AgentPrismOptions>>().Value;
+services.AddTracon();
+var o = services.BuildServiceProvider().GetRequiredService<IOptions<TraconOptions>>().Value;
 
 Console.WriteLine($"RecordSensitiveData   : {o.Observability.RecordSensitiveData}");
 Console.WriteLine($"EnableQuotaUsageGauge : {o.Observability.EnableQuotaUsageGauge}");
@@ -1680,14 +1680,14 @@ Negatif senaryo.
 
 **Girilecek veri**
 ```bash
-cd ~/agentprism-manuel/skillsiz
+cd ~/tracon-manuel/skillsiz
 cat > Program.cs <<'EOF'
-using AgentPrism;
+using Tracon;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
 var services = new ServiceCollection();
-services.AddAgentPrism().Configure(o =>
+services.AddTracon().Configure(o =>
 {
     o.Pricing.Providers["echo"] = new Dictionary<string, ModelPriceOverride>
     {
@@ -1697,7 +1697,7 @@ services.AddAgentPrism().Configure(o =>
 
 try
 {
-    _ = services.BuildServiceProvider().GetRequiredService<IOptions<AgentPrismOptions>>().Value;
+    _ = services.BuildServiceProvider().GetRequiredService<IOptions<TraconOptions>>().Value;
     Console.WriteLine("🚨 negatif fiyat KABUL EDILDI");
 }
 catch (OptionsValidationException ex)
@@ -1737,10 +1737,10 @@ adı** sayılır; `Currency` ve `Voice` bu yüzden rezervedir.
 
 **Girilecek veri**
 ```bash
-cd ~/agentprism-manuel/skillsiz
+cd ~/tracon-manuel/skillsiz
 cat > appsettings.json <<'EOF'
 {
-  "AgentPrism": {
+  "Tracon": {
     "Pricing": {
       "Currency": "USD",
       "echo": { "echo-1": { "InputCostPerMillionTokens": 0.25, "OutputCostPerMillionTokens": 1.0 } },
@@ -1751,7 +1751,7 @@ cat > appsettings.json <<'EOF'
 EOF
 
 cat > Program.cs <<'EOF'
-using AgentPrism;
+using Tracon;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
@@ -1759,10 +1759,10 @@ using Microsoft.Extensions.Options;
 var config = new ConfigurationBuilder().AddJsonFile("appsettings.json").Build();
 var services = new ServiceCollection();
 services.AddSingleton<IConfiguration>(config);
-services.AddAgentPrism();
-services.Configure<AgentPrismOptions>(config.GetSection(AgentPrismOptions.SectionName));
+services.AddTracon();
+services.Configure<TraconOptions>(config.GetSection(TraconOptions.SectionName));
 
-var o = services.BuildServiceProvider().GetRequiredService<IOptions<AgentPrismOptions>>().Value;
+var o = services.BuildServiceProvider().GetRequiredService<IOptions<TraconOptions>>().Value;
 Console.WriteLine("Currency          : " + o.Pricing.Currency);
 Console.WriteLine("Saglayici sayisi  : " + o.Pricing.Providers.Count);
 Console.WriteLine("Saglayicilar      : " + string.Join(", ", o.Pricing.Providers.Keys));
@@ -1787,30 +1787,30 @@ dotnet run -c Release
 | **İlgili faz** | Faz 1 |
 | **İlgili karar** | K-018 |
 
-Tasarım kuralı #1'in çekirdek testidir. `AgentPrism.Testing` paketinin bellek
+Tasarım kuralı #1'in çekirdek testidir. `Tracon.Testing` paketinin bellek
 içi host'u hiçbir veritabanına ve hiçbir ağa gitmez.
 
 **Ön koşul**
-- MT-CORE-023 projesi hazır. `AgentPrism.Testing` paketi eklenir.
+- MT-CORE-023 projesi hazır. `Tracon.Testing` paketi eklenir.
 
 **Adımlar**
-1. `AgentPrism.Testing` paketini ekle.
+1. `Tracon.Testing` paketini ekle.
 2. `FakeModelProvider` ile bir host kur.
 3. Bir agent çalıştır ve kaydı oku.
 
 **Girilecek veri**
 ```bash
-cd ~/agentprism-manuel/skillsiz
-SURUM=$(ls ~/agentprism-local-feed/AgentPrism.Testing.*.nupkg | sed 's#.*AgentPrism.Testing\.##;s#\.nupkg##')
-dotnet add package AgentPrism.Testing --version "$SURUM"
+cd ~/tracon-manuel/skillsiz
+SURUM=$(ls ~/tracon-local-feed/Tracon.Testing.*.nupkg | sed 's#.*Tracon.Testing\.##;s#\.nupkg##')
+dotnet add package Tracon.Testing --version "$SURUM"
 
 cat > Program.cs <<'EOF'
-using AgentPrism;
-using AgentPrism.Testing;
+using Tracon;
+using Tracon.Testing;
 
 var provider = new FakeModelProvider().EchoesUserMessage();
 
-await using var host = await AgentPrismTestHost.StartAsync(o =>
+await using var host = await TraconTestHost.StartAsync(o =>
 {
     o.ModelProvider = provider;
 });
@@ -1828,8 +1828,8 @@ dotnet run -c Release
 - Hiçbir ağ isteği yapılmaz.
 - Süreç sıfır çıkış koduyla biter.
 
-> Not: `AgentPrismTestHost` kurulum imzası koşumdan önce doğrulanır:
-> `grep -n "public static" src/AgentPrism.Testing/AgentPrismTestHost.cs`.
+> Not: `TraconTestHost` kurulum imzası koşumdan önce doğrulanır:
+> `grep -n "public static" src/Tracon.Testing/TraconTestHost.cs`.
 > İmza farklıysa case yeniden yazılır, `Kaldı` işaretlenmez.
 
 ---
@@ -1857,9 +1857,9 @@ tarayıp "hangi tool zaten çağrıldı" çıkarmaz. Kuyruk tükenince davranı�
 
 **Girilecek veri**
 ```bash
-cd ~/agentprism-manuel/skillsiz
+cd ~/tracon-manuel/skillsiz
 cat > Program.cs <<'EOF'
-using AgentPrism.Testing;
+using Tracon.Testing;
 
 var provider = new FakeModelProvider()
     .RespondsWith("BIRINCI", "IKINCI")
@@ -1907,20 +1907,20 @@ B-tree indeksi parçalanmaz. Bu bir performans sözleşmesidir.
 
 **Girilecek veri**
 ```bash
-cd ~/agentprism-manuel/skillsiz
+cd ~/tracon-manuel/skillsiz
 cat > Program.cs <<'EOF'
-using AgentPrism;
+using Tracon;
 
 var ids = new List<Guid>();
-for (var i = 0; i < 5; i++) { ids.Add(AgentPrismId.NewId()); Thread.Sleep(2); }
+for (var i = 0; i < 5; i++) { ids.Add(TraconId.NewId()); Thread.Sleep(2); }
 
 var sirali = ids.Select(x => x.ToString()).SequenceEqual(ids.Select(x => x.ToString()).Order(StringComparer.Ordinal));
 Console.WriteLine("sirali: " + sirali);
 
-var damga = AgentPrismId.GetTimestamp(ids[0]);
+var damga = TraconId.GetTimestamp(ids[0]);
 Console.WriteLine("damga farki (sn): " + (DateTimeOffset.UtcNow - damga).TotalSeconds.ToString("F1"));
 
-try { AgentPrismId.GetTimestamp(Guid.NewGuid()); Console.WriteLine("🚨 v4 KABUL EDILDI"); }
+try { TraconId.GetTimestamp(Guid.NewGuid()); Console.WriteLine("🚨 v4 KABUL EDILDI"); }
 catch (ArgumentException ex) { Console.WriteLine("beklenen red: " + ex.Message); }
 EOF
 
@@ -1996,7 +1996,7 @@ curl -s "$APU/api/agents" -H "$APB" \
   | python3 -c "import sys,json; a=json.load(sys.stdin); print('toplam:',len(a)); print('kod:',sum(1 for x in a if x['origin']=='Code')); print('db :',sum(1 for x in a if x['origin']=='Database'))"
 
 # Uygulamayi Ctrl+C ile durdur, sonra:
-#   cd samples/AgentPrism.Api && dotnet run
+#   cd samples/Tracon.Api && dotnet run
 # ve ayni komutu tekrarla.
 ```
 
@@ -2008,7 +2008,7 @@ curl -s "$APU/api/agents" -H "$APB" \
 
 **Doğrulama sorgusu**
 ```sql
-SELECT name, version, origin FROM agentprism.agent_definitions ORDER BY name;
+SELECT name, version, origin FROM tracon.agent_definitions ORDER BY name;
 ```
 
 ---
@@ -2349,7 +2349,7 @@ curl -s -X POST "$APU/api/agents" -H "$APB" -H "content-type: application/json" 
 
 ### MT-CORE-086 — Aşırı uzun parametre değeri koşuyu düşürür (Faz 86, F-34, denetim 🟡 bulgusu)
 
-Sınır senaryosu — `AgentPrismOptions.MaxParameterValueLength` (varsayılan 4096
+Sınır senaryosu — `TraconOptions.MaxParameterValueLength` (varsayılan 4096
 bayt UTF-8) sınırını doğrular.
 
 | | |
@@ -2374,7 +2374,7 @@ curl -s -X POST "$APU/api/agents/$PARAM_AGENT/run" -H "$APB" -H "content-type: a
 **Beklenen sonuç**
 - `400`; gövdede `"detail":"Parameter 'musteri' exceeds the maximum value
   length."` ve `tooLongParameters: ["musteri"]`. Koşu başlamaz, model
-  çağrılmaz. 2026-08-22'de `samples/AgentPrism.Api`'ye karşı canlı doğrulandı
+  çağrılmaz. 2026-08-22'de `samples/Tracon.Api`'ye karşı canlı doğrulandı
   (bkz. `docs/arsiv/fazlar/86-TALIMATIN-GIRDI-YUZEYI.md`, "Doğrulama komutları").
 
 ---
@@ -2389,16 +2389,16 @@ curl -s -X POST "$APU/api/agents/$PARAM_AGENT/run" -H "$APB" -H "content-type: a
 | **İlgili karar** | — |
 
 **Ön koşul**
-- `samples/AgentPrism.Api/Program.cs`'e geçici olarak
-  `builder.AddAgentPrism().Services.AddSingleton(new JsonFileAgentSourceOptions { Directory = "<dizin>" })`
+- `samples/Tracon.Api/Program.cs`'e geçici olarak
+  `builder.AddTracon().Services.AddSingleton(new JsonFileAgentSourceOptions { Directory = "<dizin>" })`
   ve `.AddAgentSource<JsonFileAgentSource>()` eklenmiş, `<dizin>` altında
   `{"name":"greeter","instructions":"Reply briefly.","model":{"provider":"echo","model":"echo-1"}}`
-  içerikli bir `greeter.json` dosyası bulunan bir `samples/AgentPrism.Api` koşumu.
-  (`samples/AgentPrism.Samples.CustomAgentSource`'un `PackageReference`'ı
+  içerikli bir `greeter.json` dosyası bulunan bir `samples/Tracon.Api` koşumu.
+  (`samples/Tracon.Samples.CustomAgentSource`'un `PackageReference`'ı
   local feed'den çözülür — bkz. `samples/NuGet.config`.)
 
 **Adımlar**
-1. `GET /agentprism/api/agents` çağır; `greeter` adlı agent'ı bul.
+1. `GET /tracon/api/agents` çağır; `greeter` adlı agent'ı bul.
 2. Konsolda agent listesini aç, `greeter`'ı tıkla.
 
 **Girilecek veri**
@@ -2488,7 +2488,7 @@ curl -s -X POST "$APU/api/agents/greeter/run" -H "$APB" -H "content-type: applic
   çağrıda istisna fırlatsın diye).
 
 **Adımlar**
-1. `GET /agentprism/api/agents` çağır.
+1. `GET /tracon/api/agents` çağır.
 
 **Girilecek veri**
 ```bash
@@ -2543,7 +2543,7 @@ curl -s -X POST "$APU/api/agents/greeter/run" -H "$APB" -H "content-type: applic
 - MT-CORE-087'deki kurulum; `EnableDiagnosticsEndpoint=true`.
 
 **Adımlar**
-1. `GET /agentprism/api/diagnostics` çağır.
+1. `GET /tracon/api/diagnostics` çağır.
 
 **Girilecek veri**
 ```bash
@@ -2567,7 +2567,7 @@ curl -s "$APU/api/diagnostics" -H "$APB" | python3 -m json.tool | grep -A 15 age
 | **İlgili karar** | — |
 
 **Ön koşul**
-- `samples/AgentPrism.Api/Program.cs`'e aynı `Name`'i döndüren iki
+- `samples/Tracon.Api/Program.cs`'e aynı `Name`'i döndüren iki
   `IAgentSource` (örn. `AddAgentSource<JsonFileAgentSource>()` iki farklı
   dizinle, ikisi de `json-file` adını taşıyacak şekilde) geçici eklenmiş.
 
@@ -2580,7 +2580,7 @@ dotnet run --no-build -c Release --urls http://localhost:5081
 ```
 
 **Beklenen sonuç**
-- Uygulama **başlamaz**; konsolda `AgentPrismAgentSourceException` ve iki
+- Uygulama **başlamaz**; konsolda `TraconAgentSourceException` ve iki
   kaynağın adını taşıyan bir hata mesajı görünür. `curl` bağlantı
   reddedilir (`http://localhost:5081` açılmaz).
 
@@ -2597,7 +2597,7 @@ dotnet run --no-build -c Release --urls http://localhost:5081
 
 **Ön koşul**
 - `ListAsync`'i çağrıldığında 3 saniye bekleyen bir test `IAgentSource`
-  geçici eklenmiş `samples/AgentPrism.Api` koşumu.
+  geçici eklenmiş `samples/Tracon.Api` koşumu.
 
 **Adımlar**
 1. Uygulamayı başlat; ilk `200` yanıtına kadar geçen süreyi ölç.
@@ -2627,7 +2627,7 @@ time (until curl -s -o /dev/null "$APU/api/agents" -H "$APB"; do sleep 0.2; done
 - Çok kiracılı bir kurulum ve `ITenantContext`'i okuyan, kiracıya göre
   filtreleyen özel bir `IAgentSource` (bu depoda hazır örneği yok — bu case
   `TenantAwareAgentSourceContract`'ı sağlayan bir kaynak yazıldığında koşulur;
-  `AgentPrism.Testing.Contracts.AgentSources.TenantAwareAgentSourceContract`
+  `Tracon.Testing.Contracts.AgentSources.TenantAwareAgentSourceContract`
   otomatik sözleşme testinin insan gözüyle tekrarıdır).
 
 **Adımlar**
@@ -2646,7 +2646,7 @@ curl -s "$APU/api/agents" -H "X-Tenant-Id: tenant-b" -H "$APB"
 > 👤 **İnsan gerekir** — bu depoda kiracıya duyarlı bir örnek `IAgentSource`
 > yok; case yalnız böyle bir kaynak eklendiğinde koşulabilir. Otomatik
 > karşılığı `TenantAwareAgentSourceContract` sözleşme suite'idir
-> (`tests/AgentPrism.Core.UnitTests/Catalog/BuiltInAgentSourceContractTests.cs`,
+> (`tests/Tracon.Core.UnitTests/Catalog/BuiltInAgentSourceContractTests.cs`,
 > `DefinitionStoreTenantAwareAgentSourceContractTests`).
 
 ---
@@ -2661,16 +2661,16 @@ curl -s "$APU/api/agents" -H "X-Tenant-Id: tenant-b" -H "$APB"
 | **İlgili karar** | — |
 
 **Ön koşul**
-- `samples/AgentPrism.Samples.CustomAgentSource.Tests` projesi local feed'den
-  restore edilebilir durumda (`dotnet pack AgentPrism.src.slnf -c Release`
+- `samples/Tracon.Samples.CustomAgentSource.Tests` projesi local feed'den
+  restore edilebilir durumda (`dotnet pack Tracon.src.slnf -c Release`
   önceden koşulmuş).
 
 **Adımlar**
-1. `dotnet test samples/AgentPrism.Samples.CustomAgentSource.Tests -c Release` çalıştır.
+1. `dotnet test samples/Tracon.Samples.CustomAgentSource.Tests -c Release` çalıştır.
 
 **Girilecek veri**
 ```bash
-dotnet test samples/AgentPrism.Samples.CustomAgentSource.Tests -c Release --no-build
+dotnet test samples/Tracon.Samples.CustomAgentSource.Tests -c Release --no-build
 ```
 
 **Beklenen sonuç**
@@ -2678,7 +2678,7 @@ dotnet test samples/AgentPrism.Samples.CustomAgentSource.Tests -c Release --no-b
   `JsonFileAgentSourceRunTests`'in generic (`AddAgentSource<T>()`) ve factory
   (`AddAgentSource(factory)`) kayıt yollarıyla yaptığı iki gerçek `run`, ve
   kapsam testi. `TryAddEnumerable` sample kodunda hiç geçmez
-  (`grep -c TryAddEnumerable samples/AgentPrism.Samples.CustomAgentSource*/*.cs` → `0`).
+  (`grep -c TryAddEnumerable samples/Tracon.Samples.CustomAgentSource*/*.cs` → `0`).
 
 ---
 
@@ -2690,14 +2690,14 @@ dotnet test samples/AgentPrism.Samples.CustomAgentSource.Tests -c Release --no-b
 | **Önem** | Kritik |
 
 **Ön koşul**
-- `samples/AgentPrism.Samples.CustomTool.Tests` local feed ile restore edilir.
+- `samples/Tracon.Samples.CustomTool.Tests` local feed ile restore edilir.
 
 **Adımlar**
 1. Sample testlerini çalıştır.
 
 **Girilecek veri**
 ```bash
-dotnet test samples/AgentPrism.Samples.CustomTool.Tests -c Release --no-build
+dotnet test samples/Tracon.Samples.CustomTool.Tests -c Release --no-build
 ```
 
 **Beklenen sonuç**
@@ -2719,7 +2719,7 @@ dotnet test samples/AgentPrism.Samples.CustomTool.Tests -c Release --no-build
 2. Aynı kurulumu `Tools:AllowUnverifiedToolRegistry=true` ile tekrar başlat.
 
 **Beklenen sonuç**
-- Varsayılan kurulum `AgentPrismException` ile başlangıçta durur.
+- Varsayılan kurulum `TraconException` ile başlangıçta durur.
 - Opt-in kurulum başlar ve warning yazar; bu yalnız geçiş yolu içindir.
 
 ---
@@ -2794,9 +2794,9 @@ dotnet test samples/AgentPrism.Samples.CustomTool.Tests -c Release --no-build
 | **Önem** | Yüksek |
 
 **Adımlar**
-1. `samples/AgentPrism.Api`'yi PostgreSQL ile ayağa kaldır (`ap-pg` container).
-2. `POST /agentprism/api/agents/support/run` ile gerçek bir mesaj gönder.
-3. `GET /agentprism/api/runs?agentName=support&limit=1` ile sonucu doğrula.
+1. `samples/Tracon.Api`'yi PostgreSQL ile ayağa kaldır (`ap-pg` container).
+2. `POST /tracon/api/agents/support/run` ile gerçek bir mesaj gönder.
+3. `GET /tracon/api/runs?agentName=support&limit=1` ile sonucu doğrula.
 
 **Beklenen sonuç**
 - SSE akışı `event: update` (metin + usage) ve `event: done` ile biter.
@@ -2831,7 +2831,7 @@ dotnet test samples/AgentPrism.Samples.CustomTool.Tests -c Release --no-build
 2. Aynı tanım için async `CompileAsync()` çağır.
 
 **Beklenen sonuç**
-- Sync yol `AgentPrismCompilationException` fırlatır ("does not resolve shared instructions blocks. Use CompileAsync()").
+- Sync yol `TraconCompilationException` fırlatır ("does not resolve shared instructions blocks. Use CompileAsync()").
 - Async yol bloğun metnini kendi talimatının önüne ekler.
 - Otomatik koşuldu: `SharedInstructionsTests.Synchronous_Compile_refuses_a_definition_that_references_a_block`,
   `SharedInstructionsTests.Blocks_text_is_prepended_to_the_agents_own_instructions`.
@@ -2852,12 +2852,12 @@ dotnet test samples/AgentPrism.Samples.CustomTool.Tests -c Release --no-build
 davranışı bozmadığını gerçek bir `run` ile kanıtlar.
 
 **Ön koşul**
-- Bağlantı dizesi verilmez — `samples/AgentPrism.Embedded` varsayılan olarak
-  bellek içi kalıcılık kullanır (`GET /agentprism/api/diagnostics` →
+- Bağlantı dizesi verilmez — `samples/Tracon.Embedded` varsayılan olarak
+  bellek içi kalıcılık kullanır (`GET /tracon/api/diagnostics` →
   `"persistenceProvider": "InMemory"`).
 
 **Adımlar**
-1. `dotnet run --project samples/AgentPrism.Embedded --urls http://localhost:5082`
+1. `dotnet run --project samples/Tracon.Embedded --urls http://localhost:5082`
 2. İki farklı kiracı için arka plan iş kuyruğu üzerinden birer `run` üret.
 3. Her kiracının kendi kimliğiyle `run` listesini ve istatistik özetini oku.
 
@@ -2868,9 +2868,9 @@ curl -s -X POST http://localhost:5082/jobs -H 'Content-Type: application/json' \
 curl -s -X POST http://localhost:5082/jobs -H 'Content-Type: application/json' \
   -d '{"tenantId":"globex","userId":"user-7","message":"Summarize last invoice"}'
 
-curl -s -H 'X-Host-Tenant: acme' http://localhost:5082/agentprism/api/runs
-curl -s -H 'X-Host-Tenant: globex' http://localhost:5082/agentprism/api/runs
-curl -s -H 'X-Host-Tenant: acme' http://localhost:5082/agentprism/api/stats
+curl -s -H 'X-Host-Tenant: acme' http://localhost:5082/tracon/api/runs
+curl -s -H 'X-Host-Tenant: globex' http://localhost:5082/tracon/api/runs
+curl -s -H 'X-Host-Tenant: acme' http://localhost:5082/tracon/api/stats
 ```
 
 **Beklenen sonuç**
@@ -2878,18 +2878,18 @@ curl -s -H 'X-Host-Tenant: acme' http://localhost:5082/agentprism/api/stats
   (`InMemoryRunStore.Queries.cs`'teki `WithTreeTotals`).
 - Kiracı A'nın `run` listesi yalnız kendi `run`'ını içerir, kiracı B'ninkini
   içermez (`QueryRunsAsync`'in kiracı süzgeci).
-- `GET /agentprism/api/stats` `totalRuns: 1`, `byAgent`/`byModel`/`byUser`
+- `GET /tracon/api/stats` `totalRuns: 1`, `byAgent`/`byModel`/`byUser`
   kırılımlarını doğru sayar (`GetStatisticsAsync`, `InMemoryRunStore.Statistics.cs`).
 - Koşuldu (2026-08-26): iki kiracı, iki `run`, beklenen sonuçların tamamı
   gözlendi.
 
 > **Otomatik karşılığı:** `InMemoryRunStoreContractTests`/`InMemoryToolInvocationContractTests`
-> (`tests/AgentPrism.Core.UnitTests/Contracts/InMemoryStoreContractTests.cs`) —
+> (`tests/Tracon.Core.UnitTests/Contracts/InMemoryStoreContractTests.cs`) —
 > aynı sözleşme paketi bellek içi, PostgreSQL, SQL Server ve SQLite
 > uygulamalarının tümünde koşar. Trim'in event/tool invocation kayıtlarını da
 > sildiğini ve bir `IRunScoreStore` hatasının `GetStatisticsAsync`'i sessizce
 > yutmadığını `InMemoryRunStoreStructureTests`
-> (`tests/AgentPrism.Core.UnitTests/Storage/InMemoryRunStoreStructureTests.cs`)
+> (`tests/Tracon.Core.UnitTests/Storage/InMemoryRunStoreStructureTests.cs`)
 > doğrular.
 
 ---
@@ -2907,7 +2907,7 @@ curl -s -H 'X-Host-Tenant: acme' http://localhost:5082/agentprism/api/stats
 geçirdiği K-218 kısıtını, çağrı başına açılan gerçek bir DI kapsamıyla kapatır.
 
 **Ön koşul**
-- `samples/AgentPrism.Api` çalışıyor; örnek uygulamaya `AddScopedTool` ile
+- `samples/Tracon.Api` çalışıyor; örnek uygulamaya `AddScopedTool` ile
   kayıtlı, `IServiceScopeFactory`'den çözülen (ör. `DbContext` benzeri) bir
   tool eklenmiş olmalı, ya da `dotnet test` ile
   `ScopedToolLifetimeTests` fonksiyonel testi elle izlenir.
@@ -2924,10 +2924,10 @@ geçirdiği K-218 kısıtını, çağrı başına açılan gerçek bir DI kapsam
   görünmez.
 
 > **Otomatik karşılığı:** `ScopedToolLifetimeTests`
-> (`tests/AgentPrism.AspNetCore.FunctionalTests/ScopedToolLifetimeTests.cs`) —
+> (`tests/Tracon.AspNetCore.FunctionalTests/ScopedToolLifetimeTests.cs`) —
 > gerçek host üzerinden art arda ve eşzamanlı çağrıların ayrı kapsam aldığını
 > ve kapsamın çağrı bitince kapandığını kanıtlar. Wrapper'ın kendi mekaniği
-> (`ScopedToolTests`, `tests/AgentPrism.Core.UnitTests/Tools/ScopedToolTests.cs`)
+> (`ScopedToolTests`, `tests/Tracon.Core.UnitTests/Tools/ScopedToolTests.cs`)
 > birim seviyesinde ayrıca koşar.
 
 ---
@@ -2941,15 +2941,15 @@ geçirdiği K-218 kısıtını, çağrı başına açılan gerçek bir DI kapsam
 | **İlgili faz** | Faz 127 |
 | **İlgili karar** | K-347 |
 
-K-347 kapanmadı: `[AgentPrismTool]` işaretli bir örnek metot yine tarama
+K-347 kapanmadı: `[TraconTool]` işaretli bir örnek metot yine tarama
 anında reddedilir. Bu case yalnız ret metninin güncellendiğini doğrular.
 
 **Adımlar**
-1. `[AgentPrismTool]` ile işaretli, `static` olmayan bir örnek metoda sahip
+1. `[TraconTool]` ile işaretli, `static` olmayan bir örnek metoda sahip
    bir tipi `AddToolsFrom<T>()` ile kaydetmeyi dene.
 
 **Beklenen sonuç**
-- Başlangıç `AgentPrismException` ile durur.
+- Başlangıç `TraconException` ile durur.
 - Hata metni `AddScopedTool`'u adıyla anar (yalnız "static yap" değil, kalıcı
   bir bağımlılığın per-call çözülmesi gerekiyorsa hangi API'nin kullanılacağını
   söyler).
@@ -2965,10 +2965,10 @@ anında reddedilir. Bu case yalnız ret metninin güncellendiğini doğrular.
 | **İlgili faz** | Faz 130 |
 
 **Ön koşul**
-- `[AgentPrismTool]` işaretli bir metotta `[Range(1, 100)] int count` parametresi.
+- `[TraconTool]` işaretli bir metotta `[Range(1, 100)] int count` parametresi.
 
 **Adımlar**
-1. `dotnet build samples/AgentPrism.Api -p:EmitCompilerGeneratedFiles=true`.
+1. `dotnet build samples/Tracon.Api -p:EmitCompilerGeneratedFiles=true`.
 2. Üretilen wrapper dosyasındaki JSON şemayı oku.
 
 **Beklenen sonuç**
@@ -2976,7 +2976,7 @@ anında reddedilir. Bu case yalnız ret metninin güncellendiğini doğrular.
 - Derleme sıfır uyarıyla biter.
 
 > **Otomatik karşılığı:** `ToolSchemaConstraintTests.A_Range_attribute_on_an_integer_parameter_produces_minimum_and_maximum`
-> (`tests/AgentPrism.Generators.UnitTests/ToolSchemaConstraintTests.cs`).
+> (`tests/Tracon.Generators.UnitTests/ToolSchemaConstraintTests.cs`).
 
 ---
 
@@ -2992,11 +2992,11 @@ Dizi kısıtı diziye uygulanır, elemana değil — bu case'in tek amacı bu ay
 kanıtlamaktır (130.3).
 
 **Ön koşul**
-- `[AgentPrismTool]` işaretli bir metotta `[MinLength(3)] string name` VE
+- `[TraconTool]` işaretli bir metotta `[MinLength(3)] string name` VE
   `[MinLength(2)] string[] tags` parametreleri.
 
 **Adımlar**
-1. `dotnet build samples/AgentPrism.Api -p:EmitCompilerGeneratedFiles=true`.
+1. `dotnet build samples/Tracon.Api -p:EmitCompilerGeneratedFiles=true`.
 2. Üretilen şemada `name` ve `tags` düğümlerini oku.
 
 **Beklenen sonuç**
@@ -3009,7 +3009,7 @@ kanıtlamaktır (130.3).
 
 ---
 
-### MT-CORE-111 — Uyumsuz kısıt `APG0010` üretir, derleme başarılı kalır (Faz 130)
+### MT-CORE-111 — Uyumsuz kısıt `TRC0010` üretir, derleme başarılı kalır (Faz 130)
 
 | | |
 |---|---|
@@ -3018,14 +3018,14 @@ kanıtlamaktır (130.3).
 | **İlgili faz** | Faz 130 |
 
 **Ön koşul**
-- `[AgentPrismTool]` işaretli bir metotta `[Range(1, 10)] string s` parametresi
+- `[TraconTool]` işaretli bir metotta `[Range(1, 10)] string s` parametresi
   (tipe uymayan kısıt).
 
 **Adımlar**
-1. `dotnet build samples/AgentPrism.Api`.
+1. `dotnet build samples/Tracon.Api`.
 
 **Beklenen sonuç**
-- Derleme `APG0010` UYARISI verir, **hata vermez** — build başarılı biter.
+- Derleme `TRC0010` UYARISI verir, **hata vermez** — build başarılı biter.
 - Üretilen şemada `s` düğümünde `minimum`/`maximum` **yoktur**.
 
 > **Otomatik karşılığı:**
@@ -3044,14 +3044,14 @@ kanıtlamaktır (130.3).
 Bu case üretilen şemanın **paket** sınırını gerçekten geçtiğini kanıtlar —
 birim testi yalnız şema **metnini** kanıtlar, `analyzers/dotnet/cs/` içindeki
 DLL'in gerçekten paketlenip bir `PackageReference` tüketicisine ulaştığını
-değil. `samples/AgentPrism.Api` bunu KANITLAYAMAZ: o proje `AgentPrism`'e
+değil. `samples/Tracon.Api` bunu KANITLAYAMAZ: o proje `Tracon`'e
 `ProjectReference` ile bağlıdır (`ConsumerRunTests`'in kendi belgesi, K-166
-emsali) — bu yüzden case, `samples/AgentPrism.Api` yerine yerel NuGet feed
-izleğini (İzlek A) kullanan `AgentPrism.Package.Tests`'e taşındı (plandan
+emsali) — bu yüzden case, `samples/Tracon.Api` yerine yerel NuGet feed
+izleğini (İzlek A) kullanan `Tracon.Package.Tests`'e taşındı (plandan
 sapma, faz dokümanına not edildi).
 
 **Adımlar**
-1. `dotnet test tests/AgentPrism.Package.Tests --filter-method "*Constrained*"`.
+1. `dotnet test tests/Tracon.Package.Tests --filter-method "*Constrained*"`.
 
 **Beklenen sonuç**
 - `run` `Completed` durumunda biter; tool hatası veya sızıntı görünmez.
@@ -3060,7 +3060,7 @@ sapma, faz dokümanına not edildi).
 
 > **Otomatik karşılığı:**
 > `ConstrainedToolPackageTests.Package_consumer_gets_the_constrained_schema_and_the_run_completes`
-> (`tests/AgentPrism.Package.Tests/ConstrainedToolPackageTests.cs`) —
+> (`tests/Tracon.Package.Tests/ConstrainedToolPackageTests.cs`) —
 > `ConsumerRunTests`'in aynı deseni (paketle → yerel feed → dış tüketici
 > projesi yaz → derle → çalıştır), kısıtlı bir parametreyle.
 
@@ -3075,12 +3075,12 @@ sapma, faz dokümanına not edildi).
 | **İlgili faz** | Faz 130 |
 
 **Ön koşul**
-- `[AgentPrismTool]` işaretli bir metotta `[Range(1.5, 2.5)] double ratio`
+- `[TraconTool]` işaretli bir metotta `[Range(1.5, 2.5)] double ratio`
   parametresi.
 
 **Adımlar**
-1. `LANG=tr_TR.UTF-8 dotnet build tests/AgentPrism.Generators.UnitTests`.
-2. `dotnet build samples/AgentPrism.Api -p:EmitCompilerGeneratedFiles=true`
+1. `LANG=tr_TR.UTF-8 dotnet build tests/Tracon.Generators.UnitTests`.
+2. `dotnet build samples/Tracon.Api -p:EmitCompilerGeneratedFiles=true`
    ile üretilen şemayı oku.
 
 **Beklenen sonuç**
@@ -3102,7 +3102,7 @@ sapma, faz dokümanına not edildi).
 | **İlgili faz** | Faz 130 |
 
 **Adımlar**
-1. `samples/AgentPrism.Api`'yi temiz derle (`obj`/`bin` temizlenmiş).
+1. `samples/Tracon.Api`'yi temiz derle (`obj`/`bin` temizlenmiş).
 2. Üretilen wrapper dosyasını kopyala.
 3. Tekrar temiz derle, aynı dosyayı tekrar kopyala.
 
@@ -3129,7 +3129,7 @@ sapma, faz dokümanına not edildi).
 - Tool'un context'i `[JsonSerializable(typeof(Rubric))]` bildiriyor.
 
 **Adımlar**
-1. `dotnet build samples/AgentPrism.Api -p:EmitCompilerGeneratedFiles=true`.
+1. `dotnet build samples/Tracon.Api -p:EmitCompilerGeneratedFiles=true`.
 2. Üretilen wrapper dosyasındaki JSON şemayı oku.
 
 **Beklenen sonuç**
@@ -3138,7 +3138,7 @@ sapma, faz dokümanına not edildi).
 - Derleme sıfır uyarıyla biter.
 
 > **Otomatik karşılığı:** `ToolSchemaObjectTests.An_object_parameter_produces_a_nested_object_schema_node`
-> (`tests/AgentPrism.Generators.UnitTests/ToolSchemaObjectTests.cs`).
+> (`tests/Tracon.Generators.UnitTests/ToolSchemaObjectTests.cs`).
 
 ---
 
@@ -3154,7 +3154,7 @@ sapma, faz dokümanına not edildi).
 - `IReadOnlyList<Rubric>` parametreli bir tool.
 
 **Adımlar**
-1. `dotnet build samples/AgentPrism.Api -p:EmitCompilerGeneratedFiles=true`.
+1. `dotnet build samples/Tracon.Api -p:EmitCompilerGeneratedFiles=true`.
 2. Üretilen şemayı oku.
 
 **Beklenen sonuç**
@@ -3180,7 +3180,7 @@ yalnız bunu kanıtlar, yeni bir kısıt türü eklemez.
 - `record Rubric(string Name, [Range(1, 5)] int Weight)` parametreli bir tool.
 
 **Adımlar**
-1. `dotnet build samples/AgentPrism.Api -p:EmitCompilerGeneratedFiles=true`.
+1. `dotnet build samples/Tracon.Api -p:EmitCompilerGeneratedFiles=true`.
 2. Üretilen şemada `rubric.properties.Weight` düğümünü oku.
 
 **Beklenen sonuç**
@@ -3190,7 +3190,7 @@ yalnız bunu kanıtlar, yeni bir kısıt türü eklemez.
 
 ---
 
-### MT-CORE-118 — Context'te bildirilmeyen nesne tipi `APG0011` ile derlemeyi durdurur (Faz 135)
+### MT-CORE-118 — Context'te bildirilmeyen nesne tipi `TRC0011` ile derlemeyi durdurur (Faz 135)
 
 | | |
 |---|---|
@@ -3207,21 +3207,21 @@ bildirmezse derleme durur, sessizce reflection'a düşmez.
   `Outer`'ı bildiriyor, `Inner`'ı bildirmiyor.
 
 **Adımlar**
-1. `dotnet build samples/AgentPrism.Api`.
+1. `dotnet build samples/Tracon.Api`.
 
 **Beklenen sonuç**
-- Derleme `APG0011` HATASI verir (uyarı değil) — build **başarısız** biter.
+- Derleme `TRC0011` HATASI verir (uyarı değil) — build **başarısız** biter.
 - Hata metni eksik tipin adını (`Inner`) taşır.
 - Context hiçbir tip bildirmiyorsa (tamamen eksikse), graftaki HER tip için
-  ayrı bir `APG0011` üretilir — tüketici hepsini tek derlemede görür.
+  ayrı bir `TRC0011` üretilir — tüketici hepsini tek derlemede görür.
 
 > **Otomatik karşılığı:**
-> `ToolObjectGraphTests.A_JsonSerializerContext_missing_only_a_nested_type_reports_APG0011_for_that_type_alone`
-> ve `...An_object_parameter_with_no_JsonSerializerContext_reports_APG0011_for_every_type_in_its_graph`.
+> `ToolObjectGraphTests.A_JsonSerializerContext_missing_only_a_nested_type_reports_TRC0011_for_that_type_alone`
+> ve `...An_object_parameter_with_no_JsonSerializerContext_reports_TRC0011_for_every_type_in_its_graph`.
 
 ---
 
-### MT-CORE-119 — 3'ü aşan nesne derinliği `APG0012` ile derlemeyi durdurur (Faz 135)
+### MT-CORE-119 — 3'ü aşan nesne derinliği `TRC0012` ile derlemeyi durdurur (Faz 135)
 
 | | |
 |---|---|
@@ -3234,18 +3234,18 @@ bildirmezse derleme durur, sessizce reflection'a düşmez.
   `Level4` derinlik 4 (limit 3'ü aşıyor).
 
 **Adımlar**
-1. `dotnet build samples/AgentPrism.Api`.
+1. `dotnet build samples/Tracon.Api`.
 
 **Beklenen sonuç**
-- Derleme `APG0012` HATASI verir; hata metni yolu gösterir
+- Derleme `TRC0012` HATASI verir; hata metni yolu gösterir
   (`Level0 → Level1 → Level2 → Level3 → Level4`).
 - Generator **asılmaz**, derleme normal sürede biter.
 
-> **Otomatik karşılığı:** `ToolObjectGraphTests.A_graph_four_levels_deep_produces_APG0012_and_blocks_generation`.
+> **Otomatik karşılığı:** `ToolObjectGraphTests.A_graph_four_levels_deep_produces_TRC0012_and_blocks_generation`.
 
 ---
 
-### MT-CORE-120 — Bir cycle `APG0012` üretir, generator asılmaz (Faz 135)
+### MT-CORE-120 — Bir cycle `TRC0012` üretir, generator asılmaz (Faz 135)
 
 | | |
 |---|---|
@@ -3257,14 +3257,14 @@ bildirmezse derleme durur, sessizce reflection'a düşmez.
 - `record NodeA(NodeB Next)` / `record NodeB(NodeA Next)` — `A → B → A`.
 
 **Adımlar**
-1. `dotnet build samples/AgentPrism.Api`.
+1. `dotnet build samples/Tracon.Api`.
 
 **Beklenen sonuç**
 - Derleme makul sürede (saniyeler) biter — asılı KALMAZ.
-- `APG0012` hatası yolu `NodeA → NodeB → NodeA` olarak gösterir.
+- `TRC0012` hatası yolu `NodeA → NodeB → NodeA` olarak gösterir.
 
 > **Otomatik karşılığı:**
-> `ToolObjectGraphTests.A_cycle_produces_APG0012_naming_the_cyclic_path_and_the_generator_returns_promptly`
+> `ToolObjectGraphTests.A_cycle_produces_TRC0012_naming_the_cyclic_path_and_the_generator_returns_promptly`
 > (10 saniyelik bir üst sınırla `Task.WaitAsync` koşulur).
 
 ---
@@ -3278,12 +3278,12 @@ bildirmezse derleme durur, sessizce reflection'a düşmez.
 | **İlgili faz** | Faz 135 |
 
 Bu case'in koşumu belgeye yazılmıştır — 2026-09-02, gerçek OpenAI çağrısı
-(`support` agent'ı, `gpt-5.4-mini`). `samples/AgentPrism.Api/OrderTools.cs`
+(`support` agent'ı, `gpt-5.4-mini`). `samples/Tracon.Api/OrderTools.cs`
 içindeki `estimate_shipping_cost` tool'u (parametre: `ShippingAddress` — public
 record, tek public kurucu) `support` agent'ının tool listesine eklendi.
 
 **Ön koşul**
-- `samples/AgentPrism.Api` çalışıyor (`http://localhost:5080`), OpenAI `ApiKey`
+- `samples/Tracon.Api` çalışıyor (`http://localhost:5080`), OpenAI `ApiKey`
   `dotnet user-secrets` ile tanımlı.
 - `support` agent'ının `ToolNames`'i `estimate_shipping_cost`'u içeriyor.
 
@@ -3318,12 +3318,12 @@ gözlendi — `functionCall`/`functionResult` çiftleri stdout'ta doğrulandı.
 | **Önem** | Kritik |
 | **İlgili faz** | Faz 135 |
 
-`samples/AgentPrism.Api` bunu KANITLAYAMAZ (o proje `AgentPrism`'e
+`samples/Tracon.Api` bunu KANITLAYAMAZ (o proje `Tracon`'e
 `ProjectReference` ile bağlıdır, MT-CORE-112'nin kendi notu) — case
-`AgentPrism.Package.Tests`'e taşındı.
+`Tracon.Package.Tests`'e taşındı.
 
 **Adımlar**
-1. `dotnet test tests/AgentPrism.Package.Tests --filter-method "*An_object_parameter_tool_publishes_under_Native_AOT*"`.
+1. `dotnet test tests/Tracon.Package.Tests --filter-method "*An_object_parameter_tool_publishes_under_Native_AOT*"`.
 
 **Beklenen sonuç**
 - Dış tüketici projesi (`PackageReference`, `PublishAot=true`) uyarısız
@@ -3334,7 +3334,7 @@ gözlendi — `functionCall`/`functionResult` çiftleri stdout'ta doğrulandı.
 
 > **Otomatik karşılığı:**
 > `ObjectToolAotPackageTests.An_object_parameter_tool_publishes_under_Native_AOT_without_a_trim_warning_and_runs`
-> (`tests/AgentPrism.Package.Tests/ObjectToolAotPackageTests.cs`) — koşuldu,
+> (`tests/Tracon.Package.Tests/ObjectToolAotPackageTests.cs`) — koşuldu,
 > 2026-09-02, `osx-arm64`, 31 saniyede geçti.
 
 ---
@@ -3347,16 +3347,16 @@ gözlendi — `functionCall`/`functionResult` çiftleri stdout'ta doğrulandı.
 | **Önem** | Kritik |
 | **İlgili faz** | Faz 151 |
 
-**Ön koşul:** `samples/AgentPrism.Api` ayakta; harness'li, döngüsüz bir agent
+**Ön koşul:** `samples/Tracon.Api` ayakta; harness'li, döngüsüz bir agent
 tanımı kayıtlı.
 
 **Adımlar**
 1. Tanıma `harness.loop` **eklemeden** bir `run` at:
    ```bash
-   curl -s -X POST http://localhost:5081/agentprism/api/agents/<ad>/run \
+   curl -s -X POST http://localhost:5081/tracon/api/agents/<ad>/run \
      -H 'content-type: application/json' -d '{"message":"merhaba"}' | jq '.runId'
    ```
-2. `curl -s "http://localhost:5081/agentprism/api/runs/<runId>/events" | jq -r '.[].type' | sort -u`
+2. `curl -s "http://localhost:5081/tracon/api/runs/<runId>/events" | jq -r '.[].type' | sort -u`
 
 **Beklenen sonuç**
 - Yanıt bugünküyle aynıdır; model **bir kez** çağrılır.
@@ -3385,9 +3385,9 @@ demelidir; aksi hâlde ölçüt hiç karşılanmaz ve tavana kadar döner.
    ```
 2. Bir `run` at, sonra olayları oku:
    ```bash
-   curl -s "http://localhost:5081/agentprism/api/runs/<runId>/events" \
+   curl -s "http://localhost:5081/tracon/api/runs/<runId>/events" \
      | jq '[.[] | select(.type=="LoopIterationCompleted")] | length'
-   curl -s "http://localhost:5081/agentprism/api/runs/<runId>/events" \
+   curl -s "http://localhost:5081/tracon/api/runs/<runId>/events" \
      | jq -r '.[] | select(.type=="LoopIterationCompleted") | .payload'
    ```
 
@@ -3402,7 +3402,7 @@ demelidir; aksi hâlde ölçüt hiç karşılanmaz ve tavana kadar döner.
 
 ---
 
-### MT-CORE-125 — Ulaşılamayan bir ölçüt AgentPrism'in kendi tavanında durur (Faz 151)
+### MT-CORE-125 — Ulaşılamayan bir ölçüt Tracon'in kendi tavanında durur (Faz 151)
 
 | | |
 |---|---|
@@ -3427,7 +3427,7 @@ sağlayıcıya karşı koşarken ucuz bir model seç.
 - Son olayın payload'ında `ceilingReached: true` vardır — döngüyü bitirenin
   karşılanan bir ölçüt değil tavan olduğu kayıttan okunur.
 
-> **Otomatik karşılığı:** `HarnessLoopTests.An_unreachable_criterion_stops_at_the_AgentPrism_ceiling_instead_of_running_on`.
+> **Otomatik karşılığı:** `HarnessLoopTests.An_unreachable_criterion_stops_at_the_Tracon_ceiling_instead_of_running_on`.
 
 ---
 
@@ -3468,7 +3468,7 @@ sağlayıcıya karşı koşarken ucuz bir model seç.
 **Adımlar**
 1. Akışlı uçtan bir `run` at ve çerçeveleri kaydet.
 2. Kayıtlı olay akışını oku:
-   `curl -s "http://localhost:5081/agentprism/api/runs/<runId>/events" | head -80`
+   `curl -s "http://localhost:5081/tracon/api/runs/<runId>/events" | head -80`
 3. `GET /api/runs/<runId>/trace` ile `span` ağacına bak.
 
 **Beklenen sonuç**

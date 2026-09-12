@@ -6,7 +6,7 @@
 > **Paketler:** On yedi paketin tamamı (yalnız XML dokümanı ve `README.md`) · `docs-site/` · `tests/`
 > **Yeni paket:** Yok · **Migration:** Yok
 > **Public API:** **Büyümüyor.** XML doküman metnini değiştirmek imza değiştirmez. Ölçüldü: `wc -l src/*/PublicAPI.Shipped.txt` = 16 satır (16 paket × 1 boş satır)
-> **Site etkisi:** Yeni sayfa `guides/coding-agents.md` + kenar çubuğu bölümü · `ui.md` · `guides/observability.md` · `reference/configuration.md` · `http-api.md` · `capabilities.md` · üretilen `AgentPrism.AgentMap.md` / `llms.txt` / `llms-full.txt` **revizyonu değişir**
+> **Site etkisi:** Yeni sayfa `guides/coding-agents.md` + kenar çubuğu bölümü · `ui.md` · `guides/observability.md` · `reference/configuration.md` · `http-api.md` · `capabilities.md` · üretilen `Tracon.AgentMap.md` / `llms.txt` / `llms-full.txt` **revizyonu değişir**
 > **Manuel test alanı:** `docs/manuel-test/31-DOKUMAN-DOGRULUGU.md` (30 numarayı Faz 74 aldı)
 
 ---
@@ -33,7 +33,7 @@ Faz 73 tüketicinin kod agent'ına **haritayı** verdi. Faz 74 onu paketin kendi
 ## Bitiş Ölçütleri (DoD)
 
 - [x] `dotnet pack` sonrası 15 paketin `lib/net10.0/*.xml` dosyalarında iç referans deseni **sıfır eşleşme** verir — ölçüldü (taban 1 033). Kalan tek eşleşme sıradan İngilizce'deki küçük harfli `rationale` kelimesidir, `Rationale:` etiketi değil
-- [x] Paketlenen `buildTransitive/agentprism.json` **sıfır eşleşme** verir (taban 39); ayrıca 26 imza sızıntısı (`string? X.Y`) da sıfırlandı
+- [x] Paketlenen `buildTransitive/tracon.json` **sıfır eşleşme** verir (taban 39); ayrıca 26 imza sızıntısı (`string? X.Y`) da sıfırlandı
 - [x] 18 paket README'sinin 18'inde sıfır iç referans **ve** doküman sitesine en az bir bağlantı — ölçüldü: 0 ve 18/18
 - [x] Kök `README.md` İngilizce; faz kayması yok; **17 701 / 20 000 bayt** (%11 boş)
 - [x] `ShippedDocumentationSelfContainmentTests` yeşil; taban çizgisi **boş** (yalnız dört yorum satırı); iki yönde de kızardığı gösterildi
@@ -44,7 +44,7 @@ Faz 73 tüketicinin kod agent'ına **haritayı** verdi. Faz 74 onu paketin kendi
 - [x] `http-api.md` **160 operations across 123 paths** diyor ve kapıya bağlı (bayat değer 143/112 idi)
 - [x] `check:content` 38 elle yazılmış / 1000 toplam sayfa temiz · `build` 1001 sayfa · `check-links` **128 663 bağlantı, kırık yok**
 - [x] Dört doğrulama kapısı: `build` 0/0 · `test` **4 408 test, 0 başarısız** · `pack` temiz · `format --verify-no-changes` exit 0
-- [x] `samples/AgentPrism.Api` ile gerçek `run` yapıldı — çıktı aşağıda
+- [x] `samples/Tracon.Api` ile gerçek `run` yapıldı — çıktı aşağıda
 - [x] `secret` taraması: çıkan beş satırın hepsi test sabiti (`FAKE-VOICE-KEY-…`, `test-api-key-…`) ve analyzer testinin bilinçli girdisi
 - [x] `docs/manuel-test/31-DOKUMAN-DOGRULUGU.md` yazıldı (**20 case**); 1–16, 19, 20 koşuldu, 17 ve 18 👤 işaretli
 - [x] `faz-denetim` koşuldu; **6 🔴 · 8 🟡 · 2 🟢** bulgu çıktı, altı 🔴'ın altısı da kapandı; 🔴 kalmadı
@@ -53,16 +53,16 @@ Faz 73 tüketicinin kod agent'ına **haritayı** verdi. Faz 74 onu paketin kendi
 ### Gerçek çıktı — örnek uygulama
 
 ```text
-GET  /agentprism/api/meta
-  {"version":"0.0.0-preview.0.273","prefix":"/agentprism",
+GET  /tracon/api/meta
+  {"version":"0.0.0-preview.0.273","prefix":"/tracon",
    "storage":{"persistent":true,"runStore":"SqlRunStore","jobWorkerEnabled":true}}
 
-POST /agentprism/api/agents/claude-support/run    → SSE, 10 olay
+POST /tracon/api/agents/claude-support/run    → SSE, 10 olay
   event: run     {"runId":"01a01c9e-a1f1-75c9-aa84-ad00e513a1d5"}
   event: update  ... (Anthropic gercek yaniti)
   event: done
 
-GET  /agentprism/api/runs?limit=1
+GET  /tracon/api/runs?limit=1
   {"id":"01a01c9e-a1f1-75c9-aa84-ad00e513a1d5","agentName":"claude-support","status":"Completed"}
 ```
 
@@ -72,9 +72,9 @@ iptal yolunun canlı kanıtıdır.
 ### Gerçek çıktı — paketlenen yapıtlar
 
 ```text
-dotnet pack AgentPrism.slnx -c Release        # 0.0.0-preview.0.273
+dotnet pack Tracon.slnx -c Release        # 0.0.0-preview.0.273
 15 nupkg → lib/net10.0/*.xml   ic referans: 0   (faz oncesi 1 033)
-AgentPrism.AspNetCore.nupkg → buildTransitive/agentprism.json   ic referans: 0   (39)
+Tracon.AspNetCore.nupkg → buildTransitive/tracon.json   ic referans: 0   (39)
 15 nupkg → README.md           ic referans: 0   (14)
 ```
 
@@ -82,21 +82,21 @@ AgentPrism.AspNetCore.nupkg → buildTransitive/agentprism.json   ic referans: 0
 
 ```bash
 # Sevk edilen XML temiz mi
-dotnet pack AgentPrism.slnx -c Release
-for p in artifacts/package/release/AgentPrism*.nupkg; do
+dotnet pack Tracon.slnx -c Release
+for p in artifacts/package/release/Tracon*.nupkg; do
   unzip -p "$p" 'lib/net10.0/*.xml' 2>/dev/null
 done | grep -ciE "(phase|faz) [0-9]+|K-[0-9]{3}|F-[0-9]{2,3}|docs/"   # beklenen: 0
 
 # Paketlenen OpenAPI temiz mi
-unzip -p artifacts/package/release/AgentPrism.AspNetCore.*.nupkg \
-  buildTransitive/agentprism.json | grep -ciE "phase [0-9]+|K-[0-9]{3}"  # beklenen: 0
+unzip -p artifacts/package/release/Tracon.AspNetCore.*.nupkg \
+  buildTransitive/tracon.json | grep -ciE "phase [0-9]+|K-[0-9]{3}"  # beklenen: 0
 
 # Harita kesme ve kural
 grep -c "…" docs-site/public/llms.txt        # beklenen: 0
 grep -c "^- Rule:" docs-site/public/llms.txt # beklenen: 11
 
 # Kapinin gercekten yakaladigi gosterilir
-python3 scripts/kapi.py test --proje AgentPrism.Core.UnitTests --sinif "*ShippedDocumentationSelfContainmentTests*"
+python3 scripts/kapi.py test --proje Tracon.Core.UnitTests --sinif "*ShippedDocumentationSelfContainmentTests*"
 cd docs-site && npm run check:content
 ```
 
@@ -130,12 +130,12 @@ Fazın kazancı da büyüdü: 110 satırlık onarım zinciri **silinebilir** hâ
 gelir.
 
 **2 — Uygulama sırasında bulunan üçüncü kusur sınıfı: `<see cref>` paketlenen
-belgede TAM İMZA olarak render ediliyor.** Ölçüldü: `docs/openapi/agentprism.json`
+belgede TAM İMZA olarak render ediliyor.** Ölçüldü: `docs/openapi/tracon.json`
 içinde önce **26 yerde** `string? ClientToolResult.ErrorMessage`,
 `int? ModelBinding.MaxOutputTokens` gibi metinler bulundu. 🚨 İlk düzeltme yalnız
 **nullable** şekli kapatıyordu; ikinci ölçüm **17 vaka daha** gösterdi
 (`string AgentDefinition.Name`, `bool EvalCaseResult.Passed` — soru işareti yok,
-sızıntı aynı). Kapı iki şekli birden arar; toplam 83 satırda `<see cref>` → `<c>`. Kaynağı AgentPrism değil, ASP.NET Core'un XML doküman
+sızıntı aynı). Kapı iki şekli birden arar; toplam 83 satırda `<see cref>` → `<c>`. Kaynağı Tracon değil, ASP.NET Core'un XML doküman
 üretecidir — `<see cref="X"/>` cümlenin ortasına imzayı basıyor. Site kopyası
 bunu bir süzgeç kuralıyla siliyor; paketlenen kopya silmiyor.
 
@@ -152,7 +152,7 @@ bir schedule, tetiklenmiş bir job, bir trigger ve bir MCP sunucusu kurulur; iki
 `run` artık tek bir `sessionId` paylaşır, böylece oturum listesi de dolu gelir.
 Tohumlama iki gerçek sözleşmeyi de ortaya çıkardı: `JobScheduleSaveRequest.Payload`
 atanmazsa uç **500** döner (`JsonElement` `Undefined` tuzağı) ve tetikleyici
-imzalama anahtarı `AgentPrism:TriggerSecrets:` önekini zorunlu tutar.
+imzalama anahtarı `Tracon:TriggerSecrets:` önekini zorunlu tutar.
 
 **4 — Kesme kusuru "sıfır `…`" değil, "kelime ortasından kesme" idi.** DoD
 `…` karakterinin hiç geçmemesini istiyordu. Ölçüldü: harita satırı 52 karakterle
@@ -169,16 +169,16 @@ doğacaktı; boş bir taban çizgisi dosyası, doğrudan iddiadan **daha zayıft
 **6 — İki yeni kapı ilk yazımda GEVŞEKTİ ve hiçbir şey yakalamadı.** Kanıtlama
 turu gösterdi: konsol ekranı kapısı "sayfada adı geçiyor mu" diye soruyordu ve
 `Jobs` kelimesi o ekranı hiç anlatmayan bir çapraz bağlantıda da geçiyordu;
-telemetri kapısı `includes()` kullanıyordu ve `agentprism.tenant.id`,
-`agentprism.tenant.identifier`'ın **ön ekidir**. Sıkılaştırılmış kapı **beş
+telemetri kapısı `includes()` kullanıyordu ve `tracon.tenant.id`,
+`tracon.tenant.identifier`'ın **ön ekidir**. Sıkılaştırılmış kapı **beş
 gerçek boşluk daha** buldu: `ui.md`'de Tools, Skills, Models, MCP, Triggers,
 Audit ve Diagnostics ekranlarının kendi başlığı yoktu. Ders: bir kapıyı yazdıktan
 sonra **kırmızı olduğunu görmeden** yeşil kabul etme.
 
-**7 — Depo kuralı ihlali değil ama kayda değer: `-p:AgentPrismFrontendEnabled=false`
-ile tam yeniden derleme `AgentPrism.slnx`'ten `AgentPrism.UI` satırını sildi.**
-İki kez gözlendi (bir kez de `AgentPrism.Ui.E2ETests.csproj`'un `ProjectReference`
-satırı). Sonuç sessiz değildi ama teşhisi yanıltıcıydı: `AgentPrism.src.slnf`
+**7 — Depo kuralı ihlali değil ama kayda değer: `-p:TraconFrontendEnabled=false`
+ile tam yeniden derleme `Tracon.slnx`'ten `Tracon.UI` satırını sildi.**
+İki kez gözlendi (bir kez de `Tracon.Ui.E2ETests.csproj`'un `ProjectReference`
+satırı). Sonuç sessiz değildi ama teşhisi yanıltıcıydı: `Tracon.src.slnf`
 bozuldu ve 80 test "başarısız" göründü. İstek üzerine **yeniden üretilemedi**;
 artımlı derleme tetiklemiyor. Not olarak bırakıldı — mekanizma iddia edilmiyor.
 
@@ -204,10 +204,10 @@ Altı 🔴'ın altısı da gerçekti.
 | # | Seviye | Bulgu | Sonuç |
 |---|---|---|---|
 | 1 | 🔴 | Mekanik `///` temizliği, §75.3'ün yok etmek için var olduğu **bozuk cümle sınıfını kaynakta yeniden üretti** — `made. <c>TenantId</c>,.`, `at all. Detail:.`, `promotion,.`, sarkan `See`, beş boş `<para></para>` | **Düzeltildi.** Ölçüm 35 vaka buldu (4'ü yanlış pozitif); hepsi metin olarak onarıldı, hiçbiri silinmedi. Onarım pasajı bir bloğu tek satıra çökertti — 119 satır yeniden sarıldı |
-| 2 | 🔴 | **Bilgi kaybı:** `AgentPrismRunOptions.SessionId`'nin `<remarks>`'ından "oturumsuz yazılan bir attachment öksüz sayılır ve saklama politikası onu siler" cümlesi adresle birlikte **tamamen** silindi | **Düzeltildi.** Gerçek kendi `<para>`'sı olarak geri yazıldı. §75.1'in "içerik korunur, adres düşer" kuralının tek ihlaliydi |
+| 2 | 🔴 | **Bilgi kaybı:** `TraconRunOptions.SessionId`'nin `<remarks>`'ından "oturumsuz yazılan bir attachment öksüz sayılır ve saklama politikası onu siler" cümlesi adresle birlikte **tamamen** silindi | **Düzeltildi.** Gerçek kendi `<para>`'sı olarak geri yazıldı. §75.1'in "içerik korunur, adres düşer" kuralının tek ihlaliydi |
 | 3 | 🔴 | `<see cref>` → `<c>` düzleştirmesi **kendine gönderme yapan cümleler** üretti: `ContextWindowTokens`'ı belgelerken "taken from `ContextWindowTokens`" | **Düzeltildi.** Tarama 13 vaka buldu; her birinde tip niteleyicisi metin olarak geri kondu (`<c>ModelDescriptor.ContextWindowTokens</c>`). Ayrıca aynı sınıftan üç vaka daha bulundu ve düzeltildi |
 | 4 | 🔴 | "Tam CLR imzası" sınıfı kapanmamıştı: **24 tanesi hâlâ paketlenen belgede** ve kapının regex'i onları göremiyordu (`?` zorunluydu) | **Düzeltildi** — denetim raporu gelmeden önce bağımsız olarak da bulunmuştu. Kapı iki şekli birden arar; ölçüm sıfır |
-| 5 | 🔴 | **Tüketicinin kendi projesi** kapı kapsamının dışındaydı: `AgentPrism.Starter.csproj`, `Program.cs`, `Starter/README.md` ve iki `buildTransitive/*.targets` hâlâ `K-392`, `K-032`, `K1`, 🚨 taşıyordu | **Düzeltildi.** Dokuz satır temizlendi ve kapı kapsamı `/content/` ile `/buildTransitive/` altındaki her dosyayı **tam metin** tarayacak şekilde genişletildi |
+| 5 | 🔴 | **Tüketicinin kendi projesi** kapı kapsamının dışındaydı: `Tracon.Starter.csproj`, `Program.cs`, `Starter/README.md` ve iki `buildTransitive/*.targets` hâlâ `K-392`, `K-032`, `K1`, 🚨 taşıyordu | **Düzeltildi.** Dokuz satır temizlendi ve kapı kapsamı `/content/` ile `/buildTransitive/` altındaki her dosyayı **tam metin** tarayacak şekilde genişletildi |
 | 6 | 🔴 | `reference/configuration.md` bir **güvenlik seçeneğinin varsayılanını yanlış** yazıyordu: `ClaimType` varsayılanı `tenant_id` değil **yok**; tablo `Enabled`'ı hiç anmıyordu | **Düzeltildi.** Varsayılan *(none)* olarak yazıldı, "ayarlanmazsa hiçbir claim okunmaz" uyarısı ve eksik `Enabled` satırı eklendi |
 | 7 | 🟡 | Beş yeni ekranın landmark'ı **kenar çubuğu etiketiydi** — her rotada bulunur, hiçbir şey kanıtlamaz | **Düzeltildi.** Landmark artık tohumun yazdığı satırdır (`support-ord-7`, `nightly-summary`, `refund-policy`, `knowledge-base`, `helpdesk-webhook`); beşi de yalnız kendi ekranında görünür |
 | 8 | 🟡 | `jobs.png` **yarış hâlindeydi**: job tetiklenip beklenmeden ekran alınıyordu | **Düzeltildi + yeni bulgu.** `WaitForJobToSettleAsync` job terminal duruma gelene kadar bekler, gelmezse **düşer**. Beklemek ikinci bir kusuru gösterdi: tohum `AgentRun` kullanıyordu ve o kind çağırandan `runId` bekler — job **`failed` durumdaydı**. `AgentBatch`'e çevrildi; görüntü artık `completed 1/1` |
@@ -215,7 +215,7 @@ Altı 🔴'ın altısı da gerçekti.
 | 10 | 🟡 | Desen **beş kopyada** ve ayrışmıştı; `hasInternalHistoryMarker` ölü koddu | **Düzeltildi.** Tek kaynak: `docs-site/scripts/internal-history.pattern`. Üç üreteç `internal-history.mjs` üzerinden, .NET kapısı dosyayı doğrudan okur. Ölü fonksiyon silindi. Açık Soru 1'in cevabı (A) böylece gerçekten uygulandı |
 | 11 | 🟡 | DoD `…` sıfır diyordu, gerçek 3 | **Zaten kapalıydı** — Sapma 4 olarak yazılmıştı; kusur kesme değil kelime ortasından kesmeydi |
 | 12 | 🟡 | `MT-DDG-007`'nin ön koşulu kendisiyle çelişiyordu: boş taban çizgisiyle cırcırın ikinci yönü tetiklenemez | **Düzeltildi.** Case üç adımlı yazıldı ve **gerçekten koşuldu**: `- …: 0 offending lines, baseline still allows 1 — refresh it` |
-| 13 | 🟡 | İki kapı **sessizce atlıyordu**: camelCase bir `nav.*` anahtarı hiç eşleşmiyor, `agentprism.` öneki olmayan üç telemetri adı hiç taranmıyordu | **Düzeltildi.** Anahtar deseni `[A-Za-z]+`; telemetri taraması artık dosyadaki **her** sabiti okur. Üç ad (`execute_skill_script`, `compact_history`, `skill_script`) belgelendi |
+| 13 | 🟡 | İki kapı **sessizce atlıyordu**: camelCase bir `nav.*` anahtarı hiç eşleşmiyor, `tracon.` öneki olmayan üç telemetri adı hiç taranmıyordu | **Düzeltildi.** Anahtar deseni `[A-Za-z]+`; telemetri taraması artık dosyadaki **her** sabiti okur. Üç ad (`execute_skill_script`, `compact_history`, `skill_script`) belgelendi |
 | 14 | 🟡 | `guides/coding-agents.md` satır 169 hâlâ "both properties" diyordu | **Zaten kapalıydı** — denetim sırasında düzeltilmişti |
 | 15 | 🟢 | 38 `<see cref>` → `<c>` dönüşümü "109 cross-reference rendered as code" sayısını büyütmüş olabilir; önce/sonra ölçülmedi | `ADAYLAR.md` · **F-128** |
 | 16 | 🟢 | Ses deseni `Measured (20` büyük/küçük harfe duyarlıydı | **Düzeltildi** (🟢 olmasına rağmen ucuzdu): yalnız o alternatif `(?i:)` ile duyarsızlaştırıldı — `Rationale:`/`Decision:` **etiket** olduğu için duyarlı kaldı, yoksa sıradan İngilizce'deki `rationale:` yanlış pozitif verirdi. Altı satır temizlendi |

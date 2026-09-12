@@ -1,15 +1,15 @@
 # 07 — HTTP Yönetim API'si (`API`)
 
 > **Alan kodu:** `API` · **Faz:** 4, 34, 43, 44
-> **Kaynak:** `src/AgentPrism.AspNetCore/Endpoints/AgentEndpoints.cs` (CRUD, `validate`,
+> **Kaynak:** `src/Tracon.AspNetCore/Endpoints/AgentEndpoints.cs` (CRUD, `validate`,
 > `run`'ın idempotency dalı) · `RunEndpoints.cs` (yalnız `list`/`get`/`tree`/`events`/`input`
 > — `cancel`/`feedback`/`compare`/`replay` **hariç**, bkz. Sınır tablosu) ·
 > `SessionEndpoints.cs` (tümü) · `CatalogEndpoints.cs` (yalnız `/api/tools`, `/api/models`,
 > `/api/stats`, `/api/stats/errors` — `/api/stats/timeseries` ve
 > `/api/stats/recalculate-costs` **hariç**) · `MetaEndpoints.cs` (tümü) ·
-> `Security/AgentPrismEndpointFilter.cs` (yalnız varlık kanıtı — derinlik 13'te) ·
+> `Security/TraconEndpointFilter.cs` (yalnız varlık kanıtı — derinlik 13'te) ·
 > `Idempotency/IdempotencyFilter.cs` (tümü) ·
-> `AgentPrismEndpointRouteBuilderExtensions.cs` (`MapAgentPrism` giriş noktası).
+> `TraconEndpointRouteBuilderExtensions.cs` (`MapTracon` giriş noktası).
 >
 > Ortam kurulumu, fixture verisi ve reset yordamı [`00-INDEKS.md`](00-INDEKS.md)'dedir.
 
@@ -21,7 +21,7 @@
 
 ## Bu dosya neyi kanıtlar
 
-`app.MapAgentPrism()`'in kurduğu yönetim API'sinin (`/api/*`) **genel HTTP sözleşmesi**:
+`app.MapTracon()`'in kurduğu yönetim API'sinin (`/api/*`) **genel HTTP sözleşmesi**:
 durum kodu disiplini, `ProblemDetails` zarfı, agent tanımının CRUD/versiyon/rollback
 yaşam döngüsü, sayfalama/filtreleme parametreleri, `Idempotency-Key` mekaniği (Faz 43),
 `/api/agents/validate`'in davranışsal garantileri (Faz 34: her zaman `200`, yan
@@ -31,9 +31,9 @@ bile kullanmaz (K-038), ayrı bir sözleşmedir.
 
 ```mermaid
 flowchart TD
-    A["app.MapAgentPrism(prefix, configure)"] --> B["MetaGroup: /api/meta (AllowAnonymous)"]
+    A["app.MapTracon(prefix, configure)"] --> B["MetaGroup: /api/meta (AllowAnonymous)"]
     A --> C["idempotencyApp.Use: govde tamponlama (Idempotency-Key VARSA)"]
-    A --> D["Korumali grup: AgentPrismEndpointFilter (loopback + bearer/apikey)"]
+    A --> D["Korumali grup: TraconEndpointFilter (loopback + bearer/apikey)"]
     D --> E["RateLimitFilter (varsayilan KAPALI)"]
     E --> F["IdempotencyFilter (yalniz /api/agents/{name}/run)"]
     F --> G["RequireRole + RequireApiKeyScope (uc-basina)"]
@@ -66,13 +66,13 @@ flowchart TD
    fixture agent'ları buna ihtiyaç duyar; `echo` sağlayıcısı yalnız anahtar
    YOKKEN devreye girer — bu dosyada anahtar açıktır, dolayısıyla `echo`
    **kullanılmaz**).
-3. `AgentPrism:Ui:AuthToken` `manuel-test-token-2026`'dır.
-4. Örnek uygulama çalışır: `cd samples/AgentPrism.Api && dotnet run` →
+3. `Tracon:Ui:AuthToken` `manuel-test-token-2026`'dır.
+4. Örnek uygulama çalışır: `cd samples/Tracon.Api && dotnet run` →
    `http://localhost:5080`
 
 ```bash
 export APB="Authorization: Bearer manuel-test-token-2026"
-export APU="http://localhost:5080/agentprism"
+export APU="http://localhost:5080/tracon"
 ```
 
 > **Gerçek para uyarısı.** §3 (Idempotency, gerçek çalıştırma gerektirir), §4
@@ -116,7 +116,7 @@ curl -s -w "\nHTTP: %{http_code}\nLocation: %{header_json}\n" \
 
 **Beklenen sonuç**
 - `HTTP: 201`.
-- `Location` başlığı `/agentprism/api/agents/manuel-crud-01`'dir.
+- `Location` başlığı `/tracon/api/agents/manuel-crud-01`'dir.
 - Gövde tam `AgentDefinition`'ı taşır (`name`, `model`, vb.).
 
 ---
@@ -556,7 +556,7 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/agents/manuel-versiyon-tes
 
 **Beklenen sonuç**
 - `HTTP: 404`, `title: "Geri alinamadi"` — `AgentDefinitionStore.RollbackAsync`
-  bir `AgentPrismException` fırlatır, uç bunu `404`'e çevirir
+  bir `TraconException` fırlatır, uç bunu `404`'e çevirir
   (`AgentEndpoints.cs:387-398`).
 
 ### MT-API-020 — Geçerli VE geçersiz tanımda da yanıt `200`'dür; `severity` ad olarak yazılır
@@ -798,7 +798,7 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/agents/support/run" -H "$A
 | **İlgili faz** | Faz 43 |
 | **İlgili karar** | — |
 
-Negatif senaryo. Sınır durumu — `AgentPrismIdempotencyOptions.MaxKeyLength`
+Negatif senaryo. Sınır durumu — `TraconIdempotencyOptions.MaxKeyLength`
 varsayılanı `255`'tir.
 
 **Ön koşul**
@@ -1276,15 +1276,15 @@ Negatif senaryo. **Geçici `user-secrets` değişikliği.**
 - Uygulama durdurulmuş.
 
 **Adımlar**
-1. `AgentPrism:RunRecording:RecordRunInput`'ı `false` yap.
+1. `Tracon:RunRecording:RecordRunInput`'ı `false` yap.
 2. Uygulamayı başlat, bir çalıştırma yap.
 3. Girdiyi oku.
 4. Ayarı geri al.
 
 **Girilecek veri**
 ```bash
-dotnet user-secrets set "AgentPrism:RunRecording:RecordRunInput" "false" --project samples/AgentPrism.Api
-cd samples/AgentPrism.Api && dotnet run
+dotnet user-secrets set "Tracon:RunRecording:RecordRunInput" "false" --project samples/Tracon.Api
+cd samples/Tracon.Api && dotnet run
 ```
 ```bash
 curl -s -X POST "$APU/api/agents/support/run" -H "$APB" -H "content-type: application/json" \
@@ -1294,7 +1294,7 @@ curl -s -w "\nHTTP: %{http_code}\n" "$APU/api/runs/<runId>/input" -H "$APB"
 ```
 ```bash
 # Temizlik:
-dotnet user-secrets remove "AgentPrism:RunRecording:RecordRunInput" --project samples/AgentPrism.Api
+dotnet user-secrets remove "Tracon:RunRecording:RecordRunInput" --project samples/Tracon.Api
 ```
 
 **Beklenen sonuç**
@@ -1432,7 +1432,7 @@ curl -s -w "\nHTTP: %{http_code}\n" "$APU/api/meta"
 Negatif senaryo.
 
 **Ön koşul**
-- Örnek uygulama `AgentPrism:Ui:AuthToken = manuel-test-token-2026` ile
+- Örnek uygulama `Tracon:Ui:AuthToken = manuel-test-token-2026` ile
   çalışıyor.
 
 **Adımlar**

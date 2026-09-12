@@ -4,7 +4,7 @@
 > **Kaynak:** [BEYIN-FIRTINASI.md](../BEYIN-FIRTINASI.md) · **F-17**, **F-23**
 > **Önkoşul:** Yok · Faz 8 önerilir (uyumlu sağlayıcıların fiyatları da yapılandırmadan gelir)
 > **Sonraki bağımlı:** [Faz 21](21-KOTA-VE-OLAY-YAYINI.md) — kota maliyet görünürlüğünden sonra anlamlıdır
-> **Paketler:** `AgentPrism.Abstractions`, `.Core`, `.PostgreSql`, `.AspNetCore`, `.UI`
+> **Paketler:** `Tracon.Abstractions`, `.Core`, `.PostgreSql`, `.AspNetCore`, `.UI`
 > **Yeni paket:** Yok · **Migration:** 0011 (`0011_run_costs.sql`)
 
 ---
@@ -26,11 +26,11 @@
 
 ## Amaç
 
-OpenAI konsolunun en çok bakılan ekranı maliyet ekranıdır. AgentPrism'de token kırılımı Faz 6'da geldi (`RunStatistics.ByModel`, `runs.model_id`); **eksik olan tek şey fiyattır**. İkinci iş: Settings ekranı bugün bir sayı listesi gösteriyor. Zaman serisi grafikleri (çalıştırma/saat, hata oranı, token, maliyet) bir kontrol düzleminin ana ekranıdır. ---
+OpenAI konsolunun en çok bakılan ekranı maliyet ekranıdır. Tracon'de token kırılımı Faz 6'da geldi (`RunStatistics.ByModel`, `runs.model_id`); **eksik olan tek şey fiyattır**. İkinci iş: Settings ekranı bugün bir sayı listesi gösteriyor. Zaman serisi grafikleri (çalıştırma/saat, hata oranı, token, maliyet) bir kontrol düzleminin ana ekranıdır. ---
 
 ## Bu Fazda Verilecek Kararlar
 
-1. **Fiyat önce model kataloğundan, sonra `AgentPrism:Pricing` bölümünden** —
+1. **Fiyat önce model kataloğundan, sonra `Tracon:Pricing` bölümünden** —
    iki kaynak da yapılandırmadır (K-032).
 2. **Bilinmeyen fiyat `null`, sıfır değil** — sessiz yanlış rapor üretmeyiz.
 3. **Maliyet çalıştırma anında hesaplanıp yazılır** — geçmiş, fiyat değişince
@@ -46,7 +46,7 @@ OpenAI konsolunun en çok bakılan ekranı maliyet ekranıdır. AgentPrism'de to
 Dördü de kullanıcı tarafından dokümanın önerisiyle onaylandı ve karar
 defterine yazıldı:
 
-1. **Para birimi dönüşümü** → **Hayır**. Tek para birimi, `AgentPrism:Pricing:Currency`'den gelen bir etiket (K-150).
+1. **Para birimi dönüşümü** → **Hayır**. Tek para birimi, `Tracon:Pricing:Currency`'den gelen bir etiket (K-150).
 2. **Ağaç maliyeti gösterimi** → **İki ayrı alan**: `RunRecord.Cost` (kendi) ve `RunRecord.TreeCost` (ağaç toplamı, kendi maliyetini de içerir), toplanmaz — `Usage`/`TreeUsage` ile aynı desen (K-151).
 3. **Eval/workflow dahil mi** → `/api/stats` `RunKind.Eval`'i hariç tutmaya devam eder (K-141 korunur); **yeni** `/api/stats/timeseries` bilerek hariç TUTMAZ, `?kind=` ile filtrelenebilir — bu iki ucun kasıtlı farkıdır (K-152).
 4. **Yeniden hesaplama ucu** → **Evet**: `POST /api/stats/recalculate-costs`, Admin rolü + denetim izi (`stats.recalculate-costs`) (K-153).
@@ -78,7 +78,7 @@ defterine yazıldı:
 ### Devraldığı sözleşmeler (gerçekleşen public API)
 
 ```csharp
-// AgentPrism.Abstractions
+// Tracon.Abstractions
 public enum PricingSource { Catalog = 0, Configuration = 1, Unknown = 2 }
 public enum TimeSeriesBucket { Hour = 0, Day = 1 }
 
@@ -98,8 +98,8 @@ ValueTask UpdateRunCostAsync(Guid runId, RunCost? cost, CancellationToken);
 // RunRecord/RunStatistics/RunModelStatistics/ExperimentVariantResult'a eklenen alanlar:
 // Cost/TreeCost, TotalCost+Currency+RunsWithUnknownPricing, TotalCost, TotalCost+Currency
 
-// AgentPrism.Core
-public sealed class AgentPrismPricingOptions { Currency?, Providers: IDictionary<string, IDictionary<string, ModelPriceOverride>> }
+// Tracon.Core
+public sealed class TraconPricingOptions { Currency?, Providers: IDictionary<string, IDictionary<string, ModelPriceOverride>> }
 public sealed class RunPricingResolver : IRunPricingResolver
 public sealed class RunCostRecalculationService { ValueTask<RunCostRecalculationResult> RecalculateAsync(string tenantId, CancellationToken); }
 
@@ -118,7 +118,7 @@ POST {prefix}/api/stats/recalculate-costs   // Admin, denetim izi: "stats.recalc
 | `TreeCost`, `Cost` ile toplanmaz | `RunStoreContract.Agac_maliyeti_kendi_maliyetiyle_toplanmiyor_ayri_alanlar` |
 | `/api/stats` Eval'i hariç tutar (K-141); `/api/stats/timeseries` TUTMAZ (K-152) | `RunStoreContract.Zaman_serisi_eval_calistirmalarini_haric_tutmaz` |
 | Zaman serisi boş kovaları doldurur | `RunStoreContract.Zaman_serisi_bos_kovalari_doldurur` |
-| 500 kova sınırı aşılırsa `AgentPrismException` (önerilen kova ile) | `RunStoreContract.Zaman_serisi_kova_sinirini_asinca_hata_verir` |
+| 500 kova sınırı aşılırsa `TraconException` (önerilen kova ile) | `RunStoreContract.Zaman_serisi_kova_sinirini_asinca_hata_verir` |
 | Yeniden hesaplama saglayiciyi bilmez, alfabetik ilk eşleşen kazanır | K-154, `RunPricingResolverTests.Saglayici_verilmezse_*` |
 
 ### Bilinen tuzaklar

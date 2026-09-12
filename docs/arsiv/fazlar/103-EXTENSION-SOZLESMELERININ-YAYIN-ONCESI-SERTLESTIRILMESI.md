@@ -3,11 +3,11 @@
 > **Durum:** ✅ Tamamlandı (2026-08-25)
 > **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-153**
 > **Önkoşul:** [Faz 98](98-DEPOLAMA-SOZLESMESININ-YAYINI.md) — Storage contract ve packed-package sample deseni · [Faz 99](99-SAGLAYICI-SOZLESMESININ-YAYINI.md) — provider contract, BYOK ve package graph · [Faz 100](100-YARGIC-SOZLESMESININ-YAYINI.md) — judge runtime ve contract family · [Faz 101](101-KAYNAK-SOZLESMESININ-YAYINI.md) — üç overload'lı singleton registration ve sample deseni · [Faz 102](102-TOOL-SOZLESMESI-VE-SONUC-SINIRI.md) — tool contract, canonical result ve AOT sınırı
-> **Paketler:** `AgentPrism.Abstractions`, `.Core`, `.AspNetCore`, `.Mcp`, `.OpenAI`, `.Anthropic`, `.Google`, `.Azure`, `.Testing`, `.Testing.Contracts.Xunit`, `AgentPrism` meta package
+> **Paketler:** `Tracon.Abstractions`, `.Core`, `.AspNetCore`, `.Mcp`, `.OpenAI`, `.Anthropic`, `.Google`, `.Azure`, `.Testing`, `.Testing.Contracts.Xunit`, `Tracon` meta package
 > **Yeni paket:** Yok · **Migration:** Yok
-> **Public API:** Değişiyor — `IModelProvider` BYOK capability'si ayrılır, `IAgentPrismBuilder.AddRunJudge(...)` eklenir, kullanılmayan `AgentPrismJudgeException` kaldırılır; `PublicAPI.Shipped.txt` dosyalarında K-603 gereği public symbol baseline'ı yoktur, yalnız `#nullable enable` vardır
+> **Public API:** Değişiyor — `IModelProvider` BYOK capability'si ayrılır, `ITraconBuilder.AddRunJudge(...)` eklenir, kullanılmayan `TraconJudgeException` kaldırılır; `PublicAPI.Shipped.txt` dosyalarında K-603 gereği public symbol baseline'ı yoktur, yalnız `#nullable enable` vardır
 > **Tüketici yüzeyi:** site: `guides/model-providers.md`, `guides/write-your-own-judge.md`, `guides/write-your-own-agent-source.md`, `guides/write-your-own-tool.md`, `concepts/evaluation.md`, `concepts/tools.md`, `packages.md`, `capabilities.md`, `reference/configuration.md`, `reference/compatibility.md`, `reference/versioning.md`
-> · sevk edilen: extension XML'leri, `src/AgentPrism.Testing.Contracts.Xunit/README.md`, package description'ları, beş extension sample'ı
+> · sevk edilen: extension XML'leri, `src/Tracon.Testing.Contracts.Xunit/README.md`, package description'ları, beş extension sample'ı
 > **Manuel test alanı:** [`docs/manuel-test/01-KURULUM-VE-PAKETLEME.md`](../../manuel-test/01-KURULUM-VE-PAKETLEME.md) · [`02-CEKIRDEK-VE-KATALOG.md`](../../manuel-test/02-CEKIRDEK-VE-KATALOG.md) · [`08-OPENAI-UYUMLU-UCLAR.md`](../../manuel-test/08-OPENAI-UYUMLU-UCLAR.md) · [`17-EVAL-VE-DENEYLER.md`](../../manuel-test/17-EVAL-VE-DENEYLER.md) · [`18-MCP-VE-A2A.md`](../../manuel-test/18-MCP-VE-A2A.md) · [`24-TEST-PAKETI-VE-SABLON.md`](../../manuel-test/24-TEST-PAKETI-VE-SABLON.md)
 
 ---
@@ -42,7 +42,7 @@ Faz 98–102 third-party extension yüzeylerini ayrı ayrı yayımladı. Packed 
       görünmez. (A2A kendi `ex.Message` kullanmıyor — bkz. Plandan Sapmalar.)
 - [x] Raw provider exception `ILogger` exception graph'ında korunur; duplicate log
       fırtınası yoktur.
-- [x] Bilinen güvenli AgentPrism exception contract'ları korunur; caller/host OCE
+- [x] Bilinen güvenli Tracon exception contract'ları korunur; caller/host OCE
       provider error'a çevrilmez.
 - [x] `JudgeTimeout`, token'ı yok sayan judge için gerçek wait cutoff yapar.
 - [x] Late judge success/fault gözlemlenir; unobserved exception, late score,
@@ -51,19 +51,19 @@ Faz 98–102 third-party extension yüzeylerini ayrı ayrı yayımladı. Packed 
       regression testleriyle korunur.
 - [x] `RunJudgeContract` en az bir built-in ve bir CustomRunJudge sample consumer'a
       sahiptir.
-- [x] `samples/AgentPrism.Samples.CustomRunJudge.Tests` AgentPrism için yalnız exact
+- [x] `samples/Tracon.Samples.CustomRunJudge.Tests` Tracon için yalnız exact
       local-feed `PackageReference` kullanır; contract, registration ve real
       run/evaluation + score persistence testleri geçer.
 - [x] `AddRunJudge<TJudge>()`, instance ve factory overload'ları public'tir;
       singleton ve duplicate davranışları AgentSource deseniyle ölçülmüştür.
-- [x] Kullanılmayan public `AgentPrismJudgeException` kaldırılmıştır; stable judge
+- [x] Kullanılmayan public `TraconJudgeException` kaldırılmıştır; stable judge
       error code'ları korunur ve yeni gereksiz public exception eklenmez.
 - [x] Tool guard ve truncation aynı canonical representation'ı görür.
 - [x] Tool result matrisi string, `JsonElement`, primitive, record/class,
       collection, null, unsupported raw object, generated complex context ve
       direct `AIFunction` yolunda yeşildir.
 - [x] Unsupported raw CLR tool result pass-through yapmaz; reflection serializer
-      eklenmez; `AgentPrism.Core` AOT-compatible kalır.
+      eklenmez; `Tracon.Core` AOT-compatible kalır.
 - [x] Provider, judge, source ve tool concurrency testleri deterministic gerçek
       overlap kanıtlar; mutation/red→green kaydı vardır.
 - [x] Cancellation testleri ignore davranışını başarı saymaz; uygun async
@@ -72,16 +72,16 @@ Faz 98–102 third-party extension yüzeylerini ayrı ayrı yayımladı. Packed 
       provider + FileRunStore consumer'ı yeşildir.
 - [x] Beş `ContractCoverage` family testi yeşildir; `Skip` sayısı `0` ve yeni
       family diğer aileleri kırmaz.
-- [x] `AgentPrism.Testing.Contracts.Xunit` resolved graph'ında `AgentPrism.Core`
+- [x] `Tracon.Testing.Contracts.Xunit` resolved graph'ında `Tracon.Core`
       yoktur; Shouldly/xunit tipi production package public API'sine sızmaz.
 - [x] Release sample verification exact version, isolated `NUGET_PACKAGES`, temiz
-      local feed ve AgentPrism ProjectReference yasağını zorlar.
+      local feed ve Tracon ProjectReference yasağını zorlar.
 - [x] FileRunStore, CustomModelProvider, CustomRunJudge, CustomAgentSource ve
       CustomTool packed local feed'den build/test/run olur.
 - [x] Provider, source ve generated complex tool packed consumer Native AOT altında
       publish/run olur.
-- [x] Meta package graph'ında `AgentPrism.Testing` veya
-      `AgentPrism.Testing.Contracts.Xunit` yoktur.
+- [x] Meta package graph'ında `Tracon.Testing` veya
+      `Tracon.Testing.Contracts.Xunit` yoktur.
 - [x] `Testing.Contracts.Xunit` README/package description beş family'yi anlatır;
       `packages.md`, `compatibility.md`, `versioning.md`, capability/configuration
       sayfaları runtime ve 20-package çıktısıyla tutarlıdır.
@@ -92,7 +92,7 @@ Faz 98–102 third-party extension yüzeylerini ayrı ayrı yayımladı. Packed 
 - [x] Fazın PublicAPI audit tablosundaki her tip için keep/remove gerekçesi
       kapanış kaydına yazılmıştır; plan dışı public helper yoktur.
 - [x] Dört doğrulama kapısı sıfır uyarı verir.
-- [x] `samples/AgentPrism.Api` ile gerçek provider + tool + judge içeren `run`
+- [x] `samples/Tracon.Api` ile gerçek provider + tool + judge içeren `run`
       yapılır; çıktı ve score kanıtı bu belgeye yazılır.
 - [x] `secret` taraması boş döner; kasıtlı test fixture secret'ları yalnız açık
       test allowlist'i içinde ve production output dışında kalır.
@@ -108,28 +108,28 @@ Faz 98–102 third-party extension yüzeylerini ayrı ayrı yayımladı. Packed 
 
 ```bash
 # Dar iç döngüler
-dotnet test tests/AgentPrism.Core.UnitTests --filter "ModelProviderRegistry|FallbackChatClient|OnlineEvalJobHandler|RunJudge|ToolResultText|TruncatingAIFunction|AgentSourceContract"
-dotnet test tests/AgentPrism.AspNetCore.FunctionalTests --filter "ProviderOutage|AgentRun|OpenAI|Mcp|ToolCanonical"
+dotnet test tests/Tracon.Core.UnitTests --filter "ModelProviderRegistry|FallbackChatClient|OnlineEvalJobHandler|RunJudge|ToolResultText|TruncatingAIFunction|AgentSourceContract"
+dotnet test tests/Tracon.AspNetCore.FunctionalTests --filter "ProviderOutage|AgentRun|OpenAI|Mcp|ToolCanonical"
 
 # Contract consumers
-dotnet test samples/AgentPrism.Samples.FileRunStore.Tests
-dotnet test samples/AgentPrism.Samples.CustomModelProvider.Tests
-dotnet test samples/AgentPrism.Samples.CustomRunJudge.Tests
-dotnet test samples/AgentPrism.Samples.CustomAgentSource.Tests
-dotnet test samples/AgentPrism.Samples.CustomTool.Tests
+dotnet test samples/Tracon.Samples.FileRunStore.Tests
+dotnet test samples/Tracon.Samples.CustomModelProvider.Tests
+dotnet test samples/Tracon.Samples.CustomRunJudge.Tests
+dotnet test samples/Tracon.Samples.CustomAgentSource.Tests
+dotnet test samples/Tracon.Samples.CustomTool.Tests
 
 # Family/skip/public dependency sınırı
-rg -n "Skip\\s*=" src/AgentPrism.Testing.Contracts.Xunit/Contracts && exit 1 || true
-dotnet list src/AgentPrism.Testing.Contracts.Xunit package --include-transitive
-rg -n "AgentPrism.Core" src/AgentPrism.Testing.Contracts.Xunit/obj/project.assets.json && exit 1 || true
-rg -n "Shouldly|Xunit" src/AgentPrism.{Abstractions,Core}/PublicAPI.Unshipped.txt && exit 1 || true
+rg -n "Skip\\s*=" src/Tracon.Testing.Contracts.Xunit/Contracts && exit 1 || true
+dotnet list src/Tracon.Testing.Contracts.Xunit package --include-transitive
+rg -n "Tracon.Core" src/Tracon.Testing.Contracts.Xunit/obj/project.assets.json && exit 1 || true
+rg -n "Shouldly|Xunit" src/Tracon.{Abstractions,Core}/PublicAPI.Unshipped.txt && exit 1 || true
 
 # Exact packed consumer + Native AOT kapısı
 python3 scripts/kapi.py yayin --kuru --surum 1.0.0-preview.1
 
 # Public API dar audit
 git diff -- src/*/PublicAPI.Unshipped.txt src/*/PublicAPI.Shipped.txt
-rg -n "AgentPrismJudgeException|ITenantCredentialModelProvider|AddRunJudge|AuthorizingAIFunction|TimeoutAIFunction|TruncatingAIFunction|AgentPrismGeneratedToolArguments|AllowUnverifiedToolRegistry" src/*/PublicAPI.*.txt
+rg -n "TraconJudgeException|ITenantCredentialModelProvider|AddRunJudge|AuthorizingAIFunction|TimeoutAIFunction|TruncatingAIFunction|TraconGeneratedToolArguments|AllowUnverifiedToolRegistry" src/*/PublicAPI.*.txt
 
 # Site ve kapanış
 cd docs-site && npm run check
@@ -152,17 +152,17 @@ sample+test, ExtensionAotSmoke, `release_extension_samples.py`) zaten kod olarak
 mevcuttu ama hiçbiri commit edilmemişti ve fazın kendi kapanış işlemleri (test
 koşumu, doküman senkronu, karar defteri) hiç yapılmamıştı. Bu oturum onu bitirdi.
 
-- **Build kırığı — `ExtensionAotSmoke`:** `Program.cs`'de eksik `using AgentPrism;`
-  vardı (`AddAgentPrism`/`IAgentSource`/`AgentPrismToolRegistration` hepsi
-  `namespace AgentPrism` içinde) — çözüm derlenmiyordu. Düzeltildi.
-- **Örnek derleme testi kırığı:** `IAgentPrismBuilder.cs`'deki yeni
+- **Build kırığı — `ExtensionAotSmoke`:** `Program.cs`'de eksik `using Tracon;`
+  vardı (`AddTracon`/`IAgentSource`/`TraconToolRegistration` hepsi
+  `namespace Tracon` içinde) — çözüm derlenmiyordu. Düzeltildi.
+- **Örnek derleme testi kırığı:** `ITraconBuilder.cs`'deki yeni
   `AddRunJudge<ResponseQualityJudge>()` XML örneği, `ExamplePrelude.cs`'nin
   `GitAgentSource` deseniyle eşleşen bir stub tipi olmadan derlenmiyordu.
   `ResponseQualityJudge` stub'ı eklendi (Core.UnitTests + Generators.UnitTests'i
   birlikte kırıyordu).
 - **🔴 Provider construction normalizer regresyonu:** `ModelProviderRegistry.BuildPipeline`'ın
   construction try/catch'i, `ModelProviderSettings.Validate`'in attığı düz
-  `AgentPrismException`'ı (ör. "unrecognized provider setting") foreign SDK
+  `TraconException`'ı (ör. "unrecognized provider setting") foreign SDK
   hatasıyla aynı kefeye koyup generic `upstream_error`'a maskeliyordu — iki
   mevcut fonksiyonel test bunu yakaladı (`MultiProviderTests`). K-619 ile
   düzeltildi: internal, unforgeable `ProviderSettingsValidationException`.
@@ -180,7 +180,7 @@ koşumu, doküman senkronu, karar defteri) hiç yapılmamıştı. Bu oturum onu 
   ulaştığında zaten normalize edilmiş oluyor — tek normalizasyon noktası, aşağı
   akan her tüketici otomatik güvenli. Bulgular yanlış pozitifti ama iddia
   gerçek executable proof'la doğrulandı (statik okuma yeterli değildi).
-- **🔴 A2A yüzeyi ayrı test edilmedi:** `src/AgentPrism.AspNetCore/A2A/` kendi
+- **🔴 A2A yüzeyi ayrı test edilmedi:** `src/Tracon.AspNetCore/A2A/` kendi
   `ex.Message` kullanmıyor — MAF'ın A2A hosting kütüphanesine devrediyor, aynı
   `IChatClient` boru hattını (dolayısıyla aynı normalizasyonu) kullanıyor. Plan
   103.2.3'ün izin verdiği gibi ölçülüp gerekçelendirildi, ayrı test yazılmadı.
@@ -198,16 +198,16 @@ koşumu, doküman senkronu, karar defteri) hiç yapılmamıştı. Bu oturum onu 
   (BYOK hâlâ eski tek-imza), `guides/write-your-own-judge.md` (hâlâ ham
   `AddSingleton<IRunJudge,...>`), `concepts/tools.md` (canonical result iddiası
   runtime'dan güçlüydü) — hepsi bu oturumda güncellendi. `docs-site/public/llms*.txt`
-  ve `AgentPrism.AgentMap.md` yeniden üretildi.
+  ve `Tracon.AgentMap.md` yeniden üretildi.
 - **`getting-started/first-agent.md` — site senkron kuralı gerekçeli geçildi:**
   `dokuman-bakim.py --site-denetle`, `AnthropicModelProvider.cs` değişince bu
   sayfayı da bekliyor; sayfa hiçbir provider imzasına veya BYOK'a referans
   vermiyor (yalnız üst seviye `.UseAnthropic(...)` kaydı gösterir) — gerçek
   drift yok, `--site-gerekce-yazildi` ile geçildi.
 - **Bilinen, faz-dışı flaky testler (regresyon DEĞİL):**
-  `AgentPrism.Sqlite.IntegrationTests.SqliteDialectTests.Polymorphic_JSON_round_trips_intact`
+  `Tracon.Sqlite.IntegrationTests.SqliteDialectTests.Polymorphic_JSON_round_trips_intact`
   (izole koşumda geçti, yalnız tam solution paralel koşumunda bir kez kırıldı)
-  ve `AgentPrism.Ui.E2ETests` (her tam koşumda farklı bir Playwright testi flaky
+  ve `Tracon.Ui.E2ETests` (her tam koşumda farklı bir Playwright testi flaky
   kırılıyor — frontend bu fazda hiç değişmedi). İkisi de bu fazın kodundan
   bağımsız, tekrar koşumla doğrulandı.
 
@@ -215,10 +215,10 @@ koşumu, doküman senkronu, karar defteri) hiç yapılmamıştı. Bu oturum onu 
 
 - **K-618** — BYOK iki ayrı public interface'e bölündü (`IModelProvider` /
   `ITenantCredentialModelProvider`); capability yoksa fail-closed.
-- **K-619** — Provider construction normalizer'ı AgentPrism'in kendi validation
+- **K-619** — Provider construction normalizer'ı Tracon'in kendi validation
   hatasını internal, unforgeable bir işaretçi tipiyle "foreign" saymaktan çıkardı.
-- **K-620** — `AgentPrismJudgeException` kaldırıldı; `AddRunJudge` üç overload
-  ile `IAgentPrismBuilder`'a eklendi.
+- **K-620** — `TraconJudgeException` kaldırıldı; `AddRunJudge` üç overload
+  ile `ITraconBuilder`'a eklendi.
 - **K-621** — `JudgeTimeout` gerçek wait cutoff'tur; late body öldürülmez, geç
   sonuç sessizce atılır.
 - **K-622** — `kapi.py yayin`, izole cache'li beş-sample + Native AOT release
@@ -248,7 +248,7 @@ executable proof veya gerekçeyle kapatıldı.
   yalnız tenant credential. Yeni bir provider yazan biri BYOK istiyorsa ikinci
   interface'i de uygular; istemiyorsa yalnız ilkini uygular ve hiçbir zaman
   tenant credential ile çağrılmaz (fail-closed, K-618).
-- `IAgentPrismBuilder.AddRunJudge<T>()` / `(instance)` / `(factory)` —
+- `ITraconBuilder.AddRunJudge<T>()` / `(instance)` / `(factory)` —
   `AddAgentSource` ile birebir aynı idempotency semantiği.
 - `JudgeTimeout` gerçek wait cutoff'tur; judge implementasyonları token'ı
   onurlandırmasa bile handler zamanında döner (K-621).
@@ -273,7 +273,7 @@ executable proof veya gerekçeyle kapatıldı.
   `IChatClient`'ı sarmalaması. Bu tek noktayı bypass eden yeni bir model çağrı
   yolu eklenirse (ör. registry'yi atlayan bir kısayol), o yol KENDİ normalizasyonunu
   yapmak zorundadır — aksi hâlde secret sızar.
-- 🚨 `AgentPrism.Sqlite.IntegrationTests` ve `AgentPrism.Ui.E2ETests`, tam
+- 🚨 `Tracon.Sqlite.IntegrationTests` ve `Tracon.Ui.E2ETests`, tam
   solution'ı `-maxcpucount:1` ile paralel koşarken ara sıra flaky kırılıyor
   (izole koşumda geçiyor). Bu fazın kodundan bağımsız, önceden var olan bir
   test-altyapısı sorunu; `docs/hafiza/test-altyapisi.md`'ye taşınmalı.
@@ -287,7 +287,7 @@ kalır.
 
 **Preview.1 release readiness:** `python3 scripts/kapi.py yayin --kuru --surum
 1.0.0-preview.1` uçtan uca yeşil (20 paket, npm dry-run, beş sample, izole-cache
-Native AOT smoke). `samples/AgentPrism.Api` gerçek OpenAI provider + `get_order_status`
+Native AOT smoke). `samples/Tracon.Api` gerçek OpenAI provider + `get_order_status`
 tool çağrısı + manuel judge endpoint'i ile gerçek bir run üretti ve
 `judge:response-quality` skoru (100, "Directly answers the order-status question
 and uses the correct tool.") persisted oldu. Blocker kalmadı.

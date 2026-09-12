@@ -3,10 +3,10 @@
 > **Durum:** ✅ Tamamlandı (2026-09-06)
 > **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-196** (tüketici turu 4, A1 · sahiplik yarısı)
 > **Önkoşul:** [Faz 147](147-YETKI-KAPISININ-KAYNAK-KAPSAMI.md) — kapı bütün kaynak grafiğini kapsamadan sahiplik yarım bir sınır olur; sahipli liste dönerken `run` okuma açık kalırsa sızıntı kapanmaz
-> **Paketler:** `AgentPrism.Abstractions`, `AgentPrism.Core`, `AgentPrism.AspNetCore`, `AgentPrism.PostgreSql`, `AgentPrism.SqlServer`, `AgentPrism.Sqlite`, `AgentPrism.Testing.Contracts.Xunit`
+> **Paketler:** `Tracon.Abstractions`, `Tracon.Core`, `Tracon.AspNetCore`, `Tracon.PostgreSql`, `Tracon.SqlServer`, `Tracon.Sqlite`, `Tracon.Testing.Contracts.Xunit`
 > **Yeni paket:** Yok · **Migration:** **Gerekli — üç set** (`sessions`'a sütun + indeks). Numaralar uygulama anında alınır (K-178)
 > **Public API:** Büyüyor — `SessionRecord` ve `SessionQuery`'ye birer alan, bir seçenek sınıfı. `wc -l src/*/PublicAPI.Shipped.txt` → 17 satır / 17 dosya (yalnız başlık), **shipped giriş sıfır**: bugün eklemek bedava, Faz 7'den sonra bir sürüm kararı
-> **Tüketici yüzeyi:** `docs-site/`: `concepts/sessions.md`, `concepts/governance.md`, `guides/embedding.md`, `guides/write-your-own-store.md`, `capabilities.md` · sevk edilen: `ISessionStore` XML `<example>`, `src/AgentPrism.Abstractions/README.md`, `SessionStoreContract`
+> **Tüketici yüzeyi:** `docs-site/`: `concepts/sessions.md`, `concepts/governance.md`, `guides/embedding.md`, `guides/write-your-own-store.md`, `capabilities.md` · sevk edilen: `ISessionStore` XML `<example>`, `src/Tracon.Abstractions/README.md`, `SessionStoreContract`
 > **Manuel test alanı:** [`docs/manuel-test/13-KIRACI-VE-GUVENLIK.md`](../../manuel-test/13-KIRACI-VE-GUVENLIK.md)
 
 ---
@@ -28,7 +28,7 @@
 
 ## Amaç
 
-Faz 139 ve 147 kapıyı kurdu: AgentPrism **sorar**, tüketici **karar verir**. Sorunun bir yarısı hâlâ cevapsız — AgentPrism, bir oturumun kime ait olduğunu hiçbir yerde saklamıyor. Bu iki somut sonuç doğuruyor: 1. Tüketici sahipliği kendi tablosunda tutmak zorunda ve **listeyi filtreleyemiyor**.
+Faz 139 ve 147 kapıyı kurdu: Tracon **sorar**, tüketici **karar verir**. Sorunun bir yarısı hâlâ cevapsız — Tracon, bir oturumun kime ait olduğunu hiçbir yerde saklamıyor. Bu iki somut sonuç doğuruyor: 1. Tüketici sahipliği kendi tablosunda tutmak zorunda ve **listeyi filtreleyemiyor**.
 
 ## Bitiş Ölçütleri (DoD)
 
@@ -46,7 +46,7 @@ Faz 139 ve 147 kapıyı kurdu: AgentPrism **sorar**, tüketici **karar verir**. 
 - [x] `SessionEndpoints.cs:36`'daki "liste filtrelenmez" yorumu **düzeltildi** — artık filtrelenir ve gerekçesi yazılı
 - [x] `IRunAuthorizationHandler` XML'indeki *"it never learns which user … a session belongs to"* cümlesi **güncellendi**
 - [x] Dört doğrulama kapısı sıfır uyarı verir — `python3 scripts/kapi.py kapanis --taban <faz öncesi commit>`
-- [x] `samples/AgentPrism.Api` ile gerçek `run` yapıldı, sahipli liste çıktısı belgeye yazıldı
+- [x] `samples/Tracon.Api` ile gerçek `run` yapıldı, sahipli liste çıktısı belgeye yazıldı
 - [x] `secret` taraması boş döndü
 - [x] Manuel kabul case'leri `docs/manuel-test/13-KIRACI-VE-GUVENLIK.md` içine eklendi
       (MT-SEC-164..174, on biri). Onunun her biri **otomatik karşılığıyla** koşuldu
@@ -77,13 +77,13 @@ diff <(curl -s "$APU/api/sessions/$B_SESSION" -H "Authorization: Bearer $TOKEN_A
 
 ## Plandan Sapmalar
 
-1. **`AgentPrismSessionOwnershipOptions` `AgentPrism.Core`'a değil
-   `AgentPrism.Abstractions`'a girdi.** Plan onu `Core/Sessions/` altında
+1. **`TraconSessionOwnershipOptions` `Tracon.Core`'a değil
+   `Tracon.Abstractions`'a girdi.** Plan onu `Core/Sessions/` altında
    gösteriyordu. `ISessionStore`'un kendi sözleşme XML'i (`SessionRecord.OwnerId`,
    `SessionQuery.OwnerId`) kuralı bu tipi ADLANDIRMADAN anlatamıyor ve
    Abstractions Core'u göremez — Core-yerleşimli bir seçenek sözleşme
    dokümanını `<c>` yer tutucularına indirger ve sahiplik sözleşmesini iki
-   pakete böler. Emsal: `AgentPrismEgressOptions`, `AgentPrismMcpSecurityOptions`
+   pakete böler. Emsal: `TraconEgressOptions`, `TraconMcpSecurityOptions`
    (ikisi de güvenlik sınırı, ikisi de Abstractions'ta). Açık Soru 1'in cevabı
    ("A: ayrı bir sınıf") değişmedi; yalnız paketi değişti.
 
@@ -93,7 +93,7 @@ diff <(curl -s "$APU/api/sessions/$B_SESSION" -H "Authorization: Bearer $TOKEN_A
    kurulamıyordu. Kullanıcıya soruldu (2026-09-06); "istek başına `Operator`
    politikası" seçildi. Varsayılan LİTERAL yazılıdır ve
    `SessionOwnershipManagementPolicyCrossCheckTests` ile
-   `AgentPrismPolicies.Operator`'a bağlanır (K-691).
+   `TraconPolicies.Operator`'a bağlanır (K-691).
 
 3. **🚨 Kapı `run` başlatan yüzeylere de gerekti — planda yoktu.** Plan yalnız
    oturum uçlarını (`Read`/`Delete`/`Branch`) ve listeyi kapsıyordu.
@@ -139,7 +139,7 @@ diff <(curl -s "$APU/api/sessions/$B_SESSION" -H "Authorization: Bearer $TOKEN_A
 
 10. **Akışlı (SSE) yolda ret bir `error` çerçevesidir, `403` değil.** SSE
     başlıkları oturum çözümünden önce gönderilir (K-324'ün fiziksel kısıtı,
-    `AgentPrismSessionConflictException` de aynı şekilde davranır). Fazın
+    `TraconSessionConflictException` de aynı şekilde davranır). Fazın
     invariant'ı — sahipsiz satır açılmaz — orada da korunur. Oturum çözümünü
     `SseWriter.StartAsync`'in ÜSTÜNE taşımak bu fazın kapsamı dışında bırakıldı
     (devir notu).
@@ -157,8 +157,8 @@ diff <(curl -s "$APU/api/sessions/$B_SESSION" -H "Authorization: Bearer $TOKEN_A
 
 ## Örnek Uygulama Koşumu (gerçek `run`)
 
-`samples/AgentPrism.Api`, SQLite ve `EchoModelProvider` ile, mod **açık**
-(`AgentPrism__SessionOwnership__Enabled=true`). Kimlik `X-Demo-User` başlığından
+`samples/Tracon.Api`, SQLite ve `EchoModelProvider` ile, mod **açık**
+(`Tracon__SessionOwnership__Enabled=true`). Kimlik `X-Demo-User` başlığından
 gelir (`DemoRunAttributionContext`). Migration çıktısı: **34** uygulandı (önceden
 33 — yeni sette `0034_session_owner.sql`).
 
@@ -183,7 +183,7 @@ bob'a 5 YENİ oturum daha açılır (listede en üstte olurlardı), sonra ada ta
   [{"id":"forged","ownerId":"ada"},{"id":"ada-2","ownerId":"ada"},{"id":"ada-1","ownerId":"ada"}]
   → üç satırın üçü de ada'nın: süzgeç sayfalamadan ÖNCE uygulandı
 
-veritabanı (agentprism_sessions):
+veritabanı (tracon_sessions):
   ada-1|ada  ada-2|ada  forged|ada  bob-1|bob  bob-x1..x5|bob
   sahipsiz satır YOK — reddedilen istek hiçbir şey yazmadı
 ```
@@ -243,23 +243,23 @@ düzeltildi).
 `--site-denetle` `http-api` kuralını tetikledi (`AgentEndpoints.cs` değişti) ve
 hedef sayfanın değişmediğini bildirdi. Hedef **elle yazılmaz**:
 `docs-site/src/content/docs/http-api/*.md` `build-http-api.mjs` tarafından
-`docs/openapi/agentprism.json`'dan **üretilir** ve `.gitignore`'dadır, bu yüzden
+`docs/openapi/tracon.json`'dan **üretilir** ve `.gitignore`'dadır, bu yüzden
 `git diff` onu hiçbir zaman göremez.
 
 Gerçek yüzey **güncellendi**: dört oturum ucunun ve `run` başlatan üç ucun
 `WithDescription`'ı yeni `403`/`404` davranışını anlatıyor, OpenAPI belgesi
 yeniden üretildi (commit'li) ve üretilen sayfa metni doğrulandı —
 `grep -c "session ownership" docs-site/src/content/docs/http-api/sessions.md`
-→ **4**. Her iki üretilmiş istemci (`AgentPrism.Client`, `@agentprism/client`)
+→ **4**. Her iki üretilmiş istemci (`Tracon.Client`, `@tracon/client`)
 de aynı belgeden yeniden üretildi.
 
 Kuralın kendisi bu yüzden yanlış negatif üretiyor: hedefi izlenmeyen bir üretilmiş
-dosyadır. Kalıcı düzeltme, kuralın hedefini `docs/openapi/agentprism.json`'a
+dosyadır. Kalıcı düzeltme, kuralın hedefini `docs/openapi/tracon.json`'a
 çevirmektir — aday olarak devir notundadır.
 
 ## Sonraki Faza Devir Notu
 
-Sahiplik artık AgentPrism'in kendi verisidir. Devreden beş gerçek bilgi:
+Sahiplik artık Tracon'in kendi verisidir. Devreden beş gerçek bilgi:
 
 - 🚨 **Yeni bir HTTP yüzeyi bir oturuma dokunuyorsa İKİ şey birden gerekir:**
   yüzey `SessionOwnershipGate`'i **kendi gövdesinde** çağırır ve
@@ -272,7 +272,7 @@ Sahiplik artık AgentPrism'in kendi verisidir. Devreden beş gerçek bilgi:
   `TriggerEndpoints` ve `OpenAIChatCompletionsEndpoints` **bilerek dışarıdadır**
   — oturumsuz `run` başlatırlar; birine `sessionId` eklenirse listeye de eklenir.
 - 🚨 **`ManagementPolicy` varsayılanı Abstractions'ta LİTERAL yazılıdır.**
-  `AgentPrismPolicies.Operator` yeniden adlandırılırsa derleyici bunu görmez;
+  `TraconPolicies.Operator` yeniden adlandırılırsa derleyici bunu görmez;
   `SessionOwnershipManagementPolicyCrossCheckTests` görür. İki taraftan birini
   tek başına değiştirme.
 - 🚨 **Sahiplik `AgentSessionManager`'da DEĞİL HTTP sınırında zorlanır.** Bu
@@ -283,7 +283,7 @@ Sahiplik artık AgentPrism'in kendi verisidir. Devreden beş gerçek bilgi:
 - **Akışlı yolda sahiplik reddi GERÇEK `403`'tür** (denetim doğruladı):
   `CheckRunSessionAsync` uç gövdesinde, `SseWriter.StartAsync`'ten **önce**
   koşar. Akışta `error` çerçevesine düşen tek kalan durum
-  `AgentPrismSessionConflictException` ve elle damgalanmış bir kimliğin
+  `TraconSessionConflictException` ve elle damgalanmış bir kimliğin
   yazma anındaki reddidir — oturum çözümü hâlâ writer'dan sonradır. Onu
   `SseWriter.StartAsync`'in üstüne taşımak `409`'u da gerçek durum koduna
   çevirir; bu faz var olan davranışı değiştirmemek için kapsam dışı bıraktı.
@@ -291,7 +291,7 @@ Sahiplik artık AgentPrism'in kendi verisidir. Devreden beş gerçek bilgi:
 - **`--site-denetle`'nin `http-api` kuralı YANLIŞ NEGATİF üretiyor.** Hedefi
   (`docs-site/src/content/docs/http-api/*.md`) üretilen ve `.gitignore`'da olan
   bir dosyadır; `git diff` onu asla göremez, bu yüzden kural HTTP yüzeyi her
-  değiştiğinde kırmızı olur. Kuralın hedefi `docs/openapi/agentprism.json`
+  değiştiğinde kırmızı olur. Kuralın hedefi `docs/openapi/tracon.json`
   (izlenen, üretilen ve commit'lenen dosya) olmalıdır — küçük bir
   `dokuman-bakim.py` düzeltmesi, aday.
 - **Denetimin 🟢 kalemleri:** (1) mod açıkken `GetSessionAsync`/`DeleteSessionAsync`

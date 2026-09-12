@@ -3,7 +3,7 @@
 > **Durum:** ✅ Tamamlandı (2026-08-07)
 > **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-76**
 > **Önkoşul:** Yok
-> **Paketler:** `AgentPrism.Sql.Shared`, `.PostgreSql`, `.SqlServer`, `.Sqlite`, `.Core`, `.Abstractions`
+> **Paketler:** `Tracon.Sql.Shared`, `.PostgreSql`, `.SqlServer`, `.Sqlite`, `.Core`, `.Abstractions`
 > **Yeni paket:** Yok · **Migration:** 🚨 **gerekti** — üç set (PostgreSQL `0018`, SQL Server `0006`, SQLite `0006`)
 > **Public API:** 🚨 **büyüdü** — `IRetentionStore`'un dört metodu `tenantId` aldı, `FixedTenantContext` eklendi
 > **Seçim:** 👤 **Seçenek A — sözleşme testi kapısı** (kullanıcı kararı, 2026-08-06). Gerekçe [41.2](#412--neden-seçenek-a)
@@ -53,7 +53,7 @@ Kiracı yalıtımı bugün **her sorgunun `tenant_id` filtresini hatırlamasına
 | 6 | 🚨 Bulunan **her** kusur düzeltildi ve Plandan Sapmalar'a yazıldı | ✅ Üç kusur: K-277, K-278, K-279. Dördüncü bir boşluk bilerek açık bırakıldı ve gerekçesiyle yazıldı (K-280) |
 | 7 | Yeni metodun testsiz eklenemeyeceği **kanıtlandı** | ✅ `SqlSessionStore.ProbeAsync` geçici eklendi → `Her_public_depo_metodu_ya_sinaniyor_ya_gerekceli_muaf` düştü (1 failed / 400) → metot geri alındı → 400/400 yeşil |
 | 8 | Dört doğrulama kapısı sıfır uyarı verir | ✅ `dotnet build` (arayüz dâhil) 0 uyarı 0 hata · `dotnet format --verify-no-changes` temiz · `dotnet test` (aşağıda) · `dotnet pack` |
-| 9 | `samples/AgentPrism.Api` ile gerçek `run` yapıldı, çıktı bu belgeye yazıldı | ✅ Yukarıdaki "Örnek uygulama ile gerçek koşum" bölümü |
+| 9 | `samples/Tracon.Api` ile gerçek `run` yapıldı, çıktı bu belgeye yazıldı | ✅ Yukarıdaki "Örnek uygulama ile gerçek koşum" bölümü |
 | 10 | `secret` taraması boş döndü | ✅ Boş. Ayrıca `find src -name "* 2.*"` denetimi `wwwroot/` altında **üç senkronizasyon kopyası** buldu (üretilmiş, gitignore'lu) — MEMORY'nin Faz 30 tuzağı; silindi |
 
 ---
@@ -62,24 +62,24 @@ Kiracı yalıtımı bugün **her sorgunun `tenant_id` filtresini hatırlamasına
 
 ```bash
 # Uc saglayicida ve bellek icinde kosum
-dotnet test tests/AgentPrism.PostgreSql.IntegrationTests -c Release --no-build
-dotnet test tests/AgentPrism.SqlServer.IntegrationTests  -c Release --no-build
-dotnet test tests/AgentPrism.Sqlite.IntegrationTests     -c Release --no-build
+dotnet test tests/Tracon.PostgreSql.IntegrationTests -c Release --no-build
+dotnet test tests/Tracon.SqlServer.IntegrationTests  -c Release --no-build
+dotnet test tests/Tracon.Sqlite.IntegrationTests     -c Release --no-build
 
 # Kapsam denetimi tek basina
-dotnet test tests/AgentPrism.PostgreSql.IntegrationTests -c Release --no-build 2>&1 \
+dotnet test tests/Tracon.PostgreSql.IntegrationTests -c Release --no-build 2>&1 \
   | grep -i "TenantCoverage"
 
 # Eski testler tasindi mi — TenantIsolationTests artik burada OLMAMALI
-grep -n "class TenantIsolationTests" tests/AgentPrism.PostgreSql.IntegrationTests/IsolationTests.cs
+grep -n "class TenantIsolationTests" tests/Tracon.PostgreSql.IntegrationTests/IsolationTests.cs
 
 # Muaf isaretli metotlarin tam listesi (gerekceleriyle)
-grep -rn "TenantAgnostic(" src/AgentPrism.Sql.Shared/Stores/
+grep -rn "TenantAgnostic(" src/Tracon.Sql.Shared/Stores/
 
 # Filtre noktalarinin sayisi (kusur duzeltmesi sonrasi degisebilir)
-for f in src/AgentPrism.PostgreSql/Internal/PostgresQueries.cs \
-         src/AgentPrism.SqlServer/Internal/SqlServerQueries.cs \
-         src/AgentPrism.Sqlite/Internal/SqliteQueries.cs; do
+for f in src/Tracon.PostgreSql/Internal/PostgresQueries.cs \
+         src/Tracon.SqlServer/Internal/SqlServerQueries.cs \
+         src/Tracon.Sqlite/Internal/SqliteQueries.cs; do
   printf "%s: " "$f"; grep -o "tenant_id" "$f" | wc -l
 done
 ```
@@ -97,7 +97,7 @@ Faz bir kusur bekliyordu ([41.5](#415--kusur-bulunursa-ne-olur)); **üç** buldu
 
 | # | Kusur | Etki | Düzeltme |
 |---|-------|------|----------|
-| **K1** | 🚨 **Bellek içi depolarda kiracı yalıtımı hiç yoktu.** `InMemoryAgentDefinitionStore` `tenant_id` kavramını taşımıyordu; `InMemorySessionStore.GetAsync/DeleteAsync`, `InMemoryRunStore.GetRunAsync/ReadEventsAsync/ListToolInvocationsAsync` ve `InMemoryTraceStore.GetTraceByRunAsync` kiracıyı hiç okumuyordu | K-018 bellek içi depoları **birinci sınıf** sayar ve `AddAgentPrism()` onları varsayılan olarak kaydeder. Veritabanısız çok kiracılı bir kurulumda A kiracısı B'nin agent tanımını, oturumunu ve çalıştırmasını **okuyup silebiliyordu** | Dört depo `ITenantContext` alır; anahtar `(kiracı, ad)` çiftine döndü. Sorgu filtreleri SQL ile aynı kurala geçti: `query.TenantId ?? ambient` |
+| **K1** | 🚨 **Bellek içi depolarda kiracı yalıtımı hiç yoktu.** `InMemoryAgentDefinitionStore` `tenant_id` kavramını taşımıyordu; `InMemorySessionStore.GetAsync/DeleteAsync`, `InMemoryRunStore.GetRunAsync/ReadEventsAsync/ListToolInvocationsAsync` ve `InMemoryTraceStore.GetTraceByRunAsync` kiracıyı hiç okumuyordu | K-018 bellek içi depoları **birinci sınıf** sayar ve `AddTracon()` onları varsayılan olarak kaydeder. Veritabanısız çok kiracılı bir kurulumda A kiracısı B'nin agent tanımını, oturumunu ve çalıştırmasını **okuyup silebiliyordu** | Dört depo `ITenantContext` alır; anahtar `(kiracı, ad)` çiftine döndü. Sorgu filtreleri SQL ile aynı kurala geçti: `query.TenantId ?? ambient` |
 | **K2** | 🚨 **`sessions.id` tek başına birincil anahtardı.** Oturum kimliği çağıran tarafından verilir (`AgentSession` kimliği, `/v1/responses` konuşma kimliği) ve tabloda **bütün kiracılar arasında** benzersizdi. `ON CONFLICT (id) DO UPDATE SET tenant_id = EXCLUDED.tenant_id` bir kiracının diğerinin oturumunu **üzerine yazmasına** izin veriyordu | Veri kaybı **ve** satır sahipliğinin el değiştirmesi. Oturum kimlikleri tahmin edilebilir olabilir (`user-42-chat`) | Anahtar `(tenant_id, id)` oldu — üç migration. Upsert `ON CONFLICT (tenant_id, id)`'ye geçti ve artık `tenant_id` güncellemez; SQL Server dalında `WHERE`'e kiracı koşulu eklendi |
 | **K3** | 🚨 **Saklama veri düzlemi kiracı süzgeci taşımıyordu.** `IRetentionStore.DeleteBatchAsync(target, cutoff, batchSize)` hedefteki **tüm** kiracıların satırlarını siliyordu; politika ise kiracı başınadır (`retention_policies.tenant_id`, Faz 25 kullanıcı kararı) | A kiracısının admin'i `/api/retention/run` çağırınca B kiracısının verisi de siliniyordu. Çapraz kiracı **veri yıkımı** | 👤 Kullanıcı kararı: **tam düzeltme**. `IRetentionStore`'un dört metodu `string? tenantId` aldı; `RetentionTargetDefinition` bir `TenantPredicate` taşır (kendi `tenant_id` sütunu olmayan üç hedef — `run_events`, `tool_invocations`, `eval_case_results` — sahibine bakan `EXISTS` ile süzülür); `RetentionExecutor` her zaman isteyen kiracıyı geçirir |
 
@@ -132,7 +132,7 @@ bozulmadan yerinde kalır.
 
 > Bu, "imza değiştirmek ile gövdeyi kullanmak iki ayrı adımdır" dersinin bir
 > kardeşidir: **bir davranışı düzeltmek, o davranışa dayanan çağıranı sessizce
-> değiştirir.** Kusuru birim testleri değil, `AgentPrism.AspNetCore.FunctionalTests`
+> değiştirir.** Kusuru birim testleri değil, `Tracon.AspNetCore.FunctionalTests`
 > yakaladı.
 
 ### Plan ile gerçek arasındaki diğer farklar
@@ -140,10 +140,10 @@ bozulmadan yerinde kalır.
 | Planın söylediği | Gerçekleşen |
 |---|---|
 | "Sözleşmesi **hiç olmayan** altı depo: `AgentFileStore`, `AgentSkillStore`, `ApprovalAndMcpStores`, `ChatHistoryProvider`, `RetentionStore`, `SkillScriptGrantStore`" | **`SkillScriptGrantStore`'un sözleşmesi zaten vardı** (`SkillScriptGrantContract.cs`). Gerçek eksik beştir; `ApprovalAndMcpStores` de üç depo taşır (`ToolApprovalRule`, `McpServer`, `Tenant`) |
-| "`ls src/AgentPrism.Sql.Shared/Stores/` → **22 dosya**" | **23 dosya** (`SqlAgentSkillStore.cs` sayılmamış) |
+| "`ls src/Tracon.Sql.Shared/Stores/` → **22 dosya**" | **23 dosya** (`SqlAgentSkillStore.cs` sayılmamış) |
 | "`ls tests/Shared/Contracts/` → 18 sözleşme" | 19'du; şimdi **25 dosya** (23 sözleşme + ortak taban + kapsam denetimi) |
 | Ortak taban yalnız yalıtım testleri taşıyacaktı | `TenantIsolationContract<TStore>` **ortak yaşam döngüsü tesisatını da** aldı; 19 sözleşmedeki birebir aynı `Store`/`CreateStoreAsync`/`InitializeAsync`/`DisposeAsync` kopyaları silindi. Sonuç: yeni sözleşmeler için ayrı koşum sınıfı **gerekmedi** — var olan koşumlar yalıtım testlerini kendiliğinden aldı |
-| `[TenantAgnostic]` test projesinde tanımlanacaktı | Öznitelik **`AgentPrism.Sql.Shared/Internal/`** içindedir ve `internal`'dir. Gerekçenin metodun yanında durması ancak böyle mümkündü; `internal` olduğu için public sözleşme büyümedi |
+| `[TenantAgnostic]` test projesinde tanımlanacaktı | Öznitelik **`Tracon.Sql.Shared/Internal/`** içindedir ve `internal`'dir. Gerekçenin metodun yanında durması ancak böyle mümkündü; `internal` olduğu için public sözleşme büyümedi |
 | "Muafiyet nasıl işaretlenir?" (Açık Soru 2) → `[TenantAgnostic]` | Uygulandı, **ama tek başına yetmedi.** Kapsam denetimi ayrıca deponun hangi metotlarının sözleşmede *gerçekten çağrıldığını* bilmek zorundadır; bu, `TenantCoverageTests.Covered` tablosudur. Tablo bayat kayıt taşıyamaz (ayrı test) |
 | `ChatHistoryProvider` sözleşmesi ölçülecekti (Açık Soru 1) | **Ölçüldü: yazılamaz.** `SqlChatHistoryProvider`'ın **hiç public metodu yoktur**; yalnızca MAF'ın `protected override` kancalarını uygular ve bir `InvokingContext`/`AgentSession` ister. Kapsam denetiminin zorlayacağı bir yüzey yoktur; kapsam listesinde boş küme ile durur |
 | Kiracı bağlamı olan depolarda iki depo örneği kurulacaktı | Tek örnek + **değiştirilebilir kiracı bağlamı** (`MutableTenantContext`) seçildi. Bellek içi depolar kendi durumlarını taşır; iki örnek aynı arka uca bakmazdı ve senaryo kurulamazdı |
@@ -165,25 +165,25 @@ bozulmadan yerinde kalır.
 
 ### Örnek uygulama ile gerçek koşum (2026-08-07)
 
-`samples/AgentPrism.Api`, çok kiracılılık **açık** (başlık çözümü) ve gerçek bir
-OpenAI anahtarıyla çalıştırıldı. Kiracı başlığı `X-AgentPrism-Tenant`.
+`samples/Tracon.Api`, çok kiracılılık **açık** (başlık çözümü) ve gerçek bir
+OpenAI anahtarıyla çalıştırıldı. Kiracı başlığı `X-Tracon-Tenant`.
 
 ```
-GET  /agentprism/api/tenants/current   (kiraci-a) → {"tenantId":"kiraci-a"}
-GET  /agentprism/api/tenants/current   (kiraci-b) → {"tenantId":"kiraci-b"}
+GET  /tracon/api/tenants/current   (kiraci-a) → {"tenantId":"kiraci-a"}
+GET  /tracon/api/tenants/current   (kiraci-b) → {"tenantId":"kiraci-b"}
 
-POST /agentprism/api/agents            (kiraci-a) → 201, tenantId "kiraci-a"
-GET  /agentprism/api/agents            (kiraci-a) → Database kaynaklı: ['gizli-agent']
-GET  /agentprism/api/agents            (kiraci-b) → Database kaynaklı: []
-GET  /agentprism/api/agents/gizli-agent (kiraci-b) → 404
-DEL  /agentprism/api/agents/gizli-agent (kiraci-b) → 404
-GET  /agentprism/api/agents/gizli-agent (kiraci-a) → 200      ← kayıt yerinde
+POST /tracon/api/agents            (kiraci-a) → 201, tenantId "kiraci-a"
+GET  /tracon/api/agents            (kiraci-a) → Database kaynaklı: ['gizli-agent']
+GET  /tracon/api/agents            (kiraci-b) → Database kaynaklı: []
+GET  /tracon/api/agents/gizli-agent (kiraci-b) → 404
+DEL  /tracon/api/agents/gizli-agent (kiraci-b) → 404
+GET  /tracon/api/agents/gizli-agent (kiraci-a) → 200      ← kayıt yerinde
 
-POST /agentprism/api/agents/arastirmaci/run (kiraci-a) → SSE aktı, gerçek model yanıtı
-GET  /agentprism/api/runs              (kiraci-a) → 1 kayıt, tenantId "kiraci-a"
-GET  /agentprism/api/runs              (kiraci-b) → 0 kayıt
-GET  /agentprism/api/runs/{id}         (kiraci-b) → 404
-GET  /agentprism/api/runs/{id}         (kiraci-a) → 200
+POST /tracon/api/agents/arastirmaci/run (kiraci-a) → SSE aktı, gerçek model yanıtı
+GET  /tracon/api/runs              (kiraci-a) → 1 kayıt, tenantId "kiraci-a"
+GET  /tracon/api/runs              (kiraci-b) → 0 kayıt
+GET  /tracon/api/runs/{id}         (kiraci-b) → 404
+GET  /tracon/api/runs/{id}         (kiraci-a) → 200
 ```
 
 🚨 **Bu koşum faz öncesi sızardı.** Örnek uygulama veritabanı olmadan çalışır ve
@@ -205,7 +205,7 @@ Numaralar `docs/KARARLAR.md`'de alındı: **K-277 … K-283**.
 ### Devralınan sözleşmeler
 
 - **Yeni bir depo metodu artık testsiz eklenemez.** `TenantCoverageTests`
-  `AgentPrism.Sql.Shared/Stores/` altındaki her public metodu ya
+  `Tracon.Sql.Shared/Stores/` altındaki her public metodu ya
   `Covered` tablosunda ya `[TenantAgnostic("gerekçe")]` ile arar. Kanıtlandı:
   geçici bir `ProbeAsync` eklendi, kapı kırmızıya döndü, metot geri alındı.
 - **Yeni bir depo sınıfı da sessizce eklenemez**: keşif yansımayladır

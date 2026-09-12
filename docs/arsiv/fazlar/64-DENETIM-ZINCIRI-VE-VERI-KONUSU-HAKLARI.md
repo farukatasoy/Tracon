@@ -3,7 +3,7 @@
 > **Durum:** ✅ Tamamlandı (2026-08-18)
 > **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-75**, **F-58**
 > **Önkoşul:** [Faz 9](09-YONETISIM-VE-DENETIM-IZI.md) — denetim izi oradan gelir · [Faz 25](25-VERI-SAKLAMA-VE-ARSIVLEME.md) — yaşa göre temizlik makinesi ve `IRetentionStore` devralınır
-> **Paketler:** `AgentPrism.Abstractions`, `AgentPrism.Core`, `AgentPrism.Sql.Shared`, `AgentPrism.PostgreSql`, `AgentPrism.SqlServer`, `AgentPrism.Sqlite`, `AgentPrism.AspNetCore`, `AgentPrism.UI`
+> **Paketler:** `Tracon.Abstractions`, `Tracon.Core`, `Tracon.Sql.Shared`, `Tracon.PostgreSql`, `Tracon.SqlServer`, `Tracon.Sqlite`, `Tracon.AspNetCore`, `Tracon.UI`
 > **Yeni paket:** Yok · **Migration:** **gerekli — üç set** (`audit_log`'a iki sütun). Numara uygulama anında alınır (K-178)
 > **Public API:** **büyüyor** — `AuditEntry`'ye iki alan, bir yeni arayüz (`IDataSubjectResolver`), iki uç. `PublicAPI.Shipped.txt` bugün **boş**; ekleme **bugün bedava**
 > **Site etkisi:** `concepts/governance.md`, `guides/production.md`, `reference/configuration.md`
@@ -44,16 +44,16 @@ Bu faz kurumsal alıcının iki sorusunu kapatır: **"geçmişi değiştirebilir
 - [x] Silmeden sonra zincir doğrulaması hâlâ `Valid` — denetim izi dokunulmadı — `DataSubjectEndpointTests.Erase_writes_an_audit_entry_carrying_the_subject_id` + tasarım gereği (`SqlDataSubjectStore` hiçbir `audit_log` sorgusu çalıştırmaz)
 - [x] Silme denetim izine yazılır; yazma hatası isteği düşürür (K-370) — `DataSubjectEndpointTests.Erase_fails_loudly_when_the_audit_write_fails` + `DataSubjectStoreTests.Erase_rolls_back_every_delete_when_the_commit_callback_throws`
 - [x] Dört doğrulama kapısı sıfır uyarı verir — `dotnet build`/`test`/`pack`/`format` hepsi yeşil, denetim sonrası düzeltmelerle birlikte son koşum: Core.UnitTests 868, PostgreSql.IntegrationTests 1007, SqlServer.IntegrationTests 508, Sqlite.IntegrationTests 522, AspNetCore.FunctionalTests 515
-- [x] `samples/AgentPrism.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı — bkz. yukarıdaki maliyet ölçümü ve aşağıdaki doğrulama komutları çıktıları
+- [x] `samples/Tracon.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı — bkz. yukarıdaki maliyet ölçümü ve aşağıdaki doğrulama komutları çıktıları
 - [x] `secret` taraması boş döndü
 - [x] Manuel kabul case'leri `docs/manuel-test/28-DENETIM-ZINCIRI-VE-VERI-HAKLARI.md` içine eklendi (10 case); otomatikleştirilebilenler koşuldu (MT-DVR-001/002/006/007 gerçek uygulamaya karşı bu oturumda koşuldu ve gerçek sonuç yazıldı; kalan 6 case 👤 gerekir olarak işaretli, bkz. Plandan Sapmalar)
 - [x] `faz-denetim` koşuldu; 🔴 bulgu kalmadı — bkz. Denetim Bulguları
 - [x] `docs-site/` güncellendi (`concepts/governance.md`, `guides/production.md`, `reference/configuration.md`, `getting-started/persistence.md`); `npm run build` + `check-links.mjs` temiz (927 sayfa, 114337 iç referans, hiç kırık yok)
 
-### Doğrulama komutları (gerçekleşen çıktı, 2026-08-18, PostgreSQL, `samples/AgentPrism.Api`)
+### Doğrulama komutları (gerçekleşen çıktı, 2026-08-18, PostgreSQL, `samples/Tracon.Api`)
 
 ```bash
-$ curl -s -H "$APB" http://localhost:5080/agentprism/api/audit/verify
+$ curl -s -H "$APB" http://localhost:5080/tracon/api/audit/verify
 {"status":"Valid","entriesChecked":0,"firstFailingEntryId":null}
 
 $ curl -s -H "$APB" -X PUT .../api/retention/run_events -d '{"maxAgeDays":30}'
@@ -61,13 +61,13 @@ $ curl -s -H "$APB" -X PUT .../api/retention/run_events -d '{"maxAgeDays":30}'
 $ curl -s -H "$APB" -X PUT .../api/retention/run_events -d '{"maxAgeDays":45}'
 {"id":"01a015f7-...","target":"run_events","maxAgeDays":45, ...}
 
-$ curl -s -H "$APB" http://localhost:5080/agentprism/api/audit/verify
+$ curl -s -H "$APB" http://localhost:5080/tracon/api/audit/verify
 {"status":"Valid","entriesChecked":2,"firstFailingEntryId":null}
 
-$ curl -s -H "$APB" http://localhost:5080/agentprism/api/data-subjects/user-42/export
+$ curl -s -H "$APB" http://localhost:5080/tracon/api/data-subjects/user-42/export
 {"title":"No data subject resolver registered", "status":409, ...}
 
-$ curl -s -H "$APB" -X DELETE http://localhost:5080/agentprism/api/data-subjects/user-42
+$ curl -s -H "$APB" -X DELETE http://localhost:5080/tracon/api/data-subjects/user-42
 {"title":"No data subject resolver registered", "status":409, ...}
 ```
 

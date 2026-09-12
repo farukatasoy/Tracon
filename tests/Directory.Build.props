@@ -8,7 +8,7 @@
     <!-- Suppress the warning NuGet emits for non-packable projects when `dotnet pack` runs on the solution. -->
     <WarnOnPackingNonPackableProject>false</WarnOnPackingNonPackableProject>
     <!--
-      Phase 157: AgentPrism.WorkerHarness lives under tests/ but is not a test
+      Phase 157: Tracon.WorkerHarness lives under tests/ but is not a test
       project - it is the SUBJECT of the two-process failure proof, the worker
       the test kills. It sets IsTestHarnessProject=true and therefore gets none
       of the xunit/MTP wiring below.

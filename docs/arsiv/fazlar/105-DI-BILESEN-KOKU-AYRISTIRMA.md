@@ -3,9 +3,9 @@
 > **Durum:** ✅ Tamamlandı (2026-08-26)
 > **Kaynak:** [`arsiv/kesif/2026-08-23-yapisal-sorun-envanteri.md`](../kesif/2026-08-23-yapisal-sorun-envanteri.md) — **kalem 17**. Bu faz bir `F-NN` adayından gelmez
 > **Önkoşul:** Yok
-> **Paketler:** `AgentPrism.Core`
+> **Paketler:** `Tracon.Core`
 > **Yeni paket:** Yok · **Migration:** Yok
-> **Public API:** Büyümüyor. Mevcut iki `AddAgentPrism` ve `UseScheduling` imzası değişmez. `EnablePublicApiTracking` açıktır (K-421); `PublicAPI.Shipped.txt` girdisi bugün **0**
+> **Public API:** Büyümüyor. Mevcut iki `AddTracon` ve `UseScheduling` imzası değişmez. `EnablePublicApiTracking` açıktır (K-421); `PublicAPI.Shipped.txt` girdisi bugün **0**
 > **Tüketici yüzeyi:** Yok. Public imza, XML metni, HTTP ucu, ekran ve sevk edilen yapılandırma anahtarı değişmez
 > **Manuel test alanı:** [`manuel-test/01-KURULUM-VE-PAKETLEME.md`](../../manuel-test/01-KURULUM-VE-PAKETLEME.md) · [`manuel-test/02-CEKIRDEK-VE-KATALOG.md`](../../manuel-test/02-CEKIRDEK-VE-KATALOG.md)
 
@@ -28,16 +28,16 @@
 
 ## Amaç
 
-`AgentPrismServiceCollectionExtensions.cs`, DI kayıtlarını ve 40'tan fazla options bağlayıcısını aynı dosyada tutuyor. Faz, bu sınıfı public yüzeyi değiştirmeden sorumluluk odaklı `partial` dosyalara ayırır. Tüketicinin kayıt sırası, `TryAdd*` davranışı ve varsayılanları birebir kalır.
+`TraconServiceCollectionExtensions.cs`, DI kayıtlarını ve 40'tan fazla options bağlayıcısını aynı dosyada tutuyor. Faz, bu sınıfı public yüzeyi değiştirmeden sorumluluk odaklı `partial` dosyalara ayırır. Tüketicinin kayıt sırası, `TryAdd*` davranışı ve varsayılanları birebir kalır.
 
 ## Bitiş Ölçütleri (DoD)
 
 - [x] Ana facade yalnız public girişleri ve üst düzey yönlendirmeyi taşır; registration ve binding gövdeleri sorumluluk dosyalarındadır
 - [x] Refactor öncesi ve sonrası service descriptor snapshot'ı sıfır fark verir
-- [x] `AgentPrismOptionsBindingCoverageTests` ve ilgili registration testleri yeşildir
+- [x] `TraconOptionsBindingCoverageTests` ve ilgili registration testleri yeşildir
 - [x] `git diff -- 'src/*/PublicAPI.*.txt'` boş döner
 - [x] Dört doğrulama kapısı sıfır uyarı verir
-- [x] `samples/AgentPrism.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı
+- [x] `samples/Tracon.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı
 - [x] `secret` taraması boş döndü
 - [x] Manuel kabul case'leri ilgili ailelere eklendi; otomatikleştirilebilenler koşuldu
 - [x] `faz-denetim` koşuldu; 🔴 bulgu kalmadı
@@ -52,7 +52,7 @@
   `BindSkillScripts`, `BindList`, `BindCircuitBreaker`, `BindHealth`,
   `BindRunRecording`, `BindObservability`, `BindOnlineEvaluation`,
   `TryReadBool`, artı yeni `BindCoreFields`) üç grubun hiçbirine temiz
-  oturmadı; bunlar `AgentPrismServiceCollectionExtensions.Binding.Core.cs`
+  oturmadı; bunlar `TraconServiceCollectionExtensions.Binding.Core.cs`
   adıyla dördüncü bir dosyaya toplandı. Skill'in kendi metni bunu açıkça
   serbest bırakıyor ("Dosya adları uygulama anında sorumluluk kümeleri
   ölçülerek daraltılabilir... Tek koşul, her dosyanın tek bir kayıt veya
@@ -74,7 +74,7 @@
   çağırır" iddiasına rağmen iki alanı (`DefaultTenantId`,
   `MaxParameterValueLength`) kendi gövdesinde bağladığını buldu — orijinal
   2662 satırlık dosyada da aynıydı, taşıma bunu miras almıştı. İki satır
-  `BindCoreFields(IConfiguration, AgentPrismOptions)` adıyla
+  `BindCoreFields(IConfiguration, TraconOptions)` adıyla
   `Binding.Core.cs`'e çıkarıldı; `Bind()` artık gerçekten yalnız
   yönlendirme yapıyor.
 - **Kayıt anlık görüntüsü kapısı (105.3), plandaki "taşıma öncesi üretilir"
@@ -121,25 +121,25 @@ yok — hiçbir metot imzası değişmedi), 3.6 (plan dışı public API yok), 3
 yüzeyi yok).
 
 Düzeltmeler sonrası dört kapı yeniden koşuldu (`dotnet build`, `dotnet test
-AgentPrism.slnx --no-build -maxcpucount:1`, `dotnet format
+Tracon.slnx --no-build -maxcpucount:1`, `dotnet format
 --verify-no-changes`) — hepsi yeşil, `git diff --stat -- 'src/*/PublicAPI.*.txt'`
 hâlâ boş.
 
 ## Gerçek Run Kanıtı
 
-`samples/AgentPrism.Api` PostgreSQL (`ap-pg` container) ile ayağa kaldırıldı:
+`samples/Tracon.Api` PostgreSQL (`ap-pg` container) ile ayağa kaldırıldı:
 
 ```text
-GET /agentprism/api/meta → 200
+GET /tracon/api/meta → 200
   {"version":"0.0.0-preview.0.402", ...,
    "storage":{"persistent":true,"agentDefinitionStore":"SqlAgentDefinitionStore",
    "runStore":"SqlRunStore","sessionStore":"SqlSessionStore","jobStore":"SqlJobStore",
    "jobWorkerEnabled":true}}
 
-POST /agentprism/api/agents/support/run (OpenAI, gerçek tool çağrısı) → SSE stream,
+POST /tracon/api/agents/support/run (OpenAI, gerçek tool çağrısı) → SSE stream,
   event: done, {"sessionId":null}
 
-GET /agentprism/api/runs?limit=1 → [{"id":"01a03b1d-...", "agentName":"support",
+GET /tracon/api/runs?limit=1 → [{"id":"01a03b1d-...", "agentName":"support",
   "status":"Completed", "usage":{"inputTokens":283,"outputTokens":16,"totalTokens":299}, ...}]
 ```
 
@@ -147,7 +147,7 @@ Host kalktı, PostgreSQL tabanlı store'lar (bölünmüş DI kaydından)
 çözüldü, gerçek bir `run` tamamlandı ve kalıcı depoya yazıldı. Manuel kabul
 case 1 ve 2 (bkz. faz dokümanının "Manuel Kabul Case'leri" tablosu) bununla
 ve mevcut `MT-PKG-080`/`MT-PKG-081` ile karşılanmış sayılır; case 3
-`AgentPrismOptionsBindingCoverageTests` ile zaten otomatik koşuluyordu (1951
+`TraconOptionsBindingCoverageTests` ile zaten otomatik koşuluyordu (1951
 yeşil test setinin içinde).
 
 ## Sonraki Faza Devir Notu
@@ -158,10 +158,10 @@ yeşil test setinin içinde).
   yeniden kullanılabilir bir desendir — ama derleyici muhtemelen `Bind*`
   gibi zaten ayrık metotlara sahip değil, tek büyük bir akış (`Compile`)
   olabilir; o zaman "bitişik dilim → adlandırılmış yardımcı metot" deseni
-  (bu fazda `AddAgentPrism` gövdesi için kullanıldı) daha çok işe yarar.
+  (bu fazda `AddTracon` gövdesi için kullanıldı) daha çok işe yarar.
 - Kayıt anlık görüntüsü deseni (`ServiceRegistrationSnapshotTests`,
   `ServiceType | Lifetime | Implementation` üçlüsü) benzer bir DI kökü
-  ayrıştırması gerekiyorsa (`AgentPrism.AspNetCore`, provider paketlerinin
+  ayrıştırması gerekiyorsa (`Tracon.AspNetCore`, provider paketlerinin
   `Use*` metotları) doğrudan kopyalanabilir; yalnız factory ayrımını
   `Method.Name`'e genişletmeyi TEKRAR DENEME — bu fazda ölçülüp reddedildi
   (bkz. Denetim Bulguları #2).

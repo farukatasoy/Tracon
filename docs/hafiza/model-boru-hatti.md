@@ -31,12 +31,12 @@ Yeni bir halka eklerken tek soru sudur: **her model cagrisini gormesi gerekiyor 
 - **🚨 Boru hattinin TAMAMINI `ModelProviderRegistry.CreateChatClient` kurar; `IModelProvider` HAM istemci dondurur** (K-320). Faz 48'e kadar dort saglayici fabrikasi `UseFunctionInvocation()` + `UseOpenTelemetry()` zincirini KENDI icinde kuruyordu ve defterin sardigi hicbir halka tool cagri dongusunun turlarini goremiyordu. Bugunku sira (distan ice):
 - **🚨 Bir `IChatClient` dekoratoru, ic istemciden gelen nesneyi YERINDE DEGISTIRMEZ.** `ChatMessage`, `ChatResponseUpdate` ve `Contents` listeleri `Clone()` ile kopyalanir. Faz 48'de bir test bunu yakaladi: onceden kurulmus bir sahte istemci ayni cerceve orneklerini yeniden veriyordu ve yerinde maskeleme o ornekleri kalici olarak bozdu; bir sonraki test yanlis veriyle kostu. Onbellekleyen bir gercek istemci ayni davranisi uretir.
 - **🚨 Bir mesajin metnini degistiren dekorator `RawRepresentation`'i DUSURMELIDIR** (`null` atar). Faz 26'da olculdu: Anthropic adaptoru `ChatOptions.RawRepresentationFactory` ile verilen ham nesnenin uzerine YAZMIYOR. Ham gosterim tasinirsa degisiklik sessizce etkisiz kalir ve eski metin aga cikar.
-- **Engelleme kararı devre kesiciye hata olarak GITMEZ.** `CircuitBreakingChatClient` `AgentPrismContentBlockedException`'i ayrica ayiklar (K-322); guard dongunun icinde, devre kesici disinda oldugu icin bu ayiklama zorunludur.
+- **Engelleme kararı devre kesiciye hata olarak GITMEZ.** `CircuitBreakingChatClient` `TraconContentBlockedException`'i ayrica ayiklar (K-322); guard dongunun icinde, devre kesici disinda oldugu icin bu ayiklama zorunludur.
 - **🚨 Gercek bir baglanti hatasi tek bir istisna DEGIL, IC ICE bir ZINCIRDIR; en disi asla tahmin ettigin tip degildir.** Olculdu: dinlenmeyen bir porta baglanmak `AggregateException` → `ClientResultException` → `HttpRequestException` → `SocketException` uretir (4 deneme boyunca tekrarlanir). Kural: siniflandirici ZINCIRIN TAMAMINI gezmelidir (`AggregateException.InnerExceptions` + `InnerException`, ozyinelemeli). Olcumun tamami: [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
 - **Sinif adi eslemesi TEK BASINA yetmez — mesaj metni sinif kararini DEGISTIRIR.** `ClientResultException` gercek bir HTTP yaniti ALINDIYSA `"HTTP {kod} (...)"` bicimindedir; hic yanit alinamadiysa (baglanti reddi) HTTP onekini TASIMAZ. Bu yuzden durum-metni denetimi ONCE, tip-tabanli "baglanti hatasi" varsayimi SONRA calismalidir — aksi hâlde bir 401/403 yanlislikla yeniden denenir. Olcum: [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
 - **Bir istisna siniflandiricisi yazarken `InnerException`'i KONTROL ETMEDEN "tip eslesmedi → retry yok" deme.** `FallbackRetryClassifier`'in ilk hâli yalniz en distaki `AggregateException`'a bakti; canli bir kesintide ILK `FailureThreshold` istegin HEPSI kullaniciya ciplak hata olarak dustu. Duzeltme: `Flatten(exception)` (kendisi + `InnerException` zinciri + her `AggregateException` kolu) uzerinde gez, HER adimda ayni kurali uygula. Vaka: [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
-- **🚨 Onbelleklenen bir yanit KENDI kullanim/maliyet bilgisini tasir; isabet onu OLDUGU GIBI geri verirse `run` faturalanmamis token'i IKINCI kez sayar** (2026-08-22, Faz 81, gercek `samples/AgentPrism.Api` kosumunda olculdu — otomatik testler sahte saglayicinin varsayilan olarak kullanim bilgisi URETMEMESI yuzunden yakalamadi). `DistributedCachingChatClient`'in `store`'a yazdigi `ChatResponse`, orijinal cagrinin `Usage` ozelligini VE her mesajin `UsageContent`'ini AYNEN tasir. Bir onbellek dekoratoru yazarken "isabet maliyet yazmaz" iddiasi bir `chat` span'inin EKSIKLIGINE guvenemez — donen nesnenin kendisinden KULLANIM BILGISI SIYRILMALIDIR (`AgentPrismResponseCachingChatClient.StripUsage` deseni: `Usage = null` + mesaj/`update` icindeki `UsageContent` ogelerini filtrele). Sadece DONDURULEN nesnede yapilir, `store`'a yazilan bayt dizisi degismez.
-- **🚨 MEAI 10.9.0 kendi yedek zincirini getirdi; bizimki Faz 62'dendir ve DAHA GENISTIR.** Yukseltme olcumu (2026-08-21): `RoutingChatClient` (soyut) · `FailoverChatClient` · `OrderedFailoverChatClient` · `SemanticRoutingChatClient` · `RoutingContext` · `FailoverChatClientAttempt` eklendi. AgentPrism'inki yalniz "sirayla dene" degildir — devre kesici, on ucus denetimi, hata siniflandirmasi ve atif kaydiyla birlesiktir. **Onun uzerine gecmek bir KARAR isidir, bir yukseltme isi degil**; oneriden once `ModelBinding.Fallbacks`'in sozlesmesini ve K-320'nin halka sirasini oku.
+- **🚨 Onbelleklenen bir yanit KENDI kullanim/maliyet bilgisini tasir; isabet onu OLDUGU GIBI geri verirse `run` faturalanmamis token'i IKINCI kez sayar** (2026-08-22, Faz 81, gercek `samples/Tracon.Api` kosumunda olculdu — otomatik testler sahte saglayicinin varsayilan olarak kullanim bilgisi URETMEMESI yuzunden yakalamadi). `DistributedCachingChatClient`'in `store`'a yazdigi `ChatResponse`, orijinal cagrinin `Usage` ozelligini VE her mesajin `UsageContent`'ini AYNEN tasir. Bir onbellek dekoratoru yazarken "isabet maliyet yazmaz" iddiasi bir `chat` span'inin EKSIKLIGINE guvenemez — donen nesnenin kendisinden KULLANIM BILGISI SIYRILMALIDIR (`TraconResponseCachingChatClient.StripUsage` deseni: `Usage = null` + mesaj/`update` icindeki `UsageContent` ogelerini filtrele). Sadece DONDURULEN nesnede yapilir, `store`'a yazilan bayt dizisi degismez.
+- **🚨 MEAI 10.9.0 kendi yedek zincirini getirdi; bizimki Faz 62'dendir ve DAHA GENISTIR.** Yukseltme olcumu (2026-08-21): `RoutingChatClient` (soyut) · `FailoverChatClient` · `OrderedFailoverChatClient` · `SemanticRoutingChatClient` · `RoutingContext` · `FailoverChatClientAttempt` eklendi. Tracon'inki yalniz "sirayla dene" degildir — devre kesici, on ucus denetimi, hata siniflandirmasi ve atif kaydiyla birlesiktir. **Onun uzerine gecmek bir KARAR isidir, bir yukseltme isi degil**; oneriden once `ModelBinding.Fallbacks`'in sozlesmesini ve K-320'nin halka sirasini oku.
 
 
 ## `ChatOptions.ModelId` yedek bagliya SIZAR (Faz 113, canli kosumda bulundu)
@@ -47,7 +47,7 @@ Yeni bir halka eklerken tek soru sudur: **her model cagrisini gormesi gerekiyor 
   yedek bagliya gecerken bu AYNI `options` nesnesini degistirmeden geciriyordu
   — yedegin KENDI `ModelFallback.Model` adi (bilerek birincilden FARKLI
   olabilir, bu tipin butun amaci budur) hic devreye girmiyordu. Gercek OpenAI
-  anahtariyla `samples/AgentPrism.Api`'de olculdu: birincili olu bir porta
+  anahtariyla `samples/Tracon.Api`'de olculdu: birincili olu bir porta
   isaret eden, modeli `flaky-model` olan bir agent, modeli `gpt-5.4-mini` olan
   gercek `openai` yedegine dustu ama giden istek yine `flaky-model` adini
   tasidi — sunucu `HTTP 404 (model_not_found)` dondurdu ve zincir TAMAMEN
@@ -68,7 +68,7 @@ Yeni bir halka eklerken tek soru sudur: **her model cagrisini gormesi gerekiyor 
 
 ## Dispose sahipligi ve cift sarmalamanin OLCULEN hasari (Faz 99)
 
-- **AgentPrism `IModelProvider.CreateChatClient`'in donusunu hicbir zaman dispose
+- **Tracon `IModelProvider.CreateChatClient`'in donusunu hicbir zaman dispose
   etmez.** Calisma anı probuyla olculdu: derlenmis agent
   `Microsoft.Agents.AI.ChatClientAgent`'tir ve ne `IDisposable` ne
   `IAsyncDisposable` uygular; bir `run` sonrasi ham istemcinin dispose sayisi
@@ -85,5 +85,5 @@ Yeni bir halka eklerken tek soru sudur: **her model cagrisini gormesi gerekiyor 
   kurulumda tool sonucu modele **girerken** denetlenir; yanlis kurulumda ic
   dongu onu guard'in ALTINDAN modele besler — K-320'nin kapattigi
   prompt-injection yolu tam olarak budur. Regresyon:
-  `tests/AgentPrism.Core.UnitTests/Models/PipelineOwnershipTests.cs` — iddia
+  `tests/Tracon.Core.UnitTests/Models/PipelineOwnershipTests.cs` — iddia
   guard'in gordugu YONDUR, boru hattindaki tip sayisi degil.

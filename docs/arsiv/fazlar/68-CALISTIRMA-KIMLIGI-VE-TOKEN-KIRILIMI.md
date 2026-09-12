@@ -3,7 +3,7 @@
 > **Durum:** ✅ Tamamlandı (2026-08-19)
 > **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-111**, **F-112**
 > **Önkoşul:** [Faz 20](20-MALIYET-VE-GOSTERGE-PANELI.md) — maliyet hesabı ve gösterge paneli · [Faz 41](41-KIRACI-YALITIMININ-ZORLANMASI.md) — kiracı yalıtımı sözleşmesi
-> **Paketler:** `AgentPrism.Abstractions`, `AgentPrism.Core`, `AgentPrism.Sql.Shared`, `AgentPrism.PostgreSql`, `AgentPrism.SqlServer`, `AgentPrism.Sqlite`, `AgentPrism.AspNetCore`, `AgentPrism.UI`
+> **Paketler:** `Tracon.Abstractions`, `Tracon.Core`, `Tracon.Sql.Shared`, `Tracon.PostgreSql`, `Tracon.SqlServer`, `Tracon.Sqlite`, `Tracon.AspNetCore`, `Tracon.UI`
 > **Yeni paket:** Yok · **Migration:** **gerekli — üç set** (`runs` tablosuna sütunlar). Numara uygulama anında alınır (K-178)
 > **Public API:** **büyüyor — dört `sealed record` birden.** `RunRecord`, `RunStartInfo`, `RunUsage`, `RunCost` ve iki istatistik tipi. `PublicAPI.Shipped.txt` bugün **boş** (ölçüldü: 16 satır, hepsi `#nullable enable`) — şimdi bedava, Faz 7'den sonra F-50 dışında en pahalı değişiklik
 > **Site etkisi:** `concepts/runs.md`, `guides/observability.md`, `reference/configuration.md`, `concepts/governance.md`
@@ -28,7 +28,7 @@
 
 ## Amaç
 
-AgentPrism bugün "hangi kiracı ne harcadı" sorusunu cevaplıyor. "Hangi **kullanıcı**" ve "hangi **iş**" sorularını cevaplayamıyor. Aynı şekilde token sayacı üç alandır; prompt caching'in kazancı ve reasoning token'ının payı görünmüyor. Bu faz ikisini birlikte kapatır — ikisi de aynı `runs` satırına yazılır ve ayrı planlanırsa aynı tabloya iki migration gider.
+Tracon bugün "hangi kiracı ne harcadı" sorusunu cevaplıyor. "Hangi **kullanıcı**" ve "hangi **iş**" sorularını cevaplayamıyor. Aynı şekilde token sayacı üç alandır; prompt caching'in kazancı ve reasoning token'ının payı görünmüyor. Bu faz ikisini birlikte kapatır — ikisi de aynı `runs` satırına yazılır ve ayrı planlanırsa aynı tabloya iki migration gider.
 
 ## Bitiş Ölçütleri (DoD)
 
@@ -57,7 +57,7 @@ Hepsi gerçek ölçümle karşılandı; kanıtlar örnek uygulamada **gerçek Op
       SQLite 570 · PostgreSQL 1114 (bellek içi dâhil) · SQL Server 556, hepsi yeşil
 - [x] Dört doğrulama kapısı sıfır uyarı verir — build ✅ (0 uyarı, 0 hata) · test **4248/0** ✅ ·
       pack ✅ (0 hata, 0 uyarı) · format ✅
-- [x] `samples/AgentPrism.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı
+- [x] `samples/Tracon.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı
 - [x] `secret` taraması boş döndü (eşleşmeler faz öncesinden gelen yer tutucu
       yorum satırları; gerçek değer yok)
 - [x] Manuel kabul case'leri `docs/manuel-test/12-GOZLEMLENEBILIRLIK-MALIYET.md`
@@ -82,7 +82,7 @@ bağımlılık **alınmadı** — kırılım çubuğu var olan bileşenlerle çi
 
 ```bash
 # Kullanıcı ve etiket kırılımı
-curl -s "http://localhost:5080/agentprism/api/stats" | jq '.byUser, .byLabel'
+curl -s "http://localhost:5080/tracon/api/stats" | jq '.byUser, .byLabel'
 # byUser  : ada 2 run / 108 token · grace 1 run / 47 token
 # byLabel : team=payments 2 · team=billing 1 · ticket=OPS-1 1
 #           (toplam 4 > 3 atıflı run — etiket kümesi run'ları BÖLÜMLEMEZ)
@@ -92,7 +92,7 @@ curl -s "http://localhost:5080/agentprism/api/stats" | jq '.byUser, .byLabel'
 ?label=team:payments -> 2 · ?label=team:billing -> 1 · ?label=team -> 3
 
 # Cache token'ı gerçekten ayrı yazılmış mı
-curl -s "http://localhost:5080/agentprism/api/runs?take=1" | jq '.[0].usage'
+curl -s "http://localhost:5080/tracon/api/runs?take=1" | jq '.[0].usage'
 # { inputTokens: 39, outputTokens: 20, totalTokens: 59,
 #   cachedInputTokens: 0, reasoningTokens: 0,        <- sağlayıcı BİLDİRDİ (0 bir ölçümdür)
 #   audioInputTokens: null, audioOutputTokens: null } <- sağlayıcı HİÇ bildirmedi
@@ -133,7 +133,7 @@ ayrı arıza olarak ayrık kaldı.
 
 > **Kapsam dışı bırakıldı, gerekçesiyle:** Faz 64'ün veri konusu silme akışı
 > `runs.user_id` üzerinden **eşleşmez**. `IDataSubjectResolver`'ın kendi
-> dokümanı "subject id'yi AgentPrism'in satırlarında saklamak" alternatifini
+> dokümanı "subject id'yi Tracon'in satırlarında saklamak" alternatifini
 > açıkça reddediyor; hangi `user_id`'nin hangi veri konusuna ait olduğunu yalnız
 > tüketici bilir. Çözüm yolu `docs-site/concepts/governance.md`'ye yazıldı:
 > resolver `GET /api/runs?userId={id}&includeChildren=true` ile `run` kimliklerini
@@ -161,9 +161,9 @@ ayrı arıza olarak ayrık kaldı.
 
 | # | Seviye | Bulgu | Sonuç |
 |---|---|---|---|
-| 1 | 🔴 | `cached_input_cost` **çalışma anındaki** toplamların hiçbirinde yoktu: kota muhasebesi, `agentprism.run.cost` metriği, webhook özeti, workflow kotası. Maliyet tavanı olan bir kiracı tavanı **aşabilirdi** | **Düzeltildi.** `RunCost.Total()`/`RunTreeCost.Total()` eklendi ve elle yazılmış iki terimli her toplam ona bağlandı. Sınıf taraması `ModelRunJudge`, `OnlineEvalSummaryService` ve arayüzdeki `run-comparison.tsx`'i de yakaladı (denetçinin 🟢#10'u) |
+| 1 | 🔴 | `cached_input_cost` **çalışma anındaki** toplamların hiçbirinde yoktu: kota muhasebesi, `tracon.run.cost` metriği, webhook özeti, workflow kotası. Maliyet tavanı olan bir kiracı tavanı **aşabilirdi** | **Düzeltildi.** `RunCost.Total()`/`RunTreeCost.Total()` eklendi ve elle yazılmış iki terimli her toplam ona bağlandı. Sınıf taraması `ModelRunJudge`, `OnlineEvalSummaryService` ve arayüzdeki `run-comparison.tsx`'i de yakaladı (denetçinin 🟢#10'u) |
 | 2 | 🔴 | Aynı eksiklik **bellek içi** store'un zaman serisi ve deney sonuçlarındaydı; üç SQL dialektinde ise düzeltilmişti → **aynı sorgu store'a göre farklı yanıt** veriyordu | **Düzeltildi.** İkisi de `RunCost.Total()` kullanıyor. Kapı: `Every_cost_total_includes_the_cache_charge` — özet, zaman serisi, deney sonucu ve ağaç toplamını **tek testte** ve dört koşumda birden iddia eder |
-| 3 | 🔴 | Katalogla fiyatlanan bir modele cache oranı **hiçbir yoldan verilemiyordu**: dört sağlayıcı uzantısı anahtarı okumuyordu ve katalog fiyatı `AgentPrism:Pricing`'i eziyor. `docs-site` bu anahtarın çalıştığını söylüyordu | **Düzeltildi.** `OpenAI`/`Anthropic`/`Google`/`Azure` uzantıları `CachedInputCostPerMillionTokens`'ı okuyor |
+| 3 | 🔴 | Katalogla fiyatlanan bir modele cache oranı **hiçbir yoldan verilemiyordu**: dört sağlayıcı uzantısı anahtarı okumuyordu ve katalog fiyatı `Tracon:Pricing`'i eziyor. `docs-site` bu anahtarın çalıştığını söylüyordu | **Düzeltildi.** `OpenAI`/`Anthropic`/`Google`/`Azure` uzantıları `CachedInputCostPerMillionTokens`'ı okuyor |
 | 4 | 🔴 | Workflow yolu attribution'ı **doğrulamadan, dondurmadan, korumasız** okuyordu: tüketicinin implementasyonu fırlatırsa workflow `run`'ı ölürdü; 200 karakterden uzun `userId` SQL Server insert'ini patlatıp **workflow'un tüm kaydını sessizce kaybettirirdi** | **Düzeltildi.** Garantiler `RunAttributionReader`'a çıkarıldı; agent ve workflow yolu aynı uygulamayı paylaşıyor |
 | 5 | 🟡 | Faz dokümanı hâlâ `?groupBy=user` diyordu | **Düzeltildi** — DoD, `endpoint` tablosu, manuel case ve doğrulama komutu gerçeğe hizalandı (K-485) |
 | 6 | 🟡 | Cache oranı tanımlıyken sağlayıcı bildirmezse `CachedInputCost` `0` yazılıyordu — fazın kendi "sıfır bir iddiadır" kuralına aykırı | **Düzeltildi** + iki test (`A_defined_rate_produces_no_cache_charge_when_the_provider_reported_nothing`, `A_reported_zero_cache_count_does_produce_a_zero_charge`) |

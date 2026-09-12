@@ -3,10 +3,10 @@
 > **Durum:** ✅ Tamamlandı (2026-09-02)
 > **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) — **F-178** (job/kuyruk metrikleri yarısı; model deneme telemetrisi yarısı adaylıkta kalır)
 > **Önkoşul:** [Faz 129](129-IS-KUYRUGU-LANELERI.md) — `lane` kimliği olmadan metrik etiketlenemez
-> **Paketler:** `AgentPrism.Abstractions`, `.Core`, `.Sql.Shared`, `.PostgreSql`, `.SqlServer`, `.Sqlite`, `.Testing.Contracts.Xunit`
+> **Paketler:** `Tracon.Abstractions`, `.Core`, `.Sql.Shared`, `.PostgreSql`, `.SqlServer`, `.Sqlite`, `.Testing.Contracts.Xunit`
 > **Yeni paket:** Yok · **Migration:** **Yok** — ölçüldü: derinlik sorgusu Faz 129'un `jobs_claim_idx (lane, status, scheduled_for) WHERE status IN (0,1,2)` index'i tarafından zaten kapsanıyor
 > **Public API:** büyüyor — `IJobStore`'a bir aggregate metot, iki options alanı, bir `record`. `wc -l src/*/PublicAPI.Shipped.txt` → her dosya 1 satır; shipped giriş **sıfır**, bugün eklemek hâlâ ucuz
-> **Tüketici yüzeyi:** `docs-site/`: `guides/observability.md` (metrik **ve** etiket tabloları), `guides/background-work.md`, `reference/configuration.md`, `guides/write-your-own-store.md` (yeni store metodu) · sevk edilen: `IJobStore` XML dokümanı, `AgentPrismDiagnostics` sabitleri
+> **Tüketici yüzeyi:** `docs-site/`: `guides/observability.md` (metrik **ve** etiket tabloları), `guides/background-work.md`, `reference/configuration.md`, `guides/write-your-own-store.md` (yeni store metodu) · sevk edilen: `IJobStore` XML dokümanı, `TraconDiagnostics` sabitleri
 > **Manuel test alanı:** [`docs/manuel-test/16-IS-KUYRUGU-VE-ZAMANLAMA.md`](../../manuel-test/16-IS-KUYRUGU-VE-ZAMANLAMA.md) — 🚨 **Önce 133.0'ı uygula**, bütçe 97 bayt boş
 
 ---
@@ -28,11 +28,11 @@
 
 ## Amaç
 
-Faz 129 `lane`'i sevk etti: iş artık ayrılabiliyor ve `lane` başına eşzamanlılık alabiliyor. Ama **hiçbiri ölçülmüyor.** `AgentPrismMetrics` on enstrüman taşıyor ve **hiçbiri job hakkında değil**. Operatör şu üç soruyu bugün yanıtlayamaz: - Hangi `lane`'de iş birikiyor? - Bir `lane`'in eşzamanlılık bütçesi dar mı, geniş mi?
+Faz 129 `lane`'i sevk etti: iş artık ayrılabiliyor ve `lane` başına eşzamanlılık alabiliyor. Ama **hiçbiri ölçülmüyor.** `TraconMetrics` on enstrüman taşıyor ve **hiçbiri job hakkında değil**. Operatör şu üç soruyu bugün yanıtlayamaz: - Hangi `lane`'de iş birikiyor? - Bir `lane`'in eşzamanlılık bütçesi dar mı, geniş mi?
 
 ## Bitiş Ölçütleri (DoD)
 
-- [x] Ayar yapılmayan kurulumda `agentprism.job.executions` ve `agentprism.job.duration` yazılır; gauge **yazılmaz** (case 1)
+- [x] Ayar yapılmayan kurulumda `tracon.job.executions` ve `tracon.job.duration` yazılır; gauge **yazılmaz** (case 1)
 - [x] `EnableJobQueueDepthGauge: true` iken derinlik `lane` × `status` ile raporlanır (case 2)
 - [x] `RefreshInterval` içinde ikinci scrape veritabanına gitmez (case 3)
 - [x] `retry` bırakması sayaca girmez; yalnız terminal durum sayılır (case 4)
@@ -41,19 +41,19 @@ Faz 129 `lane`'i sevk etti: iş artık ayrılabiliyor ve `lane` başına eşzama
 - [x] `JobStoreContract` dört koşumun dördünde de yeşil
 - [x] Metrik yazımı hata verse bile job tamamlanır
 - [x] Dört doğrulama kapısı sıfır uyarı verir
-- [x] `samples/AgentPrism.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı
+- [x] `samples/Tracon.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı
 - [x] `secret` taraması boş döndü
 - [x] **133.0 uygulandı:** `dokuman-bakim.py:177` `2_250_000`'e kalibre edildi, `--denetle` `docs/manuel-test` için `ok` döndürüyor
 - [x] Manuel kabul case'leri `docs/manuel-test/16-IS-KUYRUGU-VE-ZAMANLAMA.md` içine eklendi; otomatikleştirilebilenler koşuldu
 - [x] `faz-denetim` koşuldu; 🔴 bulgu kalmadı
 - [x] `docs-site/` güncellendi — `observability.md`'nin **hem** metrik **hem** etiket tablosu; `npm run build` + `check-links.mjs` temiz
-- [x] 🚨 `dotnet test AgentPrism.slnx` TAM log dosyasından teyit edildi — `| tail` ile **değil** (Faz 130 devir notu)
+- [x] 🚨 `dotnet test Tracon.slnx` TAM log dosyasından teyit edildi — `| tail` ile **değil** (Faz 130 devir notu)
 
 ### Doğrulama komutları
 
 ```bash
-# Metrik çıktısı (samples/AgentPrism.Api OTel konsol exporter'ı ile)
-grep -E "agentprism\.job\.(executions|duration|queue\.depth)" <otel-log>
+# Metrik çıktısı (samples/Tracon.Api OTel konsol exporter'ı ile)
+grep -E "tracon\.job\.(executions|duration|queue\.depth)" <otel-log>
 
 # Derinlik sorgusunun index kullanımı
 psql -c "EXPLAIN ANALYZE <GetQueueDepth sorgusu>"
@@ -74,12 +74,12 @@ yorumu da zaten bunu yazıyordu (`olculen/0.85 = 2.05M olurdu`). 2 250 000
 yalnız %13,3 boşluk bırakır ve DoD'nin *"`--denetle` `ok` döndürüyor"*
 satırını sağlayamazdı. 1 949 903 / 0,85 = 2 294 003 → **2 300 000**.
 
-**2. `AgentPrismMetrics` kurucusu ikinci bir isteğe bağlı parametre aldı.**
-Plan kardinalite muhafızını `AgentPrismMetrics`'in içine koyuyordu ama sınırın
+**2. `TraconMetrics` kurucusu ikinci bir isteğe bağlı parametre aldı.**
+Plan kardinalite muhafızını `TraconMetrics`'in içine koyuyordu ama sınırın
 (`MaxJobLaneCardinality`) oraya nasıl ulaşacağını söylemiyordu. `RecordJob`'a
 parametre olarak taşımak her çağıranı sınırdan haberdar etmeyi gerektirirdi;
-bunun yerine kurucu `IOptionsMonitor<AgentPrismOptions>?` alır —
-`QuotaUsageObserver`'ın deseni, ve `new AgentPrismMetrics()` çağıran mevcut
+bunun yerine kurucu `IOptionsMonitor<TraconOptions>?` alır —
+`QuotaUsageObserver`'ın deseni, ve `new TraconMetrics()` çağıran mevcut
 testler bozulmadan çalışmaya devam eder. Kök tip enjekte edilir, iç içe tip
 **değil** (`docs/hafiza/olcum-kota-ve-secenekler.md`'nin standalone-options
 tuzağı).
@@ -92,8 +92,8 @@ terminal çıktı ve ikisi de sayılmalıydı, yoksa sayaç işi sessizce kaybed
   çıkar, `CompleteAsync` **çağrılmaz** (durum zaten `Cancelled`'dır).
 
 **4. `InMemoryJobStore.GetQueueDepthAsync` `[TenantAgnostic]` işareti
-ALMADI.** Öznitelik `AgentPrism.Sql.Shared` içinde `internal`'dır (K-176 linked
-source) ve `AgentPrism.Core`'dan erişilemez — `CS0246`. Gerekçe XML yorumunda
+ALMADI.** Öznitelik `Tracon.Sql.Shared` içinde `internal`'dır (K-176 linked
+source) ve `Tracon.Core`'dan erişilemez — `CS0246`. Gerekçe XML yorumunda
 duruyor; kapı olan `TenantCoverageTests` zaten yalnız SQL sağlayıcılarının
 `Stores/` ağacını tarar ve `SqlJobStore` işareti taşır.
 
@@ -148,14 +148,14 @@ taşındı — `sqlite.md`'nin Faz 36'daki emsali. İçerik silinmedi.
 Sayaç `lane` etiketini `ResolveLaneTag`'ten geçiriyordu, gauge ham
 `depth.Lane`'i yazıyordu. Sevk edilen XML (*"Once a process has seen
 `MaxJobLaneCardinality` distinct lanes, every further lane is written as
-`other`"*) ve site tablosu (`agentprism.job.lane` · **Every job signal**)
+`other`"*) ve site tablosu (`tracon.job.lane` · **Every job signal**)
 muhafızın her job sinyali için geçerli olduğunu söylüyordu — **yanlıştı**.
 Kullanıcı başına `lane` üreten bir tüketicide gauge her scrape'te açık iş
 sayısı kadar seri yayardı; muhafızın var olma sebebi tam olarak budur.
 
-Düzeltme: `AgentPrismMetrics.ResolveLaneTag` `private` → `internal`,
-`JobQueueDepthObserver` **aynı** `AgentPrismMetrics` örneğini alır (DI kaydı
-`GetRequiredService<AgentPrismMetrics>()` geçirir). Ayrı bir muhafız örneği
+Düzeltme: `TraconMetrics.ResolveLaneTag` `private` → `internal`,
+`JobQueueDepthObserver` **aynı** `TraconMetrics` örneğini alır (DI kaydı
+`GetRequiredService<TraconMetrics>()` geçirir). Ayrı bir muhafız örneği
 **kasıtlı olarak reddedildi**: iki küme, aynı `lane`'i bir enstrümanda adıyla
 diğerinde `other` ile yazardı — muhafızın önlemeye çalıştığı okunamaz serinin
 ta kendisi. Kapı: `JobQueueDepthGaugeTests.The_gauge_applies_the_same_lane_cardinality_guard_as_the_counter`.
@@ -212,14 +212,14 @@ gerekmediği doğrulandı.
 
 | Paket | Sonuç |
 |---|---|
-| `AgentPrism.Core.UnitTests` | 2273/2273 ✅ |
-| `AgentPrism.Sql.Shared.UnitTests` | 20/20 ✅ |
-| `AgentPrism.Sqlite.IntegrationTests` | 641/641 ✅ |
-| `AgentPrism.PostgreSql.IntegrationTests` | 697/697 ✅ |
-| `AgentPrism.SqlServer.IntegrationTests` | 632/632 ✅ (627 → +5, Sapma 6) |
-| `AgentPrism.AspNetCore.FunctionalTests` — `JobMetricEndToEndTests` | 2/2 ✅ |
+| `Tracon.Core.UnitTests` | 2273/2273 ✅ |
+| `Tracon.Sql.Shared.UnitTests` | 20/20 ✅ |
+| `Tracon.Sqlite.IntegrationTests` | 641/641 ✅ |
+| `Tracon.PostgreSql.IntegrationTests` | 697/697 ✅ |
+| `Tracon.SqlServer.IntegrationTests` | 632/632 ✅ (627 → +5, Sapma 6) |
+| `Tracon.AspNetCore.FunctionalTests` — `JobMetricEndToEndTests` | 2/2 ✅ |
 
-**Örnek uygulama ile gerçek koşum.** `samples/AgentPrism.Api`,
+**Örnek uygulama ile gerçek koşum.** `samples/Tracon.Api`,
 `EnableJobQueueDepthGauge=true` ve `PollInterval=1s` ile başlatıldı; iş HTTP
 üzerinden kuyruğa atıldı (`PUT /api/schedules/faz133-probe` →
 `POST .../trigger`, `lane: "media"`, var olmayan bir agent hedefleniyor):
@@ -244,13 +244,13 @@ test yayılan ölçümü kanıtlar.
 
 **Fonksiyonel testin ayırt ediciliği ölçüldü.** `RecordJobMetric` geçici olarak
 erken dönecek şekilde değiştirildi; `JobMetricEndToEndTests` **kırmızı** oldu
-(`TimeoutException: No 'agentprism.job.executions' measurement was published`),
-düzeltme geri alınınca yeşile döndü. Planın *"`AgentPrismMetrics?` eklemek
+(`TimeoutException: No 'tracon.job.executions' measurement was published`),
+düzeltme geri alınınca yeşile döndü. Planın *"`TraconMetrics?` eklemek
 hiçbir hata üretmez"* uyarısının gerçekten kapatıldığı böyle kanıtlandı.
 
 ## Sonraki Faza Devir Notu
 
-- **`agentprism.job.duration` bir DENEMEYİ ölçer, işin ömrünü değil.** Bir işin
+- **`tracon.job.duration` bir DENEMEYİ ölçer, işin ömrünü değil.** Bir işin
   toplam ömrü (ilk kiralamadan nihai duruma) hiçbir yerde ölçülmüyor. İkisi
   farklı sorulardır ve ikincisi bir gösterge panelinde daha sık istenir; ama
   onu yazmak `jobs` satırına yeni bir sütun ya da `StartedAt`'e dayanan bir

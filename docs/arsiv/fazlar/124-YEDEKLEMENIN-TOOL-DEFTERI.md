@@ -3,7 +3,7 @@
 > **Durum:** ✅ Tamamlandı (2026-08-31)
 > **Kaynak:** [kesif/2026-08-31-tuketici-raporu-faz-adaylari.md](../../kesif/2026-08-31-tuketici-raporu-faz-adaylari.md) · **K-1** (kusur kanalından faz kanalına geçti)
 > **Önkoşul:** [Faz 62](62-MODEL-YEDEK-ZINCIRI-VE-ON-UCUS-DENETIMI.md) (yedek zinciri) ve [Faz 87](87-KESILEN-ISIN-DEVAMI.md) (kesinti devamı, `RecordedToolPlayback`) — ikisi de arşivde; yalnız aşağıdaki grep'lerle okunur
-> **Paketler:** `AgentPrism.Core` (`Models/FallbackChatClient.cs`, `Replay/RecordedToolPlayback.cs`)
+> **Paketler:** `Tracon.Core` (`Models/FallbackChatClient.cs`, `Replay/RecordedToolPlayback.cs`)
 > **Yeni paket:** Yok · **Migration:** Yok — defter turun ömrü kadar yaşar, hiçbir yere yazılmaz
 > **Public API:** Büyümüyor. Dokunulan iki tip de `internal`. Bu, fazın en ucuz tarafıdır: `wc -l src/*/PublicAPI.Shipped.txt` toplamı **17** satır (K-603) ve bu faz o sayıya bir satır bile eklemez
 > **Tüketici yüzeyi:** `docs-site/src/content/docs/guides/reliability.md` (yedekleme bölümü), `concepts/tools.md` · sevk edilen: `FallbackChatClient` XML `<remarks>`'ı — 🚨 bugün **yanlış** bir davranışı doğru diye ilan ediyor
@@ -39,7 +39,7 @@ Bir sağlayıcı yedeklemesi, birincil sağlayıcıda **zaten çalışmış** bi
 - [x] Sınıf taraması yapıldı; altı yolun her biri için sonuç bu dokümana yazıldı (kapalı / düzeltildi / gerekçeyle devredildi)
 - [x] `FallbackChatClient` XML `<remarks>`'ı gerçek davranışı anlatıyor
 - [x] Dört doğrulama kapısı sıfır uyarı verir
-- [x] `samples/AgentPrism.Api` yerine tam DI + HTTP + gerçek `FunctionInvokingChatClient` üzerinden koşan `FallbackToolSideEffectTests` ile aynı kanıt elde edildi (bkz. Plandan Sapmalar)
+- [x] `samples/Tracon.Api` yerine tam DI + HTTP + gerçek `FunctionInvokingChatClient` üzerinden koşan `FallbackToolSideEffectTests` ile aynı kanıt elde edildi (bkz. Plandan Sapmalar)
 - [x] `secret` taraması boş döndü
 - [x] Manuel kabul case'leri `docs/manuel-test/27-MODEL-YEDEK-VE-ON-UCUS.md` içine eklendi (MT-MYU-017); otomatikleştirilmiş kanıta yönlendirildi (MT-MYU-014 emsali)
 - [x] `faz-denetim` koşuldu; 🔴 bulgu kalmadı
@@ -49,10 +49,10 @@ Bir sağlayıcı yedeklemesi, birincil sağlayıcıda **zaten çalışmış** bi
 
 ```bash
 # Defterin gerçekten devrede olduğu
-./artifacts/bin/AgentPrism.Core.UnitTests/release/AgentPrism.Core.UnitTests --filter-method "*FallbackToolLedger*"
+./artifacts/bin/Tracon.Core.UnitTests/release/Tracon.Core.UnitTests --filter-method "*FallbackToolLedger*"
 
 # Sınırı geçen davranış
-./artifacts/bin/AgentPrism.AspNetCore.FunctionalTests/release/AgentPrism.AspNetCore.FunctionalTests --filter-method "*FallbackToolSideEffect*"
+./artifacts/bin/Tracon.AspNetCore.FunctionalTests/release/Tracon.AspNetCore.FunctionalTests --filter-method "*FallbackToolSideEffect*"
 
 # Kapılar
 python3 scripts/kapi.py kapanis --taban <faz öncesi commit>
@@ -82,18 +82,18 @@ python3 scripts/kapi.py kapanis --taban <faz öncesi commit>
   `.A_primary_that_never_falls_back_still_runs_a_repeated_identical_call_twice`,
   `FallbackToolSideEffectTests.A_primary_that_never_fails_over_still_runs_a_repeated_identical_call_twice`
   (gerçek HTTP + DI + `FunctionInvokingChatClient`).
-- **Örnek uygulama (`samples/AgentPrism.Api`) yerine gerçek HTTP+DI+
+- **Örnek uygulama (`samples/Tracon.Api`) yerine gerçek HTTP+DI+
   `FunctionInvokingChatClient` üzerinden koşan fonksiyonel testler kullanıldı**
   (DoD'nin ilgili satırı buna göre güncellendi). Gerekçe: bu fazın kanıtlaması
   gereken tam senaryo (bir tool zaten çalıştıktan **hemen sonra ve tam o
   turda** sağlayıcının çökmesi) gerçek bir LLM ile zorlanamaz — MT-MYU-014'ün
   eşzamanlı tool çağrısı için verdiği gerekçenin birebir aynısı. Sahte
-  sağlayıcı çifti (`StepModelProvider`) + gerçek `[AgentPrismTool]` gövdesi +
+  sağlayıcı çifti (`StepModelProvider`) + gerçek `[TraconTool]` gövdesi +
   gerçek `FunctionInvokingChatClient` bunun yerine **her koşumda garantili**
   bir kanıt üretir.
 - **İki konuyla ilgisiz kusur da bu oturumda düzeltildi** (kapanış kapısı
   koşulurken bulundu, bu fazın kodunu hiç etkilemez):
-  1. `RecordedToolPlayback.cs` ve `AgentPrismResponseCachingChatClient.cs`
+  1. `RecordedToolPlayback.cs` ve `TraconResponseCachingChatClient.cs`
      içinde birer karakter literaline yanlışlıkla gömülü NUL (`U+0000`) baytı
      — git bu iki dosyayı "binary" sanıyordu (`git diff` "Bin X -> Y bytes"
      gösteriyordu). Düzeltme: baytı düz boşluk karakteriyle değiştirmek;
@@ -133,8 +133,8 @@ yok), 3.3 (test seviyesi doğru — sınırı geçen davranış fonksiyonel test
 edilmiş), 3.5 (imza-gövde kayması yok), 3.6 (plan dışı public API yok), 3.7
 (repo kuralları), 3.8 (dört doğrulama kapısı gerçekten koşuldu).
 
-Bulgu 1 ve 2 kapandıktan sonra `dotnet build` + `AgentPrism.Core.UnitTests`
-(2144/2144) + `AgentPrism.AspNetCore.FunctionalTests` (703/703) yeniden
+Bulgu 1 ve 2 kapandıktan sonra `dotnet build` + `Tracon.Core.UnitTests`
+(2144/2144) + `Tracon.AspNetCore.FunctionalTests` (703/703) yeniden
 koşuldu; hepsi yeşil.
 
 ## Sonraki Faza Devir Notu
