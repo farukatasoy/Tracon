@@ -31,7 +31,7 @@ export const siteUrl = `${site}${base}`;
  *
  * Add the outgoing host here on every move; never remove an entry.
  */
-export const formerHosts = ['farukatasoy.github.io'];
+export const formerHosts = ['farukatasoy.github.io', 'agentprism.eski-site.invalid'];
 
 /**
  * The source repository, and whether a reader can open it.

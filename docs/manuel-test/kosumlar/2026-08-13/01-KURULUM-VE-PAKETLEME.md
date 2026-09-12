@@ -43,11 +43,11 @@
 | MT-PKG-032 | ☑ | Önsürüm MAF paketleri yalnız `Tracon.AspNetCore`'da |
 | MT-PKG-040 | ☑ | Üreteç işaretli statik metodu kaydeder |
 | MT-PKG-041 | ☑ | Üretilen kod `dotnet format` kapısını geçer |
-| MT-PKG-042 | ☑ | `APG0001`: aynı tool adı iki metotta |
-| MT-PKG-045 | ☑ | `APG0004`: generic metot tool olamaz |
-| MT-PKG-046 | ☑ | `APG0005`: çağrı var, işaretli metot yok |
-| MT-PKG-047 | ☑ | `APG0006`: açıklama eksik — hata değil, uyarı |
-| MT-PKG-048 | ☑ | `APG0007`: örnek metot tool olamaz |
+| MT-PKG-042 | ☑ | `TRC0001`: aynı tool adı iki metotta |
+| MT-PKG-045 | ☑ | `TRC0004`: generic metot tool olamaz |
+| MT-PKG-046 | ☑ | `TRC0005`: çağrı var, işaretli metot yok |
+| MT-PKG-047 | ☑ | `TRC0006`: açıklama eksik — hata değil, uyarı |
+| MT-PKG-048 | ☑ | `TRC0007`: örnek metot tool olamaz |
 | MT-PKG-049 | ☑ | İşaretsiz metot sessizce tool olmaz |
 | MT-PKG-050 | ☑ | Üreteç meta paket üzerinden de akıyor |
 | MT-PKG-060 | ☑ | AOT uyumlu paketler sıfır trim uyarısı verir |
@@ -312,34 +312,34 @@ repo'nun `ProjectReference` zinciri sonucu bulandırmaz.
 
 ---
 
-## MT-PKG-043 — `APG0002`: geçersiz karakterli tool adı
+## MT-PKG-043 — `TRC0002`: geçersiz karakterli tool adı
 
 **Gerçek sonuç**
 ```
-Birinci derleme: 3 farklı geçersiz ad için APG0002 üretti (boşluklu, noktalı,
+Birinci derleme: 3 farklı geçersiz ad için TRC0002 üretti (boşluklu, noktalı,
   65 karakter) — her biri metot adını ve geçersiz tool adını taşıyor.
-  grep -c "APG0002" -> 6 (MSBuild her hatayı hem satır-içi hem "Build FAILED"
+  grep -c "TRC0002" -> 6 (MSBuild her hatayı hem satır-içi hem "Build FAILED"
   özetinde bir daha yazdığı için 3 tanı iki kez görünüyor; doğrulama sorgusu
   bunu hesaba katmıyor — küçük bir doküman notu, kusur değil).
-İkinci derleme (64 karakter, sınırın tam üstü): 0 APG0002, exit 0, geçti.
+İkinci derleme (64 karakter, sınırın tam üstü): 0 TRC0002, exit 0, geçti.
 ```
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
-## MT-PKG-044 — `APG0003`: desteklenmeyen parametre tipi
+## MT-PKG-044 — `TRC0003`: desteklenmeyen parametre tipi
 
 **Gerçek sonuç**
 ```
 Birinci derleme (record parametre):
-  error APG0003: 'BilesikTools.SiparisVer' metodunun 'siparis' parametresi
+  error TRC0003: 'BilesikTools.SiparisVer' metodunun 'siparis' parametresi
   ('Siparis' tipi) ureteç tarafindan desteklenmiyor. Desteklenen tipler:
   ilkel tipler, string, Guid, DateTime(Offset), enum, bunlarin dizisi/
   IReadOnlyList<T>'i ve CancellationToken. Baska bir tip icin
   'AddTool(AIFunctionFactory.Create(...))' ile elle kaydedin.
 
-İkinci derleme (beyaz liste — string[] dahil): exit 1, APG0003 SAYISI: 0
+İkinci derleme (beyaz liste — string[] dahil): exit 1, TRC0003 SAYISI: 0
   ama derleme YİNE BAŞARISIZ:
   error CS1503: Argument 12: cannot convert from
   'System.Collections.Generic.IReadOnlyList<string>' to 'string[]'
@@ -348,7 +348,7 @@ Birinci derleme (record parametre):
 
 🚨 **Kritik kusur — doğrulandı, tekrar üretilebilir.** Üretecin beyaz listesi
 `T[]` dizi tipini desteklenen bir parametre tipi olarak ilan ediyor
-(`APG0003` mesajının kendisi de "bunlarin dizisi" der), ama üretilen sarmalayıcı
+(`TRC0003` mesajının kendisi de "bunlarin dizisi" der), ama üretilen sarmalayıcı
 kod **her zaman** `TraconGeneratedToolArguments.GetArray(...)` çağırıyor —
 bu her koşulda `IReadOnlyList<T>` döndürür ve hedef parametre `T[]` ise
 doğrudan atanamaz (`IReadOnlyList<T>` → `T[]` örtük dönüşümü yoktur).
@@ -359,7 +359,7 @@ Kapsam doğrulandı: yalnız `string[]` değil, **her `T[]` parametresi** etkile
 parametreleri (örn. `m` alanı) etkilenmiyor, yalnızca çıplak dizi (`T[]`)
 imzaları kırık.
 
-Etki: dokümantasyonda ve `APG0003` hata mesajında "desteklenir" denen bir
+Etki: dokümantasyonda ve `TRC0003` hata mesajında "desteklenir" denen bir
 tip, pratikte **her zaman** derlemeyi kırıyor. Bu bir kaçış yolu değil —
 `T[]` parametreli hiçbir tool metodu bu üreteçle asla derlenemez. `Kritik`
 önemde bir kod kusuru bildirimi açılmalıdır (izlek: Faz 52 kaynak üreteci,
@@ -387,8 +387,8 @@ Roslyn derlemesinden geçirip `GetDiagnostics()` ile sıfır hata doğruluyor.
 
 Canlı doğrulama: case'in adımları tazelenmiş `Tracon.0.0.0-preview.0.138`
 paketine karşı `~/tracon-manuel/uretec`'te aynen koşuldu.
-1. Adım (`record` parametreli tool) → yine `APG0003` verdi, beklendiği gibi.
-2. Adım (beyaz liste + ayrıca izole `int[]` tool'u `SayilariTopla`) → `APG0003`
+1. Adım (`record` parametreli tool) → yine `TRC0003` verdi, beklendiği gibi.
+2. Adım (beyaz liste + ayrıca izole `int[]` tool'u `SayilariTopla`) → `TRC0003`
    sayısı **0**, derleme **0 Error(s)** ile bitti — `CS1503` **yok**.
 
 Dört kapı da bu koşumda yeşil (`dotnet build`/`test`/`pack`/`format`); kod

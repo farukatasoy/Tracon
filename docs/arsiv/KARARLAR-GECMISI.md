@@ -415,9 +415,9 @@ Faz 76 kapanışında `docs/**.md` sayacı 4.925.858/5.000.000 idi (%1 boş) ve 
 
 ### K-351
 
-**K-351 — Parametre tipi beyaz listesi `record`/`class` (composite) tipleri KAPSAMAZ; `APG0003` ile reddedilir (Faz 52)**
+**K-351 — Parametre tipi beyaz listesi `record`/`class` (composite) tipleri KAPSAMAZ; `TRC0003` ile reddedilir (Faz 52)**
 
-Açık Soru 5 "composite dahil beyaz liste" önermişti. Composite tip AOT-güvenli bağlamak ya reflection (`JsonSerializer`'ın reflection yolu → `RequiresUnreferencedCode`, fazın kendi AOT DoD'sini bozar) ya da ikinci bir iç içe kaynak üreteci (tüketicinin `JsonSerializerContext`'i — TEK derleme geçişinde bir üretecin diğerinin çıktısını görüp göremeyeceği Roslyn'de belgelenmemiş/garantisiz bir davranıştır) gerektirirdi; ikisi de bu fazın kapsamında doğrulanmadan kabul edilecek risklerdi. Gerçekleşen whitelist: ilkel sayısal tipler, `bool`, `string`, `Guid`, `DateTime(Offset)`, `enum`, bunların `Nullable<T>`'i, dizi/`IReadOnlyList<T>` ve `CancellationToken` — hepsi `JsonElement` üzerinde yansımasız tip-özel `Get*()` çağrılarıyla bağlanır. `APG0003` composite tipi açıkça reddeder ve kaçış yolunu (`AddTool(AIFunctionFactory.Create(...))`) gösterir; DoD'nin öngördüğü "beyaz liste haksız reddi" riski buydu.
+Açık Soru 5 "composite dahil beyaz liste" önermişti. Composite tip AOT-güvenli bağlamak ya reflection (`JsonSerializer`'ın reflection yolu → `RequiresUnreferencedCode`, fazın kendi AOT DoD'sini bozar) ya da ikinci bir iç içe kaynak üreteci (tüketicinin `JsonSerializerContext`'i — TEK derleme geçişinde bir üretecin diğerinin çıktısını görüp göremeyeceği Roslyn'de belgelenmemiş/garantisiz bir davranıştır) gerektirirdi; ikisi de bu fazın kapsamında doğrulanmadan kabul edilecek risklerdi. Gerçekleşen whitelist: ilkel sayısal tipler, `bool`, `string`, `Guid`, `DateTime(Offset)`, `enum`, bunların `Nullable<T>`'i, dizi/`IReadOnlyList<T>` ve `CancellationToken` — hepsi `JsonElement` üzerinde yansımasız tip-özel `Get*()` çağrılarıyla bağlanır. `TRC0003` composite tipi açıkça reddeder ve kaçış yolunu (`AddTool(AIFunctionFactory.Create(...))`) gösterir; DoD'nin öngördüğü "beyaz liste haksız reddi" riski buydu.
 
 ### K-384
 
@@ -3777,11 +3777,11 @@ Katman 0'ın tek okuru o çıktıdır, yani `Info` tanıyı kapatmakla eşdeğer
 
 ### K-507
 
-İşaret artık harita gövdesinin SHA-256'sının ilk 8 hanesidir ve `APG0401` tüketicinin dosyasını paketin taşıdığı haritayla karşılaştırır. İki dosya da `AdditionalFiles` olarak gelir — analyzer diskten okuyamaz (RS1035). İşaret taşımayan, elle yazılmış bir `AGENTS.md` hiç bildirilmez.
+İşaret artık harita gövdesinin SHA-256'sının ilk 8 hanesidir ve `TRC0401` tüketicinin dosyasını paketin taşıdığı haritayla karşılaştırır. İki dosya da `AdditionalFiles` olarak gelir — analyzer diskten okuyamaz (RS1035). İşaret taşımayan, elle yazılmış bir `AGENTS.md` hiç bildirilmez.
 
 ### K-508
 
-Bulgu doğruydu — sarmalayıcı, `IAgentDecorator`'ın işini yapma biçimidir. Kural derleme geneline taşındı: hiç `IAgentDecorator` uygulaması VE hiç `AddAgent(name, factory)` çağrısı yoksa bildirilir (ikincisi bağımsız denetimde bulundu; fabrika belgelenmiş bir kaçış kapısıdır). Aynı gerekçeyle `APG0301` de daraltıldı: döngü bir `catch` içermelidir.
+Bulgu doğruydu — sarmalayıcı, `IAgentDecorator`'ın işini yapma biçimidir. Kural derleme geneline taşındı: hiç `IAgentDecorator` uygulaması VE hiç `AddAgent(name, factory)` çağrısı yoksa bildirilir (ikincisi bağımsız denetimde bulundu; fabrika belgelenmiş bir kaçış kapısıdır). Aynı gerekçeyle `TRC0301` de daraltıldı: döngü bir `catch` içermelidir.
 
 ### K-509 — devam (Faz 90 damıtması)
 
@@ -3925,7 +3925,7 @@ Bedeli ölçüldü: bir tam koşumda `SqlServerRunScoreStoreContractTests`'in **
 
 ### K-546
 
-`ToolMethodScanner` yalnız metodun `IsStatic` olduğuna bakıyor, konteyner sınıfın statik olmasını istemiyor (APG0007 de yalnız metottan bahsediyor). `internal static class` → `internal class`; `[TraconTool]` işaretli metot `public static` kaldı.
+`ToolMethodScanner` yalnız metodun `IsStatic` olduğuna bakıyor, konteyner sınıfın statik olmasını istemiyor (TRC0007 de yalnız metottan bahsediyor). `internal static class` → `internal class`; `[TraconTool]` işaretli metot `public static` kaldı.
 
 ### K-547
 
@@ -4367,7 +4367,7 @@ Bedeli: onarımın maliyeti ana `run`'ın toplamı içinde erir, ayrı bir sütu
 
 ### K-655
 
-Bedel açıkça büyüdü: derin bir grafta tüketici her tipi elle listeler; `APG0011` bunu hangi tipin eksik olduğunu adıyla söyleyerek karşılar (Open Question 3: her eksik tip için ayrı teşhis, ilkinde durmaz).
+Bedel açıkça büyüdü: derin bir grafta tüketici her tipi elle listeler; `TRC0011` bunu hangi tipin eksik olduğunu adıyla söyleyerek karşılar (Open Question 3: her eksik tip için ayrı teşhis, ilkinde durmaz).
 
 ### K-656
 

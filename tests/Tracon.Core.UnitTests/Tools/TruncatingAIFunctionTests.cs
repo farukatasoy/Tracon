@@ -23,7 +23,7 @@ namespace Tracon.Core.UnitTests.Tools;
 /// own emitted wrapper (Phase 102) matches this raw form only for
 /// <see langword="string"/>/primitive returns; a complex return type is
 /// emitted as a <see cref="JsonElement"/> too, via the caller's own
-/// <c>JsonSerializerContext</c> (<c>APG0008</c>). Using the raw form here
+/// <c>JsonSerializerContext</c> (<c>TRC0008</c>). Using the raw form here
 /// keeps each test's assertion about the exact CLR value under test.
 /// </remarks>
 public sealed class TruncatingAIFunctionTests

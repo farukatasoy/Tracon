@@ -1041,7 +1041,7 @@ grep -Pn '[ \t]+$' "$G" && echo "🚨 satir sonu boslugu var" || echo "satir son
 
 ---
 
-### MT-PKG-042 — `APG0001`: aynı tool adı iki metotta
+### MT-PKG-042 — `TRC0001`: aynı tool adı iki metotta
 
 | | |
 |---|---|
@@ -1077,20 +1077,20 @@ internal static class CakisanTools
 }
 EOF
 
-dotnet build -c Release 2>&1 | grep -E "APG0001|error"
+dotnet build -c Release 2>&1 | grep -E "TRC0001|error"
 rm Hata.cs
 ```
 
 **Beklenen sonuç**
 - Derleme **başarısız** olur.
-- `APG0001` **error** olarak çıkar.
+- `TRC0001` **error** olarak çıkar.
 - Mesaj `ayni_ad` adını ve **iki** metodu birden listeler
   (`CakisanTools.Bir, CakisanTools.Iki`).
 - Tanı iki ayrı konumda birden bildirilir.
 
 ---
 
-### MT-PKG-043 — `APG0002`: geçersiz karakterli tool adı
+### MT-PKG-043 — `TRC0002`: geçersiz karakterli tool adı
 
 | | |
 |---|---|
@@ -1128,7 +1128,7 @@ internal static class KotuAdTools
     public static string C(string x) => x;
 }
 EOF
-dotnet build -c Release 2>&1 | grep -c "APG0002"
+dotnet build -c Release 2>&1 | grep -c "TRC0002"
 
 cat > Hata.cs <<'EOF'
 using Tracon;
@@ -1139,19 +1139,19 @@ internal static class SinirAdTools
     public static string D(string x) => x;
 }
 EOF
-dotnet build -c Release 2>&1 | grep -c "APG0002"
+dotnet build -c Release 2>&1 | grep -c "TRC0002"
 
 rm Hata.cs
 ```
 
 **Beklenen sonuç**
-- Birinci derleme **3** `APG0002` tanısı üretir ve başarısız olur.
-- İkinci derleme **0** `APG0002` üretir ve başarılı biter — 64 karakter geçerlidir.
+- Birinci derleme **3** `TRC0002` tanısı üretir ve başarısız olur.
+- İkinci derleme **0** `TRC0002` üretir ve başarılı biter — 64 karakter geçerlidir.
 - Mesaj hem metot adını hem geçersiz tool adını taşır.
 
 ---
 
-### MT-PKG-044 — `APG0003`: desteklenmeyen parametre tipi
+### MT-PKG-044 — `TRC0003`: desteklenmeyen parametre tipi
 
 | | |
 |---|---|
@@ -1186,7 +1186,7 @@ internal static class BilesikTools
     public static string SiparisVer(Siparis siparis) => siparis.Id;
 }
 EOF
-dotnet build -c Release 2>&1 | grep "APG0003"
+dotnet build -c Release 2>&1 | grep "TRC0003"
 
 cat > Hata.cs <<'EOF'
 using System;
@@ -1205,21 +1205,21 @@ internal static class BeyazListeTools
         int? k, string[] l, IReadOnlyList<int> m, CancellationToken ct) => a;
 }
 EOF
-dotnet build -c Release 2>&1 | grep -c "APG0003"
+dotnet build -c Release 2>&1 | grep -c "TRC0003"
 
 rm Hata.cs
 ```
 
 **Beklenen sonuç**
-- Birinci derleme başarısız olur ve `APG0003` verir.
-- `APG0003` mesajı desteklenen tipleri **listeler** ve
+- Birinci derleme başarısız olur ve `TRC0003` verir.
+- `TRC0003` mesajı desteklenen tipleri **listeler** ve
   `AddTool(AIFunctionFactory.Create(...))` kaçış yolunu gösterir.
-- İkinci derleme **0** `APG0003` üretir ve başarılı biter.
+- İkinci derleme **0** `TRC0003` üretir ve başarılı biter.
 - İkinci derlemede `CancellationToken` bir tool parametresi olarak kabul edilir.
 
 ---
 
-### MT-PKG-045 — `APG0004`: generic metot tool olamaz
+### MT-PKG-045 — `TRC0004`: generic metot tool olamaz
 
 | | |
 |---|---|
@@ -1250,17 +1250,17 @@ internal static class GenericTools
     public static string Getir<T>(string id) => id;
 }
 EOF
-dotnet build -c Release 2>&1 | grep "APG0004"
+dotnet build -c Release 2>&1 | grep "TRC0004"
 rm Hata.cs
 ```
 
 **Beklenen sonuç**
-- Derleme başarısız olur ve `APG0004` **error** verir.
+- Derleme başarısız olur ve `TRC0004` **error** verir.
 - Mesaj somut bir sarmalayıcı metot yazmayı önerir.
 
 ---
 
-### MT-PKG-046 — `APG0005`: çağrı var, işaretli metot yok
+### MT-PKG-046 — `TRC0005`: çağrı var, işaretli metot yok
 
 | | |
 |---|---|
@@ -1294,19 +1294,19 @@ var services = new ServiceCollection();
 services.AddTracon().AddGeneratedTools();
 EOF
 
-dotnet build -c Release 2>&1 | grep "APG0005"
+dotnet build -c Release 2>&1 | grep "TRC0005"
 
 mv /tmp/ap-tools-yedek.cs Tools.cs
 ```
 
 **Beklenen sonuç**
-- Derleme başarısız olur ve `APG0005` **error** verir.
+- Derleme başarısız olur ve `TRC0005` **error** verir.
 - Mesaj iki çözüm önerir: metotları işaretlemek veya çağrıyı kaldırmak.
 - `Tools.cs` geri konduktan sonra aynı derleme geçer.
 
 ---
 
-### MT-PKG-047 — `APG0006`: açıklama eksik — hata değil, uyarı
+### MT-PKG-047 — `TRC0006`: açıklama eksik — hata değil, uyarı
 
 | | |
 |---|---|
@@ -1316,7 +1316,7 @@ mv /tmp/ap-tools-yedek.cs Tools.cs
 | **İlgili karar** | — |
 
 Sınır senaryosu. Bir kütüphane, tüketicinin derlemesini kırma hakkını dikkatli
-kullanır. `APG0006` tek **uyarı** seviyeli tanıdır ve bastırılabilir olmalıdır.
+kullanır. `TRC0006` tek **uyarı** seviyeli tanıdır ve bastırılabilir olmalıdır.
 
 **Ön koşul**
 - Bölüm ön koşulu uygulandı.
@@ -1340,22 +1340,22 @@ internal static class AciklamasizTools
 }
 EOF
 
-dotnet build -c Release 2>&1 | grep "APG0006"
+dotnet build -c Release 2>&1 | grep "TRC0006"
 echo "--- bastirilmis ---"
-dotnet build -c Release -p:NoWarn=APG0006 2>&1 | grep -c "APG0006"
+dotnet build -c Release -p:NoWarn=TRC0006 2>&1 | grep -c "TRC0006"
 
 rm Hata.cs
 ```
 
 **Beklenen sonuç**
-- Birinci derlemede `APG0006` **warning** olarak görünür.
+- Birinci derlemede `TRC0006` **warning** olarak görünür.
 - `TreatWarningsAsErrors` bu projede tanımlı değildir, bu yüzden derleme
   **başarılı** biter.
-- `-p:NoWarn=APG0006` ile derlemede tanı sayısı **0**'dır ve derleme geçer.
+- `-p:NoWarn=TRC0006` ile derlemede tanı sayısı **0**'dır ve derleme geçer.
 
 ---
 
-### MT-PKG-048 — `APG0007`: örnek metot tool olamaz
+### MT-PKG-048 — `TRC0007`: örnek metot tool olamaz
 
 | | |
 |---|---|
@@ -1389,16 +1389,16 @@ internal sealed class OrnekTools
     public string Getir(string id) => id;
 }
 EOF
-dotnet build -c Release 2>&1 | grep "APG0007"
+dotnet build -c Release 2>&1 | grep "TRC0007"
 
 sed -i '' 's/public string Getir/public static string Getir/' Hata.cs
-dotnet build -c Release 2>&1 | grep -c "APG0007"
+dotnet build -c Release 2>&1 | grep -c "TRC0007"
 
 rm Hata.cs
 ```
 
 **Beklenen sonuç**
-- Birinci derleme başarısız olur ve `APG0007` **error** verir.
+- Birinci derleme başarısız olur ve `TRC0007` **error** verir.
 - Mesaj K-218'e açıkça atıf yapar ve iki çözüm gösterir: metodu `static` yapmak
   veya tool'u kurulum anında örnekleyip `AddTool(AIFunctionFactory.Create(...))`
   ile kaydetmek.

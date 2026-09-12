@@ -125,7 +125,7 @@ içinde tutuyor. Diğer 20 paket GA bağımlılıklıdır ve **ayrı** stabil s�
 > **Plan anında ölçülen düzeltme:** (a) kuralı **sevk edilen bir analyzer kuralı
 > olarak yazılamaz** — "async metotta ambient yazımı" bugünkü kodda altı kez öter
 > ve altısı da doğrudur (`AsyncLocal` yazımı aşağı akar, yukarı akmaz). Faz 93
-> sınıfı üçe böler: `APG0501` (akışlı yolda yineleme dışı yazım) ve `APG0502`
+> sınıfı üçe böler: `TRC0501` (akışlı yolda yineleme dışı yazım) ve `TRC0502`
 > (ambient kapsamın `IDisposable`'ı atıldı) sevk edilir; yardımcı-metot vakası
 > taban çizgili bir repo kapısı olur. (b) kuralının C# tarafı **zaten kapalıdır**
 > (`RunCost.Total()`, `CostTotals.Total()`); canlı 18 vakası SQL metnindedir ve

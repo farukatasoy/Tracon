@@ -858,7 +858,7 @@ gösteren başka hiçbir yol yoktu.
 
 Aynı ölçüm bir tanı tasarımını da düşürdü: "`AGENTS.md` Tracon'den söz
 ediyor mu" kontrolü o dosyada sessiz kalırdı (20'den fazla kez söz ediyor).
-`APG0402`'nin tetiği bu yüzden yönlendirme **hedefine** bağlandı, konuya değil.
+`TRC0402`'nin tetiği bu yüzden yönlendirme **hedefine** bağlandı, konuya değil.
 
 Kapsam ikinci bir soruyla büyüdü: *harita ulaşılır olunca yeterli mi?* Ölçüm
 hayır dedi. Tüketicinin agent'ının kendi kaydettiği tuzağın

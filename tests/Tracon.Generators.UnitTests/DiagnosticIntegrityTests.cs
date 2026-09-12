@@ -116,7 +116,7 @@ public sealed class DiagnosticIntegrityTests
     /// A <see cref="DiagnosticDescriptor"/> defined in <see cref="ToolDiagnostics"/> but
     /// never added to <see cref="ToolRegistrationGenerator"/>'s private dispatch table is
     /// silently DROPPED - <c>ReportDiagnostic</c> returns without reporting for an unknown
-    /// id. Measured while adding APG0009 (phase 125): the diagnostic compiled, its message
+    /// id. Measured while adding TRC0009 (phase 125): the diagnostic compiled, its message
     /// was correct, and it never appeared in any build output - only a test that checked
     /// FOR the diagnostic caught it. This closes the defect class instead of one instance.
     /// </summary>
@@ -148,7 +148,7 @@ public sealed class DiagnosticIntegrityTests
     }
 
     [Fact]
-    public void Every_provider_registration_APG0102_recommends_still_exists()
+    public void Every_provider_registration_TRC0102_recommends_still_exists()
     {
         var publicApi = ReadPublicApi();
 
@@ -159,7 +159,7 @@ public sealed class DiagnosticIntegrityTests
             publicApi.ShouldContain(
                 registration,
                 Case.Sensitive,
-                $"APG0102 tells the consumer to call '{provider.Value}' for provider '{provider.Key}', " +
+                $"TRC0102 tells the consumer to call '{provider.Value}' for provider '{provider.Key}', " +
                 "but no package declares it.");
         }
     }

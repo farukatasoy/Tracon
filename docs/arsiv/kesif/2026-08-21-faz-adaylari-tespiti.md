@@ -125,10 +125,10 @@ tek başına faz değildir.
 ### Küme A — F-136 · Ölçüldü, sayı çıktı
 
 **Kanıt seviyesi:** Ölçüldü. `ToolDiagnostics.cs` **7** descriptor
-(`APG0001`…`APG0007`), `UsageDiagnostics.cs` **7** descriptor (`APG0101`,
-`APG0102`, `APG0201`, `APG0301`, `APG0302`, `APG0401`, `APG0402`) — toplam **14**.
+(`TRC0001`…`TRC0007`), `UsageDiagnostics.cs` **7** descriptor (`TRC0101`,
+`TRC0102`, `TRC0201`, `TRC0301`, `TRC0302`, `TRC0401`, `TRC0402`) — toplam **14**.
 `guides/coding-agents.md` ve `troubleshooting.md` birlikte **9** kod taşıyor.
-**Beş kod belgesiz:** `APG0002` · `APG0003` · `APG0004` · `APG0005` · `APG0006`.
+**Beş kod belgesiz:** `TRC0002` · `TRC0003` · `TRC0004` · `TRC0005` · `TRC0006`.
 Kapının yokluğu **zaten bedel ödetmiş**.
 **Mercek:** 1, 5. **Eleyici sınır:** yok.
 **Karşı görüş:** Ciddi bir karşı gerekçe bulunamadı — boşluk ölçüldü ve kapı ucuz.

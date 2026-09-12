@@ -15,7 +15,7 @@ Tek vakayı düzeltmek ucuzdur ve yanıltıcıdır. Bu repoda ölçülen tekrar 
 
 | Kusur sınıfı | Kaç kez | Kapı |
 |---|---|---|
-| `AsyncLocal` yazımı çağırana akmıyor | **4** (Faz 6, 11, 12, 15) | `APG0501` (sevk edilen analyzer, akışlı yolda döngü dışı yazım) + `AmbientWriteSiteTests` (repo kapısı, yeni yazım YERİ eklendiğinde — Faz 93) |
+| `AsyncLocal` yazımı çağırana akmıyor | **4** (Faz 6, 11, 12, 15) | `TRC0501` (sevk edilen analyzer, akışlı yolda döngü dışı yazım) + `AmbientWriteSiteTests` (repo kapısı, yeni yazım YERİ eklendiğinde — Faz 93) |
 | Senkronizasyon kopyası (`<ad> 2.<uzantı>`) | **5** | `python3 scripts/kapi.py tarama` (Faz 91) |
 | Playwright locator alt dize eşliyor | **3** (Faz 8, 16, 19) | `PlaywrightLocatorTests` (repo kapısı, yalnız küçülen taban çizgisi — Faz 93) |
 

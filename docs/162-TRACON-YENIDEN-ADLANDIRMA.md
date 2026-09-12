@@ -4,7 +4,7 @@
 > **Kaynak:** Kullanıcı kararı (2026-09-12) — ürün adı değişti. Bu kalem [ADAYLAR.md](ADAYLAR.md) içinde hiç bulunmadı
 > **Önkoşul:** Yok. Dış kimlikler faz öncesi alındı: npm org `tracon`, `tracon.dev` DNS, iki GitHub reposu
 > **Paketler:** 21'inin tamamı — kök ad alanı, paket kimliği, assembly adı
-> **Yeni paket:** Yok · **Migration:** Yok — üç migration dosyasının İÇERİĞİ değişti, yeni dosya eklenmedi
+> **Yeni paket:** Yok · **Migration:** Yok — yeni dosya eklenmedi. 124 migration dosyasının 18'inin İÇERİĞİ değişti: 3'ü job handler key DEĞERİ (54 satır), 15'i yalnız yorum. **Hiçbir DDL satırı değişmedi** (ölçüldü)
 > **Public API:** Yüzey aynı, adı değişti. `PublicAPI.Shipped.txt` dosyalarının tamamı **boştur** — hiçbir paket yayınlanmadı, SemVer maliyeti **sıfırdır**
 > **Tüketici yüzeyi:** Her şey — 21 paket README'si, site, üretilen `api/` + `http-api/` sayfaları, 19 ekran görüntüsü
 > **Manuel test alanı:** Tüm set (adlar her case'te geçer)
@@ -112,7 +112,9 @@ Başka çare yok: hiçbir commit hem yeni yolu hem tam metni taşımaz (dosya
 yazıldı. Arşivdeki ~160 işaretçiden yalnız **bu biri** etkilendi — dosya adı
 üründen türeyen tek arşiv faz dokümanı odur.
 
-Bitti tanımı bu yüzden **üç** istisna taşır.
+Bitti tanımı bu yüzden **üç** istisna taşır — denetim bir dördüncüsünü ekledi
+(aşağıda, bulgu 1): `site.config.mjs` içindeki `formerHosts` dizisi eski host'u
+**adlandırmak zorundadır**, çünkü onu her yerde yasaklayan mekanizma odur.
 
 ### S7 — Ad, ALFABETİK SIRAYA girer; değiştirme bunu göremez
 
@@ -124,7 +126,7 @@ değil sıra** farkı üretti; üçü de değiştirmeyle çözülemez, yalnız y
 |---|---|
 | OpenAPI `components.schemas` | 5 şema 8–12. sıradan 240–244'e taşındı |
 | Üretilen istemci + TS şeması | aynı satır kümesi, farklı sıra |
-| C# `using` direktifleri | `dotnet format` 263 dosyada sıra hatası buldu |
+| C# `using` direktifleri | `dotnet format` 263 dosyada sıra hatası buldu (12 dosyada blok sonrası boş satır da düştü) |
 
 Üçünde de **aynı kanıt yöntemi** kullanıldı: sıralanmış satır kümelerini
 karşılaştır. Küme aynıysa fark yalnız sıradır ve kaçan ad yoktur.
@@ -151,6 +153,25 @@ hiçbiri görünmezdi.
 
 ---
 
+## Denetim Bulguları
+
+Bağımsız denetçi (2026-09-12, taze bağlam, `96e515db..HEAD`).
+
+| # | Seviye | Bulgu | Sonuç |
+|---|---|---|---|
+| 1 | 🔴 | Çıkan host `formerHosts`'a eklenmedi; dosyanın kendi sözleşmesi ihlal edildi | **Düzeltildi.** `site.config.mjs:34`. Bu dizi, TÜRETİLMEYEN metinlerdeki (NuGet'e giden paket README'leri, derlenmiş analyzer bağlantısı) bayat adresi yakalayan tek mekanizmadır. Eklenmeseydi kapı yeşil kalıp ölü adres sevk edilirdi |
+| 2 | 🟡 | K-753 "içerik değişikliğini onaylamak için asla kullanılmaz" diyordu; kendi commit'i 18 dosyanın içeriğini onayladı | **Düzeltildi.** Kaydın son sütunu ölçümle yeniden yazıldı: rebaseline yeniden adlandırmanın içerik değişimini kapsar, bir DDL değişikliğini kapsamaz |
+| 3 | 🟡 | Başlık "üç migration dosyası" diyordu; ölçüm 18 | **Düzeltildi.** 124 dosyanın 18'i: 3'ü handler key değeri (54 satır), 15'i yorum, **sıfır DDL** |
+| 4 | 🟡 | Analyzer tanı öneki `APG` dokunulmamıştı — kısaltma olduğu için kalıntı denetimi yapısal olarak göremez | **Düzeltildi** (kullanıcı kararı 2026-09-12): `APG` → `TRC`, 592 yer / 62 dosya. `AnalyzerReleases.Shipped.md` boştu, yani bugün hiçbir tüketici bastırma satırı kırılmadı; yayından sonra aynı iş deprecation isterdi |
+| 5 | 🟢 | Eski adın METAFORU kodda yaşıyor (`prismMark`, `_prismOptions`, `--ap-*`, "prism spectrum") | **Devredildi.** F-221'in kapsamı genişletildi — logo tasarımı zaten o dosyalara dokunacak. Hiçbiri tüketici sözleşmesi değil (tipler `internal`); site içerik sayfalarında hiç geçmiyor (ölçüldü) |
+| 6 | 🟢 | `dotnet format` 12 test dosyasında `using` bloğu ile yorum arasındaki boş satırı da tüketti | **Kabul.** Derleme aynı; S7'nin "yalnız sıra" ifadesi bu kadarıyla eksik |
+
+**Temiz çıkan başlıklar:** 3.2 · 3.3 · 3.4 · 3.5 · 3.6 · muafiyet listeleri (13 baseline'ın hiçbiri büyümedi, hiçbirinde `REPLACE ME` yok) · dil sınırı.
+
+Denetçinin ayrıca ölçtüğü: `src/**/*.cs` içinde 934 dosya çifti normalize edilerek karşılaştırıldı — ad değişimi dışında **sıfır davranış değişikliği**.
+
+---
+
 ## Sonraki Faza Devir Notu
 
 `repositoryIsPublic` **`false` kalır**. `astro.config.mjs` bu bayrağı hiç
@@ -161,7 +182,7 @@ geri getirilir (K-542).
 
 ## Bitiş Ölçütleri (DoD)
 
-- [x] Büyük/küçük duyarsız ad araması → yalnız üç istisna: `arsiv/fazlar/INDEKS.md` notu (1 satır), S5'teki ölçüm kaydı, S6'daki git işaretçisi (1 satır)
+- [x] Büyük/küçük duyarsız ad araması → yalnız dört istisna: `arsiv/fazlar/INDEKS.md` notu, S5'teki ölçüm kaydı, S6'daki git işaretçisi, `site.config.mjs` içindeki `formerHosts` girdisi
 - [x] Hiçbir izlenen YOL eski adı taşımıyor
 - [x] `dotnet build Tracon.slnx -c Release` → 0 uyarı, 0 hata
 - [x] Üretilen istemci yeniden üretildi, kaçan ad yok (aynı satır kümesi)

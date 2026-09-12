@@ -38,7 +38,7 @@ public static class OrderTools
 `[Description]` (`System.ComponentModel.DescriptionAttribute`) reaches the generated
 JSON Schema as the parameter's `description` — the strongest signal the model has for
 filling in that argument correctly. A parameter without one still compiles; the
-generator reports it as a warning (`APG0009`).
+generator reports it as a warning (`TRC0009`).
 
 A standard `System.ComponentModel.DataAnnotations` attribute reaches the schema as a
 constraint the model sees before it ever calls the tool:
@@ -67,7 +67,7 @@ When two attributes set the same key (`[MinLength(2)]` together with
 attribute that does not apply to its parameter's type or shape — `[Range]` on a
 `string`, a length constraint on a `bool`, `[Range(typeof(decimal), "0", "1")]` (its
 `Type`-based overload gives no compile-time constant) — is left out of the schema and
-reported as a warning (`APG0010`); it never blocks generation.
+reported as a warning (`TRC0010`); it never blocks generation.
 
 The schema is the only place this constraint is enforced. Binding rejects a type
 mismatch or a missing required field, but nothing else checks `minimum`/`maxLength`/
@@ -97,9 +97,9 @@ public static string ScoreSubmission([Description("The rubric to score against."
 
 Binding deserializes the whole object in one call through this same context — never
 through reflection — so every type in the graph must be declared on it or the build
-fails with `APG0011`, naming the type that is missing. A graph deeper than 3 nested
+fails with `TRC0011`, naming the type that is missing. A graph deeper than 3 nested
 object levels, or one that reaches itself again through its own members, fails to
-build with `APG0012` instead of risking a schema the model's own error rate rises
+build with `TRC0012` instead of risking a schema the model's own error rate rises
 against once it gets this deep.
 
 🚨 **Put the attribute directly on the parameter, never with an explicit

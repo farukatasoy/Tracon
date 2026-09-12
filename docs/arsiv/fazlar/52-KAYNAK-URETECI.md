@@ -39,9 +39,9 @@
       `dotnet publish -c Release -r osx-arm64 -p:PublishAot=true` ile **sıfır**
       `IL2xxx`/`IL3xxx` uyarısıyla derlendi ve AOT ikilisi `AddGeneratedTools()`'u
       çalıştırdı
-- [x] Yedi tanının **her biri** ayrı bir testle doğrulandı (`APG0001`–`APG0007`) —
+- [x] Yedi tanının **her biri** ayrı bir testle doğrulandı (`TRC0001`–`TRC0007`) —
       `DiagnosticTests`, 9 test
-- [x] 🚨 `APG0007` örnek metotları derlemede yakalar ve mesaj K-218'in doğru
+- [x] 🚨 `TRC0007` örnek metotları derlemede yakalar ve mesaj K-218'in doğru
       desenini gösterir — `samples/Tracon.Api`'de gerçek bir örnek-metot
       tool'u eklenip build çalıştırılarak doğrulandı (aşağıdaki komut 7)
 - [x] 🚨 **K-218 onarıldı:** yansıma yolunda örnek metot **tarama anında**
@@ -108,11 +108,11 @@ using Tracon;
 internal sealed class BozukTool
 {
     [TraconTool("kotu")]
-    public string Getir(string id) => id;   // ORNEK metot -> APG0007
+    public string Getir(string id) => id;   // ORNEK metot -> TRC0007
 }
 EOF
 cp /tmp/apg0007.cs samples/Tracon.Api/Tools/
-dotnet build samples/Tracon.Api -c Release 2>&1 | grep APG0007
+dotnet build samples/Tracon.Api -c Release 2>&1 | grep TRC0007
 rm samples/Tracon.Api/Tools/apg0007.cs
 
 # 8) AOT — uretilen yol uyari uretmemeli
@@ -152,8 +152,8 @@ AOT doğrulaması: izole bir tüketici projesi (`PackageReference` ile
 `IL2xxx`/`IL3xxx` uyarısıyla derlendi; üretilen ikili çalıştırılıp
 `AddGeneratedTools()`'un gerçekten kayıt yaptığı doğrulandı.
 
-APG0007 doğrulaması: `samples/Tracon.Api/Tools/` altına geçici bir
-örnek-metot tool'u eklenip build koşuldu; `APG0007` gerçek bir derleme
+TRC0007 doğrulaması: `samples/Tracon.Api/Tools/` altına geçici bir
+örnek-metot tool'u eklenip build koşuldu; `TRC0007` gerçek bir derleme
 hatası olarak çıktı, mesaj K-218'e işaret etti (dosya sonra kaldırıldı).
 
 ---
@@ -200,7 +200,7 @@ hatası olarak çıktı, mesaj K-218'e işaret etti (dosya sonra kaldırıldı).
    Roslyn'de belgelenmemiş/garantisiz bir davranış) gerektirirdi. Gerçek
    whitelist: ilkel sayısal tipler, `bool`, `string`, `Guid`, `DateTime`,
    `DateTimeOffset`, `enum`, bunların `Nullable<T>`'i, dizi/`IReadOnlyList<T>`
-   ve `CancellationToken`. `APG0003` composite tipi açıkça reddeder ve kaçış
+   ve `CancellationToken`. `TRC0003` composite tipi açıkça reddeder ve kaçış
    yolunu (`AddTool(AIFunctionFactory.Create(...))`) gösterir — DoD'nin "beyaz
    liste haksız reddi" riski zaten bunu öngörmüştü.
 5. **`Microsoft.CodeAnalysis.CSharp.SourceGenerators.Testing.XUnit`
@@ -260,7 +260,7 @@ hatası olarak çıktı, mesaj K-218'e işaret etti (dosya sonra kaldırıldı).
   Sapma 1. `ITraconBuilder` bu fazda **hiç değişmedi** — Faz 7'den önce
   kırıcı-değişiklik riski taşımaz.
 - **K-351 — Parametre tipi beyaz listesi `record`/`class` (composite) tipleri
-  KAPSAMAZ; `APG0003` ile reddedilir** (2026-08-08). Bkz. Plandan Sapma 4.
+  KAPSAMAZ; `TRC0003` ile reddedilir** (2026-08-08). Bkz. Plandan Sapma 4.
   Whitelist: ilkel sayısal tipler, `bool`, `string`, `Guid`, `DateTime(Offset)`,
   `enum`, `Nullable<T>`, dizi/`IReadOnlyList<T>`, `CancellationToken`. |
   Yeniden açılma: composite tip desteği istenirse, ikinci bir kaynak üreteci
@@ -289,7 +289,7 @@ hatası olarak çıktı, mesaj K-218'e işaret etti (dosya sonra kaldırıldı).
 3. **`AddToolsFrom` yaşamaya devam ediyor**, `[Obsolete]` değil ve
    `ITraconBuilder` bu fazda hiç değişmedi (bkz. Plandan Sapma 1) — Faz
    7'nin public yüzey dondurma riski bu fazdan **kalktı**.
-4. 🚨 **Örnek metot tool'ları hâlâ desteklenmiyor.** `APG0007` (derleme anı)
+4. 🚨 **Örnek metot tool'ları hâlâ desteklenmiyor.** `TRC0007` (derleme anı)
    ve `ToolMethodScanner`'ın tarama-anı reddi (K-347, çalışma anı) onu artık
    AÇIKÇA görünür kılıyor ama ÇÖZMÜYOR. MAF `functionInvocationServices`'i
    `AsAIAgent` üzerinden akıtırsa (K-218'in yeniden açılma koşulu) her iki

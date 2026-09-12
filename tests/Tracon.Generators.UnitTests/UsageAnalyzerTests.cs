@@ -9,7 +9,7 @@ namespace Tracon.Generators.UnitTests;
 /// to it that it must leave alone.
 /// </summary>
 /// <remarks>
-/// The credential-shaped literals below are analyzer INPUT. APG0201 reports a
+/// The credential-shaped literals below are analyzer INPUT. TRC0201 reports a
 /// string LITERAL, so a placeholder short enough to be safe would prove the
 /// opposite of what the test claims. None of them is a real credential, and
 /// none matches a service's issued format beyond its prefix and length.
@@ -23,7 +23,7 @@ public sealed class UsageAnalyzerTests
         """;
 
     [Fact]
-    public async Task APG0101_reports_a_mapped_but_unregistered_control_plane()
+    public async Task TRC0101_reports_a_mapped_but_unregistered_control_plane()
     {
         var diagnostics = await AnalyzerTestHelper.RunAsync($$"""
             {{Wiring}}
@@ -35,13 +35,13 @@ public sealed class UsageAnalyzerTests
             """);
 
         var reported = diagnostics.ShouldHaveSingleItem();
-        reported.Id.ShouldBe("APG0101");
+        reported.Id.ShouldBe("TRC0101");
         reported.Severity.ShouldBe(DiagnosticSeverity.Warning);
         reported.GetMessage(CultureInfo.InvariantCulture).ShouldContain("AddTracon()");
     }
 
     [Fact]
-    public async Task APG0101_is_silent_when_the_registration_is_in_another_file()
+    public async Task TRC0101_is_silent_when_the_registration_is_in_another_file()
     {
         var registration = $$"""
             {{Wiring}}
@@ -67,7 +67,7 @@ public sealed class UsageAnalyzerTests
     }
 
     [Fact]
-    public async Task APG0102_reports_a_provider_that_is_never_registered()
+    public async Task TRC0102_reports_a_provider_that_is_never_registered()
     {
         var diagnostics = await AnalyzerTestHelper.RunAsync($$"""
             {{Wiring}}
@@ -83,13 +83,13 @@ public sealed class UsageAnalyzerTests
             """);
 
         var reported = diagnostics.ShouldHaveSingleItem();
-        reported.Id.ShouldBe("APG0102");
+        reported.Id.ShouldBe("TRC0102");
         reported.GetMessage(CultureInfo.InvariantCulture).ShouldContain("anthropic");
         reported.GetMessage(CultureInfo.InvariantCulture).ShouldContain("UseAnthropic()");
     }
 
     [Fact]
-    public async Task APG0102_is_silent_when_the_provider_is_registered()
+    public async Task TRC0102_is_silent_when_the_provider_is_registered()
     {
         var source = $$"""
             {{Wiring}}
@@ -115,7 +115,7 @@ public sealed class UsageAnalyzerTests
     }
 
     [Fact]
-    public async Task APG0102_is_silent_when_a_custom_provider_answers_for_the_name()
+    public async Task TRC0102_is_silent_when_a_custom_provider_answers_for_the_name()
     {
         var diagnostics = await AnalyzerTestHelper.RunAsync($$"""
             {{Wiring}}
@@ -137,7 +137,7 @@ public sealed class UsageAnalyzerTests
     }
 
     [Fact]
-    public async Task APG0201_reports_a_literal_secret_inside_a_definition()
+    public async Task TRC0201_reports_a_literal_secret_inside_a_definition()
     {
         var diagnostics = await AnalyzerTestHelper.RunAsync($$"""
             {{Wiring}}
@@ -157,13 +157,13 @@ public sealed class UsageAnalyzerTests
             """);
 
         var reported = diagnostics.ShouldHaveSingleItem();
-        reported.Id.ShouldBe("APG0201");
+        reported.Id.ShouldBe("TRC0201");
         reported.Severity.ShouldBe(DiagnosticSeverity.Warning);
         reported.GetMessage(CultureInfo.InvariantCulture).ShouldContain("McpServerDefinition.AuthorizationConfigurationKey");
     }
 
     [Fact]
-    public async Task APG0201_reports_a_literal_secret_hidden_in_a_header_dictionary()
+    public async Task TRC0201_reports_a_literal_secret_hidden_in_a_header_dictionary()
     {
         var diagnostics = await AnalyzerTestHelper.RunAsync($$"""
             {{Wiring}}
@@ -186,11 +186,11 @@ public sealed class UsageAnalyzerTests
             }
             """);
 
-        diagnostics.ShouldHaveSingleItem().Id.ShouldBe("APG0201");
+        diagnostics.ShouldHaveSingleItem().Id.ShouldBe("TRC0201");
     }
 
     [Fact]
-    public async Task APG0201_is_silent_for_a_configuration_key_name_and_a_short_placeholder()
+    public async Task TRC0201_is_silent_for_a_configuration_key_name_and_a_short_placeholder()
     {
         var source = $$"""
             {{Wiring}}
@@ -217,7 +217,7 @@ public sealed class UsageAnalyzerTests
     }
 
     [Fact]
-    public async Task APG0301_reports_a_retry_loop_written_around_a_chat_client()
+    public async Task TRC0301_reports_a_retry_loop_written_around_a_chat_client()
     {
         var diagnostics = await AnalyzerTestHelper.RunAsync("""
             using System;
@@ -251,12 +251,12 @@ public sealed class UsageAnalyzerTests
             """);
 
         var reported = diagnostics.ShouldHaveSingleItem();
-        reported.Id.ShouldBe("APG0301");
+        reported.Id.ShouldBe("TRC0301");
         reported.GetMessage(CultureInfo.InvariantCulture).ShouldContain("RetryingChatClient");
     }
 
     [Fact]
-    public async Task APG0301_is_silent_for_a_chat_client_that_does_not_retry()
+    public async Task TRC0301_is_silent_for_a_chat_client_that_does_not_retry()
     {
         var source = """
             using System.Collections.Generic;
@@ -287,7 +287,7 @@ public sealed class UsageAnalyzerTests
     }
 
     [Fact]
-    public async Task APG0301_is_silent_for_a_loop_that_paces_instead_of_retrying()
+    public async Task TRC0301_is_silent_for_a_loop_that_paces_instead_of_retrying()
     {
         var source = """
             using System;
@@ -325,7 +325,7 @@ public sealed class UsageAnalyzerTests
     }
 
     [Fact]
-    public async Task APG0302_is_silent_when_the_wrapper_serves_a_factory_agent()
+    public async Task TRC0302_is_silent_when_the_wrapper_serves_a_factory_agent()
     {
         var diagnostics = await AnalyzerTestHelper.RunAsync($$"""
             {{Wiring}}
@@ -344,7 +344,7 @@ public sealed class UsageAnalyzerTests
     }
 
     [Fact]
-    public async Task APG0302_is_silent_when_the_wrapper_belongs_to_a_decorator()
+    public async Task TRC0302_is_silent_when_the_wrapper_belongs_to_a_decorator()
     {
         var source = """
             using Tracon;
@@ -368,7 +368,7 @@ public sealed class UsageAnalyzerTests
     }
 
     [Fact]
-    public async Task APG0302_reports_an_agent_wrapped_by_hand()
+    public async Task TRC0302_reports_an_agent_wrapped_by_hand()
     {
         var source = """
             using Microsoft.Agents.AI;
@@ -381,12 +381,12 @@ public sealed class UsageAnalyzerTests
         var diagnostics = await AnalyzerTestHelper.RunAsync(source);
 
         var reported = diagnostics.ShouldHaveSingleItem();
-        reported.Id.ShouldBe("APG0302");
+        reported.Id.ShouldBe("TRC0302");
         reported.GetMessage(CultureInfo.InvariantCulture).ShouldContain("IAgentDecorator");
     }
 
     [Fact]
-    public async Task APG0302_is_silent_for_the_decorator_it_recommends()
+    public async Task TRC0302_is_silent_for_the_decorator_it_recommends()
     {
         var source = """
             using Tracon;
@@ -408,7 +408,7 @@ public sealed class UsageAnalyzerTests
     }
 
     [Fact]
-    public async Task APG0401_reports_an_agents_file_written_from_an_older_map()
+    public async Task TRC0401_reports_an_agents_file_written_from_an_older_map()
     {
         var diagnostics = await AnalyzerTestHelper.RunAsync(
             "public static class Empty;",
@@ -416,13 +416,13 @@ public sealed class UsageAnalyzerTests
             ("/packages/buildTransitive/Tracon.AgentMap.md", Marker("bbbbbbbb")));
 
         var reported = diagnostics.ShouldHaveSingleItem();
-        reported.Id.ShouldBe("APG0401");
+        reported.Id.ShouldBe("TRC0401");
         reported.GetMessage(CultureInfo.InvariantCulture).ShouldContain("aaaaaaaa");
         reported.GetMessage(CultureInfo.InvariantCulture).ShouldContain("bbbbbbbb");
     }
 
     [Fact]
-    public async Task APG0401_is_silent_when_the_revisions_match()
+    public async Task TRC0401_is_silent_when_the_revisions_match()
     {
         var diagnostics = await AnalyzerTestHelper.RunAsync(
             "public static class Empty;",
@@ -434,18 +434,18 @@ public sealed class UsageAnalyzerTests
 
     /// <summary>
     /// Staleness belongs to a file this package generated. A file the consumer
-    /// wrote is theirs, and APG0402 - not APG0401 - is what has anything to say
+    /// wrote is theirs, and TRC0402 - not TRC0401 - is what has anything to say
     /// about it.
     /// </summary>
     [Fact]
-    public async Task APG0401_is_silent_for_an_agents_file_this_package_did_not_write()
+    public async Task TRC0401_is_silent_for_an_agents_file_this_package_did_not_write()
     {
         var diagnostics = await AnalyzerTestHelper.RunAsync(
             "public static class Empty;",
             ("/repo/AGENTS.md", "# House rules\n\nRun the tests before you commit.\n"),
             ("/packages/buildTransitive/Tracon.AgentMap.md", Marker("bbbbbbbb")));
 
-        diagnostics.ShouldNotContain(diagnostic => diagnostic.Id == "APG0401");
+        diagnostics.ShouldNotContain(diagnostic => diagnostic.Id == "TRC0401");
     }
 
     /// <summary>
@@ -453,7 +453,7 @@ public sealed class UsageAnalyzerTests
     /// names the generated reference, so the map on disk is unreachable.
     /// </summary>
     [Fact]
-    public async Task APG0402_reports_instructions_that_never_name_the_local_reference()
+    public async Task TRC0402_reports_instructions_that_never_name_the_local_reference()
     {
         var diagnostics = await AnalyzerTestHelper.RunWithPropertiesAsync(
             "public static class Empty;",
@@ -462,7 +462,7 @@ public sealed class UsageAnalyzerTests
             ("/packages/buildTransitive/Tracon.AgentMap.md", Marker("bbbbbbbb")));
 
         var reported = diagnostics.ShouldHaveSingleItem();
-        reported.Id.ShouldBe("APG0402");
+        reported.Id.ShouldBe("TRC0402");
         reported.GetMessage(CultureInfo.InvariantCulture).ShouldContain("Tracon.LocalReference.md");
 
         // The location has to be shown somewhere: an IDE places the squiggle on
@@ -471,7 +471,7 @@ public sealed class UsageAnalyzerTests
     }
 
     [Fact]
-    public async Task APG0402_is_silent_when_the_instructions_name_the_local_reference()
+    public async Task TRC0402_is_silent_when_the_instructions_name_the_local_reference()
     {
         var diagnostics = await AnalyzerTestHelper.RunWithPropertiesAsync(
             "public static class Empty;",
@@ -489,7 +489,7 @@ public sealed class UsageAnalyzerTests
     /// installing the package changes nothing until asked.
     /// </summary>
     [Fact]
-    public async Task APG0402_is_silent_when_the_local_reference_is_not_written()
+    public async Task TRC0402_is_silent_when_the_local_reference_is_not_written()
     {
         var diagnostics = await AnalyzerTestHelper.RunAsync(
             "public static class Empty;",
@@ -500,7 +500,7 @@ public sealed class UsageAnalyzerTests
     }
 
     [Fact]
-    public async Task APG0402_is_silent_when_the_property_is_turned_off_on_its_own()
+    public async Task TRC0402_is_silent_when_the_property_is_turned_off_on_its_own()
     {
         var diagnostics = await AnalyzerTestHelper.RunWithPropertiesAsync(
             "public static class Empty;",
@@ -512,11 +512,11 @@ public sealed class UsageAnalyzerTests
     }
 
     /// <summary>
-    /// A generated map is APG0401's business whatever it says, and it always
+    /// A generated map is TRC0401's business whatever it says, and it always
     /// names the reference file because the shipped map does.
     /// </summary>
     [Fact]
-    public async Task APG0402_is_silent_for_a_generated_agents_file()
+    public async Task TRC0402_is_silent_for_a_generated_agents_file()
     {
         var diagnostics = await AnalyzerTestHelper.RunWithPropertiesAsync(
             "public static class Empty;",
@@ -528,7 +528,7 @@ public sealed class UsageAnalyzerTests
     }
 
     [Fact]
-    public async Task APG0402_is_silent_when_there_is_no_agents_file()
+    public async Task TRC0402_is_silent_when_there_is_no_agents_file()
     {
         var diagnostics = await AnalyzerTestHelper.RunWithPropertiesAsync(
             "public static class Empty;",
@@ -544,7 +544,7 @@ public sealed class UsageAnalyzerTests
     /// analyzer's business.
     /// </summary>
     [Fact]
-    public async Task APG0402_is_silent_without_Tracon_referenced()
+    public async Task TRC0402_is_silent_without_Tracon_referenced()
     {
         var diagnostics = await AnalyzerTestHelper.RunWithPropertiesAsync(
             "public static class Empty;",
@@ -559,7 +559,7 @@ public sealed class UsageAnalyzerTests
     /// it reports collapses to width zero and must still be creatable.
     /// </summary>
     [Fact]
-    public async Task APG0402_reports_an_empty_agents_file()
+    public async Task TRC0402_reports_an_empty_agents_file()
     {
         var diagnostics = await AnalyzerTestHelper.RunWithPropertiesAsync(
             "public static class Empty;",
@@ -568,7 +568,7 @@ public sealed class UsageAnalyzerTests
             ("/packages/buildTransitive/Tracon.AgentMap.md", Marker("bbbbbbbb")));
 
         var reported = diagnostics.ShouldHaveSingleItem();
-        reported.Id.ShouldBe("APG0402");
+        reported.Id.ShouldBe("TRC0402");
         reported.Location.SourceSpan.Length.ShouldBe(0);
     }
 
@@ -577,7 +577,7 @@ public sealed class UsageAnalyzerTests
     /// agent at it, which is why the search is plain rather than structural.
     /// </summary>
     [Fact]
-    public async Task APG0402_accepts_a_pointer_written_inside_a_code_fence()
+    public async Task TRC0402_accepts_a_pointer_written_inside_a_code_fence()
     {
         var diagnostics = await AnalyzerTestHelper.RunWithPropertiesAsync(
             "public static class Empty;",
@@ -589,7 +589,7 @@ public sealed class UsageAnalyzerTests
     }
 
     [Fact]
-    public async Task APG0501_reports_a_loop_that_does_not_repeat_the_ambient_write()
+    public async Task TRC0501_reports_a_loop_that_does_not_repeat_the_ambient_write()
     {
         var diagnostics = await AnalyzerTestHelper.RunAsync("""
             using System.Collections.Generic;
@@ -621,13 +621,13 @@ public sealed class UsageAnalyzerTests
             """);
 
         var reported = diagnostics.ShouldHaveSingleItem();
-        reported.Id.ShouldBe("APG0501");
+        reported.Id.ShouldBe("TRC0501");
         reported.Severity.ShouldBe(DiagnosticSeverity.Warning);
         reported.GetMessage(CultureInfo.InvariantCulture).ShouldContain("StreamAsync");
     }
 
     [Fact]
-    public async Task APG0501_is_silent_when_the_write_repeats_inside_the_loop()
+    public async Task TRC0501_is_silent_when_the_write_repeats_inside_the_loop()
     {
         var source = """
             using System.Collections.Generic;
@@ -677,7 +677,7 @@ public sealed class UsageAnalyzerTests
     /// guards.
     /// </summary>
     [Fact]
-    public async Task APG0501_evaluates_a_nested_loop_on_its_own_account()
+    public async Task TRC0501_evaluates_a_nested_loop_on_its_own_account()
     {
         var diagnostics = await AnalyzerTestHelper.RunAsync("""
             using System.Collections.Generic;
@@ -714,7 +714,7 @@ public sealed class UsageAnalyzerTests
             """);
 
         var reported = diagnostics.ShouldHaveSingleItem();
-        reported.Id.ShouldBe("APG0501");
+        reported.Id.ShouldBe("TRC0501");
     }
 
     /// <summary>
@@ -724,7 +724,7 @@ public sealed class UsageAnalyzerTests
     /// <c>WorkflowRunner.RunGuardedAsync</c>'s own shape.
     /// </summary>
     [Fact]
-    public async Task APG0501_is_silent_for_an_await_foreach_passthrough_with_no_further_await()
+    public async Task TRC0501_is_silent_for_an_await_foreach_passthrough_with_no_further_await()
     {
         var source = """
             using System.Collections.Generic;
@@ -762,7 +762,7 @@ public sealed class UsageAnalyzerTests
     /// same MoveNextAsync boundary as any other loop.
     /// </summary>
     [Fact]
-    public async Task APG0501_reports_an_await_foreach_with_a_further_unguarded_await()
+    public async Task TRC0501_reports_an_await_foreach_with_a_further_unguarded_await()
     {
         var diagnostics = await AnalyzerTestHelper.RunAsync("""
             using System.Collections.Generic;
@@ -791,11 +791,11 @@ public sealed class UsageAnalyzerTests
             """);
 
         var reported = diagnostics.ShouldHaveSingleItem();
-        reported.Id.ShouldBe("APG0501");
+        reported.Id.ShouldBe("TRC0501");
     }
 
     [Fact]
-    public async Task APG0501_is_silent_for_a_method_that_never_writes_ambient_state()
+    public async Task TRC0501_is_silent_for_a_method_that_never_writes_ambient_state()
     {
         var source = """
             using System.Collections.Generic;
@@ -830,7 +830,7 @@ public sealed class UsageAnalyzerTests
     }
 
     [Fact]
-    public async Task APG0502_reports_a_discarded_ambient_scope()
+    public async Task TRC0502_reports_a_discarded_ambient_scope()
     {
         var diagnostics = await AnalyzerTestHelper.RunAsync("""
             using Tracon;
@@ -842,13 +842,13 @@ public sealed class UsageAnalyzerTests
             """);
 
         var reported = diagnostics.ShouldHaveSingleItem();
-        reported.Id.ShouldBe("APG0502");
+        reported.Id.ShouldBe("TRC0502");
         reported.Severity.ShouldBe(DiagnosticSeverity.Warning);
         reported.GetMessage(CultureInfo.InvariantCulture).ShouldContain("AmbientTenantScope.Begin");
     }
 
     [Fact]
-    public async Task APG0502_reports_a_scope_assigned_to_a_discard()
+    public async Task TRC0502_reports_a_scope_assigned_to_a_discard()
     {
         var diagnostics = await AnalyzerTestHelper.RunAsync("""
             using Tracon;
@@ -859,11 +859,11 @@ public sealed class UsageAnalyzerTests
             }
             """);
 
-        diagnostics.ShouldHaveSingleItem().Id.ShouldBe("APG0502");
+        diagnostics.ShouldHaveSingleItem().Id.ShouldBe("TRC0502");
     }
 
     [Fact]
-    public async Task APG0502_is_silent_for_a_using_var_declaration()
+    public async Task TRC0502_is_silent_for_a_using_var_declaration()
     {
         var source = """
             using Tracon;
@@ -885,7 +885,7 @@ public sealed class UsageAnalyzerTests
     }
 
     [Fact]
-    public async Task APG0502_is_silent_for_a_using_statement()
+    public async Task TRC0502_is_silent_for_a_using_statement()
     {
         var source = """
             using Tracon;
@@ -910,7 +910,7 @@ public sealed class UsageAnalyzerTests
 
     /// <summary>Open soru 4 (phase 93): a plain variable keeps a handle on the scope, whether or not it disposes it.</summary>
     [Fact]
-    public async Task APG0502_is_silent_for_a_plain_local_variable()
+    public async Task TRC0502_is_silent_for_a_plain_local_variable()
     {
         var source = """
             using Tracon;
@@ -934,7 +934,7 @@ public sealed class UsageAnalyzerTests
 
     /// <summary>The result reaching an argument keeps a handle on it just as well as a variable does.</summary>
     [Fact]
-    public async Task APG0502_is_silent_when_the_result_is_passed_as_an_argument()
+    public async Task TRC0502_is_silent_when_the_result_is_passed_as_an_argument()
     {
         var source = """
             using System;
@@ -956,7 +956,7 @@ public sealed class UsageAnalyzerTests
     }
 
     [Fact]
-    public async Task APG0502_reports_a_discarded_attribution_scope()
+    public async Task TRC0502_reports_a_discarded_attribution_scope()
     {
         var diagnostics = await AnalyzerTestHelper.RunAsync("""
             using Tracon;
@@ -967,7 +967,7 @@ public sealed class UsageAnalyzerTests
             }
             """);
 
-        diagnostics.ShouldHaveSingleItem().Id.ShouldBe("APG0502");
+        diagnostics.ShouldHaveSingleItem().Id.ShouldBe("TRC0502");
     }
 
     [Fact]

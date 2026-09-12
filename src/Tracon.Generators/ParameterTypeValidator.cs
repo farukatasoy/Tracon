@@ -17,20 +17,20 @@ internal enum ObjectGraphErrorKind
 
 /// <summary>
 /// A depth or cycle failure found while walking a parameter's object graph - reported by
-/// the caller as APG0012. Never stored on a cached model; it only lives for the duration
+/// the caller as TRC0012. Never stored on a cached model; it only lives for the duration
 /// of one <see cref="ParameterTypeValidator.TryCreate"/> call.
 /// </summary>
 internal sealed record ObjectGraphError(ObjectGraphErrorKind Kind, string PathText);
 
 /// <summary>
 /// Converts a method parameter to <see cref="ParameterModel"/>. Returns
-/// <see langword="null"/> for a type outside the allow list (APG0003).
+/// <see langword="null"/> for a type outside the allow list (TRC0003).
 /// </summary>
 internal static class ParameterTypeValidator
 {
     /// <summary>
     /// 135.1: the root parameter is depth 0; its own object members are depth 1. A graph
-    /// deeper than this is rejected (APG0012) instead of silently generated - the model's
+    /// deeper than this is rejected (TRC0012) instead of silently generated - the model's
     /// error rate rises with schema depth, and a graph this deep is usually a sign the tool
     /// is doing too much.
     /// </summary>
@@ -55,20 +55,20 @@ internal static class ParameterTypeValidator
     /// <param name="unsupportedConstraintAttributes">
     /// Constraint attributes (130.2) present on <paramref name="parameter"/>, or anywhere in
     /// its object graph (135.2), that do not apply to their resolved type or shape - reported
-    /// as APG0010 by the caller. A constraint attribute never blocks generation, so this is
+    /// as TRC0010 by the caller. A constraint attribute never blocks generation, so this is
     /// populated independently of the return value, including when the return value is
     /// <see langword="null"/>.
     /// </param>
     /// <param name="referencedObjectTypes">
     /// Every distinct object type (135.1) found in this parameter's graph, including the
     /// parameter's own type when it is itself an object. The caller cross-checks each one
-    /// against the tool's <c>JsonSerializerContext</c> and reports APG0011 for any that is
+    /// against the tool's <c>JsonSerializerContext</c> and reports TRC0011 for any that is
     /// not declared with <c>[JsonSerializable]</c> - empty for a parameter with no object
     /// anywhere in its shape.
     /// </param>
     /// <param name="graphError">
     /// Set when the object graph is deeper than <see cref="MaxObjectDepth"/> or contains a
-    /// cycle - the caller reports APG0012 and treats the parameter as unsupported.
+    /// cycle - the caller reports TRC0012 and treats the parameter as unsupported.
     /// </param>
     public static ParameterModel? TryCreate(
         IParameterSymbol parameter,
@@ -175,7 +175,7 @@ internal static class ParameterTypeValidator
 
         public ImmutableArray<ITypeSymbol> ToReferencedTypes() => ImmutableArray.CreateRange(ReferencedTypes);
 
-        /// <summary>Renders each entry as <c>[Attribute] (on member 'Name')</c> for the shared APG0010 message template.</summary>
+        /// <summary>Renders each entry as <c>[Attribute] (on member 'Name')</c> for the shared TRC0010 message template.</summary>
         public IEnumerable<string> RenderUnsupportedConstraintAttributes()
             => UnsupportedConstraintAttributes.Select(entry => $"{entry.AttributeName} (on member '{entry.MemberName}')");
     }
@@ -184,8 +184,8 @@ internal static class ParameterTypeValidator
     /// Walks <paramref name="type"/> as a supported object type (135.1), recording every
     /// nested object it reaches into <paramref name="state"/>. Returns <see langword="null"/>
     /// both when <paramref name="type"/> is not a supported object shape (the caller reports
-    /// APG0003) and when <see cref="ObjectGraphState.Error"/> is set (the caller reports
-    /// APG0012) - the two are distinguished by whether <see cref="ObjectGraphState.Error"/>
+    /// TRC0003) and when <see cref="ObjectGraphState.Error"/> is set (the caller reports
+    /// TRC0012) - the two are distinguished by whether <see cref="ObjectGraphState.Error"/>
     /// is populated.
     /// </summary>
     private static ObjectType? TryCreateObjectType(ITypeSymbol type, int depth, ObjectGraphState state)
@@ -369,7 +369,7 @@ internal static class ParameterTypeValidator
         return true;
     }
 
-    /// <summary>Renders an ancestor chain as <c>A → B → A</c> for an APG0012 message.</summary>
+    /// <summary>Renders an ancestor chain as <c>A → B → A</c> for an TRC0012 message.</summary>
     private static string PathText(List<ITypeSymbol> path, int fromIndex, ITypeSymbol closingType)
     {
         var names = new List<string>();
@@ -387,7 +387,7 @@ internal static class ParameterTypeValidator
     /// <summary>
     /// Every <see cref="System.ComponentModel.DataAnnotations"/> constraint attribute this
     /// validator knows applies only to a scalar or scalar array (130.2) - none of them has a
-    /// meaning for an object or object array. Reports each one found as unsupported (APG0010)
+    /// meaning for an object or object array. Reports each one found as unsupported (TRC0010)
     /// instead of silently ignoring it, matching 130's "never silently produce a wrong schema"
     /// rule for every other unrenderable case.
     /// </summary>
@@ -395,7 +395,7 @@ internal static class ParameterTypeValidator
     /// Combines the root object/object-array parameter's OWN unsupported constraint
     /// attributes with every one found on a member anywhere in its graph
     /// (<see cref="ObjectGraphState.UnsupportedConstraintAttributes"/>) into the single
-    /// list the caller reports as APG0010. Without this, a mismatched constraint on a
+    /// list the caller reports as TRC0010. Without this, a mismatched constraint on a
     /// nested member (<c>[Range]</c> on an object member's <c>string</c>) is recorded
     /// during the walk but never reaches the caller - <see cref="TryCreateMember"/>
     /// populates <see cref="ObjectGraphState"/>, not the method's own <see langword="out"/>
@@ -446,7 +446,7 @@ internal static class ParameterTypeValidator
     /// <c>System.ComponentModel.DataAnnotations</c> attributes. An attribute that does not
     /// apply to <paramref name="shape"/>/<paramref name="leafKind"/> contributes nothing to
     /// the returned <see cref="ParameterConstraints"/> and is instead named in
-    /// <paramref name="unsupportedAttributes"/> for the caller to report as APG0010 -
+    /// <paramref name="unsupportedAttributes"/> for the caller to report as TRC0010 -
     /// this never blocks generation.
     /// </summary>
     /// <remarks>
@@ -500,7 +500,7 @@ internal static class ParameterTypeValidator
                     // JSON Schema requires minLength/minItems to be a non-negative integer
                     // (draft 2020-12, "nonNegativeInteger"); a negative constant is not a
                     // missing-constructor-argument case like MaxLengthAttribute() below, but
-                    // it is equally unrenderable, so it is reported the same way (APG0010)
+                    // it is equally unrenderable, so it is reported the same way (TRC0010)
                     // instead of being written into an otherwise-invalid schema.
                     if (!TryReadSingleIntArgument(attribute, out var minLengthValue) || minLengthValue < 0)
                     {

@@ -2613,7 +2613,7 @@ curl -s http://localhost:5080/tracon/api/tools \
   aynı şekilde kendi parametresinde bir `description` taşır — dördü de
   `[TraconTool]` + `AddGeneratedTools()` (kaynak üreteci) yoluyla kayıtlıdır.
 
-### MT-TEST-088 — Açıklaması olmayan bir tool parametresi APG0009 uyarısı üretir; derleme başarılı biter (Faz 125)
+### MT-TEST-088 — Açıklaması olmayan bir tool parametresi TRC0009 uyarısı üretir; derleme başarılı biter (Faz 125)
 
 | | |
 |---|---|
@@ -2647,12 +2647,12 @@ dotnet build "$TMP/apg" -c Release
 ```
 
 **Beklenen sonuç**
-- Çıktıda `warning APG0009: Parameter 'orderId' of tool 'get_order_status' has no
+- Çıktıda `warning TRC0009: Parameter 'orderId' of tool 'get_order_status' has no
   description. The model has only the parameter name to go on; add [Description].`
   görünür.
 - `dotnet build` **`0 Error(s)`** ile biter — uyarı derlemeyi kırmaz.
 
-### MT-TEST-089 — Nesne parametreli bir tool metodu APG0003 hatası üretir; mesaj iç içe nesnenin ifade edilemediğini ve kaçış yolunu adıyla söyler (Faz 125)
+### MT-TEST-089 — Nesne parametreli bir tool metodu TRC0003 hatası üretir; mesaj iç içe nesnenin ifade edilemediğini ve kaçış yolunu adıyla söyler (Faz 125)
 
 | | |
 |---|---|
@@ -2684,7 +2684,7 @@ dotnet build "$TMP/apg2" -c Release
 ```
 
 **Beklenen sonuç**
-- Çıktıda `error APG0003: ... is not supported by the generator. Supported
+- Çıktıda `error TRC0003: ... is not supported by the generator. Supported
   types: ... The generator also never expresses a nested object, or a
   minimum, maximum, length, or pattern constraint, on any parameter. For
   another type, or a constrained schema, register manually with

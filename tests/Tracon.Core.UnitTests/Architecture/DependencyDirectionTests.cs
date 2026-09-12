@@ -59,7 +59,7 @@ public sealed class DependencyDirectionTests
         // Tracon.Generators is here for the same reason it is in Core's
         // entry above: OutputItemType=Analyzer does not propagate across a
         // multi-hop ProjectReference chain (measured, phase 93), so Workflows
-        // needs its own analyzer reference to run APG0501/APG0502 over its
+        // needs its own analyzer reference to run TRC0501/TRC0502 over its
         // own async iterators. Never loaded as a runtime dependency.
         ["Tracon.Workflows"] = ["Tracon.Core", "Tracon.Generators"],
         ["Tracon.AspNetCore"] = ["Tracon.Core"],

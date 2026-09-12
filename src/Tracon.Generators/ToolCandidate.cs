@@ -47,7 +47,7 @@ internal sealed record ToolEmitModel(
 /// <summary>The analysis result for a single method marked with <c>[TraconTool]</c>.</summary>
 /// <remarks>
 /// Either <see cref="Emit"/> is populated (emittable) or <see cref="Diagnostics"/>
-/// contains a blocking error (both can hold at once - APG0006 is a warning and does not
+/// contains a blocking error (both can hold at once - TRC0006 is a warning and does not
 /// block).
 /// </remarks>
 internal sealed record ToolCandidate(SourceLocation Location, EquatableArray<DiagnosticInfo> Diagnostics, ToolEmitModel? Emit)
@@ -300,7 +300,7 @@ internal sealed record ToolCandidate(SourceLocation Location, EquatableArray<Dia
 
     /// <summary>
     /// Reads every type <paramref name="contextType"/> declares with
-    /// <c>[JsonSerializable(typeof(...))]</c> - a rule APG0011 enforces: a nested object
+    /// <c>[JsonSerializable(typeof(...))]</c> - a rule TRC0011 enforces: a nested object
     /// type must be declared in the SAME context the tool owner points
     /// <c>TraconTool.JsonSerializerContext</c> at, or the generator cannot bind it
     /// without reflection.

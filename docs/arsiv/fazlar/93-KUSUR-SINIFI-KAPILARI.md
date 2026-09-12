@@ -32,8 +32,8 @@ Bu faz, **üç kez veya daha fazla tekrarlamış** iki kusur sınıfını yazıd
 
 ## Bitiş Ölçütleri (DoD)
 
-- [x] `APG0501` akışlı bir yineleyicide döngü dışı ambient yazımını `warning` olarak bildirir; yazım döngü içine taşınınca uyarı kaybolur (manuel case 1–2 koşuldu, gerçek tüketici derlemesinde — çıktı `docs/manuel-test/29-AGENT-DESTEGI.md` MT-AGD-021'de)
-- [x] `APG0502` `using`'siz `AmbientTenantScope.Begin(...)` çağrısını `warning` olarak bildirir (manuel case 3, MT-AGD-021)
+- [x] `TRC0501` akışlı bir yineleyicide döngü dışı ambient yazımını `warning` olarak bildirir; yazım döngü içine taşınınca uyarı kaybolur (manuel case 1–2 koşuldu, gerçek tüketici derlemesinde — çıktı `docs/manuel-test/29-AGENT-DESTEGI.md` MT-AGD-021'de)
+- [x] `TRC0502` `using`'siz `AmbientTenantScope.Begin(...)` çağrısını `warning` olarak bildirir (manuel case 3, MT-AGD-021)
 - [x] `TraconUsageDiagnostics=false` iki yeni tanıyı da susturur (manuel case 4, MT-AGD-021) — `Tracon.Core.targets` `NoWarn` listesi güncellendi
 - [x] `DiagnosticIntegrityTests` yeni iddiayı taşır: her `Usage` tanısı `.targets` `NoWarn` metninde geçer (`Every_usage_diagnostic_is_in_the_NoWarn_switch`)
 - [x] `dotnet build src/Tracon.Workflows -c Release` sıfır `APG` uyarısı verir; ölçüm 2026-08-24: `0 Warning(s), 0 Error(s)` — bkz. "Plandan Sapmalar" (yanlış pozitif keşfi ve düzeltmesi)
@@ -72,7 +72,7 @@ dotnet pack Tracon.slnx -c Release
 
 ## Plandan Sapmalar
 
-1. **`APG0501`'in tetik koşulu plan tasarımından daha dar: "yaprak döngü" + `finally` hariç tutma.**
+1. **`TRC0501`'in tetik koşulu plan tasarımından daha dar: "yaprak döngü" + `finally` hariç tutma.**
    Plan (93.1) altı bugünkü yazım yerini ölçmüş ve "hiçbiri kuralın tetiğine
    girmiyor" demişti — bu doğruydu, ama plan `Tracon.Workflows`'a analyzer
    referansı eklendiğinde (93.6) ortaya çıkan **yedinci** bir döngüyü
@@ -91,12 +91,12 @@ dotnet pack Tracon.slnx -c Release
    Gerekçe ve üç gerçek üretim vakası (`RunGuardedAsync` satır 524,
    `PumpAsync` satır 659/806) `TraconUsageAnalyzer.cs`'in
    `ImmediateDescendants` ve `VisitAsyncIteratorMethod` üzerindeki `<remarks>`
-   bloklarında ve `UsageAnalyzerTests.APG0501_evaluates_a_nested_loop_on_its_own_account`
+   bloklarında ve `UsageAnalyzerTests.TRC0501_evaluates_a_nested_loop_on_its_own_account`
    testinde belgelendi. Bu **yerel bir implementasyon tercihidir** (K-* açılmadı,
    AGENTS.md'nin "public API/güvenlik/kiracı sınırı/kalıcı veri" ölçütünü
    karşılamıyor); ölçüm gerçek `dotnet build src/Tracon.Workflows -c Release`
    ile doğrulandı (0 uyarı).
-2. **`APG0502`'nin discard tespiti sözdizimsel değil `IOperation` tabanlı.**
+2. **`TRC0502`'nin discard tespiti sözdizimsel değil `IOperation` tabanlı.**
    Plan yalnız "çağrı bir `ExpressionStatement`'tır" diyordu. İlk implementasyon
    (yalnız `ExpressionStatementSyntax` kontrolü) `void Run() => Begin(...);`
    şeklindeki expression-bodied metotları kaçırdı — bunların syntax ebeveyni
@@ -104,7 +104,7 @@ dotnet pack Tracon.slnx -c Release
    sonuç aynı şekilde atılıyor. `context.SemanticModel.GetOperation(...)?.Parent
    is IExpressionStatementOperation` kontrolüne geçildi; bu hem normal `stmt;`
    hem de void-dönen arrow-body'yi doğru şekilde yakalıyor. Ölçüldü: testler
-   önce başarısız oldu (`APG0502_reports_a_discarded_ambient_scope` 0
+   önce başarısız oldu (`TRC0502_reports_a_discarded_ambient_scope` 0
    diagnostic döndü), düzeltme sonrası geçti.
 3. **`AmbientWriteSiteTests`/`PlaywrightLocatorTests`'in kendi kaynak dosyaları
    taramadan hariç tutuldu.** Plan bunu öngörmüyordu. İlk `REFRESH` çalıştırması
@@ -123,14 +123,14 @@ dotnet pack Tracon.slnx -c Release
    yazım YENİ bir "yer" sayılmıyor. Sonuç: 14 ham satır → 11 benzersiz taban
    çizgisi satırı. Mekanizma doğru çalışıyor (manuel case 6 ile kanıtlandı);
    yalnızca ölçüm terminolojisi netleştirildi.
-5. **`APG0501`'in "await foreach de sayılsın mı" açık sorusu (1) plandaki gibi
+5. **`TRC0501`'in "await foreach de sayılsın mı" açık sorusu (1) plandaki gibi
    basit bir "otomatik true" ile değil, "gövdede ayrı bir await var mı"
    kontrolüyle çözüldü.** `await foreach`'in kendi örtük `MoveNextAsync()`'i
    ayrıca bir "sürücü tetiği" sayılmadı (sapma #1'in gerekçesiyle aynı kök
    neden) — yalnızca döngü GÖVDESİNDE (nested loop hariç) ayrı bir `await`
    varsa tetikleniyor. Açık sorunun "A: ikisi de sayılsın" önerisi ruhen
    korundu (`await foreach` DA tetiklenebilir,
-   `APG0501_reports_an_await_foreach_with_a_further_unguarded_await` testi
+   `TRC0501_reports_an_await_foreach_with_a_further_unguarded_await` testi
    kanıtlıyor) ama tetik koşulu `while`/`for` ile TUTARLI tek bir kurala
    indirgendi.
 
@@ -174,7 +174,7 @@ başına tekrar koşturdu ve manuel case 15-16'yı kendisi de tekrarladı.
 
 | # | Bulgu | Seviye | Sonuç |
 |---|---|---|---|
-| 1 | `kusur-giderme` SKILL.md'nin sayaç tablosuna kapı sütunu eklenmemişti (DoD maddesiyle çelişki) | 🔴 | **Düzeltildi** — tabloya `Kapı` sütunu eklendi (`AsyncLocal`→`APG0501`+`AmbientWriteSiteTests`, sync kopyası→`kapi.py tarama`, Playwright→`PlaywrightLocatorTests`) |
+| 1 | `kusur-giderme` SKILL.md'nin sayaç tablosuna kapı sütunu eklenmemişti (DoD maddesiyle çelişki) | 🔴 | **Düzeltildi** — tabloya `Kapı` sütunu eklendi (`AsyncLocal`→`TRC0501`+`AmbientWriteSiteTests`, sync kopyası→`kapi.py tarama`, Playwright→`PlaywrightLocatorTests`) |
 | 2 | DoD'daki "14 yer" ifadesi taban çizgisindeki gerçek 11 satırla uyuşmuyordu | 🟡 | **Düzeltildi** — DoD satırı 11'e düzeltildi, "Plandan Sapmalar #4"e ölçüm terminolojisi (ham grep vs. benzersiz taban çizgisi) yazıldı |
 | 3 | Hata Modları tablosundaki iki satır (Windows yol ayırıcısı, `RepositoryRoot` bulunamama) ayrı bir birim testi vaat ediyordu, kodda yok | 🟡 | **Gerekçelendi** — tablo satırları "davranış kodda var, ayrı test yok, `SourceLanguageTests` ile aynı desen" olarak düzeltildi; yeni test **eklenmedi** çünkü referans aldığı desenin kendisi de aynı boşluğu taşıyor |
 | 4 | `samples/Tracon.Api` ile gerçek `run` kanıtı faz dokümanında yoktu | 🟡 | **Düzeltildi** — koşum bu bölümün altına, gerçek çıktıyla yazıldı |
@@ -246,7 +246,7 @@ etkilemiyor) örnek uygulamayı bozmadı.
   varsayımı yanlış pozitif üretir.** Konteyner döngüler (başka bir döngü
   içeren) ile `finally`/cleanup bloklarındaki await'ler ayrı ele alınmalı —
   detay `TraconUsageAnalyzer.cs`'in `ImmediateDescendants` yorumunda.
-- 🚨 **APG0502 tipi "sonuç discard edildi mi" analizleri sözdizimsel
+- 🚨 **TRC0502 tipi "sonuç discard edildi mi" analizleri sözdizimsel
   (`ExpressionStatementSyntax`) DEĞİL, `IOperation` (`IExpressionStatementOperation`)
   tabanlı yazılmalı** — sözdizimsel kontrol expression-bodied üyeleri
   (`void X() => Y();`) kaçırır.

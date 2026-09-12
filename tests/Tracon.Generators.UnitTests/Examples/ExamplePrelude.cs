@@ -168,7 +168,7 @@ internal static class ExamplePrelude
     /// <remarks>
     /// Not <c>static</c>: a static class cannot be a generic type argument, and
     /// <c>AddToolsFrom&lt;OrderTools&gt;()</c> (a different block) names this same
-    /// type that way. The tool method itself stays <c>static</c> - APG0007
+    /// type that way. The tool method itself stays <c>static</c> - TRC0007
     /// requires that regardless of the container.
     /// </remarks>
     private const string OrderToolsStub = """
