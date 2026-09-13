@@ -2,8 +2,9 @@
 
 > `.agents/skills/` **dışındadır** — skill keşfi bu dosyayı bir skill sanmaz.
 > Bağlayan dosyalar: `AGENTS.md` · `faz-tamamlama/SKILL.md` ·
-> `kusur-giderme/SKILL.md`. Ham komutlar yalnız burada ve `scripts/kapi.py`
-> içinde yaşar; üç çağıran da bu dosyaya bağlanır, komutu kopyalamaz (Faz 91).
+> `kusur-giderme/SKILL.md` · [`kurtarma.md`](kurtarma.md) (`KR-12`, Faz 168).
+> Ham komutlar yalnız burada ve `scripts/kapi.py` içinde yaşar; dört çağıran
+> da bu dosyaya bağlanır, komutu kopyalamaz (Faz 91).
 
 Dördü de sıfır uyarı vermelidir. Bir tanesi kırmızıysa iş **bitmemiştir**.
 
@@ -12,6 +13,7 @@ python3 scripts/kapi.py ic-dongu                 # build + etkilenen test projel
 python3 scripts/kapi.py tarama                    # sync kopyası · secret · migration bütünlüğü · bayat doküman referansı (saniyeler)
 python3 scripts/kapi.py kapanis --taban <faz öncesi commit>   # tamamı, ucuzdan pahalıya, tek özet
 python3 scripts/kapi.py test --proje <Proje> --sinif "*Ad*"   # MTP filtresi, doğru biçimde
+python3 scripts/kapi.py performans                # tahsis kapısı - üç sıcak yol, bench/baseline.json'a karşı (`KR-12`)
 ```
 
 `kapi.py` koştuğu her komutu ekrana basar, ilk kırmızıda durur ve süreleri

@@ -198,6 +198,10 @@ Seviye tanımları:
 Bulgu yoksa bunu açıkça yaz: **"🔴 ve 🟡 yok."** Sessiz rapor, denetim
 yapılmadığından ayırt edilemez.
 
+Geçerli **görünen** ama repro'su olmayan bir bulgu üç seviyeden birine değil,
+[`ortak/kurtarma.md`](../../ortak/kurtarma.md) kataloğundaki **`KR-05`**
+(araştırılacak bulgu) rampasına gider.
+
 ---
 
 ## Adım 5 — Uygulayan oturum bulguları kapatır

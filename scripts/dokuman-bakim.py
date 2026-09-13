@@ -966,7 +966,12 @@ def tekrarlanan_kapi_tanimlari(kok: pathlib.Path = ROOT) -> list[str]:
     ci = kok / ".github" / "workflows" / "ci.yml"
     agents = kok / "AGENTS.md"
     completion = kok / ".agents" / "skills" / "faz-tamamlama" / "SKILL.md"
-    if not all(path.exists() for path in (kapi, ci, agents, completion)):
+    # Faz 168: kurtarma katalogu ayni delegasyon sozlesmesine tabidir. Katalog
+    # bir LISTE bicimindedir ve liste bicimi kopyalamaya davet eder -- bir
+    # rampanin govdesi hem burada hem bagli protokolde yasarsa ikisi zamanla
+    # SESSIZCE celisir. Ham kapanis komutu bu kopyalamanin en ucuz isaretidir.
+    recovery = kok / ".agents" / "ortak" / "kurtarma.md"
+    if not all(path.exists() for path in (kapi, ci, agents, completion, recovery)):
         return ["kapi.py veya delegasyon hedefi eksik"]
 
     kapi_text = kapi.read_text(encoding="utf-8")
@@ -996,6 +1001,12 @@ def tekrarlanan_kapi_tanimlari(kok: pathlib.Path = ROOT) -> list[str]:
         bulgular.append("faz-tamamlama sync/secret taramasını kapi.py'ye devretmiyor")
     if "find src tests samples docs .agents" in completion_text or "Password|pwd" in completion_text:
         bulgular.append("faz-tamamlama eski sync/secret desenini taşıyor")
+
+    recovery_text = recovery.read_text(encoding="utf-8")
+    if "scripts/kapi.py kapanis" in recovery_text:
+        bulgular.append("kurtarma.md ham kapanış komutunu kopyalıyor; kapilar.md'ye bağlanmalı")
+    if "kapilar.md" not in recovery_text:
+        bulgular.append("kurtarma.md kapı sözleşmesine bağlanmıyor")
     return bulgular
 
 

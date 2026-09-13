@@ -39,6 +39,9 @@ grep -rn "await agent.RunStreamingAsync\|MoveNextAsync" src/Tracon.Core/
 İddia düşerse **kod yazma**; plandan sapmayı fazın dokümanına yaz ve devam et.
 Sapma gizlenmez — gerekçesi sonraki oturumun en değerli bilgisidir.
 
+Bu adım [`ortak/kurtarma.md`](../../ortak/kurtarma.md) kataloğunda **`KR-07`**
+(plan sapması) rampasıdır; sapma fazın kapsamını değiştiriyorsa `KR-08`'e geç.
+
 ---
 
 ## Adım 2 — Her davranış için test seviyesini seç

@@ -1,6 +1,6 @@
 # 36 — Geliştirme Döngüsü Kapıları (`GDK`)
 
-> **Alan kodu:** `GDK` · **Faz:** 91, 92, 116, 167
+> **Alan kodu:** `GDK` · **Faz:** 91, 92, 116, 167, 168
 > **Kaynak:** `scripts/kapi.py` · `scripts/denetim-paketi.py`
 > · `scripts/*_test.py` · `src/Tracon.UI/Tracon.UI.Frontend.targets`
 > · `docfx/docfx.json` · `tests/Tracon.Core.UnitTests/Architecture/DocfxConfigurationTests.cs`
@@ -8,6 +8,7 @@
 > · `tests/Tracon.Core.UnitTests/Recording/RunReconciliationTests.cs`
 > · `.agents/ortak/` (Faz 92) · `bench/Tracon.Benchmarks/` (Faz 116)
 > · `.claude/agents/faz-denetcisi.md` · `.claude/settings.json` (Faz 167)
+> · `.agents/ortak/kurtarma.md` (Faz 168)
 
 Bu aile, geliştirme kapılarının komutları sessizce atlamadığını ve tarihsel
 kusur sınıflarını yeniden görebildiğini kanıtlar. Python testleri otomatik
@@ -27,7 +28,7 @@ kapıdır; aşağıdaki case'ler kabul davranışını tarif eder.
 | 8 | `MT-GDK-008` | Örnek uygulama build'i tamamlandı | Ardışık iki `dotnet build Tracon.slnx -c Release` koş | İkinci koşumda frontend kaynakları değişmediyse `npm run build` çalışmaz; `wwwroot` varlıkları yine pakete girer |
 | 9 | `MT-GDK-009` | Faz 92 konsolidasyonu bitti | `python3 scripts/dokuman-bakim.py --denetle` | Çıkış `0`; kırık bağlantı `0` — `.agents/ortak/` bağlantıları dahil |
 | 10 | `MT-GDK-010` | Faz 92 konsolidasyonu bitti | `wc -l -c .agents/skills/{faz-baslangic,faz-uygulama,faz-denetim,faz-tamamlama,tuketici-dokuman-senkronu}/SKILL.md .agents/skills/tuketici-dokuman-senkronu/resources/kalite-sozlesmesi.md` | Toplam, Faz 92 öncesi taban (1337 satır / 61.704 B) ile karşılaştırılır ve fazın kendi dokümanına yazılır |
-| 11 | `MT-GDK-011` | 👤 insan gerekir — Claude Code'da skill listesi açık | Skill listesini gözle tara | On skill görünür (`aday-kesfi` · `faz-planlama` · `faz-baslangic` · `faz-uygulama` · `faz-denetim` · `faz-tamamlama` · `tuketici-dokuman-senkronu` · `maf-api-kesfi` · `kusur-giderme` · `manuel-test-kosumu`); `ortak` bir skill olarak **görünmez** |
+| 11 | `MT-GDK-011` | 👤 insan gerekir — Claude Code'da skill listesi açık | Skill listesini gözle tara | On bir skill görünür (`aday-kesfi` · `faz-planlama` · `faz-baslangic` · `faz-uygulama` · `faz-denetim` · `faz-tamamlama` · `tuketici-dokuman-senkronu` · `maf-api-kesfi` · `kusur-giderme` · `manuel-test-kosumu` · `nuget-danismani`); `ortak` bir skill olarak **görünmez** — `kapilar.md`, `test-seviyeleri.md` ve `kurtarma.md` listede yoktur |
 | 12 | `MT-GDK-012` | Taze bağlamlı oturum | Yalnız `AGENTS.md` + `MEMORY.md` + bir faz dokümanı oku, sonra kapı komutunu bul | `.agents/ortak/kapilar.md` bağlantısını izleyerek `kapi.py kapanis` komutuna ve gerekçesine ulaşır — ham komut `AGENTS.md`'de tekrarlanmaz |
 | 13 | `MT-GDK-013` | `docs/arsiv/fazlar/73-*.md` Faz 92'de düzeltildi | `git show <sha>:docs/73-TUKETICI-AGENT-DESTEGI.md \| head -5` (sha: `dokuman-bakim.py --denetle`'nin damıtılmış kayıt gerekçesindeki sha) | Tam metin hâlâ çözülür (K-598); düzeltme yalnız bugünkü dosyayı etkiler |
 | 14 | `MT-GDK-014` | Temiz ağaç | `dotnet test tests/Tracon.Core.UnitTests -c Release --filter-class "*AmbientWriteSiteTests*\|*PlaywrightLocatorTests*"` (veya `./artifacts/bin/Tracon.Core.UnitTests/release/Tracon.Core.UnitTests --filter-class "*AmbientWriteSiteTests*"` + `*PlaywrightLocatorTests*` ayrı ayrı) | Her iki sınıf da yeşil; `AmbientWriteSiteTests` 11 `<yol>:<metot>` girdisini taban çizgisiyle eşleştirir, `PlaywrightLocatorTests` `tests/Tracon.Ui.E2ETests/UiTests.cs` için taban çizgideki sayıyı dondurur |
@@ -48,6 +49,10 @@ kapıdır; aşağıdaki case'ler kabul davranışını tarif eder.
 | 29 | `MT-GDK-029` | Temiz ağaç | Dört üretilen dosyanın `mtime`'ını al → `python3 scripts/dokuman-bakim.py` (üretim modu) → `mtime`'ları yeniden al | Dördünün de `mtime`'ı **ilerler**; `deny` kuralı tetiklenmez. Üreteç Python ile yazar, `Edit` aracıyla değil — kural onu durdurmaz |
 | 30 | `MT-GDK-030` | `ask` kuralı yürürlükte | `docs/arsiv/fazlar/165-*.md` içinde bir satırı `Edit` ile düzelt, sonra `git checkout --` ile geri al | 🚨 Sonuç **oturumun izin moduna bağlıdır ve garanti değildir**: onay yüzeyi olmayan oturumda yazma reddedilir (`requires approval`), **auto mode'da sınıflandırıcı sessizce onaylayabilir ve yazma geçer** (2026-09-13'te ölçüldü). `ask` bir korkuluktur, kilit değildir (K-763) |
 | 31 | `MT-GDK-031` | `.claude/agents/faz-denetcisi.md` **yok** ya da oturum o dosyadan önce açıldı | `Agent` aracını `faz-denetcisi` tipiyle çağır | Çağrı **yüksek sesle düşer**: `Agent type 'faz-denetcisi' not found. Available agents: ...`. Sessizce `general-purpose`'a **düşmez** — Faz 80'in "kapı sessizce geçer" sınıfı burada yok |
+| 32 | `MT-GDK-032` | `.agents/ortak/kurtarma.md` yazıldı ve `#fragment` taşıyan **beş** bağlantısı var | `python3 scripts/dokuman-bakim.py --denetle` | Kırık bağlantı **0**; fragment'lı bağlantı bulgu **üretmez** — `LINK` regex'i `group(1)`'e yalnız dosya yolunu alır. 🚨 Çıkış kodu ayrı bir iddiadır: faz arşivlenmeden önce `1`'dir (kök faz yaşam döngüsü) |
+| 33 | `MT-GDK-033` | `kurtarma.md` içine var olmayan bir dosyaya bağlantı konuldu (ör. `[yok](yok-boyle-bir-dosya.md#capa)`) | Aynı komut, sonra satırı geri al | Çıkış `1`; satır `.agents/ortak/kurtarma.md -> yok-boyle-bir-dosya.md` olarak **raporlanır**. Kapı `.agents/` ağacını gerçekten yürüyor — fragment rapordan düşer |
+| 34 | `MT-GDK-034` | Faz 168 kapandı | `kurtarma.md`'ye `python3 scripts/kapi.py kapanis …` satırı ekle, `python3 -m unittest discover -s scripts -p "*_test.py"` koş, sonra geri al; ayrıca `kapilar.md` bağlantısını sil ve tekrarla | Her iki mutation `tekrarlanan_kapi_tanimlari()` içinde **düşer**: ilki "ham kapanış komutunu kopyalıyor", ikincisi "kapı sözleşmesine bağlanmıyor" der. Katalog silinirse "delegasyon hedefi eksik" döner |
+| 35 | `MT-GDK-035` | Faz 168'in `AGENTS.md` satırı eklendi | `wc -c AGENTS.md`; sonra `python3 scripts/dokuman-bakim.py --denetle` | Bayt **12.000'in altında** (ölçüldü: 11.189 → 11.293 B). DAR uyarısı kabul edilir, **aşım kabul edilmez**; ikinci bir satır bu fazda eklenmez |
 
 ## Otomatik doğrulama
 

@@ -110,6 +110,10 @@ seçimi, imza-gövde takibi.
 [faz-baslangic] → faz-uygulama → faz-denetim → faz-tamamlama
 ```
 
+Okuma bütçesi fazın **ortasında** biterse faz doğaçlanmaz:
+[`ortak/kurtarma.md`](../../ortak/kurtarma.md) kataloğundaki **`KR-09`**
+(bağlam sisi / devir) rampası koşar.
+
 ---
 
 ## Okunmayacaklar

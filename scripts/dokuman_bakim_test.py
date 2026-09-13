@@ -604,12 +604,39 @@ class Faz91DokumanKapilariTestleri(unittest.TestCase):
             completion.mkdir(parents=True)
             (completion / "SKILL.md").write_text(
                 "python3 scripts/kapi.py tarama", encoding="utf-8")
+            ortak = tmp / ".agents" / "ortak"
+            ortak.mkdir(parents=True)
+            (ortak / "kurtarma.md").write_text(
+                "`KR-12` → [kapilar.md](kapilar.md)", encoding="utf-8")
 
             self.assertEqual(dokuman_bakim.tekrarlanan_kapi_tanimlari(tmp), [])
 
     def test_kapi_tanimlari_eksik_dosya_ihlali_yakalanir(self):
         with tempfile.TemporaryDirectory() as d:
             bulgular = dokuman_bakim.tekrarlanan_kapi_tanimlari(pathlib.Path(d))
+
+            self.assertEqual(bulgular, ["kapi.py veya delegasyon hedefi eksik"])
+
+    def test_kapi_tanimlari_yalniz_kurtarma_eksikse_de_yakalanir(self):
+        """Faz 168 denetimi (🟡 5): dort hedef varken YALNIZ `kurtarma.md`
+        eksikse varlik dali hic tetiklenmiyordu -- dal tuple'dan dusurulse
+        testler yesil kalirdi. Bu vaka o dali tek basina kirmizi yapar."""
+        with tempfile.TemporaryDirectory() as d:
+            tmp = pathlib.Path(d)
+            (tmp / "scripts").mkdir()
+            (tmp / "scripts" / "kapi.py").write_text("SECRET_PATTERN SYNC_ROOTS", encoding="utf-8")
+            (tmp / ".github" / "workflows").mkdir(parents=True)
+            (tmp / ".github" / "workflows" / "ci.yml").write_text(
+                "python3 scripts/kapi.py tarama", encoding="utf-8")
+            (tmp / "AGENTS.md").write_text(
+                "python3 scripts/kapi.py kapanis --taban HEAD", encoding="utf-8")
+            completion = tmp / ".agents" / "skills" / "faz-tamamlama"
+            completion.mkdir(parents=True)
+            (completion / "SKILL.md").write_text(
+                "python3 scripts/kapi.py tarama", encoding="utf-8")
+            # `.agents/ortak/kurtarma.md` BILEREK yazilmadi.
+
+            bulgular = dokuman_bakim.tekrarlanan_kapi_tanimlari(tmp)
 
             self.assertEqual(bulgular, ["kapi.py veya delegasyon hedefi eksik"])
 
@@ -633,10 +660,14 @@ class Faz91DokumanKapilariTestleri(unittest.TestCase):
             completion.mkdir(parents=True)
             (completion / "SKILL.md").write_text(
                 "Password|pwd deseniyle secret taranır.", encoding="utf-8")
+            ortak = tmp / ".agents" / "ortak"
+            ortak.mkdir(parents=True)
+            (ortak / "kurtarma.md").write_text(
+                "`KR-04` → python3 scripts/kapi.py kapanis --taban HEAD", encoding="utf-8")
 
             bulgular = dokuman_bakim.tekrarlanan_kapi_tanimlari(tmp)
 
-            self.assertEqual(len(bulgular), 7)
+            self.assertEqual(len(bulgular), 9)
             self.assertIn("scripts/kapi.py sync/secret desenlerinin kaynağı değil", bulgular)
             self.assertIn(".github/workflows/ci.yml kapi.py taramasını çağırmıyor", bulgular)
             self.assertIn(".github/workflows/ci.yml eski sync/secret desenini taşıyor", bulgular)
@@ -644,6 +675,9 @@ class Faz91DokumanKapilariTestleri(unittest.TestCase):
             self.assertIn("AGENTS.md dört ham kapanış komutunu kopyalıyor", bulgular)
             self.assertIn("faz-tamamlama sync/secret taramasını kapi.py'ye devretmiyor", bulgular)
             self.assertIn("faz-tamamlama eski sync/secret desenini taşıyor", bulgular)
+            self.assertIn(
+                "kurtarma.md ham kapanış komutunu kopyalıyor; kapilar.md'ye bağlanmalı", bulgular)
+            self.assertIn("kurtarma.md kapı sözleşmesine bağlanmıyor", bulgular)
 
 
 FAZ_ORNEK = """# Faz 42 — Örnek
