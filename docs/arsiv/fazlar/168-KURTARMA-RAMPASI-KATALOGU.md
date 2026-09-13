@@ -1,13 +1,13 @@
 # Faz 168 — Kurtarma Rampası Kataloğu
 
 > **Durum:** ✅ Tamamlandı (2026-09-13)
-> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-228** (keşif: [`kesif/2026-09-13-anew-karsilastirmasi.md`](kesif/2026-09-13-anew-karsilastirmasi.md) § 6 A3, § 9 H3)
-> **Önkoşul:** [Faz 167](arsiv/fazlar/167-AGENT-ZORLAMA-KATMANI.md) — `KR-11` rampası `git reset --hard` yasağının **var olduğunu** varsayar. Yasak konmadıysa `KR-11`'in metni değişir
+> **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-228** (keşif: [`kesif/2026-09-13-anew-karsilastirmasi.md`](../../kesif/2026-09-13-anew-karsilastirmasi.md) § 6 A3, § 9 H3)
+> **Önkoşul:** [Faz 167](167-AGENT-ZORLAMA-KATMANI.md) — `KR-11` rampası `git reset --hard` yasağının **var olduğunu** varsayar. Yasak konmadıysa `KR-11`'in metni değişir
 > **Paketler:** Yok. Bu faz `src/` altına **hiç dokunmaz**
 > **Yeni paket:** Yok · **Migration:** Yok
 > **Public API:** Büyümüyor
 > **Tüketici yüzeyi:** Yok — `docs-site/` sayfası yok, sevk edilen yapıt yok
-> **Manuel test alanı:** [`docs/manuel-test/36-GELISTIRME-KAPILARI.md`](manuel-test/36-GELISTIRME-KAPILARI.md) — Faz 167'nin bıraktığı numaradan devam eder
+> **Manuel test alanı:** [`docs/manuel-test/36-GELISTIRME-KAPILARI.md`](../../manuel-test/36-GELISTIRME-KAPILARI.md) — Faz 167'nin bıraktığı numaradan devam eder
 
 ---
 
@@ -36,7 +36,7 @@
    ```
    **K-408** (kaynak dili sınırı) — `.agents/` geliştirme aparatıdır ve Türkçe
    kalır; `SourceLanguageTests` onu **taramaz** (Faz 167 § 167.5'te ölçüldü).
-5. Alan hafızası: [`hafiza/dokumantasyon.md`](hafiza/dokumantasyon.md) — doküman
+5. Alan hafızası: [`hafiza/dokumantasyon.md`](../../hafiza/dokumantasyon.md) — doküman
    kapıları ve `kirik_baglantilar()` davranışı burada yaşar.
 6. Önceki fazın devir notu:
    ```bash
@@ -270,7 +270,7 @@ Sözleşme testi gerekmez: hiçbir sınır geçilmiyor.
 
 ## Manuel Kabul Case'leri
 
-> Kapanışta [`docs/manuel-test/36-GELISTIRME-KAPILARI.md`](manuel-test/36-GELISTIRME-KAPILARI.md)
+> Kapanışta [`docs/manuel-test/36-GELISTIRME-KAPILARI.md`](../../manuel-test/36-GELISTIRME-KAPILARI.md)
 > içine, Faz 167'nin bıraktığı numaradan devam ederek eklenir.
 
 | # | Ön koşul | Adımlar | Beklenen sonuç |
@@ -380,7 +380,7 @@ sözlüğünde değil, ölçüldü).
 | İddia | Ölçüm | Sonuç |
 |---|---|---|
 | `KR-` öneki hiçbir sistemle çakışmaz | `grep -rn "KR-[0-9]" docs/ .agents/ scripts/ AGENTS.md` | ✅ 46 eşleşmenin **tamamı** Faz 168'in kendi planında |
-| `LINK` regex'i fragment'ı `group(1)` dışında bırakır | `m.LINK.findall("[x](a/b/SKILL.md#adim-2)")` → `[('a/b/SKILL.md', '#adim-2')]` | ✅ |
+| `LINK` regex'i fragment'ı `group(1)` dışında bırakır | `m.LINK.findall("[x](../../a/b/SKILL.md#adim-2)")` → `[('a/b/SKILL.md', '#adim-2')]` | ✅ |
 | `kirik_baglantilar()` `.agents/` ağacını yürür | Yürüyüşte **22** `.md` dosyası; kasıtlı kırık bağlantı `.agents/ortak/kurtarma.md -> yok-boyle-bir-dosya.md` olarak raporlandı | ✅ ölçüldü, varsayılmadı |
 | `.agents/` hiçbir bütçe sözlüğünde değil | `BUTCE` 11 anahtar, `DIZIN_BUTCESI` 5 anahtar — hiçbiri `.agents/` değil | ✅ |
 | `AGENTS.md` 11.189 B, tavan 12.000 | `wc -c` | ✅ |
@@ -493,7 +493,7 @@ yeşil**, `dokuman-bakim.py --denetle` kırık bağlantı **0**.
 **Faz 169 (`F-229` — faz planı sözleşmesi) için zorunlu:**
 
 - 🚨 `KR-05` rampasının **tam adresi**:
-  [`.agents/ortak/kurtarma.md`](../.agents/ortak/kurtarma.md) ·
+  [`.agents/ortak/kurtarma.md`](../../../.agents/ortak/kurtarma.md) ·
   çapa `#kr-05--araştırılacak-bulgu`. Triyajın "araştırılacak" kanalı oraya
   çıkar. Çapa GitHub slug'ıdır ve **kapı tarafından doğrulanmaz** (aşağı bak);
   yanlış çapa sessizce ölür, dosya yolu ölmez — adresi verirken ikisini birden
