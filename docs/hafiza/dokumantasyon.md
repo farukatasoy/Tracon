@@ -1,5 +1,9 @@
 # Dokumantasyon Tuzaklari
 
+> **Kardeş dosya:** geliştirme defterinin (`KARARLAR.md`, `docs/arsiv/fazlar/`)
+> BAKIMI ayrı bir dosyadadır: [`defter-bakimi.md`](defter-bakimi.md). Bu dosya
+> **sevk edilen** ve kullanıcıya dönük dokümanın tuzaklarını taşır.
+
 > Sevk edilen dokumantasyonun DOGRULUGU (paketlenen XML, paket README'leri,
 > paketlenen OpenAPI belgesi, metin kapisi yazma tuzaklari).
 >
@@ -80,57 +84,6 @@ mu" diye bir kez kontrol et.
   `JobScheduleSaveRequest.Payload` atanmazsa uc **500** doner (`JsonElement`
   `Undefined` tuzagi) ve tetikleyici imzalama anahtari
   `Tracon:TriggerSecrets:` onekini ZORUNLU tutar.
-
-## 🚨 Karar numarasını tablonun SONUNA bakarak seçme (K-539)
-
-Faz 77 ve Faz 78 aynı tabandan yazıldı. İkisi de `KARARLAR.md` §2'nin son satırına
-baktı, `K-534` gördü ve **ikisi de** `K-535` ile `K-536`'yı aldı. Dört satır, iki
-numara, farklı içerik — ve indeks üreteci hiç ötmedi, çünkü `_kararlar_kalemleri`
-satır satır regex okur ve tablo **yapısına** bakmaz.
-
-İki şey bunu görünmez kılmıştı:
-
-- Tablo **sıralı değildi** (`K-018` satır 70'te, `K-524` en sonda), yani "son
-  satır = en büyük numara" varsayımı zaten yanlıştı.
-- Tabloyu **kesen boş satırlar** vardı (`K-351`/`K-352` ve `K-535`/`K-536` arası).
-  Markdown'da boş satır tabloyu orada bitirir; sonraki kararlar başlıksız ikinci
-  bir tabloya düşer. Faz 77 denetimi bunlardan yalnız birini gördü ve "kozmetik"
-  diye kapattı — kozmetik değildi, numara çakışmasını gizleyen şeyin yarısıydı.
-
-Doğrusu: numarayı **maksimumdan** al, son satırdan değil.
-
-```bash
-grep -oE "^\| \*\*K-[0-9]+" docs/KARARLAR.md | grep -oE "[0-9]+" | sort -n | tail -1
-```
-
-Kapı artık var: `python3 scripts/dokuman-bakim.py --denetle` yinelenen numarayı,
-tabloyu kesen boş satırı ve sıra dışı numarayı **hata** olarak bildirir. Çakışma
-çıkarsa tarih kuralı uygulanır — **önce tahsis edilen numarayı korur**; sonraki
-taşınır ve o fazın dokümanındaki referansları da taşınır.
-
-## 🚨 `faz-arsivle` kendi bağlantı onarımını kaçırabilir — koştuktan SONRA denetle (Faz 104)
-
-Skill "tek bir yeni kırık bağlantı üretirse taşımayı geri alır" diyor. Faz
-104'te geri **almadı**: fazın kendi gövdesindeki `../arsiv/fazlar/103-*.md`
-bağlantısı `../../../arsiv/fazlar/103-*.md` olarak yeniden yazıldı — dosya
-zaten `docs/arsiv/fazlar/` içine taşındığı için doğru yol yalnız
-`103-*.md`'dir. Onarım, dosyanın **yeni** konumunu değil eski derinliğini
-kullanmış. Kural: `faz-arsivle` koştuktan sonra `dokuman-bakim.py --denetle`
-çıktısındaki **Kırık bağlantı** satırını oku; sıfır değilse elle düzelt.
-Aynı ağaçtaki kardeş faza verilen bağlantılar en riskli olanlardır.
-
-**Aynı sınıf ÜÇÜNCÜ kez tekrarladı (2026-09-01) — artık kapı var.** Onarım iki
-eksende kördü: yalnız `*.md` dosyalarını tarıyor **ve** yalnız `](...)`
-sözdizimini eşleştiriyordu. İkisi birlikte 43 bayat referans biriktirdi:
-`.sql`/`.cs`/`.yml`/`.props`/`.py`/`.tsx` hiç taranmıyordu, `.md` içindeki
-**düz metin** yol (`See docs/NN-AD.md` — analyzer sürüm notu, pakete **sevk
-edilen** bir dosya) eşleşmiyordu. Onarım `_duz_yol_referanslarini_cevir` ile
-genişletildi; kapı `kapi.py tarama` → *bayat doküman referansı*.
-
-🚨 **Uygulanmış migration'daki referans ONARILAMAZ** — bayt donmuştur
-(`migration_integrity_violations`), yorumunu değiştirmek bile kapıyı kırar
-(ölçüldü). Kapı `Migrations*/` dizinlerini dışlar, arşivleme onları uyarı
-olarak listeler: bir yorum sevk edildiği **anın** doğru kaydıdır.
 
 ## Sevk edilen XML dokumani kendi kapisina takilir (Faz 99)
 
@@ -234,3 +187,4 @@ yarısıdır: kümeyi karşılaştırmak İngilizceyi okumak değildir.
 - **🚨 Kapı sapmayı YAKALAR; sapmayı ÜRETEN protokol düzeltilmezse sınıf kapanmaz** (2026-09-08): `00-INDEKS.md` 1488 case yazıyordu, gerçek 1597'ydi — 36 ailenin **17'si** bayat. Sebep tek bir cümleydi: `faz-tamamlama` Adım 3 indeksi yalnız "alan dosyası yoksa" güncelletiyordu, yani mevcut bir aileye case eklemek sayacı hiç güncellemiyordu. Faz 157 bir aile dosyasına 170 satır ekledi ve indekse dokunmadı. **İki düzeltme birlikte gerekir:** kapı (`manuel_test_sayim_kaymasi`) unutulanı yakalar, protokol adımı unutulmayı önler. Yalnız kapı eklemek her fazda bir kırmızı üretir ve insanları onu susturmaya eğitir.
 - **🚨 Bir kapı İLK koşumunda kırmızı yanarsa, önce KAPIYI doğrula** (2026-09-08, `bagimlilik_surum_damgasi` yazılırken): kapı `IVectorSearchStore.cs:16`'daki `10.8.0` damgasını `Microsoft.Extensions.AI` pini `10.9.0` ile karşılaştırıp sapma bildirdi. Sapma **yoktu** — damga `Microsoft.Extensions.VectorData` hakkındaydı ve repo o paketi hiç almıyor; hatalı olan kapının eşleme kaydıydı. Kod "düzeltilseydi" doğru bir cümle yanlışla değiştirilecekti. Kural: yeni kapının ilk bulgusu bir kanıttır, bir emir değil. Pinlenmeyen paket için kayıt `None` taşır — bu bir atlama değil, yazılı karardır.
 - **🚨 Üretilen dosyayı `Edit`'ten korumak ÜRETECİ kilitlemez — ama `ask` bir kilit de değildir** (Faz 167, `claude 2.1.269`): `Edit(<yol>)` deny'ı `Edit` + `Write` **ve** `rm <yol>` Bash komutunu kapsar; `dokuman-bakim.py` **Python ile** yazdığı için üretim modu kuralı hiç tetiklemez (`MT-GDK-029`). Ama `ask` (`docs/arsiv/fazlar/*.md`) oturumun izin moduna tabidir: auto mode'da sınıflandırıcı **sessizce onaylar**, aynı oturumda `deny` sertçe durur. Her iddia kontrol koşumuyla ayırt edildi — kural yokken aynı `rm` dosyayı sildi. Ölçümler ve sınırlar: K-761 · K-763. Doküman kuralını araca taşırken sorulacak soru "kural kondu mu" değil, **"hangi yazma yolunu gerçekten kapatıyor"**.
+

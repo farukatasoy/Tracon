@@ -1,7 +1,8 @@
 # 36 — Geliştirme Döngüsü Kapıları (`GDK`)
 
-> **Alan kodu:** `GDK` · **Faz:** 91, 92, 116, 167, 168
+> **Alan kodu:** `GDK` · **Faz:** 91, 92, 116, 167, 168, 169
 > **Kaynak:** `scripts/kapi.py` · `scripts/denetim-paketi.py`
+> · `scripts/dokuman-bakim.py` (Faz 169)
 > · `scripts/*_test.py` · `src/Tracon.UI/Tracon.UI.Frontend.targets`
 > · `docfx/docfx.json` · `tests/Tracon.Core.UnitTests/Architecture/DocfxConfigurationTests.cs`
 > · `tests/Tracon.Core.UnitTests/Experiments/CanaryEvaluationServiceTests.cs`
@@ -53,6 +54,9 @@ kapıdır; aşağıdaki case'ler kabul davranışını tarif eder.
 | 33 | `MT-GDK-033` | `kurtarma.md` içine var olmayan bir dosyaya bağlantı konuldu (ör. `[yok](yok-boyle-bir-dosya.md#capa)`) | Aynı komut, sonra satırı geri al | Çıkış `1`; satır `.agents/ortak/kurtarma.md -> yok-boyle-bir-dosya.md` olarak **raporlanır**. Kapı `.agents/` ağacını gerçekten yürüyor — fragment rapordan düşer |
 | 34 | `MT-GDK-034` | Faz 168 kapandı | `kurtarma.md`'ye `python3 scripts/kapi.py kapanis …` satırı ekle, `python3 -m unittest discover -s scripts -p "*_test.py"` koş, sonra geri al; ayrıca `kapilar.md` bağlantısını sil ve tekrarla | Her iki mutation `tekrarlanan_kapi_tanimlari()` içinde **düşer**: ilki "ham kapanış komutunu kopyalıyor", ikincisi "kapı sözleşmesine bağlanmıyor" der. Katalog silinirse "delegasyon hedefi eksik" döner |
 | 35 | `MT-GDK-035` | Faz 168'in `AGENTS.md` satırı eklendi | `wc -c AGENTS.md`; sonra `python3 scripts/dokuman-bakim.py --denetle` | Bayt **12.000'in altında** (ölçüldü: 11.189 → 11.293 B). DAR uyarısı kabul edilir, **aşım kabul edilmez**; ikinci bir satır bu fazda eklenmez |
+| 36 | `MT-GDK-036` | Faz 167, 168 ve 169 arşivlenmiş; üçünün de `## Süreç Ölçümü` tablosu dolu | `python3 scripts/dokuman-bakim.py --denetle` | `Kapanmış fazın süreç ölçümü (eşik 167): ✅ temiz` satırı basılır. 🚨 Bu case **yalnız o satırı** iddia eder; çıkış kodu bileşiktir ve arşivlenmemiş bir faz kökte dururken başka bir kapı yüzünden `1` olabilir |
+| 37 | `MT-GDK-037` | Aynı | Faz 167 kaydında `\| Plan revizyonu sayısı \|` satırının değer hücresini elle boşalt → aynı komut → satırı geri al | Çıkış `1`; `docs/arsiv/fazlar/167-AGENT-ZORLAMA-KATMANI.md:333: \`Plan revizyonu sayısı\` değer hücresi boş` **raporlanır** (dosya adı **ve** satır). Kapı hiçbir şey yazmaz: koşumdan sonra `git diff` yalnız elle yapılan boşaltmayı gösterir, başka dosya değişmez |
+| 38 | `MT-GDK-038` | Temiz ağaç | Bir karar başlığına kod parçası **dışında** iç içe vurgu koy (ör. `\| **K-001 — Modüler **paket** ailesi** \|`) → `python3 scripts/dokuman-bakim.py --denetle` → satırı geri al | Çıkış `1`; `Karar defteri` kapısı `… başlığı İÇ İÇE \`**\` yüzünden KESİLİYOR` der. 🚨 Kod parçası **içindeki** `**` (`` \`docs/**.md\` ``) bulgu **değildir** — gösterilen metindir, vurgu değil |
 
 ## Otomatik doğrulama
 

@@ -5,7 +5,7 @@
 
 En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek bölünme). Yeni kararlar için: [`KARARLAR-INDEKS.md`](../KARARLAR-INDEKS.md).
 
-## Arşivlenen Kararlar (678 kalem)
+## Arşivlenen Kararlar (681 kalem)
 
 | K | Satır | Karar |
 |---|---|---|
@@ -421,7 +421,7 @@ En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek böl
 | K-410 | 457 | `SourceLanguageTests` eklendi: taban çizgisi güdümlü, kelime sınırlı Türkçe sözlük + aksan taraması; `ProblemDetailsLanguageTests`in genelleştirilmiş kardeşi |
 | K-411 | 458 | Senkronizasyon kopyası (`<ad> 2.<uzantı>`) taraması `faz-tamamlama` skill'ine KAPI olarak eklendi; kapsam `src tests samples` |
 | K-412 | 459 | Doküman dizin bütçesi `docs/arsiv/` ve `docs/manuel-test/kosumlar/` HARİÇ ölçülür 👤 |
-| K-413 | 460 | `docs/YOL-HARITASI.md` ÜRETİLEN dosyadır; kaynak her fazın kendi `> |
+| K-413 | 460 | `docs/YOL-HARITASI.md` ÜRETİLEN dosyadır; kaynak her fazın kendi `> **Durum:**` satırıdır |
 | K-414 | 461 | Manuel test koşum kaydı ile spesifikasyon AYRI dosyalarda yaşar; ikinci koşum `kosumlar/<tarih>/` kardeşi açar, üzerine yazmaz |
 | K-415 | 462 | Ürün dokümantasyonu ayrı bir Astro Starlight sitesindedir (`docs-site/`), İngilizce'dir ve `farukatasoy.github.io/Tracon` adresinde yayınlanır 👤 |
 | K-416 | 463 | API referansı DocFX'in `outputFormat: markdown` çıktısından üretilir ve Starlight içine gömülür; DocFX'in kendi HTML sitesi kullanılmadı |
@@ -531,7 +531,7 @@ En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek böl
 | K-520 | 567 | Figürler (ekran görüntüsü ve diyagram) temadan BAĞIMSIZDIR; iki temada da açık plaka üzerinde durur (Faz 76) |
 | K-521 | 568 | Kenar çubuğu `src/sidebar.mjs`'te tek kaynaktır; üç tüketici onu okur (Faz 76) |
 | K-522 | 569 | Tüketici doküman standardı faz dokümanından ayrıştırılıp `tuketici-dokuman-senkronu` skill'ine taşındı (kullanıcı kararı) 👤 |
-| K-523 | 570 | Kapanmış faz dokümanları `docs/arsiv/fazlar/` altında yaşar; `docs/ 👤 |
+| K-523 | 570 | Kapanmış faz dokümanları `docs/arsiv/fazlar/` altında yaşar; `docs/**.md` bütçesi büyütülmez (kullanıcı kararı) 👤 |
 | K-524 | 571 | `MIMARI.md` §7 "Güvenlik Modeli" kendi dosyasına ayrıldı |
 | K-525 | 572 | Kiracı verisi tutan cache anahtarı TİPLİ olur; elle birleştirilen string anahtar yasaktır |
 | K-526 | 573 | Denetim yükü `AuditPayload` ile kurulur; geri alınamaz eylem `AuditRecorder` kullanamaz |
@@ -687,3 +687,6 @@ En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek böl
 | K-717 | 726 | Yalnız `Completed` koşumlar karşılaştırılır; diğer her durum `400` döner 👤 |
 | K-718 | 727 | `tracon eval` DÖRDÜNCÜ bir çıkış kodu kazanır: `4` = karşılaştırılamadı; `3` (kapı düştü) anlamı değişmez |
 | K-719 | 728 | Bir koşumda bir case'in BİRDEN ÇOK sonuç satırı varsa case yalnız HEPSİ geçtiyse geçmiş sayılır |
+| K-720 | 729 | Süreçten ÇIKAN metin sayılarını `CultureInfo.InvariantCulture` ile biçimler; risk yalnız ONDALIK ve YÜZDE belirteçlerindedir, analyzer bu sınıfı GÖRMEZ |
+| K-721 | 730 | `KARARLAR.md` bütçesi 390.000 → 420.000; önce TAŞIMA denendi ve `karar-damit`'in "işaretçisi var, atla" kuralı kaldırıldı |
+| K-722 | 731 | Sevk edilen agent haritasının tavanı 10 KiB → 11 KiB 👤 |

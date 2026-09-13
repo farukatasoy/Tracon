@@ -172,9 +172,9 @@ taşır. Gerekçesiz bulgu yazma; "daha iyi olurdu" bir bulgu değildir.
 ## Denetim — Faz <NN> (<YYYY-AA-GG>)
 
 ### 🔴 Kapanmadan faz bitmez
-| # | Bulgu | Kanıt | Nasıl kırılır |
-|---|---|---|---|
-| 1 | <tek cümle> | `dosya.cs:120` | <somut girdi → yanlış çıktı> |
+| # | Bulgu | Kanıt | Nasıl kırılır | Denetçi önerisi |
+|---|---|---|---|---|
+| 1 | <tek cümle> | `dosya.cs:120` | <somut girdi → yanlış çıktı> | gerçek |
 
 ### 🟡 Aynı fazda kapanır veya gerekçelenir
 | # | Bulgu | Kanıt | Öneri |
@@ -186,6 +186,11 @@ taşır. Gerekçesiz bulgu yazma; "daha iyi olurdu" bir bulgu değildir.
 
 **Temiz çıkan başlıklar:** 3.1, 3.5, 3.7
 ```
+
+**Denetçi önerisi** yalnız 🔴 tablosundadır ve üç değerden biridir:
+**gerçek · gürültü · araştırılacak**. Denetçi **önerir, karar vermez** — kararı
+Adım 5.1'de kullanıcı verir. Bu mekanik bir kısıttır: alt agent'ların araç
+kümesinde `AskUserQuestion` **yoktur**, denetçi kullanıcıya soramaz.
 
 Seviye tanımları:
 
@@ -204,7 +209,30 @@ Geçerli **görünen** ama repro'su olmayan bir bulgu üç seviyeden birine değ
 
 ---
 
-## Adım 5 — Uygulayan oturum bulguları kapatır
+## Adım 5.1 — Triyaj: denetçi önerir, **kullanıcı** seçer (yalnız 🔴)
+
+Bulgunun **geçerli olup olmadığına**, kendi kodunu savunmaya eğilimli oturum
+karar veremez — bu, `faz-denetim`'in kapatmak için var olduğu kör noktanın bir
+adım geriden tekrarıdır. Ana oturum her 🔴 bulguyu denetçinin önerisiyle
+birlikte **kullanıcıya sorar** ve kullanıcı seçer:
+
+| Sonuç | Ne olur |
+|---|---|
+| **gerçek** | Düzeltilir **+ düzeltmeyi kanıtlayan test** |
+| **gürültü** | Reddedilir — **gerekçesi yazılır**. Gerekçesiz ret, aynı bulgunun geri gelmesidir |
+| **araştırılacak** | Düzeltme **yok**. Önce minimal repro → `ortak/kurtarma.md` kataloğundaki [**`KR-05`** rampası](../../ortak/kurtarma.md#kr-05--araştırılacak-bulgu) (bölüm: `KR-05` — araştırılacak bulgu). Repro varsa gerçektir; yoksa gerekçeli kapanış |
+
+Triyaj **yalnız 🔴'lara** uygulanır. 🟡 ve 🟢 doğrudan Adım 5.2'ye gider:
+denetim ucuz olmalıdır, pahalı olursa atlanır — ve tek başına bir fazı durduran
+seviye 🔴'dır.
+
+Her satırın triyaj sonucu faz dokümanının **"Denetim Bulguları"** bölümüne
+yazılır ve sayıları **"Süreç Ölçümü"** tablosunun `🔴 bulgu: gerçek / gürültü /
+araştırılacak` satırına girer.
+
+---
+
+## Adım 5.2 — Uygulayan oturum bulguları kapatır
 
 Denetçi **kod yazmaz**. Rolleri ayırmanın sebebi: düzelten göz yeniden yazan
 göz olur ve denetim bağımsızlığı biter.

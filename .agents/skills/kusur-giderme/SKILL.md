@@ -127,6 +127,7 @@ Düzeltme koddadır; **tekrarı önleyen şey** yazıdır.
 | Bir kural veya tercih değişti | `docs/KARARLAR.md` — K-NNN, gerekçesiyle |
 | Kusuru yakalayan senaryo | `docs/manuel-test/<NN>-<ALAN>.md` — regresyon case'i olarak |
 | Kalıcı çalışma kuralı değişti | `AGENTS.md` veya ilgili skill |
+| Kusurun geldiği faz biliniyor | O fazın `## Süreç Ölçümü` tablosuna **bir çentik**: `Faz kapandıktan sonra bulunan kusur` satırını artır. Kayıt `docs/arsiv/fazlar/` altındaysa `ask` kuralı sorar — protokolsüz bırakılan bir satır doldurulmaz |
 
 Not yazarken **neyin bedel ödettiğini** yaz, ne yaptığını değil. "Düzeltildi"
 bir not değildir; "async yardımcıda açılan `scope` çağırana akmaz" nottur.

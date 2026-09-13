@@ -210,7 +210,8 @@ taze bağlamlı bir denetçi yalnız DoD + `git diff` okur ve üç seviyede bulg
 - [ ] **Dosya listesi**: gerçekten oluşturulan dosyalar
 - [ ] **Testler**: sınıf adları ve neyi doğruladıkları, test sayısı
 - [ ] **DoD tablosu**: her satır ✅ veya gerekçeli açıklama
-- [ ] **Denetim bulguları**: Adım 4'ün her bulgusu — seviye, sonuç (düzeltildi / gerekçelendi / devredildi)
+- [ ] **Süreç Ölçümü**: beş metriğin **hepsi** dolu — `dokuman-bakim.py --denetle` 14. kapısı (eşik **167**) boş bir değer hücresinde kırmızı döner. Ölçmediysen `ölçülmedi` yaz; boş bırakma. Üçü yazılı bilgiden türetilir ("Plandan Sapmalar" → plan revizyonu · "Denetim Bulguları" + Adım 5.1 triyajı → 🔴 dağılımı · sonraki `kusur-giderme` koşumu → kapanış sonrası kusur); "düzeltme turu" ve "üretilen regresyon" **elle sayılır** — hiçbir artefakttan okunamıyorlar (`artifacts/kapi-olcum.jsonl` faz numarası taşımaz ve `.gitignore`'dadır)
+- [ ] **Denetim bulguları**: Adım 4'ün her bulgusu — seviye, **Adım 5.1 triyaj sonucu** (gerçek / gürültü / araştırılacak), sonuç (düzeltildi / gerekçelendi / devredildi)
 - [ ] **Sonraki faza devreden notlar**: yarım kalan işler, yer tutucular, açık uçlar
 
 > Plan ile gerçek arasındaki farkı **gizleme**. Fark, sonraki oturumun en değerli bilgisidir.
@@ -318,8 +319,8 @@ geri alır. Elle `mv` kullanma — Faz 58'de aynı iş önce 17, sonra 3 bağlan
 kırdı.
 
 `faz-damit` planı düşürür, **kalıcı bilgiyi tutar**: `Plandan Sapmalar`,
-`Bu Fazda Verilen Kararlar`, `Denetim Bulguları`, `Sonraki Faza Devir Notu`
-ve DoD **aynen** kalır. Tam metin silinmez; kayda yazılan `git show <sha>:<yol>`
+`Bu Fazda Verilen Kararlar`, `Süreç Ölçümü`, `Örnek Uygulama Koşumu`,
+`Denetim Bulguları`, `Sonraki Faza Devir Notu` ve DoD **aynen** kalır. Tam metin silinmez; kayda yazılan `git show <sha>:<yol>`
 komutu onu geri getirir ve her denetimde çözülebilirliği kanıtlanır.
 
 🚨 **`--kuru` çıktısındaki "tanınmayan bölüm KORUNDU" uyarılarını oku.** Damıtma

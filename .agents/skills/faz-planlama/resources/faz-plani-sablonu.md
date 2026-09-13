@@ -16,6 +16,7 @@
 # Faz <NN> — <Kısa Ad>
 
 > **Durum:** 📋 Planlandı (<YYYY-AA-GG>)
+> **Plan onayı:** <ad>, <YYYY-AA-GG> · <yoksa "onaylanmadı — uygulama başlamaz">
 > **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-<NN>**<, **F-<NN>**>
 > **Önkoşul:** [Faz <N>](<N>-<AD>.md) — <neden gerekli> · <yoksa "Yok">
 > **Paketler:** `Tracon.<X>`, `.<Y>`
@@ -204,6 +205,26 @@ curl -s http://localhost:5081/tracon/api/<yol>
 ## Dosya Listesi (gerçekleşen)
 
 > Kapanışta doldurulur.
+
+## Süreç Ölçümü
+
+> Kapanışta doldurulur. **Tablo olarak** — onay kutusu DEĞİL: arşivdeki her
+> `- [ ]` satırı `tamamlanmis_faz_isaretsiz_kutular()` kapısında ayrıca hata
+> sayılır ve bulgunun kaynağı bulanıklaşır.
+>
+> `dokuman-bakim.py --denetle` 14. kapısı (`surec_olcumu_bulgulari`) bu tabloyu
+> **eşik 167**'den itibaren her kapanmış fazda arar. Boş bir değer hücresi
+> kırmızıdır; `ölçülmedi` **geçerli bir değerdir** — kapı bir sayı değil, bir
+> **karar** arar. Kapı bölümün VARLIĞINI denetler, doğruluğunu denetlemez
+> (K-766).
+
+| Metrik | Değer |
+|---|---|
+| Plan revizyonu sayısı | |
+| Düzeltme turu sayısı | |
+| 🔴 bulgu: gerçek / gürültü / araştırılacak | |
+| Fazın ürettiği regresyon | |
+| Faz kapandıktan sonra bulunan kusur | |
 
 ## Denetim Bulguları
 

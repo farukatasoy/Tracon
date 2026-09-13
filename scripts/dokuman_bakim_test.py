@@ -1492,3 +1492,186 @@ class BagimlilikSurumDamgasiTestleri(unittest.TestCase):
         kok = self._kok("/// Measured (10.8.0): that type requires an expression.",
                         "src/Tracon.Abstractions/Knowledge/IVectorSearchStore.cs")
         self.assertEqual([], dokuman_bakim.bagimlilik_surum_damgasi(kok))
+
+
+class SurecOlcumuTestleri(unittest.TestCase):
+    """Faz 169: kapanmış fazın `## Süreç Ölçümü` tablosu dolu mu (eşik 167)."""
+
+    TAM = (
+        "## Süreç Ölçümü\n\n"
+        "| Metrik | Değer |\n"
+        "|---|---|\n"
+        "| Plan revizyonu sayısı | 0 |\n"
+        "| Düzeltme turu sayısı | 2 |\n"
+        "| 🔴 bulgu: gerçek / gürültü / araştırılacak | 1 / 0 / 0 |\n"
+        "| Fazın ürettiği regresyon | 0 |\n"
+        "| Faz kapandıktan sonra bulunan kusur | ölçülmedi |\n"
+    )
+
+    def _kok(self, dosyalar: dict[str, str]) -> pathlib.Path:
+        """`{"arsiv/fazlar/167-X.md": gövde}` -> geçici repo kökü."""
+        kok = pathlib.Path(tempfile.mkdtemp())
+        for rel, govde in dosyalar.items():
+            p = kok / "docs" / rel
+            p.parent.mkdir(parents=True, exist_ok=True)
+            p.write_text(govde, encoding="utf-8")
+        (kok / "docs" / "arsiv" / "fazlar").mkdir(parents=True, exist_ok=True)
+        return kok
+
+    def _faz(self, durum: str, govde: str = "") -> str:
+        return f"# Faz X\n\n> **Durum:** {durum}\n\n## Amaç\n\nmetin\n\n{govde}"
+
+    def test_esik_ALTI_faz_atlanir(self):
+        # 166 faz geriye dönük doldurulmaz (kullanici karari). Esik alti bir
+        # kayit bolum TASIMASA da bulgu uretmez.
+        kok = self._kok({"arsiv/fazlar/166-ESKI.md": self._faz("✅ Tamamlandı (2026-09-01)")})
+        self.assertEqual([], dokuman_bakim.surec_olcumu_bulgulari(kok))
+
+    def test_esik_USTU_tamamlanmis_fazda_bolum_YOKSA_bulgudur(self):
+        kok = self._kok({"arsiv/fazlar/167-YENI.md": self._faz("✅ Tamamlandı (2026-09-12)")})
+        bulgular = dokuman_bakim.surec_olcumu_bulgulari(kok)
+        self.assertEqual(1, len(bulgular))
+        self.assertIn("Süreç Ölçümü", bulgular[0])
+        self.assertIn("167-YENI.md", bulgular[0])
+
+    def test_TAMAMLANMAMIS_faz_bulgu_uretmez(self):
+        # Plan durumundaki faz henuz kapanmadi; bolum bos olmali.
+        kok = self._kok({"169-NN.md": self._faz("📋 Planlandı (2026-09-13)")})
+        self.assertEqual([], dokuman_bakim.surec_olcumu_bulgulari(kok))
+
+    def test_BOS_deger_hucresi_bulgudur(self):
+        eksik = self.TAM.replace("| Fazın ürettiği regresyon | 0 |",
+                                 "| Fazın ürettiği regresyon | |")
+        kok = self._kok({"arsiv/fazlar/168-X.md": self._faz("✅ Tamamlandı (2026-09-13)", eksik)})
+        bulgular = dokuman_bakim.surec_olcumu_bulgulari(kok)
+        self.assertEqual(1, len(bulgular))
+        self.assertIn("Fazın ürettiği regresyon", bulgular[0])
+        # Satir numarasi raporlanir -- manuel case 2 bunu iddia ediyor.
+        self.assertRegex(bulgular[0], r":\d+:")
+
+    def test_EKSIK_metrik_satiri_bulgudur(self):
+        eksik = self.TAM.replace("| Düzeltme turu sayısı | 2 |\n", "")
+        kok = self._kok({"arsiv/fazlar/168-X.md": self._faz("✅ Tamamlandı (2026-09-13)", eksik)})
+        bulgular = dokuman_bakim.surec_olcumu_bulgulari(kok)
+        self.assertEqual(1, len(bulgular))
+        self.assertIn("Düzeltme turu sayısı", bulgular[0])
+
+    def test_DOLU_tablo_yanlis_pozitif_uretmez(self):
+        # `ölçülmedi` GECERLI bir degerdir: kapi bir sayi degil, bir KARAR arar.
+        kok = self._kok({"arsiv/fazlar/168-X.md": self._faz("✅ Tamamlandı (2026-09-13)", self.TAM)})
+        self.assertEqual([], dokuman_bakim.surec_olcumu_bulgulari(kok))
+
+    def test_FAZLADAN_satir_ve_bicim_varyanti_gecer(self):
+        # Faz 167 tablosu YEDI satir tasiyor ve degerler kalin yazim iceriyor.
+        genis = self.TAM.replace(
+            "| Fazın ürettiği regresyon | 0 |",
+            "| Denetim sonrası düzeltme turu | 1 |\n"
+            "| **Fazın ürettiği regresyon** | **0** |\n"
+            "| Faz dışı bulunan ve kapatılan kusur | 1 |")
+        kok = self._kok({"arsiv/fazlar/167-X.md": self._faz("✅ Tamamlandı (2026-09-12)", genis)})
+        self.assertEqual([], dokuman_bakim.surec_olcumu_bulgulari(kok))
+
+    def test_KOD_BLOGU_icindeki_baslik_bolum_saymaz(self):
+        # 🚨 Duz `split("## ")` burada belgeyi parcalar. Sablonu GOSTEREN bir
+        # faz kaydi (Faz 169'un kendisi) basligi kod blogu icinde tasir ve o
+        # ornek GERCEK bolumun yerine gecmemelidir.
+        ornek = "## Şablon\n\n```markdown\n## Süreç Ölçümü\n\n| Metrik | Değer |\n|---|---|\n| Plan revizyonu sayısı | |\n```\n\n"
+        kok = self._kok({"arsiv/fazlar/169-X.md":
+                         self._faz("✅ Tamamlandı (2026-09-13)", ornek + self.TAM)})
+        self.assertEqual([], dokuman_bakim.surec_olcumu_bulgulari(kok))
+
+    def test_KOK_docs_altindaki_tamamlanmis_faz_da_taranir(self):
+        # Acik Soru 1 -> A: eksik olcum ARSIVLEMEDEN once gorunur.
+        kok = self._kok({"169-Y.md": self._faz("✅ Tamamlandı (2026-09-13)")})
+        bulgular = dokuman_bakim.surec_olcumu_bulgulari(kok)
+        self.assertEqual(1, len(bulgular))
+        self.assertIn("docs/169-Y.md", bulgular[0])
+
+    def test_kapi_HICBIR_SEY_YAZMAZ(self):
+        # `tazelik_denetle()` emsali: denetim yan etkisizdir.
+        kok = self._kok({"arsiv/fazlar/167-X.md": self._faz("✅ Tamamlandı (2026-09-12)")})
+        once = {p: p.read_bytes() for p in sorted((kok / "docs").rglob("*.md"))}
+        dokuman_bakim.surec_olcumu_bulgulari(kok)
+        sonra = {p: p.read_bytes() for p in sorted((kok / "docs").rglob("*.md"))}
+        self.assertEqual(once, sonra)
+
+    def test_SATIR_ICI_KOD_degeri_GECERLIDIR(self):
+        # 🔴 denetim bulgusu (Faz 169, triyaj: gerçek). `_kod_bloklarini_soy`
+        # satir ici kodu BOSLUKLA doldurur; gövdeye uygulanirsa `` `ölçülmedi` ``
+        # yazan bir hucre kapiya BOS gorunur. Oysa `faz-tamamlama` Adim 5 ve
+        # sablonun kendisi tam olarak o yazimi OGRETIYOR.
+        kod = self.TAM.replace("| Faz kapandıktan sonra bulunan kusur | ölçülmedi |",
+                               "| `Faz kapandıktan sonra bulunan kusur` | `ölçülmedi` |")
+        kok = self._kok({"arsiv/fazlar/168-X.md": self._faz("✅ Tamamlandı (2026-09-13)", kod)})
+        self.assertEqual([], dokuman_bakim.surec_olcumu_bulgulari(kok))
+
+    def test_FAZ_KAL_bolumu_damitmada_KORUR(self):
+        self.assertIn("Süreç Ölçümü", dokuman_bakim._FAZ_KAL)
+        self.assertFalse(dokuman_bakim._duser_mu("Süreç Ölçümü", "Süreç Ölçümü"))
+
+
+class KesikKararBasligiTestleri(unittest.TestCase):
+    """İÇ İÇE `**` karar başlığını SESSİZCE keser (faz dışı kusur, Faz 169).
+
+    `_kararlar_kalemleri()` başlığı `\\*\\*(.+?)\\*\\*` ile okur ve desen tembeldir:
+    başlığın İÇİNDEKİ ilk `**` başlığı orada bitirir. Üretilen indeks satırı
+    cümlenin yarısında kesilir ve kalem aranamaz hâle gelir — ölçüldü: K-413
+    indekste `... kaynak her fazın kendi \\`>` diye bitiyordu, K-523 `... \\`docs/`
+    diye. Hiçbir kapı görmedi; `--denetle` yeşildi.
+    """
+
+    def test_ic_ice_bold_KESIK_baslik_bulgusudur(self):
+        govde = [(826, "| **K-767 — eşik sabit sayı **167**'dir (kullanıcı kararı)** | 2026-09-13 | gerekçe | — |")]
+        bulgular = dokuman_bakim._kesik_karar_basliklari(govde)
+        self.assertEqual(1, len(bulgular))
+        self.assertIn("826", bulgular[0])
+        self.assertIn("K-767", bulgular[0])
+
+    def test_KOD_PARCASI_icindeki_bold_bulgu_DEGILDIR(self):
+        # 🚨 `` `> **Durum:**` `` bir VURGU degil, gosterilen METINDIR. K-413 ve
+        # K-523 tam olarak boyleydi; kacis eklemek yerine URETEC kod parcasini
+        # taniyacak hale getirildi (`_karar_basligi`), cunku kacis kod
+        # parcasinin ICINDE birebir goruntulenir.
+        govde = [(460, "| **K-413 — kaynak her fazın kendi `> **Durum:**` satırıdır** | 2026-08-16 | g | — |"),
+                 (570, "| **K-523 — `docs/**.md` bütçesi büyütülmez (kullanıcı kararı)** | 2026-08-20 | g | — |")]
+        self.assertEqual([], dokuman_bakim._kesik_karar_basliklari(govde))
+
+    def test_kod_parcasi_icindeki_bold_INDEKSTE_de_TAM_kalir(self):
+        satir = "| **K-413 — kaynak her fazın kendi `> **Durum:**` satırıdır** | 2026-08-16 | g | — |"
+        baslik, kuyruk = dokuman_bakim._karar_basligi(satir)
+        self.assertTrue(baslik.endswith("`> **Durum:**` satırıdır"), baslik)
+        self.assertTrue(kuyruk.startswith(" |"), repr(kuyruk))
+
+    def test_MESRU_kuyruk_isaretcileri_yanlis_pozitif_uretmez(self):
+        # `**(Faz 168)**`, `*(kullanıcı kararı)*` ve 🚨 mesru kuyruklardir:
+        # hepsi basligi KAPATAN `**`den SONRA gelir ve bosluk ile baslar.
+        govde = [
+            (1, "| **K-765 — bir başlık** **(Faz 168)** | 2026-09-13 | gerekçe | — |"),
+            (2, "| **K-001 — başka başlık** *(kullanıcı kararı)* | 2026-01-01 | gerekçe | — |"),
+            (3, "| **K-166 — üçüncü başlık** 🚨 | 2026-01-01 | gerekçe | — |"),
+            (4, "| **K-002 — sade başlık** | 2026-01-01 | gerekçe | — |"),
+        ]
+        self.assertEqual([], dokuman_bakim._kesik_karar_basliklari(govde))
+
+    def test_KARAR_OLMAYAN_satir_atlanir(self):
+        self.assertEqual([], dokuman_bakim._kesik_karar_basliklari(
+            [(1, "| Karar | Tarih | Gerekçe | Yeniden açılma |"), (2, "|---|---|---|---|")]))
+
+    def test_GERCEK_defterde_kesik_baslik_YOK(self):
+        # Sinif taramasi: iki vaka bulundu ve ikisi de duzeltildi. Tarama
+        # URETECIN gordugu satir kumesinin TAMAMINI kapsar (§2 + reddedilen
+        # kararlar tablosu), yalniz §2'yi degil.
+        satirlar = list(enumerate(
+            (ROOT / "docs" / "KARARLAR.md").read_text(encoding="utf-8").split("\n"), 1))
+        self.assertEqual([], dokuman_bakim._kesik_karar_basliklari(satirlar))
+
+    def test_kapi_URETECIN_gordugu_HER_satiri_tarar(self):
+        # 🟡 3 (Faz 169 denetimi): kapi eskiden yalniz §2'yi okuyordu; uretec
+        # dosyanin tamamini okur. Reddedilen kararlar tablosundaki kesik bir
+        # baslik indekse cikar ama denetlenmezdi.
+        _reddedilen, kalici = dokuman_bakim._kararlar_kalemleri()
+        satirlar = list(enumerate(
+            (ROOT / "docs" / "KARARLAR.md").read_text(encoding="utf-8").split("\n"), 1))
+        karar_satiri = sum(1 for _, s in satirlar if s.startswith("| **"))
+        self.assertGreater(karar_satiri, len(kalici),
+                           "uretec §2 disinda da kalem uretiyor olmali")
