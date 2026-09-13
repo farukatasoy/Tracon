@@ -1374,8 +1374,40 @@ class ManuelTestSayimKaymasiTestleri(unittest.TestCase):
         self.assertEqual(1, len(bulgular))
         self.assertIn("-8", bulgular[0])
 
-    def test_tablo_bicimli_aile_KAPSAM_DISI(self):
-        # 31-36 aileleri `### MT-` basligi kullanmaz; sifir sayim bir bulgu degildir.
+    def _kok_tablo(self, yazan: int, case_sayisi: int, kod: str = "GDK") -> pathlib.Path:
+        """Tablo bicimli aile: case'ler `### MT-` basligi degil, TABLO SATIRI.
+
+        31-36 aileleri bu bicimdedir (Faz 167'de olculdu).
+        """
+        kok = pathlib.Path(tempfile.mkdtemp())
+        mt = kok / "docs" / "manuel-test"
+        mt.mkdir(parents=True)
+        (mt / "00-INDEKS.md").write_text(
+            "| # | Dosya | Kod | Faz | Kaynak | Case | Spec | Koşum |\n"
+            "|---|---|---|---|---|---|---|---|\n"
+            f"| 36 | [`36-IS.md`](36-IS.md) | `{kod}` | 91 | `src/x` | **{yazan}** | ✅ | ✅ |\n",
+            encoding="utf-8")
+        satirlar = "".join(
+            f"| {i} | `MT-{kod}-{i:03d}` | on kosul | adim | beklenen |\n"
+            for i in range(1, case_sayisi + 1))
+        (mt / "36-IS.md").write_text(
+            "# 36 — Is\n\n| # | Kod | Ön koşul | Adımlar | Beklenen sonuç |\n"
+            "|---|---|---|---|---|\n" + satirlar, encoding="utf-8")
+        return kok
+
+    def test_tablo_bicimli_ailede_bayat_sayim_KIRMIZIDIR(self):
+        # Faz 167: kapi bu aileleri SESSIZCE atliyordu. Olculdu: alti aile
+        # kapsam disiydi ve IKISINDE gercek sapma vardi (31-*: +8, 36-*: +6).
+        bulgular = dokuman_bakim.manuel_test_sayim_kaymasi(self._kok_tablo(yazan=25, case_sayisi=31))
+        self.assertEqual(1, len(bulgular))
+        self.assertIn("+6", bulgular[0])
+
+    def test_tablo_bicimli_aile_dogru_sayimda_yanlis_pozitif_uretmez(self):
+        self.assertEqual([], dokuman_bakim.manuel_test_sayim_kaymasi(self._kok_tablo(yazan=31, case_sayisi=31)))
+
+    def test_hicbir_bicimde_case_tasimayan_aile_KAPSAM_DISIDIR(self):
+        # Kalan tek kacis: ne `### MT-` basligi ne de `| n | \`MT-KOD-nnn\` |`
+        # satiri olan dosya. Bu bir bicim farki degil, case'siz bir dosyadir.
         self.assertEqual([], dokuman_bakim.manuel_test_sayim_kaymasi(self._kok(yazan=24, case_sayisi=0)))
 
 

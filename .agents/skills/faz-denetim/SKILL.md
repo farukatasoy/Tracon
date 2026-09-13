@@ -35,7 +35,7 @@ koşulduktan sonra, `faz-tamamlama`'nın doküman adımlarından **önce**.
 Denetçi **taze bağlamlı ayrı bir agent**tır. Kararın gerekçesi: uygulayan
 oturumun bağlamında fazın her tasarım tercihi zaten haklı görünür.
 
-Çağrı biçimi (Claude Code'da `Agent` aracı, `general-purpose` tipi):
+Çağrı biçimi (Claude Code'da `Agent` aracı, `faz-denetcisi` tipi):
 
 ```
 Sen Tracon'in faz denetçisisin. .agents/skills/faz-denetim/SKILL.md
@@ -50,6 +50,11 @@ Kod YAZMA. Yalnız bulgu üret ve Adım 4'teki biçimde raporla.
 > Alt agent mekanizması olmayan bir ortamda denetim **ayrı bir sohbette** koşar.
 > Aynı oturumda "şimdi denetçi gibi düşün" demek bu skill'i uygulamak
 > **değildir** — bağlam taze olmadığı için kör nokta korunur.
+>
+> 🚨 O ortamda **salt-okunurluk da gelmez.** `faz-denetcisi` tipi
+> ([`.claude/agents/faz-denetcisi.md`](../../../.claude/agents/faz-denetcisi.md))
+> yazma araçlarını araç kümesinden düşürür; ayrı bir sohbette denetçi yazabilir
+> ve aşağıdaki yasakları yalnız **bu metin** korur (Faz 167).
 
 ---
 

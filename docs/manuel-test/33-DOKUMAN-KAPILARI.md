@@ -1,6 +1,6 @@
 # 33 — Doküman Kapılarının Doğruluğu (`DKP`)
 
-> **Alan kodu:** `DKP` · **Faz:** 80, 90
+> **Alan kodu:** `DKP` · **Faz:** 80, 90, 167
 > **Kaynak:** `scripts/dokuman-bakim.py` · `scripts/dokuman_bakim_test.py` ·
 > `.github/workflows/ci.yml`
 >
@@ -88,3 +88,4 @@ awk '/^  build:/{j="build"} /^  site:/{j="site"} /^  pages:/{j="pages"}
 | 13 | `MT-DKP-013` | Tamamlanmış arşiv fazında `- [ ]` satırı | `python3 scripts/dokuman-bakim.py --denetle` | Faz dosyası ve satır raporlanır; kutu düz metne çevrilince bulgu kaybolur |
 | 14 | `MT-DKP-014` | Skill içinde `EnablePublicApiTracking=false` iddiası | `python3 scripts/dokuman-bakim.py --denetle` | `Directory.Build.props` gerçek değeriyle çakışma raporlanır |
 | 15 | `MT-DKP-015` | CI veya kapanış skill'inde eski sync/secret deseni | `python3 scripts/dokuman-bakim.py --denetle` | Kopyalanmış desen raporlanır; desen `kapi.py`'ye taşınınca kapı temizlenir |
+| 16 | `MT-DKP-016` | **Tablo biçimli** bir aile (`31`–`36`) dosyasına bir case satırı ekle, `00-INDEKS.md`'deki sayıyı **güncelleme** | `python3 scripts/dokuman-bakim.py --denetle` | Sapma `(+1)` olarak raporlanır. 🚨 Faz 167'ye kadar bu **sessizce geçiyordu**: `manuel_test_sayim_kaymasi` yalnız `### MT-` başlığı sayıyor, tablo biçimli altı aileyi hiç görmüyordu ve ikisinde gerçek sapma birikmişti (`31-*` +8, `36-*` +6) |

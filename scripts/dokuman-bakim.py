@@ -816,9 +816,18 @@ def manuel_test_sayim_kaymasi(kok: pathlib.Path = ROOT) -> list[str]:
         aile = kok / "docs" / "manuel-test" / dosya_adi
         if not aile.exists():
             continue
-        gercek = len(re.findall(
-            rf"^### MT-{kod}-", aile.read_text(encoding="utf-8"), re.M))
-        # Tablo bicimli aileler `### MT-` basligi kullanmaz; onlar kapsam disi.
+        metin = aile.read_text(encoding="utf-8")
+        gercek = len(re.findall(rf"^### MT-{kod}-", metin, re.M))
+        if gercek == 0:
+            # Tablo bicimli aile (31-36): case bir BASLIK degil, bir TABLO
+            # SATIRIDIR. Faz 167'ye kadar bunlar kapsam disiydi ve kapi her
+            # kosumda yesil yaniyordu -- Faz 80'in "kapi sessizce gecer"
+            # sinifi. Olculdu (2026-09-13): alti aile atlaniyordu ve IKISINDE
+            # gercek sapma vardi (31-DOKUMAN-DOGRULUGU +8, 36-GELISTIRME +6).
+            # Ayni kod birden cok satirda gecebilir; `set` tekrari duser.
+            gercek = len(set(re.findall(
+                rf"^\|\s*\d+\s*\|\s*`(MT-{kod}-\d+)`\s*\|", metin, re.M)))
+        # Hicbir bicimde case tasimayan dosya gercekten kapsam disidir.
         if gercek == 0:
             continue
         if gercek != int(yazan):
