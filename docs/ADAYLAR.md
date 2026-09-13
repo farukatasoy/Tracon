@@ -10,7 +10,8 @@
 > ([`arsiv/PLANA-DONUSEN-ADAYLAR.md`](arsiv/PLANA-DONUSEN-ADAYLAR.md)).
 
 **Durum (2026-09-13):** 4 sıralanabilir aday · 9 bekleyen kalem.
-Son plana dönüşen: **F-225 → [Faz 166 — HTTP Kapasite Ölçümü](166-HTTP-KAPASITE-OLCUMU.md)**
+Son plana dönüşen: **F-227 · F-228 · F-229 → [Faz 167](167-AGENT-ZORLAMA-KATMANI.md) ·
+[168](168-KURTARMA-RAMPASI-KATALOGU.md) · [169](169-FAZ-PLANI-SOZLESMESI.md)**
 (📋 Planlandı). Yeni aday üretmek için `aday-kesfi` koşulur.
 
 ---
@@ -484,7 +485,12 @@ keşif kaydındadır; burada yalnız hangi kanala düştükleri yazar.
 ### F-ID tahsis kuralı
 
 Numara **geri dönüştürülmez** ve bir numara **tek kaleme** aittir. Sıradaki
-numara: **F-227**.
+numara: **F-230**.
+
+**F-227 · F-228 · F-229** 2026-09-13'te tahsis edildi ve **aynı gün plana
+dönüştü** — Faz 167 · 168 · 169. Gövdeleri
+[`arsiv/PLANA-DONUSEN-ADAYLAR.md`](arsiv/PLANA-DONUSEN-ADAYLAR.md) üzerinden
+faz dokümanlarına taşındı.
 
 🚨 **F-221 ve F-222 bu kurala 2026-09-08 ile 2026-09-12 arasında uymadı** —
 ikisi de iki kez tahsis edildi. 2026-09-13'te çözüldü (kullanıcı kararı):

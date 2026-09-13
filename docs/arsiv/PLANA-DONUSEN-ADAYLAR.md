@@ -1281,6 +1281,18 @@ diye yanlış yöne gönderir; sorun onun eklediği bir şey değildir.
 
 **F-225 → [Faz 166 — HTTP Kapasite Ölçümü](../166-HTTP-KAPASITE-OLCUMU.md)** (2026-09-13): kullanıcı isteğiyle doğrudan plana dönüştü; kapsam ve kanıt faz dokümanındadır.
 
+**F-227 · F-228 · F-229 → [Faz 167](../167-AGENT-ZORLAMA-KATMANI.md) · [168](../168-KURTARMA-RAMPASI-KATALOGU.md) · [169](../169-FAZ-PLANI-SOZLESMESI.md)** (2026-09-13, yedinci planlama turu): üçü de **geliştirme aparatıdır** — ürün yüzeyine dokunmaz; emsali Faz 90 · 91 · 92 · 93. Kaynak: [`kesif/2026-09-13-anew-karsilastirmasi.md`](../kesif/2026-09-13-anew-karsilastirmasi.md). Sıra **bağlayıcıdır**: 169 → `KR-05` üzerinden 168'e, 168 → `git reset --hard` yasağı üzerinden 167'ye bağlıdır. Kapsam ve kanıt faz dokümanlarındadır.
+
+Planlama sırasında ölçümle **düzelen üç kayıt** (aday metinleri şöyle diyordu):
+
+| Adayın dediği | Ölçüm (2026-09-13) |
+|---|---|
+| F-227: "üç dosyada çağrı biçimi düzeltmesi" | `general-purpose` dizgesi repoda **tek** yerde geçiyor (`.agents/skills/faz-denetim/SKILL.md:38`). `faz-tamamlama` ve `skills/README.md` denetçiyi tip adıyla **anmıyor**; oradaki düzeltme zorunlu değil, isteğe bağlı |
+| F-229: "`kapi-olcum.jsonl` kapı sürelerini tutar, kırmızı/yeşil turunu değil" | Dosya `exit_code` **taşır**. Eksik olan başka: **faz bağı yok** (alanlar tam olarak `utc, stage, command, duration_seconds, exit_code`) ve `artifacts/` **gitignore'da** — başka klonda dosya yok. Sonuç değişmiyor: geriye dönük türetme mümkün değil |
+| F-229: bölüm adı `## Faz Scorecard'ı` ve `_FAZ_KAL`'a **iki kesme işareti varyantıyla** eklenmeli | Ad `## Süreç Ölçümü` seçildi (keşif raporu § 9 H4'ün kendi önerisi) ve tuzak **tamamen kalktı**: kesme işareti yok, tek varyant yeter. `_duser_mu("Süreç Ölçümü", …)` koşularak `False` ölçüldü — damıtmada düşmüyor |
+
+İki kullanıcı kararı planlama sırasında alındı: (1) `## Süreç Ölçümü` bölümünü **Faz 167 ve 168 de taşır** ve kapı eşiği **167**'dir — kapı doğduğu anda üç veri noktası olur; (2) alt agent frontmatter'ı `hooks` alanını desteklemiyorsa **global `PreToolUse` hook yazılmaz**, kalan risk karar defterine yazılır.
+
 **Dördü de plana dönüştü (2026-09-07, altıncı planlama turu).** 2026-09-05
 itibarıyla sıralanabilir bir aday vardı; Langfuse esinli tur
 ([kesif](../kesif/2026-09-07-langfuse-esinli-tur.md)) üç tane daha üretti. Turun
