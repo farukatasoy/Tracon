@@ -179,7 +179,7 @@ bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 | [164](arsiv/fazlar/164-CONSOLE-ENSTRUMAN-KATMANI.md) | Console'un Enstrüman Katmanı | ✅ Tamamlandı |
 | [165](arsiv/fazlar/165-KONSOLUN-KALAN-EKRANLARI.md) | Konsolun Kalan Ekranları | ✅ Tamamlandı |
 | [166](166-HTTP-KAPASITE-OLCUMU.md) | HTTP Kapasite Ölçümü | 📋 Planlandı |
-| [167](167-AGENT-ZORLAMA-KATMANI.md) | Agent Zorlama Katmanı | 📋 Planlandı |
+| [167](167-AGENT-ZORLAMA-KATMANI.md) | Agent Zorlama Katmanı | ✅ Tamamlandı |
 | [168](168-KURTARMA-RAMPASI-KATALOGU.md) | Kurtarma Rampası Kataloğu | 📋 Planlandı |
 | [169](169-FAZ-PLANI-SOZLESMESI.md) | Faz Planı Sözleşmesi: Süreç Ölçümü ve Triyaj | 📋 Planlandı |
 

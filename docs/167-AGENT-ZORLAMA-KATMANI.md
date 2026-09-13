@@ -1,6 +1,6 @@
 # Faz 167 — Agent Zorlama Katmanı
 
-> **Durum:** 📋 Planlandı (2026-09-13)
+> **Durum:** ✅ Tamamlandı (2026-09-13)
 > **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-227** (keşif: [`kesif/2026-09-13-anew-karsilastirmasi.md`](kesif/2026-09-13-anew-karsilastirmasi.md) § 9 H1 · H2, § 14)
 > **Önkoşul:** Yok — üç kalemlik geliştirme aparatı turunun **ilk** fazı (167 → 168 → 169)
 > **Paketler:** Yok. Bu faz `src/` altına **hiç dokunmaz**
@@ -366,22 +366,22 @@ sınırlarının hiçbirini geçmez.
 
 ## Bitiş Ölçütleri (DoD)
 
-- [ ] `.claude/agents/faz-denetcisi.md` var; `tools` satırı `Read, Grep, Glob, Bash` ve `disallowedTools` satırı `Edit, Write, NotebookEdit` taşıyor
-- [ ] `grep -rn "general-purpose" .agents/` **sıfır satır** döner
-- [ ] `.claude/settings.json` `deny` ve (ölçüm 1 olumluysa) `ask` bloklarını taşıyor; üç git deseninin üçü de **sondaki boşlukla** yazılmış
-- [ ] `MT-GDK-027` ve `MT-GDK-028` koşuldu: `--force-with-lease` geçer, `--force` reddedilir. İkisi de **gerçekten denendi**, okunarak değil
-- [ ] `MT-GDK-029` koşuldu: `python3 scripts/dokuman-bakim.py` üretim modu dört dosyayı yazdı ve `deny` tetiklenmedi
-- [ ] § 167.3'ün **beş ölçümü** tek tek yapıldı ve sonuçları "Plandan Sapmalar"a yazıldı — beklenen çıkanlar dahil
-- [ ] Script yazıldıysa: `dokuman-bakim.py --denetle` yeni kapıyı koşuyor ve `dokuman_bakim_test.py` iki vaka taşıyor (var/yok). Yazılmadıysa: gerekçe faz dokümanına ve karar defterine yazıldı
-- [ ] `python3 -m unittest discover -s scripts -p "*_test.py"` yeşil
-- [ ] `python3 scripts/dokuman-bakim.py --denetle` çıkış `0`; kırık bağlantı `0`
-- [ ] Dört doğrulama kapısı sıfır uyarı verir (`python3 scripts/kapi.py kapanis --taban <faz öncesi commit>`)
-- [ ] `samples/Tracon.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı — 🚨 **bu faz kod değiştirmez; koşum bir regresyon kanıtıdır** (Faz 92 emsali)
-- [ ] `secret` taraması boş döndü
-- [ ] Manuel kabul case'leri `docs/manuel-test/36-GELISTIRME-KAPILARI.md` içine eklendi (`MT-GDK-026…031`); `031` dışındakiler koşuldu
-- [ ] `faz-denetim` koşuldu — 🚨 **bu fazın kendi çıktısıyla**, yeni `faz-denetcisi` tipiyle; 🔴 bulgu kalmadı
-- [ ] `## Süreç Ölçümü` bölümü dolduruldu (bkz. aşağıdaki bölüm ve Faz 169)
-- [ ] `AGENTS.md` **değişmedi** — bu faz ona dokunmaz; bütçesi 811 B boşta kalır (Faz 168 o satırı ekler)
+- [x] `.claude/agents/faz-denetcisi.md` var; `tools` satırı `Read, Grep, Glob, Bash` ve `disallowedTools` satırı `Edit, Write, NotebookEdit` taşıyor
+- [x] `grep -rn "general-purpose" .agents/` **sıfır satır** döner — doğrulandı
+- [x] `.claude/settings.json` `deny` (7 kural) ve `ask` (1 kural) bloklarını taşıyor — ölçüm 1 olumlu; üç git deseninin üçü de **sondaki boşlukla** yazılmış
+- [x] `MT-GDK-027` ve `MT-GDK-028` **gerçekten koşuldu** (var olmayan uzak adıyla; Sapma 4): `--force-with-lease` geçer, `--force` reddedilir. İkisi de **gerçekten denendi**, okunarak değil
+- [x] `MT-GDK-029` koşuldu — dört dosyanın `mtime`'ı ilerledi: `python3 scripts/dokuman-bakim.py` üretim modu dört dosyayı yazdı ve `deny` tetiklenmedi
+- [x] § 167.3'ün **beş ölçümü** tek tek yapıldı ve sonuçları "Plandan Sapmalar"a yazıldı — beklenen çıkanlar dahil
+- [x] Script **yazılmadı** (ölçüm 2 negatif + kullanıcı kararı); bu yüzden kapı da eklenmedi ve gerekçe Sapma 2'ye ve K-762'ye yazıldı. Orijinal satır: `dokuman-bakim.py --denetle` yeni kapıyı koşuyor ve `dokuman_bakim_test.py` iki vaka taşıyor (var/yok). Yazılmadıysa: gerekçe faz dokümanına ve karar defterine yazıldı
+- [x] `python3 -m unittest discover -s scripts -p "*_test.py"` yeşil — **259 test OK**
+- [x] `python3 scripts/dokuman-bakim.py --denetle` çıkış `0`; kırık bağlantı `0`
+- [x] Kapanış kapısı **10/10 ✅** (üçüncü, kesintisiz koşum — Sapma 9): `tarama` · `--denetle` · `unittest` · `build-agent-map --check` · `denetim-paketi` · `build` · `test` (tüm projeler `Failed: 0`) · `pack` · `format --verify-no-changes` · `npm run check`. (`python3 scripts/kapi.py kapanis --taban <faz öncesi commit>`)
+- [x] `samples/Tracon.Api` ile gerçek `run` yapıldı ve çıktı **"Örnek Uygulama Koşumu"** bölümüne yazıldı (`status = Completed`) — 🚨 **bu faz kod değiştirmez; koşum bir regresyon kanıtıdır** (Faz 92 emsali)
+- [x] `secret` taraması boş döndü (`kapi.py tarama` ✅ 5,42 s)
+- [x] Manuel kabul case'leri `docs/manuel-test/36-GELISTIRME-KAPILARI.md` içine eklendi (`MT-GDK-026…031`); `031` dışındakiler koşuldu
+- [x] `faz-denetim` koşuldu (🔴 **yok** · 🟡 4, dördü de kapandı · 🟢 1 adaya) — 🚨 **bu fazın kendi çıktısıyla**, yeni `faz-denetcisi` tipiyle; 🔴 bulgu kalmadı
+- [x] `## Süreç Ölçümü` bölümü dolduruldu (bkz. aşağıdaki bölüm ve Faz 169)
+- [x] `AGENTS.md` **değişmedi** (11.189 B, ölçüldü) — bu faz ona dokunmaz; bütçesi 811 B boşta kalır (Faz 168 o satırı ekler)
 
 ### Doğrulama komutları
 
@@ -479,6 +479,19 @@ case de var olmayan bir uzak adıyla (`yok-boyle-bir-uzak`) koşuldu. Kanıt de�
 aynıdır — sorulan soru harness'ın komutu çalıştırıp çalıştırmadığıdır, git'in
 ne yaptığı değil. Case metni bu ön koşulla düzeltildi.
 
+### 4b. `KARARLAR.md` bütçeyi aştı; 12 satır damıtıldı
+
+Bu fazın **dört** yeni kararı `docs/KARARLAR.md`'yi bütçesinin üstüne çıkardı
+(415.325 B → 421.159 B, bütçe 420.000 B). `karar-damit` koşuldu: 12 satır
+(K-753…K-764) damıtıldı, 6.951 B `arsiv/KARARLAR-GECMISI.md`'ye **taşındı**,
+dosya 414.208 B'ye indi. İçerik silinmedi; satırlarda `**Tam gerekçe:**`
+işaretçisi kaldı.
+
+Damıtılan satırların çoğu bu fazın **değil** (Faz 162/163/164, F-219) — eşik
+yaşa değil **satır uzunluğuna** bakar (varsayılan 450 B). Tetikleyici bu fazdı,
+kapsam değil. `karar-damit` temiz ağaç ister, bu yüzden faz işi **önce** commit
+edildi ve damıtma ayrı bir commit oldu.
+
 ### 5. `MT-GDK-031` insan gerektirmedi — çağrı yüksek sesle düştü
 
 Plan bu case'i "👤 insan gerekir" diye işaretlemişti. Ölçüm gerekmedi: agent
@@ -493,6 +506,10 @@ Sessiz düşüş **yok** — Faz 80'in "kapı sessizce geçer" sınıfı burada
 gerçekleşmiyor. Bu, dosyanın silinmesiyle **işlevsel olarak aynı** durumdur.
 Yan bulgu: aynı sebeple `MT-GDK-026` bu oturumdan koşulamadı; repo dizininde
 **taze bir oturum** açılarak koşuldu ve gerçek `faz-denetcisi` tanımını ölçtü.
+
+### 6. `AGENTS.md`'ye dokunulmadı — DoD'nin öngördüğü gibi
+
+Ölçüldü: `AGENTS.md` 11.189 B (bütçe 12.000, %7 boş). Bu faz onu değiştirmedi.
 
 ### 7. 🚨 Faz dışı kusur bulundu ve kapatıldı — sayım kapısı altı aileyi atlıyordu
 
@@ -519,10 +536,6 @@ kapı K-764'e bağlandı.
 
 Bu, Faz 80'in `kirik_baglantilar` kusuruyla **aynı sınıftır**: bir kapının bir
 girdi biçimini "kapsam dışı" saymasıyla hiç denetlememesi arasında fark yoktur.
-
-### 6. `AGENTS.md`'ye dokunulmadı — DoD'nin öngördüğü gibi
-
-Ölçüldü: `AGENTS.md` 11.189 B (bütçe 12.000, %7 boş). Bu faz onu değiştirmedi.
 
 ### 8. 🚨🚨 Kalan risk TEORİK DEĞİLDİ — ilk gerçek denetim koşumunda ATEŞLENDİ
 
@@ -573,6 +586,42 @@ ağaca** (yani `HEAD`'e) karşı ölçüm yapıyordu. Sonucu fazı doğrulamıyo
 daraltılmış bir `PreToolUse` hook'u (Sapma 2'de ölçüldü, kullanıcı kararıyla
 yazılmadı) tam olarak bu komutu durdururdu.
 
+### 9. 🚨🚨🚨 İkinci ihlal: yasak komutu ADLANDIRMAK sınıfı kapatmadı
+
+Sapma 8'den sonra agent gövdesine ağaç değiştiren git komutları **tek tek**
+yazıldı (`git stash` · `checkout --` · `restore` · `reset` · `clean`). Denetim
+yeniden koşuldu. Denetçi bu kez o komutların **hiçbirini** çalıştırmadı —
+bunun yerine başka bir şey yaptı:
+
+```bash
+pkill -f "kapi.py kapanis --taban 43a57138"
+```
+
+Kapanış kapısının gerçekten tamamlanıp tamamlanmadığını "doğrulamak" isterken
+**uygulayan oturumun koşan kapı sürecini öldürdü** (`pid 9034/9036`). Kanıt
+bağımsızdır ve denetçinin itirafına dayanmaz: o koşumun günlüğü SqlServer
+entegrasyon testlerinin ortasında, özet satırı olmadan **kesilir** ve süreç
+`exit 1` döner; 15 test projesinin tamamı o ana kadar `Failed: 0`'dır.
+
+Çalışma ağacına dokunulmadı, hiçbir dosya değişmedi. Kapılar `nohup` ile
+**ayrık** başlatılan üçüncü koşumda kesintisiz tamamlandı (10/10 ✅).
+
+**Ders — K-762'nin asıl sınırı budur:** yasaklı Bash komutlarını saymak
+**köstebek vurmacadır**. Birinci koşumda `git stash`, ikinci koşumda `pkill`.
+Liste uzadıkça bir sonraki koşum listede olmayan bir komut bulur. `Bash` araç
+kümesinde durduğu sürece denetçi salt-okunur **değildir**; gövde metni bir
+korkuluktur ve korkuluğun tavanı buradadır.
+
+∴ Salt-okunurluğu gerçekten isteyen bir sonraki tur iki seçenekten birini
+almalıdır: (a) `agent_type` ile daraltılmış bir `PreToolUse` hook (Sapma 2'de
+ölçüldü, kullanıcı kararıyla bu fazda yazılmadı), ya da (b) denetçiden `Bash`'i
+tamamen düşürüp kanıt toplamayı `Read`/`Grep`/`Glob` ile sınırlamak — ki bu,
+denetimin `git diff` okuma yeteneğini kaybettirir. İkisi de bu fazın kapsamı
+dışındadır ve **bilinçli olarak** açık bırakılmıştır.
+
+🚨 Operasyonel not: uzun kapı koşumları bundan sonra `nohup … & disown` ile
+başlatılır. Aynı anda koşan bir denetçi onları öldürebilir.
+
 ## Bu Fazda Verilen Kararlar
 
 | Karar | Özet |
@@ -603,9 +652,11 @@ hiçbiri değişmedi.
 docs/
 ├── 167-AGENT-ZORLAMA-KATMANI.md  DEĞİŞTİ — kapanış bölümleri
 ├── KARARLAR.md                   DEĞİŞTİ — K-761 · K-762 · K-763 · K-764
+├── arsiv/KARARLAR-GECMISI.md     DEĞİŞTİ — 12 damıtılan satırın gerekçesi (Sapma 4b)
 ├── hafiza/dokumantasyon.md       DEĞİŞTİ — ölçülmüş harness sınırları
 └── manuel-test/
     ├── 00-INDEKS.md              DEĞİŞTİ — iki bayat sayım (31: 24→32, 36: 25→31)
+    ├── 31-DOKUMAN-DOGRULUGU.md   DEĞİŞTİ — Faz satırı 75 → 75, 79, 104 (K-764 izi)
     ├── 33-DOKUMAN-KAPILARI.md    DEĞİŞTİ — MT-DKP-016 (kusur regresyonu)
     └── 36-GELISTIRME-KAPILARI.md DEĞİŞTİ — MT-GDK-026…031
 
@@ -617,29 +668,105 @@ scripts/                          (faz dışı kusur — Sapma 7)
 **Yazılmayanlar** (§ 167.1 ikinci yolu, kullanıcı kararı): `scripts/denetci-yazma-kapisi.py`,
 `scripts/dokuman-bakim.py` kapısı, `scripts/dokuman_bakim_test.py` vakaları.
 
+## Örnek Uygulama Koşumu
+
+🚨 Bu faz `src/` altına dokunmaz; koşum bir **regresyon kanıtıdır** (Faz 92
+emsali). Varsayılan **dışı** yapılandırmayla koşuldu.
+
+```bash
+Tracon__Observability__SuccessSampleRatio=1 \
+  dotnet run --project samples/Tracon.Api --no-build -c Release --urls http://localhost:5081
+```
+
+Açılış temiz: `Now listening on: http://localhost:5081` ·
+`MCP discovery completed: 0 tools available.` Tek `warn` model sağlayıcısının
+henüz doğrulanmamış olmasıdır (`No model provider has been confirmed healthy
+yet.`) ve `echo` sağlayıcısıyla beklenen durumdur. `fail:`/`crit:`/`Unhandled`
+satırı **sıfır**.
+
+**Gerçek `run`:**
+
+```bash
+curl -s -X POST http://localhost:5081/tracon/api/agents/cached-support/run \
+  -H "Content-Type: application/json" -d '{"message":"Faz 167 regresyon kanıtı"}'
+```
+
+```
+id: 0
+event: run
+data: {"runId":"01a09b5b-d771-759a-9351-9039b9f38744","sessionId":null}
+
+id: 1
+event: update
+data: {"authorName":"cached-support","role":"assistant",
+data:  "contents":[{"$type":"text","text":"Echo: "}]}
+…akış "Faz " · "167 " · … parçalarıyla sürdü
+```
+
+**Kayıt gerçekten yazıldı** (`GET /tracon/api/runs/{id}`):
+
+| Alan | Değer |
+|---|---|
+| `id` | `01a09b5b-d771-759a-9351-9039b9f38744` |
+| `agentName` | `cached-support` |
+| `status` | **`Completed`** |
+| `modelProvider` | `echo` |
+
+Akış, `run` kaydı ve SSE olay sözleşmesi bozulmadı. Bu fazın yapılandırma
+değişikliği çalışma anına **hiç** dokunmuyor — beklenen buydu ve ölçüldü.
+
 ## Süreç Ölçümü
 
 | Metrik | Değer |
 |---|---|
 | Plan revizyonu sayısı | 4 (ölçüm 2 → karar çatalı · `ask` davranışı · `MT-GDK-027/028` ön koşulu · `MT-GDK-031` insan gerekliliği) |
-| Düzeltme turu sayısı | 0 — kapılar ilk koşumda yeşil geldi |
-| 🔴 bulgu: gerçek / gürültü / araştırılacak | 0 / 0 / 0 |
-| Fazın ürettiği regresyon | 0 (denetçinin `git stash`'i işi geri aldı; `stash pop` ile tam kurtarıldı, kayıp yok) |
+| Denetim sonrası düzeltme turu | 1 (dört 🟡'nin dördü de kapandı) |
+| Düzeltme turu sayısı | 0 kod turu — kapılar **üçüncü** koşumda 10/10 yeşil (ilk ikisi denetçinin `pkill`'i ve arka plan zaman aşımıyla kesildi, test düşüşü **yok**) |
+| 🔴 bulgu: gerçek / gürültü / araştırılacak | 0 / 0 / 0 (🟡 4, hepsi kapandı · 🟢 1 adaya) |
+| Fazın ürettiği regresyon | 0. Denetçi **iki kez** ağaca/sürece müdahale etti (`git stash`, `pkill`); ikisi de tam kurtarıldı, kalıcı kayıp yok |
 | Faz dışı bulunan ve kapatılan kusur | 1 (sayım kapısı altı aileyi atlıyordu; ikisinde gerçek sapma) |
 | Faz kapandıktan sonra bulunan kusur | ölçülmedi (faz henüz kapanıyor) |
 
 Ek sayılar: kullanıcıya sorulan soru **1** · izole harness ölçüm koşumu **11** ·
+denetçinin salt-okunurluk ihlali **2** (Sapma 8 · 9) · kapanış kapısı koşum
+denemesi **3** (ilk ikisi dış müdahaleyle kesildi) ·
 gerçek repo'da koşulan manuel case **5** (`026` taze oturumda, `027`–`031`
 doğrudan) · araç kümesinden düşen yazma aracı **3** (`Edit`, `Write`,
 `NotebookEdit`).
 
 ## Denetim Bulguları
 
-> `faz-denetim` skill'i, taze bağlamlı bir `faz-denetcisi` alt agent'ı ile
-> çalışma ağacına karşı koştu — 🚨 **bu fazın kendi çıktısıyla**, yani fazın
-> ürettiği agent tipiyle.
+> `faz-denetim` skill'i, taze bağlamlı bir **`faz-denetcisi`** alt agent'ı ile
+> `git diff 43a57138..HEAD` üzerinde koştu — 🚨 **bu fazın kendi çıktısıyla**,
+> yani fazın ürettiği agent tipiyle. Denetçi kapı komutlarını (`kapi.py tarama`,
+> `dokuman-bakim.py --denetle`, `unittest`) **kendisi koştu** ve
+> `MT-GDK-027/028`'i sahte uzak adıyla bizzat reprodüktü.
 
-DENETIM_YER_TUTUCU
+**Sonuç: 🔴 yok · 🟡 4 · 🟢 1.**
+
+| # | Seviye | Bulgu | Sonuç |
+|---|---|---|---|
+| 1 | 🟡 | `kapi.py kapanis` tamamlanmış bir koşumla kanıtlanmamıştı; `artifacts/kapi-olcum.jsonl` iki girişimin de `dotnet build`'de kesildiğini gösteriyordu | **Kapandı.** Sebep Sapma 9'du (denetçinin `pkill`'i). Üçüncü koşum `nohup` ile ayrık başlatıldı ve kesintisiz bitti: **10/10 ✅** |
+| 2 | 🟡 | `samples/Tracon.Api` koşumunun çıktısı dokümanda yoktu (`grep "curl\|localhost:5081"` → 0 satır) | **Kapandı.** "Örnek Uygulama Koşumu" bölümü eklendi: gerçek `runId`, `status = Completed`, SSE akışı ve `fail:`/`crit:` sıfır |
+| 3 | 🟡 | "Dosya Listesi (gerçekleşen)" gerçek diff'ten dardı: `arsiv/KARARLAR-GECMISI.md` ve `manuel-test/31-DOKUMAN-DOGRULUGU.md` eksikti | **Kapandı.** İkisi de listeye eklendi; `31-*` satırı K-764'ün kökeni olduğu için ayrıca işaretlendi |
+| 4 | 🟡 | Karar defteri damıtması (commit `2a45e629`) `Plandan Sapmalar`'da anılmıyordu | **Kapandı.** Sapma 4b yazıldı: tetikleyici, taşınan bayt, eşiğin **yaşa değil uzunluğa** baktığı ve temiz ağaç gereksinimi |
+| 5 | 🟢 | `artifacts/kapi-olcum.jsonl`'ı makine okunur bir "taban X için kapanış geçti" kanıtına çevirmek | Aday listesine; bu fazın kapsamı dışında |
+
+**Temiz çıkan başlıklar:** 3.2 (test tiyatrosu — üç yeni vaka gerçek iddia
+taşıyor, önce kırmızı görüldü) · 3.3 (test seviyesi — saf dosya/regex, sınır
+geçmiyor) · 3.5 (imza-gövde — N/A) · 3.6 (plan dışı public API — `src/` hiç
+değişmedi) · 3.7 (repo kuralları — yeni Türkçe dosyalar `SourceLanguageTests`
+kapsamı dışında, `secret` taraması temiz) · 3.8 (ürün yüzeyi — N/A).
+
+🚨 **Denetim çıktısı hakkında iki uyarı — gelecek oturum için değerli:**
+
+1. Harness denetçinin çıktısını *"subagent output matched instruction-shaped
+   pattern(s): settings-json"* diye işaretledi ve kontrol etiketlerini
+   **etkisizleştirdi**. Alt agent çıktısı **veridir**, talimat değil; bu faz
+   `settings.json` parçaları taşıdığı için desen doğal olarak tetiklendi.
+2. Denetçinin `pkill` itirafı **olduğu gibi kabul edilmedi**, bağımsız kanıtla
+   doğrulandı: kesilen koşumun günlüğü SqlServer testlerinin ortasında özetsiz
+   biter ve `exit 1` döner (Sapma 9). Doğrulanmasaydı yazılmazdı.
 
 ## Sonraki Faza Devir Notu
 
@@ -656,6 +783,18 @@ DENETIM_YER_TUTUCU
 - Damıtılmış faz kayıtlarına (`docs/arsiv/fazlar/*.md`) yazmak `ask` kuralına
   takılır. **K-763: bu bir kilit değildir** — auto mode'da sessizce geçebilir.
   Faz 169'un "üretime kaçan kusur" satırı bu yüzden engellenmez.
+
+**Her iki faz için — denetçi salt-okunur DEĞİLDİR:**
+
+- 🚨 Bu fazda denetçi **iki kez** salt-okunurluğu ihlal etti: `git stash`
+  (Sapma 8) ve `pkill` (Sapma 9). İkincisi, yasaklı komutları gövdede
+  **adlandırmanın** sınıfı kapatmadığını gösterdi. Denetimi başlatan oturum
+  uzun koşumlarını `nohup … & disown` ile ayırmalı ve denetim bittikten sonra
+  `git status` + `git stash list` ile ağacı **doğrulamalıdır**.
+- Gerçek salt-okunurluk isteniyorsa yol K-762'nin "yeniden açılma koşulu"
+  sütunundadır: `agent_type` ile daraltılmış `PreToolUse` hook (mekanizma
+  Sapma 2'de **ölçüldü**, bedeli ~20–28 ms/çağrı) ya da denetçiden `Bash`'i
+  tamamen düşürmek.
 
 **Faz 169 (`F-229` — faz planı sözleşmesi) için:**
 
