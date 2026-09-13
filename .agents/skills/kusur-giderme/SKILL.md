@@ -11,6 +11,10 @@ kullanıcı bildirimi · beklenmedik test düşüşü.
 
 Amaç tek şeydir: **aynı kusurun ikinci kez ortaya çıkmasını imkânsız kılmak.**
 
+Kurtarma kataloğunda `KR-01` (derleme hatası), `KR-02` (kırmızı test), `KR-03`
+(kırılgan test) ve `KR-04` (regresyon) rampalarının **gövdesi burasıdır** —
+[`ortak/kurtarma.md`](../../ortak/kurtarma.md) onları yalnız adlandırır.
+
 Tek vakayı düzeltmek ucuzdur ve yanıltıcıdır. Bu repoda ölçülen tekrar sayıları:
 
 | Kusur sınıfı | Kaç kez | Kapı |

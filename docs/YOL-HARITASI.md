@@ -180,7 +180,7 @@ bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 | [165](arsiv/fazlar/165-KONSOLUN-KALAN-EKRANLARI.md) | Konsolun Kalan Ekranları | ✅ Tamamlandı |
 | [166](166-HTTP-KAPASITE-OLCUMU.md) | HTTP Kapasite Ölçümü | 📋 Planlandı |
 | [167](arsiv/fazlar/167-AGENT-ZORLAMA-KATMANI.md) | Agent Zorlama Katmanı | ✅ Tamamlandı |
-| [168](168-KURTARMA-RAMPASI-KATALOGU.md) | Kurtarma Rampası Kataloğu | 📋 Planlandı |
+| [168](168-KURTARMA-RAMPASI-KATALOGU.md) | Kurtarma Rampası Kataloğu | ✅ Tamamlandı |
 | [169](169-FAZ-PLANI-SOZLESMESI.md) | Faz Planı Sözleşmesi: Süreç Ölçümü ve Triyaj | 📋 Planlandı |
 
 Seçilmemiş adaylar: [`ADAYLAR.md`](ADAYLAR.md). Fazların hangi dalgada, hangi gerekçeyle sıralandığı (Faz 8–56, kapandı): [`arsiv/IKINCI-FAZ-YOL-HARITASI.md`](arsiv/IKINCI-FAZ-YOL-HARITASI.md) · [`arsiv/UCUNCU-FAZ-YOL-HARITASI.md`](arsiv/UCUNCU-FAZ-YOL-HARITASI.md).

@@ -20,8 +20,9 @@ kurallarını** anlatır.
 Skill mekanizması olmayan agent'lar (GitHub Copilot vb.) `SKILL.md`'yi normal
 bir doküman gibi okuyup uygular. `SKILL.md` **kendi protokolü** bakımından
 kendi kendine yeter — bir `runtime`'a bağlı yazılmaz. Ortak sözleşme
-(kapı koşumu, test seviyeleri) `.agents/ortak/` altında tek kaynakta yaşar ve
-adıyla bağlanır; skill'ler zaten birbirine sürekli bağlanıyor
+(kapı koşumu, test seviyeleri, [kurtarma rampaları](../ortak/kurtarma.md))
+`.agents/ortak/` altında tek kaynakta yaşar ve adıyla bağlanır; skill'ler
+zaten birbirine sürekli bağlanıyor
 (`faz-tamamlama` → `tuketici-dokuman-senkronu`, `faz-denetim` → kalite
 sözleşmesi, K-522 emsali). Bağlantı hedefi repo içinde olmalıdır; skill
 mekanizması olmayan bir agent onu normal bir dosya olarak açar (Faz 92).

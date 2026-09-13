@@ -18,6 +18,7 @@ işi vardır, aradığın iş bu tablodadır:
 | İhtiyaç | Yol |
 |---|---|
 | Bir tuzak/desen var mı? | [hafiza/00-INDEKS](docs/hafiza/00-INDEKS.md) → alan dosyası |
+| Bir şey ters gitti — hangi rampa? | [ortak/kurtarma](.agents/ortak/kurtarma.md) — `KR-01…12` |
 | Bir şey nerede yaşıyor? | [hafiza/kod-haritasi](docs/hafiza/kod-haritasi.md) |
 | Bir karar alınmış mı? | [KARARLAR-INDEKS](docs/KARARLAR-INDEKS.md) → `grep -n "K-059" docs/KARARLAR.md` |
 | Mimari resim (katman, veri modeli, çalıştırma yolu) | [MIMARI](docs/MIMARI.md) — ilgili bölüm |
