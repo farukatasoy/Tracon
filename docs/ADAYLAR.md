@@ -1,202 +1,35 @@
-# ADAYLAR — Normalize Edilmiş Planlama Kuyruğu
+# ADAYLAR — Planlama Kuyruğu
 
-> **Durum (2026-08-26):** Bu dosya yalnız plana dönüşebilecek yetenekleri
-> taşır. Eski listenin 43 açık görünen F-ID'si yeniden yargılandı: **5 aday**,
-> **5 kusur**, **6 karar/uyumluluk eşiği**, **15 ölçüm bekleyen iddia** ve
-> **12 arşivlenen veya birleştirilen kalem**. F-164 bu sayımdan önce kusur
-> kanalında kapandı. Tam kanıt ve her ID'nin varış yeri:
-> [`kesif/2026-08-26-aday-envanter-normalizasyonu.md`](kesif/2026-08-26-aday-envanter-normalizasyonu.md).
+> **Bu dosya ne taşır:** henüz faza dönüşmemiş yetenek adaylarını ve onları
+> bekleten koşulları. Başka hiçbir şeyi.
 >
-> **Ek (2026-08-26, ikinci tur):** Feature keşfi turu üç yeni aday ekledi
-> (**F-166, F-167, F-168**) ve **F-95**'i karar kanalından adaylığa geri
-> aldı — MAF 1.19.0 onu bekleten kancayı gönderdi. Tur kaydı:
-> [`kesif/2026-08-26-yeni-feature-fikirleri.md`](kesif/2026-08-26-yeni-feature-fikirleri.md).
->
-> **Ek (2026-08-26, üçüncü tur — planlama):** Sıralama kanıt doğrulamasıyla
-> yeniden yargılandı ve **F-109 · F-149 · F-166** plana dönüştü
-> ([Faz 112](arsiv/fazlar/112-REPLAY-ISTEMCI-TOOL-SOZLESMESI.md) ·
-> [Faz 113](arsiv/fazlar/113-ARIZA-SINIFLANDIRMA-SEAMI.md) ·
-> [Faz 114](arsiv/fazlar/114-CALISTIRMA-ICI-BUTCE-TAVANI.md)); bölümleri bu dosyadan
-> **silindi**. Doğrulama üç aday metnini de düzeltti — düzeltmeler
-> § *Sıralamayı Değiştiren Ölçümler*'dedir.
->
-> **Ek (2026-08-26, dördüncü tur — planlama):** **F-168 · F-67** plana dönüştü
-> ([Faz 115](arsiv/fazlar/115-EVALIN-BASSIZ-KOSUCUSU.md) ·
-> [Faz 116](arsiv/fazlar/116-PERFORMANS-TAHSIS-KAPISI.md)); bölümleri bu dosyadan silindi.
-> Doğrulama ikisinin de aday metnini düzeltti — § *Sıralamayı Değiştiren
-> Ölçümler*. Sıralamada **iki aday** kaldı.
->
-> **Ek (2026-08-26, beşinci tur — planlama):** **F-167 · F-152** plana dönüştü
-> ([Faz 117](arsiv/fazlar/117-MCP-TASKS-UZANTISI.md) ·
-> [Faz 118](arsiv/fazlar/118-YARGIC-BASINA-CHECKPOINT.md)). **Sıralanabilir aday kalmadı.**
-> Kuyrukta iki kalem var ve ikisi de bugün faz değildir: F-95 ölçüm bekler,
-> F-165 tek faza sığmaz. Yeni aday üretmek için `aday-kesfi` koşulur.
->
->
-> **Ek (2026-09-01, tüketici turu):** Dış bir tüketici raporu koda karşı
-> ölçüldü ([`kesif/2026-09-01-tuketici-feature-talepleri.md`](kesif/2026-09-01-tuketici-feature-talepleri.md)).
-> Dört kalem **doğrudan plana** dönüştü — bu dosyada hiç sıralanmadılar, çünkü
-> kanıtları raporla birlikte geldi ve aynı turda doğrulandı:
-> **F-172** → [Faz 129](arsiv/fazlar/129-IS-KUYRUGU-LANELERI.md) · **F-173** →
-> [Faz 130](arsiv/fazlar/130-URETILEN-SEMANIN-KISITLARI.md) · **F-174** →
-> [Faz 131](arsiv/fazlar/131-YAPISAL-YANIT-DOGRULAMA-SEAMI.md) · **F-175** →
-> [Faz 132](arsiv/fazlar/132-UYGULANAN-FIYAT-SNAPSHOTU.md). Aynı turdan **dört kalem**
-> § *Bekleyen Kalemler*'e girdi (F-176 · F-177 · F-178 · F-179); hepsi bir
-> fazın tamamlanmasını bekliyordu. **Ek (2026-09-02):** Faz 129-132 kapandı ve
-> üçü plana dönüştü — **F-178'in job/kuyruk metrikleri yarısı** →
-> [Faz 133](arsiv/fazlar/133-IS-KUYRUGU-METRIKLERI.md) · **F-177** →
-> [Faz 134](arsiv/fazlar/134-SINIRLI-YANIT-ONARIMI.md) · **F-176** →
-> [Faz 135](arsiv/fazlar/135-URETILEN-SEMANIN-NESNE-GRAFI.md). Kuyrukta **F-178'in kalan
-> yarısı** (model deneme telemetrisi) ve **F-179** (dinamik routing) kaldı;
-> ikisi de gerçek üretim trafiği/olayı bekliyor.
->
->
-> **Ek (2026-09-03, tüketici turu 2):** Aynı tüketicinin ikinci raporu koda karşı
-> ölçüldü ve **üç iddiasının üçü de doğrulandı**. Kalemler bu dosyada
-> sıralanmadı — kanıtları raporla geldi ve aynı turda yeniden üretildi:
-> **F-182** (paket kimliğinin tekilliği, AP-REQ-002) →
-> [Faz 136](arsiv/fazlar/136-PAKET-KIMLIGININ-TEKILLIGI.md); repro kilitli, `1.0.0-preview.1`
-> tag'inin önüne girer. **F-183** (custom job dispatch, AP-REQ-001) ve **F-184**
-> (voice descriptor sağlayıcı üstverisi, AP-REQ-003) →
-> [Faz 137](arsiv/fazlar/137-IS-TURUNUN-ACIK-ANAHTARI.md) ve
-> [Faz 138](arsiv/fazlar/138-SES-TANIMININ-SAGLAYICI-USTVERISI.md); ikisi de tüketiciden
-> kesin sözleşme yanıtı aldı.
->
-> F-183'ün ölçümü raporun bulduğundan ağır çıktı: sevk edilen
-> `samples/Tracon.Samples.CustomJobHandler` örneği `JobKind.AgentBatch`
-> bildirir ve `AddTracon()`'den sonra kaydolur, yani gerçek bir worker'da
-> **hiç çalışmaz** — testi yalnız DI kaydını ölçüyor. Bu kusur ayrı bir kayıt
-> açmaz; F-183'ün düşen testidir.
->
->
-> **Ek (2026-09-05, tüketici turu 4):** ProdigyEnabler'ın `0.0.0-preview.0.589`
-> raporu koda karşı ölçüldü ([kesif](kesif/2026-09-05-tuketici-turu-4-olcumu.md)).
-> On dört iddianın on üçü doğru çıktı; yanlış olan tek iddia bir risk satırıydı
-> (`MigrationDescriptor` public sanılmış, `internal` çıktı). Dört kalem **doğrudan
-> plana** dönüştü — bu dosyada hiç sıralanmadılar, çünkü kanıtları raporla
-> birlikte geldi ve aynı turda doğrulandı: **F-193** →
-> [Faz 145](arsiv/fazlar/145-OLAY-AKISININ-CERCEVE-SOZLESMESI.md) · **F-194** (A2 + F3 birleşti) →
-> [Faz 146](arsiv/fazlar/146-CALISTIRMAYA-BAGLI-KOTA-ESIGI.md) · **F-195** →
-> [Faz 147](arsiv/fazlar/147-YETKI-KAPISININ-KAYNAK-KAPSAMI.md) · **F-196** →
-> [Faz 148](arsiv/fazlar/148-OTURUM-SAHIPLIGININ-KALICILIGI.md).
->
-> Planlama ölçümü raporda **olmayan** bir bulgu üretti: `POST /runs/{id}/replay`
-> ve `/v1/chat/completions` de gerçek bir `run` başlatıyor ve ikisi de
-> `RunAuthorizationGate`'i çağırmıyor. Faz 139'un "dört run başlatan yüzey"
-> iddiası (K-670) eksiktir; gerçek sayı **altıdır**. Faz 147 bunu kapsıyor.
->
-> Aynı turdan **sıralanmayan** kalemler: F2 (zorunlu extension binding profili) ·
-> F6 (ses/WebSocket test harness'i) · F7 (migration plan artifact'i) — üçünün de
-> boşluğu gerçek, talep kanıtı yok. **Elenenler:** F4 · F5 · F8. Gerekçeler keşif
-> kaydındadır.
->
-> **Ek (2026-09-06, tüketici turu 4 yanıtı):** Tüketici §8'deki üç soruyu
-> yanıtladı ([yanıt raporu](kesif/2026-09-06-tuketici-turu-4-yaniti.md)). İki
-> kalem **doğrudan plana** dönüştü: **F-201** →
-> [Faz 149](arsiv/fazlar/149-SAHIPSIZ-OTURUMUN-KATI-REDDI.md) (sahipsiz oturumun katı reddi;
-> **K-693'ün yeniden açılma koşulu karşılandı**) · **F-202** →
-> [Faz 150](arsiv/fazlar/150-ZORUNLU-BINDING-PROFILI.md) (F2, zorunlu extension binding
-> profili). İkisi de tüketicinin geçişini **bloklamıyor**.
->
-> Planlama ölçümü bir boşluk daha buldu: `/v1/conversations` (dört uç, koşulsuz
-> map'leniyor) sahiplik kapısından geçiyor ama `IRunAuthorizationHandler`'dan
-> **geçmiyor** — tüketici kendi handler'ıyla kuracağı kuralı orada uygulayamaz.
-> Faz 149 bunu kapsıyor.
->
-> **F6** (ses/WebSocket harness) ve **F7** (migration plan artifact'i) tüketici
-> tarafından geri çekildi; F7'nin `MigrationDescriptor` öncülünün yanlış
-> olduğunu kendileri doğruladı. **Kota** sorusu kapandı: dönem kotası tenant
-> ortak bütçesidir ve mevcut `(tenant, agent, dönem)` kapsamı bunu karşılıyor —
-> yapılacak iş yok.
-> **Ek (2026-09-06, kusur turu):** Beş kusur `kusur-giderme` ile faz dışı
-> kapandı: **F-197** · **F-170** · **F-203** · **F-204** · **F-206**
-> (sonuncusu turun kendi kapı koşumunda bulundu). Üçünün ölçümü kaydın
-> yazdığından farklı çıktı ve fark her seferinde kayda işlendi — F-197'nin
-> sınıf taraması kayıtta hiç olmayan bir **sunucu** vakası buldu (ham
-> `{"approvals":null}` → `500`), F-203'ün **öncülü** yanlıştı (hedef dosya
-> gitignore'lu değil) ama çözümü doğruydu, F-204'ün boşluğu kaydın
-> söylediğinden büyüktü (3 değil 12 çağrı). Karar: **K-702**. Kapsam dışı
-> bırakılanlar (kullanıcı kararı): F-198 · F-171 · F-200 · F-180 · F-199 ·
-> F-205.
->
-> **Ek (2026-09-07, altıncı tur — planlama):** **F-192 · F-208 · F-207 · F-209**
-> plana dönüştü ([Faz 151](arsiv/fazlar/151-HARNESSIN-DONGU-YETENEGI.md) ·
-> [Faz 152](arsiv/fazlar/152-SKORUN-ADI-VE-SEKLI.md) ·
-> [Faz 153](arsiv/fazlar/153-EVAL-KOSUMLARI-ARASINDA-REGRESYON-FARKI.md) ·
-> [Faz 154](arsiv/fazlar/154-SKOR-TRENDININ-KALICI-SORGUSU.md)); bölümleri bu dosyadan
-> **silindi**. Doğrulama dört aday metnini de düzeltti ve **bir keşif iddiasını
-> çürüttü** — düzeltmeler § *Sıralamayı Değiştiren Ölçümler*'dedir. Aynı tur
-> tek yeni aday üretti: **F-210**.
->
-> **Ek (2026-09-07, kusur turu):** Üç kusur `kusur-giderme` ile faz dışı kapandı:
-> **F-214** · **F-211** · **F-212**. Üçünün de ölçümü kaydın yazdığından geniş
-> çıktı — F-214'ün predicate'i dört değil **beş** yerde yaşıyordu
-> (`InMemoryRunStore.Analytics.cs` kayıtta hiç yoktu), F-211'in eval yarısında
-> gölgeleme guard'ı **hiç yoktu** (kayıt yalnız harf asimetrisini anıyordu) ve
-> aynı dosyada interpolasyonsuz bir hata mesajı bulundu, F-212'nin ters yönü
-> kayıtta yoktu (`WorkflowRequest`'in payload'ı **her zaman** yazılır ama
-> dokümanı bunu söylemiyordu). Karar: **K-703** (yalnız F-211).
->
-> Aynı turun **kendi kapanış kapısı** dördüncü bir kusur buldu (F-206 emsali):
-> **F-215** — SQL Server'ın `run_scores` upsert'ü yarışıyor ve `NULL`/`''`
-> semantiği Postgres/SQLite'tan sapıyor. 2026-08-24'ten beri sevk ediliyor,
-> izole koşumda da düşüyor. Bu turda **kapatılmadı** — çözümü migration
-> gerektirir (kullanıcı kararı). Gövde
-> [`arsiv/ERTELENEN-ADAYLAR.md`](arsiv/ERTELENEN-ADAYLAR.md)'dedir.
->
-> **Ek (2026-09-07, kusur turu):** **F-215** ayrı bir `kusur-giderme` turunda
-> kapandı — `message_key` computed column + index taşıma (migration 0037) ve
-> `SqlRunScoreStore.UpsertAsync`'e eklenen yeniden deneme. Sınıf taraması üç
-> kardeş bulgu işaretledi (`quotas` · `skill_script_grants` ·
-> `tool_approval_rules`), ama hiçbiri canlı yarışı üretmedi (32 eşzamanlı
-> denemeyle doğrulandı) — düzeltilmediler. Karar: **K-724**. Tam kapanış kaydı
-> [`arsiv/ERTELENEN-ADAYLAR.md`](arsiv/ERTELENEN-ADAYLAR.md)'dedir.
->
-> **Ek (2026-09-07, tüketici analizi turu):** 1005 satırlık dış analiz koda karşı
-> ölçüldü ([tam rapor](arsiv/incelemeler/2026-09-07-tuketici-analizi-codebase-olcumu.md)).
-> Üç kusur kanalı aynı gün faz dışı kapandı: **B01** sessiz definition alan
-> kaybı (K-725) · **B02** yanlış tüketici sözleşmesi (D01–D18 + yayın durumu +
-> sevk edilen XML) · **B03** approval karar→resume penceresi (K-726). B03
-> raporda "doğrulama bekliyor" idi; failure injection ile **üretildi**.
->
-> §5'in on sekiz önerisi (A01–A18) aşağıdaki kanallara ayrıldı. **İki aday
-> sıralamaya girdi:** A04 → **F-216**, A16 → **F-217**. Kullanıcı kararları:
-> **K-716 korunur** (A09 açılmadı) · çok node hedefi belirsiz, **tek process
-> varsayıldı** (A07/A12 bekler) · talebe bağlı yedi kalemin sürücüsü yok.
->
-> | Kanal | A-ID'leri |
-> |---|---|
-> | **Sıralanabilir aday oldu, sonra plana dönüştü** | A04 → F-216 → **[Faz 156](arsiv/fazlar/156-DURUM-ON-KONTROLU-VE-UPGRADE-PENCERESI.md)** (doğrulamada daraldı) · A16 → F-217 → **[Faz 157](arsiv/fazlar/157-SINIRLI-YUK-VE-IKI-PROCESS-ARIZA-KANITI.md)** |
-> | **Kusur kanalında kapandı** | A05'in birinci dilimi (sessiz alan kaybı) → K-725 · A01'in yayın anlatısı ve D01–D18 → B02 · B03 → K-726 |
-> | **Mevcut adayın kanıtı güncellendi** | **F-171** — bu tur kapının kapsamı genişletildi, kalan iş daraldı (aşağıda) |
-> | **Ölçüm bekliyor** | A01 (kalan manifest bağlama) · A02 · A03 · A05'in ETag ve provenance dilimleri · A06 · A07 · A08 · A09 · A10 · A11 · A12 · A13 · A14 · A15 |
-> | **Bu tur ertelendi** | A17 (genel workflow / dış orchestrator) · A18 (ileri deney analizi / yeni UI / provider-vector adapter) |
->
-> Her kalemin değer/maliyet/risk yargısı ve gereken kanıtı raporun §5'indedir;
-> burada tekrarlanmaz. A17/A18 mimari ret **değildir** — mevcut yetenekle
-> çözülemeyen somut bir vaka çıkarsa yeniden değerlendirilirler.
->
-> Faz durumu yalnız üretilen [`YOL-HARITASI.md`](YOL-HARITASI.md)'dedir.
-> Bir kusur bu dosyaya geri girmez; `kusur-giderme` kanalına gider. Kapatılmış
-> kararın yeniden açılması kullanıcı kararıdır. Ölçüm bekleyen iddia, kanıt
-> üretmeden aday olmaz.
+> **Ne taşımaz:** faz durumunu (üretilen [`YOL-HARITASI.md`](YOL-HARITASI.md)) ·
+> kusurları (`kusur-giderme` kanalı) · kapanmış kararları
+> ([`KARARLAR-INDEKS.md`](KARARLAR-INDEKS.md)) · tur anlatılarını
+> ([`kesif/`](kesif/)) · plana dönüşmüş kalemlerin gövdelerini
+> ([`arsiv/PLANA-DONUSEN-ADAYLAR.md`](arsiv/PLANA-DONUSEN-ADAYLAR.md)).
+
+**Durum (2026-09-13):** 4 sıralanabilir aday · 9 bekleyen kalem.
+Son plana dönüşen: **F-225 → [Faz 166 — HTTP Kapasite Ölçümü](166-HTTP-KAPASITE-OLCUMU.md)**
+(📋 Planlandı). Yeni aday üretmek için `aday-kesfi` koşulur.
+
+---
 
 ## Okuma Sırası
 
-**Sıralanabilir aday kalmadı** (2026-09-07, yedinci planlama turu) — üçü de
-plana dönüştü. Yeni aday üretmek için `aday-kesfi` koşulur. Bu dosyaya bakma
-sebebin şunlardan biridir:
-
-| İhtiyaç | Nereye bak |
+| İhtiyacın | Nereye bak |
 |---|---|
-| Sıradaki fazı seçmek | **Buraya değil** — üretilen [`YOL-HARITASI.md`](YOL-HARITASI.md)'ye. Planlanmış fazlar `docs/` kökündedir |
-| Yeni aday üretmek | `aday-kesfi` skill'ini koş; bu dosya onun çıktısını alır |
-| Bekleyen iki kalemin durumu | § *Bekleyen Kalemler* — ikisi de bugün faz değildir |
-| Bir F-ID nereye gitti | § *Aday Olmayan Açık Kayıtlar* tablosu |
-| Bir sıralama neden değişti | § *Sıralamayı Değiştiren Ölçümler* |
+| Sıradaki fazı seçmek | § *Sıralanabilir Adaylar* — dördü de kanıtı ölçülmüş, bugün plana dönüşebilir |
+| Hangi fazın nerede olduğu | **Buraya değil** — üretilen [`YOL-HARITASI.md`](YOL-HARITASI.md). Planlanmış faz dokümanları `docs/` kökündedir |
+| Bir kalem neden faz değil | § *Bekleyen Kalemler* — her satır engeli ve koşulu söyler |
+| Bir F-ID nereye gitti | § *Aday Olmayan Açık Kayıtlar* |
+| Yeni aday üretmek | `aday-kesfi` skill'i; çıktısı bu dosyaya yazılır |
+| Bir kalem neden reddedildi | § *Bilerek Önerilmeyenler* → [`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md) |
+| Geçmiş turda ne olmuştu | [`arsiv/PLANA-DONUSEN-ADAYLAR.md`](arsiv/PLANA-DONUSEN-ADAYLAR.md) — tur anlatıları, çürütülmüş iddialar, taşınan gövdeler |
 
-Geçmiş tur anlatıları, kapanmış aday gövdeleri ve elenen kalemler bu dosyada
-tekrarlanmaz; ilgili keşif ve arşiv kayıtlarındadır.
+Bu dosya **baştan sona okunmaz.** İhtiyacın olan bölüme git.
+
+---
 
 ## Değerlendirme Ölçütleri
 
@@ -220,417 +53,347 @@ Bir adayın `Mercek` satırı aşağıdaki destekleyen mercekleri numarayla saya
 | 7 | **Ölçme–iyileştirme** | Üretim verisini geliştirmeye geri besler mi? |
 | 8 | **Maliyet (FinOps)** | Tüketicinin model faturasını düşürür mü? |
 
-## Sıralama — aday kalmadı
+Her aday gövdesi şu alanları taşır: **Sorun · Kapsam · Değer · Mercek ·
+Hazırlık · Maliyet · Risk · Bağımlılık · Ekosistem · Karşı görüş.** Bir alan
+ölçülmediyse öyle yazılır; boş bırakılmaz.
 
-**F-225 → [Faz 166 — HTTP Kapasite Ölçümü](166-HTTP-KAPASITE-OLCUMU.md)** (2026-09-13): kullanıcı isteğiyle doğrudan plana dönüştü; kapsam ve kanıt faz dokümanındadır.
+---
 
-**Dördü de plana dönüştü (2026-09-07, altıncı planlama turu).** 2026-09-05
-itibarıyla sıralanabilir bir aday vardı; Langfuse esinli tur
-([kesif](kesif/2026-09-07-langfuse-esinli-tur.md)) üç tane daha üretti. Turun
-bulgusu beklenenin tersiydi: Langfuse'un **beş sütununun beşi de** bu repo'da
-zaten vardı (prompt sürümleme → `IAgentDefinitionStore`; LLM-as-judge →
-`IRunJudge`; gold dataset → `RunToCasePromoter`; maliyet-gecikme panosu →
-`RunStatistics`; deney → `Experiment` + canary). Üç fikir "zaten var" diye
-elendi; tur başlıklara değil **kenarlara** yöneldi.
+## Sıralanabilir Adaylar
 
-| Aday | Faz |
-|---|---|
-| F-192 | [151 — Harness'in Döngü Yeteneği](arsiv/fazlar/151-HARNESSIN-DONGU-YETENEGI.md) |
-| F-208 | [152 — Skorun Adı ve Şekli](arsiv/fazlar/152-SKORUN-ADI-VE-SEKLI.md) |
-| F-207 | [153 — Eval Koşumları Arasında Regresyon Farkı](arsiv/fazlar/153-EVAL-KOSUMLARI-ARASINDA-REGRESYON-FARKI.md) |
-| F-209 | [154 — Skor Trendinin Kalıcı Sorgusu](arsiv/fazlar/154-SKOR-TRENDININ-KALICI-SORGUSU.md) |
+Dördünün de kanıtı ölçülmüştür ve dördü de bugün `faz-planlama`'ya girebilir.
+Sıra bir öneridir, zorunluluk değil — ama **F-171 zaman duyarlıdır**: aşağıda
+ölçülen kayma bugün canlıdır.
 
-🚨 **Faz 152 → Faz 154 sırası zorunludur.** İkisi de `run_scores` tablosuna
-dokunuyor; 152 skora bir **ad** getiriyor ve 154'ün kırılımı o adı içermelidir.
-Ters sırada kırılım iki kez elden geçer. Faz 151 ve 153 bağımsızdır.
+| # | Aday | Ne açar | Maliyet | Kanıtın gücü |
+|---|---|---|---|---|
+| 1 | [F-171](#f-171--sevk-edilen-davranış-iddiaları-için-kapı) | Sevk edilen XML'deki davranış iddiası bayatlayınca kapı kırılır | Düşük | 🚨 **Kayma canlı ölçüldü** (2026-09-13) |
+| 2 | [F-224](#f-224--geri-alınamaz-kararlar-için-doğrulama-adımı) | Mis-click geri alınamaz bir kararı vermez | Küçük–orta | Primitif hazır; envanter ölçüldü |
+| 3 | [F-218](#f-218--skor-satırı-evaluator-paket-sürümünü-damgalamıyor) | "Yargıç mı değişti, model mi bozuldu" sorusunun cevabı olur | Orta (migration) | Boşluk ölçüldü; talep kanıtı tek risk satırı |
+| 4 | [F-213](#f-213--store-sözleşmelerinin-iptal-davranışı-yazılı-değil) | İptal davranışı uygulama detayı olmaktan çıkar | Küçük ama yaygın | Boşluk ölçüldü; talep kanıtı yok |
 
-Aynı tur bir **yeni aday** üretti: **F-210** (aşağıda). O da F-208'e bağlıdır ve
-sıralamaya Faz 152 kapandıktan sonra girer.
+---
 
-**Yedinci planlama turu (2026-09-07).** Üç aday da plana dönüştü ve bölümleri
-bu dosyadan **silindi**. Doğrulama (`faz-planlama` Adım 1) sırayı değiştirdi ve
-bir adayın gerekçesini çürüttü — § *Sıralamayı Değiştiren Ölçümler*.
+### F-171 · Sevk edilen davranış iddiaları için kapı
 
-| Aday | Faz |
-|---|---|
-| F-210 | [155 — Kalibre Edilmiş Evaluator Kataloğu](arsiv/fazlar/155-KALIBRE-EDILMIS-EVALUATOR-KATALOGU.md) |
-| F-216 | [156 — Durum Ön Kontrolü ve Upgrade Penceresi](arsiv/fazlar/156-DURUM-ON-KONTROLU-VE-UPGRADE-PENCERESI.md) |
-| F-217 | [157 — Sınırlı Yük ve İki Process Arıza Kanıtı](arsiv/fazlar/157-SINIRLI-YUK-VE-IKI-PROCESS-ARIZA-KANITI.md) |
+> **Bu adayın sayı yarısı 2026-09-07'de kapandı.** `check-content.mjs` artık
+> her elle yazılan sayfadaki işaretli sayıyı koddan yeniden hesaplıyor
+> (tarihli release/changelog sayfaları bilerek muaf). Kapı yazıldığında dört
+> gerçek sapma yakaladı. Kalan iş **davranış** iddialarıdır ve aday artık odur.
 
-> **F-191 · Alt-agent bekleme zaman aşımı → [Faz 144](arsiv/fazlar/144-ALT-AGENT-BEKLEME-SINIRI.md)**
-> (2026-09-05). Bağımlılığı olan MAF 1.20.0 yükseltmesi aynı oturumda yapıldı ve
-> kalemin çerçevesi ölçümle değişti: yükseltme **düz agent yolunun** süresiz
-> asılma riskini kod yazılmadan kapattı (`WaitTimeout` varsayılanı 00:05:00),
-> geriye harness yolu · sayının Tracon tarafından seçilmesi · zaman aşımının
-> `run` kanıtına yazılması kaldı. Plan bu üçünü kapsar.
+**Sorun:** Sevk edilen XML dokümanı, bir bağımlılık sürümünü **adıyla anıp** o
+sürümde ölçülmüş bir davranış iddia ediyor. Hiçbir kapı bu damgayı pin ile
+karşılaştırmıyor, yani yükseltme yapan oturum iddiayı yeniden ölçmeyi
+**şansa** bırakıyor.
 
-> **Ek (2026-09-03, tüketici turu 3).** ProdigyEnabler'ın `1.0.0-preview.1`
-> raporu ölçüldü ([kesif](kesif/2026-09-03-tuketici-turu-3-olcumu.md)). On iki
-> iddianın onu doğru çıktı; ikisi yanlıştı ve **ikisi de bizim dokümanımızın**
-> ürettiği yanlış anlamaydı — `kusur-giderme` ile kapandı ve
-> `sevk_edilen_olay_anlatisi()` kapısı eklendi.
->
-> Beş kalem aynı gün plana döndü ve bu listeden **çıktı**: **F-185** →
-> [Faz 139](arsiv/fazlar/139-CALISTIRMA-VE-OTURUM-YETKILENDIRMESI.md) · **F-186** →
-> [Faz 140](arsiv/fazlar/140-ICERIK-GUARDININ-KAYNAGI.md) · **F-187** →
-> [Faz 141](arsiv/fazlar/141-GENISLETILEBILIR-CALISTIRMA-OLAYI.md) · **F-188** →
-> [Faz 142](arsiv/fazlar/142-ONAY-ISTEGININ-SUNUMU.md) · **F-189** →
-> [Faz 143](arsiv/fazlar/143-TOOL-ARGUMANININ-SOZLESME-TESTLERI.md).
->
-> Aynı turdan **sıralanmayan** kalemler (talep kanıtı zayıf veya tüketici
-> kendisi çözebiliyor): session transkript dışa aktarımı · akış delta'larının
-> sunucuda birleştirilmesi · bağlama başına endpoint. Gerekçeleri keşif
-> kaydındadır; koşulları oluşursa yeniden aday olurlar.
+🚨 **Kayma bugün canlı ölçüldü (2026-09-13).** Altı iddianın biri çoktan
+sapmış:
 
-Dört planlama turu on üç adayın on birini faza çevirdi:
+| Yer | Damga | `Directory.Packages.props` pin | Durum |
+|---|---|---|---|
+| [`IVectorSearchStore.cs:16`](../src/Tracon.Abstractions/Knowledge/IVectorSearchStore.cs#L16) | MEAI **10.8.0** | **10.9.0** | 🚨 **sapmış** |
+| [`FallbackChatClient.cs:633`](../src/Tracon.Core/Models/FallbackChatClient.cs#L633) | OpenAI 2.12.0 | 2.12.0 | tutuyor |
+| [`RecordingLoopEvaluator.cs`](../src/Tracon.Core/Compilation/RecordingLoopEvaluator.cs) (×2) | MAF 1.20.0 | 1.20.0 | tutuyor |
+| [`TraconSqlServerOptions.cs:32`](../src/Tracon.SqlServer/TraconSqlServerOptions.cs#L32) | SqlClient 7.0.2 | 7.0.2 | tutuyor |
+| [`McpTransportFactory.cs:32`](../src/Tracon.Mcp/Internal/McpTransportFactory.cs#L32) | MCP 2.2.0 | 2.2.0 | tutuyor |
 
-| Aday | Faz |
-|---|---|
-| F-109 | [112 — Replay'in İstemci Tool Sözleşmesi](arsiv/fazlar/112-REPLAY-ISTEMCI-TOOL-SOZLESMESI.md) |
-| F-149 | [113 — Sağlayıcı Arıza Sınıflandırmasının Genişleme Noktası](arsiv/fazlar/113-ARIZA-SINIFLANDIRMA-SEAMI.md) |
-| F-166 | [114 — Çalıştırma-İçi Bütçe Tavanı](arsiv/fazlar/114-CALISTIRMA-ICI-BUTCE-TAVANI.md) |
-| F-168 | [115 — Eval'in Başsız Koşucusu](arsiv/fazlar/115-EVALIN-BASSIZ-KOSUCUSU.md) |
-| F-67 | [116 — Performans Tahsis Kapısı](arsiv/fazlar/116-PERFORMANS-TAHSIS-KAPISI.md) |
-| F-167 | [117 — MCP Tasks Uzantısı](arsiv/fazlar/117-MCP-TASKS-UZANTISI.md) |
-| F-152 | [118 — Yargıç Başına Checkpoint](arsiv/fazlar/118-YARGIC-BASINA-CHECKPOINT.md) |
+Sayım da kaydı çürüttü: kayıt **beş** iddia diyordu, tarama **altı** buldu
+(`RecordingLoopEvaluator` kayıtta hiç yoktu, `OpenAIResponsesEndpoints`
+damgasını kaybetmiş). Yani iddia kümesi kapısız büyüyor — tam olarak adayın
+öngördüğü davranış.
 
-Kalan ikisi § *Bekleyen Kalemler*'dedir ve **sıralamaya girmez**.
+**Kapsam:** İki yarı var ve ikincisi daha ucuzdur.
 
-### F-198 · ✅ Plana dönüştü → [Faz 159](arsiv/fazlar/159-TIPLI-ISTEMCIDE-AKISLI-OPENAI-CAGRISI.md)
+1. **Sürüm damgalı davranış iddiaları.** Damgadaki sürümü
+   `Directory.Packages.props` pini ile karşılaştır, saptığında kır. Yeniden
+   hesaplama gerekmez; tek regex ve tek karşılaştırma. Bugünkü altı iddia bu
+   kapıyla anında yakalanırdı.
+2. **Default/policy iddiaları.** Worker, tenancy, scope, ownership, structured
+   response, opt-in recovery. Bunlar yeniden hesaplanamaz — options
+   initializer'ı için kaynak/çalıştırma probu, endpoint policy için metadata +
+   gerçek deny/allow testi gerekir. 2026-09-07'de dördü **elle** düzeltildi
+   (tenancy default · worker default · OpenAI scope · approval resume); kapı
+   olmadığı için beşincisi yine sessizce kayabilir.
 
-Kapandı 2026-09-08. Tasarım kararı iki metottu (`...Async` JSON, `...StreamAsync`
-SSE) ve kapsam yalnız iki dual uçtan **SSE ilan eden yedi ucun tamamına**
-genişledi — iki uçla sınırlamak ailede iki farklı akış sözleşmesi bırakırdı.
-Kanıt ve tasarım faz dokümanındadır; aday listesine geri dönmez.
+**Değer:** Bugünkü kayma elle bir tarama koştuğu için değil, bu dosyanın
+normalizasyonu sırasında bulundu — yani hiçbir rutin onu yakalamıyor. NuGet'e
+basılan XML geri alınamaz.
 
-### Sıralamayı Değiştiren Ölçümler
+**Mercek:** 6.
 
-Dört planlama turu (üçüncü, dördüncü, beşinci, altıncı) kanıtı yeniden
-doğruladı (`faz-planlama` Adım 1) ve aday metinlerini birikimli olarak düzeltti. Sıra
-numaraları **ikinci turun** tablosuna göredir; plana dönen kalemler o tablodan
-çıktı. Bu kayıt, bir kalem ileride yeniden açılırsa **hangi iddianın ölçümle
-çürüdüğünü** korur.
-Gerekçeler:
+**Hazırlık:** Sayı kapısı yazıldı ve deseni hazır (`check-content.mjs`).
+Davranış kapısı yazılmadı.
 
-| Değişiklik | Ölçüm |
-|---|---|
-| **F-109 · 6 → 1** ve plana | Listedeki tek "kırık söz" kalemiydi: Faz 61 istemci tool'unu sevk etti, replay onu sessizce yarım bırakıyordu. Sınıf olarak K-627 ile aynıdır. Ayrıca aday metnindeki "kaydedilmiş sonucu oynat" seçeneği **imkânsız** çıktı — istemci tool sonucu `ToolInvocationRecord`'a hiç yazılmıyor. |
-| **F-149 · 5 → 2** ve plana | Aday metni "seam tasarla" diyordu; ölçüm seam'in **yarısının zaten var olduğunu** buldu (`IRunErrorClassifier`, `TryAddSingleton` ile kayıtlı). Gerçek boşluk üç tane ve daha dar: retry'ın hiç seam'i yok, yerleşik sınıflandırıcı devralınamıyor, parmak izi hesabı erişilemez. |
-| **F-166 · 1 → 3** ve plana | Karşı görüş ("ölçülmüş vaka yok") **düştü**: varsayılan kurulum 200 000 token'lık bir ağaç tavanı ilan ediyor ve o tavan tek agent'lı run'da hiçbir şey yapmıyor. Bu bir FinOps konforu değil, bir beyan hatası. Buna karşılık "kaçak döngü" gerekçesi **daraldı**: `HarnessSettings.MaximumIterationsPerRequest` bir iterasyon tavanı zaten veriyor; sayılmayan şey maliyet. |
-| **F-167 · 2 → 3** | "SDK maliyeti zaten ödenmiş" bir talep kanıtı değil, yalnız bir indirimdir. Çalışma anı probu bayatlama korkusunu zaten çürüttü (sunucu bugün stateless). Geriye 1.0 öncesi **yeni bir NuGet paketi** almak kalıyor — burada en pahalı değişiklik türü budur. |
-| **F-168 · 3 → 1** ve plana | Maliyet "Orta" yazılmıştı; ölçüm **küçük** buldu. İki HTTP çağrısı üretilmiş istemcide **zaten var**, eşik için gereken üç sayı (`Total`/`Passed`/`Failed`) sözleşmede var, CLI test altyapısı (`RealHttpHost` · `CliRunner`) hazır. Sunucu hiç değişmiyor; OpenAPI/TS/NSwag zinciri koşmuyor. |
-| **F-67 · 2 → 2** ve plana | Kapsam gürültü ölçümüyle daraldı: CI kapısı **yalnız tahsis edilen bayt** olur (deterministik, sıfır tolerans), süre ölçülür ama kapı değildir. Yeni paketin ağırlığı gerçek restore ile sayıldı: BenchmarkDotNet 0.15.8 → **22 geçişli paket**. K-212'nin 37'sinden az ve — asıl fark — ölçüm projesi `IsPackable=false` olduğu için tüketiciye **hiç ulaşmıyor**. |
-| **F-67 ile F-168 "aynı karar" iddiası zayıfladı** | Aday metni "F-67 ile **aynı** kararı ister" diyordu. Ölçüm bunu çürüttü: F-168 bir eşik **koymaz**, tüketiciden **alır** — Tracon kalite barı dayatmaz. F-67 ise bu depo için gerçek bir sayı seçmek zorundadır. Ortak olan yalnız "gürültülü kapı kurma" ilkesi; gürültünün kaynağı bile farklı (model belirsizliği ↔ paylaşılan CI makinesi). Bu yüzden **tek faz değil, iki ayrı faz** yazıldı. |
-| **F-167 · 3 → 1** ve plana | En büyük maliyet iddiası ("Tasks extension'ı **yeni bir NuGet paketidir** ve geçişli ağırlığı sayılmalıdır") gerçek restore ile çürüdü: `ModelContextProtocol.Extensions.Tasks` 2.2.0 `.AspNetCore`'un üstüne **net 1 paket** ekliyor, geçişli ağırlık **sıfır** — on iki geçişli paketin tamamı zaten grafikte. Ayrıca `IMcpTaskStore` Tracon'in var olan run kaydı üzerine oturuyor: **yeni tablo ve migration gerekmiyor**. Buna karşılık ölçüm yeni bir risk buldu: SDK sözleşmesinde **kiracı parametresi yok** ve K-103'ün onay kontrolü run kuyruğa taşınınca handler'dan düşüyor. |
-| **F-152 · 2 → 2** ve plana | Maliyet iddiası ("kalıcı model ve **üç SQL sağlayıcı migration'ı** gerekir") çürüdü: `UpsertAsync` **yargıç başına** çağrılıyor ve satır `Author = "judge:{ad}"` taşıyor; `IRunScoreStore.ListAsync` ve `JobRecord.Attempt` de zaten var. **Checkpoint bugün zaten veride duruyor** — eksik olan tek şey döngünün onu okuması. Yeni tablo, migration ve public yüzey **yok**. |
-| **F-95 sıralamadan çıktı** | Dördüncü sıra, sahip olmadığı bir plan hazırlığını ima ediyordu. `Hazırlık` satırı zaten "🚨 İmza doğrulanmadı" diyor. **2026-09-05 güncellemesi:** imza doğrulandı ve **MAF yolu kapandı** — kanca ayrı bir alpha pakettedir (`Microsoft.Agents.AI.AgentHooks`), sözleşmesi *enforcement*'tır (kesinti/devam değil) ve `FunctionInvokingChatClient` içeren client'ı reddeder. Kalem yalnız F-141 üzerinden ilerler; bkz. § *Bekleyen Kalemler* → F-95 `Hazırlık`. |
-| **F-208 · paket ağırlığı riski DÜŞTÜ** | Aday metni *"`M.E.AI.Evaluation` bağımlılığını almak `Abstractions`'ın grafiğini büyütür"* diyordu. Gerçek restore ile ölçüldü (2026-09-07): paketin **tek** bağımlılığı `M.E.AI.Abstractions` 10.9.0'dır ve `Tracon.Abstractions` onu **zaten referanslıyor** ⇒ **net 1 paket, geçişli ağırlık 0**. Karar bu yüzden ağırlıkla değil **tip doğasıyla** verildi (kalıcı kayıt ↔ mutable çalışma-anı nesnesi): şekli hizala, tipi alma. |
-| 🚨 **Keşif iddiası ÇÜRÜDÜ: repo bu aileyi kullanıyor** | [`kesif/2026-09-07-langfuse-esinli-tur.md:85`](kesif/2026-09-07-langfuse-esinli-tur.md) *"🚨 Repo bu aileyi kullanmıyor"* diyordu. Doğru olan yalnız yarısıdır: `Directory.Packages.props` `.Evaluation*`'ı **doğrudan** referanslamıyor, ama `Microsoft.Extensions.AI.Evaluation` 10.9.0 `Core`/`AspNetCore`/`Cli` grafiğinde `Microsoft.Agents.AI` 1.20.0 üzerinden **var** ve [`EvalJobHandler.cs:3`](../src/Tracon.Core/Evaluation/EvalJobHandler.cs#L3) `using`'i ile **kullanılıyor** (`EvaluationMetric`, `:432` ve `:458`). Keşif kaydı düzeltildi. |
-| **F-208'in kapsamı BÜYÜDÜ** | Ölçüm ikinci bir boşluk buldu: [`EvalJobHandler.cs:458`](../src/Tracon.Core/Evaluation/EvalJobHandler.cs#L458) `SerializeScores` metriğin `Value`, `Interpretation.Rating`, `Diagnostics` ve `Metadata` alanlarını **atıyor**. Bugün gözlemlenebilir bir yanlış davranış yok (MAF `EvalCheck`'i yalnız boolean üretiyor), ama şekil kararıyla aynı koddur. Kullanıcı kararı: ayrı kusur açılmaz, [Faz 152](arsiv/fazlar/152-SKORUN-ADI-VE-SEKLI.md)'nin kapsamına girer. |
-| 🚨 **F-216'nın MERKEZÎ İDDİASI ÇÜRÜDÜ** | Aday *"önceki artifact'in ürettiği durum corpus'u test ağacında yok"* diyordu. **Var.** [Faz 126](arsiv/fazlar/126-KALICI-PAYLOAD-SURUM-SOZLESMESI.md) gerçek koşumdan yakalanmış oturum ve checkpoint corpus'unu, onları okuyan `PersistedPayloadUpgradeTests`'i ve bir fixture yenileme yasağını sevk etmiş. Corpus 1.18.0, pin bugün 1.20.0 — çapraz sürüm kanıtı fiilen koşuyor. Kaynak raporun taraması bunu kaçırdı. Faz 156 bu yüzden **daraltıldı**: corpus yazma işi kapsam dışıdır; kalan boşluk operatöre dönük salt okunur ön kontrol, yazılı upgrade penceresi ve başarısız restore prosedürüdür. |
-| 🚨 **F-210'un ENGELİ SANILDIĞI GİBİ KALKMAMIŞ** | Aday *"Faz 152 bunu açar"* diyordu. Faz 152 **kayıt** şeklini açtı (`RunScore.Name`/`Kind`/`Value`), **yargıç dönüşünü** değil: [`IRunJudge.cs:89`](../src/Tracon.Abstractions/Evaluation/IRunJudge.cs#L89) `RunJudgment` hâlâ yalnız `int? Score` taşıyor ve [`OnlineEvalJobHandler.cs:313`](../src/Tracon.Core/Evaluation/OnlineEvalJobHandler.cs#L313) bir yargıcı tek satıra eşliyor. Köprü bedava değil; Faz 155'in ilk işi sözleşmeyi genişletmektir. Kullanıcı kararı: genişlet — `PublicAPI.Shipped.txt` toplam 17 satır (yalnız başlık) olduğu için bugün bedava, ilk yayından sonra kırıcı. |
-| **Sıra F-216'dan F-210'a geçti** | Aday F-216'yı *"zaman duyarlı"* diye başa koymuştu; o gerekçe corpus iddiasına dayanıyordu ve çürüdü. Gerçekten zaman duyarlı olan kalem F-210'dur: yayımlanmamış bir public sözleşmeyi genişletmek bugün bedava, yayından sonra kırıcıdır. |
-| **F-192'nin satır numarası kaydı** | Aday metni `AgentDefinitionCompiler.Agents.cs:172` diyordu; doğru satır **236**'dır. `LoopAgent`/`LoopEvaluator` sayımı (`0 dosya`) ve MAF imzalarının tamamı 1.20.0'da yeniden doğrulandı — `HarnessAgentOptions.LoopEvaluators` ve `.LoopAgentOptions` yerinde. |
-| **F-209'un önkoşulu SERTLEŞTİ** | Aday metni sırayı *"F-208 önce koşarsa kırılıma skor adı da girer"* diye yumuşak yazıyordu. Plan bunu **zorunlu önkoşula** çevirdi: Faz 152 `Value`'yu `double?` yapıyor ve `Categorical` şeklini açıyor; toplulaştırmanın kova anahtarı `(name, kind)` olmak zorunda ve `null` değer ortalamaya girmemeli. Ters sırada bu üç kural sonradan eklenir. |
+**Maliyet:** Düşük. Birinci yarı tek regex + pin karşılaştırması; ikinci yarı
+prob başına bir test.
+
+**Risk:** Fazla katı bir kapı meşru yuvarlanmış ifadeyi kızartabilir. Kontrol
+yalnız **işaretli** iddiaya bakmalı, her rakama değil.
+
+**Bağımlılık:** Yok.
+
+**Ekosistem:** 2026-09-13 — iç kalite kaydı; dış ekosistem iddiası yok.
+
+**Karşı görüş:** Doğru cevap bazı iddialarda damgayı **kaldırmak** olabilir —
+sürüm adı anmayan bir yorum bayatlamaz. Aday bu ikilemi kapsamına dahil eder;
+kapı, damgayı korumaya karar verilen iddialar için yazılır.
+
+---
+
+### F-224 · Geri alınamaz kararlar için doğrulama adımı
+
+**Kaynak:** [Faz 164](arsiv/fazlar/164-CONSOLE-ENSTRUMAN-KATMANI.md) — `Dialog`
+yazıldı, ölçüldü ve DoD gereği geri alındı (o fazın "Plandan Sapmalar" §3).
+
+**Sorun:** Onaylar ekranında bir tool çağrısını onaylamak veya reddetmek tek
+tıktır ve geri alınamaz (K-014: karar yeni bir run açar, soran run sonsuza dek
+`AwaitingApproval` kalır). İki düğme yan yanadır. Aynı desen başka yerlerde de
+yaşıyor: session silme, agent sürümü geri alma, kiracı anahtarı iptali.
+
+**Kapsam:** `Dialog` primitifi hazırdır — odak tuzağı, `Esc`, odak dönüşü,
+kaydırma kilidi, `UiTests` ile kanıtlı
+([`components/dialog.tsx`](../src/Tracon.UI/frontend/src/components/dialog.tsx)).
+İş üç adımdır: geri alınamaz aksiyonların **envanterini** çıkarmak,
+hangilerinin doğrulama hak ettiğine karar vermek, etkilenen E2E olgularını
+**birlikte** güncellemek. Faz 164 bunu yapamazdı: DoD'si mevcut olguların
+hiçbirinin değişmemesini şart koşuyordu.
+
+**Değer:** Bir mis-click geri alınamaz bir kararı vermez.
+
+**Mercek:** 4.
+
+**Hazırlık — ölçüldü (2026-09-13):** Primitif hazır ve bugün üç bileşen
+kullanıyor (`dialog.tsx` · `command-palette.tsx` · `menu.tsx`) — **hiçbir ekran
+kullanmıyor**. Ekranlarda geri alınamaz aksiyon çağrı yeri **10**
+(`onApprove`/`onReject`/`handleDelete`/`handleRevoke`/`rollback` taraması).
+E2E olgu sayısı bugün **70**'tir (Faz 164'ün DoD'si 58 diyordu — o sayı bayat).
+Hangi 10'unun doğrulama hak ettiği **ölçülmedi**; fazın ilk adımı odur.
+
+**Maliyet:** Küçük–orta. Envanterin kaçının seçildiğine bağlı.
+
+**Risk:** Orta — her doğrulama adımı bir etkileşim sözleşmesini değiştirir ve
+ilgili E2E olgusunu birlikte taşımayı gerektirir. Onay yorgunluğu da gerçek bir
+maliyettir: her şeyi doğrulatmak hiçbirini doğrulatmamakla aynı yere çıkar.
+
+**Bağımlılık:** Yok.
+
+**Ekosistem:** 2026-09-13 — iç arayüz kalitesi; dış ekosistem iddiası yok.
+
+**Karşı görüş:** 10 çağrı yerinin hepsi doğrulama hak etmez. Kapsam seçici
+olmazsa aday kendi riskini üretir.
+
+---
+
+### F-218 · Skor satırı evaluator paket sürümünü damgalamıyor
+
+**Kaynak:** [Faz 155](arsiv/fazlar/155-KALIBRE-EDILMIS-EVALUATOR-KATALOGU.md) — plan
+risk tablosundaydı, kapsam dışı bırakıldı.
+
+**Sorun:** `AddEvaluatorJudge` ile bağlanan bir `IEvaluator`'ın puanı
+`Microsoft.Extensions.AI.Evaluation.Quality`'nin **prompt'una** bağlıdır ve o
+prompt paket sürümüyle değişir. Skor satırı hangi sürümün ürettiğini
+kaydetmiyor; bir yükseltme
+[Faz 153](arsiv/fazlar/153-EVAL-KOSUMLARI-ARASINDA-REGRESYON-FARKI.md)'ün regresyon
+taban çizgisini **sessizce** kaydırabilir — fark "model bozuldu" gibi görünür,
+oysa yargıcın kendisi değişmiştir.
+
+**Kapsam:** `RunScore`'a bir kaynak/sürüm damgası eklemek — `Comment`'e
+sıkıştırmadan, ayrı bir alan olarak.
+
+**Değer:** Skor trendini yorumlanabilir kılar; "yargıç değişti mi" sorusunun
+koşulan bir cevabı olur.
+
+**Mercek:** 3, 6.
+
+**Hazırlık — ölçüldü (2026-09-13):** Faz 155 köprüyü kurdu; damga onun üstüne
+biner. [`RunScore`](../src/Tracon.Abstractions/Runs/RunScore.cs) bugün on iki alan
+taşıyor ve ikisi kaynağa bakıyor (`Source`, `Author`) — **sürüm alanı yok**.
+
+**Maliyet:** Orta — `RunScore` kalıcı bir tiptir, üç SQL sağlayıcısında
+migration ister (K-711'in emsali).
+
+**Risk:** Kalıcı şemaya alan eklemek geri dönüşü pahalıdır.
+
+**Bağımlılık:** Faz 155 (kapandı).
+
+**Ekosistem:** 2026-09-07 — `Microsoft.Extensions.AI.Evaluation` 10.9.0.
+
+**Karşı görüş:** Talep kanıtı şimdilik tek bir risk satırıdır, ölçülmüş bir
+tüketici şikâyeti değil. `Author` alanı `judge:{ad}` taşıyor; sürümü oraya
+sıkıştırmak migration'sız bir ara çözüm olurdu — ama K-059 sınıfı bir hata
+olur, ad alanı sürüm alanı değildir.
+
+---
+
+### F-213 · Store sözleşmelerinin iptal davranışı yazılı değil
+
+**Kaynak:** [Faz 152](arsiv/fazlar/152-SKORUN-ADI-VE-SEKLI.md) — case bilerek
+dışarıda bırakıldı, gerekçe o fazın "Plandan Sapmalar" tablosundadır (sapma 3).
+
+**Sorun:** Hiçbir `*StoreContract` iptal case'i taşımıyor ve uygulamalar farklı
+davranıyor: SQL store'lar token'ı ADO.NET üzerinden doğal olarak gözlüyor,
+bellek içi store'lar token'ı çoğunlukla hiç okumuyor. Bir tüketici
+`UpsertAsync(score, alreadyCancelledToken)` çağırdığında ne olacağını
+sözleşmeden öğrenemiyor.
+
+**Kapsam:** Tek bir store değil, **store ailesi** için bir karar: sevk edilen
+sözleşmelere iptal case'i girsin mi, girecekse bellek içi uygulamalar da
+`ThrowIfCancellationRequested` ile hizalansın mı.
+
+**Değer:** İptal davranışı bugün uygulama detayı; sözleşmeye girerse
+tüketicinin varsayımı ölçülebilir hâle gelir.
+
+**Mercek:** 3, 7.
+
+**Hazırlık — ölçüldü (2026-09-13):** `Tracon.Testing.Contracts.Xunit/Contracts/`
+altında **29 sözleşme sınıfı** var ve **hiçbiri** iptal case'i taşımıyor.
+
+**Maliyet:** Küçük ama YAYGIN — 29 sözleşme ve bellek içi karşılıkları.
+
+**Risk:** Sözleşmeyi genişletmek sevk edilen bir söz vermektir; üçüncü taraf
+`IRunScoreStore`/`IRunStore` uygulamalarına yeni bir zorunluluk yükler ve
+ölçülmüş bir tüketici talebi olmadan yapılırsa geri alması pahalıdır.
+
+**Bağımlılık:** Yok.
+
+**Ekosistem:** 2026-09-13 — iç sözleşme kalitesi; dış ekosistem iddiası yok.
+
+**Karşı görüş:** Talep kanıtı **yok**. Sıralamada sonuncu olmasının sebebi
+budur; 1.0 öncesi bedava olması ise tersini söylüyor — yayından sonra bu
+genişletme kırıcıdır.
+
+---
 
 ## Bekleyen Kalemler
 
-İkisi de **bugün faz değildir**. Gövdeleri, koşulları oluştuğunda plana
-dönüşebilmeleri için burada duruyor.
+Hiçbiri **bugün faz değildir.** Gövdeleri, koşulları oluştuğunda plana
+dönüşebilmeleri için duruyor. Bir kalemi buradan çıkarmanın tek yolu
+**koşulunun gerçekleştiğini ölçmektir**.
 
-| Kalem | Neden faz değil | Koşulu ne zaman oluşur |
+### Tek satırlık bekleyenler
+
+| Kalem | Engel | Koşul ne zaman oluşur |
 |---|---|---|
-| **F-95** | İmzası doğrulanmadı; ayrıca **experimental** bir MAF sözleşmesine 1.0 öncesi public yüzey bağlamak K-008'in ön sürüm sınırının tersidir | `maf-api-kesfi` imzayı doğrular **ve** F-141 ile karşılaştırma yapılır. Tercihen 1.0 sonrası |
-| **F-165** | 1.650 case tek faza sığmaz; bağımsız faz olarak planlanırsa kuyruğu bitmez | Bağımsız faz olarak **hiç** planlanmaz. Her fazın dokunduğu alanın manuel ailesi o fazda otomatikleştirilir |
-| **F-178** | Job/kuyruk metrikleri yarısı [Faz 133](arsiv/fazlar/133-IS-KUYRUGU-METRIKLERI.md)'e gitti. Kalan yarı (model deneme telemetrisi) tüketicinin kendi ölçütüne göre bekler | Gerçek bir üretim fallback gecikmesi olayı ölçülür |
-| **F-179** | Ön koşulu yok: `run` satırı sağlayıcıyı saklamıyor, kayan latency penceresi ölçülmüyor | [Faz 132](arsiv/fazlar/132-UYGULANAN-FIYAT-SNAPSHOTU.md) kapanır **ve** F-178 attempt süresini ölçmeye başlar **ve** gerçek üretim trafiği oluşur |
-| **F-199** | Kota eşiği claim edildikten SONRA webhook/akış yayını başarısız olursa o eşik dönem sonuna kadar kalıcı kaybolur — düşük risk, ayrı bir kalem | Kota webhook/notice teslimi için bir retry/backoff mekanizması istenirse ([Faz 146](arsiv/fazlar/146-CALISTIRMAYA-BAGLI-KOTA-ESIGI.md) denetim bulgusu) |
-| **F-200** | "Komşu kullanıcı kota notice'ı almaz" garantisi yapısaldır (`RunEventWriter`'ın run başına özel `Guid`'i) ama özel bir çok-kullanıcılı regresyon testi yok | Gelecekte `RunEventWriter`/`RunRecordingAgent`'ın run-izolasyonu yeniden düzenlenirse ([Faz 146](arsiv/fazlar/146-CALISTIRMAYA-BAGLI-KOTA-ESIGI.md) denetim bulgusu) |
-| **F-203** | ✅ **KAPANDI (2026-09-06)** — `kusur-giderme` faz dışı. 🚨 Kaydın öncülü YANLIŞTI: hedef `docs-site/src/content/docs/http-api.md` **izleniyor** ve `.gitignore`'da değil; gitignore'lu olan `http-api/` **dizinidir**. Gerçek kusur farklıydı ve tarihe karşı ölçüldü: o sayfa API'nin elle yazılmış **şeklidir** (kimlik doğrulama, akış, sayfalama, hata gövdesi) ve bir uç eklenmesi onu değiştirmez, yani kural son 40 commit'te **7 kez tetiklendi, 5'i kırmızı** döndü ve hepsi `--site-gerekce-yazildi` ile geçildi — sürekli kırmızı bir kapı insanları onu susturmaya eğitir. Kaydın önerdiği **çözüm** yine de doğruydu: `docs/openapi/tracon.json` (üretilen ama izlenen ve commit edilen) alternatif hedef olarak eklendi ve `docs/` ile başlayan hedef artık depo köküne göre çözülür. Aynı tarihte yeniden ölçüldü: **5 kırmızı → 3**. Kalan üçü uç dosyasının değişip HTTP yüzeyinin değişmediği commit'lerdir (XML yorum düzeltmesi, MAF yükseltmesi) — gerekçe yazma yolu tam olarak onlar içindir. Kapı: `dokuman_bakim_test.py`'a dört test (depo kökü hedefinin site kökü altında ARANMADIĞI dahil). Tuzak: `docs/hafiza/dokumantasyon.md` |
-| **F-204** | ✅ **KAPANDI (2026-09-06)** — `kusur-giderme` faz dışı. Boşluk kaydın söylediğinden **büyüktü**: kayıt yalnız `OpenAIConversationsEndpoints.cs`'in üç çağrısını anıyordu, ölçüm `RunEndpoints.cs`'in **12** `CheckRunResourceAsync` çağrısı taşıdığını buldu — on birinin silinmesi kapıyı yeşil bırakırdı. Kapı varlıktan (`IsMatch`) **tam sayı eşitliğine** çevrildi (kullanıcı kararı); taban değil, çünkü taban bir eklemenin bir silmeyi ödemesine ve net sıfırda sessiz geçmesine izin verirdi. 22 (dosya, marker) çiftinin sayısı ölçülüp yazıldı. Düzeltmeden **önce** kırmızı olduğu kanıtlandı: bir `CheckSessionAsync` çağrısı silinince *"expected 3, found 2"* — eski kapı bunu göremiyordu. Taramanın kendi regresyon testi de sayma davranışını kanıtlar. Tuzak: `docs/hafiza/test-altyapisi.md` |
-| **F-206** | ✅ **KAPANDI (2026-09-06)** — `kusur-giderme` faz dışı. Kapanış turunun kendi kapı koşumunda bulundu: `denetim-paketi.py:17`'nin test tiyatrosu tarayıcısı `\bShould\b` arıyordu ve bu depodaki **7488** Shouldly iddiasının **hiçbirini** eşleştirmiyordu (`Should`'dan sonra kelime karakteri gelir, `\b` sınır oluşturmaz); `Assert.` yalnız **6** yerde geçiyor. Yani tarayıcı pratikte her yeni testi aday sayıyordu — bu turda 5 yanlış pozitif, düzeltmeden sonra **0**. Çıkış kodunu kırmadığı için gürültü olarak yaşamıştı; F-203'ün sınıfı. Kök sebep testtedir: var olan tek test yalnız POZİTİF yönü ("iddiasız test yakalanır") kanıtlıyordu. Düzeltme `Should\w*` + **iki yönlü** üç test (Shouldly tanınır · altı biçim ayrı ayrı · gerçekten iddiasız test HÂLÂ aday). Eski regex'e karşı kırmızı olduğu ölçüldü. Tuzak: `docs/hafiza/test-altyapisi.md` |
-| **F-221** | `text/event-stream` içerik tipinin **şeması** hâlâ JSON şeklini ilan ediyor (`ChatCompletion`/`JsonElement`); saf-SSE uçlar doğru biçimde `type: string` diyor. Üretilen istemci etkilenmiyor (altıncı geçiş içerik tipinin VARLIĞINA bakar), ama belgeden kod üreten üçüncü taraf yanlış bilgilenir | ASP.NET Core'un üstveri modeli aynı statü kodu için iki şema ifade edemiyor ve K-039 gereği kütüphane `Microsoft.AspNetCore.OpenApi`'ye bağımlı değil — bir `OpenApiOperationTransformer` kütüphanede yaşayamaz. Üçüncü taraf bir üreteç bu yüzden kırılırsa ([Faz 159](arsiv/fazlar/159-TIPLI-ISTEMCIDE-AKISLI-OPENAI-CAGRISI.md) denetim bulgusu 🟢 3) |
-| **F-222** | Site ağırlık kapısının marjı daraldı: en ağır sayfa 56 651 B, tavan 57 000 B (%0,6). Kalite sözleşmesinde yazılı taban **49 376 B** — kayıt bayat | Tavanı yükseltmek ölçüm ister ve taban yalnız iyileşir; önce `troubleshooting` sayfası küçültülmeli. Bir sonraki sayfa büyümesi kapıyı kırdığında ([Faz 159](arsiv/fazlar/159-TIPLI-ISTEMCIDE-AKISLI-OPENAI-CAGRISI.md) denetim bulgusu 🟢 2) |
-| **F-205** | `/v1/conversations/{id}` varlık asimetrisi: kullanılmamış kimlik `200`, reddedilen kimlik `404`. Katı modda bir çağıran hangi id'lerin sahipsiz SATIR olduğunu sayabilir — erişim kapalı, yalnız varlık görünür. `/api/sessions/{id}` bu sızıntıyı taşımaz | Davranış ucun rezervasyon semantiğinden miras (Faz 4); kapatmak OpenAI uyumluluğunu bozar. Tüketici varlık gizliliği talep ederse ([Faz 149](arsiv/fazlar/149-SAHIPSIZ-OTURUMUN-KATI-REDDI.md) denetim bulgusu) |
+| **F-180** · Tam paket koşumunda E2E zaman aşımı | ⚠️ **Vaka kapandı (2026-09-04), SINIF açık.** Repro "yük altındaki tam paket koşumu"ydu; kapanış onu kendi koşullarında tekrar koşmadı ve test bir gün sonra aynı imzayla düştü | Ders `kusur-giderme` kapanış kontrolüne yazıldı. Sınıf yeniden görülürse **yeni** kusur kaydı açılır. Gövde: [`arsiv/ERTELENEN-ADAYLAR.md`](arsiv/ERTELENEN-ADAYLAR.md) |
+| **F-199** · Kota eşiği bildiriminin kaybı | Eşik claim edildikten SONRA webhook/akış yayını başarısız olursa o eşik dönem sonuna kadar kalıcı kaybolur — düşük risk | Kota webhook/notice teslimi için retry/backoff istenirse ([Faz 146](arsiv/fazlar/146-CALISTIRMAYA-BAGLI-KOTA-ESIGI.md) denetim bulgusu) |
+| **F-200** · Çok kullanıcılı kota izolasyonu regresyon testi | Garanti **yapısaldır** (`RunEventWriter`'ın run başına özel `Guid`'i); eksik olan yalnız ona adanmış test | `RunEventWriter`/`RunRecordingAgent`'ın run izolasyonu yeniden düzenlenirse ([Faz 146](arsiv/fazlar/146-CALISTIRMAYA-BAGLI-KOTA-ESIGI.md) denetim bulgusu) |
+| **F-205** · `/v1/conversations/{id}` varlık asimetrisi | Kullanılmamış kimlik `200`, reddedilen kimlik `404`. Katı modda çağıran hangi id'lerin sahipsiz SATIR olduğunu sayabilir — erişim kapalı, yalnız varlık görünür. Davranış ucun rezervasyon semantiğinden miras (Faz 4); kapatmak OpenAI uyumluluğunu bozar. `/api/sessions/{id}` bu sızıntıyı taşımaz | Tüketici varlık gizliliği talep ederse ([Faz 149](arsiv/fazlar/149-SAHIPSIZ-OTURUMUN-KATI-REDDI.md) denetim bulgusu) |
+| **F-226** · SSE yanıtının şeması JSON şekli ilan ediyor | ASP.NET Core'un üstveri modeli aynı statü kodu için iki şema ifade edemiyor ve K-039 gereği kütüphane `Microsoft.AspNetCore.OpenApi`'ye bağımlı değil — bir `OpenApiOperationTransformer` kütüphanede yaşayamaz. **Ölçüldü (2026-09-13):** `tracon.json`'da 7 `text/event-stream` yanıtı var, **2'si** JSON şekli ilan ediyor (`/tracon/v1/responses` → `JsonElement`, `/tracon/v1/chat/completions` → `ChatCompletion`); kalan 5'i doğru biçimde `type: string`. Üretilen istemci etkilenmiyor — altıncı geçiş içerik tipinin VARLIĞINA bakar | Belgeden kod üreten üçüncü taraf bir üreteç bu yüzden kırılırsa ([Faz 159](arsiv/fazlar/159-TIPLI-ISTEMCIDE-AKISLI-OPENAI-CAGRISI.md) denetim bulgusu 🟢 3) |
 
+### F-95 · Agent düzeyinde kesinti/devam kancası
 
-
-### F-95 · Agent düzeyinde kesinti/devam kancası (yeniden açıldı)
+**Engel:** MAF yolu **kapalı** (aşağıda ölçüldü). Kalem yalnız F-141 üzerinden
+ilerler.
 
 **Sorun:** Kesintiye uğramış bir agent turunu devam ettirmek için Tracon'in
-agent yürütmesinin **içine** girebilmesi gerekir. Bu kalem şu ölçümle kapsam
-dışına alınmıştı: *"MAF agent düzeyinde kanca vermiyor; kancayı Tracon
-yazmak K3'ü zorlar. Kanca yalnız `Microsoft.Agents.AI.Workflows` içinde var."*
+agent yürütmesinin **içine** girebilmesi gerekir.
 
-**Kapsam:** ~~Önce MAF'ın yeni kanca sözleşmesini ölç~~ — **ölçüldü
-(2026-09-05), karşılamıyor** (bkz. `Hazırlık`). Kalan kapsam F-141'in
-kapsamıdır: kesinti/devam'ı MAF'a kanca takmadan çözmek. Tracon paralel bir
-kanca hiyerarşisi kurmaz (K3); bu kural MAF kancası alınmadığı için de geçerli
-kalır — F-141 agent yürütmesinin **içine** girmeyen bir tasarım seçmelidir.
-
-**Değer:** Kesintiye uğramış tur, MAF'ı sarmalamadan devam ettirilebilir.
-
-**Mercek:** 2, 5, 6.
-
-**Hazırlık:** 🚨 **İmza doğrulandı (2026-09-05) — MAF yolu KAPALI.**
-`maf-api-kesfi` koşuldu; 1.18.0 → 1.20.0 tam yüzey dump'ı diff'lendi.
-Kanca çekirdek paketlerde **yoktur**: ayrı ve **alpha** bir pakettedir —
-`Microsoft.Agents.AI.AgentHooks` **1.20.0-alpha.260831.1**. Ölçülen public
-yüzey **iki tiptir**: `AgentHooksChatClientExtensions.AsAIAgentWithAgentHooks(...)`
-ve `AgentHooksOptions`. Üç ölçüm bu kalemi kapatır:
+**Hazırlık — 🚨 İmza doğrulandı (2026-09-05), MAF yolu KAPALI.**
+`maf-api-kesfi` koşuldu; 1.18.0 → 1.20.0 tam yüzey dump'ı diff'lendi. Kanca
+çekirdek paketlerde **yoktur**: ayrı ve **alpha** bir pakettedir —
+`Microsoft.Agents.AI.AgentHooks` 1.20.0-alpha.260831.1, public yüzeyi iki tip
+(`AgentHooksChatClientExtensions.AsAIAgentWithAgentHooks(...)` ·
+`AgentHooksOptions`). Üç ölçüm bu yolu kapatır:
 
 1. **Sözleşme yanlış ihtiyacı karşılıyor.** Kanca bir *enforcement/interception*
-   sözleşmesidir (AGENT-HOOKS-0.1): allow/deny/transform verdict, approval seam,
-   `InterceptionRecord`. Bu kalemin ihtiyacı olan **kesinti/devam** (turu
-   checkpoint'leyip sonra sürdürme) yüzeyde **yoktur**.
+   sözleşmesidir (AGENT-HOOKS-0.1): allow/deny/transform verdict, approval
+   seam, `InterceptionRecord`. Bu kalemin ihtiyacı olan **kesinti/devam**
+   (turu checkpoint'leyip sonra sürdürme) yüzeyde **yoktur**.
 2. **Bölünemez ve pipeline'ımızla uyumsuz.** Seam decorator'ları `internal`;
-   PR gövdesi "partial installs are impossible by construction" diyor. Dahası
+   PR gövdesi "partial installs are impossible by construction" diyor.
    `AsAIAgentWithAgentHooks`, içinde `FunctionInvokingChatClient` bulunan bir
-   client'ı **reddeder** ("tools would execute below the verdicts"). Tracon'in
+   client'ı **reddeder** ("tools would execute below the verdicts") — Tracon'in
    her provider pipeline'ı `UseFunctionInvocation()` kurar
    ([`AnthropicChatClientFactory.cs:14`](../src/Tracon.Anthropic/AnthropicChatClientFactory.cs#L14) ·
    [`AzureOpenAIChatClientFactory.cs:16`](../src/Tracon.Azure/AzureOpenAIChatClientFactory.cs#L16) ·
    [`GoogleChatClientFactory.cs:15`](../src/Tracon.Google/GoogleChatClientFactory.cs#L15)).
    Kancayı almak, agent kurulum yolunun tamamını MAF'a devretmek demektir.
 3. **Bağımlılık grafiği kabul edilemez.** `ResponsibleAI.AgentHooks`
-   0.1.0-alpha.4 bir **native FFI** taşır (`libagent_hooks_ffi`, 1.7 MB) ve
+   0.1.0-alpha.4 bir **native FFI** taşır (`libagent_hooks_ffi`, 1,7 MB) ve
    yalnız dört RID kapsar: linux-x64 · osx-arm64 · osx-x64 · win-x64 —
    **linux-arm64 yoktur**. Yanında `Microsoft.ML.Tokenizers`,
    `Microsoft.Extensions.AI.Evaluation`, `VectorData.Abstractions`,
-   `Compliance.Abstractions`, `FileSystemGlobbing` gelir. `Tracon.Core`
-   bugün AOT-uyumludur; bu graf hem onu hem "tüketicinin bağımlılık grafiğini
+   `Compliance.Abstractions`, `FileSystemGlobbing` gelir. `Tracon.Core` bugün
+   AOT-uyumludur; bu graf hem onu hem "tüketicinin bağımlılık grafiğini
    kirletme" kuralını bozar.
 
-**Maliyet:** Ölçüldü ve **karşılanamaz** — yukarıdaki 2. ve 3. maddeler.
+**Kapsam:** Kalan kapsam F-141'in kapsamıdır: kesinti/devam'ı MAF'a kanca
+takmadan çözmek. Tracon paralel bir kanca hiyerarşisi kurmaz (K3) — bu kural
+MAF kancası alınmadığı için de geçerli kalır.
 
-**Risk:** Yüzeyin tamamı `[Experimental("MAAI001")]`'dir ve paket alpha
-kanalındadır. K-008 ön sürüm paketlerini yalnız `Tracon.AspNetCore` içinde
-tutar; bu kanca ise `Tracon.Core`'un agent kurulum yoluna girer.
+**Değer:** Kesintiye uğramış tur, MAF'ı sarmalamadan devam ettirilebilir.
 
-**Bağımlılık:** ~~MAF 1.19.0'a yükseltme~~ — **düştü**. Yükseltme bu kalemi
-**açmıyor** (1.18.0 → 1.20.0 diff'inde sıfır kaldırma, kanca ayrı pakette).
-F-141 (MAF-kancasız alternatif tasarım) artık bu kalemin rakibi değil, **tek
-yoludur**.
+**Mercek:** 2, 5, 6.
+
+**Maliyet:** Ölçüldü, MAF yoluyla **karşılanamaz** (2. ve 3. madde).
+
+**Risk:** Yüzeyin tamamı `[Experimental("MAAI001")]` ve paket alpha kanalında.
+K-008 ön sürüm paketlerini yalnız `Tracon.AspNetCore` içinde tutar; bu kanca
+`Tracon.Core`'un agent kurulum yoluna girer.
+
+**Bağımlılık:** F-141 (MAF-kancasız alternatif tasarım) — rakip değil, **tek
+yol**.
 
 **Ekosistem:** 2026-09-05 — [`dotnet-1.19.0` sürüm notları](https://github.com/microsoft/agent-framework/releases/tag/dotnet-1.19.0) ·
-[PR #7564](https://github.com/microsoft/agent-framework/pull/7564).
+[PR #7564](https://github.com/microsoft/agent-framework/pull/7564). MAF pin
+2026-09-13 itibarıyla hâlâ **1.20.0**; ölçüm güncel.
 
-**Karşı görüş:** ~~F-141 rakiptir~~ — ölçümden sonra karşı görüş kalmadı. F-141
-aynı ihtiyacı MAF'a hiç kanca takmadan karşılıyor ve 2026-08-21'de bu tasarımın
-**doğru** olduğu kaydedilmişti. MAF yolu ölçümle kapandığına göre bu kalem
-yalnız F-141 üzerinden ilerler.
+**Karşı görüş:** Kalmadı. F-141 aynı ihtiyacı MAF'a hiç kanca takmadan
+karşılıyor ve 2026-08-21'de bu tasarımın **doğru** olduğu kaydedilmişti.
 
-
-
+---
 
 ### F-165 · Manuel kabul setinin CI'a kademeli taşınması
 
-**Sorun:** Manuel set 37 Markdown dosyasında 1.650 case taşır ve CI'da koşmaz.
-Regresyon güvencesi bir kişinin koşum zamanına bağlıdır.
+**Engel:** Bağımsız faz olarak **hiç** planlanmaz — kuyruğu bitmez. Her fazın
+dokunduğu alanın manuel ailesi **o fazda** otomatikleştirilir
+(`faz-tamamlama` Adım 3).
 
-**Kapsam:** Tek fazda tüm seti taşımak değil, bir aileyi test seviyeleri tablosuna
-göre otomatikleştiren tekrar edilebilir devir şablonu kurmak. Manuel kalması
+**Sorun:** Manuel set CI'da koşmaz; regresyon güvencesi bir kişinin koşum
+zamanına bağlıdır.
+
+**Kapsam:** Tek fazda tüm seti taşımak değil, bir aileyi
+[test seviyeleri tablosuna](../.agents/ortak/test-seviyeleri.md) göre
+otomatikleştiren tekrar edilebilir devir şablonu kurmak. Manuel kalması
 gereken model-yanıtı ve insan-yargısı case'leri açıkça ayrılır.
 
-**Değer:** En yüksek riskli kabul davranışları insan zamanı beklemeden regresyon
-kapısına girer; iki ayrı spec/test kaynağı oluşmaz.
+**Değer:** En yüksek riskli kabul davranışları insan zamanı beklemeden
+regresyon kapısına girer; iki ayrı spec/test kaynağı oluşmaz.
 
 **Mercek:** 2, 3, 4, 6.
 
-**Hazırlık:** Ölçüldü — `find docs/manuel-test -maxdepth 1 -name '*.md'` 37 dosya,
-case kimliği taraması 1.650 case verdi. `Tracon.Testing` ve Testcontainers
-altyapısı zaten vardır.
+**Hazırlık — ölçüldü (2026-09-13):** `docs/manuel-test/` kökünde **37 dosya**,
+**1 632** benzersiz `MT-*` case'i (kayıt 1 650 diyordu — bayat).
+`Tracon.Testing` ve Testcontainers altyapısı hazır.
 
 **Maliyet:** Yüksek, fakat ilk dilim kontrollüdür.
 
 **Risk:** Case'leri kör biçimde birim teste çevirmek test tiyatrosu üretir.
 Sınır davranışı functional/integration seviyesinde kalmalıdır.
 
-**Bağımlılık:** Yok; F-67 ile paralel gider.
+**Bağımlılık:** Yok.
 
 **Ekosistem:** 2026-08-26 — depo kalite disiplini; dış ekosistem iddiası yok.
 
-**Karşı görüş:** Model kalitesi ve görsel değerlendirme otomasyona uygun değildir.
-Bu aday o case'leri silmeyi değil, otomatikleştirilebilir kısmı ayırmayı önerir.
-
-
-
-### F-171 · Sevk edilen metindeki ölçülmüş sayılar için kapı
-
-**Sorun:** Sevk edilen metin, koddan **elle kopyalanmış** ölçüm sayıları taşıyor
-ve hiçbir kapı onları doğrulamıyor. `preview.1` öncesi drift taraması (2026-08-28)
-**altı** bayat sayı buldu ve üçü birbiriyle çelişiyordu:
-
-| İddia | Sevk edilen değer(ler) | Ölçülen gerçek |
-|---|---|---|
-| Konsol ekranı | 27 (×2), 28 (×3) | **30** (`app.tsx` `*Screen` importları) |
-| Konsol rotası | 33, 36 | **36** (`app.tsx` `pattern:` sayısı) |
-| JS bundle gzip | 180.2 KB, 165.8 KB, 169.4 KB | **175.9 KB** (`npm run build`) |
-| İstemci operasyonu | 161 (×2) | **162** (`tracon.json`) |
-| Store contract'ı | "32 others" / "29 more" | **31** (32 dosya − ortak taban) |
-| Kök README paket tablosu | 19 satır | **20** paket |
-
-Hepsi K-483'ün sınıfı: elle tekrarlanan bir ölçüm, terim değişince sessizce
-yanlışa döner. Beş yüzey (kök README, üç paket README'si, iki site sayfası)
-birbirinden habersiz kopya taşıyordu.
-
-**Kapsam:** Bu sayıları koddan türeten bir kapı. En küçük hâli
-`check-content.mjs`'e bir kontrol eklemektir: sevk edilen metindeki işaretli
-sayıları (`app.tsx`, `tracon.json`, `postbuild.mjs` çıktısı, packable
-`.csproj` kümesi, `Contracts/` envanteri) yeniden hesaplayıp karşılaştırır.
-Alternatif: sayıyı metinden **çıkarmak** — kapı yazmak yerine iddiayı
-kaldırmak da geçerli bir çözümdür ve ölçülmelidir.
-
-**Değer:** Bu tarama elle koştuğu için bulundu. Bir sonraki fazın eklediği ekran
-veya operasyon aynı altı yüzeyi sessizce bayatlatır; NuGet'e basılan README
-geri alınamaz.
-
-**Ek kapsam — bağımlılık sürümü damgalı DAVRANIŞ iddiaları (ölçüldü 2026-09-05).**
-Yukarıdaki tablo *sayılarla* ilgilidir. Aynı sınıfın ikinci yarısı sevk edilen
-XML dokümanlarındadır: bir bağımlılık sürümünü **adıyla anıp** o sürümde ölçülmüş
-bir davranış iddia eden yorumlar. Ölçüm: `src/` genelinde **beş** tane —
-[`IVectorSearchStore.cs:16`](../src/Tracon.Abstractions/Knowledge/IVectorSearchStore.cs#L16) (MEAI 10.8.0) ·
-[`McpTransportFactory.cs:32`](../src/Tracon.Mcp/Internal/McpTransportFactory.cs#L32) (MCP 2.2.0) ·
-[`TraconSqlServerOptions.cs:32`](../src/Tracon.SqlServer/TraconSqlServerOptions.cs#L32) (SqlClient 7.0.2) ·
-[`OpenAIResponsesEndpoints.cs:25`](../src/Tracon.AspNetCore/OpenAICompat/OpenAIResponsesEndpoints.cs#L25) (Hosting.OpenAI) ·
-[`FallbackChatClient.cs:612`](../src/Tracon.Core/Models/FallbackChatClient.cs#L612) (OpenAI 2.12.0).
-
-Bunlar F-171'in var olan mekanizmasıyla **kapatılamaz**: bir davranış iddiası
-koddan yeniden hesaplanamaz, yalnız yeniden **ölçülebilir**. Kapının yapabileceği
-şey farklıdır ve daha ucuzdur: damgadaki sürümü `Directory.Packages.props`'taki
-pinle karşılaştırıp **saptığında kırmak**. O zaman yükseltme yapan oturum
-iddiayı ya yeniden ölçer ya damgayı bilerek günceller; bugün olduğu gibi
-**şansa** kalmaz. 🚨 Bu ihtiyaç bugün gerçek bir kaçışla kanıtlandı: MAF
-1.18.0 → 1.20.0 yükseltmesinde bu beş iddianın hiçbiri hiçbir kapı tarafından
-işaretlenmedi; ikisi elle grep'lendiği için yeniden ölçüldü (`ToAgentRunRequest`
-ve `AddA2AServer` — ikisi de geçerli çıktı) ve üçü yükseltmenin kapsamı dışında
-kaldığı için hiç bakılmadı.
-
-**Ek — sayı yarısının kapısı 2026-09-07'de YAZILDI (tüketici analizi turu, B02).**
-Bu adayın "en küçük hâli" olarak tarif edilen iş yapıldı ve kapsamı **tarif
-edilenden geniş** çıktı. `check-content.mjs` artık sayılabilir iddiayı tek
-sayfada değil **her elle yazılan sayfada** arar; tarihli release/changelog
-sayfaları bilerek muaftır (oradaki sayı bir snapshot'tır, bugünkü değerle
-güncellemek kaydı bozar). Aynı turda ekran ölçümünün **tanımı** da düzeltildi:
-kapı import MODÜLÜ sayıyordu (28), sayfalar Screen COMPONENT'i diyordu (30) —
-kapı hiçbir sayfanın iddia etmediği bir sayıyı ölçtüğü sürece var olma
-sebebiyle kırmızı olamaz. Kapı yazıldığında dört gerçek sapma yakalandı
-(143 · 143 · 162 operasyon ve 19 tag; gerçek 165 ve 23) ve düzeltildi.
-
-🚨 **Bu aday kapanmadı — kalan iş DAVRANIŞ iddialarıdır.** Sayı yarısı bitti;
-aşağıdaki iki yarı açık:
-1. **Default/policy iddiaları** — worker, tenancy, scope, ownership, structured
-   response, opt-in recovery. Bunlar yeniden hesaplanamaz; options
-   initializer'ı için kaynak/çalıştırma probu, endpoint policy için metadata +
-   gerçek deny/allow testi gerekir. B02 bu turda **dördünü elle** düzeltti
-   (tenancy default · worker default · OpenAI scope · approval resume); kapı
-   yoktur, beşincisi yine sessizce kayabilir.
-2. **Bağımlılık sürümü damgalı davranış iddiaları** — aşağıdaki beş kalem.
-
-**Mercek:** 6.
-
-**Hazırlık:** Sayı kapısı yazıldı (2026-09-07); davranış kapısı yazılmadı — bu
-aday artık **odur**.
-
-**Maliyet:** Düşük-orta; tek bir kontrol dosyası, mevcut `check-content.mjs`
-deseninde. Ek kapsam (sürüm damgası) daha ucuzdur — beş iddia, tek regex ve
-`Directory.Packages.props` karşılaştırması; yeniden hesaplama gerektirmez.
-
-**Risk:** Fazla katı bir kapı, meşru yuvarlanmış ifadeyi ("about 30 screens")
-kızartabilir. Kontrol yalnız **işaretli** sayıya bakmalı, her rakama değil.
-
-**Bağımlılık:** Yok.
-
-**Ekosistem:** 2026-08-28 — iç kalite kaydı; dış ekosistem iddiası yok.
-
-**Karşı görüş:** Altı sayının hepsi düzeltildi ve bazıları (bundle boyutu) her
-build'de değişir — belki doğru cevap sayıyı sevk edilen metinden tamamen
-çıkarmaktır. Aday bu ikilemi kapsamına dahil ediyor.
-
-### F-180 · Tam paket koşumunda E2E zaman aşımı — ⚠️ VAKA KAPANDI, SINIF AÇIK
-
-**Vaka** 2026-09-04'te kapandı; **sınıf açık kaldı** ve kayıt bu yüzden burada
-durur. Repro "yük altındaki tam paket koşumu"ydu ve kapanış onu kendi
-koşullarında tekrar koşmadı — test bir gün sonra aynı imzayla yine düştü. Ders
-`kusur-giderme` kapanış kontrolüne yazıldı: repro yük altındaki bir koşumsa
-kapanış **o koşumla** kanıtlanır. Tam gövde:
-[`arsiv/ERTELENEN-ADAYLAR.md`](arsiv/ERTELENEN-ADAYLAR.md).
-
-### F-224 · Geri alınamaz kararlar için doğrulama adımı
-
-**Kaynak:** [Faz 164](arsiv/fazlar/164-CONSOLE-ENSTRUMAN-KATMANI.md) — yazıldı, ölçüldü ve
-DoD gereği geri alındı (bkz. o fazın "Plandan Sapmalar" §3).
-
-**Gözlem:** Onaylar ekranında bir tool çağrısını onaylamak veya reddetmek tek
-tıktır ve geri alınamaz (K-014: karar yeni bir run açar, soran run sonsuza dek
-`AwaitingApproval` kalır). İki düğme yan yanadır. Aynı desen başka yerlerde de
-var: session silme, agent sürümü geri alma, kiracı anahtarı iptali.
-
-**Kapsam:** `Dialog` primitifi Faz 164'te yazıldı ve hazır (odak tuzağı, `Esc`,
-odak dönüşü, kaydırma kilidi — `UiTests` ile kanıtlı). İş, geri alınamaz
-aksiyonların **envanterini** çıkarmak, hangilerinin doğrulama hak ettiğine karar
-vermek ve etkilenen E2E olgularını **birlikte** güncellemektir. Faz 164 bunu
-yapamazdı: DoD'si mevcut 58 olgunun hiçbirinin değişmemesini şart koşuyordu.
-
-**Değer:** Bir mis-click geri alınamaz bir kararı vermez.
-
-**Mercek:** 4.
-
-**Hazırlık:** Primitif hazır; envanter ve E2E güncellemesi ölçülmedi.
-
-**Maliyet:** Küçük–orta. Envanterin büyüklüğüne bağlı.
-
-**Risk:** Orta — her doğrulama adımı bir etkileşim sözleşmesini değiştirir ve
-ilgili E2E olgusunu birlikte taşımayı gerektirir. Onay yorgunluğu da gerçek bir
-maliyettir: her şeyi doğrulatmak hiçbirini doğrulatmamakla aynı yere çıkar.
+**Karşı görüş:** Model kalitesi ve görsel değerlendirme otomasyona uygun
+değildir. Bu aday o case'leri silmeyi değil, otomatikleştirilebilir kısmı
+ayırmayı önerir.
 
 ---
 
-## Aday Olmayan Açık Kayıtlar
-
-Bu kalemler faz sıralamasına girmez. Tam kanıt, geçmiş ve sonraki adım keşif
-kaydındadır.
-
-| Kanal | ID'ler | Kural |
-|---|---|---|
-| **Plana dönüştü** | **F-210 → [Faz 155](arsiv/fazlar/155-KALIBRE-EDILMIS-EVALUATOR-KATALOGU.md)** · **F-216 → [Faz 156](arsiv/fazlar/156-DURUM-ON-KONTROLU-VE-UPGRADE-PENCERESI.md)** · **F-217 → [Faz 157](arsiv/fazlar/157-SINIRLI-YUK-VE-IKI-PROCESS-ARIZA-KANITI.md)** · F-109 → [Faz 112](arsiv/fazlar/112-REPLAY-ISTEMCI-TOOL-SOZLESMESI.md) · F-149 → [Faz 113](arsiv/fazlar/113-ARIZA-SINIFLANDIRMA-SEAMI.md) · F-166 → [Faz 114](arsiv/fazlar/114-CALISTIRMA-ICI-BUTCE-TAVANI.md) · F-168 → [Faz 115](arsiv/fazlar/115-EVALIN-BASSIZ-KOSUCUSU.md) · F-67 → [Faz 116](arsiv/fazlar/116-PERFORMANS-TAHSIS-KAPISI.md) · F-167 → [Faz 117](arsiv/fazlar/117-MCP-TASKS-UZANTISI.md) · F-152 → [Faz 118](arsiv/fazlar/118-YARGIC-BASINA-CHECKPOINT.md) · **F-192 → [Faz 151](arsiv/fazlar/151-HARNESSIN-DONGU-YETENEGI.md)** · **F-208 → [Faz 152](arsiv/fazlar/152-SKORUN-ADI-VE-SEKLI.md)** · **F-207 → [Faz 153](arsiv/fazlar/153-EVAL-KOSUMLARI-ARASINDA-REGRESYON-FARKI.md)** · **F-209 → [Faz 154](arsiv/fazlar/154-SKOR-TRENDININ-KALICI-SORGUSU.md)** | Bölümleri bu dosyadan silindi; kanıt ve tasarım faz dokümanındadır. Aday listesine geri dönmezler. |
-| **Kapatılan kusur kayıtları** | F-106, F-130, F-137, F-138, F-139 · **F-170 · F-180 · F-181 · F-190 · F-197 · F-211 · F-212 · F-214 · F-215** | Kapanış kanıtı keşif kaydındadır; yeniden görülürse yeni kusur kaydı açılır. **Kalın olanların gövdeleri 2026-09-07'de [`arsiv/ERTELENEN-ADAYLAR.md`](arsiv/ERTELENEN-ADAYLAR.md)'e taşındı** — bu dosya 80 KB bütçesini doldurmuştu ve kendi kuralı kusurların burada yaşamamasıdır. **F-180** özetiyle burada kalır: vakası kapandı, **sınıfı açık**. |
-| **Karar / uyumluluk** | F-72, F-90, F-91, F-92, F-132, **F-169** | Mevcut karar veya dış bağımlılık değişmeden planlanmaz. F-95 2026-08-26'da adaylığa döndü. **F-169** (MAF CodeAct / Hyperlight sandbox) F-72 ile **aynı eşiktedir**: paket GA ve taşınabilir olana kadar planlanmaz — ölçüm [`kesif/2026-08-26-yeni-feature-fikirleri.md`](kesif/2026-08-26-yeni-feature-fikirleri.md) § 9. |
-| **Ölçüm bekliyor** | F-51, F-94, F-96, F-97, F-99, F-101, F-123, F-128, F-154, F-156, F-157, F-159, F-160, F-161, F-162 | Her biri için gereken somut kanıt keşif kaydında yazılıdır. |
-| **Ölçüm bekliyor — A-ID'leri** | A01 (kalan manifest bağlama) · A02 · A03 · A05'in ETag ve provenance dilimleri · A06 · A07 · A08 · A09 · A10 · A11 · A12 · A13 · A14 · A15 · A17 · A18 | 2026-09-07 tüketici analizi turundan. 🚨 Bunlar **F-NN değildir** — rapor içi izleme kimliğidir ve F numarası ayrılmadı; biri seçilirse o zaman aday numarası alır. Her birinin değer/maliyet/risk yargısı, karşı görüşü ve gereken kanıtı [tam raporun](arsiv/incelemeler/2026-09-07-tuketici-analizi-codebase-olcumu.md) §5'indedir. |
-| **Arşivlendi / birleştirildi** | F-48, F-88, F-89, F-98, F-144, F-145, F-146, F-147, F-148, F-155, F-158, F-163 | Plan değeri yok, rutin bakım olarak kalır veya aktif adayla aynı tasarım işidir. **F-155** F-149 ile aynı tasarım işiydi; o iş artık [Faz 113](arsiv/fazlar/113-ARIZA-SINIFLANDIRMA-SEAMI.md)'tedir. **F-163** F-67'nin ölçümüne bağlıydı; o ölçüm artık [Faz 116](arsiv/fazlar/116-PERFORMANS-TAHSIS-KAPISI.md)'dadır ve ayrı test ailesi olarak açılmaz. |
-
-## Bilerek Önerilmeyenler
-
-Reddedilmiş mimari işler için tek kaynak
-[`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md)'dir.
-Özellikle F-91 `secret` saklama sınırını ve F-92 dağıtık hız sınırı/Redis
-kararını değiştirmeden yeniden aday olmaz. **F-95 bu listede değildir** — onu
-bekleten şey bir tasarım kararı değil, MAF'ta kancanın bulunmamasıydı; MAF
-1.19.0 o kancayı gönderdiği için 2026-08-26'da adaylığa döndü.
-
-**Zaten var — bir daha "eksik" diye önerilmez** (2026-09-07 Langfuse turu, üçü
-de kod ölçümüyle çürütüldü). Bunlar mimari ret değildir; **mevcut
-yeteneklerdir**:
-
-| Önerilen | Nerede zaten var |
-|---|---|
-| Eval suite'i için CI kapısı | `tracon eval --min-pass-rate --max-failures`, regresyonda çıkış kodu 3 (`src/Tracon.Cli/Commands/EvalCommand.cs:168`) |
-| Skor düşüşünde alarm | `WebhookEvents.RunScoreLow`, `MinSampleSize` gürültü eşiğiyle (`src/Tracon.Core/Evaluation/OnlineEvalSummaryService.cs`) |
-| Agent sürümüne `production`/`staging` label'ı | `Experiment` sürüm başına ağırlıklı varyant veriyor, `IAgentDefinitionStore.RollbackAsync` geri alıyor; ortam ayrımını kiracı sınırı çözüyor |
-
-
 ### F-178 · Model deneme (attempt) telemetrisi
 
+**Engel:** Gerçek bir üretim fallback gecikmesi olayı ölçülmedi. Tüketici
+bunu **bilerek** erteledi.
+
 > **Yarısı plana dönüştü.** Job/kuyruk metrikleri
-> [Faz 133](arsiv/fazlar/133-IS-KUYRUGU-METRIKLERI.md)'e gitti. Aşağıdaki gövde yalnız
-> **kalan yarıyı** anlatır.
+> [Faz 133](arsiv/fazlar/133-IS-KUYRUGU-METRIKLERI.md)'e gitti. Aşağıdaki gövde
+> yalnız **kalan yarıyı** anlatır.
 
 **Sorun:** Yedek zincirinde hangi linkte ne kadar süre harcandığı ölçülmüyor.
 `FallbackChatClient` döngü indeksini tutuyor ve `ModelFallbackUsed`'ı yazıyor,
-ama `grep -n "Stopwatch\|GetTimestamp\|Elapsed"` o dosyada **sıfır** eşleşme
-veriyor ve `ModelFallbackUsedEventPayload` süre veya indeks taşımıyor. Birincil
-model 28 sn'de timeout olup yedek 2 sn'de yanıtladığında, 30 sn'lik `run`'ın
+ama `ModelFallbackUsedEventPayload` süre veya indeks taşımıyor. Birincil model
+28 sn'de timeout olup yedek 2 sn'de yanıtladığında, 30 sn'lik `run`'ın
 gecikmesinin hangi linkten geldiği ayrıştırılamaz.
 
 **Kapsam:** Deneme başına süre (monotonik saat), deneme indeksi, sağlayıcı,
@@ -643,12 +406,18 @@ mı?" soruları kanıta dayanır.
 
 **Mercek:** 2, 7.
 
-**Hazırlık:** `FallbackChatClient` döngü indeksini zaten tutuyor; ekleme
-tamamen additive'dir. Faz 133 metrik adı ve etiket kurallarını kurar.
+**Hazırlık — ölçüldü (2026-09-13):** Boşluk hâlâ tam.
+`grep -c "Stopwatch\|GetTimestamp\|Elapsed" src/Tracon.Core/Models/FallbackChatClient.cs`
+→ **0**. Döngü indeksi zaten tutuluyor; ekleme tamamen additive'dir. Faz 133
+metrik adı ve etiket kurallarını kurdu.
 
 **Maliyet:** Ölçülmedi. Yeni tablo ve migration gerekmez.
 
 **Risk:** Etiket kardinalitesi kontrolsüz büyürse metrik altyapısını boğar.
+
+**Bağımlılık:** Faz 133 (kapandı).
+
+**Ekosistem:** 2026-09-02 — tüketici raporu.
 
 **Karşı görüş:** Tüketici bunu bilerek erteledi — *"Prodigy henüz production
 olmadığı için gerçek incident kaydı sunamıyoruz … İlk fallback latency olayı
@@ -656,13 +425,16 @@ olmadığı için gerçek incident kaydı sunamıyoruz … İlk fallback latency
 API tasarımında bunu engelleyecek bir karar alınmamasıdır; bu koşul bugün
 sağlanıyor.
 
-
+---
 
 ### F-179 · Çalışma anı model yönlendirme policy'si
 
+**Engel:** F-178 attempt süresini ölçmeye başlamalı **ve** gerçek üretim
+trafiği oluşmalı.
+
 **Sorun:** Model seçimi bugün statik binding ve hata sonrası yedek zinciriyle
-sınırlı. Çağrı **öncesi** maliyet, gecikme ve capability'ye göre seçim yapılamaz;
-yapılsa bile seçimin nedeni `run` kanıtına girmez.
+sınırlı. Çağrı **öncesi** maliyet, gecikme ve capability'ye göre seçim
+yapılamaz; yapılsa bile seçimin nedeni `run` kanıtına girmez.
 
 **Kapsam:** Aday binding kümesinden seçim yapan opt-in bir policy seam'i ve
 seçim kararının `run` kanıtına yazılması (seçilen binding, kararlı reason code,
@@ -672,260 +444,88 @@ değerlendirilen adaylar, policy adı).
 
 **Mercek:** 2, 7, 8.
 
-**Hazırlık:** 🚨 **Ön koşulları eksik.** `RunRecord` sağlayıcı saklamıyor
-(Faz 132 kapatır); kayan latency penceresi yok (F-178 kapatır);
-`ModelProviderHealthCache` yalnız sağlık durumu verir.
+**Hazırlık — ölçüldü (2026-09-13), ön koşulların BİRİ karşılandı:**
+
+| Ön koşul | Durum |
+|---|---|
+| `run` satırı sağlayıcıyı saklamalı | ✅ **karşılandı** — [`RunRecord.ModelProvider`](../src/Tracon.Abstractions/Runs/RunRecord.cs#L73) eklendi ([Faz 132](arsiv/fazlar/132-UYGULANAN-FIYAT-SNAPSHOTU.md)) |
+| Kayan latency penceresi ölçülmeli | ❌ eksik — F-178 kapatır |
+| Gerçek üretim trafiği | ❌ yok |
+
+`ModelProviderHealthCache` yalnız sağlık durumu verir, gecikme vermez.
 
 **Maliyet:** Ölçülmedi.
 
-**Risk:** Ölçüm olmadan "en ucuzu seç" kararı yanlış olur. Tüketici de
-"önce doğru telemetry, sonra dinamik policy" diyor.
+**Risk:** Ölçüm olmadan "en ucuzu seç" kararı yanlış olur.
+
+**Bağımlılık:** F-178.
+
+**Ekosistem:** 2026-09-02 — tüketici raporu.
+
+**Karşı görüş:** Tüketici de *"önce doğru telemetry, sonra dinamik policy"*
+diyor.
 
 ---
 
-### F-213 · Store sözleşmelerinin iptal davranışı yazılı değil
+## Aday Olmayan Açık Kayıtlar
 
-**Sorun:** Hiçbir `*StoreContract` iptal case'i taşımıyor ve dört uygulama
-farklı davranıyor: SQL store'lar token'ı ADO.NET üzerinden doğal olarak
-gözlüyor, bellek içi store'lar (`InMemoryRunScoreStore` ve kardeşleri) token'ı
-hiç okumuyor. Bir tüketici `UpsertAsync(score, alreadyCancelledToken)`
-çağırdığında ne olacağını sözleşmeden öğrenemiyor.
+Bu kalemler faz sıralamasına **girmez**. Tam kanıt, geçmiş ve sonraki adım
+keşif kaydındadır; burada yalnız hangi kanala düştükleri yazar.
 
-**Kapsam:** Tek bir store değil, **store ailesi** için bir karar: sevk edilen
-sözleşmelere iptal case'i girsin mi, girecekse bellek içi uygulamalar da
-`ThrowIfCancellationRequested` ile hizalansın mı. Karar üçüncü taraf
-`IRunScoreStore`/`IRunStore` uygulamalarına yeni bir zorunluluk yükler.
+| Kanal | ID'ler | Kural |
+|---|---|---|
+| **Plana dönüştü** | 40+ kalem | Bölümleri bu dosyadan silindi; kanıt ve tasarım **fazın kendi dokümanındadır**. Aday listesine geri dönmezler. Eşleme tabloları ve aday gövdeleri: [`arsiv/PLANA-DONUSEN-ADAYLAR.md`](arsiv/PLANA-DONUSEN-ADAYLAR.md) |
+| **Kapatılan kusur kayıtları** | F-106 · F-130 · F-137 · F-138 · F-139 · F-170 · F-180 · F-181 · F-190 · F-197 · F-203 · F-204 · F-206 · F-211 · F-212 · F-214 · F-215 · F-219 · F-220 · F-222 | Gövdeleri [`arsiv/ERTELENEN-ADAYLAR.md`](arsiv/ERTELENEN-ADAYLAR.md)'dedir. Yeniden görülürse **yeni** kusur kaydı açılır. **F-180** özetiyle § *Bekleyen Kalemler*'de kalır: vakası kapandı, **sınıfı açık** |
+| **Karar / uyumluluk eşiği** | F-72 · F-90 · F-91 · F-92 · F-132 · F-169 | Mevcut karar veya dış bağımlılık değişmeden planlanmaz. **F-169** (MAF CodeAct / Hyperlight sandbox) F-72 ile **aynı eşiktedir**: paket GA ve taşınabilir olana kadar planlanmaz — ölçüm [`kesif/2026-08-26-yeni-feature-fikirleri.md`](kesif/2026-08-26-yeni-feature-fikirleri.md) § 9 |
+| **Ölçüm bekliyor — F-ID'leri** | F-51 · F-94 · F-96 · F-97 · F-99 · F-101 · F-123 · F-128 · F-154 · F-156 · F-157 · F-159 · F-160 · F-161 · F-162 | Her biri için gereken somut kanıt keşif kaydında yazılıdır. Kanıt üretmeden aday olmaz |
+| **Ölçüm bekliyor — A-ID'leri** | A01 (kalan manifest bağlama) · A02 · A03 · A05'in ETag ve provenance dilimleri · A06 · A07 · A08 · A09 · A10 · A11 · A12 · A13 · A14 · A15 · A17 · A18 | 🚨 Bunlar **F-NN değildir** — 2026-09-07 tüketici analizi turunun rapor içi izleme kimliğidir ve F numarası ayrılmadı; biri seçilirse o zaman aday numarası alır. Değer/maliyet/risk yargısı ve gereken kanıt [tam raporun](arsiv/incelemeler/2026-09-07-tuketici-analizi-codebase-olcumu.md) §5'indedir. **A17/A18 mimari ret DEĞİLDİR** — mevcut yetenekle çözülemeyen somut bir vaka çıkarsa yeniden değerlendirilirler |
+| **Arşivlendi / birleştirildi / rutin bakım** | F-48 · F-88 · F-89 · F-98 · F-144 · F-145 · F-146 · F-147 · F-148 · F-155 · F-158 · F-163 · **F-221** | Plan değeri yok; rutin bakım olarak kalır veya aktif adayla aynı tasarım işidir. **F-221** 2026-09-13'te indirildi: görsel yarısı Faz 163'te kapandı, kalan iz `src/` içinde 4 dosyada 27 `internal` yerel değişken adıdır (`prismOptions`/`prismException`) — o dosyalara dokunan ilk oturum düzeltir |
 
-**Değer:** İptal davranışı bugün uygulama detayı; sözleşmeye girerse
-tüketicinin varsayımı ölçülebilir hâle gelir.
+### F-ID tahsis kuralı
 
-**Mercek:** 3, 7.
+Numara **geri dönüştürülmez** ve bir numara **tek kaleme** aittir. Sıradaki
+numara: **F-227**.
 
-**Hazırlık:** Hazır — Faz 152 bu case'i bilerek dışarıda bıraktı ve
-gerekçesini fazın "Plandan Sapmalar" tablosuna yazdı (sapma 3).
+🚨 **F-221 ve F-222 bu kurala 2026-09-08 ile 2026-09-12 arasında uymadı** —
+ikisi de iki kez tahsis edildi. 2026-09-13'te çözüldü (kullanıcı kararı):
 
-**Maliyet:** Küçük ama YAYGIN: ~20 sözleşme sınıfı ve bellek içi karşılıkları.
+| Numara | Kime ait | Yanlış tahsis nereye gitti |
+|---|---|---|
+| **F-221** | Logo/favicon ve prizma metaforu (Faz 162 · 164 · 165) — bugün rutin bakım | [Faz 159](arsiv/fazlar/159-TIPLI-ISTEMCIDE-AKISLI-OPENAI-CAGRISI.md) denetim bulgusu 🟢 3 (SSE şeması) → **F-226** |
+| **F-222** | `nav.*` ekran kapısı (Faz 163 · 164) — ✅ kapandı | [Faz 159](arsiv/fazlar/159-TIPLI-ISTEMCIDE-AKISLI-OPENAI-CAGRISI.md) denetim bulgusu 🟢 2 (site ağırlık marjı) → **kalem kapatıldı**, [K-756](KARARLAR-INDEKS.md) kapsıyor |
 
-**Risk:** Sözleşmeyi genişletmek sevk edilen bir söz vermektir; ölçülmüş bir
-tüketici talebi olmadan yapılırsa geri alması pahalıdır.
-
----
-
-
-### F-218 · Skor satırı evaluator paket sürümünü damgalamıyor
-
-**Kaynak:** [Faz 155](arsiv/fazlar/155-KALIBRE-EDILMIS-EVALUATOR-KATALOGU.md) — plan risk
-tablosunda vardı, kapsam dışı bırakıldı.
-
-**Gözlem:** `AddEvaluatorJudge` ile bağlanan bir `IEvaluator`'ın puanı,
-`Microsoft.Extensions.AI.Evaluation.Quality`'nin **prompt'una** bağlıdır ve o
-prompt paket sürümüyle değişir. Skor satırı hangi sürümün ürettiğini
-kaydetmiyor; bir yükseltme [Faz 153](arsiv/fazlar/153-EVAL-KOSUMLARI-ARASINDA-REGRESYON-FARKI.md)'ün
-regresyon taban çizgisini **sessizce** kaydırabilir — fark "model bozuldu"
-gibi görünür, oysa yargıcın kendisi değişmiştir.
-
-**Kapsam:** `RunScore`'a bir kaynak/sürüm damgası eklemek, ya da damgayı
-`Comment`'e sıkıştırmadan ayrı bir alana koymak.
-
-**Değer:** Skor trendini yorumlanabilir kılar; "yargıç değişti mi" sorusunun
-koşulan bir cevabı olur.
-
-**Mercek:** 3, 6.
-
-**Hazırlık:** Faz 155 köprüyü kurdu; damga onun üstüne biner.
-
-**Maliyet:** Orta — `RunScore` kalıcı bir tiptir, üç SQL sağlayıcısında
-migration ister (K-711'in emsali).
-
-**Risk:** Kalıcı şemaya alan eklemek geri dönüşü pahalıdır; talep kanıtı
-şimdilik tek bir risk satırıdır, ölçülmüş bir tüketici şikâyeti değil.
+**Site ağırlık kalemi neden kapatıldı:** kayıt bayattı (tavan 57 000 B, sayfa
+56 651 B, taban 49 376 B diyordu). 2026-09-13 ölçümü: tavan **58 000 B**,
+en ağır sayfa **57 367 B**, marj **%1,1**. K-756 bir sonraki adımı zaten
+yazıyor — *"Bir daha dolarsa sayfa BÖLÜNÜR veya içerik kısalır; tavan İKİNCİ
+kez yükseltilmez."* Aynı kuralı ikinci bir yerde bayatlatarak tutmanın değeri
+yok.
 
 ---
 
-### F-219 · ✅ KAPANDI (2026-09-12) — `ChildAgentInvoker` sağlayıcı zaman aşımını KENDİ deadline'ı sanıyor
+## Bilerek Önerilmeyenler
 
-**Kapanış:** `kusur-giderme` faz dışı. Kayıt doğruydu ve **dar** çıktı: ölçüm
-kaydın anmadığı bir ikinci zararı buldu — yanlış metin yalnız yanlış SEBEBİ
-söylemiyordu, bir sağlayıcı kesintisini `ChildRunTimedOut` **metriğine** de
-yazıyordu. Repro: 30 sn'lik `ChildDeadline` için **17 ms**'de
-*"did not respond in time (limit: 00:00:30)"*. Ayırma `deadline.IsCancellationRequested`
-ile **tam** yapılabiliyor; ayrılamayan dal yoktur. Kullanıcı kararı: sağlayıcı
-arızası dalı istisna aksıtmaz, **ayrı bir reddetme metni** döner (ağaç yaşar,
-`ChildRunTimedOut` yazılmaz). Kırmızı iki seviyede ayrı ayrı kanıtlandı — metin
-iddiası birimde, metrik iddiası **yalnız** fonksiyonel seviyede (birimde
-`scope.Writer` yoktur, olay hiç yazılmaz, yani orada iddia tiyatrodur).
+Reddedilmiş mimari işler için tek kaynak
+[`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md)'dir.
+Özellikle **F-91** (`secret` saklama sınırı) ve **F-92** (dağıtık hız
+sınırı / Redis) kararı değiştirmeden yeniden aday olmaz.
 
-**Sınıf taraması** (`grep -rn "catch (OperationCanceledException) when (!" src/`,
-13 yer) iki vaka daha buldu ve ikisi de kapatıldı:
-**(2)** `ToolApprovalPresenterRunner` — `IToolApprovalPresenter` sevk edilen bir
-genişleme noktasıdır; tüketicinin kendi HTTP çağrısı kendi zaman aşımını attığında
-log *"timed out after 00:10:00"* diyordu (çağrı 56 ms'de dönmüştü). Fail-open
-davranışı değişmedi, yalnız sebep düzeldi; genel `catch` de OCE'yi kabul edecek
-şekilde genişletildi, çağıranın iptali hâlâ akıyor. **(3)** CLI — altında ayrı
-bir kusur yatıyordu: `AddTraconClient`'ın `HttpClient`'ı .NET varsayılanı
-**100 sn** taşıyordu, yani `tracon eval --timeout 1800` fiilen imkânsızdı ve tavan
-dolduğunda CLI *"Timed out after 1800 s"* yazıyordu. Ölçüldü: **100,03 sn → 0,57 sn**.
-Kullanıcı kararı: hem atfetme ayrıldı hem `TraconClientOptions.Timeout` eklendi
-(additive; CLI onu `Timeout.InfiniteTimeSpan` yapar).
+**F-95 bu listede değildir** — onu bekleten bir tasarım kararı değil, MAF'ın
+sözleşmesidir; bkz. § *Bekleyen Kalemler* → F-95.
 
-**Vaka DEĞİL** (tarandı, yazıldı): beş sağlayıcı sağlık kontrolü +
-`ElevenLabsSpeechClient` (iki dalda da sonuç ve sebep aynı: `Unhealthy`,
-*"Timed out."*) · `AgentDefinitionValidator` (iki dal da `false` döner, hiçbir
-yerde sebep söylenmez) · `VoiceConversationDriver` (`socket.ReceiveAsync` OCE'yi
-yalnız verilen token'dan atar; iç bir istemci yok).
+### Zaten var — bir daha "eksik" diye önerilmez
 
-Kararlar: **K-759** (sebep söyleyen her filtre kendi kaynağını sınar) ·
-**K-760** (`TraconClientOptions.Timeout`). Tuzak:
-[`hafiza/cekirdek-calistirma.md`](hafiza/cekirdek-calistirma.md).
+2026-09-07 Langfuse turunda üçü de kod ölçümüyle çürütüldü. Bunlar mimari ret
+değildir; **mevcut yeteneklerdir.**
 
-**Kaynak:** [Faz 157](arsiv/fazlar/157-SINIRLI-YUK-VE-IKI-PROCESS-ARIZA-KANITI.md) denetimi — 🟢 bulgu.
+| Önerilen | Nerede zaten var |
+|---|---|
+| Eval suite'i için CI kapısı | `tracon eval --min-pass-rate --max-failures`, regresyonda çıkış kodu 3 ([`EvalCommand.cs:168`](../src/Tracon.Cli/Commands/EvalCommand.cs#L168)) |
+| Skor düşüşünde alarm | `WebhookEvents.RunScoreLow`, `MinSampleSize` gürültü eşiğiyle ([`OnlineEvalSummaryService.cs`](../src/Tracon.Core/Evaluation/OnlineEvalSummaryService.cs)) |
+| Agent sürümüne `production`/`staging` label'ı | `Experiment` sürüm başına ağırlıklı varyant veriyor, `IAgentDefinitionStore.RollbackAsync` geri alıyor; ortam ayrımını kiracı sınırı çözüyor |
 
-**Gözlem:** `ChildAgentInvoker.cs:208,329` bir `OperationCanceledException`'ı
-alt-agent'ın `ChildDeadline`'ının dolduğu varsayımıyla `TimeoutRefusal`'a
-çeviriyor. K-737'den sonra biliyoruz ki bu istisna sağlayıcının KENDİ istek
-zaman aşımından da gelebilir; o zaman çağırana "alt-agent süresi doldu" denir,
-oysa doğru cümle "sağlayıcı yanıt vermedi"dir.
-
-**Kapsam:** İki `catch`'i `deadline.IsCancellationRequested` ile ayırmak;
-ayrılmayan durumda mevcut sınıflandırmaya düşürmek.
-
-**Değer:** Alt-agent bekleme sınırının kendi metriği ile sağlayıcı kesintisi
-karışmaz; operatör hangi kadranı büyüteceğini bilir.
-
-**Mercek:** 3.
-
-**Hazırlık:** K-737 kuralı ve emsal filtreler hazır.
-
-**Maliyet:** Küçük — iki filtre, iki test.
-
-**Risk:** Düşük. Sonuç bugün de bir zaman aşımı mesajıdır; sessiz başarı
-üretmiyor, yalnız yanlış SEBEBİ söylüyor.
-
----
-
-### F-220 · ✅ KAPANDI (2026-09-12) — Yük raporundaki CPU/RAM alanları makineyi değil süreci anlatıyor
-
-**Kapanış:** `kusur-giderme` faz dışı. Kayıt doğruydu ve kapsamı aynen uygulandı:
-rapor artık `Processor` ve `Physical memory` satırlarını gerçek donanımdan okur
-(macOS `sysctl -n machdep.cpu.brand_string`/`hw.memsize`, Linux `/proc/cpuinfo`
-`model name` + `/proc/meminfo` `MemTotal`), okuyamadığı platformda satır
-*"not available on this platform"* der. Süreç değerleri silinmedi — ne oldukları
-adlarına yazıldı: `Logical processors (process-visible)` ·
-`Available memory (process-visible)`. Okuma yolu yumuşak düşer; rapor bir kapı
-değildir (K-738). Repro kendi koşullarında tekrar koşuldu (`TRACON_LOAD=1`,
-gerçek Postgres container'ı) ve çıktı doğrulandı: *Apple M1 Pro · 16384 MiB*.
-
-**Sınıf taraması:** `grep -rn "Environment.ProcessorCount\|GetGCMemoryInfo" src/ tests/`
-— başka vaka yok. `Environment.MachineName`'in `SingletonGuard` ve
-`JobWorkerBackgroundService`'teki kullanımları **sahip kimliğidir**, makine
-kapasitesi iddiası değil. Tuzak:
-[`hafiza/olcum-kota-ve-secenekler.md`](hafiza/olcum-kota-ve-secenekler.md).
-
-**Kaynak:** [Faz 157](arsiv/fazlar/157-SINIRLI-YUK-VE-IKI-PROCESS-ARIZA-KANITI.md) denetimi — 🟢 bulgu.
-
-**Gözlem:** Rapor "Available memory" olarak
-`GC.GetGCMemoryInfo().TotalAvailableMemoryBytes` (GC/container limiti),
-"Logical processors" olarak `Environment.ProcessorCount` yazıyor. İkisi de
-sürecin gördüğü değerdir; makinenin gerçek belleği ve işlemci modeli raporda
-yok. İki koşumu karşılaştıran biri farkı donanıma bağlayamaz.
-
-**Kapsam:** Platforma göre gerçek donanım bilgisini okumak (`sysctl -n
-hw.model`, `/proc/cpuinfo`), bulunamazsa bugünkü değerlerle "process-visible"
-etiketiyle yetinmek.
-
-**Değer:** Rapor K-738'in vaat ettiği "ortamıyla birlikte" sözünü tam karşılar.
-
-**Mercek:** 6.
-
-**Hazırlık:** Rapor iskeleti hazır; yalnız alan eklenir.
-
-**Maliyet:** Küçük.
-
-**Risk:** Düşük — rapor bir kapı değildir (K-738), yanlış bir alan hiçbir
-koşumu kırmızıya çevirmez.
-
----
-
-### F-221 · Logo ve favicon adı anlatmıyor
-
-**Kaynak:** [Faz 162](arsiv/fazlar/162-TRACON-YENIDEN-ADLANDIRMA.md) — kullanıcı kararı
-(D5): görseller o fazda bilerek değiştirilmedi.
-
-**Gözlem:** `assets/icon.png` ve `docs-site/public/favicon.svg` bir prizma
-çiziyor. Prizma önceki adın görsel karşılığıydı; yeni adla hiçbir ilişkisi
-yok. `assets/icon.png` NuGet'e `PackageIcon` olarak **sevk edilir**, favicon
-her site sayfasında görünür.
-
-**Kapsam:** Yeni bir işaret tasarlamak; `docs-site/scripts/build-package-icon.mjs`
-ve `build-social-images.mjs` ile türevleri yeniden üretmek. Üretim hattı hazır
-— eksik olan tasarımın kendisidir.
-
-Kapsam görselle bitmiyor: eski adın METAFORU kodda da yaşıyor ve o dosyalara
-zaten dokunulacak — `prismMark`/`PrismMark` (`build-social-images.mjs:59`,
-`icons.tsx:30`), `_prismOptions`/`prismOptions` (`WorkflowRunner.cs`),
-`prismException` (`RunRecordingAgent.Completion.cs:338`), `--ap-*` CSS ad alanı
-(17 dosya) ve `styles.css` + `layout.tsx` içindeki "prism spectrum" anlatısı.
-**Kısmen kapandı (2026-09-12, Faz 164):** console tarafı bitti — `--ap-*` →
-`--tracon-*`, prizma şeridi ve ekran başına gökkuşağı tonu kaldırıldı,
-`icons.tsx` işareti zaten `TraconMark`'tı, console favicon'u yeni işaretle
-değiştirildi. Kalan: `assets/icon.png`, `docs-site/public/favicon.svg`,
-`build-social-images.mjs` ve `src/` içindeki `_prismOptions`/`prismException`
-adları.
-Hiçbiri tüketici sözleşmesi değil (tipler `internal`), bu yüzden Faz 162'de
-bırakıldı.
-
-**Değer:** İlk yayında paket listelemesi ve site aynı markayı gösterir.
-
-**Mercek:** 8.
-
-**Hazırlık:** Üretim script'leri çalışır durumda; girdi dosyası değişince
-türevler tek komutla çıkar.
-
-**Maliyet:** Küçük (kod), tasarım kararı kullanıcıya ait.
-
-**Risk:** Düşük — hiçbir kapı ikonun içeriğine bakmaz.
-
----
-
-### F-222 · ✅ Kapandı — Faz 164
-
-**Kaynak:** [Faz 162](arsiv/fazlar/162-TRACON-YENIDEN-ADLANDIRMA.md) keşfi — faz
-kapsamı dışında bırakıldı (kullanıcı kararı 2026-09-12).
-
-**Kapanış (2026-09-12, Faz 164):** Aşağıdaki gözlem kaydedildiğinde zaten
-bayattı — kapı `check-content.mjs`'ten `check-console-screens.mjs`'e taşınmış ve
-`locales/en/common.ts`'i okuyordu, yani döngü dönüyordu. Ama adlandırdığı SINIF
-gerçekti ve Faz 164 onun ikinci örneğini üretti: `nav.*` ad alanındaki her
-anahtar bir ekran sayılıyordu, dolayısıyla ekran OLMAYAN bir anahtar
-(`nav.skipToContent`) kapıyı kırmızı yapıp kendi ekran görüntüsünü istedi.
-Okuma yolu artık `components/navigation.ts`'tir — kenar çubuğu ile komut
-paletinin paylaştığı tek envanter. Regresyon testi:
-`check-console-screens.test.mjs` içindeki "a shell affordance in the message
-catalogue is not mistaken for a screen".
-
-**Gözlem:** `docs-site/scripts/check-content.mjs:399` `nav.*` anahtarlarını
-`locales/en.ts` içinde arar. O anahtarlar `locales/en/common.ts`'e taşındı;
-`en.ts` bugün yalnız bir toplayıcıdır ve tek bir `'nav.…'` literal'i
-taşımaz. Regex sıfır eşleşme bulur, döngü hiç dönmez ve **19 ekran
-görüntüsünün varlığını hiçbir şey doğrulamaz**. Kapı yeşil görünür.
-
-**Kapsam:** Okuma yolunu `locales/en/common.ts`'e çevirmek, sonra kapının
-gerçekten döndüğünü kanıtlayan bir kayıt eklemek. `kusur-giderme` SINIF
-TARAMASI adımı burada zorunludur: aynı sınıf (fragment'e taşınan bir sabiti
-eski toplayıcı dosyada arayan kapı) başka kapılarda da olabilir —
-`check-content.mjs` içindeki her `readFileSync(...locales...)` ve her
-`nav\.`/`'[a-z]+\.` regex'i taranır.
-
-**Değer:** Sevk edilen sayfalarda eksik veya bayat ekran görüntüsü yakalanır.
-
-**Mercek:** 6.
-
-**Hazırlık:** Kusur yeri ve kök nedeni ölçüldü; düzeltme tek satır, kanıt
-testi ek iş.
-
-**Maliyet:** Küçük.
-
-**Risk:** Düşük — ama kapı canlanınca bugün eksik olan varlıklar ortaya
-çıkabilir; o hâlde düzeltme kapsamı ekran görüntüsü üretimini de kapsar.
-
----
+Aynı turun bulgusu şuydu: Langfuse'un **beş sütununun beşi de** bu repo'da
+zaten vardı (prompt sürümleme → `IAgentDefinitionStore` · LLM-as-judge →
+`IRunJudge` · gold dataset → `RunToCasePromoter` · maliyet-gecikme panosu →
+`RunStatistics` · deney → `Experiment` + canary). Tur başlıklara değil
+**kenarlara** yöneldiği için işe yaradı.

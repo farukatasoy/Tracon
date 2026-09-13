@@ -394,4 +394,230 @@ Düzeltmeden sonra SQL Server tam paketi (703/703) iki ayrı koşumda, Postgres
 
 **Kapanış:** `kusur-giderme` faz dışı koşuldu. Boşluk kaydın söylediğinden **bir yer büyüktü**: kayıt üç SQL sorgusu + `FileRunStore.cs` diyordu, ölçüm beşinci yeri buldu — [`InMemoryRunStore.Analytics.cs:57`](../../src/Tracon.Core/Storage/InMemoryRunStore.Analytics.cs#L57) de `score.MessageId is null` kullanıyordu, yani bellek içi deney sonucu da aynı skoru dışlıyordu. Beşi birden `is not { Length: > 0 }` / `(message_id IS NULL OR message_id = '')` oldu (SQL Server'da `N''`). **Kapı:** `RunStoreContract`'a **iki yönlü** bir çift test — bir tanesi yetmezdi, çünkü "her skoru run seviyesi say" diyen aşırı düzeltme de tek testi yeşil geçerdi. Sözleşme skor store'unu yeni `CreateScoreStoreAsync()` kancasıyla ister (`virtual`, `abstract` değil: sevk edilen sözleşmeyi türeten üçüncü tarafı kırmamak için) ve beş fixture'ın hepsi override eder. Düzeltmeden önce bellek içi ve SQLite'ta kırmızı olduğu ölçüldü (*"should be 80d but was null"*). Karar açılmadı: sevk edilen `RunScore.MessageId` sözleşmesi **zaten** *"if empty, the score belongs to the whole run"* diyordu; kod sözleşmeye hizalandı. **Tuzak:** `docs/hafiza/sql-saglayicilari.md`.
 
+---
 
+## ADAYLAR.md'den taşınan kapanmış kayıtlar (2026-09-13)
+
+> Normalizasyon turu. Bu kalemler `ADAYLAR.md` § *Bekleyen Kalemler*
+> tablosunda ✅ işaretiyle duruyordu; kapanmış bir kayıt aday dosyasında
+> yaşamaz.
+
+### F-203 · F-204 · F-206 — ✅ KAPANDI (2026-09-06), `kusur-giderme` faz dışı
+
+Üçü de tablo satırı olarak taşındı; sütunlar: kalem · kapanış kaydı.
+
+| Kalem | Kapanış |
+|---|---|
+| **F-203** | ✅ **KAPANDI (2026-09-06)** — `kusur-giderme` faz dışı. 🚨 Kaydın öncülü YANLIŞTI: hedef `docs-site/src/content/docs/http-api.md` **izleniyor** ve `.gitignore`'da değil; gitignore'lu olan `http-api/` **dizinidir**. Gerçek kusur farklıydı ve tarihe karşı ölçüldü: o sayfa API'nin elle yazılmış **şeklidir** (kimlik doğrulama, akış, sayfalama, hata gövdesi) ve bir uç eklenmesi onu değiştirmez, yani kural son 40 commit'te **7 kez tetiklendi, 5'i kırmızı** döndü ve hepsi `--site-gerekce-yazildi` ile geçildi — sürekli kırmızı bir kapı insanları onu susturmaya eğitir. Kaydın önerdiği **çözüm** yine de doğruydu: `docs/openapi/tracon.json` (üretilen ama izlenen ve commit edilen) alternatif hedef olarak eklendi ve `docs/` ile başlayan hedef artık depo köküne göre çözülür. Aynı tarihte yeniden ölçüldü: **5 kırmızı → 3**. Kalan üçü uç dosyasının değişip HTTP yüzeyinin değişmediği commit'lerdir (XML yorum düzeltmesi, MAF yükseltmesi) — gerekçe yazma yolu tam olarak onlar içindir. Kapı: `dokuman_bakim_test.py`'a dört test (depo kökü hedefinin site kökü altında ARANMADIĞI dahil). Tuzak: `docs/hafiza/dokumantasyon.md` |
+| **F-204** | ✅ **KAPANDI (2026-09-06)** — `kusur-giderme` faz dışı. Boşluk kaydın söylediğinden **büyüktü**: kayıt yalnız `OpenAIConversationsEndpoints.cs`'in üç çağrısını anıyordu, ölçüm `RunEndpoints.cs`'in **12** `CheckRunResourceAsync` çağrısı taşıdığını buldu — on birinin silinmesi kapıyı yeşil bırakırdı. Kapı varlıktan (`IsMatch`) **tam sayı eşitliğine** çevrildi (kullanıcı kararı); taban değil, çünkü taban bir eklemenin bir silmeyi ödemesine ve net sıfırda sessiz geçmesine izin verirdi. 22 (dosya, marker) çiftinin sayısı ölçülüp yazıldı. Düzeltmeden **önce** kırmızı olduğu kanıtlandı: bir `CheckSessionAsync` çağrısı silinince *"expected 3, found 2"* — eski kapı bunu göremiyordu. Taramanın kendi regresyon testi de sayma davranışını kanıtlar. Tuzak: `docs/hafiza/test-altyapisi.md` |
+| **F-206** | ✅ **KAPANDI (2026-09-06)** — `kusur-giderme` faz dışı. Kapanış turunun kendi kapı koşumunda bulundu: `denetim-paketi.py:17`'nin test tiyatrosu tarayıcısı `\bShould\b` arıyordu ve bu depodaki **7488** Shouldly iddiasının **hiçbirini** eşleştirmiyordu (`Should`'dan sonra kelime karakteri gelir, `\b` sınır oluşturmaz); `Assert.` yalnız **6** yerde geçiyor. Yani tarayıcı pratikte her yeni testi aday sayıyordu — bu turda 5 yanlış pozitif, düzeltmeden sonra **0**. Çıkış kodunu kırmadığı için gürültü olarak yaşamıştı; F-203'ün sınıfı. Kök sebep testtedir: var olan tek test yalnız POZİTİF yönü ("iddiasız test yakalanır") kanıtlıyordu. Düzeltme `Should\w*` + **iki yönlü** üç test (Shouldly tanınır · altı biçim ayrı ayrı · gerçekten iddiasız test HÂLÂ aday). Eski regex'e karşı kırmızı olduğu ölçüldü. Tuzak: `docs/hafiza/test-altyapisi.md` |
+
+### F-219 — ✅ KAPANDI (2026-09-12)
+
+### F-219 · ✅ KAPANDI (2026-09-12) — `ChildAgentInvoker` sağlayıcı zaman aşımını KENDİ deadline'ı sanıyor
+
+**Kapanış:** `kusur-giderme` faz dışı. Kayıt doğruydu ve **dar** çıktı: ölçüm
+kaydın anmadığı bir ikinci zararı buldu — yanlış metin yalnız yanlış SEBEBİ
+söylemiyordu, bir sağlayıcı kesintisini `ChildRunTimedOut` **metriğine** de
+yazıyordu. Repro: 30 sn'lik `ChildDeadline` için **17 ms**'de
+*"did not respond in time (limit: 00:00:30)"*. Ayırma `deadline.IsCancellationRequested`
+ile **tam** yapılabiliyor; ayrılamayan dal yoktur. Kullanıcı kararı: sağlayıcı
+arızası dalı istisna aksıtmaz, **ayrı bir reddetme metni** döner (ağaç yaşar,
+`ChildRunTimedOut` yazılmaz). Kırmızı iki seviyede ayrı ayrı kanıtlandı — metin
+iddiası birimde, metrik iddiası **yalnız** fonksiyonel seviyede (birimde
+`scope.Writer` yoktur, olay hiç yazılmaz, yani orada iddia tiyatrodur).
+
+**Sınıf taraması** (`grep -rn "catch (OperationCanceledException) when (!" src/`,
+13 yer) iki vaka daha buldu ve ikisi de kapatıldı:
+**(2)** `ToolApprovalPresenterRunner` — `IToolApprovalPresenter` sevk edilen bir
+genişleme noktasıdır; tüketicinin kendi HTTP çağrısı kendi zaman aşımını attığında
+log *"timed out after 00:10:00"* diyordu (çağrı 56 ms'de dönmüştü). Fail-open
+davranışı değişmedi, yalnız sebep düzeldi; genel `catch` de OCE'yi kabul edecek
+şekilde genişletildi, çağıranın iptali hâlâ akıyor. **(3)** CLI — altında ayrı
+bir kusur yatıyordu: `AddTraconClient`'ın `HttpClient`'ı .NET varsayılanı
+**100 sn** taşıyordu, yani `tracon eval --timeout 1800` fiilen imkânsızdı ve tavan
+dolduğunda CLI *"Timed out after 1800 s"* yazıyordu. Ölçüldü: **100,03 sn → 0,57 sn**.
+Kullanıcı kararı: hem atfetme ayrıldı hem `TraconClientOptions.Timeout` eklendi
+(additive; CLI onu `Timeout.InfiniteTimeSpan` yapar).
+
+**Vaka DEĞİL** (tarandı, yazıldı): beş sağlayıcı sağlık kontrolü +
+`ElevenLabsSpeechClient` (iki dalda da sonuç ve sebep aynı: `Unhealthy`,
+*"Timed out."*) · `AgentDefinitionValidator` (iki dal da `false` döner, hiçbir
+yerde sebep söylenmez) · `VoiceConversationDriver` (`socket.ReceiveAsync` OCE'yi
+yalnız verilen token'dan atar; iç bir istemci yok).
+
+Kararlar: **K-759** (sebep söyleyen her filtre kendi kaynağını sınar) ·
+**K-760** (`TraconClientOptions.Timeout`). Tuzak:
+[`hafiza/cekirdek-calistirma.md`](../hafiza/cekirdek-calistirma.md).
+
+**Kaynak:** [Faz 157](fazlar/157-SINIRLI-YUK-VE-IKI-PROCESS-ARIZA-KANITI.md) denetimi — 🟢 bulgu.
+
+**Gözlem:** `ChildAgentInvoker.cs:208,329` bir `OperationCanceledException`'ı
+alt-agent'ın `ChildDeadline`'ının dolduğu varsayımıyla `TimeoutRefusal`'a
+çeviriyor. K-737'den sonra biliyoruz ki bu istisna sağlayıcının KENDİ istek
+zaman aşımından da gelebilir; o zaman çağırana "alt-agent süresi doldu" denir,
+oysa doğru cümle "sağlayıcı yanıt vermedi"dir.
+
+**Kapsam:** İki `catch`'i `deadline.IsCancellationRequested` ile ayırmak;
+ayrılmayan durumda mevcut sınıflandırmaya düşürmek.
+
+**Değer:** Alt-agent bekleme sınırının kendi metriği ile sağlayıcı kesintisi
+karışmaz; operatör hangi kadranı büyüteceğini bilir.
+
+**Mercek:** 3.
+
+**Hazırlık:** K-737 kuralı ve emsal filtreler hazır.
+
+**Maliyet:** Küçük — iki filtre, iki test.
+
+**Risk:** Düşük. Sonuç bugün de bir zaman aşımı mesajıdır; sessiz başarı
+üretmiyor, yalnız yanlış SEBEBİ söylüyor.
+
+### F-220 — ✅ KAPANDI (2026-09-12)
+
+### F-220 · ✅ KAPANDI (2026-09-12) — Yük raporundaki CPU/RAM alanları makineyi değil süreci anlatıyor
+
+**Kapanış:** `kusur-giderme` faz dışı. Kayıt doğruydu ve kapsamı aynen uygulandı:
+rapor artık `Processor` ve `Physical memory` satırlarını gerçek donanımdan okur
+(macOS `sysctl -n machdep.cpu.brand_string`/`hw.memsize`, Linux `/proc/cpuinfo`
+`model name` + `/proc/meminfo` `MemTotal`), okuyamadığı platformda satır
+*"not available on this platform"* der. Süreç değerleri silinmedi — ne oldukları
+adlarına yazıldı: `Logical processors (process-visible)` ·
+`Available memory (process-visible)`. Okuma yolu yumuşak düşer; rapor bir kapı
+değildir (K-738). Repro kendi koşullarında tekrar koşuldu (`TRACON_LOAD=1`,
+gerçek Postgres container'ı) ve çıktı doğrulandı: *Apple M1 Pro · 16384 MiB*.
+
+**Sınıf taraması:** `grep -rn "Environment.ProcessorCount\|GetGCMemoryInfo" src/ tests/`
+— başka vaka yok. `Environment.MachineName`'in `SingletonGuard` ve
+`JobWorkerBackgroundService`'teki kullanımları **sahip kimliğidir**, makine
+kapasitesi iddiası değil. Tuzak:
+[`hafiza/olcum-kota-ve-secenekler.md`](../hafiza/olcum-kota-ve-secenekler.md).
+
+**Kaynak:** [Faz 157](fazlar/157-SINIRLI-YUK-VE-IKI-PROCESS-ARIZA-KANITI.md) denetimi — 🟢 bulgu.
+
+**Gözlem:** Rapor "Available memory" olarak
+`GC.GetGCMemoryInfo().TotalAvailableMemoryBytes` (GC/container limiti),
+"Logical processors" olarak `Environment.ProcessorCount` yazıyor. İkisi de
+sürecin gördüğü değerdir; makinenin gerçek belleği ve işlemci modeli raporda
+yok. İki koşumu karşılaştıran biri farkı donanıma bağlayamaz.
+
+**Kapsam:** Platforma göre gerçek donanım bilgisini okumak (`sysctl -n
+hw.model`, `/proc/cpuinfo`), bulunamazsa bugünkü değerlerle "process-visible"
+etiketiyle yetinmek.
+
+**Değer:** Rapor K-738'in vaat ettiği "ortamıyla birlikte" sözünü tam karşılar.
+
+**Mercek:** 6.
+
+**Hazırlık:** Rapor iskeleti hazır; yalnız alan eklenir.
+
+**Maliyet:** Küçük.
+
+**Risk:** Düşük — rapor bir kapı değildir (K-738), yanlış bir alan hiçbir
+koşumu kırmızıya çevirmez.
+
+### F-222 (ikinci tahsis) · `nav.*` ekran kapısı — ✅ KAPANDI (2026-09-12, Faz 164)
+
+> 🚨 **Bu F-222, Faz 159'un F-222'si DEĞİLDİR.** Numara iki kez tahsis edildi;
+> ayrıntı `ADAYLAR.md` § *Aday Olmayan Açık Kayıtlar* → ID çakışması satırı.
+
+### F-222 · ✅ Kapandı — Faz 164
+
+**Kaynak:** [Faz 162](fazlar/162-TRACON-YENIDEN-ADLANDIRMA.md) keşfi — faz
+kapsamı dışında bırakıldı (kullanıcı kararı 2026-09-12).
+
+**Kapanış (2026-09-12, Faz 164):** Aşağıdaki gözlem kaydedildiğinde zaten
+bayattı — kapı `check-content.mjs`'ten `check-console-screens.mjs`'e taşınmış ve
+`locales/en/common.ts`'i okuyordu, yani döngü dönüyordu. Ama adlandırdığı SINIF
+gerçekti ve Faz 164 onun ikinci örneğini üretti: `nav.*` ad alanındaki her
+anahtar bir ekran sayılıyordu, dolayısıyla ekran OLMAYAN bir anahtar
+(`nav.skipToContent`) kapıyı kırmızı yapıp kendi ekran görüntüsünü istedi.
+Okuma yolu artık `components/navigation.ts`'tir — kenar çubuğu ile komut
+paletinin paylaştığı tek envanter. Regresyon testi:
+`check-console-screens.test.mjs` içindeki "a shell affordance in the message
+catalogue is not mistaken for a screen".
+
+**Gözlem:** `docs-site/scripts/check-content.mjs:399` `nav.*` anahtarlarını
+`locales/en.ts` içinde arar. O anahtarlar `locales/en/common.ts`'e taşındı;
+`en.ts` bugün yalnız bir toplayıcıdır ve tek bir `'nav.…'` literal'i
+taşımaz. Regex sıfır eşleşme bulur, döngü hiç dönmez ve **19 ekran
+görüntüsünün varlığını hiçbir şey doğrulamaz**. Kapı yeşil görünür.
+
+**Kapsam:** Okuma yolunu `locales/en/common.ts`'e çevirmek, sonra kapının
+gerçekten döndüğünü kanıtlayan bir kayıt eklemek. `kusur-giderme` SINIF
+TARAMASI adımı burada zorunludur: aynı sınıf (fragment'e taşınan bir sabiti
+eski toplayıcı dosyada arayan kapı) başka kapılarda da olabilir —
+`check-content.mjs` içindeki her `readFileSync(...locales...)` ve her
+`nav\.`/`'[a-z]+\.` regex'i taranır.
+
+**Değer:** Sevk edilen sayfalarda eksik veya bayat ekran görüntüsü yakalanır.
+
+**Mercek:** 6.
+
+**Hazırlık:** Kusur yeri ve kök nedeni ölçüldü; düzeltme tek satır, kanıt
+testi ek iş.
+
+**Maliyet:** Küçük.
+
+**Risk:** Düşük — ama kapı canlanınca bugün eksik olan varlıklar ortaya
+çıkabilir; o hâlde düzeltme kapsamı ekran görüntüsü üretimini de kapsar.
+
+### F-221 (logo dilimi) — rutin bakıma indirildi (2026-09-13, kullanıcı kararı)
+
+**Görsel yarı 2026-09-12'de Faz 163'te kapandı** ve aşağıdaki gövde o tarihte
+bayatladı: `assets/tracon-mark.svg` tek kaynak oldu, `assets/icon.png` ile
+`docs-site/public/favicon.svg` ondan üretiliyor ve ikisi de artık prizma değil
+radar işareti çiziyor. Faz 164 console tarafını kapattı.
+
+**Ölçüm (2026-09-13):** `--ap-*` CSS ad alanı `src/` ve `docs-site/` içinde
+**sıfır** eşleşme veriyor; `prismMark`/`PrismMark`/"prism spectrum" de sıfır.
+Kalan tek iz `src/` içinde dört dosyada **27 yerel değişken adıdır**
+(`RunRecordingAgent.Lifecycle.cs` `prismOptions` ×17 ·
+`RunRecordingAgent.Completion.cs` `prismException` ×2 ·
+`WorkflowRunner.cs` `_prismOptions` ×6 · `WorkflowNodeRetry.cs`
+`prismException` ×2). Hepsi `internal` yerel değişkendir; hiçbiri tüketici
+sözleşmesi değildir.
+
+**Karar:** Kalan iş bir faz değildir — o dosyalara dokunan ilk oturumun
+düzelteceği bir yeniden adlandırmadır. Kalem adaylıktan düştü.
+
+**Taşınan gövde (2026-09-12 tarihli, bayat):**
+
+### F-221 · Logo ve favicon adı anlatmıyor
+
+**Kaynak:** [Faz 162](fazlar/162-TRACON-YENIDEN-ADLANDIRMA.md) — kullanıcı kararı
+(D5): görseller o fazda bilerek değiştirilmedi.
+
+**Gözlem:** `assets/icon.png` ve `docs-site/public/favicon.svg` bir prizma
+çiziyor. Prizma önceki adın görsel karşılığıydı; yeni adla hiçbir ilişkisi
+yok. `assets/icon.png` NuGet'e `PackageIcon` olarak **sevk edilir**, favicon
+her site sayfasında görünür.
+
+**Kapsam:** Yeni bir işaret tasarlamak; `docs-site/scripts/build-package-icon.mjs`
+ve `build-social-images.mjs` ile türevleri yeniden üretmek. Üretim hattı hazır
+— eksik olan tasarımın kendisidir.
+
+Kapsam görselle bitmiyor: eski adın METAFORU kodda da yaşıyor ve o dosyalara
+zaten dokunulacak — `prismMark`/`PrismMark` (`build-social-images.mjs:59`,
+`icons.tsx:30`), `_prismOptions`/`prismOptions` (`WorkflowRunner.cs`),
+`prismException` (`RunRecordingAgent.Completion.cs:338`), `--ap-*` CSS ad alanı
+(17 dosya) ve `styles.css` + `layout.tsx` içindeki "prism spectrum" anlatısı.
+**Kısmen kapandı (2026-09-12, Faz 164):** console tarafı bitti — `--ap-*` →
+`--tracon-*`, prizma şeridi ve ekran başına gökkuşağı tonu kaldırıldı,
+`icons.tsx` işareti zaten `TraconMark`'tı, console favicon'u yeni işaretle
+değiştirildi. Kalan: `assets/icon.png`, `docs-site/public/favicon.svg`,
+`build-social-images.mjs` ve `src/` içindeki `_prismOptions`/`prismException`
+adları.
+Hiçbiri tüketici sözleşmesi değil (tipler `internal`), bu yüzden Faz 162'de
+bırakıldı.
+
+**Değer:** İlk yayında paket listelemesi ve site aynı markayı gösterir.
+
+**Mercek:** 8.
+
+**Hazırlık:** Üretim script'leri çalışır durumda; girdi dosyası değişince
+türevler tek komutla çıkar.
+
+**Maliyet:** Küçük (kod), tasarım kararı kullanıcıya ait.
+
+**Risk:** Düşük — hiçbir kapı ikonun içeriğine bakmaz.

@@ -53,15 +53,16 @@ Bir kalem bu dördünden en az birine dokunmalıdır. Hangisine dokunduğunu yaz
 Fikir üretmeden **önce** neyin bittiğini ve neyin kapatıldığını bil. Bu aşamada
 tek bir fikir yazılmaz.
 
-🚨 **`docs/ADAYLAR.md` baştan sona okunmaz** — 67 KB'dir. Yalnız
-aşağıdaki bölümleri oku.
+🚨 **`docs/ADAYLAR.md` baştan sona okunmaz.** Yalnız aşağıdaki bölümleri oku;
+dosyanın § *Okuma Sırası* tablosu da seni doğru bölüme yollar.
 
 | Ne okunur | Neden |
 |---|---|
 | `README.md` yol haritası tablosu | Neyin bittiği. Faz durumu yalnız burada yaşar |
-| Aday dosyası § *Bu Turda Neyin Değiştiği* · § *Önerilen Sıralama* | Bugün masada ne var |
-| Aday dosyası § *Ekosistem Boşluk Tablosu* | En verimli aday damarı. Kalan satırlar stratejik çekirdektir |
-| Aday dosyası § *Bilerek Önerilmeyenler* | Bir daha önerilmeyecek işler |
+| Aday dosyası § *Sıralanabilir Adaylar* | Bugün masada ne var |
+| Aday dosyası § *Bekleyen Kalemler* | Zaten bilinen ama koşulu oluşmamış işler — aynısını yeniden önerme |
+| Aday dosyası § *Aday Olmayan Açık Kayıtlar* | Bir F-ID'nin hangi kanala düştüğü **ve sıradaki F numarası** |
+| Aday dosyası § *Bilerek Önerilmeyenler* | Bir daha önerilmeyecek işler + "zaten var" listesi |
 | `docs/arsiv/KARARLAR-INDEKS-REDDEDILEN.md` | Kapatılmış tartışmalar |
 | `MEMORY.md` + dokunulan alanın `docs/hafiza/` dosyası | Tuzaklar |
 | Son üç fazın § *Sonraki Faza Devir Notu* | **Bilerek bırakılmış iş** — en zengin damar |

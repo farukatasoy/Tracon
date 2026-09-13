@@ -182,8 +182,8 @@ Bağımsız denetçi (taze bağlam, yalnız DoD + `git diff 9539b670`) koştu.
 | 6 | 🟡 | Fazın kendi listelediği beş sorudan **alt sistem hatası** (sunucu akış ortasında bağlantıyı keser) iki seviyede de test edilmemişti | **Düzeltildi** — `A_connection_that_drops_mid_stream_surfaces_the_error_rather_than_ending_quietly`: `FailingStream` okuma ortasında `IOException` atar; istisna `MoveNextAsync`'ten çıkar ve o ana kadarki çerçeveler teslim edilmiş olur. Sessizce bitmek "run tamamlandı" diye okunurdu |
 | 7 | 🟡 | `YOL-HARITASI.md` fazı hâlâ `📋 Planlandı` gösteriyordu | **Düzeltildi** — üretildi (K-413: elle yazılmaz) |
 | 8 | 🟢 | Python testinin `document()` yardımcısı geçici dosya bırakıyordu | **Düzeltildi** (kendi kodum; `TemporaryDirectory` bağlam yöneticisi) |
-| 9 | 🟢 | `text/event-stream` yanıtının şeması hâlâ JSON şeklini ilan ediyor | **Devredildi** — `ADAYLAR.md` **F-221** |
-| 10 | 🟢 | Site ağırlık marjı %0,6'ya indi; kalite sözleşmesindeki taban kaydı bayat | **Devredildi** — `ADAYLAR.md` **F-222** |
+| 9 | 🟢 | `text/event-stream` yanıtının şeması hâlâ JSON şeklini ilan ediyor | **Devredildi** — `ADAYLAR.md` **F-226**. 🚨 Bu satır 2026-09-08'de **F-221** yazıyordu; o numara Faz 162'de başka bir kaleme de verildi ve çakışma 2026-09-13'te bu kalem yeniden numaralanarak çözüldü |
+| 10 | 🟢 | Site ağırlık marjı %0,6'ya indi; kalite sözleşmesindeki taban kaydı bayat | **Kapandı** — bu satır 2026-09-08'de `ADAYLAR.md` **F-222** olarak devredilmişti; o numara Faz 163'te başka bir kaleme de verildi. 2026-09-13'te kalem **kapatıldı**: tavan K-756 ile 58 000 B'ye çıktı ve K-756 bir sonraki adımı zaten yazıyor ("tavan İKİNCİ kez yükseltilmez") |
 
 **Denetçinin temiz bulduğu başlıklar:** 3.3 (test seviyesi) · 3.5 (imza-gövde
 kayması) · 3.6 (plan dışı public API) · 3.7 (repo kuralları).
