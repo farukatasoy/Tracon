@@ -2,7 +2,7 @@
 
 > **Durum:** 📋 Planlandı (2026-09-13)
 > **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-228** (keşif: [`kesif/2026-09-13-anew-karsilastirmasi.md`](kesif/2026-09-13-anew-karsilastirmasi.md) § 6 A3, § 9 H3)
-> **Önkoşul:** [Faz 167](167-AGENT-ZORLAMA-KATMANI.md) — `KR-11` rampası `git reset --hard` yasağının **var olduğunu** varsayar. Yasak konmadıysa `KR-11`'in metni değişir
+> **Önkoşul:** [Faz 167](arsiv/fazlar/167-AGENT-ZORLAMA-KATMANI.md) — `KR-11` rampası `git reset --hard` yasağının **var olduğunu** varsayar. Yasak konmadıysa `KR-11`'in metni değişir
 > **Paketler:** Yok. Bu faz `src/` altına **hiç dokunmaz**
 > **Yeni paket:** Yok · **Migration:** Yok
 > **Public API:** Büyümüyor

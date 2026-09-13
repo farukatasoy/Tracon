@@ -10,7 +10,7 @@
 > ([`arsiv/PLANA-DONUSEN-ADAYLAR.md`](arsiv/PLANA-DONUSEN-ADAYLAR.md)).
 
 **Durum (2026-09-13):** 4 sıralanabilir aday · 9 bekleyen kalem.
-Son plana dönüşen: **F-227 · F-228 · F-229 → [Faz 167](167-AGENT-ZORLAMA-KATMANI.md) ·
+Son plana dönüşen: **F-227 · F-228 · F-229 → [Faz 167](arsiv/fazlar/167-AGENT-ZORLAMA-KATMANI.md) ·
 [168](168-KURTARMA-RAMPASI-KATALOGU.md) · [169](169-FAZ-PLANI-SOZLESMESI.md)**
 (📋 Planlandı). Yeni aday üretmek için `aday-kesfi` koşulur.
 

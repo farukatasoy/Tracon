@@ -1,13 +1,13 @@
 # Faz 167 — Agent Zorlama Katmanı
 
 > **Durum:** ✅ Tamamlandı (2026-09-13)
-> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-227** (keşif: [`kesif/2026-09-13-anew-karsilastirmasi.md`](kesif/2026-09-13-anew-karsilastirmasi.md) § 9 H1 · H2, § 14)
+> **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-227** (keşif: [`kesif/2026-09-13-anew-karsilastirmasi.md`](../../kesif/2026-09-13-anew-karsilastirmasi.md) § 9 H1 · H2, § 14)
 > **Önkoşul:** Yok — üç kalemlik geliştirme aparatı turunun **ilk** fazı (167 → 168 → 169)
 > **Paketler:** Yok. Bu faz `src/` altına **hiç dokunmaz**
 > **Yeni paket:** Yok · **Migration:** Yok
 > **Public API:** Büyümüyor — ürün yüzeyi değişmez
 > **Tüketici yüzeyi:** Yok — `docs-site/` sayfası yok, sevk edilen yapıt yok, arayüz payı yok
-> **Manuel test alanı:** [`docs/manuel-test/36-GELISTIRME-KAPILARI.md`](manuel-test/36-GELISTIRME-KAPILARI.md) — bugün 25 case (`MT-GDK-001…025`); bu faz `MT-GDK-026`'dan devam eder
+> **Manuel test alanı:** [`docs/manuel-test/36-GELISTIRME-KAPILARI.md`](../../manuel-test/36-GELISTIRME-KAPILARI.md) — bugün 25 case (`MT-GDK-001…025`); bu faz `MT-GDK-026`'dan devam eder
 
 ---
 
@@ -38,7 +38,7 @@
    ```
    Bu fazın işi, o yasaklar listesini **prompt'tan araç kümesine** taşımaktır.
 5. Alan hafızası (bu faz tek alana dokunuyor):
-   [`hafiza/dokumantasyon.md`](hafiza/dokumantasyon.md) — üretilen dosyalar ve
+   [`hafiza/dokumantasyon.md`](../../hafiza/dokumantasyon.md) — üretilen dosyalar ve
    doküman kapıları burada yaşar.
 
 ---
@@ -59,7 +59,7 @@ Fazın ürettiği hiçbir şey tüketiciye ulaşmaz. Kalite kaydı, ürün deği
 
 | Kanıt | Gözlem |
 |---|---|
-| [`.agents/skills/faz-denetim/SKILL.md:38`](../.agents/skills/faz-denetim/SKILL.md) | Denetçiyi `general-purpose` tipiyle çağırıyor; o tipin araç kümesi `*`'dır — **denetçi yazabilir** |
+| [`.agents/skills/faz-denetim/SKILL.md:38`](../../../.agents/skills/faz-denetim/SKILL.md) | Denetçiyi `general-purpose` tipiyle çağırıyor; o tipin araç kümesi `*`'dır — **denetçi yazabilir** |
 | `.claude/settings.json` (39 satır) | Yalnız `permissions.allow` · **33 girdi**. `deny` anahtarı **yok**, `hooks` anahtarı **yok** (`grep -c` ikisi için de 0) |
 | `.claude/` içeriği | `settings.json` · `settings.local.json` · `skills` symlink'i · `worktrees`. **`agents/` dizini yok** |
 | `scripts/dokuman-bakim.py:1344` (`_URETILEN`) | Dört üretilen dosya adlandırılmış; `tazelik_denetle()` onları **kapanışta** karşılaştırır — yazma anında değil |
@@ -158,7 +158,7 @@ manuel case 3 bunu koşarak kanıtlar.
 🚨 **Kapsam dışı, bilinçli (kullanıcı kararı 2026-09-13):** `git rebase` ve
 `rm -rf`. İkisi de bu repoda meşrudur ve **belgelenmiştir** — `rebase` ana dalda
 çalışan tek bakımcılı bir repoda normaldir; `rm -rf` `docs/manuel-test/` içinde
-8+ case'de ve [`hafiza/yayin-ve-surumleme.md`](hafiza/yayin-ve-surumleme.md)`:79,116`'da
+8+ case'de ve [`hafiza/yayin-ve-surumleme.md`](../../hafiza/yayin-ve-surumleme.md)`:79,116`'da
 bir **kurtarma adımı** olarak geçer. `deny` istisna taşıyamaz; kural konsaydı o
 prosedürler kırılırdı. Bu satır plandan çıkarılmaz — sonraki oturum "neden yok?"
 diye sormasın.
@@ -312,7 +312,7 @@ docs/manuel-test/
 
 > Mutlu yoldan değil, **ne bozulabilir**den türetilir. Seviyeyi plan seçer.
 > Sınır geçen davranış birim testiyle kanıtlanamaz —
-> [`.agents/ortak/test-seviyeleri.md`](../.agents/ortak/test-seviyeleri.md).
+> [`.agents/ortak/test-seviyeleri.md`](../../../.agents/ortak/test-seviyeleri.md).
 
 | Ne bozulabilir | Seviye | Test |
 |---|---|---|
@@ -340,7 +340,7 @@ sınırlarının hiçbirini geçmez.
 
 ## Manuel Kabul Case'leri
 
-> Kapanışta [`docs/manuel-test/36-GELISTIRME-KAPILARI.md`](manuel-test/36-GELISTIRME-KAPILARI.md)
+> Kapanışta [`docs/manuel-test/36-GELISTIRME-KAPILARI.md`](../../manuel-test/36-GELISTIRME-KAPILARI.md)
 > içine `MT-GDK-026`'dan itibaren eklenir.
 
 | # | Kod | Ön koşul | Adımlar | Beklenen sonuç |

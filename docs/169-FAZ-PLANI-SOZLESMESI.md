@@ -2,7 +2,7 @@
 
 > **Durum:** 📋 Planlandı (2026-09-13)
 > **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-229** (keşif: [`kesif/2026-09-13-anew-karsilastirmasi.md`](kesif/2026-09-13-anew-karsilastirmasi.md) § 6 A4 · A6, § 9 H4 · H5)
-> **Önkoşul:** 🚨 [Faz 168](168-KURTARMA-RAMPASI-KATALOGU.md) — triyajın "araştırılacak" sonucu `KR-05`'e gider. `KR-05` yoksa o sonucun **gideceği yer yoktur**. Ayrıca [Faz 167](167-AGENT-ZORLAMA-KATMANI.md) — `arsiv/fazlar/` için `ask` kuralı (bkz. Riskler)
+> **Önkoşul:** 🚨 [Faz 168](168-KURTARMA-RAMPASI-KATALOGU.md) — triyajın "araştırılacak" sonucu `KR-05`'e gider. `KR-05` yoksa o sonucun **gideceği yer yoktur**. Ayrıca [Faz 167](arsiv/fazlar/167-AGENT-ZORLAMA-KATMANI.md) — `arsiv/fazlar/` için `ask` kuralı (bkz. Riskler)
 > **Paketler:** Yok. Bu faz `src/` altına **hiç dokunmaz**
 > **Yeni paket:** Yok · **Migration:** Yok
 > **Public API:** Büyümüyor
