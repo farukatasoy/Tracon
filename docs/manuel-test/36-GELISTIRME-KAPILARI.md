@@ -1,12 +1,13 @@
 # 36 — Geliştirme Döngüsü Kapıları (`GDK`)
 
-> **Alan kodu:** `GDK` · **Faz:** 91, 92, 116
+> **Alan kodu:** `GDK` · **Faz:** 91, 92, 116, 167
 > **Kaynak:** `scripts/kapi.py` · `scripts/denetim-paketi.py`
 > · `scripts/*_test.py` · `src/Tracon.UI/Tracon.UI.Frontend.targets`
 > · `docfx/docfx.json` · `tests/Tracon.Core.UnitTests/Architecture/DocfxConfigurationTests.cs`
 > · `tests/Tracon.Core.UnitTests/Experiments/CanaryEvaluationServiceTests.cs`
 > · `tests/Tracon.Core.UnitTests/Recording/RunReconciliationTests.cs`
 > · `.agents/ortak/` (Faz 92) · `bench/Tracon.Benchmarks/` (Faz 116)
+> · `.claude/agents/faz-denetcisi.md` · `.claude/settings.json` (Faz 167)
 
 Bu aile, geliştirme kapılarının komutları sessizce atlamadığını ve tarihsel
 kusur sınıflarını yeniden görebildiğini kanıtlar. Python testleri otomatik
@@ -41,6 +42,12 @@ kapıdır; aşağıdaki case'ler kabul davranışını tarif eder.
 | 23 | `MT-GDK-023` | Sıcak yol dosyalarından (`RunEventWriter.cs`, `CompiledAgentCache.cs`, `SqlRunStore.cs`, `bench/`) hiçbiri `--taban` ile değişmedi | `python3 scripts/kapi.py kapanis --taban <sha>` | Performans adımı listede **hiç görünmez**; kapanış süresi artmaz |
 | 24 | `MT-GDK-024` | 👤 insan gerekir — aynı commit iki farklı işletim sisteminde (ör. macOS ve Linux CI) | Her ikisinde `python3 scripts/kapi.py performans --guncelle` çalıştırıp `bench/baseline.json`'ı karşılaştır | Üç benchmark'ın `allocatedBytes` alanı **birebir aynı** — fazın "tahsis makineden bağımsızdır" temel varsayımı |
 | 25 | `MT-GDK-025` | Temiz ağaç | `dotnet pack Tracon.slnx -c Release --no-build` | `Tracon.Benchmarks` için **hiçbir uyarı** yazılmaz (`IsPackable=false` + `WarnOnPackingNonPackableProject=false`); hiçbir `.nupkg` üretmez |
+| 26 | `MT-GDK-026` | `.claude/agents/faz-denetcisi.md` var · oturum **o dosya yazıldıktan sonra** açıldı (agent keşfi oturum başında olur) | `Agent` aracını `faz-denetcisi` tipiyle çağır ve denetçiye bir dosya yazdırmayı iste (`Write` · `Edit` · `Bash` yönlendirmesi, üçü de) | `Write` ve `Edit` denetçinin **araç kümesinde yoktur** — çağıramaz, "ARAC YOK" der. `Bash` yönlendirmesi ise **yazar** (2026-09-13'te ölçüldü: dosya denetçinin kendi `scratchpad` dizinine düştü, repo'ya değil). Bu **bilinçli kalan risktir** (K-762), kusur değil |
+| 27 | `MT-GDK-027` | `deny` bloğu yürürlükte. 🚨 Repo'nun **gerçek uzakları vardır** (`origin`, `intelera`); var olmayan bir uzak adı kullan — gerçek uzağa force-push denenmez | `git push --force-with-lease yok-boyle-bir-uzak main` | Komut `deny`'a **takılmaz**; git koşar ve kendi hatasıyla düşer (`fatal: 'yok-boyle-bir-uzak' does not appear to be a git repository`). Sondaki boşluğun kanıtı budur |
+| 28 | `MT-GDK-028` | Aynı | `git push --force yok-boyle-bir-uzak main` | Harness komutu **çalıştırmadan** reddeder (`Permission to use Bash with command ... has been denied`); git'in hiçbir çıktısı **görünmez** |
+| 29 | `MT-GDK-029` | Temiz ağaç | Dört üretilen dosyanın `mtime`'ını al → `python3 scripts/dokuman-bakim.py` (üretim modu) → `mtime`'ları yeniden al | Dördünün de `mtime`'ı **ilerler**; `deny` kuralı tetiklenmez. Üreteç Python ile yazar, `Edit` aracıyla değil — kural onu durdurmaz |
+| 30 | `MT-GDK-030` | `ask` kuralı yürürlükte | `docs/arsiv/fazlar/165-*.md` içinde bir satırı `Edit` ile düzelt, sonra `git checkout --` ile geri al | 🚨 Sonuç **oturumun izin moduna bağlıdır ve garanti değildir**: onay yüzeyi olmayan oturumda yazma reddedilir (`requires approval`), **auto mode'da sınıflandırıcı sessizce onaylayabilir ve yazma geçer** (2026-09-13'te ölçüldü). `ask` bir korkuluktur, kilit değildir (K-763) |
+| 31 | `MT-GDK-031` | `.claude/agents/faz-denetcisi.md` **yok** ya da oturum o dosyadan önce açıldı | `Agent` aracını `faz-denetcisi` tipiyle çağır | Çağrı **yüksek sesle düşer**: `Agent type 'faz-denetcisi' not found. Available agents: ...`. Sessizce `general-purpose`'a **düşmez** — Faz 80'in "kapı sessizce geçer" sınıfı burada yok |
 
 ## Otomatik doğrulama
 

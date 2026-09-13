@@ -30,6 +30,15 @@ Claude Code keşfi için `.claude/skills` → `.agents/skills` symlink'tir.
 `.agents/ortak/` bu symlink'in **dışındadır** — skill keşfi onu bir skill
 sanmaz, çünkü `SKILL.md`/frontmatter taşımaz.
 
+🚨 **Bir skill'in kuralını araca taşıyan yapılandırma symlink'lenmez ve
+taşınmaz.** `faz-denetim`'in salt-okunurluğu Claude Code'da
+[`.claude/agents/faz-denetcisi.md`](../../.claude/agents/faz-denetcisi.md)
+araç kümesinden gelir; agent keşfi ayrı bir kod yoludur ve symlink desteği
+belgelenmemiştir, bu yüzden o dosya **gerçek bir dosyadır**. Başka bir
+agent'ta o dosya okunmaz ve salt-okunurluk **gelmez** — kuralı yalnız
+`SKILL.md` metni korur. Skill metni bu yüzden yapılandırmaya devredilmez
+(Faz 167).
+
 ## Mevcut skill'ler ve zincir
 
 ```mermaid

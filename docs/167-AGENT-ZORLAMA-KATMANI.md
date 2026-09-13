@@ -422,48 +422,244 @@ python3 -m unittest discover -s scripts -p "*_test.py"
 
 ## Plandan Sapmalar
 
-> Kapanışta doldurulur. § 167.3'ün beş ölçümü **buraya** yazılır — sonuç
-> beklenen çıksa bile.
+### § 167.3'ün beş ölçümü — beşi de yapıldı
+
+Hepsi `claude 2.1.269` ile, 2026-09-13'te, **izole edilmiş geçici projelerde**
+koşuldu. Her ölçüm bir **ayırt edici** kontrol koşumu taşır: tanınmayan bir
+anahtar sessizce yok sayıldığı için "hata vermedi" tek başına kanıt değildir.
+
+| # | Ölçüm | Sonuç | Beklenen miydi |
+|---|---|---|---|
+| 1 | `permissions.ask` anahtar adı | ✅ **Doğru ad.** `ask` kuralı CLI `--allowedTools`'u yendi ve yazmayı onaya düşürdü. Kontrol: `zzzBogusKey` aynı yapıda **hiçbir etki yapmadı** ve dosya yazıldı — yani anahtar gerçekten tanınıyor | Evet |
+| 2 | Alt agent frontmatter'ında `hooks` alanı | ❌ **YOK.** Aynı koşumda `settings.json` hook'u çalıştı (`kanit-settings.txt` yazıldı), agent frontmatter hook'u **hiç çalışmadı** (`kanit-agent.txt` oluşmadı) | **Hayır** — plan iki yola hazırlıklıydı, ikinci yol koştu |
+| 3 | `${CLAUDE_PROJECT_DIR}` genişliyor mu | ✅ **Genişliyor** — `settings.json` seviyesinde ölçüldü; dosya proje kökünde mutlak yolla oluştu. Agent seviyesinde ölçülemedi, çünkü 2. madde o seviyeyi ortadan kaldırdı | Evet |
+| 4 | Eşleşmeyen koşulda script hiç çalışmıyor mu | ✅ **Çalışmıyor.** `matcher: "NotebookEdit"` hook'u bir `Bash` çağrısı sırasında **hiç tetiklenmedi**. Plandaki `if:` alanı agent frontmatter kavramıydı; 2. madde onu konusuz bıraktı, ölçüm `matcher` üzerinden yapıldı | Evet |
+| 5 | `rm` "tanınan Bash dosya komutu" mu | ✅ **Öyle.** `Edit(notlar.md)` deny'ı `rm notlar.md`'yi durdurdu ve dosya hayatta kaldı. 🚨 Kontrol koşumu şarttı: kural **yokken** aynı komut dosyayı **sildi** — yani engeli kural koydu, gömülü bir "yıkıcı komut" koruması değil | Evet |
+
+### Ölçüm 2'nin doğurduğu karar — kullanıcıya soruldu
+
+Plan § 167.1 iki yol tanımlıyordu ve ölçüm 2 **ikinci yolu** seçtirdi. Ama
+ölçüm plan anında bilinmeyen bir **üçüncü** olasılık da açtı: `settings.json`
+seviyesindeki hook'un stdin payload'ı `agent_type` ve `agent_id` **taşıyor**
+(ölçülen değer: `'probe'`). Yani global bir hook gövdesinde tek bir agent'a
+daraltılabilirdi.
+
+Kullanıcının 2026-09-13 kararı iki gerekçeye dayanıyordu: (a) hook global olur
+ve ana oturumun her Bash çağrısını script'ten geçirir, (b) ayırt etme mekanizması
+ölçülmemiştir. **(b) çürüdü, (a) ayakta kaldı** ve bedeli de ölçüldü: çağrı
+başına ~20–28 ms (`python3` başlatma, 15 koşumun ortalaması).
+
+Durum kullanıcıya tarif edilerek soruldu. **Karar: script yazılmasın** — planın
+yolu aynen koşar. `scripts/denetci-yazma-kapisi.py` **yazılmadı**,
+`dokuman-bakim.py` kapısı **eklenmedi**, `dokuman_bakim_test.py`'ye vaka
+**girmedi**. Var olmayan bir şeyin varlığını denetleyen kapı kurulmadı (§ 167.4).
+`agent_type` ölçümü K-762'nin "yeniden açılma koşulu" sütununda durur.
+
+### 3. 🚨 `ask` beklendiği gibi davranmadı — koruma oturumun moduna tabi
+
+Plan `MT-GDK-030` için "Harness **onay sorar**" diyordu. Gerçek repo'da koşuldu:
+`docs/arsiv/fazlar/165-*.md` bir `Edit` ile değiştirildi ve **hiç onay
+sorulmadan yazıldı** (değişiklik hemen `git checkout --` ile geri alındı).
+
+Sebep tahmin edilmedi, **ayırt edildi**: aynı oturumda `deny` listesindeki
+`docs/YOL-HARITASI.md`'ye yazmak *"File is in a directory that is denied by your
+permission settings"* ile **sertçe** düştü. Yani kurallar canlıydı ve
+`settings.json` oturum ortasında yeniden okunmuştu; `ask` ise auto mode'un
+sınıflandırıcısına düştü ve sessizce onaylandı. İzole koşumda (onay yüzeyi yok)
+aynı kural yazmayı *"requires approval"* diyerek **reddetti**.
+
+∴ `ask` bir korkuluktur, kilit değildir. `MT-GDK-030`'un beklenen sonucu ve
+K-763 bu ölçülmüş gerçeğe göre yazıldı — planın cümlesine göre değil.
+
+### 4. `MT-GDK-027/028`'in ön koşulu yanlıştı — repo'nun gerçek uzakları var
+
+Plan "uzak hedef **yok**" diyordu. Ölçüldü: repo iki uzak taşıyor (`origin`,
+`intelera`). Gerçek bir uzağa `--force-with-lease` denemek **yapılmadı**; iki
+case de var olmayan bir uzak adıyla (`yok-boyle-bir-uzak`) koşuldu. Kanıt değeri
+aynıdır — sorulan soru harness'ın komutu çalıştırıp çalıştırmadığıdır, git'in
+ne yaptığı değil. Case metni bu ön koşulla düzeltildi.
+
+### 5. `MT-GDK-031` insan gerektirmedi — çağrı yüksek sesle düştü
+
+Plan bu case'i "👤 insan gerekir" diye işaretlemişti. Ölçüm gerekmedi: agent
+keşfi **oturum başında** olduğu için, `.claude/agents/faz-denetcisi.md` bu
+oturumda yazıldığında tip hâlâ kayıtlı değildi. `Agent` çağrısı şununla düştü:
+
+```
+Agent type 'faz-denetcisi' not found. Available agents: claude, ..., general-purpose, ...
+```
+
+Sessiz düşüş **yok** — Faz 80'in "kapı sessizce geçer" sınıfı burada
+gerçekleşmiyor. Bu, dosyanın silinmesiyle **işlevsel olarak aynı** durumdur.
+Yan bulgu: aynı sebeple `MT-GDK-026` bu oturumdan koşulamadı; repo dizininde
+**taze bir oturum** açılarak koşuldu ve gerçek `faz-denetcisi` tanımını ölçtü.
+
+### 7. 🚨 Faz dışı kusur bulundu ve kapatıldı — sayım kapısı altı aileyi atlıyordu
+
+Bu fazın kendi manuel case'leri eklendikten **sonra**
+`dokuman-bakim.py --denetle` koşuldu ve *"Manuel kabul seti sayımı: ✅ temiz"*
+dedi. Ama `00-INDEKS.md` hâlâ **25** yazıyordu, dosyada **31** case vardı.
+Kapı bu fazın kendi işi hakkında **yalan söyledi**.
+
+Sebep: `manuel_test_sayim_kaymasi()` yalnız `^### MT-<KOD>-` başlığı sayıyor ve
+başlık bulamayınca aileyi `continue` ile atlıyordu — kod yorumuyla birlikte:
+*"Tablo bicimli aileler `### MT-` basligi kullanmaz; onlar kapsam disi."*
+Hatta bunu doğrulayan bir test vardı (`test_tablo_bicimli_aile_KAPSAM_DISI`).
+
+**Ölçüldü:** indeksteki 36 ailenin **6'sı** tablo biçimli ve hiç denetlenmiyordu;
+**ikisinde gerçek sapma** birikmişti — `31-DOKUMAN-DOGRULUGU.md` **+8** (bu fazdan
+önce, başka fazlardan kalma) ve `36-GELISTIRME-KAPILARI.md` **+6** (bu fazın).
+
+`kusur-giderme` protokolü koşuldu: önce **düşen test** yazıldı
+(`test_tablo_bicimli_ailede_bayat_sayim_KIRMIZIDIR`, `1 != 0` ile kırmızı
+görüldü), sonra kapı genişletildi, sonra iki bayat sayım düzeltildi.
+**Sınıf taraması:** 36 ailenin 36'sı artık sayılıyor · atlanan **0** · indekste
+olmayan aile dosyası **0**. Regresyon case'i `MT-DKP-016` olarak yazıldı ve
+kapı K-764'e bağlandı.
+
+Bu, Faz 80'in `kirik_baglantilar` kusuruyla **aynı sınıftır**: bir kapının bir
+girdi biçimini "kapsam dışı" saymasıyla hiç denetlememesi arasında fark yoktur.
+
+### 6. `AGENTS.md`'ye dokunulmadı — DoD'nin öngördüğü gibi
+
+Ölçüldü: `AGENTS.md` 11.189 B (bütçe 12.000, %7 boş). Bu faz onu değiştirmedi.
+
+### 8. 🚨🚨 Kalan risk TEORİK DEĞİLDİ — ilk gerçek denetim koşumunda ATEŞLENDİ
+
+§ 167.1 şöyle yazıyordu: *"`Bash` aracı denetçide kalır ve Bash ile yazmak
+mümkündür."* Bu, planın kabul ettiği kalan riskti. **İlk gerçek denetim
+koşumunda gerçekleşti.**
+
+`faz-denetcisi` alt agent'ı, kapı çıktısını "diff öncesi / diff sonrası"
+karşılaştırmak için şunu çalıştırdı:
+
+```bash
+git stash && python3 scripts/dokuman-bakim.py --denetle > /tmp/pre_diff_denetle.txt
+```
+
+Sonuç: fazın **14 dosyalık işinin tamamı** çalışma ağacından silindi.
+Denetçi `git stash pop` yapmadı — denetim, denetlediği değişikliği **yok etti**.
+
+Kanıt tahmin değil, oturum kaydından okundu:
+
+```bash
+grep -o '"command":"[^"]*git stash[^"]*"' \
+  ~/.claude/projects/-Users-farukatasoy-Desktop-projects-Tracon/<oturum>/subagents/agent-*.jsonl
+```
+
+`stash` commit'inin zaman damgası (`17:46:25`) denetim oturumunun başlangıcıyla
+(`17:42`) örtüşür; `scripts/kapi.py` `git stash` **hiç çağırmaz**
+(`grep -n stash scripts/kapi.py` → yalnız bir tavsiye metni). İş
+`git stash pop` ile geri alındı, hiçbir şey kaybolmadı.
+
+**İkinci zarar:** aynı anda koşan `kapi.py kapanis` o andan sonra **temiz
+ağaca** (yani `HEAD`'e) karşı ölçüm yapıyordu. Sonucu fazı doğrulamıyordu ve
+**geçersiz sayıldı**; kapılar iş geri alındıktan sonra yeniden koşuldu.
+
+**Üç ders:**
+
+1. `tools` allowlist'i `Edit`/`Write`'ı gerçekten düşürür (`MT-GDK-026` bunu
+   kanıtladı) ama `Bash` **yazma yolunun tamamını** açık bırakır. K-762'nin
+   "korkuluktur, güvenlik sınırı değildir" cümlesi ölçülmüş bir gerçektir.
+2. Yasak **adlandırılmalıdır.** Agent gövdesi "dosya oluşturma/değiştirme"
+   diyordu; denetçi `git stash`'i bir **yazma** işlemi olarak görmedi. Gövdeye
+   ağaç değiştiren git komutları tek tek yazıldı ve neden yasak oldukları
+   ölçülen vakayla birlikte kondu.
+3. `git stash` `deny` listesine **konmadı** — `git rebase` ve `rm -rf` ile aynı
+   sınıftadır: bakımcı için meşrudur ve `deny` istisna taşıyamaz (K-761).
+   Koruma agent gövdesindedir, yani **yalnız denetçiyi** bağlar.
+
+🚨 Bu vaka bir sonraki harness turunun en güçlü girdisidir: `agent_type` ile
+daraltılmış bir `PreToolUse` hook'u (Sapma 2'de ölçüldü, kullanıcı kararıyla
+yazılmadı) tam olarak bu komutu durdururdu.
 
 ## Bu Fazda Verilen Kararlar
 
-> Kapanışta doldurulur. K-NNN numaraları burada alınır; plan numara rezerve
-> etmez. En az iki karar beklenir: `deny` korkuluğunun sınırı, ve (varsa)
-> denetçinin Bash yazımının engellenmediği.
+| Karar | Özet |
+|---|---|
+| **K-761** | `deny` bloğu bir **korkuluktur**, güvenlik sınırı değildir. `/bin/git`, `sh -c 'git …'` ve `git -C . push --force` formlarını durdurmaz |
+| **K-762** | Denetçinin **Bash ile yazması engellenmez**; `tools` allowlist'i korkuluktur. Alt agent `hooks` alanı yok; global hook kullanıcı kararıyla yazılmadı. 🚨 Risk **ilk koşumda ateşlendi** (Sapma 8): denetçi `git stash` çalıştırıp fazın işini geri aldı |
+| **K-763** | `permissions.ask` bir **kilit değildir**; oturumun izin moduna tabidir ve auto mode onu sessizce onaylayabilir |
+| **K-764** | *(faz dışı kusur)* Bir kapı bir girdi **biçimini** tanımıyorsa "kapsam dışı" demek onu **sessiz** yapar — 36 ailenin 6'sı denetlenmiyordu |
 
 ## Gerçekleşen Public API
 
-> Kapanışta doldurulur. Bu fazda **"Yok"** beklenir.
+**Yok.** Bu faz `src/` altına hiç dokunmadı. `PublicAPI.*.txt` dosyalarının
+hiçbiri değişmedi.
 
 ## Dosya Listesi (gerçekleşen)
 
-> Kapanışta doldurulur.
+```
+.claude/
+├── agents/
+│   └── faz-denetcisi.md          YENİ — beş satırlık gövde + frontmatter
+└── settings.json                 DEĞİŞTİ — deny (7 kural) + ask (1 kural)
+
+.agents/skills/
+├── faz-denetim/SKILL.md          DEĞİŞTİ — Adım 1 tipi + taşınabilirlik uyarısı
+├── faz-tamamlama/SKILL.md        DEĞİŞTİ — Adım 4'e bir not (Açık Soru 1 → B)
+└── README.md                     DEĞİŞTİ — taşınabilirlik bölümüne bir not (B)
+
+docs/
+├── 167-AGENT-ZORLAMA-KATMANI.md  DEĞİŞTİ — kapanış bölümleri
+├── KARARLAR.md                   DEĞİŞTİ — K-761 · K-762 · K-763 · K-764
+├── hafiza/dokumantasyon.md       DEĞİŞTİ — ölçülmüş harness sınırları
+└── manuel-test/
+    ├── 00-INDEKS.md              DEĞİŞTİ — iki bayat sayım (31: 24→32, 36: 25→31)
+    ├── 33-DOKUMAN-KAPILARI.md    DEĞİŞTİ — MT-DKP-016 (kusur regresyonu)
+    └── 36-GELISTIRME-KAPILARI.md DEĞİŞTİ — MT-GDK-026…031
+
+scripts/                          (faz dışı kusur — Sapma 7)
+├── dokuman-bakim.py              DEĞİŞTİ — sayım kapısı tablo biçimini de sayar
+└── dokuman_bakim_test.py         DEĞİŞTİ — 3 vaka (kırmızı/yeşil/kapsam dışı)
+```
+
+**Yazılmayanlar** (§ 167.1 ikinci yolu, kullanıcı kararı): `scripts/denetci-yazma-kapisi.py`,
+`scripts/dokuman-bakim.py` kapısı, `scripts/dokuman_bakim_test.py` vakaları.
 
 ## Süreç Ölçümü
 
-> Kapanışta doldurulur. Sayılar **toplanabilir** olmalıdır; anlatı değil.
-> `ölçülmedi` geçerli bir değerdir — boş bırakmak değildir.
->
-> 🚨 Bu bölüm Faz 169'da `dokuman-bakim.py --denetle` kapısına bağlanacak ve
-> eşik **167**'dir (kullanıcı kararı 2026-09-13). Bölüm adı bilerek kesme
-> işareti taşımaz: `_FAZ_KAL` eşleşmesi tek varyantla çalışsın diye.
-
 | Metrik | Değer |
 |---|---|
-| Plan revizyonu sayısı | |
-| Düzeltme turu sayısı | |
-| 🔴 bulgu: gerçek / gürültü / araştırılacak | |
-| Fazın ürettiği regresyon | |
-| Faz kapandıktan sonra bulunan kusur | |
+| Plan revizyonu sayısı | 4 (ölçüm 2 → karar çatalı · `ask` davranışı · `MT-GDK-027/028` ön koşulu · `MT-GDK-031` insan gerekliliği) |
+| Düzeltme turu sayısı | 0 — kapılar ilk koşumda yeşil geldi |
+| 🔴 bulgu: gerçek / gürültü / araştırılacak | 0 / 0 / 0 |
+| Fazın ürettiği regresyon | 0 (denetçinin `git stash`'i işi geri aldı; `stash pop` ile tam kurtarıldı, kayıp yok) |
+| Faz dışı bulunan ve kapatılan kusur | 1 (sayım kapısı altı aileyi atlıyordu; ikisinde gerçek sapma) |
+| Faz kapandıktan sonra bulunan kusur | ölçülmedi (faz henüz kapanıyor) |
+
+Ek sayılar: kullanıcıya sorulan soru **1** · izole harness ölçüm koşumu **11** ·
+gerçek repo'da koşulan manuel case **5** (`026` taze oturumda, `027`–`031`
+doğrudan) · araç kümesinden düşen yazma aracı **3** (`Edit`, `Write`,
+`NotebookEdit`).
 
 ## Denetim Bulguları
 
-> Kapanışta doldurulur — `faz-denetim` çıktısı. Her satır: bulgu · seviye
-> (🔴/🟡/🟢) · sonuç. Bulgu yoksa "🔴 ve 🟡 yok" yazılır; boş bırakılmaz.
+> `faz-denetim` skill'i, taze bağlamlı bir `faz-denetcisi` alt agent'ı ile
+> çalışma ağacına karşı koştu — 🚨 **bu fazın kendi çıktısıyla**, yani fazın
+> ürettiği agent tipiyle.
+
+DENETIM_YER_TUTUCU
 
 ## Sonraki Faza Devir Notu
 
-> Kapanışta doldurulur. Faz 168 (`F-228` — kurtarma rampası kataloğu) için
-> **zorunlu** olarak şunu taşır: `KR-11` (güvenli geri alma) rampası bu fazın
-> `git reset --hard` yasağının **var olduğunu** varsayar. Yasak konmadıysa
-> `KR-11`'in metni değişir.
+**Faz 168 (`F-228` — kurtarma rampası kataloğu) için zorunlu:**
+
+- 🚨 `KR-11` (güvenli geri alma) rampası bu fazın `git reset --hard` yasağının
+  **var olduğunu** varsayabilir: yasak **kondu** ve `.claude/settings.json`
+  `deny` listesindedir. Ama rampa metni **K-761'i tekrarlamalıdır** — yasak
+  `/bin/git`, `sh -c 'git …'` ve `git -C . reset --hard` formlarını durdurmaz.
+  Rampa "harness beni durdurur" diye yazılırsa yanlış güven üretir.
+- `git rebase`, `rm -rf` ve `git clean -fd` **bilinçli olarak kapsam dışıdır**
+  (Açık Soru 2 → A). Faz 168 bir kurtarma rampasında bunlara dayanabilir;
+  hiçbiri `deny` listesinde değildir.
+- Damıtılmış faz kayıtlarına (`docs/arsiv/fazlar/*.md`) yazmak `ask` kuralına
+  takılır. **K-763: bu bir kilit değildir** — auto mode'da sessizce geçebilir.
+  Faz 169'un "üretime kaçan kusur" satırı bu yüzden engellenmez.
+
+**Faz 169 (`F-229` — faz planı sözleşmesi) için:**
+
+- `## Süreç Ölçümü` bölümü bu fazda dolduruldu ve başlığı **kesme işareti
+  taşımıyor** (`_FAZ_KAL` tek varyantla eşleşsin diye). Eşik **167**'dir.
+- `.claude/agents/` artık var ve **yalnız bir tanım** taşıyor (Açık Soru 3 → A,
+  YAGNI). İkinci bir tanım gerektiğinde onu ekleyen faz ekler.

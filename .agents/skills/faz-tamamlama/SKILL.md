@@ -193,6 +193,11 @@ taze bağlamlı bir denetçi yalnız DoD + `git diff` okur ve üç seviyede bulg
 🟡 bulgular ya kapanır ya gerekçesi faz dokümanına yazılır. 🟢 bulgular
 `docs/ADAYLAR.md`'ye F-NN olarak gider.
 
+> Claude Code'da denetçi `faz-denetcisi` tipiyle çağrılır ve yazma araçları
+> araç kümesinde **yoktur**. Alt agent tipi olmayan bir ortamda denetim ayrı
+> bir sohbette koşar ve salt-okunurluk **oradan gelmez** — o ortamda kuralı
+> yalnız `faz-denetim` metni korur (Faz 167).
+
 ---
 
 ## Adım 5 — Faz dokümanını gerçekleşenle hizala

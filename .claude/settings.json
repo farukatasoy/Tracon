@@ -34,6 +34,18 @@
       "Bash(npm run test:*)",
       "Bash(npm ci:*)",
       "Bash(docker ps:*)"
+    ],
+    "deny": [
+      "Bash(git push --force *)",
+      "Bash(git push -f *)",
+      "Bash(git reset --hard *)",
+      "Edit(docs/YOL-HARITASI.md)",
+      "Edit(docs/KARARLAR-INDEKS.md)",
+      "Edit(docs/arsiv/KARARLAR-INDEKS-ARSIV.md)",
+      "Edit(docs/arsiv/KARARLAR-INDEKS-REDDEDILEN.md)"
+    ],
+    "ask": [
+      "Edit(docs/arsiv/fazlar/*.md)"
     ]
   }
 }

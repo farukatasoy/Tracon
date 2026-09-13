@@ -1,6 +1,6 @@
 # 31 — Tüketici Dokümanının Doğruluğu (`DDG`)
 
-> **Alan kodu:** `DDG` · **Faz:** 75
+> **Alan kodu:** `DDG` · **Faz:** 75, 79, 104
 > **Kaynak:** `tests/Tracon.Core.UnitTests/Architecture/ShippedDocumentationSelfContainmentTests.cs` ·
 > `docs-site/scripts/check-content.mjs` · `docs-site/scripts/build-agent-map.mjs` ·
 > `docs-site/scripts/{build-api-reference,build-http-api}.mjs` ·
