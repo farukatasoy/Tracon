@@ -35,10 +35,16 @@
    **K-413** — üretilen dosya disiplini; bu fazın kapısı aynı aileye girer.
 5. Alan hafızası: [`hafiza/dokumantasyon.md`](hafiza/dokumantasyon.md) — kapı
    kalıbı, damıtma davranışı ve `_FAZ_KAL` burada yaşar.
-6. Önceki fazın devir notu — `KR-05`'in **tam adresi** oradadır:
+6. Önceki fazın devir notu — Faz 168 **kapandı ve arşivlendi**:
    ```bash
-   awk '/## Sonraki Faza Devir Notu/,0' docs/168-KURTARMA-RAMPASI-KATALOGU.md
+   awk '/## Sonraki Faza Devir Notu/,0' docs/arsiv/fazlar/168-KURTARMA-RAMPASI-KATALOGU.md
    ```
+   🚨 **`KR-05`'in tam adresi** (devir notundan, burada tekrarlanıyor ki
+   triyajın üçüncü kanalı adressiz kalmasın): dosya
+   [`.agents/ortak/kurtarma.md`](../.agents/ortak/kurtarma.md), bölüm
+   `## \`KR-05\` — araştırılacak bulgu`. Çapa yazacaksan **hedefin slug'ını
+   üret ve karşılaştır** — Faz 168'de elle yazılan bir çapa `İ`'nin görünmez
+   `U+0307`'si yüzünden ölü çıktı ve denetim onu 🔴 olarak yakaladı.
 
 ---
 
