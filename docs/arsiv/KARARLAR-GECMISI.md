@@ -5152,3 +5152,53 @@ Limit sağlayıcı çağrısından sonra kontrol edilseydi, reddedilen her istek
 
 İki elle yazılmış kopya bu ihlali bekleyen bir kusurdur — metinler zamanla ayrışır ve kimse fark etmez. Kapılar (kiracı sahipliği · `IRunAuthorizationGate` · `SessionOwnershipGate`) ve tek 404 yazarı bu yüzden `VoiceConversationEndpoint`'ten ortak bir `VoiceEndpointGates` sınıfına çıkarıldı; konuşma ucu ve canlı uçlar aynı yardımcıyı çağırır. 🚨 Kimlik katmanı ORTAK DEĞİLDİR: konuşma ucu token'ı `Sec-WebSocket-Protocol` alt protokolünde okur çünkü tarayıcı bir el sıkışmaya `Authorization` başlığı **ekleyemez** (K-224); canlı uçlar düz HTTP'dir ve sıradan bearer katmanını kullanır. O muafiyet el sıkışmaya özgüdür ve ödünç alınmaz. `RunAuthorizationCoverageTests` beklenti haritası yeni dosyaya taşındı — gevşetilmedi.
 
+## Faz 90 damıtmasında taşınan gerekçeler
+
+### K-753
+
+Yol taşınınca pin'lenen commit yeni yolu içermez ve kapı, dosyanın içeriğine hiç dokunulmasa bile kırmızı olur (ölçüldü 2026-09-12: 125 ihlal, hepsi `dosyayı içermiyor`). Pin'i kendi commit'ine göstermek **imkânsızdır** — hash ancak commit oluşunca doğar, manifest'i güncellemek hash'i değiştirir. Bu yüzden: birinci commit yeniden adlandırmanın tamamı, ikinci commit yalnız manifest — `baselineCommit` birinci commit'in hash'i olur, `sourceCommits` **boşaltılır**. Boşaltmak zorunludur, tercih değil: `baselineCommit` listelenmeyen her dosyanın geri düşüşüdür, ve eski anahtarlar kalırsa `sourceCommits içinde var ama migration dosyası yok` ihlalleri eklenir.
+
+### K-754
+
+Büyük/küçük duyarsız kalıntı denetimi — bu fazın en güçlü aracı, camelCase varyantını da o buldu — bir **kısaltmayı yapısal olarak göremez**; bulguyu bağımsız denetim çıkardı. Değişim bugün bedavaydı: `AnalyzerReleases.Shipped.md` **boştu**, yani hiçbir tüketicinin `.editorconfig`/`NoWarn` satırı kırılmadı. Yayından sonra aynı iş her tüketicinin bastırma satırını kırar ve deprecation ister. 592 yer / 62 dosya.
+
+### K-755
+
+Kişisel hesap `farukatasoy` ile `Tracon` ön eki arasında görünür bağ yoktur; organizasyon bunu yapısal olarak çözer. İkinci fayda: sahiplik devri paket başına elle yapılmak yerine organizasyon üyeliğiyle yönetilir (RK-012'nin tek-bakımcı riski azalır). Sonuç: trusted publishing policy'sinin SAHİBİ de organizasyon olmalıdır — bir policy yalnız kendi sahibinin paketlerine uygulanır — ve `NuGet/login` action'ının `user:` girdisi organizasyonun profil adıdır.
+
+### K-756
+
+Ölçüldü: uyarı tam 376 B, ağırlığın neredeyse tamamı Starlight'ın ikon ve sarmalayıcı markup'ı — metni kısaltmak yalnız 95 B kazandırıyor. `site.css`'te ölü kural kalmamıştır (dört aday da canlı; `pagefind-ui` çalışma anında). Uyarıyı düşürmek 56 991 B veriyordu: tavanın 9 B altı, yani pay değil.
+
+### K-757
+
+Varsayılanı `prefers-color-scheme` ile kurmak **imkânsızdır**: medya özelliğinin `no-preference` değeri modern tarayıcıdan kalktı, dolayısıyla seçim yapmamış her makine `light` bildirir — "sistemi izle"yi varsayılan yapmak açık temayı varsayılan yapmaktır. Gerçek tarayıcıda ölçüldü: `ColorScheme.NoPreference` ile açılan Playwright bağlamı `light` verdi. Bu yüzden `readThemePreference()` hiçbir şey saklanmamışken `'system'` değil **`'dark'`** döner. Ayarlar'daki "sistemi izle" seçeneği korunur ve seçildiğinde eskisi gibi davranır; yalnız başlangıç noktası taşındı. Kapı: `Console_opens_dark_and_still_follows_the_system_when_asked_to`.
+
+### K-758
+
+Karşılığında tüketicinin bağımlılık grafiği değişmedi. Bu tercih ancak zorlanırsa kalıcıdır: 250 KB gzip tavanı tek başına yetmez — 6 KB'lik bir headless kitaplık tavanın rahatça altında kalır ve yine her tüketicinin grafiğine girer. `postbuild.mjs` artık `package.json`'ın `dependencies` kümesini dört isimle (`@tanstack/react-query`, `@tracon/client`, `react`, `react-dom`) karşılaştırır ve farkta derlemeyi kırar. Ölçüldü: enstrüman katmanının tamamı 4,1 KB gzip ekledi (180,0 → 184,1 KB).
+
+### K-759
+
+`!caller.IsCancellationRequested` filtresi bu iddiayı kanıtlamaz — sağlayıcının kendi istek zaman aşımı da o filtreden geçer. Ölçüldü: `ChildAgentInvoker` 30 sn'lik `ChildDeadline` için 17 ms'de *"did not respond in time (limit: 00:00:30)"* döndü ve bir sağlayıcı kesintisini `ChildRunTimedOut` metriğine yazdı. Kural: kendi `CancellationTokenSource`'unu tutan her `catch`, filtresinde o kaynağı (`source.IsCancellationRequested`) sınar; sınayamıyorsa sebebi SÖYLEMEZ. Üç yerde uygulandı (`ChildAgentInvoker` ×2 · `ToolApprovalPresenterRunner` · `EvalCommand` ×2 + `HealthCommand`).
+
+### K-760
+
+`tracon eval --timeout` varsayılanı **30 dakikadır**: belgelenen bütçe altındaki transport tavanını hiçbir zaman geçemiyordu ve tavan dolduğunda CLI *"Timed out after 1800 s"* yazıyordu. Ölçüldü (`TraconClientTimeoutTests`, yanıt vermeyen bir `TcpListener`'a karşı): düzeltmeden önce **100,03 sn**, sonra **0,57 sn**. Alan additive'dir ve `null` bırakıldığında davranış değişmez; `Timeout.InfiniteTimeSpan` çağıranın iptal token'ını tek otorite yapar. Sıfır veya negatif değer `ArgumentException` atar.
+
+### K-761
+
+**Kural `/bin/git`, `sh -c 'git …'` ve `git -C . push --force` formlarını durdurmaz** — desen eşleşmesi komut dizgesi üzerindedir. Ölçüldü (2026-09-13, `claude 2.1.269`): `deny` CLI `--allowedTools`'u da yener ve workspace-trust'a **tabi değildir** (`allow` tabidir: *"Ignoring 1 permissions.allow entry … not been trusted"*); `Edit(<yol>)` deny'ı `Edit` + `Write`'ı **ve** `rm <yol>` Bash komutunu kapsar (kontrol koşumu: kural yokken `rm` dosyayı sildi, kural varken silmedi); `git push --force *` sondaki boşluk sayesinde `--force-with-lease`'i **yakalamaz** (ikisi de gerçekten koşuldu, `MT-GDK-027/028`). Üreteç kilitlenmez: `dokuman-bakim.py` Python ile yazar, `Edit` aracıyla değil (`MT-GDK-029` — dört dosyanın `mtime`'ı ilerledi).
+
+### K-762
+
+`Bash` kanıt toplamak için **kalır** ve Bash ile yazmak mümkündür — `MT-GDK-026`'da denetçi `Write`/`Edit` için "ARAC YOK" dedi, `echo >` yönlendirmesi ise **yazdı** (dosya denetçinin kendi `scratchpad` dizinine düştü, repo'ya değil). 🚨 Alt agent frontmatter'ı `hooks` alanını **desteklemiyor** (ölçüldü: agent hook'u hiç çalışmadı, aynı koşumdaki `settings.json` hook'u çalıştı). Bir `PreToolUse` hook'u yalnız **global** kaydedilebilir ve ana oturumun her Bash çağrısını script'ten geçirirdi (ölçülen bedel: çağrı başına ~20–28 ms). Kullanıcı kararı: **script yazılmaz**, risk belgelenir. 🚨 **Risk ilk gerçek denetim koşumunda ATEŞLENDİ** (2026-09-13): denetçi kapı çıktısını karşılaştırmak için `git stash && python3 scripts/dokuman-bakim.py --denetle` çalıştırdı, `pop` yapmadı ve fazın **14 dosyalık işini** çalışma ağacından sildi; aynı anda koşan `kapi.py kapanis` o andan sonra `HEAD`'e karşı ölçtüğü için **geçersiz** oldu. İş `git stash pop` ile tam kurtarıldı. Kanıt oturum kaydından okundu (`subagents/agent-*.jsonl` içinde `git stash`), tahmin edilmedi — `scripts/kapi.py` `git stash` hiç çağırmaz. Düzeltme: ağaç değiştiren git komutları (`git stash` · `checkout --` · `restore` · `reset` · `clean`) agent gövdesinde **tek tek adlandırıldı**; "dosya değiştirme" demek yetmiyordu çünkü denetçi `git stash`'i bir yazma işlemi saymadı. `deny` listesine konmadı: bakımcı için meşrudur ve `deny` istisna taşıyamaz (K-761).
+
+### K-763
+
+`ask` anahtar adı ölçüldü ve doğrulandı — ayırt edici koşum: tanınmayan bir anahtar (`zzzBogusKey`) sessizce **yok sayılıyor**, `ask` ise CLI `--allowedTools`'u **yeniyor**. 🚨 Ama koruma garanti değildir: onay yüzeyi olmayan bir oturumda yazma reddedilir (*"requires approval"*), **auto mode'da sınıflandırıcı sessizce onaylar ve yazma geçer** — 2026-09-13'te bu repoda gerçekten koşuldu (`MT-GDK-030`). Aynı oturumda `deny` kuralı aynı işlemi **sertçe** durdurdu; fark ölçülmüştür, varsayılmamıştır.
+
+### K-764
+
+Ölçüldü (2026-09-13): indeksteki **36 ailenin 6'sı** hiç denetlenmiyordu ve **ikisinde gerçek sapma birikmişti** — `31-DOKUMAN-DOGRULUGU.md` **+8**, `36-GELISTIRME-KAPILARI.md` **+6**. Kapı her koşumda ✅ yazıyordu. Bu, kapının kendi docstring'inin *"kapisiz bir sinif"* dediği şeyin tam olarak altısında sürmesidir ve Faz 80'in `kirik_baglantilar` kusuruyla **aynı sınıftır**. Düzeltme: başlık sayımı 0 ise tablo satırı (`\| n \| \`MT-KOD-nnn\` \|`) sayılır; yalnız **hiçbir biçimde** case taşımayan dosya kapsam dışı kalır. Sınıf taraması: 36 ailenin 36'sı artık sayılıyor, atlanan **0**, indekste olmayan aile dosyası **0**.
+
