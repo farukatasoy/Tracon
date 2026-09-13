@@ -1281,7 +1281,7 @@ diye yanlış yöne gönderir; sorun onun eklediği bir şey değildir.
 
 **F-225 → [Faz 166 — HTTP Kapasite Ölçümü](../166-HTTP-KAPASITE-OLCUMU.md)** (2026-09-13): kullanıcı isteğiyle doğrudan plana dönüştü; kapsam ve kanıt faz dokümanındadır.
 
-**F-227 · F-228 · F-229 → [Faz 167](fazlar/167-AGENT-ZORLAMA-KATMANI.md) · [168](fazlar/168-KURTARMA-RAMPASI-KATALOGU.md) · [169](../169-FAZ-PLANI-SOZLESMESI.md)** (2026-09-13, yedinci planlama turu): üçü de **geliştirme aparatıdır** — ürün yüzeyine dokunmaz; emsali Faz 90 · 91 · 92 · 93. Kaynak: [`kesif/2026-09-13-anew-karsilastirmasi.md`](../kesif/2026-09-13-anew-karsilastirmasi.md). Sıra **bağlayıcıdır**: 169 → `KR-05` üzerinden 168'e, 168 → `git reset --hard` yasağı üzerinden 167'ye bağlıdır. Kapsam ve kanıt faz dokümanlarındadır.
+**F-227 · F-228 · F-229 → [Faz 167](fazlar/167-AGENT-ZORLAMA-KATMANI.md) · [168](fazlar/168-KURTARMA-RAMPASI-KATALOGU.md) · [169](fazlar/169-FAZ-PLANI-SOZLESMESI.md)** (2026-09-13, yedinci planlama turu): üçü de **geliştirme aparatıdır** — ürün yüzeyine dokunmaz; emsali Faz 90 · 91 · 92 · 93. Kaynak: [`kesif/2026-09-13-anew-karsilastirmasi.md`](../kesif/2026-09-13-anew-karsilastirmasi.md). Sıra **bağlayıcıdır**: 169 → `KR-05` üzerinden 168'e, 168 → `git reset --hard` yasağı üzerinden 167'ye bağlıdır. Kapsam ve kanıt faz dokümanlarındadır.
 
 Planlama sırasında ölçümle **düzelen üç kayıt** (aday metinleri şöyle diyordu):
 

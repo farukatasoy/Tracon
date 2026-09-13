@@ -1,13 +1,13 @@
 # Faz 169 — Faz Planı Sözleşmesi: Süreç Ölçümü ve Triyaj
 
 > **Durum:** ✅ Tamamlandı (2026-09-13)
-> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-229** (keşif: [`kesif/2026-09-13-anew-karsilastirmasi.md`](kesif/2026-09-13-anew-karsilastirmasi.md) § 6 A4 · A6, § 9 H4 · H5)
-> **Önkoşul:** 🚨 [Faz 168](arsiv/fazlar/168-KURTARMA-RAMPASI-KATALOGU.md) — triyajın "araştırılacak" sonucu `KR-05`'e gider. `KR-05` yoksa o sonucun **gideceği yer yoktur**. Ayrıca [Faz 167](arsiv/fazlar/167-AGENT-ZORLAMA-KATMANI.md) — `arsiv/fazlar/` için `ask` kuralı (bkz. Riskler)
+> **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-229** (keşif: [`kesif/2026-09-13-anew-karsilastirmasi.md`](../../kesif/2026-09-13-anew-karsilastirmasi.md) § 6 A4 · A6, § 9 H4 · H5)
+> **Önkoşul:** 🚨 [Faz 168](168-KURTARMA-RAMPASI-KATALOGU.md) — triyajın "araştırılacak" sonucu `KR-05`'e gider. `KR-05` yoksa o sonucun **gideceği yer yoktur**. Ayrıca [Faz 167](167-AGENT-ZORLAMA-KATMANI.md) — `arsiv/fazlar/` için `ask` kuralı (bkz. Riskler)
 > **Paketler:** Yok. Bu faz `src/` altına **hiç dokunmaz**
 > **Yeni paket:** Yok · **Migration:** Yok
 > **Public API:** Büyümüyor
 > **Tüketici yüzeyi:** Yok — `docs-site/` sayfası yok, sevk edilen yapıt yok
-> **Manuel test alanı:** [`docs/manuel-test/36-GELISTIRME-KAPILARI.md`](manuel-test/36-GELISTIRME-KAPILARI.md) — Faz 168'in bıraktığı numaradan devam eder
+> **Manuel test alanı:** [`docs/manuel-test/36-GELISTIRME-KAPILARI.md`](../../manuel-test/36-GELISTIRME-KAPILARI.md) — Faz 168'in bıraktığı numaradan devam eder
 
 ---
 
@@ -33,7 +33,7 @@
    grep -n "K-413" docs/KARARLAR.md
    ```
    **K-413** — üretilen dosya disiplini; bu fazın kapısı aynı aileye girer.
-5. Alan hafızası: [`hafiza/dokumantasyon.md`](hafiza/dokumantasyon.md) — kapı
+5. Alan hafızası: [`hafiza/dokumantasyon.md`](../../hafiza/dokumantasyon.md) — kapı
    kalıbı, damıtma davranışı ve `_FAZ_KAL` burada yaşar.
 6. Önceki fazın devir notu — Faz 168 **kapandı ve arşivlendi**:
    ```bash
@@ -41,7 +41,7 @@
    ```
    🚨 **`KR-05`'in tam adresi** (devir notundan, burada tekrarlanıyor ki
    triyajın üçüncü kanalı adressiz kalmasın): dosya
-   [`.agents/ortak/kurtarma.md`](../.agents/ortak/kurtarma.md), bölüm
+   [`.agents/ortak/kurtarma.md`](../../../.agents/ortak/kurtarma.md), bölüm
    `## \`KR-05\` — araştırılacak bulgu`. Çapa yazacaksan **hedefin slug'ını
    üret ve karşılaştır** — Faz 168'de elle yazılan bir çapa `İ`'nin görünmez
    `U+0307`'si yüzünden ölü çıktı ve denetim onu 🔴 olarak yakaladı.
@@ -417,7 +417,7 @@ alakasız bug/defect'lerle karşılaşırsan onları da çöz"*). Ayrıntı aşa
 **5. `docs/hafiza/dokumantasyon.md` bütçeyi aştı ve İKİYE BÖLÜNDÜ.** Faz dışı
 kusurun notu eklenince 16.702 B > 16.000 B. Kural içeriği silmez, taşır:
 karar defteri bakımı, karar indeksi üretimi ve faz arşivleme bölümleri yeni
-[`hafiza/defter-bakimi.md`](hafiza/defter-bakimi.md) dosyasına gitti
+[`hafiza/defter-bakimi.md`](../../hafiza/defter-bakimi.md) dosyasına gitti
 (12.645 B + 4.691 B, ikisi de bütçede ve DAR değil). İki dosya birbirine
 başlıktan yollar; `00-INDEKS.md` satırı eklendi.
 
@@ -458,7 +458,7 @@ başlığı kapatan `**`den sonraki kuyruğun **boşlukla başlamamasıdır** �
 kuyruklar (`**(Faz 168)**`, `*(kullanıcı kararı)*`, `🚨`) her zaman boşlukla
 başlar. Kapı mutation ile kırmızı görüldü; düzeltmeden önce iki gerçek bulgu
 bastı, düzeltmeden sonra temiz. Ders
-[`hafiza/defter-bakimi.md`](hafiza/defter-bakimi.md) içine yazıldı.
+[`hafiza/defter-bakimi.md`](../../hafiza/defter-bakimi.md) içine yazıldı.
 
 Bu bir bulgu **kapısı değildir** — mevcut "Karar defteri" kapısının içine
 girdi, bu yüzden `--denetle`'nin kapı sayısı **14**'te kalır.
@@ -597,8 +597,8 @@ Bu, üç fazlık turun **son** fazıdır. Üçünün birlikte bıraktığı söz
 
 | Sözleşme | Nerede yaşar | Faz |
 |---|---|---|
-| Denetçi tipi — salt-okunur, yazma araçları araç kümesinde yok | [`.claude/agents/faz-denetcisi.md`](../.claude/agents/faz-denetcisi.md) | 167 |
-| `KR-01…12` kurtarma rampaları — gövde **tek yerde**, katalog bağlar | [`.agents/ortak/kurtarma.md`](../.agents/ortak/kurtarma.md) | 168 |
+| Denetçi tipi — salt-okunur, yazma araçları araç kümesinde yok | [`.claude/agents/faz-denetcisi.md`](../../../.claude/agents/faz-denetcisi.md) | 167 |
+| `KR-01…12` kurtarma rampaları — gövde **tek yerde**, katalog bağlar | [`.agents/ortak/kurtarma.md`](../../../.agents/ortak/kurtarma.md) | 168 |
 | `## Süreç Ölçümü` — eşik **167**, kapı `surec_olcumu_bulgulari()` | `faz-plani-sablonu.md` + `dokuman-bakim.py` | 169 |
 | 🔴 triyajı **kullanıcıya** aittir (5.1), kapatma uygulayana (5.2) | `faz-denetim/SKILL.md` | 169 |
 
