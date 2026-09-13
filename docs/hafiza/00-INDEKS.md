@@ -57,5 +57,6 @@
 | MCP Tasks uzantısı (`ModelContextProtocol.Extensions.Tasks`) | [mcp-tasks](mcp-tasks.md) |
 | Marka hikayesi, metafor, ses ve tonu; kullanıcıya dönük metin | [marka](marka.md) |
 | Sevk edilen doküman metni, metin kapısı yazımı, ekran görüntüsü | [dokumantasyon](dokumantasyon.md) |
+| Karar defteri bakımı, karar indeksi üretimi, faz arşivleme | [defter-bakimi](defter-bakimi.md) |
 | Site üretim betikleri (`build-agent-map.mjs`, `docfx`) ve kapıları | [site-uretim-kapilari](site-uretim-kapilari.md) |
 | Site yayını (`site-deploy.sh`), Starlight teması | [site-yayin-ve-tema](site-yayin-ve-tema.md) |

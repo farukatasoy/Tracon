@@ -171,7 +171,12 @@ Dosya adı: `docs/NN-BUYUK-HARFLI-AD.md` — Türkçe, tire ile ayrılmış, kı
 | Bölüm | Kim doldurur |
 |---|---|
 | Başlık · Bu Faza Başlarken · Amaç · Tasarım · Planlanan Public API · Planlanan Dosya Listesi · Hata Modları ve Testler · Manuel Kabul Case'leri · DoD · Riskler · Açık Sorular | **Bu skill** (plan anı) |
-| Plandan Sapmalar · Bu Fazda Verilen Kararlar · Gerçekleşen Public API · Dosya Listesi (gerçekleşen) · Denetim Bulguları · Sonraki Faza Devir Notu | **`faz-tamamlama`** (kapanış anı) |
+| Plandan Sapmalar · Bu Fazda Verilen Kararlar · Gerçekleşen Public API · Dosya Listesi (gerçekleşen) · **Süreç Ölçümü** · Denetim Bulguları · Sonraki Faza Devir Notu | **`faz-tamamlama`** (kapanış anı) |
+
+🚨 `Süreç Ölçümü` bir **tablodur**, onay kutusu değil, ve beş satırı da
+şablondan **birebir** kopyalanır: `--denetle` 14. kapısı (eşik 167) etiketleri
+adıyla arar. Satırı eksik ya da değer hücresi boş bırakılan bir faz kapanışta
+kırmızı döner.
 
 İkinci gruptaki başlıkları **boş yer tutucu olarak** bırak. Kapanışta
 doldurulacaklarını yazan bir satır koy. Böylece kapanış adımı unutulmaz.

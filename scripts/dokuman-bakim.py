@@ -327,6 +327,21 @@ def _kural_eslesmesi(degisen: list[str]) -> list[tuple[str, tuple[str, ...], str
     return sonuc
 
 
+def _karar_basligi(satir: str) -> tuple[str, str] | None:
+    """`| **Başlık** kuyruk…` -> (başlık, kapanıştan sonraki HAM kuyruk).
+
+    🚨 KOD PARÇASI içindeki `**` bir VURGU DEĞİLDİR. Desen tembeldir ve ham
+    satırda çalıştırılırsa başlığın içindeki ilk `**` başlığı orada bitirir:
+    ölçüldü (Faz 169), K-413 indekste `… kaynak her fazın kendi \\`>` diye,
+    K-523 `… \\`docs/` diye bitiyordu ve iki kalem de aranamaz haldeydi.
+    Başlık konumu SOYULMUŞ satırdan, metin ORİJİNALİNDEN alınır —
+    `_kod_bloklarini_soy` uzunluğu KORUR, indeksler birebir hizalıdır."""
+    m = re.match(r"\|\s*\*\*(.+?)\*\*", _kod_bloklarini_soy(satir))
+    if not m:
+        return None
+    return satir[m.start(1):m.end(1)], satir[m.end(0):]
+
+
 def _kararlar_kalemleri() -> tuple[list, list]:
     kaynak = (ROOT / "docs" / "KARARLAR.md").read_text(encoding="utf-8")
     satirlar = kaynak.split("\n")
@@ -335,12 +350,16 @@ def _kararlar_kalemleri() -> tuple[list, list]:
     for no, s in enumerate(satirlar, 1):
         if not s.startswith("| **"):
             continue
-        m = re.match(r"\|\s*\*\*(.+?)\*\*(.*?)\|\s*(\d{4}-\d{2}-\d{2})\s*\|", s)
-        if m:
-            baslik, kuyruk, tarih = m.group(1), m.group(2), m.group(3)
+        bolunme = _karar_basligi(s)
+        if bolunme is None:
+            baslik, kuyruk, tarih = s[:70], "", "?"
         else:
-            m2 = re.match(r"\|\s*\*\*(.+?)\*\*", s)
-            baslik, kuyruk, tarih = (m2.group(1) if m2 else s[:70]), "", "?"
+            baslik, ham_kuyruk = bolunme
+            # Kuyruk TARIH HUCRESINDE biter: 👤 isareti yalnız BASLIK ve
+            # isaretcilerde aranir, gerekcede degil (gerekce ifadeyi
+            # ALINTILAYABILIR ve her kalem yanlis 👤 alirdi).
+            t = re.match(r"(.*?)\|\s*(\d{4}-\d{2}-\d{2})\s*\|", ham_kuyruk, re.S)
+            kuyruk, tarih = (t.group(1), t.group(2)) if t else (ham_kuyruk, "?")
         isaret = ""
         if "kullanıcı kararı" in baslik + kuyruk:
             isaret += "👤"
@@ -377,7 +396,37 @@ def _kararlar_tablosu() -> tuple[int, list[tuple[int, str]]]:
     return ayirac + 1, govde
 
 
-def kararlar_denetle() -> tuple[int, list[str]]:
+def _kesik_karar_basliklari(govde: list[tuple[int, str]]) -> list[str]:
+    """Basligin ICINDE `**` varsa indeks satiri SESSIZCE kesilir.
+
+    `_kararlar_kalemleri()` basligi TEMBEL bir `\\*\\*(.+?)\\*\\*` ile okur: ic ice
+    bir `**` basligi orada bitirir ve uretilen indeks satiri cumlenin
+    yarisinda kalir. Olculdu (Faz 169): K-413 indekste `... kaynak her fazin
+    kendi \\`>` diye, K-523 `... \\`docs/` diye bitiyordu ve kalem aranamaz
+    haldeydi -- `--denetle` yesildi, hicbir kapi gormedi. Bu, sinifin ucuncu
+    vakasiydi (ilki bu fazin kendi K-767'si); ucuncude yazi yetmez, kapi
+    gerekir (`kusur-giderme` Adim 6).
+
+    IMZA: basligi kapatan `**`den sonraki kuyruk BOSLUK ile baslamiyorsa ilk
+    `**` basligin icindeydi. Mesru kuyruklar (`**(Faz 168)**`,
+    `*(kullanici karari)*`, `🚨`) her zaman bosluk ile baslar."""
+    bulgular: list[str] = []
+    for no, satir in govde:
+        if not satir.startswith("| **"):
+            continue
+        bolunme = _karar_basligi(satir)
+        if bolunme is None:
+            continue
+        baslik, kuyruk = bolunme
+        if kuyruk and not kuyruk[0].isspace():
+            num = baslik.split("—")[0].strip()
+            bulgular.append(
+                f"KARARLAR.md:{no} {num} başlığı İÇ İÇE `**` yüzünden KESİLİYOR — "
+                f"indeks satırı `{baslik[-30:]}` ile bitiyor; iç vurguyu kod parçası yap")
+    return bulgular
+
+
+def kararlar_denetle(kok: pathlib.Path = ROOT) -> tuple[int, list[str]]:
     """§2 karar tablosunun YAPISAL bütünlüğü: yinelenen numara · tabloyu kesen
     boş satır · sıra dışı numara.
 
@@ -412,6 +461,15 @@ def kararlar_denetle() -> tuple[int, list[str]]:
     for (a, _), (b, no) in zip(numaralar, numaralar[1:]):
         if b < a:
             bulgular.append(f"KARARLAR.md:{no} K-{b} sıra dışı — önceki K-{a}")
+
+    # 🚨 Kesik baslik taramasi §2 ile SINIRLI DEGILDIR: uretec
+    # (`_kararlar_kalemleri`) dosyanin TAMAMINDAKI her `| **` satirini indekse
+    # cevirir -- reddedilen kararlar tablosu dahil. Kapi ureteci ile AYNI
+    # satir kumesine bakmazsa reddedilen bir kalemin kesik basligi hic
+    # gorunmez (Faz 169 denetimi, 🟡 3).
+    tum_satirlar = list(enumerate(
+        (kok / "docs" / "KARARLAR.md").read_text(encoding="utf-8").split("\n"), 1))
+    bulgular.extend(_kesik_karar_basliklari(tum_satirlar))
 
     return len(numaralar), bulgular
 
@@ -669,6 +727,101 @@ def tamamlanmis_faz_isaretsiz_kutular(kok: pathlib.Path = ROOT) -> list[str]:
             if re.match(r"^\s*- \[ \]", line):
                 bulgular.append(
                     f"{path.relative_to(kok).as_posix()}:{line_number}: işaretsiz kutu")
+    return bulgular
+
+
+# 🚨 Süreç ölçümü eşiği bir SAYIDIR ve kullanıcı kararıyla 167'dir (Faz 169).
+# Alternatifler elendi: TARIH `faz-damit`'in yeniden yazdığı `Durum:` satırına
+# bağlıdır; DOSYA İÇİ İŞARET silinerek kapı susturulabilir (Faz 80 kusur
+# sınıfı); sabit bir SONRAKİ numara (170) fazın kendisini muaf yapar ve kapı
+# hiç koşmadan yeşil commit edilir. Geriye dönük 166 faz DOLDURULMAZ —
+# türetilen bir sayı ölçüm değil tahmindir.
+SUREC_OLCUMU_ESIGI = 167
+SUREC_OLCUMU_BASLIK = "Süreç Ölçümü"
+# Bölüm adı bilerek kesme işareti TAŞIMAZ. Aday listesi `Faz Scorecard'ı`
+# diyordu; o ad `_FAZ_KAL` eşleşmesini U+0027 ve U+2019 varyantlarına bölerdi.
+SUREC_OLCUMU_METRIKLERI = (
+    "Plan revizyonu sayısı",
+    "Düzeltme turu sayısı",
+    "🔴 bulgu: gerçek / gürültü / araştırılacak",
+    "Fazın ürettiği regresyon",
+    "Faz kapandıktan sonra bulunan kusur",
+)
+
+
+def _tablo_etiketi(hucre: str) -> str:
+    """`**Fazın ürettiği regresyon**` -> `fazın ürettiği regresyon`.
+
+    Faz 167 tablosu değerleri kalın yazıyor ve satır sayısı beşten fazla.
+    Etiket eşleşmesi biçime bağlı olmamalıdır, yoksa kapı gerçek bir tabloyu
+    eksik sanar."""
+    return " ".join(hucre.replace("*", "").replace("`", "").split()).casefold()
+
+
+def surec_olcumu_bulgulari(kok: pathlib.Path = ROOT) -> list[str]:
+    """Kapanmış her fazın `## Süreç Ölçümü` tablosu dolu mu (eşik 167).
+
+    167 faz koşuldu ve "plandan sapma", "düzeltme turu", "gerçek/gürültü
+    bulgu", "üretilen regresyon" sayılarının hiçbiri tutulmadı. `artifacts/`
+    `.gitignore`'dadır, `kapi-olcum.jsonl` faz numarası taşımaz: geriye dönük
+    türetme MÜMKÜN DEĞİLDİR. Bu yüzden ölçüm kapanışta YAZILIR ve kapı onu
+    arar.
+
+    🚨 Kapı bölümün VARLIĞINI denetler, DOĞRULUĞUNU denetlemez — `0/0/0` yazan
+    bir faz yeşil geçer. Hiçbir kapı doğruluğu denetleyemez; bu sınır bilerek
+    kabul edildi (K-766).
+
+    Kapı hiçbir şey YAZMAZ; `tazelik_denetle()` ile aynı sözleşme. Hem kök
+    `docs/` hem `docs/arsiv/fazlar/` taranır: eksik ölçüm arşivlemeden ÖNCE
+    görünür, sonra göstermek bir tur daha maliyettir."""
+    bulgular: list[str] = []
+    for dizin in (kok / "docs", kok / "docs" / "arsiv" / "fazlar"):
+        if not dizin.exists():
+            continue
+        for yol in sorted(dizin.glob(FAZ_DESEN)):
+            if _faz_no(yol) < SUREC_OLCUMU_ESIGI:
+                continue
+            try:
+                metin = yol.read_text(encoding="utf-8")
+            except (OSError, UnicodeDecodeError):
+                continue
+            durum = re.search(r"^>\s*\*\*Durum:\*\*\s*(.*)$", metin, re.M)
+            if not durum or not _durum_tamamlandi_mi(durum.group(1)):
+                continue
+            rel = yol.relative_to(kok).as_posix()
+            # 🚨 Duz `split("## ")` YAPILMAZ: kod blogundaki baslik belgeyi
+            # parcalar. `_faz_bolumleri` o tuzagi zaten kapatiyor.
+            _, bolumler = _faz_bolumleri(metin)
+            govde = next((g for ad, g in bolumler if ad == SUREC_OLCUMU_BASLIK), None)
+            if govde is None:
+                bulgular.append(f"{rel}: `## {SUREC_OLCUMU_BASLIK}` bölümü yok")
+                continue
+            bas = metin[:metin.index(govde)].count("\n") + 1
+            # Bolumun KENDI govdesindeki kod blogu da soyulur; ornek bir tablo
+            # gercek tablonun yerine gecmemelidir. `_kod_bloklarini_soy` satir
+            # sayisini KORUR, bu yuzden satir numaralari hizali kalir.
+            satirlar: dict[str, tuple[int, str]] = {}
+            # 🚨 `_kod_bloklarini_soy` DEGIL: o satir ici kodu da bosaltir ve
+            # `` `ölçülmedi` `` yazan gecerli bir hucre "bos" gorunur (Faz 169
+            # denetim bulgusu 1). Burada yalniz FENCE gosterimdir.
+            for i, satir in enumerate(_fence_bloklarini_soy(govde).split("\n")):
+                duz = satir.strip()
+                if not duz.startswith("|"):
+                    continue
+                hucreler = [h.strip() for h in duz.strip("|").split("|")]
+                if len(hucreler) < 2:
+                    continue
+                satirlar.setdefault(_tablo_etiketi(hucreler[0]), (bas + i, hucreler[1]))
+            for metrik in SUREC_OLCUMU_METRIKLERI:
+                kayit = satirlar.get(_tablo_etiketi(metrik))
+                if kayit is None:
+                    bulgular.append(f"{rel}:{bas}: `{metrik}` satırı yok")
+                    continue
+                satir_no, deger = kayit
+                # `ölçülmedi` GECERLI bir degerdir: kapi bir sayi degil, bir
+                # KARAR arar. Bos hucre bir karar degildir.
+                if not _tablo_etiketi(deger):
+                    bulgular.append(f"{rel}:{satir_no}: `{metrik}` değer hücresi boş")
     return bulgular
 
 
@@ -1195,13 +1348,21 @@ _FENCE_ACILIS = re.compile(r"^(?: {0,3}|\s*(?:\d{1,9}[.)]|[-*+])\s+)(`{3,}|~{3,}
 _FENCE_KAPANIS = re.compile(r"^ {0,3}(`{3,}|~{3,})(.*)$")
 
 
-def _kod_bloklarini_soy(metin: str) -> str:
-    """Fenced kod bloklarinin ICINI bosaltir; satir sayisini KORUR ki bulgu
-    mesajlari ve olasi satir referanslari kaymasin. Kapanis fence'i acilisla
-    AYNI karakterden ve EN AZ o uzunlukta olmali (CommonMark); bu yuzden
-    ```markdown blogunun icindeki `> ```bash` satiri onu kapatmaz -- alintili
-    fence satir basinda degildir ve regex sutun 0 ister.
-    Saf fonksiyon; testi dogrudan bir dizeyle kosar."""
+def _fence_bloklarini_soy(metin: str) -> str:
+    """YALNIZ fenced bloklari bosaltir; satir ici koda DOKUNMAZ.
+
+    Ayrildi (Faz 169, 🔴 denetim bulgusu): tablo HUCRESI ayristiran bir
+    okuyucu icin satir ici kod GERCEK ICERIKTIR. `` `ölçülmedi` `` yazan bir
+    hucre `_kod_bloklarini_soy`'dan gecerse BOSLUGA doner ve kapi onu "bos"
+    sanar -- oysa `faz-tamamlama` Adim 5 ve faz plani sablonu tam olarak o
+    yazimi OGRETIR. Gosterim sorusu ("bu bir ornek mi?") fence'e aittir;
+    satir ici kod yalniz BAGLANTI/BASLIK taramasinda gosterimdir.
+
+    Satir sayisi KORUNUR ki bulgu mesajlari ve satir referanslari kaymasin.
+    Kapanis fence'i acilisla AYNI karakterden ve EN AZ o uzunlukta olmali
+    (CommonMark); bu yuzden ```markdown blogunun icindeki `> ```bash` satiri
+    onu kapatmaz -- alintili fence satir basinda degildir ve regex sutun 0
+    ister. Saf fonksiyon; testi dogrudan bir dizeyle kosar."""
     cikti: list[str] = []
     acik: str | None = None
     for satir in metin.split("\n"):
@@ -1219,7 +1380,13 @@ def _kod_bloklarini_soy(metin: str) -> str:
                     and not m.group(2).strip():
                 acik = None
             cikti.append("")
-    return _SATIR_ICI_KOD.sub(lambda m: " " * len(m.group(0)), "\n".join(cikti))
+    return "\n".join(cikti)
+
+
+def _kod_bloklarini_soy(metin: str) -> str:
+    """Fence + satir ici kod: HER IKISI de gosterimdir. Uzunluk KORUNUR."""
+    return _SATIR_ICI_KOD.sub(
+        lambda m: " " * len(m.group(0)), _fence_bloklarini_soy(metin))
 
 
 # Satir ici kod da GOSTERIMDIR: `[x](../../YOK.md)` bir baglanti degil, bir
@@ -1405,6 +1572,16 @@ _FAZ_KAL = {
     # yuzeyine dokunan HER fazda tekrar eder. Koddan yeniden uretilemez: hangi
     # sayfanin neden degistigi bir karardir, bir dosya listesi degil.
     "Tüketici Yüzeyi Envanteri",
+    # Faz 169: fazin kendi surec olcumu. `faz-damit` bunu DUSURMEZ (eklenmezse
+    # korunur ama her damitmada "taninmayan bolum KORUNDU" uyarisi basar ve
+    # gurultu kapiyi oldurur) ve `--denetle` 14. kapisi onu ARAR.
+    "Süreç Ölçümü",
+    # Ikisi de KALICI bilgidir ve damitmada duSMEZ; `_FAZ_KAL`'a girmezlerse
+    # her damitmada "taninmayan bolum KORUNDU" uyarisi basar. `Örnek Uygulama
+    # Koşumu` Faz 92'den beri her fazda yaziliyor (K-166/K-167: gercek kusurlar
+    # YALNIZ orada cikti); `Faz Dışı Bulunan ve Kapatılan Kusur` fazin kendi
+    # kapsami disinda kapatilan isi kaydeder ve baska hicbir yerde yasamaz.
+    "Örnek Uygulama Koşumu", "Faz Dışı Bulunan ve Kapatılan Kusur",
 }
 # `NN.x` kalani bunlardan biriyse de kalir (DoD bazi fazlarda numaralanmis).
 _FAZ_DOD_KALICI = {"Bitiş Ölçütleri", "Bitiş Ölçütleri (DoD)"}
@@ -2248,6 +2425,15 @@ def denetle() -> int:
     if len(kutu_bulgulari) > 20:
         print(f"  … +{len(kutu_bulgulari) - 20}")
     hata |= int(bool(kutu_bulgulari))
+
+    olcum_bulgulari = surec_olcumu_bulgulari()
+    print(f"\nKapanmış fazın süreç ölçümü (eşik {SUREC_OLCUMU_ESIGI}): "
+          f"{'❌ ' + str(len(olcum_bulgulari)) + ' bulgu' if olcum_bulgulari else '✅ temiz'}")
+    for s_ in olcum_bulgulari[:20]:
+        print(f"  {s_}")
+    if len(olcum_bulgulari) > 20:
+        print(f"  … +{len(olcum_bulgulari) - 20}")
+    hata |= int(bool(olcum_bulgulari))
 
     iddia_bulgulari = dokuman_iddia_cakismalari()
     print(f"\nDoküman iddiası ↔ repo gerçeği: "
