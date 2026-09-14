@@ -1454,6 +1454,7 @@ class BagimlilikSurumDamgasiTestleri(unittest.TestCase):
             "<Project>\n"
             "  <PropertyGroup><MicrosoftAgentsAIVersion>1.20.0</MicrosoftAgentsAIVersion></PropertyGroup>\n"
             '  <ItemGroup><PackageVersion Include="OpenAI" Version="2.12.0" />\n'
+            '  <PackageVersion Include="Microsoft.Agents.AI.Hosting.OpenAI" Version="1.20.0-alpha.260831.1" />\n'
             '  <PackageVersion Include="Microsoft.Agents.AI" Version="$(MicrosoftAgentsAIVersion)" /></ItemGroup>\n'
             "</Project>\n", encoding="utf-8")
         yol = kok / dosya
@@ -1492,6 +1493,45 @@ class BagimlilikSurumDamgasiTestleri(unittest.TestCase):
         kok = self._kok("/// Measured (10.8.0): that type requires an expression.",
                         "src/Tracon.Abstractions/Knowledge/IVectorSearchStore.cs")
         self.assertEqual([], dokuman_bakim.bagimlilik_surum_damgasi(kok))
+
+    def test_measured_demeyen_damga_da_gorulur(self):
+        # Genisletmenin sinifi: kapiyi atlatmanin yolu damgayi baska turlu
+        # yazmak olamaz. Olculdu 2026-09-14 — dort gercek vaka boyle kacmisti.
+        kok = self._kok("/// Applies only to OpenAI 2.11.0 and later.", self.DOSYA)
+        bulgular = dokuman_bakim.bagimlilik_surum_damgasi(kok)
+        self.assertEqual(1, len(bulgular))
+        self.assertIn("2.12.0", bulgular[0])
+
+    def test_tarihsel_damga_YAZILI_olarak_muaftir(self):
+        # Bilerek eski surum ("1.18.0'da su hâlâ basarisizdi") pine esit
+        # olmamalidir. Muafiyet `<dosya>:<surum>` anahtariyla yazilir.
+        dosya = "src/Tracon.AspNetCore/OpenAICompat/OpenAIResponsesEndpoints.cs"
+        kok = self._kok("/// A function_call item still fails on 1.18.0-alpha.", dosya)
+        self.assertEqual([], dokuman_bakim.bagimlilik_surum_damgasi(kok))
+
+    def test_tarihsel_OLMAYAN_damga_ayni_dosyada_yine_karsilastirilir(self):
+        # Muafiyet dosyanin tamamini degil, TEK satiri kapsar.
+        dosya = "src/Tracon.AspNetCore/OpenAICompat/OpenAIResponsesEndpoints.cs"
+        kok = self._kok("/// Measured against the host package 1.19.0-alpha.", dosya)
+        bulgular = dokuman_bakim.bagimlilik_surum_damgasi(kok)
+        self.assertEqual(1, len(bulgular))
+        self.assertIn("1.19.0-alpha", bulgular[0])
+
+    def test_IP_literali_surum_damgasi_SAYILMAZ(self):
+        # 🚨 Bir dotted quad da uc noktalidir. Egress ve webhook guard'larindaki
+        # adresler kapiyi kirmamalidir.
+        kok = self._kok(
+            "/// Refuses <c>169.254.169.254</c>, <c>127.0.0.0/8</c> and <c>1.2.3.4</c>.",
+            "src/Tracon.Core/Egress/EgressAddressValidator.cs")
+        self.assertEqual([], dokuman_bakim.bagimlilik_surum_damgasi(kok))
+
+    def test_cumle_sonundaki_nokta_damgaya_KATILMAZ(self):
+        # `-[\w.]+` cumlenin noktasini yutup hicbir pakete uymayan bir dize
+        # uretiyordu; ek SemVer dilbilgisiyle yazilir.
+        kok = self._kok("/// Measured against MAF 1.19.0.", "src/Tracon.Core/Compilation/RecordingLoopEvaluator.cs")
+        bulgular = dokuman_bakim.bagimlilik_surum_damgasi(kok)
+        self.assertEqual(1, len(bulgular))
+        self.assertIn("damga 1.19.0 diyor", bulgular[0])
 
 
 class SurecOlcumuTestleri(unittest.TestCase):

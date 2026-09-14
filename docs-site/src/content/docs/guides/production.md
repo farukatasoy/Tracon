@@ -283,6 +283,11 @@ one, the export and erasure endpoints return `409` rather than a silent no-op.
 | Remote access | Off | Enable only with a registered authorization policy or scoped key strategy |
 | Role-policy enforcement | Off | Turn on so a missing policy stops startup |
 | Diagnostics endpoint | Off | Enable only for a protected operations path |
+| Multi-tenancy | Off | Every request resolves to the single default tenant until `UseTenancy` turns it on. Decide before a second tenant's data exists |
+| Session ownership | Off | `Tracon:SessionOwnership:Enabled`. **Not retroactive**: a session opened while it was off keeps a null owner forever, so turn it on before sessions accumulate rather than after |
+| Request rate limiting | Off | `Tracon:RateLimit:Enabled`, 60 permits per window once on. A quota caps spend over a period; a rate limit caps a burst. They are not substitutes for one another |
+| At-rest content encryption | Off | `Tracon:ContentProtection:Enabled` (AES-256-GCM). Turning it on does not encrypt rows already written, and turning it off does not decrypt them |
+| Content inspection | Off | `AddTracon()` registers no guard and never adds the inspection wrapper. Even once added, the built-in guard carries no rules until you choose pattern families |
 | Run event poll interval | 250 ms | Lower values reduce SSE latency but increase database reads |
 | Background job worker | On, concurrency 2 per process | Separate or size workers deliberately |
 | Circuit breaker | On, opens after 5 failures for 30 seconds | Align alerts and upstream retry policy |
@@ -540,6 +545,9 @@ scaled without a matching quota.
 - [ ] Run or verify migrations before readiness can pass.
 - [ ] Require a real authentication policy and all three role policies.
 - [ ] Declare every embedding point the deployment depends on with `RequireCustomBinding<T>()`.
+- [ ] Answer every row of [Production-sensitive defaults](#production-sensitive-defaults) on
+      purpose. Multi-tenancy, session ownership, rate limiting, at-rest encryption, and content
+      inspection are each off until you turn them on, and session ownership is not retroactive.
 - [ ] Configure trusted proxy headers and TLS without relying on loopback identity.
 - [ ] Choose combined or split workers and calculate cluster-wide concurrency.
 - [ ] Enable singleton execution and orphan reconciliation only with shared SQL state.

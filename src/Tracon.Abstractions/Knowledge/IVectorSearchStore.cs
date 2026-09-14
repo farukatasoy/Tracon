@@ -13,10 +13,12 @@ namespace Tracon;
 /// </para>
 /// <para>
 /// This interface does NOT wrap <c>Microsoft.Extensions.VectorData.VectorStore</c>.
-/// Measured (10.8.0): that type requires an
-/// <c>Expression&lt;Func&lt;TRecord,bool&gt;&gt;</c> filter; translating an
-/// expression tree breaks the AOT stance, and <c>Tracon.PostgreSql</c> is
-/// AOT-compatible.
+/// Measured against <c>Microsoft.Extensions.VectorData.Abstractions</c> 10.8.2 —
+/// the version the restore graph resolves, because that package is transitive
+/// here and is named in no pin file:
+/// <c>VectorSearchOptions&lt;TRecord&gt;.Filter</c> is an
+/// <c>Expression&lt;Func&lt;TRecord,bool&gt;&gt;</c>. Translating an expression
+/// tree breaks the AOT stance, and <c>Tracon.PostgreSql</c> is AOT-compatible.
 /// </para>
 /// <para>
 /// <strong>DI lifetime — singleton, optional.</strong> No default

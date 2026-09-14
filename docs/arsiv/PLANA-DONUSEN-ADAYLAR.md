@@ -1410,3 +1410,44 @@ Gerekçeler:
 | **Sıra F-216'dan F-210'a geçti** | Aday F-216'yı *"zaman duyarlı"* diye başa koymuştu; o gerekçe corpus iddiasına dayanıyordu ve çürüdü. Gerçekten zaman duyarlı olan kalem F-210'dur: yayımlanmamış bir public sözleşmeyi genişletmek bugün bedava, yayından sonra kırıcıdır. |
 | **F-192'nin satır numarası kaydı** | Aday metni `AgentDefinitionCompiler.Agents.cs:172` diyordu; doğru satır **236**'dır. `LoopAgent`/`LoopEvaluator` sayımı (`0 dosya`) ve MAF imzalarının tamamı 1.20.0'da yeniden doğrulandı — `HarnessAgentOptions.LoopEvaluators` ve `.LoopAgentOptions` yerinde. |
 | **F-209'un önkoşulu SERTLEŞTİ** | Aday metni sırayı *"F-208 önce koşarsa kırılıma skor adı da girer"* diye yumuşak yazıyordu. Plan bunu **zorunlu önkoşula** çevirdi: Faz 152 `Value`'yu `double?` yapıyor ve `Categorical` şeklini açıyor; toplulaştırmanın kova anahtarı `(name, kind)` olmak zorunda ve `null` değer ortalamaya girmemeli. Ters sırada bu üç kural sonradan eklenir. |
+
+---
+
+## 2026-09-14 — F-171 kapanışı ve kaydın kendi ölçüm hatası
+
+`nuget-danismani` turu sırasında yeniden ölçüldü. Kalem kapandı; bu
+gövde, kaydın **kendi ölçümünün** neden yanlış olduğunu taşır.
+
+### F-171 · Sevk edilen davranış iddiaları için kapı — ✅ KAPANDI
+
+> **İki yarısı da kapandı.** Sayı yarısı 2026-09-07 (`check-content.mjs`),
+> davranış yarısı [Faz 158](fazlar/158-DAVRANIS-IDDIALARININ-KAPISI.md)
+> (11 işaretli iddia, `DocumentedPolicyTests`), sürüm damgası yarısı
+> `dokuman-bakim.py` → `bagimlilik_surum_damgasi()`. Bu kayıt 2026-09-14'e kadar
+> adayı **açık** gösteriyordu; aşağıdaki düzeltme o kaymayı kapatır.
+
+**🚨 Bu kaydın kendi ölçümü yanlıştı.** Kayıt `IVectorSearchStore.cs:16` için
+"MEAI 10.8.0, pin 10.9.0 → sapmış" diyordu. Yeniden ölçüm (2026-09-14) iki
+hatayı da buldu:
+
+- **Yanlış paket.** Damga `Microsoft.Extensions.VectorData` hakkındadır, MEAI
+  hakkında değil. İki ayrı yayın hattı.
+- **Yanlış sayı.** O paket hiçbir yerde pinli değildir; restore grafiği onu
+  **10.8.2**'de geçişli olarak çözer.
+
+Sebep tek bir şeydi: damga paketi **adıyla yazmıyordu**, çıplak bir `(10.8.0)`
+idi — ve çıplak bir sayı okuyana yanlış sahip verir. Düzeltme damgayı adıyla
+yazar ve iddiayı yeniden ölçer: `VectorSearchOptions<TRecord>.Filter`,
+VectorData 10.8.2'de hâlâ `Expression<Func<TRecord,bool>>`'tur (reflection ile
+doğrulandı), yani **iddia doğruydu, yalnız damgası bayattı**.
+
+**Kapı 2026-09-14'te genişletildi.** İlk sürüm yalnız `measured` kelimesini
+taşıyan satırları görüyordu; sınıf taraması, o kelimeyi kullanmadığı için
+kapının **tamamen dışında** kalan dört sevk edilen damga buldu
+(`McpServerDefinition`, `TraconA2AOptions`, `UsageBreakdown`,
+`OpenAIChatClientFactory`). Dördü de pinle uyuşuyordu — canlı sapma yoktu, ama
+bir sonraki yükseltme dördünü de sessizce taşırdı. Kapı artık `///` satırındaki
+her sürümü görür; bilerek eski olan tarihsel damgalar
+`SURUM_DAMGASI_TARIHSEL` ile **yazılı** olarak muaftır.
+
+**Kalan iş:** Yok. Tarama 20 damga (16 dosya) sayar ve sıfır bulgu verir.

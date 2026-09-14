@@ -861,17 +861,46 @@ def dokuman_iddia_cakismalari(kok: pathlib.Path = ROOT) -> list[str]:
 # karsilastirilamaz. Bu bir atlama degil, YAZILI bir karardir — damganin
 # kapinin disinda kalmasi bilerek olur.
 SURUM_DAMGASI_KAYDI: dict[str, str | None] = {
-    # Microsoft.Extensions.VectorData: repo bu paketi almiyor (iddia zaten
-    # "onu SARMALAMIYORUZ" diyor), dolayisiyla pin yok.
+    # Microsoft.Extensions.VectorData: repo bu paketi PINLEMIYOR — restore
+    # grafigi onu 10.8.2'de gecisli olarak cozer, dolayisiyla `Directory.
+    # Packages.props` ile karsilastirilamaz. 🚨 F-171'in kaydi bu damgayi bir
+    # ara MEAI pinine karsi olcup "10.8.0 -> 10.9.0 sapmis" dedi; iki yarisi da
+    # yanlisti (baska paket, baska sayi). Ciplak bir sayi damgaya yanlis sahip
+    # verir: damga paketi ADIYLA yazar (olculdu 2026-09-14).
     "src/Tracon.Abstractions/Knowledge/IVectorSearchStore.cs": None,
     "src/Tracon.Mcp/Internal/McpTransportFactory.cs": "ModelContextProtocol.Core",
     "src/Tracon.SqlServer/TraconSqlServerOptions.cs": "Microsoft.Data.SqlClient",
     "src/Tracon.AspNetCore/OpenAICompat/OpenAIResponsesEndpoints.cs": "Microsoft.Agents.AI.Hosting.OpenAI",
     "src/Tracon.Core/Models/FallbackChatClient.cs": "OpenAI",
     "src/Tracon.Core/Compilation/RecordingLoopEvaluator.cs": "Microsoft.Agents.AI",
+    # 🚨 Asagidaki dordu 2026-09-14'e kadar kapinin TAMAMEN disindaydi: damga
+    # "measured" kelimesini kullanmadigi icin eski `_DAMGA` onlari hic gormedi.
+    # Dordu de pinle uyusuyordu, yani canli sapma yoktu — ama bir sonraki
+    # yukseltme onlari sessizce tasirdi, ki F-171'in tarif ettigi arıza tam budur.
+    "src/Tracon.Abstractions/Mcp/McpServerDefinition.cs": "ModelContextProtocol.Core",
+    "src/Tracon.AspNetCore/A2A/TraconA2AOptions.cs": "Microsoft.Agents.AI.Hosting.A2A",
+    "src/Tracon.Core/Recording/UsageBreakdown.cs": "Microsoft.Extensions.AI",
+    "src/Tracon.OpenAI/OpenAIChatClientFactory.cs": "Microsoft.Extensions.AI",
 }
 
-_DAMGA = re.compile(r"(?i)measured[^\n]{0,90}?(\d+\.\d+\.\d+(?:-[A-Za-z0-9.]+)?)")
+# Bilerek ESKI bir surumu anan damgalar: "1.18.0'da su hâlâ basarisizdi" gibi
+# tarihsel bir kayit. Bunlar pine esit OLMAMALIDIR; kayit dosya basina oldugu
+# icin ayri bir muafiyet gerekir. Anahtar `<dosya>:<surum>` — dosyanin pinlenen
+# damgalari yine karsilastirilir, yalniz bu satirlar disarida kalir.
+SURUM_DAMGASI_TARIHSEL: set[str] = {
+    "src/Tracon.AspNetCore/OpenAICompat/OpenAIResponsesEndpoints.cs:1.18.0-alpha",
+    "src/Tracon.AspNetCore/OpenAICompat/OpenAIResponsesEndpoints.cs:1.16.0-alpha",
+}
+
+# 🚨 Bir IP literali de uc noktalidir. Onceki tarama `169.254.169.254`,
+# `127.0.0.0/8` ve `1.2.3.4`u surum sandi — 40 isabetin 20'si egress ve webhook
+# guard'larindan gelen adreslerdi. Iki kural onlari disarida tutar: prerelease
+# eki `-` ile BASLAR (yoksa dorduncu okteti yutar) ve eslesmeyi baska bir
+# noktali sayi IZLEYEMEZ. Ek, SemVer'in kendi dilbilgisiyle yazilir (noktayla
+# ayrilmis ALFANUMERIK parcalar), yoksa cumle sonundaki noktayi da yutar ve
+# `1.20.0-alpha.260831.1.` gibi hicbir pakete uymayan bir dize kaydedilir.
+_DAMGA = re.compile(
+    r"(?<![\d.])(\d+\.\d+\.\d+(?:-[0-9A-Za-z]+(?:\.[0-9A-Za-z]+)*)?)(?!\.?\d)")
 
 
 def _pin_surumleri(kok: pathlib.Path) -> dict[str, str]:
@@ -905,6 +934,16 @@ def bagimlilik_surum_damgasi(kok: pathlib.Path = ROOT) -> list[str]:
 
     Iki parcalidir: (1) her damga kayitli olmali, (2) her kayitli damga pinle
     ayni olmali. Birincisi olmadan yeni bir damga sessizce kapinin disinda kalir.
+
+    🚨 Genisletildi 2026-09-14. Ilk surum yalniz "measured" kelimesini TASIYAN
+    satirlari gordu, yani damgayi kapinin disinda birakmanin yolu onu baska
+    turlu yazmakti. Olcum dort vaka buldu (`McpServerDefinition`,
+    `TraconA2AOptions`, `UsageBreakdown`, `OpenAIChatClientFactory`): dordu de
+    pinle uyusuyordu, yani canli sapma yoktu, ama dordu de bir sonraki
+    yukseltmede sessizce kayardi. Kapi artik `///` satirindaki HER surumu
+    gorur. Bedeli: bilerek eski bir surumu anan tarihsel damgalar artik
+    yanlis pozitif uretirdi — onlar `SURUM_DAMGASI_TARIHSEL` ile YAZILI olarak
+    muaf tutulur, sessizce degil.
     """
     pinler = _pin_surumleri(kok)
     if not pinler:
@@ -919,27 +958,29 @@ def bagimlilik_surum_damgasi(kok: pathlib.Path = ROOT) -> list[str]:
                 dosya.read_text(encoding="utf-8").splitlines(), 1):
             if not satir.lstrip().startswith("///"):
                 continue
-            eslesme = _DAMGA.search(satir)
-            if not eslesme:
-                continue
-            if goreli not in SURUM_DAMGASI_KAYDI:
-                bulgular.append(
-                    f"{goreli}:{satir_no}: surum damgasi KAYITSIZ "
-                    f"({eslesme.group(1)}) — SURUM_DAMGASI_KAYDI'na paket adi "
-                    f"ekle, ya da pinlenmeyen bir paketse `None` yaz")
-                continue
-            paket = SURUM_DAMGASI_KAYDI[goreli]
-            if paket is None:
-                continue
-            pin = pinler.get(paket)
-            if pin is None:
-                bulgular.append(
-                    f"{goreli}:{satir_no}: kayit '{paket}' diyor ama o paket "
-                    f"pinli degil — kayit bayat")
-            elif pin != eslesme.group(1):
-                bulgular.append(
-                    f"{goreli}:{satir_no}: damga {eslesme.group(1)} diyor, "
-                    f"{paket} pini {pin} — iddiayi yeniden olc veya damgayi guncelle")
+            for eslesme in _DAMGA.finditer(satir):
+                damga = eslesme.group(1)
+                if f"{goreli}:{damga}" in SURUM_DAMGASI_TARIHSEL:
+                    continue
+                if goreli not in SURUM_DAMGASI_KAYDI:
+                    bulgular.append(
+                        f"{goreli}:{satir_no}: surum damgasi KAYITSIZ "
+                        f"({damga}) — SURUM_DAMGASI_KAYDI'na paket adi "
+                        f"ekle, ya da pinlenmeyen bir paketse `None` yaz")
+                    continue
+                paket = SURUM_DAMGASI_KAYDI[goreli]
+                if paket is None:
+                    continue
+                pin = pinler.get(paket)
+                if pin is None:
+                    bulgular.append(
+                        f"{goreli}:{satir_no}: kayit '{paket}' diyor ama o paket "
+                        f"pinli degil — kayit bayat")
+                elif pin != damga:
+                    bulgular.append(
+                        f"{goreli}:{satir_no}: damga {damga} diyor, "
+                        f"{paket} pini {pin} — iddiayi yeniden olc, damgayi "
+                        f"guncelle, ya da bilerek eskiyse SURUM_DAMGASI_TARIHSEL'e ekle")
     return bulgular
 
 

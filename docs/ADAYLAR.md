@@ -9,7 +9,7 @@
 > ([`kesif/`](kesif/)) · plana dönüşmüş kalemlerin gövdelerini
 > ([`arsiv/PLANA-DONUSEN-ADAYLAR.md`](arsiv/PLANA-DONUSEN-ADAYLAR.md)).
 
-**Durum (2026-09-13):** 4 sıralanabilir aday · 9 bekleyen kalem.
+**Durum (2026-09-14):** 3 sıralanabilir aday · 9 bekleyen kalem.
 Son plana dönüşen: **F-227 · F-228 · F-229 → [Faz 167](arsiv/fazlar/167-AGENT-ZORLAMA-KATMANI.md) ·
 [168](arsiv/fazlar/168-KURTARMA-RAMPASI-KATALOGU.md) · [169](arsiv/fazlar/169-FAZ-PLANI-SOZLESMESI.md)**
 (📋 Planlandı). Yeni aday üretmek için `aday-kesfi` koşulur.
@@ -20,7 +20,7 @@ Son plana dönüşen: **F-227 · F-228 · F-229 → [Faz 167](arsiv/fazlar/167-A
 
 | İhtiyacın | Nereye bak |
 |---|---|
-| Sıradaki fazı seçmek | § *Sıralanabilir Adaylar* — dördü de kanıtı ölçülmüş, bugün plana dönüşebilir |
+| Sıradaki fazı seçmek | § *Sıralanabilir Adaylar* — üçü de kanıtı ölçülmüş, bugün plana dönüşebilir |
 | Hangi fazın nerede olduğu | **Buraya değil** — üretilen [`YOL-HARITASI.md`](YOL-HARITASI.md). Planlanmış faz dokümanları `docs/` kökündedir |
 | Bir kalem neden faz değil | § *Bekleyen Kalemler* — her satır engeli ve koşulu söyler |
 | Bir F-ID nereye gitti | § *Aday Olmayan Açık Kayıtlar* |
@@ -62,82 +62,22 @@ Hazırlık · Maliyet · Risk · Bağımlılık · Ekosistem · Karşı görüş
 
 ## Sıralanabilir Adaylar
 
-Dördünün de kanıtı ölçülmüştür ve dördü de bugün `faz-planlama`'ya girebilir.
-Sıra bir öneridir, zorunluluk değil — ama **F-171 zaman duyarlıdır**: aşağıda
-ölçülen kayma bugün canlıdır.
+Üçünün de kanıtı ölçülmüştür ve üçü de bugün `faz-planlama`'ya girebilir.
+Sıra bir öneridir, zorunluluk değil.
 
 | # | Aday | Ne açar | Maliyet | Kanıtın gücü |
 |---|---|---|---|---|
-| 1 | [F-171](#f-171--sevk-edilen-davranış-iddiaları-için-kapı) | Sevk edilen XML'deki davranış iddiası bayatlayınca kapı kırılır | Düşük | 🚨 **Kayma canlı ölçüldü** (2026-09-13) |
-| 2 | [F-224](#f-224--geri-alınamaz-kararlar-için-doğrulama-adımı) | Mis-click geri alınamaz bir kararı vermez | Küçük–orta | Primitif hazır; envanter ölçüldü |
-| 3 | [F-218](#f-218--skor-satırı-evaluator-paket-sürümünü-damgalamıyor) | "Yargıç mı değişti, model mi bozuldu" sorusunun cevabı olur | Orta (migration) | Boşluk ölçüldü; talep kanıtı tek risk satırı |
-| 4 | [F-213](#f-213--store-sözleşmelerinin-iptal-davranışı-yazılı-değil) | İptal davranışı uygulama detayı olmaktan çıkar | Küçük ama yaygın | Boşluk ölçüldü; talep kanıtı yok |
+| 1 | [F-224](#f-224--geri-alınamaz-kararlar-için-doğrulama-adımı) | Mis-click geri alınamaz bir kararı vermez | Küçük–orta | Primitif hazır; envanter ölçüldü |
+| 2 | [F-218](#f-218--skor-satırı-evaluator-paket-sürümünü-damgalamıyor) | "Yargıç mı değişti, model mi bozuldu" sorusunun cevabı olur | Orta (migration) | Boşluk ölçüldü; talep kanıtı tek risk satırı |
+| 3 | [F-213](#f-213--store-sözleşmelerinin-iptal-davranışı-yazılı-değil) | İptal davranışı uygulama detayı olmaktan çıkar | Küçük ama yaygın | Boşluk ölçüldü; talep kanıtı yok |
 
 ---
 
-### F-171 · Sevk edilen davranış iddiaları için kapı
+### F-171 · Sevk edilen davranış iddiaları için kapı — ✅ KAPANDI
 
-> **Bu adayın sayı yarısı 2026-09-07'de kapandı.** `check-content.mjs` artık
-> her elle yazılan sayfadaki işaretli sayıyı koddan yeniden hesaplıyor
-> (tarihli release/changelog sayfaları bilerek muaf). Kapı yazıldığında dört
-> gerçek sapma yakaladı. Kalan iş **davranış** iddialarıdır ve aday artık odur.
-
-**Sorun:** Sevk edilen XML dokümanı, bir bağımlılık sürümünü **adıyla anıp** o
-sürümde ölçülmüş bir davranış iddia ediyor. Hiçbir kapı bu damgayı pin ile
-karşılaştırmıyor, yani yükseltme yapan oturum iddiayı yeniden ölçmeyi
-**şansa** bırakıyor.
-
-🚨 **Kayma bugün canlı ölçüldü (2026-09-13).** Altı iddianın biri çoktan
-sapmış:
-
-| Yer | Damga | `Directory.Packages.props` pin | Durum |
-|---|---|---|---|
-| [`IVectorSearchStore.cs:16`](../src/Tracon.Abstractions/Knowledge/IVectorSearchStore.cs#L16) | MEAI **10.8.0** | **10.9.0** | 🚨 **sapmış** |
-| [`FallbackChatClient.cs:633`](../src/Tracon.Core/Models/FallbackChatClient.cs#L633) | OpenAI 2.12.0 | 2.12.0 | tutuyor |
-| [`RecordingLoopEvaluator.cs`](../src/Tracon.Core/Compilation/RecordingLoopEvaluator.cs) (×2) | MAF 1.20.0 | 1.20.0 | tutuyor |
-| [`TraconSqlServerOptions.cs:32`](../src/Tracon.SqlServer/TraconSqlServerOptions.cs#L32) | SqlClient 7.0.2 | 7.0.2 | tutuyor |
-| [`McpTransportFactory.cs:32`](../src/Tracon.Mcp/Internal/McpTransportFactory.cs#L32) | MCP 2.2.0 | 2.2.0 | tutuyor |
-
-Sayım da kaydı çürüttü: kayıt **beş** iddia diyordu, tarama **altı** buldu
-(`RecordingLoopEvaluator` kayıtta hiç yoktu, `OpenAIResponsesEndpoints`
-damgasını kaybetmiş). Yani iddia kümesi kapısız büyüyor — tam olarak adayın
-öngördüğü davranış.
-
-**Kapsam:** İki yarı var ve ikincisi daha ucuzdur.
-
-1. **Sürüm damgalı davranış iddiaları.** Damgadaki sürümü
-   `Directory.Packages.props` pini ile karşılaştır, saptığında kır. Yeniden
-   hesaplama gerekmez; tek regex ve tek karşılaştırma. Bugünkü altı iddia bu
-   kapıyla anında yakalanırdı.
-2. **Default/policy iddiaları.** Worker, tenancy, scope, ownership, structured
-   response, opt-in recovery. Bunlar yeniden hesaplanamaz — options
-   initializer'ı için kaynak/çalıştırma probu, endpoint policy için metadata +
-   gerçek deny/allow testi gerekir. 2026-09-07'de dördü **elle** düzeltildi
-   (tenancy default · worker default · OpenAI scope · approval resume); kapı
-   olmadığı için beşincisi yine sessizce kayabilir.
-
-**Değer:** Bugünkü kayma elle bir tarama koştuğu için değil, bu dosyanın
-normalizasyonu sırasında bulundu — yani hiçbir rutin onu yakalamıyor. NuGet'e
-basılan XML geri alınamaz.
-
-**Mercek:** 6.
-
-**Hazırlık:** Sayı kapısı yazıldı ve deseni hazır (`check-content.mjs`).
-Davranış kapısı yazılmadı.
-
-**Maliyet:** Düşük. Birinci yarı tek regex + pin karşılaştırması; ikinci yarı
-prob başına bir test.
-
-**Risk:** Fazla katı bir kapı meşru yuvarlanmış ifadeyi kızartabilir. Kontrol
-yalnız **işaretli** iddiaya bakmalı, her rakama değil.
-
-**Bağımlılık:** Yok.
-
-**Ekosistem:** 2026-09-13 — iç kalite kaydı; dış ekosistem iddiası yok.
-
-**Karşı görüş:** Doğru cevap bazı iddialarda damgayı **kaldırmak** olabilir —
-sürüm adı anmayan bir yorum bayatlamaz. Aday bu ikilemi kapsamına dahil eder;
-kapı, damgayı korumaya karar verilen iddialar için yazılır.
+Üç yarısı da kapandı (sayı · davranış · sürüm damgası). Kaydın kendi
+ölçümünün neden yanlış olduğu ve kapının 2026-09-14 genişletmesi:
+[`arsiv/PLANA-DONUSEN-ADAYLAR.md`](arsiv/PLANA-DONUSEN-ADAYLAR.md).
 
 ---
 
@@ -486,7 +426,12 @@ keşif kaydındadır; burada yalnız hangi kanala düştükleri yazar.
 ### F-ID tahsis kuralı
 
 Numara **geri dönüştürülmez** ve bir numara **tek kaleme** aittir. Sıradaki
-numara: **F-231**.
+numara: **F-232**.
+
+**F-231** 2026-09-14'te `nuget-danismani` turunun 4. bulgusuna (options
+düzeyinde production doğrulayıcısı yok) tahsis edildi ve **aynı gün plana
+dönüştü** — [Faz 170](170-PRODUCTION-PROFIL-KAPISI.md). Gövdesi doğrudan faz
+dokümanına yazıldı; aday listesinde hiç durmadı.
 
 **F-230** 2026-09-13'te Faz 168 denetiminin 🟢 6 bulgusuna tahsis edildi.
 
