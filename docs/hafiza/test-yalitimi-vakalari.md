@@ -1,5 +1,21 @@
 # Test Yalitimi — Vaka Defteri
 
+- **🚨 BEKLEME KOŞULU, İDDİANIN OKUDUĞUNDAN DAR OLMAMALI** (2026-09-14, Faz 166
+  kapanış koşumu). İki `LiveVoice` testi tam koşumda düştü, tek başına 1000+
+  kez geçti ve ikisinin de sebebi aynıydı: `WaitForAsync` iddianın okuduğundan
+  **daha azını** bekliyordu.
+  - `LiveVoiceTests:111` — `AppendsOf(...).Count > 0` bekliyordu, ama iddia
+    birleştirilmiş metnin `"Look up order 442"` İÇERMESİNİ arıyordu. Cevap
+    birkaç append'e yayılır ve **ilki yankılanan prompt'tur**; yük altında
+    bekleme transkript yoldayken dönüyordu.
+  - `LiveVoiceLifecycleTests:47` — yalnız ÇIKTI transkriptini bekliyordu, ama
+    iki iddia vardı: girdi **ve** çıktı. Bekleme girdi yazılmadan dönebiliyordu.
+  Kural: `WaitForAsync(...)` içindeki ifade, altındaki her `Should*`'un okuduğu
+  şeyi **kapsamalıdır**. Sayı beklemek (`Count > 0`) yalnız iddia da sayıya
+  bakıyorsa doğrudur. Tarama: bir dosyadaki her `WaitForAsync`'i altındaki
+  iddialarla yan yana oku — bu ikisi o taramayla bulundu, üçüncü bir vaka
+  (`LiveVoiceTests:308`) eşleşiyordu ve dokunulmadı.
+
 > Bir testin TEK BASINA gecip TAM kosumda dustugu OLCULMUS vakalar. Ayirt etme
 > KURALI ve aktif tuzaklar [`test-yalitimi.md`](test-yalitimi.md)'dedir — once
 > orayi oku; buraya yalnizca "bu testi/desen daha once gorduk mu?" diye

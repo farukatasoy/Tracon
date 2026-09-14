@@ -108,7 +108,14 @@ public sealed class LiveVoiceTests
         await provider.SendInputTranscriptAsync(" Look up order 442", 3800, 4200);
         await provider.SendDelegationAsync("item_1", 3800);
 
-        await WaitForAsync(() => provider.AppendsOf("session.commentary.append").Count > 0);
+        // 🚨 Wait for what the ASSERTION reads, not merely for the first append.
+        // The agent's answer arrives across several commentary appends, and the
+        // first of them is the echoed prompt. Waiting for `Count > 0` therefore
+        // returned while the transcript was still on its way - measured twice in
+        // a full-solution run, while the class on its own passed. A wait that is
+        // narrower than the assertion it guards is a flake with a schedule.
+        await WaitForAsync(() => string.Join(' ', provider.AppendsOf("session.commentary.append"))
+            .Contains("Look up order 442", StringComparison.Ordinal));
 
         var spoken = provider.AppendsOf("session.commentary.append");
         spoken.ShouldNotBeEmpty();
