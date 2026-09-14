@@ -9,12 +9,12 @@
 // the sitemap is how a crawler reaches the thousand generated reference pages.
 import type { APIRoute } from 'astro';
 
-import { siteUrl } from '../../site.config.mjs';
+import { indexingEnabled, siteUrl } from '../../site.config.mjs';
 
 const body = `User-agent: *
 Allow: /
 
-Sitemap: ${siteUrl}sitemap-index.xml
+${indexingEnabled ? `Sitemap: ${siteUrl}sitemap-index.xml` : ''}
 `;
 
 export const GET: APIRoute = () =>

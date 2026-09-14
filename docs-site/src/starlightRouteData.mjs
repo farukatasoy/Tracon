@@ -7,14 +7,39 @@
 
 import { defineRouteMiddleware } from '@astrojs/starlight/route-data';
 import { imageByRoute, imageForRoute } from './sidebar.mjs';
-import { siteUrl } from '../site.config.mjs';
+import { indexingEnabled, siteUrl } from '../site.config.mjs';
 
-// Built once per process, not once per page: this runs for all 1001 routes.
+// Built once per process, not once per page: this runs for every route.
 const routes = imageByRoute();
 
 export const onRequest = defineRouteMiddleware((context) => {
   const { starlightRoute } = context.locals;
   const id = starlightRoute.id;
+  // The CLR reference and the wire schema describe different contracts even when
+  // their short names match. Keep their search results distinguishable.
+  const section = id.startsWith('http-api/schemas/') ? 'HTTP schema'
+    : id.startsWith('http-api/') ? 'HTTP API'
+    : id.startsWith('api/package-') ? '.NET package'
+    : id.startsWith('api/') ? '.NET API' : '';
+  const pageTitle = starlightRoute.entry.data.title;
+  const title = section ? `${pageTitle} — ${section}` : pageTitle;
+  for (const tag of starlightRoute.head) {
+    if (tag.tag === 'title') tag.content = `${title} | Tracon`;
+    if (tag.attrs?.property === 'og:title') tag.attrs.content = title;
+    if (id === '' && tag.attrs?.property === 'og:type') tag.attrs.content = 'website';
+  }
+  if (id === '404') {
+    starlightRoute.head = starlightRoute.head.filter((tag) =>
+      tag.attrs?.rel !== 'canonical' && tag.attrs?.property !== 'og:url');
+  }
+  if (id === '404' || !indexingEnabled) {
+    starlightRoute.head.push({ tag: 'meta', attrs: { name: 'robots', content: 'noindex' } });
+  }
+  if (id === '') {
+    starlightRoute.head.push({ tag: 'script', attrs: { type: 'application/ld+json' }, content: JSON.stringify({
+      '@context': 'https://schema.org', '@type': 'WebSite', name: 'Tracon', url: siteUrl,
+    }) });
+  }
   const kind = id === 'api' || id.startsWith('api/') ? '.NET API' : id.startsWith('http-api/') ? 'HTTP API' : 'Documentation';
   starlightRoute.head.push({ tag: 'meta', attrs: { 'data-pagefind-filter': 'Content[content]', content: kind } });
   const image = `${siteUrl}social/${imageForRoute(starlightRoute.id, routes)}.png`;

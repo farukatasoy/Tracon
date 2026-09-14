@@ -49,3 +49,6 @@ export const formerHosts = ['farukatasoy.github.io', 'agentprism.doayen.web.tr']
  */
 export const repositoryUrl = 'https://github.com/farukatasoy/Tracon';
 export const repositoryIsPublic = false;
+
+/** Explicit preview builds remain crawlable so crawlers can read noindex. */
+export const indexingEnabled = process.env.TRACON_SITE_INDEXING !== 'disabled';
