@@ -126,6 +126,9 @@ rsync -az --delete ${dry_run:+"$dry_run"} \
 if [[ -z "$dry_run" ]]; then
   step "Reconciling the container"
   "${ssh_command[@]}" "$SITE_HOST" "cd '$SITE_STACK' && docker compose up -d"
+  # A bind-mounted template can change without changing Compose's service hash.
+  # Re-render and reload it even when the existing container was reused.
+  "${ssh_command[@]}" "$SITE_HOST" "cd '$SITE_STACK' && docker compose exec -T site sh -c '/docker-entrypoint.d/20-envsubst-on-templates.sh && nginx -t && nginx -s reload'"
 fi
 
 if [[ -n "$dry_run" ]]; then

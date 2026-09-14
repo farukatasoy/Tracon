@@ -201,9 +201,20 @@ function transform(page, uids, anchorsByUid, uidsByDisplayName, externalSlugs) {
   });
 
   // 3. Page-to-page links: DocFX writes `Foo.md`, Starlight serves `/api/foo/`.
-  body = body.replace(/\]\((Tracon[^)\s#]*)\.md(#[^)\s]*)?\)/g, (_match, uid, anchor) =>
-    uids.has(uid) ? `](${apiBase}/${uid.toLowerCase()}/${anchor ?? ''})` : `](${apiBase}/)`,
-  );
+  //
+  // The fragment arm has to tolerate DocFX's escaping. In an `Extension Methods`
+  // list it writes the whole tail escaped — `Foo.md\#Tracon\_Bar\_Baz` — and a
+  // pattern demanding a bare `#` left those 640 links pointing at a `.md` path that
+  // is not published. They resolved relative to the page, so they were 404s that
+  // check-links could not see: it treats anything not starting with `/` as external.
+  // A generic type escapes its arity the same way (`Contract\-1.md`), so the name arm
+  // steps over an escape too — but never over `\#`, or it would swallow the fragment.
+  body = body.replace(/\]\((Tracon(?:[^)\s#\\]|\\[^#])*)\.md(?:\\?#((?:[^)\s\\]|\\.)*))?\)/g, (_match, target, anchor) => {
+    const uid = target.replaceAll('\\', '');
+    const fragment = anchor ? `#${anchor.replaceAll('\\', '')}` : '';
+
+    return uids.has(uid) ? `](${apiBase}/${uid.toLowerCase()}/${fragment})` : `](${apiBase}/)`;
+  });
 
   // DocFX sometimes chooses a pinned GitHub source link for a public Tracon
   // type even when that type has a page in this reference. Keep readers inside
@@ -257,10 +268,20 @@ function transform(page, uids, anchorsByUid, uidsByDisplayName, externalSlugs) {
   body = sanitizeInternalHistory(body);
   body = normalizeSharedProviderDocumentation(page.uid, body);
 
+  // 8. DocFX opens a type page with `#### Inheritance` and a namespace page with
+  // `### Classes`, both directly under the `#` removed in step 1. Against the h1
+  // Starlight renders, those skip one or two levels. The two cases are not the same
+  // kind of thing, so they are not repaired the same way: the `####` run is type
+  // metadata and becomes a name/value list, while a namespace page's `###` really is
+  // a section and is promoted. Last on purpose — step 5 rewrites `<a>` back to
+  // markdown, which would undo the anchors written here.
+  body = renderTypeRelations(body);
+  body = promoteLeadingHeadings(body);
+
   const frontmatter = [
     '---',
     `title: ${quote(page.name)}`,
-    `description: ${quote(sanitizeInternalHistory(page.summary))}`,
+    `description: ${quote(`${page.name}: ${sanitizeInternalHistory(page.summary)}`)}`,
     `slug: api/${page.uid.toLowerCase()}`,
     'editUrl: false',
     'lastUpdated: false',
@@ -463,6 +484,112 @@ function buildSidebar(pages) {
       label: assembly,
       link: `${sidebarBase}/package-${slugify(assembly)}/`,
     }));
+}
+
+/**
+ * Turns the `####` run that opens a type page into a name/value list.
+ *
+ * `Inheritance`, `Implements` and `Inherited Members` are facts about the type, not
+ * sections of prose: the same handful of labels repeats across 600+ pages, and as
+ * headings they both skipped two levels and claimed the same weight as `Remarks`.
+ * A `<dl>` says name/value, which is what they are. The links inside are kept —
+ * they carry the reference's internal graph, so they are rewritten to anchors here
+ * rather than dropped.
+ */
+function renderTypeRelations(body) {
+  // `#{1,3}` cannot match a `####` line: the level is followed by a `#`, not a space.
+  const metadata = /^####[ \t]+\S.*$/m.exec(body);
+  const section = /^#{1,3}[ \t]+\S.*$/m.exec(body);
+
+  if (!metadata || (section && section.index < metadata.index)) {
+    return body;
+  }
+
+  const rest = body.slice(metadata.index);
+  const next = /\n#{1,3}[ \t]+\S/.exec(rest);
+  const block = next ? rest.slice(0, next.index + 1) : rest;
+  const rows = [];
+
+  // `(?![\s\S])` rather than `$`: under `m` the latter would match at every line end
+  // and every row would capture an empty value.
+  for (const entry of block.matchAll(/^####[ \t]+(.+?)[ \t]*\n([\s\S]*?)(?=\n####[ \t]|(?![\s\S]))/gm)) {
+    const value = markdownInlineToHtml(entry[2].trim());
+
+    if (value) {
+      rows.push(`<dt>${escapeHtml(entry[1].trim())}</dt><dd>${value}</dd>`);
+    }
+  }
+
+  if (rows.length === 0) {
+    return body;
+  }
+
+  // The blank line is load-bearing: an HTML block runs to the next one, so without it
+  // the `## Constructors` that follows is swallowed as text instead of parsed.
+  const list = `<dl class="api-relations">${rows.join('')}</dl>\n\n`;
+  return body.slice(0, metadata.index) + list + body.slice(metadata.index + block.length);
+}
+
+/**
+ * Renders the inline markdown DocFX writes in those rows as HTML.
+ *
+ * Deliberately narrow: links and inline code are the whole vocabulary of a relation
+ * row. Everything outside a link is escaped, so a generic argument like
+ * `IEquatable<AgentDefinition>` cannot open a tag.
+ */
+function markdownInlineToHtml(value) {
+  const unescape = (text) => text.replace(/\\([\\`*_{}[\]()<>#+\-.!|])/g, '$1');
+  const inline = (text) => escapeHtml(unescape(text)).replace(/`([^`]+)`/g, '<code>$1</code>');
+  let html = '';
+  let index = 0;
+
+  // DocFX escapes the parentheses of an overload inside the URL too
+  // (`…equals\(system-object\)`), so the href arm has to step over `\)` as well.
+  for (const link of value.matchAll(/\[((?:[^\]\\]|\\.)*)\]\(((?:[^)\s\\]|\\.)+)\)/g)) {
+    html += inline(value.slice(index, link.index));
+    html += `<a href="${escapeHtml(unescape(link[2]))}">${inline(link[1])}</a>`;
+    index = link.index + link[0].length;
+  }
+
+  return (html + inline(value.slice(index))).replace(/\s*\n\s*/g, ' ').trim();
+}
+
+/**
+ * Lifts every heading above a page's first `##` up to `##`.
+ *
+ * Only that leading run moves. From the first `##` onwards DocFX already nests
+ * `##` → `###` → `####` correctly — measured across all 765 generated pages, zero
+ * skips occur below it — so promoting further would flatten a correct tree instead
+ * of repairing a broken one. Fenced blocks are skipped: a `#` there is code.
+ */
+function promoteLeadingHeadings(body) {
+  const lines = body.split('\n');
+  let fenced = false;
+
+  for (let index = 0; index < lines.length; index += 1) {
+    if (/^\s*(?:```|~~~)/.test(lines[index])) {
+      fenced = !fenced;
+      continue;
+    }
+
+    if (fenced) {
+      continue;
+    }
+
+    const heading = /^(#{2,6})(\s+.*)$/.exec(lines[index]);
+
+    if (!heading) {
+      continue;
+    }
+
+    if (heading[1] === '##') {
+      break;
+    }
+
+    lines[index] = `##${heading[2]}`;
+  }
+
+  return lines.join('\n');
 }
 
 function removeCompilerGeneratedClone(body) {

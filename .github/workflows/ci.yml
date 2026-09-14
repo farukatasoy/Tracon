@@ -572,10 +572,26 @@ jobs:
       # sessizce baglanti kirar.
       - name: Ic baglantilari denetle
         working-directory: docs-site
-        run: node scripts/check-links.mjs
+        run: npm run check:links
 
       # Sayfa agirligi taban cizgisi. Uretilen dist/ uzerinden olculur, bu yuzden
       # derlemeden SONRA kosar.
       - name: Sayfa agirligini denetle
         working-directory: docs-site
         run: npm run check:weight
+
+      - name: Nginx SEO HTTP sözleşmesini denetle
+        shell: bash
+        run: |
+          site_domain="$(node --input-type=module -e "import {site} from './docs-site/site.config.mjs'; process.stdout.write(new URL(site).hostname)")"
+          docker run -d --rm --name tracon-seo -p 127.0.0.1:4175:8080 \
+            -e SITE_HOST="$site_domain" -e NGINX_ENVSUBST_FILTER=SITE_HOST \
+            -v "$PWD/docs-site/dist:/usr/share/nginx/html:ro" \
+            -v "$PWD/docs-site/deploy/nginx.conf:/etc/nginx/templates/default.conf.template:ro" \
+            nginx:1.27-alpine
+          trap 'docker stop tracon-seo' EXIT
+          for attempt in {1..20}; do
+            if curl --silent --fail http://127.0.0.1:4175/ > /dev/null; then break; fi
+            sleep 1
+          done
+          python3 scripts/site-http-denetle.py http://127.0.0.1:4175

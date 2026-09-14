@@ -9,7 +9,7 @@
 // Run after `astro build`:  node scripts/check-links.mjs
 
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { base } from '../site.config.mjs';
@@ -30,12 +30,31 @@ for (const page of pages) {
   const html = readFileSync(page, 'utf8');
 
   for (const match of html.matchAll(/(?:href|src)="([^"]+)"/g)) {
-    const target = match[1];
+    let target = match[1];
 
     // `base` is '/', so the prefix test alone would claim protocol-relative
     // addresses (`//cdn.example/x`) as internal and report them all as broken.
-    if (target.startsWith('//') || (!target.startsWith(base) && !target.startsWith('#'))) {
+    if (target.startsWith('//') || /^[a-z][a-z0-9+.-]*:/i.test(target)) {
       continue; // external or protocol-relative
+    }
+
+    // A scheme-less address that starts with neither `/` nor `#` is relative to the
+    // page, not external — and treating it as external is how 640 links into a `.md`
+    // file that is never published stayed invisible here. Resolve it against the page
+    // and let the same checks below judge it.
+    if (!target.startsWith(base) && !target.startsWith('#')) {
+      const pagePath = page.slice(dist.length).split(sep).join('/');
+
+      try {
+        const resolvedUrl = new URL(target, `https://site.invalid${pagePath}`);
+
+        target = `${resolvedUrl.pathname}${resolvedUrl.search}${resolvedUrl.hash}`;
+      } catch {
+        // An address this malformed cannot resolve for a reader either.
+        checked += 1;
+        broken.push(`${page.slice(dist.length) || '/'} → ${target}`);
+        continue;
+      }
     }
 
     checked += 1;
