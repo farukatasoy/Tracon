@@ -77,3 +77,77 @@ public sealed class CapacityTelemetryTests
         cell.Status.ShouldBe(CellStatus.Complete);
     }
 }
+
+/// <summary>Which measurements count as present, and where each one may live.</summary>
+public sealed class TelemetryCoverageBuilderTests
+{
+    private static HostTelemetry Host(long turns = 10, long recordingFailures = 0)
+        => new(ModelCalls: 5, ModelTurns: turns, ToolInvocations: 5, RecordingFailures: recordingFailures, Unavailable: []);
+
+    private static CellResult Cell(long modelTurns, bool queued = false)
+    {
+        var cell = new CellResult
+        {
+            Scenarios = queued ? [CapacityScenario.Queued] : [CapacityScenario.Buffered],
+            Model = new ModelSummary { Turns = modelTurns },
+            Processes = [new ProcessResourceSummary { Role = "host", PeakRssBytes = 1, ProcessorSeconds = 1 }],
+            Storage = new StorageSummary { Available = true },
+            QueueWait = queued ? new LatencySummary { Count = 5 } : new LatencySummary(),
+        };
+
+        cell.LatencyByScenario[cell.Scenarios[0]] = new LatencySummary { Count = 100 };
+        return cell;
+    }
+
+    [Fact]
+    public void Model_turns_recorded_only_by_the_worker_processes_still_count()
+    {
+        // 🚨 The defect this case exists for: on the worker axis the HTTP host
+        // serves no model call, so its counter is legitimately zero while the
+        // turns sit - correctly recorded - in the execution log the whole
+        // worker distribution is built from. Requiring the host counter marked
+        // every worker-axis cell invalid over a measurement that was present.
+        var coverage = TelemetryCoverageBuilder.Build(Cell(modelTurns: 368), Host(turns: 0), []);
+
+        coverage.Available.ShouldContain("model.turns", StringComparer.Ordinal);
+        coverage.MissingMandatory.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void Model_turns_recorded_only_by_the_host_still_count()
+    {
+        var coverage = TelemetryCoverageBuilder.Build(Cell(modelTurns: 0), Host(turns: 12), []);
+
+        coverage.Available.ShouldContain("model.turns", StringComparer.Ordinal);
+        coverage.MissingMandatory.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void Neither_source_recording_a_turn_is_still_a_missing_mandatory_measurement()
+    {
+        var coverage = TelemetryCoverageBuilder.Build(Cell(modelTurns: 0), Host(turns: 0), []);
+
+        coverage.MissingMandatory.ShouldContain("model.turns", StringComparer.Ordinal);
+        coverage.Unavailable["model.turns"].ShouldContain("neither");
+    }
+
+    [Fact]
+    public void Queue_wait_is_mandatory_only_where_something_was_queued()
+    {
+        TelemetryCoverageBuilder.Build(Cell(modelTurns: 5), Host(), []).MissingMandatory.ShouldBeEmpty();
+
+        var queuedWithoutWait = Cell(modelTurns: 5, queued: true);
+        queuedWithoutWait.QueueWait = new LatencySummary();
+
+        TelemetryCoverageBuilder.Build(queuedWithoutWait, Host(), [])
+            .MissingMandatory.ShouldContain("queue.wait", StringComparer.Ordinal);
+    }
+
+    [Fact]
+    public void A_process_that_could_not_be_sampled_is_named_rather_than_ignored()
+    {
+        var coverage = TelemetryCoverageBuilder.Build(Cell(modelTurns: 5), Host(), ["worker-2"]);
+
+        coverage.Unavailable.ShouldContainKey("process.worker-2");
+    }
+}
