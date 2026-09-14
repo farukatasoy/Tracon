@@ -4,12 +4,12 @@
 > düzlemidir. Faz planı, sohbet özeti veya genel karar defteri değildir. Yalnız
 > ölçülen kanıtı, yayın kararlarını, risk kabulünü ve doğrulama durumunu taşır.
 >
-> **Son güncelleme:** 2026-09-03  
+> **Son güncelleme:** 2026-09-14  
 > **Çalışma modu:** `nuget-danismani` — Yayın kararı  
-> **🚨 2026-09-02 turu:** Faz 129–135 sonrası karar yenilendi. İki 🔴 ölçüldü
-> (BL-053, BL-054), **ikisi de aynı gün kapandı** ve yayın provası sonuna kadar
-> yeşil koştu. Aşağıdaki 2026-08-28 anlatısı tarihsel bağlamdır; **güncel karar
-> §4'ün başındaki 2026-09-02 bloğudur**.  
+> **🚨 Güncel karar §4'ün başındaki 2026-09-14 bloğudur.** 2026-09-03 kararı
+> ("✅ Yayınlanabilir") **devralınamaz**: o günden beri 184 commit, ~30 faz, bir
+> ürün yeniden adlandırması ve bir lisans değişikliği geçti. Aşağıdaki
+> 2026-09-02 ve 2026-08-28 anlatıları tarihsel bağlamdır.  
 > **Hedef durumu:** Seam matrisi **11/11 küme tamam**; BL-006 **kapandı**;
 > BL-026 ölçümle **🟡'ye indirildi**, belge kısmı **[Faz 121](arsiv/fazlar/121-SEAM-SOZLESME-DOKUMANI.md) ile kapandı**;
 > BL-027/BL-037 sınıf taramasıyla **21 vakaya
@@ -98,6 +98,53 @@ sayının ürün politikası mı yoksa bayat ölçüm mü olduğu artifact sonra
 değerlendirilecektir.
 
 ## 4. Mevcut net yayın kararı
+
+### Güncel karar — 2026-09-14 (`nuget-danismani`, dış inceleyici turu)
+
+**⚠️ Bugün tag atılmaz — açık 🔴 olduğu için değil, HEAD'de yayın kanıtı
+eksik olduğu için.** Aşağıdaki 2026-09-03 kararı **devralınamaz**: o günden
+beri 184 commit ve ~30 faz geçti, aralarında ürün yeniden adlandırması
+([Faz 162](arsiv/fazlar/162-TRACON-YENIDEN-ADLANDIRMA.md)) ve lisans modeli
+değişikliği ([Faz 160](arsiv/fazlar/160-LISANS-MODELI-VE-PAKET-METAVERISI.md))
+var. Paket kimliğini ve metaverisini en çok etkileyen iki değişiklik tam da
+bunlardır.
+
+**Kapı HEAD'de koşuldu** (`kapi.py yayin --kuru --surum 1.0.0-preview.1`):
+
+| Adım | Sonuç |
+|---|---|
+| 20 paketin tamamı üretildi | ✅ |
+| Tek sürüm hattı, istenen sürüm zorlandı | ✅ `1.0.0-preview.1` |
+| `CHANGELOG.md` bölümü | ❌ **durdu** — `## [1.0.0-preview.1]` yok |
+| Fazla paket · metaveri/K-008 · artifact kimliği · npm · beş extension sample · AOT smoke | ⬜ **koşmadı** (CHANGELOG kapısından sonra gelirler) |
+
+`CHANGELOG.md`'nin `Unreleased` bölümü tam yazılmıştır ve "ilk gerçek yayın
+kendi bölümünü alacak" der. Kapı tasarlandığı gibi davrandı; eksik olan bir
+kusur değil, **kullanıcının sürüm kesme kararıdır**. Kapı temiz ağaç ister,
+yani kesim bir commit gerektirir.
+
+#### Bu turun bulguları
+
+| # | Bulgu | Seviye | Durum |
+|---|---|---|---|
+| 1 | Kalan altı kapı adımı HEAD'de koşmadı | 🔴 karar için | Açık — CHANGELOG kesimi + kapı koşumu kapatır |
+| 2 | 77 arayüz `lifetime`/`tenant`/`delivery` sözleşmesini yazmıyor (172 boyut, `seam-contract-baseline.txt`) | 🟡 | GA hattı; UR-003 ile aynı turda |
+| 3 | `production.md` tablosunda dört güvenlik anahtarı yoktu | 🟡 | ✅ **kapandı 2026-09-14** — beş satır + checklist kalemi eklendi |
+| 4 | Options düzeyinde production doğrulayıcısı yok | 🟡 | Açık — preview.2 hattı, `RequireProductionProfile` önerisi |
+| 5 | F-171 sürüm damgası sapması | 🟢 | ✅ **kapandı 2026-09-14** — damga yeniden ölçüldü, kapı genişletildi |
+
+**Dış inceleyicinin beş maddesi ölçüldü.** "411 public type" sayısı tam
+isabettir ama çıkarımı yanlış hedeftedir: 205'i record, 59'u enum — üçüncü
+tarafın implement ettiği yüzey 84 arayüştür ve asıl boşluk bulgu 2'dir.
+"Scope freeze" zaten uygulanıyor: son 11 fazın **9'u** public API büyütmedi.
+"Performans kanıtı" haklıdır ve [Faz 166](166-HTTP-KAPASITE-OLCUMU.md) olarak
+planlıdır; inceleyicinin yedi metriğinden beşini kapsar, **PostgreSQL write
+amplification** ile **multi-node lease** kapsam dışıdır.
+
+**Önerilen sıra:** F-171 ✅ → CHANGELOG kesimi + kapı sonuna kadar → tag →
+preview.2'de production profili ve Faz 166.
+
+---
 
 ### Güncel karar — 2026-09-03 (`nuget-danismani`, tag öncesi tur)
 

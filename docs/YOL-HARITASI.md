@@ -8,7 +8,7 @@
 Bir fazın durumu yanlış görünüyorsa **o fazın dokümanını** düzelt;
 bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 
-## Fazlar (170 kalem)
+## Fazlar (171 kalem)
 
 | Faz | Konu | Durum |
 |-----|------|-------|
@@ -182,5 +182,6 @@ bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 | [167](arsiv/fazlar/167-AGENT-ZORLAMA-KATMANI.md) | Agent Zorlama Katmanı | ✅ Tamamlandı |
 | [168](arsiv/fazlar/168-KURTARMA-RAMPASI-KATALOGU.md) | Kurtarma Rampası Kataloğu | ✅ Tamamlandı |
 | [169](arsiv/fazlar/169-FAZ-PLANI-SOZLESMESI.md) | Faz Planı Sözleşmesi: Süreç Ölçümü ve Triyaj | ✅ Tamamlandı |
+| [170](170-PRODUCTION-PROFIL-KAPISI.md) | Production Profil Kapısı | 📋 Planlandı |
 
 Seçilmemiş adaylar: [`ADAYLAR.md`](ADAYLAR.md). Fazların hangi dalgada, hangi gerekçeyle sıralandığı (Faz 8–56, kapandı): [`arsiv/IKINCI-FAZ-YOL-HARITASI.md`](arsiv/IKINCI-FAZ-YOL-HARITASI.md) · [`arsiv/UCUNCU-FAZ-YOL-HARITASI.md`](arsiv/UCUNCU-FAZ-YOL-HARITASI.md).

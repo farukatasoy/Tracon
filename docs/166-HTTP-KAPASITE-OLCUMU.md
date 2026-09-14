@@ -1,12 +1,19 @@
 # Faz 166 — HTTP Kapasite Ölçümü
 
-> **Durum:** 📋 Planlandı (2026-09-13)
+> **Durum:** 📋 Planlandı (2026-09-13) · **revize edildi 2026-09-14**
 > **Kaynak:** Kullanıcının ürün değerlendirmesindeki 2. problem için faz planı isteği · **F-225** ([aday kaydı](ADAYLAR.md))
+> **Revizyon (2026-09-14, `nuget-danismani` turu):** Dış inceleyici yedi kapasite
+> metriği istedi; ölçüm planın **beşini** kapsadığını gösterdi. Üç ekleme yapıldı
+> ve ikisi kullanıcı kararıdır: **write amplification** ve **storage growth** artık
+> açık çıktıdır (§166.5) · `queued` senaryosuna **dar kapsamlı worker-sayısı
+> boyutu** eklendi (§166.3, yeni `workers` profili) · ölçülen sayılar **tek ortamlı
+> temsilî tablo** olarak siteye yayımlanır (§166.6). 🚨 Worker boyutu **çok node
+> desteği vaat etmez** — K-739 aynen korunur; ölçmek destek ilan etmek değildir.
 > **Önkoşul:** [Faz 157](arsiv/fazlar/157-SINIRLI-YUK-VE-IKI-PROCESS-ARIZA-KANITI.md) — store yük raporu ve process altyapısı · [Faz 97](arsiv/fazlar/97-SURUM-POLITIKASI-VE-YAYIN-PROVASI.md) — exact paket tüketimi
 > **Paketler:** Ölçülen: `Tracon.AspNetCore`, `Tracon.Core`, `Tracon.PostgreSql`; sevk edilen kodda değişiklik planlanmıyor.
 > **Yeni paket:** 0 Tracon paketi, 0 yeni harici paket kimliği · **Migration:** 0
 > **Public API:** Büyümüyor; ölçüm bileşenleri paketlenmez.
-> **Tüketici yüzeyi:** Site: `docs-site/src/content/docs/guides/production.md` — kapasite kanıtının kapsamı ve sınırları.
+> **Tüketici yüzeyi:** Site: `docs-site/src/content/docs/guides/production.md` — kapasite kanıtının kapsamı ve sınırları **ve tek ortamlı temsilî sayı tablosu** (revizyon 2026-09-14).
 > · Sevk edilen: XML, paket README, capability satırı ve HTTP contract değişmiyor; ölçüm aracı repo geliştirme aparatıdır.
 > **Manuel test alanı:** `docs/manuel-test/36-GELISTIRME-KAPILARI.md`
 
@@ -15,8 +22,11 @@
 `faz-baslangic` skill'ini uygula. Yalnız aşağıdaki ilgili bölümleri oku:
 
 1. Bu doküman; uygulama öncesinde `faz-uygulama` skill'i.
-2. `docs/KARARLAR.md`: `rg -n 'K-634|K-738|K-059|K-008'`.
+2. `docs/KARARLAR.md`: `rg -n 'K-634|K-738|K-059|K-008|K-641|K-739'`.
    K-634/K-738: süre rapordur; K-059: secret yazılmaz; K-008: ön sürüm MAF sınırı.
+   **K-641: `IJobHandler` at-least-once'tır** — fazladan attempt meşrudur,
+   eşzamanlı örtüşme değildir. **K-739: iki process ölçümü çok node DESTEK
+   BEYANI değildir** — `workers` profilinin sınırını bu iki karar çizer.
 3. Faz 157'nin “Denetim Bulguları” ve “Sonraki Faza Devir Notu”: bitmiş event
    stream'i canlı stream kanıtı değildir; process açılışı yarış penceresine girmez.
 4. `docs/hafiza/test-altyapisi.md`: “Yalıtım ve tam koşum kırılganlığı” sonundaki
@@ -30,6 +40,14 @@ Belirli donanım, configuration ve veri hacminde gerçek paket tüketicisinin
 HTTP/SQL yolunu ölçmek. Yük arttığında latency, kaynak tüketimi, backlog ve
 doğruluk birlikte görünür. Rapor, ölçülen yük aralığını anlatır; genel kapasite
 veya SLA garantisi vermez. F-225, Faz 157'nin kapanmış F-217 işinin üstüne eklenir.
+
+Revizyon sonrası faz üç soruya daha cevap verir ve üçü de **boyutlandırma**
+sorusudur, hız sorusu değil: bir run diske ne kadar yazar (**write
+amplification**), depolama run başına ne kadar büyür (**storage growth**), ve
+işi ikinci bir worker process'i eklemek nasıl değiştirir (**çekişme**). İlk
+ikisi planın zaten kurduğu izole schema ve başlangıç row/byte doğrulamasının
+üstünde neredeyse bedavadır; üçüncüsü Faz 157'nin process altyapısını kullanır.
+Hiçbiri yeni bir garanti kurmaz — üçü de mevcut davranışı **ölçer**.
 
 ## 166.1 — Doğrulanmış başlangıç
 
@@ -47,6 +65,9 @@ uygulayıcısı kendi başlangıç commit'ini ve ilgili diff'ini yeniden kaydede
 | `src/Tracon.AspNetCore/Endpoints/RunEndpoints.cs:226`, `:1200` | Kayıtlı/canlı event SSE'si store'u poll eder; doğrudan run SSE'sinden farklı frame contract'ı vardır |
 | `scripts/release_extension_samples.py:114`, `:152` | Exact sürüm, izole feed/cache ve restore doğrulama deseni mevcut |
 | `tests/Tracon.WorkerHarness/Tracon.WorkerHarness.csproj:31` | Worker harness source `ProjectReference` kullanır; doğrudan packed-consumer kanıtı sayılamaz |
+| `tests/Shared/Infrastructure/WorkerProcessHost.cs` · `ProcessRunner.cs` · `ManagedProcess.cs` (2026-09-14) | Öldürülebilir uzun ömürlü worker process'i başlatma altyapısı **mevcut** — Faz 157 bunu tam bu iş için yazdı. `workers` profili yeni process altyapısı yazmaz, bunların üstüne kurulur |
+| `src/Tracon.Abstractions/Scheduling/TraconSchedulingOptions.cs:22` (2026-09-14) | `RunWorker` varsayılanı `true`. `workers` profilinde HTTP host'ta **kapatılmalıdır**, yoksa "1 worker" hücresi iki worker olur |
+| `docs/KARARLAR.md` K-641 · K-739 (2026-09-14) | `IJobHandler` at-least-once'tır (fazladan attempt meşru, örtüşme değil) · iki process ölçümü **destek beyanı değildir** — ikisi de worker boyutunun sınırını çizer |
 | `src/Tracon.Abstractions/Scheduling/JobRecord.cs:79` | `ScheduledFor`, `StartedAt`, `CompletedAt`, `CreatedAt` mevcut; job bekleme/çalışma süreleri ayrı hesaplanabilir |
 
 Mevcut yerel rapor `artifacts/load/bounded-sql-load-20260912-204135.md`,
@@ -63,9 +84,15 @@ uygulama sırasında derleyiciyle doğrula; MAF için yeni paralel tip yaratma.
 
 ## 166.2 — Sınırlar ve topoloji
 
-- İlk sağlayıcı PostgreSQL; tek gerçek ASP.NET Core host ve onun job worker'ı.
+- İlk sağlayıcı PostgreSQL; gerçek ASP.NET Core host ve onun job worker'ı.
   Ayrı driver process'i gerçek loopback TCP üzerinden çağırır. In-process
   TestServer kapasite kanıtı sayılmaz. Host, driver ve DB yükleri ayrı raporlanır.
+  **`workers` profilinde HTTP host bir tanedir ve kendi job worker'ı KAPALIDIR**
+  (`Tracon:Scheduling:RunWorker=false`); işi yalnız 1/2/4 ayrı worker process'i
+  yapar, hepsi aynı makinede aynı kuyruğa abone olur. Yani eksendeki sayı
+  toplam worker sayısıdır — host'unki üstüne eklenmez. Faz 157'nin
+  `WorkerProcessHost`'u kullanılır, ikinci bir process altyapısı yazılmaz.
+  Worker sayısı raporda ayrı bir eksendir, concurrency ile çarpılmaz.
 - Host yalnız exact `PackageReference` ile çalışır. Host/driver repo dışındaki
   geçici dizine kopyalanır; bağımsız restore/build yapılır. Repo `Directory.*`
   mirası veya `src/` bağlantısı çalışma zamanı bağımlılığı olamaz.
@@ -78,9 +105,19 @@ uygulama sırasında derleyiciyle doğrula; MAF için yeni paralel tip yaratma.
 - Yeni public ürün tipi, endpoint, runtime option, migration, UI değişimi yok.
   Yeni proje oluşturmak yeni NuGet paketi oluşturmak değildir: `IsPackable=false`.
   Tüketici dependency grafiğine ek ağırlık **0 paket**; UI bundle artışı **0 KB**.
-- SQL Server/SQLite kapasite karşılaştırması, dağıtık driver, çok host ölçekleme,
-  iki sürümlü rolling upgrade, yeni chaos matrisi ve gerçek provider yükü kapsam dışı.
-  Faz 157'nin iki-process arıza kanıtı korunur; bu faz onun tekrarını yazmaz.
+- SQL Server/SQLite kapasite karşılaştırması, dağıtık driver, **birden çok
+  MAKİNE**, iki sürümlü rolling upgrade, yeni chaos matrisi ve gerçek provider
+  yükü kapsam dışı. Faz 157'nin iki-process **arıza** kanıtı korunur; bu faz
+  onun tekrarını yazmaz.
+- 🚨 **Worker sayısı ölçümünün sınırı yazılıdır.** Faz 157 arıza tarafını
+  kanıtladı (ölen worker'ın işi devralınır, lease dolmadan devralma olmaz).
+  Bu faz **yük altında çekişmeyi** ölçer: claim çarpışma oranı, worker sayısıyla
+  throughput'un nasıl değiştiği, backlog'un nasıl dağıldığı. Ölçüm tek makinede,
+  tek DB'de, tek saat tabanındadır — **ağ bölünmesi, saat kayması ve makineler
+  arası gecikme kapsam dışıdır**, dolayısıyla rapor çok-node davranışı hakkında
+  hiçbir şey kanıtlamaz. K-739 aynen geçerlidir: hiçbir yerde "çok node
+  destekleniyor" cümlesi kurulmaz, SQLite tek process tavsiyesi korunur.
+  Ölçülen throughput ölçeklenmiyorsa bu bir bulgudur, gizlenmez.
 - Ölçümde bulunan runtime kusuru gizlenmez. `kusur-giderme` ile ayrı kapsamda
   kapatılır; planı sessizce optimizasyon fazına dönüştürme.
 
@@ -100,6 +137,23 @@ uzayan konuşma geçmişi için kapasite iddiası verilmez.
 `queued` senaryosunda event subscriber run bitmeden bağlanmalıdır. Canlı bağlanma
 kanıtı yoksa koşum “historical-only” işaretlenir ve canlı kabul case'i geçmez.
 Doğrudan SSE sequence'i ile store event sequence'i birbirine eşit sayılmaz.
+
+**Worker sayısı boyutu yalnız `queued` senaryosundadır** (revizyon 2026-09-14).
+Sebebi ölçülebilirdir: `buffered` ve `streaming` isteği kabul eden HTTP
+process'inde tamamlanır, kuyruğa girmez, dolayısıyla worker sayısı onların
+yolunu değiştirmez. Kuyruğa giren iş ise her worker'ın **aynı satırı claim etme
+girişimiyle** yarışır; ölçülecek şey odur. Her worker process'i kendi PID'iyle
+ayrı raporlanır ve hangi job'ı hangi worker'ın çalıştırdığı kaydedilir — “toplam
+throughput arttı” demek yetmez, işin gerçekten dağıldığı gösterilir. Tek bir
+worker tüm işi alıyorsa bu bir bulgudur ve öyle yazılır.
+
+Çekişmenin doğruluk tarafı hızdan ayrı doğrulanır: kabul edilen her job **en az
+bir kez** çalışır (`IJobHandler` at-least-once'tır — K-641, `JobHandlerContract`) ve
+**eşzamanlı çift yürütme olmaz**. Sağlıklı koşumda beklenen attempt sayısı
+manifest'te yazılır; fazladan attempt bir doygunluk/lease bulgusudur, sessizce
+başarıya sayılmaz. Lease yenileme sayısı ve süresi ayrıca kaydedilir: uzun
+çalışan bir job'ın lease'i yenilenemiyorsa throughput düşmeden önce devralma
+başlar ve bu, hızdan önce görülmesi gereken bir sinyaldir.
 
 Test provider'ı `AddModelProvider` ile kayıt edilir; ham `IChatClient` verir.
 MAF tool döngüsü, compiler, kayıt ve store yolu gerçek kalır. Provider, session
@@ -134,6 +188,7 @@ planlanan geliştirme yüzeyidir. Mevcut `performans` komutu değişmez.
 | `smoke` | Üç senaryo; tenant başına en az 2 run; canlı akış ve mutabakat | Normal Linux CI, kısa doğruluk koşumu; latency eşiği yok |
 | `sweep` | Üç senaryo × 1/8/32/64 concurrency × boş/dolu DB × 3 tekrar | Açık komutla; her hücrede 15 s warm-up + 60 s ölçüm |
 | `arrival` | `queued`; 1/4/8/16 planlanan istek/s; her seviyede 60 s | Açık komutla; geliş zamanlaması önceki yanıtı beklemez |
+| `workers` | `queued`; **1/2/4 worker process** × tek sabit concurrency × 3 tekrar | Açık komutla; HTTP host tek kalır, worker sayısı **ayrı eksendir** — sweep basamaklarıyla çaprazlanmaz |
 | `soak` | Üç senaryonun eşit karışımı; sweep sonrası seçilen sabit yükte 30 dakika | Açık komutla; seçilen concurrency gerekçesi raporda |
 
 Warm-up run'ları ölçüm örneklerinden ayrılır. Ölçüm sonrasında yeni giriş
@@ -162,6 +217,20 @@ rapor `incomplete/resource-limit` veya `incomplete/drain-limit` olur.
 Bir basamak yarım kaldığında daha yüksek basamaklar otomatik koşulmaz.
 Kullanıcı kesintisi de partial rapor üretir; başarıya çevrilmez.
 
+`workers` profilinde sabit concurrency **sweep'ten seçilir**: `queued` senaryosunun
+tek worker ile backlog biriktirmeden tamamladığı en yüksek basamak. Seçim raporda
+gerekçelendirilir; keyfî bir sayı kullanılmaz. Worker sayısı arttıkça **istek yükü
+sabit tutulur** — amaç daha çok iş göndermek değil, aynı işin kaç worker arasında
+nasıl dağıldığını görmektir. Her hücre yine izole schema ve temiz process ile
+başlar; worker process'leri ölçüm penceresinden **önce** ayağa kalkar ve hazır
+olduklarını kuyruğa abone olarak gösterir, açılış yarışı pencereye girmez
+(Faz 157'nin devir notu bunu açıkça ister).
+
+Worker process'leri host'un kendi job worker'ına **ek** değil, onun **yerine**
+sayılır: HTTP host'un dahilî worker'ı `workers` profilinde kapatılır
+(`Scheduling.RunWorker = false`), yoksa "1 worker" hücresi aslında iki worker
+olur ve tüm eksen kayar. Etkin değer manifest'te yazılır.
+
 Soak yükü, sweep'te tamamlanan ve backlog'u birikmeyen basamakların en yükseğinin
 altından seçilir; böyle bir basamak yoksa önce sorun araştırılır. Seçim raporda
 gerekçelendirilir; kapasite sertifikası verilmez. Host heap/RSS ve backlog
@@ -176,6 +245,9 @@ zaman serisinde birikim incelenir. Süre veya eğim için CI eşiği eklenmez.
 | Model | Provider sınırında gerçekleşen süre ve tur sayısı; istemci p95'inden model p95'i çıkarılmaz; tool ve kayıt maliyeti modele yazılmaz |
 | Host/driver | Ayrı PID ile CPU, RSS, managed heap, allocation ve GC zaman serisi; sampling aralığı 1 s; fiziksel RAM ile process limiti ayrı alanlar |
 | SQL | Query süresi/sayısı, connection pool bekleme, aktif bağlantı, database boyutu; kaynak/instrument adı raporda |
+| **Write amplification** | Ölçüm penceresinde tamamlanan run **başına** yazılan satır ve bayt, **tablo tablo** (`runs`, `run_events`, `tool_invocations`, `jobs`, `traces`, …). Hücrenin izole schema'sında pencere öncesi/sonrası `pg_total_relation_size` ve satır sayısı farkından hesaplanır; index ve TOAST payı gövdeden **ayrı** gösterilir. Tek satır "N KB/run" yetmez — hangi tablonun büyüdüğü kapasite kararını değiştirir |
+| **Storage growth** | Aynı farktan türetilen run başına toplam bayt ve event başına bayt; üç tekrarın değişkenliğiyle. Projeksiyon (ör. 1M run) **yalnız ölçülen aralığın doğrusal uzantısı olarak** ve öyle etiketlenerek verilir; retention kapalıyken ölçülür ve bu manifest'e yazılır — retention açıkken sayı **başka bir sorunun** cevabıdır |
+| **Worker çekişmesi** (`workers`) | Worker başına PID, claim denemesi, başarılı claim, **çarpışan claim** oranı, çalıştırılan job sayısı ve dağılımı; lease yenileme sayısı/süresi; devralma olayı; toplam attempt sayısının kabul edilen job sayısına oranı. Throughput worker sayısına karşı ayrı seri olarak verilir, tek bir "ölçeklenir/ölçeklenmez" cümlesine indirgenmez |
 | Queue | Kabul süresi; `JobRecord.StartedAt-CreatedAt` ile ilk attempt dispatch beklemesi; attempt çalışma süresi; backlog, en eski hazır işin yaşı |
 | SSE | İlk update gecikmesi, frame araları, aktif bağlantı, parse/erken EOF hatası; kayıtlı stream'de sequence ve son event doğruluğu |
 
@@ -188,6 +260,16 @@ ve run/event mutabakatı zorunludur; bunlar yoksa ölçüm geçersizdir. Platfor
 bağlı CPU/GC/SQL instrument ayrıntıları eksikse rapor geçerli ama telemetry
 kapsamı dar olabilir. Zorunlu ve isteğe bağlı alanlar schema'da ayrılır.
 SQL query ve pool bekleme ölçümü yoksa darboğaz “pool” diye ilan edilmez.
+
+🚨 **Write amplification ölçümünün kendi tuzağı vardır ve raporda yazılır.**
+`pg_total_relation_size` farkı yalnız mantıksal veriyi değil **bloat'ı** da
+sayar; autovacuum ölçüm penceresi içinde çalışırsa aynı yük için farklı sayı
+çıkar. Üç önlem zorunludur: hücre başına taze schema (zaten planda var),
+pencere öncesi ve sonrası autovacuum/`n_dead_tup` durumunun kaydı, ve ölçümün
+**pencere sonunda drain bittikten sonra** alınması. Autovacuum pencerede
+çalıştıysa hücre `storage/vacuum-interference` ile işaretlenir ve sayı temiz
+hücrelerle aynı tabloda ortalanmaz. Satır sayısı farkı bloat'tan etkilenmez;
+bayt ile satır **birlikte** raporlanır, çünkü ikisi ayrışırsa sebebi budur.
 Yalnız ölçüm için ürünün public API'si veya dependency grafiği büyütülmez.
 Yeni harici paket ihtiyacı doğarsa net geçişli maliyet ölçülerek kapsam yeniden
 değerlendirilir; planın sıfır paket iddiası sessizce değiştirilmez.
@@ -244,9 +326,29 @@ Karşılaştırma yalnız workload/configuration/dataset/ortam kimlikleri uyumlu
 verilir; farklı makineler otomatik regresyon kararı üretmez. İlk rapor en az
 üç tekrarın değişkenliğini gösterir. Darboğaz yorumu kanıta bağlanır; telemetry
 yetersizse “belirlenemedi”, tavan bulunmadıysa “ölçülen aralıkta bulunmadı” denir.
-Siteye ham büyük artifact ve secret girmez. `production.md` ölçüm kapsamını ve
-bir temsilî ortamlı özeti anlatır; repo private ise tüketiciyi erişemeyeceği
-script bağlantısına yönlendirme. Ayrıntılı koşum komutları `bench/capacity/README.md`.
+Siteye ham büyük artifact ve secret girmez. Ayrıntılı koşum komutları
+`bench/capacity/README.md`. Repo private olduğu sürece tüketiciyi erişemeyeceği
+bir script bağlantısına yönlendirme.
+
+**Yayımlanan tablo (👤 kullanıcı kararı, 2026-09-14).** `production.md` yalnız
+kapsamı değil, **tek bir referans ortamda ölçülmüş sayıları** da taşır. Sınırları
+plana yazılıdır:
+
+- **Tek ortam.** Bir makine, bir PostgreSQL sürümü, bir configuration. Tablonun
+  başlığı ortamı söyler; manifest'in tamamı siteye değil repo'ya gider, sayfa
+  ona referans verir.
+- **Ne yayımlanır:** üç senaryonun tamamlanan basamakları için concurrency,
+  n, p50/p95, throughput · run başına write amplification (tablo kırılımıyla) ·
+  run başına storage · `workers` profilinin worker sayısı–throughput serisi.
+- **Ne yayımlanmaz:** yarım kalan hücreler tamamlanmış gibi, tek tekrarın sayısı
+  ortalama gibi, düşük örnekli percentile uyarısız. Eksik ölçüm sıfırla dolmaz.
+- **Çerçeve zorunludur.** Her tablo "bu ortamda ölçüldü, **SLA veya garanti
+  kapasite değildir**" cümlesini taşır. Karşılaştırma davetiyesi verilmez:
+  başka ürünlerle kıyas, hedef sayı ve "yeterli/hızlı" nitelemesi yazılmaz.
+- **Bayatlama sözleşmesi.** Tablo hangi Tracon sürümünde ve hangi commit'te
+  ölçüldüğünü yazar. Sayı sevk edilen bir iddiadır; ölçüm yenilenmeden sürüm
+  satırı güncellenmez. Bu, `bagimlilik_surum_damgasi` kapısının davranış
+  iddiaları için kurduğu disiplinin aynısıdır (F-171).
 
 ## Planlanan Public API
 
@@ -261,14 +363,14 @@ consumer kaydı kazanır. Arayüz payı: 0 KB gzip, yeni ekran metni: 0.
 | Yol | İş |
 |---|---|
 | `bench/capacity/README.md`, `profiles/*.json` | Tekrarlanabilir komutlar, workload ve kaynak bütçeleri |
-| `bench/capacity/Tracon.CapacityHost/` | Paket tüketen host; test provider, kod tool'u, telemetry ve seed modu |
+| `bench/capacity/Tracon.CapacityHost/` | Paket tüketen host; test provider, kod tool'u, telemetry ve seed modu. **`workers` profili için worker-only mod** (`Scheduling.RunWorker` açık, `MapTracon` yok) — ikinci bir host projesi yazılmaz, aynı host iki modda çalışır |
 | `bench/capacity/Tracon.CapacityDriver/` | Ayrı HTTP driver; üç senaryo, bounded yük, SSE reader, rapor üretimi |
 | `bench/capacity/Directory.Build.props` | Yalnız apparatus ayarları; geçici dizine taşındığında bağımsız build/restore |
 | `scripts/capacity.py`, `scripts/capacity_test.py` | Pack/restore/process/cleanup orchestration ve script hata yolları |
 | `scripts/kapi.py`, `scripts/kapi_test.py` | `kapasite` alt komutu; standart kapanışa ağır koşum eklemez |
 | `tests/Tracon.Capacity.Tests/` | Normal suite'te çalışan histogram/sayaç/profil testleri; Docker veya yeni pack istemez |
 | `bench/capacity/Tracon.Capacity.Acceptance/` | Kısa packed-host HTTP/store ve process hata testleri; yalnız `kapasite --profil smoke` pack/restore sonrasında çağırır |
-| `tests/Shared/Infrastructure/ProcessRunner.cs`, `ManagedProcess.cs` | Var olan altyapıyı link'le; gerekli düzeltme dışında kopya üretme |
+| `tests/Shared/Infrastructure/ProcessRunner.cs`, `ManagedProcess.cs`, `WorkerProcessHost.cs` | Var olan altyapıyı link'le; gerekli düzeltme dışında kopya üretme. `workers` profilinin N worker process'i **bu üçünün üstünde** kurulur — Faz 157 bunları tam da öldürülebilir uzun ömürlü host için yazdı |
 | `Tracon.slnx`, `Tracon.no-docker.slnf`, `.github/workflows/ci.yml` | Test keşfi/build; Linux packed smoke'un ayrı ve açık adımı; Windows'a Docker bağımlılığı sızmaz |
 | `scripts/release_extension_samples.py` | Yalnız ortak izole tüketici hazırlığı ayrıştırılacaksa; mevcut altı sample kapsamı azalmaz |
 | `docs-site/src/content/docs/guides/production.md`, `docs/manuel-test/36-GELISTIRME-KAPILARI.md` | Kanıt sınırı ve kabul case'leri |
@@ -297,6 +399,10 @@ eksik Docker veya paket hazırlanması sessiz skip değil başarısız önkoşul
 | Kaynak/telemetry toplama başarısızlığı sıfır değer sayılır | Birim + process | `CapacityTelemetryTests`: unsupported alan, collector hatası, geçersiz ölçüm durumu |
 | Secret process args/log/rapora sızar | Process + artifact | `CapacityRedactionTests`: sentetik canary credential ile stdout/stderr/JSON/Markdown taraması |
 | Seed/cleanup başka schema'ya dokunur | Gerçek SQL | `CapacityIsolationTests`: benzersiz ownership marker; yalnız yaratılan schema/container temizlenir |
+| Host'un dahilî worker'ı açık kaldığı için "1 worker" aslında 2 olur; tüm eksen kayar | Process + packed HTTP | `CapacityWorkerAxisTests`: `workers` profilinde host'un etkin `Scheduling:RunWorker` değeri **çalışma anında** okunur ve manifest'e yazılır; `true` ise profil başlamaz. Kaydedilen worker PID sayısı beklenen sayıya eşittir |
+| Worker sayısı artınca throughput artmış görünür, ama işi tek worker yapar | Process + gerçek SQL | `CapacityWorkerDistributionTests`: her job'ın hangi worker PID'inde çalıştığı kaydedilir; dağılım raporlanır. Tek worker'ın payı eşiği aşarsa koşum "çekişme ölçülemedi" diye işaretlenir, ölçeklenme iddia edilmez |
+| Aynı job iki worker'da **eşzamanlı** çalışır (lease kusuru) | Process + gerçek SQL | `CapacityLeaseOverlapTests`: attempt kayıtlarında aynı job için örtüşen çalışma aralığı aranır. At-least-once fazladan attempt'e izin verir (K-641), **örtüşmeye izin vermez** — örtüşme koşumu `invalid` yapar |
+| Write amplification bloat veya autovacuum yüzünden yanlış ölçülür | Gerçek SQL | `CapacityStorageAccountingTests`: bilinen satır sayısı yazılan izole schema'da beklenen satır farkı doğrulanır; pencerede autovacuum çalıştıysa hücre `storage/vacuum-interference` işaretlenir ve ortalamaya girmez |
 
 Fault testleri tam 30 dakikalık koşum istemez. Kısa deterministik case'ler
 raporlayıcıyı iki yönde doğrular: doğru veri geçer, eksik veri düşer.
@@ -314,11 +420,23 @@ Numaralar uygulamada alan dosyasındaki sıradaki boş MT-GDK kimliklerinden al�
 | 5 | Canlı run sırasında driver iptali veya düşük kaynak cap'i | Partial rapor korunur; sahip olunan process'ler temizlenir; başka çalışma etkilenmez |
 | 6 | Doğrulama fixture'ında kayıt kaybı / kesik SSE | Koşum başarı göstermez; kayıp kimlik/frame açıklanır |
 | 7 | Aynı raporu tekrar üret; farklı makine manifest'i ile karşılaştır | Özet tekrar üretilebilir; uygunsuz karşılaştırma ve düşük örnek açık işaretlenir |
+| 8 | `kapasite --profil workers` | 1/2/4 worker için throughput serisi, claim çarpışma oranı ve job'ın worker'lara dağılımı görünür; hiçbir job eşzamanlı iki worker'da çalışmaz; host'un dahilî worker'ı kapalı olarak manifest'e yazılmıştır |
+| 9 | Bir `sweep` hücresinin write amplification çıktısını incele | Tablo kırılımı (`runs`/`run_events`/`jobs`/…), index–gövde ayrımı, satır **ve** bayt birlikte; autovacuum penceresi işaretliyse hücre ortalamaya girmemiştir |
+| 10 | Yayımlanacak `production.md` tablosunu koşum çıktısından üret | Tablo ortamı, Tracon sürümünü ve commit'i yazar; "SLA değildir" çerçevesi vardır; yarım hücre ve düşük örnekli percentile yayımlanmamıştır |
 
 ## Açık Sorular
 
 Planı bloklayan soru yok. Kayıt ve 30 dakika için önerilen varsayılanlar
 kullanıldı; farklı kullanıcı yönlendirmesi gelirse uygulama başlamadan güncellenir.
+
+**2026-09-14 revizyonunda iki soru soruldu ve ikisi de kullanıcı tarafından
+cevaplandı** (👤), bu yüzden açık değildirler:
+
+1. **Multi-node lease davranışı fazın kapsamına girsin mi?** → *Girsin, dar
+   kapsamlı.* `queued` senaryosuna tek eksenli worker-sayısı boyutu eklendi;
+   sweep basamaklarıyla çaprazlanmaz, birden çok makine kapsam dışı kalır.
+2. **Ölçülen sayılar siteye yayımlansın mı?** → *Evet, tek ortamlı temsilî
+   tablo.* Çerçeve, bayatlama sözleşmesi ve ne yayımlanmayacağı §166.6'da yazılı.
 Npgsql/runtime instrument erişimi §166.5'teki ilk probda ölçülecek teknik
 belirsizliktir. Ölçülemeyen alan için yalan sıfır veya tahminî isim kullanılmaz.
 
@@ -329,6 +447,12 @@ belirsizliktir. Ölçülemeyen alan için yalan sıfır veya tahminî isim kulla
 - [ ] Üç senaryo ve iki tenant doğrulanmıştır; buffered idempotency maliyeti, iki SSE contract'ı ve canlı subscriber ayrımı raporda doğrudur.
 - [ ] Sweep boş/dolu veriyle ve üç tekrarla koşulmuştur; resource cap nedeniyle durulan hücreler gerekçeli devredilir, tamamlanmış gibi gösterilmez.
 - [ ] Open-loop arrival raporu planned/sent/notSent, dispatch gecikmesi ve backlog'u birlikte taşır.
+- [ ] `workers` profili 1/2/4 worker process ile koşmuştur; host'un dahilî worker'ı kapalıdır ve bu **çalışma anında** doğrulanmıştır. Throughput serisi, claim çarpışma oranı ve job'ın worker'lara **dağılımı** birlikte raporlanır; tek worker tüm işi alıyorsa ölçeklenme iddia edilmez.
+- [ ] Aynı job'ın iki worker'da **eşzamanlı** çalışmadığı attempt aralıklarından kanıtlanmıştır; fazladan attempt at-least-once gereği kabul edilir (K-641), örtüşme koşumu `invalid` yapar.
+- [ ] 🚨 Hiçbir yerde "çok node destekleniyor" cümlesi kurulmamıştır; rapor ve site metni ölçümün tek makine/tek DB/tek saat sınırını açıkça yazar (**K-739 korunur**).
+- [ ] Write amplification tablo kırılımıyla, index–gövde ayrımıyla ve **satır ile bayt birlikte** raporlanmıştır; autovacuum karışan hücreler işaretlenmiş ve ortalamaya katılmamıştır.
+- [ ] Run başına ve event başına storage growth üç tekrarın değişkenliğiyle verilmiştir; projeksiyon varsa "ölçülen aralığın doğrusal uzantısı" olarak etiketlenmiştir; retention durumu manifest'tedir.
+- [ ] `production.md`'ye tek ortamlı temsilî sayı tablosu yazılmıştır: ortam, Tracon sürümü ve commit yazılı; "SLA veya garanti kapasite değildir" çerçevesi var; yarım hücre, tek tekrar ve uyarısız düşük örnekli percentile yayımlanmamıştır.
 - [ ] Seçim gerekçesi yazılmış yükte 30 dakikalık soak tamamlanmıştır; sağlıklı workload'un son mutabakatında kayıp/tenant karışması yoktur.
 - [ ] Süre/hız CI eşiği yoktur; K-634/K-738 ve allocation baseline korunmuştur.
 - [ ] CPU/RSS/heap/GC, SQL telemetry kapsamı, queue ve SSE ölçümleri ortamıyla raporlanmıştır; eksikler ve örnek sayıları açıktır.
@@ -339,7 +463,7 @@ belirsizliktir. Ölçülemeyen alan için yalan sıfır veya tahminî isim kulla
 - [ ] Secret taraması boş döner; raporlar, process çıktıları ve manifest ayrıca taranmıştır.
 - [ ] Manuel case'ler `docs/manuel-test/36-GELISTIRME-KAPILARI.md` içine eklenmiş; otomatikleştirilebilenler koşmuştur.
 - [ ] `faz-denetim` uygulanmış; 🔴 bulgu kalmamıştır. `faz-tamamlama` ile site/doküman senkronu ve arşiv kapanışı yapılmıştır.
-- [ ] `production.md` yalnız ölçülen kapsamı anlatır; ilgili site kapıları temizdir.
+- [ ] `production.md` yalnız **ölçülen** kapsamı ve **ölçülen** sayıları anlatır — ölçülmemiş hiçbir rakam yoktur; ilgili site kapıları temizdir.
 
 ### Planlanan doğrulama komutları
 
@@ -350,8 +474,12 @@ Aşağıdaki `kapasite` komutları **henüz yoktur**, bu fazda eklenecektir.
 python3 scripts/kapi.py kapasite --profil smoke --surum 1.0.0-preview.capacity166
 python3 scripts/kapi.py kapasite --profil sweep --surum 1.0.0-preview.capacity166
 python3 scripts/kapi.py kapasite --profil arrival --surum 1.0.0-preview.capacity166
+python3 scripts/kapi.py kapasite --profil workers --surum 1.0.0-preview.capacity166
 python3 scripts/kapi.py kapasite --profil soak --surum 1.0.0-preview.capacity166
 ```
+
+`workers` profili `sweep` sonrasında koşulur: sabit concurrency'sini onun
+tamamlanan basamaklarından seçer, bu yüzden tek başına anlamlı değildir.
 
 Soak seçimi `profiles/soak.json` içinde açık concurrency olarak kaydedilir;
 öneri algoritması gizlice workload değiştirmez. Connection yalnız environment
@@ -367,6 +495,10 @@ veya mevcut secret mekanizmasından okunur; komut argümanına konmaz.
 | İstemci daha önce doyar | Driver CPU/RSS, dispatch lag ve notSent görünür; server kapasitesi diye raporlanmaz |
 | Uzun koşum sınırsız log/event dosyası üretir | Bounded writer, disk bütçesi, partial rapor ve ölçüm dışı temizlik |
 | Örnek sayısı az veya doygunluk hiç bulunmaz | Eksik güven saklanmaz; ölçülen üst basamak garanti kapasite diye sunulmaz |
+| Dört worker aynı makinede **CPU** için yarışır; ölçülen şey lease çekişmesi değil makine doygunluğu olur | Worker başına CPU/RSS ayrı raporlanır. Makine doyduysa sonuç "lease çekişmesi ölçülemedi, makine doydu" diye yazılır — ölçeklenme iddiası da, ölçeklenememe iddiası da yapılmaz |
+| Worker ölçümü "çok node destekleniyor" diye okunur | K-739 fazın DoD'sinde; rapor ve site metni tek makine/tek DB/tek saat sınırını yazar. SQLite tek process tavsiyesi değişmez |
+| Yayımlanan sayı bayatlar ve sevk edilmiş yanlış bir iddiaya döner | Tablo sürüm ve commit taşır; ölçüm yenilenmeden sürüm satırı güncellenmez. Aynı disiplinin kapısı F-171'de kuruldu |
+| Yayımlanan sayı karşılaştırma daveti üretir | Tablo hedef sayı, kıyas ve "yeterli/hızlı" nitelemesi taşımaz; çerçeve cümlesi zorunludur ve site kapısında kontrol edilir |
 
 ## Plandan Sapmalar
 
