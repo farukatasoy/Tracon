@@ -1,0 +1,59 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Phase 166. Short, deterministic checks against a REAL packed-consumer host
+    and a REAL database. Run only by the `kapasite` smoke profile, never by the
+    normal suite: it needs a packed feed and a running PostgreSQL that an
+    ordinary `dotnet test` has neither of.
+
+    🚨 Missing prerequisites FAIL here; they are never a silent skip. A skipped
+    provenance check is indistinguishable from a passing one in a CI log, and
+    provenance is the whole claim this project exists to make.
+  -->
+  <PropertyGroup>
+    <IsTestProject>true</IsTestProject>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>Tracon.Capacity.Acceptance</RootNamespace>
+  </PropertyGroup>
+
+  <!--
+    🚨 The repository's `[tests/**]` .editorconfig relaxations cannot reach this
+    project: `scripts/capacity.py` copies bench/capacity/ into a temporary
+    directory OUTSIDE the repository and builds it there, so nothing above the
+    copy applies. These are the same rules `[tests/**]` turns off, written here
+    so the copy and the working tree agree.
+      CA1707  - underscores in test names, the convention tests/** uses
+      CA2007  - ConfigureAwait is not needed in test code
+      xUnit1051 - the orchestrator owns the process lifetime; threading
+                  TestContext.Current.CancellationToken through every call
+                  would cost readability for nothing in checks this short
+      MA0004/MA0016/CA1861 - the same allowances tests/** has
+  -->
+  <PropertyGroup>
+    <NoWarn>$(NoWarn);CA1707;CA2007;xUnit1051;MA0004;MA0016;CA1861</NoWarn>
+  </PropertyGroup>
+
+  <PropertyGroup Label="Microsoft Testing Platform">
+    <UseMicrosoftTestingPlatformRunner>true</UseMicrosoftTestingPlatformRunner>
+    <TestingPlatformDotnetTestSupport>true</TestingPlatformDotnetTestSupport>
+    <TestingPlatformCaptureOutput>false</TestingPlatformCaptureOutput>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- The driver, for the reader, the reconciler and the redaction scan.
+         Linking its sources would be the synchronization copy K-411 warns about. -->
+    <ProjectReference Include="../Tracon.CapacityDriver/Tracon.CapacityDriver.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="xunit.v3" Version="3.2.0" />
+    <PackageReference Include="Shouldly" Version="4.3.0" />
+    <PackageReference Include="Npgsql" Version="10.0.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+    <Using Include="Shouldly" />
+  </ItemGroup>
+
+</Project>

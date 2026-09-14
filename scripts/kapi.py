@@ -65,6 +65,10 @@ DOC_REFERENCE_FROZEN_DIR = re.compile(r"(^|[\\/])Migrations[A-Za-z]*[\\/]")
 SECRET_PATTERN = re.compile(
     r"sk-[a-z]+-[A-Za-z0-9_-]{24,}|AVNS_[A-Za-z0-9]{12,}|(Password|pwd)=[^ \";']{6,}"
 )
+# Bir secret tarayıcısını doğrulamak için sahte bir credential gerekir (Faz 166).
+# İstisna GİZLENMEZ, İŞARETLENİR: bu belirteci taşıyan satır atlanır ve kaç
+# satırın atlandığı raporlanır.
+SYNTHETIC_MARKER = "SYNTHETIC-CREDENTIAL"
 
 
 @dataclasses.dataclass(frozen=True)
@@ -176,18 +180,33 @@ def find_sync_copies(root: pathlib.Path = ROOT) -> list[pathlib.Path]:
     return sorted(found)
 
 
-def find_secrets(root: pathlib.Path = ROOT) -> list[str]:
-    """Return matching path/line records, ignoring documented test fixtures."""
+def find_secrets(root: pathlib.Path = ROOT) -> tuple[list[str], int]:
+    """Return matching path/line records and how many marked fixtures were skipped.
+
+    🚨 Faz 166. Bir secret TARAYICISINI test etmenin tek yolu ona credential
+    şeklinde bir şey göstermektir; kapasite aparatı hem redaction testlerinde
+    hem de koştuğu her koşumda kasıtlı olarak SENTETİK bir canary kullanır
+    (hiçbir yere bağlanmaz). O satırlar bu kapıyı kırardı.
+
+    Çözüm gizlemek DEĞİL işaretlemektir: satırın kendisi SYNTHETIC_MARKER
+    taşımalıdır, böylece istisna kod incelemesinde görünür kalır. Kaç satırın
+    atlandığı ayrıca raporlanır - sessizce büyüyen bir istisna listesi, kapının
+    olmamasıyla aynı şeydir."""
     found: list[str] = []
+    skipped = 0
     for path in _walk_files(root):
         try:
             lines = path.read_text(encoding="utf-8").splitlines()
         except (OSError, UnicodeDecodeError):
             continue
         for line_number, line in enumerate(lines, 1):
-            if SECRET_PATTERN.search(line):
-                found.append(f"{path.relative_to(root)}:{line_number}:{line}")
-    return found
+            if not SECRET_PATTERN.search(line):
+                continue
+            if SYNTHETIC_MARKER in line:
+                skipped += 1
+                continue
+            found.append(f"{path.relative_to(root)}:{line_number}:{line}")
+    return found, skipped
 
 
 def find_stale_doc_references(root: pathlib.Path = ROOT) -> list[str]:
@@ -225,11 +244,12 @@ def find_stale_doc_references(root: pathlib.Path = ROOT) -> list[str]:
 def scan(root: pathlib.Path = ROOT) -> int:
     """Run the synchronization-copy, secret, migration-integrity and doc-reference scans."""
     copies = find_sync_copies(root)
-    secrets = find_secrets(root)
+    secrets, synthetic = find_secrets(root)
     migrations = migration_integrity_violations(root)
     stale_docs = find_stale_doc_references(root)
     if not copies and not secrets and not migrations and not stale_docs:
-        print("Tarama: ✅ temiz")
+        print("Tarama: ✅ temiz"
+              + (f" ({synthetic} işaretli sentetik credential atlandı)" if synthetic else ""))
         return 0
 
     if copies:
@@ -1254,6 +1274,24 @@ def _npm_dry_run() -> int:
     return 0
 
 
+def capacity_measurement(profile: str, version: str, output: pathlib.Path) -> int:
+    """Faz 166'nın kapasite ölçümünü koşar.
+
+    🚨 Bu bir KAPI DEĞİLDİR. K-738 yük ve arıza ölçümlerinin rapor olduğunu,
+    sürenin hiçbir eşiğe bağlanmadığını söyler; `kapanis` bu komutu çağırmaz ve
+    hiçbir profili standart kapanışa, PR yoluna veya release hattına eklemez.
+    Ölçüm mantığı `scripts/capacity.py` içindedir; burada yalnız komut yüzeyi
+    tek noktada toplanır."""
+    sys.path.insert(0, str(ROOT / "scripts"))
+    import capacity  # noqa: PLC0415 - komut yüzeyi için tembel içe aktarma
+
+    try:
+        return capacity.measure(profile, version, output)
+    except capacity.CapacityError as error:
+        print(f"❌ {error}")
+        return 1
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--komutlari-bas", action="store_true", help="komutları çalıştırmadan listele")
@@ -1277,10 +1315,24 @@ def main(argv: Sequence[str] | None = None) -> int:
         help="zorunlu: bu faz yalnız kuru koşumu destekler, canlı yayın yolu yok",
     )
     yayin.add_argument("--surum", help="zorlanacak sürüm (MinVerVersionOverride); verilmezse MinVer'in bugünkü değeri kullanılır")
+    # Faz 166. Kapasite ölçümü bir KAPI DEĞİLDİR (K-738: yük ölçümü rapordur).
+    # `kapanis` onu asla koşmaz; burada olması yalnız komut yüzeyini tek yerde
+    # tutmak içindir. Ağır profiller açık komutla, eli isteyerek koşar.
+    kapasite = subparsers.add_parser(
+        "kapasite",
+        help="HTTP kapasite ölçümü - opt-in, kapı değil (scripts/capacity.py)")
+    kapasite.add_argument("--profil", required=True,
+                          help="smoke | sweep | arrival | workers | soak")
+    kapasite.add_argument("--surum", required=True,
+                          help="ölçülecek exact paket sürümü; kayan sürüm reddedilir")
+    kapasite.add_argument("--cikti", default=str(ARTIFACTS / "capacity"),
+                          help="artifact kökü (varsayılan artifacts/capacity)")
 
     args = parser.parse_args(argv)
     if args.stage == "tarama":
         return scan()
+    if args.stage == "kapasite":
+        return capacity_measurement(args.profil, args.surum, pathlib.Path(args.cikti))
     if args.stage == "ic-dongu":
         paths = changed_paths()
         if paths is None:

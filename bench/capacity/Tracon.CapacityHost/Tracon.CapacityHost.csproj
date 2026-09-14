@@ -1,0 +1,41 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <!--
+    Phase 166. The system under measurement, consumed EXACTLY as a real
+    customer consumes it: PackageReference at one exact version, restored from
+    an isolated local feed with an empty cache.
+
+    🚨 There is no ProjectReference to src/ anywhere in this file, and there
+    must never be one. A source reference would make the measurement describe
+    the working tree rather than the package, and the assembly-load path,
+    trimming behaviour and dependency graph a consumer actually gets would all
+    go unmeasured.
+  -->
+  <PropertyGroup>
+    <RootNamespace>Tracon.CapacityHost</RootNamespace>
+    <AssemblyName>Tracon.CapacityHost</AssemblyName>
+    <UserSecretsId>tracon-capacity-host</UserSecretsId>
+    <!--
+      🚨 NOT enabled: Npgsql and the SQL stack need real globalization data.
+      Same reason samples/Tracon.Api gives (K-392).
+    -->
+    <InvariantGlobalization>false</InvariantGlobalization>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!--
+      VersionOverride is not needed: central package management is off in this
+      tree on purpose, so the version is written here and supplied by
+      scripts/capacity.py as an exact value.
+    -->
+    <PackageReference Include="Tracon" Version="$(TraconCapacityPackageVersion)" />
+  </ItemGroup>
+
+  <!-- Linked, never copied: see bench/capacity/Shared/CapacityContract.cs. -->
+  <ItemGroup>
+    <Compile Include="../Shared/CapacityContract.cs" Link="Shared/CapacityContract.cs" />
+    <Compile Include="../Shared/CapacityPayload.cs" Link="Shared/CapacityPayload.cs" />
+    <Compile Include="../Shared/CapacityExecutionLog.cs" Link="Shared/CapacityExecutionLog.cs" />
+  </ItemGroup>
+
+</Project>

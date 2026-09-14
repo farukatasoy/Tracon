@@ -20,6 +20,15 @@ python3 scripts/kapi.py performans                # tahsis kapısı - üç sıca
 `artifacts/kapi-olcum.jsonl`'a ekler. `--komutlari-bas` hiçbirini koşmadan
 listeler — ayıklama bilgisi kaybolmaz.
 
+## Kapı OLMAYAN komut: `kapasite`
+
+`python3 scripts/kapi.py kapasite --profil <ad> --surum <exact>` (Faz 166) bir
+**ölçümdür**, kapı değil. K-738 yük ölçümünün rapor olduğunu ve sürenin hiçbir
+eşiğe bağlanmadığını söyler; `kapanis` bu komutu **çağırmaz** ve hiçbir profil
+standart kapanışa, PR yoluna veya release hattına girmez. CI'da yalnız `smoke`
+profili koşar ve hızı değil doğruluğu kontrol eder. Ayrıntı:
+[`bench/capacity/README.md`](../../bench/capacity/README.md).
+
 ## Neden dördü de zorunlu
 
 `dotnet format`, `dotnet build`'in yakalamadığı analyzer tanılarını yakalar.

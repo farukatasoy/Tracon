@@ -41,7 +41,8 @@
       "tests/Tracon.Package.Tests/Tracon.Package.Tests.csproj",
       "tests/Tracon.Testing.UnitTests/Tracon.Testing.UnitTests.csproj",
       "tests/Tracon.Client.UnitTests/Tracon.Client.UnitTests.csproj",
-      "tests/Tracon.Cli.FunctionalTests/Tracon.Cli.FunctionalTests.csproj"
+      "tests/Tracon.Cli.FunctionalTests/Tracon.Cli.FunctionalTests.csproj",
+      "tests/Tracon.Capacity.Tests/Tracon.Capacity.Tests.csproj"
     ]
   }
 }

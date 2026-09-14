@@ -519,7 +519,81 @@ veya mevcut secret mekanizmasından okunur; komut argümanına konmaz.
 
 ## Plandan Sapmalar
 
-> Kapanışta doldurulur.
+Altı sapma. Hiçbiri kapsamı daraltmadı; dördü planın yapısal bir iddiasını
+ölçtükten sonra doğdu (`faz-uygulama` Adım 1), ikisi repo'nun kendi kapılarıyla
+çarpışmaktan.
+
+### 1 · Hücre yalıtımı **schema** değil **veritabanı** sınırında
+
+Plan (§166.4) her hücre/tekrar için izole bir *schema* istiyordu. Ölçüldü:
+`full` fixture'ı **public store yolundan** yazmak 10.000 run × (1 `StartRun` +
+20 `AppendEvent` + 1 `CompleteRun`) = 220.000 store çağrısıdır. Sweep'in 36
+dolu hücresinin her birinde tekrarlamak seed'i saatlerce kritik yola koyardı ve
+plan seed süresinin ölçüm penceresine girmemesini zaten şart koşuyordu.
+
+Bunun yerine **şekil başına bir şablon veritabanı** kurulur (migrate + seed, bir
+kez) ve her hücre `CREATE DATABASE … TEMPLATE …` ile kendi veritabanını alır —
+PostgreSQL için bu bir dosya kopyasıdır. Şema adı her veritabanının içinde
+`capacity` olarak sabittir. **Yalıtım zayıflamaz, güçlenir**: sınır artık schema
+değil veritabanıdır, yani bir hücrenin `pg_stat` sayaçları bile komşusundan
+etkilenmez. Seed süresi hiçbir pencereye girmez.
+
+Bedeli: koşum artık veritabanı yaratma/düşürme yetkisi ister, bu yüzden harici
+bir sunucuya (`TRACON_CAPACITY_CONNECTION`) bağlıyken `psql` yönetimi gereken
+profiller açıkça reddedilir.
+
+### 2 · Host'un dördüncü modu: `migrate`
+
+Plan üç mod sayıyordu (`api` · `worker` · seed). Uygulamada dördüncüsü zorunlu
+çıktı: şemayı **ayrı bir çağrı** uygular. Ölçülen gerekçe planın kendi iki
+cümlesinden gelir — şema kurulumu ölçülen host'un açılışında olursa ilk hücrenin
+penceresine girer, ve `workers` profilinde N worker process'i aynı migration
+kilidi için yarışır. `AutoApplyMigrations` bu yüzden her ölçülen process'te
+kapalıdır.
+
+### 3 · Secret kapısı **işaretli istisna** mekanizması kazandı
+
+Bir redaction taramasını doğrulamanın tek yolu ona credential şeklinde bir şey
+göstermektir; plan da (§166.5, hata modu tablosu) "sentetik canary credential"
+istiyordu. Repo'nun kendi kapısı (`kapi.py tarama`) bu sentetik değerleri
+yakalayıp kapanışı kırdı — doğru davranış.
+
+Çözüm **gizlemek değil işaretlemek** oldu: `SYNTHETIC-CREDENTIAL` belirtecini
+**aynı satırda** taşıyan satır atlanır ve kaç satırın atlandığı her koşumda
+raporlanır. Gerekçe: dize birleştirmeyle saklamak (`"Pass" + "word=..."`) gerçek
+bir secret'ın yapacağı şeyin aynısıdır ve istisnayı kod incelemesinden gizler;
+sessizce büyüyen bir allowlist ise kapının hiç olmamasıyla aynıdır. Üç test bunu
+kilitler (`SentetikCredentialTestleri`): işaretsiz satır yakalanır, işaretli
+satır atlanır **ve sayılır**, bir üst satırdaki yorum yetmez.
+
+### 4 · `bench/capacity/Directory.Packages.props` — işi yalnız aramayı durdurmak
+
+Plan dosya listesinde yoktu. Ölçüldü: yalnız `Directory.Build.props` yazmak
+yetmiyor — NuGet yukarı yürüyüp repo'nun `Directory.Packages.props`'unu buluyor,
+merkezî paket yönetimini geri açıyor ve aparatın csproj'larındaki her `Version`
+`NU1008` hatası oluyor. Geçici dizine taşınan kopyada ise o dosya hiç yok, yani
+iki ortam farklı davranırdı. Tek işi aramayı durdurmak olan bir dosya eklendi.
+
+### 5 · Kabul paketinin analyzer gevşetmeleri `.editorconfig`'te değil `NoWarn`'da
+
+Plan bunu konuşmuyordu; uygulamada repo'nun `[tests/**]` gevşetmelerinin
+(CA1707 · xUnit1051 · CA2007) geçici dizindeki kopyaya **ulaşmadığı** görüldü.
+🚨 Ölçüldü ve üç yerleşimde de tekrarlandı — `.editorconfig`
+`bench/capacity/`'de, kabul projesinin kendi dizininde, `[*.cs]` ve `[**.cs]`
+bölüm desenleriyle, `root = true` ile ve onsuz: **hiçbiri tanıyı susturmadı**;
+csproj'daki `NoWarn` sustudu. Aynı `.editorconfig` çıplak bir test projesinde
+(aynı SDK, aynı `AnalysisMode`) çalışıyor, yani mekanizma bu ağaca özgü bir
+şeyle etkileşiyor ve **saptanamadı**. Tuzak kaydı:
+[`docs/hafiza/analyzer-tanilari.md`](hafiza/analyzer-tanilari.md).
+
+### 6 · Kiracı yalıtımı her hücrede **aktif olarak** yoklanıyor
+
+Plan (§166.5) karşı kiracının kimliğini okuma girişiminin HTTP'de reddedilmesini
+istiyordu ama bunu kabul testlerine bırakmış görünüyordu. Uygulamada sürükleyici
+her hücrenin drain'inden sonra kendisi de yokluyor: bir kiracının run kimliği
+diğerinin başlığıyla istenir ve **reddedilmezse hücre `invalid` olur**. Gerekçe
+planın kendi cümlesidir — sessiz bir yükte yalıtım, sakin bir testteki
+yalıtımdan başka bir iddiadır.
 
 ## Bu Fazda Verilen Kararlar
 

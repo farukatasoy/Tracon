@@ -1,0 +1,42 @@
+{
+  "name": "soak",
+  "description": "An equal mix of the three scenarios at one chosen load for 30 minutes. The concurrency below is written explicitly and its justification belongs in the report; no suggestion algorithm may change the workload silently.",
+  "scenarios": [
+    "buffered",
+    "streaming",
+    "queued"
+  ],
+  "scenarioGrouping": "mixed",
+  "concurrency": [
+    8
+  ],
+  "seedShapes": [
+    "empty"
+  ],
+  "repeats": 1,
+  "warmupSeconds": 30,
+  "measureSeconds": 1800,
+  "runsPerTenant": 0,
+  "workload": {
+    "requestBytes": 1024,
+    "modelDelayMilliseconds": 1000,
+    "outputChunks": 20,
+    "outputChunkCharacters": 256,
+    "toolResultBytes": 1024,
+    "toolCall": true
+  },
+  "limits": {
+    "maxInFlight": 128,
+    "hostRssBytes": 4294967296,
+    "driverRssBytes": 1073741824,
+    "databaseBytes": 5368709120,
+    "minimumFreeDiskBytes": 10737418240,
+    "maxRequestSamples": 200000
+  },
+  "requestTimeoutSeconds": 120,
+  "drainTimeoutSeconds": 300,
+  "maxConcurrentJobs": 8,
+  "maxPoolSize": 100,
+  "resourceSampleIntervalSeconds": 1,
+  "seedRuns": 10000
+}

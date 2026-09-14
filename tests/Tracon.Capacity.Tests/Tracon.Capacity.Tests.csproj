@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Phase 166. The ONLY capacity project the normal suite discovers.
+
+    The host and the acceptance suite live under bench/ because they need a
+    packed feed and a database that no ordinary `dotnet test` run has. What is
+    testable without either - the statistics, the arrival plan, the spec
+    validation, the redaction, the worker analysis, the report merge - is
+    tested here, at ordinary suite speed.
+  -->
+  <ItemGroup>
+    <ProjectReference Include="../../bench/capacity/Tracon.CapacityDriver/Tracon.CapacityDriver.csproj" />
+  </ItemGroup>
+
+</Project>
