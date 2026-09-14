@@ -53,6 +53,18 @@ public sealed class DocumentationScreenshotTests(BrowserFixture browsers)
 
     private const string SeededTriggerName = "helpdesk-webhook";
 
+    /// <summary>
+    /// The failure text the run-detail capture is recognised by.
+    /// </summary>
+    /// <remarks>
+    /// 🚨 NOT the message the tool threw. <c>ToolFailureText</c> keeps an arbitrary
+    /// tool exception message out of persistent output — only a
+    /// <c>TraconException</c> survives verbatim — so what reaches the screen is the
+    /// exception's type name in a fixed sentence. Writing the thrown message here
+    /// waits fifteen seconds for text that can never render.
+    /// </remarks>
+    private const string FailedToolMessage = "Tool failed with InvalidOperationException";
+
     /// <summary>The screens the UI guide shows, in the order the guide presents them.</summary>
     /// <remarks>
     /// Each entry is a route and the landmark that proves the screen actually rendered.
@@ -110,9 +122,19 @@ public sealed class DocumentationScreenshotTests(BrowserFixture browsers)
         // screenshot reads as an object on the page instead of dissolving into it.
         // The theme is pinned rather than left to the machine — an unpinned run would
         // produce whatever the developer's OS prefers.
+        // The guide shows one screen that only exists once something has run: its
+        // route carries an id the seed produced, so it cannot live in the static
+        // table above, which holds fixed routes only.
+        var failedRunId = await SeedFailedRunAsync(host);
+
+        var screens = new List<(string Name, string Route, string Landmark)>(Screens)
+        {
+            ("run-detail", $"/runs/{failedRunId}", FailedToolMessage),
+        };
+
         foreach (var (theme, suffix) in new[] { ("dark", string.Empty), ("light", "-light") })
         {
-            await CaptureAsync(host, theme, suffix, directory, write);
+            await CaptureAsync(host, theme, suffix, directory, write, screens);
         }
     }
 
@@ -127,7 +149,8 @@ public sealed class DocumentationScreenshotTests(BrowserFixture browsers)
         string theme,
         string suffix,
         string directory,
-        bool write)
+        bool write,
+        IReadOnlyList<(string Name, string Route, string Landmark)> screens)
     {
         var context = await browsers.Browser.NewContextAsync(new BrowserNewContextOptions
         {
@@ -154,7 +177,7 @@ public sealed class DocumentationScreenshotTests(BrowserFixture browsers)
 
             var page = await context.NewPageAsync();
 
-            foreach (var (name, route, landmark) in Screens)
+            foreach (var (name, route, landmark) in screens)
             {
                 await page.GotoAsync(host.UiAddress + route);
 
@@ -369,6 +392,51 @@ public sealed class DocumentationScreenshotTests(BrowserFixture browsers)
 
             await response.Content.ReadAsStringAsync();
         }
+    }
+
+    /// <summary>
+    /// Runs the agent whose tool always throws, and returns that run's id.
+    /// </summary>
+    /// <remarks>
+    /// 🚨 A throwing tool does NOT fail the run. The exception is recorded as a
+    /// <c>ToolFailed</c> event on the call, the model receives the error as that
+    /// call's result, and the turn then finishes normally — so this run ends
+    /// Completed while carrying a failed tool call. That is the scenario the tour
+    /// shows, and requiring a Failed status here is what made the first attempt
+    /// throw. What proves the capture is <see cref="FailedToolMessage"/>: if that
+    /// text is not on the detail screen, the screenshot wait times out and the test
+    /// fails rather than writing a picture of the wrong thing.
+    /// </remarks>
+    private static async Task<string> SeedFailedRunAsync(UiHost host)
+    {
+        using var client = new HttpClient { BaseAddress = new Uri(host.BaseAddress) };
+
+        using var response = await client.PostAsJsonAsync(
+            $"{host.Prefix}/api/agents/fulfilment/run",
+            new { message = "Reserve stock for order ORD-9.", sessionId = "fulfilment-ord-9" });
+
+        // The run itself fails; the HTTP call that carried it does not have to.
+        await response.Content.ReadAsStringAsync();
+
+        // The run id is read back from the list rather than the run response, so this
+        // does not depend on which envelope a failed synchronous run returns.
+        // GET /api/runs returns IReadOnlyList<RunRecord>, so the root is the array
+        // itself - TryGetProperty THROWS on an array rather than returning false,
+        // which is how a defensive guard here failed on the real shape.
+        using var runs = JsonDocument.Parse(
+            await client.GetStringAsync($"{host.Prefix}/api/runs"));
+
+        foreach (var run in runs.RootElement.EnumerateArray())
+        {
+            if (string.Equals(run.GetProperty("agentName").GetString(), "fulfilment", StringComparison.Ordinal))
+            {
+                return run.GetProperty("id").GetString()
+                    ?? throw new InvalidOperationException("The fulfilment run carried no id.");
+            }
+        }
+
+        throw new InvalidOperationException(
+            "No run was recorded for 'fulfilment'. The run-detail capture has nothing to show.");
     }
 
     /// <summary>Resolves <c>docs-site/public/screenshots</c> from the test binary's location.</summary>

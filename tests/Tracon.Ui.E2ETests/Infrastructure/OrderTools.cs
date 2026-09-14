@@ -25,6 +25,26 @@ internal static class OrderTools
     public static string CancelOrder([Description("Order number")] string orderId)
         => $"Order {orderId} has been canceled.";
 
+    /// <summary>Always throws, so a documented run has a real failure to show.</summary>
+    /// <param name="orderId">Order number.</param>
+    /// <returns>Never returns; the exception is the point.</returns>
+    /// <remarks>
+    /// The documentation tour promises "find the cause of the failure". No other
+    /// seeded run has one: every tool here succeeds and <c>FakeModelProvider</c> has
+    /// no way to produce an error.
+    /// <para>
+    /// 🚨 This message never reaches a record. <c>ToolFailureText</c> replaces an
+    /// arbitrary tool exception with its type name, so the console shows
+    /// "Tool failed with InvalidOperationException." The text below is for the log
+    /// and for whoever reads this class.
+    /// </para>
+    /// </remarks>
+    [TraconTool("reserve_stock", "Reserves warehouse stock for an order.")]
+    [Description("Reserves warehouse stock for an order.")]
+    public static string ReserveStock([Description("Order number")] string orderId)
+        => throw new InvalidOperationException(
+            $"Warehouse API returned 503 for order {orderId}.");
+
     /// <summary>
     /// Marks an order's preview as ready and writes a consumer-defined
     /// <see cref="RunEventType.Custom"/> event (phase 141's escape hatch, for the E2E test).
