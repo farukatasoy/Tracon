@@ -2,14 +2,14 @@
 
 > **Durum:** ✅ Tamamlandı (2026-09-14)
 > **Plan onayı:** onaylandı 2026-09-14 (kullanıcı: "sıradaki fazı geliştir")
-> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-231**
-> **Önkoşul:** [Faz 150](arsiv/fazlar/150-ZORUNLU-BINDING-PROFILI.md) — `RequireCustomBinding` + `RequiredBindingValidator` deseni; bu faz onun **options yarısıdır**
+> **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-231**
+> **Önkoşul:** [Faz 150](150-ZORUNLU-BINDING-PROFILI.md) — `RequireCustomBinding` + `RequiredBindingValidator` deseni; bu faz onun **options yarısıdır**
 > **Paketler:** `Tracon.Abstractions` (risk enum'u + katkı sözleşmesi) · `Tracon.Core` (doğrulayıcı + beş yerleşik kontrol) · `Tracon.AspNetCore` (kiracı kontrolünün katkısı)
 > **Yeni paket:** Yok · **Migration:** Yok
 > **Public API:** Büyüyor — bir `ITraconBuilder` üyesi, bir seçenek sınıfı, bir `enum`, bir istisna tipi, bir katkı arayüzü. `wc -l src/*/PublicAPI.Shipped.txt` → **17 satır / 17 dosya** (2026-09-14, yalnız `#nullable enable` başlıkları): **shipped giriş sıfır, bugün eklemek bedava.** GA'da `Shipped` dolduktan sonra aynı ekleme bir sürüm kararıdır
 > **Tüketici yüzeyi:** Site: `guides/production.md` (Production-sensitive defaults tablosu ve dağıtım checklist'i — ikisi de 2026-09-14'te güncellendi, bu faz onlara kapıyı bağlar) · `guides/embedding.md` ("Make a binding required" bölümünün kardeşi) · `getting-started/security.md`
 > · Sevk edilen: `ITraconBuilder`'ın XML `<example>`'ı · `src/Tracon.Core/README.md` · `capabilities.md` satırı
-> **Manuel test alanı:** [`docs/manuel-test/13-KIRACI-VE-GUVENLIK.md`](manuel-test/13-KIRACI-VE-GUVENLIK.md) — `MT-SEC-182`'den devam
+> **Manuel test alanı:** [`docs/manuel-test/13-KIRACI-VE-GUVENLIK.md`](../../manuel-test/13-KIRACI-VE-GUVENLIK.md) — `MT-SEC-182`'den devam
 
 ---
 
@@ -28,7 +28,7 @@
    (bağımlılık yönü — bu fazın en belirleyici kısıtı, §170.2),
    **K-228/K-232** (arayüz sözlüğü ve sunucu yanıtı; bu faz arayüze dokunmaz
    ama kararın sınırını bilmek gerekir).
-3. [Faz 150](arsiv/fazlar/150-ZORUNLU-BINDING-PROFILI.md) — yalnız devir notu ve
+3. [Faz 150](150-ZORUNLU-BINDING-PROFILI.md) — yalnız devir notu ve
    "Amaç" bölümü:
    ```bash
    awk '/## Sonraki Faza Devir Notu/,0' docs/arsiv/fazlar/150-ZORUNLU-BINDING-PROFILI.md
@@ -37,13 +37,13 @@
    Aynı hata mesajı sözleşmesi (hangi kalem · bugünkü değer · nasıl düzeltilir)
    birebir devralınır.
 4. Alan hafızası (bu faz üç alana dokunuyor):
-   [`hafiza/aspnetcore-di.md`](hafiza/aspnetcore-di.md) (`TryAdd` sırası ve
-   yaşam döngüsü) · [`hafiza/olcum-kota-ve-secenekler.md`](hafiza/olcum-kota-ve-secenekler.md)
+   [`hafiza/aspnetcore-di.md`](../../hafiza/aspnetcore-di.md) (`TryAdd` sırası ve
+   yaşam döngüsü) · [`hafiza/olcum-kota-ve-secenekler.md`](../../hafiza/olcum-kota-ve-secenekler.md)
    (`Bind()` ve seçenek tuzakları) ·
-   [`hafiza/genisleme-noktalari-ve-denetim.md`](hafiza/genisleme-noktalari-ve-denetim.md)
+   [`hafiza/genisleme-noktalari-ve-denetim.md`](../../hafiza/genisleme-noktalari-ve-denetim.md)
    (genişleme noktası kaydı).
 5. Gerektiğinde, tamamı değil ilgili bölümü:
-   [`MIMARI-GUVENLIK.md`](MIMARI-GUVENLIK.md) — kiracı ve rol bölümleri.
+   [`MIMARI-GUVENLIK.md`](../../MIMARI-GUVENLIK.md) — kiracı ve rol bölümleri.
 
 ---
 
@@ -74,15 +74,15 @@ söyler; `capabilities.md` satırı ve site metni de öyle.
 
 | Kanıt | Gözlem |
 |---|---|
-| [`TraconTenancyOptions.cs:42`](../src/Tracon.AspNetCore/Tenancy/TraconTenancyOptions.cs#L42) | `Enabled` initializer'sız — çok kiracılık **kapalı**; her istek tek varsayılan kiracıya çözülür |
-| [`TraconSessionOwnershipOptions.cs:63`](../src/Tracon.Abstractions/Options/TraconSessionOwnershipOptions.cs#L63) | `Enabled` initializer'sız. Kendi XML'i "geri dönüşlü değildir" der: kapalıyken açılan oturum sonsuza dek sahipsiz kalır |
-| [`TraconContentProtectionOptions.cs:36`](../src/Tracon.Core/Security/TraconContentProtectionOptions.cs#L36) | `Enabled` initializer'sız — at-rest şifreleme (AES-256-GCM) **kapalı** |
-| [`TraconRateLimitOptions.cs:37`](../src/Tracon.Core/Quotas/TraconRateLimitOptions.cs#L37) | `Enabled` initializer'sız — hız sınırı **kapalı** |
-| [`TraconRetentionOptions.cs:28`](../src/Tracon.Core/Retention/TraconRetentionOptions.cs#L28) | `Enabled` initializer'sız — hiçbir şey otomatik silinmez |
-| [`TraconContentGuardBuilderExtensions.cs:60`](../src/Tracon.Core/Guards/TraconContentGuardBuilderExtensions.cs#L60) | İçerik denetimi bir **bayrak değil, kayıttır**: `AddTracon()` hiç guard kaydetmez, `IEnumerable<IContentGuard>` boştur ve denetim sarmalayıcısı boru hattına hiç eklenmez |
-| [`RequiredBindingValidator.cs:43`](../src/Tracon.Core/Diagnostics/RequiredBindingValidator.cs#L43) | `IHostedService`; `IEnumerable<RequiredBindingRegistration>` okur, `IServiceScopeFactory` ile scope açar. Bu fazın birebir izleyeceği desen |
-| [`TraconServiceCollectionExtensions.Registration.Core.cs:50`](../src/Tracon.Core/TraconServiceCollectionExtensions.Registration.Core.cs#L50) | `TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, RequiredBindingValidator>())` — kayıt biçimi |
-| [`Tracon.Core.csproj:9`](../src/Tracon.Core/Tracon.Core.csproj#L9) | `Tracon.Core` **yalnız** `Tracon.Abstractions`'ı referans eder; `TraconTenancyOptions`'ı **göremez** (§170.2'nin sebebi) |
+| [`TraconTenancyOptions.cs:42`](../../../src/Tracon.AspNetCore/Tenancy/TraconTenancyOptions.cs#L42) | `Enabled` initializer'sız — çok kiracılık **kapalı**; her istek tek varsayılan kiracıya çözülür |
+| [`TraconSessionOwnershipOptions.cs:63`](../../../src/Tracon.Abstractions/Options/TraconSessionOwnershipOptions.cs#L63) | `Enabled` initializer'sız. Kendi XML'i "geri dönüşlü değildir" der: kapalıyken açılan oturum sonsuza dek sahipsiz kalır |
+| [`TraconContentProtectionOptions.cs:36`](../../../src/Tracon.Core/Security/TraconContentProtectionOptions.cs#L36) | `Enabled` initializer'sız — at-rest şifreleme (AES-256-GCM) **kapalı** |
+| [`TraconRateLimitOptions.cs:37`](../../../src/Tracon.Core/Quotas/TraconRateLimitOptions.cs#L37) | `Enabled` initializer'sız — hız sınırı **kapalı** |
+| [`TraconRetentionOptions.cs:28`](../../../src/Tracon.Core/Retention/TraconRetentionOptions.cs#L28) | `Enabled` initializer'sız — hiçbir şey otomatik silinmez |
+| [`TraconContentGuardBuilderExtensions.cs:60`](../../../src/Tracon.Core/Guards/TraconContentGuardBuilderExtensions.cs#L60) | İçerik denetimi bir **bayrak değil, kayıttır**: `AddTracon()` hiç guard kaydetmez, `IEnumerable<IContentGuard>` boştur ve denetim sarmalayıcısı boru hattına hiç eklenmez |
+| [`RequiredBindingValidator.cs:43`](../../../src/Tracon.Core/Diagnostics/RequiredBindingValidator.cs#L43) | `IHostedService`; `IEnumerable<RequiredBindingRegistration>` okur, `IServiceScopeFactory` ile scope açar. Bu fazın birebir izleyeceği desen |
+| [`TraconServiceCollectionExtensions.Registration.Core.cs:50`](../../../src/Tracon.Core/TraconServiceCollectionExtensions.Registration.Core.cs#L50) | `TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, RequiredBindingValidator>())` — kayıt biçimi |
+| [`Tracon.Core.csproj:9`](../../../src/Tracon.Core/Tracon.Core.csproj#L9) | `Tracon.Core` **yalnız** `Tracon.Abstractions`'ı referans eder; `TraconTenancyOptions`'ı **göremez** (§170.2'nin sebebi) |
 | `wc -l src/*/PublicAPI.Shipped.txt` → 17 | 17 dosyanın toplamı 17 satır: hepsi yalnız başlık taşır, **shipped giriş sıfırdır** |
 | `grep -rl "IValidateOptions" src \| wc -l` → 34 | Seçenek doğrulama seam'i olgun; bu faz yeni bir mekanizma icat etmez |
 
@@ -344,7 +344,7 @@ istisna atarsa host **başlamaz** ve hangi kontrolün attığı yazılır; sessi
 
 ## Manuel Kabul Case'leri
 
-> Kapanışta [`docs/manuel-test/13-KIRACI-VE-GUVENLIK.md`](manuel-test/13-KIRACI-VE-GUVENLIK.md)
+> Kapanışta [`docs/manuel-test/13-KIRACI-VE-GUVENLIK.md`](../../manuel-test/13-KIRACI-VE-GUVENLIK.md)
 > içine eklenecek; numaralar `MT-SEC-182`'den devam eder ve `00-INDEKS.md`
 > sayacı güncellenir.
 
@@ -801,7 +801,7 @@ yaptı (K-768); ikisi de **gerçek** sayıldı. Hepsi kapandı ya da gerekçelen
 | 3 | 🟡 | `TenancyResolutionProfileCheck`, kütüphanenin hiç bağlamadığı bir yapılandırma anahtarını (`Tracon:Tenancy:Enabled`) `Setting` olarak yazıyor | — | Düzeltildi — Sapma §9. `Setting` artık `UseTenancy(options => options.Enabled)`; fonksiyonel test ve `MT-SEC-187` birlikte güncellendi |
 | 4 | 🟡 | "`AddTracon`'dan önce çağrılınca" hata modu ve DoD satırı için ne test var ne yazılı gerekçe | — | Gerekçelendi — Sapma §7: satır yapısal olarak konusuzdur (`RequireProductionProfile` bir `ITraconBuilder` üyesidir). Gerçek sıra sorusu tüketicinin kendi kontrolüdür ve zaten test edilmiş |
 | 5 | 🟡 | Kabul log'u iddiası **bölünmüş ifade** ile ölçülüyor (K-642 tuzağı): `ShouldContain("SingleTenant")` + ayrı `ShouldContain("accepted")`, ve `SingleTenantContext` zaten `SingleTenant` içeriyor | — | Düzeltildi — iki fonksiyonel iddia **tek bir log girdisinin** `"<Risk> is accepted"` taşıdığını ölçer hâle geldi |
-| 6 | 🟡 | Sapma §1'in tuzağı alan hafızasına girmedi; yalnız faz dokümanında duruyor ve o kapanışta arşive gidiyor | — | Düzeltildi — not [`docs/hafiza/aspnetcore-di.md`](hafiza/aspnetcore-di.md) başına eklendi (ölçüm komutlarıyla birlikte) |
+| 6 | 🟡 | Sapma §1'in tuzağı alan hafızasına girmedi; yalnız faz dokümanında duruyor ve o kapanışta arşive gidiyor | — | Düzeltildi — not [`docs/hafiza/aspnetcore-di.md`](../../hafiza/aspnetcore-di.md) başına eklendi (ölçüm komutlarıyla birlikte) |
 | 7 | 🟢 | `AcceptedRisks` arkadaki `HashSet`'i doğrudan döner; `IReadOnlyCollection`'dan downcast ile boşaltılabilir | — | Alınmadı. Tüketicinin **kendi** options nesnesidir ve hiçbir güvenlik sınırı geçmez; kendi kabul listesini boşaltan bir tüketici yalnız kapıyı sıkılaştırmış olur |
 | 8 | 🟢 | Kayıt yolu mesajı `Tracon:ContentGuard:Pattern` bölümünü bir yol olarak saymıyordu | — | 🔴 #1 düzeltilirken kapandı: mesaj artık üç yolu da sayar |
 | 9 | 🟢 | `Severity`'nin `_ => 0` dalı, gelecekte eklenecek bir `ProductionProfileState` değerini en gevşek sayar | — | Alınmadı. Fabrikalar `private` kurucuyu sarmaladığı için bugün ulaşılamaz; `ProductionProfileState`'e değer eklemek zaten K-773'ün ilan yükümlülüğüne tabidir |

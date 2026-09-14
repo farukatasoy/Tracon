@@ -430,7 +430,7 @@ numara: **F-232**.
 
 **F-231** 2026-09-14'te `nuget-danismani` turunun 4. bulgusuna (options
 düzeyinde production doğrulayıcısı yok) tahsis edildi ve **aynı gün plana
-dönüştü** — [Faz 170](170-PRODUCTION-PROFIL-KAPISI.md). Gövdesi doğrudan faz
+dönüştü** — [Faz 170](arsiv/fazlar/170-PRODUCTION-PROFIL-KAPISI.md). Gövdesi doğrudan faz
 dokümanına yazıldı; aday listesinde hiç durmadı.
 
 **F-230** 2026-09-13'te Faz 168 denetiminin 🟢 6 bulgusuna tahsis edildi.
