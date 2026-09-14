@@ -138,6 +138,23 @@ The generated .NET and HTTP API references are deliberately **not** in either fi
 That surface belongs to the compiler and the XML documentation; putting it in a text
 file would burn a context window and answer nothing the local reference cannot.
 
+### Any page as plain markdown
+
+Append `index.md` to the address of any page on this site and you get the markdown
+it was built from — `/capabilities/` becomes
+[`/capabilities/index.md`](/capabilities/index.md), and the generated reference
+pages have one too, so
+[`/api/tracon.agentdefinition/index.md`](/api/tracon.agentdefinition/index.md)
+returns the type's documentation as text. Each page declares the copy with
+`<link rel="alternate" type="text/markdown">`, and points at `llms.txt` with
+`<link rel="describedby">`.
+
+Fetch that rather than the HTML when you only want the text. It is smaller, and it
+is the only form in which a code block keeps its line breaks: the rendered page puts
+every code line in its own element with no newline between them, so flattening the
+HTML yields `var app = builder.Build();app.MapTracon("/tracon");app.Run();` on one
+line. Table columns collapse the same way. Cite the page address, not the `.md` one.
+
 ## Keeping the map current
 
 Upgrade the package and the map goes stale — it describes the capabilities of the

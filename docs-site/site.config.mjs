@@ -52,3 +52,62 @@ export const repositoryIsPublic = false;
 
 /** Explicit preview builds remain crawlable so crawlers can read noindex. */
 export const indexingEnabled = process.env.TRACON_SITE_INDEXING !== 'disabled';
+
+/**
+ * Which AI crawlers may read this site, declared once and grouped by what the
+ * crawl is FOR. src/pages/robots.txt.ts renders it; nothing else decides it.
+ *
+ * Training and search are separate decisions, and every operator below documents
+ * them as separate user agents — blocking one has never implied the other. The
+ * list is written out rather than left to the `User-agent: *` group so the
+ * decision is visible, and so reversing it for one crawler is a one-word edit
+ * here rather than a rewrite of the endpoint.
+ *
+ * The decision for all of them is currently ALLOW, and the reason is the product:
+ * Tracon is an unpublished .NET package family whose documentation exists to be
+ * found, and whose own capability map (llms.txt) is written for a coding agent to
+ * read. Being in the training data of the models that write .NET code is what the
+ * map is for; withholding it would cost the thing the site is published for.
+ *
+ * Two measured facts belong with any future reversal, from the operators' own
+ * documentation:
+ *  - Google-Extended "does not impact a site's inclusion in Google Search nor is
+ *    it used as a ranking signal", and Google states there is nothing extra to do
+ *    to appear in AI Overviews or AI Mode. Blocking it costs Gemini training and
+ *    grounding, not Search.
+ *  - Applebot-Extended is the same shape: "Webpages that disallow
+ *    Applebot-Extended can still be included in search results."
+ * Blocking CCBot is the one with the widest blast radius: it removes the site
+ * from Common Crawl, and from every downstream dataset built on it.
+ *
+ * The user-initiated fetchers (ChatGPT-User, Claude-User, Perplexity-User,
+ * meta-externalfetcher) act for a person who asked for this page by name. They
+ * are listed for completeness; Perplexity documents that its fetcher ignores
+ * robots.txt for that reason, and OpenAI documents the same for ChatGPT-User.
+ *
+ * Sources, each the operator's own: developers.openai.com/api/docs/bots,
+ * support.claude.com article 8896518, docs.perplexity.ai/guides/bots,
+ * developers.google.com/search/docs/crawling-indexing/google-common-crawlers,
+ * support.apple.com/en-us/119829, commoncrawl.org/ccbot, and
+ * developers.facebook.com/documentation/sharing/webmasters/web-crawlers.
+ */
+export const crawlerPolicy = [
+  {
+    purpose: 'Model training and grounding',
+    note: 'These crawls may be used to train or ground foundation models.',
+    allow: true,
+    agents: ['GPTBot', 'ClaudeBot', 'Google-Extended', 'Applebot-Extended', 'meta-externalagent', 'CCBot'],
+  },
+  {
+    purpose: 'Search and citation',
+    note: 'These crawls decide whether the site can be surfaced and linked in an answer.',
+    allow: true,
+    agents: ['OAI-SearchBot', 'Claude-SearchBot', 'PerplexityBot', 'meta-webindexer'],
+  },
+  {
+    purpose: 'Fetches a person asked for',
+    note: 'One page, because a user named it. Some operators document that these ignore robots.txt.',
+    allow: true,
+    agents: ['ChatGPT-User', 'Claude-User', 'Perplexity-User', 'meta-externalfetcher'],
+  },
+];
