@@ -3,36 +3,42 @@ title: .NET control plane for Microsoft Agent Framework
 description: A .NET package family that adds a production control plane to Microsoft Agent Framework, with run recording, tenant boundaries, tool policies, and an embedded console.
 template: splash
 hero:
-  title: Your agents fly. You own the airspace.
+  title: The .NET control plane for Microsoft Agent Framework.
 ---
 
 import '../../styles/landing.css';
 
 import { Code } from '@astrojs/starlight/components';
 
+<div class="comparison-note">
+  <h2>MAF ships DevUI for development. Tracon is for what comes next.</h2>
+  <p>DevUI's own documentation calls it a sample app for visualising and debugging agents during development. It states that DevUI is not intended for production use, and asks you to build your own interface for production instead. Tracon is that interface, delivered as packages: durable run records, an authorization policy, versioned definitions with rollback, an optional tenant boundary, and a verifiable audit trail.</p>
+  <a href="/getting-started/devui/">Compare DevUI and Tracon <span aria-hidden="true">→</span></a>
+</div>
+
 <div class="landing-intro">
-  <h2>Autonomy needs<br />an operating model.</h2>
-  <p>Your agent can answer a question. Operating it asks different questions: which tenant owns the session, who may call a tool, how work resumes, and what happened during a run. Tracon gives those questions a place in your application.</p>
+  <h2>Four questions<br />a control plane answers.</h2>
+  <p>Your agent can answer a question. Operating it asks different ones: which tenant owns this session, who may call this tool, how work resumes after a restart, and what happened during a run. Tracon gives each one an answer in your own application.</p>
 </div>
 
 <div class="operation-strips">
   <section class="operation-strip">
-    <div><span class="strip-id">01 / Boundary</span><h3>Separate.</h3></div>
+    <div><span class="strip-id">01 / Separate</span><h3>Tenant boundaries.</h3></div>
     <p>One host can serve several tenants. Tenant-scoped stores keep their records apart; authentication and caller attribution determine which scope a request enters.</p>
     <a href="/getting-started/security/">Set the tenant boundary →</a>
   </section>
   <section class="operation-strip">
-    <div><span class="strip-id">02 / Coordination</span><h3>Sequence.</h3></div>
+    <div><span class="strip-id">02 / Sequence</span><h3>Coordinated work.</h3></div>
     <p>A task can involve several agents and a human decision. Coordinate workflows with checkpoints and resume; schedule recurring work or queue a run for a worker.</p>
     <a href="/concepts/workflows/">Follow a workflow →</a>
   </section>
   <section class="operation-strip">
-    <div><span class="strip-id">03 / Permission</span><h3>Clear.</h3></div>
+    <div><span class="strip-id">03 / Clear</span><h3>Tool policy.</h3></div>
     <p>A model proposing a tool call does not set its policy. Define tools in code, apply authorization, and require approval for the calls you choose to review.</p>
     <a href="/concepts/tools/">Define the tool policy →</a>
   </section>
   <section class="operation-strip">
-    <div><span class="strip-id">04 / Evidence</span><h3>Record.</h3></div>
+    <div><span class="strip-id">04 / Record</span><h3>Inspectable runs.</h3></div>
     <p>Inspect run events, tool calls, timing, and configured cost data. Catalog agents record by default. Recording is best-effort: a store failure is logged while the agent continues.</p>
     <a href="/concepts/runs/">Read a recorded run →</a>
   </section>
@@ -40,22 +46,48 @@ import { Code } from '@astrojs/starlight/components';
 
 <p class="inventory-line"><a href="/packages/"><strong>20</strong> NuGet packages</a> · <a href="/http-api/"><strong>168</strong> generated HTTP operations</a> · <a href="/ui/"><strong>30</strong> embedded console screens</a></p>
 
-## MAF runs the agent. Tracon provides the controls.
+<p class="inventory-note">The integration surfaces a host needs — MCP, A2A, voice, retrieval, scheduling, evaluation — sit under the same control plane, not beside it. <a href="/capabilities/">See the capability map</a>.</p>
+
+## No abstraction over MAF.
 
 Keep MAF's `AIAgent`, `AgentSession`, `ChatMessage`, and `AIFunction`. Tracon adds
 catalogs, policies, persistence, inspection, and HTTP access around those objects.
-There is no parallel agent type hierarchy to adopt.
+There is no parallel agent type hierarchy to adopt. The
+[architecture page](/concepts/) draws the layers and the dependency direction.
 
-<span id="thirty-seconds"></span>
+## Registration is C#. A tool is a method.
 
-```mermaid
-flowchart TD
-    accTitle: Microsoft Agent Framework and Tracon responsibilities
-    accDescr: Your ASP.NET Core application contains Tracon's control plane and the MAF agent runtime. Tracon supplies agent catalogs, policies, and recorded state around MAF execution. Your code and the embedded console use the control plane.
-    HOST["Your ASP.NET Core application"] --> CONTROL["Tracon control plane<br/>catalog · policies · stores · HTTP API"]
-    CONTROL --> MAF["Microsoft Agent Framework<br/>agent execution · model and tool interaction"]
-    UI["Your code · embedded console · HTTP clients"] --> CONTROL
-```
+Mark a method and a source generator registers it at build time. There is no
+reflection, no tool manifest, and no AOT warning. The console selects from the tools
+you compiled; it can never write tool code.
+
+<Code lang="csharp" title="Tools/OrderTools.cs" code={`using Tracon;
+
+internal class OrderTools
+{
+    [TraconTool("get_order_status", "Returns the shipping status of an order.")]
+    public static string GetOrderStatus(string orderId)
+        => $"Order {orderId} has shipped. Estimated delivery: 2 days.";
+}`} />
+
+<Code lang="csharp" title="Program.cs" code={`using Tracon;
+
+var builder = WebApplication.CreateBuilder(args);
+
+builder.AddTracon()
+       .AddGeneratedTools()
+       .UsePostgreSql(builder.Configuration.GetConnectionString("Tracon")!)
+       .UseOpenAI(builder.Configuration["OpenAI:ApiKey"]!)
+       .UseUI();
+
+var app = builder.Build();
+app.MapTracon("/tracon");
+app.Run();`} />
+
+Every line after `AddTracon()` is optional. Storage starts in memory, and the host
+still starts without a provider key. Add persistence when the records must survive a
+restart. Tracon is not yet published: the [source-based guide](/getting-started/first-agent/)
+requires access to a checkout of the repository.
 
 ## The console ships in the assembly.
 
@@ -63,26 +95,15 @@ Add `Tracon.UI` and register `UseUI()` to embed the console in your host. It rea
 the same management API that your own clients can call. The consuming application
 does not need Node.js or a JavaScript build to serve it.
 
-<figure class="product-shot">
-  <a href="/screenshots/dashboard.png">
-    <img src="/screenshots/dashboard.png" alt="The Tracon console showing recorded runs, tokens, and recent activity from the documentation sample" width="2880" height="1800" loading="lazy" decoding="async" />
+<figure class="product-shot console-shot">
+  <a class="shot-light" href="/screenshots/runs-light.png">
+    <img src="/screenshots/runs-light.png" alt="The Tracon console listing recorded runs with status, duration, tokens, and cost" width="2880" height="1800" loading="lazy" decoding="async" />
   </a>
-  <figcaption>The real console, captured from a local sample with seeded runs. This is sample data, not live telemetry.</figcaption>
+  <a class="shot-dark" href="/screenshots/runs.png">
+    <img src="/screenshots/runs.png" alt="The Tracon console listing recorded runs with status, duration, tokens, and cost" width="2880" height="1800" loading="lazy" decoding="async" />
+  </a>
+  <figcaption>Recorded runs in the console, captured from a local sample with seeded data. This is sample data, not live telemetry.</figcaption>
 </figure>
-
-<Code lang="csharp" title="Program.cs · registration in a configured host" code={`using Tracon;
-
-var builder = WebApplication.CreateBuilder(args);
-builder.AddTracon().UseUI();
-
-var app = builder.Build();
-app.MapTracon("/tracon");
-app.Run();`} />
-
-This registers the control plane and console. An agent and model provider are
-configured separately. Storage starts in memory; add persistence when the records
-must survive a restart. Tracon is not yet published: the [source-based guide](/getting-started/first-agent/)
-requires access to a checkout of the repository.
 
 ## Choose your path
 

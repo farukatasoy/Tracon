@@ -5,21 +5,18 @@ const home = Astro.locals.starlightRoute.id === '';
 {home ? <section class="approach-hero" aria-labelledby="_top">
   <div class="hero-copy">
     <p class="section-label">Tracon / Approach control for your agents</p>
-    <h1 id="_top">Your agents fly.<br /><span>You own<br class="hero-break" /> the airspace.</span></h1>
-    <p class="hero-description">A .NET package family that adds a production control plane to Microsoft Agent Framework. MAF runs your agents. Tracon gives you the controls to operate them.</p>
+    <h1 id="_top">The .NET <span>control plane</span> for Microsoft Agent Framework.</h1>
+    <p class="hero-description">A package family that runs inside your own ASP.NET Core host. MAF runs your agents. Tracon records them, scopes them to a tenant, and governs what they may call.</p>
     <div class="hero-actions">
-      <a class="primary-action" href="/getting-started/">Explore the documentation <span aria-hidden="true">↗</span></a>
-      <a class="text-action" href="/capabilities/">Explore capabilities <span aria-hidden="true">→</span></a>
+      <a class="primary-action" href="/getting-started/">What Tracon is <span aria-hidden="true">↗</span></a>
+      <a class="text-action" href="/capabilities/">Capability map <span aria-hidden="true">→</span></a>
     </div>
     <p class="release-status">In development. Not yet published to NuGet or npm.</p>
   </div>
-  <aside class="control-index" aria-label="Control plane capabilities">
+  <figure class="hero-figure console-shot">
     <div class="scope-rings" aria-hidden="true"><i></i><i></i><i></i><b></b></div>
-    <div class="control-index-heading"><span>Control plane</span><span>.NET / MAF</span></div>
-    <a href="/getting-started/security/"><span class="strip-id">01 / Separate</span><strong>Tenant boundaries</strong><span>Keep each tenant's data in scope.</span></a>
-    <a href="/concepts/workflows/"><span class="strip-id">02 / Sequence</span><strong>Coordinated work</strong><span>Workflows, checkpoints, and queues.</span></a>
-    <a href="/concepts/tools/"><span class="strip-id">03 / Clear</span><strong>Explicit tool policies</strong><span>Authorization and configured approvals.</span></a>
-    <a href="/concepts/runs/"><span class="strip-id">04 / Record</span><strong>Inspectable runs</strong><span>Default-on, best-effort recording.</span></a>
-    <p class="control-index-foot">Your process. Your configuration. Your controls.</p>
-  </aside>
+    <img class="shot-light" src="/screenshots/dashboard-light.png" alt="The Tracon console showing recorded runs, token use, and recent activity" width="2880" height="1800" loading="eager" decoding="async" fetchpriority="high" />
+    <img class="shot-dark" src="/screenshots/dashboard.png" alt="The Tracon console showing recorded runs, token use, and recent activity" width="2880" height="1800" loading="lazy" decoding="async" />
+    <figcaption>The embedded console, captured from a local sample with seeded runs.</figcaption>
+  </figure>
 </section> : <DefaultHero />}

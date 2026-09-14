@@ -18,7 +18,7 @@ const ink = Object.fromEntries(['surface', 'text-strong', 'text-muted', 'border'
 const escape = (value) => value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('"', '&quot;');
 const address = escape(siteUrl.replace(/^https?:\/\//, '').replace(/\/$/, ''));
 const cards = [
-  { name: 'overview', label: '.NET PACKAGE FAMILY', title: 'Your agents fly.', second: 'You own the airspace.', detail: 'The control plane on Microsoft Agent Framework.' },
+  { name: 'overview', label: '.NET PACKAGE FAMILY', title: 'The .NET control plane', second: 'for Microsoft Agent Framework.', detail: 'Self-hosted. It runs inside your own ASP.NET Core host.' },
   { name: 'console', label: 'EMBEDDED CONSOLE', title: 'Inspect the run.', second: 'Understand the result.', detail: 'Definitions, runs, evaluation, and configured controls.' },
   { name: 'operate', label: 'OPERATE', title: 'Make execution', second: 'inspectable.', detail: 'Recording, telemetry, persistence, and operational limits.' },
   { name: 'reference', label: 'TECHNICAL REFERENCE', title: 'Find the contract.', second: 'Build with confidence.', detail: '.NET API, HTTP operations, configuration, and compatibility.' },
