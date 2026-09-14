@@ -1,0 +1,213 @@
+{
+  "runId": "20260914-213006-soak",
+  "profile": "soak",
+  "cells": 1,
+  "completeCells": 1,
+  "incompleteCells": 0,
+  "invalidCells": 0,
+  "rows": [
+    {
+      "scenario": "buffered",
+      "seedShape": "empty",
+      "concurrency": 8,
+      "repeats": 1,
+      "storageRepeats": 0,
+      "completeRepeats": 1,
+      "latency": {
+        "count": 4092,
+        "minimum": 1013.861,
+        "mean": 1034.817,
+        "p50": 1033.082,
+        "p95": 1052.071,
+        "p99": 1081.193,
+        "maximum": 1331.982,
+        "lowSampleP95": false,
+        "lowSampleP99": false,
+        "method": "nearest-rank over every repeat\u0027s samples",
+        "thinnestRepeat": 4092
+      },
+      "firstContent": {
+        "count": 4092,
+        "minimum": 1013.861,
+        "mean": 1034.817,
+        "p50": 1033.082,
+        "p95": 1052.071,
+        "p99": 1081.193,
+        "maximum": 1331.982,
+        "lowSampleP95": false,
+        "lowSampleP99": false,
+        "method": "nearest-rank over every repeat\u0027s samples",
+        "thinnestRepeat": 4092
+      },
+      "throughputPerSecond": 2.3147,
+      "throughputSpread": 0,
+      "vacuumInterference": true
+    },
+    {
+      "scenario": "queued",
+      "seedShape": "empty",
+      "concurrency": 8,
+      "repeats": 1,
+      "storageRepeats": 0,
+      "completeRepeats": 1,
+      "latency": {
+        "count": 4176,
+        "minimum": 1021.316,
+        "mean": 1286.14,
+        "p50": 1286.413,
+        "p95": 1307.615,
+        "p99": 1340.159,
+        "maximum": 2422.057,
+        "lowSampleP95": false,
+        "lowSampleP99": false,
+        "method": "nearest-rank over every repeat\u0027s samples",
+        "thinnestRepeat": 4176
+      },
+      "firstContent": {
+        "count": 4176,
+        "minimum": 2.033,
+        "mean": 4.792,
+        "p50": 4.451,
+        "p95": 7.535,
+        "p99": 12.854,
+        "maximum": 78.529,
+        "lowSampleP95": false,
+        "lowSampleP99": false,
+        "method": "nearest-rank over every repeat\u0027s samples",
+        "thinnestRepeat": 4176
+      },
+      "throughputPerSecond": 2.3147,
+      "throughputSpread": 0,
+      "vacuumInterference": true
+    },
+    {
+      "scenario": "streaming",
+      "seedShape": "empty",
+      "concurrency": 8,
+      "repeats": 1,
+      "storageRepeats": 0,
+      "completeRepeats": 1,
+      "latency": {
+        "count": 4247,
+        "minimum": 1047.446,
+        "mean": 1129.52,
+        "p50": 1124.86,
+        "p95": 1182.874,
+        "p99": 1251.221,
+        "maximum": 1723.304,
+        "lowSampleP95": false,
+        "lowSampleP99": false,
+        "method": "nearest-rank over every repeat\u0027s samples",
+        "thinnestRepeat": 4247
+      },
+      "firstContent": {
+        "count": 4247,
+        "minimum": 504.449,
+        "mean": 514.134,
+        "p50": 513.057,
+        "p95": 523.218,
+        "p99": 537.242,
+        "maximum": 687.419,
+        "lowSampleP95": false,
+        "lowSampleP99": false,
+        "method": "nearest-rank over every repeat\u0027s samples",
+        "thinnestRepeat": 4247
+      },
+      "throughputPerSecond": 2.3147,
+      "throughputSpread": 0,
+      "vacuumInterference": true
+    }
+  ],
+  "evidence": [
+    {
+      "cellId": "000-mixed-c8-empty-r1",
+      "status": "complete",
+      "measuredSeconds": 1801.119,
+      "drainSeconds": 0.185,
+      "arrival": {
+        "planned": 12515,
+        "sent": 12515,
+        "notSent": 0,
+        "accepted": 12515,
+        "rejected": 0,
+        "failed": 0,
+        "timedOut": 0,
+        "completed": 12515,
+        "dispatchLag": {
+          "count": 0,
+          "lowSampleP95": false,
+          "lowSampleP99": false,
+          "method": "nearest-rank"
+        }
+      },
+      "reconciliation": {
+        "acceptedRunIds": 12515,
+        "terminalRuns": 12515,
+        "missingRuns": 0,
+        "contentMismatches": 0,
+        "sequenceGaps": 0,
+        "liveSubscriptions": 4176,
+        "historicalOnlySubscriptions": 0,
+        "tenantBleed": 0,
+        "crossTenantRefusals": 2,
+        "complete": true
+      },
+      "queueWait": {
+        "count": 4176,
+        "minimum": 1.193,
+        "mean": 53.619,
+        "p50": 54.283,
+        "p95": 97.793,
+        "p99": 103.005,
+        "maximum": 121.328,
+        "lowSampleP95": false,
+        "lowSampleP99": false,
+        "method": "nearest-rank"
+      },
+      "processes": [
+        {
+          "role": "driver",
+          "pid": 19904,
+          "samples": 1798,
+          "peakRssBytes": 96518144,
+          "meanRssBytes": 60360113,
+          "processorSeconds": 46.703,
+          "peakManagedHeapBytes": 12740120,
+          "allocatedBytes": 2761832720,
+          "gcSeconds": 0.678
+        },
+        {
+          "role": "host",
+          "pid": 19903,
+          "samples": 1798,
+          "peakRssBytes": 397557760,
+          "meanRssBytes": 200078537,
+          "processorSeconds": 322.953
+        }
+      ],
+      "telemetry": {
+        "available": [
+          "http.latency",
+          "model.turns",
+          "process.rss",
+          "process.cpu",
+          "process.gc",
+          "sql.storage",
+          "queue.wait"
+        ],
+        "unavailable": {},
+        "missingMandatory": []
+      },
+      "warnings": [
+        "storage/vacuum-interference: autovacuum ran inside the window; byte growth is not comparable and must stay out of any average"
+      ],
+      "statusReasons": []
+    }
+  ],
+  "bottleneck": "no ceiling was found inside the measured range",
+  "caveats": [
+    "Measured on one machine, one database and one configuration. This is not an SLA and not a guaranteed capacity.",
+    "One machine, one database, one clock. Network partition, clock skew and inter-machine latency are out of scope, so nothing here says anything about multi-node behaviour.",
+    "Autovacuum ran inside at least one window; those cells\u0027 byte growth is flagged and excluded from the averages. Their row counts remain usable."
+  ]
+}

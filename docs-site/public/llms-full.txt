@@ -8848,6 +8848,147 @@ standing in for both sides — a process that enabled fewer optional migration s
 than the schema has. Two released Tracon versions running side by side is not
 something we have measured, which is another reason to keep the window short.
 
+## What one environment measured
+
+The numbers below come from measured runs, not from a model. They describe
+**one machine, one PostgreSQL version and one configuration**, and they are
+**not an SLA and not a guaranteed capacity**. Read them as a shape — how the
+three request paths differ from each other, and what each one writes — rather
+than as a number your deployment will reproduce.
+
+Measured on Darwin 25.6.0 (Apple Silicon), 10 logical processors, 16 GiB,
+.NET 10.0.100, PostgreSQL 18.4 in the `pgvector/pgvector:pg18` image. The host
+consumed Tracon by `PackageReference` at one exact version from an isolated
+feed; the driver was a separate process calling it over loopback TCP.
+
+The load sweep and the arrival runs measured Tracon packed from commit
+`e44d89f5`; the worker and soak runs measured `df45a7ba`. Only the measurement
+apparatus differs between those two commits — the shipped source is byte
+identical (`git diff e44d89f5..df45a7ba -- src/` is empty). Each run's own
+manifest, under `bench/capacity/measurements/`, names the commit it measured.
+
+**The model is a synthetic fixture that makes no network call**: one second of
+total think time, a tool call, and a 5 KB answer in twenty chunks. Substituting
+a real provider changes every latency number on this page and most of the
+throughput ones.
+
+Each row below merges the samples of three 60-second repeats and takes the
+percentile once, after a 15-second warm-up, against an empty database.
+
+| Path | Concurrency | n | p50 | p95 | Completed/s |
+|---|---|---|---|---|---|
+| Buffered (`Idempotency-Key`) | 1 | 174 | 1044 ms | 1057 ms | 0.94 |
+| Buffered | 8 | 1 384 | 1048 ms | 1084 ms | 7.47 |
+| Buffered | 32 | 5 472 | 1060 ms | 1108 ms | 29.5 |
+| Buffered | 64 | 10 944 | 1055 ms | 1120 ms | 59.1 |
+| Streaming (SSE) | 1 | 153 | 1185 ms | 1226 ms | 0.83 |
+| Streaming | 8 | 1 192 | 1215 ms | 1277 ms | 6.44 |
+| Streaming | 32 | 5 226 | 1104 ms | 1189 ms | 28.1 |
+| Streaming | 64 | 10 718 | 1074 ms | 1136 ms | 57.4 |
+| Queued (`Prefer: respond-async`) | 1 | 140 | 1309 ms | 1330 ms | 0.75 |
+| Queued | 8 | 1 104 | 1318 ms | 1336 ms | 5.93 |
+| Queued | 32 | 1 392 | 4457 ms | 4494 ms | 6.75 |
+| Queued | 64 | 1 488 | 8773 ms | 8946 ms | 6.31 |
+
+At concurrency 1 each repeat contributed only about 50 samples, so those three
+p95 values rest on a merged count that no single window supported. Treat the
+concurrency-1 rows as indicative.
+
+Median latency against the 10,000-run database matched the empty one to within
+about 1% at every step, so those rows are not repeated here. **The tails did
+not match**: buffered at concurrency 1 reached a p99 of 1721 ms against the
+full database versus 1073 ms against the empty one, and queued at concurrency
+64 reached 9376 ms versus 8946 ms. Existing data moved the outliers, not the
+median.
+
+**The queued path has a ceiling and the synchronous paths did not reach one.**
+Buffered and streaming scale nearly linearly to 64 concurrent requests. Queued
+stops at about 6 to 7 runs per second: between concurrency 8 and 32 its
+throughput moved 5.93/s to 6.75/s while p50 latency grew from 1318 ms to
+4457 ms. The extra load bought queue depth, not work. **Nothing was refused** —
+a client that waits is never told it is queueing, so this ceiling is invisible
+to an error rate and visible only in latency. It is `MaxConcurrentJobs` times
+the work per job; raise the first or shorten the second.
+
+Under open-loop load — a send plan that does not wait for the previous answer —
+the same limit appears as backlog rather than as slowness. Totals are across
+three repeats:
+
+| Planned/s | Sent | Never sent | Completed | Queue wait p95 |
+|---|---|---|---|---|
+| 1 | 180 of 180 | 0 | 180 | 0.05–0.11 s |
+| 4 | 720 of 720 | 0 | 720 | 0.08–0.10 s |
+| 8 | 1 440 of 1 440 | 0 | 1 440 | 5.7 s |
+| 16 | 1 672 of 2 880 | 1 208 | 1 668 | 16.5 s |
+
+At 16 requests per second the driver's own in-flight cap bound before the
+server's did, so the "never sent" column is a limit of the measurement, not of
+Tracon. It is shown rather than hidden because a driver that quietly waits for
+a free slot reports a load nobody offered.
+
+### What a run writes
+
+Per completed run, measured as the growth of an isolated database across the
+window, after the drain, with index and TOAST separated from the table body.
+Rows and bytes are filtered differently on purpose: byte growth also counts
+bloat, so a window that autovacuum ran inside cannot contribute one, while a
+row count is immune to it and stays.
+
+| Path | Rows per run (3 repeats) | Bytes per run | Largest contributor |
+|---|---|---|---|
+| Buffered | 10.5 | ~8.4 KiB (1 clean repeat) | `run_events` (6 rows) |
+| Queued | 10.6 | ~10.3 KiB (1 clean repeat) | `run_events` (6 rows), plus one `jobs` row |
+| Streaming | 27.6 | ~14.9 KiB (3 clean repeats) | `run_events` (24 rows) |
+
+Only the streaming figure rests on three clean windows; the other two come from
+a single window each and are marked as such rather than presented as averages.
+The row counts all come from three.
+
+**Streaming writes about 2.6 times the rows of a buffered run**, because every
+message delta is recorded. That is the single largest lever on storage growth
+here, and it is a recording choice rather than a transport cost. A linear
+projection of the streaming figure to a million runs is roughly 15 GB before
+retention — a projection, not a measurement, and only meaningful inside the
+range above. Retention was off; with it on these numbers answer a different
+question.
+
+### Adding worker processes
+
+The queued path was also measured against 1, 2 and 4 separate worker processes
+leasing the same queue, with the offered load held constant. The work did
+spread — across three repeats four workers took 33%, 31%, 19% and 17% of the
+jobs — and **no job ever ran in two workers at once**, in any repeat, at any
+worker count. Every job ran exactly once: attempts per accepted job was 1.00
+throughout.
+
+Total throughput did not change (5.93, 5.93 and 5.96 runs/s for one, two and
+four workers), because at that offered load one worker already kept up. Adding
+workers moved the work; it did not create more of it.
+
+**Important: this says nothing about running Tracon on multiple machines.** It
+is one machine, one database and one clock. Network partition, clock skew and
+inter-machine latency were not measured and are not implied.
+
+### Thirty minutes at a steady load
+
+An equal mix of the three paths at concurrency 8 — the highest step the queued
+path finishes without queueing — ran for thirty minutes: **12 515 runs accepted,
+12 515 completed**, none missing from the store, no content mismatch, no gap in
+any recorded event stream, and nothing recorded under the wrong tenant. A read
+of one tenant's run carrying the other tenant's header was refused. The drain
+after the window took 0.2 seconds.
+
+Host memory did not accumulate. It peaked at 379 MiB in the first minutes
+(warm-up and JIT), then settled; the final five minutes averaged 162 MiB, lower
+than minutes 10–15. Steady-state p99 was 1081 ms buffered, 1251 ms streaming and
+1340 ms queued, with the three paths sharing 6.94 runs/s between them.
+
+These figures are tied to the versions and commits named above. They are a
+shipped claim, so they are not carried forward to a later release without
+re-measuring. The manifests, summaries, reports and charts for all four runs are
+kept in the repository under `bench/capacity/measurements/`, and
+`bench/capacity/README.md` describes how to reproduce them.
+
 ## Release and capacity caveats
 
 Tracon and its Microsoft Agent Framework hosting dependencies are pre-release.

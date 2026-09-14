@@ -28,11 +28,68 @@ public sealed class RunSummary
     /// <summary>One row per load point, with repeats merged at the sample level.</summary>
     public List<SummaryRow> Rows { get; set; } = [];
 
+    /// <summary>One entry per cell: the counters and the reconciliation the page's claims rest on.</summary>
+    /// <remarks>
+    /// 🚨 These used to live only in the untracked per-cell files, so a number
+    /// published from them could not be checked against anything kept. A shipped
+    /// claim whose evidence exists on one machine is not evidence.
+    /// </remarks>
+    public List<CellEvidence> Evidence { get; set; } = [];
+
     /// <summary>What the first bottleneck was, or why it could not be determined.</summary>
     public string Bottleneck { get; set; } = "not determined";
 
     /// <summary>Everything the reader must know before reading a number above.</summary>
     public List<string> Caveats { get; set; } = [];
+}
+
+/// <summary>What one cell counted, kept so a published number can be checked.</summary>
+public sealed class CellEvidence
+{
+    /// <summary>The cell.</summary>
+    public string CellId { get; set; } = "";
+
+    /// <summary><c>complete</c>, <c>incomplete/...</c> or <c>invalid</c>.</summary>
+    public string Status { get; set; } = "";
+
+    /// <summary>Planned requests per second, when the cell used the open-loop shape.</summary>
+    public double? ArrivalRatePerSecond { get; set; }
+
+    /// <summary>How many worker processes leased, for the worker axis.</summary>
+    public int? WorkerCount { get; set; }
+
+    /// <summary>How long the measured window lasted.</summary>
+    public double MeasuredSeconds { get; set; }
+
+    /// <summary>How long the drain took after it closed.</summary>
+    public double DrainSeconds { get; set; }
+
+    /// <summary>What became of every planned request.</summary>
+    public ArrivalTally Arrival { get; set; } = new();
+
+    /// <summary>Whether what was sent and what the store holds agree.</summary>
+    public ReconciliationSummary Reconciliation { get; set; } = new();
+
+    /// <summary>How long a queued job waited before its first attempt.</summary>
+    public LatencySummary QueueWait { get; set; } = new();
+
+    /// <summary>Per-process resource use, one entry per sampled process.</summary>
+    public List<ProcessResourceSummary> Processes { get; set; } = [];
+
+    /// <summary>How the queued work spread across worker processes.</summary>
+    public WorkerSummary? Workers { get; set; }
+
+    /// <summary>The host's effective in-process worker setting, read at run time.</summary>
+    public bool? HostRunWorker { get; set; }
+
+    /// <summary>Which measurements this platform supplied, and which it did not.</summary>
+    public TelemetryCoverage Telemetry { get; set; } = new();
+
+    /// <summary>Findings that change how the cell must be read.</summary>
+    public List<string> Warnings { get; set; } = [];
+
+    /// <summary>Why the cell is not complete.</summary>
+    public List<string> StatusReasons { get; set; } = [];
 }
 
 /// <summary>One load point, with its repeats merged.</summary>
@@ -55,6 +112,16 @@ public sealed class SummaryRow
 
     /// <summary>How many repeats were merged into this row.</summary>
     public int Repeats { get; set; }
+
+    /// <summary>
+    /// How many of those repeats contributed a BYTE growth number.
+    /// </summary>
+    /// <remarks>
+    /// 🚨 Fewer than <see cref="Repeats"/> means autovacuum disturbed the rest.
+    /// One is not an average, and publishing it as though it were is exactly
+    /// what the phase's own rule forbids.
+    /// </remarks>
+    public int StorageRepeats { get; set; }
 
     /// <summary>How many of those repeats completed.</summary>
     public int CompleteRepeats { get; set; }
@@ -122,7 +189,26 @@ public static class ReportBuilder
         };
 
         summary.IncompleteCells = summary.Cells - summary.CompleteCells - summary.InvalidCells;
-        summary.Rows = BuildRows(cells);
+        summary.Rows = BuildRows(cells, runDirectory);
+        summary.Evidence = cells.ConvertAll(static cell => new CellEvidence
+        {
+            CellId = cell.CellId,
+            Status = cell.Status,
+            ArrivalRatePerSecond = cell.ArrivalRatePerSecond,
+            WorkerCount = cell.WorkerCount,
+            MeasuredSeconds = cell.MeasuredSeconds,
+            DrainSeconds = cell.DrainSeconds,
+            Arrival = cell.Arrival,
+            Reconciliation = cell.Reconciliation,
+            QueueWait = cell.QueueWait,
+            Processes = cell.Processes,
+            Workers = cell.Workers,
+            HostRunWorker = cell.Workers?.HostRunWorker,
+            Telemetry = cell.Telemetry,
+            Warnings = cell.Warnings,
+            StatusReasons = cell.StatusReasons,
+        });
+
         summary.Bottleneck = DescribeBottleneck(cells, summary.Rows);
         summary.Caveats = BuildCaveats(cells, manifest);
 
@@ -157,6 +243,90 @@ public static class ReportBuilder
         return cells;
     }
 
+    /// <summary>Reads one cell's measured latency samples, by scenario.</summary>
+    /// <param name="runDirectory">The run's artifact directory.</param>
+    /// <param name="cellId">The cell to read.</param>
+    /// <returns>End-to-end and first-content samples per scenario, or empty when the raw file is gone.</returns>
+    /// <remarks>
+    /// 🚨 Repeats must merge at the SAMPLE level. Averaging three repeats'
+    /// p95 values - even weighted by their counts - is an arithmetic operation
+    /// with no distributional meaning: three repeats at 1000, 1000 and 5000 ms
+    /// publish 2333 ms, a number no request ever saw. It also hides the low
+    /// sample warning, because each repeat can sit below the floor while their
+    /// sum does not. So the raw file is read back here rather than the reduced
+    /// summary in cell.json.
+    /// </remarks>
+    public static (Dictionary<string, List<double>> Total, Dictionary<string, List<double>> FirstContent) LoadSamples(
+        string runDirectory,
+        string cellId)
+    {
+        var total = new Dictionary<string, List<double>>(StringComparer.Ordinal);
+        var firstContent = new Dictionary<string, List<double>>(StringComparer.Ordinal);
+
+        var path = Directory
+            .EnumerateFiles(runDirectory, "requests.jsonl", SearchOption.AllDirectories)
+            .FirstOrDefault(candidate => string.Equals(
+                Path.GetFileName(Path.GetDirectoryName(candidate)), cellId, StringComparison.Ordinal));
+
+        if (path is null)
+        {
+            return (total, firstContent);
+        }
+
+        foreach (var line in File.ReadLines(path))
+        {
+            if (line.Length == 0)
+            {
+                continue;
+            }
+
+            RequestSample? sample;
+
+            try
+            {
+                sample = JsonSerializer.Deserialize(line, CapacityJson.Default.RequestSample);
+            }
+            catch (JsonException)
+            {
+                // A torn final line (an interrupted run) loses one sample, not
+                // the file. The count difference shows in the reconciliation.
+                continue;
+            }
+
+            // Warm-up never enters a statistic, and only a clean success has a
+            // latency worth a percentile.
+            if (sample is null
+                || sample.Warmup
+                || !string.Equals(sample.Outcome, RequestOutcome.Accepted, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            if (sample.TotalMilliseconds is { } elapsed)
+            {
+                Add(total, sample.Scenario, elapsed);
+            }
+
+            if (sample.FirstContentMilliseconds is { } first)
+            {
+                Add(firstContent, sample.Scenario, first);
+            }
+        }
+
+        return (total, firstContent);
+
+        static void Add(Dictionary<string, List<double>> into, string scenario, double value)
+        {
+            if (!into.TryGetValue(scenario, out var values))
+            {
+                values = [];
+                into[scenario] = values;
+            }
+
+            values.Add(value);
+        }
+    }
+
     private static RunManifest? LoadManifest(string runDirectory)
     {
         var path = Path.Combine(runDirectory, "manifest.json");
@@ -166,7 +336,7 @@ public static class ReportBuilder
             : null;
     }
 
-    private static List<SummaryRow> BuildRows(List<CellResult> cells)
+    private static List<SummaryRow> BuildRows(List<CellResult> cells, string runDirectory)
     {
         var rows = new List<SummaryRow>();
 
@@ -179,16 +349,68 @@ public static class ReportBuilder
         {
             var members = group.ToList();
 
-            // 🚨 Percentiles are recomputed from the merged sample counts, never
-            // averaged across repeats. The merge is approximate only in that the
-            // per-cell summaries are already reduced; the count-weighted merge
-            // below keeps the sample count honest, which is what the low-sample
-            // warnings depend on.
-            var latency = MergeSummaries(members.ConvertAll(m => m.Cell.LatencyByScenario.GetValueOrDefault(m.Scenario) ?? new LatencySummary()));
-            var firstContent = MergeSummaries(members.ConvertAll(m => m.Cell.FirstContentByScenario.GetValueOrDefault(m.Scenario) ?? new LatencySummary()));
+            // 🚨 The repeats' SAMPLES are merged and the percentile is computed
+            // once. Reducing each repeat first and averaging the reductions
+            // publishes a number no request ever saw.
+            var totalSamples = new List<double>();
+            var firstSamples = new List<double>();
+            var perRepeatCounts = new List<int>();
 
-            var throughputs = members.ConvertAll(static m => m.Cell.ThroughputPerSecond);
-            var storage = members.ConvertAll(static m => m.Cell.Storage).FindAll(static s => s.Available);
+            foreach (var member in members)
+            {
+                var (total, first) = LoadSamples(runDirectory, member.Cell.CellId);
+                var forScenario = total.GetValueOrDefault(member.Scenario) ?? [];
+
+                totalSamples.AddRange(forScenario);
+                firstSamples.AddRange(first.GetValueOrDefault(member.Scenario) ?? []);
+                perRepeatCounts.Add(forScenario.Count);
+            }
+
+            // Only when the raw samples are gone does the reduced summary stand
+            // in - and the row says so rather than pretending otherwise.
+            var rawAvailable = totalSamples.Count > 0;
+
+            var latency = rawAvailable
+                ? LatencyStatistics.From(totalSamples).ToSummary()
+                : MergeSummaries(members.ConvertAll(m => m.Cell.LatencyByScenario.GetValueOrDefault(m.Scenario) ?? new LatencySummary()));
+
+            var firstContent = rawAvailable && firstSamples.Count > 0
+                ? LatencyStatistics.From(firstSamples).ToSummary()
+                : MergeSummaries(members.ConvertAll(m => m.Cell.FirstContentByScenario.GetValueOrDefault(m.Scenario) ?? new LatencySummary()));
+
+            if (rawAvailable)
+            {
+                latency.Method = "nearest-rank over every repeat's samples";
+                firstContent.Method = latency.Method;
+
+                // 🚨 A repeat whose OWN sample count sits below the floor is
+                // flagged even when the merged count clears it. Three repeats
+                // of 58 samples make 174, which looks safe and is not: no
+                // single window ever supported a p95.
+                var thinnest = perRepeatCounts.Count == 0 ? 0 : perRepeatCounts.Min();
+                latency.ThinnestRepeat = thinnest;
+                firstContent.ThinnestRepeat = thinnest;
+            }
+
+            // 🚨 A mixed cell's throughput is the CELL's, not each scenario's.
+            // Writing 6.94/s onto all three rows of a soak makes it look as
+            // though each path alone reached what the three shared, and invites
+            // comparison with a sweep row that measured one path on its own.
+            var throughputs = members.ConvertAll(static m =>
+                m.Cell.Scenarios.Count <= 1
+                    ? m.Cell.ThroughputPerSecond
+                    : m.Cell.ThroughputPerSecond / m.Cell.Scenarios.Count);
+
+            var sharedCell = members.Exists(static m => m.Cell.Scenarios.Count > 1);
+
+            // Same reason for storage: growth measured across a MIXED window
+            // belongs to the mix, not to any one path in it. Attributing it to
+            // each scenario would publish the soak's 16.35 rows/run beside the
+            // sweep's 27.6 for streaming and 10.5 for buffered, as though a
+            // third measurement disagreed with both.
+            var storage = sharedCell
+                ? []
+                : members.ConvertAll(static m => m.Cell.Storage).FindAll(static s => s.Available);
 
             // 🚨 Bytes and rows are filtered DIFFERENTLY, and that asymmetry is
             // the point. `pg_total_relation_size` counts bloat, so a window
@@ -197,6 +419,7 @@ public static class ReportBuilder
             // the one number that survives - and rows are half of what makes
             // write amplification readable.
             var cleanStorage = storage.FindAll(static s => !s.VacuumInterference);
+
 
             rows.Add(new SummaryRow
             {
@@ -207,6 +430,7 @@ public static class ReportBuilder
                 WorkerCount = group.Key.WorkerCount,
                 Repeats = members.Count,
                 CompleteRepeats = members.Count(static m => string.Equals(m.Cell.Status, CellStatus.Complete, StringComparison.Ordinal)),
+                StorageRepeats = cleanStorage.Count,
                 Latency = latency,
                 FirstContent = firstContent,
                 ThroughputPerSecond = throughputs.Count == 0 ? 0 : Math.Round(throughputs.Average(), 4),
@@ -466,8 +690,8 @@ public static class ReportBuilder
 
         text.AppendLine("## Load points");
         text.AppendLine();
-        text.AppendLine("| Scenario | Seed | Workers | Rate/s | Concurrency | n | p50 ms | p95 ms | p99 ms | Throughput/s | Bytes/run | Rows/run |");
-        text.AppendLine("|---|---|---|---|---|---|---|---|---|---|---|---|");
+        text.AppendLine("| Scenario | Seed | Workers | Rate/s | Concurrency | Repeats | n | p50 ms | p95 ms | p99 ms | Throughput/s | Bytes/run | Rows/run |");
+        text.AppendLine("|---|---|---|---|---|---|---|---|---|---|---|---|---|");
 
         foreach (var row in summary.Rows)
         {
@@ -476,20 +700,28 @@ public static class ReportBuilder
                 .Append(" | ").Append(row.WorkerCount?.ToString(CultureInfo.InvariantCulture) ?? "—")
                 .Append(" | ").Append(row.ArrivalRatePerSecond?.ToString("0.##", CultureInfo.InvariantCulture) ?? "—")
                 .Append(" | ").Append(row.Concurrency.ToString(CultureInfo.InvariantCulture))
+                .Append(" | ").Append(row.Repeats.ToString(CultureInfo.InvariantCulture))
                 .Append(" | ").Append(row.Latency.Count.ToString(CultureInfo.InvariantCulture))
                 .Append(" | ").Append(LatencyStatistics.Format(row.Latency.P50))
-                .Append(" | ").Append(LatencyStatistics.Format(row.Latency.P95)).Append(row.Latency.LowSampleP95 ? " ⚠" : "")
-                .Append(" | ").Append(LatencyStatistics.Format(row.Latency.P99)).Append(row.Latency.LowSampleP99 ? " ⚠" : "")
+                .Append(" | ").Append(LatencyStatistics.Format(row.Latency.P95)).Append(Warn(row.Latency, LatencyStatistics.P95SampleFloor, row.Latency.LowSampleP95))
+                .Append(" | ").Append(LatencyStatistics.Format(row.Latency.P99)).Append(Warn(row.Latency, LatencyStatistics.P99SampleFloor, row.Latency.LowSampleP99))
                 .Append(" | ").Append(row.ThroughputPerSecond.ToString("0.###", CultureInfo.InvariantCulture))
-                .Append(" | ").Append(StorageAccountant.FormatBytes(row.BytesPerRun)).Append(row.VacuumInterference ? " (vacuum)" : "")
+                .Append(" | ").Append(Bytes(row))
                 .Append(" | ").Append(row.RowsPerRun?.ToString("0.##", CultureInfo.InvariantCulture) ?? "—")
                 .AppendLine(" |");
         }
 
         text.AppendLine();
-        text.AppendLine("⚠ marks a percentile computed from fewer samples than its floor (p95: 100, p99: 1000).");
+        text.AppendLine(
+            "⚠ marks a percentile computed from fewer samples than its floor (p95: 100, p99: 1000). "
+            + "⚠repeat marks one where the MERGED count clears the floor but the thinnest single repeat does not — "
+            + "the number is honest, but no individual window supported it. "
+            + "Percentiles are nearest rank over every repeat's samples merged together, never an average of the "
+            + "repeats' own percentiles. A bytes-per-run cell says how many repeats it came from when that is fewer "
+            + "than the repeat count; `1 rpt` is one window, not an average.");
         text.AppendLine();
 
+        AppendArrival(text, cells);
         AppendStorage(text, cells);
         AppendWorkers(text, summary, cells);
         AppendTelemetry(text, cells);
@@ -508,6 +740,68 @@ public static class ReportBuilder
         }
 
         return text.ToString();
+    }
+
+    private static void AppendArrival(StringBuilder text, List<CellResult> cells)
+    {
+        text.AppendLine("## What became of every request");
+        text.AppendLine();
+        text.AppendLine(
+            "`planned = not sent + sent` and `sent = accepted + rejected + failed + timed out` both close on every "
+            + "row; a report that cannot close them is hiding dropped load. A refusal or a timeout is a saturation "
+            + "finding and stays inside `sent` - it never leaves the distribution.");
+        text.AppendLine();
+        text.AppendLine("| Cell | Rate/s | Planned | Sent | Not sent | Accepted | Rejected | Timed out | Completed | Drain s | Queue wait p95 ms |");
+        text.AppendLine("|---|---|---|---|---|---|---|---|---|---|---|");
+
+        foreach (var cell in cells)
+        {
+            var arrival = cell.Arrival;
+
+            text.Append("| ").Append(cell.CellId)
+                .Append(" | ").Append(cell.ArrivalRatePerSecond?.ToString("0.##", CultureInfo.InvariantCulture) ?? "—")
+                .Append(" | ").Append(arrival.Planned.ToString(CultureInfo.InvariantCulture))
+                .Append(" | ").Append(arrival.Sent.ToString(CultureInfo.InvariantCulture))
+                .Append(" | ").Append(arrival.NotSent.ToString(CultureInfo.InvariantCulture))
+                .Append(" | ").Append(arrival.Accepted.ToString(CultureInfo.InvariantCulture))
+                .Append(" | ").Append(arrival.Rejected.ToString(CultureInfo.InvariantCulture))
+                .Append(" | ").Append(arrival.TimedOut.ToString(CultureInfo.InvariantCulture))
+                .Append(" | ").Append(arrival.Completed.ToString(CultureInfo.InvariantCulture))
+                .Append(" | ").Append(cell.DrainSeconds.ToString("0.##", CultureInfo.InvariantCulture))
+                .Append(" | ").Append(LatencyStatistics.Format(cell.QueueWait.P95))
+                .AppendLine(" |");
+        }
+
+        text.AppendLine();
+        text.AppendLine("## Reconciliation and resources");
+        text.AppendLine();
+        text.AppendLine(
+            "A store that refuses a write leaves the run green, so counting HTTP successes alone could report a clean "
+            + "measurement over lost data. Every cell therefore compares what was sent against what the store holds.");
+        text.AppendLine();
+        text.AppendLine("| Cell | Accepted runs | Terminal | Missing | Content mismatch | Sequence gaps | Live subs | Tenant bleed | Cross-tenant refused | Host peak RSS | Host CPU s |");
+        text.AppendLine("|---|---|---|---|---|---|---|---|---|---|---|");
+
+        foreach (var cell in cells)
+        {
+            var reconciliation = cell.Reconciliation;
+            var host = cell.Processes.Find(static p => string.Equals(p.Role, "host", StringComparison.Ordinal));
+
+            text.Append("| ").Append(cell.CellId)
+                .Append(" | ").Append(reconciliation.AcceptedRunIds.ToString(CultureInfo.InvariantCulture))
+                .Append(" | ").Append(reconciliation.TerminalRuns.ToString(CultureInfo.InvariantCulture))
+                .Append(" | ").Append(reconciliation.MissingRuns.ToString(CultureInfo.InvariantCulture))
+                .Append(" | ").Append(reconciliation.ContentMismatches.ToString(CultureInfo.InvariantCulture))
+                .Append(" | ").Append(reconciliation.SequenceGaps.ToString(CultureInfo.InvariantCulture))
+                .Append(" | ").Append(reconciliation.LiveSubscriptions.ToString(CultureInfo.InvariantCulture))
+                .Append(" | ").Append(reconciliation.TenantBleed.ToString(CultureInfo.InvariantCulture))
+                .Append(" | ").Append(reconciliation.CrossTenantRefusals.ToString(CultureInfo.InvariantCulture))
+                .Append(" | ").Append(StorageAccountant.FormatBytes(host?.PeakRssBytes))
+                .Append(" | ").Append(host?.ProcessorSeconds.ToString("0.#", CultureInfo.InvariantCulture) ?? "—")
+                .AppendLine(" |");
+        }
+
+        text.AppendLine();
     }
 
     private static void AppendStorage(StringBuilder text, List<CellResult> cells)
@@ -636,6 +930,33 @@ public static class ReportBuilder
         }
 
         text.AppendLine();
+    }
+
+    private static string Warn(LatencySummary latency, int floor, bool belowFloor)
+    {
+        if (belowFloor)
+        {
+            return " ⚠";
+        }
+
+        // 🚨 The merged count can clear the floor while no single window did.
+        return latency.ThinnestRepeat is { } thinnest && thinnest > 0 && thinnest < floor ? " ⚠repeat" : "";
+    }
+
+    private static string Bytes(SummaryRow row)
+    {
+        var formatted = StorageAccountant.FormatBytes(row.BytesPerRun);
+
+        if (row.BytesPerRun is null)
+        {
+            return row.VacuumInterference ? "— (vacuum)" : formatted;
+        }
+
+        // 🚨 One clean repeat is not an average, and the phase's own rule
+        // forbids publishing it as though it were.
+        return row.StorageRepeats < row.Repeats
+            ? string.Create(CultureInfo.InvariantCulture, $"{formatted} ({row.StorageRepeats} rpt)")
+            : formatted;
     }
 
     private static void Row(StringBuilder text, string field, string value)

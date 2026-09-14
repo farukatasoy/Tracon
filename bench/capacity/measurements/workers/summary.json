@@ -1,0 +1,1347 @@
+{
+  "runId": "20260914-211707-workers",
+  "profile": "workers",
+  "cells": 9,
+  "completeCells": 9,
+  "incompleteCells": 0,
+  "invalidCells": 0,
+  "rows": [
+    {
+      "scenario": "queued",
+      "seedShape": "empty",
+      "concurrency": 8,
+      "workerCount": 1,
+      "repeats": 3,
+      "storageRepeats": 1,
+      "completeRepeats": 3,
+      "latency": {
+        "count": 1104,
+        "minimum": 1068.386,
+        "mean": 1319.697,
+        "p50": 1320.391,
+        "p95": 1342.334,
+        "p99": 1368.941,
+        "maximum": 1385.609,
+        "lowSampleP95": false,
+        "lowSampleP99": false,
+        "method": "nearest-rank over every repeat\u0027s samples",
+        "thinnestRepeat": 368
+      },
+      "firstContent": {
+        "count": 1104,
+        "minimum": 2.994,
+        "mean": 9.636,
+        "p50": 9.792,
+        "p95": 12.148,
+        "p99": 19.749,
+        "maximum": 24.123,
+        "lowSampleP95": false,
+        "lowSampleP99": false,
+        "method": "nearest-rank over every repeat\u0027s samples",
+        "thinnestRepeat": 368
+      },
+      "throughputPerSecond": 5.9254,
+      "throughputSpread": 0.0599,
+      "bytesPerRun": 9683.5,
+      "rowsPerRun": 10.5767,
+      "bytesPerEvent": 1613.9,
+      "vacuumInterference": true,
+      "largestWorkerShare": 1,
+      "attemptRatio": 1,
+      "contentionMeasured": false
+    },
+    {
+      "scenario": "queued",
+      "seedShape": "empty",
+      "concurrency": 8,
+      "workerCount": 2,
+      "repeats": 3,
+      "storageRepeats": 0,
+      "completeRepeats": 3,
+      "latency": {
+        "count": 1108,
+        "minimum": 1051.051,
+        "mean": 1313.604,
+        "p50": 1313.364,
+        "p95": 1343.263,
+        "p99": 1381.939,
+        "maximum": 1590.249,
+        "lowSampleP95": false,
+        "lowSampleP99": false,
+        "method": "nearest-rank over every repeat\u0027s samples",
+        "thinnestRepeat": 368
+      },
+      "firstContent": {
+        "count": 1108,
+        "minimum": 2.972,
+        "mean": 9.172,
+        "p50": 9.187,
+        "p95": 12.51,
+        "p99": 18.348,
+        "maximum": 69.818,
+        "lowSampleP95": false,
+        "lowSampleP99": false,
+        "method": "nearest-rank over every repeat\u0027s samples",
+        "thinnestRepeat": 368
+      },
+      "throughputPerSecond": 5.9294,
+      "throughputSpread": 0.0133,
+      "rowsPerRun": 10.6533,
+      "vacuumInterference": true,
+      "largestWorkerShare": 0.7364,
+      "attemptRatio": 1,
+      "contentionMeasured": true
+    },
+    {
+      "scenario": "queued",
+      "seedShape": "empty",
+      "concurrency": 8,
+      "workerCount": 4,
+      "repeats": 3,
+      "storageRepeats": 0,
+      "completeRepeats": 3,
+      "latency": {
+        "count": 1119,
+        "minimum": 1052.231,
+        "mean": 1303.505,
+        "p50": 1305.961,
+        "p95": 1319.996,
+        "p99": 1332.344,
+        "maximum": 1339.414,
+        "lowSampleP95": false,
+        "lowSampleP99": false,
+        "method": "nearest-rank over every repeat\u0027s samples",
+        "thinnestRepeat": 369
+      },
+      "firstContent": {
+        "count": 1119,
+        "minimum": 3.474,
+        "mean": 8.568,
+        "p50": 8.652,
+        "p95": 11.981,
+        "p99": 27.453,
+        "maximum": 38.566,
+        "lowSampleP95": false,
+        "lowSampleP99": false,
+        "method": "nearest-rank over every repeat\u0027s samples",
+        "thinnestRepeat": 369
+      },
+      "throughputPerSecond": 5.9596,
+      "throughputSpread": 0.1034,
+      "rowsPerRun": 10.66,
+      "vacuumInterference": true,
+      "largestWorkerShare": 0.329,
+      "attemptRatio": 1,
+      "contentionMeasured": true
+    }
+  ],
+  "evidence": [
+    {
+      "cellId": "000-queued-w1-r1",
+      "status": "complete",
+      "workerCount": 1,
+      "measuredSeconds": 61.032,
+      "drainSeconds": 0.055,
+      "arrival": {
+        "planned": 368,
+        "sent": 368,
+        "notSent": 0,
+        "accepted": 368,
+        "rejected": 0,
+        "failed": 0,
+        "timedOut": 0,
+        "completed": 368,
+        "dispatchLag": {
+          "count": 0,
+          "lowSampleP95": false,
+          "lowSampleP99": false,
+          "method": "nearest-rank"
+        }
+      },
+      "reconciliation": {
+        "acceptedRunIds": 368,
+        "terminalRuns": 368,
+        "missingRuns": 0,
+        "contentMismatches": 0,
+        "sequenceGaps": 0,
+        "liveSubscriptions": 368,
+        "historicalOnlySubscriptions": 0,
+        "tenantBleed": 0,
+        "crossTenantRefusals": 2,
+        "complete": true
+      },
+      "queueWait": {
+        "count": 368,
+        "minimum": 5.709,
+        "mean": 64.749,
+        "p50": 62.956,
+        "p95": 117.49,
+        "p99": 133.663,
+        "maximum": 141.126,
+        "lowSampleP95": false,
+        "lowSampleP99": true,
+        "method": "nearest-rank"
+      },
+      "processes": [
+        {
+          "role": "driver",
+          "pid": 14670,
+          "samples": 61,
+          "peakRssBytes": 113917952,
+          "meanRssBytes": 100230060,
+          "processorSeconds": 1.959,
+          "peakManagedHeapBytes": 5581392,
+          "allocatedBytes": 112804664,
+          "gcSeconds": 0.038
+        },
+        {
+          "role": "host",
+          "pid": 14643,
+          "samples": 61,
+          "peakRssBytes": 236961792,
+          "meanRssBytes": 207652158,
+          "processorSeconds": 3.772
+        },
+        {
+          "role": "worker-1",
+          "pid": 14669,
+          "samples": 61,
+          "peakRssBytes": 208666624,
+          "meanRssBytes": 187127841,
+          "processorSeconds": 4.89
+        }
+      ],
+      "workers": {
+        "hostRunWorker": false,
+        "workerCount": 1,
+        "shares": [
+          {
+            "pid": 14669,
+            "name": "worker-1",
+            "jobs": 368,
+            "attempts": 368
+          }
+        ],
+        "acceptedJobs": 368,
+        "executedJobs": 368,
+        "attempts": 368,
+        "attemptRatio": 1,
+        "leaseRenewals": 0,
+        "takeOvers": 0,
+        "largestShare": 1,
+        "contentionMeasured": false,
+        "concurrentOverlaps": 0
+      },
+      "hostRunWorker": false,
+      "telemetry": {
+        "available": [
+          "http.latency",
+          "model.turns",
+          "process.rss",
+          "process.cpu",
+          "process.gc",
+          "sql.storage",
+          "queue.wait"
+        ],
+        "unavailable": {},
+        "missingMandatory": []
+      },
+      "warnings": [],
+      "statusReasons": []
+    },
+    {
+      "cellId": "001-queued-w1-r2",
+      "status": "complete",
+      "workerCount": 1,
+      "measuredSeconds": 60.419,
+      "drainSeconds": 0.044,
+      "arrival": {
+        "planned": 368,
+        "sent": 368,
+        "notSent": 0,
+        "accepted": 368,
+        "rejected": 0,
+        "failed": 0,
+        "timedOut": 0,
+        "completed": 368,
+        "dispatchLag": {
+          "count": 0,
+          "lowSampleP95": false,
+          "lowSampleP99": false,
+          "method": "nearest-rank"
+        }
+      },
+      "reconciliation": {
+        "acceptedRunIds": 368,
+        "terminalRuns": 368,
+        "missingRuns": 0,
+        "contentMismatches": 0,
+        "sequenceGaps": 0,
+        "liveSubscriptions": 368,
+        "historicalOnlySubscriptions": 0,
+        "tenantBleed": 0,
+        "crossTenantRefusals": 2,
+        "complete": true
+      },
+      "queueWait": {
+        "count": 368,
+        "minimum": 4.673,
+        "mean": 59.052,
+        "p50": 56.711,
+        "p95": 114.319,
+        "p99": 119.675,
+        "maximum": 122.054,
+        "lowSampleP95": false,
+        "lowSampleP99": true,
+        "method": "nearest-rank"
+      },
+      "processes": [
+        {
+          "role": "driver",
+          "pid": 15231,
+          "samples": 61,
+          "peakRssBytes": 117178368,
+          "meanRssBytes": 114728288,
+          "processorSeconds": 1.873,
+          "peakManagedHeapBytes": 4536056,
+          "allocatedBytes": 112810552,
+          "gcSeconds": 0.033
+        },
+        {
+          "role": "host",
+          "pid": 15224,
+          "samples": 61,
+          "peakRssBytes": 255639552,
+          "meanRssBytes": 233407806,
+          "processorSeconds": 3.753
+        },
+        {
+          "role": "worker-1",
+          "pid": 15225,
+          "samples": 61,
+          "peakRssBytes": 219348992,
+          "meanRssBytes": 207135391,
+          "processorSeconds": 5.037
+        }
+      ],
+      "workers": {
+        "hostRunWorker": false,
+        "workerCount": 1,
+        "shares": [
+          {
+            "pid": 15225,
+            "name": "worker-1",
+            "jobs": 368,
+            "attempts": 368
+          }
+        ],
+        "acceptedJobs": 368,
+        "executedJobs": 368,
+        "attempts": 368,
+        "attemptRatio": 1,
+        "leaseRenewals": 0,
+        "takeOvers": 0,
+        "largestShare": 1,
+        "contentionMeasured": false,
+        "concurrentOverlaps": 0
+      },
+      "hostRunWorker": false,
+      "telemetry": {
+        "available": [
+          "http.latency",
+          "model.turns",
+          "process.rss",
+          "process.cpu",
+          "process.gc",
+          "sql.storage",
+          "queue.wait"
+        ],
+        "unavailable": {},
+        "missingMandatory": []
+      },
+      "warnings": [
+        "storage/vacuum-interference: autovacuum ran inside the window; byte growth is not comparable and must stay out of any average"
+      ],
+      "statusReasons": []
+    },
+    {
+      "cellId": "002-queued-w1-r3",
+      "status": "complete",
+      "workerCount": 1,
+      "measuredSeconds": 60.819,
+      "drainSeconds": 0.065,
+      "arrival": {
+        "planned": 368,
+        "sent": 368,
+        "notSent": 0,
+        "accepted": 368,
+        "rejected": 0,
+        "failed": 0,
+        "timedOut": 0,
+        "completed": 368,
+        "dispatchLag": {
+          "count": 0,
+          "lowSampleP95": false,
+          "lowSampleP99": false,
+          "method": "nearest-rank"
+        }
+      },
+      "reconciliation": {
+        "acceptedRunIds": 368,
+        "terminalRuns": 368,
+        "missingRuns": 0,
+        "contentMismatches": 0,
+        "sequenceGaps": 0,
+        "liveSubscriptions": 368,
+        "historicalOnlySubscriptions": 0,
+        "tenantBleed": 0,
+        "crossTenantRefusals": 2,
+        "complete": true
+      },
+      "queueWait": {
+        "count": 368,
+        "minimum": 3.192,
+        "mean": 65.029,
+        "p50": 64.608,
+        "p95": 113.539,
+        "p99": 144.44,
+        "maximum": 165.454,
+        "lowSampleP95": false,
+        "lowSampleP99": true,
+        "method": "nearest-rank"
+      },
+      "processes": [
+        {
+          "role": "driver",
+          "pid": 15658,
+          "samples": 61,
+          "peakRssBytes": 116080640,
+          "meanRssBytes": 113171808,
+          "processorSeconds": 1.955,
+          "peakManagedHeapBytes": 4220648,
+          "allocatedBytes": 112823016,
+          "gcSeconds": 0.036
+        },
+        {
+          "role": "host",
+          "pid": 15656,
+          "samples": 61,
+          "peakRssBytes": 251920384,
+          "meanRssBytes": 233226240,
+          "processorSeconds": 3.755
+        },
+        {
+          "role": "worker-1",
+          "pid": 15657,
+          "samples": 61,
+          "peakRssBytes": 218791936,
+          "meanRssBytes": 207137808,
+          "processorSeconds": 5.046
+        }
+      ],
+      "workers": {
+        "hostRunWorker": false,
+        "workerCount": 1,
+        "shares": [
+          {
+            "pid": 15657,
+            "name": "worker-1",
+            "jobs": 368,
+            "attempts": 368
+          }
+        ],
+        "acceptedJobs": 368,
+        "executedJobs": 368,
+        "attempts": 368,
+        "attemptRatio": 1,
+        "leaseRenewals": 0,
+        "takeOvers": 0,
+        "largestShare": 1,
+        "contentionMeasured": false,
+        "concurrentOverlaps": 0
+      },
+      "hostRunWorker": false,
+      "telemetry": {
+        "available": [
+          "http.latency",
+          "model.turns",
+          "process.rss",
+          "process.cpu",
+          "process.gc",
+          "sql.storage",
+          "queue.wait"
+        ],
+        "unavailable": {},
+        "missingMandatory": []
+      },
+      "warnings": [
+        "storage/vacuum-interference: autovacuum ran inside the window; byte growth is not comparable and must stay out of any average"
+      ],
+      "statusReasons": []
+    },
+    {
+      "cellId": "003-queued-w2-r1",
+      "status": "complete",
+      "workerCount": 2,
+      "measuredSeconds": 60.763,
+      "drainSeconds": 0.067,
+      "arrival": {
+        "planned": 368,
+        "sent": 368,
+        "notSent": 0,
+        "accepted": 368,
+        "rejected": 0,
+        "failed": 0,
+        "timedOut": 0,
+        "completed": 368,
+        "dispatchLag": {
+          "count": 0,
+          "lowSampleP95": false,
+          "lowSampleP99": false,
+          "method": "nearest-rank"
+        }
+      },
+      "reconciliation": {
+        "acceptedRunIds": 368,
+        "terminalRuns": 368,
+        "missingRuns": 0,
+        "contentMismatches": 0,
+        "sequenceGaps": 0,
+        "liveSubscriptions": 368,
+        "historicalOnlySubscriptions": 0,
+        "tenantBleed": 0,
+        "crossTenantRefusals": 2,
+        "complete": true
+      },
+      "queueWait": {
+        "count": 368,
+        "minimum": 5.586,
+        "mean": 45.249,
+        "p50": 39.503,
+        "p95": 91.674,
+        "p99": 98.928,
+        "maximum": 103.248,
+        "lowSampleP95": false,
+        "lowSampleP99": true,
+        "method": "nearest-rank"
+      },
+      "processes": [
+        {
+          "role": "driver",
+          "pid": 16152,
+          "samples": 61,
+          "peakRssBytes": 116719616,
+          "meanRssBytes": 113570127,
+          "processorSeconds": 1.903,
+          "peakManagedHeapBytes": 4125040,
+          "allocatedBytes": 113291000,
+          "gcSeconds": 0.036
+        },
+        {
+          "role": "host",
+          "pid": 16143,
+          "samples": 61,
+          "peakRssBytes": 252690432,
+          "meanRssBytes": 232895874,
+          "processorSeconds": 3.743
+        },
+        {
+          "role": "worker-1",
+          "pid": 16144,
+          "samples": 61,
+          "peakRssBytes": 216154112,
+          "meanRssBytes": 194345396,
+          "processorSeconds": 4.583
+        },
+        {
+          "role": "worker-2",
+          "pid": 16149,
+          "samples": 61,
+          "peakRssBytes": 204242944,
+          "meanRssBytes": 182961202,
+          "processorSeconds": 2.716
+        }
+      ],
+      "workers": {
+        "hostRunWorker": false,
+        "workerCount": 2,
+        "shares": [
+          {
+            "pid": 16144,
+            "name": "worker-1",
+            "jobs": 264,
+            "attempts": 264
+          },
+          {
+            "pid": 16149,
+            "name": "worker-2",
+            "jobs": 104,
+            "attempts": 104
+          }
+        ],
+        "acceptedJobs": 368,
+        "executedJobs": 368,
+        "attempts": 368,
+        "attemptRatio": 1,
+        "leaseRenewals": 0,
+        "takeOvers": 0,
+        "largestShare": 0.7174,
+        "contentionMeasured": true,
+        "concurrentOverlaps": 0
+      },
+      "hostRunWorker": false,
+      "telemetry": {
+        "available": [
+          "http.latency",
+          "model.turns",
+          "process.rss",
+          "process.cpu",
+          "process.gc",
+          "sql.storage",
+          "queue.wait"
+        ],
+        "unavailable": {},
+        "missingMandatory": []
+      },
+      "warnings": [
+        "storage/vacuum-interference: autovacuum ran inside the window; byte growth is not comparable and must stay out of any average"
+      ],
+      "statusReasons": []
+    },
+    {
+      "cellId": "004-queued-w2-r2",
+      "status": "complete",
+      "workerCount": 2,
+      "measuredSeconds": 61.3,
+      "drainSeconds": 0.068,
+      "arrival": {
+        "planned": 372,
+        "sent": 372,
+        "notSent": 0,
+        "accepted": 372,
+        "rejected": 0,
+        "failed": 0,
+        "timedOut": 0,
+        "completed": 372,
+        "dispatchLag": {
+          "count": 0,
+          "lowSampleP95": false,
+          "lowSampleP99": false,
+          "method": "nearest-rank"
+        }
+      },
+      "reconciliation": {
+        "acceptedRunIds": 372,
+        "terminalRuns": 372,
+        "missingRuns": 0,
+        "contentMismatches": 0,
+        "sequenceGaps": 0,
+        "liveSubscriptions": 372,
+        "historicalOnlySubscriptions": 0,
+        "tenantBleed": 0,
+        "crossTenantRefusals": 2,
+        "complete": true
+      },
+      "queueWait": {
+        "count": 372,
+        "minimum": 5.033,
+        "mean": 37.933,
+        "p50": 31.028,
+        "p95": 77.428,
+        "p99": 82.907,
+        "maximum": 90.365,
+        "lowSampleP95": false,
+        "lowSampleP99": true,
+        "method": "nearest-rank"
+      },
+      "processes": [
+        {
+          "role": "driver",
+          "pid": 16639,
+          "samples": 62,
+          "peakRssBytes": 117374976,
+          "meanRssBytes": 114004892,
+          "processorSeconds": 2.003,
+          "peakManagedHeapBytes": 4957696,
+          "allocatedBytes": 114530896,
+          "gcSeconds": 0.032
+        },
+        {
+          "role": "host",
+          "pid": 16630,
+          "samples": 62,
+          "peakRssBytes": 254623744,
+          "meanRssBytes": 235075517,
+          "processorSeconds": 4.154
+        },
+        {
+          "role": "worker-1",
+          "pid": 16636,
+          "samples": 62,
+          "peakRssBytes": 214745088,
+          "meanRssBytes": 198905195,
+          "processorSeconds": 4.557
+        },
+        {
+          "role": "worker-2",
+          "pid": 16637,
+          "samples": 62,
+          "peakRssBytes": 195985408,
+          "meanRssBytes": 173423318,
+          "processorSeconds": 3.032
+        }
+      ],
+      "workers": {
+        "hostRunWorker": false,
+        "workerCount": 2,
+        "shares": [
+          {
+            "pid": 16636,
+            "name": "worker-1",
+            "jobs": 279,
+            "attempts": 279
+          },
+          {
+            "pid": 16637,
+            "name": "worker-2",
+            "jobs": 93,
+            "attempts": 93
+          }
+        ],
+        "acceptedJobs": 372,
+        "executedJobs": 372,
+        "attempts": 372,
+        "attemptRatio": 1,
+        "leaseRenewals": 0,
+        "takeOvers": 0,
+        "largestShare": 0.75,
+        "contentionMeasured": true,
+        "concurrentOverlaps": 0
+      },
+      "hostRunWorker": false,
+      "telemetry": {
+        "available": [
+          "http.latency",
+          "model.turns",
+          "process.rss",
+          "process.cpu",
+          "process.gc",
+          "sql.storage",
+          "queue.wait"
+        ],
+        "unavailable": {},
+        "missingMandatory": []
+      },
+      "warnings": [
+        "storage/vacuum-interference: autovacuum ran inside the window; byte growth is not comparable and must stay out of any average"
+      ],
+      "statusReasons": []
+    },
+    {
+      "cellId": "005-queued-w2-r3",
+      "status": "complete",
+      "workerCount": 2,
+      "measuredSeconds": 60.754,
+      "drainSeconds": 0.059,
+      "arrival": {
+        "planned": 368,
+        "sent": 368,
+        "notSent": 0,
+        "accepted": 368,
+        "rejected": 0,
+        "failed": 0,
+        "timedOut": 0,
+        "completed": 368,
+        "dispatchLag": {
+          "count": 0,
+          "lowSampleP95": false,
+          "lowSampleP99": false,
+          "method": "nearest-rank"
+        }
+      },
+      "reconciliation": {
+        "acceptedRunIds": 368,
+        "terminalRuns": 368,
+        "missingRuns": 0,
+        "contentMismatches": 0,
+        "sequenceGaps": 0,
+        "liveSubscriptions": 368,
+        "historicalOnlySubscriptions": 0,
+        "tenantBleed": 0,
+        "crossTenantRefusals": 2,
+        "complete": true
+      },
+      "queueWait": {
+        "count": 368,
+        "minimum": 3.415,
+        "mean": 36.934,
+        "p50": 31.79,
+        "p95": 78.173,
+        "p99": 83.111,
+        "maximum": 89.853,
+        "lowSampleP95": false,
+        "lowSampleP99": true,
+        "method": "nearest-rank"
+      },
+      "processes": [
+        {
+          "role": "driver",
+          "pid": 17172,
+          "samples": 61,
+          "peakRssBytes": 115277824,
+          "meanRssBytes": 113710331,
+          "processorSeconds": 1.852,
+          "peakManagedHeapBytes": 4229264,
+          "allocatedBytes": 113282536,
+          "gcSeconds": 0.031
+        },
+        {
+          "role": "host",
+          "pid": 17157,
+          "samples": 61,
+          "peakRssBytes": 248332288,
+          "meanRssBytes": 232907423,
+          "processorSeconds": 3.718
+        },
+        {
+          "role": "worker-1",
+          "pid": 17166,
+          "samples": 61,
+          "peakRssBytes": 215203840,
+          "meanRssBytes": 199025580,
+          "processorSeconds": 4.11
+        },
+        {
+          "role": "worker-2",
+          "pid": 17169,
+          "samples": 61,
+          "peakRssBytes": 193167360,
+          "meanRssBytes": 172956755,
+          "processorSeconds": 3.195
+        }
+      ],
+      "workers": {
+        "hostRunWorker": false,
+        "workerCount": 2,
+        "shares": [
+          {
+            "pid": 17166,
+            "name": "worker-1",
+            "jobs": 273,
+            "attempts": 273
+          },
+          {
+            "pid": 17169,
+            "name": "worker-2",
+            "jobs": 95,
+            "attempts": 95
+          }
+        ],
+        "acceptedJobs": 368,
+        "executedJobs": 368,
+        "attempts": 368,
+        "attemptRatio": 1,
+        "leaseRenewals": 0,
+        "takeOvers": 0,
+        "largestShare": 0.7418,
+        "contentionMeasured": true,
+        "concurrentOverlaps": 0
+      },
+      "hostRunWorker": false,
+      "telemetry": {
+        "available": [
+          "http.latency",
+          "model.turns",
+          "process.rss",
+          "process.cpu",
+          "process.gc",
+          "sql.storage",
+          "queue.wait"
+        ],
+        "unavailable": {},
+        "missingMandatory": []
+      },
+      "warnings": [
+        "storage/vacuum-interference: autovacuum ran inside the window; byte growth is not comparable and must stay out of any average"
+      ],
+      "statusReasons": []
+    },
+    {
+      "cellId": "006-queued-w4-r1",
+      "status": "complete",
+      "workerCount": 4,
+      "measuredSeconds": 61.174,
+      "drainSeconds": 0.066,
+      "arrival": {
+        "planned": 369,
+        "sent": 369,
+        "notSent": 0,
+        "accepted": 369,
+        "rejected": 0,
+        "failed": 0,
+        "timedOut": 0,
+        "completed": 369,
+        "dispatchLag": {
+          "count": 0,
+          "lowSampleP95": false,
+          "lowSampleP99": false,
+          "method": "nearest-rank"
+        }
+      },
+      "reconciliation": {
+        "acceptedRunIds": 369,
+        "terminalRuns": 369,
+        "missingRuns": 0,
+        "contentMismatches": 0,
+        "sequenceGaps": 0,
+        "liveSubscriptions": 369,
+        "historicalOnlySubscriptions": 0,
+        "tenantBleed": 0,
+        "crossTenantRefusals": 2,
+        "complete": true
+      },
+      "queueWait": {
+        "count": 369,
+        "minimum": 5.137,
+        "mean": 20.885,
+        "p50": 18.719,
+        "p95": 36.756,
+        "p99": 45.632,
+        "maximum": 49.951,
+        "lowSampleP95": false,
+        "lowSampleP99": true,
+        "method": "nearest-rank"
+      },
+      "processes": [
+        {
+          "role": "driver",
+          "pid": 17716,
+          "samples": 62,
+          "peakRssBytes": 122994688,
+          "meanRssBytes": 115453027,
+          "processorSeconds": 1.831,
+          "peakManagedHeapBytes": 5023216,
+          "allocatedBytes": 114723648,
+          "gcSeconds": 0.033
+        },
+        {
+          "role": "host",
+          "pid": 17697,
+          "samples": 62,
+          "peakRssBytes": 255426560,
+          "meanRssBytes": 235800642,
+          "processorSeconds": 3.54
+        },
+        {
+          "role": "worker-1",
+          "pid": 17698,
+          "samples": 62,
+          "peakRssBytes": 198180864,
+          "meanRssBytes": 168865659,
+          "processorSeconds": 3.932
+        },
+        {
+          "role": "worker-2",
+          "pid": 17699,
+          "samples": 62,
+          "peakRssBytes": 188547072,
+          "meanRssBytes": 173953948,
+          "processorSeconds": 1.945
+        },
+        {
+          "role": "worker-3",
+          "pid": 17706,
+          "samples": 62,
+          "peakRssBytes": 175243264,
+          "meanRssBytes": 155117369,
+          "processorSeconds": 2.952
+        },
+        {
+          "role": "worker-4",
+          "pid": 17709,
+          "samples": 62,
+          "peakRssBytes": 200540160,
+          "meanRssBytes": 169144980,
+          "processorSeconds": 3.683
+        }
+      ],
+      "workers": {
+        "hostRunWorker": false,
+        "workerCount": 4,
+        "shares": [
+          {
+            "pid": 17698,
+            "name": "worker-1",
+            "jobs": 125,
+            "attempts": 125
+          },
+          {
+            "pid": 17709,
+            "name": "worker-4",
+            "jobs": 123,
+            "attempts": 123
+          },
+          {
+            "pid": 17706,
+            "name": "worker-3",
+            "jobs": 64,
+            "attempts": 64
+          },
+          {
+            "pid": 17699,
+            "name": "worker-2",
+            "jobs": 57,
+            "attempts": 57
+          }
+        ],
+        "acceptedJobs": 369,
+        "executedJobs": 369,
+        "attempts": 369,
+        "attemptRatio": 1,
+        "leaseRenewals": 0,
+        "takeOvers": 0,
+        "largestShare": 0.3388,
+        "contentionMeasured": true,
+        "concurrentOverlaps": 0
+      },
+      "hostRunWorker": false,
+      "telemetry": {
+        "available": [
+          "http.latency",
+          "model.turns",
+          "process.rss",
+          "process.cpu",
+          "process.gc",
+          "sql.storage",
+          "queue.wait"
+        ],
+        "unavailable": {},
+        "missingMandatory": []
+      },
+      "warnings": [
+        "storage/vacuum-interference: autovacuum ran inside the window; byte growth is not comparable and must stay out of any average"
+      ],
+      "statusReasons": []
+    },
+    {
+      "cellId": "007-queued-w4-r2",
+      "status": "complete",
+      "workerCount": 4,
+      "measuredSeconds": 61.286,
+      "drainSeconds": 0.068,
+      "arrival": {
+        "planned": 376,
+        "sent": 376,
+        "notSent": 0,
+        "accepted": 376,
+        "rejected": 0,
+        "failed": 0,
+        "timedOut": 0,
+        "completed": 376,
+        "dispatchLag": {
+          "count": 0,
+          "lowSampleP95": false,
+          "lowSampleP99": false,
+          "method": "nearest-rank"
+        }
+      },
+      "reconciliation": {
+        "acceptedRunIds": 376,
+        "terminalRuns": 376,
+        "missingRuns": 0,
+        "contentMismatches": 0,
+        "sequenceGaps": 0,
+        "liveSubscriptions": 376,
+        "historicalOnlySubscriptions": 0,
+        "tenantBleed": 0,
+        "crossTenantRefusals": 2,
+        "complete": true
+      },
+      "queueWait": {
+        "count": 376,
+        "minimum": 2.058,
+        "mean": 19.101,
+        "p50": 17.813,
+        "p95": 33.865,
+        "p99": 41.853,
+        "maximum": 44.063,
+        "lowSampleP95": false,
+        "lowSampleP99": true,
+        "method": "nearest-rank"
+      },
+      "processes": [
+        {
+          "role": "driver",
+          "pid": 18194,
+          "samples": 62,
+          "peakRssBytes": 115818496,
+          "meanRssBytes": 111999438,
+          "processorSeconds": 1.932,
+          "peakManagedHeapBytes": 5208704,
+          "allocatedBytes": 116828792,
+          "gcSeconds": 0.037
+        },
+        {
+          "role": "host",
+          "pid": 18182,
+          "samples": 62,
+          "peakRssBytes": 250413056,
+          "meanRssBytes": 233576646,
+          "processorSeconds": 4.022
+        },
+        {
+          "role": "worker-1",
+          "pid": 18183,
+          "samples": 62,
+          "peakRssBytes": 191447040,
+          "meanRssBytes": 166388504,
+          "processorSeconds": 4.04
+        },
+        {
+          "role": "worker-2",
+          "pid": 18184,
+          "samples": 62,
+          "peakRssBytes": 195674112,
+          "meanRssBytes": 175568565,
+          "processorSeconds": 2.218
+        },
+        {
+          "role": "worker-3",
+          "pid": 18185,
+          "samples": 62,
+          "peakRssBytes": 173637632,
+          "meanRssBytes": 154773570,
+          "processorSeconds": 3.412
+        },
+        {
+          "role": "worker-4",
+          "pid": 18193,
+          "samples": 62,
+          "peakRssBytes": 195035136,
+          "meanRssBytes": 159625348,
+          "processorSeconds": 3.982
+        }
+      ],
+      "workers": {
+        "hostRunWorker": false,
+        "workerCount": 4,
+        "shares": [
+          {
+            "pid": 18183,
+            "name": "worker-1",
+            "jobs": 119,
+            "attempts": 119
+          },
+          {
+            "pid": 18193,
+            "name": "worker-4",
+            "jobs": 111,
+            "attempts": 111
+          },
+          {
+            "pid": 18184,
+            "name": "worker-2",
+            "jobs": 76,
+            "attempts": 76
+          },
+          {
+            "pid": 18185,
+            "name": "worker-3",
+            "jobs": 70,
+            "attempts": 70
+          }
+        ],
+        "acceptedJobs": 376,
+        "executedJobs": 376,
+        "attempts": 376,
+        "attemptRatio": 1,
+        "leaseRenewals": 0,
+        "takeOvers": 0,
+        "largestShare": 0.3165,
+        "contentionMeasured": true,
+        "concurrentOverlaps": 0
+      },
+      "hostRunWorker": false,
+      "telemetry": {
+        "available": [
+          "http.latency",
+          "model.turns",
+          "process.rss",
+          "process.cpu",
+          "process.gc",
+          "sql.storage",
+          "queue.wait"
+        ],
+        "unavailable": {},
+        "missingMandatory": []
+      },
+      "warnings": [
+        "storage/vacuum-interference: autovacuum ran inside the window; byte growth is not comparable and must stay out of any average"
+      ],
+      "statusReasons": []
+    },
+    {
+      "cellId": "008-queued-w4-r3",
+      "status": "complete",
+      "workerCount": 4,
+      "measuredSeconds": 61.277,
+      "drainSeconds": 0.064,
+      "arrival": {
+        "planned": 374,
+        "sent": 374,
+        "notSent": 0,
+        "accepted": 374,
+        "rejected": 0,
+        "failed": 0,
+        "timedOut": 0,
+        "completed": 374,
+        "dispatchLag": {
+          "count": 0,
+          "lowSampleP95": false,
+          "lowSampleP99": false,
+          "method": "nearest-rank"
+        }
+      },
+      "reconciliation": {
+        "acceptedRunIds": 374,
+        "terminalRuns": 374,
+        "missingRuns": 0,
+        "contentMismatches": 0,
+        "sequenceGaps": 0,
+        "liveSubscriptions": 374,
+        "historicalOnlySubscriptions": 0,
+        "tenantBleed": 0,
+        "crossTenantRefusals": 2,
+        "complete": true
+      },
+      "queueWait": {
+        "count": 374,
+        "minimum": 4.01,
+        "mean": 20.174,
+        "p50": 18.825,
+        "p95": 35.672,
+        "p99": 44.191,
+        "maximum": 49.116,
+        "lowSampleP95": false,
+        "lowSampleP99": true,
+        "method": "nearest-rank"
+      },
+      "processes": [
+        {
+          "role": "driver",
+          "pid": 18706,
+          "samples": 62,
+          "peakRssBytes": 119881728,
+          "meanRssBytes": 115452498,
+          "processorSeconds": 1.828,
+          "peakManagedHeapBytes": 4815504,
+          "allocatedBytes": 116233720,
+          "gcSeconds": 0.032
+        },
+        {
+          "role": "host",
+          "pid": 18694,
+          "samples": 62,
+          "peakRssBytes": 255950848,
+          "meanRssBytes": 233637689,
+          "processorSeconds": 3.675
+        },
+        {
+          "role": "worker-1",
+          "pid": 18695,
+          "samples": 62,
+          "peakRssBytes": 197574656,
+          "meanRssBytes": 172082209,
+          "processorSeconds": 3.757
+        },
+        {
+          "role": "worker-2",
+          "pid": 18696,
+          "samples": 62,
+          "peakRssBytes": 188628992,
+          "meanRssBytes": 169585498,
+          "processorSeconds": 2.035
+        },
+        {
+          "role": "worker-3",
+          "pid": 18697,
+          "samples": 62,
+          "peakRssBytes": 200802304,
+          "meanRssBytes": 171916783,
+          "processorSeconds": 3.112
+        },
+        {
+          "role": "worker-4",
+          "pid": 18700,
+          "samples": 62,
+          "peakRssBytes": 179879936,
+          "meanRssBytes": 158843408,
+          "processorSeconds": 3.188
+        }
+      ],
+      "workers": {
+        "hostRunWorker": false,
+        "workerCount": 4,
+        "shares": [
+          {
+            "pid": 18695,
+            "name": "worker-1",
+            "jobs": 124,
+            "attempts": 124
+          },
+          {
+            "pid": 18697,
+            "name": "worker-3",
+            "jobs": 116,
+            "attempts": 116
+          },
+          {
+            "pid": 18700,
+            "name": "worker-4",
+            "jobs": 72,
+            "attempts": 72
+          },
+          {
+            "pid": 18696,
+            "name": "worker-2",
+            "jobs": 62,
+            "attempts": 62
+          }
+        ],
+        "acceptedJobs": 374,
+        "executedJobs": 374,
+        "attempts": 374,
+        "attemptRatio": 1,
+        "leaseRenewals": 0,
+        "takeOvers": 0,
+        "largestShare": 0.3316,
+        "contentionMeasured": true,
+        "concurrentOverlaps": 0
+      },
+      "hostRunWorker": false,
+      "telemetry": {
+        "available": [
+          "http.latency",
+          "model.turns",
+          "process.rss",
+          "process.cpu",
+          "process.gc",
+          "sql.storage",
+          "queue.wait"
+        ],
+        "unavailable": {},
+        "missingMandatory": []
+      },
+      "warnings": [
+        "storage/vacuum-interference: autovacuum ran inside the window; byte growth is not comparable and must stay out of any average"
+      ],
+      "statusReasons": []
+    }
+  ],
+  "bottleneck": "no ceiling was found inside the measured range",
+  "caveats": [
+    "Measured on one machine, one database and one configuration. This is not an SLA and not a guaranteed capacity.",
+    "One machine, one database, one clock. Network partition, clock skew and inter-machine latency are out of scope, so nothing here says anything about multi-node behaviour.",
+    "Autovacuum ran inside at least one window; those cells\u0027 byte growth is flagged and excluded from the averages. Their row counts remain usable."
+  ]
+}

@@ -9,13 +9,31 @@ public sealed class CapacityReportTests : IDisposable
     private readonly string _directory = Path.Combine(
         Path.GetTempPath(), "capacity-report-" + Guid.NewGuid().ToString("N"));
 
-    private void WriteCell(CellResult cell)
+    private void WriteCell(CellResult cell, IEnumerable<double>? samples = null)
     {
         var path = Path.Combine(_directory, "cells", cell.CellId);
         Directory.CreateDirectory(path);
         File.WriteAllText(
             Path.Combine(path, "cell.json"),
             JsonSerializer.Serialize(cell, CapacityJson.Default.CellResult));
+
+        if (samples is null)
+        {
+            return;
+        }
+
+        var lines = samples.Select(value => JsonSerializer.Serialize(
+            new RequestSample
+            {
+                CellId = cell.CellId,
+                Scenario = cell.Scenarios[0],
+                Outcome = RequestOutcome.Accepted,
+                TotalMilliseconds = value,
+                FirstContentMilliseconds = value,
+            },
+            CapacityJson.Default.RequestSample).ReplaceLineEndings(""));
+
+        File.WriteAllLines(Path.Combine(path, "requests.jsonl"), lines);
     }
 
     private static CellResult Cell(
@@ -66,6 +84,115 @@ public sealed class CapacityReportTests : IDisposable
         row.Latency.Count.ShouldBe(360);
         row.Latency.LowSampleP95.ShouldBeFalse();
         row.Latency.LowSampleP99.ShouldBeTrue();
+    }
+
+    [Fact]
+    public void Repeats_merge_their_SAMPLES_rather_than_averaging_their_percentiles()
+    {
+        // 🚨 The defect this case exists for. Two repeats whose p95 values are
+        // 1000 and 5000 publish 3000 under a count-weighted average - a number
+        // no request ever saw. Merging the samples gives the 95th of the
+        // combined set, which is a value that was actually measured.
+        WriteCell(
+            Cell("a", concurrency: 8, repeat: 1, throughput: 5),
+            samples: Enumerable.Repeat(1000d, 100));
+        WriteCell(
+            Cell("b", concurrency: 8, repeat: 2, throughput: 5),
+            samples: Enumerable.Repeat(5000d, 100));
+
+        var row = ReportBuilder.Build(_directory).Rows.Single();
+
+        row.Latency.Count.ShouldBe(200);
+        row.Latency.P50.ShouldBe(1000);
+        row.Latency.P95.ShouldBe(5000);
+        row.Latency.Method.ShouldContain("every repeat's samples");
+    }
+
+    [Fact]
+    public void A_merged_count_that_clears_the_floor_still_names_the_thinnest_repeat()
+    {
+        // Three 58-sample repeats make 174, which looks safe. No single window
+        // ever supported a p95, and the reader is told so.
+        for (var repeat = 1; repeat <= 3; repeat++)
+        {
+            WriteCell(
+                Cell("c" + repeat.ToString(System.Globalization.CultureInfo.InvariantCulture), 1, repeat, 0.94),
+                samples: Enumerable.Repeat(1000d, 58));
+        }
+
+        var row = ReportBuilder.Build(_directory).Rows.Single();
+
+        row.Latency.Count.ShouldBe(174);
+        row.Latency.LowSampleP95.ShouldBeFalse();
+        row.Latency.ThinnestRepeat.ShouldBe(58);
+        File.ReadAllText(Path.Combine(_directory, "report.md")).ShouldContain("⚠repeat");
+    }
+
+    [Fact]
+    public void A_mixed_cell_does_not_credit_each_scenario_with_what_the_three_shared()
+    {
+        // 🚨 A soak measured 6.94/s across three paths. Writing 6.94 onto each
+        // row makes it look as though every path alone reached what they
+        // shared, and invites comparison with a sweep row that measured one.
+        var mixed = Cell("soak", concurrency: 8, repeat: 1, throughput: 6.94);
+        mixed.Scenarios = [CapacityScenario.Buffered, CapacityScenario.Streaming, CapacityScenario.Queued];
+        mixed.LatencyByScenario[CapacityScenario.Streaming] = new LatencySummary { Count = 10, P50 = 1 };
+        mixed.LatencyByScenario[CapacityScenario.Queued] = new LatencySummary { Count = 10, P50 = 1 };
+        mixed.Storage = new StorageSummary { Available = true, RowsPerRun = 16.35, BytesPerRun = 10_538 };
+        WriteCell(mixed);
+
+        var rows = ReportBuilder.Build(_directory).Rows;
+
+        rows.Count.ShouldBe(3);
+        rows.ShouldAllBe(r => r.ThroughputPerSecond > 2.3 && r.ThroughputPerSecond < 2.32);
+
+        // And the mix's storage is not attributed to any one path in it.
+        rows.ShouldAllBe(r => r.RowsPerRun == null && r.BytesPerRun == null);
+    }
+
+    [Fact]
+    public void A_bytes_per_run_from_one_clean_repeat_says_so()
+    {
+        var clean = Cell("a", concurrency: 1, repeat: 1, throughput: 0.9);
+        clean.Storage = new StorageSummary { Available = true, BytesPerRun = 8757, RowsPerRun = 10.5 };
+        WriteCell(clean);
+
+        var vacuumed = Cell("b", concurrency: 1, repeat: 2, throughput: 0.9);
+        vacuumed.Storage = new StorageSummary { Available = true, VacuumInterference = true, RowsPerRun = 10.6 };
+        WriteCell(vacuumed);
+
+        var summary = ReportBuilder.Build(_directory);
+
+        summary.Rows.Single().StorageRepeats.ShouldBe(1);
+        summary.Rows.Single().Repeats.ShouldBe(2);
+        File.ReadAllText(Path.Combine(_directory, "report.md")).ShouldContain("(1 rpt)");
+    }
+
+    [Fact]
+    public void The_kept_summary_carries_the_counters_a_published_number_rests_on()
+    {
+        // 🚨 These lived only in the untracked per-cell files, so a number
+        // published from them could not be checked against anything kept.
+        var cell = Cell("a", concurrency: 8, repeat: 1, throughput: 6);
+        cell.Arrival.Planned = 960;
+        cell.Arrival.Sent = 557;
+        cell.Arrival.NotSent = 403;
+        cell.Arrival.Accepted = 557;
+        cell.Reconciliation.CrossTenantRefusals = 2;
+        cell.Reconciliation.MissingRuns = 0;
+        WriteCell(cell);
+
+        var summary = ReportBuilder.Build(_directory);
+        var evidence = summary.Evidence.Single();
+
+        evidence.Arrival.Planned.ShouldBe(960);
+        evidence.Arrival.NotSent.ShouldBe(403);
+        evidence.Reconciliation.CrossTenantRefusals.ShouldBe(2);
+
+        var markdown = File.ReadAllText(Path.Combine(_directory, "report.md"));
+        markdown.ShouldContain("What became of every request");
+        markdown.ShouldContain("Reconciliation and resources");
+        markdown.ShouldContain("403");
     }
 
     [Fact]

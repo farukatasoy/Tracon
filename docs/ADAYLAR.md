@@ -60,6 +60,14 @@ Hazırlık · Maliyet · Risk · Bağımlılık · Ekosistem · Karşı görüş
 
 ---
 
+## Faz 166'dan Devreden
+
+| Aday | Ne açar | Kanıt |
+|---|---|---|
+| **F-230 — Kapasite sürüm damgası kapısı** | `docs-site/guides/production.md`'de yayımlanan her kapasite sayısının `bench/capacity/measurements/*/summary.json` içinde bir karşılığı olduğunu ve sayfanın yazdığı commit'in manifest'le eşleştiğini doğrulayan bir `dokuman-bakim.py` kontrolü | Faz 166'nın denetimi **beş 🔴** buldu ve beşi de tam olarak bu sınıftı: yanlış commit damgası, yanlış birleştirilmiş percentile, tek tekrarın ortalama gibi sunulması, elle kopyalarken bozulan yüzde, kanıtın izlenmeyen dizinde kalması. K-775 bunu bir **sözleşme** olarak kurdu; kapısı yok |
+
+---
+
 ## Sıralanabilir Adaylar
 
 Üçünün de kanıtı ölçülmüştür ve üçü de bugün `faz-planlama`'ya girebilir.

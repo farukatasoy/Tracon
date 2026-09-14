@@ -164,4 +164,15 @@ public sealed class LatencySummary
 
     /// <summary>The method these percentiles were computed with, written so a reader never has to guess.</summary>
     public string Method { get; set; } = "nearest-rank";
+
+    /// <summary>
+    /// When repeats were merged, the sample count of the THINNEST repeat.
+    /// </summary>
+    /// <remarks>
+    /// 🚨 A merged count can clear the floor while no single window did: three
+    /// 58-sample repeats make 174. The merged percentile is still the honest
+    /// one, but a reader deciding how much to trust it needs to know that no
+    /// individual window supported it.
+    /// </remarks>
+    public int? ThinnestRepeat { get; set; }
 }

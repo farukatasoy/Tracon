@@ -806,6 +806,44 @@ def physical_memory_bytes() -> int | None:
     return None
 
 
+def telemetry_coverage(output: pathlib.Path) -> dict[str, Any]:
+    """Koşumun hücrelerinden birleştirilmiş telemetry kapsamı.
+
+    🚨 Manifest'in bu alanı boş kalıyordu ve kapsam yalnız izlenmeyen
+    `cell.json` dosyalarında duruyordu — yayımlanan bir sayının "hangi ölçümler
+    mevcuttu" cevabı makineyle birlikte kayboluyordu. Hücreler koşum
+    ilerledikçe yazıldığı için bu fonksiyon manifest YENİDEN yazılırken çağrılır.
+    """
+    available: set[str] = set()
+    unavailable: dict[str, str] = {}
+    missing: set[str] = set()
+    host_run_worker: set[bool] = set()
+
+    for path in sorted(output.glob("cells/*/cell.json")):
+        cell = json.loads(path.read_text(encoding="utf-8"))
+        coverage = cell.get("telemetry", {})
+        available.update(coverage.get("available", []))
+        unavailable.update(coverage.get("unavailable", {}))
+        missing.update(coverage.get("missingMandatory", []))
+
+        if cell.get("workers") is not None:
+            host_run_worker.add(bool(cell["workers"].get("hostRunWorker")))
+
+    coverage: dict[str, Any] = {
+        "available": sorted(available),
+        "unavailable": dict(sorted(unavailable.items())),
+        "missingMandatory": sorted(missing),
+    }
+
+    if host_run_worker:
+        # 🚨 Worker ekseninin kapısı: host'un KENDİ worker'ı kapalı olmalıdır,
+        # yoksa "1 worker" iki worker'dır. Değer çalışma anında okundu; saklanan
+        # kayıt onu taşımazsa kanıt yalnız izlenmeyen dosyada kalırdı.
+        coverage["hostRunWorker"] = sorted(host_run_worker)
+
+    return coverage
+
+
 def write_manifest(*, output: pathlib.Path, run_id: str, profile: dict[str, Any],
                    version: str, feed: pathlib.Path, database: Database,
                    templates: dict[str, dict[str, Any]], schema: str) -> None:
@@ -856,7 +894,7 @@ def write_manifest(*, output: pathlib.Path, run_id: str, profile: dict[str, Any]
         "workload": profile["workload"],
         "limits": profile["limits"],
         "workloadSeed": profile.get("workloadSeed"),
-        "telemetry": {"available": [], "unavailable": {}, "missingMandatory": []},
+        "telemetry": telemetry_coverage(output),
         "disclaimer": (
             "Measured on one machine, one database and one configuration. "
             "This is not an SLA and not a guaranteed capacity."
@@ -1022,6 +1060,11 @@ def measure(profile_name: str, version: str, output_root: pathlib.Path,
 
             if status == "invalid":
                 failures += 1
+
+        # Manifest hücrelerden SONRA tazelenir: telemetry kapsamı ancak
+        # hücreler yazıldıktan sonra bilinir.
+        write_manifest(output=output, run_id=run_id, profile=profile, version=version,
+                       feed=feed, database=database, templates=templates, schema=schema)
 
         report_code = build_report(consumer, output)
 

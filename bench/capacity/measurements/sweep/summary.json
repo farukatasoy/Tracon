@@ -1,0 +1,6728 @@
+{
+  "runId": "20260914-190639-sweep",
+  "profile": "sweep",
+  "cells": 72,
+  "completeCells": 72,
+  "incompleteCells": 0,
+  "invalidCells": 0,
+  "rows": [
+    {
+      "scenario": "buffered",
+      "seedShape": "empty",
+      "concurrency": 1,
+      "repeats": 3,
+      "storageRepeats": 1,
+      "completeRepeats": 3,
+      "latency": {
+        "count": 174,
+        "minimum": 1021.717,
+        "mean": 1044.159,
+        "p50": 1044.104,
+        "p95": 1057.332,
+        "p99": 1072.809,
+        "maximum": 1075.31,
+        "lowSampleP95": false,
+        "lowSampleP99": true,
+        "method": "nearest-rank over every repeat\u0027s samples",
+        "thinnestRepeat": 58
+      },
+      "firstContent": {
+        "count": 174,
+        "minimum": 1021.717,
+        "mean": 1044.159,
+        "p50": 1044.104,
+        "p95": 1057.332,
+        "p99": 1072.809,
+        "maximum": 1075.31,
+        "lowSampleP95": false,
+        "lowSampleP99": true,
+        "method": "nearest-rank over every repeat\u0027s samples",
+        "thinnestRepeat": 58
+      },
+      "throughputPerSecond": 0.9407,
+      "throughputSpread": 0.0028,
+      "bytesPerRun": 8757,
+      "rowsPerRun": 10.4833,
+      "bytesPerEvent": 1459.5,
+      "vacuumInterference": true
+    },
+    {
+      "scenario": "buffered",
+      "seedShape": "empty",
+      "concurrency": 8,
+      "repeats": 3,
+      "storageRepeats": 0,
+      "completeRepeats": 3,
+      "latency": {
+        "count": 1384,
+        "minimum": 1021.806,
+        "mean": 1052.457,
+        "p50": 1048.19,
+        "p95": 1084.066,
+        "p99": 1188.337,
+        "maximum": 1242.862,
+        "lowSampleP95": false,
+        "lowSampleP99": false,
+        "method": "nearest-rank over every repeat\u0027s samples",
+        "thinnestRepeat": 456
+      },
+      "firstContent": {
+        "count": 1384,
+        "minimum": 1021.806,
+        "mean": 1052.457,
+        "p50": 1048.19,
+        "p95": 1084.066,
+        "p99": 1188.337,
+        "maximum": 1242.862,
+        "lowSampleP95": false,
+        "lowSampleP99": false,
+        "method": "nearest-rank over every repeat\u0027s samples",
+        "thinnestRepeat": 456
+      },
+      "throughputPerSecond": 7.468,
+      "throughputSpread": 0.116,
+      "rowsPerRun": 10.5967,
+      "vacuumInterference": true
+    },
+    {
+      "scenario": "buffered",
+      "seedShape": "empty",
+      "concurrency": 32,
+      "repeats": 3,
+      "storageRepeats": 0,
+      "completeRepeats": 3,
+      "latency": {
+        "count": 5472,
+        "minimum": 1021.204,
+        "mean": 1065.439,
+        "p50": 1060.14,
+        "p95": 1107.934,
+        "p99": 1155.067,
+        "maximum": 1262.937,
+        "lowSampleP95": false,
+        "lowSampleP99": false,
+        "method": "nearest-rank over every repeat\u0027s samples",
+        "thinnestRepeat": 1824
+      },
+      "firstContent": {
+        "count": 5472,
+        "minimum": 1021.204,
+        "mean": 1065.439,
+        "p50": 1060.14,
+        "p95": 1107.934,
+        "p99": 1155.067,
+        "maximum": 1262.937,
+        "lowSampleP95": false,
+        "lowSampleP99": false,
+        "method": "nearest-rank over every repeat\u0027s samples",
+        "thinnestRepeat": 1824
+      },
+      "throughputPerSecond": 29.4893,
+      "throughputSpread": 0.0917,
+      "rowsPerRun": 10.57,
+      "vacuumInterference": true
+    },
+    {
+      "scenario": "buffered",
+      "seedShape": "empty",
+      "concurrency": 64,
+      "repeats": 3,
+      "storageRepeats": 0,
+      "completeRepeats": 3,
+      "latency": {
+        "count": 10944,
+        "minimum": 1015.3,
+        "mean": 1062.474,
+        "p50": 1054.971,
+        "p95": 1119.72,
+        "p99": 1183.37,
+        "maximum": 1343.931,
+        "lowSampleP95": false,
+        "lowSampleP99": false,
+        "method": "nearest-rank over every repeat\u0027s samples",
+        "thinnestRepeat": 3648
+      },
+      "firstContent": {
+        "count": 10944,
+        "minimum": 1015.3,
+        "mean": 1062.474,
+        "p50": 1054.971,
+        "p95": 1119.72,
+        "p99": 1183.37,
+        "maximum": 1343.931,
+        "lowSampleP95": false,
+        "lowSampleP99": false,
+        "method": "nearest-rank over every repeat\u0027s samples",
+        "thinnestRepeat": 3648
+      },
+      "throughputPerSecond": 59.0777,
+      "throughputSpread": 0.2219,
+      "rowsPerRun": 10.6133,
+      "vacuumInterference": true
+    },
+    {
+      "scenario": "buffered",
+      "seedShape": "full",
+      "concurrency": 1,
+      "repeats": 3,
+      "storageRepeats": 2,
+      "completeRepeats": 3,
+      "latency": {
+        "count": 171,
+        "minimum": 1021.411,
+        "mean": 1056.909,
+        "p50": 1035.358,
+        "p95": 1091.329,
+        "p99": 1720.56,
+        "maximum": 2018.519,
+        "lowSampleP95": false,
+        "lowSampleP99": true,
+        "method": "nearest-rank over every repeat\u0027s samples",
+        "thinnestRepeat": 55
+      },
+      "firstContent": {
+        "count": 171,
+        "minimum": 1021.411,
+        "mean": 1056.909,
+        "p50": 1035.358,
+        "p95": 1091.329,
+        "p99": 1720.56,
+        "maximum": 2018.519,
+        "lowSampleP95": false,
+        "lowSampleP99": true,
+        "method": "nearest-rank over every repeat\u0027s samples",
+        "thinnestRepeat": 55
+      },
+      "throughputPerSecond": 0.9293,
+      "throughputSpread": 0.0593,
+      "bytesPerRun": 8615.7,
+      "rowsPerRun": 10.6667,
+      "bytesPerEvent": 1435.95,
+      "vacuumInterference": true
+    },
+    {
+      "scenario": "buffered",
+      "seedShape": "full",
+      "concurrency": 8,
+      "repeats": 3,
+      "storageRepeats": 0,
+      "completeRepeats": 3,
+      "latency": {
+        "count": 1392,
+        "minimum": 1025.195,
+        "mean": 1048.512,
+        "p50": 1047.201,
+        "p95": 1064.39,
+        "p99": 1096.314,
+        "maximum": 1168.426,
+        "lowSampleP95": false,
+        "lowSampleP99": false,
+        "method": "nearest-rank over every repeat\u0027s samples",
+        "thinnestRepeat": 464
+      },
+      "firstContent": {
+        "count": 1392,
+        "minimum": 1025.195,
+        "mean": 1048.512,
+        "p50": 1047.201,
+        "p95": 1064.39,
+        "p99": 1096.314,
+        "maximum": 1168.426,
+        "lowSampleP95": false,
+        "lowSampleP99": false,
+        "method": "nearest-rank over every repeat\u0027s samples",
+        "thinnestRepeat": 464
+      },
+      "throughputPerSecond": 7.4969,
+      "throughputSpread": 0.0118,
+      "rowsPerRun": 10.5933,
+      "vacuumInterference": true
+    },
+    {
+      "scenario": "buffered",
+      "seedShape": "full",
+      "concurrency": 32,
+      "repeats": 3,
+      "storageRepeats": 0,
+      "completeRepeats": 3,
+      "latency": {
+        "count": 5472,
+        "minimum": 1016.703,
+        "mean": 1060.937,
+        "p50": 1055.779,
+        "p95": 1104.363,
+        "p99": 1144.991,
+        "maximum": 1195.678,
+        "lowSampleP95": false,
+        "lowSampleP99": false,
+        "method": "nearest-rank over every repeat\u0027s samples",
+        "thinnestRepeat": 1824
+      },
+      "firstContent": {
+        "count": 5472,
+        "minimum": 1016.703,
+        "mean": 1060.937,
+        "p50": 1055.779,
+        "p95": 1104.363,
+        "p99": 1144.991,
+        "maximum": 1195.678,
+        "lowSampleP95": false,
+        "lowSampleP99": false,
+        "method": "nearest-rank over every repeat\u0027s samples",
+        "thinnestRepeat": 1824
+      },
+      "throughputPerSecond": 29.6039,
+      "throughputSpread": 0.0582,
+      "rowsPerRun": 10.61,
+      "vacuumInterference": true
+    },
+    {
+      "scenario": "buffered",
+      "seedShape": "full",
+      "concurrency": 64,
+      "repeats": 3,
+      "storageRepeats": 0,
+      "completeRepeats": 3,
+      "latency": {
+        "count": 10944,
+        "minimum": 1014.23,
+        "mean": 1062.752,
+        "p50": 1054.879,
+        "p95": 1118.743,
+        "p99": 1191.496,
+        "maximum": 1308.868,
+        "lowSampleP95": false,
+        "lowSampleP99": false,
+        "method": "nearest-rank over every repeat\u0027s samples",
+        "thinnestRepeat": 3648
+      },
+      "firstContent": {
+        "count": 10944,
+        "minimum": 1014.23,
+        "mean": 1062.752,
+        "p50": 1054.879,
+        "p95": 1118.743,
+        "p99": 1191.496,
+        "maximum": 1308.868,
+        "lowSampleP95": false,
+        "lowSampleP99": false,
+        "method": "nearest-rank over every repeat\u0027s samples",
+        "thinnestRepeat": 3648
+      },
+      "throughputPerSecond": 59.1073,
+      "throughputSpread": 0.3827,
+      "rowsPerRun": 10.62,
+      "vacuumInterference": true
+    },
+    {
+      "scenario": "queued",
+      "seedShape": "empty",
+      "concurrency": 1,
+      "repeats": 3,
+      "storageRepeats": 1,
+      "completeRepeats": 3,
+      "latency": {
+        "count": 140,
+        "minimum": 1034.902,
+        "mean": 1298.937,
+        "p50": 1308.965,
+        "p95": 1329.563,
+        "p99": 1378.716,
+        "maximum": 1387.885,
+        "lowSampleP95": false,
+        "lowSampleP99": true,
+        "method": "nearest-rank over every repeat\u0027s samples",
+        "thinnestRepeat": 46
+      },
+      "firstContent": {
+        "count": 140,
+        "minimum": 2.553,
+        "mean": 9.741,
+        "p50": 9.382,
+        "p95": 14.976,
+        "p99": 21.346,
+        "maximum": 26.886,
+        "lowSampleP95": false,
+        "lowSampleP99": true,
+        "method": "nearest-rank over every repeat\u0027s samples",
+        "thinnestRepeat": 46
+      },
+      "throughputPerSecond": 0.7529,
+      "throughputSpread": 0.0103,
+      "bytesPerRun": 10507.1,
+      "rowsPerRun": 10.94,
+      "bytesPerEvent": 1751.2,
+      "vacuumInterference": true
+    },
+    {
+      "scenario": "queued",
+      "seedShape": "empty",
+      "concurrency": 8,
+      "repeats": 3,
+      "storageRepeats": 0,
+      "completeRepeats": 3,
+      "latency": {
+        "count": 1104,
+        "minimum": 1060.184,
+        "mean": 1315.837,
+        "p50": 1317.629,
+        "p95": 1336.214,
+        "p99": 1366.874,
+        "maximum": 1490.03,
+        "lowSampleP95": false,
+        "lowSampleP99": false,
+        "method": "nearest-rank over every repeat\u0027s samples",
+        "thinnestRepeat": 368
+      },
+      "firstContent": {
+        "count": 1104,
+        "minimum": 3.163,
+        "mean": 9.191,
+        "p50": 9.364,
+        "p95": 12.865,
+        "p99": 17.873,
+        "maximum": 43.684,
+        "lowSampleP95": false,
+        "lowSampleP99": false,
+        "method": "nearest-rank over every repeat\u0027s samples",
+        "thinnestRepeat": 368
+      },
+      "throughputPerSecond": 5.9307,
+      "throughputSpread": 0.0232,
+      "rowsPerRun": 10.63,
+      "vacuumInterference": true
+    },
+    {
+      "scenario": "queued",
+      "seedShape": "empty",
+      "concurrency": 32,
+      "repeats": 3,
+      "storageRepeats": 0,
+      "completeRepeats": 3,
+      "latency": {
+        "count": 1392,
+        "minimum": 1333.98,
+        "mean": 4298.993,
+        "p50": 4456.816,
+        "p95": 4494.465,
+        "p99": 4539.846,
+        "maximum": 4728.562,
+        "lowSampleP95": false,
+        "lowSampleP99": false,
+        "method": "nearest-rank over every repeat\u0027s samples",
+        "thinnestRepeat": 464
+      },
+      "firstContent": {
+        "count": 1392,
+        "minimum": 2.329,
+        "mean": 7.031,
+        "p50": 6.56,
+        "p95": 10.719,
+        "p99": 17.039,
+        "maximum": 40.336,
+        "lowSampleP95": false,
+        "lowSampleP99": false,
+        "method": "nearest-rank over every repeat\u0027s samples",
+        "thinnestRepeat": 464
+      },
+      "throughputPerSecond": 6.7459,
+      "throughputSpread": 0.0313,
+      "rowsPerRun": 10.6233,
+      "vacuumInterference": true
+    },
+    {
+      "scenario": "queued",
+      "seedShape": "empty",
+      "concurrency": 64,
+      "repeats": 3,
+      "storageRepeats": 0,
+      "completeRepeats": 3,
+      "latency": {
+        "count": 1488,
+        "minimum": 1341.283,
+        "mean": 8320.474,
+        "p50": 8772.717,
+        "p95": 8945.64,
+        "p99": 9002.652,
+        "maximum": 9061.066,
+        "lowSampleP95": false,
+        "lowSampleP99": false,
+        "method": "nearest-rank over every repeat\u0027s samples",
+        "thinnestRepeat": 496
+      },
+      "firstContent": {
+        "count": 1488,
+        "minimum": 2.317,
+        "mean": 7.986,
+        "p50": 6.049,
+        "p95": 18.275,
+        "p99": 22.176,
+        "maximum": 28.373,
+        "lowSampleP95": false,
+        "lowSampleP99": false,
+        "method": "nearest-rank over every repeat\u0027s samples",
+        "thinnestRepeat": 496
+      },
+      "throughputPerSecond": 6.3095,
+      "throughputSpread": 0.0067,
+      "rowsPerRun": 10.52,
+      "vacuumInterference": true
+    },
+    {
+      "scenario": "queued",
+      "seedShape": "full",
+      "concurrency": 1,
+      "repeats": 3,
+      "storageRepeats": 0,
+      "completeRepeats": 3,
+      "latency": {
+        "count": 138,
+        "minimum": 1297.723,
+        "mean": 1317.775,
+        "p50": 1313.47,
+        "p95": 1350.967,
+        "p99": 1370.049,
+        "maximum": 1396.048,
+        "lowSampleP95": false,
+        "lowSampleP99": true,
+        "method": "nearest-rank over every repeat\u0027s samples",
+        "thinnestRepeat": 46
+      },
+      "firstContent": {
+        "count": 138,
+        "minimum": 2.978,
+        "mean": 10.541,
+        "p50": 9.009,
+        "p95": 20.272,
+        "p99": 31.353,
+        "maximum": 134.154,
+        "lowSampleP95": false,
+        "lowSampleP99": true,
+        "method": "nearest-rank over every repeat\u0027s samples",
+        "thinnestRepeat": 46
+      },
+      "throughputPerSecond": 0.7419,
+      "throughputSpread": 0.0054,
+      "rowsPerRun": 10.4333,
+      "vacuumInterference": true
+    },
+    {
+      "scenario": "queued",
+      "seedShape": "full",
+      "concurrency": 8,
+      "repeats": 3,
+      "storageRepeats": 0,
+      "completeRepeats": 3,
+      "latency": {
+        "count": 1104,
+        "minimum": 1076.825,
+        "mean": 1315.995,
+        "p50": 1316.944,
+        "p95": 1331.104,
+        "p99": 1335.06,
+        "maximum": 1339.396,
+        "lowSampleP95": false,
+        "lowSampleP99": false,
+        "method": "nearest-rank over every repeat\u0027s samples",
+        "thinnestRepeat": 368
+      },
+      "firstContent": {
+        "count": 1104,
+        "minimum": 3.669,
+        "mean": 10.165,
+        "p50": 10.088,
+        "p95": 13.629,
+        "p99": 19.139,
+        "maximum": 43.229,
+        "lowSampleP95": false,
+        "lowSampleP99": false,
+        "method": "nearest-rank over every repeat\u0027s samples",
+        "thinnestRepeat": 368
+      },
+      "throughputPerSecond": 5.9448,
+      "throughputSpread": 0.0184,
+      "rowsPerRun": 10.6,
+      "vacuumInterference": true
+    },
+    {
+      "scenario": "queued",
+      "seedShape": "full",
+      "concurrency": 32,
+      "repeats": 3,
+      "storageRepeats": 0,
+      "completeRepeats": 3,
+      "latency": {
+        "count": 1392,
+        "minimum": 1327.03,
+        "mean": 4300.16,
+        "p50": 4446.309,
+        "p95": 4509.163,
+        "p99": 4536.574,
+        "maximum": 4652.089,
+        "lowSampleP95": false,
+        "lowSampleP99": false,
+        "method": "nearest-rank over every repeat\u0027s samples",
+        "thinnestRepeat": 464
+      },
+      "firstContent": {
+        "count": 1392,
+        "minimum": 2.126,
+        "mean": 7.283,
+        "p50": 6.588,
+        "p95": 12.618,
+        "p99": 22.908,
+        "maximum": 32.057,
+        "lowSampleP95": false,
+        "lowSampleP99": false,
+        "method": "nearest-rank over every repeat\u0027s samples",
+        "thinnestRepeat": 464
+      },
+      "throughputPerSecond": 6.7437,
+      "throughputSpread": 0.0135,
+      "rowsPerRun": 10.5833,
+      "vacuumInterference": true
+    },
+    {
+      "scenario": "queued",
+      "seedShape": "full",
+      "concurrency": 64,
+      "repeats": 3,
+      "storageRepeats": 0,
+      "completeRepeats": 3,
+      "latency": {
+        "count": 1456,
+        "minimum": 1349.958,
+        "mean": 8436.637,
+        "p50": 8851.496,
+        "p95": 9375.922,
+        "p99": 10429.232,
+        "maximum": 10621.803,
+        "lowSampleP95": false,
+        "lowSampleP99": false,
+        "method": "nearest-rank over every repeat\u0027s samples",
+        "thinnestRepeat": 480
+      },
+      "firstContent": {
+        "count": 1456,
+        "minimum": 2.412,
+        "mean": 13.562,
+        "p50": 5.766,
+        "p95": 22.635,
+        "p99": 38.413,
+        "maximum": 1080.486,
+        "lowSampleP95": false,
+        "lowSampleP99": false,
+        "method": "nearest-rank over every repeat\u0027s samples",
+        "thinnestRepeat": 480
+      },
+      "throughputPerSecond": 6.2067,
+      "throughputSpread": 0.0981,
+      "rowsPerRun": 10.59,
+      "vacuumInterference": true
+    },
+    {
+      "scenario": "streaming",
+      "seedShape": "empty",
+      "concurrency": 1,
+      "repeats": 3,
+      "storageRepeats": 1,
+      "completeRepeats": 3,
+      "latency": {
+        "count": 153,
+        "minimum": 1124.139,
+        "mean": 1186.978,
+        "p50": 1185.438,
+        "p95": 1226.112,
+        "p99": 1249.678,
+        "maximum": 1254.378,
+        "lowSampleP95": false,
+        "lowSampleP99": true,
+        "method": "nearest-rank over every repeat\u0027s samples",
+        "thinnestRepeat": 51
+      },
+      "firstContent": {
+        "count": 153,
+        "minimum": 506.516,
+        "mean": 518.22,
+        "p50": 517.725,
+        "p95": 527.6,
+        "p99": 538.52,
+        "maximum": 540.147,
+        "lowSampleP95": false,
+        "lowSampleP99": true,
+        "method": "nearest-rank over every repeat\u0027s samples",
+        "thinnestRepeat": 51
+      },
+      "throughputPerSecond": 0.8256,
+      "throughputSpread": 0.0048,
+      "bytesPerRun": 14295.8,
+      "rowsPerRun": 27.7833,
+      "bytesPerEvent": 595.7,
+      "vacuumInterference": true
+    },
+    {
+      "scenario": "streaming",
+      "seedShape": "empty",
+      "concurrency": 8,
+      "repeats": 3,
+      "storageRepeats": 0,
+      "completeRepeats": 3,
+      "latency": {
+        "count": 1192,
+        "minimum": 1104.166,
+        "mean": 1216.708,
+        "p50": 1214.643,
+        "p95": 1276.516,
+        "p99": 1346.611,
+        "maximum": 1375.435,
+        "lowSampleP95": false,
+        "lowSampleP99": false,
+        "method": "nearest-rank over every repeat\u0027s samples",
+        "thinnestRepeat": 392
+      },
+      "firstContent": {
+        "count": 1192,
+        "minimum": 505.259,
+        "mean": 516.047,
+        "p50": 515.498,
+        "p95": 526.078,
+        "p99": 542.989,
+        "maximum": 555.575,
+        "lowSampleP95": false,
+        "lowSampleP99": false,
+        "method": "nearest-rank over every repeat\u0027s samples",
+        "thinnestRepeat": 392
+      },
+      "throughputPerSecond": 6.4413,
+      "throughputSpread": 0.1022,
+      "rowsPerRun": 27.58,
+      "vacuumInterference": true
+    },
+    {
+      "scenario": "streaming",
+      "seedShape": "empty",
+      "concurrency": 32,
+      "repeats": 3,
+      "storageRepeats": 0,
+      "completeRepeats": 3,
+      "latency": {
+        "count": 5226,
+        "minimum": 1044.713,
+        "mean": 1112.819,
+        "p50": 1104.01,
+        "p95": 1188.929,
+        "p99": 1240.879,
+        "maximum": 1384.819,
+        "lowSampleP95": false,
+        "lowSampleP99": false,
+        "method": "nearest-rank over every repeat\u0027s samples",
+        "thinnestRepeat": 1728
+      },
+      "firstContent": {
+        "count": 5226,
+        "minimum": 503.455,
+        "mean": 512.436,
+        "p50": 510.787,
+        "p95": 525.439,
+        "p99": 537.463,
+        "maximum": 589.587,
+        "lowSampleP95": false,
+        "lowSampleP99": false,
+        "method": "nearest-rank over every repeat\u0027s samples",
+        "thinnestRepeat": 1728
+      },
+      "throughputPerSecond": 28.0948,
+      "throughputSpread": 0.5015,
+      "rowsPerRun": 27.6467,
+      "vacuumInterference": true
+    },
+    {
+      "scenario": "streaming",
+      "seedShape": "empty",
+      "concurrency": 64,
+      "repeats": 3,
+      "storageRepeats": 0,
+      "completeRepeats": 3,
+      "latency": {
+        "count": 10718,
+        "minimum": 1033.059,
+        "mean": 1081.427,
+        "p50": 1074.227,
+        "p95": 1135.509,
+        "p99": 1225.914,
+        "maximum": 1302.058,
+        "lowSampleP95": false,
+        "lowSampleP99": false,
+        "method": "nearest-rank over every repeat\u0027s samples",
+        "thinnestRepeat": 3525
+      },
+      "firstContent": {
+        "count": 10718,
+        "minimum": 503.2,
+        "mean": 510.207,
+        "p50": 509.171,
+        "p95": 516.413,
+        "p99": 542.925,
+        "maximum": 578.828,
+        "lowSampleP95": false,
+        "lowSampleP99": false,
+        "method": "nearest-rank over every repeat\u0027s samples",
+        "thinnestRepeat": 3525
+      },
+      "throughputPerSecond": 57.4431,
+      "throughputSpread": 1.1814,
+      "rowsPerRun": 27.6,
+      "vacuumInterference": true
+    },
+    {
+      "scenario": "streaming",
+      "seedShape": "full",
+      "concurrency": 1,
+      "repeats": 3,
+      "storageRepeats": 3,
+      "completeRepeats": 3,
+      "latency": {
+        "count": 153,
+        "minimum": 1137.61,
+        "mean": 1193.024,
+        "p50": 1192.439,
+        "p95": 1229.616,
+        "p99": 1252.977,
+        "maximum": 1257.811,
+        "lowSampleP95": false,
+        "lowSampleP99": true,
+        "method": "nearest-rank over every repeat\u0027s samples",
+        "thinnestRepeat": 51
+      },
+      "firstContent": {
+        "count": 153,
+        "minimum": 509.866,
+        "mean": 519.322,
+        "p50": 518.298,
+        "p95": 528.273,
+        "p99": 569.019,
+        "maximum": 582.32,
+        "lowSampleP95": false,
+        "lowSampleP99": true,
+        "method": "nearest-rank over every repeat\u0027s samples",
+        "thinnestRepeat": 51
+      },
+      "throughputPerSecond": 0.8214,
+      "throughputSpread": 0.0104,
+      "bytesPerRun": 14563.5333,
+      "rowsPerRun": 27.43,
+      "bytesPerEvent": 606.8333,
+      "vacuumInterference": false
+    },
+    {
+      "scenario": "streaming",
+      "seedShape": "full",
+      "concurrency": 8,
+      "repeats": 3,
+      "storageRepeats": 3,
+      "completeRepeats": 3,
+      "latency": {
+        "count": 1200,
+        "minimum": 1118.724,
+        "mean": 1205.801,
+        "p50": 1205.326,
+        "p95": 1238.148,
+        "p99": 1253.093,
+        "maximum": 1285.99,
+        "lowSampleP95": false,
+        "lowSampleP99": false,
+        "method": "nearest-rank over every repeat\u0027s samples",
+        "thinnestRepeat": 400
+      },
+      "firstContent": {
+        "count": 1200,
+        "minimum": 505.773,
+        "mean": 515.262,
+        "p50": 514.673,
+        "p95": 523.836,
+        "p99": 531.538,
+        "maximum": 548.529,
+        "lowSampleP95": false,
+        "lowSampleP99": false,
+        "method": "nearest-rank over every repeat\u0027s samples",
+        "thinnestRepeat": 400
+      },
+      "throughputPerSecond": 6.5005,
+      "throughputSpread": 0.042,
+      "bytesPerRun": 15291.7333,
+      "rowsPerRun": 27.6,
+      "bytesPerEvent": 637.1333,
+      "vacuumInterference": false
+    },
+    {
+      "scenario": "streaming",
+      "seedShape": "full",
+      "concurrency": 32,
+      "repeats": 3,
+      "storageRepeats": 1,
+      "completeRepeats": 3,
+      "latency": {
+        "count": 5332,
+        "minimum": 1044.592,
+        "mean": 1092.941,
+        "p50": 1084.965,
+        "p95": 1151.532,
+        "p99": 1222.636,
+        "maximum": 1268.555,
+        "lowSampleP95": false,
+        "lowSampleP99": false,
+        "method": "nearest-rank over every repeat\u0027s samples",
+        "thinnestRepeat": 1760
+      },
+      "firstContent": {
+        "count": 5332,
+        "minimum": 503.132,
+        "mean": 511.793,
+        "p50": 510.395,
+        "p95": 521.858,
+        "p99": 534.436,
+        "maximum": 584.372,
+        "lowSampleP95": false,
+        "lowSampleP99": false,
+        "method": "nearest-rank over every repeat\u0027s samples",
+        "thinnestRepeat": 1760
+      },
+      "throughputPerSecond": 28.6655,
+      "throughputSpread": 0.3103,
+      "bytesPerRun": 15104,
+      "rowsPerRun": 27.5867,
+      "bytesPerEvent": 629.3,
+      "vacuumInterference": true
+    },
+    {
+      "scenario": "streaming",
+      "seedShape": "full",
+      "concurrency": 64,
+      "repeats": 3,
+      "storageRepeats": 0,
+      "completeRepeats": 3,
+      "latency": {
+        "count": 10626,
+        "minimum": 1038.329,
+        "mean": 1093.424,
+        "p50": 1088.817,
+        "p95": 1136.759,
+        "p99": 1224.725,
+        "maximum": 1280.275,
+        "lowSampleP95": false,
+        "lowSampleP99": false,
+        "method": "nearest-rank over every repeat\u0027s samples",
+        "thinnestRepeat": 3520
+      },
+      "firstContent": {
+        "count": 10626,
+        "minimum": 503.417,
+        "mean": 510.967,
+        "p50": 509.977,
+        "p95": 517.149,
+        "p99": 544.367,
+        "maximum": 566.571,
+        "lowSampleP95": false,
+        "lowSampleP99": false,
+        "method": "nearest-rank over every repeat\u0027s samples",
+        "thinnestRepeat": 3520
+      },
+      "throughputPerSecond": 57.0913,
+      "throughputSpread": 1.2312,
+      "rowsPerRun": 27.63,
+      "vacuumInterference": true
+    }
+  ],
+  "evidence": [
+    {
+      "cellId": "000-buffered-c1-empty-r1",
+      "status": "complete",
+      "measuredSeconds": 60.485,
+      "drainSeconds": 0.044,
+      "arrival": {
+        "planned": 58,
+        "sent": 58,
+        "notSent": 0,
+        "accepted": 58,
+        "rejected": 0,
+        "failed": 0,
+        "timedOut": 0,
+        "completed": 58,
+        "dispatchLag": {
+          "count": 0,
+          "lowSampleP95": false,
+          "lowSampleP99": false,
+          "method": "nearest-rank"
+        }
+      },
+      "reconciliation": {
+        "acceptedRunIds": 58,
+        "terminalRuns": 58,
+        "missingRuns": 0,
+        "contentMismatches": 0,
+        "sequenceGaps": 0,
+        "liveSubscriptions": 0,
+        "historicalOnlySubscriptions": 0,
+        "tenantBleed": 0,
+        "crossTenantRefusals": 2,
+        "complete": true
+      },
+      "queueWait": {
+        "count": 0,
+        "lowSampleP95": false,
+        "lowSampleP99": false,
+        "method": "nearest-rank"
+      },
+      "processes": [
+        {
+          "role": "driver",
+          "pid": 59002,
+          "samples": 61,
+          "peakRssBytes": 88932352,
+          "meanRssBytes": 78772929,
+          "processorSeconds": 1.334,
+          "peakManagedHeapBytes": 751648,
+          "allocatedBytes": 7720952,
+          "gcSeconds": 0.003
+        },
+        {
+          "role": "host",
+          "pid": 59001,
+          "samples": 61,
+          "peakRssBytes": 148914176,
+          "meanRssBytes": 126897571,
+          "processorSeconds": 3.645
+        }
+      ],
+      "telemetry": {
+        "available": [
+          "http.latency",
+          "model.turns",
+          "process.rss",
+          "process.cpu",
+          "process.gc",
+          "sql.storage"
+        ],
+        "unavailable": {
+          "queue.wait": "no queued job recorded a start time"
+        },
+        "missingMandatory": []
+      },
+      "warnings": [],
+      "statusReasons": []
+    },
+    {
+      "cellId": "001-buffered-c1-empty-r2",
+      "status": "complete",
+      "measuredSeconds": 60.638,
+      "drainSeconds": 0.061,
+      "arrival": {
+        "planned": 58,
+        "sent": 58,
+        "notSent": 0,
+        "accepted": 58,
+        "rejected": 0,
+        "failed": 0,
+        "timedOut": 0,
+        "completed": 58,
+        "dispatchLag": {
+          "count": 0,
+          "lowSampleP95": false,
+          "lowSampleP99": false,
+          "method": "nearest-rank"
+        }
+      },
+      "reconciliation": {
+        "acceptedRunIds": 58,
+        "terminalRuns": 58,
+        "missingRuns": 0,
+        "contentMismatches": 0,
+        "sequenceGaps": 0,
+        "liveSubscriptions": 0,
+        "historicalOnlySubscriptions": 0,
+        "tenantBleed": 0,
+        "crossTenantRefusals": 2,
+        "complete": true
+      },
+      "queueWait": {
+        "count": 0,
+        "lowSampleP95": false,
+        "lowSampleP99": false,
+        "method": "nearest-rank"
+      },
+      "processes": [
+        {
+          "role": "driver",
+          "pid": 59708,
+          "samples": 61,
+          "peakRssBytes": 86343680,
+          "meanRssBytes": 80259038,
+          "processorSeconds": 1.517,
+          "peakManagedHeapBytes": 840992,
+          "allocatedBytes": 7887984,
+          "gcSeconds": 0.006
+        },
+        {
+          "role": "host",
+          "pid": 59707,
+          "samples": 61,
+          "peakRssBytes": 149274624,
+          "meanRssBytes": 133030828,
+          "processorSeconds": 3.972
+        }
+      ],
+      "telemetry": {
+        "available": [
+          "http.latency",
+          "model.turns",
+          "process.rss",
+          "process.cpu",
+          "process.gc",
+          "sql.storage"
+        ],
+        "unavailable": {
+          "queue.wait": "no queued job recorded a start time"
+        },
+        "missingMandatory": []
+      },
+      "warnings": [
+        "storage/vacuum-interference: autovacuum ran inside the window; byte growth is not comparable and must stay out of any average"
+      ],
+      "statusReasons": []
+    },
+    {
+      "cellId": "002-buffered-c1-empty-r3",
+      "status": "complete",
+      "measuredSeconds": 60.664,
+      "drainSeconds": 0.061,
+      "arrival": {
+        "planned": 58,
+        "sent": 58,
+        "notSent": 0,
+        "accepted": 58,
+        "rejected": 0,
+        "failed": 0,
+        "timedOut": 0,
+        "completed": 58,
+        "dispatchLag": {
+          "count": 0,
+          "lowSampleP95": false,
+          "lowSampleP99": false,
+          "method": "nearest-rank"
+        }
+      },
+      "reconciliation": {
+        "acceptedRunIds": 58,
+        "terminalRuns": 58,
+        "missingRuns": 0,
+        "contentMismatches": 0,
+        "sequenceGaps": 0,
+        "liveSubscriptions": 0,
+        "historicalOnlySubscriptions": 0,
+        "tenantBleed": 0,
+        "crossTenantRefusals": 2,
+        "complete": true
+      },
+      "queueWait": {
+        "count": 0,
+        "lowSampleP95": false,
+        "lowSampleP99": false,
+        "method": "nearest-rank"
+      },
+      "processes": [
+        {
+          "role": "driver",
+          "pid": 60263,
+          "samples": 61,
+          "peakRssBytes": 88489984,
+          "meanRssBytes": 83880976,
+          "processorSeconds": 1.53,
+          "peakManagedHeapBytes": 862456,
+          "allocatedBytes": 7839160,
+          "gcSeconds": 0.006
+        },
+        {
+          "role": "host",
+          "pid": 60262,
+          "samples": 61,
+          "peakRssBytes": 157892608,
+          "meanRssBytes": 146153069,
+          "processorSeconds": 4.133
+        }
+      ],
+      "telemetry": {
+        "available": [
+          "http.latency",
+          "model.turns",
+          "process.rss",
+          "process.cpu",
+          "process.gc",
+          "sql.storage"
+        ],
+        "unavailable": {
+          "queue.wait": "no queued job recorded a start time"
+        },
+        "missingMandatory": []
+      },
+      "warnings": [
+        "storage/vacuum-interference: autovacuum ran inside the window; byte growth is not comparable and must stay out of any average"
+      ],
+      "statusReasons": []
+    },
+    {
+      "cellId": "003-buffered-c1-full-r1",
+      "status": "complete",
+      "measuredSeconds": 60.649,
+      "drainSeconds": 0.063,
+      "arrival": {
+        "planned": 55,
+        "sent": 55,
+        "notSent": 0,
+        "accepted": 55,
+        "rejected": 0,
+        "failed": 0,
+        "timedOut": 0,
+        "completed": 55,
+        "dispatchLag": {
+          "count": 0,
+          "lowSampleP95": false,
+          "lowSampleP99": false,
+          "method": "nearest-rank"
+        }
+      },
+      "reconciliation": {
+        "acceptedRunIds": 55,
+        "terminalRuns": 55,
+        "missingRuns": 0,
+        "contentMismatches": 0,
+        "sequenceGaps": 0,
+        "liveSubscriptions": 0,
+        "historicalOnlySubscriptions": 0,
+        "tenantBleed": 0,
+        "crossTenantRefusals": 2,
+        "complete": true
+      },
+      "queueWait": {
+        "count": 0,
+        "lowSampleP95": false,
+        "lowSampleP99": false,
+        "method": "nearest-rank"
+      },
+      "processes": [
+        {
+          "role": "driver",
+          "pid": 60837,
+          "samples": 60,
+          "peakRssBytes": 99794944,
+          "meanRssBytes": 65624473,
+          "processorSeconds": 1.324,
+          "peakManagedHeapBytes": 821944,
+          "allocatedBytes": 7543008,
+          "gcSeconds": 0.004
+        },
+        {
+          "role": "host",
+          "pid": 60836,
+          "samples": 60,
+          "peakRssBytes": 183713792,
+          "meanRssBytes": 106644275,
+          "processorSeconds": 3.607
+        }
+      ],
+      "telemetry": {
+        "available": [
+          "http.latency",
+          "model.turns",
+          "process.rss",
+          "process.cpu",
+          "process.gc",
+          "sql.storage"
+        ],
+        "unavailable": {
+          "queue.wait": "no queued job recorded a start time"
+        },
+        "missingMandatory": []
+      },
+      "warnings": [
+        "storage/vacuum-interference: autovacuum ran inside the window; byte growth is not comparable and must stay out of any average"
+      ],
+      "statusReasons": []
+    },
+    {
+      "cellId": "004-buffered-c1-full-r2",
+      "status": "complete",
+      "measuredSeconds": 60.022,
+      "drainSeconds": 0.05,
+      "arrival": {
+        "planned": 58,
+        "sent": 58,
+        "notSent": 0,
+        "accepted": 58,
+        "rejected": 0,
+        "failed": 0,
+        "timedOut": 0,
+        "completed": 58,
+        "dispatchLag": {
+          "count": 0,
+          "lowSampleP95": false,
+          "lowSampleP99": false,
+          "method": "nearest-rank"
+        }
+      },
+      "reconciliation": {
+        "acceptedRunIds": 58,
+        "terminalRuns": 58,
+        "missingRuns": 0,
+        "contentMismatches": 0,
+        "sequenceGaps": 0,
+        "liveSubscriptions": 0,
+        "historicalOnlySubscriptions": 0,
+        "tenantBleed": 0,
+        "crossTenantRefusals": 2,
+        "complete": true
+      },
+      "queueWait": {
+        "count": 0,
+        "lowSampleP95": false,
+        "lowSampleP99": false,
+        "method": "nearest-rank"
+      },
+      "processes": [
+        {
+          "role": "driver",
+          "pid": 61500,
+          "samples": 60,
+          "peakRssBytes": 84574208,
+          "meanRssBytes": 75685888,
+          "processorSeconds": 1.161,
+          "peakManagedHeapBytes": 765888,
+          "allocatedBytes": 7766624,
+          "gcSeconds": 0.007
+        },
+        {
+          "role": "host",
+          "pid": 61491,
+          "samples": 60,
+          "peakRssBytes": 141213696,
+          "meanRssBytes": 124899054,
+          "processorSeconds": 3.216
+        }
+      ],
+      "telemetry": {
+        "available": [
+          "http.latency",
+          "model.turns",
+          "process.rss",
+          "process.cpu",
+          "process.gc",
+          "sql.storage"
+        ],
+        "unavailable": {
+          "queue.wait": "no queued job recorded a start time"
+        },
+        "missingMandatory": []
+      },
+      "warnings": [],
+      "statusReasons": []
+    },
+    {
+      "cellId": "005-buffered-c1-full-r3",
+      "status": "complete",
+      "measuredSeconds": 60.132,
+      "drainSeconds": 0.064,
+      "arrival": {
+        "planned": 58,
+        "sent": 58,
+        "notSent": 0,
+        "accepted": 58,
+        "rejected": 0,
+        "failed": 0,
+        "timedOut": 0,
+        "completed": 58,
+        "dispatchLag": {
+          "count": 0,
+          "lowSampleP95": false,
+          "lowSampleP99": false,
+          "method": "nearest-rank"
+        }
+      },
+      "reconciliation": {
+        "acceptedRunIds": 58,
+        "terminalRuns": 58,
+        "missingRuns": 0,
+        "contentMismatches": 0,
+        "sequenceGaps": 0,
+        "liveSubscriptions": 0,
+        "historicalOnlySubscriptions": 0,
+        "tenantBleed": 0,
+        "crossTenantRefusals": 2,
+        "complete": true
+      },
+      "queueWait": {
+        "count": 0,
+        "lowSampleP95": false,
+        "lowSampleP99": false,
+        "method": "nearest-rank"
+      },
+      "processes": [
+        {
+          "role": "driver",
+          "pid": 62010,
+          "samples": 61,
+          "peakRssBytes": 85000192,
+          "meanRssBytes": 77151718,
+          "processorSeconds": 1.213,
+          "peakManagedHeapBytes": 771056,
+          "allocatedBytes": 7781536,
+          "gcSeconds": 0.002
+        },
+        {
+          "role": "host",
+          "pid": 62009,
+          "samples": 61,
+          "peakRssBytes": 153387008,
+          "meanRssBytes": 129011107,
+          "processorSeconds": 3.393
+        }
+      ],
+      "telemetry": {
+        "available": [
+          "http.latency",
+          "model.turns",
+          "process.rss",
+          "process.cpu",
+          "process.gc",
+          "sql.storage"
+        ],
+        "unavailable": {
+          "queue.wait": "no queued job recorded a start time"
+        },
+        "missingMandatory": []
+      },
+      "warnings": [],
+      "statusReasons": []
+    },
+    {
+      "cellId": "006-buffered-c8-empty-r1",
+      "status": "complete",
+      "measuredSeconds": 60.68,
+      "drainSeconds": 0.047,
+      "arrival": {
+        "planned": 464,
+        "sent": 464,
+        "notSent": 0,
+        "accepted": 464,
+        "rejected": 0,
+        "failed": 0,
+        "timedOut": 0,
+        "completed": 464,
+        "dispatchLag": {
+          "count": 0,
+          "lowSampleP95": false,
+          "lowSampleP99": false,
+          "method": "nearest-rank"
+        }
+      },
+      "reconciliation": {
+        "acceptedRunIds": 464,
+        "terminalRuns": 464,
+        "missingRuns": 0,
+        "contentMismatches": 0,
+        "sequenceGaps": 0,
+        "liveSubscriptions": 0,
+        "historicalOnlySubscriptions": 0,
+        "tenantBleed": 0,
+        "crossTenantRefusals": 2,
+        "complete": true
+      },
+      "queueWait": {
+        "count": 0,
+        "lowSampleP95": false,
+        "lowSampleP99": false,
+        "method": "nearest-rank"
+      },
+      "processes": [
+        {
+          "role": "driver",
+          "pid": 62619,
+          "samples": 61,
+          "peakRssBytes": 92946432,
+          "meanRssBytes": 80265484,
+          "processorSeconds": 0.917,
+          "peakManagedHeapBytes": 7813576,
+          "allocatedBytes": 49696056,
+          "gcSeconds": 0.007
+        },
+        {
+          "role": "host",
+          "pid": 62618,
+          "samples": 61,
+          "peakRssBytes": 208355328,
+          "meanRssBytes": 164896633,
+          "processorSeconds": 4.953
+        }
+      ],
+      "telemetry": {
+        "available": [
+          "http.latency",
+          "model.turns",
+          "process.rss",
+          "process.cpu",
+          "process.gc",
+          "sql.storage"
+        ],
+        "unavailable": {
+          "queue.wait": "no queued job recorded a start time"
+        },
+        "missingMandatory": []
+      },
+      "warnings": [
+        "storage/vacuum-interference: autovacuum ran inside the window; byte growth is not comparable and must stay out of any average"
+      ],
+      "statusReasons": []
+    },
+    {
+      "cellId": "007-buffered-c8-empty-r2",
+      "status": "complete",
+      "measuredSeconds": 60.55,
+      "drainSeconds": 0.04,
+      "arrival": {
+        "planned": 456,
+        "sent": 456,
+        "notSent": 0,
+        "accepted": 456,
+        "rejected": 0,
+        "failed": 0,
+        "timedOut": 0,
+        "completed": 456,
+        "dispatchLag": {
+          "count": 0,
+          "lowSampleP95": false,
+          "lowSampleP99": false,
+          "method": "nearest-rank"
+        }
+      },
+      "reconciliation": {
+        "acceptedRunIds": 456,
+        "terminalRuns": 456,
+        "missingRuns": 0,
+        "contentMismatches": 0,
+        "sequenceGaps": 0,
+        "liveSubscriptions": 0,
+        "historicalOnlySubscriptions": 0,
+        "tenantBleed": 0,
+        "crossTenantRefusals": 2,
+        "complete": true
+      },
+      "queueWait": {
+        "count": 0,
+        "lowSampleP95": false,
+        "lowSampleP99": false,
+        "method": "nearest-rank"
+      },
+      "processes": [
+        {
+          "role": "driver",
+          "pid": 63142,
+          "samples": 61,
+          "peakRssBytes": 93437952,
+          "meanRssBytes": 74236709,
+          "processorSeconds": 0.933,
+          "peakManagedHeapBytes": 7813376,
+          "allocatedBytes": 48874504,
+          "gcSeconds": 0.009
+        },
+        {
+          "role": "host",
+          "pid": 63141,
+          "samples": 61,
+          "peakRssBytes": 205717504,
+          "meanRssBytes": 135108910,
+          "processorSeconds": 4.721
+        }
+      ],
+      "telemetry": {
+        "available": [
+          "http.latency",
+          "model.turns",
+          "process.rss",
+          "process.cpu",
+          "process.gc",
+          "sql.storage"
+        ],
+        "unavailable": {
+          "queue.wait": "no queued job recorded a start time"
+        },
+        "missingMandatory": []
+      },
+      "warnings": [
+        "storage/vacuum-interference: autovacuum ran inside the window; byte growth is not comparable and must stay out of any average"
+      ],
+      "statusReasons": []
+    },
+    {
+      "cellId": "008-buffered-c8-empty-r3",
+      "status": "complete",
+      "measuredSeconds": 60.878,
+      "drainSeconds": 0.057,
+      "arrival": {
+        "planned": 464,
+        "sent": 464,
+        "notSent": 0,
+        "accepted": 464,
+        "rejected": 0,
+        "failed": 0,
+        "timedOut": 0,
+        "completed": 464,
+        "dispatchLag": {
+          "count": 0,
+          "lowSampleP95": false,
+          "lowSampleP99": false,
+          "method": "nearest-rank"
+        }
+      },
+      "reconciliation": {
+        "acceptedRunIds": 464,
+        "terminalRuns": 464,
+        "missingRuns": 0,
+        "contentMismatches": 0,
+        "sequenceGaps": 0,
+        "liveSubscriptions": 0,
+        "historicalOnlySubscriptions": 0,
+        "tenantBleed": 0,
+        "crossTenantRefusals": 2,
+        "complete": true
+      },
+      "queueWait": {
+        "count": 0,
+        "lowSampleP95": false,
+        "lowSampleP99": false,
+        "method": "nearest-rank"
+      },
+      "processes": [
+        {
+          "role": "driver",
+          "pid": 63727,
+          "samples": 61,
+          "peakRssBytes": 92454912,
+          "meanRssBytes": 76969077,
+          "processorSeconds": 1.027,
+          "peakManagedHeapBytes": 1728896,
+          "allocatedBytes": 49699552,
+          "gcSeconds": 0.008
+        },
+        {
+          "role": "host",
+          "pid": 63721,
+          "samples": 61,
+          "peakRssBytes": 207339520,
+          "meanRssBytes": 161017654,
+          "processorSeconds": 5.498
+        }
+      ],
+      "telemetry": {
+        "available": [
+          "http.latency",
+          "model.turns",
+          "process.rss",
+          "process.cpu",
+          "process.gc",
+          "sql.storage"
+        ],
+        "unavailable": {
+          "queue.wait": "no queued job recorded a start time"
+        },
+        "missingMandatory": []
+      },
+      "warnings": [
+        "storage/vacuum-interference: autovacuum ran inside the window; byte growth is not comparable and must stay out of any average"
+      ],
+      "statusReasons": []
+    },
+    {
+      "cellId": "009-buffered-c8-full-r1",
+      "status": "complete",
+      "measuredSeconds": 60.875,
+      "drainSeconds": 0.046,
+      "arrival": {
+        "planned": 464,
+        "sent": 464,
+        "notSent": 0,
+        "accepted": 464,
+        "rejected": 0,
+        "failed": 0,
+        "timedOut": 0,
+        "completed": 464,
+        "dispatchLag": {
+          "count": 0,
+          "lowSampleP95": false,
+          "lowSampleP99": false,
+          "method": "nearest-rank"
+        }
+      },
+      "reconciliation": {
+        "acceptedRunIds": 464,
+        "terminalRuns": 464,
+        "missingRuns": 0,
+        "contentMismatches": 0,
+        "sequenceGaps": 0,
+        "liveSubscriptions": 0,
+        "historicalOnlySubscriptions": 0,
+        "tenantBleed": 0,
+        "crossTenantRefusals": 2,
+        "complete": true
+      },
+      "queueWait": {
+        "count": 0,
+        "lowSampleP95": false,
+        "lowSampleP99": false,
+        "method": "nearest-rank"
+      },
+      "processes": [
+        {
+          "role": "driver",
+          "pid": 64253,
+          "samples": 61,
+          "peakRssBytes": 94093312,
+          "meanRssBytes": 78460558,
+          "processorSeconds": 1.011,
+          "peakManagedHeapBytes": 1778624,
+          "allocatedBytes": 49684896,
+          "gcSeconds": 0.011
+        },
+        {
+          "role": "host",
+          "pid": 64252,
+          "samples": 61,
+          "peakRssBytes": 208617472,
+          "meanRssBytes": 158211693,
+          "processorSeconds": 5.525
+        }
+      ],
+      "telemetry": {
+        "available": [
+          "http.latency",
+          "model.turns",
+          "process.rss",
+          "process.cpu",
+          "process.gc",
+          "sql.storage"
+        ],
+        "unavailable": {
+          "queue.wait": "no queued job recorded a start time"
+        },
+        "missingMandatory": []
+      },
+      "warnings": [
+        "storage/vacuum-interference: autovacuum ran inside the window; byte growth is not comparable and must stay out of any average"
+      ],
+      "statusReasons": []
+    },
+    {
+      "cellId": "010-buffered-c8-full-r2",
+      "status": "complete",
+      "measuredSeconds": 60.779,
+      "drainSeconds": 0.055,
+      "arrival": {
+        "planned": 464,
+        "sent": 464,
+        "notSent": 0,
+        "accepted": 464,
+        "rejected": 0,
+        "failed": 0,
+        "timedOut": 0,
+        "completed": 464,
+        "dispatchLag": {
+          "count": 0,
+          "lowSampleP95": false,
+          "lowSampleP99": false,
+          "method": "nearest-rank"
+        }
+      },
+      "reconciliation": {
+        "acceptedRunIds": 464,
+        "terminalRuns": 464,
+        "missingRuns": 0,
+        "contentMismatches": 0,
+        "sequenceGaps": 0,
+        "liveSubscriptions": 0,
+        "historicalOnlySubscriptions": 0,
+        "tenantBleed": 0,
+        "crossTenantRefusals": 2,
+        "complete": true
+      },
+      "queueWait": {
+        "count": 0,
+        "lowSampleP95": false,
+        "lowSampleP99": false,
+        "method": "nearest-rank"
+      },
+      "processes": [
+        {
+          "role": "driver",
+          "pid": 64748,
+          "samples": 61,
+          "peakRssBytes": 93159424,
+          "meanRssBytes": 76098039,
+          "processorSeconds": 0.937,
+          "peakManagedHeapBytes": 1713832,
+          "allocatedBytes": 49676200,
+          "gcSeconds": 0.014
+        },
+        {
+          "role": "host",
+          "pid": 64742,
+          "samples": 61,
+          "peakRssBytes": 205209600,
+          "meanRssBytes": 143714807,
+          "processorSeconds": 4.646
+        }
+      ],
+      "telemetry": {
+        "available": [
+          "http.latency",
+          "model.turns",
+          "process.rss",
+          "process.cpu",
+          "process.gc",
+          "sql.storage"
+        ],
+        "unavailable": {
+          "queue.wait": "no queued job recorded a start time"
+        },
+        "missingMandatory": []
+      },
+      "warnings": [
+        "storage/vacuum-interference: autovacuum ran inside the window; byte growth is not comparable and must stay out of any average"
+      ],
+      "statusReasons": []
+    },
+    {
+      "cellId": "011-buffered-c8-full-r3",
+      "status": "complete",
+      "measuredSeconds": 60.823,
+      "drainSeconds": 0.048,
+      "arrival": {
+        "planned": 464,
+        "sent": 464,
+        "notSent": 0,
+        "accepted": 464,
+        "rejected": 0,
+        "failed": 0,
+        "timedOut": 0,
+        "completed": 464,
+        "dispatchLag": {
+          "count": 0,
+          "lowSampleP95": false,
+          "lowSampleP99": false,
+          "method": "nearest-rank"
+        }
+      },
+      "reconciliation": {
+        "acceptedRunIds": 464,
+        "terminalRuns": 464,
+        "missingRuns": 0,
+        "contentMismatches": 0,
+        "sequenceGaps": 0,
+        "liveSubscriptions": 0,
+        "historicalOnlySubscriptions": 0,
+        "tenantBleed": 0,
+        "crossTenantRefusals": 2,
+        "complete": true
+      },
+      "queueWait": {
+        "count": 0,
+        "lowSampleP95": false,
+        "lowSampleP99": false,
+        "method": "nearest-rank"
+      },
+      "processes": [
+        {
+          "role": "driver",
+          "pid": 65351,
+          "samples": 61,
+          "peakRssBytes": 91455488,
+          "meanRssBytes": 76557865,
+          "processorSeconds": 0.932,
+          "peakManagedHeapBytes": 8005224,
+          "allocatedBytes": 49778832,
+          "gcSeconds": 0.007
+        },
+        {
+          "role": "host",
+          "pid": 65350,
+          "samples": 61,
+          "peakRssBytes": 179421184,
+          "meanRssBytes": 155314948,
+          "processorSeconds": 5.232
+        }
+      ],
+      "telemetry": {
+        "available": [
+          "http.latency",
+          "model.turns",
+          "process.rss",
+          "process.cpu",
+          "process.gc",
+          "sql.storage"
+        ],
+        "unavailable": {
+          "queue.wait": "no queued job recorded a start time"
+        },
+        "missingMandatory": []
+      },
+      "warnings": [
+        "storage/vacuum-interference: autovacuum ran inside the window; byte growth is not comparable and must stay out of any average"
+      ],
+      "statusReasons": []
+    },
+    {
+      "cellId": "012-buffered-c32-empty-r1",
+      "status": "complete",
+      "measuredSeconds": 60.737,
+      "drainSeconds": 0.056,
+      "arrival": {
+        "planned": 1824,
+        "sent": 1824,
+        "notSent": 0,
+        "accepted": 1824,
+        "rejected": 0,
+        "failed": 0,
+        "timedOut": 0,
+        "completed": 1824,
+        "dispatchLag": {
+          "count": 0,
+          "lowSampleP95": false,
+          "lowSampleP99": false,
+          "method": "nearest-rank"
+        }
+      },
+      "reconciliation": {
+        "acceptedRunIds": 1824,
+        "terminalRuns": 1824,
+        "missingRuns": 0,
+        "contentMismatches": 0,
+        "sequenceGaps": 0,
+        "liveSubscriptions": 0,
+        "historicalOnlySubscriptions": 0,
+        "tenantBleed": 0,
+        "crossTenantRefusals": 2,
+        "complete": true
+      },
+      "queueWait": {
+        "count": 0,
+        "lowSampleP95": false,
+        "lowSampleP99": false,
+        "method": "nearest-rank"
+      },
+      "processes": [
+        {
+          "role": "driver",
+          "pid": 65933,
+          "samples": 61,
+          "peakRssBytes": 92864512,
+          "meanRssBytes": 79945325,
+          "processorSeconds": 1.604,
+          "peakManagedHeapBytes": 8958888,
+          "allocatedBytes": 189985456,
+          "gcSeconds": 0.032
+        },
+        {
+          "role": "host",
+          "pid": 65932,
+          "samples": 61,
+          "peakRssBytes": 472793088,
+          "meanRssBytes": 344762871,
+          "processorSeconds": 11.003
+        }
+      ],
+      "telemetry": {
+        "available": [
+          "http.latency",
+          "model.turns",
+          "process.rss",
+          "process.cpu",
+          "process.gc",
+          "sql.storage"
+        ],
+        "unavailable": {
+          "queue.wait": "no queued job recorded a start time"
+        },
+        "missingMandatory": []
+      },
+      "warnings": [
+        "storage/vacuum-interference: autovacuum ran inside the window; byte growth is not comparable and must stay out of any average"
+      ],
+      "statusReasons": []
+    },
+    {
+      "cellId": "013-buffered-c32-empty-r2",
+      "status": "complete",
+      "measuredSeconds": 60.689,
+      "drainSeconds": 0.054,
+      "arrival": {
+        "planned": 1824,
+        "sent": 1824,
+        "notSent": 0,
+        "accepted": 1824,
+        "rejected": 0,
+        "failed": 0,
+        "timedOut": 0,
+        "completed": 1824,
+        "dispatchLag": {
+          "count": 0,
+          "lowSampleP95": false,
+          "lowSampleP99": false,
+          "method": "nearest-rank"
+        }
+      },
+      "reconciliation": {
+        "acceptedRunIds": 1824,
+        "terminalRuns": 1824,
+        "missingRuns": 0,
+        "contentMismatches": 0,
+        "sequenceGaps": 0,
+        "liveSubscriptions": 0,
+        "historicalOnlySubscriptions": 0,
+        "tenantBleed": 0,
+        "crossTenantRefusals": 2,
+        "complete": true
+      },
+      "queueWait": {
+        "count": 0,
+        "lowSampleP95": false,
+        "lowSampleP99": false,
+        "method": "nearest-rank"
+      },
+      "processes": [
+        {
+          "role": "driver",
+          "pid": 66457,
+          "samples": 61,
+          "peakRssBytes": 111902720,
+          "meanRssBytes": 81606286,
+          "processorSeconds": 1.683,
+          "peakManagedHeapBytes": 9177304,
+          "allocatedBytes": 189758184,
+          "gcSeconds": 0.033
+        },
+        {
+          "role": "host",
+          "pid": 66456,
+          "samples": 61,
+          "peakRssBytes": 454656000,
+          "meanRssBytes": 357699516,
+          "processorSeconds": 11.965
+        }
+      ],
+      "telemetry": {
+        "available": [
+          "http.latency",
+          "model.turns",
+          "process.rss",
+          "process.cpu",
+          "process.gc",
+          "sql.storage"
+        ],
+        "unavailable": {
+          "queue.wait": "no queued job recorded a start time"
+        },
+        "missingMandatory": []
+      },
+      "warnings": [
+        "storage/vacuum-interference: autovacuum ran inside the window; byte growth is not comparable and must stay out of any average"
+      ],
+      "statusReasons": []
+    },
+    {
+      "cellId": "014-buffered-c32-empty-r3",
+      "status": "complete",
+      "measuredSeconds": 60.878,
+      "drainSeconds": 0.048,
+      "arrival": {
+        "planned": 1824,
+        "sent": 1824,
+        "notSent": 0,
+        "accepted": 1824,
+        "rejected": 0,
+        "failed": 0,
+        "timedOut": 0,
+        "completed": 1824,
+        "dispatchLag": {
+          "count": 0,
+          "lowSampleP95": false,
+          "lowSampleP99": false,
+          "method": "nearest-rank"
+        }
+      },
+      "reconciliation": {
+        "acceptedRunIds": 1824,
+        "terminalRuns": 1824,
+        "missingRuns": 0,
+        "contentMismatches": 0,
+        "sequenceGaps": 0,
+        "liveSubscriptions": 0,
+        "historicalOnlySubscriptions": 0,
+        "tenantBleed": 0,
+        "crossTenantRefusals": 2,
+        "complete": true
+      },
+      "queueWait": {
+        "count": 0,
+        "lowSampleP95": false,
+        "lowSampleP99": false,
+        "method": "nearest-rank"
+      },
+      "processes": [
+        {
+          "role": "driver",
+          "pid": 66987,
+          "samples": 61,
+          "peakRssBytes": 95453184,
+          "meanRssBytes": 71646426,
+          "processorSeconds": 1.552,
+          "peakManagedHeapBytes": 9208648,
+          "allocatedBytes": 189838984,
+          "gcSeconds": 0.038
+        },
+        {
+          "role": "host",
+          "pid": 66986,
+          "samples": 61,
+          "peakRssBytes": 414187520,
+          "meanRssBytes": 206298733,
+          "processorSeconds": 11.047
+        }
+      ],
+      "telemetry": {
+        "available": [
+          "http.latency",
+          "model.turns",
+          "process.rss",
+          "process.cpu",
+          "process.gc",
+          "sql.storage"
+        ],
+        "unavailable": {
+          "queue.wait": "no queued job recorded a start time"
+        },
+        "missingMandatory": []
+      },
+      "warnings": [
+        "storage/vacuum-interference: autovacuum ran inside the window; byte growth is not comparable and must stay out of any average"
+      ],
+      "statusReasons": []
+    },
+    {
+      "cellId": "015-buffered-c32-full-r1",
+      "status": "complete",
+      "measuredSeconds": 60.484,
+      "drainSeconds": 0.055,
+      "arrival": {
+        "planned": 1824,
+        "sent": 1824,
+        "notSent": 0,
+        "accepted": 1824,
+        "rejected": 0,
+        "failed": 0,
+        "timedOut": 0,
+        "completed": 1824,
+        "dispatchLag": {
+          "count": 0,
+          "lowSampleP95": false,
+          "lowSampleP99": false,
+          "method": "nearest-rank"
+        }
+      },
+      "reconciliation": {
+        "acceptedRunIds": 1824,
+        "terminalRuns": 1824,
+        "missingRuns": 0,
+        "contentMismatches": 0,
+        "sequenceGaps": 0,
+        "liveSubscriptions": 0,
+        "historicalOnlySubscriptions": 0,
+        "tenantBleed": 0,
+        "crossTenantRefusals": 2,
+        "complete": true
+      },
+      "queueWait": {
+        "count": 0,
+        "lowSampleP95": false,
+        "lowSampleP99": false,
+        "method": "nearest-rank"
+      },
+      "processes": [
+        {
+          "role": "driver",
+          "pid": 67490,
+          "samples": 61,
+          "peakRssBytes": 94224384,
+          "meanRssBytes": 76242541,
+          "processorSeconds": 1.645,
+          "peakManagedHeapBytes": 3258232,
+          "allocatedBytes": 189816768,
+          "gcSeconds": 0.035
+        },
+        {
+          "role": "host",
+          "pid": 67488,
+          "samples": 61,
+          "peakRssBytes": 428326912,
+          "meanRssBytes": 273313859,
+          "processorSeconds": 11.602
+        }
+      ],
+      "telemetry": {
+        "available": [
+          "http.latency",
+          "model.turns",
+          "process.rss",
+          "process.cpu",
+          "process.gc",
+          "sql.storage"
+        ],
+        "unavailable": {
+          "queue.wait": "no queued job recorded a start time"
+        },
+        "missingMandatory": []
+      },
+      "warnings": [
+        "storage/vacuum-interference: autovacuum ran inside the window; byte growth is not comparable and must stay out of any average"
+      ],
+      "statusReasons": []
+    },
+    {
+      "cellId": "016-buffered-c32-full-r2",
+      "status": "complete",
+      "measuredSeconds": 60.603,
+      "drainSeconds": 0.054,
+      "arrival": {
+        "planned": 1824,
+        "sent": 1824,
+        "notSent": 0,
+        "accepted": 1824,
+        "rejected": 0,
+        "failed": 0,
+        "timedOut": 0,
+        "completed": 1824,
+        "dispatchLag": {
+          "count": 0,
+          "lowSampleP95": false,
+          "lowSampleP99": false,
+          "method": "nearest-rank"
+        }
+      },
+      "reconciliation": {
+        "acceptedRunIds": 1824,
+        "terminalRuns": 1824,
+        "missingRuns": 0,
+        "contentMismatches": 0,
+        "sequenceGaps": 0,
+        "liveSubscriptions": 0,
+        "historicalOnlySubscriptions": 0,
+        "tenantBleed": 0,
+        "crossTenantRefusals": 2,
+        "complete": true
+      },
+      "queueWait": {
+        "count": 0,
+        "lowSampleP95": false,
+        "lowSampleP99": false,
+        "method": "nearest-rank"
+      },
+      "processes": [
+        {
+          "role": "driver",
+          "pid": 68097,
+          "samples": 61,
+          "peakRssBytes": 96878592,
+          "meanRssBytes": 82686556,
+          "processorSeconds": 1.631,
+          "peakManagedHeapBytes": 8990728,
+          "allocatedBytes": 189858336,
+          "gcSeconds": 0.034
+        },
+        {
+          "role": "host",
+          "pid": 68093,
+          "samples": 61,
+          "peakRssBytes": 461733888,
+          "meanRssBytes": 352963466,
+          "processorSeconds": 11.012
+        }
+      ],
+      "telemetry": {
+        "available": [
+          "http.latency",
+          "model.turns",
+          "process.rss",
+          "process.cpu",
+          "process.gc",
+          "sql.storage"
+        ],
+        "unavailable": {
+          "queue.wait": "no queued job recorded a start time"
+        },
+        "missingMandatory": []
+      },
+      "warnings": [
+        "storage/vacuum-interference: autovacuum ran inside the window; byte growth is not comparable and must stay out of any average"
+      ],
+      "statusReasons": []
+    },
+    {
+      "cellId": "017-buffered-c32-full-r3",
+      "status": "complete",
+      "measuredSeconds": 60.511,
+      "drainSeconds": 0.067,
+      "arrival": {
+        "planned": 1824,
+        "sent": 1824,
+        "notSent": 0,
+        "accepted": 1824,
+        "rejected": 0,
+        "failed": 0,
+        "timedOut": 0,
+        "completed": 1824,
+        "dispatchLag": {
+          "count": 0,
+          "lowSampleP95": false,
+          "lowSampleP99": false,
+          "method": "nearest-rank"
+        }
+      },
+      "reconciliation": {
+        "acceptedRunIds": 1824,
+        "terminalRuns": 1824,
+        "missingRuns": 0,
+        "contentMismatches": 0,
+        "sequenceGaps": 0,
+        "liveSubscriptions": 0,
+        "historicalOnlySubscriptions": 0,
+        "tenantBleed": 0,
+        "crossTenantRefusals": 2,
+        "complete": true
+      },
+      "queueWait": {
+        "count": 0,
+        "lowSampleP95": false,
+        "lowSampleP99": false,
+        "method": "nearest-rank"
+      },
+      "processes": [
+        {
+          "role": "driver",
+          "pid": 68663,
+          "samples": 61,
+          "peakRssBytes": 93274112,
+          "meanRssBytes": 76720094,
+          "processorSeconds": 1.682,
+          "peakManagedHeapBytes": 3057048,
+          "allocatedBytes": 189750784,
+          "gcSeconds": 0.03
+        },
+        {
+          "role": "host",
+          "pid": 68662,
+          "samples": 61,
+          "peakRssBytes": 451887104,
+          "meanRssBytes": 311060177,
+          "processorSeconds": 11.608
+        }
+      ],
+      "telemetry": {
+        "available": [
+          "http.latency",
+          "model.turns",
+          "process.rss",
+          "process.cpu",
+          "process.gc",
+          "sql.storage"
+        ],
+        "unavailable": {
+          "queue.wait": "no queued job recorded a start time"
+        },
+        "missingMandatory": []
+      },
+      "warnings": [
+        "storage/vacuum-interference: autovacuum ran inside the window; byte growth is not comparable and must stay out of any average"
+      ],
+      "statusReasons": []
+    },
+    {
+      "cellId": "018-buffered-c64-empty-r1",
+      "status": "complete",
+      "measuredSeconds": 60.566,
+      "drainSeconds": 0.061,
+      "arrival": {
+        "planned": 3648,
+        "sent": 3648,
+        "notSent": 0,
+        "accepted": 3648,
+        "rejected": 0,
+        "failed": 0,
+        "timedOut": 0,
+        "completed": 3648,
+        "dispatchLag": {
+          "count": 0,
+          "lowSampleP95": false,
+          "lowSampleP99": false,
+          "method": "nearest-rank"
+        }
+      },
+      "reconciliation": {
+        "acceptedRunIds": 3648,
+        "terminalRuns": 3648,
+        "missingRuns": 0,
+        "contentMismatches": 0,
+        "sequenceGaps": 0,
+        "liveSubscriptions": 0,
+        "historicalOnlySubscriptions": 0,
+        "tenantBleed": 0,
+        "crossTenantRefusals": 2,
+        "complete": true
+      },
+      "queueWait": {
+        "count": 0,
+        "lowSampleP95": false,
+        "lowSampleP99": false,
+        "method": "nearest-rank"
+      },
+      "processes": [
+        {
+          "role": "driver",
+          "pid": 69203,
+          "samples": 61,
+          "peakRssBytes": 84705280,
+          "meanRssBytes": 75247414,
+          "processorSeconds": 2.571,
+          "peakManagedHeapBytes": 10521344,
+          "allocatedBytes": 377710848,
+          "gcSeconds": 0.075
+        },
+        {
+          "role": "host",
+          "pid": 69202,
+          "samples": 61,
+          "peakRssBytes": 631635968,
+          "meanRssBytes": 424806500,
+          "processorSeconds": 19.314
+        }
+      ],
+      "telemetry": {
+        "available": [
+          "http.latency",
+          "model.turns",
+          "process.rss",
+          "process.cpu",
+          "process.gc",
+          "sql.storage"
+        ],
+        "unavailable": {
+          "queue.wait": "no queued job recorded a start time"
+        },
+        "missingMandatory": []
+      },
+      "warnings": [
+        "storage/vacuum-interference: autovacuum ran inside the window; byte growth is not comparable and must stay out of any average"
+      ],
+      "statusReasons": []
+    },
+    {
+      "cellId": "019-buffered-c64-empty-r2",
+      "status": "complete",
+      "measuredSeconds": 60.794,
+      "drainSeconds": 0.074,
+      "arrival": {
+        "planned": 3648,
+        "sent": 3648,
+        "notSent": 0,
+        "accepted": 3648,
+        "rejected": 0,
+        "failed": 0,
+        "timedOut": 0,
+        "completed": 3648,
+        "dispatchLag": {
+          "count": 0,
+          "lowSampleP95": false,
+          "lowSampleP99": false,
+          "method": "nearest-rank"
+        }
+      },
+      "reconciliation": {
+        "acceptedRunIds": 3648,
+        "terminalRuns": 3648,
+        "missingRuns": 0,
+        "contentMismatches": 0,
+        "sequenceGaps": 0,
+        "liveSubscriptions": 0,
+        "historicalOnlySubscriptions": 0,
+        "tenantBleed": 0,
+        "crossTenantRefusals": 2,
+        "complete": true
+      },
+      "queueWait": {
+        "count": 0,
+        "lowSampleP95": false,
+        "lowSampleP99": false,
+        "method": "nearest-rank"
+      },
+      "processes": [
+        {
+          "role": "driver",
+          "pid": 69686,
+          "samples": 61,
+          "peakRssBytes": 96894976,
+          "meanRssBytes": 79784976,
+          "processorSeconds": 2.494,
+          "peakManagedHeapBytes": 10766616,
+          "allocatedBytes": 377603576,
+          "gcSeconds": 0.076
+        },
+        {
+          "role": "host",
+          "pid": 69685,
+          "samples": 61,
+          "peakRssBytes": 665026560,
+          "meanRssBytes": 413154522,
+          "processorSeconds": 18.74
+        }
+      ],
+      "telemetry": {
+        "available": [
+          "http.latency",
+          "model.turns",
+          "process.rss",
+          "process.cpu",
+          "process.gc",
+          "sql.storage"
+        ],
+        "unavailable": {
+          "queue.wait": "no queued job recorded a start time"
+        },
+        "missingMandatory": []
+      },
+      "warnings": [
+        "storage/vacuum-interference: autovacuum ran inside the window; byte growth is not comparable and must stay out of any average"
+      ],
+      "statusReasons": []
+    },
+    {
+      "cellId": "020-buffered-c64-empty-r3",
+      "status": "complete",
+      "measuredSeconds": 60.638,
+      "drainSeconds": 0.077,
+      "arrival": {
+        "planned": 3648,
+        "sent": 3648,
+        "notSent": 0,
+        "accepted": 3648,
+        "rejected": 0,
+        "failed": 0,
+        "timedOut": 0,
+        "completed": 3648,
+        "dispatchLag": {
+          "count": 0,
+          "lowSampleP95": false,
+          "lowSampleP99": false,
+          "method": "nearest-rank"
+        }
+      },
+      "reconciliation": {
+        "acceptedRunIds": 3648,
+        "terminalRuns": 3648,
+        "missingRuns": 0,
+        "contentMismatches": 0,
+        "sequenceGaps": 0,
+        "liveSubscriptions": 0,
+        "historicalOnlySubscriptions": 0,
+        "tenantBleed": 0,
+        "crossTenantRefusals": 2,
+        "complete": true
+      },
+      "queueWait": {
+        "count": 0,
+        "lowSampleP95": false,
+        "lowSampleP99": false,
+        "method": "nearest-rank"
+      },
+      "processes": [
+        {
+          "role": "driver",
+          "pid": 70283,
+          "samples": 61,
+          "peakRssBytes": 97910784,
+          "meanRssBytes": 79120484,
+          "processorSeconds": 2.621,
+          "peakManagedHeapBytes": 10683088,
+          "allocatedBytes": 377643792,
+          "gcSeconds": 0.079
+        },
+        {
+          "role": "host",
+          "pid": 70282,
+          "samples": 61,
+          "peakRssBytes": 639811584,
+          "meanRssBytes": 471500363,
+          "processorSeconds": 19.268
+        }
+      ],
+      "telemetry": {
+        "available": [
+          "http.latency",
+          "model.turns",
+          "process.rss",
+          "process.cpu",
+          "process.gc",
+          "sql.storage"
+        ],
+        "unavailable": {
+          "queue.wait": "no queued job recorded a start time"
+        },
+        "missingMandatory": []
+      },
+      "warnings": [
+        "storage/vacuum-interference: autovacuum ran inside the window; byte growth is not comparable and must stay out of any average"
+      ],
+      "statusReasons": []
+    },
+    {
+      "cellId": "021-buffered-c64-full-r1",
+      "status": "complete",
+      "measuredSeconds": 60.784,
+      "drainSeconds": 0.067,
+      "arrival": {
+        "planned": 3648,
+        "sent": 3648,
+        "notSent": 0,
+        "accepted": 3648,
+        "rejected": 0,
+        "failed": 0,
+        "timedOut": 0,
+        "completed": 3648,
+        "dispatchLag": {
+          "count": 0,
+          "lowSampleP95": false,
+          "lowSampleP99": false,
+          "method": "nearest-rank"
+        }
+      },
+      "reconciliation": {
+        "acceptedRunIds": 3648,
+        "terminalRuns": 3648,
+        "missingRuns": 0,
+        "contentMismatches": 0,
+        "sequenceGaps": 0,
+        "liveSubscriptions": 0,
+        "historicalOnlySubscriptions": 0,
+        "tenantBleed": 0,
+        "crossTenantRefusals": 2,
+        "complete": true
+      },
+      "queueWait": {
+        "count": 0,
+        "lowSampleP95": false,
+        "lowSampleP99": false,
+        "method": "nearest-rank"
+      },
+      "processes": [
+        {
+          "role": "driver",
+          "pid": 70804,
+          "samples": 61,
+          "peakRssBytes": 96043008,
+          "meanRssBytes": 78773197,
+          "processorSeconds": 2.512,
+          "peakManagedHeapBytes": 10945368,
+          "allocatedBytes": 377720864,
+          "gcSeconds": 0.083
+        },
+        {
+          "role": "host",
+          "pid": 70803,
+          "samples": 61,
+          "peakRssBytes": 607502336,
+          "meanRssBytes": 447077459,
+          "processorSeconds": 18.36
+        }
+      ],
+      "telemetry": {
+        "available": [
+          "http.latency",
+          "model.turns",
+          "process.rss",
+          "process.cpu",
+          "process.gc",
+          "sql.storage"
+        ],
+        "unavailable": {
+          "queue.wait": "no queued job recorded a start time"
+        },
+        "missingMandatory": []
+      },
+      "warnings": [
+        "storage/vacuum-interference: autovacuum ran inside the window; byte growth is not comparable and must stay out of any average"
+      ],
+      "statusReasons": []
+    },
+    {
+      "cellId": "022-buffered-c64-full-r2",
+      "status": "complete",
+      "measuredSeconds": 60.732,
+      "drainSeconds": 0.063,
+      "arrival": {
+        "planned": 3648,
+        "sent": 3648,
+        "notSent": 0,
+        "accepted": 3648,
+        "rejected": 0,
+        "failed": 0,
+        "timedOut": 0,
+        "completed": 3648,
+        "dispatchLag": {
+          "count": 0,
+          "lowSampleP95": false,
+          "lowSampleP99": false,
+          "method": "nearest-rank"
+        }
+      },
+      "reconciliation": {
+        "acceptedRunIds": 3648,
+        "terminalRuns": 3648,
+        "missingRuns": 0,
+        "contentMismatches": 0,
+        "sequenceGaps": 0,
+        "liveSubscriptions": 0,
+        "historicalOnlySubscriptions": 0,
+        "tenantBleed": 0,
+        "crossTenantRefusals": 2,
+        "complete": true
+      },
+      "queueWait": {
+        "count": 0,
+        "lowSampleP95": false,
+        "lowSampleP99": false,
+        "method": "nearest-rank"
+      },
+      "processes": [
+        {
+          "role": "driver",
+          "pid": 71320,
+          "samples": 61,
+          "peakRssBytes": 95698944,
+          "meanRssBytes": 76020954,
+          "processorSeconds": 2.533,
+          "peakManagedHeapBytes": 10701880,
+          "allocatedBytes": 377544152,
+          "gcSeconds": 0.081
+        },
+        {
+          "role": "host",
+          "pid": 71268,
+          "samples": 61,
+          "peakRssBytes": 634896384,
+          "meanRssBytes": 441141617,
+          "processorSeconds": 18.781
+        }
+      ],
+      "telemetry": {
+        "available": [
+          "http.latency",
+          "model.turns",
+          "process.rss",
+          "process.cpu",
+          "process.gc",
+          "sql.storage"
+        ],
+        "unavailable": {
+          "queue.wait": "no queued job recorded a start time"
+        },
+        "missingMandatory": []
+      },
+      "warnings": [
+        "storage/vacuum-interference: autovacuum ran inside the window; byte growth is not comparable and must stay out of any average"
+      ],
+      "statusReasons": []
+    },
+    {
+      "cellId": "023-buffered-c64-full-r3",
+      "status": "complete",
+      "measuredSeconds": 60.392,
+      "drainSeconds": 0.083,
+      "arrival": {
+        "planned": 3648,
+        "sent": 3648,
+        "notSent": 0,
+        "accepted": 3648,
+        "rejected": 0,
+        "failed": 0,
+        "timedOut": 0,
+        "completed": 3648,
+        "dispatchLag": {
+          "count": 0,
+          "lowSampleP95": false,
+          "lowSampleP99": false,
+          "method": "nearest-rank"
+        }
+      },
+      "reconciliation": {
+        "acceptedRunIds": 3648,
+        "terminalRuns": 3648,
+        "missingRuns": 0,
+        "contentMismatches": 0,
+        "sequenceGaps": 0,
+        "liveSubscriptions": 0,
+        "historicalOnlySubscriptions": 0,
+        "tenantBleed": 0,
+        "crossTenantRefusals": 2,
+        "complete": true
+      },
+      "queueWait": {
+        "count": 0,
+        "lowSampleP95": false,
+        "lowSampleP99": false,
+        "method": "nearest-rank"
+      },
+      "processes": [
+        {
+          "role": "driver",
+          "pid": 71882,
+          "samples": 61,
+          "peakRssBytes": 88719360,
+          "meanRssBytes": 73741429,
+          "processorSeconds": 2.542,
+          "peakManagedHeapBytes": 10771320,
+          "allocatedBytes": 377611552,
+          "gcSeconds": 0.081
+        },
+        {
+          "role": "host",
+          "pid": 71881,
+          "samples": 61,
+          "peakRssBytes": 634880000,
+          "meanRssBytes": 414629082,
+          "processorSeconds": 19.411
+        }
+      ],
+      "telemetry": {
+        "available": [
+          "http.latency",
+          "model.turns",
+          "process.rss",
+          "process.cpu",
+          "process.gc",
+          "sql.storage"
+        ],
+        "unavailable": {
+          "queue.wait": "no queued job recorded a start time"
+        },
+        "missingMandatory": []
+      },
+      "warnings": [
+        "storage/vacuum-interference: autovacuum ran inside the window; byte growth is not comparable and must stay out of any average"
+      ],
+      "statusReasons": []
+    },
+    {
+      "cellId": "024-streaming-c1-empty-r1",
+      "status": "complete",
+      "measuredSeconds": 60.394,
+      "drainSeconds": 0.051,
+      "arrival": {
+        "planned": 51,
+        "sent": 51,
+        "notSent": 0,
+        "accepted": 51,
+        "rejected": 0,
+        "failed": 0,
+        "timedOut": 0,
+        "completed": 51,
+        "dispatchLag": {
+          "count": 0,
+          "lowSampleP95": false,
+          "lowSampleP99": false,
+          "method": "nearest-rank"
+        }
+      },
+      "reconciliation": {
+        "acceptedRunIds": 51,
+        "terminalRuns": 51,
+        "missingRuns": 0,
+        "contentMismatches": 0,
+        "sequenceGaps": 0,
+        "liveSubscriptions": 0,
+        "historicalOnlySubscriptions": 0,
+        "tenantBleed": 0,
+        "crossTenantRefusals": 2,
+        "complete": true
+      },
+      "queueWait": {
+        "count": 0,
+        "lowSampleP95": false,
+        "lowSampleP99": false,
+        "method": "nearest-rank"
+      },
+      "processes": [
+        {
+          "role": "driver",
+          "pid": 72397,
+          "samples": 61,
+          "peakRssBytes": 89030656,
+          "meanRssBytes": 80734980,
+          "processorSeconds": 1.808,
+          "peakManagedHeapBytes": 774008,
+          "allocatedBytes": 14474048,
+          "gcSeconds": 0.017
+        },
+        {
+          "role": "host",
+          "pid": 72394,
+          "samples": 61,
+          "peakRssBytes": 157433856,
+          "meanRssBytes": 131854134,
+          "processorSeconds": 4.984
+        }
+      ],
+      "telemetry": {
+        "available": [
+          "http.latency",
+          "model.turns",
+          "process.rss",
+          "process.cpu",
+          "process.gc",
+          "sql.storage"
+        ],
+        "unavailable": {
+          "queue.wait": "no queued job recorded a start time"
+        },
+        "missingMandatory": []
+      },
+      "warnings": [],
+      "statusReasons": []
+    },
+    {
+      "cellId": "025-streaming-c1-empty-r2",
+      "status": "complete",
+      "measuredSeconds": 60.745,
+      "drainSeconds": 0.056,
+      "arrival": {
+        "planned": 51,
+        "sent": 51,
+        "notSent": 0,
+        "accepted": 51,
+        "rejected": 0,
+        "failed": 0,
+        "timedOut": 0,
+        "completed": 51,
+        "dispatchLag": {
+          "count": 0,
+          "lowSampleP95": false,
+          "lowSampleP99": false,
+          "method": "nearest-rank"
+        }
+      },
+      "reconciliation": {
+        "acceptedRunIds": 51,
+        "terminalRuns": 51,
+        "missingRuns": 0,
+        "contentMismatches": 0,
+        "sequenceGaps": 0,
+        "liveSubscriptions": 0,
+        "historicalOnlySubscriptions": 0,
+        "tenantBleed": 0,
+        "crossTenantRefusals": 2,
+        "complete": true
+      },
+      "queueWait": {
+        "count": 0,
+        "lowSampleP95": false,
+        "lowSampleP99": false,
+        "method": "nearest-rank"
+      },
+      "processes": [
+        {
+          "role": "driver",
+          "pid": 72850,
+          "samples": 61,
+          "peakRssBytes": 86704128,
+          "meanRssBytes": 80120714,
+          "processorSeconds": 1.829,
+          "peakManagedHeapBytes": 804720,
+          "allocatedBytes": 14572768,
+          "gcSeconds": 0.007
+        },
+        {
+          "role": "host",
+          "pid": 72845,
+          "samples": 61,
+          "peakRssBytes": 162217984,
+          "meanRssBytes": 141858580,
+          "processorSeconds": 5.028
+        }
+      ],
+      "telemetry": {
+        "available": [
+          "http.latency",
+          "model.turns",
+          "process.rss",
+          "process.cpu",
+          "process.gc",
+          "sql.storage"
+        ],
+        "unavailable": {
+          "queue.wait": "no queued job recorded a start time"
+        },
+        "missingMandatory": []
+      },
+      "warnings": [
+        "storage/vacuum-interference: autovacuum ran inside the window; byte growth is not comparable and must stay out of any average"
+      ],
+      "statusReasons": []
+    },
+    {
+      "cellId": "026-streaming-c1-empty-r3",
+      "status": "complete",
+      "measuredSeconds": 60.544,
+      "drainSeconds": 0.049,
+      "arrival": {
+        "planned": 51,
+        "sent": 51,
+        "notSent": 0,
+        "accepted": 51,
+        "rejected": 0,
+        "failed": 0,
+        "timedOut": 0,
+        "completed": 51,
+        "dispatchLag": {
+          "count": 0,
+          "lowSampleP95": false,
+          "lowSampleP99": false,
+          "method": "nearest-rank"
+        }
+      },
+      "reconciliation": {
+        "acceptedRunIds": 51,
+        "terminalRuns": 51,
+        "missingRuns": 0,
+        "contentMismatches": 0,
+        "sequenceGaps": 0,
+        "liveSubscriptions": 0,
+        "historicalOnlySubscriptions": 0,
+        "tenantBleed": 0,
+        "crossTenantRefusals": 2,
+        "complete": true
+      },
+      "queueWait": {
+        "count": 0,
+        "lowSampleP95": false,
+        "lowSampleP99": false,
+        "method": "nearest-rank"
+      },
+      "processes": [
+        {
+          "role": "driver",
+          "pid": 73429,
+          "samples": 61,
+          "peakRssBytes": 87523328,
+          "meanRssBytes": 77420308,
+          "processorSeconds": 1.82,
+          "peakManagedHeapBytes": 820848,
+          "allocatedBytes": 14453336,
+          "gcSeconds": 0.01
+        },
+        {
+          "role": "host",
+          "pid": 73428,
+          "samples": 61,
+          "peakRssBytes": 152371200,
+          "meanRssBytes": 129554734,
+          "processorSeconds": 5.006
+        }
+      ],
+      "telemetry": {
+        "available": [
+          "http.latency",
+          "model.turns",
+          "process.rss",
+          "process.cpu",
+          "process.gc",
+          "sql.storage"
+        ],
+        "unavailable": {
+          "queue.wait": "no queued job recorded a start time"
+        },
+        "missingMandatory": []
+      },
+      "warnings": [
+        "storage/vacuum-interference: autovacuum ran inside the window; byte growth is not comparable and must stay out of any average"
+      ],
+      "statusReasons": []
+    },
+    {
+      "cellId": "027-streaming-c1-full-r1",
+      "status": "complete",
+      "measuredSeconds": 61.175,
+      "drainSeconds": 0.062,
+      "arrival": {
+        "planned": 51,
+        "sent": 51,
+        "notSent": 0,
+        "accepted": 51,
+        "rejected": 0,
+        "failed": 0,
+        "timedOut": 0,
+        "completed": 51,
+        "dispatchLag": {
+          "count": 0,
+          "lowSampleP95": false,
+          "lowSampleP99": false,
+          "method": "nearest-rank"
+        }
+      },
+      "reconciliation": {
+        "acceptedRunIds": 51,
+        "terminalRuns": 51,
+        "missingRuns": 0,
+        "contentMismatches": 0,
+        "sequenceGaps": 0,
+        "liveSubscriptions": 0,
+        "historicalOnlySubscriptions": 0,
+        "tenantBleed": 0,
+        "crossTenantRefusals": 2,
+        "complete": true
+      },
+      "queueWait": {
+        "count": 0,
+        "lowSampleP95": false,
+        "lowSampleP99": false,
+        "method": "nearest-rank"
+      },
+      "processes": [
+        {
+          "role": "driver",
+          "pid": 73954,
+          "samples": 62,
+          "peakRssBytes": 103415808,
+          "meanRssBytes": 75644928,
+          "processorSeconds": 1.934,
+          "peakManagedHeapBytes": 786704,
+          "allocatedBytes": 14545096,
+          "gcSeconds": 0.015
+        },
+        {
+          "role": "host",
+          "pid": 73953,
+          "samples": 62,
+          "peakRssBytes": 189136896,
+          "meanRssBytes": 126655190,
+          "processorSeconds": 5.246
+        }
+      ],
+      "telemetry": {
+        "available": [
+          "http.latency",
+          "model.turns",
+          "process.rss",
+          "process.cpu",
+          "process.gc",
+          "sql.storage"
+        ],
+        "unavailable": {
+          "queue.wait": "no queued job recorded a start time"
+        },
+        "missingMandatory": []
+      },
+      "warnings": [],
+      "statusReasons": []
+    },
+    {
+      "cellId": "028-streaming-c1-full-r2",
+      "status": "complete",
+      "measuredSeconds": 61.034,
+      "drainSeconds": 0.066,
+      "arrival": {
+        "planned": 51,
+        "sent": 51,
+        "notSent": 0,
+        "accepted": 51,
+        "rejected": 0,
+        "failed": 0,
+        "timedOut": 0,
+        "completed": 51,
+        "dispatchLag": {
+          "count": 0,
+          "lowSampleP95": false,
+          "lowSampleP99": false,
+          "method": "nearest-rank"
+        }
+      },
+      "reconciliation": {
+        "acceptedRunIds": 51,
+        "terminalRuns": 51,
+        "missingRuns": 0,
+        "contentMismatches": 0,
+        "sequenceGaps": 0,
+        "liveSubscriptions": 0,
+        "historicalOnlySubscriptions": 0,
+        "tenantBleed": 0,
+        "crossTenantRefusals": 2,
+        "complete": true
+      },
+      "queueWait": {
+        "count": 0,
+        "lowSampleP95": false,
+        "lowSampleP99": false,
+        "method": "nearest-rank"
+      },
+      "processes": [
+        {
+          "role": "driver",
+          "pid": 74486,
+          "samples": 61,
+          "peakRssBytes": 88883200,
+          "meanRssBytes": 81636368,
+          "processorSeconds": 1.87,
+          "peakManagedHeapBytes": 774256,
+          "allocatedBytes": 14465360,
+          "gcSeconds": 0.012
+        },
+        {
+          "role": "host",
+          "pid": 74485,
+          "samples": 61,
+          "peakRssBytes": 150978560,
+          "meanRssBytes": 134161055,
+          "processorSeconds": 5.273
+        }
+      ],
+      "telemetry": {
+        "available": [
+          "http.latency",
+          "model.turns",
+          "process.rss",
+          "process.cpu",
+          "process.gc",
+          "sql.storage"
+        ],
+        "unavailable": {
+          "queue.wait": "no queued job recorded a start time"
+        },
+        "missingMandatory": []
+      },
+      "warnings": [],
+      "statusReasons": []
+    },
+    {
+      "cellId": "029-streaming-c1-full-r3",
+      "status": "complete",
+      "measuredSeconds": 60.411,
+      "drainSeconds": 0.043,
+      "arrival": {
+        "planned": 51,
+        "sent": 51,
+        "notSent": 0,
+        "accepted": 51,
+        "rejected": 0,
+        "failed": 0,
+        "timedOut": 0,
+        "completed": 51,
+        "dispatchLag": {
+          "count": 0,
+          "lowSampleP95": false,
+          "lowSampleP99": false,
+          "method": "nearest-rank"
+        }
+      },
+      "reconciliation": {
+        "acceptedRunIds": 51,
+        "terminalRuns": 51,
+        "missingRuns": 0,
+        "contentMismatches": 0,
+        "sequenceGaps": 0,
+        "liveSubscriptions": 0,
+        "historicalOnlySubscriptions": 0,
+        "tenantBleed": 0,
+        "crossTenantRefusals": 2,
+        "complete": true
+      },
+      "queueWait": {
+        "count": 0,
+        "lowSampleP95": false,
+        "lowSampleP99": false,
+        "method": "nearest-rank"
+      },
+      "processes": [
+        {
+          "role": "driver",
+          "pid": 75033,
+          "samples": 61,
+          "peakRssBytes": 89276416,
+          "meanRssBytes": 79773427,
+          "processorSeconds": 1.839,
+          "peakManagedHeapBytes": 813248,
+          "allocatedBytes": 14495208,
+          "gcSeconds": 0.01
+        },
+        {
+          "role": "host",
+          "pid": 75032,
+          "samples": 61,
+          "peakRssBytes": 156172288,
+          "meanRssBytes": 126762470,
+          "processorSeconds": 5.103
+        }
+      ],
+      "telemetry": {
+        "available": [
+          "http.latency",
+          "model.turns",
+          "process.rss",
+          "process.cpu",
+          "process.gc",
+          "sql.storage"
+        ],
+        "unavailable": {
+          "queue.wait": "no queued job recorded a start time"
+        },
+        "missingMandatory": []
+      },
+      "warnings": [],
+      "statusReasons": []
+    },
+    {
+      "cellId": "030-streaming-c8-empty-r1",
+      "status": "complete",
+      "measuredSeconds": 60.599,
+      "drainSeconds": 0.049,
+      "arrival": {
+        "planned": 400,
+        "sent": 400,
+        "notSent": 0,
+        "accepted": 400,
+        "rejected": 0,
+        "failed": 0,
+        "timedOut": 0,
+        "completed": 400,
+        "dispatchLag": {
+          "count": 0,
+          "lowSampleP95": false,
+          "lowSampleP99": false,
+          "method": "nearest-rank"
+        }
+      },
+      "reconciliation": {
+        "acceptedRunIds": 400,
+        "terminalRuns": 400,
+        "missingRuns": 0,
+        "contentMismatches": 0,
+        "sequenceGaps": 0,
+        "liveSubscriptions": 0,
+        "historicalOnlySubscriptions": 0,
+        "tenantBleed": 0,
+        "crossTenantRefusals": 2,
+        "complete": true
+      },
+      "queueWait": {
+        "count": 0,
+        "lowSampleP95": false,
+        "lowSampleP99": false,
+        "method": "nearest-rank"
+      },
+      "processes": [
+        {
+          "role": "driver",
+          "pid": 75545,
+          "samples": 61,
+          "peakRssBytes": 109903872,
+          "meanRssBytes": 80541863,
+          "processorSeconds": 2.955,
+          "peakManagedHeapBytes": 2441112,
+          "allocatedBytes": 101164520,
+          "gcSeconds": 0.032
+        },
+        {
+          "role": "host",
+          "pid": 75539,
+          "samples": 61,
+          "peakRssBytes": 266862592,
+          "meanRssBytes": 186320996,
+          "processorSeconds": 10.104
+        }
+      ],
+      "telemetry": {
+        "available": [
+          "http.latency",
+          "model.turns",
+          "process.rss",
+          "process.cpu",
+          "process.gc",
+          "sql.storage"
+        ],
+        "unavailable": {
+          "queue.wait": "no queued job recorded a start time"
+        },
+        "missingMandatory": []
+      },
+      "warnings": [
+        "storage/vacuum-interference: autovacuum ran inside the window; byte growth is not comparable and must stay out of any average"
+      ],
+      "statusReasons": []
+    },
+    {
+      "cellId": "031-streaming-c8-empty-r2",
+      "status": "complete",
+      "measuredSeconds": 60.221,
+      "drainSeconds": 0.052,
+      "arrival": {
+        "planned": 392,
+        "sent": 392,
+        "notSent": 0,
+        "accepted": 392,
+        "rejected": 0,
+        "failed": 0,
+        "timedOut": 0,
+        "completed": 392,
+        "dispatchLag": {
+          "count": 0,
+          "lowSampleP95": false,
+          "lowSampleP99": false,
+          "method": "nearest-rank"
+        }
+      },
+      "reconciliation": {
+        "acceptedRunIds": 392,
+        "terminalRuns": 392,
+        "missingRuns": 0,
+        "contentMismatches": 0,
+        "sequenceGaps": 0,
+        "liveSubscriptions": 0,
+        "historicalOnlySubscriptions": 0,
+        "tenantBleed": 0,
+        "crossTenantRefusals": 2,
+        "complete": true
+      },
+      "queueWait": {
+        "count": 0,
+        "lowSampleP95": false,
+        "lowSampleP99": false,
+        "method": "nearest-rank"
+      },
+      "processes": [
+        {
+          "role": "driver",
+          "pid": 76104,
+          "samples": 61,
+          "peakRssBytes": 94519296,
+          "meanRssBytes": 76307002,
+          "processorSeconds": 2.743,
+          "peakManagedHeapBytes": 2420008,
+          "allocatedBytes": 99280288,
+          "gcSeconds": 0.029
+        },
+        {
+          "role": "host",
+          "pid": 76097,
+          "samples": 61,
+          "peakRssBytes": 229081088,
+          "meanRssBytes": 174813788,
+          "processorSeconds": 9.894
+        }
+      ],
+      "telemetry": {
+        "available": [
+          "http.latency",
+          "model.turns",
+          "process.rss",
+          "process.cpu",
+          "process.gc",
+          "sql.storage"
+        ],
+        "unavailable": {
+          "queue.wait": "no queued job recorded a start time"
+        },
+        "missingMandatory": []
+      },
+      "warnings": [
+        "storage/vacuum-interference: autovacuum ran inside the window; byte growth is not comparable and must stay out of any average"
+      ],
+      "statusReasons": []
+    },
+    {
+      "cellId": "032-streaming-c8-empty-r3",
+      "status": "complete",
+      "measuredSeconds": 60.506,
+      "drainSeconds": 0.042,
+      "arrival": {
+        "planned": 400,
+        "sent": 400,
+        "notSent": 0,
+        "accepted": 400,
+        "rejected": 0,
+        "failed": 0,
+        "timedOut": 0,
+        "completed": 400,
+        "dispatchLag": {
+          "count": 0,
+          "lowSampleP95": false,
+          "lowSampleP99": false,
+          "method": "nearest-rank"
+        }
+      },
+      "reconciliation": {
+        "acceptedRunIds": 400,
+        "terminalRuns": 400,
+        "missingRuns": 0,
+        "contentMismatches": 0,
+        "sequenceGaps": 0,
+        "liveSubscriptions": 0,
+        "historicalOnlySubscriptions": 0,
+        "tenantBleed": 0,
+        "crossTenantRefusals": 2,
+        "complete": true
+      },
+      "queueWait": {
+        "count": 0,
+        "lowSampleP95": false,
+        "lowSampleP99": false,
+        "method": "nearest-rank"
+      },
+      "processes": [
+        {
+          "role": "driver",
+          "pid": 76646,
+          "samples": 61,
+          "peakRssBytes": 94158848,
+          "meanRssBytes": 78035917,
+          "processorSeconds": 3.082,
+          "peakManagedHeapBytes": 2451408,
+          "allocatedBytes": 101178656,
+          "gcSeconds": 0.025
+        },
+        {
+          "role": "host",
+          "pid": 76645,
+          "samples": 61,
+          "peakRssBytes": 225312768,
+          "meanRssBytes": 179233708,
+          "processorSeconds": 10.609
+        }
+      ],
+      "telemetry": {
+        "available": [
+          "http.latency",
+          "model.turns",
+          "process.rss",
+          "process.cpu",
+          "process.gc",
+          "sql.storage"
+        ],
+        "unavailable": {
+          "queue.wait": "no queued job recorded a start time"
+        },
+        "missingMandatory": []
+      },
+      "warnings": [
+        "storage/vacuum-interference: autovacuum ran inside the window; byte growth is not comparable and must stay out of any average"
+      ],
+      "statusReasons": []
+    },
+    {
+      "cellId": "033-streaming-c8-full-r1",
+      "status": "complete",
+      "measuredSeconds": 60.311,
+      "drainSeconds": 0.056,
+      "arrival": {
+        "planned": 400,
+        "sent": 400,
+        "notSent": 0,
+        "accepted": 400,
+        "rejected": 0,
+        "failed": 0,
+        "timedOut": 0,
+        "completed": 400,
+        "dispatchLag": {
+          "count": 0,
+          "lowSampleP95": false,
+          "lowSampleP99": false,
+          "method": "nearest-rank"
+        }
+      },
+      "reconciliation": {
+        "acceptedRunIds": 400,
+        "terminalRuns": 400,
+        "missingRuns": 0,
+        "contentMismatches": 0,
+        "sequenceGaps": 0,
+        "liveSubscriptions": 0,
+        "historicalOnlySubscriptions": 0,
+        "tenantBleed": 0,
+        "crossTenantRefusals": 2,
+        "complete": true
+      },
+      "queueWait": {
+        "count": 0,
+        "lowSampleP95": false,
+        "lowSampleP99": false,
+        "method": "nearest-rank"
+      },
+      "processes": [
+        {
+          "role": "driver",
+          "pid": 77204,
+          "samples": 61,
+          "peakRssBytes": 95584256,
+          "meanRssBytes": 83656435,
+          "processorSeconds": 3.152,
+          "peakManagedHeapBytes": 2447160,
+          "allocatedBytes": 101202448,
+          "gcSeconds": 0.025
+        },
+        {
+          "role": "host",
+          "pid": 77203,
+          "samples": 61,
+          "peakRssBytes": 263127040,
+          "meanRssBytes": 213008384,
+          "processorSeconds": 11.059
+        }
+      ],
+      "telemetry": {
+        "available": [
+          "http.latency",
+          "model.turns",
+          "process.rss",
+          "process.cpu",
+          "process.gc",
+          "sql.storage"
+        ],
+        "unavailable": {
+          "queue.wait": "no queued job recorded a start time"
+        },
+        "missingMandatory": []
+      },
+      "warnings": [],
+      "statusReasons": []
+    },
+    {
+      "cellId": "034-streaming-c8-full-r2",
+      "status": "complete",
+      "measuredSeconds": 60.104,
+      "drainSeconds": 0.068,
+      "arrival": {
+        "planned": 400,
+        "sent": 400,
+        "notSent": 0,
+        "accepted": 400,
+        "rejected": 0,
+        "failed": 0,
+        "timedOut": 0,
+        "completed": 400,
+        "dispatchLag": {
+          "count": 0,
+          "lowSampleP95": false,
+          "lowSampleP99": false,
+          "method": "nearest-rank"
+        }
+      },
+      "reconciliation": {
+        "acceptedRunIds": 400,
+        "terminalRuns": 400,
+        "missingRuns": 0,
+        "contentMismatches": 0,
+        "sequenceGaps": 0,
+        "liveSubscriptions": 0,
+        "historicalOnlySubscriptions": 0,
+        "tenantBleed": 0,
+        "crossTenantRefusals": 2,
+        "complete": true
+      },
+      "queueWait": {
+        "count": 0,
+        "lowSampleP95": false,
+        "lowSampleP99": false,
+        "method": "nearest-rank"
+      },
+      "processes": [
+        {
+          "role": "driver",
+          "pid": 77739,
+          "samples": 61,
+          "peakRssBytes": 91947008,
+          "meanRssBytes": 81804774,
+          "processorSeconds": 2.968,
+          "peakManagedHeapBytes": 2278072,
+          "allocatedBytes": 101198760,
+          "gcSeconds": 0.023
+        },
+        {
+          "role": "host",
+          "pid": 77738,
+          "samples": 61,
+          "peakRssBytes": 248709120,
+          "meanRssBytes": 184829784,
+          "processorSeconds": 10.605
+        }
+      ],
+      "telemetry": {
+        "available": [
+          "http.latency",
+          "model.turns",
+          "process.rss",
+          "process.cpu",
+          "process.gc",
+          "sql.storage"
+        ],
+        "unavailable": {
+          "queue.wait": "no queued job recorded a start time"
+        },
+        "missingMandatory": []
+      },
+      "warnings": [],
+      "statusReasons": []
+    },
+    {
+      "cellId": "035-streaming-c8-full-r3",
+      "status": "complete",
+      "measuredSeconds": 60.494,
+      "drainSeconds": 0.048,
+      "arrival": {
+        "planned": 400,
+        "sent": 400,
+        "notSent": 0,
+        "accepted": 400,
+        "rejected": 0,
+        "failed": 0,
+        "timedOut": 0,
+        "completed": 400,
+        "dispatchLag": {
+          "count": 0,
+          "lowSampleP95": false,
+          "lowSampleP99": false,
+          "method": "nearest-rank"
+        }
+      },
+      "reconciliation": {
+        "acceptedRunIds": 400,
+        "terminalRuns": 400,
+        "missingRuns": 0,
+        "contentMismatches": 0,
+        "sequenceGaps": 0,
+        "liveSubscriptions": 0,
+        "historicalOnlySubscriptions": 0,
+        "tenantBleed": 0,
+        "crossTenantRefusals": 2,
+        "complete": true
+      },
+      "queueWait": {
+        "count": 0,
+        "lowSampleP95": false,
+        "lowSampleP99": false,
+        "method": "nearest-rank"
+      },
+      "processes": [
+        {
+          "role": "driver",
+          "pid": 78314,
+          "samples": 61,
+          "peakRssBytes": 92848128,
+          "meanRssBytes": 78163766,
+          "processorSeconds": 3.221,
+          "peakManagedHeapBytes": 2464424,
+          "allocatedBytes": 101215992,
+          "gcSeconds": 0.025
+        },
+        {
+          "role": "host",
+          "pid": 78313,
+          "samples": 61,
+          "peakRssBytes": 234848256,
+          "meanRssBytes": 175828521,
+          "processorSeconds": 11.108
+        }
+      ],
+      "telemetry": {
+        "available": [
+          "http.latency",
+          "model.turns",
+          "process.rss",
+          "process.cpu",
+          "process.gc",
+          "sql.storage"
+        ],
+        "unavailable": {
+          "queue.wait": "no queued job recorded a start time"
+        },
+        "missingMandatory": []
+      },
+      "warnings": [],
+      "statusReasons": []
+    },
+    {
+      "cellId": "036-streaming-c32-empty-r1",
+      "status": "complete",
+      "measuredSeconds": 60.735,
+      "drainSeconds": 0.051,
+      "arrival": {
+        "planned": 1728,
+        "sent": 1728,
+        "notSent": 0,
+        "accepted": 1728,
+        "rejected": 0,
+        "failed": 0,
+        "timedOut": 0,
+        "completed": 1728,
+        "dispatchLag": {
+          "count": 0,
+          "lowSampleP95": false,
+          "lowSampleP99": false,
+          "method": "nearest-rank"
+        }
+      },
+      "reconciliation": {
+        "acceptedRunIds": 1728,
+        "terminalRuns": 1728,
+        "missingRuns": 0,
+        "contentMismatches": 0,
+        "sequenceGaps": 0,
+        "liveSubscriptions": 0,
+        "historicalOnlySubscriptions": 0,
+        "tenantBleed": 0,
+        "crossTenantRefusals": 2,
+        "complete": true
+      },
+      "queueWait": {
+        "count": 0,
+        "lowSampleP95": false,
+        "lowSampleP99": false,
+        "method": "nearest-rank"
+      },
+      "processes": [
+        {
+          "role": "driver",
+          "pid": 78871,
+          "samples": 61,
+          "peakRssBytes": 98304000,
+          "meanRssBytes": 76517577,
+          "processorSeconds": 6.872,
+          "peakManagedHeapBytes": 4917888,
+          "allocatedBytes": 430839472,
+          "gcSeconds": 0.106
+        },
+        {
+          "role": "host",
+          "pid": 78870,
+          "samples": 61,
+          "peakRssBytes": 430735360,
+          "meanRssBytes": 296054045,
+          "processorSeconds": 25.484
+        }
+      ],
+      "telemetry": {
+        "available": [
+          "http.latency",
+          "model.turns",
+          "process.rss",
+          "process.cpu",
+          "process.gc",
+          "sql.storage"
+        ],
+        "unavailable": {
+          "queue.wait": "no queued job recorded a start time"
+        },
+        "missingMandatory": []
+      },
+      "warnings": [
+        "storage/vacuum-interference: autovacuum ran inside the window; byte growth is not comparable and must stay out of any average"
+      ],
+      "statusReasons": []
+    },
+    {
+      "cellId": "037-streaming-c32-empty-r2",
+      "status": "complete",
+      "measuredSeconds": 60.715,
+      "drainSeconds": 0.052,
+      "arrival": {
+        "planned": 1728,
+        "sent": 1728,
+        "notSent": 0,
+        "accepted": 1728,
+        "rejected": 0,
+        "failed": 0,
+        "timedOut": 0,
+        "completed": 1728,
+        "dispatchLag": {
+          "count": 0,
+          "lowSampleP95": false,
+          "lowSampleP99": false,
+          "method": "nearest-rank"
+        }
+      },
+      "reconciliation": {
+        "acceptedRunIds": 1728,
+        "terminalRuns": 1728,
+        "missingRuns": 0,
+        "contentMismatches": 0,
+        "sequenceGaps": 0,
+        "liveSubscriptions": 0,
+        "historicalOnlySubscriptions": 0,
+        "tenantBleed": 0,
+        "crossTenantRefusals": 2,
+        "complete": true
+      },
+      "queueWait": {
+        "count": 0,
+        "lowSampleP95": false,
+        "lowSampleP99": false,
+        "method": "nearest-rank"
+      },
+      "processes": [
+        {
+          "role": "driver",
+          "pid": 79400,
+          "samples": 61,
+          "peakRssBytes": 97550336,
+          "meanRssBytes": 77140975,
+          "processorSeconds": 5.823,
+          "peakManagedHeapBytes": 9463664,
+          "allocatedBytes": 430560696,
+          "gcSeconds": 0.101
+        },
+        {
+          "role": "host",
+          "pid": 79399,
+          "samples": 61,
+          "peakRssBytes": 472219648,
+          "meanRssBytes": 323230266,
+          "processorSeconds": 22.657
+        }
+      ],
+      "telemetry": {
+        "available": [
+          "http.latency",
+          "model.turns",
+          "process.rss",
+          "process.cpu",
+          "process.gc",
+          "sql.storage"
+        ],
+        "unavailable": {
+          "queue.wait": "no queued job recorded a start time"
+        },
+        "missingMandatory": []
+      },
+      "warnings": [
+        "storage/vacuum-interference: autovacuum ran inside the window; byte growth is not comparable and must stay out of any average"
+      ],
+      "statusReasons": []
+    },
+    {
+      "cellId": "038-streaming-c32-empty-r3",
+      "status": "complete",
+      "measuredSeconds": 61.141,
+      "drainSeconds": 0.09,
+      "arrival": {
+        "planned": 1770,
+        "sent": 1770,
+        "notSent": 0,
+        "accepted": 1770,
+        "rejected": 0,
+        "failed": 0,
+        "timedOut": 0,
+        "completed": 1770,
+        "dispatchLag": {
+          "count": 0,
+          "lowSampleP95": false,
+          "lowSampleP99": false,
+          "method": "nearest-rank"
+        }
+      },
+      "reconciliation": {
+        "acceptedRunIds": 1770,
+        "terminalRuns": 1770,
+        "missingRuns": 0,
+        "contentMismatches": 0,
+        "sequenceGaps": 0,
+        "liveSubscriptions": 0,
+        "historicalOnlySubscriptions": 0,
+        "tenantBleed": 0,
+        "crossTenantRefusals": 2,
+        "complete": true
+      },
+      "queueWait": {
+        "count": 0,
+        "lowSampleP95": false,
+        "lowSampleP99": false,
+        "method": "nearest-rank"
+      },
+      "processes": [
+        {
+          "role": "driver",
+          "pid": 80031,
+          "samples": 62,
+          "peakRssBytes": 95682560,
+          "meanRssBytes": 75156843,
+          "processorSeconds": 6.844,
+          "peakManagedHeapBytes": 5245648,
+          "allocatedBytes": 441063312,
+          "gcSeconds": 0.09
+        },
+        {
+          "role": "host",
+          "pid": 80029,
+          "samples": 62,
+          "peakRssBytes": 409436160,
+          "meanRssBytes": 294934197,
+          "processorSeconds": 26.704
+        }
+      ],
+      "telemetry": {
+        "available": [
+          "http.latency",
+          "model.turns",
+          "process.rss",
+          "process.cpu",
+          "process.gc",
+          "sql.storage"
+        ],
+        "unavailable": {
+          "queue.wait": "no queued job recorded a start time"
+        },
+        "missingMandatory": []
+      },
+      "warnings": [
+        "storage/vacuum-interference: autovacuum ran inside the window; byte growth is not comparable and must stay out of any average"
+      ],
+      "statusReasons": []
+    },
+    {
+      "cellId": "039-streaming-c32-full-r1",
+      "status": "complete",
+      "measuredSeconds": 60.529,
+      "drainSeconds": 0.079,
+      "arrival": {
+        "planned": 1760,
+        "sent": 1760,
+        "notSent": 0,
+        "accepted": 1760,
+        "rejected": 0,
+        "failed": 0,
+        "timedOut": 0,
+        "completed": 1760,
+        "dispatchLag": {
+          "count": 0,
+          "lowSampleP95": false,
+          "lowSampleP99": false,
+          "method": "nearest-rank"
+        }
+      },
+      "reconciliation": {
+        "acceptedRunIds": 1760,
+        "terminalRuns": 1760,
+        "missingRuns": 0,
+        "contentMismatches": 0,
+        "sequenceGaps": 0,
+        "liveSubscriptions": 0,
+        "historicalOnlySubscriptions": 0,
+        "tenantBleed": 0,
+        "crossTenantRefusals": 2,
+        "complete": true
+      },
+      "queueWait": {
+        "count": 0,
+        "lowSampleP95": false,
+        "lowSampleP99": false,
+        "method": "nearest-rank"
+      },
+      "processes": [
+        {
+          "role": "driver",
+          "pid": 80526,
+          "samples": 61,
+          "peakRssBytes": 86310912,
+          "meanRssBytes": 74067766,
+          "processorSeconds": 6.394,
+          "peakManagedHeapBytes": 6041296,
+          "allocatedBytes": 438499288,
+          "gcSeconds": 0.096
+        },
+        {
+          "role": "host",
+          "pid": 80525,
+          "samples": 61,
+          "peakRssBytes": 425345024,
+          "meanRssBytes": 294783076,
+          "processorSeconds": 25.105
+        }
+      ],
+      "telemetry": {
+        "available": [
+          "http.latency",
+          "model.turns",
+          "process.rss",
+          "process.cpu",
+          "process.gc",
+          "sql.storage"
+        ],
+        "unavailable": {
+          "queue.wait": "no queued job recorded a start time"
+        },
+        "missingMandatory": []
+      },
+      "warnings": [],
+      "statusReasons": []
+    },
+    {
+      "cellId": "040-streaming-c32-full-r2",
+      "status": "complete",
+      "measuredSeconds": 60.987,
+      "drainSeconds": 0.047,
+      "arrival": {
+        "planned": 1792,
+        "sent": 1792,
+        "notSent": 0,
+        "accepted": 1792,
+        "rejected": 0,
+        "failed": 0,
+        "timedOut": 0,
+        "completed": 1792,
+        "dispatchLag": {
+          "count": 0,
+          "lowSampleP95": false,
+          "lowSampleP99": false,
+          "method": "nearest-rank"
+        }
+      },
+      "reconciliation": {
+        "acceptedRunIds": 1792,
+        "terminalRuns": 1792,
+        "missingRuns": 0,
+        "contentMismatches": 0,
+        "sequenceGaps": 0,
+        "liveSubscriptions": 0,
+        "historicalOnlySubscriptions": 0,
+        "tenantBleed": 0,
+        "crossTenantRefusals": 2,
+        "complete": true
+      },
+      "queueWait": {
+        "count": 0,
+        "lowSampleP95": false,
+        "lowSampleP99": false,
+        "method": "nearest-rank"
+      },
+      "processes": [
+        {
+          "role": "driver",
+          "pid": 81091,
+          "samples": 61,
+          "peakRssBytes": 99483648,
+          "meanRssBytes": 79103294,
+          "processorSeconds": 7.336,
+          "peakManagedHeapBytes": 7271624,
+          "allocatedBytes": 446546384,
+          "gcSeconds": 0.105
+        },
+        {
+          "role": "host",
+          "pid": 81090,
+          "samples": 61,
+          "peakRssBytes": 439451648,
+          "meanRssBytes": 341897551,
+          "processorSeconds": 28.028
+        }
+      ],
+      "telemetry": {
+        "available": [
+          "http.latency",
+          "model.turns",
+          "process.rss",
+          "process.cpu",
+          "process.gc",
+          "sql.storage"
+        ],
+        "unavailable": {
+          "queue.wait": "no queued job recorded a start time"
+        },
+        "missingMandatory": []
+      },
+      "warnings": [
+        "storage/vacuum-interference: autovacuum ran inside the window; byte growth is not comparable and must stay out of any average"
+      ],
+      "statusReasons": []
+    },
+    {
+      "cellId": "041-streaming-c32-full-r3",
+      "status": "complete",
+      "measuredSeconds": 61.141,
+      "drainSeconds": 0.048,
+      "arrival": {
+        "planned": 1780,
+        "sent": 1780,
+        "notSent": 0,
+        "accepted": 1780,
+        "rejected": 0,
+        "failed": 0,
+        "timedOut": 0,
+        "completed": 1780,
+        "dispatchLag": {
+          "count": 0,
+          "lowSampleP95": false,
+          "lowSampleP99": false,
+          "method": "nearest-rank"
+        }
+      },
+      "reconciliation": {
+        "acceptedRunIds": 1780,
+        "terminalRuns": 1780,
+        "missingRuns": 0,
+        "contentMismatches": 0,
+        "sequenceGaps": 0,
+        "liveSubscriptions": 0,
+        "historicalOnlySubscriptions": 0,
+        "tenantBleed": 0,
+        "crossTenantRefusals": 2,
+        "complete": true
+      },
+      "queueWait": {
+        "count": 0,
+        "lowSampleP95": false,
+        "lowSampleP99": false,
+        "method": "nearest-rank"
+      },
+      "processes": [
+        {
+          "role": "driver",
+          "pid": 81684,
+          "samples": 62,
+          "peakRssBytes": 98942976,
+          "meanRssBytes": 81223680,
+          "processorSeconds": 7.474,
+          "peakManagedHeapBytes": 5911320,
+          "allocatedBytes": 443593216,
+          "gcSeconds": 0.096
+        },
+        {
+          "role": "host",
+          "pid": 81683,
+          "samples": 62,
+          "peakRssBytes": 516292608,
+          "meanRssBytes": 368883645,
+          "processorSeconds": 28.026
+        }
+      ],
+      "telemetry": {
+        "available": [
+          "http.latency",
+          "model.turns",
+          "process.rss",
+          "process.cpu",
+          "process.gc",
+          "sql.storage"
+        ],
+        "unavailable": {
+          "queue.wait": "no queued job recorded a start time"
+        },
+        "missingMandatory": []
+      },
+      "warnings": [
+        "storage/vacuum-interference: autovacuum ran inside the window; byte growth is not comparable and must stay out of any average"
+      ],
+      "statusReasons": []
+    },
+    {
+      "cellId": "042-streaming-c64-empty-r1",
+      "status": "complete",
+      "measuredSeconds": 61.099,
+      "drainSeconds": 0.088,
+      "arrival": {
+        "planned": 3599,
+        "sent": 3599,
+        "notSent": 0,
+        "accepted": 3599,
+        "rejected": 0,
+        "failed": 0,
+        "timedOut": 0,
+        "completed": 3599,
+        "dispatchLag": {
+          "count": 0,
+          "lowSampleP95": false,
+          "lowSampleP99": false,
+          "method": "nearest-rank"
+        }
+      },
+      "reconciliation": {
+        "acceptedRunIds": 3599,
+        "terminalRuns": 3599,
+        "missingRuns": 0,
+        "contentMismatches": 0,
+        "sequenceGaps": 0,
+        "liveSubscriptions": 0,
+        "historicalOnlySubscriptions": 0,
+        "tenantBleed": 0,
+        "crossTenantRefusals": 2,
+        "complete": true
+      },
+      "queueWait": {
+        "count": 0,
+        "lowSampleP95": false,
+        "lowSampleP99": false,
+        "method": "nearest-rank"
+      },
+      "processes": [
+        {
+          "role": "driver",
+          "pid": 82240,
+          "samples": 62,
+          "peakRssBytes": 98664448,
+          "meanRssBytes": 85852952,
+          "processorSeconds": 11.586,
+          "peakManagedHeapBytes": 16377800,
+          "allocatedBytes": 894739304,
+          "gcSeconds": 0.194
+        },
+        {
+          "role": "host",
+          "pid": 82239,
+          "samples": 62,
+          "peakRssBytes": 607059968,
+          "meanRssBytes": 384209292,
+          "processorSeconds": 45.687
+        }
+      ],
+      "telemetry": {
+        "available": [
+          "http.latency",
+          "model.turns",
+          "process.rss",
+          "process.cpu",
+          "process.gc",
+          "sql.storage"
+        ],
+        "unavailable": {
+          "queue.wait": "no queued job recorded a start time"
+        },
+        "missingMandatory": []
+      },
+      "warnings": [
+        "storage/vacuum-interference: autovacuum ran inside the window; byte growth is not comparable and must stay out of any average"
+      ],
+      "statusReasons": []
+    },
+    {
+      "cellId": "043-streaming-c64-empty-r2",
+      "status": "complete",
+      "measuredSeconds": 61.076,
+      "drainSeconds": 0.127,
+      "arrival": {
+        "planned": 3594,
+        "sent": 3594,
+        "notSent": 0,
+        "accepted": 3594,
+        "rejected": 0,
+        "failed": 0,
+        "timedOut": 0,
+        "completed": 3594,
+        "dispatchLag": {
+          "count": 0,
+          "lowSampleP95": false,
+          "lowSampleP99": false,
+          "method": "nearest-rank"
+        }
+      },
+      "reconciliation": {
+        "acceptedRunIds": 3594,
+        "terminalRuns": 3594,
+        "missingRuns": 0,
+        "contentMismatches": 0,
+        "sequenceGaps": 0,
+        "liveSubscriptions": 0,
+        "historicalOnlySubscriptions": 0,
+        "tenantBleed": 0,
+        "crossTenantRefusals": 2,
+        "complete": true
+      },
+      "queueWait": {
+        "count": 0,
+        "lowSampleP95": false,
+        "lowSampleP99": false,
+        "method": "nearest-rank"
+      },
+      "processes": [
+        {
+          "role": "driver",
+          "pid": 82752,
+          "samples": 62,
+          "peakRssBytes": 100302848,
+          "meanRssBytes": 81506171,
+          "processorSeconds": 10.519,
+          "peakManagedHeapBytes": 12934624,
+          "allocatedBytes": 893556256,
+          "gcSeconds": 0.187
+        },
+        {
+          "role": "host",
+          "pid": 82751,
+          "samples": 62,
+          "peakRssBytes": 543752192,
+          "meanRssBytes": 311975143,
+          "processorSeconds": 43.159
+        }
+      ],
+      "telemetry": {
+        "available": [
+          "http.latency",
+          "model.turns",
+          "process.rss",
+          "process.cpu",
+          "process.gc",
+          "sql.storage"
+        ],
+        "unavailable": {
+          "queue.wait": "no queued job recorded a start time"
+        },
+        "missingMandatory": []
+      },
+      "warnings": [
+        "storage/vacuum-interference: autovacuum ran inside the window; byte growth is not comparable and must stay out of any average"
+      ],
+      "statusReasons": []
+    },
+    {
+      "cellId": "044-streaming-c64-empty-r3",
+      "status": "complete",
+      "measuredSeconds": 61.067,
+      "drainSeconds": 0.131,
+      "arrival": {
+        "planned": 3525,
+        "sent": 3525,
+        "notSent": 0,
+        "accepted": 3525,
+        "rejected": 0,
+        "failed": 0,
+        "timedOut": 0,
+        "completed": 3525,
+        "dispatchLag": {
+          "count": 0,
+          "lowSampleP95": false,
+          "lowSampleP99": false,
+          "method": "nearest-rank"
+        }
+      },
+      "reconciliation": {
+        "acceptedRunIds": 3525,
+        "terminalRuns": 3525,
+        "missingRuns": 0,
+        "contentMismatches": 0,
+        "sequenceGaps": 0,
+        "liveSubscriptions": 0,
+        "historicalOnlySubscriptions": 0,
+        "tenantBleed": 0,
+        "crossTenantRefusals": 2,
+        "complete": true
+      },
+      "queueWait": {
+        "count": 0,
+        "lowSampleP95": false,
+        "lowSampleP99": false,
+        "method": "nearest-rank"
+      },
+      "processes": [
+        {
+          "role": "driver",
+          "pid": 83337,
+          "samples": 62,
+          "peakRssBytes": 94584832,
+          "meanRssBytes": 83363906,
+          "processorSeconds": 10.917,
+          "peakManagedHeapBytes": 15110464,
+          "allocatedBytes": 876174240,
+          "gcSeconds": 0.188
+        },
+        {
+          "role": "host",
+          "pid": 83331,
+          "samples": 62,
+          "peakRssBytes": 545112064,
+          "meanRssBytes": 357349045,
+          "processorSeconds": 41.984
+        }
+      ],
+      "telemetry": {
+        "available": [
+          "http.latency",
+          "model.turns",
+          "process.rss",
+          "process.cpu",
+          "process.gc",
+          "sql.storage"
+        ],
+        "unavailable": {
+          "queue.wait": "no queued job recorded a start time"
+        },
+        "missingMandatory": []
+      },
+      "warnings": [
+        "storage/vacuum-interference: autovacuum ran inside the window; byte growth is not comparable and must stay out of any average"
+      ],
+      "statusReasons": []
+    },
+    {
+      "cellId": "045-streaming-c64-full-r1",
+      "status": "complete",
+      "measuredSeconds": 60.611,
+      "drainSeconds": 0.109,
+      "arrival": {
+        "planned": 3520,
+        "sent": 3520,
+        "notSent": 0,
+        "accepted": 3520,
+        "rejected": 0,
+        "failed": 0,
+        "timedOut": 0,
+        "completed": 3520,
+        "dispatchLag": {
+          "count": 0,
+          "lowSampleP95": false,
+          "lowSampleP99": false,
+          "method": "nearest-rank"
+        }
+      },
+      "reconciliation": {
+        "acceptedRunIds": 3520,
+        "terminalRuns": 3520,
+        "missingRuns": 0,
+        "contentMismatches": 0,
+        "sequenceGaps": 0,
+        "liveSubscriptions": 0,
+        "historicalOnlySubscriptions": 0,
+        "tenantBleed": 0,
+        "crossTenantRefusals": 2,
+        "complete": true
+      },
+      "queueWait": {
+        "count": 0,
+        "lowSampleP95": false,
+        "lowSampleP99": false,
+        "method": "nearest-rank"
+      },
+      "processes": [
+        {
+          "role": "driver",
+          "pid": 83871,
+          "samples": 61,
+          "peakRssBytes": 101875712,
+          "meanRssBytes": 83904612,
+          "processorSeconds": 10.688,
+          "peakManagedHeapBytes": 15075360,
+          "allocatedBytes": 875125392,
+          "gcSeconds": 0.2
+        },
+        {
+          "role": "host",
+          "pid": 83870,
+          "samples": 61,
+          "peakRssBytes": 582074368,
+          "meanRssBytes": 377752995,
+          "processorSeconds": 40.944
+        }
+      ],
+      "telemetry": {
+        "available": [
+          "http.latency",
+          "model.turns",
+          "process.rss",
+          "process.cpu",
+          "process.gc",
+          "sql.storage"
+        ],
+        "unavailable": {
+          "queue.wait": "no queued job recorded a start time"
+        },
+        "missingMandatory": []
+      },
+      "warnings": [
+        "storage/vacuum-interference: autovacuum ran inside the window; byte growth is not comparable and must stay out of any average"
+      ],
+      "statusReasons": []
+    },
+    {
+      "cellId": "046-streaming-c64-full-r2",
+      "status": "complete",
+      "measuredSeconds": 61.191,
+      "drainSeconds": 0.091,
+      "arrival": {
+        "planned": 3522,
+        "sent": 3522,
+        "notSent": 0,
+        "accepted": 3522,
+        "rejected": 0,
+        "failed": 0,
+        "timedOut": 0,
+        "completed": 3522,
+        "dispatchLag": {
+          "count": 0,
+          "lowSampleP95": false,
+          "lowSampleP99": false,
+          "method": "nearest-rank"
+        }
+      },
+      "reconciliation": {
+        "acceptedRunIds": 3522,
+        "terminalRuns": 3522,
+        "missingRuns": 0,
+        "contentMismatches": 0,
+        "sequenceGaps": 0,
+        "liveSubscriptions": 0,
+        "historicalOnlySubscriptions": 0,
+        "tenantBleed": 0,
+        "crossTenantRefusals": 2,
+        "complete": true
+      },
+      "queueWait": {
+        "count": 0,
+        "lowSampleP95": false,
+        "lowSampleP99": false,
+        "method": "nearest-rank"
+      },
+      "processes": [
+        {
+          "role": "driver",
+          "pid": 84446,
+          "samples": 62,
+          "peakRssBytes": 102776832,
+          "meanRssBytes": 84107528,
+          "processorSeconds": 10.801,
+          "peakManagedHeapBytes": 14310624,
+          "allocatedBytes": 875458488,
+          "gcSeconds": 0.195
+        },
+        {
+          "role": "host",
+          "pid": 84445,
+          "samples": 62,
+          "peakRssBytes": 548241408,
+          "meanRssBytes": 341417984,
+          "processorSeconds": 42.121
+        }
+      ],
+      "telemetry": {
+        "available": [
+          "http.latency",
+          "model.turns",
+          "process.rss",
+          "process.cpu",
+          "process.gc",
+          "sql.storage"
+        ],
+        "unavailable": {
+          "queue.wait": "no queued job recorded a start time"
+        },
+        "missingMandatory": []
+      },
+      "warnings": [
+        "storage/vacuum-interference: autovacuum ran inside the window; byte growth is not comparable and must stay out of any average"
+      ],
+      "statusReasons": []
+    },
+    {
+      "cellId": "047-streaming-c64-full-r3",
+      "status": "complete",
+      "measuredSeconds": 60.96,
+      "drainSeconds": 0.065,
+      "arrival": {
+        "planned": 3584,
+        "sent": 3584,
+        "notSent": 0,
+        "accepted": 3584,
+        "rejected": 0,
+        "failed": 0,
+        "timedOut": 0,
+        "completed": 3584,
+        "dispatchLag": {
+          "count": 0,
+          "lowSampleP95": false,
+          "lowSampleP99": false,
+          "method": "nearest-rank"
+        }
+      },
+      "reconciliation": {
+        "acceptedRunIds": 3584,
+        "terminalRuns": 3584,
+        "missingRuns": 0,
+        "contentMismatches": 0,
+        "sequenceGaps": 0,
+        "liveSubscriptions": 0,
+        "historicalOnlySubscriptions": 0,
+        "tenantBleed": 0,
+        "crossTenantRefusals": 2,
+        "complete": true
+      },
+      "queueWait": {
+        "count": 0,
+        "lowSampleP95": false,
+        "lowSampleP99": false,
+        "method": "nearest-rank"
+      },
+      "processes": [
+        {
+          "role": "driver",
+          "pid": 85005,
+          "samples": 61,
+          "peakRssBytes": 98664448,
+          "meanRssBytes": 87563079,
+          "processorSeconds": 10.959,
+          "peakManagedHeapBytes": 14898088,
+          "allocatedBytes": 890906296,
+          "gcSeconds": 0.188
+        },
+        {
+          "role": "host",
+          "pid": 85004,
+          "samples": 61,
+          "peakRssBytes": 529956864,
+          "meanRssBytes": 354819424,
+          "processorSeconds": 42.123
+        }
+      ],
+      "telemetry": {
+        "available": [
+          "http.latency",
+          "model.turns",
+          "process.rss",
+          "process.cpu",
+          "process.gc",
+          "sql.storage"
+        ],
+        "unavailable": {
+          "queue.wait": "no queued job recorded a start time"
+        },
+        "missingMandatory": []
+      },
+      "warnings": [
+        "storage/vacuum-interference: autovacuum ran inside the window; byte growth is not comparable and must stay out of any average"
+      ],
+      "statusReasons": []
+    },
+    {
+      "cellId": "048-queued-c1-empty-r1",
+      "status": "complete",
+      "measuredSeconds": 60.607,
+      "drainSeconds": 0.059,
+      "arrival": {
+        "planned": 47,
+        "sent": 47,
+        "notSent": 0,
+        "accepted": 47,
+        "rejected": 0,
+        "failed": 0,
+        "timedOut": 0,
+        "completed": 47,
+        "dispatchLag": {
+          "count": 0,
+          "lowSampleP95": false,
+          "lowSampleP99": false,
+          "method": "nearest-rank"
+        }
+      },
+      "reconciliation": {
+        "acceptedRunIds": 47,
+        "terminalRuns": 47,
+        "missingRuns": 0,
+        "contentMismatches": 0,
+        "sequenceGaps": 0,
+        "liveSubscriptions": 47,
+        "historicalOnlySubscriptions": 0,
+        "tenantBleed": 0,
+        "crossTenantRefusals": 2,
+        "complete": true
+      },
+      "queueWait": {
+        "count": 47,
+        "minimum": 4.668,
+        "mean": 45.189,
+        "p50": 35.191,
+        "p95": 106.53,
+        "p99": 113.222,
+        "maximum": 113.222,
+        "lowSampleP95": true,
+        "lowSampleP99": true,
+        "method": "nearest-rank"
+      },
+      "processes": [
+        {
+          "role": "driver",
+          "pid": 85519,
+          "samples": 61,
+          "peakRssBytes": 89374720,
+          "meanRssBytes": 81331518,
+          "processorSeconds": 1.568,
+          "peakManagedHeapBytes": 939232,
+          "allocatedBytes": 15879368,
+          "gcSeconds": 0.009
+        },
+        {
+          "role": "host",
+          "pid": 85517,
+          "samples": 61,
+          "peakRssBytes": 167084032,
+          "meanRssBytes": 148480402,
+          "processorSeconds": 4.38
+        }
+      ],
+      "telemetry": {
+        "available": [
+          "http.latency",
+          "model.turns",
+          "process.rss",
+          "process.cpu",
+          "process.gc",
+          "sql.storage",
+          "queue.wait"
+        ],
+        "unavailable": {},
+        "missingMandatory": []
+      },
+      "warnings": [
+        "storage/vacuum-interference: autovacuum ran inside the window; byte growth is not comparable and must stay out of any average"
+      ],
+      "statusReasons": []
+    },
+    {
+      "cellId": "049-queued-c1-empty-r2",
+      "status": "complete",
+      "measuredSeconds": 60.101,
+      "drainSeconds": 0.064,
+      "arrival": {
+        "planned": 46,
+        "sent": 46,
+        "notSent": 0,
+        "accepted": 46,
+        "rejected": 0,
+        "failed": 0,
+        "timedOut": 0,
+        "completed": 46,
+        "dispatchLag": {
+          "count": 0,
+          "lowSampleP95": false,
+          "lowSampleP99": false,
+          "method": "nearest-rank"
+        }
+      },
+      "reconciliation": {
+        "acceptedRunIds": 46,
+        "terminalRuns": 46,
+        "missingRuns": 0,
+        "contentMismatches": 0,
+        "sequenceGaps": 0,
+        "liveSubscriptions": 46,
+        "historicalOnlySubscriptions": 0,
+        "tenantBleed": 0,
+        "crossTenantRefusals": 2,
+        "complete": true
+      },
+      "queueWait": {
+        "count": 46,
+        "minimum": 3.591,
+        "mean": 53.053,
+        "p50": 57.663,
+        "p95": 105.615,
+        "p99": 109.653,
+        "maximum": 109.653,
+        "lowSampleP95": true,
+        "lowSampleP99": true,
+        "method": "nearest-rank"
+      },
+      "processes": [
+        {
+          "role": "driver",
+          "pid": 86110,
+          "samples": 61,
+          "peakRssBytes": 89194496,
+          "meanRssBytes": 81754279,
+          "processorSeconds": 1.466,
+          "peakManagedHeapBytes": 971560,
+          "allocatedBytes": 15651944,
+          "gcSeconds": 0.014
+        },
+        {
+          "role": "host",
+          "pid": 86109,
+          "samples": 61,
+          "peakRssBytes": 157908992,
+          "meanRssBytes": 141516934,
+          "processorSeconds": 4.35
+        }
+      ],
+      "telemetry": {
+        "available": [
+          "http.latency",
+          "model.turns",
+          "process.rss",
+          "process.cpu",
+          "process.gc",
+          "sql.storage",
+          "queue.wait"
+        ],
+        "unavailable": {},
+        "missingMandatory": []
+      },
+      "warnings": [],
+      "statusReasons": []
+    },
+    {
+      "cellId": "050-queued-c1-empty-r3",
+      "status": "complete",
+      "measuredSeconds": 61.245,
+      "drainSeconds": 0.063,
+      "arrival": {
+        "planned": 47,
+        "sent": 47,
+        "notSent": 0,
+        "accepted": 47,
+        "rejected": 0,
+        "failed": 0,
+        "timedOut": 0,
+        "completed": 47,
+        "dispatchLag": {
+          "count": 0,
+          "lowSampleP95": false,
+          "lowSampleP99": false,
+          "method": "nearest-rank"
+        }
+      },
+      "reconciliation": {
+        "acceptedRunIds": 47,
+        "terminalRuns": 47,
+        "missingRuns": 0,
+        "contentMismatches": 0,
+        "sequenceGaps": 0,
+        "liveSubscriptions": 47,
+        "historicalOnlySubscriptions": 0,
+        "tenantBleed": 0,
+        "crossTenantRefusals": 2,
+        "complete": true
+      },
+      "queueWait": {
+        "count": 47,
+        "minimum": 4.606,
+        "mean": 52.397,
+        "p50": 54.893,
+        "p95": 102.127,
+        "p99": 107.984,
+        "maximum": 107.984,
+        "lowSampleP95": true,
+        "lowSampleP99": true,
+        "method": "nearest-rank"
+      },
+      "processes": [
+        {
+          "role": "driver",
+          "pid": 86567,
+          "samples": 62,
+          "peakRssBytes": 88342528,
+          "meanRssBytes": 79558061,
+          "processorSeconds": 1.606,
+          "peakManagedHeapBytes": 878240,
+          "allocatedBytes": 15960472,
+          "gcSeconds": 0.012
+        },
+        {
+          "role": "host",
+          "pid": 86565,
+          "samples": 62,
+          "peakRssBytes": 155140096,
+          "meanRssBytes": 133415176,
+          "processorSeconds": 4.499
+        }
+      ],
+      "telemetry": {
+        "available": [
+          "http.latency",
+          "model.turns",
+          "process.rss",
+          "process.cpu",
+          "process.gc",
+          "sql.storage",
+          "queue.wait"
+        ],
+        "unavailable": {},
+        "missingMandatory": []
+      },
+      "warnings": [
+        "storage/vacuum-interference: autovacuum ran inside the window; byte growth is not comparable and must stay out of any average"
+      ],
+      "statusReasons": []
+    },
+    {
+      "cellId": "051-queued-c1-full-r1",
+      "status": "complete",
+      "measuredSeconds": 60.4,
+      "drainSeconds": 0.047,
+      "arrival": {
+        "planned": 46,
+        "sent": 46,
+        "notSent": 0,
+        "accepted": 46,
+        "rejected": 0,
+        "failed": 0,
+        "timedOut": 0,
+        "completed": 46,
+        "dispatchLag": {
+          "count": 0,
+          "lowSampleP95": false,
+          "lowSampleP99": false,
+          "method": "nearest-rank"
+        }
+      },
+      "reconciliation": {
+        "acceptedRunIds": 46,
+        "terminalRuns": 46,
+        "missingRuns": 0,
+        "contentMismatches": 0,
+        "sequenceGaps": 0,
+        "liveSubscriptions": 46,
+        "historicalOnlySubscriptions": 0,
+        "tenantBleed": 0,
+        "crossTenantRefusals": 2,
+        "complete": true
+      },
+      "queueWait": {
+        "count": 46,
+        "minimum": 5.685,
+        "mean": 52.042,
+        "p50": 49.056,
+        "p95": 102.615,
+        "p99": 103.515,
+        "maximum": 103.515,
+        "lowSampleP95": true,
+        "lowSampleP99": true,
+        "method": "nearest-rank"
+      },
+      "processes": [
+        {
+          "role": "driver",
+          "pid": 87175,
+          "samples": 61,
+          "peakRssBytes": 89800704,
+          "meanRssBytes": 75441873,
+          "processorSeconds": 1.511,
+          "peakManagedHeapBytes": 1039096,
+          "allocatedBytes": 15591296,
+          "gcSeconds": 0.013
+        },
+        {
+          "role": "host",
+          "pid": 87171,
+          "samples": 61,
+          "peakRssBytes": 161464320,
+          "meanRssBytes": 128402213,
+          "processorSeconds": 4.301
+        }
+      ],
+      "telemetry": {
+        "available": [
+          "http.latency",
+          "model.turns",
+          "process.rss",
+          "process.cpu",
+          "process.gc",
+          "sql.storage",
+          "queue.wait"
+        ],
+        "unavailable": {},
+        "missingMandatory": []
+      },
+      "warnings": [
+        "storage/vacuum-interference: autovacuum ran inside the window; byte growth is not comparable and must stay out of any average"
+      ],
+      "statusReasons": []
+    },
+    {
+      "cellId": "052-queued-c1-full-r2",
+      "status": "complete",
+      "measuredSeconds": 60.719,
+      "drainSeconds": 0.056,
+      "arrival": {
+        "planned": 46,
+        "sent": 46,
+        "notSent": 0,
+        "accepted": 46,
+        "rejected": 0,
+        "failed": 0,
+        "timedOut": 0,
+        "completed": 46,
+        "dispatchLag": {
+          "count": 0,
+          "lowSampleP95": false,
+          "lowSampleP99": false,
+          "method": "nearest-rank"
+        }
+      },
+      "reconciliation": {
+        "acceptedRunIds": 46,
+        "terminalRuns": 46,
+        "missingRuns": 0,
+        "contentMismatches": 0,
+        "sequenceGaps": 0,
+        "liveSubscriptions": 46,
+        "historicalOnlySubscriptions": 0,
+        "tenantBleed": 0,
+        "crossTenantRefusals": 2,
+        "complete": true
+      },
+      "queueWait": {
+        "count": 46,
+        "minimum": 3.41,
+        "mean": 58.725,
+        "p50": 61.237,
+        "p95": 103.558,
+        "p99": 114.216,
+        "maximum": 114.216,
+        "lowSampleP95": true,
+        "lowSampleP99": true,
+        "method": "nearest-rank"
+      },
+      "processes": [
+        {
+          "role": "driver",
+          "pid": 87738,
+          "samples": 61,
+          "peakRssBytes": 88588288,
+          "meanRssBytes": 78421344,
+          "processorSeconds": 1.537,
+          "peakManagedHeapBytes": 972192,
+          "allocatedBytes": 15640048,
+          "gcSeconds": 0.025
+        },
+        {
+          "role": "host",
+          "pid": 87737,
+          "samples": 61,
+          "peakRssBytes": 158416896,
+          "meanRssBytes": 135800529,
+          "processorSeconds": 4.276
+        }
+      ],
+      "telemetry": {
+        "available": [
+          "http.latency",
+          "model.turns",
+          "process.rss",
+          "process.cpu",
+          "process.gc",
+          "sql.storage",
+          "queue.wait"
+        ],
+        "unavailable": {},
+        "missingMandatory": []
+      },
+      "warnings": [
+        "storage/vacuum-interference: autovacuum ran inside the window; byte growth is not comparable and must stay out of any average"
+      ],
+      "statusReasons": []
+    },
+    {
+      "cellId": "053-queued-c1-full-r3",
+      "status": "complete",
+      "measuredSeconds": 60.844,
+      "drainSeconds": 0.069,
+      "arrival": {
+        "planned": 46,
+        "sent": 46,
+        "notSent": 0,
+        "accepted": 46,
+        "rejected": 0,
+        "failed": 0,
+        "timedOut": 0,
+        "completed": 46,
+        "dispatchLag": {
+          "count": 0,
+          "lowSampleP95": false,
+          "lowSampleP99": false,
+          "method": "nearest-rank"
+        }
+      },
+      "reconciliation": {
+        "acceptedRunIds": 46,
+        "terminalRuns": 46,
+        "missingRuns": 0,
+        "contentMismatches": 0,
+        "sequenceGaps": 0,
+        "liveSubscriptions": 46,
+        "historicalOnlySubscriptions": 0,
+        "tenantBleed": 0,
+        "crossTenantRefusals": 2,
+        "complete": true
+      },
+      "queueWait": {
+        "count": 46,
+        "minimum": 8.436,
+        "mean": 66.286,
+        "p50": 65.81,
+        "p95": 105.345,
+        "p99": 153.294,
+        "maximum": 153.294,
+        "lowSampleP95": true,
+        "lowSampleP99": true,
+        "method": "nearest-rank"
+      },
+      "processes": [
+        {
+          "role": "driver",
+          "pid": 88205,
+          "samples": 61,
+          "peakRssBytes": 84738048,
+          "meanRssBytes": 74699222,
+          "processorSeconds": 1.55,
+          "peakManagedHeapBytes": 874608,
+          "allocatedBytes": 15586768,
+          "gcSeconds": 0.013
+        },
+        {
+          "role": "host",
+          "pid": 88202,
+          "samples": 61,
+          "peakRssBytes": 145539072,
+          "meanRssBytes": 125723832,
+          "processorSeconds": 4.312
+        }
+      ],
+      "telemetry": {
+        "available": [
+          "http.latency",
+          "model.turns",
+          "process.rss",
+          "process.cpu",
+          "process.gc",
+          "sql.storage",
+          "queue.wait"
+        ],
+        "unavailable": {},
+        "missingMandatory": []
+      },
+      "warnings": [
+        "storage/vacuum-interference: autovacuum ran inside the window; byte growth is not comparable and must stay out of any average"
+      ],
+      "statusReasons": []
+    },
+    {
+      "cellId": "054-queued-c8-empty-r1",
+      "status": "complete",
+      "measuredSeconds": 60.618,
+      "drainSeconds": 0.069,
+      "arrival": {
+        "planned": 368,
+        "sent": 368,
+        "notSent": 0,
+        "accepted": 368,
+        "rejected": 0,
+        "failed": 0,
+        "timedOut": 0,
+        "completed": 368,
+        "dispatchLag": {
+          "count": 0,
+          "lowSampleP95": false,
+          "lowSampleP99": false,
+          "method": "nearest-rank"
+        }
+      },
+      "reconciliation": {
+        "acceptedRunIds": 368,
+        "terminalRuns": 368,
+        "missingRuns": 0,
+        "contentMismatches": 0,
+        "sequenceGaps": 0,
+        "liveSubscriptions": 368,
+        "historicalOnlySubscriptions": 0,
+        "tenantBleed": 0,
+        "crossTenantRefusals": 2,
+        "complete": true
+      },
+      "queueWait": {
+        "count": 368,
+        "minimum": 4.881,
+        "mean": 58.362,
+        "p50": 53.855,
+        "p95": 111.731,
+        "p99": 121.934,
+        "maximum": 127.187,
+        "lowSampleP95": false,
+        "lowSampleP99": true,
+        "method": "nearest-rank"
+      },
+      "processes": [
+        {
+          "role": "driver",
+          "pid": 88778,
+          "samples": 61,
+          "peakRssBytes": 96616448,
+          "meanRssBytes": 79187632,
+          "processorSeconds": 1.802,
+          "peakManagedHeapBytes": 4156360,
+          "allocatedBytes": 112238872,
+          "gcSeconds": 0.041
+        },
+        {
+          "role": "host",
+          "pid": 88777,
+          "samples": 61,
+          "peakRssBytes": 224133120,
+          "meanRssBytes": 173040287,
+          "processorSeconds": 7.697
+        }
+      ],
+      "telemetry": {
+        "available": [
+          "http.latency",
+          "model.turns",
+          "process.rss",
+          "process.cpu",
+          "process.gc",
+          "sql.storage",
+          "queue.wait"
+        ],
+        "unavailable": {},
+        "missingMandatory": []
+      },
+      "warnings": [
+        "storage/vacuum-interference: autovacuum ran inside the window; byte growth is not comparable and must stay out of any average"
+      ],
+      "statusReasons": []
+    },
+    {
+      "cellId": "055-queued-c8-empty-r2",
+      "status": "complete",
+      "measuredSeconds": 60.631,
+      "drainSeconds": 0.068,
+      "arrival": {
+        "planned": 368,
+        "sent": 368,
+        "notSent": 0,
+        "accepted": 368,
+        "rejected": 0,
+        "failed": 0,
+        "timedOut": 0,
+        "completed": 368,
+        "dispatchLag": {
+          "count": 0,
+          "lowSampleP95": false,
+          "lowSampleP99": false,
+          "method": "nearest-rank"
+        }
+      },
+      "reconciliation": {
+        "acceptedRunIds": 368,
+        "terminalRuns": 368,
+        "missingRuns": 0,
+        "contentMismatches": 0,
+        "sequenceGaps": 0,
+        "liveSubscriptions": 368,
+        "historicalOnlySubscriptions": 0,
+        "tenantBleed": 0,
+        "crossTenantRefusals": 2,
+        "complete": true
+      },
+      "queueWait": {
+        "count": 368,
+        "minimum": 4.424,
+        "mean": 59.966,
+        "p50": 61.265,
+        "p95": 106.592,
+        "p99": 114.556,
+        "maximum": 124.356,
+        "lowSampleP95": false,
+        "lowSampleP99": true,
+        "method": "nearest-rank"
+      },
+      "processes": [
+        {
+          "role": "driver",
+          "pid": 89322,
+          "samples": 61,
+          "peakRssBytes": 96550912,
+          "meanRssBytes": 73911984,
+          "processorSeconds": 1.904,
+          "peakManagedHeapBytes": 4872976,
+          "allocatedBytes": 112276216,
+          "gcSeconds": 0.044
+        },
+        {
+          "role": "host",
+          "pid": 89316,
+          "samples": 61,
+          "peakRssBytes": 260112384,
+          "meanRssBytes": 163610355,
+          "processorSeconds": 8.289
+        }
+      ],
+      "telemetry": {
+        "available": [
+          "http.latency",
+          "model.turns",
+          "process.rss",
+          "process.cpu",
+          "process.gc",
+          "sql.storage",
+          "queue.wait"
+        ],
+        "unavailable": {},
+        "missingMandatory": []
+      },
+      "warnings": [
+        "storage/vacuum-interference: autovacuum ran inside the window; byte growth is not comparable and must stay out of any average"
+      ],
+      "statusReasons": []
+    },
+    {
+      "cellId": "056-queued-c8-empty-r3",
+      "status": "complete",
+      "measuredSeconds": 60.856,
+      "drainSeconds": 0.065,
+      "arrival": {
+        "planned": 368,
+        "sent": 368,
+        "notSent": 0,
+        "accepted": 368,
+        "rejected": 0,
+        "failed": 0,
+        "timedOut": 0,
+        "completed": 368,
+        "dispatchLag": {
+          "count": 0,
+          "lowSampleP95": false,
+          "lowSampleP99": false,
+          "method": "nearest-rank"
+        }
+      },
+      "reconciliation": {
+        "acceptedRunIds": 368,
+        "terminalRuns": 368,
+        "missingRuns": 0,
+        "contentMismatches": 0,
+        "sequenceGaps": 0,
+        "liveSubscriptions": 368,
+        "historicalOnlySubscriptions": 0,
+        "tenantBleed": 0,
+        "crossTenantRefusals": 2,
+        "complete": true
+      },
+      "queueWait": {
+        "count": 368,
+        "minimum": 6.681,
+        "mean": 66.67,
+        "p50": 64.579,
+        "p95": 117.865,
+        "p99": 129.247,
+        "maximum": 133.543,
+        "lowSampleP95": false,
+        "lowSampleP99": true,
+        "method": "nearest-rank"
+      },
+      "processes": [
+        {
+          "role": "driver",
+          "pid": 89892,
+          "samples": 61,
+          "peakRssBytes": 99385344,
+          "meanRssBytes": 95078769,
+          "processorSeconds": 1.722,
+          "peakManagedHeapBytes": 4429856,
+          "allocatedBytes": 112132152,
+          "gcSeconds": 0.033
+        },
+        {
+          "role": "host",
+          "pid": 89891,
+          "samples": 61,
+          "peakRssBytes": 352436224,
+          "meanRssBytes": 282962423,
+          "processorSeconds": 7.498
+        }
+      ],
+      "telemetry": {
+        "available": [
+          "http.latency",
+          "model.turns",
+          "process.rss",
+          "process.cpu",
+          "process.gc",
+          "sql.storage",
+          "queue.wait"
+        ],
+        "unavailable": {},
+        "missingMandatory": []
+      },
+      "warnings": [
+        "storage/vacuum-interference: autovacuum ran inside the window; byte growth is not comparable and must stay out of any average"
+      ],
+      "statusReasons": []
+    },
+    {
+      "cellId": "057-queued-c8-full-r1",
+      "status": "complete",
+      "measuredSeconds": 60.603,
+      "drainSeconds": 0.065,
+      "arrival": {
+        "planned": 368,
+        "sent": 368,
+        "notSent": 0,
+        "accepted": 368,
+        "rejected": 0,
+        "failed": 0,
+        "timedOut": 0,
+        "completed": 368,
+        "dispatchLag": {
+          "count": 0,
+          "lowSampleP95": false,
+          "lowSampleP99": false,
+          "method": "nearest-rank"
+        }
+      },
+      "reconciliation": {
+        "acceptedRunIds": 368,
+        "terminalRuns": 368,
+        "missingRuns": 0,
+        "contentMismatches": 0,
+        "sequenceGaps": 0,
+        "liveSubscriptions": 368,
+        "historicalOnlySubscriptions": 0,
+        "tenantBleed": 0,
+        "crossTenantRefusals": 2,
+        "complete": true
+      },
+      "queueWait": {
+        "count": 368,
+        "minimum": 8.965,
+        "mean": 63.571,
+        "p50": 61.873,
+        "p95": 116.495,
+        "p99": 123.01,
+        "maximum": 149.439,
+        "lowSampleP95": false,
+        "lowSampleP99": true,
+        "method": "nearest-rank"
+      },
+      "processes": [
+        {
+          "role": "driver",
+          "pid": 90460,
+          "samples": 61,
+          "peakRssBytes": 94060544,
+          "meanRssBytes": 90402077,
+          "processorSeconds": 1.894,
+          "peakManagedHeapBytes": 3775328,
+          "allocatedBytes": 112237792,
+          "gcSeconds": 0.044
+        },
+        {
+          "role": "host",
+          "pid": 90458,
+          "samples": 61,
+          "peakRssBytes": 385368064,
+          "meanRssBytes": 264949961,
+          "processorSeconds": 7.982
+        }
+      ],
+      "telemetry": {
+        "available": [
+          "http.latency",
+          "model.turns",
+          "process.rss",
+          "process.cpu",
+          "process.gc",
+          "sql.storage",
+          "queue.wait"
+        ],
+        "unavailable": {},
+        "missingMandatory": []
+      },
+      "warnings": [
+        "storage/vacuum-interference: autovacuum ran inside the window; byte growth is not comparable and must stay out of any average"
+      ],
+      "statusReasons": []
+    },
+    {
+      "cellId": "058-queued-c8-full-r2",
+      "status": "complete",
+      "measuredSeconds": 60.628,
+      "drainSeconds": 0.061,
+      "arrival": {
+        "planned": 368,
+        "sent": 368,
+        "notSent": 0,
+        "accepted": 368,
+        "rejected": 0,
+        "failed": 0,
+        "timedOut": 0,
+        "completed": 368,
+        "dispatchLag": {
+          "count": 0,
+          "lowSampleP95": false,
+          "lowSampleP99": false,
+          "method": "nearest-rank"
+        }
+      },
+      "reconciliation": {
+        "acceptedRunIds": 368,
+        "terminalRuns": 368,
+        "missingRuns": 0,
+        "contentMismatches": 0,
+        "sequenceGaps": 0,
+        "liveSubscriptions": 368,
+        "historicalOnlySubscriptions": 0,
+        "tenantBleed": 0,
+        "crossTenantRefusals": 2,
+        "complete": true
+      },
+      "queueWait": {
+        "count": 368,
+        "minimum": 5.66,
+        "mean": 59.196,
+        "p50": 58.265,
+        "p95": 112.302,
+        "p99": 118.684,
+        "maximum": 122.41,
+        "lowSampleP95": false,
+        "lowSampleP99": true,
+        "method": "nearest-rank"
+      },
+      "processes": [
+        {
+          "role": "driver",
+          "pid": 91018,
+          "samples": 61,
+          "peakRssBytes": 112132096,
+          "meanRssBytes": 96300317,
+          "processorSeconds": 1.929,
+          "peakManagedHeapBytes": 4185064,
+          "allocatedBytes": 112358624,
+          "gcSeconds": 0.039
+        },
+        {
+          "role": "host",
+          "pid": 91017,
+          "samples": 61,
+          "peakRssBytes": 327794688,
+          "meanRssBytes": 271814588,
+          "processorSeconds": 8.184
+        }
+      ],
+      "telemetry": {
+        "available": [
+          "http.latency",
+          "model.turns",
+          "process.rss",
+          "process.cpu",
+          "process.gc",
+          "sql.storage",
+          "queue.wait"
+        ],
+        "unavailable": {},
+        "missingMandatory": []
+      },
+      "warnings": [
+        "storage/vacuum-interference: autovacuum ran inside the window; byte growth is not comparable and must stay out of any average"
+      ],
+      "statusReasons": []
+    },
+    {
+      "cellId": "059-queued-c8-full-r3",
+      "status": "complete",
+      "measuredSeconds": 60.44,
+      "drainSeconds": 0.049,
+      "arrival": {
+        "planned": 368,
+        "sent": 368,
+        "notSent": 0,
+        "accepted": 368,
+        "rejected": 0,
+        "failed": 0,
+        "timedOut": 0,
+        "completed": 368,
+        "dispatchLag": {
+          "count": 0,
+          "lowSampleP95": false,
+          "lowSampleP99": false,
+          "method": "nearest-rank"
+        }
+      },
+      "reconciliation": {
+        "acceptedRunIds": 368,
+        "terminalRuns": 368,
+        "missingRuns": 0,
+        "contentMismatches": 0,
+        "sequenceGaps": 0,
+        "liveSubscriptions": 368,
+        "historicalOnlySubscriptions": 0,
+        "tenantBleed": 0,
+        "crossTenantRefusals": 2,
+        "complete": true
+      },
+      "queueWait": {
+        "count": 368,
+        "minimum": 4.973,
+        "mean": 62.494,
+        "p50": 64.461,
+        "p95": 119.368,
+        "p99": 128.956,
+        "maximum": 130.242,
+        "lowSampleP95": false,
+        "lowSampleP99": true,
+        "method": "nearest-rank"
+      },
+      "processes": [
+        {
+          "role": "driver",
+          "pid": 91547,
+          "samples": 61,
+          "peakRssBytes": 112607232,
+          "meanRssBytes": 96803118,
+          "processorSeconds": 1.905,
+          "peakManagedHeapBytes": 4308592,
+          "allocatedBytes": 112322224,
+          "gcSeconds": 0.044
+        },
+        {
+          "role": "host",
+          "pid": 91546,
+          "samples": 61,
+          "peakRssBytes": 335118336,
+          "meanRssBytes": 275281550,
+          "processorSeconds": 8.23
+        }
+      ],
+      "telemetry": {
+        "available": [
+          "http.latency",
+          "model.turns",
+          "process.rss",
+          "process.cpu",
+          "process.gc",
+          "sql.storage",
+          "queue.wait"
+        ],
+        "unavailable": {},
+        "missingMandatory": []
+      },
+      "warnings": [
+        "storage/vacuum-interference: autovacuum ran inside the window; byte growth is not comparable and must stay out of any average"
+      ],
+      "statusReasons": []
+    },
+    {
+      "cellId": "060-queued-c32-empty-r1",
+      "status": "complete",
+      "measuredSeconds": 63.875,
+      "drainSeconds": 0.062,
+      "arrival": {
+        "planned": 464,
+        "sent": 464,
+        "notSent": 0,
+        "accepted": 464,
+        "rejected": 0,
+        "failed": 0,
+        "timedOut": 0,
+        "completed": 464,
+        "dispatchLag": {
+          "count": 0,
+          "lowSampleP95": false,
+          "lowSampleP99": false,
+          "method": "nearest-rank"
+        }
+      },
+      "reconciliation": {
+        "acceptedRunIds": 464,
+        "terminalRuns": 464,
+        "missingRuns": 0,
+        "contentMismatches": 0,
+        "sequenceGaps": 0,
+        "liveSubscriptions": 464,
+        "historicalOnlySubscriptions": 0,
+        "tenantBleed": 0,
+        "crossTenantRefusals": 2,
+        "complete": true
+      },
+      "queueWait": {
+        "count": 464,
+        "minimum": 34.729,
+        "mean": 3097.405,
+        "p50": 3193.653,
+        "p95": 3324.406,
+        "p99": 3345.837,
+        "maximum": 3351.453,
+        "lowSampleP95": false,
+        "lowSampleP99": true,
+        "method": "nearest-rank"
+      },
+      "processes": [
+        {
+          "role": "driver",
+          "pid": 92108,
+          "samples": 64,
+          "peakRssBytes": 96894976,
+          "meanRssBytes": 91865856,
+          "processorSeconds": 2.055,
+          "peakManagedHeapBytes": 8164960,
+          "allocatedBytes": 144860080,
+          "gcSeconds": 0.043
+        },
+        {
+          "role": "host",
+          "pid": 92087,
+          "samples": 64,
+          "peakRssBytes": 456818688,
+          "meanRssBytes": 365252096,
+          "processorSeconds": 9.957
+        }
+      ],
+      "telemetry": {
+        "available": [
+          "http.latency",
+          "model.turns",
+          "process.rss",
+          "process.cpu",
+          "process.gc",
+          "sql.storage",
+          "queue.wait"
+        ],
+        "unavailable": {},
+        "missingMandatory": []
+      },
+      "warnings": [
+        "storage/vacuum-interference: autovacuum ran inside the window; byte growth is not comparable and must stay out of any average"
+      ],
+      "statusReasons": []
+    },
+    {
+      "cellId": "061-queued-c32-empty-r2",
+      "status": "complete",
+      "measuredSeconds": 64.172,
+      "drainSeconds": 0.069,
+      "arrival": {
+        "planned": 464,
+        "sent": 464,
+        "notSent": 0,
+        "accepted": 464,
+        "rejected": 0,
+        "failed": 0,
+        "timedOut": 0,
+        "completed": 464,
+        "dispatchLag": {
+          "count": 0,
+          "lowSampleP95": false,
+          "lowSampleP99": false,
+          "method": "nearest-rank"
+        }
+      },
+      "reconciliation": {
+        "acceptedRunIds": 464,
+        "terminalRuns": 464,
+        "missingRuns": 0,
+        "contentMismatches": 0,
+        "sequenceGaps": 0,
+        "liveSubscriptions": 464,
+        "historicalOnlySubscriptions": 0,
+        "tenantBleed": 0,
+        "crossTenantRefusals": 2,
+        "complete": true
+      },
+      "queueWait": {
+        "count": 464,
+        "minimum": 61.87,
+        "mean": 3111.113,
+        "p50": 3201.527,
+        "p95": 3360.407,
+        "p99": 3431.551,
+        "maximum": 3437.089,
+        "lowSampleP95": false,
+        "lowSampleP99": true,
+        "method": "nearest-rank"
+      },
+      "processes": [
+        {
+          "role": "driver",
+          "pid": 92645,
+          "samples": 65,
+          "peakRssBytes": 117096448,
+          "meanRssBytes": 96319771,
+          "processorSeconds": 2.044,
+          "peakManagedHeapBytes": 12852056,
+          "allocatedBytes": 144659504,
+          "gcSeconds": 0.045
+        },
+        {
+          "role": "host",
+          "pid": 92639,
+          "samples": 65,
+          "peakRssBytes": 445104128,
+          "meanRssBytes": 356152367,
+          "processorSeconds": 9.988
+        }
+      ],
+      "telemetry": {
+        "available": [
+          "http.latency",
+          "model.turns",
+          "process.rss",
+          "process.cpu",
+          "process.gc",
+          "sql.storage",
+          "queue.wait"
+        ],
+        "unavailable": {},
+        "missingMandatory": []
+      },
+      "warnings": [
+        "storage/vacuum-interference: autovacuum ran inside the window; byte growth is not comparable and must stay out of any average"
+      ],
+      "statusReasons": []
+    },
+    {
+      "cellId": "062-queued-c32-empty-r3",
+      "status": "complete",
+      "measuredSeconds": 64.07,
+      "drainSeconds": 0.069,
+      "arrival": {
+        "planned": 464,
+        "sent": 464,
+        "notSent": 0,
+        "accepted": 464,
+        "rejected": 0,
+        "failed": 0,
+        "timedOut": 0,
+        "completed": 464,
+        "dispatchLag": {
+          "count": 0,
+          "lowSampleP95": false,
+          "lowSampleP99": false,
+          "method": "nearest-rank"
+        }
+      },
+      "reconciliation": {
+        "acceptedRunIds": 464,
+        "terminalRuns": 464,
+        "missingRuns": 0,
+        "contentMismatches": 0,
+        "sequenceGaps": 0,
+        "liveSubscriptions": 464,
+        "historicalOnlySubscriptions": 0,
+        "tenantBleed": 0,
+        "crossTenantRefusals": 2,
+        "complete": true
+      },
+      "queueWait": {
+        "count": 464,
+        "minimum": 90.697,
+        "mean": 3111.924,
+        "p50": 3201.943,
+        "p95": 3337.961,
+        "p99": 3387.925,
+        "maximum": 3391.955,
+        "lowSampleP95": false,
+        "lowSampleP99": true,
+        "method": "nearest-rank"
+      },
+      "processes": [
+        {
+          "role": "driver",
+          "pid": 93186,
+          "samples": 64,
+          "peakRssBytes": 118177792,
+          "meanRssBytes": 94477824,
+          "processorSeconds": 1.986,
+          "peakManagedHeapBytes": 8196960,
+          "allocatedBytes": 144675360,
+          "gcSeconds": 0.044
+        },
+        {
+          "role": "host",
+          "pid": 93185,
+          "samples": 64,
+          "peakRssBytes": 447217664,
+          "meanRssBytes": 337423360,
+          "processorSeconds": 9.707
+        }
+      ],
+      "telemetry": {
+        "available": [
+          "http.latency",
+          "model.turns",
+          "process.rss",
+          "process.cpu",
+          "process.gc",
+          "sql.storage",
+          "queue.wait"
+        ],
+        "unavailable": {},
+        "missingMandatory": []
+      },
+      "warnings": [
+        "storage/vacuum-interference: autovacuum ran inside the window; byte growth is not comparable and must stay out of any average"
+      ],
+      "statusReasons": []
+    },
+    {
+      "cellId": "063-queued-c32-full-r1",
+      "status": "complete",
+      "measuredSeconds": 64.11,
+      "drainSeconds": 0.059,
+      "arrival": {
+        "planned": 464,
+        "sent": 464,
+        "notSent": 0,
+        "accepted": 464,
+        "rejected": 0,
+        "failed": 0,
+        "timedOut": 0,
+        "completed": 464,
+        "dispatchLag": {
+          "count": 0,
+          "lowSampleP95": false,
+          "lowSampleP99": false,
+          "method": "nearest-rank"
+        }
+      },
+      "reconciliation": {
+        "acceptedRunIds": 464,
+        "terminalRuns": 464,
+        "missingRuns": 0,
+        "contentMismatches": 0,
+        "sequenceGaps": 0,
+        "liveSubscriptions": 464,
+        "historicalOnlySubscriptions": 0,
+        "tenantBleed": 0,
+        "crossTenantRefusals": 2,
+        "complete": true
+      },
+      "queueWait": {
+        "count": 464,
+        "minimum": 55.207,
+        "mean": 3098.388,
+        "p50": 3196.149,
+        "p95": 3335.197,
+        "p99": 3356.472,
+        "maximum": 3361.232,
+        "lowSampleP95": false,
+        "lowSampleP99": true,
+        "method": "nearest-rank"
+      },
+      "processes": [
+        {
+          "role": "driver",
+          "pid": 93755,
+          "samples": 64,
+          "peakRssBytes": 101384192,
+          "meanRssBytes": 81657856,
+          "processorSeconds": 2.016,
+          "peakManagedHeapBytes": 8373368,
+          "allocatedBytes": 144711408,
+          "gcSeconds": 0.041
+        },
+        {
+          "role": "host",
+          "pid": 93752,
+          "samples": 64,
+          "peakRssBytes": 426115072,
+          "meanRssBytes": 282139904,
+          "processorSeconds": 9.846
+        }
+      ],
+      "telemetry": {
+        "available": [
+          "http.latency",
+          "model.turns",
+          "process.rss",
+          "process.cpu",
+          "process.gc",
+          "sql.storage",
+          "queue.wait"
+        ],
+        "unavailable": {},
+        "missingMandatory": []
+      },
+      "warnings": [
+        "storage/vacuum-interference: autovacuum ran inside the window; byte growth is not comparable and must stay out of any average"
+      ],
+      "statusReasons": []
+    },
+    {
+      "cellId": "064-queued-c32-full-r2",
+      "status": "complete",
+      "measuredSeconds": 63.982,
+      "drainSeconds": 0.068,
+      "arrival": {
+        "planned": 464,
+        "sent": 464,
+        "notSent": 0,
+        "accepted": 464,
+        "rejected": 0,
+        "failed": 0,
+        "timedOut": 0,
+        "completed": 464,
+        "dispatchLag": {
+          "count": 0,
+          "lowSampleP95": false,
+          "lowSampleP99": false,
+          "method": "nearest-rank"
+        }
+      },
+      "reconciliation": {
+        "acceptedRunIds": 464,
+        "terminalRuns": 464,
+        "missingRuns": 0,
+        "contentMismatches": 0,
+        "sequenceGaps": 0,
+        "liveSubscriptions": 464,
+        "historicalOnlySubscriptions": 0,
+        "tenantBleed": 0,
+        "crossTenantRefusals": 2,
+        "complete": true
+      },
+      "queueWait": {
+        "count": 464,
+        "minimum": 57.181,
+        "mean": 3100.333,
+        "p50": 3188.792,
+        "p95": 3326.106,
+        "p99": 3358.545,
+        "maximum": 3363.471,
+        "lowSampleP95": false,
+        "lowSampleP99": true,
+        "method": "nearest-rank"
+      },
+      "processes": [
+        {
+          "role": "driver",
+          "pid": 94344,
+          "samples": 64,
+          "peakRssBytes": 117882880,
+          "meanRssBytes": 100975616,
+          "processorSeconds": 2.032,
+          "peakManagedHeapBytes": 8265656,
+          "allocatedBytes": 144716776,
+          "gcSeconds": 0.042
+        },
+        {
+          "role": "host",
+          "pid": 94336,
+          "samples": 64,
+          "peakRssBytes": 447463424,
+          "meanRssBytes": 341419520,
+          "processorSeconds": 9.886
+        }
+      ],
+      "telemetry": {
+        "available": [
+          "http.latency",
+          "model.turns",
+          "process.rss",
+          "process.cpu",
+          "process.gc",
+          "sql.storage",
+          "queue.wait"
+        ],
+        "unavailable": {},
+        "missingMandatory": []
+      },
+      "warnings": [
+        "storage/vacuum-interference: autovacuum ran inside the window; byte growth is not comparable and must stay out of any average"
+      ],
+      "statusReasons": []
+    },
+    {
+      "cellId": "065-queued-c32-full-r3",
+      "status": "complete",
+      "measuredSeconds": 64.086,
+      "drainSeconds": 0.066,
+      "arrival": {
+        "planned": 464,
+        "sent": 464,
+        "notSent": 0,
+        "accepted": 464,
+        "rejected": 0,
+        "failed": 0,
+        "timedOut": 0,
+        "completed": 464,
+        "dispatchLag": {
+          "count": 0,
+          "lowSampleP95": false,
+          "lowSampleP99": false,
+          "method": "nearest-rank"
+        }
+      },
+      "reconciliation": {
+        "acceptedRunIds": 464,
+        "terminalRuns": 464,
+        "missingRuns": 0,
+        "contentMismatches": 0,
+        "sequenceGaps": 0,
+        "liveSubscriptions": 464,
+        "historicalOnlySubscriptions": 0,
+        "tenantBleed": 0,
+        "crossTenantRefusals": 2,
+        "complete": true
+      },
+      "queueWait": {
+        "count": 464,
+        "minimum": 21.81,
+        "mean": 3097.996,
+        "p50": 3196.235,
+        "p95": 3329.35,
+        "p99": 3350.212,
+        "maximum": 3353.592,
+        "lowSampleP95": false,
+        "lowSampleP99": true,
+        "method": "nearest-rank"
+      },
+      "processes": [
+        {
+          "role": "driver",
+          "pid": 94933,
+          "samples": 64,
+          "peakRssBytes": 117751808,
+          "meanRssBytes": 96076544,
+          "processorSeconds": 2.132,
+          "peakManagedHeapBytes": 8087312,
+          "allocatedBytes": 144613560,
+          "gcSeconds": 0.039
+        },
+        {
+          "role": "host",
+          "pid": 94932,
+          "samples": 64,
+          "peakRssBytes": 454623232,
+          "meanRssBytes": 352584704,
+          "processorSeconds": 10.225
+        }
+      ],
+      "telemetry": {
+        "available": [
+          "http.latency",
+          "model.turns",
+          "process.rss",
+          "process.cpu",
+          "process.gc",
+          "sql.storage",
+          "queue.wait"
+        ],
+        "unavailable": {},
+        "missingMandatory": []
+      },
+      "warnings": [
+        "storage/vacuum-interference: autovacuum ran inside the window; byte growth is not comparable and must stay out of any average"
+      ],
+      "statusReasons": []
+    },
+    {
+      "cellId": "066-queued-c64-empty-r1",
+      "status": "complete",
+      "measuredSeconds": 68.436,
+      "drainSeconds": 0.068,
+      "arrival": {
+        "planned": 496,
+        "sent": 496,
+        "notSent": 0,
+        "accepted": 496,
+        "rejected": 0,
+        "failed": 0,
+        "timedOut": 0,
+        "completed": 496,
+        "dispatchLag": {
+          "count": 0,
+          "lowSampleP95": false,
+          "lowSampleP99": false,
+          "method": "nearest-rank"
+        }
+      },
+      "reconciliation": {
+        "acceptedRunIds": 496,
+        "terminalRuns": 496,
+        "missingRuns": 0,
+        "contentMismatches": 0,
+        "sequenceGaps": 0,
+        "liveSubscriptions": 496,
+        "historicalOnlySubscriptions": 0,
+        "tenantBleed": 0,
+        "crossTenantRefusals": 2,
+        "complete": true
+      },
+      "queueWait": {
+        "count": 496,
+        "minimum": 9.403,
+        "mean": 7117.457,
+        "p50": 7585.264,
+        "p95": 7714.768,
+        "p99": 7733.686,
+        "maximum": 7751.633,
+        "lowSampleP95": false,
+        "lowSampleP99": true,
+        "method": "nearest-rank"
+      },
+      "processes": [
+        {
+          "role": "driver",
+          "pid": 95466,
+          "samples": 69,
+          "peakRssBytes": 114180096,
+          "meanRssBytes": 98424861,
+          "processorSeconds": 2.638,
+          "peakManagedHeapBytes": 13804680,
+          "allocatedBytes": 159945880,
+          "gcSeconds": 0.043
+        },
+        {
+          "role": "host",
+          "pid": 95465,
+          "samples": 69,
+          "peakRssBytes": 531939328,
+          "meanRssBytes": 418175005,
+          "processorSeconds": 12.931
+        }
+      ],
+      "telemetry": {
+        "available": [
+          "http.latency",
+          "model.turns",
+          "process.rss",
+          "process.cpu",
+          "process.gc",
+          "sql.storage",
+          "queue.wait"
+        ],
+        "unavailable": {},
+        "missingMandatory": []
+      },
+      "warnings": [
+        "storage/vacuum-interference: autovacuum ran inside the window; byte growth is not comparable and must stay out of any average"
+      ],
+      "statusReasons": []
+    },
+    {
+      "cellId": "067-queued-c64-empty-r2",
+      "status": "complete",
+      "measuredSeconds": 68.508,
+      "drainSeconds": 0.074,
+      "arrival": {
+        "planned": 496,
+        "sent": 496,
+        "notSent": 0,
+        "accepted": 496,
+        "rejected": 0,
+        "failed": 0,
+        "timedOut": 0,
+        "completed": 496,
+        "dispatchLag": {
+          "count": 0,
+          "lowSampleP95": false,
+          "lowSampleP99": false,
+          "method": "nearest-rank"
+        }
+      },
+      "reconciliation": {
+        "acceptedRunIds": 496,
+        "terminalRuns": 496,
+        "missingRuns": 0,
+        "contentMismatches": 0,
+        "sequenceGaps": 0,
+        "liveSubscriptions": 496,
+        "historicalOnlySubscriptions": 0,
+        "tenantBleed": 0,
+        "crossTenantRefusals": 2,
+        "complete": true
+      },
+      "queueWait": {
+        "count": 496,
+        "minimum": 88.837,
+        "mean": 7131.188,
+        "p50": 7592.902,
+        "p95": 7715.048,
+        "p99": 7786.267,
+        "maximum": 7791.192,
+        "lowSampleP95": false,
+        "lowSampleP99": true,
+        "method": "nearest-rank"
+      },
+      "processes": [
+        {
+          "role": "driver",
+          "pid": 96107,
+          "samples": 69,
+          "peakRssBytes": 111460352,
+          "meanRssBytes": 102721743,
+          "processorSeconds": 2.563,
+          "peakManagedHeapBytes": 14106760,
+          "allocatedBytes": 159913488,
+          "gcSeconds": 0.041
+        },
+        {
+          "role": "host",
+          "pid": 96106,
+          "samples": 69,
+          "peakRssBytes": 574914560,
+          "meanRssBytes": 479715921,
+          "processorSeconds": 12.64
+        }
+      ],
+      "telemetry": {
+        "available": [
+          "http.latency",
+          "model.turns",
+          "process.rss",
+          "process.cpu",
+          "process.gc",
+          "sql.storage",
+          "queue.wait"
+        ],
+        "unavailable": {},
+        "missingMandatory": []
+      },
+      "warnings": [
+        "storage/vacuum-interference: autovacuum ran inside the window; byte growth is not comparable and must stay out of any average"
+      ],
+      "statusReasons": []
+    },
+    {
+      "cellId": "068-queued-c64-empty-r3",
+      "status": "complete",
+      "measuredSeconds": 68.46,
+      "drainSeconds": 0.057,
+      "arrival": {
+        "planned": 496,
+        "sent": 496,
+        "notSent": 0,
+        "accepted": 496,
+        "rejected": 0,
+        "failed": 0,
+        "timedOut": 0,
+        "completed": 496,
+        "dispatchLag": {
+          "count": 0,
+          "lowSampleP95": false,
+          "lowSampleP99": false,
+          "method": "nearest-rank"
+        }
+      },
+      "reconciliation": {
+        "acceptedRunIds": 496,
+        "terminalRuns": 496,
+        "missingRuns": 0,
+        "contentMismatches": 0,
+        "sequenceGaps": 0,
+        "liveSubscriptions": 496,
+        "historicalOnlySubscriptions": 0,
+        "tenantBleed": 0,
+        "crossTenantRefusals": 2,
+        "complete": true
+      },
+      "queueWait": {
+        "count": 496,
+        "minimum": 50.016,
+        "mean": 7129.6,
+        "p50": 7594.158,
+        "p95": 7728.12,
+        "p99": 7750.48,
+        "maximum": 7754.721,
+        "lowSampleP95": false,
+        "lowSampleP99": true,
+        "method": "nearest-rank"
+      },
+      "processes": [
+        {
+          "role": "driver",
+          "pid": 96679,
+          "samples": 69,
+          "peakRssBytes": 119177216,
+          "meanRssBytes": 102733616,
+          "processorSeconds": 2.608,
+          "peakManagedHeapBytes": 13973096,
+          "allocatedBytes": 159754152,
+          "gcSeconds": 0.044
+        },
+        {
+          "role": "host",
+          "pid": 96678,
+          "samples": 69,
+          "peakRssBytes": 581042176,
+          "meanRssBytes": 458329815,
+          "processorSeconds": 12.97
+        }
+      ],
+      "telemetry": {
+        "available": [
+          "http.latency",
+          "model.turns",
+          "process.rss",
+          "process.cpu",
+          "process.gc",
+          "sql.storage",
+          "queue.wait"
+        ],
+        "unavailable": {},
+        "missingMandatory": []
+      },
+      "warnings": [
+        "storage/vacuum-interference: autovacuum ran inside the window; byte growth is not comparable and must stay out of any average"
+      ],
+      "statusReasons": []
+    },
+    {
+      "cellId": "069-queued-c64-full-r1",
+      "status": "complete",
+      "measuredSeconds": 67.655,
+      "drainSeconds": 0.056,
+      "arrival": {
+        "planned": 480,
+        "sent": 480,
+        "notSent": 0,
+        "accepted": 480,
+        "rejected": 0,
+        "failed": 0,
+        "timedOut": 0,
+        "completed": 480,
+        "dispatchLag": {
+          "count": 0,
+          "lowSampleP95": false,
+          "lowSampleP99": false,
+          "method": "nearest-rank"
+        }
+      },
+      "reconciliation": {
+        "acceptedRunIds": 480,
+        "terminalRuns": 480,
+        "missingRuns": 0,
+        "contentMismatches": 0,
+        "sequenceGaps": 0,
+        "liveSubscriptions": 480,
+        "historicalOnlySubscriptions": 0,
+        "tenantBleed": 0,
+        "crossTenantRefusals": 2,
+        "complete": true
+      },
+      "queueWait": {
+        "count": 480,
+        "minimum": 52.755,
+        "mean": 7301.802,
+        "p50": 7619.504,
+        "p95": 9231.211,
+        "p99": 9322.665,
+        "maximum": 9325.756,
+        "lowSampleP95": false,
+        "lowSampleP99": true,
+        "method": "nearest-rank"
+      },
+      "processes": [
+        {
+          "role": "driver",
+          "pid": 97357,
+          "samples": 68,
+          "peakRssBytes": 112672768,
+          "meanRssBytes": 82951469,
+          "processorSeconds": 2.25,
+          "peakManagedHeapBytes": 14223016,
+          "allocatedBytes": 155055344,
+          "gcSeconds": 0.05
+        },
+        {
+          "role": "host",
+          "pid": 97351,
+          "samples": 68,
+          "peakRssBytes": 473726976,
+          "meanRssBytes": 268528459,
+          "processorSeconds": 10.796
+        }
+      ],
+      "telemetry": {
+        "available": [
+          "http.latency",
+          "model.turns",
+          "process.rss",
+          "process.cpu",
+          "process.gc",
+          "sql.storage",
+          "queue.wait"
+        ],
+        "unavailable": {},
+        "missingMandatory": []
+      },
+      "warnings": [
+        "storage/vacuum-interference: autovacuum ran inside the window; byte growth is not comparable and must stay out of any average"
+      ],
+      "statusReasons": []
+    },
+    {
+      "cellId": "070-queued-c64-full-r2",
+      "status": "complete",
+      "measuredSeconds": 68.119,
+      "drainSeconds": 0.067,
+      "arrival": {
+        "planned": 488,
+        "sent": 488,
+        "notSent": 0,
+        "accepted": 488,
+        "rejected": 0,
+        "failed": 0,
+        "timedOut": 0,
+        "completed": 488,
+        "dispatchLag": {
+          "count": 0,
+          "lowSampleP95": false,
+          "lowSampleP99": false,
+          "method": "nearest-rank"
+        }
+      },
+      "reconciliation": {
+        "acceptedRunIds": 488,
+        "terminalRuns": 488,
+        "missingRuns": 0,
+        "contentMismatches": 0,
+        "sequenceGaps": 0,
+        "liveSubscriptions": 488,
+        "historicalOnlySubscriptions": 0,
+        "tenantBleed": 0,
+        "crossTenantRefusals": 2,
+        "complete": true
+      },
+      "queueWait": {
+        "count": 488,
+        "minimum": 82.631,
+        "mean": 7206.371,
+        "p50": 7638.866,
+        "p95": 7961.964,
+        "p99": 8079.855,
+        "maximum": 8159.203,
+        "lowSampleP95": false,
+        "lowSampleP99": true,
+        "method": "nearest-rank"
+      },
+      "processes": [
+        {
+          "role": "driver",
+          "pid": 97963,
+          "samples": 68,
+          "peakRssBytes": 85409792,
+          "meanRssBytes": 69557549,
+          "processorSeconds": 2.368,
+          "peakManagedHeapBytes": 13665648,
+          "allocatedBytes": 157405024,
+          "gcSeconds": 0.062
+        },
+        {
+          "role": "host",
+          "pid": 97962,
+          "samples": 68,
+          "peakRssBytes": 455688192,
+          "meanRssBytes": 242557891,
+          "processorSeconds": 12.221
+        }
+      ],
+      "telemetry": {
+        "available": [
+          "http.latency",
+          "model.turns",
+          "process.rss",
+          "process.cpu",
+          "process.gc",
+          "sql.storage",
+          "queue.wait"
+        ],
+        "unavailable": {},
+        "missingMandatory": []
+      },
+      "warnings": [
+        "storage/vacuum-interference: autovacuum ran inside the window; byte growth is not comparable and must stay out of any average"
+      ],
+      "statusReasons": []
+    },
+    {
+      "cellId": "071-queued-c64-full-r3",
+      "status": "complete",
+      "measuredSeconds": 67.874,
+      "drainSeconds": 0.071,
+      "arrival": {
+        "planned": 488,
+        "sent": 488,
+        "notSent": 0,
+        "accepted": 488,
+        "rejected": 0,
+        "failed": 0,
+        "timedOut": 0,
+        "completed": 488,
+        "dispatchLag": {
+          "count": 0,
+          "lowSampleP95": false,
+          "lowSampleP99": false,
+          "method": "nearest-rank"
+        }
+      },
+      "reconciliation": {
+        "acceptedRunIds": 488,
+        "terminalRuns": 488,
+        "missingRuns": 0,
+        "contentMismatches": 0,
+        "sequenceGaps": 0,
+        "liveSubscriptions": 488,
+        "historicalOnlySubscriptions": 0,
+        "tenantBleed": 0,
+        "crossTenantRefusals": 2,
+        "complete": true
+      },
+      "queueWait": {
+        "count": 488,
+        "minimum": 69.835,
+        "mean": 7188.406,
+        "p50": 7650.21,
+        "p95": 7909.188,
+        "p99": 8009.944,
+        "maximum": 8039.831,
+        "lowSampleP95": false,
+        "lowSampleP99": true,
+        "method": "nearest-rank"
+      },
+      "processes": [
+        {
+          "role": "driver",
+          "pid": 98822,
+          "samples": 68,
+          "peakRssBytes": 100335616,
+          "meanRssBytes": 85200655,
+          "processorSeconds": 2.325,
+          "peakManagedHeapBytes": 14168504,
+          "allocatedBytes": 157417040,
+          "gcSeconds": 0.052
+        },
+        {
+          "role": "host",
+          "pid": 98821,
+          "samples": 68,
+          "peakRssBytes": 473038848,
+          "meanRssBytes": 307817773,
+          "processorSeconds": 11.66
+        }
+      ],
+      "telemetry": {
+        "available": [
+          "http.latency",
+          "model.turns",
+          "process.rss",
+          "process.cpu",
+          "process.gc",
+          "sql.storage",
+          "queue.wait"
+        ],
+        "unavailable": {},
+        "missingMandatory": []
+      },
+      "warnings": [
+        "storage/vacuum-interference: autovacuum ran inside the window; byte growth is not comparable and must stay out of any average"
+      ],
+      "statusReasons": []
+    }
+  ],
+  "bottleneck": "\u0060queued\u0060 (empty database) stopped scaling between concurrency 8 and 32: throughput moved 5.93/s \u2192 6.75/s (14 %) while p50 latency grew 1317.63 ms \u2192 4456.82 ms (238 %). The extra offered load bought queue depth, not work. No request was refused, so this ceiling is invisible to a rejection count.",
+  "caveats": [
+    "Measured on one machine, one database and one configuration. This is not an SLA and not a guaranteed capacity.",
+    "One machine, one database, one clock. Network partition, clock skew and inter-machine latency are out of scope, so nothing here says anything about multi-node behaviour.",
+    "Autovacuum ran inside at least one window; those cells\u0027 byte growth is flagged and excluded from the averages. Their row counts remain usable."
+  ]
+}
